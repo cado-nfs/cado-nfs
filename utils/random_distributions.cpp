@@ -5,7 +5,7 @@
 #include "macros.h"
 
 /* random picking */
-double random_uniform(gmp_randstate_t rstate)
+double random_uniform(cxx_gmp_randstate & rstate)
 {
     /* the constant is 2^-53 */
     // return gmp_urandomm_ui(rstate, 1UL<<53) * 1.11022302462515654042363166809E-16;
@@ -20,7 +20,7 @@ double random_uniform(gmp_randstate_t rstate)
     */
 }
 
-double random_normal_standard(gmp_randstate_t rstate)
+double random_normal_standard(cxx_gmp_randstate & rstate)
 {
     /* Box-Muller transform */
 #ifdef  ALLOW_NON_REENTRANT_random_normal_standard
@@ -41,7 +41,7 @@ double random_normal_standard(gmp_randstate_t rstate)
     return x;
 }
 
-double random_normal(gmp_randstate_t rstate, double mean, double sdev)
+double random_normal(cxx_gmp_randstate & rstate, double mean, double sdev)
 {
     return mean + sdev * random_normal_standard(rstate);
 }
@@ -55,7 +55,7 @@ double extreme_normal(double n, double mean, double sdev)
     return mean + x * sdev;
 }
 
-double random_normal_constrained(gmp_randstate_t rstate, double mean, double sdev, double a, double b)
+double random_normal_constrained(cxx_gmp_randstate & rstate, double mean, double sdev, double a, double b)
 {
     /* By cutting the tail, we're doing a real heresy. This increases the
      * average and standard deviation significantly. See the function
@@ -133,7 +133,7 @@ void accuracy_of_normal_approximation_to_binomial(double * my, double *mx, unsig
     my[1] = s * sqrt((S2-S1*S1)/S0);
 }
 
-double random_poisson(gmp_randstate_t rstate, double lambda)
+double random_poisson(cxx_gmp_randstate & rstate, double lambda)
 {
     /* "method PA" from "The Computer Generation of Poisson Random
      * Variables" by A. C. Atkinson, Journal of the Royal Statistical
@@ -165,7 +165,7 @@ double random_poisson(gmp_randstate_t rstate, double lambda)
 }
 
 /* This is the random variable associated to the *size* of the sample */
-double random_binomial(gmp_randstate_t rstate, unsigned long n, double p)
+double random_binomial(cxx_gmp_randstate & rstate, unsigned long n, double p)
 {
     /*
      * This first way of doing things is appropriate when mean \pm 3
@@ -288,54 +288,49 @@ static void punched_interval_punch_inner(punched_interval_ptr * pool, punched_in
 }
 
 static unsigned long punched_interval_pick_inner(punched_interval_ptr * pool, punched_interval_ptr c,
-        double (*dist_q)(const void *, double), 
-        double (*dist_qrev)(const void *, double), 
-        const void * f,
+        matrix_column_distribution const & D,
         double x)
 {
-
     /* x should be within [c->b0, c->b1 - c->holes] */
     ASSERT_ALWAYS(x >= c->b0);
     ASSERT_ALWAYS(x + c->holes < c->b1);
     if (!c->has_left) {
         /* no holes ! */
-        double r = dist_qrev(f, x);
+        double const r = D.qrev(x);
         unsigned long i;
         if (r < 0) {
             i = 0;
         } else {
             i = floor(r);
         }
-        double x0 = dist_q(f, i);
-        double x1 = dist_q(f, i + 1);
+        double x0 = D.q(i);
+        double x1 = D.q(i + 1);
         punched_interval_punch_inner(pool, c, x0, x1);
         return i;
     }
     /* try to correct x with all left holes */
     double xc = x + c->left->holes;
     if (xc < c->left->b1) {
-        double h = c->left->holes;
-        unsigned long i = punched_interval_pick_inner(pool, c->left, dist_q, dist_qrev, f, x);
+        double const h = c->left->holes;
+        unsigned long i = punched_interval_pick_inner(pool, c->left, D, x);
         c->holes += c->left->holes - h;
         return i;
     } else {
         /* modify x. It's more than just xc ! */
         xc += c->right->b0 - c->left->b1;
-        double h = c->right->holes;
-        unsigned long i = punched_interval_pick_inner(pool, c->right, dist_q, dist_qrev, f, xc);
+        double const h = c->right->holes;
+        unsigned long i = punched_interval_pick_inner(pool, c->right, D, xc);
         c->holes += c->right->holes - h;
         return i;
     }
 }
 
 unsigned long punched_interval_pick(punched_interval_ptr * pool, punched_interval_ptr c,
-        double (*dist_q)(const void *, double), 
-        double (*dist_qrev)(const void *, double), 
-        const void * f,
-        gmp_randstate_ptr rstate)
+        matrix_column_distribution const & D,
+        cxx_gmp_randstate & rstate)
 {
-    double x = random_uniform(rstate) * (c->b1 - c->holes);
-    return punched_interval_pick_inner(pool, c, dist_q, dist_qrev, f, x);
+    double const x = random_uniform(rstate) * (c->b1 - c->holes);
+    return punched_interval_pick_inner(pool, c, D, x);
 }
 
 

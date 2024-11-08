@@ -1,12 +1,16 @@
 #include "cado.h" // IWYU pragma: keep
+                  //
+#include <cstdio>
+#include <cstdlib>
+#include <cstdint>              // for uint32_t, uint64_t
+#include <cstring>              // for memset
+
 #include <memory>
-#include <stdio.h>
-#include <stdlib.h>
+
 #include <gmp.h>                 // for gmp_randclear, gmp_randinit_default
-#include <stdint.h>              // for uint32_t, uint64_t
-#include <string.h>              // for memset
+                                 //
+#include "gmp_aux.h"
 #include "balancing.hpp"           // for balancing_clear, balancing_init, bal...
-#include "parallelizing_info.hpp"
 #include "matmul_top.hpp"
 #include "matmul_top_comm.hpp"
 #include "params.h"
@@ -38,7 +42,7 @@ void mmt_vec_set_0n(mmt_vec & v, size_t items)
     for(size_t s = 0 ; s < sz ; s++) {
         arith_generic::elt & u = v.abase->vec_item(data, s);
         /* yes, this is awful */
-        auto ptr = reinterpret_cast<unsigned int *>(&u);
+        auto * ptr = reinterpret_cast<unsigned int *>(&u);
         *ptr = (v.i0 + off + s < items) ? v.i0 + off + s : 0;
     }
     v.consistency = 1;
@@ -59,7 +63,7 @@ void mmt_vec_check_equal_0n(mmt_vec const & v, size_t items)
     arith_generic::elt const * data = mmt_my_own_subvec(v);
     arith_generic::elt * temp_alloc = v.abase->alloc(1);
     arith_generic::elt & temp = *temp_alloc;
-    auto ptr = reinterpret_cast<unsigned int *>(temp_alloc);
+    auto * ptr = reinterpret_cast<unsigned int *>(temp_alloc);
     for(size_t s = 0 ; s < sz ; s++) {
         arith_generic::elt const & u = v.abase->vec_item(data, s);
         v.abase->set(temp, u);
@@ -82,7 +86,7 @@ void mmt_vec_check_equal_0n_permuted(mmt_vec const & v, size_t items, uint32_t *
     arith_generic::elt const * data = mmt_my_own_subvec(v);
     arith_generic::elt * temp_alloc = v.abase->alloc(1);
     arith_generic::elt & temp = *temp_alloc;
-    auto ptr = reinterpret_cast<unsigned int *>(temp_alloc);
+    auto * ptr = reinterpret_cast<unsigned int *>(temp_alloc);
     for(size_t s = 0 ; s < sz ; s++) {
         arith_generic::elt const & u = v.abase->vec_item(data, s);
         v.abase->set(temp, u);
@@ -104,7 +108,7 @@ void mmt_vec_check_equal_0n_inv_permuted(mmt_vec const & v, size_t items, uint32
     arith_generic::elt const * data = mmt_my_own_subvec(v);
     arith_generic::elt * temp_alloc = v.abase->alloc(1);
     arith_generic::elt & temp = *temp_alloc;
-    auto ptr = reinterpret_cast<unsigned int *>(temp_alloc);
+    auto * ptr = reinterpret_cast<unsigned int *>(temp_alloc);
     for(size_t s = 0 ; s < sz ; s++) {
         arith_generic::elt const & u = v.abase->vec_item(data, s);
         v.abase->set(temp, u);
@@ -122,7 +126,7 @@ void mmt_vec_check_equal_0n_inv_permuted(mmt_vec const & v, size_t items, uint32
 
 /* This only does a multiplication */
 
-void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED)
+void * tst_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
     ASSERT_ALWAYS(!pi->interleaved);
 
@@ -132,7 +136,7 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
         pi_log_init(pi->wr[1]);
     }
 
-    gmp_randstate_t rstate;
+    cxx_gmp_randstate rstate;
 
     // int tcan_print = bw->can_print && pi->m->trank == 0;
 
@@ -140,7 +144,6 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     // int nchecks = withcoeffs ? NCHECKS_CHECK_VECTOR_GFp : NCHECKS_CHECK_VECTOR_GF2;
     std::unique_ptr<arith_generic> const A(arith_generic::instance(bw->p, bw->n));
 
-    gmp_randinit_default(rstate);
     gmp_randseed_ui(rstate, bw->seed);
 
     /* recall that d here is only for one optimized direction. The other
@@ -504,7 +507,6 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
 #endif
 
     // A->oo_field_clear(A);
-    gmp_randclear(rstate);
 
     if (verbose) {
         pi_log_print_all(pi);
@@ -525,10 +527,10 @@ void usage()
 
 int main(int argc, char const * argv[])
 {
-    param_list pl;
+    cxx_param_list pl;
 
     bw_common_init(bw, &argc, &argv);
-    param_list_init(pl);
+
     parallelizing_info_init();
 
     bw_common_decl_usage(pl);
@@ -555,7 +557,6 @@ int main(int argc, char const * argv[])
     pi_go(tst_prog, pl, 0);
 
     parallelizing_info_finish();
-    param_list_clear(pl);
     bw_common_clear(bw);
 
     return 0;

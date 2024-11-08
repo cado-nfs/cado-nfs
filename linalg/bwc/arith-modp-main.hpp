@@ -86,7 +86,7 @@ struct gfp_base : public arith_concrete_base
     static constexpr const size_t constant_width = N__;
     static constexpr const bool is_constant_width = N__ > 0;
     static constexpr const bool is_variable_width = N__ == 0;
-    static std::string impl_name() { return is_constant_width ? fmt::format(FMT_STRING("p{}"), N__) : "pz"; }
+    static std::string impl_name() { return is_constant_width ? fmt::format("p{}", N__) : "pz"; }
     static constexpr const bool is_characteristic_two = false;
     static constexpr bool simd_groupsize() { return 1; }
 
@@ -322,7 +322,7 @@ struct gfp_base : public arith_concrete_base
     }
 
     gfp_polymorphic(inline, 0, void)
-      set_random(X& x, gmp_randstate_ptr rstate) const
+      set_random(X& x, cxx_gmp_randstate & rstate) const
     {
         T const* tx = static_cast<T const*>(this);
         cxx_mpz xz;
@@ -905,7 +905,7 @@ struct gfp_base : public arith_concrete_base
     }
 
     gfp_polymorphic(inline, 0, void)
-      vec_set_random(X* p, size_t k, gmp_randstate_ptr rstate) const
+      vec_set_random(X* p, size_t k, cxx_gmp_randstate & rstate) const
     {
         T const* tx = static_cast<T const*>(this);
         for (size_t i = 0; i < k; ++i)

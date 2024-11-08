@@ -3,7 +3,10 @@
 #include <cstdlib>
 #include <cstdint>              // for uint64_t, UINT64_C
 #include <cstring>              // for memcpy, memset
+
 #include <gmp.h>                 // for gmp_randclear, gmp_randinit_default
+
+#include "gmp_aux.h"
 #include "matmul.hpp"              // for matmul_public_s
 #include "parallelizing_info.hpp"
 #include "matmul_top.hpp"
@@ -56,7 +59,7 @@ struct blstate {
      * In order to compute the vector for step n + 1, the data to be used
      * is V[*], L[*], and D[n0, n1]
      */
-    blstate(parallelizing_info_ptr pi, param_list_ptr pl);
+    blstate(parallelizing_info_ptr pi, cxx_param_list & pl);
     blstate(blstate const&) = delete;
     blstate& operator=(blstate const&) = delete;
     ~blstate();
@@ -146,7 +149,7 @@ uint64_t extraction_step(uint64_t * B, uint64_t * A, uint64_t S)
 }
 
 
-blstate::blstate(parallelizing_info_ptr pi, param_list_ptr pl)
+blstate::blstate(parallelizing_info_ptr pi, cxx_param_list & pl)
     : A(arith_generic::instance(bw->p, bw->ys[1]-bw->ys[0]))
     , mmt(A.get(), pi, pl, bw->dir)
     , AxA(arith_cross_generic::instance(A.get(), A.get()))
@@ -820,7 +823,7 @@ void blstate::operator()(parallelizing_info_ptr pi)
     timing_clear(timing);
 }
 
-void * bl_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED)
+void * bl_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
     /* so many features we do not support ! */
     ASSERT_ALWAYS(bw->m == bw->n);
@@ -838,7 +841,7 @@ void * bl_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED
 
     bl(pi);
 
-    return NULL;
+    return nullptr;
 }
 
 
@@ -850,10 +853,10 @@ void * bl_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED
 // coverity[root_function]
 int main(int argc, char const * argv[])
 {
-    param_list pl;
+    cxx_param_list pl;
 
     bw_common_init(bw, &argc, &argv);
-    param_list_init(pl);
+
     parallelizing_info_init();
 
     bw_common_decl_usage(pl);
@@ -880,7 +883,7 @@ int main(int argc, char const * argv[])
     pi_go(bl_prog, pl, 0);
 
     parallelizing_info_finish();
-    param_list_clear(pl);
+
     bw_common_clear(bw);
 
     return exit_code;

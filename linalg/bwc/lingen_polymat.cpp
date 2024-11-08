@@ -3,7 +3,10 @@
 #include <cstring>                   // for memcpy, memset
 #include <cstdlib>
 #include <climits>
+
 #include <gmp.h>
+
+#include "gmp_aux.h"
 #include "macros.h"
 #include "lingen_matpoly_select.hpp"  // for matpoly
 #include "arith-hard.hpp"
@@ -231,7 +234,7 @@ void polymat::swap(polymat & b)
 }
 #endif
 
-void polymat::fill_random(unsigned int nsize, gmp_randstate_t rstate)
+void polymat::fill_random(unsigned int nsize, cxx_gmp_randstate & rstate)
 {
     ASSERT_ALWAYS(nsize <= alloc);
     size = nsize;

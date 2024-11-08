@@ -458,7 +458,18 @@ struct cxx_mpz_poly {
     inline bool operator!=(T a) const { return !((*this) == a); }
 
     // mpz_ptr operator[](unsigned int i) { return mpz_poly_coeff_const(x, i); }
-    mpz_srcptr operator[](unsigned int i) const { return mpz_poly_coeff_const(x, i); }
+    mpz_srcptr
+    coeff(unsigned int i) const { return mpz_poly_coeff_const(x, i); }
+    
+    /* We don't want to use it. I got "ISO C++ says that these are
+     * ambiguous, even though the worst conversion for the first is
+     * better than the worst conversion for the second:", because
+     * operator[] can also be first a conversion to mpz_poly_srcptr, and
+     * then []. Not taking sides here, but better avoid the issue. => use
+     * .coeff() everywhere.
+     */
+    mpz_srcptr
+    operator[](unsigned int i) const ATTRIBUTE_DEPRECATED { return this->coeff(i); }
 };
 
 

@@ -1,7 +1,7 @@
 #ifndef ASYNC_HPP_ // IWYU pragma: keep
 #define ASYNC_HPP_
 
-#include <stddef.h>              // for size_t
+#include <cstddef>              // for size_t
 #include "macros.h"              // for ATTR_PRINTF
 #include "parallelizing_info.hpp"
 

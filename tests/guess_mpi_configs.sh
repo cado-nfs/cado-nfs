@@ -19,7 +19,7 @@
 #       ditto for exporter_mpi_extra_args and mpi_extra_args
 
 : ${bindir:=$PROJECT_BINARY_DIR}
-: ${bindir?missing variable}
+: ${bindir:?missing variable}
 
 # not sure that it makes sense to have this script distinct from bwc.pl
 

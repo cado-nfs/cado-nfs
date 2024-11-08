@@ -2,7 +2,10 @@
 // IWYU pragma: no_include <sys/param.h>
 #include <algorithm>                  // for min, max
 #include <utility>                    // for move, swap
+
 #include <gmp.h>
+
+#include "gmp_aux.h"
 #include "lingen_matpoly_select.hpp"  // for matpoly, matpoly::const_view_t
 #include "arith-hard.hpp"
 #include "omp_proxy.h"
@@ -185,7 +188,7 @@ void matpoly::set_constant(arith_hard::elt const & e) {
 }
 /* }}} */
 
-void matpoly::fill_random(unsigned int k0, unsigned int k1, gmp_randstate_t rstate)
+void matpoly::fill_random(unsigned int k0, unsigned int k1, cxx_gmp_randstate & rstate)
 {
     ASSERT_ALWAYS(k1 <= alloc);
     if (k0 == 0 && k1 == alloc) {

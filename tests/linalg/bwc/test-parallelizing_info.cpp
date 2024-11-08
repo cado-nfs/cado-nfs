@@ -11,7 +11,7 @@
 
 int verbose = 0;
 
-void * test_code(parallelizing_info_ptr pi, param_list_ptr pl MAYBE_UNUSED, void * dummy MAYBE_UNUSED)
+void * test_code(parallelizing_info_ptr pi, cxx_param_list & pl MAYBE_UNUSED, void * dummy MAYBE_UNUSED)
 {
     serialize(pi->m);
     char * report_string;

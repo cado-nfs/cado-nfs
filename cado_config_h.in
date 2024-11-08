@@ -19,6 +19,8 @@
 
 #cmakedefine    HAVE_CXX11
 
+#cmakedefine    HAVE_CXX20
+
 #define GMP_INCDIR    "@GMP_INCDIR@"
 #define GMP_LIBDIR    "@GMP_LIBDIR@"
 #define MPIR_INCDIR    "@MPIR_INCDIR@"

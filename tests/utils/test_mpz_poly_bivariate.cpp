@@ -286,7 +286,7 @@ void test_mpz_poly_bivariate_resultant(unsigned long iter)
         cxx_mpz_poly_bivariate::resultant_y(ry, f, g);
         ok = (mpz_poly_degree(ry) == 72);
         ok = ok &&
-             ry[42] ==
+             ry.coeff(42) ==
                  "1494774748820383618990632550811343575455342810669737"_mpz;
         if (!ok) {
             std::cerr << "// bug in resultant" << std::endl;
@@ -300,7 +300,7 @@ void test_mpz_poly_bivariate_resultant(unsigned long iter)
         ok = (mpz_poly_degree(rx) == 72);
         ok =
             ok &&
-            rx[42] ==
+            rx.coeff(42) ==
                 "392307271360601863563100893262849685478724955452018428897254854297277064613707763200"_mpz;
         if (!ok) {
             std::cerr << "// bug in resultant" << std::endl;

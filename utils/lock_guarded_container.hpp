@@ -16,7 +16,7 @@ template<typename T> struct lock_guarded_container : public T {
     std::mutex & mutex() const { return mm; }
     /* forward the constructors of the embedded container. No lock needed
      * here. */
-    template<typename... Args> lock_guarded_container(Args&& ...args) :
+    template<typename... Args> explicit lock_guarded_container(Args&& ...args) :
         T(std::forward<Args>(args)...) {}
     /* add a few of our own to circumvent the lack of copy/move for the
      * mutex.
@@ -29,27 +29,29 @@ template<typename T> struct lock_guarded_container : public T {
      */
     lock_guarded_container(lock_guarded_container<T> const & o)
     {
-        std::lock_guard<std::mutex> foo(o.mutex());
+        std::lock_guard<std::mutex> const foo(o.mutex());
         (T&)*this = (T const&) o;
     }
-    lock_guarded_container(lock_guarded_container<T> && o)
+    lock_guarded_container(lock_guarded_container<T> && o) noexcept
     {
-        std::lock_guard<std::mutex> foo(o.mutex());
-        std::lock_guard<std::mutex> bar(mutex());
+        std::lock_guard<std::mutex> const foo(o.mutex());
+        std::lock_guard<std::mutex> const bar(mutex());
         std::swap((T&)*this, (T&) o);
     }
     lock_guarded_container& operator=(lock_guarded_container<T> const & o) {
-        std::lock_guard<std::mutex> foo(o.mutex());
-        std::lock_guard<std::mutex> bar(mutex());
+        if (this == &o) return *this;
+        std::lock_guard<std::mutex> const foo(o.mutex());
+        std::lock_guard<std::mutex> const bar(mutex());
         (T&)*this = (T const&) o;
         return *this;
     }
-    lock_guarded_container& operator=(lock_guarded_container<T> && o) {
-        std::lock_guard<std::mutex> foo(o.mutex());
-        std::lock_guard<std::mutex> bar(mutex());
+    lock_guarded_container& operator=(lock_guarded_container<T> && o) noexcept {
+        std::lock_guard<std::mutex> const foo(o.mutex());
+        std::lock_guard<std::mutex> const bar(mutex());
         std::swap((T&)*this, (T&) o);
         return *this;
     }
+    ~lock_guarded_container() = default;
 };
 
 #endif	/* LOCK_GUARDED_CONTAINER_HPP_ */

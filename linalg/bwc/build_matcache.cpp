@@ -1,21 +1,22 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <gmp.h>
+#include <cstring>
+#include <cstdio>
+#include <cstdlib>
+
 #include <memory>
+
+#include <gmp.h>
 
 #include "matmul.hpp"
 #include "macros.h"
 #include "arith-generic.hpp"
-#include "matmul-mf.hpp"
 #include "portability.h" // asprintf // IWYU pragma: keep
 #include "params.h"
-#include "raw_matrix_u32.h"   // for matrix_u32
+#include "matrix_u32.hpp"   // for matrix_u32
 
 
-void declare_usage(param_list_ptr pl)
+void declare_usage(cxx_param_list & pl)
 {
     param_list_decl_usage(pl, "matrix-file", "matrix file to work with");
     param_list_decl_usage(pl, "prime", "characteristic of the base field [default=2]");
@@ -26,26 +27,44 @@ void declare_usage(param_list_ptr pl)
     param_list_decl_usage(pl, "tmpdir", "directory where matrix cache file is saved (defaults to /tmp)\n");
 }
 
+struct direction_flag {
+    int value;
+    bool operator==(int x) const { return value == x; }
+};
+
+template<>
+int param_list_parse<direction_flag>(param_list_ptr pl,
+        const char * arg,
+        direction_flag & D)
+{
+    std::string r;
+    if (!param_list_parse(pl, arg, r))
+        return 0;
+    if (r == "left" || r == "LEFT") {
+        D.value = 0;
+    } else if (r == "right" || r == "RIGHT") {
+        D.value = 1;
+    } else {
+        throw std::runtime_error(fmt::format("Wrong argument for direction flag ({}), must be left or right", r));
+    }
+    return 1;
+}
+
+
+
 int main(int argc, char const * argv[])
 {
-    matmul_t mm;
     const char *argv0 = argv[0];
 
-    mpz_t prime;
-    int withcoeffs = 0;
-    int direction = 0;
-    int groupsize;
-    mpz_init_set_ui(prime, 2);
-    const char * impl = NULL;
-    const char * matrixfile = NULL;
-    const char * tmp = NULL;
-    const char * tmpdir = "/tmp";
+    cxx_mpz prime;
+    mpz_set_ui(prime, 2);
+    std::string matrixfile;
+    std::string tmpdir = "/tmp";
 
     setvbuf(stdout,NULL,_IONBF,0);
     setvbuf(stderr,NULL,_IONBF,0);
 
-    param_list pl;
-    param_list_init(pl);
+    cxx_param_list pl;
 
     declare_usage(pl);
 
@@ -57,31 +76,19 @@ int main(int argc, char const * argv[])
         exit(EXIT_FAILURE);
     }
 
-    param_list_parse_mpz(pl, "prime", prime);
-    direction = mpz_cmp_ui(prime, 2) != 0;      /* 0 == left */
-    withcoeffs = mpz_cmp_ui(prime, 2) != 0;     /* 0 == no coeffs */
-    groupsize = mpz_cmp_ui(prime, 2) == 0 ? 64 : 1;
+    param_list_parse(pl, "prime", prime);
 
-    param_list_parse_int(pl, "withcoeffs", &withcoeffs);
-    
-    
-    if ((tmp = param_list_lookup_string(pl, "direction")) != NULL) {
-        if (strcmp(tmp, "left") == 0) {
-            direction = 0;
-        } else {
-            direction = 1;
-        }
-    }
+    int withcoeffs = mpz_cmp_ui(prime, 2) != 0;     /* 0 == no coeffs */
+    int const groupsize = mpz_cmp_ui(prime, 2) == 0 ? 64 : 1;
+    direction_flag direction { mpz_cmp_ui(prime, 2) != 0 };     // 0 = left
+    std::string impl = mpz_cmp_ui(prime, 2) == 0 ? "bucket" : "basicp";
 
-    if ((tmp = param_list_lookup_string(pl, "tmpdir")) != NULL) {
-        tmpdir = tmp;
-    }
+    param_list_parse(pl, "withcoeffs", withcoeffs);
+    param_list_parse(pl, "direction", direction);
+    param_list_parse(pl, "tmpdir", tmpdir);
+    param_list_parse(pl, "impl", impl);
 
-    if ((impl = param_list_lookup_string(pl, "impl")) == NULL) {
-        impl = mpz_cmp_ui(prime, 2) == 0 ? "bucket" : "basicp";
-    }
-
-    if ((matrixfile = param_list_lookup_string(pl, "matrix-file")) == NULL) {
+    if (!param_list_parse(pl, "matrix-file", matrixfile)) {
         fprintf(stderr, "Error: argument matrix-file is mandatory\n");
         exit(EXIT_FAILURE);
     }
@@ -96,47 +103,32 @@ int main(int argc, char const * argv[])
     }
 
     /* build a file name for the cache file */
-    char * locfile;
+    /* TODO balancing_write has almost identical code that we could refactor
+     */
+    std::string locfile;
     {
-        char * matrixfile_copy = strdup(matrixfile);
-        char * basename = strrchr(matrixfile_copy, '/');
-        char * tmp;
-        if (basename == NULL) {
-            basename = matrixfile_copy;
+        auto it = matrixfile.rfind('/');
+        it = (it == std::string::npos) ? 0 : (it + 1);
+        auto basename = matrixfile.substr(it);
+        if ((it = basename.rfind(".bin")) != std::string::npos) {
+            basename.erase(it, basename.size());
         }
-        if ((tmp = strstr(basename, ".bin")) != NULL) {
-            *tmp='\0';
-        }
-        int const rc = asprintf(&locfile, "%s/%s", tmpdir, basename);
-        ASSERT_ALWAYS(rc >= 0);
-        free(matrixfile_copy);
+        locfile = fmt::format("{}/{}", tmpdir, basename);
     }
 
-    mm = matmul_init(xx.get(), 0, 0, locfile, impl, pl, direction);
+    auto mm = matmul_interface::create(
+                xx.get(), 0, 0, locfile, impl, pl, direction.value);
 
     /* uh ? */
-    ASSERT_ALWAYS(mm->store_transposed == !direction);
-    matrix_u32 m;
-    memset(m, 0, sizeof(matrix_u32));
-    m->mfile = matrixfile;
-    /* The bfile here makes very little sense -- we're working with the
-     * local file anyway */
-    m->bfile = NULL;
+    ASSERT_ALWAYS(mm->store_transposed == !direction.value);
 
-    mf_prepare_matrix_u32(mm, m, matrixfile, withcoeffs);
+    auto matrix = matrix_u32::from_file(
+            matrixfile,
+            matrix_u32::transpose_option { mm->store_transposed },
+            matrix_u32::withcoeffs_option { !xx->is_characteristic_two() });
 
-    matmul_build_cache(mm, m);
-    matmul_save_cache(mm);
-    matmul_clear(mm);
-
-    /* XXX ok, it's freakin ugly. We must really rethink this object. */
-    if (m->mfile) free((void*) m->mfile);
-
-    mpz_clear(prime);
-
-    /* done here just because with have some lookup_string's into the pl
-     * struct here and there.
-     */
-    param_list_clear(pl);
-    free(locfile);
+    mm->dim = std::get<1>(matrix);
+    mm->ncoeffs = std::get<2>(matrix);
+    mm->build_cache(std::move(std::get<0>(matrix)));
+    mm->save_cache();
 }

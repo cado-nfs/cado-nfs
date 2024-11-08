@@ -7,7 +7,7 @@ set -e
 if [ "$CADO_DEBUG" ] ; then set -x ; fi
 
 : ${bindir:=$PROJECT_BINARY_DIR}
-: ${bindir?missing variable}
+: ${bindir:?missing variable}
 : ${wdir:?missing}
 
 # inject the variables that were provided by guess_mpi_configs

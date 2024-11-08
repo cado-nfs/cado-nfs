@@ -84,6 +84,7 @@ extern template int param_list_parse_per_side<std::string>(param_list_ptr pl, co
 /* We have all of these defined in params.cpp, and they can be used from
  * c++ code only.
  */
+extern template int param_list_parse<bool>(param_list_ptr pl, const char * key, bool & r);
 extern template int param_list_parse<int>(param_list_ptr pl, const char * key, int & r);
 extern template int param_list_parse<unsigned int>(param_list_ptr pl, const char * key, unsigned int & r);
 #ifndef LONG_IS_EXACTLY_INT

@@ -75,15 +75,21 @@
 // only.
 
 #include "cado.h" // IWYU pragma: keep
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <limits.h>
-#include <inttypes.h>
-#include <stdint.h>                    // for uint64_t, int64_t, uint32_t
+
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <climits>
+#include <cinttypes>
+#include <cstdint>                    // for uint64_t, int64_t, uint32_t
+
 #include <utility>                     // for swap
+
 #include <sys/stat.h>
+
 #include <gmp.h>                       // for mpz_t, mp_limb_t, mpz_sgn, mpz...
+
+#include "gmp_aux.h"
 #include "bblas_gauss.h"
 #include "blockmatrix.hpp"
 #include "cado_poly.h"  // cado_poly_ptr

@@ -2,14 +2,18 @@
 #include <cmath>       // for ldexp, sqrt
 #include <cstdlib>     // for malloc, free, atoi, calloc
 #include <cstring>     // for strcmp, strlen, strncpy
-#include <regex.h>      // for regmatch_t, regcomp, regexec, regfree, REG_EX...
+
 #include <stdexcept>
+
+#include <regex.h>      // for regmatch_t, regcomp, regexec, regfree, REG_EX...
+
+#include "fmt/format.h"
+
 #include "facul_strategies.hpp"
 #include "pm1.h"        // for pm1_plan_t, pm1_clear_plan, pm1_make_plan
 #include "pp1.h"        // for pp1_plan_t, pp1_clear_plan, pp1_make_plan
 #include "macros.h"
 #include "verbose.h"
-#include "fmt/format.h"
 
 //#define USE_LEGACY_DEFAULT_STRATEGY 1
 
@@ -440,7 +444,7 @@ class parameter_sequence_tracker {/*{{{*/
          * them from the default choices.
          */
         if (!seq[para][side].first)
-            throw strategy_file_parser::error(fmt::format(FMT_STRING("cannot use a parameter from the default sequence for parameterization {} after a non-default one was set"), parameterization_name(para)));
+            throw strategy_file_parser::error(fmt::format("cannot use a parameter from the default sequence for parameterization {} after a non-default one was set", parameterization_name(para)));
         return ec_valid_parameter_from_sequence(para, seq[para][side].second++);
     }
     void break_sequence(int side, ec_parameterization_t para)
@@ -503,17 +507,17 @@ strategy_file_parser::operator()(std::vector<unsigned int> const & mfb, FILE * f
                 } else if (regexp_define(macro, str)) {
                     auto it = macros.emplace(macro, value_type());
                     if (!it.second)
-                        throw error(fmt::format(FMT_STRING("macro {} redefined"), macro));
+                        throw error(fmt::format("macro {} redefined", macro));
                     current = &it.first->second;
                 } else if (regexp_use(macro, str)) {
                     if (current == nullptr)
                         throw error("dangling macro use");
                     auto it = macros.find(macro);
                     if (it == macros.end())
-                        throw error(fmt::format(FMT_STRING("macro {} unknown"), macro));
+                        throw error(fmt::format("macro {} unknown", macro));
                     auto const & M = it->second;
                     if (current == &M) {
-                        throw error(fmt::format(FMT_STRING("circular use of macro {} file"), macro));
+                        throw error(fmt::format("circular use of macro {} file", macro));
                     }
                     current->insert(current->end(), M.begin(), M.end());
                 } else if (regexp_fm(fm, str)) {
@@ -521,13 +525,13 @@ strategy_file_parser::operator()(std::vector<unsigned int> const & mfb, FILE * f
                         throw error("dangling methods");
                     current->push_back(fm);
                 } else {
-                    throw error(fmt::format(FMT_STRING("cannot parse {}"), str));
+                    throw error(fmt::format("cannot parse {}", str));
                 }
             }
         }
     } catch(error const & e) {
-        throw std::runtime_error(fmt::format(FMT_STRING(
-                        "Parse error on line {} of strategies file: {}"),
+        throw std::runtime_error(fmt::format(
+                        "Parse error on line {} of strategies file: {}",
                         lnum, e.what()));
     }
 
@@ -551,8 +555,8 @@ strategy_file_parser::operator()(std::vector<unsigned int> const & mfb, FILE * f
         try {
             parameter_sequence_tracker::fill_default_parameters(c.second);
         } catch(error const & e) {
-            throw std::runtime_error(fmt::format(FMT_STRING(
-                        "Parse error in strategies file while setting parameters for r0={},r1={}: {}"),
+            throw std::runtime_error(fmt::format(
+                        "Parse error in strategies file while setting parameters for r0={},r1={}: {}",
                         index_st[0], index_st[1], e.what()));
         }
         parsed_file.insert(c);

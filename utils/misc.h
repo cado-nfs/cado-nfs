@@ -279,6 +279,14 @@ static inline std::string size_disp(size_t s) {
     size_disp(s, buf);
     return std::string(buf);
 }
+
+static inline bool ends_with(std::string const & name, std::string const & suffix)
+{
+    // c++20: return name.ends_with(suffix)
+    if (name.size() < suffix.size())
+        return false;
+    return name.substr(name.size()-suffix.size()) == suffix;
+}
 #endif
 
 #ifdef __cplusplus

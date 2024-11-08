@@ -561,13 +561,13 @@ mmt_vec_reduce_inner(mmt_vec & v)
         SEVERAL_THREADS_PLAY_MPI_END();
 #elif RS_CHOICE == RS_CHOICE_STOCK_IRSBLOCK
         void * dptr = v.sibling(0)->v;
-        MPI_Request * req = shared_malloc(xr, xr->ncores * sizeof(MPI_Request));
-            SEVERAL_THREADS_PLAY_MPI_BEGIN(xr) {
-                int err = MPI_Ireduce_scatter_block(dptr, dptr,
-                        (v.i1 - v.i0) / wr->njobs,
-                        v.pitype->datatype,
-                        BWC_PI_SUM->custom,
-                        wr->pals, &req[t__]);
+        auto req = pi_shared_array<MPI_Request>(xr, xr->ncores);
+        SEVERAL_THREADS_PLAY_MPI_BEGIN(xr) {
+            int err = MPI_Ireduce_scatter_block(dptr, dptr,
+                    (v.i1 - v.i0) / wr->njobs,
+                    v.pitype->datatype,
+                    BWC_PI_SUM->custom,
+                    wr->pals, &req[t__]);
             ASSERT_ALWAYS(!err);
             pi_log_op(wr, "[%s:%d] MPI_Reduce_scatter done", __func__, __LINE__);
         }
@@ -578,20 +578,19 @@ mmt_vec_reduce_inner(mmt_vec & v)
                 MPI_Wait(&req[t], MPI_STATUS_IGNORE);
             }
         }
-        shared_free(xr, req);
 #elif RS_CHOICE == RS_CHOICE_STOCK_IRS
         void * dptr = v.sibling(0)->v;
-        MPI_Request * req = shared_malloc(xr, xr->ncores * sizeof(MPI_Request));
-            int * rc = malloc(wr->njobs * sizeof(int));
-            for(unsigned int k = 0 ; k < wr->njobs ; k++)
-                rc[k] = (v.i1 - v.i0) / wr->njobs;
-            SEVERAL_THREADS_PLAY_MPI_BEGIN(xr) {
-                int err = MPI_Ireduce_scatter(dptr, dptr,
-                        rc,
-                        v.pitype->datatype,
-                        BWC_PI_SUM->custom,
-                        wr->pals, &req[t__]);
-                free(rc);
+        auto req = pi_shared_array<MPI_Request>(xr, xr->ncores);
+        int * rc = malloc(wr->njobs * sizeof(int));
+        for(unsigned int k = 0 ; k < wr->njobs ; k++)
+            rc[k] = (v.i1 - v.i0) / wr->njobs;
+        SEVERAL_THREADS_PLAY_MPI_BEGIN(xr) {
+            int err = MPI_Ireduce_scatter(dptr, dptr,
+                    rc,
+                    v.pitype->datatype,
+                    BWC_PI_SUM->custom,
+                    wr->pals, &req[t__]);
+            free(rc);
             ASSERT_ALWAYS(!err);
             pi_log_op(wr, "[%s:%d] MPI_Reduce_scatter done", __func__, __LINE__);
         }
@@ -602,7 +601,6 @@ mmt_vec_reduce_inner(mmt_vec & v)
                 MPI_Wait(&req[t], MPI_STATUS_IGNORE);
             }
         }
-        shared_free(xr, req);
 #elif RS_CHOICE == RS_CHOICE_MINE
         /* This strategy exposes code which is really similar to
          * RS_CHOICE_MINE_DROP_IN, with the only exception that we
@@ -615,11 +613,10 @@ mmt_vec_reduce_inner(mmt_vec & v)
         SEVERAL_THREADS_PLAY_MPI_END();
 #elif RS_CHOICE == RS_CHOICE_MINE_PARALLEL
 #if 0
-        mmt_vec ** vs = (mmt_vec **) shared_malloc(xr, xr->ncores * sizeof(mmt_vec *));
+        auto vs = pi_shared_array<mmt_vec *>(xr, xr->ncores);
         vs[xr->trank] = &v;
         serialize_threads(xr);
-        alternative_reduce_scatter_parallel(xr, vs);
-        shared_free(xr, vs);
+        alternative_reduce_scatter_parallel(xr, vs.get());
 #else
         alternative_reduce_scatter_parallel(xr, v.wrpals[!v.d].get());
 #endif

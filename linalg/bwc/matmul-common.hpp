@@ -1,17 +1,20 @@
 #ifndef MATMUL_COMMON_HPP_
 #define MATMUL_COMMON_HPP_
 
-#include <stdio.h>
-#include <stdint.h>
+#include <cstdio>
+#include <cstdint>
+
+#include <memory>
+
+#include "utils_cxx.hpp"        // for unique_ptr<FILE>
 #include "macros.h"  // for DIE_ERRNO_DIAG, FATAL_ERROR_CHECK
-struct matmul_public_s;
 
+struct matmul_public;
 
-FILE * matmul_common_reload_cache_fopen(size_t, struct matmul_public_s * mm, uint32_t magic);
-FILE * matmul_common_save_cache_fopen(size_t, struct matmul_public_s * mm, uint32_t magic);
-void matmul_common_clear(struct matmul_public_s * mm);
+std::unique_ptr<FILE> matmul_common_reload_cache_fopen(size_t, matmul_public & mm, uint32_t magic);
+std::unique_ptr<FILE> matmul_common_save_cache_fopen(size_t, matmul_public const & mm, uint32_t magic);
 
-extern const char * rowcol[2];  // [0] = "row" [1] = "col"
+extern const char * const rowcol[2];  // [0] = "row" [1] = "col"
 
 /* All matmul implementation are peppered with such markers */
 #ifndef ASM_COMMENT
@@ -29,28 +32,28 @@ extern const char * rowcol[2];  // [0] = "row" [1] = "col"
     uint64_t storage_v__;                                               \
     rc = fread(&storage_v__, sizeof(storage_v__), 1, file__);           \
     FATAL_ERROR_CHECK(rc < 1, "No valid data in cached matrix file");   \
-    final_v__ = storage_v__;                                            \
+    (final_v__) = storage_v__;                                          \
 } while (0)
 #define MATMUL_COMMON_READ_ONE32(final_v__, file__)  do {               \
     size_t rc;                                                          \
     uint32_t storage_v__;                                               \
     rc = fread(&storage_v__, sizeof(storage_v__), 1, file__);           \
     FATAL_ERROR_CHECK(rc < 1, "No valid data in cached matrix file");   \
-    final_v__ = storage_v__;                                            \
+    (final_v__) = storage_v__;                                          \
 } while (0)
-#define MATMUL_COMMON_READ_ONE8(final_v__, file__)  do {               \
+#define MATMUL_COMMON_READ_ONE8(final_v__, file__)  do {                \
     size_t rc;                                                          \
-    uint8_t storage_v__;                                               \
+    uint8_t storage_v__;                                                \
     rc = fread(&storage_v__, sizeof(storage_v__), 1, file__);           \
     FATAL_ERROR_CHECK(rc < 1, "No valid data in cached matrix file");   \
-    final_v__ = storage_v__;                                            \
+    (final_v__) = storage_v__;                                          \
 } while (0)
 #define MATMUL_COMMON_READ_ONE16(final_v__, file__)  do {               \
     size_t rc;                                                          \
     uint16_t storage_v__;                                               \
     rc = fread(&storage_v__, sizeof(storage_v__), 1, file__);           \
     FATAL_ERROR_CHECK(rc < 1, "No valid data in cached matrix file");   \
-    final_v__ = storage_v__;                                            \
+    (final_v__) = storage_v__;                                          \
 } while (0)
 #define MATMUL_COMMON_READ_MANY32(ptr__, n__, f__) do {         	\
     size_t rc;								\

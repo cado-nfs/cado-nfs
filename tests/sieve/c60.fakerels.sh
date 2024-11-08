@@ -2,8 +2,8 @@
 
 # See https://sympa.inria.fr/sympa/arc/cado-nfs/2020-09/msg00020.html
 
-: ${CADO_NFS_BINARY_DIR?missing}
-: ${CADO_NFS_SOURCE_DIR?missing}
+: ${CADO_NFS_BINARY_DIR:?missing}
+: ${CADO_NFS_SOURCE_DIR:?missing}
 
 FREEREL=${CADO_NFS_BINARY_DIR}/sieve/freerel
 FAKERELS=${CADO_NFS_BINARY_DIR}/sieve/fake_rels

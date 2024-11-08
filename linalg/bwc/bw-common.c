@@ -26,7 +26,7 @@ const char * bw_dirtext[] = { "left", "right" };
 
 typedef int (*sortfunc_t) (const void*, const void*);
 
-void bw_common_decl_usage(param_list pl)/*{{{*/
+void bw_common_decl_usage(param_list_ptr pl)/*{{{*/
 {
     /* We declare here the doc parameters which are parsed *in this file* !  */
 
@@ -93,7 +93,7 @@ const char * bw_common_usage_string()
 }
 #endif
 
-void bw_common_parse_cmdline(struct bw_params * bw, param_list pl, int * p_argc, char const *** p_argv)/*{{{*/
+void bw_common_parse_cmdline(struct bw_params * bw, param_list_ptr pl, int * p_argc, char const *** p_argv)/*{{{*/
 {
     bw->original_argc = *p_argc;
     bw->original_argv = *p_argv;
@@ -114,7 +114,7 @@ void bw_common_parse_cmdline(struct bw_params * bw, param_list pl, int * p_argc,
 }
 /*}}}*/
 
-void bw_common_interpret_parameters(struct bw_params * bw, param_list pl)/*{{{*/
+void bw_common_interpret_parameters(struct bw_params * bw, param_list_ptr pl)/*{{{*/
 {
     verbose_interpret_parameters(pl);
 

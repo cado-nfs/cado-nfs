@@ -5,9 +5,11 @@
 #include <memory>
 #include <tuple>
 
-#include "cxx_mpz.hpp"
 #include "fmt/format.h"
 #include "fmt/printf.h"
+
+#include "gmp_aux.h"
+#include "cxx_mpz.hpp"
 #include "subdivision.hpp"
 #include "lingen_platform.hpp"
 #include "lingen_substep_schedule.hpp"
@@ -35,7 +37,7 @@ struct lingen_substep_characteristics {
 
     matpoly::arith_hard * ab;
     cxx_mpz p;
-    gmp_randstate_t & rstate;
+    cxx_gmp_randstate & rstate;
 
     /* length of the input (E) for the call under consideration ; this is
      * not the input length for the overall algorithm !
@@ -108,7 +110,7 @@ struct lingen_substep_characteristics {
         return true;
     }
 
-    lingen_substep_characteristics(matpoly::arith_hard * ab, gmp_randstate_t & rstate, size_t input_length, op_mul_or_mp_base::op_type_t op_type, unsigned int n0, unsigned int n1, unsigned int n2, size_t asize, size_t bsize, size_t csize) :/*{{{*/
+    lingen_substep_characteristics(matpoly::arith_hard * ab, cxx_gmp_randstate & rstate, size_t input_length, op_mul_or_mp_base::op_type_t op_type, unsigned int n0, unsigned int n1, unsigned int n2, size_t asize, size_t bsize, size_t csize) :/*{{{*/
         ab(ab),
         rstate(rstate),
         input_length(input_length),
@@ -294,7 +296,7 @@ struct lingen_substep_characteristics {
         if (th - tl <= 0.1 * tl) return;
         unsigned int k = (kl + kh) / 2;
         double tk = F(k);
-        os << fmt::format(FMT_STRING(" {}:{:.2g}"), k, tk);
+        os << fmt::format(" {}:{:.2g}", k, tk);
         os.flush();
         tvec[k] = tk;
         double linfit_tk = tl + (th-tl)*(k-kl)/(kh-kl);
@@ -316,12 +318,12 @@ struct lingen_substep_characteristics {
 
         std::vector<double> tvec(TMAX + 1, -1);
 
-        if (Fname == NULL) {
+        if (!Fname) {
             tvec[1] = tvec[TMAX] = 0;
             return tvec;
         }
 
-        os << fmt::sprintf("# %s%s;%s (@%d) wct for %s by nthreads:",
+        os << fmt::format("# {}{};{} (@{}) wct for {} by nthreads:",
                 F.mesh > 1 ? "MPI-" : "",
                 F.op.op_name(),
                 lingen_substep_schedule::fft_name(encode_fft_type<typename T::OP::FFT>()),
@@ -331,13 +333,13 @@ struct lingen_substep_characteristics {
 
         if (F.max_parallel() < TMAX) {
             TMAX = F.max_parallel();
-            os << fmt::format(FMT_STRING(" [capped to {}]"), TMAX);
+            os << fmt::format(" [capped to {}]", TMAX);
         }
 
         unsigned int kl = 1;
         double tl = F(kl);
         tvec[kl] = tl;
-        os << fmt::format(FMT_STRING(" {}:{:.2g}"), kl, tl);
+        os << fmt::format(" {}:{:.2g}", kl, tl);
         os.flush();
 
 
@@ -345,7 +347,7 @@ struct lingen_substep_characteristics {
         if (kh > 1) {
             double th = F(kh);
             tvec[kh] = th;
-            os << fmt::format(FMT_STRING(" {}:{:.2g}"), kh, th);
+            os << fmt::format(" {}:{:.2g}", kh, th);
             os.flush();
         }
 
@@ -379,7 +381,9 @@ struct lingen_substep_characteristics {
                 }
                 return parallelizable_timing(tvec);
             }
-            os << fmt::format(FMT_STRING("# ignoring cached entry, computed for up to {} threads (here {} max)\n"), th_cache, F.max_parallel());
+            os << fmt::format("# ignoring cached entry,"
+                    " computed for up to {} threads"
+                    " (here {} max)\n", th_cache, F.max_parallel());
             store.clear();
         }
 
@@ -804,7 +808,7 @@ struct lingen_substep_characteristics {
     double get_and_report_call_time(std::ostream& os, pc_t const & P, unsigned int mesh, sc_t const & S, tc_t & C, bool do_timings) const { /* {{{ */
         bool cached = has_cached_time(C, S.fft_type);
         std::shared_ptr<op_mul_or_mp_base> op = instantiate(S.fft_type);
-        os << fmt::sprintf("# %s%s;%s (@%zu) [shrink=(%u,%u) batch=(%u,%u,%u)] %s, ",
+        os << fmt::format("# {}{};{} (@{}) [shrink=({},{}) batch=({},{},{})] {}, ",
                 mesh > 1 ? "MPI-" : "",
                 op_mul_or_mp_base::op_name(op_type),
                 S.fft_name(),
@@ -818,7 +822,7 @@ struct lingen_substep_characteristics {
         os << std::flush;
         double tt = get_call_time(os, P, mesh, S, C, do_timings);
         if (do_timings) {
-            os << fmt::sprintf("%.2f%s\n",
+            os << fmt::format("{:.2f}{}\n",
                     tt,
                     cached ? " [from cache]" : "");
         } else {
@@ -830,7 +834,7 @@ struct lingen_substep_characteristics {
     void report_op_winner(std::ostream& os, unsigned int mesh, sc_t const & S) const
     {
         std::shared_ptr<op_mul_or_mp_base> op = instantiate(S.fft_type);
-        os << fmt::sprintf("# %s%s;%s wins : %s\n",
+        os << fmt::format("# {}{};{} wins : {}\n",
                 mesh > 1 ? "MPI-" : "",
                 op_mul_or_mp_base::op_name(op_type),
                 S.fft_name(),
@@ -840,13 +844,13 @@ struct lingen_substep_characteristics {
 #if 0
     void report_size_stats_human(std::ostream& os, sc_t const & S) const {/*{{{*/
         std::shared_ptr<op_mul_or_mp_base> op = instantiate(S.fft_type);
-        os << fmt::sprintf("# %s (per op): %s+%s+%s, transforms 3*%s\n",
+        os << fmt::format("# {} (per op): {}+{}+{}, transforms 3*{}\n",
                 step_name(),
                 size_disp(asize*mpz_size(p)*sizeof(mp_limb_t)),
                 size_disp(bsize*mpz_size(p)*sizeof(mp_limb_t)),
                 size_disp(csize*mpz_size(p)*sizeof(mp_limb_t)),
                 size_disp(op->get_alloc_sizes()[0]));
-        os << fmt::sprintf("# %s (total for %u*%u * %u*%u): %s, transforms %s\n",
+        os << fmt::format("# {} (total for {}*{} * {}*{}): {}, transforms {}\n",
                 step_name(),
                 n0,n1,n1,n2,
                 size_disp((n0*n1*asize+n1*n2*bsize+n0*n2*csize)*mpz_size(p)*sizeof(mp_limb_t)),

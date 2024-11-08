@@ -1,15 +1,15 @@
 #include "cado.h" // IWYU pragma: keep
+                  //
 #include <cstdio>
 #include <cstdlib>
 #include <cstring> /* for strcmp() */
 #include <cmath> /* for sqrt and floor and log and ceil */
 #include <cstdint>           // for uint64_t, int64_t, UINT64_MAX
+                             //
 #include <vector>
 #include <algorithm>
 #include <iosfwd>            // for std
 #include <memory>            // for allocator_traits<>::value_type
-#include <pthread.h>
-#include <gmp.h>             // for gmp_randstate_t, gmp_randclear, gmp_rand...
 #include <set>
 #include <map>
 #include <iterator>
@@ -17,8 +17,12 @@
 #include <mutex>
 #include <thread>
 #include <iostream>
-#include <algorithm>
+
+#include <pthread.h>
+
+#include <gmp.h>             // for gmp_randstate_t, gmp_randclear, gmp_rand...
 #include "fmt/format.h"       // for cxx_cado_poly, cado_poly_read, cado_poly_s
+
 #include "cado_poly.h"       // for cxx_cado_poly, cado_poly_read, cado_poly_s
 #include "mpz_poly.h"        // for mpz_poly
 #include "renumber_proxy.h"
@@ -220,7 +224,7 @@ read_sample_file(int sqside, const char *filename, renumber_t & ren_tab)
             las_todo_entry Q;
             is >> Q;
             if (!is)
-                throw std::runtime_error(fmt::format(FMT_STRING("parse error at line: {}"), line));
+                throw std::runtime_error(fmt::format("parse error at line: {}", line));
             ASSERT_ALWAYS(sqside == Q.side);
             sample[Q];  // auto-vivify
             if (current.insert(Q).second) {
@@ -236,7 +240,7 @@ read_sample_file(int sqside, const char *filename, renumber_t & ren_tab)
             las_todo_entry Q;
             is >> Q;
             if (!is)
-                throw std::runtime_error(fmt::format(FMT_STRING("parse error at line: {}"), line));
+                throw std::runtime_error(fmt::format("parse error at line: {}", line));
             current.erase(Q);
         } else if (line[0] == '#') {
             continue;
@@ -287,7 +291,7 @@ read_sample_file(int sqside, const char *filename, renumber_t & ren_tab)
         std::sort(S.second.begin(), S.second.end());
 
     if (nbegin == 0) {
-        fprintf(stderr, "# The sample file %s was apparently"
+        fmt::print(stderr, "# The sample file {} was apparently"
                 " created without -v, but -v is mandatory"
                 " for fake_rels\n", filename);
         exit(EXIT_FAILURE);
@@ -305,7 +309,7 @@ read_sample_file(int sqside, const char *filename, renumber_t & ren_tab)
         std::copy(x.second.begin(), x.second.end(), std::back_inserter(ret.second));
     }
 
-    printf("# %s: %zu special-q's, %zu relations, max %d concurrent special-q's\b",
+    fmt::print("# {}: {} special-q's, {} relations, max {} concurrent special-q's\b",
             filename, nq, nr, maxdepth);
     return ret;
 }
@@ -450,7 +454,7 @@ std::vector<std::vector<index_t>> indexrange::all_composites(uint64_t q0, uint64
             list.pop_back();
             break;
         }
-        printf("# Got %zu %d-composite sq\n",
+        fmt::print("# Got {} {}-composite sq\n",
                 (size_t)(list.back().size()/n), n);
     }
     return list;
@@ -541,7 +545,7 @@ int main(int argc, char const * argv[])
           continue;
       }
 
-      fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
+      fmt::print(stderr, "Unhandled parameter {}\n", argv[0]);
       param_list_print_usage(pl, argv0, stderr);
       exit (EXIT_FAILURE);
   }
@@ -550,41 +554,41 @@ int main(int argc, char const * argv[])
 
   const char * filename;
   if ((filename = param_list_lookup_string(pl, "poly")) == NULL) {
-      fprintf(stderr, "Error: parameter -poly is mandatory\n");
+      fmt::print(stderr, "Error: parameter -poly is mandatory\n");
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
   }
 
   param_list_parse_int(pl, "lpb0", &lpb[0]);
   if (lpb[0] == 0) {
-      fprintf(stderr, "Error: parameter -lpb0 is mandatory\n");
+      fmt::print(stderr, "Error: parameter -lpb0 is mandatory\n");
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
   }
   param_list_parse_int(pl, "lpb1", &lpb[1]);
   if (lpb[1] == 0) {
-      fprintf(stderr, "Error: parameter -lpb1 is mandatory\n");
+      fmt::print(stderr, "Error: parameter -lpb1 is mandatory\n");
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
   }
 
   param_list_parse_uint64(pl, "q0", &q0);
   if (q0 == 0) {
-      fprintf(stderr, "Error: parameter -q0 is mandatory\n");
+      fmt::print(stderr, "Error: parameter -q0 is mandatory\n");
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
   }
 
   param_list_parse_uint64(pl, "q1", &q1);
   if (q1 == 0) {
-      fprintf(stderr, "Error: parameter -q1 is mandatory\n");
+      fmt::print(stderr, "Error: parameter -q1 is mandatory\n");
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
   }
   
   param_list_parse_double(pl, "shrink-factor", &shrink_factor);
   if (shrink_factor < 1) {
-      fprintf(stderr, "Error: shrink factor must be an integer >= 1\n");
+      fmt::print(stderr, "Error: shrink factor must be an integer >= 1\n");
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
   }
@@ -598,33 +602,33 @@ int main(int argc, char const * argv[])
 
   if (!cado_poly_read(cpoly, filename))
     {
-      fprintf (stderr, "Error reading polynomial file %s\n", filename);
+      fmt::print (stderr, "Error reading polynomial file {}\n", filename);
       exit (EXIT_FAILURE);
     }
 
   param_list_parse_int(pl, "sqside", &sqside);
   if (sqside == -1 || sqside > 2) {
-      fprintf(stderr, "Error: sqside must be 0 or 1\n");
+      fmt::print(stderr, "Error: sqside must be 0 or 1\n");
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
   }
 
   const char * renumberfile;
   if ((renumberfile = param_list_lookup_string(pl, "renumber")) == NULL) {
-      fprintf(stderr, "Error: parameter -renumber is mandatory\n");
+      fmt::print(stderr, "Error: parameter -renumber is mandatory\n");
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
   }
-  printf ("# Start reading renumber table\n");
+  fmt::print ("# Start reading renumber table\n");
   fflush (stdout);
   renumber_t ren_table(cpoly);
   ren_table.read_from_file(renumberfile, dl);
-  printf ("# Done reading renumber table\n");
+  fmt::print ("# Done reading renumber table\n");
   fflush (stdout);
 
   for (int side = 0; side < 2; ++side) {
       if (ren_table.get_lpb(side) != (unsigned long)lpb[side]) {
-          fprintf(stderr, "Error: on side %d, lpb on the command-line is different from the one in the renumber file\n", side);
+          fmt::print(stderr, "Error: on side {}, lpb on the command-line is different from the one in the renumber file\n", side);
           exit(EXIT_FAILURE);
       }
   }
@@ -632,12 +636,12 @@ int main(int argc, char const * argv[])
   // read sample file
   const char * samplefile;
   if ((samplefile = param_list_lookup_string(pl, "sample")) == NULL) {
-      fprintf(stderr, "Error: parameter -sample is mandatory\n");
+      fmt::print(stderr, "Error: parameter -sample is mandatory\n");
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
   }
 
-  printf ("# Start reading sample file\n");
+  fmt::print ("# Start reading sample file\n");
   fflush (stdout);
 
   std::pair<std::vector<size_t>, std::vector<model_relation>> const sample = read_sample_file(sqside, samplefile, ren_table);
@@ -654,16 +658,16 @@ int main(int argc, char const * argv[])
   }
   */
 
-  printf ("# Done reading sample file\n");
+  fmt::print ("# Done reading sample file\n");
   fflush (stdout);
 
   param_list_warn_unused(pl);
 
   // Two index ranges, one for each side
-  printf ("# Start preparing index ranges\n");
+  fmt::print ("# Start preparing index ranges\n");
   fflush (stdout);
   std::vector<indexrange> Ind = prepare_indexrange(ren_table, sqside, compsq);
-  printf ("# Done preparing index ranges\n");
+  fmt::print ("# Done preparing index ranges\n");
   fflush (stdout);
 
   std::vector<std::vector<index_t>> qs;
@@ -716,9 +720,9 @@ int main(int argc, char const * argv[])
 
   /* print statistics */
 
-  printf ("# Output %lu relations in %.2fs cpu (%.0f rels/s)\n",
+  fmt::print ("# Output {} relations in {:.2f}s cpu ({:.0f} rels/s)\n",
 	  rels_printed, t0, (double) rels_printed / t0);
-  printf ("# Output %lu relations in %.2fs wct (%.0f rels/s)\n",
+  fmt::print ("# Output {} relations in {:.2f}s wct ({:.0f} rels/s)\n",
 	  rels_printed, wct_t0, (double) rels_printed / wct_t0);
 
   return 0;

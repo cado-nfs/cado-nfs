@@ -9,7 +9,7 @@
 #include "lingen_matpoly_select.hpp"
 #include "lingen_mul_substeps.hpp"
 #include "lingen_substep_schedule.hpp"  // for lingen_substep_schedule
-#include "logline.h"
+#include "logline.hpp"
 #include "macros.h"
 #include "submatrix_range.hpp"          // for submatrix_range
 #include "tree_stats.hpp"               // for tree_stats

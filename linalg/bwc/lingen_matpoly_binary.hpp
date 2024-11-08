@@ -12,8 +12,12 @@
  */
 
 #include <cstdlib>
-#include <gmp.h>
+
 #include <algorithm>
+
+#include <gmp.h>
+
+#include "gmp_aux.h"
 #include "cado_config.h"
 #include "macros.h"
 #include "lingen_memory_pool.hpp"
@@ -222,9 +226,9 @@ public:
     void set_constant(unsigned long e) { set_constant_ui(e); }
 
     /* Note that this does not affect the size field */
-    void fill_random(unsigned int k0, unsigned int k1, gmp_randstate_t rstate);
+    void fill_random(unsigned int k0, unsigned int k1, cxx_gmp_randstate & rstate);
 
-    void clear_and_set_random(unsigned int len, gmp_randstate_t rstate)
+    void clear_and_set_random(unsigned int len, cxx_gmp_randstate & rstate)
     {
         if (len > capacity())
             zero_pad(len);

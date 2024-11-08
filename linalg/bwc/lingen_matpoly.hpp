@@ -2,7 +2,10 @@
 #define LINGEN_MATPOLY_HPP_
 
 #include <cstddef>                   // for size_t, NULL
+
 #include <gmp.h>                      // for gmp_randstate_t
+
+#include "gmp_aux.h"
 #include "lingen_call_companion.hpp"
 #include "lingen_memory_pool.hpp"
 #include "macros.h"                   // for ASSERT_ALWAYS, ATTRIBUTE_WARN_U...
@@ -143,8 +146,8 @@ public:
     void set_constant_ui(unsigned long e);
     void set_constant(elt const & e);
     /* Note that this method does not change the size field */
-    void fill_random(unsigned int k0, unsigned int k1, gmp_randstate_t rstate);
-    void clear_and_set_random(unsigned int len, gmp_randstate_t rstate)
+    void fill_random(unsigned int k0, unsigned int k1, cxx_gmp_randstate & rstate);
+    void clear_and_set_random(unsigned int len, cxx_gmp_randstate & rstate)
     {
         if (len > capacity())
             zero_pad(len);

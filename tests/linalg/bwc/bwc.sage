@@ -38,6 +38,8 @@ if __name__ == '__main__':
         Rhs = BwcRightHandSide(par, args["rhs"])
         Rhs.read()
         Rhs.check(M, Vs)
+    else:
+        Rhs = None
 
     x = BwcXVector(par, M.dimensions(), args["wdir"])
     x.read()
@@ -53,7 +55,7 @@ if __name__ == '__main__':
     f = BwcFFiles(par, M.dimensions(), args["wdir"])
     f.read()
     f.check(a)
-    U, V = f.derive_solutions(a, Vs, MQ)
+    U, V = f.derive_solutions(a, Vs, MQ, Rhs)
 
     s = BwcSVectorSet(par, args["wdir"])
     s.read()

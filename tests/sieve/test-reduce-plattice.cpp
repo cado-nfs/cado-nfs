@@ -1,23 +1,27 @@
 #include "cado.h"
-#include <sys/types.h>
-#include <unistd.h>
-#include <stdint.h>
+
+#include <cstdint>
+#include <cstdio>
+
 #include <vector>
 #include <array>
 #include <tuple>
 #include <string>
 #include <map>
-#include <stdio.h>
+#include <algorithm>
+
+#include <sys/types.h>
+#include <unistd.h>
+#if defined(HAVE_AVX512F) || defined(HAVE_AVX2) || defined(HAVE_AVX) || defined(HAVE_SSE41)
+#include <x86intrin.h>
+#endif
+
 #include "gcd.h"
 #include "macros.h"
 #include "getprime.h"
 #include "fb-types.h"
 #include "las-plattice.hpp"
 #include "fmt/format.h"
-#include <algorithm>
-#if defined(HAVE_AVX512F) || defined(HAVE_AVX2) || defined(HAVE_AVX) || defined(HAVE_SSE41)
-#include <x86intrin.h>
-#endif
 
 // see bug #30052
 #if GNUC_VERSION_ATLEAST(12,0,0) && ! GNUC_VERSION_ATLEAST(13,0,0)
@@ -332,50 +336,47 @@ void test_correctness(test_wrap & tw)
             }
         } catch (plattice_proxy::error const & e) {
             a_test const & aa = tests[i+j];
-            std::string c = "failed in-algorithm check";
-            std::string t = fmt::format(
-                    FMT_STRING("p^k={}^{} r={}"), aa.p, aa.k, aa.r);
-            std::string const msg = fmt::format(FMT_STRING("{}: {} check for {}\n"),
-                    thiscode, c, t);
-            fputs(msg.c_str(), stderr);
+            fmt::print(stderr, "{}: failed in-algorithm check"
+                    " for p^k={}^{} r={}\n",
+                    thiscode,
+                    aa.p, aa.k, aa.r);
             if (!T::has_known_bugs) tw.failed = true;
         } catch (post_condition_error const & e) {
             if (nfailed < 16) {
                 a_test const & aa = tests[i+j];
-                std::string c = fmt::format("failed check ({})", when);
-                std::string t = fmt::format(
-                        FMT_STRING("p^k={}^{} r={}"), aa.p, aa.k, aa.r);
-                std::string const msg = fmt::format(
-                        FMT_STRING("{}: {} check for {}\n"), thiscode, c, t);
-                fputs(msg.c_str(), stderr);
+                fmt::print(stderr,
+                        "{}: failed check ({}) for "
+                        "p^k={}^{} r={}\n",
+                        thiscode, when,
+                        aa.p, aa.k, aa.r);
                 if (!T::has_known_bugs) tw.failed = true;
                 if (++nfailed >= 16)
-                    fprintf(stderr, "%s: stopped reporting errors, go fix your program\n", thiscode.c_str());
+                    fmt::print(stderr, "{}:"
+                            " stopped reporting errors, go fix your program\n",
+                            thiscode);
             }
         } catch (disagreement const & e) {
             if (nfailed < 16) {
                 a_test const & aa = tests[i+j];
-                std::string t = fmt::format(
-                        FMT_STRING("p^k={}^{} r={}"), aa.p, aa.k, aa.r);
                 std::string msg = fmt::format(
-                        FMT_STRING("{}: disagreement with simplistic on {}\n"), thiscode, t);
+                        "{}: disagreement with simplistic on p^k={}^{} r={}\n",
+                        thiscode,
+                        aa.p, aa.k, aa.r);
                 msg += fmt::format(
-                        FMT_STRING("simplistic: [({}, {}), ({}, {})]\n"),
-                            Lref[j].get_i0(),
-                            Lref[j].get_j0(),
-                            Lref[j].get_i1(),
-                            Lref[j].get_j1());
+                        "simplistic: [({}, {}), ({}, {})]\n",
+                        Lref[j].get_i0(), Lref[j].get_j0(),
+                        Lref[j].get_i1(), Lref[j].get_j1());
                 msg += fmt::format(
-                        FMT_STRING("{}: [({}, {}), ({}, {})]\n"),
-                            thiscode,
-                            L[j].get_i0(),
-                            L[j].get_j0(),
-                            L[j].get_i1(),
-                            L[j].get_j1());
+                        "{}: [({}, {}), ({}, {})]\n",
+                        thiscode,
+                        L[j].get_i0(), L[j].get_j0(),
+                        L[j].get_i1(), L[j].get_j1());
                 fputs(msg.c_str(), stderr);
                 if (!T::has_known_bugs) tw.failed = true;
                 if (++nfailed >= 16)
-                    fprintf(stderr, "%s: stopped reporting errors, go fix your program\n", thiscode.c_str());
+                    fmt::print(stderr, "{}:"
+                            " stopped reporting errors, go fix your program\n",
+                            thiscode);
             }
         }
     }
@@ -401,7 +402,7 @@ test_speed(test_wrap & tw)
     }
     clock_t const clk1 = clock();
     if (tw.timing) {
-        printf("# %s: %zu tests in %.4fs\n",
+        fmt::print("# {}: {} tests in {:.4f}s\n",
                 T::what, tw.tests.size(), ((double)(clk1-clk0))/CLOCKS_PER_SEC);
     }
     return dummy_local;
@@ -422,7 +423,7 @@ test_speed(test_wrap & tw)
     }
     clock_t const clk1 = clock();
     if (tw.timing) {
-        printf("# %s: %zu tests in %.4fs\n",
+        fmt::print("# {}: {} tests in {:.4f}s\n",
                 T::what, tw.tests.size(), ((double)(clk1-clk0))/CLOCKS_PER_SEC);
     }
     return dummy_local;
@@ -482,7 +483,7 @@ int main(int argc, char const * argv[])
     gmp_randinit_default(rstate);
     if (!seed) {
         seed = getpid();
-        if (!quiet) printf("seeding with pid = %lu\n", seed);
+        if (!quiet) fmt::print("seeding with pid = {}\n", seed);
     }
     gmp_randseed_ui(rstate, seed);
 
@@ -527,7 +528,7 @@ int main(int argc, char const * argv[])
             if (L.check_pre_conditions(tw.I)) {
                 *jt++ = aa;
             } else {
-                fprintf(stderr, "skipping out-of-range test for p^k=%lu^%d r=%lu\n", aa.p, aa.k, aa.r);
+                fmt::print(stderr, "skipping out-of-range test for p^k={}^{} r={}\n", aa.p, aa.k, aa.r);
             }
         }
         tests.erase(jt, tests.end());
@@ -588,12 +589,13 @@ int main(int argc, char const * argv[])
             }
         }
         for(auto & kv : stats) {
-            int const k = kv.first;
-            printf("%d:", k);
-            for(auto & dn : kv.second) {
-                printf(" %s:%d", dn.first.c_str(), dn.second);
-            }
-            printf("\n");
+            fmt::print("{}: {}\n", kv.first,
+                    join(kv.second.begin(), kv.second.end(), " ",
+                        [](decltype(kv.second)::value_type const & v) {
+                        return fmt::format("{}:{}", v.first, v.second);
+                        }
+                        )
+                    );
         }
         unsigned long sumT = 0;
         for(auto const & x : T) {
@@ -601,7 +603,7 @@ int main(int argc, char const * argv[])
         }
         unsigned long cumulative = 0;
         for(auto const & x : T) {
-            printf("%d: %lu (%.1f%%) (%.1f%%)\n", x.first, x.second, 100.0 * x.second / sumT, 100.0 * (cumulative += x.second) / sumT);
+            fmt::print("{}: {} ({:.1f}%%) ({:.1f}%%)\n", x.first, x.second, 100.0 * x.second / sumT, 100.0 * (cumulative += x.second) / sumT);
             if (x.first >= 16) break;
         }
     }

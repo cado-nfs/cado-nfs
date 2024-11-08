@@ -28,6 +28,7 @@
 #include "timing.h"                         // for seconds, wct_seconds, cpu...
 #include "tree_stats.hpp"                   // for tree_stats
 
+#include "gmp_aux.h"
 #include "macros.h"
 #include "cxx_mpz.hpp"
 #ifndef LINGEN_BINARY
@@ -412,8 +413,8 @@ void catch_control_signals()
 
 void lingen_tune_mul_fti_depth(matpoly::arith_hard * ab, unsigned int m, unsigned int n, cutoff_list *cl_out)/*{{{*/
 {
-    gmp_randstate_t rstate;
-    gmp_randinit_default(rstate);
+    cxx_gmp_randstate rstate;
+
     gmp_randseed_ui(rstate, 1);
 
 #ifdef  HAVE_GCC_STYLE_AMD64_INLINE_ASM
@@ -581,13 +582,10 @@ void lingen_tune_mul_fti_depth(matpoly::arith_hard * ab, unsigned int m, unsigne
         (*cl_out)[table.size()].k      = UINT_MAX;
         (*cl_out)[table.size()].choice = UINT_MAX;
     }
-
-    gmp_randclear(rstate);
 }/*}}}*/
 void lingen_tune_mp_fti_depth(matpoly::arith_hard * ab, unsigned int m, unsigned int n, cutoff_list * cl_out)/*{{{*/
 {
-    gmp_randstate_t rstate;
-    gmp_randinit_default(rstate);
+    cxx_gmp_randstate rstate;
     gmp_randseed_ui(rstate, 1);
 
 #ifdef  HAVE_GCC_STYLE_AMD64_INLINE_ASM
@@ -754,16 +752,14 @@ void lingen_tune_mp_fti_depth(matpoly::arith_hard * ab, unsigned int m, unsigned
         (*cl_out)[table.size()].k = UINT_MAX;
         (*cl_out)[table.size()].choice = UINT_MAX;
     }
-
-    gmp_randclear(rstate);
 }/*}}}*/
 
 
 void lingen_tune_mul(matpoly::arith_hard * ab, unsigned int m, unsigned int n, cutoff_list cl MAYBE_UNUSED)/*{{{*/
 {
     typedef fft_transform_info fft_type;
-    gmp_randstate_t rstate;
-    gmp_randinit_default(rstate);
+    cxx_gmp_randstate rstate;
+
     gmp_randseed_ui(rstate, 1);
 #define TUNE_MUL_FINDER_NMETHODS 4
 
@@ -963,7 +959,6 @@ void lingen_tune_mul(matpoly::arith_hard * ab, unsigned int m, unsigned int n, c
                 << (m+n)<<"*"<<(m+n)<<" products: */\n";
     cout << "#define MUL_CUTOFFS_" <<(m+n)<<"_"<<(m+n)<<"_"<<(m+n)
         << " " << finder.print_result(table) << endl;
-    gmp_randclear(rstate);
 
     polymat_cutoff_info_clear(always_basecase);
     polymat_cutoff_info_clear(improved);
@@ -972,8 +967,8 @@ void lingen_tune_mul(matpoly::arith_hard * ab, unsigned int m, unsigned int n, c
 void lingen_tune_mp(matpoly::arith_hard * ab, unsigned int m, unsigned int n, cutoff_list cl MAYBE_UNUSED)/*{{{*/
 {
     typedef fft_transform_info fft_type;
-    gmp_randstate_t rstate;
-    gmp_randinit_default(rstate);
+    cxx_gmp_randstate rstate;
+
     gmp_randseed_ui(rstate, 1);
 #define TUNE_MP_FINDER_NMETHODS 4
 
@@ -1185,7 +1180,6 @@ void lingen_tune_mp(matpoly::arith_hard * ab, unsigned int m, unsigned int n, cu
                 << (m+n)<<"*"<<(m+n)<<" middle-products */\n";
     cout << "#define MP_CUTOFFS_" <<m<<"_"<<(m+n)<<"_"<<(m+n)
         << " " << finder.print_result(table) << endl;
-    gmp_randclear(rstate);
 
     polymat_cutoff_info_clear(always_basecase);
     polymat_cutoff_info_clear(improved);
@@ -1197,8 +1191,7 @@ void lingen_tune_bigmul(abdst_field ab, unsigned int m, unsigned int n, unsigned
 {
     int rank;
     MPI_Comm_rank(comm, &rank);
-    gmp_randstate_t rstate;
-    gmp_randinit_default(rstate);
+    cxx_gmp_randstate rstate;
     gmp_randseed_ui(rstate, 1);
     /* arguments to the ctor:
      * 2 : we are benching 2 methods
@@ -1260,13 +1253,12 @@ void lingen_tune_bigmul(abdst_field ab, unsigned int m, unsigned int n, unsigned
         cout << "#define MUL_MPI_CUTOFFS_" <<(m+n)<<"_"<<(m+n)<<"_"<<(m+n)
             << " " << finder.result() << endl;
     }
-    gmp_randclear(rstate);
 }/*}}}*/
 #endif
 
 void lingen_tune_cutoffs(bw_dimensions & d, MPI_Comm comm MAYBE_UNUSED, cxx_param_list & pl)
 {
-    gmp_randstate_t rstate;
+    cxx_gmp_randstate rstate;
 
     int catchsig=0;
 
@@ -1281,7 +1273,6 @@ void lingen_tune_cutoffs(bw_dimensions & d, MPI_Comm comm MAYBE_UNUSED, cxx_para
     unsigned int const n = d.n;
     cxx_mpz p(ab->characteristic());
 
-    gmp_randinit_default(rstate);
     gmp_randseed_ui(rstate, 1);
 
     if (catchsig) {
@@ -1401,8 +1392,6 @@ void lingen_tune_cutoffs(bw_dimensions & d, MPI_Comm comm MAYBE_UNUSED, cxx_para
 
     lingen_tune_bigmul(ab, m, n, mpi[0]*thr[0], mpi[1]*thr[1], comm);
 #endif
-
-    gmp_randclear(rstate);
 
     return;
 }

@@ -2,9 +2,12 @@
 // IWYU pragma: no_include <sys/param.h>
 #include <cstdio>                        // for printf, fprintf, stderr
 #include <cstdlib>                       // for exit, qsort, EXIT_FAILURE
+
 #include <sstream>
 #include <tuple>                          // for tie, tuple
 #include <vector>                         // for vector
+
+#include "gmp_aux.h"
 #include "cxx_mpz.hpp"
 #include "arith-hard.hpp" // IWYU pragma: keep
 #include "lingen_bmstatus.hpp"            // for bmstatus
@@ -459,7 +462,7 @@ bw_lingen_basecase(bmstatus & bm, matpoly & E)
     return pi;
 }
 
-void test_basecase(matpoly::arith_hard * ab, unsigned int m, unsigned int n, size_t L, gmp_randstate_t rstate)/*{{{*/
+void test_basecase(matpoly::arith_hard * ab, unsigned int m, unsigned int n, size_t L, cxx_gmp_randstate & rstate)/*{{{*/
 {
     /* used by testing code */
     bmstatus bm(m,n,ab->characteristic());

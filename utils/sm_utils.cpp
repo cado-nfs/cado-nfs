@@ -1,11 +1,14 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdio.h>      // FILE
-#include <stdlib.h>     // free, malloc, abort
-#include <string.h>     // strcmp memset
-#include <gmp.h>
+
+#include <cstdio>      // FILE
+#include <cstdlib>     // free, malloc, abort
+#include <cstring>     // strcmp memset
 
 #include <vector>
 
+#include <gmp.h>
+
+#include "gmp_aux.h"
 #include "macros.h"     // for ASSERT_ALWAYS
 #include "mpz_poly.h"   // mpz_poly
 #include "sm_utils.hpp"

@@ -1,10 +1,13 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdio.h>
-#include <ctype.h>
-#include <string.h>
-#include <stdlib.h>
+                  //
+#include <cstdio>
+#include <cctype>
+#include <cstring>
+#include <cstdlib>
+
 #include <hwloc.h>
-#include "cpubinding.h"
+
+#include "cpubinding.hpp"
 #include "macros.h"
 #include "params.h"
 #include "misc.h"
@@ -71,8 +74,7 @@ int do_cpubinding_tests(const char * cpubinding_conf)
         if (verbose) printf("doing subtest %d: %s\n", idx, line);
         idx++;
 
-        param_list pl2;
-        param_list_init(pl2);
+        cxx_param_list pl2;
         param_list_add_key(pl2, "cpubinding", cpubinding_conf, PARAMETER_FROM_CMDLINE);
         param_list_add_key(pl2, "input-topology-string", line + pos + pos2, PARAMETER_FROM_CMDLINE);
 
@@ -90,8 +92,6 @@ int do_cpubinding_tests(const char * cpubinding_conf)
 
         cpubinding_do_pinning(cc, 0, 0);
         cpubinding_free_info(cc, t[0], t[1]);
-
-        param_list_clear(pl2);
     }
     fclose(f);
     return !nb_nok;
@@ -100,8 +100,8 @@ int do_cpubinding_tests(const char * cpubinding_conf)
 int main(int argc, char const * argv[])
 {
     const char * cpubinding_conf = NULL;
-    param_list pl;
-    param_list_init(pl);
+    cxx_param_list pl;
+
     argv++,argc--;
     param_list_configure_alias(pl, "input-topology-file", "-i");
     param_list_configure_alias(pl, "input-topology-string", "-s");
@@ -155,8 +155,6 @@ int main(int argc, char const * argv[])
         fprintf(stderr, "don't know what to do !\n");
         exit(1);
     }
-
-    param_list_clear(pl);
 
     return rc;
 }

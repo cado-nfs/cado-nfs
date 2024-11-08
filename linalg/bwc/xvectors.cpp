@@ -1,12 +1,15 @@
 #include "cado.h"   // IWYU pragma: keep
-#include "macros.h" // for FATAL_ERROR_CHECK
-#include "parallelizing_info.hpp"
-#include "xvectors.hpp"
+
 #include <algorithm>
 #include <cinttypes>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+
+#include "gmp_aux.h"
+#include "macros.h" // for FATAL_ERROR_CHECK
+#include "parallelizing_info.hpp"
+#include "xvectors.hpp"
 
 std::unique_ptr<uint32_t[]>
 setup_x_random(unsigned int m, unsigned int nx, unsigned int nr,

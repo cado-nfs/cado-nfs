@@ -182,9 +182,9 @@ static void
 print_error_and_exit(const fbprime_t p, fb_root_p1 const & Rab, fb_root_p1 const & rt, fb_root_p1_t<cxx_mpz> const & rref, const qlattice_basis &basis, const int bits)
 {
     std::cerr
-        << fmt::format(FMT_STRING("Error for p={}; R={}; {};\n"), p, Rab, basis)
-        << fmt::format(FMT_STRING("fb_root_in_qlattice_{}bits gives {}\n"), bits, rt)
-        << fmt::format(FMT_STRING("ref_fb_root_in_qlattice gives {}\n"), rref);
+        << fmt::format("Error for p={}; R={}; {};\n", p, Rab, basis)
+        << fmt::format("fb_root_in_qlattice_{}bits gives {}\n", bits, rt)
+        << fmt::format("ref_fb_root_in_qlattice gives {}\n", rref);
     abort();
 }
 
@@ -251,7 +251,7 @@ test_chain_fb_root_in_qlattice_batch(basis_citer_t basis_begin,
         st = seconds() - st;
         volatile fbroot_t const fake_sum_vol = fake_sum;
         if (fake_sum_vol) {}
-        printf ("fb_entry_x_roots<%d>::transform_roots with %d-bit basis: %lu tests took %.2fs\n",
+        fmt::print ("fb_entry_x_roots<{}>::transform_roots with {}-bit basis: {} tests took {:.2f}s\n",
                 Nr_roots, bits, N * N, st);
     }
 
@@ -281,7 +281,7 @@ test_chain_fb_root_in_qlattice_batch(basis_citer_t basis_begin,
                  * one transformed root is projective */
                 if (!batch_worked) {
                     if (!had_any_proj) {
-                        fprintf(stderr, "Batch transform failed, but none of the "
+                        fmt::print(stderr, "Batch transform failed, but none of the "
                                 "transformed roots are projective according to the "
                                 "reference implementation\n");
                         abort();
@@ -291,7 +291,7 @@ test_chain_fb_root_in_qlattice_batch(basis_citer_t basis_begin,
                 } else {
                     /* If batch transform worked, check that it agrees with reference roots */
                     if (0) {
-                        fprintf(stderr, "p = %" FBPRIME_FORMAT ", fbt.get_q() = %" FBPRIME_FORMAT "\n",
+                        fmt::print(stderr, "p = {}, fbt.get_q() = {}\n",
                                        p, fbt.get_q());
                     }
                     for (unsigned char i_root = 0; i_root + 1 < Nr_roots + 1; i_root++) {
@@ -397,7 +397,7 @@ test_fb_root_in_qlattice_31bits (const bool test_timing,
               r += Rij.r;
           }
       st = seconds () - st;
-      printf ("fb_root_in_qlattice_31bits: %lu tests took %.2fs (r=%" FBPRIME_FORMAT ")\n",
+      fmt::print ("fb_root_in_qlattice_31bits: {} tests took {:.2f}s (r={})\n",
               N * N, st, r);
     }
 
@@ -472,7 +472,7 @@ test_fb_root_in_qlattice_127bits (const bool test_timing,
               r += Rij.r;
           }
       st = seconds () - st;
-      printf ("fb_root_in_qlattice_127bits: %lu tests took %.2fs (r=%" FBPRIME_FORMAT ")\n",
+      fmt::print ("fb_root_in_qlattice_127bits: {} tests took {:.2f}s (r={})\n",
               N * N, st, r);
   }
 
@@ -510,9 +510,9 @@ bug20200225 (void)
         uint64_t const expected = 2062858318;
         uint64_t const got = invmod_redc_32 (a, b, -invmod_po2(b));
         if (expected != got) {
-            fprintf (stderr, "Error in invmod_redc_32 for a=%lu b=%lu\n", a, b);
-            gmp_fprintf (stderr, "Expected %Zd\n", mpz_srcptr(expected));
-            fprintf (stderr, "Got      %" PRIu64 "\n", got);
+            fmt::print (stderr, "Error in invmod_redc_32 for a={} b={}\n", a, b);
+            fmt::print (stderr, "Expected {}\n", expected);
+            fmt::print (stderr, "Got      {}\n", got);
             exit (1);
         }
     }
@@ -523,10 +523,10 @@ bug20200225 (void)
         uint64_t const expected = 2102979166;
         uint64_t const got = invmod_redc_32(a, b, -invmod_po2(b));
         if (expected != got) {
-            fprintf (stderr, "Error in invmod_redc_32 for a:=%lu; b:=%lu;\n",
+            fmt::print (stderr, "Error in invmod_redc_32 for a:={}; b:={};\n",
                     a, b);
-            gmp_fprintf (stderr, "Expected %Zd\n", mpz_srcptr(expected));
-            fprintf (stderr, "Got      %" PRIu64 "\n", got);
+            fmt::print (stderr, "Expected {}\n", expected);
+            fmt::print (stderr, "Got      {}\n", got);
             exit (1);
         }
     }

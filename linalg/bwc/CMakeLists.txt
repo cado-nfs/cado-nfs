@@ -103,15 +103,14 @@ set(bwc_base_sources
     matmul_top.cpp
     matmul_top_vec.cpp
     matmul_top_comm.cpp
-    matmul_top2.cpp
     random_matrix.cpp
     mmt_vector_pair.cpp
-    mf.c 
     mf_bal.cpp
     ../rowset_heap.cpp
     balancing.cpp
     balancing_workhorse.cpp
     arith-cross.cpp
+    matrix_u32.cpp
 )
 
 mpi_add_library(bwc_base ${CADO_SHARED} ${bwc_base_sources})
@@ -136,11 +135,10 @@ endif()
 
 ### end bwc_base
 
-mpi_add_executable(mf_scan ${EXCLUDE_FROM_RELEASE_BUILD} mf_scan.c)
-target_link_libraries(mf_scan bwc_base)
-if (HAVE_OPENMP)
 mpi_add_executable(mf_scan2 ${EXCLUDE_FROM_RELEASE_BUILD} mf_scan2.cpp)
 target_link_libraries(mf_scan2 bwc_base)
+
+if (HAVE_OPENMP)
 set_target_properties(mf_scan2 PROPERTIES
     COMPILE_FLAGS "${OpenMP_CXX_FLAGS}"
     LINK_FLAGS "${OpenMP_CXX_FLAGS}")
@@ -351,7 +349,6 @@ set(matmul_basicp_sources   matmul-basicp.cpp)
 set(matmul_zone_sources   matmul-zone.cpp)
 set(matmul_sliced_sources   matmul-sliced.cpp)
 set(matmul_bucket_sources   matmul-bucket.cpp)
-set(matmul_threaded_sources matmul-threaded.cpp worker-threads.c)
 
 
 macro(CONFIGURE_MATMUL_LIB v i)
@@ -433,14 +430,6 @@ configure_file(bwc_config_h.in bwc_config.h ESCAPE_QUOTES @ONLY)
 if(NOT BUILD_DYNAMICALLY_LINKABLE_BWC)
 target_link_libraries(bwc_base ${all_matmul_gf2_libs} ${all_matmul_gfp_libs})
 endif()
-
-### matmul_mf
-mpi_add_library(matmul_mf ${CADO_SHARED} matmul-mf.cpp)
-target_link_libraries(matmul_mf bwc_base)
-if(ENABLE_SHARED)
-    install(TARGETS matmul_mf DESTINATION ${LIBSUFFIX}/linalg/bwc)
-endif()
-### end matmul_mf
 
 macro(bwc_program_base v)
     mpi_add_executable(${v} ${ARGN})
@@ -672,9 +661,9 @@ add_dependencies(bwc_full bwc_full_gf2 bwc_full_gfp)
 
 # Those are used only for tests.
 bwc_program_extra(build_matcache build_matcache.cpp)
-target_link_libraries(build_matcache matmul_mf)
+target_link_libraries(build_matcache bwc_base)
 bwc_program_extra(bench_matcache bench_matcache.cpp worker-threads.c)
-target_link_libraries(bench_matcache matmul_mf)
+target_link_libraries(bench_matcache bwc_base)
 
 
 include(CMakeLists-nodist.txt OPTIONAL)
