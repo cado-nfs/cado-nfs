@@ -4,8 +4,12 @@
 #include <cstdlib>
 #include <climits>
 #include <ctime>                // for time
+
 #include <string>                // for string
-#include <gmp.h>                 // for gmp_randclear, gmp_randinit_default
+
+#include <gmp.h>
+#include "fmt/format.h"
+
 #include "matmul.hpp"              // for matmul_public_s
 #include "parallelizing_info.hpp"
 #include "matmul_top.hpp"
@@ -14,15 +18,16 @@
 #include "params.h"
 #include "misc.h"
 #include "bw-common.h"
+#include "gmp_aux.h"
 #include "async.hpp"
 #include "arith-cross.hpp"
 #include "arith-generic.hpp"
-#include "fmt/format.h"
 #include "macros.h"
 #include "mmt_vector_pair.hpp"
+
 using namespace fmt::literals;
 
-void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED)
+void * mksol_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
     int const fake = param_list_lookup_string(pl, "random_matrix") != NULL;
     if (fake) bw->skip_online_checks = 1;
@@ -62,8 +67,8 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
     if ((char2 && (As_width != 64 && As_width != 128 && As_width != 256))
             || (!char2 && As_width > 1))
     {
-        fprintf(stderr,
-                "We cannot support computing %u solutions at a time "
+        fmt::print(stderr,
+                "We cannot support computing {} solutions at a time "
                 "with one single Spmv operation, given the currently "
                 "implemented code\n",
                 As_width);
@@ -118,9 +123,8 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
     /* }}} */
 
     /* {{{ Read all vi's */
-    gmp_randstate_t rstate;
+    cxx_gmp_randstate rstate;
     if (fake) {
-        gmp_randinit_default(rstate);
         if (pi->m->trank == 0 && !bw->seed) {
             bw->seed = time(NULL);
             MPI_Bcast(&bw->seed, 1, MPI_INT, 0, pi->m->pals);
@@ -128,7 +132,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
         serialize_threads(pi->m);
         gmp_randseed_ui(rstate, bw->seed);
         if (tcan_print) 
-            printf("// Random generator seeded with %d\n", bw->seed);
+            fmt::print("// Random generator seeded with {}\n", bw->seed);
     }
     /* }}} */
 
@@ -143,11 +147,11 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
     serialize_threads(pi->m);
     if (bw->end == INT_MAX) {
         if (tcan_print)
-            printf ("Target iteration is unspecified ;"
+            fmt::print ("Target iteration is unspecified ;"
                     " going to end of F file\n");
     } else {
         if (tcan_print)
-            printf ("Target iteration is %u\n", bw->end);
+            fmt::print ("Target iteration is {}\n", bw->end);
         expected_last_iteration = bw->end;
     }
     ASSERT_ALWAYS(bw->end == INT_MAX || bw->end % bw->interval == 0);
@@ -155,7 +159,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
     pi_interleaving_flip(pi);
     if (bw->checkpoint_precious) {
         if (tcan_print) {
-            printf("As per interval=%d checkpoint_precious=%d, we'll load vectors every %d iterations, and print timings every %d iterations\n",
+            fmt::print("As per interval={} checkpoint_precious={}, we'll load vectors every {} iterations, and print timings every {} iterations\n",
                     bw->interval,
                     bw->checkpoint_precious,
                     bw->checkpoint_precious,
@@ -203,7 +207,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
     size_t const one_fcoeff = As->vec_elt_stride(Av->simd_groupsize());
     if (tcan_print) {
         char buf[20];
-        printf("Each thread allocates %d*%u*%u*%zu*%d=%s for the F matrices\n",
+        fmt::print("Each thread allocates {}*{}*{}*{}*{}={} for the F matrices\n",
                 Af_multiplex > 1 ? 2 : 1,
                 Av_multiplex,
                 As_multiplex,
@@ -248,7 +252,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
         serialize(pi->m);
         for(int i = 0 ; i < bw->n / splitwidth ; i++) {
             int const ys[2] = { i * splitwidth, (i + 1) * splitwidth };
-            std::string const v_name = fmt::format(FMT_STRING("V%u-%u.{}"), s);
+            std::string const v_name = fmt::format("V%u-%u.{}", s);
             if (fake) {
                 mmt_vec_set_random_through_file(vi[i], v_name, unpadded, rstate, ys[0]);
             } else {
@@ -265,12 +269,12 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
         int sx = MIN(bw_end_copy, s + bw->checkpoint_precious);
         if (tcan_print) {
             /*
-            printf("// bw->start=%d bw_end_copy=%d sx=%d s=%d\n",
+            fmt::print("// bw->start={} bw_end_copy={} sx={} s={}\n",
                     bw->start,
                     bw_end_copy,
                     sx, s);
                     */
-            printf("about to do %d iterations starting from vectors at iteration %d to handle the coefficients of degree [%d..%d] in F\n", sx-s-1, s, s, sx-1);
+            fmt::print("about to do {} iterations starting from vectors at iteration {} to handle the coefficients of degree [{}..{}] in F\n", sx-s-1, s, s, sx-1);
         }
 
         /* read coefficients of F by windows */
@@ -311,11 +315,11 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
                             sol0 = (j * Af_multiplex + k) * Av_width;
                             sol0 += solutions[0];
                             sol1 = sol0 + Av_width;
-                            std::string const f_name = fmt::format(FMT_STRING("F.sols{}-{}.{}-{}"), 
+                            std::string const f_name = fmt::format("F.sols{}-{}.{}-{}", 
                                     sol0, sol1,
                                     i * Av_width, (i + 1) * Av_width);
 
-                            // printf("[%d] reading from %s\n", pi->interleaved ? pi->interleaved->idx : -1, tmp);
+                            // fmt::print("[{}] reading from {}\n", pi->interleaved ? pi->interleaved->idx : -1, tmp);
                             FILE * f = fopen(f_name.c_str(), "rb");
                             DIE_ERRNO_DIAG(f == NULL, "fopen(%s)", f_name.c_str());
                             rc = fseek(f, one_fcoeff / Af_multiplex * s0, SEEK_SET);
@@ -350,7 +354,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
                             if (i == 0 && j == 0 && k == 0) rc0 = rc;
 
                             if (rc != rc0) {
-                                fprintf(stderr, "Inconsistency in number of "
+                                fmt::print(stderr, "Inconsistency in number of "
                                         "coefficients for F files\n");
                                 exit(EXIT_FAILURE);
                             }
@@ -364,7 +368,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
                 if (rc0 < bw->interval) {
                     short_read = true;
                     if (s1 != sx) {
-                        fprintf(stderr, "Problem while reading coefficients of f for degrees [%d..%d[ ; we should not have a short read given that bw->end=%d\n",
+                        fmt::print(stderr, "Problem while reading coefficients of f for degrees [{}..{}[ ; we should not have a short read given that bw->end={}\n",
                                 s0, s1, bw_end_copy);
                         exit(EXIT_FAILURE);
                     }
@@ -386,7 +390,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
                 s1 = bw_end_copy;
 
             if (tcan_print && short_read)
-                printf("We read %d coefficients from F in total\n", bw_end_copy);
+                fmt::print("We read {} coefficients from F in total\n", bw_end_copy);
 
             /* broadcast f */
             for(unsigned int i = 0 ; i < Av_multiplex ; i++) {
@@ -414,8 +418,8 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
 
                     /*
                     if (tcan_print) {
-                        printf("// %d\n", bw->start + sx - s1 + k);
-                        printf("v:=v+f[%d];\n", s1 - 1 - k);
+                        fmt::print("// {}\n", bw->start + sx - s1 + k);
+                        fmt::print("v:=v+f[{}];\n", s1 - 1 - k);
                     }
                     */
 
@@ -452,7 +456,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
                      * halway through a range of coefficients).
                      */
                     if (i_window < n_windows-1 || k < s1 - s0 - 1) {
-                        // if (tcan_print) printf("v:=M*v;\n");
+                        // if (tcan_print) fmt::print("v:=M*v;\n");
                         matmul_top_mul(mmt, ymy.vectors(), timing);
 
                         timing_check(pi, timing, s + sx - s1 + k + 1, tcan_print);
@@ -475,7 +479,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
              * really (and As_multiplex == 1)
              */
             int const j = 0;
-            std::string const s_name = fmt::format(FMT_STRING("S.sols%u-%u.{}-{}"), s, s + bw->checkpoint_precious);
+            std::string const s_name = fmt::format("S.sols%u-%u.{}-{}", s, s + bw->checkpoint_precious);
             ASSERT_ALWAYS(ymy[0].abase->simd_groupsize() == As_width);
             mmt_vec_save(ymy[0], s_name, unpadded,
                     solutions[0] + j * As_width);
@@ -487,10 +491,9 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
     timing_final_tally(pi, timing, tcan_print, "mksol");
 
     if (tcan_print) {
-        printf("Done mksol.\n");
+        fmt::print("Done mksol.\n");
     }
     serialize(pi->m);
-    if (fake) gmp_randclear(rstate);
 
     for(unsigned int k = 0 ; k < Av_multiplex * As_multiplex ; k++) {
         As->free((fcoeffs[k]));
@@ -511,10 +514,10 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
 // coverity[root_function]
 int main(int argc, char const * argv[])
 {
-    param_list pl;
+    cxx_param_list pl;
 
     bw_common_init(bw, &argc, &argv);
-    param_list_init(pl);
+
     parallelizing_info_init();
 
     bw_common_decl_usage(pl);
@@ -544,7 +547,7 @@ int main(int argc, char const * argv[])
     pi_go(mksol_prog, pl, 0);
 
     parallelizing_info_finish();
-    param_list_clear(pl);
+
     bw_common_clear(bw);
 
     return 0;

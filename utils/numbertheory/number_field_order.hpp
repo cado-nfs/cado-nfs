@@ -3,7 +3,10 @@
 
 #include <string>
 #include <vector>
+
 #include "fmt/format.h"
+
+#include "gmp_aux.h"
 #include "numbertheory/numbertheory_fwd_types.hpp"
 #include "numbertheory/number_field.hpp"
 #include "cxx_mpz.hpp"

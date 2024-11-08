@@ -6,7 +6,7 @@
 #include <cstdlib>
 #include <string>        // for string, basic_string
 #include <vector>
-#include "logline.h"
+#include "logline.hpp"
 #include "memusage.h"   // Memusage2
 #include "params.h"     // param_list_parse_*
 #include "select_mpi.h"
@@ -104,7 +104,7 @@ void logline_unserialize(double tt)
 }
 
 
-void logline_decl_usage(param_list_ptr pl)
+void logline_decl_usage(cxx_param_list & pl)
 {
     param_list_decl_usage(pl, "logline_threshold",
             "print log lines of verbosity level i only for sizes greater than i-th item in this comma-separated list");
@@ -117,7 +117,7 @@ void logline_decl_usage(param_list_ptr pl)
 
 }
 
-int logline_interpret_parameters(param_list_ptr pl)
+int logline_interpret_parameters(cxx_param_list & pl)
 {
     int thr[10];
     int const n = param_list_parse_int_list(pl, "logline_threshold", thr, 10, ",");

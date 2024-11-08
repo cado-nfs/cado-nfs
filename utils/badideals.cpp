@@ -324,8 +324,8 @@ std::string generic_sagemath_string(cxx_mpz_poly const & f, int side, cxx_mpz co
             continue;
         int inertia = A.get_inertia_degree(x);
         if (inertia != 1) {
-            std::cerr << fmt::format(FMT_STRING(
-                        "# note: seemingly innocuous prime ideal ({},{}) on side {} has non-trivial residue class degree {}\n"),
+            std::cerr << fmt::format(
+                        "# note: seemingly innocuous prime ideal ({},{}) on side {} has non-trivial residue class degree {}\n",
                     p, r, side, inertia);
         }
         if (k != -1)

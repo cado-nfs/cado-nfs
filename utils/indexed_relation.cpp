@@ -77,7 +77,7 @@ template<typename Storage>
 std::ostream& operator<<(std::ostream& os, indexed_relation_tmpl<Storage> const & rel)
 {
 #if 0
-    os << fmt::format(FMT_STRING("{:x},{:x}"), (uint64_t) rel.a, rel.b);
+    os << fmt::format("{:x},{:x}", (uint64_t) rel.a, rel.b);
     /* this sorts the indices before printing. A priori there's no real
      * point in doing that, but just in case.
      *
@@ -92,15 +92,15 @@ std::ostream& operator<<(std::ostream& os, indexed_relation_tmpl<Storage> const 
     std::sort(S.begin(), S.end());
 
         for(auto i : S) {
-            os << c << fmt::format(FMT_STRING("{:x}"), i);
+            os << c << fmt::format("{:x}", i);
             c = ',';
         }
 #else
-    os << fmt::format(FMT_STRING("{:x},{:x}"), rel.a, rel.b);
+    os << fmt::format("{:x},{:x}", rel.a, rel.b);
     char c = ':';
     for(auto const & s : rel.containers()) {
         for(auto i : s) {
-            os << c << fmt::format(FMT_STRING("{:x}"), i);
+            os << c << fmt::format("{:x}", i);
             c = ',';
         }
     }

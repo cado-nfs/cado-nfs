@@ -7,17 +7,17 @@
 /* Some generic functions for random picking along distributions
  */
 
-double random_uniform(gmp_randstate_t rstate);
+double random_uniform(cxx_gmp_randstate & rstate);
 
-double random_normal_standard(gmp_randstate_t rstate);
+double random_normal_standard(cxx_gmp_randstate & rstate);
 
-double random_normal(gmp_randstate_t rstate, double mean, double sdev);
+double random_normal(cxx_gmp_randstate & rstate, double mean, double sdev);
 
 /* return the expected maximum among n picks for a normal low with given
  * mean and sdev */
 double extreme_normal(double n, double mean, double sdev);
 
-double random_normal_constrained(gmp_randstate_t rstate, double mean, double sdev, double a, double b);
+double random_normal_constrained(cxx_gmp_randstate & rstate, double mean, double sdev, double a, double b);
 
 /* given a probability mass function which gives the gaussian with mean
  * and sdev given my mx[0] and mx[1], but truncated to the interval
@@ -29,10 +29,10 @@ double random_normal_constrained(gmp_randstate_t rstate, double mean, double sde
  */
 void accuracy_of_normal_approximation_to_binomial(double * my, double *mx, unsigned long a, unsigned long b);
 
-double random_poisson(gmp_randstate_t rstate, double lambda);
+double random_poisson(cxx_gmp_randstate & rstate, double lambda);
 
 /* This is the random variable associated to the *size* of the sample */
-double random_binomial(gmp_randstate_t rstate, unsigned long n, double p);
+double random_binomial(cxx_gmp_randstate & rstate, unsigned long n, double p);
 
 
 /* Let X be an integer random variable on [0,N) with probability mass
@@ -83,11 +83,23 @@ void punched_interval_print_rec(FILE * f, punched_interval_ptr c);
 
 void punched_interval_print(FILE * f, punched_interval_ptr c);
 
-unsigned long punched_interval_pick(punched_interval_ptr * pool, punched_interval_ptr c,
-        double (*dist_q)(const void *, double), 
-        double (*dist_qrev)(const void *, double), 
-        const void * f,
-        gmp_randstate_ptr rstate);
+struct matrix_column_distribution {
+    // virtual double p(double x) const = 0;
+    virtual double q(double x) const = 0;
+    virtual double qrev(double x) const = 0;
+    // virtual double qq(double x) const = 0;
+    matrix_column_distribution() = default;
+    matrix_column_distribution(matrix_column_distribution const&) = default;
+    matrix_column_distribution(matrix_column_distribution &&) = default;
+    matrix_column_distribution& operator=(matrix_column_distribution const&) = default;
+    matrix_column_distribution& operator=(matrix_column_distribution &&) = default;
+    virtual ~matrix_column_distribution() = default;
+};
+
+unsigned long punched_interval_pick(punched_interval_ptr * pool,
+        punched_interval_ptr c,
+        matrix_column_distribution const & D,
+        cxx_gmp_randstate & rstate);
 
 
 #endif	/* UTILS_RANDOM_DISTRIBUTIONS_HPP_ */

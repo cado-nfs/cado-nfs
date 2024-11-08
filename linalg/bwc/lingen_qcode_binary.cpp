@@ -4,15 +4,16 @@
 #include <cstdio>                        // for printf
 #include <cstdlib>                       // for free, malloc
 #include <cstring>                       // for memset, memcpy
+#include <cstdint>                        // for uint64_t
 
 #include <array>                          // for array<>::iterator, array
-#include <cstdint>                        // for uint64_t
 #include <iterator>                       // for begin
 #include <utility>                        // for swap
 #include <algorithm>
 #include <vector>
 #include <type_traits>
 
+#include "gmp_aux.h"
 #define LINGEN_QCODE_BINARY_TRAMPOLINE_INTERFACE
 #include "lingen_qcode_binary.hpp"
 #include "bpack.hpp"                      // for bpack_view, bpack_view_base...
@@ -859,7 +860,7 @@ matpoly bw_lingen_basecase(bmstatus & bm, matpoly & E)/*{{{*/
     return pi;
 }/*}}}*/
 
-void test_basecase(matpoly::arith_hard * ab, unsigned int m, unsigned int n, size_t L, gmp_randstate_t rstate)/*{{{*/
+void test_basecase(matpoly::arith_hard * ab, unsigned int m, unsigned int n, size_t L, cxx_gmp_randstate & rstate)/*{{{*/
 {
     /* used by testing code */
     cxx_mpz const p=2;
@@ -872,7 +873,7 @@ void test_basecase(matpoly::arith_hard * ab, unsigned int m, unsigned int n, siz
     bw_lingen_basecase_raw(bm, E);
 }/*}}}*/
 
-void test_basecase_bblas(matpoly::arith_hard * ab, unsigned int m, unsigned int n, size_t L, gmp_randstate_t rstate)/*{{{*/
+void test_basecase_bblas(matpoly::arith_hard * ab, unsigned int m, unsigned int n, size_t L, cxx_gmp_randstate & rstate)/*{{{*/
 {
     // constexpr const unsigned int B = mat64::width;
 

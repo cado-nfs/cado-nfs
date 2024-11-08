@@ -206,17 +206,17 @@ void vec_free(arith_generic * A, arith_generic::elt *& z, size_t vsize MAYBE_UNU
 
 int vec_read(arith_generic * A, void * z, string const & v, size_t vsize, const char * prefix = NULL)
 {
-    fmt::print(FMT_STRING("{} {} ..."), prefix, v);
+    fmt::print("{} {} ...", prefix, v);
     FILE * f;
     if ((f = fopen(v.c_str(), "rb")) != NULL) {
         int const rc = fread(z, A->elt_stride(), vsize, f);
         fclose(f);
         if (rc >= 0 && (size_t) rc == vsize) {
-            fmt::print(FMT_STRING("{}"), " done\n");
+            fmt::print("{}", " done\n");
             return rc;
         }
     }
-    fmt::print(FMT_STRING("{}"), " failed\n");
+    fmt::print("{}", " failed\n");
     return -1;
 }
 
@@ -239,7 +239,7 @@ size_t common_size(arith_generic * Ac, std::vector<T> const & Cfiles, const char
     for(auto & C : Cfiles) {
         size_t items = vec_items(Ac, C);
         if (items == 0) {
-            fmt::print(FMT_STRING("{} has disappeared\n"), C);
+            fmt::print("{} has disappeared\n", C);
             continue;
         }
         if (vsize == 0) {
@@ -247,12 +247,12 @@ size_t common_size(arith_generic * Ac, std::vector<T> const & Cfiles, const char
             vsize_first = C;
         } else if (vsize != items) {
             fmt::print(stderr,
-                    FMT_STRING("File sizes disagree for {} ({} items) and {} ({} items)\n"),
+                    "File sizes disagree for {} ({} items) and {} ({} items)\n",
                     vsize_first, vsize, C, items);
             exit(EXIT_FAILURE);
         }
     }
-    if (vsize) fmt::print(FMT_STRING("{} files have {} coordinates\n"), name, vsize);
+    if (vsize) fmt::print("{} files have {} coordinates\n", name, vsize);
     return vsize;
 }
 
@@ -275,7 +275,7 @@ void check_V_files(arith_generic * Ac, vseq_t & Vsequences, std::vector<Cfile> &
             Cfile& C_i1(Cfiles[i1]);
             const char * c = C_i1.c_str();
 
-            fmt::print(FMT_STRING("Doing checks for distance {} using {} and {}\n"),
+            fmt::print("Doing checks for distance {} using {} and {}\n",
                     C_i1.stretch - C_i0.stretch,
                     C_i0, C_i1
                     );
@@ -290,7 +290,7 @@ void check_V_files(arith_generic * Ac, vseq_t & Vsequences, std::vector<Cfile> &
             {
                 vector<Vfile> & Vs(it->second);
 
-                fmt::print(FMT_STRING(" checks on V files for sequence {}-{}\n"),
+                fmt::print(" checks on V files for sequence {}-{}\n",
                         it->first.first, it->first.second);
 
                 std::unique_ptr<arith_generic> Av(arith_generic::instance(bw->p,it->first.second - it->first.first));
@@ -302,7 +302,7 @@ void check_V_files(arith_generic * Ac, vseq_t & Vsequences, std::vector<Cfile> &
                 for(unsigned int i = 0 ; i < Vs.size() ; i++) {
                     size_t items = vec_items(Av.get(), Vs[i]);
                     if (items != vsize) {
-                        fmt::print(stderr, FMT_STRING("{} has {} coordinates, different from expected {}\n"), Vs[i], items, vsize);
+                        fmt::print(stderr, "{} has {} coordinates, different from expected {}\n", Vs[i], items, vsize);
                         exit(EXIT_FAILURE);
                     }
                 }
@@ -341,7 +341,7 @@ void check_V_files(arith_generic * Ac, vseq_t & Vsequences, std::vector<Cfile> &
                     if (strncmp(vj, c, my_basename(c) - c) == 0) {
                         vj += my_basename(c) - c;
                     }
-                    fmt::print(FMT_STRING("  check {} against {}\n"), vi, vj);
+                    fmt::print("  check {} against {}\n", vi, vj);
                     if (Vs[i].n != Vv_iter) {
                         if (vec_read(Ac, Vv, Vs[i].c_str(), vsize, "   ") < 0)
                             continue;
@@ -372,14 +372,14 @@ void check_V_files(arith_generic * Ac, vseq_t & Vsequences, std::vector<Cfile> &
                     int const cmp = Av->vec_cmp(dotprod_scratch[0], dotprod_scratch[1], nchecks);
 
                     std::string diag = fmt::format(
-                            FMT_STRING("  check {} against {} -> {}\n"),
+                            "  check {} against {} -> {}\n",
                             vi, vj, ok_NOKNOK(cmp == 0));
 
-                    fmt::print(FMT_STRING("{}"), diag);
+                    fmt::print("{}", diag);
 
                     if (cmp != 0) {
                         nfailed++;
-                        fmt::print(stderr, FMT_STRING("{}"), diag);
+                        fmt::print(stderr, "{}", diag);
                     }
                 }
                 vec_free(Av.get(), dotprod_scratch[0], nchecks);
@@ -404,7 +404,7 @@ void check_A_files(arith_generic * Ac, std::vector<Vfile> const & Vfiles, std::v
     int const nchecks = Ac->simd_groupsize();
 
     size_t rsize = vec_items(Ac, R) / nchecks;
-    fmt::print(FMT_STRING("Cr file has {} coordinates\n"), rsize);
+    fmt::print("Cr file has {} coordinates\n", rsize);
 
     ASSERT_ALWAYS(vec_items(Ac, T) ==  (size_t) bw->m);
 
@@ -430,11 +430,11 @@ void check_A_files(arith_generic * Ac, std::vector<Vfile> const & Vfiles, std::v
         if (D.stretch == 0)
             continue;
         if (D.stretch > rsize) {
-            fmt::print(stderr, FMT_STRING("Cannot do checks using {}, too few items in R file\n"), R);
+            fmt::print(stderr, "Cannot do checks using {}, too few items in R file\n", R);
             continue;
         }
-        fmt::print(FMT_STRING("Doing A file checks for distance {} using {}\n"
-                "  (as well as {} and {})\n"),
+        fmt::print("Doing A file checks for distance {} using {}\n"
+                "  (as well as {} and {})\n",
                 D.stretch, D, T, R);
         int has_read_D = 0;
         /* first scan potential base files V, and the restrict to cases
@@ -470,7 +470,7 @@ void check_A_files(arith_generic * Ac, std::vector<Vfile> const & Vfiles, std::v
             if (n_reach < V0.n + D.stretch)
                 continue;
 
-            fmt::print(FMT_STRING("  check {} against {} entries of{}\n"),
+            fmt::print("  check {} against {} entries of{}\n",
                     V0, D.stretch, a_list.str());
 
             std::unique_ptr<arith_generic> Av(arith_generic::instance(bw->p, V0.j1 - V0.j0));
@@ -491,7 +491,7 @@ void check_A_files(arith_generic * Ac, std::vector<Vfile> const & Vfiles, std::v
                 if (A.n1 <= n_reach) continue;
                 if (A.n0 <= n_reach) {
                     ASSERT_ALWAYS(n_reach == V0.n || n_reach == A.n0);
-                    fmt::print(FMT_STRING("   read {} small {}*{} matrices from {}\n"),
+                    fmt::print("   read {} small {}*{} matrices from {}\n",
                             std::min(A.n1, V0.n + D.stretch) - n_reach,
                             bw->m, bw->n, A);
                     FILE * a = fopen(A.c_str(), "rb");
@@ -562,19 +562,19 @@ void check_A_files(arith_generic * Ac, std::vector<Vfile> const & Vfiles, std::v
                 int const cmp = Av->vec_cmp(dotprod_scratch[0], dotprod_scratch[1], nchecks);
 
                 std::string diag = fmt::format(
-                        FMT_STRING("  check {} against {} entries of{} -> {}\n"),
+                        "  check {} against {} entries of{} -> {}\n",
                         V0, D.stretch, a_list.str(),
                         ok_NOKNOK(cmp == 0));
-                fmt::print(FMT_STRING("{}"), diag);
+                fmt::print("{}", diag);
 
                 if (cmp != 0) {
                     nfailed++;
-                    fmt::print(stderr, FMT_STRING("{}"), diag);
+                    fmt::print(stderr, "{}", diag);
                 }
             }
 
             if (!can_check)
-                fmt::print(FMT_STRING("{}"), "  (check aborted because of missing files)\n");
+                fmt::print("{}", "  (check aborted because of missing files)\n");
 
             vec_free(Av.get(), dotprod_scratch[2], nchecks);
             vec_free(Av.get(), dotprod_scratch[1], nchecks);
@@ -590,7 +590,7 @@ void check_A_files(arith_generic * Ac, std::vector<Vfile> const & Vfiles, std::v
  * way programs such as krylov or mksol are written.
  *
  */
-void * check_prog(param_list pl MAYBE_UNUSED, int argc, char const * argv[])
+void * check_prog(cxx_param_list & pl MAYBE_UNUSED, int argc, char const * argv[])
 {
     int const withcoeffs = mpz_cmp_ui(bw->p, 2) > 0;
     int const nchecks = withcoeffs ? NCHECKS_CHECK_VECTOR_GFp : NCHECKS_CHECK_VECTOR_GF2;
@@ -638,11 +638,11 @@ void * check_prog(param_list pl MAYBE_UNUSED, int argc, char const * argv[])
                            * anyway, just discard them right away */
                 case 'F': case 'S': break;
                 default:
-                        fmt::print(stderr, FMT_STRING("File name not recognized: {}\n"), argv[i]);
+                        fmt::print(stderr, "File name not recognized: {}\n", argv[i]);
                         exit(EXIT_FAILURE);
             }
         } catch (std::runtime_error& e) {
-            fmt::print(stderr, FMT_STRING("Parse error on {}: {}\n"), argv[i], e.what());
+            fmt::print(stderr, "Parse error on {}: {}\n", argv[i], e.what());
             exit(EXIT_FAILURE);
         }
     }
@@ -701,16 +701,16 @@ void * check_prog(param_list pl MAYBE_UNUSED, int argc, char const * argv[])
 
     /* Check A files using V, D, T, and R */
     if ((Tfiles.empty() || Rfiles.empty()) && !Dfiles.empty()) {
-        fmt::print(stderr, FMT_STRING("{}"), "It makes no sense to provide Cd files and no Cr and Ct file\n");
+        fmt::print(stderr, "{}", "It makes no sense to provide Cd files and no Cr and Ct file\n");
         exit(EXIT_FAILURE);
     } else if (!Tfiles.empty() && !Rfiles.empty() && !Dfiles.empty()) {
         check_A_files(Ac.get(), Vfiles, Afiles, Dfiles, Rfiles.front(), Tfiles.front(), nfailed);
     }
 
     if (nfailed) {
-        std::string diag = fmt::format(FMT_STRING("{} checks FAILED !!!!!!!!!!!!!!!!!\n"), nfailed);
-        fmt::print(FMT_STRING("{}"), diag);
-        fmt::print(stderr, FMT_STRING("{}"), diag);
+        std::string diag = fmt::format("{} checks FAILED !!!!!!!!!!!!!!!!!\n", nfailed);
+        fmt::print("{}", diag);
+        fmt::print(stderr, "{}", diag);
         exit(EXIT_FAILURE);
     }
 
@@ -831,10 +831,10 @@ void * check_prog(param_list pl MAYBE_UNUSED, int argc, char const * argv[])
 
 int main(int argc, char const * argv[])
 {
-    param_list pl;
+    cxx_param_list pl;
 
     bw_common_init(bw, &argc, &argv);
-    param_list_init(pl);
+
 
     param_list_usage_header(pl,
             "Usage: %s [options] -- [list of file names]\n"
@@ -859,7 +859,6 @@ int main(int argc, char const * argv[])
 
     check_prog(pl, argc, argv);
 
-    param_list_clear(pl);
     bw_common_clear(bw);
 
     return 0;

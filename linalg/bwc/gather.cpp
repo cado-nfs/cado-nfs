@@ -23,6 +23,7 @@
 
 #include <gmp.h>                 // for mpz_cmp_ui, gmp_randclear, gmp_randi...
 
+#include "gmp_aux.h"
 #include "bw-common.h"
 #include "cxx_mpz.hpp"
 #include "matmul_top.hpp"
@@ -224,8 +225,7 @@ std::vector<unsigned int> get_possibly_wrong_columns(matmul_top_data & mmt)/*{{{
     /* Comments below assume that we're in the typical case
      * bw->dir==1, nrows > ncols */
 
-    gmp_randstate_t rstate;
-    gmp_randinit_default(rstate);
+    cxx_gmp_randstate rstate;
 
     if (pi->m->trank == 0 && !bw->seed) {
         /* note that bw is shared between threads, thus only thread 0 should
@@ -286,8 +286,6 @@ std::vector<unsigned int> get_possibly_wrong_columns(matmul_top_data & mmt)/*{{{
         allz_set.erase(j);
     }
     allz.assign(allz_set.begin(), allz_set.end());
-
-    gmp_randclear(rstate);
 
     return allz;
 }/*}}}*/
@@ -1028,7 +1026,7 @@ class parasite_fixer {/*{{{*/
     }/*}}}*/
 };/*}}}*/
 
-void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED)
+void * gather_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
     ASSERT_ALWAYS(!pi->interleaved);
 
@@ -1371,10 +1369,10 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
 // coverity[root_function]
 int main(int argc, char const * argv[])
 {
-    param_list pl;
+    cxx_param_list pl;
 
     bw_common_init(bw, &argc, &argv);
-    param_list_init(pl);
+
     parallelizing_info_init();
 
     bw_common_decl_usage(pl);
@@ -1411,7 +1409,7 @@ int main(int argc, char const * argv[])
     pi_go(gather_prog, pl, 0);
 
     parallelizing_info_finish();
-    param_list_clear(pl);
+
     bw_common_clear(bw);
 
     return exitcode;

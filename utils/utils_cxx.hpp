@@ -9,6 +9,8 @@
 #include <type_traits>
 #include <vector>
 
+#include "fmt/format.h"
+
 #include "macros.h"
 
 /* Base class with private copy-constructor and assignment operator.
@@ -264,5 +266,55 @@ static inline std::vector<std::string> split(
 
     return tokens;
 }
+
+/* do we want these on iterables instead of vectors ? */
+template<typename ItemType>
+static inline std::string join(std::vector<ItemType> const & items,
+        const std::string& delimiter)
+{
+    std::string ret;
+    for(auto const & s : items) {
+        if (!ret.empty()) ret += delimiter;
+        ret += fmt::format("{}", s);
+    }
+    return ret;
+}
+
+template<>
+inline std::string join<std::string>(std::vector<std::string> const & items,
+        const std::string& delimiter)
+{
+    std::string ret;
+    for(auto const & s : items) {
+        if (!ret.empty()) ret += delimiter;
+        ret += s;
+    }
+    return ret;
+}
+
+template<typename Lambda, typename Iterable>
+static inline std::string join(Iterable first, Iterable last,
+        const std::string& delimiter,
+        Lambda lambda)
+{
+    std::string ret;
+    for(Iterable x = first ; x != last ; ++x) {
+        if (!ret.empty()) ret += delimiter;
+        ret += lambda(*x);
+    }
+    return ret;
+}
+
+/* not sure it's really needed. after all, we might want to have a
+ * generic map construction
+ */
+template<typename Lambda, typename ItemType>
+static inline std::string join(std::vector<ItemType> const & items,
+        const std::string& delimiter,
+        Lambda lambda)
+{
+    return join(items.begin(), items.end(), delimiter, lambda);
+}
+
 
 #endif	/* UTILS_CXX_HPP_ */

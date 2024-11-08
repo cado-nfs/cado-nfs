@@ -1,23 +1,28 @@
 #include "cado.h"
 
-#include "cxx_mpz.hpp"
-#include "ecm.h"
+#include <climits>
+#include <cmath>
+#include <cstdbool>
+#include <cstdio>
+#include <cstdlib>
+#include <ctime>
+
+#include <algorithm>
+#include <iostream>
+#include <set>
+#include <vector>
+
+#include <sys/time.h>
+
+#include <gmp.h>
 #include "fmt/core.h"
 #include "fmt/format.h"
+
+#include "cxx_mpz.hpp"
+#include "ecm.h"
 #include "macros.h"
 #include "smooth_detect.hpp"
-#include <algorithm>
-#include <gmp.h>
-#include <iostream>
-#include <limits.h>
-#include <math.h>
-#include <set>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/time.h>
-#include <time.h>
-#include <vector>
+
 
 // For a bug in ecm ?
 static double default_B1done;
@@ -70,19 +75,19 @@ operator<<(std::ostream& os, descent_init_candidate const& c)
     cxx_mpz const & u = c.u;
     cxx_mpz const & v = c.v;
     return os
-           << fmt::format(FMT_STRING("Candidate e = {}\n"), c.e)
-           << fmt::format(FMT_STRING("u0={}\nv0={}\n"), u0, v0)
+           << fmt::format("Candidate e = {}\n", c.e)
+           << fmt::format("u0={}\nv0={}\n", u0, v0)
            << fmt::format(
-                FMT_STRING("u={} ({} bits) largest prime so far of {} bits)\n"),
+                "u={} ({} bits) largest prime so far of {} bits)\n",
                 u,
                 mpz_sizeinbase(c.u, 2),
                 c.lpu)
            << fmt::format(
-                FMT_STRING("v={} ({} bits) largest prime so far of {} bits)\n"),
+                "v={} ({} bits) largest prime so far of {} bits)\n",
                 v,
                 mpz_sizeinbase(c.v, 2),
                 c.lpv)
-           << fmt::format(FMT_STRING("effort={:.0f}\n"), c.effort);
+           << fmt::format("effort={:.0f}\n", c.effort);
 }
 
 // if effort is such that all primes up to b-bits have been removed,
@@ -106,12 +111,12 @@ descent_init_candidate::is_probably_not_smooth(unsigned int bound) const
     for (unsigned int k = 2; k < 4; ++k) {
         unsigned long const bu = mpz_sizeinbase(u, 2);
         if ((bu < (k + 1) * bits) && (bu > k * bound)) {
-            //      printf("Probably not smooth, level %d: %lu bits!\n", k, bu);
+            //      fmt::print("Probably not smooth, level {}: {} bits!\n", k, bu);
             return true;
         }
         unsigned long const bv = mpz_sizeinbase(v, 2);
         if ((bv < (k + 1) * bits) && (bv > k * bound)) {
-            //      printf("Probably not smooth, level %d: %lu bits!\n", k, bv);
+            //      fmt::print("Probably not smooth, level {}: {} bits!\n", k, bv);
             return true;
         }
     }
@@ -136,7 +141,7 @@ purge(std::vector<descent_init_candidate>& P,
       unsigned int lmax)
 {
     ASSERT(std::is_sorted(P.begin(), P.end()));
-    std::vector<descent_init_candidate>::iterator w = P.begin();
+    auto w = P.begin();
 
     for (auto r = P.begin(); r != P.end(); ++r) {
         if (!r->is_factored()
@@ -148,7 +153,6 @@ purge(std::vector<descent_init_candidate>& P,
                 break;
         }
     }
-    return;
 }
 
 std::ostream&
@@ -156,7 +160,7 @@ operator<<(std::ostream& os, std::vector<descent_init_candidate> const& P)
 {
     size_t i = 0;
     for (auto const& C : P) {
-        os << fmt::format(FMT_STRING("{}: {} {} ({})\n"),
+        os << fmt::format("{}: {} {} ({})\n",
                           i,
                           mpz_sizeinbase(C.u, 2),
                           mpz_sizeinbase(C.v, 2),
@@ -210,7 +214,7 @@ operator<<(std::ostream& os, ecm_stats const& s)
     for (int i = 1; i < MIN(500, MAX_CPT); ++i) {
         if (s.nb_test[i] <= 100)
             break;
-        os << fmt::format(FMT_STRING(" {:.0f}"), s.aver_gain[i]);
+        os << fmt::format(" {:.0f}", s.aver_gain[i]);
     }
     os << " ]\n";
     return os;
@@ -473,13 +477,13 @@ smooth_detect(int (*next_cand)(descent_init_candidate&, const void*),
         found = smooth_detect_one_step(C, ctx);
         cpt++;
         if (param.verbose && (cpt % 20 == 0)) {
-            printf("***** Pool status after %d candidates in %.1fs\n",
+            fmt::print("***** Pool status after {} candidates in {:.1f}s\n",
                    cpt,
                    get_time() - tm);
-            printf("current_effort = %.0f\n", ctx.current_effort);
-            printf("current max B1 = %.0f\n",
+            fmt::print("current_effort = {:.0f}\n", ctx.current_effort);
+            fmt::print("current max B1 = {:.0f}\n",
                    get_B1_from_effort(ctx.current_effort, ctx.minB1));
-            printf("current stats:\n");
+            fmt::print("current stats:\n");
             std::cout << ctx.stats;
             std::cout << ctx.pool;
         }

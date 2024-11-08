@@ -1,5 +1,7 @@
 #include "cado.h"
+
 #include <gmp.h>
+
 #include "lingen_matpoly_ft.hpp"
 #include "gmp_aux.h"
 #include "lingen_substep_characteristics.hpp"
@@ -13,13 +15,13 @@ struct matpoly_checker_ft {
     unsigned int n;
     unsigned int L;
 
-    gmp_randstate_t rstate;
+    cxx_gmp_randstate rstate;
     unsigned long seed;
 
     matpoly::memory_guard dummy;
     typename matpoly_ft<fft_type>::memory_guard dummy_ft;
 
-    matpoly_checker_ft(cxx_mpz const & p, unsigned int m, unsigned int n, unsigned int L, gmp_randstate_t rstate0)
+    matpoly_checker_ft(cxx_mpz const & p, unsigned int m, unsigned int n, unsigned int L, cxx_gmp_randstate & rstate0)
         : ab(p, 1)
         , m(m)
         , n(n)
@@ -28,11 +30,7 @@ struct matpoly_checker_ft {
         , dummy(SIZE_MAX)
         , dummy_ft(SIZE_MAX)
     {
-        gmp_randinit_default(rstate);
         gmp_randseed_ui(rstate, seed);
-    }
-    ~matpoly_checker_ft() {
-        gmp_randclear(rstate);
     }
     private:
     static inline int max_threads() {
@@ -99,7 +97,7 @@ int main(int argc, char const * argv[])
     MPI_Init(&argc, (char ***) &argv);
 
     cxx_mpz p;
-    gmp_randstate_t rstate;
+    cxx_gmp_randstate rstate;
 
     unsigned int m = 4;
     unsigned int n = 2;
@@ -152,7 +150,6 @@ int main(int argc, char const * argv[])
     }
 #endif
 
-    gmp_randinit_default(rstate);
     gmp_randseed_ui(rstate, seed);
 
 #ifdef LINGEN_BINARY
@@ -174,8 +171,6 @@ int main(int argc, char const * argv[])
         checker_ft.doit(P, std::cout);
     }
 #endif
-
-    gmp_randclear(rstate);
 
     MPI_Finalize();
 }

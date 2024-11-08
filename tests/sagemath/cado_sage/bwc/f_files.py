@@ -154,7 +154,7 @@ class BwcFFiles(object):
         R = self.R
         assert A0 * R + mcoeff(A1 * Fr, d) == 0
 
-    def derive_solutions(self, A, Vs, MQ):
+    def derive_solutions(self, A, Vs, MQ, Rhs):
         """
         This returns a pair (U, V) such that each of the n columns (u in
         U and v in V) are such that  rhs * u + MQ * v = 0
@@ -169,7 +169,11 @@ class BwcFFiles(object):
         r = len(self.rhs_columns)
         U = self.R[:r, :]
         v = Vs.block_by_iteration(0)
-        rhs = v[:, :r]
+
+        # rhs_fragment_in_v is equal to rhs for nullspace=right, but
+        # if nullspace==left, it's M.Q.T * Rhs.R (with the relevant
+        # dimension cuts)
+        rhs_fragment_in_v = v[:, :r]
         V = v.parent()()
         for k in range(self.degree() + 1):
             V += v * mcoeff(self.F, k)
@@ -177,10 +181,21 @@ class BwcFFiles(object):
 
         print("Checking solutions derived from the linear generator ...")
 
-        should_be_zero = rhs * U + MQ * V
+        # with nullspace==left:
+        #   MQ*V is actually MQ.parent.Q.T * MQ.parent.M.T * V == MQ*V
+        #   M*V is actually M.M.T * V == M*V
+        # We should, in that case, have 
+        #
+        # rhs_fragment_in_v * U + M * V == 0
+        #
+        # so, compared to the rhs_fragment_in_v that I see today, I would rather want
+        # to see RRR = M.Q.T*rhs_fragment_in_v, since in that case I would have the
+        # desired result.
+
+        should_be_zero = rhs_fragment_in_v * U + MQ * V
         if should_be_zero != 0:
             rk = should_be_zero.rank()
-            event = f"rhs * U + MQ * V has rank {rk} (should be zero)"
+            event = f"rhs_fragment_in_v * U + MQ * V has rank {rk} (should be zero)"
             print(f"check failed: {event} {NOK}")
             print("This is typically _not_ recovered by the C code, "
                   "but is otherwise rather harmless if the rank "
@@ -199,11 +214,18 @@ class BwcFFiles(object):
                 elif QV[:MQ.parent.ncols_orig, j] == 0:
                     print(f"{warn} on the interesting columns {EXCL}")
 
-        if self.params.is_nullspace_left():
-            # This the current state of affairs, but it's a bug! We
-            # should modify rhs before feeding it to bwc!
-            assert U.T * rhs.T * MQ.parent.Q.T  + V.T*MQ.parent.M == 0
-
         print("Checking solutions derived from the linear generator ... " + OK)
+
+        if self.params.is_nullspace_left() and Rhs is not None:
+            # Now we need to untangle the connection between
+            # rhs_fragment_in_v and Rhs.R
+            assert U.T * rhs_fragment_in_v.T * MQ.parent.Q.T  + V.T*MQ.parent.M == 0
+            assert Rhs.R * U + MQ.parent.M.T[:Rhs.R.nrows(),:] * V == 0
+            print("Checking that we have a solution",
+                  "of the input linear system ...")
+            assert U.T * Rhs.R.T + V.T * MQ.parent.M[:,:Rhs.R.nrows()] == 0
+            print("Checking that we have a solution",
+                  "of the input linear system ... " + OK)
+
 
         return (U, V)

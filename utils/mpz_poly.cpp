@@ -5151,7 +5151,7 @@ static void multievaluate_derivative(std::vector<cxx_mpz> & ret, std::shared_ptr
     cxx_mpz_poly tmp;
     mpz_poly_mod(tmp, P, T->A);
     if (T->i1 == T->i0 + 1) {
-        ret.push_back(tmp[0]);
+        ret.push_back(tmp.coeff(0));
     } else {
         multievaluate_derivative(ret, T->children[0], tmp);
         multievaluate_derivative(ret, T->children[1], tmp);

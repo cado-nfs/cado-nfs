@@ -5,7 +5,7 @@
 
 set -e
 
-: ${WORKDIR?missing}
+: ${WORKDIR:?missing}
 
 DL=()
 
@@ -46,10 +46,10 @@ while [ $# -gt 0 ] ; do
     fi
 done
 
-: ${CADO_NFS_BINARY_DIR?missing}
-: ${POLY?missing}
-: ${LPBS?missing}
-: ${RELS?missing}
+: ${CADO_NFS_BINARY_DIR:?missing}
+: ${POLY:?missing}
+: ${LPBS:?missing}
+: ${RELS:?missing}
 
 RENUMBER="${WORKDIR}/renumber.gz"
 WORK_RELS="${WORKDIR}/rels.gz"

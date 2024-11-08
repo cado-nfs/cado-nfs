@@ -14,7 +14,7 @@ params_args=(
     slaves.hostnames=localhost
     tasks.sieve.las.threads=auto
     tasks.polyselect.import="$CADO_NFS_SOURCE_DIR/tests/estimate_matsize/p80.poly"
-    tasks.workdir=${wdir?missing}
+    tasks.workdir=${wdir:?missing}
 )
 
 paramfile_args=(

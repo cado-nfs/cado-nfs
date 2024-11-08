@@ -1,13 +1,19 @@
 #ifndef BALANCING_WORKHORSE_HPP_
 #define BALANCING_WORKHORSE_HPP_
 
-#include "params.h"              // for param_list_ptr, param_list
+#include "params.h"
 #include "parallelizing_info.hpp"
-#include "raw_matrix_u32.h"
+#include "matrix_u32.hpp"
 
-void balancing_decl_usage(param_list_ptr pl);
-void balancing_lookup_parameters(param_list_ptr pl);
+void balancing_decl_usage(cxx_param_list & pl);
+void balancing_lookup_parameters(cxx_param_list & pl);
 
-void balancing_get_matrix_u32(parallelizing_info_ptr pi, param_list_ptr pl, matrix_u32_ptr arg);
+matrix_u32 balancing_get_matrix_u32(
+        parallelizing_info_ptr pi,
+        cxx_param_list & pl,
+        std::string const & mfile,
+        std::string const & bfile,
+        bool withcoeffs,
+        bool transpose_while_dispatching);
 
 #endif	/* BALANCING_WORKHORSE_HPP_ */

@@ -1,5 +1,6 @@
 #include "cado.h"
 
+#include "gmp_aux.h"
 #include "matmul_top.hpp"
 #include "matmul_top_vec.hpp"
 #include "matmul_top_comm.hpp"
@@ -66,7 +67,7 @@ static unsigned int alloc_size_with_readahead(
     /* Look for readahead settings for all submatrices */
     n += ABASE_UNIVERSAL_READAHEAD_ITEMS;
     for(auto const & Mloc : mmt.matrices)
-        matmul_aux(Mloc.mm, MATMUL_AUX_GET_READAHEAD, &n);
+        Mloc.mm->aux(MATMUL_AUX_GET_READAHEAD, &n);
     return n;
 }
 
@@ -662,7 +663,7 @@ int mmt_vec_save(mmt_vec & v, const char * filename_pattern, unsigned int itemso
 // Doing a mmt_vec_broadcast columns will ensure that each row contains
 // the complete data set for our vector.
 
-void mmt_vec_set_random_through_file(mmt_vec & v, const char * filename_pattern, unsigned int itemsondisk, gmp_randstate_t rstate, unsigned int block_position)
+void mmt_vec_set_random_through_file(mmt_vec & v, const char * filename_pattern, unsigned int itemsondisk, cxx_gmp_randstate & rstate, unsigned int block_position)
 {
     /* FIXME: this generates the complete vector on rank 0, saves it, and
      * loads it again. But I'm a bit puzzled by the choice of saving a
@@ -744,7 +745,7 @@ unsigned long mmt_vec_hamming_weight(mmt_vec const & y) {
 }
 
 /* this is inconsistent in the sense that it's balancing-dependent */
-void mmt_vec_set_random_inconsistent(mmt_vec & v, gmp_randstate_t rstate)
+void mmt_vec_set_random_inconsistent(mmt_vec & v, cxx_gmp_randstate & rstate)
 {
     mmt_full_vec_set_zero(v);
     v.abase->vec_set_random(mmt_my_own_subvec(v), mmt_my_own_size_in_items(v), rstate);

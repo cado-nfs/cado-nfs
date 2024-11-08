@@ -674,8 +674,8 @@ void renumber_t::read_header(std::istream& is)
     if (iss >> f && (f == format_flat)) {
         format = f;
     } else {
-        throw std::runtime_error(fmt::format(FMT_STRING(
-                        "Renumber format error. Got {}, expected {} instead. You must regenerate the renumber table with the freerel tool."),
+        throw std::runtime_error(fmt::format(
+                        "Renumber format error. Got {}, expected {} instead. You must regenerate the renumber table with the freerel tool.",
                     f, format_flat));
     }
 
@@ -1523,7 +1523,7 @@ int renumber_t::inertia_from_p_r(p_r_side x) const
                 exceptional_inertia[x] = inertia;
             }
             if (inertia != 1) {
-                std::cerr << fmt::format(FMT_STRING("# computed exceptional inertia {} for ideal {},{} on side {}\n"), inertia, x.p, x.r, x.side);
+                std::cerr << fmt::format("# computed exceptional inertia {} for ideal {},{} on side {}\n", inertia, x.p, x.r, x.side);
             }
             return inertia;
         }

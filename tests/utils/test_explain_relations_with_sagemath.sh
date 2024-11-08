@@ -24,19 +24,19 @@ while [ $# -gt 0 ] ; do
     fi
 done
 
-: ${SAGE?missing}
-: ${build_tree?missing}
-: ${wdir?missing}
-: ${POLY?missing}
-: ${LIM0?missing}
-: ${LIM1?missing}
-: ${LPB0?missing}
-: ${LPB1?missing}
-: ${MFB0?missing}
-: ${MFB1?missing}
-: ${Q0?missing}
-: ${Q1?missing}
-: ${I?missing}
+: ${SAGE:?missing}
+: ${build_tree:?missing}
+: ${wdir:?missing}
+: ${POLY:?missing}
+: ${LIM0:?missing}
+: ${LIM1:?missing}
+: ${LPB0:?missing}
+: ${LPB1:?missing}
+: ${MFB0:?missing}
+: ${MFB1:?missing}
+: ${Q0:?missing}
+: ${Q1:?missing}
+: ${I:?missing}
 
 name=$(basename $POLY .poly)
 

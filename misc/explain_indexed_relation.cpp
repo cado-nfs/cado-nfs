@@ -108,9 +108,9 @@ void output_prologue(cado_poly_srcptr cpoly)
         };
         for(auto const & i : imports)
             if (! i.second.empty()) {
-                fmt::print(FMT_STRING("from {} import {}\n"), i.first, i.second);
+                fmt::print("from {} import {}\n", i.first, i.second);
             } else {
-                fmt::print(FMT_STRING("import {}\n"), i.first);
+                fmt::print("import {}\n", i.first);
             }
         fmt::print("ZP = PolynomialRing(ZZ, names=('x',)); x = ZP.gen()\n");
     } else {
@@ -162,7 +162,7 @@ int main(int argc, char const * argv[])
     for( ; argc ; ) {
         if (param_list_update_cmdline(pl, &argc, &argv))
             continue;
-        fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
+        fmt::print(stderr, "Unhandled parameter {}\n", argv[0]);
         usage (pl, argv0);
     }
     /* print command-line arguments */
@@ -178,47 +178,47 @@ int main(int argc, char const * argv[])
 
     if (output_python && output_raw)
     {
-      fprintf (stderr, "Error, -python and -raw are incompatible\n");
+      fmt::print (stderr, "Error, -python and -raw are incompatible\n");
       usage (pl, argv0);
     }
 
     if (relationsfilename && output_raw)
     {
-      fprintf (stderr, "Error, -relations and -raw are incompatible\n");
+      fmt::print (stderr, "Error, -relations and -raw are incompatible\n");
       usage (pl, argv0);
     }
 
     if (!output_all_ideals && output_raw)
     {
-      fprintf (stderr, "Error, -raw requires -all\n");
+      fmt::print (stderr, "Error, -raw requires -all\n");
       usage (pl, argv0);
     }
 
-    if (polyfilename == NULL)
+    if (!polyfilename)
     {
-      fprintf (stderr, "Error, missing -poly command line argument\n");
+      fmt::print (stderr, "Error, missing -poly command line argument\n");
       usage (pl, argv0);
     }
-    if (renumberfilename == NULL && !build) {
-      fprintf (stderr, "Error, missing -renumber command line argument\n");
+    if (!renumberfilename && !build) {
+      fmt::print (stderr, "Error, missing -renumber command line argument\n");
       usage (pl, argv0);
     }
-    if (renumberfilename != NULL && build) {
-      fprintf (stderr, "Error, --build and -renumber are exclusive\n");
+    if (renumberfilename && build) {
+      fmt::print (stderr, "Error, --build and -renumber are exclusive\n");
       usage (pl, argv0);
     }
     if (!param_list_lookup_string(pl, "lpbs") && build) {
-      fprintf (stderr, "Error, --build requires -lpbs\n");
+      fmt::print (stderr, "Error, --build requires -lpbs\n");
       usage (pl, argv0);
     }
     if (param_list_lookup_string(pl, "lpbs") && !build) {
-      fprintf (stderr, "Error, --lpbs is only valid with --build\n");
+      fmt::print (stderr, "Error, --lpbs is only valid with --build\n");
       usage (pl, argv0);
     }
 
     if (!cado_poly_read (cpoly, polyfilename))
     {
-      fprintf (stderr, "Error reading polynomial file\n");
+      fmt::print (stderr, "Error reading polynomial file\n");
       exit (EXIT_FAILURE);
     }
 

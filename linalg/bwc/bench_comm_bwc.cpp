@@ -28,7 +28,7 @@
 
 using namespace fmt::literals;
 
-void * bench_comm_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED)
+void * bench_comm_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
     int fake = param_list_lookup_string(pl, "random_matrix") != nullptr;
     fake = fake || param_list_lookup_string(pl, "static_random_matrix") != nullptr;

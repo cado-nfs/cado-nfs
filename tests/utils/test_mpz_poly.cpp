@@ -1,20 +1,24 @@
 #include "cado.h" // IWYU pragma: keep
-#include "macros.h"
+
+#include <cstdarg>
+#include <cstdio>
+#include <cstdlib>
+#include <cstdint>
+
 #include <iostream>
 #include <sstream>
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
+
 #include <gmp.h>
-#include <iostream>
+#include "fmt/core.h"
+#include "fmt/format.h"
+
+#include "macros.h"
+#include "gmp_aux.h"
 #include "mpz_poly.h"
 #include "cxx_mpz.hpp"
 #include "mpz_polymodF.h"
 #include "mpz_poly_parallel.hpp"
 #include "tests_common.h"
-#include "fmt/core.h"
-#include "fmt/format.h"
 #include "portability.h" //  IWYU pragma: keep
 
 static void mpz_poly_setcoeffs_ui_var(mpz_poly f, int d, ...)

@@ -84,11 +84,10 @@ struct slice_info {
 
 typedef vector<uint16_t> data_t;
 
-struct matmul_sliced_data_s {
-    /* repeat the fields from the public_ interface */
-    struct matmul_public_s public_[1];
+template<typename Arith>
+struct matmul_sliced : public matmul_interface {
     /* now our private fields */
-    arith_hard * xab;
+    Arith * xab;
     data_t data;
     vector<slice_info> dslices_info;
     unsigned int npack;
@@ -100,9 +99,9 @@ struct matmul_sliced_data_s {
     void push32(uint64_t x)
     {
         ASSERT_ALWAYS(x >> 32 == 0);
-        data.push_back(x & ((1u << 16) - 1));
+        data.push_back(x & ((1U << 16) - 1));
         x >>= 16;
-        data.push_back(x & ((1u << 16) - 1));
+        data.push_back(x & ((1U << 16) - 1));
     }
     static inline uint32_t read32(data_t::const_iterator & q) {
         uint32_t res;
@@ -116,98 +115,98 @@ struct matmul_sliced_data_s {
         res |= ((uint32_t) *q++) << 16;
         return res;
     }
+
+    void build_cache(matrix_u32 &&) override;
+    int reload_cache_private() override;
+    void save_cache_private() override;
+    void mul(void *, const void *, int) override;
+    void report(double scale) override;
+
+    matmul_sliced(matmul_public &&, arith_concrete_base *, cxx_param_list &, int);
+    ~matmul_sliced() override = default;
+
+    matmul_sliced(matmul_sliced const &) = delete;
+    matmul_sliced& operator=(matmul_sliced const &) = delete;
+    matmul_sliced(matmul_sliced &&) noexcept = default;
+    matmul_sliced& operator=(matmul_sliced &&) noexcept = default;
+
+    private:
+    static unsigned int npack_initial(cxx_param_list & pl) {
+        unsigned int npack = L1_CACHE_SIZE;
+        param_list_parse(pl, "l1_cache_size", npack);
+        npack /= sizeof(typename Arith::elt);
+        return npack;
+    }
 };
 
-void MATMUL_NAME(clear)(matmul_ptr mm0)
+template<typename Arith>
+matmul_sliced<Arith>::matmul_sliced(matmul_public && P, arith_concrete_base * pxx, cxx_param_list & pl, int optimized_direction)
+    : matmul_interface(std::move(P))
+    , xab((Arith *) pxx) // NOLINT(cppcoreguidelines-pro-type-cstyle-cast)
+    , npack(npack_initial(pl))
 {
-    struct matmul_sliced_data_s * mm = (struct matmul_sliced_data_s *) mm0;
-    matmul_common_clear(mm->public_);
-    mm->dslices_info.clear();
-    mm->data.clear();
-    delete mm;
-}
-
-matmul_ptr MATMUL_NAME(init)(void * pxx, param_list pl, int optimized_direction)
-{
-    arith_hard * xx = (arith_hard *) pxx;
-    struct matmul_sliced_data_s * mm;
-    mm = new matmul_sliced_data_s;
-    // see bug 21663
-    memset((void*)mm, 0, sizeof(struct matmul_sliced_data_s));
-    mm->xab = xx;
-
-    unsigned int npack = L1_CACHE_SIZE;
-    if (pl) param_list_parse_uint(pl, "l1_cache_size", &npack);
-    npack /= sizeof(arith_hard::elt);
-    mm->npack = npack;
-
     int const suggest = optimized_direction ^ MM_DIR0_PREFERS_TRANSP_MULT;
-    mm->public_->store_transposed = suggest;
-    if (pl) {
-        param_list_parse_int(pl, "mm_store_transposed", 
-                &mm->public_->store_transposed);
-        if (mm->public_->store_transposed != suggest) {
-            fprintf(stderr, "Warning, mm_store_transposed"
-                    " overrides suggested matrix storage ordering\n");
-        }           
-    }   
-
-
-    return (matmul_ptr) mm;
+    store_transposed = suggest;
+    param_list_parse(pl, "mm_store_transposed", store_transposed);
+    if (store_transposed != suggest) {
+        fprintf(stderr, "Warning, mm_store_transposed"
+                " overrides suggested matrix storage ordering\n");
+    }           
 }
 
 
-void MATMUL_NAME(build_cache)(matmul_ptr mm0, uint32_t * data, size_t size MAYBE_UNUSED)
+template<typename Arith>
+void matmul_sliced<Arith>::build_cache(matrix_u32 && m)
 {
-    struct matmul_sliced_data_s * mm = (struct matmul_sliced_data_s *) mm0;
-    ASSERT_ALWAYS(data);
+    ASSERT_ALWAYS(!m.p.empty());
 
     uint32_t const i0 = 0;
-    uint32_t const i1 = mm->public_->dim[ mm->public_->store_transposed];
+    uint32_t const i1 = dim[ store_transposed];
 
-    unsigned int const nslices = iceildiv(i1-i0, mm->npack);
-    unsigned int const nslices_index = mm->data.size();
-    mm->push(0);
-    mm->push(0);        // placeholder for alignment
+    unsigned int const nslices = iceildiv(i1-i0, npack);
+    unsigned int const nslices_index = data.size();
+    push(0);
+    push(0);        // placeholder for alignment
 
+    ASSERT_ALWAYS(nslices);
     unsigned int const packbase = (i1-i0) / nslices;
 
     unsigned int const nslices1 = (i1-i0) % nslices; /* 1+packbase-sized slices */
     unsigned int const nslices0 = nslices - nslices1;  /* packbase-sized slices */
     unsigned int current;
     unsigned int next = i0;
-    unsigned int s;
 
-    uint32_t * ptr = data;
+    uint32_t * ptr = m.p.data();
 
-    for(s = 0 ; s < nslices ; s++) {
+    for(unsigned int s = 0 ; s < nslices ; s++) {
         current = next;
         unsigned int const npack = packbase + (s < nslices1);
         next = current + npack;
 
-        slice_info si; memset(&si,0,sizeof(si)); si.nrows = npack;
-        si.data_offset = mm->data.size();
+        slice_info si {};
+        memset(&si,0,sizeof(si));
+        si.nrows = npack;
+        si.data_offset = data.size();
 
         /*
            std::cout << "Packing " << npack << " rows from " << current
            << " to " << next << std::endl;
            */
         typedef std::vector<std::pair<uint32_t, uint32_t> > L_t;
-        typedef L_t::const_iterator Lci_t;
         L_t L;
         for(unsigned int di = 0 ; di < npack ; di++) {
             for(unsigned int j = 0 ; j < *ptr ; j++) {
-                L.push_back(std::make_pair(ptr[1+j],di));
+                L.emplace_back(ptr[1+j],di);
             }
-            mm->public_->ncoeffs += *ptr;
+            ncoeffs += *ptr;
             ptr += 1 + *ptr;
         }
         /* L is the list of (column index, row index) of all
          * coefficients in the current horizontal slice */
         std::sort(L.begin(), L.end());
 
-        mm->push32(npack);
-        mm->push32(L.size());
+        push32(npack);
+        push32(L.size());
 
         uint32_t j = 0;
         uint32_t i = 0;
@@ -217,9 +216,9 @@ void MATMUL_NAME(build_cache)(matmul_ptr mm0, uint32_t * data, size_t size MAYBE
         double sumdi=0;
         double sumdi2=0;
         uint32_t weight=0;
-        for(Lci_t lp = L.begin() ; lp != L.end() ; ++lp) {
-            uint32_t const dj = lp->first - j; j += dj;
-            int32_t di = lp->second - i; i += di;
+        for(auto const & ji : L) {
+            uint32_t const dj = ji.first - j; j += dj;
+            int32_t di = ji.second - i; i += di;
             weight++;
 
             if (di<0) di = -di;
@@ -243,9 +242,9 @@ void MATMUL_NAME(build_cache)(matmul_ptr mm0, uint32_t * data, size_t size MAYBE
              * sign, or something).
              */
 
-            mm->push(dj); mm->push(i);
+            push(dj); push(i);
         }
-        mm->data[nslices_index]++;
+        data[nslices_index]++;
         double const dj2_avg = sumdj2 / weight;
         double const dj_avg = sumdj / weight;
         double const dj_sdev = sqrt(dj2_avg-dj_avg*dj_avg);
@@ -266,7 +265,7 @@ void MATMUL_NAME(build_cache)(matmul_ptr mm0, uint32_t * data, size_t size MAYBE
             // break;
         }
 #endif
-        mm->dslices_info.push_back(si);
+        dslices_info.push_back(si);
     }
 
     /* There's an other option for the dense strips. For a given
@@ -286,12 +285,12 @@ void MATMUL_NAME(build_cache)(matmul_ptr mm0, uint32_t * data, size_t size MAYBE
         std::cout
             << "// " << nslices1
             << " sub-slices of " << (packbase+1)
-            << " " << rowcol[mm->public_->store_transposed] << "s\n";
+            << " " << rowcol[store_transposed] << "s\n";
     }
     std::cout
         << "// " << nslices0
         << " sub-slices of " << packbase << " "
-        << rowcol[mm->public_->store_transposed] << "s\n";
+        << rowcol[store_transposed] << "s\n";
 #ifdef  SLICE_STATS
     std::cout << "info per sub-slice:";
     typedef std::vector<slice_info>::const_iterator si_t;
@@ -306,73 +305,60 @@ void MATMUL_NAME(build_cache)(matmul_ptr mm0, uint32_t * data, size_t size MAYBE
     // std::cout << "\n";
 #endif
     std::cout << std::flush;
-
-    /* This was allocated by matmul-mf.cpp */
-    free(data);
 }
 
-int MATMUL_NAME(reload_cache)(matmul_ptr mm0)
+template<typename Arith>
+int matmul_sliced<Arith>::reload_cache_private()
 {
-    FILE * f;
-
-    struct matmul_sliced_data_s * mm = (struct matmul_sliced_data_s *) mm0;
-    f = matmul_common_reload_cache_fopen(sizeof(arith_hard::elt), mm->public_, MM_MAGIC);
+    auto f = matmul_common_reload_cache_fopen(sizeof(typename Arith::elt), *this, MM_MAGIC);
     if (!f) return 0;
 
     size_t n;
-    MATMUL_COMMON_READ_ONE32(n, f);
+    MATMUL_COMMON_READ_ONE32(n, f.get());
 
-    mm->data.resize(n);
-    MATMUL_COMMON_READ_MANY16(mm->data.data(), n, f);
-
-    fclose(f);
-
-    // data_t::const_iterator q = mm->data.begin();
+    data.resize(n);
+    MATMUL_COMMON_READ_MANY16(data.data(), n, f.get());
 
     return 1;
 }
 
-void MATMUL_NAME(save_cache)(matmul_ptr mm0)
+template<typename Arith>
+void matmul_sliced<Arith>::save_cache_private()
 {
-    FILE * f;
-
-    struct matmul_sliced_data_s * mm = (struct matmul_sliced_data_s *) mm0;
-    f = matmul_common_save_cache_fopen(sizeof(arith_hard::elt), mm->public_, MM_MAGIC);
+    auto f = matmul_common_save_cache_fopen(sizeof(typename Arith::elt), *this, MM_MAGIC);
     if (!f) return;
 
-    size_t const n = mm->data.size();
-    MATMUL_COMMON_WRITE_ONE32(n, f);
-    MATMUL_COMMON_WRITE_MANY16(mm->data.data(), n, f);
-
-    fclose(f);
+    size_t const n = data.size();
+    MATMUL_COMMON_WRITE_ONE32(n, f.get());
+    MATMUL_COMMON_WRITE_MANY16(data.data(), n, f.get());
 }
 
-void MATMUL_NAME(mul)(matmul_ptr mm0, void * xdst, void const * xsrc, int d)
+template<typename Arith>
+void matmul_sliced<Arith>::mul(void * xdst, void const * xsrc, int d)
 {
-    struct matmul_sliced_data_s * mm = (struct matmul_sliced_data_s *) mm0;
     ASM_COMMENT("multiplication code");
-    const uint16_t * q = mm->data.data();
+    const uint16_t * q = data.data();
 
     uint16_t const nhstrips = *q++;
     q++;        // alignment.
     uint32_t i = 0;
-    arith_hard * x = mm->xab;
-    arith_hard::elt const * src = (arith_hard::elt const *) xsrc;
-    arith_hard::elt * dst = (arith_hard::elt *) xdst;
+    Arith * x = xab;
+    auto const * src = (typename Arith::elt const *) xsrc;
+    auto * dst = (typename Arith::elt *) xdst;
 
-    if (d == !mm->public_->store_transposed) {
+    if (d == !store_transposed) {
 #ifdef  SLICE_STATS
         std::vector<slice_info>::iterator sit = dslices_info.begin();
         double tick = oncpu_ticks();
 #endif
         for(uint16_t s = 0 ; s < nhstrips ; s++) {
-            uint32_t const nrows_packed = matmul_sliced_data_s::read32(q);
-            arith_hard::elt * where = x->vec_subvec(dst, i);
+            uint32_t const nrows_packed = read32(q);
+            typename Arith::elt * where = x->vec_subvec(dst, i);
             x->vec_set_zero(where, nrows_packed);
             ASM_COMMENT("critical loop");
             /* The external function must have the same semantics as this
              * code block */
-            uint32_t const ncoeffs_slice = matmul_sliced_data_s::read32(q);
+            uint32_t const ncoeffs_slice = read32(q);
             uint32_t j = 0;
             for(uint32_t c = 0 ; c < ncoeffs_slice ; c++) {
                 j += *q++;
@@ -382,7 +368,7 @@ void MATMUL_NAME(mul)(matmul_ptr mm0, void * xdst, void const * xsrc, int d)
             ASM_COMMENT("end of critical loop");
             i += nrows_packed;
 #ifdef  SLICE_STATS
-            if (!mm->dslices_info.empty()) {
+            if (!dslices_info.empty()) {
                 double ntick = oncpu_ticks();
                 sit->spent_time += ntick - tick;
                 tick = ntick;
@@ -395,16 +381,16 @@ void MATMUL_NAME(mul)(matmul_ptr mm0, void * xdst, void const * xsrc, int d)
         /* d == 0 */
         /* BEWARE, it's a priori sub-optimal ! In practice, the
          * difference isn't so striking though. */
-        if (mm->public_->iteration[d] == 10) {
+        if (iteration[d] == 10) {
             fprintf(stderr, "Warning: Doing many iterations with bad code\n");
         }
 
-        x->vec_set_zero(dst, mm->public_->dim[!d]);
+        x->vec_set_zero(dst, dim[!d]);
         for(uint16_t s = 0 ; s < nhstrips ; s++) {
             uint32_t j = 0;
-            uint32_t const nrows_packed = matmul_sliced_data_s::read32(q);
+            uint32_t const nrows_packed = read32(q);
             ASM_COMMENT("critical loop");
-            uint32_t const ncoeffs_slice = matmul_sliced_data_s::read32(q);
+            uint32_t const ncoeffs_slice = read32(q);
             for(uint32_t c = 0 ; c < ncoeffs_slice ; c++) {
                 j += *q++;
                 uint32_t const di = *q++;
@@ -415,19 +401,19 @@ void MATMUL_NAME(mul)(matmul_ptr mm0, void * xdst, void const * xsrc, int d)
         }
     }
     ASM_COMMENT("end of multiplication code");
-    mm->public_->iteration[d]++;
+    iteration[d]++;
 }
 
-void MATMUL_NAME(report)(matmul_ptr mm0 MAYBE_UNUSED, double scale MAYBE_UNUSED) {
+template<typename Arith>
+void matmul_sliced<Arith>::report(double scale MAYBE_UNUSED) {
 #ifdef  SLICE_STATS
-    struct matmul_sliced_data_s * mm = (struct matmul_sliced_data_s *) mm0;
-    if (mm->dslices_info.empty())
+    if (dslices_info.empty())
         return;
     std::ofstream o("dj.stats");
     o << "// Report of timing per slice\n";
     o << "// <snum> <nrows> <ncoeffs> <dj> <npasses> <spent> <M0>\n";
     for(unsigned int s = 0 ; s < dslices_info.size() ; s++) {
-        const slice_info& t(mm->dslices_info[s]);
+        const slice_info& t(dslices_info[s]);
         o << s
             << " " << t.nrows
             << " " << t.ncoeffs
@@ -445,15 +431,13 @@ void MATMUL_NAME(report)(matmul_ptr mm0 MAYBE_UNUSED, double scale MAYBE_UNUSED)
 #endif
 }
 
-void MATMUL_NAME(auxv)(matmul_ptr mm0 MAYBE_UNUSED, int op MAYBE_UNUSED, va_list ap MAYBE_UNUSED)
+matmul_interface * CADO_CONCATENATE4(new_matmul_, ARITH_LAYER, _, MM_IMPL)(
+        matmul_public && P,
+        arith_generic * arith,
+        cxx_param_list & pl,
+        int optimized_direction)
 {
+    return new matmul_sliced<arith_hard>(std::move(P), arith->concrete(), pl, optimized_direction);
 }
 
-void MATMUL_NAME(aux)(matmul_ptr mm0, int op, ...)
-{
-    va_list ap;
-    va_start(ap, op);
-    MATMUL_NAME(auxv) (mm0, op, ap);
-    va_end(ap);
-}
 /* vim: set sw=4: */

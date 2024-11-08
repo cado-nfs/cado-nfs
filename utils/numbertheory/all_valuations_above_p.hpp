@@ -1,6 +1,7 @@
 #ifndef UTILS_NUMBERTHEORY_ALL_VALUATIONS_ABOVE_P_HPP_
 #define UTILS_NUMBERTHEORY_ALL_VALUATIONS_ABOVE_P_HPP_
 
+#include "gmp_aux.h"
 #include "numbertheory/number_field.hpp"
 #include "numbertheory/number_field_order.hpp"
 #include "numbertheory/number_field_fractional_ideal.hpp"

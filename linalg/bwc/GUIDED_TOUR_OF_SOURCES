@@ -60,7 +60,6 @@ linalg/bwc/matmul-sub-vsc-combine.S
 linalg/bwc/matmul-sub-vsc-combine.h
 linalg/bwc/matmul-sub-vsc-dispatch.S
 linalg/bwc/matmul-sub-vsc-dispatch.h
-linalg/bwc/matmul-threaded.c
 linalg/bwc/matmul-zone.cpp
 linalg/bwc/matmul.c
 linalg/bwc/matmul.h

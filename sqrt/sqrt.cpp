@@ -23,8 +23,7 @@
 #include <cinttypes>
 #include <cmath> /* for log */
 #include <cerrno>
-#include <sys/stat.h>
-#include <gmp.h>
+
 #include <mutex>
 #include <memory>
 #include <string>
@@ -32,12 +31,16 @@
 #include <vector>
 #include <utility> // pair
 #include <thread>
+
+#include <sys/stat.h>
+
+#include <gmp.h>
+#include "fmt/core.h"
+#include "fmt/format.h"
+
 #include "cado_poly.h"  // cado_poly
 #include "cxx_mpz.hpp"   // for cxx_mpz
 #include "filter_io.h"  // filter_rels
-#include "fmt/core.h"
-#include "fmt/format.h"
-#include "fmt/printf.h" // fmt::fprintf // IWYU pragma: keep
 #include "gmp_aux.h"
 #include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
 #include "gzip.h"       // fopen_maybe_compressed
@@ -282,8 +285,8 @@ void accumulate_level00(std::vector<typename M::T> & v, M const & m, std::string
 
     const uint64_t r = N % (1UL << n);
     {
-        fmt::fprintf (stderr, "%s: starting level 00 at wct=%1.2fs,"
-                " %zu -> 2^%zu*%zu+%zu\n",
+        fmt::print (stderr, "{}: starting level 00 at wct={:1.2f}s,"
+                " {} -> 2^{}*{}+{}\n",
                 message, wct_seconds () - wct0,
                 v.size(), n, N>>n, r);
         fflush (stderr);
@@ -319,8 +322,8 @@ void accumulate_level00(std::vector<typename M::T> & v, M const & m, std::string
             accumulate(A, vb, ve, m);
             {
                 const std::lock_guard<std::mutex> dummy(stdio_guard);
-                fmt::fprintf (stderr, "%s: fragment %u/%u"
-                        " of level 00 done by thread %u at wct=%1.2fs\n",
+                fmt::print (stderr, "{}: fragment {}/{}"
+                        " of level 00 done by thread {} at wct={:1.2f}s\n",
                         message,
                         i, 1U<<n, omp_get_thread_num(),
                         wct_seconds () - wct0);
@@ -363,7 +366,7 @@ typename M::T accumulate(std::vector<typename M::T> & v, M const & m, std::strin
   for(int level = 0 ; v.size() > 1 ; level++) {
       {
         const std::lock_guard<std::mutex> dummy(stdio_guard);
-	fmt::fprintf (stderr, "%s: starting level %d at cpu=%1.2fs (wct=%1.2fs), %zu values to multiply\n",
+	fmt::print (stderr, "{}: starting level {} at cpu={:1.2f}s (wct={:1.2f}s), {} values to multiply\n",
 		      message, level, seconds (), wct_seconds () - wct0, v.size());
 	fflush (stderr);
       }
@@ -403,7 +406,7 @@ typename M::T accumulate(std::vector<typename M::T> & v, M const & m, std::strin
       v.erase(v.begin() + (v.size() + 1) / 2, v.end());
       {
         const std::lock_guard<std::mutex> dummy(stdio_guard);
-	fmt::fprintf (stderr, "%s: level %d took cpu=%1.2fs (wct=%1.2fs)\n",
+	fmt::print (stderr, "{}: level {} took cpu={:1.2f}s (wct={:1.2f}s)\n",
 		      message, level, seconds () - st, wct_seconds () - wct);
 	fflush (stderr);
       }
@@ -424,13 +427,13 @@ read_ab_pairs_from_depfile(std::string const & depname, M const & m, std::string
     std::vector<typename M::T> prd;
 
     if (fseek(depfile, 0, SEEK_END) < 0) {
-        fmt::fprintf(stderr, "%s: cannot seek in dependency file, using single-thread I/O\n", message);
+        fmt::print(stderr, "{}: cannot seek in dependency file, using single-thread I/O\n", message);
         cxx_mpz a, b;
         /* Cannot seek: we have to use serial i/o */
         while (gmp_fscanf(depfile, "%Zd %Zd", (mpz_ptr) a, (mpz_ptr) b) != EOF)
         {
             if(!(nab % REPORT)) {
-                fmt::fprintf(stderr, "%s: read %lu (a,b) pairs in %.2fs (wct %.2fs, peak %zuM)\n",
+                fmt::print(stderr, "{}: read {} (a,b) pairs in {:.2f}s (wct {:.2f}s, peak {}M)\n",
                         message, nab, seconds (), wct_seconds () - wct0,
                         PeakMemusage () >> 10U);
                 fflush (stderr);
@@ -450,7 +453,7 @@ read_ab_pairs_from_depfile(std::string const & depname, M const & m, std::string
         /* cap the number of I/O threads */
         if (nthreads > MAX_IO_THREADS)
             nthreads = MAX_IO_THREADS;
-        fmt::fprintf(stderr, "%s: Doing I/O with %u threads\n", message, nthreads);
+        fmt::print(stderr, "{}: Doing I/O with {} threads\n", message, nthreads);
         std::vector<off_t> spos_tab;
         for(unsigned int i = 0 ; i < nthreads ; i++)
             spos_tab.push_back((endpos * i) / nthreads);
@@ -503,7 +506,7 @@ read_ab_pairs_from_depfile(std::string const & depname, M const & m, std::string
                         prd.emplace_back(std::move(x));
                     loc_prd.clear();
                     if(!(nab % REPORT)) {
-                        fmt::fprintf(stderr, "%s: read %lu (a,b) pairs in %.2fs (wct %.2fs, peak %zuM)\n",
+                        fmt::print(stderr, "{}: read {} (a,b) pairs in {:.2f}s (wct {:.2f}s, peak {}M)\n",
                                 message, nab, seconds (), wct_seconds () - wct0,
                                 PeakMemusage () >> 10U);
                         fflush (stderr);
@@ -521,7 +524,7 @@ read_ab_pairs_from_depfile(std::string const & depname, M const & m, std::string
             fclose_maybe_compressed_lock (fi, depname.c_str());
         }
         {
-            fmt::fprintf (stderr, "%s read %lu (a,b) pairs, including %lu free, in %1.2fs (wct %1.2fs)\n",
+            fmt::print (stderr, "{} read {} (a,b) pairs, including {} free, in {:1.2f}s (wct {:1.2f}s)\n",
                     message, nab, nfree, seconds (), wct_seconds () - wct0);
             fflush (stderr);
         }
@@ -573,9 +576,9 @@ calculateSqrtRat (std::string const & prefix, unsigned int numdep, cxx_cado_poly
 #pragma omp critical
   {
 #ifdef __MPIR_VERSION
-    fprintf (stderr, "Using MPIR %s\n", mpir_version);
+    fmt::print (stderr, "Using MPIR {}\n", mpir_version);
 #else
-    fprintf (stderr, "Using GMP %s\n", gmp_version);
+    fmt::print (stderr, "Using GMP {}\n", gmp_version);
 #endif
     fflush (stderr);
   }
@@ -585,7 +588,7 @@ calculateSqrtRat (std::string const & prefix, unsigned int numdep, cxx_cado_poly
 
   {
       const cxx_mpz_functions M(F);
-      const std::string message = fmt::format(FMT_STRING("Rat({})"), numdep);
+      const std::string message = fmt::format("Rat({})", numdep);
 
       std::vector<cxx_mpz> prd = read_ab_pairs_from_depfile(
               get_depname (prefix, "", numdep),
@@ -604,7 +607,7 @@ calculateSqrtRat (std::string const & prefix, unsigned int numdep, cxx_cado_poly
 
 #pragma omp critical
   {
-    fprintf (stderr, "Rat(%d): size of product = %zu bits (peak %zuM)\n",
+    fmt::print (stderr, "Rat({}): size of product = {} bits (peak {}M)\n",
 	     numdep, mpz_sizeinbase (prod, 2),
 	     PeakMemusage () >> 10U);
     fflush (stderr);
@@ -612,13 +615,13 @@ calculateSqrtRat (std::string const & prefix, unsigned int numdep, cxx_cado_poly
 
   if (mpz_sgn (prod) < 0)
     {
-      fprintf (stderr, "Error, product is negative: try another dependency\n");
+      fmt::print (stderr, "Error, product is negative: try another dependency\n");
       exit(EXIT_FAILURE);
     }
 
 #pragma omp critical
   {
-    fprintf (stderr, "Rat(%d): starting rational square root at %.2fs (wct %.2fs)\n",
+    fmt::print (stderr, "Rat({}): starting rational square root at {:.2f}s (wct {:.2f}s)\n",
 	     numdep, seconds (), wct_seconds () - wct0);
     fflush (stderr);
   }
@@ -629,7 +632,7 @@ calculateSqrtRat (std::string const & prefix, unsigned int numdep, cxx_cado_poly
 
 #pragma omp critical
   {
-    fprintf (stderr, "Rat(%d): computed square root at %.2fs (wct %.2fs)\n",
+    fmt::print (stderr, "Rat({}): computed square root at {:.2f}s (wct {:.2f}s)\n",
 	     numdep, seconds (), wct_seconds () - wct0);
     fflush (stderr);
   }
@@ -639,7 +642,7 @@ calculateSqrtRat (std::string const & prefix, unsigned int numdep, cxx_cado_poly
       unsigned long p = 2, e, errors = 0;
       cxx_mpz pp;
 
-      fprintf (stderr, "Error, rational square root remainder is not zero\n");
+      fmt::print (stderr, "Error, rational square root remainder is not zero\n");
       /* reconstruct the initial value of prod to debug */
       mpz_mul (prod, prod, prod);
       mpz_add (prod, prod, v);
@@ -649,16 +652,16 @@ calculateSqrtRat (std::string const & prefix, unsigned int numdep, cxx_cado_poly
         {
           e = 0;
           if (verbose)
-            printf ("Removing p=%lu:", p);
+            fmt::print ("Removing p={}:", p);
           mpz_set_ui (pp, p);
           e = mpz_remove (prod, prod, pp);
           if (verbose)
-            printf (" exponent=%lu, remaining %zu bits\n", e,
+            fmt::print (" exponent={}, remaining {} bits\n", e,
                     mpz_sizeinbase (prod, 2));
           if ((e % 2) != 0)
             {
               errors ++;
-              fprintf (stderr, "Prime %lu appears to odd power %lu\n", p, e);
+              fmt::print (stderr, "Prime {} appears to odd power {}\n", p, e);
               if (verbose || errors >= 10)
                 break;
             }
@@ -672,7 +675,7 @@ calculateSqrtRat (std::string const & prefix, unsigned int numdep, cxx_cado_poly
 
 #pragma omp critical
   {
-    fprintf (stderr, "Rat(%d): reduced mod n at %.2fs (wct %.2fs)\n",
+    fmt::print (stderr, "Rat({}): reduced mod n at {:.2f}s (wct {:.2f}s)\n",
 	     numdep, seconds (), wct_seconds () - wct0);
     fflush (stderr);
   }
@@ -683,7 +686,7 @@ calculateSqrtRat (std::string const & prefix, unsigned int numdep, cxx_cado_poly
   mpz_powm_ui (v, mpz_poly_coeff_const(F, 1), (nab + 1) / 2, Np);
 #pragma omp critical
   {
-    fprintf (stderr, "Rat(%d): computed g1^(nab/2) mod n at %.2fs (wct %.2fs)\n",
+    fmt::print (stderr, "Rat({}): computed g1^(nab/2) mod n at {:.2f}s (wct {:.2f}s)\n",
 	     numdep, seconds (), wct_seconds () - wct0);
     fflush (stderr);
   }
@@ -693,13 +696,13 @@ calculateSqrtRat (std::string const & prefix, unsigned int numdep, cxx_cado_poly
   mpz_mul (prod, prod, v);
   mpz_mod (prod, prod, Np);
 
-  gmp_fprintf (resfile, "%Zd\n", (mpz_srcptr) prod);
+  fmt::print (resfile, "{}\n", prod);
   fclose_maybe_compressed_lock (resfile, sidename.c_str());
 
 #pragma omp critical
   {
-    gmp_fprintf (stderr, "Rat(%d): square root is %Zd\n", numdep, (mpz_srcptr) prod);
-    fprintf (stderr, "Rat(%d): square root time: %.2fs (wct %.2fs)\n",
+      fmt::print (stderr, "Rat({}): square root is {}\n", numdep, prod);
+    fmt::print (stderr, "Rat({}): square root time: {:.2f}s (wct {:.2f}s)\n",
 	     numdep, seconds (), wct_seconds () - wct0);
     fflush (stderr);
   }
@@ -882,7 +885,7 @@ cxx_mpz_polymodF_sqrt (cxx_mpz_polymodF & res, cxx_mpz_polymodF & AA, cxx_mpz_po
   target_size += target_size / 10;
 #pragma omp critical
   {
-    fprintf (stderr, "Alg(%d): target_size=%lu\n", numdep,
+    fmt::print (stderr, "Alg({}): target_size={}\n", numdep,
 	     (unsigned long int) target_size);
     fflush (stderr);
   }
@@ -927,7 +930,7 @@ cxx_mpz_polymodF_sqrt (cxx_mpz_polymodF & res, cxx_mpz_polymodF & AA, cxx_mpz_po
   K[logk] = 1;
 #pragma omp critical
   {
-    fprintf (stderr, "Alg(%d): reducing A mod p^%lu took %.2fs (wct %.2fs)\n",
+    fmt::print (stderr, "Alg({}): reducing A mod p^{} took {:.2f}s (wct {:.2f}s)\n",
 	     numdep, target_k, seconds () - st, wct_seconds () - wct);
     fflush (stderr);
   }
@@ -941,7 +944,7 @@ cxx_mpz_polymodF_sqrt (cxx_mpz_polymodF & res, cxx_mpz_polymodF & AA, cxx_mpz_po
   P = pinf->mpz_poly_base_modp_init (A, p, K, logk0 = logk);
 #pragma omp critical
   {
-    fprintf (stderr, "Alg(%d): mpz_poly_base_modp_init took %.2fs (wct %.2fs)\n",
+    fmt::print (stderr, "Alg({}): mpz_poly_base_modp_init took {:.2f}s (wct {:.2f}s)\n",
 	     numdep, seconds () - st, wct_seconds () - wct);
     fflush (stderr);
   }
@@ -989,8 +992,8 @@ cxx_mpz_polymodF_sqrt (cxx_mpz_polymodF & res, cxx_mpz_polymodF & AA, cxx_mpz_po
 
     if (mpz_sizeinbase (pk, 2) > target_size)
       {
-        fprintf (stderr, "Failed to reconstruct an integer polynomial\n");
-        printf ("Failed\n");
+        fmt::print (stderr, "Failed to reconstruct an integer polynomial\n");
+        fmt::print ("Failed\n");
         exit(EXIT_FAILURE);
       }
 
@@ -1006,7 +1009,7 @@ cxx_mpz_polymodF_sqrt (cxx_mpz_polymodF & res, cxx_mpz_polymodF & AA, cxx_mpz_po
     if (verbose)
 #pragma omp critical
       {
-	fprintf (stderr, "Alg(%d):    mpz_poly_base_modp_lift took %.2fs (wct %.2fs, peak %zuM)\n",
+	fmt::print (stderr, "Alg({}):    mpz_poly_base_modp_lift took {:.2f}s (wct {:.2f}s, peak {}M)\n",
 		 numdep, seconds () - st, wct_seconds () - wct,
 		 PeakMemusage () >> 10U);
 	fflush (stderr);
@@ -1027,7 +1030,7 @@ cxx_mpz_polymodF_sqrt (cxx_mpz_polymodF & res, cxx_mpz_polymodF & AA, cxx_mpz_po
 
 #pragma omp critical
     {
-      fprintf (stderr, "Alg(%d): start lifting mod p^%lu (%lu bits) at %.2fs (wct %.2fs)\n",
+      fmt::print (stderr, "Alg({}): start lifting mod p^{} ({} bits) at {:.2f}s (wct {:.2f}s)\n",
 	       numdep, k, (unsigned long int) mpz_sizeinbase (pk, 2),
 	       seconds (), wct_seconds () - wct0);
       fflush (stderr);
@@ -1040,7 +1043,7 @@ cxx_mpz_polymodF_sqrt (cxx_mpz_polymodF & res, cxx_mpz_polymodF & AA, cxx_mpz_po
     if (verbose)
 #pragma omp critical
       {
-        fprintf (stderr, "Alg(%d):    mpz_poly_sqr_mod_f_mod_mpz took %.2fs (wct %.2fs, peak %zuM)\n",
+        fmt::print (stderr, "Alg({}):    mpz_poly_sqr_mod_f_mod_mpz took {:.2f}s (wct {:.2f}s, peak {}M)\n",
 		 numdep, seconds () - st, wct_seconds () - wct,
 		 PeakMemusage () >> 10U);
         fflush (stderr);
@@ -1055,7 +1058,7 @@ cxx_mpz_polymodF_sqrt (cxx_mpz_polymodF & res, cxx_mpz_polymodF & AA, cxx_mpz_po
     if (verbose)
 #pragma omp critical
       {
-        fprintf (stderr, "Alg(%d):    mpz_poly_mul_mod_f_mod_mpz took %.2fs (wct %.2fs, peak %zuM)\n",
+        fmt::print (stderr, "Alg({}):    mpz_poly_mul_mod_f_mod_mpz took {:.2f}s (wct {:.2f}s, peak {}M)\n",
 		 numdep, seconds () - st, wct_seconds () - wct,
 		 PeakMemusage () >> 10U);
         fflush (stderr);
@@ -1068,7 +1071,7 @@ cxx_mpz_polymodF_sqrt (cxx_mpz_polymodF & res, cxx_mpz_polymodF & AA, cxx_mpz_po
     if (verbose)
 #pragma omp critical
       {
-        fprintf (stderr, "Alg(%d):    mpz_poly_mul_mod_f_mod_mpz took %.2fs (wct %.2fs, peak %zuM)\n",
+        fmt::print (stderr, "Alg({}):    mpz_poly_mul_mod_f_mod_mpz took {:.2f}s (wct {:.2f}s, peak {}M)\n",
 		 numdep, seconds () - st, wct_seconds () - wct,
 		 PeakMemusage () >> 10U);
         fflush (stderr);
@@ -1085,7 +1088,7 @@ cxx_mpz_polymodF_sqrt (cxx_mpz_polymodF & res, cxx_mpz_polymodF & AA, cxx_mpz_po
   if (verbose)
 #pragma omp critical
     {
-      fprintf (stderr, "Alg(%d):    final mpz_poly_mul_mod_f_mod_mpz took %.2fs (wct %.2fs, peak %zuM)\n",
+      fmt::print (stderr, "Alg({}):    final mpz_poly_mul_mod_f_mod_mpz took {:.2f}s (wct {:.2f}s, peak {}M)\n",
 	       numdep, seconds () - st, wct_seconds () - wct,
 	       PeakMemusage () >> 10U);
       fflush (stderr);
@@ -1105,7 +1108,7 @@ cxx_mpz_polymodF_sqrt (cxx_mpz_polymodF & res, cxx_mpz_polymodF & AA, cxx_mpz_po
   const size_t sqrt_size = mpz_poly_sizeinbase (res->p, 2);
 #pragma omp critical
   {
-    fprintf (stderr, "Alg(%d): maximal sqrt bit-size = %zu (%.0f%% of target size)\n",
+    fmt::print (stderr, "Alg({}): maximal sqrt bit-size = {} ({:.0f}%% of target size)\n",
 	     numdep, sqrt_size, 100.0 * (double) sqrt_size / (double) target_size);
     fflush (stderr);
   }
@@ -1146,8 +1149,8 @@ FindSuitableModP (cxx_mpz_poly const & F, cxx_mpz const & N)
 #define MAXP 1000000
     if (p > MAXP)
       {
-	fprintf (stderr, "Error, found no suitable prime up to %d\n", MAXP);
-	fprintf (stderr, "See paragraph \"Factoring with SNFS\" in README\n");
+	fmt::print (stderr, "Error, found no suitable prime up to {}\n", MAXP);
+	fmt::print (stderr, "See paragraph \"Factoring with SNFS\" in README\n");
 	exit(EXIT_FAILURE);
       }
     }
@@ -1185,7 +1188,7 @@ calculateSqrtAlg (std::string const & prefix, unsigned int numdep,
   {
       const cxx_mpz_polymodF_functions M(F, pinf);
 
-      const std::string message = fmt::format(FMT_STRING("Alg({})"), numdep);
+      const std::string message = fmt::format("Alg({})", numdep);
       std::vector<cxx_mpz_polymodF> prd = read_ab_pairs_from_depfile(
               get_depname (prefix, "", numdep),
               M,
@@ -1235,13 +1238,13 @@ calculateSqrtAlg (std::string const & prefix, unsigned int numdep,
     p = FindSuitableModP(F, Np);
 #pragma omp critical
     {
-      fprintf (stderr, "Alg(%d): finished accumulating product at %.2fs (wct %.2fs)\n",
+      fmt::print (stderr, "Alg({}): finished accumulating product at {:.2f}s (wct {:.2f}s)\n",
 	       numdep, seconds(), wct_seconds () - wct0);
-      fprintf (stderr, "Alg(%d): nab = %lu, nfree = %lu, v = %lu\n", numdep,
+      fmt::print (stderr, "Alg({}): nab = {}, nfree = {}, v = {}\n", numdep,
 	       nab, nfree, prod->v);
-      fprintf (stderr, "Alg(%d): maximal polynomial bit-size = %lu\n", numdep,
+      fmt::print (stderr, "Alg({}): maximal polynomial bit-size = {}\n", numdep,
 	       (unsigned long) mpz_poly_sizeinbase (prod->p, 2));
-      fprintf (stderr, "Alg(%d): using p=%lu for lifting\n", numdep, p);
+      fmt::print (stderr, "Alg({}): using p={} for lifting\n", numdep, p);
       fflush (stderr);
     }
 
@@ -1346,7 +1349,7 @@ trialdivide_print(unsigned long N, unsigned long B)
     for (p = 2; p <= B; p = getprime_mt (pi)) {
         while ((N%p) == 0) {
             N /= p;
-            printf("%ld\n", p);
+            fmt::print("{}\n", p);
             if (N == 1) {
                 prime_info_clear (pi);
                 return N;
@@ -1357,29 +1360,27 @@ trialdivide_print(unsigned long N, unsigned long B)
     return N;
 }
 
-void print_nonsmall(mpz_t zx)
+void print_nonsmall(cxx_mpz const & zx)
 {
     if (mpz_probab_prime_p(zx, 10))
-        gmp_printf("%Zd\n", zx);
+        fmt::print("{}\n", zx);
     else {
         int pp = mpz_perfect_power_p(zx);
         if (pp) {
             pp = mpz_sizeinbase(zx, 2);
-            mpz_t roo;
-            mpz_init(roo);
+            cxx_mpz roo;
             while (!mpz_root(roo, zx, pp))
                 pp--;
             int i;
             for (i = 0; i < pp; ++i)
-                gmp_printf("%Zd\n", roo);
-            mpz_clear(roo);
+                fmt::print("{}\n", roo);
         } else
-            gmp_printf("%Zd\n", zx);
+            fmt::print("{}\n", zx);
     }
     fflush (stdout);
 }
 
-void print_factor(mpz_t N)
+void print_factor(cxx_mpz const & N)
 {
     unsigned long xx = mpz_get_ui(N);
     if (mpz_cmp_ui(N, xx) == 0) {
@@ -1433,9 +1434,9 @@ calculateGcd (std::string const & prefix, unsigned int numdep, cxx_mpz const & N
 
     if (mpz_cmp(g1, g2)!=0) {
       const std::lock_guard<std::mutex> dummy(stdio_guard);
-      fprintf(stderr, "Bug: the squares do not agree modulo n!\n");
+      fmt::print(stderr, "Bug: the squares do not agree modulo n!\n");
       ASSERT_ALWAYS(0);
-      //      gmp_printf("g1:=%Zd;\ng2:=%Zd;\n", g1, g2);
+      //      fmt::print("g1:={};\ng2:={};\n", g1, g2);
     }
 
     mpz_sub(g1, sidesqrt[0], sidesqrt[1]);
@@ -1460,7 +1461,7 @@ calculateGcd (std::string const & prefix, unsigned int numdep, cxx_mpz const & N
 
     if (!found) {
       const std::lock_guard<std::mutex> dummy(stdio_guard);
-      printf ("Failed\n");
+      fmt::print ("Failed\n");
     }
 
     return 0;
@@ -1483,7 +1484,7 @@ thread_sqrt (void * context_data, earlyparsed_relation_ptr rel)
   {
     if (data->abs[rel->num] & data->dep_masks[j])
     {
-      fprintf(data->dep_files[j], "%" PRId64 " %" PRIu64 "\n", rel->a, rel->b);
+      fmt::print(data->dep_files[j], "{} {}\n", rel->a, rel->b);
       data->dep_counts[j]++;
     }
   }
@@ -1516,11 +1517,11 @@ void create_dependencies(const char * prefix, const char * indexname, const char
         }
         ASSERT_ALWAYS(sbuf->st_size % small_nrows == 0);
         const unsigned int ndepbytes = sbuf->st_size / small_nrows;
-        fprintf(stderr, "%s contains %u dependencies (including padding)\n",
+        fmt::print(stderr, "{} contains {} dependencies (including padding)\n",
                 kername, 8 * ndepbytes);
         ker_stride = ndepbytes - sizeof(uint64_t);
         if (ker_stride)
-            fprintf(stderr, "Considering only the first 64 dependencies\n");
+            fmt::print(stderr, "Considering only the first 64 dependencies\n");
     }
 
     /* Read the number of (a,b) pairs */
@@ -1563,7 +1564,7 @@ void create_dependencies(const char * prefix, const char * indexname, const char
         if (sanity & m)
             dep_masks[nonzero_deps++] = m;
     }
-    fprintf(stderr, "Total: %u non-zero dependencies\n", nonzero_deps);
+    fmt::print(stderr, "Total: {} non-zero dependencies\n", nonzero_deps);
     for(unsigned int i = 0 ; i < nonzero_deps ; i++) {
         dep_names[i] = get_depname (prefix, "", i);
         dep_files[i] = fopen_maybe_compressed (dep_names[i].c_str(), "wb");
@@ -1578,9 +1579,9 @@ void create_dependencies(const char * prefix, const char * indexname, const char
           EARLYPARSE_NEED_AB_HEXA, nullptr, nullptr);
 
 
-    fprintf(stderr, "Written %u dependencies files\n", nonzero_deps);
+    fmt::print(stderr, "Written {} dependencies files\n", nonzero_deps);
     for(unsigned int i = 0 ; i < nonzero_deps ; i++) {
-        fprintf(stderr, "%s : %u (a,b) pairs\n", dep_names[i].c_str(), dep_counts[i]);
+        fmt::print(stderr, "{} : {} (a,b) pairs\n", dep_names[i], dep_counts[i]);
         fclose_maybe_compressed (dep_files[i], dep_names[i].c_str());
     }
 }
@@ -1659,11 +1660,11 @@ void declare_usage(param_list pl)
 void usage(param_list pl, const char * argv0, FILE *f)
 {
     param_list_print_usage(pl, argv0, f);
-    fprintf(f, "Usage: %s [-ab || -side0 || -side1 || -gcd] -poly polyname -prefix prefix -dep numdep -t ndep", argv0);
-    fprintf(f, " -purged purgedname -index indexname -ker kername\n");
-    fprintf(f, "or %s (-side0 || -side1 || -gcd) -poly polyname -prefix prefix -dep numdep -t ndep\n\n", argv0);
-    fprintf(f, "(a,b) pairs of dependency relation 'numdep' will be r/w in file 'prefix.numdep',");
-    fprintf(f, " side0 sqrt in 'prefix.side0.numdep' ...\n");
+    fmt::print(f, "Usage: {} [-ab || -side0 || -side1 || -gcd] -poly polyname -prefix prefix -dep numdep -t ndep", argv0);
+    fmt::print(f, " -purged purgedname -index indexname -ker kername\n");
+    fmt::print(f, "or {} (-side0 || -side1 || -gcd) -poly polyname -prefix prefix -dep numdep -t ndep\n\n", argv0);
+    fmt::print(f, "(a,b) pairs of dependency relation 'numdep' will be r/w in file 'prefix.numdep',");
+    fmt::print(f, " side0 sqrt in 'prefix.side0.numdep' ...\n");
     exit(EXIT_FAILURE);
 }
 
@@ -1675,10 +1676,10 @@ int main(int argc, char const *argv[])
 
     char const * me = *argv;
     /* print the command line */
-    fprintf (stderr, "%s.r%s", argv[0], cado_revision_string);
+    fmt::print (stderr, "{}.r{}", argv[0], cado_revision_string);
     for (i = 1; i < argc; i++)
-      fprintf (stderr, " %s", argv[i]);
-    fprintf (stderr, "\n");
+      fmt::print (stderr, " {}", argv[i]);
+    fmt::print (stderr, "\n");
 
     cxx_param_list pl;
     declare_usage(pl);
@@ -1700,14 +1701,14 @@ int main(int argc, char const *argv[])
             usage(pl, me, stderr);
             return EXIT_SUCCESS;
         } else {
-            fprintf(stderr, "unexpected argument: %s\n", *argv);
+            fmt::print(stderr, "unexpected argument: {}\n", *argv);
             usage(pl, me, stderr);
             return EXIT_FAILURE;
         }
     }
     const char * tmp;
     if(!(tmp = param_list_lookup_string(pl, "poly"))) {
-        fprintf(stderr, "Parameter -poly is missing\n");
+        fmt::print(stderr, "Parameter -poly is missing\n");
         usage(pl, me, stderr);
         return EXIT_FAILURE;
     }
@@ -1716,7 +1717,7 @@ int main(int argc, char const *argv[])
 
     ret = cado_poly_read(cpoly, tmp);
     if (ret == 0) {
-        fprintf(stderr, "Could not read polynomial file\n");
+        fmt::print(stderr, "Could not read polynomial file\n");
         return EXIT_FAILURE;
     }
 
@@ -1727,7 +1728,7 @@ int main(int argc, char const *argv[])
     const char * kername = param_list_lookup_string(pl, "ker");
     const char * prefix = param_list_lookup_string(pl, "prefix");
     if (!prefix) {
-        fprintf(stderr, "Parameter -prefix is missing\n");
+        fmt::print(stderr, "Parameter -prefix is missing\n");
         return EXIT_FAILURE;
     }
     if (param_list_warn_unused(pl))
@@ -1767,7 +1768,7 @@ int main(int argc, char const *argv[])
             prime_info_init (pi);
             for (p = 2; p <= 1000000; p = getprime_mt (pi)) {
                 while (mpz_tdiv_ui(Np, p) == 0) {
-                    printf("%lu\n", p);
+                    fmt::print("{}\n", p);
                     mpz_divexact_ui(Np, Np, p);
                 }
             }
@@ -1792,15 +1793,15 @@ int main(int argc, char const *argv[])
          * have more dependencies !
          */
         if (!indexname) {
-            fprintf(stderr, "Parameter -index is missing\n");
+            fmt::print(stderr, "Parameter -index is missing\n");
             return EXIT_FAILURE;
         }
         if (!purgedname) {
-            fprintf(stderr, "Parameter -purged is missing\n");
+            fmt::print(stderr, "Parameter -purged is missing\n");
             return EXIT_FAILURE;
         }
         if (!kername) {
-            fprintf(stderr, "Parameter -ker is missing\n");
+            fmt::print(stderr, "Parameter -ker is missing\n");
             return EXIT_FAILURE;
         }
         create_dependencies(prefix, indexname, purgedname, kername);
@@ -1808,7 +1809,7 @@ int main(int argc, char const *argv[])
 
 #ifdef __OpenBSD__
     if (nthreads > 1) {
-        fprintf(stderr, "Warning: reducing number of threads to 1 for openbsd ; unexplained failure https://ci.inria.fr/cado/job/compile-openbsd-59-amd64-random-integer/2775/console\n");
+        fmt::print(stderr, "Warning: reducing number of threads to 1 for openbsd ; unexplained failure https://ci.inria.fr/cado/job/compile-openbsd-59-amd64-random-integer/2775/console\n");
         /* We'll still process everything we've been told to. But in a
          * single-threaded fashion */
     }
@@ -1821,7 +1822,7 @@ int main(int argc, char const *argv[])
         for (i = 0; i < nthreads; i++)
           if (check_dep (prefix, numdep + i) == 0)
             {
-              fprintf (stderr, "Warning: dependency %d does not exist, reducing the number of threads to %d\n",
+              fmt::print (stderr, "Warning: dependency {} does not exist, reducing the number of threads to {}\n",
                        numdep + i, i);
               nthreads = i;
               break;
@@ -1830,7 +1831,7 @@ int main(int argc, char const *argv[])
 
     if (nthreads == 0)
       {
-        fprintf (stderr, "Error, no more dependency\n");
+        fmt::print (stderr, "Error, no more dependency\n");
         return 1;
       }
 

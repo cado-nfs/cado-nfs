@@ -26,7 +26,7 @@ done
 FG="$build_tree/filter/filter_galois"
 SOURCE_TEST_DIR="`dirname "$0"`"
 
-: ${wdir?missing}
+: ${wdir:?missing}
 
 poly="${SOURCE_TEST_DIR}/test_filter_galois.d20.poly"
 renumber="${SOURCE_TEST_DIR}/test_filter_galois.d20.renumber"

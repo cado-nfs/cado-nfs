@@ -124,7 +124,7 @@ main (int argc, char const *argv[])
       nrels++;
       gmp_printf("%ld, %lu\n", a, b);
   }
-  printf("# Finish ECM found %lu rels in %.2f s (wct %2.f s)\n",
+  printf("# Finish ECM found %lu rels in %.2f s (wct %.2f s)\n",
           nrels, seconds()-st, wct_seconds()-wct);
   
   fclose_maybe_compressed(inp, infilename);
