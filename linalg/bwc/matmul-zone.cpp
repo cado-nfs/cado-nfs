@@ -1092,7 +1092,7 @@ void matmul_zone<Arith, fast_gfp>::report(double scale MAYBE_UNUSED)
     static pthread_mutex_t lk = PTHREAD_MUTEX_INITIALIZER;
     pthread_mutex_lock(&lk);
     unsigned int const niter = iteration[0] + iteration[1];
-    for(auto it : tmap) {
+    for(auto const & it : tmap) {
         printf("j0=%u [%u zones]: avg %.1f cycles/c [%.1f coeffs avg] - %.1f Mcycles/iter\n",
                 it.first, it.second.n / niter, it.second.tt / scale / it.second.w, (double) it.second.w / it.second.n, (double) it.second.tt / niter * 1.0e-6);
     }
