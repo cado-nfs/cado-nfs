@@ -748,7 +748,7 @@ int builder<Arith>::do_small_slice(small_slice * S, uint32_t i0, uint32_t i1)
     if ((i1-i0) >> SMALL_SLICES_I_BITS) keep2=0;
 
     if (verbose_enabled(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD)) {
-        if (!keep1) fmt::print(" [cannot be small1, beyond impl limits]");
+        // if (!keep1) fmt::print(" [cannot be small1, beyond impl limits]");
         if (!keep2) fmt::print(" [cannot be small2, beyond impl limits]");
     }
 
