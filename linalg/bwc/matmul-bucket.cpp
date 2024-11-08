@@ -1318,7 +1318,7 @@ int builder<Arith>::do_huge_slice(huge_slice * H, uint32_t i0, uint32_t i1, unsi
     H->dj_avg = ncols_t / (double) H->hdr->ncoeffs;
 
     verbose_printf(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD,
-            " w={}, avg dj={:.1f}, max dj={}, bucket block hit=1/{:.1f}\n",
+            " w=%" PRIu64 ", avg dj=%.1f, max dj=%u, bucket block hit=1/%.1f\n",
             H->hdr->ncoeffs, H->dj_avg, H->dj_max,
             H->nlarge * H->dj_avg);
 
