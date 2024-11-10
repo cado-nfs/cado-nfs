@@ -39,6 +39,13 @@ import urllib.error as urllib_error
 from http.client import BadStatusLine
 from urllib.parse import urlparse
 
+if int(sys.version_info[0]) < 3:
+    logging.error("You are running cado-nfs-client with Python%d."
+                  " Python2 *used to be* supported, but no longer is."
+                  % int(sys.version[0]))
+    sys.exit(1)
+
+
 # THIS PART MUST BE EXACTLY IDENTICAL IN cado-nfs.py and cado-nfs-client.py
 
 # Three possible locations for this script
@@ -52,12 +59,12 @@ from urllib.parse import urlparse
 # The source tree. We call the ./scripts/build_environment.sh script to
 # determine where the binaries are being put.
 
-import subprocess
 import locale
 
-pathdict=dict()
+pathdict = dict()
 
 one_pyfile_example_subpath = "scripts/cadofactor/workunit.py"
+
 
 def detect_installed_tree(pathdict):
     mydir = os.path.normpath(os.path.dirname(sys.argv[0]))
@@ -72,7 +79,9 @@ def detect_installed_tree(pathdict):
         if os.environ.get("CADO_NFS_DEBUG_PATHDETECT"):
             print("{} does not end in @BINSUFFIX@".format(mydir))
         return False
-    example = os.path.join(install_tree, "@LIBSUFFIX@", one_pyfile_example_subpath)
+    example = os.path.join(install_tree,
+                           "@LIBSUFFIX@",
+                           one_pyfile_example_subpath)
     t = os.path.exists(example)
     if not t:
         if os.environ.get("CADO_NFS_DEBUG_PATHDETECT"):
@@ -82,14 +91,15 @@ def detect_installed_tree(pathdict):
     # make all this relocatable, it doesn't cost us much.
     # (note though that the rpaths in the binaries are likely to still
     # contain absolute paths)
-    pathdict["pylib"] = os.path.join(install_tree, "@LIBSUFFIX@/scripts/cadofactor")
-    pathdict["data"]  = os.path.join(install_tree, "@DATASUFFIX@")
-    pathdict["lib"]   = os.path.join(install_tree, "@LIBSUFFIX@")
-    pathdict["bin"]   = os.path.join(install_tree, "@BINSUFFIX@")
+    pathdict["pylib"] = os.path.join(install_tree, "@LIBSUFFIX@/scripts")
+    pathdict["data"] = os.path.join(install_tree, "@DATASUFFIX@")
+    pathdict["lib"] = os.path.join(install_tree, "@LIBSUFFIX@")
+    pathdict["bin"] = os.path.join(install_tree, "@BINSUFFIX@")
 
     if os.environ.get("CADO_NFS_DEBUG_PATHDETECT"):
         print("cado-nfs running in installed tree")
     return True
+
 
 def detect_build_tree(pathdict):
     # source-location.txt is created by our build system, and can be used
@@ -106,7 +116,7 @@ def detect_build_tree(pathdict):
     # ok, we're in the build tree, apparently
     source_tree = open(source_location_file, "r").read().strip()
 
-    pathdict["pylib"] = os.path.join(source_tree, "scripts/cadofactor")
+    pathdict["pylib"] = os.path.join(source_tree, "scripts")
     pathdict["data"] = os.path.join(source_tree, "parameters")
     pathdict["lib"] = mydir
     pathdict["bin"] = mydir
@@ -115,9 +125,9 @@ def detect_build_tree(pathdict):
         print("cado-nfs running in build tree")
     return True
 
+
 def detect_source_tree(pathdict):
     mydir = os.path.normpath(os.path.dirname(sys.argv[0]))
-    t = os.path.exists(os.path.join(mydir, one_pyfile_example_subpath))
     helper = os.path.join(mydir, "scripts/build_environment.sh")
     if not os.path.exists(helper):
         if os.environ.get("CADO_NFS_DEBUG_PATHDETECT"):
@@ -126,12 +136,14 @@ def detect_source_tree(pathdict):
     pipe = subprocess.Popen([helper, "--show"], stdout=subprocess.PIPE)
     loc = locale.getlocale()[1]
     if not loc:
-        loc="ascii"
+        loc = "ascii"
     output = pipe.communicate()[0].decode(loc)
-    cado_bin_path = [x.split("=",2)[1] for x in output.split("\n") if re.match("^build_tree",x)][0]
+    cado_bin_path = [x.split("=", 2)[1]
+                     for x in output.split("\n")
+                     if re.match("^build_tree", x)][0]
     cado_bin_path = re.sub("^\"(.*)\"$", "\\1", cado_bin_path)
 
-    pathdict["pylib"] = os.path.join(mydir, "scripts/cadofactor")
+    pathdict["pylib"] = os.path.join(mydir, "scripts")
     pathdict["data"] = os.path.join(mydir, "parameters")
     pathdict["lib"] = cado_bin_path
     pathdict["bin"] = cado_bin_path
@@ -140,6 +152,7 @@ def detect_source_tree(pathdict):
         print("cado-nfs running in source tree")
     return True
 
+
 if detect_installed_tree(pathdict):
     pass
 elif detect_build_tree(pathdict):
@@ -147,13 +160,15 @@ elif detect_build_tree(pathdict):
 elif detect_source_tree(pathdict):
     pass
 else:
-    raise RuntimeError("We're unable to determine the location of the cado-nfs binaries and python files")
+    raise RuntimeError("We're unable to determine"
+                       " the location of the cado-nfs binaries"
+                       " and python files")
 
 sys.path.append(pathdict["pylib"])
 
-# END OF THE PART THAT MUST BE EXACTLY IDENTICAL IN cado-nfs.py and cado-nfs-client.py
+# END OF THE PART THAT MUST BE IDENTICAL IN cado-nfs.py and cado-nfs-client.py
 
-from workunit import Workunit
+from cadofactor.workunit import Workunit    # noqa: E402
 # }}}
 
 
@@ -164,6 +179,7 @@ def pid_exists(pid):
         return e.errno == errno.EPERM
     else:
         return True
+
 
 # {{{ locking plumbing.
 # File locking functions are specific to Unix/Windows/MacOS platforms.
@@ -183,6 +199,7 @@ def pid_exists(pid):
 
 if os.name == "posix":
     import fcntl
+
     class FileLock(object):
         @staticmethod
         def lock(filehandle, exclusive=False, blocking=True):
@@ -196,17 +213,20 @@ if os.name == "posix":
             mode = fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH
             mode |= 0 if blocking else fcntl.LOCK_NB
             fcntl.flock(filehandle.fileno(), mode)
+
         @staticmethod
         def unlock(filehandle):
             """ Unlock a file """
             fcntl.flock(filehandle.fileno(), fcntl.LOCK_UN)
 else:
+
     # No file locking. FIXME: What about MacOS?
     class FileLock(object):
         @staticmethod
         def lock(filehandle, exclusive=False, blocking=True):
             """ Do nothing """
             pass
+
         @staticmethod
         def unlock(filehandle):
             """ Do nothing """
@@ -241,6 +261,7 @@ candidates_for_BytesGenerator = []
 
 if True:
     candidates_for_BytesGenerator.append(email.generator.BytesGenerator)
+
     class Version1FixedBytesGenerator(email.generator.BytesGenerator):
         # pylint: disable=W0232
         # pylint: disable=E1101
@@ -259,6 +280,7 @@ if True:
                 # Payload is neither bytes nor string - this can't be right
                 raise TypeError('bytes payload expected: %s' % type(payload))
         _writeBody = _handle_bytes
+
     candidates_for_BytesGenerator.append(Version1FixedBytesGenerator)
 
     if tuple(sys.version_info)[0:2] == (3, 2):
@@ -267,6 +289,7 @@ if True:
         from email.utils import _has_surrogates
 
     fcre = re.compile(r'^From ', re.MULTILINE)
+
     class Version2FixedBytesGenerator(email.generator.BytesGenerator):
         # pylint: disable=W0232
         # pylint: disable=E1101
@@ -288,6 +311,7 @@ if True:
                 self.write(msg._payload)
             else:
                 super()._handle_text(msg)
+
     candidates_for_BytesGenerator.append(Version2FixedBytesGenerator)
 
     class Version3FixedBytesGenerator(email.generator.BytesGenerator):
@@ -311,6 +335,7 @@ if True:
                 self.write(msg._payload)
             else:
                 super()._handle_text(msg)
+
     candidates_for_BytesGenerator.append(Version3FixedBytesGenerator)
 
 
@@ -346,7 +371,7 @@ def find_working_bytesgenerator():
                 return False, postdata
             if s.start() + len(test_bytes) > len(postdata):
                 return False, postdata
-            if postdata[s.start() : s.start() + len(test_bytes)] != test_bytes:
+            if postdata[s.start(): s.start() + len(test_bytes)] != test_bytes:
                 return False, postdata
             return True, None
 
@@ -380,10 +405,12 @@ def find_working_bytesgenerator():
             logging.error(x.decode('ascii'))
     sys.exit(1)
 
+
 FixedBytesGenerator = find_working_bytesgenerator()
 # }}}
 
-def create_daemon(workdir=None, umask=None, logfile=None):# {{{
+
+def create_daemon(workdir=None, umask=None, logfile=None):  # {{{
     """Run a sub-process, detach it from the control tty.
 
     This is a simplified version of the code found there.
@@ -405,35 +432,35 @@ def create_daemon(workdir=None, umask=None, logfile=None):# {{{
         redirect_to = "/dev/null"
 
     try:
-        # Fork a child process so the parent can exit.  This returns control to
-        # the command-line or shell.  It also guarantees that the child will not
-        # be a process group leader, since the child receives a new process ID
-        # and inherits the parent's process group ID.  This step is required
-        # to insure that the next call to os.setsid is successful.
+        # Fork a child process so the parent can exit.  This returns
+        # control to the command-line or shell.  It also guarantees that
+        # the child will not be a process group leader, since the child
+        # receives a new process ID and inherits the parent's process
+        # group ID.  This step is required to insure that the next call
+        # to os.setsid is successful.
         pid = os.fork()
     except OSError as e:
         raise Exception("%s [%d]" % (e.strerror, e.errno))
 
-    if pid > 0:	# master
+    if pid > 0:  # master
         sys.stdout.write("PID: %d\n" % pid)
         sys.stdout.flush()
         sys.exit()
 
-    # To become the session leader of this new session and the process group
-    # leader of the new process group, we call os.setsid().  The process is
-    # also guaranteed not to have a controlling terminal.
+    # To become the session leader of this new session and the process
+    # group leader of the new process group, we call os.setsid().  The
+    # process is also guaranteed not to have a controlling terminal.
     os.setsid()
 
-    # Since the current working directory may be a mounted filesystem,
-    # we avoid the issue of not being able to unmount the filesystem at
+    # Since the current working directory may be a mounted filesystem, we
+    # avoid the issue of not being able to unmount the filesystem at
     # shutdown time by changing it to the root directory.
-    if not workdir is None:
+    if workdir is not None:
         os.chdir(workdir)
 
     # We probably don't want the file mode creation mask inherited from
-    # the parent, so we give the child complete control over
-    # permissions.
-    if not umask is None:
+    # the parent, so we give the child complete control over permissions.
+    if umask is not None:
         os.umask(umask)
 
     if logfile is not None:
@@ -441,7 +468,7 @@ def create_daemon(workdir=None, umask=None, logfile=None):# {{{
         # uses, otherwise we get inconsistent file position and python
         # gets nuts.
         logger = logging.getLogger()
-        for handler in list(logger.handlers): #Remove old handlers
+        for handler in list(logger.handlers):  # Remove old handlers
             logger.removeHandler(handler)
 
     # Iterate through and close all file descriptors.
@@ -449,18 +476,18 @@ def create_daemon(workdir=None, umask=None, logfile=None):# {{{
 
     if fdlist is None:
         try:
-            fdlist = [ int(c) for c in os.listdir('/proc/self/fd') ]
+            fdlist = [int(c) for c in os.listdir('/proc/self/fd')]
         except FileNotFoundError:
             pass
 
     if fdlist is None:
         try:
-            fdlist = [ int(c) for c in os.listdir('/dev/fd') ]
+            fdlist = [int(c) for c in os.listdir('/dev/fd')]
         except FileNotFoundError:
             pass
 
     if fdlist is None:
-        import resource		# Resource usage information.
+        import resource     # Resource usage information.
         maxfd = resource.getrlimit(resource.RLIMIT_NOFILE)[1]
         if maxfd == resource.RLIM_INFINITY:
             maxfd = maxfd_default
@@ -471,38 +498,40 @@ def create_daemon(workdir=None, umask=None, logfile=None):# {{{
         try:
             if logfile is None or fd != logfile.fileno():
                 os.close(fd)
-        except OSError:	# ERROR, fd wasn't open to begin with (ignored)
+        except OSError:  # ERROR, fd wasn't open to begin with (ignored)
             pass
 
-    # Redirect the standard I/O file descriptors to the specified file.  Since
-    # the daemon has no controlling terminal, most daemons redirect stdin,
-    # stdout, and stderr to /dev/null.  This is done to prevent side-effects
-    # from reads and writes to the standard I/O file descriptors.
+    # Redirect the standard I/O file descriptors to the specified file.
+    # Since the daemon has no controlling terminal, most daemons redirect
+    # stdin, stdout, and stderr to /dev/null.  This is done to prevent
+    # side-effects from reads and writes to the standard I/O file
+    # descriptors.
 
-    # This call to open is guaranteed to return the lowest file descriptor,
-    # which will be 0 (stdin), since it was closed above.
-    fd0 = os.open(redirect_to, os.O_RDWR)	# standard input (0)
+    # This call to open is guaranteed to return the lowest file
+    # descriptor, which will be 0 (stdin), since it was closed above.
+    fd0 = os.open(redirect_to, os.O_RDWR)   # standard input (0)
 
     fd12 = fd0
     if logfile is not None:
         fd12 = logfile.fileno()
 
     # Duplicate standard input to standard output and standard error.
-    os.dup2(fd12, 1)			# standard output (1)
-    os.dup2(fd12, 2)			# standard error (2)
+    os.dup2(fd12, 1)            # standard output (1)
+    os.dup2(fd12, 2)            # standard error (2)
 
     if logfile is None:
         return
 
     # Now re-plug the logging system to the same file descriptor as
     # stderr. we have three file descriptors open to the same file, by
-    # the way. We might as well decide to do away with one of them
-    # (e.g., logfile.fileno())
+    # the way. We might as well decide to do away with one of them (e.g.,
+    # logfile.fileno())
     logger.addHandler(logging.StreamHandler(sys.stderr))
     # os.close(logfile.fileno())
 # }}}
 
-class WuMIMEMultipart(MIMEMultipart):# {{{
+
+class WuMIMEMultipart(MIMEMultipart):  # {{{
     ''' Defines convenience functions for attaching files and data to a
     MIMEMultipart object
     '''
@@ -525,9 +554,9 @@ class WuMIMEMultipart(MIMEMultipart):# {{{
         result = MIMEApplication(data, _encoder=email.encoders.encode_noop)
         result.add_header('Content-Disposition', 'form-data',
                           name=name, filename=filename)
-        if not filetype is None:
+        if filetype is not None:
             result.add_header("filetype", filetype)
-        if not command is None:
+        if command is not None:
             result.add_header("command", str(command))
         self.attach(result)
 
@@ -568,6 +597,7 @@ class WuMIMEMultipart(MIMEMultipart):# {{{
         return postdata
 # }}}
 
+
 # class SharedFile(object):{{{
 #     def __init__(filename, mode=0o777):
 #         # Try to create and open the file exclusively
@@ -576,7 +606,7 @@ class WuMIMEMultipart(MIMEMultipart):# {{{
 #         try:
 #             self.fd = os.open(filename, flags, mode)
 #         except OSError as err:
-#             if err.errno == errno.EEXIST: # If the file already existed
+#             if err.errno == errno.EEXIST:  # If the file already existed
 #                 self.existed = True
 #                 self.wait_until_positive_filesize(filename)
 #                 self.file = open(filename, "r+b")
@@ -590,7 +620,7 @@ class WuMIMEMultipart(MIMEMultipart):# {{{
 #
 #     def close():
 #         FileLock.unlock(self.file)
-#         self.file.close() # This should also close the fd
+#         self.file.close()  # This should also close the fd
 #
 #     def delete():
 #         if self.existed:
@@ -625,10 +655,12 @@ class WuMIMEMultipart(MIMEMultipart):# {{{
 #         return
 # }}}
 
+
 # {{{ exclusive open/close
 class FileLockedException(IOError):
     """ Locking a file for exclusive access failed """
     pass
+
 
 def open_exclusive(filename):
     """ Open a file and get an exclusive lock on it """
@@ -642,11 +674,13 @@ def open_exclusive(filename):
         raise
     return fileobj
 
+
 def close_exclusive(fileobj):
     """ Close a file, releasing any held lock on it """
     FileLock.unlock(fileobj)
     fileobj.close()
 # }}}
+
 
 # {{{ run shell command, capture std streams
 def run_command(command, stdin=None, print_error=True, **kwargs):
@@ -676,7 +710,7 @@ def run_command(command, stdin=None, print_error=True, **kwargs):
                              close_fds=close_fds,
                              **kwargs)
 
-    logging.info ("[%s] Subprocess has PID %d", time.asctime(), child.pid)
+    logging.info("[%s] Subprocess has PID %d", time.asctime(), child.pid)
 
     # If we receive SIGTERM (the default signal for "kill") while a
     # subprocess is running, we want to be able to terminate the
@@ -701,8 +735,8 @@ def run_command(command, stdin=None, print_error=True, **kwargs):
         child.terminate()
         (stdout, stderr) = child.communicate()
         logging.error("[%s] Terminated command resulted in exit code %d",
-            time.asctime(), child.returncode)
-        raise # Re-raise KeyboardInterrupt to terminate cado-nfs-client.py
+                      time.asctime(), child.returncode)
+        raise  # Re-raise KeyboardInterrupt to terminate cado-nfs-client.py
 
     # Un-install our handler and revert to the default handler
     signal.signal(signal.SIGTERM, signal.SIG_DFL)
@@ -712,11 +746,14 @@ def run_command(command, stdin=None, print_error=True, **kwargs):
     return child.returncode, stdout, stderr
 # }}}
 
+
 class ServerGone(Exception):
     def __init__(self):
         Exception.__init__(self)
+
     def __str__(self):
         return "Server gone"
+
 
 # {{{ wrap around python urllib
 class HTTP_connector(object):
@@ -759,7 +796,7 @@ class HTTP_connector(object):
             context.check_hostname = bool(check_hostname)
             context.load_verify_locations(cafile=cafile)
 
-            logging.info ("urllib_request.urlopen")
+            logging.info("urllib_request.urlopen")
             return urllib_request.urlopen(request, context=context)
 
         # If we are not using HTTPS, we can just let urllib do it,
@@ -774,14 +811,13 @@ class HTTP_connector(object):
         check_hostname = not self.no_cn_check
         try:
             logging.info("_urlopen_maybe_https")
-            conn = HTTP_connector._urlopen_maybe_https(request, cafile=cafile,
-                                                       check_hostname=check_hostname)
+            conn = HTTP_connector._urlopen_maybe_https(
+                request, cafile=cafile, check_hostname=check_hostname)
             logging.info("_urlopen_maybe_https returns")
             # conn is a file-like object with additional methods:
             # geturl(), info(), getcode()
             return conn, None, None
         except urllib_error.HTTPError as error:
-            current_error = error.code
             if error.code == 410:
                 # We interpret error code 410 as the work unit server
                 # being gone for good. This instructs us to terminate
@@ -790,21 +826,20 @@ class HTTP_connector(object):
                 raise WorkunitClientToFinish("Received 410 from server")
             error_str = "HTTP error: %s" % str(error)
             if error.errno is not None:
-                hard_error = (error.errno == errno.ECONNREFUSED or \
+                hard_error = (error.errno == errno.ECONNREFUSED or
                               error.errno == errno.ECONNRESET)
             elif isinstance(error.reason, OSError):
-                hard_error = (error.reason.errno == errno.ECONNREFUSED or \
+                hard_error = (error.reason.errno == errno.ECONNREFUSED or
                               error.reason.errno == errno.ECONNRESET)
             else:
                 hard_error = None
         except urllib_error.URLError as error:
             error_str = "URL error: %s" % str(error)
-            current_error = error.errno
             if error.errno is not None:
-                hard_error = (error.errno == errno.ECONNREFUSED or \
+                hard_error = (error.errno == errno.ECONNREFUSED or
                               error.errno == errno.ECONNRESET)
             elif isinstance(error.reason, OSError):
-                hard_error = (error.reason.errno == errno.ECONNREFUSED or \
+                hard_error = (error.reason.errno == errno.ECONNREFUSED or
                               error.reason.errno == errno.ECONNRESET)
             else:
                 hard_error = None
@@ -822,16 +857,16 @@ class HTTP_connector(object):
         # Try to open the file exclusively
         try:
             fd = os.open(dlpath, os.O_CREAT | os.O_WRONLY | os.O_EXCL, 0o600)
-        except OSError as err:
-            if err.errno == 17: # File exists error
-                # There is a possible race condition here. If process A creates
-                # the file, then process B tries and finds that the file exists
-                # and immediately get a shared lock for reading, then process A
-                # can never get an exclusive lock for writing.
-                # To avoid this, we let process B wait until the file has
-                # positive size, which implies that process A must have the
-                # lock already. After 60 seconds, assume the file really has 0
-                # bytes and return.
+        except OSError as e:
+            if e.errno == errno.EEXIST:
+                # There is a possible race condition here. If process A
+                # creates the file, then process B tries and finds that
+                # the file exists and immediately get a shared lock for
+                # reading, then process A can never get an exclusive lock
+                # for writing.  To avoid this, we let process B wait
+                # until the file has positive size, which implies that
+                # process A must have the lock already. After 60 seconds,
+                # assume the file really has 0 bytes and return.
                 logging.warning("Looks like another process already created "
                                 "file %s", dlpath)
                 HTTP_connector.wait_until_positive_filesize(dlpath)
@@ -851,7 +886,7 @@ class HTTP_connector(object):
             logging.info("lock release")
         except OSError as err:
             logging.info("unlock error: %s" % err)
-        outfile.close() # This should also close the fd
+        outfile.close()  # This should also close the fd
         request.close()
         return None, None
 
@@ -862,7 +897,6 @@ class HTTP_connector(object):
         self.exit_on_server_gone = settings["EXIT_ON_SERVER_GONE"]
 
 # }}}
-
 
 
 # {{{ ssl certificate stuff
@@ -940,13 +974,17 @@ def get_missing_certificate(certfilename,
     return True
 # }}}
 
+
 class NoMoreServers(Exception):
     def __init__(self):
         Exception.__init__(self)
-    def  __str__(self):
-        return "All servers dropped the connection (connection reset or refused)"
 
-class ServerPool(object): # {{{
+    def __str__(self):
+        return "All servers dropped the connection" \
+               " (connection reset or refused)"
+
+
+class ServerPool(object):  # {{{
     class Server(object):
         def __init__(self, index, url, cafile, certsha1, needcert):
             self.index = index
@@ -955,17 +993,26 @@ class ServerPool(object): # {{{
             self.certsha1 = certsha1
             self.needcert = needcert
             self.enable = True
+
         def get_url(self):
             return self.url
+
         def __str__(self):
             return self.url
+
         def get_cafile(self):
             return self.cafile
+
         def get_index(self):
             return self.index
+
         @staticmethod
         def register(servers, url, cafile=None, certsha1=None, needcert=False):
-            servers.append(ServerPool.Server(len(servers), url, cafile, certsha1, needcert))
+            servers.append(ServerPool.Server(len(servers),
+                                             url,
+                                             cafile,
+                                             certsha1,
+                                             needcert))
 
     def __init__(self, settings):
         self.nservers = len(settings["SERVER"])
@@ -973,7 +1020,7 @@ class ServerPool(object): # {{{
         self.has_https = False
         self.current_index = 0
         self.wait = float(settings["DOWNLOADRETRY"])
-        self.worked_once = [ 0 ] * self.nservers
+        self.worked_once = [0] * self.nservers
 
         for ss in settings["SERVER"]:
             scheme, netloc = urlparse(ss)[0:2]
@@ -990,16 +1037,16 @@ class ServerPool(object): # {{{
         if not self.has_https:
             if settings["CERTSHA1"] is not None:
                 logging.warning("Option --certsha1 makes sense only with"
-                             " https URLs,"
-                             " ignoring it.")
+                                " https URLs,"
+                                " ignoring it.")
             for ss in settings["SERVER"]:
                 ServerPool.Server.register(self.servers, ss)
             return
 
         if settings["CERTSHA1"] is None:
             logging.warning("https URLs were given"
-                         " but no --certsha1 option,"
-                         " NO SSL VALIDATION WILL BE PERFORMED.")
+                            " but no --certsha1 option,"
+                            " NO SSL VALIDATION WILL BE PERFORMED.")
             for ss in settings["SERVER"]:
                 ServerPool.Server.register(self.servers, ss)
             return
@@ -1112,6 +1159,7 @@ class ServerPool(object): # {{{
 #        return server_index, url, certfilename, certsha1
 # }}}
 
+
 # {{{ WorkunitProcessor: this object processes once workunit, and owns
 # the result files until they get collected by the server.
 class WorkunitProcessor(object):
@@ -1119,13 +1167,17 @@ class WorkunitProcessor(object):
         self.settings = settings
         self.origin = workunit.get_peer()
         self.workunit = workunit
-        self.errorcode = 0 # will get set if any command exits with code != 0
-        self.failedcommand = None # If any command exits with code != 0, this
-                                  # get set to the index of the failed command
+
+        # self.errorcode gets set if any command exits with code != 0, in
+        # which case self.failedcommand is the index of the failed
+        # command
+        self.errorcode = 0
+        self.failedcommand = None
+
         self.stdio = {"stdout": [], "stderr": []}
         self._answer = None
 
-    def  __str__(self):
+    def __str__(self):
         return "Processor for Workunit:\n%s" % super(WorkunitProcessor, self)
 
     def renice(self):
@@ -1136,9 +1188,9 @@ class WorkunitProcessor(object):
         """ Test that the file exists and, if the stat object knows the
         "executable by user" constant, that it is executable
         """
-        return os.path.isfile(filename) \
-               and not (hasattr(stat, "S_IXUSR") \
-                        and (os.stat(filename).st_mode & stat.S_IXUSR) == 0)
+        return all([os.path.isfile(filename),
+                    not (hasattr(stat, "S_IXUSR"),
+                    (os.stat(filename).st_mode & stat.S_IXUSR) == 0)])
 
     @staticmethod
     def find_binary(filename, searchpath):
@@ -1174,10 +1226,10 @@ class WorkunitProcessor(object):
             for sub in self.settings["OVERRIDE"]:
                 if re.match('^-{1,2}' + sub[0] + '$', a):
                     krepl = sub
-                    used_overrides[sub[0]]=True
+                    used_overrides[sub[0]] = True
             mangled.append(a)
             if krepl is not None:
-                k,repl = krepl
+                k, repl = krepl
                 oldvalue = orig.pop(0)
                 logging.info("Overriding argument %s %s"
                              " by %s %s in command line"
@@ -1186,18 +1238,17 @@ class WorkunitProcessor(object):
                 mangled.append(repl)
         # apply the overrides even to flags which were *NOT* present in
         # the initial command line.
-        for f,v in self.settings["OVERRIDE"]:
+        for f, v in self.settings["OVERRIDE"]:
             if f in used_overrides:
                 continue
             mangled.append('-' + f)
             mangled.append(v)
 
-
         return ' '.join(mangled)
 
     def _locate_binary_file(self, workunit, key, filename):
         if not isinstance(filename, str):
-            filename = filename[0] # Drop checksum value
+            filename = filename[0]  # Drop checksum value
         if self.settings["BINDIR"]:
             searchpath = self.settings["BINDIR"].split(';')
             suggest = workunit.get("SUGGEST_" + key, None)
@@ -1228,10 +1279,10 @@ class WorkunitProcessor(object):
         for key in dirs:
             for (index, filename) in enumerate(self.workunit.get(key, [])):
                 if not isinstance(filename, str):
-                    filename = filename[0] # Drop checksum value
+                    filename = filename[0]  # Drop checksum value
                 # index is 0-based, add 1 to make FILE1, FILE2, etc. 1-based
                 files["%s%d" % (key, index + 1)] = \
-                        os.path.join(dirs[key], filename)
+                    os.path.join(dirs[key], filename)
 
         key = "EXECFILE"
         for (index, filename) in enumerate(self.workunit.get(key, [])):
@@ -1239,7 +1290,7 @@ class WorkunitProcessor(object):
             files["%s%d" % (key, index + 1)] = binfile
 
         for (counter, command) in enumerate(self.workunit.get("COMMAND", [])):
-            command = command.replace("'", "") # 21827
+            command = command.replace("'", "")  # 21827
             command = Template(command).safe_substitute(files)
 
             my_stdin_filename = "STDIN%d" % (counter+1)
@@ -1258,19 +1309,19 @@ class WorkunitProcessor(object):
             stdin = None
             if my_stdin_filename in files:
                 with open(files[my_stdin_filename], "r") as f:
-                    stdin=f.read()
+                    stdin = f.read()
 
             if stdin is not None:
-                stdin=stdin.encode()
+                stdin = stdin.encode()
 
             rc, stdout, stderr = run_command(command,
-                                            stdin=stdin,
-                                            preexec_fn=renice_func)
+                                             stdin=stdin,
+                                             preexec_fn=renice_func)
 
             if stdout is not None:
-                stdout=stdout.decode()
+                stdout = stdout.decode()
             if stderr is not None:
-                stderr=stderr.decode()
+                stderr = stderr.decode()
 
             # steal stdout/stderr, put them to files.
             if my_stdout_filename in files:
@@ -1338,7 +1389,7 @@ class WorkunitProcessor(object):
         mimedata.attach_key("clientid", self.settings["CLIENTID"])
         if self.errorcode:
             mimedata.attach_key("errorcode", self.errorcode)
-        if not self.failedcommand is None:
+        if self.failedcommand is not None:
             mimedata.attach_key("failedcommand", self.failedcommand)
         for filename in self.workunit.get("RESULT", []):
             filepath = os.path.join(self.settings["WORKDIR"], filename)
@@ -1356,7 +1407,7 @@ class WorkunitProcessor(object):
         postdata = mimedata.flatten(debug=int(self.settings["DEBUG"]))
 
         url = self.origin.get_url().rstrip("/") + "/" + \
-              self.settings["POSTRESULTPATH"].lstrip("/")
+            self.settings["POSTRESULTPATH"].lstrip("/")
         request = urllib_request.Request(url, data=postdata,
                                          headers=dict(mimedata.items()))
         self._answer = (request, self.origin.get_cafile())
@@ -1365,9 +1416,8 @@ class WorkunitProcessor(object):
     def get_answer(self):
         assert self._answer is not None
         return self._answer
-
-
 # }}}
+
 
 class WorkunitParseError(ValueError):
     """ Parsing the workunit failed """
@@ -1377,16 +1427,20 @@ class WorkunitParseError(ValueError):
 #     """ Got "hard" errors several times (ECONNREFUSED or ECONNRESET) """
 #     def __init__(self, url, msg):
 #         self.text = "Broken connection to %s: %s" % (url, msg)
-#     def  __str__(self):
+#     def __str__(self):
 #         return self.text
 #
+
+
 class WorkunitClientHalfDownload(Exception):
     """ Timeout """
     def __init__(self, path):
         Exception.__init__(self)
         self.text = "Timed out while downloading %s" % path
-    def  __str__(self):
+
+    def __str__(self):
         return self.text
+
 
 class WorkunitClientWrongChecksum(Exception):
     """ Checksum was wrong several times in a row """
@@ -1396,24 +1450,30 @@ class WorkunitClientWrongChecksum(Exception):
                     " from server %s has" \
                     " same wrong checksum %s again." % \
                     (path, peer, filesum)
-    def  __str__(self):
+
+    def __str__(self):
         return self.text
+
 
 class WorkunitClientToFinish(Exception):
     """ we received a 410 (probably while attempting to download a WU) """
     def __init__(self, explanation):
         Exception.__init__(self)
         self.text = explanation
-    def  __str__(self):
+
+    def __str__(self):
         return self.text
+
 
 class PrivateFileAlreadyExists(Exception):
     def __init__(self, oldname, newname):
         Exception.__init__(self)
         self.text = "cannot move %s to %s : destination already exists" \
                     % (oldname, newname)
-    def  __str__(self):
+
+    def __str__(self):
         return self.text
+
 
 class WorkunitWrapper(Workunit):
     """ wraps a workunit with info on the originating server, and the
@@ -1441,7 +1501,7 @@ class WorkunitWrapper(Workunit):
 #         # normal __str__ for workunits prints the text in full. In truth,
 #         # we don't need it.
 #         return self.get_id()
-# 
+#
     def get_peer(self):
         return self.peer
 
@@ -1469,6 +1529,7 @@ class WorkunitWrapper(Workunit):
             return False
         return time.time() > float(d)
 
+
 # {{{ InputDownloader -- persistent class that downloads WUs together
 # with their companion files, and provides them when they're ready.
 # Half-downloaded WUs are saved in memory, and downloads of companion
@@ -1491,7 +1552,7 @@ class InputDownloader(object):
             the computed checksum. If checksum is not None, return whether the
             computed SHA1 sum and checksum agree """
         blocksize = 65536
-        sha1hash = hashlib.sha1() # pylint: disable=E1101
+        sha1hash = hashlib.sha1()  # pylint: disable=E1101
         # Like when downloading, we wait until the file has positive size, to
         # avoid getting the shared lock right after the other process created
         # the file but before it gets the exclusive lock
@@ -1511,11 +1572,11 @@ class InputDownloader(object):
         return filesum.lower() == checksum.lower()
 
     def get_file(self, urlpath,
-            dlpath=None,
-            options=None,
-            is_wu=False,
-            executable=False,
-            mandatory_server=None):
+                 dlpath=None,
+                 options=None,
+                 is_wu=False,
+                 executable=False,
+                 mandatory_server=None):
         """ gets a file from the server (of from one of the failover
         servers, for WUs), and wait until we succeed.
 
@@ -1555,10 +1616,12 @@ class InputDownloader(object):
         if dlpath is None:
             dlpath_tmp = None
         else:
-            dlpath_tmp = "%s%d" % (dlpath, random.randint(0,2**30)^os.getpid())
+            dlpath_tmp = "%s%d" \
+                         % (dlpath, random.randint(0, 2**30) ^ os.getpid())
         while True:
-            logging.info("spin=%d is_wu=%s blog=%d", spin, is_wu,
-                    len(self.wu_backlog)+len(self.wu_backlog_alt))
+            logging.info("spin=%d is_wu=%s blog=%d",
+                         spin, is_wu,
+                         len(self.wu_backlog)+len(self.wu_backlog_alt))
             if cap and spin > max_loops:
                 # we've had enough. Out of despair, we'll try our old
                 # WUs, but there seems to be veeery little we can do, to
@@ -1579,8 +1642,11 @@ class InputDownloader(object):
             if error_str is None:
                 break
 
-            if hard_error and self.exit_on_server_gone and self.server_pool.current_server_was_successful_once():
-                logging.error(f"Disabling {current_server} because of --exit-on-server-gone")
+            if all([hard_error,
+                    self.exit_on_server_gone,
+                    self.server_pool.current_server_was_successful_once()]):
+                logging.error(f"Disabling {current_server}"
+                              " because of --exit-on-server-gone")
                 try:
                     self.server_pool.disable_server(current_server)
                 except NoMoreServers:
@@ -1593,15 +1659,15 @@ class InputDownloader(object):
                 continue
 
             # otherwise we enter the wait loop
-            if not silent_wait or waiting_since == 0 or error_str != last_error:
-                givemsg = True
 
             if hard_error:
                 connfailed += 1
             else:
                 connfailed = 0
-            
-            if givemsg:
+
+            if any([not silent_wait,
+                    waiting_since == 0,
+                    error_str != last_error]):
                 logging.error("Download failed%s, %s",
                               " with hard error" if hard_error else "",
                               error_str)
@@ -1777,8 +1843,8 @@ class InputDownloader(object):
             # If we fail to download the file, we'll deal with it at the
             # level above
 
-            executable = os.name != "nt" and \
-                    filename in dict(wu.get("EXECFILE", []))
+            executable = os.name != "nt" \
+                and filename in dict(wu.get("EXECFILE", []))
             self.get_missing_file(archname, dlpath, checksum,
                                   executable=executable,
                                   mandatory_server=server)
@@ -1840,8 +1906,8 @@ class InputDownloader(object):
                 dline = workunit.get("DEADLINE")
                 dline = time.asctime(time.localtime(float(dline)))
                 logging.warning("Old workunit %s has passed deadline (%s),"
-                             " ignoring",
-                             workunit.get_id(), dline)
+                                " ignoring",
+                                workunit.get_id(), dline)
                 workunit.cleanup()
             else:
                 break
@@ -1854,7 +1920,7 @@ class InputDownloader(object):
     def _get_wu(self):
         if self.wu_backlog:
             logging.info("Current backlog of half-downloaded WUs: %s",
-                    ", ".join([w.get_id() for w in self.wu_backlog]))
+                         ", ".join([w.get_id() for w in self.wu_backlog]))
         while self.wu_backlog:
             workunit = self.wu_backlog[0]
             self.wu_backlog = self.wu_backlog[1:]
@@ -1862,8 +1928,8 @@ class InputDownloader(object):
                 dline = workunit.get("DEADLINE")
                 dline = time.asctime(time.localtime(float(dline)))
                 logging.warning("Old workunit %s has passed deadline (%s),"
-                             " ignoring",
-                             workunit.get_id(), dline)
+                                " ignoring",
+                                workunit.get_id(), dline)
                 workunit.cleanup()
             else:
                 logging.info("Re-attempting previously downloaded workunit %s",
@@ -1910,8 +1976,8 @@ class InputDownloader(object):
         return workunit
 # }}}
 
-# {{{ ResultUploader -- persistent class that handles uploads
 
+# {{{ ResultUploader -- persistent class that handles uploads
 class ResultUploader(object):
     def __init__(self, settings, server_pool, connector):
         self.settings = settings
@@ -1957,10 +2023,11 @@ class ResultUploader(object):
         mention_each = self.backlog_size > 1
 
         wait = float(self.settings["DOWNLOADRETRY"])
+
         # Now try to purge our backlog, starting from the server we've
         # just got this WU from.
-        did_progress = False
-        last_error = ""
+        # did_progress = False
+
         for i in range(self.nservers):
             index = (self.last_active + i) % self.server_pool.nservers
             old_backlog = self.upload_backlog[index]
@@ -2017,7 +2084,7 @@ class ResultUploader(object):
                 response_str = response.decode(encoding=encoding)
                 logging.debug("Server response:\n%s", response_str)
                 conn.close()
-                did_progress = True
+                # did_progress = True
                 logging.info("Upload of %s succeeded.", p.workunit.get_id())
                 p.cleanup()
             self.backlog_size -= len(old_backlog) - len(new_backlog)
@@ -2026,8 +2093,8 @@ class ResultUploader(object):
         # We could return "did_progress", but alas, returning False will
         # cause the client to exit. We'd rather arrange to have our
         # backlog grow.
-
 # }}}
+
 
 # {{{ WorkunitClient -- gets one WU, runs it, schedules its upload.
 class WorkunitClient(object):
@@ -2079,75 +2146,72 @@ class WorkunitClient(object):
         return True
 # }}}
 
+
 # Settings which we require on the command line (no defaults)
 REQUIRED_SETTINGS = {
-    "SERVER" : (None,
-                "Base URL for WU server."
-                " Can be specified multiple times for failover")
+    "SERVER": (None,
+               "Base URL for WU server."
+               " Can be specified multiple times for failover")
     }
+
 
 # Optional settings with defaults, overrideable on command line,
 # and a help text
 OPTIONAL_SETTINGS = {
-    "WU_FILENAME"    : (None, "Filename under which to store WU files"),
-    "CLIENTID"       : (None,
+    "WU_FILENAME":     (None, "Filename under which to store WU files"),
+    "CLIENTID":        (None,
                         "Unique ID for this client. If not "
                         "specified, a default of "
                         "<hostname>.<random hex number> is used"),
-    "DLDIR"          : ('download/', "Directory for downloading files"),
-    "WORKDIR"        : (None, "Directory for result files"),
-    "BINDIR"         : (None,
+    "DLDIR":           ('download/', "Directory for downloading files"),
+    "WORKDIR":         (None, "Directory for result files"),
+    "BINDIR":          (None,
                         "Directory with existing executable "
                         "files to use"),
-    "BASEPATH"       : (None,
+    "BASEPATH":        (None,
                         "Base directory for"
                         " download and work directories"),
-    "GETWUPATH"      : ("/cgi-bin/getwu",
+    "GETWUPATH":       ("/cgi-bin/getwu",
                         "Path segment of URL for"
                         " requesting WUs from server"),
-    "POSTRESULTPATH" : ("/cgi-bin/upload.py",
+    "POSTRESULTPATH":  ("/cgi-bin/upload.py",
                         "Path segment of URL for"
                         " reporting results to server"),
-    "DEBUG"          : ("0", "Debugging verbosity"),
-    "ARCH"           : ("", "Architecture string for this client"),
-    "DOWNLOADRETRY"  : ("10", "Time to wait before download retries"),
-    "CERTSHA1"       : (None,
+    "DEBUG":           ("0", "Debugging verbosity"),
+    "ARCH":            ("", "Architecture string for this client"),
+    "DOWNLOADRETRY":   ("10", "Time to wait before download retries"),
+    "CERTSHA1":        (None,
                         "SHA1 of server SSL certificate."
                         " Specify multiple times for failover servers"),
-    "SILENT_WAIT"    : (None,
+    "SILENT_WAIT":     (None,
                         "Discard repeated messages about"
                         " client waiting for work (does not affect uploads)"),
-    "MAX_CONNECTION_FAILURES" : ("999999",
+    "MAX_CONNECTION_FAILURES":  ("999999",
                                  "Maximum number of successive"
                                  " connection failures to tolerate"),
-    "NICENESS"       : ("0", "Run subprocesses under this niceness"),
-    "LOGLEVEL"       : ("INFO", "Verbosity of logging"),
-    "LOGFILE"        : (None,
+    "NICENESS":        ("0", "Run subprocesses under this niceness"),
+    "LOGLEVEL":        ("INFO", "Verbosity of logging"),
+    "LOGFILE":         (None,
                         "File to which to write log output. "
                         "In daemon mode, if no file is specified, a "
                         "default of <workdir>/<clientid>.log is used")
     }
+
+
 # Merge the two, removing help string
 def merge_two_dicts(x, y):
     z = x.copy()
     z.update(y)
     return z
 
-def abort_on_python2():
-    if int(sys.version_info[0]) < 3:
-        logging.error("You are running cado-nfs-client with Python%d.  "
-                "Python2 *used to be* supported, but no longer is.  " % int(sys.version[0]))
-        sys.exit(1)
 
-# This syntax is weird, but { a:b for [....] } won't work with python 2.6
-# -- which I'm not sure we really strive to support, though.
-SETTINGS = dict([(a,b) for (a, (b,c)) in
-            merge_two_dicts(REQUIRED_SETTINGS, OPTIONAL_SETTINGS).items()])
+SETTINGS = {a: b for (a, (b, c)) in
+            merge_two_dicts(REQUIRED_SETTINGS, OPTIONAL_SETTINGS).items()}
 
-BAD_WU_MAX = 3 # Maximum allowed number of bad WUs
+BAD_WU_MAX = 3  # Maximum allowed number of bad WUs
+
 
 if __name__ == '__main__':
-
     def parse_cmdline():
         # Create command line parser from the keys in SETTINGS
         parser = optparse.OptionParser()
@@ -2158,28 +2222,34 @@ if __name__ == '__main__':
             else:
                 parser.add_option('--' + arg.lower(), help=default[1])
         for (arg, default) in OPTIONAL_SETTINGS.items():
-            if not default[0] is None:
+            if default[0] is not None:
                 parser.add_option('--' + arg.lower(),
                                   default=default[0],
-                                  help=default[1] + \
-                                       " (default: " + default[0] + ")")
+                                  help=f"{default[1]} (default: {default[0]})")
             elif arg == "CERTSHA1":
                 parser.add_option('--' + arg.lower(), help=default[1],
                                   action='append')
             else:
                 parser.add_option('--' + arg.lower(), help=default[1])
-        parser.add_option("-d", "--daemon", action="store_true", dest="daemon",
+        parser.add_option("-d", "--daemon",
+                          action="store_true", dest="daemon",
                           help="Daemonize the client")
         parser.add_option("--ping", type="int", dest="ping",
-                          help="Checks health of existing client.  Requires clientid")
-        parser.add_option("--keepoldresult", default=False, action="store_true",
-                          help="Keep and upload old results when client starts")
-        parser.add_option("--nosha1check", default=False, action="store_true",
+                          help="Checks health of existing client."
+                               " Requires clientid")
+        parser.add_option("--keepoldresult",
+                          default=False, action="store_true",
+                          help="Keep and upload old results"
+                               " when client starts")
+        parser.add_option("--nosha1check",
+                          default=False, action="store_true",
                           help="Skip checking the SHA1 for input files")
         parser.add_option("--single", default=False, action="store_true",
                           help="process only a single WU, then exit")
-        parser.add_option("--exit-on-server-gone", default=False, action="store_true",
-                          help="when the server is gone (but was at least seen present once), exit")
+        parser.add_option("--exit-on-server-gone",
+                          default=False, action="store_true",
+                          help="when the server is gone"
+                               " (but was at least seen present once), exit")
         parser.add_option("--nocncheck", default=False, action="store_true",
                           help="Don't check common name/SAN of certificate. ")
         parser.add_option("--override", nargs=2, action='append',
@@ -2228,14 +2298,13 @@ if __name__ == '__main__':
 
     options = parse_cmdline()
 
-    if options.ping != None:
+    if options.ping is not None:
         if SETTINGS["CLIENTID"] is None:
-                raise ValueError("--ping requires --clientid")
+            raise ValueError("--ping requires --clientid")
         if not options.daemon and SETTINGS["LOGFILE"] is None:
-                raise ValueError("--ping requires --daemon or --logfile")
+            raise ValueError("--ping requires --daemon or --logfile")
     # If no client id is given, we use <hostname>.<randomstr>
     if SETTINGS["CLIENTID"] is None:
-        import random
         hostname = socket.gethostname()
         random.seed()
         random_str = hex(random.randrange(0, 2**32)).strip('0x')
@@ -2244,7 +2313,7 @@ if __name__ == '__main__':
     # If no working directory is given, we use <clientid>.work/
     if SETTINGS["WORKDIR"] is None:
         SETTINGS["WORKDIR"] = SETTINGS["CLIENTID"] + '.work/'
-    if not SETTINGS["BASEPATH"] is None:
+    if SETTINGS["BASEPATH"] is not None:
         SETTINGS["WORKDIR"] = os.path.join(SETTINGS["BASEPATH"],
                                            SETTINGS["WORKDIR"])
         SETTINGS["DLDIR"] = os.path.join(SETTINGS["BASEPATH"],
@@ -2266,7 +2335,7 @@ if __name__ == '__main__':
     if not os.path.isdir(SETTINGS["WORKDIR"]):
         makedirs(SETTINGS["WORKDIR"], exist_ok=True)
 
-    # print (str(SETTINGS))
+    # print(str(SETTINGS))
 
     loglevel = getattr(logging, SETTINGS["LOGLEVEL"].upper(), None)
     if not isinstance(loglevel, int):
@@ -2276,16 +2345,16 @@ if __name__ == '__main__':
         logfilename = "%s/%s.log" % (SETTINGS["WORKDIR"], SETTINGS["CLIENTID"])
         SETTINGS["LOGFILE"] = logfilename
 
-    if options.ping != None:
+    if options.ping is not None:
         if pid_exists(options.ping):
             sys.exit(0)
         with open(logfilename, "r") as f:
             size = os.stat(f.fileno()).st_size
             if size >= 8192:
-                f.seek(size-8192,io.SEEK_SET)
-            lines=f.readlines()
-            for l in lines[-20:]:
-                sys.stderr.write("CLIENT ERROR: " + l)
+                f.seek(size-8192, io.SEEK_SET)
+            lines = f.readlines()
+            for ell in lines[-20:]:
+                sys.stderr.write("CLIENT ERROR: " + ell)
         sys.exit(1)
 
     logfile = None if logfilename is None else open(logfilename, "a")
@@ -2301,8 +2370,6 @@ if __name__ == '__main__':
     logging.info("Starting client %s", SETTINGS["CLIENTID"])
     logging.info("Python version is %d.%d.%d", *sys.version_info[0:3])
 
-    abort_on_python2()
-
     if FixedBytesGenerator != candidates_for_BytesGenerator[0]:
         logging.info("Using work-around %s for buggy BytesGenerator",
                      FixedBytesGenerator)
@@ -2314,8 +2381,7 @@ if __name__ == '__main__':
     if options.daemon:
         # in fact, logfile can never be None, since we force a logfile no
         # matter what.
-        create_daemon(logfile = logfile)
-
+        create_daemon(logfile=logfile)
 
     # main control loop.
     client_ok = True
@@ -2333,7 +2399,8 @@ if __name__ == '__main__':
         except WorkunitParseError:
             bad_wu_counter += 1
             if bad_wu_counter > BAD_WU_MAX:
-                logging.critical("Had %d bad workunit files. Aborting.", bad_wu_counter)
+                logging.critical("Had %d bad workunit files. Aborting.",
+                                 bad_wu_counter)
                 break
             continue
         except NoMoreServers as e:
@@ -2342,7 +2409,7 @@ if __name__ == '__main__':
         except WorkunitClientToFinish as e:
             logging.info("Client finishing: %s. Bye.", e)
             sys.exit(0)
-        except ServerGone as e:
+        except ServerGone:
             sys.exit(0)
 
         if options.single:

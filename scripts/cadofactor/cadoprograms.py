@@ -4,10 +4,9 @@ import abc
 import inspect
 import hashlib
 import logging
-import cadocommand
-import cadologger
-import cadoparams
-from collections import defaultdict
+
+from cadofactor import cadocommand
+from cadofactor import cadoparams
 
 
 class InspectType(type):
@@ -17,7 +16,8 @@ class InspectType(type):
     """
     def __init__(cls, name, bases, dct):
         """
-        >>> def f(a:"A", b:"B"=1, *args:"*ARGS", c:"C", d:"D"=3, **kwargs:"**KWARGS"):
+        >>> def f(a:"A", b:"B"=1, *args:"*ARGS",
+        ...       c:"C", d:"D"=3, **kwargs:"**KWARGS"):
         ...    pass
         >>> i = inspect.getfullargspec(f)
         >>> i.args
@@ -32,7 +32,8 @@ class InspectType(type):
         ['c', 'd']
         >>> i.kwonlydefaults
         {'d': 3}
-        >>> i.annotations == {'a': 'A', 'b': 'B', 'c': 'C', 'd': 'D', 'args': '*ARGS', 'kwargs': '**KWARGS'}
+        >>> i.annotations == {'a': 'A', 'b': 'B', 'c': 'C',
+        ...                   'd': 'D', 'args': '*ARGS', 'kwargs': '**KWARGS'}
         True
         """
         super().__init__(name, bases, dct)
@@ -47,8 +48,10 @@ class InspectType(type):
 
 
 class Option(object, metaclass=abc.ABCMeta):
-    ''' Base class for command line options that may or may not take parameters
-    '''
+    """
+    Base class for command line options that may or may not take parameters
+    """
+
     # TODO: decide whether we need '-' or '/' as command line option prefix
     # character under Windows. Currently: use "-'
     if False and platform.system() == "Windows":
@@ -56,83 +59,108 @@ class Option(object, metaclass=abc.ABCMeta):
     else:
         prefix = '-'
 
-    def __init__(self, arg=None, prefix=None, is_input_file=False,
-                 is_output_file=False, checktype=None):
-        """ Define a mapping from a parameter name and value to command line
+    def __init__(self,
+                 arg=None,
+                 prefix=None,
+                 is_input_file=False,
+                 is_output_file=False,
+                 checktype=None,
+                 dash=False):
+        """
+        Define a mapping from a parameter name and value to command line
         parameters.
 
         arg is the command line parameter to which this should map, e.g.,
-            'v' or 'thr'. If not specified, the default name supplied to the
-            map() method will be used.
-        prefix is the command line parameter prefix to use; the default is the
-            class variable which currently is '-'. Some programs, e.g. bwc.pl,
-            want some parameters with a different prefix, e.g., ':complete'
-        is_input_file must be set to True if this parameter gives the filename
-            of an input file to the command. This will be used to generate FILE
-            lines in workunits.
-        is_output_file must be set to True if this parameter gives the filename
-            of an output file of the command. This will be used to generate
-            RESULT lines in workunits.
+        'v' or 'thr'. If not specified, the default name supplied to the
+        map() method will be used.
+
+        prefix is the command line parameter prefix to use; the default
+        is the class variable which currently is '-'. Some programs, e.g.
+        bwc.pl, want some parameters with a different prefix, e.g.,
+        ':complete'
+
+        is_input_file must be set to True if this parameter gives the
+        filename of an input file to the command. This will be used to
+        generate FILE lines in workunits.
+
+        is_output_file must be set to True if this parameter gives the
+        filename of an output file of the command. This will be used to
+        generate RESULT lines in workunits.
+
         if checktype is specified, map() will assert that the value is an
-            instance of checktype.
+        instance of checktype.
+
+        if dash is specified, then arg must not be specified, and then
+        the default name has underscores replaced by dashes.
         """
         self.arg = arg
         if prefix:
-            self.prefix = prefix # hides the class variable
+            self.prefix = prefix  # hides the class variable
         self.is_input_file = is_input_file
         self.is_output_file = is_output_file
         self.checktype = checktype
         self.defaultname = None
+        self.dash = dash
+        if self.dash:
+            assert self.arg is None
 
     def set_defaultname(self, defaultname):
-        """ Sets default name for the command line parameter. It must be specified
-        before calling map().
+        """
+        Sets default name for the command line parameter. It must be
+        specified before calling map().
 
-        The reason for this is that command line parameters can be specified
-        in the constructor of Program sub-classes as, e.g.,
+        The reason for this is that command line parameters can be
+        specified in the constructor of Program sub-classes as, e.g.,
           class Las(Program):
-            def __init__(lpb1 : Parameter()=None):
-        and the name "lpb1" of the Las constructor's parameter should also be
-        the default name of command line parameter. However, the Parameter()
-        gets instantiated when the ":" annotation gets parsed, i.e., at the 
-        time the class definition of Las is parsed, and the fact that this
-        Parameter instance will act as an annotation to the "lpb1" parameter
-        is not known to the Parameter() instance. I.e., at its instantiation,
-        the Parameter instance cannot tell to which parameter it will belong.
+            def __init__(lpb1: Parameter()=None):
+        and the name "lpb1" of the Las constructor's parameter should
+        also be the default name of command line parameter. However, the
+        Parameter() gets instantiated when the ":" annotation gets
+        parsed, i.e., at the time the class definition of Las is parsed,
+        and the fact that this Parameter instance will act as an
+        annotation to the "lpb1" parameter is not known to the
+        Parameter() instance. I.e., at its instantiation, the Parameter
+        instance cannot tell to which parameter it will belong.
 
-        This information must be filled in later, via set_defaultname(), which
-        is called from Program.__init__(). It uses introspection to find out
-        which Option objects belong to which Program constructor parameter, and
-        fills in the constructor parameters' name via set_defaultname("lpb1").
+        This information must be filled in later, via set_defaultname(),
+        which is called from Program.__init__(). It uses introspection to
+        find out which Option objects belong to which Program constructor
+        parameter, and fills in the constructor parameters' name via
+        set_defaultname("lpb1").
 
-        If the Option constructor had received an arg parameter, then that is
-        used instead of the defaultname, which allows for using different names
-        for the Program constructor's parameter and the command line parameter,
-        such as in
+        If the Option constructor had received an arg parameter, then
+        that is used instead of the defaultname, which allows for using
+        different names for the Program constructor's parameter and the
+        command line parameter, such as in
           __init__(threads: Parameter("t")):
         """
         self.defaultname = defaultname
 
     def get_arg(self):
-        assert not self.defaultname is None
-        return self.defaultname if self.arg is None else self.arg
+        assert self.defaultname is not None
+        a = self.defaultname if self.arg is None else self.arg
+        if self.dash:
+            a = a.replace('_', '-')
+        return a
 
     def get_checktype(self):
         return self.checktype
 
     def map(self, value):
-        """ Public method that converts the Option instance into an array of
+        """
+        Public method that converts the Option instance into an array of
         strings with command line parameters. It also checks the type, if
         checktype was specified in the constructor.
         """
-        assert not self.defaultname is None
-        if not self.checktype is None:
-            # If checktype is float, we allow both float and int as the type of
-            # value. Some programs accept parameters that are integers (such as
-            # admax) in scientific notation which is typed as floating point,
-            # thus we want to allow float parameters to be given in both
-            # integer and float type, so that passing, e.g., admax as an int
-            # does not trip the assertion
+        assert self.defaultname is not None
+        if self.checktype is not None:
+            # If checktype is float, we allow both float and int as the
+            # type of value. Some programs accept parameters that are
+            # integers (such as admax) in scientific notation which is
+            # typed as floating point, thus we want to allow float
+            # parameters to be given in both integer and float type, so
+            # that passing, e.g., admax as an int does not trip the
+            # assertion
             if self.checktype is float and type(value) is int:
                 # Write it to command line as an int
                 pass
@@ -142,51 +170,82 @@ class Option(object, metaclass=abc.ABCMeta):
                     # Yes, convert it and write to command line as an int
                     value = int(value)
                 else:
-                    raise ValueError("Cannot convert floating-point value %s "
-                                     "for parameter %s to an int without loss" %
-                                     (value, self.defaultname))
+                    raise ValueError("Cannot convert floating-point"
+                                     f" value {value}"
+                                     f" for parameter {self.defaultname}"
+                                     " to an int without loss")
             elif not isinstance(value, self.checktype):
-                raise TypeError("Value %s for parameter %s is of type %s, but "
-                                "checktype requires %s" %
-                                (repr(value), self.defaultname,
-                                 type(value).__name__,
-                                 self.checktype.__name__))
+                raise TypeError(f"Value {repr(value)}"
+                                f" for parameter {self.defaultname}"
+                                f" is of type {type(value).__name__},"
+                                " but checktype"
+                                f" requires {self.checktype.__name__}")
         return self._map(value)
 
     @abc.abstractmethod
     def _map(self, value):
-        """ Private method that does the actual translation to an array of string
-        with command line parameters. Subclasses need to implement it.
+        """
+        Private method that does the actual translation to an array of
+        string with command line parameters. Subclasses need to implement
+        it.
 
         A simple case of the Template Method pattern.
         """
         pass
 
+
 class PositionalParameter(Option):
-    ''' Positional command line parameter '''
+    """
+    Positional command line parameter
+    """
+
     def _map(self, value):
         return [str(value)]
 
+
 class Parameter(Option):
-    ''' Command line option that takes a parameter '''
+    """
+    Command line option that takes a parameter
+    """
+
     def _map(self, value):
         return [self.prefix + self.get_arg(), str(value)]
 
+
 class ParameterEq(Option):
-    ''' Command line option that takes a parameter, used on command line in
-    the form of "key=value" '''
+    """
+    Command line option that takes a parameter, used on command line in
+    the form of "key=value"
+    """
+
     def _map(self, value):
         return ["%s=%s" % (self.get_arg(), value)]
 
+
+class DashParameter(Parameter):
+    """
+    Command line option that takes a -- prefix, and with all underscores
+    made into dashes.
+    """
+
+    def __init__(self, *args, **kwargs):
+        """
+        Overridden constructor
+        """
+        super().__init__(*args, **kwargs, prefix="--", dash=True)
+
+
 class Toggle(Option):
-    ''' Command line option that does not take a parameter.
-    value is interpreted as a truth value, the option is either added or not
-    '''
-    def __init__(self, arg=None, prefix=None, is_input_file=False,
-                 is_output_file=False):
-        """ Overridden constructor that hard-codes checktype=bool """
-        super().__init__(arg=arg, prefix=prefix, is_input_file=is_input_file,
-                 is_output_file=is_output_file, checktype=bool)
+    """
+    Command line option that does not take a parameter.  value is
+    interpreted as a truth value, the option is either added or not
+    """
+
+    def __init__(self, *args, **kwargs):
+        """
+        Overridden constructor that hard-codes checktype=bool
+        """
+        super().__init__(*args, **kwargs, checktype=bool)
 
     def _map(self, value):
         if value is True:
@@ -197,12 +256,15 @@ class Toggle(Option):
             raise ValueError("Toggle.map() for %s requires a boolean "
                              "type argument" % self.get_arg())
 
+
 class Sha1Cache(object):
-    """ A class that computes SHA1 sums for files and caches them, so that a
-    later request for the SHA1 sum for the same file is not computed again.
-    File identity is checked via the file's realpath and the file's inode, size,
-    and modification time.
     """
+    A class that computes SHA1 sums for files and caches them, so that a
+    later request for the SHA1 sum for the same file is not computed
+    again.  File identity is checked via the file's realpath and the
+    file's inode, size, and modification time.
+    """
+
     def __init__(self):
         self._sha1 = {}
 
@@ -222,9 +284,11 @@ class Sha1Cache(object):
         # Check whether the file on disk changed
         if realpath in self._sha1 and not self._sha1[realpath][1] == file_id:
             logger = logging.getLogger("Sha1Cache")
-            logger.warning("File %s changed! Discarding old SHA1 sum", realpath)
-            del(self._sha1[realpath])
-        if not realpath in self._sha1:
+            logger.warning(f"File {realpath} changed!"
+                           " Discarding old SHA1 sum")
+            del self._sha1[realpath]
+
+        if realpath not in self._sha1:
             logger = logging.getLogger("Sha1Cache")
             logger.debug("Computing SHA1 for file %s", realpath)
             sha1 = hashlib.sha1()
@@ -236,14 +300,18 @@ class Sha1Cache(object):
                          self._sha1[realpath])
         return self._sha1[realpath][0]
 
+
 sha1cache = Sha1Cache()
+
 
 if os.name == "nt":
     defaultsuffix = ".exe"
 else:
     defaultsuffix = ""
 
+
 IS_MINGW = "MSYSTEM" in os.environ
+
 
 def translate_mingw_path(path):
     if path is None:
@@ -258,16 +326,19 @@ def translate_mingw_path(path):
         dirs[1:1] = [driveletter]
     return '/'.join(dirs)
 
+
 class Program(object, metaclass=InspectType):
-    ''' Base class that represents programs of the CADO suite
+    """
+    Base class that represents programs of the CADO suite
 
     The Program base class is oblivious to how programs get input data,
     or how they provide output data. It does, however, handle redirecting
-    stdin/stdout/stderr from/to files and accepts file names to/from which
-    to redirect. This is done so that workunits can be generated from
-    Program instances; in the workunit text, shell redirection syntax needs
-    to be used to connect stdio to files, so a Program instance needs to be
-    aware of which file names should be used for stdio redirection.
+    stdin/stdout/stderr from/to files and accepts file names to/from
+    which to redirect. This is done so that workunits can be generated
+    from Program instances; in the workunit text, shell redirection
+    syntax needs to be used to connect stdio to files, so a Program
+    instance needs to be aware of which file names should be used for
+    stdio redirection.
 
     Sub-classes correspond to individual programs (such as las) and must
     define these class variables:
@@ -275,14 +346,14 @@ class Program(object, metaclass=InspectType):
     name: a name used internally in the Python scripts for this program, must
       start with a letter and contain only letters and digits; if the binary
       file name is of this form, then that can be used
-    params: a mapping that tells how to translate configuration parameters to
-      command line options. The keys of the mapping are the keys as in the
-      configuration file, e.g., "verbose" in a configuartion file line
-      tasks.polyselect.verbose = 1
-      The values of the mapping are instances of subclasses of Option,
-      initialised with the command line parameter they should map to, e.g.,
-      "verbose" should map to an instance Toggle("v"), and "threads" should
-      map to an instance Parameter("t")
+    params: a mapping that tells how to translate configuration
+      parameters to command line options. The keys of the mapping are the
+      keys as in the configuration file, e.g., "verbose" in a
+      configuartion file line tasks.polyselect.verbose = 1 The values of
+      the mapping are instances of subclasses of Option, initialised with
+      the command line parameter they should map to, e.g., "verbose"
+      should map to an instance Toggle("v"), and "threads" should map to
+      an instance Parameter("t")
 
     >>> p = Ls()
     >>> p.make_command_line().replace("ls.exe", "/bin/ls")
@@ -305,10 +376,12 @@ class Program(object, metaclass=InspectType):
     >>> p = Ls(stderr='foo', append_stderr=True)
     >>> p.make_command_line().replace("ls.exe", "/bin/ls")
     '/bin/ls 2>> foo'
-    >>> p = Ls(stdout='foo', append_stdout=True, stderr='bar', append_stderr=True)
+    >>> p = Ls(stdout='foo', append_stdout=True, stderr='bar',
+    ...        append_stderr=True)
     >>> p.make_command_line().replace("ls.exe", "/bin/ls")
     '/bin/ls >> foo 2>> bar'
-    >>> p = Ls(stdout='foo', append_stdout=True, stderr='foo', append_stderr=True)
+    >>> p = Ls(stdout='foo', append_stdout=True, stderr='foo',
+    ...        append_stderr=True)
     >>> p.make_command_line().replace("ls.exe", "/bin/ls")
     '/bin/ls >> foo 2>&1'
     >>> p = Ls('foo', 'bar')
@@ -317,20 +390,21 @@ class Program(object, metaclass=InspectType):
     >>> p = Ls('foo', 'bar', long = True)
     >>> p.make_command_line().replace("ls.exe", "/bin/ls")
     '/bin/ls -l foo bar'
-    '''
+    """
 
     path = '.'
     subdir = ""
     paramnames = ("execpath", "execsubdir", "execbin", "execsuffix",
-        "runprefix")
-    # These should be abstract properties, but we want to reference them as
-    # class attributes, which properties can't. Ergo dummy variables
+                  "runprefix")
+
+    # These should be abstract properties, but we want to reference them
+    # as class attributes, which properties can't. Ergo dummy variables
     binary = None
 
-    # This class variable definition should not be here. It gets overwritten
-    # when the InspectType meta-class creates the class object. The only purpose
-    # is to make pylint shut up about the class not having an init_signature
-    # attribute
+    # This class variable definition should not be here. It gets
+    # overwritten when the InspectType meta-class creates the class
+    # object. The only purpose is to make pylint shut up about the class
+    # not having an init_signature attribute
     init_signature = None
 
     def __init__(self, options, stdin=None,
@@ -338,47 +412,50 @@ class Program(object, metaclass=InspectType):
                  append_stderr=False, background=False, execpath=None,
                  execsubdir=None, execbin=None, execsuffix=defaultsuffix,
                  runprefix=None, skip_check_binary_exists=None):
-        ''' Takes a dict of of command line options. Defaults are filled in
+        """
+        Takes a dict of of command line options. Defaults are filled in
         from the cadoparams.Parameters instance parameters.
 
-        The stdin, stdout, and stderr parameters accept strings. If a string is
-        given, it is interpreted as the file name to use for redirecting that
-        stdio stream. In workunit generation, the file name is used for shell
-        redirection.
-        '''
+        The stdin, stdout, and stderr parameters accept strings. If a
+        string is given, it is interpreted as the file name to use for
+        redirecting that stdio stream. In workunit generation, the file
+        name is used for shell redirection.
+        """
 
         # The function annotations define how to convert each value in
-        # self.parameters to command line arguments, but the annotations are
-        # stored in an unordered dict. We would like to put the command line
-        # parameters in a particular order, so that, for example, positional
-        # parameters are placed correctly. We also need to handle a variable-
-        # length positional parameter list.
+        # self.parameters to command line arguments, but the annotations
+        # are stored in an unordered dict. We would like to put the
+        # command line parameters in a particular order, so that, for
+        # example, positional parameters are placed correctly. We also
+        # need to handle a variable- length positional parameter list.
         # That is, we need three lists:
         # - Individual positional parameters
         # - Variable-length positional parameter (e.g., list of filenames)
         # - Keyword parameters
 
-        # First off, we set the default names for Option subclass instances.
-        # Since the Option instances are always the same (the annotation values
-        # are evaluated once at class creation time), we'll set the defaultnames
-        # on the same Option instances again each time a Program subclass gets
-        # instantiated, but that does not hurt.
+        # First off, we set the default names for Option subclass
+        # instances.  Since the Option instances are always the same (the
+        # annotation values are evaluated once at class creation time),
+        # we'll set the defaultnames on the same Option instances again
+        # each time a Program subclass gets instantiated, but that does
+        # not hurt.
         for (name, option) in self.__init__.__annotations__.items():
             option.set_defaultname(name)
 
         # "options" contains all local symbols defined in the sub-class'
-        # __init__() method. This includes self, __class__, and a few others.
-        # Filter them so that only those that correspond to annotated
-        # parameters remain.
+        # __init__() method. This includes self, __class__, and a few
+        # others.  Filter them so that only those that correspond to
+        # annotated parameters remain.
         filtered = self._filter_annotated_keys(options)
 
-        # The default value for all __init__() parameters that correspond to
-        # command line parameters is always None. Remove those entries.
-        # We could in principle look up the default values from the .defaults
-        # attribute given by inspect.getfullargspec(), but it's easier to
-        # use the convention that the default is always None.
-        filtered = {key:options[key] for key in filtered \
-                    if not options[key] is None}
+        # The default value for all __init__() parameters that correspond
+        # to command line parameters is always None. Remove those
+        # entries.  We could in principle look up the default values from
+        # the .defaults attribute given by inspect.getfullargspec(), but
+        # it's easier to use the convention that the default is always
+        # None.
+        filtered = {key: options[key] for key in filtered
+                    if options[key] is not None}
 
         self.parameters = filtered
 
@@ -403,7 +480,7 @@ class Program(object, metaclass=InspectType):
         binary = str(execbin or self.binary) + execsuffix
         execfile = os.path.normpath(os.sep.join([path, binary]))
         execsubfile = os.path.normpath(os.sep.join([path, subdir, binary]))
-        self.suggest_subdir=dict()
+        self.suggest_subdir = dict()
         if execsubfile != execfile and os.path.isfile(execsubfile):
             self.execfile = execsubfile
         elif os.path.isfile(execfile):
@@ -413,64 +490,73 @@ class Program(object, metaclass=InspectType):
             if not skip_check_binary_exists:
                 # Raising an exception here makes it impossible to run
                 # doctests for each Program subclass
-                raise Exception("Binary executable file %s not found (did you run \"make\" ?)" % binary)
-        self.suggest_subdir[self.execfile]=subdir
+                raise Exception(f"Binary executable file {binary} not found"
+                                " (did you run \"make\" ?)")
+        self.suggest_subdir[self.execfile] = subdir
 
     @classmethod
     def _get_option_annotations(cls):
-        """ Extract the elements of this class' __init__() annotations where
+        """
+        Extract the elements of this class' __init__() annotations where
         the annotation is an Option instance
         """
-        return {key:val for (key, val) in cls.__init__.__annotations__.items()
+        return {key: val for (key, val) in cls.__init__.__annotations__.items()
                 if isinstance(val, Option)}
 
     @classmethod
     def _filter_annotated_options(cls, keys):
-        """ From the list of keys given in "keys", return those that are
-        parameters of the __init__() method of this class and annotated with an
-        Option instance. Returns a dictionary of key:Option-instance pairs.
+        """
+        From the list of keys given in "keys", return those that are
+        parameters of the __init__() method of this class and annotated
+        with an Option instance. Returns a dictionary of
+        key:Option-instance pairs.
         """
         options = cls._get_option_annotations()
-        return {key:options[key] for key in keys if key in options}
+        return {key: options[key] for key in keys if key in options}
 
     @classmethod
     def _filter_annotated_keys(cls, keys):
-        """ From the list of keys given in "keys", return those that are
-        parameters of the __init__() method of this class and annotated with an
-        Option instance. Returns a list of keys, where order w.r.t. the input
-        keys is preserved.
+        """
+        From the list of keys given in "keys", return those that are
+        parameters of the __init__() method of this class and annotated
+        with an Option instance. Returns a list of keys, where order
+        w.r.t. the input keys is preserved.
         """
         options = cls._get_option_annotations()
         return [key for key in keys if key in options]
 
     @classmethod
     def get_accepted_keys(cls):
-        """ Return all parameter file keys which can be used by this program,
-        including those that don't directly map to command line parameters,
-        like those specifying search paths for the binary executable file.
+        """
+        Return all parameter file keys which can be used by this program,
+        including those that don't directly map to command line
+        parameters, like those specifying search paths for the binary
+        executable file.
 
-        This list is the union of annotated positional and keyword parameters to
-        the constructor, plus the Program class defined parameters. Note that an
-        *args parameter (stored in cls.init_signature.varargs) should not be
-        included here; there is no way to specify a variable-length set of
-        positional parameters in the parameter file.
+        This list is the union of annotated positional and keyword
+        parameters to the constructor, plus the Program class defined
+        parameters. Note that an *args parameter (stored in
+        cls.init_signature.varargs) should not be included here; there is
+        no way to specify a variable-length set of positional parameters
+        in the parameter file.
         """
         # The fact that we want to exclude varargs is why we need the inspect
         # info here.
-        
+
         # Get a map of keys to Option instances
         parameters = cls._filter_annotated_options(
             cls.init_signature.args + cls.init_signature.kwonlyargs)
-        
+
         # Turn it into a map of keys to checktype
-        parameters = {key:parameters[key].get_checktype() for key in parameters}
-        
+        parameters = {key: parameters[key].get_checktype()
+                      for key in parameters}
+
         # Turn checktypes that are not None into one-element lists.
         # The one-element list is treated by cadoparams.Parameters.myparams()
         # as a non-mandatory typed parameter.
-        parameters = {key:None if checktype is None else [checktype]
-            for key,checktype in parameters.items()}
-        
+        parameters = {key: None if checktype is None else [checktype]
+                      for key, checktype in parameters.items()}
+
         return cadoparams.UseParameters.join_params(parameters,
                                                     Program.paramnames)
 
@@ -481,8 +567,9 @@ class Program(object, metaclass=InspectType):
         return self.stderr
 
     def get_stdio(self):
-        """ Returns a 3-tuple with information on the stdin, stdout, and stderr
-        streams for this program.
+        """
+        Returns a 3-tuple with information on the stdin, stdout, and
+        stderr streams for this program.
 
         The first entry is for stdin, and is either a file name or None.
         The second entry is for stdout and is a 2-tuple, whose first entry is
@@ -493,17 +580,19 @@ class Program(object, metaclass=InspectType):
         return (self.stdin,
                 (self.stdout, self.append_stdout),
                 (self.stderr, self.append_stderr)
-            )
+                )
 
     def _get_files(self, is_output):
-        """ Helper method to get a set of input/output files for this Program.
-        This method returns the list of filenames without considering files for
-        stdio redirection. If "is_output" evaluates to True, the list of output
-        files is generated, otherwise the list of input files.
+        """
+        Helper method to get a set of input/output files for this
+        Program.  This method returns the list of filenames without
+        considering files for stdio redirection. If "is_output" evaluates
+        to True, the list of output files is generated, otherwise the
+        list of input files.
         """
         files = set()
         parameters = self.init_signature.args + self.init_signature.kwonlyargs
-        if not self.init_signature.varargs is None:
+        if self.init_signature.varargs is not None:
             parameters.append(self.init_signature.varargs)
         parameters = self._filter_annotated_keys(parameters)
         for param in parameters:
@@ -519,7 +608,8 @@ class Program(object, metaclass=InspectType):
         return files
 
     def get_input_files(self, with_stdio=True):
-        """ Returns a list of input files to this Program instance. If
+        """
+        Returns a list of input files to this Program instance. If
         with_stdio is True, includes stdin if such redirection is used.
         """
         input_files = self._get_files(is_output=False)
@@ -528,7 +618,8 @@ class Program(object, metaclass=InspectType):
         return list(input_files)
 
     def get_output_files(self, with_stdio=True):
-        """ Returns a list of output files. If with_stdio is True, includes
+        """
+        Returns a list of output files. If with_stdio is True, includes
         files for stdout/stderr redirection if such redirection is used.
         """
         output_files = self._get_files(is_output=True)
@@ -546,16 +637,17 @@ class Program(object, metaclass=InspectType):
 
     @staticmethod
     def translate_path(filename, filenametrans=None):
-        if not filenametrans is None and str(filename) in filenametrans:
+        if filenametrans is not None and str(filename) in filenametrans:
             return filenametrans[str(filename)]
         return str(filename)
 
     def make_command_array(self, filenametrans=None):
         # Begin command line with program to execute
         command = []
-        if not self.runprefix is None:
-            command=self.runprefix.split(' ')
-        command.append(self.translate_path(self.get_exec_file(), filenametrans))
+        if self.runprefix is not None:
+            command = self.runprefix.split(' ')
+        command.append(self.translate_path(self.get_exec_file(),
+                                           filenametrans))
 
         # Add keyword command line parameters, then positional parameters
         parameters = self.init_signature.kwonlyargs + self.init_signature.args
@@ -575,7 +667,7 @@ class Program(object, metaclass=InspectType):
 
         # Add positional command line parameters
         key = self.init_signature.varargs
-        if not key is None:
+        if key is not None:
             paramlist = self.parameters[key]
             ann = self.__init__.__annotations__.get(key, None)
             for value in paramlist:
@@ -583,10 +675,11 @@ class Program(object, metaclass=InspectType):
         return command
 
     def make_command_line(self, in_wu=False, quote=True, filenametrans=None):
-        """ Make a shell command line for this program.
+        """
+        Make a shell command line for this program.
 
-        If files are given for stdio redirection, the corresponding redirection
-        tokens are added to the command line.
+        If files are given for stdio redirection, the corresponding
+        redirection tokens are added to the command line.
         """
         assert not (in_wu and quote)
 
@@ -607,7 +700,9 @@ class Program(object, metaclass=InspectType):
             translated = self.translate_path(self.stdout,
                                              filenametrans=filenametrans)
             cmdline += redir + cadocommand.shellquote(translated)
-        if not in_wu and not self.stderr is None and self.stderr is self.stdout:
+        if not in_wu \
+                and self.stderr is not None \
+                and self.stderr is self.stdout:
             assert quote
             cmdline += ' 2>&1'
         elif not in_wu and isinstance(self.stderr, str):
@@ -623,13 +718,14 @@ class Program(object, metaclass=InspectType):
 
     def make_wu(self, wuname):
         filenametrans = {}
-        counters = {    "FILE": 1,
-                        "EXECFILE": 1,
-                        "RESULT": 1,
-                        "STDOUT": 1,
-                        "STDERR": 1,
-                        "STDIN": 1,
-                   }
+        counters = {"FILE": 1,
+                    "EXECFILE": 1,
+                    "RESULT": 1,
+                    "STDOUT": 1,
+                    "STDERR": 1,
+                    "STDIN": 1,
+                    }
+
         def append_file(wu, key, filename, with_checksum=True):
             if not key.startswith("STD"):
                 assert filename not in filenametrans
@@ -641,34 +737,41 @@ class Program(object, metaclass=InspectType):
                     wu.append('CHECKSUM %s' % sha1cache.get_sha1(filename))
                 # otherwise there'll be no checksum.
             if self.suggest_subdir.get(filename, None):
-                wu.append('SUGGEST_%s %s' % (key, self.suggest_subdir[filename]))
-        
+                wu.append('SUGGEST_%s %s' % (key,
+                                             self.suggest_subdir[filename]))
         workunit = ['WORKUNIT %s' % wuname]
+
         for filename in self.get_input_files():
             append_file(workunit, 'FILE', str(filename))
         for filename in self.get_exec_files():
             append_file(workunit, 'EXECFILE', str(filename))
         for filename in self.get_output_files():
-            append_file(workunit, 'RESULT', str(filename), with_checksum=False)
+            append_file(workunit, 'RESULT', str(filename),
+                        with_checksum=False)
         if self.stdout is not None:
-            append_file(workunit, 'STDOUT', str(self.stdout), with_checksum=False)
+            append_file(workunit, 'STDOUT', str(self.stdout),
+                        with_checksum=False)
         if self.stderr is not None:
-            append_file(workunit, 'STDERR', str(self.stdout), with_checksum=False)
+            append_file(workunit, 'STDERR', str(self.stdout),
+                        with_checksum=False)
         if self.stdin is not None:
             append_file(workunit, 'STDIN', str(self.stdin))
 
-        cmdline = self.make_command_line(filenametrans=filenametrans, in_wu=True, quote=False)
+        cmdline = self.make_command_line(filenametrans=filenametrans,
+                                         in_wu=True, quote=False)
         workunit.append('COMMAND %s' % cmdline)
-        workunit.append("") # Make a trailing newline
+        workunit.append("")  # Make a trailing newline
         return '\n'.join(workunit)
 
 
 class Polyselect(Program):
     """
-    >>> p = Polyselect(P=5, N=42, degree=4, verbose=True, skip_check_binary_exists=True)
+    >>> p = Polyselect(P=5, N=42, degree=4, verbose=True,
+    ...                skip_check_binary_exists=True)
     >>> p.make_command_line().replace(defaultsuffix + " ", " ", 1)
     'polyselect/polyselect -P 5 -N 42 -degree 4 -v'
-    >>> p = Polyselect(P=5, N=42, degree=4, verbose=True, skip_check_binary_exists=True)
+    >>> p = Polyselect(P=5, N=42, degree=4, verbose=True,
+    ...                skip_check_binary_exists=True)
     >>> p.make_command_line().replace(defaultsuffix + " ", " ", 1)
     'polyselect/polyselect -P 5 -N 42 -degree 4 -v'
     """
@@ -677,30 +780,32 @@ class Polyselect(Program):
     subdir = "polyselect"
 
     def __init__(self, *,
-                 P : Parameter(checktype=int)=None,
-                 N : Parameter(checktype=int)=None,
-                 degree : Parameter(checktype=int)=None,
-                 verbose : Toggle("v")=None,
-                 quiet : Toggle("q")=None,
-                 threads : Parameter("t", checktype=int)=None,
-                 admin : Parameter(checktype=int)=None,
-                 admax : Parameter(checktype=int)=None,
-                 incr : Parameter(checktype=int)=None,
-                 nq : Parameter(checktype=int)=None,
-                 maxtime : Parameter(checktype=float)=None,
+                 P: Parameter(checktype=int) = None,
+                 N: Parameter(checktype=int) = None,
+                 degree: Parameter(checktype=int) = None,
+                 verbose: Toggle("v") = None,  # noqa: F821
+                 quiet: Toggle("q") = None,  # noqa: F821
+                 threads: Parameter("t", checktype=int) = None,  # noqa: F821
+                 admin: Parameter(checktype=int) = None,
+                 admax: Parameter(checktype=int) = None,
+                 incr: Parameter(checktype=int) = None,
+                 nq: Parameter(checktype=int) = None,
+                 maxtime: Parameter(checktype=float) = None,
                  # -out is filename for msieve-format output ; absolutely
                  # no reason to have it here.
-                 # out : Parameter(is_output_file=True)=None,
-                 printdelay : Parameter("s", checktype=int)=None,
-                 keep: Parameter(checktype=int)=None,
-                 sopteffort: Parameter(checktype=int)=None,
+                 # out: Parameter(is_output_file=True) = None,
+                 printdelay: Parameter("s",  # noqa: F821
+                                       checktype=int) = None,
+                 keep: Parameter(checktype=int) = None,
+                 sopteffort: Parameter(checktype=int) = None,
                  **kwargs):
         super().__init__(locals(), **kwargs)
 
 
 class PolyselectRopt(Program):
     """
-    >>> p = PolyselectRopt(ropteffort=5, inputpolys="foo.polys", verbose=True, skip_check_binary_exists=True)
+    >>> p = PolyselectRopt(ropteffort=5, inputpolys="foo.polys",
+    ...                    verbose=True, skip_check_binary_exists=True)
     >>> p.make_command_line().replace(defaultsuffix + " ", " ", 1)
     'polyselect/polyselect_ropt -v -inputpolys foo.polys -ropteffort 5'
     """
@@ -709,15 +814,16 @@ class PolyselectRopt(Program):
     subdir = "polyselect"
 
     def __init__(self, *,
-                 verbose : Toggle("v")=None,
-                 threads : Parameter("t", checktype=int)=None,
-                 inputpolys : Parameter(is_input_file=True)=None,
-                 ropteffort: Parameter(checktype=float)=None,
-                 area : Parameter(checktype=float)=None,
-                 Bf : Parameter(checktype=float)=None,
-                 Bg : Parameter(checktype=float)=None,
+                 verbose: Toggle("v") = None,  # noqa: F821
+                 threads: Parameter("t", checktype=int) = None,  # noqa: F821
+                 inputpolys: Parameter(is_input_file=True) = None,
+                 ropteffort: Parameter(checktype=float) = None,
+                 area: Parameter(checktype=float) = None,
+                 Bf: Parameter(checktype=float) = None,
+                 Bg: Parameter(checktype=float) = None,
                  **kwargs):
         super().__init__(locals(), **kwargs)
+
 
 class Polyselect3(Program):
     binary = "polyselect3"
@@ -725,15 +831,16 @@ class Polyselect3(Program):
     subdir = "polyselect"
 
     def __init__(self, *,
-                 verbose : Toggle("v")=None,
-                 threads : Parameter("t", checktype=int)=None,
-                 num :  Parameter(checktype=int)=None,
-                 poly : Parameter(is_input_file=True),
-                 Bf : Parameter(checktype=float)=None,
-                 Bg : Parameter(checktype=float)=None,
-                 area : Parameter(checktype=float)=None,
+                 verbose: Toggle("v") = None,  # noqa: F821
+                 threads: Parameter("t", checktype=int) = None,  # noqa: F821
+                 num:  Parameter(checktype=int) = None,
+                 poly: Parameter(is_input_file=True),
+                 Bf: Parameter(checktype=float) = None,
+                 Bg: Parameter(checktype=float) = None,
+                 area: Parameter(checktype=float) = None,
                  **kwargs):
         super().__init__(locals(), **kwargs)
+
 
 class PolyselectGFpn(Program):
     binary = "polyselect_gfpn"
@@ -741,12 +848,13 @@ class PolyselectGFpn(Program):
     subdir = "polyselect"
 
     def __init__(self, *,
-                 verbose : Toggle("v")=None,
-                 p: Parameter(checktype=int)=None,
-                 n: Parameter(checktype=int)=None,
-                 out: Parameter(is_output_file=True)=None,
+                 verbose: Toggle("v") = None,  # noqa: F821
+                 p: Parameter(checktype=int) = None,
+                 n: Parameter(checktype=int) = None,
+                 out: Parameter(is_output_file=True) = None,
                  **kwargs):
         super().__init__(locals(), **kwargs)
+
 
 class PolyselectJL(Program):
     binary = "dlpolyselect"
@@ -754,21 +862,22 @@ class PolyselectJL(Program):
     subdir = "polyselect"
 
     def __init__(self, *,
-                 verbose : Toggle("v")=None,
-                 N: Parameter(checktype=int)=None,
-                 easySM: Parameter(checktype=int)=None,
-                 df: Parameter(checktype=int)=None,
-                 dg: Parameter(checktype=int)=None,
-                 area : Parameter(checktype=float)=None,
-                 Bf : Parameter(checktype=float)=None,
-                 Bg : Parameter(checktype=float)=None,
-                 bound: Parameter(checktype=int)=None,
-                 modm: Parameter(checktype=int)=None,
-                 modr: Parameter(checktype=int)=None,
-                 skew : Toggle()=None,
-                 threads : Parameter("t", checktype=int)=None,
+                 verbose: Toggle("v") = None,  # noqa: F821
+                 N: Parameter(checktype=int) = None,
+                 easySM: Parameter(checktype=int) = None,
+                 df: Parameter(checktype=int) = None,
+                 dg: Parameter(checktype=int) = None,
+                 area: Parameter(checktype=float) = None,
+                 Bf: Parameter(checktype=float) = None,
+                 Bg: Parameter(checktype=float) = None,
+                 bound: Parameter(checktype=int) = None,
+                 modm: Parameter(checktype=int) = None,
+                 modr: Parameter(checktype=int) = None,
+                 skew: Toggle() = None,
+                 threads: Parameter("t", checktype=int) = None,  # noqa: F821
                  **kwargs):
         super().__init__(locals(), **kwargs)
+
 
 class Skewness(Program):
     binary = "skewness"
@@ -776,10 +885,11 @@ class Skewness(Program):
     subdir = "polyselect"
 
     def __init__(self, *,
-                 inputpoly : PositionalParameter(is_input_file=True),
-                 outputpoly : PositionalParameter(is_output_file=True)=None,
+                 inputpoly: PositionalParameter(is_input_file=True),
+                 outputpoly: PositionalParameter(is_output_file=True) = None,
                  **kwargs):
         super().__init__(locals(), **kwargs)
+
 
 class Score(Program):
     binary = "score"
@@ -787,17 +897,19 @@ class Score(Program):
     subdir = "polyselect"
 
     def __init__(self, *,
-                 inputpoly : PositionalParameter(is_input_file=True),
-                 outputpoly : PositionalParameter(is_output_file=True)=None,
+                 inputpoly: PositionalParameter(is_input_file=True),
+                 outputpoly: PositionalParameter(is_output_file=True) = None,
                  **kwargs):
         super().__init__(locals(), **kwargs)
+
 
 class MakeFB(Program):
     """
     >>> p = MakeFB(poly="foo.poly", lim=1, skip_check_binary_exists=True)
     >>> p.make_command_line().replace(defaultsuffix + " ", " ", 1)
     'sieve/makefb -poly foo.poly -lim 1'
-    >>> p = MakeFB(poly="foo.poly", lim=1, maxbits=5, stdout="foo.roots", skip_check_binary_exists=True)
+    >>> p = MakeFB(poly="foo.poly", lim=1, maxbits=5,
+    ...            stdout="foo.roots", skip_check_binary_exists=True)
     >>> p.make_command_line().replace(defaultsuffix + " ", " ", 1)
     'sieve/makefb -poly foo.poly -lim 1 -maxbits 5 > foo.roots'
     """
@@ -808,90 +920,105 @@ class MakeFB(Program):
     def __init__(self, *,
                  poly: Parameter(is_input_file=True),
                  lim: Parameter(checktype=int),
-                 maxbits: Parameter(checktype=int)=None,
-                 out: Parameter(is_output_file=True)=None,
-                 side: Parameter(checktype=int)=None,
-                 threads : Parameter("t", checktype=int)=None,
+                 maxbits: Parameter(checktype=int) = None,
+                 out: Parameter(is_output_file=True) = None,
+                 side: Parameter(checktype=int) = None,
+                 threads: Parameter("t", checktype=int) = None,  # noqa: F821
                  **kwargs):
         super().__init__(locals(), **kwargs)
 
 
 class FreeRel(Program):
     """
-    >>> p = FreeRel(poly="foo.poly", renumber="foo.renumber", lpb0=1, lpb1=2, out="foo.freerel", skip_check_binary_exists=True)
-    >>> p.make_command_line().replace(defaultsuffix + " ", " ", 1)
-    'sieve/freerel -poly foo.poly -renumber foo.renumber -lpb0 1 -lpb1 2 -out foo.freerel'
-    >>> p = FreeRel(poly="foo.poly", renumber="foo.renumber", lpb0=1, lpb1=2, out="foo.freerel", pmin=123, pmax=234, skip_check_binary_exists=True)
-    >>> p.make_command_line().replace(defaultsuffix + " ", " ", 1)
-    'sieve/freerel -poly foo.poly -renumber foo.renumber -lpb0 1 -lpb1 2 -out foo.freerel -pmin 123 -pmax 234'
+    >>> p = FreeRel(poly="foo.poly", renumber="foo.renumber",
+    ...             lpb0=1, lpb1=2, out="foo.freerel",
+    ...             skip_check_binary_exists=True)
+    >>> p.make_command_line().replace(defaultsuffix + " ",
+    ...                               " ", 1)  # doctest: +NORMALIZE_WHITESPACE
+    'sieve/freerel -poly foo.poly -renumber foo.renumber
+    -lpb0 1 -lpb1 2 -out foo.freerel'
+    >>> p = FreeRel(poly="foo.poly", renumber="foo.renumber",
+    ...             lpb0=1, lpb1=2, out="foo.freerel", pmin=123, pmax=234,
+    ...             skip_check_binary_exists=True)
+    >>> p.make_command_line().replace(defaultsuffix + " ",
+    ...                               " ", 1)  # doctest: +NORMALIZE_WHITESPACE
+    'sieve/freerel -poly foo.poly -renumber foo.renumber
+    -lpb0 1 -lpb1 2 -out foo.freerel -pmin 123 -pmax 234'
     """
+
     binary = "freerel"
     name = binary
     subdir = "sieve"
+
     def __init__(self, *,
                  poly: Parameter(is_input_file=True),
                  renumber: Parameter(is_output_file=True),
-                 lpb0: Parameter("lpb0", checktype=int),
-                 lpb1: Parameter("lpb1", checktype=int),
+                 lpb0: Parameter(checktype=int),
+                 lpb1: Parameter(checktype=int),
                  out: Parameter(is_output_file=True),
-                 pmin: Parameter(checktype=int)=None,
-                 pmax: Parameter(checktype=int)=None,
+                 pmin: Parameter(checktype=int) = None,
+                 pmax: Parameter(checktype=int) = None,
                  dl: Toggle() = None,
-                 threads: Parameter("t", checktype=int)=None,
+                 threads: Parameter("t", checktype=int) = None,  # noqa: F821
                  **kwargs):
         super().__init__(locals(), **kwargs)
+
 
 class Las(Program):
     binary = "las"
     name = binary
     subdir = "sieve"
+
     def __init__(self,
                  poly: Parameter(is_input_file=True),
                  q0: Parameter(checktype=int),
-                 I: Parameter(checktype=int)=None,
-                 A: Parameter(checktype=int)=None,
-                 q1: Parameter(checktype=int)=None,
-                 rho: Parameter(checktype=int)=None,
-                 skipped: Parameter(checktype=int)=None,
-                 tdthresh: Parameter(checktype=int)=None,
-                 bkthresh: Parameter(checktype=int)=None,
-                 bkthresh1: Parameter(checktype=int)=None,
-                 bkmult: Parameter()=None,
-                 lim0: Parameter(checktype=int)=None,
-                 lim1: Parameter(checktype=int)=None,
-                 lpb0: Parameter(checktype=int)=None,
-                 lpb1: Parameter(checktype=int)=None,
-                 mfb0: Parameter(checktype=int)=None,
-                 mfb1: Parameter(checktype=int)=None,
-                 batchlpb0: Parameter(checktype=int)=None,
-                 batchlpb1: Parameter(checktype=int)=None,
-                 batchmfb0: Parameter(checktype=int)=None,
-                 batchmfb1: Parameter(checktype=int)=None,
-                 lambda0: Parameter(checktype=float)=None,
-                 lambda1: Parameter(checktype=float)=None,
-                 ncurves0: Parameter(checktype=int)=None,
-                 ncurves1: Parameter(checktype=int)=None,
-                 skewness: Parameter("S", checktype=float)=None,
-                 verbose: Toggle("v")=None,
-                 powlim0: Parameter(checktype=int)=None,
-                 powlim1: Parameter(checktype=int)=None,
-                 factorbase0: Parameter("fb0", is_input_file=True)=None,
-                 factorbase1: Parameter("fb1", is_input_file=True)=None,
-                 out: Parameter(is_output_file=True)=None,
-                 threads: Parameter("t")=None,
-                 batch: Toggle()=None,
-                 batchfile0: Parameter("batchfile0", is_input_file=True)=None,
-                 batchfile1: Parameter("batchfile1", is_input_file=True)=None,
-                 sqside: Parameter(checktype=int)=None,
-                 dup: Toggle()=None,
+                 I: Parameter(checktype=int) = None,
+                 A: Parameter(checktype=int) = None,
+                 q1: Parameter(checktype=int) = None,
+                 rho: Parameter(checktype=int) = None,
+                 skipped: Parameter(checktype=int) = None,
+                 tdthresh: Parameter(checktype=int) = None,
+                 bkthresh: Parameter(checktype=int) = None,
+                 bkthresh1: Parameter(checktype=int) = None,
+                 bkmult: Parameter() = None,
+                 lim0: Parameter(checktype=int) = None,
+                 lim1: Parameter(checktype=int) = None,
+                 lpb0: Parameter(checktype=int) = None,
+                 lpb1: Parameter(checktype=int) = None,
+                 mfb0: Parameter(checktype=int) = None,
+                 mfb1: Parameter(checktype=int) = None,
+                 batchlpb0: Parameter(checktype=int) = None,
+                 batchlpb1: Parameter(checktype=int) = None,
+                 batchmfb0: Parameter(checktype=int) = None,
+                 batchmfb1: Parameter(checktype=int) = None,
+                 lambda0: Parameter(checktype=float) = None,
+                 lambda1: Parameter(checktype=float) = None,
+                 ncurves0: Parameter(checktype=int) = None,
+                 ncurves1: Parameter(checktype=int) = None,
+                 skewness: Parameter("S",  # noqa: F821
+                                     checktype=float) = None,
+                 verbose: Toggle("v") = None,  # noqa: F821
+                 powlim0: Parameter(checktype=int) = None,
+                 powlim1: Parameter(checktype=int) = None,
+                 factorbase0: Parameter("fb0",  # noqa: F821
+                                        is_input_file=True) = None,
+                 factorbase1: Parameter("fb1",  # noqa: F821
+                                        is_input_file=True) = None,
+                 out: Parameter(is_output_file=True) = None,
+                 threads: Parameter("t") = None,  # noqa: F821
+                 batch: Toggle() = None,
+                 batchfile0: Parameter(is_input_file=True) = None,
+                 batchfile1: Parameter(is_input_file=True) = None,
+                 sqside: Parameter(checktype=int) = None,
+                 dup: Toggle() = None,
                  galois: Parameter() = None,
-                 sublat: Parameter(checktype=int)=None,
-                 allow_largesq: Toggle("allow-largesq")=None,
-                 allow_compsq: Toggle("allow-compsq")=None,
-                 qfac_min: Parameter("qfac-min", checktype=int)=None,
-                 qfac_max: Parameter("qfac-max", checktype=int)=None,
-                 adjust_strategy: Parameter("adjust-strategy", checktype=int)=None,
-                 stats_stderr: Toggle("stats-stderr")=None,
+                 sublat: Parameter(checktype=int) = None,
+                 allow_largesq: Toggle(dash=True) = None,
+                 allow_compsq: Toggle(dash=True) = None,
+                 qfac_min: Parameter(dash=True, checktype=int) = None,
+                 qfac_max: Parameter(dash=True, checktype=int) = None,
+                 adjust_strategy: Parameter(dash=True, checktype=int) = None,
+                 stats_stderr: Toggle(dash=True) = None,
                  # We have no checktype for parameters of the form <int>,<int>,
                  # so these are passed just as strings
                  traceab: Parameter() = None,
@@ -900,33 +1027,34 @@ class Las(Program):
                  # Let's make fbcache neither input nor output file. It should
                  # not be distributed to clients, nor sent back to the server.
                  # It's a local temp file, but re-used between different runs.
-                 fbcache: Parameter("fbc")=None,
+                 fbcache: Parameter("fbc") = None,  # noqa: F821
                  **kwargs):
         super().__init__(locals(), **kwargs)
         if "I" not in self.parameters and "A" not in self.parameters:
-            raise KeyError("Lattice siever requires either I or A be set -- consider setting tasks.I or tasks.A")
-            
-
+            raise KeyError("Lattice siever requires either I or A be set"
+                           " -- consider setting tasks.I or tasks.A")
 
 
 class Duplicates1(Program):
     binary = "dup1"
     name = binary
     subdir = "filter"
+
     def __init__(self,
                  *args: PositionalParameter(is_input_file=True),
-                 prefix : Parameter(),
-                 out: Parameter()=None,
-                 outfmt: Parameter()=None,
-                 bzip: Toggle("bz")=None,
-                 only_ab: Toggle("ab")=None,
-                 abhexa: Toggle()=None,
-                 force_posix_threads: Toggle("force-posix-threads")=None,
-                 only: Parameter(checktype=int)=None,
-                 nslices_log: Parameter("n", checktype=int)=None,
-                 lognrels: Parameter(checktype=int)=None,
-                 filelist: Parameter(is_input_file=True)=None,
-                 basepath: Parameter()=None,
+                 prefix: Parameter(),
+                 out: Parameter() = None,
+                 outfmt: Parameter() = None,
+                 bzip: Toggle("bz") = None,  # noqa: F821
+                 only_ab: Toggle("ab") = None,  # noqa: F821
+                 abhexa: Toggle() = None,
+                 force_posix_threads: Toggle(dash=True) = None,
+                 only: Parameter(checktype=int) = None,
+                 nslices_log: Parameter("n",  # noqa: F821
+                                        checktype=int) = None,
+                 lognrels: Parameter(checktype=int) = None,
+                 filelist: Parameter(is_input_file=True) = None,
+                 basepath: Parameter() = None,
                  **kwargs):
         super().__init__(locals(), **kwargs)
 
@@ -935,29 +1063,32 @@ class Duplicates2(Program):
     binary = "dup2"
     name = binary
     subdir = "filter"
+
     def __init__(self,
                  *args: PositionalParameter(is_input_file=True),
                  poly: Parameter(is_input_file=True),
-                 rel_count: Parameter("nrels", checktype=int),
+                 rel_count: Parameter("nrels", checktype=int),  # noqa: F821
                  renumber: Parameter(is_input_file=True),
-                 filelist: Parameter(is_input_file=True)=None,
-                 force_posix_threads: Toggle("force-posix-threads")=None,
-                 dlp: Toggle("dl")=None,
+                 filelist: Parameter(is_input_file=True) = None,
+                 force_posix_threads: Toggle(dash=True) = None,
+                 dlp: Toggle("dl") = None,  # noqa: F821
                  **kwargs):
         super().__init__(locals(), **kwargs)
+
 
 class GaloisFilter(Program):
     binary = "filter_galois"
     name = binary
     subdir = "filter"
+
     def __init__(self,
                  *args: PositionalParameter(is_input_file=True),
                  nrels: Parameter(checktype=int),
                  poly: Parameter(is_input_file=True),
                  renumber: Parameter(is_input_file=True),
-                 filelist: Parameter(is_input_file=True)=None,
-                 basepath: Parameter()=None,
-                 galois: Parameter("galois")=None,
+                 filelist: Parameter(is_input_file=True) = None,
+                 basepath: Parameter() = None,
+                 galois: Parameter() = None,
                  **kwargs):
         super().__init__(locals(), **kwargs)
 
@@ -966,81 +1097,92 @@ class Purge(Program):
     binary = "purge"
     name = binary
     subdir = "filter"
+
     def __init__(self,
                  *args: PositionalParameter(is_input_file=True),
                  out: Parameter(is_output_file=True),
-                 filelist: Parameter(is_input_file=True)=None,
-                 basepath: Parameter()=None,
-                 subdirlist: Parameter()=None,
-                 nrels: Parameter(checktype=int)=None,
-                 outdel: Parameter(is_output_file=True)=None,
-                 keep: Parameter(checktype=int)=None,
-                 col_minindex: Parameter("col-min-index", checktype=int)=None,
-                 nprimes: Parameter("col-max-index", checktype=int)=None,
-                 threads: Parameter("t", checktype=int)=None,
-                 npass: Parameter(checktype=int)=None,
-                 force_posix_threads: Toggle("force-posix-threads")=None,
-                 required_excess: Parameter(checktype=float)=None,
+                 filelist: Parameter(is_input_file=True) = None,
+                 basepath: Parameter() = None,
+                 subdirlist: Parameter() = None,
+                 nrels: Parameter(checktype=int) = None,
+                 outdel: Parameter(is_output_file=True) = None,
+                 keep: Parameter(checktype=int) = None,
+                 col_min_index: Parameter(dash=True, checktype=int) = None,
+                 nprimes: Parameter("col-max-index",  # noqa: F821
+                                    checktype=int) = None,
+                 threads: Parameter("t", checktype=int) = None,  # noqa: F821
+                 npass: Parameter(checktype=int) = None,
+                 force_posix_threads: Toggle(dash=True) = None,
+                 required_excess: Parameter(checktype=float) = None,
                  **kwargs):
         super().__init__(locals(), **kwargs)
+
 
 class Merge(Program):
     binary = "merge"
     name = binary
     subdir = "filter"
+
     def __init__(self,
-                 purged: Parameter("mat", is_input_file=True),
+                 purged: Parameter("mat", is_input_file=True),  # noqa: F821
                  out: Parameter(is_output_file=True),
-                 skip: Parameter(checktype=int)=None,
-                 target_density: Parameter(checktype=float)=None,
-                 threads: Parameter("t", checktype=int)=None,
-                 force_posix_threads: Toggle("force-posix-threads")=None,
+                 skip: Parameter(checktype=int) = None,
+                 target_density: Parameter(checktype=float) = None,
+                 threads: Parameter("t", checktype=int) = None,  # noqa: F821
+                 force_posix_threads: Toggle(dash=True) = None,
                  **kwargs):
         super().__init__(locals(), **kwargs)
+
 
 class MergeDLP(Program):
     binary = "merge-dl"
     name = binary
     subdir = "filter"
+
     def __init__(self,
-                 purged: Parameter("mat", is_input_file=True),
+                 purged: Parameter("mat", is_input_file=True),  # noqa: F821
                  out: Parameter(is_output_file=True),
-                 skip: Parameter(checktype=int)=None,
-                 target_density: Parameter(checktype=float)=None,
-                 threads: Parameter("t", checktype=int)=None,
+                 skip: Parameter(checktype=int) = None,
+                 target_density: Parameter(checktype=float) = None,
+                 threads: Parameter("t", checktype=int) = None,  # noqa: F821
                  **kwargs):
         super().__init__(locals(), **kwargs)
+
 
 # Todo: define is_input_file/is_output_file for remaining programs
 class Replay(Program):
     binary = "replay"
     name = binary
     subdir = "filter"
+
     def __init__(self,
-                 purged: Parameter()=None,
-                 history: Parameter("his")=None,
-                 index: Parameter()=None,
-                 out: Parameter()=None,
-                 for_msieve: Toggle()=None,
-                 skip: Parameter(checktype=int)=None,
-                 force_posix_threads: Toggle("force-posix-threads")=None,
-                 bwcostmin: Parameter(checktype=int)=None,
+                 purged: Parameter() = None,
+                 history: Parameter("his") = None,  # noqa: F821
+                 index: Parameter() = None,
+                 out: Parameter() = None,
+                 for_msieve: Toggle() = None,
+                 skip: Parameter(checktype=int) = None,
+                 force_posix_threads: Toggle(dash=True) = None,
+                 bwcostmin: Parameter(checktype=int) = None,
                  **kwargs):
         super().__init__(locals(), **kwargs)
+
 
 class ReplayDLP(Program):
     binary = "replay-dl"
     name = binary
     subdir = "filter"
+
     def __init__(self,
-                 purged: Parameter()=None,
-                 ideals: Parameter()=None,
-                 history: Parameter("his")=None,
-                 index: Parameter()=None,
-                 out: Parameter()=None,
-                 skip: Parameter()=None,
+                 purged: Parameter() = None,
+                 ideals: Parameter() = None,
+                 history: Parameter("his") = None,  # noqa: F821
+                 index: Parameter() = None,
+                 out: Parameter() = None,
+                 skip: Parameter() = None,
                  **kwargs):
         super().__init__(locals(), **kwargs)
+
 
 class NumberTheory(Program):
     # This program used to be necessary for the computation of the
@@ -1051,6 +1193,7 @@ class NumberTheory(Program):
     binary = "numbertheory_tool"
     name = binary
     subdir = "utils"
+
     def __init__(self,
                  poly: Parameter(),
                  ell: Parameter(),
@@ -1062,35 +1205,36 @@ class BWC(Program):
     binary = "bwc.pl"
     name = "bwc"
     subdir = "linalg/bwc"
+
     def __init__(self,
-                 complete: Toggle(prefix=":")=None,
-                 dryrun: Toggle("d")=None,
-                 verbose: Toggle("v")=None,
-                 mpi: ParameterEq()=None,
-                 lingen_mpi: ParameterEq()=None,
-                 allow_zero_on_rhs: ParameterEq()=None,
-                 threads: ParameterEq("thr")=None,
-                 m: ParameterEq()=None,
-                 n: ParameterEq()=None,
-                 nullspace: ParameterEq()=None,
-                 interval: ParameterEq()=None,
-                 ys: ParameterEq()=None,
-                 matrix: ParameterEq()=None,
-                 rhs: ParameterEq()=None,
-                 prime: ParameterEq()=None,
-                 wdir: ParameterEq()=None,
-                 mpiexec: ParameterEq()=None,
-                 hosts: ParameterEq()=None,
-                 hostfile: ParameterEq()=None,
-                 interleaving: ParameterEq()=None,
-                 bwc_bindir: ParameterEq()=None,
-                 mm_impl: ParameterEq()=None,
-                 cpubinding: ParameterEq()=None,
-                 # lingen_threshold: ParameterEq()=None,
-                 precmd: ParameterEq()=None,
+                 complete: Toggle(prefix=":") = None,  # noqa: F722
+                 dryrun: Toggle("d") = None,  # noqa: F821
+                 verbose: Toggle("v") = None,  # noqa: F821
+                 mpi: ParameterEq() = None,
+                 lingen_mpi: ParameterEq() = None,
+                 allow_zero_on_rhs: ParameterEq() = None,
+                 threads: ParameterEq("thr") = None,  # noqa: F821
+                 m: ParameterEq() = None,
+                 n: ParameterEq() = None,
+                 nullspace: ParameterEq() = None,
+                 interval: ParameterEq() = None,
+                 ys: ParameterEq() = None,
+                 matrix: ParameterEq() = None,
+                 rhs: ParameterEq() = None,
+                 prime: ParameterEq() = None,
+                 wdir: ParameterEq() = None,
+                 mpiexec: ParameterEq() = None,
+                 hosts: ParameterEq() = None,
+                 hostfile: ParameterEq() = None,
+                 interleaving: ParameterEq() = None,
+                 bwc_bindir: ParameterEq() = None,
+                 mm_impl: ParameterEq() = None,
+                 cpubinding: ParameterEq() = None,
+                 # lingen_threshold: ParameterEq() = None,
+                 precmd: ParameterEq() = None,
                  # put None below for a random seed,
                  # or any value (for example 1) for a fixed seed
-                 seed: ParameterEq()=None,
+                 seed: ParameterEq() = None,
                  **kwargs):
         if os.name == "nt":
             kwargs.setdefault("runprefix", "perl.exe")
@@ -1101,80 +1245,87 @@ class BWC(Program):
             mpiexec = translate_mingw_path(mpiexec)
             hostfile = translate_mingw_path(hostfile)
             if bwc_bindir is None and "execpath" in kwargs:
-                bwc_bindir = os.path.normpath(os.sep.join([kwargs["execpath"], self.subdir]))
+                bwc_bindir = os.path.normpath(
+                        os.sep.join([kwargs["execpath"], self.subdir]))
             bwc_bindir = translate_mingw_path(bwc_bindir)
         super().__init__(locals(), **kwargs)
+
     def make_command_line(self, *args, **kwargs):
-	    c = super().make_command_line(*args, **kwargs)
-	    return c
+        c = super().make_command_line(*args, **kwargs)
+        return c
+
 
 class SM(Program):
     binary = "sm"
     name = binary
     subdir = "filter"
+
     def __init__(self, *,
                  poly: Parameter(),
                  purged: Parameter(),
                  index: Parameter(),
                  out: Parameter(),
                  ell: Parameter(),
-                 nsms: Parameter()=None,
-                 sm_mode: Parameter("sm-mode")=None,
+                 nsms: Parameter() = None,
+                 sm_mode: Parameter("sm-mode") = None,  # noqa: F821
                  **kwargs):
         super().__init__(locals(), **kwargs)
- 
+
+
 class ReconstructLog(Program):
     binary = "reconstructlog-dl"
     name = binary
     subdir = "filter"
+
     def __init__(self, *,
                  ell: Parameter(),
-                 threads: Parameter("mt")=None,
-                 ker: Parameter("log", is_input_file=True),
-                 dlog: Parameter("out"),
+                 threads: Parameter("mt") = None,  # noqa: F821
+                 ker: Parameter("log", is_input_file=True),  # noqa: F821
+                 dlog: Parameter("out"),  # noqa: F821
                  renumber: Parameter(),
                  poly: Parameter(),
                  purged: Parameter(),
                  ideals: Parameter(),
                  relsdel: Parameter(),
                  nrels: Parameter(),
-                 partial: Toggle()=None,
-                 sm_mode: Parameter("sm-mode")=None,
+                 partial: Toggle() = None,
+                 sm_mode: Parameter("sm-mode") = None,  # noqa: F821
                  nsms: Parameter(),
                  **kwargs):
         super().__init__(locals(), **kwargs)
+
 
 class Descent(Program):
     binary = "descent.py"
     name = "descent"
     subdir = "scripts"
+
     def __init__(self, *,
-                 target: Parameter(prefix="--"),
-                 gfpext: Parameter(prefix="--"),
-                 prefix: Parameter(prefix="--"),
-                 datadir: Parameter(prefix="--"),
-                 cadobindir: Parameter(prefix="--"),
-                 descent_hint: Parameter("descent-hint", prefix="--",
-                     is_input_file=True),
-                 init_I: Parameter("init-I", prefix="--"),
-                 init_ncurves: Parameter("init-ncurves", prefix="--"),
-                 init_lpb: Parameter("init-lpb", prefix="--"),
-                 init_lim: Parameter("init-lim", prefix="--"),
-                 init_mfb: Parameter("init-mfb", prefix="--"),
-                 init_tkewness: Parameter("init-tkewness", prefix="--"),
-                 init_minB1: Parameter("init-minB1", prefix="--")=None,
-                 init_mineff: Parameter("init-mineff", prefix="--")=None,
-                 init_maxeff: Parameter("init-maxeff", prefix="--")=None,
-                 init_side: Parameter("init-side", prefix="--")=None,
-                 sm_mode: Parameter("sm-mode", prefix="--")=None,
-                 I: Parameter(prefix="--"),
-                 lpb0: Parameter(prefix="--"),
-                 lpb1: Parameter(prefix="--"),
-                 mfb0: Parameter(prefix="--"),
-                 mfb1: Parameter(prefix="--"),
-                 lim0: Parameter(prefix="--"),
-                 lim1: Parameter(prefix="--"),
-                 ell: Parameter(prefix="--"),
+                 target: DashParameter(),
+                 gfpext: DashParameter(),
+                 prefix: DashParameter(),
+                 datadir: DashParameter(),
+                 cadobindir: DashParameter(),
+                 descent_hint: DashParameter(is_input_file=True),
+                 init_I: DashParameter(),
+                 init_ncurves: DashParameter(),
+                 init_lpb: DashParameter(),
+                 init_lim: DashParameter(),
+                 init_mfb: DashParameter(),
+                 init_tkewness: DashParameter(),
+                 init_minB1: DashParameter() = None,
+                 init_mineff: DashParameter() = None,
+                 init_maxeff: DashParameter() = None,
+                 init_side: DashParameter() = None,
+                 sm_mode: DashParameter() = None,
+                 I: DashParameter(),
+                 lpb0: DashParameter(),
+                 lpb1: DashParameter(),
+                 mfb0: DashParameter(),
+                 mfb1: DashParameter(),
+                 lim0: DashParameter(),
+                 lim1: DashParameter(),
+                 ell: DashParameter(),
                  **kwargs):
         super().__init__(locals(), **kwargs)
 
@@ -1183,114 +1334,127 @@ class Characters(Program):
     binary = "characters"
     name = binary
     subdir = "linalg"
+
     def __init__(self, *,
                  poly: Parameter(),
                  purged: Parameter(),
                  index: Parameter(),
                  heavyblock: Parameter(),
                  out: Parameter(),
-                 wfile: Parameter("ker"),
-                 lpb0: Parameter("lpb0"),
-                 lpb1: Parameter("lpb1"),
-                 nchar: Parameter()=None,
-                 nratchars: Parameter()=None,
-                 threads: Parameter("t")=None,
+                 wfile: Parameter("ker"),  # noqa: F821
+                 lpb0: Parameter(),
+                 lpb1: Parameter(),
+                 nchar: Parameter() = None,
+                 nratchars: Parameter() = None,
+                 threads: Parameter("t") = None,  # noqa: F821
                  **kwargs):
         super().__init__(locals(), **kwargs)
+
 
 class Sqrt(Program):
     binary = "sqrt"
     name = binary
     subdir = "sqrt"
+
     def __init__(self, *,
                  poly: Parameter(),
                  prefix: Parameter(),
-                 purged: Parameter()=None,
-                 index: Parameter()=None,
-                 kernel: Parameter("ker")=None,
-                 dep: Parameter()=None,
-                 threads : Parameter("t", checktype=int)=None,
-                 ab: Toggle()=None,
-                 side0: Toggle()=None,
-                 side1: Toggle()=None,
-                 gcd: Toggle()=None,
+                 purged: Parameter() = None,
+                 index: Parameter() = None,
+                 kernel: Parameter("ker") = None,  # noqa: F821
+                 dep: Parameter() = None,
+                 threads: Parameter("t", checktype=int) = None,  # noqa: F821
+                 ab: Toggle() = None,
+                 side0: Toggle() = None,
+                 side1: Toggle() = None,
+                 gcd: Toggle() = None,
                  **kwargs):
         super().__init__(locals(), **kwargs)
+
 
 class CadoNFSClient(Program):
     binary = "cado-nfs-client.py"
     name = "cado_nfs_client"
     subdir = ""
+
     def __init__(self,
-                 server: Parameter(prefix='--'),
-                 daemon: Toggle(prefix='--')=None,
-                 keepoldresult: Toggle(prefix='--')=None,
-                 nosha1check: Toggle(prefix='--')=None,
-                 dldir: Parameter(prefix='--')=None,
-                 workdir: Parameter(prefix='--')=None,
-                 bindir: Parameter(prefix='--')=None,
-                 clientid: Parameter(prefix='--')=None,
-                 basepath: Parameter(prefix='--')=None,
-                 getwupath: Parameter(prefix='--')=None,
-                 loglevel: Parameter(prefix='--')=None,
-                 postresultpath: Parameter(prefix='--')=None,
-                 downloadretry: Parameter(prefix='--')=None,
-                 logfile: Parameter(prefix='--')=None,
-                 debug: Parameter(prefix='--')=None,
-                 niceness: Parameter(prefix='--')=None,
-                 ping: Parameter(prefix='--')=None,
-                 wu_filename: Parameter(prefix='--')=None,
-                 arch: Parameter(prefix='--')=None,
-                 certsha1: Parameter(prefix='--')=None,
+                 server: DashParameter(),
+                 daemon: Toggle(prefix='--') = None,            # noqa: F722
+                 keepoldresult: Toggle(prefix='--') = None,     # noqa: F722
+                 nosha1check: Toggle(prefix='--') = None,       # noqa: F722
+                 dldir: DashParameter() = None,
+                 workdir: DashParameter() = None,
+                 bindir: DashParameter() = None,
+                 clientid: DashParameter() = None,
+                 basepath: DashParameter() = None,
+                 getwupath: DashParameter() = None,
+                 loglevel: DashParameter() = None,
+                 postresultpath: DashParameter() = None,
+                 downloadretry: DashParameter() = None,
+                 logfile: DashParameter() = None,
+                 debug: DashParameter() = None,
+                 niceness: DashParameter() = None,
+                 ping: DashParameter() = None,
+                 wu_filename: Parameter(prefix='--') = None,    # noqa: F722
+                 arch: DashParameter() = None,
+                 certsha1: DashParameter() = None,
                  **kwargs):
         if os.name == "nt":
             kwargs.setdefault("runprefix", "python3.exe")
         super().__init__(locals(), **kwargs)
 
+
 class SSH(Program):
     binary = "ssh"
     name = binary
     path = "/usr/bin"
+
     def __init__(self,
                  host: PositionalParameter(),
                  *args: PositionalParameter(),
-                 compression: Toggle("C")=None,
-                 verbose: Toggle("v")=None,
-                 cipher: Parameter("c")=None,
-                 configfile: Parameter("F")=None,
-                 identity_file: Parameter("i")=None,
-                 login_name: Parameter("l")=None,
-                 port: Parameter("p")=None,
+                 compression: Toggle("C") = None,       # noqa: F821
+                 verbose: Toggle("v") = None,           # noqa: F821
+                 cipher: Parameter("c") = None,         # noqa: F821
+                 configfile: Parameter("F") = None,     # noqa: F821
+                 identity_file: Parameter("i") = None,  # noqa: F821
+                 login_name: Parameter("l") = None,     # noqa: F821
+                 port: Parameter("p") = None,           # noqa: F821
                  **kwargs):
         super().__init__(locals(), **kwargs)
+
 
 class RSync(Program):
     binary = "rsync"
     name = binary
     path = "/usr/bin"
+
     def __init__(self,
                  sourcefile: PositionalParameter(),
                  remotefile: PositionalParameter(),
                  **kwargs):
         super().__init__(locals(), **kwargs)
 
+
 class Ls(Program):
     binary = "ls"
     name = binary
     path = "/bin"
+
     def __init__(self,
-                 *args : PositionalParameter(),
-                 long : Toggle('l')=None,
+                 *args: PositionalParameter(),
+                 long: Toggle('l') = None,           # noqa: F821
                  **kwargs):
         super().__init__(locals(), **kwargs)
+
 
 class Kill(Program):
     binary = "kill"
     name = binary
     path = "/bin"
+
     def __init__(self,
                  *args: PositionalParameter(),
-                 signal: Parameter("s"),
+                 signal: Parameter("s"),           # noqa: F821
                  **kwargs):
         super().__init__(locals(), **kwargs)
 

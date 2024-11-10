@@ -12,10 +12,10 @@ import logging
 import urllib.parse
 import copy
 import struct
-from workunit import Workunit
 import datetime
-import wudb
-import upload
+from cadofactor.workunit import Workunit
+from cadofactor import wudb
+from cadofactor import upload
 import select
 import errno
 import time
@@ -26,7 +26,7 @@ try:
     HAVE_SSL = True
 except ImportError:
     HAVE_SSL = False
-    
+
 
 # Import upload to get the shell environment variable name in which we should
 # store the path to the upload directory
@@ -46,7 +46,7 @@ class FixedHTTPServer(http.server.HTTPServer):
                 mask = self.ipmask(iprange)
                 if not mask:
                     raise ValueError("%s it not a valid IP range (must be "
-                            "CIDR notation)" % iprange)
+                                     "CIDR notation)" % iprange)
                 self.whitelist.append(mask)
 
     @staticmethod
@@ -115,14 +115,14 @@ class FixedHTTPServer(http.server.HTTPServer):
 
         If no whitelist is defined, always denies.
         """
-        if not self.whitelist is None:
+        if self.whitelist is not None:
             # Use ipmask() to convert dotted string form of address to integer
             addr = self.ipmask(client_address[0])[0]
             for iprange in self.whitelist:
                 if addr & iprange[1] == iprange[0]:
                     return True
         self.logger.warning("Connection from IP address %s rejected - "
-                "not in server.whitelist", client_address[0])
+                            "not in server.whitelist", client_address[0])
         return False
 
 
@@ -132,11 +132,11 @@ class ThreadedHTTPServer(socketserver.ThreadingMixIn, FixedHTTPServer):
 
 def make_uploaddir_i_name(uploaddir_base, nrsubdir, i):
     """ Generate name of desired upload subdirectory
-    
+
     If nrsubdir == 0, then the base upload directory is used.
     If nrsubdir > 0 (incl. when nrsubdir == 1), subdirectories numbered
     uploaddir_base + "/0/", uploaddir_base + "/1/" etc are used, where
-    variable i determines the subdirectory. 
+    variable i determines the subdirectory.
     """
     assert (nrsubdir == 0 and i == 0) or i < nrsubdir
     if nrsubdir == 0:
@@ -145,14 +145,15 @@ def make_uploaddir_i_name(uploaddir_base, nrsubdir, i):
         # Empty final segment to make the path end in a directory separator
         return os.path.join(uploaddir_base, "%d" % i, "")
 
+
 if HAVE_SSL:
     class HTTPSServer(FixedHTTPServer):
         def __init__(self, server_address, HandlerClass, *args, certfile=None,
-                    keyfile=None, **kwargs):
-            # Let TCPServer.__init__() call BaseServer.__init__() and create 
+                     keyfile=None, **kwargs):
+            # Let TCPServer.__init__() call BaseServer.__init__() and create
             # a self.socket attribute, but not bind and activate the socket
-            super().__init__(server_address, HandlerClass, *args, 
-                    bind_and_activate=False, **kwargs)
+            super().__init__(server_address, HandlerClass, *args,
+                             bind_and_activate=False, **kwargs)
             # Create an SSL wrapper around the network socket in self.socket
             # First init an SSL context with the key
             ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
@@ -166,29 +167,28 @@ if HAVE_SSL:
     class ThreadedHTTPSServer(socketserver.ThreadingMixIn, HTTPSServer):
         """Handle requests in a separate thread."""
 
-    BUGGY_SSLSOCKET_VERSIONS = [
-        (3,2,0), (3,2,1), (3,2,2), (3,2,3),
-        (3,3,0)
-    ]
+    BUGGY_SSLSOCKET_VERSIONS = [(3, 2, 0), (3, 2, 1), (3, 2, 2),
+                                (3, 2, 3), (3, 3, 0)]
+
     if sys.version_info[0:3] in BUGGY_SSLSOCKET_VERSIONS:
         class FixedSSLSocket(ssl.SSLSocket):
             """ Wrapper class that applies the patch for issue 16357
-            
+
             See http://bugs.python.org/issue16357
             """
             def accept(self):
                 newsock, addr = socket.socket.accept(self)
-                return (ssl.SSLSocket(sock=newsock,
-                                      server_side=True,
-                                      do_handshake_on_connect=
-                                          self.do_handshake_on_connect,
-                                      _context=self.context),
+                return (ssl.SSLSocket(
+                    sock=newsock,
+                    server_side=True,
+                    do_handshake_on_connect=self.do_handshake_on_connect,
+                    _context=self.context),
                         addr)
         ssl.SSLSocket = FixedSSLSocket
 
 
 class HtmlGen(io.BytesIO):
-    def __init__(self, encoding = None):
+    def __init__(self, encoding=None):
         super().__init__()
         if encoding is None:
             self.encoding = 'utf-8'
@@ -197,14 +197,14 @@ class HtmlGen(io.BytesIO):
 
     def header(self):
         self.write(
-            b'<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" ' + 
-            b'"http://www.w3.org/TR/html4/strict.dtd">\n' + 
-            b'<html>\n' + 
-            b'<head>\n' + 
-            b'<meta http-equiv="content-type" content="text/html; ' + 
-              b'charset=' + self.encoding.encode("ascii") + b'">\n' 
-            b'<title>List of workunits</title>\n' + 
-            b'</head>\n' + 
+            b'<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" ' +
+            b'"http://www.w3.org/TR/html4/strict.dtd">\n' +
+            b'<html>\n' +
+            b'<head>\n' +
+            b'<meta http-equiv="content-type" content="text/html; ' +
+            b'charset=' + self.encoding.encode("ascii") + b'">\n'
+            b'<title>List of workunits</title>\n' +
+            b'</head>\n' +
             b'<body>')
 
     def finish(self):
@@ -237,14 +237,13 @@ class HtmlGen(io.BytesIO):
     def wu_row(self, wu, fields, cwd):
         arr = []
         for k in fields:
-            if k == "files" and not wu["files"] is None:
+            if k == "files" and wu["files"] is not None:
                 s = ""
                 for f in wu["files"]:
                     path = f["path"]
                     if path.startswith(cwd):
                         path = path[len(cwd):]
-                    s = s + '<a href="' + path + '">' + f["filename"] + \
-                    '</a><br>'
+                    s += '<a href="' + path + '">' + f["filename"] + '</a><br>'
                 arr.append(s)
             else:
                 arr.append(wu[k])
@@ -259,15 +258,15 @@ class MyHandler(http.server.CGIHTTPRequestHandler):
     # CGIHTTPRequestHandler sets this to 0, i.e., unbuffered, as it has to
     # pass the underlying file descriptor to a subprocess, so any data left
     # in the buffer would not be passed on to the subprocess.
-    # We don't use subprocesses, thus we restore the original default 
+    # We don't use subprocesses, thus we restore the original default
     # buffering mode to avoid a huge performance hit.
-    rbufsize=-1
-    
+    rbufsize = -1
+
     # Check that urlsplit() does not collapse paths which could prevent
     # registered_filenames from filtering path traversal attacks
     # See http://bugs.python.org/issue19435
     assert urllib.parse.urlsplit("http://foo//a").path == "//a"
-    
+
     # Class variable (similar to a "static" variable in C++) that cycles
     # through the upload subdirectory numbers
     next_upload_directory = 0
@@ -275,17 +274,17 @@ class MyHandler(http.server.CGIHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         self.no_work_available = False
         super().__init__(*args, **kwargs)
-    
+
     def log(self, lvl, format, *args, **kwargs):
-        """ Interface to the logger class. 
-            We add the client address (as a string) to the log record so the 
+        """ Interface to the logger class.
+            We add the client address (as a string) to the log record so the
             logger can print that """
         # e = kwargs.copy()
         # e["address_string"] = self.address_string()
         format = '%s ' + format
         self.logger.log(lvl, format, self.address_string(), *args, **kwargs)
 
-    # These three methods overwrite the corresponding methods from 
+    # These three methods overwrite the corresponding methods from
     # http.server.BaseHTTPRequestHandler
     # They just call self.log() with a numerical logging level added
     def log_message(self, format, *args, **kwargs):
@@ -310,9 +309,9 @@ class MyHandler(http.server.CGIHTTPRequestHandler):
     def send_body(self, body):
         self.wfile.write(body)
         self.wfile.flush()
-    
+
     def translate_path(self, path):
-        """ Translate path in request URL to local file system, taking into 
+        """ Translate path in request URL to local file system, taking into
         account registered file names.
         Overrides SimpleHTTPRequestHandler.translate_path(); paths that are not
         in registered_filenames are delegated to super().translate_path()
@@ -321,7 +320,7 @@ class MyHandler(http.server.CGIHTTPRequestHandler):
         # print("translate_path(%s)" % path)
         relpath = path.lstrip('/')
         if relpath in self.registered_filenames:
-            self.log(logging.DEBUG, "Translated path %s to %s", path, 
+            self.log(logging.DEBUG, "Translated path %s to %s", path,
                      self.registered_filenames[relpath])
             return self.registered_filenames[relpath]
         self.log(logging.DEBUG, "Not translating path %s ", path)
@@ -329,7 +328,7 @@ class MyHandler(http.server.CGIHTTPRequestHandler):
             return None
         else:
             return super().translate_path(path)
-    
+
     def do_GET(self):
         """Generates a workunit if request is cgi-bin/getwu, generates a status
         page if requested, otherwise calls parent class' do_GET()"""
@@ -342,9 +341,10 @@ class MyHandler(http.server.CGIHTTPRequestHandler):
                 self.send_error(404, "GET for CGI scripts allowed only "
                                 "for workunit or status page request")
         elif self.only_registered and \
-                not self.path.lstrip('/') in self.registered_filenames:
-                self.send_error(404, "Access restricted to registered file "
-                                "names, %s is not registered" % self.path)
+             self.path.lstrip('/') \
+             not in self.registered_filenames:  # noqa: E127
+            self.send_error(404, "Access restricted to registered file "
+                            "names, %s is not registered" % self.path)
         else:
             try:
                 super().do_GET()
@@ -371,7 +371,7 @@ class MyHandler(http.server.CGIHTTPRequestHandler):
 
     def is_upload(self):
         """Test whether request is a file upload."""
-        
+
         splitpath = urllib.parse.urlsplit(self.path)
         if self.command == 'POST' and self.is_cgi() and \
                 splitpath.path == self.upload_path:
@@ -399,10 +399,15 @@ class MyHandler(http.server.CGIHTTPRequestHandler):
             # specificaton, such as CONTENT_LENGTH.
             # This is really slow if rbufsize == 0.
             env = self.create_env("cgi-bin/upload.py")
-            uploaddir = make_uploaddir_i_name(self.uploaddir, self.nrsubdir,
-                                              self.__class__.next_upload_directory)
-            upload.do_upload(self.dbdata, uploaddir,
-                    inputfp=self.rfile, output=self.wfile, environ=env)
+            uploaddir = make_uploaddir_i_name(
+                self.uploaddir,
+                self.nrsubdir,
+                self.__class__.next_upload_directory)
+            upload.do_upload(self.dbdata,
+                             uploaddir,
+                             inputfp=self.rfile,
+                             output=self.wfile,
+                             environ=env)
         if self.nrsubdir > 0:
             # Cycle through upload subdirectories
             self.__class__.next_upload_directory += 1
@@ -411,7 +416,7 @@ class MyHandler(http.server.CGIHTTPRequestHandler):
     def create_env(self, scriptname, source_env=os.environ, query=None):
         """ Create a set of shell environment variables according to the CGI
         specification.
-        
+
         Copied from the Python 3.2 http/server.py library file.
         """
         env = copy.deepcopy(source_env)
@@ -435,13 +440,14 @@ class MyHandler(http.server.CGIHTTPRequestHandler):
         if authorization:
             authorization = authorization.split()
             if len(authorization) == 2:
-                import base64, binascii
+                import base64
+                import binascii
                 env['AUTH_TYPE'] = authorization[0]
                 if authorization[0].lower() == "basic":
                     try:
                         authorization = authorization[1].encode('ascii')
-                        authorization = base64.decodebytes(authorization).\
-                                        decode('ascii')
+                        authorization = base64.decodebytes(authorization)
+                        authorization = authorization.decode('ascii')
                     except (binascii.Error, UnicodeError):
                         pass
                     else:
@@ -481,7 +487,6 @@ class MyHandler(http.server.CGIHTTPRequestHandler):
             env.setdefault(k, "")
         return env
 
-
     def is_getwu(self):
         """Test whether request is for a new WU."""
         if not self.command == 'GET':
@@ -504,14 +509,14 @@ class MyHandler(http.server.CGIHTTPRequestHandler):
 
     def guess_type(self, path):
         type = super().guess_type(path)
-        # Use text/plain for files in upload, unless the type was properly 
+        # Use text/plain for files in upload, unless the type was properly
         # identified
         # FIXME: testing the CWD here is wrong. If we want to expose files in
         # the upload directory, we either need to register all of them, or
         # register the upload directory and add directory name translation.
         cwd = os.getcwd().rstrip(os.sep)
-        if type == "application/octet-stream" and \
-                 path.startswith(cwd + os.sep + 'upload' + os.sep):
+        if type == "application/octet-stream" \
+           and path.startswith(cwd + os.sep + 'upload' + os.sep):
             return "text/plain"
         return type
 
@@ -532,10 +537,11 @@ class MyHandler(http.server.CGIHTTPRequestHandler):
 
         if self.db_pool:
             wu_text = self.db_pool.assign(clientid,
-                    timeout_hint=self.timeout_hint)
+                                          timeout_hint=self.timeout_hint)
         else:
-            wu_text = wudb.WuAccess(self.dbdata).assign(clientid,
-                    timeout_hint=self.timeout_hint)
+            wu_text = wudb.WuAccess(self.dbdata).assign(
+                clientid,
+                timeout_hint=self.timeout_hint)
         if not wu_text:
             # This flag is to downgrade the logging level. Ugly.
             self.no_work_available = True
@@ -544,8 +550,8 @@ class MyHandler(http.server.CGIHTTPRequestHandler):
             except socket_error as e:
                 self.log_error("Connection error: %s", str(e))
                 return
-        
-        self.log_message("Sending workunit " + Workunit(wu_text).get_id() + 
+
+        self.log_message("Sending workunit " + Workunit(wu_text).get_id() +
                          " to client " + clientid)
         # wu_text = wu.get_wu()
         try:
@@ -562,7 +568,7 @@ class MyHandler(http.server.CGIHTTPRequestHandler):
 
     def send_status(self):
         self.send_query()
-    
+
     def send_query(self):
         splitpath = urllib.parse.urlsplit(self.path)
         conditions = {}
@@ -578,14 +584,14 @@ class MyHandler(http.server.CGIHTTPRequestHandler):
                         (key, value) = query.split(op, 1)
                         key = key.strip()
                         value = value.strip()
-                        if not name in conditions:
+                        if name not in conditions:
                             conditions[name] = {}
-                        # If value is of the form "now(-123)", convert it to a 
+                        # If value is of the form "now(-123)", convert it to a
                         # time stamp of 123 minutes ago
                         r = re.match(r"now\((-?\d+)\)", value)
                         if r:
                             minutes_ago = int(r.group(1))
-                            td = datetime.timedelta(minutes = minutes_ago)
+                            td = datetime.timedelta(minutes=minutes_ago)
                             value = str(datetime.datetime.utcnow() + td)
                         conditions[name][key] = value
                         break
@@ -600,7 +606,7 @@ class MyHandler(http.server.CGIHTTPRequestHandler):
         body.append('<a href="/index.html">Back to index</a>')
         body.append("<p>Query for conditions = " + str(conditions) + "</p>")
 
-        if not wus is None and len(wus) > 0:
+        if wus is not None and len(wus) > 0:
             cwd = os.getcwd()
             body.append(str(len(wus)) + " records match.")
             keys = wus[0].keys()
@@ -611,7 +617,7 @@ class MyHandler(http.server.CGIHTTPRequestHandler):
         else:
             body.append("No records match.")
         body.finish()
-        
+
         self.send_response(200)
         self.send_header("Content-Type", "text/html")
         self.send_header("Cache-Control", "no-cache")
@@ -622,34 +628,35 @@ class MyHandler(http.server.CGIHTTPRequestHandler):
 
 class ServerLauncher(object):
     openssl_configuration_template = \
-"""
-oid_section		= new_oids
+        """
+        oid_section		= new_oids
 
-[ new_oids ]
-[ ca ]
-[ req ]
-default_bits		= {bits:d}
-distinguished_name	= req_distinguished_name
-attributes		= req_attributes
-x509_extensions	= v3_ca
-string_mask = utf8only
+        [ new_oids ]
+        [ ca ]
+        [ req ]
+        default_bits		= {bits:d}
+        distinguished_name	= req_distinguished_name
+        attributes		= req_attributes
+        x509_extensions	= v3_ca
+        string_mask = utf8only
 
-[ req_distinguished_name ]
-[ req_attributes ]
-[ v3_ca ]
-subjectKeyIdentifier=hash
-authorityKeyIdentifier=keyid:always,issuer
-basicConstraints = critical,CA:true
-subjectAltName=@altnames
-[altnames]
-{SAN:s}
-"""
+        [ req_distinguished_name ]
+        [ req_attributes ]
+        [ v3_ca ]
+        subjectKeyIdentifier=hash
+        authorityKeyIdentifier=keyid:always,issuer
+        basicConstraints = critical,CA:true
+        subjectAltName=@altnames
+        [altnames]
+        {SAN:s}
+        """
+
     def __init__(self, address, port, threaded, dbdata,
-                registered_filenames, uploaddir, nrsubdir, *, bg = False,
-                use_db_pool = True, scriptdir = None, only_registered=False,
-                cafile=None, whitelist=None, timeout_hint=None,
-                linger_before_quit=0):
-        
+                 registered_filenames, uploaddir, nrsubdir, *, bg=False,
+                 use_db_pool=True, scriptdir=None, only_registered=False,
+                 cafile=None, whitelist=None, timeout_hint=None,
+                 linger_before_quit=0):
+
         self.name = "HTTP server"
         self.logger = logging.getLogger(self.name)
         self.logger.setLevel(logging.NOTSET)
@@ -663,10 +670,10 @@ subjectAltName=@altnames
         self.linger_before_quit = linger_before_quit
         # formatter = logging.Formatter(
         #    fmt='%(address_string)s - - [%(asctime)s] %(message)s')
-        #self.ch = logging.StreamHandler()
-        #self.ch.setFormatter(formatter)
-        #self.logger.addHandler(self.ch)
-        #self.logger.propagate = False
+        # self.ch = logging.StreamHandler()
+        # self.ch.setFormatter(formatter)
+        # self.logger.addHandler(self.ch)
+        # self.logger.propagate = False
 
         # We need to find out which addresses to put as SubjectAltNames (SAN)
         # in the certificate.
@@ -683,7 +690,9 @@ subjectAltName=@altnames
         except socket.gaierror as e:
             self.logger.error("Exception trackback: %s" % e)
             self.logger.error("(end of Exception trackback)")
-            self.logger.error("Cannot resolve %s -- that's really really weird" % self.url_address)
+            self.logger.error("Cannot resolve %s --"
+                              " that's really really weird"
+                              % self.url_address)
             sys.exit(1)
         self.SAN = "IP.1 = %s\n" % ipaddr
         fqdn = socket.getfqdn(self.url_address)
@@ -694,7 +703,7 @@ subjectAltName=@altnames
         if not fqdn == ipaddr:
             self.SAN += "DNS.%d = %s\n" % (dns_counter, fqdn)
             dns_counter += 1
-            # If the address was given as a short host name, or if 
+            # If the address was given as a short host name, or if
             # gethostname() produced a short host name, we store that
             if self.url_address != fqdn and self.url_address != ipaddr:
                 self.SAN += "DNS.%d = %s\n" % (dns_counter, self.url_address)
@@ -719,10 +728,10 @@ subjectAltName=@altnames
             "registered_filenames": registered_filenames,
             "logger": self.logger,
             "dbdata": dbdata,
-            "db_pool": self.db_pool, 
+            "db_pool": self.db_pool,
             "uploaddir": uploaddir,
             "nrsubdir": nrsubdir,
-            "cgi_directories" : ['/cgi-bin'],
+            "cgi_directories": ['/cgi-bin'],
             "upload_path": upload_url_path,
             "only_registered": only_registered,
             "serving_wus": self.serving_wus,
@@ -730,8 +739,9 @@ subjectAltName=@altnames
         }
         # The entries in handler_params become class variables of the class
         # MyHandlerWithParams
-        MyHandlerWithParams = type("MyHandlerWithParams", (MyHandler, ), handler_params)
-        
+        MyHandlerWithParams = type("MyHandlerWithParams",
+                                   (MyHandler, ), handler_params)
+
         # Find the upload.py script
         upload_path = self.findscript(upload_scriptname, scriptdir)
         # Always register the upload script
@@ -751,7 +761,8 @@ subjectAltName=@altnames
         for i in range(nrsubdir):
             uploaddir_i = make_uploaddir_i_name(uploaddir, nrsubdir, i)
             if not os.path.isdir(uploaddir_i):
-                self.logger.debug("Creating upload subdirectory %s" % uploaddir_i)
+                self.logger.debug("Creating upload subdirectory %s"
+                                  % uploaddir_i)
                 os.mkdir(uploaddir_i)
 
         # See if we can use HTTPS
@@ -759,39 +770,47 @@ subjectAltName=@altnames
         self.cert_sha1 = None
         if self.create_certificate():
             self.cert_sha1 = self.get_certificate_hash()
-            if not self.cert_sha1 is None:
+            if self.cert_sha1 is not None:
                 scheme = "https"
 
         addr = (self.address, port)
         try:
             if threaded and scheme == "http":
                 self.logger.info("Using threaded HTTP server")
-                self.httpd = ThreadedHTTPServer(addr, MyHandlerWithParams,
-                        whitelist=whitelist)
+                self.httpd = ThreadedHTTPServer(addr,
+                                                MyHandlerWithParams,
+                                                whitelist=whitelist)
             elif not threaded and scheme == "http":
                 self.logger.info("Using non-threaded HTTP server")
-                self.httpd = FixedHTTPServer(addr, MyHandlerWithParams,
-                        whitelist=whitelist)
+                self.httpd = FixedHTTPServer(addr,
+                                             MyHandlerWithParams,
+                                             whitelist=whitelist)
             elif threaded and scheme == "https":
                 self.logger.info("Using threaded HTTPS server")
-                self.httpd = ThreadedHTTPSServer(addr, MyHandlerWithParams,
-                        whitelist=whitelist, certfile=self.cafile)
+                self.httpd = ThreadedHTTPSServer(addr,
+                                                 MyHandlerWithParams,
+                                                 whitelist=whitelist,
+                                                 certfile=self.cafile)
             elif not threaded and scheme == "https":
                 self.logger.info("Using non-threaded HTTPS server")
-                self.httpd = HTTPSServer(addr, MyHandlerWithParams, 
-                        whitelist=whitelist, certfile=self.cafile)
+                self.httpd = HTTPSServer(addr,
+                                         MyHandlerWithParams,
+                                         whitelist=whitelist,
+                                         certfile=self.cafile)
             else:
                 assert False
         except socket_error as e:
             if e.errno == errno.EADDRINUSE:
-                self.logger.critical("Address %s:%d is already in use (maybe "
-                        "another cadofactor running?)", address, port)
-                self.logger.critical("You can choose a different port with "
-                        "server.port=<integer>.")
+                self.logger.critical("Address %s:%d is already in use"
+                                     " (maybe another cadofactor running?)",
+                                     address, port)
+                self.logger.critical("You can choose a different port"
+                                     " with server.port=<integer>.")
                 sys.exit(1)
             else:
                 self.logger.critical("Socket error while setting up server "
-                        "on %s:%d : %s", address, port, str(e));
+                                     "on %s:%d : %s",
+                                     address, port, str(e))
                 sys.exit(1)
 
         self.port = self.httpd.server_address[1]
@@ -799,9 +818,11 @@ subjectAltName=@altnames
         self.url_loc = "%s://localhost:%d" % (scheme, self.port)
         self.httpd.server_name = self.name
 
-        if self.address == "localhost" or self.httpd.server_address[0].startswith("127."):
-            self.logger.warning("Server is listening on the loopback device. "
-                    "Clients on other hosts will not be able to connect.")
+        if self.address == "localhost" \
+           or self.httpd.server_address[0].startswith("127."):
+            self.logger.warning("Server is listening on the loopback device."
+                                " Clients on other hosts will not"
+                                " be able to connect.")
 
     def get_port(self):
         return self.port
@@ -810,7 +831,10 @@ subjectAltName=@altnames
         if origin == "localhost":
             return self.url_loc
         elif origin is not None:
-            self.logger.warning("Server address requested for origin=%s ; this is not understood, returning generic url %s instead" % (origin, self.url))
+            self.logger.warning("Server address requested for origin=%s ;"
+                                " this is not understood,"
+                                " returning generic url %s instead"
+                                % (origin, self.url))
         return self.url
 
     def get_cert_sha1(self):
@@ -822,14 +846,16 @@ subjectAltName=@altnames
         if os.path.isfile(self.cafile):
             return True
         if not HAVE_SSL:
-            self.logger.warning("ssl module not available, won't generate certificate")
+            self.logger.warning("ssl module not available,"
+                                " won't generate certificate")
             return False
 
-        configuration_str = self.openssl_configuration_template.format(bits=2048, SAN=self.SAN)
+        configuration_str = self.openssl_configuration_template.format(
+            bits=2048, SAN=self.SAN)
         config_filename = '%s.config' % self.cafile
         with open(config_filename, 'w') as config_file:
             config_file.write(configuration_str)
-        
+
         subj = [
             "C=XY",
             "ST=None",
@@ -839,9 +865,10 @@ subjectAltName=@altnames
             "organizationalUnitName=None",
             "emailAddress=None"
         ]
-        
-        command = ['openssl', 'req', '-new', '-x509', '-batch', '-days', '365',
-                   '-nodes', '-subj', '/%s/' % '/'.join(subj), 
+
+        command = ['openssl', 'req', '-new', '-x509',
+                   '-batch', '-days', '365',
+                   '-nodes', '-subj', '/%s/' % '/'.join(subj),
                    '-config', config_filename,
                    '-out', self.cafile, '-keyout', self.cafile]
         self.logger.debug("Running %s" % " ".join(command))
@@ -857,7 +884,8 @@ subjectAltName=@altnames
         if self.cafile is None:
             return None
         if not HAVE_SSL:
-            self.logger.warning("ssl module not available, won't generate fingerprint")
+            self.logger.warning("ssl module not available,"
+                                " won't generate fingerprint")
             return None
         command = ['openssl', 'x509', '-in', self.cafile, '-fingerprint']
         try:
@@ -870,19 +898,29 @@ subjectAltName=@altnames
             if line.startswith("SHA1 Fingerprint="):
                 return line.split('=', 1)[1].replace(":", "").lower()
         return None
-    
+
     def serve(self):
-        self.logger.info("serving at %s (%s)", self.url, self.httpd.server_address[0])
+        self.logger.info("serving at %s (%s)",
+                         self.url,
+                         self.httpd.server_address[0])
         if self.only_registered:
-            self.logger.info("For debugging purposes, the URL above can be accessed if the server.only_registered=False parameter is added" )
+            self.logger.info("For debugging purposes,"
+                             " the URL above can be accessed"
+                             " if the server.only_registered=False parameter"
+                             " is added")
         else:
-            self.logger.info("For debugging purposes, the URL above may be accessed")
-        certstr = "" if self.cert_sha1 is None else " --certsha1=%s" % self.cert_sha1
-        self.logger.info("You can start additional cado-nfs-client.py scripts with "
-                         "parameters: --server=%s%s", self.url, certstr)
+            self.logger.info("For debugging purposes,"
+                             " the URL above may be accessed")
+        certstr = ""
+        if self.cert_sha1:
+            certstr = " --certsha1=%s" % self.cert_sha1
+        self.logger.info("You can start additional"
+                         " cado-nfs-client.py scripts"
+                         " with parameters: --server=%s%s",
+                         self.url, certstr)
         self.logger.info("If you want to start additional clients, remember "
                          "to add their hosts to server.whitelist")
-        
+
         if self.bg:
             from threading import Thread
             self.thread = Thread(target=self.httpd.serve_forever,
@@ -891,17 +929,20 @@ subjectAltName=@altnames
             self.thread.start()
         else:
             self.httpd.serve_forever()
-    
+
     def stop_serving_wus(self):
         self.logger.info("Got notification to stop serving Workunits")
         self.serving_wus[0] = False
-    
+
     def shutdown(self, e):
         t = self.linger_before_quit
         if t:
             if e is not None:
-                self.logger.critical("Stopping because of exception: " + repr(e))
-            self.logger.info("Waiting for %d seconds so that clients get a chance to receive 410", t)
+                self.logger.critical("Stopping because of exception: "
+                                     + repr(e))
+            self.logger.info("Waiting for %d seconds"
+                             " so that clients get a chance to receive 410",
+                             t)
             time.sleep(t)
             self.logger.info("Exiting now")
         self.logger.info("Shutting down HTTP server")
@@ -910,23 +951,24 @@ subjectAltName=@altnames
             self.thread.join()
         if self.db_pool:
             self.db_pool.terminate()
-        #self.logger.removeHandler(self.ch)
-    
+        # self.logger.removeHandler(self.ch)
+
     @staticmethod
-    def findscript(scriptname, scriptdir = None):
+    def findscript(scriptname, scriptdir=None):
         # If scriptdir is specified, use that unconditionally
-        if not scriptdir is None:
+        if scriptdir is not None:
             return scriptdir + os.sep + scriptname
         # Try the CWD
         if os.path.isfile(scriptname):
             return scriptname
         # Try the directory that contains wuserver.py
-        if not __file__ is None:
+        if __file__ is not None:
             dirname = os.path.dirname(os.path.realpath(__file__))
             if os.path.isfile(dirname + os.sep + scriptname):
                 return dirname + os.sep + scriptname
         # Not found
         return None
+
 
 if __name__ == '__main__':
     import argparse
@@ -934,17 +976,19 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-address", help="Listen address", default="localhost")
     parser.add_argument("-port", help="Listen port", default="8001")
-    parser.add_argument("-uploaddir", help="Upload directory", 
+    parser.add_argument("-uploaddir", help="Upload directory",
                         default="upload/")
     parser.add_argument("-nrsubdir", help="Number of upload subdirectories",
                         default="0")
     parser.add_argument("-dburi", help="Database URI", required=True)
-    parser.add_argument("-cafile", help="Certificate file name", required=False)
-    parser.add_argument("-threaded", help="Use threaded server", 
+    parser.add_argument("-cafile",
+                        help="Certificate file name", required=False)
+    parser.add_argument("-threaded", help="Use threaded server",
                         action="store_true", default=False)
-    parser.add_argument("-onlyreg", help="Allow access only to registered files", 
+    parser.add_argument("-onlyreg",
+                        help="Allow access only to registered files",
                         action="store_true", default=False)
-    parser.add_argument("-whitelist", help="Allow access from given host", 
+    parser.add_argument("-whitelist", help="Allow access from given host",
                         default=None)
     args = parser.parse_args()
 
@@ -958,10 +1002,11 @@ if __name__ == '__main__':
     logger.setLevel(logging.NOTSET)
 
     httpd = ServerLauncher(HTTP, PORT, args.threaded, dbdata,
-                           registered_filenames, args.uploaddir, int(args.nrsubdir),
+                           registered_filenames,
+                           args.uploaddir, int(args.nrsubdir),
                            only_registered=args.onlyreg, cafile=cafile,
                            whitelist=[args.whitelist])
-    
+
     try:
         httpd.serve()
     except KeyboardInterrupt:

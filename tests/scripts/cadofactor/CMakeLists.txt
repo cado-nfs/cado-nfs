@@ -16,8 +16,8 @@ foreach (doctest_source ${PYTHON_DOCTEST_SOURCES})
   # Add doctest of Python sources, e.g., doctest cadoparams.py under test
   # name cadoparams
   cado_define_test(TEST_NAME test_python_${basename}
-      PRECOMMAND
-      ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env TMPDIR
+      ENVIRONMENT PYTHONPATH=${CADO_NFS_SOURCE_DIR}/scripts
+      PRECOMMAND ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env TMPDIR
       PROGRAM
       python3 -m doctest ${doctest_source}
       )
@@ -26,6 +26,7 @@ endforeach (doctest_source)
 
 cado_define_test(test_wudb_cmdline
     PROVIDE_TEMPORARY_WDIR
+    ENVIRONMENT PYTHONPATH=${CADO_NFS_SOURCE_DIR}/scripts
     SCRIPT
     "${CMAKE_CURRENT_SOURCE_DIR}/test_wudb_cmdline.sh" "${CADO_NFS_SOURCE_DIR}/scripts/cadofactor/"
     TIMEOUT 60

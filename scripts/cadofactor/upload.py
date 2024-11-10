@@ -2,35 +2,40 @@
 
 # CGI script to handle file uploads
 
-DEBUG = 1
-
-import cgi, os
+import cgi
+import os
 import sys
 import errno
 from tempfile import mkstemp
 from shutil import copyfileobj
-import wudb
+from cadofactor import wudb
+
+DEBUG = 1
+
 if DEBUG > 1:
     import logging
 
-def diag(level, text, var = None):
+
+def diag(level, text, var=None):
     if DEBUG > level:
-        if var == None:
-            print (text, file=sys.stderr)
+        if var is None:
+            print(text, file=sys.stderr)
         else:
-            print ("%s%s" % (text, var), file=sys.stderr)
+            print("%s%s" % (text, var), file=sys.stderr)
         sys.stderr.flush()
+
 
 def analyze(level, name, obj):
     """ Dump tons of internal data about an object """
     if DEBUG > level:
-        diag (level, "*** Content dump of ", name)
-        diag (level, "type(%s): " % name, type(obj))
-        diag (level, "dir(%s): " % name, dir(obj))
-        diag (level, "%s.__str__() = " % name, obj)
-        diag (level, "%s.__repr__() = %r" % (name, obj))
+        diag(level, "*** Content dump of ", name)
+        diag(level, "type(%s): " % name, type(obj))
+        diag(level, "dir(%s): " % name, dir(obj))
+        diag(level, "%s.__str__() = " % name, obj)
+        diag(level, "%s.__repr__() = %r" % (name, obj))
         for name2 in dir(obj):
-            diag (level, "%s.%s = " % (name, name2), getattr(obj, name2))
+            diag(level, "%s.%s = " % (name, name2), getattr(obj, name2))
+
 
 # Global variable in this module so that other Python modules can import
 # it and store the path to the upload directory in the shell environment
@@ -38,17 +43,19 @@ def analyze(level, name, obj):
 UPLOADDIRKEY = "UPLOADDIR"
 DBURIKEY = "DBURI"
 
-def do_upload(dburi, uploaddir, inputfp=sys.stdin, output=sys.stdout, 
-        environ=os.environ):
+
+def do_upload(dburi, uploaddir,
+              inputfp=sys.stdin, output=sys.stdout,
+              environ=os.environ):
     diag(1, "Command line arguments:", sys.argv)
     diag(2, "Environment:", os.environ)
 
-    try: # Windows needs stdio set for binary mode.
+    try:  # Windows needs stdio set for binary mode.
         # pylint: disable=F0401
         import msvcrt
         # pylint: disable=E1101
-        msvcrt.setmode (0, os.O_BINARY) # stdin  = 0
-        msvcrt.setmode (1, os.O_BINARY) # stdout = 1
+        msvcrt.setmode(0, os.O_BINARY)  # stdin  = 0
+        msvcrt.setmode(1, os.O_BINARY)  # stdout = 1
     except ImportError:
         pass
 
@@ -97,31 +104,33 @@ def do_upload(dburi, uploaddir, inputfp=sys.stdin, output=sys.stdout,
         if 'results' in form:
             fileitems = form['results']
             if isinstance(fileitems, cgi.FieldStorage):
-                fileitems = [fileitems] # Make it iterable
+                fileitems = [fileitems]  # Make it iterable
         else:
             fileitems = []
             diag(1, 'No "results" form found')
-        analyze (3, "fileitems", fileitems)
+        analyze(3, "fileitems", fileitems)
 
         message = ""
         for fileitem in fileitems:
             if not fileitem.file:
                 continue
-            analyze (3, "f", fileitem)
+            analyze(3, "f", fileitem)
             diag(1, "Processing file ", fileitem.filename)
             # strip leading path from file name to avoid directory traversal
             # attacks
             basename = os.path.basename(fileitem.filename)
-            # Split extension from file name. We need to preserve the 
+            # Split extension from file name. We need to preserve the
             # file extension so that, e.g., gzipped files can be identified
             # as such
             (basename, suffix) = os.path.splitext(basename)
             # Make a file name which does not exist yet and create the file
-            (filedesc, filename) = mkstemp(prefix=basename + '.',
-                suffix=suffix, dir=uploaddir)
+            (filedesc, filename) = mkstemp(
+                prefix=basename + '.',
+                suffix=suffix,
+                dir=uploaddir)
             diag(1, "output filename = ", filename)
             filestuple = [fileitem.filename, filename]
-            
+
             # mkstmp() creates files with mode 0o600 (before umask), and does
             # not allow overriding this with a parameter. We change the mode
             # to 666 & ~umask.
@@ -134,19 +143,19 @@ def do_upload(dburi, uploaddir, inputfp=sys.stdin, output=sys.stdout,
                 filemode = 0o666 & ~umask
                 diag(1, "Setting %s to mode %o" % (filename, filemode))
                 os.fchmod(filedesc, filemode)
-            
+
             filetype = fileitem.headers.get("filetype", None)
-            if not filetype is None:
+            if filetype is not None:
                 filestuple.append(filetype)
                 diag(1, "filetype = ", filetype)
                 command = fileitem.headers.get("command", None)
-                if not command is None:
+                if command is not None:
                     filestuple.append(command)
                     diag(1, "command = ", command)
             if False:
                 filestuple[1] = os.path.basename(filestuple[1])
             filetuples.append(filestuple)
-            
+
             # fd is a file descriptor, make a file object from it
             diag(1, "Getting file object for temp file")
             file = os.fdopen(filedesc, "wb")
@@ -163,15 +172,17 @@ def do_upload(dburi, uploaddir, inputfp=sys.stdin, output=sys.stdout,
             diag(1, "Wrote %d bytes" % nr_bytes)
             diag(1, "Closing file")
             file.close()
-            
+
             # Example output:
             # upload.py: The file "testrun.polyselect.0-5000" for workunit
             # testrun_polyselect_0-5000 was uploaded successfully by client
             # localhost and stored as /localdisk/kruppaal/work/testrun.upload/
             # testrun.polyselect.0-5000.kcudj7, received 84720 bytes.
             message += 'The file "%s" for workunit %s was uploaded ' \
-            'successfully by client %s and stored as %s, received %d bytes.\n' \
-            % (basename, wuid.value, clientid.value, filename, nr_bytes)
+                       'successfully by client %s' \
+                       ' and stored as %s, received %d bytes.\n' \
+                       % (basename, wuid.value, clientid.value,
+                          filename, nr_bytes)
             if errorcode:
                 message += 'Error code = %d.\n' % errorcode
         diag(1, "Getting WuAccess object")
@@ -186,7 +197,8 @@ def do_upload(dburi, uploaddir, inputfp=sys.stdin, output=sys.stdout,
             message = message + 'Workunit ' + wuid.value + ' completed.\n'
         diag(1, "Finished .result()")
 
-    diag (1, sys.argv[0] + ': ', message.rstrip("\n"))
+    diag(1, sys.argv[0] + ': ', message.rstrip("\n"))
+
     if output == sys.stdout:
         output.write(header + message)
     else:
@@ -201,7 +213,7 @@ if __name__ == '__main__':
 
     for key in (DBURIKEY, UPLOADDIRKEY):
         if key not in os.environ:
-            print ('Script error: Environment variable %s not set' % key)
+            print('Script error: Environment variable %s not set' % key)
             sys.exit(1)
 
     if DEBUG > 1:

@@ -6,7 +6,7 @@ if ! [ -f cado.h ] ; then
 fi
 
 getstub() {
-    perl -ne '$x=1 if /THIS PART MUST BE EXACTLY IDENTICAL/; print if $x; $x=0 if /END OF THE PART THAT MUST BE EXACTLY IDENTICAL/;'  "$@"
+    perl -ne '$x=1 if /THIS PART MUST BE EXACTLY IDENTICAL/; print if $x; $x=0 if /END OF THE PART THAT MUST BE IDENTICAL/;'  "$@"
 }
 
 if ! diff -u <(getstub cado-nfs.py) <(getstub cado-nfs-client.py) ; then
