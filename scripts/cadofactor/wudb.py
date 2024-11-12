@@ -31,7 +31,6 @@ try:
 except ImportError:
     HAVE_MYSQL = False
 
-import threading
 import traceback
 import collections
 import abc
@@ -41,7 +40,6 @@ import time
 import json
 
 from cadofactor.workunit import Workunit
-from queue import Queue
 
 # we need the cadologger import because it adds the TRANSACTION log
 # level. It's ugly
@@ -1923,96 +1921,6 @@ class UsesWorkunitDb(HasDbConnection):
         self.wuar = self.make_wu_access(self.db_connection)
 
 
-class DbWorker(DbAccess, threading.Thread):
-    """Thread executing WuAccess requests from a given tasks queue"""
-    def __init__(self, taskqueue, *args, daemon=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.taskqueue = taskqueue
-        if daemon is not None:
-            self.daemon = daemon
-        self.start()
-
-    def run(self):
-        # One DB connection per thread. Created inside the new thread to make
-        # sqlite happy
-        wuar = self.make_wu_access()
-        while True:
-            # We expect a 4-tuple in the task queue. The elements of the tuple:
-            # a 2-array, where element [0] receives the result of the DB call,
-            #  and [1] is an Event variable to notify the caller when the
-            #  result is available
-            # fn_name, the name (as a string) of the WuAccess method to call
-            # args, a tuple of positional arguments
-            # kargs, a dictionary of keyword arguments
-            (result_tuple, fn_name, args, kargs) = self.taskqueue.get()
-            if fn_name == "terminate":
-                break
-            ev = result_tuple[1]
-            # Assign to tuple in-place, so result is visible to caller.
-            # No slice etc. here which would create a copy of the array
-            try:
-                result_tuple[0] = getattr(wuar, fn_name)(*args, **kargs)
-            except Exception:
-                traceback.print_exc()
-            ev.set()
-            self.taskqueue.task_done()
-
-
-class DbRequest(object):
-    """ Class that represents a request to a given WuAccess function.
-        Used mostly so that DbThreadPool's __getattr__ can return a callable
-        that knows which of WuAccess's methods should be called by the
-        worker thread """
-    def __init__(self, taskqueue, func):
-        self.taskqueue = taskqueue
-        self.func = func
-
-    def do_task(self, *args, **kargs):
-        """
-        Add a task to the queue, wait for its completion, and return the
-        result
-        """
-        ev = threading.Event()
-        result = [None, ev]
-        self.taskqueue.put((result, self.func, args, kargs))
-        ev.wait()
-        return result[0]
-
-
-class DbThreadPool(object):
-    """Pool of threads consuming tasks from a queue"""
-    def __init__(self, dburi, num_threads=1):
-        self.taskqueue = Queue(num_threads)
-        self.pool = []
-        for _ in range(num_threads):
-            worker = DbWorker(self.taskqueue, daemon=True, db=dburi)
-            self.pool.append(worker)
-
-    def terminate(self):
-        for t in self.pool:
-            self.taskqueue.put((None, "terminate", None, None))
-        self.wait_completion
-
-    def wait_completion(self):
-        """Wait for completion of all the tasks in the queue"""
-        self.taskqueue.join()
-
-    def __getattr__(self, name):
-        """ Delegate calls to methods of WuAccess to a worker thread.
-            If the called method exists in WuAccess, creates a new
-            DbRequest instance that remembers the name of the method that we
-            tried to call, and returns the DbRequest instance's do_task
-            method which will process the method call via the thread pool.
-            We need to go through a new object's method since we cannot make
-            the caller pass the name of the method to call to the thread pool
-            otherwise """
-        if hasattr(WuAccess, name):
-            task = DbRequest(self.taskqueue, name)
-            return task.do_task
-        else:
-            raise AttributeError(name)
-
-
 # One entry in the WU DB, including the text with the WU contents
 # (FILEs, COMMANDs, etc.) and info about the progress on this WU (when and
 # to whom assigned, received, etc.)
@@ -2051,8 +1959,6 @@ if __name__ == '__main__':
                              {"eq": {"status": WuStatus.CANCELLED}}),
                "all": ("All existing workunits", {})
                }
-
-    use_pool = False
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-dbfile', help='Name of the database file')
@@ -2117,10 +2023,7 @@ if __name__ == '__main__':
 
     db = DBFactory('db:sqlite3://%s' % dbname)
 
-    if use_pool:
-        db_pool = DbThreadPool(db)
-    else:
-        db_pool = WuAccess(db)
+    db_pool = WuAccess(db)
 
     if args["create"]:
         db_pool.create_tables()
@@ -2193,9 +2096,6 @@ if __name__ == '__main__':
     if args["result"]:
         result = args["result"]
         db_pool.result(result.wuid, result.clientid, result[2:])
-
-    if use_pool:
-        db_pool.terminate()
 
 # Local Variables:
 # version-control: t

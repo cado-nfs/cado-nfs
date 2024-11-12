@@ -1819,6 +1819,9 @@ class ClientServerTask(Task, wudb.UsesWorkunitDb, patterns.Observer):
                        commit=True, log_errors=False):
         """
         Submit a workunit to the database.
+
+        This is the main entry point of a ClientServerTask, which gets
+        called by subclasses.
         """
 
         # client-server tasks *must* have identifiers...
@@ -3616,8 +3619,7 @@ class FreeRelTask(Task):
         return self.state.get("nprimes", None)
 
 
-class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
-                  patterns.Observer):
+class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics):
     """
     Does the sieving, uses client/server
     """
@@ -7298,10 +7300,13 @@ class CompleteFactorization(HasState,
                             result)
         return result
 
-    def handle_message(self, message):
-        if isinstance(message, Notification):
-            self.relay_notification(Notification)
-        elif isinstance(message, Request):
-            return self.answer_request(message)
-        else:
-            raise TypeError("Message is neither Notification nor Request")
+    # Colleagues now call either send_notification or send_request.
+    # So handle_message is no more.
+    #
+    # def handle_message(self, message):
+    #     if isinstance(message, Notification):
+    #         self.relay_notification(Notification)
+    #     elif isinstance(message, Request):
+    #         return self.answer_request(message)
+    #     else:
+    #         raise TypeError("Message is neither Notification nor Request")
