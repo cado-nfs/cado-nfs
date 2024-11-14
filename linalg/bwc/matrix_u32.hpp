@@ -29,7 +29,7 @@ struct matrix_u32 {
 
     struct transpose_option {
         bool value = false;
-#ifdef __INTEL_CLANG_COMPILER
+#if __cplusplus < 202002L
 	/* I'm not sure why. It seems to me that this ctor should not
 	 * be needed, but icpx insists on wanting it.
 	 */
@@ -40,7 +40,7 @@ struct matrix_u32 {
 
     struct withcoeffs_option {
         bool value = false;
-#ifdef __INTEL_CLANG_COMPILER
+#if __cplusplus < 202002L
 	/* I'm not sure why. It seems to me that this ctor should not
 	 * be needed, but icpx insists on wanting it.
 	 */

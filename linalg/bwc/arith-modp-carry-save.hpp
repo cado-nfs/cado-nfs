@@ -21,7 +21,7 @@ namespace details {
      * little use for this code at the moment, since it is suboptimal,
      * let's protect it with HAVE_CXX11
      */
-#ifdef HAVE_CXX11
+#if __cplusplus >= 201103L
 #if defined(HAVE_AVX2) || defined(HAVE_SSSE3)
     template<> struct fast_type<gfp<3, 1> > {
         typedef gfp<3, 1> super;
