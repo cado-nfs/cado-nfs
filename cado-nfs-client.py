@@ -13,11 +13,11 @@
 import sys
 import io
 import os
+import copy
 import random
 import errno
 import stat
 import optparse
-import shutil
 import time
 import subprocess
 import hashlib
@@ -25,26 +25,15 @@ import logging
 import socket
 import signal
 import re
-import base64
-from email.mime.application import MIMEApplication
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-import email.encoders
-import email.generator
-from string import Template
+import json
 from io import BytesIO
+from string import Template
 import ssl
-import urllib.request as urllib_request
-import urllib.error as urllib_error
-from http.client import BadStatusLine
+import requests
 from urllib.parse import urlparse
 
-if int(sys.version_info[0]) < 3:
-    logging.error("You are running cado-nfs-client with Python%d."
-                  " Python2 *used to be* supported, but no longer is."
-                  % int(sys.version[0]))
-    sys.exit(1)
-
+if sys.hexversion < 0x03080000:
+    sys.exit("Python 3.8 or newer is required to run this program.")
 
 # THIS PART MUST BE EXACTLY IDENTICAL IN cado-nfs.py and cado-nfs-client.py
 
@@ -169,6 +158,8 @@ sys.path.append(pathdict["pylib"])
 # END OF THE PART THAT MUST BE IDENTICAL IN cado-nfs.py and cado-nfs-client.py
 
 from cadofactor.workunit import Workunit    # noqa: E402
+from cadofactor import cadologger           # noqa: E402
+
 # }}}
 
 
@@ -231,182 +222,6 @@ else:
         def unlock(filehandle):
             """ Do nothing """
             pass
-# }}}
-
-# Now for 150+ lines of anger.{{{
-#
-# In Python 3.0, 3.1, 3.2.x < 3.2.4, 3.3.x < 3.3.1, use a fixed BytesGenerator
-# which accepts a bytes input. The fact that the BytesGenerator in these Python
-# versions doesn't is a bug, see http://bugs.python.org/issue16564
-#
-# Update: the first bugfix committed in that bugtracker and shipped in Python
-# versions 3.2.4, 3.2.5, 3.3.2, ... is still buggy, see
-# http://bugs.python.org/issue19003
-# and we have to use a different work-around...
-#
-# Update:
-# https://gitlab.inria.fr/cado-nfs/cado-nfs/-/issues/21408
-#
-#
-# Rather than keep a list of faulty versions, we'll try to auto-detect
-# them at startup.
-#
-# For the record, here are the version where bugfix 1 is alright.
-# (3,0,0), (3,0,1),
-# (3,1,0), (3,1,1), (3,1,2), (3,1,3), (3,1,4), (3,1,5),
-# (3,2,0), (3,2,1), (3,2,2), (3,2,3),
-# (3,3,0)
-
-candidates_for_BytesGenerator = []
-
-if True:
-    candidates_for_BytesGenerator.append(email.generator.BytesGenerator)
-
-    class Version1FixedBytesGenerator(email.generator.BytesGenerator):
-        # pylint: disable=W0232
-        # pylint: disable=E1101
-        # pylint: disable=E1102
-        # pylint: disable=E1002
-        def _handle_bytes(self, msg):
-            payload = msg.get_payload()
-            if payload is None:
-                return
-            if isinstance(payload, bytes):
-                # Payload is bytes, output is bytes - just write them
-                self._fp.write(payload)
-            elif isinstance(payload, str):
-                super(Version1FixedBytesGenerator, self)._handle_text(msg)
-            else:
-                # Payload is neither bytes nor string - this can't be right
-                raise TypeError('bytes payload expected: %s' % type(payload))
-        _writeBody = _handle_bytes
-
-    candidates_for_BytesGenerator.append(Version1FixedBytesGenerator)
-
-    if tuple(sys.version_info)[0:2] == (3, 2):
-        from email.message import _has_surrogates
-    else:
-        from email.utils import _has_surrogates
-
-    fcre = re.compile(r'^From ', re.MULTILINE)
-
-    class Version2FixedBytesGenerator(email.generator.BytesGenerator):
-        # pylint: disable=W0232
-        # pylint: disable=E1101
-        # pylint: disable=E1102
-        # pylint: disable=E1002
-        def _handle_application(self, msg):
-            # If the string has surrogates the original source was bytes,
-            # so just write it back out.
-
-            # Python 3.2 does not have the policy attribute; we use the
-            # fixed generator in this case
-            cte_is_7bit = getattr(self, "policy.cte_type", None) == '7bit'
-            if msg._payload is None:
-                return
-            if _has_surrogates(msg._payload) and not cte_is_7bit:
-                if self._mangle_from_:
-                    msg._payload = fcre.sub(">From ", msg._payload)
-                # DON'T use _write_lines() here as that mangles data
-                self.write(msg._payload)
-            else:
-                super()._handle_text(msg)
-
-    candidates_for_BytesGenerator.append(Version2FixedBytesGenerator)
-
-    class Version3FixedBytesGenerator(email.generator.BytesGenerator):
-        # pylint: disable=W0232
-        # pylint: disable=E1101
-        # pylint: disable=E1102
-        # pylint: disable=E1002
-        def _handle_application(self, msg):
-            # If the string has surrogates the original source was bytes,
-            # so just write it back out.
-
-            # Python 3.2 does not have the policy attribute; we use the
-            # fixed generator in this case
-            cte_is_7bit = getattr(self, "policy.cte_type", None) == '7bit'
-            if msg._payload is None:
-                return
-            if not cte_is_7bit:
-                if self._mangle_from_:
-                    msg._payload = fcre.sub(">From ", msg._payload)
-                # DON'T use _write_lines() here as that mangles data
-                self.write(msg._payload)
-            else:
-                super()._handle_text(msg)
-
-    candidates_for_BytesGenerator.append(Version3FixedBytesGenerator)
-
-
-def find_working_bytesgenerator():
-    """ Return a working bytesgenerator if we have one.
-    Otherwise return None.
-    """
-
-    # We use several test strings.
-    # 32-byte string, so that it displays nicely in hex dumps.
-    test_strings = []
-    test_bytes = b'MATCH_ME\x0d\x0a--\x0d#\x0a*\xc0\x0b\xaa\xab0123456789ab'
-    test_strings.append(test_bytes + test_bytes)
-    test_bytes = b'MATCH_ME\x0d\x0a--\x0b#\x0b*'
-    test_strings.append(test_bytes + test_bytes)
-
-    wrong = []
-    regexp = re.compile(b'MATCH_ME')
-    for byte_generator in candidates_for_BytesGenerator:
-        # print("Testing with %s" % str(byte_generator))
-        def test_one_string(test_bytes, byte_generator):
-            enc = email.encoders.encode_noop
-            msg = MIMEApplication(test_bytes, _encoder=enc)
-            s = BytesIO()
-            g = byte_generator(s)
-            g.flatten(msg)
-            wireform = s.getvalue()
-            msg2 = email.message_from_bytes(wireform)
-            postdata = msg2.get_payload(decode=True)
-            # At this point test_bytes should be a substring of postdata
-            s = re.search(regexp, postdata)
-            if not s:
-                return False, postdata
-            if s.start() + len(test_bytes) > len(postdata):
-                return False, postdata
-            if postdata[s.start(): s.start() + len(test_bytes)] != test_bytes:
-                return False, postdata
-            return True, None
-
-        def test_all_strings(byte_generator):
-            for test_bytes in test_strings:
-                t, v = test_one_string(test_bytes, byte_generator)
-                if not t:
-                    wrong.append((byte_generator, test_bytes, v))
-                    return False
-            return True
-
-        if test_all_strings(byte_generator):
-            # print("Found working encoder: %s" % str(byte_generator))
-            return byte_generator
-
-    logging.error("None of our byte generators work")
-    logging.error("See bug #21408")
-    logging.error("https://gitlab.inria.fr/cado-nfs/cado-nfs/-/issues/21408")
-    for gtp in wrong:
-        byte_generator, test_bytes, postdata = gtp
-        logging.error("Example of a failing test with %s:", byte_generator)
-        logging.error("Original payload")
-        info = base64.b64encode(test_bytes)
-        info = [info[i:i+70] for i in range(0, len(info), 70)]
-        for x in info:
-            logging.error(x.decode('ascii'))
-        logging.error("Encoded payload")
-        info = base64.b64encode(postdata)
-        info = [info[i:i+70] for i in range(0, len(info), 70)]
-        for x in info:
-            logging.error(x.decode('ascii'))
-    sys.exit(1)
-
-
-FixedBytesGenerator = find_working_bytesgenerator()
 # }}}
 
 
@@ -531,131 +346,6 @@ def create_daemon(workdir=None, umask=None, logfile=None):  # {{{
 # }}}
 
 
-class WuMIMEMultipart(MIMEMultipart):  # {{{
-    ''' Defines convenience functions for attaching files and data to a
-    MIMEMultipart object
-    '''
-
-    def attach_data(self, name, filename, data, filetype=None, command=None):
-        ''' Attach the data as a file
-
-        name is the string that is sent to the server as the name of the form
-        input field for the upload; for us it is always 'result'.
-        filename is the string that is sent to the server as the source file
-        name, this is the name as given in the RESULT lines, or some generated
-        name for captured stdout/stderr.
-        data is the content of the file to send.
-        filetype is "RESULT" if the file to upload is specified by a RESULT
-        line; "stdout" if it is captured stdout, and "stderr" if it is captured
-        stderr.
-        command is specified only if the data is captured stdout/stderr, and
-        gives the index of the COMMAND line that produced this stdout/stderr.
-        '''
-        result = MIMEApplication(data, _encoder=email.encoders.encode_noop)
-        result.add_header('Content-Disposition', 'form-data',
-                          name=name, filename=filename)
-        if filetype is not None:
-            result.add_header("filetype", filetype)
-        if command is not None:
-            result.add_header("command", str(command))
-        self.attach(result)
-
-    def attach_file(self, name, filename, filepath, filetype=None,
-                    command=None):
-        ''' Attach the file as a file
-
-        Parameters as in attach_data(), but filepath is the path to the file
-        whose data should be sent
-        '''
-        logging.debug("Adding result file %s to upload", filepath)
-        try:
-            with open(filepath, "rb") as infile:
-                filedata = infile.read()
-        except IOError as err:
-            logging.error("Could not read file %s: %s", filepath, str(err))
-            return
-        self.attach_data(name, filename, filedata, filetype, command)
-
-    def attach_key(self, key, value):
-        ''' Attach a simple key=value pair '''
-        attachment = MIMEText(str(value))
-        attachment.add_header('Content-Disposition', 'form-data',
-                              name=key)
-        self.attach(attachment)
-
-    def flatten(self, debug=0):
-        ''' Flatten the mimedata with BytesGenerator and return bytes array '''
-        if debug >= 2:
-            logging.debug("Headers of mimedata as a dictionary: %s",
-                          dict(self.items()))
-        bio = BytesIO()
-        gen = FixedBytesGenerator(bio, mangle_from_=False)
-        gen.flatten(self, unixfrom=False)
-        postdata = bio.getvalue() + b"\n"
-        if debug >= 2:
-            logging.debug("Postdata as a bytes array: %s", postdata)
-        return postdata
-# }}}
-
-
-# class SharedFile(object):{{{
-#     def __init__(filename, mode=0o777):
-#         # Try to create and open the file exclusively
-#         self.filename = filename
-#         flags = os.O_CREAT | os.O_RDWR | os.O_EXCL
-#         try:
-#             self.fd = os.open(filename, flags, mode)
-#         except OSError as err:
-#             if err.errno == errno.EEXIST:  # If the file already existed
-#                 self.existed = True
-#                 self.wait_until_positive_filesize(filename)
-#                 self.file = open(filename, "r+b")
-#                 FileLock.lock(self.file)
-#                 return
-#             else:
-#                 raise
-#         self.existed = False
-#         self.file = os.fdopen(fd, "r+b")
-#         FileLock.lock(self.file, exclusive=True)
-#
-#     def close():
-#         FileLock.unlock(self.file)
-#         self.file.close()  # This should also close the fd
-#
-#     def delete():
-#         if self.existed:
-#             FileLock.unlock(self.file)
-#             FileLock.lock(self.file, exclusive=True)
-#         try:
-#             os.remove(self.filename)
-#         except OSError as err:
-#             if err.errno == errno.ENOENT:
-#                 pass
-#             else:
-#                 raise
-#         self.close()
-#
-#     def wait_until_positive_filesize(self, timeout = 60):
-#         # There is a possible race condition here. If process A creates
-#         # the file, then process B tries and finds that the file exists
-#         # and immediately get a shared lock for reading, then process A
-#         # can never get an exclusive lock for writing.
-#         # To avoid this, we let process B wait until the file has
-#         # positive size, which implies that process A must have the
-#         # lock already. After 60 seconds, assume the file really has 0
-#         # bytes and return
-#         slept = 0
-#         while slept < timeout and os.path.getsize(self.filename) == 0:
-#             logging.warning("Sleeping until %s contains data", self.filename)
-#             time.sleep(1)
-#             slept += 1
-#         if slept == timeout:
-#             logging.warning("Slept %d seconds, %s still has no data",
-#                             timeout, self.filename)
-#         return
-# }}}
-
-
 # {{{ exclusive open/close
 class FileLockedException(IOError):
     """ Locking a file for exclusive access failed """
@@ -755,226 +445,6 @@ class ServerGone(Exception):
         return "Server gone"
 
 
-# {{{ wrap around python urllib
-class HTTP_connector(object):
-    @staticmethod
-    def wait_until_positive_filesize(filename, timeout=60):
-        slept = 0
-        while slept < timeout and os.path.getsize(filename) == 0:
-            logging.warning("Sleeping until %s contains data", filename)
-            time.sleep(1)
-            slept += 1
-        if slept == timeout:
-            logging.warning("Slept %d seconds, %s still has no data",
-                            timeout, filename)
-
-    @staticmethod
-    def _urlopen_maybe_https(request, cafile=None, check_hostname=True):
-        """ Treat requests for HTTPS differently depending on whether we are
-        on Python 2 or Python 3.
-        """
-        if isinstance(request, urllib_request.Request):
-            if sys.version_info[0:2] < (3, 3):
-                # In Python 2, get_type() must be used to get the scheme
-                scheme = request.get_type().lower()
-            else:
-                # The .get_type() method was deprecated in 3.3 and removed
-                # in 3.4, now the scheme is stored in the .type attribute
-                scheme = request.type.lower()
-        else:
-            # Assume it's a URL string
-            scheme = request.split(":")[0].lower()
-        if scheme == "https":
-            # Python 3 implements HTTPS certificate checks, we can just
-            # let urllib do the work for us
-
-            context = ssl.SSLContext()
-            if check_hostname:
-                context.verify_mode = ssl.CERT_REQUIRED
-            else:
-                context.verify_mode = ssl.CERT_NONE
-            context.check_hostname = bool(check_hostname)
-            context.load_verify_locations(cafile=cafile)
-
-            logging.info("urllib_request.urlopen")
-            return urllib_request.urlopen(request, context=context)
-
-        # If we are not using HTTPS, we can just let urllib do it,
-        # and there is no need for a cafile parameter (which Python 2
-        # urlopen() does not accept)
-        return urllib_request.urlopen(request)
-
-    def _urlopen(self, request, cafile=None):
-        """ Wrapper around urllib2.urlopen
-        """
-        hard_error = False
-        check_hostname = not self.no_cn_check
-        try:
-            logging.info("_urlopen_maybe_https")
-            conn = HTTP_connector._urlopen_maybe_https(
-                request, cafile=cafile, check_hostname=check_hostname)
-            logging.info("_urlopen_maybe_https returns")
-            # conn is a file-like object with additional methods:
-            # geturl(), info(), getcode()
-            return conn, None, None
-        except urllib_error.HTTPError as error:
-            if error.code == 410:
-                # We interpret error code 410 as the work unit server
-                # being gone for good. This instructs us to terminate
-                # the workunit client, which we do by letting an
-                # exception pop up a few levels up (eeek)
-                raise WorkunitClientToFinish("Received 410 from server")
-            error_str = "HTTP error: %s" % str(error)
-            if error.errno is not None:
-                hard_error = (error.errno == errno.ECONNREFUSED or
-                              error.errno == errno.ECONNRESET)
-            elif isinstance(error.reason, OSError):
-                hard_error = (error.reason.errno == errno.ECONNREFUSED or
-                              error.reason.errno == errno.ECONNRESET)
-            else:
-                hard_error = None
-        except urllib_error.URLError as error:
-            error_str = "URL error: %s" % str(error)
-            if error.errno is not None:
-                hard_error = (error.errno == errno.ECONNREFUSED or
-                              error.errno == errno.ECONNRESET)
-            elif isinstance(error.reason, OSError):
-                hard_error = (error.reason.errno == errno.ECONNREFUSED or
-                              error.reason.errno == errno.ECONNRESET)
-            else:
-                hard_error = None
-        except BadStatusLine as error:
-            error_str = "Bad Status line: %s" % str(error)
-        except socket.error as error:
-            error_str = "Connection error: %s" % str(error)
-        return None, error_str, hard_error
-
-    def _native_get_file(self, url, dlpath, cafile=None, wait=None):
-        # NOTE: the "wait" argument is not used by this method
-        request, error_str, hard_error = self._urlopen(url, cafile=cafile)
-        if request is None:
-            return error_str, hard_error
-        # Try to open the file exclusively
-        try:
-            fd = os.open(dlpath, os.O_CREAT | os.O_WRONLY | os.O_EXCL, 0o600)
-        except OSError as e:
-            if e.errno == errno.EEXIST:
-                # There is a possible race condition here. If process A
-                # creates the file, then process B tries and finds that
-                # the file exists and immediately get a shared lock for
-                # reading, then process A can never get an exclusive lock
-                # for writing.  To avoid this, we let process B wait
-                # until the file has positive size, which implies that
-                # process A must have the lock already. After 60 seconds,
-                # assume the file really has 0 bytes and return.
-                logging.warning("Looks like another process already created "
-                                "file %s", dlpath)
-                HTTP_connector.wait_until_positive_filesize(dlpath)
-                return None, None
-            if hard_error and self.exit_on_server_gone:
-                raise ServerGone()
-            raise
-        logging.info("_native_get_file(%s) -> %s" % (url, dlpath))
-        logging.info("fd = %d" % fd)
-        outfile = os.fdopen(fd, "wb")
-        FileLock.lock(outfile, exclusive=True)
-        logging.info("lock acquired")
-        shutil.copyfileobj(request, outfile)
-        logging.info("copy done")
-        try:
-            FileLock.unlock(outfile)
-            logging.info("lock release")
-        except OSError as err:
-            logging.info("unlock error: %s" % err)
-        outfile.close()  # This should also close the fd
-        request.close()
-        return None, None
-
-    def __init__(self, settings):
-        # can be overridden below
-        self.get_file = self._native_get_file
-        self.no_cn_check = settings["NO_CN_CHECK"]
-        self.exit_on_server_gone = settings["EXIT_ON_SERVER_GONE"]
-
-# }}}
-
-
-# {{{ ssl certificate stuff
-def get_ssl_certificate(server, port=443, retry=False, retrytime=0):
-    """ Download the SSL certificate from the server.
-
-    In case of connection refused error, if retry is True, retry
-    indefinitely waiting retrytime seconds between tries, and if
-    retry is False, return None.
-    """
-    while True:
-        try:
-            cert = ssl.get_server_certificate((server, int(port)),
-                                              ssl_version=ssl.PROTOCOL_TLSv1_2,
-                                              ca_certs=None)
-            return cert
-        except socket.error as err:
-            if err.errno != errno.ECONNREFUSED:
-                raise
-            if not retry:
-                return None
-        wait = float(retrytime)
-        logging.error("Waiting %s seconds before retrying", wait)
-        time.sleep(wait)
-
-
-def get_missing_certificate(certfilename,
-                            netloc,
-                            fingerprint,
-                            retry=False,
-                            retrytime=0):
-    """ Download the certificate if it is missing and check its fingerprint
-
-    If the file 'certfilename' already exists, the certificate does not
-    get downloaded.
-    If the certificate existed or could be downloaded and the fingerprint
-    matches, returns True. If the fingerprint check fails, exits with error.
-    If the server refuses connections and retry is False, returns False;
-    if retry is True, it keeps trying indefinitely.
-    """
-    certfile_exists = os.path.isfile(certfilename)
-    if certfile_exists:
-        logging.info("Using certificate stored in file %s", certfilename)
-        with open(certfilename, 'r') as certfile:
-            cert = certfile.read()
-    else:
-        logging.info("Downloading certificate from %s", netloc)
-        address_port = netloc.split(":")
-        cert = get_ssl_certificate(*address_port,
-                                   retry=retry,
-                                   retrytime=retrytime)
-        if cert is None:
-            return False
-    # Note: if you want the sha1 just based on the cert file, it's rather
-    # easy:
-    # openssl x509 -in $wdir/c60.server.cert -outform DER -out - | sha1sum
-    bin_cert = ssl.PEM_cert_to_DER_cert(cert)
-    sha1hash = hashlib.sha1()
-    sha1hash.update(bin_cert)
-    cert_sha1 = sha1hash.hexdigest()
-    logging.debug("Certificate has SHA1 fingerprint %s", cert_sha1)
-    if not cert_sha1.lower() == fingerprint.lower():
-        logging.critical("Server certificate's SHA1 fingerprint (%s) differs "
-                         "from fingerprint specified on command line (%s). "
-                         "Aborting.", cert_sha1, fingerprint)
-        logging.critical("Possible reason: several factorizations with "
-                         "same download directory.")
-        sys.exit(1)
-    logging.info("Certificate SHA1 hash matches")
-    if not certfile_exists:
-        logging.info("Writing certificate to file %s", certfilename)
-        # FIXME: Set umask first?
-        with open(certfilename, 'w') as certfile:
-            certfile.write(cert)
-    return True
-# }}}
-
-
 class NoMoreServers(Exception):
     def __init__(self):
         Exception.__init__(self)
@@ -984,71 +454,157 @@ class NoMoreServers(Exception):
                " (connection reset or refused)"
 
 
+class Server(object):
+    def __init__(self, index, url, cafile=None, certdigest=None):
+        print(f"url={url}")
+        self.index = index
+        self.url = url
+        assert (cafile is None) == (certdigest is None)
+        self.cafile = cafile
+        self.certdigest = certdigest
+        self.enable = True
+        self.worked_once = False
+        (self.scheme, netloc) = urlparse(url)[:2]
+        self.ip, self.port = netloc.split(':')
+        self.port = int(self.port)
+        self.cert_downloaded = False
+
+    def disable(self):
+        self.enable = False
+
+    def get_url(self, ep=None):
+        return f"{self.url.rstrip('/')}/{ep}" if ep else self.url
+
+    def __str__(self):
+        return self.url
+
+    def get_cafile(self):
+        return self.cafile
+
+    def get_index(self):
+        return self.index
+
+    def get_certificate(self, retry=0):
+        """
+        Download the certificate if it is missing and check its fingerprint
+
+        If the file 'self.cafile' already exists, the certificate does
+        not get downloaded.
+
+        If the certificate existed or could be downloaded and the
+        fingerprint matches, returns True.
+
+        If the fingerprint check fails, exits with error.
+
+        If the server refuses connections and retry is False, returns False;
+
+        If retry is a nonzero value, keeps trying indefinitely.
+        """
+        if not self.enable:
+            return False
+        if self.cert_downloaded:
+            return True
+        if not self.cafile:
+            return True
+
+        # get the PEM certificate
+        certfile_exists = os.path.isfile(self.cafile)
+        if certfile_exists:
+            logging.info("Using certificate stored in file %s", self.cafile)
+            with open(self.cafile, 'r') as certfile:
+                cert = certfile.read()
+        else:
+            logging.info("Downloading certificate from %s", self.url)
+            cert = None
+            while True:
+                """
+                In case of connection refused error, if retry is True, retry
+                indefinitely waiting retrytime seconds between tries, and if
+                retry is False, return None.
+                """
+                try:
+                    cert = ssl.get_server_certificate((self.ip, self.port),
+                                                      ca_certs=None)
+                    break
+                except socket.error as err:
+                    if err.errno != errno.ECONNREFUSED:
+                        raise
+                    if not retry:
+                        return False
+                wait = float(retry)
+                logging.error("Waiting %s seconds before retrying", wait)
+                time.sleep(wait)
+
+        # Note: if you want the sha1 just based on the cert file, it's rather
+        # easy:
+        # openssl x509 -in $wdir/c60.server.cert -outform DER -out - | sha1sum
+        bin_cert = ssl.PEM_cert_to_DER_cert(cert)
+        h = hashlib.sha1()
+        h.update(bin_cert)
+        certdigest = h.hexdigest()
+        logging.debug("Certificate has SHA1 fingerprint %s", certdigest)
+        if not certdigest.lower() == self.certdigest.lower():
+            logging.critical("Server certificate's SHA1 fingerprint (%s)"
+                             " differs from fingerprint specified"
+                             " on command line (%s). Aborting.",
+                             certdigest, self.certdigest)
+            logging.critical("Possible reason: several factorizations with "
+                             "same download directory.")
+            sys.exit(1)
+        logging.info("Certificate SHA1 hash matches")
+
+        self.cert_downloaded = True
+        if not certfile_exists:
+            logging.info("Writing certificate to file %s", self.cafile)
+            with open(self.cafile, 'w') as certfile:
+                certfile.write(cert)
+        return True
+
+    def _req(self, req, ep, *args, **kwargs):
+        kwargs['verify'] = self.cafile if self.cafile else False
+        logging.debug(f"arguments to {req} {ep}: %s", kwargs)
+        resp = getattr(requests, req)(self.get_url(ep), *args, **kwargs)
+        self.worked_once = True
+        return resp
+
+    def get(self, *args, **kwargs):
+        return self._req('get', *args, **kwargs)
+
+    def post(self, *args, **kwargs):
+        return self._req('post', *args, **kwargs)
+
+
 class ServerPool(object):  # {{{
-    class Server(object):
-        def __init__(self, index, url, cafile, certsha1, needcert):
-            self.index = index
-            self.url = url
-            self.cafile = cafile
-            self.certsha1 = certsha1
-            self.needcert = needcert
-            self.enable = True
-
-        def get_url(self):
-            return self.url
-
-        def __str__(self):
-            return self.url
-
-        def get_cafile(self):
-            return self.cafile
-
-        def get_index(self):
-            return self.index
-
-        @staticmethod
-        def register(servers, url, cafile=None, certsha1=None, needcert=False):
-            servers.append(ServerPool.Server(len(servers),
-                                             url,
-                                             cafile,
-                                             certsha1,
-                                             needcert))
-
     def __init__(self, settings):
-        self.nservers = len(settings["SERVER"])
         self.ndisabled = 0
         self.has_https = False
         self.current_index = 0
         self.wait = float(settings["DOWNLOADRETRY"])
-        self.worked_once = [0] * self.nservers
 
-        for ss in settings["SERVER"]:
-            scheme, netloc = urlparse(ss)[0:2]
-            self.has_https = scheme == "https"
+        self.has_https = any([urlparse(ss)[0] == "https"
+                              for ss in settings["SERVER"]])
 
-        # self.servers is a list of tuples. Each tuple contains:
-        #
-        # url
-        # certfilename (or None)
-        # sha1 (or None)
-        # need_cert (boolean)
         self.servers = []
 
         if not self.has_https:
             if settings["CERTSHA1"] is not None:
                 logging.warning("Option --certsha1 makes sense only with"
-                                " https URLs,"
-                                " ignoring it.")
-            for ss in settings["SERVER"]:
-                ServerPool.Server.register(self.servers, ss)
+                                " https URLs, ignoring it.")
+            for i, ss in enumerate(settings["SERVER"]):
+                self.servers.append(Server(i, ss))
             return
+
+        if settings["CERTSHA1"] is None and not settings["NO_CN_CHECK"]:
+            logging.error("no certificate hashes provided,"
+                          " pass --nocncheck if this is intentional")
+            sys.exit(1)
 
         if settings["CERTSHA1"] is None:
             logging.warning("https URLs were given"
                             " but no --certsha1 option,"
                             " NO SSL VALIDATION WILL BE PERFORMED.")
-            for ss in settings["SERVER"]:
-                ServerPool.Server.register(self.servers, ss)
+            for i, ss in enumerate(settings["SERVER"]):
+                self.servers.append(Server(i, ss))
             return
 
         if len(settings["CERTSHA1"]) != len(settings["SERVER"]):
@@ -1057,26 +613,19 @@ class ServerPool(object):  # {{{
                              " (use --certsha1 None for http URLs)")
             sys.exit(1)
 
-        for server_index in range(self.nservers):
-            ss = settings["SERVER"][server_index]
-            certsha1 = settings["CERTSHA1"][server_index]
+        for i, (ss, certsha1) in enumerate(zip(settings["SERVER"],
+                                               settings["CERTSHA1"])):
             (scheme, netloc) = urlparse(ss)[0:2]
             cafile = None
-            needcert = True
             if scheme == "https":
                 cafile = os.path.join(settings["DLDIR"],
                                       "server.%s.pem" % certsha1)
-            else:
-                needcert = False
-            ServerPool.Server.register(self.servers,
-                                       ss,
-                                       cafile,
-                                       certsha1,
-                                       needcert)
+            self.servers.append(Server(i, ss, cafile, certsha1))
+
             # Try downloading the certificate once. If connection is
             # refused, proceed to daemonizing - hopefully server will
             # come up later
-            if not self._try_download_certificate(server_index):
+            if not self._try_download_certificate(i):
                 logging.info("Could not download SSL certificate:"
                              " The connection was refused.")
                 logging.info("Assuming the server will come up later.")
@@ -1086,21 +635,10 @@ class ServerPool(object):  # {{{
                     logging.info("Will keep trying after daemonizing.")
 
     def number_of_active_servers(self):
-        return self.nservers - self.ndisabled
+        return len(self.servers) - self.ndisabled
 
     def _try_download_certificate(self, server_index):
-        S = self.servers[server_index]
-        if not S.enable:
-            return False
-        if not S.needcert:
-            return True
-        (scheme, netloc) = urlparse(S.get_url())[0:2]
-        if get_missing_certificate(S.cafile, netloc, S.certsha1):
-            self.servers[server_index].needcert = False
-            return True
-        logging.error("Waiting %s seconds before retrying", self.wait)
-        time.sleep(self.wait)
-        return False
+        return self.servers[server_index].get_certificate(retry=0)
 
     def get_default_server(self):
         """returns an arbitrary server in the list, really. We have a
@@ -1109,22 +647,22 @@ class ServerPool(object):  # {{{
         succeeded in downloading the ssl certificate !
         """
         while not self._try_download_certificate(self.current_index):
-            self.current_index = (self.current_index + 1) % self.nservers
+            self.current_index = (self.current_index + 1) % len(self.servers)
         return self.servers[self.current_index]
 
     def mark_current_server_alive(self):
-        self.worked_once[self.current_index] += 1
+        self.servers[self.current_index].worked_once = True
 
     def current_server_was_successful_once(self):
-        return self.worked_once[self.current_index]
+        return self.servers[self.current_index].worked_once
 
     def change_server(self):
         """we're not happy with the current server for some reason.
         return a new one
         """
-        self.current_index = (self.current_index + 1) % self.nservers
+        self.current_index = (self.current_index + 1) % len(self.servers)
         while not self._try_download_certificate(self.current_index):
-            self.current_index = (self.current_index + 1) % self.nservers
+            self.current_index = (self.current_index + 1) % len(self.servers)
         S = self.servers[self.current_index]
         logging.error("Going to next backup server: %s", S)
         return S
@@ -1132,9 +670,9 @@ class ServerPool(object):  # {{{
     def disable_server(self, S):
         """multiple errors with this server, disable it permanently.
         Raises an exception if all servers are dead."""
-        self.servers[S.get_index()].enable = False
+        self.servers[S.get_index()].disable()
         self.ndisabled += 1
-        if self.ndisabled == self.nservers:
+        if self.ndisabled == len(self.servers):
             raise NoMoreServers()
         if self.current_index == S.get_index():
             self.change_server()
@@ -1146,17 +684,9 @@ class ServerPool(object):  # {{{
         return self.servers[self.current_index]
 
     def get_unique_server(self):
-        assert self.nservers == 1
+        assert len(self.servers) == 1
         return self.servers[0]
 
-#    def get_server(self, server_index):
-#        url, certfilename, certsha1, needcert = self.servers[server_index]
-#        return ss, certfilename
-#
-#    def get(self, server_index):
-#        url, certfilename, certsha1, needcert = self.servers[server_index]
-#        assert not needcert
-#        return server_index, url, certfilename, certsha1
 # }}}
 
 
@@ -1165,7 +695,6 @@ class ServerPool(object):  # {{{
 class WorkunitProcessor(object):
     def __init__(self, workunit, settings):
         self.settings = settings
-        self.origin = workunit.get_peer()
         self.workunit = workunit
 
         # self.errorcode gets set if any command exits with code != 0, in
@@ -1189,8 +718,8 @@ class WorkunitProcessor(object):
         "executable by user" constant, that it is executable
         """
         return all([os.path.isfile(filename),
-                    not (hasattr(stat, "S_IXUSR"),
-                    (os.stat(filename).st_mode & stat.S_IXUSR) == 0)])
+                    not (hasattr(stat, "S_IXUSR")
+                         and (os.stat(filename).st_mode & stat.S_IXUSR) == 0)])
 
     @staticmethod
     def find_binary(filename, searchpath):
@@ -1246,19 +775,20 @@ class WorkunitProcessor(object):
 
         return ' '.join(mangled)
 
-    def _locate_binary_file(self, workunit, key, filename):
-        if not isinstance(filename, str):
-            filename = filename[0]  # Drop checksum value
+    def _locate_binary_file(self, f):
+        filename = f['filename']
         if self.settings["BINDIR"]:
             searchpath = self.settings["BINDIR"].split(';')
-            suggest = workunit.get("SUGGEST_" + key, None)
-            if suggest:
+            if (suggest := f.get("suggest_path")) is not None:
                 searchpath += [os.path.join(x, suggest) for x in searchpath]
             binfile = self.find_binary(filename, searchpath)
             if binfile is None:
-                raise Exception("Binary file %s not found" % filename)
+                raise Exception("Binary file %s not found,"
+                                " search path is %s."
+                                % (filename, searchpath))
         else:
             binfile = os.path.join(self.settings["DLDIR"], filename)
+        logging.info('file %s resolved to %s' % (filename, binfile))
         return binfile
 
     def run_commands(self):
@@ -1266,6 +796,7 @@ class WorkunitProcessor(object):
             if self.settings["KEEPOLDRESULT"]:
                 return True
             self.cleanup()
+
         files = {}
 
         # To which directory do workunit files map?
@@ -1276,26 +807,25 @@ class WorkunitProcessor(object):
                 "STDIN": self.settings["WORKDIR"],
                 }
 
-        for key in dirs:
-            for (index, filename) in enumerate(self.workunit.get(key, [])):
-                if not isinstance(filename, str):
-                    filename = filename[0]  # Drop checksum value
-                # index is 0-based, add 1 to make FILE1, FILE2, etc. 1-based
-                files["%s%d" % (key, index + 1)] = \
-                    os.path.join(dirs[key], filename)
+        for fid, f in self.workunit.get('files', {}).items():
+            fc = copy.copy(f)
+            for key, d in dirs.items():
+                if fid.startswith(key):
+                    fc['filename'] = os.path.join(d, f['filename'])
+                    break
+            if fid.startswith("EXECFILE"):
+                fc['filename'] = self._locate_binary_file(f)
 
-        key = "EXECFILE"
-        for (index, filename) in enumerate(self.workunit.get(key, [])):
-            binfile = self._locate_binary_file(self.workunit, key, filename)
-            files["%s%d" % (key, index + 1)] = binfile
+            files[fid] = fc
 
-        for (counter, command) in enumerate(self.workunit.get("COMMAND", [])):
+        for (counter, command) in enumerate(self.workunit.get("commands", [])):
             command = command.replace("'", "")  # 21827
-            command = Template(command).safe_substitute(files)
+            command = Template(command).safe_substitute(
+                {i: v['filename'] for i, v in files.items()})
 
-            my_stdin_filename = "STDIN%d" % (counter+1)
-            my_stdout_filename = "STDOUT%d" % (counter+1)
-            my_stderr_filename = "STDERR%d" % (counter+1)
+            my_stdin_filename = "STDIN%d" % counter
+            my_stdout_filename = "STDOUT%d" % counter
+            my_stderr_filename = "STDERR%d" % counter
 
             # If niceness command line parameter was set, call self.renice()
             # in child process, before executing command
@@ -1308,6 +838,9 @@ class WorkunitProcessor(object):
 
             stdin = None
             if my_stdin_filename in files:
+                raise ValueError("I think that this code is dead"
+                                 " and does not work")
+                # run_command pretty much seems to ignore stdin anyway
                 with open(files[my_stdin_filename], "r") as f:
                     stdin = f.read()
 
@@ -1318,25 +851,22 @@ class WorkunitProcessor(object):
                                              stdin=stdin,
                                              preexec_fn=renice_func)
 
-            if stdout is not None:
-                stdout = stdout.decode()
-            if stderr is not None:
-                stderr = stderr.decode()
-
             # steal stdout/stderr, put them to files.
-            if my_stdout_filename in files:
+            if (out := files.get(my_stdout_filename)) is not None:
                 if stdout is not None:
-                    with open(files[my_stdout_filename], "w") as f:
+                    with open(out['filename'], "wb") as f:
                         f.write(stdout)
                 stdout = None
-            self.stdio["stdout"].append(stdout)
+            if stdout:
+                self.stdio["stdout"].append(stdout)
 
-            if my_stderr_filename in files:
+            if (err := files.get(my_stderr_filename)) is not None:
                 if stderr is not None:
-                    with open(files[my_stderr_filename], "w") as f:
+                    with open(err['filename'], "wb") as f:
                         f.write(stderr)
                 stderr = None
-            self.stdio["stderr"].append(stderr)
+            if stderr:
+                self.stdio["stderr"].append(stderr)
 
             if rc != 0:
                 self.failedcommand = counter
@@ -1347,15 +877,23 @@ class WorkunitProcessor(object):
 
         return True
 
+    def result_filepaths(self):
+        for fid, f in self.workunit.get('files', {}).items():
+            if not fid.startswith("RESULT"):
+                continue
+            yield os.path.join(self.settings["WORKDIR"], f['filename'])
+
     def result_exists(self):
-        ''' Check whether all result files already exist.
-            returns True of False
         '''
-        # If there is no RESULT line in the workunit, always run commands
-        if self.workunit.get("RESULT", None) is None:
+        Check whether all result files already exist.
+        returns True of False
+        '''
+        results = list(self.result_filepaths())
+        if not results:
+            # If there is no RESULT line in the workunit, always run commands
             return False
-        for filename in self.workunit.get("RESULT", []):
-            filepath = os.path.join(self.settings["WORKDIR"], filename)
+
+        for filepath in results:
             if not os.path.isfile(filepath):
                 logging.info("Result file %s does not exist", filepath)
                 return False
@@ -1364,54 +902,54 @@ class WorkunitProcessor(object):
         return True
 
     def cleanup(self):
-        ''' Delete uploaded result files and files from DELETE lines '''
+        '''
+        Delete uploaded result files
+        '''
         logging.info("Cleaning up for workunit %s", self.workunit.get_id())
-        for filename in self.workunit.get("RESULT", []):
-            filepath = os.path.join(self.settings["WORKDIR"], filename)
+        for filepath in self.result_filepaths():
             logging.info("Removing result file %s", filepath)
             try:
                 os.remove(filepath)
             except OSError as err:
-                # The file won't exist if the program failed too early
-                # on.
+                # The file won't exist if the program failed too early on.
                 logging.error("Could not remove file: %s", err)
-        for filename in self.workunit.get("DELETE", []):
-            filepath = os.path.join(self.settings["WORKDIR"], filename)
-            logging.info("Removing file %s", filepath)
-            os.remove(filepath)
 
     def prepare_answer(self):
         assert self._answer is None
-        # Make POST data
-        mimedata = WuMIMEMultipart()
-        # Build a multi-part MIME document containing the WU id and result file
-        mimedata.attach_key("WUid", self.workunit.get_id())
-        mimedata.attach_key("clientid", self.settings["CLIENTID"])
+        data = dict(WUid=self.workunit.get_id(),
+                    clientid=self.settings["CLIENTID"])
         if self.errorcode:
-            mimedata.attach_key("errorcode", self.errorcode)
-        if self.failedcommand is not None:
-            mimedata.attach_key("failedcommand", self.failedcommand)
-        for filename in self.workunit.get("RESULT", []):
-            filepath = os.path.join(self.settings["WORKDIR"], filename)
-            logging.info("Attaching file %s to upload", filepath)
-            mimedata.attach_file("results", filename, filepath, "RESULT")
-        for name in self.stdio:
-            for (counter, data) in enumerate(self.stdio[name]):
-                if data:
-                    logging.info("Attaching %s for command %s to upload",
-                                 name, counter)
-                    filename = "%s.%s%d" % (self.workunit.get_id(), name,
-                                            counter)
-                    mimedata.attach_data("results", filename, data, name,
-                                         counter)
-        postdata = mimedata.flatten(debug=int(self.settings["DEBUG"]))
+            data["errorcode"] = self.errorcode
+        if self.failedcommand:
+            data["failedcommand"] = self.failedcommand
 
-        url = self.origin.get_url().rstrip("/") + "/" + \
-            self.settings["POSTRESULTPATH"].lstrip("/")
-        request = urllib_request.Request(url, data=postdata,
-                                         headers=dict(mimedata.items()))
-        self._answer = (request, self.origin.get_cafile())
-        assert request.get_full_url() == url
+        files = {}
+        fileinfo = {}
+
+        for fid, f in self.workunit.get('files', {}).items():
+            if not f.get('upload'):
+                continue
+            filepath = os.path.join(self.settings["WORKDIR"], f['filename'])
+            logging.info("Attaching file %s [fid=%s] to upload", filepath, fid)
+            basename = os.path.split(filepath)[1]
+            files[basename] = open(filepath, 'rb')
+            fileinfo[basename] = dict(WUid=self.workunit.get_id(),
+                                      key=fid)
+
+        for name, blobs in self.stdio.items():
+            for (counter, blob) in enumerate(blobs):
+                if blob:
+                    logging.info("Attaching %s for command %d to upload",
+                                 name, counter)
+                    fid = "%s%d" % (name, counter)
+                    filename = "%s.%s" % (self.workunit.get_id(), fid)
+                    files[filename] = BytesIO(blob)
+                    fileinfo[filename] = dict(WUid=self.workunit.get_id(),
+                                              key=fid,
+                                              command=counter)
+
+        data['fileinfo'] = json.dumps(fileinfo)
+        self._answer = dict(files=files, data=data)
 
     def get_answer(self):
         assert self._answer is not None
@@ -1489,7 +1027,7 @@ class WorkunitWrapper(Workunit):
                 logging.debug("Parsing workunit from file %s",
                               self.wu_filename)
                 # super(Workunit, self).__init__(self.wu_file.read())
-                Workunit.__init__(self, self.wu_file.read())
+                Workunit.__init__(self, **json.load(self.wu_file))
             except Exception:
                 close_exclusive(self.wu_file)
                 raise
@@ -1524,10 +1062,9 @@ class WorkunitWrapper(Workunit):
         self.wu_filename = newname
 
     def is_stale(self):
-        d = self.get("DEADLINE")
-        if d is None:
-            return False
-        return time.time() > float(d)
+        if (d := self.get("deadline")) is not None:
+            return time.time() > float(d)
+        return False
 
 
 # {{{ InputDownloader -- persistent class that downloads WUs together
@@ -1535,10 +1072,9 @@ class WorkunitWrapper(Workunit):
 # Half-downloaded WUs are saved in memory, and downloads of companion
 # files are retried later on if the peer goes off at the wrong time.
 class InputDownloader(object):
-    def __init__(self, settings, server_pool, connector):
+    def __init__(self, settings, server_pool):
         self.settings = settings
         self.server_pool = server_pool
-        self.connector = connector
         self.wu_filename = os.path.join(self.settings["DLDIR"],
                                         self.settings["WU_FILENAME"])
         self.wu_backlog = []
@@ -1547,29 +1083,23 @@ class InputDownloader(object):
 
     # {{{ download -- this goes through several steps.
     @staticmethod
-    def do_checksum(filename, checksum=None):
-        """ Computes the SHA1 checksum for a file. If checksum is None, returns
-            the computed checksum. If checksum is not None, return whether the
-            computed SHA1 sum and checksum agree """
-        blocksize = 65536
-        sha1hash = hashlib.sha1()  # pylint: disable=E1101
-        # Like when downloading, we wait until the file has positive size, to
-        # avoid getting the shared lock right after the other process created
-        # the file but before it gets the exclusive lock
-        HTTP_connector.wait_until_positive_filesize(filename)
+    def do_checksum(filename):
+        """
+        Computes the SHA1 checksum for a file.
+        """
+        h = hashlib.sha1()  # pylint: disable=E1101
+
         infile = open(filename, "rb")
         FileLock.lock(infile)
 
+        blocksize = 65536
         data = infile.read(blocksize)
         while data:
-            sha1hash.update(data)
+            h.update(data)
             data = infile.read(blocksize)
         FileLock.unlock(infile)
         infile.close()
-        filesum = sha1hash.hexdigest()
-        if checksum is None:
-            return filesum
-        return filesum.lower() == checksum.lower()
+        return h.hexdigest()
 
     def get_file(self, urlpath,
                  dlpath=None,
@@ -1577,24 +1107,23 @@ class InputDownloader(object):
                  is_wu=False,
                  executable=False,
                  mandatory_server=None):
-        """ gets a file from the server (of from one of the failover
-        servers, for WUs), and wait until we succeed.
+        """
+        gets a file from the server (of from one of the failover servers,
+        for WUs), and wait until we succeed.
 
         returns the identification of the server that answered if we got
         an answer, or None if we didn't get one. (the latter can happen
         only if we've been told to use one server exclusively, and that
         happens only if we timed out downloading companion files).
 
-        Raises NoMoreServers if we get multiple
-        consecutive connection failures on all servers.
+        Raises NoMoreServers if we get multiple consecutive connection
+        failures on all servers.
         """
         assert is_wu or dlpath is not None
         if dlpath is None:
             filename = urlpath.split("/")[-1]
             dlpath = os.path.join(self.settings["DLDIR"], filename)
         urlpath = urlpath.lstrip("/")
-        if options:
-            urlpath = urlpath + "?" + options
 
         wait = float(self.settings["DOWNLOADRETRY"])
         waiting_since = 0
@@ -1619,30 +1148,43 @@ class InputDownloader(object):
             dlpath_tmp = "%s%d" \
                          % (dlpath, random.randint(0, 2**30) ^ os.getpid())
         while True:
-            logging.info("spin=%d is_wu=%s blog=%d",
-                         spin, is_wu,
-                         len(self.wu_backlog)+len(self.wu_backlog_alt))
+            logging.debug("spin=%d is_wu=%s blog=%d",
+                          spin, is_wu,
+                          len(self.wu_backlog)+len(self.wu_backlog_alt))
             if cap and spin > max_loops:
                 # we've had enough. Out of despair, we'll try our old
                 # WUs, but there seems to be veeery little we can do, to
                 # be honest. We'll quickly return back here.
                 logging.error("Cannot get a fresh WU. Trying our old backlog")
                 return None
-            url = current_server.get_url().rstrip("/") + "/" + urlpath
-            cafile = current_server.get_cafile()
-            logging.info("Downloading %s to %s (cafile = %s)",
-                         url, dlpath_tmp, cafile)
-            error_str, hard_error = self.connector.get_file(url,
-                                                            dlpath_tmp,
-                                                            cafile=cafile,
-                                                            wait=wait)
-            if not hard_error:
-                self.server_pool.mark_current_server_alive()
 
-            if error_str is None:
-                break
+            logging.info("Downloading %s to %s",
+                         current_server.get_url(urlpath),
+                         dlpath_tmp)
 
-            if all([hard_error,
+            ex = None
+            try:
+                # stream=True / resp.raw.data is to avoid magic
+                # decompression of .gz files
+                resp = current_server.get(urlpath,
+                                          data=options,
+                                          stream=True)
+                if resp.status_code == 200:
+                    open(dlpath_tmp, 'wb').write(resp.raw.data)
+                    break
+                elif resp.status_code == 410:
+                    # We interpret error code 410 as the work unit server
+                    # being gone for good. This instructs us to terminate
+                    # the workunit client, which we do by letting an
+                    # exception pop up a few levels up (eeek)
+                    raise WorkunitClientToFinish("Received 410 from server")
+                error_str = resp.content.decode()
+            except requests.exceptions.RequestException as e:
+                ex = e
+                error_str = str(e)
+                connfailed += 1
+
+            if all([ex,
                     self.exit_on_server_gone,
                     self.server_pool.current_server_was_successful_once()]):
                 logging.error(f"Disabling {current_server}"
@@ -1660,16 +1202,11 @@ class InputDownloader(object):
 
             # otherwise we enter the wait loop
 
-            if hard_error:
-                connfailed += 1
-            else:
-                connfailed = 0
-
             if any([not silent_wait,
                     waiting_since == 0,
                     error_str != last_error]):
                 logging.error("Download failed%s, %s",
-                              " with hard error" if hard_error else "",
+                              " with hard error" if ex else "",
                               error_str)
                 if waiting_since > 0:
                     logging.error("Waiting %s seconds before retrying"
@@ -1710,7 +1247,7 @@ class InputDownloader(object):
 
         if waiting_since > 0:
             logging.info("Opened URL %s after %s seconds wait",
-                         url, waiting_since)
+                         current_server.get_url(), waiting_since)
 
         if executable:
             m = dlpath_tmp if dlpath_tmp is not None else dlpath
@@ -1766,9 +1303,10 @@ class InputDownloader(object):
 
         # print('get_missing_file(%s, %s, %s)' % (urlpath, filename, checksum))
         if os.path.isfile(filename):
-            if self.server_pool.nservers > 1 and is_wu:
+            if len(self.server_pool.servers) > 1 and is_wu:
                 # can't reuse WUs on disk if multiple servers are
-                # specified.
+                # specified, unless we save the server id in the WU
+                # (which we could consider, actually)
                 logging.info("%s already exists,"
                              " removing because of server ambiguity",
                              filename)
@@ -1830,12 +1368,13 @@ class InputDownloader(object):
 
     def get_files(self, wu):
         server = wu.get_peer()
-        files_to_download = wu.get("FILE", [])
-        if not self.settings["BINDIR"]:
-            files_to_download += wu.get("EXECFILE", [])
-        for (filename, checksum) in files_to_download:
-            templ = Template(filename)
-            archname = templ.safe_substitute({"ARCH": self.settings["ARCH"]})
+        for fid, f in wu.get('files', {}).items():
+            if not f.get('download'):
+                continue
+            templ = Template(f['filename'])
+            checksum = f.get('checksum')
+            urlpath = templ.safe_substitute({"ARCH": self.settings["ARCH"]})
+            urlpath = os.path.join('file', urlpath)
             dlname = templ.safe_substitute({"ARCH": ""})
             dlpath = os.path.join(self.settings["DLDIR"], dlname)
             if self.settings["NOSHA1CHECK"]:
@@ -1843,10 +1382,8 @@ class InputDownloader(object):
             # If we fail to download the file, we'll deal with it at the
             # level above
 
-            executable = os.name != "nt" \
-                and filename in dict(wu.get("EXECFILE", []))
-            self.get_missing_file(archname, dlpath, checksum,
-                                  executable=executable,
+            self.get_missing_file(urlpath, dlpath, checksum,
+                                  executable=fid.startswith('EXECFILE'),
                                   mandatory_server=server)
             # Try to lock the file once to be sure that download has finished
             # if another cado-nfs-client is doing the downloading
@@ -1869,15 +1406,15 @@ class InputDownloader(object):
         while True:
             # Download the WU file if none exists
             url = self.settings["GETWUPATH"]
-            options = "clientid=" + self.settings["CLIENTID"]
             # we could maybe add more options, like architecture, qrange
             # size, whatnot.
+            options = dict(clientid=self.settings["CLIENTID"])
 
             # will not throw, or maybe NoMoreServers
             peer = self.get_missing_file(url,
                                          self.wu_filename,
-                                         options=options,
-                                         is_wu=True)
+                                         is_wu=True,
+                                         options=options)
 
             if peer is None:
                 # could not download a WU...
@@ -1903,7 +1440,7 @@ class InputDownloader(object):
 
             # Don't do deadline checks on WUs we received from a server.
             if peer is None and workunit.is_stale():
-                dline = workunit.get("DEADLINE")
+                dline = workunit.get("deadline")
                 dline = time.asctime(time.localtime(float(dline)))
                 logging.warning("Old workunit %s has passed deadline (%s),"
                                 " ignoring",
@@ -1925,7 +1462,7 @@ class InputDownloader(object):
             workunit = self.wu_backlog[0]
             self.wu_backlog = self.wu_backlog[1:]
             if workunit.is_stale():
-                dline = workunit.get("DEADLINE")
+                dline = workunit.get("deadline")
                 dline = time.asctime(time.localtime(float(dline)))
                 logging.warning("Old workunit %s has passed deadline (%s),"
                                 " ignoring",
@@ -1979,12 +1516,10 @@ class InputDownloader(object):
 
 # {{{ ResultUploader -- persistent class that handles uploads
 class ResultUploader(object):
-    def __init__(self, settings, server_pool, connector):
+    def __init__(self, settings, server_pool):
         self.settings = settings
         self.server_pool = server_pool
-        self.connector = connector
-        self.nservers = len(settings["SERVER"])
-        self.upload_backlog = [[] for i in range(self.server_pool.nservers)]
+        self.upload_backlog = [[] for S in self.server_pool.servers]
         self.backlog_size = 0
         self.last_active = 0
 
@@ -2028,8 +1563,8 @@ class ResultUploader(object):
         # just got this WU from.
         # did_progress = False
 
-        for i in range(self.nservers):
-            index = (self.last_active + i) % self.server_pool.nservers
+        for i in range(len(self.upload_backlog)):
+            index = (self.last_active + i) % len(self.upload_backlog)
             old_backlog = self.upload_backlog[index]
             new_backlog = []
             for p in old_backlog:
@@ -2042,16 +1577,22 @@ class ResultUploader(object):
                     logging.info("Attempt: %s  -->  %s",
                                  p.workunit.get_id(),
                                  p.workunit.get_peer())
-                request, cafile = p.get_answer()
-                url = request.get_full_url()
-                conn = None
+                resp = None
                 waiting_since = 0
                 while True:
-                    conn, error_str, hard_error = self.connector._urlopen(
-                        request, cafile=cafile)
-                    if conn:
-                        break
-                    logging.error("Upload failed, %s", error_str)
+                    e = None
+                    try:
+                        resp = p.workunit.get_peer().post(
+                                self.settings["POSTRESULTPATH"],
+                                **p.get_answer())
+                        if resp.status_code == 200:
+                            break
+                        e = f'status code {resp.status_code}, {resp.content}'
+                        resp = None
+                    except Exception as ex:
+                        e = ex
+
+                    logging.error("Upload failed, %s", e)
                     if waiting_since > 0:
                         logging.error("Waiting %s seconds before retrying"
                                       " (I have been waiting for %s seconds)",
@@ -2066,7 +1607,7 @@ class ResultUploader(object):
                                       " will retry later")
                         new_backlog.append(p)
                         break
-                if not conn:
+                if not resp:
                     # we've appended p to the new backlog at this point.
                     continue
                 if p.workunit.is_stale():
@@ -2074,16 +1615,13 @@ class ResultUploader(object):
                     logging.error("Workunit %s has expired, not uploading",
                                   p.workunit.get_id())
                     p.cleanup()
-                    conn.close()
                     continue
                 if waiting_since > 0:
                     logging.info("Opened URL %s after %s seconds wait",
-                                 url, waiting_since)
-                response = conn.read()
-                encoding = self.get_content_charset(conn)
-                response_str = response.decode(encoding=encoding)
-                logging.debug("Server response:\n%s", response_str)
-                conn.close()
+                                 p.workunit.get_peer().get_url(
+                                     self.settings["POSTRESULTPATH"]),
+                                 waiting_since)
+                logging.debug("Server response:\n%s", resp.content)
                 # did_progress = True
                 logging.info("Upload of %s succeeded.", p.workunit.get_id())
                 p.cleanup()
@@ -2171,10 +1709,10 @@ OPTIONAL_SETTINGS = {
     "BASEPATH":        (None,
                         "Base directory for"
                         " download and work directories"),
-    "GETWUPATH":       ("/cgi-bin/getwu",
+    "GETWUPATH":       ("/workunit",
                         "Path segment of URL for"
                         " requesting WUs from server"),
-    "POSTRESULTPATH":  ("/cgi-bin/upload.py",
+    "POSTRESULTPATH":  ("/upload",
                         "Path segment of URL for"
                         " reporting results to server"),
     "DEBUG":           ("0", "Debugging verbosity"),
@@ -2212,6 +1750,7 @@ BAD_WU_MAX = 3  # Maximum allowed number of bad WUs
 
 
 if __name__ == '__main__':
+
     def parse_cmdline():
         # Create command line parser from the keys in SETTINGS
         parser = optparse.OptionParser()
@@ -2325,6 +1864,12 @@ if __name__ == '__main__':
     SETTINGS["KEEPOLDRESULT"] = options.keepoldresult
     SETTINGS["NOSHA1CHECK"] = options.nosha1check
     SETTINGS["NO_CN_CHECK"] = options.nocncheck
+
+    if options.nocncheck:
+        from urllib3.exceptions import InsecureRequestWarning
+        from requests.packages.urllib3 import disable_warnings
+        disable_warnings(category=InsecureRequestWarning)
+
     SETTINGS["OVERRIDE"] = options.override
     SETTINGS["SINGLE"] = options.single
     SETTINGS["EXIT_ON_SERVER_GONE"] = options.exit_on_server_gone
@@ -2358,25 +1903,24 @@ if __name__ == '__main__':
         sys.exit(1)
 
     logfile = None if logfilename is None else open(logfilename, "a")
-    logging.basicConfig(level=loglevel)
+    if options.daemon:
+        logging.basicConfig(level=loglevel)
+    else:
+        logging.getLogger().addHandler(cadologger.ScreenHandler(lvl=loglevel))
     if options.logdate:
         logging.basicConfig(
             format='%(asctime)s - %(levelname)s:%(name)s:%(message)s',
             level=loglevel)
     else:
         logging.basicConfig(level=loglevel)
+
     if logfile:
         logging.getLogger().addHandler(logging.StreamHandler(logfile))
+
     logging.info("Starting client %s", SETTINGS["CLIENTID"])
     logging.info("Python version is %d.%d.%d", *sys.version_info[0:3])
 
-    if FixedBytesGenerator != candidates_for_BytesGenerator[0]:
-        logging.info("Using work-around %s for buggy BytesGenerator",
-                     FixedBytesGenerator)
-
     serv_pool = ServerPool(SETTINGS)
-
-    connector = HTTP_connector(SETTINGS)
 
     if options.daemon:
         # in fact, logfile can never be None, since we force a logfile no
@@ -2387,9 +1931,9 @@ if __name__ == '__main__':
     client_ok = True
     bad_wu_counter = 0
 
-    downloader = InputDownloader(SETTINGS, serv_pool, connector)
+    downloader = InputDownloader(SETTINGS, serv_pool)
 
-    uploader = ResultUploader(SETTINGS, serv_pool, connector)
+    uploader = ResultUploader(SETTINGS, serv_pool)
 
     client = WorkunitClient(SETTINGS, serv_pool, downloader, uploader)
 

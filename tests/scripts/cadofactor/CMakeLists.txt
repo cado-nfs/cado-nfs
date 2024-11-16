@@ -1,13 +1,12 @@
 
-# doctests in cadocommand don't seem to work.
+# This is git grep -l '>>>' scripts/cadofactor/
 set(PYTHON_DOCTEST_SOURCES
-    ${CADO_NFS_SOURCE_DIR}/scripts/cadofactor/cadoparams.py
-    ${CADO_NFS_SOURCE_DIR}/scripts/cadofactor/cadoprograms.py
-    ${CADO_NFS_SOURCE_DIR}/scripts/cadofactor/cadotask.py
-    ${CADO_NFS_SOURCE_DIR}/scripts/cadofactor/workunit.py
-    ${CADO_NFS_SOURCE_DIR}/scripts/cadofactor/wudb.py
-    ${CADO_NFS_SOURCE_DIR}/scripts/cadofactor/wuserver.py
-    ${CADO_NFS_SOURCE_DIR}/scripts/cadofactor/toplevel.py
+    scripts/cadofactor/cadoparams.py
+    scripts/cadofactor/cadoprograms.py
+    scripts/cadofactor/cadotask.py
+    scripts/cadofactor/workunit.py
+    scripts/cadofactor/wudb.py
+    scripts/cadofactor/toplevel.py
 )
 
 foreach (doctest_source ${PYTHON_DOCTEST_SOURCES})
@@ -19,7 +18,7 @@ foreach (doctest_source ${PYTHON_DOCTEST_SOURCES})
       ENVIRONMENT PYTHONPATH=${CADO_NFS_SOURCE_DIR}/scripts
       PRECOMMAND ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env TMPDIR
       PROGRAM
-      python3 -m doctest ${doctest_source}
+      python3 -m doctest ${CADO_NFS_SOURCE_DIR}/${doctest_source}
       )
   set_tests_properties(test_python_${basename} PROPERTIES RUN_SERIAL 1)
 endforeach (doctest_source)

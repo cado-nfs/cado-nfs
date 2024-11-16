@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
-import sys
+
 import re
 import os
-if sys.version_info[1] < 5:
-    from fraction import gcd
-else:
-    from math import gcd
+from math import gcd
 import abc
 import random
 import time
@@ -19,10 +16,11 @@ import gzip
 import heapq
 import errno
 from cadofactor import patterns, wudb, cadoprograms
-from cadofactor import cadoparams, cadocommand, wuserver, workunit
+from cadofactor import cadoparams, cadocommand, workunit
 from cadofactor.workunit import Workunit
 from struct import error as structerror
 from shutil import rmtree
+from cadofactor import api_server
 
 # Pattern for floating-point numbers
 RE_FP = r"[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?"
@@ -1799,7 +1797,7 @@ class ClientServerTask(Task, wudb.UsesWorkunitDb, patterns.Observer):
             self.state.update({"start_real_time": delta.total_seconds()})
         key = "wu_submitted"
         self.state.update({key: self.state[key] + 1}, commit=False)
-        self.wuar.create(str(wu), commit=commit)
+        self.wuar.create(wu, commit=commit)
 
     def cancel_wu(self, wuid, commit=True):
         """
@@ -1843,6 +1841,7 @@ class ClientServerTask(Task, wudb.UsesWorkunitDb, patterns.Observer):
         assert self.get_wusize(wuid) > 0
 
         wutext = command.make_wu(wuid)
+
         for filename in command.get_exec_files() + command.get_input_files():
             basename = os.path.basename(filename)
             self.send_notification(Notification.REGISTER_FILENAME,
@@ -3576,7 +3575,7 @@ class FreeRelTask(Task):
             message = self.submit_command(p, None, log_errors=True)
             if message.get_exitcode(0) != 0:
                 raise Exception("Program failed")
-            stderr = message.read_stderr(0).decode("utf-8")
+            stderr = message.read_stderr(0).decode()
             update = self.parse_file(stderr.splitlines())
             update["freerelfilename"] = freerelfilename.get_wdir_relative()
             update["renumberfilename"] = renumberfilename.get_wdir_relative()
@@ -4540,8 +4539,8 @@ class PurgeTask(Task):
                                    stderr=str(stderrpath),
                                    **self.progparams[0])
         message = self.submit_command(p, None)
-        stdout = message.read_stdout(0).decode('utf-8')
-        # stderr = message.read_stderr(0).decode('utf-8')
+        stdout = message.read_stdout(0).decode()
+        # stderr = message.read_stderr(0).decode()
 
         if self.parse_output(stdout, input_nrels):
             stats = self.parse_stdout(stdout)
@@ -4840,7 +4839,7 @@ class MergeDLPTask(Task):
             message = self.submit_command(p, None, log_errors=True)
             if message.get_exitcode(0) != 0:
                 raise Exception("Program failed")
-            stdout = message.read_stdout(0).decode("utf-8")
+            stdout = message.read_stdout(0).decode()
             matsize = 0
             matweight = 0
             for line in stdout.splitlines():
@@ -4960,7 +4959,7 @@ class MergeTask(Task):
             message = self.submit_command(p, None, log_errors=True)
             if message.get_exitcode(0) != 0:
                 raise Exception("Program failed")
-            stdout = message.read_stdout(0).decode("utf-8")
+            stdout = message.read_stdout(0).decode()
             matsize = 0
             matweight = 0
             for line in stdout.splitlines():
@@ -5062,7 +5061,7 @@ class NumberTheoryTask(Task):
         if message.get_exitcode(0) != 0:
             raise Exception("Program failed")
 
-        stdout = message.read_stdout(0).decode("utf-8")
+        stdout = message.read_stdout(0).decode()
         update = {}
         for line in stdout.splitlines():
             match = re.match(r'# nmaps0 (\d+)', line)
@@ -5961,7 +5960,7 @@ class DescentTask(Task):
             if message.get_exitcode(0) != 0:
                 raise Exception("Program failed")
 
-            stdout = message.read_stdout(0).decode("utf-8")
+            stdout = message.read_stdout(0).decode()
             for line in stdout.splitlines():
                 match = re.match(r'log\(target\)=(\d+)', line)
                 if match:
@@ -6252,20 +6251,19 @@ class StartServerTask(DoesLogging, cadoparams.UseParameters, HasState):
         self.registered_filenames = \
             self.make_db_dict('server_registered_filenames')
 
-        lbq = self.params["linger_before_quit"]
-        self.server = wuserver.ServerLauncher(serveraddress,
-                                              serverport,
-                                              threaded,
-                                              db,
-                                              self.registered_filenames,
-                                              uploaddir,
-                                              nrsubdir,
-                                              bg=True,
-                                              only_registered=only_registered,
-                                              cafile=cafilename,
-                                              whitelist=server_whitelist,
-                                              timeout_hint=servertimeout_hint,
-                                              linger_before_quit=lbq)
+        # lbq = self.params["linger_before_quit"]
+
+        self.server = api_server.ServerLauncher(
+            serveraddress, serverport, db,
+            threaded=threaded,
+            uploaddir=uploaddir,
+            nrsubdir=nrsubdir,
+            only_registered=only_registered,
+            cafile=cafilename,
+            whitelist=server_whitelist,
+            timeout_hint=servertimeout_hint,
+            # linger_before_quit=lbq
+            )
         self.state["port"] = self.server.get_port()
 
     def run(self):
@@ -6481,10 +6479,10 @@ class StartClientsTask(Task):
                 self.logger.critical("DEAD: " + who)
                 if stdout:
                     self.logger.critical("Stdout: %s",
-                                         stdout.decode("utf-8").strip())
+                                         stdout.decode().strip())
                 if stderr:
                     self.logger.critical("Stderr: %s",
-                                         stderr.decode("utf-8").strip())
+                                         stderr.decode().strip())
                 if localhost:
                     raise RuntimeError("localhost clients should never die")
                 else:
@@ -6541,23 +6539,21 @@ class StartClientsTask(Task):
         if rc != 0:
             self.logger.warning("Starting client on host %s failed.", host)
             if stdout:
-                self.logger.warning("Stdout: %s",
-                                    stdout.decode("utf-8").strip())
+                self.logger.warning("Stdout: %s", stdout.decode().strip())
             if stderr:
-                self.logger.warning("Stderr: %s",
-                                    stderr.decode("utf-8").strip())
+                self.logger.warning("Stderr: %s", stderr.decode().strip())
             return
         match = None
         if stdout is not None:
-            match = re.match(r"PID: (\d+)", stdout.decode("utf-8"))
+            # The client doesn't print much in daemon mode, but still
+            # does print a little. re.search is better than re.match!
+            match = re.search(r"PID: (\d+)", stdout.decode())
         if not match:
             self.logger.warning("Client did not print PID")
             if stdout is not None:
-                self.logger.warning("Stdout: %s",
-                                    stdout.decode("utf-8").strip())
+                self.logger.warning("Stdout: %s", stdout.decode().strip())
             if stderr is not None:
-                self.logger.warning("Stderr: %s",
-                                    stderr.decode("utf-8").strip())
+                self.logger.warning("Stderr: %s", stderr.decode().strip())
             return
         self.used_ids[clientid] = True
         self._add_cid(clientid, int(match.group(1)), host)
@@ -6579,11 +6575,9 @@ class StartClientsTask(Task):
                                     self.hosts[clientid],
                                     self.pids[clientid])
                 if stdout:
-                    self.logger.warning("Stdout: %s",
-                                        stdout.decode("utf-8").strip())
+                    self.logger.warning("Stdout: %s", stdout.decode().strip())
                 if stderr:
-                    self.logger.warning("Stderr: %s",
-                                        stderr.decode("utf-8").strip())
+                    self.logger.warning("Stderr: %s", stderr.decode().strip())
                 # Assume that the client is already dead and remove it from
                 # the list of running clients
                 self._del_cid(clientid)

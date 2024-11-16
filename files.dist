@@ -872,9 +872,14 @@ portability.h
 scripts/CMakeLists.txt
 scripts/build_environment.sh
 scripts/cadofactor/README.md
+scripts/cadofactor/api_server/__init__.py
+scripts/cadofactor/api_server/__main__.py
+scripts/cadofactor/api_server/api.py
+scripts/cadofactor/api_server/launcher.py
 scripts/cadofactor/cadocommand.py
 scripts/cadofactor/cadofactor_tools/__init__.py
 scripts/cadofactor/cadofactor_tools/certificate.py
+scripts/cadofactor/cadofactor_tools/upload_dir.py
 scripts/cadofactor/cadologger.py
 scripts/cadofactor/cadoparams.py
 scripts/cadofactor/cadoprograms.py
@@ -883,11 +888,9 @@ scripts/cadofactor/parameters
 scripts/cadofactor/patterns.py
 scripts/cadofactor/signalhandler.py
 scripts/cadofactor/toplevel.py
-scripts/cadofactor/upload.py
 scripts/cadofactor/verify.py
 scripts/cadofactor/workunit.py
 scripts/cadofactor/wudb.py
-scripts/cadofactor/wuserver.py
 scripts/call_cmake.sh
 scripts/check_compilation_units_policy.pl
 scripts/check_main_constness.sh
@@ -920,6 +923,7 @@ scripts/refresh-fmtlib.sh
 scripts/refresh-gf2x.sh
 scripts/resubmit-tools.sh
 scripts/run-clang-tidy.py
+scripts/setup-venv.sh
 scripts/split.py
 scripts/version.sh
 sieve/CMakeLists.txt

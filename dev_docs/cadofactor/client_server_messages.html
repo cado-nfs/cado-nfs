@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+    <body>
+    <pre class="mermaid">
+  sequenceDiagram
+  participant Task as Task
+  participant WuDb as WuDb
+  participant Server as Server
+  participant Client as Client
+
+  activate Client
+
+  note right of Client: Client may be in its<br />init sequence, or may<br />have just uploaded stuff
+
+  rect rgb(191, 223, 255)
+  note right of Task: Task pre-fills the Db
+  activate Task
+  Task ->>+ WuDb: get number of <br/>available WUs
+  WuDb -->>- Task: N
+  loop while N < maxwu
+  Task ->>+ WuDb: submit_wu
+  end
+  deactivate Task
+  end
+
+  Client ->>+ Server: GET /workunit
+  deactivate Client
+  note right of Client: Client is idle until<br/>it receives a new WU
+  Server ->>+ WuDb: assign(clientid)
+  WuDb -->>- Server: Workunit
+  Server -->>- Client: Workunit
+  activate Client
+
+  Note right of Client: process WU
+  deactivate Client
+
+  activate Client
+  Client ->>+ Server: POST /upload
+  Server ->>+ WuDb: result()
+  deactivate Client
+
+  note right of Client: Client will proceed<br />with a new<br />GET /workunit
+
+  rect rgb(191, 223, 255)  
+  activate Task
+  note right of Task: Task polls the Db<br/>for new results
+  Task ->>+ WuDb: GET_WU_RESULT
+  WuDb -->>- Task: WuResultMessage
+  Task ->>+ WuDb: wu.verification()
+  note left of WuDb: WU marked VERIFIED_OK
+  WuDb -->>- Task: 
+
+  deactivate Task
+  end
+    </pre>
+    <script type="module">
+      import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    </script>
+  </body>
+</html>

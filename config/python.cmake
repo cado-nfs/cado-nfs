@@ -33,22 +33,27 @@ endif()
 # Check that importing the sqlite3 module works. Some distros don't have the
 # sqlite3 librarby installed, and some omit the Python sqlite3 module... :-(
 
-file(WRITE "${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/python_sqlite3_test.py" "import sqlite3\n")
-execute_process(COMMAND "${PYTHON_EXECUTABLE}"
-    "${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/python_sqlite3_test.py" RESULT_VARIABLE _returncode OUTPUT_QUIET ERROR_QUIET)
-file(REMOVE "${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/python_sqlite3_test.py")
-if (NOT _returncode EQUAL 0)
-  message(FATAL_ERROR "Importing the sqlite3 Python module failed. "
-"This may be caused by the sqlite3 library package missing on your system. "
-"This package is usually called \"sqlite3\"; please ensure via your system's "
-"package manager that it is installed. "
-"\n"
-"It may also be caused by the Python library module called \"sqlite3\" not "
-"being installed as part of your Python package. One known Linux distribution "
-"with this problem is Gentoo. Please read Readme.sqlite for information "
-"how to fix this problem.")
-else()
-  message(STATUS "Importing module sqlite3 in Python succeeded.")
-endif()
+foreach(mod sqlite3 flask)
+    file(WRITE "${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/python_${mod}_test.py" "import ${mod}\n")
+    execute_process(COMMAND "${PYTHON_EXECUTABLE}"
+        "${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/python_${mod}_test.py" RESULT_VARIABLE _returncode OUTPUT_QUIET ERROR_QUIET)
+    file(REMOVE "${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/python_${mod}_test.py")
+    if (NOT _returncode EQUAL 0)
+      message(FATAL_ERROR "Importing the ${mod} Python module failed. "
+    "This may be caused by the ${mod} library package missing on your system. "
+    "This package is usually called "
+    "\"python3-${mod}\", \"python-${mod}\", or maybe just \"${mod}\""
+    "; please ensure via your system's "
+              " package manager that it is installed."
+              " Alternatively, as a convenience means, we provide the"
+              " script ./scripts/setup-venv.sh , which you can use to"
+              " install the python requirements of cado-nfs in a venv."
+              " Running this script is probably the quickest way to get"
+              " you going."
+          )
+    else()
+      message(STATUS "Importing module ${mod} in Python succeeded.")
+    endif()
+endforeach()
 
 mark_as_advanced(PYTHON_EXECUTABLE)

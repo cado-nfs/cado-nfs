@@ -94,6 +94,17 @@ project_package_selection() {
     # fedora_packages="$fedora_packages     bzip2"
     # centos_packages="$centos_packages     bzip2"
     # alpine_packages="$alpine_packages     bzip2"
+
+    if [ "$needs_python" ] ; then
+        echo " + needs_python is set"
+        debian_packages="$debian_packages     python3-flask"
+        opensuse_packages="$opensuse_packages python3"
+        fedora_packages="$fedora_packages     python"
+        centos_packages="$centos_packages     python3"
+        alpine_packages="$alpine_packages     python3"
+        # py311-sqlite3 is in the python stdlib, but trimmed on on fbsd
+        freebsd_packages="$freebsd_packages   python3 py311-sqlite3"
+    fi
 }
 
 # Note: most of the interesting stuff is in ci.bash

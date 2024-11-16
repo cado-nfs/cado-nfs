@@ -38,15 +38,10 @@ import abc
 from datetime import datetime
 import re
 import time
-
-if re.search("^/", "@CMAKE_INSTALL_PREFIX@/@LIBSUFFIX@"):
-    sys.path.append("@CMAKE_INSTALL_PREFIX@/@LIBSUFFIX@")
+import json
 
 from cadofactor.workunit import Workunit
-if sys.version_info.major == 3:
-    from queue import Queue
-else:
-    from Queue import Queue
+from queue import Queue
 
 # we need the cadologger import because it adds the TRANSACTION log
 # level. It's ugly
@@ -419,7 +414,11 @@ class CursorWrapperBase(object, metaclass=abc.ABCMeta):
         values = list(d.values()) + wherevalues
         self._exec(command, values)
 
-    def where_query(self, joinsource, col_alias=None, limit=None, order=None,
+    def where_query(self,
+                    joinsource,
+                    col_alias=None,
+                    limit=None, offset=None,
+                    order=None,
                     **conditions):
         # Table/Column names cannot be substituted,
         # so include in query directly.
@@ -434,12 +433,16 @@ class CursorWrapperBase(object, metaclass=abc.ABCMeta):
             LIMIT = ""
         else:
             LIMIT = " LIMIT %s" % int(limit)
+            if offset is not None:
+                LIMIT += " OFFSET %s" % int(offset)
         AS = self.as_string(col_alias)
         command = "SELECT * %s FROM %s %s %s %s" \
                   % (AS, joinsource, WHERE, ORDER, LIMIT)
         return (command, values)
 
-    def where(self, joinsource, col_alias=None, limit=None, order=None,
+    def where(self, joinsource, col_alias=None,
+              limit=None, offset=None,
+              order=None,
               values=[], **conditions):
         """ Get a up to "limit" table rows (limit == 0: no limit) where
             the key:value pairs of the dictionary "conditions" are set to the
@@ -811,6 +814,9 @@ class DbTable(object):
         return cursor.where_as_dict(self.tablename, limit=limit,
                                     order=order, **conditions)
 
+    def count(self, cursor, **conditions):
+        return cursor.count(self.tablename, **conditions)
+
 
 class WuTable(DbTable):
     tablename = "workunits"
@@ -872,19 +878,15 @@ class DictDbTable(DbTable):
         super().__init__(*args, **kwargs)
 
 
-class DictDbAccess(MutableMapping):
+class DictDbDirectAccess(MutableMapping):
     """ A DB-backed flat dictionary.
 
     Flat means that the value of each dictionary entry must be a type that
     the underlying DB understands, like integers, strings, etc., but not
     collections or other complex types.
 
-    A copy of all the data in the table is kept in memory; read accesses
-    are always served from the in-memory dict. Write accesses write through
-    to the DB.
-
     >>> conn = DBFactory('db:sqlite3://:memory:').connect()
-    >>> d = DictDbAccess(conn, 'test')
+    >>> d = DictDbDirectAccess(conn, 'test')
     >>> d == {}
     True
     >>> d['a'] = '1'
@@ -897,7 +899,7 @@ class DictDbAccess(MutableMapping):
     >>> d == {'a': 2, 'b': '3'}
     True
     >>> del d
-    >>> d = DictDbAccess(conn, 'test')
+    >>> d = DictDbDirectAccess(conn, 'test')
     >>> d == {'a': 2, 'b': '3'}
     True
     >>> del d['b']
@@ -962,28 +964,53 @@ class DictDbAccess(MutableMapping):
         # Create an empty table if none exists
         cursor = self.get_cursor()
         self._table.create(cursor)
-        # Get the entries currently stored in the DB
-        self._data = self._getall()
         cursor.close()
 
     def get_cursor(self):
         return self._conn.cursor()
 
-    # Implement the abstract methods defined by
-    # collections.abc.MutableMapping All but __del__ and __setitem__ are
-    # simply passed through to the self._data dictionary
-
     def __getitem__(self, key):
-        return self._data.__getitem__(key)
+        cursor = self.get_cursor()
+        if not cursor.in_transaction():
+            cursor.begin(EXCLUSIVE)
+        r, = self._table.where(cursor, limit=1, eq=dict(kkey=key))
+        cursor.close()
+        return self.__convert_value(r)
+
+    def _iter_raw(self):
+        n = len(self)
+        batch_size = 128
+        cursor = self.get_cursor()
+        for i in range(1, n + 1, batch_size):
+            if not cursor.in_transaction():
+                cursor.begin(EXCLUSIVE)
+            rows = self._table.where(cursor, limit=batch_size, offset=i)
+            cursor.close()
+            for r in rows:
+                yield (r["kkey"], self.__convert_value(r))
 
     def __iter__(self):
-        return self._data.__iter__()
+        for r, v in self._iter_raw():
+            yield r
+
+    def items(self):
+        return self._iter_raw()
 
     def __len__(self):
-        return self._data.__len__()
+        cursor = self.get_cursor()
+        if not cursor.in_transaction():
+            cursor.begin(EXCLUSIVE)
+        n = self._table.count(cursor)
+        cursor.close()
+        return n
 
-    def __str__(self):
-        return self._data.__str__()
+    def __contains__(self, key):
+        cursor = self.get_cursor()
+        if not cursor.in_transaction():
+            cursor.begin(EXCLUSIVE)
+        n = self._table.count(cursor, eq=dict(kkey=key))
+        cursor.close()
+        return bool(n)
 
     def __del__(self):
         """ Close the DB connection and delete the in-memory dictionary """
@@ -1018,7 +1045,8 @@ class DictDbAccess(MutableMapping):
                 return idx
         raise TypeError("Type %s not supported" % str(valuetype))
 
-    def _getall(self):
+    # This is guaranteed to hit the sql table and no other method
+    def _backend_getall(self):
         """ Reads the whole table and returns it as a dict """
         cursor = self.get_cursor()
         rows = self._table.where(cursor)
@@ -1029,22 +1057,23 @@ class DictDbAccess(MutableMapping):
         """ Set dictionary key to value and update/insert into table,
         but don't commit. Cursor must be given
         """
-        update = {"value": str(value), "type": self.__get_type_idx(value)}
-        if key in self._data:
-            # Update the table row where column "key" equals key
-            self._table.update(cursor, update, eq={"kkey": key})
+        # Insert a new row
+        if self._table.count(cursor, eq=dict(kkey=key)):
+            self._table.update(cursor,
+                               dict(value=str(value),
+                                    type=self.__get_type_idx(value)),
+                               eq=dict(kkey=key))
         else:
-            # Insert a new row
-            update["kkey"] = key
-            self._table.insert(cursor, update)
-        # Update the in-memory dict
-        self._data[key] = value
+            self._table.insert(cursor,
+                               dict(kkey=key,
+                                    value=str(value),
+                                    type=self.__get_type_idx(value)))
 
     def __setitem__(self, key, value):
         """ Access by indexing, e.g., d["foo"]. Always commits """
         cursor = self.get_cursor()
 
-        if not cursor.in_transaction:
+        if not cursor.in_transaction():
             cursor.begin(EXCLUSIVE)
         self.__setitem_nocommit(cursor, key, value)
         conn_commit(self._conn)
@@ -1055,14 +1084,12 @@ class DictDbAccess(MutableMapping):
         """ Delete a key from the dictionary """
         cursor = self.get_cursor()
 
-        if not cursor.in_transaction:
+        if not cursor.in_transaction():
             cursor.begin(EXCLUSIVE)
-        self._table.delete(cursor, eq={"kkey": key})
+        self._table.delete(cursor, eq=dict(kkey=key))
         if commit:
             conn_commit(self._conn)
-
         cursor.close()
-        del self._data[key]
 
     def setdefault(self, key, default=None, commit=True):
         ''' Setdefault function that allows a mapping as input
@@ -1078,7 +1105,7 @@ class DictDbAccess(MutableMapping):
             return None
         elif key not in self:
             self.update({key: default}, commit=commit)
-        return self._data[key]
+        return self[key]
 
     def update(self, other, commit=True):
         cursor = self.get_cursor()
@@ -1088,7 +1115,6 @@ class DictDbAccess(MutableMapping):
             self.__setitem_nocommit(cursor, key, value)
         if commit:
             conn_commit(self._conn)
-
         cursor.close()
 
     def clear(self, args=None, commit=True):
@@ -1097,16 +1123,88 @@ class DictDbAccess(MutableMapping):
         if not self._conn.in_transaction:
             cursor.begin(EXCLUSIVE)
         if args is None:
-            self._data.clear()
             self._table.delete(cursor)
         else:
             for key in args:
-                del self._data[key]
-                self._table.delete(cursor, eq={"kkey": key})
+                self._table.delete(cursor, eq=dict(kkey=key))
         if commit:
             conn_commit(self._conn)
-
         cursor.close()
+
+
+class DictDbCachedAccess(DictDbDirectAccess):
+    """
+    This is the same as DictDbDirectAccess, except that everything is
+    stored in a cached dictionary:
+    a copy of all the data in the table is kept in memory; read accesses
+    are always served from the in-memory dict. Write accesses write
+    through to the DB.
+    """
+
+    types = (str, int, float, bool)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._data = self._backend_getall()
+
+    # Implement the abstract methods defined by
+    # collections.abc.MutableMapping All but __del__ and __setitem__ are
+    # simply passed through to the self._data dictionary
+
+    def __getitem__(self, key):
+        return self._data.__getitem__(key)
+
+    def __iter__(self):
+        return self._data.__iter__()
+
+    def __len__(self):
+        return self._data.__len__()
+
+    def __str__(self):
+        return self._data.__str__()
+
+    def __contains__(self, key):
+        return key in self._data
+
+    def __setitem__(self, key, value):
+        super().__setitem__(key, value)
+        # Update the in-memory dict
+        self._data[key] = value
+
+    def __delitem__(self, key, commit=True):
+        super().__delitem__(key)
+        # Update the in-memory dict
+        del self._data[key]
+
+    def setdefault(self, key, default=None, commit=True):
+        '''
+        note that key=None is a house addition
+        '''
+        if key is None and isinstance(default, Mapping):
+            super().setdefault(key=key, default=default, commit=commit)
+            return
+        elif key not in self:
+            self._data[key] = super().setdefault(key=key,
+                                                 default=default,
+                                                 commit=commit)
+        return self._data[key]
+
+    def update(self, other, commit=True):
+        super().update(other, commit=commit)
+        for (key, value) in other.items():
+            self._data[key] = value
+
+    def clear(self, args=None, commit=True):
+        """ Overridden clear that allows removing several keys atomically """
+        super().clear(args=args, commit=commit)
+        if args is None:
+            self._data.clear()
+        else:
+            for key in args:
+                del self._data[key]
+
+
+DictDbAccess = DictDbCachedAccess
 
 
 class Mapper(object):
@@ -1322,7 +1420,7 @@ class WuAccess(object):
     def check(self, data):
         status = data["status"]
         WuStatus.check(status)
-        wu = Workunit(data["wu"])
+        wu = Workunit(json.loads(data["wu"]))
         assert wu.get_id() == data["wuid"]
         if status == WuStatus.RECEIVED_ERROR:
             assert data["errorcode"] != 0
@@ -1371,10 +1469,10 @@ class WuAccess(object):
         self.commit()
         cursor.close()
 
-    def _create1(self, cursor, wutext, priority=None):
+    def _create1(self, cursor, wu, priority=None):
         d = {
-            "wuid": Workunit(wutext).get_id(),
-            "wu": wutext,
+            "wuid": wu.get_id(),
+            "wu": str(wu),
             "status": WuStatus.AVAILABLE,
             "timecreated": str(datetime.utcnow())
             }
@@ -1390,7 +1488,7 @@ class WuAccess(object):
         # todo restore transactions
         if not self.conn.in_transaction:
             cursor.begin(EXCLUSIVE)
-        if isinstance(wus, str):
+        if isinstance(wus, Workunit):
             self._create1(cursor, wus, priority)
         else:
             for wu in wus:
@@ -1400,7 +1498,7 @@ class WuAccess(object):
 
     def assign(self, clientid, commit=True, timeout_hint=None):
         """ Finds an available workunit and assigns it to clientid.
-            Returns the text of the workunit, or None if no available
+            Returns workunit object, or None if no available
             workunit exists """
         cursor = self.get_cursor()
         if not self.conn.in_transaction:
@@ -1430,11 +1528,10 @@ class WuAccess(object):
                  }
             pk = self.mapper.getpk()
             self.mapper.table.update(cursor, d, eq={pk: r[0][pk]})
-            result = r[0]["wu"]
-            if timeout_hint:
-                dltext = "%d\n" % int(time.time() + int(timeout_hint))
-                result = result + "DEADLINE " + dltext
+            result = Workunit(json.loads(r[0]["wu"]))
 
+            if timeout_hint:
+                result['deadline'] = time.time() + float(timeout_hint)
         else:
             result = None
 
@@ -1451,7 +1548,8 @@ class WuAccess(object):
         else:
             return None
 
-    def result(self, wuid, clientid, files, errorcode=None,
+    def result(self, wuid, clientid, files,
+               errorcode=None,
                failedcommand=None, commit=True):
         cursor = self.get_cursor()
         if not self.conn.in_transaction:
@@ -1660,7 +1758,7 @@ class ResultInfo(WuResultMessage):
             return []
         files = []
         for f in self.record["files"]:
-            if f["type"] == "RESULT":
+            if f["type"].startswith("RESULT"):
                 files.append(f["path"])
         return files
 
@@ -1671,7 +1769,8 @@ class ResultInfo(WuResultMessage):
         if self.record["files"] is None:
             return None
         for f in self.record["files"]:
-            if f["type"] == filetype and int(f["command"]) == command_nr:
+            if f["type"].startswith(filetype) \
+               and int(f["command"]) == command_nr:
                 return f["path"]
         return None
 
@@ -1739,13 +1838,17 @@ class DbListener(patterns.Observable):
 
 
 class IdMap(object):
-    """ Identity map. Ensures that DB-backed dictionaries of the same table
-    name are instantiated only once.
+    """
+    Ensures that DB-backed dictionaries of the same table name are
+    instantiated only once. This is made so that multiple control flows
+    _within the same thread_ can have a one-stop shop to access this
+    database table. It is _not_ wise to share this among threads, since
+    it will crash!
 
-    Problem: we should also require that the DB is identical, but file names
-    are not a unique specifier to a file, and we allow connection objects
-    instead of DB file name. Not clear how to test for identity, lacking
-    support for this from the sqlite3 module API.
+    Since we assume that we have only one thread accessing the database,
+    it is ok to use DictDbAccess (a.k.a. DictDbCachedAccess). But if we
+    want to go multithread, which is conceivable, we would need
+    DictDbDirectAccess, at some performance cost.
     """
     def __init__(self):
         self.db_dicts = {}

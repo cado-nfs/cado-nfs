@@ -6,14 +6,17 @@ set(cadofactor_scripts
     cadoprograms.py
     cadotask.py
     patterns.py
-    upload.py
     workunit.py
     toplevel.py
-    wuserver.py
+    wudb.py
     # signalhandler.py
     # verify.py
+    api_server/__init__.py
+    api_server/api.py
+    api_server/launcher.py
     cadofactor_tools/__init__.py
     cadofactor_tools/certificate.py
+    cadofactor_tools/upload_dir.py
 )
 
 set(descent_scripts
@@ -35,10 +38,6 @@ foreach(m cadofactor descent)
         install(FILES ${m}/${f} DESTINATION ${LIBSUFFIX}/scripts/${m})
     endforeach()
 endforeach()
-
-# This one is a bit special since we do @ replacement there.
-configure_file(cadofactor/wudb.py cadofactor/wudb.py ESCAPE_QUOTES @ONLY)
-install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/cadofactor/wudb.py DESTINATION ${LIBSUFFIX}/scripts/cadofactor)
 
 configure_file(descent.py descent.py COPYONLY)
 foreach(m descent)

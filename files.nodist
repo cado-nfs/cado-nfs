@@ -104,7 +104,6 @@ polyselect/twocubics.c
 polyselect/twoquadratics.c
 polyselect/twoquadratics.sage
 scripts/cadofactor/README.OAR
-scripts/cadofactor/index.html
 scripts/cadofactor/parameters.oar
 scripts/cadofactor/parameters.rsa512.oar
 scripts/check_file_lists.pl

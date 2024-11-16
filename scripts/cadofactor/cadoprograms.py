@@ -7,6 +7,7 @@ import logging
 
 from cadofactor import cadocommand
 from cadofactor import cadoparams
+from cadofactor.workunit import Workunit
 
 
 class InspectType(type):
@@ -257,16 +258,19 @@ class Toggle(Option):
                              "type argument" % self.get_arg())
 
 
-class Sha1Cache(object):
+class ShaCache(object):
     """
-    A class that computes SHA1 sums for files and caches them, so that a
-    later request for the SHA1 sum for the same file is not computed
+    A class that computes SHA sums for files and caches them, so that a
+    later request for the SHA sum for the same file is not computed
     again.  File identity is checked via the file's realpath and the
     file's inode, size, and modification time.
     """
 
-    def __init__(self):
-        self._sha1 = {}
+    def __init__(self, digest='sha1'):
+        self._cache = {}
+        self._digest = digest
+        self._f = getattr(hashlib, self._digest, None)
+        assert self._f is not None
 
     @staticmethod
     def _read_file_in_blocks(file_object):
@@ -277,31 +281,34 @@ class Sha1Cache(object):
                 break
             yield data
 
-    def get_sha1(self, filename):
+    def get_hash(self, filename):
         realpath = os.path.realpath(filename)
         stat = os.stat(realpath)
         file_id = (stat.st_ino, stat.st_size, stat.st_mtime)
         # Check whether the file on disk changed
-        if realpath in self._sha1 and not self._sha1[realpath][1] == file_id:
-            logger = logging.getLogger("Sha1Cache")
-            logger.warning(f"File {realpath} changed!"
-                           " Discarding old SHA1 sum")
-            del self._sha1[realpath]
+        if realpath in self._cache:
+            if self._cache[realpath][1] != file_id:
+                logger = logging.getLogger("ShaCache")
+                logger.warning(f"File {realpath} changed!"
+                               f" Discarding old {self._digest} sum")
+                del self._cache[realpath]
 
-        if realpath not in self._sha1:
-            logger = logging.getLogger("Sha1Cache")
-            logger.debug("Computing SHA1 for file %s", realpath)
-            sha1 = hashlib.sha1()
+        if realpath not in self._cache:
+            logger = logging.getLogger("ShaCache")
+            logger.debug("Computing %s for file %s", self._digest, realpath)
+            sha = self._f()
             with open(realpath, "rb") as inputfile:
                 for data in self._read_file_in_blocks(inputfile):
-                    sha1.update(data)
-                self._sha1[realpath] = (sha1.hexdigest(), file_id)
-            logger.debug("SHA1 for file %s is %s", realpath,
-                         self._sha1[realpath])
-        return self._sha1[realpath][0]
+                    sha.update(data)
+                self._cache[realpath] = (sha.hexdigest(), file_id)
+            logger.debug("%s for file %s is %s",
+                         self._digest,
+                         realpath,
+                         self._cache[realpath])
+        return self._cache[realpath][0]
 
 
-sha1cache = Sha1Cache()
+shacache = {c: ShaCache(c) for c in 'sha1 sha256 sha3_256'.split()}
 
 
 if os.name == "nt":
@@ -718,50 +725,60 @@ class Program(object, metaclass=InspectType):
 
     def make_wu(self, wuname):
         filenametrans = {}
-        counters = {"FILE": 1,
-                    "EXECFILE": 1,
-                    "RESULT": 1,
-                    "STDOUT": 1,
-                    "STDERR": 1,
-                    "STDIN": 1,
-                    }
+        algorithm = 'sha1'
+        wu = {}
+        wu['id'] = wuname
+        wu['files'] = {}
 
-        def append_file(wu, key, filename, with_checksum=True):
+        def add_file_entry(key, i, filename,
+                           is_input=False,
+                           is_output=False):
+            fid = key
+            if i is not None:
+                fid += str(i)
             if not key.startswith("STD"):
                 assert filename not in filenametrans
-                filenametrans[filename] = "${%s%d}" % (key, counters[key])
-            counters[key] += 1
-            wu.append('%s %s' % (key, os.path.basename(filename)))
-            if with_checksum:
-                if os.path.isfile(filename):
-                    wu.append('CHECKSUM %s' % sha1cache.get_sha1(filename))
-                # otherwise there'll be no checksum.
-            if self.suggest_subdir.get(filename, None):
-                wu.append('SUGGEST_%s %s' % (key,
-                                             self.suggest_subdir[filename]))
-        workunit = ['WORKUNIT %s' % wuname]
+                filenametrans[filename] = "${%s}" % fid
+            dirname, basename = os.path.split(filename)
+            f = dict(filename=basename)
+            if (m := self.suggest_subdir.get(filename)) is not None:
+                f['suggest_path'] = m
 
-        for filename in self.get_input_files():
-            append_file(workunit, 'FILE', str(filename))
-        for filename in self.get_exec_files():
-            append_file(workunit, 'EXECFILE', str(filename))
-        for filename in self.get_output_files():
-            append_file(workunit, 'RESULT', str(filename),
-                        with_checksum=False)
+            if is_input:
+                assert os.path.isfile(filename)
+                f['algorithm'] = algorithm
+                f['checksum'] = shacache[algorithm].get_hash(filename)
+                f['download'] = True
+
+            if is_output:
+                f['upload'] = True
+
+            assert fid not in wu['files']
+            wu['files'][fid] = f
+
+        for i, filename in enumerate(self.get_input_files()):
+            add_file_entry('FILE', i, filename, True, False)
+        for i, filename in enumerate(self.get_exec_files()):
+            add_file_entry('EXECFILE', i, filename, True, False)
+        for i, filename in enumerate(self.get_output_files()):
+            add_file_entry('RESULT', i, filename, False, True)
+
+        # we're fundamentally tied to having a single command here, so
+        # we'll obviously have only one single triple of stdio
+        # descriptors, as well as a one-command list. However, the
+        # Workunit type itself is not constraining us to this.
+        # In principle the WU mechanism should be able to cope with
+        # multiple command WUs.
         if self.stdout is not None:
-            append_file(workunit, 'STDOUT', str(self.stdout),
-                        with_checksum=False)
+            add_file_entry('STDOUT', 0, self.stdout, False, False)
         if self.stderr is not None:
-            append_file(workunit, 'STDERR', str(self.stdout),
-                        with_checksum=False)
+            add_file_entry('STDERR', 0, self.stderr, False, False)
         if self.stdin is not None:
-            append_file(workunit, 'STDIN', str(self.stdin))
+            add_file_entry('STDIN', 0, self.stdin, True, False)
+        wu['commands'] = [self.make_command_line(filenametrans=filenametrans,
+                                                 in_wu=True, quote=False)]
 
-        cmdline = self.make_command_line(filenametrans=filenametrans,
-                                         in_wu=True, quote=False)
-        workunit.append('COMMAND %s' % cmdline)
-        workunit.append("")  # Make a trailing newline
-        return '\n'.join(workunit)
+        return Workunit(wu)
 
 
 class Polyselect(Program):
