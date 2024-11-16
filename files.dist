@@ -872,10 +872,7 @@ portability.h
 scripts/CMakeLists.txt
 scripts/build_environment.sh
 scripts/cadofactor/README.md
-scripts/cadofactor/api_server/__init__.py
-scripts/cadofactor/api_server/__main__.py
-scripts/cadofactor/api_server/api.py
-scripts/cadofactor/api_server/launcher.py
+scripts/cadofactor/api_server.py
 scripts/cadofactor/cadocommand.py
 scripts/cadofactor/cadofactor_tools/__init__.py
 scripts/cadofactor/cadofactor_tools/certificate.py
@@ -884,6 +881,15 @@ scripts/cadofactor/cadologger.py
 scripts/cadofactor/cadoparams.py
 scripts/cadofactor/cadoprograms.py
 scripts/cadofactor/cadotask.py
+scripts/cadofactor/database/__init__.py
+scripts/cadofactor/database/access.py
+scripts/cadofactor/database/base.py
+scripts/cadofactor/database/dictdb.py
+scripts/cadofactor/database/factory.py
+scripts/cadofactor/database/misc.py
+scripts/cadofactor/database/mysql.py
+scripts/cadofactor/database/sqlite3.py
+scripts/cadofactor/database/table.py
 scripts/cadofactor/parameters
 scripts/cadofactor/patterns.py
 scripts/cadofactor/signalhandler.py
@@ -1303,7 +1309,8 @@ tests/sagemath/cado_sage/purged.py
 tests/sagemath/cado_sage/tools.py
 tests/scripts/CMakeLists.txt
 tests/scripts/cadofactor/CMakeLists.txt
-tests/scripts/cadofactor/test_wudb_cmdline.sh
+tests/scripts/cadofactor/test_python_stress_test.sh
+tests/scripts/cadofactor/test_python_wudb_cmdline.sh
 tests/sieve/CMakeLists.txt
 tests/sieve/F9.dupsup.sh
 tests/sieve/F9.fakerels.sh

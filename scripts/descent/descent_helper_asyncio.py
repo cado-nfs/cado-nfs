@@ -38,7 +38,10 @@ class important_files_async_loop():
                 proc = await asyncio.create_subprocess_exec(
                     *args,
                     stdout=asyncio.subprocess.PIPE)
-                while (line := await proc.stdout.readline()):
+                while True:
+                    line = await proc.stdout.readline()
+                    if not line:
+                        break
                     line = line.decode('utf-8').strip()
                     async with self.lk:
                         if self.consumer_done.is_set():

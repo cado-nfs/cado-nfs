@@ -741,7 +741,8 @@ class Program(object, metaclass=InspectType):
                 filenametrans[filename] = "${%s}" % fid
             dirname, basename = os.path.split(filename)
             f = dict(filename=basename)
-            if (m := self.suggest_subdir.get(filename)) is not None:
+            m = self.suggest_subdir.get(filename)
+            if m is not None:
                 f['suggest_path'] = m
 
             if is_input:

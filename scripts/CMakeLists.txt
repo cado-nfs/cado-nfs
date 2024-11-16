@@ -11,12 +11,19 @@ set(cadofactor_scripts
     wudb.py
     # signalhandler.py
     # verify.py
-    api_server/__init__.py
-    api_server/api.py
-    api_server/launcher.py
+    api_server.py
     cadofactor_tools/__init__.py
     cadofactor_tools/certificate.py
     cadofactor_tools/upload_dir.py
+    database/__init__.py
+    database/access.py
+    database/base.py
+    database/dictdb.py
+    database/factory.py
+    database/misc.py
+    database/mysql.py
+    database/sqlite3.py
+    database/table.py
 )
 
 set(descent_scripts

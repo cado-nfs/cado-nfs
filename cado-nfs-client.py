@@ -32,8 +32,8 @@ import ssl
 import requests
 from urllib.parse import urlparse
 
-if sys.hexversion < 0x03080000:
-    sys.exit("Python 3.8 or newer is required to run this program.")
+if sys.hexversion < 0x03060000:
+    sys.exit("Python 3.6 or newer is required to run this program.")
 
 # THIS PART MUST BE EXACTLY IDENTICAL IN cado-nfs.py and cado-nfs-client.py
 
@@ -717,9 +717,13 @@ class WorkunitProcessor(object):
         """ Test that the file exists and, if the stat object knows the
         "executable by user" constant, that it is executable
         """
-        return all([os.path.isfile(filename),
-                    not (hasattr(stat, "S_IXUSR")
-                         and (os.stat(filename).st_mode & stat.S_IXUSR) == 0)])
+        if not os.path.isfile(filename):
+            return False
+        if hasattr(stat, "S_IXUSR"):
+            return (os.stat(filename).st_mode & stat.S_IXUSR) != 0
+        else:
+            # perhaps every file is executable?
+            return True
 
     @staticmethod
     def find_binary(filename, searchpath):
@@ -779,7 +783,8 @@ class WorkunitProcessor(object):
         filename = f['filename']
         if self.settings["BINDIR"]:
             searchpath = self.settings["BINDIR"].split(';')
-            if (suggest := f.get("suggest_path")) is not None:
+            suggest = f.get("suggest_path")
+            if suggest is not None:
                 searchpath += [os.path.join(x, suggest) for x in searchpath]
             binfile = self.find_binary(filename, searchpath)
             if binfile is None:
@@ -852,7 +857,8 @@ class WorkunitProcessor(object):
                                              preexec_fn=renice_func)
 
             # steal stdout/stderr, put them to files.
-            if (out := files.get(my_stdout_filename)) is not None:
+            out = files.get(my_stdout_filename)
+            if out is not None:
                 if stdout is not None:
                     with open(out['filename'], "wb") as f:
                         f.write(stdout)
@@ -860,7 +866,8 @@ class WorkunitProcessor(object):
             if stdout:
                 self.stdio["stdout"].append(stdout)
 
-            if (err := files.get(my_stderr_filename)) is not None:
+            err = files.get(my_stderr_filename)
+            if err is not None:
                 if stderr is not None:
                     with open(err['filename'], "wb") as f:
                         f.write(stderr)
@@ -1062,7 +1069,8 @@ class WorkunitWrapper(Workunit):
         self.wu_filename = newname
 
     def is_stale(self):
-        if (d := self.get("deadline")) is not None:
+        d = self.get("deadline")
+        if d is not None:
             return time.time() > float(d)
         return False
 
@@ -1919,6 +1927,7 @@ if __name__ == '__main__':
 
     logging.info("Starting client %s", SETTINGS["CLIENTID"])
     logging.info("Python version is %d.%d.%d", *sys.version_info[0:3])
+    logging.info("Args %s", sys.argv)
 
     serv_pool = ServerPool(SETTINGS)
 

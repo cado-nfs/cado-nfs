@@ -27,6 +27,16 @@ cado_define_test(test_python_wudb_cmdline
     PROVIDE_TEMPORARY_WDIR
     ENVIRONMENT PYTHONPATH=${CADO_NFS_SOURCE_DIR}/scripts
     SCRIPT
-    "${CMAKE_CURRENT_SOURCE_DIR}/test_wudb_cmdline.sh" "${CADO_NFS_SOURCE_DIR}/scripts/cadofactor/"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_python_wudb_cmdline.sh" "${CADO_NFS_SOURCE_DIR}/scripts/cadofactor/"
     TIMEOUT 60
 )
+
+if(DEFINED ENV{CHECKS_EXPENSIVE})
+cado_define_test(test_python_stress_test_sqlite3
+    PROVIDE_TEMPORARY_WDIR
+    SCRIPT
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_python_stress_test.sh"
+    AVOID_CONCURRENT
+    TIMEOUT 240  # takes 15 seconds on my laptop.
+)
+endif()

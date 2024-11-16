@@ -20,7 +20,7 @@ from cadofactor import cadoparams, cadocommand, workunit
 from cadofactor.workunit import Workunit
 from struct import error as structerror
 from shutil import rmtree
-from cadofactor import api_server
+from cadofactor.api_server import ApiServer
 
 # Pattern for floating-point numbers
 RE_FP = r"[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?"
@@ -2003,6 +2003,10 @@ class ClientServerTask(Task, wudb.UsesWorkunitDb, patterns.Observer):
         self.logger.debug("Timeout check took %f s, found %d WUs",
                           time.time() - now, len(results))
         for entry in results:
+            # XXX we would like to do this atomically, but the current db
+            # access methods ignore the commit argument, which is a huge
+            # pain. In fact, it's not that much of a problem, though. We
+            # can live with the wu disappearing for a jiffy or two.
             self.cancel_wu(entry["wuid"], commit=False)
             self.resubmit_one_wu(Workunit(entry["wu"]), commit=True)
 
@@ -6255,7 +6259,7 @@ class StartServerTask(DoesLogging, cadoparams.UseParameters, HasState):
 
         # lbq = self.params["linger_before_quit"]
 
-        self.server = api_server.ServerLauncher(
+        self.server = ApiServer(
             serveraddress, serverport, db,
             threaded=threaded,
             uploaddir=uploaddir,
@@ -6707,7 +6711,8 @@ class Request(Message):
 
 
 class CompleteFactorization(HasState,
-                            wudb.DbAccess,
+                            # (implicit) wudb.UsesWorkunitDb,
+                            wudb.ListensToWorkunitDb,
                             DoesLogging,
                             cadoparams.UseParameters,
                             patterns.Mediator):
@@ -6758,7 +6763,6 @@ class CompleteFactorization(HasState,
         self.db = db
         super().__init__(db=db, parameters=parameters, path_prefix=path_prefix)
         self.params = self.parameters.myparams(self.paramnames)
-        self.db_listener = self.make_db_listener()
 
         if self.params["dlp"]:
             p = self.params["N"]
@@ -6787,7 +6791,10 @@ class CompleteFactorization(HasState,
                 raise ValueError("ell must divide p^%d-1" % k)
 
         # Init WU BD
-        self.wuar = self.make_wu_access()
+        # Note that we get self.wuar = self.make_wu_access(db.connect()) via
+        # inheritance of wudb.UsesWorkunitDb
+        # self.wuar = self.make_wu_access()
+
         self.wuar.create_tables()
         if self.params["trybadwu"]:
             # Test behaviour when a WU is in the DB that does not belong to
@@ -7012,7 +7019,7 @@ class CompleteFactorization(HasState,
             Request.GET_MERGED_FILENAME: self.merge.get_merged_filename,
             Request.GET_INDEX_FILENAME: self.merge.get_index_filename,
             Request.GET_DENSE_FILENAME: self.merge.get_dense_filename,
-            Request.GET_WU_RESULT: self.db_listener.send_result,
+            Request.GET_WU_RESULT: self.send_result,
             Request.GET_WORKDIR_JOBNAME: self.fb.workdir.get_workdir_jobname,
             Request.GET_WORKDIR_PATH: self.fb.workdir.get_workdir_path,
             Request.GET_CLIENTS: self.get_clients,
@@ -7274,7 +7281,7 @@ class CompleteFactorization(HasState,
             else:
                 self.tasks_that_want_to_run.append(sender)
         elif key is Notification.SUBSCRIBE_WU_NOTIFICATIONS:
-            return self.db_listener.subscribeObserver(sender)
+            return self.subscribeObserver(sender)
         else:
             raise KeyError("Notification from %s has unknown key %s"
                            % (sender, key))

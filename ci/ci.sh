@@ -97,13 +97,18 @@ project_package_selection() {
 
     if [ "$needs_python" ] ; then
         echo " + needs_python is set"
-        debian_packages="$debian_packages     python3-flask"
-        opensuse_packages="$opensuse_packages python3"
-        fedora_packages="$fedora_packages     python"
-        centos_packages="$centos_packages     python3"
-        alpine_packages="$alpine_packages     python3"
+        debian_packages="$debian_packages     python3-flask python3-requests"
+        opensuse_packages="$opensuse_packages python3-Flask python3-requests"
+        fedora_packages="$fedora_packages     python3-flask python3-requests openssl"
+        centos_packages="$centos_packages     python3-requests"
+        if is_centos ; then
+            # centos has no python3-flask package, but we can install it
+            # via pip
+            pip_packages="$pip_packages flask"
+        fi
+        alpine_packages="$alpine_packages     py3-flask py3-requests"
         # py311-sqlite3 is in the python stdlib, but trimmed on on fbsd
-        freebsd_packages="$freebsd_packages   python3 py311-sqlite3"
+        freebsd_packages="$freebsd_packages   py311-sqlite3 py311-flask py311-requests"
     fi
 }
 

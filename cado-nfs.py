@@ -5,8 +5,8 @@ import subprocess
 import re
 import itertools
 
-if sys.hexversion < 0x03080000:
-    sys.exit("Python 3.8 or newer is required to run this program.")
+if sys.hexversion < 0x03060000:
+    sys.exit("Python 3.6 or newer is required to run this program.")
 
 
 # THIS PART MUST BE EXACTLY IDENTICAL IN cado-nfs.py and cado-nfs-client.py
