@@ -16,10 +16,12 @@ import datetime
 from cadofactor.workunit import Workunit
 from cadofactor import wudb
 from cadofactor import upload
+from cadofactor.cadofactor_tools import create_certificate
+from cadofactor.cadofactor_tools import get_server_alternate_names
+from cadofactor.cadofactor_tools import get_certificate_hash
 import select
 import errno
 import time
-from subprocess import check_output, CalledProcessError, STDOUT
 
 try:
     import ssl
@@ -675,47 +677,7 @@ class ServerLauncher(object):
         # self.logger.addHandler(self.ch)
         # self.logger.propagate = False
 
-        # We need to find out which addresses to put as SubjectAltNames (SAN)
-        # in the certificate.
-
-        # The server address might be given by the user in one of four ways:
-        # Not specified, then url_address is the (possibly short) hostname
-        # Specified as short hostname
-        # Specified as FQDN
-        # Specified as numeric IP address
-
-        # We can always fill in the IP address
-        try:
-            ipaddr = socket.gethostbyname(self.url_address)
-        except socket.gaierror as e:
-            self.logger.error("Exception trackback: %s" % e)
-            self.logger.error("(end of Exception trackback)")
-            self.logger.error("Cannot resolve %s --"
-                              " that's really really weird"
-                              % self.url_address)
-            sys.exit(1)
-        self.SAN = "IP.1 = %s\n" % ipaddr
-        fqdn = socket.getfqdn(self.url_address)
-        # If address was specified as IP address and fqdn could not find a
-        # hostname for it, we don't store it. Then only the IP address will
-        # be given in the SAN list
-        dns_counter = 1
-        if not fqdn == ipaddr:
-            self.SAN += "DNS.%d = %s\n" % (dns_counter, fqdn)
-            dns_counter += 1
-            # If the address was given as a short host name, or if
-            # gethostname() produced a short host name, we store that
-            if self.url_address != fqdn and self.url_address != ipaddr:
-                self.SAN += "DNS.%d = %s\n" % (dns_counter, self.url_address)
-                dns_counter += 1
-            # If localhost is given explicitly as the listen address, then
-            # the above adds localhost to the SAN. If nothing is given, then
-            # we listen on all addresses (including localhost), and we
-            # should add "localhost" as a SAN.
-            if self.address == "0.0.0.0":
-                self.SAN += "DNS.%d = localhost\n" % dns_counter
-                dns_counter += 1
-                self.SAN += "IP.2 = 127.0.0.1\n"
+        self.SAN = get_server_alternate_names(address)
 
         self.bg = bg
         if use_db_pool:
@@ -768,12 +730,17 @@ class ServerLauncher(object):
         # See if we can use HTTPS
         scheme = "http"
         self.cert_sha1 = None
-        if self.create_certificate():
-            self.cert_sha1 = self.get_certificate_hash()
+
+        if (m := create_certificate(self.cafile,
+                                    self.url_address,
+                                    self.SAN)):
+            self.cert_sha1 = get_certificate_hash(self.cafile)
             if self.cert_sha1 is not None:
                 scheme = "https"
+            certfile, keyfile = m
 
         addr = (self.address, port)
+
         try:
             if threaded and scheme == "http":
                 self.logger.info("Using threaded HTTP server")
@@ -790,27 +757,29 @@ class ServerLauncher(object):
                 self.httpd = ThreadedHTTPSServer(addr,
                                                  MyHandlerWithParams,
                                                  whitelist=whitelist,
-                                                 certfile=self.cafile)
+                                                 certfile=certfile,
+                                                 keyfile=keyfile)
             elif not threaded and scheme == "https":
                 self.logger.info("Using non-threaded HTTPS server")
                 self.httpd = HTTPSServer(addr,
                                          MyHandlerWithParams,
                                          whitelist=whitelist,
-                                         certfile=self.cafile)
+                                         certfile=certfile,
+                                         keyfile=keyfile)
             else:
                 assert False
         except socket_error as e:
             if e.errno == errno.EADDRINUSE:
                 self.logger.critical("Address %s:%d is already in use"
                                      " (maybe another cadofactor running?)",
-                                     address, port)
+                                     self.address, port)
                 self.logger.critical("You can choose a different port"
                                      " with server.port=<integer>.")
                 sys.exit(1)
             else:
                 self.logger.critical("Socket error while setting up server "
                                      "on %s:%d : %s",
-                                     address, port, str(e))
+                                     self.address, port, str(e))
                 sys.exit(1)
 
         self.port = self.httpd.server_address[1]
@@ -839,65 +808,6 @@ class ServerLauncher(object):
 
     def get_cert_sha1(self):
         return self.cert_sha1
-
-    def create_certificate(self):
-        if self.cafile is None:
-            return False
-        if os.path.isfile(self.cafile):
-            return True
-        if not HAVE_SSL:
-            self.logger.warning("ssl module not available,"
-                                " won't generate certificate")
-            return False
-
-        configuration_str = self.openssl_configuration_template.format(
-            bits=2048, SAN=self.SAN)
-        config_filename = '%s.config' % self.cafile
-        with open(config_filename, 'w') as config_file:
-            config_file.write(configuration_str)
-
-        subj = [
-            "C=XY",
-            "ST=None",
-            "O=None",
-            "localityName=None",
-            "commonName=%s" % self.url_address,
-            "organizationalUnitName=None",
-            "emailAddress=None"
-        ]
-
-        command = ['openssl', 'req', '-new', '-x509',
-                   '-batch', '-days', '365',
-                   '-nodes', '-subj', '/%s/' % '/'.join(subj),
-                   '-config', config_filename,
-                   '-out', self.cafile, '-keyout', self.cafile]
-        self.logger.debug("Running %s" % " ".join(command))
-        try:
-            output = check_output(command, stderr=STDOUT)
-        except (OSError, CalledProcessError) as e:
-            self.logger.error("openssl failed: %s", e)
-            return False
-        self.logger.debug("openssl output: %s", output)
-        return True
-
-    def get_certificate_hash(self):
-        if self.cafile is None:
-            return None
-        if not HAVE_SSL:
-            self.logger.warning("ssl module not available,"
-                                " won't generate fingerprint")
-            return None
-        command = ['openssl', 'x509', '-in', self.cafile, '-fingerprint']
-        try:
-            output = check_output(command)
-        except (OSError, CalledProcessError) as e:
-            self.logger.error("openssl failed: %s", e)
-            return None
-        output_text = output.decode("ascii")
-        for line in output_text.splitlines():
-            if line.startswith("SHA1 Fingerprint="):
-                return line.split('=', 1)[1].replace(":", "").lower()
-        return None
 
     def serve(self):
         self.logger.info("serving at %s (%s)",

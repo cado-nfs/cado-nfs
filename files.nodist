@@ -107,7 +107,6 @@ scripts/cadofactor/README.OAR
 scripts/cadofactor/index.html
 scripts/cadofactor/parameters.oar
 scripts/cadofactor/parameters.rsa512.oar
-scripts/check_dup.py
 scripts/check_file_lists.pl
 scripts/dist.sh
 scripts/make_graphs

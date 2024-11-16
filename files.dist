@@ -873,6 +873,8 @@ scripts/CMakeLists.txt
 scripts/build_environment.sh
 scripts/cadofactor/README.md
 scripts/cadofactor/cadocommand.py
+scripts/cadofactor/cadofactor_tools/__init__.py
+scripts/cadofactor/cadofactor_tools/certificate.py
 scripts/cadofactor/cadologger.py
 scripts/cadofactor/cadoparams.py
 scripts/cadofactor/cadoprograms.py

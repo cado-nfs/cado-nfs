@@ -24,7 +24,7 @@ foreach (doctest_source ${PYTHON_DOCTEST_SOURCES})
   set_tests_properties(test_python_${basename} PROPERTIES RUN_SERIAL 1)
 endforeach (doctest_source)
 
-cado_define_test(test_wudb_cmdline
+cado_define_test(test_python_wudb_cmdline
     PROVIDE_TEMPORARY_WDIR
     ENVIRONMENT PYTHONPATH=${CADO_NFS_SOURCE_DIR}/scripts
     SCRIPT

@@ -12,6 +12,8 @@ set(cadofactor_scripts
     wuserver.py
     # signalhandler.py
     # verify.py
+    cadofactor_tools/__init__.py
+    cadofactor_tools/certificate.py
 )
 
 set(descent_scripts
