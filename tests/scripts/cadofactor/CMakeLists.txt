@@ -32,11 +32,21 @@ cado_define_test(test_python_wudb_cmdline
 )
 
 if(DEFINED ENV{CHECKS_EXPENSIVE})
-cado_define_test(test_python_stress_test_sqlite3
-    PROVIDE_TEMPORARY_WDIR
-    SCRIPT
-    "${CMAKE_CURRENT_SOURCE_DIR}/test_python_stress_test.sh"
-    AVOID_CONCURRENT
-    TIMEOUT 240  # takes 15 seconds on my laptop.
-)
+    cado_define_test(test_python_stress_test
+        PROVIDE_TEMPORARY_WDIR
+        SCRIPT
+        "${CMAKE_CURRENT_SOURCE_DIR}/test_python_stress_test.sh"
+        AVOID_CONCURRENT
+        TIMEOUT 240
+        TARGET_DEPENDENCIES full_F7_dependencies
+        NO_DEFAULT_RUN
+    )
+    cado_divert_test(test_python_stress_test sqlite3
+        APPEND_ARGUMENTS --db-backend sqlite3
+    )
+    if(HAVE_PYTHON_MYSQL_CONNECTOR)
+        cado_divert_test(test_python_stress_test mysql
+            APPEND_ARGUMENTS --db-backend mysql
+        )
+    endif()
 endif()

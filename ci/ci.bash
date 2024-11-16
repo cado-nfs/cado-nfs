@@ -291,6 +291,8 @@ step_check() {
         :
     elif [ "$specific_checks" = "only_mpi" ] ; then
         ctest_args+=(-R mpi)
+    elif [ "$specific_checks" = "mysql" ] ; then
+        ctest_args+=(-R mysql)
     fi
 
     ctest_args+=(-E ^builddep)

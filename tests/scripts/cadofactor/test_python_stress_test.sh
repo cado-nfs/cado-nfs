@@ -7,6 +7,19 @@
 set -m
 set -e
 
+db_backend=sqlite3
+
+while [ $# -gt 0 ] ; do
+    if [ "$1" = "--db-backend" ] ; then
+        shift
+        db_backend="$1"
+    else
+        echo "unexpected: $1" >&2
+        exit 1
+    fi
+    shift
+done
+
 server="${CADO_NFS_BINARY_DIR}/cado-nfs.py"
 server_args=(340282366920938463463374607431768211457
     ${CADO_NFS_SOURCE_DIR}/parameters/factor/parameters.F7
@@ -19,6 +32,17 @@ server_args=(340282366920938463463374607431768211457
     # the default parameter set has 20000, but in fact with qrange=10 and
     # tasks.filter.run=false, we're happy with less.
     tasks.sieve.rels_wanted=15000
+)
+
+if [ $db_backend = mysql ] ; then
+    mysql -e "DROP DATABASE cado_nfs;" 2>/dev/null || :
+    # This requires cooperation from the early setup. For example, on CI
+    # runners, this setup gets done in the shell function
+    # after_package_install in ci/ci.sh
+    server_args+=(database=db:mysql://hostuser@_unix_socket//run/mysqld/mysqld.sock/cado_nfs)
+fi
+
+server_args+=(
     --wdir "${wdir}/cado-nfs"
     --server
 )

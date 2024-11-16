@@ -4,6 +4,8 @@ from cadofactor.database.base import DB_base
 from cadofactor.database.base import CursorWrapperBase
 from cadofactor.database.base import TransactionWrapper
 from cadofactor.database.base import pending_transactions
+from cadofactor.database.base import TransactionAborted
+from cadofactor.database.base import logger
 
 
 class DB_SQLite(DB_base):
@@ -19,6 +21,22 @@ class DB_SQLite(DB_base):
         def __init__(self, cursor, *args, **kwargs):
             self.__cursor = cursor
             super().__init__(*args, **kwargs)
+
+        def try_catch_execute(self, command, values):
+            try:
+                super().try_catch_execute(command, values)
+            except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
+                if str(e) == "database disk image is malformed" or \
+                   str(e) == "disk I/O error":
+                    logger.critical("sqlite3 reports errors"
+                                    " accessing the database.")
+                    logger.critical("Database file may have gotten corrupted,"
+                                    " or maybe filesystem does not properly"
+                                    " support  file locking.")
+                    raise
+                if str(e) != "database is locked":
+                    raise
+                raise TransactionAborted(command, values)
 
     class ConnectionWrapper(sqlite3.Connection):
         def cursor(self):

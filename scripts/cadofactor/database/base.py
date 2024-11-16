@@ -1,13 +1,9 @@
-
 import abc
 import logging
 import re
 import sys
 import threading
 import traceback
-# we have a bit of exception-capture that requires the sqlite3 package
-import sqlite3
-import time
 
 from cadofactor.database.misc import join3, dict_join3
 
@@ -15,9 +11,15 @@ READONLY = object()
 DEFERRED = object()
 IMMEDIATE = object()
 EXCLUSIVE = object()
+EXCLUSIVE_REPLAYABLE = object()
 
 logger = logging.getLogger("Database")
 logger.setLevel(logging.NOTSET)
+
+
+class TransactionAborted(RuntimeError):
+    def __init__(self, command, values):
+        super().__init__(f"{command}")
 
 
 class pending_transaction(object):
@@ -135,13 +137,20 @@ class CursorWrapperBase(object, metaclass=abc.ABCMeta):
                 v, nrepl = re.subn(a, b, v)
             return v
 
+    def upgrade_command(self, command):
+        # only if needed. Might be useful for selects within
+        # transactions.
+        return command
+
     # override in the derived cursor class if needed
     @property
     def parameter_auto_increment(self):
         return "?"
 
     def __init__(self):
-        pass
+        # This boolean is set to true from within _begin_transaction if
+        # we acquire a lock
+        self.in_exclusive_transaction = None
 
     def in_transaction(self):
         return self.connection.in_transaction
@@ -187,41 +196,50 @@ class CursorWrapperBase(object, metaclass=abc.ABCMeta):
         classname = self.__class__.__name__
         parent = sys._getframe(1).f_code.co_name
         command = self.translations(command)
+        if self.in_exclusive_transaction is not None:
+            command = self.upgrade_command(command)
+
         command_str = command.replace("?", "%r")
+
         if values is not None:
             command_str = command_str % tuple(values)
-        logger.transaction("%s.%s(): connection = 0x%x, command = %s",
-                           classname, parent, id(self.connection), command_str)
-        i = 0
-        while True:
-            try:
-                if not values:
-                    self.cursor.execute(command)
-                else:
-                    self.cursor.execute(command, values)
-                break
-            except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
-                if str(e) == "database disk image is malformed" or \
-                   str(e) == "disk I/O error":
-                    logger.critical("sqlite3 reports errors"
-                                    " accessing the database.")
-                    logger.critical("Database file may have gotten corrupted,"
-                                    " or maybe filesystem does not properly"
-                                    " support  file locking.")
-                    raise
-                if str(e) != "database is locked":
-                    raise
-                i += 1
-                time.sleep(1)  # wait for 1 second if database is locked
-                if i == 10:
-                    logger.critical("You might try 'fuser xxx.db'"
-                                    " to see which process is"
-                                    " locking the database")
-                    raise
+
+        if self.in_exclusive_transaction is not None:
+            logger.transaction("%s.%s():"
+                               " connection = 0x%x,"
+                               " cursor = 0x%x,"
+                               " transaction = 0x%x,"
+                               " command = %s",
+                               classname, parent,
+                               id(self.connection),
+                               id(self),
+                               id(self.in_exclusive_transaction),
+                               command_str)
+        else:
+            logger.transaction("%s.%s():"
+                               " connection = 0x%x,"
+                               " cursor = 0x%x,"
+                               " command = %s",
+                               classname, parent,
+                               id(self.connection),
+                               id(self),
+                               command_str)
+
+        self.try_catch_execute(command, values)
+
         logger.transaction("%s.%s(): connection = 0x%x, command finished",
                            classname, parent, id(self.connection))
 
-    def begin(self, mode=None):
+    def try_catch_execute(self, command, values):
+        """
+        This is a priori overriden by the subclasses
+        """
+        if values is None:
+            self.cursor.execute(command)
+        else:
+            self.cursor.execute(command, values)
+
+    def _begin_transaction(self, mode=None, transaction=None):
         if mode is None:
             self._exec("BEGIN")
         elif mode is DEFERRED:
@@ -230,6 +248,9 @@ class CursorWrapperBase(object, metaclass=abc.ABCMeta):
             self._exec("BEGIN IMMEDIATE")
         elif mode is EXCLUSIVE:
             self._exec("BEGIN EXCLUSIVE")
+        elif mode is EXCLUSIVE_REPLAYABLE:
+            self._exec("BEGIN EXCLUSIVE")
+            self.in_exclusive_transaction = transaction
         else:
             raise TypeError("Invalid mode parameter: %r" % mode)
 
@@ -392,22 +413,34 @@ class DB_base(object):
                              % (uri, self.general_pattern))
         self.hostname = foo.group(4)
         self.host_ipv6 = False
-        if not self.hostname:
+        if self.hostname is None:
             self.hostname = foo.group(5)
-            self.host_ipv6 = True
+            if self.hostname is not None:
+                self.host_ipv6 = True
         self.backend = foo.group(1)
         if backend_pattern is not None \
            and not re.match(backend_pattern, self.backend):
             raise ValueError("back-end type %s not supported, expected %s"
                              % (self.backend, backend_pattern))
-        self.db_connect_args = dict(user=foo.group(2),
-                                    password=foo.group(3),
-                                    host=self.hostname,
-                                    port=foo.group(6)
-                                    )
+
+        D = dict(user=foo.group(2),
+                 password=foo.group(3),
+                 host=self.hostname,
+                 port=foo.group(6))
+
+        if D['host'] is None:
+            assert D['port'] is None
+            assert D['user'] is None
+        if D['user'] is None:
+            assert D['password'] is None
+        if D['port'] is not None:
+            D['port'] = int(D['port'])
+        D = {k: v for k, v in D.items() if v is not None}
+
+        self.db_connect_args = dict(**D)
         self.db_name = foo.group(7)
         self.talked = False
-        # logger.info("Database URI is %s" % self.uri_without_credentials)
+        logger.info("Database URI is %s" % self.uri_without_credentials)
 
     @property
     def uri_without_credentials(self):
@@ -455,7 +488,7 @@ class TransactionWrapper(object):
             return self.cursor
         if self.mode == EXCLUSIVE:
             conn.pending.set(conn, self)
-        self.cursor.begin(self.mode)
+        self.cursor._begin_transaction(self.mode, self)
         logger.transaction(f"now in_transaction: {conn.in_transaction}")
         return self.cursor
 

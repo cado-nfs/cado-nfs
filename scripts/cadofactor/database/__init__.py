@@ -14,7 +14,9 @@ from cadofactor.database.base import READONLY               # noqa: F401
 from cadofactor.database.base import DEFERRED               # noqa: F401
 from cadofactor.database.base import IMMEDIATE              # noqa: F401
 from cadofactor.database.base import EXCLUSIVE              # noqa: F401
+from cadofactor.database.base import EXCLUSIVE_REPLAYABLE   # noqa: F401
 from cadofactor.database.dictdb import DictDbAccess         # noqa: F401
 from cadofactor.database.dictdb import DictDbCachedAccess   # noqa: F401
 from cadofactor.database.dictdb import DictDbDirectAccess   # noqa: F401
 from cadofactor.database.access import DbAccess             # noqa: F401
+from cadofactor.database.base import TransactionAborted     # noqa: F401

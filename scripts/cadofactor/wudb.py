@@ -37,8 +37,9 @@ from cadofactor.workunit import Workunit
 from cadofactor import patterns, cadologger  # noqa: F401
 
 from cadofactor.database import DBFactory, DbTable, DbAccess
-from cadofactor.database import READONLY, EXCLUSIVE
+from cadofactor.database import READONLY, EXCLUSIVE, EXCLUSIVE_REPLAYABLE
 from cadofactor.database import DictDbAccess
+from cadofactor.database import TransactionAborted
 
 # XXX we should get rid of these implementation details
 from cadofactor.database.sqlite3 import DB_SQLite
@@ -219,9 +220,9 @@ class Mapper(object):
         # take them apart positionally
 
         rows = cursor.where_as_dict(joinsource, order=order, values=values)
+
         wus = []
         for r in rows:
-
             # Collapse rows with identical primary key
             if len(wus) == 0 or r[pk] != wus[-1][pk]:
                 wus.append(self.table.dictextract(r))
@@ -402,36 +403,42 @@ class WuAccess(object):
         """ Finds an available workunit and assigns it to clientid.
             Returns workunit object, or None if no available
             workunit exists """
-        with self.conn.transaction(EXCLUSIVE) as cursor:
-            # This "priority" stuff is the root cause for the server
-            # taking time to hand out WUs when the count of available WUs
-            # drops to zero.  (introduced in 90ae4beb7 -- it's an
-            # optional-and-never-used feature anyway)
-            # r = self.mapper.table.where(cursor, limit=1,
-            #     order=("priority", "DESC"),
-            #     eq={"status": WuStatus.AVAILABLE})
-            r = self.mapper.table.where(cursor, limit=1,
-                                        eq={"status": WuStatus.AVAILABLE})
-            if not len(r):
-                return None
+        while True:
+            try:
+                with self.conn.transaction(EXCLUSIVE_REPLAYABLE) as cursor:
+                    # This "priority" stuff is the root cause for the
+                    # server taking time to hand out WUs when the count
+                    # of available WUs drops to zero.  (introduced in
+                    # 90ae4beb7 -- it's an optional-and-never-used
+                    # feature anyway) r = self.mapper.table.where(cursor,
+                    # limit=1, order=("priority", "DESC"), eq={"status":
+                    # WuStatus.AVAILABLE})
+                    r = self.mapper.table.where(cursor, limit=1,
+                                                eq={"status":
+                                                    WuStatus.AVAILABLE})
+                    if not len(r):
+                        return None
 
-            self._checkstatus(r[0], WuStatus.AVAILABLE)
+                    self._checkstatus(r[0], WuStatus.AVAILABLE)
 
-            if DEBUG > 0:
-                self.check(r[0])
+                    if DEBUG > 0:
+                        self.check(r[0])
 
-            d = {"status": WuStatus.ASSIGNED,
-                 "assignedclient": clientid,
-                 "timeassigned": str(datetime.utcnow())
-                 }
-            pk = self.mapper.getpk()
-            self.mapper.table.update(cursor, d, eq={pk: r[0][pk]})
-            result = Workunit(json.loads(r[0]["wu"]))
+                    d = {"status": WuStatus.ASSIGNED,
+                         "assignedclient": clientid,
+                         "timeassigned": str(datetime.utcnow())
+                         }
+                    pk = self.mapper.getpk()
 
-            if timeout_hint:
-                result['deadline'] = time.time() + float(timeout_hint)
+                    self.mapper.table.update(cursor, d, eq={pk: r[0][pk]})
+                    result = Workunit(json.loads(r[0]["wu"]))
+                    if timeout_hint:
+                        result['deadline'] = time.time() + float(timeout_hint)
 
-            return result
+                    return result
+            except TransactionAborted:
+                logger.warning("rolling back and retrying transaction")
+                pass
 
     def _get_by_wuid(self, cursor, wuid):
         r = self.mapper.where(cursor, eq={"wuid": wuid})

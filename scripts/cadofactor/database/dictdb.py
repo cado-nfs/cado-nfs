@@ -195,7 +195,9 @@ class DictDbDirectAccess(MutableMapping):
         but don't commit. Cursor must be given
         """
         # Insert a new row
-        if self._table.count(cursor, eq=dict(kkey=key)):
+        # if self._table.count(cursor, eq=dict(kkey=key)):
+        r = self._table.where(cursor, limit=1, eq=dict(kkey=key))
+        if r:
             self._table.update(cursor,
                                dict(value=str(value),
                                     type=self.__get_type_idx(value)),

@@ -1835,8 +1835,24 @@ class ClientServerTask(Task, wudb.UsesWorkunitDb, patterns.Observer):
             raise ValueError("Bad WU identifer %s in %s" % (identifier,
                                                             self.name))
 
+        # XXX design trap here. If clients are pulling hard on the server,
+        # it may never be able to keep the number of available WUs
+        # afloat. It's pulled low. And then, we never enter self.wait(),
+        # which also mean that we never request wu results!
         while self.get_number_available_wus() >= self.params["maxwu"]:
             self.wait()
+
+        # To fix the issue above, let's ensure that we call GET_WU_RESULT
+        # at least once. This should ensure some minimal fairness
+        # overall, but it's still true that backlog may accumulate in
+        # cases where we fetch only one wu result for each wu we produce.
+
+        # It's also quite unsatisfactory that we do time.sleep() only
+        # based on a condition that is the absence of result (from within
+        # wait), and lose the occasion for a fast-path recreation of WUs.
+
+        self.send_request(Request.GET_WU_RESULT)
+
         wuid = self.make_wuname(identifier)
 
         # ...and we want to be sure that the range size can be extracted
