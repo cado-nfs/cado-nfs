@@ -1133,7 +1133,16 @@ class InputDownloader(object):
             dlpath = os.path.join(self.settings["DLDIR"], filename)
         urlpath = urlpath.lstrip("/")
 
-        wait = float(self.settings["DOWNLOADRETRY"])
+        wait_stable = float(self.settings["DOWNLOADRETRY"])
+
+        wait_min = self.settings["DOWNLOADRETRYMIN"]
+        if wait_min is None:
+            wait_min = wait_stable / 16
+        else:
+            wait_min = float(wait_min)
+
+        wait = wait_min
+
         waiting_since = 0
         # this knowingly mixes http status codes in the 400- 500- range
         # with errno errors. It's ugly.
@@ -1231,16 +1240,18 @@ class InputDownloader(object):
                 spin += 1
                 current_server = self.server_pool.get_current_server()
                 waiting_since = 0
+                wait = wait_min
                 last_error = ""
                 connfailed = 0
                 continue
 
             # 4 means that we'll try 5 times.
-            if waiting_since >= 4 * wait:
+            if waiting_since >= 4 * wait_stable:
                 if mandatory_server is None:
                     current_server = self.server_pool.change_server()
                     spin += 1
                     waiting_since = 0
+                    wait = wait_min
                     last_error = ""
                     connfailed = 0
                 else:
@@ -1252,10 +1263,14 @@ class InputDownloader(object):
             else:
                 time.sleep(wait)
                 waiting_since += wait
+                wait *= 2
+                if wait >= wait_stable:
+                    wait = wait_stable
 
         if waiting_since > 0:
             logging.info("Opened URL %s after %s seconds wait",
                          current_server.get_url(), waiting_since)
+        wait = wait_min
 
         if executable:
             m = dlpath_tmp if dlpath_tmp is not None else dlpath
@@ -1565,7 +1580,15 @@ class ResultUploader(object):
                              p.workunit.get_peer())
         mention_each = self.backlog_size > 1
 
-        wait = float(self.settings["DOWNLOADRETRY"])
+        wait_stable = float(self.settings["DOWNLOADRETRY"])
+
+        wait_min = self.settings["DOWNLOADRETRYMIN"]
+        if wait_min is None:
+            wait_min = wait_stable / 16
+        else:
+            wait_min = float(wait_min)
+
+        wait = wait_min
 
         # Now try to purge our backlog, starting from the server we've
         # just got this WU from.
@@ -1610,10 +1633,14 @@ class ResultUploader(object):
                                       wait)
                     time.sleep(wait)
                     waiting_since += wait
-                    if waiting_since >= 4 * wait:
+                    wait *= 2
+                    if wait >= wait_stable:
+                        wait = wait_stable
+                    if waiting_since >= 4 * wait_stable:
                         logging.error("Giving up on this upload,"
                                       " will retry later")
                         new_backlog.append(p)
+                        wait = wait_min
                         break
                 if not resp:
                     # we've appended p to the new backlog at this point.
@@ -1629,6 +1656,7 @@ class ResultUploader(object):
                                  p.workunit.get_peer().get_url(
                                      self.settings["POSTRESULTPATH"]),
                                  waiting_since)
+                wait = wait_min
                 logging.debug("Server response:\n%s", resp.content)
                 # did_progress = True
                 logging.info("Upload of %s succeeded.", p.workunit.get_id())
@@ -1726,6 +1754,9 @@ OPTIONAL_SETTINGS = {
     "DEBUG":           ("0", "Debugging verbosity"),
     "ARCH":            ("", "Architecture string for this client"),
     "DOWNLOADRETRY":   ("10", "Time to wait before download retries"),
+    "DOWNLOADRETRYMIN": (None,
+                         "Min time between download retries"
+                         " (exponentially increases to DOWNOADRETRY"),
     "CERTSHA1":        (None,
                         "SHA1 of server SSL certificate."
                         " Specify multiple times for failover servers"),
