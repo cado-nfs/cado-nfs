@@ -70,3 +70,13 @@ class Colleague(object):
 
     def send_request(self, request):
         return self.__mediator.answer_request(request)
+
+
+class Singleton(type):
+    _instances = {}
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(Singleton, cls).__call__(*args,
+                                                                 **kwargs)
+        return cls._instances[cls]

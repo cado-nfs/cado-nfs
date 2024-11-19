@@ -1,6 +1,11 @@
 import logging
 
 from logging import DEBUG, INFO, WARNING, ERROR, FATAL, CRITICAL
+
+# from cadofactor.patterns import Singleton
+# from collections import defaultdict
+# import multiprocessing
+
 MESSAGE = DEBUG - 1
 TRANSACTION = MESSAGE - 1
 COMMAND = DEBUG + 1
@@ -116,11 +121,28 @@ class ScreenHandler(logging.StreamHandler):
         self.setFormatter(ScreenFormatter(colour=colour))
 
 
+# class LogFileLock(metaclass=Singleton):
+#     def __init__(self):
+#         self.locks = defaultdict(multiprocessing.Lock)
+
+
 class FileHandler(logging.FileHandler):
     def __init__(self, filename, lvl=logging.DEBUG, **kwargs):
         super().__init__(filename, **kwargs)
         self.setLevel(lvl)
         self.setFormatter(FileFormatter())
+
+
+# class LockedFileHandler(logging.FileHandler):
+#     def __init__(self, filename, lvl=logging.DEBUG, **kwargs):
+#         super().__init__(filename, **kwargs)
+#         self.setLevel(lvl)
+#         self.setFormatter(FileFormatter())
+#         self.filelock = LogFileLock().locks[filename]
+#
+#     def emit(self, record):
+#         with self.filelock:
+#             super().emit(record)
 
 
 class CmdFileFilter(logging.Filter):
