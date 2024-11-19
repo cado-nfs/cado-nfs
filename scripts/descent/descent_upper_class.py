@@ -75,17 +75,11 @@ class DescentUpperClass(object):
                 raise NameError("Given external file for init does not exist")
         else:
             self.external = None
-            self.tkewness = int(self.args.init_tkewness)
-            self.lim      = int(self.args.init_lim)
-            self.lpb      = int(self.args.init_lpb)
-            self.mfb      = int(self.args.init_mfb)
-            self.ncurves  = int(self.args.init_ncurves)
-            self.I        = int(self.args.init_I)
-            self.side     = int(self.args.init_side)
-            self.mineff   = int(self.args.init_mineff)
-            self.maxeff   = int(self.args.init_maxeff)
-            self.minB1    = int(self.args.init_minB1)
-            self.slaves   = int(self.args.slaves)
+            for a in ["tkewness", "lim", "lpb", "mfb",
+                      "ncurves", "I", "side",
+                      "mineff", "maxeff", "minB1"]:
+                setattr(self, a, int(getattr(self.args, "init_" + a)))
+            self.slaves = int(self.args.slaves)
             # the final step needs to know the init side as well.
             general.init_side = int(self.args.init_side)
 
@@ -119,7 +113,7 @@ class DescentUpperClass(object):
             newy = lasty - q * y
             lasty = y
             y = newy
-        return [ [ b, x ], [ a, lastx ] ]
+        return [[b, x], [a, lastx]]
 
     def use_external_data(self, z):
         general = self.general
@@ -135,9 +129,9 @@ class DescentUpperClass(object):
         zz = pow(z, e, p)
         assert (zz * Den - Num) % p == 0
         general.initrandomizer = e       # for later use
-        fnum = [ int(x) for x in lines[3].split() ]
-        fden = [ int(x) for x in lines[4].split() ]
-        large_q = [ int(x) for x in lines[5].split() ]
+        fnum = [int(x) for x in lines[3].split()]
+        fden = [int(x) for x in lines[4].split()]
+        large_q = [int(x) for x in lines[5].split()]
         descrelfile = lines[6]
 
         # create todolist from fnum and fden, skipping primes of the
@@ -169,7 +163,7 @@ class DescentUpperClass(object):
                 foog = foo.groups()
                 a = int(foog[0])
                 b = int(foog[1])
-                list_p = [[int(x, 16) for x in foog[i].split(",") ]
+                list_p = [[int(x, 16) for x in foog[i].split(",")]
                           for i in [2, 3]]
 
                 for side in range(2):
@@ -233,7 +227,7 @@ class DescentUpperClass(object):
         relsfilename = os.path.join(general.datadir(), prefix + "rels")
 
         if os.path.exists(relsfilename):
-            sources = [ (relsfilename, []) ]
+            sources = [(relsfilename, [])]
         else:
             fbcfilename = os.path.join(tmpdir, prefix + "fbc")
             call_common = [general.las_bin(),
@@ -340,8 +334,8 @@ class DescentUpperClass(object):
         Den = a * gg[0][1] + b * gg[1][1]
         assert (zz * Den - Num) % p == 0
 
-        factNum = [ int(x, 16) for x in rel[2].split(',') ]
-        factDen = [ int(x, 16) for x in rel[1].split(',') ]
+        factNum = [int(x, 16) for x in rel[2].split(',')]
+        factDen = [int(x, 16) for x in rel[1].split(',')]
         print(Num, Den, factNum, factDen)
 
         assert abs(Num) == functools.reduce(lambda x, y: x * y, factNum, 1)
@@ -386,7 +380,7 @@ class DescentUpperClass(object):
         prefix = f"{general.prefix()}.descent.{general.short_target()}.upper."
         # polyfilename = os.path.join(tmpdir, prefix + "poly")
         if general.extdeg() == 1:
-            zz = [ z ]
+            zz = [z]
         else:
             zz = z
         call_that = [general.descentinit_bin(),
@@ -414,10 +408,10 @@ class DescentUpperClass(object):
                 general.initrandomizer = int(foo.groups()[0])
             foo = re.match(r"^U = ([0-9\-,]+)", line)
             if foo:
-                general.initU = [ int(x) for x in foo.groups()[0].split(',') ]
+                general.initU = [int(x) for x in foo.groups()[0].split(',')]
             foo = re.match(r"^V = ([0-9\-,]+)", line)
             if foo:
-                general.initV = [ int(x) for x in foo.groups()[0].split(',') ]
+                general.initV = [int(x) for x in foo.groups()[0].split(',')]
             foo = re.match(r"^u = ([0-9]+)", line)
             if foo:
                 general.initu = int(foo.groups()[0])
@@ -426,11 +420,11 @@ class DescentUpperClass(object):
                 general.initv = int(foo.groups()[0])
             foo = re.match(r"^fac_u = ([, 0-9]+)", line)
             if foo:
-                general.initfacu = [[ int(y) for y in x.split(',')]
+                general.initfacu = [[int(y) for y in x.split(',')]
                                     for x in foo.groups()[0].split(' ')]
             foo = re.match(r"^fac_v = ([, 0-9]+)", line)
             if foo:
-                general.initfacv = [[ int(y) for y in x.split(',')]
+                general.initfacv = [[int(y) for y in x.split(',')]
                                     for x in foo.groups()[0].split(' ')]
 
         monitor_important_files([(initfilename, call_that)],
