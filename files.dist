@@ -1268,6 +1268,7 @@ tests/misc/test_renumber.data/mnfs5.poly
 tests/misc/test_renumber.sh
 tests/misc/testcheck_rels.sh
 tests/ncpus.sh
+tests/omp_get_max_threads.c
 tests/pipe_to_sage.sh
 tests/polyselect/CMakeLists.txt
 tests/polyselect/Makefile

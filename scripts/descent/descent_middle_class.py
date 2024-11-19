@@ -100,8 +100,13 @@ class DescentMiddleClass(object):
               "--mfb0", self.args.mfb0,
               "--lpb1", self.general.lpb1(),
               "--mfb1", self.args.mfb1,
-              "-t", "machine,1,pu" if feature_get_hwloc() else "4"
               ]
+        if os.environ.get("CADO_NFS_MAX_THREADS") is not None:
+            s += ["-t", os.environ["CADO_NFS_MAX_THREADS"]]
+        elif feature_get_hwloc():
+            s += ["-t", "machine,1,pu"]
+        else:
+            s += ["-t", 4]
         if self.args.B is not None:
             s += ["--B", self.args.B]
         s += ["--todo", todofile]

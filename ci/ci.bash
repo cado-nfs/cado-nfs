@@ -88,10 +88,20 @@ EOF
     test_precommand+=(env TEST_PRECOMMAND=$VALGRIND)
     # valgrind tests can take _ages_ if we run them with openmp
     export OMP_NUM_THREADS=1
+    export CADO_NFS_MAX_THREADS=1
 }
 
 
 check_environment() {
+    if [ -x "$build_tree/tests/omp_get_max_threads" ] ; then
+        N=$("$build_tree/tests/omp_get_max_threads")
+        Nmax=16
+        if grep -q '^#define[[:space:]]*ULONG_BITS[[:space:]]*32' $build_tree/cado_config.h && [ "$N" -gt 16 ] ; then
+            major_message "On a 32-bit, $N-core machine, reducing the number of openmp threads to only $Nmax"
+            export OMP_NUM_THREADS=$Nmax
+            export CADO_NFS_MAX_THREADS=$Nmax
+        fi
+    fi
     export OMP_DYNAMIC=true
     # See https://stackoverflow.com/questions/70126350/openmp-incredibly-slow-when-another-process-is-running
     # It's not totally clear to me if it somewhere specified that

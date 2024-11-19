@@ -362,6 +362,17 @@ int main(int argc, char const * argv[])
     ram = ram + 1;
     hwloc_topology_destroy(topology);
     int threads = int(npu);
+    {
+        /* our test environment might force this to a small value. It's a
+         * priori also valid for plain threads. */
+        const char * tmp = getenv("CADO_NFS_MAX_THREADS");
+        if (tmp) {
+            int const n = (int) strtoul(tmp, nullptr, 0);
+            if (n < threads) {
+                threads = n;
+            }
+        }
+    }
 #else
     uint64_t ram = 1 << 30;
     int threads = 2;

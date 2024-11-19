@@ -254,8 +254,13 @@ class DescentUpperClass(object):
                 call_that = call_common + [
                     "-q0", self.tkewness,
                     "-q1", self.tkewness,
-                    "-nq", 0,
-                    "-t", "machine,1,pu" if feature_get_hwloc() else "4" ]
+                    "-nq", 0]
+                if os.environ.get("CADO_NFS_MAX_THREADS") is not None:
+                    call_that += ["-t", os.environ["CADO_NFS_MAX_THREADS"]]
+                elif feature_get_hwloc():
+                    call_that += ["-t", "machine,1,pu"]
+                else:
+                    call_that += ["-t", 4]
                 call_that = [str(x) for x in call_that]
                 return call_that
 
@@ -263,8 +268,13 @@ class DescentUpperClass(object):
                 call_that = call_common + [
                     "-q0", q0,
                     "-q1", q1,
-                    "--exit-early", 2,
-                    "-t", "auto" if feature_get_hwloc() else "4" ]
+                    "--exit-early", 2]
+                if os.environ.get("CADO_NFS_MAX_THREADS") is not None:
+                    call_that += ["-t", os.environ["CADO_NFS_MAX_THREADS"]]
+                elif feature_get_hwloc():
+                    call_that += ["-t", "auto"]
+                else:
+                    call_that += ["-t", 4]
                 call_that = [str(x) for x in call_that]
                 return call_that
 

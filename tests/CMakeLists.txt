@@ -245,6 +245,19 @@ set_tests_properties(test_tests_common_6 PROPERTIES PASS_REGULAR_EXPRESSION "Usi
 
 cado_define_test(test_iceildiv.c)
 
+if (HAVE_OPENMP)
+    add_executable(omp_get_max_threads omp_get_max_threads.c)
+    set_target_properties(omp_get_max_threads
+        PROPERTIES
+        COMPILE_FLAGS "${OpenMP_CXX_FLAGS}"
+        LINK_FLAGS "${OpenMP_CXX_FLAGS}")
+    # virtually all targets in cado-nfs depend on utils, and we want to
+    # be sure that in all situations, the check environment will have
+    # this binary available after the build test. Having utils depend on
+    # it sounds like a semi-reasonable thing to do.
+    add_dependencies(utils omp_get_max_threads)
+endif()
+
 add_subdirectory (scripts)
 add_subdirectory (utils)
 add_subdirectory (sieve)
