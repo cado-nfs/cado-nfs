@@ -711,6 +711,7 @@ macro(create_test_spmv test_spmv_base)
                 ${CMAKE_CURRENT_SOURCE_DIR}/test-spmv.sh
                 --matrix-size 1000 --density 10
                 ${ARGN}
+		TIMEOUT 40
                 NO_DEFAULT_RUN
                 TARGET_DEPENDENCIES
                 random_matrix spmv_test short_matmul mf_scan2 mf_bal bwc_matmul_gf2)
@@ -765,7 +766,8 @@ foreach(arith_layer ${BWC_GF2_ARITHMETIC_BACKENDS})
 
     create_test_spmv(binary-${arith_layer}
         --backends "${mm_backends}"
-        --arith-layer ${arith_layer})
+        --arith-layer ${arith_layer}
+	TIMEOUT 40)
 endforeach()
 
 foreach(arith_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
@@ -786,6 +788,7 @@ cado_define_test(TEST_NAME spmv_bucket_30075
     PROGRAM ${CMAKE_CURRENT_SOURCE_DIR}/bug30075.sh
     TARGET_DEPENDENCIES
     spmv_test bwc_matmul_gf2 mf_bal mf_scan2
+    TIMEOUT 40
 )
 
 
