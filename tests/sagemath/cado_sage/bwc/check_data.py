@@ -131,7 +131,7 @@ class BwcCheckData(object):
                         r.V.nrows(),
                         self.params.splitwidth))
         r.V.subdivide(sd)
-        self.R = [ r.V.subdivision(i, 0) for i in range(len(sd) + 1) ]
+        self.R = [r.V.subdivision(i, 0) for i in range(len(sd) + 1)]
 
     def __read_dfiles(self):
         ret = []

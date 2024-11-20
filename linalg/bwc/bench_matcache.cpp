@@ -330,7 +330,7 @@ private_args::private_args(worker_threads_group & tg, int tnum, bench_args const
         fmt::print(stderr, "T{} Reusing cache file for {}\n",
                 tnum, ba.mfiles[tnum]);
         fmt::print(stderr, "T{} Cache load time {} wct\n",
-                tnum, (int) time(nullptr) - t0);
+                tnum, time(nullptr) - t0);
         pthread_mutex_unlock(&tg.mu);
     } else {
         clock_t const ct0 = clock();
@@ -364,7 +364,7 @@ private_args::private_args(worker_threads_group & tg, int tnum, bench_args const
         mm->save_cache();
         pthread_mutex_lock(&tg.mu);
         fmt::print(stderr, "T{} Cache save time {} wct\n",
-                tnum, (int) time(nullptr) - t0);
+                tnum, time(nullptr) - t0);
         pthread_mutex_unlock(&tg.mu);
     }
 

@@ -81,7 +81,7 @@ int matmul_basic<Arith>::reload_cache_private()
     uint32_t datasize;
 
     MATMUL_COMMON_READ_ONE32(datasize, f.get());
-    q.resize(datasize);
+    resize_and_check_meaningful(q, datasize, f.get());
     MATMUL_COMMON_READ_MANY32(q.data(), datasize, f.get());
 
     return 1;

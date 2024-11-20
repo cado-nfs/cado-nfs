@@ -4,6 +4,7 @@
  * to it ; a conversion to C would not be extremely difficult */
 
 #include "cado.h" // IWYU pragma: keep
+
 // IWYU pragma: no_include <memory>
 #include <cinttypes>
 #include <climits>
@@ -14,6 +15,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+
 // C++ headers.
 #include <algorithm>    // sort
 #include <deque>
@@ -25,9 +27,8 @@
 #include <utility>          // for pair, make_pair, swap
 #include <vector>
 
-#include "fmt/core.h"       // for check_format_string
-#include "fmt/format.h"     // for basic_buffer::append, basic_parse_context...
-#include "fmt/printf.h"     // fmt::fprintf // IWYU pragma: keep
+#include "fmt/format.h"     // for fmt::format, fmt::print
+
 #include "matmul.hpp"       // for matmul_ptr, matmul_public_s, MATMUL_AUX_Z...
 #include "macros.h"
 #include "verbose.h"    // CADO_VERBOSE_PRINT_BWC_CACHE_BUILD
@@ -748,7 +749,7 @@ int builder<Arith>::do_small_slice(small_slice * S, uint32_t i0, uint32_t i1)
     if ((i1-i0) >> SMALL_SLICES_I_BITS) keep2=0;
 
     if (verbose_enabled(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD)) {
-        if (!keep1) fmt::print(" [cannot be small1, beyond impl limits]");
+        // if (!keep1) fmt::print(" [cannot be small1, beyond impl limits]");
         if (!keep2) fmt::print(" [cannot be small2, beyond impl limits]");
     }
 
@@ -1317,7 +1318,7 @@ int builder<Arith>::do_huge_slice(huge_slice * H, uint32_t i0, uint32_t i1, unsi
     H->dj_avg = ncols_t / (double) H->hdr->ncoeffs;
 
     verbose_printf(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD,
-            " w={}, avg dj={:.1f}, max dj={}, bucket block hit=1/{:.1f}\n",
+            " w=%" PRIu64 ", avg dj=%.1f, max dj=%u, bucket block hit=1/%.1f\n",
             H->hdr->ncoeffs, H->dj_avg, H->dj_max,
             H->nlarge * H->dj_avg);
 
@@ -2141,11 +2142,16 @@ int matmul_bucket<Arith>::reload_cache_private()/* {{{ */
     MATMUL_COMMON_READ_ONE32(n16, f.get());
     MATMUL_COMMON_READ_ONE32(n8, f.get());
     MATMUL_COMMON_READ_ONE32(naux, f.get());
-    t16.resize(n16);
-    t8.resize(n8);
-    auxiliary.resize(naux);
+
+    resize_and_check_meaningful(t16, n16, f.get());
     MATMUL_COMMON_READ_MANY16(ptrbegin(t16), n16, f.get());
+
+
+    resize_and_check_meaningful(t8, n8, f.get());
     MATMUL_COMMON_READ_MANY8(ptrbegin(t8), n8, f.get());
+
+
+    resize_and_check_meaningful(auxiliary, naux, f.get());
     MATMUL_COMMON_READ_MANY32(ptrbegin(auxiliary), naux, f.get());
 
     finish_init();

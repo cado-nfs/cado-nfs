@@ -212,7 +212,6 @@ checks on fedora system with gcc:
   <<: *common-template
   stage: early
   image: fedora:latest
-  allow_failure: true
   before_script:
     - ci/ci/00-prepare-docker.sh
   script:
@@ -290,8 +289,19 @@ including_mpi specific checks with openmpi:
 expensive checks with gcc:
   <<: *common-template
   stage: thorough
-  # do not start it prematurely, in case previous jobs failed
+  needs: []
   image: gcc:latest
+  before_script:
+    - ci/ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
+mysql specific expensive checks on debian-testing system with gcc:
+  <<: *common-template
+  image: debian:testing
+  stage: thorough
+  needs: []
   before_script:
     - ci/ci/00-prepare-docker.sh
   script:
@@ -329,6 +339,7 @@ checks under valgrind on debian-testing system on a debug build with gcc:
 bwc.sagemath specific expensive checks with gcc:
   <<: *common-template
   stage: thorough
+  needs: [ "checks with gcc" ]
   image:
     name: sagemath/sagemath:latest
     entrypoint: [ "" ]
@@ -344,7 +355,7 @@ bwc.sagemath specific expensive checks with gcc:
 .coverage-job: &coverage-job
   <<: *coverage-template
   stage: thorough
-  # do not start it prematurely, in case previous jobs failed
+  needs: []
   image: alpine:latest
   before_script:
     - ci/ci/00-prepare-docker.sh
@@ -445,7 +456,6 @@ merge coverage tests:
 # run on very slow machines:
 #   <<: *common-template
 #   stage: thorough
-#   needs: []
 #   tags:
 #     - raspberry
 #   before_script:
@@ -459,7 +469,6 @@ checks on osx system:
   <<: *common-template
   # do it early. It's one of our quickest runners.
   stage: early
-  needs: []
   tags:
     - osx
   before_script:
@@ -467,15 +476,13 @@ checks on osx system:
   script:
     - *checks-script
   <<: *checks-junit-report
-  allow_failure: true
  
 # See #30036: it seems that testing with gcc on freebsd is
 # definitely too much pain now.
 checks on freebsd13.4 system with clang:
   <<: *common-template
   stage: thorough
-  # do not start it prematurely, in case previous jobs failed
-  # needs: []
+  needs: [ "checks on osx system" ]
   tags:
     - freebsd-tanker
   script:
@@ -485,6 +492,7 @@ checks on freebsd13.4 system with clang:
 checks on freebsd14.1 system with clang:
   <<: *common-template
   stage: thorough
+  needs: [ "checks on osx system" ]
   tags:
     - freebsd-tanker
   script:

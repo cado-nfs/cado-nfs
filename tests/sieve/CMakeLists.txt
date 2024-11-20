@@ -215,7 +215,6 @@ cado_divert_test(F9 sieve_with_hints
             REL_COUNT=153
             REFERENCE_SHA1=e80b973209f78c7df4541956e15814e04d699932
             REFERENCE_REVISION=21aa5e0327129475c37784b849cddc303d05f526
-        TIMEOUT 30
         )
 
 
@@ -319,7 +318,6 @@ cado_divert_test(F9 skipped
             las_I=10
             REL_COUNT=60
         APPEND_ARGUMENTS -skipped 100
-        TIMEOUT 30
         )
 
 # We make these depend on sievetest, for checking the checksum file.
@@ -474,7 +472,6 @@ cado_divert_test(F9 descent
             -allow-largesq
         TARGET_DEPENDENCIES las_descent
         FIXTURES_REQUIRED F9.fb
-        TIMEOUT 30
         )
 
 # The underlying script changes, here. We have to do something slightly
@@ -580,6 +577,7 @@ cado_divert_test(test_init_norms c120_basic
         -sqside 1
         -t 2
         --hush-max-jitter 1
+    AVOID_CONCURRENT 2
 )
 
 cado_divert_test(test_init_norms c120_torture
@@ -592,6 +590,7 @@ cado_divert_test(test_init_norms c120_torture
         --abort-on-jitter 1,5
         --nfills-speed-test 0
     NO_DEFAULT_RUN
+    AVOID_CONCURRENT 2
 )
 
 # a couple of hard cases encountered during testing.
@@ -616,6 +615,7 @@ cado_divert_test(test_init_norms rsa220
         -t 2
         --hush-max-jitter 1
         --abort-on-jitter 1,5
+    AVOID_CONCURRENT 2
 )
 
 cado_divert_test(test_init_norms bug21518
@@ -711,6 +711,7 @@ cado_define_test(test-inline-polynomials-and-expressions
             -poly "inline-poly://skew=1/poly0=x^3+2/poly1=x-2^43/n=2^128+1"
             -lim 200
             -t 2
+    AVOID_CONCURRENT 2
     TARGET_DEPENDENCIES
         makefb
 )

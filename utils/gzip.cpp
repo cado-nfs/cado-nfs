@@ -39,9 +39,9 @@ const std::array<suffix_handler, 6> supported_compression_formats {{
     { ".gz", "gzip -dc {}", "gzip -c --fast > {}", },
     { ".bz2", "bzip2 -dc {}", "bzip2 -c -1 > {}", },
     /* zstd seems to be uniformly better than any other alternative */
-    { ".zstd", "zstdcat {}", "zstd --fast > {}", },
+    { ".zstd", "zstd -dcf {}", "zstd --fast > {}", },
     /* xz is really slow */
-    { ".xz", "xzcat {}", "xz --fast > {}", },
+    { ".xz", "xz -dc {}", "xz --fast > {}", },
     { ".lzma", "lzma -dc {}", "lzma -c -0 > {}", },
     /* These two have to be present */
     { "", "", "" },

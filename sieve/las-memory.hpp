@@ -12,7 +12,7 @@
 
 
 /* This structure is shared by threads that have the same memory binding.
- * It is in charge of providing momory-bound zones, e.g. for buckets, or
+ * It is in charge of providing memory-bound zones, e.g. for buckets, or
  * bucket regions.
  *
  * alloc()/free() calls are not meant to be fast, here.

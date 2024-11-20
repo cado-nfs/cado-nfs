@@ -25,7 +25,11 @@ cado_define_test(test_modredc_2ul2.c LIBRARIES utils tests ARGUMENTS 1000
     TIMEOUT 120
 )
 cado_define_test(test_sm_utils.cpp LIBRARIES utils ARGUMENTS ${CMAKE_CURRENT_SOURCE_DIR}/test_sm_utils.data)
-cado_define_test(test_mpz_poly.cpp LIBRARIES utils tests AVOID_CONCURRENT 4 TIMEOUT 60)
+cado_define_test(test_mpz_poly.cpp
+    LIBRARIES utils tests
+    AVOID_CONCURRENT 4
+    ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=4 OMP_THREAD_LIMIT=4
+    TIMEOUT 60)
 cado_define_test(test_mpz_poly_parsing.cpp LIBRARIES utils tests)
 cado_define_test(test_json_parsing.cpp LIBRARIES utils tests)
 cado_define_test(test_cxx_mpz_mat.cpp LIBRARIES utils tests)
@@ -51,7 +55,7 @@ cado_define_test(test_threadpool.cpp LIBRARIES utils tests)
 cado_define_test(test_verbose.c LIBRARIES utils tests) # Should be run under Helgrind or other thread checkers
 cado_define_test(test_modredc2ul2_Q_to_Fp.c LIBRARIES utils tests)
 cado_define_test(test_mpz_vector.c LIBRARIES utils)
-cado_define_test(test_mpz_poly_bivariate.cpp LIBRARIES utils tests)
+cado_define_test(test_mpz_poly_bivariate.cpp LIBRARIES utils tests TIMEOUT 60)
 cado_define_test(test_smallset.cpp LIBRARIES)
 cado_define_test(test_mpz_mat.c LIBRARIES utils)
 cado_define_test(test_gpf.c LIBRARIES utils)
@@ -68,8 +72,16 @@ cado_define_test(test_sha1.c LIBRARIES utils ARGUMENTS --test)
 cado_define_test(test_fstream_maybe_compressed.cpp LIBRARIES utils
     PROVIDE_TEMPORARY_WDIR
     NO_DEFAULT_RUN)
-cado_divert_test(test_fstream_maybe_compressed gz ARGUMENTS test.gz)
-cado_divert_test(test_fstream_maybe_compressed bz2 ARGUMENTS test.bz2)
+macro(add_test_fstream_maybe_compressed var ext)
+if(${var})
+cado_divert_test(test_fstream_maybe_compressed ${ext} ARGUMENTS test.${ext})
+endif()
+endmacro()
+add_test_fstream_maybe_compressed(HAVE_GZIP gz)
+add_test_fstream_maybe_compressed(HAVE_BZIP2 bz2)
+add_test_fstream_maybe_compressed(HAVE_ZSTD zstd)
+add_test_fstream_maybe_compressed(HAVE_XZ xz)
+add_test_fstream_maybe_compressed(HAVE_LZMA lzma)
 cado_divert_test(test_fstream_maybe_compressed none ARGUMENTS test)
 cado_define_test(test_min_max_heap.cpp LIBRARIES tests)
 cado_define_test(test_random_distributions.cpp LIBRARIES utils tests)

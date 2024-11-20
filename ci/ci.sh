@@ -56,6 +56,9 @@ case "$CI_JOB_NAME" in
     *"using package libfmt-dev"*)
         export install_package_libfmt_dev=1
         ;;
+    *"mysql specific"*)
+        export mysql=1
+        ;;
 esac
 
 project_package_selection() {
@@ -68,10 +71,13 @@ project_package_selection() {
             # in doing it on several systems anyway.
             exit 1
         fi
-        # opensuse_packages="$opensuse_packages python3-pip"
-        # fedora_packages="$fedora_packages     python3-pip"
-        # centos_packages="$centos_packages     python3-pip"
-        # alpine_packages="$alpine_packages     py3-pip"
+    fi
+
+    if [ "$mysql" ] ; then
+        echo " + mysql is set"
+        # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=923347
+        pip_packages="$pip_packages mysql.connector"
+        debian_packages="$debian_packages     mariadb-server"
     fi
 
     if [ "$install_package_libfmt_dev" ] ; then
@@ -94,6 +100,33 @@ project_package_selection() {
     # fedora_packages="$fedora_packages     bzip2"
     # centos_packages="$centos_packages     bzip2"
     # alpine_packages="$alpine_packages     bzip2"
+
+    if [ "$needs_python" ] ; then
+        echo " + needs_python is set"
+        debian_packages="$debian_packages     python3-flask python3-requests"
+        opensuse_packages="$opensuse_packages python3-Flask python3-requests"
+        fedora_packages="$fedora_packages     python3-flask python3-requests openssl"
+        centos_packages="$centos_packages     python3-requests"
+        if is_centos ; then
+            # centos has no python3-flask package, but we can install it
+            # via pip
+            pip_packages="$pip_packages flask"
+        fi
+        alpine_packages="$alpine_packages     py3-flask py3-requests"
+        # py311-sqlite3 is in the python stdlib, but trimmed on on fbsd
+        freebsd_packages="$freebsd_packages   py311-sqlite3 py311-flask py311-requests"
+    fi
+}
+
+after_package_install() {
+    # This is still run as root.
+    if [ "$mysql" ] ; then
+        /etc/init.d/mariadb start
+        # ci jobs will run all this as root, so we don't really care. But
+        # for runs with ci/ci/debug.sh, we do.
+        mysql -e "CREATE USER IF NOT EXISTS 'hostuser'@localhost IDENTIFIED VIA unix_socket;"
+        mysql -e "GRANT ALL PRIVILEGES ON cado_nfs.* TO hostuser@localhost IDENTIFIED VIA unix_socket;"
+    fi
 }
 
 # Note: most of the interesting stuff is in ci.bash

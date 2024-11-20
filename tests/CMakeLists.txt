@@ -29,7 +29,7 @@ add_dependencies(full_dependencies_base
 
 set(AVOID_CONCURRENT_UNDER_COVERAGE)
 if(COVERAGE_TEST)
-    set(AVOID_CONCURRENT_UNDER_COVERAGE AVOID_CONCURRENT)
+    set(AVOID_CONCURRENT_UNDER_COVERAGE AVOID_CONCURRENT 16)
 endif()
 
 # MPI binaries are not properly launched by cado-nfs.py (see #21819)
@@ -38,6 +38,7 @@ if(NOT MINGW AND NOT HAVE_MPI)
 cado_define_test(full_c30
     SCRIPT
     ${CADO_NFS_BINARY_DIR}/cado-nfs.py 999073468111577057576445816581
+        slaves.downloadretry=1
         --server-threads 2
     TARGET_DEPENDENCIES
         full_dependencies_base
@@ -45,7 +46,8 @@ cado_define_test(full_c30
         characters
         bwc_full_gf2
         sqrt
-    AVOID_CONCURRENT
+    AVOID_CONCURRENT 16
+    ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=16 OMP_THREAD_LIMIT=16
     TIMEOUT 360
         )
     if(pz IN_LIST BWC_GFP_ARITHMETIC_BACKENDS)
@@ -58,13 +60,15 @@ cado_define_test(full_c30
             ${CADO_NFS_BINARY_DIR}/cado-nfs.py
             -dlp -ell 445257213376519703258944813
             -t 2 -dlp-no-keep
+            slaves.downloadretry=1
             target=92800609832959449330691138186
             3037544709654617415632521514287
             TARGET_DEPENDENCIES full_dependencies_base
             bwc_full_gfp
             lingen_pz sm sm_simple las_descent reconstructlog-dl
             merge-dl replay-dl numbertheory_tool
-            AVOID_CONCURRENT
+            AVOID_CONCURRENT 16
+            ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=16 OMP_THREAD_LIMIT=16
             TIMEOUT 360
         )
         # The following case was hitting the bug #21707
@@ -83,7 +87,7 @@ cado_define_test(full_c30
             tasks.sieve.lambda0=1.1
             tasks.sieve.lambda1=2.1
             tasks.qmin=700
-            tasks.sieve.qrange=100
+            tasks.sieve.qrange=400
             tasks.sieve.sqside=0
             tasks.sieve.rels_wanted=1500
         )
@@ -105,11 +109,13 @@ cado_define_test(full_c30
             ${CADO_NFS_BINARY_DIR}/cado-nfs.py
             -dlp -ell 350586976534485556208993720963
             -t 2 -dlp-no-keep
+            slaves.downloadretry=1
             701173953068971112417987441927
             ${full_p30_JL_params}
             TARGET_DEPENDENCIES
             ${full_p30_JL_deps}
-            AVOID_CONCURRENT
+            AVOID_CONCURRENT 16
+            ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=16 OMP_THREAD_LIMIT=16
             TIMEOUT 360
             )
     endif()
@@ -124,6 +130,7 @@ cado_define_test(full_c30
         ${CADO_NFS_SOURCE_DIR}/parameters/factor/parameters.F7
         tasks.polyselect.import=${CADO_NFS_SOURCE_DIR}/tests/misc/F7.poly
         slaves.hostnames=localhost
+        slaves.downloadretry=1
     TARGET_DEPENDENCIES
         full_dependencies_base
         skewness
@@ -132,7 +139,8 @@ cado_define_test(full_c30
         bwc_full_gf2
         sqrt
         score
-    AVOID_CONCURRENT
+    AVOID_CONCURRENT 16
+    ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=16 OMP_THREAD_LIMIT=16
     TIMEOUT 300
         )
 endif()
@@ -149,10 +157,12 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
             ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg --workdir
             ${CADO_NFS_BINARY_DIR}/cado-nfs.py
             90377629292003121684002147101760858109247336549001090677693
+            slaves.downloadretry=1
             --server-threads 2
         TARGET_DEPENDENCIES
             full_c30_dependencies
-        AVOID_CONCURRENT
+        AVOID_CONCURRENT 16
+        ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=16 OMP_THREAD_LIMIT=16
         TIMEOUT 360
             )
     cado_define_test(full_c65_128
@@ -160,10 +170,12 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
             ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg --workdir
             ${CADO_NFS_BINARY_DIR}/cado-nfs.py
             22381151342911794563007770625342242843893411711318155026160427871
+            slaves.downloadretry=1
             tasks.linalg.m=128 tasks.linalg.n=128 --server-threads 2
         TARGET_DEPENDENCIES
             full_c30_dependencies
-        AVOID_CONCURRENT
+        AVOID_CONCURRENT 16
+        ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=16 OMP_THREAD_LIMIT=16
         TIMEOUT 360
             )
     cado_define_test(full_c59_nonlinear
@@ -172,10 +184,12 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
             ${CADO_NFS_BINARY_DIR}/cado-nfs.py
             --server-threads 2
             71641520761751435455133616475667090434063332228247871795429
+            slaves.downloadretry=1
             tasks.polyselect.import=${CADO_NFS_SOURCE_DIR}/tests/misc/c59_nonlinear.poly
         TARGET_DEPENDENCIES
             full_c30_dependencies
-        AVOID_CONCURRENT
+        AVOID_CONCURRENT 16
+        ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=16 OMP_THREAD_LIMIT=16
         TIMEOUT 360
         )
     if (BWC_GFP_ARITHMETIC_BACKENDS AND pz IN_LIST BWC_GFP_ARITHMETIC_BACKENDS)
@@ -195,16 +209,20 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
             PROVIDE_TEMPORARY_WDIR
             TARGET_DEPENDENCIES full_p30_dependencies
             lingen_pz sm reconstructlog-dl merge-dl replay-dl numbertheory_tool
-        AVOID_CONCURRENT
+        AVOID_CONCURRENT 16
+        ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=16 OMP_THREAD_LIMIT=16
         TIMEOUT 360
             )
         cado_define_test(full_gfp2
             SCRIPT
             ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg --workdir
-            ${CADO_NFS_BINARY_DIR}/cado-nfs.py 100000000000000000039 -dlp -gfpext 2 -t 2 -ell 164354743277891 -dlp-no-keep
+            ${CADO_NFS_BINARY_DIR}/cado-nfs.py 100000000000000000039
+            slaves.downloadretry=1
+            -dlp -gfpext 2 -t 2 -ell 164354743277891 -dlp-no-keep
             TARGET_DEPENDENCIES full_p30_dependencies
             filter_galois polyselect_gfpn
-        AVOID_CONCURRENT
+        AVOID_CONCURRENT 16
+        ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=16 OMP_THREAD_LIMIT=16
         TIMEOUT 360
             )
 # see bug https://gitlab.inria.fr/cado-nfs/cado-nfs/-/issues/21767
@@ -235,6 +253,30 @@ cado_divert_test(test_tests_common 6 -iter 10)
 set_tests_properties(test_tests_common_6 PROPERTIES PASS_REGULAR_EXPRESSION "Using 10 iterations")
 
 cado_define_test(test_iceildiv.c)
+
+if (HAVE_OPENMP)
+    add_executable(omp_get_max_threads omp_get_max_threads.c)
+    set_target_properties(omp_get_max_threads
+        PROPERTIES
+        COMPILE_FLAGS "${OpenMP_CXX_FLAGS}"
+        LINK_FLAGS "${OpenMP_CXX_FLAGS}")
+    # virtually all targets in cado-nfs depend on utils, and we want to
+    # be sure that in all situations, the check environment will have
+    # this binary available after the build step. Having utils depend on
+    # it sounds like a semi-reasonable thing to do.
+    add_dependencies(utils omp_get_max_threads)
+endif()
+
+if (HAVE_HWLOC)
+    add_executable(hwloc_cado_helper hwloc_cado_helper.c)
+    target_link_libraries(hwloc_cado_helper hwloc)
+    set_target_properties(hwloc_cado_helper
+        PROPERTIES
+        COMPILE_FLAGS "${OpenMP_CXX_FLAGS}"
+        LINK_FLAGS "${OpenMP_CXX_FLAGS}")
+    # same trick
+    add_dependencies(utils hwloc_cado_helper)
+endif()
 
 add_subdirectory (scripts)
 add_subdirectory (utils)

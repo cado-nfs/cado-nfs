@@ -29,14 +29,13 @@ class DescentMiddleClass(object):
                             required=False,
                             type=int)
         for side in range(2):
-            parser.add_argument("--mfb%d" % side,
-                                help="Default cofactor bound"
-                                " on side %d" % side,
+            parser.add_argument(f"--mfb{side}",
+                                help=f"Default cofactor bound on side {side}",
                                 required=True,
                                 type=int)
-            parser.add_argument("--lim%d" % side,
+            parser.add_argument(f"--lim{side}",
                                 help="Default factor base bound"
-                                " on side %d (must match hint file)" % side,
+                                     f" on side {side} (must match hint file)",
                                 required=True,
                                 type=int)
 
@@ -93,7 +92,7 @@ class DescentMiddleClass(object):
         print("--- Sieving (middle, %d rational primes) ---" % ntodo)
         s = self.general.lasMiddle_base_args()
         if self.args.descent_hint:
-            s += [ "--descent-hint-table", self.args.descent_hint ]
+            s += ["--descent-hint-table", self.args.descent_hint]
         s += ["--I", self.args.I,
               "--lim0", self.args.lim0,
               "--lim1", self.args.lim1,
@@ -101,11 +100,16 @@ class DescentMiddleClass(object):
               "--mfb0", self.args.mfb0,
               "--lpb1", self.general.lpb1(),
               "--mfb1", self.args.mfb1,
-              "-t", "machine,1,pu" if feature_get_hwloc() else "4"
               ]
+        if os.environ.get("CADO_NFS_MAX_THREADS") is not None:
+            s += ["-t", os.environ["CADO_NFS_MAX_THREADS"]]
+        elif feature_get_hwloc():
+            s += ["-t", "machine,1,pu"]
+        else:
+            s += ["-t", 4]
         if self.args.B is not None:
             s += ["--B", self.args.B]
-        s += [ "--todo", todofile ]
+        s += ["--todo", todofile]
         call_that = [str(x) for x in s]
         relsfilename = os.path.join(self.general.datadir(), prefix + "rels")
 

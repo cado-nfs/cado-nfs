@@ -316,7 +316,7 @@ int matmul_sliced<Arith>::reload_cache_private()
     size_t n;
     MATMUL_COMMON_READ_ONE32(n, f.get());
 
-    data.resize(n);
+    resize_and_check_meaningful(data, n, f.get());
     MATMUL_COMMON_READ_MANY16(data.data(), n, f.get());
 
     return 1;

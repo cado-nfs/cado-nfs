@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+    <body>
+    <pre class="mermaid">
+classDiagram
+    class SievingTaskOrPolyselectTask {
+        +run()
+        +updateObserver()
+    }
+    SievingTaskOrPolyselectTask --|> ClientServerTask
+    SievingTaskOrPolyselectTask  --> "several" cadoprograms.Program : produces
+    style SievingTaskOrPolyselectTask stroke:#003008, fill:#00E0A0
+
+    class cadoprograms.Program {
+        +make_wu()
+    }
+    note for SievingTaskOrPolyselectTask "can be either"
+
+
+    class ClientServerTask {
+        +submit_command()
+        +verification()
+        -wait()
+        -resubmit_timed_out_wus()
+        -cancel_wu()
+        -submit_wu()
+    }
+    ClientServerTask --|> Task
+    ClientServerTask --> _patterns.Mediator_ : SUBSCRIBE_WU_NOTIFICATIONS, GET_WU_RESULT
+    ClientServerTask --|> _patterns.Observer_
+    ClientServerTask --|> wudb.UsesWorkunitDb
+
+    class _patterns.Observer_ {
+        +updateObserver()*
+    }
+
+    class wudb.UsesWorkunitDb {
+        +wuar : WuAccess
+    }
+
+    class Task {
+%% 
+    }
+    Task --|> _Runnable_
+    Task --|> patterns.Colleague
+    note for Task "most methods are overridden by ClientServerTask,
+    but the inheritance is still relevant"
+
+    class _Runnable_ {
+        +run()*
+    }
+
+    class patterns.Colleague {
+        mediator : _Mediator_
+        +send_notification()
+        +send_request()
+    }
+    patterns.Colleague ()--> _patterns.Mediator_
+
+
+    class CompleteFactorization {
+        tasks: [Task]
+        request_map: [[methods in tasks]]
+
+        +relay_notification()
+    }
+    CompleteFactorization --|> wudb.ListensToWorkunitDb
+    CompleteFactorization --|> _patterns.Mediator_
+    style CompleteFactorization stroke:#003008, fill:#00E0A0
+    
+    class _patterns.Mediator_ {
+        +relay_notification()*
+    }
+    class wudb.ListensToWorkunitDb {
+        +send_result()
+    }
+    wudb.ListensToWorkunitDb --|> patterns.Observable
+    class patterns.Observable {
+        __observers: [patterns.Observer]
+        +notifyObservers()
+        +subscribeObserver()
+    }
+    </pre>
+    <script type="module">
+      import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    </script>
+  </body>
+</html>

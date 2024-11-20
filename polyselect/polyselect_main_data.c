@@ -4,6 +4,7 @@
 #include <math.h>
 #include <float.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <gmp.h>
 #include "polyselect_main_data.h"
 #include "polyselect_main_queue.h"      // some useful defaults
@@ -448,6 +449,13 @@ polyselect_main_data_auto_scale(polyselect_main_data_ptr main_data MAYBE_UNUSED)
 {
 #ifdef HAVE_HWLOC
     main_data->nthreads = hwloc_bitmap_weight(hwloc_get_root_obj(main_data->topology)->cpuset);
+    const char * tmp = getenv("CADO_NFS_MAX_THREADS");
+    if (tmp) {
+        unsigned long const n = strtoul(tmp, NULL, 0);
+        if (n < main_data->nthreads) {
+            main_data->nthreads = n;
+        }
+    }
 #endif
 }
 

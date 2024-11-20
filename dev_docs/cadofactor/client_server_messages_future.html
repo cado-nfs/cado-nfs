@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+    <body>
+        <p>This sequence was projected as a future evolution of
+        cadofactor, but was actually never implemented (as of late 2024).
+        </p>
+
+    <pre class="mermaid">
+sequenceDiagram
+  
+  participant WuDb as WuDb
+  participant Task as Task
+  participant Server as Server
+  participant Client as Client
+
+  
+  activate Client
+
+  activate Task
+  Task ->>+Server:register WU callback
+  deactivate Server
+  note right of Task: Task initializes
+  deactivate Task
+
+
+  note right of Client: Client may be in its<br />init sequence, or may<br />just have uploaded stuff
+
+  Client ->>+ Server: GET /workunit
+  deactivate Client
+  note right of Client: Client is idle until<br/>it receives a new WU
+  
+  Server->>+Task: get_wu(clientid=foo)
+
+  Task ->>+ WuDb: pull WU from<br/>recycling  bin
+  WuDb -->>- Task: WU or None
+  opt if recycling bin is empty
+    Task ->> Task: create new WU
+    Task ->>+ WuDb: wudb.create(WU)
+    deactivate WuDb
+  end
+  Task ->>+ WuDb: wudb.assign(WU, foo)
+  deactivate WuDb
+
+
+  Task -->>- Server: Workunit
+  Server -->>- Client: Workunit
+  activate Client
+
+  Note right of Client: process WU
+  deactivate Client
+
+  activate Client
+  Client ->>+ Server: POST /upload
+  note right of Server: result file stored on disk
+  Server ->>+ WuDb: result()
+  note right of WuDb: WU marked RECEIVED_OK
+  deactivate WuDb
+  deactivate Server
+  deactivate Client
+
+  note right of Client: Client will proceed<br />with a new<br />GET /workunit
+
+  rect rgb(191, 223, 255)  
+  activate Task
+  note left of Task: Task polls the Db<br/>for new results
+  Task ->>+ WuDb: GET_WU_RESULT
+  WuDb -->>- Task: WuResultMessage
+  Task ->>+ WuDb: wu.verification()
+  note right of WuDb: WU marked VERIFIED_OK
+  WuDb -->>- Task: 
+
+  deactivate Task
+  end
+    </pre>
+    <script type="module">
+      import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    </script>
+  </body>
+</html>
