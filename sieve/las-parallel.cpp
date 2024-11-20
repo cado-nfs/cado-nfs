@@ -466,11 +466,13 @@ struct las_parallel_desc::helper {
                 HWLOC_MEMBIND_THREAD | HWLOC_MEMBIND_BYNODESET);
 #endif
         if (rc < 0) {
+            /*
             static std::mutex mm;
             std::lock_guard<std::mutex> const dummy(mm);
             static int got_message = 0;
             if (!got_message++)
                 fprintf(stderr, "Error while attempting to get memory binding\n");
+                */
             hwloc_bitmap_zero(nn);
         }
         return nn;
@@ -1110,8 +1112,10 @@ int las_parallel_desc::set_loose_binding() const
         hwloc_bitmap_asprintf(&s, n);
         if (errno == EXDEV) {
             fprintf(stderr, "Error, cannot enforce loose memory binding [ %s ]\n", s);
+            /*
         } else {
             fprintf(stderr, "Error while attempting to set loose memory binding [ %s ]\n", s);
+            */
         }
         free(s);
         return -1;
@@ -1173,8 +1177,10 @@ int las_parallel_desc::set_subjob_mem_binding(int k MAYBE_UNUSED) const
         hwloc_bitmap_asprintf(&s, help->memory_binding_nodesets[m]);
         if (errno == EXDEV) {
             fprintf(stderr, "Error, cannot enforce memory binding for job %d [ %s ]\n", k, s);
+            /*
         } else {
             fprintf(stderr, "Error while attempting to set memory binding for job %d [ %s ]\n", k, s);
+            */
         }
         free(s);
         return -1;
