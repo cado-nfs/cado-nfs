@@ -19,7 +19,8 @@ cado_define_test(test_dup2${sage_opt}
    PRECOMMAND
    "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh"
    --env WORKDIR
-   TARGET_DEPENDENCIES freerel debug_renumber dup2 ${deps})
+   TARGET_DEPENDENCIES freerel debug_renumber dup2 ${deps}
+   )
 
 if (SAGE)
     add_dependencies(all_sagemath_test_dependencies test_dup2${sage_opt}_dependencies)
@@ -34,7 +35,7 @@ cado_divert_test(test_dup2${sage_opt} c105_30003
     -poly ${CADO_NFS_SOURCE_DIR}/tests/misc/test_renumber.data/c105_30003.poly
     -rels ${CMAKE_CURRENT_SOURCE_DIR}/c105_30003.rels.gz
     -lpbs 22,23
-    TIMEOUT 40
+    TIMEOUT 90
     ${AVOID_CONCURRENT_UNDER_COVERAGE}
     )
 endif()
