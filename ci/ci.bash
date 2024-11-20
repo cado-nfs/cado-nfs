@@ -88,7 +88,9 @@ EOF
     test_precommand+=(env TEST_PRECOMMAND=$VALGRIND)
     # valgrind tests can take _ages_ if we run them with openmp
     export OMP_NUM_THREADS=1
-    export CADO_NFS_MAX_THREADS=1
+    # on the other hand we do want at least 2 threads for things that
+    # touch mf_scan2
+    export CADO_NFS_MAX_THREADS=2
 }
 
 
