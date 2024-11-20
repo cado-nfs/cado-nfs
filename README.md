@@ -68,7 +68,8 @@ perhaps does not.
    14). Compilation with icc 19 has undergone more testing. Routine
    checks use the ICC version that is provided by Intel's
    [`intel/oneapi-hpckit:latest` docker
-   image](https://hub.docker.com/r/intel/oneapi-hpckit).
+   image](https://hub.docker.com/r/intel/oneapi-hpckit). As icc has
+   become icx, we now test with all icx versions.
 
  * Mac OS X is used for CI routine compilation checks, using the
    default compiler from XCode. All version from 10.5 onwards were part
@@ -109,16 +110,25 @@ Required software tools
    * GCC: the minimal required version is >= 5
    * LLVM Clang: the minimal required version is >= 4.0.0
    * Apple Clang: the minimal required version is >= 6.0.0
-   * Intel ICC: the minimal required version is >= 14
- * GNU make and CMake (`cmake 3.5` or later) for building.
+   * Intel ICC: the minimal required version is >= 15
+ * GNU make and CMake (`cmake 3.18` or later) for building.
  * Support for POSIX threads.
- * The main `cado-nfs.py` script uses a lot of unix tools: Python, Python3,
-   `ssh`, `rsync`, `gzip` to mention but a few.
+ * Python 3.6 or later is required, as well as a few fairly common
+   packages such as python3-requests and python3-flask. These are
+   packaged with most software distributions, or alternatively you can
+   install them via pip.  As a convenience means, we also provide the script
+   [`./scripts/setup-venv.sh`](scripts/setup-venv.sh), which you can use
+   to install the python requirements of cado-nfs in a venv.  Running
+   this script is probably the quickest way to get you going on the
+   Python front.
+ * Several very common unix tools are used in many places. Among them,
+   `gzip`, and under some circumstances, `ssh` and `rsync`.
  * On MacOS X, the cado-nfs client script needs an alternative to the
    system-provided curl binary, which it doesn't like. The simplest way
    to deal with this issue is to install the wget downloader (e.g. via
    homebrew).
- * For a large computation, MySQL is recommended.
+ * For a large computation, it is recommended to use a MySQL backend for
+   the database.
 
 Optionally, cado-nfs can use the following additional software.
 

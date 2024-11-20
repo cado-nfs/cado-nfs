@@ -2,7 +2,7 @@
 FROM ubuntu:latest AS build
 LABEL org.opencontainers.image.authors="Emmanuel Thomé"
 ARG DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y --no-install-recommends git make cmake g++ libgmp*-dev python3 ssh rsync gzip bc locales cmake python3 libhwloc-dev libgmp-dev libecm-dev libfmt-dev
+RUN apt-get update && apt-get install -y --no-install-recommends git make cmake g++ libgmp*-dev python3 ssh rsync gzip bc locales cmake python3 libhwloc-dev libgmp-dev libecm-dev libfmt-dev python3-flask python3-requests openssl
 ENV PREFIX=/usr/local
 COPY local.sh dispatch-files.sh cado.tar.gz /cado-nfs/
 RUN cd /cado-nfs/ && tar xzf cado.tar.gz

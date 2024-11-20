@@ -88,10 +88,32 @@ EOF
     test_precommand+=(env TEST_PRECOMMAND=$VALGRIND)
     # valgrind tests can take _ages_ if we run them with openmp
     export OMP_NUM_THREADS=1
+    export CADO_NFS_MAX_THREADS=1
 }
 
 
 check_environment() {
+    Nmax=16
+    if [ -x "$build_tree/tests/omp_get_max_threads" ] ; then
+        N=$("$build_tree/tests/omp_get_max_threads")
+        # originally we sensed a need to do so only on 32-bit machines,
+        # but after all it makes sense more generally.
+        if [ "$N" -gt "$Nmax" ] ; then
+            major_message "reducing the max number of openmp threads to only $Nmax"
+            export OMP_NUM_THREADS=$Nmax
+            export OMP_THREAD_LIMIT=$Nmax
+        fi
+    fi
+    if [ -f "$build_tree/hwloc-`hostname`.xml" ] ; then
+        export HWLOC_XMLFILE="$build_tree/hwloc-`hostname`.xml"
+    elif [ -x "$build_tree/tests/hwloc_cado_helper" ] ; then
+        export HWLOC_XMLFILE="$build_tree/hwloc-`hostname`.xml"
+        "$build_tree/tests/hwloc_cado_helper" -o "$HWLOC_XMLFILE"
+    else
+        major_message "Forcing a fake hwloc file. This might conflict with some tests"
+        export HWLOC_XMLFILE="$PWD/ci/placeholder-machine-for-tests.xml"
+    fi
+    export CADO_NFS_MAX_THREADS=$Nmax
     export OMP_DYNAMIC=true
     # See https://stackoverflow.com/questions/70126350/openmp-incredibly-slow-when-another-process-is-running
     # It's not totally clear to me if it somewhere specified that
@@ -291,6 +313,8 @@ step_check() {
         :
     elif [ "$specific_checks" = "only_mpi" ] ; then
         ctest_args+=(-R mpi)
+    elif [ "$specific_checks" = "mysql" ] ; then
+        ctest_args+=(-R mysql)
     fi
 
     ctest_args+=(-E ^builddep)

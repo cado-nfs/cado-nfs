@@ -264,8 +264,8 @@
 ############################################################
 # Python: Whether to test for a Python 3 interpreter or not
 # 
-# The cado-nfs.py script needs Python 3 and the sqlite3
-# module. If you do not wish to use cado-nfs.py, set
+# The cado-nfs.py script needs Python 3 and the sqlite3 and flask
+# modules. If you do not wish to use cado-nfs.py, set
 # NO_PYTHON_CHECK to a non-empty string to disable testing
 # for Python 3 and sqlite in the CMake configuration
 #

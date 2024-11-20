@@ -1,4 +1,3 @@
-
 # Simple python helper script to help printing gmp values within gdb.
 #
 # Emmanuel Thomé, 2013.
@@ -48,12 +47,14 @@
 # Otherwise gdb 7.1 will work.
 
 import gdb
-
-import string
-from gmpy2 import mpz,mpfr
+from gmpy2 import mpz, mpfr
 
 
-__all__=['update_display_limit', 'make_mp_printer_objects', 'hook_mp_printers', 'unhook_mp_printers' ]
+__all__ = ['update_display_limit',
+           'make_mp_printer_objects',
+           'hook_mp_printers',
+           'unhook_mp_printers'
+           ]
 
 try:
     gdb.pretty_printers.remove(make_mp_printer_objects)
@@ -65,55 +66,63 @@ except ValueError:
 
 
 # arrange so that at most 40 characters of each field are printed.
-display_limit=40
+display_limit = 40
+
 
 def gmpy_from_mpn(d, nlimbs, wordsize):
-    res=mpz(0)
-    word=pow(mpz(2),wordsize)
-    for i in range(0,nlimbs):
-        a=mpz(int(d[nlimbs-1-i]))
+    res = mpz(0)
+    word = pow(mpz(2), wordsize)
+    for i in range(0, nlimbs):
+        a = mpz(int(d[nlimbs-1-i]))
         # python ints are signed, beware.
-        if a < 0: a+=word
-        res=res*word+a
+        if a < 0:
+            a += word
+        res = res * word+a
     return res
+
 
 def truncate_output(r):
     # not completely satisfactory
     if display_limit == 0:
         return r
-    l=len(r)
-    if l >= display_limit:
-        r=r[0:display_limit-15] +"...<%d>..."%(l-(display_limit-12)) +r[l-7:l]
+    ell = len(r)
+    if ell >= display_limit:
+        r = r[0:display_limit-15] \
+            + "...<%d>..." % (ell - (display_limit - 12)) + r[ell - 7:ell]
     return r
-    
-def update_display_limit(l):
+
+
+def update_display_limit(ell):
     global display_limit
-    display_limit=l
+    display_limit = ell
+
 
 class mpfr_printer:
     def __init__(self, val):
         self.val = val
+
     def mantissa_exponent(self):
         X = self.val
         sign = int(X['_mpfr_sign'])
-        exp =  int(X['_mpfr_exp'])
+        exp = int(X['_mpfr_exp'])
         prec = int(X['_mpfr_prec'])
-        d =    X['_mpfr_d']
-        wordsize=gdb.lookup_type("unsigned long").sizeof * 8
-        nlimbs=(prec+wordsize-1)/wordsize
+        d = X['_mpfr_d']
+        wordsize = gdb.lookup_type("unsigned long").sizeof * 8
+        nlimbs = (prec+wordsize-1)/wordsize
         # print "(via %s) Have prec %d, %d limbs\n" % (self.vt, prec,nlimbs)
         # try:
-        mantissa=gmpy_from_mpn(d, nlimbs, wordsize)
-        mantissa*=sign
-        e=exp-nlimbs*wordsize
+        mantissa = gmpy_from_mpn(d, nlimbs, wordsize)
+        mantissa *= sign
+        e = exp-nlimbs * wordsize
         return mantissa, e
+
     def to_string(self):
         X = self.val
-        mantissa,e = self.mantissa_exponent()
+        mantissa, e = self.mantissa_exponent()
         prec = int(X['_mpfr_prec'])
-        exp =  int(X['_mpfr_exp'])
-        wordsize=gdb.lookup_type("unsigned long").sizeof * 8
-        special=-pow(2,wordsize-1)
+        exp = int(X['_mpfr_exp'])
+        wordsize = gdb.lookup_type("unsigned long").sizeof * 8
+        special = -pow(2, wordsize-1)
         sign = int(X['_mpfr_sign'])
         if exp == special+2:
             return "NaN"
@@ -127,14 +136,18 @@ class mpfr_printer:
                 return "-inf"
             else:
                 return "+inf"
-        res=mpfr(mantissa, prec)
-        if e>0: res*=pow(mpz(2),e)
-        else: res/=pow(mpz(2),-e)
+        res = mpfr(mantissa, prec)
+        if e > 0:
+            res *= pow(mpz(2), e)
+        else:
+            res /= pow(mpz(2), -e)
         return truncate_output(str(res))
+
 
 class mpz_printer:
     def __init__(self, val):
         self.val = val
+
     def to_string(self):
         X = self.val
         # There's apparently a bug in array member of structs. Their
@@ -142,22 +155,26 @@ class mpz_printer:
         # address of the struct itself...
         # print "X at %s\n" % X.address
         size = int(X['_mp_size'])
-        d =    X['_mp_d']
-        wordsize=gdb.lookup_type("unsigned long").sizeof * 8
-        nlimbs=size
-        if size<0: nlimbs=-int(size)
+        d = X['_mp_d']
+        wordsize = gdb.lookup_type("unsigned long").sizeof * 8
+        nlimbs = size
+        if size < 0:
+            nlimbs = -int(size)
         # try:
-        mantissa=gmpy_from_mpn(d, nlimbs, wordsize)
+        mantissa = gmpy_from_mpn(d, nlimbs, wordsize)
         # except RuntimeError:
         # # it's not necessarily a good idea to do this.
         # return "<error>"
-        if size<0: mantissa=-mantissa
+        if size < 0:
+            mantissa = -mantissa
         return truncate_output(str(mantissa))
+
 
 class mpq_printer:
     def __init__(self, val):
         self.num = mpz_printer(val['_mp_num'])
         self.den = mpz_printer(val['_mp_den'])
+
     def to_string(self):
         d = self.den.to_string()
         if d == "1":
@@ -165,20 +182,22 @@ class mpq_printer:
         else:
             return self.num.to_string() + "/" + d
 
+
 class mpz_mat_printer:
     def __init__(self, val):
         self.val = val
         self.m = int(val['m'])
         self.n = int(val['n'])
+
     def to_string(self):
         s = []
         for i in range(self.m):
             for j in range(self.n):
                 foo = mpz_printer(self.val['x'][i * self.n + j])
                 s.append(foo.to_string())
-        l=max([len(x) for x in s])
-        fmt = "%%-%ds" % l
-        out="\n"
+        ell = max([len(x) for x in s])
+        fmt = "%%-%ds" % ell
+        out = "\n"
         for i in range(self.m):
             for j in range(self.n):
                 if j > 0:
@@ -186,21 +205,23 @@ class mpz_mat_printer:
                 out += (fmt % s[i * self.n + j])
             out += "\n"
         return out
+
 
 class mpq_mat_printer:
     def __init__(self, val):
         self.val = val
         self.m = int(val['m'])
         self.n = int(val['n'])
+
     def to_string(self):
         s = []
         for i in range(self.m):
             for j in range(self.n):
                 foo = mpq_printer(self.val['x'][i * self.n + j])
                 s.append(foo.to_string())
-        l=max([len(x) for x in s])
-        fmt = "%%-%ds" % l
-        out="\n"
+        ell = max([len(x) for x in s])
+        fmt = "%%-%ds" % ell
+        out = "\n"
         for i in range(self.m):
             for j in range(self.n):
                 if j > 0:
@@ -209,23 +230,28 @@ class mpq_mat_printer:
             out += "\n"
         return out
 
+
 class mpc_printer:
     def __init__(self, val):
         # print val['re'].address
         self.re = mpfr_printer(val['re'].dereference())
         self.im = mpfr_printer(val['im'].dereference())
+
     def to_string(self):
         return self.re.to_string() + "+i*" + self.im.to_string()
+
 
 class mpfrx_printer:
     def __init__(self, val):
         self.val = val
+
     def to_string(self):
         X = self.val
-        n=int(X['deg'])+1
-        coeffs=[mpfr_printer(X['coeff'][i]).to_string() for i in range(n)]
-        res="(%s %s)" % (n-1, " ".join(coeffs))
+        n = int(X['deg']) + 1
+        coeffs = [mpfr_printer(X['coeff'][i]).to_string() for i in range(n)]
+        res = "(%s %s)" % (n - 1, " ".join(coeffs))
         return res
+
 
 def make_mp_printer_objects(val):
     try:
@@ -233,7 +259,7 @@ def make_mp_printer_objects(val):
         # some bugs pop up -- apparently dereferencing this pointer does
         # not work as it should in arrays of mpfr_t's. Haven't checked,
         # but I assume it's similar for other types.
-        t=str(val.type)
+        t = str(val.type)
         # print("[request for %s]\n" % t)
         if (t == 'mpz_ptr' or t == 'mpz_srcptr'):
             return mpz_printer(val.dereference())
@@ -292,24 +318,26 @@ def make_mp_printer_objects(val):
         if (t == 'cxx_mpq_mat'):
             return mpq_mat_printer(val['x'])
 
-
-
     except RuntimeError:
-    # constructors may abandon building if the object looks too complicated.
+        # constructors may abandon building if the object looks too
+        # complicated.
         return None
     return None
+
 
 def remove_all_printers():
     while len(gdb.pretty_printers):
         gdb.pretty_printers.pop(0)
 
+
 def hook_mp_printers():
     gdb.pretty_printers.append(make_mp_printer_objects)
+
 
 def unhook_mp_printers():
     gdb.pretty_printers.remove(make_mp_printer_objects)
 
+
 # this is just for easily sourcing this again and again while debugging.
 remove_all_printers()
 hook_mp_printers()
-

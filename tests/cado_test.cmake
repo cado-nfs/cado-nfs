@@ -45,11 +45,6 @@
 # 
 math(EXPR test_index 0)
 
-# openmp jobs really don't like competing with eachother, so we must be
-# cautious. Setting OMP_DYNAMIC=true seems to alleviate this problem
-# significantly
-math(EXPR test_concurrency_tolerance 2)
-
 if(TIMEOUT_SCALE)
     message(STATUS "TIMEOUT_SCALE is set to ${TIMEOUT_SCALE}")
 endif()
@@ -170,22 +165,12 @@ macro(cado_nfs_test_process_STDIN)
 endmacro()
 
 function(cado_nfs_test_process_AVOID_CONCURRENT)
-    set(LOCKED_RESOURCES)
-    set(n ${AVOID_CONCURRENT})
-    if(n GREATER ${test_concurrency_tolerance})
-        set(n ${test_concurrency_tolerance})
-    endif()
-    foreach(j RANGE 1 ${n})
-        MATH(EXPR testmod "(${test_index} + ${j}) % ${test_concurrency_tolerance}")
-        LIST(APPEND LOCKED_RESOURCES lock.${testmod})
-    endforeach()
-    if(n GREATER_EQUAL 2)
-        message(STATUS "Test ${TEST_NAME} locks resources ${LOCKED_RESOURCES}")
-    endif()
-    set_property(TEST ${TEST_NAME} PROPERTY RESOURCE_LOCK
-        ${LOCKED_RESOURCES})
-    # MATH(EXPR testmod "${test_index} % ${test_concurrency_tolerance}")
-    # set_property(TEST ${TEST_NAME} PROPERTY RESOURCE_LOCK lock.${testmod})
+		if(AVOID_CONCURRENT EQUAL 1)
+			message(STATUS "Test ${TEST_NAME} runs serially")
+			set_property(TEST ${TEST_NAME} PROPERTY RUN_SERIAL)
+		else()
+			set_property(TEST ${TEST_NAME} PROPERTY PROCESSORS ${AVOID_CONCURRENT})
+		endif()
 endfunction()
 
 function(cado_nfs_test_process_TIMEOUT)
@@ -340,10 +325,6 @@ macro(cado_epilogue_create_test)
     if(NOT NO_DEFAULT_RUN)
         cado_nfs_test_process_environment()
         MATH(EXPR test_index "${test_index}+1")
-        # if(CADO_NFS_LOCK_TOOL AND AVOID_CONCURRENT)
-        #     MATH(EXPR testmod "${test_index} % ${test_concurrency_tolerance}")
-        #     set(${TEST_NAME}_LOCKF ${CADO_NFS_LOCK_TOOL} ${PROJECT_BINARY_DIR}/lock.${testmod})
-        # endif()
 
         set(wrapper_args)
         set(provide_wdir)
