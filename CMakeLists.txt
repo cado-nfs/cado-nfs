@@ -430,6 +430,7 @@ include("${CADO_NFS_SOURCE_DIR}/config/detect-coverage.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/execinfo.cmake")
 CHECK_INCLUDE_FILES (sys/endian.h HAVE_SYS_ENDIAN_H)
 include("${CADO_NFS_SOURCE_DIR}/config/bswap32.cmake")
+include("${CADO_NFS_SOURCE_DIR}/config/compression.cmake")
 
 
 set(CADO_SHARED)
