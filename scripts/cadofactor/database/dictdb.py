@@ -112,26 +112,28 @@ class DictDbDirectAccess(MutableMapping):
             self._ownconn = False
         self._table = DictDbTable(name=name)
         # Create an empty table if none exists
-        with self.transaction(EXCLUSIVE) as cursor:
-            self._table.create(cursor)
+        self._conn.harness_transaction(EXCLUSIVE, self._table.create)
 
     def get_cursor(self):
         return self._conn.cursor()
 
-    def transaction(self, mode=None):
-        return self._conn.transaction(mode)
-
     def __getitem__(self, key):
-        with self.transaction(READONLY) as cursor:
-            r, = self._table.where(cursor, limit=1, eq=dict(kkey=key))
-            return self.__convert_value(r)
+        r, = self._conn.harness_transaction(READONLY,
+                                            self._table.where,
+                                            # cursor is implicitly added
+                                            limit=1,
+                                            eq=dict(kkey=key))
+        return self.__convert_value(r)
 
     def _iter_raw(self):
         n = len(self)
         batch_size = 128
         for i in range(1, n + 1, batch_size):
-            with self.transaction(READONLY) as cursor:
-                rows = self._table.where(cursor, limit=batch_size, offset=i)
+            rows = self._conn.harness_transaction(READONLY,
+                                                  self._table.where,
+                                                  # cursor is implicitly added
+                                                  limit=batch_size,
+                                                  offset=i)
             for r in rows:
                 yield (r["kkey"], self.__convert_value(r))
 
@@ -143,12 +145,13 @@ class DictDbDirectAccess(MutableMapping):
         return self._iter_raw()
 
     def __len__(self):
-        with self.transaction(READONLY) as cursor:
-            return self._table.count(cursor)
+        return self._conn.harness_transaction(READONLY, self._table.count)
 
     def __contains__(self, key):
-        with self.transaction(READONLY) as cursor:
-            return bool(self._table.count(cursor, eq=dict(kkey=key)))
+        return bool(self._conn.harness_transaction(READONLY,
+                                                   self._table.count,
+                                                   # cursor is implicitly added
+                                                   eq=dict(kkey=key)))
 
     def __del__(self):
         """ Close the DB connection and delete the in-memory dictionary """
@@ -186,9 +189,8 @@ class DictDbDirectAccess(MutableMapping):
     # This is guaranteed to hit the sql table and no other method
     def _backend_getall(self):
         """ Reads the whole table and returns it as a dict """
-        with self.transaction(READONLY) as cursor:
-            rows = self._table.where(cursor)
-            return {r["kkey"]: self.__convert_value(r) for r in rows}
+        rows = self._conn.harness_transaction(READONLY, self._table.where)
+        return {r["kkey"]: self.__convert_value(r) for r in rows}
 
     def __setitem_nocommit(self, cursor, key, value):
         """ Set dictionary key to value and update/insert into table,
@@ -210,13 +212,16 @@ class DictDbDirectAccess(MutableMapping):
 
     def __setitem__(self, key, value):
         """ Access by indexing, e.g., d["foo"]. Always commits """
-        with self.transaction(EXCLUSIVE) as cursor:
-            self.__setitem_nocommit(cursor, key, value)
+        self._conn.harness_transaction(EXCLUSIVE,
+                                       self.__setitem_nocommit,
+                                       # cursor is implicitly added
+                                       key, value)
 
     def __delitem__(self, key, commit=True):
         """ Delete a key from the dictionary """
-        with self.transaction(EXCLUSIVE) as cursor:
-            self._table.delete(cursor, eq=dict(kkey=key))
+        self._conn.harness_transaction(EXCLUSIVE,
+                                       self._table.delete,
+                                       eq=dict(kkey=key))
 
     def setdefault(self, key, default=None, commit=True):
         ''' Setdefault function that allows a mapping as input
@@ -235,18 +240,21 @@ class DictDbDirectAccess(MutableMapping):
         return self[key]
 
     def update(self, other, commit=True):
-        with self.transaction(EXCLUSIVE) as cursor:
+        def t(cursor):
             for (key, value) in other.items():
                 self.__setitem_nocommit(cursor, key, value)
+        self._conn.harness_transaction(EXCLUSIVE, t)
 
     def clear(self, args=None, commit=True):
         """ Overridden clear that allows removing several keys atomically """
-        with self.transaction(EXCLUSIVE) as cursor:
+        def t(cursor):
             if args is None:
                 self._table.delete(cursor)
             else:
                 for key in args:
                     self._table.delete(cursor, eq=dict(kkey=key))
+
+        self._conn.harness_transaction(EXCLUSIVE, t)
 
 
 class DictDbCachedAccess(DictDbDirectAccess):

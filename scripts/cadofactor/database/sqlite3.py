@@ -2,7 +2,7 @@ import sys
 import sqlite3
 from cadofactor.database.base import DB_base
 from cadofactor.database.base import CursorWrapperBase
-from cadofactor.database.base import TransactionWrapper
+from cadofactor.database.base import ConnectionWrapperBase
 from cadofactor.database.base import pending_transactions
 from cadofactor.database.base import TransactionAborted
 from cadofactor.database.base import logger
@@ -38,7 +38,7 @@ class DB_SQLite(DB_base):
                     raise
                 raise TransactionAborted(command, values)
 
-    class ConnectionWrapper(sqlite3.Connection):
+    class ConnectionWrapper(sqlite3.Connection, ConnectionWrapperBase):
         def cursor(self):
             return DB_SQLite.CursorWrapper(super().cursor())
 
@@ -52,9 +52,6 @@ class DB_SQLite(DB_base):
                              **ac,
                              **kwargs)
             self.pending = pending_transactions.new_db(self)
-
-        def transaction(self, mode=None):
-            return TransactionWrapper(self.cursor(), mode=mode)
 
     def connect(self):
         c = self.ConnectionWrapper(self.path)

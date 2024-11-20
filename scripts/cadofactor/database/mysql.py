@@ -4,7 +4,7 @@ import mysql.connector
 
 from cadofactor.database.base import DB_base
 from cadofactor.database.base import CursorWrapperBase
-from cadofactor.database.base import TransactionWrapper
+from cadofactor.database.base import ConnectionWrapperBase
 from cadofactor.database.base import pending_transactions
 
 from cadofactor.database.base import logger
@@ -21,7 +21,9 @@ class DB_MySQL(DB_base):
         def _string_translations(self):
             return [
                     ('\\bASC\\b', "AUTO_INCREMENT"),
-                    ('\\bCREATE INDEX IF NOT EXISTS\\b', "CREATE INDEX"),
+                    # create index if not exists seems to be okay with
+                    # mariadb 11.x at least
+                    # ('\\bCREATE INDEX IF NOT EXISTS\\b', "CREATE INDEX"),
                     ('\\bBEGIN EXCLUSIVE\\b', "START TRANSACTION"),
                     ('\\bpurge\\b', "purgetable"),
             ]
@@ -55,13 +57,12 @@ class DB_MySQL(DB_base):
                 super().try_catch_execute(command, values)
             except mysql.connector.errors.InternalError as e:
                 # we only want to raise our custom exceptions in cases
-                # that we expect
-                if e.sqlstate == 40001:
-                    logger.warning("mysql reports a deadlock, trying again")
+                # that we expect. Yes, the sql state is a __string__
+                if e.sqlstate == '40001':
                     raise TransactionAborted(command, values)
                 raise
 
-    class ConnectionWrapper(object):
+    class ConnectionWrapper(ConnectionWrapperBase):
         def _reconnect_anonymous(self):
             self._conn = mysql.connector.connect(**self.db_connect_args)
 
@@ -145,9 +146,6 @@ class DB_MySQL(DB_base):
 
         def in_transaction(self):
             return self._conn.in_transaction
-
-        def transaction(self, mode=None):
-            return TransactionWrapper(self.cursor(), mode=mode)
 
     def connect(self, *args, **kwargs):
         return self.ConnectionWrapper(self, *args, **kwargs)

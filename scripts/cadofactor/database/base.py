@@ -3,6 +3,7 @@ import logging
 import re
 import sys
 import threading
+import time
 import traceback
 
 from cadofactor.database.misc import join3, dict_join3
@@ -11,7 +12,6 @@ READONLY = object()
 DEFERRED = object()
 IMMEDIATE = object()
 EXCLUSIVE = object()
-EXCLUSIVE_REPLAYABLE = object()
 
 logger = logging.getLogger("Database")
 logger.setLevel(logging.NOTSET)
@@ -53,7 +53,8 @@ class pending_transaction(object):
             new_tb_str = "".join(traceback.format_list(incoming.traceback))
             logger.warning(f"EXCLUSIVE conflict on {self}\n%s", old_tb_str)
             logger.warning(f"Incoming transaction: {incoming}\n%s", new_tb_str)
-            assert False
+            logger.warning("Proceeding anyway (just a test)")
+            # raise TransactionAborted("entering transaction", None)
 
     def release(self):
         self._set()
@@ -86,6 +87,31 @@ class transaction_logbook(dict):
 
 
 pending_transactions = transaction_logbook()
+
+
+class ConnectionWrapperBase(object, metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def cursor(self):
+        pass
+
+    def transaction(self, mode=None):
+        """
+        harness_transaction(mode, <some lambda>) is preferred.
+        """
+        return TransactionWrapper(self.cursor(), mode=mode)
+
+    def harness_transaction(self, mode, transaction,
+                            *args, replay=True, **kwargs):
+        while True:
+            try:
+                with self.transaction(mode) as cursor:
+                    return transaction(cursor, *args, **kwargs)
+            except TransactionAborted as e:
+                if replay:
+                    logger.warning("rolling back and retrying transaction")
+                    time.sleep(1)
+                else:
+                    raise e
 
 
 # I wish I knew how to make that inherit from a template argument (which
@@ -247,8 +273,6 @@ class CursorWrapperBase(object, metaclass=abc.ABCMeta):
         elif mode is IMMEDIATE:
             self._exec("BEGIN IMMEDIATE")
         elif mode is EXCLUSIVE:
-            self._exec("BEGIN EXCLUSIVE")
-        elif mode is EXCLUSIVE_REPLAYABLE:
             self._exec("BEGIN EXCLUSIVE")
             self.in_exclusive_transaction = transaction
         else:

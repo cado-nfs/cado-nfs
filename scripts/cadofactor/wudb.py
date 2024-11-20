@@ -37,9 +37,8 @@ from cadofactor.workunit import Workunit
 from cadofactor import patterns, cadologger  # noqa: F401
 
 from cadofactor.database import DBFactory, DbTable, DbAccess
-from cadofactor.database import READONLY, EXCLUSIVE, EXCLUSIVE_REPLAYABLE
+from cadofactor.database import READONLY, EXCLUSIVE
 from cadofactor.database import DictDbAccess
-from cadofactor.database import TransactionAborted
 
 # XXX we should get rid of these implementation details
 from cadofactor.database.sqlite3 import DB_SQLite
@@ -265,9 +264,11 @@ class WuAccess(object):
             self.conn = db
             self._ownconn = False
 
-        with self.conn.transaction(READONLY) as cursor:
+        def t(cursor):
             if isinstance(cursor, DB_SQLite.CursorWrapper):
                 cursor.pragma("foreign_keys = ON")
+
+        self.conn.harness_transaction(READONLY, t)
         self.mapper = Mapper(WuTable(), {"files": FilesTable()})
 
     def __del__(self):
@@ -372,73 +373,70 @@ class WuAccess(object):
             self.mapper.subtables["files"].insert(cursor, d, foreign=rowid)
 
     def create_tables(self):
-        with self.conn.transaction(EXCLUSIVE) as cursor:
-            # if isinstance(cursor, DB_SQLite.CursorWrapper):
-            #     cursor.pragma("journal_mode=WAL")
-            self.mapper.create(cursor)
-
-    def _create1(self, cursor, wu, priority=None):
-        d = {
-            "wuid": wu.get_id(),
-            "wu": str(wu),
-            "status": WuStatus.AVAILABLE,
-            "timecreated": str(datetime.utcnow())
-            }
-        if priority is not None:
-            d["priority"] = priority
-        # Insert directly into wu table
-        self.mapper.table.insert(cursor, d)
+        self.conn.harness_transaction(EXCLUSIVE, self.mapper.create)
 
     def create(self, wus, priority=None, commit=True):
         """ Create new workunits from wus which contains the texts of the
             workunit files """
-        with self.conn.transaction(EXCLUSIVE) as cursor:
-            if isinstance(wus, Workunit):
-                self._create1(cursor, wus, priority)
-            else:
-                for wu in wus:
-                    self._create1(cursor, wu, priority)
+        if isinstance(wus, Workunit):
+            wus = [wus]
+
+        for wu in wus:
+            d = {
+                "wuid": wu.get_id(),
+                "wu": str(wu),
+                "status": WuStatus.AVAILABLE,
+                "timecreated": str(datetime.utcnow())
+                }
+            if priority is not None:
+                d["priority"] = priority
+
+            # Insert directly into wu table
+            self.conn.harness_transaction(EXCLUSIVE,
+                                          self.mapper.table.insert,
+                                          # cursor is implicitly added
+                                          d)
 
     def assign(self, clientid, commit=True, timeout_hint=None):
         """ Finds an available workunit and assigns it to clientid.
             Returns workunit object, or None if no available
             workunit exists """
-        while True:
-            try:
-                with self.conn.transaction(EXCLUSIVE_REPLAYABLE) as cursor:
-                    # This "priority" stuff is the root cause for the
-                    # server taking time to hand out WUs when the count
-                    # of available WUs drops to zero.  (introduced in
-                    # 90ae4beb7 -- it's an optional-and-never-used
-                    # feature anyway) r = self.mapper.table.where(cursor,
-                    # limit=1, order=("priority", "DESC"), eq={"status":
-                    # WuStatus.AVAILABLE})
-                    r = self.mapper.table.where(cursor, limit=1,
-                                                eq={"status":
-                                                    WuStatus.AVAILABLE})
-                    if not len(r):
-                        return None
 
-                    self._checkstatus(r[0], WuStatus.AVAILABLE)
+        def transaction(cursor):
+            r = self.mapper.table.where(cursor, limit=1,
+                                        eq={"status": WuStatus.AVAILABLE})
 
-                    if DEBUG > 0:
-                        self.check(r[0])
+            # This alternative "priority" stuff is the root cause for the
+            # server taking time to hand out WUs when the count of
+            # available WUs drops to zero.  (introduced in 90ae4beb7 --
+            # it's an optional-and-never-used feature anyway)
+            # r = self.mapper.table.where(cursor, limit=1,
+            #                             order=("priority", "DESC"),
+            #                             eq={"status": WuStatus.AVAILABLE})
 
-                    d = {"status": WuStatus.ASSIGNED,
-                         "assignedclient": clientid,
-                         "timeassigned": str(datetime.utcnow())
-                         }
-                    pk = self.mapper.getpk()
+            if not len(r):
+                return None
 
-                    self.mapper.table.update(cursor, d, eq={pk: r[0][pk]})
-                    result = Workunit(json.loads(r[0]["wu"]))
-                    if timeout_hint:
-                        result['deadline'] = time.time() + float(timeout_hint)
+            self._checkstatus(r[0], WuStatus.AVAILABLE)
 
-                    return result
-            except TransactionAborted:
-                logger.warning("rolling back and retrying transaction")
-                pass
+            if DEBUG > 0:
+                self.check(r[0])
+
+            d = {"status": WuStatus.ASSIGNED,
+                 "assignedclient": clientid,
+                 "timeassigned": str(datetime.utcnow())
+                 }
+            pk = self.mapper.getpk()
+
+            self.mapper.table.update(cursor, d, eq={pk: r[0][pk]})
+            result = Workunit(json.loads(r[0]["wu"]))
+            if timeout_hint:
+                result['deadline'] = time.time() + float(timeout_hint)
+
+            return result
+
+        return self.conn.harness_transaction(EXCLUSIVE,
+                                             transaction)
 
     def _get_by_wuid(self, cursor, wuid):
         r = self.mapper.where(cursor, eq={"wuid": wuid})
@@ -451,7 +449,8 @@ class WuAccess(object):
     def result(self, wuid, clientid, files,
                errorcode=None,
                failedcommand=None, commit=True):
-        with self.conn.transaction(EXCLUSIVE) as cursor:
+
+        def t(cursor):
             data = self._get_by_wuid(cursor, wuid)
             if data is None:
                 return False
@@ -487,8 +486,11 @@ class WuAccess(object):
             self.mapper.table.update(cursor, d, eq={pk: data[pk]})
             return True
 
+        return self.conn.harness_transaction(EXCLUSIVE, t)
+
     def verification(self, wuid, ok, commit=True):
-        with self.conn.transaction(EXCLUSIVE) as cursor:
+
+        def t(cursor):
             data = self._get_by_wuid(cursor, wuid)
             if data is None:
                 return False
@@ -505,6 +507,8 @@ class WuAccess(object):
             pk = self.mapper.getpk()
             self.mapper.table.update(cursor, d, eq={pk: data[pk]})
             return True
+
+        return self.conn.harness_transaction(EXCLUSIVE, t)
 
     def cancel(self, wuid, commit=True):
         self.cancel_by_condition(eq={"wuid": wuid},
@@ -524,16 +528,24 @@ class WuAccess(object):
                         **conditions)
 
     def set_status(self, status, commit=True, **conditions):
-        with self.conn.transaction(EXCLUSIVE) as cursor:
-            self.mapper.table.update(cursor, {"status": status}, **conditions)
+        self.conn.harness_transaction(EXCLUSIVE,
+                                      self.mapper.table.update,
+                                      # cursor is implicitly added
+                                      {"status": status},
+                                      **conditions)
 
     def query(self, limit=None, **conditions):
-        with self.conn.transaction(READONLY) as cursor:
-            return self.mapper.where(cursor, limit=limit, **conditions)
+        return self.conn.harness_transaction(READONLY,
+                                             self.mapper.where,
+                                             # cursor is implicitly added
+                                             limit=limit,
+                                             **conditions)
 
     def count(self, **cond):
-        with self.conn.transaction(READONLY) as cursor:
-            return self.mapper.count(cursor, **cond)
+        return self.conn.harness_transaction(READONLY,
+                                             self.mapper.count,
+                                             # cursor is implicitly added
+                                             **cond)
 
     def count_available(self):
         return self.count(eq={"status": WuStatus.AVAILABLE})
@@ -542,9 +554,7 @@ class WuAccess(object):
         r = self.query(limit=1, eq={"status": WuStatus.RECEIVED_OK})
         if not r:
             r = self.query(limit=1, eq={"status": WuStatus.RECEIVED_ERROR})
-        if not r:
-            return None
-        else:
+        if r:
             return r[0]
 
 
