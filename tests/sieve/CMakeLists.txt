@@ -215,7 +215,6 @@ cado_divert_test(F9 sieve_with_hints
             REL_COUNT=153
             REFERENCE_SHA1=e80b973209f78c7df4541956e15814e04d699932
             REFERENCE_REVISION=21aa5e0327129475c37784b849cddc303d05f526
-        TIMEOUT 30
         )
 
 
@@ -319,7 +318,6 @@ cado_divert_test(F9 skipped
             las_I=10
             REL_COUNT=60
         APPEND_ARGUMENTS -skipped 100
-        TIMEOUT 30
         )
 
 # We make these depend on sievetest, for checking the checksum file.
@@ -475,7 +473,6 @@ cado_divert_test(F9 descent
             -allow-largesq
         TARGET_DEPENDENCIES las_descent
         FIXTURES_REQUIRED F9.fb
-        TIMEOUT 30
         )
 
 # The underlying script changes, here. We have to do something slightly
