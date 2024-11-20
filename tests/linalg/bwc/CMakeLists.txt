@@ -29,7 +29,8 @@ macro(add_bwc_test nm script)
         # place the TIMEOUT stanza early on, so that ARGN can
         # override it.
         cado_define_test(test_bwc_${nm}${suffix}
-            AVOID_CONCURRENT
+            AVOID_CONCURRENT 16
+            ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=16 OMP_THREAD_LIMIT=16
             TARGET_DEPENDENCIES bwc_full random_matrix
             # We have cases where _many_ bwc tests end up taking more
             # than the default 20 seconds. Maybe it's better to add
@@ -119,6 +120,7 @@ if(HAVE_PERL_DIGEST_MD5)
             cado_define_test(test_bwc_lingen_binary_${nm}${suffix}
                 TARGET_DEPENDENCIES lingen_b64
                 AVOID_CONCURRENT 4
+                ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=4 OMP_THREAD_LIMIT=4
                 TIMEOUT 60
                 PROVIDE_TEMPORARY_WDIR
                 SCRIPT
@@ -358,7 +360,8 @@ foreach(layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
                 tuning_thresholds=collective:64,recursive:32,notiming:0
                 ${extra}
                 TARGET_DEPENDENCIES lingen_${layer}
-                AVOID_CONCURRENT
+                AVOID_CONCURRENT 4
+                ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=4 OMP_THREAD_LIMIT=4
                 TIMEOUT 60
                 )
             cado_divert_test(test_bwc_lingen_${layer}_test0${suffix} frag
@@ -373,7 +376,8 @@ foreach(layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
                 tuning_thresholds=collective:64,recursive:32,notiming:0
                 ${extra}
                 TARGET_DEPENDENCIES lingen_${layer}
-                AVOID_CONCURRENT
+                AVOID_CONCURRENT 4
+                ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=4 OMP_THREAD_LIMIT=4
                 TIMEOUT 60
                 )
             cado_define_test(test_bwc_lingen_${layer}_test2${suffix}
@@ -386,7 +390,8 @@ foreach(layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
                 tuning_thresholds=collective:64,recursive:32,notiming:0
                 ${extra}
                 TARGET_DEPENDENCIES lingen_${layer}
-                AVOID_CONCURRENT
+                AVOID_CONCURRENT 9
+                ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=9 OMP_THREAD_LIMIT=9
                 TIMEOUT 60
                 )
             # We really _can't_ have ascii with the checkpoint test. ascii
@@ -407,7 +412,8 @@ foreach(layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
                 TARGET_DEPENDENCIES
                 lingen_${layer}
                 lingen_verify_checkpoints_${layer}
-                AVOID_CONCURRENT
+                AVOID_CONCURRENT 9
+                ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=9 OMP_THREAD_LIMIT=9
                 TIMEOUT 180
                 )
         endforeach()
@@ -440,7 +446,8 @@ foreach(layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
                 tuning_thresholds=collective:64,recursive:32,notiming:0
                 ${extra}
                 TARGET_DEPENDENCIES lingen_${layer}
-                AVOID_CONCURRENT
+                AVOID_CONCURRENT 9
+                ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=9 OMP_THREAD_LIMIT=9
                 TIMEOUT 90
             )
         endforeach()
@@ -448,7 +455,8 @@ foreach(layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
 
     if(layer STREQUAL "p1")
         cado_define_test(test_bwc_lingen_21744
-            AVOID_CONCURRENT
+            AVOID_CONCURRENT 4
+            ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=4 OMP_THREAD_LIMIT=4
             PROGRAM ${CADO_NFS_BINARY_DIR}/linalg/bwc/lingen_p1
             ARGUMENTS
             --afile ${CMAKE_CURRENT_SOURCE_DIR}/A.21744 ffile=/dev/null m=4 n=2
@@ -472,7 +480,10 @@ foreach(layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
         ${PROJECT_SOURCE_DIR}/linalg/bwc/lingen_qcode_prime.cpp
         ${PROJECT_SOURCE_DIR}/linalg/bwc/lingen_expected_pi_length.cpp
         ARGUMENTS --prime ${p}
-        LIBRARIES lingen_${layer}_support)
+        LIBRARIES lingen_${layer}_support
+        AVOID_CONCURRENT 4
+        ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=4 OMP_THREAD_LIMIT=4
+        )
 
     set(our_compile_flags)
     parse_arith_layer(${layer} our_compile_flags)
@@ -511,6 +522,7 @@ foreach(layer b64)
         ${PROJECT_SOURCE_DIR}/linalg/bwc/lingen_expected_pi_length.cpp
         LIBRARIES lingen_${layer}_support
         AVOID_CONCURRENT 4
+        ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=4 OMP_THREAD_LIMIT=4
         TIMEOUT 150
     )
 
@@ -538,6 +550,7 @@ foreach(layer b64)
         ARGUMENTS --test-basecase m=128 n=64 len1=256
         TARGET_DEPENDENCIES test_matpoly_${layer}
         AVOID_CONCURRENT 4
+        ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=4 OMP_THREAD_LIMIT=4
         TIMEOUT 180
         )
 endforeach()
@@ -552,7 +565,9 @@ set_target_properties(check_mpi_problems PROPERTIES
 set(mod2_plain_mpi_tests mpi_rect1 mpi_rect2 mpi_square1 mpi_square2)
 add_bwc_test(mod2_plain bwc-ptrace.sh prime=2 nullspace=left
     random_matrix_size=800 m=64 n=64 seed=1 thr=2x2
-    TARGET_DEPENDENCIES mf_scan2)
+    TARGET_DEPENDENCIES mf_scan2
+    AVOID_CONCURRENT 4
+    )
 create_magma_sage_diversions(mod2_plain)
 if(SAGE)
     cado_set_test_timeout(test_bwc_mod2_plain_with_sagemath 480)
@@ -560,12 +575,15 @@ endif()
 
 add_bwc_test(mod2_padded bwc-ptrace.sh prime=2 nullspace=left
     random_matrix_size=700,600 m=64 n=64 seed=1 thr=2x2
-    TARGET_DEPENDENCIES mf_scan2)
+    TARGET_DEPENDENCIES mf_scan2
+    AVOID_CONCURRENT 4
+    )
 
 add_bwc_test(mod2_secure_continuation bwc-test-secure-continuation.sh
     prime=2 nullspace=left random_matrix_size=800 m=64 n=64 seed=1 thr=2x2 interval=64
     TARGET_DEPENDENCIES mf_scan2
     TIMEOUT 60
+    AVOID_CONCURRENT 4
 )
 
 add_bwc_test(mod2_secure_consistent-defaults
@@ -573,6 +591,7 @@ add_bwc_test(mod2_secure_consistent-defaults
     prime=2 nullspace=left random_matrix_size=800 m=64 n=64 seed=1 thr=2x2 interval=64
     TARGET_DEPENDENCIES mf_scan2
     TIMEOUT 60
+    AVOID_CONCURRENT 4
 )
 
 # Note: because of stop_at_step here, we're not verifying what we're
@@ -580,6 +599,7 @@ add_bwc_test(mod2_secure_consistent-defaults
 add_bwc_test(mod2_rolling bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=2000
     interval=10 keep_rolling_checkpoints=2 checkpoint_precious=40 m=64 n=64
     seed=1 thr=2x2 stop_at_step=lingen
+    AVOID_CONCURRENT 4
     TARGET_DEPENDENCIES mf_scan2)
 
 add_bwc_test(mod2_8k bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=8000 m=128 n=128 seed=1 thr=2
@@ -598,14 +618,17 @@ endif()
 
 set(mod2_oddthr mpi_rect1 mpi_rect2 mpi_square1 mpi_square2)
 add_bwc_test(mod2_oddthr bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=800 m=128 n=128 seed=1 thr=3
+    AVOID_CONCURRENT 4
     TARGET_DEPENDENCIES mf_scan2)
 
 add_bwc_test(mod2_interleaving bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=800 m=128 n=128
     interleaving=1 seed=1 thr=2
+    AVOID_CONCURRENT 4
     TARGET_DEPENDENCIES mf_scan2)
  
 add_bwc_test(mod2_m_neq_n bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=400 m=128 n=64
     seed=1 thr=5
+    AVOID_CONCURRENT 6
     TARGET_DEPENDENCIES mf_scan2)
 
 if(HAVE_CXX11 AND HAVE_HWLOC)
@@ -637,6 +660,7 @@ foreach(mpiconf nompi ${mpiconfs})
         :mpirun
         -- ${CMAKE_CURRENT_BINARY_DIR}/test-parallelizing_info -v
         thr=2x2
+        AVOID_CONCURRENT 4
         TARGET_DEPENDENCIES test-parallelizing_info
         )
 endforeach()
@@ -657,6 +681,7 @@ foreach(mpiconf nompi ${mpiconfs})
         ${CMAKE_CURRENT_SOURCE_DIR}/bwc-dispatch-matmul.sh
         density=2
         thr=2x2
+        AVOID_CONCURRENT 4
         TARGET_DEPENDENCIES bwc_matmul_gf2 dispatch mf_scan2 mf_bal
         random_matrix
         )
@@ -706,26 +731,47 @@ macro(create_test_spmv test_spmv_base)
             endif()
             cado_define_test(
                 TEST_NAME test_spmv_${test_spmv_base}${suffix}
+                TIMEOUT 40
+                NO_DEFAULT_RUN
+                TARGET_DEPENDENCIES
+                random_matrix spmv_test short_matmul mf_scan2 mf_bal bwc_matmul_gf2
                 SCRIPT
                 ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
                 ${CMAKE_CURRENT_SOURCE_DIR}/test-spmv.sh
                 --matrix-size 1000 --density 10
                 ${ARGN}
-		TIMEOUT 40
-                NO_DEFAULT_RUN
-                TARGET_DEPENDENCIES
-                random_matrix spmv_test short_matmul mf_scan2 mf_bal bwc_matmul_gf2)
+                )
 
 
             cado_divert_test(test_spmv_${test_spmv_base}${suffix} 11 APPEND_ARGUMENTS thr=1x1)
             if(${test_spmv_${test_spmv_base}_alltests})
                 if(DEFINED ENV{CHECKS_EXPENSIVE})
-                    cado_divert_test(test_spmv_${test_spmv_base}${suffix} 12 APPEND_ARGUMENTS thr=1x2)
-                    cado_divert_test(test_spmv_${test_spmv_base}${suffix} 22 APPEND_ARGUMENTS thr=2x2)
-                    cado_divert_test(test_spmv_${test_spmv_base}${suffix} 13 APPEND_ARGUMENTS thr=1x3)
-                    cado_divert_test(test_spmv_${test_spmv_base}${suffix} 32 APPEND_ARGUMENTS thr=3x2)
+                    cado_divert_test(test_spmv_${test_spmv_base}${suffix}
+                        12
+                        APPEND_ARGUMENTS thr=1x2
+                        AVOID_CONCURRENT 2
+                        )
+                    cado_divert_test(test_spmv_${test_spmv_base}${suffix}
+                        22
+                        APPEND_ARGUMENTS thr=2x2
+                        AVOID_CONCURRENT 4
+                        )
+                    cado_divert_test(test_spmv_${test_spmv_base}${suffix}
+                        13
+                        APPEND_ARGUMENTS thr=1x3
+                        AVOID_CONCURRENT 3
+                        )
+                    cado_divert_test(test_spmv_${test_spmv_base}${suffix}
+                        32
+                        APPEND_ARGUMENTS thr=3x2
+                        AVOID_CONCURRENT 6
+                        )
                 endif()
-                cado_divert_test(test_spmv_${test_spmv_base}${suffix} 23 APPEND_ARGUMENTS thr=2x3)
+                cado_divert_test(test_spmv_${test_spmv_base}${suffix}
+                    23
+                    APPEND_ARGUMENTS thr=2x3
+                    AVOID_CONCURRENT 6
+                    )
             endif()
         endforeach()
     else()
@@ -767,7 +813,7 @@ foreach(arith_layer ${BWC_GF2_ARITHMETIC_BACKENDS})
     create_test_spmv(binary-${arith_layer}
         --backends "${mm_backends}"
         --arith-layer ${arith_layer}
-	TIMEOUT 40)
+        TIMEOUT 40)
 endforeach()
 
 foreach(arith_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
@@ -788,6 +834,7 @@ cado_define_test(TEST_NAME spmv_bucket_30075
     PROGRAM ${CMAKE_CURRENT_SOURCE_DIR}/bug30075.sh
     TARGET_DEPENDENCIES
     spmv_test bwc_matmul_gf2 mf_bal mf_scan2
+    AVOID_CONCURRENT 16
     TIMEOUT 40
 )
 
@@ -866,6 +913,7 @@ cado_define_test(TEST_NAME test-blocklanczos
     PROGRAM ${CMAKE_CURRENT_SOURCE_DIR}/test-blocklanczos.sh
         --density 10
     NO_DEFAULT_RUN
+    AVOID_CONCURRENT 16
     TARGET_DEPENDENCIES mf_scan2 mf_bal random_matrix blocklanczos
     bwc_full_gf2 short_matmul)
 cado_divert_test(test-blocklanczos right
@@ -880,7 +928,7 @@ cado_divert_test(test-blocklanczos left-thr23
     APPEND_ARGUMENTS --matrix-size "2500,1000" --nullspace left thr=2x3)
 
 cado_define_test(TEST_NAME test-blocklanczos-staged
-    AVOID_CONCURRENT
+    AVOID_CONCURRENT 16
     PROVIDE_TEMPORARY_WDIR
     PROGRAM
     ${CADO_NFS_BINARY_DIR}/linalg/bwc/bwc.pl :mpirun --

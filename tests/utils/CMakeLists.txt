@@ -25,7 +25,11 @@ cado_define_test(test_modredc_2ul2.c LIBRARIES utils tests ARGUMENTS 1000
     TIMEOUT 120
 )
 cado_define_test(test_sm_utils.cpp LIBRARIES utils ARGUMENTS ${CMAKE_CURRENT_SOURCE_DIR}/test_sm_utils.data)
-cado_define_test(test_mpz_poly.cpp LIBRARIES utils tests AVOID_CONCURRENT 4 TIMEOUT 60)
+cado_define_test(test_mpz_poly.cpp
+    LIBRARIES utils tests
+    AVOID_CONCURRENT 4
+    ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=4 OMP_THREAD_LIMIT=4
+    TIMEOUT 60)
 cado_define_test(test_mpz_poly_parsing.cpp LIBRARIES utils tests)
 cado_define_test(test_json_parsing.cpp LIBRARIES utils tests)
 cado_define_test(test_cxx_mpz_mat.cpp LIBRARIES utils tests)

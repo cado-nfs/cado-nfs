@@ -93,15 +93,27 @@ EOF
 
 
 check_environment() {
+    Nmax=16
     if [ -x "$build_tree/tests/omp_get_max_threads" ] ; then
         N=$("$build_tree/tests/omp_get_max_threads")
-        Nmax=16
-        if grep -q '^#define[[:space:]]*ULONG_BITS[[:space:]]*32' $build_tree/cado_config.h && [ "$N" -gt 16 ] ; then
-            major_message "On a 32-bit, $N-core machine, reducing the number of openmp threads to only $Nmax"
+        # originally we sensed a need to do so only on 32-bit machines,
+        # but after all it makes sense more generally.
+        if [ "$N" -gt "$Nmax" ] ; then
+            major_message "reducing the max number of openmp threads to only $Nmax"
             export OMP_NUM_THREADS=$Nmax
-            export CADO_NFS_MAX_THREADS=$Nmax
+            export OMP_THREAD_LIMIT=$Nmax
         fi
     fi
+    if [ -f "$build_tree/hwloc-`hostname`.xml" ] ; then
+        export HWLOC_XMLFILE="$build_tree/hwloc-`hostname`.xml"
+    elif [ -x "$build_tree/tests/hwloc_cado_helper" ] ; then
+        export HWLOC_XMLFILE="$build_tree/hwloc-`hostname`.xml"
+        "$build_tree/tests/hwloc_cado_helper" -o "$HWLOC_XMLFILE"
+    else
+        major_message "Forcing a fake hwloc file. This might conflict with some tests"
+        export HWLOC_XMLFILE="$PWD/ci/placeholder-machine-for-tests.xml"
+    fi
+    export CADO_NFS_MAX_THREADS=$Nmax
     export OMP_DYNAMIC=true
     # See https://stackoverflow.com/questions/70126350/openmp-incredibly-slow-when-another-process-is-running
     # It's not totally clear to me if it somewhere specified that

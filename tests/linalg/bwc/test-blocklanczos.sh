@@ -98,7 +98,7 @@ file_is_zero() {
 # care about replicating permutations.
 $CADO_NFS_BINARY_DIR/linalg/bwc/mf_bal $nh $nv $wdir/mat.bin skip_decorrelating_permutation=1 out=$wdir/bal.bin --rectangular
 
-$CADO_NFS_BINARY_DIR/linalg/bwc/bwc.pl :mpirun "${mpithr_args[@]}" -- $CADO_NFS_BINARY_DIR/linalg/bwc/blocklanczos m=64 n=64 ys=0..64 matrix=mat.bin wdir=$wdir balancing=bal.bin seed=1 interval=$((nrows/10+1)) no_save_cache=1 "${bwc_extra[@]}" skip_bw_early_rank_check=1
+$CADO_NFS_BINARY_DIR/linalg/bwc/bwc.pl :mpirun "${mpithr_args[@]}" -- $CADO_NFS_BINARY_DIR/linalg/bwc/blocklanczos m=64 n=64 ys=0..64 matrix=mat.bin wdir=$wdir balancing=bal.bin seed=1 interval=$((nrows/10+1)) no_save_cache=1 "${bwc_extra[@]}" skip_bw_early_rank_check=1 wdir=$wdir
 
 if [ $nullspace = left ] ; then
     $CADO_NFS_BINARY_DIR/tests/linalg/bwc/short_matmul -t $wdir/mat.bin $wdir/blsolution0-64.0 $wdir/blsolution0-64.0.image

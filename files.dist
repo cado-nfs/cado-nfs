@@ -27,6 +27,7 @@ ci/ci
 ci/ci.bash
 ci/ci.sh
 ci/debug.sh
+ci/placeholder-machine-for-tests.xml
 config/alignas.cmake
 config/alignas.cpp
 config/aligned_alloc.cmake
@@ -1196,6 +1197,7 @@ tests/filter/testsm.sh
 tests/gf2x/CMakeLists.txt
 tests/gf2x/test_cantor.c
 tests/guess_mpi_configs.sh
+tests/hwloc_cado_helper.c
 tests/linalg/CMakeLists.txt
 tests/linalg/Makefile
 tests/linalg/bblas/CMakeLists.txt

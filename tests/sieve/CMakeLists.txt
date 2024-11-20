@@ -578,6 +578,7 @@ cado_divert_test(test_init_norms c120_basic
         -sqside 1
         -t 2
         --hush-max-jitter 1
+    AVOID_CONCURRENT 2
 )
 
 cado_divert_test(test_init_norms c120_torture
@@ -590,6 +591,7 @@ cado_divert_test(test_init_norms c120_torture
         --abort-on-jitter 1,5
         --nfills-speed-test 0
     NO_DEFAULT_RUN
+    AVOID_CONCURRENT 2
 )
 
 # a couple of hard cases encountered during testing.
@@ -614,6 +616,7 @@ cado_divert_test(test_init_norms rsa220
         -t 2
         --hush-max-jitter 1
         --abort-on-jitter 1,5
+    AVOID_CONCURRENT 2
 )
 
 cado_divert_test(test_init_norms bug21518
@@ -709,6 +712,7 @@ cado_define_test(test-inline-polynomials-and-expressions
             -poly "inline-poly://skew=1/poly0=x^3+2/poly1=x-2^43/n=2^128+1"
             -lim 200
             -t 2
+    AVOID_CONCURRENT 2
     TARGET_DEPENDENCIES
         makefb
 )

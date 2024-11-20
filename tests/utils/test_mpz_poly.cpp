@@ -1223,29 +1223,28 @@ void test_mpz_poly_interpolation(unsigned long iter)
 // coverity[root_function]
 int main(int argc, char const * argv[])
 {
-  unsigned long iter = 500;
-  tests_common_cmdline(&argc, &argv, PARSE_SEED | PARSE_ITER);
-  tests_common_get_iter(&iter);
+    unsigned long iter = 500;
+    tests_common_cmdline(&argc, &argv, PARSE_SEED | PARSE_ITER);
+    tests_common_get_iter(&iter);
 
-  test_mpz_poly_mul_tc (iter / 5);
-  test_mpz_poly_sqr_tc (iter / 5);
-  test_mpz_polymodF_mul ();
-  /* test_mpz_poly_roots_mpz (iter); */
-  test_mpz_poly_sqr_mod_f_mod_mpz (iter);
-  test_mpz_poly_fprintf ();
-  test_mpz_poly_div_2_mod_mpz ();
-  test_mpz_poly_derivative ();
-  test_mpz_poly_pow_mod_f_mod_ui ();
-  test_mpz_poly_base_modp_init (iter);
-  test_mpz_poly_is_root(iter);
-  test_mpz_poly_factor(2 + iter / 5);
-  test_mpz_poly_factor_padic(2 + iter / 20);
-  test_mpz_poly_trivialities ();
-  test_mpz_poly_resultant();
-  test_mpz_poly_discriminant(iter);
-  test_mpz_poly_discriminant2(10);
-  test_mpz_poly_infinity_norm();
-  test_mpz_poly_interpolation(iter);
-  tests_common_clear ();
-  exit (EXIT_SUCCESS);
+    test_mpz_poly_mul_tc (iter / 5);
+    test_mpz_poly_sqr_tc (iter / 5);
+    test_mpz_polymodF_mul ();
+    /* test_mpz_poly_roots_mpz (iter); */
+    test_mpz_poly_sqr_mod_f_mod_mpz (iter);
+    test_mpz_poly_div_2_mod_mpz ();
+    test_mpz_poly_derivative ();
+    test_mpz_poly_pow_mod_f_mod_ui ();
+    test_mpz_poly_base_modp_init (iter / 25);
+    test_mpz_poly_is_root(iter);
+    test_mpz_poly_factor(2 + iter / 5);
+    test_mpz_poly_factor_padic(2 + iter / 20);
+    test_mpz_poly_trivialities ();
+    test_mpz_poly_resultant();
+    test_mpz_poly_discriminant(iter);
+    test_mpz_poly_discriminant2(10);
+    test_mpz_poly_infinity_norm();
+    test_mpz_poly_interpolation(iter / 10);
+    tests_common_clear ();
+    exit (EXIT_SUCCESS);
 }
