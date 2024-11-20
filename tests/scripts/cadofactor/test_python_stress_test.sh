@@ -4,8 +4,7 @@
 : ${CADO_NFS_BINARY_DIR:?missing}
 : ${CADO_NFS_SOURCE_DIR:?missing}
 
-set -m
-set -e
+set -mex
 
 db_backend=sqlite3
 
@@ -20,9 +19,13 @@ while [ $# -gt 0 ] ; do
     shift
 done
 
+cp ${CADO_NFS_SOURCE_DIR}/parameters/factor/parameters.F7 $wdir
+sed -e '/tasks.sieve.rels_wanted/ d' -i $wdir/parameters.F7
+sed -e '/tasks.sieve.qrange/ d' -i $wdir/parameters.F7
+
 server="${CADO_NFS_BINARY_DIR}/cado-nfs.py"
 server_args=(340282366920938463463374607431768211457
-    ${CADO_NFS_SOURCE_DIR}/parameters/factor/parameters.F7
+    $wdir/parameters.F7
     tasks.polyselect.import=${CADO_NFS_SOURCE_DIR}/tests/misc/F7.poly
     tasks.maxwu=200
     tasks.sieve.qrange=10
@@ -39,11 +42,13 @@ if [ $db_backend = mysql ] ; then
     # This requires cooperation from the early setup. For example, on CI
     # runners, this setup gets done in the shell function
     # after_package_install in ci/ci.sh
-    server_args+=(database=db:mysql://hostuser@_unix_socket//run/mysqld/mysqld.sock/cado_nfs)
+    server_args+=(database=db:mysql://$(id -nu)@_unix_socket//run/mysqld/mysqld.sock/cado_nfs)
 fi
 
 server_args+=(
     --wdir "${wdir}/cado-nfs"
+    --filelog transaction
+    --screenlog warning
     --server
 )
 
@@ -56,7 +61,9 @@ url=
 i=0
 
 while ! [ "$url" ] && [ $i -lt 4 ] ; do
-    if [[ $(grep 'additional.*client.*server' "$logfile") =~ --server=([^ ]*) ]] ; then
+    if ! [ -f "$logfile" ] ; then
+        echo "Waiting for server to create $logfile" >&2
+    elif [[ $(grep 'additional.*client.*server' "$logfile") =~ --server=([^ ]*) ]] ; then
         url="${BASH_REMATCH[1]}"
         echo "Server started at $url"
         break
@@ -67,6 +74,7 @@ done
 
 if ! [ "$url" ] ; then
     echo "server did not start correctly" >&2
+    cat "$wdir/server.log" >&2
     exit 1
 fi
 
@@ -79,6 +87,7 @@ for i in {1..16} ; do
         --server "$url"
         --exit-on-server-gone
         --downloadretry 1
+        --basepath "$wdir"
         # --daemon
     )
     client="${CADO_NFS_BINARY_DIR}/cado-nfs-client.py"
@@ -86,7 +95,11 @@ for i in {1..16} ; do
     client_pids+=($!)
 done
 
+tail -f "$wdir/server.log" < /dev/null &
+tail_pid=$!
+
 echo "server pid $server_pid"
+echo "tail -f pid $tail_pid"
 echo "client pids ${client_pids[@]}"
 
 echo "Returning to server control"
@@ -94,17 +107,23 @@ set +e
 fg %1
 rc=$?
 echo "$server finished with rc=$rc"
-grep "Finishing early" "$wdir/server.log" || :
+grep "Finishing early" "$logfile" || :
+
+kill $tail_pid
 
 # Give clients some leeway to finish by themselves
 sleep 2
 echo "Now killing remaining clients. Errors are not unexpected here"
-kill -9 "${client_pids[@]}"
+kill -9 "${client_pids[@]}" 2>/dev/null || :
 
-if [ $rc = 0 ] ; then
-    echo "All good!"
-else
+if [ $rc != 0 ] ; then
     echo "Errors encountered!"
     echo "Errors encountered!" >&2
     exit $rc
+elif grep -q Error "$wdir/server.log" ; then
+    echo "Errors encountered!"
+    echo "Errors encountered!" >&2
+    exit 1
+else
+    echo "All good!"
 fi

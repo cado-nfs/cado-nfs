@@ -124,7 +124,7 @@ after_package_install() {
         /etc/init.d/mariadb start
         # ci jobs will run all this as root, so we don't really care. But
         # for runs with ci/ci/debug.sh, we do.
-        mysql -e "CREATE USER 'hostuser'@localhost IDENTIFIED VIA unix_socket;"
+        mysql -e "CREATE USER IF NOT EXISTS 'hostuser'@localhost IDENTIFIED VIA unix_socket;"
         mysql -e "GRANT ALL PRIVILEGES ON cado_nfs.* TO hostuser@localhost IDENTIFIED VIA unix_socket;"
     fi
 }

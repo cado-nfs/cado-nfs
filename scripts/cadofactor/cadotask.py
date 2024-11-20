@@ -1336,8 +1336,8 @@ class Task(patterns.Colleague, SimpleStatistics, HasState, DoesLogging,
 
     def run(self):
         if not self.params["run"]:
-            self.logger.error("Stopping at %s", self.name)
-            raise EarlyStopException("Job aborted"
+            self.logger.info("Stopping at %s", self.name)
+            raise EarlyStopException("Job stops here"
                                      " because of a forcibly disabled task"
                                      " -- stopped at " + self.name)
         self.logger.info("Starting")
@@ -2888,8 +2888,8 @@ class Polysel2Task(ClientServerTask,
                               poly)
             return None
         if not poly.MurphyE:
-            self.logger.warning("Polynomial in file %s has no Murphy E value, "
-                                "computing it", filename)
+            self.logger.info("Polynomial in file %s has no Murphy E value, "
+                             "computing it", filename)
             p = cadoprograms.Score(inputpoly=filename,
                                    **self.merged_args[1])
             process = cadocommand.Command(p)
@@ -7158,7 +7158,7 @@ class CompleteFactorization(HasState,
             self.logger.info("Total cpu/elapsed time"
                              " for incomplete %s: %g/%g",
                              self.title, self.cputotal, self.elapsed)
-            self.logger.error("Finishing early: " + str(e))
+            self.logger.info("Finishing early: " + str(e))
             raise e
 
         # Do we want the sum of real times over all sub-processes for

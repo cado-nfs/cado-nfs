@@ -28,7 +28,6 @@ import time
 
 from cadofactor.cadofactor_tools import UploadDirProvider
 from cadofactor.database import DictDbDirectAccess
-from cadofactor import cadologger
 from cadofactor import wudb
 from werkzeug import serving
 
@@ -137,7 +136,6 @@ class ApiServer(flask.Flask):
         self.name = "API server"
         super().__init__(self.name)
         self.logger = logging.getLogger(self.name)
-        self.logger.addHandler(cadologger.ScreenHandler(lvl=logging.NOTSET))
 
         self.address = serveraddress if serveraddress else "0.0.0.0"
         self.port = serverport
