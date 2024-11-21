@@ -25,7 +25,7 @@
 #include "mmt_vector_pair.hpp"
 #include "matmul_top_comm.hpp"
 
-void mmt_full_vec_set_dummy1(mmt_vec & y, size_t unpadded)
+static void mmt_full_vec_set_dummy1(mmt_vec & y, size_t unpadded)
 {
     mmt_full_vec_set_zero(y);
 
@@ -61,7 +61,7 @@ void mmt_full_vec_set_dummy1(mmt_vec & y, size_t unpadded)
     y.consistency = 2;
 }
 
-void mmt_full_vec_set_dummy2(mmt_vec & y, size_t unpadded)
+static void mmt_full_vec_set_dummy2(mmt_vec & y, size_t unpadded)
 {
     mmt_full_vec_set_zero(y);
 
@@ -97,7 +97,7 @@ void mmt_full_vec_set_dummy2(mmt_vec & y, size_t unpadded)
     y.consistency = 2;
 }
 
-void * dispatch_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
+static void * dispatch_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
 
     int const ys[2] = { bw->ys[0], bw->ys[1], };
@@ -114,7 +114,6 @@ void * dispatch_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg 
 
     std::unique_ptr<arith_generic> A(arith_generic::instance(bw->p, ys[1]-ys[0]));
     std::unique_ptr<arith_cross_generic> AxA(arith_cross_generic::instance(A.get(), A.get()));
-    block_control_signals();
 
     /*****************************************
      *             Watch out !               *
@@ -289,7 +288,6 @@ int main(int argc, char const * argv[])
     /* Forcibly disable interleaving here */
     param_list_remove_key(pl, "interleaving");
 
-    catch_control_signals();
     pi_go(dispatch_prog, pl, 0);
 
     parallelizing_info_finish();

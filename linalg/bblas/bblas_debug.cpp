@@ -26,6 +26,7 @@
  * But this should go in a separate python script, naturally.
  *
  */
+// NOLINTNEXTLINE(misc-use-internal-linkage)
 void pmat_6464(mat64 const * m)
 {
     for(int i = 0; i < 64 ; i++) {
@@ -37,6 +38,7 @@ void pmat_6464(mat64 const * m)
     }
 }
 
+// NOLINTNEXTLINE(misc-use-internal-linkage)
 void pmat_mn(mat64 const * m, int rb, int cb)
 {
     ASSERT_ALWAYS(rb%64 == 0); rb /= 64;

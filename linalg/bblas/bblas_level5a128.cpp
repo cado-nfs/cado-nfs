@@ -1,9 +1,11 @@
-#include "cado.h"
+#include "cado.h"       // NOLINT(misc-include-cleaner)
+
 #include <cstring>
+#include <cstdint>
+
 #include "bblas_mat64.hpp"
 #include "bblas_level5.hpp"
 #include "bblas_level3a.hpp"  // for mat64_add
-#include "bblas_level3b.hpp"  // for mul_6464_6464
 #include "memory.h"      // malloc_aligned
 #include "macros.h"                      // for ASSERT, ASSERT_ALWAYS
 
@@ -18,7 +20,7 @@ void m64pol_mul_gf2_128_bitslice(mat64 * r, mat64 const * a1, mat64 const * a2)/
 {
     unsigned int const n1 = 128;
     unsigned int const n2 = 128;
-    mat64 * t = (mat64 *) malloc_aligned((n1 + n2 -1) * sizeof(mat64), 64);
+    auto * t = (mat64 *) malloc_aligned((n1 + n2 -1) * sizeof(mat64), 64);
     m64pol_mul_kara(t, a1, a2, n1, n2);
     /* This reduces modulo the polynomial x^128+x^7+x^2+x+1 */
     for(unsigned int i = n1 + n2 - 2 ; i >= 128; i--) {
@@ -31,11 +33,11 @@ void m64pol_mul_gf2_128_bitslice(mat64 * r, mat64 const * a1, mat64 const * a2)/
     free_aligned(t);
 }/*}}}*/
 
-void m64pol_scalmul_gf2_128_bitslice(mat64 * r, mat64 const * a, uint64_t * s)/*{{{*/
+void m64pol_scalmul_gf2_128_bitslice(mat64 * r, mat64 const * a, uint64_t const * s)/*{{{*/
 {
     unsigned int const n1 = 128;
     unsigned int const n2 = 128;
-    mat64 * t = (mat64 *) malloc_aligned((n1 + n2 -1) * sizeof(mat64), 64);
+    auto * t = (mat64 *) malloc_aligned((n1 + n2 -1) * sizeof(mat64), 64);
     memset((void *) t, 0, (n1 + n2 -1) * sizeof(mat64));
     for(unsigned int i = 0 ; i < 128 ; i++) {
         if (((s[i/64]>>(i&63))&UINT64_C(1))==0) continue;

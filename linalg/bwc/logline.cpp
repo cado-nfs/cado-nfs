@@ -60,7 +60,7 @@ void logline_unserialize(double);
 
 static struct logline * current;
 
-size_t logline_thresholds[10] = {
+static size_t logline_thresholds[10] = {
     /* This list should be increasing */
     SIZE_MAX,
     SIZE_MAX,
@@ -74,9 +74,9 @@ size_t logline_thresholds[10] = {
     SIZE_MAX,
 };
 
-int logline_timings = 1;
+static int logline_timings = 1;
 
-int logline_print_all_mpi_nodes = 0;
+static int logline_print_all_mpi_nodes = 0;
 
 static double start_time = -1;
 
@@ -85,7 +85,7 @@ void logline_init_timer()
     start_time = wct_seconds();
 }
 
-int logline_report_wct = 0;
+static int logline_report_wct = 0;
 
 static double logline_timer()
 {

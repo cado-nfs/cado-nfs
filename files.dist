@@ -490,6 +490,9 @@ linalg/bwc/bench_comm_bwc.cpp
 linalg/bwc/bench_cpu_bwc.cpp
 linalg/bwc/bench_matcache.cpp
 linalg/bwc/blocklanczos.cpp
+linalg/bwc/blocklanczos.hpp
+linalg/bwc/blocklanczos_extraction.cpp
+linalg/bwc/blocklanczos_extraction.hpp
 linalg/bwc/build_matcache.cpp
 linalg/bwc/bw-common.c
 linalg/bwc/bw-common.h

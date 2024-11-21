@@ -1,13 +1,15 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <cinttypes>        // for PRId64, PRIu64
 #include <cstdint>          // for uint64_t, uint8_t
 #include <cstring>          // for strcmp
 #include <cstdio>
 #include <cstdlib>
-#include <memory>            // for allocator_traits<>::value_type
-#include <vector>            // for vector
+
 #include <gmp.h>
-#include "cxx_mpz.hpp"       // for cxx_mpz
+#include "fmt/core.h"
+
+#include "cxx_mpz.hpp"
 #include "gmp_aux.h"         // for mpz_set_int64, mpz_set_uint64
 #include "portability.h" // IWYU pragma: keep
 #include "relation-tools.h"
@@ -16,8 +18,8 @@
 #include "typedefs.h"        // for PRpr
 #include "misc.h"        // for PRpr
 
-unsigned long
-mpz_compute_r (mpz_t a, mpz_t b, mpz_t p)
+static unsigned long
+mpz_compute_r (cxx_mpz const & a, cxx_mpz & b, cxx_mpz const & p)
 {
   if (mpz_invert (b, b, p) == 0)
     return mpz_get_ui(p);
@@ -30,14 +32,10 @@ mpz_compute_r (mpz_t a, mpz_t b, mpz_t p)
   }
  }
 
-int
-test_compute_r (unsigned int nb)
+static int test_compute_r (unsigned int nb)
 {
   int err = 0;
-  mpz_t tp, ta, tb;
-  mpz_init (tp);
-  mpz_init (ta);
-  mpz_init (tb);
+  cxx_mpz tp, ta, tb;
 
   for (unsigned int i = 0; i < nb; i++)
   {
@@ -84,19 +82,13 @@ test_compute_r (unsigned int nb)
       err++;
     }
   }
-  mpz_clear (tp);
-  mpz_clear (ta);
-  mpz_clear (tb);
   return err;
 }
 
-int test_compute_all_r (unsigned int nb)
+static int test_compute_all_r (unsigned int nb)
 {
   int err = 0;
-  mpz_t tp, ta, tb;
-  mpz_init(tp);
-  mpz_init(ta);
-  mpz_init(tb);
+  cxx_mpz tp, ta, tb;
 
   for (unsigned int i = 0; i < nb; i++)
   {
@@ -138,20 +130,16 @@ int test_compute_all_r (unsigned int nb)
     }
   }
 
-  mpz_clear (ta);
-  mpz_clear (tb);
-  mpz_clear (tp);
-
   return err;
 }
 
-int
-check_str_err (const char * s1, const char * s2, mpz_t t)
+static int
+check_str_err (const char * s1, const char * s2, cxx_mpz const & t)
 {
   if (strcmp(s1, s2) != 0)
   {
-    gmp_fprintf(stderr, "ERROR with integer %Zd: got \"%s\" instead of "
-                        "\"%s\"\n", t, s2, s1);
+      fmt::print(stderr, "ERROR with integer {} got \"{}\" instead of "
+                        "\"{}\"\n", t, s2, s1);
     return 1;
   }
   else
@@ -159,15 +147,14 @@ check_str_err (const char * s1, const char * s2, mpz_t t)
 
 }
 
-int
+static int
 test_conversion (unsigned int nb)
 {
   int err = 0;
   char *s1, *s2, *tmp;
   s1 = (char *) malloc (25 * sizeof(char));
   s2 = (char *) malloc (25 * sizeof(char));
-  mpz_t t;
-  mpz_init(t);
+  cxx_mpz t;
 
 
   for (unsigned int i = 0; i < nb; i++)
@@ -200,7 +187,6 @@ test_conversion (unsigned int nb)
     *tmp = '\0';
     err += check_str_err (s1, s2, t);
   }
-  mpz_clear(t);
   free(s1);
   free(s2);
 

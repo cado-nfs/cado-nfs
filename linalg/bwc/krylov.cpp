@@ -158,7 +158,7 @@ struct check_data {
     }
 };
 
-void * krylov_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
+static void * krylov_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
     int const legacy_check_mode = 0;
     int fake = param_list_lookup_string(pl, "random_matrix") != NULL;
@@ -173,9 +173,6 @@ void * krylov_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MA
         ys[0] = bw->ys[0] + pi->interleaved->idx * (bw->ys[1]-bw->ys[0])/2;
         ys[1] = ys[0] + (bw->ys[1]-bw->ys[0])/2;
     }
-
-
-    block_control_signals();
 
     std::unique_ptr<arith_generic> A(arith_generic::instance(bw->p, ys[1]-ys[0]));
     matmul_top_data mmt(A.get(), pi, pl, bw->dir);
@@ -420,8 +417,6 @@ int main(int argc, char const * argv[])
 
     ASSERT_ALWAYS(param_list_lookup_string(pl, "ys"));
     ASSERT_ALWAYS(!param_list_lookup_string(pl, "solutions"));
-
-    catch_control_signals();
 
     if (param_list_warn_unused(pl)) {
         int rank;

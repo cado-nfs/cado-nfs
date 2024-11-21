@@ -8,6 +8,8 @@
  * Free Software Foundation; either version 2.1 of the License, or (at your
  * option) any later version.  See <http://www.gnu.org/licenses/>. */
 
+// NOLINTBEGIN
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -34,7 +36,7 @@ int flint_scanf(const char *str, ...)
     str2[n] = '\0';
     ret = 0;
     if (!fread(str2, 1, n, stdin) && n > 0)
-	goto cleanup;
+	goto cleanup0;
     len -= n;
     str += n;
 
@@ -104,10 +106,12 @@ int flint_scanf(const char *str, ...)
 	str += n;
     }
 
-    va_end(ap);
-
   cleanup:
+    va_end(ap);
+  cleanup0:
     flint_free(str2);
 
     return ret;
 }
+
+// NOLINTEND

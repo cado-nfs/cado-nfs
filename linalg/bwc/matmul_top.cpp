@@ -351,7 +351,7 @@ void mmt_apply_identity(mmt_vec & w, mmt_vec const & v)
     w.consistency = 1;
 }
 
-void mmt_vec_apply_or_unapply_P_inner(matmul_top_data & mmt, mmt_vec & y, int apply)
+static void mmt_vec_apply_or_unapply_P_inner(matmul_top_data & mmt, mmt_vec & y, int apply)
 {
     ASSERT_ALWAYS(y.consistency == 2);
     mmt_vec yt(mmt, y.abase, y.pitype, !y.d, 0, y.n);
@@ -394,7 +394,7 @@ void mmt_vec_apply_P(matmul_top_data & mmt, mmt_vec & y)
  * See that when, say, Sr is implicitly defined (to P*Sc), this function
  * only applies Sc, not P !
  */
-void mmt_vec_apply_or_unapply_S_inner(matmul_top_data & mmt, int midx, mmt_vec & y, int apply)
+static void mmt_vec_apply_or_unapply_S_inner(matmul_top_data & mmt, int midx, mmt_vec & y, int apply)
 {
     ASSERT_ALWAYS(y.consistency == 2);
     /* input: fully consistent */
@@ -545,7 +545,7 @@ void mmt_vec_untwist(matmul_top_data & mmt, mmt_vec & y)
     // pshuf indicates two integers a,b such that the COLUMN i of the input
     // matrix is in fact mapped to column a*i+b mod n in the matrix we work
     // with. pshuf_inv indicates the inverse permutation. a and b do
-void mmt_vec_apply_or_unapply_T_inner(matmul_top_data & mmt, mmt_vec & y, int apply)
+static void mmt_vec_apply_or_unapply_T_inner(matmul_top_data & mmt, mmt_vec & y, int apply)
 {
     /* apply: coefficient i of the vector goes to coefficient
      * balancing_pre_shuffle[i]

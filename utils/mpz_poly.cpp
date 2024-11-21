@@ -2349,13 +2349,6 @@ mpz_poly_mod_mpz_lazy (mpz_poly_ptr R, mpz_poly_srcptr A, mpz_srcptr m)
    Coefficients of R need not be reduced mod m on input, but are reduced
    on output.
    If invf is not NULL, it should be 1/m mod lc(f). */
-int
-mpz_poly_mod_f_mod_mpz (mpz_poly_ptr R, mpz_poly_srcptr f, mpz_srcptr m,
-        mpz_srcptr invf)
-{
-    return mpz_poly_mod_f_mod_mpz (R, f, m, invf, NULL);
-}
-
 int mpz_poly_mod_f_mod_mpz(mpz_poly_ptr R, mpz_poly_srcptr f, mpz_srcptr m,
 			mpz_srcptr invf, mpz_srcptr invm)
 {
@@ -3677,7 +3670,7 @@ void mpz_poly_factor_list_flush(mpz_poly_factor_list_ptr l)
 }
 
 
-void mpz_poly_factor_list_prepare_write(mpz_poly_factor_list_ptr l, int index)
+static void mpz_poly_factor_list_prepare_write(mpz_poly_factor_list_ptr l, int index)
 {
     if (index >= l->alloc) {
         l->alloc = index + 4 + l->alloc / 4;
@@ -4325,7 +4318,7 @@ std::vector<std::pair<cxx_mpz_poly, int>> mpz_poly_factor(mpz_poly_srcptr f, mpz
     return res;
 }
 
-void mpz_poly_factor_list_set(mpz_poly_factor_list_ptr lf, std::vector<std::pair<cxx_mpz_poly, int>> const & xlf)
+static void mpz_poly_factor_list_set(mpz_poly_factor_list_ptr lf, std::vector<std::pair<cxx_mpz_poly, int>> const & xlf)
 {
     mpz_poly_factor_list_flush(lf);
     for(auto const & fm : xlf)
@@ -4979,11 +4972,6 @@ int mpz_poly_set_from_expression(mpz_poly_ptr f, const char * value)
    P->p = lc(F)^P->v * p mod F.
 
    */
-void mpz_poly_reducemodF(mpz_polymodF_ptr P, mpz_poly_srcptr p, mpz_poly_srcptr F)
-{
-    mpz_poly_notparallel_info().mpz_poly_reducemodF(P, p, F);
-}
-
 template<typename inf>
 void mpz_poly_parallel_interface<inf>::mpz_poly_reducemodF(mpz_polymodF_ptr P, mpz_poly_srcptr p, mpz_poly_srcptr F) const
 {

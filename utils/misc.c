@@ -1,13 +1,16 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdio.h>          // for asprintf, fprintf, perror, snprintf, fclose
-#include <sys/stat.h>   // mkdir
-#include <unistd.h>
-#include <stdlib.h>
-#include <stddef.h>
-#include <string.h>
+
+#include <ctype.h>
 #include <errno.h>
 #include <limits.h>
-#include <ctype.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>          // for asprintf, fprintf, perror, snprintf, fclose
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+#include <sys/stat.h>   // mkdir
 #ifdef HAVE_LINUX_BINFMTS_H
 /* linux/binfmts.h defines MAX_ARG_STRLEN in terms of PAGE_SIZE, but does not
    include a header where PAGE_SIZE is defined, so we include sys/user.h
@@ -15,14 +18,14 @@
 #include <sys/user.h>
 #include <linux/binfmts.h>
 #endif
-/* For MinGW Build */
-#if defined(_WIN32) || defined(_WIN64)
-#include <windows.h>
-#endif
+
+#include <gmp.h>
 
 #include "macros.h"
 #include "misc.h"
+#if ULONG_BITS == 32
 #include "gmp_aux.h"    // mpz_get_uint64
+#endif
 #include "portability.h" // asprintf // IWYU pragma: keep
 
 // re-entrant random with GMP.
@@ -154,7 +157,9 @@ char const ** filelist_from_file(const char * basepath, const char * filename,
 
         if (nfiles == nfiles_alloc) {
             nfiles_alloc += nfiles_alloc / 2 + 16;
+            // NOLINTNEXTLINE(bugprone-suspicious-realloc-usage)
             files = (char const **) realloc(files, nfiles_alloc * sizeof(char const *));
+            FATAL_ERROR_CHECK(files == NULL, "cannot allocate memory");
         }
         if (basepath) {
             char * name;
@@ -170,7 +175,9 @@ char const ** filelist_from_file(const char * basepath, const char * filename,
 
     if (nfiles == nfiles_alloc) {
         nfiles_alloc += nfiles_alloc / 2 + 16;
+        // NOLINTNEXTLINE(bugprone-suspicious-realloc-usage)
         files = (char const **) realloc(files, nfiles_alloc * sizeof(char const *));
+        FATAL_ERROR_CHECK(files == NULL, "cannot allocate memory");
     }
     files[nfiles++] = NULL;
     return files;
@@ -187,8 +194,8 @@ void filelist_clear(char const ** filelist)
 int mkdir_with_parents(char const * dir, int fatal)
 {
     char * tmp = strdup(dir);
-    int n = strlen(dir);
-    int pos = 0;
+    size_t n = strlen(dir);
+    size_t pos = 0;
     if (dir[0] == '/')
         pos++;
     for( ; pos < n ; ) {
@@ -252,7 +259,7 @@ char * path_resolve(const char * progname, char * resolved)
           segment = strdup(path);
           next_path = path + strlen(path);
       }
-      char dummy2[PATH_MAX];
+      char dummy2[PATH_MAX];    // NOLINT(misc-include-cleaner)
 #ifdef EXECUTABLE_SUFFIX
       snprintf(dummy2, PATH_MAX, "%s/%s" EXECUTABLE_SUFFIX, segment, progname);
 #else
@@ -266,10 +273,10 @@ char * path_resolve(const char * progname, char * resolved)
 }
 
 //  trivial utility
-const char *size_disp_fine(size_t s, char buf[16], double cutoff)
+const char * size_disp_fine(size_t s, char buf[16], double cutoff)
 {
     const char *prefixes = "bkMGT";
-    double ds = s;
+    double ds = (double) s;
     const char *px = prefixes;
     for (; px[1] && ds > cutoff;) {
 	ds /= 1024.0;
@@ -278,7 +285,7 @@ const char *size_disp_fine(size_t s, char buf[16], double cutoff)
     snprintf(buf, 10, "%.2f %c%s", ds, *px, px==prefixes ? "" : "B");
     return buf;
 }
-const char *size_disp(size_t s, char buf[16])
+const char * size_disp(size_t s, char buf[16])
 {
     return size_disp_fine(s, buf, 500.0);
 }

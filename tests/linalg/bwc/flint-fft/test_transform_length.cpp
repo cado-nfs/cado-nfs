@@ -10,7 +10,7 @@ extern "C" {
     extern void fft_transform_info_init_mulmod_inner(struct fft_transform_info * fti, mp_bitcnt_t bits1, mp_bitcnt_t bits2, unsigned int nacc, mp_bitcnt_t minwrap);
 }
 
-void test_transform_length()
+static void test_transform_length()
 {
     /* imagine various multiplication lengths, and run the transform
      * length selection algorithm to see whether the corner cases are

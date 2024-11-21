@@ -170,7 +170,7 @@ static std::vector<indexrange> prepare_indexrange(renumber_t const & ren_tab,
     return Ind;
 }
 
-void remove_special_q(relation & rel, las_todo_entry const & Q)
+static void remove_special_q(relation & rel, las_todo_entry const & Q)
 {
     typedef std::vector<relation::pr> V_t;
     V_t & V = rel.sides[Q.side];
@@ -460,7 +460,7 @@ std::vector<std::vector<index_t>> indexrange::all_composites(uint64_t q0, uint64
     return list;
 }
 
-void worker(int tnum, int nt,
+static void worker(int tnum, int nt,
         std::vector<indexrange> const & Ind,
         // std::vector<std::pair<las_todo_entry, std::vector<model_relation>>> const & sample,
         std::pair<std::vector<size_t>, std::vector<model_relation>> const & sample,

@@ -39,7 +39,7 @@ struct min_max_heap_test_case {
     min_max_heap<int> heap;
 };
 
-void test_SatisfiesMaxHeap(size_t nvalues)
+static void test_SatisfiesMaxHeap(size_t nvalues)
 {
     min_max_heap_test_case T(nvalues);
     // Get all the values out of the heap and store them in ascending order
@@ -51,7 +51,7 @@ void test_SatisfiesMaxHeap(size_t nvalues)
             !std::equal(T.sortedValues.begin(), T.sortedValues.end(), values.begin()), "Values were not popped in the correct order.");
 }
 
-void test_SatisfiesMinHeap(size_t nvalues)
+static void test_SatisfiesMinHeap(size_t nvalues)
 {
     min_max_heap_test_case T(nvalues);
     // Get all the values out of the heap and store them in ascending order
@@ -63,7 +63,7 @@ void test_SatisfiesMinHeap(size_t nvalues)
             !std::equal(T.sortedValues.begin(), T.sortedValues.end(), values.begin()), "Values were not popped in the correct order.");
 }
 
-void test_SatisfiesMinMaxHeap_HalfAndHalf(size_t nvalues)
+static void test_SatisfiesMinMaxHeap_HalfAndHalf(size_t nvalues)
 {
     min_max_heap_test_case T(nvalues);
     // Get all the values out of the heap and store them in ascending order
@@ -79,7 +79,7 @@ void test_SatisfiesMinMaxHeap_HalfAndHalf(size_t nvalues)
             "Values were not popped in the correct order.");
 }
 
-void test_SatisfiesMinMaxHeap_Alternating(size_t nvalues)
+static void test_SatisfiesMinMaxHeap_Alternating(size_t nvalues)
 {
     min_max_heap_test_case T(nvalues);
     // Get all the values out of the heap and store them in ascending order

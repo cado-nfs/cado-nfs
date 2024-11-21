@@ -16,7 +16,7 @@
 
 using namespace std;
 
-void usage()
+static void usage()
 {
     fprintf(stderr, "Usage: ./bench_polmatmul [--nrep <k>] <N> <m> <n>\n");
     exit(1);
@@ -27,7 +27,7 @@ void usage()
 #define DATA_POOL_SIZE  (1 << 23)
 
 /* handy globals */
-unsigned int nrep = 10;
+static unsigned int nrep = 10;
 
 #if 0
 void bench_polmul(unsigned int d1, unsigned int d2)
@@ -264,7 +264,7 @@ template<typename T> struct pointed_type<T*> { typedef T type; };
 template<typename T> struct pointed_type<T const *> { typedef T type; };
 
 template<typename fft_type>
-int depth(fft_type const& o, size_t d1, size_t d2, size_t d3)
+static int depth(fft_type const& o, size_t d1, size_t d2, size_t d3)
 {
     int k;
     my_strassen_selector& s(foo<fft_type>::s);
@@ -278,7 +278,7 @@ int depth(fft_type const& o, size_t d1, size_t d2, size_t d3)
 }
 
 template<typename fft_type>
-unsigned long nmults(fft_type const& o, size_t d1, size_t d2, size_t d3)
+static unsigned long nmults(fft_type const& o, size_t d1, size_t d2, size_t d3)
 {
     int d = depth(o, d1, d2, d3);
     unsigned long nmuls = d1 * d2 * d3;
@@ -305,7 +305,7 @@ static inline size_t I(size_t x) { return x / ULONG_BITS; }
 static inline size_t R(size_t x) { return x % ULONG_BITS; }
 static inline unsigned long MASK(size_t x) { return (1UL << R(x)) - 1UL; }
 
-unsigned long * tidy_data(unsigned long * data, size_t n1)
+static unsigned long * tidy_data(unsigned long * data, size_t n1)
 {
     unsigned long * p = data + (rand() % (DATA_POOL_SIZE/2));
     if (R(n1)) p[I(n1)]&=MASK(n1);
@@ -313,7 +313,7 @@ unsigned long * tidy_data(unsigned long * data, size_t n1)
 }
 
     template<typename T>
-void fft_times(double& dft1, double& dft2, double& compose, double& ift,
+static void fft_times(double& dft1, double& dft2, double& compose, double& ift,
         T& o, unsigned long n1, unsigned long n2, unsigned long * data)
 {
     typename T::ptr f = o.alloc(1);
@@ -331,7 +331,7 @@ void fft_times(double& dft1, double& dft2, double& compose, double& ift,
 }
 
 
-void randomize(polmat & t)
+static void randomize(polmat & t)
 {
     for(unsigned int i = 0 ; i < t.nrows ; i++) {
         for(unsigned int j = 0 ; j < t.ncols ; j++) {
@@ -341,7 +341,7 @@ void randomize(polmat & t)
 }
 
     template<typename fft_type>
-void randomize(tpolmat<fft_type> & t)
+static void randomize(tpolmat<fft_type> & t)
 {
     for(unsigned int i = 0 ; i < t.nrows ; i++) {
         for(unsigned int j = 0 ; j < t.ncols ; j++) {
@@ -401,7 +401,7 @@ void bench_polmatmul(const char * s,
 #endif
 
     template<typename fft_type>
-void tune_strassen1(fft_type const& base,
+static void tune_strassen1(fft_type const& base,
         unsigned int d1, unsigned int d2, unsigned int d3, size_t maxlen)
 {
     my_strassen_selector& s(foo<fft_type>::s);
@@ -497,7 +497,7 @@ void tune_strassen1(fft_type const& base,
 }
 
     template<typename fft_type>
-void tune_strassen(fft_type const& base, size_t maxlen)
+static void tune_strassen(fft_type const& base, size_t maxlen)
 {
     my_strassen_selector& s(foo<fft_type>::s);
     for(unsigned int i = 1 ; i <= (1 << BITS_IN_DIM_D) ; i++) {
@@ -517,7 +517,7 @@ void tune_strassen(fft_type const& base, size_t maxlen)
 }
 
     template<typename fft_type>
-void plot_compose(const char * name MAYBE_UNUSED,
+static void plot_compose(const char * name MAYBE_UNUSED,
         unsigned int n1, unsigned int n2, unsigned int n3, unsigned long wt)
 {
     my_strassen_selector& s(foo<fft_type>::s);
@@ -581,13 +581,13 @@ typedef struct {
     double compose;
 } level_info;
 
-bool operator<(level_info const& a, level_info const& b)
+static bool operator<(level_info const& a, level_info const& b)
 {
     return (a.dft + a.compose + a.ift) < (b.dft + b.compose + b.ift);
 }
 
     template<typename fft_type>
-level_info bench_one_polmm_projected_sub(fft_type& o, unsigned long d1, unsigned long d2, unsigned long d3, unsigned long n1, unsigned long n2, unsigned long * data)
+static level_info bench_one_polmm_projected_sub(fft_type& o, unsigned long d1, unsigned long d2, unsigned long d3, unsigned long n1, unsigned long n2, unsigned long * data)
 {
     level_info res;
     double dft1, dft2, compose, ift;
@@ -608,7 +608,7 @@ level_info bench_one_polmm_projected_sub(fft_type& o, unsigned long d1, unsigned
     return res;
 }
 
-level_info bench_one_polmm_projected(unsigned long d1, unsigned long d2, unsigned long d3, unsigned long n1, unsigned long n2, unsigned long * data)
+static level_info bench_one_polmm_projected(unsigned long d1, unsigned long d2, unsigned long d3, unsigned long n1, unsigned long n2, unsigned long * data)
 {
     printf("Timings %lux%lu (%lu-bit entries)"
             " times %lux%lu (%lu-bit entries) [projected timings]\n",
@@ -643,7 +643,7 @@ level_info bench_one_polmm_projected(unsigned long d1, unsigned long d2, unsigne
 }
 
     template<typename fft_type>
-level_info bench_one_polmm_complete_sub(fft_type& o, unsigned long d1, unsigned long d2, unsigned long d3, unsigned long n1, unsigned long n2)
+static level_info bench_one_polmm_complete_sub(fft_type& o, unsigned long d1, unsigned long d2, unsigned long d3, unsigned long n1, unsigned long n2)
 {
     my_strassen_selector& s(foo<fft_type>::s);
 
@@ -699,7 +699,7 @@ level_info bench_one_polmm_complete_sub(fft_type& o, unsigned long d1, unsigned 
     return res;
 }
 
-level_info bench_one_polmm_complete(unsigned long d1, unsigned long d2, unsigned long d3, unsigned long n1, unsigned long n2)
+static level_info bench_one_polmm_complete(unsigned long d1, unsigned long d2, unsigned long d3, unsigned long n1, unsigned long n2)
 {
     printf("Timings %lux%lu (%lu-bit entries)"
             " times %lux%lu (%lu-bit entries) [complete timings]\n",
@@ -733,7 +733,7 @@ level_info bench_one_polmm_complete(unsigned long d1, unsigned long d2, unsigned
     }
 }
 
-void tune_strassen_global(unsigned long m, unsigned long n, unsigned long N)
+static void tune_strassen_global(unsigned long m, unsigned long n, unsigned long N)
 {
     unsigned long b = m + n;
 #if 1
@@ -812,7 +812,7 @@ void tune_strassen_global(unsigned long m, unsigned long n, unsigned long N)
 #endif
 }
 
-void do_polmm_timings(unsigned long m, unsigned long n, unsigned long N)
+static void do_polmm_timings(unsigned long m, unsigned long n, unsigned long N)
 {
     unsigned long const b = m + n;
     /* Seed the random state. Ugly at will. */

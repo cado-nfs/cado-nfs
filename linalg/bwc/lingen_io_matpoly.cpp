@@ -236,7 +236,7 @@ int matpoly_read(matpoly::arith_hard * ab, FILE * f, matpoly & M, unsigned int k
     return k1 - k0;
 }
 #else
-int matpoly_read_inner(matpoly::arith_hard *, FILE * f, matpoly & M, unsigned int k0, unsigned int k1, int ascii, int transpose, off_t base, unsigned int batch = 1)
+static int matpoly_read_inner(matpoly::arith_hard *, FILE * f, matpoly & M, unsigned int k0, unsigned int k1, int ascii, int transpose, off_t base, unsigned int batch = 1)
 {
     /* Internally, the dimension of the matrix that are most packed
      * (i.e., rows when in row-major order) are padded to multiples of

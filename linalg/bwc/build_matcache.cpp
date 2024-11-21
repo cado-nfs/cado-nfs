@@ -16,7 +16,7 @@
 #include "matrix_u32.hpp"   // for matrix_u32
 
 
-void declare_usage(cxx_param_list & pl)
+static void declare_usage(cxx_param_list & pl)
 {
     param_list_decl_usage(pl, "matrix-file", "matrix file to work with");
     param_list_decl_usage(pl, "prime", "characteristic of the base field [default=2]");

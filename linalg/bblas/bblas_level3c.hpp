@@ -108,10 +108,10 @@ void addmul_TN64_N64_C(mat64 &  b, uint64_t const * A, uint64_t const * x, unsig
 void mul_TN32_N64_C(uint64_t * b, uint32_t const * A, uint64_t const * x, unsigned int ncol);
 
 #if defined(HAVE_SSE2) && ULONG_BITS == 64
-void addmul_TN64K_N64_sse2(mat64 * w, uint64_t const * u, uint64_t const * v, unsigned int n, unsigned int K);
+void addmul_TN64K_N64_sse2(uint64_t * w, uint64_t const * u, uint64_t const * v, unsigned int n, unsigned int K);
 #endif
 
-void addmul_TN64K_N64_C(mat64 * b, uint64_t const * A, uint64_t const * x, unsigned int ncol, unsigned int K);
+void addmul_TN64K_N64_C(uint64_t * b, uint64_t const * A, uint64_t const * x, unsigned int ncol, unsigned int K);
 
 ///////////////////////////////////////////////////////////////////////
 

@@ -290,10 +290,14 @@ using namespace std;
 /* see matmul-basic.c */
 #define MM_DIR0_PREFERS_TRANSP_MULT   1
 
-template<typename T> inline T * ptrbegin(vector<T>& v) { return v.data(); }
-template<typename T> inline T const * ptrbegin(vector<T> const & v) { return v.data(); }
-template<typename T> inline T * ptrend(vector<T>& v) { return v.size() + ptrbegin(v); }
-template<typename T> inline T const * ptrend(vector<T> const & v) { return v.size() + ptrbegin(v); }
+template<typename T>
+static inline T * ptrbegin(vector<T>& v) { return v.data(); }
+template<typename T>
+static inline T const * ptrbegin(vector<T> const & v) { return v.data(); }
+template<typename T>
+static inline T * ptrend(vector<T>& v) { return v.size() + ptrbegin(v); }
+template<typename T>
+static inline T const * ptrend(vector<T> const & v) { return v.size() + ptrbegin(v); }
 
 #if 0
 static unsigned int idiotic_sum(void * p, unsigned int nbytes)
@@ -524,15 +528,19 @@ matmul_bucket<Arith>::matmul_bucket(matmul_public && P, arith_concrete_base * px
 /* This moves an element at the tail of a list with no copy, transferring
  * the ownership to the container argument */
 template<typename T>
-void transfer(list<T> * ctr, T * elem)
+static void transfer(list<T> * ctr, T * elem)
 {
     ctr->push_back(T());
     swap(ctr->back(), *elem);
 }
 
-template<typename T> T underlying_type_max(T const&) { return numeric_limits<T>::max(); }
-template<typename T> T underlying_type_min(T const&) { return numeric_limits<T>::min(); }
-template<typename T, typename U> T safe_assign(T & a, U const& b) {
+template<typename T>
+static T underlying_type_max(T const&) { return numeric_limits<T>::max(); }
+template<typename T>
+static T underlying_type_min(T const&) { return numeric_limits<T>::min(); }
+template<typename T, typename U>
+static T safe_assign(T & a, U const& b)
+{
     ASSERT_ALWAYS(b <= numeric_limits<T>::max());
     ASSERT_ALWAYS(b >= numeric_limits<T>::min());
     return a = b;
@@ -3448,6 +3456,7 @@ void matmul_bucket<Arith>::aux(int op, ...)
     va_end(ap);
 }
 
+// NOLINTNEXTLINE(misc-use-internal-linkage)
 matmul_interface * CADO_CONCATENATE4(new_matmul_, ARITH_LAYER, _, MM_IMPL)(
         matmul_public && P,
         arith_generic * arith,

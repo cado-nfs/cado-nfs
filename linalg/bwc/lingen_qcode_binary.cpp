@@ -70,12 +70,12 @@ typedef struct lingen_qcode_data_s lingen_qcode_data[1];
 typedef struct lingen_qcode_data_s * lingen_qcode_data_ptr;
 typedef const struct lingen_qcode_data_s * lingen_qcode_data_srcptr;
 
-void lingen_qcode_init(lingen_qcode_data_ptr qq, unsigned int m, unsigned int b, unsigned int length, unsigned int outlength);
-void lingen_qcode_clear(lingen_qcode_data_ptr qq);
+static void lingen_qcode_init(lingen_qcode_data_ptr qq, unsigned int m, unsigned int b, unsigned int length, unsigned int outlength);
+static void lingen_qcode_clear(lingen_qcode_data_ptr qq);
 
-unsigned int lingen_qcode_output_column_length(lingen_qcode_data_srcptr qq, unsigned int j);
+static unsigned int lingen_qcode_output_column_length(lingen_qcode_data_srcptr qq, unsigned int j);
 
-unsigned int lingen_qcode_do(lingen_qcode_data_ptr qq);
+static unsigned int lingen_qcode_do(lingen_qcode_data_ptr qq);
 
 static inline void lingen_qcode_hook_delta(lingen_qcode_data_ptr qq, unsigned int * delta)
 {
@@ -325,7 +325,7 @@ public:
 
 /* This re-implementation is inspired from the one in
  * lingen_qcode_prime.cpp */
-bool generator_found(lingen_qcode_data_ptr qq, unsigned int dt, std::vector<bool>const& is_modified)
+static bool generator_found(lingen_qcode_data_ptr qq, unsigned int dt, std::vector<bool>const& is_modified)
 {
     unsigned int const m = qq->m;
     unsigned int const b = qq->b;
@@ -393,10 +393,11 @@ bool generator_found(lingen_qcode_data_ptr qq, unsigned int dt, std::vector<bool
     return happy;
 }
 
+#if 0
+static inline void lshift1(unsigned long&x) { x <<= 1; }
 
-inline void lshift1(unsigned long&x) { x <<= 1; }
-
-template<int WIDTH> inline void lshift1(unsigned long (&x)[WIDTH])
+template<int WIDTH>
+static inline void lshift1(unsigned long (&x)[WIDTH])
 {
     mpn_lshift(x, x, WIDTH, 1);
 }
@@ -416,9 +417,10 @@ template<> inline void lshift1<2>(unsigned long (&x)[2]) {
     x[0] <<= 1;
 #endif
 }
+#endif
 
 template<typename width_type>
-unsigned int lingen_qcode_do_tmpl(width_type w, lingen_qcode_data_ptr qq)
+static unsigned int lingen_qcode_do_tmpl(width_type w, lingen_qcode_data_ptr qq)
 {
     unsigned int const m = qq->m;
     unsigned int const b = qq->b;
@@ -539,7 +541,7 @@ unsigned int lingen_qcode_do(lingen_qcode_data_ptr qq)/*{{{*/
     return 0;
 }/*}}}*/
 
-matpoly bw_lingen_basecase_raw_old(bmstatus & bm, matpoly & E)/*{{{*/
+static matpoly bw_lingen_basecase_raw_old [[maybe_unused]] (bmstatus & bm, matpoly & E)/*{{{*/
 {
     /* There's a nasty bug. Revealed by 32-bits, but can occur on larger
      * sizes too. Let W be the word size. When E has length W + epsilon,
@@ -601,7 +603,7 @@ matpoly bw_lingen_basecase_raw_old(bmstatus & bm, matpoly & E)/*{{{*/
     return pi;
 } /* }}} */
 
-bool generator_found(unsigned int t, bpack_view<uint64_t> E_t, std::vector<int> & lucky, unsigned int luck_mini)
+static bool generator_found(unsigned int t, bpack_view<uint64_t> E_t, std::vector<int> & lucky, unsigned int luck_mini)
 {
     unsigned int const b = E_t.nrows();
     unsigned int const m = E_t.ncols();
@@ -686,7 +688,7 @@ bool generator_found(unsigned int t, bpack_view<uint64_t> E_t, std::vector<int> 
     return happy;
 }
 
-matpoly bw_lingen_basecase_raw_fast(bmstatus & bm, matpoly const & mp_E)/*{{{*/
+static matpoly bw_lingen_basecase_raw_fast(bmstatus & bm, matpoly const & mp_E)/*{{{*/
 {
     bw_dimensions & d = bm.d;
     unsigned int const m = d.m;
@@ -842,7 +844,7 @@ matpoly bw_lingen_basecase_raw_fast(bmstatus & bm, matpoly const & mp_E)/*{{{*/
     return mp_pi;
 }/*}}}*/
 
-matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly & E)/*{{{*/
+static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly & E)/*{{{*/
 {
     return bw_lingen_basecase_raw_fast(bm, E);
 }/*}}}*/

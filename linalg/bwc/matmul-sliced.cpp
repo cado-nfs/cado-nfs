@@ -431,6 +431,7 @@ void matmul_sliced<Arith>::report(double scale MAYBE_UNUSED) {
 #endif
 }
 
+// NOLINTNEXTLINE(misc-use-internal-linkage)
 matmul_interface * CADO_CONCATENATE4(new_matmul_, ARITH_LAYER, _, MM_IMPL)(
         matmul_public && P,
         arith_generic * arith,

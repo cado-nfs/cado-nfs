@@ -46,7 +46,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "typedefs.h"    // for index_t, p_r_values_t, PRid, SIZEOF_INDEX, PRpr
 #include "verbose.h"    // verbose_interpret_parameters
 
-char const * argv0;
+static char const * argv0;
 
 static void
 usage(cxx_param_list & pl, char const * argv0)

@@ -102,7 +102,7 @@ void mul_N64_6464_lookup4(uint64_t *C,/*{{{*/
         C[i]^= Bx[15][aa];
     }
 }/*}}}*/
-void mul_N64_6464_lookup4_blocks(mat64 *C,/*{{{*/
+static void mul_N64_6464_lookup4_blocks(mat64 *C,/*{{{*/
                    mat64 const *A,
                    mat64 const & B,
                    size_t nblocks,
@@ -155,7 +155,7 @@ void mul_N64_6464_lookup4_blocks(mat64 *C,/*{{{*/
         }
     }
 }/*}}}*/
-void addmul_N64_6464_lookup4_blocks(mat64 *C,/*{{{*/
+static void addmul_N64_6464_lookup4_blocks(mat64 *C,/*{{{*/
                    mat64 const *A,
                    mat64 const & B,
                    size_t nblocks,
@@ -725,7 +725,7 @@ void MAYBE_UNUSED addmul_N64_6464_lookup4(uint64_t *C, /*{{{*/
 #if defined(HAVE_AVX2)
 /* implements addmul_N64_6464 */
 /* C == A seems to work ok */
-void addmul_N64_6464_avx2(uint64_t *C,/*{{{*/
+static void addmul_N64_6464_avx2(uint64_t *C,/*{{{*/
 		 uint64_t const *A,
 		 mat64 const & B, size_t m)
 {

@@ -124,7 +124,7 @@ void mpz_mat_submat_set(
     }
 }
 
-void mpq_mat_swap(mpz_mat_ptr A, mpz_mat_ptr B)
+void mpq_mat_swap(mpq_mat_ptr A, mpq_mat_ptr B)
 {
     mpz_mat C;
     memcpy(C, A, sizeof(mpz_mat));
@@ -174,14 +174,6 @@ void mpz_mat_swap(mpz_mat_ptr A, mpz_mat_ptr B)
     memcpy(C, A, sizeof(mpz_mat));
     memcpy(A, B, sizeof(mpz_mat));
     memcpy(B, C, sizeof(mpz_mat));
-}
-
-void mpq_mat_swap(mpq_mat_ptr A, mpq_mat_ptr B)
-{
-    mpq_mat C;
-    memcpy(C, A, sizeof(mpq_mat));
-    memcpy(A, B, sizeof(mpq_mat));
-    memcpy(B, C, sizeof(mpq_mat));
 }
 
 /*}}}*/
@@ -1760,6 +1752,8 @@ static int mpz_mat_hnf_helper(mpz_mat_ptr T, mpz_mat_ptr dT, std::vector<cxx_mpz
 
     return signdet;
 }
+
+#if 0
 /* {{{ this computes the row hnf on a column C.
  * The result is always of the form C'=(gcd(C),0,0,...,0). The transform
  * matrix T such that C'=T*C is most interesting.  a is modified in
@@ -1775,6 +1769,8 @@ void mpz_gcd_many(mpz_mat_ptr dT, std::vector<cxx_mpz> & a)
     mpz_mat_clear(T);
 }
 /*}}}*/
+#endif
+
 /*}}}*/
 
 /*

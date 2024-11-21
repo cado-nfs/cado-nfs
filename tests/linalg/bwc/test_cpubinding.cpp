@@ -16,7 +16,7 @@
  * $build_tree/tests/linalg/bwc/test_cpubinding  -s "NUMANode:4 Socket:1 Core:12 PU:2" thr=8x8   cpubinding="NUMANode=>2x2 Core*12=>4x4"
  */
 
-void usage() {
+static void usage() {
     fprintf(stderr, "cpubinding example program\n"
             "Options:\n"
             "--input-topology-file <filename>     take <filename> as an hwloc hardware description\n"
@@ -27,9 +27,9 @@ void usage() {
     exit(1);
 }
 
-int verbose = 0;
+static int verbose = 0;
 
-int do_cpubinding_tests(const char * cpubinding_conf)
+static int do_cpubinding_tests(const char * cpubinding_conf)
 {
     FILE * f = fopen(cpubinding_conf, "r");
     if (f == NULL) {

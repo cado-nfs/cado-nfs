@@ -12,4 +12,4 @@
 #define ecm ecm_2ul2
 #define mpqs mpqs_2ul2
 #define FACUL_DOIT_READY_TO_INCLUDE_IMPL_CODE
-#include "facul_doit.cpp"
+#include "facul_doit.cpp"       // NOLINT(bugprone-suspicious-include)

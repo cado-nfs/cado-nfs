@@ -41,7 +41,7 @@ void m64pol_scalmul_gf2_64_nobitslice(uint64_t * r, uint64_t * a, uint64_t * sca
 
 void m64pol_mul_gf2_128_bitslice(mat64 * r, mat64 const * a1, mat64 const * a2);
 
-void m64pol_scalmul_gf2_128_bitslice(mat64 * r, mat64 const * a, uint64_t * s);
+void m64pol_scalmul_gf2_128_bitslice(mat64 * r, mat64 const * a, uint64_t const * s);
 
 void m64pol_mul_gf2_128_nobitslice(uint64_t * r, uint64_t * a1, uint64_t * a2);
 

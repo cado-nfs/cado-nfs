@@ -81,7 +81,7 @@ static void print_several(unsigned int n1, unsigned int n2, char a, char b, unsi
 }
 
 template<typename Callable, typename... Args>
-void * pi_go_call_thread(
+static void * pi_go_call_thread(
         Callable&& f,
         parallelizing_info_ptr p,
         cxx_param_list & pl,
@@ -968,7 +968,7 @@ void pi_log_print(pi_comm_ptr wr)
 
 typedef int (*sortfunc_t)(const void *, const void *);
 
-int p_strcmp(char const * const * a, char const * const * b)
+static int p_strcmp(char const * const * a, char const * const * b)
 {
     /* Input is formatted so that sorting makes sense. */
     return strcmp(*a, *b);
@@ -1020,7 +1020,9 @@ pi_datatype_ptr BWC_PI_UNSIGNED_LONG    = pi_predefined_types + 4;
 pi_datatype_ptr BWC_PI_UNSIGNED_LONG_LONG    = pi_predefined_types + 5;
 pi_datatype_ptr BWC_PI_LONG             = pi_predefined_types + 6;
 
-char statically_assert_that_size_t_is_either_ulong_or_ulonglong[((sizeof(size_t) == sizeof(unsigned long)) || (sizeof(size_t) == sizeof(unsigned long long))) ? 1 : -1];
+static_assert(sizeof(size_t) == sizeof(unsigned long)
+        || sizeof(size_t) == sizeof(unsigned long long));
+
 pi_datatype_ptr BWC_PI_SIZE_T = pi_predefined_types + 4 + (sizeof(size_t) == sizeof(unsigned long long));
 
 
@@ -1075,7 +1077,7 @@ static void reducer_ulonglong_min(const unsigned long long * b, unsigned long lo
 static void reducer_ulonglong_max(const unsigned long long * b, unsigned long long * a, size_t s) { for( ; s-- ; a++, b++) if (*b > *a) *a = *b; }
 static void reducer_ulonglong_sum(const unsigned long long * b, unsigned long long * a, size_t s) { for( ; s-- ; a++, b++) *a += *b; }
 
-struct reduction_function predefined_functions[] = {
+static struct reduction_function predefined_functions[] = {
     { MPI_BYTE,          MPI_MIN,  (thread_reducer_t) reducer_byte_min, },
     { MPI_BYTE,          MPI_MAX,  (thread_reducer_t) reducer_byte_max, },
     { MPI_BYTE,          MPI_SUM,  (thread_reducer_t) reducer_byte_sum, },
@@ -1210,7 +1212,7 @@ arith_generic * pi_arith_datatype_get_abase(MPI_Datatype datatype)
  * implementation in the first place, just a set of placeholers. So it is
  * important that we find the operation to perform by ourselves
  */
-void pi_reduce_local(void *inbuf, void *inoutbuf, size_t count,
+static void pi_reduce_local(void *inbuf, void *inoutbuf, size_t count,
                     pi_datatype_ptr datatype, pi_op_ptr op)
 {
     if (datatype->abase) {
@@ -1462,7 +1464,7 @@ void pi_allreduce(void *sendbuf, void *recvbuf, size_t count,
     pi_thread_bcast(recvbuf, count, datatype, 0, wr);
 }
 
-void pi_allgather_mpi_inner(
+static void pi_allgather_mpi_inner(
         void *recvbuf,
         size_t per_thread,
         pi_comm_ptr wr)
@@ -1766,7 +1768,7 @@ int pi_file_close(pi_file_handle_ptr f)
     return !failed;
 }
 
-int area_is_zero(const void * src, ptrdiff_t offset0, ptrdiff_t offset1)
+static int area_is_zero(const void * src, ptrdiff_t offset0, ptrdiff_t offset1)
 {
     const char * b0 = (const char *) pointer_arith_const(src, offset0);
     const char * b1 = (const char *) pointer_arith_const(src, offset1);
@@ -1776,7 +1778,8 @@ int area_is_zero(const void * src, ptrdiff_t offset0, ptrdiff_t offset1)
     return 1;
 }
 
-ssize_t pi_file_write_leader(pi_file_handle_ptr f, void * buf, size_t size)
+/*
+static ssize_t pi_file_write_leader(pi_file_handle_ptr f, void * buf, size_t size)
 {
     unsigned long ret;
     if (f->pi->m->jrank == 0 && f->pi->m->trank == 0)
@@ -1785,7 +1788,7 @@ ssize_t pi_file_write_leader(pi_file_handle_ptr f, void * buf, size_t size)
     return (ssize_t) ret;
 }
 
-ssize_t pi_file_read_leader(pi_file_handle_ptr f, void * buf, size_t size)
+static ssize_t pi_file_read_leader(pi_file_handle_ptr f, void * buf, size_t size)
 {
     unsigned long ret;
     if (f->pi->m->jrank == 0 && f->pi->m->trank == 0)
@@ -1793,7 +1796,7 @@ ssize_t pi_file_read_leader(pi_file_handle_ptr f, void * buf, size_t size)
     pi_bcast(&ret, 1, BWC_PI_UNSIGNED_LONG, 0, 0, f->pi->m);
     return (ssize_t) ret;
 }
-
+*/
 
 /* size is the chunk size on each core */
 ssize_t pi_file_write(pi_file_handle_ptr f, void * buf, size_t size, size_t totalsize)

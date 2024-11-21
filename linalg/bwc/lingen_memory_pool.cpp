@@ -50,7 +50,8 @@ void memory_pool_details::alloc_check(const char * text, bool condition)
 #endif
 #endif
 
-std::string remove_trailing_address_suffix(std::string const& a, std::string& suffix)
+#ifdef HAVE_EXECINFO
+static std::string remove_trailing_address_suffix(std::string const& a, std::string& suffix)
 {
     size_t const pos = a.find('+');
     if (pos == a.npos) {
@@ -61,7 +62,7 @@ std::string remove_trailing_address_suffix(std::string const& a, std::string& su
     return a.substr(0, pos);
 }
 
-std::string get_parenthesized_arg(std::string const& a, std::string& prefix, std::string& suffix)
+static std::string get_parenthesized_arg(std::string const& a, std::string& prefix, std::string& suffix)
 {
     size_t const pos = a.find('(');
     if (pos == a.npos) {
@@ -79,6 +80,7 @@ std::string get_parenthesized_arg(std::string const& a, std::string& prefix, std
     suffix = a.substr(pos2 + 1);
     return a.substr(pos+1, pos2-pos-1);
 }
+#endif
 
 memory_pool_exception::memory_pool_exception(std::string const & s)
 {

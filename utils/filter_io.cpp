@@ -927,7 +927,7 @@ earlyparser_abindex_hexa_sm (earlyparsed_relation_ptr rel, ringbuf_ptr r)
 
 /*{{{ filter_rels producer thread */
 
-void * filter_rels_producer_thread(
+static void * filter_rels_producer_thread(
     ringbuf_ptr r,
     std::vector<std::string> const & input_files,
     timingstats_dict_ptr stats)
@@ -980,7 +980,7 @@ void * filter_rels_producer_thread(
 
 /*{{{ filter_rels consumer thread */
 template<typename inflight_t>
-void filter_rels_consumer_thread(
+static void filter_rels_consumer_thread(
     void *(*callback_fct) (void *, earlyparsed_relation_ptr),
     void * callback_arg,
     int k,
@@ -1026,7 +1026,7 @@ void filter_rels_consumer_thread(
 /* see non-templated filter_rels2 below to see how this template is
  * instantiated */
 template<typename inflight_t>
-uint64_t filter_rels2_inner(std::vector<std::string> const & input_files,
+static uint64_t filter_rels2_inner(std::vector<std::string> const & input_files,
         filter_rels_description * desc,
         int earlyparse_needed_data,
         bit_vector_srcptr active,

@@ -235,7 +235,7 @@ struct call_simd<2> : public call_simd_base<2> {
 };
 
 template<typename T>
-inline 
+static inline 
 typename std::enable_if<T::old_interface, unsigned long>::type
 test_inner(plattice_proxy * L, test_wrap const & tw, a_test const * aa)
 {
@@ -244,7 +244,7 @@ test_inner(plattice_proxy * L, test_wrap const & tw, a_test const * aa)
 }
 
 template<typename T>
-inline 
+static inline 
 typename std::enable_if<T::old_interface, unsigned long>::type
 test_inner(plattice_proxy * L, test_wrap const & tw, a_test const * aa, const size_t M)
 {
@@ -255,7 +255,7 @@ test_inner(plattice_proxy * L, test_wrap const & tw, a_test const * aa, const si
 }
 
 template<typename T>
-inline
+static inline
 typename std::enable_if<!T::old_interface && T::batch_count == 1, unsigned long>::type
 test_inner(plattice_proxy * L, test_wrap const & tw, a_test const * aa)
 {
@@ -266,7 +266,7 @@ test_inner(plattice_proxy * L, test_wrap const & tw, a_test const * aa)
 }
 
 template<typename T>
-inline
+static inline
 typename std::enable_if<!T::old_interface && T::batch_count == 1, unsigned long>::type
 test_inner(plattice_proxy * L, test_wrap const & tw, a_test const * aa, const size_t M)
 {
@@ -277,7 +277,7 @@ test_inner(plattice_proxy * L, test_wrap const & tw, a_test const * aa, const si
 }
 
 template<typename T>
-inline
+static inline
 typename std::enable_if<!T::old_interface && T::batch_count != 1, unsigned long>::type
 test_inner(plattice_proxy * L, test_wrap const & tw, a_test const * aa, size_t N = T::batch_count)
 {
@@ -303,7 +303,7 @@ test_inner(plattice_proxy * L, test_wrap const & tw, a_test const * aa, size_t N
 }
 
 template<typename T>
-void test_correctness(test_wrap & tw)
+static void test_correctness(test_wrap & tw)
 {
     if (tw.nocheck) return;
     constexpr size_t N = T::batch_count;
@@ -383,7 +383,7 @@ void test_correctness(test_wrap & tw)
 }
 
 template<typename T>
-inline
+static inline
 typename std::enable_if<T::batch_count != 1, unsigned long>::type
 test_speed(test_wrap & tw)
 {
@@ -409,7 +409,7 @@ test_speed(test_wrap & tw)
 }
 
 template<typename T>
-inline
+static inline
 typename std::enable_if<T::batch_count == 1, unsigned long>::type
 test_speed(test_wrap & tw)
 {

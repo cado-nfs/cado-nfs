@@ -30,8 +30,6 @@ compute_sm_lowlevel (cxx_mpz_poly & SM,
     mpz_poly_divexact_mpz (SM, SM, ell);
 }
 
-double m_seconds = 0;
-
 #define xxxxWIP_SM
 
 /* u and dst may be equal */
@@ -257,7 +255,7 @@ static int compute_unit_rank(mpz_poly_srcptr f)
     return unitrank;
 }
 
-void compute_change_of_basis_matrix(cxx_mpz_mat & matrix, mpz_poly_srcptr f, std::vector<sm_side_info::piece> const & pieces, cxx_mpz const & ell)
+static void compute_change_of_basis_matrix(cxx_mpz_mat & matrix, mpz_poly_srcptr f, std::vector<sm_side_info::piece> const & pieces, cxx_mpz const & ell)
 {
     /* now compute the change of basis matrix. This is given simply
      * as the CRT matrix from the piecewise representation modulo

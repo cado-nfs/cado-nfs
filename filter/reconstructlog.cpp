@@ -32,11 +32,11 @@
 
 #define DEBUG 0
 
-stats_data_t stats; /* struct for printing progress */
+static stats_data_t stats; /* struct for printing progress */
 
 /*********************** mutex for multi threaded version ********************/
 /* used as mutual exclusion lock for reading the status of logarithms */
-pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
 /**** Relations structure used for computing the logarithms from the rels ****/
 typedef struct
@@ -297,7 +297,7 @@ struct read_data
 /* number of SM that must be used. */
 
 /* Callback function called by filter_rels in compute_log_from_rels */
-void *
+static void *
 thread_sm (void * context_data, earlyparsed_relation_ptr rel)
 {
     read_data & data = * (read_data *) context_data;
@@ -394,7 +394,7 @@ thread_sm (void * context_data, earlyparsed_relation_ptr rel)
 
 /****************** Computation of missing logarithms ************************/
 /* Callback function called by filter_rels in compute_log_from_rels */
-void *
+static void *
 thread_insert (void * context_data, earlyparsed_relation_ptr rel)
 {
   read_data & data = * (read_data *) context_data;
@@ -542,7 +542,7 @@ typedef struct
 
 #define GRAPH_DEP_IS_LOG_UNKNOWN(G, h) (G.tab[h].state == NODE_DEP_LOG_UNKNOWN)
 
-graph_dep_t
+static graph_dep_t
 graph_dep_init (uint64_t size)
 {
   node_dep_t *tab = NULL;
@@ -552,14 +552,14 @@ graph_dep_init (uint64_t size)
   return (graph_dep_t) {.size = size, .tab = tab};
 }
 
-void
+static void
 graph_dep_clear (graph_dep_t G)
 {
   free(G.tab);
 }
 
 /* Set G[h].state accordingly to log[h] values */
-void
+static void
 graph_dep_set_log_already_known (graph_dep_t G, logtab const & log)
 {
   for (uint64_t h = 0; h < log.nprimes; h++)
@@ -569,7 +569,7 @@ graph_dep_set_log_already_known (graph_dep_t G, logtab const & log)
   }
 }
 
-uint64_t
+static uint64_t
 graph_dep_needed_rels_from_index (graph_dep_t G, index_t h, light_rels_t rels,
                                   bit_vector needed_rels)
 {
@@ -622,7 +622,7 @@ struct dep_read_data
 };
 
 /* Callback function called by filter_rels in compute_needed_rels */
-void *
+static void *
 dep_thread_insert (void * context_data, earlyparsed_relation_ptr rel)
 {
   dep_read_data  const& data = * (dep_read_data *) context_data;
@@ -712,7 +712,7 @@ typedef struct {
   int version; /* 0 means call dep_* , 1 means call log_* */
 } thread_info;
 
-void * thread_start(void *arg)
+static void * thread_start(void *arg)
 {
   thread_info *ti = (thread_info *) arg;
   bit_vector_ptr not_used = ti->not_used;
@@ -1539,8 +1539,6 @@ main(int argc, char const * argv[])
               nrels_del, nrels_needed, mt,
               data);
       printf ("# %" PRIu64 " logarithms are known.\n", log.nknown);
-      extern double m_seconds;
-      fprintf(stderr, "# %.2f\n", m_seconds);
   }
   else
     printf ("# All wanted logarithms are already known, skipping this step\n");

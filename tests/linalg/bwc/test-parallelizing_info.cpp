@@ -9,9 +9,9 @@
 #include "portability.h" // asprintf // IWYU pragma: keep
 #include "params.h"
 
-int verbose = 0;
+static int verbose = 0;
 
-void * test_code(parallelizing_info_ptr pi, cxx_param_list & pl MAYBE_UNUSED, void * dummy MAYBE_UNUSED)
+static void * test_code(parallelizing_info_ptr pi, cxx_param_list & pl MAYBE_UNUSED, void * dummy MAYBE_UNUSED)
 {
     serialize(pi->m);
     char * report_string;

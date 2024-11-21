@@ -2,12 +2,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "modredc_ul.h"
 #include "modredc_ul_default.h"
 #include "roots_mod.h"
 #include "macros.h"
 
-void omega (residue_t o, residue_t b, const unsigned long k, const modulus_t pp);
+void omega (residue_t o, residue_t b, unsigned long k, const modulus_t pp);
 
 int main(int argc, char const * argv[])
 {

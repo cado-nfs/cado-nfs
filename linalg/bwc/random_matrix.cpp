@@ -79,7 +79,7 @@ struct rhs_writer {// {{{
  * consumed.
  */
 
-std::vector<int> generic_params_process_loop(cxx_param_list & pl,
+static std::vector<int> generic_params_process_loop(cxx_param_list & pl,
         int argc, char const ** argv)
 {
     std::vector<int> wild; // nrows ncols coeffs_per_row
@@ -101,7 +101,7 @@ std::vector<int> generic_params_process_loop(cxx_param_list & pl,
 }
 
 template<typename iterator>
-std::vector<int> generic_params_process_loop(cxx_param_list & pl,
+static std::vector<int> generic_params_process_loop(cxx_param_list & pl,
         iterator begin, iterator end)
 {
     std::vector<std::string> tmp;
@@ -509,13 +509,6 @@ void random_matrix_ddata::adjust(random_matrix_process_data const & r, paralleli
 /* }}} */
 
 
-typedef int (*sortfunc_t)(const void *, const void *);
-
-int cmp_u32(uint32_t const * a, uint32_t const * b)
-{
-    return (*a > *b) - (*b > *a);
-}
-
 std::vector<uint32_t> random_matrix_ddata::generate_row(cxx_gmp_randstate & rstate, punched_interval_ptr * pool) const
 {
     /* pick a row weight */
@@ -610,15 +603,6 @@ static int should_print_now(struct progress_info * last_printed, size_t z)
     return 0;
 }
 /*}}}*/
-
-int cmp_2u32(uint32_t * a, uint32_t * b)
-{
-    int const r = (*a > *b) - (*b > *a);
-    if (r) return r;
-    a++;
-    b++;
-    return (*a > *b) - (*b > *a);
-}
 
 #if 0
 /* This is totally dumb. */
@@ -859,12 +843,12 @@ matrix_u32 random_matrix_get_u32(parallelizing_info_ptr pi, cxx_param_list & pl,
 
 #ifdef  WANT_MAIN
 
-int avoid_zero_columns = 0;
+static int avoid_zero_columns = 0;
 
 /* FIXME: this is unholy -- we're actually filling the stats fields in F
  * as a byproduct of reading the matrix.
  */
-void random_matrix_process_print(random_matrix_process_data & r, random_matrix_ddata & F)
+static void random_matrix_process_print(random_matrix_process_data & r, random_matrix_ddata & F)
 {
     int const ascii = r.ascii;
     FILE * out = r.out;
@@ -970,7 +954,7 @@ void random_matrix_process_print(random_matrix_process_data & r, random_matrix_d
     if (r.cw) {
         if (ascii) {
             for(unsigned long j = 0 ; j < r.ncols ; j++) {
-                // NOLINTNEXTLINE: bugprone-redundant-branch-condition
+                // NOLINTNEXTLINE(bugprone-redundant-branch-condition)
                 WU32(r.cw.get(), "", colweights[j], "\n");
             }
         } else {
@@ -986,7 +970,7 @@ void random_matrix_process_print(random_matrix_process_data & r, random_matrix_d
     F.row_sdev = sdev;
 }
 
-void usage()
+static void usage()
 {
     fprintf(stderr, "Usage: ./random_matrix <nrows> [<ncols>] [<density>] [options]\n"
             "Options:\n"

@@ -24,8 +24,6 @@ struct timing_data {
     int end_mark;
     int last_print;
     int next_print;
-    int next_async_check;
-    int async_check_period;
     int which;
     int ntimers;
     char ** names;
@@ -52,8 +50,5 @@ void timing_check(parallelizing_info pi, struct timing_data * t, int iter, int p
 void timing_update_ticks(struct timing_data * t, int iter);
 void timing_disp_collective_oneline(parallelizing_info pi, struct timing_data * timing, int iter, int print, const char * stage);
 void timing_final_tally(parallelizing_info pi, struct timing_data * timing, int print, const char * stage);
-
-void block_control_signals();
-void catch_control_signals();
 
 #endif	/* ASYNC_HPP_ */

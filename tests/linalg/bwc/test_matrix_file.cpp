@@ -8,7 +8,7 @@
 #include "sha1.h"
 #include "params.h"
 
-std::ostream * bind(cxx_param_list & pl, const char * option_name, std::shared_ptr<std::ostream>& b)
+static std::ostream * bind(cxx_param_list & pl, const char * option_name, std::shared_ptr<std::ostream>& b)
 {
     const char * filename = param_list_lookup_string(pl, option_name);
 

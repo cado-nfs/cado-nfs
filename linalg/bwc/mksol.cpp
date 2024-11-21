@@ -27,7 +27,7 @@
 
 using namespace fmt::literals;
 
-void * mksol_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
+static void * mksol_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
     int const fake = param_list_lookup_string(pl, "random_matrix") != NULL;
     if (fake) bw->skip_online_checks = 1;
@@ -83,8 +83,6 @@ void * mksol_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAY
     /* {{{ ... and the combined operations */
     std::unique_ptr<arith_cross_generic> AvxAs(arith_cross_generic::instance(Av.get(), As.get()));
     /* }}} */
-
-    block_control_signals();
 
     /* Now that we do this in Horner fashion, we multiply on vectors
      * whose width is the number of solutions we compute. */
@@ -534,8 +532,6 @@ int main(int argc, char const * argv[])
 
     ASSERT_ALWAYS(!param_list_lookup_string(pl, "ys"));
     ASSERT_ALWAYS(param_list_lookup_string(pl, "solutions"));
-
-    catch_control_signals();
 
     if (param_list_warn_unused(pl)) {
         int rank;

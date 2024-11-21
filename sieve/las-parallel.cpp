@@ -27,9 +27,7 @@
 #include "macros.h"
 #include "params.h"
 
-
-
-const char * default_placement_with_auto = "node,fit*4,fit,pu,loose";
+static const char * default_placement_with_auto = "node,fit*4,fit,pu,loose";
 
 static bool parse_number(std::string const & s, int & x, std::string::size_type pos = 0) /*{{{*/
 {

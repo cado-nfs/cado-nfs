@@ -4,6 +4,8 @@
 #include <cstdint>              // for uint64_t, UINT64_C
 #include <cstring>              // for memcpy, memset
 
+#include <memory>
+
 #include <gmp.h>                 // for gmp_randclear, gmp_randinit_default
 
 #include "gmp_aux.h"
@@ -22,131 +24,8 @@
 #include "macros.h"
 #include "portability.h" // asprintf // IWYU pragma: keep
 #include "matmul_top_comm.hpp"
-
-
-int exit_code = 0;
-
-struct blstate {
-    std::unique_ptr<arith_generic> A;
-    matmul_top_data mmt;
-    std::unique_ptr<arith_cross_generic> AxA;
-    mmt_vec y, my;
-
-    cxx_gmp_randstate rstate;
-
-    /* We'll need several intermediary n*n matrices. These will be
-     * allocated everywhere (we set flags to 0, so as to avoid having
-     * shared vectors) */
-    mmt_vec V[3];
-    mat64 L[3];
-    bit_vector D[3];
-
-    /* Here are the semantics of the data fields above.
-     *
-     * For iteration n, we let n0 = n%3, n1 = (n-1)%3, n2 = (n-2)%3.
-     *
-     * V[n0] is the V vector which is the input to iteration n. It does
-     *       not consist of independent  vectors.
-     * D[n0] is the extracted set of columns, computed from V[n0] (and
-     *       also from D[n1]. Together, V[n0] and D[n0] allow to compute
-     *       the basis of the n-th sub vector space W, although no
-     *       explicit data is reserved to its storage.
-     * L[n0] is computed from V[n0] and D[n0], and is some sort of local
-     *       inverse (iirc, it's W_i^{inv} in most accounts).
-     *
-     * of course *[n1] and *[n2] are the same for the previous steps.
-     *
-     * In order to compute the vector for step n + 1, the data to be used
-     * is V[*], L[*], and D[n0, n1]
-     */
-    blstate(parallelizing_info_ptr pi, cxx_param_list & pl);
-    blstate(blstate const&) = delete;
-    blstate& operator=(blstate const&) = delete;
-    ~blstate();
-    void set_start();
-    void load(unsigned int iter);
-    void save(unsigned int iter);
-    void save_result(unsigned int iter);
-    void operator()(parallelizing_info_ptr pi);
-};
-
-/* given a 64 by 64 symmetric matrix A (given as 64 uint64_t's), and an input
- * bitmap S given in the form of one uint64_t, compute B and T so that
- * the following hold:
- *
- *    (i)    B = T * B = B * T
- *    (ii)   B * A * T = T
- *    (iii)  rank(B) = rank(A)
- *    (iv)   (1-S)*T = 1-S
- *
- * where S is identified with the diagonal matrix whose entries are given by S.
- *
- * In other words, this inverts (ii) a maximal minor (iii) in the matrix A,
- * selecting in priority (iv) for defining this minor the row indices
- * which are zero in S.
- *
- * The matrix A is clobbered.
- *
- * This routine does some allocation on the stack. Speed is not critical.
- */
-uint64_t extraction_step(uint64_t * B, uint64_t * A, uint64_t S)
-{
-    int order[64], reorder[64];
-    uint64_t B0[64];
-    uint64_t T = 0;
-    /* convert to a priority list, in a "save trees" style.  */
-    for(int o=64,z=0,i=64;i-->0;) order[S&(UINT64_C(1)<<i)?--o:z++]=i;
-    for(int i = 0 ; i < 64 ; i++) B0[i] = UINT64_C(1)<<i;
-    for(int i = 0 ; i < 64 ; i++) reorder[i]=-1;
-    for(int j = 0 ; j < 64 ; j++) {
-        int const oj = order[j];
-        uint64_t const mj = UINT64_C(1)<<oj;
-        int p = -1;
-        for(int i = 0 ; i < 64 ; i++) {
-            int const oi = order[i];
-            uint64_t const mi = UINT64_C(1)<<oi;
-            if (T & mi) continue;
-            if (A[oi] & mj) {
-                p = i;
-                break;
-            }
-        }
-        if (p < 0) continue;
-
-        int const op = order[p];
-        /* Of course it's important to use indices op and oj here ! */
-        reorder[op] = oj;
-        uint64_t const mp = UINT64_C(1) << op;
-        /* We have a pivot, great. */
-        ASSERT_ALWAYS(!(T & mp));
-        T |= mp;
-        /* add row op to all rows except itself */
-        for(int i = 0 ; i < 64 ; i++) {
-            if (i == p) continue;
-            int const oi = order[i];
-            uint64_t const x = ~-!(A[oi] & mj);
-            B0[oi] ^= B0[op] & x;
-            A[oi] ^= A[op] & x;
-        }
-    }
-    /* Now at this point, we have some more work to do.
-     *
-     * A*T is now almost the identity matrix -- its square is diagonal
-     * with zeros and ones, so A*T is just an involution. The reorder[]
-     * array just has this involution.
-     *
-     * B is such that B*original_A = new_A.
-     *
-     * The matrix we want to return is new_A*T*b*T. We use reorder[] to
-     * actually copy this into A.
-     */
-    memset(B, 0, sizeof(B0));
-    for(int i = 0 ; i < 64 ; i++) {
-        if (reorder[i] >= 0)
-            B[reorder[i]]=B0[i]&T;
-    }
-    return T;
-}
+#include "blocklanczos.hpp"
+#include "blocklanczos_extraction.hpp"
 
 
 blstate::blstate(parallelizing_info_ptr pi, cxx_param_list & pl)
@@ -309,7 +188,7 @@ void blstate::save(unsigned int iter)
  *
  * This is a collective operation.
  */
-int mmt_vec_echelon(mat64 & m, mmt_vec const & v0)
+static int mmt_vec_echelon(mat64 & m, mmt_vec const & v0)
 {
     m = 1;
     uint64_t * v = (uint64_t *) mmt_my_own_subvec(v0);
@@ -515,8 +394,10 @@ void blstate::save_result( unsigned int iter)
 }
 
 
-void blstate::operator()(parallelizing_info_ptr pi)
+int blstate::operator()(parallelizing_info_ptr pi)
 {
+    int exit_code = 0;
+
     int const tcan_print = bw->can_print && pi->m->trank == 0;
     struct timing_data timing[1];
 
@@ -821,9 +702,13 @@ void blstate::operator()(parallelizing_info_ptr pi)
     serialize(pi->m);
 
     timing_clear(timing);
+
+    return exit_code;
 }
 
-void * bl_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
+static int exit_code = 0;
+
+static void * bl_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
     /* so many features we do not support ! */
     ASSERT_ALWAYS(bw->m == bw->n);
@@ -835,7 +720,6 @@ void * bl_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_
     ASSERT_ALWAYS(!pi->interleaved);
 
     // int withcoeffs = mpz_cmp_ui(bw->p, 2) > 0;
-    block_control_signals();
 
     blstate bl(pi, pl);
 
@@ -845,11 +729,6 @@ void * bl_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_
 }
 
 
-/* The unit test for extraction_step, which is a static function here,
- * actually includes the source file. We just want to make sure we don't
- * expose main()
- */
-#ifndef BL_TESTING
 // coverity[root_function]
 int main(int argc, char const * argv[])
 {
@@ -871,7 +750,6 @@ int main(int argc, char const * argv[])
     matmul_top_lookup_parameters(pl);
     /* interpret our parameters */
     if (bw->ys[0] < 0) { fprintf(stderr, "no ys value set\n"); exit(1); }
-    catch_control_signals();
 
     if (param_list_warn_unused(pl)) {
         int rank;
@@ -888,4 +766,3 @@ int main(int argc, char const * argv[])
 
     return exit_code;
 }
-#endif

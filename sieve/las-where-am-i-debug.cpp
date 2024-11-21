@@ -80,11 +80,9 @@ trace_ab_t trace_ab { 0, 0 };
 trace_ij_t trace_ij { 0, UINT_MAX, };
 
 /* Those are from the parameter list. */
-std::unique_ptr<trace_ab_t> pl_ab;
-std::unique_ptr<trace_ij_t> pl_ij;
-std::unique_ptr<trace_Nx_t> pl_Nx;
-
-int have_trace_ab = 0, have_trace_ij = 0, have_trace_Nx = 0;
+static std::unique_ptr<trace_ab_t> pl_ab;
+static std::unique_ptr<trace_ij_t> pl_ij;
+static std::unique_ptr<trace_Nx_t> pl_Nx;
 
 /* two norms of the traced (a,b) pair */
 std::array<cxx_mpz, 2> traced_norms;
@@ -276,7 +274,7 @@ static std::string get_parenthesized_arg(std::string const& a, std::string& pref
 
 /* Do this so that the _real_ caller is always 2 floors up. Must *NOT* be
  * a static function, for this very reason ! */
-void sieve_increase_logging_backend(unsigned char *S, const unsigned char logp, where_am_I const & w)
+static void sieve_increase_logging_backend(unsigned char *S, const unsigned char logp, where_am_I const & w)
 {
     if (!trace_on_spot_Nx(w->N, w->x))
         return;

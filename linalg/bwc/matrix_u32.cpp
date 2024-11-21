@@ -16,7 +16,7 @@
 #include "misc.h"
 #include "macros.h"
 
-size_t number_of_words(std::string const & filename)
+static size_t number_of_words(std::string const & filename)
 {
     struct stat sbuf[1];
 

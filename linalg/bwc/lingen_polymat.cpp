@@ -16,7 +16,7 @@
 #define POLYMAT_MP_KARA_CUTOFF_DEFAULT { .cut = 10, .subdivide = 10, .table = NULL, .table_size = 0}
 
 /*{{{ cutoffs and such */
-struct polymat_cutoff_info polymat_mul_kara_cutoff = POLYMAT_MUL_KARA_CUTOFF_DEFAULT;
+static struct polymat_cutoff_info polymat_mul_kara_cutoff = POLYMAT_MUL_KARA_CUTOFF_DEFAULT;
 
 /* For the middle product, this is similar, but applies to the small
  * operand length and to the result length
@@ -27,7 +27,7 @@ struct polymat_cutoff_info polymat_mul_kara_cutoff = POLYMAT_MUL_KARA_CUTOFF_DEF
  * not differ, really. The only thing is that dimensions for mp and mul
  * are not the same, hence the difference...
  */
-struct polymat_cutoff_info polymat_mp_kara_cutoff = POLYMAT_MP_KARA_CUTOFF_DEFAULT;
+static struct polymat_cutoff_info polymat_mp_kara_cutoff = POLYMAT_MP_KARA_CUTOFF_DEFAULT;
 
 
 /* This sets the cutoffs. The table, if present in new_cutoff, is copied,
@@ -83,7 +83,7 @@ void polymat_set_mp_kara_cutoff(const struct polymat_cutoff_info * new_cutoff, s
     polymat_set_generic_cutoff(&polymat_mp_kara_cutoff, new_cutoff, old_cutoff);
 }
 
-int polymat_cutoff_get_alg_b(const struct polymat_cutoff_info * cutoff, unsigned int s)
+static int polymat_cutoff_get_alg_b(const struct polymat_cutoff_info * cutoff, unsigned int s)
 {
     if (s >= cutoff->cut) return 1;
     if (!cutoff->table) return 0;
@@ -100,7 +100,7 @@ int polymat_cutoff_get_alg_b(const struct polymat_cutoff_info * cutoff, unsigned
     return cutoff->table[a][1];
 }
 
-int polymat_cutoff_get_subdivide_ub(const struct polymat_cutoff_info * cutoff, unsigned int s0, unsigned int s1)
+static int polymat_cutoff_get_subdivide_ub(const struct polymat_cutoff_info * cutoff, unsigned int s0, unsigned int s1)
 {
     return cutoff->table != NULL && MIN(s0, s1) >= cutoff->subdivide;
 }
@@ -275,19 +275,19 @@ polymat_ur<X>::~polymat_ur() {
 /* }}} */
 
 /* It's used from lingen-bigpolymat.c as well */
-void bwmat_copy_coeffs(arith_hard * ab MAYBE_UNUSED, arith_hard::elt * x0, int stride0, arith_hard::elt const * x1, int stride1, unsigned int n)
+static void bwmat_copy_coeffs(arith_hard * ab MAYBE_UNUSED, arith_hard::elt * x0, int stride0, arith_hard::elt const * x1, int stride1, unsigned int n)
 {
     for(unsigned int i = 0 ; i < n ; i++) {
         ab->set(ab->vec_item(x0, i * stride0), ab->vec_item(x1, i * stride1));
     }
 }
-void bwmat_zero_coeffs(arith_hard * ab MAYBE_UNUSED, arith_hard::elt * x0, int stride0, unsigned int n)
+static void bwmat_zero_coeffs(arith_hard * ab MAYBE_UNUSED, arith_hard::elt * x0, int stride0, unsigned int n)
 {
     for(unsigned int i = 0 ; i < n ; i++) {
         ab->set_zero(ab->vec_item(x0, i * stride0));
     }
 }
-void bwmat_move_coeffs(arith_hard * ab MAYBE_UNUSED, arith_hard::elt * x0, int stride0, arith_hard::elt const * x1, int stride1, unsigned int n)
+static void bwmat_move_coeffs(arith_hard * ab MAYBE_UNUSED, arith_hard::elt * x0, int stride0, arith_hard::elt const * x1, int stride1, unsigned int n)
 {
     ASSERT_ALWAYS(stride0 == stride1); /* Otherwise there's probably no point */
     if (x0 < x1) {
@@ -466,7 +466,7 @@ void polymat::rshift(polymat const & src, unsigned int k)/*{{{*/
 }/*}}}*/
 
 
-void polymat_mul_raw_basecase(/*{{{*/
+static void polymat_mul_raw_basecase(/*{{{*/
         polymat & c, unsigned int xc,
         polymat const & a, unsigned int xa, unsigned int na,
         polymat const & b, unsigned int xb, unsigned int nb,
@@ -500,7 +500,7 @@ void polymat_mul_raw_basecase(/*{{{*/
     }
 }/*}}}*/
 
-void polymat_mul_raw_kara(/*{{{*/
+static void polymat_mul_raw_kara(/*{{{*/
         polymat & c, unsigned int xc,
         polymat const & a, unsigned int xa, unsigned int na,
         polymat const & b, unsigned int xb, unsigned int nb,
@@ -556,7 +556,7 @@ void polymat_mul_raw_kara(/*{{{*/
     }
 } /* }}} */
 
-void polymat_mul_raw_subdivide(/*{{{*/
+static void polymat_mul_raw_subdivide(/*{{{*/
         polymat & c, unsigned int xc,
         polymat const & a, unsigned int xa, unsigned int na,
         polymat const & b, unsigned int xb, unsigned int nb,
@@ -609,7 +609,7 @@ void polymat_mul_raw_subdivide(/*{{{*/
 #endif
 }/*}}}*/
 
-void polymat_mul_raw(/*{{{*/
+static void polymat_mul_raw(/*{{{*/
         polymat & c, unsigned int xc,
         polymat const & a, unsigned int xa, unsigned int na,
         polymat const & b, unsigned int xb, unsigned int nb,
@@ -666,7 +666,7 @@ void polymat::addmul(polymat const & a, polymat const & b)/*{{{*/
  *      na==nc==n+1 -. nb==1: [n]
  *      na=n+1, nc=2n -. nb==n: [n,2n[
  */
-void polymat_mp_raw_basecase(/*{{{*/
+static void polymat_mp_raw_basecase(/*{{{*/
         polymat & b, unsigned int xb,
         polymat const & a, unsigned int xa, unsigned int na,
         polymat const & c, unsigned int xc, unsigned int nc,
@@ -703,7 +703,7 @@ void polymat_mp_raw_basecase(/*{{{*/
     }
 }/*}}}*/
 
-void polymat_mp_raw_kara(/*{{{*/
+static void polymat_mp_raw_kara(/*{{{*/
         polymat & b, unsigned int xb,
         polymat const & a, unsigned int xa, unsigned int na,
         polymat const & c, unsigned int xc, unsigned int nc,
@@ -796,7 +796,7 @@ void polymat_mp_raw_kara(/*{{{*/
     }
 }/*}}}*/
 
-void polymat_mp_raw_subdivide(/*{{{*/
+static void polymat_mp_raw_subdivide(/*{{{*/
         polymat & b, unsigned int xb,
         polymat const & a, unsigned int xa, unsigned int na,
         polymat const & c, unsigned int xc, unsigned int nc,
@@ -867,7 +867,7 @@ void polymat_mp_raw_subdivide(/*{{{*/
             a, xa + na - chop, chop, c, xc, na - 1, transpose, 1);
 }/*}}}*/
 
-void polymat_mp_raw(/*{{{*/
+static void polymat_mp_raw(/*{{{*/
         polymat & b, unsigned int xb,
         polymat const & a, unsigned int xa, unsigned int na,
         polymat const & c, unsigned int xc, unsigned int nc,

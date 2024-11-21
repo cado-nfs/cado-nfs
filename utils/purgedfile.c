@@ -1,9 +1,12 @@
 #include "cado.h" // IWYU pragma: keep
+
+#include <errno.h>
+#include <inttypes.h>
+#include <stdint.h>
 #include <stdio.h>      // printf
 #include <stdlib.h>        // for abort exit
 #include <string.h>
-#include <errno.h>
-#include <inttypes.h>
+
 #include "purgedfile.h"
 #include "gzip.h"
 

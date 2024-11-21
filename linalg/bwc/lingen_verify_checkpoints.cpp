@@ -50,20 +50,20 @@
 /* define WARNING to get warning for non-zero padding coefficients */
 // #define WARNING
 
-struct
+static struct
 {
     unsigned int m, n;
 } bw_parameters;
 
-cxx_mpz prime;          /* prime modulus */
-unsigned long lingen_p; /* number of limbs per coefficient */
-int mpi_k = 1;          /* matrix is cut in k x k submatrices */
-cxx_gmp_randstate state;
-int verbose = 0;
-unsigned long seed;
-unsigned long global_batch = 128;
-unsigned int restrict_E = UINT_MAX;
-lingen_hints hints;
+static cxx_mpz prime;          /* prime modulus */
+static unsigned long lingen_p; /* number of limbs per coefficient */
+static int mpi_k = 1;          /* matrix is cut in k x k submatrices */
+static cxx_gmp_randstate state;
+static int verbose = 0;
+static unsigned long seed;
+static unsigned long global_batch = 128;
+static unsigned int restrict_E = UINT_MAX;
+static lingen_hints hints;
 
 struct matrix
 {
@@ -297,7 +297,7 @@ public:
     }
 };
 
-void mpz_urandomm_nz(mpz_ptr a, cxx_gmp_randstate & state, mpz_srcptr prime)
+static void mpz_urandomm_nz(mpz_ptr a, cxx_gmp_randstate & state, mpz_srcptr prime)
 {
     ASSERT_ALWAYS(mpz_cmp_ui(prime, 1) > 0);
     do {
@@ -306,7 +306,7 @@ void mpz_urandomm_nz(mpz_ptr a, cxx_gmp_randstate & state, mpz_srcptr prime)
 }
 
 /* return a vector of n random numbers mod p */
-void
+static void
 fill_random(std::vector<cxx_mpz>& u)
 {
     for (auto& a : u)
@@ -363,7 +363,7 @@ read_cp_aux(std::string const& s)
 /* read a matrix of dimension n, divided into kxk submatrices.
  * return the evaluation of the matrix polynomial at x.
  * */
-matrix
+static matrix
 read_matrix(const char* s,
             unsigned long nrows,
             unsigned long ncols,
@@ -384,7 +384,7 @@ read_matrix(const char* s,
 }
 
 /* w <- v*M evaluated at x and modulo p */
-void
+static void
 mul_left(std::vector<cxx_mpz>& w,
          std::vector<cxx_mpz> const& v,
          matrix const& M)
@@ -403,7 +403,7 @@ mul_left(std::vector<cxx_mpz>& w,
     }
 }
 
-std::vector<cxx_mpz> operator*(std::vector<cxx_mpz> const& v, matrix const& M)
+static std::vector<cxx_mpz> operator*(std::vector<cxx_mpz> const& v, matrix const& M)
 {
     std::vector<cxx_mpz> res(M.ncols);
     mul_left(res, v, M);
@@ -411,7 +411,7 @@ std::vector<cxx_mpz> operator*(std::vector<cxx_mpz> const& v, matrix const& M)
 }
 
 /* w <- M*v evaluated */
-void
+static void
 mul_right(std::vector<cxx_mpz>& w,
           matrix const& M,
           std::vector<cxx_mpz> const& v)
@@ -431,14 +431,14 @@ mul_right(std::vector<cxx_mpz>& w,
     }
 }
 
-std::vector<cxx_mpz> operator*(matrix const& M, std::vector<cxx_mpz> const& v)
+static std::vector<cxx_mpz> operator*(matrix const& M, std::vector<cxx_mpz> const& v)
 {
     std::vector<cxx_mpz> res(M.nrows);
     mul_right(res, M, v);
     return res;
 }
 
-void
+static void
 add_scalar_product(cxx_mpz& res,
                    std::vector<cxx_mpz> const& u,
                    std::vector<cxx_mpz> const& v)
@@ -449,7 +449,7 @@ add_scalar_product(cxx_mpz& res,
     mpz_mod(res, res, prime);
 }
 
-cxx_mpz
+static cxx_mpz
 scalar_product(std::vector<cxx_mpz> const& u, std::vector<cxx_mpz> const& v)
 {
     ASSERT_ALWAYS(u.size() == v.size());
@@ -459,7 +459,7 @@ scalar_product(std::vector<cxx_mpz> const& u, std::vector<cxx_mpz> const& v)
     return res;
 }
 
-void
+static void
 declare_usage(cxx_param_list& pl)
 {
     param_list_usage_header(
@@ -482,20 +482,7 @@ declare_usage(cxx_param_list& pl)
                 "load tuning schedule from this file (sanity checks only)");
 }
 
-void
-lookup_parameters(cxx_param_list& pl)
-{
-    param_list_lookup_string(pl, "prime");
-    param_list_lookup_string(pl, "mpi");
-    param_list_lookup_string(pl, "seed");
-    param_list_lookup_string(pl, "m");
-    param_list_lookup_string(pl, "n");
-    param_list_lookup_string(pl, "restrict_E");
-    param_list_lookup_string(pl, "sanity-check");
-    param_list_lookup_string(pl, "tuning_schedule_filename");
-}
-
-int
+static int
 do_check_pi(const char* pi_left_filename,
             const char* pi_right_filename,
             const char* pi_filename)
@@ -562,71 +549,8 @@ do_check_pi(const char* pi_left_filename,
     return ret;
 }
 
-std::tuple<unsigned int, unsigned int>
-parse_t0_t1(std::string const& E_filename, std::string const& pi_filename)
-{
-    unsigned int t0;
-    unsigned int t1;
-    /* parse E_filename and pi_filename, find level (unused), t0 (unused),
-     * and t1
-     */
-    size_t E_pos = E_filename.rfind('/');
-    if (E_pos == std::string::npos)
-        E_pos = 0;
-    else
-        E_pos++;
-
-    size_t pi_pos = pi_filename.rfind('/');
-    if (pi_pos == std::string::npos)
-        pi_pos = 0;
-    else
-        pi_pos++;
-
-    /* skip over the basename (E, pi) */
-    E_pos = E_filename.find('.', E_pos);
-    ASSERT_ALWAYS(E_pos != std::string::npos);
-    pi_pos = pi_filename.find('.', pi_pos);
-    ASSERT_ALWAYS(pi_pos != std::string::npos);
-    E_pos++;
-    pi_pos++;
-
-    /* comparison will start from here */
-    size_t const E_pos0 = E_pos;
-    size_t const pi_pos0 = pi_pos;
-
-    /* skip over the level */
-    E_pos = E_filename.find('.', E_pos);
-    ASSERT_ALWAYS(E_pos != std::string::npos);
-    pi_pos = pi_filename.find('.', pi_pos);
-    ASSERT_ALWAYS(pi_pos != std::string::npos);
-    E_pos++;
-    pi_pos++;
-
-    /* skip over t0 */
-    ASSERT_ALWAYS(std::istringstream(E_filename.substr(E_pos)) >> t0);
-    // E_pos = E_filename.find('.', E_pos);
-    // ASSERT_ALWAYS(E_pos != std::string::npos);
-    pi_pos = pi_filename.find('.', pi_pos);
-    ASSERT_ALWAYS(pi_pos != std::string::npos);
-    // E_pos++;
-
-    ASSERT_ALWAYS(E_filename.substr(E_pos0) ==
-                  pi_filename.substr(pi_pos0, pi_pos - pi_pos0));
-
-    pi_pos++;
-
-    /* at this point, E should have ben consumed, and all that is left in
-     * pi is t1 */
-    ASSERT_ALWAYS(std::istringstream(pi_filename.substr(pi_pos)) >> t1);
-    /* This is pedantic, but oldish g++ has the ctor from init-list
-     * marked "explicit"
-     */
-    std::tuple<unsigned int, unsigned int> res { t0, t1 };
-    return res;
-}
-
 /* check that E*pi = O(x^length(E)) at a given level. */
-int
+static int
 do_check_E_short(std::string const& E_filename, std::string const& pi_filename)
 {
     int ret;
@@ -728,7 +652,7 @@ do_check_E_short(std::string const& E_filename, std::string const& pi_filename)
     return ret;
 }
 
-int sanity_check(std::string filename)
+static int sanity_check(std::string filename)
 {
     cp_useful_info const cp = read_cp_aux(filename);
     bmstatus bm(bw_parameters.m,bw_parameters.n, prime);

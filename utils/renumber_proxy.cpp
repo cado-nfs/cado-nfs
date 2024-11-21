@@ -4,12 +4,12 @@
 #include "renumber.hpp"
 #include "renumber_proxy.h"
 
-inline const renumber_t * deref(renumber_proxy_srcptr R)
+static inline const renumber_t * deref(renumber_proxy_srcptr R)
 {
     return (const renumber_t *) R->x;
 }
 
-inline renumber_t * deref(renumber_proxy_ptr R)
+static inline renumber_t * deref(renumber_proxy_ptr R)
 {
     return (renumber_t *) R->x;
 }

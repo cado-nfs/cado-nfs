@@ -32,7 +32,7 @@
 #include "strategy.h"                     // for strategy_t, strategy_add_fm
 #include "misc.h"   // u64_random  // IWYU: keep
 
-int CONST_TEST_R = 55;
+// int CONST_TEST_R = 55;
 
 //#define CADO_INTERLEAVING
 /*
@@ -1013,7 +1013,7 @@ static facul_strategy_oneside convert_strategy_to_facul_strategy (strategy_t* t,
 #endif  /* COMPILE_DEAD_CODE */
 
 #ifdef COMPILE_DEAD_CODE
-facul_strategies convert_strategy_to_facul_strategies (strategy_t* t,
+static facul_strategies convert_strategy_to_facul_strategies (strategy_t* t,
         const unsigned int * r,
         const unsigned long * fbb,
         const unsigned int * lpb, 

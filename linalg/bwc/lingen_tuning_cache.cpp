@@ -12,12 +12,12 @@
 #include "macros.h"
 
 template <size_t n, typename... T>
-typename std::enable_if<(n >= sizeof...(T)), std::ostream&>::type
+static typename std::enable_if<(n >= sizeof...(T)), std::ostream&>::type
     print_tuple(std::ostream& os, const std::tuple<T...>&)
 { return os; }
 
 template <size_t n, typename... T>
-typename std::enable_if<(n < sizeof...(T)), std::ostream&>::type
+static typename std::enable_if<(n < sizeof...(T)), std::ostream&>::type
     print_tuple(std::ostream& os, const std::tuple<T...>& tup)
 {
     if (n)
@@ -26,18 +26,18 @@ typename std::enable_if<(n < sizeof...(T)), std::ostream&>::type
     return print_tuple<n+1>(os, tup);
 }
 template <typename... T>
-std::ostream& operator<<(std::ostream& os, const std::tuple<T...>& tup)
+static std::ostream& operator<<(std::ostream& os, const std::tuple<T...>& tup)
 {
     return print_tuple<0>(os, tup);
 }
 
 template <size_t n, typename... T>
-typename std::enable_if<(n >= sizeof...(T)), std::istream&>::type
+static typename std::enable_if<(n >= sizeof...(T)), std::istream&>::type
     parse_tuple(std::istream& is, std::tuple<T...>&)
 { return is; }
 
 template <size_t n, typename... T>
-typename std::enable_if<(n < sizeof...(T)), std::istream&>::type
+static typename std::enable_if<(n < sizeof...(T)), std::istream&>::type
     parse_tuple(std::istream& is, std::tuple<T...>& tup)
 {
     if (!is) return is;
@@ -52,13 +52,13 @@ typename std::enable_if<(n < sizeof...(T)), std::istream&>::type
     return parse_tuple<n+1>(is, tup);
 }
 template <typename... T>
-std::istream& operator>>(std::istream& is, std::tuple<T...>& tup)
+static std::istream& operator>>(std::istream& is, std::tuple<T...>& tup)
 {
     return parse_tuple<0>(is, tup);
 }
 
 template<typename T, typename U>
-std::istream& operator>>(std::istream& is, std::pair<T,U> & x)
+static std::istream& operator>>(std::istream& is, std::pair<T,U> & x)
 {
     is >> x.first;
     int const c = is.get();
@@ -72,7 +72,7 @@ std::istream& operator>>(std::istream& is, std::pair<T,U> & x)
 }
 
 template<typename T>
-std::istream& operator>>(std::istream& is, std::list<T> & L)
+static std::istream& operator>>(std::istream& is, std::list<T> & L)
 {
     /* Reads a ***COMMA*** separatd list */
     L.clear();
@@ -92,7 +92,7 @@ std::istream& operator>>(std::istream& is, std::list<T> & L)
 }
 
 template<typename T, typename U>
-std::ostream& operator<<(std::ostream& os, std::pair<T,U> const & x)
+static std::ostream& operator<<(std::ostream& os, std::pair<T,U> const & x)
 {
     os << x.first << ',' << x.second;
     return os;
@@ -100,7 +100,7 @@ std::ostream& operator<<(std::ostream& os, std::pair<T,U> const & x)
 
 
 template<typename T>
-std::ostream& operator<<(std::ostream& os, std::list<T> const & L)
+static std::ostream& operator<<(std::ostream& os, std::list<T> const & L)
 {
     unsigned int item=0;
     for(auto const & x : L) {
@@ -111,7 +111,7 @@ std::ostream& operator<<(std::ostream& os, std::list<T> const & L)
 }
 
 template <typename T, size_t n>
-std::ostream& operator<<(std::ostream& os, const std::array<T, n>& arr)
+static std::ostream& operator<<(std::ostream& os, const std::array<T, n>& arr)
 {
     for(size_t i = 0 ; i < n ; i++) {
         if (i) os << ";";
@@ -120,7 +120,7 @@ std::ostream& operator<<(std::ostream& os, const std::array<T, n>& arr)
     return os;
 }
 template <typename T, size_t n>
-std::istream& operator>>(std::istream& is, std::array<T, n>& arr)
+static std::istream& operator>>(std::istream& is, std::array<T, n>& arr)
 {
     for(size_t i = 0 ; i < n ; i++) {
         if (i) {

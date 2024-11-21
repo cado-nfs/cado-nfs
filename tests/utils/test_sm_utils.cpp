@@ -11,7 +11,7 @@
 #define FREQ 2 // when possible one time out of FREQ we try sm_single_rel
 
 /* Return number of errors */
-int
+static int
 test_sm (FILE * datafile)
 {
   int err = 0;

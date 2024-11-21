@@ -37,7 +37,7 @@
 
 using namespace fmt::literals;
 
-void * bench_cpu_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
+static void * bench_cpu_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
     int fake = param_list_lookup_string(pl, "random_matrix") != nullptr;
     fake = fake || param_list_lookup_string(pl, "static_random_matrix") != nullptr;
@@ -52,7 +52,6 @@ void * bench_cpu_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg
     }
 
     std::unique_ptr<arith_generic> const A(arith_generic::instance(bw->p, ys[1]-ys[0]));
-    block_control_signals();
 
     matmul_top_data mmt(A.get(), pi, pl, bw->dir);
 
@@ -180,8 +179,6 @@ int main(int argc, char const * argv[])
 
     ASSERT_ALWAYS(param_list_lookup_string(pl, "ys"));
     ASSERT_ALWAYS(!param_list_lookup_string(pl, "solutions"));
-
-    catch_control_signals();
 
     if (param_list_warn_unused(pl)) {
         int rank;

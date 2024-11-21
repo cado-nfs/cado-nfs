@@ -128,7 +128,7 @@ void param_list_print_usage(param_list_srcptr pl, const char * argv0, FILE *f)
 }
 
 template<typename... Args>
-void param_list_add_key(param_list_impl & pli,
+static void param_list_add_key(param_list_impl & pli,
         std::string const & key,
         Args&& ...args)
 {
@@ -477,7 +477,7 @@ template<> struct parse<std::string> {
 };
 
 template<typename T>
-bool
+static bool
 parse_list(std::string const & s, std::vector<T> & value, std::string const & sep)
 {
     std::vector<std::string> tokens;
@@ -558,8 +558,7 @@ template<> struct parse<cxx_mpz> {
 };
 
 template<typename T>
-int
-param_list_parse_inner(param_list_ptr pl, const char * key, T & r, bool stealth = false)
+static int param_list_parse_inner(param_list_ptr pl, const char * key, T & r, bool stealth = false)
 {
     std::string value;
     std::string diagnostic;
@@ -714,7 +713,7 @@ int param_list_parse_mpz_poly(param_list_ptr pl, const char * key,
 
 
 template<typename T>
-int param_list_parse_pair_with_and(param_list_ptr pl, const char * key, T * res, const char * sep)
+static int param_list_parse_pair_with_and(param_list_ptr pl, const char * key, T * res, const char * sep)
 {
     std::vector<T> r;
     std::string value;
@@ -769,7 +768,7 @@ int param_list_parse_double_and_double(param_list_ptr pl, const char * key, doub
 
 
 template<typename T>
-int param_list_parse_list(param_list_ptr pl, const char * key, std::vector<T> & res, const char * sep, bool stealth = false)
+static int param_list_parse_list(param_list_ptr pl, const char * key, std::vector<T> & res, const char * sep, bool stealth = false)
 {
     std::string value;
     std::string diagnostic;
@@ -827,7 +826,7 @@ size_t param_list_get_list_count(param_list_ptr pl, const char * key)
 
 /* this returns the size of the list, it's a bit awkward */
 template<typename T>
-int param_list_parse_raw_fixed_list(param_list_ptr pl, const char * key, T * r, size_t n, const char * sep)
+static int param_list_parse_raw_fixed_list(param_list_ptr pl, const char * key, T * r, size_t n, const char * sep)
 {
     std::vector<T> v;
     if (!param_list_parse_list(pl, key, v, sep))
@@ -839,19 +838,6 @@ int param_list_parse_raw_fixed_list(param_list_ptr pl, const char * key, T * r, 
                     " of length {}\n", key, n) };
     }
     std::copy(v.begin(), v.end(), r);
-    return v.size();
-}
-
-template<typename T>
-int param_list_parse_raw_variable_list(param_list_ptr pl, const char * key, T ** r, size_t * n, const char * sep)
-{
-    std::vector<T> v;
-    if (!param_list_parse_list(pl, key, v, sep))
-        return 0;
-
-    *r = new T[v.size()];
-    *n = v.size();
-    std::copy(v.begin(), v.end(), *r);
     return v.size();
 }
 
@@ -877,12 +863,6 @@ int param_list_parse_uint64_list(param_list_ptr pl, const char * key,
     uint64_t * r, size_t n, const char * sep)
 {
     return param_list_parse_raw_fixed_list(pl, key, r, n, sep);
-}
-
-int param_list_parse_uint_list_size(param_list_ptr pl, const char * key , unsigned int ** r ,
-        size_t *n)
-{
-    return param_list_parse_raw_variable_list (pl, key, r, n, ",");
 }
 
 const char * param_list_lookup_string(param_list_ptr pl, const char * key)

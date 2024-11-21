@@ -1,9 +1,16 @@
-#include "cado.h"
-#include "best_polynomials_queue.h"
+#include "cado.h"       // NOLINT(misc-include-cleaner)
+
+#include <cstdio>
 #include <cmath>
+#include <cstddef>
+
 #include <vector>
 #include <sstream>
+#include <utility>
+
+#include "best_polynomials_queue.h"
 #include "min_max_heap.hpp"
+#include "cado_poly.h"
 
 template<typename T>
 struct compare_by_score {
@@ -14,27 +21,29 @@ struct compare_by_score {
 };
 
 struct best_polynomials_queue_impl {
-    size_t max_count;
+    size_t max_count = 0;
     typedef compare_by_score<cxx_cado_poly>::value_type queue_value_type;
     min_max_heap<queue_value_type, std::vector<queue_value_type>, compare_by_score<cxx_cado_poly>> q;
 };
 
 void best_polynomials_queue_init(best_polynomials_queue_ptr b, int queue_lenth)
 {
-    auto pi = new best_polynomials_queue_impl;
+    auto * pi = new best_polynomials_queue_impl;
     pi->max_count = queue_lenth;
-    b->pimpl = (void*) pi;
+    b->pimpl = (void *) pi;
 }
 
 void best_polynomials_queue_clear(best_polynomials_queue_ptr b)
 {
-    best_polynomials_queue_impl * pi = (best_polynomials_queue_impl *) b->pimpl;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-cstyle-cast)
+    auto * pi = (best_polynomials_queue_impl *) b->pimpl;
     delete pi;
 }
 
 double best_polynomials_queue_get_best_score(best_polynomials_queue_srcptr b)
 {
-    best_polynomials_queue_impl const & pi = * (best_polynomials_queue_impl const *) b->pimpl;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-cstyle-cast)
+    auto const & pi = * (best_polynomials_queue_impl const *) b->pimpl;
     if (pi.q.empty())
         return NAN;
     return pi.q.findMax().first;
@@ -42,7 +51,8 @@ double best_polynomials_queue_get_best_score(best_polynomials_queue_srcptr b)
 
 double best_polynomials_queue_get_worst_score(best_polynomials_queue_srcptr b)
 {
-    best_polynomials_queue_impl const & pi = * (best_polynomials_queue_impl const *) b->pimpl;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-cstyle-cast)
+    auto const & pi = * (best_polynomials_queue_impl const *) b->pimpl;
     if (pi.q.empty())
         return NAN;
     return pi.q.findMin().first;
@@ -50,13 +60,15 @@ double best_polynomials_queue_get_worst_score(best_polynomials_queue_srcptr b)
 
 size_t best_polynomials_queue_get_count(best_polynomials_queue_srcptr b)
 {
-    best_polynomials_queue_impl const & pi = * (best_polynomials_queue_impl const *) b->pimpl;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-cstyle-cast)
+    auto const & pi = * (best_polynomials_queue_impl const *) b->pimpl;
     return pi.q.size();
 }
 
 void best_polynomials_queue_try_push(best_polynomials_queue_ptr b, cado_poly_srcptr cpoly, double score)
 {
-    best_polynomials_queue_impl & pi = * (best_polynomials_queue_impl *) b->pimpl;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-cstyle-cast)
+    auto & pi = * (best_polynomials_queue_impl *) b->pimpl;
     best_polynomials_queue_impl::queue_value_type v;
     v.first = score;
     cado_poly_set(v.second, cpoly);
@@ -68,7 +80,8 @@ void best_polynomials_queue_try_push(best_polynomials_queue_ptr b, cado_poly_src
 
 void best_polynomials_queue_print(best_polynomials_queue_srcptr b, FILE * f, const char * prefix)
 {
-    best_polynomials_queue_impl const & pi = * (best_polynomials_queue_impl const *) b->pimpl;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-cstyle-cast)
+    auto const & pi = * (best_polynomials_queue_impl const *) b->pimpl;
     /* copy, and consume the copy */
     best_polynomials_queue_impl cpi = pi;
     for(int i = 0 ; !cpi.q.empty() ; i++) {
@@ -81,7 +94,8 @@ void best_polynomials_queue_print(best_polynomials_queue_srcptr b, FILE * f, con
 
 void best_polynomials_queue_do(best_polynomials_queue_srcptr b, void (*f)(int, double, cado_poly_ptr, void *), void *arg)
 {
-    best_polynomials_queue_impl const & pi = * (best_polynomials_queue_impl const *) b->pimpl;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-cstyle-cast)
+    auto const & pi = * (best_polynomials_queue_impl const *) b->pimpl;
     /* copy, and consume the copy */
     best_polynomials_queue_impl cpi = pi;
     for(int i = 0 ; !cpi.q.empty() ; i++) {

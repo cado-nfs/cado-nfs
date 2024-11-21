@@ -8,9 +8,9 @@
 #include "params.h"
 #include "macros.h"
 
-int verbose=0;
+static int verbose=0;
 
-void * program(parallelizing_info_ptr pi, cxx_param_list & pl MAYBE_UNUSED, void * arg MAYBE_UNUSED)
+static void * program(parallelizing_info_ptr pi, cxx_param_list & pl MAYBE_UNUSED, void * arg MAYBE_UNUSED)
 {
     if (verbose) {
         pi_log_init(pi->m);

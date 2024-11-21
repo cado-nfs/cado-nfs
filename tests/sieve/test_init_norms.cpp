@@ -29,7 +29,7 @@
 #include "macros.h"
 #include "params.h"
 
-int adjust_strategy = 0;
+static int adjust_strategy = 0;
 
 /*{{{ stuff copied from las.cpp */
 /* Put in r the smallest legitimate special-q value that it at least
@@ -48,7 +48,7 @@ next_legitimate_specialq(mpz_t r, const mpz_t s, const unsigned long diff)
 }
 
 
-void ensure_qrange_has_prime_ideals(cxx_mpz const & q0, cxx_mpz & q1, mpz_poly_srcptr f)
+static void ensure_qrange_has_prime_ideals(cxx_mpz const & q0, cxx_mpz & q1, mpz_poly_srcptr f)
 {
     /* For random sampling, it's important that for all integers in
      * the range [q0, q1[, their nextprime() is within the range, and

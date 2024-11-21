@@ -459,7 +459,7 @@ bwc_program(dispatch dispatch.cpp xdotprod.cpp)
 bwc_program(mksol mksol.cpp xdotprod.cpp)
 bwc_program(gather gather.cpp)
 bwc_program(secure secure.cpp)
-bwc_program(blocklanczos blocklanczos.cpp)
+bwc_program(blocklanczos blocklanczos.cpp blocklanczos_extraction.cpp)
 target_link_libraries(blocklanczos bitlinalg)
 
 # bwc_program_base is good for programs that we don't want to see when we

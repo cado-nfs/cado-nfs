@@ -118,7 +118,7 @@ typedef struct {
 /* Calculates a 64-bit word with the values of the characters chi(a,b), where
  * chi ranges from chars to chars+64
  */
-uint64_t eval_64chars(int64_t a, uint64_t b, alg_prime_t * chars, cado_poly_ptr cpoly)
+static uint64_t eval_64chars(int64_t a, uint64_t b, alg_prime_t * chars, cado_poly_ptr cpoly)
 {
     /* FIXME: do better. E.g. use 16-bit primes, and a look-up table. Could
      * beat this. */
@@ -214,7 +214,7 @@ struct charbatch {
     alg_prime_t * chars;
     cado_poly_ptr cpoly;
 };
-void eval_64chars_batch_thread(struct worker_threads_group * g, int tnum, void * t)
+static void eval_64chars_batch_thread(struct worker_threads_group * g, int tnum, void * t)
 {
     struct charbatch * ss = (struct charbatch *) t;
 
@@ -314,7 +314,7 @@ typedef struct
   uint64_t *b;
 } chars_data_t;
 
-void *
+static void *
 thread_chars (void * context_data, earlyparsed_relation_ptr rel)
 {
   chars_data_t *data = (chars_data_t *) context_data;
@@ -512,7 +512,7 @@ read_heavyblock_matrix (unsigned int nrows, const char * heavyblockname)
     return read_heavyblock_matrix_ascii(nrows, heavyblockname);
 }
 
-int compute_transpose_of_blockmatrix_kernel(blockmatrix & kb, blockmatrix & t)
+static int compute_transpose_of_blockmatrix_kernel(blockmatrix & kb, blockmatrix & t)
 {
     /* gauss.c's kernel() function takes its input with a different ordering.
      * It's tiny data anyway. */
@@ -567,7 +567,7 @@ int compute_transpose_of_blockmatrix_kernel(blockmatrix & kb, blockmatrix & t)
 }
 
 /* This only builds a basis, not an echelonized basis */
-void blockmatrix_column_reduce(blockmatrix & m, unsigned int max_rows_to_consider)
+static void blockmatrix_column_reduce(blockmatrix & m, unsigned int max_rows_to_consider)
 {
     auto t = m.view(submatrix_range(0, 0, MIN(max_rows_to_consider, m.nrows()), m.ncols()));
 

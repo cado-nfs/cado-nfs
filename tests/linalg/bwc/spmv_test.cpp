@@ -1,27 +1,27 @@
-#include "cado.h" // IWYU pragma: keep
-                  //
+#include "cado.h"  // IWYU pragma: keep
+                   //
+#include <cstdint> // for uint32_t, uint64_t
 #include <cstdio>
 #include <cstdlib>
-#include <cstdint>              // for uint32_t, uint64_t
-#include <cstring>              // for memset
+#include <cstring> // for memset
 
 #include <memory>
 
-#include <gmp.h>                 // for gmp_randclear, gmp_randinit_default
-                                 //
+#include <gmp.h> // for gmp_randclear, gmp_randinit_default
+                 //
+#include "arith-generic.hpp"
+#include "balancing.hpp" // for balancing_clear, balancing_init, bal...
+#include "bw-common.h"
 #include "gmp_aux.h"
-#include "balancing.hpp"           // for balancing_clear, balancing_init, bal...
+#include "macros.h"
 #include "matmul_top.hpp"
 #include "matmul_top_comm.hpp"
 #include "params.h"
-#include "bw-common.h"
-#include "arith-generic.hpp"
 #include "portability.h" // asprintf // IWYU pragma: keep
-#include "macros.h"
 
-int verbose = 0;
+static int verbose = 0;
 
-void mmt_vec_set_0n(mmt_vec & v, size_t items)
+static void mmt_vec_set_0n(mmt_vec & v, size_t items)
 {
     serialize(v.pi->m);
     /* For debug: set to vector [0, 1, ..., n[
@@ -39,7 +39,7 @@ void mmt_vec_set_0n(mmt_vec & v, size_t items)
     /* Put 0's everywhere, and put i at other places (just with a dirty
      * cast) */
     v.abase->vec_set_zero(mmt_my_own_subvec(v), mmt_my_own_size_in_items(v));
-    for(size_t s = 0 ; s < sz ; s++) {
+    for (size_t s = 0; s < sz; s++) {
         arith_generic::elt & u = v.abase->vec_item(data, s);
         /* yes, this is awful */
         auto * ptr = reinterpret_cast<unsigned int *>(&u);
@@ -52,7 +52,7 @@ void mmt_vec_set_0n(mmt_vec & v, size_t items)
 }
 
 /* check that v[i] == p[i] */
-void mmt_vec_check_equal_0n(mmt_vec const & v, size_t items)
+static void mmt_vec_check_equal_0n(mmt_vec const & v, size_t items)
 {
     serialize(v.pi->m);
     ASSERT_ALWAYS(v.consistency == 2);
@@ -64,7 +64,7 @@ void mmt_vec_check_equal_0n(mmt_vec const & v, size_t items)
     arith_generic::elt * temp_alloc = v.abase->alloc(1);
     arith_generic::elt & temp = *temp_alloc;
     auto * ptr = reinterpret_cast<unsigned int *>(temp_alloc);
-    for(size_t s = 0 ; s < sz ; s++) {
+    for (size_t s = 0; s < sz; s++) {
         arith_generic::elt const & u = v.abase->vec_item(data, s);
         v.abase->set(temp, u);
         /* yes, this is awful */
@@ -75,7 +75,8 @@ void mmt_vec_check_equal_0n(mmt_vec const & v, size_t items)
 }
 
 /* check that v[i] == p[i] */
-void mmt_vec_check_equal_0n_permuted(mmt_vec const & v, size_t items, uint32_t * p)
+static void mmt_vec_check_equal_0n_permuted(mmt_vec const & v, size_t items,
+                                            uint32_t * p)
 {
     serialize(v.pi->m);
     ASSERT_ALWAYS(v.consistency == 2);
@@ -87,7 +88,7 @@ void mmt_vec_check_equal_0n_permuted(mmt_vec const & v, size_t items, uint32_t *
     arith_generic::elt * temp_alloc = v.abase->alloc(1);
     arith_generic::elt & temp = *temp_alloc;
     auto * ptr = reinterpret_cast<unsigned int *>(temp_alloc);
-    for(size_t s = 0 ; s < sz ; s++) {
+    for (size_t s = 0; s < sz; s++) {
         arith_generic::elt const & u = v.abase->vec_item(data, s);
         v.abase->set(temp, u);
         /* yes, this is awful */
@@ -98,7 +99,8 @@ void mmt_vec_check_equal_0n_permuted(mmt_vec const & v, size_t items, uint32_t *
 }
 
 /* check that v[i] == p^-1[i] */
-void mmt_vec_check_equal_0n_inv_permuted(mmt_vec const & v, size_t items, uint32_t * p)
+static void mmt_vec_check_equal_0n_inv_permuted(mmt_vec const & v, size_t items,
+                                                uint32_t * p)
 {
     serialize(v.pi->m);
     // ASSERT_ALWAYS((size_t) v.abase->elt_stride() <= sizeof(uint64_t));
@@ -109,7 +111,7 @@ void mmt_vec_check_equal_0n_inv_permuted(mmt_vec const & v, size_t items, uint32
     arith_generic::elt * temp_alloc = v.abase->alloc(1);
     arith_generic::elt & temp = *temp_alloc;
     auto * ptr = reinterpret_cast<unsigned int *>(temp_alloc);
-    for(size_t s = 0 ; s < sz ; s++) {
+    for (size_t s = 0; s < sz; s++) {
         arith_generic::elt const & u = v.abase->vec_item(data, s);
         v.abase->set(temp, u);
         /* yes, this is awful */
@@ -126,7 +128,8 @@ void mmt_vec_check_equal_0n_inv_permuted(mmt_vec const & v, size_t items, uint32
 
 /* This only does a multiplication */
 
-void * tst_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
+static void * tst_prog(parallelizing_info_ptr pi, cxx_param_list & pl,
+                       void * arg MAYBE_UNUSED)
 {
     ASSERT_ALWAYS(!pi->interleaved);
 
@@ -141,8 +144,10 @@ void * tst_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE
     // int tcan_print = bw->can_print && pi->m->trank == 0;
 
     // int withcoeffs = mpz_cmp_ui(bw->p, 2) > 0;
-    // int nchecks = withcoeffs ? NCHECKS_CHECK_VECTOR_GFp : NCHECKS_CHECK_VECTOR_GF2;
-    std::unique_ptr<arith_generic> const A(arith_generic::instance(bw->p, bw->n));
+    // int nchecks = withcoeffs ? NCHECKS_CHECK_VECTOR_GFp :
+    // NCHECKS_CHECK_VECTOR_GF2;
+    std::unique_ptr<arith_generic> const A(
+        arith_generic::instance(bw->p, bw->n));
 
     gmp_randseed_ui(rstate, bw->seed);
 
@@ -158,9 +163,9 @@ void * tst_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE
      * however).
      */
     {
-        mmt_vec v  (mmt,0,0, 0, /* shared ! */ 1, mmt.n[0]);
-        mmt_vec vi (mmt,0,0, 1,                0, mmt.n[1]);
-        mmt_vec vii(mmt,0,0, 0,                0, mmt.n[0]);
+        mmt_vec v(mmt, 0, 0, 0, /* shared ! */ 1, mmt.n[0]);
+        mmt_vec vi(mmt, 0, 0, 1, 0, mmt.n[1]);
+        mmt_vec vii(mmt, 0, 0, 0, 0, mmt.n[0]);
         serialize(pi->m);
         mmt_vec_set_0n(v, mmt.n0[0]);
         /* We save the Z files, although it's useless, the checking done
@@ -177,12 +182,11 @@ void * tst_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE
         mmt_vec_save(vi, "ZII%u-%u.0", mmt.n0[0], 0);
     }
 
-
     /* Now check that mmt_apply_S and mmt_unapply_S do what they are
      * supposed to.  */
     {
         balancing bb;
-        const char * bname = param_list_lookup_string(pl, "balancing");
+        char const * bname = param_list_lookup_string(pl, "balancing");
         balancing_init(bb);
 
         if (mmt.pi->m->jrank == 0 && mmt.pi->m->trank == 0) {
@@ -192,27 +196,28 @@ void * tst_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE
         /* fix the mmt.rowperm and mmt.colperm */
         if (bb.rowperm) {
             if (mmt.pi->m->jrank || mmt.pi->m->trank) {
-                bb.rowperm = (uint32_t *) malloc(bb.trows * sizeof(uint32_t));
+                bb.rowperm = (uint32_t *)malloc(bb.trows * sizeof(uint32_t));
             }
-            pi_bcast(bb.rowperm, bb.trows * sizeof(uint32_t), BWC_PI_BYTE, 0, 0, mmt.pi->m);
+            pi_bcast(bb.rowperm, bb.trows * sizeof(uint32_t), BWC_PI_BYTE, 0, 0,
+                     mmt.pi->m);
         }
         if (bb.colperm) {
             if (mmt.pi->m->jrank || mmt.pi->m->trank) {
-                bb.colperm = (uint32_t *) malloc(bb.tcols * sizeof(uint32_t));
+                bb.colperm = (uint32_t *)malloc(bb.tcols * sizeof(uint32_t));
             }
-            pi_bcast(bb.colperm, bb.tcols * sizeof(uint32_t), BWC_PI_BYTE, 0, 0, mmt.pi->m);
+            pi_bcast(bb.colperm, bb.tcols * sizeof(uint32_t), BWC_PI_BYTE, 0, 0,
+                     mmt.pi->m);
         }
 
-
-
-        for(int test_shared = 0 ; test_shared < 2 ; test_shared++) {
+        for (int test_shared = 0; test_shared < 2; test_shared++) {
             serialize(pi->m);
             uint32_t * xr = bb.rowperm;
             uint32_t * xc = bb.colperm;
-            uint32_t *freeme[2] = {NULL,NULL};
+            uint32_t * freeme[2] = {NULL, NULL};
             if ((mmt.matrices[0].bal.flags & FLAG_REPLICATE) && (xr || xc)) {
                 ASSERT_ALWAYS(xc || xr);
-                ASSERT_ALWAYS(mmt.matrices[0].bal.trows == mmt.matrices[0].bal.tcols);
+                ASSERT_ALWAYS(mmt.matrices[0].bal.trows ==
+                              mmt.matrices[0].bal.tcols);
                 /* P is the permutation which sends
                  * sub-block nv*i+j to sub-block nh*j+i
                  */
@@ -221,43 +226,47 @@ void * tst_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE
                 size_t const z = mmt.matrices[0].bal.trows / (nh * nv);
                 if (!xr) {
                     /* implicit Sr is P * Sc */
-                    xr = (uint32_t *) malloc(mmt.matrices[0].bal.trows * sizeof(uint32_t));
+                    xr = (uint32_t *)malloc(mmt.matrices[0].bal.trows *
+                                            sizeof(uint32_t));
                     freeme[0] = xr;
                     /* The image of i is Sc(P(i)) */
-                    for(size_t i = 0 ; i < nh ; i++) {
-                        for(size_t j = 0 ; j < nv ; j++) {
-                            for(size_t k = 0 ; k < z ; k++) {
+                    for (size_t i = 0; i < nh; i++) {
+                        for (size_t j = 0; j < nv; j++) {
+                            for (size_t k = 0; k < z; k++) {
                                 /* The image of (nv*i+j)*z+k by P is
                                  * (nh*j+i)*z+k */
                                 /* And its image by P*Sc is therefore
                                  * xc[(nh*j+i)*z+k];
                                  */
-                                xr[(nv*i+j)*z+k] = xc[(nh*j+i)*z+k];
+                                xr[(nv * i + j) * z + k] =
+                                    xc[(nh * j + i) * z + k];
                             }
                         }
                     }
                 }
                 if (!xc) {
                     /* implicit Sc is P^-1 * Sr */
-                    xc = (uint32_t *) malloc(mmt.matrices[0].bal.tcols * sizeof(uint32_t));
+                    xc = (uint32_t *)malloc(mmt.matrices[0].bal.tcols *
+                                            sizeof(uint32_t));
                     freeme[1] = xc;
                     /* The image of i is Sr(P^-1(i)) */
-                    for(size_t i = 0 ; i < nh ; i++) {
-                        for(size_t j = 0 ; j < nv ; j++) {
-                            for(size_t k = 0 ; k < z ; k++) {
+                    for (size_t i = 0; i < nh; i++) {
+                        for (size_t j = 0; j < nv; j++) {
+                            for (size_t k = 0; k < z; k++) {
                                 /* The image of (nh*j+i)*z+k by P^-1 is
                                  * (nv*i+j)*z+k */
                                 /* And its image by P^-1*Sc is therefore
                                  * xr[(nv*i+j)*z+k];
                                  */
-                                xc[(nh*j+i)*z+k] = xr[(nv*i+j)*z+k];
+                                xc[(nh * j + i) * z + k] =
+                                    xr[(nv * i + j) * z + k];
                             }
                         }
                     }
                 }
             }
             if (xc) {
-                mmt_vec v(mmt,0,0, 1, test_shared, mmt.n[1]);
+                mmt_vec v(mmt, 0, 0, 1, test_shared, mmt.n[1]);
 
                 /* Because we want to test the permutation, we need to
                  * fill our dummy vector with the full range [0..n[, not
@@ -294,7 +303,7 @@ void * tst_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE
             }
             if (xr) {
                 /* same for row vectors */
-                mmt_vec v(mmt,0,0, 0, test_shared, mmt.n[0]);
+                mmt_vec v(mmt, 0, 0, 0, test_shared, mmt.n[0]);
 
                 mmt_vec_set_0n(v, mmt.n[0]);
                 /* v <- v * S:  coefficient i goes to position S(i).  */
@@ -316,19 +325,20 @@ void * tst_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE
                 mmt_vec_apply_S(mmt, 0, v);
                 mmt_vec_check_equal_0n(v, mmt.n[1]);
             }
-            if (freeme[0]) free(freeme[0]);
-            if (freeme[1]) free(freeme[1]);
+            if (freeme[0])
+                free(freeme[0]);
+            if (freeme[1])
+                free(freeme[1]);
         }
         balancing_clear(bb);
     }
-
 
     /* matrix times vector product */
     /* The file pair (Y.0, MY.0) will be checked for correctness against the
      * result obtained by short_matmul */
     {
-        mmt_vec y( mmt,0,0, 1, /* shared ! */ 1, mmt.n[1]);
-        mmt_vec my(mmt,0,0, 0,                0, mmt.n[0]);
+        mmt_vec y(mmt, 0, 0, 1, /* shared ! */ 1, mmt.n[1]);
+        mmt_vec my(mmt, 0, 0, 0, 0, mmt.n[0]);
         serialize(pi->m);
         mmt_vec_set_random_through_file(y, "Y%u-%u.0", mmt.n0[1], rstate, 0);
         /* recall that for all purposes, bwc operates with M*T^-1 and not M
@@ -348,8 +358,8 @@ void * tst_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE
     /* The file pair (W, WM) will be checked for correctness against the
      * result obtained by short_matmul */
     {
-        mmt_vec w(  mmt,0,0, 0, /* shared ! */ 1, mmt.n[0]);
-        mmt_vec wm( mmt,0,0, 1,                0, mmt.n[1]);
+        mmt_vec w(mmt, 0, 0, 0, /* shared ! */ 1, mmt.n[0]);
+        mmt_vec wm(mmt, 0, 0, 1, 0, mmt.n[1]);
         serialize(pi->m);
         mmt_vec_set_random_through_file(w, "W%u-%u.0", mmt.n0[0], rstate, 0);
         mmt_vec_twist(mmt, w);
@@ -374,15 +384,15 @@ void * tst_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE
         uint32_t * xx;
         unsigned int const m = 2;
         unsigned int const nx = 2;
-        xx = (uint32_t *) malloc(m * nx * sizeof(uint32_t));
-        for(unsigned int k = 0 ; k < m * nx ; k++) {
+        xx = (uint32_t *)malloc(m * nx * sizeof(uint32_t));
+        for (unsigned int k = 0; k < m * nx; k++) {
             xx[k] = gmp_urandomm_ui(rstate, mmt.n0[0]);
         }
         pi_bcast(xx, m * nx * sizeof(uint32_t), BWC_PI_BYTE, 0, 0, pi->m);
-        for(int d = 0 ; d < 2 ; d++)  {
+        for (int d = 0; d < 2; d++) {
             char * tmp;
             int rc;
-            mmt_vec x(mmt,0,0, d, /* shared ! */ 1, mmt.n[d]);
+            mmt_vec x(mmt, 0, 0, d, /* shared ! */ 1, mmt.n[d]);
 
             /* prepare a first vector */
             mmt_vec_set_x_indices(x, xx, m, nx);
@@ -519,12 +529,6 @@ void * tst_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE
     return NULL;
 }
 
-
-void usage()
-{
-    exit(1);
-}
-
 int main(int argc, char const * argv[])
 {
     cxx_param_list pl;
@@ -561,4 +565,3 @@ int main(int argc, char const * argv[])
 
     return 0;
 }
-

@@ -14,14 +14,14 @@
 
 
 // Some globals... laziness.
-FILE *out;
-weight_t *table;
-uint64_t count, count_ideals = 0;
-uint64_t col_min_index = 0;
+static FILE *out;
+static weight_t *table;
+static uint64_t count, count_ideals = 0;
+static uint64_t col_min_index = 0;
 
 /* -------------------------------------------------------------------------- */
 
-void *
+static void *
 update_table(void * dummy MAYBE_UNUSED, earlyparsed_relation_ptr rel)
 {
   for (weight_t i = 0; i < rel->nb; i++) {
@@ -37,7 +37,7 @@ update_table(void * dummy MAYBE_UNUSED, earlyparsed_relation_ptr rel)
   return NULL;
 }
 
-void *
+static void *
 print_survivors(void * dummy MAYBE_UNUSED, earlyparsed_relation_ptr rel)
 {
   for (weight_t i = 0; i < rel->nb; i++) {
