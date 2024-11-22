@@ -5,7 +5,6 @@
 
 #include "cado.h" // IWYU pragma: keep
 
-// IWYU pragma: no_include <memory>
 #include <cinttypes>
 #include <climits>
 #include <cmath>
@@ -16,7 +15,7 @@
 #include <cstdlib>
 #include <cstring>
 
-// C++ headers.
+// IWYU pragma: no_include <memory>
 #include <algorithm>    // sort
 #include <deque>
 #include <limits>       // underlying_type_{min,max}
@@ -34,8 +33,6 @@
 #include "verbose.h"    // CADO_VERBOSE_PRINT_BWC_CACHE_BUILD
 #include "timing.h"     // wct_seconds
 #include "arith-hard.hpp"
-
-using namespace std;
 
 /* Make sure that the assembly function is only called if it matches
  * correctly the abase header !! */
@@ -59,6 +56,8 @@ using namespace std;
 #include "matmul_facade.hpp"
 #include "portability.h" // strdup // IWYU pragma: keep
 #include "params.h"
+
+using namespace std;
 
 /* FIXME: this code was modernized in several passes over the years.
  * The current situation is a bit hybrid. When the code is compiled,

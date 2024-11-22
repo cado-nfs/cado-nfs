@@ -5,7 +5,7 @@
 #include <cstring> /* for strcmp() */
 #include <cmath> /* for sqrt and floor and log and ceil */
 #include <cstdint>           // for uint64_t, int64_t, UINT64_MAX
-                             //
+
 #include <vector>
 #include <algorithm>
 #include <iosfwd>            // for std

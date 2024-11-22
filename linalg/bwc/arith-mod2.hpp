@@ -1,25 +1,29 @@
 #ifndef ARITH_MOD2_HPP_
 #define ARITH_MOD2_HPP_
 
+#include "cado_config.h"
+
+#include <cstdint>
+
 #include <algorithm>
 #include <array>
-#include <cstdint>
 #include <iomanip>
 #include <ostream>
 #include <sstream>
 #include <string>
+
 #if defined(HAVE_SSE41) && defined(HAVE_POPCNT)
 #include <x86intrin.h>
 #endif
 
-#include "cxx_mpz.hpp"
+#include <gmp.h>
 #include "fmt/format.h"
+
 #include "gmp_aux.h"
+#include "cxx_mpz.hpp"
 #include "macros.h"
 #include "memory.h" // malloc_aligned
 #include "misc.h" // u64_random
-#include <gmp.h>
-
 #include "arith-concrete-base.hpp"
 
 namespace arith_mod2 {

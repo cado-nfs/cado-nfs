@@ -1,8 +1,10 @@
 #ifndef BALANCING_HPP_
 #define BALANCING_HPP_
 
+#include <cstdint>
+
 #include <string>
-#include <stdint.h>
+
 #include "macros.h"  // for MIN
 #include "mod_ul.h"
 

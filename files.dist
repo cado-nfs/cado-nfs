@@ -1509,6 +1509,7 @@ tests/utils/test_mpz_poly.cpp
 tests/utils/test_mpz_poly_bivariate.cpp
 tests/utils/test_mpz_poly_parsing.cpp
 tests/utils/test_mpz_vector.c
+tests/utils/test_multityped_array.cpp
 tests/utils/test_omega.c
 tests/utils/test_random_distributions.cpp
 tests/utils/test_relation.cpp

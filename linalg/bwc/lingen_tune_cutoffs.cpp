@@ -1,8 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
 
-// IWYU pragma: no_include <sys/param.h>
-// IWYU pragma: no_include <memory>
-
 #ifdef LINGEN_BINARY
 #error "lingen_tune_cutoffs does not work with binary, at least for the moment"
 #endif
@@ -16,6 +13,7 @@
 #include <csignal>
 #endif
 
+// IWYU pragma: no_include <memory>
 #include <vector>
 #include <utility>
 #include <map>
@@ -23,6 +21,8 @@
 #include <iostream>     // std::cout
 #include <sstream> // IWYU pragma: keep
 #include <type_traits>                      // for __strip_reference_wrapper...
+
+// IWYU pragma: no_include <sys/param.h>
 
 #include <gmp.h>                            // for mp_limb_t, gmp_randclear
 

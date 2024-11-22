@@ -1,13 +1,18 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
-#include <vector>
 #include <cmath>
-#include <limits.h>
+#include <climits>
+
+#include <vector>
+
 #include <sys/time.h>
+
 #include <gmp.h>
+
 #include "gf2x-fft.h"
 #include "gf2x.h"
 #include "lingen_mat_types.hpp"

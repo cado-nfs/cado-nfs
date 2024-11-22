@@ -35,7 +35,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 
 #include "fmt/core.h"
 #include "fmt/format.h"
-                         //
+
 #include "cado_poly.h"   // for cxx_cado_poly, cado_poly_s, cado_poly_read
 #include "gzip.h"       // ofstream_maybe_compressed
 #include "macros.h"      // for ASSERT_ALWAYS

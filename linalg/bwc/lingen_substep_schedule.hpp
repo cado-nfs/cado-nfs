@@ -6,6 +6,8 @@
 #include <ostream>
 #include <sstream>
 
+#include "lingen_fft_select.hpp"
+
 struct lingen_substep_schedule {
     /* output characteristics -- the ones we have to choose */
 
@@ -150,7 +152,6 @@ struct lingen_substep_schedule {
     }
 };
 
-#include "lingen_fft_select.hpp"
 template<typename T> lingen_substep_schedule::fft_type_t encode_fft_type();
 template<> inline lingen_substep_schedule::fft_type_t encode_fft_type<void>()
 {

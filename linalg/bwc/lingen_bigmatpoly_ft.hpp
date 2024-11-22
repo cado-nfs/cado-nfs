@@ -5,6 +5,7 @@
 #include "lingen_bigmatpoly.hpp"
 #include "lingen_fft_select.hpp" // IWYU pragma: keep
 #include "lingen_call_companion.hpp"
+
 /*
 #ifdef LINGEN_BINARY
 struct gf2x_fake_fft_info;

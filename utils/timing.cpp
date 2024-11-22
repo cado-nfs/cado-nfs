@@ -23,6 +23,15 @@
 #include "timing.h"
 #include "memusage.h"
 
+#if !defined(HAVE_RUSAGE_THREAD) && defined(__linux)
+#include <unistd.h>
+#include <sys/syscall.h>
+#include <stdarg.h>
+#include <string.h>
+#include <stdlib.h>
+#include "portability.h"
+#endif
+
 
 /* return total user time (all threads) */
 uint64_t
@@ -176,12 +185,6 @@ void thread_seconds_user_sys(double * res)
     res[1] = (double)ru->ru_stime.tv_sec + (double)ru->ru_stime.tv_usec/1.0e6;
 }
 #elif defined(__linux)
-#include <unistd.h>
-#include <sys/syscall.h>
-#include <stdarg.h>
-#include <string.h>
-#include <stdlib.h>
-#include "portability.h"
 
 static inline pid_t gettid() { return syscall(SYS_gettid); }
 
