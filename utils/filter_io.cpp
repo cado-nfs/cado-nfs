@@ -5,7 +5,7 @@
 #include <cstdio>                     // for fprintf, stderr, stdout, FILE
 #include <cstdlib>                    // for abort, malloc, realloc, free
 #include <cstring>                    // for memset, memcpy, strcmp, strerror
-#ifdef  HAVE_GETRUSAGE
+#ifdef HAVE_GETRUSAGE
 #include <sys/resource.h>              // for rusage // IWYU pragma: keep
 #endif
 #include <mutex>

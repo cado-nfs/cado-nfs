@@ -1,5 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
-                  //
+
 #include <cinttypes>   // PRIu32 // IWYU pragma: keep
 #include <climits> // ULONG_MAX
 #include <cstdio>

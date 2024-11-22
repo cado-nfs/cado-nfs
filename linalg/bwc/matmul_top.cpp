@@ -1,5 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
-                  //
+
 #include <cstdint>
 #include <cinttypes>
 #include <cstdio>
@@ -12,7 +12,7 @@
 #include <unistd.h>               // for access, unlink, ssize_t, R_OK
 #include <sys/stat.h>             // for stat, mkdir
 #include <pthread.h>              // for pthread_mutex_lock, pthread_mutex_u...
-                                  //
+
 #include <gmp.h>
 
 #include "async.hpp"              // for timing_next_timer, timing_data (ptr...
@@ -1514,13 +1514,13 @@ static void matmul_top_read_submatrix(matmul_top_data & mmt, int midx, cxx_param
     }
 
     if (!Mloc.mm->cachefile_name.empty() && verbose_enabled(CADO_VERBOSE_PRINT_BWC_CACHE_MAJOR_INFO)) {
-        my_pthread_mutex_lock(mmt.pi->m->th->m);
+        pthread_mutex_lock(mmt.pi->m->th->m);
         fmt::print("[{}] J{}T{} uses cache file {}\n",
                 mmt.pi->nodenumber_s,
                 mmt.pi->m->jrank, mmt.pi->m->trank,
                 /* cache for mmt.locfile, */
                 Mloc.mm->cachefile_name);
-        my_pthread_mutex_unlock(mmt.pi->m->th->m);
+        pthread_mutex_unlock(mmt.pi->m->th->m);
     }
 }
 

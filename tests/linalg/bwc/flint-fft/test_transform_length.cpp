@@ -1,6 +1,9 @@
 #include "cado.h"
+
 #include <iostream>
-#include "fft.h"
+
+#include "flint-fft/transform_interface.h"
+
 #include "macros.h"
 
 using namespace std;

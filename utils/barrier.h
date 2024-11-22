@@ -39,6 +39,8 @@
 
 #include <pthread.h>
 
+#include "macros.h"
+
 typedef struct barrier_tag {
     pthread_mutex_t     * lock;
     pthread_mutex_t     lock_private;
@@ -89,6 +91,43 @@ class barrier {
     inline void arrive_and_wait() { barrier_wait(b, nullptr, nullptr, nullptr); }
 };
 }
+#endif
+
+#ifndef  HAVE_PTHREAD_BARRIER_WAIT
+/* Also enable proxies for emulating the standard stuff with our more
+ * sophisticated barriers */
+#define my_pthread_barrier_t               barrier_t
+#define my_pthread_barrierattr_t           int
+#define MY_PTHREAD_BARRIER_SERIAL_THREAD   BARRIER_SERIAL_THREAD
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+static inline int my_pthread_barrier_init(barrier_t * /* restrict */ barrier,
+        const int * /* restrict */ attr MAYBE_UNUSED, unsigned count)
+{
+    return barrier_init(barrier, NULL, count);
+}
+static inline int my_pthread_barrier_wait(barrier_t * b)
+{
+    return barrier_wait(b, NULL, NULL, NULL);
+}
+static inline int my_pthread_barrier_destroy(barrier_t * b)
+{
+    return barrier_destroy(b, NULL);
+}
+
+#ifdef __cplusplus
+}
+#endif
+#else
+#define my_pthread_barrier_t               pthread_barrier_t
+#define my_pthread_barrierattr_t           pthread_barrierattr_t
+#define my_pthread_barrier_init            pthread_barrier_init
+#define MY_PTHREAD_BARRIER_SERIAL_THREAD   PTHREAD_BARRIER_SERIAL_THREAD
+#define my_pthread_barrier_wait            pthread_barrier_wait
+#define my_pthread_barrier_destroy         pthread_barrier_destroy
 #endif
 
 #endif	/* BARRIER_H_ */

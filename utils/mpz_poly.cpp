@@ -10,17 +10,21 @@
 
 
 #include "cado.h" // IWYU pragma: keep
-#include <sstream>      // std::ostringstream // IWYU pragma: keep
-#include <vector>
-#include <string>
-#include <ostream>        // for operator<<, basic_ostream, basic_ostream::o...
+
 #include <climits>      // ULONG_MAX
 #include <cctype>       // isdigit etc
 #include <cstdio>       // fprintf // IWYU pragma: keep
 #include <cstdlib>
 #include <cstring>
+
+#include <sstream>      // std::ostringstream // IWYU pragma: keep
+#include <vector>
+#include <string>
+#include <ostream>        // for operator<<, basic_ostream, basic_ostream::o...
 #include <exception>
+
 #include <gmp.h>
+
 #include "cxx_mpz.hpp"    // for cxx_mpz
 #include "double_poly.h"  // for double_poly_s, double_poly_srcptr
 #include "gmp_aux.h"      // for mpz_addmul_si, mpz_mul_uint64, mpz_ndiv_r
@@ -32,8 +36,14 @@
 #include "rootfinder.h"   // for mpz_poly_roots_mpz
 #ifdef MPZ_POLY_TIMINGS
 #include "timing.h"
+#include <ctime>
+#else
+#ifndef MPZ_POLY_H_
+#error "please include mpz_poly.h first"
+#endif
 #endif
 #include "cado_expression_parser.hpp"
+#include "macros.h"
 /* and just because we expose a proxy to usp.c's root finding... */
 #include "usp.h"          // for numberOfRealRoots
 
@@ -77,9 +87,6 @@
 // in mpz_poly.h: add #define MPZ_POLY_TIMINGS
 // beware: these timers are not thread-safe.
 #ifdef MPZ_POLY_TIMINGS
-#include <time.h>
-#include <timing.h>
-#include "macros.h"
 static double timer[3] = {0.0, 0.0, 0.0};
 static unsigned long calls[3] = {0, 0, 0};
 #endif

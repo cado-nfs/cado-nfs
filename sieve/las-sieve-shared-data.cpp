@@ -1,8 +1,13 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <cstdio>            // for fclose, fopen, fprintf, NULL, FILE, stderr
 #include <cstdlib>           // for abort
+
 #include <mutex>             // for lock_guard, mutex
-#include "ecm/facul.hpp"         // for facul_clear_strategies, facul_strategies_t
+#include <memory>
+#include <utility>
+
+#include "ecm/facul_strategies.hpp"         // for facul_clear_strategies, facul_strategies_t
 #include "gmp_aux.h"    // nbits
 #include "las-cofactor.hpp"  // for facul_make_strategies
 #include "las-sieve-shared-data.hpp"
@@ -13,6 +18,7 @@
 #include "timing.h"             // for seconds
 #include "verbose.h"             // verbose_output_print
 #include "params.h"
+#include "las-siever-config.hpp"
 #include "las-side-config.hpp"
 
 

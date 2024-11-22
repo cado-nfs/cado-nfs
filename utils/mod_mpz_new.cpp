@@ -1,5 +1,11 @@
 #include "cado.h" // IWYU pragma: keep
+
+#include <cstdint>
+#include <cstddef>
+
 #include <gmp.h>
+
+#include "cxx_mpz.hpp"
 #include "u64arith.h"      // for u64arith_mul_1_1_2
 #include "ularith.h"    // IWYU pragma: keep
 #include "mod_mpz_new.hpp"

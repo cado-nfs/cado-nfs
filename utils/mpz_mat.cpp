@@ -529,8 +529,7 @@ void mpz_mat_mod_mpz(mpz_mat_ptr dst, mpz_mat_srcptr src, mpz_srcptr p)/*{{{*/
 int mpz_mat_p_valuation(mpz_mat_srcptr A, mpz_srcptr p)
 {
     int val = INT_MAX;
-    mpz_t c;
-    mpz_init(c);
+    cxx_mpz c;
     for (unsigned int i = 0 ; val && i < A->m ; i++){
         for (unsigned int j = 0 ; val && j < A->n ; j++){
             int v = 0;
@@ -542,15 +541,13 @@ int mpz_mat_p_valuation(mpz_mat_srcptr A, mpz_srcptr p)
             val = v;
         }
     }
-    mpz_clear(c);
     return val;
 }
 
 int mpz_mat_p_valuation_ui(mpz_mat_srcptr A, unsigned long p)
 {
     int val = INT_MAX;
-    mpz_t c;
-    mpz_init(c);
+    cxx_mpz c;
     for (unsigned int i = 0 ; val && i < A->m ; i++){
         for (unsigned int j = 0 ; val && j < A->n ; j++){
             int v = 0;
@@ -562,7 +559,6 @@ int mpz_mat_p_valuation_ui(mpz_mat_srcptr A, unsigned long p)
             val = v;
         }
     }
-    mpz_clear(c);
     return val;
 }
 
@@ -875,19 +871,17 @@ void mpq_mat_fprint(FILE * stream, mpq_mat_srcptr M)
 
 void mpq_mat_fprint_as_mpz(FILE* f, mpq_mat_srcptr M)
 {
-    mpz_t denom;
+    cxx_mpz denom;
     mpz_mat N;
 
-    mpz_init(denom);
     mpz_mat_init(N,0,0);
 
     mpq_mat_numden(N, denom, M);
     
     mpz_mat_fprint(f,N);
-    gmp_fprintf(f, "Denominator is : %Zd\n",denom);
+    gmp_fprintf(f, "Denominator is : %Zd\n", (mpz_srcptr) denom);
     
     mpz_mat_clear(N);
-    mpz_clear(denom);
 }
 /*}}}*/
 /*{{{ comparison */
@@ -1442,8 +1436,7 @@ void mpz_poly_eval_mpz_mat_mod_mpz(mpz_mat_ptr D, mpz_mat_srcptr M, mpz_poly_src
         return;
     }
     mpz_mat_realloc(D, n, n);
-    mpz_t tmp;
-    mpz_init(tmp);
+    cxx_mpz tmp;
     mpz_fdiv_r(tmp, mpz_poly_coeff_const(f, f->deg), p);
     mpz_mat_set_mpz(D, tmp);
     for(int i = f->deg - 1 ; i >= 0 ; i--) {
@@ -1452,7 +1445,6 @@ void mpz_poly_eval_mpz_mat_mod_mpz(mpz_mat_ptr D, mpz_mat_srcptr M, mpz_poly_src
         mpz_mat_add_mpz(D, tmp);
         mpz_mat_mod_mpz(D, D, p);
     }
-    mpz_clear(tmp);
 }
 /*}}}*/
 /*}}}*/
@@ -1527,10 +1519,7 @@ void mpz_mat_gauss_backend_mod_mpz(mpz_mat_ptr M, mpz_mat_ptr T, mpz_srcptr p)
     if (T) mpz_mat_realloc(T, m, m);
     if (T) mpz_mat_set_ui(T, 1);
     unsigned int rank = 0;
-    mpz_t gcd, tmp2, tmp3;
-    mpz_init(gcd);
-    mpz_init(tmp2);
-    mpz_init(tmp3);
+    cxx_mpz gcd, tmp2, tmp3;
     for(unsigned int j = 0 ; j < n ; j++) {
         unsigned int i1 = M->m;
         mpz_set(gcd, p);
@@ -1570,18 +1559,12 @@ void mpz_mat_gauss_backend_mod_mpz(mpz_mat_ptr M, mpz_mat_ptr T, mpz_srcptr p)
         }
         rank++;
     }
-    mpz_clear(gcd);
-    mpz_clear(tmp2);
-    mpz_clear(tmp3);
 }
 /* }}} */
 
 void mpz_mat_gauss_backend_mod_ui(mpz_mat_ptr M, mpz_mat_ptr T, unsigned long p)
 {
-    mpz_t pz;
-    mpz_init_set_ui(pz, p);
-    mpz_mat_gauss_backend_mod_mpz(M, T, pz);
-    mpz_clear(pz);
+    mpz_mat_gauss_backend_mod_mpz(M, T, cxx_mpz(p));
 }
 
 
@@ -1673,9 +1656,7 @@ static int mpz_mat_hnf_helper(mpz_mat_ptr T, mpz_mat_ptr dT, std::vector<cxx_mpz
 
     if (n == n0) return signdet;
 
-    mpz_t q, r2;
-    mpz_init(q);
-    mpz_init(r2);
+    cxx_mpz q, r2;
 
     /* fix signs */
     for(unsigned int i = n0 ; i < n ; i++) {
@@ -1746,9 +1727,6 @@ static int mpz_mat_hnf_helper(mpz_mat_ptr T, mpz_mat_ptr dT, std::vector<cxx_mpz
     signdet*= permutation_signature(heap.data(), n);
 
     cmp.result(a);
-
-    mpz_clear(q);
-    mpz_clear(r2);
 
     return signdet;
 }
@@ -1912,10 +1890,7 @@ void mpz_mat_kernel_mod_mpz(mpz_mat_ptr K, mpz_mat_srcptr M, mpz_srcptr p)
 }
 void mpz_mat_kernel_mod_ui(mpz_mat_ptr K, mpz_mat_srcptr M, unsigned long p)
 {
-    mpz_t p2;
-    mpz_init_set_ui(p2,p);
-    mpz_mat_kernel_mod_mpz(K,M,p2);
-    mpz_clear(p2);
+    mpz_mat_kernel_mod_mpz(K, M, cxx_mpz(p));
 }
 /* }}} */
 /*{{{ inversion*/

@@ -1,5 +1,8 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdint.h>               // for uint64_t, UINT64_C
+
+#include <cstddef>
+#include <cstdint>               // for uint64_t, UINT64_C
+
 #include "bblas_mat64.hpp"
 #include "bblas_level5.hpp"
 #include "gmp_aux.h"              // for memfill_random

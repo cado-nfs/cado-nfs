@@ -61,9 +61,9 @@ mod_div3 (residue_t r, const residue_t a, const modulus_t m)
   */
   
   r[1] = t[1] / 3UL;
-#if LONG_BIT == 32
+#if ULONG_BITS == 32
     r[0] = t[0] * 0xaaaaaaabUL; /* 1/3 (mod 2^32) */
-#elif LONG_BIT == 64
+#elif ULONG_BITS == 64
     r[0] = t[0] * 0xaaaaaaaaaaaaaaabUL; /* 1/3 (mod 2^64) */
 #else
 #error Unknown word size
@@ -88,9 +88,9 @@ mod_div5 (residue_t r, const residue_t a, const modulus_t m)
 {
   /* inv_5[i] = -1/i (mod 5) */
   const unsigned long inv_5[5] = {0,4,2,3,1};
-#if LONG_BIT == 32
+#if ULONG_BITS == 32
   const unsigned long c = 0xcccccccdUL; /* 1/5 (mod 2^32) */
-#elif LONG_BIT == 64
+#elif ULONG_BITS == 64
   const unsigned long c = 0xcccccccccccccccdUL; /* 1/5 (mod 2^64) */
 #else
 #error Unknown word size
@@ -108,9 +108,9 @@ mod_div7 (residue_t r, const residue_t a, const modulus_t m)
   const unsigned long w_mod_7 = (sizeof (unsigned long) == 4) ? 4UL : 2UL;
   /* inv_7[i] = -1/i (mod 7) */
   const unsigned long inv_7[7] = {0,6,3,2,5,4,1};
-#if LONG_BIT == 32
+#if ULONG_BITS == 32
   const unsigned long c = 0xb6db6db7UL; /* 1/7 (mod 2^32) */
-#elif LONG_BIT == 64
+#elif ULONG_BITS == 64
   const unsigned long c = 0x6db6db6db6db6db7UL; /* 1/7 (mod 2^64) */
 #else
 #error Unknown word size
@@ -128,9 +128,9 @@ mod_div11 (residue_t r, const residue_t a, const modulus_t m)
   const unsigned long w_mod_11 = (sizeof (unsigned long) == 4) ? 4UL : 5UL;
   /* inv_11[i] = -1/i (mod 11) */
   const unsigned long inv_11[11] = {0, 10, 5, 7, 8, 2, 9, 3, 4, 6, 1}; 
-#if LONG_BIT == 32
+#if ULONG_BITS == 32
   const unsigned long c = 0xba2e8ba3UL; /* 1/11 (mod 2^32) */
-#elif LONG_BIT == 64
+#elif ULONG_BITS == 64
   const unsigned long c = 0x2e8ba2e8ba2e8ba3UL; /* 1/11 (mod 2^64) */
 #else
 #error Unknown word size
@@ -148,9 +148,9 @@ mod_div13 (residue_t r, const residue_t a, const modulus_t m)
   const unsigned long w_mod_13 = (sizeof (unsigned long) == 4) ? 9UL : 3UL;
   /* inv_13[i] = -1/i (mod 13) */
   const unsigned long inv_13[13] = {0, 12, 6, 4, 3, 5, 2, 11, 8, 10, 9, 7, 1}; 
-#if LONG_BIT == 32
+#if ULONG_BITS == 32
   const unsigned long c = 0xc4ec4ec5UL; /* 1/13 (mod 2^32) */
-#elif LONG_BIT == 64
+#elif ULONG_BITS == 64
   const unsigned long c = 0x4ec4ec4ec4ec4ec5UL; /* 1/13 (mod 2^64) */
 #else
 #error Unknown word size
@@ -313,7 +313,7 @@ mod_npow_ul (residue_t r, const unsigned long b, const unsigned long e,
     simple_mul (t, u, b, m); /* t = b */
   }
 
-  mask = (1UL << (LONG_BIT - 1)) >> ularith_clz (e);
+  mask = (1UL << (ULONG_BITS - 1)) >> ularith_clz (e);
   ASSERT (e & mask);
   mask >>= 1;
 
@@ -372,7 +372,7 @@ mod_npow_mp (residue_t r, const unsigned long b, const unsigned long *e,
     simple_mul (t, u, b, m); /* t = b */
   }
 
-  mask = (1UL << (LONG_BIT - 1)) >> ularith_clz (e[i]);
+  mask = (1UL << (ULONG_BITS - 1)) >> ularith_clz (e[i]);
   mask >>= 1;
 
   for ( ; i >= 0; i--)
@@ -430,7 +430,7 @@ mod_sprp (const residue_t b, const modulus_t m)
     {
       mm1[0] = mm1[1];
       mm1[1] = 0UL;
-      po2 += LONG_BIT;
+      po2 += ULONG_BITS;
     }
   ASSERT (mm1[0] != 0UL);
   i = ularith_ctz (mm1[0]);
@@ -474,7 +474,7 @@ mod_sprp2 (const modulus_t m)
     {
       mm1[0] = mm1[1];
       mm1[1] = 0UL;
-      po2 += LONG_BIT;
+      po2 += ULONG_BITS;
     }
   ASSERT (mm1[0] != 0UL);
   i = ularith_ctz (mm1[0]);
@@ -528,7 +528,7 @@ mod_isprime (const modulus_t m)
     {
       mm1[0] = mm1[1];
       mm1[1] = 0UL;
-      po2 += LONG_BIT;
+      po2 += ULONG_BITS;
     }
   ASSERT (mm1[0] != 0UL);
   i = ularith_ctz (mm1[0]);
@@ -577,7 +577,7 @@ mod_isprime (const modulus_t m)
       if (!find_minus1 (r1, minusone, po2, m))
 	goto end; /* Not prime */
 
-#if LONG_BIT == 32
+#if ULONG_BITS == 32
       {
 	/* These are the two base 2,7,61 SPSP below 11207066041 */
 	const modint_t 
@@ -600,7 +600,7 @@ mod_isprime (const modulus_t m)
       if (!find_minus1 (r1, minusone, po2, m))
 	goto end; /* Not prime */
 	  
-#if LONG_BIT == 32
+#if ULONG_BITS == 32
       {
 	/* These are the base 2,5,7,61 SPSP < 10^13 and n == 1 (mod 3) */
 	const modint_t 
@@ -662,7 +662,7 @@ mod_isprime (const modulus_t m)
       if (!find_minus1 (r1, minusone, po2, m))
 	goto end; /* Not prime */
 
-#if LONG_BIT == 32
+#if ULONG_BITS == 32
       {
 	/* These are the base 2,3,5 SPSP < 10^13 and n == 2 (mod 3) */
 	const modint_t 

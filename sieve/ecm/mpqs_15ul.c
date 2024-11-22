@@ -1,5 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
-#include <limits.h> // LONG_BIT
+#include <limits.h> // ULONG_BITS
 #include <gmp.h>
 #include "modredc_15ul.h"
 #include "modredc_15ul_default.h"
@@ -14,7 +14,7 @@ mpqs_15ul (modint_t f, const modulus_t m)
 
   mpz_init (fz);
   mpz_init_set_ui (mz, m[0].m[1]);
-  mpz_mul_2exp (mz, mz, LONG_BIT);
+  mpz_mul_2exp (mz, mz, ULONG_BITS);
   mpz_add_ui (mz, mz, m[0].m[0]);
   mpqs_doit (fz, mz, 0);
   if (mpz_fits_ulong_p (fz) == 0)

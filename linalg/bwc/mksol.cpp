@@ -6,24 +6,27 @@
 #include <ctime>                // for time
 
 #include <string>                // for string
+#include <memory>
+#include <vector>
 
 #include <gmp.h>
+#include "fmt/core.h"
 #include "fmt/format.h"
 
-#include "matmul.hpp"              // for matmul_public_s
-#include "parallelizing_info.hpp"
-#include "matmul_top.hpp"
-#include "matmul_top_comm.hpp"
-#include "select_mpi.h"
-#include "params.h"
-#include "misc.h"
-#include "bw-common.h"
-#include "gmp_aux.h"
-#include "async.hpp"
 #include "arith-cross.hpp"
 #include "arith-generic.hpp"
+#include "async.hpp"
+#include "bw-common.h"
+#include "gmp_aux.h"
 #include "macros.h"
+#include "matmul_top.hpp"
+#include "matmul_top_comm.hpp"
+#include "matmul_top_vec.hpp"
+#include "misc.h"
 #include "mmt_vector_pair.hpp"
+#include "parallelizing_info.hpp"
+#include "params.h"
+#include "select_mpi.h"
 
 using namespace fmt::literals;
 

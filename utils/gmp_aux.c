@@ -1,10 +1,14 @@
 /* auxiliary routines on GMP data-types */
 
 #include "cado.h" // IWYU pragma: keep
+
+#include <stddef.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <limits.h>     /* for INT_MAX */
+
 #include <gmp.h>
+
 #include "gmp_aux.h"
 #include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
 #include "macros.h"    // for ASSERT_ALWAYS // IWYU pragma: keep

@@ -2,17 +2,21 @@
 
 #include <cstdio>      // FILE
 #include <cstdlib>     // free, malloc, abort
+#include <cstdint>
 #include <cstring>     // strcmp memset
 
 #include <vector>
+#include <stdexcept>
 
 #include <gmp.h>
+#include "fmt/core.h"
 
 #include "gmp_aux.h"
+#include "cxx_mpz.hpp"
 #include "macros.h"     // for ASSERT_ALWAYS
 #include "mpz_poly.h"   // mpz_poly
+#include "mpz_mat.h"
 #include "sm_utils.hpp"
-#include "cado_poly.h"  // NB_POLYS_MAX
 
 /* compute the SM */
 static void

@@ -5,7 +5,7 @@
 #include "arith-modp.hpp"
 #include "bwc_config.h"
 #include "gmp_aux.h"
-#ifdef  BUILD_DYNAMICALLY_LINKABLE_BWC
+#ifdef BUILD_DYNAMICALLY_LINKABLE_BWC
 #include <dlfcn.h>
 #include "solib-naming.h"
 #endif

@@ -50,8 +50,6 @@ struct facul_strategy_oneside {
    * instantiated afterwards */
   static std::vector<facul_method::parameters> default_strategy (int n);
 };
-int facul (std::vector<cxx_mpz> &, cxx_mpz const &, facul_strategy_oneside const &);
-
 
 struct facul_strategies_base {
     std::vector<unsigned long> B; /* The factor base bounds */

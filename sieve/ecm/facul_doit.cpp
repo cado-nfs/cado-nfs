@@ -9,7 +9,7 @@
  * any harm
  */
 #include "cado.h" // IWYU pragma: keep
-#include <stdlib.h>
+#include <cstdlib>
 
 #ifndef FACUL_DOIT_READY_TO_INCLUDE_IMPL_CODE
 #error "This file must not be used as a standalone compilation unit"
@@ -73,7 +73,7 @@ facul_doit (std::vector<cxx_mpz> & factors, const modulus_t m,
   for (i = method_start; i < (int) strategy.methods.size() ; i++)
     {
       /* Simple-minded early abort for large input.
-         Note: before the test was "mod_intbits (n) > LONG_BIT" which was
+         Note: before the test was "mod_intbits (n) > ULONG_BITS" which was
          machine-dependent. However it would be better if the early abort
          test depends on the size of the number we are trying to factor,
          since for a large number we can invest more in cofactorization. */

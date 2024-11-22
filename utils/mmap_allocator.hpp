@@ -1,15 +1,17 @@
-#ifndef MMAP_ALLOCATOR_H
-#define MMAP_ALLOCATOR_H
+#ifndef UTILS_MMAP_ALLOCATOR_H
+#define UTILS_MMAP_ALLOCATOR_H
 
-#include "macros.h"
 #include <cstdio>
-#include <sys/types.h>
 
 #include <memory>
 #include <limits>
 #include <string>
 #include <stdexcept>
 #include <type_traits>
+
+#include <sys/types.h>
+
+#include "macros.h"
 
 /* This is inspired from https://github.com/johannesthoma/mmap_allocator
  * License is LGPL.
@@ -182,4 +184,4 @@ namespace mmap_allocator_details
     };
 }
 
-#endif /* MMAP_ALLOCATOR_H */
+#endif /* UTILS_MMAP_ALLOCATOR_H */

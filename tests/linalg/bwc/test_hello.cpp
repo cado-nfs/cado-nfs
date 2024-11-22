@@ -1,5 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
-                  //
+
 #include <cstdio>
 #include <cstdlib>
 

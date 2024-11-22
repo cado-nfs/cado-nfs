@@ -1,13 +1,11 @@
-#ifndef LAS_DESCENT_DESCENT_TREES_HPP_
-#define LAS_DESCENT_DESCENT_TREES_HPP_
+#ifndef LAS_DESCENT_TREES_HPP_
+#define LAS_DESCENT_TREES_HPP_
 
 #include <cstdio>             // for FILE
 #include <cstdlib>            // for free
+#include <cmath>
+
 #include <algorithm>           // for max
-#include <cmath>        /* isfinite is c99 and std::isfinite is c++11 ;
-                         * it's not totally clear that #include <cmath> +
-                         * accessing std::isfinite works.
-                         */
 #include <list>                // for list, operator!=, _List_iterator, list...
 #include <mutex>               // for mutex, lock_guard
 #include <set>                 // for operator!=, set, set<>::const_iterator
@@ -26,7 +24,10 @@
 #include "cxx_mpz.hpp"          // for cxx_mpz
 
 #ifdef isfinite
-/* Under some conditions, we can get #define'd C functions, which
+/* isfinite is c99 and std::isfinite is c++11 ; it's not totally clear
+ * that #include <cmath> + accessing std::isfinite works.
+ *
+ * Under some conditions, we can get #define'd C functions, which
  * obviously invalidate the C++ prototype (icc version 16.0.3 based on
  * gcc-6.1.0 on CentOS 7.2.1511)
  */
@@ -289,4 +290,4 @@ struct descent_tree {
 
     void display_all_trees(FILE * o);
 };
-#endif	/* LAS_DESCENT_DESCENT_TREES_HPP_ */
+#endif	/* LAS_DESCENT_TREES_HPP_ */

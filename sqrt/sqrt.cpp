@@ -11,11 +11,13 @@
  */
 
 #include "cado.h" // IWYU pragma: keep
+
 /* the following avoids the warnings "Unknown pragma" if OpenMP is not
    available, and should come after cado.h, which sets -Werror=all */
-#ifdef  __GNUC__
+#ifdef __GNUC__
 #pragma GCC diagnostic ignored "-Wunknown-pragmas"
 #endif
+
 #include <cstdint>     /* AIX wants it first (it's a bug) */
 #include <cstdio>
 #include <cstdlib>

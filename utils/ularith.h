@@ -15,29 +15,6 @@
 #include <gmp.h>
 #include "macros.h"
 
-/* <limits.h> defines LONG_BIT only with _XOPEN_SOURCE defined, but if 
-   another header (such as <stdio.h>) already included <features.h> before 
-   _XOPEN_SOURCE was set to 1, future includes of <features.h> are
-   short-circuited and _XOPEN_SOURCE is ignored. */
-
-#ifndef LONG_BIT
-#ifdef LONG_MAX /* ISO C99 requires LONG_MAX in limits.h */
-#if LONG_MAX == 2147483647L
-#define LONG_BIT 32
-#else
-#define LONG_BIT 64
-#endif /* if LONG_MAX == 2147483647L */
-#elif defined __LONG_MAX__
-#if __LONG_MAX__ == 2147483647L
-#define LONG_BIT 32
-#else
-#define LONG_BIT 64
-#endif /* if __LONG_MAX__ == 2147483647L */
-#else /* elif defined __LONG_MAX__ */
-#error Cannot guess LONG_BIT, please define
-#endif /* elif defined __LONG_MAX__ else */
-#endif /* ifndef LONG_BIT */
-
 /* On 32 bit x86, the general constraint for, e.g., the source operand
    of add is "g". For x86_64, it is "rme", since immediate constants
    must be 32 bit. */
@@ -471,17 +448,17 @@ ularith_mul_ul_ul_2ul (unsigned long *r1, unsigned long *r2,
   : [r1] "=&r" (*r1), [r2] "=&r" (*r2)
   : [a] "r" (a), [b] "r" (b)
   );
-#elif LONG_BIT == 32
+#elif ULONG_BITS == 32
     uint64_t r = (uint64_t) a * b;
     *r1 = (unsigned long) r;
     *r2 = (unsigned long) (r >> 32);
-#elif LONG_BIT == 64 && defined(HAVE_INT128)
+#elif ULONG_BITS == 64 && defined(HAVE_INT128)
     /* this code is useful for example on ARM processors (Raspberry Pi) */
     unsigned __int128 r = (unsigned __int128) a * b;
     *r1 = (unsigned long) r;
     *r2 = (unsigned long) (r >> 64);
 #else
-  const int half = LONG_BIT / 2;
+  const int half = ULONG_BITS / 2;
   const unsigned long mask = (1UL << half) - 1UL;
   unsigned long t1, t2, p1, p2;
 
@@ -528,11 +505,11 @@ ularith_sqr_ul_2ul (unsigned long *r1, unsigned long *r2,
   : [r1] "=&r" (*r1), [r2] "=&r" (*r2)
   : [a] "r" (a)
   );
-#elif LONG_BIT == 32
+#elif ULONG_BITS == 32
     uint64_t r = (uint64_t) a * a;
     *r1 = r;
     *r2 = r >> 32;
-#elif LONG_BIT == 64 && defined(HAVE_INT128)
+#elif ULONG_BITS == 64 && defined(HAVE_INT128)
   /* this code is useful for example on ARM processors (Raspberry Pi) */
   /* Unfortunately, gcc does not seem to recognize that the two input
    * operands to MUL are identical and can therefore go in %rax. This
@@ -542,7 +519,7 @@ ularith_sqr_ul_2ul (unsigned long *r1, unsigned long *r2,
     *r1 = r;
     *r2 = r >> 64;
 #else
-  const int half = LONG_BIT / 2;
+  const int half = ULONG_BITS / 2;
   const unsigned long mask = (1UL << half) - 1UL;
   unsigned long t1, t2, p1, p2;
 
@@ -627,13 +604,13 @@ ularith_div_2ul_ul_ul_r (unsigned long *r, unsigned long a1,
 
 
 /* Set *r to lo shifted right by i bits, filling in the low bits from hi into the high
-   bits of *r. I.e., *r = (hi * 2^LONG_BIT + lo) / 2^i. Assumes 0 <= i < LONG_BIT. */
+   bits of *r. I.e., *r = (hi * 2^ULONG_BITS + lo) / 2^i. Assumes 0 <= i < ULONG_BITS. */
 MAYBE_UNUSED
 static inline void
 ularith_shrd (unsigned long *r, const unsigned long hi, const unsigned long lo,
               const unsigned char i)
 {
-  ASSERT_EXPENSIVE (i < LONG_BIT);
+  ASSERT_EXPENSIVE (i < ULONG_BITS);
 #ifdef ULARITH_VERBOSE_ASM
 /* Disable the "uninitialized" warning here, as *r is only written to and
    does not need to be initialized, but we need to write (*r) here so the
@@ -667,21 +644,21 @@ ularith_shrd (unsigned long *r, const unsigned long hi, const unsigned long lo,
     : "r" (hi), "0" (lo), "cI" (i) /* i can be in %cl or a literal constant < 32 */
     : "cc");
 #else
-  if (i > 0) /* shl by LONG_BIT is no-op on x86! */
-    *r = (lo >> i) | (hi << (LONG_BIT - i));
+  if (i > 0) /* shl by ULONG_BITS is no-op on x86! */
+    *r = (lo >> i) | (hi << (ULONG_BITS - i));
   else
     *r = lo;
 #endif
 }
 
 /* Set *r to hi shifted left by i bits, filling in the high bits from lo into the low
-   bits of *r. I.e., *r = (hi + lo*2^-LONG_BIT) * 2^i. Assumes 0 <= i < LONG_BIT. */
+   bits of *r. I.e., *r = (hi + lo*2^-ULONG_BITS) * 2^i. Assumes 0 <= i < ULONG_BITS. */
 MAYBE_UNUSED
 static inline void
 ularith_shld (unsigned long *r, const unsigned long lo, const unsigned long hi,
               const unsigned char i)
 {
-  ASSERT_EXPENSIVE (i < LONG_BIT);
+  ASSERT_EXPENSIVE (i < ULONG_BITS);
 #ifdef ULARITH_VERBOSE_ASM
 #if GNUC_VERSION_ATLEAST(4,4,0)
 #if GNUC_VERSION_ATLEAST(4,6,0)
@@ -709,8 +686,8 @@ ularith_shld (unsigned long *r, const unsigned long lo, const unsigned long hi,
     : "r" (lo), "0" (hi), "cI" (i) /* i can be in %cl or a literal constant < 32 */
     : "cc");
 #else
-  if (i > 0) /* shr by LONG_BIT is no-op on x86! */
-    *r = (hi << i) | (lo >> (LONG_BIT - i));
+  if (i > 0) /* shr by ULONG_BITS is no-op on x86! */
+    *r = (hi << i) | (lo >> (ULONG_BITS - i));
   else
     *r = hi;
 #endif
@@ -757,7 +734,7 @@ ularith_clz (const unsigned long a)
   ASSERT_EXPENSIVE (a != 0UL);
   return __builtin_clzl(a);
 #else
-  unsigned long t = 1UL << (LONG_BIT - 1);
+  unsigned long t = 1UL << (ULONG_BITS - 1);
   int i;
   ASSERT_EXPENSIVE (a != 0UL);
   for (i = 0; (a & t) == 0UL; i++)
@@ -779,10 +756,10 @@ ularith_invmod (const unsigned long n)
   ASSERT (n % 2UL != 0UL);
   
   r = T[(n & 255)>>1];
-  /* Perform 2 Newton iterations for LONG_BIT=32, 3 for LONG_BIT=64 */
+  /* Perform 2 Newton iterations for ULONG_BITS=32, 3 for ULONG_BITS=64 */
   r = 2UL * r - r * r * n;
   r = 2UL * r - r * r * n;
-#if LONG_BIT == 64
+#if ULONG_BITS == 64
   r = 2UL * r - r * r * n;
 #endif
 

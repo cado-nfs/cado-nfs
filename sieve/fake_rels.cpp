@@ -1,5 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
-                  //
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring> /* for strcmp() */
@@ -183,8 +183,6 @@ static void remove_special_q(relation & rel, las_todo_entry const & Q)
     }
     V.erase(nn, V.end());
 }
-
-#include "misc.h"
 
 
 struct model_relation : public indexed_relation_byside {

@@ -6,7 +6,7 @@
  * all these pieces of code are put in separate files, but these must be
  * #included from within the class itself.
  */
-#ifndef LAS_PLATTICE_H
+#ifndef LAS_PLATTICE_HPP
 #error "This prologue is only here to please clangd !!!"
 #include <cstdint>
 #include "macros.h"
@@ -68,7 +68,7 @@ void reduce_plattice_simplistic(uint32_t I) {
     }
 }
 
-#ifndef LAS_PLATTICE_H
+#ifndef LAS_PLATTICE_HPP
 #error "This epilogue is only here to please clangd !!!"
 };
 #endif

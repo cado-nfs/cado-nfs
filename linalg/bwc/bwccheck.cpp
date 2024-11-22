@@ -1,6 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
 // IWYU pragma: no_include <ext/alloc_traits.h>
 // IWYU pragma: no_include <memory>
+
 #include <cerrno>              // for ENOENT, errno
 #include <climits>             // for UINT_MAX
 #include <cstdlib>             // for exit, EXIT_FAILURE
@@ -17,15 +18,18 @@
 #include <vector>               // for vector
 
 #include <sys/stat.h>           // for stat
-#include <gmp.h>                // for mpz_cmp_ui
-#include "bw-common.h"          // for bw, bw_common_clear, bw_common_decl_u...
 
+#include <gmp.h>                // for mpz_cmp_ui
+#include "fmt/core.h"
+#include "fmt/format.h"
+
+#include "arith-cross.hpp"
+#include "arith-generic.hpp"
+#include "bw-common.h"          // for bw, bw_common_clear, bw_common_decl_u...
 #include "fmt/core.h"           // for check_format_string
 #include "fmt/format.h"         // for basic_buffer::append, basic_parse_con...
 #include "macros.h"             // for ASSERT_ALWAYS, MAYBE_UNUSED
 #include "misc.h"               // ok_NOKNOK
-#include "arith-generic.hpp"
-#include "arith-cross.hpp"
 #include "params.h"             // for param_list_clear, param_list_init
 #include "portability.h" // asprintf // IWYU pragma: keep
 #include "select_mpi.h"         // for MPI_Abort, MPI_Comm_rank, MPI_COMM_WORLD

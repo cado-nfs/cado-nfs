@@ -8,12 +8,15 @@
  * @brief tests for @ref MinMaxHeap.
  **/
 
-#include "min_max_heap.hpp"
+#include <cstdlib>
 
 #include <vector>
 #include <algorithm>
-#include <cstdlib>
+
+#include <gmp.h>
+
 #include "macros.h"
+#include "min_max_heap.hpp"
 #include "tests_common.h"
 
 struct min_max_heap_test_case {

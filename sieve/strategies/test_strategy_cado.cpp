@@ -1,4 +1,20 @@
 #include "cado.h" // IWYU pragma: keep
+
+/*
+  This binary allows to test our procedure choosing optimal
+  strategies. In fact, using the strategy of CADO, we can use it to
+  approximate the "theorical" number of relations found per second found
+  with certains parameters. Then, comparing the "theorical" value with the
+  real value, we could detect if a problem exists in our procedure.
+*/
+
+/* There's some dead code in here, which is never called. If we ever come
+ * back to this strategy business, there might be something to look at in
+ * here, but the odds are low.
+ */
+#define COMPILE_DEAD_CODE
+//#define CADO_INTERLEAVING
+
 #include <cstdlib>
 #include <cstdio>
 #include <cmath>
@@ -31,27 +47,13 @@
 #include "stage2.h" // stage2_plan_t
 #include "strategy.h"                     // for strategy_t, strategy_add_fm
 #include "misc.h"   // u64_random  // IWYU: keep
+#ifdef COMPILE_DEAD_CODE
+#include "facul.hpp"
+#endif
 
 // int CONST_TEST_R = 55;
 
-//#define CADO_INTERLEAVING
-/*
-  This binary allows to test our procedure choosing optimal
-  strategies. In fact, using the strategy of CADO, we can use it to
-  approximate the "theorical" number of relations found per second found
-  with certains parameters. Then, comparing the "theorical" value with the
-  real value, we could detect if a problem exists in our procedure.
-*/
-
-/* There's some dead code in here, which is never called. If we ever come
- * back to this strategy business, there might be something to look at in
- * here, but the odds are low.
- */
-#define COMPILE_DEAD_CODE
-
 #ifdef COMPILE_DEAD_CODE
-#include "facul.hpp"
-
 static MAYBE_UNUSED tabular_fm_t *generate_methods_cado(const int lpb)
 {
     /* we set mfb = 3*lpb to avoid the special case of 2 large primes */

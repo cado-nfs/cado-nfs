@@ -3,18 +3,22 @@
 // IWYU pragma: no_include <hwloc/bitmap.h>
 // IWYU pragma: no_include "hwloc/bitmap.h"
 
-#include <errno.h>             // for EXDEV, errno
-#include <inttypes.h>          // for PRIu64
-#include <regex.h>             // for regmatch_t, regcomp, regexec, regfree
-#include <sstream>      // IWYU pragma: keep
-#include <stdint.h>            // for uint64_t
-#include <stdio.h>             // for fprintf, stderr, size_t, fputs
-#include <stdlib.h>            // for free, exit, EXIT_FAILURE, EXIT_SUCCESS
-#include <strings.h>           // for strcasecmp
-#include <mutex>               // for mutex, lock_guard
+#include <cerrno>             // for EXDEV, errno
+#include <cinttypes>          // for PRIu64
+#include <cstdint>            // for uint64_t
+#include <cstdio>             // for fprintf, stderr, size_t, fputs
+#include <cstdlib>            // for free, exit, EXIT_FAILURE, EXIT_SUCCESS
+
+// #include <mutex>               // for mutex, lock_guard
 #include <string>              // for string, operator<<, char_traits, opera...
 #include <tuple>               // for tie, get, make_tuple, tuple
 #include <vector>              // for vector, vector<>::iterator
+#include <memory>
+#include <sstream>      // IWYU pragma: keep
+
+#include <strings.h>           // for strcasecmp
+#include <regex.h>             // for regmatch_t, regcomp, regexec, regfree
+
 #ifdef HAVE_HWLOC
 #include <hwloc.h>
 #include "hwloc-aux.h"

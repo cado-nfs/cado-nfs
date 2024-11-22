@@ -4,10 +4,10 @@
 #include <cstdlib>
 #include <cstring>
 #include <cstdint>              // for uint32_t
-                                //
+
 #include <memory>
 #include <string>                // for string, operator+
-                                 //
+
 #ifdef HAVE_RESOURCE_H
 #include <sys/resource.h>	/* for cputime */
 #endif

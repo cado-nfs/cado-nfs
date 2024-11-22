@@ -1,16 +1,20 @@
 /* arithmetic on polynomial with double-precision coefficients */
 #include "cado.h" // IWYU pragma: keep
+
 #ifdef HAVE_GLIBC
-#include <features.h>
+#include <features.h>   // __GLIBC_PREREQ
 #endif
-#include <sstream>
-#include <string>
+
 #include <cstring>
 #include <cstdio> // FILE // IWYU pragma: keep
 #include <cstdlib>
 #include <climits>
 #include <cfloat> /* for DBL_MAX */
 #include <cctype> /* isspace */
+
+#include <sstream>
+#include <string>
+
 #include <gmp.h>       // for mpz_t, mpz_clear, mpz_init, mpz_get_d, mpz_mul...
 #include "mpz_poly.h"  // mpz_poly
 #include "macros.h"     // for ASSERT, ASSERT_ALWAYS

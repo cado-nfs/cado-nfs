@@ -1,17 +1,22 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
 #include <cinttypes>    // for PRIu64, SCNu64
 #include <cstdint>      // for uint64_t, int32_t, int64_t, uint8_t
+
+#include <vector>
+#include <mutex>
+
 #include <pthread.h>     // for pthread_mutex_lock, pthread_mutex_unlock
 #ifdef HAVE_MINGW
 #include <fcntl.h>   /* for _O_BINARY */
 #endif
-#include <vector>
 
 #include <gmp.h>
+
 #include "bit_vector.h"  // for bit_vector_set, bit_vector, bit_vector_getbit
 #include "cado_poly.h"  // cado_poly
 #include "cxx_mpz.hpp"
@@ -36,7 +41,7 @@ static stats_data_t stats; /* struct for printing progress */
 
 /*********************** mutex for multi threaded version ********************/
 /* used as mutual exclusion lock for reading the status of logarithms */
-static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+static std::mutex lock;
 
 /**** Relations structure used for computing the logarithms from the rels ****/
 typedef struct
@@ -434,9 +439,11 @@ nb_unknown_log (read_data & data, uint64_t i)
   int c = 0;
   for (j = 0, k = 0; k < len; k++)
   {
-    pthread_mutex_lock (&lock);
-    bool const known = data.log.is_known(p[k].id);
-    pthread_mutex_unlock (&lock);
+      bool known;
+      {
+          std::lock_guard<std::mutex> dummy(lock);
+          known = data.log.is_known(p[k].id);
+      }
 
     if (!known) {
       if (j != k)
@@ -462,14 +469,13 @@ static inline unsigned int
 compute_missing_log (logtab::mpz_rw_accessor dest, mpz_t vlog, int32_t e, mpz_t ell)
 {
   unsigned int ret;
-  mpz_t tmp;
-  mpz_init_set_si (tmp, e);
+  cxx_mpz tmp = e;
   mpz_invert (tmp, tmp, ell);
   mpz_neg (vlog, vlog);
   mpz_mul (vlog, vlog, tmp);
   mpz_mod (tmp, vlog, ell);
 
-  pthread_mutex_lock (&lock);
+  std::lock_guard<std::mutex> dummy(lock);
   if (dest.is_known()) {
       // log was already computed by another thread
       ret = 0;
@@ -477,9 +483,7 @@ compute_missing_log (logtab::mpz_rw_accessor dest, mpz_t vlog, int32_t e, mpz_t 
       dest = tmp;
       ret = 1;
   }
-  pthread_mutex_unlock (&lock);
 
-  mpz_clear (tmp);
   return ret;
 }
 
@@ -655,11 +659,13 @@ dep_nb_unknown_log (dep_read_data & data, uint64_t i, index_t *h)
 
   for (nb = 0, k = 0; k < data.rels[i].len; k++)
   {
-    pthread_mutex_lock (&lock);
-    int const unknow = GRAPH_DEP_IS_LOG_UNKNOWN (data.G, p[k]);
-    pthread_mutex_unlock (&lock);
+    int unknown;
+    {
+        std::lock_guard<std::mutex> dummy(lock);
+        unknown = GRAPH_DEP_IS_LOG_UNKNOWN (data.G, p[k]);
+    }
 
-    if (unknow) // we do not know the log if this ideal
+    if (unknown) // we do not know the log if this ideal
     {
       nb++;
       *h = p[k];

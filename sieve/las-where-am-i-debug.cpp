@@ -1,10 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
 
-#ifndef TRACE_K
-#error "This file *must* be compiled with TRACE_K defined"
-#define TRACE_K 1
-#endif
-
 /* This compilation units reacts to TRACK_CODE_PATH and uses macros
  * such as WHERE_AM_I_UPDATE.
  * This compilation unit _must_ produce different object files depending
@@ -12,16 +7,18 @@
  * The WHERE_AM_I_UPDATE macro itself is defined in las-where-am-i.hpp
  */
 
-#include <array>                         // for array, array<>::value_type
+#include <cstdint>
 #include <cinttypes>                     // for PRId64, PRIu64, SCNd64, SCNu64
 #include <climits>                       // for UINT_MAX
 #include <cstdio>                       // for fprintf, sscanf, stderr
 #include <cstdlib>                      // for exit, EXIT_FAILURE
 #include <cstdarg>  // IWYU pragma: keep // because we want _gmp_vfprintf !
+
+#include <array>                         // for array, array<>::value_type
 #include <memory>                        // for unique_ptr, operator!=
 #include <string>                        // for string
+
 #ifdef HAVE_CXXABI_H
-/* We use that to demangle C++ names */
 #include <cxxabi.h> // IWYU pragma: keep
 #endif
 #ifdef HAVE_EXECINFO
@@ -31,9 +28,10 @@
 #include <gmp.h>                         // for gmp_vfprintf, mpz_divexact_ui
 
 #include "cxx_mpz.hpp"
+#include "fb.hpp"
+#include "fb-types.h"
 #include "las-where-am-i.hpp"
 #include "las-where-am-i-debug.hpp"
-
 #include "las-config.h"                  // for LOG_BUCKET_REGION
 #include "las-coordinates.hpp"           // for convert_*_to_*
 #include "las-norms.hpp"                 // for lognorm_smart
@@ -44,6 +42,11 @@
 #include "macros.h"                      // for ASSERT_ALWAYS
 #include "verbose.h"    // verbose_output_print
 #include "params.h"
+
+#ifndef TRACE_K
+#error "This file *must* be compiled with TRACE_K defined"
+#define TRACE_K 1
+#endif
 
 int extern_trace_on_spot_ab(int64_t a, uint64_t b) {
     return trace_on_spot_ab(a, b);

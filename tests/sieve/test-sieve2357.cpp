@@ -1,18 +1,22 @@
 #include "cado.h"  // IWYU pragma: keep
+
+// #define DO_TIMING 1
+
 #include <cstdint> // for uint32_t, uint64_t
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+
 #ifdef HAVE_SSE2
-#include "emmintrin.h"
+#include <emmintrin.h>
 #endif
 #ifdef HAVE_AVX2
-#include "immintrin.h"
+#include <immintrin.h>
 #endif
 #ifdef HAVE_ARM_NEON
 #include <arm_neon.h>
 #endif
-// #define DO_TIMING 1
+
 #ifdef DO_TIMING
 // The Jevents library is part of the PMU tools
 // https://github.com/andikleen/pmu-tools

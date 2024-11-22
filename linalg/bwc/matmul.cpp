@@ -15,7 +15,7 @@
 
 #include "bwc_config.h" // BUILD_DYNAMICALLY_LINKABLE_BWC // IWYU pragma: keep
 
-#ifdef  BUILD_DYNAMICALLY_LINKABLE_BWC
+#ifdef BUILD_DYNAMICALLY_LINKABLE_BWC
 #include <dlfcn.h>
 #include "solib-naming.h" // IWYU pragma: keep
 #endif

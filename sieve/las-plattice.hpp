@@ -1,5 +1,5 @@
-#ifndef LAS_PLATTICE_H
-#define LAS_PLATTICE_H
+#ifndef LAS_PLATTICE_HPP
+#define LAS_PLATTICE_HPP
 
 #include <cstdint>
 #include <vector>
@@ -673,4 +673,4 @@ struct precomp_plattice_dense_t {
 };
 
 
-#endif
+#endif  /* LAS_PLATTICE_HPP */

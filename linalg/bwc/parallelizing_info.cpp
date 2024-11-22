@@ -1,5 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
-                  //
+
 #include <cctype>
 #include <cerrno>
 #include <cinttypes>
@@ -18,9 +18,8 @@
 #include <pthread.h>      // for pthread_t
 #include <sys/types.h>
 #include <sys/time.h>   // gettimeofday
-#ifdef  HAVE_UTSNAME_H
+#ifdef HAVE_UTSNAME_H
 #include <sys/utsname.h>
-#include <climits>
 #endif
 
 #include "select_mpi.h"
@@ -42,7 +41,7 @@ static inline void pi_comm_init_pthread_things(pi_comm_ptr w, const char * desc)
 
     barrier_init(res->bh, nullptr, w->ncores);
     my_pthread_barrier_init(res->b, nullptr, w->ncores);
-    my_pthread_mutex_init(res->m, nullptr);
+    pthread_mutex_init(res->m, nullptr);
     res->desc = strdup(desc);
 
     w->th = res;
@@ -53,7 +52,7 @@ static inline void pi_comm_destroy_pthread_things(pi_comm_ptr w)
     barrier_destroy(w->th->bh, NULL);
     my_pthread_barrier_destroy(w->th->b);
 
-    my_pthread_mutex_destroy(w->th->m);
+    pthread_mutex_destroy(w->th->m);
     /* Beware ! Freeing mustn't happen more than once ! */
     free(w->th->desc);
     delete w->th;
@@ -1652,7 +1651,7 @@ static void say_hello(pi_comm_ptr w, parallelizing_info_ptr pi MAYBE_UNUSED)
         serialize(w);
         if (w->jrank != j)
             continue;
-        my_pthread_mutex_lock(w->th->m);
+        pthread_mutex_lock(w->th->m);
 #ifdef CONCURRENCY_DEBUG
         /* Make it less verbose -- if it ever hangs in there, then
          * we can re-enable it */
@@ -1666,7 +1665,7 @@ static void say_hello(pi_comm_ptr w, parallelizing_info_ptr pi MAYBE_UNUSED)
                 pi->wr[1]->th->desc, pi->wr[1]->jrank, pi->wr[1]->trank
               );
 #endif
-        my_pthread_mutex_unlock(w->th->m);
+        pthread_mutex_unlock(w->th->m);
     }
 }
 

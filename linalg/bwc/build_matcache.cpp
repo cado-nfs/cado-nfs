@@ -5,9 +5,14 @@
 #include <cstdlib>
 
 #include <memory>
+#include <string>
+#include <stdexcept>
+#include <utility>
 
 #include <gmp.h>
+#include "fmt/format.h"
 
+#include "cxx_mpz.hpp"
 #include "matmul.hpp"
 #include "macros.h"
 #include "arith-generic.hpp"

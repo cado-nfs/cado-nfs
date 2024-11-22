@@ -1,6 +1,7 @@
-#include "cado.h"
+#include "cado.h"       // NOLINT(misc-include-cleaner)
 
 #include <cstdint>
+#include <cstring>
 
 #include "macros.h"
 #include "blocklanczos_extraction.hpp"

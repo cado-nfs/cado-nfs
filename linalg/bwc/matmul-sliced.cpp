@@ -8,13 +8,10 @@
 #include <cstring>
 #include <cstdarg>         // for va_list, va_end, va_start
 
-// C++ headers.
 #include <utility>          // for pair, make_pair
 #include <vector>
 #include <algorithm>    // sort
 #include <iostream>     // cout
-
-using namespace std;
 
 #include "matmul.hpp"         // for matmul_ptr, matmul_public_s
 #include "arith-hard.hpp"
@@ -22,6 +19,8 @@ using namespace std;
 #include "matmul_facade.hpp"
 #include "macros.h"
 #include "params.h"
+
+using namespace std;
 
 // assembly is now disabled for this code because the semantics of the
 // asm code have changed.

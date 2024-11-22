@@ -37,25 +37,27 @@ To test the mpz arithmetic on a 64-bit processor:
 
 #include "cado.h" // IWYU pragma: keep
 // IWYU pragma: no_include <ext/alloc_traits.h>
-#include "cxx_mpz.hpp"
-#include "facul.hpp"     // for facul_strategy_t, facul, facul_clear...
-#include "facul_ecm.h"   // for ec_parameter_is_valid, BRENT12, ec_p...
-#include "facul_fwd.hpp" // for facul_method_t
-#include "facul_strategies_stats.hpp" // for facul_strategy_t, facul, facul_clear...
-#include "macros.h"                   // for ASSERT
-#include "modredc_ul.h"         // for modredcul_clearmod, modredcul_initmo...
-#include "modredc_ul_default.h" // for modulus_t
-#include "pm1.h"                // for pm1_make_plan, pm1_plan_t
-#include "pp1.h"                // for pp1_make_plan, pp1_plan_t
-#include "timing.h"             // microseconds
+
 #include <climits>              // for ULONG_MAX
 #include <cstdint>              /* AIX wants it first (it's a bug) */
 #include <cstdio>               // for printf, NULL, fprintf, stderr, fclose
 #include <cstdlib>              // for strtoul, malloc, exit, free, strtol
 #include <cstring>              // for strcmp, strncmp
-#include <gmp.h>                // for gmp_printf, mpz_srcptr, mpz_get_ui
-#include <memory>               // for allocator_traits<>::value_type
+
 #include <vector>               // for vector
+
+#include <gmp.h>                // for gmp_printf, mpz_srcptr, mpz_get_ui
+
+#include "cxx_mpz.hpp"
+#include "facul.hpp"     // for facul_strategy_t, facul, facul_clear...
+#include "facul_ecm.h"   // for ec_parameter_is_valid, BRENT12, ec_p...
+#include "facul_method.hpp"
+#include "facul_strategies.hpp"
+#include "facul_strategies_stats.hpp" // for facul_strategy_t, facul, facul_clear...
+#include "macros.h"                   // for ASSERT
+#include "modredc_ul.h"         // for modredcul_clearmod, modredcul_initmo...
+#include "modredc_ul_default.h" // for modulus_t
+#include "timing.h"             // microseconds
 
 #define MAX_METHODS 20
 
@@ -203,7 +205,7 @@ int main(int argc, char const * argv[])
     int strat = 0;
     int extra_primes = 0;
     int ncurves = -1;
-    unsigned long *primmod = NULL, *hitsmod = NULL;
+    std::unique_ptr<unsigned long[]> primmod, hitsmod;
     uint64_t starttime, endtime;
     std::vector<facul_method::parameters> method_params;
 
@@ -336,10 +338,8 @@ int main(int argc, char const * argv[])
             argv += 2;
         } else if (argc > 2 && strcmp(argv[1], "-m") == 0) {
             mod = strtoul(argv[2], NULL, 10);
-            ASSERT_ALWAYS(hitsmod == nullptr);
-            ASSERT_ALWAYS(primmod == nullptr);
-            hitsmod = (unsigned long *)malloc(mod * sizeof(unsigned long));
-            primmod = (unsigned long *)malloc(mod * sizeof(unsigned long));
+            hitsmod.reset(new unsigned long[mod]);
+            primmod.reset(new unsigned long[mod]);
             for (i = 0; i < mod; i++)
                 hitsmod[i] = primmod[i] = 0;
             argc -= 2;
@@ -493,11 +493,6 @@ int main(int argc, char const * argv[])
                 printf("%lu:%lu (%f)%s", i, hitsmod[i],
                        (double)hitsmod[i] / (double)primmod[i],
                        (i < mod - 1) ? ", " : "\n");
-    }
-
-    if (mod > 0) {
-        free(hitsmod);
-        free(primmod);
     }
 
     if (verbose >= 1)

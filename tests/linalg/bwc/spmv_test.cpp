@@ -1,5 +1,5 @@
 #include "cado.h"  // IWYU pragma: keep
-                   //
+
 #include <cstdint> // for uint32_t, uint64_t
 #include <cstdio>
 #include <cstdlib>
@@ -8,7 +8,7 @@
 #include <memory>
 
 #include <gmp.h> // for gmp_randclear, gmp_randinit_default
-                 //
+
 #include "arith-generic.hpp"
 #include "balancing.hpp" // for balancing_clear, balancing_init, bal...
 #include "bw-common.h"

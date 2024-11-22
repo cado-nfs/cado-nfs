@@ -1,10 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
 
-#ifdef TRACE_K
-#error "This file *must not* be compiled with TRACE_K defined"
-#undef TRACE_K
-#endif
-
 /* This compilation units reacts to TRACK_CODE_PATH and uses macros
  * such as WHERE_AM_I_UPDATE.
  * This compilation unit _must_ produce different object files depending
@@ -15,8 +10,15 @@
 // IWYU pragma: no_include "las-where-am-i.hpp"
 #include <cstdint>                    // for int64_t, uint64_t
 #include <memory>                     // for unique_ptr
+
 #include "las-where-am-i-proxy.hpp"   // for where_am_I, where_am_I::pimpl_t
 #include "las-where-am-i-prod.hpp"    // for where_am_I::impl
+
+#ifdef TRACE_K
+#error "This file *must not* be compiled with TRACE_K defined"
+#undef TRACE_K
+#endif
+
 struct cxx_param_list; // IWYU pragma: keep
 class nfs_work; // IWYU pragma: keep
 

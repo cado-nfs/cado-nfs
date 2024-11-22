@@ -26,7 +26,7 @@
 #define MODREDCUL_RENAME(x) modredcul_##x
 
 #define MODREDCUL_SIZE 1
-#define MODREDCUL_MAXBITS LONG_BIT
+#define MODREDCUL_MAXBITS ULONG_BITS
 
 typedef unsigned long residueredcul_t[MODREDCUL_SIZE];
 typedef unsigned long modintredcul_t[MODREDCUL_SIZE];
@@ -275,7 +275,7 @@ modredcul_intbits (const modintredcul_t a)
 {
   if (a[0] == 0)
     return 0;
-  return LONG_BIT - ularith_clz (a[0]);
+  return ULONG_BITS - ularith_clz (a[0]);
 }
 
 MAYBE_UNUSED
@@ -660,7 +660,7 @@ modredcul_mul (residueredcul_t r, const residueredcul_t a,
   ASSERT_EXPENSIVE (m[0].m % 2 != 0);
   ASSERT_EXPENSIVE (a[0] < m[0].m && b[0] < m[0].m);
 #if defined(MODTRACE)
-  printf ("(%lu * %lu / 2^%d) %% %lu", a[0], b[0], LONG_BIT, m[0].m);
+  printf ("(%lu * %lu / 2^%d) %% %lu", a[0], b[0], ULONG_BITS, m[0].m);
 #endif
 
   ularith_mul_ul_ul_2ul (&plow, &phigh, a[0], b[0]);
@@ -685,14 +685,14 @@ modredcul_mul_ul_ul (unsigned long *r, const residueredcul_t a,
   ASSERT_EXPENSIVE (m[0].m % 2 != 0);
   ASSERT_EXPENSIVE (a[0] < m[0].m);
 #if defined(MODTRACE)
-  printf ("(%lu * %lu / 2^%d) %% %lu", a[0], b, LONG_BIT, m[0].m);
+  printf ("(%lu * %lu / 2^%d) %% %lu", a[0], b, ULONG_BITS, m[0].m);
 #endif
 
   ularith_mul_ul_ul_2ul (&plow, &phigh, a[0], b);
-  /* We have a <= m-1, b <= 2^LONG_BIT - 1. Thus the product
-     phigh:plow <= (m-1)*(2^LONG_BIT - 1) = m*2^LONG_BIT - 2^LONG_BIT - m + 1,
+  /* We have a <= m-1, b <= 2^ULONG_BITS - 1. Thus the product
+     phigh:plow <= (m-1)*(2^ULONG_BITS - 1) = m*2^ULONG_BITS - 2^ULONG_BITS - m + 1,
      and with m >= 1,
-     phigh:plow <= m*2^LONG_BIT - 2^LONG_BIT, so phigh < m. */
+     phigh:plow <= m*2^ULONG_BITS - 2^ULONG_BITS, so phigh < m. */
   modredcul_redc (r, plow, phigh, m);
 
 #if defined(MODTRACE)
@@ -712,7 +712,7 @@ modredcul_sqr (residueredcul_t r, const residueredcul_t a,
   ASSERT_EXPENSIVE (a[0] < m[0].m);
 
 #if defined(MODTRACE)
-  printf ("(%lu^2 / 2^%d) %% %lu", a[0], LONG_BIT, m[0].m);
+  printf ("(%lu^2 / 2^%d) %% %lu", a[0], ULONG_BITS, m[0].m);
 #endif
 
   ularith_sqr_ul_2ul (&plow, &phigh, a[0]);

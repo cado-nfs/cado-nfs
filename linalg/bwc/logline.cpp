@@ -1,11 +1,14 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <cstdint>      // for SIZE_MAX
 #include <cstring>      // for memset, strlen
 #include <cstdio>       // fprintf // IWYU pragma: keep
 #include <cstdarg>      // va_list // IWYU pragma: keep
 #include <cstdlib>
+
 #include <string>        // for string, basic_string
 #include <vector>
+
 #include "logline.hpp"
 #include "memusage.h"   // Memusage2
 #include "params.h"     // param_list_parse_*

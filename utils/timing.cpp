@@ -1,8 +1,16 @@
 #include "cado.h" // IWYU pragma: keep
-#include <utility> // pair
-// IWYU pragma: no_include <bits/types/struct_rusage.h>
-#include <pthread.h>
+
 #include <cstdio>       // FILE // IWYU pragma: keep
+
+#include <utility> // pair
+#ifdef HAVE_GETRUSAGE
+/* I'm including some STL code for the timer info layer, but this could
+ * equally well be done in C */
+#include <map>
+#include <string>
+#endif
+
+// IWYU pragma: no_include <bits/types/struct_rusage.h>
 #ifdef HAVE_RESOURCE_H
 #include <sys/resource.h>	/* for cputime */
 #endif
@@ -10,15 +18,11 @@
 #include <ctime>
 #endif
 #include <sys/time.h>	/* for gettimeofday */
+#include <pthread.h>
+
 #include "timing.h"
 #include "memusage.h"
 
-#ifdef HAVE_GETRUSAGE
-/* I'm including some STL code for the timer info layer, but this could
- * equally well be done in C */
-#include <map>
-#include <string>
-#endif
 
 /* return total user time (all threads) */
 uint64_t

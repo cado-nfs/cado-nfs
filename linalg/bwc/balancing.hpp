@@ -1,5 +1,5 @@
-#ifndef BALANCING_H_
-#define BALANCING_H_
+#ifndef BALANCING_HPP_
+#define BALANCING_HPP_
 
 #include <string>
 #include <stdint.h>
@@ -145,4 +145,4 @@ static inline unsigned long balancing_pre_unshuffle(balancing const & bal, unsig
     return balancing_index_shuffle_common_(r, K, bal.pshuf_inv);
 }
 
-#endif	/* BALANCING_H_ */
+#endif	/* BALANCING_HPP_ */

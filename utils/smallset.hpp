@@ -1,6 +1,7 @@
 #ifndef SMALLSET_HPP_
 #define SMALLSET_HPP_
 
+#include "cado_config.h"
 #include "macros.h"
 
 #if defined(HAVE_SSE2) && GNUC_VERSION_ATLEAST(4,7,0)
@@ -25,10 +26,13 @@
  * -fabi-version for gcc-4.[789]
  */
 
-#include <immintrin.h>
 #include <cassert>
+#include <cstdint>
+
 #include <vector>
-#include <stdint.h>
+
+#include <immintrin.h>
+
 
 template <typename RT, typename ST>
 static inline

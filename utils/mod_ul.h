@@ -12,7 +12,7 @@
 
 #include "cado_config.h"  // just because we're a header.
 /**********************************************************************/
-#include <limits.h>       // for LONG_BIT, ULONG_MAX
+#include <limits.h>       // for ULONG_BITS, ULONG_MAX
 #include <stdint.h>       // for uint64_t, int64_t
 #include <stdlib.h>       // for size_t, llabs
 #include <stdio.h>
@@ -27,7 +27,7 @@
 #define MODUL_RENAME(x) modul_##x
 
 #define MODUL_SIZE 1
-#define MODUL_MAXBITS LONG_BIT
+#define MODUL_MAXBITS ULONG_BITS
 
 typedef unsigned long residueul_t[MODUL_SIZE];
 typedef unsigned long modintul_t[MODUL_SIZE];
@@ -194,7 +194,7 @@ modul_intbits (const modintul_t a)
 {
   if (a[0] == 0)
     return 0;
-  return LONG_BIT - ularith_clz (a[0]);
+  return ULONG_BITS - ularith_clz (a[0]);
 }
 
 

@@ -3,15 +3,17 @@
 
 #include <cstdio>
 #include <climits>
+
+#ifdef HAVE_SSE41
+#include <x86intrin.h>
+#endif
+
 #include "las-forwardtypes.hpp"         // spos_t
 #include "fb-types.h"                   // fbprime_t
 #include "las-smallsieve-lowlevel.hpp"
 #include "las-smallsieve-types.hpp"
 
-#ifdef HAVE_SSE2
-#include <x86intrin.h>
 #include "macros.h"
-#endif
 
 /* generated code for small sieve critical routine. */
 

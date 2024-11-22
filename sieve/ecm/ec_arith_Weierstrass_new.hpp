@@ -1,10 +1,12 @@
-#ifndef EC_ARITH_WEIERSTRASS_H_
-#define EC_ARITH_WEIERSTRASS_H_
+#ifndef EC_ARITH_WEIERSTRASS_NEW_HPP
+#define EC_ARITH_WEIERSTRASS_NEW_HPP
 
 #include <cstdint>         // for uint64_t
 #include <cstdio>          // for fprintf, NULL
+
 #include <iostream>        // for operator<<, ostream, basic_ostream, endl
 #include <utility>         // for swap
+
 #include "macros.h"        // for MAYBE_UNUSED
 
 /* Short Weierstrass elliptic curves
@@ -435,4 +437,4 @@ weierstrass_aff_from_montgomery (residue_t a, ec_point_t Pw, const residue_t A,
 
 #endif
 
-#endif /* EC_ARITH_WEIERSTRASS_H_ */
+#endif /* EC_ARITH_WEIERSTRASS_NEW_HPP */

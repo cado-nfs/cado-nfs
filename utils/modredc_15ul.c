@@ -9,15 +9,15 @@
 #define PARI 0
 #if PARI
 #define MODINV_PRINT_PARI_M \
-    printf ("m = (%lu << %d) + %lu; /* PARI %d */\n", m[0].m[1], LONG_BIT, m[0].m[0], __LINE__)
+    printf ("m = (%lu << %d) + %lu; /* PARI %d */\n", m[0].m[1], ULONG_BITS, m[0].m[0], __LINE__)
 #define MODINV_PRINT_PARI_x \
-    printf ("x = (%lu << %d) + %lu; /* PARI %d */\n", a[1], LONG_BIT, a[0], __LINE__);
+    printf ("x = (%lu << %d) + %lu; /* PARI %d */\n", a[1], ULONG_BITS, a[0], __LINE__);
 #define MODINV_PRINT_PARI_X \
-    printf ("X = (%lu << %d) + %lu; /* PARI %d */\n", a[1], LONG_BIT, a[0], __LINE__);
+    printf ("X = (%lu << %d) + %lu; /* PARI %d */\n", a[1], ULONG_BITS, a[0], __LINE__);
 #define MODINV_PRINT_PARI_INVARIANT_A \
-    printf ("a = %lu *2^%d + %lu; u = %lu *2^%d + %lu; Mod(u, m) * X == a << %d /* PARIC %d */\n", a[1], LONG_BIT, a[0], u[1], LONG_BIT, u[0], t, __LINE__)
+    printf ("a = %lu *2^%d + %lu; u = %lu *2^%d + %lu; Mod(u, m) * X == a << %d /* PARIC %d */\n", a[1], ULONG_BITS, a[0], u[1], ULONG_BITS, u[0], t, __LINE__)
 #define MODINV_PRINT_PARI_INVARIANT_B \
-    printf ("b = %lu *2^%d + %lu; v = %lu *2^%d + %lu; -Mod(v, m) * X == b << %d /* PARIC %d */\n", b[1], LONG_BIT, b[0], v[1], LONG_BIT, v[0], t, __LINE__)
+    printf ("b = %lu *2^%d + %lu; v = %lu *2^%d + %lu; -Mod(v, m) * X == b << %d /* PARIC %d */\n", b[1], ULONG_BITS, b[0], v[1], ULONG_BITS, v[0], t, __LINE__)
 #else
 #define MODINV_PRINT_PARI_M
 #define MODINV_PRINT_PARI_x
@@ -61,7 +61,7 @@ modredc15ul_inv (residueredc15ul_t r, const residueredc15ul_t A,
   modredc15ul_redc1 (a, a, m);
   /* Now a = x/2^w */
   MODINV_PRINT_PARI_X;
-  t = -LONG_BIT;
+  t = -ULONG_BITS;
 
   modredc15ul_intset_ul (u, 1UL);
   modredc15ul_intset_ul (v, 0UL);
@@ -75,7 +75,7 @@ modredc15ul_inv (residueredc15ul_t r, const residueredc15ul_t A,
       /* x86 bsf gives undefined result for zero input */
       a[0] = a[1];
       a[1] = 0UL;
-      t += LONG_BIT;
+      t += ULONG_BITS;
     }
   ASSERT_EXPENSIVE (a[0] != 0UL);
   lsh = ularith_ctz (a[0]);
@@ -106,9 +106,9 @@ modredc15ul_inv (residueredc15ul_t r, const residueredc15ul_t A,
 	  b[0] = b[1]; /* b[0] can be odd now, so lsh might be 0 below! */
 	  b[1] = 0UL;
 	  ASSERT_EXPENSIVE (u[1] == 0UL);
-	  u[1] = u[0]; /* Shift left u by LONG_BIT */
+	  u[1] = u[0]; /* Shift left u by ULONG_BITS */
 	  u[0] = 0UL;
-	  t += LONG_BIT;
+	  t += ULONG_BITS;
 	}
       else
         {
@@ -144,9 +144,9 @@ modredc15ul_inv (residueredc15ul_t r, const residueredc15ul_t A,
 	{
 	  a[0] = a[1];
 	  a[1] = 0UL;
-	  v[1] = v[0]; /* Shift left v by LONG_BIT */
+	  v[1] = v[0]; /* Shift left v by ULONG_BITS */
 	  v[0] = 0UL;
-	  t += LONG_BIT;
+	  t += ULONG_BITS;
 	}
       else
         {
@@ -170,13 +170,13 @@ modredc15ul_inv (residueredc15ul_t r, const residueredc15ul_t A,
      we use a variable-width REDC. We want to add a multiple of m to u
      so that the low t bits of the sum are 0 and we can right-shift by t
      with impunity. */
-  if (t >= LONG_BIT)
+  if (t >= ULONG_BITS)
     {
       modredc15ul_redc1 (u, u, m);
-      t -= LONG_BIT;
+      t -= ULONG_BITS;
     }
 
-  ASSERT (t < LONG_BIT);
+  ASSERT (t < ULONG_BITS);
 
   if (t > 0)
     {
@@ -212,8 +212,8 @@ modredc15ul_inv (residueredc15ul_t r, const residueredc15ul_t A,
       modredc15ul_get_int (tmpi, tmp, m);
       fprintf (stderr, "Error, Mod(1/(%lu + 2^%d * %lu), %lu + 2^%d * %lu) == "
                "%lu + 2^%d * %lu\n",
-               A[0], LONG_BIT, A[1], m[0].m[0], LONG_BIT, m[0].m[1],
-               tmpi[0], LONG_BIT, tmpi[1]);
+               A[0], ULONG_BITS, A[1], m[0].m[0], ULONG_BITS, m[0].m[1],
+               tmpi[0], ULONG_BITS, tmpi[1]);
       ASSERT_EXPENSIVE (modredc15ul_intcmp_ul (tmpi, 1UL) == 0);
     }
   modredc15ul_clear (tmp, m);

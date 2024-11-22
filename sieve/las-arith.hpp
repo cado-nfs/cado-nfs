@@ -15,7 +15,7 @@
 
 // #define LAS_ARITH_INVMOD_HISTOGRAM 1
 #ifdef LAS_ARITH_INVMOD_HISTOGRAM
-#include <utils_cxx.hpp>
+#include "utils_cxx.hpp"
 #endif
 
 /* This header file is also #include'd by tests/sieve/torture-redc.cpp,

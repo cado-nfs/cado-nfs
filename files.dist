@@ -1582,7 +1582,6 @@ utils/embedded/fmt/ranges.h
 utils/embedded/fmt/std.h
 utils/embedded/fmt/xchar.h
 utils/fakempi.h
-utils/fakepthread.h
 utils/fd_streambuf.cpp
 utils/fd_streambuf.hpp
 utils/filter_io.cpp
@@ -1710,6 +1709,7 @@ utils/purgedfile.c
 utils/purgedfile.h
 utils/random_distributions.cpp
 utils/random_distributions.hpp
+utils/rdtsc.h
 utils/relation-tools.c
 utils/relation-tools.h
 utils/relation.cpp

@@ -1,4 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
+
+#include <cstdint>
+
 #include "bblas_level2b.hpp"
 #include "bblas_mat64.hpp"
 #include "misc.h"      // cado_parity64

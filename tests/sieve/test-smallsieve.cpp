@@ -1,32 +1,34 @@
 #include "cado.h" // IWYU pragma: keep
-// IWYU pragma: no_include <ext/alloc_traits.h>
-// IWYU pragma: no_include <mm_malloc.h>
+
+#define xxxLOG_BUCKET_REGION_IS_A_CONSTANT
+
 #include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
 #include <ctime>
+
+// IWYU pragma: no_include <ext/alloc_traits.h>
 #include <vector>
 #include <sstream>
 #include <algorithm>
 #include <memory>                             // for allocator_traits<>::val...
 #include <string>                             // for string
 #include <type_traits>                        // for is_same
+
 #include <sys/time.h>
+
 #include <gmp.h>
+
 #include "fb-types.h"                         // for sublat_t
 #include "las-smallsieve-types.hpp"           // for ssp_simple_t, ssp_t
 #include "las-where-am-i-proxy.hpp"           // for where_am_I
-#include "macros.h"
 #include "las-where-am-i.hpp"
-
-#define xxxLOG_BUCKET_REGION_IS_A_CONSTANT
-
-#include "test-smallsieve-mock.hpp"
-
-#include "sieve/las-smallsieve-lowlevel.hpp"
-#include "sieve/las-smallsieve-glue.hpp"
+#include "macros.h"
 #include "params.h"
+#include "sieve/las-smallsieve-glue.hpp"
+#include "sieve/las-smallsieve-lowlevel.hpp"
+#include "test-smallsieve-mock.hpp"
 
 
 static int consistency_check_mode = 0;

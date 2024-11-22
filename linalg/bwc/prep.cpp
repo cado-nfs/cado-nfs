@@ -1,5 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
-                  //
+
 #include <cinttypes>
 #include <cstdint> // for uint32_t
 #include <cstdio>
