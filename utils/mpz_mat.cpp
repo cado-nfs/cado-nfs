@@ -9,7 +9,6 @@
 #include <gmp.h>
 #include "mpz_mat.h"
 #include "cxx_mpz.hpp"
-#include "gmpxx.hpp"
 #include "lll.h"        // mat_Z, LLL
 #include "macros.h"
 

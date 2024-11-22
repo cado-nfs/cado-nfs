@@ -71,7 +71,6 @@ config/gmp.cmake
 config/gmp_randstate.c
 config/gmp_randstate.cmake
 config/gmpecm.cmake
-config/gmpxx-test.cpp
 config/hwloc.cmake
 config/inline-assembly-arm.c
 config/inline-assembly.c
