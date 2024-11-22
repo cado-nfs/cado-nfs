@@ -1,14 +1,14 @@
 #ifndef BUCKET_HPP_
 #define BUCKET_HPP_
 
-#define xxxSAFE_BUCKETS_SINGLE
-#define xxxSAFE_BUCKET_ARRAYS
-
 /*
  * Bucket sieving: radix-sort sieve updates as they are created.
  */
 
 #include "cado_config.h"  // HAVE_SSE2
+
+#define xxxSAFE_BUCKETS_SINGLE
+#define xxxSAFE_BUCKET_ARRAYS
 
 #include <cstddef>      // size_t NULL
 #include <cstdint>

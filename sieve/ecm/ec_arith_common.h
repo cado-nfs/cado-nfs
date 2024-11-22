@@ -1,6 +1,7 @@
-#include <stdio.h>
 #ifndef EC_ARITH_COMMON_H_
 #define EC_ARITH_COMMON_H_
+
+#include <stdio.h>
 
 #ifndef mod_init
   #error "One of the mod*_default.h headers must be included before this file"
