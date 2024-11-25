@@ -933,6 +933,7 @@ scripts/refresh-fmtlib.sh
 scripts/refresh-gf2x.sh
 scripts/resubmit-tools.sh
 scripts/run-clang-tidy.py
+scripts/scan-headers.py
 scripts/setup-venv.sh
 scripts/split.py
 scripts/version.sh
