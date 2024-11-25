@@ -1313,6 +1313,7 @@ tests/sagemath/cado_sage/purged.py
 tests/sagemath/cado_sage/tools.py
 tests/scripts/CMakeLists.txt
 tests/scripts/cadofactor/CMakeLists.txt
+tests/scripts/cadofactor/test_python_resubmit.sh
 tests/scripts/cadofactor/test_python_stress_test.sh
 tests/scripts/cadofactor/test_python_wudb_cmdline.sh
 tests/sieve/CMakeLists.txt
