@@ -9,16 +9,16 @@
 #include "u64arith.h"      // for u64arith_mul_1_1_2
 #include "ularith.h"    // IWYU pragma: keep
 #include "mod_mpz_new.hpp"
+#include "macros.h"
 
 #define MOD_NO_SHARED_MOD_POW_UL 1
 #define MOD_NO_SHARED_MOD_POW_MP 1
 #define MOD_NO_SHARED_MOD_POW_INT 1
 
-typedef ModulusMPZ Modulus;
+// scan-headers: stop here
 
-// NOLINTNEXTLINE(bugprone-suspicious-include)
-#include "mod_common.cpp"
-#include "macros.h"
+typedef ModulusMPZ Modulus;
+#include "mod_common.cpp"     // NOLINT(bugprone-suspicious-include)
 
 void ModulusMPZ::pow (Residue &r, const Residue &b, const uint64_t e) const
 {

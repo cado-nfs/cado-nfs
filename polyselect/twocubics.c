@@ -11,6 +11,11 @@
  */
 
 #define EMIT_ADDRESSABLE_shash_add
+#define NEW_ROOTSIEVE
+#define INIT_FACTOR 8UL
+//#define DEBUG_POLYSELECT
+
+#define BATCH_SIZE 20
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,11 +40,6 @@
 #include "verbose.h"    // verbose_decl_usage
 #include "auxiliary.h"  // DEFAULT_INCR
 
-#define NEW_ROOTSIEVE
-#define INIT_FACTOR 8UL
-//#define DEBUG_POLYSELECT
-
-#define BATCH_SIZE 20
 
 #ifdef NEW_ROOTSIEVE
 #include "ropt.h"

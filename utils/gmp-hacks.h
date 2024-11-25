@@ -6,6 +6,8 @@
 #include <gmp.h>
 #include "macros.h"
 
+// scan-headers: stop here
+
 /* TODO: remove this. It's only here by lack of something better for the
  * needs of crtalgsqrt. */
 

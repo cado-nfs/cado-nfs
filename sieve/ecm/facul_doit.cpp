@@ -10,11 +10,11 @@
  */
 #include "cado.h" // IWYU pragma: keep
 
-#include <cstdlib>
-
 #ifndef FACUL_DOIT_READY_TO_INCLUDE_IMPL_CODE
 #error "This file must not be used as a standalone compilation unit"
 #endif
+
+#include <cstdlib>
 
 #include "facul_doit.hpp"
 #include "modset.hpp"

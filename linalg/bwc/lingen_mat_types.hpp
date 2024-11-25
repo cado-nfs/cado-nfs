@@ -15,16 +15,12 @@
 #include <gmp.h>
 
 #include "omp_proxy.h"
-#define OMP_ROUND(k) ((k) % omp_get_num_threads() == omp_get_thread_num())
 #include "bwc_config.h"
 #include "alloc_proxy.h"
 #include "gf2x-fft.h"
 #include "misc.h"
 #include "crc.h"        // cado_crc_lfsr
 #include "macros.h"
-
-/* Number of words holding B bits ; better naming sought. */
-#define BITS_TO_WORDS(B,W)      iceildiv((B),(W))
 
 /* See the discussion in lingen_binary about the pros and cons of data
  * ordering schemes */

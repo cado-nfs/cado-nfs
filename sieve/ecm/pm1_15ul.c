@@ -5,4 +5,5 @@
 #define pp1_stage2 pp1_stage2_15ul
 // IWYU pragma: no_include "pm1.h"
 // IWYU pragma: no_include "pp1.h"
-#include "pm1.c"
+// scan-headers: skip
+#include "pm1.c"        // NOLINT(bugprone-suspicious-include)

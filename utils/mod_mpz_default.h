@@ -4,6 +4,8 @@
 #include "mod_mpz.h"
 
 // pragma no prototypes
+// scan-headers: skip
+
 /*
    Here are typedef's that rename all functions to mod_* instead of 
    modmpz_*, which one day might become an automatic renaming scheme so 

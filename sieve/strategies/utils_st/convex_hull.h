@@ -1,5 +1,5 @@
-#ifndef CONVEX_HULL
-#define CONVEX_HULL
+#ifndef CONVEX_HULL_H
+#define CONVEX_HULL_H
 
 #include "point.h"      // point_t
 #include "tab_point.h"
@@ -19,4 +19,4 @@ tabular_point_t *convex_hull(tabular_point_t * t);
 }
 #endif
 
-#endif				/* CONVEX_HULL */
+#endif				/* CONVEX_HULL_H */

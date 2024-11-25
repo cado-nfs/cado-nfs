@@ -7,7 +7,9 @@
  * The WHERE_AM_I_UPDATE macro itself is defined in las-where-am-i.hpp
  */
 
-#ifdef HAVE_SSE2
+#ifndef HAVE_SSE2
+#error "This file assumes SSE-2 support!"
+#endif /* HAVE_SSE2 */
 
 #include <algorithm>        // for max
 #include <emmintrin.h>      // for __m128i, _mm_xor_si128, _mm_set1_epi8
@@ -559,5 +561,3 @@ search_survivors_in_line_sse2_oneside(unsigned char * const SS,
       search_survivors_in_line1_sse2_oneside(SS, bound, j, i0, i1, N, j_div,
               td_max, survivors);
 }
-
-#endif /* HAVE_SSE2 */

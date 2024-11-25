@@ -33,7 +33,10 @@
 #include "las-siever-config.hpp"       // for siever_config (ptr only), siev...
 #include "params.h"
 #include "utils_cxx.hpp" // NonCopyable
-/* forward decls of j_divisibility_helperand unsieve_data are not
+
+// scan-headers: stop here
+
+/* forward decls of j_divisibility_helper and unsieve_data are not
  * sufficient.
  */
 #include "las-unsieve.hpp"      // IWYU pragma: keep

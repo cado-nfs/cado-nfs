@@ -83,8 +83,10 @@ set(las_multi_a_sources
 	las-output.cpp
         las-multiobj-globals.cpp
 	las-unsieve.cpp
-	las-unsieve-sse2.cpp
 )
+if(HAVE_SSE2)
+    list(APPEND las_multi_a_sources las-unsieve-sse2.cpp)
+endif()
 add_library(las_multi_a_prod OBJECT ${las_multi_a_sources})
 add_library(las_multi_a_debug OBJECT ${las_multi_a_sources})
 set_property(TARGET las_multi_a_debug PROPERTY COMPILE_DEFINITIONS TRACE_K=1)

@@ -1,6 +1,10 @@
 cado_define_test(test_strlcat.c LIBRARIES utils)
 cado_define_test(test_strlcpy.c LIBRARIES utils)
 cado_define_test(test_double_poly.c LIBRARIES utils tests)
+cado_define_test(test_polyroots.c LIBRARIES utils
+    ARGUMENTS 1 2 3 4 5 6 7 8
+    EXPECT_SHA1 613d5c8214c34b349b93042f3e45a7d66e1f6586
+)
 cado_define_test(test_gmp_aux.c LIBRARIES utils tests)
 cado_define_test(test_gcd.c LIBRARIES utils tests)
 cado_define_test(test_getprime.c LIBRARIES utils)

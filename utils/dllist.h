@@ -1,5 +1,7 @@
-#ifndef CADO_UTILS_DLLLIST_H
-#define CADO_UTILS_DLLLIST_H
+#ifndef CADO_UTILS_DLLIST_H
+#define CADO_UTILS_DLLIST_H
+
+#define xxxDLLIST_DEBUG
 
 /*
  * our doubly linked lists are circular. As in the linux kernel, we only
@@ -19,8 +21,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#define xxxDLLIST_DEBUG
 
 struct dllist_head {
 #ifdef DLLIST_DEBUG

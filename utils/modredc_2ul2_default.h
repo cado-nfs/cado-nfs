@@ -4,6 +4,8 @@
 #include "modredc_2ul2.h"
 
 // pragma no prototypes
+// scan-headers: skip
+
 /*
    Here are typedef's that rename all functions to mod_* instead of 
    modredc2ul2_*, which one day might become an automatic renaming scheme so 

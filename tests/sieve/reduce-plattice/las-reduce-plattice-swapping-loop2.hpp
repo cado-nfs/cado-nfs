@@ -6,6 +6,9 @@
  * all these pieces of code are put in separate files, but these must be
  * #included from within the class itself.
  */
+
+// scan-headers: skip
+
 #ifndef LAS_PLATTICE_HPP
 #error "This prologue is only here to please clangd !!!"
 #include <cstdint>

@@ -19,6 +19,8 @@
 #include "macros.h"
 #include "portability.h"
 
+// scan-headers: stop here
+
 using namespace std;
 
 static void usage()

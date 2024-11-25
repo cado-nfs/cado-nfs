@@ -5,6 +5,8 @@
 #include <inttypes.h>   // PRIx32 etc
 #include "ularith.h" /* NEEDED for ULONG_BITS (32 or 64) */
 
+// scan-headers: stop here
+
 /* data type to store the (p,r) values */
 #ifndef SIZEOF_P_R_VALUES
 #define SIZEOF_P_R_VALUES 4

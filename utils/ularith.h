@@ -7,13 +7,14 @@
    where available.
 */
 
-#ifndef UL_ARITH_H__
-
-#define UL_ARITH_H__
+#ifndef ULARITH_H
+#define ULARITH_H
 
 #include <limits.h>
 #include <gmp.h>
 #include "macros.h"
+
+// scan-headers: stop here
 
 /* On 32 bit x86, the general constraint for, e.g., the source operand
    of add is "g". For x86_64, it is "rme", since immediate constants
@@ -926,4 +927,4 @@ ularith_redc(unsigned long *r, const unsigned long plow,
 #endif
 
 
-#endif /* ifndef UL_ARITH_H__ */
+#endif /* ifndef ULARITH_H */

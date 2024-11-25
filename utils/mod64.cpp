@@ -2,10 +2,11 @@
 
 #include "mod64.hpp"
 #include "modredc64.hpp" // IWYU pragma: keep
-
-typedef Modulus64 Modulus;
-#include "mod64_common.cpp"
 #include "macros.h"
+
+// scan-headers: stop here
+typedef Modulus64 Modulus;
+#include "mod64_common.cpp"     // NOLINT(bugprone-suspicious-include)
 
 /* Put 1/s (mod t) in r and return 1 if s is invertible, 
    or set r to 0 and return 0 if s is not invertible */

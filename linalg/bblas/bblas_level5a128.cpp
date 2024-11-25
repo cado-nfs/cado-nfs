@@ -1,5 +1,10 @@
 #include "cado.h"       // NOLINT(misc-include-cleaner)
 
+// #define WLEN ULONG_BITS
+// #define GF2X_WORDSIZE ULONG_BITS
+#define GF2X_MAYBE_UNUSED MAYBE_UNUSED
+#define CANTOR_BASE_FIELD_SIZE 128
+
 #include <cstring>
 #include <cstdint>
 
@@ -9,10 +14,6 @@
 #include "memory.h"      // malloc_aligned
 #include "macros.h"                      // for ASSERT, ASSERT_ALWAYS
 
-// #define WLEN ULONG_BITS
-// #define GF2X_WORDSIZE ULONG_BITS
-#define GF2X_MAYBE_UNUSED MAYBE_UNUSED
-#define CANTOR_BASE_FIELD_SIZE 128
 #include "gf2x-cantor-field-impl.h"
 
 

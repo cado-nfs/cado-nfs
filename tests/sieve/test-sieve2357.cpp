@@ -1,6 +1,10 @@
 #include "cado.h"  // IWYU pragma: keep
 
 // #define DO_TIMING 1
+#if defined(DO_TIMING) && defined(HAVE_JEVENTS)
+/* This macro controls the behaviour of the rdtsc.h functions */
+#define USE_JEVENTS
+#endif
 
 #include <cstdint> // for uint32_t, uint64_t
 #include <cstdio>
@@ -21,7 +25,6 @@
 // The Jevents library is part of the PMU tools
 // https://github.com/andikleen/pmu-tools
 #ifdef HAVE_JEVENTS
-#define USE_JEVENTS 1
 #include "rdtsc.h"
 #endif
 #endif

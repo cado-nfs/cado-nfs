@@ -1,6 +1,6 @@
 #include <stdint.h>
-#include <wmmintrin.h>
 #include <assert.h>
+#include <wmmintrin.h>
 
 int main() {
     assert(sizeof(unsigned long) == 8); /* assume 64-bit */

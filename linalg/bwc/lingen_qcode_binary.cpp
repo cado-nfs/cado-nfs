@@ -14,7 +14,6 @@
 #include <type_traits>
 
 #include "gmp_aux.h"
-#define LINGEN_QCODE_BINARY_TRAMPOLINE_INTERFACE
 #include "lingen_qcode_binary.hpp"
 #include "bpack.hpp"                      // for bpack_view, bpack_view_base...
 #include "lingen_bmstatus.hpp"            // for bmstatus
@@ -32,13 +31,13 @@ static_assert(std::is_same<matpoly::ptr, unsigned long *>::value, "wrong flags")
 /* We have two interfaces here. The first one is the one that is common
  * with qcode_prime. This goes through bw_lingen_basecase.
  *
- * The second one, which is activated if
- * LINGEN_QCODE_BINARY_TRAMPOLINE_INTERFACE is #defined prior to
- * #including this file, is really legacy code, and it's only exposed for
+ * The second one
+ * is really legacy code, and it's only exposed for
  * the legacy lingen_binary code. (as a matter of fact, the
  * implementation of bw_lingen_basecase does build upon the legacy
  * interface presently, but that is not a reason to have it exposed).
  */
+#define LINGEN_QCODE_BINARY_TRAMPOLINE_INTERFACE
 #ifdef LINGEN_QCODE_BINARY_TRAMPOLINE_INTERFACE
 /* This trampoline structure is no longer useful, really. At some point
  * we had both C and C++ 

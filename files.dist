@@ -1511,6 +1511,7 @@ tests/utils/test_mpz_poly_parsing.cpp
 tests/utils/test_mpz_vector.c
 tests/utils/test_multityped_array.cpp
 tests/utils/test_omega.c
+tests/utils/test_polyroots.c
 tests/utils/test_random_distributions.cpp
 tests/utils/test_relation.cpp
 tests/utils/test_rootfinder.c
@@ -1539,7 +1540,6 @@ utils/barrier.c
 utils/barrier.h
 utils/bit_vector.c
 utils/bit_vector.h
-utils/cachebuf.h
 utils/cachesize_cpuid.c
 utils/cachesize_cpuid.h
 utils/cachesize_guess.c
@@ -1560,6 +1560,7 @@ utils/cxx_mpz.hpp
 utils/dllist.h
 utils/double_poly.cpp
 utils/double_poly.h
+utils/double_poly_complex_roots.h
 utils/electric_alloc.h
 utils/embedded/fmt/ChangeLog.md
 utils/embedded/fmt/LICENSE
@@ -1705,6 +1706,7 @@ utils/params-extra.cpp
 utils/params.cpp
 utils/params.h
 utils/polyroots.c
+utils/polyroots.h
 utils/purgedfile.c
 utils/purgedfile.h
 utils/random_distributions.cpp
@@ -1746,9 +1748,7 @@ utils/u64arith.h
 utils/ularith.h
 utils/usp.c
 utils/usp.h
-utils/utils.h
 utils/utils_cxx.hpp
-utils/utils_with_io.h
 utils/verbose.c
 utils/verbose.h
 utils/version_info.c.in

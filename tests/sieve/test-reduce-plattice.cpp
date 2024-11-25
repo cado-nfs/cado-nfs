@@ -30,6 +30,7 @@
 #pragma GCC diagnostic ignored "-Winit-self"
 #endif
 
+// scan-headers: stop here
 
 /* see plattice.sage */
 

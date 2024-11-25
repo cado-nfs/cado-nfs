@@ -1,5 +1,5 @@
-#ifndef TAB_POINT
-#define TAB_POINT
+#ifndef TAB_POINT_H
+#define TAB_POINT_H
 
 #include "point.h"
 
@@ -31,4 +31,4 @@ void tabular_point_add(tabular_point_t * t, int numero, double x, double y);
 }
 #endif
 
-#endif				/* tab_fm */
+#endif				/* TAB_POINT_H */

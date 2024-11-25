@@ -90,12 +90,6 @@ extern int las_production_mode;
  */
 #define MEMSET_MIN 64
 
-/* Should we use a cache-line buffer when converting kilo-bucket updates to
-   regular bucket updates? Requires SSE2 if enabled. */
-#ifdef HAVE_SSE2
-// #define USE_CACHEBUFFER 1
-#endif 
-
 #ifdef __cplusplus
 extern "C" {
 #endif

@@ -1,6 +1,7 @@
-#include <stdlib.h>
 #ifndef LAS_SMALLSIEVE_LOWLEVEL_HPP_
 #define LAS_SMALLSIEVE_LOWLEVEL_HPP_
+
+#include <cstddef>
 
 #include "las-config.h"
 #include "macros.h"

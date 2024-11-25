@@ -4,13 +4,15 @@
 #include <cstdlib>        // for abort
 
 #include "modredc126.hpp"
+#include "macros.h"
 
 /* Divide residue by 3. Returns 1 if division is possible, 0 otherwise.
    Assumes that a+3m does not overflow */
 
+// scan-headers: stop here
+
 typedef ModulusREDC126 Modulus;
-#include "mod_common.cpp"
-#include "macros.h"
+#include "mod_common.cpp"     // NOLINT(bugprone-suspicious-include)
 
 bool
 ModulusREDC126::div3 (Residue &r, const Residue &a) const

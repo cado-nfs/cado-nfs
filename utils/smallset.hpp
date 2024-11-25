@@ -1,6 +1,8 @@
 #ifndef SMALLSET_HPP_
 #define SMALLSET_HPP_
 
+// scan-headers: skip
+
 #include "cado_config.h"
 #include "macros.h"
 

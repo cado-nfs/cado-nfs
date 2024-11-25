@@ -9,10 +9,16 @@
 #include <string>
 #include <vector>
 #include <utility>
-#include "cxx_mpz.hpp"
+#include <ios>
 #endif
+
 #include <gmp.h>
 #include "macros.h"
+#ifdef __cplusplus
+#include "cxx_mpz.hpp"
+#endif
+
+// scan-headers: stop here
 
 /* we prefer GMP 5 or later, but the history of the why and how seems
  * lost. It seems that the late GMP-4.3 versions are fine, and the few
@@ -320,7 +326,6 @@ std::vector<unsigned long> subdivide_primes_interval(unsigned long p0, unsigned 
 #ifdef __cplusplus
 /* Use in any function that uses iomanip temporarily.
  */
-#include <ios>
 
 class IoStreamFlagsRestorer
 {

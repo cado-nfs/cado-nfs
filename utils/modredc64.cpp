@@ -1,11 +1,12 @@
 #include "cado.h" // IWYU pragma: keep
 
 #include "modredc64.hpp"
+#include "macros.h"
+
+// scan-headers: stop here
 
 typedef ModulusREDC64 Modulus;
-
-#include "mod64_common.cpp"
-#include "macros.h"
+#include "mod64_common.cpp"     // NOLINT(bugprone-suspicious-include)
 
 bool
 Modulus::inv (Residue &r, const Residue &A) const

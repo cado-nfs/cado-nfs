@@ -1,5 +1,5 @@
-#ifndef GENERATE_STRATEGIES
-#define GENERATE_STRATEGIES
+#ifndef GENERATE_STRATEGIES_H
+#define GENERATE_STRATEGIES_H
 
 #include "tab_decomp.h"
 #include "tab_strategy.h"
@@ -63,4 +63,4 @@ tabular_strategy_t *convex_hull_strategy(tabular_strategy_t * t);
 }
 #endif
 
-#endif				/* GENERATE_STRATEGIES */
+#endif				/* GENERATE_STRATEGIES_H */

@@ -2,6 +2,10 @@
 #define MPZ_MAT_H_
 
 #include <stdio.h>
+#ifdef __cplusplus
+#include <iosfwd>      // for ostream
+#endif
+
 #include <gmp.h>
 #include "macros.h"
 #include "mpz_poly.h"
@@ -230,8 +234,6 @@ void mpz_mat_LLL(mpz_ptr det, mpz_mat_ptr M, mpz_mat_ptr U, mpz_srcptr a,
 #endif
 
 #ifdef __cplusplus
-
-#include <iosfwd>      // for ostream
 
 struct cxx_mpz_mat {
     mpz_mat x;

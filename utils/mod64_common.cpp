@@ -11,7 +11,9 @@
    but this is a start.
 */
 
-#include "mod_common.cpp"
+// scan-headers: stop here
+
+#include "mod_common.cpp"     // NOLINT(bugprone-suspicious-include)
 
 bool
 Modulus::div3 (Residue &r, const Residue &a) const

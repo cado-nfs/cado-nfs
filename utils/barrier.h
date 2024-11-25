@@ -37,6 +37,10 @@
  * exactly one thread. 0 is returned for others.
  */
 
+#ifdef	__cplusplus
+#include <cstddef>
+#endif
+
 #include <pthread.h>
 
 #include "macros.h"
@@ -73,7 +77,6 @@ extern int barrier_finish_unlocked(barrier_t * barrier);
 #endif
 
 #ifdef	__cplusplus
-#include <cstddef>
 namespace cado_nfs {
 /* interface is a subset of the c++20 std::barrier */
 class barrier {

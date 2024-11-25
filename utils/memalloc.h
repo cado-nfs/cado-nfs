@@ -1,5 +1,5 @@
-#ifndef FILTER_MEMALLOC_H_
-#define FILTER_MEMALLOC_H_
+#ifndef CADO_UTILS_MEMALLOC_H_
+#define CADO_UTILS_MEMALLOC_H_
 
 #include <stddef.h>     // size_t
 #include "typedefs.h"
@@ -30,4 +30,4 @@ size_t get_my_malloc_bytes ();
 }
 #endif
 
-#endif /* FILTER_MEMALLOC_H_ */
+#endif /* CADO_UTILS_MEMALLOC_H_ */

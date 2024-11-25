@@ -1,7 +1,10 @@
 /* This is (almost) standalone */
+#include "cado.h" // IWYU pragma: keep
+
+// scan-headers: skip
+
 #define _POSIX_C_SOURCE 200112L
 
-#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>

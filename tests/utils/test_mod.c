@@ -6,9 +6,10 @@
 #include <gmp.h>
 #include <time.h>
 #include "tests_common.h"
-#include ARITHMETIC
 #include "macros.h"
 #include "misc.h"
+// scan-headers: stop here
+#include ARITHMETIC
 
 
 /* Mask the (possibly multi-word) integer m so that only the

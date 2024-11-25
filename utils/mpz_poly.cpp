@@ -22,6 +22,7 @@
 #include <string>
 #include <ostream>        // for operator<<, basic_ostream, basic_ostream::o...
 #include <exception>
+#include <memory>
 
 #include <gmp.h>
 
@@ -34,6 +35,12 @@
 #include "omp_proxy.h"  // IWYU pragma: keep
 #include "portability.h"  // for strlcpy
 #include "rootfinder.h"   // for mpz_poly_roots_mpz
+#include "cado_expression_parser.hpp"
+#include "macros.h"
+/* and just because we expose a proxy to usp.c's root finding... */
+#include "usp.h"          // for numberOfRealRoots
+
+// scan-headers: stop here
 #ifdef MPZ_POLY_TIMINGS
 #include "timing.h"
 #include <ctime>
@@ -42,10 +49,6 @@
 #error "please include mpz_poly.h first"
 #endif
 #endif
-#include "cado_expression_parser.hpp"
-#include "macros.h"
-/* and just because we expose a proxy to usp.c's root finding... */
-#include "usp.h"          // for numberOfRealRoots
 
 #ifndef max
 #define max(a,b) ((a)<(b) ? (b) : (a))
@@ -5102,8 +5105,6 @@ void mpz_polymodF_swap(mpz_polymodF_ptr P, mpz_polymodF_ptr Q)
     std::swap(P->v, Q->v);
     mpz_poly_swap(P->p, Q->p);
 }
-
-#include <memory>
 
 struct product_tree {
     size_t i0, i1;

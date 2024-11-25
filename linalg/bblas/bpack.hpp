@@ -2,14 +2,17 @@
 #define BPACK_HPP_
 
 #include <cstdint>                       // for uint64_t, uint8_t
+
 #include <vector>
 #include <type_traits>
 #include <algorithm>
+
 #include <gmp.h>                          // for gmp_randstate_t
+
+// mat8 and mat64 are needed to resolve the constexpr field bpack::B
 #include "bblas_bitmat.hpp"  // for bitmat
-// wee need these to resolve the member constexpr
 #include "bblas_mat64.hpp" // IWYU pragma: keep
-#include "bblas_mat8.hpp" // IWYU pragma: keep
+#include "bblas_mat8.hpp"  // IWYU pragma: keep
 #include "macros.h"                       // for ASSERT_ALWAYS
 
 /* a bpack_view is *non-owning* view on a bit bitmat<T>, made of bit

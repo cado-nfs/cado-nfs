@@ -12,6 +12,8 @@
 #include "misc.h"       // for UMAX
 #include "gcd.h"       // for gcd_ul
 
+// scan-headers: stop here
+
 /*******************************************************************/
 /********        Walking in p-lattices                    **********/
 

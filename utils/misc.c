@@ -8,8 +8,8 @@
 #include <stdio.h>          // for asprintf, fprintf, perror, snprintf, fclose
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
+#include <unistd.h>
 #include <sys/stat.h>   // mkdir
 #ifdef HAVE_LINUX_BINFMTS_H
 /* linux/binfmts.h defines MAX_ARG_STRLEN in terms of PAGE_SIZE, but does not

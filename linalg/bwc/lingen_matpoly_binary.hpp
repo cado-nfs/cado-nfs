@@ -101,7 +101,6 @@ private:
     size_t size = 0;    /* in bits */
     size_t alloc_words = 0;
     ptr x = NULL;
-#define BITS_TO_WORDS(B,W)      iceildiv((B),(W))
     static inline size_t b2w_x(size_t n) {
         /* We always use an even number of words. It seems stupid, but
          * some of the routines that play an important role in

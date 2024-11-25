@@ -8,6 +8,8 @@
 #include "ularith.h"
 #include "macros.h"
 
+// scan-headers: stop here
+
 #define PARI 0
 
 #if PARI

@@ -10,7 +10,9 @@
    but this is a start.
 */
 
-#include "mod_common.c"
+// scan-headers: stop here
+
+#include "mod_common.c"         // NOLINT(bugprone-suspicious-include)
 
 int
 mod_div3 (residue_t r, const residue_t a, const modulus_t m)

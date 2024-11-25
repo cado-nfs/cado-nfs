@@ -2,17 +2,17 @@
 
 #include <cstdlib>
 #include <climits>
-#include <array>
 #include <cstdio> // FILE // IWYU pragma: keep
 #include <cstring>
 #include <cerrno>
 
+#include <array>
 #include <stdexcept>
 #include <ios>  // std::ios_base::openmode // IWYU pragma: keep
 #include <fstream>  // filebuf
 
 // IWYU pragma: no_include <bits/types/struct_rusage.h>
-#include <sys/types.h>  // pid_t
+#include <sys/types.h> // pid_t
 #include <sys/wait.h>  // WIFEXITED WEXITSTATUS (on freebsd at least)
 #include <unistd.h>     // close getpid
 #include <sys/stat.h> // stat // IWYU pragma: keep
@@ -37,7 +37,7 @@ struct suffix_handler {
 };
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
-static char antebuffer[PATH_MAX];	/* "directory/antebuffer" or "cat" */
+static char antebuffer[PATH_MAX];       /* "directory/antebuffer" or "cat" */
 static int antebuffer_buffer_size = 24; /* default value 2^24 = 16 Mo */
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 

@@ -10,9 +10,11 @@
 #include "bblas_simd.hpp"
 #include "bblas_mat64.hpp"
 #include "bblas_mat8.hpp"
-
 #ifdef TIME_PLE
 #include "timing.h"
+#endif
+
+#ifdef TIME_PLE
 struct timer_ple {
     double & t;
     timer_ple(double & t) : t(t) { t -= seconds(); }
