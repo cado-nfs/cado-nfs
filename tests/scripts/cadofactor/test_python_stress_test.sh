@@ -62,7 +62,7 @@ server_pid=$!
 url=
 i=0
 
-while ! [ "$url" ] && [ $i -lt 4 ] ; do
+while ! [ "$url" ] && [ $i -lt 10 ] ; do
     if ! [ -f "$logfile" ] ; then
         echo "Waiting for server to create $logfile" >&2
     elif [[ $(grep 'additional.*client.*server' "$logfile") =~ --server=([^ ]*) ]] ; then
