@@ -43,7 +43,6 @@ server_args=(340282366920938463463374607431768211457
 
 server_args+=(
     --wdir "${wdir}/cado-nfs"
-    --filelog transaction
     --screenlog warning
     --server
 )

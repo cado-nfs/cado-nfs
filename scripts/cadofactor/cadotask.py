@@ -1453,7 +1453,7 @@ class Task(patterns.Colleague, SimpleStatistics, HasState, DoesLogging,
     # function splits them again
 
     wu_paste_char = '_'
-    wu_attempt_char = '#'
+    wu_attempt_char = '__R'
 
     def make_wuname(self, identifier, attempt=None):
         """
