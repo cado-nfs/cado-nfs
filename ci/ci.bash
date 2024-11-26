@@ -1,6 +1,32 @@
 
 tweak_tree_before_configure() { : ; }
 
+user_variables() {
+    if [ "$using_cmake_directly" ] ; then
+        # use build_tree in this case, which matches the variable that
+        # call_cmake.sh uses, by the way.
+        if [ "$BASH_VERSION" ] ; then
+            if ! [ "$build_tree" ] ; then
+                build_tree="/tmp/$CI_JOB_NAME"
+                # spaces in dir names don't work, mostly because of libtool
+                # (look at gf2x/fft/libgf2x-fft.la)
+                # This substitution is bash-only, but this should be fine to 
+                # have in a conditional that non-bash skips over
+                build_tree="${build_tree// /_}"
+                export build_tree
+            fi
+            if ! [ -d "$build_tree" ] ; then
+                mkdir -p "$build_tree"
+            fi
+        else
+            # just a safeguard
+            build_tree=/no/build_tree/set/because/we/require/bash/for/that
+            export build_tree
+        fi
+    fi
+}
+
+
 step_configure() {
     # now that we're confident that we've made the bwc checks specific to
     # a "with_sagemath" suffix, there's no risk in missing the sagemath
@@ -23,10 +49,11 @@ step_configure() {
     fi
     if [ "$using_cmake_directly" ] ; then
         (cd "$build_tree" ; cmake "$source_tree")
+        # Ignore local.sh if we're building directly from cmake
     else
         "${MAKE}" cmake
+        eval `${MAKE} show`
     fi
-    eval `${MAKE} show`
 }
 
 build_steps="build1 build2"
