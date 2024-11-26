@@ -332,8 +332,11 @@ postprocess_valgrind() {
 step_check() {
     # --no-compress-output is perhaps better for test uploading, as ctest
     # likes to store as zlib but headerless, which is a bit of a pain
+    #
+    # -V is to get the output of tests. We want it, since anyway for
+    # practical purposes our ctest filter does the required filtering.
 
-    ctest_args=(-T Test --no-compress-output --test-output-size-passed 4096 --test-output-size-failed 262144)
+    ctest_args=(-V -T Test --no-compress-output --test-output-size-passed 4096 --test-output-size-failed 262144)
 
     if [ "$specific_checks" = "bwc.sagemath" ] ; then
         ctest_args+=(-R with_sagemath)

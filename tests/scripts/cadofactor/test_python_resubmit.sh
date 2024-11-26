@@ -38,8 +38,8 @@ server_args=(340282366920938463463374607431768211457
     # tasks.filter.run=false, we're happy with less.
     tasks.sieve.rels_wanted=100
     tasks.wutimeout=1
-    # This parameter is intentionally not documented, but it's usefull to
-    # trigger the failure pointer by issue #30104
+    # This parameter is intentionally not documented, but it's useful to
+    # trigger the failure pointed by issue #30104
     tasks.wutimeoutcheck=1
 )
 
@@ -60,7 +60,7 @@ i=0
 while ! [ "$url" ] && [ $i -lt 4 ] ; do
     if ! [ -f "$logfile" ] ; then
         echo "Waiting for server to create $logfile" >&2
-    elif [[ $(grep 'additional.*client.*server' "$logfile") =~ --server=([^ ]*) ]] ; then
+    elif [[ $(grep 'additional.*cado-nfs-client.*server' "$logfile") =~ --server=([^ ]*) ]] ; then
         url="${BASH_REMATCH[1]}"
         echo "Server started at $url"
         break
