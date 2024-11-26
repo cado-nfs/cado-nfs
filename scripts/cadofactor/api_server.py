@@ -580,6 +580,10 @@ class ApiServer(flask.Flask):
             path = os.path.join(self.get_upload_folder(), filename)
             fi = fileinfo.get(filename)
             if fi is None:
+                self.logger.error("Incomplete answer from client:"
+                                  " files=%s, data=%s",
+                                  flask.request.files.keys(),
+                                  json.dumps(fileinfo, indent=4))
                 flask.abort(400, f"missing fileinfo for file {filename}")
 
             if os.path.isfile(path):

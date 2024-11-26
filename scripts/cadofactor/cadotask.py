@@ -1453,7 +1453,7 @@ class Task(patterns.Colleague, SimpleStatistics, HasState, DoesLogging,
     # function splits them again
 
     wu_paste_char = '_'
-    wu_attempt_char = '#'
+    wu_attempt_char = '__R'
 
     def make_wuname(self, identifier, attempt=None):
         """
@@ -1757,6 +1757,7 @@ class ClientServerTask(Task, wudb.UsesWorkunitDb, patterns.Observer):
         return self.join_params(super().paramnames,
                                 {"maxwu": 10,
                                  "wutimeout": 10800,  # Default: 3h
+                                 "wutimeoutcheck": 60,  # Default: every minute
                                  "maxresubmit": 5,
                                  "maxwuerror": 2,
                                  "maxtimedout": 100,
@@ -1998,7 +1999,7 @@ class ClientServerTask(Task, wudb.UsesWorkunitDb, patterns.Observer):
             self.last_timeout_check = now
             return
 
-        check_every = 60  # Check every xx seconds
+        check_every = self.params["wutimeoutcheck"]  # Check every xx seconds
         if self.last_timeout_check + check_every >= now:
             # self.logger.info("It's not time to check yet, now = %f", now)
             return
