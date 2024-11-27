@@ -37,7 +37,7 @@ server_args=(340282366920938463463374607431768211457
     # the default parameter set has 20000, but in fact with qrange=10 and
     # tasks.filter.run=false, we're happy with less.
     tasks.sieve.rels_wanted=1200
-    tasks.wutimeout=1
+    tasks.wutimeout=5
     # This parameter is intentionally not documented, but it's useful to
     # trigger the failure pointed by issue #30104
     tasks.wutimeoutcheck=1
@@ -88,7 +88,7 @@ EOF
     # this works as well, but we don't have to depend on curl
     # curl -ks -F clientid=fake.$i "$url/workunit" > "$wdir/killWU.$i"
 done
-sleep 2
+sleep 6
 client_pids=()
 for i in 1 2; do
     # drop --bindir intentionally, after all it is another way to exert
