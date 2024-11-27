@@ -80,7 +80,7 @@ def create_certificate(cafile, name, SAN, bits=2048):
     try:
         output = check_output(command, stderr=STDOUT)
     except (OSError, CalledProcessError) as e:
-        logger.error(f"openssl failed: {e}")
+        logger.warning(f"openssl failed: {e}")
         return None
     logger.debug("openssl output: " + output.decode('utf-8'))
     return (cafile, keyfile)

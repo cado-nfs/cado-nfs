@@ -55,7 +55,12 @@ Workunit:
 
 class Workunit(dict):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        if args and type(args[0]) is str:
+            assert len(args) == 1
+            assert not kwargs
+            super().__init__(json.loads(args[0]))
+        else:
+            super().__init__(*args, **kwargs)
         self._check_schema()
 
     def _check_schema(self):
