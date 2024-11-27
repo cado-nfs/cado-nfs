@@ -36,7 +36,7 @@ server_args=(340282366920938463463374607431768211457
     server.threaded=True
     # the default parameter set has 20000, but in fact with qrange=10 and
     # tasks.filter.run=false, we're happy with less.
-    tasks.sieve.rels_wanted=100
+    tasks.sieve.rels_wanted=1200
     tasks.wutimeout=1
     # This parameter is intentionally not documented, but it's useful to
     # trigger the failure pointed by issue #30104

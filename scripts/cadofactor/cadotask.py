@@ -1501,15 +1501,17 @@ class Task(patterns.Colleague, SimpleStatistics, HasState, DoesLogging,
         ...                             identifier,
         ...                             attempt]
         """
+        attempt = None
+        # Split off attempt number, if available. We do it first so that
+        # things work correctly even if wu_paste_char is a substring of
+        # wu_attempt_char
+        if self.wu_attempt_char in wuname:
+            (wuname, attempt) = wuname.split(self.wu_attempt_char)
+            attempt = int(attempt)
         arr = wuname.rsplit(self.wu_paste_char, 2)
         assert len(arr) == 3
         if arr[-1] == "":
             arr[-1] = None
-        attempt = None
-        # Split off attempt number, if available
-        if "#" in arr[2]:
-            (arr[2], attempt) = arr[2].split('#')
-            attempt = int(attempt)
         arr.append(attempt)
         return arr
 
@@ -1816,6 +1818,19 @@ class ClientServerTask(Task, wudb.UsesWorkunitDb, patterns.Observer):
         self.state.update({key: self.state[key] + 1}, commit=False)
         self.wuar.cancel(wuid, commit=commit)
 
+    def enough_work_received(self):
+        """
+        This is independent of the loop in the run() function. Here,
+        we're only telling whether it makes sense to drop outstanding WUs
+        because the amount of work that was collected by the server is
+        already enough to proceed with the next steps of the computation.
+        To disable this early abort check, the default behaviour is
+        simply to return False, in which case the client-server task will
+        finish once all the WUs that were scheduled from the run()
+        command are received.
+        """
+        return False
+
     def submit_command(self, command, identifier,
                        commit=True, log_errors=False):
         """
@@ -1840,13 +1855,31 @@ class ClientServerTask(Task, wudb.UsesWorkunitDb, patterns.Observer):
         # it may never be able to keep the number of available WUs
         # afloat. It's pulled low. And then, we never enter self.wait(),
         # which also mean that we never request wu results!
+        #
+        # XXX There's also a second flaw, perhaps even more annoying: the
+        # server will only terminate if it's done with _all_ the WUs it
+        # has scheduled, which might not be desirable in all cases. If
+        # enough WUs have been received to obtain enough relations (in
+        # the SievingTask case), then we should probably proceed and not
+        # wait for the WUs that are still lagging.
         while self.get_number_available_wus() >= self.params["maxwu"]:
+            if self.enough_work_received():
+                # This fixes the second issue above. But really, it's a
+                # telling sign that the control flow should be improved.
+                o = self.get_number_outstanding_wus()
+                a = self.get_number_available_wus()
+                self.logger.info(f"{self.title} finishes early, since"
+                                 " enough work has been collected already."
+                                 " Dropping %d outstanding WUs, %d or which"
+                                 " were not even assigned yet.", o, a)
+                return
             self.wait()
 
-        # To fix the issue above, let's ensure that we call GET_WU_RESULT
-        # at least once. This should ensure some minimal fairness
-        # overall, but it's still true that backlog may accumulate in
-        # cases where we fetch only one wu result for each wu we produce.
+        # To fix the first issue above, let's ensure that we call
+        # GET_WU_RESULT at least once. This should ensure some minimal
+        # fairness overall, but it's still true that backlog may
+        # accumulate in cases where we fetch only one wu result for each
+        # wu we produce.
 
         # It's also quite unsatisfactory that we do time.sleep() only
         # based on a condition that is the absence of result (from within
@@ -3773,7 +3806,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics):
             n01 = int(guess_factor * (n0 / log(n0) + n1 / log(n1)))
             self.state["rels_wanted"] = n01
 
-    def enough_relations(self):
+    def enough_work_received(self):
         return self.get_nrels() >= self.state["rels_wanted"]
 
     def reached_qmax(self):
@@ -3784,7 +3817,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics):
         return qnext >= qmax
 
     def should_schedule_more_work(self):
-        return not self.enough_relations() and not self.reached_qmax()
+        return not self.enough_work_received() and not self.reached_qmax()
 
     def run(self):
         super().run()
@@ -3831,7 +3864,8 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics):
             waitloop = 0
             nextwaitmsg = 1
             while self.get_number_outstanding_wus() > 0:
-                if self.enough_relations():
+                self.logger.info("check outstanding wus")
+                if self.enough_work_received():
                     break
                 waitloop = waitloop + 1
                 if waitloop >= nextwaitmsg:
@@ -3856,7 +3890,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics):
                 self.wait()
             if self.get_number_outstanding_wus() == 0:
                 self.logger.info("No outstanding WUs. Sieving stops")
-        if self.enough_relations():
+        if self.enough_work_received():
             self.logger.info("Reached target of %d relations, now have %d",
                              self.state["rels_wanted"], self.get_nrels())
         else:
