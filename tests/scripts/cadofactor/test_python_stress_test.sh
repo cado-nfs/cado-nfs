@@ -75,8 +75,10 @@ while ! [ "$url" ] && [ $i -lt 10 ] ; do
 done
 
 if ! [ "$url" ] ; then
+    set +e
     echo "server did not start correctly" >&2
     cat "$wdir/server.log" >&2
+    cat "$logfile" >&2
     exit 1
 fi
 
