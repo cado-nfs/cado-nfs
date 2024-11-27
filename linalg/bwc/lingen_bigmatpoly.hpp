@@ -1,5 +1,5 @@
-#ifndef BIGMATPOLY_HPP_
-#define BIGMATPOLY_HPP_
+#ifndef LINGEN_BIGMATPOLY_HPP_
+#define LINGEN_BIGMATPOLY_HPP_
 
 #include <vector>
 #include <cstring>     // memcmp
@@ -129,4 +129,4 @@ class bigmatpoly : public bigmatpoly_model {
     void allgather_col();
 };
 
-#endif	/* BIGMATPOLY_HPP_ */
+#endif	/* LINGEN_BIGMATPOLY_HPP_ */

@@ -1,6 +1,7 @@
 #ifndef FILTER_CONFIG_H_
 #define FILTER_CONFIG_H_
 
+// scan-headers: skip
 
 /* Duplicate removal */
 /*********************/

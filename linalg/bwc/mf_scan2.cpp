@@ -21,7 +21,7 @@
 #include "fix-endianness.h" // fwrite32_little
 #include "utils_cxx.hpp"        // for unique_ptr<FILE>
 
-void mf_scan2_decl_usage(cxx_param_list & pl)
+static void mf_scan2_decl_usage(cxx_param_list & pl)
 {
     param_list_usage_header(pl,
             "This program make one reading pass through a binary matrix, and produces\n"
@@ -40,15 +40,15 @@ void mf_scan2_decl_usage(cxx_param_list & pl)
     param_list_decl_usage(pl, "thread-write-window", "Chunk size for producer thread writes to rolling buffer");
 }
 
-size_t thread_private_count = 1UL << 20;
+static size_t thread_private_count = 1UL << 20;
 
 /* These two are in bytes as far as the default value is concerned, but
  * they're converted to number of uint32_t's when the program runs.
  */
-size_t thread_read_window = 1UL << 13;
-size_t thread_write_window = 1UL << 10;
+static size_t thread_read_window = 1UL << 13;
+static size_t thread_write_window = 1UL << 10;
 
-int withcoeffs = 0;
+static int withcoeffs = 0;
 
 class reporter {
     std::atomic<size_t> produced;
@@ -97,14 +97,14 @@ class reporter {
 };
 
 
-reporter report;
+static reporter report;
 
-inline unsigned int get_segment_index(uint32_t c)
+static inline unsigned int get_segment_index(uint32_t c)
 {
     return 64 - cado_clz64((uint64_t) c);
 }
-inline uint32_t get_segment_offset(unsigned int t) { return 1UL << (t-1); }
-inline uint32_t get_segment_size(unsigned int t) { return 1UL << (t-1); }
+static inline uint32_t get_segment_offset(unsigned int t) { return 1UL << (t-1); }
+static inline uint32_t get_segment_size(unsigned int t) { return 1UL << (t-1); }
 
 struct segment {
     std::vector<std::atomic<uint32_t>> data;
@@ -140,8 +140,8 @@ struct segment {
  * https://bartoszmilewski.com/2008/12/23/the-inscrutable-c-memory-model/
  * http://www.cplusplus.com/reference/atomic/memory_order/
  */
-std::atomic<segment *> segments[64];
-std::mutex segment_mutexes[64];
+static std::atomic<segment *> segments[64];
+static std::mutex segment_mutexes[64];
 
 template<bool> struct nz_coeff; // IWYU pragma: keep
 template<> struct nz_coeff<false> { struct type { uint32_t j; }; };
@@ -190,7 +190,7 @@ struct parser_thread {
 };
 
 template<bool withcoeffs>
-void master_loop(ringbuf_ptr R, FILE * f_in, FILE * f_rw)
+static void master_loop(ringbuf_ptr R, FILE * f_in, FILE * f_rw)
 {
     constexpr int c = withcoeffs != 0;
     typedef typename nz_coeff<withcoeffs>::type coeff_t;
@@ -236,7 +236,7 @@ void master_loop(ringbuf_ptr R, FILE * f_in, FILE * f_rw)
     ringbuf_mark_done(R);
 }
 
-void finish_write_and_clear_segments(uint32_t c, uint32_t colmax, FILE * f_cw)
+static void finish_write_and_clear_segments(uint32_t c, uint32_t colmax, FILE * f_cw)
 {
     for( ; c < colmax ; ) {
         unsigned int const t = get_segment_index(c);
@@ -254,7 +254,7 @@ void finish_write_and_clear_segments(uint32_t c, uint32_t colmax, FILE * f_cw)
 }
 
 template<bool withcoeffs>
-void write_column_weights(std::vector<parser_thread<withcoeffs>> & T, FILE * f_cw)
+static void write_column_weights(std::vector<parser_thread<withcoeffs>> & T, FILE * f_cw)
 {
     for(size_t i = 1 ; i < T.size() ; i++) {
         for(size_t j = 0 ; j < thread_private_count ; j++)
@@ -271,7 +271,7 @@ void write_column_weights(std::vector<parser_thread<withcoeffs>> & T, FILE * f_c
 }
 
 template<bool withcoeffs>
-void maincode(ringbuf_ptr R, int nb_consumers, FILE * f_in, FILE * f_rw, FILE * f_cw)
+static void maincode(ringbuf_ptr R, int nb_consumers, FILE * f_in, FILE * f_rw, FILE * f_cw)
 {
     std::vector<parser_thread<withcoeffs>> T(nb_consumers);
     std::thread producer(master_loop<withcoeffs>, R, f_in, f_rw);
@@ -378,7 +378,16 @@ int main(int argc, char const * argv[])
     int threads = 2;
 #endif
 
-    size_t ringbuf_size = ram / 4;
+    size_t ringbuf_size = ram / 64;
+
+#if ULONG_BITS > 32
+    if (!param_list_lookup_string(pl, "io-memory") && (ringbuf_size >> 32)) {
+        fprintf(stderr, "Capping the amount of allocated memory to 4G,"
+                " since it is probably enough. Use the io-memory parameter"
+                " to override this behaviour\n");
+        ringbuf_size = (size_t(1) << 32);
+    }
+#endif
 
     param_list_parse(pl, "threads", threads);
     {

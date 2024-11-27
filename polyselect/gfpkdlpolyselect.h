@@ -25,19 +25,17 @@
 #define ERROR_EASYBADIDEALS 8
 #define ERROR_VERYBADIDEALS 9
 #define ERROR_MAX 10
-
-#include <stdio.h>      // FILE
-#include <stdbool.h>    // for bool (in C)
-#include <gmp.h>
-#include "cado_poly.h"   // for MAX_DEGREE
-#include "mpz_poly.h"
-
 #define DEG_PY 2
 
 #if DEG_PY > 2
 #error "the code works only for Py of degree <= 2, sorry."
 #endif
 
+#include <stdio.h>      // FILE
+#include <stdbool.h>    // for bool (in C)
+#include <gmp.h>
+#include "cado_poly.h"   // for MAX_DEGREE
+#include "mpz_poly.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -5,9 +5,14 @@
 #include <cstdlib>
 
 #include <memory>
+#include <string>
+#include <stdexcept>
+#include <utility>
 
 #include <gmp.h>
+#include "fmt/format.h"
 
+#include "cxx_mpz.hpp"
 #include "matmul.hpp"
 #include "macros.h"
 #include "arith-generic.hpp"
@@ -16,7 +21,7 @@
 #include "matrix_u32.hpp"   // for matrix_u32
 
 
-void declare_usage(cxx_param_list & pl)
+static void declare_usage(cxx_param_list & pl)
 {
     param_list_decl_usage(pl, "matrix-file", "matrix file to work with");
     param_list_decl_usage(pl, "prime", "characteristic of the base field [default=2]");

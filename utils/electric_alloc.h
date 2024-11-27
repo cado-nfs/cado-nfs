@@ -16,14 +16,14 @@
  * underruns instead */
 #define PROTECT_OVERRUN
 
-#include <fcntl.h>
-#include <sys/mman.h>
-
 #ifndef __APPLE__
 #ifndef MAP_ANONYMOUS
 #error "Please define _GNU_SOURCE or _BSD_SOURCE on top of the translation unit"
 #endif
 #endif
+
+#include <fcntl.h>
+#include <sys/mman.h>
 
 #ifdef __cplusplus
 #include <new>  /* for std::bad_alloc */

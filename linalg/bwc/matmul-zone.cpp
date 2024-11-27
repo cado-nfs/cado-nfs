@@ -280,10 +280,13 @@ static cachefile& operator<<(cachefile & c, int64_t const & x) {
 }
 #endif
 
-template<typename T> cachefile& operator>>(cachefile & c, cachefile::seq<T> & s);
-template<typename T> cachefile& operator<<(cachefile & c, cachefile::seq<T> const & s);
+template<typename T>
+static cachefile& operator>>(cachefile & c, cachefile::seq<T> & s);
+template<typename T>
+static cachefile& operator<<(cachefile & c, cachefile::seq<T> const & s);
 
-template<typename T> cachefile& operator>>(cachefile & c, vector<T>&v)
+template<typename T>
+static cachefile& operator>>(cachefile & c, vector<T>&v)
 {
     uint64_t size;
     c >> size;
@@ -294,13 +297,16 @@ template<typename T> cachefile& operator>>(cachefile & c, vector<T>&v)
         v.resize(size);
     return cachefile::seq<T>().in(c, v.data(), v.size());
 }
-template<typename T> cachefile& operator<<(cachefile & c, vector<T> const &v)
+template<typename T>
+static cachefile& operator<<(cachefile & c, vector<T> const &v)
 {
     c << (uint64_t) v.size();
     return cachefile::seq<T>().out(c, v.data(), v.size());
 }
-template<typename T> inline cachefile& operator>>(cachefile& c, T& z) { return z.cachefile_load(c); }
-template<typename T> inline cachefile& operator<<(cachefile& c, T const & z) { return z.cachefile_save(c); }
+template<typename T>
+static inline cachefile& operator>>(cachefile& c, T& z) { return z.cachefile_load(c); }
+template<typename T>
+static inline cachefile& operator<<(cachefile& c, T const & z) { return z.cachefile_save(c); }
 /* }}} */
 
 struct placed_block {/*{{{*/
@@ -1111,6 +1117,7 @@ void matmul_zone<Arith, fast_gfp>::report(double scale MAYBE_UNUSED)
     pthread_mutex_unlock(&lk);
 }
 
+// NOLINTNEXTLINE(misc-use-internal-linkage)
 matmul_interface * CADO_CONCATENATE4(new_matmul_, ARITH_LAYER, _, MM_IMPL)(
         matmul_public && P,
         arith_generic * arith,

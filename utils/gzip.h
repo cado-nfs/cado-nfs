@@ -3,14 +3,21 @@
 
 #include "cado_config.h"  // for HAVE_GETRUSAGE
 #include <stdio.h>
+
+#ifdef __cplusplus
+#include <istream>      // std::istream // IWYU pragma: keep
+#include <ostream>      // std::ostream // IWYU pragma: keep
+#include <memory>
+#include <vector>
+#include <string>
+#endif
+
 #ifdef  HAVE_GETRUSAGE
 #include <sys/time.h>   // IWYU pragma: keep
 #include <sys/resource.h>       // IWYU pragma: keep
 #endif
 
 #ifdef __cplusplus
-#include <vector>
-#include <string>
 /* Return a unix commands list with antebuffer. Example:
  * antebuffer X file_relation1 | cat -
  * antebuffer X file_relation2.gz file_relation3.gz | gzip -dc -
@@ -101,9 +108,6 @@ extern int fclose_maybe_compressed2 (FILE * f, const char * name, struct rusage 
 #endif
 
 #ifdef __cplusplus
-#include <istream>      // std::istream // IWYU pragma: keep
-#include <ostream>      // std::ostream // IWYU pragma: keep
-#include <memory>
 class cado_pipe_streambuf;
 
 class streambase_maybe_compressed : virtual public std::ios {

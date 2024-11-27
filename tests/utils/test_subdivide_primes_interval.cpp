@@ -8,7 +8,7 @@
 #include "fmt/format.h"
 #include "params.h"
 
-void decl_usage(cxx_param_list & pl)
+static void decl_usage(cxx_param_list & pl)
 {
     param_list_decl_usage(pl, "p0", "prime lower bound");
     param_list_decl_usage(pl, "p1", "prime upper bound");

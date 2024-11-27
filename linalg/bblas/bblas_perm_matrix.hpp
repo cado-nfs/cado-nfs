@@ -1,5 +1,5 @@
-#ifndef PERM_MATRIX_HPP_
-#define PERM_MATRIX_HPP_
+#ifndef BBLAS_PERM_MATRIX_HPP_
+#define BBLAS_PERM_MATRIX_HPP_
 
 // IWYU pragma: private, include "bblas.hpp"
 // IWYU pragma: friend ".*/bblas.*"
@@ -28,4 +28,4 @@ extern void pqperms_from_phi(perm_matrix_ptr p, perm_matrix_ptr q, int * phi, in
 static inline int perm_matrix_get(perm_matrix_srcptr x, int k) { return x->v[k]; }
 static inline void perm_matrix_set(perm_matrix_srcptr x, int k, int w) { x->v[k]=w; }
 
-#endif	/* PERM_MATRIX_HPP_ */
+#endif	/* BBLAS_PERM_MATRIX_HPP_ */

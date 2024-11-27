@@ -1,6 +1,9 @@
-#include <stdio.h>
 #ifndef BUCKET_PUSH_UPDATE_HPP_
 #define BUCKET_PUSH_UPDATE_HPP_
+
+#ifdef SAFE_BUCKET_ARRAYS
+#include <cstdio>
+#endif
 
 #include "bucket.hpp"
 #include "las-where-am-i.hpp"       // WHERE_AM_I_UPDATE

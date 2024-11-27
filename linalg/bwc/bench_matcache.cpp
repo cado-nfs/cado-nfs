@@ -39,7 +39,7 @@
 #include "worker-threads.h"
 #include "utils_cxx.hpp"        // for unique_ptr<FILE>
 
-void usage()
+static void usage()
 {
     fmt::print(stderr,
             "Usage: ./bench [--impl <implementation>] [--tmax <time>] [--nmax <n_iter>] [--nchecks <number> | --nocheck] [-r|--rebuild] [-t|--transpose] [--nthreads <number>] [--cycles <frequency>] -- <file0> [<file1> ... ]\n");
@@ -159,17 +159,17 @@ struct bench_args {// {{{
     void do_timing_run();
 };// }}}
 
-void init_func(struct worker_threads_group * tg, int tnum, struct bench_args * ba)/*{{{*/
+static void init_func(struct worker_threads_group * tg, int tnum, struct bench_args * ba)/*{{{*/
 {
     ba->p[tnum] = private_args(*tg, tnum, *ba);
 }/*}}}*/
 
-void check_func(struct worker_threads_group * tg MAYBE_UNUSED, int tnum, struct bench_args * ba)/*{{{*/
+static void check_func(struct worker_threads_group * tg MAYBE_UNUSED, int tnum, struct bench_args * ba)/*{{{*/
 {
     ba->p[tnum].check();
 }/*}}}*/
 
-void mul_func(struct worker_threads_group * tg MAYBE_UNUSED, int tnum, struct bench_args * ba)/*{{{*/
+static void mul_func(struct worker_threads_group * tg MAYBE_UNUSED, int tnum, struct bench_args * ba)/*{{{*/
 {
     private_args & p(ba->p[tnum]);
     auto * dstvec = (ba->transpose ? p.colvec : p.rowvec).get();
@@ -177,7 +177,7 @@ void mul_func(struct worker_threads_group * tg MAYBE_UNUSED, int tnum, struct be
     p.mm->mul(dstvec, srcvec, !ba->transpose);
 }/*}}}*/
 
-void clear_func(struct worker_threads_group * tg MAYBE_UNUSED, int tnum, struct bench_args * ba)/*{{{*/
+static void clear_func(struct worker_threads_group * tg MAYBE_UNUSED, int tnum, struct bench_args * ba)/*{{{*/
 {
     private_args & p(ba->p[tnum]);
     p.mm->report(ba->freq);
@@ -386,7 +386,7 @@ private_args::private_args(worker_threads_group & tg, int tnum, bench_args const
     ba.A->vec_set_zero(rowvec.get(), nr);
 }// }}}
 
-uint32_t crc32(arith_generic * A, arith_generic::owned_vector const & v, unsigned int n)// {{{
+static uint32_t crc32(arith_generic * A, arith_generic::owned_vector const & v, unsigned int n)// {{{
 {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-cstyle-cast)
     return crc32((unsigned long*) v.get(), A->vec_elt_stride(n));
@@ -461,7 +461,7 @@ void private_args::fill_both_vectors_zero() const// {{{
     A->vec_set_zero(rowvec.get(), mm->dim[0]);
 }// }}}
 
-void banner(int argc, char const * argv[])// {{{
+static void banner(int argc, char const * argv[])// {{{
 {
     /* print command line */
     fmt::print (stderr, "# ({}) {}", cado_revision_string, (argv)[0]);

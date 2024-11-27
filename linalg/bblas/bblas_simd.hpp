@@ -12,6 +12,17 @@
 
 #if defined(HAVE_SSE2) && ULONG_BITS == 64
 #include <emmintrin.h>
+#endif
+
+#ifdef HAVE_SSE41
+#include <smmintrin.h>
+#endif
+#ifdef HAVE_AVX2
+#include <immintrin.h>
+#endif
+
+// scan-headers: stop here
+#if defined(HAVE_SSE2) && ULONG_BITS == 64
 /*  helper macros for sse-2. Copied from gf2x */
 /* {{{ _mm_cvtsi64_m64 is not consistent across compiler versions... */
 #if defined(__GNUC__) && __GNUC__ == 4 &&__GNUC_MINOR__ == 1
@@ -59,12 +70,6 @@
 #define _cado_mm_set1_epi32_c(u) _mm_set1_epi32(INT32_C(u))
 /* }}} */
 /*  */
-#endif
-#ifdef HAVE_SSE41
-#include <smmintrin.h>
-#endif
-#ifdef HAVE_AVX2
-#include <immintrin.h>
 #endif
 
 

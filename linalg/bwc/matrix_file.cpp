@@ -96,7 +96,7 @@ template<> const pi_datatype_ptr bwc_pi_type<unsigned int>::value = BWC_PI_UNSIG
 template<> const pi_datatype_ptr bwc_pi_type<unsigned long>::value = BWC_PI_UNSIGNED_LONG;
 template<> const pi_datatype_ptr bwc_pi_type<unsigned long long>::value = BWC_PI_UNSIGNED_LONG_LONG;
 
-template<typename T> void bcast(parallelizing_info_ptr pi, T & s, unsigned int jrank, unsigned int trank)
+template<typename T> static void bcast(parallelizing_info_ptr pi, T & s, unsigned int jrank, unsigned int trank)
 {
     pi_bcast(&s, 1, bwc_pi_type<T>::value, jrank, trank, pi->m);
 }
@@ -109,12 +109,12 @@ template<> void bcast<bool>(parallelizing_info_ptr pi, bool & s, unsigned int jr
 }
 /* below are two overloads */
 template<typename T, size_t N> 
-void
+static void
 bcast(parallelizing_info_ptr pi, std::array<T, N> & s, unsigned int jrank, unsigned int trank)
 {
     pi_bcast(s.data(), N, bwc_pi_type<T>::value, jrank, trank, pi->m);
 }
-void bcast(parallelizing_info_ptr pi, std::string & s, unsigned int jrank, unsigned int trank)
+static void bcast(parallelizing_info_ptr pi, std::string & s, unsigned int jrank, unsigned int trank)
 {
     size_t sz = s.size();
     pi_bcast(&sz, 1, BWC_PI_SIZE_T, jrank, trank, pi->m);
@@ -124,7 +124,7 @@ void bcast(parallelizing_info_ptr pi, std::string & s, unsigned int jrank, unsig
     pi_bcast(foo.data(), sz, BWC_PI_BYTE, jrank, trank, pi->m);
     s = std::string(foo.begin(), foo.end());
 }
-template<typename T> void allreduce(parallelizing_info_ptr pi, T & s, pi_op_ptr op)
+template<typename T> static void allreduce(parallelizing_info_ptr pi, T & s, pi_op_ptr op)
 {
     pi_allreduce(NULL, &s, 1, bwc_pi_type<T>::value, op, pi->m);
 }
@@ -206,7 +206,7 @@ static inline void write32(std::ostream& os, uint32_t const & x)
 
 
 template<bool withcoeffs>
-void inner_loop(uint32_t * p, uint32_t offset, unsigned int i0, unsigned int i1, std::ifstream & RW, std::ifstream& DATA, std::ifstream& COEFFS)
+static void inner_loop(uint32_t * p, uint32_t offset, unsigned int i0, unsigned int i1, std::ifstream & RW, std::ifstream& DATA, std::ifstream& COEFFS)
 {
     /* TODO: display progress */
     p += i0 + offset * (1 + withcoeffs);

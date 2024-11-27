@@ -12,6 +12,7 @@
 #include "flint.h"
 #include "fft.h"
 
+// NOLINTBEGIN(bugprone-narrowing-conversions,cppcoreguidelines-narrowing-conversions)
 /*
  * Set ``r`` to ``i1`` times `z^i` modulo ``B^limbs + 1`` where
  * `z` corresponds to multiplication by `2^w`. This can be thought of as part
@@ -40,3 +41,4 @@ void fft_adjust(mp_limb_t * r, mp_limb_t * i1, mp_size_t i, mp_size_t limbs,
     } else
 	mpn_mul_2expmod_2expp1(r, i1, limbs, b1);
 }
+// NOLINTEND(bugprone-narrowing-conversions,cppcoreguidelines-narrowing-conversions)

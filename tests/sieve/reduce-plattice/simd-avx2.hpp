@@ -5,6 +5,8 @@
 #include <array>
 #include <algorithm>
 
+// scan-headers: stop here
+
 #ifdef HAVE_AVX2
 
 #include <x86intrin.h>

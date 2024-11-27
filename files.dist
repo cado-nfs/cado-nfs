@@ -71,7 +71,6 @@ config/gmp.cmake
 config/gmp_randstate.c
 config/gmp_randstate.cmake
 config/gmpecm.cmake
-config/gmpxx-test.cpp
 config/hwloc.cmake
 config/inline-assembly-arm.c
 config/inline-assembly.c
@@ -490,6 +489,9 @@ linalg/bwc/bench_comm_bwc.cpp
 linalg/bwc/bench_cpu_bwc.cpp
 linalg/bwc/bench_matcache.cpp
 linalg/bwc/blocklanczos.cpp
+linalg/bwc/blocklanczos.hpp
+linalg/bwc/blocklanczos_extraction.cpp
+linalg/bwc/blocklanczos_extraction.hpp
 linalg/bwc/build_matcache.cpp
 linalg/bwc/bw-common.c
 linalg/bwc/bw-common.h
@@ -931,6 +933,7 @@ scripts/refresh-fmtlib.sh
 scripts/refresh-gf2x.sh
 scripts/resubmit-tools.sh
 scripts/run-clang-tidy.py
+scripts/scan-headers.py
 scripts/setup-venv.sh
 scripts/split.py
 scripts/version.sh
@@ -1313,6 +1316,7 @@ tests/sagemath/cado_sage/purged.py
 tests/sagemath/cado_sage/tools.py
 tests/scripts/CMakeLists.txt
 tests/scripts/cadofactor/CMakeLists.txt
+tests/scripts/cadofactor/test_python_resubmit.sh
 tests/scripts/cadofactor/test_python_stress_test.sh
 tests/scripts/cadofactor/test_python_wudb_cmdline.sh
 tests/sieve/CMakeLists.txt
@@ -1507,7 +1511,9 @@ tests/utils/test_mpz_poly.cpp
 tests/utils/test_mpz_poly_bivariate.cpp
 tests/utils/test_mpz_poly_parsing.cpp
 tests/utils/test_mpz_vector.c
+tests/utils/test_multityped_array.cpp
 tests/utils/test_omega.c
+tests/utils/test_polyroots.c
 tests/utils/test_random_distributions.cpp
 tests/utils/test_relation.cpp
 tests/utils/test_rootfinder.c
@@ -1536,7 +1542,6 @@ utils/barrier.c
 utils/barrier.h
 utils/bit_vector.c
 utils/bit_vector.h
-utils/cachebuf.h
 utils/cachesize_cpuid.c
 utils/cachesize_cpuid.h
 utils/cachesize_guess.c
@@ -1557,6 +1562,7 @@ utils/cxx_mpz.hpp
 utils/dllist.h
 utils/double_poly.cpp
 utils/double_poly.h
+utils/double_poly_complex_roots.h
 utils/electric_alloc.h
 utils/embedded/fmt/ChangeLog.md
 utils/embedded/fmt/LICENSE
@@ -1579,7 +1585,6 @@ utils/embedded/fmt/ranges.h
 utils/embedded/fmt/std.h
 utils/embedded/fmt/xchar.h
 utils/fakempi.h
-utils/fakepthread.h
 utils/fd_streambuf.cpp
 utils/fd_streambuf.hpp
 utils/filter_io.cpp
@@ -1703,10 +1708,12 @@ utils/params-extra.cpp
 utils/params.cpp
 utils/params.h
 utils/polyroots.c
+utils/polyroots.h
 utils/purgedfile.c
 utils/purgedfile.h
 utils/random_distributions.cpp
 utils/random_distributions.hpp
+utils/rdtsc.h
 utils/relation-tools.c
 utils/relation-tools.h
 utils/relation.cpp
@@ -1743,9 +1750,7 @@ utils/u64arith.h
 utils/ularith.h
 utils/usp.c
 utils/usp.h
-utils/utils.h
 utils/utils_cxx.hpp
-utils/utils_with_io.h
 utils/verbose.c
 utils/verbose.h
 utils/version_info.c.in

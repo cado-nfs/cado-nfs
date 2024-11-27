@@ -1,17 +1,15 @@
 #include "cado.h" // IWYU pragma: keep
 
-#ifdef  __GNUC__
-#pragma GCC diagnostic ignored "-Wunknown-pragmas"
-#endif
-
+#include <stdint.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+
 #ifdef FOR_DL
 #include "gcd.h"
 #endif
-#include "filter_config.h"
 #include "merge_replay_matrix.h"
+#include "typedefs.h"
 #include "sparse.h"
 #include "macros.h"
 

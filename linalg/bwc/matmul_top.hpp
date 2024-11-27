@@ -7,7 +7,6 @@
 #include <string>
 #include <array>
 #include <gmp.h>                 // for gmp_randstate_t
-struct timing_data;
 
 #include "select_mpi.h"
 #include "parallelizing_info.hpp"

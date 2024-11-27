@@ -11,5 +11,6 @@
 #define pp1_65 pp1_65_ul
 #define ecm ecm_ul
 #define mpqs mpqs_ul
+// scan-headers: skip
 #define FACUL_DOIT_READY_TO_INCLUDE_IMPL_CODE
-#include "facul_doit.cpp"
+#include "facul_doit.cpp"       // NOLINT(bugprone-suspicious-include)

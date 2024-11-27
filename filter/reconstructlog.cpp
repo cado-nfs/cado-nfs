@@ -1,17 +1,22 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
 #include <cinttypes>    // for PRIu64, SCNu64
 #include <cstdint>      // for uint64_t, int32_t, int64_t, uint8_t
+
+#include <vector>
+#include <mutex>
+
 #include <pthread.h>     // for pthread_mutex_lock, pthread_mutex_unlock
 #ifdef HAVE_MINGW
 #include <fcntl.h>   /* for _O_BINARY */
 #endif
-#include <vector>
 
 #include <gmp.h>
+
 #include "bit_vector.h"  // for bit_vector_set, bit_vector, bit_vector_getbit
 #include "cado_poly.h"  // cado_poly
 #include "cxx_mpz.hpp"
@@ -32,11 +37,11 @@
 
 #define DEBUG 0
 
-stats_data_t stats; /* struct for printing progress */
+static stats_data_t stats; /* struct for printing progress */
 
 /*********************** mutex for multi threaded version ********************/
 /* used as mutual exclusion lock for reading the status of logarithms */
-pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+static std::mutex lock;
 
 /**** Relations structure used for computing the logarithms from the rels ****/
 typedef struct
@@ -297,7 +302,7 @@ struct read_data
 /* number of SM that must be used. */
 
 /* Callback function called by filter_rels in compute_log_from_rels */
-void *
+static void *
 thread_sm (void * context_data, earlyparsed_relation_ptr rel)
 {
     read_data & data = * (read_data *) context_data;
@@ -394,7 +399,7 @@ thread_sm (void * context_data, earlyparsed_relation_ptr rel)
 
 /****************** Computation of missing logarithms ************************/
 /* Callback function called by filter_rels in compute_log_from_rels */
-void *
+static void *
 thread_insert (void * context_data, earlyparsed_relation_ptr rel)
 {
   read_data & data = * (read_data *) context_data;
@@ -434,9 +439,11 @@ nb_unknown_log (read_data & data, uint64_t i)
   int c = 0;
   for (j = 0, k = 0; k < len; k++)
   {
-    pthread_mutex_lock (&lock);
-    bool const known = data.log.is_known(p[k].id);
-    pthread_mutex_unlock (&lock);
+      bool known;
+      {
+          std::lock_guard<std::mutex> dummy(lock);
+          known = data.log.is_known(p[k].id);
+      }
 
     if (!known) {
       if (j != k)
@@ -462,14 +469,13 @@ static inline unsigned int
 compute_missing_log (logtab::mpz_rw_accessor dest, mpz_t vlog, int32_t e, mpz_t ell)
 {
   unsigned int ret;
-  mpz_t tmp;
-  mpz_init_set_si (tmp, e);
+  cxx_mpz tmp = e;
   mpz_invert (tmp, tmp, ell);
   mpz_neg (vlog, vlog);
   mpz_mul (vlog, vlog, tmp);
   mpz_mod (tmp, vlog, ell);
 
-  pthread_mutex_lock (&lock);
+  std::lock_guard<std::mutex> dummy(lock);
   if (dest.is_known()) {
       // log was already computed by another thread
       ret = 0;
@@ -477,9 +483,7 @@ compute_missing_log (logtab::mpz_rw_accessor dest, mpz_t vlog, int32_t e, mpz_t 
       dest = tmp;
       ret = 1;
   }
-  pthread_mutex_unlock (&lock);
 
-  mpz_clear (tmp);
   return ret;
 }
 
@@ -542,7 +546,7 @@ typedef struct
 
 #define GRAPH_DEP_IS_LOG_UNKNOWN(G, h) (G.tab[h].state == NODE_DEP_LOG_UNKNOWN)
 
-graph_dep_t
+static graph_dep_t
 graph_dep_init (uint64_t size)
 {
   node_dep_t *tab = NULL;
@@ -552,14 +556,14 @@ graph_dep_init (uint64_t size)
   return (graph_dep_t) {.size = size, .tab = tab};
 }
 
-void
+static void
 graph_dep_clear (graph_dep_t G)
 {
   free(G.tab);
 }
 
 /* Set G[h].state accordingly to log[h] values */
-void
+static void
 graph_dep_set_log_already_known (graph_dep_t G, logtab const & log)
 {
   for (uint64_t h = 0; h < log.nprimes; h++)
@@ -569,7 +573,7 @@ graph_dep_set_log_already_known (graph_dep_t G, logtab const & log)
   }
 }
 
-uint64_t
+static uint64_t
 graph_dep_needed_rels_from_index (graph_dep_t G, index_t h, light_rels_t rels,
                                   bit_vector needed_rels)
 {
@@ -622,7 +626,7 @@ struct dep_read_data
 };
 
 /* Callback function called by filter_rels in compute_needed_rels */
-void *
+static void *
 dep_thread_insert (void * context_data, earlyparsed_relation_ptr rel)
 {
   dep_read_data  const& data = * (dep_read_data *) context_data;
@@ -655,11 +659,13 @@ dep_nb_unknown_log (dep_read_data & data, uint64_t i, index_t *h)
 
   for (nb = 0, k = 0; k < data.rels[i].len; k++)
   {
-    pthread_mutex_lock (&lock);
-    int const unknow = GRAPH_DEP_IS_LOG_UNKNOWN (data.G, p[k]);
-    pthread_mutex_unlock (&lock);
+    int unknown;
+    {
+        std::lock_guard<std::mutex> dummy(lock);
+        unknown = GRAPH_DEP_IS_LOG_UNKNOWN (data.G, p[k]);
+    }
 
-    if (unknow) // we do not know the log if this ideal
+    if (unknown) // we do not know the log if this ideal
     {
       nb++;
       *h = p[k];
@@ -712,7 +718,7 @@ typedef struct {
   int version; /* 0 means call dep_* , 1 means call log_* */
 } thread_info;
 
-void * thread_start(void *arg)
+static void * thread_start(void *arg)
 {
   thread_info *ti = (thread_info *) arg;
   bit_vector_ptr not_used = ti->not_used;
@@ -1539,8 +1545,6 @@ main(int argc, char const * argv[])
               nrels_del, nrels_needed, mt,
               data);
       printf ("# %" PRIu64 " logarithms are known.\n", log.nknown);
-      extern double m_seconds;
-      fprintf(stderr, "# %.2f\n", m_seconds);
   }
   else
     printf ("# All wanted logarithms are already known, skipping this step\n");

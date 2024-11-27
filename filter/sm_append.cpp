@@ -45,8 +45,8 @@ struct ab_pair {
 
 typedef vector<ab_pair> ab_pair_batch;
 
-unsigned int batch_size = 128;
-unsigned int debug = 0;
+static unsigned int batch_size = 128;
+static unsigned int debug = 0;
 
 struct task_globals {
     int nsm_total;

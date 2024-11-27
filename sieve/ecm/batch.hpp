@@ -1,5 +1,5 @@
-#ifndef COFAC_LIST_H
-#define COFAC_LIST_H
+#ifndef SIEVE_ECM_BATCH_HPP
+#define SIEVE_ECM_BATCH_HPP
 
 #include <cstdint>     // for int64_t, uint64_t
 #include <cstdio>      // for FILE
@@ -67,4 +67,4 @@ std::list<relation> factor (
 void create_batch_file (std::string const &, cxx_mpz &, unsigned long, unsigned long,
                         cxx_mpz_poly const &, FILE*, int, double &);
 
-#endif /* COFAC_LIST_H */
+#endif /* SIEVE_ECM_BATCH_HPP */

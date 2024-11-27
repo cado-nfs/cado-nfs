@@ -63,9 +63,6 @@ void las_display_config_flags()
 #ifdef SKIP_GCD3
     verbose_output_print(0, 1, " SKIP_GCD3");
 #endif
-#ifdef USE_CACHEBUFFER
-    verbose_output_print(0, 1, " USE_CACHEBUFFER");
-#endif
     verbose_output_print(0, 1, " LOGNORM_GUARD_BITS=%1.2f", (double) LOGNORM_GUARD_BITS);
     verbose_output_print(0, 1, "\n");
 }				/* }}} */

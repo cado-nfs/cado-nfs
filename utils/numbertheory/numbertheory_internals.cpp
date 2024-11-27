@@ -392,7 +392,7 @@ static cxx_mpz_mat matrix_of_multmap(
 /*}}}*/
 
 /*{{{ template <typename T> void append_move(vector<T> &a, vector<T> &b) */
-template <typename T> void append_move(vector<T> &a, vector<T> &b)
+template <typename T> static void append_move(vector<T> &a, vector<T> &b)
 {
     a.reserve(a.size() + b.size());
     size_t const na = a.size();

@@ -15,7 +15,7 @@
 #include "misc.h"
 
 template <typename T>
-T randomInteger();
+static T randomInteger();
 
 template<>
 Integer64 randomInteger<Integer64>() {

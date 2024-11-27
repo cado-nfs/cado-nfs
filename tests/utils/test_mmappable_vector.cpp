@@ -22,12 +22,12 @@ using namespace std;
 using namespace mmap_allocator_details;
 
 
-const char * tmpdir = "/tmp";
+static const char * tmpdir = "/tmp";
 
-const char * TESTFILE;
-const char * TESTFILE2;
+static const char * TESTFILE;
+static const char * TESTFILE2;
 
-void generate_test_file(int count, const char *fname)
+static void generate_test_file(int count, const char *fname)
 {
     FILE * f = fopen(fname, "w+");
     for (int i=0;i<count;i++) {
@@ -36,7 +36,7 @@ void generate_test_file(int count, const char *fname)
     fclose(f);
 }
 
-void test_test_file(int count, const char * fname, bool expect_zeros)
+static void test_test_file(int count, const char * fname, bool expect_zeros)
 {
     FILE * f = fopen(fname, "r");
     for (int i=0;i<count;i++) {
@@ -48,7 +48,7 @@ void test_test_file(int count, const char * fname, bool expect_zeros)
     fclose(f);
 }
 
-void test_mmap(void)
+static void test_mmap(void)
 {
     generate_test_file(1024, TESTFILE);
     generate_test_file(1024*1024, TESTFILE2);
@@ -142,7 +142,7 @@ void test_mmap(void)
     }
 }
 
-void test_conversion(void)
+static void test_conversion(void)
 {
     fprintf(stderr, "Testing conversion between STL vector and mmap vector.\n");
     generate_test_file(1024, TESTFILE);
@@ -166,7 +166,7 @@ void test_conversion(void)
     }
 }
 
-void test_shortcut_interface(void)
+static void test_shortcut_interface(void)
 {
     fprintf(stderr, "Testing shortcut interface\n");
 
@@ -194,7 +194,7 @@ void test_shortcut_interface(void)
     }
 }
 
-void test_cache_bug(void)
+static void test_cache_bug(void)
 {
     mmappable_vector<int> vec;
 
@@ -209,7 +209,7 @@ void test_cache_bug(void)
 
 #define FILESIZE (1024*1024*16)
 
-void read_large_file(enum access_mode mode)
+static void read_large_file(enum access_mode mode)
 {
     // struct timeval t, t2;
     mmappable_vector<int> vec;
@@ -224,7 +224,7 @@ void read_large_file(enum access_mode mode)
     // fprintf(stderr, "Mode: %d Time: %lu.%06lu\n", mode, (t2.tv_sec - t.tv_sec)-(t2.tv_usec < t.tv_usec), (t2.tv_usec < t.tv_usec)*1000000 + (t2.tv_usec - t.tv_usec));
 }
 
-void test_large_file(void)
+static void test_large_file(void)
 {
     fprintf(stderr, "Testing large file.\n");
     generate_test_file(FILESIZE, TESTFILE); /* 1G */
@@ -234,7 +234,7 @@ void test_large_file(void)
     read_large_file(READ_WRITE_SHARED);
 }
 
-void test_multiple_open(void)
+static void test_multiple_open(void)
 {
     generate_test_file(1024, TESTFILE);
     generate_test_file(1024, TESTFILE2);
@@ -267,7 +267,7 @@ void test_multiple_open(void)
     }
 }
 
-void test_allocate_0_bytes(void) /* shouldn't segfault */
+static void test_allocate_0_bytes(void) /* shouldn't segfault */
 {
     fprintf(stderr, "Testing vectors of mmappable_vectors.\n");
 

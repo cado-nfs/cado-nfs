@@ -135,7 +135,7 @@ test_mpz_poly_sqr_tc (unsigned long iter)
   mpz_poly_clear (g);
 }
 
-void
+static void
 test_mpz_polymodF_mul ()
 {
   int d1, d2, d;
@@ -294,7 +294,7 @@ test_mpz_poly_roots_mpz (unsigned long iter)
 #endif
 
 /* also exercises mpz_poly_mul */
-void
+static void
 test_mpz_poly_sqr_mod_f_mod_mpz (unsigned long iter)
 {
   while (iter--)
@@ -340,7 +340,7 @@ test_mpz_poly_sqr_mod_f_mod_mpz (unsigned long iter)
 /* Also exercises mpz_poly_getcoeff, mpz_poly_setcoeff_int64,
    mpz_poly_setcoeff_si, mpz_poly_cmp, mpz_poly_eval,
    mpz_poly_eval_mod_mpz and mpz_poly_eval_several_mod_mpz */
-void
+static void
 test_mpz_poly_fprintf (void)
 {
   mpz_poly f, g;
@@ -431,7 +431,7 @@ test_mpz_poly_fprintf (void)
   mpz_clear (invm);
 }
 
-void
+static void
 test_mpz_poly_div_2_mod_mpz (void)
 {
   mpz_poly f;
@@ -452,7 +452,7 @@ test_mpz_poly_div_2_mod_mpz (void)
   mpz_clear (m);
 }
 
-void
+static void
 test_mpz_poly_derivative (void)
 {
   mpz_poly f, df;
@@ -483,7 +483,7 @@ test_mpz_poly_derivative (void)
 }
 
 /* also exercises mpz_poly_pow_mod_f_mod_mpz */
-void
+static void
 test_mpz_poly_pow_mod_f_mod_ui (void)
 {
   mpz_poly Q, P, f;
@@ -579,7 +579,7 @@ test_mpz_poly_pow_mod_f_mod_ui (void)
 }
 
 /* also test mpz_poly_base_modp_lift and mpz_poly_sizeinbase */
-void
+static void
 test_mpz_poly_base_modp_init (unsigned long iter)
 {
   int p, l, d, i;
@@ -629,7 +629,7 @@ test_mpz_poly_base_modp_init (unsigned long iter)
   mpz_clear (pk);
 }
 
-void test_mpz_poly_is_root(unsigned long iter)
+static void test_mpz_poly_is_root(unsigned long iter)
 {
     mpz_t p, r;
     mpz_poly f, ell;
@@ -656,7 +656,7 @@ void test_mpz_poly_is_root(unsigned long iter)
     mpz_clear(p);
 }
 
-void test_mpz_poly_factor(unsigned long iter)
+static void test_mpz_poly_factor(unsigned long iter)
 {
     mpz_t p;
     mpz_poly_factor_list lf;
@@ -817,7 +817,7 @@ void test_mpz_poly_factor(unsigned long iter)
     mpz_poly_clear(f);
 }
 
-void test_mpz_poly_factor_padic(unsigned long iter)
+static void test_mpz_poly_factor_padic(unsigned long iter)
 {
     cxx_mpz_poly f;
     cxx_mpz p = 1;
@@ -865,7 +865,7 @@ void test_mpz_poly_factor_padic(unsigned long iter)
     }
 }
 
-void test_mpz_poly_trivialities()
+static void test_mpz_poly_trivialities()
 {
     mpz_t p;
     mpz_poly f, g, q, r;
@@ -988,7 +988,7 @@ void test_mpz_poly_trivialities()
     mpz_clear(p);
 }
 
-void test_mpz_poly_resultant()
+static void test_mpz_poly_resultant()
 {
   mpz_poly f, g;
   mpz_poly_init(f, 10);
@@ -1096,7 +1096,7 @@ void test_mpz_poly_resultant()
   mpz_poly_clear(g);
 }
 
-void
+static void
 test_mpz_poly_discriminant (unsigned long iter)
 {
     mpz_poly f;
@@ -1124,7 +1124,7 @@ test_mpz_poly_discriminant (unsigned long iter)
     mpz_clear (D);
 }
 
-void test_mpz_poly_discriminant2(unsigned long iter)
+static void test_mpz_poly_discriminant2(unsigned long iter)
 {
     cxx_mpz_poly f, g, h, fk;
     unsigned long k;
@@ -1146,7 +1146,7 @@ void test_mpz_poly_discriminant2(unsigned long iter)
 }
 
 
-void test_mpz_poly_infinity_norm()
+static void test_mpz_poly_infinity_norm()
 {
   mpz_poly f;
   mpz_poly_init(f, -1);
@@ -1173,7 +1173,7 @@ void test_mpz_poly_infinity_norm()
   mpz_poly_clear(f);
 }
 
-void test_mpz_poly_interpolation(unsigned long iter)
+static void test_mpz_poly_interpolation(unsigned long iter)
 {
     {
         std::vector<cxx_mpz> points;
@@ -1232,6 +1232,7 @@ int main(int argc, char const * argv[])
     test_mpz_polymodF_mul ();
     /* test_mpz_poly_roots_mpz (iter); */
     test_mpz_poly_sqr_mod_f_mod_mpz (iter);
+    test_mpz_poly_fprintf();
     test_mpz_poly_div_2_mod_mpz ();
     test_mpz_poly_derivative ();
     test_mpz_poly_pow_mod_f_mod_ui ();

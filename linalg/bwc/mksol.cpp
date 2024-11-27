@@ -6,28 +6,31 @@
 #include <ctime>                // for time
 
 #include <string>                // for string
+#include <memory>
+#include <vector>
 
 #include <gmp.h>
+#include "fmt/core.h"
 #include "fmt/format.h"
 
-#include "matmul.hpp"              // for matmul_public_s
-#include "parallelizing_info.hpp"
-#include "matmul_top.hpp"
-#include "matmul_top_comm.hpp"
-#include "select_mpi.h"
-#include "params.h"
-#include "misc.h"
-#include "bw-common.h"
-#include "gmp_aux.h"
-#include "async.hpp"
 #include "arith-cross.hpp"
 #include "arith-generic.hpp"
+#include "async.hpp"
+#include "bw-common.h"
+#include "gmp_aux.h"
 #include "macros.h"
+#include "matmul_top.hpp"
+#include "matmul_top_comm.hpp"
+#include "matmul_top_vec.hpp"
+#include "misc.h"
 #include "mmt_vector_pair.hpp"
+#include "parallelizing_info.hpp"
+#include "params.h"
+#include "select_mpi.h"
 
 using namespace fmt::literals;
 
-void * mksol_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
+static void * mksol_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
     int const fake = param_list_lookup_string(pl, "random_matrix") != NULL;
     if (fake) bw->skip_online_checks = 1;
@@ -83,8 +86,6 @@ void * mksol_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAY
     /* {{{ ... and the combined operations */
     std::unique_ptr<arith_cross_generic> AvxAs(arith_cross_generic::instance(Av.get(), As.get()));
     /* }}} */
-
-    block_control_signals();
 
     /* Now that we do this in Horner fashion, we multiply on vectors
      * whose width is the number of solutions we compute. */
@@ -534,8 +535,6 @@ int main(int argc, char const * argv[])
 
     ASSERT_ALWAYS(!param_list_lookup_string(pl, "ys"));
     ASSERT_ALWAYS(param_list_lookup_string(pl, "solutions"));
-
-    catch_control_signals();
 
     if (param_list_warn_unused(pl)) {
         int rank;

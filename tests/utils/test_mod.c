@@ -6,9 +6,10 @@
 #include <gmp.h>
 #include <time.h>
 #include "tests_common.h"
-#include ARITHMETIC
 #include "macros.h"
 #include "misc.h"
+// scan-headers: stop here
+#include ARITHMETIC
 
 
 /* Mask the (possibly multi-word) integer m so that only the
@@ -20,13 +21,13 @@ limit_integer (modint_t m, const int maxbits)
   int i, j;
   for (i = 0, j = maxbits; i < MOD_SIZE; i++)
     {
-      if (j < LONG_BIT)
+      if (j < ULONG_BITS)
 	{
 	  m[i] &= (1UL << j) - 1UL;
 	  j = 0;
 	}
       else
-	j -= LONG_BIT;
+	j -= ULONG_BITS;
     }
 }
 
@@ -733,7 +734,7 @@ tests_mod_jacobi (int iter)
   mod_intclear (tr);
 }
 
-#if MOD_MINBITS <= 65 &&  MOD_MAXBITS >= 65 && LONG_BIT == 64
+#if MOD_MINBITS <= 65 &&  MOD_MAXBITS >= 65 && ULONG_BITS == 64
 void test_sprp(const mpz_t n, const int is_prime)
 {
   const char *prime_str[2] = {"composite", "prime"};
@@ -768,7 +769,7 @@ void test_sprp(const mpz_t n, const int is_prime)
 
 void tests_sprp()
 {
-#if MOD_MINBITS <= 65 &&  MOD_MAXBITS >= 65 && LONG_BIT == 64
+#if MOD_MINBITS <= 65 &&  MOD_MAXBITS >= 65 && ULONG_BITS == 64
   mpz_t n;
   mpz_init(n);
   mpz_set_str(n, "22626675434590779179", 10); /* a prime */

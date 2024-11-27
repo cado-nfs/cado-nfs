@@ -1,5 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
-                  //
+
 #include <cstdint>
 #include <cinttypes>
 #include <cstdio>
@@ -12,7 +12,7 @@
 #include <unistd.h>               // for access, unlink, ssize_t, R_OK
 #include <sys/stat.h>             // for stat, mkdir
 #include <pthread.h>              // for pthread_mutex_lock, pthread_mutex_u...
-                                  //
+
 #include <gmp.h>
 
 #include "async.hpp"              // for timing_next_timer, timing_data (ptr...
@@ -351,7 +351,7 @@ void mmt_apply_identity(mmt_vec & w, mmt_vec const & v)
     w.consistency = 1;
 }
 
-void mmt_vec_apply_or_unapply_P_inner(matmul_top_data & mmt, mmt_vec & y, int apply)
+static void mmt_vec_apply_or_unapply_P_inner(matmul_top_data & mmt, mmt_vec & y, int apply)
 {
     ASSERT_ALWAYS(y.consistency == 2);
     mmt_vec yt(mmt, y.abase, y.pitype, !y.d, 0, y.n);
@@ -394,7 +394,7 @@ void mmt_vec_apply_P(matmul_top_data & mmt, mmt_vec & y)
  * See that when, say, Sr is implicitly defined (to P*Sc), this function
  * only applies Sc, not P !
  */
-void mmt_vec_apply_or_unapply_S_inner(matmul_top_data & mmt, int midx, mmt_vec & y, int apply)
+static void mmt_vec_apply_or_unapply_S_inner(matmul_top_data & mmt, int midx, mmt_vec & y, int apply)
 {
     ASSERT_ALWAYS(y.consistency == 2);
     /* input: fully consistent */
@@ -545,7 +545,7 @@ void mmt_vec_untwist(matmul_top_data & mmt, mmt_vec & y)
     // pshuf indicates two integers a,b such that the COLUMN i of the input
     // matrix is in fact mapped to column a*i+b mod n in the matrix we work
     // with. pshuf_inv indicates the inverse permutation. a and b do
-void mmt_vec_apply_or_unapply_T_inner(matmul_top_data & mmt, mmt_vec & y, int apply)
+static void mmt_vec_apply_or_unapply_T_inner(matmul_top_data & mmt, mmt_vec & y, int apply)
 {
     /* apply: coefficient i of the vector goes to coefficient
      * balancing_pre_shuffle[i]
@@ -1514,13 +1514,13 @@ static void matmul_top_read_submatrix(matmul_top_data & mmt, int midx, cxx_param
     }
 
     if (!Mloc.mm->cachefile_name.empty() && verbose_enabled(CADO_VERBOSE_PRINT_BWC_CACHE_MAJOR_INFO)) {
-        my_pthread_mutex_lock(mmt.pi->m->th->m);
+        pthread_mutex_lock(mmt.pi->m->th->m);
         fmt::print("[{}] J{}T{} uses cache file {}\n",
                 mmt.pi->nodenumber_s,
                 mmt.pi->m->jrank, mmt.pi->m->trank,
                 /* cache for mmt.locfile, */
                 Mloc.mm->cachefile_name);
-        my_pthread_mutex_unlock(mmt.pi->m->th->m);
+        pthread_mutex_unlock(mmt.pi->m->th->m);
     }
 }
 

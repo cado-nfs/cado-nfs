@@ -1,5 +1,5 @@
-#ifndef LAS_PLATTICE_H
-#define LAS_PLATTICE_H
+#ifndef LAS_PLATTICE_HPP
+#define LAS_PLATTICE_HPP
 
 #include <cstdint>
 #include <vector>
@@ -11,6 +11,8 @@
 #include "las-config.h"  // for NOPROFILE_INLINE
 #include "misc.h"       // for UMAX
 #include "gcd.h"       // for gcd_ul
+
+// scan-headers: stop here
 
 /*******************************************************************/
 /********        Walking in p-lattices                    **********/
@@ -685,4 +687,4 @@ struct precomp_plattice_dense_t {
 };
 
 
-#endif
+#endif  /* LAS_PLATTICE_HPP */

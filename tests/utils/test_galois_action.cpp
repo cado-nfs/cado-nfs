@@ -4,7 +4,7 @@
 #include "tests_common.h"   // for tests_common_cmdline, tests_common_clear, ...
 #include "utils/galois_action.hpp"
 
-bool
+static bool
 test_galois_apply_one(galois_action const & G,
                       bool (*is_fixed_point) (unsigned long r, unsigned long p)){
     bool ret = true;
@@ -53,7 +53,7 @@ test_galois_apply_one(galois_action const & G,
     return ret;
 }
 
-bool
+static bool
 test_galois_apply()
 {
     bool ret = true;
@@ -113,7 +113,7 @@ test_galois_apply()
     return ret;
 }
 
-bool
+static bool
 test_galois_hash()
 {
     const uint64_t CA = UINT64_C(314159265358979323);

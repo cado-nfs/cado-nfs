@@ -31,7 +31,7 @@
 
 typedef int (*sortfunc_t) (const void *, const void *);
 
-int revcmp_2u32(const uint32_t * a, const uint32_t * b)
+static int revcmp_2u32(const uint32_t * a, const uint32_t * b)
 {
     if (a[0] > b[0]) return -1;
     if (b[0] > a[0]) return 1;
@@ -48,7 +48,8 @@ struct slice {
     uint32_t i0;
 };
 
-int slice_finding_helper(const uint32_t * key, const struct slice * elem)/*{{{*/
+#if 0
+static int slice_finding_helper(const uint32_t * key, const struct slice * elem)/*{{{*/
 {
     if (*key < elem->i0) {
         return -1;
@@ -58,7 +59,7 @@ int slice_finding_helper(const uint32_t * key, const struct slice * elem)/*{{{*/
     return 0;
 }
 
-unsigned int which_slice(const struct slice * slices, unsigned int ns, uint32_t k)
+static unsigned int which_slice(const struct slice * slices, unsigned int ns, uint32_t k)
 {
     const struct slice * found = (const struct slice *) bsearch(
             (const void *) &k, (const void *) slices,
@@ -69,9 +70,11 @@ unsigned int which_slice(const struct slice * slices, unsigned int ns, uint32_t 
     } else {
         return found - slices;
     }
-}/*}}}*/
+}
+#endif
+/*}}}*/
 
-void free_slices(struct slice * slices, unsigned int n)
+static void free_slices(struct slice * slices, unsigned int n)
 {
     unsigned int i;
     for(i = 0 ; i < n ; i++) {
@@ -80,7 +83,7 @@ void free_slices(struct slice * slices, unsigned int n)
     free(slices);
 }
 
-struct slice * alloc_slices(unsigned int water, unsigned int n)
+static struct slice * alloc_slices(unsigned int water, unsigned int n)
 {
     struct slice * res;
     unsigned int i;
@@ -104,7 +107,7 @@ struct slice * alloc_slices(unsigned int water, unsigned int n)
 /* {{{ shuffle_rtable: This is the basic procedure which dispatches rows
  * (or columns) in buckets according to our preferred strategy
  */
-struct slice * shuffle_rtable(
+static struct slice * shuffle_rtable(
         const char * text,
         uint32_t * rt,
         uint32_t n,
@@ -190,7 +193,7 @@ struct slice * shuffle_rtable(
 /* }}} */
 
 /* {{{ read the mfile header if we have it, deduce #coeffs */
-void read_mfile_header(balancing & bal, std::string const & mfile, int withcoeffs)
+static void read_mfile_header(balancing & bal, std::string const & mfile, int withcoeffs)
 {
     struct stat sbuf_mat[1];
     int const rc = stat(mfile.c_str(), sbuf_mat);

@@ -20,10 +20,14 @@
  */
 
 #include "cado.h" // IWYU pragma: keep
-#include "macros.h"
+
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
 #include <gmp.h>
+
+#include "macros.h"
 #include "lll.h"
 
 #define swap(x, y) { long _tmp = (x); (x) = (y); (y) = _tmp; }

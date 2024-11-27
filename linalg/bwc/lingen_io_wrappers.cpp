@@ -588,7 +588,7 @@ ssize_t lingen_gather<bigmatpoly>::read_to_matpoly(matpoly & dst, unsigned int k
  * next_src_k, and write them to the destination, starting at coefficient
  * k0.
  */
-ssize_t reverse_matpoly_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1, matpoly const & pi, unsigned int & next_src_k)
+static ssize_t reverse_matpoly_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1, matpoly const & pi, unsigned int & next_src_k)
 {
     ASSERT_ALWAYS(!mpi_rank());
     ssize_t nk;

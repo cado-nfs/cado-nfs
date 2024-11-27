@@ -84,10 +84,10 @@ struct expect_s
 };
 
 template<int N>
-expect_s<N> expect(char const (&s0)[N]) { return expect_s<N>(s0); }
+static expect_s<N> expect(char const (&s0)[N]) { return expect_s<N>(s0); }
 
 template<int N>
-std::istream& operator>>(std::istream& is, expect_s<N> const & e)
+static std::istream& operator>>(std::istream& is, expect_s<N> const & e)
 {
     char t[N];
     is.get(t, N);  // side-

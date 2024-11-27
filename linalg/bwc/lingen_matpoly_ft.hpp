@@ -21,6 +21,7 @@
 #include "misc.h"
 #include "omp_proxy.h"
 #include "submatrix_range.hpp"        // for submatrix_range
+
 class tree_stats;
 
 template<typename fft_type>

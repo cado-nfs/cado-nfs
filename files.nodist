@@ -147,4 +147,3 @@ utils/CMakeLists-nodist.txt
 utils/README_POLYNOMIALS
 utils/cachesize.c
 utils/prime_pi.sage
-utils/rdtsc.h

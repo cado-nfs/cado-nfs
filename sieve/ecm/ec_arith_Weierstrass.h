@@ -1,12 +1,12 @@
-#include <stdio.h>
-#include <stdlib.h>
 #ifndef EC_ARITH_WEIERSTRASS_H_
 #define EC_ARITH_WEIERSTRASS_H_
 
 #ifndef mod_init
-  #error "One of the mod*_default.h headers must be included before this file"
+#error "One of the mod*_default.h headers must be included before this file"
 #endif
 
+#include <stdio.h>
+#include <stdlib.h>
 #include "ec_arith_common.h"
 #include "macros.h"
 

@@ -4,7 +4,6 @@
 #include <cstdlib>
 #include <cstring>    // for strsignal
 #include <memory>
-#include "utils_cxx.hpp"
 
 #ifdef HAVE_EXECINFO
 #include <execinfo.h>                    // for backtrace, backtrace_symbols
@@ -12,6 +11,8 @@
 #else
 #include "verbose.h"    // verbose_output_print
 #endif
+
+#include "utils_cxx.hpp"
 #include "cado-sighandlers.h"
 
 #ifdef HAVE_EXECINFO

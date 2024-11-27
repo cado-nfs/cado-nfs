@@ -8,7 +8,7 @@
 #include "logapprox.hpp"
 #include "macros.h"
 
-void display_logapprox(piecewise_linear_function & F)
+static void display_logapprox(piecewise_linear_function & F)
 {
     std::cout << "Total " << F.equations.size() << " pieces\n";
     for( ; !F.equations.empty() ; ) {
@@ -21,7 +21,7 @@ void display_logapprox(piecewise_linear_function & F)
     }
 }
 
-int test_from_bug21684(bool display)
+static int test_from_bug21684(bool display)
 {
     cxx_double_poly f(3);
     for(double const x : {-6.3406659802246472e+28, 6.4695148868405632e+28, 9.5457310557271272e+27}) f->coeff[++f->deg]=x;
@@ -32,7 +32,7 @@ int test_from_bug21684(bool display)
     return 0;
 }
 
-int test_from_bug21701(bool display)
+static int test_from_bug21701(bool display)
 {
     cxx_double_poly f(4);
     for(double const x : {-1.6425515054690201e+34, -2.4119595460727266e+36, -1.1805918683048612e+38, -1.926230702854181e+39}) f->coeff[++f->deg]=x;
@@ -43,7 +43,7 @@ int test_from_bug21701(bool display)
     return 0;
 }
 
-int original_test(bool display)
+static int original_test(bool display)
 {
     cxx_double_poly f(6);
     for(double const x : {-39769265437440000., -302859053854976., 5377439145928., -1684314626., -5377481., 970., 1.}) f->coeff[++f->deg]=x;

@@ -1,5 +1,5 @@
-#ifndef LEVEL4_PLE_INTERNAL_INL_HPP_
-#define LEVEL4_PLE_INTERNAL_INL_HPP_
+#ifndef BBLAS_LEVEL4_PLE_INTERNAL_INL_HPP_
+#define BBLAS_LEVEL4_PLE_INTERNAL_INL_HPP_
 
 // IWYU pragma: private, include "bblas.hpp"
 // IWYU pragma: friend ".*/bblas.*"
@@ -10,9 +10,11 @@
 #include "bblas_simd.hpp"
 #include "bblas_mat64.hpp"
 #include "bblas_mat8.hpp"
-
 #ifdef TIME_PLE
 #include "timing.h"
+#endif
+
+#ifdef TIME_PLE
 struct timer_ple {
     double & t;
     timer_ple(double & t) : t(t) { t -= seconds(); }
@@ -850,4 +852,4 @@ void PLE<T>::print_and_flush_stats()
 }
 #endif
 
-#endif	/* LEVEL4_PLE_INTERNAL_INL_HPP_ */
+#endif	/* BBLAS_LEVEL4_PLE_INTERNAL_INL_HPP_ */

@@ -8,6 +8,7 @@
 #include <cctype>          // for isspace
 #include <cmath>           // for fabs, floor, log2, pow, trunc
 #include <cstdlib>         // for exit, EXIT_FAILURE
+
 #include <iomanip>         // for operator<<, setprecision
 #include <sstream>         // std::ostringstream // IWYU pragma: keep
 #include <istream>         // std::istream // IWYU pragma: keep
@@ -17,13 +18,13 @@
 #include <stdexcept>       // for runtime_error
 #include <string>          // for basic_string, string
 #include <type_traits>     // for is_same
-/* need all that for mmap() stuff */
-// #include <sys/types.h>
+
 #include <sys/stat.h>
 #include <fcntl.h>
-// #include <sys/mman.h>
 #include <unistd.h>
+
 #include <gmp.h>           // for mpz_t, mpz_fdiv_ui, mpz_gcd_ui
+
 #include "fb.hpp"
 #include "getprime.h"               // for getprime_mt, prime_info_clear
 #ifndef NDEBUG
@@ -41,6 +42,7 @@
 #include "u64arith.h"       // for u64arith_invmod
 #include "verbose.h"             // verbose_output_print
 #include "las-side-config.hpp"
+
 struct qlattice_basis; // IWYU pragma: keep
 
 /* {{{ fb_log fb_pow and friends */

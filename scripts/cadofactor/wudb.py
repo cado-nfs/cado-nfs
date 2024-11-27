@@ -28,7 +28,6 @@ import collections
 import abc
 from datetime import datetime
 import time
-import json
 
 from cadofactor.workunit import Workunit
 
@@ -335,7 +334,7 @@ class WuAccess(object):
     def check(self, data):
         status = data["status"]
         WuStatus.check(status)
-        wu = Workunit(json.loads(data["wu"]))
+        wu = Workunit(data["wu"])
         assert wu.get_id() == data["wuid"]
         if status == WuStatus.RECEIVED_ERROR:
             assert data["errorcode"] != 0
@@ -429,7 +428,7 @@ class WuAccess(object):
             pk = self.mapper.getpk()
 
             self.mapper.table.update(cursor, d, eq={pk: r[0][pk]})
-            result = Workunit(json.loads(r[0]["wu"]))
+            result = Workunit(r[0]["wu"])
             if timeout_hint:
                 result['deadline'] = time.time() + float(timeout_hint)
 

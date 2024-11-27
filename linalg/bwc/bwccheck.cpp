@@ -1,6 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
 // IWYU pragma: no_include <ext/alloc_traits.h>
 // IWYU pragma: no_include <memory>
+
 #include <cerrno>              // for ENOENT, errno
 #include <climits>             // for UINT_MAX
 #include <cstdlib>             // for exit, EXIT_FAILURE
@@ -17,15 +18,18 @@
 #include <vector>               // for vector
 
 #include <sys/stat.h>           // for stat
-#include <gmp.h>                // for mpz_cmp_ui
-#include "bw-common.h"          // for bw, bw_common_clear, bw_common_decl_u...
 
+#include <gmp.h>                // for mpz_cmp_ui
+#include "fmt/core.h"
+#include "fmt/format.h"
+
+#include "arith-cross.hpp"
+#include "arith-generic.hpp"
+#include "bw-common.h"          // for bw, bw_common_clear, bw_common_decl_u...
 #include "fmt/core.h"           // for check_format_string
 #include "fmt/format.h"         // for basic_buffer::append, basic_parse_con...
 #include "macros.h"             // for ASSERT_ALWAYS, MAYBE_UNUSED
 #include "misc.h"               // ok_NOKNOK
-#include "arith-generic.hpp"
-#include "arith-cross.hpp"
 #include "params.h"             // for param_list_clear, param_list_init
 #include "portability.h" // asprintf // IWYU pragma: keep
 #include "select_mpi.h"         // for MPI_Abort, MPI_Comm_rank, MPI_COMM_WORLD
@@ -40,7 +44,7 @@ using namespace std;
 // wdir only as a way to shorten file names.
 // nullspace ??
 
-const char * my_basename(const char * x)
+static const char * my_basename(const char * x)
 {
     const char * p = strrchr(x, '/');
     if (p) {
@@ -193,18 +197,18 @@ struct Sfile : public string {
 };
 #endif
 
-void vec_alloc(arith_generic * A, arith_generic::elt *& z, size_t vsize)
+static void vec_alloc(arith_generic * A, arith_generic::elt *& z, size_t vsize)
 {
     z = A->alloc(vsize, ALIGNMENT_ON_ALL_BWC_VECTORS);
     A->vec_set_zero(z, vsize);
 }
 
-void vec_free(arith_generic * A, arith_generic::elt *& z, size_t vsize MAYBE_UNUSED)
+static void vec_free(arith_generic * A, arith_generic::elt *& z, size_t vsize MAYBE_UNUSED)
 {
     A->free(z);
 }
 
-int vec_read(arith_generic * A, void * z, string const & v, size_t vsize, const char * prefix = NULL)
+static int vec_read(arith_generic * A, void * z, string const & v, size_t vsize, const char * prefix = NULL)
 {
     fmt::print("{} {} ...", prefix, v);
     FILE * f;
@@ -220,7 +224,7 @@ int vec_read(arith_generic * A, void * z, string const & v, size_t vsize, const 
     return -1;
 }
 
-size_t vec_items(arith_generic * A, string const & v)
+static size_t vec_items(arith_generic * A, string const & v)
 {
     struct stat sbuf[1];
     int const rc = stat(v.c_str(), sbuf);
@@ -231,7 +235,7 @@ size_t vec_items(arith_generic * A, string const & v)
 }
 
 template<typename T>
-size_t common_size(arith_generic * Ac, std::vector<T> const & Cfiles, const char * name)
+static size_t common_size(arith_generic * Ac, std::vector<T> const & Cfiles, const char * name)
 {
     size_t vsize = 0;
     std::string vsize_first;
@@ -257,7 +261,7 @@ size_t common_size(arith_generic * Ac, std::vector<T> const & Cfiles, const char
 }
 
 typedef std::map<pair<unsigned int, unsigned int>, vector<Vfile> > vseq_t;
-void check_V_files(arith_generic * Ac, vseq_t & Vsequences, std::vector<Cfile> & Cfiles, int & nfailed)/*{{{*/
+static void check_V_files(arith_generic * Ac, vseq_t & Vsequences, std::vector<Cfile> & Cfiles, int & nfailed)/*{{{*/
 {
     if (Cfiles.empty()) return;
 
@@ -395,7 +399,7 @@ void check_V_files(arith_generic * Ac, vseq_t & Vsequences, std::vector<Cfile> &
     }
 }/*}}}*/
 
-void check_A_files(arith_generic * Ac, std::vector<Vfile> const & Vfiles, std::vector<Afile> const & Afiles, std::vector<Dfile> const & Dfiles, Rfile & R, Tfile & T, int & nfailed)
+static void check_A_files(arith_generic * Ac, std::vector<Vfile> const & Vfiles, std::vector<Afile> const & Afiles, std::vector<Dfile> const & Dfiles, Rfile & R, Tfile & T, int & nfailed)
 {
     if (Dfiles.empty())
         return;
@@ -590,7 +594,7 @@ void check_A_files(arith_generic * Ac, std::vector<Vfile> const & Vfiles, std::v
  * way programs such as krylov or mksol are written.
  *
  */
-void * check_prog(cxx_param_list & pl MAYBE_UNUSED, int argc, char const * argv[])
+static void * check_prog(cxx_param_list & pl MAYBE_UNUSED, int argc, char const * argv[])
 {
     int const withcoeffs = mpz_cmp_ui(bw->p, 2) > 0;
     int const nchecks = withcoeffs ? NCHECKS_CHECK_VECTOR_GFp : NCHECKS_CHECK_VECTOR_GF2;

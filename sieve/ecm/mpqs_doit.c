@@ -1,3 +1,7 @@
+#include "cado.h" // IWYU pragma: keep
+
+/* tiny MPQS implementation, specially tuned for 64- to 128-bit input */
+
 /* TODO:
  * look at http://sourceforge.net/p/msieve/code/HEAD/tree/branches/RDS/cofactorize_siqs.c
  * if we implement SIQS, one could try the idea presented by T. Kleinjung
@@ -12,8 +16,6 @@
    and the initialization cost drops from about 2^k to 2^(k/2).
  */
 
-/* tiny MPQS implementation, specially tuned for 64- to 128-bit input */
-
 // #define TRACE -23830
 // #define TRACE_P 937
 
@@ -27,7 +29,6 @@
 /* number of small primes we skip (should be >= 1 since we always skip 2) */
 #define SKIP 10
 
-#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

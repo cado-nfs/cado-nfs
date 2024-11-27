@@ -27,7 +27,7 @@
  *
  * p*l is lower triangular.
  */
-void check_pluq(perm_matrix_ptr p, mat64 * l, mat64 * u, perm_matrix_ptr q, mat64 * m, int n) /*{{{*/
+static void check_pluq(perm_matrix_ptr p, mat64 * l, mat64 * u, perm_matrix_ptr q, mat64 * m, int n) /*{{{*/
 {
     constexpr const unsigned int B = mat64::width;
     mat64::vector_type pm((n/B)*(n/B));

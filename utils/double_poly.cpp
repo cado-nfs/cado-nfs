@@ -1,22 +1,29 @@
 /* arithmetic on polynomial with double-precision coefficients */
 #include "cado.h" // IWYU pragma: keep
+
 #ifdef HAVE_GLIBC
-#include <features.h>
+#include <features.h>   // __GLIBC_PREREQ
 #endif
-#include <sstream>
-#include <string>
+
 #include <cstring>
 #include <cstdio> // FILE // IWYU pragma: keep
 #include <cstdlib>
 #include <climits>
 #include <cfloat> /* for DBL_MAX */
 #include <cctype> /* isspace */
+
+#include <sstream>
+#include <string>
+
 #include <gmp.h>       // for mpz_t, mpz_clear, mpz_init, mpz_get_d, mpz_mul...
 #include "mpz_poly.h"  // mpz_poly
 #include "macros.h"     // for ASSERT, ASSERT_ALWAYS
 
-#define DOUBLE_POLY_EXPOSE_COMPLEX_FUNCTIONS
 #include "double_poly.h"
+#include "double_poly_complex_roots.h"
+#include "polyroots.h"
+
+// scan-headers: stop here
 
 /* it's a bit nasty here. See
  * https://sourceware.org/bugzilla/show_bug.cgi?id=19439
@@ -1034,19 +1041,14 @@ void double_poly_set_string(double_poly_ptr poly, const char *str)
     double_poly_cleandeg(poly, n-1);
 }
 
-/* The implementation of poly_roots_* is in polyroots.c -- we expose them
- * here, but new implementation should prefer using the functions above.
- */
-
-/* exposed only if DOUBLE_POLY_EXPOSE_COMPLEX_FUNCTIONS is true */
-void double_poly_complex_roots(double _Complex *roots, double_poly_srcptr f)
+int double_poly_complex_roots(double _Complex *roots, double_poly_srcptr f)
 {
-    poly_roots_double(f->coeff, f->deg, roots);
+    return poly_roots_double(f->coeff, f->deg, roots);
 }
 
-void double_poly_complex_roots_long(long double _Complex *roots, double_poly_srcptr f)
+int double_poly_complex_roots_long(long double _Complex *roots, double_poly_srcptr f)
 {
-    poly_roots_longdouble(f->coeff, f->deg, roots);
+    return poly_roots_longdouble(f->coeff, f->deg, roots);
 }
 
 

@@ -1,9 +1,15 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdint.h>    // for uint64_t, int64_t
-#include <stdlib.h>    // for EXIT_FAILURE, EXIT_SUCCESS
-#include <inttypes.h>
-#include <stdio.h>
+
+#include <cstdint>    // for uint64_t, int64_t
+#include <cstdlib>    // for EXIT_FAILURE, EXIT_SUCCESS
+#include <cinttypes>
+#include <cstdio>
+
+#include <vector>
+
 #include <gmp.h>
+
+#include "cxx_mpz.hpp"
 #include "sm_utils.hpp" // sm_relset_t
 #include "mpz_poly.h"   // mpz_poly_srcptr
 #include "macros.h"
@@ -11,7 +17,7 @@
 #define FREQ 2 // when possible one time out of FREQ we try sm_single_rel
 
 /* Return number of errors */
-int
+static int
 test_sm (FILE * datafile)
 {
   int err = 0;

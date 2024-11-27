@@ -1,8 +1,5 @@
-#ifndef ROLLBUF_H_
-#define ROLLBUF_H_
-
-#include <sys/types.h>  // ssize_t
-#include <stdio.h>      // for size_t, FILE
+#ifndef CADO_UTILS_RINGBUF_H
+#define CADO_UTILS_RINGBUF_H
 
 /* Example of a rotating, and reallocating buffer. A separate thread has
  * to fetch the data from the real source and fill the buffer. This way,
@@ -10,6 +7,10 @@
  * get more control. Not clear we gain anything, but it's less fragile
  * than forking an external program.
  */
+
+#include <sys/types.h>  // ssize_t
+#include <stdio.h>      // for size_t, FILE
+
 #include <pthread.h>
 
 /* Getting data from a rolling buffer can be done via two interfaces. One
@@ -97,4 +98,4 @@ extern int ringbug_skip_get(ringbuf_ptr r, size_t s);
 }
 #endif
 
-#endif	/* ROLLBUF_H_ */
+#endif	/* CADO_UTILS_RINGBUF_H */

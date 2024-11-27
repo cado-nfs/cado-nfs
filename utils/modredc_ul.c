@@ -91,21 +91,21 @@ modredcul_inv (residueredcul_t r, const residueredcul_t A,
   /* Here, the inverse of y is u/2^t mod x. To do the division by t,
      we use a variable-width REDC. We want to add a multiple of m to u
      so that the low t bits of the sum are 0 and we can right-shift by t. */
-  if (t >= LONG_BIT)
+  if (t >= ULONG_BITS)
     {
       unsigned long tlow, thigh;
       tlow = u * m[0].invm; /* tlow <= 2^w-1 */
       ularith_mul_ul_ul_2ul (&tlow, &thigh, tlow, m[0].m); /* thigh:tlow <= (2^w-1)*m */
       u = thigh + ((u != 0UL) ? 1UL : 0UL);
       /* thigh:tlow + u < (2^w-1)*m + m < 2^w*m. No correction necesary */
-      t -= LONG_BIT;
+      t -= ULONG_BITS;
     }
 
-  ASSERT (t < LONG_BIT);
+  ASSERT (t < ULONG_BITS);
   if (t > 0)
     {
       unsigned long tlow, thigh;
-      /* Necessarily t < LONG_BIT, so the shift is ok */
+      /* Necessarily t < ULONG_BITS, so the shift is ok */
       /* Doing a left shift first and then a full REDC needs a modular addition
 	 at the end due to larger summands and thus is probably slower */
       tlow = ((u * m[0].invm) & ((1UL << t) - 1UL)); /* tlow <= 2^t-1 */
@@ -211,21 +211,21 @@ modredcul_intinv (residueredcul_t r, const residueredcul_t A,
   /* Here, the inverse of y is u/2^t mod x. To do the division by t,
      we use a variable-width REDC. We want to add a multiple of m to u
      so that the low t bits of the sum are 0 and we can right-shift by t. */
-  if (t >= LONG_BIT)
+  if (t >= ULONG_BITS)
     {
       unsigned long tlow, thigh;
       tlow = u * m[0].invm; /* tlow <= 2^w-1 */
       ularith_mul_ul_ul_2ul (&tlow, &thigh, tlow, m[0].m); /* thigh:tlow <= (2^w-1)*m */
       u = thigh + ((u != 0UL) ? 1UL : 0UL);
       /* thigh:tlow + u < (2^w-1)*m + m < 2^w*m. No correction necesary */
-      t -= LONG_BIT;
+      t -= ULONG_BITS;
     }
 
-  ASSERT (t < LONG_BIT);
+  ASSERT (t < ULONG_BITS);
   if (t > 0)
     {
       unsigned long tlow, thigh;
-      /* Necessarily t < LONG_BIT, so the shift is ok */
+      /* Necessarily t < ULONG_BITS, so the shift is ok */
       /* Doing a left shift first and then a full REDC needs a modular addition
 	 at the end due to larger summands and thus is probably slower */
       tlow = ((u * m[0].invm) & ((1UL << t) - 1UL)); /* tlow <= 2^t-1 */
@@ -293,10 +293,10 @@ modredcul_batchinv_ul (unsigned long *restrict r_ul,
   return 1;
 }
 
-/* Let v = lo + 2^LONG_BIT * hi and
-   subtrahend = subtrahend_lo + subtrahend_hi * 2^LONG_BIT.
+/* Let v = lo + 2^ULONG_BITS * hi and
+   subtrahend = subtrahend_lo + subtrahend_hi * 2^ULONG_BITS.
    Return 1 if (v - subtrahend) / divisor is a non-negative integer less than
-   2^LONG_BIT, and 0 otherwise */
+   2^ULONG_BITS, and 0 otherwise */
 MAYBE_UNUSED static inline int
 check_divisible(const unsigned long lo, const unsigned long hi,
                 const unsigned long subtrahend_lo, const unsigned long subtrahend_hi,

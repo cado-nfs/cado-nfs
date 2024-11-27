@@ -3,6 +3,12 @@
 
 #include <stdio.h>
 #include <stdint.h>
+
+#ifdef __cplusplus
+#include <istream>
+#include <map>
+#endif
+
 #include <gmp.h>
 
 #include "macros.h"
@@ -209,7 +215,6 @@ extern int param_list_parse_int_args_per_side(param_list_ptr pl, const char * ke
 #endif
 
 #ifdef __cplusplus
-#include <istream>
 extern int param_list_read(param_list_ptr pl, std::istream & is, bool stop_on_empty_line = false);
 #endif
 
@@ -217,7 +222,6 @@ extern int param_list_read(param_list_ptr pl, std::istream & is, bool stop_on_em
 
 /* The param_list implementation is only exposed to c++ code
  */
-#include <map>
 struct param_list_impl {
     // documented parameters
     std::string usage_header;

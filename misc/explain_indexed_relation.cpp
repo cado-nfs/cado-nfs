@@ -74,7 +74,7 @@ usage (cxx_param_list & pl, const char *argv0)
     exit(EXIT_FAILURE);
 }
 
-std::string rewrite_carets(std::string const & s)
+static std::string rewrite_carets(std::string const & s)
 {
     std::string t;
     for(auto c : s) {
@@ -87,11 +87,11 @@ std::string rewrite_carets(std::string const & s)
     return t;
 }
 
-int output_python = 0;
-int output_raw = 0;
-int for_dl = 0;
+static int output_python = 0;
+static int output_raw = 0;
+static int for_dl = 0;
 
-void output_prologue(cado_poly_srcptr cpoly)
+static void output_prologue(cado_poly_srcptr cpoly)
 {
     if (output_python) {
         std::vector<std::pair<std::string, std::string>> const imports {

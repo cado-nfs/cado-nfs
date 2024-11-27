@@ -19,7 +19,7 @@
 
 /* implemented here: see above. names are self-explanatory. */
 
-// int mat64_eq(mat64 const & a, mat64 const & b);
+int mat64_eq(mat64 const & a, mat64 const & b);
 void mat64_fill_random(mat64 & w, gmp_randstate_t rstate);
 int mat64_is_uppertriangular(mat64 const & u);
 int mat64_is_lowertriangular(mat64 const & u);

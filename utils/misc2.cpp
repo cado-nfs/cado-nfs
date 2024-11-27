@@ -1,14 +1,17 @@
+#include "cado.h" // IWYU pragma: keep
+
 #define __STDCPP_MATH_SPEC_FUNCS__ 201003L
 #define __STDCPP_WANT_MATH_SPEC_FUNCS__ 1       /* for expint() */
-#include "cado.h" // IWYU pragma: keep
+
 #include <cmath>
+
 #include <vector>
 #include <sstream>
-#include "cxx_mpz.hpp"
-#include "cado_expression_parser.hpp"
 
-#include "misc.h"
+#include "cado_expression_parser.hpp"
+#include "cxx_mpz.hpp"
 #include "getprime.h"
+#include "misc.h"
 
 double nprimes_interval(double p0, double p1)
 {

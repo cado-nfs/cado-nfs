@@ -17,7 +17,7 @@
 /* smaller p bits are good to spot some corner cases that happen only with
  * probability 1/p
  * */
-int minimum_p_bits = 10;
+static int minimum_p_bits = 10;
 
 /*
  *
@@ -33,7 +33,7 @@ int minimum_p_bits = 10;
 // [[THEORY]]  Compute:
 // [[THEORY]]    * x/2^32 mod p as an integer in [0, p[
 
-int redc_32_preconditions(const int64_t x, const uint32_t p, const uint32_t invp)
+static int redc_32_preconditions(const int64_t x, const uint32_t p, const uint32_t invp)
 {
     cxx_mpz const xx(x);
     cxx_mpz const pp(p);
@@ -54,7 +54,7 @@ int redc_32_preconditions(const int64_t x, const uint32_t p, const uint32_t invp
 }
 
 template<typename T>
-int redc_32_reference(const T x, const uint32_t p)
+static int redc_32_reference(const T x, const uint32_t p)
 {
     cxx_mpz xx(x);
     cxx_mpz pp(p);
@@ -71,7 +71,7 @@ int redc_32_reference(const T x, const uint32_t p)
 
 
 /* x is at most B*p */
-int redc_u32_preconditions(const uint64_t x, const uint32_t p, const uint32_t invp)
+static int redc_u32_preconditions(const uint64_t x, const uint32_t p, const uint32_t invp)
 {
     cxx_mpz const xx(x);
     cxx_mpz const pp(p);
@@ -90,7 +90,7 @@ int redc_u32_preconditions(const uint64_t x, const uint32_t p, const uint32_t in
     return 1;
 }
 
-int redc_32_postconditions(uint32_t u, const int64_t x, const uint32_t p, const uint32_t invp MAYBE_UNUSED)
+static int redc_32_postconditions(uint32_t u, const int64_t x, const uint32_t p, const uint32_t invp MAYBE_UNUSED)
 {
     cxx_mpz const uu(u);
     cxx_mpz const xx(x);
@@ -105,7 +105,7 @@ int redc_32_postconditions(uint32_t u, const int64_t x, const uint32_t p, const 
     return 1;
 }
 
-int redc_u32_postconditions(uint32_t u, const uint64_t x, const uint32_t p, const uint32_t invp MAYBE_UNUSED)
+static int redc_u32_postconditions(uint32_t u, const uint64_t x, const uint32_t p, const uint32_t invp MAYBE_UNUSED)
 {
     cxx_mpz const uu(u);
     cxx_mpz const xx(x);
@@ -120,8 +120,9 @@ int redc_u32_postconditions(uint32_t u, const uint64_t x, const uint32_t p, cons
     return 1;
 }
 
+#if 0
 /* This version seems to be ok with 31-bit p */
-uint32_t
+static uint32_t
 ok31_redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
 {
   uint32_t t = (uint32_t)x * invp;
@@ -136,8 +137,10 @@ ok31_redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
     return 42;
   return u;
 }
+#endif
 
-inline uint32_t
+#if 0
+static inline uint32_t
 oldbuggy_redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
 {
   uint32_t t = (uint32_t) x * invp;                            /* t = x * invp mod 2^32 */
@@ -148,12 +151,13 @@ oldbuggy_redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
   if ((int32_t) t >= 0) u = t;
   return u;
 }
+#endif
 
 #if defined(GENUINE_GNUC)
 #pragma GCC optimize ("no-tree-loop-vectorize")
 #endif
 template <bool CARRY>
-int test_redc_32(gmp_randstate_t rstate, size_t N, bool check, bool signed_x = true)
+static int test_redc_32(gmp_randstate_t rstate, size_t N, bool check, bool signed_x = true)
 {
     constexpr unsigned int loops = 1024;
     constexpr int maximum_p_bits = CARRY ? 32 : 31;
@@ -310,7 +314,7 @@ int test_redc_32(gmp_randstate_t rstate, size_t N, bool check, bool signed_x = t
 }
 
 template <bool CARRY>
-int test_redc_u32(gmp_randstate_t rstate, size_t N, bool check)
+static int test_redc_u32(gmp_randstate_t rstate, size_t N, bool check)
 {
     return test_redc_32<CARRY>(rstate, N, check, false);
 }

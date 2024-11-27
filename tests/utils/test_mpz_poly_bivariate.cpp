@@ -8,7 +8,7 @@
 #include <iostream>
 #include <sstream>
 
-void test_mpz_poly_bivariate_trivialities()
+static void test_mpz_poly_bivariate_trivialities()
 {
     typedef cxx_mpz_poly_bivariate T;
 
@@ -147,14 +147,14 @@ void test_mpz_poly_bivariate_trivialities()
 }
 
 /* a shorthand so that we can use user-defined literals */
-cxx_mpz operator"" _mpz(char const * str, size_t)
+static cxx_mpz operator"" _mpz(char const * str, size_t)
 {
     cxx_mpz res;
     mpz_set_str(res, str, 0);
     return res;
 }
 
-void test_mpz_poly_bivariate_resultant(unsigned long iter)
+static void test_mpz_poly_bivariate_resultant(unsigned long iter)
 {
     for (unsigned long i = 0; i < iter; i++) {
         int const d = 2 + gmp_urandomm_ui(state, 5);

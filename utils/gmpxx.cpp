@@ -1,10 +1,15 @@
 #include "cado.h" // IWYU pragma: keep
-#include <gmp.h>
+
+#include <cstdlib>
+
 #include <istream>
 #include <ostream>
 #include <string>
-#include <cstdlib>
+#include <memory>
+
+#include <gmp.h>
 #include "gmpxx.hpp"
+
 #include "utils_cxx.hpp"
 
 using namespace std;
@@ -30,8 +35,6 @@ inline int getbase(ostream const& o)
     }
 }
 }
-
-#include <memory>
 
 ostream& operator<<(ostream& os, mpz_srcptr x)
 {

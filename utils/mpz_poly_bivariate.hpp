@@ -1,5 +1,5 @@
-#ifndef MPZ_poly_bivariate_HPP_
-#define MPZ_poly_bivariate_HPP_
+#ifndef MPZ_POLY_BIVARIATE_HPP_
+#define MPZ_POLY_BIVARIATE_HPP_
 
 /*
  * A bivariate poly structure is used for two things.
@@ -463,4 +463,4 @@ mpz_poly_bivariate_is_irreducible(mpz_poly_bivariate_srcptr f, mpz_srcptr p);
 
 */
 
-#endif /* MPZ_poly_bivariate_H_ */
+#endif /* MPZ_POLY_BIVARIATE_H_ */

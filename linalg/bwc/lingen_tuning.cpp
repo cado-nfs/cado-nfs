@@ -56,7 +56,7 @@
  * the obtained splits are different. Hence it suffices to iterate over
  * all these k's
  */
-std::vector<unsigned int> all_splits_of(unsigned int n)
+static std::vector<unsigned int> all_splits_of(unsigned int n)
 {
 #ifdef LINGEN_BINARY
     n /= 8;
@@ -70,7 +70,7 @@ std::vector<unsigned int> all_splits_of(unsigned int n)
 }
 /* }}} */
 
-std::vector<lingen_substep_schedule> optimize(
+static std::vector<lingen_substep_schedule> optimize(
         std::ostream& os,
         lingen_substep_characteristics const & U,
         lingen_platform const & P,

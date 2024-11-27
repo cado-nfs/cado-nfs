@@ -1,6 +1,11 @@
 #ifndef FILTER_IO_H_
 #define FILTER_IO_H_
 
+#ifdef __cplusplus
+#include <vector>
+#include <string>
+#endif
+
 #include <gmp.h>         // for mpz_t
 #include <stdint.h>      // for uint64_t, int64_t
 #include <time.h>        // for NULL
@@ -146,8 +151,6 @@ extern uint64_t filter_rels(char const ** input_files,
 #endif
 
 #ifdef __cplusplus
-#include <vector>
-#include <string>
 extern uint64_t filter_rels2(std::vector<std::string> const & input_files,
         struct filter_rels_description * desc,
         int earlyparse_needed_data,

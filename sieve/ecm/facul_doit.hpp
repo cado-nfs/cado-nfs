@@ -1,5 +1,5 @@
-#ifndef FACUL_DOIT_H
-#define FACUL_DOIT_H
+#ifndef FACUL_DOIT_HPP
+#define FACUL_DOIT_HPP
 
 #include "modredc_ul.h"
 #include "modredc_15ul.h"
@@ -38,4 +38,4 @@ facul_doit_onefm (std::vector<cxx_mpz> &, const modulusmpz_t,
 /* facul_both (unsigned long**, mpz_t* , */
 /* 	    const facul_strategies_t *); */
 
-#endif /* FACUL_DOIT_H */
+#endif /* FACUL_DOIT_HPP */

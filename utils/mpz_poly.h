@@ -15,14 +15,22 @@
 #include <istream>      // std::istream // IWYU pragma: keep
 #include <ostream>      // std::ostream // IWYU pragma: keep
 #include <type_traits>
-#include "fmt/ostream.h"
-#include "fmt/format.h"
-#include "cxx_mpz.hpp"
+#include <string>
+#include <vector>
+#include <istream>      // std::istream // IWYU pragma: keep
+#include <ostream>      // std::ostream // IWYU pragma: keep
 #endif
 
+#ifdef __cplusplus
+#include "fmt/ostream.h"
+#include "fmt/format.h"
+#endif
 #include "gmp_aux.h"
+
+#ifdef __cplusplus
+#include "cxx_mpz.hpp"
+#endif
 #include "macros.h"
-#include "gmp_aux.h"      // for gmp_randstate_ptr
 
 #define xxxMPZ_POLY_TIMINGS
 // for timings of roots mod p (beware, this is not thread-safe)
@@ -33,11 +41,6 @@ typedef const struct double_poly_s * double_poly_srcptr;
 #endif
 
 #ifdef __cplusplus
-#include <string>
-#include <vector>
-#include <istream>      // std::istream // IWYU pragma: keep
-#include <ostream>      // std::ostream // IWYU pragma: keep
-#include "cxx_mpz.hpp"
 extern "C" {
 #endif
 

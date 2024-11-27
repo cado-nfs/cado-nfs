@@ -16,6 +16,8 @@ struct cxx_mpz;
 
 #define STATS_LEN 128
 
+int facul (std::vector<cxx_mpz> &, cxx_mpz const &, facul_strategy_oneside const &);
+
 std::vector<int>
 facul_both (std::vector<std::vector<cxx_mpz>>&,
             std::vector<cxx_mpz> & ,

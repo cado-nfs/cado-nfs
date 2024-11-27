@@ -5,6 +5,7 @@
 #include "lingen_matpoly_ft.hpp"
 #include "gmp_aux.h"
 #include "lingen_substep_characteristics.hpp"
+#include "lingen_mul_substeps.hpp"
 #include "timing.h" // seconds
 #include "params.h"
 

@@ -20,19 +20,21 @@ std::tuple<unsigned int, unsigned int> get_minmax_delta(std::vector<unsigned int
     }
     return std::make_tuple(mindelta, maxdelta);
 }/*}}}*/
-unsigned int get_min_delta(std::vector<unsigned int> const & delta)/*{{{*/
+
+#if 0
+static unsigned int get_min_delta(std::vector<unsigned int> const & delta)/*{{{*/
 {
     unsigned int mindelta, maxdelta;
     std::tie(mindelta, maxdelta) = get_minmax_delta(delta);
     return mindelta;
 }/*}}}*/
-unsigned int get_max_delta(std::vector<unsigned int> const & delta)/*{{{*/
+static unsigned int get_max_delta(std::vector<unsigned int> const & delta)/*{{{*/
 {
     unsigned int mindelta, maxdelta;
     std::tie(mindelta, maxdelta) = get_minmax_delta(delta);
     return maxdelta;
 }/*}}}*/
-
+#endif
 
 unsigned int expected_pi_length(bw_dimensions & d, unsigned int len)/*{{{*/
 {

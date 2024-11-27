@@ -15,7 +15,7 @@
 
 /* a shorthand so that we can use user-defined literals */
 // NOLINTNEXTLINE(hicpp-named-parameter,readability-named-parameter)
-cxx_mpz operator "" _mpz (const char* str, size_t)
+static cxx_mpz operator "" _mpz (const char* str, size_t)
 {
     cxx_mpz res;
     mpz_set_str(res, str, 0);
@@ -23,7 +23,7 @@ cxx_mpz operator "" _mpz (const char* str, size_t)
 }
 
 // coverity[root_function]
-void tests_univariate()
+static void tests_univariate()
 {
     std::vector<std::pair<std::pair<std::string, std::string>, std::vector<cxx_mpz>>> examples {
         { { "X", "X^128+(X+1)^2+(X^3+X^2+1)*(X+1)-X^2^7" }, {2UL, 3UL, 2UL, 2UL, 1UL}},
@@ -61,7 +61,7 @@ void tests_univariate()
     }
 }
 
-void tests_bivariate()
+static void tests_bivariate()
 {
     struct test2 {
         std::string x,y;

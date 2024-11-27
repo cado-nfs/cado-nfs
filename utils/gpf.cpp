@@ -11,7 +11,7 @@
 
 /* clumsy: we want a c-only accessor, but an automatic c++ dtor */
 unsigned int * gpf;
-std::vector<unsigned int> gpf_cxx;
+static std::vector<unsigned int> gpf_cxx;
 
 unsigned int gpf_safe_get(const unsigned long i)
 {

@@ -777,6 +777,7 @@ void mmt_vec_set_x_indices(mmt_vec & y, uint32_t * gxvecs, int m, unsigned int n
         serialize_threads(y.pi->wr[y.d]);
 }
 
+#if 0
 /* Set to the zero vector, except for the first n entries that are taken
  * from the vector v
  */
@@ -794,6 +795,6 @@ void mmt_vec_set_expanded_copy_of_local_data(mmt_vec & y, const arith_generic::e
     if (shared)
         serialize_threads(y.pi->wr[y.d]);
 }
-
+#endif
 
 

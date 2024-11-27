@@ -1,6 +1,16 @@
 #include "cado.h" // IWYU pragma: keep
+
 // IWYU pragma: no_include <features.h>
 #include <cstdio>       // for fprintf, stderr
+
+#ifdef HAVE_EXECINFO
+#include <execinfo.h>
+#ifdef HAVE_CXXABI_H
+/* We use that to demangle C++ names */
+#include <cxxabi.h>
+#endif
+#endif
+
 #include "lingen_memory_pool.hpp"
 #include "misc.h"
 #include "select_mpi.h"
@@ -40,17 +50,11 @@ void memory_pool_details::alloc_check(const char * text, bool condition)
     throw memory_pool_exception(text);
 }
 
-/* copied from las_debug.cpp */
+/* copied from las_debug.cpp
+ * TODO: refactor? */
 
 #ifdef HAVE_EXECINFO
-#include <execinfo.h>
-#ifdef HAVE_CXXABI_H
-/* We use that to demangle C++ names */
-#include <cxxabi.h>
-#endif
-#endif
-
-std::string remove_trailing_address_suffix(std::string const& a, std::string& suffix)
+static std::string remove_trailing_address_suffix(std::string const& a, std::string& suffix)
 {
     size_t const pos = a.find('+');
     if (pos == a.npos) {
@@ -61,7 +65,7 @@ std::string remove_trailing_address_suffix(std::string const& a, std::string& su
     return a.substr(0, pos);
 }
 
-std::string get_parenthesized_arg(std::string const& a, std::string& prefix, std::string& suffix)
+static std::string get_parenthesized_arg(std::string const& a, std::string& prefix, std::string& suffix)
 {
     size_t const pos = a.find('(');
     if (pos == a.npos) {
@@ -79,6 +83,7 @@ std::string get_parenthesized_arg(std::string const& a, std::string& prefix, std
     suffix = a.substr(pos2 + 1);
     return a.substr(pos+1, pos2-pos-1);
 }
+#endif
 
 memory_pool_exception::memory_pool_exception(std::string const & s)
 {

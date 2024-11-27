@@ -1,7 +1,10 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <stddef.h> // NULL
 #include <errno.h>
+
 #include <pthread.h>
+
 #include "barrier.h"
 
 int barrier_init (barrier_t *barrier, pthread_mutex_t * lock_reuse, int count)

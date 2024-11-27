@@ -49,14 +49,17 @@ void balancing_lookup_parameters(cxx_param_list & pl)
     param_list_lookup_string(pl, "sanity_check_vector");
 }
 
-bool has_mpi_thread_multiple()
+#ifdef RELY_ON_MPI_THREAD_MULTIPLE
+static bool has_mpi_thread_multiple()
 {
     int prov;
     MPI_Query_thread(&prov);
     return prov >= MPI_THREAD_MULTIPLE;
 }
+#endif
 
-template<typename T> T integrate(std::vector<T> & v) /*{{{*/
+template<typename T> 
+static T integrate(std::vector<T> & v) /*{{{*/
 {
     T s = 0;
     for(T & x : v) {

@@ -19,9 +19,11 @@ while [ $# -gt 0 ] ; do
     shift
 done
 
-cp ${CADO_NFS_SOURCE_DIR}/parameters/factor/parameters.F7 $wdir
-sed -e '/tasks.sieve.rels_wanted/ d' -i $wdir/parameters.F7
-sed -e '/tasks.sieve.qrange/ d' -i $wdir/parameters.F7
+# I love sed -i, but it's not there on os x
+sed -e '/tasks.sieve.rels_wanted/ d'                            \
+    -e '/tasks.sieve.qrange/ d'                                 \
+    < ${CADO_NFS_SOURCE_DIR}/parameters/factor/parameters.F7    \
+    > $wdir/parameters.F7
 
 server="${CADO_NFS_BINARY_DIR}/cado-nfs.py"
 server_args=(340282366920938463463374607431768211457
@@ -60,7 +62,7 @@ server_pid=$!
 url=
 i=0
 
-while ! [ "$url" ] && [ $i -lt 4 ] ; do
+while ! [ "$url" ] && [ $i -lt 10 ] ; do
     if ! [ -f "$logfile" ] ; then
         echo "Waiting for server to create $logfile" >&2
     elif [[ $(grep 'additional.*client.*server' "$logfile") =~ --server=([^ ]*) ]] ; then

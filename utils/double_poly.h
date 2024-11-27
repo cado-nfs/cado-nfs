@@ -6,14 +6,12 @@
 
 #include <stdint.h>    // for uint32_t
 #include <stdio.h>     // for FILE
-#include "macros.h"    // for GNUC_VERSION_ATLEAST
+
 #ifdef __cplusplus
 #include <string>      // for string
 #endif
 
-#ifdef DOUBLE_POLY_EXPOSE_COMPLEX_FUNCTIONS
-#include <complex.h>    // IWYU pragma: keep
-#endif
+#include "macros.h"    // for GNUC_VERSION_ATLEAST
 
 #ifndef MPZ_POLY_H_
 typedef struct mpz_poly_s * mpz_poly_ptr;
@@ -83,15 +81,6 @@ void double_poly_mul_double(double_poly_ptr f, double_poly_srcptr g,
     double mul);
 double double_poly_div_linear(double_poly_ptr q, double_poly_srcptr p, const double r);
 void double_poly_set_string(double_poly_ptr poly, const char *str);
-
-#ifdef DOUBLE_POLY_EXPOSE_COMPLEX_FUNCTIONS
-/* we use _Complex and not complex below, because it's mandatory in order
- * to be nice to C++ code */
-void double_poly_complex_roots(double _Complex *roots, double_poly_srcptr);
-void double_poly_complex_roots_long(long double _Complex *roots, double_poly_srcptr);
-uint32_t poly_roots_double(double *poly, uint32_t degree, double _Complex *roots);
-uint32_t poly_roots_longdouble(double *poly, uint32_t degree, long double _Complex *roots);
-#endif
 
 #ifdef __cplusplus
 }

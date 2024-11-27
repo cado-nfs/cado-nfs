@@ -6,12 +6,16 @@
  */
 
 #include "cado_config.h"  // HAVE_SSE2
-#include <type_traits> // enable_if is_same
-#include <vector>
-#include <cstddef>      // size_t NULL
-#include <cstdint>
+
 #define xxxSAFE_BUCKETS_SINGLE
 #define xxxSAFE_BUCKET_ARRAYS
+
+#include <cstddef>      // size_t NULL
+#include <cstdint>
+
+#include <type_traits> // enable_if is_same
+#include <vector>
+
 #if defined(SAFE_BUCKETS_SINGLE) || defined(SAFE_BUCKET_ARRAYS)
 #include <exception>
 #include <cstdio>
@@ -19,6 +23,7 @@
 #include <string>
 #include <functional>
 #endif
+
 #include "fb-types.h"
 #include "fb.hpp"
 #include "las-config.h"
@@ -26,6 +31,7 @@
 #include "macros.h"
 #include "misc.h"
 #include "utils_cxx.hpp" // NonCopyable
+
 struct las_output;
 struct where_am_I;
 

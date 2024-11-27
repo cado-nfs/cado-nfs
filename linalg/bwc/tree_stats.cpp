@@ -1,10 +1,12 @@
 #include "cado.h" // IWYU pragma: keep
 // IWYU pragma: no_include <ext/alloc_traits.h>
 // IWYU pragma: no_include <memory>
+
 #include <cstdio>
 #include <cstring>
 #include <ctime>
 #include <cctype>
+
 #include <map>             // for map<>::iterator, _Rb_tree_iterator, _Rb_tr...
 #include <string>          // for operator<<, string, basic_string, operator+
 #include <utility>         // for pair, make_pair, move, operator!=
@@ -12,12 +14,11 @@
 #include <sstream> // IWYU pragma: keep
 #include <ostream> // ostream operator<<
 #include <stdexcept>     // for runtime_error
-#include "params.h"      // for cxx_param_list, param_list_decl_usage, param...
 
 #include "fmt/core.h"    // for format, check_format_string
 #include "fmt/format.h"
-#include "fmt/printf.h" // IWYU pragma: keep
 
+#include "params.h"      // for cxx_param_list, param_list_decl_usage, param...
 #include "select_mpi.h"
 #include "tree_stats.hpp"
 #include "timing.h"     // wct_seconds

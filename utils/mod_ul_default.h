@@ -4,6 +4,8 @@
 #include "mod_ul.h"
 
 // pragma no prototypes
+// scan-headers: skip
+
 /*
    Here are typedef's that rename all functions to mod_* instead of 
    modul_*, which one day might become an automatic renaming scheme so 

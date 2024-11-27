@@ -1,6 +1,6 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <limits.h>        // for LONG_BIT
+#include <limits.h>        // for ULONG_BITS
 #include <stdlib.h>        // for abort, size_t
 
 #include "modset.hpp"
@@ -162,7 +162,7 @@ void
 FaculModulus15Ul::get_z (mpz_t z) const
 {
     mpz_set_ui (z, m->m[1]);
-    mpz_mul_2exp (z, z, LONG_BIT);
+    mpz_mul_2exp (z, z, ULONG_BITS);
     mpz_add_ui (z, z, m->m[0]);
 }
 
@@ -185,7 +185,7 @@ void
 FaculModulus2Ul2::get_z (mpz_t z) const
 {
     mpz_set_ui (z, m->m[1]);
-    mpz_mul_2exp (z, z, LONG_BIT);
+    mpz_mul_2exp (z, z, ULONG_BITS);
     mpz_add_ui (z, z, m->m[0]);
 }
 

@@ -650,7 +650,7 @@ static size_t expected_memory_usage(siever_config const & sc,/*{{{*/
 
 }/*}}}*/
 
-void check_whether_q_above_lare_prime_bound(siever_config const & conf, las_todo_entry const & doing)/*{{{*/
+static void check_whether_q_above_lare_prime_bound(siever_config const & conf, las_todo_entry const & doing)/*{{{*/
 {
     /* Check whether q is larger than the large prime bound.
      * This can create some problems, for instance in characters.
@@ -675,14 +675,14 @@ void check_whether_q_above_lare_prime_bound(siever_config const & conf, las_todo
 }
 /*}}}*/
 
-void check_whether_special_q_is_root(cado_poly_srcptr cpoly, las_todo_entry const & doing)/*{{{*/
+static void check_whether_special_q_is_root(cado_poly_srcptr cpoly, las_todo_entry const & doing)/*{{{*/
 {
     cxx_mpz const & p(doing.p);
     cxx_mpz const & r(doing.r);
     ASSERT_ALWAYS(mpz_poly_is_root(cpoly->pols[doing.side], r, p));
 }
 /*}}}*/
-void per_special_q_banner(las_todo_entry const & doing)
+static void per_special_q_banner(las_todo_entry const & doing)
 {
     // arrange so that we don't have the same header line as the one
     // which prints the q-lattice basis

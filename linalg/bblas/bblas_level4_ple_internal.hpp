@@ -1,5 +1,5 @@
-#ifndef LEVEL4_PLE_INTERNAL_HPP_
-#define LEVEL4_PLE_INTERNAL_HPP_
+#ifndef BBLAS_LEVEL4_PLE_INTERNAL_HPP_
+#define BBLAS_LEVEL4_PLE_INTERNAL_HPP_
 
 // IWYU pragma: private, include "bblas.hpp"
 // IWYU pragma: friend ".*/bblas.*"
@@ -133,4 +133,4 @@ template<> void PLE<uint64_t>::move_L_fragments(unsigned int yii0, std::vector<u
 extern template struct PLE<uint64_t>;
 extern template struct PLE<uint8_t>;
 
-#endif	/* LEVEL4_PLE_INTERNAL_HPP_ */
+#endif	/* BBLAS_LEVEL4_PLE_INTERNAL_HPP_ */

@@ -1,6 +1,8 @@
 #ifndef OMP_PROXY_H_
 #define OMP_PROXY_H_
 
+// scan-headers: skip
+
 #include "macros.h"
 
 // IWYU pragma: begin_exports

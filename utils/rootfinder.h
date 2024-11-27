@@ -1,16 +1,19 @@
 #ifndef CADO_UTILS_ROOTFINDER_H_
 #define CADO_UTILS_ROOTFINDER_H_
 
-#include <gmp.h>
 #include <stdint.h>
+
+#ifdef __cplusplus
+#include <vector>
+#endif
+
+#include <gmp.h>
 #include "mpz_poly.h"
 #include "gmp_aux.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-
 
 /* This is the entry point for the root finding routines.
  *
@@ -31,7 +34,6 @@ unsigned int mpz_poly_roots_mpz (mpz_t *r, mpz_poly_srcptr f, mpz_srcptr p, gmp_
 
 #ifdef __cplusplus
 /* Some of the prototypes are available only from C++ */
-#include <vector>
 
 /* instatiations are defined in rootfinder.cpp */
 template<typename T>

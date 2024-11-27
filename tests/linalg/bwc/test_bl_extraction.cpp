@@ -3,8 +3,8 @@
 #include <stdlib.h>        // for EXIT_FAILURE, EXIT_SUCCESS
 #include <string.h>        // for memcmp
 #include <stdio.h>
-#define BL_TESTING
-#include "blocklanczos.cpp"
+
+#include "blocklanczos_extraction.hpp"
 
 struct extraction_check_data {
     uint64_t A[64];
@@ -14,7 +14,7 @@ struct extraction_check_data {
 };
 
 /* Extracted from a magma run, only picking a few steps */
-struct extraction_check_data data[] = {
+static struct extraction_check_data data[] = {
     { /* step 1 */
         { /* in */
 0x3428D3A986B4C199, 0xA5AC66E8EADC9E4C, 0x911C6C2B74D5E012, 0x6F6525FFC76E090B,

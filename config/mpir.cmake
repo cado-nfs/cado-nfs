@@ -73,17 +73,3 @@ set(WITH_MPIR 1 CACHE INTERNAL "MPIR is being used")
 set(HAVE_MPIR 1 CACHE INTERNAL "MPIR is being used")
 file(WRITE ${PROJECT_BINARY_DIR}/gmp.h "#include \"mpir.h\"")
 set(gmp_libname "mpir")
-
-#pointless, since we have workarounds anyway
-#message(STATUS "Testing whether mpirxx is available")
-#try_compile(HAVE_MPIRXX
-#    ${PROJECT_BINARY_DIR}/config
-#    ${PROJECT_SOURCE_DIR}/config/gmpxx-test.cpp
-#    CMAKE_FLAGS "-DLINK_LIBRARIES:STRING=${gmp_libname};${gmp_libname}xx")
-#
-#if(HAVE_MPIRXX)
-#file(WRITE ${PROJECT_BINARY_DIR}/gmpxx.h "#include \"mpirxx.h\"")
-#message(STATUS "Testing whether mpirxx is available -- yes")
-#else()
-#message(STATUS "Testing whether mpirxx is available -- no")
-#endif()

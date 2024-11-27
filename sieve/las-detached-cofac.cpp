@@ -32,7 +32,7 @@
 
 /* asynchronous cofactorization */
 
-detached_cofac_result * detached_cofac_inner(worker_thread * worker, detached_cofac_parameters * param)
+static detached_cofac_result * detached_cofac_inner(worker_thread * worker, detached_cofac_parameters * param)
 {
     /* Import some contextual stuff. */
     int const id = worker->rank();

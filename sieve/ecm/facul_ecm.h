@@ -1,5 +1,5 @@
-#ifndef ECM_H_
-#define ECM_H_
+#ifndef FACUL_ECM_H
+#define FACUL_ECM_H
 
 #include "modredc_ul.h"
 #include "modredc_15ul.h"
@@ -66,4 +66,4 @@ ec_valid_parameter_from_sequence (ec_parameterization_t parameterization,
 }
 #endif
 
-#endif	/* ECM_H_ */
+#endif	/* FACUL_ECM_H */

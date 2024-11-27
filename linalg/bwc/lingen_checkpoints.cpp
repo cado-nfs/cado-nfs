@@ -391,7 +391,7 @@ int save_checkpoint_file<matpoly>(bmstatus & bm, cp_which which, matpoly const &
     bm.stats -- not needed at rank>0
  */
 
-int load_mpi_checkpoint_file_scattered(bmstatus & bm, cp_which which, bigmatpoly & X, unsigned int t0, unsigned int t1)/*{{{*/
+static int load_mpi_checkpoint_file_scattered(bmstatus & bm, cp_which which, bigmatpoly & X, unsigned int t0, unsigned int t1)/*{{{*/
 {
     int size;
     MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -449,7 +449,7 @@ int load_mpi_checkpoint_file_scattered(bmstatus & bm, cp_which which, bigmatpoly
     return ok;
 }/*}}}*/
 
-int save_mpi_checkpoint_file_scattered(bmstatus & bm, cp_which which, bigmatpoly const & X, unsigned int t0, unsigned int t1)/*{{{*/
+static int save_mpi_checkpoint_file_scattered(bmstatus & bm, cp_which which, bigmatpoly const & X, unsigned int t0, unsigned int t1)/*{{{*/
 {
     /* corresponding t is bm.t - E.size ! */
     if (!lingen_checkpoint::directory) return 0;
@@ -481,7 +481,7 @@ int save_mpi_checkpoint_file_scattered(bmstatus & bm, cp_which which, bigmatpoly
     return ok;
 }/*}}}*/
 
-int load_mpi_checkpoint_file_gathered(bmstatus & bm, cp_which which, bigmatpoly & X, unsigned int t0, unsigned int t1)/*{{{*/
+static int load_mpi_checkpoint_file_gathered(bmstatus & bm, cp_which which, bigmatpoly & X, unsigned int t0, unsigned int t1)/*{{{*/
 {
     if (!lingen_checkpoint::directory) return 0;
     if ((t1 - t0) < lingen_checkpoint::threshold) return 0;
@@ -567,7 +567,7 @@ int load_mpi_checkpoint_file_gathered(bmstatus & bm, cp_which which, bigmatpoly 
     return ok;
 }/*}}}*/
 
-int save_mpi_checkpoint_file_gathered(bmstatus & bm, cp_which which, bigmatpoly const & X, unsigned int t0, unsigned int t1)/*{{{*/
+static int save_mpi_checkpoint_file_gathered(bmstatus & bm, cp_which which, bigmatpoly const & X, unsigned int t0, unsigned int t1)/*{{{*/
 {
     if (!lingen_checkpoint::directory) return 0;
     if ((t1 - t0) < lingen_checkpoint::threshold) return 0;

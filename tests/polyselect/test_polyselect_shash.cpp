@@ -1,16 +1,4 @@
 #include "cado.h"
-#include <gmp.h>
-#include <stdexcept>
-#include <time.h>
-#include <vector>
-#include <algorithm>
-#include <cmath>
-#include <type_traits>
-#include <sstream>
-#define EMIT_ADDRESSABLE_shash_add
-#define EXPOSE_DEPRECATED_polyselect_shash_find_collision
-#include "polyselect_shash.h"
-#include "misc.h"
 
 /* This is a c++ implementation of the exact same algorithm as in
  * polyselect_shash.c. (see comments there for the description of the
@@ -19,6 +7,22 @@
  * Speed is like 5-10% slower.
  */
 
+#define EMIT_ADDRESSABLE_shash_add
+#define EXPOSE_DEPRECATED_polyselect_shash_find_collision
+
+#include <ctime>
+#include <cmath>
+
+#include <stdexcept>
+#include <vector>
+#include <algorithm>
+#include <type_traits>
+#include <sstream>
+
+#include <gmp.h>
+
+#include "polyselect_shash.h"
+#include "misc.h"
 
 /*{{{ silly utility */
 template<int n>

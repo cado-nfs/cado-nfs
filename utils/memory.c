@@ -7,10 +7,6 @@
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
-/* For MinGW Build */
-#if defined(_WIN32) || defined(_WIN64)
-#include <windows.h>
-#endif
 #include "macros.h"
 #include "memory.h"
 #include "portability.h"

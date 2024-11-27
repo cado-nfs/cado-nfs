@@ -78,9 +78,9 @@ static bool operator<(sfile_info const & a, sfile_info const & b)/*{{{*/
     return false;
 }/*}}}*/
 
-int exitcode = 0;
+static int exitcode = 0;
 
-std::vector<sfile_info> prelude(parallelizing_info_ptr pi)/*{{{*/
+static std::vector<sfile_info> prelude(parallelizing_info_ptr pi)/*{{{*/
 {
     int const leader = pi->m->jrank == 0 && pi->m->trank == 0;
     int const char2 = mpz_cmp_ui(bw->p, 2) == 0;
@@ -156,7 +156,7 @@ std::vector<sfile_info> prelude(parallelizing_info_ptr pi)/*{{{*/
     return res;
 }/*}}}*/
 
-void fprint_signed(FILE * f, arith_generic * A, arith_generic::elt const & x)
+static void fprint_signed(FILE * f, arith_generic * A, arith_generic::elt const & x)
 {
     std::ostringstream os;
     arith_generic::elt * minus = A->alloc();
@@ -171,7 +171,7 @@ void fprint_signed(FILE * f, arith_generic * A, arith_generic::elt const & x)
     fprintf(f, "%s", os.str().c_str());
 }
 
-std::vector<unsigned int> indices_of_zero_or_nonzero_values(mmt_vec & y, unsigned int maxidx, int want_nonzero)/*{{{*/
+static std::vector<unsigned int> indices_of_zero_or_nonzero_values(mmt_vec & y, unsigned int maxidx, int want_nonzero)/*{{{*/
 {
     arith_generic * A = y.abase;
     parallelizing_info_ptr pi = y.pi;
@@ -196,17 +196,17 @@ std::vector<unsigned int> indices_of_zero_or_nonzero_values(mmt_vec & y, unsigne
     return myz;
 }/*}}}*/
 
-std::vector<unsigned int> indices_of_zero_values(mmt_vec & y, unsigned int maxidx)/*{{{*/
+static std::vector<unsigned int> indices_of_zero_values(mmt_vec & y, unsigned int maxidx)/*{{{*/
 {
     return indices_of_zero_or_nonzero_values(y, maxidx, 0);
 }/*}}}*/
 
-std::vector<unsigned int> indices_of_nonzero_values(mmt_vec & y, unsigned int maxidx)/*{{{*/
+static std::vector<unsigned int> indices_of_nonzero_values(mmt_vec & y, unsigned int maxidx)/*{{{*/
 {
     return indices_of_zero_or_nonzero_values(y, maxidx, 1);
 }/*}}}*/
 
-std::vector<unsigned int> get_possibly_wrong_columns(matmul_top_data & mmt)/*{{{*/
+static std::vector<unsigned int> get_possibly_wrong_columns(matmul_top_data & mmt)/*{{{*/
 {
     parallelizing_info_ptr pi = mmt.pi;
     int const tcan_print = bw->can_print && pi->m->trank == 0;
@@ -297,7 +297,7 @@ std::vector<unsigned int> get_possibly_wrong_columns(matmul_top_data & mmt)/*{{{
  * of the blocks whose index is congruent to
  * (j/groupsize)-th block mod cblocks ; A is my.abase.
  */
-void compress_vector_to_sparse(arith_generic::elt * matrix, unsigned int j, unsigned int cblocks, mmt_vec const & my, std::vector<unsigned int> & rows)
+static void compress_vector_to_sparse(arith_generic::elt * matrix, unsigned int j, unsigned int cblocks, mmt_vec const & my, std::vector<unsigned int> & rows)
 {
     arith_generic * A = my.abase;
 
@@ -469,7 +469,7 @@ struct rhs /*{{{*/ {
 };
 /*}}}*/
 
-std::tuple<int, int> check_zero_and_padding(mmt_vec & y, unsigned int maxidx)/*{{{*/
+static std::tuple<int, int> check_zero_and_padding(mmt_vec & y, unsigned int maxidx)/*{{{*/
 {
 
     /* Here, we want to make sure that we have something non-zero in
@@ -517,7 +517,7 @@ std::tuple<int, int> check_zero_and_padding(mmt_vec & y, unsigned int maxidx)/*{
     return std::make_tuple(input_is_zero, pad_is_zero);
 }/*}}}*/
 
-std::tuple<int, int, int> test_one_vector(matmul_top_data & mmt, mmt_vector_pair & ymy, rhs const & R)
+static std::tuple<int, int, int> test_one_vector(matmul_top_data & mmt, mmt_vector_pair & ymy, rhs const & R)
 {
     arith_generic * A = mmt.abase;
     parallelizing_info_ptr pi = mmt.pi;
@@ -559,7 +559,7 @@ std::tuple<int, int, int> test_one_vector(matmul_top_data & mmt, mmt_vector_pair
 
 /* Use y_saved as input (and leave it untouched). Store result in both y
  * and my */
-std::tuple<int, int, int> expanded_test(matmul_top_data & mmt, mmt_vector_pair & ymy, mmt_vec const & y_saved, rhs const& R)
+static std::tuple<int, int, int> expanded_test(matmul_top_data & mmt, mmt_vector_pair & ymy, mmt_vec const & y_saved, rhs const& R)
 {
     parallelizing_info_ptr pi = mmt.pi;
     mmt_vec & y = ymy[0];
@@ -1026,7 +1026,7 @@ class parasite_fixer {/*{{{*/
     }/*}}}*/
 };/*}}}*/
 
-void * gather_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
+static void * gather_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
     ASSERT_ALWAYS(!pi->interleaved);
 

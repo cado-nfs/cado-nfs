@@ -1,13 +1,17 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <limits.h>
+
 #include <sys/stat.h>
 #include <unistd.h>
-#include <limits.h>
 #include <dirent.h>
+
 #include <gmp.h>
+
 #include "macros.h"
 #include "bw-common.h"
 #include "portability.h" // asprintf // IWYU pragma: keep
@@ -25,9 +29,6 @@ void usage()
     exit(EXIT_FAILURE);
 }
 
-int remove_old = 0;
-int bits_per_coeff = 1;
-
 struct afile_s {
     unsigned int n0, n1, j0, j1;
 };
@@ -39,15 +40,15 @@ typedef int (*sortfunc_t) (const void *, const void *);
 
 int afile_cmp(afile_ptr a, afile_ptr b)
 {
-    int dj0 = a->j0 - b->j0;
-    int dj1 = a->j1 - b->j1;
-    int dn0 = a->n0 - b->n0;
-    int dn1 = a->n1 - b->n1;
-
+    int dn0 = (a->n0 > b->n0) - (b->n0 > a->n0);
     if (dn0) return dn0;
+    int dn1 = (a->n1 > b->n1) - (b->n1 > a->n1);
     if (dn1) return dn1;
+    int dj0 = (a->j0 > b->j0) - (b->j0 > a->j0);
     if (dj0) return dj0;
+    int dj1 = (a->j1 > b->j1) - (b->j1 > a->j1);
     if (dj1) return dj1;
+
     return 0;
 }
 
@@ -57,19 +58,23 @@ struct afile_list {
     unsigned int alloc;
 };
 
-int read_afiles(struct afile_list * a)
+unsigned int read_afiles(struct afile_list * a, int bits_per_coeff)
 {
     a->n = 0;
     DIR * dir = opendir(".");
+    DIE_ERRNO_DIAG(dir == NULL, "opendir(%s)", "\".\")");
     struct dirent * de;
 
     for( ; (de = readdir(dir)) != NULL ; ) {
         if (a->n >= a->alloc) {
             a->alloc += 32 + a->alloc / 4;
+            // NOLINTNEXTLINE(bugprone-suspicious-realloc-usage)
             a->a = realloc(a->a, a->alloc * sizeof(afile));
+            FATAL_ERROR_CHECK(a->a == NULL, "cannot allocate memory");
         }
         afile_ptr A = a->a[a->n];
         int k;
+        // NOLINTNEXTLINE(cert-err34-c)
         int rc = sscanf(de->d_name, "A%u-%u.%u-%u%n", &A->n0, &A->n1, &A->j0, &A->j1, &k);
         /* rc is expected to be 4 or 5 depending on our reading of the
          * standard */
@@ -126,6 +131,9 @@ int read_afiles(struct afile_list * a)
 
 int main(int argc, char const * argv[])
 {
+    int remove_old = 0;
+    int bits_per_coeff = 1;
+
     param_list pl;
 
     bw_common_init(bw, &argc, &argv);
@@ -148,6 +156,7 @@ int main(int argc, char const * argv[])
     } else {
         bits_per_coeff = 1;
     }
+    ASSERT_ALWAYS(bits_per_coeff >= 1);
     /* }}} */
 
     if (param_list_warn_unused(pl)) {
@@ -160,7 +169,7 @@ int main(int argc, char const * argv[])
     int rc = 0;
     struct afile_list a[1];
     memset(a,0,sizeof(a));
-    if (read_afiles(a) == 0) {
+    if (read_afiles(a, bits_per_coeff) == 0) {
         rc = 0;
         goto paradise;
     }
@@ -261,7 +270,7 @@ int main(int argc, char const * argv[])
     final->j0 = UINT_MAX;
     final->j1 = UINT_MAX;
 
-    if (read_afiles(a) == 0) {
+    if (read_afiles(a, bits_per_coeff) == 0) {
         rc = 0;
         goto paradise;
     }

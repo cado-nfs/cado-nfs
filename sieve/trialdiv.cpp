@@ -2,21 +2,19 @@
 
 #define VERBOSE 0
 
+#if VERBOSE
+#include <cstdio>
+#endif
+
 #include <algorithm>    // for min
 #include <climits>      // for ULONG_MAX
 #include <cstdint>      // for uint64_t
 #include <cmath>        // IWYU pragma: keep // std::sqrt (albeit in constexpr)
 #include <gmp.h>        // for __mpz_struct, mp_limb_t, mp_ptr, mpz_cmp_ui
 
-#if VERBOSE
-#include <cstdio>
-#endif
-
 #include "trialdiv.hpp"
-
 #include "macros.h"     // for ASSERT, ASSERT_ALWAYS
 #include "cxx_mpz.hpp"
-
 #include "ularith.h"    // for ularith_mul_ul_ul_2ul, ularith_add_2ul_2ul
 
 /* shortcoming of C++11. C++17 would (I think) allow this be defined
