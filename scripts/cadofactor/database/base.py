@@ -513,7 +513,6 @@ class TransactionWrapper(object):
         if self.mode == EXCLUSIVE:
             conn.pending.set(conn, self)
         self.cursor._begin_transaction(self.mode, self)
-        logger.transaction(f"now in_transaction: {conn.in_transaction}")
         return self.cursor
 
     def __exit__(self, e_type, e_value, traceback):
