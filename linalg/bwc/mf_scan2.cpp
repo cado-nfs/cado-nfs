@@ -34,7 +34,7 @@ static void mf_scan2_decl_usage(cxx_param_list & pl)
     param_list_decl_usage(pl, "rwfile", "Name of the row weight file to write (defaults to auto-determine from matrix name)");
     param_list_decl_usage(pl, "cwfile", "Name of the col weight file to write (defaults to auto-determine from matrix name)");
     param_list_decl_usage(pl, "threads", "Number of threads to use (defaults to auto detect\n");
-    param_list_decl_usage(pl, "io-memory", "Amount of RAM to use for rolling buffer memory (in GB, floating point allowed). Defaults to 25%% of RAM (with hwloc)");
+    param_list_decl_usage(pl, "io-memory", "Amount of RAM to use for rolling buffer memory (in GB, floating point allowed). Defaults to min(16M, 1/64-th of RAM (with hwloc))");
     param_list_decl_usage(pl, "thread-private-count", "Number of columns for which a thread-private zone is used");
     param_list_decl_usage(pl, "thread-read-window", "Chunk size for consumer thread reads from rolling buffer");
     param_list_decl_usage(pl, "thread-write-window", "Chunk size for producer thread writes to rolling buffer");
@@ -378,16 +378,7 @@ int main(int argc, char const * argv[])
     int threads = 2;
 #endif
 
-    size_t ringbuf_size = ram / 64;
-
-#if ULONG_BITS > 32
-    if (!param_list_lookup_string(pl, "io-memory") && (ringbuf_size >> 32)) {
-        fprintf(stderr, "Capping the amount of allocated memory to 4G,"
-                " since it is probably enough. Use the io-memory parameter"
-                " to override this behaviour\n");
-        ringbuf_size = (size_t(1) << 32);
-    }
-#endif
+    size_t ringbuf_size = std::min(ram / 64, UINT64_C(1) << 24);
 
     param_list_parse(pl, "threads", threads);
     {
