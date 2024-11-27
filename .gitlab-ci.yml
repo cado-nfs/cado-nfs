@@ -11,6 +11,16 @@ image: gcc
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
 
+include:
+  - component: $CI_SERVER_FQDN/sdt-pfo/tools/gitlab-quotas-helper-component/clean-pipelines@1.0.1
+    inputs:
+      days: 365
+      stage: publish
+  # artifacts are a subset of pipelines..
+  # - component: $CI_SERVER_FQDN/sdt-pfo/tools/gitlab-quotas-helper-component/clean-artifacts@1.0.1 
+  #   inputs:
+  #     days: 365
+
 # took inspiration from https://blog.callr.tech/building-docker-images-with-gitlab-ci-best-practices/
 # however I'm not sure if/how the "latest" tagging actually works.
 
