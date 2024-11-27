@@ -1460,11 +1460,9 @@ class Task(patterns.Colleague, SimpleStatistics, HasState, DoesLogging,
         Generates a wuname from project name, task name, identifier, and
         attempt number.
         """
-        assert self.wu_paste_char not in self.name  # self.name is task name
         arr = [self.params["name"], self.name]
+        assert self.wu_attempt_char not in self.name
         if identifier:
-            assert self.wu_paste_char not in identifier
-            assert self.wu_attempt_char not in identifier
             arr.append(identifier)
         wuname = self.wu_paste_char.join(arr)
         if attempt is not None:
@@ -1479,15 +1477,19 @@ class Task(patterns.Colleague, SimpleStatistics, HasState, DoesLogging,
         Always returns a list of length 4; if there is not attempt given in
         the wuname, then the last array entry is None
 
-        >>> # Test many possible combinations of "_" and "#" occuring in
-        >>> # names where these characters are allowed
+        >>> # Test how various names are split. Note that if
+        >>> # wu_paste_char is a substring of wu_attempt_char, we cannot
+        >>> # have wu_attempt_char in the identifier name since that
+        >>> # would lead to ambiguous parsing.
         >>> class Klass():
         ...     params = {"name": None}
         ...     wu_paste_char = '_'
-        ...     wu_attempt_char = '#'
+        ...     wu_attempt_char = '__R'
         >>> inst = Klass()
         >>> from itertools import product
-        >>> prod = product(*[["", "_", "#"]] * 4 + [["", "#"]]*2)
+        >>> ranges = [["", Klass.wu_paste_char]] * 4
+        >>> ranges += [[""]]*2
+        >>> prod = product(*ranges)
         >>> for sep in prod:
         ...     inst.params["name"] = "%s%sprojectname%s%s" % sep[0:4]
         ...     inst.name = "%staskname%s" % sep[4:6]
@@ -1505,9 +1507,10 @@ class Task(patterns.Colleague, SimpleStatistics, HasState, DoesLogging,
         # Split off attempt number, if available. We do it first so that
         # things work correctly even if wu_paste_char is a substring of
         # wu_attempt_char
-        if self.wu_attempt_char in wuname:
-            (wuname, attempt) = wuname.split(self.wu_attempt_char)
-            attempt = int(attempt)
+        m = re.match(r'(.*)' + self.wu_attempt_char + r'(\d+)', wuname)
+        if m:
+            wuname = m.group(1)
+            attempt = int(m.group(2))
         arr = wuname.rsplit(self.wu_paste_char, 2)
         assert len(arr) == 3
         if arr[-1] == "":
