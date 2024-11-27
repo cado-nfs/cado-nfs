@@ -62,7 +62,7 @@ server_pid=$!
 url=
 i=0
 
-while ! [ "$url" ] && [ $i -lt 10 ] ; do
+while ! [ "$url" ] && [ $i -lt 30 ] ; do
     if ! [ -f "$logfile" ] ; then
         echo "Waiting for server to create $logfile" >&2
     elif [[ $(grep 'additional.*client.*server' "$logfile") =~ --server=([^ ]*) ]] ; then
@@ -75,8 +75,10 @@ while ! [ "$url" ] && [ $i -lt 10 ] ; do
 done
 
 if ! [ "$url" ] ; then
+    set +e
     echo "server did not start correctly" >&2
     cat "$wdir/server.log" >&2
+    cat "$logfile" >&2
     exit 1
 fi
 

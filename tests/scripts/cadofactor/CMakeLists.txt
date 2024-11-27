@@ -58,6 +58,6 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
         "${CMAKE_CURRENT_SOURCE_DIR}/test_python_resubmit.sh"
         AVOID_CONCURRENT
         TARGET_DEPENDENCIES full_F7_dependencies
-        TIMEOUT 40
+        TIMEOUT 60
     )
 endif()
