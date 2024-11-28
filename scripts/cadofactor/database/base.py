@@ -51,10 +51,10 @@ class pending_transaction(object):
             else:
                 old_tb_str = "<no stacktrace???>"
             new_tb_str = "".join(traceback.format_list(incoming.traceback))
-            logger.warning(f"EXCLUSIVE conflict on {self}\n%s", old_tb_str)
-            logger.warning(f"Incoming transaction: {incoming}\n%s", new_tb_str)
-            logger.warning("Proceeding anyway (just a test)")
-            # raise TransactionAborted("entering transaction", None)
+            logger.transaction("EXCLUSIVE conflict on %s\n%s",
+                               self, old_tb_str)
+            logger.transaction("Incoming transaction: %s\n%s",
+                               incoming, new_tb_str)
 
     def release(self):
         self._set()
@@ -108,7 +108,12 @@ class ConnectionWrapperBase(object, metaclass=abc.ABCMeta):
                     return transaction(cursor, *args, **kwargs)
             except TransactionAborted as e:
                 if replay:
-                    logger.warning("rolling back and retrying transaction")
+                    logger.warning("rolling back and retrying transaction"
+                                   ": thread 0x%08x connection 0x%08x"
+                                   " transaction lambda %s",
+                                   threading.current_thread().ident,
+                                   id(self),
+                                   transaction)
                     time.sleep(1)
                 else:
                     raise e
