@@ -2015,7 +2015,6 @@ class ClientServerTask(Task, wudb.UsesWorkunitDb, patterns.Observer):
         if attempt > maxresubmit:
             self.logger.info("Not resubmitting workunit %s, failed %d times",
                              wuid, attempt - 1)
-            self.wuar.commit(commit)
             return
         new_wuid = self.make_wuname(identifier, attempt)
         wu.set_id(new_wuid)
