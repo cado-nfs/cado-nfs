@@ -42,7 +42,8 @@ set(descent_scripts
 
 foreach(m cadofactor descent)
     foreach(f ${${m}_scripts})
-        install(FILES ${m}/${f} DESTINATION ${LIBSUFFIX}/scripts/${m})
+        get_filename_component(d ${f} DIRECTORY)
+        install(FILES ${m}/${f} DESTINATION ${LIBSUFFIX}/scripts/${m}/${d})
     endforeach()
 endforeach()
 
