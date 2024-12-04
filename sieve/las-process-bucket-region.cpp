@@ -366,12 +366,12 @@ process_bucket_region_run::survivors_t process_bucket_region_run::search_survivo
 #ifdef TRACE_K /* {{{ */
     if (trace_on_spot_Nx(N, trace_Nx.x)) {
         verbose_output_print(TRACE_CHANNEL, 0,
-                "# When entering factor_survivors for bucket %u, "
-                "S[0][%u]=%u, S[1][%u]=%u\n",
-                trace_Nx.N, trace_Nx.x,
-                S[0] ? S[0][trace_Nx.x] : ~0u,
-                trace_Nx.x,
-                S[1] ? S[1][trace_Nx.x] : ~0u);
+                "# When entering factor_survivors for bucket %u", trace_Nx.N);
+        for (size_t i = 0; i < S.size(); ++i) {
+            verbose_output_print(TRACE_CHANNEL, 0, ", S[%zu][%u]=%u", i,
+                                 trace_Nx.x, S[i] ? S[0][trace_Nx.x] : ~0u);
+        }
+        verbose_output_print(TRACE_CHANNEL, 0, "\n");
         verbose_output_vfprint(TRACE_CHANNEL, 0, gmp_vfprintf,
                 "# Remaining norms which have not been accounted for in sieving: (%Zd, %Zd)\n",
                 (mpz_srcptr) traced_norms[0],
@@ -380,16 +380,16 @@ process_bucket_region_run::survivors_t process_bucket_region_run::search_survivo
 #endif  /* }}} */
 
 #ifdef TRACE_K /* {{{ */
-    nfs_work::side_data & side0(ws.sides[0]);
-    nfs_work::side_data & side1(ws.sides[1]);
     for (int x = 0; x < 1 << LOG_BUCKET_REGION; x++) {
         if (trace_on_spot_Nx(N, x)) {
-            verbose_output_print(TRACE_CHANNEL, 0,
-                    "# side0.Bound[%u]=%u, side1.Bound[%u]=%u\n",
-                    S[0] ? S[0][trace_Nx.x] : ~0u,
-                    S[0] ? (S[0][x] <= side0.lognorms.bound ? 0 : side0.lognorms.bound) : ~0u,
-                    S[1] ? S[1][trace_Nx.x] : ~0u,
-                    S[1] ? (S[1][x] <= side1.lognorms.bound ? 0 : side1.lognorms.bound) : ~0u);
+            for (size_t i = 0; i < S.size(); ++i) {
+                auto &bound = ws.sides[i].lognorms.bound;
+                verbose_output_print(TRACE_CHANNEL, 0,
+                                  "%c side%zu.Bound[%u]=%u", i ? ',' : '#', i,
+                                  S[i] ? S[i][trace_Nx.x] : ~0u,
+                                  S[i] ? (S[i][x] <= bound ? 0 : bound) : ~0u);
+            }
+            verbose_output_print(TRACE_CHANNEL, 0, "\n");
         }
     }
 #endif /* }}} */

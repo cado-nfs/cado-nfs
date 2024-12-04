@@ -33,6 +33,7 @@
 #include "cxx_mpz.hpp"
 #include "las-where-am-i.hpp"
 #include "las-where-am-i-debug.hpp"
+#include "las-info.hpp"       // otherwise las_info is incomplete in nfs_work
 
 #include "las-config.h"                  // for LOG_BUCKET_REGION
 #include "las-coordinates.hpp"           // for convert_*_to_*
@@ -197,7 +198,7 @@ void where_am_I::begin_special_q(nfs_work const & ws)
                 trace_Nx.x);
     }
 
-    for(int side = 0 ; side < 2 ; side++) {
+    for(int side = 0 ; side < ws.las.cpoly->nb_polys ; side++) {
         int i = trace_ij.i;
         unsigned j = trace_ij.j;
         adjustIJsublat(i, j, Q.sublat);
