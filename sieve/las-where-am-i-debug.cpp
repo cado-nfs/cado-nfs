@@ -87,7 +87,7 @@ std::unique_ptr<trace_Nx_t> pl_Nx;
 int have_trace_ab = 0, have_trace_ij = 0, have_trace_Nx = 0;
 
 /* two norms of the traced (a,b) pair */
-std::array<cxx_mpz, 2> traced_norms;
+std::array<cxx_mpz, 2> traced_norms;  // XXX HARDCODED 2
 
 void where_am_I::interpret_parameters(cxx_param_list & pl)
 {

@@ -54,7 +54,7 @@ struct where_am_I::impl {
     struct side_data {
         const fb_factorbase::slicing * fbs = NULL;
     };
-    side_data sides[2];
+    side_data sides[2];  // XXX HARDCODED 2
     fbprime_t p = 0;        /* current prime or prime power, when applicable */
     fbroot_t r = 0;         /* current root */
     slice_index_t i = 0;    /* Slice index, if applicable */
@@ -78,7 +78,7 @@ extern struct trace_Nx_t trace_Nx;
 extern struct trace_ab_t trace_ab;
 extern struct trace_ij_t trace_ij;
 
-extern std::array<cxx_mpz, 2> traced_norms;
+extern std::array<cxx_mpz, 2> traced_norms; // XXX HARDCODED 2
 
 static inline int trace_on_spot_N(unsigned int N) {
     if (trace_Nx.x == UINT_MAX) return 0;

@@ -93,7 +93,7 @@ private:
 public:
 
     typedef std::map<
-        std::array<unsigned int, 2>,
+        std::array<unsigned int, 2>, // XXX HARDCODED 2
         std::vector<facul_method::parameters_with_side>> strategy_file;
 
     facul_strategies(
