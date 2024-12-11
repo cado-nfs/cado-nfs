@@ -284,7 +284,7 @@ static void truncate_overflow(bmstatus & bm, matpoly_type & pi, unsigned int pi_
          * constant offset. Therefore, reaching here is a bug.
          *
          * Furthermore, while the idea of truncating is appealing, it
-         * doesn't quote solve the problem when we wish to keep iterating
+         * doesn't quite solve the problem when we wish to keep iterating
          * a bit more: because of the degree constraints, truncating will
          * make the next E matrix cancel, as we're almost knowingly
          * killing its rank...
@@ -459,6 +459,7 @@ matpoly bw_lingen_single(bmstatus & bm, matpoly & E) /*{{{*/
     if (load_checkpoint_file(bm, LINGEN_CHECKPOINT_PI, pi, t0, t1))
         return pi;
 
+    // bm.display_deltas();
     pi = bw_lingen_single_nocp(bm, E);
 
     save_checkpoint_file(bm, LINGEN_CHECKPOINT_PI, pi, t0, t1);

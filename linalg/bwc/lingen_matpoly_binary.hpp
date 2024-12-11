@@ -153,10 +153,10 @@ public:
     matpoly(matpoly const&) = delete;
     matpoly& operator=(matpoly const&) = delete;
     matpoly& set(matpoly const&);
-    matpoly(matpoly &&);
-    matpoly& operator=(matpoly &&);
+    matpoly(matpoly &&) noexcept;
+    matpoly& operator=(matpoly &&) noexcept;
     ~matpoly();
-    matpoly similar_shell() const { return matpoly(nullptr, m, n, 0); }
+    matpoly similar_shell() const { return { nullptr, m, n, 0 }; }
     bool check_pre_init() const ATTRIBUTE_WARN_UNUSED_RESULT {
         return x == NULL;
     }

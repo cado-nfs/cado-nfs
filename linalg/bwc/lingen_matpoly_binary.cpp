@@ -42,16 +42,18 @@ matpoly::~matpoly() {
     if (x)
         memory.free(x, data_alloc_size_in_bytes());
 }
-matpoly::matpoly(matpoly && a)
-    : m(a.m), n(a.n), alloc_words(a.alloc_words)
+matpoly::matpoly(matpoly && a) noexcept
+    : m(a.m)
+    , n(a.n)
+    , size(a.size)
+    , alloc_words(a.alloc_words)
+    , x(a.x)
 {
-    size=a.size;
-    x=a.x;
-    a.x=NULL;
+    a.x=nullptr;
     a.m=a.n=a.size=a.alloc_words=0;
     // a.ab=NULL;
 }
-matpoly& matpoly::operator=(matpoly&& a)
+matpoly& matpoly::operator=(matpoly&& a) noexcept
 {
     if (x)
         memory.free(x, data_alloc_size_in_bytes());
@@ -61,7 +63,7 @@ matpoly& matpoly::operator=(matpoly&& a)
     alloc_words = a.alloc_words;
     size = a.size;
     x=a.x;
-    a.x=NULL;
+    a.x=nullptr;
     a.m=a.n=a.size=a.alloc_words=0;
     // a.ab=NULL;
     return *this;
