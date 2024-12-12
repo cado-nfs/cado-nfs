@@ -5,6 +5,8 @@ eval $(make show)
 changed_python_files() {
     if [ "$1" = "--all" ] ; then
         git ls-files '*.py'
+    elif [ "$*" ] ; then
+        echo "$@"
     else
         git diff --cached --name-only --diff-filter=ACM '*.py'
     fi

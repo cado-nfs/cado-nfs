@@ -16,6 +16,8 @@ add_custom_target(all_sagemath_test_dependencies)
 include(cado_test.cmake)
 include(cado_define_test.cmake)
 include(cado_divert_test.cmake)
+include(predefined_primes.cmake)
+
 
 
 

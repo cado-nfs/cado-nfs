@@ -434,6 +434,7 @@ include("${CADO_NFS_SOURCE_DIR}/config/execinfo.cmake")
 CHECK_INCLUDE_FILES (sys/endian.h HAVE_SYS_ENDIAN_H)
 include("${CADO_NFS_SOURCE_DIR}/config/bswap32.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/compression.cmake")
+include("${CADO_NFS_SOURCE_DIR}/config/gdb.cmake")
 
 
 set(CADO_SHARED)
@@ -442,6 +443,7 @@ if("$ENV{ENABLE_SHARED}")
     # cmake scripts here and there use the cmake variable, not the
     # environment variable.
     set(ENABLE_SHARED 1)
+    set(CADO_NFS_USE_SHARED_LIBS 1)
     if(MINGW)
         message(FATAL_ERROR "ENABLE_SHARED is not supported with MINGW")
     endif()

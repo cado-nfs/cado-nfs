@@ -64,6 +64,7 @@ config/gcc-bug-58805.c
 config/gcc-bugs.cmake
 config/gcc-inline-assembly.cmake
 config/gcc-ubuntu-bug.c
+config/gdb.cmake
 config/gf2x.cmake
 config/glibc.c
 config/glibc.cmake
@@ -923,7 +924,14 @@ scripts/descent/log_base.py
 scripts/estimate_matsize/build_relation_cache.pl
 scripts/estimate_matsize/estimate_matsize.sh
 scripts/filter-ctest.pl
-scripts/gdb.py
+scripts/gdb/README.md
+scripts/gdb/cado_nfs_gdb/__init__.py
+scripts/gdb/cado_nfs_gdb/base.py
+scripts/gdb/cado_nfs_gdb/display.py
+scripts/gdb/cado_nfs_gdb/floats.py
+scripts/gdb/cado_nfs_gdb/integers.py
+scripts/gdb/cado_nfs_gdb/matrices.py
+scripts/gdb/cado_nfs_gdb/polynomials.py
 scripts/hintfile-helper.py
 scripts/install-cmake.sh
 scripts/list_modified_files.sh
@@ -1287,6 +1295,7 @@ tests/polyselect/table_t_Py_f_deg4_type0_h1_t-200--200.c
 tests/polyselect/test_polyselect_shash.cpp
 tests/polyselect/test_rho.c
 tests/polyselect/test_ropt_auxiliary.cpp
+tests/predefined_primes.cmake
 tests/provide-wdir.sh
 tests/sagemath/Makefile
 tests/sagemath/README.md
@@ -1319,6 +1328,11 @@ tests/scripts/cadofactor/CMakeLists.txt
 tests/scripts/cadofactor/test_python_resubmit.sh
 tests/scripts/cadofactor/test_python_stress_test.sh
 tests/scripts/cadofactor/test_python_wudb_cmdline.sh
+tests/scripts/gdb/CMakeLists.txt
+tests/scripts/gdb/test_gdb_printers.cpp
+tests/scripts/gdb/test_gdb_printers.gdb
+tests/scripts/gdb/test_gdb_printers_bwc.cpp
+tests/scripts/gdb/test_gdb_printers_bwc.gdb
 tests/sieve/CMakeLists.txt
 tests/sieve/F9.dupsup.sh
 tests/sieve/F9.fakerels.sh
@@ -1609,6 +1623,7 @@ utils/gpf.cpp
 utils/gpf.h
 utils/gzip.cpp
 utils/gzip.h
+utils/hook_cado_nfs_gdb.py.in
 utils/hwloc-aux.c
 utils/hwloc-aux.h
 utils/indexed_relation.cpp

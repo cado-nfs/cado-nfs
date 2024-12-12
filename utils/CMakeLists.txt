@@ -118,5 +118,9 @@ target_link_libraries (numbertheory_tool utils)
 
 install(TARGETS numbertheory_tool RUNTIME DESTINATION ${LIBSUFFIX}/utils)
 
+if(ENABLE_SHARED AND HAVE_GDB_PYTHON_PRETTY_PRINT)
+configure_file(hook_cado_nfs_gdb.py.in libutils.so-gdb.py ESCAPE_QUOTES @ONLY)
+endif()
+
 include(CMakeLists-nodist.txt OPTIONAL)
 
