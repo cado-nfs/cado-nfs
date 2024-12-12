@@ -1,10 +1,11 @@
-#include "macros.h"
 #ifndef LUCAS_V_MOD_H_
 #define LUCAS_V_MOD_H_
 
 #ifndef mod_init
-  #error "One of the mod*_default.h headers must be included before this file"
+#error "One of the mod*_default.h headers must be included before this file"
 #endif
+
+#include "macros.h"
 
 /* Function to compute the Lucas sequence V_n (x, 1)
  * The sequence is written V_n (x) in the following.

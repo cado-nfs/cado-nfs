@@ -67,6 +67,7 @@
  */
 
 #include "cado.h" // IWYU pragma: keep
+
 #include <stdint.h>     /* AIX wants it first (it's a bug) */
 #include <inttypes.h>   // SCNu64 PRId64 etc
 #include <stdio.h>
@@ -83,8 +84,8 @@
 #include <errno.h>
 #include <gmp.h>
 
-#define DOUBLE_POLY_EXPOSE_COMPLEX_FUNCTIONS
 #include "double_poly.h"
+#include "double_poly_complex_roots.h"
 
 #include "barrier.h"
 #include "cado_poly.h"  // cado_poly
@@ -1105,20 +1106,21 @@ void estimate_nbits_sqrt(size_t * sbits, ab_source_ptr ab) // , int guess)
     int n = glob.cpoly->pols[1]->deg;
 
     long double complex * eval_points = malloc(n * sizeof(long double complex));
-    double * double_coeffs = malloc((n+1) * sizeof(double));
     double * evaluations = malloc(n * sizeof(double));
 
     // take the roots of f, and multiply later on to obtain the roots of
     // f_hat. Otherwise we encounter precision issues.
-    for(int i = 0 ; i <= n ; i++) {
-        double_coeffs[i] = mpz_get_d(mpz_poly_coeff_const(glob.cpoly->pols[1], i));
-    }
 
-    int rc = poly_roots_longdouble(double_coeffs, n, eval_points);
-    if (rc) {
-        logprint("Warning: rootfinder had accuracy problem with %d roots\n", rc);
+    {
+        double_poly fd;
+        double_poly_init(fd, -1);
+        double_poly_set_mpz_poly (fd, glob.cpoly->pols[1]);
+        int rc = double_poly_complex_roots_long(eval_points, fd);
+        if (rc) {
+            logprint("Warning: rootfinder had accuracy problem with %d roots\n", rc);
+        }
+        double_poly_clear(fd);
     }
-
 
     // {{{ compress the list of roots.
     int nreal = 0, ncomplex = 0, rs = 0;
@@ -1139,6 +1141,7 @@ void estimate_nbits_sqrt(size_t * sbits, ab_source_ptr ab) // , int guess)
     // }}}
 
     // {{{ post-scale to roots of f_hat, and store f_hat instead of f
+    double * double_coeffs = malloc((n+1) * sizeof(double));
     for(int i = 0 ; i < rs ; i++) {
         eval_points[i] *= mpz_get_d(mpz_poly_coeff_const(glob.cpoly->pols[1], n));
     }

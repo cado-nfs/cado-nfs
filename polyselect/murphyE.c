@@ -43,7 +43,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #define PI 3.14159265358979324
 
 #include <math.h>
+
 #include "auxiliary.h"
+#include "cado_poly.h"
 #include "rho.h"
 #include "murphyE.h"
 #include "double_poly.h"

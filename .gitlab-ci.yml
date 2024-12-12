@@ -11,6 +11,22 @@ image: gcc
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
 
+include:
+  - component: $CI_SERVER_FQDN/sdt-pfo/tools/gitlab-quotas-helper-component/clean-pipelines@1.0.1
+    inputs:
+      days: 365
+      dry_run: false
+      stage: publish
+    rules:
+    - if: $CI_COMMIT_BRANCH && ($CI_COMMIT_BRANCH == "master")
+
+# artifacts are a subset of pipelines..
+# - component: $CI_SERVER_FQDN/sdt-pfo/tools/gitlab-quotas-helper-component/clean-artifacts@1.0.1 
+#   inputs:
+#     days: 365
+#     dry_run: false
+#     stage: publish
+
 # took inspiration from https://blog.callr.tech/building-docker-images-with-gitlab-ci-best-practices/
 # however I'm not sure if/how the "latest" tagging actually works.
 
@@ -148,7 +164,7 @@ checks on debian-testing system with 32-bit gcc:
     - *checks-script
   <<: *checks-junit-report
 
-checks using cmake directly with gcc:
+checks using cmake directly on alpine system with gcc:
   <<: *common-template
   stage: early
   image: alpine

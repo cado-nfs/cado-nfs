@@ -1,5 +1,5 @@
-#ifndef _MMAPPABLE_VECTOR_HPP_
-#define _MMAPPABLE_VECTOR_HPP_
+#ifndef UTILS_MMAPPABLE_VECTOR_HPP_
+#define UTILS_MMAPPABLE_VECTOR_HPP_
 
 #include "mmap_allocator.hpp"
 #include <algorithm>
@@ -324,4 +324,4 @@ swap(mmappable_vector<T, A>& a, mmappable_vector<T, A>& b)
     a.swap(b);
 }
 
-#endif /* MMAPPABLE_VECTOR_HPP_ */
+#endif /* UTILS_MMAPPABLE_VECTOR_HPP_ */

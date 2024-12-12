@@ -1,5 +1,9 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <cstdint>
+
+#include <gmp.h>
+
 #include "bblas_level3a.hpp"
 #include "bblas_mat64.hpp"
 #include "gmp_aux.h"    // memfill_random

@@ -52,9 +52,9 @@
 
 #define MAX_LEN_RELSET 1024
 
-#include <stdint.h>
-#include <stdio.h>      // FILE
-#include <gmp.h>        // mpz_t
+#include <cstdint>
+#include <cstdio>      // FILE
+
 #include <vector>
 
 #include "mpz_poly.h"

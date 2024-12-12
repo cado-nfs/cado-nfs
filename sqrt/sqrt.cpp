@@ -11,11 +11,13 @@
  */
 
 #include "cado.h" // IWYU pragma: keep
+
 /* the following avoids the warnings "Unknown pragma" if OpenMP is not
    available, and should come after cado.h, which sets -Werror=all */
-#ifdef  __GNUC__
+#ifdef __GNUC__
 #pragma GCC diagnostic ignored "-Wunknown-pragmas"
 #endif
+
 #include <cstdint>     /* AIX wants it first (it's a bug) */
 #include <cstdio>
 #include <cstdlib>
@@ -69,7 +71,7 @@
 static int verbose = 0;
 static double wct0;
 
-std::mutex stdio_guard;
+static std::mutex stdio_guard;
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
 static std::string
@@ -163,7 +165,7 @@ static inline uint64_t bitrev(uint64_t a)
  * A.
  */
 template<typename M>
-void accumulate(std::vector<typename M::T> & A, typename std::vector<typename M::T>::iterator vb, typename std::vector<typename M::T>::iterator ve, M const & m)
+static void accumulate(std::vector<typename M::T> & A, typename std::vector<typename M::T>::iterator vb, typename std::vector<typename M::T>::iterator ve, M const & m)
 {
     /* This is a single-threaded routine. We put the result in *vb, and
      * the caller is reponsible of freeing the range [vb+1,ve[
@@ -234,7 +236,7 @@ void accumulate(std::vector<typename M::T> & A, typename std::vector<typename M:
 /* not used, just to mention that the simplest prototype for the function
  * above would be as follows, in a way */
 template<typename M>
-void accumulate(typename std::vector<typename M::T>::iterator vb, typename std::vector<typename M::T>::iterator ve, M const & m)
+static void accumulate(typename std::vector<typename M::T>::iterator vb, typename std::vector<typename M::T>::iterator ve, M const & m)
 {
     std::vector<typename M::T> A;
     accumulate(A, vb, ve, m);
@@ -244,7 +246,7 @@ void accumulate(typename std::vector<typename M::T>::iterator vb, typename std::
  * elements are products of the original elements in sub-ranges of the
  * initial vector */
 template<typename M>
-void accumulate_level00(std::vector<typename M::T> & v, M const & m, std::string const & message)
+static void accumulate_level00(std::vector<typename M::T> & v, M const & m, std::string const & message)
 {
     unsigned int nthr;
     /* We want to know the number of threads that we get when starting a
@@ -347,7 +349,7 @@ void accumulate_level00(std::vector<typename M::T> & v, M const & m, std::string
 
 
 template<typename M>
-typename M::T accumulate(std::vector<typename M::T> & v, M const & m, std::string const & message)
+static typename M::T accumulate(std::vector<typename M::T> & v, M const & m, std::string const & message)
 {
     accumulate_level00(v, m, message);
 
@@ -418,7 +420,7 @@ typename M::T accumulate(std::vector<typename M::T> & v, M const & m, std::strin
 /* Parallel I/O for reading the dep file */
 
 template<typename M>
-std::vector<typename M::T>
+static std::vector<typename M::T>
 read_ab_pairs_from_depfile(std::string const & depname, M const & m, std::string const & message, unsigned long & nab, unsigned long & nfree)
 {
     nab = nfree = 0;
@@ -563,7 +565,7 @@ struct cxx_mpz_functions {
 };
 
 
-int
+static int
 calculateSqrtRat (std::string const & prefix, unsigned int numdep, cxx_cado_poly const & cpoly,
         int side, cxx_mpz const & Np)
 {
@@ -848,7 +850,7 @@ TonelliShanks (mpz_poly res, const mpz_poly a, const mpz_poly F, unsigned long p
 }
 
 // res <- Sqrt(AA) mod F, using p-adic lifting, at prime p.
-unsigned long
+static unsigned long
 cxx_mpz_polymodF_sqrt (cxx_mpz_polymodF & res, cxx_mpz_polymodF & AA, cxx_mpz_poly const & F, unsigned long p,
 	       unsigned int numdep,
                const mpz_poly_parallel_info * pinf)
@@ -1163,7 +1165,7 @@ FindSuitableModP (cxx_mpz_poly const & F, cxx_mpz const & N)
 /*
    Process dependencies numdep to numdep + nthreads - 1.
 */
-int
+static int
 calculateSqrtAlg (std::string const & prefix, unsigned int numdep,
                   cxx_cado_poly const & cpoly, int side, cxx_mpz const & Np,
                   const mpz_poly_parallel_info * pinf)
@@ -1338,7 +1340,7 @@ calculateSqrtAlg (std::string const & prefix, unsigned int numdep,
  * Returns 1 if input is completely factored, otherwise, returns
  * remaining factor.
  */
-unsigned long
+static unsigned long
 trialdivide_print(unsigned long N, unsigned long B)
 {
     ASSERT(N != 0);
@@ -1360,7 +1362,7 @@ trialdivide_print(unsigned long N, unsigned long B)
     return N;
 }
 
-void print_nonsmall(cxx_mpz const & zx)
+static void print_nonsmall(cxx_mpz const & zx)
 {
     if (mpz_probab_prime_p(zx, 10))
         fmt::print("{}\n", zx);
@@ -1380,7 +1382,7 @@ void print_nonsmall(cxx_mpz const & zx)
     fflush (stdout);
 }
 
-void print_factor(cxx_mpz const & N)
+static void print_factor(cxx_mpz const & N)
 {
     unsigned long xx = mpz_get_ui(N);
     if (mpz_cmp_ui(N, xx) == 0) {
@@ -1398,7 +1400,7 @@ void print_factor(cxx_mpz const & N)
 
 
 /********** GCD **********/
-int
+static int
 calculateGcd (std::string const & prefix, unsigned int numdep, cxx_mpz const & Np)
 {
     std::string sidename[2];
@@ -1476,7 +1478,7 @@ typedef struct
   FILE **dep_files;
 } sqrt_data_t;
 
-void *
+static void *
 thread_sqrt (void * context_data, earlyparsed_relation_ptr rel)
 {
   auto data = (sqrt_data_t *) context_data;
@@ -1491,7 +1493,7 @@ thread_sqrt (void * context_data, earlyparsed_relation_ptr rel)
   return nullptr;
 }
 
-void create_dependencies(const char * prefix, const char * indexname, const char * purgedname, const char * kername)
+static void create_dependencies(const char * prefix, const char * indexname, const char * purgedname, const char * kername)
 {
     FILE * ix = fopen_maybe_compressed(indexname, "r");
     uint64_t small_nrows;
@@ -1590,7 +1592,7 @@ void create_dependencies(const char * prefix, const char * indexname, const char
 #define TASK_SQRT 0
 #define TASK_GCD  2
 /* perform one task (rat or alg or gcd) on one dependency */
-void
+static void
 one_thread (std::string const & prefix, int task, unsigned int numdep, cxx_cado_poly const & cpoly, int side, cxx_mpz const & Np, const mpz_poly_parallel_info * pinf)
 {
   if (task == TASK_SQRT) {
@@ -1605,7 +1607,7 @@ one_thread (std::string const & prefix, int task, unsigned int numdep, cxx_cado_
 
 /* process task (0=sqrt, 2=gcd) in parallel for
    dependencies numdep to numdep + nthreads - 1 */
-void
+static void
 calculateTaskN (int task, std::string const & prefix, unsigned int numdep, int nthreads,
                 cxx_cado_poly const & cpoly, int side, cxx_mpz const & Np)
 {
@@ -1640,7 +1642,7 @@ calculateTaskN (int task, std::string const & prefix, unsigned int numdep, int n
 #endif
 }
 
-void declare_usage(param_list pl)
+static void declare_usage(param_list pl)
 {
     param_list_decl_usage(pl, "poly", "Polynomial file");
     param_list_decl_usage(pl, "purged", "Purged relations file, as produced by 'purge'");
@@ -1657,7 +1659,7 @@ void declare_usage(param_list pl)
     param_list_decl_usage(pl, "force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
 }
 
-void usage(param_list pl, const char * argv0, FILE *f)
+static void usage(param_list pl, const char * argv0, FILE *f)
 {
     param_list_print_usage(pl, argv0, f);
     fmt::print(f, "Usage: {} [-ab || -side0 || -side1 || -gcd] -poly polyname -prefix prefix -dep numdep -t ndep", argv0);

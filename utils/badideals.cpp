@@ -99,7 +99,7 @@ badideal::badideal(std::istream& is)
     return;
 }
 
-vector<cxx_mpz> lift_p1_elements(cxx_mpz const& p, int k, cxx_mpz const& x)/*{{{*/
+static vector<cxx_mpz> lift_p1_elements(cxx_mpz const& p, int k, cxx_mpz const& x)/*{{{*/
 {
     /* Given x which represents an element of P^1(Z/p^kZ), return all the p
      * lifts of x in P^1(Z/p^(k+1)Z), all following the same representation
@@ -123,7 +123,7 @@ vector<cxx_mpz> lift_p1_elements(cxx_mpz const& p, int k, cxx_mpz const& x)/*{{{
     return res;
 }/*}}}*/
 
-vector<badideal::branch> lift_root(numbertheory_internals::all_valuations_above_p const& A, int k0, cxx_mpz const& Q, vector<int> v)/*{{{*/
+static vector<badideal::branch> lift_root(numbertheory_internals::all_valuations_above_p const& A, int k0, cxx_mpz const& Q, vector<int> v)/*{{{*/
 {
     vector<badideal::branch> dead_branches_reports;
     vector<pair<cxx_mpz, vector<int> > > live_branches;
@@ -183,7 +183,7 @@ vector<badideal::branch> lift_root(numbertheory_internals::all_valuations_above_
     return res;
 }/*}}}*/
 
-vector<cxx_mpz> projective_roots_modp(cxx_mpz_poly const& f, cxx_mpz const& p, gmp_randstate_ptr rstate)/*{{{*/
+static vector<cxx_mpz> projective_roots_modp(cxx_mpz_poly const& f, cxx_mpz const& p, gmp_randstate_ptr rstate)/*{{{*/
 {
     /* p must be prime */
     vector<cxx_mpz> roots;

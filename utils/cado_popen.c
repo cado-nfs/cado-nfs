@@ -20,7 +20,7 @@
  * closing is done in userland, and only once.
  */
 static struct {
-    pthread_mutex_t m[1];
+    pthread_mutex_t m[1];       // NOLINT(misc-include-cleaner)
     int n;
     struct { int fd; pid_t kid; } p[1024];
 } popenlist[1] = {{{PTHREAD_MUTEX_INITIALIZER}, 0, {{0,0},}}};

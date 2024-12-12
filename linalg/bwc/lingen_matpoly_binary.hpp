@@ -1,6 +1,8 @@
 #ifndef LINGEN_MATPOLY_BINARY_HPP_
 #define LINGEN_MATPOLY_BINARY_HPP_
 
+#include "cado_config.h"
+
 /* The outer interface of the matpoly_binary type is exactly the same as
  * for the matpoly type. This is enforced by the test program. In
  * particular, we copy even the "arith_hard" argument that is passed
@@ -18,7 +20,6 @@
 #include <gmp.h>
 
 #include "gmp_aux.h"
-#include "cado_config.h"
 #include "macros.h"
 #include "lingen_memory_pool.hpp"
 #include "submatrix_range.hpp"
@@ -100,7 +101,6 @@ private:
     size_t size = 0;    /* in bits */
     size_t alloc_words = 0;
     ptr x = NULL;
-#define BITS_TO_WORDS(B,W)      iceildiv((B),(W))
     static inline size_t b2w_x(size_t n) {
         /* We always use an even number of words. It seems stupid, but
          * some of the routines that play an important role in

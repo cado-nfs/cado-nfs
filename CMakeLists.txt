@@ -169,8 +169,11 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Intel")
 elseif(CMAKE_C_COMPILER_ID MATCHES "AppleClang" OR CMAKE_HOST_SYSTEM_NAME
         STREQUAL "Darwin" AND CMAKE_C_COMPILER_ID MATCHES "Clang" )
     set (CMAKE_C_FLAGS   "-std=c99 -W -Wall ${CMAKE_C_FLAGS}")
+elseif(CMAKE_C_COMPILER_ID MATCHES "^Clang")
+    set (CMAKE_C_FLAGS   "-std=c99 -W -Wall ${CMAKE_C_FLAGS}")
 else()
     message(WARNING "C compiler not recognized. Setting -std=c99 as a wild guess")
+    set (CMAKE_C_FLAGS   "-std=c99 -W -Wall ${CMAKE_C_FLAGS}")
 endif()
 message(STATUS "CFLAGS=${CMAKE_C_FLAGS} (synthetized)")
 

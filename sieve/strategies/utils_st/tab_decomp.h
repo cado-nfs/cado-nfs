@@ -1,5 +1,5 @@
-#ifndef TAB_DECOMP
-#define TAB_DECOMP
+#ifndef TAB_DECOMP_H
+#define TAB_DECOMP_H
 
 #include <stdio.h>
 #include "decomp.h"
@@ -40,4 +40,4 @@ tabular_decomp_t *tabular_decomp_fscan(FILE * file);
 }
 #endif
 
-#endif				/* TAB_DECOMP */
+#endif				/* TAB_DECOMP_H */

@@ -901,7 +901,9 @@ foreach(mpiconf nompi ${mpiconfs})
     cado_divert_test(test_hello${suffix} thr23 APPEND_ARGUMENTS thr=2x3)
 endforeach()
 
-cado_define_test(test_bl_extraction.cpp LIBRARIES bwc_base bitlinalg)
+cado_define_test(test_bl_extraction.cpp
+    ${PROJECT_SOURCE_DIR}/linalg/bwc/blocklanczos_extraction.cpp
+    LIBRARIES bwc_base bitlinalg)
 set_target_properties(test_bl_extraction PROPERTIES
                 LINKER_LANGUAGE CXX
                 COMPILE_FLAGS "--mpi"

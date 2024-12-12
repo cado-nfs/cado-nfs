@@ -24,7 +24,7 @@
  * non-zero coefficient, then phi[i] < 0.
  * In column phi[i]-col_offset of u, entries of row index >i are zero.
  */
-int PLUQ64_inner(int * phi, mat64 & l, mat64 & u, mat64 const & a, int col_offset)
+static int PLUQ64_inner(int * phi, mat64 & l, mat64 & u, mat64 const & a, int col_offset)
 {
     const int m = 64;
     const int n = 64;
@@ -196,14 +196,14 @@ static inline void bli_64x64N_clobber(mat64 & h, mat64 * us, int * phi, int nb)
  * distinct, compute a matrix H such that H*U has exactly one non-zero
  * entry in each column whose index is a value taken by phi.
  */
-void bli_64x128(mat64 & h, mat64 * us, int * phi)
+static void bli_64x128(mat64 & h, mat64 * us, int * phi)
 {
     mat64 uc[2] ATTRIBUTE((aligned(64)));
     std::copy(us, us + 2, std::begin(uc));
     bli_64x64N_clobber(h,uc,phi,2);
 }
 
-void extract_cols_64_from_128(mat64 & t, mat64 const * m, int const * phi)
+static void extract_cols_64_from_128(mat64 & t, mat64 const * m, int const * phi)
 {
     // given the list of 64 integers phi, all in the range {-1} union
     // {0..127}, constitute a 64x64 matrix whose column of index j is

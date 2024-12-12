@@ -235,7 +235,8 @@ static renumber_t::corrupted_table parse_error(std::string const & what)/*{{{*/
 
 /* This one is a helper only, because we use it for both T ==
  * p_r_values_t and T == uint64_t */
-template<typename T> inline T vp_from_p(T p, int n, int c, int format MAYBE_UNUSED)
+template<typename T>
+static inline T vp_from_p(T p, int n, int c, int format MAYBE_UNUSED)
 {
     /* The final "+d" is not necessary, but we keep it for compatibility */
     int const d = 0;
@@ -634,7 +635,7 @@ static uint64_t previous_prime_of_powers_of_2[65] = { 0x0, 0x0, 0x3, 0x7, 0xd,
         0x7fffffffffffffe7, 0xffffffffffffffc5 };
 
 
-void check_needed_bits(unsigned int nbits)
+static void check_needed_bits(unsigned int nbits)
 {
     if (nbits > 8 * sizeof(p_r_values_t))
         throw std::overflow_error("p_r_values_t is too small to store ideals, "

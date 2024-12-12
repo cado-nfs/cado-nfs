@@ -88,7 +88,9 @@ struct matpoly_checker_base {
          * guaranteed, since we rely on the behaviour of the default move
          * ctor.  On the other hand, I'm making this assumption quite
          * often in the code, and it's good if I have an occasion to
-         * check that it holds
+         * check that it holds.
+         *
+         * 202411221: clang-tidy reports use-after-move, it's better.
          */
         matpoly P(&ab, m, m+n, len1);
         P.clear_and_set_random(len1, rstate);
@@ -96,7 +98,8 @@ struct matpoly_checker_base {
         matpoly R(&ab, m, n, len1);
         R.clear_and_set_random(len1, rstate);
         R = matpoly();
-        return P.check_pre_init() && !Q.check_pre_init() && R.check_pre_init();
+        return /* P.check_pre_init() && */ 
+            !Q.check_pre_init() && R.check_pre_init();
     }
 
     int copy_ctor() {
@@ -435,7 +438,7 @@ struct matpoly_checker_ft : public matpoly_checker_base {
 
 };
 
-void declare_usage(cxx_param_list & pl)
+static void declare_usage(cxx_param_list & pl)
 {
 #ifndef LINGEN_BINARY
     param_list_decl_usage(pl, "prime", "(mandatory) prime defining the base field");
@@ -469,6 +472,8 @@ int main(int argc, char const * argv[])
 
     setbuf(stdout, nullptr);
     setbuf(stderr, nullptr);
+
+    declare_usage(pl);
 
     param_list_configure_switch(pl, "--test-basecase", &test_basecase);
 

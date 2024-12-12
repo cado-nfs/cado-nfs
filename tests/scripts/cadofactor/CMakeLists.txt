@@ -49,4 +49,15 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
             APPEND_ARGUMENTS --db-backend mysql
         )
     endif()
+
+    # this one isn't really expensive, but it does pull
+    # full_F7_dependencies, which belong to an expensive test
+    cado_define_test(test_python_resubmit
+        PROVIDE_TEMPORARY_WDIR
+        SCRIPT
+        "${CMAKE_CURRENT_SOURCE_DIR}/test_python_resubmit.sh"
+        AVOID_CONCURRENT
+        TARGET_DEPENDENCIES full_F7_dependencies
+        TIMEOUT 60
+    )
 endif()

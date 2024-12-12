@@ -1,5 +1,5 @@
-#ifndef FM
-#define FM
+#ifndef CADO_FM_H
+#define CADO_FM_H
 
 #include <stdio.h>
 #include <stdbool.h>
@@ -62,4 +62,4 @@ int fm_fprint(FILE * output_file, fm_t * t);
 }
 #endif
 
-#endif				/* FM */
+#endif				/* CADO_FM_H */

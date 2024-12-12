@@ -7,8 +7,8 @@
    where available. This can be used for testing the fallback code.
 */
 
-#ifndef U64_ARITH_H__
-#define U64_ARITH_H__
+#ifndef U64ARITH_H
+#define U64ARITH_H
 
 #include <stdint.h>
 #include <stdio.h>
@@ -1071,4 +1071,4 @@ u64arith_redc(uint64_t *r, const uint64_t plow,
 #endif
 
 
-#endif /* ifndef U64_ARITH_H__ */
+#endif /* ifndef U64ARITH_H */

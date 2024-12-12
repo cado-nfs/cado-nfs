@@ -10,17 +10,22 @@
 
 
 #include "cado.h" // IWYU pragma: keep
-#include <sstream>      // std::ostringstream // IWYU pragma: keep
-#include <vector>
-#include <string>
-#include <ostream>        // for operator<<, basic_ostream, basic_ostream::o...
+
 #include <climits>      // ULONG_MAX
 #include <cctype>       // isdigit etc
 #include <cstdio>       // fprintf // IWYU pragma: keep
 #include <cstdlib>
 #include <cstring>
+
+#include <sstream>      // std::ostringstream // IWYU pragma: keep
+#include <vector>
+#include <string>
+#include <ostream>        // for operator<<, basic_ostream, basic_ostream::o...
 #include <exception>
+#include <memory>
+
 #include <gmp.h>
+
 #include "cxx_mpz.hpp"    // for cxx_mpz
 #include "double_poly.h"  // for double_poly_s, double_poly_srcptr
 #include "gmp_aux.h"      // for mpz_addmul_si, mpz_mul_uint64, mpz_ndiv_r
@@ -30,12 +35,20 @@
 #include "omp_proxy.h"  // IWYU pragma: keep
 #include "portability.h"  // for strlcpy
 #include "rootfinder.h"   // for mpz_poly_roots_mpz
-#ifdef MPZ_POLY_TIMINGS
-#include "timing.h"
-#endif
 #include "cado_expression_parser.hpp"
+#include "macros.h"
 /* and just because we expose a proxy to usp.c's root finding... */
 #include "usp.h"          // for numberOfRealRoots
+
+// scan-headers: stop here
+#ifdef MPZ_POLY_TIMINGS
+#include "timing.h"
+#include <ctime>
+#else
+#ifndef MPZ_POLY_H_
+#error "please include mpz_poly.h first"
+#endif
+#endif
 
 #ifndef max
 #define max(a,b) ((a)<(b) ? (b) : (a))
@@ -77,9 +90,6 @@
 // in mpz_poly.h: add #define MPZ_POLY_TIMINGS
 // beware: these timers are not thread-safe.
 #ifdef MPZ_POLY_TIMINGS
-#include <time.h>
-#include <timing.h>
-#include "macros.h"
 static double timer[3] = {0.0, 0.0, 0.0};
 static unsigned long calls[3] = {0, 0, 0};
 #endif
@@ -2349,13 +2359,6 @@ mpz_poly_mod_mpz_lazy (mpz_poly_ptr R, mpz_poly_srcptr A, mpz_srcptr m)
    Coefficients of R need not be reduced mod m on input, but are reduced
    on output.
    If invf is not NULL, it should be 1/m mod lc(f). */
-int
-mpz_poly_mod_f_mod_mpz (mpz_poly_ptr R, mpz_poly_srcptr f, mpz_srcptr m,
-        mpz_srcptr invf)
-{
-    return mpz_poly_mod_f_mod_mpz (R, f, m, invf, NULL);
-}
-
 int mpz_poly_mod_f_mod_mpz(mpz_poly_ptr R, mpz_poly_srcptr f, mpz_srcptr m,
 			mpz_srcptr invf, mpz_srcptr invm)
 {
@@ -3677,7 +3680,7 @@ void mpz_poly_factor_list_flush(mpz_poly_factor_list_ptr l)
 }
 
 
-void mpz_poly_factor_list_prepare_write(mpz_poly_factor_list_ptr l, int index)
+static void mpz_poly_factor_list_prepare_write(mpz_poly_factor_list_ptr l, int index)
 {
     if (index >= l->alloc) {
         l->alloc = index + 4 + l->alloc / 4;
@@ -4325,7 +4328,7 @@ std::vector<std::pair<cxx_mpz_poly, int>> mpz_poly_factor(mpz_poly_srcptr f, mpz
     return res;
 }
 
-void mpz_poly_factor_list_set(mpz_poly_factor_list_ptr lf, std::vector<std::pair<cxx_mpz_poly, int>> const & xlf)
+static void mpz_poly_factor_list_set(mpz_poly_factor_list_ptr lf, std::vector<std::pair<cxx_mpz_poly, int>> const & xlf)
 {
     mpz_poly_factor_list_flush(lf);
     for(auto const & fm : xlf)
@@ -4979,11 +4982,6 @@ int mpz_poly_set_from_expression(mpz_poly_ptr f, const char * value)
    P->p = lc(F)^P->v * p mod F.
 
    */
-void mpz_poly_reducemodF(mpz_polymodF_ptr P, mpz_poly_srcptr p, mpz_poly_srcptr F)
-{
-    mpz_poly_notparallel_info().mpz_poly_reducemodF(P, p, F);
-}
-
 template<typename inf>
 void mpz_poly_parallel_interface<inf>::mpz_poly_reducemodF(mpz_polymodF_ptr P, mpz_poly_srcptr p, mpz_poly_srcptr F) const
 {
@@ -5107,8 +5105,6 @@ void mpz_polymodF_swap(mpz_polymodF_ptr P, mpz_polymodF_ptr Q)
     std::swap(P->v, Q->v);
     mpz_poly_swap(P->p, Q->p);
 }
-
-#include <memory>
 
 struct product_tree {
     size_t i0, i1;

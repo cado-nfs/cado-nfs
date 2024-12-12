@@ -27,7 +27,7 @@ mod_pow_ul (residue_t r, const residue_t b, const unsigned long e,
      r^mask * b^e is invariant, and is the result we want */
 
   /* Find highest set bit in e. */
-  mask = (1UL << (LONG_BIT - 1)) >> ularith_clz (e);
+  mask = (1UL << (ULONG_BITS - 1)) >> ularith_clz (e);
   /* r = 1, so r^(mask/2) * b^e = r^mask * b^e  */
 
   /* Exponentiate */
@@ -81,7 +81,7 @@ mod_pow_mp (residue_t r, const residue_t b, const unsigned long *e,
   ASSERT (e[i] != 0UL);
 
   /* Find highest set bit in e[i]. */
-  mask = (1UL << (LONG_BIT - 1)) >> ularith_clz (e[i]);
+  mask = (1UL << (ULONG_BITS - 1)) >> ularith_clz (e[i]);
   /* t = 1, so t^(mask/2) * b^e = t^mask * b^e  */
 
   /* Exponentiate */

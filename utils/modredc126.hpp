@@ -125,7 +125,7 @@ protected:
         r = Integer(t[0], t[1]);
     }
 
-    /* Converts s out of Montgomery form by dividing by 2^(2*LONG_BIT).
+    /* Converts s out of Montgomery form by dividing by 2^(2*ULONG_BITS).
        Requires s < m. */
     void frommontgomery (Residue &r, const Residue &s) const
     {

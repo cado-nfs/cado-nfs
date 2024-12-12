@@ -12,10 +12,6 @@
 
 // I don't want to look into this code, really.
 // NOLINTBEGIN
-#ifdef _POSIX_C_SOURCE
-#undef _POSIX_C_SOURCE
-#endif
-#define _POSIX_C_SOURCE 200809L
 
 #include <stdio.h>
 #include <string.h>

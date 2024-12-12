@@ -18,7 +18,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <gmp.h>
-//#include <time.h> 
 #include "cado_poly.h"
 #include "gfpkdlpolyselect.h"
 #include "gfpkdlpolyselect_impl.h"

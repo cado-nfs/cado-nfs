@@ -240,7 +240,7 @@ comp_sorted_bin_tree_insert (comp_sorted_bin_tree_ptr T, comp_t new_node)
 /*********** Functions to compute and delete connected component **************/
 
 template <class T>
-bool vector_contains(std::vector<T> const & v, const T& val)
+static bool vector_contains(std::vector<T> const & v, const T& val)
 {
     return std::find(v.begin(), v.end(), val) != v.end();
 }
@@ -255,7 +255,7 @@ bool vector_contains(std::vector<T> const & v, const T& val)
  * component has already been found when the function was called with a smaller
  * clique->i).
  */
-uint64_t
+static uint64_t
 compute_one_connected_component (comp_t *clique, purge_matrix_srcptr mat,
                                  std::vector<uint64_t> & row_buffer)
 {
@@ -299,7 +299,7 @@ compute_one_connected_component (comp_t *clique, purge_matrix_srcptr mat,
  * own row_buffer), but it calls purge_matrix_delete_row, which is NOT
  * compatible!
  */
-void
+static void
 delete_one_connected_component (purge_matrix_ptr mat, uint64_t cur_row,
                                 std::vector<uint64_t> & row_buffer)
 {
@@ -342,7 +342,7 @@ delete_one_connected_component (purge_matrix_ptr mat, uint64_t cur_row,
  * are expensive to compute, so these functions should not be called by default.
  * Assume mat->sum2_row is already computed.
  */
-void
+static void
 purge_matrix_print_stats_on_cliques (FILE *out, purge_matrix_srcptr mat,
                                      int verbose)
 {

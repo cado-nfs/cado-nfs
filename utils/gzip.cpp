@@ -1,11 +1,18 @@
 #include "cado.h" // IWYU pragma: keep
-// IWYU pragma: no_include <bits/types/struct_rusage.h>
+
 #include <cstdlib>
 #include <climits>
-#include <array>
 #include <cstdio> // FILE // IWYU pragma: keep
 #include <cstring>
-#include <sys/types.h>  // pid_t
+#include <cerrno>
+
+#include <array>
+#include <stdexcept>
+#include <ios>  // std::ios_base::openmode // IWYU pragma: keep
+#include <fstream>  // filebuf
+
+// IWYU pragma: no_include <bits/types/struct_rusage.h>
+#include <sys/types.h> // pid_t
 #include <sys/wait.h>  // WIFEXITED WEXITSTATUS (on freebsd at least)
 #include <unistd.h>     // close getpid
 #include <sys/stat.h> // stat // IWYU pragma: keep
@@ -13,16 +20,15 @@
 #include <sys/time.h> // IWYU pragma: keep
 #include <sys/resource.h> // IWYU pragma: keep
 #endif
-#include <cerrno>
 
 #include "fmt/format.h"
-
 
 #include "macros.h"
 #include "gzip.h"
 #include "misc.h"
 #include "cado_popen.h"
 #include "cado_pipe_streambuf.hpp"
+#include "portability.h" // realpath
 
 struct suffix_handler {
     std::string suffix;
@@ -31,7 +37,7 @@ struct suffix_handler {
 };
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
-static char antebuffer[PATH_MAX];	/* "directory/antebuffer" or "cat" */
+static char antebuffer[PATH_MAX];       /* "directory/antebuffer" or "cat" */
 static int antebuffer_buffer_size = 24; /* default value 2^24 = 16 Mo */
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
@@ -382,11 +388,6 @@ fclose_maybe_compressed (FILE * f, const char * name)
 {
     return fclose_maybe_compressed2(f, name, nullptr);
 }
-
-#include <stdexcept>
-#include <ios>  // std::ios_base::openmode // IWYU pragma: keep
-#include <fstream>  // filebuf
-#include "portability.h" // strdup // IWYU pragma: keep
 
 streambase_maybe_compressed::streambase_maybe_compressed(std::string const & name, std::ios_base::openmode mode)
 {

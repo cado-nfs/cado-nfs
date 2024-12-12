@@ -1,8 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
 
-// IWYU pragma: no_include <sys/param.h>
-// IWYU pragma: no_include <memory>
-
 #ifdef LINGEN_BINARY
 #error "lingen_tune_cutoffs does not work with binary, at least for the moment"
 #endif
@@ -15,6 +12,8 @@
 #ifdef  HAVE_SIGHUP
 #include <csignal>
 #endif
+
+// IWYU pragma: no_include <memory>
 #include <vector>
 #include <utility>
 #include <map>
@@ -23,11 +22,12 @@
 #include <sstream> // IWYU pragma: keep
 #include <type_traits>                      // for __strip_reference_wrapper...
 
+// IWYU pragma: no_include <sys/param.h>
+
 #include <gmp.h>                            // for mp_limb_t, gmp_randclear
 
 #include "timing.h"                         // for seconds, wct_seconds, cpu...
 #include "tree_stats.hpp"                   // for tree_stats
-
 #include "gmp_aux.h"
 #include "macros.h"
 #include "cxx_mpz.hpp"
@@ -78,7 +78,7 @@ struct cutoff_list_s {
 typedef cutoff_list_s * cutoff_list;
 
 /* cutoff list *ALWAYS* finish with UINT_MAX, UINT_MAX */
-unsigned int cutoff_list_get(cutoff_list cl, unsigned int k)
+static unsigned int cutoff_list_get(cutoff_list cl, unsigned int k)
 {
     if (!cl) return 0;
     if (k < cl->k) return 0;
@@ -89,7 +89,7 @@ unsigned int cutoff_list_get(cutoff_list cl, unsigned int k)
 
 /* The -B argument may be used to request printing of timing results at
  * least up to this input length */
-unsigned int bench_atleast_uptothis = 0;
+static unsigned int bench_atleast_uptothis = 0;
 
 /* timer backends *//*{{{*/
 #ifdef  HAVE_GCC_STYLE_AMD64_INLINE_ASM
@@ -372,10 +372,10 @@ struct cutoff_finder {
 /* }}} */
 
 #ifdef  HAVE_SIGHUP
-double last_hup = 0;
-int hup_caught = 0;
+static double last_hup = 0;
+static int hup_caught = 0;
 
-void sighandler(int sig MAYBE_UNUSED)
+static void sighandler(int sig MAYBE_UNUSED)
 {
     double const t = wct_seconds();
     if (t < last_hup + 0.5) {
@@ -387,7 +387,7 @@ void sighandler(int sig MAYBE_UNUSED)
 }
 
 
-void catch_control_signals()
+static void catch_control_signals()
 {
     struct sigaction sa[1];
     memset(sa, 0, sizeof(sa));
@@ -411,7 +411,8 @@ void catch_control_signals()
  * polymat_mp_kara_threshold
  */
 
-void lingen_tune_mul_fti_depth(matpoly::arith_hard * ab, unsigned int m, unsigned int n, cutoff_list *cl_out)/*{{{*/
+// It's buggy and this must be investigated. We want to keep it compiled.
+static void lingen_tune_mul_fti_depth [[maybe_unused]] (matpoly::arith_hard * ab, unsigned int m, unsigned int n, cutoff_list *cl_out)/*{{{*/
 {
     cxx_gmp_randstate rstate;
 
@@ -583,7 +584,9 @@ void lingen_tune_mul_fti_depth(matpoly::arith_hard * ab, unsigned int m, unsigne
         (*cl_out)[table.size()].choice = UINT_MAX;
     }
 }/*}}}*/
-void lingen_tune_mp_fti_depth(matpoly::arith_hard * ab, unsigned int m, unsigned int n, cutoff_list * cl_out)/*{{{*/
+
+// It's buggy and this must be investigated. We want to keep it compiled.
+static void lingen_tune_mp_fti_depth [[maybe_unused]] (matpoly::arith_hard * ab, unsigned int m, unsigned int n, cutoff_list * cl_out) /*{{{*/
 {
     cxx_gmp_randstate rstate;
     gmp_randseed_ui(rstate, 1);
@@ -755,7 +758,7 @@ void lingen_tune_mp_fti_depth(matpoly::arith_hard * ab, unsigned int m, unsigned
 }/*}}}*/
 
 
-void lingen_tune_mul(matpoly::arith_hard * ab, unsigned int m, unsigned int n, cutoff_list cl MAYBE_UNUSED)/*{{{*/
+static void lingen_tune_mul(matpoly::arith_hard * ab, unsigned int m, unsigned int n, cutoff_list cl MAYBE_UNUSED)/*{{{*/
 {
     typedef fft_transform_info fft_type;
     cxx_gmp_randstate rstate;
@@ -804,14 +807,14 @@ void lingen_tune_mul(matpoly::arith_hard * ab, unsigned int m, unsigned int n, c
         unsigned int const input_length = (m+n) * k / m;
         polymat piL  (ab, m+n, m+n, k);
         polymat piR  (ab, m+n, m+n, k);
-        polymat pi   (ab, m+n, m+n, 2*k-1);
-        polymat piref(ab, m+n, m+n, 2*k-1);
+        polymat piref;
         piL.fill_random(k, rstate);
         piR.fill_random(k, rstate);
         
         ostringstream const extra_info;
 
         if (finder.still_meaningful_to_test(0)) {
+            polymat pi;
             /* disable kara for a minute */
             polymat_set_mul_kara_cutoff(always_basecase, NULL);
             for(small_bench<timer_t> x = finder.micro_bench(0); !x.done(); ++x) {
@@ -827,6 +830,7 @@ void lingen_tune_mul(matpoly::arith_hard * ab, unsigned int m, unsigned int n, c
         }
 
         if (finder.still_meaningful_to_test(1)) {
+            polymat pi;
             /* This temporarily sets the cutoff table to enable karatsuba for
              * length >=k (hence for this test) at least, possibly using
              * karatsuba one or more times in the recursive calls depending
@@ -861,13 +865,11 @@ void lingen_tune_mul(matpoly::arith_hard * ab, unsigned int m, unsigned int n, c
             piref = polymat();
         }
 
-        matpoly xpi(ab, m+n, m+n, 2*k-1);
-        pi = polymat();
-
         /* we should make the effort of converting polymat to matpoly,
          * right ? */
 
         if (finder.still_meaningful_to_test(2)) {
+            matpoly xpi;
             /* The matpoly layer is just completetly different -- and gets
              * faster quite early on... */
             for(small_bench<timer_t> x = finder.micro_bench(2); !x.done(); ++x) {
@@ -883,6 +885,7 @@ void lingen_tune_mul(matpoly::arith_hard * ab, unsigned int m, unsigned int n, c
         }
 
         if (finder.still_meaningful_to_test(3)) {
+            matpoly xpi;
             unsigned int const adj = cutoff_list_get(cl, k);
             {
                 ostringstream o;
@@ -964,7 +967,7 @@ void lingen_tune_mul(matpoly::arith_hard * ab, unsigned int m, unsigned int n, c
     polymat_cutoff_info_clear(improved);
 }/*}}}*/
 
-void lingen_tune_mp(matpoly::arith_hard * ab, unsigned int m, unsigned int n, cutoff_list cl MAYBE_UNUSED)/*{{{*/
+static void lingen_tune_mp(matpoly::arith_hard * ab, unsigned int m, unsigned int n, cutoff_list cl MAYBE_UNUSED)/*{{{*/
 {
     typedef fft_transform_info fft_type;
     cxx_gmp_randstate rstate;
@@ -1030,14 +1033,14 @@ void lingen_tune_mp(matpoly::arith_hard * ab, unsigned int m, unsigned int n, cu
         unsigned int const E_length = k + input_length - 1;
         polymat E(ab, m, m+n, E_length);
         polymat piL(ab, m+n, m+n, k);
-        polymat ER(ab, m, m+n, input_length);
-        polymat ERref(ab, m, m+n, input_length);
+        polymat ERref;
         E.fill_random(E_length, rstate);
         piL.fill_random(k, rstate);
 
         ostringstream const extra_info;
 
         if (finder.still_meaningful_to_test(0)) {
+            polymat ER;
             /* disable kara for a minute */
             polymat_set_mp_kara_cutoff(always_basecase, NULL);
             for(small_bench<timer_t> x = finder.micro_bench(0); !x.done(); ++x) {
@@ -1053,6 +1056,7 @@ void lingen_tune_mp(matpoly::arith_hard * ab, unsigned int m, unsigned int n, cu
         }
 
         if (finder.still_meaningful_to_test(1)) {
+            polymat ER;
             /* This temporarily sets the cutoff table to enable karatsuba for
              * length >=k (hence for this test) at least, possibly using
              * karatsuba one or more times in the recursive calls depending
@@ -1081,19 +1085,17 @@ void lingen_tune_mp(matpoly::arith_hard * ab, unsigned int m, unsigned int n, cu
         xE.set_polymat(E);
         E = polymat();
 
-        matpoly xERref(ab, m, m+n, input_length);
+        matpoly xERref;
         if (ERref.get_size()) {
             xERref.set_polymat(ERref);
         }
-        ERref = polymat();
 
-        matpoly xER(ab, m, m+n, input_length);
-        ER = polymat();
 
         /* we should make the effort of converting polymat to matpoly,
          * right ? */
 
         if (finder.still_meaningful_to_test(2)) {
+            matpoly xER;
             /* The matpoly layer is just completetly different -- and gets
              * faster quite early on... */
             for(small_bench<timer_t> x = finder.micro_bench(2); !x.done(); ++x) {
@@ -1109,6 +1111,7 @@ void lingen_tune_mp(matpoly::arith_hard * ab, unsigned int m, unsigned int n, cu
         }
 
         if (finder.still_meaningful_to_test(3)) {
+            matpoly xER;
             unsigned int adj = UINT_MAX;
             if (cl) {
                 adj = cutoff_list_get(cl, k);

@@ -31,7 +31,7 @@
 
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
-char const * argv0; /* = argv[0] */
+static char const * argv0; /* = argv[0] */
 
 static std::unique_ptr<uint32_t[]> H; /* H contains the hash table */
 static unsigned long K = 0; /* Size of the hash table */

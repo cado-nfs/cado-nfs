@@ -1,10 +1,6 @@
 #ifndef RELATION_HPP_
 #define RELATION_HPP_
 
-#ifndef __cplusplus
-#error "This is C++-only"
-#endif
-
 #include <algorithm> // max
 #include <cstdint>
 #include <cstdio>

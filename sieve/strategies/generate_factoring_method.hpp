@@ -1,5 +1,5 @@
-#ifndef GENERATE_FACTORING_METHOD
-#define  GENERATE_FACTORING_METHOD
+#ifndef GENERATE_FACTORING_METHOD_HPP
+#define GENERATE_FACTORING_METHOD_HPP
 
 #include <cstdio>
 #include <vector>
@@ -110,4 +110,4 @@ struct weighted_success {
     weighted_success(double p, double t, size_t N) : prob(p/N), time(t/N) {}
 };
 
-#endif				/* GENERATE_FACTORING_METHOD */
+#endif				/* GENERATE_FACTORING_METHOD_HPP */

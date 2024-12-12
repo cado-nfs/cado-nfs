@@ -12,7 +12,7 @@
 #include "test_bblas_level4.hpp"
 #include "time_bblas_common.hpp"
 
-int gauss_MN_C(unsigned int bM, unsigned int bN, gmp_randstate_t rstate)
+static int gauss_MN_C(unsigned int bM, unsigned int bN, gmp_randstate_t rstate)
 {
     constexpr const unsigned int B = mat64::width;
     unsigned int const M = B * bM;

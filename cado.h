@@ -23,6 +23,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #ifndef CADO_H
 #define CADO_H
 
+// scan-headers: skip
+
 /* The purpose of this header is to define some feature macros (and only
  * macros), which tweak the behaviour of include files. Our intent is to
  * define here in a unique place the required macros exposing the functions

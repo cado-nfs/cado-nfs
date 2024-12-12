@@ -13,8 +13,8 @@
 #include "tests_common.h"
 
 /* Some tests */
-void test_random_normal_standard(cxx_gmp_randstate & rstate, unsigned long N,
-                                 int logscale_report)
+static void test_random_normal_standard(cxx_gmp_randstate & rstate,
+                                        unsigned long N, int logscale_report)
 {
     double s = 0, ss = 0;
     for (unsigned long i = 0, l = logscale_report; l <= N;
@@ -26,8 +26,8 @@ void test_random_normal_standard(cxx_gmp_randstate & rstate, unsigned long N,
         }
         double const m = s / double(l);
         double const sd = sqrt(ss / double(l) - m * m);
-        fmt::print(stderr, "{}: after {} picks, mean={:.3f} sdev={:.3f}\n", __func__,
-                l, m, sd);
+        fmt::print(stderr, "{}: after {} picks, mean={:.3f} sdev={:.3f}\n",
+                   __func__, l, m, sd);
 
         if (l >= 1024) {
             ASSERT_ALWAYS(std::abs(m) <= 0.1);
@@ -37,8 +37,8 @@ void test_random_normal_standard(cxx_gmp_randstate & rstate, unsigned long N,
     }
 }
 
-void test_random_normal(cxx_gmp_randstate & rstate, double xm, double xs,
-                        unsigned long N, int logscale_report)
+static void test_random_normal(cxx_gmp_randstate & rstate, double xm, double xs,
+                               unsigned long N, int logscale_report)
 {
     double s = 0, ss = 0;
     for (unsigned long i = 0, l = logscale_report; l <= N;
@@ -60,9 +60,10 @@ void test_random_normal(cxx_gmp_randstate & rstate, double xm, double xs,
     }
 }
 
-void test_random_normal_constrained(cxx_gmp_randstate & rstate, double xm,
-                                    double xs, unsigned long a, unsigned long b,
-                                    unsigned long N, int logscale_report)
+static void test_random_normal_constrained(cxx_gmp_randstate & rstate,
+                                           double xm, double xs,
+                                           unsigned long a, unsigned long b,
+                                           unsigned long N, int logscale_report)
 {
     double s = 0, ss = 0;
     double mmx[2] = {xm, xs}, mmy[2];
@@ -95,8 +96,9 @@ void test_random_normal_constrained(cxx_gmp_randstate & rstate, double xm,
  * and pdf Pr(X=k)=xm^k/k!*exp(-xm), but restrict the output to values
  * that are at most n
  */
-void test_random_poisson(cxx_gmp_randstate & rstate, double xm, unsigned long n,
-                         unsigned long N, int logscale_report)
+static void test_random_poisson(cxx_gmp_randstate & rstate, double xm,
+                                unsigned long n, unsigned long N,
+                                int logscale_report)
 {
     double s = 0, ss = 0;
     ASSERT_ALWAYS(logscale_report > 1);
@@ -124,18 +126,19 @@ void test_random_poisson(cxx_gmp_randstate & rstate, double xm, unsigned long n,
 struct test_column_distribution : public matrix_column_distribution {
     size_t N;
     double e;
-    test_column_distribution(size_t N, double e) : N(N), e(e) {}
-    inline double q(double x) const override
+    test_column_distribution(size_t N, double e)
+        : N(N)
+        , e(e)
     {
-        return pow(x / double(N), e);
     }
+    inline double q(double x) const override { return pow(x / double(N), e); }
     inline double qrev(double x) const override
     {
         return pow(x, 1.0 / e) * double(N);
     }
 };
 
-void test_arbitrary(cxx_gmp_randstate & rstate, unsigned long iter)
+static void test_arbitrary(cxx_gmp_randstate & rstate, unsigned long iter)
 {
     for (int ee = 1; ee < 6; ee++) {
         test_column_distribution const C(8192, ee);
@@ -155,8 +158,8 @@ void test_arbitrary(cxx_gmp_randstate & rstate, unsigned long iter)
             punched_interval_ptr pool = nullptr;
             punched_interval_ptr range = punched_interval_alloc(&pool, 0, 1);
             for (unsigned long i = 0; i < K; i++) {
-                unsigned long const a = punched_interval_pick(
-                    &pool, range, C, rstate);
+                unsigned long const a =
+                    punched_interval_pick(&pool, range, C, rstate);
                 ASSERT_ALWAYS(a < C.N);
                 bins[a / K]++;
             }

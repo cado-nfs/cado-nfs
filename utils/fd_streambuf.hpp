@@ -1,5 +1,5 @@
-#ifndef CXX_FDSTREAMBUF_HPP_
-#define CXX_FDSTREAMBUF_HPP_
+#ifndef UTILS_FD_STREAMBUF_HPP_
+#define UTILS_FD_STREAMBUF_HPP_
 
 #include <streambuf>
 #include <cstdio>       // reuse BUFSIZ from stdio.
@@ -31,4 +31,4 @@ class fd_streambuf : public std::streambuf
     fd_streambuf& operator=(fd_streambuf &&) = delete;
 };
 
-#endif /* CXX_FDSTREAMBUF_HPP_ */
+#endif /* UTILS_FD_STREAMBUF_HPP_ */

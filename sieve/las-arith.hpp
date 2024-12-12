@@ -1,8 +1,10 @@
 #ifndef LAS_ARITH_HPP_
 #define LAS_ARITH_HPP_
 
-#include "las-config.h"   // for NOPROFILE_INLINE
+// #define LAS_ARITH_INVMOD_HISTOGRAM 1
+
 #include "cado_config.h"  // for HAVE_GCC_STYLE_AMD64_INLINE_ASM
+#include "las-config.h"   // for NOPROFILE_INLINE
 
 #include <cstdint>        // for uint32_t, uint64_t, uint8_t, int64_t
 #include <cinttypes>      // for PRI* macros
@@ -13,9 +15,8 @@
 #include "mod_ul.h"        // for modul_clear, modul_clearmod, modul_get_ul
 #include "verbose.h"
 
-// #define LAS_ARITH_INVMOD_HISTOGRAM 1
 #ifdef LAS_ARITH_INVMOD_HISTOGRAM
-#include <utils_cxx.hpp>
+#include "utils_cxx.hpp"
 #endif
 
 /* This header file is also #include'd by tests/sieve/torture-redc.cpp,

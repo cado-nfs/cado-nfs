@@ -6,6 +6,7 @@
 #include "typedefs.h"   // index_t
 #include "merge_replay_matrix.h"        // typerow_t
 
+// scan-headers: stop here
 #ifdef FOR_DL
 #define rowCell(row, k) (row)[k].id
 #define rowFullCell(row, k) (row)[k]

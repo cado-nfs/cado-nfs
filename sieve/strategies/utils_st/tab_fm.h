@@ -1,5 +1,5 @@
-#ifndef TAB_FM
-#define TAB_FM
+#ifndef TAB_FM_H
+#define TAB_FM_H
 
 #include <stdio.h>
 #ifndef __cplusplus
@@ -72,4 +72,4 @@ void tabular_fm_sort(tabular_fm_t * t);
 #ifdef __cplusplus
 }
 #endif
-#endif				/* TAB_FM */
+#endif				/* TAB_FM_H */

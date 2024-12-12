@@ -1,6 +1,8 @@
 #ifndef CADO_UTILS_GETPRIME_H_
 #define CADO_UTILS_GETPRIME_H_
 
+// scan-headers: skip
+
 #ifndef MAIN
 #include "macros.h"
 #else

@@ -1,41 +1,43 @@
 #include "cado.h" // IWYU pragma: keep
-// IWYU pragma: no_include <ext/alloc_traits.h>
-// IWYU pragma: no_include <mm_malloc.h>
+
+#define xxxLOG_BUCKET_REGION_IS_A_CONSTANT
+
 #include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
 #include <ctime>
+
+// IWYU pragma: no_include <ext/alloc_traits.h>
 #include <vector>
 #include <sstream>
 #include <algorithm>
 #include <memory>                             // for allocator_traits<>::val...
 #include <string>                             // for string
 #include <type_traits>                        // for is_same
+
 #include <sys/time.h>
+
 #include <gmp.h>
+
 #include "fb-types.h"                         // for sublat_t
 #include "las-smallsieve-types.hpp"           // for ssp_simple_t, ssp_t
 #include "las-where-am-i-proxy.hpp"           // for where_am_I
-#include "macros.h"
 #include "las-where-am-i.hpp"
-
-#define xxxLOG_BUCKET_REGION_IS_A_CONSTANT
-
+#include "macros.h"
+#include "params.h"
+#include "sieve/las-smallsieve-glue.hpp"
+#include "sieve/las-smallsieve-lowlevel.hpp"
 #include "test-smallsieve-mock.hpp"
 
-#include "sieve/las-smallsieve-lowlevel.hpp"
-#include "sieve/las-smallsieve-glue.hpp"
-#include "params.h"
 
-
-int consistency_check_mode = 0;
-int quiet = 0;
-int abort_on_fail = 0;
-int only_complete_functions = 0;
+static int consistency_check_mode = 0;
+static int quiet = 0;
+static int abort_on_fail = 0;
+static int only_complete_functions = 0;
 
 /* this is really a mock structure just for the fun of it. */
-sublat_t sl;
+static sublat_t sl;
 
 
 
@@ -229,7 +231,7 @@ static inline size_t sieve_full_line_new(unsigned char * S0, unsigned char * S1,
     return pi - S1;
 }
 
-void current_I18_branch(std::vector<int> const & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /* {{{ */
+static void current_I18_branch(std::vector<int> const & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /* {{{ */
 {
     SMALLSIEVE_COMMON_DEFS();
     ASSERT_ALWAYS(positions.size() == primes.size());
@@ -277,6 +279,7 @@ void current_I18_branch(std::vector<int> const & positions, std::vector<ssp_simp
         }
     }
 }/*}}}*/
+#if 0
 void modified_I18_branch_C(std::vector<int> const & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /* {{{ */
 {
     SMALLSIEVE_COMMON_DEFS();
@@ -312,7 +315,8 @@ void modified_I18_branch_C(std::vector<int> const & positions, std::vector<ssp_s
         }
     }
 }/*}}}*/
-void legacy_branch(std::vector<int> const & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /*{{{*/
+#endif
+static void legacy_branch(std::vector<int> const & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /*{{{*/
 {
     SMALLSIEVE_COMMON_DEFS();
     const unsigned long bucket_region = (1UL << LOG_BUCKET_REGION);
@@ -376,7 +380,7 @@ j_odd:
     }
 }
 /*}}}*/
-void devel_branch(std::vector<int> const & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /*{{{*/
+static void devel_branch(std::vector<int> const & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /*{{{*/
 {
     SMALLSIEVE_COMMON_DEFS();
     ASSERT_ALWAYS(positions.size() == primes.size());
@@ -430,7 +434,7 @@ j_odd_devel:
     }
 }
 /*}}}*/
-void legacy_mod_branch(std::vector<int> const & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /*{{{*/
+static void legacy_mod_branch(std::vector<int> const & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /*{{{*/
 {
     SMALLSIEVE_COMMON_DEFS();
     const unsigned long bucket_region = (1UL << LOG_BUCKET_REGION);
@@ -552,7 +556,8 @@ j_odd:
 }
 /*}}}*/
 
-template<typename even_code, typename odd_code, bool fragment> void devel_branch_meta(std::vector<int> const & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /*{{{*/
+template<typename even_code, typename odd_code, bool fragment>
+static void devel_branch_meta(std::vector<int> const & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /*{{{*/
 {
     SMALLSIEVE_COMMON_DEFS();
     ASSERT_ALWAYS(positions.size() == primes.size());
@@ -605,7 +610,7 @@ j_odd_devel0:
 }/*}}}*/
 
 
-void generated(std::vector<int> const & positions, std::vector<ssp_simple_t> const & primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /*{{{*/
+static void generated(std::vector<int> const & positions, std::vector<ssp_simple_t> const & primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /*{{{*/
 {
     std::vector<ssp_t> const not_nice_primes;
     small_sieve SS(positions, primes, not_nice_primes, S, logI, N, sl);
@@ -904,7 +909,7 @@ struct bench_base {
     }
 };
 
-void store_primes(std::vector<ssp_simple_t>& allprimes, int bmin, int bmax, gmp_randstate_t rstate)
+static void store_primes(std::vector<ssp_simple_t>& allprimes, int bmin, int bmax, gmp_randstate_t rstate)
 {
     mpz_t pz;
     mpz_init(pz);
@@ -922,7 +927,7 @@ void store_primes(std::vector<ssp_simple_t>& allprimes, int bmin, int bmax, gmp_
     mpz_clear(pz);
 }
 
-void declare_usage(cxx_param_list & pl)
+static void declare_usage(cxx_param_list & pl)
 {
     param_list_decl_usage(pl, "q",  "quiet mode (for tests, mostly)");
     param_list_decl_usage(pl, "C",  "run tests, not timings");

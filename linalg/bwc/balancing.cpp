@@ -137,7 +137,7 @@ void balancing_write(balancing const & bal, std::string const & mfile, std::stri
     balancing_write_inner(bal, locfile);
 }
 
-void balancing_read_header_inner(balancing & bal, FILE * pfile)
+static void balancing_read_header_inner(balancing & bal, FILE * pfile)
 {
     size_t rc = 0;
     ASSERT_ALWAYS(pfile);

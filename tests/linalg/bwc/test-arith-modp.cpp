@@ -11,7 +11,7 @@
 using namespace arith_modp;
 
 template<typename F>
-void do_tests(unsigned long iter, int summands, int cbound )
+static void do_tests(unsigned long iter, int summands, int cbound )
 {
 
     size_t const maximum_limbs = std::conditional<F::is_constant_width, std::integral_constant<size_t, F::constant_width>, std::integral_constant<int, 32>>::type::value;

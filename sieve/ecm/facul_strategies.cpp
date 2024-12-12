@@ -191,7 +191,7 @@ nb_curves99 (const unsigned int lpb)
 /*}}}*/
 
 /* TODO: move elsewhere. */
-const char * parameterization_name(ec_parameterization_t p)
+static const char * parameterization_name(ec_parameterization_t p)
 {
     switch(p) {
         case BRENT12:     return "ECM-B12";
@@ -565,7 +565,7 @@ strategy_file_parser::operator()(std::vector<unsigned int> const & mfb, FILE * f
     return parsed_file;
 }
 
-void fprint_one_chain(FILE * file, std::vector<facul_method_side> const & v)
+static void fprint_one_chain(FILE * file, std::vector<facul_method_side> const & v)
 {
     parameter_sequence_tracker tracker;
 

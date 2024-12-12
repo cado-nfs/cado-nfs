@@ -235,7 +235,7 @@ test_size_optimization (void)
   mpz_poly_clear (g_opt);
 }
 
-void test_rotate_aux(unsigned long iter)
+static void test_rotate_aux(unsigned long iter)
 {
     for(unsigned long i = 0 ; i < iter ; i++) {
         cxx_mpz_poly F0, F, G, R, H;

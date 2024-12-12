@@ -22,8 +22,8 @@
 
 using namespace std;
 
-char const ** original_argv;
-gmp_randstate_t state;
+static char const ** original_argv;
+static gmp_randstate_t state;
 
 /* This program is intended to replicate exactly the behaviour of the
  * scripts/badideals.mag program of old.
@@ -118,7 +118,7 @@ gmp_randstate_t state;
  *    prime ideals.
  */ 
 
-void badideals_declare_usage(cxx_param_list & pl)/*{{{*/
+static void badideals_declare_usage(cxx_param_list & pl)/*{{{*/
 {
     param_list_decl_usage(pl, "badideals", "badideals file");
     param_list_decl_usage(pl, "badidealinfo", "badidealinfo file");
@@ -128,7 +128,7 @@ void badideals_declare_usage(cxx_param_list & pl)/*{{{*/
     param_list_decl_usage(pl, "ell", "ell (for computing default number of maps ; not used for bad ideals)");
 }/*}}}*/
 
-void usage(param_list_ptr pl, char const ** argv, const char * msg = NULL)/*{{{*/
+static void usage(param_list_ptr pl, char const ** argv, const char * msg = NULL)/*{{{*/
 {
     param_list_print_usage(pl, argv[0], stderr);
     if (msg) {

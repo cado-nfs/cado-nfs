@@ -15,7 +15,7 @@
 
 #include "bwc_config.h" // BUILD_DYNAMICALLY_LINKABLE_BWC // IWYU pragma: keep
 
-#ifdef  BUILD_DYNAMICALLY_LINKABLE_BWC
+#ifdef BUILD_DYNAMICALLY_LINKABLE_BWC
 #include <dlfcn.h>
 #include "solib-naming.h" // IWYU pragma: keep
 #endif
@@ -98,7 +98,7 @@ void matmul_lookup_parameters(cxx_param_list & pl)
 
 /* this is a function taking two strings, and returning a pointer to a
  * function taking a matmul_ptr and returning void */
-matmul_interface_ctor_t * reach_ctor(std::string const & impl, std::string const & dimpl)
+static matmul_interface_ctor_t * reach_ctor(std::string const & impl, std::string const & dimpl)
 {
     if (0) {
         return NULL;
@@ -172,7 +172,7 @@ std::shared_ptr<matmul_interface> matmul_interface::create(arith_generic * x,
             fmt::print(stderr, "loading {}: {}\n", solib, dlerror());
             abort();
         }
-        // NOLINTNEXTLINE: cppcoreguidelines-pro-type-cstyle-cast
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-cstyle-cast)
         auto ctor_getter = (matmul_interface_ctor_t *(*)()) dlsym(handle, "matmul_solib_reach_ctor");
         ctor = (*ctor_getter)();
         // stem.solib_handle.reset(handle);
@@ -196,6 +196,7 @@ std::shared_ptr<matmul_interface> matmul_interface::create(arith_generic * x,
          * (interleaving), but beyond that no custom deletion is
          * necessary. */
         ctor = reach_ctor(impl, x->impl_name());
+        ASSERT_ALWAYS(ctor != nullptr);
         mm = std::unique_ptr<matmul_interface> {
                 (*ctor)(std::move(stem), x, pl, optimized_direction)
         };

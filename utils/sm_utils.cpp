@@ -2,20 +2,23 @@
 
 #include <cstdio>      // FILE
 #include <cstdlib>     // free, malloc, abort
+#include <cstdint>
 #include <cstring>     // strcmp memset
 
 #include <vector>
+#include <stdexcept>
 
 #include <gmp.h>
+#include "fmt/core.h"
 
 #include "gmp_aux.h"
+#include "cxx_mpz.hpp"
 #include "macros.h"     // for ASSERT_ALWAYS
 #include "mpz_poly.h"   // mpz_poly
+#include "mpz_mat.h"
 #include "sm_utils.hpp"
 #include "cado_poly.h"  // NB_POLYS_MAX
 #include "numbertheory.hpp"
-
-double m_seconds = 0;
 
 #define xxxxWIP_SM
 
@@ -334,7 +337,7 @@ static int compute_unit_rank(mpz_poly_srcptr f)
     return unitrank;
 }
 
-void compute_change_of_basis_matrix(cxx_mpz_mat & matrix, mpz_poly_srcptr f, std::vector<sm_side_info::piece> const & pieces, cxx_mpz const & ell)
+static void compute_change_of_basis_matrix(cxx_mpz_mat & matrix, mpz_poly_srcptr f, std::vector<sm_side_info::piece> const & pieces, cxx_mpz const & ell)
 {
     /* now compute the change of basis matrix. This is given simply
      * as the CRT matrix from the piecewise representation modulo

@@ -166,7 +166,8 @@ mmt_vec_broadcast(mmt_vec & v)
 /* {{{ various reduce_scatter implementations */
 /* {{{ alternative_reduce_scatter */
 #if 1 || RS_CHOICE == RS_CHOICE_MINE
-void alternative_reduce_scatter(mmt_vec & v)
+// TODO: test!
+static void alternative_reduce_scatter [[maybe_unused]] (mmt_vec & v)
 {
     pi_comm_ptr wr = v.pi->wr[v.d];
     unsigned int const njobs = wr->njobs;
@@ -238,7 +239,8 @@ void alternative_reduce_scatter(mmt_vec & v)
 /* all threads in mmt.wr[!d], one after another a priori, are going to
  * do alternative_reduce_scatter on their vector v[i]
  */
-void alternative_reduce_scatter_parallel(pi_comm_ptr xr, mmt_vec ** vs)
+// TODO: test!
+static void alternative_reduce_scatter_parallel [[maybe_unused]] (pi_comm_ptr xr, mmt_vec ** vs)
 {
     /* we write all data counts below with comments indicating the typical
      * size in our toy example above */
@@ -353,7 +355,8 @@ void alternative_reduce_scatter_parallel(pi_comm_ptr xr, mmt_vec ** vs)
 /* }}} */
 /* {{{ my_MPI_Reduce_scatter_block */
 #if 1 || RS_CHOICE == RS_CHOICE_MINE_DROP_IN
-int my_MPI_Reduce_scatter_block(void *sendbuf, void *recvbuf, int recvcount,
+// TODO: test!
+static int my_MPI_Reduce_scatter_block [[maybe_unused]] (void *sendbuf, void *recvbuf, int recvcount,
                 MPI_Datatype datatype, MPI_Op op MAYBE_UNUSED, MPI_Comm wr)
 {
     ASSERT_ALWAYS(sendbuf == MPI_IN_PLACE);
@@ -428,8 +431,7 @@ int my_MPI_Reduce_scatter_block(void *sendbuf, void *recvbuf, int recvcount,
  * Note that the combination of mmt_vec_reduce + mmt_vec_broadcast is not the
  * identity (because of the shuffled_product).
  */
-void
-mmt_vec_reduce_inner(mmt_vec & v)
+static void mmt_vec_reduce_inner(mmt_vec & v)
 {
     ASSERT_ALWAYS(v.consistency != 2);
 
@@ -779,7 +781,7 @@ mmt_vec_allreduce(mmt_vec & v)
 /**********************************************************************/
 /* bench code */
 
-void matmul_top_comm_bench_helper(int * pk, double * pt,
+static void matmul_top_comm_bench_helper(int * pk, double * pt,
                                   void (*f) (mmt_vec &),
 				  mmt_vec & v)
 {

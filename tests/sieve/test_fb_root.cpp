@@ -41,7 +41,7 @@
  * */
 
 template<typename T>
-std::ostream& operator<<(std::ostream& os, fb_root_p1_t<T> const & R)
+static std::ostream& operator<<(std::ostream& os, fb_root_p1_t<T> const & R)
 {
     if (R.proj)
         os << "(1:" << R.r << ")";
@@ -327,7 +327,7 @@ test_chain_fb_root_in_qlattice_batch<0>(basis_citer_t basis_begin MAYBE_UNUSED,
     return;
 }
 
-void test_one_root_31bits(const fbprime_t p, fb_root_p1 const & Rab, const uint32_t invp,
+static void test_one_root_31bits(const fbprime_t p, fb_root_p1 const & Rab, const uint32_t invp,
                      const qlattice_basis &basis)
 {
     fb_root_p1 const r31 = fb_root_in_qlattice_31bits (p, Rab, invp, basis);

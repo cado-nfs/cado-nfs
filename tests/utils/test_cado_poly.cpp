@@ -9,7 +9,7 @@
 #include "mpz_poly.h"
 #include "macros.h"
 
-void
+static void
 test_cado_poly_set ()
 {
   cado_poly p, q;
@@ -55,7 +55,7 @@ test_cado_poly_set ()
 // returns 0 on failure, 1 on success.
 extern "C" int cado_poly_set_plist(cado_poly_ptr cpoly, param_list_ptr pl);
 
-int cado_poly_read (cxx_cado_poly & poly, std::istream& is)
+static int cado_poly_read (cxx_cado_poly & poly, std::istream& is)
 {
   cxx_param_list pl;
   param_list_read(pl, is, 0);
@@ -64,7 +64,7 @@ int cado_poly_read (cxx_cado_poly & poly, std::istream& is)
 }
 
 
-void test_cado_poly_sanitycheck_stream(std::istream & is)
+static void test_cado_poly_sanitycheck_stream(std::istream & is)
 {
     cxx_cado_poly cpoly;
     cado_poly_read(cpoly, is);
@@ -73,7 +73,7 @@ void test_cado_poly_sanitycheck_stream(std::istream & is)
     ASSERT_ALWAYS(ret != 0);
 }
 
-void test_cado_poly_sanitychecks_static()
+static void test_cado_poly_sanitychecks_static()
 {
     std::string const s =
         "n: 54022122323205311359700529131254845253584832080092810873601245077747279904751944559089001546838958178759103\n"
@@ -92,7 +92,7 @@ void test_cado_poly_sanitychecks_static()
     test_cado_poly_sanitycheck_stream(is);
 }
 
-void test_cado_poly_sanitycheck_file(const char * file)
+static void test_cado_poly_sanitycheck_file(const char * file)
 {
     std::ifstream is(file);
     ASSERT_ALWAYS(is);

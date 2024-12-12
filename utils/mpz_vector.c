@@ -5,9 +5,13 @@
 */
 
 #include "cado.h" // IWYU pragma: keep
+
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+
 #include <gmp.h>
+
 #include "mpz_poly.h"
 #include "mpz_vector.h"
 #include "gmp_aux.h"       // mpz_set_uint64

@@ -66,16 +66,16 @@ static unsigned int input_length = 0;
 static int split_input_file = 0;  /* unsupported ; do acollect by ourselves */
 static int split_output_file = 0; /* do split by ourselves */
 
-cxx_gmp_randstate rstate;
+static cxx_gmp_randstate rstate;
 
 static int allow_zero_on_rhs = 0;
 
-int rank0_exit_code = EXIT_SUCCESS;
+static int rank0_exit_code = EXIT_SUCCESS;
 
-int global_flag_ascii = 0;
-int global_flag_tune = 0;
+static int global_flag_ascii = 0;
+static int global_flag_tune = 0;
 
-void lingen_decl_usage(cxx_param_list & pl)/*{{{*/
+static void lingen_decl_usage(cxx_param_list & pl)/*{{{*/
 {
     param_list_decl_usage(pl, "ascii",
             "read and write data in ascii");
@@ -128,10 +128,12 @@ void lingen_decl_usage(cxx_param_list & pl)/*{{{*/
 /*{{{ Main entry points and recursive algorithm (with and without MPI) */
 
 /* Forward declaration, it's used by the recursive version */
-matpoly bw_lingen_single(bmstatus & bm, matpoly & E);
+static matpoly bw_lingen_single(bmstatus & bm, matpoly & E);
 
-bigmatpoly bw_biglingen_collective(bmstatus & bm, bigmatpoly & E);
+static bigmatpoly bw_biglingen_collective(bmstatus & bm, bigmatpoly & E);
 
+// used for debugging
+// NOLINTNEXTLINE(misc-use-internal-linkage)
 std::string sha1sum(matpoly const & X)
 {
     sha1_checksumming_stream S;
@@ -190,7 +192,7 @@ constexpr const char * matpoly_diverter<bigmatpoly>::prefix;
 
 
 template<typename matpoly_type>
-matpoly_type generic_mp(matpoly_type & E, matpoly_type & pi_left, bmstatus & bm, lingen_call_companion & C)
+static matpoly_type generic_mp(matpoly_type & E, matpoly_type & pi_left, bmstatus & bm, lingen_call_companion & C)
 {
     switch (C.mp.S.fft_type) {
         case lingen_substep_schedule::FFT_NONE:
@@ -222,7 +224,7 @@ matpoly_type generic_mp(matpoly_type & E, matpoly_type & pi_left, bmstatus & bm,
 }
 
 template<typename matpoly_type>
-matpoly_type generic_mul(matpoly_type & pi_left, matpoly_type & pi_right, bmstatus & bm, lingen_call_companion & C)
+static matpoly_type generic_mul(matpoly_type & pi_left, matpoly_type & pi_right, bmstatus & bm, lingen_call_companion & C)
 {
     switch (C.mul.S.fft_type) {
         case lingen_substep_schedule::FFT_NONE:
@@ -254,7 +256,7 @@ matpoly_type generic_mul(matpoly_type & pi_left, matpoly_type & pi_right, bmstat
 }
 
 template<typename matpoly_type>
-void truncate_overflow(bmstatus & bm, matpoly_type & pi, unsigned int pi_expect)
+static void truncate_overflow(bmstatus & bm, matpoly_type & pi, unsigned int pi_expect)
 {
     if (pi.get_size() > pi_expect) {
         unsigned int nluck = 0;
@@ -296,7 +298,7 @@ void truncate_overflow(bmstatus & bm, matpoly_type & pi, unsigned int pi_expect)
 
 
 template<typename matpoly_type>
-matpoly_type bw_lingen_recursive(bmstatus & bm, matpoly_type & E) /*{{{*/
+static matpoly_type bw_lingen_recursive(bmstatus & bm, matpoly_type & E) /*{{{*/
 {
     int const depth = bm.depth();
     size_t const z = E.get_size();
@@ -418,7 +420,7 @@ matpoly_type bw_lingen_recursive(bmstatus & bm, matpoly_type & E) /*{{{*/
 }/*}}}*/
 
 
-matpoly bw_lingen_single_nocp(bmstatus & bm, matpoly & E) /*{{{*/
+static matpoly bw_lingen_single_nocp(bmstatus & bm, matpoly & E) /*{{{*/
 {
     int rank;
     MPI_Comm_rank(bm.com[0], &rank);
@@ -548,7 +550,7 @@ bigmatpoly bw_biglingen_collective(bmstatus & bm, bigmatpoly & E)/*{{{*/
 /**********************************************************************/
 
 /**********************************************************************/
-unsigned int count_lucky_columns(bmstatus & bm)/*{{{*/
+static unsigned int count_lucky_columns(bmstatus & bm)/*{{{*/
 {
     bw_dimensions & d = bm.d;
     unsigned int const m = d.m;
@@ -561,7 +563,7 @@ unsigned int count_lucky_columns(bmstatus & bm)/*{{{*/
     return nlucky;
 }/*}}}*/
 
-int check_luck_condition(bmstatus & bm)/*{{{*/
+static int check_luck_condition(bmstatus & bm)/*{{{*/
 {
     bw_dimensions & d = bm.d;
     unsigned int const m = d.m;
@@ -603,7 +605,7 @@ int check_luck_condition(bmstatus & bm)/*{{{*/
     return 0;
 }/*}}}*/
 
-void print_node_assignment(MPI_Comm comm)/*{{{*/
+static void print_node_assignment(MPI_Comm comm)/*{{{*/
 {
     int rank;
     int size;
@@ -740,7 +742,7 @@ void print_node_assignment(MPI_Comm comm)/*{{{*/
 /* We don't have a header file for this one */
 extern "C" void check_for_mpi_problems();
 
-int wrapped_main(int argc, char const *argv[])
+static int wrapped_main(int argc, char const *argv[])
 {
     cxx_param_list pl;
 

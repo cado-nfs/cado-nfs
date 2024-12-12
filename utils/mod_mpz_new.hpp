@@ -1,8 +1,8 @@
 /* A class for modular arithmetic with residues and modulus of up to 64
  * bits. */
 
-#ifndef MODMPZ_HPP
-#define MODMPZ_HPP
+#ifndef UTILS_MOD_MPZ_NEW_HPP
+#define UTILS_MOD_MPZ_NEW_HPP
 
 /**********************************************************************/
 #include <cstdint>
@@ -463,4 +463,4 @@ protected:
     bool divn (Residue &, const Residue &, unsigned long, const mp_limb_t *, mp_limb_t) const;
 };
 
-#endif  /* MOD64_HPP */
+#endif  /* UTILS_MOD_MPZ_NEW_HPP */

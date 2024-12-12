@@ -1,10 +1,12 @@
-#ifndef SPARSE_MAT_H_
-#define SPARSE_MAT_H_
+#ifndef MERGE_REPLAY_MATRIX_H
+#define MERGE_REPLAY_MATRIX_H
 
 #include <stddef.h>    // for NULL
 #include <stdint.h>    // for uint64_t, uint32_t
 #include "typedefs.h"
 #include "filter_config.h"
+
+// scan-headers: stop here
 
 #define TRACE_COL -1 // 253224 // 231 // put to -1 if not...!
 #define TRACE_ROW -1 // 59496 // put to -1 if not...!
@@ -77,4 +79,4 @@ int weightSum(filter_matrix_t *mat, index_t i1, index_t i2, index_t j);
 }
 #endif
 
-#endif	/* SPARSE_MAT_H_ */
+#endif	/* MERGE_REPLAY_MATRIX_H */

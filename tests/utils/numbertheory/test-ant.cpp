@@ -44,7 +44,7 @@ static void decl_usage(param_list_ptr pl)/*{{{*/
     param_list_decl_usage(pl, "elements", "ideal generators (separated by ;)");
 }/*}}}*/
 
-void usage(param_list_ptr pl, char const ** argv, const char * msg = NULL)/*{{{*/
+static void usage(param_list_ptr pl, char const ** argv, const char * msg = NULL)/*{{{*/
 {
     param_list_print_usage(pl, argv[0], stderr);
     if (msg) {
@@ -53,7 +53,7 @@ void usage(param_list_ptr pl, char const ** argv, const char * msg = NULL)/*{{{*
     exit(EXIT_FAILURE);
 }/*}}}*/
 
-int do_p_maximal_order(param_list_ptr pl) /*{{{*/
+static int do_p_maximal_order(param_list_ptr pl) /*{{{*/
 {
     cxx_mpz p;
     if (!param_list_parse_mpz(pl, "prime", p)) usage(pl, original_argv, "missing prime argument");
@@ -72,7 +72,7 @@ int do_p_maximal_order(param_list_ptr pl) /*{{{*/
 }
 /*}}}*/
 
-bool sl_equivalent_matrices(cxx_mpq_mat const& M, cxx_mpq_mat const& A, cxx_mpz const& p)/*{{{*/
+static bool sl_equivalent_matrices(cxx_mpq_mat const& M, cxx_mpq_mat const& A, cxx_mpz const& p)/*{{{*/
 {
     /* This is over SL_n(Z_p) */
     if (M->m != A->m) return false;
@@ -112,7 +112,7 @@ bool sl_equivalent_matrices(cxx_mpq_mat const& M, cxx_mpq_mat const& A)/*{{{*/
 }/*}}}*/
 #endif
 
-cxx_mpq_mat batch_read_order_basis(istream & in, unsigned int n)/*{{{*/
+static cxx_mpq_mat batch_read_order_basis(istream & in, unsigned int n)/*{{{*/
 {
     invalid_argument exc(string("Parse error"));
     cxx_mpq_mat O;
@@ -132,7 +132,7 @@ cxx_mpq_mat batch_read_order_basis(istream & in, unsigned int n)/*{{{*/
     return O;
 }/*}}}*/
 
-vector<pair<cxx_mpz_mat, int> > batch_read_prime_factorization(istream & in, unsigned int n, cxx_mpz const& p, cxx_mpq_mat const& O, cxx_mpz_mat const& M)/*{{{*/
+static vector<pair<cxx_mpz_mat, int> > batch_read_prime_factorization(istream & in, unsigned int n, cxx_mpz const& p, cxx_mpq_mat const& O, cxx_mpz_mat const& M)/*{{{*/
 {
     invalid_argument exc(string("Parse error"));
     vector<pair<cxx_mpz_mat, int> > ideals;
@@ -165,7 +165,7 @@ vector<pair<cxx_mpz_mat, int> > batch_read_prime_factorization(istream & in, uns
 }/*}}}*/
 
 
-int do_p_maximal_order_batch(param_list_ptr pl) /*{{{*/
+static int do_p_maximal_order_batch(param_list_ptr pl) /*{{{*/
 {
     const char * tmp;
 
@@ -215,7 +215,7 @@ int do_p_maximal_order_batch(param_list_ptr pl) /*{{{*/
 }
 /*}}}*/
 
-int do_factorization_of_prime(param_list_ptr pl) /*{{{*/
+static int do_factorization_of_prime(param_list_ptr pl) /*{{{*/
 {
     cxx_mpz p;
     if (!param_list_parse_mpz(pl, "prime", p)) usage(pl, original_argv, "missing prime argument");
@@ -252,7 +252,7 @@ int do_factorization_of_prime(param_list_ptr pl) /*{{{*/
 }
 /*}}}*/
 
-int do_factorization_of_prime_batch(param_list_ptr pl) /*{{{*/
+static int do_factorization_of_prime_batch(param_list_ptr pl) /*{{{*/
 {
     const char * tmp;
 
@@ -324,7 +324,7 @@ int do_factorization_of_prime_batch(param_list_ptr pl) /*{{{*/
 }
 /*}}}*/
 
-int do_valuations_of_ideal(param_list_ptr pl) /*{{{*/
+static int do_valuations_of_ideal(param_list_ptr pl) /*{{{*/
 {
     cxx_mpz p;
     if (!param_list_parse_mpz(pl, "prime", p)) usage(pl, original_argv, "missing prime argument");
@@ -439,7 +439,7 @@ int do_valuations_of_ideal(param_list_ptr pl) /*{{{*/
 }
 /*}}}*/
 
-int do_valuations_of_ideal_batch(param_list_ptr pl) /*{{{*/
+static int do_valuations_of_ideal_batch(param_list_ptr pl) /*{{{*/
 {
     const char * tmp;
 
@@ -564,7 +564,7 @@ int do_valuations_of_ideal_batch(param_list_ptr pl) /*{{{*/
 }
 /*}}}*/
 
-int do_number_theory_object_interface(param_list_ptr pl)
+static int do_number_theory_object_interface(param_list_ptr pl)
 {
     cxx_gmp_randstate state;
     unsigned long seed = 0;
@@ -646,7 +646,7 @@ int do_number_theory_object_interface(param_list_ptr pl)
     return 1;
 }
 
-int do_linear_algebra_timings(param_list_ptr pl)/*{{{*/
+static int do_linear_algebra_timings(param_list_ptr pl)/*{{{*/
 {
     unsigned int m = 8;
     unsigned int n = 5;

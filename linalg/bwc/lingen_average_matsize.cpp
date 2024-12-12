@@ -12,8 +12,9 @@
 
 /*{{{ avg_matsize */
 template<bool over_gf2>
-double avg_matsize(matpoly::arith_hard *, unsigned int m, unsigned int n, int ascii);
+static double avg_matsize(matpoly::arith_hard *, unsigned int m, unsigned int n, int ascii);
 
+#ifdef LINGEN_BINARY
 template<>
 double avg_matsize<true>(matpoly::arith_hard *, unsigned int m, unsigned int n, int ascii)
 {
@@ -22,8 +23,7 @@ double avg_matsize<true>(matpoly::arith_hard *, unsigned int m, unsigned int n, 
     unsigned int const nwords = m * n / 64;
     return nwords * sizeof(uint64_t);
 }
-
-#ifndef LINGEN_BINARY
+#else
 template<>
 double avg_matsize<false>(matpoly::arith_hard * ab, unsigned int m, unsigned int n, int ascii)
 {

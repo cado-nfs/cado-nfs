@@ -1,15 +1,19 @@
 #include "cado.h"
+
+#include <cstdio>
 #include <cstdint>               // for uint64_t, UINT64_C, UINT8_C, uint32_t
 #include <cstring>
+
 #include <gmp.h>                  // for gmp_urandomm_ui
+
 #include "bblas_bitmat.hpp"
-#include "bblas_mat64.hpp"
-#include "bblas_mat8.hpp"
 #include "bblas_level3a.hpp"      // for mat64_fill_random, mat64_transpose
 #include "bblas_level3a1.hpp"     // for binary_matpoly_to_polmat_nested_tra...
 #include "bblas_level3b.hpp"      // for mul_6464_6464, mul_6464_6464_sse
 #include "bblas_level3c.hpp"      // for mul_N64_6464_vec, mul_N64_6464_avx2
 #include "bblas_level3d.hpp"      // for trsm64_general, trsm64
+#include "bblas_mat64.hpp"
+#include "bblas_mat8.hpp"
 #include "gmp_aux.h"              // for memfill_random
 #include "macros.h"               // for ASSERT_ALWAYS, iceildiv
 #include "test_bblas_base.hpp"

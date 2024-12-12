@@ -1,7 +1,6 @@
 #include "cado.h" // IWYU pragma: keep
 #include <stdarg.h>      // for va_end, va_list, va_start
 #include <stddef.h>
-#include <signal.h>
 #include <string.h>
 #include <time.h>
 #include <ctype.h>
@@ -13,9 +12,6 @@
 #include "timing.h" // seconds_user_sys
 #include "verbose.h"  // verbose_enabled
 #include "select_mpi.h"  // for my_pthread_sigmask
-
-// int int_caught = 0;
-int hup_caught = 0;
 
 /* With respect to the currently running timer, extract a set of timing
  * values which is complete. That means a copy, except that for the
@@ -84,8 +80,6 @@ static void timing_partial_init(struct timing_data * t, int iter)
     t->go_mark = iter;
     t->last_print = iter;
     t->next_print = iter + 1;
-    t->next_async_check = iter + 1;
-    t->async_check_period = 1;
 
     double d[2];
     seconds_user_sys(d);
@@ -149,90 +143,15 @@ void timing_clear(struct timing_data * t)
     free(t->since_beginning);
 }
 
-static void timing_rare_checks(pi_comm_ptr wr MAYBE_UNUSED, struct timing_data * t MAYBE_UNUSED, int iter MAYBE_UNUSED, int print MAYBE_UNUSED)
-{
-#if 0
-/* This is very probably buggy */
-    /* We've decided that it was time to check for asynchronous data.
-     * Since it's an expensive operation, the whole point is to avoid
-     * doing this check too often. */
-    // timing_update_ticks(t, iter);
-
-    timing_interval_data since_last_reset[ntimers];
-    timing_interval_data since_beginning[ntimers];
-    extract_interval(since_last_reset, since_beginning, t);
-
-    /* First, re-evaluate the async checking period */
-    double av;
-    av = (since_last_reset[0]->wct + since_last_reset[1]->wct) / (iter - t->go_mark);
-
-#ifndef MPI_LIBRARY_MT_CAPABLE
-    /* Other threads might still be lingering in the matrix
-     * multiplication routines. That's really not good, since we're also
-     * going to do mpi ourselves ! */
-    serialize_threads(wr);
-#endif  /* MPI_LIBRARY_MT_CAPABLE */
-
-    double good_period = PREFERRED_ASYNC_LAG / av;
-    int guess = 1 + (int) good_period;
-    pi_bcast(&guess, 1, BWC_PI_INT, 0, 0, wr);
-    /* negative stuff is most probably caused by overflows in a fast
-     * context */
-    if (guess <= 0) guess = 10;
-    if (iter == t->go_mark + 1 && print) {
-        printf("Checking for asynchronous events every %d iterations\n", guess);
-    }
-    t->next_async_check += guess;
-    t->async_check_period = guess;
-
-    /* Now do some possibly expensive checks */
-
-    /* This read is unsafe. We need to protect it. */
-    int caught_something = hup_caught; // || int_caught;
-
-    pi_allreduce(NULL, &caught_something, 1, BWC_PI_INT, BWC_PI_MAX, wr);
-
-    /* ok, got it. Before we possibly leave, make sure everybody has read
-     * the data from the pointer. */
-    serialize(wr);
-
-    if (!caught_something) {
-        /* And the result of all this is... nothing :-(( */
-        return;
-    }
-
-    /* We have something ! */
-    if (print) {
-        printf("Signal caught (iteration %d), restarting timings\n", iter);
-    }
-    serialize(wr);
-    hup_caught = 0;
-    // int_caught = 0;
-    timing_partial_init(t, iter);
-#endif
-}
-
-
 void timing_check(parallelizing_info pi, struct timing_data * timing, int iter, int print)
 {
-    pi_comm_ptr wr = pi->m;
-
     // printf("timing_check %d timing%d\n", iter, wr->trank);
-
-    if (iter == timing->next_async_check) {
-        // printf("timing_check async %d timing%d\n", iter, wr->trank);
-        timing_rare_checks(wr, timing, iter, print);
-    }
 
     if (iter < timing->next_print)
         return;
 
     if (!verbose_enabled(CADO_VERBOSE_PRINT_BWC_TIMING_GRIDS))
         return;
-
-    /* We're printing something, so we might as well check for signals
-     * now */
-    timing_rare_checks(wr, timing, iter, print);
 
     const int period[] = {1,5,20,100,1000,10000,100000,1000000,0};
     int i;
@@ -284,7 +203,7 @@ void timing_check(parallelizing_info pi, struct timing_data * timing, int iter, 
     grid_print(pi, buf, strlen(buf) + 1, print);
 }
 
-void timing_disp_backend(parallelizing_info pi, struct timing_data * timing, int iter, int print, const char * stage, int done)
+static void timing_disp_backend(parallelizing_info pi, struct timing_data * timing, int iter, int print, const char * stage, int done)
 {
     if (!verbose_enabled(CADO_VERBOSE_PRINT_BWC_ITERATION_TIMINGS))
         return;
@@ -399,53 +318,4 @@ void timing_disp_collective_oneline(parallelizing_info pi, struct timing_data * 
 void timing_final_tally(parallelizing_info pi, struct timing_data * timing, int print, const char * stage)
 {
     timing_disp_backend(pi, timing, timing->end_mark, print, stage, 1);
-}
-void block_control_signals()
-{
-#ifndef HAVE_MINGW   /* seems hopeless */
-    /* Only the master thread receives control signals */
-    sigset_t sset[1];
-    sigemptyset(sset);
-#ifdef HAVE_SIGHUP
-    sigaddset(sset, SIGHUP);
-#endif
-    // sigaddset(sset, SIGINT);
-    my_pthread_sigmask(SIG_BLOCK, sset, NULL);
-#endif  /* HAVE_MINGW */
-}
-
-#ifndef HAVE_MINGW   /* seems hopeless */
-void sighandler(int sig)
-{
-    int caught = 0;
-#ifdef HAVE_SIGHUP
-    if (sig == SIGHUP) hup_caught = caught = 1;
-#endif
-    // if (sig == SIGINT) int_caught = caught = 1;
-    /* Of course, everybody is allowed to print this. */
-    if (caught) printf("Signal caught, wait before it is acknowledged\n");
-}
-#endif  /* HAVE_MINGW */
-
-void catch_control_signals()
-{
-#ifndef HAVE_MINGW   /* seems hopeless */
-#ifdef HAVE_SIGACTION
-    struct sigaction sa[1];
-    memset(sa, 0, sizeof(sa));
-    sa->sa_handler = sighandler;
-#ifdef HAVE_SIGHUP
-    sigaction(SIGHUP, sa, NULL);
-#endif
-    // sigaction(SIGINT, sa, NULL);
-#endif
-
-    sigset_t sset[1];
-    sigemptyset(sset);
-#ifdef HAVE_SIGHUP
-    sigaddset(sset, SIGHUP);
-#endif
-    // sigaddset(sset, SIGINT);
-    my_pthread_sigmask(SIG_UNBLOCK, sset, NULL);
-#endif  /* HAVE_MINGW */
 }

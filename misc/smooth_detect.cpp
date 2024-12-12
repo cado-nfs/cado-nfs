@@ -56,7 +56,7 @@ static const double expected_effort[MAX_PBIT] = {
     81857570, 84194044, 107900749, 94609433, 136660173 // 95 - 99
 };
 
-double
+static double
 get_time()
 {
     return (double)(clock()) / CLOCKS_PER_SEC;
@@ -135,7 +135,7 @@ descent_init_candidate::is_probably_not_smooth(unsigned int bound) const
 // are fully factored. If there are still more than max_size elements,
 // keep those with smallest cost.
 
-void
+static void
 purge(std::vector<descent_init_candidate>& P,
       unsigned int max_size,
       unsigned int lmax)
@@ -155,7 +155,7 @@ purge(std::vector<descent_init_candidate>& P,
     }
 }
 
-std::ostream&
+static std::ostream&
 operator<<(std::ostream& os, std::vector<descent_init_candidate> const& P)
 {
     size_t i = 0;
@@ -244,7 +244,7 @@ struct context
     }
 };
 
-double
+static double
 remove_small_factors(mpz_t z)
 {
     double gain = 0.0;
@@ -260,7 +260,7 @@ remove_small_factors(mpz_t z)
 }
 
 // get a B1, so that we can quickly cover the target effort
-double
+static double
 get_B1_from_effort(double effort, double minB1)
 {
     double B1 = minB1;
@@ -272,7 +272,7 @@ get_B1_from_effort(double effort, double minB1)
     return B1;
 }
 
-void
+static void
 my_ecm_factor(cxx_mpz& f, cxx_mpz& z, double B1)
 {
     ecm_params ecm_par;
@@ -291,7 +291,7 @@ my_ecm_factor(cxx_mpz& f, cxx_mpz& z, double B1)
 //   0: non-smooth
 //   -1: early stop, no more candidate to test.
 
-int
+static int
 smooth_detect_one_step(descent_init_candidate& winner, context& ctx)
 {
     descent_init_candidate C;

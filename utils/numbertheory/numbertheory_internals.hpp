@@ -1,5 +1,5 @@
-#ifndef UTILS_NUMBERTHEORY_INTERNALS_HPP_
-#define UTILS_NUMBERTHEORY_INTERNALS_HPP_
+#ifndef NUMBERTHEORY_INTERNALS_HPP_
+#define NUMBERTHEORY_INTERNALS_HPP_
 
 #include <vector>
 #include <utility>
@@ -61,4 +61,4 @@ struct ideal_comparator {
 }
 
 
-#endif	/* UTILS_NUMBERTHEORY_INTERNALS_HPP_ */
+#endif	/* NUMBERTHEORY_INTERNALS_HPP_ */

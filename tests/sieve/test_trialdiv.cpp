@@ -14,7 +14,7 @@
 #include "timing.h"     // microseconds
 #include "macros.h"
 
-void
+static void
 trialdiv_stdinput(const unsigned long pmax, const int verbose)
 {
     std::vector<unsigned long> primes;
@@ -68,7 +68,7 @@ trialdiv_stdinput(const unsigned long pmax, const int verbose)
 }
 
 /* performs iter random tests with a cofactor of n limbs */
-void
+static void
 test_trialdiv (int n, unsigned long iter)
 {
   cxx_mpz N;

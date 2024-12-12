@@ -2,15 +2,15 @@
 #define UTILS_NUMBERTHEORY_NUMBER_FIELD_HPP_
 
 #include <memory>
+#include <string>
+
+#include "fmt/format.h"
 
 #include "numbertheory/numbertheory_fwd_types.hpp"
 #include "numbertheory/fmt_helpers.hpp"
-
 #include "cxx_mpz.hpp"
 #include "mpz_poly.h"
 #include "mpz_mat.h"
-#include "fmt/format.h"
-#include <string>
 
 class number_field {
     cxx_mpz_poly f;

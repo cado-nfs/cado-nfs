@@ -1,18 +1,26 @@
 #ifndef PARALLELIZING_INFO_HPP_
 #define PARALLELIZING_INFO_HPP_
 
+/* don't enable this. Clutters output a lot */
+#define xxxCONCURRENCY_DEBUG
+
 #include <cstdio>            // for FILE
 
+#include <map>
+#include <vector>
+#include <set>
+#ifdef CONCURRENCY_DEBUG
+#include <mutex>
+#endif
+
 #include <sys/types.h>        // for ssize_t
-#include <sys/time.h>   /* for struct timeval */
+#include <sys/time.h>         // for struct timeval
+
 #include "barrier.h"          // for barrier_t
 #include "macros.h"           // for OMPI_VERSION_ATLEAST
 #include "params.h"
 #include "select_mpi.h"
 #include "arith-generic.hpp"
-#include <map>
-#include <vector>
-#include <set>
 #include "lock_guarded_container.hpp"
 
 /*
@@ -40,11 +48,7 @@
  * items (as many as one finds COL groups), and conversely.
  */
 
-/* don't enable this. Clutters output a lot */
-#define xxxCONCURRENCY_DEBUG
-
 #ifdef CONCURRENCY_DEBUG
-#include <mutex>
 extern std::mutex stdio_mutex;
 #endif
 
@@ -94,7 +98,7 @@ struct pthread_things {
     barrier_t bh[1];
     my_pthread_barrier_t b[1];
 
-    my_pthread_mutex_t m[1];
+    pthread_mutex_t m[1];
     char * desc;
     void * utility_ptr;
     // int count;

@@ -8,7 +8,7 @@
 
 #include "cxx_mpz.hpp"
 #include "gmp_aux.h"
-#include "arith-concrete-base.hpp"
+#include "arith-concrete-base.hpp"      // IWYU pragma: export
 
 /* The goal of this file is to provide a level of abstraction in order to
  * call the field-specific routines via virtual bases.

@@ -1,5 +1,7 @@
-#include "cado.h"
+#include "cado.h"       // NOLINT(misc-include-cleaner)
+
 #include <cstring>
+
 #include "bblas_mat64.hpp"
 #include "bblas_level5.hpp"
 #include "bblas_level3a.hpp"  // for mat64_add

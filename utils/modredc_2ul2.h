@@ -36,8 +36,8 @@
 #define MODREDC2UL2_RENAME(x) modredc2ul2_##x
 
 #define MODREDC2UL2_SIZE 2
-#define MODREDC2UL2_MINBITS LONG_BIT
-#define MODREDC2UL2_MAXBITS (2 * LONG_BIT - 2)
+#define MODREDC2UL2_MINBITS ULONG_BITS
+#define MODREDC2UL2_MAXBITS (2 * ULONG_BITS - 2)
 
 typedef unsigned long residueredc2ul2_t[MODREDC2UL2_SIZE];
 typedef unsigned long modintredc2ul2_t[MODREDC2UL2_SIZE];
@@ -72,12 +72,12 @@ modredc2ul2_tomontgomery (residueredc2ul2_t r, const residueredc2ul2_t s,
 
   modredc2ul2_intset (r, s);
   /* TODO FIXME: ridiculously slow */
-  for (i = 0; i < (MODREDC2UL2_SIZE * LONG_BIT); i++)
+  for (i = 0; i < (MODREDC2UL2_SIZE * ULONG_BITS); i++)
     modredc2ul2_add (r, r, r, m);
 }
 
 
-/* Do a one-word REDC, i.e., r == s / w (mod m), w = 2^LONG_BIT. 
+/* Do a one-word REDC, i.e., r == s / w (mod m), w = 2^ULONG_BITS. 
    If m > w, r < 2m. If s<m, then r<m */
 MAYBE_UNUSED
 static inline void
@@ -100,7 +100,7 @@ modredc2ul2_redc1 (residueredc2ul2_t r, const residueredc2ul2_t s,
   r[1] = t[2];
 }
 
-/* Converts s out of Montgomery form by dividing by 2^(2*LONG_BIT).
+/* Converts s out of Montgomery form by dividing by 2^(2*ULONG_BITS).
    Requires s < m. */
 MAYBE_UNUSED
 static inline void
@@ -131,7 +131,7 @@ _modredc2ul2_mul_ul (residueredc2ul2_t r, const residueredc2ul2_t a,
   ASSERT_EXPENSIVE (modredc2ul2_intlt (a, m[0].m));
 #if defined(MODTRACE)
   printf ("((%lu * 2^%d + %lu) * %lu / 2^%d) %% (%lu * 2^%d + %lu)",
-          a[1], LONG_BIT, a[0], b, LONG_BIT, m[0].m[1], LONG_BIT, m[0].m[0]);
+          a[1], ULONG_BITS, a[0], b, ULONG_BITS, m[0].m[1], ULONG_BITS, m[0].m[0]);
 #endif
 
 #if defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
@@ -198,7 +198,7 @@ _modredc2ul2_mul_ul (residueredc2ul2_t r, const residueredc2ul2_t a,
   r[1] = t[1];
 #endif
 #if defined(MODTRACE)
-  printf (" == (%lu * 2^%d + %lu) /* PARI */ \n", r[1], LONG_BIT, r[0]);
+  printf (" == (%lu * 2^%d + %lu) /* PARI */ \n", r[1], ULONG_BITS, r[0]);
 #endif
   ASSERT_EXPENSIVE (modredc2ul2_intlt (r, m[0].m));
 }
@@ -284,12 +284,12 @@ static inline double
 modredc2ul2_intget_double (const modintredc2ul2_t s)
 {
   double d = (double) s[1];
-#if (LONG_BIT == 32)
+#if (ULONG_BITS == 32)
   d *= 4294967296.0;
-#elif (LONG_BIT == 64)
+#elif (ULONG_BITS == 64)
   d *= 18446744073709551616.0;
 #else
-#error "unsupported value of LONG_BIT"
+#error "unsupported value of ULONG_BITS"
 #endif
   return d + (double) s[0];
 }
@@ -390,10 +390,10 @@ static inline size_t
 modredc2ul2_intbits (const modintredc2ul2_t a)
 {
   if (a[1] > 0UL)
-    return 2*LONG_BIT - ularith_clz (a[1]);
+    return 2*ULONG_BITS - ularith_clz (a[1]);
 
   if (a[0] > 0UL)
-    return LONG_BIT - ularith_clz (a[0]);
+    return ULONG_BITS - ularith_clz (a[0]);
   
   return 0;
 }
@@ -404,29 +404,29 @@ MAYBE_UNUSED
 static inline void
 modredc2ul2_intshr (modintredc2ul2_t r, const modintredc2ul2_t s, const int i)
 {
-  if (i >= 2 * LONG_BIT) {
+  if (i >= 2 * ULONG_BITS) {
     r[1] = r[0] = 0UL;
-  } else if (i >= LONG_BIT) {
-    r[0] = s[1] >> (i - LONG_BIT);
+  } else if (i >= ULONG_BITS) {
+    r[0] = s[1] >> (i - ULONG_BITS);
     r[1] = 0UL; /* May overwrite s[1] */
-  } else { /* i < LONG_BIT */
+  } else { /* i < ULONG_BITS */
     ularith_shrd (&(r[0]), s[1], s[0], i);
     r[1] = s[1] >> i;
   }
 }
 
 
-/* r = (s * 2^i) % (2^(2 * LONG_BIT)) */
+/* r = (s * 2^i) % (2^(2 * ULONG_BITS)) */
 MAYBE_UNUSED
 static inline void
 modredc2ul2_intshl (modintredc2ul2_t r, const modintredc2ul2_t s, const int i)
 {
-  if (i >= 2 * LONG_BIT) {
+  if (i >= 2 * ULONG_BITS) {
     r[1] = r[0] = 0UL;
-  } else if (i >= LONG_BIT) {
-    r[1] = s[0] << (i - LONG_BIT);
+  } else if (i >= ULONG_BITS) {
+    r[1] = s[0] << (i - ULONG_BITS);
     r[0] = 0UL;
-  } else { /* i < LONG_BIT */
+  } else { /* i < ULONG_BITS */
     ularith_shld (&(r[1]), s[0], s[1], i);
     r[0] = s[0] << i;
   }
@@ -524,17 +524,17 @@ modredc2ul2_intmod (modintredc2ul2_t r, const modintredc2ul2_t n,
       unsigned long q, dummy;
       int i;
 
-      /* Divide both by 2^k s.t. 2^(LONG_BIT-1) <= d/2^k < 2^LONG_BIT */
+      /* Divide both by 2^k s.t. 2^(ULONG_BITS-1) <= d/2^k < 2^ULONG_BITS */
       modredc2ul2_intshr (t1, n, 1);
       modredc2ul2_intshr (t2, d, 1);
       if (t2[1] != 0UL)
         {
-          i = LONG_BIT - ularith_clz (t2[1]);
+          i = ULONG_BITS - ularith_clz (t2[1]);
           modredc2ul2_intshr (t1, t1, i);
           modredc2ul2_intshr (t2, t2, i);
         }
       ASSERT(t2[1] == 0);
-      ASSERT((t2[0] & (1UL << (LONG_BIT - 1))) != 0UL);
+      ASSERT((t2[0] & (1UL << (ULONG_BITS - 1))) != 0UL);
       ASSERT (t1[1] < t2[0]);
       
       ularith_div_2ul_ul_ul (&q, &dummy, t1[0], t1[1], t2[0]);
@@ -542,8 +542,8 @@ modredc2ul2_intmod (modintredc2ul2_t r, const modintredc2ul2_t n,
       t1[1] += q * d[1];
       /* printf ("n=%lu*2^%d + %lu; d=%lu*2^%d + %lu; q=%lu; "
               "t1=%lu*2^%d + %lu;\n", 
-              n[1], LONG_BIT, n[0], d[1], LONG_BIT, d[0], q,
-              t1[1], LONG_BIT, t1[0]); */
+              n[1], ULONG_BITS, n[0], d[1], ULONG_BITS, d[0], q,
+              t1[1], ULONG_BITS, t1[0]); */
       
       if (modredc2ul2_intlt (n, t1))
         modredc2ul2_intsub (t1, t1, d);
@@ -561,7 +561,7 @@ static inline void
 modredc2ul2_initmod_int (modulusredc2ul2_t m, const modintredc2ul2_t s)
 {
   ASSERT (s[1] > 0UL);
-  ASSERT (s[1] < (1UL << (LONG_BIT - 2)));
+  ASSERT (s[1] < (1UL << (ULONG_BITS - 2)));
   modredc2ul2_intset (m[0].m, s);
   m[0].invm = -ularith_invmod (s[0]);
 
@@ -916,8 +916,8 @@ modredc2ul2_mul (residueredc2ul2_t r, const residueredc2ul2_t a,
 #if defined(MODTRACE)
   printf ("((%lu * 2^%d + %lu) * (%lu * 2^%d + %lu) / 2^%d) %% "
 	  "(%lu * 2^%d + %lu)", 
-          a[1], LONG_BIT, a[0], b[1], LONG_BIT, b[0], 2 * LONG_BIT, 
-	  m[0].m[1], LONG_BIT, m[0].m[0]);
+          a[1], ULONG_BITS, a[0], b[1], ULONG_BITS, b[0], 2 * ULONG_BITS, 
+	  m[0].m[1], ULONG_BITS, m[0].m[0]);
 #endif
 
   unsigned long dummy;
@@ -1003,8 +1003,8 @@ modredc2ul2_mul (residueredc2ul2_t r, const residueredc2ul2_t a,
 #if defined(MODTRACE)
   printf ("((%lu * 2^%d + %lu) * (%lu * 2^%d + %lu) / 2^%d) %% "
 	  "(%lu * 2^%d + %lu)", 
-          a[1], LONG_BIT, a[0], b[1], LONG_BIT, b[0], 2 * LONG_BIT, 
-	  m[0].m[1], LONG_BIT, m[0].m[0]);
+          a[1], ULONG_BITS, a[0], b[1], ULONG_BITS, b[0], 2 * ULONG_BITS, 
+	  m[0].m[1], ULONG_BITS, m[0].m[0]);
 #endif
 
   /* m < 1/4 W^2,  a,b < m */
@@ -1043,7 +1043,7 @@ modredc2ul2_mul (residueredc2ul2_t r, const residueredc2ul2_t a,
   r[1] = t[2];
 #endif
 #if defined(MODTRACE)
-  printf (" == (%lu * 2^%d + %lu) /* PARI */ \n", r[1], LONG_BIT, r[0]);
+  printf (" == (%lu * 2^%d + %lu) /* PARI */ \n", r[1], ULONG_BITS, r[0]);
 #endif
   ASSERT_EXPENSIVE (modredc2ul2_intlt (r, m[0].m));
 }
@@ -1059,8 +1059,8 @@ modredc2ul2_sqr (residueredc2ul2_t r, const residueredc2ul2_t a,
 #if defined(MODTRACE)
   printf ("((%lu * 2^%d + %lu) * (%lu * 2^%d + %lu) / 2^%d) %% "
 	  "(%lu * 2^%d + %lu)", 
-          a[1], LONG_BIT, a[0], a[1], LONG_BIT, a[0], 2 * LONG_BIT, 
-	  m[0].m[1], LONG_BIT, m[0].m[0]);
+          a[1], ULONG_BITS, a[0], a[1], ULONG_BITS, a[0], 2 * ULONG_BITS, 
+	  m[0].m[1], ULONG_BITS, m[0].m[0]);
 #endif
 
 /* m <= 2^126-1
@@ -1150,7 +1150,7 @@ modredc2ul2_sqr (residueredc2ul2_t r, const residueredc2ul2_t a,
   ASSERT_EXPENSIVE (modredc2ul2_intlt (a, m[0].m));
 #if defined(MODTRACE)
   printf ("((%lu * 2^%d + %lu)^2 %% (%lu * 2^%d + %lu)", 
-          a[1], LONG_BIT, a[0], 2 * LONG_BIT, m[0].m[1], LONG_BIT, m[0].m[0]);
+          a[1], ULONG_BITS, a[0], 2 * ULONG_BITS, m[0].m[1], ULONG_BITS, m[0].m[0]);
 #endif
 
   /* m < 1/4 W^2,  a < m */
@@ -1188,7 +1188,7 @@ modredc2ul2_sqr (residueredc2ul2_t r, const residueredc2ul2_t a,
   r[1] = t[2];
 #endif
 #if defined(MODTRACE)
-  printf (" == (%lu * 2^%d + %lu) /* PARI */ \n", r[1], LONG_BIT, r[0]);
+  printf (" == (%lu * 2^%d + %lu) /* PARI */ \n", r[1], ULONG_BITS, r[0]);
 #endif
   ASSERT_EXPENSIVE (modredc2ul2_intlt (r, m[0].m));
 }

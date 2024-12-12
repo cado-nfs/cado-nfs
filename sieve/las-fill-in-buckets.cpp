@@ -19,9 +19,6 @@
 #include "las-fill-in-buckets.hpp"        // for precomp_plattice_t, downsor...
 #include "bucket-push-update.hpp"         // for bucket_array_t::push_update
 #include "bucket.hpp"                     // for longhint_t (ptr only), buck...
-#ifdef USE_CACHEBUFFER
-#include "cachebuf.h"
-#endif
 #include "utils_cxx.hpp"
 #include "fb-types.h"                     // for sublat_t, slice_offset_t
 #include "fb.hpp"                         // for fb_slice, fb_factorbase
@@ -50,10 +47,6 @@ template<typename T> static inline T const& const_ref(T& x) { return x; }
 /**************************************************************************
  * Global DEFINEs for fill_in_buckets, fill_in_k_buckets, fill_in_m_buckets 
  **************************************************************************/
-
-#ifdef USE_CACHEBUFFER
-DECLARE_CACHE_BUFFER(bucket_update_shorthint_t, 256)
-#endif
 
 #if 0
 
@@ -578,7 +571,7 @@ fill_in_buckets_toplevel_sublat(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
 
 /* TARGET_HINT is shorthint_t or void */
 template <int LEVEL, class FB_ENTRY_TYPE, typename TARGET_HINT>
-void
+static void
 fill_in_buckets_toplevel(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
                 nfs_work & ws,
                 fb_slice<FB_ENTRY_TYPE> const & slice,

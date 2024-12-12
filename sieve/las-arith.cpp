@@ -1,6 +1,9 @@
 #include "cado.h" // IWYU pragma: keep
+
+#include <cstdint>
 #include <math.h>
 
+#include "fb-types.h"
 #include "las-arith.hpp"
 
 /* utility : is_prime_power */

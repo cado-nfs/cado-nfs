@@ -188,6 +188,7 @@ void matmul_basicp<Arith>::mul(void * xdst, void const * xsrc, int d)
     iteration[d]++;
 }
 
+// NOLINTNEXTLINE(misc-use-internal-linkage)
 matmul_interface * CADO_CONCATENATE4(new_matmul_, ARITH_LAYER, _, MM_IMPL)(
         matmul_public && P,
         arith_generic * arith,

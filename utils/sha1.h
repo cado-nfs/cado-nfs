@@ -11,6 +11,13 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+#include <streambuf>
+#include <ostream>
+#include <string>
+#endif
+
+
 typedef struct
 {
     uint32_t state[5];
@@ -35,9 +42,6 @@ void SHA1(char *hash_out, const char *str, int len);
 /* end "SHA-1 in C" PD interface */
 
 #ifdef __cplusplus
-#include <streambuf>
-#include <ostream>
-#include <string>
 /* mock streambuf implementation that just computes the sha-1 sum of what
  * it gets fed.
  *

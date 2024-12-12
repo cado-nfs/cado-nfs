@@ -1,6 +1,5 @@
-#ifndef INTERSECTIONS_HPP_
-#define INTERSECTIONS_HPP_
-
+#ifndef INTERSECTIONS_H
+#define INTERSECTIONS_H
 
 /*
  * Structure for the intersection between an interval [i0..i1[ and
@@ -29,4 +28,4 @@ void intersect(unsigned int * plen, struct isect_info ** res, unsigned int * fen
 }
 #endif
 
-#endif	/* INTERSECTIONS_HPP_ */
+#endif	/* INTERSECTIONS_H */

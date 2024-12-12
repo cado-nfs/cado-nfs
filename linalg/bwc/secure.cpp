@@ -34,7 +34,7 @@
 
 using namespace fmt::literals;
 
-int legacy_check_mode = 0;
+static int legacy_check_mode = 0;
 
 /* We create the check data based on:
  *
@@ -61,7 +61,7 @@ int legacy_check_mode = 0;
  * (T): This assumes that nullspace=right. If nullspace=left, replace M by trsp(M).
  */
 
-void * sec_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
+static void * sec_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
 
     int const fake = param_list_lookup_string(pl, "random_matrix") != NULL;
@@ -470,8 +470,6 @@ int main(int argc, char const * argv[])
     matmul_top_lookup_parameters(pl);
     /* interpret our parameters */
     param_list_parse_int(pl, "legacy_check_mode", &legacy_check_mode);
-
-    catch_control_signals();
 
     if (param_list_warn_unused(pl)) {
         int rank;

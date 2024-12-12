@@ -57,7 +57,7 @@ void bitmat_ops<uint8_t>::mul_blocks(mat8 * C, mat8 const * A, mat8 const& B, si
     }
 }
 
-void addmul8_naive(mat8 & C,
+static void addmul8_naive(mat8 & C,
         mat8 const & A,
         mat8 const & B,
         unsigned int i0,
@@ -114,7 +114,7 @@ void bitmat_ops<uint8_t>::addmul(mat8 & C,
     addmul8_naive(C, A, B, i0, i1, yi0, yi1);
 }
 
-void trsm8_naive(mat8 const & L,
+static void trsm8_naive(mat8 const & L,
         mat8 & U,
         unsigned int n0,
         unsigned int n1)
@@ -202,6 +202,7 @@ void bitmat_ops<uint8_t>::trsm(mat8 const & L,
     trsm8_naive(L, U, n0, n1);
 }
 
+// NOLINTNEXTLINE(misc-use-internal-linkage)
 void mat8_add_C(mat8 & C, mat8 const & A, mat8 const & B)/*{{{*/
 {
     for(unsigned int j = 0 ; j < mat8::width ; j++) {

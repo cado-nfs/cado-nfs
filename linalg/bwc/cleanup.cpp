@@ -12,7 +12,7 @@
 #include "params.h"     // param_list
 #include "macros.h"
 
-void usage()
+static void usage()
 {
     fprintf(stderr, "Usage: ./cleanup -ncols <N> -out <file> <file.0> <file.1> ...\n");
 }

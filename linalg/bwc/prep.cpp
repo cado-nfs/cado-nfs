@@ -1,5 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
-                  //
+
 #include <cinttypes>
 #include <cstdint> // for uint32_t
 #include <cstdio>
@@ -31,7 +31,7 @@
 #include "xdotprod.hpp"
 #include "xvectors.hpp"
 
-void bw_rank_check(matmul_top_data & mmt, cxx_param_list & pl)
+static void bw_rank_check(matmul_top_data & mmt, cxx_param_list & pl)
 {
     int const tcan_print = bw->can_print && mmt.pi->m->trank == 0;
     unsigned int const r = matmul_top_rank_upper_bound(mmt);
@@ -59,7 +59,7 @@ void bw_rank_check(matmul_top_data & mmt, cxx_param_list & pl)
     }
 }
 
-unsigned int matrix_rank(arith_generic * A, arith_generic::elt * M,
+static unsigned int matrix_rank(arith_generic * A, arith_generic::elt * M,
                          unsigned int nrows, unsigned int ncols)
 {
     /* This is an abstract Gauss based on the arith_generic layer. It's
@@ -128,7 +128,7 @@ struct rhs_header {
     cxx_mpz p = 0;
 };
 
-std::istream & operator>>(std::istream & is, rhs_header & hdr)
+static std::istream & operator>>(std::istream & is, rhs_header & hdr)
 {
     return is >> hdr.nrows >> hdr.ncols >> hdr.p;
 }
@@ -139,7 +139,7 @@ std::istream & operator>>(std::istream & is, rhs_header & hdr)
  * terms of filesystem pressure for large jobs.
  */
 
-void read_rhs_from_file(std::vector<mmt_vec> & rhs_vecs, std::istream * is,
+static void read_rhs_from_file(std::vector<mmt_vec> & rhs_vecs, std::istream * is,
                         size_t itemsondisk)
 {
     if (rhs_vecs.empty())
@@ -699,7 +699,7 @@ struct prep_object {
     } // }}}
 };
 
-void * prep_prog(parallelizing_info_ptr pi, cxx_param_list & pl,
+static void * prep_prog(parallelizing_info_ptr pi, cxx_param_list & pl,
                  void * arg MAYBE_UNUSED)
 {
     prep_object P(pi, pl);

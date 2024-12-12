@@ -1,6 +1,10 @@
 cado_define_test(test_strlcat.c LIBRARIES utils)
 cado_define_test(test_strlcpy.c LIBRARIES utils)
 cado_define_test(test_double_poly.c LIBRARIES utils tests)
+cado_define_test(test_polyroots.c LIBRARIES utils
+    ARGUMENTS 1 2 3 4 5 6 7 8
+    EXPECT_SHA1 613d5c8214c34b349b93042f3e45a7d66e1f6586
+)
 cado_define_test(test_gmp_aux.c LIBRARIES utils tests)
 cado_define_test(test_gcd.c LIBRARIES utils tests)
 cado_define_test(test_getprime.c LIBRARIES utils)
@@ -62,6 +66,7 @@ cado_define_test(test_gpf.c LIBRARIES utils)
 cado_define_test(test-sort.cpp ARGUMENTS --log-bigsize 14 --max-span 128 LIBRARIES ${gmp_libname})
 cado_define_test(test_u64arith.cpp LIBRARIES utils tests)
 cado_define_test(test_mod.cpp LIBRARIES utils tests)
+cado_define_test(test_multityped_array.cpp LIBRARIES utils)
 cado_define_test(test_modint.cpp LIBRARIES utils tests)
 cado_define_test(test_istream_matcher.cpp LIBRARIES utils tests)
 cado_define_test(test_mmappable_vector.cpp LIBRARIES utils
