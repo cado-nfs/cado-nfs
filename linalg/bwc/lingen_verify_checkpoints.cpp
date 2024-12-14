@@ -313,64 +313,27 @@ fill_random(std::vector<cxx_mpz>& u)
         mpz_urandomm_nz(a, state, prime);
 }
 
-struct cp_useful_info
+lingen_checkpoint::header_info read_cp_aux(std::string const& prefix)
 {
-    int level;
-    unsigned int t0;
-    unsigned int t1;
-    unsigned int t;
-    unsigned long deg;
-};
-
-cp_useful_info
-read_cp_aux(std::string const& s)
-{
-    std::string const filename = s + ".aux";
-    FILE* fp;
-    fp = fopen(filename.c_str(), "r");
-    if (fp == NULL) {
-        fprintf(stderr, "Error, unable to read file %s\n", filename.c_str());
-        exit(1);
-    }
-    unsigned int xm, xn;
-    int level;
-    unsigned int t0;
-    unsigned int t1;
-    unsigned int t;
-    int format;
-    int ret = fscanf(fp, "format %d\n", &format);
-    ASSERT_ALWAYS(ret == 1);
-    unsigned long ncoeff;
-    ret = fscanf(fp, "%u", &xm);
-    ASSERT_ALWAYS(ret == 1);
-    ret = fscanf(fp, "%u", &xn);
-    ASSERT_ALWAYS(ret == 1);
-    ret = fscanf(fp, "%d", &level);
-    ASSERT_ALWAYS(ret == 1);
-    ret = fscanf(fp, "%u", &t0);
-    ASSERT_ALWAYS(ret == 1);
-    ret = fscanf(fp, "%u", &t1);
-    ASSERT_ALWAYS(ret == 1);
-    ret = fscanf(fp, "%u", &t);
-    ASSERT_ALWAYS(ret == 1);
-    ASSERT_ALWAYS(t0 <= t && t <= t1);
-    ret = fscanf(fp, "%lu\n", &ncoeff);
-    ASSERT_ALWAYS(ret == 1);
-    fclose(fp);
-    return cp_useful_info { level, t0, t1, t, ncoeff - 1 };
+    auto filename = prefix + ".aux";
+    lingen_checkpoint::header_info h;
+    if (!(std::ifstream(filename) >> h))
+        throw lingen_checkpoint::invalid_aux_file(fmt::format(
+                    "Reading header from {} failed", filename));
+    return h;
 }
 
 /* read a matrix of dimension n, divided into kxk submatrices.
  * return the evaluation of the matrix polynomial at x.
  * */
 static matrix
-read_matrix(const char* s,
+read_matrix(std::string const & s,
             unsigned long nrows,
             unsigned long ncols,
             cxx_mpz const& x)
 {
-    auto cp = read_cp_aux(s);
-    unsigned long const deg = cp.deg;
+    auto const cp = read_cp_aux(s);
+    unsigned long const deg = cp.ncoeffs - 1;
     matrix M(nrows, ncols);
     matrix_reader R(nrows, ncols, deg, s, false);
     cxx_mpz x_power_k;
@@ -480,12 +443,14 @@ declare_usage(cxx_param_list& pl)
     param_list_decl_usage(pl, "sanity-check", "Do sanity check on the checkpoint auxiliary file");
     param_list_decl_usage(pl, "tuning_schedule_filename",
                 "load tuning schedule from this file (sanity checks only)");
+    param_list_decl_usage(pl, "cpdir",
+                "load checkpoints from this directory");
 }
 
 static int
-do_check_pi(const char* pi_left_filename,
-            const char* pi_right_filename,
-            const char* pi_filename)
+do_check_pi(std::string const & pi_left_filename,
+            std::string const & pi_right_filename,
+            std::string const & pi_filename)
 {
     int ret;
     unsigned long const nrows = bw_parameters.m + bw_parameters.n;
@@ -503,7 +468,7 @@ do_check_pi(const char* pi_left_filename,
     if (verbose)
         gmp_printf("x=%Zd\n", (mpz_srcptr)x);
 
-    cp_useful_info const cp = read_cp_aux(pi_filename);
+    auto const cp = read_cp_aux(pi_filename);
 
     std::string const check_name =
       fmt::format("check (seed={}, depth {}, t={}, pi_left*pi_right=pi)",
@@ -570,9 +535,9 @@ do_check_E_short(std::string const& E_filename, std::string const& pi_filename)
     /* Note that all the useful info is in the aux file for pi, really.
      * The one for E is stored at t0, and is not really useful.
      */
-    cp_useful_info const cp = read_cp_aux(pi_filename);
+    auto const cp = read_cp_aux(pi_filename);
 
-    unsigned long const deg_pi = cp.deg;
+    unsigned long const deg_pi = cp.ncoeffs - 1;
     unsigned long const t = cp.t;
     unsigned long const t0 = cp.t0;
     unsigned long const t1 = cp.t1;
@@ -581,7 +546,7 @@ do_check_E_short(std::string const& E_filename, std::string const& pi_filename)
 
     std::string check_name = fmt::format(
             "check (seed={}, depth {}, t={}, E*pi=O(X^{}))",
-            seed, cp.level, cp.t, deg_E);
+            seed, cp.level, cp.t0, deg_E);
 
     if (t < t1)
         check_name += " [truncated cp at end]";
@@ -652,9 +617,9 @@ do_check_E_short(std::string const& E_filename, std::string const& pi_filename)
     return ret;
 }
 
-static int sanity_check(std::string filename)
+static int sanity_check(std::string const & filename)
 {
-    cp_useful_info const cp = read_cp_aux(filename);
+    auto const cp = read_cp_aux(filename);
     bmstatus bm(bw_parameters.m,bw_parameters.n, prime);
     bm.set_t0(cp.t0);
     bm.hints= hints;
@@ -691,6 +656,7 @@ int main(int argc, char const * argv[])
     const char* argv0 = argv[0];
 
     std::vector<std::pair<const char **, int> > todo;
+    std::string cpdir;
 
     param_list_configure_switch(pl, "-v", &verbose);
     for (argc--, argv++; argc;) {
@@ -722,6 +688,10 @@ int main(int argc, char const * argv[])
         param_list_print_usage(pl, argv0, stderr);
         exit(EXIT_FAILURE);
     }
+
+    param_list_parse(pl, "cpdir", cpdir);
+    if (!cpdir.empty() && cpdir.back() != '/')
+            cpdir += '/';
 
     if (!param_list_parse_mpz(pl, "prime", (mpz_ptr)prime)) {
         fprintf(stderr, "Missing parameter: prime\n");
@@ -786,9 +756,14 @@ int main(int argc, char const * argv[])
             argv = x.first;
             argc = x.second;
             if (argc == 3) {
-                ret = do_check_pi(argv[0], argv[1], argv[2]);
+                ret = do_check_pi(
+                        cpdir + argv[0],
+                        cpdir + argv[1],
+                        cpdir + argv[2]);
             } else if (argc == 2) {
-                ret = do_check_E_short(argv[0], argv[1]);
+                ret = do_check_E_short(
+                        cpdir + argv[0],
+                        cpdir + argv[1]);
             }
             if (!ret) break;
         }

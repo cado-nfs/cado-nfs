@@ -32,7 +32,7 @@ matpoly::matpoly(arith_hard * ab, unsigned int m, unsigned int n, int len) : ab(
             x = (arith_hard::elt *) memory.alloc(data_alloc_size_in_bytes());
             ab->vec_set_zero(x, m*n*alloc);
         } else {
-            x = NULL;
+            x = nullptr;
         }
     }
 }
@@ -43,16 +43,19 @@ matpoly::~matpoly() {
         // ab->vec_clear(&(x), m*n*alloc);
     }
 }
-matpoly::matpoly(matpoly && a)
-    : ab(a.ab), m(a.m), n(a.n), alloc(a.alloc)
+matpoly::matpoly(matpoly && a) noexcept
+    : ab(a.ab)
+    , m(a.m)
+    , n(a.n)
+    , size(a.size)
+    , alloc(a.alloc)
+    , x(a.x)
 {
-    size=a.size;
-    x=a.x;
-    a.x=NULL;
-    a.m=a.n=a.size=a.alloc=0;
-    a.ab=NULL;
+    a.x = nullptr;
+    a.m = a.n = a.size = a.alloc = 0;
+    a.ab = nullptr;
 }
-matpoly& matpoly::operator=(matpoly&& a)
+matpoly& matpoly::operator=(matpoly&& a) noexcept
 {
     if (x) {
         memory.free(x, data_alloc_size_in_bytes());
@@ -63,10 +66,10 @@ matpoly& matpoly::operator=(matpoly&& a)
     n = a.n;
     alloc = a.alloc;
     size = a.size;
-    x=a.x;
-    a.x=NULL;
-    a.m=a.n=a.size=a.alloc=0;
-    a.ab=NULL;
+    x = a.x;
+    a.x = nullptr;
+    a.m = a.n = a.size = a.alloc = 0;
+    a.ab = nullptr;
     return *this;
 }
 matpoly& matpoly::set(matpoly const& a)

@@ -554,6 +554,7 @@ linalg/bwc/intersections.c
 linalg/bwc/intersections.h
 linalg/bwc/krylov.cpp
 linalg/bwc/lingen.cpp
+linalg/bwc/lingen.hpp
 linalg/bwc/lingen_average_matsize.cpp
 linalg/bwc/lingen_average_matsize.hpp
 linalg/bwc/lingen_bigmatpoly.cpp
@@ -576,6 +577,7 @@ linalg/bwc/lingen_io_matpoly.cpp
 linalg/bwc/lingen_io_matpoly.hpp
 linalg/bwc/lingen_io_wrappers.cpp
 linalg/bwc/lingen_io_wrappers.hpp
+linalg/bwc/lingen_main.cpp
 linalg/bwc/lingen_mat_types.hpp
 linalg/bwc/lingen_matpoly.cpp
 linalg/bwc/lingen_matpoly.hpp
@@ -1265,9 +1267,13 @@ tests/linalg/bwc/test-spmv.sh
 tests/linalg/bwc/test_bl_extraction.cpp
 tests/linalg/bwc/test_cpubinding.cpp
 tests/linalg/bwc/test_hello.cpp
+tests/linalg/bwc/test_lingen_example.sh
+tests/linalg/bwc/test_lingen_mini.cpp
 tests/linalg/bwc/test_matpoly.cpp
 tests/linalg/bwc/test_matrix_file.cpp
 tests/linalg/bwc/test_matrix_file.sh
+tests/linalg/bwc/testcase_30105.E.aux
+tests/linalg/bwc/testcase_30105.E.single.data
 tests/linalg/bwc/time_matpoly_ft_parallel.cpp
 tests/misc/CMakeLists.txt
 tests/misc/F7.poly

@@ -35,13 +35,29 @@ struct bmstatus {
 
     tree_stats stats;
 
-    int depth() const { return stats.non_transition_depth(); }
+    // int depth() const { return stats.non_transition_depth(); }
+    int depth = 0;
+
+    struct depth_sentinel {
+        bmstatus & bm;
+        explicit depth_sentinel(bmstatus & bm) : bm(bm) { ++bm.depth; }
+        ~depth_sentinel() { --bm.depth; }
+        depth_sentinel(depth_sentinel const &) = delete;
+        depth_sentinel& operator=(depth_sentinel const &) = delete;
+        depth_sentinel(depth_sentinel &&) = delete;
+        depth_sentinel& operator=(depth_sentinel &&) = delete;
+    };
 
     bmstatus(unsigned int m, unsigned int n, cxx_mpz const & p)
         : d(m, n, p)
     { /*{{{*/
         lucky.assign(m+n, 0);
         delta.assign(d.m + d.n, 0);
+        mpi_dims[0] = 1;
+        mpi_dims[1] = 1;
+        com[0] = MPI_COMM_WORLD;
+        com[1] = MPI_COMM_WORLD;
+        com[2] = MPI_COMM_WORLD;
     }/*}}}*/
     bmstatus(unsigned int m, unsigned int n, mpz_srcptr p)
         : bmstatus(m, n, cxx_mpz(p)) {}
@@ -57,7 +73,7 @@ struct bmstatus {
     }/*}}}*/
     void display_deltas() const;
     bool recurse(size_t L) {/*{{{*/
-        return companion(depth(), L).recurse();
+        return companion(depth, L).recurse();
     }/*}}}*/
     std::tuple<unsigned int, unsigned int> get_minmax_delta_on_solutions() const;
     unsigned int get_max_delta_on_solutions() const;
