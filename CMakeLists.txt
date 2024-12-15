@@ -37,6 +37,12 @@ get_override(BWC_GFP_MATMUL_BACKENDS    BWC_GFP_MATMUL_BACKENDS)
 get_override(BWC_EXTRA_BACKENDS    BWC_EXTRA_BACKENDS)
 get_override(CHECKS_EXPENSIVE   CHECKS_EXPENSIVE)
 get_override(TIMEOUT_SCALE   TIMEOUT_SCALE)
+get_override(VALGRIND   VALGRIND)
+
+if(VALGRIND)
+    set(USE_ONLY_ASSEMBLY_INSTRUCTIONS_THAT_VALGRIND_KNOWS_ABOUT 1)
+endif()
+
 
 
 # If you change the min version, also change scripts/call_cmake.sh
@@ -330,10 +336,6 @@ include(${CADO_NFS_SOURCE_DIR}/config/gmp_randstate.cmake)
 
 #####################################################################
 # Obtain information from the host.
-
-if(DEFINED ENV{USE_ONLY_ASSEMBLY_INSTRUCTIONS_THAT_VALGRIND_KNOWS_ABOUT})
-    set(USE_ONLY_ASSEMBLY_INSTRUCTIONS_THAT_VALGRIND_KNOWS_ABOUT 1)
-endif()
 
 include(config/check_cpu_feature.cmake)
 
