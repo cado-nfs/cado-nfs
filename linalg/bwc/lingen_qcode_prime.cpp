@@ -57,6 +57,7 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
     ASSERT(E.m == m);
     ASSERT(E.n == b);
 
+
     /* Allocate something large enough for the result. This will be
      * soon freed anyway. Set it to identity.
      *
@@ -321,7 +322,6 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
                  * operations on the different entries in each column.
                  */
 
-#ifndef NDEBUG
 #ifdef HAVE_OPENMP
 #pragma omp critical
 #endif
@@ -336,10 +336,11 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
                         // note that pi_lengths is for the _global_
                         // deltas!
                         ASSERT_ALWAYS(pi_lengths[k] <= pi_lengths[j]);
+                        // This line is not a debug check! It's super
+                        // important! See #30105
                         pi_real_lengths[j] = std::max(pi_real_lengths[k], pi_real_lengths[j]);
                     }
                 }
-#endif
 
                 /* Icc 2019 synthetizes a pragma omp single around
                  * accesses to pi_real_lengths. I don't think it makes
