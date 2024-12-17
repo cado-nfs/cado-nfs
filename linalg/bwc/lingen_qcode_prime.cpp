@@ -7,6 +7,7 @@
 #include <sstream>
 #include <tuple>                          // for tie, tuple
 #include <vector>                         // for vector
+#include <algorithm>
 
 #include "gmp_aux.h"
 #include "cxx_mpz.hpp"
@@ -39,17 +40,6 @@
  * w.r.t. the local delta[] value is completely useless. Code which
  * relies on this should be fixed.
  */
-
-typedef int (*sortfunc_t) (const void*, const void*);
-
-static int lexcmp2(const int x[2], const int y[2])
-{
-    for(int i = 0 ; i < 2 ; i++) {
-        int const d = x[i] - y[i];
-        if (d) return d;
-    }
-    return 0;
-}
 
 /* }}} */
 
@@ -111,7 +101,7 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
     e.set_size(1);
 
     matpoly T(ab, b, b, 1);
-    int (*ctable)[2] = new int[b][2];
+    std::vector<std::pair<int, int>> ctable;
 
     for (unsigned int t = 0; t < E.get_size() ; t++, bm.t++) {
 
@@ -214,11 +204,10 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
          * we used to do before, we no longer apply the permutation to
          * delta. So the delta[] array keeps referring to physical
          * indices, and we'll tune this in the end. */
-        for(unsigned int j = 0; j < b; j++) {
-            ctable[j][0] = bm.delta[j];
-            ctable[j][1] = j;
-        }
-        qsort(ctable, b, 2 * sizeof(int), (sortfunc_t) & lexcmp2);
+        ctable.clear();
+        for(unsigned int j = 0; j < b; j++)
+            ctable.emplace_back(bm.delta[j], j);
+        std::sort(std::begin(ctable), std::end(ctable));
         /* }}} */
 
         /* {{{ Now do Gaussian elimination */
@@ -239,7 +228,7 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
         std::vector<unsigned int> pivot_columns;
         /* Loop through logical indices */
         for(unsigned int jl = 0; jl < b; jl++) {
-            unsigned int const j = ctable[jl][1];
+            unsigned int const j = ctable[jl].second;
             unsigned int u = 0;
             /* {{{ Find the pivot */
             for( ; u < m ; u++) {
@@ -264,7 +253,7 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
             }
             ab->neg(*inv, *inv);
             for (unsigned int kl = jl + 1; kl < b ; kl++) {
-                unsigned int const k = ctable[kl][1];
+                unsigned int const k = ctable[kl].second;
                 if (ab->is_zero(e.coeff(u, k, 0)))
                     continue;
                 // add lambda = e[u,k]*-e[u,j]^-1 times col j to col k.
@@ -308,7 +297,7 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
          * that the columns that we do read are done at this point.
          */
         for(unsigned int jl = 0; jl < b; jl++) {
-            unsigned int const j = ctable[jl][1];
+            unsigned int const j = ctable[jl].second;
             if (!is_pivot[j])
                 pivot_columns.push_back(j);
         }
@@ -431,8 +420,6 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
         }
         /* }}} */
     }
-
-    delete[] ctable;
 
     unsigned int pisize = 0;
     for(unsigned int j = 0; j < b; j++) {
