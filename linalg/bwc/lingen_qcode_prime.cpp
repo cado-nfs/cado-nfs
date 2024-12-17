@@ -45,73 +45,58 @@
 
 /*}}}*/
 
-static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
-{
-    int generator_found = 0;
 
-    bw_dimensions & d = bm.d;
-    unsigned int const m = d.m;
-    unsigned int const n = d.n;
-    unsigned int const b = m + n;
-    matpoly::arith_hard * ab = & d.ab;
-    ASSERT(E.m == m);
-    ASSERT(E.n == b);
-
-
-    /* Allocate something large enough for the result. This will be
-     * soon freed anyway. Set it to identity.
-     *
-     * We want to keep track of whether we overflow this pre-allocated
-     * storage, and decide whether we want to realloc in order to keep it
-     * correct, or just discard. Both options could make sense.
-     */
-    unsigned int mi, ma;
-    std::tie(mi, ma) = get_minmax_delta(bm.delta);
-
-    unsigned int const pi_room_base = expected_pi_length(d, bm.delta, E.get_size());
-
-    matpoly pi(ab, b, b, pi_room_base);
-    pi.set_size(pi_room_base);
-
-    /* Also keep track of the
-     * number of coefficients for the columns of pi. Set pi to Id */
-
-    std::vector<unsigned int> pi_lengths(b, 1);
-    std::vector<unsigned int> pi_real_lengths(b, 1);
-
-    /* NOTE that this sets pi.size=1 */
-    pi.set_constant_ui(1);
-
-    for(unsigned int i = 0 ; i < b ; i++) {
-        pi_lengths[i] = 1;
-        /* Fix for check 21744-bis. Our column priority will allow adding
-         * to a row if its delta is above the average. But then this
-         * might surprise us, because in truth we dont start with
-         * something of large degree here. So we're bumping pi_length a
-         * little bit to accomodate for this situation.
-         */
-        pi_lengths[i] += bm.delta[i] - mi;
-    }
-
+struct bw_lingen_basecase_raw_object {
+    bmstatus & bm;
+    matpoly const & E;
+    bool generator_found = false;
+    bw_dimensions & d;
+    unsigned int const m;
+    unsigned int const n;
+    unsigned int const b;
+    matpoly::arith_hard * ab;
+    unsigned int const pi_room_base;
+    /* This keeps tracks of the weights of the columns of pi, both
+     * globally and locally */
+    std::vector<unsigned int> pi_length_global;
+    std::vector<unsigned int> pi_length_local;
     /* Keep a list of columns which have been used as pivots at the
      * previous iteration */
-    std::vector<unsigned int> pivots(m, 0);
-    std::vector<int> is_pivot(b, 0);
+    std::vector<bool> is_pivot;
 
-    matpoly e(ab, m, b, 1);
-    e.set_size(1);
+    bw_lingen_basecase_raw_object(bmstatus & bm, matpoly const & E)
+        : bm(bm)
+        , E(E)
+        , d(bm.d)
+        , m(d.m)
+        , n(d.n)
+        , b(m+n)
+        , ab(&d.ab)
+        , pi_room_base(expected_pi_length(d, bm.delta, E.get_size()))
+        , pi_length_global(b, 1)
+        , pi_length_local(b, 1)
+        , is_pivot(b, false)
+    {   /* {{{ */
+        ASSERT(E.m == m);
+        ASSERT(E.n == b);
+        unsigned int mi, ma;
+        std::tie(mi, ma) = get_minmax_delta(bm.delta);
 
-    matpoly T(ab, b, b, 1);
-    std::vector<std::pair<int, int>> ctable;
+        for(unsigned int i = 0 ; i < b ; i++) {
+            /* see bug 21744-bis. Our column priority will allow adding
+             * to a row if its delta is above the average. But then this
+             * might surprise us, because in truth we dont start with
+             * something of large degree here. So we're bumping pi_length a
+             * little bit to accomodate for this situation.
+             */
+            pi_length_global[i] = 1 + bm.delta[i] - mi;
+        }
 
-    for (unsigned int t = 0; t < E.get_size() ; t++, bm.t++) {
+    }   /* }}} */
 
-        /* {{{ Update the columns of e for degree t. Save computation
-         * time by not recomputing those which can easily be derived from
-         * previous iteration. Notice that the columns of e are exactly
-         * at the physical positions of the corresponding columns of pi.
-         */
 
+    std::vector<unsigned int> columns_needing_recomputation()   /* {{{ */
+    {
         std::vector<unsigned int> todo;
         for(unsigned int j = 0 ; j < b ; j++) {
             if (is_pivot[j]) continue;
@@ -121,6 +106,19 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
             ASSERT_ALWAYS(bm.lucky[j] >= 0);
             todo.push_back(j);
         }
+        return todo;
+    }   /* }}} */
+
+    /* This recomputes the columns of degree T of e*pi, because the
+     * previous computation ended with a complete cancellation at this
+     * column.
+     */
+    void recompute_columns(     /* {{{ */
+            unsigned int t,
+            matpoly & e,
+            matpoly const & pi,
+            std::vector<unsigned int> const & todo)
+    {
         /* icc openmp doesn't grok todo.size() as being a constant
          * loop bound */
         unsigned int const nj = todo.size();
@@ -137,7 +135,7 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
             for(unsigned int jl = 0 ; jl < nj ; ++jl) {
                 for(unsigned int i = 0 ; i < m ; ++i) {
                     unsigned int const j = todo[jl];
-                    unsigned int const lj = std::min(pi_real_lengths[j], t + 1);
+                    unsigned int const lj = std::min(pi_length_local[j], t + 1);
                     ab->set_zero(*e_ur);
                     for(unsigned int k = 0 ; k < b ; ++k) {
                         for(unsigned int s = 0 ; s < lj ; s++) {
@@ -152,9 +150,13 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
 
             ab->free(e_ur);
         }
-        /* }}} */
+    } /* }}} */
 
-        /* {{{ check for cancellations */
+
+    unsigned int check_cancellations( /* {{{ */
+            matpoly const & e,
+            std::vector<unsigned int> const & todo)
+    {
 
         unsigned int newluck = 0;
         for(auto const j : todo) {
@@ -196,22 +198,35 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
             }
             printf(".\n");
         }
-        /* }}} */
 
-        if (generator_found) break;
+        return generator_found;
+    } /* }}} */
 
-        /* {{{ Now see in which order I may look at the columns of pi, so
+    std::vector<unsigned int> get_column_order() /* {{{ */
+    {
+        /* Now see in which order I may look at the columns of pi, so
          * as to keep the nominal degrees correct. In contrast with what
          * we used to do before, we no longer apply the permutation to
          * delta. So the delta[] array keeps referring to physical
          * indices, and we'll tune this in the end. */
-        ctable.clear();
+        std::vector<std::pair<int, int>> ctable_pre;
         for(unsigned int j = 0; j < b; j++)
-            ctable.emplace_back(bm.delta[j], j);
-        std::sort(std::begin(ctable), std::end(ctable));
-        /* }}} */
+            ctable_pre.emplace_back(bm.delta[j], j);
+        std::sort(std::begin(ctable_pre), std::end(ctable_pre));
+        std::vector<unsigned int> ctable;
+        ctable.reserve(ctable_pre.size());
+        for(auto const & j : ctable_pre)
+            ctable.emplace_back(j.second);
+        return ctable;
+    } /* }}} */
 
-        /* {{{ Now do Gaussian elimination */
+    std::pair<matpoly, std::vector<unsigned int>> compute_transvections(
+            matpoly & e,
+            std::vector<unsigned int> const & ctable)
+    /* {{{ */
+    {
+        // return the list of tranvections as well as the list of pivot
+        // columns
 
         /*
          * The matrix T is *not* used for actually storing the product of
@@ -220,16 +235,14 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
          * (abiding by the ordering of pivots), so that we get a better
          * opportunity to do lazy reductions.
          */
+        matpoly T(ab, b, b, 1);
 
         T.set_constant_ui(1);
-
-        is_pivot.assign(b, 0);
-        unsigned int r = 0;
 
         std::vector<unsigned int> pivot_columns;
         /* Loop through logical indices */
         for(unsigned int jl = 0; jl < b; jl++) {
-            unsigned int const j = ctable[jl].second;
+            unsigned int const j = ctable[jl];
             unsigned int u = 0;
             /* {{{ Find the pivot */
             for( ; u < m ; u++) {
@@ -237,10 +250,8 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
                     break;
             }
             if (u == m) continue;
-            ASSERT(r < m);
+            ASSERT_ALWAYS(pivot_columns.size() < m);
             /* }}} */
-            pivots[r++] = j;
-            is_pivot[j] = 1;
             pivot_columns.push_back(j);
             /* {{{ Cancel this coeff in all other columns. */
             auto * inv = ab->alloc();
@@ -254,7 +265,7 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
             }
             ab->neg(*inv, *inv);
             for (unsigned int kl = jl + 1; kl < b ; kl++) {
-                unsigned int const k = ctable[kl].second;
+                unsigned int const k = ctable[kl];
                 if (ab->is_zero(e.coeff(u, k, 0)))
                     continue;
                 // add lambda = e[u,k]*-e[u,j]^-1 times col j to col k.
@@ -288,20 +299,17 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
             ab->free(inv);
             /* }}} */
         }
-        /* }}} */
 
+        return { std::move(T), std::move(pivot_columns) };
+    }    /* }}} */
+
+
+    void apply_transvections(matpoly & pi, matpoly const & T,
+            std::vector<unsigned int> const & columns)
+    {
         /* {{{ apply the transformations, using the transvection
          * reordering trick */
 
-        /* non-pivot columns are only added to and never read, so it does
-         * not really matter where we put their computation, provided
-         * that the columns that we do read are done at this point.
-         */
-        for(unsigned int jl = 0; jl < b; jl++) {
-            unsigned int const j = ctable[jl].second;
-            if (!is_pivot[j])
-                pivot_columns.push_back(j);
-        }
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel
@@ -311,7 +319,7 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
             auto * tmp_pi = ab->alloc<arith_hard::elt_ur_for_addmul>();
 
             for(unsigned int jl = 0 ; jl < b ; ++jl) {
-                unsigned int const j = pivot_columns[jl];
+                unsigned int const j = columns[jl];
                 /* compute column j completely. We may put this interface in
                  * matpoly, but it's really special-purposed, to the point
                  * that it really makes little sense IMO
@@ -327,27 +335,27 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
 #endif
                 {
                     for(unsigned int kl = m ; kl < b ; kl++) {
-                        unsigned int const k = pivot_columns[kl];
+                        unsigned int const k = columns[kl];
                         ASSERT_ALWAYS(ab->cmp(T.coeff(k, j, 0), k==j) == 0);
                     }
-                    for(unsigned int kl = 0 ; kl < MIN(m,jl) ; kl++) {
-                        unsigned int const k = pivot_columns[kl];
+                    for(unsigned int kl = 0 ; kl < std::min(m,jl) ; kl++) {
+                        unsigned int const k = columns[kl];
                         if (ab->is_zero(T.coeff(k, j, 0))) continue;
-                        // note that pi_lengths is for the _global_
+                        // note that pi_length_global is for the _global_
                         // deltas!
-                        ASSERT_ALWAYS(pi_lengths[k] <= pi_lengths[j]);
+                        ASSERT_ALWAYS(pi_length_global[k] <= pi_length_global[j]);
                         // This line is not a debug check! It's super
                         // important! See #30105
-                        pi_real_lengths[j] = std::max(pi_real_lengths[k], pi_real_lengths[j]);
+                        pi_length_local[j] = std::max(pi_length_local[k], pi_length_local[j]);
                     }
                 }
 
                 /* Icc 2019 synthetizes a pragma omp single around
-                 * accesses to pi_real_lengths. I don't think it makes
+                 * accesses to pi_length_local. I don't think it makes
                  * sense in that particular case, it's fine enough here
                  * to read the data now after the critical section above.
                  */
-                unsigned int const dummy = pi_real_lengths[j];
+                unsigned int const dummy = pi_length_local[j];
 
 #ifdef HAVE_OPENMP
 #pragma omp for collapse(2)
@@ -359,7 +367,7 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
                         ab->set(*tmp_pi, piijs);
 
                         for(unsigned int kl = 0 ; kl < MIN(m,jl) ; kl++) {
-                            unsigned int const k = pivot_columns[kl];
+                            unsigned int const k = columns[kl];
                             /* TODO: if column k was already a pivot on previous
                              * turn (which could happen, depending on m and n),
                              * then the corresponding entry is probably zero
@@ -369,7 +377,7 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
 
                             arith_hard::elt const & Tkj = T.coeff(k, j, 0);
                             if (ab->is_zero(Tkj)) continue;
-                            /* pi[i,k] has length pi_lengths[k]. Multiply
+                            /* pi[i,k] has length pi_length_global[k]. Multiply
                              * that by T[k,j], which is a constant. Add
                              * to the unreduced thing. We don't have an
                              * mpfq api call for that operation.
@@ -385,14 +393,34 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
             ab->free(tmp);
             ab->free(tmp_pi);
         }
-        /* }}} */
+    } /* }}} */
 
-        ASSERT_ALWAYS(r == m);
+    std::vector<unsigned int> expand_to_all_columns_and_update_flags(
+            std::vector<unsigned int> const & pivot_columns,
+            std::vector<unsigned int> const & ctable)
+    {
+        auto all = pivot_columns;
 
+        is_pivot.assign(b, false);
+        for(auto const j : pivot_columns)
+            is_pivot[j] = true;
+
+        /* non-pivot columns are only added to and never read, so it does
+         * not really matter where we put their computation, provided
+         * that the columns that we do read are done at this point.
+         */
+        for(auto const j : ctable)
+            if (!is_pivot[j])
+                all.push_back(j);
+        return all;
+    }
+
+    void shift_pivot_columns_in_pi(matpoly & pi)
+    {
         /* {{{ Now for all pivots, multiply column in pi by x */
         for (unsigned int j = 0; j < b ; j++) {
             if (!is_pivot[j]) continue;
-            if (pi_real_lengths[j] >= pi.capacity()) {
+            if (pi_length_local[j] >= pi.capacity()) {
                 if (!generator_found) {
                     pi.realloc(pi.capacity() + std::max(pi.capacity() / (m+n),
                                 size_t(1)));
@@ -400,7 +428,7 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
                             bm.t,
                             100 * pi.capacity() / pi_room_base);
                     for(unsigned int j = 0; j < b; j++)
-                        printf(" %u", pi_real_lengths[j]);
+                        printf(" %u", pi_length_local[j]);
                     printf("\n");
                 } else {
                     ASSERT_ALWAYS(bm.lucky[j] <= 0);
@@ -408,39 +436,87 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
                         printf("t=%u, column %u discarded from now on\n",
                                 bm.t, j);
                     bm.lucky[j] = -1;
-                    pi_lengths[j]++;
-                    pi_real_lengths[j]++;
+                    pi_length_global[j]++;
+                    pi_length_local[j]++;
                     bm.delta[j]++;
                     continue;
                 }
             }
-            pi.multiply_column_by_x(j, pi_real_lengths[j]);
-            pi_real_lengths[j]++;
-            pi_lengths[j]++;
+            pi.multiply_column_by_x(j, pi_length_local[j]);
+            pi_length_local[j]++;
+            pi_length_global[j]++;
             bm.delta[j]++;
         }
-        /* }}} */
-        unsigned int pisize = 0;
-        for(auto ell : pi_real_lengths)
-            pisize = std::max(pisize, ell);
-        /* Given the structure of the computation, there's no reason for the
-         * initial estimate to go wrong.
-         */
-        ASSERT_ALWAYS(pisize <= pi.capacity());
-        pi.set_size(pisize);
     }
+    /* }}} */
+
+    matpoly get_pi()// {{{
+    {
+        matpoly pi(ab, b, b, int(pi_room_base));
+        pi.set_size(pi_room_base);
+
+        /* NOTE that this sets pi.size=1 */
+        pi.set_constant_ui(1);
+
+        matpoly e(ab, m, b, 1);
+        e.set_size(1);
+
+        for (unsigned int t = 0; t < E.get_size() ; t++, bm.t++) {
+
+            /*  Update the columns of e for degree t. Save computation
+             * time by not recomputing those which can easily be derived from
+             * previous iteration. Notice that the columns of e are exactly
+             * at the physical positions of the corresponding columns of pi.
+             */
+
+            auto todo = columns_needing_recomputation();
+            recompute_columns(t, e, pi, todo);
+
+            if (check_cancellations(e, todo)) break;
+
+            auto ctable = get_column_order();
+
+            matpoly T;
+            std::vector<unsigned int> pivot_columns;
+
+            std::tie(T, pivot_columns) = compute_transvections(e, ctable);
+
+            unsigned int r = pivot_columns.size();
+            ASSERT_ALWAYS(r == m);
+
+            auto all = expand_to_all_columns_and_update_flags(
+                    pivot_columns, ctable);
+            apply_transvections(pi, T, all);
+
+            shift_pivot_columns_in_pi(pi);
+
+            unsigned int pisize = 0;
+            for(auto ell : pi_length_local)
+                pisize = std::max(pisize, ell);
+            /* Given the structure of the computation, there's no reason for the
+             * initial estimate to go wrong.
+             */
+            ASSERT_ALWAYS(pisize <= pi.capacity());
+            pi.set_size(pisize);
+        }
 
 
-    for(unsigned int j = 0; j < b; j++) {
-        for(unsigned int k = pi_real_lengths[j] ; k < pi.get_size() ; k++) {
-            for(unsigned int i = 0 ; i < b ; i++) {
-                ASSERT_ALWAYS(ab->is_zero(pi.coeff(i, j, k)));
+        for(unsigned int j = 0; j < b; j++) {
+            for(unsigned int k = pi_length_local[j] ; k < pi.get_size() ; k++) {
+                for(unsigned int i = 0 ; i < b ; i++) {
+                    ASSERT_ALWAYS(ab->is_zero(pi.coeff(i, j, k)));
+                }
             }
         }
-    }
 
-    bm.done = generator_found;
-    return pi;
+        bm.done = generator_found;
+        return pi;
+    }// }}}
+};
+
+matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E)
+{
+    return bw_lingen_basecase_raw_object(bm, E).get_pi();
 }
 /* }}} */
 
