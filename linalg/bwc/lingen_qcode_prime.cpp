@@ -420,18 +420,16 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
             bm.delta[j]++;
         }
         /* }}} */
+        unsigned int pisize = 0;
+        for(auto ell : pi_real_lengths)
+            pisize = std::max(pisize, ell);
+        /* Given the structure of the computation, there's no reason for the
+         * initial estimate to go wrong.
+         */
+        ASSERT_ALWAYS(pisize <= pi.capacity());
+        pi.set_size(pisize);
     }
 
-    unsigned int pisize = 0;
-    for(unsigned int j = 0; j < b; j++) {
-        if (pi_real_lengths[j] > pisize)
-            pisize = pi_real_lengths[j];
-    }
-    /* Given the structure of the computation, there's no reason for the
-     * initial estimate to go wrong.
-     */
-    ASSERT_ALWAYS(pisize <= pi.capacity());
-    pi.set_size(pisize);
 
     for(unsigned int j = 0; j < b; j++) {
         for(unsigned int k = pi_real_lengths[j] ; k < pi.get_size() ; k++) {
