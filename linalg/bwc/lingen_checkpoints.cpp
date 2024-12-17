@@ -2,16 +2,24 @@
 // IWYU pragma: no_include "mpfq_fake.hpp"
 // IWYU pragma: no_include "mpfq_layer.h"
 // IWYU pragma: no_include <sys/param.h>
+
 #include <cstdio>
+#include <cstdint>                    // for SIZE_MAX
+#include <cstdlib>                    // for abort, free
+
 #include <istream> // IWYU pragma: keep
 #include <fstream> // IWYU pragma: keep
-#include <gmp.h>                       // for operator<<, mpz_cmp
-#include <stdint.h>                    // for SIZE_MAX
-#include <stdlib.h>                    // for abort, free
-#include <unistd.h>                    // for unlink, access, R_OK, X_OK
-#include <map>                         // for operator!=, map
+#include <ios>
+#include <string>
 #include <utility>                     // for move, pair
 #include <vector>                      // for vector
+#include <regex>
+
+#include <unistd.h>                    // for unlink, access, R_OK, X_OK
+
+#include <gmp.h>                       // for operator<<, mpz_cmp
+
+
 #include "fmt/core.h"                  // for check_format_string, char_t
 #include "fmt/format.h"                // for basic_buffer::append, basic_pa...
 #include "arith-hard.hpp"
@@ -33,8 +41,8 @@
 
 /* Checkpoints */
 
-const char * lingen_checkpoint::directory = NULL;
-unsigned int lingen_checkpoint::threshold = 100;
+std::string lingen_checkpoint::default_directory;
+unsigned int lingen_checkpoint::threshold = UINT_MAX;
 int lingen_checkpoint::save_gathered = 0;
 constexpr unsigned long lingen_checkpoint::format;
 
@@ -60,67 +68,95 @@ void lingen_checkpoint::lookup_parameters(cxx_param_list & pl)
 
 void lingen_checkpoint::interpret_parameters(cxx_param_list & pl)
 {
-    lingen_checkpoint::directory = param_list_lookup_string(pl, "checkpoint-directory");
-    param_list_parse_uint(pl, "checkpoint-threshold", &lingen_checkpoint::threshold);
-    param_list_parse_int(pl, "lingen_checkpoint_save_gathered", &lingen_checkpoint::save_gathered);
+    param_list_parse(pl, "checkpoint-directory", default_directory);
+    param_list_parse(pl, "checkpoint-threshold", threshold);
+    param_list_parse(pl, "lingen_checkpoint_save_gathered", save_gathered);
 
-    if (!lingen_checkpoint::directory) return;
 
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    if (!lingen_checkpoint::save_gathered) {
-        int ok = access(lingen_checkpoint::directory, X_OK) == 0;
+    if (!save_gathered && !default_directory.empty()) {
+        int ok = access(default_directory.c_str(), X_OK) == 0;
         MPI_Allreduce(MPI_IN_PLACE, &ok, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
         if (!ok) {
             if (!rank)
-                fmt::print("# Checkpoint directory {}/ does not exist at all ranks, falling back to gathered checkpoints\n", lingen_checkpoint::directory);
+                fmt::print("# Checkpoint directory {}/ does not exist at all ranks, falling back to gathered checkpoints\n", default_directory);
             lingen_checkpoint::save_gathered = 1;
         }
     }
-    if (lingen_checkpoint::save_gathered) {
-        int ok = access(lingen_checkpoint::directory, X_OK) == 0;
-        MPI_Bcast(&ok, 1, MPI_INT, 0, MPI_COMM_WORLD);
-        if (!ok) {
-            if (!rank)
-                fmt::print("# Checkpoint directory {}/ does not exist at rank zero, checkpoint settings ignored\n", lingen_checkpoint::directory);
-            lingen_checkpoint::directory = NULL;
+    if (save_gathered) {
+        if (!default_directory.empty()) {
+            int ok = access(default_directory.c_str(), X_OK) == 0;
+            MPI_Bcast(&ok, 1, MPI_INT, 0, MPI_COMM_WORLD);
+            if (!ok) {
+                if (!rank)
+                    fmt::print("# Checkpoint directory {}/ does not exist"
+                            " at rank zero, checkpoint settings ignored\n",
+                            default_directory);
+                default_directory.clear();
+                threshold = UINT_MAX;
+            }
         }
     }
 }
 
-lingen_checkpoint::lingen_checkpoint(bmstatus & bm, unsigned int t0, unsigned int t1, int mpi, std::string base)
-    : bm(bm), t0(t0), t1(t1), mpi(mpi)
+static bool remove_suffix(std::string & S, std::string const & suffix)
 {
-    level = bm.depth();
+    if (has_suffix(S.c_str(), suffix.c_str())) {
+        S = S.substr(0, S.size() - suffix.size());
+        return true;
+    } else {
+        return false;
+    }
+}
+
+static void remove_suffix_regexp(std::string & S, std::string const & suffix)
+{
+    S = regex_replace(S, std::regex(suffix + "$"), "");
+}
+
+
+lingen_checkpoint::lingen_checkpoint(bmstatus & bm, unsigned int t0, unsigned int t1, int mpi, std::string base)
+    : bm(bm)
+    , level(bm.depth)
+    , t0(t0)
+    , t1(t1)
+    , mpi(mpi)
+{
     if (mpi)
         MPI_Comm_rank(bm.com[0], &(rank));
     else
         rank = 0;
+
+    /* If the filename ends with any of the suffixes we generally attach
+     * to checkpoint file names, then derive a new basename from that.
+     */
+    remove_suffix(base, ".aux");
+    remove_suffix(base, ".single.data");
+    remove_suffix_regexp(base, R"(\.\d+\.data)");
+
     auxfile = base + ".aux";
     gdatafile = base + ".single.data";
     sdatafile = base + fmt::format(".{}.data", rank);
-    if (directory) {
-        auxfile = fmt::format("{}/{}", directory, auxfile);
-        gdatafile = fmt::format("{}/{}", directory, gdatafile);
-        sdatafile = fmt::format("{}/{}", directory, sdatafile);
-    }
 
     datafile = mpi ? sdatafile : gdatafile;
 }
 
 std::string lingen_checkpoint::get_cp_basename(bmstatus & bm, cp_which which, unsigned int t0, unsigned int t1)
 {
-    int const level = bm.depth();
+    int const level = bm.depth;
     std::string base;
     switch(which) {
         case LINGEN_CHECKPOINT_E:
-            base = fmt::format("E.{}.{}", level, t0);
+            base = fmt::format("{}.{}.{}.E", level, t0, t1);
             break;
         case LINGEN_CHECKPOINT_PI:
-            base = fmt::format("pi.{}.{}.{}", level, t0, t1);
+            base = fmt::format("{}.{}.{}.pi", level, t0, t1);
             break;
     }
+    if (!default_directory.empty())
+        base = fmt::format("{}/{}", default_directory, base);
     return base;
 }
 
@@ -200,45 +236,72 @@ bool lingen_checkpoint::checkpoint_already_present() const/*{{{*/
     return false;
 }/*}}}*/
 
-bool lingen_checkpoint::load_aux_file(size_t & Xsize)/*{{{*/
+/* This function can be used to parse a checkpoint header _and_ use the
+ * context directly from the header.
+ */
+std::istream& operator>>(std::istream & is, lingen_checkpoint::header_info & u)
 {
-    bmstatus nbm = bm;
-    bw_dimensions  const& d = bm.d;
-    unsigned int const m = d.m;
-    unsigned int const n = d.n;
-    if (rank) return 1;
-    std::ifstream is(auxfile);
-    if (!is.good()) return false;
     std::string hfstring;
     unsigned long hformat;
     is >> hfstring >> hformat;
     if (hfstring != "format")
-        throw invalid_aux_file("checkpoint file cannot be used (version < 1)");
-    if (hformat != format)
-        throw invalid_aux_file(fmt::format("checkpoint file cannot be used (version {} < {})", hformat, format));
-    unsigned int xm,xn;
-    is >> xm >> xn;
-    if (xm != m || xn != n)
-        throw invalid_aux_file(fmt::format("checkpoint file cannot be used (made for (m,n)=({},{})", xm, xn));
-    int xlevel;
-    unsigned int xt0, xt1;
-    if (!(is >> xlevel >> xt0 >> xt1 >> target_t))
-        throw invalid_aux_file("checkpoint file cannot be used (parse error)");
-    if (xlevel != level || t0 != xt0 || t1 != xt1)
-        throw invalid_aux_file(fmt::format("checkpoint file cannot be used (made for depth={} t0={} t1={}", xlevel, xt0, xt1));
-    ASSERT_ALWAYS(target_t <= t1);
-    is >> Xsize;
-    cxx_mpz xp;
-    is >> xp;
-    if (mpz_cmp(xp, bm.d.ab.characteristic()) != 0)
-        throw invalid_aux_file("checkpoint file cannot be used (made for wrong p)");
-    for(unsigned int i = 0 ; i < m + n ; i++) {
-        is >> nbm.delta[i];
+        throw lingen_checkpoint::invalid_aux_file("version < 1");
+    if (hformat != lingen_checkpoint::format)
+        throw lingen_checkpoint::invalid_aux_file(
+                fmt::format("version {} < {}",
+                    hformat, lingen_checkpoint::format));
+    if (!(is >> u.m >> u.n))
+        throw lingen_checkpoint::invalid_aux_file("parse error");
+    if (!(is >> u.level >> u.t0 >> u.t1 >> u.t))
+        throw lingen_checkpoint::invalid_aux_file("parse error");
+    if (u.t < u.t0 || u.t > u.t1)
+        throw lingen_checkpoint::invalid_aux_file("t is out of bounds");
+    if (!(is >> u.ncoeffs >> u.p))
+        throw lingen_checkpoint::invalid_aux_file("parse error");
+    u.delta.assign(u.m + u.n, 0);
+    for(unsigned int i = 0 ; i < u.m + u.n ; i++) {
+        is >> u.delta[i];
     }
-    for(unsigned int i = 0 ; i < m + n ; i++) {
-        is >> nbm.lucky[i];
+    u.lucky.assign(u.m + u.n, 0);
+    for(unsigned int i = 0 ; i < u.m + u.n ; i++) {
+        is >> u.lucky[i];
     }
-    is >> nbm.done;
+    is >> u.done;
+    return is;
+}
+
+bool lingen_checkpoint::load_aux_file(size_t & Xsize)/*{{{*/
+{
+    if (rank) return true;
+    std::ifstream is(auxfile);
+    if (!is.good()) return false;
+
+    bmstatus nbm = bm;
+
+    header_info u;
+    try {
+        if (!(is >> u))
+            return false;
+        if (u.m != bm.d.m || u.n != bm.d.n)
+            throw invalid_aux_file(fmt::format("made for (m,n)=({},{})",
+                        u.m, u.n));
+        if (level != u.level || t0 != u.t0 || t1 != u.t1)
+            throw invalid_aux_file(fmt::format("made for depth={} t0={} t1={}",
+                        u.level, u.t0, u.t1));
+        if (mpz_cmp(u.p, bm.d.ab.characteristic()) != 0)
+            throw invalid_aux_file("made for wrong p");
+
+        nbm.delta = u.delta;
+        nbm.lucky = u.lucky;
+        nbm.done = u.done;
+        Xsize = u.ncoeffs;
+    } catch (invalid_aux_file const& e) {
+        throw invalid_aux_file(
+                fmt::format(
+                    "checkpoint file {} cannot be used ({}",
+                    auxfile, e.what()));
+    }
+
     double tt;
     is >> tt;
     logline_unserialize(tt);
@@ -320,7 +383,6 @@ int load_checkpoint_file<matpoly>(bmstatus & bm, cp_which which, matpoly & X, un
     unsigned int const m = d.m;
     unsigned int const n = d.n;
 
-    if (!lingen_checkpoint::directory) return 0;
     if ((t1 - t0) < lingen_checkpoint::threshold) return 0;
 
     lingen_checkpoint cp(bm, which, t0, t1, 0);
@@ -360,7 +422,6 @@ template<>
 int save_checkpoint_file<matpoly>(bmstatus & bm, cp_which which, matpoly const & X, unsigned int t0, unsigned int t1)/*{{{*/
 {
     /* corresponding t is bm.t - E.size ! */
-    if (!lingen_checkpoint::directory) return 0;
     if ((t1 - t0) < lingen_checkpoint::threshold) return 0;
     // coverity[tainted_data_transitive]
     lingen_checkpoint cp(bm, which, t0, t1, 0);
@@ -395,7 +456,6 @@ static int load_mpi_checkpoint_file_scattered(bmstatus & bm, cp_which which, big
 {
     int size;
     MPI_Comm_size(MPI_COMM_WORLD, &size);
-    if (!lingen_checkpoint::directory) return 0;
     if ((t1 - t0) < lingen_checkpoint::threshold) return 0;
     int rank;
     MPI_Comm_rank(bm.com[0], &rank);
@@ -452,7 +512,6 @@ static int load_mpi_checkpoint_file_scattered(bmstatus & bm, cp_which which, big
 static int save_mpi_checkpoint_file_scattered(bmstatus & bm, cp_which which, bigmatpoly const & X, unsigned int t0, unsigned int t1)/*{{{*/
 {
     /* corresponding t is bm.t - E.size ! */
-    if (!lingen_checkpoint::directory) return 0;
     if ((t1 - t0) < lingen_checkpoint::threshold) return 0;
     int rank;
     MPI_Comm_rank(bm.com[0], &rank);
@@ -483,7 +542,6 @@ static int save_mpi_checkpoint_file_scattered(bmstatus & bm, cp_which which, big
 
 static int load_mpi_checkpoint_file_gathered(bmstatus & bm, cp_which which, bigmatpoly & X, unsigned int t0, unsigned int t1)/*{{{*/
 {
-    if (!lingen_checkpoint::directory) return 0;
     if ((t1 - t0) < lingen_checkpoint::threshold) return 0;
     int rank;
     MPI_Comm_rank(bm.com[0], &rank);
@@ -569,7 +627,6 @@ static int load_mpi_checkpoint_file_gathered(bmstatus & bm, cp_which which, bigm
 
 static int save_mpi_checkpoint_file_gathered(bmstatus & bm, cp_which which, bigmatpoly const & X, unsigned int t0, unsigned int t1)/*{{{*/
 {
-    if (!lingen_checkpoint::directory) return 0;
     if ((t1 - t0) < lingen_checkpoint::threshold) return 0;
     int rank;
     MPI_Comm_rank(bm.com[0], &rank);
@@ -637,7 +694,6 @@ int load_checkpoint_file<bigmatpoly>(bmstatus & bm, cp_which which, bigmatpoly &
      * because we like distributed I/O. Otherwise, read gathered
      * checkpoint if we could find one.
      */
-    if (!lingen_checkpoint::directory) return 0;
     if ((t1 - t0) < lingen_checkpoint::threshold) return 0;
     int rank;
     MPI_Comm_rank(bm.com[0], &rank);
@@ -669,3 +725,4 @@ int save_checkpoint_file<bigmatpoly>(bmstatus & bm, cp_which which, bigmatpoly c
         return save_mpi_checkpoint_file_scattered(bm, which, X, t0, t1);
     }
 }/*}}}*/
+

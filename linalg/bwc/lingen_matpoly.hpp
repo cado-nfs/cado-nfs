@@ -61,21 +61,21 @@ public:
     void make_sure_not_pre_init() const { if (!check_pre_init()) throw must_be_pre_init(); }
     */
     // static void add_to_main_memory_pool(size_t s);
-    arith_hard * ab = NULL;
+    arith_hard * ab = nullptr;
     unsigned int m = 0;
     unsigned int n = 0;
 private:
     size_t size = 0;
     size_t alloc = 0;
-    ptr x = NULL;
+    ptr x = nullptr;
 public:
-    inline size_t capacity() const { return alloc; }
-    inline size_t get_size() const { return size; }
+    size_t capacity() const { return alloc; }
+    size_t get_size() const { return size; }
     void set_size(size_t s) { size = s; }
     size_t get_true_nonzero_size() const;
 
-    inline unsigned int nrows() const { return m; }
-    inline unsigned int ncols() const { return n; }
+    unsigned int nrows() const { return m; }
+    unsigned int ncols() const { return n; }
     const void * data_area() const { return x; }
     size_t data_entry_size_in_bytes() const { return ab->vec_elt_stride(size); }
     size_t data_size_in_bytes() const { return m * n * data_entry_size_in_bytes(); }
@@ -87,20 +87,20 @@ public:
     size_t data_alloc_size_in_bytes() const { return data_alloc_size_in_bytes(alloc); }
     bool is_tight() const { return alloc == size; }
 
-    matpoly() { m=n=0; size=alloc=0; ab=NULL; x=NULL; }
+    matpoly() = default;
     matpoly(arith_hard * ab, unsigned int m, unsigned int n, int len);
     matpoly(matpoly const&) = delete;
     matpoly& operator=(matpoly const&) = delete;
     matpoly& set(matpoly const&);
-    matpoly(matpoly &&);
-    matpoly& operator=(matpoly &&);
+    matpoly(matpoly &&) noexcept;
+    matpoly& operator=(matpoly &&) noexcept;
     ~matpoly();
-    matpoly similar_shell() const { return matpoly(ab, m, n, 0); }
+    matpoly similar_shell() const { return { ab, m, n, 0 }; }
     bool check_pre_init() const ATTRIBUTE_WARN_UNUSED_RESULT {
-        return x == NULL;
+        return x == nullptr;
     }
     void realloc(size_t);
-    inline void shrink_to_fit() { realloc(size); }
+    void shrink_to_fit() { realloc(size); }
     void zero();
     void clear() { *this = matpoly(); }
 
@@ -108,13 +108,13 @@ public:
     /* part_head does not _promise_ to point to coefficient k exactly. In
      * the simd case (lingen_matpoly_binary.hpp) it points to the word
      * where coefficient k can be found */
-    inline ptr part(unsigned int i, unsigned int j) {
+    ptr part(unsigned int i, unsigned int j) {
         return ab->vec_subvec(x, (i*n+j)*alloc);
     }
-    inline ptr part_head(unsigned int i, unsigned int j, unsigned int k) {
+    ptr part_head(unsigned int i, unsigned int j, unsigned int k) {
         return ab->vec_subvec(part(i, j), k);
     }
-    inline elt & coeff(unsigned int i, unsigned int j, unsigned int k=0) {
+    elt & coeff(unsigned int i, unsigned int j, unsigned int k=0) {
         return ab->vec_item(part(i, j), k);
     }
     struct coeff_accessor_proxy {
@@ -130,16 +130,16 @@ public:
             return *this;
         }
     };
-    inline coeff_accessor_proxy coeff_accessor(unsigned int i, unsigned int j, unsigned int k = 0) {
-        return coeff_accessor_proxy(*this, i, j, k);
+    coeff_accessor_proxy coeff_accessor(unsigned int i, unsigned int j, unsigned int k = 0) {
+        return { *this, i, j, k };
     }
-    inline srcptr part(unsigned int i, unsigned int j) const {
+    srcptr part(unsigned int i, unsigned int j) const {
         return ab->vec_subvec(x, (i*n+j)*alloc);
     }
-    inline srcptr part_head(unsigned int i, unsigned int j, unsigned int k) const {
+    srcptr part_head(unsigned int i, unsigned int j, unsigned int k) const {
         return ab->vec_subvec(part(i, j), k);
     }
-    inline elt const & coeff(unsigned int i, unsigned int j, unsigned int k=0) const {
+    elt const & coeff(unsigned int i, unsigned int j, unsigned int k=0) const {
         return ab->vec_item(part(i, j), k);
     }
     /* }}} */
@@ -165,8 +165,8 @@ public:
     /* not to be confused with the former. the following two are in fact
      * relevant only to the binary interface. They're just noops here.
      */
-    inline bool high_word_is_clear() const { return true; }
-    inline void clear_high_word() {}
+    static bool high_word_is_clear() { return true; }
+    void clear_high_word() {}
 
     /* This changes size to nsize, and fills [size..nsize[ with zeroes */
     void zero_pad(unsigned int nsize); /* changes size to nsize */
@@ -204,13 +204,13 @@ public:
     static matpoly mp(tree_stats & stats, matpoly const & a, matpoly const & b, lingen_call_companion::mul_or_mp_times * M)
     {
         if (!M) return mp(a, b);
-        tree_stats::smallstep_sentinel dummy(stats, M->step_name());
+        const tree_stats::smallstep_sentinel dummy(stats, M->step_name());
         return mp(a, b);
     }
 
     static matpoly mul(tree_stats & stats, matpoly const & a, matpoly const & b, lingen_call_companion::mul_or_mp_times * M) {
         if (!M) return mul(a, b);
-        tree_stats::smallstep_sentinel dummy(stats, M->step_name());
+        const tree_stats::smallstep_sentinel dummy(stats, M->step_name());
         return mul(a, b);
     }
  
@@ -222,10 +222,10 @@ public:
         matpoly & M;
         view_t(matpoly & M, submatrix_range S) : submatrix_range(S), M(M) {}
         view_t(matpoly & M) : submatrix_range(M), M(M) {}
-        inline ptr part(unsigned int i, unsigned int j) {
+        ptr part(unsigned int i, unsigned int j) {
             return M.part(i0+i, j0+j);
         }
-        inline srcptr part(unsigned int i, unsigned int j) const {
+        srcptr part(unsigned int i, unsigned int j) const {
             return M.part(i0+i, j0+j);
         }
         void zero();
@@ -236,14 +236,14 @@ public:
         const_view_t(matpoly const & M, submatrix_range S) : submatrix_range(S), M(M) {}
         const_view_t(matpoly const & M) : submatrix_range(M), M(M) {}
         const_view_t(view_t const & V) : submatrix_range(V), M(V.M) {}
-        inline srcptr part(unsigned int i, unsigned int j) const {
+        srcptr part(unsigned int i, unsigned int j) const {
             return M.part(i0+i, j0+j);
         }
     };
-    view_t view(submatrix_range S) { ASSERT_ALWAYS(S.valid(*this)); return view_t(*this, S); }
-    const_view_t view(submatrix_range S) const { ASSERT_ALWAYS(S.valid(*this)); return const_view_t(*this, S); }
-    view_t view() { return view_t(*this); }
-    const_view_t view() const { return const_view_t(*this); }
+    view_t view(submatrix_range S) { ASSERT_ALWAYS(S.valid(*this)); return { *this, S }; }
+    const_view_t view(submatrix_range S) const { ASSERT_ALWAYS(S.valid(*this)); return { *this, S }; }
+    view_t view() { return { *this }; }
+    const_view_t view() const { return { *this }; }
 
     static void copy(view_t t, const_view_t a);
     static void addmul(view_t t, const_view_t t0, const_view_t t1);

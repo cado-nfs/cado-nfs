@@ -536,34 +536,34 @@ foreach(v ${internal_arithmetic_backends_gfp} b64)
         lingen_matpoly_ft.cpp
         )
 
-    set(lingen_${v}_sources
+    set(lingen_${v}_core_sources
         lingen.cpp
-        lingen_io_wrappers.cpp
-        lingen_tuning.cpp
-        lingen_tuning_cache.cpp
         lingen_expected_pi_length.cpp
         lingen_bigmatpoly_ft.cpp
+        lingen_tuning.cpp
+        lingen_tuning_cache.cpp
+        )
+
+    set(lingen_${v}_main_sources
+        lingen_main.cpp
+        lingen_io_wrappers.cpp
         )
 
     if (v STREQUAL "b64")
-        set(lingen_${v}_sources
-            ${lingen_${v}_sources}
+        list(APPEND lingen_${v}_core_sources
             lingen_qcode_binary.cpp
             )
-        set(lingen_${v}_support_sources
-            ${lingen_${v}_support_sources}
+        list(APPEND lingen_${v}_support_sources
             lingen_matpoly_binary.cpp
             )
         list(APPEND our_compile_flags -DLINGEN_BINARY)
     else()
-        set(lingen_${v}_sources
-            ${lingen_${v}_sources}
+        list(APPEND lingen_${v}_core_sources
             lingen_tune_cutoffs.cpp
             lingen_qcode_prime.cpp
             )
 
-        set(lingen_${v}_support_sources
-            ${lingen_${v}_support_sources}
+        list(APPEND lingen_${v}_support_sources
             ## mpfq/mpfq_${v}.c
             ## mpfq/mpfq_${v}.cpp
             # I don't have the courage to ditch lingen_polymat entirely
@@ -592,14 +592,17 @@ foreach(v ${internal_arithmetic_backends_gfp} b64)
     # want to  use it.
     if(v STREQUAL "pz" OR v STREQUAL "b64" OR v STREQUAL "bz")
         add_library(lingen_${v}_support ${lingen_${v}_support_sources})
-        add_executable(lingen_${v} ${lingen_${v}_sources})
+        add_library(lingen_${v}_core ${lingen_${v}_core_sources})
+        add_executable(lingen_${v} ${lingen_${v}_main_sources})
         install(TARGETS lingen_${v} RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)
     else()
         add_library(lingen_${v}_support EXCLUDE_FROM_ALL ${lingen_${v}_support_sources})
-        add_executable(lingen_${v} EXCLUDE_FROM_ALL ${lingen_${v}_sources})
+        add_library(lingen_${v}_core EXCLUDE_FROM_ALL ${lingen_${v}_core_sources})
+        add_executable(lingen_${v} EXCLUDE_FROM_ALL ${lingen_${v}_main_sources})
     endif()
 
     target_link_libraries(lingen_${v}_support lingen_common_support)
+    target_link_libraries(lingen_${v}_core lingen_${v}_support)
 
     if (v STREQUAL "b64")
         if(NOT HAVE_GF2X)
@@ -613,7 +616,7 @@ foreach(v ${internal_arithmetic_backends_gfp} b64)
         target_link_libraries(lingen_${v}_support flint-fft)
     endif()
 
-    target_link_libraries(lingen_${v} lingen_${v}_support)
+    target_link_libraries(lingen_${v} lingen_${v}_core)
     target_link_libraries(lingen_verify_checkpoints_${v} lingen_${v}_support)
 
     # we also need link flags, and config/openmp.cmake won't provide them
@@ -621,6 +624,10 @@ foreach(v ${internal_arithmetic_backends_gfp} b64)
 
     # set_source_files_properties(lingen.cpp PROPERTIES COMPILE_FLAGS "${OpenMP_CXX_FLAGS}")
     set_target_properties(lingen_${v}_support PROPERTIES
+        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} ${our_compile_flags_string}"
+        LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
+        )
+    set_target_properties(lingen_${v}_core PROPERTIES
         COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} ${our_compile_flags_string}"
         LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
         )
