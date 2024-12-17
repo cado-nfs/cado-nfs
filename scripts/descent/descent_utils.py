@@ -1,6 +1,14 @@
 import time
 
 
+class FailedDescent(Exception):
+    def __init__(self, failed, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.failed = failed
+    def __str__(self):
+        return "Failed descents for: " + ", ".join(self.failed)
+
+
 class Singleton(type):
     _instances = {}
 

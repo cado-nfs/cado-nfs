@@ -4,7 +4,7 @@ import sys
 
 from .descent_utils import feature_get_hwloc
 from .descent_utils import object_holder
-
+from .descent_utils import FailedDescent
 
 if sys.version_info >= (3, 8):
     from .descent_helper_asyncio import monitor_important_files
@@ -137,6 +137,6 @@ class DescentMiddleClass(object):
                                 )
 
         if failed:
-            raise RuntimeError("Failed descents for: " + ", ".join(failed))
+            raise FailedDescent(failed)
 
         return relsfilename
