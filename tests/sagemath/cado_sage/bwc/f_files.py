@@ -123,11 +123,11 @@ class BwcFFiles(object):
         """
         r = len(self.rhs_columns)
         n = self.params.n
-        x = self.F.base_ring().gen()
+        # x = self.F.base_ring().gen()
 
-        D = diagonal_matrix([x] * r + [1] * (n - r))
+        D = diagonal_matrix([self.F.base_ring().gen()] * r + [1] * (n - r))
 
-        q, re = mdivmod(A.A * D, 1)
+        q, remainder = mdivmod(A.A * D, 1)
 
         Fx = self.R + D * self.F
 
@@ -153,6 +153,9 @@ class BwcFFiles(object):
         A1 = mdiv(A.A, 1)
         R = self.R
         assert A0 * R + mcoeff(A1 * Fr, d) == 0
+
+        # if R==0, it seems that we have:
+        # mcoeff(A.A, 1) * mcoeff(Fr, d) + mcoeff(mdiv(A.A, 2) * mmod(Fr, d), d-1)
 
     def derive_solutions(self, A, Vs, MQ, Rhs):
         """
