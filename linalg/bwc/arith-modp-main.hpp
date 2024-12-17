@@ -187,10 +187,15 @@ struct gfp_base : public arith_concrete_base
     int preinv_shift = 0;
 
     /* prime_preinv_for_add has just one limb. prime_preinv_for_addmul
-     * has N+1 limbs (which is why we store it as a cxx_mpz) */
+     * has N+1 limbs (which is why we store it as vector: in the variable
+     * size case, N is a runtime value).
+     *
+     * There are corner cases where prime_preinv_for_addmul might have
+     * cancellations at high words (p=2^192-237 is one example). We
+     * choose to keep a full-length limb list in that case, though.
+     */
     mp_limb_t prime_preinv_for_add[decltype(overhead_limbs<elt_ur_for_add>())::value];
-    cxx_mpz prime_preinv_for_addmul;
-
+    std::vector<mp_limb_t> prime_preinv_for_addmul;
     public:
     gfp_base()
       : p(0)
@@ -211,7 +216,11 @@ struct gfp_base : public arith_concrete_base
         compute_preinv(blah, overhead_limbs<elt_ur_for_add>());
         mpn_compile_time::MPN_SET_MPZ(prime_preinv_for_add, overhead_limbs<elt_ur_for_add>(), blah);
         prime_preinv_for_add[0] = mpz_get_ui(blah);
-        compute_preinv(prime_preinv_for_addmul, overhead_limbs<elt_ur_for_addmul>());
+        compute_preinv(blah, overhead_limbs<elt_ur_for_addmul>());
+        prime_preinv_for_addmul.clear();
+        prime_preinv_for_addmul.reserve(overhead_limbs<elt_ur_for_addmul>());
+        for(size_t i = 0 ; i < overhead_limbs<elt_ur_for_addmul>() ; i++)
+            prime_preinv_for_addmul.push_back(mpz_getlimbn(blah, int(i)));
     }
     mp_limb_t const* prime_limbs() const { return mpz_limbs_read(p); }
     // elt const& prime() const { return *reinterpret_cast<mpn<N> const
@@ -552,7 +561,7 @@ struct gfp_base : public arith_concrete_base
      * Let q0 = floor(a1*I/2^ell) = floor(b1*J/2^ell) + b1 - 2^ell - J.
      *
      * Since a1 < 0, we have q0 < 0. With a1 >= -2^(ell-1) and
-     * I<2^(ell+1), we obtaib q0 > -2^ell. Therefore q0 is well
+     * I<2^(ell+1), we obtain q0 > -2^ell. Therefore q0 is well
      * represented by the machine word
      *  q'0 = q0+2^ell = floor(b1*J/2^ell) + b1 - J
      *
@@ -593,7 +602,7 @@ struct gfp_base : public arith_concrete_base
                                    mp_limb_t const *>::type
                                        preinv() const
     {
-        return mpz_limbs_read(prime_preinv_for_addmul);
+        return prime_preinv_for_addmul.data();
     }
 
     public:

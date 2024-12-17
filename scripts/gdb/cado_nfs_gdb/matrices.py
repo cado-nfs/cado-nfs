@@ -34,11 +34,13 @@ class generic_matrix(object):
                                 for j in range(n)
                                 ]), "])"])
         else:
-            return ",\n".join([f"matrix({self.K}, {m}, {n}, [", *sum([
-                [", ".join([
-                    "{0:>{1}}".format(s[i][j], ell[j])
-                    for j in range(n)])]
-                for i in range(m)], []), "])"])
+            return "\n".join([f"matrix({self.K}, {m}, {n}, [",
+                              ",\n".join([*sum([
+                                  [", ".join([
+                                      "{0:>{1}}".format(s[i][j], ell[j])
+                                      for j in range(n)])]
+                                  for i in range(m)], [])])
+                              + "])"])
 
 
 class mpz_mat_printer(generic_matrix):

@@ -1,12 +1,18 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdio.h>
-#include <stdint.h>        // for uint64_t
+
+#include <cstdio>
+#include <cstdint>        // for uint64_t
+
+#include <type_traits>
+
 #include <gmp.h>
-#include "gmp-hacks.h"     // for MPN_SET_MPZ, MPZ_SET_MPN
-#include "tests_common.h"
+
 #include "arith-modp.hpp"
-#include "timing.h"
+#include "cxx_mpz.hpp"
+#include "gmp-hacks.h"     // for MPN_SET_MPZ, MPZ_SET_MPN
 #include "macros.h"
+#include "tests_common.h"
+#include "timing.h"
 
 using namespace arith_modp;
 

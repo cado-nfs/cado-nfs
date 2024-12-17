@@ -77,10 +77,6 @@ class las_todo_list : private std::stack<las_todo_entry> {
     }
     /* }}} */
 
-    bool is_in_qfac_range(uint64_t p) const {
-        return (p >= qfac_min) && (p >= qfac_max);
-    }
-
     bool is_random() const { return random_sampling != 0; }
 
     bool feed(gmp_randstate_t rstate);

@@ -95,8 +95,6 @@ const char * bw_common_usage_string()
 
 void bw_common_parse_cmdline(struct bw_params * bw, param_list_ptr pl, int * p_argc, char const *** p_argv)/*{{{*/
 {
-    bw->original_argc = *p_argc;
-    bw->original_argv = *p_argv;
     bw->wct_base = wct_seconds();
 
     (*p_argv)++, (*p_argc)--;
@@ -291,6 +289,9 @@ int bw_common_init(struct bw_params * bw, int * p_argc, char const *** p_argv)/*
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
     bw_common_init_defaults(bw);
+
+    bw->original_argc = *p_argc;
+    bw->original_argv = *p_argv;
 
     bw->can_print = rank == 0 || getenv("CAN_PRINT");
 

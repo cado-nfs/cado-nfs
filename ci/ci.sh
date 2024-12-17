@@ -14,6 +14,7 @@ needs_gmp=1
 case "$CI_JOB_NAME" in
     *"under valgrind"*)
         valgrind=1
+        export VALGRIND=1
         export USE_ONLY_ASSEMBLY_INSTRUCTIONS_THAT_VALGRIND_KNOWS_ABOUT=1
         export TIMEOUT_SCALE=10
         case "$CI_JOB_NAME" in

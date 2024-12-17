@@ -467,6 +467,16 @@ foreach(layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
     set_target_properties(time_matpoly_ft_parallel_${layer} PROPERTIES
         COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} ${our_compile_flags_string}"
         LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
+
+    add_executable(test_lingen_mini_${layer} EXCLUDE_FROM_ALL
+        test_lingen_mini.cpp
+    )
+    target_link_libraries(test_lingen_mini_${layer}
+        lingen_${layer}_core)
+
+    set_target_properties(test_lingen_mini_${layer} PROPERTIES
+        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} ${our_compile_flags_string}"
+        LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
 endforeach()
 
 foreach(layer b64)
@@ -945,5 +955,24 @@ NO_DEFAULT_RUN)
 cado_divert_test(test_matrix_file_script sample1 APPEND_ARGUMENTS sample1)
 cado_divert_test(test_matrix_file_script sample2 APPEND_ARGUMENTS sample2)
 
+
+cado_define_test(test_linalg_example
+    SCRIPT
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_lingen_example.sh
+    PROVIDE_TEMPORARY_WDIR
+    NO_DEFAULT_RUN
+)
+
+if("p1" IN_LIST BWC_GFP_ARITHMETIC_BACKENDS)
+cado_divert_test(test_linalg_example p1_30105
+    APPEND_ARGUMENTS
+    layer=p1
+    tuning_thresholds=recursive:10,flint:10,notiming:0
+    ${CMAKE_CURRENT_SOURCE_DIR}/testcase_30105.E
+    TARGET_DEPENDENCIES
+    test_lingen_mini_p1
+    lingen_verify_checkpoints_p1
+)
+endif()
 
 add_subdirectory (flint-fft)
