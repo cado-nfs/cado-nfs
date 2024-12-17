@@ -3,6 +3,7 @@
 #include <cstdio>                        // for printf, fprintf, stderr
 #include <cstdlib>                       // for exit, qsort, EXIT_FAILURE
 
+#include <utility>
 #include <sstream>
 #include <tuple>                          // for tie, tuple
 #include <vector>                         // for vector
@@ -30,11 +31,11 @@
 /*{{{ basecase */
 
 /* {{{ col sorting */
-/* We sort only with respect to the global delta[] parameter. As it turns
- * out, we also access the column index in the same aray and sort with
- * respect to it, but this is only cosmetic.
+/* Note on col sorting: we sort only with respect to the global delta[]
+ * parameter. As it turns out, we also access the column index in the
+ * same aray and sort with respect to it, but this is only cosmetic.
  *
- * Note that unlike what is asserted in other coiped of the code, sorting
+ * Note that unlike what is asserted in other copies of the code, sorting
  * w.r.t. the local delta[] value is completely useless. Code which
  * relies on this should be fixed.
  */
@@ -67,7 +68,12 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
     ASSERT(E.n == b);
 
     /* Allocate something large enough for the result. This will be
-     * soon freed anyway. Set it to identity. */
+     * soon freed anyway. Set it to identity.
+     *
+     * We want to keep track of whether we overflow this pre-allocated
+     * storage, and decide whether we want to realloc in order to keep it
+     * correct, or just discard. Both options could make sense.
+     */
     unsigned int mi, ma;
     std::tie(mi, ma) = get_minmax_delta(bm.delta);
 
@@ -81,6 +87,8 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
 
     std::vector<unsigned int> pi_lengths(b, 1);
     std::vector<unsigned int> pi_real_lengths(b, 1);
+
+    /* NOTE that this sets pi.size=1 */
     pi.set_constant_ui(1);
 
     for(unsigned int i = 0 ; i < b ; i++) {
@@ -130,7 +138,7 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
 #pragma omp parallel
 #endif
         {
-            auto e_ur = ab->alloc<arith_hard::elt_ur_for_addmul>(1);
+            auto * e_ur = ab->alloc<arith_hard::elt_ur_for_addmul>(1);
 
 #ifdef HAVE_OPENMP
 #pragma omp for collapse(2)
@@ -138,7 +146,7 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
             for(unsigned int jl = 0 ; jl < nj ; ++jl) {
                 for(unsigned int i = 0 ; i < m ; ++i) {
                     unsigned int const j = todo[jl];
-                    unsigned int const lj = MIN(pi_real_lengths[j], t + 1);
+                    unsigned int const lj = std::min(pi_real_lengths[j], t + 1);
                     ab->set_zero(*e_ur);
                     for(unsigned int k = 0 ; k < b ; ++k) {
                         for(unsigned int s = 0 ; s < lj ; s++) {
@@ -158,8 +166,7 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
         /* {{{ check for cancellations */
 
         unsigned int newluck = 0;
-        for(unsigned int jl = 0 ; jl < todo.size() ; ++jl) {
-            unsigned int const j = todo[jl];
+        for(auto const j : todo) {
             unsigned int nz = 0;
             for(unsigned int i = 0 ; i < m ; i++) {
                 nz += ab->is_zero(e.coeff(i, j, 0));
@@ -246,7 +253,7 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
             is_pivot[j] = 1;
             pivot_columns.push_back(j);
             /* {{{ Cancel this coeff in all other columns. */
-            auto inv = ab->alloc();
+            auto * inv = ab->alloc();
             int const rc = ab->inverse(*inv, e.coeff(u, j, 0));
             if (!rc) {
                 std::ostringstream os;
@@ -261,7 +268,7 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
                 if (ab->is_zero(e.coeff(u, k, 0)))
                     continue;
                 // add lambda = e[u,k]*-e[u,j]^-1 times col j to col k.
-                auto lambda = ab->alloc();
+                auto * lambda = ab->alloc();
                 ab->mul(*lambda, *inv, e.coeff(u, k, 0));
                 ASSERT(bm.delta[j] <= bm.delta[k]);
                 /* {{{ Apply on both e and pi */
@@ -310,8 +317,8 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
 #pragma omp parallel
 #endif
         {
-            auto tmp = ab->alloc<arith_hard::elt_ur_for_addmul>();
-            auto tmp_pi = ab->alloc<arith_hard::elt_ur_for_addmul>();
+            auto * tmp = ab->alloc<arith_hard::elt_ur_for_addmul>();
+            auto * tmp_pi = ab->alloc<arith_hard::elt_ur_for_addmul>();
 
             for(unsigned int jl = 0 ; jl < b ; ++jl) {
                 unsigned int const j = pivot_columns[jl];
@@ -331,12 +338,14 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
 #endif
                 {
                     for(unsigned int kl = m ; kl < b ; kl++) {
-                        unsigned int k = pivot_columns[kl];
+                        unsigned int const k = pivot_columns[kl];
                         ASSERT_ALWAYS(ab->cmp(T.coeff(k, j, 0), k==j) == 0);
                     }
                     for(unsigned int kl = 0 ; kl < MIN(m,jl) ; kl++) {
-                        unsigned int k = pivot_columns[kl];
+                        unsigned int const k = pivot_columns[kl];
                         if (ab->is_zero(T.coeff(k, j, 0))) continue;
+                        // note that pi_lengths is for the _global_
+                        // deltas!
                         ASSERT_ALWAYS(pi_lengths[k] <= pi_lengths[j]);
                         pi_real_lengths[j] = std::max(pi_real_lengths[k], pi_real_lengths[j]);
                     }
@@ -395,7 +404,8 @@ static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
             if (!is_pivot[j]) continue;
             if (pi_real_lengths[j] >= pi.capacity()) {
                 if (!generator_found) {
-                    pi.realloc(pi.capacity() + MAX(pi.capacity() / (m+n), 1));
+                    pi.realloc(pi.capacity() + std::max(pi.capacity() / (m+n),
+                                size_t(1)));
                     printf("t=%u, expanding allocation for pi (now %zu%%) ; lengths: ",
                             bm.t,
                             100 * pi.capacity() / pi_room_base);
