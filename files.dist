@@ -1538,6 +1538,7 @@ tests/utils/test_random_distributions.cpp
 tests/utils/test_relation.cpp
 tests/utils/test_rootfinder.c
 tests/utils/test_roots_mod.c
+tests/utils/test_runtime_numeric_cast.cpp
 tests/utils/test_sha1.c
 tests/utils/test_sm_utils.cpp
 tests/utils/test_sm_utils.data
@@ -1751,6 +1752,7 @@ utils/rootfinder.cpp
 utils/rootfinder.h
 utils/roots_mod.c
 utils/roots_mod.h
+utils/runtime_numeric_cast.hpp
 utils/select_mpi.h
 utils/sha1.c
 utils/sha1.h
