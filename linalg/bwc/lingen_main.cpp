@@ -21,6 +21,7 @@
 #include "memusage.h"                     // for PeakMemusage
 #include "misc.h"                         // for size_disp
 #include "params.h"                       // for cxx_param_list, param_list_...
+#include "portability.h" // strdup // IWYU pragma: keep
 
 /* If non-zero, then reading from A is actually replaced by reading from
  * a random generator */
@@ -306,7 +307,7 @@ static int wrapped_main(int argc, char const *argv[])
     param_list_parse_int(pl, "split-output-file", &split_output_file);
     param_list_parse_int(pl, "split-input-file", &split_input_file);
 
-    const char * afile = param_list_lookup_string(pl, "afile");
+    auto const afile = param_list_parse<std::string>(pl, "afile");
 
     if (bw->m == -1) {
 	fmt::print(stderr, "no m value set\n");
@@ -316,21 +317,16 @@ static int wrapped_main(int argc, char const *argv[])
 	fmt::print(stderr, "no n value set\n");
 	exit(EXIT_FAILURE);
     }
-    if (!global_flag_tune && !(afile || random_input_length)) {
+    if (!global_flag_tune && afile.empty() && !random_input_length) {
         fmt::print(stderr, "No afile provided\n");
         exit(EXIT_FAILURE);
     }
 
     /* we allow ffile and ffile to be both NULL */
-    const char * tmp = param_list_lookup_string(pl, "ffile");
-    char * ffile = NULL;
-    if (tmp) {
-        ffile = strdup(tmp);
-    } else if (afile) {
-        int const rc = asprintf(&ffile, "%s.gen", afile);
-        ASSERT_ALWAYS(rc >= 0);
-    }
-    ASSERT_ALWAYS((afile==NULL) == (ffile == NULL));
+    auto ffile = param_list_parse<std::string>(pl, "ffile");
+    if (ffile.empty() && !afile.empty())
+        ffile = afile + ".gen";
+    ASSERT_ALWAYS(afile.empty() == ffile.empty());
 
     bmstatus bm(bw->m, bw->n, bw->p);
 
@@ -339,7 +335,7 @@ static int wrapped_main(int argc, char const *argv[])
         if (!rhs_name) {
             fmt::print(stderr, "# When using lingen, you must either supply --random-input-with-length, or provide a rhs, or possibly provide rhs=none\n");
         } else if (strcmp(rhs_name, "none") == 0) {
-            rhs_name = NULL;
+            rhs_name = nullptr;
         }
     }
     if (param_list_parse_uint(pl, "nrhs", &(bm.d.nrhs)) && rhs_name) {
@@ -348,7 +344,7 @@ static int wrapped_main(int argc, char const *argv[])
     }
     if (rhs_name && strcmp(rhs_name, "none") != 0) {
         if (!rank)
-            get_rhs_file_header(rhs_name, NULL, &(bm.d.nrhs), NULL);
+            get_rhs_file_header(rhs_name, nullptr, &(bm.d.nrhs), nullptr);
         MPI_Bcast(&bm.d.nrhs, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
     }
 
@@ -577,19 +573,19 @@ static int wrapped_main(int argc, char const *argv[])
         Fdst = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_sha1sum(& bm.d.ab, bm.d.n, bm.d.n, "F"));
         Fdst_rhs = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_sha1sum(& bm.d.ab, bm.d.nrhs, bm.d.n, "Frhs"));
     } else if (split_output_file) {
-        std::string const pattern = ffile;
+        std::string const & pattern = ffile;
         Fdst = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_splitfile(& bm.d.ab, bm.d.n, bm.d.n, pattern + ".sols{2}-{3}.{0}-{1}", global_flag_ascii));
         Fdst_rhs = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_splitfile(& bm.d.ab, bm.d.nrhs, bm.d.n, pattern + ".sols{2}-{3}.{0}-{1}.rhs", global_flag_ascii));
     } else {
         Fdst = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_singlefile(& bm.d.ab, bm.d.n, bm.d.n, ffile, global_flag_ascii));
-        Fdst_rhs = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_singlefile(& bm.d.ab, bm.d.nrhs, bm.d.n, std::string(ffile) + ".rhs", global_flag_ascii));
+        Fdst_rhs = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_singlefile(& bm.d.ab, bm.d.nrhs, bm.d.n, ffile + ".rhs", global_flag_ascii));
     }
 
     if (go_mpi && size > 1) {
         bigmatpoly_model const model(bm.com, bm.mpi_dims[0], bm.mpi_dims[1]);
         bigmatpoly E(& bm.d.ab, model, bm.d.m, bm.d.m + bm.d.n, safe_guess);
         lingen_scatter<bigmatpoly> fill_E(E);
-        lingen_F0 const F0 = *E_series;
+        lingen_F0 const & F0 = *E_series;
         pipe(*E_series, fill_E, "Read");
         bm.delta.assign(bm.d.m + bm.d.n, F0.t0);
         logline_init_timer();
@@ -623,7 +619,7 @@ static int wrapped_main(int argc, char const *argv[])
 #endif
         matpoly E(& bm.d.ab, bm.d.m, bm.d.m + bm.d.n, safe_guess);
         lingen_scatter<matpoly> fill_E(E);
-        lingen_F0 const F0 = *E_series;
+        lingen_F0 const & F0 = *E_series;
         pipe(*E_series, fill_E, "Read");
         bm.delta.assign(bm.d.m + bm.d.n, F0.t0);
         logline_init_timer();
@@ -646,12 +642,10 @@ static int wrapped_main(int argc, char const *argv[])
         fmt::print("t_mp = {:.2f}\n", bm.t_mp);
         fmt::print("t_mul = {:.2f}\n", bm.t_mul);
         fmt::print("t_cp_io = {:.2f}\n", bm.t_cp_io);
-        long const peakmem = PeakMemusage();
+        auto const peakmem = PeakMemusage();
         if (peakmem > 0)
             fmt::print("# PeakMemusage (MB) = {} (VmPeak: can be misleading)\n", peakmem >> 10);
     }
-
-    if (ffile) free(ffile);
 
     return 0;   // ignored.
 }

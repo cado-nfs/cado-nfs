@@ -6,7 +6,10 @@
 #include <vector>
 #include <istream>
 #include <string>                 // for string
+
+#include "cxx_mpz.hpp"
 #include "lingen_bigmatpoly.hpp"  // for bigmatpoly
+
 class matpoly;
 struct bmstatus;
 struct cxx_param_list;

@@ -1,11 +1,14 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <limits.h>   // for UINT_MAX, INT_MAX
-#include <stdio.h>    // for printf, fprintf, stderr
-#include <stdlib.h>   // for exit, EXIT_FAILURE
+#include <climits>   // for UINT_MAX, INT_MAX
+#include <cstdio>    // for printf, fprintf, stderr
+#include <cstdlib>   // for exit, EXIT_FAILURE
+
 #include <algorithm>  // for find_if
 #include <map>        // for _Rb_tree_iterator, operator!=, operator==, map
 #include <utility>    // for pair
+#include <tuple>
+
 #include "macros.h"   // for ASSERT_ALWAYS
 #include "lingen_bmstatus.hpp"
 
@@ -109,8 +112,8 @@ std::tuple<unsigned int, unsigned int> bmstatus::get_minmax_delta_on_solutions()
     unsigned int mindelta = UINT_MAX;
     for(unsigned int j = 0 ; j < d.m + d.n ; j++) {
         if (lucky[j] <= 0) continue;
-        if (delta[j] > maxdelta) maxdelta = delta[j];
-        if (delta[j] < mindelta) mindelta = delta[j];
+        maxdelta = std::max(maxdelta, delta[j]);
+        mindelta = std::min(maxdelta, delta[j]);
     }
     return std::make_tuple(mindelta, maxdelta);
 }/*}}}*/
