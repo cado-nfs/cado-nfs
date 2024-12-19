@@ -11,6 +11,22 @@ image: gcc
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
 
+include:
+  - component: $CI_SERVER_FQDN/sdt-pfo/tools/gitlab-quotas-helper-component/clean-pipelines@1.0.1
+    inputs:
+      days: 365
+      dry_run: false
+      stage: publish
+    rules:
+    - if: $CI_COMMIT_BRANCH && ($CI_COMMIT_BRANCH == "master")
+
+# artifacts are a subset of pipelines..
+# - component: $CI_SERVER_FQDN/sdt-pfo/tools/gitlab-quotas-helper-component/clean-artifacts@1.0.1 
+#   inputs:
+#     days: 365
+#     dry_run: false
+#     stage: publish
+
 # took inspiration from https://blog.callr.tech/building-docker-images-with-gitlab-ci-best-practices/
 # however I'm not sure if/how the "latest" tagging actually works.
 
@@ -489,7 +505,7 @@ checks on freebsd13.4 system with clang:
     - make -C ci/ci/utilities/tanker
     - ci/ci/50-libvirt-wrap-tests.sh freebsd:13.4 ci/ci/40-testsuite.sh
 
-checks on freebsd14.1 system with clang:
+checks on freebsd14.2 system with clang:
   <<: *common-template
   stage: thorough
   needs: [ "checks on osx system" ]
@@ -497,7 +513,7 @@ checks on freebsd14.1 system with clang:
     - freebsd-tanker
   script:
     - make -C ci/ci/utilities/tanker
-    - ci/ci/50-libvirt-wrap-tests.sh freebsd:14.1 ci/ci/40-testsuite.sh
+    - ci/ci/50-libvirt-wrap-tests.sh freebsd:14.2 ci/ci/40-testsuite.sh
 
 coverity on debian11 system with gcc:
   # override the common template.

@@ -37,7 +37,7 @@ server_args=(340282366920938463463374607431768211457
     # the default parameter set has 20000, but in fact with qrange=10 and
     # tasks.filter.run=false, we're happy with less.
     tasks.sieve.rels_wanted=1200
-    tasks.wutimeout=1
+    tasks.wutimeout=5
     # This parameter is intentionally not documented, but it's useful to
     # trigger the failure pointed by issue #30104
     tasks.wutimeoutcheck=1
@@ -57,7 +57,7 @@ server_pid=$!
 url=
 i=0
 
-while ! [ "$url" ] && [ $i -lt 10 ] ; do
+while ! [ "$url" ] && [ $i -lt 30 ] ; do
     if ! [ -f "$logfile" ] ; then
         echo "Waiting for server to create $logfile" >&2
     elif [[ $(grep 'additional.*cado-nfs-client.*server' "$logfile") =~ --server=([^ ]*) ]] ; then
@@ -70,8 +70,10 @@ while ! [ "$url" ] && [ $i -lt 10 ] ; do
 done
 
 if ! [ "$url" ] ; then
+    set +e
     echo "server did not start correctly" >&2
     cat "$wdir/server.log" >&2
+    cat "$logfile" >&2
     exit 1
 fi
 
@@ -86,7 +88,7 @@ EOF
     # this works as well, but we don't have to depend on curl
     # curl -ks -F clientid=fake.$i "$url/workunit" > "$wdir/killWU.$i"
 done
-sleep 2
+sleep 6
 client_pids=()
 for i in 1 2; do
     # drop --bindir intentionally, after all it is another way to exert

@@ -14,6 +14,7 @@ needs_gmp=1
 case "$CI_JOB_NAME" in
     *"under valgrind"*)
         valgrind=1
+        export VALGRIND=1
         export USE_ONLY_ASSEMBLY_INSTRUCTIONS_THAT_VALGRIND_KNOWS_ABOUT=1
         export TIMEOUT_SCALE=10
         case "$CI_JOB_NAME" in
@@ -116,6 +117,10 @@ project_package_selection() {
         # py311-sqlite3 is in the python stdlib, but trimmed on on fbsd
         freebsd_packages="$freebsd_packages   py311-sqlite3 py311-flask py311-requests"
     fi
+
+    # add this so that we get the gdb tests as well (at least with the
+    # shared libs on debian-testing case)
+    debian_packages="$debian_packages     gdb"
 }
 
 after_package_install() {
@@ -127,6 +132,8 @@ after_package_install() {
         mysql -e "CREATE USER IF NOT EXISTS 'hostuser'@localhost IDENTIFIED VIA unix_socket;"
         mysql -e "GRANT ALL PRIVILEGES ON cado_nfs.* TO hostuser@localhost IDENTIFIED VIA unix_socket;"
     fi
+    mkdir -p /etc/gdb
+    echo "set auto-load safe-path /" > /etc/gdb/gdbinit
 }
 
 # Note: most of the interesting stuff is in ci.bash

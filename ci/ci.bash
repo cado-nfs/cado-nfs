@@ -105,7 +105,7 @@ if [ -x "./$1" ] ; then
 fi
 
 # Don't use --error-exitcode, so that we get a chance to be notified of all potential errors at once.
-valgrind --suppressions=$cado/cado-nfs.supp --gen-suppressions=all --trace-children=yes --trace-children-skip=gzip,libtool,gcc,g++ "--log-file=$vdir/pid-%p" --leak-check=full "$@"
+valgrind --suppressions=$cado/cado-nfs.supp --gen-suppressions=all --trace-children=yes --trace-children-skip=gdb,gzip,libtool,gcc,g++ "--log-file=$vdir/pid-%p" --leak-check=full "$@"
 EOF
 
     VALGRIND="$vdir/v.sh"

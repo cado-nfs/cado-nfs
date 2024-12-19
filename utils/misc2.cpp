@@ -149,3 +149,13 @@ std::vector<std::pair<cxx_mpz, int> > trial_division(cxx_mpz const& n0, unsigned
 }
 /*}}}*/
 
+/*
+ * derived_filename as in misc.h has C linkage, so we can't have a C++
+ * overload. OTOH, only replay.c uses the C version.
+std::string derived_filename(std::string const & s, const char * what, const char * ext)
+{
+    char * p = derived_filename(s.c_str(), what, ext);
+    std::string r(p);
+    p.clear();
+}
+*/

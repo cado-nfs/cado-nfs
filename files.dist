@@ -64,6 +64,7 @@ config/gcc-bug-58805.c
 config/gcc-bugs.cmake
 config/gcc-inline-assembly.cmake
 config/gcc-ubuntu-bug.c
+config/gdb.cmake
 config/gf2x.cmake
 config/glibc.c
 config/glibc.cmake
@@ -553,6 +554,7 @@ linalg/bwc/intersections.c
 linalg/bwc/intersections.h
 linalg/bwc/krylov.cpp
 linalg/bwc/lingen.cpp
+linalg/bwc/lingen.hpp
 linalg/bwc/lingen_average_matsize.cpp
 linalg/bwc/lingen_average_matsize.hpp
 linalg/bwc/lingen_bigmatpoly.cpp
@@ -575,6 +577,7 @@ linalg/bwc/lingen_io_matpoly.cpp
 linalg/bwc/lingen_io_matpoly.hpp
 linalg/bwc/lingen_io_wrappers.cpp
 linalg/bwc/lingen_io_wrappers.hpp
+linalg/bwc/lingen_main.cpp
 linalg/bwc/lingen_mat_types.hpp
 linalg/bwc/lingen_matpoly.cpp
 linalg/bwc/lingen_matpoly.hpp
@@ -923,7 +926,14 @@ scripts/descent/log_base.py
 scripts/estimate_matsize/build_relation_cache.pl
 scripts/estimate_matsize/estimate_matsize.sh
 scripts/filter-ctest.pl
-scripts/gdb.py
+scripts/gdb/README.md
+scripts/gdb/cado_nfs_gdb/__init__.py
+scripts/gdb/cado_nfs_gdb/base.py
+scripts/gdb/cado_nfs_gdb/display.py
+scripts/gdb/cado_nfs_gdb/floats.py
+scripts/gdb/cado_nfs_gdb/integers.py
+scripts/gdb/cado_nfs_gdb/matrices.py
+scripts/gdb/cado_nfs_gdb/polynomials.py
 scripts/hintfile-helper.py
 scripts/install-cmake.sh
 scripts/list_modified_files.sh
@@ -1257,9 +1267,13 @@ tests/linalg/bwc/test-spmv.sh
 tests/linalg/bwc/test_bl_extraction.cpp
 tests/linalg/bwc/test_cpubinding.cpp
 tests/linalg/bwc/test_hello.cpp
+tests/linalg/bwc/test_lingen_example.sh
+tests/linalg/bwc/test_lingen_mini.cpp
 tests/linalg/bwc/test_matpoly.cpp
 tests/linalg/bwc/test_matrix_file.cpp
 tests/linalg/bwc/test_matrix_file.sh
+tests/linalg/bwc/testcase_30105.E.aux
+tests/linalg/bwc/testcase_30105.E.single.data
 tests/linalg/bwc/time_matpoly_ft_parallel.cpp
 tests/misc/CMakeLists.txt
 tests/misc/F7.poly
@@ -1287,6 +1301,7 @@ tests/polyselect/table_t_Py_f_deg4_type0_h1_t-200--200.c
 tests/polyselect/test_polyselect_shash.cpp
 tests/polyselect/test_rho.c
 tests/polyselect/test_ropt_auxiliary.cpp
+tests/predefined_primes.cmake
 tests/provide-wdir.sh
 tests/sagemath/Makefile
 tests/sagemath/README.md
@@ -1319,6 +1334,11 @@ tests/scripts/cadofactor/CMakeLists.txt
 tests/scripts/cadofactor/test_python_resubmit.sh
 tests/scripts/cadofactor/test_python_stress_test.sh
 tests/scripts/cadofactor/test_python_wudb_cmdline.sh
+tests/scripts/gdb/CMakeLists.txt
+tests/scripts/gdb/test_gdb_printers.cpp
+tests/scripts/gdb/test_gdb_printers.gdb
+tests/scripts/gdb/test_gdb_printers_bwc.cpp
+tests/scripts/gdb/test_gdb_printers_bwc.gdb
 tests/sieve/CMakeLists.txt
 tests/sieve/F9.dupsup.sh
 tests/sieve/F9.fakerels.sh
@@ -1518,6 +1538,7 @@ tests/utils/test_random_distributions.cpp
 tests/utils/test_relation.cpp
 tests/utils/test_rootfinder.c
 tests/utils/test_roots_mod.c
+tests/utils/test_runtime_numeric_cast.cpp
 tests/utils/test_sha1.c
 tests/utils/test_sm_utils.cpp
 tests/utils/test_sm_utils.data
@@ -1609,6 +1630,7 @@ utils/gpf.cpp
 utils/gpf.h
 utils/gzip.cpp
 utils/gzip.h
+utils/hook_cado_nfs_gdb.py.in
 utils/hwloc-aux.c
 utils/hwloc-aux.h
 utils/indexed_relation.cpp
@@ -1730,6 +1752,7 @@ utils/rootfinder.cpp
 utils/rootfinder.h
 utils/roots_mod.c
 utils/roots_mod.h
+utils/runtime_numeric_cast.hpp
 utils/select_mpi.h
 utils/sha1.c
 utils/sha1.h

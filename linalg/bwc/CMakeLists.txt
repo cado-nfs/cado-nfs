@@ -172,8 +172,9 @@ include_directories (${CMAKE_CURRENT_BINARY_DIR})
 
 
 macro(parse_arith_layer v outlist)
-    list(APPEND our_compile_flags -DARITH_LAYER_${v})
-    list(APPEND our_compile_flags -DARITH_LAYER=${v})
+    set(${outlist})
+    list(APPEND ${outlist} -DARITH_LAYER_${v})
+    list(APPEND ${outlist} -DARITH_LAYER=${v})
     string(REGEX REPLACE "^([bp])([0-9]*|z)$" "\\1;\\2" v_items ${v})
     list(GET v_items 0 vbp) # binary or prime
     if(vbp STREQUAL "b")
@@ -182,8 +183,8 @@ macro(parse_arith_layer v outlist)
         if(vgroup STREQUAL "z")
             set(vgroup 0)
         endif()
-        list(APPEND our_compile_flags -DARITH_MOD2)
-        list(APPEND our_compile_flags -DARITH_SIMD_GROUPSIZE=${vgroup})
+        list(APPEND ${outlist} -DARITH_MOD2)
+        list(APPEND ${outlist} -DARITH_SIMD_GROUPSIZE=${vgroup})
         set(cooked_macro "DO_${vbp}(${vgroup})")
         set(canonical_arith_layer "${v}")
     elseif(vbp STREQUAL "p")
@@ -192,9 +193,9 @@ macro(parse_arith_layer v outlist)
         if(vwidth STREQUAL "z")
             set(vwidth 0)
         endif()
-        list(APPEND our_compile_flags -DARITH_MODP)
-        list(APPEND our_compile_flags -DARITH_SIMD_GROUPSIZE=1)
-        list(APPEND our_compile_flags -DARITH_PRIME_WIDTH=${vwidth})
+        list(APPEND ${outlist} -DARITH_MODP)
+        list(APPEND ${outlist} -DARITH_SIMD_GROUPSIZE=1)
+        list(APPEND ${outlist} -DARITH_PRIME_WIDTH=${vwidth})
         set(cooked_macro "DO_${vbp}(${vwidth})")
         set(canonical_arith_layer "${v}")
     elseif(${v} MATCHES "^u64k[0-9]*$")
@@ -202,8 +203,8 @@ macro(parse_arith_layer v outlist)
         math(EXPR vgroup "64*${k}")
         set(vwidth 0)
         set(vbp b)
-        list(APPEND our_compile_flags -DARITH_MOD2)
-        list(APPEND our_compile_flags -DARITH_SIMD_GROUPSIZE=${vgroup})
+        list(APPEND ${outlist} -DARITH_MOD2)
+        list(APPEND ${outlist} -DARITH_SIMD_GROUPSIZE=${vgroup})
         set(cooked_macro "DO_${vbp}(${vgroup})")
         if(NOT warned_obsolete_${v})
             set(warned_obsolete_${v} 1)
@@ -213,8 +214,8 @@ macro(parse_arith_layer v outlist)
     elseif(${v} STREQUAL "m128")
         set(vgroup 128)
         set(vbp b)
-        list(APPEND our_compile_flags -DARITH_MOD2)
-        list(APPEND our_compile_flags -DARITH_SIMD_GROUPSIZE=${vgroup})
+        list(APPEND ${outlist} -DARITH_MOD2)
+        list(APPEND ${outlist} -DARITH_SIMD_GROUPSIZE=${vgroup})
         set(cooked_macro "DO_${vbp}(${vgroup})")
         if(NOT warned_obsolete_${v})
             set(warned_obsolete_${v} 1)
@@ -224,9 +225,9 @@ macro(parse_arith_layer v outlist)
     elseif(${v} MATCHES "^p_[0-9]*$")
         string(REGEX REPLACE "^p_([0-9]*)$" "\\1" vwidth ${v})
         set(vbp p)
-        list(APPEND our_compile_flags -DARITH_MODP)
-        list(APPEND our_compile_flags -DARITH_SIMD_GROUPSIZE=1)
-        list(APPEND our_compile_flags -DARITH_PRIME_WIDTH=${vwidth})
+        list(APPEND ${outlist} -DARITH_MODP)
+        list(APPEND ${outlist} -DARITH_SIMD_GROUPSIZE=1)
+        list(APPEND ${outlist} -DARITH_PRIME_WIDTH=${vwidth})
         set(cooked_macro "DO_${vbp}(${vwidth})")
         if(NOT warned_obsolete_${v})
             set(warned_obsolete_${v} 1)
@@ -236,9 +237,9 @@ macro(parse_arith_layer v outlist)
     elseif(${v} STREQUAL "pz")
         set(vwidth 0)
         set(vbp p)
-        list(APPEND our_compile_flags -DARITH_MODP)
-        list(APPEND our_compile_flags -DARITH_SIMD_GROUPSIZE=1)
-        list(APPEND our_compile_flags -DARITH_PRIME_WIDTH=${vwidth})
+        list(APPEND ${outlist} -DARITH_MODP)
+        list(APPEND ${outlist} -DARITH_SIMD_GROUPSIZE=1)
+        list(APPEND ${outlist} -DARITH_PRIME_WIDTH=${vwidth})
         set(cooked_macro "DO_${vbp}(${vwidth})")
         if(NOT warned_obsolete_${v})
             set(warned_obsolete_${v} 1)
@@ -284,7 +285,6 @@ set(COOKED_ARITHMETIC_BACKENDS)
 
 if(BUILD_DYNAMICALLY_LINKABLE_BWC)
     foreach(v ${internal_arithmetic_backends_all})
-        set(our_compile_flags)
         parse_arith_layer(${v} our_compile_flags)
 
         # To be honest, we don't really need the compile flags here. All
@@ -352,8 +352,8 @@ set(matmul_bucket_sources   matmul-bucket.cpp)
 
 
 macro(CONFIGURE_MATMUL_LIB v i)
-        set(our_compile_flags -DMM_IMPL=${i})
         parse_arith_layer(${v} our_compile_flags)
+        list(APPEND our_compile_flags -DMM_IMPL=${i})
 
         set(COOKED_BWC_BACKENDS ${COOKED_BWC_BACKENDS} "DO(${v}, ${i})")
         string(COMPARE EQUAL "${v}" "b64" doing_b64)
@@ -525,7 +525,6 @@ set_target_properties(lingen_common_support PROPERTIES
     )
 
 foreach(v ${internal_arithmetic_backends_gfp} b64)
-    set(our_compile_flags)
     parse_arith_layer(${v} our_compile_flags)
 
     set(lingen_${v}_support_sources
@@ -537,34 +536,34 @@ foreach(v ${internal_arithmetic_backends_gfp} b64)
         lingen_matpoly_ft.cpp
         )
 
-    set(lingen_${v}_sources
+    set(lingen_${v}_core_sources
         lingen.cpp
-        lingen_io_wrappers.cpp
-        lingen_tuning.cpp
-        lingen_tuning_cache.cpp
         lingen_expected_pi_length.cpp
         lingen_bigmatpoly_ft.cpp
+        lingen_tuning.cpp
+        lingen_tuning_cache.cpp
+        )
+
+    set(lingen_${v}_main_sources
+        lingen_main.cpp
+        lingen_io_wrappers.cpp
         )
 
     if (v STREQUAL "b64")
-        set(lingen_${v}_sources
-            ${lingen_${v}_sources}
+        list(APPEND lingen_${v}_core_sources
             lingen_qcode_binary.cpp
             )
-        set(lingen_${v}_support_sources
-            ${lingen_${v}_support_sources}
+        list(APPEND lingen_${v}_support_sources
             lingen_matpoly_binary.cpp
             )
         list(APPEND our_compile_flags -DLINGEN_BINARY)
     else()
-        set(lingen_${v}_sources
-            ${lingen_${v}_sources}
+        list(APPEND lingen_${v}_core_sources
             lingen_tune_cutoffs.cpp
             lingen_qcode_prime.cpp
             )
 
-        set(lingen_${v}_support_sources
-            ${lingen_${v}_support_sources}
+        list(APPEND lingen_${v}_support_sources
             ## mpfq/mpfq_${v}.c
             ## mpfq/mpfq_${v}.cpp
             # I don't have the courage to ditch lingen_polymat entirely
@@ -593,14 +592,17 @@ foreach(v ${internal_arithmetic_backends_gfp} b64)
     # want to  use it.
     if(v STREQUAL "pz" OR v STREQUAL "b64" OR v STREQUAL "bz")
         add_library(lingen_${v}_support ${lingen_${v}_support_sources})
-        add_executable(lingen_${v} ${lingen_${v}_sources})
+        add_library(lingen_${v}_core ${lingen_${v}_core_sources})
+        add_executable(lingen_${v} ${lingen_${v}_main_sources})
         install(TARGETS lingen_${v} RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)
     else()
         add_library(lingen_${v}_support EXCLUDE_FROM_ALL ${lingen_${v}_support_sources})
-        add_executable(lingen_${v} EXCLUDE_FROM_ALL ${lingen_${v}_sources})
+        add_library(lingen_${v}_core EXCLUDE_FROM_ALL ${lingen_${v}_core_sources})
+        add_executable(lingen_${v} EXCLUDE_FROM_ALL ${lingen_${v}_main_sources})
     endif()
 
     target_link_libraries(lingen_${v}_support lingen_common_support)
+    target_link_libraries(lingen_${v}_core lingen_${v}_support)
 
     if (v STREQUAL "b64")
         if(NOT HAVE_GF2X)
@@ -614,7 +616,7 @@ foreach(v ${internal_arithmetic_backends_gfp} b64)
         target_link_libraries(lingen_${v}_support flint-fft)
     endif()
 
-    target_link_libraries(lingen_${v} lingen_${v}_support)
+    target_link_libraries(lingen_${v} lingen_${v}_core)
     target_link_libraries(lingen_verify_checkpoints_${v} lingen_${v}_support)
 
     # we also need link flags, and config/openmp.cmake won't provide them
@@ -622,6 +624,10 @@ foreach(v ${internal_arithmetic_backends_gfp} b64)
 
     # set_source_files_properties(lingen.cpp PROPERTIES COMPILE_FLAGS "${OpenMP_CXX_FLAGS}")
     set_target_properties(lingen_${v}_support PROPERTIES
+        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} ${our_compile_flags_string}"
+        LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
+        )
+    set_target_properties(lingen_${v}_core PROPERTIES
         COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} ${our_compile_flags_string}"
         LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
         )
