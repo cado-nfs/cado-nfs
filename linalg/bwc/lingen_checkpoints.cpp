@@ -4,6 +4,7 @@
 // IWYU pragma: no_include <sys/param.h>
 
 #include <cstdio>
+#include <climits>
 #include <cstdint>                    // for SIZE_MAX
 #include <cstdlib>                    // for abort, free
 
@@ -15,8 +16,8 @@
 #include <vector>                      // for vector
 #include <regex>
 
-#include <unistd.h>                    // for unlink, access, R_OK, X_OK
 
+#include <unistd.h>                    // for unlink, access, R_OK, X_OK
 #include <gmp.h>                       // for operator<<, mpz_cmp
 
 
@@ -38,6 +39,7 @@
 #include "logline.hpp"
 #include "fmt/printf.h" // IWYU pragma: keep
 #include "cxx_mpz.hpp"
+#include "utils_cxx.hpp"
 
 /* Checkpoints */
 
@@ -258,14 +260,9 @@ std::istream& operator>>(std::istream & is, lingen_checkpoint::header_info & u)
         throw lingen_checkpoint::invalid_aux_file("t is out of bounds");
     if (!(is >> u.ncoeffs >> u.p))
         throw lingen_checkpoint::invalid_aux_file("parse error");
-    u.delta.assign(u.m + u.n, 0);
-    for(unsigned int i = 0 ; i < u.m + u.n ; i++) {
-        is >> u.delta[i];
-    }
-    u.lucky.assign(u.m + u.n, 0);
-    for(unsigned int i = 0 ; i < u.m + u.n ; i++) {
-        is >> u.lucky[i];
-    }
+
+    is >> read_container(u.delta, u.m + u.n);
+    is >> read_container(u.lucky, u.m + u.n);
     is >> u.done;
     return is;
 }
