@@ -291,6 +291,7 @@ bool lingen_checkpoint::load_aux_file(size_t & Xsize)/*{{{*/
         if (mpz_cmp(u.p, bm.d.ab.characteristic()) != 0)
             throw invalid_aux_file("made for wrong p");
 
+        target_t = u.t;
         nbm.delta = u.delta;
         nbm.lucky = u.lucky;
         nbm.done = u.done;

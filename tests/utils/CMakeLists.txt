@@ -77,6 +77,7 @@ cado_define_test(test_sha1.c LIBRARIES utils ARGUMENTS --test)
 cado_define_test(test_fstream_maybe_compressed.cpp LIBRARIES utils
     PROVIDE_TEMPORARY_WDIR
     NO_DEFAULT_RUN)
+cado_define_test(test_runtime_numeric_cast.cpp LIBRARIES utils)
 macro(add_test_fstream_maybe_compressed var ext)
 if(${var})
 cado_divert_test(test_fstream_maybe_compressed ${ext} ARGUMENTS test.${ext})

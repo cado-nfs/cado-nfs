@@ -2,10 +2,7 @@
 #include "cado.h" // IWYU pragma: keep
 // IWYU pragma: no_include <sys/param.h>
 
-#include <cmath>                          // for ceil
-#include <cstdio>                         // for printf, fprintf, size_t
-#include <cstdlib>                        // for exit, free, EXIT_FAILURE
-#include <cstring>                        // for strcmp, memcpy, memset, strdup
+#include <cstddef>
 
 #include <stdexcept>                      // for runtime_error, overflow_error
 #include <string>                         // for operator+, string
@@ -42,7 +39,6 @@
 #include "sha1.h"                         // for sha1_checksumming_stream
 #include "timing.h"                       // for seconds
 #include "tree_stats.hpp"                 // for tree_stats, tree_stats::tra...
-#include "portability.h" // strdup // IWYU pragma: keep
 
 // some of our entry points are exported for tests
 #include "lingen.hpp"
