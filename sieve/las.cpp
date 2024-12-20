@@ -870,8 +870,10 @@ static bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_
      */
     WHERE_AM_I_UPDATE(aux.w, logI, ws.conf.logI);
     WHERE_AM_I_UPDATE(aux.w, pQ, &ws.Q);
-    WHERE_AM_I_UPDATE(aux.w, sides[0].fbs, ws.sides[0].fbs);
-    WHERE_AM_I_UPDATE(aux.w, sides[1].fbs, ws.sides[1].fbs);
+    WHERE_AM_I_UPDATE(aux.w, sides, decltype(aux.w->sides){ws.sides.size()});
+    for (size_t i = 0; i < ws.sides.size(); ++i) {
+        WHERE_AM_I_UPDATE(aux.w, sides[i].fbs, ws.sides[i].fbs);
+    }
     for(auto & t : aux.th) t.w = aux.w;
 
 

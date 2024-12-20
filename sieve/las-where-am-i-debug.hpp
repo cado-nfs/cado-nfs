@@ -7,6 +7,7 @@
 #include <climits>                    // for UINT_MAX
 #include <cstdint>                    // for uint64_t, int64_t
 #include <cstddef>                    // for NULL
+#include <vector>                     // for std::vector
 
 #include "las-where-am-i-proxy.hpp"        // for where_am_I
 #include "fb-types.h"   // for fbprime_t, fbroot_t, slice_index_t
@@ -54,7 +55,7 @@ struct where_am_I::impl {
     struct side_data {
         const fb_factorbase::slicing * fbs = NULL;
     };
-    side_data sides[2];  // XXX HARDCODED 2
+    std::vector<side_data> sides;
     fbprime_t p = 0;        /* current prime or prime power, when applicable */
     fbroot_t r = 0;         /* current root */
     slice_index_t i = 0;    /* Slice index, if applicable */
