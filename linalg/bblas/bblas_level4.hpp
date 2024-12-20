@@ -4,9 +4,9 @@
 // IWYU pragma: private, include "bblas.hpp"
 // IWYU pragma: friend ".*/bblas.*"
 
-#include "bblas.hpp"
 #include "bblas_mat64.hpp"
 #include "bblas_perm_matrix.hpp"
+#include "bpack.hpp"    // IWYU pragma: export
 
 /**********************************************************************/
 /* level 4: factorizations and reductions of matrices
@@ -54,7 +54,5 @@ int LUP64_imm(mat64 & l, mat64 & u, mat64 & p, mat64 const & a);
 
 /* Computes e,mm such that mm=e*m is in row echelon form */
 int full_echelon_6464_imm(mat64 & mm, mat64 & e, mat64 const & m);
-
-#include "bpack.hpp"
 
 #endif	/* BBLAS_LEVEL4_HPP_ */

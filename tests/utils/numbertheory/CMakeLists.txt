@@ -33,12 +33,39 @@ cado_define_test(
     test-ant
     )
 
+cado_define_test(
+    numbertheory-object-interface
+    PROGRAM
+    ${CMAKE_CURRENT_BINARY_DIR}/test-ant
+    -test nt-object-interface
+    -poly "10*x^3-x-2"
+    TARGET_DEPENDENCIES
+    test-ant
+    )
+
+if (SAGE)
+    cado_define_test(
+        numbertheory-object-interface_with_sagemath
+        PROGRAM
+        ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh  --env wdir
+        ${CADO_NFS_SOURCE_DIR}/tests/pipe_to_sage.sh
+        ${CMAKE_CURRENT_BINARY_DIR}/test-ant
+        -test nt-object-interface
+        -poly "10*x^3-x-2"
+        TARGET_DEPENDENCIES
+        test-ant
+        TIMEOUT 60
+        )
+    add_dependencies(all_sagemath_test_dependencies
+        numbertheory-object-interface_with_sagemath_dependencies)
+endif()
+
 find_program(MAGMA magma HINTS ENV MAGMA)
 if(MAGMA AND DEFINED ENV{CHECKS_EXPENSIVE})
 cado_define_test(
     numbertheory-p-maximal-order-expensive
     PROGRAM
-    bash -c "${CMAKE_CURRENT_BINARY_DIR}/test-ant -test p-maximal-order-batch -batch <(${MAGMA} -b -S 1 ${CMAKE_CURRENT_SOURCE_DIR}/gentest.m < /dev/null)"
+    bash -c "${CMAKE_CURRENT_BINARY_DIR}/test-ant -test p-maximal-order-batch -batch <(${MAGMA} -b -s /dev/null -S 1 ${CMAKE_CURRENT_SOURCE_DIR}/gentest.m < /dev/null)"
     TARGET_DEPENDENCIES
     test-ant
     TIMEOUT 60
@@ -46,7 +73,7 @@ cado_define_test(
 cado_define_test(
     numbertheory-factorization-of-prime-expensive
     PROGRAM
-    bash -c "${CMAKE_CURRENT_BINARY_DIR}/test-ant -test factorization-of-prime-batch -batch <(${MAGMA} -b -S 1 ${CMAKE_CURRENT_SOURCE_DIR}/gentest.m < /dev/null)"
+    bash -c "${CMAKE_CURRENT_BINARY_DIR}/test-ant -test factorization-of-prime-batch -batch <(${MAGMA} -b -s /dev/null -S 1 ${CMAKE_CURRENT_SOURCE_DIR}/gentest.m < /dev/null)"
     TARGET_DEPENDENCIES
     test-ant
     TIMEOUT 60
@@ -54,7 +81,7 @@ cado_define_test(
 cado_define_test(
     numbertheory-valuations-of-ideal-expensive
     PROGRAM
-    bash -c "${CMAKE_CURRENT_BINARY_DIR}/test-ant -test valuations-of-ideal-batch -batch <(${MAGMA} -b -S 1 ${CMAKE_CURRENT_SOURCE_DIR}/gentest.m < /dev/null)"
+    bash -c "${CMAKE_CURRENT_BINARY_DIR}/test-ant -test valuations-of-ideal-batch -batch <(${MAGMA} -b -s /dev/null -S 1 ${CMAKE_CURRENT_SOURCE_DIR}/gentest.m < /dev/null)"
     TARGET_DEPENDENCIES
     test-ant
     TIMEOUT 60

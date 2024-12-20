@@ -27,24 +27,11 @@ benefit from your work.
 #include <complex.h>
 #include <stdlib.h>
 
-#define MAX_ROOTFINDER_DEGREE   10
+#include "polyroots.h"
 
 #ifndef MIN
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #endif
-
-#define xxxMAIN
-
-#ifdef  MAIN
-#include <stdlib.h>
-#include <stdio.h>
-#endif
-
-/* no header file is defined here -- the prototypes are not meant to be
- * exposed. The source code could conceivably live within
- * double_poly.cpp, but for convenience reasons we leave it in a separate
- * file. double_poly.cpp has prototypes for the two functions we export.
- */
 
 /* This rootfinder uses a simplified version of the all-complex
    Jenkins-Traub algorithm.
@@ -72,10 +59,10 @@ benefit from your work.
 static const double mre = 2.0 * M_SQRT2 * DBL_EPSILON;
 
 typedef struct {
-	double complex poly[MAX_ROOTFINDER_DEGREE + 1]; 
-	double complex poly_aux[MAX_ROOTFINDER_DEGREE + 1];
-	double complex hpoly[MAX_ROOTFINDER_DEGREE + 1]; 
-	double complex hpoly_aux[MAX_ROOTFINDER_DEGREE + 1];
+	double complex poly[MAX_POLYROOTS_ROOTFINDER_DEGREE + 1]; 
+	double complex poly_aux[MAX_POLYROOTS_ROOTFINDER_DEGREE + 1];
+	double complex hpoly[MAX_POLYROOTS_ROOTFINDER_DEGREE + 1]; 
+	double complex hpoly_aux[MAX_POLYROOTS_ROOTFINDER_DEGREE + 1];
 
 	double complex angle, angle_inc;
 	uint32_t hpoly_root_found;
@@ -92,7 +79,7 @@ static double cauchy_bound(uint32_t n, const double complex p[]) {
 	   (unique) positive root x of norms(x) */
 
 	double x, xmax, f, dx, df;
-	double norms[MAX_ROOTFINDER_DEGREE + 1];
+	double norms[MAX_POLYROOTS_ROOTFINDER_DEGREE + 1];
 	uint32_t i;
 
 	for (i = 0; i < n; i++)
@@ -338,7 +325,7 @@ static int find_one_root(double complex *root, jt_t *w) {
 
 	uint32_t i, j, k;
 	double bound;
-	double complex hpoly_start[MAX_ROOTFINDER_DEGREE + 1];
+	double complex hpoly_start[MAX_POLYROOTS_ROOTFINDER_DEGREE + 1];
 
 	/* find linear roots immediately */
 
@@ -479,8 +466,8 @@ static uint32_t polish_root(const long double complex *poly, uint32_t degree,
 uint32_t poly_roots_longdouble(const double *poly, uint32_t degree, long double complex *eroots) {
 
 	uint32_t i;
-	double complex rev_dccoeffs[MAX_ROOTFINDER_DEGREE + 1];
-	long double complex ldccoeffs[MAX_ROOTFINDER_DEGREE + 1];
+	double complex rev_dccoeffs[MAX_POLYROOTS_ROOTFINDER_DEGREE + 1];
+	long double complex ldccoeffs[MAX_POLYROOTS_ROOTFINDER_DEGREE + 1];
 
 	if (degree == 1) {
 		eroots[0] = -poly[0]/poly[1];
@@ -531,22 +518,3 @@ uint32_t poly_roots_double(const double *poly, uint32_t degree, double complex *
         free(eroots);
         return res;
 }
-
-
-
-#ifdef  MAIN
-int main(int argc, char * argv[])
-{
-    int degree = argc - 2;
-    printf("degree %d\n", degree);
-    double coeffs[MAX_ROOTFINDER_DEGREE];
-    for(int i = 0 ; i <= degree ; i++) {
-        coeffs[i] = atof(argv[1+i]);
-    }
-    double complex roots[MAX_ROOTFINDER_DEGREE];
-    poly_roots_double(coeffs, degree, roots);
-    for(int i = 0 ; i < degree ; i++) {
-        printf("%f+i*%f\n", creal(roots[i]), cimag(roots[i]));
-    }
-}
-#endif

@@ -23,13 +23,19 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 */
 
 #include "cado.h" // IWYU pragma: keep
+
+#include <cstdio>       // fprintf
+#include <cstdlib>       // exit
+#include <climits>       // CHAR_BIT
+
 #include <algorithm>
 #include <vector>
 #include <memory>        // for unique_ptr, allocator_traits<>::value_type
 #include <utility>       // for pair
-#include <cstdio>       // fprintf
-#include <cstdlib>       // exit
-#include <climits>       // CHAR_BIT
+
+#include "fmt/core.h"
+#include "fmt/format.h"
+
 #include "cado_poly.h"   // for cxx_cado_poly, cado_poly_s, cado_poly_read
 #include "gzip.h"       // ofstream_maybe_compressed
 #include "macros.h"      // for ASSERT_ALWAYS
@@ -39,13 +45,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "renumber.hpp" // renumber_t
 #include "typedefs.h"    // for index_t, p_r_values_t, PRid, SIZEOF_INDEX, PRpr
 #include "verbose.h"    // verbose_interpret_parameters
-#include "fmt/core.h"
-#include "fmt/format.h"
 
-char * argv0;
+static char const * argv0;
 
 static void
-usage(cxx_param_list & pl, char* argv0)
+usage(cxx_param_list & pl, char const * argv0)
 {
     param_list_print_usage(pl, argv0, stderr);
     exit(EXIT_FAILURE);
@@ -114,13 +118,13 @@ void freerel_data_t::operator()(renumber_t & R, p_r_values_t p, index_t idx, ren
     if (full_sides.size() > 1) {
         for(size_t i = 1 ; i < full_sides.size() ; i++) {
             /* print a new free relation */
-            sink << fmt::format(FMT_STRING("{:x},0:"), p);
-            int side0 = full_sides[i-1].first;
-            index_t i0 = full_sides[i-1].second;
-            unsigned int n0 = C.nroots[side0];
-            int side1 = full_sides[i].first;
-            index_t i1 = full_sides[i].second;
-            unsigned int n1 = C.nroots[side1];
+            sink << fmt::format("{:x},0:", p);
+            int const side0 = full_sides[i-1].first;
+            index_t const i0 = full_sides[i-1].second;
+            unsigned int const n0 = C.nroots[side0];
+            int const side1 = full_sides[i].first;
+            index_t const i1 = full_sides[i].second;
+            unsigned int const n1 = C.nroots[side1];
             bool first = true;
             sink << std::hex;
             for(unsigned int k = 0 ; k < n0 ; k++, first=false) {
@@ -157,7 +161,7 @@ declare_usage(param_list pl)
 
 // coverity[root_function]
 int
-main(int argc, char* argv[])
+main(int argc, char const * argv[])
 {
     argv0 = argv[0];
     cxx_param_list pl;
@@ -184,7 +188,7 @@ main(int argc, char* argv[])
             argv++, argc--;
             continue;
         }
-        fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
+        fmt::print(stderr, "Unhandled parameter {}\n", argv[0]);
         usage(pl, argv0);
     }
     /* print command-line arguments */
@@ -199,7 +203,7 @@ main(int argc, char* argv[])
 
     int nthreads = 0;
     if (param_list_parse_int (pl, "t", &nthreads)) {
-        fprintf(stderr, "Warning: the -t argument to freerel is kept for compatibility, but you should rather take it out and let openmp deal with it\n");
+        fmt::print(stderr, "Warning: the -t argument to freerel is kept for compatibility, but you should rather take it out and let openmp deal with it\n");
         omp_set_num_threads(nthreads);
     }
 
@@ -213,23 +217,23 @@ main(int argc, char* argv[])
     if (param_list_warn_unused(pl))
         usage(pl, argv0);
 
-    if (polyfilename == NULL) {
-        fprintf(stderr, "Error, missing -poly command line argument\n");
+    if (polyfilename == nullptr) {
+        fmt::print(stderr, "Error, missing -poly command line argument\n");
         usage(pl, argv0);
     }
-    if (param_list_lookup_string(pl, "renumber") == NULL) {
-        fprintf(stderr, "Error, missing -renumber command line argument\n");
+    if (!param_list_lookup_string(pl, "renumber")) {
+        fmt::print(stderr, "Error, missing -renumber command line argument\n");
         usage(pl, argv0);
     }
     if (!cado_poly_read(cpoly, polyfilename)) {
-        fprintf(stderr, "Error reading polynomial file\n");
+        fmt::print(stderr, "Error reading polynomial file\n");
         exit(EXIT_FAILURE);
     }
 
     std::vector<unsigned int> lpb(cpoly->nb_polys, 0);
 
     if (!param_list_parse_uint_args_per_side(pl, "lpb", lpb.data(), cpoly->nb_polys, ARGS_PER_SIDE_DEFAULT_COPY_PREVIOUS)) {
-        fprintf(stderr,
+        fmt::print(stderr,
                 "Error, could not obtain values for the lpb bounds (or not for all polynomials)\n");
         usage(pl, argv0);
     }
@@ -241,7 +245,7 @@ main(int argc, char* argv[])
     if (param_list_lookup_string(pl, "out")) {
         F.reset(new freerel_data_t(pl, cpoly, lpb));
 
-        printf("Considering freerels for %lu <= p <= %lu\n", 
+        fmt::print("Considering freerels for {} <= p <= {}\n", 
                 F->pmin,
                 F->pmax);
         fflush(stdout);
@@ -250,33 +254,33 @@ main(int argc, char* argv[])
     renumber_t renumber_table(cpoly);
     renumber_table.set_lpb(lpb);
 
-    int max_lpb = renumber_table.get_max_lpb();
+    int const max_lpb = renumber_table.get_max_lpb();
     if (max_lpb >= (int) sizeof(unsigned long) * CHAR_BIT) {
-      fprintf (stderr, "Error, cannot handle lpb >= %zu (max(lpbs) is %d)\n",
+      fmt::print (stderr, "Error, cannot handle lpb >= {} (max(lpbs) is {})\n",
                        sizeof(unsigned long) * CHAR_BIT, max_lpb);
       abort();
     }
-    unsigned long lpbmax = 1UL << max_lpb;
-    printf("Generating renumber table for 2 <= p <= %lu\n", lpbmax);
+    unsigned long const lpbmax = 1UL << max_lpb;
+    fmt::print("Generating renumber table for 2 <= p <= {}\n", lpbmax);
 
     /* This reads the options:
      *
      * renumber
      *
      */
-    index_t R_max_index = renumber_table.build(pl, for_dl, F.get());
+    index_t const R_max_index = renumber_table.build(pl, for_dl, F.get());
 
-    if (F.get()) {
+    if (F) {
         /* /!\ Needed by the Python script. /!\ */
-        fprintf(stderr, "# Free relations: %lu\n", F->nfree);
+        fmt::print(stderr, "# Free relations: {}\n", F->nfree);
     }
-    fprintf(stderr, "Renumbering struct: nprimes=%lu\n", (unsigned long) R_max_index);
+    fmt::print(stderr, "Renumbering struct: nprimes={}\n", (unsigned long) R_max_index);
 
 
     /* produce an error when index_t is too small to represent all ideals */
     if ((SIZEOF_INDEX < 8) && renumber_table.get_size() >> (8 * SIZEOF_INDEX)) {
-        fprintf(stderr, "Error, please increase SIZEOF_INDEX\n");
-        fprintf(stderr, "(see local.sh.example)\n");
+        fmt::print(stderr, "Error, please increase SIZEOF_INDEX\n");
+        fmt::print(stderr, "(see local.sh.example)\n");
         exit(1);
     }
 

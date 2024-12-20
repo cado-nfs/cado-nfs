@@ -12,9 +12,10 @@
   [read this first](https://sympa.inria.fr/sympa/arc/cado-nfs/2020-10/msg00006.html).
 */
 
+#include "cado.h"		// IWYU pragma: keep
+
 #define EMIT_ADDRESSABLE_shash_add
 
-#include "cado.h"		// IWYU pragma: keep
 /* The following avoids to put #ifdef HAVE_OPENMP ... #endif around each
  * OpenMP pragma. It should come after cado.h, which sets -Werror=all.
  *
@@ -670,9 +671,9 @@ void * thread_loop(polyselect_thread_ptr thread)
 }
 
 
-int main(int argc, char *argv[])
+int main(int argc, char const * argv[])
 {
-  char **argv0 = argv;
+  char const ** argv0 = argv;
   /* nthreads = 0 means: do something automatic */
   int quiet = 0;
   const char * chronogram_file = NULL;

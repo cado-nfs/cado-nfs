@@ -73,8 +73,8 @@ double lingen_io_wrapper_base::average_matsize() const
 
 unsigned int lingen_io_wrapper_base::preferred_window() const
 {
-    unsigned int nmats = iceildiv(io_matpoly_block_size, average_matsize());
-    unsigned int nmats_pad = simd * iceildiv(nmats, simd);
+    unsigned int const nmats = iceildiv(io_matpoly_block_size, average_matsize());
+    unsigned int const nmats_pad = simd * iceildiv(nmats, simd);
     return nmats_pad;
 }
 
@@ -85,7 +85,7 @@ double lingen_file_input::average_matsize() const
 
 unsigned int lingen_file_input::preferred_window() const
 {
-    unsigned int nmats = iceildiv(io_matpoly_block_size, average_matsize());
+    unsigned int const nmats = iceildiv(io_matpoly_block_size, average_matsize());
     unsigned int nmats_pad = simd * iceildiv(nmats, simd);
 #ifdef HAVE_OPENMP
     /* This might be a bit large */
@@ -122,15 +122,15 @@ size_t lingen_file_input::guessed_length() const
 
     if (mpi_rank() == 0) {
         struct stat sbuf[1];
-        int rc = fstat(fileno(f), sbuf);
+        int const rc = fstat(fileno(f), sbuf);
         if (rc < 0) {
             perror(filename.c_str());
             exit(EXIT_FAILURE);
         }
 
-        size_t filesize = sbuf->st_size;
+        size_t const filesize = sbuf->st_size;
 
-        size_t avg = average_matsize();
+        size_t const avg = average_matsize();
 
         if (!ascii) {
             if (filesize % avg) {
@@ -143,7 +143,7 @@ size_t lingen_file_input::guessed_length() const
             }
             guess = filesize / avg;
         } else {
-            double expected_length = (double) filesize / avg;
+            double const expected_length = (double) filesize / avg;
             printf("# Expect roughly %.2f items in the sequence.\n", expected_length);
 
             /* First coefficient is always lighter, so we add a +1. */
@@ -166,7 +166,7 @@ ssize_t lingen_file_input::read_to_matpoly(matpoly & dst, unsigned int k0, unsig
 
 ssize_t lingen_random_input::read_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1)
 {
-    ssize_t nk = MIN(length, next_src_k + k1 - k0) - next_src_k;
+    ssize_t const nk = MIN(length, next_src_k + k1 - k0) - next_src_k;
     if (!mpi_rank())
         dst.fill_random(k0, k0 + nk, rstate);
     next_src_k += nk;
@@ -174,7 +174,7 @@ ssize_t lingen_random_input::read_to_matpoly(matpoly & dst, unsigned int k0, uns
 }
 unsigned int lingen_random_input::preferred_window() const
 {
-    unsigned int nmats = iceildiv(io_matpoly_block_size, average_matsize());
+    unsigned int const nmats = iceildiv(io_matpoly_block_size, average_matsize());
     unsigned int nmats_pad = simd * iceildiv(nmats, simd);
 #ifdef HAVE_OPENMP
     /* This might be a bit large */
@@ -203,9 +203,9 @@ unsigned int lingen_random_input::preferred_window() const
 static bool
 reduce_column_mod_previous(matpoly& M, std::vector<unsigned int>& pivots)
 {
-    unsigned int r = pivots.size();
+    unsigned int const r = pivots.size();
     for (unsigned int v = 0; v < r; v++) {
-        unsigned int u = pivots[v];
+        unsigned int const u = pivots[v];
         /* the v-th column in the M is known to
          * kill coefficient u (more exactly, to have a -1 as u-th
          * coefficient, and zeroes for the other coefficients
@@ -251,10 +251,10 @@ static void
 normalize_column(matpoly& M, std::vector<unsigned int> const& pivots)
 {
     auto tmp = M.ab->alloc();
-    unsigned int r = pivots.size() - 1;
-    unsigned int u = pivots.back();
+    unsigned int const r = pivots.size() - 1;
+    unsigned int const u = pivots.back();
     /* Multiply the column so that the pivot becomes -1 */
-    int rc = M.ab->inverse(*tmp, M.coeff(u, r, 0));
+    int const rc = M.ab->inverse(*tmp, M.coeff(u, r, 0));
     if (!rc) {
         std::ostringstream os;
         M.ab->cxx_out(os, *tmp);
@@ -324,14 +324,14 @@ std::tuple<unsigned int, unsigned int> lingen_F0::column_data_from_A(unsigned in
 
 void lingen_E_from_A::refresh_cache_upto(unsigned int k)
 {
-    unsigned int next_k1 = simd * iceildiv(k, simd);
+    unsigned int const next_k1 = simd * iceildiv(k, simd);
 
     ASSERT_ALWAYS(next_k1 >= cache_k1);
 
     if (next_k1 != cache_k1) {
         if (!mpi_rank())
             cache.zero_pad(next_k1);
-        ssize_t nk = A.read_to_matpoly(cache, cache_k1, next_k1);
+        ssize_t const nk = A.read_to_matpoly(cache, cache_k1, next_k1);
         if (nk < (ssize_t) (k - cache_k1)) {
             fprintf(stderr, "short read from A\n");
             printf("This amount of data is insufficient. "
@@ -394,7 +394,7 @@ lingen_E_from_A::initial_read()
     for (t0 = 1; pivots.size() < m; t0++) {
         /* We are going to access coefficient k from A (perhaps
          * coefficients k-1 and k) */
-        unsigned int k = t0 - (nrhs == n);
+        unsigned int const k = t0 - (nrhs == n);
 
         /* k + 1 because we're going to access coeff of degree k, of
          * course.
@@ -588,7 +588,7 @@ ssize_t lingen_gather<bigmatpoly>::read_to_matpoly(matpoly & dst, unsigned int k
  * next_src_k, and write them to the destination, starting at coefficient
  * k0.
  */
-ssize_t reverse_matpoly_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1, matpoly const & pi, unsigned int & next_src_k)
+static ssize_t reverse_matpoly_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1, matpoly const & pi, unsigned int & next_src_k)
 {
     ASSERT_ALWAYS(!mpi_rank());
     ssize_t nk;
@@ -597,7 +597,7 @@ ssize_t reverse_matpoly_to_matpoly(matpoly & dst, unsigned int k0, unsigned int 
     ASSERT_ALWAYS(k0 % simd == 0);
     ASSERT_ALWAYS(k1 % simd == 0);
     ASSERT_ALWAYS(next_src_k % simd == 0);
-    unsigned int d = pi.get_size();
+    unsigned int const d = pi.get_size();
     matpoly::arith_hard * ab = pi.ab;
 #ifndef LINGEN_BINARY
     for(unsigned int i = 0 ; i < pi.nrows() ; i++) {
@@ -616,15 +616,15 @@ ssize_t reverse_matpoly_to_matpoly(matpoly & dst, unsigned int k0, unsigned int 
         }
     }
 #else
-    size_t ntemp = (k1-k0) / simd + 2;
+    size_t const ntemp = (k1-k0) / simd + 2;
     unsigned int rk0, rk1;
     rk1 = next_src_k;
     rk1 = d >= rk1 ? d - rk1 : 0;
     rk0 = rk1 >= (unsigned int) nk ? rk1 - nk : 0;
-    unsigned int n_rk = rk1 - rk0;
-    unsigned int q_rk = rk0 / simd;
-    unsigned int r_rk = rk0 % simd;
-    unsigned int nq = iceildiv(n_rk + r_rk, simd);
+    unsigned int const n_rk = rk1 - rk0;
+    unsigned int const q_rk = rk0 / simd;
+    unsigned int const r_rk = rk0 % simd;
+    unsigned int const nq = iceildiv(n_rk + r_rk, simd);
     if (nq) {
         unsigned long * temp = new unsigned long[ntemp];
         for(unsigned int i = 0 ; i < pi.nrows() ; i++) {
@@ -694,13 +694,13 @@ ssize_t lingen_gather_reverse<bigmatpoly>::read_to_matpoly(matpoly & dst, unsign
         nk = MIN(k1, dst.get_size()) - k0;
         nk = MIN(nk, (ssize_t) (pi.get_size() - next_src_k));
         ASSERT_ALWAYS(k1 <= dst.get_size());
-        unsigned int d = pi.get_size();
+        unsigned int const d = pi.get_size();
         unsigned int rk1 = next_src_k;
         rk1 = d >= rk1 ? d - rk1 : 0;
-        unsigned int rk0 = rk1 >= (unsigned int) nk ? rk1 - nk : 0;
-        unsigned int n_rk = rk1 - rk0;
-        unsigned int q_rk = rk0 / simd;
-        unsigned int r_rk = rk0 % simd;
+        unsigned int const rk0 = rk1 >= (unsigned int) nk ? rk1 - nk : 0;
+        unsigned int const n_rk = rk1 - rk0;
+        unsigned int const q_rk = rk0 / simd;
+        unsigned int const r_rk = rk0 % simd;
         nq = iceildiv(n_rk + r_rk, simd);
         offset = q_rk * simd;
     }
@@ -745,7 +745,7 @@ matpoly lingen_F_from_PI::recompute_rhs()
      * LEADING COEFFICIENT of the corresponding columns of pi.
      */
     for (unsigned int jF = 0; jF < n; jF++) {
-        unsigned int jpi = sols[jF].j;
+        unsigned int const jpi = sols[jF].j;
         for (unsigned int ipi = 0; ipi < m + n; ipi++) {
             unsigned int iF;
             unsigned int s;
@@ -841,11 +841,11 @@ void lingen_F_from_PI::reorder_solutions()
 std::tuple<unsigned int, unsigned int> lingen_F_from_PI::get_shift_ij(unsigned int ipi, unsigned int jF) const
 {
     // unsigned int jpi = sols[jF].j;
-    unsigned int shift = sols[jF].shift;
+    unsigned int const shift = sols[jF].shift;
     unsigned int iF, kF;
     std::tie(kF, iF) = column_data_from_Aprime(ipi);
     kF = t0 - kF;
-    unsigned int s0 = shift + kF + (iF < nrhs);
+    unsigned int const s0 = shift + kF + (iF < nrhs);
 
     /* This is pedantic, but oldish g++ has the ctor from init-list
      * marked "explicit"
@@ -915,9 +915,9 @@ lingen_F_from_PI::lingen_F_from_PI(bmstatus const & bm,
          * - the comment in lingen_F_from_PI::recompute_rhs
          * - in reverse_matpoly_to_matpoly
          */
-        size_t G = pi.guessed_length();
+        size_t const G = pi.guessed_length();
         ASSERT_ALWAYS(bm.delta[j] <= G);
-        unsigned int s = G - 1 - bm.delta[j];
+        unsigned int const s = G - 1 - bm.delta[j];
         sols.push_back({ j, s });
         if (s + 1 >= lookback_needed)
             lookback_needed = s + 1;
@@ -983,8 +983,8 @@ ssize_t lingen_E_from_A::read_to_matpoly(matpoly & dst, unsigned int k0, unsigne
     ssize_t produced = 0;
 
     if (cache_k1 != cache_k0) {
-        unsigned int F0_lookback = t0 + (nrhs < n);
-        unsigned int lookback = cache_k1 - cache_k0;
+        unsigned int const F0_lookback = t0 + (nrhs < n);
+        unsigned int const lookback = cache_k1 - cache_k0;
         ASSERT_ALWAYS(lookback >= F0_lookback);
 
         long long nk;
@@ -1027,8 +1027,8 @@ ssize_t lingen_E_from_A::read_to_matpoly(matpoly & dst, unsigned int k0, unsigne
 #ifndef LINGEN_BINARY
                         ab->vec_set(to, from, nread);
 #else
-                        unsigned int sr = kA % simd;
-                        unsigned int nq = nread / simd;
+                        unsigned int const sr = kA % simd;
+                        unsigned int const nq = nread / simd;
                         if (sr) {
                             mpn_rshift(to, from, nq, sr);
                             to[nq-1] ^= from[nq] << (simd - sr);
@@ -1060,8 +1060,8 @@ ssize_t lingen_E_from_A::read_to_matpoly(matpoly & dst, unsigned int k0, unsigne
              * We do the latter, by using coefficients from the cache
              * only until the point where some noise creeps in.
              */
-            unsigned int cache_avail = cache_k1 - cache_k0;
-            unsigned int cache_access = nread + F0_lookback;
+            unsigned int const cache_avail = cache_k1 - cache_k0;
+            unsigned int const cache_access = nread + F0_lookback;
 
             if (!mpi_rank()) {
                 /* This is the correct final size of the tail */
@@ -1079,7 +1079,7 @@ ssize_t lingen_E_from_A::read_to_matpoly(matpoly & dst, unsigned int k0, unsigne
 #ifndef LINGEN_BINARY
                             ab->vec_set(to, from, 1);
 #else
-                            unsigned int sr = kA % simd;
+                            unsigned int const sr = kA % simd;
                             if (sr) {
                                 *to = *from >> sr;
                                 if (((kA + k) / simd+1) * simd < cache_avail)
@@ -1138,8 +1138,8 @@ ssize_t lingen_F_from_PI::read_to_matpoly(matpoly & dst, unsigned int k0, unsign
     ssize_t produced = 0;
 
     if (cache_k1 != cache_k0) {
-        unsigned int F0_lookback = t0 + (nrhs < n);
-        unsigned int lookback = cache_k1 - cache_k0;
+        unsigned int const F0_lookback = t0 + (nrhs < n);
+        unsigned int const lookback = cache_k1 - cache_k0;
         ASSERT_ALWAYS(lookback >= F0_lookback - 1);
     
         long long nk;
@@ -1172,7 +1172,7 @@ ssize_t lingen_F_from_PI::read_to_matpoly(matpoly & dst, unsigned int k0, unsign
         if (!mpi_rank()) {
             if (nread > 0) {
                 for(unsigned int jF = 0 ; jF < n ; jF++) {
-                    unsigned int jpi = sols[jF].j;
+                    unsigned int const jpi = sols[jF].j;
                     for(unsigned int ipi = 0 ; ipi < m + n ; ipi++) {
                         unsigned int s;
                         unsigned int iF;
@@ -1187,11 +1187,11 @@ ssize_t lingen_F_from_PI::read_to_matpoly(matpoly & dst, unsigned int k0, unsign
                         ab->vec_add_and_reduce(to, from, nread);
 #else
                         /* Add must at the same time do a right shift by sr */
-                        unsigned int sr = s % simd;
+                        unsigned int const sr = s % simd;
                         if (sr) {
                             unsigned long cy = from[nread / simd] << (simd - sr);
                             for(unsigned int i = nread / simd ; i-- ; ) {
-                                unsigned long t = (from[i] >> sr) ^ cy;
+                                unsigned long const t = (from[i] >> sr) ^ cy;
                                 cy = from[i] << (simd - sr);
                                 to[i] ^= t;
                             }
@@ -1212,7 +1212,7 @@ ssize_t lingen_F_from_PI::read_to_matpoly(matpoly & dst, unsigned int k0, unsign
             /* We've reached the end of our input stream. Now is time to drain
              * the cache. We'll first stow that in the (tail) field.
              */
-            unsigned int cache_avail = cache_k1 - cache_k0;
+            unsigned int const cache_avail = cache_k1 - cache_k0;
             unsigned int max_tail = 0;
 
             for(unsigned int jF = 0 ; jF < n ; jF++) {
@@ -1221,7 +1221,7 @@ ssize_t lingen_F_from_PI::read_to_matpoly(matpoly & dst, unsigned int k0, unsign
                     unsigned int iF;
                     std::tie(iF, s) = get_shift_ij(ipi, jF);
                     if (nread + s < cache_avail) {
-                        unsigned int pr = cache_avail - (nread + s);
+                        unsigned int const pr = cache_avail - (nread + s);
                         if (pr >= max_tail)
                             max_tail = pr;
                     }
@@ -1233,7 +1233,7 @@ ssize_t lingen_F_from_PI::read_to_matpoly(matpoly & dst, unsigned int k0, unsign
 
                 for(unsigned int k = nread ; k < nread + max_tail ; k += simd) {
                     for(unsigned int jF = 0 ; jF < n ; jF++) {
-                        unsigned int jpi = sols[jF].j;
+                        unsigned int const jpi = sols[jF].j;
                         for(unsigned int ipi = 0 ; ipi < m + n ; ipi++) {
                             unsigned int s;
                             unsigned int iF;
@@ -1244,7 +1244,7 @@ ssize_t lingen_F_from_PI::read_to_matpoly(matpoly & dst, unsigned int k0, unsign
                             ab->add_and_reduce(*to, *from);
 #else
                             /* Add must at the same time do a right shift by sr */
-                            unsigned int sr = s % simd;
+                            unsigned int const sr = s % simd;
                             if (sr) {
                                 to[0] ^= from[0] >> sr;
                                 if (((s + produced) / simd+1) * simd < (cache_k1 - cache_k0))
@@ -1335,7 +1335,7 @@ void lingen_output_to_splitfile::open_file()
         if (!ascii) mode |= std::ios_base::binary;
         for(unsigned int i = 0 ; i < nrows ; i+=splitwidth) {
             for(unsigned int j = 0 ; j < ncols ; j+=splitwidth) {
-                std::string s = fmt::format(fmt::runtime(this->pattern),
+                std::string const s = fmt::format(fmt::runtime(this->pattern),
                         i, i+splitwidth,
                         j, j+splitwidth);
                 fw.emplace_back(std::ofstream { s, mode });
@@ -1369,9 +1369,9 @@ lingen_output_to_sha1sum::write_from_matpoly(matpoly const& src,
     ASSERT_ALWAYS(k0 % simd == 0);
 #ifdef LINGEN_BINARY
     ASSERT_ALWAYS(src.high_word_is_clear());
-    size_t nbytes = iceildiv(k1 - k0, ULONG_BITS) * sizeof(unsigned long);
+    size_t const nbytes = iceildiv(k1 - k0, ULONG_BITS) * sizeof(unsigned long);
 #else
-    size_t nbytes = src.ab->vec_elt_stride(k1-k0);
+    size_t const nbytes = src.ab->vec_elt_stride(k1-k0);
 #endif
     written += src.nrows() * src.ncols() * nbytes;
     if (!mpi_rank()) {
@@ -1395,16 +1395,16 @@ void pipe(lingen_input_wrapper_base & in, lingen_output_wrapper_base & out, cons
         Z.zero_pad(window);
     }
 
-    double tt0 = wct_seconds();
+    double const tt0 = wct_seconds();
     double next_report_t = tt0;
     size_t next_report_k = 0;
-    size_t expected = in.guessed_length();
+    size_t const expected = in.guessed_length();
     size_t zq = 0;
     for(size_t done = 0 ; ; ) {
         F.set_size(0);
         F.zero_pad(window);
-        ssize_t n = in.read_to_matpoly(F, 0, window);
-        bool is_last = n < (ssize_t) window;
+        ssize_t const n = in.read_to_matpoly(F, 0, window);
+        bool const is_last = n < (ssize_t) window;
         if (n <= 0) break;
         ssize_t n1;
         long long ll;
@@ -1421,10 +1421,10 @@ void pipe(lingen_input_wrapper_base & in, lingen_output_wrapper_base & out, cons
         /* write the good number of zeros */
         for( ; zq ; ) {
             Z.set_size(0);
-            unsigned int nz = MIN(zq, window);
+            unsigned int const nz = MIN(zq, window);
             if (!mpi_rank())
                 Z.zero_pad(nz);
-            ssize_t nn = out.write_from_matpoly(Z, 0, nz);
+            ssize_t const nn = out.write_from_matpoly(Z, 0, nz);
             if (nn < (ssize_t) nz) {
                 fprintf(stderr, "short write\n");
                 exit(EXIT_FAILURE);
@@ -1432,7 +1432,7 @@ void pipe(lingen_input_wrapper_base & in, lingen_output_wrapper_base & out, cons
             zq -= nz;
             done += nz;
         }
-        ssize_t nn = out.write_from_matpoly(F, 0, n1);
+        ssize_t const nn = out.write_from_matpoly(F, 0, n1);
         if (nn < n1) {
             fprintf(stderr, "short write\n");
             exit(EXIT_FAILURE);
@@ -1440,7 +1440,7 @@ void pipe(lingen_input_wrapper_base & in, lingen_output_wrapper_base & out, cons
         zq = n - n1;
         done += n1;
         if (action && !mpi_rank() && (done >= next_report_k || is_last)) {
-            double tt = wct_seconds();
+            double const tt = wct_seconds();
             if (tt > next_report_t || is_last) {
                 printf(
                         "%s %zu coefficients (%.1f%%)"

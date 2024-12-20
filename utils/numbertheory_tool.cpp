@@ -18,12 +18,12 @@
 #include "mpz_poly.h"
 #include "params.h"
 #include "cado_poly.h"
-#include "sm_utils.h"
+#include "sm_utils.hpp"
 
 using namespace std;
 
-char ** original_argv;
-gmp_randstate_t state;
+static char const ** original_argv;
+static gmp_randstate_t state;
 
 /* This program is intended to replicate exactly the behaviour of the
  * scripts/badideals.mag program of old.
@@ -118,7 +118,7 @@ gmp_randstate_t state;
  *    prime ideals.
  */ 
 
-void badideals_declare_usage(cxx_param_list & pl)/*{{{*/
+static void badideals_declare_usage(cxx_param_list & pl)/*{{{*/
 {
     param_list_decl_usage(pl, "badideals", "badideals file");
     param_list_decl_usage(pl, "badidealinfo", "badidealinfo file");
@@ -128,7 +128,7 @@ void badideals_declare_usage(cxx_param_list & pl)/*{{{*/
     param_list_decl_usage(pl, "ell", "ell (for computing default number of maps ; not used for bad ideals)");
 }/*}}}*/
 
-void usage(param_list_ptr pl, char ** argv, const char * msg = NULL)/*{{{*/
+static void usage(param_list_ptr pl, char const ** argv, const char * msg = NULL)/*{{{*/
 {
     param_list_print_usage(pl, argv[0], stderr);
     if (msg) {
@@ -138,7 +138,7 @@ void usage(param_list_ptr pl, char ** argv, const char * msg = NULL)/*{{{*/
 }/*}}}*/
 
 // coverity[root_function]
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     cxx_param_list pl;
 
@@ -169,13 +169,13 @@ int main(int argc, char * argv[])
 
     const char * tmp;
     if ((tmp = param_list_lookup_string(pl, "polystr")) != NULL) {
-        int side = 0;
+        int const side = 0;
         cxx_mpz_poly f;
         istringstream is(tmp);
         if (!(is >> f))
             usage(pl, original_argv, "cannot parse polynomial");
 
-        vector<badideal> badideals = badideals_for_polynomial(f, side);
+        vector<badideal> const badideals = badideals_for_polynomial(f, side);
         cout << "--- .badideals data ---\n";
         for(auto const & b : badideals)
             b.print_dot_badideals_file(cout, side);
@@ -206,7 +206,7 @@ int main(int argc, char * argv[])
         for(int side = 0 ; side < cpoly->nb_polys ; side++) {
             cxx_mpz_poly f(cpoly->pols[side]);
             if (f->deg == 1) continue;
-            vector<badideal> badideals = badideals_for_polynomial(f, side);
+            vector<badideal> const badideals = badideals_for_polynomial(f, side);
             if (fb) {
                 for(auto const & b : badideals) {
                     b.print_dot_badideals_file(*fb, side);
@@ -222,10 +222,8 @@ int main(int argc, char * argv[])
         cxx_mpz ell;
         if (param_list_parse_mpz(pl, "ell", ell)) {
             for(int side = 0 ; side < cpoly->nb_polys ; side++) {
-                sm_side_info sm;
-                sm_side_info_init(sm, cpoly->pols[side], ell, 0);
-                cout << "# nmaps" << side << " " << sm->nsm << endl;
-                sm_side_info_clear(sm);
+                sm_side_info const sm(cpoly->pols[side], ell, 0);
+                cout << "# nmaps" << side << " " << sm.nsm << endl;
             }
         }
         cado_poly_clear(cpoly);

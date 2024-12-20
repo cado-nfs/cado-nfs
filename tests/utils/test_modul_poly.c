@@ -159,8 +159,7 @@ void test_modul_poly_roots_ulong (unsigned long iter)
   mpz_poly_clear(F);
 }
 
-int
-main (int argc, const char *argv[])
+int main(int argc, char const * argv[])
 {
   unsigned long iter = 1000;
 

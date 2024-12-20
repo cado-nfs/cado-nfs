@@ -7,7 +7,6 @@
 #include <string>
 #include <array>
 #include <gmp.h>                 // for gmp_randstate_t
-struct timing_data;
 
 #include "select_mpi.h"
 #include "parallelizing_info.hpp"
@@ -64,8 +63,11 @@ struct matmul_top_matrix {
     int has_perm_map[2];
     inline bool has_perm(int d) const { return has_perm_map[d]; }
 
-
-    matmul_ptr mm;
+    /* It's shared because of interleaving.
+     * Note that when we get the interface from a shared lib, the shared
+     * ptr actually hides a call to a custom deleter.
+     */
+    std::shared_ptr<matmul_interface> mm;
 };
 
 struct matmul_top_data {
@@ -74,13 +76,15 @@ struct matmul_top_data {
     pi_datatype_ptr pitype;
     /* These n[] and n0[] correspond to the dimensions of the product
      *
-     * n[0] is matrices[0]->n[0]
-     * n[1] is matrices[nmatrices-1]->n[1]
+     * n[0] is matrices[0]->n[0] (number of rows, includding padding.)
+     * n[1] is matrices[nmatrices-1]->n[1] (number of columns, includding padding.)
+     *
+     * and without padding:
      * n0[0] is matrices[0]->n0[0]
      * n0[1] is matrices[nmatrices-1]->n0[1]
      */
-    unsigned int n[2];
-    unsigned int n0[2]; // n0: unpadded.
+    unsigned int n[2] { 0, 0 };
+    unsigned int n0[2] { 0, 0 }; // n0: unpadded.
 
     /* The matrix we are dealing with is
      * matrices[0] * matrices[1] * ... * matrices[nmatrices-1]
@@ -89,7 +93,7 @@ struct matmul_top_data {
     matmul_top_data(
         arith_generic * abase,
         parallelizing_info_ptr pi,
-        param_list_ptr pl,
+        cxx_param_list & pl,
         int optimized_direction);
     ~matmul_top_data();
 };
@@ -97,8 +101,8 @@ struct matmul_top_data {
 struct mmt_vec;
 
 
-extern void matmul_top_decl_usage(param_list_ptr pl);
-extern void matmul_top_lookup_parameters(param_list_ptr pl);
+extern void matmul_top_decl_usage(cxx_param_list & pl);
+extern void matmul_top_lookup_parameters(cxx_param_list & pl);
 extern void matmul_top_report(matmul_top_data & mmt, double scale, int full);
 extern unsigned int matmul_top_rank_upper_bound(matmul_top_data & mmt);
 #if 0

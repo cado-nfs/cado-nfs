@@ -9,7 +9,7 @@ size_t lingen_round_operand_size(size_t x, int bits) {/*{{{*/
     if (x == 0) return x;
     x -= 1;
     size_t y = x >> bits;
-    for(int i = 1 ; y ; y >>= i) x |= y;
+    for(int const i = 1 ; y ; y >>= i) x |= y;
     x += 1;
     return x;
 }/*}}}*/

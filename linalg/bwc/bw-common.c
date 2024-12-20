@@ -26,7 +26,7 @@ const char * bw_dirtext[] = { "left", "right" };
 
 typedef int (*sortfunc_t) (const void*, const void*);
 
-void bw_common_decl_usage(param_list pl)/*{{{*/
+void bw_common_decl_usage(param_list_ptr pl)/*{{{*/
 {
     /* We declare here the doc parameters which are parsed *in this file* !  */
 
@@ -93,10 +93,8 @@ const char * bw_common_usage_string()
 }
 #endif
 
-void bw_common_parse_cmdline(struct bw_params * bw, param_list pl, int * p_argc, char *** p_argv)/*{{{*/
+void bw_common_parse_cmdline(struct bw_params * bw, param_list_ptr pl, int * p_argc, char const *** p_argv)/*{{{*/
 {
-    bw->original_argc = *p_argc;
-    bw->original_argv = *p_argv;
     bw->wct_base = wct_seconds();
 
     (*p_argv)++, (*p_argc)--;
@@ -114,7 +112,7 @@ void bw_common_parse_cmdline(struct bw_params * bw, param_list pl, int * p_argc,
 }
 /*}}}*/
 
-void bw_common_interpret_parameters(struct bw_params * bw, param_list pl)/*{{{*/
+void bw_common_interpret_parameters(struct bw_params * bw, param_list_ptr pl)/*{{{*/
 {
     verbose_interpret_parameters(pl);
 
@@ -251,11 +249,11 @@ static int bw_common_init_defaults(struct bw_params * bw)/*{{{*/
 }
 /*}}}*/
 
-int doinit(int * p_argc, char *** p_argv, char ** pmpiinit_diag MAYBE_UNUSED,
+int doinit(int * p_argc, char const *** p_argv, char ** pmpiinit_diag MAYBE_UNUSED,
         int req, const char * reqname)
 {
     int prov;
-    MPI_Init_thread(p_argc, p_argv, req, &prov);
+    MPI_Init_thread(p_argc, (char ***) p_argv, req, &prov);
     if (req != prov) {
         fprintf(stderr, "Cannot init mpi with %s ;"
                 " got %d != req %d\n"
@@ -272,7 +270,7 @@ int doinit(int * p_argc, char *** p_argv, char ** pmpiinit_diag MAYBE_UNUSED,
     }
 }
 
-int bw_common_init(struct bw_params * bw, int * p_argc, char *** p_argv)/*{{{*/
+int bw_common_init(struct bw_params * bw, int * p_argc, char const *** p_argv)/*{{{*/
 {
     char * mpiinit_diag = NULL;
     int init_done = 0;
@@ -291,6 +289,9 @@ int bw_common_init(struct bw_params * bw, int * p_argc, char *** p_argv)/*{{{*/
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
     bw_common_init_defaults(bw);
+
+    bw->original_argc = *p_argc;
+    bw->original_argv = *p_argv;
 
     bw->can_print = rank == 0 || getenv("CAN_PRINT");
 
@@ -340,7 +341,7 @@ int bw_common_clear(struct bw_params * bw)/*{{{*/
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     double wct = wct_seconds() - bw->wct_base;
     double cpu = seconds();
-    char * ptr = strrchr(bw->original_argv[0], '/');
+    const char * ptr = strrchr(bw->original_argv[0], '/');
     if (ptr) {
         ptr++;
     } else {

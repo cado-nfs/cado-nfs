@@ -1,27 +1,29 @@
 #ifndef MF_BAL_HPP_
 #define MF_BAL_HPP_
 
+#include <string>
+
 #include "params.h"      // param_list_ptr
 
 struct mf_bal_args {
-    const char * rwfile;
-    const char * cwfile;
-    const char * mfile;
-    const char * bfile;
-    int quiet;
-    int nh;
-    int nv;
-    int withcoeffs;
-    int rectangular;
-    int skip_decorrelating_permutation;
-    enum { MF_BAL_PERM_YES, MF_BAL_PERM_NO, MF_BAL_PERM_AUTO } do_perm[2];
+    std::string rwfile;
+    std::string cwfile;
+    std::string mfile;
+    std::string bfile;
+    int quiet = 0;
+    int nh = 0;
+    int nv = 0;
+    int withcoeffs = 0;
+    int rectangular = 0;
+    int skip_decorrelating_permutation = 0;
+    enum { MF_BAL_PERM_YES, MF_BAL_PERM_NO, MF_BAL_PERM_AUTO } do_perm[2] { MF_BAL_PERM_AUTO, MF_BAL_PERM_AUTO };
 };
 
 void mf_bal(struct mf_bal_args * mba);
 void mf_bal_adjust_from_option_string(struct mf_bal_args * mba, const char * opts);
-void mf_bal_decl_usage(param_list_ptr pl);
-void mf_bal_configure_switches(param_list_ptr pl, struct mf_bal_args * mba);
-void mf_bal_parse_cmdline(struct mf_bal_args * mba, param_list_ptr pl, int * p_argc, char *** p_argv);
-void mf_bal_interpret_parameters(struct mf_bal_args * mba, param_list_ptr pl);
+void mf_bal_decl_usage(cxx_param_list& pl);
+void mf_bal_configure_switches(cxx_param_list & pl, struct mf_bal_args * mba);
+void mf_bal_parse_cmdline(struct mf_bal_args * mba, cxx_param_list & pl, int * p_argc, char const *** p_argv);
+void mf_bal_interpret_parameters(struct mf_bal_args * mba, cxx_param_list & pl);
 
 #endif	/* MF_BAL_HPP_ */

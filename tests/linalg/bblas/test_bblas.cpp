@@ -17,7 +17,7 @@
 #include "test_bpack.hpp"
 
 void
-print_features() /*{{{*/
+static print_features() /*{{{*/
 {
     printf("## compile-time features\n");
 #ifdef HAVE_M4RI
@@ -44,7 +44,7 @@ print_features() /*{{{*/
     printf("## ULONG_BITS=%d\n", ULONG_BITS);
 } /*}}}*/
 
-void
+static void
 declare_usage(cxx_param_list& pl) /*{{{*/
 {
     param_list_decl_usage(pl, "seed", "seed for random data generation");
@@ -54,12 +54,12 @@ declare_usage(cxx_param_list& pl) /*{{{*/
 } /*}}}*/
 
 // coverity[root_function]
-int
-main(int argc, char* argv[])
+int main(int argc, char const * argv[])
 {
     cxx_param_list pl;
     unsigned int n = 2 * 1000 * 1000;
     int seed = 0;
+    declare_usage(pl);
     param_list_configure_switch(pl, "-fast", &test_bblas_base::test_accel);
     const char* argv0 = argv[0];
     argc--, argv++;

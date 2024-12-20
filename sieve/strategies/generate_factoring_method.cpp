@@ -52,7 +52,7 @@ const double BENCH_MIN_PROBA = 0.03;
  */
 double *distribution_prime_number(int min, int max)
 {
-    int len = max - min +1;
+    int const len = max - min +1;
     ASSERT(len >= 0);
 
     double *tab = (double*) malloc(len * sizeof(double));
@@ -132,7 +132,7 @@ generate_composite_integer(gmp_randstate_t state,
 int
 select_random_index_according_dist(double *dist, int len)
 {
-    int alea = rand(); /* 0 <= alea <= RAND_MAX */
+    int const alea = rand(); /* 0 <= alea <= RAND_MAX */
     int i = 0;
     int bound = (int) (dist[0] * (double) RAND_MAX);
     while (i < (len-1) && alea > bound) {
@@ -152,8 +152,8 @@ generate_composite_integer_interval(gmp_randstate_t state,
 				    double *dist, int lenFact1_min,
 				    int lenFact1_max, int lenFactall)
 {
-    int len = lenFact1_max -lenFact1_min +1;
-    int index = select_random_index_according_dist(dist, len);
+    int const len = lenFact1_max -lenFact1_min +1;
+    int const index = select_random_index_according_dist(dist, len);
     return generate_composite_integer(state, lenFact1_min + index, lenFactall);
     // return lenFact1_min + index;
 }
@@ -183,7 +183,7 @@ generate_fm (int method,
     else 
         sigma = 2 + rand()%BOUND_SIGMA;
 
-    std::vector<facul_method::parameters> m(1,
+    std::vector<facul_method::parameters> const m(1,
             { method, B1, B2, curve, sigma, 1 });
     return facul_strategy_oneside(0ul, 0u, 0u, m, 0);
 }
@@ -217,7 +217,7 @@ bench_proba_fm(facul_strategy_oneside const & strategy, gmp_randstate_t state,
         if (nb_test == N.size())
             N.push_back(generate_composite_integer(state, len_p, len_n));
 
-	int nfound = facul(f, N[nb_test], strategy);
+	int const nfound = facul(f, N[nb_test], strategy);
 
 	nb_success += (nfound != 0);
 	nb_test++;
@@ -255,7 +255,7 @@ bench_time_fm_onelength(facul_strategy_oneside const & method, std::vector<cxx_m
 void bench_proba(gmp_randstate_t state, tabular_fm_t * fm, int len_p_min,
         int p_max, size_t nb_test_max)
 {
-    int len = fm->index;	//number of methods!
+    int const len = fm->index;	//number of methods!
     if (p_max == 0)
         p_max = 100;
     if (nb_test_max == 0)
@@ -272,20 +272,20 @@ void bench_proba(gmp_randstate_t state, tabular_fm_t * fm, int len_p_min,
     for (int i = 0; i < len; i++) {
 	elem = tabular_fm_get_fm(fm, i);
 	param = fm_get_method(elem);
-	unsigned long method = param[0];
-	ec_parameterization_t curve = (ec_parameterization_t) param[1];
-	unsigned long B1 = param[2];
-	unsigned long B2 = param[3];
+	unsigned long const method = param[0];
+	ec_parameterization_t const curve = (ec_parameterization_t) param[1];
+	unsigned long const B1 = param[2];
+	unsigned long const B2 = param[3];
 
-	facul_strategy_oneside st = generate_fm (method, B1, B2, curve);
+	facul_strategy_oneside const st = generate_fm (method, B1, B2, curve);
 
 	int ind_proba = 0;
 	do {
 	    if (B1 == 0 && B2 == 0)
 		proba[ind_proba] = 0;
 	    else {
-		int len_p = len_p_min + ind_proba;
-		int len_n = 60 + len_p;
+		int const len_p = len_p_min + ind_proba;
+		int const len_n = 60 + len_p;
 		proba[ind_proba] = bench_proba_fm(st, state, len_p,
 						  len_n, N[ind_proba],
 						  nb_test_max);
@@ -309,7 +309,7 @@ void bench_time(gmp_randstate_t state, tabular_fm_t * fm, size_t nb_test)
 {
     unsigned long *param;
     fm_t *elem;
-    int len = fm->index;	//number of methods!
+    int const len = fm->index;	//number of methods!
     //precompute 4 arrays for our bench_time!
     //{{
     if (nb_test == 0)
@@ -329,12 +329,12 @@ void bench_time(gmp_randstate_t state, tabular_fm_t * fm, size_t nb_test)
     for (int i = 0; i < len; i++) {
 	elem = tabular_fm_get_fm(fm, i);
 	param = fm_get_method(elem);
-	unsigned long method = param[0];
-	ec_parameterization_t curve = (ec_parameterization_t) param[1];
-	unsigned long B1 = param[2];
-	unsigned long B2 = param[3];
+	unsigned long const method = param[0];
+	ec_parameterization_t const curve = (ec_parameterization_t) param[1];
+	unsigned long const B1 = param[2];
+	unsigned long const B2 = param[3];
 	if (B1 != 0 || B2 != 0) {
-	    facul_strategy_oneside st = generate_fm(method, B1, B2, curve);
+	    facul_strategy_oneside const st = generate_fm(method, B1, B2, curve);
 	    double time[4];
 	    time[0]= bench_time_fm_onelength(st, N1, nb_test);
 	    time[1]= bench_time_fm_onelength(st, N2, nb_test);
@@ -462,12 +462,12 @@ static weighted_success bench_proba_time_pset_onefm(facul_strategy_oneside const
         //computes the the time of execution
         f.clear();
         ASSERT_ALWAYS(nb_test < N.size());
-	int nfound = facul(f, N[nb_test], strategy);
+	int const nfound = facul(f, N[nb_test], strategy);
         nb_succes+= (nfound != 0);
 	nb_test++;
     }
     endtime = microseconds();
-    double tps = endtime - starttime;
+    double const tps = endtime - starttime;
 
     return weighted_success(nb_succes, tps, nb_test);
 }
@@ -511,7 +511,7 @@ bench_proba_time_pset (int method, ec_parameterization_t curve,
     }
     
     //{{Will contain the our composite integers!
-    int nb_test_max = 10000;
+    int const nb_test_max = 10000;
     std::vector<cxx_mpz> N;
     double *disp = distribution_prime_number(len_p_min, len_p_max);
     for (int i = 0; i < nb_test_max; i++)
@@ -544,11 +544,11 @@ bench_proba_time_pset (int method, ec_parameterization_t curve,
 	unsigned long elem[4];
 	double proba = 0;
 	double tps = 0;
-	double max_proba = 0.9;
+	double const max_proba = 0.9;
 
 	while (B1 <= b1_max && proba < max_proba) {
 	    facul_strategy_oneside const & fm = generate_fm(method, B1, B2, curve);
-	    weighted_success res = bench_proba_time_pset_onefm(fm, N, nb_test_max);
+	    weighted_success const res = bench_proba_time_pset_onefm(fm, N, nb_test_max);
 	    proba = res.prob;
 	    tps = res.time;
 	    
@@ -621,8 +621,8 @@ tabular_fm_t *generate_factoring_methods(gmp_randstate_t state, int len_p_min,
     //we begin by the first method:
     int ind_method = 0;
     int ind_curve = 0;
-    ec_parameterization_t curve[3] = {MONTY12, MONTY16, BRENT12};
-    int method[4] = {PM1_METHOD, PP1_27_METHOD, PP1_65_METHOD, EC_METHOD};
+    ec_parameterization_t const curve[3] = {MONTY12, MONTY16, BRENT12};
+    int const method[4] = {PM1_METHOD, PP1_27_METHOD, PP1_65_METHOD, EC_METHOD};
     while (ind_method < 4 && ind_curve < 3) {
 
 	printf("method = %d, curve = %d\n",
@@ -663,7 +663,7 @@ tabular_fm_t *convex_hull_from_file(FILE * file_in, FILE * file_out)
 
     tabular_fm_free(all_st);
 
-    int err = tabular_fm_fprint(file_out, res);
+    int const err = tabular_fm_fprint(file_out, res);
     if (err < 0) {
         tabular_fm_free(res);
 	return NULL;
@@ -686,9 +686,9 @@ get_nb_word (int r)
       64 bits. So, if you don't add 0.5 to MODREDCUL_MAXBITS, you
       lost the equal and thus insert an error in your maths. 
     */
-    double half_word = (MODREDCUL_MAXBITS+0.5)/2.0;
-    int number_half_wd = floor(r /half_word);
-    int ind = (number_half_wd <2)? 0: number_half_wd - 1;
+    double const half_word = (MODREDCUL_MAXBITS+0.5)/2.0;
+    int const number_half_wd = floor(r /half_word);
+    int const ind = (number_half_wd <2)? 0: number_half_wd - 1;
     return ind;
 }
 
@@ -702,7 +702,7 @@ necessarily that we want!
 tabular_fm_t *filtering(tabular_fm_t * tab, int final_nb_methods)
 {
     //create the matrix with the average dist between a pair of methods!
-    int nb_methods = tab->index;
+    int const nb_methods = tab->index;
     double **dist = (double**) malloc(nb_methods * sizeof(double *));
     ASSERT(dist != NULL);
     for (int i = 0; i < nb_methods; i++) {
@@ -734,7 +734,7 @@ tabular_fm_t *filtering(tabular_fm_t * tab, int final_nb_methods)
 
 	    //compute dist
 	    double moy_dist = 0;
-	    int nb_elem = (elj->len_proba < eli->len_proba)?
+	    int const nb_elem = (elj->len_proba < eli->len_proba)?
 		elj->len_proba:eli->len_proba;
 	    for (int p = 0; p < nb_elem; p++) {
 		double tmp = compromis_i[p] - compromis_j[p];
@@ -789,9 +789,9 @@ tabular_fm_t *filtering(tabular_fm_t * tab, int final_nb_methods)
 		    {
 			fm_t* el0 = tabular_fm_get_fm(tab, sort_dist[ind][0]);
 			fm_t* el1 = tabular_fm_get_fm(tab, sort_dist[ind][1]);
-			double ratio0 = (el0->proba[0] < EPSILON_DBL)?
+			double const ratio0 = (el0->proba[0] < EPSILON_DBL)?
 			    0:el0->time[0]/el0->proba[0];
-			double ratio1 = (el1->proba[0] < EPSILON_DBL)?
+			double const ratio1 = (el1->proba[0] < EPSILON_DBL)?
 			    0:el1->time[0]/el1->proba[0];
 
 			if ( ratio0 > ratio1)
@@ -842,7 +842,7 @@ tabular_fm_t *filtering(tabular_fm_t * tab, int final_nb_methods)
 tabular_point_t *convert_tab_point_to_tab_fm(tabular_fm_t * t)
 {
     tabular_point_t *res = tabular_point_create();
-    int len = tabular_fm_get_index(t);
+    int const len = tabular_fm_get_index(t);
     fm_t *elem;
     for (int i = 0; i < len; i++) {
 	elem = tabular_fm_get_fm(t, i);
@@ -855,9 +855,9 @@ tabular_fm_t *convert_tab_fm_to_tab_point(tabular_point_t * t,
 					  tabular_fm_t * init)
 {
     tabular_fm_t *res = tabular_fm_create();
-    int len = tabular_point_get_index(t);
+    int const len = tabular_point_get_index(t);
     for (int i = 0; i < len; i++) {
-	int index = point_get_number(tabular_point_get_point(t, i));
+	int const index = point_get_number(tabular_point_get_point(t, i));
 	tabular_fm_add_fm(res, init->tab[index]);
     }
     return res;

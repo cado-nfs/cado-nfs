@@ -38,7 +38,7 @@ void param_list_init(param_list_ptr pl)
 void param_list_set(param_list_ptr pl, param_list_srcptr pl0)
 {
     param_list_impl & pli = *static_cast<param_list_impl *>(pl->pimpl);
-    param_list_impl & pli0 = *static_cast<param_list_impl *>(pl0->pimpl);
+    param_list_impl  const& pli0 = *static_cast<param_list_impl *>(pl0->pimpl);
     pli = pli0;
 }
 
@@ -66,7 +66,7 @@ void param_list_usage_header(param_list_ptr pl, const char * hdr, ...)
     va_list ap;
     va_start(ap, hdr);
     char * tmp;
-    int rc = vasprintf(&tmp, hdr, ap);
+    int const rc = vasprintf(&tmp, hdr, ap);
     ASSERT_ALWAYS(rc >= 0);
     pli.usage_header = std::string(tmp);
     free(tmp);
@@ -128,7 +128,7 @@ void param_list_print_usage(param_list_srcptr pl, const char * argv0, FILE *f)
 }
 
 template<typename... Args>
-void param_list_add_key(param_list_impl & pli,
+static void param_list_add_key(param_list_impl & pli,
         std::string const & key,
         Args&& ...args)
 {
@@ -222,7 +222,7 @@ int param_list_read_stream(param_list_ptr pl, FILE *f, int stop_on_empty_line)
         }
         for( ; p[l] && (isalnum((int)(unsigned char)p[l]) || p[l] == '_' || p[l] == '-') ; l++);
 
-        int lhs_length = l;
+        int const lhs_length = l;
 
         if (lhs_length == 0) {
             fprintf(stderr, "Parse error, no usable key for config line:\n%s\n",
@@ -265,7 +265,7 @@ int param_list_read_file(param_list_ptr pl, const char * name)
         fprintf(stderr, "Cannot read %s\n", name);
         exit(1);
     }
-    int r = param_list_read_stream(pl, f, 0);
+    int const r = param_list_read_stream(pl, f, 0);
     fclose(f);
     return r;
 }
@@ -302,7 +302,7 @@ int param_list_configure_switch(param_list_ptr pl, const char * switchname, int 
 }
 
 int param_list_update_cmdline(param_list_ptr pl,
-        int * p_argc, char *** p_argv)
+        int * p_argc, char const *** p_argv)
 {
     param_list_impl & pli = *static_cast<param_list_impl *>(pl->pimpl);
     ASSERT_ALWAYS(*p_argv != NULL);
@@ -403,13 +403,13 @@ static const char *
 get_assoc_ptr(param_list_ptr pl, const char * key, bool stealth = false, int * const seen = NULL)
 {
     param_list_impl & pli = *static_cast<param_list_impl *>(pl->pimpl);
-    std::lock_guard<std::mutex> dummy(mutex);
+    std::lock_guard<std::mutex> const dummy(mutex);
     if (pli.use_doc) {
         for(int i = 0 ; i < 2 && *key == '-' ; key++, i++) ;
         if (!stealth && !is_documented_key(pl, key)) 
             fprintf(stderr, "# Warning: parameter %s is checked by this program but is undocumented.\n", key);
     }
-    auto it = pli.p.find(key);
+    auto it = pli.p.find(key ? key : "");
     if (it == pli.p.end())
         return NULL;
 
@@ -424,7 +424,7 @@ get_assoc(param_list_ptr pl, const char * key, std::string & value, bool stealth
     const char * t = get_assoc_ptr(pl, key, stealth, seen);
     if (t)
         value = t;
-    return t != NULL;
+    return t != nullptr;
 }
 
 
@@ -477,7 +477,7 @@ template<> struct parse<std::string> {
 };
 
 template<typename T>
-bool
+static bool
 parse_list(std::string const & s, std::vector<T> & value, std::string const & sep)
 {
     std::vector<std::string> tokens;
@@ -558,8 +558,7 @@ template<> struct parse<cxx_mpz> {
 };
 
 template<typename T>
-int
-param_list_parse_inner(param_list_ptr pl, const char * key, T & r, bool stealth = false)
+static int param_list_parse_inner(param_list_ptr pl, const char * key, T & r, bool stealth = false)
 {
     std::string value;
     std::string diagnostic;
@@ -579,6 +578,37 @@ param_list_parse_inner(param_list_ptr pl, const char * key, T & r, bool stealth 
     throw parameter_exception(ss.str());
 }
 
+template<>
+int
+param_list_parse_inner<bool>(param_list_ptr pl, const char * key, bool & r, bool stealth)
+{
+    std::string value;
+    std::string diagnostic;
+    if (!get_assoc(pl, key, value, stealth))
+        return 0;
+    try {
+        int v;
+        if (parse<int>()(value, v)) {
+            r = v;
+            return 1;
+        } else if (value == "true" || value == "True" || value == "yes" || value == "on") {
+            r = true;
+            return 1;
+        } else if (value == "false" || value == "False" || value == "no" || value == "off") {
+            r = false;
+            return 1;
+        }
+    } catch (parameter_exception const & e) {
+        diagnostic = e.what();
+    }
+
+    auto s = fmt::format("cannot cast parameter {} to type bool", key);
+    if (!diagnostic.empty()) {
+        s += ": " + diagnostic;
+    }
+    throw parameter_exception(s);
+}
+
 template<typename T>
 int
 param_list_parse(param_list_ptr pl, const char * key, T & r)
@@ -587,6 +617,7 @@ param_list_parse(param_list_ptr pl, const char * key, T & r)
 }
 
 
+template int param_list_parse<bool>(param_list_ptr pl, const char * key, bool & r);
 template int param_list_parse<int>(param_list_ptr pl, const char * key, int & r);
 template int param_list_parse<unsigned int>(param_list_ptr pl, const char * key, unsigned int & r);
 #ifndef LONG_IS_EXACTLY_INT
@@ -604,6 +635,8 @@ template int param_list_parse<std::vector<int>>(param_list_ptr pl, const char * 
 template int param_list_parse<std::vector<std::string>>(param_list_ptr pl, const char * key, std::vector<std::string> & r);
 
 template int param_list_parse<std::string>(param_list_ptr pl, const char * key, std::string & r);
+template int param_list_parse<cxx_mpz>(param_list_ptr pl, const char * key, cxx_mpz & r);
+template int param_list_parse<cxx_mpz_poly>(param_list_ptr pl, const char * key, cxx_mpz_poly & r);
 
 int param_list_parse_long(param_list_ptr pl, const char * key, long * r)
 {
@@ -651,9 +684,9 @@ int param_list_parse_string(param_list_ptr pl, const char * key, char * r, size_
     if (!get_assoc(pl, key, value))
         return 0;
     if (r && strlcpy(r, value.c_str(), n) > n) {
-        throw parameter_exception { fmt::format(FMT_STRING(
+        throw parameter_exception { fmt::format(
                 " parameter for key {} does not fit within string buffer"
-                " of length {}\n"), key, n) };
+                " of length {}\n", key, n) };
     }
     return 1;
 }
@@ -662,7 +695,7 @@ int param_list_parse_mpz(param_list_ptr pl, const char * key,
     mpz_ptr f)
 {
     cxx_mpz P;
-    int b = param_list_parse(pl, key, P);
+    int const b = param_list_parse(pl, key, P);
     if (b)
         mpz_set(f, P);
     return b;
@@ -672,7 +705,7 @@ int param_list_parse_mpz_poly(param_list_ptr pl, const char * key,
     mpz_poly_ptr f)
 {
     cxx_mpz_poly P;
-    int b = param_list_parse(pl, key, P);
+    int const b = param_list_parse(pl, key, P);
     if (b)
         mpz_poly_set(f, P);
     return b;
@@ -680,7 +713,7 @@ int param_list_parse_mpz_poly(param_list_ptr pl, const char * key,
 
 
 template<typename T>
-int param_list_parse_pair_with_and(param_list_ptr pl, const char * key, T * res, const char * sep)
+static int param_list_parse_pair_with_and(param_list_ptr pl, const char * key, T * res, const char * sep)
 {
     std::vector<T> r;
     std::string value;
@@ -735,7 +768,7 @@ int param_list_parse_double_and_double(param_list_ptr pl, const char * key, doub
 
 
 template<typename T>
-int param_list_parse_list(param_list_ptr pl, const char * key, std::vector<T> & res, const char * sep, bool stealth = false)
+static int param_list_parse_list(param_list_ptr pl, const char * key, std::vector<T> & res, const char * sep, bool stealth = false)
 {
     std::string value;
     std::string diagnostic;
@@ -793,31 +826,18 @@ size_t param_list_get_list_count(param_list_ptr pl, const char * key)
 
 /* this returns the size of the list, it's a bit awkward */
 template<typename T>
-int param_list_parse_raw_fixed_list(param_list_ptr pl, const char * key, T * r, size_t n, const char * sep)
+static int param_list_parse_raw_fixed_list(param_list_ptr pl, const char * key, T * r, size_t n, const char * sep)
 {
     std::vector<T> v;
     if (!param_list_parse_list(pl, key, v, sep))
         return 0;
 
     if (v.size() > n) {
-        throw parameter_exception { fmt::format(FMT_STRING(
+        throw parameter_exception { fmt::format(
                     " parameter for key {} does not fit in fixed list"
-                    " of length {}\n"), key, n) };
+                    " of length {}\n", key, n) };
     }
     std::copy(v.begin(), v.end(), r);
-    return v.size();
-}
-
-template<typename T>
-int param_list_parse_raw_variable_list(param_list_ptr pl, const char * key, T ** r, size_t * n, const char * sep)
-{
-    std::vector<T> v;
-    if (!param_list_parse_list(pl, key, v, sep))
-        return 0;
-
-    *r = new T[v.size()];
-    *n = v.size();
-    std::copy(v.begin(), v.end(), *r);
     return v.size();
 }
 
@@ -845,12 +865,6 @@ int param_list_parse_uint64_list(param_list_ptr pl, const char * key,
     return param_list_parse_raw_fixed_list(pl, key, r, n, sep);
 }
 
-int param_list_parse_uint_list_size(param_list_ptr pl, const char * key , unsigned int ** r ,
-        size_t *n)
-{
-    return param_list_parse_raw_variable_list (pl, key, r, n, ",");
-}
-
 const char * param_list_lookup_string(param_list_ptr pl, const char * key)
 {
     return get_assoc_ptr(pl, key);
@@ -865,7 +879,7 @@ int param_list_parse_switch(param_list_ptr pl, const char * key)
     if (!get_assoc(pl, key, value, false, &seen))
         return 0;
     if (!value.empty())
-        throw parameter_exception(fmt::format(FMT_STRING("Parse error: option {} accepts no argument\n"), key));
+        throw parameter_exception(fmt::format("Parse error: option {} accepts no argument\n", key));
     return seen;
 }
 
@@ -938,8 +952,8 @@ void param_list_print_command_line(FILE * stream, param_list_srcptr pl)
     if (!pli.cmdline_argv0)
         return;
 
-    char **argv = pli.cmdline_argv0;
-    int argc = pli.cmdline_argc0;
+    char const **argv = pli.cmdline_argv0;
+    int const argc = pli.cmdline_argc0;
 
     if (verbose_enabled(CADO_VERBOSE_PRINT_CMDLINE)) {
         /* print command line */
@@ -1031,9 +1045,9 @@ int param_list_parse_per_side(param_list_ptr pl, const char * key, T * lpb_arg, 
     int has_lpb01 = 0;
     for(int side = 0 ; side < n ; side++) {
         char * keyi;
-        int rc = asprintf(&keyi, "%s%u", key, side);
+        int const rc = asprintf(&keyi, "%s%u", key, side);
         ASSERT_ALWAYS(rc >= 0);
-        int gotit = param_list_parse_inner<T>(pl, keyi, lpb_arg[side], true);
+        int const gotit = param_list_parse_inner<T>(pl, keyi, lpb_arg[side], true);
         free(keyi);
         if (!gotit && side == 0 && policy == ARGS_PER_SIDE_DEFAULT_COPY_PREVIOUS)
             break;
@@ -1044,11 +1058,11 @@ int param_list_parse_per_side(param_list_ptr pl, const char * key, T * lpb_arg, 
         /* at this point we know that key0 has a value */
         for(int side = 0 ; side < n ; side++) {
             char * keyi;
-            int rc = asprintf(&keyi, "%s%u", key, side);
+            int const rc = asprintf(&keyi, "%s%u", key, side);
             ASSERT_ALWAYS(rc >= 0);
             if (side)
                 lpb_arg[side] = lpb_arg[side - 1];
-            int gotit = param_list_parse_inner<T>(pl, keyi, lpb_arg[side], true);
+            int const gotit = param_list_parse_inner<T>(pl, keyi, lpb_arg[side], true);
             ASSERT_ALWAYS(side > 0 || gotit);
             free(keyi);
         }
@@ -1059,11 +1073,11 @@ int param_list_parse_per_side(param_list_ptr pl, const char * key, T * lpb_arg, 
     {
 
         if (!(has_nlpbs = param_list_parse_list(pl, key, temp, ","))) {
-            char c = std::string(key).back();
+            char const c = std::string(key).back();
             if (c != 'x' && c != 's') {
                 /* try with s. */
                 char * keys;
-                int rc = asprintf(&keys, "%ss", key);
+                int const rc = asprintf(&keys, "%ss", key);
                 ASSERT_ALWAYS(rc >= 0);
                 has_nlpbs = param_list_parse_list(pl, keys, temp, ",", true);
                 free(keys);
@@ -1074,9 +1088,8 @@ int param_list_parse_per_side(param_list_ptr pl, const char * key, T * lpb_arg, 
             lpb_arg[i] = temp[i];
         if (has_nlpbs > n)
             throw parameter_exception(fmt::format(
-                        FMT_STRING(
                             "Number of values for parameter {}"
-                            " exceeds the maximum {}.")
+                            " exceeds the maximum {}."
                         , key, n));
 
     }

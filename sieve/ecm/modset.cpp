@@ -1,6 +1,6 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <limits.h>        // for LONG_BIT
+#include <limits.h>        // for ULONG_BITS
 #include <stdlib.h>        // for abort, size_t
 
 #include "modset.hpp"
@@ -28,7 +28,7 @@ FaculModulusBase::init_15ul (const modintredc15ul_t n)
 {
   const size_t bits = modredc15ul_intbits (n);
   unsigned long t1[2];
-  size_t nr_words = modredc15ul_intget_uls(t1, n);
+  size_t const nr_words = modredc15ul_intget_uls(t1, n);
   ASSERT_ALWAYS(nr_words <= 2);
 
   if (bits <= MODREDCUL_MAXBITS) {
@@ -50,7 +50,7 @@ FaculModulusBase::init_2ul2 (const modintredc2ul2_t n)
 {
   const size_t bits = modredc2ul2_intbits (n);
   unsigned long t1[2];
-  size_t nr_words = modredc2ul2_intget_uls(t1, n);
+  size_t const nr_words = modredc2ul2_intget_uls(t1, n);
   ASSERT_ALWAYS(nr_words <= 2);
 
   if (bits <= MODREDCUL_MAXBITS) {
@@ -83,7 +83,7 @@ FaculModulusBase::init_mpz (const modintmpz_t n)
   FaculModulusBase *m;
   if (bits <= MODREDCUL_MAXBITS) {
       unsigned long t1[1];
-      size_t nr_words = modmpz_intget_uls(t1, n);
+      size_t const nr_words = modmpz_intget_uls(t1, n);
       ASSERT_ALWAYS(nr_words <= 1);
       modintredcul_t i;
       modredcul_intinit(i);
@@ -94,7 +94,7 @@ FaculModulusBase::init_mpz (const modintmpz_t n)
   } else if (bits <= MODREDC15UL_MAXBITS) {
       unsigned long t1[2];
       modintredc15ul_t t2;
-      size_t nr_words = modmpz_intget_uls(t1, n);
+      size_t const nr_words = modmpz_intget_uls(t1, n);
       ASSERT_ALWAYS(nr_words <= 2);
       modredc15ul_intinit (t2);
       modredc15ul_intset_uls (t2, t1, nr_words);
@@ -105,7 +105,7 @@ FaculModulusBase::init_mpz (const modintmpz_t n)
     {
       unsigned long t1[2];
       modintredc2ul2_t t2;
-      size_t nr_words = modmpz_intget_uls(t1, n);
+      size_t const nr_words = modmpz_intget_uls(t1, n);
       ASSERT_ALWAYS(nr_words <= 2);
       modredc2ul2_intinit (t2);
       modredc2ul2_intset_uls (t2, t1, nr_words);
@@ -162,7 +162,7 @@ void
 FaculModulus15Ul::get_z (mpz_t z) const
 {
     mpz_set_ui (z, m->m[1]);
-    mpz_mul_2exp (z, z, LONG_BIT);
+    mpz_mul_2exp (z, z, ULONG_BITS);
     mpz_add_ui (z, z, m->m[0]);
 }
 
@@ -185,7 +185,7 @@ void
 FaculModulus2Ul2::get_z (mpz_t z) const
 {
     mpz_set_ui (z, m->m[1]);
-    mpz_mul_2exp (z, z, LONG_BIT);
+    mpz_mul_2exp (z, z, ULONG_BITS);
     mpz_add_ui (z, z, m->m[0]);
 }
 

@@ -1,8 +1,13 @@
-#include <stdlib.h>
 #ifndef ALLOC_PROXY_H_
 #define ALLOC_PROXY_H_
 
+#ifdef __cplusplus
+#include <cstdlib>
+#endif
+
 #include "macros.h"
+
+// scan-headers: stop here
 
 /* This header file defines mynew/mynew/mymalloc/myfree, where deletions
  * require the size to be provided -- this makes it easier to plug in

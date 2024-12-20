@@ -1,10 +1,12 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include "modredc64.hpp"
+#include "macros.h"
+
+// scan-headers: stop here
 
 typedef ModulusREDC64 Modulus;
-
-#include "mod64_common.cpp"
-#include "macros.h"
+#include "mod64_common.cpp"     // NOLINT(bugprone-suspicious-include)
 
 bool
 Modulus::inv (Residue &r, const Residue &A) const
@@ -277,7 +279,7 @@ Modulus::batchinv_u64 (uint64_t * r_ul,
   }
 
   R.r = r_ul[n-1];
-  int rc = inv(R, R);
+  int const rc = inv(R, R);
   if (rc == 0)
     return 0;
   mul_u64_u64(R.r, R, c);
@@ -326,7 +328,7 @@ Modulus::batch_Q_to_Fp (uint64_t *r, const uint64_t num,
                          const size_t n) const
 {
   const uint64_t ratio = num / den, rem = num % den;
-  Modulus D(den);
+  Modulus const D(den);
 
   ASSERT_ALWAYS(den % 2 == 1);
   /* We use -rem (mod den) here. batchinv_ul() does not

@@ -1,6 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
 // IWYU pragma: no_include <ext/alloc_traits.h>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <vector>
 #include <memory>
@@ -21,12 +22,12 @@ using namespace std;
 using namespace mmap_allocator_details;
 
 
-const char * tmpdir = "/tmp";
+static const char * tmpdir = "/tmp";
 
-const char * TESTFILE;
-const char * TESTFILE2;
+static const char * TESTFILE;
+static const char * TESTFILE2;
 
-void generate_test_file(int count, const char *fname)
+static void generate_test_file(int count, const char *fname)
 {
     FILE * f = fopen(fname, "w+");
     for (int i=0;i<count;i++) {
@@ -35,26 +36,26 @@ void generate_test_file(int count, const char *fname)
     fclose(f);
 }
 
-void test_test_file(int count, const char * fname, bool expect_zeros)
+static void test_test_file(int count, const char * fname, bool expect_zeros)
 {
     FILE * f = fopen(fname, "r");
     for (int i=0;i<count;i++) {
         int j;
-        int n = fread(&j, 1, sizeof(j), f);
+        int const n = fread(&j, 1, sizeof(j), f);
         ASSERT_ALWAYS(n == (int) sizeof(j));
         ASSERT_ALWAYS(j == (expect_zeros ? 0 : i));
     }
     fclose(f);
 }
 
-void test_mmap(void)
+static void test_mmap(void)
 {
     generate_test_file(1024, TESTFILE);
     generate_test_file(1024*1024, TESTFILE2);
 
     {
         fprintf(stderr, "Testing R/O mapping\n");
-        mmapped_file M(TESTFILE, READ_ONLY);
+        mmapped_file const M(TESTFILE, READ_ONLY);
         mmappable_vector<int> int_vec_default(mmap_allocator<int>(M, 0, 1024));
         int_vec_default.mmap(1024);
         ASSERT_ALWAYS(int_vec_default.size() == 1024);
@@ -69,7 +70,7 @@ void test_mmap(void)
     /* Now do the same test read-write */
     {
         fprintf(stderr, "Testing private R/W mapping\n");
-        mmapped_file M(TESTFILE, READ_WRITE_PRIVATE);
+        mmapped_file const M(TESTFILE, READ_WRITE_PRIVATE);
         mmappable_vector<int> int_vec_default(mmap_allocator<int>(M, 0, 1024));
         int_vec_default.mmap(1024);
         ASSERT_ALWAYS(int_vec_default.size() == 1024);
@@ -85,7 +86,7 @@ void test_mmap(void)
      * different */
     {
         fprintf(stderr, "Testing shared R/W mapping\n");
-        mmapped_file M(TESTFILE, READ_WRITE_SHARED);
+        mmapped_file const M(TESTFILE, READ_WRITE_SHARED);
         mmappable_vector<int> int_vec_default(mmap_allocator<int>(M, 0, 1024));
         int_vec_default.mmap(1024);
         ASSERT_ALWAYS(int_vec_default.size() == 1024);
@@ -102,7 +103,7 @@ void test_mmap(void)
     /* Now how does it go if we map only part of a file */
     {
         fprintf(stderr, "Testing fragment mapping\n");
-        mmapped_file M(TESTFILE2, READ_WRITE_SHARED, 8000, 1040576);
+        mmapped_file const M(TESTFILE2, READ_WRITE_SHARED, 8000, 1040576);
         mmappable_vector<int> int_vec_default(mmap_allocator<int>(M, 8000, 1024));
         int_vec_default.mmap(1024);
         ASSERT_ALWAYS(int_vec_default.size() == 1024);
@@ -116,7 +117,7 @@ void test_mmap(void)
      */
     {
         fprintf(stderr, "Testing value-initialized + private mapping\n");
-        mmapped_file M(TESTFILE, READ_WRITE_PRIVATE);
+        mmapped_file const M(TESTFILE, READ_WRITE_PRIVATE);
         mmappable_vector<int> int_vec_default(1024, 0, mmap_allocator<int>(M, 0, 1024));
         ASSERT_ALWAYS(int_vec_default.size() == 1024);
         for (int i=0;i<1024;i++) {
@@ -128,7 +129,7 @@ void test_mmap(void)
     /* on a shared mapping, we're supposed to get the zeroes */
     {
         fprintf(stderr, "Testing value-initialized + shared mapping\n");
-        mmapped_file M(TESTFILE, READ_WRITE_SHARED);
+        mmapped_file const M(TESTFILE, READ_WRITE_SHARED);
         mmappable_vector<int> int_vec_default(1024, 0, mmap_allocator<int>(M, 0, 1024));
         ASSERT_ALWAYS(int_vec_default.size() == 1024);
         for (int i=0;i<1024;i++) {
@@ -141,7 +142,7 @@ void test_mmap(void)
     }
 }
 
-void test_conversion(void)
+static void test_conversion(void)
 {
     fprintf(stderr, "Testing conversion between STL vector and mmap vector.\n");
     generate_test_file(1024, TESTFILE);
@@ -165,7 +166,7 @@ void test_conversion(void)
     }
 }
 
-void test_shortcut_interface(void)
+static void test_shortcut_interface(void)
 {
     fprintf(stderr, "Testing shortcut interface\n");
 
@@ -193,7 +194,7 @@ void test_shortcut_interface(void)
     }
 }
 
-void test_cache_bug(void)
+static void test_cache_bug(void)
 {
     mmappable_vector<int> vec;
 
@@ -208,7 +209,7 @@ void test_cache_bug(void)
 
 #define FILESIZE (1024*1024*16)
 
-void read_large_file(enum access_mode mode)
+static void read_large_file(enum access_mode mode)
 {
     // struct timeval t, t2;
     mmappable_vector<int> vec;
@@ -223,7 +224,7 @@ void read_large_file(enum access_mode mode)
     // fprintf(stderr, "Mode: %d Time: %lu.%06lu\n", mode, (t2.tv_sec - t.tv_sec)-(t2.tv_usec < t.tv_usec), (t2.tv_usec < t.tv_usec)*1000000 + (t2.tv_usec - t.tv_usec));
 }
 
-void test_large_file(void)
+static void test_large_file(void)
 {
     fprintf(stderr, "Testing large file.\n");
     generate_test_file(FILESIZE, TESTFILE); /* 1G */
@@ -233,7 +234,7 @@ void test_large_file(void)
     read_large_file(READ_WRITE_SHARED);
 }
 
-void test_multiple_open(void)
+static void test_multiple_open(void)
 {
     generate_test_file(1024, TESTFILE);
     generate_test_file(1024, TESTFILE2);
@@ -252,8 +253,8 @@ void test_multiple_open(void)
     /* It is better to specifically create a mapping for the file, and
      * use it. That way, we have only one mmap() per file */
     {
-        mmapped_file M(TESTFILE, READ_ONLY);
-        mmapped_file M2(TESTFILE2, READ_ONLY);
+        mmapped_file const M(TESTFILE, READ_ONLY);
+        mmapped_file const M2(TESTFILE2, READ_ONLY);
         fprintf(stderr, "Testing multiple open (you need to strace this).\n");
         mmappable_vector<int> vec1(mmap_allocator<int>(M, 0, 1024));
         mmappable_vector<int> vec2(mmap_allocator<int>(M, 0, 1024));
@@ -266,7 +267,7 @@ void test_multiple_open(void)
     }
 }
 
-void test_allocate_0_bytes(void) /* shouldn't segfault */
+static void test_allocate_0_bytes(void) /* shouldn't segfault */
 {
     fprintf(stderr, "Testing vectors of mmappable_vectors.\n");
 
@@ -281,11 +282,12 @@ void test_allocate_0_bytes(void) /* shouldn't segfault */
 }
 
 // coverity[root_function]
-int main(int argc, char * argv[])
+int main(int argc MAYBE_UNUSED, char const * argv[] MAYBE_UNUSED)
 {
-    if (argc == 3 && std::string(argv[1]) == "--tmpdir") {
-        tmpdir = argv[2];
-    }
+    const char * env_wdir = getenv("wdir");
+    if (env_wdir)
+        tmpdir = env_wdir;
+
     TESTFILE  = strdup((std::string(tmpdir) + "/testfile").c_str());
     TESTFILE2 = strdup((std::string(tmpdir) + "/testfile2").c_str());
 

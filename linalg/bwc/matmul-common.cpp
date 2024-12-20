@@ -1,83 +1,88 @@
 #include "cado.h" // IWYU pragma: keep
-#include <errno.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>   // for abort
+
+#include <cerrno>
+#include <cstring>
+#include <cstdio>
+#include <cstdlib>   // for abort
+
 #include "matmul.hpp"   // for matmul_public_s
 #include "matmul-common.hpp"
 #include "verbose.h"
+#include "utils_cxx.hpp"        // for unique_ptr<FILE>
 
 #define MM_COMMON_MAGIC 0xb0010003UL
 
-const char * rowcol[2] = { "row", "col", };
+const char * const rowcol[2] = { "row", "col", };
 
 /* Factor out some stuff which turns out to appear fairly often */
 
-FILE * matmul_common_reload_cache_fopen(size_t stride, struct matmul_public_s * mm, uint32_t magic)
+std::unique_ptr<FILE> matmul_common_reload_cache_fopen(size_t stride, matmul_public & mm, uint32_t magic)
 {
-    if (!mm->cachefile_name) return NULL;
-    FILE * f = fopen(mm->cachefile_name, "rb");
-    if (f == NULL) return NULL;
+    std::unique_ptr<FILE> f;
+    if (mm.cachefile_name.empty()) return f;
+    f.reset(fopen(mm.cachefile_name.c_str(), "rb"));
+    if (!f) return f;
 
-    // mm->cachefile_name is a cache file for mm->locfile (which in
+    // mm.cachefile_name is a cache file for mm.locfile (which in
     // general never exists)
 
     uint32_t magic_check;
-    MATMUL_COMMON_READ_ONE32(magic_check, f);
+    MATMUL_COMMON_READ_ONE32(magic_check, f.get());
     
     if (magic_check != magic) {
-        fprintf(stderr, "Wrong magic in cached matrix file\n");
-        fclose(f);
-        return NULL;
+        fmt::print(stderr, "Wrong magic in cached matrix file\n");
+        f.reset();
+        return f;
     }   
     
-    MATMUL_COMMON_READ_ONE32(magic_check, f);
+    MATMUL_COMMON_READ_ONE32(magic_check, f.get());
     if (magic_check != MM_COMMON_MAGIC) {
-        fprintf(stderr, "Wrong magic in cached matrix file\n");
-        fclose(f);
-        return NULL;
+        fmt::print(stderr, "Wrong magic in cached matrix file\n");
+        f.reset();
+        return f;
     }   
 
     /* Four reserved bytes for alignment */
-    MATMUL_COMMON_READ_ONE32(magic_check, f);
+    MATMUL_COMMON_READ_ONE32(magic_check, f.get());
 
     uint32_t nbytes_check;
-    MATMUL_COMMON_READ_ONE32(nbytes_check, f);
+    MATMUL_COMMON_READ_ONE32(nbytes_check, f.get());
     /* It's not fatal. It only deserves a warning */
     if (nbytes_check != stride) {
-        fprintf(stderr, "Warning: cached matrix file fits data with different stride\n");
+        fmt::print(stderr, "Warning: cached matrix file fits data with different stride\n");
     }
 
-    MATMUL_COMMON_READ_ONE32(mm->dim[0], f);
-    MATMUL_COMMON_READ_ONE32(mm->dim[1], f);
-
-    MATMUL_COMMON_READ_ONE64(mm->ncoeffs, f);
+    MATMUL_COMMON_READ_ONE32(mm.dim[0], f.get());
+    MATMUL_COMMON_READ_ONE32(mm.dim[1], f.get());
+    MATMUL_COMMON_READ_ONE64(mm.ncoeffs, f.get());
 
     return f;
 }
 
-FILE * matmul_common_save_cache_fopen(size_t stride, struct matmul_public_s * mm, uint32_t magic)
+std::unique_ptr<FILE> matmul_common_save_cache_fopen(size_t stride, matmul_public const & mm, uint32_t magic)
 {
-    if (!mm->cachefile_name) return NULL;
-    FILE * f = fopen(mm->cachefile_name, "wb");
-    if (f == NULL) {
-        fprintf(stderr, "Cannot open %s for writing: %s\n", mm->cachefile_name, strerror(errno));
+    std::unique_ptr<FILE> f;
+    if (mm.cachefile_name.empty()) return f;
+    f.reset(fopen(mm.cachefile_name.c_str(), "wb"));
+    if (!f) {
+        fmt::print(stderr, "Cannot open {} for writing: {}\n",
+                mm.cachefile_name,
+                strerror(errno));
         abort();
     }
 
     if (verbose_enabled(CADO_VERBOSE_PRINT_BWC_CACHE_MAJOR_INFO))
-        printf("Saving %s to cache file %s\n", mm->locfile, mm->cachefile_name);
+        fmt::print("Saving {} to cache file {}\n",
+                mm.locfile,
+                mm.cachefile_name);
 
-    MATMUL_COMMON_WRITE_ONE32(magic,f);
-    MATMUL_COMMON_WRITE_ONE32(MM_COMMON_MAGIC,f);
-    MATMUL_COMMON_WRITE_ONE32(0,f);
-    MATMUL_COMMON_WRITE_ONE32(stride,f);
-    MATMUL_COMMON_WRITE_ONE32(mm->dim[0],f);
-    MATMUL_COMMON_WRITE_ONE32(mm->dim[1],f);
-    MATMUL_COMMON_WRITE_ONE64(mm->ncoeffs,f);
+    MATMUL_COMMON_WRITE_ONE32(magic, f.get());
+    MATMUL_COMMON_WRITE_ONE32(MM_COMMON_MAGIC, f.get());
+    MATMUL_COMMON_WRITE_ONE32(0, f.get());
+    MATMUL_COMMON_WRITE_ONE32(stride, f.get());
+    MATMUL_COMMON_WRITE_ONE32(mm.dim[0], f.get());
+    MATMUL_COMMON_WRITE_ONE32(mm.dim[1], f.get());
+    MATMUL_COMMON_WRITE_ONE64(mm.ncoeffs, f.get());
+
     return f;
-}
-
-void matmul_common_clear(struct matmul_public_s * mm MAYBE_UNUSED)
-{
 }

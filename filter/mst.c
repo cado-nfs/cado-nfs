@@ -1,8 +1,10 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <limits.h>
 
+#include "typedefs.h"
 #include "filter_config.h"
-#include "sparse.h"
+#include "merge_replay_matrix.h"
 #include "mst.h"
 #include "macros.h"
 
@@ -45,7 +47,7 @@ minimalSpanningTree (int *start, int *end, int m,
               jmin = j;
               wmin = A[S[i]][T[j]];
             }
-      ASSERT(imin != -1 && jmin != -1);
+      ASSERT_ALWAYS(wmin < INT_MAX);
       s = S[imin];
       t = T[jmin];
       w += wmin;

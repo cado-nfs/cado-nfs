@@ -4,9 +4,9 @@ set -e
 
 if [ "$CADO_DEBUG" ] ; then set -x ; fi
 
-: ${wdir?missing}
-: ${CADO_NFS_BINARY_DIR?missing}
-: ${CADO_NFS_SOURCE_DIR?missing}
+: ${wdir:?missing}
+: ${CADO_NFS_BINARY_DIR:?missing}
+: ${CADO_NFS_SOURCE_DIR:?missing}
 : ${test_id:=$1}
 : ${test_id:=sample1}
 

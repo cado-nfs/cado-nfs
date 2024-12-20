@@ -1,5 +1,5 @@
-#ifndef FINDING_GOOD_STRATEGY
-#define FINDING_GOOD_STRATEGY
+#ifndef FINDING_GOOD_STRATEGY_H
+#define FINDING_GOOD_STRATEGY_H
 
 #include <stdio.h>
 #include "strategy.h" // strategy_t
@@ -32,4 +32,4 @@ fprint_final_strategy(FILE * file, strategy_t *** matrix_strat_res,
 }
 #endif
 
-#endif				/* FINDING_GOOD_STRATEGY */
+#endif				/* FINDING_GOOD_STRATEGY_H */

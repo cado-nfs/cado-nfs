@@ -1,28 +1,29 @@
 #include "cado.h"		// IWYU pragma: keep
+
 #include <stdio.h>
 #include <stdlib.h>		// malloc ...
 #include <stdint.h>		// uint64_t
 #include <limits.h>		/* for CHAR_BIT */
-#include <math.h>               // log
+
 #include <gmp.h>
-#include "auxiliary.h"
-#include "cado_poly.h"
-#include "gmp_aux.h"		// mpz_set_uint64
+
+#include <pthread.h>
+
 #include "macros.h"		// ASSERT
-#include "memusage.h"
-#include "misc.h"
 #include "modredc_ul.h"
-#include "mpz_poly.h"
 #include "polyselect_arith.h"
-#include "polyselect_shash.h"
-#include "polyselect_main_queue.h"
-#include "portability.h"
-#include "roots_mod.h"
 #include "polyselect_collisions.h"
+#include "polyselect_main_data.h"
+#include "polyselect_main_queue.h"
+#include "polyselect_poly_header.h"
+#include "polyselect_primes_table.h"
+#include "polyselect_proots.h"
+#include "polyselect_qroots.h"
+#include "polyselect_shash.h"
 #include "polyselect_thread.h"
+#include "polyselect_thread_team.h"
+#include "portability.h"
 #include "timing.h"		// for seconds
-#include "usp.h"		// usp_root_data
-#include "verbose.h"		// verbose_output_print
 
 /* CCS = computational collision search
  * DCS = decisional collision search

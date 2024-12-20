@@ -9,7 +9,7 @@
 #include "mpz_poly.h"
 #include "macros.h"
 
-void
+static void
 test_cado_poly_set ()
 {
   cado_poly p, q;
@@ -55,27 +55,27 @@ test_cado_poly_set ()
 // returns 0 on failure, 1 on success.
 extern "C" int cado_poly_set_plist(cado_poly_ptr cpoly, param_list_ptr pl);
 
-int cado_poly_read (cxx_cado_poly & poly, std::istream& is)
+static int cado_poly_read (cxx_cado_poly & poly, std::istream& is)
 {
   cxx_param_list pl;
   param_list_read(pl, is, 0);
-  int r = cado_poly_set_plist (poly, pl);
+  int const r = cado_poly_set_plist (poly, pl);
   return r;
 }
 
 
-void test_cado_poly_sanitycheck_stream(std::istream & is)
+static void test_cado_poly_sanitycheck_stream(std::istream & is)
 {
     cxx_cado_poly cpoly;
     cado_poly_read(cpoly, is);
     cxx_mpz_poly G;
-    int ret = cado_poly_check_mapping(G, cpoly, cpoly->n);
+    int const ret = cado_poly_check_mapping(G, cpoly, cpoly->n);
     ASSERT_ALWAYS(ret != 0);
 }
 
-void test_cado_poly_sanitychecks_static()
+static void test_cado_poly_sanitychecks_static()
 {
-    std::string s =
+    std::string const s =
         "n: 54022122323205311359700529131254845253584832080092810873601245077747279904751944559089001546838958178759103\n"
         "skew: 1\n"
         "c0: -3812358699277286779054168\n"
@@ -92,7 +92,7 @@ void test_cado_poly_sanitychecks_static()
     test_cado_poly_sanitycheck_stream(is);
 }
 
-void test_cado_poly_sanitycheck_file(const char * file)
+static void test_cado_poly_sanitycheck_file(const char * file)
 {
     std::ifstream is(file);
     ASSERT_ALWAYS(is);
@@ -100,8 +100,7 @@ void test_cado_poly_sanitycheck_file(const char * file)
 }
 
 // coverity[root_function]
-int
-main (int argc, const char *argv[])
+int main(int argc, char const * argv[])
 {
   tests_common_cmdline(&argc, &argv, 0);
   test_cado_poly_set ();

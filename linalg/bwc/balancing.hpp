@@ -1,8 +1,10 @@
-#ifndef BALANCING_H_
-#define BALANCING_H_
+#ifndef BALANCING_HPP_
+#define BALANCING_HPP_
+
+#include <cstdint>
 
 #include <string>
-#include <stdint.h>
+
 #include "macros.h"  // for MIN
 #include "mod_ul.h"
 
@@ -85,10 +87,14 @@ struct balancing_header {
 };
 
 struct balancing : public balancing_header {
+    /* Watch out, there's code around that ferociously copies [struct
+     * balancing] objects over MPI. So we don't want to convert all this
+     * to STL vectors before this madness is fixed
+     */
     uint32_t trows = 0;        // number of rows including padding.
     uint32_t tcols = 0;        // number of cols including padding.
-    uint32_t * rowperm = NULL; // row index for new mat. --> row index for old mat.
-    uint32_t * colperm = NULL; // might be equal to colperm.
+    uint32_t * rowperm = nullptr; // row index for new mat. --> row index for old mat.
+    uint32_t * colperm = nullptr; // might be equal to colperm.
 };
 
 /* Once the flags and perm[] fields have been provided, the caller must
@@ -97,8 +103,8 @@ struct balancing : public balancing_header {
  */
 extern void balancing_set_row_col_count(balancing & bal);
 extern void balancing_finalize(balancing & bal);
-extern void balancing_write_inner(balancing const & bal, const char *);
-extern void balancing_write(balancing const & bal, const char * , const char *);
+extern void balancing_write_inner(balancing const & bal, std::string const &);
+extern void balancing_write(balancing const & bal, std::string const &, std::string const &);
 extern void balancing_read(balancing & bal, std::string const &);
 extern void balancing_read_header(balancing & bal, std::string const &);
 extern void balancing_clear(balancing & bal);
@@ -141,4 +147,4 @@ static inline unsigned long balancing_pre_unshuffle(balancing const & bal, unsig
     return balancing_index_shuffle_common_(r, K, bal.pshuf_inv);
 }
 
-#endif	/* BALANCING_H_ */
+#endif	/* BALANCING_HPP_ */

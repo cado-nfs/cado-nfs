@@ -144,7 +144,7 @@ if ! [ "$cmake_path" ] ; then
         echo
         echo "Most probably, you want to rely on your system distribution to"
         echo "provide cmake in some way. Luckily, the package is usually called"
-        echo "cmake. Version **at least** 3.5 is necessary."
+        echo "cmake. Version **at least** 3.18 is necessary."
         echo
         echo "You may try to have cado-nfs download and install some version of"
         echo "cmake for you. THIS IS A PRIORI A VERY BAD IDEA, and we advise"

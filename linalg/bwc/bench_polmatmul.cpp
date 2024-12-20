@@ -1,22 +1,29 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
-#include <vector>
 #include <cmath>
-#include <limits.h>
+#include <climits>
+
+#include <vector>
+
 #include <sys/time.h>
+
 #include <gmp.h>
+
 #include "gf2x-fft.h"
 #include "gf2x.h"
 #include "lingen_mat_types.hpp"
 #include "macros.h"
 #include "portability.h"
 
+// scan-headers: stop here
+
 using namespace std;
 
-void usage()
+static void usage()
 {
     fprintf(stderr, "Usage: ./bench_polmatmul [--nrep <k>] <N> <m> <n>\n");
     exit(1);
@@ -27,7 +34,7 @@ void usage()
 #define DATA_POOL_SIZE  (1 << 23)
 
 /* handy globals */
-unsigned int nrep = 10;
+static unsigned int nrep = 10;
 
 #if 0
 void bench_polmul(unsigned int d1, unsigned int d2)
@@ -157,7 +164,7 @@ struct my_strassen_selector {
      * matrices of sizes m*n and n*p, depending on BITS_IN_DIM_D and
      * BITS_IN_DIM_I */
     unsigned int threshold_index(unsigned int m, unsigned int n, unsigned int p) const {
-        unsigned int combined = m|n|p;
+        unsigned int const combined = m|n|p;
         unsigned int b = cado_ctzl(combined);
         if (b >= (1UL << BITS_IN_DIM_I)) {
             // arrange so that we 
@@ -184,7 +191,7 @@ struct my_strassen_selector {
     }
 
     int operator()(unsigned int m, unsigned int n, unsigned int p, unsigned int nbits) const {
-        int answer = nbits >= threshold(m,n,p);
+        int const answer = nbits >= threshold(m,n,p);
         // printf("([%u,%u,%u,%u]=>%d)",m,n,p,nbits,answer);
         return answer;
     }
@@ -264,7 +271,7 @@ template<typename T> struct pointed_type<T*> { typedef T type; };
 template<typename T> struct pointed_type<T const *> { typedef T type; };
 
 template<typename fft_type>
-int depth(fft_type const& o, size_t d1, size_t d2, size_t d3)
+static int depth(fft_type const& o, size_t d1, size_t d2, size_t d3)
 {
     int k;
     my_strassen_selector& s(foo<fft_type>::s);
@@ -278,7 +285,7 @@ int depth(fft_type const& o, size_t d1, size_t d2, size_t d3)
 }
 
 template<typename fft_type>
-unsigned long nmults(fft_type const& o, size_t d1, size_t d2, size_t d3)
+static unsigned long nmults(fft_type const& o, size_t d1, size_t d2, size_t d3)
 {
     int d = depth(o, d1, d2, d3);
     unsigned long nmuls = d1 * d2 * d3;
@@ -305,7 +312,7 @@ static inline size_t I(size_t x) { return x / ULONG_BITS; }
 static inline size_t R(size_t x) { return x % ULONG_BITS; }
 static inline unsigned long MASK(size_t x) { return (1UL << R(x)) - 1UL; }
 
-unsigned long * tidy_data(unsigned long * data, size_t n1)
+static unsigned long * tidy_data(unsigned long * data, size_t n1)
 {
     unsigned long * p = data + (rand() % (DATA_POOL_SIZE/2));
     if (R(n1)) p[I(n1)]&=MASK(n1);
@@ -313,7 +320,7 @@ unsigned long * tidy_data(unsigned long * data, size_t n1)
 }
 
     template<typename T>
-void fft_times(double& dft1, double& dft2, double& compose, double& ift,
+static void fft_times(double& dft1, double& dft2, double& compose, double& ift,
         T& o, unsigned long n1, unsigned long n2, unsigned long * data)
 {
     typename T::ptr f = o.alloc(1);
@@ -331,7 +338,7 @@ void fft_times(double& dft1, double& dft2, double& compose, double& ift,
 }
 
 
-void randomize(polmat & t)
+static void randomize(polmat & t)
 {
     for(unsigned int i = 0 ; i < t.nrows ; i++) {
         for(unsigned int j = 0 ; j < t.ncols ; j++) {
@@ -341,7 +348,7 @@ void randomize(polmat & t)
 }
 
     template<typename fft_type>
-void randomize(tpolmat<fft_type> & t)
+static void randomize(tpolmat<fft_type> & t)
 {
     for(unsigned int i = 0 ; i < t.nrows ; i++) {
         for(unsigned int j = 0 ; j < t.ncols ; j++) {
@@ -401,12 +408,12 @@ void bench_polmatmul(const char * s,
 #endif
 
     template<typename fft_type>
-void tune_strassen1(fft_type const& base,
+static void tune_strassen1(fft_type const& base,
         unsigned int d1, unsigned int d2, unsigned int d3, size_t maxlen)
 {
     my_strassen_selector& s(foo<fft_type>::s);
 
-    unsigned int bp = cado_ctzl(d1 | d2 | d3);
+    unsigned int const bp = cado_ctzl(d1 | d2 | d3);
     unsigned int dd1 = d1 >> bp;
     unsigned int dd2 = d2 >> bp;
     unsigned int dd3 = d3 >> bp;
@@ -429,8 +436,8 @@ void tune_strassen1(fft_type const& base,
     // nbits on, then of course it is going to pay off at worst at this
     // size.
     // old_wt stands for old threshold in words.
-    unsigned int max_wt = iceildiv(maxlen, ULONG_BITS);
-    unsigned int min_wt = 0;
+    unsigned int const max_wt = iceildiv(maxlen, ULONG_BITS);
+    unsigned int const min_wt = 0;
     unsigned int old_wt = max_wt;
     size_t earliest_good_strassen = UINT_MAX;
     for( ; dd1 <= d1 ; dd1 <<= 1, dd2 <<= 1, dd3 <<= 1) {
@@ -450,7 +457,7 @@ void tune_strassen1(fft_type const& base,
         for( ; wt1 - wt0 > 1  && wt0 < max_wt; ) {
             // assuming cubic is better for 64 * t0, ans strassen better
             // for 64 * t1
-            unsigned int wt = (wt1 + wt0) / 2;
+            unsigned int const wt = (wt1 + wt0) / 2;
             // unsigned int t1 = wt1 * ULONG_BITS;
             // unsigned int t0 = wt0 * ULONG_BITS;
             unsigned int t = wt * ULONG_BITS;
@@ -497,7 +504,7 @@ void tune_strassen1(fft_type const& base,
 }
 
     template<typename fft_type>
-void tune_strassen(fft_type const& base, size_t maxlen)
+static void tune_strassen(fft_type const& base, size_t maxlen)
 {
     my_strassen_selector& s(foo<fft_type>::s);
     for(unsigned int i = 1 ; i <= (1 << BITS_IN_DIM_D) ; i++) {
@@ -517,7 +524,7 @@ void tune_strassen(fft_type const& base, size_t maxlen)
 }
 
     template<typename fft_type>
-void plot_compose(const char * name MAYBE_UNUSED,
+static void plot_compose(const char * name MAYBE_UNUSED,
         unsigned int n1, unsigned int n2, unsigned int n3, unsigned long wt)
 {
     my_strassen_selector& s(foo<fft_type>::s);
@@ -581,13 +588,13 @@ typedef struct {
     double compose;
 } level_info;
 
-bool operator<(level_info const& a, level_info const& b)
+static bool operator<(level_info const& a, level_info const& b)
 {
     return (a.dft + a.compose + a.ift) < (b.dft + b.compose + b.ift);
 }
 
     template<typename fft_type>
-level_info bench_one_polmm_projected_sub(fft_type& o, unsigned long d1, unsigned long d2, unsigned long d3, unsigned long n1, unsigned long n2, unsigned long * data)
+static level_info bench_one_polmm_projected_sub(fft_type& o, unsigned long d1, unsigned long d2, unsigned long d3, unsigned long n1, unsigned long n2, unsigned long * data)
 {
     level_info res;
     double dft1, dft2, compose, ift;
@@ -608,7 +615,7 @@ level_info bench_one_polmm_projected_sub(fft_type& o, unsigned long d1, unsigned
     return res;
 }
 
-level_info bench_one_polmm_projected(unsigned long d1, unsigned long d2, unsigned long d3, unsigned long n1, unsigned long n2, unsigned long * data)
+static level_info bench_one_polmm_projected(unsigned long d1, unsigned long d2, unsigned long d3, unsigned long n1, unsigned long n2, unsigned long * data)
 {
     printf("Timings %lux%lu (%lu-bit entries)"
             " times %lux%lu (%lu-bit entries) [projected timings]\n",
@@ -643,7 +650,7 @@ level_info bench_one_polmm_projected(unsigned long d1, unsigned long d2, unsigne
 }
 
     template<typename fft_type>
-level_info bench_one_polmm_complete_sub(fft_type& o, unsigned long d1, unsigned long d2, unsigned long d3, unsigned long n1, unsigned long n2)
+static level_info bench_one_polmm_complete_sub(fft_type& o, unsigned long d1, unsigned long d2, unsigned long d3, unsigned long n1, unsigned long n2)
 {
     my_strassen_selector& s(foo<fft_type>::s);
 
@@ -699,7 +706,7 @@ level_info bench_one_polmm_complete_sub(fft_type& o, unsigned long d1, unsigned 
     return res;
 }
 
-level_info bench_one_polmm_complete(unsigned long d1, unsigned long d2, unsigned long d3, unsigned long n1, unsigned long n2)
+static level_info bench_one_polmm_complete(unsigned long d1, unsigned long d2, unsigned long d3, unsigned long n1, unsigned long n2)
 {
     printf("Timings %lux%lu (%lu-bit entries)"
             " times %lux%lu (%lu-bit entries) [complete timings]\n",
@@ -733,7 +740,7 @@ level_info bench_one_polmm_complete(unsigned long d1, unsigned long d2, unsigned
     }
 }
 
-void tune_strassen_global(unsigned long m, unsigned long n, unsigned long N)
+static void tune_strassen_global(unsigned long m, unsigned long n, unsigned long N)
 {
     unsigned long b = m + n;
 #if 1
@@ -742,18 +749,18 @@ void tune_strassen_global(unsigned long m, unsigned long n, unsigned long N)
      * really doing a middle product, which is annoying.
      */
     if (0) {
-        size_t d = (N * b / m / n);
+        size_t const d = (N * b / m / n);
 
-        unsigned long dl = d-d/2;
-        unsigned long pi_l_len = dl*m/b;   // always <= dl
+        unsigned long const dl = d-d/2;
+        unsigned long const pi_l_len = dl*m/b;   // always <= dl
         /* it's a middle product. So we have something like
          * d * pi_l_len -> d/2, chopping off all dl first coeffs. So
          * that dl-pi_l_len coeffs of E are unused, which is the (chop)
          * value below */
-        unsigned long chop = dl - pi_l_len;
+        unsigned long const chop = dl - pi_l_len;
 
-        size_t n1 = d - chop;
-        size_t n2 = pi_l_len;
+        size_t const n1 = d - chop;
+        size_t const n2 = pi_l_len;
         printf("Top-level multiplications E*pi: len %zu, %lux%lu * len %zu, %lux%lu (alpha=%.2f)\n",
                 n1, m, b, n2, b, b, (double) n1/n2);
 
@@ -779,12 +786,12 @@ void tune_strassen_global(unsigned long m, unsigned long n, unsigned long N)
     }
     /* Tune for pi * pi */
     {
-        size_t d = (N * b / m / n);
+        size_t const d = (N * b / m / n);
 
-        unsigned long dl = d-d/2;
-        unsigned long pi_l_len = dl*m/b;   // always <= dl
-        size_t n1 = pi_l_len;
-        size_t n2 = pi_l_len;
+        unsigned long const dl = d-d/2;
+        unsigned long const pi_l_len = dl*m/b;   // always <= dl
+        size_t const n1 = pi_l_len;
+        size_t const n2 = pi_l_len;
 
         gf2x_cantor_fft oc(n1, n2);
         printf("=== c128 ===\n");
@@ -812,9 +819,9 @@ void tune_strassen_global(unsigned long m, unsigned long n, unsigned long N)
 #endif
 }
 
-void do_polmm_timings(unsigned long m, unsigned long n, unsigned long N)
+static void do_polmm_timings(unsigned long m, unsigned long n, unsigned long N)
 {
-    unsigned long b = m + n;
+    unsigned long const b = m + n;
     /* Seed the random state. Ugly at will. */
     extern char             __gmp_rands_initialized;
     extern gmp_randstate_t  __gmp_rands;
@@ -835,7 +842,7 @@ void do_polmm_timings(unsigned long m, unsigned long n, unsigned long N)
     vector<level_info> results;
 
     for(unsigned long level = 0 ; ; level++) {
-        unsigned long d = (N * b / m / n) >> level;
+        unsigned long const d = (N * b / m / n) >> level;
         if (d <= 64) {
             printf("[%lu] is below threshold (length %lu)\n", level, d);
             break;
@@ -848,10 +855,10 @@ void do_polmm_timings(unsigned long m, unsigned long n, unsigned long N)
         }
 
         printf("[%lu] length of E is %lu (%lu MB)\n", level, d, d*m*b>>23);
-        unsigned long dl = d-d/2;
-        unsigned long pi_l_len = dl*m/b;   // always <= dl
+        unsigned long const dl = d-d/2;
+        unsigned long const pi_l_len = dl*m/b;   // always <= dl
         printf("[%lu] Top-level length of pi_left is %lu (%lu MB)\n", level, pi_l_len, pi_l_len*b*b>>23);
-        unsigned long chop = dl - pi_l_len;
+        unsigned long const chop = dl - pi_l_len;
         printf("[%lu] Number of chopped of bits at top level is %lu\n", level, chop);
         printf("[%lu] Top-level degree of truncated E is %lu\n", level, d - chop);
         printf("[%lu] Degree of product E'*pi_left is %lu\n", level, d-chop + pi_l_len);
@@ -902,7 +909,7 @@ void do_polmm_timings(unsigned long m, unsigned long n, unsigned long N)
     }
 }
 
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     /* This is a bench program. We want the output quick.  */
     setbuf(stdout, NULL);
@@ -938,7 +945,7 @@ int main(int argc, char * argv[])
     }
     // if (N == 0 || n == 0) usage();
 
-    unsigned long b = m + n;
+    unsigned long const b = m + n;
 
 #if 0
     /* tune strassen for all sizes... Takes a looong time */

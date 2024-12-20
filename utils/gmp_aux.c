@@ -1,10 +1,14 @@
 /* auxiliary routines on GMP data-types */
 
 #include "cado.h" // IWYU pragma: keep
+
+#include <stddef.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <limits.h>     /* for INT_MAX */
+
 #include <gmp.h>
+
 #include "gmp_aux.h"
 #include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
 #include "macros.h"    // for ASSERT_ALWAYS // IWYU pragma: keep
@@ -103,17 +107,23 @@ void mpz_init_set_int64 (mpz_ptr z, int64_t x)
 uint64_t
 mpz_get_uint64 (mpz_srcptr z)
 {
+    return mpz_getlimbn_uint64(z, 0);
+}
+
+uint64_t
+mpz_getlimbn_uint64 (mpz_srcptr z, unsigned int i)
+{
     uint64_t q;
 
     if (sizeof (unsigned long) == 8)
-        q = mpz_get_ui (z);
+        q = mpz_getlimbn (z, i);
     else
     {
         ASSERT_ALWAYS (sizeof (unsigned long) == 4);
         ASSERT_ALWAYS (sizeof (mp_limb_t) == 4);
         ASSERT_ALWAYS (GMP_LIMB_BITS == 32);
-        q = mpz_get_ui (z); /* get the low word of z */
-        q += ((uint64_t) mpz_getlimbn(z,1)) << 32;
+        q = mpz_getlimbn (z, 2*i); /* get the low word of z */
+        q += ((uint64_t) mpz_getlimbn(z, 2 * i + 1)) << 32;
     }
     return q;
 }

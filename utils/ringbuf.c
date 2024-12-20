@@ -11,6 +11,9 @@
 /* This is a hack. Define to 1 to disable */
 #define RINGBUF_ALIGNED_RETURNS sizeof(uint32_t)
 
+/* Length of preempt buffer. Must be a power of 2. */
+#define PREEMPT_BUF (1<<22)
+
 /* Length of one write in preempt buffer. Between 64 and 1024 Ko
    seems the best. */
 #define PREEMPT_ONE_READ        (1UL<<20)
@@ -69,6 +72,7 @@ static void ringbuf_grow__(ringbuf_ptr r, size_t claim)
         r->whead = r->p + r->avail_to_read;
     } else {
         r->p = realloc(r->p, newalloc);
+        FATAL_ERROR_CHECK(r->p == NULL, "Cannot allocate memory");
         r->rhead = r->p;
         r->whead = r->p;
     }
@@ -78,6 +82,9 @@ static void ringbuf_grow__(ringbuf_ptr r, size_t claim)
 
 void ringbuf_init(ringbuf_ptr r, size_t claim)
 {
+    if (claim == 0)
+        claim = PREEMPT_BUF;
+
     memset(r, 0, sizeof(ringbuf));
     pthread_mutex_init(r->mx, NULL);
     pthread_cond_init(r->bored, NULL);

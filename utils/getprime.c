@@ -22,17 +22,13 @@
 */
 
 /* compile with -DMAIN to use as a standalone program */
-
-#ifndef MAIN
 #include "cado.h"		// IWYU pragma: keep
-#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "getprime.h"
 #include "macros.h"
-#ifndef MAIN
-#endif
 
 /* provided for in cado.h, but we want getprime.c to be standalone */
 #ifndef ASSERT
@@ -312,11 +308,11 @@ unsigned long getprime_mt(prime_info_ptr pi)
 }
 
 #ifdef MAIN
-int main(int argc, char *argv[])
+int main(int argc, char const * argv[])
 {
     unsigned long p, B;
     unsigned long ii = 0;
-    int diff = 0;
+    unsigned long diff = 0;
     prime_info pi;
 
     if (argc != 2) {
@@ -330,11 +326,13 @@ int main(int argc, char *argv[])
 
     for (ii = 0, p = 2; p <= B; ii++) {
 	unsigned long newp = getprime_mt(pi);
-	if (newp - p > diff)
-	    printf("firstdiff(%d)=%lu\n", diff = newp - p, p);
+	if (newp - p > diff) {
+            diff = newp - p;
+	    printf("firstdiff(%lu)=%lu\n", diff, p);
+        }
 	p = newp;
     }
-    printf("pi(%lu)=%lu, maxdiff=%d\n", B, ii, diff);
+    printf("pi(%lu)=%lu, maxdiff=%lu\n", B, ii, diff);
 
     prime_info_clear(pi);	/* free the tables */
 

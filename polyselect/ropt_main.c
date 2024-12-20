@@ -50,12 +50,12 @@
 #include "timing.h"             // for seconds_thread
 #include "verbose.h"             // verbose_output_print
 #include "version_info.h"        // cado_revision_string
+#include "best_polynomials_queue.h"        // cado_revision_string
 
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER; /* used as mutual exclusion
                                                      lock for output */
 unsigned int nthreads = 1;
 int tot_found = 0; /* total number of polynomials */
-cado_poly best_poly;
 double best_MurphyE = 0.0; /* Murphy's E (the larger the better) */
 ropt_param rparam; /* params for ropt algorithms */
 double total_exp_E = 0.0; /* cumulated expected E for input polynomials */
@@ -63,11 +63,13 @@ double total_E = 0.0; /* cumulated E-value for input polynomials */
 double nb_read = 0.0; /* number of read polynomials so far */
 double nb_optimized = 0.0; /* number of optimized polynomials so far */
 
+best_polynomials_queue best_polys;
+
 /**
  * Usage
  */
 void
-usage_adv (char **argv)
+usage_adv (char const **argv)
 {
   fprintf (stderr, "Error: Unhandled parameter: %s\n", argv[1]);
   fprintf (stderr, "\n");
@@ -141,13 +143,15 @@ usage_adv (char **argv)
  */
 static void
 ropt_parse_param ( int argc,
-                   char **argv,
+                   char const ** argv,
                    ropt_param_ptr param )
 {
   int A = 0;
   int I_area = 0; /* 0 when neither -area nor I is given,
                      1 when -area is given
                      2 when -I or -A is given */
+
+  param->stage_flag = 1;
 
   /* filename only */
   if (argc > 1) {
@@ -417,12 +421,12 @@ ropt_parse_param ( int argc,
 
 static void
 ropt_wrapper (cado_poly_ptr input_poly, unsigned int poly_id,
-              ropt_time_t tott)
+              ropt_time_ptr tott)
 {
   double curr_MurphyE, st, st1;
   mpz_t t;
   cado_poly ropt_poly;
-  ropt_time_t eacht;
+  ropt_time eacht;
 
   cado_poly_init (ropt_poly);
   eacht->ropt_time = 0.0;
@@ -430,14 +434,33 @@ ropt_wrapper (cado_poly_ptr input_poly, unsigned int poly_id,
   eacht->ropt_time_tuning = 0.0;
   eacht->ropt_time_stage2 = 0.0;
 
-  if (nthreads > 1)
-    pthread_mutex_lock (&lock);
-  printf ("\n### input polynomial %u ###\n", poly_id);
-  total_exp_E += cado_poly_fprintf_with_info (stdout, input_poly, "# ", 0);
-  nb_read += 1.0;
-  fflush (stdout);
-  if (nthreads > 1)
-    pthread_mutex_unlock (&lock);
+
+  {
+      cado_poly_stats input_stats;
+
+      cado_poly_stats_init(input_stats, 2);
+
+      cado_poly_set_skewness_if_undefined(input_poly);
+
+      if (nthreads != 1)
+          pthread_mutex_lock (&lock);
+
+      total_exp_E += cado_poly_compute_expected_stats(input_stats, input_poly);
+
+      printf ("\n### input polynomial %u ###\n", poly_id);
+      cado_poly_fprintf (stdout, "# ", input_poly);
+      cado_poly_fprintf_stats(stdout, "# ", input_poly, input_stats);
+      fflush (stdout);
+
+      /* why on earth is this thing a global ??? */
+      nb_read += 1.0;
+
+      if (nthreads != 1)
+          pthread_mutex_unlock (&lock);
+
+      cado_poly_stats_clear(input_stats);
+  }
+
 
   /* If the content of the algebraic polynomial has content <> 1, then print a
      warning (this should not be frequent) and divide all coefficients of the
@@ -465,7 +488,7 @@ ropt_wrapper (cado_poly_ptr input_poly, unsigned int poly_id,
   curr_MurphyE = MurphyE (ropt_poly, bound_f, bound_g, area, MURPHY_K,
                           get_alpha_bound ());
 
-  if (nthreads > 1)
+  if (nthreads != 1)
     pthread_mutex_lock (&lock);
 
   /* update time */
@@ -474,22 +497,32 @@ ropt_wrapper (cado_poly_ptr input_poly, unsigned int poly_id,
   tott->ropt_time_tuning += eacht->ropt_time_tuning;
   tott->ropt_time_stage2 += eacht->ropt_time_stage2;
 
-  if (curr_MurphyE > best_MurphyE)
-    {
-      best_MurphyE = curr_MurphyE;
-      cado_poly_set (best_poly, ropt_poly);
-    }
-  printf ("\n### root-optimized polynomial %u ###\n", poly_id);
-  total_E += cado_poly_fprintf_with_info_and_MurphyE (stdout, ropt_poly,
-                                                      curr_MurphyE,
-                                                      bound_f, bound_g, area,
-                                                      NULL);
-  nb_optimized += 1.0;
+  best_polynomials_queue_try_push(best_polys, ropt_poly, curr_MurphyE);
+
+  {
+      cado_poly_stats ropt_stats;
+      cado_poly_stats_init(ropt_stats, 2);
+
+      cado_poly_set_skewness_if_undefined(ropt_poly);
+
+      total_E += cado_poly_compute_stats(ropt_stats, ropt_poly);
+
+      printf ("\n### root-optimized polynomial %u ###\n", poly_id);
+      cado_poly_fprintf (stdout, NULL, ropt_poly);
+      cado_poly_fprintf_stats(stdout, NULL, ropt_poly, ropt_stats);
+
+      nb_optimized += 1.0;
+
+      cado_poly_stats_clear(ropt_stats);
+      cado_poly_fprintf_MurphyE (stdout, NULL, ALG_SIDE, curr_MurphyE, bound_f, bound_g, area);
+  }
+
   printf ("### Best MurphyE so far is %.3e, av. exp_E %.2f, av. E %.2f\n",
-          best_MurphyE, total_exp_E / nb_read, total_E / nb_optimized);
+          best_polynomials_queue_get_best_score(best_polys),
+          total_exp_E / nb_read, total_E / nb_optimized);
   fflush (stdout);
 
-  if (nthreads > 1)
+  if (nthreads != 1)
     pthread_mutex_unlock (&lock);
 
   cado_poly_clear (ropt_poly);
@@ -498,11 +531,9 @@ ropt_wrapper (cado_poly_ptr input_poly, unsigned int poly_id,
 /**
  * Interface main_adv(). This will call ropt_on_cadopoly().
  */
-static int
-main_adv (int argc, char **argv)
+static int main_adv (int argc, char const * argv[])
 {
-
-  char **argv0 = argv;
+  char const ** argv0 = argv;
   argv += 1;
   argc -= 1;
   int i;
@@ -520,7 +551,7 @@ main_adv (int argc, char **argv)
   if (argc >= 3 && strcmp(argv[1], "-f") == 0) {
 
     FILE *file = NULL;
-    char *filename = NULL;
+    const char *filename = NULL;
     // coverity[parm_assign]
     filename = argv[2];
     argv += 2;
@@ -547,7 +578,7 @@ main_adv (int argc, char **argv)
   else if (argc >= 3 && strcmp(argv[1], "-fm") == 0) {
 
     FILE *file = NULL;
-    char *filename = NULL;
+    const char *filename = NULL;
     filename = argv[2];
     argv += 2;
     argc -= 2;
@@ -638,21 +669,37 @@ usage_basic (const char *argv, const char * missing, param_list pl)
   exit (EXIT_FAILURE);
 }
 
+void cado_poly_ropt_printer(int i, double score, cado_poly_ptr best_poly, void * arg)
+{
+    cado_poly_stats_ptr best_stats = arg;
+
+    cado_poly_set_skewness_if_undefined(best_poly);
+
+    cado_poly_compute_stats(best_stats, best_poly);
+
+    printf ("# %d-th best polynomial found (revision %s):\n", i, cado_revision_string);
+
+    cado_poly_fprintf (stdout, "# ", best_poly);
+    cado_poly_fprintf_stats(stdout, "# ", best_poly, best_stats);
+    fflush (stdout);
+
+    cado_poly_fprintf_MurphyE (stdout, "# ", ALG_SIDE, score, bound_f, bound_g, area);
+
+}
 
 /**
  * Interface main_basic()
  */
-static int
-main_basic (int argc, char **argv)
+static int main_basic (int argc, char const * argv[])
 {
-  char **argv0 = argv;
+  char const **argv0 = argv;
   const char *polys_filename = NULL;
   double st0 = seconds ();
   FILE *polys_file = NULL;
   cado_poly *input_polys = NULL;
   unsigned int nb_input_polys = 0; /* number of input polynomials */
   unsigned int size_input_polys = 16; /* Size of input_polys tab. */
-  ropt_time_t tott;
+  ropt_time tott;
   int A;
 
   tott->ropt_time = 0.0;
@@ -660,7 +707,8 @@ main_basic (int argc, char **argv)
   tott->ropt_time_tuning = 0.0;
   tott->ropt_time_stage2 = 0.0;
 
-  cado_poly_init (best_poly);
+  best_polynomials_queue_init(best_polys, 1);
+
   input_polys = (cado_poly *) malloc (size_input_polys * sizeof (cado_poly));
   ASSERT_ALWAYS (input_polys != NULL);
   for (unsigned int i = 0; i < size_input_polys; i++)
@@ -685,7 +733,15 @@ main_basic (int argc, char **argv)
     usage_basic (argv0[0], NULL, pl);
   }
 
-  param_list_parse_uint (pl, "t", &nthreads);
+  {
+      /* parse -t. Set nthreads to zero (automatic) if -t is "auto" */
+      const char * tmp;
+      if ((tmp = param_list_lookup_string(pl, "t")) && strcmp(tmp, "auto") == 0) {
+          nthreads = 0;
+      } else {
+          param_list_parse_uint(pl, "t", &nthreads);
+      }
+  }
 
   if (param_list_parse_double (pl, "Bf", &bound_f) == 0) /* no -Bf */
     bound_f = BOUND_F;
@@ -722,18 +778,15 @@ main_basic (int argc, char **argv)
   verbose_interpret_parameters(pl);
   param_list_print_command_line (stdout, pl);
 
-  /* Check that nthreads is >= 1 */
-  if (nthreads == 0)
-  {
-    fprintf (stderr, "Error, -t must be non-zero.\n");
-    usage_basic (argv0[0], NULL, pl);
-  }
-
   if (polys_filename == NULL)
     usage_basic (argv0[0], "inputpolys", pl);
 
-  printf ("# Info: Will use %u thread%s\n# Info: ropteffort = %.0f\n", nthreads,
-          (nthreads > 1) ? "s": "", rparam->effort);
+  if (nthreads) {
+      printf ("# Info: Will use %u thread%s\n", nthreads, (nthreads > 1) ? "s": "");
+  } else {
+      printf ("# Info: Will use an automatic number of threads\n");
+  }
+  printf("# Info: ropteffort = %.0f\n", rparam->effort);
 
   printf ("# Info: L1_cachesize = %zu, size_tune_sievearray = %zu\n",
           L1_cachesize, size_tune_sievearray);
@@ -781,7 +834,9 @@ main_basic (int argc, char **argv)
 
   /* Main loop: do root-optimization on input_polys. */
 #ifdef HAVE_OPENMP
-  omp_set_num_threads (nthreads);
+  if (nthreads)
+      omp_set_num_threads (nthreads);
+  /* if nthreads is zero, we use an automatic number of threads */
 #pragma omp parallel
 #pragma omp master
   printf ("# Info: Using OpenMP with %u thread(s)\n", omp_get_num_threads ());
@@ -816,7 +871,7 @@ main_basic (int argc, char **argv)
     printf ("# Stat: rootsieve took 0s (fake placeholder, we lack RUSAGE_THREAD)\n");
   }
 
-  if (best_MurphyE == 0.0)
+  if (best_polynomials_queue_get_count(best_polys) == 0)
   {
     if (nb_input_polys > 0)
     {
@@ -831,19 +886,20 @@ main_basic (int argc, char **argv)
       printf ("# WARNING: No polynomials were found in the input file %s\n",
               polys_filename);
     }
-  }
-  else
-  {
-    printf ("# Best polynomial found (revision %s):\n", cado_revision_string);
-    cado_poly_fprintf_with_info_and_MurphyE (stdout, best_poly, best_MurphyE,
-                                             bound_f, bound_g, area, "# ");
-    printf ("# Average exp_E: %.2f, average E: %.2f\n",
-            total_exp_E / (double) nb_input_polys,
-            total_E / (double) nb_input_polys);
+  } else {
+      cado_poly_stats best_stats;
+
+      cado_poly_stats_init(best_stats, 2);
+
+      best_polynomials_queue_do(best_polys, cado_poly_ropt_printer, best_stats);
+      cado_poly_stats_clear(best_stats);
+      printf ("# Average exp_E: %.2f, average E: %.2f\n",
+              total_exp_E / (double) nb_input_polys,
+              total_E / (double) nb_input_polys);
   }
 
   ropt_param_clear (rparam);
-  cado_poly_clear (best_poly);
+  best_polynomials_queue_clear(best_polys);
   for (unsigned int i = 0; i < size_input_polys; i++)
     cado_poly_clear (input_polys[i]);
   free (input_polys);
@@ -858,8 +914,7 @@ main_basic (int argc, char **argv)
  * depending whether we have the option --adv.
  * Note the cadoprograms.py uses the main_basic() interface.
  */
-int
-main (int argc, char **argv)
+int main (int argc, char const * argv[])
 {
   /* usage */
 

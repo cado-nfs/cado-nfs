@@ -1,14 +1,16 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdio.h>
-#include <stdlib.h>
+
+#include <cstdio>
+#include <cstdlib>
+
 #include "parallelizing_info.hpp"
 #include "select_mpi.h"
 #include "params.h"
 #include "macros.h"
 
-int verbose=0;
+static int verbose=0;
 
-void * program(parallelizing_info_ptr pi, param_list pl MAYBE_UNUSED, void * arg MAYBE_UNUSED)
+static void * program(parallelizing_info_ptr pi, cxx_param_list & pl MAYBE_UNUSED, void * arg MAYBE_UNUSED)
 {
     if (verbose) {
         pi_log_init(pi->m);
@@ -49,17 +51,17 @@ void * program(parallelizing_info_ptr pi, param_list pl MAYBE_UNUSED, void * arg
     return NULL;
 }
 
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     int rank;
     int size;
-    param_list pl;
+    cxx_param_list pl;
 
-    MPI_Init(&argc, &argv);
+    MPI_Init(&argc, (char ***) &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    param_list_init (pl);
+
     parallelizing_info_init();
 
     parallelizing_info_decl_usage(pl);
@@ -89,7 +91,6 @@ int main(int argc, char * argv[])
     pi_go(program, pl, 0);
 
     parallelizing_info_finish();
-    param_list_clear(pl);
 
     MPI_Finalize();
 

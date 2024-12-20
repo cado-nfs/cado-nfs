@@ -1,25 +1,29 @@
 #ifndef ARITH_MOD2_HPP_
 #define ARITH_MOD2_HPP_
 
+#include "cado_config.h"
+
+#include <cstdint>
+
 #include <algorithm>
 #include <array>
-#include <cstdint>
 #include <iomanip>
 #include <ostream>
 #include <sstream>
 #include <string>
+
 #if defined(HAVE_SSE41) && defined(HAVE_POPCNT)
 #include <x86intrin.h>
 #endif
 
-#include "cxx_mpz.hpp"
+#include <gmp.h>
 #include "fmt/format.h"
+
 #include "gmp_aux.h"
+#include "cxx_mpz.hpp"
 #include "macros.h"
 #include "memory.h" // malloc_aligned
 #include "misc.h" // u64_random
-#include <gmp.h>
-
 #include "arith-concrete-base.hpp"
 
 namespace arith_mod2 {
@@ -274,7 +278,7 @@ struct gf2_override<128, T> : public gf2_base<128, T>
       : gf2_base<G, T>(std::forward<Args>(args)...)
     {}
     /* {{{ assignments */
-    static inline void set_random(elt& x, gmp_randstate_ptr rstate)
+    static inline void set_random(elt& x, cxx_gmp_randstate & rstate)
     {
         __m64 lo = _mm_cvtsi64_m64(u64_random(rstate));
         __m64 hi = _mm_cvtsi64_m64(u64_random(rstate));
@@ -408,7 +412,12 @@ struct gf2_base
     {
         T const* tx = static_cast<T const*>(this);
         tx->set_zero(x);
-        x.data()[0] = mpz_get_ui(a);
+        unsigned int K = tx->number_of_limbs();
+        /* TODO: we should probably _do_ something, right ? The code
+         * below seems about right, I just want to make sure we test it. */
+        ASSERT_ALWAYS(K == 1);
+        for (unsigned int i = 0; i < K; i++)
+            x.data()[i] = mpz_getlimbn_uint64(a, i);
         return x;
     }
 
@@ -418,7 +427,13 @@ struct gf2_base
         return tx->set(x, a);
     }
 
-    inline void set_random(elt& x, gmp_randstate_ptr rstate) const
+    inline elt& inverse(elt& x, elt const& a) const
+    {
+        T const* tx = static_cast<T const*>(this);
+        return tx->set(x, a);
+    }
+
+    inline void set_random(elt& x, cxx_gmp_randstate & rstate) const
     {
         T const* tx = static_cast<T const*>(this);
         unsigned int K = tx->number_of_limbs();
@@ -457,9 +472,9 @@ struct gf2_base
         for (unsigned int i = 0; i < K; i++) {
             // We _know_ that we're dealing with a 64-bit type
             // anyway, so what follows is unnecessary.
-            // o << fmt::format(FMT_STRING("{0:0{1}}"), x.data()[i],
+            // o << fmt::format("{0:0{1}}", x.data()[i],
             // sizeof(x.data()[i]) * CHAR_BIT / 4);
-            o << fmt::format(FMT_STRING("{0:016x}"), x.data()[i]);
+            o << fmt::format("{0:016x}", x.data()[i]);
         }
         return o;
     }
@@ -591,7 +606,7 @@ struct gf2_middle : public gf2_override<G, T>
         tx->vec_set(q, p, n);
     }
 
-    inline void vec_set_random(elt* p, size_t k, gmp_randstate_ptr rstate) const
+    inline void vec_set_random(elt* p, size_t k, cxx_gmp_randstate & rstate) const
     {
         T const* tx = static_cast<T const*>(this);
         for (size_t i = 0; i < k; ++i)
@@ -639,13 +654,14 @@ struct gf2_middle : public gf2_override<G, T>
             r += tx->simd_hamming_weight(tx->vec_item(p, i));
         return r;
     }
-    inline int vec_simd_find_first_set(elt&, elt const* p, size_t n) const
+    inline int vec_simd_find_first_set(elt& r, elt const* p, size_t n) const
     {
         T const* tx = static_cast<T const*>(this);
         int j = 0;
         for (size_t i = 0; i < n; ++i, j += tx->simd_groupsize()) {
             elt const& x = tx->vec_item(p, i);
             if (!tx->is_zero(x)) {
+                tx->set(r, x);
                 for (size_t k = 0; k < tx->simd_groupsize(); k++, j++) {
                     if (T::simd_test_ui_at(x, k))
                         return j;
@@ -664,10 +680,21 @@ struct gf2_middle : public gf2_override<G, T>
         abort();
     }
 
-    void vec_addmul_and_reduce(elt*, elt const*, elt const&, size_t) const
+    void vec_addmul_and_reduce(
+            elt* w,
+            elt const * u,
+            elt const& v,
+            size_t n) const
     {
-        /* same as above */
-        abort();
+        /* In the characteristic two case, we do have one use for this,
+         * which is to interpret v as zero if it's zero, and non-zero if
+         * it's non-zero. This turns out to be the correct way to
+         * abstract our vectors for use in a generic Gauss, for example
+         * (as in prep.cpp).
+         */
+        T const* tx = static_cast<T const*>(this);
+        if (!tx->is_zero(v))
+            tx->vec_add_and_reduce(w, u, n);
     }
 };
 
@@ -689,7 +716,7 @@ struct gf2 : public gf2_middle<G, gf2<G>>
     {
         if (G == 0)
             return "bz";
-        return fmt::format(FMT_STRING("b{}"), G);
+        return fmt::format("b{}", G);
     }
 };
 }

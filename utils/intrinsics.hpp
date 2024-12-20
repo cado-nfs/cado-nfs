@@ -6,7 +6,7 @@
    element type. */
 
 #include <limits>
-#include <macros.h>
+#include "macros.h"
 
 #ifdef HAVE_SSE
 #include <xmmintrin.h>

@@ -1,5 +1,8 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdint.h>               // for uint64_t, UINT64_C
+
+#include <cstddef>
+#include <cstdint>               // for uint64_t, UINT64_C
+
 #include "bblas_mat64.hpp"
 #include "bblas_level5.hpp"
 #include "gmp_aux.h"              // for memfill_random
@@ -20,7 +23,7 @@
 
 test_bblas_base::tags_t test_bblas_level5::polmul_tags { "polmul", "poly", "l5" };/*{{{*/
 void test_bblas_level5::polmul() {
-    size_t n = 64;
+    size_t const n = 64;
     mat64 * A = mat64::alloc(n);
     mat64 * B = mat64::alloc(n);
     mat64 * C = mat64::alloc(2 * n);
@@ -36,8 +39,8 @@ void test_bblas_level5::polmul() {
 
 test_bblas_base::tags_t test_bblas_level5::polblockmul_tags { "polblockmul", "poly", "l5" };/*{{{*/
 void test_bblas_level5::polblockmul() {
-    size_t n = 64;
-    unsigned int K = 2;
+    size_t const n = 64;
+    unsigned int const K = 2;
     mat64 * A = mat64::alloc(K * K * n);
     mat64 * B = mat64::alloc(K * K * n);
     mat64 * C = mat64::alloc(K * K * 2 * n);
@@ -53,7 +56,7 @@ void test_bblas_level5::polblockmul() {
 
 test_bblas_base::tags_t test_bblas_level5::matpolmul_tags = { "matpolmul", "poly", "l5" };/*{{{*/
 void test_bblas_level5::matpolmul() {
-    size_t n = 128;
+    size_t const n = 128;
     mat64 * A = mat64::alloc(n);
     mat64 * B = mat64::alloc(n);
     mat64 * C = mat64::alloc(n);
@@ -125,7 +128,7 @@ test_bblas_base::tags_t test_bblas_level5::matpolscale_tags = { "matpolscale", "
 void test_bblas_level5::matpolscale() {
     /* Now multiplication by a scalar. We'll do both GF(2^64) and
      * GF(2^128), so let's allocate room for both */
-    size_t n = 128;
+    size_t const n = 128;
     /* random values with average hamming weight. */
     uint64_t scalar[2] = { UINT64_C(0x8d5511cbd7f0d885), UINT64_C(0x2073a477a8b5dd8a) };
     mat64 * A = mat64::alloc(n);

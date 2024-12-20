@@ -8,9 +8,13 @@ Checks: "-*,
         -bugprone-exception-escape,
         -bugprone-implicit-widening-of-multiplication-result,
         -bugprone-assignment-in-if-condition,
+        -bugprone-multi-level-implicit-pointer-conversion,
         clang-analyzer-*,
         -clang-analyzer-osx.cocoa.*,
+        -clang-diagnostic-unknown-pragmas,
+        -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,
         concurrency-*,
+        -concurrency-mt-unsafe,
         cppcoreguidelines-*,
         -cppcoreguidelines-avoid-do-while,
         -cppcoreguidelines-pro-type-vararg,
@@ -33,6 +37,7 @@ Checks: "-*,
         -hicpp-exception-baseclass,
         -hicpp-named-parameter,
         -hicpp-no-assembler,
+        -hicpp-signed-bitwise,
         misc-*,
         -misc-no-recursion,
         -misc-non-private-member-variables-in-classes,
@@ -49,6 +54,7 @@ Checks: "-*,
         performance-*,
         portability-*,
         readability-*,
+        -readability-avoid-unconditional-preprocessor-if,
         -readability-braces-around-statements,
         -readability-identifier-length,
         -readability-magic-numbers,
@@ -57,6 +63,7 @@ Checks: "-*,
         -readability-redundant-access-specifiers,
         -readability-named-parameter,
         -readability-inconsistent-declaration-parameter-name,
+        -readability-math-missing-parentheses,
         -readability-isolate-declaration
 "
 
@@ -65,3 +72,8 @@ CheckOptions:
     value: true
   - key: readability-function-cognitive-complexity.Threshold
     value: 50
+
+ExcludeHeaderFilterRegex: '/usr/lib/gcc/.*'
+
+HeaderFileExtensions:         ['h','hpp']
+ImplementationFileExtensions: ['c','cpp']

@@ -18,7 +18,7 @@ public:
   explicit print_result(int n) : printed(n){}
 };
 
-task_result *print_something(worker_thread * worker MAYBE_UNUSED, task_parameters *t_param, int id)
+static task_result *print_something(worker_thread * worker MAYBE_UNUSED, task_parameters *t_param, int id)
 {
   const auto * param = dynamic_cast<const print_parameter *>(t_param);
 
@@ -33,7 +33,7 @@ task_result *print_something(worker_thread * worker MAYBE_UNUSED, task_parameter
 }
 
 // coverity[root_function]
-int main(int argc, const char **argv)
+int main(int argc, char const * argv[])
 {
   tests_common_cmdline(&argc, &argv, PARSE_ITER);
   unsigned long iter = 10;

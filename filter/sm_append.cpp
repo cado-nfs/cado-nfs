@@ -32,7 +32,7 @@
 #include "mpz_poly.h"   // for mpz_poly_clear, mpz_poly_init, mpz_poly, mpz_...
 #include "params.h"
 #include "select_mpi.h"
-#include "sm_utils.h"   // sm_side_info
+#include "sm_utils.hpp"   // sm_side_info
 #include "timing.h"     // seconds
 #include "verbose.h"    // verbose_output_print
 
@@ -45,8 +45,8 @@ struct ab_pair {
 
 typedef vector<ab_pair> ab_pair_batch;
 
-unsigned int batch_size = 128;
-unsigned int debug = 0;
+static unsigned int batch_size = 128;
+static unsigned int debug = 0;
 
 struct task_globals {
     int nsm_total;
@@ -183,7 +183,7 @@ int peer_status::create_and_send_batch(task_globals& tg, int peer, int turn)
 #define CSI_BOLDPINK "\033[01;35m"
 #define CSI_RESET "\033[m"
 
-static void sm_append_master(FILE * in, FILE * out, sm_side_info *sm_info, int nb_polys, int size)
+static void sm_append_master(FILE * in, FILE * out, std::vector<sm_side_info> const & sm_info, int nb_polys, int size)
 {
     /* need to know how many mp_limb_t's we'll get back from each batch */
     task_globals tg;
@@ -194,9 +194,9 @@ static void sm_append_master(FILE * in, FILE * out, sm_side_info *sm_info, int n
     tg.nrels_in = 0;
     tg.nrels_out = 0;
     for(int side = 0; side < nb_polys; side++) {
-        tg.nsm_total += sm_info[side]->nsm;
-        if (sm_info[side]->nsm) 
-            tg.limbs_per_ell = mpz_size(sm_info[side]->ell);
+        tg.nsm_total += sm_info[side].nsm;
+        if (sm_info[side].nsm) 
+            tg.limbs_per_ell = mpz_size(sm_info[side].ell);
     }
 
     std::vector<peer_status> peers(size);
@@ -253,7 +253,7 @@ static void sm_append_master(FILE * in, FILE * out, sm_side_info *sm_info, int n
             tg.nrels_out / (wct_seconds()-t0));
 }
 
-static void sm_append_slave(sm_side_info *sm_info, int nb_polys)
+static void sm_append_slave(std::vector<sm_side_info> const & sm_info, int nb_polys)
 {
     /* need to know how many mp_limb_t's we'll get back from each batch */
     size_t limbs_per_ell = 0;
@@ -263,9 +263,9 @@ static void sm_append_slave(sm_side_info *sm_info, int nb_polys)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     for(int side = 0; side < nb_polys; side++) {
-        nsm_total += sm_info[side]->nsm;
-        maxdeg = MAX(maxdeg, sm_info[side]->f->deg);
-        if (sm_info[side]->nsm) limbs_per_ell = mpz_size(sm_info[side]->ell);
+        nsm_total += sm_info[side].nsm;
+        maxdeg = MAX(maxdeg, sm_info[side].f->deg);
+        if (sm_info[side].nsm) limbs_per_ell = mpz_size(sm_info[side].ell);
     }
 
 
@@ -297,8 +297,8 @@ static void sm_append_slave(sm_side_info *sm_info, int nb_polys)
                 mpz_poly_setcoeff_int64(pol, 1, -(int64_t) batch[i].b);
                 int smidx = 0;
                 for (int side = 0; side < nb_polys; ++side) {
-                    compute_sm_piecewise(smpol, pol, sm_info[side]);
-                    for(int k = 0 ; k < sm_info[side]->nsm ; k++, smidx++) {
+                    sm_info[side].compute_piecewise(smpol, pol);
+                    for(int k = 0 ; k < sm_info[side].nsm ; k++, smidx++) {
                         if (k <= smpol->deg) {
                             mp_limb_t * rix = returns + (i * nsm_total + smidx) * limbs_per_ell;
                             for(size_t j = 0 ; j < limbs_per_ell ; j++) {
@@ -323,15 +323,13 @@ static void sm_append_slave(sm_side_info *sm_info, int nb_polys)
     }
 }
 
-static void sm_append_sync(FILE * in, FILE * out, sm_side_info *sm_info, int nb_polys)
+static void sm_append_sync(FILE * in, FILE * out, std::vector<sm_side_info> const & sm_info, int nb_polys)
 {
     char buf[1024];
-    mpz_poly pol, smpol;
-    int maxdeg = sm_info[0]->f->deg;
+    cxx_mpz_poly pol, smpol;
+    int maxdeg = sm_info[0].f->deg;
     for(int side = 1; side < nb_polys; side++)
-        maxdeg = MAX(maxdeg, sm_info[side]->f->deg);
-    mpz_poly_init(pol, maxdeg);
-    mpz_poly_init(smpol, maxdeg);
+        maxdeg = MAX(maxdeg, sm_info[side].f->deg);
     while (fgets(buf, 1024, in)) {
         int n = strlen(buf);
         if (!n) break;
@@ -361,19 +359,17 @@ static void sm_append_sync(FILE * in, FILE * out, sm_side_info *sm_info, int nb_
         fputs(buf, out);
         fputc(':', out);
         for (int side = 0; side < nb_polys; ++side) {
-            compute_sm_piecewise(smpol, pol, sm_info[side]);
+            sm_info[side].compute_piecewise(smpol, pol);
             print_sm2(out, sm_info[side], smpol, ",");
-            if (side == 0 && sm_info[0]->nsm > 0 && sm_info[1]->nsm > 0)
+            if (side == 0 && sm_info[0].nsm > 0 && sm_info[1].nsm > 0)
                 fputc(',', out);
         }
         fputc('\n', out);
-        mpz_poly_clear(pol);
     }
-    mpz_poly_clear(smpol);
 }
 
 
-static void sm_append(FILE * in, FILE * out, sm_side_info *sm_info, int nb_polys)
+static void sm_append(FILE * in, FILE * out, std::vector<sm_side_info> const & sm_info, int nb_polys)
 {
     int rank;
     int size;
@@ -417,13 +413,13 @@ static void usage (const char *argv, const char * missing, param_list pl)
 /* -------------------------------------------------------------------------- */
 
 // coverity[root_function]
-int main (int argc, char **argv)
+int main(int argc, char const * argv[])
 {
-    MPI_Init(&argc, & argv);
+    MPI_Init(&argc, (char ***) &argv);
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    char *argv0 = argv[0];
+    const char *argv0 = argv[0];
 
     const char *polyfile = NULL;
 
@@ -441,7 +437,7 @@ int main (int argc, char **argv)
 
     argc--,argv++;
     for ( ; argc ; ) {
-        if (param_list_update_cmdline (pl, &argc, &argv)) { continue; }
+        if (param_list_update_cmdline (pl, &argc, (char const ***) &argv)) { continue; }
         fprintf (stderr, "Unhandled parameter %s\n", argv[0]);
         usage (argv0, NULL, pl);
     }
@@ -501,15 +497,15 @@ int main (int argc, char **argv)
     if (!rank)
         param_list_print_command_line (stdout, pl);
 
-    sm_side_info * sm_info = new sm_side_info[cpoly->nb_polys];
+    std::vector<sm_side_info> sm_info;
 
     for(int side = 0 ; side < cpoly->nb_polys; side++) {
-        sm_side_info_init(sm_info[side], F[side], ell, 0);
-        sm_side_info_set_mode(sm_info[side], sm_mode_string);
+        sm_info.emplace_back(F[side], ell, 0);
+        sm_info[side].set_mode(sm_mode_string);
         if (nsm_arg[side] >= 0)
-            sm_info[side]->nsm = nsm_arg[side]; /* command line wins */
+            sm_info[side].nsm = nsm_arg[side]; /* command line wins */
         if (!rank)
-            printf("# Using %d SMs on side %d\n", sm_info[side]->nsm, side);
+            printf("# Using %d SMs on side %d\n", sm_info[side].nsm, side);
     }
 
     /*
@@ -519,7 +515,7 @@ int main (int argc, char **argv)
        mpz_poly_fprintf(stdout, F[side]);
 
        printf("# SM info on side %d:\n", side);
-       sm_side_info_print(stdout, sm_info[side]);
+       sm_info[side].print(stdout);
 
        fflush(stdout);
        }
@@ -536,11 +532,6 @@ int main (int argc, char **argv)
 
     if (!rank && infilename) fclose_maybe_compressed(in, infilename);
     if (!rank && out != stdout) fclose_maybe_compressed(out, outfilename);
-
-    for(int side = 0 ; side < cpoly->nb_polys ; side++) {
-        sm_side_info_clear(sm_info[side]);
-    }
-    delete[] sm_info;
 
     mpz_clear(ell);
     cado_poly_clear(cpoly);

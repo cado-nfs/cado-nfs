@@ -2,11 +2,16 @@
 #define LINGEN_MATPOLY_FT_HPP_
 
 #include "cado_config.h"              // for HAVE_OPENMP
-#include <limits.h>                   // for UINT_MAX
-#include <string.h>                   // for NULL, memset, size_t
+
+#include <climits>                   // for UINT_MAX
+#include <cstring>                   // for NULL, memset, size_t
+
 #include <algorithm>                  // for min
 #include <array>                      // for array
+
 #include <gmp.h>                      // for mp_limb_t
+
+#include "gmp_aux.h"
 #include "arith-hard.hpp"        // for abdst_field
 #include "lingen_call_companion.hpp"
 #include "lingen_fft_select.hpp" // IWYU pragma: keep
@@ -16,6 +21,7 @@
 #include "misc.h"
 #include "omp_proxy.h"
 #include "submatrix_range.hpp"        // for submatrix_range
+
 class tree_stats;
 
 template<typename fft_type>
@@ -120,7 +126,7 @@ public:
             }
         }/*}}}*/
 #if 0
-        void fill_random(gmp_randstate_t rstate) { /*{{{*/
+        void fill_random(cxx_gmp_randstate & rstate) { /*{{{*/
             unsigned int nrows = this->nrows();
             unsigned int ncols = this->ncols();
             // the rstate is shared: it is not safe to openmp-it.
@@ -191,10 +197,10 @@ public:
     inline void zero() { view().zero(); }
 
 #if 0
-    inline void fill_random(submatrix_range const & R, gmp_randstate_t rstate) {
+    inline void fill_random(submatrix_range const & R, cxx_gmp_randstate & rstate) {
         view(R).fill_random(rstate);
     }
-    inline void fill_random(gmp_randstate_t rstate) {
+    inline void fill_random(cxx_gmp_randstate & rstate) {
         view().fill_random(rstate);
     }
 #endif

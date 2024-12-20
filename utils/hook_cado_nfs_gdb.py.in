@@ -1,0 +1,19 @@
+
+import gdb
+import sys
+import importlib
+
+pythondir = "@CADO_NFS_SOURCE_DIR@/scripts/gdb"
+
+if not pythondir in sys.path:
+    sys.path.append(pythondir)
+
+print("## auto-loading pretty-printers for cado-nfs datatypes")
+
+import cado_nfs_gdb
+importlib.reload(cado_nfs_gdb)
+
+
+# from cado_nfs_gdb import register_cado_nfs_printers
+# register_cado_nfs_printers(gdb.current_objfile())
+cado_nfs_gdb.register_cado_nfs_printers(gdb.current_objfile())

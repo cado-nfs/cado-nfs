@@ -10,7 +10,9 @@
    but this is a start.
 */
 
-#include "mod_common.c"
+// scan-headers: stop here
+
+#include "mod_common.c"         // NOLINT(bugprone-suspicious-include)
 
 int
 mod_div3 (residue_t r, const residue_t a, const modulus_t m)
@@ -41,12 +43,12 @@ mod_div3 (residue_t r, const residue_t a, const modulus_t m)
      (a+k*m)/3 < 2^w, so doing a division (mod 2^w) produces the
      correct result. */
 
-#if LONG_BIT == 32
+#if ULONG_BITS == 32
     t[0] *= 0xaaaaaaabUL; /* 1/3 (mod 2^32) */
-#elif LONG_BIT == 64
+#elif ULONG_BITS == 64
     t[0] *= 0xaaaaaaaaaaaaaaabUL; /* 1/3 (mod 2^64) */
 #else
-#error LONG_BIT is neither 32 nor 64
+#error ULONG_BITS is neither 32 nor 64
 #endif
 
 #ifdef WANT_ASSERT_EXPENSIVE
@@ -92,12 +94,12 @@ mod_div5 (residue_t r, const residue_t a, const modulus_t m)
      (a+k*m)/5 < 2^w, so doing a division (mod 2^w) produces the
      correct result. */
 
-#if LONG_BIT == 32
+#if ULONG_BITS == 32
     t[0] *= 0xcccccccdUL; /* 1/5 (mod 2^32) */
-#elif LONG_BIT == 64
+#elif ULONG_BITS == 64
     t[0] *= 0xcccccccccccccccdUL; /* 1/5 (mod 2^64) */
 #else
-#error LONG_BIT is neither 32 nor 64
+#error ULONG_BITS is neither 32 nor 64
 #endif
 
 #ifdef WANT_ASSERT_EXPENSIVE
@@ -146,12 +148,12 @@ mod_div7 (residue_t r, const residue_t a, const modulus_t m)
      (a+k*m)/7 < 2^w, so doing a division (mod 2^w) produces the
      correct result. */
 
-#if LONG_BIT == 32
+#if ULONG_BITS == 32
     t[0] *= 0xb6db6db7UL; /* 1/7 (mod 2^32) */
-#elif LONG_BIT == 64
+#elif ULONG_BITS == 64
     t[0] *= 0x6db6db6db6db6db7UL; /* 1/7 (mod 2^64) */
 #else
-#error LONG_BIT is neither 32 nor 64
+#error ULONG_BITS is neither 32 nor 64
 #endif
 
 #ifdef WANT_ASSERT_EXPENSIVE
@@ -203,12 +205,12 @@ mod_div11 (residue_t r, const residue_t a, const modulus_t m)
      (a+k*m)/11 < 2^w, so doing a division (mod 2^w) produces the
      correct result. */
 
-#if LONG_BIT == 32
+#if ULONG_BITS == 32
     t[0] *= 0xba2e8ba3UL; /* 1/11 (mod 2^32) */
-#elif LONG_BIT == 64
+#elif ULONG_BITS == 64
     t[0] *= 0x2e8ba2e8ba2e8ba3UL; /* 1/11 (mod 2^64) */
 #else
-#error LONG_BIT is neither 32 nor 64
+#error ULONG_BITS is neither 32 nor 64
 #endif
 
   mod_set (r, t, m);
@@ -248,12 +250,12 @@ mod_div13 (residue_t r, const residue_t a, const modulus_t m)
      (a+k*m)/13 < 2^w, so doing a division (mod 2^w) produces the
      correct result. */
 
-#if LONG_BIT == 32
+#if ULONG_BITS == 32
     t[0] *= 0xc4ec4ec5UL; /* 1/13 (mod 2^32) */
-#elif LONG_BIT == 64
+#elif ULONG_BITS == 64
     t[0] *= 0x4ec4ec4ec4ec4ec5UL; /* 1/13 (mod 2^64) */
 #else
-#error LONG_BIT is neither 32 nor 64
+#error ULONG_BITS is neither 32 nor 64
 #endif
 
   mod_set (r, t, m);
@@ -302,7 +304,7 @@ mod_2pow_ul (residue_t r, const unsigned long e, const modulus_t m)
       return;
     }
 
-  mask = (1UL << (LONG_BIT - 1)) >> ularith_clz (e);
+  mask = (1UL << (ULONG_BITS - 1)) >> ularith_clz (e);
 
   mod_init_noset0 (t, m);
   mod_init_noset0 (u, m);
@@ -337,7 +339,7 @@ mod_3pow_ul (residue_t r, const unsigned long e, const modulus_t m)
       return;
     }
 
-  mask = (1UL << (LONG_BIT - 1)) >> ularith_clz (e);
+  mask = (1UL << (ULONG_BITS - 1)) >> ularith_clz (e);
 
   mod_init_noset0 (t, m);
   mod_init_noset0 (u, m);
@@ -375,7 +377,7 @@ mod_2pow_mp (residue_t r, const unsigned long *e, const int e_nrwords,
 
   ASSERT (e_nrwords != 0 && e[i] != 0);
 
-  mask = (1UL << (LONG_BIT - 1)) >> ularith_clz (e[i]);
+  mask = (1UL << (ULONG_BITS - 1)) >> ularith_clz (e[i]);
 
   mod_init_noset0 (t, m);
   mod_init_noset0 (u, m);

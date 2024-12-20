@@ -1,41 +1,43 @@
 #include "cado.h" // IWYU pragma: keep
-// IWYU pragma: no_include <ext/alloc_traits.h>
-// IWYU pragma: no_include <mm_malloc.h>
+
+#define xxxLOG_BUCKET_REGION_IS_A_CONSTANT
+
 #include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
 #include <ctime>
+
+// IWYU pragma: no_include <ext/alloc_traits.h>
 #include <vector>
 #include <sstream>
 #include <algorithm>
 #include <memory>                             // for allocator_traits<>::val...
 #include <string>                             // for string
 #include <type_traits>                        // for is_same
+
 #include <sys/time.h>
+
 #include <gmp.h>
+
 #include "fb-types.h"                         // for sublat_t
 #include "las-smallsieve-types.hpp"           // for ssp_simple_t, ssp_t
 #include "las-where-am-i-proxy.hpp"           // for where_am_I
-#include "macros.h"
 #include "las-where-am-i.hpp"
-
-#define xxxLOG_BUCKET_REGION_IS_A_CONSTANT
-
+#include "macros.h"
+#include "params.h"
+#include "sieve/las-smallsieve-glue.hpp"
+#include "sieve/las-smallsieve-lowlevel.hpp"
 #include "test-smallsieve-mock.hpp"
 
-#include "sieve/las-smallsieve-lowlevel.hpp"
-#include "sieve/las-smallsieve-glue.hpp"
-#include "params.h"
 
-
-int consistency_check_mode = 0;
-int quiet = 0;
-int abort_on_fail = 0;
-int only_complete_functions = 0;
+static int consistency_check_mode = 0;
+static int quiet = 0;
+static int abort_on_fail = 0;
+static int only_complete_functions = 0;
 
 /* this is really a mock structure just for the fun of it. */
-sublat_t sl;
+static sublat_t sl;
 
 
 
@@ -229,7 +231,7 @@ static inline size_t sieve_full_line_new(unsigned char * S0, unsigned char * S1,
     return pi - S1;
 }
 
-void current_I18_branch(std::vector<int> const & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /* {{{ */
+static void current_I18_branch(std::vector<int> const & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /* {{{ */
 {
     SMALLSIEVE_COMMON_DEFS();
     ASSERT_ALWAYS(positions.size() == primes.size());
@@ -241,7 +243,7 @@ void current_I18_branch(std::vector<int> const & positions, std::vector<ssp_simp
         const unsigned char logp = ssp.logp;
         unsigned char * S0 = S;
 
-        unsigned int i_compens_sublat = sl.i0 & 1;
+        unsigned int const i_compens_sublat = sl.i0 & 1;
         unsigned int j = j0;
 
 
@@ -260,7 +262,7 @@ void current_I18_branch(std::vector<int> const & positions, std::vector<ssp_simp
         }
         for( ; j < j1 ; ) {
             /* for j even, we sieve only odd pi, so step = 2p. */
-            int xpos = ((i_compens_sublat + pos) & 1) ? pos : (pos+p);
+            int const xpos = ((i_compens_sublat + pos) & 1) ? pos : (pos+p);
             sieve_full_line(S0, S0 + (i1 - i0), S0 - S,
                     xpos, p+p, logp, w);
             S0 += I;
@@ -277,6 +279,7 @@ void current_I18_branch(std::vector<int> const & positions, std::vector<ssp_simp
         }
     }
 }/*}}}*/
+#if 0
 void modified_I18_branch_C(std::vector<int> const & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /* {{{ */
 {
     SMALLSIEVE_COMMON_DEFS();
@@ -294,7 +297,7 @@ void modified_I18_branch_C(std::vector<int> const & positions, std::vector<ssp_s
          * (i1-i0) is different from I, we'll break anyway. So
          * whether we add I or (i1-i0) to S0 does not matter much.
          */
-        fbprime_t spx = (p+p)^p;
+        fbprime_t const spx = (p+p)^p;
         fbprime_t px = (j0&1)?p:(p+p);
         /* The increment is i1-i0, not I, to cover the case where
          * B <= I; we then have i1-i0 = B
@@ -312,7 +315,8 @@ void modified_I18_branch_C(std::vector<int> const & positions, std::vector<ssp_s
         }
     }
 }/*}}}*/
-void legacy_branch(std::vector<int> const & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /*{{{*/
+#endif
+static void legacy_branch(std::vector<int> const & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /*{{{*/
 {
     SMALLSIEVE_COMMON_DEFS();
     const unsigned long bucket_region = (1UL << LOG_BUCKET_REGION);
@@ -376,7 +380,7 @@ j_odd:
     }
 }
 /*}}}*/
-void devel_branch(std::vector<int> const & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /*{{{*/
+static void devel_branch(std::vector<int> const & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /*{{{*/
 {
     SMALLSIEVE_COMMON_DEFS();
     ASSERT_ALWAYS(positions.size() == primes.size());
@@ -410,7 +414,7 @@ void devel_branch(std::vector<int> const & positions, std::vector<ssp_simple_t> 
         for( ; j < j1 ; ) {
             /* for S(j) even, we sieve only odd pi, so step = 2p. */
             {
-            int xpos = ((sl.i0 + pos) & 1) ? pos : (pos+p);
+            int const xpos = ((sl.i0 + pos) & 1) ? pos : (pos+p);
             sieve_full_line_new_half(S0, S0 + (i1 - i0), S0 - S,
                     xpos, p+p, logp, w);
             }
@@ -430,7 +434,7 @@ j_odd_devel:
     }
 }
 /*}}}*/
-void legacy_mod_branch(std::vector<int> const & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /*{{{*/
+static void legacy_mod_branch(std::vector<int> const & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /*{{{*/
 {
     SMALLSIEVE_COMMON_DEFS();
     const unsigned long bucket_region = (1UL << LOG_BUCKET_REGION);
@@ -552,7 +556,8 @@ j_odd:
 }
 /*}}}*/
 
-template<typename even_code, typename odd_code, bool fragment> void devel_branch_meta(std::vector<int> const & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /*{{{*/
+template<typename even_code, typename odd_code, bool fragment>
+static void devel_branch_meta(std::vector<int> const & positions, std::vector<ssp_simple_t> const& primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /*{{{*/
 {
     SMALLSIEVE_COMMON_DEFS();
     ASSERT_ALWAYS(positions.size() == primes.size());
@@ -586,7 +591,7 @@ template<typename even_code, typename odd_code, bool fragment> void devel_branch
         for( ; j < j1 ; ) {
             /* for j even, we sieve only odd pi, so step = 2p. */
             {
-            int xpos = ((sl.i0 + pos) & 1) ? pos : (pos+p);
+            int const xpos = ((sl.i0 + pos) & 1) ? pos : (pos+p);
             even_code()(S0, S0 + (i1 - i0), S0 - S, xpos, p+p, logp, w);
             }
             S0 += I;
@@ -605,9 +610,9 @@ j_odd_devel0:
 }/*}}}*/
 
 
-void generated(std::vector<int> const & positions, std::vector<ssp_simple_t> const & primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /*{{{*/
+static void generated(std::vector<int> const & positions, std::vector<ssp_simple_t> const & primes, unsigned char * S, int logI, unsigned int N, where_am_I & w MAYBE_UNUSED) /*{{{*/
 {
-    std::vector<ssp_t> not_nice_primes;
+    std::vector<ssp_t> const not_nice_primes;
     small_sieve SS(positions, primes, not_nice_primes, S, logI, N, sl);
     // SS.pattern_sieve2(w);
     // SS.pattern_sieve3(w);
@@ -638,7 +643,7 @@ template<int bit, bool fragment> struct factory_for_bit_round1 {
     };
     template<typename T, typename U> struct iterator<list_car<T, U>> {
         void operator()(candidate_list & res) const {
-            bool sel = std::is_same<Bo, T>::value;
+            bool const sel = std::is_same<Bo, T>::value;
             res.push_back(cand_func {sel, &devel_branch_meta<Be, T, fragment>, T::name});
             iterator<U>()(res);
         }
@@ -656,7 +661,7 @@ template<int bit, bool fragment> struct factory_for_bit_round2 {
     };
     template<typename T, typename U> struct iterator<list_car<T, U>> {
         void operator()(candidate_list & res) const {
-            bool sel = std::is_same<Be, T>::value;
+            bool const sel = std::is_same<Be, T>::value;
             res.push_back(cand_func {sel, &devel_branch_meta<T, Bo, fragment>, T::name});
             iterator<U>()(res);
         }
@@ -691,7 +696,8 @@ struct bench_base {
 
     bench_base(int logB, int logI, int logA) : logI(logI), logA(logA) {
         B = 1UL << logB;
-        posix_memalign((void**)&S, B, B);
+        int const rc = posix_memalign((void**)&S, B, B);
+        ASSERT_ALWAYS(rc == 0);
     }
     bench_base(bench_base const &) = delete;
     ~bench_base() { free(S); }
@@ -701,8 +707,8 @@ struct bench_base {
         }
         if (cand.empty()) return true;
         std::vector<unsigned char *> refS;
-        size_t I = 1UL << logI;
-        int Nmax = 1 << (logA - LOG_BUCKET_REGION);
+        size_t const I = 1UL << logI;
+        int const Nmax = 1 << (logA - LOG_BUCKET_REGION);
 
         std::vector<double> timings;
         int sel_index = -1;
@@ -725,7 +731,7 @@ struct bench_base {
             for(auto const & ssp : allprimes)
                 positions.push_back((I/2)%ssp.get_p());
             memset(S, 0, B);
-            clock_t tt = clock();
+            clock_t const tt = clock();
             for(int N = 0 ; N < Nmax ; N++) {
                 (*bf.f)(positions, allprimes, S, logI, N, w);
             }
@@ -751,22 +757,23 @@ struct bench_base {
                 }
             }
             unsigned char * Scopy;
-            posix_memalign((void**)&Scopy, B, B);
+            int const rc = posix_memalign((void**)&Scopy, B, B);
+            ASSERT_ALWAYS(rc == 0);
             memcpy(Scopy, S, B);
             refS.push_back(Scopy);
         }
         printf("\n");
 
-        size_t best_index = std::min_element(timings.begin(), timings.end()) - timings.begin();
-        double best_time = timings[best_index];
+        size_t const best_index = std::min_element(timings.begin(), timings.end()) - timings.begin();
+        double const best_time = timings[best_index];
         if (sel_index >= 0) {
-            bool sel_best = (size_t) sel_index == best_index;
-            bool sel_tied = timings[sel_index] <= 1.05 * best_time;;
+            bool const sel_best = (size_t) sel_index == best_index;
+            bool const sel_tied = timings[sel_index] <= 1.05 * best_time;;
             for(auto const& bf : cand) {
-                size_t index = &bf-cand.data();
-                double tt = timings[index];
-                bool is_best = index == best_index;
-                bool near_best = tt <= 1.05 * best_time;
+                size_t const index = &bf-cand.data();
+                double const tt = timings[index];
+                bool const is_best = index == best_index;
+                bool const near_best = tt <= 1.05 * best_time;
                 printf("%s%-26s:\t%.3f\t", pfx, bf.name, tt);
                 if (bf.sel) {
                     if (sel_best) {
@@ -793,10 +800,10 @@ struct bench_base {
             }
         } else {
             for(auto const& bf : cand) {
-                size_t index = &bf-cand.data();
-                double tt = timings[index];
-                bool is_best = index == best_index;
-                bool near_best = tt <= 1.05 * best_time;
+                size_t const index = &bf-cand.data();
+                double const tt = timings[index];
+                bool const is_best = index == best_index;
+                bool const near_best = tt <= 1.05 * best_time;
                 printf("%s%-24s:\t%.3f\t", pfx, bf.name, tt);
                 if (is_best) {
                     printf(GREEN("current best") "\n");
@@ -822,8 +829,8 @@ struct bench_base {
             fprintf(stderr, "warning, %s is the only function we have, there's nothing to check againts...\n", cand.front().name);
             return true;
         }
-        size_t I = 1UL << logI;
-        int Nmax = 1 << (logA - LOG_BUCKET_REGION);
+        size_t const I = 1UL << logI;
+        int const Nmax = 1 << (logA - LOG_BUCKET_REGION);
 
         positions.clear();
         for(auto const & ssp : allprimes)
@@ -833,7 +840,8 @@ struct bench_base {
         std::vector<std::vector<int>> refpos;
         for(size_t i = 0 ; i < cand.size() ; i++) {
             unsigned char * Scopy;
-            posix_memalign((void**)&Scopy, B, B);
+            int const rc = posix_memalign((void**)&Scopy, B, B);
+            ASSERT_ALWAYS(rc == 0);
             refS.push_back(Scopy);
             /* make a copy */
             refpos.push_back(positions);
@@ -849,12 +857,12 @@ struct bench_base {
         where_am_I w;
         for(int N = 0 ; N < Nmax ; N++) {
             for(auto const& bf : cand) {
-                size_t index = &bf-cand.data();
+                size_t const index = &bf-cand.data();
                 memset(refS[index], 0, B);
                 (*bf.f)(refpos[index], allprimes, refS[index], logI, N, w);
             }
             for(auto const& bf : cand) {
-                size_t index = &bf-cand.data();
+                size_t const index = &bf-cand.data();
                 if (!ok_perfunc[index]) continue;
                 if (index > 0) {
                     if (memcmp(refS[index], refS.front(), B) != 0) {
@@ -901,7 +909,7 @@ struct bench_base {
     }
 };
 
-void store_primes(std::vector<ssp_simple_t>& allprimes, int bmin, int bmax, gmp_randstate_t rstate)
+static void store_primes(std::vector<ssp_simple_t>& allprimes, int bmin, int bmax, gmp_randstate_t rstate)
 {
     mpz_t pz;
     mpz_init(pz);
@@ -909,17 +917,17 @@ void store_primes(std::vector<ssp_simple_t>& allprimes, int bmin, int bmax, gmp_
     for(;;) {
         mpz_nextprime(pz, pz);
         if (mpz_cmp_ui(pz, 1u << bmax) >= 0) break;
-        unsigned long p = mpz_get_ui(pz);
-        unsigned long r = gmp_urandomm_ui(rstate, p);
+        unsigned long const p = mpz_get_ui(pz);
+        unsigned long const r = gmp_urandomm_ui(rstate, p);
         /* not a problem if we put garbage here */
-        unsigned char logp = log2(p)/log2(1.6);
+        unsigned char const logp = log2(p)/log2(1.6);
         allprimes.emplace_back(p, r, logp);
     }
     if (!quiet) printf("created a list of %zu primes\n", allprimes.size());
     mpz_clear(pz);
 }
 
-void declare_usage(cxx_param_list & pl)
+static void declare_usage(cxx_param_list & pl)
 {
     param_list_decl_usage(pl, "q",  "quiet mode (for tests, mostly)");
     param_list_decl_usage(pl, "C",  "run tests, not timings");
@@ -934,14 +942,14 @@ void declare_usage(cxx_param_list & pl)
     param_list_decl_usage(pl, "only-complete-functions",  "restrict to testing the complete small sieve functions");
 }
 
-int main(int argc0, char * argv0[])
+int main(int argc0, char const * argv0[])
 {
     int logI = 16;
     int logA = 0;
     int bmin = 0;
     int bmax = 0;
     int argc = argc0;
-    char **argv = argv0;
+    char const **argv = argv0;
     cxx_param_list pl;
 
     declare_usage(pl);
@@ -991,7 +999,7 @@ int main(int argc0, char * argv0[])
             for( ; i1 < allprimes.size() && (allprimes[i1].get_p() >> b) ; i1++);
             bounds_perbit[b] = { i0, i1 };
 #endif
-            int logfill = std::min(logI, LOG_BUCKET_REGION);
+            int const logfill = std::min(logI, LOG_BUCKET_REGION);
 
             printf("===== now doing specific tests for %d-bit primes using candidates<%d> =====\n", b+1, logfill-b);
             bench_base bbase(LOG_BUCKET_REGION, logI, logA);
@@ -1049,7 +1057,7 @@ int main(int argc0, char * argv0[])
             }
             }
 
-            std::vector<unsigned char *> refS;
+            std::vector<unsigned char *> const refS;
 
             if (!cand1.empty()) {
                 std::ostringstream goal_name;

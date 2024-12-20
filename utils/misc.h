@@ -9,10 +9,16 @@
 #include <string>
 #include <vector>
 #include <utility>
-#include "cxx_mpz.hpp"
+#include <ios>
 #endif
+
 #include <gmp.h>
 #include "macros.h"
+#ifdef __cplusplus
+#include "cxx_mpz.hpp"
+#endif
+
+// scan-headers: stop here
 
 /* we prefer GMP 5 or later, but the history of the why and how seems
  * lost. It seems that the late GMP-4.3 versions are fine, and the few
@@ -56,9 +62,9 @@ extern unsigned long long int strtoull_const(const char *nptr, const char **endp
 extern char * derived_filename(const char * prefix, const char * what, const char * ext);
 extern int has_suffix(const char * path, const char * sfx);
 
-extern char ** filelist_from_file(const char * basepath, const char * filename,
+extern char const ** filelist_from_file(const char * basepath, const char * filename,
                                   int typ);
-extern void filelist_clear(char ** filelist);
+extern void filelist_clear(char const ** filelist);
 
 long get_arg_max(void);
 extern int mkdir_with_parents(const char * dir, int fatal);
@@ -279,6 +285,14 @@ static inline std::string size_disp(size_t s) {
     size_disp(s, buf);
     return std::string(buf);
 }
+
+static inline bool ends_with(std::string const & name, std::string const & suffix)
+{
+    // c++20: return name.ends_with(suffix)
+    if (name.size() < suffix.size())
+        return false;
+    return name.substr(name.size()-suffix.size()) == suffix;
+}
 #endif
 
 #ifdef __cplusplus
@@ -312,7 +326,6 @@ std::vector<unsigned long> subdivide_primes_interval(unsigned long p0, unsigned 
 #ifdef __cplusplus
 /* Use in any function that uses iomanip temporarily.
  */
-#include <ios>
 
 class IoStreamFlagsRestorer
 {

@@ -46,7 +46,7 @@ void keep_rolling_checkpoints(std::string const & stem, unsigned int v)
     }
     std::sort(vs.begin(), vs.end());
     vs.erase(vs.end() - bw->keep_rolling_checkpoints, vs.end());
-    for(unsigned int k : vs) {
+    for(unsigned int const k : vs) {
         if (bw->checkpoint_precious && (k % bw->checkpoint_precious == 0))
             continue;
         if (k == 0)
@@ -62,7 +62,7 @@ void keep_rolling_checkpoints(std::string const & stem, unsigned int v)
             }
         } else {
             ASSERT_ALWAYS(rc == 0);
-            time_t now = time(NULL);
+            time_t const now = time(NULL);
             int age = now - sbuf->st_mtime;
             if (age < bw->keep_checkpoints_younger_than) {
                 fmt::print("Not discarding old checkpoint {}, too recent ({} s < {})\n", v, age, bw->keep_checkpoints_younger_than);

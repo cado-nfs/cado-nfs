@@ -68,13 +68,13 @@ static void declare_usage(cxx_param_list & pl)
 }
 
 static void
-usage (cxx_param_list & pl, char *argv0)
+usage (cxx_param_list & pl, const char *argv0)
 {
     param_list_print_usage(pl, argv0, stderr);
     exit(EXIT_FAILURE);
 }
 
-std::string rewrite_carets(std::string const & s)
+static std::string rewrite_carets(std::string const & s)
 {
     std::string t;
     for(auto c : s) {
@@ -87,14 +87,14 @@ std::string rewrite_carets(std::string const & s)
     return t;
 }
 
-int output_python = 0;
-int output_raw = 0;
-int for_dl = 0;
+static int output_python = 0;
+static int output_raw = 0;
+static int for_dl = 0;
 
-void output_prologue(cado_poly_srcptr cpoly)
+static void output_prologue(cado_poly_srcptr cpoly)
 {
     if (output_python) {
-        std::vector<std::pair<std::string, std::string>> imports {
+        std::vector<std::pair<std::string, std::string>> const imports {
             //{ "sage.categories.category", "" },
             //{ "sage.categories.commutative_rings", "" },
             //{ "sage.categories.commutative_additive_groups", "" },
@@ -108,9 +108,9 @@ void output_prologue(cado_poly_srcptr cpoly)
         };
         for(auto const & i : imports)
             if (! i.second.empty()) {
-                fmt::print(FMT_STRING("from {} import {}\n"), i.first, i.second);
+                fmt::print("from {} import {}\n", i.first, i.second);
             } else {
-                fmt::print(FMT_STRING("import {}\n"), i.first);
+                fmt::print("import {}\n", i.first);
             }
         fmt::print("ZP = PolynomialRing(ZZ, names=('x',)); x = ZP.gen()\n");
     } else {
@@ -136,13 +136,12 @@ void output_prologue(cado_poly_srcptr cpoly)
     }
 }
 
-int
-main (int argc, char *argv[])
+int main(int argc, char const * argv[])
 {
     int build = 0;
     int output_all_ideals = 0;
     int skip_ideal_checks = 0;
-    char *argv0 = argv[0];
+    const char *argv0 = argv[0];
     cxx_cado_poly cpoly;
 
     cxx_param_list pl;
@@ -163,7 +162,7 @@ main (int argc, char *argv[])
     for( ; argc ; ) {
         if (param_list_update_cmdline(pl, &argc, &argv))
             continue;
-        fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
+        fmt::print(stderr, "Unhandled parameter {}\n", argv[0]);
         usage (pl, argv0);
     }
     /* print command-line arguments */
@@ -179,47 +178,47 @@ main (int argc, char *argv[])
 
     if (output_python && output_raw)
     {
-      fprintf (stderr, "Error, -python and -raw are incompatible\n");
+      fmt::print (stderr, "Error, -python and -raw are incompatible\n");
       usage (pl, argv0);
     }
 
     if (relationsfilename && output_raw)
     {
-      fprintf (stderr, "Error, -relations and -raw are incompatible\n");
+      fmt::print (stderr, "Error, -relations and -raw are incompatible\n");
       usage (pl, argv0);
     }
 
     if (!output_all_ideals && output_raw)
     {
-      fprintf (stderr, "Error, -raw requires -all\n");
+      fmt::print (stderr, "Error, -raw requires -all\n");
       usage (pl, argv0);
     }
 
-    if (polyfilename == NULL)
+    if (!polyfilename)
     {
-      fprintf (stderr, "Error, missing -poly command line argument\n");
+      fmt::print (stderr, "Error, missing -poly command line argument\n");
       usage (pl, argv0);
     }
-    if (renumberfilename == NULL && !build) {
-      fprintf (stderr, "Error, missing -renumber command line argument\n");
+    if (!renumberfilename && !build) {
+      fmt::print (stderr, "Error, missing -renumber command line argument\n");
       usage (pl, argv0);
     }
-    if (renumberfilename != NULL && build) {
-      fprintf (stderr, "Error, --build and -renumber are exclusive\n");
+    if (renumberfilename && build) {
+      fmt::print (stderr, "Error, --build and -renumber are exclusive\n");
       usage (pl, argv0);
     }
     if (!param_list_lookup_string(pl, "lpbs") && build) {
-      fprintf (stderr, "Error, --build requires -lpbs\n");
+      fmt::print (stderr, "Error, --build requires -lpbs\n");
       usage (pl, argv0);
     }
     if (param_list_lookup_string(pl, "lpbs") && !build) {
-      fprintf (stderr, "Error, --lpbs is only valid with --build\n");
+      fmt::print (stderr, "Error, --lpbs is only valid with --build\n");
       usage (pl, argv0);
     }
 
     if (!cado_poly_read (cpoly, polyfilename))
     {
-      fprintf (stderr, "Error reading polynomial file\n");
+      fmt::print (stderr, "Error reading polynomial file\n");
       exit (EXIT_FAILURE);
     }
 
@@ -250,6 +249,13 @@ main (int argc, char *argv[])
             if (!output_raw) {
                 auto s = tab.debug_data_sagemath(c);
 
+                if (tab.is_additional_column(c) && tab.has_merged_additional_column()) {
+                    /* The J0J1 ideal does not exist, really. We'll just
+                     * report it as a comment in the text
+                     */
+                    fmt::print("# I{:x}={}; # virtually the product of J0^-1 and J1^_1\n", c, s);
+                    continue;
+                }
                 if (output_python) {
                     fmt::print("I{:x}={};", c, rewrite_carets(s));
                 } else {
@@ -306,8 +312,18 @@ main (int argc, char *argv[])
                     fmt::print("ab{0}=(OK{0}.fractional_ideal({1}-{2}*alpha{0}))\n",
                             side, rel.az, rel.bz);
                 } else {
-                    fmt::print("ab{0}=(OK{0}.fractional_ideal({1}-{2}*alpha{0})*J{0})\n",
-                            side, rel.az, rel.bz);
+                    // there's something very fishy in the handling of
+                    // positional arguments with the following format.
+                    // Every once in a while, I get 'ab780' instead of a,
+                    // but _not_ when under gdb.
+                    // fmt::print("ab{0}=(OK{0}.fractional_ideal({1}-{2}*alpha{0})*J{0})\n",
+                    //         side, rel.az, rel.bz);
+                    auto gen = fmt::format("{}-{}*alpha{}", rel.az, rel.bz, side);
+                    auto ab = fmt::format("ab{}", side);
+                    auto I = fmt::format("OK{}.fractional_ideal({})", side, gen);
+                    auto J = fmt::format("J{}", side);
+
+                    fmt::print("{}=({}*{})\n", ab, I, J);
                 }
             }
 
@@ -317,6 +333,14 @@ main (int argc, char *argv[])
                 if (x == printed.end()) {
                     printed.insert(c);
                     auto s = tab.debug_data_sagemath(c);
+
+                    if (tab.is_additional_column(c) && tab.has_merged_additional_column()) {
+                        /* The J0J1 ideal does not exist, really. We'll just
+                         * report it as a comment in the text
+                         */
+                        fmt::print("# I{:x}={}; # virtually the product of J0^-1 and J1^_1\n", c, s);
+                        continue;
+                    }
 
                     if (output_python) {
                         fmt::print("I{:x}={};", c, rewrite_carets(s));
@@ -328,7 +352,12 @@ main (int argc, char *argv[])
                     fmt::print("\n");
                 }
                 if (tab.is_additional_column(c)) {
-                    ideals_per_side[it.side].push_back("1");
+                    if (tab.has_merged_additional_column()) {
+                        ideals_per_side[0].push_back("1");
+                        ideals_per_side[1].push_back("1");
+                    } else {
+                        ideals_per_side[it.side].push_back("1");
+                    }
                 } else {
                     ideals_per_side[it.side].push_back(fmt::format("I{:x}", c));
                 }

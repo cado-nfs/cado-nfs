@@ -24,7 +24,7 @@
  * non-zero coefficient, then phi[i] < 0.
  * In column phi[i]-col_offset of u, entries of row index >i are zero.
  */
-int PLUQ64_inner(int * phi, mat64 & l, mat64 & u, mat64 const & a, int col_offset)
+static int PLUQ64_inner(int * phi, mat64 & l, mat64 & u, mat64 const & a, int col_offset)
 {
     const int m = 64;
     const int n = 64;
@@ -39,12 +39,12 @@ int PLUQ64_inner(int * phi, mat64 & l, mat64 & u, mat64 const & a, int col_offse
     int rank = 0;
     uint64_t todo=~((uint64_t)0);
     for(int i = 0 ; i < m ; i++) {
-        uint64_t r=u[i];
+        uint64_t const r=u[i];
         if (phi[i]>=0) continue;
         if (!(r&todo) || phi[i]>=0) continue;
         // this keeps only the least significant bit of r.
-        uint64_t v = r^(r&(r-1));
-        uint64_t j = cado_ctz64(r);
+        uint64_t const v = r^(r&(r-1));
+        uint64_t const j = cado_ctz64(r);
         phi[i] = col_offset + j;
 #if defined(HAVE_SSE41) && !defined(VALGRIND) && !defined(__ICC)
         /* This code is fine, except that there's nowhere we convey the
@@ -54,20 +54,20 @@ int PLUQ64_inner(int * phi, mat64 & l, mat64 & u, mat64 const & a, int col_offse
          */
         int k = i+1;
         if (k&1) {      // alignment call
-            uint64_t w = -((u[k]&v)!=0);
+            uint64_t const w = -((u[k]&v)!=0);
             u[k]^=r&w;
             l[k]^=l[i]&w;
             k++;
         }
         /* ok, it's ugly, and requires sse 4.1.
          * but otoh is churns out data veeery fast */
-        __m128i vv = _cado_mm_set1_epi64(v);
-        __m128i pp = _cado_mm_set1_epi64(r);
-        __m128i ee = _cado_mm_set1_epi64(l[i]);
+        __m128i const vv = _cado_mm_set1_epi64(v);
+        __m128i const pp = _cado_mm_set1_epi64(r);
+        __m128i const ee = _cado_mm_set1_epi64(l[i]);
         __m128i * uu = (__m128i*) (u.data() + k);
         __m128i * ll = (__m128i*) (l.data() + k);
         for( ; k < n ; k+=2 ) {
-            __m128i ww = _mm_cmpeq_epi64(_mm_and_si128(*uu,vv),vv);
+            __m128i const ww = _mm_cmpeq_epi64(_mm_and_si128(*uu,vv),vv);
             *uu = _mm_xor_si128(*uu, _mm_and_si128(pp, ww));
             *ll = _mm_xor_si128(*ll, _mm_and_si128(ee, ww));
             uu++;
@@ -104,7 +104,7 @@ int PLUQ64(perm_matrix_ptr p, mat64 & l, mat64 & u, perm_matrix_ptr q, mat64 con
 {
     int phi[64];
     for(int i = 0 ; i < 64 ; i++) phi[i]=-1;
-    int r = PLUQ64_inner(phi,l,u,m,0);
+    int const r = PLUQ64_inner(phi,l,u,m,0);
     /* l*m = u */
     /* p*u*transpose(q) = diagonal.
      * p*l*m*transpose(q) = diagonal.
@@ -117,7 +117,7 @@ int PLUQ64_n(int * phi, mat64 & l, mat64 * u, mat64 const * a, int n)
 {
     const int m = 64;
     ASSERT_ALWAYS(n % 64 == 0);
-    int nb = n/m;
+    int const nb = n/m;
     l = 1;
     for(int i = 0 ; i < 64 ; i++) phi[i]=-1;
     int rank = 0;
@@ -131,7 +131,7 @@ int PLUQ64_n(int * phi, mat64 & l, mat64 * u, mat64 const * a, int n)
         mul_6464_6464(l, tl, l);
         ls[b] = tl;
     }
-    int nspins = b;
+    int const nspins = b;
     for(int c = b-2 ; c >= 0 ; c--) {
         mul_6464_6464(u[c], tl, u[c]);
         mul_6464_6464(tl, ls[c], tl);
@@ -152,21 +152,21 @@ static inline void bli_64x64N_clobber(mat64 & h, mat64 * us, int * phi, int nb)
     h = 1;
     const int m = 64;
     for(int i = 0 ; i < m ; i++) {
-        int j = phi[i];
+        int const j = phi[i];
         if (j<0) continue;
-        uint64_t m = ((uint64_t)1) << (j%64);
-        int d = j/64;
+        uint64_t const m = ((uint64_t)1) << (j%64);
+        int const d = j/64;
         /* TODO: use _mm_cmpeq_epi64 for this as well, of course */
         ASSERT(us[d][i]&m);
         int k = 0;
 #if defined(HAVE_SSE41) && !defined(VALGRIND)
-        __m128i mm = _cado_mm_set1_epi64(m);
+        __m128i const mm = _cado_mm_set1_epi64(m);
         __m128i * uu = (__m128i*) us[d].data();
         __m128i * hh = (__m128i*) h.data();
-        __m128i hi = _cado_mm_set1_epi64(h[i]);
-        int ii=i/2;
+        __m128i const hi = _cado_mm_set1_epi64(h[i]);
+        int const ii=i/2;
         for( ; k < ii ; k++) {
-            __m128i ww = _mm_cmpeq_epi64(_mm_and_si128(*uu++,mm),mm);
+            __m128i const ww = _mm_cmpeq_epi64(_mm_and_si128(*uu++,mm),mm);
             for(int b = 0 ; b < nb ; b++) {
                 // ((__m128i*)us[b])[k] ^= ww & _cado_mm_set1_epi64(us[b][i]);
                 __m128i * z = ((__m128i*)us[b].data()) + k;
@@ -177,7 +177,7 @@ static inline void bli_64x64N_clobber(mat64 & h, mat64 * us, int * phi, int nb)
         k*=2;
 #endif
         for( ; k < i ; k++) {
-            uint64_t w = -((us[d][k]&m) != 0);
+            uint64_t const w = -((us[d][k]&m) != 0);
             for(int b = 0 ; b < nb ; b++) {
                 us[b][k] ^= w & us[b][i];
             }
@@ -196,14 +196,14 @@ static inline void bli_64x64N_clobber(mat64 & h, mat64 * us, int * phi, int nb)
  * distinct, compute a matrix H such that H*U has exactly one non-zero
  * entry in each column whose index is a value taken by phi.
  */
-void bli_64x128(mat64 & h, mat64 * us, int * phi)
+static void bli_64x128(mat64 & h, mat64 * us, int * phi)
 {
     mat64 uc[2] ATTRIBUTE((aligned(64)));
     std::copy(us, us + 2, std::begin(uc));
     bli_64x64N_clobber(h,uc,phi,2);
 }
 
-void extract_cols_64_from_128(mat64 & t, mat64 const * m, int const * phi)
+static void extract_cols_64_from_128(mat64 & t, mat64 const * m, int const * phi)
 {
     // given the list of 64 integers phi, all in the range {-1} union
     // {0..127}, constitute a 64x64 matrix whose column of index j is
@@ -223,12 +223,12 @@ void extract_cols_64_from_128(mat64 & t, mat64 const * m, int const * phi)
          * with icc, this indeed fails (for test_bitlinalg_matops). We
          * don't know exactly what to do here. 
          */
-        __m128i ss[2] = {
+        __m128i const ss[2] = {
             _cado_mm_set1_epi64(s[0][j]),
             _cado_mm_set1_epi64(s[1][j]) };
         __m128i * mm[2] = {(__m128i*)m[0].data(),(__m128i*)m[1].data()};
         __m128i * tt = (__m128i*)t.data();
-        __m128i mmk = _cado_mm_set1_epi64(mask);
+        __m128i const mmk = _cado_mm_set1_epi64(mask);
         for(int i = 0 ; i < 64 ; i+=2) {
             // *tt ^= mmk & _mm_cmpeq_epi64((*mm[0]&ss[0])^(*mm[1]&ss[1]),ss[0]^ss[1]);
             *tt = _mm_xor_si128(*tt, _mm_and_si128(mmk,

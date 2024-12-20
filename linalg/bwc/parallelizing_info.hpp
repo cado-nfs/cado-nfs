@@ -1,16 +1,26 @@
 #ifndef PARALLELIZING_INFO_HPP_
 #define PARALLELIZING_INFO_HPP_
 
-#include <stdio.h>            // for FILE
+/* don't enable this. Clutters output a lot */
+#define xxxCONCURRENCY_DEBUG
+
+#include <cstdio>            // for FILE
+
+#include <map>
+#include <vector>
+#include <set>
+#ifdef CONCURRENCY_DEBUG
+#include <mutex>
+#endif
 
 #include <sys/types.h>        // for ssize_t
-#include <sys/time.h>   /* for struct timeval */
+#include <sys/time.h>         // for struct timeval
+
 #include "barrier.h"          // for barrier_t
 #include "macros.h"           // for OMPI_VERSION_ATLEAST
 #include "params.h"
 #include "select_mpi.h"
 #include "arith-generic.hpp"
-#include <map>
 #include "lock_guarded_container.hpp"
 
 /*
@@ -38,8 +48,9 @@
  * items (as many as one finds COL groups), and conversely.
  */
 
-/* don't enable this. Clutters output a lot */
-#define xxxCONCURRENCY_DEBUG
+#ifdef CONCURRENCY_DEBUG
+extern std::mutex stdio_mutex;
+#endif
 
 /*
  * MPI_LIBRARY_MT_CAPABLE: do mpi communications in a furiously
@@ -87,7 +98,7 @@ struct pthread_things {
     barrier_t bh[1];
     my_pthread_barrier_t b[1];
 
-    my_pthread_mutex_t m[1];
+    pthread_mutex_t m[1];
     char * desc;
     void * utility_ptr;
     // int count;
@@ -109,6 +120,12 @@ struct pi_log_book {
 /* }}} */
 /* }}} */
 
+struct parallelizing_info_s;
+
+struct pi_comm_s;
+typedef struct pi_comm_s * pi_comm_ptr;
+typedef const struct pi_comm_s * pi_comm_srcptr;
+
 struct pi_comm_s { /* {{{ */
     /* njobs : number of mpi jobs concerned by this logical group */
     /* ncores : number of threads concerned by this logical group */
@@ -126,10 +143,14 @@ struct pi_comm_s { /* {{{ */
     int th_count;
 #endif
     struct pi_log_book * log_book;
+
+    /* This is the communicator in "the other direction". If this pointer
+     * is not NULL, then there are exactly this->xwr->ncores such that
+     * this->trank == 0
+     */
+    pi_comm_ptr xwr;
 };
 typedef struct pi_comm_s pi_comm[1];
-typedef struct pi_comm_s * pi_comm_ptr;
-typedef const struct pi_comm_s * pi_comm_srcptr;
 /* }}} */
 /* }}} */
 
@@ -240,8 +261,8 @@ typedef struct pi_file_handle_s * pi_file_handle_ptr;
 
 extern void parallelizing_info_init();
 extern void parallelizing_info_finish();
-extern void parallelizing_info_decl_usage(param_list pl);
-extern void parallelizing_info_lookup_parameters(param_list_ptr pl);
+extern void parallelizing_info_decl_usage(cxx_param_list & pl);
+extern void parallelizing_info_lookup_parameters(cxx_param_list & pl);
 
 /* pi_go is the main function. It is responsible of creating all the
  * parallelizing_info data structures, set up the different inter-job and
@@ -254,8 +275,8 @@ extern void parallelizing_info_lookup_parameters(param_list_ptr pl);
  * nhc, nvc are the same for threads (cores).
  */
 extern void pi_go(
-        void *(*fcn)(parallelizing_info_ptr, param_list pl, void * arg),
-        param_list pl,
+        void *(&&fcn)(parallelizing_info_ptr, cxx_param_list & pl, void * arg),
+        cxx_param_list & pl,
         void * arg);
 
 extern void pi_hello(parallelizing_info_ptr pi);
@@ -288,13 +309,16 @@ extern void pi_thread_bcast(void * sendbuf,
         size_t count, pi_datatype_ptr datatype,
         unsigned int root,
         pi_comm_ptr wr);
-extern void pi_bcast(void * sendbuf,
-        size_t count, pi_datatype_ptr datatype,
-        unsigned int jroot, unsigned int troot,
-        pi_comm_ptr wr);
 extern void pi_abort(int err, pi_comm_ptr wr);
 extern void pi_thread_allreduce(void * sendbuf, void * recvbuf,
         size_t count, pi_datatype_ptr datatype, pi_op_ptr op,
+        pi_comm_ptr wr);
+extern int pi_thread_data_eq(void * buffer,
+        size_t count, pi_datatype_ptr datatype,
+        pi_comm_ptr wr);
+extern void pi_bcast(void * sendbuf,
+        size_t count, pi_datatype_ptr datatype,
+        unsigned int jroot, unsigned int troot,
         pi_comm_ptr wr);
 extern void pi_allreduce(void * sendbuf, void *recvbuf,
         size_t count, pi_datatype_ptr datatype, pi_op_ptr op,
@@ -304,21 +328,18 @@ extern void pi_allgather(void * sendbuf,
         void *recvbuf,
         size_t recvcount, pi_datatype_ptr recvtype,
         pi_comm_ptr wr);
-extern int pi_thread_data_eq(void * buffer,
-        size_t count, pi_datatype_ptr datatype,
-        pi_comm_ptr wr);
 extern int pi_data_eq(void * buffer,
         size_t count, pi_datatype_ptr datatype,
         pi_comm_ptr wr);
 
-/* shared_malloc is like malloc, except that the pointer returned will be
- * equal on all threads (proper access will deserve proper locking of
- * course). shared_malloc_set_zero sets to zero too */
-/* As a side-effect, all shared_* functions serialize threads */
-extern void * shared_malloc(pi_comm_ptr wr, size_t size);
-extern void * shared_malloc_set_zero(pi_comm_ptr wr, size_t size);
-extern void shared_free(pi_comm_ptr wr, void * ptr);
+/* These two interfaces are experimental only */
 
+namespace parallelizing_info_experimental {
+    void broadcast(std::vector<unsigned int>& v, parallelizing_info_ptr pi);
+    void allgather(std::vector<unsigned int>& v, pi_comm_ptr wr);
+    void broadcast(std::set<unsigned int>& v, parallelizing_info_ptr pi);
+    void allgather(std::set<unsigned int>& v, pi_comm_ptr wr);
+}
 
 /* prints the given string in a ascii-form matrix. */
 extern void grid_print(parallelizing_info_ptr pi, char * buf, size_t siz, int print);
@@ -351,6 +372,106 @@ extern void pi_interleaving_leave(parallelizing_info_ptr);
 
 extern void pi_store_generic(parallelizing_info_ptr, unsigned long, unsigned long, void *);
 extern void * pi_load_generic(parallelizing_info_ptr, unsigned long, unsigned long);
+
+/* shared_malloc is like malloc, except that the pointer returned will be
+ * equal on all threads (proper access will deserve proper locking of
+ * course). shared_malloc_set_zero sets to zero too */
+/* As a side-effect, all shared_* functions serialize threads */
+extern void * shared_malloc(pi_comm_ptr wr, size_t size);
+extern void * shared_malloc_set_zero(pi_comm_ptr wr, size_t size);
+extern void shared_free(pi_comm_ptr wr, void * ptr);
+
+/* Use in std::unique_ptr<T, shared_free_deleter<T>>
+ *     or std::unique_ptr<T[], shared_free_deleter<T>>
+ */
+template<typename T>
+struct shared_free_deleter {
+    pi_comm_ptr wr = nullptr;
+    shared_free_deleter() = default;
+    ~shared_free_deleter() = default;
+    // NOLINTNEXTLINE(hicpp-explicit-conversions)
+    shared_free_deleter(pi_comm_ptr wr) : wr(wr) {}
+    shared_free_deleter(shared_free_deleter const &) = default;
+    shared_free_deleter& operator=(shared_free_deleter const &) = default;
+    shared_free_deleter(shared_free_deleter &&) noexcept = default;
+    shared_free_deleter& operator=(shared_free_deleter &&) noexcept = default;
+    void operator()(T * ptr) const { if (wr) shared_free(wr, ptr); }
+};
+
+template<typename T>
+T * shared_new(pi_comm_ptr wr, size_t size)
+{
+    void * ptr = nullptr;
+    if (wr->trank == 0) ptr = new T[size];
+    pi_thread_bcast(&ptr, sizeof(void*), BWC_PI_BYTE, 0, wr);
+    return static_cast<T *>(ptr);
+}
+
+template<typename T>
+void shared_delete(pi_comm_ptr wr, T * ptr, size_t)
+{
+    serialize_threads(wr);
+    if (wr->trank == 0) delete[] ptr;
+}
+
+template<typename T>
+T * shared_new(pi_comm_ptr wr)
+{
+    void * ptr = nullptr;
+    if (wr->trank == 0) ptr = new T;
+    pi_thread_bcast(&ptr, sizeof(void*), BWC_PI_BYTE, 0, wr);
+    return static_cast<T *>(ptr);
+}
+
+template<typename T>
+void shared_delete(pi_comm_ptr wr, T * ptr)
+{
+    serialize_threads(wr);
+    if (wr->trank == 0) delete ptr;
+}
+
+template<typename T>
+struct shared_delete_deleter {
+    pi_comm_ptr wr = nullptr;
+    shared_delete_deleter() = default;
+    ~shared_delete_deleter() = default;
+    // NOLINTNEXTLINE(hicpp-explicit-conversions)
+    shared_delete_deleter(pi_comm_ptr wr) : wr(wr) {}
+    shared_delete_deleter(shared_delete_deleter const &) = default;
+    shared_delete_deleter& operator=(shared_delete_deleter const &) = default;
+    shared_delete_deleter(shared_delete_deleter &&) noexcept = default;
+    shared_delete_deleter& operator=(shared_delete_deleter &&) noexcept = default;
+    void operator()(T * ptr) const { if (wr) shared_delete(wr, ptr); }
+};
+
+template<typename T>
+struct shared_delete_deleter<T[]> {
+    pi_comm_ptr wr = nullptr;
+    shared_delete_deleter() = default;
+    ~shared_delete_deleter() = default;
+    // NOLINTNEXTLINE(hicpp-explicit-conversions)
+    shared_delete_deleter(pi_comm_ptr wr) : wr(wr) {}
+    shared_delete_deleter(shared_delete_deleter const &) = default;
+    shared_delete_deleter& operator=(shared_delete_deleter const &) = default;
+    shared_delete_deleter(shared_delete_deleter &&) noexcept = default;
+    shared_delete_deleter& operator=(shared_delete_deleter &&) noexcept = default;
+    void operator()(T * ptr) const { if (wr) shared_delete(wr, ptr, 0); }
+};
+
+template<typename T>
+struct pi_shared_array : public std::unique_ptr<T[], shared_delete_deleter<T[]>> {
+    typedef std::unique_ptr<T[], shared_delete_deleter<T[]>> super;
+    explicit pi_shared_array(pi_comm_ptr wr, unsigned int n)
+        : super(shared_new<T>(wr, n), wr)
+    {}
+};
+template<typename T>
+struct pi_shared_object : public std::unique_ptr<T, shared_delete_deleter<T>> {
+    typedef std::unique_ptr<T, shared_delete_deleter<T>> super;
+    explicit pi_shared_object(pi_comm_ptr wr)
+        : super(shared_new<T>(wr), wr)
+    {}
+};
 
 /* This provides a fairly typical construct, used like this:
  * SEVERAL_THREADS_PLAY_MPI_BEGIN(some pi communicator) {

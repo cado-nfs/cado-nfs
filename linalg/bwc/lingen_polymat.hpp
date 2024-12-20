@@ -6,7 +6,8 @@
 #endif
 
 #include <cstddef>      // for size_t, NULL
-#include <gmp.h>         // for gmp_randstate_t
+
+#include "gmp_aux.h"
 #include "arith-hard.hpp"
 #include "macros.h"
 
@@ -42,7 +43,7 @@ struct polymat {
 #if 0
     void swap(polymat & b);
 #endif
-    void fill_random(unsigned int nsize, gmp_randstate_t rstate);
+    void fill_random(unsigned int nsize, cxx_gmp_randstate & rstate);
     int cmp(polymat const & b);
 
     /* {{{ access interface for polymat */

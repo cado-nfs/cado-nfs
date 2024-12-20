@@ -18,7 +18,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <gmp.h>
-//#include <time.h> 
 #include "cado_poly.h"
 #include "gfpkdlpolyselect.h"
 #include "gfpkdlpolyselect_impl.h"
@@ -57,7 +56,7 @@ usage (){
  *
  * inspired by main function of dlpolyselect.c
  */
-int main(int argc, char* argv[])
+int main(int argc, char const * argv[])
 {
   // first, catch k and p
   // then, compute the two polynomials (f,g)

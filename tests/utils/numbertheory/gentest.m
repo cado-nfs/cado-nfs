@@ -1,4 +1,6 @@
 SetColumns(0);
+ZP:=PolynomialRing(Integers());
+AssignNames(~ZP, ["x"]);
 ps:=func<x|Join([Sprintf("%o",y):y in x], " ")>;
 for i in [1..40] do
     d:=Random(10)+2;
@@ -18,7 +20,7 @@ for i in [1..40] do
         Bz:=Matrix(Integers(),B*Bd);
         O`Maximal:=true;
         Fp:=Factorization(ideal<O|p>);
-        print ps(Eltseq(f));
+        print ps([f]);
         iprint:=function(Im)
             I,m:=Explode(Im);
             // MI:=BasisMatrix(I);

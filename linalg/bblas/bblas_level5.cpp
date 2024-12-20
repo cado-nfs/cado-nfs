@@ -1,5 +1,7 @@
-#include "cado.h"
+#include "cado.h"       // NOLINT(misc-include-cleaner)
+
 #include <cstring>
+
 #include "bblas_mat64.hpp"
 #include "bblas_level5.hpp"
 #include "bblas_level3a.hpp"  // for mat64_add
@@ -56,7 +58,7 @@ void m64pol_mul_kara(mat64 * r, mat64 const * a1, mat64 const * a2, unsigned int
         m64pol_mul(r, a1, a2, n1, n2);
         return;
     }
-    unsigned int h = n1 >> 1;
+    unsigned int const h = n1 >> 1;
     memset((void *) r, 0, (n1 + n2 - 1) * sizeof(mat64));
 
     m64pol_add(r, a1, a1 + h, h);

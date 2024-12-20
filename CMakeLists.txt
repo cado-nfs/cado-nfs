@@ -37,10 +37,20 @@ get_override(BWC_GFP_MATMUL_BACKENDS    BWC_GFP_MATMUL_BACKENDS)
 get_override(BWC_EXTRA_BACKENDS    BWC_EXTRA_BACKENDS)
 get_override(CHECKS_EXPENSIVE   CHECKS_EXPENSIVE)
 get_override(TIMEOUT_SCALE   TIMEOUT_SCALE)
+get_override(VALGRIND   VALGRIND)
+
+if(VALGRIND)
+    set(USE_ONLY_ASSEMBLY_INSTRUCTIONS_THAT_VALGRIND_KNOWS_ABOUT 1)
+endif()
+
+
 
 # If you change the min version, also change scripts/call_cmake.sh
 # It must be called before the project() command.
-cmake_minimum_required(VERSION 3.5.0)
+cmake_minimum_required(VERSION 3.18.0)
+
+# if we want to use JOB_SERVER_AWARE, we need 3.28.0
+# cmake_minimum_required(VERSION 3.28.0)
 
 project(CADO_NFS)
 
@@ -104,7 +114,10 @@ enable_testing()
 # obeyed. This has the consequence that in order to pass a $, you need to
 # pass $$ ; well, plus quoting. So that gives, e.g.:
 #        make check ARGS="-R ^foo\$\$"
-add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} -V $(ARGS))
+add_custom_target(check
+    COMMAND ${CMAKE_CTEST_COMMAND} -V $(ARGS)
+    # JOB_SERVER_AWARE true
+)
 
 if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
 	# sigh...
@@ -129,21 +142,14 @@ set(DATASUFFIX share/${package_basename} CACHE STRING "subpath below PREFIX for 
 # Add the CFLAGS that are needed in all cases.
 # Append them at the *end* of the parameter list so as to allow tweaking
 # of e.g. warnings by the user-defined overrides.
-set (CMAKE_C_FLAGS      "${CMAKE_C_FLAGS} ${CMAKE_FLAGS_SIZE}")
-set (CMAKE_CXX_FLAGS    "${CMAKE_CXX_FLAGS} ${CMAKE_FLAGS_SIZE}")
 
 # It's redundant with something that CMake prints the first time it
 # detects the compiler. Alas, it's within a cached if, so we often don't
 # see it.
 
-# Hmmm, how delicious. cmake-2.8.7 does not have
-# CMAKE_CXX_COMPILER_VERSION
+set (CMAKE_C_FLAGS      "${CMAKE_C_FLAGS} ${CMAKE_FLAGS_SIZE}")
 message(STATUS "C compiler: ${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}")
-message(STATUS "C++ compiler: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
-
-# oh my... this is really ugly. I'd love to have more usable control
-# structures in cmake...
-if(CMAKE_COMPILER_IS_GNUCC)
+if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
     # gcc defines __STRICT_ANSI__ with -std=c99, which under MinGW
     # causes many prototypes and macros not to be defined. Using gnu99
     # prevents the definition of __STRICT_ANSI__
@@ -156,18 +162,50 @@ if(CMAKE_COMPILER_IS_GNUCC)
         set (CMAKE_C_FLAGS "-std=c99 ${CMAKE_C_FLAGS}")
     endif()
     # Someday we'll enable c11. This will provide us aligned_alloc.
+elseif(CMAKE_C_COMPILER_ID MATCHES "IntelLLVM")
+    message(STATUS "Applying flags for icc (icx)")
+    # icc defaults to -fp-model=fast, which is slightly getting in the
+    # way. We rarely depend on this in cado-nfs, so let's stick to usual
+    # behavior.
+    set (CMAKE_C_FLAGS   "-fp-model=precise -std=c99 ${CMAKE_C_FLAGS}")
+elseif(CMAKE_C_COMPILER_ID MATCHES "Intel")
+    message(STATUS "Applying flags for icc")
+    set (CMAKE_C_FLAGS   "-W -Wall -wd13200,13203 ${CMAKE_C_FLAGS}")
+    set (CMAKE_C_FLAGS   "-std=c99 ${CMAKE_C_FLAGS}")
+elseif(CMAKE_C_COMPILER_ID MATCHES "AppleClang" OR CMAKE_HOST_SYSTEM_NAME
+        STREQUAL "Darwin" AND CMAKE_C_COMPILER_ID MATCHES "Clang" )
+    set (CMAKE_C_FLAGS   "-std=c99 -W -Wall ${CMAKE_C_FLAGS}")
+elseif(CMAKE_C_COMPILER_ID MATCHES "^Clang")
+    set (CMAKE_C_FLAGS   "-std=c99 -W -Wall ${CMAKE_C_FLAGS}")
+else()
+    message(WARNING "C compiler not recognized. Setting -std=c99 as a wild guess")
+    set (CMAKE_C_FLAGS   "-std=c99 -W -Wall ${CMAKE_C_FLAGS}")
 endif()
+message(STATUS "CFLAGS=${CMAKE_C_FLAGS} (synthetized)")
 
+
+
+set (CMAKE_CXX_FLAGS    "${CMAKE_CXX_FLAGS} ${CMAKE_FLAGS_SIZE}")
+message(STATUS "C++ compiler: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set (CMAKE_CXX_FLAGS "-W -Wall ${CMAKE_CXX_FLAGS}")
     if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.0)
-        message(FATAL_ERROR "cado-nfs requires gcc version 5 or greater")
+        message(FATAL_ERROR "cado-nfs requires g++ version 5 or greater")
     endif()
     set(HAVE_CXX11 1)
     if(MINGW)
         set (CMAKE_CXX_FLAGS "-std=gnu++11 ${CMAKE_CXX_FLAGS}")
     else()
-        if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0)
+        # according to https://gcc.gnu.org/projects/cxx-status.html
+        # we're pushing the min gcc version from 12 to 14, in order to
+        # avoid a false positive with libfmt. I observe
+        # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=109717 with g++13
+        # and not g++14
+        if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 14.0)
+            set (CMAKE_CXX_FLAGS "-std=c++20 -Wno-c++11-compat ${CMAKE_CXX_FLAGS}")
+            message(STATUS "Enabling C++20 support")
+            set(HAVE_CXX20 1)
+        elseif (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0)
             # we only require c++11, not c++17. However c++17 adds the
             # possibility to benefit from some compile-time checks, of
             # format strings notably. Therefore we choose to enable it
@@ -188,45 +226,39 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-psabi")
     endif()
     set (CMAKE_CXX_FLAGS "-export-dynamic ${CMAKE_CXX_FLAGS}")
-endif()
-
-if(CMAKE_C_COMPILER_ID MATCHES "IntelLLVM")
+elseif(CMAKE_C_COMPILER_ID MATCHES "IntelLLVM")
     message(STATUS "Applying flags for icc (icx)")
-    # icc defaults to -fp-model=fast, which is slightly getting in the
-    # way. We rarely depend on this in cado-nfs, so let's stick to usual
-    # behavior.
-    set (CMAKE_C_FLAGS   "-fp-model=precise -std=c99 ${CMAKE_C_FLAGS}")
     set (CMAKE_CXX_FLAGS "-fp-model=precise -std=c++11 ${CMAKE_CXX_FLAGS}")
-    set(HAVE_CXX11 1)
-    message(STATUS "Enabling C++11 support")
+    if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "2025")
+        set (CMAKE_CXX_FLAGS   "-std=c++20 ${CMAKE_CXX_FLAGS}")
+        message(STATUS "Enabling C++20 support")
+        set(HAVE_CXX20 1)
+        set(HAVE_CXX11 1)
+    else()
+	message(STATUS "Enabling C++11 support")
+        set(HAVE_CXX11 1)
+    endif()
 elseif(CMAKE_C_COMPILER_ID MATCHES "Intel")
     message(STATUS "Applying flags for icc")
-    set (CMAKE_C_FLAGS   "-W -Wall -wd13200,13203 ${CMAKE_C_FLAGS}")
     set (CMAKE_CXX_FLAGS "-W -Wall -wd13200,13203,3058 ${CMAKE_CXX_FLAGS}")
-    set (CMAKE_C_FLAGS   "-std=c99 ${CMAKE_C_FLAGS}")
-
     # only icc>=15 is full c++11 compliant, it seems. But 14 will do.
     if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 15)
         set (CMAKE_CXX_FLAGS   "-std=c++11 ${CMAKE_CXX_FLAGS}")
         set(HAVE_CXX11 1)
         message(STATUS "Enabling C++11 support")
-    elseif (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 14)
-        message(STATUS "Not enabling C++11 support for ICC 14, see bug #21416")
     else()
-        # don't set standard flags explicitly. The default seems fine.
-        # set (CMAKE_CXX_FLAGS   "-std=gnu++98 -W -Wall ${CMAKE_CXX_FLAGS}")
+        # See bug #21416
+        message(FATAL_ERROR "cado-nfs requires icc version 15 or greater")
     endif()
-endif()
-
-if(CMAKE_C_COMPILER_ID MATCHES "AppleClang" OR CMAKE_HOST_SYSTEM_NAME
-        STREQUAL "Darwin" AND CMAKE_C_COMPILER_ID MATCHES "Clang" )
-    set (CMAKE_C_FLAGS   "-std=c99 -W -Wall ${CMAKE_C_FLAGS}")
-endif()
-
-if(CMAKE_CXX_COMPILER_ID MATCHES "AppleClang" OR CMAKE_HOST_SYSTEM_NAME
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "AppleClang" OR CMAKE_HOST_SYSTEM_NAME
         STREQUAL "Darwin" AND CMAKE_CXX_COMPILER_ID MATCHES "Clang" )
     # Not the slightest idea when apple's clang became c++11-compliant.
-    if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "6.0.0")
+    if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "15.0.0")
+        set (CMAKE_CXX_FLAGS   "-std=c++20 ${CMAKE_CXX_FLAGS}")
+        set(HAVE_CXX11 1)
+        set(HAVE_CXX20 1)
+        message(STATUS "Enabling C++20 support")
+    elseif (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "6.0.0")
         set (CMAKE_CXX_FLAGS   "-std=c++11 ${CMAKE_CXX_FLAGS}")
         set (HAVE_CXX11 1)
         message(STATUS "Enabling C++11 support")
@@ -234,10 +266,18 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "AppleClang" OR CMAKE_HOST_SYSTEM_NAME
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "^Clang")
     set (CMAKE_CXX_FLAGS "-W -Wall ${CMAKE_CXX_FLAGS}")
     # According to http://clang.llvm.org/cxx_status.html
+    # deciding when to enable a given feature set is always some hit and
+    # miss, because it takes time (like, a multiple version timespan) for
+    # support to be considered complete.
     # Caveat: Apple's clang identifies itself as plain Clang on some
     # occasions... I don't exactly know when and how, but there's some
     # potential for misconfiguration.
-    if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "5")
+    if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "16")
+        set (CMAKE_CXX_FLAGS   "-std=c++20 ${CMAKE_CXX_FLAGS}")
+        set(HAVE_CXX11 1)
+        set(HAVE_CXX20 1)
+        message(STATUS "Enabling C++20 support")
+    elseif (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "5")
         set (CMAKE_CXX_FLAGS   "-std=c++17 ${CMAKE_CXX_FLAGS}")
         set (HAVE_CXX11 1)
         message(STATUS "Enabling C++17 support")
@@ -246,13 +286,16 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "^Clang")
         set (HAVE_CXX11 1)
         message(STATUS "Enabling C++11 support")
     endif()
+else()
+    message(WARNING "C++ compiler not recognized. Setting -std=c++11 as a wild guess")
+    set (HAVE_CXX11 1)
 endif()
-message(STATUS "CFLAGS=${CMAKE_C_FLAGS} (synthetized)")
 message(STATUS "CXXFLAGS=${CMAKE_CXX_FLAGS} (synthetized)")
-
 if(NOT HAVE_CXX11)
     message(FATAL_ERROR "C++11 is now required to build cado-nfs")
 endif()
+
+
 
 #####################################################################
 # Set dependencies for external software.
@@ -291,16 +334,12 @@ include(${CADO_NFS_SOURCE_DIR}/config/pagesize.cmake)
 
 include(${CADO_NFS_SOURCE_DIR}/config/gmp_randstate.cmake)
 
-set(GF2X_CONFIGURE_FLAGS --disable-shared --disable-dependency-tracking --enable-fft-interface CC=${CMAKE_C_COMPILER} CXX=${CMAKE_CXX_COMPILER} CFLAGS=${GF2X_C_FLAGS} CXXFLAGS=${GF2X_CXX_FLAGS} LDFLAGS=${GF2X_LDFLAGS} $ENV{GF2X_CONFIGURE_EXTRA_FLAGS})
-
 #####################################################################
 # Obtain information from the host.
 
-if(DEFINED ENV{USE_ONLY_ASSEMBLY_INSTRUCTIONS_THAT_VALGRIND_KNOWS_ABOUT})
-    set(USE_ONLY_ASSEMBLY_INSTRUCTIONS_THAT_VALGRIND_KNOWS_ABOUT 1)
-endif()
-
 include(config/check_cpu_feature.cmake)
+
+set(GF2X_CONFIGURE_FLAGS)
 
 if (DEFINED ENV{NO_SSE})
     list(APPEND GF2X_CONFIGURE_FLAGS --disable-sse2)
@@ -318,6 +357,7 @@ else()
     check_cpu_feature(sse4.1 PREREQUISITES HAVE_SSSE3)
     check_cpu_feature(popcnt PREREQUISITES HAVE_SSSE3)
     check_cpu_feature(avx PREREQUISITES HAVE_SSE41)
+    check_cpu_feature(pclmul PREREQUISITES HAVE_SSE41)
     set(b USE_ONLY_ASSEMBLY_INSTRUCTIONS_THAT_VALGRIND_KNOWS_ABOUT)
     check_cpu_feature(avx2 PREREQUISITES HAVE_AVX BLOCKERS ${b})
     check_cpu_feature(avx512f PREREQUISITES HAVE_AVX BLOCKERS ${b})
@@ -325,14 +365,32 @@ else()
     check_cpu_feature(avx512vl PREREQUISITES HAVE_AVX512F BLOCKERS ${b})
     include(config/bug30027.cmake)
     check_cpu_feature(avx512dq PREREQUISITES HAVE_AVX512F BLOCKERS ${b})
-    check_cpu_feature(pclmul PREREQUISITES HAVE_SSE41)
+
+    if (HAVE_SSE2 AND USE_ONLY_ASSEMBLY_INSTRUCTIONS_THAT_VALGRIND_KNOWS_ABOUT)
+        set(fallback "westmere")
+        if (NOT HAVE_AVX OR NOT HAVE_PCLMUL OR NOT HAVE_POPCNT)
+            set(fallback "x86-64")
+        endif()
+        message(STATUS "As per USE_ONLY_ASSEMBLY_INSTRUCTIONS_THAT_VALGRIND_KNOWS_ABOUT, restricting gf2x build to old enough microarchitecture (${fallback})")
+        set(GF2X_C_FLAGS "${GF2X_C_FLAGS} -march=${fallback}")
+    endif()
 endif()
+
 if (DEFINED ENV{NO_NEON})
     message(STATUS "As per $NO_NEON, disabling all ARM NEON intrinsics")
 else()
     check_cpu_feature(neon COMPILER_FLAG -mfpu=neon DISPLAYNAME "ARM NEON")
 endif()
 
+list(APPEND GF2X_CONFIGURE_FLAGS --disable-shared)
+list(APPEND GF2X_CONFIGURE_FLAGS --disable-dependency-tracking)
+list(APPEND GF2X_CONFIGURE_FLAGS --enable-fft-interface)
+list(APPEND GF2X_CONFIGURE_FLAGS CC=${CMAKE_C_COMPILER})
+list(APPEND GF2X_CONFIGURE_FLAGS CXX=${CMAKE_CXX_COMPILER})
+list(APPEND GF2X_CONFIGURE_FLAGS CFLAGS=${GF2X_C_FLAGS})
+list(APPEND GF2X_CONFIGURE_FLAGS CXXFLAGS=${GF2X_CXX_FLAGS})
+list(APPEND GF2X_CONFIGURE_FLAGS LDFLAGS=${GF2X_LDFLAGS})
+list(APPEND GF2X_CONFIGURE_FLAGS $ENV{GF2X_CONFIGURE_EXTRA_FLAGS})
 
 get_override(GF2X_CONFIGURE_FLAGS GF2X_CONFIGURE_FLAGS)
 
@@ -373,9 +431,12 @@ include("${CADO_NFS_SOURCE_DIR}/config/alignas.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/int128.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/m4ri.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/detect-static-analysis.cmake")
+include("${CADO_NFS_SOURCE_DIR}/config/detect-coverage.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/execinfo.cmake")
 CHECK_INCLUDE_FILES (sys/endian.h HAVE_SYS_ENDIAN_H)
 include("${CADO_NFS_SOURCE_DIR}/config/bswap32.cmake")
+include("${CADO_NFS_SOURCE_DIR}/config/compression.cmake")
+include("${CADO_NFS_SOURCE_DIR}/config/gdb.cmake")
 
 
 set(CADO_SHARED)
@@ -384,6 +445,7 @@ if("$ENV{ENABLE_SHARED}")
     # cmake scripts here and there use the cmake variable, not the
     # environment variable.
     set(ENABLE_SHARED 1)
+    set(CADO_NFS_USE_SHARED_LIBS 1)
     if(MINGW)
         message(FATAL_ERROR "ENABLE_SHARED is not supported with MINGW")
     endif()
@@ -524,7 +586,7 @@ add_subdirectory (linalg)
 add_subdirectory (filter)
 add_subdirectory (linalg/bwc)
 add_subdirectory (misc)
-add_subdirectory (scripts/cadofactor)
+add_subdirectory (scripts)
 add_subdirectory (tests EXCLUDE_FROM_ALL)
 
 add_custom_target(dist
@@ -545,23 +607,6 @@ configure_file(config/source-location.txt.in source-location.txt ESCAPE_QUOTES @
 configure_file(cado-nfs-client.py cado-nfs-client.py ESCAPE_QUOTES @ONLY)
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/cado-nfs.py DESTINATION ${BINSUFFIX})
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/cado-nfs-client.py DESTINATION ${BINSUFFIX})
-
-# Some scripts are handy to have also in the bin directory.
-foreach(script
-        split.py
-        descent.py
-        descent_helper_asyncio.py
-        descent_helper_fallback.py
-    )
-    configure_file(
-        ${CADO_NFS_SOURCE_DIR}/scripts/${script}
-        ${CADO_NFS_BINARY_DIR}/scripts/${script}
-        COPYONLY)
-endforeach(script)
-
-install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/scripts/descent.py DESTINATION ${LIBSUFFIX}/scripts)
-install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/scripts/descent_helper_asyncio.py DESTINATION ${LIBSUFFIX}/scripts)
-install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/scripts/descent_helper_fallback.py DESTINATION ${LIBSUFFIX}/scripts)
 
 
 message(STATUS "Main scripts will go to ${CMAKE_INSTALL_PREFIX}/${BINSUFFIX}")

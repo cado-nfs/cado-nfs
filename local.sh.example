@@ -71,6 +71,21 @@
 # fi
 
 ############################################################
+# fancy paths and software sources.
+#
+# If you're on a machine that uses homebrew or something of the kind, it
+# is highly suggested that you make sure cado picks up your brew software
+# as well. To do so, assuming brew is installed in /opt/homebrew:
+#
+# if [ -x /opt/homebrew/bin/brew ] ; then
+#     eval `/opt/homebrew/bin/brew shellenv`
+#     export LDFLAGS="-L/opt/homebrew/opt/libomp/lib"
+#     export CPPFLAGS="-I/opt/homebrew/opt/libomp/include" # just in case
+#     export CXXFLAGS="$CXXFLAGS -I/opt/homebrew/opt/libomp/include"
+#     export CFLAGS="$CFLAGS -I/opt/homebrew/opt/libomp/include"
+# fi
+
+############################################################
 # CC: C Compiler
 #
 # Example values:
@@ -249,8 +264,8 @@
 ############################################################
 # Python: Whether to test for a Python 3 interpreter or not
 # 
-# The cado-nfs.py script needs Python 3 and the sqlite3
-# module. If you do not wish to use cado-nfs.py, set
+# The cado-nfs.py script needs Python 3 and the sqlite3 and flask
+# modules. If you do not wish to use cado-nfs.py, set
 # NO_PYTHON_CHECK to a non-empty string to disable testing
 # for Python 3 and sqlite in the CMake configuration
 #

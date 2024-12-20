@@ -17,7 +17,13 @@
 #define    ULONG_BITS   @ULONG_BITS@
 #define    ULONGLONG_BITS   @ULONGLONG_BITS@
 
+#cmakedefine CADO_NFS_USE_SHARED_LIBS
+
+#cmakedefine HAVE_GDB_PYTHON_PRETTY_PRINT
+
 #cmakedefine    HAVE_CXX11
+
+#cmakedefine    HAVE_CXX20
 
 #define GMP_INCDIR    "@GMP_INCDIR@"
 #define GMP_LIBDIR    "@GMP_LIBDIR@"

@@ -43,6 +43,7 @@ cado_define_test(test_renumber_on_the_fly_gnfs2_30003
     -check -build -quiet
     TARGET_DEPENDENCIES debug_renumber
     TIMEOUT 60
+    ${AVOID_CONCURRENT_UNDER_COVERAGE}
 )
 
 # keep a file that is saved by freerel and read by debug_renumber.
@@ -50,8 +51,7 @@ cado_define_test(test_renumber_file
     NO_DEFAULT_RUN
     SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/test_renumber.sh
     -b ${CADO_NFS_BINARY_DIR} 
-    PRECOMMAND
-    "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
+    PROVIDE_TEMPORARY_WDIR
     TARGET_DEPENDENCIES freerel debug_renumber)
 
 # Test MNFS with 5 polys (interesting primes are 2 and 3)
@@ -65,16 +65,18 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
 cado_define_test(test_renumber_on_the_fly_c105_30003
     PROGRAM ${PROJECT_BINARY_DIR}/misc/debug_renumber
     -poly ${CMAKE_CURRENT_SOURCE_DIR}/test_renumber.data/c105_30003.poly
-    -lpbs 25,26
+    -lpbs 22,23
     -check -build -quiet
     TARGET_DEPENDENCIES debug_renumber
-    TIMEOUT 240
+    TIMEOUT 60
+    ${AVOID_CONCURRENT_UNDER_COVERAGE}
 )
 
 cado_divert_test(test_renumber_file c105_30003
     APPEND_ARGUMENTS
     -poly ${CMAKE_CURRENT_SOURCE_DIR}/test_renumber.data/c105_30003.poly
-    -lpbs 25,26
-    TIMEOUT 240
+    -lpbs 22,23
+    TIMEOUT 60
+    ${AVOID_CONCURRENT_UNDER_COVERAGE}
     )
 endif()

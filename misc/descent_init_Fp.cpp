@@ -34,8 +34,8 @@ gcc -Wall -g -std=c99 -I${ECM}/include descent_init_Fp.c smooth_detect.c -o
 descent_init_Fp -L${ECM}/lib -lecm -lgmp -lm -lpthread
 */
 
-std::mutex mut_found;
-std::condition_variable cond_found;
+static std::mutex mut_found;
+static std::condition_variable cond_found;
 static std::deque<std::pair<std::thread::id, descent_init_candidate>> winners;
 
 class semaphore {
@@ -43,18 +43,18 @@ class semaphore {
     bool b = false;
     public:
     operator bool() {
-        std::lock_guard<std::mutex> dummy(lk);
+        std::lock_guard<std::mutex> const dummy(lk);
         return b;
     }
     void raise() {
-        std::lock_guard<std::mutex> dummy(lk);
+        std::lock_guard<std::mutex> const dummy(lk);
         b = true;
     }
 };
 
 static semaphore please_die;
 
-void
+static void
 HalfGcd(cxx_mpz & a, cxx_mpz & b, cxx_mpz & u)
 {
     cxx_mpz v, w, x, q, r;
@@ -84,14 +84,14 @@ struct Fp_param
     cxx_mpz m;       // root of f mod p (the one common with g) when n=1
 };
 
-int
+static int
 next_cand_Fp_hgcd(descent_init_candidate & cand, const void * params)
 {
     if (please_die) {
         return 0;
     }
     Fp_param const & param = * (Fp_param const *) params;
-    unsigned long e = random();
+    unsigned long const e = random();
     cxx_mpz u0, v0;
     mpz_powm_ui(u0, param.z, e, param.p);
     cxx_mpz tmp = param.p;
@@ -102,14 +102,14 @@ next_cand_Fp_hgcd(descent_init_candidate & cand, const void * params)
     return 1;
 }
 
-int
+static int
 is_probably_sqrfree(cxx_mpz const & z)
 {
-    for (unsigned long p :
+    for (unsigned long const p :
             { 2,  3,  5,  7,  11, 13, 17, 19,
               23, 29, 31, 37, 41, 43, 47 })
     {
-        unsigned long p2 = p * p;
+        unsigned long const p2 = p * p;
         if (mpz_gcd_ui(NULL, z, p2) == p2)
             return 0;
     }
@@ -118,7 +118,7 @@ is_probably_sqrfree(cxx_mpz const & z)
 
 // JL version
 // Returns a boolean meaning "failure, try again".
-int
+static int
 get_JL_candidate_from_e(unsigned long e,
                        cxx_mpz_poly & U,
                        cxx_mpz_poly & V,
@@ -182,7 +182,7 @@ get_JL_candidate_from_e(unsigned long e,
 
 // GF(p^n) version.
 // Returns a boolean meaning "failure, try again".
-int
+static int
 get_Fpn_candidate_from_e(unsigned long e,
                         cxx_mpz_poly & U,
                         cxx_mpz_poly & V,
@@ -265,7 +265,7 @@ get_Fpn_candidate_from_e(unsigned long e,
     return fail;
 }
 
-int
+static int
 next_cand_nonrat(descent_init_candidate & cand, const void * params)
 {
     if (please_die) {
@@ -290,19 +290,10 @@ next_cand_nonrat(descent_init_candidate & cand, const void * params)
     return 1;
 }
 
-int
-my_mpz_cmp(const void* a, const void* b)
-{
-    mpz_t *pa, *pb;
-    pa = (mpz_t*)a;
-    pb = (mpz_t*)b;
-    return mpz_cmp(pa[0], pb[0]);
-}
-
 // Full factorization of z0; non-optimized.
 // Assume fac_z has been allocated.
 // Returns the number of factors.
-void
+static void
 full_factor(std::vector<cxx_mpz> & fac_z, cxx_mpz const & z0)
 {
     double B1 = 100.0;
@@ -310,7 +301,7 @@ full_factor(std::vector<cxx_mpz> & fac_z, cxx_mpz const & z0)
     cxx_mpz z = z0;
 
     // Remove small primes, ECM can't separate them
-    for (unsigned long p : {
+    for (unsigned long const p : {
             2,  3,  5,  7,  11, 13, 17, 19,
             23, 29, 31, 37, 41, 43, 47 })
     {
@@ -360,7 +351,7 @@ full_factor(std::vector<cxx_mpz> & fac_z, cxx_mpz const & z0)
 // Check if there are multiple factors.
 // This assumes that the factors are sorted, so that multiple factors are
 // consecutive.
-int
+static int
 has_distinct_factors(std::vector<cxx_mpz> const & P)
 {
     for (size_t i = 1; i < P.size() ; i++) {
@@ -370,7 +361,7 @@ has_distinct_factors(std::vector<cxx_mpz> const & P)
     return true;
 }
 
-cxx_mpz
+static cxx_mpz
 find_root(cxx_mpz const & p, cxx_mpz_poly const & f1, cxx_mpz_poly const & f2)
 {
     // Check if projective root
@@ -394,19 +385,6 @@ find_root(cxx_mpz const & p, cxx_mpz_poly const & f1, cxx_mpz_poly const & f2)
     return r;
 }
 
-void
-usage(char* argv0)
-{
-    fprintf(stderr,
-            "%s [-poly polfile] [-side xxx] [-extdeg n] [-jl] [-mt n] [-mineff "
-            "e] [-maxeff E] [-seed s] [-lpb t] [-v] p z\n",
-            argv0);
-    fprintf(stderr,
-            "  If extdeg > 1, then z must be a white-separated sequence of "
-            "coefs z0 z1 ... z_{k-1}\n");
-    abort();
-}
-
 // Possible modes are
 //   MODE_RAT  (when there is a rational side)
 //   MODE_JL   (for GF(p), with Joux-Lercier)
@@ -425,8 +403,7 @@ struct descent_thread_param {
     void operator()() const;
 };
 
-void
-one_descent_thread(
+static void one_descent_thread(
         Fp_param const & params,
         smooth_detect_params const & smooth_param,
         unsigned long target,
@@ -447,14 +424,20 @@ one_descent_thread(
                       smooth_param);
     }
 
-    std::lock_guard<std::mutex> dummy(mut_found);
+    std::lock_guard<std::mutex> const dummy(mut_found);
 
     winners.emplace_back(std::this_thread::get_id(), C);
     cond_found.notify_one();
 }
 
-void descent_declare_usage(cxx_param_list & pl)
+static void descent_declare_usage(cxx_param_list & pl)
 {
+    param_list_usage_header(pl,
+            "[-poly polfile] [-side xxx] [-extdeg n] [-jl] [-mt n] [-mineff "
+            "e] [-maxeff E] [-seed s] [-lpb t] [-v] p z\n"
+            "  If extdeg > 1, then z must be a white-separated sequence of "
+            "coefs z0 z1 ... z_{k-1}\n");
+
     param_list_decl_usage(pl, "seed", "random seed");
     param_list_decl_usage(pl, "mt", "number of threads");
     param_list_decl_usage(pl, "minB1", "start ECM with this B1");
@@ -468,23 +451,23 @@ void descent_declare_usage(cxx_param_list & pl)
     param_list_decl_usage(pl, "poly", "cado-nfs polynomial");
 }
 
-namespace descent_switches {
+namespace {
     int verbose;
     int jl;
 }
 
-void descent_configure_switches(cxx_param_list & pl)
+static void descent_configure_switches(cxx_param_list & pl)
 {
-    param_list_configure_switch(pl, "-v", &descent_switches::verbose);
-    param_list_configure_switch(pl, "-jl", &descent_switches::jl);
+    param_list_configure_switch(pl, "-v", &verbose);
+    param_list_configure_switch(pl, "-jl", &jl);
 }
 
 
 int
-main(int argc0, char* argv0[])
+main(int argc0, char const * argv0[])
 {
     int argc = argc0;
-    char **argv = argv0;
+    char const ** argv = argv0;
 
     unsigned long seed = 0;
     unsigned long target = 0; // the target smoothness
@@ -492,11 +475,9 @@ main(int argc0, char* argv0[])
     double mineff = 2000.0;
     double maxeff = 1e20;
     double minB1 = 100.0;
-    using descent_switches::verbose;
-    using descent_switches::jl;
     unsigned int ext = 1; // extension degree
     int side = 1;
-    clock_t tm = clock();
+    clock_t const tm = clock();
 
     cxx_param_list pl;
 
@@ -517,7 +498,7 @@ main(int argc0, char* argv0[])
             argv++, argc--;
             continue;
         }
-        fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
+        fmt::print(stderr, "Unhandled parameter {}\n", argv[0]);
         param_list_print_usage(pl, argv0[0], stderr);
         return EXIT_FAILURE;
     }
@@ -541,7 +522,7 @@ main(int argc0, char* argv0[])
     }
 
     if ((jl || (ext > 1)) && !polyfilename) {
-        fprintf(
+        fmt::print(
           stderr,
           "Error, must provide -poly when extdeg > 1 or using -jl option\n");
         param_list_print_usage(pl, argv0[0], stderr);
@@ -549,12 +530,12 @@ main(int argc0, char* argv0[])
     }
 
     if (ext > 1 && jl) {
-        fprintf(stderr, "Warning: ignoring the -jl option with extdeg > 1\n");
+        fmt::print(stderr, "Warning: ignoring the -jl option with extdeg > 1\n");
         jl = 0;
     }
 
     if (wild.size() != ext + 1) {
-        fprintf(stderr, "Error: for extension degree %d, we need %d tail arguments\n",
+        fmt::print(stderr, "Error: for extension degree {}, we need {} tail arguments\n",
                 ext, ext + 1);
         return EXIT_FAILURE;
     }
@@ -570,7 +551,7 @@ main(int argc0, char* argv0[])
         params.f = cpoly->pols[side];
     }
     if (jl) {
-        int ret = cado_poly_getm(params.m, cpoly, params.p);
+        int const ret = cado_poly_getm(params.m, cpoly, params.p);
         ASSERT_ALWAYS(ret);
     }
     if (ext > 1) {
@@ -586,13 +567,13 @@ main(int argc0, char* argv0[])
     };
 
 
-    int mode = (ext > 1) ? MODE_FPN : (jl ? MODE_JL : MODE_RAT);
+    int const mode = (ext > 1) ? MODE_FPN : (jl ? MODE_JL : MODE_RAT);
 
     std::map<std::thread::id, std::thread> threads;
 
     for( ; threads.size() < nthread ; ) {
         auto th = std::thread(one_descent_thread, params, smooth_param, target, mode);
-        std::thread::id id = th.get_id();
+        std::thread::id const id = th.get_id();
         threads[id] = std::move(th);
     }
 
@@ -626,46 +607,36 @@ main(int argc0, char* argv0[])
             if (!has_distinct_factors(facu) ||
                 !has_distinct_factors(facv))
             {
-                printf("Fail: non-squarefree norm\n");
+                fmt::print("Fail: non-squarefree norm\n");
                 // one of them is not squarefree. Restart the thread and wait
                 // for another candidate.
                 auto th = std::thread(one_descent_thread, params, smooth_param, target, mode);
-                std::thread::id id = th.get_id();
+                std::thread::id const id = th.get_id();
                 threads[id] = std::move(th);
                 continue;
             }
 
-            std::cout << fmt::format(FMT_STRING("U = {}\nV = {}\nu = {}\nv = {}\n"),
+            std::cout << fmt::format("U = {}\nV = {}\nu = {}\nv = {}\n",
                     mpz_poly_coeff_list(U,","),
                     mpz_poly_coeff_list(V,","),
                     u, v);
 
             std::cout << "fac_u =";
-            for(cxx_mpz const & pp : facu) {
-#if FMT_VERSION < 90000
-                cxx_mpz p = pp;
-#else
-                cxx_mpz const & p = pp;
-#endif
-                std::cout << fmt::format(FMT_STRING(" {},{}"),
+            for(cxx_mpz const & p : facu) {
+                std::cout << fmt::format(" {},{}",
                         p, find_root(p, U, params.f));
             }
             std::cout << "\n";
 
             std::cout << "fac_v =";
-            for(cxx_mpz const & pp : facv) {
-#if FMT_VERSION < 90000
-                cxx_mpz p = pp;
-#else
-                cxx_mpz const & p = pp;
-#endif
-                std::cout << fmt::format(FMT_STRING(" {},{}"),
+            for(cxx_mpz const & p : facv) {
+                std::cout << fmt::format(" {},{}",
                         p, find_root(p, V, params.f));
             }
             std::cout << "\n";
 
         }
-        printf("Youpi: e = %lu is a winner\n", winner.second.e);
+        fmt::print("Youpi: e = {} is a winner\n", winner.second.e);
         break;
     }
 
@@ -676,7 +647,7 @@ main(int argc0, char* argv0[])
         t.second.join();
     threads.clear();
 
-    printf("Total CPU time: %.1f s\n",
+    fmt::print("Total CPU time: {:.1f} s\n",
            ((double)(clock() - tm)) / CLOCKS_PER_SEC);
 
     return EXIT_SUCCESS;

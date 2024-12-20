@@ -1,5 +1,5 @@
-#ifndef STRASSEN_THRESHOLDS_H_
-#define STRASSEN_THRESHOLDS_H_
+#ifndef STRASSEN_THRESHOLDS_HPP_
+#define STRASSEN_THRESHOLDS_HPP_
 
 #ifdef  STRASSEN_THRESHOLDS_AS_CPP_CONSTANTS
 #define C128_STRASSEN_THRESHOLDS_D 3
@@ -58,4 +58,4 @@ template<> unsigned int foo<gf2x_ternary_fft>::default_selector_data[] = {
          [2340] = 128, [2341] = 128, [2342] = 128, [2343] = 128,        \
         }
 #endif   /*  STRASSEN_THRESHOLDS_AS_CPP_CONSTANTS */
-#endif	/* STRASSEN_THRESHOLDS_H_ */
+#endif	/* STRASSEN_THRESHOLDS_HPP_ */

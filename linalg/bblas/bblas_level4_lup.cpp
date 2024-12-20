@@ -30,11 +30,11 @@ int LUP64_imm(mat64 & l, mat64 & u, mat64 & p, mat64 const & a)
             mat64 t;
             mul_6464_6464(t,l,a); ASSERT_ALWAYS(mat64_eq(t,u));
 #endif
-        uint64_t pr=u[j];
+        uint64_t const pr=u[j];
         // ASSERT(!(pr&~todo));
         if (!(pr&todo)) { *ps++=j; continue; }
         // this keeps only the least significant bit of pr.
-        uint64_t v = pr^(pr&(pr-1));
+        uint64_t const v = pr^(pr&(pr-1));
         p[j]=v;
 #if defined(HAVE_SSE41) && !defined(VALGRIND) && !defined(__ICC)
         /* This code is fine, except that there's nowhere we convey the
@@ -44,20 +44,20 @@ int LUP64_imm(mat64 & l, mat64 & u, mat64 & p, mat64 const & a)
          */
         int k = j+1;
         if (k&1) {      // alignment call
-            uint64_t w = -((u[k]&v)!=0);
+            uint64_t const w = -((u[k]&v)!=0);
             u[k]^=pr&w;
             l[k]^=l[j]&w;
             k++;
         }
         /* ok, it's ugly, and requires sse 4.1.
          * but otoh is churns out data veeery fast */
-        __m128i vv = _cado_mm_set1_epi64(v);
-        __m128i pp = _cado_mm_set1_epi64(pr);
-        __m128i ee = _cado_mm_set1_epi64(l[j]);
+        __m128i const vv = _cado_mm_set1_epi64(v);
+        __m128i const pp = _cado_mm_set1_epi64(pr);
+        __m128i const ee = _cado_mm_set1_epi64(l[j]);
         __m128i * uu = (__m128i*) (u.data()+k);
         __m128i * ll = (__m128i*) (l.data()+k);
         for( ; k < 64 ; k+=2 ) {
-            __m128i ww = _mm_cmpeq_epi64(_mm_and_si128(*uu,vv),vv);
+            __m128i const ww = _mm_cmpeq_epi64(_mm_and_si128(*uu,vv),vv);
             *uu = _mm_xor_si128(*uu, _mm_and_si128(pp, ww));
             *ll = _mm_xor_si128(*ll, _mm_and_si128(ee, ww));
             uu++;
@@ -75,7 +75,7 @@ int LUP64_imm(mat64 & l, mat64 & u, mat64 & p, mat64 const & a)
         r++;
     }
     for(ps = store ; todo ; ) {
-        uint64_t vv = todo^(todo&(todo-1));
+        uint64_t const vv = todo^(todo&(todo-1));
         p[*ps++] = vv;
         todo^=vv;
     }

@@ -3,18 +3,22 @@
 // IWYU pragma: no_include <hwloc/bitmap.h>
 // IWYU pragma: no_include "hwloc/bitmap.h"
 
-#include <errno.h>             // for EXDEV, errno
-#include <inttypes.h>          // for PRIu64
-#include <regex.h>             // for regmatch_t, regcomp, regexec, regfree
-#include <sstream>      // IWYU pragma: keep
-#include <stdint.h>            // for uint64_t
-#include <stdio.h>             // for fprintf, stderr, size_t, fputs
-#include <stdlib.h>            // for free, exit, EXIT_FAILURE, EXIT_SUCCESS
-#include <strings.h>           // for strcasecmp
-#include <mutex>               // for mutex, lock_guard
+#include <cerrno>             // for EXDEV, errno
+#include <cinttypes>          // for PRIu64
+#include <cstdint>            // for uint64_t
+#include <cstdio>             // for fprintf, stderr, size_t, fputs
+#include <cstdlib>            // for free, exit, EXIT_FAILURE, EXIT_SUCCESS
+
+// #include <mutex>               // for mutex, lock_guard
 #include <string>              // for string, operator<<, char_traits, opera...
 #include <tuple>               // for tie, get, make_tuple, tuple
 #include <vector>              // for vector, vector<>::iterator
+#include <memory>
+#include <sstream>      // IWYU pragma: keep
+
+#include <strings.h>           // for strcasecmp
+#include <regex.h>             // for regmatch_t, regcomp, regexec, regfree
+
 #ifdef HAVE_HWLOC
 #include <hwloc.h>
 #include "hwloc-aux.h"
@@ -27,9 +31,7 @@
 #include "macros.h"
 #include "params.h"
 
-
-
-const char * default_placement_with_auto = "node,fit*4,fit,pu,loose";
+static const char * default_placement_with_auto = "node,fit*4,fit,pu,loose";
 
 static bool parse_number(std::string const & s, int & x, std::string::size_type pos = 0) /*{{{*/
 {
@@ -154,9 +156,9 @@ struct las_parallel_desc::helper {
         depth = hwloc_topology_get_depth(topology);
         depth_per_level.reserve(depth);
         int n = 1;
-        std::ostringstream os;
+        std::ostringstream const os;
         for(int i = 0 ; i < depth ; i++) {
-            int x = hwloc_get_nbobjs_by_depth(topology, i);
+            int const x = hwloc_get_nbobjs_by_depth(topology, i);
             depth_per_level.push_back(x / n);
             n = x;
         }
@@ -300,7 +302,7 @@ struct las_parallel_desc::helper {
        return k;
    }/*}}}*/
    std::tuple<int, int, int> flat_to_hierarchical(int n) const {/*{{{*/
-       int k = enclosing_depth(n);
+       int const k = enclosing_depth(n);
        /* a binding scope that has to meet the constraint of containing
         * at least n PUs can do so with an object at depth
         * enclosing_depth(n). However, a finer grain might be possible,
@@ -319,7 +321,7 @@ struct las_parallel_desc::helper {
        int child_depth = k + 1;
        int child_size = number_of(-1, k + 1);
        int part_size = iceildiv(n, child_size);
-       int v = number_of(k+1, k);
+       int const v = number_of(k+1, k);
        ASSERT(part_size <= v);
        if (replicate)
            for( ; v % part_size ; part_size++);
@@ -362,14 +364,14 @@ struct las_parallel_desc::helper {
        std::tie(k, child_size, part_size) = flat_to_hierarchical(n);
        for( ; k < depth - 1 && number_of(k+1, k) == 1 ; k++);
        std::vector<std::string> res;
-       int nk = number_of(k, 0);
+       int const nk = number_of(k, 0);
        for(int i = 0 ; i < nk ; i+=part_size) {
            char s[256];
            hwloc_obj_t obj = hwloc_get_obj_by_depth(topology, k, i);
            hwloc_obj_type_snprintf(s, sizeof(s), obj, 0);
            std::ostringstream os;
-           int a = obj->logical_index;
-           int b = a + part_size - 1;
+           int const a = obj->logical_index;
+           int const b = a + part_size - 1;
            if (part_size == 1) {
                os << s << ":" << a;
            } else {
@@ -381,12 +383,12 @@ struct las_parallel_desc::helper {
    }/*}}}*/
     std::vector<cxx_hwloc_cpuset> all_cpu_bitmaps(int width, int multiply = 1)/*{{{*/
     {
-        int n = width;
+        int const n = width;
         int k, child_size, part_size;
         ASSERT(n <= number_of(-1, 0));
         std::tie(k, child_size, part_size) = flat_to_hierarchical(n);
         std::vector<cxx_hwloc_cpuset> res;
-        int nk = number_of(k, 0);
+        int const nk = number_of(k, 0);
         for(int i = 0 ; i < nk ; i+=part_size) {
             cxx_hwloc_cpuset c;
             for(int j = 0 ; j < part_size ; j++)
@@ -398,12 +400,12 @@ struct las_parallel_desc::helper {
     }/*}}}*/
     std::vector<cxx_hwloc_nodeset> all_mem_bitmaps(int width, int multiply = 1)/*{{{*/
     {
-        int n = width;
+        int const n = width;
         int k, child_size, part_size;
         ASSERT(n <= number_of(-1, 0));
         std::tie(k, child_size, part_size) = flat_to_hierarchical(n);
         std::vector<cxx_hwloc_cpuset> res;
-        int nk = number_of(k, 0);
+        int const nk = number_of(k, 0);
         for(int i = 0 ; i < nk ; i+=part_size) {
             cxx_hwloc_nodeset c;
             for(int j = 0 ; j < part_size ; j++)
@@ -429,7 +431,7 @@ struct las_parallel_desc::helper {
         * hierarchical topology.
         */
        /* how many jobs can fit ? */
-       int how_many = total_ram() / (jobram * (1<<30));
+       int const how_many = total_ram() / (jobram * (1<<30));
        if (how_many == 0) {
            fprintf(stderr, "This machine does not have enough memory"
                    " (%" PRIu64 " GB) to fit jobs that need %.2f GB\n",
@@ -438,7 +440,7 @@ struct las_parallel_desc::helper {
        }
        /* This means subjobs can't be smaller than this: */
        computed_min_pu_fit = iceildiv(number_of(-1, 0), how_many);
-       std::string s = textual_description_for_binding(computed_min_pu_fit);
+       std::string const s = textual_description_for_binding(computed_min_pu_fit);
        std::ostringstream os;
        os  << "# Given our estimate of "
            << size_disp(jobram * (1<<30)) << " RAM per subjob,"
@@ -462,15 +464,17 @@ struct las_parallel_desc::helper {
                 HWLOC_MEMBIND_THREAD);
 #else
         /* newer call */
-        int rc = hwloc_get_membind(topology,  nn, &pol,
+        int const rc = hwloc_get_membind(topology,  nn, &pol,
                 HWLOC_MEMBIND_THREAD | HWLOC_MEMBIND_BYNODESET);
 #endif
         if (rc < 0) {
+            /*
             static std::mutex mm;
-            std::lock_guard<std::mutex> dummy(mm);
+            std::lock_guard<std::mutex> const dummy(mm);
             static int got_message = 0;
             if (!got_message++)
                 fprintf(stderr, "Error while attempting to get memory binding\n");
+                */
             hwloc_bitmap_zero(nn);
         }
         return nn;
@@ -562,7 +566,7 @@ struct las_parallel_desc::helper {
        regcomp(&R, binding_specifier_regexp, REG_ICASE|REG_EXTENDED);
        auto dummy = call_dtor([&](){regfree(&R);});
        regmatch_t m[9];
-       int r = regexec(&R, specifier.c_str(), 9, m, 0);
+       int const r = regexec(&R, specifier.c_str(), 9, m, 0);
        if (r != 0)
            throw bad_specification("binding specifier ",
                    specifier, " is invalid");
@@ -574,8 +578,8 @@ struct las_parallel_desc::helper {
                res = specifier.substr(m[i].rm_so, m[i].rm_eo - m[i].rm_so);
            return res;
        };
-       std::string base_object = sub(2, true);
-       bool is_fit = strcasecmp(base_object.c_str(), "fit") == 0;
+       std::string const base_object = sub(2, true);
+       bool const is_fit = strcasecmp(base_object.c_str(), "fit") == 0;
        if (is_fit) {
            if (computed_min_pu_fit < 0) throw needs_job_ram();
            objsize = computed_min_pu_fit;
@@ -590,10 +594,10 @@ struct las_parallel_desc::helper {
                throw bad_specification(base_object, " is invalid");
            objsize = number_of(-1, argdepth);
        }
-       std::string multiplier_string = sub(4);
+       std::string const multiplier_string = sub(4);
        if (!multiplier_string.empty()) {
            int x = 0;
-           bool t = parse_number(multiplier_string, x);
+           bool const t = parse_number(multiplier_string, x);
            ASSERT_ALWAYS(t);
            objsize *= x;
        }
@@ -602,10 +606,10 @@ struct las_parallel_desc::helper {
            objsize = cap;
        if (is_fit)
            objsize = acceptable_binding(objsize);
-       std::string divisor_string = sub(6);
+       std::string const divisor_string = sub(6);
        if (!divisor_string.empty()) {
            int x = 0;
-           bool t = parse_number(divisor_string, x);
+           bool const t = parse_number(divisor_string, x);
            ASSERT_ALWAYS(t);
            if (!x || (objsize % x)) {
                std::ostringstream os;
@@ -620,12 +624,12 @@ struct las_parallel_desc::helper {
            }
            if (x) objsize /= x;
        }
-       std::string limiting_string = sub(8);
+       std::string const limiting_string = sub(8);
        if (!limiting_string.empty()) {
-           int argdepth = hwloc_aux_get_depth_from_string(topology, limiting_string.c_str());
+           int const argdepth = hwloc_aux_get_depth_from_string(topology, limiting_string.c_str());
            if (argdepth < 0)
                throw bad_specification(limiting_string, " is invalid");
-           int compare = number_of(-1, argdepth);
+           int const compare = number_of(-1, argdepth);
            if (objsize > compare) {
                std::ostringstream os;
                os << "automated binding "
@@ -661,7 +665,7 @@ struct las_parallel_desc::helper {
        } else if (jobs_within_cpu_binding_string.find_first_of("*/") != std::string::npos) {
            throw bad_specification("Only binding specifiers allow multipliers");
        } else {
-           int argdepth = hwloc_aux_get_depth_from_string(topology, jobs_within_cpu_binding_string.c_str());
+           int const argdepth = hwloc_aux_get_depth_from_string(topology, jobs_within_cpu_binding_string.c_str());
            if (argdepth < 0)
                throw bad_specification(jobs_within_cpu_binding_string, " is invalid");
            objsize = number_of(-1, argdepth);
@@ -699,11 +703,11 @@ struct las_parallel_desc::helper {
            return nthreads_per_subjob;
 #ifdef HAVE_HWLOC
        int objsize;
-       int argdepth = hwloc_aux_get_depth_from_string(topology, threads_per_job_string.c_str());
+       int const argdepth = hwloc_aux_get_depth_from_string(topology, threads_per_job_string.c_str());
        if (argdepth < 0)
            throw bad_specification(threads_per_job_string, " is invalid");
        objsize = number_of(-1, argdepth);
-       int loose_per_job_scale = cpu_binding_size / nsubjobs_per_cpu_binding_zone;
+       int const loose_per_job_scale = cpu_binding_size / nsubjobs_per_cpu_binding_zone;
        if (loose_per_job_scale % objsize)
            throw bad_specification("cannot place threads according to",
                    " the ", threads_per_job_string, " rule,",
@@ -990,9 +994,9 @@ void las_parallel_desc::display_binding_info() const /*{{{*/
             number_of_subjobs_total());
     verbose_output_print(0, 1, "# %d threads per job\n", nthreads_per_subjob);
     if (jobram >= 0) {
-        double all = jobram * number_of_subjobs_total();
-        int physical = help->total_ram() >> 30;
-        double ratio = 100 * all / physical;
+        double const all = jobram * number_of_subjobs_total();
+        int const physical = help->total_ram() >> 30;
+        double const ratio = 100 * all / physical;
 
         verbose_output_print(0, 1, "# Based on an estimate of %.2f GB per job, we use %.2f GB in total, i.e. %.1f%% of %d GB\n",
                 jobram, all, ratio, physical);
@@ -1007,7 +1011,7 @@ void las_parallel_desc::display_binding_info() const /*{{{*/
     if (help->depth) {
         std::vector<std::string> tm = help->all_textual_descriptions_for_binding(memory_binding_size);
         std::vector<std::string> tc = help->all_textual_descriptions_for_binding(cpu_binding_size);
-        std::vector<std::string> tj = help->all_textual_descriptions_for_binding(cpu_binding_size / number_of_subjobs_per_cpu_binding_zone());
+        std::vector<std::string> const tj = help->all_textual_descriptions_for_binding(cpu_binding_size / number_of_subjobs_per_cpu_binding_zone());
         size_t m = 0, c = 0;
         {
             std::ostringstream pu_app;
@@ -1019,8 +1023,8 @@ void las_parallel_desc::display_binding_info() const /*{{{*/
             pu_app << "[" << cpu_binding_size << " PUs]";
             for(auto & x : tc) { x += " "; x += pu_app.str(); if (x.size() > c) c = x.size(); }
         }
-        size_t qc = number_of_subjobs_per_cpu_binding_zone();
-        size_t qm = qc * ncpu_binding_zones_per_memory_binding_zone;
+        size_t const qc = number_of_subjobs_per_cpu_binding_zone();
+        size_t const qm = qc * ncpu_binding_zones_per_memory_binding_zone;
         for(size_t i = 0 ; i < tj.size() ; i++) {
             if (!help->replicate && i >= qc) break;
             ASSERT_ALWAYS(i < help->subjob_binding_cpusets.size());
@@ -1110,8 +1114,10 @@ int las_parallel_desc::set_loose_binding() const
         hwloc_bitmap_asprintf(&s, n);
         if (errno == EXDEV) {
             fprintf(stderr, "Error, cannot enforce loose memory binding [ %s ]\n", s);
+            /*
         } else {
             fprintf(stderr, "Error while attempting to set loose memory binding [ %s ]\n", s);
+            */
         }
         free(s);
         return -1;
@@ -1150,7 +1156,7 @@ int las_parallel_desc::set_subjob_mem_binding(int k MAYBE_UNUSED) const
     if (help->depth == 0)
         return -1;
     ASSERT_ALWAYS(0<= k && k < (int) help->subjob_binding_cpusets.size());
-    int m = k / number_of_subjobs_per_memory_binding_zone();
+    int const m = k / number_of_subjobs_per_memory_binding_zone();
     ASSERT_ALWAYS(m < (int) help->memory_binding_nodesets.size());
 #if HWLOC_API_VERSION < 0x010b03
     /* this legacy called remained valid throughout hwloc 1.x */
@@ -1161,7 +1167,7 @@ int las_parallel_desc::set_subjob_mem_binding(int k MAYBE_UNUSED) const
             HWLOC_MEMBIND_STRICT);
 #else
     /* newer call */
-    int rc = hwloc_set_membind(help->topology,
+    int const rc = hwloc_set_membind(help->topology,
             help->memory_binding_nodesets[m],
             HWLOC_MEMBIND_BIND,
             HWLOC_MEMBIND_THREAD |
@@ -1173,8 +1179,10 @@ int las_parallel_desc::set_subjob_mem_binding(int k MAYBE_UNUSED) const
         hwloc_bitmap_asprintf(&s, help->memory_binding_nodesets[m]);
         if (errno == EXDEV) {
             fprintf(stderr, "Error, cannot enforce memory binding for job %d [ %s ]\n", k, s);
+            /*
         } else {
             fprintf(stderr, "Error while attempting to set memory binding for job %d [ %s ]\n", k, s);
+            */
         }
         free(s);
         return -1;
@@ -1188,7 +1196,7 @@ int las_parallel_desc::set_subjob_cpu_binding(int k MAYBE_UNUSED) const
     if (help->depth == 0)
         return -1;
     ASSERT_ALWAYS(0<= k && k < (int) help->subjob_binding_cpusets.size());
-    int rc = hwloc_set_cpubind(help->topology, help->subjob_binding_cpusets[k], HWLOC_CPUBIND_THREAD |  HWLOC_CPUBIND_STRICT);
+    int const rc = hwloc_set_cpubind(help->topology, help->subjob_binding_cpusets[k], HWLOC_CPUBIND_THREAD |  HWLOC_CPUBIND_STRICT);
     if (rc < 0) {
         char * s;
         hwloc_bitmap_asprintf(&s, help->subjob_binding_cpusets[k]);

@@ -4,6 +4,8 @@ FB="$1"
 LAS="$2"
 SRCDIR="$3"
 
+WORKDIR=${wdir:?missing}
+
 BINDIR="`dirname "$2"`"
 FREEREL=${BINDIR}/freerel
 FAKERELS=${BINDIR}/fake_rels

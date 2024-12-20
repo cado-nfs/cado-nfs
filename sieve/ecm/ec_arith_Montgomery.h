@@ -1,16 +1,20 @@
-#include <stdio.h>
 #ifndef EC_ARITH_MONTGOMERY_H_
 #define EC_ARITH_MONTGOMERY_H_
 
 #ifndef mod_init
-  #error "One of the mod*_default.h headers must be included before this file"
+#error "One of the mod*_default.h headers must be included before this file"
 #endif
 
+#include <stdio.h>
 #include "ec_arith_common.h"
 
 #ifdef ECM_COUNT_OPS
 #include "ec_arith_cost.h"
 #include "macros.h"
+#endif
+
+// scan-headers: stop here
+#ifdef ECM_COUNT_OPS
 static unsigned int _count_montgomery_dadd, _count_montgomery_dbl;
 #define MONTGOMERY_COUNT_OPS_M _count_montgomery_dadd * MONTGOMERY_dADD \
                              + _count_montgomery_dbl * MONTGOMERY_DBL

@@ -1,16 +1,4 @@
 #include "cado.h"
-#include <gmp.h>
-#include <stdexcept>
-#include <time.h>
-#include <vector>
-#include <algorithm>
-#include <cmath>
-#include <type_traits>
-#include <sstream>
-#define EMIT_ADDRESSABLE_shash_add
-#define EXPOSE_DEPRECATED_polyselect_shash_find_collision
-#include "polyselect_shash.h"
-#include "misc.h"
 
 /* This is a c++ implementation of the exact same algorithm as in
  * polyselect_shash.c. (see comments there for the description of the
@@ -19,6 +7,22 @@
  * Speed is like 5-10% slower.
  */
 
+#define EMIT_ADDRESSABLE_shash_add
+#define EXPOSE_DEPRECATED_polyselect_shash_find_collision
+
+#include <ctime>
+#include <cmath>
+
+#include <stdexcept>
+#include <vector>
+#include <algorithm>
+#include <type_traits>
+#include <sstream>
+
+#include <gmp.h>
+
+#include "polyselect_shash.h"
+#include "misc.h"
 
 /*{{{ silly utility */
 template<int n>
@@ -67,7 +71,7 @@ class bucket_hash {
     static inline size_t get_alloc_size(size_t expected_entries) {
         size_t alloc_size = expected_entries + 2 * std::sqrt(expected_entries);
         alloc_size *= 1.125;
-        size_t bucket_size = iceildiv(alloc_size, Nbuckets);
+        size_t const bucket_size = iceildiv(alloc_size, Nbuckets);
         alloc_size = Nbuckets * bucket_size;
         return alloc_size;
     }
@@ -88,7 +92,7 @@ class bucket_hash {
     }
 
     bucket_hash(size_t expected_entries) {
-        size_t alloc_size = get_alloc_size(expected_entries);
+        size_t const alloc_size = get_alloc_size(expected_entries);
         bucket_size = alloc_size / Nbuckets;
         data = new T[alloc_size];
         T * p = data;
@@ -105,13 +109,13 @@ class bucket_hash {
         delete[] data;
     }
     inline void push(T const& x) {
-        U u = x;
+        U const u = x;
         /* It's a matter of taste if we want to shift by log2_nbuckets
          * now or later. We'll compare bucket by bucket, so the equality
          * of all low-order bit is guaranteed.
          */
-        U q = u >> log2_nbuckets;
-        U r = u & (Nbuckets - 1);
+        U const q = u >> log2_nbuckets;
+        U const r = u & (Nbuckets - 1);
         // if (UNLIKELY(current[r] >= base[r + 1])) throw std::runtime_error("argh");
         *current[r]++ = q;
     }
@@ -119,19 +123,19 @@ class bucket_hash {
         /* Allocate an open hash table that is 4 times as large as what goes in
          * a typical bucket.
          */
-        size_t A_size = get_secondary_size(bucket_size);
+        size_t const A_size = get_secondary_size(bucket_size);
         std::vector<Ht> A;
         for(int i = 0 ; i < Nbuckets ; i++) {
             A.assign(A_size + config::open_hash_tail_overrun_protection, 0);
             for(auto b = base[i] ; b != current[i] ; ++b) {
-                T x = *b;
+                T const x = *b;
                 /* where do we insert x in A ?
                  *
                  * Note that we've done the shifting before storing x, so
                  * it's not needed here.
                  */
-                size_t where = (x) & (A_size -1);
-                Ht key = config::tie_breaker(x);
+                size_t const where = (x) & (A_size -1);
+                Ht const key = config::tie_breaker(x);
                 Ht * Th = A.data() + where;
                 for( ; *Th ; Th++)
                     if (*Th == key) {
@@ -168,7 +172,7 @@ int main()
 
         int found = 0;
         int i;
-        clock_t st = clock();
+        clock_t const st = clock();
         for(i = 0 ; i < 100 ; i++) {
             polyselect_shash_reset(H);
             for(size_t i = 0 ; i < pushed_entries ; i++)
@@ -178,7 +182,7 @@ int main()
                 os << " " << i;
             }
         }
-        std::string s = os.str();
+        std::string const s = os.str();
         printf("%d %d %.2f%s\n", i, found, (double) (clock() - st) / CLOCKS_PER_SEC, s.c_str());
 
         polyselect_shash_clear(H);
@@ -193,7 +197,7 @@ int main()
         bucket_hash<polyselect_shash_config, 256> H(expected_entries);
         int found = 0;
         int i;
-        clock_t st = clock();
+        clock_t const st = clock();
         for(i = 0 ; i < 100 ; i++) {
             H.reset();
             for(size_t i = 0 ; i < pushed_entries ; i++) {
@@ -211,7 +215,7 @@ int main()
             }
             // printf("%d %d\n", i, found);
         }
-        std::string s = os.str();
+        std::string const s = os.str();
         printf("%d %d %.2f%s\n", i, found, (double) (clock() - st) / CLOCKS_PER_SEC, s.c_str());
 
         collisions_cxx_code = s;
@@ -224,7 +228,7 @@ int main()
         std::vector<int64_t> H;
         int found = 0;
         int i;
-        clock_t st = clock();
+        clock_t const st = clock();
         for(i = 0 ; i < 100 ; i++) {
             H.clear();
             for(size_t i = 0 ; i < pushed_entries ; i++) {
@@ -240,7 +244,7 @@ int main()
             }
             // printf("%d %d\n", i, found);
         }
-        std::string s = os.str();
+        std::string const s = os.str();
         printf("%d %d %.2f%s\n", i, found, (double) (clock() - st) / CLOCKS_PER_SEC, s.c_str());
     }
     gmp_randclear(rstate);

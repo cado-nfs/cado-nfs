@@ -13,10 +13,11 @@
 #include "crc.h"        // cado_crc_lfsr
 #include "misc.h"       // has_suffix
 #include "macros.h"
+#include "utils_cxx.hpp"        // for unique_ptr<FILE>
 
 void balancing_set_row_col_count(balancing & bal)
 {
-    unsigned int s = bal.nh * bal.nv;
+    unsigned int const s = bal.nh * bal.nv;
     unsigned int b = iceildiv(bal.nrows, s);
     for( ; b % MINIMUM_ITEMS_IN_BWC_CHUNKS ; b++);
     bal.trows = s * b;
@@ -39,9 +40,9 @@ void balancing_finalize(balancing & bal)
      * permutations if we have both a row and a column permutation in the
      * file, right?
      */
-    uint32_t c = bal.flags & FLAG_ROWPERM;
-    uint32_t r = bal.flags & FLAG_COLPERM;
-    uint32_t a = bal.flags & FLAG_REPLICATE;
+    uint32_t const c = bal.flags & FLAG_ROWPERM;
+    uint32_t const r = bal.flags & FLAG_COLPERM;
+    uint32_t const a = bal.flags & FLAG_REPLICATE;
     ASSERT_ALWAYS(!(c && r && a));
 
     if (bal.flags & FLAG_ROWPERM) {
@@ -58,44 +59,42 @@ void balancing_finalize(balancing & bal)
     }
 }
 
-void balancing_write_inner(balancing const & bal, const char * filename)
+void balancing_write_inner(balancing const & bal, std::string const & filename)
 {
-    FILE * pfile;
-    fprintf(stderr, "Writing balancing data to %s\n", filename);
-    pfile = fopen(filename, "wb");
-    if (pfile == NULL) {
-        perror(filename);
+    fmt::print(stderr, "Writing balancing data to {}\n", filename);
+    std::unique_ptr<FILE> const pfile(fopen(filename.c_str(), "wb"));
+    if (!pfile) {
+        perror(filename.c_str());
         abort();
     }
-    int rc = 0;
+    size_t rc = 0;
     /* Any change to the balancing_header structure must propagate here */
     ASSERT_ALWAYS(sizeof(balancing_header) == 64);
-    rc += fwrite32_little(&bal.zero, 1, pfile);
-    rc += fwrite32_little(&bal.magic, 1, pfile);
-    rc += fwrite32_little(&bal.nh, 1, pfile);
-    rc += fwrite32_little(&bal.nv, 1, pfile);
-    rc += fwrite32_little(&bal.nrows, 1, pfile);
-    rc += fwrite32_little(&bal.ncols, 1, pfile);
-    rc += fwrite32_little(&bal.nzrows, 1, pfile);
-    rc += fwrite32_little(&bal.nzcols, 1, pfile);
-    rc += fwrite64_little(&bal.ncoeffs, 1, pfile);
-    rc += fwrite32_little(&bal.checksum, 1, pfile);
-    rc += fwrite32_little(&bal.flags, 1, pfile);
-    rc += fwrite32_little(bal.pshuf, 2, pfile);
-    rc += fwrite32_little(bal.pshuf_inv, 2, pfile);
+    rc += fwrite32_little(&bal.zero, 1, pfile.get());
+    rc += fwrite32_little(&bal.magic, 1, pfile.get());
+    rc += fwrite32_little(&bal.nh, 1, pfile.get());
+    rc += fwrite32_little(&bal.nv, 1, pfile.get());
+    rc += fwrite32_little(&bal.nrows, 1, pfile.get());
+    rc += fwrite32_little(&bal.ncols, 1, pfile.get());
+    rc += fwrite32_little(&bal.nzrows, 1, pfile.get());
+    rc += fwrite32_little(&bal.nzcols, 1, pfile.get());
+    rc += fwrite64_little(&bal.ncoeffs, 1, pfile.get());
+    rc += fwrite32_little(&bal.checksum, 1, pfile.get());
+    rc += fwrite32_little(&bal.flags, 1, pfile.get());
+    rc += fwrite32_little(bal.pshuf, 2, pfile.get());
+    rc += fwrite32_little(bal.pshuf_inv, 2, pfile.get());
     ASSERT_ALWAYS(rc == 15);
     if (bal.flags & FLAG_ROWPERM) {
-        rc = fwrite32_little(bal.rowperm, bal.trows, pfile);
-        ASSERT_ALWAYS(rc == (int) bal.trows);
+        rc = fwrite32_little(bal.rowperm, bal.trows, pfile.get());
+        ASSERT_ALWAYS(rc == bal.trows);
     }
     if (bal.flags & FLAG_COLPERM) {
-        rc = fwrite32_little(bal.colperm, bal.tcols, pfile);
-        ASSERT_ALWAYS(rc == (int) bal.tcols);
+        rc = fwrite32_little(bal.colperm, bal.tcols, pfile.get());
+        ASSERT_ALWAYS(rc == bal.tcols);
     }
-    fclose(pfile);
 }
 
-void balancing_write(balancing const & bal, const char * mfile, const char * suggest)
+void balancing_write(balancing const & bal, std::string const & mfile, std::string const & suggest)
 {
     /* the semantics of -out for this program are farily weird. If it's
      * a file, then we'll use that as an output name (this is the call to
@@ -103,13 +102,13 @@ void balancing_write(balancing const & bal, const char * mfile, const char * sug
      * directory, we'll place the balancing file named the standard way
      * there, as done by the asprintf naming later on.
      */
-    int suggestion_is_directory = 0;
-    if (suggest && strlen(suggest)) {
+    bool suggestion_is_directory = false;
+    if (!suggest.empty()) {
         struct stat sb[1];
-        suggestion_is_directory = (stat(suggest, sb) == 0 && S_ISDIR(sb->st_mode));
+        suggestion_is_directory = (stat(suggest.c_str(), sb) == 0 && S_ISDIR(sb->st_mode));
     }
 
-    if (suggest && strlen(suggest) && !suggestion_is_directory) {
+    if (!suggest.empty() && !suggestion_is_directory) {
         balancing_write_inner(bal, suggest);
         /* If we received "-out", don't store the balancing file with the
          * default name -- that would be rather odd.
@@ -117,35 +116,30 @@ void balancing_write(balancing const & bal, const char * mfile, const char * sug
         return;
     }
 
-    char * dup_prefix=strdup(mfile);
-    char const * ext[2] = { ".bin", ".txt" };
-    for(int j = 0 ; j < 2 ; j++) {
-        if (has_suffix(dup_prefix, ext[j])) {
-            dup_prefix[strlen(dup_prefix)-strlen(ext[j])]='\0';
-            break;
+    /* TODO: refactor at least part of this with code in build_matcache? */
+    std::string locfile;
+    {
+        if (suggestion_is_directory) {
+            auto it = mfile.rfind('/');
+            it = (it == std::string::npos) ? 0 : (it + 1);
+            locfile = fmt::format("{}/{}", suggest, mfile.substr(it));
+        } else {
+            locfile = mfile;
         }
+        auto it = locfile.rfind(".bin");
+        if (it != std::string::npos)
+            locfile.erase(it, locfile.size());
     }
 
-    char * filename;
-    int rc;
-    if (suggestion_is_directory) {
-        char * q = strrchr(dup_prefix, '/');
-        if (q) { q++; } else { q = dup_prefix; }
-        rc = asprintf(&filename, "%s/%s.%dx%d.%08" PRIx32 ".bin",
-                suggest, q, bal.nh, bal.nv, bal.checksum);
-    } else {
-        rc = asprintf(&filename, "%s.%dx%d.%08" PRIx32 ".bin",
-                dup_prefix, bal.nh, bal.nv, bal.checksum);
-    }
-    ASSERT_ALWAYS(rc >= 0);
-    free(dup_prefix);
-    balancing_write_inner(bal, filename);
-    free(filename);
+    locfile = fmt::format("{}.{}{}.{}.bin",
+                locfile, bal.nh, bal.nv, bal.checksum);
+
+    balancing_write_inner(bal, locfile);
 }
 
-void balancing_read_header_inner(balancing & bal, FILE * pfile)
+static void balancing_read_header_inner(balancing & bal, FILE * pfile)
 {
-    int rc = 0;
+    size_t rc = 0;
     ASSERT_ALWAYS(pfile);
     ASSERT_ALWAYS(sizeof(balancing_header) == 64);
     rc += fread32_little(&bal.zero, 1, pfile);
@@ -170,56 +164,53 @@ void balancing_read_header_inner(balancing & bal, FILE * pfile)
      * permutations if we have both a row and a column permutation in the
      * file, right?
      */
-    uint32_t c = bal.flags & FLAG_ROWPERM;
-    uint32_t r = bal.flags & FLAG_COLPERM;
-    uint32_t a = bal.flags & FLAG_REPLICATE;
+    uint32_t const c = bal.flags & FLAG_ROWPERM;
+    uint32_t const r = bal.flags & FLAG_COLPERM;
+    uint32_t const a = bal.flags & FLAG_REPLICATE;
     ASSERT_ALWAYS(!(c && r && a));
 
+    ASSERT_ALWAYS(bal.nh);
+    ASSERT_ALWAYS(bal.nv);
 }
 
 void balancing_read_header(balancing & bal, std::string const & filename)
 {
-    FILE * pfile;
     ASSERT_ALWAYS(!filename.empty());
-    char * derived = derived_filename(filename.c_str(), "hdr", ".bin");
-    pfile = fopen(filename.c_str(), "rb");
-    if (pfile == NULL) {
-        pfile = fopen(derived, "rb");
-        if (pfile == NULL) {
-            fprintf(stderr, "Cannot read %s nor %s: %s\n",
-                    filename.c_str(), derived, strerror(errno));
+    std::string hdrname = std::unique_ptr<char, free_delete<char>>(
+            derived_filename(filename.c_str(), "hdr", ".bin")).get();
+    std::unique_ptr<FILE> pfile(fopen(filename.c_str(), "rb"));
+    if (!pfile) {
+        pfile.reset(fopen(hdrname.c_str(), "rb"));
+        if (!pfile) {
+            fmt::print(stderr, "Cannot read {} nor {}: {}\n",
+                    filename, hdrname, strerror(errno));
             abort();
         }
     }
-    balancing_read_header_inner(bal, pfile);
+    balancing_read_header_inner(bal, pfile.get());
     balancing_set_row_col_count(bal);
-    fclose(pfile);
-    free(derived);
 }
 
 void balancing_read(balancing & bal, std::string const & filename)
 {
-    FILE * pfile;
-
     ASSERT_ALWAYS(!filename.empty());
-    pfile = fopen (filename.c_str(), "rb");
-    if (pfile == NULL) {
+    std::unique_ptr<FILE> pfile (fopen (filename.c_str(), "rb"));
+    if (!pfile) {
         perror(filename.c_str());
         abort();
     }
-    balancing_read_header_inner(bal, pfile);
+    balancing_read_header_inner(bal, pfile.get());
     balancing_set_row_col_count(bal);
     if (bal.flags & FLAG_ROWPERM) {
         bal.rowperm = (uint32_t *) malloc(bal.trows * sizeof(uint32_t));
-        int rc = fread32_little(bal.rowperm, bal.trows, pfile);
-        ASSERT_ALWAYS(rc == (int) bal.trows);
+        size_t const rc = fread32_little(bal.rowperm, bal.trows, pfile.get());
+        ASSERT_ALWAYS(rc == bal.trows);
     }
     if (bal.flags & FLAG_COLPERM) {
         bal.colperm = (uint32_t *) malloc(bal.tcols * sizeof(uint32_t));
-        int rc = fread32_little(bal.colperm, bal.tcols, pfile);
-        ASSERT_ALWAYS(rc == (int) bal.tcols);
+        size_t const rc = fread32_little(bal.colperm, bal.tcols, pfile.get());
+        ASSERT_ALWAYS(rc == bal.tcols);
     }
-    fclose(pfile);
 }
 
 void balancing_init(balancing & bal)

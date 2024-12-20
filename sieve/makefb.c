@@ -44,7 +44,7 @@ void mp_poly_linear_comp(mpz_t *g, mpz_t *f, int d, long a, long b) {
             mpz_poly_mul(aXpbi, aXpbi, aXpb);
     }
     for (int i = 0; i <= d; ++i)
-        mpz_poly_getcoeff(g[i], i, G);
+        mpz_set(g[i], mpz_poly_coeff_const(G, i));
     mpz_poly_clear(aXpb);
     mpz_poly_clear(aXpbi);
     mpz_poly_clear(G);
@@ -466,7 +466,7 @@ static void declare_usage(param_list pl)
 }
 
 int
-main (int argc, char *argv[])
+main (int argc, char const *argv[])
 {
   param_list pl;
   cado_poly cpoly;
@@ -475,7 +475,7 @@ main (int argc, char *argv[])
   int maxbits = 1;  // disable powers by default
   int side = -1;
   unsigned long lim = ULONG_MAX;
-  char *argv0 = argv[0];
+  char const *argv0 = argv[0];
   unsigned long nb_threads = 1;
 
   param_list_init(pl);

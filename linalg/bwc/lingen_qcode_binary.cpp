@@ -4,16 +4,16 @@
 #include <cstdio>                        // for printf
 #include <cstdlib>                       // for free, malloc
 #include <cstring>                       // for memset, memcpy
+#include <cstdint>                        // for uint64_t
 
 #include <array>                          // for array<>::iterator, array
-#include <cstdint>                        // for uint64_t
 #include <iterator>                       // for begin
 #include <utility>                        // for swap
 #include <algorithm>
 #include <vector>
 #include <type_traits>
 
-#define LINGEN_QCODE_BINARY_TRAMPOLINE_INTERFACE
+#include "gmp_aux.h"
 #include "lingen_qcode_binary.hpp"
 #include "bpack.hpp"                      // for bpack_view, bpack_view_base...
 #include "lingen_bmstatus.hpp"            // for bmstatus
@@ -31,13 +31,13 @@ static_assert(std::is_same<matpoly::ptr, unsigned long *>::value, "wrong flags")
 /* We have two interfaces here. The first one is the one that is common
  * with qcode_prime. This goes through bw_lingen_basecase.
  *
- * The second one, which is activated if
- * LINGEN_QCODE_BINARY_TRAMPOLINE_INTERFACE is #defined prior to
- * #including this file, is really legacy code, and it's only exposed for
+ * The second one
+ * is really legacy code, and it's only exposed for
  * the legacy lingen_binary code. (as a matter of fact, the
  * implementation of bw_lingen_basecase does build upon the legacy
  * interface presently, but that is not a reason to have it exposed).
  */
+#define LINGEN_QCODE_BINARY_TRAMPOLINE_INTERFACE
 #ifdef LINGEN_QCODE_BINARY_TRAMPOLINE_INTERFACE
 /* This trampoline structure is no longer useful, really. At some point
  * we had both C and C++ 
@@ -69,12 +69,12 @@ typedef struct lingen_qcode_data_s lingen_qcode_data[1];
 typedef struct lingen_qcode_data_s * lingen_qcode_data_ptr;
 typedef const struct lingen_qcode_data_s * lingen_qcode_data_srcptr;
 
-void lingen_qcode_init(lingen_qcode_data_ptr qq, unsigned int m, unsigned int b, unsigned int length, unsigned int outlength);
-void lingen_qcode_clear(lingen_qcode_data_ptr qq);
+static void lingen_qcode_init(lingen_qcode_data_ptr qq, unsigned int m, unsigned int b, unsigned int length, unsigned int outlength);
+static void lingen_qcode_clear(lingen_qcode_data_ptr qq);
 
-unsigned int lingen_qcode_output_column_length(lingen_qcode_data_srcptr qq, unsigned int j);
+static unsigned int lingen_qcode_output_column_length(lingen_qcode_data_srcptr qq, unsigned int j);
 
-unsigned int lingen_qcode_do(lingen_qcode_data_ptr qq);
+static unsigned int lingen_qcode_do(lingen_qcode_data_ptr qq);
 
 static inline void lingen_qcode_hook_delta(lingen_qcode_data_ptr qq, unsigned int * delta)
 {
@@ -324,11 +324,11 @@ public:
 
 /* This re-implementation is inspired from the one in
  * lingen_qcode_prime.cpp */
-bool generator_found(lingen_qcode_data_ptr qq, unsigned int dt, std::vector<bool>const& is_modified)
+static bool generator_found(lingen_qcode_data_ptr qq, unsigned int dt, std::vector<bool>const& is_modified)
 {
-    unsigned int m = qq->m;
-    unsigned int b = qq->b;
-    unsigned int n = b - m;
+    unsigned int const m = qq->m;
+    unsigned int const b = qq->b;
+    unsigned int const n = b - m;
     unsigned int newluck = 0;
     for(unsigned int j = 0 ; j < m + n ; j++) {
         if (qq->ch[j] < 0)
@@ -349,7 +349,7 @@ bool generator_found(lingen_qcode_data_ptr qq, unsigned int dt, std::vector<bool
          * like this to be impossible by mere chance. Thus we want n*k >
          * luck_mini, which can easily be checked */
 
-        unsigned int luck_mini = qq->luck_mini;
+        unsigned int const luck_mini = qq->luck_mini;
         unsigned int luck_sure = 0;
 
         printf("t=%d, canceled columns:", qq->t + dt);
@@ -392,10 +392,11 @@ bool generator_found(lingen_qcode_data_ptr qq, unsigned int dt, std::vector<bool
     return happy;
 }
 
+#if 0
+static inline void lshift1(unsigned long&x) { x <<= 1; }
 
-inline void lshift1(unsigned long&x) { x <<= 1; }
-
-template<int WIDTH> inline void lshift1(unsigned long (&x)[WIDTH])
+template<int WIDTH>
+static inline void lshift1(unsigned long (&x)[WIDTH])
 {
     mpn_lshift(x, x, WIDTH, 1);
 }
@@ -415,15 +416,16 @@ template<> inline void lshift1<2>(unsigned long (&x)[2]) {
     x[0] <<= 1;
 #endif
 }
+#endif
 
 template<typename width_type>
-unsigned int lingen_qcode_do_tmpl(width_type w, lingen_qcode_data_ptr qq)
+static unsigned int lingen_qcode_do_tmpl(width_type w, lingen_qcode_data_ptr qq)
 {
-    unsigned int m = qq->m;
-    unsigned int b = qq->b;
-    unsigned int n = b - m;
+    unsigned int const m = qq->m;
+    unsigned int const b = qq->b;
+    unsigned int const n = b - m;
     std::vector<unsigned int> kk(m+n, 0);
-    int width = w.width;
+    int const width = w.width;
     ulmat_colmajor<width_type> E(w, m, b);
     ulmat_colmajor<width_type> P(w, b, b);
     ASSERT_ALWAYS(qq->length <= (unsigned long) width * ULONG_BITS);
@@ -475,7 +477,7 @@ unsigned int lingen_qcode_do_tmpl(width_type w, lingen_qcode_data_ptr qq)
 #pragma omp parallel for
 #endif
 	    for (unsigned int ik = 0 ; ik < kk.size() ; ik++) {
-                unsigned int k = kk[ik];
+                unsigned int const k = kk[ik];
                 E.xor_column(k, pivot);
                 P.xor_column(k, pivot);
             }
@@ -538,7 +540,7 @@ unsigned int lingen_qcode_do(lingen_qcode_data_ptr qq)/*{{{*/
     return 0;
 }/*}}}*/
 
-matpoly bw_lingen_basecase_raw_old(bmstatus & bm, matpoly & E)/*{{{*/
+static matpoly bw_lingen_basecase_raw_old [[maybe_unused]] (bmstatus & bm, matpoly & E)/*{{{*/
 {
     /* There's a nasty bug. Revealed by 32-bits, but can occur on larger
      * sizes too. Let W be the word size. When E has length W + epsilon,
@@ -555,7 +557,7 @@ matpoly bw_lingen_basecase_raw_old(bmstatus & bm, matpoly & E)/*{{{*/
      * firmly on the safe side !. Note that for E.get_size() == 0, we do
      * need length 2.
      */
-    size_t exp_maxlen = 1 + E.get_size();
+    size_t const exp_maxlen = 1 + E.get_size();
 
     matpoly pi(&bm.d.ab, E.ncols(), E.ncols(), exp_maxlen);
     pi.zero_pad(exp_maxlen);
@@ -600,13 +602,13 @@ matpoly bw_lingen_basecase_raw_old(bmstatus & bm, matpoly & E)/*{{{*/
     return pi;
 } /* }}} */
 
-bool generator_found(unsigned int t, bpack_view<uint64_t> E_t, std::vector<int> & lucky, unsigned int luck_mini)
+static bool generator_found(unsigned int t, bpack_view<uint64_t> E_t, std::vector<int> & lucky, unsigned int luck_mini)
 {
-    unsigned int b = E_t.nrows();
-    unsigned int m = E_t.ncols();
-    unsigned int n = b - m;
-    unsigned int bb = E_t.nrowblocks();
-    unsigned int mb = E_t.ncolblocks();
+    unsigned int const b = E_t.nrows();
+    unsigned int const m = E_t.ncols();
+    unsigned int const n = b - m;
+    unsigned int const bb = E_t.nrowblocks();
+    unsigned int const mb = E_t.ncolblocks();
     constexpr const unsigned int B = mat64::width;
     unsigned int newluck = 0;
     /* find spontaneous zero rows */
@@ -624,7 +626,7 @@ bool generator_found(unsigned int t, bpack_view<uint64_t> E_t, std::vector<int> 
             }
         }
         for(unsigned int i = 0 ; i < B ; i++) {
-            unsigned int ii = bi * B + i;
+            unsigned int const ii = bi * B + i;
             if (!zz[i]) {
                 lucky[ii] = 0;
             } else {
@@ -685,29 +687,29 @@ bool generator_found(unsigned int t, bpack_view<uint64_t> E_t, std::vector<int> 
     return happy;
 }
 
-matpoly bw_lingen_basecase_raw_fast(bmstatus & bm, matpoly const & mp_E)/*{{{*/
+static matpoly bw_lingen_basecase_raw_fast(bmstatus & bm, matpoly const & mp_E)/*{{{*/
 {
     bw_dimensions & d = bm.d;
-    unsigned int m = d.m;
-    unsigned int n = d.n;
-    unsigned int b = m + n;
-    unsigned int L = mp_E.get_size();
+    unsigned int const m = d.m;
+    unsigned int const n = d.n;
+    unsigned int const b = m + n;
+    unsigned int const L = mp_E.get_size();
     /* expected_pi_length should do as well, but 1+E.get_size() is
      * firmly on the safe side !. Note that for E.get_size() == 0, we do
      * need length 2.
      */
-    size_t D = 1 + mp_E.get_size();
+    size_t const D = 1 + mp_E.get_size();
 
     matpoly::arith_hard * ab = &d.ab;
     constexpr const unsigned int B = mat64::width;
     unsigned int bb = iceildiv(b, B);
-    unsigned int bX = bb * B;
+    unsigned int const bX = bb * B;
     unsigned int mb = iceildiv(m, B);
-    unsigned int mX = mb * B;
-    unsigned int Lb = iceildiv(L, 64);
-    unsigned int LX = Lb * 64;
-    unsigned int Db = iceildiv(D, B);
-    unsigned int DX = Db * B;
+    unsigned int const mX = mb * B;
+    unsigned int const Lb = iceildiv(L, 64);
+    unsigned int const LX = Lb * 64;
+    unsigned int const Db = iceildiv(D, B);
+    unsigned int const DX = Db * B;
 
     ASSERT_ALWAYS(Lb * sizeof(uint64_t) == mp_E.data_entry_alloc_size_in_bytes());
 
@@ -732,7 +734,7 @@ matpoly bw_lingen_basecase_raw_fast(bmstatus & bm, matpoly const & mp_E)/*{{{*/
     // std::vector<unsigned int> pi_row_deg(b, 0);
     auto & delta(bm.delta);
     auto & lucky(bm.lucky);
-    unsigned int luck_mini = expected_pi_length(bm.d);
+    unsigned int const luck_mini = expected_pi_length(bm.d);
 
     unsigned int pi_len = 1;
 
@@ -767,8 +769,8 @@ matpoly bw_lingen_basecase_raw_fast(bmstatus & bm, matpoly const & mp_E)/*{{{*/
             bpack<uint64_t>::mul_lt_ge(LL.const_view(), E_coeff(k));
         
         /* multiply the first p.size() rows by X */
-        unsigned int bi0 = p.size() / 64;
-        int full = pi_len == DX;
+        unsigned int const bi0 = p.size() / 64;
+        int const full = pi_len == DX;
         if (bi0) {
             /* we can move complete blocks */
             for(unsigned int d = pi_len - full ; d-- ; ) {
@@ -786,7 +788,7 @@ matpoly bw_lingen_basecase_raw_fast(bmstatus & bm, matpoly const & mp_E)/*{{{*/
             }
             std::fill_n(&E_coeff(t).cell(0,0), bi0 * mb, 0);
         }
-        unsigned int di = p.size() % 64;
+        unsigned int const di = p.size() % 64;
         if (di) {
             /* we can move complete blocks */
             for(unsigned int bj = 0 ; bj < mb ; bj++) {
@@ -833,23 +835,24 @@ matpoly bw_lingen_basecase_raw_fast(bmstatus & bm, matpoly const & mp_E)/*{{{*/
     bm.done = t < L;
 
     if (0) {
-        matpoly mp_Epi = matpoly::mul(mp_E, mp_pi);
-        unsigned int v = mp_Epi.valuation();
+        matpoly const mp_Epi = matpoly::mul(mp_E, mp_pi);
+        unsigned int const v = mp_Epi.valuation();
         printf("valuation check: %u\n", v);
         ASSERT_ALWAYS(v >= t);
     }
     return mp_pi;
 }/*}}}*/
 
-matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly & E)/*{{{*/
+static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly & E)/*{{{*/
 {
     return bw_lingen_basecase_raw_fast(bm, E);
 }/*}}}*/
 
 matpoly bw_lingen_basecase(bmstatus & bm, matpoly & E)/*{{{*/
 {
-    lingen_call_companion const & C = bm.companion(bm.depth(), E.get_size());
-    tree_stats::sentinel dummy(bm.stats, "basecase", E.get_size(), C.total_ncalls, true);
+    lingen_call_companion const & C = bm.companion(bm.depth, E.get_size());
+    tree_stats::sentinel const dummy(bm.stats, "basecase", E.get_size(), C.total_ncalls, true);
+    bmstatus::depth_sentinel ddummy(bm);
     bm.stats.plan_smallstep("basecase", C.ttb);
     bm.stats.begin_smallstep("basecase");
     matpoly pi = bw_lingen_basecase_raw(bm, E);
@@ -859,12 +862,12 @@ matpoly bw_lingen_basecase(bmstatus & bm, matpoly & E)/*{{{*/
     return pi;
 }/*}}}*/
 
-void test_basecase(matpoly::arith_hard * ab, unsigned int m, unsigned int n, size_t L, gmp_randstate_t rstate)/*{{{*/
+void test_basecase(matpoly::arith_hard * ab, unsigned int m, unsigned int n, size_t L, cxx_gmp_randstate & rstate)/*{{{*/
 {
     /* used by testing code */
-    cxx_mpz p=2;
+    cxx_mpz const p=2;
     bmstatus bm(m,n,p);
-    unsigned int t0 = iceildiv(m,n);
+    unsigned int const t0 = iceildiv(m,n);
     bm.set_t0(t0);
     matpoly E(ab, m, m+n, L);
     E.zero_pad(L);
@@ -872,14 +875,14 @@ void test_basecase(matpoly::arith_hard * ab, unsigned int m, unsigned int n, siz
     bw_lingen_basecase_raw(bm, E);
 }/*}}}*/
 
-void test_basecase_bblas(matpoly::arith_hard * ab, unsigned int m, unsigned int n, size_t L, gmp_randstate_t rstate)/*{{{*/
+void test_basecase_bblas(matpoly::arith_hard * ab, unsigned int m, unsigned int n, size_t L, cxx_gmp_randstate & rstate)/*{{{*/
 {
     // constexpr const unsigned int B = mat64::width;
 
     /* used by testing code */
-    cxx_mpz p = 2;
+    cxx_mpz const p = 2;
     bmstatus bm(m,n,p);
-    unsigned int t0 = iceildiv(m,n);
+    unsigned int const t0 = iceildiv(m,n);
     bm.set_t0(t0);
 
     // ASSERT_ALWAYS(m % B == 0);
@@ -893,13 +896,13 @@ void test_basecase_bblas(matpoly::arith_hard * ab, unsigned int m, unsigned int 
 
     tt = wct_seconds();
 
-    matpoly mp_pi = bw_lingen_basecase_raw_fast(bm, mp_E);
+    matpoly const mp_pi = bw_lingen_basecase_raw_fast(bm, mp_E);
 
     tt = wct_seconds() - tt;
     printf("%.3f\n", tt);
 
     if (1) {
-        matpoly mp_Epi = matpoly::mul(mp_E, mp_pi);
+        matpoly const mp_Epi = matpoly::mul(mp_E, mp_pi);
         printf("valuation check: %u\n", mp_Epi.valuation());
     }
 }/*}}}*/

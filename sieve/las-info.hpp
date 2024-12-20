@@ -4,6 +4,7 @@
 #include "cado_config.h"               // for HAVE_HWLOC
 
 #include <cstddef>                    // for NULL
+
 #include <array>                       // for array
 #include <condition_variable>          // for condition_variable
 #include <cstdint>                     // for uint64_t, UINT64_MAX
@@ -13,7 +14,9 @@
 #include <thread>                      // for thread
 #include <utility>                     // for forward
 #include <vector>                      // for vector
+
 #include <gmp.h>
+
 #include "cado_poly.h"   // cxx_cado_poly
 #include "ecm/batch.hpp"               // for cofac_list
 #include "ecm/facul.hpp"                   // for facul_strategies
@@ -30,12 +33,14 @@
 #include "las-siever-config.hpp"       // for siever_config (ptr only), siev...
 #include "params.h"
 #include "utils_cxx.hpp" // NonCopyable
-/* forward decls of j_divisibility_helperand unsieve_data are not
+
+// scan-headers: stop here
+
+/* forward decls of j_divisibility_helper and unsieve_data are not
  * sufficient.
  */
 #include "las-unsieve.hpp"      // IWYU pragma: keep
 #include "lock_guarded_container.hpp"  // for lock_guarded_container
-struct trialdiv_data; // IWYU pragma: keep
 
 /* This one wants to have siever_config defined */
 #include "las-descent-trees.hpp"

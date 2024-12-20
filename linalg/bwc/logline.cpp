@@ -1,12 +1,15 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <cstdint>      // for SIZE_MAX
 #include <cstring>      // for memset, strlen
 #include <cstdio>       // fprintf // IWYU pragma: keep
 #include <cstdarg>      // va_list // IWYU pragma: keep
 #include <cstdlib>
+
 #include <string>        // for string, basic_string
 #include <vector>
-#include "logline.h"
+
+#include "logline.hpp"
 #include "memusage.h"   // Memusage2
 #include "params.h"     // param_list_parse_*
 #include "select_mpi.h"
@@ -60,7 +63,7 @@ void logline_unserialize(double);
 
 static struct logline * current;
 
-size_t logline_thresholds[10] = {
+static size_t logline_thresholds[10] = {
     /* This list should be increasing */
     SIZE_MAX,
     SIZE_MAX,
@@ -74,9 +77,9 @@ size_t logline_thresholds[10] = {
     SIZE_MAX,
 };
 
-int logline_timings = 1;
+static int logline_timings = 1;
 
-int logline_print_all_mpi_nodes = 0;
+static int logline_print_all_mpi_nodes = 0;
 
 static double start_time = -1;
 
@@ -85,7 +88,7 @@ void logline_init_timer()
     start_time = wct_seconds();
 }
 
-int logline_report_wct = 0;
+static int logline_report_wct = 0;
 
 static double logline_timer()
 {
@@ -94,7 +97,7 @@ static double logline_timer()
 
 double logline_serialize()
 {
-    double tt = wct_seconds() - start_time;
+    double const tt = wct_seconds() - start_time;
     return tt;
 }
 
@@ -104,7 +107,7 @@ void logline_unserialize(double tt)
 }
 
 
-void logline_decl_usage(param_list_ptr pl)
+void logline_decl_usage(cxx_param_list & pl)
 {
     param_list_decl_usage(pl, "logline_threshold",
             "print log lines of verbosity level i only for sizes greater than i-th item in this comma-separated list");
@@ -117,10 +120,10 @@ void logline_decl_usage(param_list_ptr pl)
 
 }
 
-int logline_interpret_parameters(param_list_ptr pl)
+int logline_interpret_parameters(cxx_param_list & pl)
 {
     int thr[10];
-    int n = param_list_parse_int_list(pl, "logline_threshold", thr, 10, ",");
+    int const n = param_list_parse_int_list(pl, "logline_threshold", thr, 10, ",");
     for(int i = 0 ; i < n ; i++) {
         logline_thresholds[i] = thr[i];
     }
@@ -157,7 +160,7 @@ static void logline_puts_raw(int level, const char * s)
     }
     fputs(s, current->f);
     current->prefixes.push_back(s);
-    size_t n = strlen(s);
+    size_t const n = strlen(s);
     current->nnl += (current->eol = s[n-1] == '\n');
     current->lastlevel = level;
 }
@@ -182,7 +185,7 @@ int logline_begin(FILE * f, size_t size, const char * fmt, ...)
     current->start = logline_timer();
     char * tmp;
     va_start(ap, fmt);
-    int rc = vasprintf(&(tmp), fmt, ap);
+    int const rc = vasprintf(&(tmp), fmt, ap);
     ASSERT_ALWAYS(rc >= 0);
     current->header = tmp;
     free(tmp);
@@ -198,7 +201,7 @@ int logline_end(double * rr, const char * fmt, ...)
     va_list ap;
     va_start(ap, fmt);
     char * text2;
-    double tt = logline_timer() - current->start;
+    double const tt = logline_timer() - current->start;
     if (fmt) {
         char * text;
         int rc;
@@ -228,7 +231,7 @@ int logline_vprintf(int level, const char * fmt, va_list ap)
 {
     if (!current) return 0;
     char * text;
-    int rc = vasprintf(&text, fmt, ap);
+    int const rc = vasprintf(&text, fmt, ap);
     ASSERT_ALWAYS(rc >= 0);
     logline_puts_raw(level, text);
     free(text);

@@ -1,6 +1,32 @@
 
 tweak_tree_before_configure() { : ; }
 
+user_variables() {
+    if [ "$using_cmake_directly" ] ; then
+        # use build_tree in this case, which matches the variable that
+        # call_cmake.sh uses, by the way.
+        if [ "$BASH_VERSION" ] ; then
+            if ! [ "$build_tree" ] ; then
+                build_tree="/tmp/$CI_JOB_NAME"
+                # spaces in dir names don't work, mostly because of libtool
+                # (look at gf2x/fft/libgf2x-fft.la)
+                # This substitution is bash-only, but this should be fine to 
+                # have in a conditional that non-bash skips over
+                build_tree="${build_tree// /_}"
+                export build_tree
+            fi
+            if ! [ -d "$build_tree" ] ; then
+                mkdir -p "$build_tree"
+            fi
+        else
+            # just a safeguard
+            build_tree=/no/build_tree/set/because/we/require/bash/for/that
+            export build_tree
+        fi
+    fi
+}
+
+
 step_configure() {
     # now that we're confident that we've made the bwc checks specific to
     # a "with_sagemath" suffix, there's no risk in missing the sagemath
@@ -23,10 +49,11 @@ step_configure() {
     fi
     if [ "$using_cmake_directly" ] ; then
         (cd "$build_tree" ; cmake "$source_tree")
+        # Ignore local.sh if we're building directly from cmake
     else
         "${MAKE}" cmake
+        eval `${MAKE} show`
     fi
-    eval `${MAKE} show`
 }
 
 build_steps="build1 build2"
@@ -78,7 +105,7 @@ if [ -x "./$1" ] ; then
 fi
 
 # Don't use --error-exitcode, so that we get a chance to be notified of all potential errors at once.
-valgrind --suppressions=$cado/cado-nfs.supp --gen-suppressions=all --trace-children=yes --trace-children-skip=gzip,libtool,gcc,g++ "--log-file=$vdir/pid-%p" --leak-check=full "$@"
+valgrind --suppressions=$cado/cado-nfs.supp --gen-suppressions=all --trace-children=yes --trace-children-skip=gdb,gzip,libtool,gcc,g++ "--log-file=$vdir/pid-%p" --leak-check=full "$@"
 EOF
 
     VALGRIND="$vdir/v.sh"
@@ -88,10 +115,34 @@ EOF
     test_precommand+=(env TEST_PRECOMMAND=$VALGRIND)
     # valgrind tests can take _ages_ if we run them with openmp
     export OMP_NUM_THREADS=1
+    # on the other hand we do want at least 2 threads for things that
+    # touch mf_scan2
+    export CADO_NFS_MAX_THREADS=2
 }
 
 
 check_environment() {
+    Nmax=16
+    if [ -x "$build_tree/tests/omp_get_max_threads" ] ; then
+        N=$("$build_tree/tests/omp_get_max_threads")
+        # originally we sensed a need to do so only on 32-bit machines,
+        # but after all it makes sense more generally.
+        if [ "$N" -gt "$Nmax" ] ; then
+            major_message "reducing the max number of openmp threads to only $Nmax"
+            export OMP_NUM_THREADS=$Nmax
+            export OMP_THREAD_LIMIT=$Nmax
+        fi
+    fi
+    if [ -f "$build_tree/hwloc-`hostname`.xml" ] ; then
+        export HWLOC_XMLFILE="$build_tree/hwloc-`hostname`.xml"
+    elif [ -x "$build_tree/tests/hwloc_cado_helper" ] ; then
+        export HWLOC_XMLFILE="$build_tree/hwloc-`hostname`.xml"
+        "$build_tree/tests/hwloc_cado_helper" -o "$HWLOC_XMLFILE"
+    else
+        major_message "Forcing a fake hwloc file. This might conflict with some tests"
+        export HWLOC_XMLFILE="$PWD/ci/placeholder-machine-for-tests.xml"
+    fi
+    export CADO_NFS_MAX_THREADS=$Nmax
     export OMP_DYNAMIC=true
     # See https://stackoverflow.com/questions/70126350/openmp-incredibly-slow-when-another-process-is-running
     # It's not totally clear to me if it somewhere specified that
@@ -113,6 +164,18 @@ check_environment() {
     
 }
 
+purge_unused_coverage_files() {
+    # might be useful. We don't want to bother with traces of config
+    # checks.
+    (
+        find "$build_tree" -name '*conftest*gcno' -o -name 'CMake*.gcno' -o -name '?-CMake*.gcno'
+        find "$build_tree" -name '*conftest*gcda' -o -name 'CMake*.gcda' -o -name '?-CMake*.gcda'
+        find "$build_tree"/utils/embedded -name \*.gcda -o -name \*.gcno 2>/dev/null || :
+        find "$build_tree"/gf2x -name \*.gcda -o -name \*.gcno 2>/dev/null || :
+        find "$build_tree"/linalg/bwc/flint-fft -name \*.gcda -o -name \*.gcno 2>/dev/null || :
+    ) | sort -u | xargs -r rm -v
+}
+
 
 step_coverage() {
     # This takes a coverage file prefix as $1, and info for the kind of
@@ -120,7 +183,6 @@ step_coverage() {
    
     # build_tree and source_tree are used
 
-    outfile="$source_tree/$1-$2.json"
 
     # Rationale for having this "base" coverage step (and I'm not sure it
     # is still relevant):
@@ -130,29 +192,80 @@ step_coverage() {
     # the percentage of total lines covered will always be correct, even
     # when not all source code files were loaded during the test(s).
 
-    # might be useful. We don't want to bother with traces of config
-    # checks.
-    find "$build_tree" -name '*conftest.gcno' -o -name 'CMake*.gcno' -o -name '?-CMake*.gcno' | xargs -r rm -v
+    if true ; then
+        purge_unused_coverage_files
 
-    # ci/ci/001-environment.sh sets build_tree to "./generated" for coverage
-    # jobs. Therefore, all files, gcno and gcda, are found under
-    # $PWD==$src_tree .
-    # This is done so because we have to ship the files that are
-    # generated by the build process, and expose them to the merged
-    # coverage report.
-    # If $build_tree is outside $src_tree, we should add "." before
-    # --json
-    (set -x ; cd "$build_tree" ; time gcovr --merge-mode-functions=separate -r "$source_tree" --json "$outfile")
+        outfile="$source_tree/$1-$2.json"
+        # ci/ci/001-environment.sh sets build_tree to "./generated" for coverage
+        # jobs. Therefore, all files, gcno and gcda, are found under
+        # $PWD==$src_tree .
+        # This is done so because we have to ship the files that are
+        # generated by the build process, and expose them to the merged
+        # coverage report.
+        # If $build_tree is outside $src_tree, we should add "." before
+        # --json
+        #
+        gcovr_args=()
+        gcovr_args+=(--merge-mode-functions=separate)
+        gcovr_args+=(-r "$source_tree")
+        gcovr_args+=(--json "$outfile")
+        gcovr_args+=(--gcov-ignore-parse-errors=suspicious_hits.warn_once_per_file)
+        (set -x ; cd "$build_tree" ; time gcovr "${gcovr_args[@]}")
+    fi
+
+    if true ; then
+        purge_unused_coverage_files
+
+        # lcov's --no-external is hopeless as long as
+        # https://github.com/linux-test-project/lcov/commit/d73281a15 is
+        # not checked in.
+        outfile_pre0="$source_tree/$1-$2-pre0.info"
+        outfile_pre1="$source_tree/$1-$2-pre1.info"
+        outfile="$source_tree/$1-$2.info"
+
+        lcov_capture_args=(
+            -q
+            -c
+            --directory "$build_tree"
+            --exclude "$build_tree"
+            --exclude "/usr/*"
+            --ignore-errors unused
+            --external
+        )
+        if [ "$2" = "base" ] ; then
+            lcov_capture_args+=(-i)
+        fi
+        lcov_capture_args+=(-o "$outfile_pre0")
+        lcov "${lcov_capture_args[@]}"
+
+        # do removals before path simplification, because the matches are
+        # shell globs but not anchored...
+        
+        lcov_removal_args=(
+            --exclude "$PWD/utils/embedded/*"
+            --exclude "$PWD/linalg/bwc/flint-fft/*"
+            --exclude "$PWD/gf2x/*"
+            --ignore-errors unused
+        )
+        lcov -a "$outfile_pre0" "${lcov_removal_args[@]}" -o "$outfile_pre1"
+
+        # now simplify the paths
+        lcov -a "$outfile_pre1" --substitute "s#^$PWD/##" -o "$outfile"
+
+        rm -f "$outfile_pre0"
+        rm -f "$outfile_pre1"
+    fi
 }
 
 step_coverage_more_artifacts() {
-    prefix="$1"
-    if [ "$build_tree" != generated ] ; then
-        fatal_error "This part of the script assumes that build_tree=generated"
-    fi
+    return
+    # prefix="$1"
+    # if [ "$build_tree" != generated ] ; then
+    #     fatal_error "This part of the script assumes that build_tree=generated"
+    # fi
 
-    # because of /bin/sh, we can't do arrays.
-    find "$build_tree" -name '*.[ch]' -o -name '*.[ch]pp' | xargs -x tar czf ${prefix}-generated-sources.tar.gz
+    # # because of /bin/sh, we can't do arrays.
+    # find "$build_tree" -name '*.[ch]' -o -name '*.[ch]pp' | xargs -x tar czf ${prefix}-generated-sources.tar.gz
 }
 
 
@@ -169,8 +282,13 @@ dispatch_valgrind_files() {
     # business (e.g., cado-nfs-client.py can do that). It is possible
     # that vlagrind report leaks in such cases, but we're not super
     # interested in them
+    # SIGABRT is also what we get when an expect-fail test aborts on an
+    # exception. Likewise, there is little to worry about _in the
+    # valgrind setting_ about aborts in general. (If a SIGABRT error
+    # happens for a reason that is not an expect-fail, then the other
+    # tests should catch it!)
     ls | grep pid | xargs -r egrep -l 'ERROR SUMMARY: 0' | xargs -r mv -t ok
-    ls | grep pid | xargs -r egrep -l 'Process terminating.*signal.*SIG(TERM|INT|HUP)' pid-* | xargs -r mv -t ok-signal
+    ls | grep pid | xargs -r egrep -l 'Process terminating.*signal.*SIG(TERM|INT|HUP|ABRT)' pid-* | xargs -r mv -t ok-signal
     ls | grep pid | xargs -r egrep -l 'ERROR SUMMARY: [^0]' pid-* | xargs -r mv -t nok
 }
 
@@ -214,23 +332,38 @@ postprocess_valgrind() {
 step_check() {
     # --no-compress-output is perhaps better for test uploading, as ctest
     # likes to store as zlib but headerless, which is a bit of a pain
+    #
+    # -V is to get the output of tests. We want it, since anyway for
+    # practical purposes our ctest filter does the required filtering.
 
-    ctest_args="-T Test --no-compress-output --test-output-size-passed 4096 --test-output-size-failed 262144"
+    ctest_args=(-V -T Test --no-compress-output --test-output-size-passed 4096 --test-output-size-failed 262144)
 
     if [ "$specific_checks" = "bwc.sagemath" ] ; then
-        ctest_args="$ctest_args -R with_sagemath"
+        ctest_args+=(-R with_sagemath)
     elif [ "$specific_checks" = "including_mpi" ] ; then
         # nothing to do
         :
     elif [ "$specific_checks" = "only_mpi" ] ; then
-        ctest_args="$ctest_args -R mpi"
+        ctest_args+=(-R mpi)
+    elif [ "$specific_checks" = "mysql" ] ; then
+        ctest_args+=(-R mysql)
+    fi
+
+    ctest_args+=(-E ^builddep)
+
+    if [[ $CI_JOB_NAME =~ ([[:digit:]]+)/([[:digit:]]+) ]] ; then
+        stride_args+=(-I ${BASH_REMATCH[1]},,${BASH_REMATCH[2]})
+        ctest_args+=("${stride_args[@]}")
+        enter_section collapsed all_tests "List of tests to run"
+        (cd "$build_tree" ; ctest -N "${ctest_args[@]}")
+        leave_section
     fi
 
     if [ "$using_cmake_directly" ] ; then
         set -o pipefail
-        (cd "$build_tree" ; "${test_precommand[@]}" ctest -j$NCPUS $ctest_args ) | "$source_tree"/scripts/filter-ctest.pl
+        (cd "$build_tree" ; "${test_precommand[@]}" ctest -j$NCPUS "${ctest_args[@]}" ) | "$source_tree"/scripts/filter-ctest.pl
     else
-        "${test_precommand[@]}" "${MAKE}" check ARGS="-j$NCPUS $ctest_args"
+        "${test_precommand[@]}" "${MAKE}" check ARGS="-j$NCPUS ${ctest_args[*]}"
     fi
     rc=$?
     export rc

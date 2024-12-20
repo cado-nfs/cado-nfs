@@ -22,33 +22,33 @@
 #include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
 #include "macros.h" // ASSERT_ALWAYS // IWYU pragma: keep
 #include "misc.h"
+#include "numbertheory/all_valuations_above_p.hpp"
 
 using namespace std;
 
-
-    std::ostream& badideal::print_dot_badideals_file(std::ostream & o, int side) const {/*{{{*/
-        o << p
-          << "," << r
-          << ":" << side
-          << ": " << nbad << std::endl;
-        return o;
-    }/*}}}*/
-    std::ostream& badideal::print_dot_badidealinfo_file(std::ostream& o, int side) const {/*{{{*/
-        o << comments;
-        for(unsigned int j = 0 ; j < branches.size() ; j++) {
-            badideal::branch const& br(branches[j]);
-            o << p << " " << br.k << " " << br.r << " " << side;
-            for(unsigned int k = 0 ; k < br.v.size() ; k++) {
-                o << " " << br.v[k];
-            }
-            o << std::endl;
+std::ostream& badideal::print_dot_badideals_file(std::ostream & o, int side) const {/*{{{*/
+    o << p
+        << "," << r
+        << ":" << side
+        << ": " << nbad << std::endl;
+    return o;
+}/*}}}*/
+std::ostream& badideal::print_dot_badidealinfo_file(std::ostream& o, int side) const {/*{{{*/
+    o << comments;
+    for(unsigned int j = 0 ; j < branches.size() ; j++) {
+        badideal::branch const& br(branches[j]);
+        o << p << " " << br.k << " " << br.r << " " << side;
+        for(unsigned int k = 0 ; k < br.v.size() ; k++) {
+            o << " " << br.v[k];
         }
-        return o;
-    }/*}}}*/
+        o << std::endl;
+    }
+    return o;
+}/*}}}*/
 
 std::ostream& badideal::operator<<(std::ostream& os) const
 {
-    std::ios_base::fmtflags ff = os.flags();
+    std::ios_base::fmtflags const ff = os.flags();
     os << comments;
     // p and r are printed according to the current format flags, but the
     // number of ideals and the branches are always in decimal.
@@ -99,166 +99,7 @@ badideal::badideal(std::istream& is)
     return;
 }
 
-struct all_valuations_above_p {/*{{{*/
-    cxx_mpz_poly f;
-    cxx_mpz p;
-private:
-    cxx_mpq_mat O;
-    cxx_mpz_mat M;
-    vector<pair<cxx_mpz_mat, int> > F;
-    vector<int> inertia;
-    vector<int> ramification; // valuation of the ideal in the
-                              // factorization of the underlying prime
-                              // ideal.
-    pair<cxx_mpz_mat, cxx_mpz> jjinv;
-    vector<cxx_mpz_mat> helpers;
-    vector<int> val_base;
-
-public:
-    all_valuations_above_p(cxx_mpz_poly const& f, cxx_mpz const& p, gmp_randstate_t state) : f(f), p(p) {/*{{{*/
-        O = p_maximal_order(f, p);
-        M = multiplication_table_of_order(O, f);
-        F = factorization_of_prime(O, f, p, state);
-        for(unsigned int k = 0 ; k < F.size() ; k++) {
-            cxx_mpz_mat const& fkp(F[k].first);
-            inertia.push_back(prime_ideal_inertia_degree(fkp));
-            ramification.push_back(F[k].second);
-            helpers.push_back(valuation_helper_for_ideal(M, fkp, p));
-        }
-        cxx_mpq_mat jjinv_gen(2, f->deg);
-        mpq_set_ui(mpq_mat_entry(jjinv_gen,0,0),1,1);
-        mpq_set_ui(mpq_mat_entry(jjinv_gen,1,1),1,1);
-        jjinv = ::generate_ideal(O,M,jjinv_gen);
-
-        val_base.assign(f->deg, 0);
-        val_base = (*this)(jjinv);
-    }/*}}}*/
-    vector<int> operator()(pair<cxx_mpz_mat, cxx_mpz> const& Id) const {/*{{{*/
-        int w = mpz_p_valuation(Id.second, p);
-        vector<int> res;
-        for(unsigned int k = 0 ; k < F.size() ; k++) {
-            cxx_mpz_mat const& a(helpers[k]);
-            int v = valuation_of_ideal_at_prime_ideal(M, Id.first, a, p);
-            int e = F[k].second;
-            res.push_back(v - w * e - val_base[k]);
-        }
-        return res;
-    }/*}}}*/
-    std::string sagemath_string(int k, int side) {
-        cxx_mpz_mat const& fkp(F[k].first);
-        pair<cxx_mpz, cxx_mpz_mat> two = prime_ideal_two_element(O, f, M, fkp);
-        /* Write the uniformizer as a polynomial with respect to the
-         * polynomial basis defined by f */
-        cxx_mpq_mat theta_q;
-        {
-            mpq_mat_set_mpz_mat(theta_q, two.second);
-            mpq_mat_mul(theta_q, theta_q, O);
-        }
-
-        /* That's only for debugging, so it's not terribly important.
-         * But we may have a preference towards giving ideal info in
-         * a more concise way, based on alpha_hat for instance */
-        ostringstream alpha;
-        alpha << "alpha" << side;
-        string uniformizer = write_element_as_polynomial(theta_q, alpha.str());
-
-        return fmt::format("OK{}.fractional_ideal({}, {})", side, two.first, uniformizer);
-    }
-
-    std::vector<cxx_mpz> machine_description(int k) {
-        /* This is about the same as above, in that we also return a
-         * two-element form of the ideal, but here we return it in a
-         * machine readable way. First the prime above which our ideal
-         * sits, then a denominator, then the coefficients of the
-         * polynomial in alpha that define the second element.
-         */
-        cxx_mpz_mat const& fkp(F[k].first);
-        pair<cxx_mpz, cxx_mpz_mat> two = prime_ideal_two_element(O, f, M, fkp);
-        cxx_mpq_mat theta_q;
-        mpq_mat_set_mpz_mat(theta_q, two.second);
-        mpq_mat_mul(theta_q, theta_q, O);
-        vector<cxx_mpz> res = write_element_as_list_of_integers(theta_q);
-        res.insert(res.begin(), two.first);
-        return res;
-    }
-
-    void print_info(ostream& o, int k, cxx_mpz const& r MAYBE_UNUSED, int side) const {/*{{{*/
-        cxx_mpz_mat const& fkp(F[k].first);
-        pair<cxx_mpz, cxx_mpz_mat> two = prime_ideal_two_element(O, f, M, fkp);
-        /* Write the uniformizer as a polynomial with respect to the
-         * polynomial basis defined by f */
-        cxx_mpq_mat theta_q;
-        {
-            mpq_mat_set_mpz_mat(theta_q, two.second);
-            mpq_mat_mul(theta_q, theta_q, O);
-        }
-
-        /* That's only for debugging, so it's not terribly important.
-         * But we may have a preference towards giving ideal info in
-         * a more concise way, based on alpha_hat for instance */
-        ostringstream alpha;
-        alpha << "alpha" << side;
-        string uniformizer = write_element_as_polynomial(theta_q, alpha.str());
-
-        /* This prints magma code. */
-        int e = F[k].second;
-        o << "# I" << k
-            << ":=ideal<O" << side << "|" << two.first << "," << uniformizer << ">;"
-            << " // f=" << prime_ideal_inertia_degree(fkp)
-            << " e="<< e
-            << endl;
-        o << "# I_" << two.first << "_" << r << "_" << side << "_" << k
-            << " " << two.first
-            << " " << r
-            << " " << side
-            << " " << theta_q
-            << " // " << prime_ideal_inertia_degree(fkp)
-            << " " << e
-            << endl;
-    }/*}}}*/
-    pair<cxx_mpz_mat, cxx_mpz> generate_ideal(cxx_mpq_mat const& gens) const {/*{{{*/
-        return ::generate_ideal(O, M, gens);
-    }/*}}}*/
-    pair<cxx_mpz_mat, cxx_mpz> generate_ideal(cxx_mpz_mat const& gens) const {/*{{{*/
-        return ::generate_ideal(O, M, cxx_mpq_mat(gens));
-    }/*}}}*/
-    /* create ideal I=<p^k,p^k*alpha,v*alpha-u> and decompose I*J */
-    vector<int> operator()(int k, cxx_mpz const& r) const {/*{{{*/
-        cxx_mpz pk;
-        mpz_pow_ui(pk, p, k);
-        cxx_mpz_mat Igens(3, f->deg);
-        mpz_set(mpz_mat_entry(Igens,0,0),pk);
-        if (mpz_cmp(r, pk) < 0) {
-            mpz_neg(mpz_mat_entry(Igens,1,0),r);
-            mpz_set_ui(mpz_mat_entry(Igens,1,1),1);
-        } else {
-            mpz_set_si(mpz_mat_entry(Igens,1,0),-1);
-            mpz_sub(mpz_mat_entry(Igens,1,1), r, pk);
-        }
-        /* hell, do I _really_ need p*alpha here ??? */
-        mpz_set(mpz_mat_entry(Igens,2,1),pk);
-        pair<cxx_mpz_mat, cxx_mpz> I = generate_ideal(Igens);
-        return (*this)(I);
-    }/*}}}*/
-    vector<int> multiply_inertia(vector<int> const& v) const {/*{{{*/
-        ASSERT_ALWAYS(v.size() == inertia.size());
-        vector<int> res(v.size(),0);
-        for(unsigned int i = 0 ; i < v.size() ; i++) {
-            res[i] = v[i] * inertia[i];
-        }
-        return res;
-    }/*}}}*/
-
-    // getters for e and f
-    int get_ramification_index(int i) const {
-        return ramification[i];
-    }
-    int get_inertia_degree(int i) const {
-        return inertia[i];
-    }
-};/*}}}*/
-
-vector<cxx_mpz> lift_p1_elements(cxx_mpz const& p, int k, cxx_mpz const& x)/*{{{*/
+static vector<cxx_mpz> lift_p1_elements(cxx_mpz const& p, int k, cxx_mpz const& x)/*{{{*/
 {
     /* Given x which represents an element of P^1(Z/p^kZ), return all the p
      * lifts of x in P^1(Z/p^(k+1)Z), all following the same representation
@@ -282,7 +123,7 @@ vector<cxx_mpz> lift_p1_elements(cxx_mpz const& p, int k, cxx_mpz const& x)/*{{{
     return res;
 }/*}}}*/
 
-vector<badideal::branch> lift_root(all_valuations_above_p const& A, int k0, cxx_mpz const& Q, vector<int> v)/*{{{*/
+static vector<badideal::branch> lift_root(numbertheory_internals::all_valuations_above_p const& A, int k0, cxx_mpz const& Q, vector<int> v)/*{{{*/
 {
     vector<badideal::branch> dead_branches_reports;
     vector<pair<cxx_mpz, vector<int> > > live_branches;
@@ -319,7 +160,7 @@ vector<badideal::branch> lift_root(all_valuations_above_p const& A, int k0, cxx_
         int sumvv = 0;
         for(unsigned int j = 0 ; j < vv.size() ; sumvv+=vv[j++]);
         for(unsigned int j = 0 ; j < live_ideals.size() ; j++) {
-            int jj = live_ideals[j];
+            int const jj = live_ideals[j];
             vv[jj] = vv[jj] - sumvv;
         }
         badideal::branch br;
@@ -342,14 +183,14 @@ vector<badideal::branch> lift_root(all_valuations_above_p const& A, int k0, cxx_
     return res;
 }/*}}}*/
 
-vector<cxx_mpz> projective_roots_modp(cxx_mpz_poly const& f, cxx_mpz const& p, gmp_randstate_ptr rstate)/*{{{*/
+static vector<cxx_mpz> projective_roots_modp(cxx_mpz_poly const& f, cxx_mpz const& p, gmp_randstate_ptr rstate)/*{{{*/
 {
     /* p must be prime */
     vector<cxx_mpz> roots;
     mpz_t * rr = new mpz_t[f->deg];
     for(int i = 0 ; i < f->deg ; i++) mpz_init(rr[i]);
 
-    int d = mpz_poly_roots(rr, f, p, rstate);
+    int const d = mpz_poly_roots(rr, f, p, rstate);
     for(int i = 0 ; i < d ; i++) {
         cxx_mpz a;
         mpz_set(a, rr[i]);
@@ -363,11 +204,13 @@ vector<cxx_mpz> projective_roots_modp(cxx_mpz_poly const& f, cxx_mpz const& p, g
     return roots;
 }/*}}}*/
 
-vector<badideal> badideals_above_p(cxx_mpz_poly const& f, int side, cxx_mpz const& p, gmp_randstate_t state)/*{{{*/
+vector<badideal> badideals_above_p(cxx_mpz_poly const& f, int side, cxx_mpz const& p, cxx_gmp_randstate & state)/*{{{*/
 {
     vector<badideal> badideals;
 
-    all_valuations_above_p A(f, p, state);
+    numbertheory_internals::all_valuations_above_p A(f, p, state);
+
+    A.bless_side(side);
 
     vector<cxx_mpz> roots = projective_roots_modp(f, p, state);
 
@@ -417,7 +260,7 @@ vector<badideal> badideals_above_p(cxx_mpz_poly const& f, int side, cxx_mpz cons
     return badideals;
 }/*}}}*/
 
-vector<badideal> badideals_for_polynomial(cxx_mpz_poly const& f, int side, gmp_randstate_t state)/*{{{*/
+vector<badideal> badideals_for_polynomial(cxx_mpz_poly const& f, int side, cxx_gmp_randstate & state)/*{{{*/
 {
     vector<badideal> badideals;
 
@@ -430,13 +273,10 @@ vector<badideal> badideals_for_polynomial(cxx_mpz_poly const& f, int side, gmp_r
     mpz_mul(disc, disc, mpz_poly_lc(f));
 
     /* We're not urged to use ecm here */
-    vector<pair<cxx_mpz,int> > small_primes = trial_division(disc, 10000000, disc);
+    vector<pair<cxx_mpz,int> > const small_primes = trial_division(disc, 10000000, disc);
 
-
-    typedef vector<pair<cxx_mpz,int> >::const_iterator vzci_t;
-
-    for(vzci_t it = small_primes.begin() ; it != small_primes.end() ; it++) {
-        vector<badideal> tmp = badideals_above_p(f, side, it->first, state);
+    for(auto const & pe : small_primes) {
+        vector<badideal> tmp = badideals_above_p(f, side, pe.first, state);
         badideals.insert(badideals.end(), tmp.begin(), tmp.end());
     }
 
@@ -475,7 +315,8 @@ std::string generic_sagemath_string(cxx_mpz_poly const & f, int side, cxx_mpz co
 {
     cxx_gmp_randstate state;
     /* This will crash for non-prime ideals, **on purpose** */
-    auto A = all_valuations_above_p(f, p, state);
+    auto A = numbertheory_internals::all_valuations_above_p(f, p, state);
+    A.bless_side(side);
     auto v = A(1, r);
     int k = -1;
     for(unsigned x = 0 ; x < v.size() ; x++) {
@@ -483,15 +324,9 @@ std::string generic_sagemath_string(cxx_mpz_poly const & f, int side, cxx_mpz co
             continue;
         int inertia = A.get_inertia_degree(x);
         if (inertia != 1) {
-            /* we do this because for some reason, the references to mpzs
-             * get resolved to mpz_srcptr, and libfmt8 don't want to
-             * format these. Pretty annoying, to be honest.
-             */
-            cxx_mpz pp = p;
-            cxx_mpz rr = r;
-            std::cerr << fmt::format(FMT_STRING(
-                        "# note: seemingly innocuous prime ideal ({},{}) on side {} has non-trivial residue class degree {}\n"),
-                    pp, rr, side, inertia);
+            std::cerr << fmt::format(
+                        "# note: seemingly innocuous prime ideal ({},{}) on side {} has non-trivial residue class degree {}\n",
+                    p, r, side, inertia);
         }
         if (k != -1)
             throw std::runtime_error("ideal is not prime");
@@ -502,11 +337,11 @@ std::string generic_sagemath_string(cxx_mpz_poly const & f, int side, cxx_mpz co
     return A.sagemath_string(k, side);
 }
 
-std::vector<cxx_mpz> generic_machine_description(cxx_mpz_poly const & f, int, cxx_mpz const & p, cxx_mpz const & r)
+std::string generic_machine_description(cxx_mpz_poly const & f, int, cxx_mpz const & p, cxx_mpz const & r)
 {
     cxx_gmp_randstate state;
     /* This will crash for non-prime ideals, **on purpose** */
-    auto A = all_valuations_above_p(f, p, state);
+    auto A = numbertheory_internals::all_valuations_above_p(f, p, state);
     auto v = A(1, r);
     int k = -1;
     for(unsigned x = 0 ; x < v.size() ; x++) {
@@ -524,7 +359,7 @@ std::vector<cxx_mpz> generic_machine_description(cxx_mpz_poly const & f, int, cx
 int get_inertia_of_prime_ideal(cxx_mpz_poly const & f, cxx_mpz const & p, cxx_mpz const & r)
 {
     cxx_gmp_randstate state;
-    auto A = all_valuations_above_p(f, p, state);
+    auto A = numbertheory_internals::all_valuations_above_p(f, p, state);
     auto v = A(1, r);
     for(unsigned x = 0 ; x < v.size() ; x++) {
         if (v[x] == 0)

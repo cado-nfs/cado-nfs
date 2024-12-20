@@ -1,8 +1,11 @@
 #include "cado.h"
+
 #include <gmp.h>
+
 #include "lingen_matpoly_ft.hpp"
 #include "gmp_aux.h"
 #include "lingen_substep_characteristics.hpp"
+#include "lingen_mul_substeps.hpp"
 #include "timing.h" // seconds
 #include "params.h"
 
@@ -13,13 +16,13 @@ struct matpoly_checker_ft {
     unsigned int n;
     unsigned int L;
 
-    gmp_randstate_t rstate;
+    cxx_gmp_randstate rstate;
     unsigned long seed;
 
     matpoly::memory_guard dummy;
     typename matpoly_ft<fft_type>::memory_guard dummy_ft;
 
-    matpoly_checker_ft(cxx_mpz const & p, unsigned int m, unsigned int n, unsigned int L, gmp_randstate_t rstate0)
+    matpoly_checker_ft(cxx_mpz const & p, unsigned int m, unsigned int n, unsigned int L, cxx_gmp_randstate & rstate0)
         : ab(p, 1)
         , m(m)
         , n(n)
@@ -28,11 +31,7 @@ struct matpoly_checker_ft {
         , dummy(SIZE_MAX)
         , dummy_ft(SIZE_MAX)
     {
-        gmp_randinit_default(rstate);
         gmp_randseed_ui(rstate, seed);
-    }
-    ~matpoly_checker_ft() {
-        gmp_randclear(rstate);
     }
     private:
     static inline int max_threads() {
@@ -94,12 +93,12 @@ void declare_usage(cxx_param_list & pl)
     lingen_platform::declare_usage(pl);
 }
 
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
-    MPI_Init(&argc, &argv);
+    MPI_Init(&argc, (char ***) &argv);
 
     cxx_mpz p;
-    gmp_randstate_t rstate;
+    cxx_gmp_randstate rstate;
 
     unsigned int m = 4;
     unsigned int n = 2;
@@ -135,24 +134,23 @@ int main(int argc, char * argv[])
     param_list_parse_uint(pl, "L", &L);
     param_list_parse_ulong(pl, "seed", &seed);
 
-    lingen_platform P(MPI_COMM_WORLD, pl);
+    lingen_platform const P(MPI_COMM_WORLD, pl);
 
     if (param_list_warn_unused(pl))
         exit(EXIT_FAILURE);
 #ifdef LINGEN_BINARY
     if (m & 63) {
-        unsigned int nm = 64 * iceildiv(m, 64);
+        unsigned int const nm = 64 * iceildiv(m, 64);
         printf("Round m=%u to m=%u\n", m, nm);
         m = nm;
     }
     if (n & 63) {
-        unsigned int nn = 64 * iceildiv(n, 64);
+        unsigned int const nn = 64 * iceildiv(n, 64);
         printf("Round n=%u to n=%u\n", n, nn);
         n = nn;
     }
 #endif
 
-    gmp_randinit_default(rstate);
     gmp_randseed_ui(rstate, seed);
 
 #ifdef LINGEN_BINARY
@@ -174,8 +172,6 @@ int main(int argc, char * argv[])
         checker_ft.doit(P, std::cout);
     }
 #endif
-
-    gmp_randclear(rstate);
 
     MPI_Finalize();
 }

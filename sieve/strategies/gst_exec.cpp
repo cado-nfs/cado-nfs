@@ -71,10 +71,9 @@ static void declare_usage(param_list pl)
 /************************************************************************/
 
 // coverity[root_function]
-int main(int argc, char *argv[])
+int main(int argc, char const *argv[])
 {
-    param_list pl;
-    param_list_init(pl);
+    cxx_param_list pl;
     declare_usage(pl);
     /* 
        Passing NULL is allowed here. Find value with
@@ -105,7 +104,6 @@ int main(int argc, char *argv[])
 
 	fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
 	param_list_print_usage(pl, argv[0], stderr);
-	param_list_clear(pl);
 	exit(EXIT_FAILURE);
     }
 
@@ -126,9 +124,9 @@ int main(int argc, char *argv[])
     param_list_parse_int(pl, "mfb0", &mfb0);
     param_list_parse_int(pl, "ncurves", &ncurves);
 
-    int gdc = param_list_parse_switch(pl, "-gdc");
-    int gst_r = param_list_parse_switch(pl, "-gst_r");
-    int gst = param_list_parse_switch(pl, "-gst");
+    int const gdc = param_list_parse_switch(pl, "-gdc");
+    int const gst_r = param_list_parse_switch(pl, "-gst_r");
+    int const gst = param_list_parse_switch(pl, "-gst");
 
     //and precompute just for one side!
     if (gdc) {			//precompute all decompositions!
@@ -321,7 +319,6 @@ int main(int argc, char *argv[])
 	  tabular_fm_t *c = tabular_fm_fscan(file_in);
 	  if (c == NULL) {
 	      fprintf(stderr, "impossible to read %s\n", name_file_in);
-	      param_list_clear(pl);
 	      exit(EXIT_FAILURE);
 	  }
 	  fclose(file_in);
@@ -378,8 +375,8 @@ int main(int argc, char *argv[])
 	      }
 
 	      //precompute the convex hull for one bit size of cofactor
-	      int fbb0 = ceil (log2 ((double) (lim0 + 1)));
-	      int lim_is_prime = 2 * fbb0 - 1;
+	      int const fbb0 = ceil (log2 ((double) (lim0 + 1)));
+	      int const lim_is_prime = 2 * fbb0 - 1;
 	      tabular_decomp_t *tab_decomp = NULL;
 	      if (r0 >= lim_is_prime) {
 		  const char *name_file_decomp;
@@ -417,7 +414,6 @@ int main(int argc, char *argv[])
 	      if (file_out == NULL)
 		  {
 		      fprintf(stderr, "impossible to write in %s\n", name_file);
-		      param_list_clear(pl);
 		      exit(EXIT_FAILURE);
 		  }
 
@@ -494,7 +490,5 @@ int main(int argc, char *argv[])
 	  tabular_fm_free(c);
       }
     }
-    param_list_clear(pl);
-
     return EXIT_SUCCESS;
 }

@@ -1,4 +1,10 @@
 #include "cado.h"
+
+// #define WLEN ULONG_BITS
+// #define GF2X_WORDSIZE ULONG_BITS
+#define GF2X_MAYBE_UNUSED MAYBE_UNUSED
+#define CANTOR_BASE_FIELD_SIZE 64
+
 #include <cstring>
 #include "bblas_mat64.hpp"
 #include "bblas_level5.hpp"
@@ -7,16 +13,13 @@
 #include "memory.h"      // malloc_aligned
 #include "macros.h"                      // for ASSERT, ASSERT_ALWAYS
 
-// #define WLEN ULONG_BITS
-// #define GF2X_WORDSIZE ULONG_BITS
-#define GF2X_MAYBE_UNUSED MAYBE_UNUSED
-#define CANTOR_BASE_FIELD_SIZE 64
+
 #include "gf2x-cantor-field-impl.h"
 
 void m64pol_mul_gf2_64_bitslice(mat64 * r, mat64 const * a1, mat64 const * a2)/*{{{*/
 {
-    unsigned int n1 = 64;
-    unsigned int n2 = 64;
+    unsigned int const n1 = 64;
+    unsigned int const n2 = 64;
     mat64 * t = (mat64 *) malloc_aligned((n1 + n2 -1) * sizeof(mat64), 64);
     m64pol_mul_kara(t, a1, a2, n1, n2);
     /* This reduces modulo the polynomial x^64+x^4+x^3+x+1 */
@@ -32,8 +35,8 @@ void m64pol_mul_gf2_64_bitslice(mat64 * r, mat64 const * a1, mat64 const * a2)/*
 
 void m64pol_scalmul_gf2_64_bitslice(mat64 * r, mat64 const * a, uint64_t * s)/*{{{*/
 {
-    unsigned int n1 = 64;
-    unsigned int n2 = 64;
+    unsigned int const n1 = 64;
+    unsigned int const n2 = 64;
     mat64 * t = (mat64 *) malloc_aligned((n1 + n2 -1) * sizeof(mat64), 64);
     memset((void *) t, 0, (n1 + n2 -1) * sizeof(mat64));
     for(unsigned int i = 0 ; i < 64 ; i++) {
@@ -56,8 +59,8 @@ void m64pol_scalmul_gf2_64_bitslice2(mat64 * r, mat64 const * a, uint64_t * s)/*
 {
     /* Now try with precomputation of multiples. We'll do only four of
      * them to start with. */
-    unsigned int n1 = 64;
-    unsigned int n2 = 64;
+    unsigned int const n1 = 64;
+    unsigned int const n2 = 64;
     mat64 * t = (mat64 *) malloc_aligned((n1 + n2 -1) * sizeof(mat64), 64);
     memset((void *) t, 0, (n1 + n2 -1) * sizeof(mat64));
 

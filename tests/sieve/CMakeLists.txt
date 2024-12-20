@@ -44,6 +44,7 @@ cado_define_test(c90_21505_makefb
             -poly ${c90_21505_poly} -lim 811066 -maxbits 11
             -out ${c90_21505_roots}
         TARGET_DEPENDENCIES makefb
+        FIXTURES_SETUP c90_21505.fb
         )
 
 cado_define_test(c90_21505_sieve
@@ -55,12 +56,12 @@ cado_define_test(c90_21505_sieve
             CHECKSUM_FILE=
             LAS_BINARY=${las_path}
             "REGEX=^-18320,3:.*74f"
+        PROVIDE_TEMPORARY_WDIR
         SCRIPT
-            "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
             ${CMAKE_CURRENT_SOURCE_DIR}/sievetest.sh
             -v -v --adjust-strategy 0
         TARGET_DEPENDENCIES las
-        TEST_DEPENDENCIES c90_21505_makefb
+        FIXTURES_REQUIRED c90_21505.fb
         )
 
 
@@ -73,6 +74,7 @@ cado_define_test(c90_21553_makefb
             -poly ${c90_21553_poly} -lim 811066 -maxbits 11
             -out ${c90_21553_roots}
         TARGET_DEPENDENCIES makefb
+        FIXTURES_SETUP c90_21553.fb
         )
 
 cado_define_test(c90_21553_sieve
@@ -84,12 +86,12 @@ cado_define_test(c90_21553_sieve
             CHECKSUM_FILE=
             LAS_BINARY=${las_path}
             "REGEX=^22938,1:.*,b,.*"
+        PROVIDE_TEMPORARY_WDIR
         SCRIPT
-            "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
             ${CMAKE_CURRENT_SOURCE_DIR}/sievetest.sh
             -v -v --adjust-strategy 0
         TARGET_DEPENDENCIES las
-        TEST_DEPENDENCIES c90_21553_makefb
+        FIXTURES_REQUIRED c90_21553.fb
         )
 
 set(c95_21684_poly ${CMAKE_CURRENT_SOURCE_DIR}/c95_21684.poly)
@@ -132,8 +134,8 @@ set(c95_21684_poly ${CMAKE_CURRENT_SOURCE_DIR}/c95_21684.poly)
 #             CHECKSUM_FILE=
 #             LAS_BINARY=${las_path}
 #             "REGEX=reports"
+#         PROVIDE_TEMPORARY_WDIR
 #         SCRIPT
-#             "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
 #             ${CMAKE_CURRENT_SOURCE_DIR}/sievetest.sh
 #             -v -v --adjust-strategy 0
 #         TARGET_DEPENDENCIES las
@@ -146,14 +148,18 @@ set(c95_21684_poly ${CMAKE_CURRENT_SOURCE_DIR}/c95_21684.poly)
 # not actually test anything
 cado_define_test(F9_sievetest_cleanup
         PROGRAM ${CMAKE_COMMAND} -E remove -f
-        ${F9_checksums} ${F9_checksums}_quick)
+        ${F9_checksums} ${F9_checksums}_quick
+        FIXTURES_SETUP F9.sievetest_cleanup
+    )
 
 cado_define_test(F9_makefb
         PROGRAM
             ${makefb_path}
             -poly ${F9_poly} -lim 1200000 -maxbits 10
             -out ${F9_roots}
-        TARGET_DEPENDENCIES makefb)
+        TARGET_DEPENDENCIES makefb
+        FIXTURES_SETUP F9.fb
+    )
 
 # Most F9 tests easily take between 5 and 10 seconds on a laptop,
 # and this can grow to several tens of seconds on a container that runs
@@ -165,12 +171,12 @@ cado_define_test(F9
             lpb1=26 mfb1=52 lambda1=2.2
             q0=1200000 q1=1200200
             CHECKSUM_FILE=${F9_checksums}
+        PROVIDE_TEMPORARY_WDIR
         SCRIPT
-            "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
             ${CMAKE_CURRENT_SOURCE_DIR}/sievetest.sh
             -v --adjust-strategy 0
         TARGET_DEPENDENCIES las
-        TEST_DEPENDENCIES F9_sievetest_cleanup F9_makefb
+        FIXTURES_REQUIRED F9.fb F9.sievetest_cleanup
         NO_DEFAULT_RUN
         TIMEOUT 90
         )
@@ -186,9 +192,11 @@ cado_define_test(bogus_fbc_is_consistent
     PROGRAM
     ${CADO_NFS_SOURCE_DIR}/sieve/inspect-fbc-file.pl -fbc
     ${CMAKE_CURRENT_SOURCE_DIR}/bogus${OS_PAGE_SIZE}.fbc)
+
 add_custom_target(copy_bogus_fbc ${CMAKE_COMMAND} -E copy
     ${CMAKE_CURRENT_SOURCE_DIR}/bogus${OS_PAGE_SIZE}.fbc
     ${CMAKE_CURRENT_BINARY_DIR}/bogus-copy.fbc)
+
 cado_divert_test(F9_sieve reuse_foreign_fbc
         APPEND_ENVIRONMENT
         fbc=${CMAKE_CURRENT_BINARY_DIR}/bogus-copy.fbc
@@ -207,7 +215,6 @@ cado_divert_test(F9 sieve_with_hints
             REL_COUNT=153
             REFERENCE_SHA1=e80b973209f78c7df4541956e15814e04d699932
             REFERENCE_REVISION=21aa5e0327129475c37784b849cddc303d05f526
-        TIMEOUT 30
         )
 
 
@@ -311,7 +318,6 @@ cado_divert_test(F9 skipped
             las_I=10
             REL_COUNT=60
         APPEND_ARGUMENTS -skipped 100
-        TIMEOUT 30
         )
 
 # We make these depend on sievetest, for checking the checksum file.
@@ -341,7 +347,8 @@ cado_divert_test(F9_quick tracek
         APPEND_ARGUMENTS
             -traceab -8517,584707
         TARGET_DEPENDENCIES las_tracek
-        TEST_DEPENDENCIES F9_makefb F9_sieve
+        TEST_DEPENDENCIES F9_sieve
+        FIXTURES_REQUIRED F9.fb
         )
 
 # Try a too-large lambda value. We could divert on any test we like, but
@@ -368,11 +375,11 @@ set(c120_base_env
 
 # Try sieving I (see bug 18814)
 cado_define_test(sievetest_I
+        PROVIDE_TEMPORARY_WDIR
         SCRIPT
             env ${c120_base_env}
             REFERENCE_SHA1=da39a3ee5e6b4b0d3255bfef95601890afd80709
             REFERENCE_REVISION=88ddb4f779defe692aed14a79ef8c952a4f68efa
-            "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
             ${CMAKE_CURRENT_SOURCE_DIR}/sievetest.sh
         TARGET_DEPENDENCIES las
         )
@@ -396,8 +403,8 @@ if(0)
 cado_define_test(c30_30012
     ENVIRONMENT
         ${c30_30012_base_env}
+    PROVIDE_TEMPORARY_WDIR
     SCRIPT
-        "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
         ${CMAKE_CURRENT_SOURCE_DIR}/sievetest.sh
     NO_DEFAULT_RUN
     )
@@ -465,8 +472,7 @@ cado_divert_test(F9 descent
         APPEND_ARGUMENTS
             -allow-largesq
         TARGET_DEPENDENCIES las_descent
-        TEST_DEPENDENCIES F9_makefb
-        TIMEOUT 30
+        FIXTURES_REQUIRED F9.fb
         )
 
 # The underlying script changes, here. We have to do something slightly
@@ -481,23 +487,23 @@ cado_define_test(F9_dupsup
             CHECKSUM_FILE=
             DUPSUP_BINARY=${dupsup_path}
             DUPE_COUNT=12
+        PROVIDE_TEMPORARY_WDIR
         SCRIPT
-            "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
             ${CMAKE_CURRENT_SOURCE_DIR}/F9.dupsup.sh
             -v -v --adjust-strategy 0
         TARGET_DEPENDENCIES las dupsup
-        TEST_DEPENDENCIES F9_sievetest_cleanup F9_makefb F9_sieve
+        FIXTURES_REQUIRED F9.fb F9.sievetest_cleanup
         TIMEOUT 60
         )
 
 # Try fake relation generation
 cado_define_test(F9_fakereltest
+    PROVIDE_TEMPORARY_WDIR
     SCRIPT
-    "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
     ${CMAKE_CURRENT_SOURCE_DIR}/F9.fakerels.sh
     ${F9_roots} ${las_path} ${CADO_NFS_SOURCE_DIR}
     TARGET_DEPENDENCIES fake_rels freerel las
-    TEST_DEPENDENCIES F9_makefb
+    FIXTURES_REQUIRED F9.fb
     TIMEOUT 120
 )
 # This really taking super long with valgrind in particular, so let's
@@ -506,8 +512,8 @@ cado_define_test(F9_fakereltest
 
 # Check a bug in fake_rels (see 9d52c08c)
 cado_define_test(c60_fakereltest
+    PROVIDE_TEMPORARY_WDIR
     SCRIPT
-    "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
     ${CMAKE_CURRENT_SOURCE_DIR}/c60.fakerels.sh
     TARGET_DEPENDENCIES fake_rels freerel
     TIMEOUT 60
@@ -534,11 +540,9 @@ add_trialdiv_test(6)
 
 cado_define_test(test_trialdiv_stdin
     SCRIPT
-    ${CADO_NFS_SOURCE_DIR}/tests/generic_test_sha1_output.sh
     ${CMAKE_CURRENT_BINARY_DIR}/test_trialdiv_5 -seed 1 -i 1000
-    ENVIRONMENT
-    REFERENCE_SHA1=62ce4b010a4ecdaa4bacf977687748b5f82dc4c4
-    STDIN=${CMAKE_CURRENT_SOURCE_DIR}/test_trialdiv_example_stdin.txt
+    STDIN ${CMAKE_CURRENT_SOURCE_DIR}/test_trialdiv_example_stdin.txt
+    EXPECT_SHA1 62ce4b010a4ecdaa4bacf977687748b5f82dc4c4
     TARGET_DEPENDENCIES
     test_trialdiv_5
     )
@@ -574,6 +578,7 @@ cado_divert_test(test_init_norms c120_basic
         -sqside 1
         -t 2
         --hush-max-jitter 1
+    AVOID_CONCURRENT 2
 )
 
 cado_divert_test(test_init_norms c120_torture
@@ -586,6 +591,7 @@ cado_divert_test(test_init_norms c120_torture
         --abort-on-jitter 1,5
         --nfills-speed-test 0
     NO_DEFAULT_RUN
+    AVOID_CONCURRENT 2
 )
 
 # a couple of hard cases encountered during testing.
@@ -610,6 +616,7 @@ cado_divert_test(test_init_norms rsa220
         -t 2
         --hush-max-jitter 1
         --abort-on-jitter 1,5
+    AVOID_CONCURRENT 2
 )
 
 cado_divert_test(test_init_norms bug21518
@@ -705,6 +712,7 @@ cado_define_test(test-inline-polynomials-and-expressions
             -poly "inline-poly://skew=1/poly0=x^3+2/poly1=x-2^43/n=2^128+1"
             -lim 200
             -t 2
+    AVOID_CONCURRENT 2
     TARGET_DEPENDENCIES
         makefb
 )

@@ -1,20 +1,24 @@
 #include "cado.h" // IWYU pragma: keep
-#include <cstdint>     /* AIX wants it first (it's a bug) */
+
+#include <cstdint>
 #include <cstdlib>        // for abort
+
 #include "modredc126.hpp"
+#include "macros.h"
 
 /* Divide residue by 3. Returns 1 if division is possible, 0 otherwise.
    Assumes that a+3m does not overflow */
 
+// scan-headers: stop here
+
 typedef ModulusREDC126 Modulus;
-#include "mod_common.cpp"
-#include "macros.h"
+#include "mod_common.cpp"     // NOLINT(bugprone-suspicious-include)
 
 bool
 ModulusREDC126::div3 (Residue &r, const Residue &a) const
 {
     Residue t(*this);
-    uint64_t a3 = (a.r[1] % 256 + a.r[1] / 256 +
+    uint64_t const a3 = (a.r[1] % 256 + a.r[1] / 256 +
                    a.r[0] % 256 + a.r[0] / 256) % 3;
     const uint64_t m3 = (m[0] % 256 + m[0] / 256 +
                          m[1] % 256 + m[1] / 256) % 3;

@@ -80,7 +80,7 @@ static void declare_usage(cxx_param_list & pl)
 }
 
 static void
-usage (param_list_ptr pl, char *argv0)
+usage (param_list_ptr pl, char const * argv0)
 {
     param_list_print_usage(pl, argv0, stderr);
     exit(EXIT_FAILURE);
@@ -88,9 +88,9 @@ usage (param_list_ptr pl, char *argv0)
 
 // coverity[root_function]
 int
-main (int argc, char * argv[])
+main (int argc, char const * argv[])
 {
-    char * argv0 = argv[0];
+    const char * argv0 = argv[0];
 
     cxx_param_list pl;
     declare_usage(pl);
@@ -187,7 +187,7 @@ main (int argc, char * argv[])
 
         relation rel;
         if (rel.parse(line)) {
-            int is_dupe = relation_is_duplicate(rel, doing, las);
+            int const is_dupe = relation_is_duplicate(rel, doing, las);
             dupsup(output, rel, doing, is_dupe);
         }
       }

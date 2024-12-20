@@ -130,7 +130,7 @@ las_info::las_info(cxx_param_list & pl)
     , cofac_stats(pl)
       /*{{{*/
 {
-    int nsides = cpoly->nb_polys;
+    int const nsides = cpoly->nb_polys;
 
     /* We strive to initialize things in the exact order they're written
      * in the struct */

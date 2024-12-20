@@ -40,15 +40,15 @@ static void declare_usage(cxx_param_list & pl)
 
 // coverity[root_function]
 int
-main (int argc, char *argv[])
+main (int argc, char const *argv[])
 {
   cxx_param_list pl;
   cxx_cado_poly cpoly;
-  char *argv0 = argv[0];
+  char const * argv0 = argv[0];
   unsigned long nb_threads = 1;
   int doecm = 0;
   int no_recomp_norm = 0;
-  int ncurves = 50;
+  int const ncurves = 50;
 
   declare_usage(pl);
 
@@ -94,7 +94,7 @@ main (int argc, char *argv[])
   }
   param_list_parse_ulong(pl, "t"   , &nb_threads);
   
-  int nsides = cpoly->nb_polys;
+  int const nsides = cpoly->nb_polys;
 
   std::vector<siever_side_config> sides;
   siever_side_config::parse(pl, sides, nsides, { "lpb", "mfb" });
@@ -133,7 +133,7 @@ main (int argc, char *argv[])
   mpz_set_ui(q, 1);
   // Create a fake special-q
   std::vector<uint64_t> empty;
-  las_todo_entry fake_q(q, q, 0, empty);
+  las_todo_entry const fake_q(q, q, 0, empty);
 
   // If the special-q info is present, we will use it. Otherwise, the
   // fake sq will be used everywhere. This list keeps in memory all the
@@ -147,13 +147,13 @@ main (int argc, char *argv[])
       if (str[0] == '#') {
           cxx_mpz r;
           int side;
-          int ret = gmp_sscanf(str, "# q = (%Zd, %Zd, %d)",
+          int const ret = gmp_sscanf(str, "# q = (%Zd, %Zd, %d)",
                   &q, &r, &side);
           if (ret == 3) {
               std::vector<uint64_t> primes;
-              uint64_t qq = mpz_get_uint64(q);
+              uint64_t const qq = mpz_get_uint64(q);
               primes.push_back(qq);
-              las_todo_entry this_q(q, r, side, primes);
+              las_todo_entry const this_q(q, r, side, primes);
               list_q.push_back(this_q);
           }
           continue;
@@ -174,7 +174,7 @@ main (int argc, char *argv[])
   find_smooth(List, batchP, batchlpb, lpb, batchmfb, stdout, nb_threads, extra_time);
   
   if (doecm) {
-      std::list<relation> smooth = factor(List, cpoly, batchlpb, lpb, ncurves, stdout, nb_threads, extra_time, !no_recomp_norm);
+      std::list<relation> const smooth = factor(List, cpoly, batchlpb, lpb, ncurves, stdout, nb_threads, extra_time, !no_recomp_norm);
       for(auto const & rel : smooth) {
           std::ostringstream os;
           os << rel << "\n";

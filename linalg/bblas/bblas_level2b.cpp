@@ -1,4 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
+
+#include <cstdint>
+
 #include "bblas_level2b.hpp"
 #include "bblas_mat64.hpp"
 #include "misc.h"      // cado_parity64
@@ -44,7 +47,7 @@ void mul_o64_T6464_C_parity(uint64_t * w, uint64_t a, mat64 const & b)/*{{{*/
     // functions. So if it's available, it should be tested.
     uint64_t c = 0;
     for (unsigned int i = 0; i < 64; i++) {
-        uint64_t p = cado_parity64(a & b[i]);
+        uint64_t const p = cado_parity64(a & b[i]);
 	c ^= p << i;
     }
     *w = c;

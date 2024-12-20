@@ -159,7 +159,7 @@ declare_usage(param_list pl)
 }
 
 static void
-usage (param_list pl, char *argv0)
+usage (param_list pl, const char * argv0)
 {
     param_list_print_usage(pl, argv0, stderr);
     exit(EXIT_FAILURE);
@@ -262,7 +262,7 @@ static void
 filter_matrix_read (filter_matrix_t *mat, const char *purgedname)
 {
   uint64_t nread;
-  char *fic[2] = {(char *) purgedname, NULL};
+  char const * fic[2] = {purgedname, NULL};
 
   /* first check if purgedname is seekable. if yes, we can do multithread
    * I/O */
@@ -767,6 +767,16 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, MAYBE_UNUSED index_t j)
 #define INT32_MIN_64 (int64_t) INT32_MIN
 #define INT32_MAX_64 (int64_t) INT32_MAX
 
+static inline void
+check_exponent (int64_t e)
+{
+  if (!(INT32_MIN_64 <= e && e <= INT32_MAX_64))
+    {
+      fprintf (stderr, "Error, too large exponent during merge, please reduce -target_density\n");
+      exit (1);
+    }
+}
+
 static void
 add_row (filter_matrix_t *mat, index_t i1, index_t i2, index_t j)
 {
@@ -815,7 +825,7 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, index_t j)
 	  /* as above, the exponent e below cannot overflow */
 	  e = (int64_t) e2 * (int64_t) r1[t1].e + (int64_t) e1 * (int64_t) r2[t2].e;
 	  if (e != 0) { /* exponents do not cancel */
-	      ASSERT_ALWAYS(INT32_MIN_64 <= e && e <= INT32_MAX_64);
+	      check_exponent (e);
 	      t++;
 	      setCell(sum, t, r1[t1].id, e);
 	    }
@@ -826,7 +836,7 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, index_t j)
       else if (r1[t1].id < r2[t2].id)
 	{
 	  e = (int64_t) e2 * (int64_t) r1[t1].e;
-	  ASSERT_ALWAYS(INT32_MIN_64 <= e && e <= INT32_MAX_64);
+	  check_exponent (e);
 	  t++;
 	  setCell(sum, t, r1[t1].id, e);
 	  t1 ++;
@@ -834,7 +844,7 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, index_t j)
       else
 	{
 	  e = (int64_t) e1 * (int64_t) r2[t2].e;
-	  ASSERT_ALWAYS(INT32_MIN_64 <= e && e <= INT32_MAX_64);
+	  check_exponent (e);
 	  t++;
 	  setCell(sum, t, r2[t2].id, e);
 	  increase_weight (mat, r2[t2].id);
@@ -843,7 +853,7 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, index_t j)
     }
   while (t1 <= k1) {
       e = (int64_t) e2 * (int64_t) r1[t1].e;
-      ASSERT_ALWAYS(INT32_MIN_64 <= e && e <= INT32_MAX_64);
+      check_exponent (e);
       t++;
       setCell(sum, t, r1[t1].id, e);
       t1 ++;
@@ -1391,10 +1401,9 @@ void sanity_check_matrix_sizes(filter_matrix_t * mat MAYBE_UNUSED)
 #endif
 }
 
-int
-main (int argc, char *argv[])
+int main(int argc, char const * argv[])
 {
-    char *argv0 = argv[0];
+    const char *argv0 = argv[0];
 
     filter_matrix_t mat[1];
     FILE * history;

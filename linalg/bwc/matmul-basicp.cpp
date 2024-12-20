@@ -18,10 +18,6 @@
 #include "macros.h"
 #include "params.h"
 
-typedef arith_hard gfp;
-
-
-
 /* This extension is used to distinguish between several possible
  * implementations of the product */
 #define MM_EXTENSION   "-basicp"
@@ -41,110 +37,83 @@ typedef arith_hard gfp;
  */
 #define MM_DIR0_PREFERS_TRANSP_MULT   1
 
-struct matmul_basicp_data_s {
+template<typename Arith>
+struct matmul_basicp : public matmul_interface {
     /* repeat the fields from the public interface */
-    struct matmul_public_s public_[1];
     /* now our private fields */
-    size_t datasize;
     arith_hard * xab;
-    uint32_t * q;
+    std::vector<uint32_t> q;
+
+    void build_cache(matrix_u32 &&) override;
+    int reload_cache_private() override;
+    void save_cache_private() override;
+    void mul(void *, const void *, int) override;
+    ~matmul_basicp() override = default;
+
+    matmul_basicp(matmul_public &&, arith_concrete_base *, cxx_param_list &, int);
+
+    matmul_basicp(matmul_basicp const &) = delete;
+    matmul_basicp& operator=(matmul_basicp const &) = delete;
+    matmul_basicp(matmul_basicp &&) noexcept = default;
+    matmul_basicp& operator=(matmul_basicp &&) noexcept = default;
 };
 
-void MATMUL_NAME(clear)(matmul_ptr mm0)
+template<typename Arith>
+matmul_basicp<Arith>::matmul_basicp(
+        matmul_public && P,
+        arith_concrete_base * pxx,
+        cxx_param_list & pl,
+        int optimized_direction)
+    : matmul_interface(std::move(P))
+    , xab((arith_hard *) pxx) // NOLINT(cppcoreguidelines-pro-type-cstyle-cast)
 {
-    struct matmul_basicp_data_s * mm = (struct matmul_basicp_data_s *) mm0;
-    matmul_common_clear(mm->public_);
-    free(mm->q);
-    free(mm);
+    int const suggest = optimized_direction ^ MM_DIR0_PREFERS_TRANSP_MULT;
+    store_transposed = suggest;
+    param_list_parse(pl, "mm_store_transposed", 
+            store_transposed);
+    if (store_transposed != suggest) {
+        fprintf(stderr, "Warning, mm_store_transposed"
+                " overrides suggested matrix storage ordering\n");
+    }           
 }
 
-matmul_ptr MATMUL_NAME(init)(void* xx, param_list pl, int optimized_direction)
+template<typename Arith>
+void matmul_basicp<Arith>::build_cache(matrix_u32 && m)
 {
-    struct matmul_basicp_data_s * mm;
-    mm = (struct matmul_basicp_data_s *) malloc(sizeof(struct matmul_basicp_data_s));
-    memset(mm, 0, sizeof(struct matmul_basicp_data_s));
-    mm->xab = (arith_hard *) xx;
-
-    int suggest = optimized_direction ^ MM_DIR0_PREFERS_TRANSP_MULT;
-    mm->public_->store_transposed = suggest;
-    if (pl) {
-        param_list_parse_int(pl, "mm_store_transposed", 
-                &mm->public_->store_transposed);
-        if (mm->public_->store_transposed != suggest) {
-            fprintf(stderr, "Warning, mm_store_transposed"
-                    " overrides suggested matrix storage ordering\n");
-        }           
-    }   
-
-    return (matmul_ptr) mm;
+    q = std::move(m.p);
 }
 
-void MATMUL_NAME(build_cache)(matmul_ptr mm0, uint32_t * data, size_t size)
+template<typename Arith>
+int matmul_basicp<Arith>::reload_cache_private()
 {
-    ASSERT_ALWAYS(data);
-
-    struct matmul_basicp_data_s * mm = (struct matmul_basicp_data_s *) mm0;
-    unsigned int nrows_t = mm->public_->dim[ mm->public_->store_transposed];
-    
-    uint32_t * ptr = data;
-    unsigned int i = 0;
-
-    /* count coefficients */
-    for( ; i < nrows_t ; i++) {
-        unsigned int weight = 0;
-        weight += *ptr;
-        mm->public_->ncoeffs += weight;
-
-        ptr++;
-        ptr += weight;
-        ptr += weight;
-    }
-
-    mm->q = data;
-
-    mm->datasize = nrows_t + 2 * mm->public_->ncoeffs;
-
-    ASSERT_ALWAYS(size == mm->datasize);
-    ASSERT_ALWAYS(ptr - data == (ptrdiff_t) mm->datasize);
-}
-
-int MATMUL_NAME(reload_cache)(matmul_ptr mm0)
-{
-    FILE * f;
-    struct matmul_basicp_data_s * mm = (struct matmul_basicp_data_s *) mm0;
-    f = matmul_common_reload_cache_fopen(sizeof(arith_hard::elt), mm->public_, MM_MAGIC);
+    auto f = matmul_common_reload_cache_fopen(sizeof(arith_hard::elt), *this, MM_MAGIC);
     if (!f) return 0;
 
-    MATMUL_COMMON_READ_ONE32(mm->datasize, f);
-    mm->q = (uint32_t *) malloc(mm->datasize * sizeof(uint32_t));
-    MATMUL_COMMON_READ_MANY32(mm->q, mm->datasize, f);
-    fclose(f);
+    uint32_t datasize;
+    MATMUL_COMMON_READ_ONE32(datasize, f.get());
+    resize_and_check_meaningful(q, datasize, f.get());
+    MATMUL_COMMON_READ_MANY32(q.data(), datasize, f.get());
 
     return 1;
 }
 
-void MATMUL_NAME(save_cache)(matmul_ptr mm0)
+template<typename Arith>
+void matmul_basicp<Arith>::save_cache_private()
 {
-    FILE * f;
-
-    struct matmul_basicp_data_s * mm = (struct matmul_basicp_data_s *) mm0;
-    f = matmul_common_save_cache_fopen(sizeof(arith_hard::elt), mm->public_, MM_MAGIC);
+    auto f = matmul_common_save_cache_fopen(sizeof(arith_hard::elt), *this, MM_MAGIC);
     if (!f) return;
 
-    MATMUL_COMMON_WRITE_ONE32(mm->datasize, f);
-    MATMUL_COMMON_WRITE_MANY32(mm->q, mm->datasize, f);
-
-    fclose(f);
+    MATMUL_COMMON_WRITE_ONE32(q.size(), f.get());
+    MATMUL_COMMON_WRITE_MANY32(q.data(), q.size(), f.get());
 }
 
-void MATMUL_NAME(mul)(matmul_ptr mm0, void * xdst, void const * xsrc, int d)
+template<typename Arith>
+void matmul_basicp<Arith>::mul(void * xdst, void const * xsrc, int d)
 {
-    struct matmul_basicp_data_s * mm = (struct matmul_basicp_data_s *) mm0;
     ASM_COMMENT("multiplication code");
-    uint32_t * q = mm->q;
-    arith_hard * x = mm->xab;
-    const gfp::elt * src = (const gfp::elt *) xsrc;
-    gfp::elt * dst = (gfp::elt *) xdst;
+    arith_hard * x = xab;
+    auto const * src = (const typename Arith::elt *) xsrc;
+    auto * dst = (typename Arith::elt *) xdst;
 
     /* d == 1: matrix times vector product */
     /* d == 0: vector times matrix product */
@@ -153,19 +122,22 @@ void MATMUL_NAME(mul)(matmul_ptr mm0, void * xdst, void const * xsrc, int d)
      * (store_transposed == 0) or column-major (store_transposed == 1)
      */
 
-    x->vec_set_zero(dst, mm->public_->dim[!d]);
+    x->vec_set_zero(dst, dim[!d]);
 
-    if (d == !mm->public_->store_transposed) {
+    uint32_t const * qq = q.data();
+
+    // NOLINTBEGIN(readability-static-accessed-through-instance)
+    if (d == !store_transposed) {
         ARITH_MODP_TEMPORARY_ALLOC(x, elt_ur_for_add, rowsum);
         ASM_COMMENT("critical loop");
-        for(unsigned int i = 0 ; i < mm->public_->dim[!d] ; i++) {
-            uint32_t len = *q++;
+        for(unsigned int i = 0 ; i < dim[!d] ; i++) {
+            uint32_t len = *qq++;
             unsigned int j = 0;
             x->set_zero(rowsum);
             for( ; len-- ; ) {
-                j = *q++;
-                int32_t c = *(int32_t*)q++;
-                ASSERT(j < mm->public_->dim[d]);
+                j = *qq++;
+                auto const c = int32_t(*qq++);
+                ASSERT(j < dim[d]);
                 if (c == 1) {
                     x->add(rowsum, x->vec_item(src, j));
                 } else if (c == -1) {
@@ -180,19 +152,19 @@ void MATMUL_NAME(mul)(matmul_ptr mm0, void * xdst, void const * xsrc, int d)
         }
         ASM_COMMENT("end of critical loop");
     } else {
-        auto * tdst = x->alloc<gfp::elt_ur_for_add>(mm->public_->dim[!d]);
-        x->vec_set_zero(tdst, mm->public_->dim[!d]);
-        if (mm->public_->iteration[d] == 10) {
+        auto * tdst = x->alloc<typename Arith::elt_ur_for_add>(dim[!d]);
+        x->vec_set_zero(tdst, dim[!d]);
+        if (iteration[d] == 10) {
             fprintf(stderr, "Warning: Doing many iterations with transposed code (not a huge problem for impl=basicp)\n");
         }
         ASM_COMMENT("critical loop (transposed mult)");
-        for(unsigned int i = 0 ; i < mm->public_->dim[d] ; i++) {
-            uint32_t len = *q++;
+        for(unsigned int i = 0 ; i < dim[d] ; i++) {
+            uint32_t len = *qq++;
             unsigned int j = 0;
             for( ; len-- ; ) {
-                j = *q++;
-                int32_t c = *(int32_t*)q++;
-                ASSERT(j < mm->public_->dim[!d]);
+                j = *qq++;
+                auto const c = int32_t(*qq++);
+                ASSERT(j < dim[!d]);
                 if (c == 1) {
                     x->add(x->vec_item(tdst, j), x->vec_item(src, i));
                 } else if (c == -1) {
@@ -204,30 +176,26 @@ void MATMUL_NAME(mul)(matmul_ptr mm0, void * xdst, void const * xsrc, int d)
                 }
             }
         }
-        for(unsigned int j = 0 ; j < mm->public_->dim[!d] ; j++) {
+        for(unsigned int j = 0 ; j < dim[!d] ; j++) {
             x->reduce(x->vec_item(dst, j), x->vec_item(tdst, j));
         }
         ASM_COMMENT("end of critical loop (transposed mult)");
-        x->free<gfp::elt_ur_for_add>(tdst);
+        x->free<typename Arith::elt_ur_for_add>(tdst);
     }
     ASM_COMMENT("end of multiplication code");
+    // NOLINTEND(readability-static-accessed-through-instance)
 
-    mm->public_->iteration[d]++;
+    iteration[d]++;
 }
 
-void MATMUL_NAME(report)(matmul_ptr mm0 MAYBE_UNUSED, double scale MAYBE_UNUSED) {
-}
-
-void MATMUL_NAME(auxv)(matmul_ptr mm0 MAYBE_UNUSED, int op MAYBE_UNUSED, va_list ap MAYBE_UNUSED)
+// NOLINTNEXTLINE(misc-use-internal-linkage)
+matmul_interface * CADO_CONCATENATE4(new_matmul_, ARITH_LAYER, _, MM_IMPL)(
+        matmul_public && P,
+        arith_generic * arith,
+        cxx_param_list & pl,
+        int optimized_direction)
 {
-}
-
-void MATMUL_NAME(aux)(matmul_ptr mm0, int op, ...)
-{
-    va_list ap;
-    va_start(ap, op);
-    MATMUL_NAME(auxv) (mm0, op, ap);
-    va_end(ap);
+    return new matmul_basicp<arith_hard>(std::move(P), arith->concrete(), pl, optimized_direction);
 }
 
 /* vim: set sw=4: */

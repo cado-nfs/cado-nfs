@@ -4,8 +4,10 @@ if [ "$CADO_DEBUG" ] ; then
     set -x
 fi
 
-: ${wdir?missing}
-: ${PROJECT_BINARY_DIR?missing}
+set -e
+
+: ${wdir:?missing}
+: ${PROJECT_BINARY_DIR:?missing}
 
 test_matrix() {
     one="\x01\x00\x00\x00"
@@ -17,7 +19,7 @@ test_matrix() {
 }
 
 test_matrix > $wdir/a.bin
-$PROJECT_BINARY_DIR/linalg/bwc/mf_scan mfile=$wdir/a.bin --freq
+$PROJECT_BINARY_DIR/linalg/bwc/mf_scan2 $wdir/a.bin
 echo -ne "$zero" >> $wdir/a.cw.bin
 
 $PROJECT_BINARY_DIR/linalg/bwc/mf_bal 1 1 $wdir/a.bin out=$wdir/bal.bin reorder=none skip_decorrelating_permutations=1

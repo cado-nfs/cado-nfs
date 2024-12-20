@@ -4,10 +4,14 @@
 #include <cstdio>
 #include <cstring>
 #include <ctime>
+
+#include <vector>
+
 #include <gmp.h>
+
 #include "params.h"     // param_list
 #include "facul_ecm.h"
-#include "facul.hpp" // EC_METHOD ...
+#include "facul_method.hpp" // EC_METHOD ...
 #include "generate_factoring_method.hpp"
 #include "macros.h"
 #include "tab_fm.h"
@@ -51,17 +55,17 @@ static void declare_usage(param_list pl)
 /************************************************************************/
 
 // coverity[root_function]
-int main(int argc, char *argv[])
+int main(int argc, char const * argv[])
 {
-    param_list pl;
-    param_list_init(pl);
+    cxx_param_list pl;
+
     declare_usage(pl);
     /* 
        Passing NULL is allowed here. Find value with
        param_list_parse_switch later on 
      */
-    param_list_configure_switch(pl, "ch", NULL);
-    param_list_configure_switch(pl, "fch", NULL);
+    param_list_configure_switch(pl, "ch", nullptr);
+    param_list_configure_switch(pl, "fch", nullptr);
 
     if (argc <= 1) {
 	param_list_print_usage(pl, argv[0], stderr);
@@ -75,7 +79,7 @@ int main(int argc, char *argv[])
 	}
 	/* Could also be a file */
 	FILE *f;
-	if ((f = fopen(argv[0], "r")) != NULL) {
+	if ((f = fopen(argv[0], "r")) != nullptr) {
 	    param_list_read_stream(pl, f, 0);
 	    fclose(f);
 	    argv++, argc--;
@@ -84,25 +88,26 @@ int main(int argc, char *argv[])
 
 	fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
 	param_list_print_usage(pl, argv[0], stderr);
-	param_list_clear(pl);
 	exit(EXIT_FAILURE);
     }
 
-    int opt_fch = param_list_parse_switch(pl, "-fch");
+    int const opt_fch = param_list_parse_switch(pl, "-fch");
     if (opt_fch) {
 	const char *pathname_fch_in;
 	const char *pathname_fch_out;
-	if ((pathname_fch_in = param_list_lookup_string(pl, "fch_in")) == NULL
+	if ((pathname_fch_in = param_list_lookup_string(pl, "fch_in")) == nullptr
 	    || (pathname_fch_out =
-		param_list_lookup_string(pl, "fch_out")) == NULL) {
+		param_list_lookup_string(pl, "fch_out")) == nullptr) {
 	    fputs("Parse error: Please re-run with the options "
 		  "-in and -out with each one a valid file name.\n", stderr);
 	    exit(EXIT_FAILURE);
 	}
 	FILE *file_in = fopen(pathname_fch_in, "r");
+        DIE_ERRNO_DIAG(file_in == NULL, "fopen(%s)", pathname_fch_in);
 	FILE *file_out = fopen(pathname_fch_out, "w");
+        DIE_ERRNO_DIAG(file_out == NULL, "fopen(%s)", pathname_fch_out);
 	tabular_fm_t *res_ch = convex_hull_from_file(file_in, file_out);
-	if (res_ch == NULL) {
+	if (res_ch == nullptr) {
 	    fprintf(stderr, "impossible to read %s\n"
 		    "impossible to write in the file %s\n",
 		    pathname_fch_in, pathname_fch_out);
@@ -114,12 +119,11 @@ int main(int argc, char *argv[])
     } else {
 	//default values
 	int lb = -1, ub = -1, len_n = -1, method = -1;
-  ec_parameterization_t curve = MONTY12;
+        ec_parameterization_t curve = MONTY12;
 	// {b1min, b1max, b1step, cmin, cmax, cstep}
-        int *param = (int*) calloc(6, sizeof(int));
-	ASSERT(param != NULL);
+        std::vector<int> param(6, 0);
 
-	int opt_ch = param_list_parse_switch(pl, "-ch");
+	int const opt_ch = param_list_parse_switch(pl, "-ch");
 	param_list_parse_int(pl, "ub", &ub);
 	param_list_parse_int(pl, "lb", &lb);
 	param_list_parse_int(pl, "n", &len_n);
@@ -134,8 +138,6 @@ int main(int argc, char *argv[])
 	    fprintf(stderr, "Error: options -lb, -ub are mandatory here,\n"
 		    "and lb must be less than ub.\n\n");
 	    param_list_print_usage(pl, argv[0], stderr);
-	    param_list_clear(pl);
-	    free(param);
 	    exit(EXIT_FAILURE);
 	}
 
@@ -177,15 +179,9 @@ int main(int argc, char *argv[])
 	    }
 	}
 
-	gmp_randstate_t state;
+	cxx_gmp_randstate state;
 	/* Initializing radom generator */
-	mpz_t seedtest;
-	srand(time(NULL));
-
-	gmp_randinit_default(state);
-
-	mpz_init_set_ui(seedtest, rand());
-	gmp_randseed(state, seedtest);
+	gmp_randseed_ui(state, time(nullptr));
 
 	/*
 	   To generate our factoring methods!
@@ -193,10 +189,11 @@ int main(int argc, char *argv[])
 
 	tabular_fm_t *res;
 
-	int *param_sieve = NULL;
-	if (!(param[0] == 0 || param[1] == 0 || param[2] == 0 ||
-	      param[3] == 0 || param[4] == 0 || param[5] == 0)) {
-	    param_sieve = param;
+	int *param_sieve = nullptr;
+	if (param[0] && param[1] && param[2] &&
+	    param[3] && param[4] && param[5])
+        {
+	    param_sieve = param.data();
             /*
 	    printf("param_sieve: b1min= %d, b1max=%d, b1step=%d"
 		   "       cmin= %d, cmax=%d, cstep=%d\n",
@@ -219,9 +216,10 @@ int main(int argc, char *argv[])
 
 
         /* if -out is not given, print to stdout */
-	FILE *file_out = (name_file_out == NULL)
+	FILE *file_out = (name_file_out == nullptr)
           ? stdout : fopen(name_file_out, "w");
-	int err = tabular_fm_fprint(file_out, res);
+        DIE_ERRNO_DIAG(file_out == NULL, "fopen(%s)", name_file_out);
+	int const err = tabular_fm_fprint(file_out, res);
 	if (err < 0) {
 	    fprintf(stderr,
 		    "error:: try to write in the file '%s'.\n", name_file_out);
@@ -229,12 +227,7 @@ int main(int argc, char *argv[])
 	}
 	fclose(file_out);
 	tabular_fm_free(res);
-	mpz_clear(seedtest);
-	gmp_randclear(state);
-	free(param);
     }
 
-    //free
-    param_list_clear(pl);
     return EXIT_SUCCESS;
 }

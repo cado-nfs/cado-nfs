@@ -1,15 +1,15 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring> /* for strcmp() */
 #include <cmath> /* for sqrt and floor and log and ceil */
 #include <cstdint>           // for uint64_t, int64_t, UINT64_MAX
+
 #include <vector>
 #include <algorithm>
 #include <iosfwd>            // for std
 #include <memory>            // for allocator_traits<>::value_type
-#include <pthread.h>
-#include <gmp.h>             // for gmp_randstate_t, gmp_randclear, gmp_rand...
 #include <set>
 #include <map>
 #include <iterator>
@@ -17,8 +17,12 @@
 #include <mutex>
 #include <thread>
 #include <iostream>
-#include <algorithm>
+
+#include <pthread.h>
+
+#include <gmp.h>             // for gmp_randstate_t, gmp_randclear, gmp_rand...
 #include "fmt/format.h"       // for cxx_cado_poly, cado_poly_read, cado_poly_s
+
 #include "cado_poly.h"       // for cxx_cado_poly, cado_poly_read, cado_poly_s
 #include "mpz_poly.h"        // for mpz_poly
 #include "renumber_proxy.h"
@@ -104,9 +108,9 @@ struct indexrange {
         //  it = lower_bound (ind.begin(), ind.end(), z);
         //  uint64_t position = it - ind.begin();
         // Fast, approximate version:
-        uint64_t position = z >> 1; // half of indices on each side
-        uint64_t range = uint64_t((double(position))*0.2);
-        uint64_t low = MAX((int64_t)(position - range), 0);
+        uint64_t const position = z >> 1; // half of indices on each side
+        uint64_t const range = uint64_t((double(position))*0.2);
+        uint64_t const low = MAX((int64_t)(position - range), 0);
         uint64_t high = MIN(position + range, ind.size());
         if (high == low)
             high++;
@@ -154,7 +158,7 @@ static std::vector<indexrange> prepare_indexrange(renumber_t const & ren_tab,
     for (auto it = ren_tab.begin() ; it != ren_tab.end() ; ++it, ++i) {
         if (ren_tab.is_additional_column(i))
             continue;
-        renumber_t::p_r_side x = *it;
+        renumber_t::p_r_side const x = *it;
         Ind[x.side].append(i);
         if (compsq && (x.side == sqside)) {
             Ind[sqside].append_prime(x.p);
@@ -166,7 +170,7 @@ static std::vector<indexrange> prepare_indexrange(renumber_t const & ren_tab,
     return Ind;
 }
 
-void remove_special_q(relation & rel, las_todo_entry const & Q)
+static void remove_special_q(relation & rel, las_todo_entry const & Q)
 {
     typedef std::vector<relation::pr> V_t;
     V_t & V = rel.sides[Q.side];
@@ -180,15 +184,13 @@ void remove_special_q(relation & rel, las_todo_entry const & Q)
     V.erase(nn, V.end());
 }
 
-#include "misc.h"
-
 
 struct model_relation : public indexed_relation_byside {
     template<typename... Args> model_relation(Args&&... args) : indexed_relation_byside(std::forward<Args>(args)...) {}
     model_relation perturb(std::vector<indexrange> const & Ind, gmp_randstate_t buf) const
     {
         auto R = [buf]() { return u64_random(buf); };
-        relation_ab ab(R(), R());
+        relation_ab const ab(R(), R());
         model_relation rel(ab);
 
         rel.set_active_sides(get_active_sides());
@@ -220,7 +222,7 @@ read_sample_file(int sqside, const char *filename, renumber_t & ren_tab)
             las_todo_entry Q;
             is >> Q;
             if (!is)
-                throw std::runtime_error(fmt::format(FMT_STRING("parse error at line: {}"), line));
+                throw std::runtime_error(fmt::format("parse error at line: {}", line));
             ASSERT_ALWAYS(sqside == Q.side);
             sample[Q];  // auto-vivify
             if (current.insert(Q).second) {
@@ -236,7 +238,7 @@ read_sample_file(int sqside, const char *filename, renumber_t & ren_tab)
             las_todo_entry Q;
             is >> Q;
             if (!is)
-                throw std::runtime_error(fmt::format(FMT_STRING("parse error at line: {}"), line));
+                throw std::runtime_error(fmt::format("parse error at line: {}", line));
             current.erase(Q);
         } else if (line[0] == '#') {
             continue;
@@ -287,7 +289,7 @@ read_sample_file(int sqside, const char *filename, renumber_t & ren_tab)
         std::sort(S.second.begin(), S.second.end());
 
     if (nbegin == 0) {
-        fprintf(stderr, "# The sample file %s was apparently"
+        fmt::print(stderr, "# The sample file {} was apparently"
                 " created without -v, but -v is mandatory"
                 " for fake_rels\n", filename);
         exit(EXIT_FAILURE);
@@ -305,7 +307,7 @@ read_sample_file(int sqside, const char *filename, renumber_t & ren_tab)
         std::copy(x.second.begin(), x.second.end(), std::back_inserter(ret.second));
     }
 
-    printf("# %s: %zu special-q's, %zu relations, max %d concurrent special-q's\b",
+    fmt::print("# {}: {} special-q's, {} relations, max {} concurrent special-q's\b",
             filename, nq, nr, maxdepth);
     return ret;
 }
@@ -346,11 +348,11 @@ static unsigned long print_fake_rel_manyq(
         if (shrink_factor == 1) {
             nr = model_nrels;
         } else {
-            double nr_dble = double(model_nrels) / double(shrink_factor);
+            double const nr_dble = double(model_nrels) / double(shrink_factor);
             // Do probabilistic rounding, in case nr_dble is small (maybe < 1)
-            double trunc_part = trunc(nr_dble);
-            double frac_part = nr_dble - trunc_part;
-            double rnd = double(u64_random(buf)) / double(UINT64_MAX);
+            double const trunc_part = trunc(nr_dble);
+            double const frac_part = nr_dble - trunc_part;
+            double const rnd = double(u64_random(buf)) / double(UINT64_MAX);
             nr = int(trunc_part) + int(rnd < frac_part);
         }
 
@@ -379,7 +381,7 @@ static unsigned long print_fake_rel_manyq(
             nrels_thread++;
             // rels_printed++;
         }
-        std::lock_guard<std::mutex> dummy(io_mutex);
+        std::lock_guard<std::mutex> const dummy(io_mutex);
         os << oss.str();
     }
     return nrels_thread;
@@ -407,12 +409,12 @@ std::vector<index_t> indexrange::all_composites(uint64_t q0, uint64_t q1,
     l1min = p_from_pos(pos_l1min);
 
     /* and never bigger than this: */
-    uint64_t l1max = MIN(qfac_max, round(pow(q1, 1/(double) n)));
-    uint64_t pos_l1max = pos_from_p(l1max);
+    uint64_t const l1max = MIN(qfac_max, round(pow(q1, 1/(double) n)));
+    uint64_t const pos_l1max = pos_from_p(l1max);
 
     for (uint64_t pos1 = pos_l1min; pos1 < pos_l1max; ++pos1) {
         /* look for cases where _this_ prime is the smallest one */
-        uint64_t l1 = p_from_pos(pos1);
+        uint64_t const l1 = p_from_pos(pos1);
         /* q0 <= l1 * x < q1
          * implies q0/l1 <= x < q1/l1
          * the left part is easy, but for the right part, we rewrite as:
@@ -450,13 +452,13 @@ std::vector<std::vector<index_t>> indexrange::all_composites(uint64_t q0, uint64
             list.pop_back();
             break;
         }
-        printf("# Got %zu %d-composite sq\n",
+        fmt::print("# Got {} {}-composite sq\n",
                 (size_t)(list.back().size()/n), n);
     }
     return list;
 }
 
-void worker(int tnum, int nt,
+static void worker(int tnum, int nt,
         std::vector<indexrange> const & Ind,
         // std::vector<std::pair<las_todo_entry, std::vector<model_relation>>> const & sample,
         std::pair<std::vector<size_t>, std::vector<model_relation>> const & sample,
@@ -481,7 +483,7 @@ void worker(int tnum, int nt,
                 buf);
     }
     gmp_randclear(buf);
-    std::lock_guard<std::mutex> dummy(io_mutex);
+    std::lock_guard<std::mutex> const dummy(io_mutex);
     rels_printed += ret;
 }
 
@@ -507,13 +509,12 @@ static void declare_usage(param_list pl)
 }
 
 // coverity[root_function]
-int
-main (int argc, char *argv[])
+int main(int argc, char const * argv[])
 {
   cxx_param_list pl;
   cxx_cado_poly cpoly;
   int sqside = -1;
-  char *argv0 = argv[0];
+  const char *argv0 = argv[0];
   int lpb[2] = {0, 0};
   uint64_t q0 = 0;
   uint64_t q1 = 0;
@@ -542,7 +543,7 @@ main (int argc, char *argv[])
           continue;
       }
 
-      fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
+      fmt::print(stderr, "Unhandled parameter {}\n", argv[0]);
       param_list_print_usage(pl, argv0, stderr);
       exit (EXIT_FAILURE);
   }
@@ -551,41 +552,41 @@ main (int argc, char *argv[])
 
   const char * filename;
   if ((filename = param_list_lookup_string(pl, "poly")) == NULL) {
-      fprintf(stderr, "Error: parameter -poly is mandatory\n");
+      fmt::print(stderr, "Error: parameter -poly is mandatory\n");
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
   }
 
   param_list_parse_int(pl, "lpb0", &lpb[0]);
   if (lpb[0] == 0) {
-      fprintf(stderr, "Error: parameter -lpb0 is mandatory\n");
+      fmt::print(stderr, "Error: parameter -lpb0 is mandatory\n");
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
   }
   param_list_parse_int(pl, "lpb1", &lpb[1]);
   if (lpb[1] == 0) {
-      fprintf(stderr, "Error: parameter -lpb1 is mandatory\n");
+      fmt::print(stderr, "Error: parameter -lpb1 is mandatory\n");
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
   }
 
   param_list_parse_uint64(pl, "q0", &q0);
   if (q0 == 0) {
-      fprintf(stderr, "Error: parameter -q0 is mandatory\n");
+      fmt::print(stderr, "Error: parameter -q0 is mandatory\n");
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
   }
 
   param_list_parse_uint64(pl, "q1", &q1);
   if (q1 == 0) {
-      fprintf(stderr, "Error: parameter -q1 is mandatory\n");
+      fmt::print(stderr, "Error: parameter -q1 is mandatory\n");
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
   }
   
   param_list_parse_double(pl, "shrink-factor", &shrink_factor);
   if (shrink_factor < 1) {
-      fprintf(stderr, "Error: shrink factor must be an integer >= 1\n");
+      fmt::print(stderr, "Error: shrink factor must be an integer >= 1\n");
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
   }
@@ -599,33 +600,33 @@ main (int argc, char *argv[])
 
   if (!cado_poly_read(cpoly, filename))
     {
-      fprintf (stderr, "Error reading polynomial file %s\n", filename);
+      fmt::print (stderr, "Error reading polynomial file {}\n", filename);
       exit (EXIT_FAILURE);
     }
 
   param_list_parse_int(pl, "sqside", &sqside);
   if (sqside == -1 || sqside > 2) {
-      fprintf(stderr, "Error: sqside must be 0 or 1\n");
+      fmt::print(stderr, "Error: sqside must be 0 or 1\n");
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
   }
 
   const char * renumberfile;
   if ((renumberfile = param_list_lookup_string(pl, "renumber")) == NULL) {
-      fprintf(stderr, "Error: parameter -renumber is mandatory\n");
+      fmt::print(stderr, "Error: parameter -renumber is mandatory\n");
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
   }
-  printf ("# Start reading renumber table\n");
+  fmt::print ("# Start reading renumber table\n");
   fflush (stdout);
   renumber_t ren_table(cpoly);
   ren_table.read_from_file(renumberfile, dl);
-  printf ("# Done reading renumber table\n");
+  fmt::print ("# Done reading renumber table\n");
   fflush (stdout);
 
   for (int side = 0; side < ren_table.get_nb_polys(); ++side) {
       if (ren_table.get_lpb(side) != (unsigned long)lpb[side]) {
-          fprintf(stderr, "Error: on side %d, lpb on the command-line is different from the one in the renumber file\n", side);
+          fmt::print(stderr, "Error: on side {}, lpb on the command-line is different from the one in the renumber file\n", side);
           exit(EXIT_FAILURE);
       }
   }
@@ -633,15 +634,15 @@ main (int argc, char *argv[])
   // read sample file
   const char * samplefile;
   if ((samplefile = param_list_lookup_string(pl, "sample")) == NULL) {
-      fprintf(stderr, "Error: parameter -sample is mandatory\n");
+      fmt::print(stderr, "Error: parameter -sample is mandatory\n");
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
   }
 
-  printf ("# Start reading sample file\n");
+  fmt::print ("# Start reading sample file\n");
   fflush (stdout);
 
-  std::pair<std::vector<size_t>, std::vector<model_relation>> sample = read_sample_file(sqside, samplefile, ren_table);
+  std::pair<std::vector<size_t>, std::vector<model_relation>> const sample = read_sample_file(sqside, samplefile, ren_table);
 
   /*
   std::vector<std::pair<las_todo_entry, std::vector<model_relation>>>
@@ -655,16 +656,16 @@ main (int argc, char *argv[])
   }
   */
 
-  printf ("# Done reading sample file\n");
+  fmt::print ("# Done reading sample file\n");
   fflush (stdout);
 
   param_list_warn_unused(pl);
 
   // Two index ranges, one for each side
-  printf ("# Start preparing index ranges\n");
+  fmt::print ("# Start preparing index ranges\n");
   fflush (stdout);
   std::vector<indexrange> Ind = prepare_indexrange(ren_table, sqside, compsq);
-  printf ("# Done preparing index ranges\n");
+  fmt::print ("# Done preparing index ranges\n");
   fflush (stdout);
 
   std::vector<std::vector<index_t>> qs;
@@ -717,9 +718,9 @@ main (int argc, char *argv[])
 
   /* print statistics */
 
-  printf ("# Output %lu relations in %.2fs cpu (%.0f rels/s)\n",
+  fmt::print ("# Output {} relations in {:.2f}s cpu ({:.0f} rels/s)\n",
 	  rels_printed, t0, (double) rels_printed / t0);
-  printf ("# Output %lu relations in %.2fs wct (%.0f rels/s)\n",
+  fmt::print ("# Output {} relations in {:.2f}s wct ({:.0f} rels/s)\n",
 	  rels_printed, wct_t0, (double) rels_printed / wct_t0);
 
   return 0;

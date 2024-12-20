@@ -109,12 +109,10 @@ void test_random_p_and_poly(int d, int max_bits, gmp_randstate_t state)
 void usage()
 {
     fprintf(stderr, "Usage: test_rootfinder [-seed nnn] [-iter nnn] [-v] [[-degree <d>] | <p> <polynomial in x>]\n");
-    // NOLINTNEXTLINE(concurrency-mt-unsafe)
     exit(EXIT_FAILURE);
 }
 
-int
-main (int argc, const char *argv[])
+int main(int argc, char const * argv[])
 {
     const struct test_rootfinder_example examples[] = {
 	{ "4294967291", "-3*x^2 + 1", 2 },

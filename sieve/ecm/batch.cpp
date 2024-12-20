@@ -8,34 +8,40 @@
    approach to factor them, we factor them naively. */
 
 #include "cado.h" // IWYU pragma: keep
-// IWYU pragma: no_include <ext/alloc_traits.h>
+
 #include <cmath>               // for ceil, pow, log2
 #include <cstdio>              // for fprintf, snprintf, fflush, stderr, FILE
 #include <cstdlib>             // for free, malloc, exit, abort, realloc
+#include <cstdint>
+
+#include <exception>
 #include <iterator>            // for begin, end
 #include <list>                // for list, operator!=, _List_iterator, list...
-#include <memory>              // for allocator_traits<>::value_type
 #include <sstream>             // for operator<<, ostringstream, basic_ostream
-#include <string>              // for basic_string
 #include <stdexcept>
-#include "fmt/format.h"
-#include <type_traits>         // for remove_reference<>::type
+#include <string>              // for basic_string
+#include <utility>
 #include <vector>              // for vector
-#include <gmp.h>
 
-#include "omp_proxy.h" // IWYU pragma: keep
+#include <gmp.h>
+#include "fmt/format.h"
+
 #include "batch.hpp"           // for facul_clear_methods, facul_make_defaul...
+#include "cado_poly.h"
 #include "facul.hpp"           // for facul_clear_methods, facul_make_defaul...
 #include "facul_doit.hpp"      // for facul_doit_onefm
 #include "facul_method.hpp"       // for facul_method
+#include "facul_strategies.hpp"
 #include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
 #include "gmp_aux.h"       // mpz_set_uint64
 #include "las-todo-entry.hpp"  // for las_todo_entry
+#include "macros.h"
 #include "modset.hpp"          // for FaculModulusBase
+#include "mpz_poly.h"
+#include "omp_proxy.h" // IWYU pragma: keep
 #include "relation.hpp"        // for relation
 #include "rootfinder.h" // mpz_poly_roots_ulong
 #include "timing.h"             // for seconds
-#include "macros.h"
 
 /* This function is useful in the openmp context. This segment goes
  * parallel, and all threads except the calling thread subtract their
@@ -315,8 +321,8 @@ tree_height (unsigned long n)
 static mpz_t**
 product_tree (std::vector<cxx_mpz> const & R, size_t *w, double & extra_time)
 {
-  size_t n = R.size();
-  int h = tree_height (n);
+  size_t const n = R.size();
+  int const h = tree_height (n);
   ASSERT_ALWAYS(n >= 1);
 
   mpz_t ** T = (mpz_t**) malloc ((h + 1) * sizeof (mpz_t*));
@@ -407,7 +413,7 @@ remainder_tree (mpz_t **T, size_t *w, mpz_srcptr P,
         std::vector<cxx_mpz> & R,
         double & extra_time)
 {
-  size_t n = R.size();
+  size_t const n = R.size();
   unsigned long h = tree_height (n), i, j, guard;
   unsigned long **nbits;
   mpz_t Q;
@@ -506,7 +512,7 @@ smoothness_test (std::vector<cxx_mpz> & R, mpz_srcptr P, FILE *out, double& extr
   size_t w[MAX_DEPTH];
   mpz_t **T;
   double s, st, e0, wct;
-  size_t n = R.size();
+  size_t const n = R.size();
 
   if (n == 0)
     return;
@@ -522,7 +528,7 @@ smoothness_test (std::vector<cxx_mpz> & R, mpz_srcptr P, FILE *out, double& extr
   wct = wct_seconds ();
 
   T = product_tree (R, w, extra_time);
-  size_t h = tree_height (n);
+  size_t const h = tree_height (n);
   fprintf (out, "# batch: took %.2fs (%.2fs + %.2fs ; wct %.2fs) to compute product tree of %zu bits\n",
            seconds() - s,
            seconds_thread () - st,
@@ -571,7 +577,7 @@ find_smooth (cofac_list & l,
         FILE *out,
         int nthreads MAYBE_UNUSED, double & extra_time)
 {
-    int nsides = lpb.size();
+    int const nsides = lpb.size();
     ASSERT_ALWAYS(batchP.size() == (size_t) nsides);
     ASSERT_ALWAYS(batchlpb.size() == (size_t) nsides);
     ASSERT_ALWAYS(batchmfb.size() == (size_t) nsides);
@@ -601,9 +607,9 @@ find_smooth (cofac_list & l,
         e0 = extra_time;
         wct = wct_seconds ();
 
-        size_t input_candidates = l.size();
+        size_t const input_candidates = l.size();
 
-        int side = xside ^ first_smoothness_test_side;
+        int const side = xside ^ first_smoothness_test_side;
 
         cxx_mpz B, BB, L, M;
 
@@ -772,7 +778,7 @@ factor_simple_minded (std::vector<cxx_mpz> &factors,
      */
     for (; !composites.empty() ; ) {
         cxx_mpz & n0 = composites.front().first;
-        std::vector<facul_method>::const_iterator pm = composites.front().second;
+        auto pm = composites.front().second;
         if (mpz_cmp_d (n0, BB) < 0) {
             if (mpz_cmp_ui(n0, 1) > 0)
                 factors.push_back(std::move(n0));
@@ -781,7 +787,7 @@ factor_simple_minded (std::vector<cxx_mpz> &factors,
         }
 
         if (pm == methods.end()) {
-            mpz_set(cofac, n0);
+            cofac = std::move(n0);
             return false;
         }
 
@@ -789,13 +795,13 @@ factor_simple_minded (std::vector<cxx_mpz> &factors,
 	   facul_doit_onefm_mpz, it means fm[j] has not been set. */
 
         std::vector<cxx_mpz> temp;
-        int nf = facul_doit_onefm (temp, n0, *pm, fm[0], fm[1], lpb, BB, BBB);
+        int const nf = facul_doit_onefm (temp, n0, *pm, fm[0], fm[1], lpb, BB, BBB);
         pm++;
 
         /* Could happen if we allowed a cofactor bound after batch
          * cofactorization */
         if (nf == FACUL_NOT_SMOOTH) {
-            mpz_set(cofac, n0);
+            cofac = std::move(n0);
             return false;
         }
 
@@ -880,10 +886,10 @@ factor_one (
         std::vector<std::vector<unsigned long>> const & SP,
         int recomp_norm)
 {
-    int64_t a = C.a;
-    uint64_t b = C.b;
+    int64_t const a = C.a;
+    uint64_t const b = C.b;
 
-    int nsides = cpoly->nb_polys;
+    int const nsides = cpoly->nb_polys;
 
     std::vector<std::vector<cxx_mpz>> factors;
 
@@ -901,8 +907,8 @@ factor_one (
                 mpz_set(norm, cofac);
             }
         }
-        std::vector<uint64_t> empty;
-        bool smooth = factor_simple_minded (factors[side], norm, methods,
+        std::vector<uint64_t> const empty;
+        bool const smooth = factor_simple_minded (factors[side], norm, methods,
                 lpb[side], (double) lim[side], SP[side],
                 cofac,
                 (C.doing_p->side == side) ? C.doing_p->prime_factors : empty);
@@ -956,7 +962,7 @@ factor (cofac_list const & L,
         FILE *out, int nthreads MAYBE_UNUSED, double& extra_time,
         int recomp_norm)
 {
-  int nsides = cpoly->nb_polys;
+  int const nsides = cpoly->nb_polys;
   ASSERT_ALWAYS(batchlpb.size() == (size_t) nsides);
   ASSERT_ALWAYS(lpb.size() == (size_t) nsides);
   std::vector<unsigned long> B(nsides);

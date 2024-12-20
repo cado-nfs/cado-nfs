@@ -79,7 +79,7 @@ bool las_dlog_base::is_known(int side, p_r_values_t p, p_r_values_t r) const
          */
         if (renumber_table.is_bad ({ p, r, side }))
             return true;
-        index_t h = renumber_table.index_from_p_r({ p, r, side });
+        index_t const h = renumber_table.index_from_p_r({ p, r, side });
         return known_logs[h];
     }
     return true;
@@ -106,7 +106,7 @@ void las_dlog_base::read()
         }
     }
 
-    uint64_t nprimes = renumber_table.get_size();
+    uint64_t const nprimes = renumber_table.get_size();
     known_logs.assign(nprimes + 32, false);
     /* 32 is because the SM columns are here, too ! We would like to
      * avoid reallocation, so let's be generous (anyway we'll
@@ -139,7 +139,7 @@ void las_dlog_base::read()
         if (*x == '#') continue;
         if (!*x) continue;
         errno=0;
-        unsigned long z = strtoul(x, &x, 16);
+        unsigned long const z = strtoul(x, &x, 16);
         if (errno) {
             fprintf(stderr, "Parse error at line %d in %s: %s\n", lnum, logfilename, line);
             break;

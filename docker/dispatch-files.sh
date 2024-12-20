@@ -55,7 +55,6 @@ lib/cado-nfs-3.0.0/linalg/bblas/libbblas.so
 lib/cado-nfs-3.0.0/linalg/bwc/libbwc_arith.so
 lib/cado-nfs-3.0.0/linalg/bwc/libbwc_base.so
 lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_common.so
-lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_mf.so
 lib/cado-nfs-3.0.0/linalg/bwc/mksol
 lib/cado-nfs-3.0.0/linalg/bwc/prep
 lib/cado-nfs-3.0.0/linalg/bwc/secure

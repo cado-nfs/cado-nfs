@@ -34,7 +34,12 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#ifdef __cplusplus
+#include <stdexcept>
+#endif
 #include <gmp.h> /* for __GNU_MP_VERSION */
+
+// scan-headers: stop here
 
 #define ASSERT(x)	assert(x)
 
@@ -73,7 +78,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
     } while (0)
 // NOLINTBEGIN(readability-simplify-boolean-expr)
 #ifdef __cplusplus
-#include <stdexcept>
 #define ASSERT_ALWAYS_OR_THROW(x, e)                                   \
     do {								\
         if (!(x)) 							\
@@ -145,11 +149,17 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
    undefined in C89. */
 /* iceildiv requires *unsigned* operands in spite of the name suggesting
    (signed) integer type. For negative operands, the result is wrong. */
+// NOLINTBEGIN(readability-container-size-empty)
 #define iceildiv(x,y) ((x) == 0 ? 0 : ((x)-1)/(y)+1)
 /* siceildiv requires signed operands, or the compiler will throw warnings
    with -Wtype-limits */
 #define siceildiv(x,y) ((x) == 0 ? 0 : ((x)<0) + ((y)<0) == 1 ? (x)/(y) : ((x)-1+2*((y)<0))/(y)+1)
+// NOLINTEND(readability-container-size-empty)
 #endif
+
+/* Number of words holding B bits ; better naming sought. */
+#define BITS_TO_WORDS(B,W)      iceildiv((B),(W))
+
 
 #define LEXGE2(X,Y,A,B) ((X)>(A) || ((X) == (A) && (Y) >= (B)))
 #define LEXGE3(X,Y,Z,A,B,C) ((X)>(A) || ((X) == (A) && LEXGE2((Y),(Z),(B),(C))))

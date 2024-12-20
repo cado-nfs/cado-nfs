@@ -1,22 +1,29 @@
 /* arithmetic on polynomial with double-precision coefficients */
 #include "cado.h" // IWYU pragma: keep
+
 #ifdef HAVE_GLIBC
-#include <features.h>
+#include <features.h>   // __GLIBC_PREREQ
 #endif
-#include <sstream>
-#include <string>
+
 #include <cstring>
 #include <cstdio> // FILE // IWYU pragma: keep
 #include <cstdlib>
 #include <climits>
 #include <cfloat> /* for DBL_MAX */
 #include <cctype> /* isspace */
+
+#include <sstream>
+#include <string>
+
 #include <gmp.h>       // for mpz_t, mpz_clear, mpz_init, mpz_get_d, mpz_mul...
 #include "mpz_poly.h"  // mpz_poly
 #include "macros.h"     // for ASSERT, ASSERT_ALWAYS
 
-#define DOUBLE_POLY_EXPOSE_COMPLEX_FUNCTIONS
 #include "double_poly.h"
+#include "double_poly_complex_roots.h"
+#include "polyroots.h"
+
+// scan-headers: stop here
 
 /* it's a bit nasty here. See
  * https://sourceware.org/bugzilla/show_bug.cgi?id=19439
@@ -137,7 +144,7 @@ double_poly_eval (double_poly_srcptr p, const double x)
     double r;
     unsigned int k;
     const double *f = p->coeff;
-    int deg = p->deg;
+    int const deg = p->deg;
 
     switch (deg) {
         case -1: return 0;
@@ -160,10 +167,10 @@ double double_poly_div_linear(double_poly_ptr q, double_poly_srcptr p, const dou
 {
     /* supports self-assignment */
     const double *f = p->coeff;
-    int deg = p->deg;
+    int const deg = p->deg;
     double u = f[deg];
     for (int k = p->deg - 1; k >= 0; k--) {
-        double c = f[k];
+        double const c = f[k];
         q->coeff[k] = u;
         u = u * r + c;
     }
@@ -177,7 +184,7 @@ double
 double_poly_eval_homogeneous (double_poly_srcptr p, double x, double y)
 {
     const double * f = p->coeff;
-    int deg = p->deg;
+    int const deg = p->deg;
 
     switch (deg) {
         case -1: return 0;
@@ -313,7 +320,7 @@ double_poly_falseposition (double_poly_srcptr p, double a, double b, double pa)
       if (s < a || s > b || ((s == a || s == b) && !(middle == a || middle == b)))
           s = middle;
       if (s == a || s == b) return s;
-      double ps = double_poly_eval (p, s);
+      double const ps = double_poly_eval (p, s);
       if (ps * pa > 0) {
           a = s; pa = ps;
           if (side==1) pb /= 2;
@@ -458,7 +465,7 @@ double_poly_revert (double_poly_ptr g, double_poly_srcptr f)
         /* if d is even, nothing to do for k=d/2 */
         for (int k = 0; k <= (d - 1) / 2; k++)
         {
-            double tmp = f->coeff[k];
+            double const tmp = f->coeff[k];
             f->coeff[k] = f->coeff[d - k];
             f->coeff[d - k] = tmp;
         }
@@ -537,7 +544,7 @@ double
 double_poly_bound_roots (double_poly_srcptr p)
 {
     ASSERT_ALWAYS(p->deg >= 0);
-  int d = p->deg;
+  int const d = p->deg;
   double_poly q;
   double s;
 
@@ -603,7 +610,7 @@ double_poly_compute_all_roots_with_bound (double *roots,
   double bound = double_poly_bound_roots (poly);
   if (B < bound)
     bound = B;
-  unsigned int nr_roots_pos = double_poly_compute_roots (roots, poly, bound);
+  unsigned int const nr_roots_pos = double_poly_compute_roots (roots, poly, bound);
   /* Negative roots */
   double_poly t; /* Copy of poly which gets sign-flipped */
   double_poly_init (t, poly->deg);
@@ -662,7 +669,7 @@ double_poly_print (FILE *stream, double_poly_srcptr p, char *name)
 {
     cxx_double_poly F;
     double_poly_set(F, p);
-    std::string s = F.print_poly(name);
+    std::string const s = F.print_poly(name);
     fputs(s.c_str(), stream);
 }
 
@@ -671,8 +678,8 @@ double_poly_asprint (char **t, double_poly_srcptr p, char *name)
 {
     cxx_double_poly F;
     double_poly_set(F, p);
-    std::string s = F.print_poly(name);
-    int n = s.size();
+    std::string const s = F.print_poly(name);
+    int const n = s.size();
     *t = (char*) malloc(n + 1);
     memcpy(*t, s.c_str(), n + 1);
     return n;
@@ -734,7 +741,7 @@ int double_poly_cmp(double_poly_srcptr a, double_poly_srcptr b)
 
     int r = (a->deg > b->deg) - (b->deg > a->deg);
     for(int d = a->deg; !r && d >= 0 ; d--) {
-        double s = a->coeff[d] - b->coeff[d];
+        double const s = a->coeff[d] - b->coeff[d];
         r = (s >= 0) - (s <= 0);
     }
     return r;
@@ -826,8 +833,8 @@ static int double_poly_pseudo_division(double_poly_ptr q, double_poly_ptr r,
 
     if (q) double_poly_realloc(q, a->deg - b->deg + 1);
 
-    int m = a->deg;
-    int n = b->deg;
+    int const m = a->deg;
+    int const n = b->deg;
     double d = double_poly_lc(b);
     int e = m - n + 1;
     double_poly s;
@@ -849,7 +856,7 @@ static int double_poly_pseudo_division(double_poly_ptr q, double_poly_ptr r,
         double_poly_mul_double(r, r, d);
 
         double_poly_mul(s, b, s);
-        int nrdeg = r->deg - 1;
+        int const nrdeg = r->deg - 1;
         double_poly_sub(r, r, s);
         /* We'd like to enforce this because the subtraction may miss the
          * cancellation of the leading term due to rounding.
@@ -999,8 +1006,8 @@ double double_poly_resultant(double_poly_srcptr p, double_poly_srcptr q)
 void
 double_poly_swap (double_poly_ptr f, double_poly_ptr g)
 {
-    int i = f->deg; f->deg = g->deg; g->deg = i;
-    int j = f->alloc; f->alloc = g->alloc; g->alloc = j;
+    int const i = f->deg; f->deg = g->deg; g->deg = i;
+    int const j = f->alloc; f->alloc = g->alloc; g->alloc = j;
     double * t = f->coeff; f->coeff = g->coeff; g->coeff = t;
 }
 
@@ -1034,19 +1041,14 @@ void double_poly_set_string(double_poly_ptr poly, const char *str)
     double_poly_cleandeg(poly, n-1);
 }
 
-/* The implementation of poly_roots_* is in polyroots.c -- we expose them
- * here, but new implementation should prefer using the functions above.
- */
-
-/* exposed only if DOUBLE_POLY_EXPOSE_COMPLEX_FUNCTIONS is true */
-void double_poly_complex_roots(double _Complex *roots, double_poly_srcptr f)
+int double_poly_complex_roots(double _Complex *roots, double_poly_srcptr f)
 {
-    poly_roots_double(f->coeff, f->deg, roots);
+    return poly_roots_double(f->coeff, f->deg, roots);
 }
 
-void double_poly_complex_roots_long(long double _Complex *roots, double_poly_srcptr f)
+int double_poly_complex_roots_long(long double _Complex *roots, double_poly_srcptr f)
 {
-    poly_roots_longdouble(f->coeff, f->deg, roots);
+    return poly_roots_longdouble(f->coeff, f->deg, roots);
 }
 
 

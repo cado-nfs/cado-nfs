@@ -23,12 +23,14 @@
 
 #include <gmp.h>                 // for mpz_cmp_ui, gmp_randclear, gmp_randi...
 
+#include "gmp_aux.h"
 #include "bw-common.h"
 #include "cxx_mpz.hpp"
 #include "matmul_top.hpp"
 #include "matmul_top_comm.hpp"
 #include "arith-generic.hpp"
 #include "arith-cross.hpp"
+#include "abase_proxy.hpp"
 #include "parallelizing_info.hpp"
 #include "params.h"
 #include "portability.h"
@@ -56,7 +58,7 @@ struct sfile_info {/*{{{*/
         v.s1 = s1;
         v.iter0 = iter0;
         v.iter1 = iter1;
-        size_t res = strlcpy(v.name, name, NAME_MAX);
+        size_t const res = strlcpy(v.name, name, NAME_MAX);
         ASSERT_ALWAYS(res < NAME_MAX);
         snprintf(v.name_pattern, sizeof(name_pattern), "S.sols%%u-%%u.%u-%u", iter0, iter1);
         return true;
@@ -76,13 +78,13 @@ static bool operator<(sfile_info const & a, sfile_info const & b)/*{{{*/
     return false;
 }/*}}}*/
 
-int exitcode = 0;
+static int exitcode = 0;
 
-std::vector<sfile_info> prelude(parallelizing_info_ptr pi)/*{{{*/
+static std::vector<sfile_info> prelude(parallelizing_info_ptr pi)/*{{{*/
 {
-    int leader = pi->m->jrank == 0 && pi->m->trank == 0;
-    int char2 = mpz_cmp_ui(bw->p, 2) == 0;
-    int splitwidth = char2 ? 64 : 1;
+    int const leader = pi->m->jrank == 0 && pi->m->trank == 0;
+    int const char2 = mpz_cmp_ui(bw->p, 2) == 0;
+    int const splitwidth = char2 ? 64 : 1;
     std::vector<sfile_info> res;
     serialize_threads(pi->m);
     if (leader) {
@@ -114,7 +116,7 @@ std::vector<sfile_info> prelude(parallelizing_info_ptr pi)/*{{{*/
             }
             /* try to read a complete set of files at this iteration */
             unsigned int x = bw->solutions[0];
-            unsigned int z = bw->solutions[1];
+            unsigned int const z = bw->solutions[1];
             bool ok = true;
             auto current = *it;
             for(unsigned int y ; ok && x < z ; x = y, it++) {
@@ -154,7 +156,7 @@ std::vector<sfile_info> prelude(parallelizing_info_ptr pi)/*{{{*/
     return res;
 }/*}}}*/
 
-void fprint_signed(FILE * f, arith_generic * A, arith_generic::elt const & x)
+static void fprint_signed(FILE * f, arith_generic * A, arith_generic::elt const & x)
 {
     std::ostringstream os;
     arith_generic::elt * minus = A->alloc();
@@ -169,59 +171,7 @@ void fprint_signed(FILE * f, arith_generic * A, arith_generic::elt const & x)
     fprintf(f, "%s", os.str().c_str());
 }
 
-void allgather(std::vector<unsigned int>& v, pi_comm_ptr wr)/*{{{*/
-{
-    /* want to collectively merge all vectors "v". boost mpi
-     * would be great for that, really */
-
-    /* first merge to one leader per node */
-
-    std::vector<unsigned int> *mainv;
-    mainv = &v;
-    /* Yes, we're sharing a pointer, here */
-    pi_thread_bcast(&mainv, sizeof(mainv), BWC_PI_BYTE, 0, wr);
-
-    for(unsigned int j = 1 ; j < wr->ncores ; ++j) {
-        if (wr->trank == j)
-            mainv->insert(mainv->end(), v.begin(), v.end());
-        serialize_threads(wr);
-    }
-
-    if (wr->trank == 0) {
-        std::vector<unsigned int> allv;
-        std::vector<int> sizes(wr->njobs, 0);
-        std::vector<int> displs(wr->njobs, 0);
-        sizes[wr->jrank] = v.size();
-        int total = v.size();
-        MPI_Allreduce(MPI_IN_PLACE, &total, 1, MPI_INT, MPI_SUM,
-                wr->pals);
-        MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
-                sizes.data(), 1, MPI_INT, wr->pals);
-        for(unsigned int i = 1 ; i < wr->njobs ; i++)
-            displs[i] = displs[i-1] + sizes[i-1];
-        allv.assign(total, 0);
-        std::copy(v.begin(), v.end(), allv.begin() + displs[wr->jrank]);
-        MPI_Allgatherv(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
-                allv.data(), sizes.data(), displs.data(), MPI_UNSIGNED,
-                wr->pals);
-        std::swap(v, allv);
-    }
-
-    serialize_threads(wr);
-    v = *mainv;
-    serialize_threads(wr);
-}/*}}}*/
-
-void broadcast(std::vector<unsigned int>& v, pi_comm_ptr wr)/*{{{*/
-{
-    int total = v.size();
-    pi_bcast(&total, 1, BWC_PI_INT, 0, 0, wr);
-    if (wr->jrank || wr->trank) v.assign(total, 0);
-    pi_bcast(v.data(), total, BWC_PI_UNSIGNED, 0, 0, wr);
-    serialize(wr);
-}/*}}}*/
-
-std::vector<unsigned int> indices_of_zero_or_nonzero_values(mmt_vec & y, unsigned int maxidx, int want_nonzero)/*{{{*/
+static std::vector<unsigned int> indices_of_zero_or_nonzero_values(mmt_vec & y, unsigned int maxidx, int want_nonzero)/*{{{*/
 {
     arith_generic * A = y.abase;
     parallelizing_info_ptr pi = y.pi;
@@ -238,28 +188,28 @@ std::vector<unsigned int> indices_of_zero_or_nonzero_values(mmt_vec & y, unsigne
         }
 
         /* in fact, a single gather at node 0 thread 0 would do */
-        allgather(myz, pi->wr[!y.d]);
+        parallelizing_info_experimental::allgather(myz, pi->wr[!y.d]);
     }
 
-    broadcast(myz, pi->m);    /* And broadcast that to everyone as well. */
+    parallelizing_info_experimental::broadcast(myz, pi);    /* And broadcast that to everyone as well. */
 
     return myz;
 }/*}}}*/
 
-std::vector<unsigned int> indices_of_zero_values(mmt_vec & y, unsigned int maxidx)/*{{{*/
+static std::vector<unsigned int> indices_of_zero_values(mmt_vec & y, unsigned int maxidx)/*{{{*/
 {
     return indices_of_zero_or_nonzero_values(y, maxidx, 0);
 }/*}}}*/
 
-std::vector<unsigned int> indices_of_nonzero_values(mmt_vec & y, unsigned int maxidx)/*{{{*/
+static std::vector<unsigned int> indices_of_nonzero_values(mmt_vec & y, unsigned int maxidx)/*{{{*/
 {
     return indices_of_zero_or_nonzero_values(y, maxidx, 1);
 }/*}}}*/
 
-std::vector<unsigned int> get_possibly_wrong_columns(matmul_top_data & mmt)/*{{{*/
+static std::vector<unsigned int> get_possibly_wrong_columns(matmul_top_data & mmt)/*{{{*/
 {
     parallelizing_info_ptr pi = mmt.pi;
-    int tcan_print = bw->can_print && pi->m->trank == 0;
+    int const tcan_print = bw->can_print && pi->m->trank == 0;
 
     std::vector<unsigned int> allz;
 
@@ -275,8 +225,7 @@ std::vector<unsigned int> get_possibly_wrong_columns(matmul_top_data & mmt)/*{{{
     /* Comments below assume that we're in the typical case
      * bw->dir==1, nrows > ncols */
 
-    gmp_randstate_t rstate;
-    gmp_randinit_default(rstate);
+    cxx_gmp_randstate rstate;
 
     if (pi->m->trank == 0 && !bw->seed) {
         /* note that bw is shared between threads, thus only thread 0 should
@@ -338,8 +287,6 @@ std::vector<unsigned int> get_possibly_wrong_columns(matmul_top_data & mmt)/*{{{
     }
     allz.assign(allz_set.begin(), allz_set.end());
 
-    gmp_randclear(rstate);
-
     return allz;
 }/*}}}*/
 
@@ -350,21 +297,21 @@ std::vector<unsigned int> get_possibly_wrong_columns(matmul_top_data & mmt)/*{{{
  * of the blocks whose index is congruent to
  * (j/groupsize)-th block mod cblocks ; A is my.abase.
  */
-void compress_vector_to_sparse(arith_generic::elt * matrix, unsigned int j, unsigned int cblocks, mmt_vec const & my, std::vector<unsigned int> & rows)
+static void compress_vector_to_sparse(arith_generic::elt * matrix, unsigned int j, unsigned int cblocks, mmt_vec const & my, std::vector<unsigned int> & rows)
 {
     arith_generic * A = my.abase;
 
-    unsigned int own_i0 = my.i0 + mmt_my_own_offset_in_items(my);
-    unsigned int own_i1 = own_i0 + mmt_my_own_size_in_items(my);
-    cxx_mpz v;
-    unsigned int jq = j / A->simd_groupsize();
+    unsigned int const own_i0 = my.i0 + mmt_my_own_offset_in_items(my);
+    unsigned int const own_i1 = own_i0 + mmt_my_own_size_in_items(my);
+    cxx_mpz const v;
+    unsigned int const jq = j / A->simd_groupsize();
     // unsigned int jr = j % A->simd_groupsize(A);
 
-    int char2 = mpz_cmp_ui(bw->p, 2) == 0;
+    int const char2 = mpz_cmp_ui(bw->p, 2) == 0;
     ASSERT_ALWAYS(char2 || A->simd_groupsize() == 1);
 
     for(unsigned int ii = 0 ; ii < rows.size() ; ii++) {
-        unsigned int i = rows[ii];
+        unsigned int const i = rows[ii];
         if (own_i0 <= i && i < own_i1) {
             arith_generic::elt const & src = A->vec_item(my.v, i - my.i0);
             arith_generic::elt & dst = A->vec_item(matrix, ii * cblocks + jq);
@@ -372,36 +319,6 @@ void compress_vector_to_sparse(arith_generic::elt * matrix, unsigned int j, unsi
         }
     }
 }
-
-struct abase_proxy {
-
-    parallelizing_info_ptr pi;
-    std::unique_ptr<arith_generic> A;
-    pi_datatype_ptr A_pi;
-
-    abase_proxy(parallelizing_info_ptr pi, int width)
-        : pi(pi)
-        , A(arith_generic::instance(bw->p, width))
-    {
-        A_pi = pi_alloc_arith_datatype(pi, A.get());
-    }
-    abase_proxy(abase_proxy&&) = default;
-    abase_proxy& operator=(abase_proxy&&) = default;
-    static abase_proxy most_natural(parallelizing_info_ptr pi) {
-        return abase_proxy(pi, mpz_cmp_ui(bw->p, 2) == 0 ? 64 : 1);
-    }
-    std::map<arith_generic *, std::shared_ptr<arith_cross_generic>> tdict;
-    arith_cross_generic * templates(arith_generic * A1) {
-        auto it = tdict.find(A1);
-        if (it == tdict.end())
-            tdict[A1] = std::shared_ptr<arith_cross_generic>(arith_cross_generic::instance(A.get(), A1));
-        return tdict[A1].get();
-    }
-    ~abase_proxy()
-    {
-        pi_free_arith_datatype(pi, A_pi);
-    }
-};
 
 struct rhs /*{{{*/ {
     matmul_top_data & mmt;
@@ -422,13 +339,13 @@ struct rhs /*{{{*/ {
         if (!rhs_name) return;
 
         parallelizing_info_ptr pi = mmt.pi;
-        int tcan_print = bw->can_print && pi->m->trank == 0;
-        int leader = pi->m->jrank == 0 && pi->m->trank == 0;
+        int const tcan_print = bw->can_print && pi->m->trank == 0;
+        int const leader = pi->m->jrank == 0 && pi->m->trank == 0;
 
         /* This is just for a check -- in truth, it might be that the
          * code here works correctly for inhomogeneous characteristic 2,
          * but that would be pure chance, as it was never tested */
-        int char2 = mpz_cmp_ui(bw->p, 2) == 0;
+        int const char2 = mpz_cmp_ui(bw->p, 2) == 0;
         ASSERT_ALWAYS(!char2);
         ASSERT_ALWAYS(A->simd_groupsize() == 1);
 
@@ -458,18 +375,18 @@ struct rhs /*{{{*/ {
         if (leader) {
             // yeah, we asserted that we're GF(p) at this point anyway.
             // coverity[dead_error_line]
-            unsigned int splitwidth = char2 ? 64 : 1;
+            unsigned int const splitwidth = char2 ? 64 : 1;
             ASSERT_ALWAYS(Av->simd_groupsize() == splitwidth);
 
             if (char2 || solutions[1] != solutions[0] + splitwidth) {
                 ASSERT_ALWAYS(0);/* never tested. I did attempt to code it right for the simd case though, but did not test. */
             }
-            unsigned int Av_multiplex = (solutions[1] - solutions[0]) / splitwidth;
+            unsigned int const Av_multiplex = (solutions[1] - solutions[0]) / splitwidth;
             for(unsigned int j = 0 ; j < nrhs ; j++) {
                 for(unsigned int i = 0 ; i < Av_multiplex ; i++) {
                     char * tmp;
-                    unsigned int s0 = solutions[0] + i * splitwidth;
-                    unsigned int s1 = solutions[0] + (i + 1) * splitwidth;
+                    unsigned int const s0 = solutions[0] + i * splitwidth;
+                    unsigned int const s1 = solutions[0] + (i + 1) * splitwidth;
                     int rc = asprintf(&tmp, "F.sols%u-%u.%u-%u.rhs", s0, s1, j, j+splitwidth);
                     if (verbose_enabled(CADO_VERBOSE_PRINT_BWC_LOADING_MKSOL_FILES)) {
                         printf("loading %s\n", tmp);
@@ -499,9 +416,9 @@ struct rhs /*{{{*/ {
     }/*}}}*/
     void fwrite_rhs_coeffs(FILE * f, unsigned int i=0) /* {{{ */
     {
-        unsigned int Av_multiplex = A->simd_groupsize() / Av->simd_groupsize();
+        unsigned int const Av_multiplex = A->simd_groupsize() / Av->simd_groupsize();
         for(unsigned int j = 0 ; j < nrhs ; j++) {
-            int rc = fwrite(
+            int const rc = fwrite(
                     Av->vec_subvec(rhscoeffs, j * Av_multiplex + i),
                     Av->elt_stride(),
                     1, f);
@@ -525,8 +442,8 @@ struct rhs /*{{{*/ {
         parallelizing_info_ptr pi = mmt.pi;
         arith_generic * A = mmt.abase;
         ASSERT_ALWAYS(y.abase == A);
-        unsigned int unpadded = MAX(mmt.n0[0], mmt.n0[1]);
-        size_t eblock = mmt_my_own_size_in_items(y);
+        unsigned int const unpadded = MAX(mmt.n0[0], mmt.n0[1]);
+        size_t const eblock = mmt_my_own_size_in_items(y);
 
         abase_proxy natural = abase_proxy::most_natural(pi);
         arith_generic * Av = natural.A.get();
@@ -535,7 +452,7 @@ struct rhs /*{{{*/ {
         mmt_vec vi(mmt,Av,Av_pi, bw->dir, /* shared ! */ 1, mmt.n[bw->dir]);
 
         for(unsigned int j = 0 ; j < nrhs ; j++) {
-            int ok = mmt_vec_load(vi, "V%u-%u.0", unpadded, j);
+            int const ok = mmt_vec_load(vi, "V%u-%u.0", unpadded, j);
             ASSERT_ALWAYS(ok);
 
             natural.templates(A)->addmul_tiny(
@@ -552,7 +469,7 @@ struct rhs /*{{{*/ {
 };
 /*}}}*/
 
-std::tuple<int, int> check_zero_and_padding(mmt_vec & y, unsigned int maxidx)/*{{{*/
+static std::tuple<int, int> check_zero_and_padding(mmt_vec & y, unsigned int maxidx)/*{{{*/
 {
 
     /* Here, we want to make sure that we have something non-zero in
@@ -573,8 +490,8 @@ std::tuple<int, int> check_zero_and_padding(mmt_vec & y, unsigned int maxidx)/*{
     size_t my_input_coordinates;
     size_t my_pad_coordinates;
     ASSERT_ALWAYS(y.d == bw->dir);
-    size_t my_i0 = y.i0 + mmt_my_own_offset_in_items(y);
-    size_t my_i1 = my_i0 + mmt_my_own_size_in_items(y);
+    size_t const my_i0 = y.i0 + mmt_my_own_offset_in_items(y);
+    size_t const my_i1 = my_i0 + mmt_my_own_size_in_items(y);
 
     if (my_i0 >= maxidx) {
         my_input_coordinates = 0;
@@ -600,7 +517,7 @@ std::tuple<int, int> check_zero_and_padding(mmt_vec & y, unsigned int maxidx)/*{
     return std::make_tuple(input_is_zero, pad_is_zero);
 }/*}}}*/
 
-std::tuple<int, int, int> test_one_vector(matmul_top_data & mmt, mmt_vector_pair & ymy, rhs const & R)
+static std::tuple<int, int, int> test_one_vector(matmul_top_data & mmt, mmt_vector_pair & ymy, rhs const & R)
 {
     arith_generic * A = mmt.abase;
     parallelizing_info_ptr pi = mmt.pi;
@@ -642,7 +559,7 @@ std::tuple<int, int, int> test_one_vector(matmul_top_data & mmt, mmt_vector_pair
 
 /* Use y_saved as input (and leave it untouched). Store result in both y
  * and my */
-std::tuple<int, int, int> expanded_test(matmul_top_data & mmt, mmt_vector_pair & ymy, mmt_vec const & y_saved, rhs const& R)
+static std::tuple<int, int, int> expanded_test(matmul_top_data & mmt, mmt_vector_pair & ymy, mmt_vec const & y_saved, rhs const& R)
 {
     parallelizing_info_ptr pi = mmt.pi;
     mmt_vec & y = ymy[0];
@@ -680,7 +597,7 @@ class parasite_fixer {/*{{{*/
 
     parasite_fixer(matmul_top_data & mmt) : mmt(mmt), A(mmt.abase), pi(mmt.pi) {/*{{{*/
         matrix = NULL;
-        int tcan_print = bw->can_print && pi->m->trank == 0;
+        int const tcan_print = bw->can_print && pi->m->trank == 0;
 
         cols = get_possibly_wrong_columns(mmt);
 
@@ -717,11 +634,11 @@ class parasite_fixer {/*{{{*/
         mmt_vec & my = ymy[ymy.size()-1];
 
         /* Now try to see which indices are potentially affected */
-        unsigned int B = A->simd_groupsize();
+        unsigned int const B = A->simd_groupsize();
         for(unsigned int jjq = 0 ; jjq < cols.size() ; jjq+=B) {
             mmt_full_vec_set_zero(y);
             for(unsigned int jjr = 0 ; jjr < B && (jjq + jjr < cols.size()) ; jjr++) {
-                unsigned int j = cols[jjq + jjr];
+                unsigned int const j = cols[jjq + jjr];
                 mmt_vec_add_basis_vector_at(y, jjr, j);
             }
             mmt_vec_apply_T(mmt, y);
@@ -790,14 +707,14 @@ class parasite_fixer {/*{{{*/
             std::vector<unsigned int> const & cols,
             arith_generic::elt * nz = NULL)/*{{{*/
     {
-        size_t nr = rows.size();
-        size_t nc = cols.size();
+        size_t const nr = rows.size();
+        size_t const nc = cols.size();
         printf("# Dump of the full matrix%s as seen by J%uT%u\n",
                 nz ? " (with coefficients of the vector encountered)" : "",
                 pi->m->jrank, pi->m->trank);
         unsigned int kk = 0;
-        unsigned int B = A->simd_groupsize();
-        unsigned int cblocks = iceildiv(nc, B);
+        unsigned int const B = A->simd_groupsize();
+        unsigned int const cblocks = iceildiv(nc, B);
         printf("#\t\t");
         for(unsigned int jj = 0 ; jj < nc ; jj++) {
             printf("[%u] ", cols[jj]);
@@ -834,15 +751,15 @@ class parasite_fixer {/*{{{*/
     void compute_pivot_list() {/*{{{*/
         if (!attempt_to_fix) return;
 
-        int tcan_print = bw->can_print && pi->m->trank == 0;
-        int leader = pi->m->jrank == 0 && pi->m->trank == 0;
+        int const tcan_print = bw->can_print && pi->m->trank == 0;
+        int const leader = pi->m->jrank == 0 && pi->m->trank == 0;
 
         rows = row_coordinates_of_nonzero_cols(mmt, cols);
 
         arith_generic * A = mmt.abase;
         arith_generic::elt * dummy = A->alloc();
 
-        int char2 = mpz_cmp_ui(bw->p, 2) == 0;
+        int const char2 = mpz_cmp_ui(bw->p, 2) == 0;
 
         /* code is similar to row_coordinates_of_nonzero_cols() */
         mmt_vector_pair ymy(mmt, bw->dir);
@@ -859,7 +776,7 @@ class parasite_fixer {/*{{{*/
         for(unsigned int ii = 0 ; ii < rows.size() ; ii++)
             srows.insert(ii);
 
-        unsigned int B = A->simd_groupsize();
+        unsigned int const B = A->simd_groupsize();
 
         matrix = A->alloc(iceildiv(cols.size(), B) * rows.size(), ALIGNMENT_ON_ALL_BWC_VECTORS);
         A->vec_set_zero(matrix, iceildiv(cols.size(), B) * rows.size());
@@ -876,7 +793,7 @@ class parasite_fixer {/*{{{*/
 
             arith_generic::elt * mat;
             arith_generic::elt ** pmat = &mat;
-            unsigned int cblocks = iceildiv(vcols.size(), B);
+            unsigned int const cblocks = iceildiv(vcols.size(), B);
             if (spin) {
                 mat = A->alloc(cblocks * vrows.size(), ALIGNMENT_ON_ALL_BWC_VECTORS);
                 A->vec_set_zero(*pmat, cblocks * vrows.size());
@@ -889,7 +806,7 @@ class parasite_fixer {/*{{{*/
             for(unsigned int jjq = 0 ; jjq < cols.size() ; jjq += B) {
                 mmt_full_vec_set_zero(y);
                 for(unsigned int jjr = 0 ; jjr < B && (jjq + jjr < vcols.size()) ; jjr++) {
-                    unsigned int j = vcols[jjq + jjr];
+                    unsigned int const j = vcols[jjq + jjr];
                     mmt_vec_add_basis_vector_at(y, jjr, j);
                 }
                 mmt_vec_apply_T(mmt, y);
@@ -925,9 +842,9 @@ class parasite_fixer {/*{{{*/
                  * are being considered within this pass.
                  */
                 const arith_generic::elt * row = A->vec_subvec(*pmat, ii * cblocks);
-                int w = A->vec_simd_hamming_weight(row, cblocks);
+                int const w = A->vec_simd_hamming_weight(row, cblocks);
                 if (w == 1) {
-                    int p = A->vec_simd_find_first_set(*dummy, row, cblocks);
+                    int const p = A->vec_simd_find_first_set(*dummy, row, cblocks);
                     if (char2) {
                         pivots[xi] = std::make_pair(vcols[p], 1);
                     } else {
@@ -951,7 +868,7 @@ class parasite_fixer {/*{{{*/
             for(auto const & pp : pivots) {
                 unsigned int xi = pp.first;
                 unsigned int j = pp.second.first;
-                int v = pp.second.second;
+                int const v = pp.second.second;
                 if (v == 2) continue;
                 if (tcan_print)
                     printf("Found pivot for row %u:"
@@ -961,7 +878,7 @@ class parasite_fixer {/*{{{*/
                 if (scols.erase(j)) {
                     drop++;
                     /* XXX colum j may have already been deleted */
-                    std::array<unsigned int, 2> xij {{ xi, j }};
+                    std::array<unsigned int, 2> const xij {{ xi, j }};
                     pivot_list.push_back({xij, v});
                 }
             }
@@ -971,7 +888,7 @@ class parasite_fixer {/*{{{*/
             if (tcan_print)
                 printf("# Pass %d: number of cols has dropped by %u. We have %zu rows (at most) and %zu columns left\n", spin, drop, srows.size(), scols.size());
             /* use this marker to indicate synchronization */
-            std::array<unsigned int, 2> xij {{ 0u, 0u }};
+            std::array<unsigned int, 2> const xij {{ 0u, 0u }};
             pivot_list.push_back({xij, 0});
         }
         if (!scols.empty()) {
@@ -1001,8 +918,8 @@ class parasite_fixer {/*{{{*/
     std::tuple<int, int, int> attempt(matmul_top_data & mmt, mmt_vector_pair & ymy, mmt_vec & y_saved, rhs const& R)/*{{{*/
     {
         mmt_vec & my = ymy[ymy.size()-1];
-        int tcan_print = bw->can_print && pi->m->trank == 0;
-        int leader = pi->m->jrank == 0 && pi->m->trank == 0;
+        int const tcan_print = bw->can_print && pi->m->trank == 0;
+        int const leader = pi->m->jrank == 0 && pi->m->trank == 0;
 
         int input_is_zero;
         int pad_is_zero;
@@ -1047,10 +964,10 @@ class parasite_fixer {/*{{{*/
         // debug_print_all_local_matrices(nz);
 
         for(auto pp : pivot_list) {
-            unsigned int ii = pp.first[0];
+            unsigned int const ii = pp.first[0];
             // unsigned int i = rows[ii];
-            unsigned int j = pp.first[1];
-            int v = pp.second;
+            unsigned int const j = pp.first[1];
+            int const v = pp.second;
             if (!v) {
                 serialize(pi->m);
                 res = expanded_test(mmt, ymy, y_saved, R);
@@ -1074,8 +991,8 @@ class parasite_fixer {/*{{{*/
              */
             ASSERT_ALWAYS(mmt_vec_is_shared(y_saved));
 
-            size_t own_i0 = y_saved.i0 + mmt_my_own_offset_in_items(y_saved);
-            size_t own_i1 = own_i0 + mmt_my_own_size_in_items(y_saved);
+            size_t const own_i0 = y_saved.i0 + mmt_my_own_offset_in_items(y_saved);
+            size_t const own_i1 = own_i0 + mmt_my_own_size_in_items(y_saved);
 
             if (own_i0 <= j && j < own_i1) {
                 arith_generic::elt & source = A->vec_item(y_saved.v, j - y_saved.i0);
@@ -1109,15 +1026,15 @@ class parasite_fixer {/*{{{*/
     }/*}}}*/
 };/*}}}*/
 
-void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED)
+static void * gather_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
     ASSERT_ALWAYS(!pi->interleaved);
 
-    int tcan_print = bw->can_print && pi->m->trank == 0;
-    int leader = pi->m->jrank == 0 && pi->m->trank == 0;
+    int const tcan_print = bw->can_print && pi->m->trank == 0;
+    int const leader = pi->m->jrank == 0 && pi->m->trank == 0;
 
     unsigned int solutions[2] = { bw->solutions[0], bw->solutions[1], };
-    int char2 = mpz_cmp_ui(bw->p, 2) == 0;
+    int const char2 = mpz_cmp_ui(bw->p, 2) == 0;
 
     /* Define and initialize our arithmetic back-ends. More or less the
      * same deal as for mksol (for the "solutions" part). See comments
@@ -1125,7 +1042,7 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
 
     /* {{{ main arithmetic backend: for the solutions we compute. */
     // unsigned int A_multiplex MAYBE_UNUSED = 1;
-    unsigned int A_width = solutions[1]-solutions[0];
+    unsigned int const A_width = solutions[1]-solutions[0];
     if ((char2 && (A_width != 64 && A_width != 128 && A_width != 256))
             || (!char2 && A_width > 1))
     {
@@ -1137,7 +1054,7 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
         exit(EXIT_FAILURE);
     }
 
-    abase_proxy abase_solutions(pi, A_width);
+    abase_proxy const abase_solutions(pi, A_width);
     arith_generic * A = abase_solutions.A.get();
 
     /* }}} */
@@ -1157,7 +1074,7 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
      * we're referring to in the naming of this variable is the one which
      * is related to the number of jobs and threads: internal dimensions
      * are arranged to be multiples */
-    unsigned int unpadded = MAX(mmt.n0[0], mmt.n0[1]);
+    unsigned int const unpadded = MAX(mmt.n0[0], mmt.n0[1]);
 
     std::vector<sfile_info> sl = prelude(pi);
     if (sl.empty()) {
@@ -1178,14 +1095,15 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
     if (tcan_print)
         printf("Trying to build solutions %u..%u\n", solutions[0], solutions[1]);
 
+    serialize(mmt.pi->m);
 
     { /* {{{ Collect now the sum of the LHS contributions */
         mmt_vec svec(mmt,0,0, bw->dir, /* shared ! */ 1, mmt.n[bw->dir]);
-        for(size_t i = 0 ; i < sl.size() ; i++) {
+        for(auto const & S : sl) {
             if (tcan_print && verbose_enabled(CADO_VERBOSE_PRINT_BWC_LOADING_MKSOL_FILES)) {
-                printf("loading %s\n", sl[i].name);
+                fmt::print("loading {}\n", S.name);
             }
-            int ok = mmt_vec_load(svec, sl[i].name_pattern, unpadded, solutions[0]);
+            int const ok = mmt_vec_load(svec, S.name_pattern, unpadded, solutions[0]);
             ASSERT_ALWAYS(ok);
 
             A->vec_add_and_reduce(
@@ -1197,7 +1115,12 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
         mmt_vec_broadcast(y);
     } /* }}} */
 
-    printf("Hamming weight of sum: %lu\n", mmt_vec_hamming_weight(y));
+    serialize(mmt.pi->m);
+
+    auto w = mmt_vec_hamming_weight(y);
+
+    if (tcan_print)
+        fmt::print("Hamming weight of sum: {}\n", w);
 
     /* Note that for the inhomogeneous case, we'll do the loop only
      * once, since we end with a break. */
@@ -1272,7 +1195,7 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
         /* {{{ save file. If input is zero, bail out */
         {
             char * tmp;
-            int rc = asprintf(&tmp, "%sK.sols%%u-%%u.%d", input_is_zero ? "zero" : "",
+            int const rc = asprintf(&tmp, "%sK.sols%%u-%%u.%d", input_is_zero ? "zero" : "",
                     i-1);
             ASSERT_ALWAYS(rc >= 0);
             mmt_vec_save(y_saved, tmp, unpadded, solutions[0]);
@@ -1291,7 +1214,7 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
                             pad_is_zero ? "also" : "NOT");
                 if (tcan_print && !pad_is_zero) {
                     char * tmp2;
-                    int rc = asprintf(&tmp2, tmp, solutions[0], solutions[1]);
+                    int const rc = asprintf(&tmp2, tmp, solutions[0], solutions[1]);
                     ASSERT_ALWAYS(rc >= 0);
                     fprintf(stderr,
                             "For reference, this useless vector (non-zero out, zero in) is stored in %s."
@@ -1313,7 +1236,7 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
         if (tcan_print) {
             char * hwinfo = NULL;
             if (hamming_out && tcan_print) {
-                int rc = asprintf(&hwinfo, ", Hamming weight is %d", hamming_out);
+                int const rc = asprintf(&hwinfo, ", Hamming weight is %d", hamming_out);
                 ASSERT_ALWAYS(rc >= 0);
             }
             if (R) {
@@ -1346,7 +1269,7 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
     /* we exit with an untwisted vector. */
 
     if (!is_zero) {
-        int nb_nonzero_coeffs=mmt_vec_hamming_weight(y);
+        int const nb_nonzero_coeffs=mmt_vec_hamming_weight(y);
         if (tcan_print) {
             printf("Solution range %u..%u: no solution found [%d non zero coefficients in result], most probably a bug\n", solutions[0], solutions[1], nb_nonzero_coeffs);
             if (nb_nonzero_coeffs < bw->n) {
@@ -1376,11 +1299,11 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
          * winning_iter==0 always.
          */
         ASSERT_ALWAYS(winning_iter == 0 || !R);
-        int splitwidth = char2 ? 64 : 1;
-        unsigned int Av_multiplex = (solutions[1] - solutions[0]) / splitwidth;
+        int const splitwidth = char2 ? 64 : 1;
+        unsigned int const Av_multiplex = (solutions[1] - solutions[0]) / splitwidth;
         for(unsigned int i = 0 ; i < Av_multiplex ; ++i) {
-            unsigned int sol0 = solutions[0] + i * splitwidth;
-            unsigned int sol1 = sol0 + splitwidth;
+            unsigned int const sol0 = solutions[0] + i * splitwidth;
+            unsigned int const sol1 = sol0 + splitwidth;
             char * tmp;
             int rc = asprintf(&tmp, "K.sols%u-%u.%u", sol0, sol1, winning_iter);
             ASSERT_ALWAYS(rc >= 0);
@@ -1414,7 +1337,7 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
                 ASSERT_ALWAYS(f2);
                 arith_generic::elt * data = A->alloc(1);
                 for(uint32_t i = 0 ; i < mmt.n0[bw->dir] ; i++) {
-                    size_t rc = fread(data, A->elt_stride() / Av_multiplex, 1, f);
+                    size_t const rc = fread(data, A->elt_stride() / Av_multiplex, 1, f);
                     ASSERT_ALWAYS(rc == 1);
                     std::ostringstream os;
                     A->cxx_out(os, *data);
@@ -1444,12 +1367,12 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
 }
 
 // coverity[root_function]
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
-    param_list pl;
+    cxx_param_list pl;
 
     bw_common_init(bw, &argc, &argv);
-    param_list_init(pl);
+
     parallelizing_info_init();
 
     bw_common_decl_usage(pl);
@@ -1486,7 +1409,7 @@ int main(int argc, char * argv[])
     pi_go(gather_prog, pl, 0);
 
     parallelizing_info_finish();
-    param_list_clear(pl);
+
     bw_common_clear(bw);
 
     return exitcode;

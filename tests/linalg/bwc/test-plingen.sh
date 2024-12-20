@@ -6,13 +6,9 @@ unset DISPLAY
 set -e
 if [ "$CADO_DEBUG" ] ; then set -x ; fi
 
-if ! [ "$WDIR" ] ; then
-    echo "Want \$WDIR" >&2
-    exit 1
-fi
-
 : ${bindir:=$PROJECT_BINARY_DIR}
-: ${bindir?missing variable}
+: ${bindir:?missing variable}
+: ${wdir:?missing}
 
 # inject the variables that were provided by guess_mpi_configs
 if [ "$mpi" ] ; then
@@ -113,7 +109,7 @@ dotest() {
     # behaviour. It would be best to change that eventually, e.g. with
     # the commented-out choices below. However that would entail changing
     # all sha1sums in the tests, and I'm lazy.
-    F="$WDIR/base"
+    F="$wdir/base"
     if [ "$ascii" ] ; then
         # The perl code below generates ascii test cases which are good
         # provided that p is small. Otherwise, the smallish coefficients
@@ -171,7 +167,7 @@ EOF
         perl -e "$code" $wordsize $m $n $((kmax/3)) $nwords $seed > $F
     fi
 
-    G="$WDIR/seq.txt"
+    G="$wdir/seq.txt"
     cat $F $F $F > $G
     rm -f $F
 
@@ -242,7 +238,7 @@ EOF
         if ! [ "$ok" ] ; then
             one_of=
             if [ ${#ok_sha[@]} -gt 1 ] ; then one_of="one of " ; fi
-            echo "$0: Got SHA1 of ${SHA1} but expected ${one_of}${REFERENCE_SHA1}${REFMSG}. Files remain in ${WDIR}" >&2
+            echo "$0: Got SHA1 of ${SHA1} but expected ${one_of}${REFERENCE_SHA1}${REFMSG}. Files remain in ${wdir}" >&2
             exit 1
         fi
         echo "$SHA1 (as expected)"

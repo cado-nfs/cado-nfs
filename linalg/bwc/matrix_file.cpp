@@ -96,7 +96,7 @@ template<> const pi_datatype_ptr bwc_pi_type<unsigned int>::value = BWC_PI_UNSIG
 template<> const pi_datatype_ptr bwc_pi_type<unsigned long>::value = BWC_PI_UNSIGNED_LONG;
 template<> const pi_datatype_ptr bwc_pi_type<unsigned long long>::value = BWC_PI_UNSIGNED_LONG_LONG;
 
-template<typename T> void bcast(parallelizing_info_ptr pi, T & s, unsigned int jrank, unsigned int trank)
+template<typename T> static void bcast(parallelizing_info_ptr pi, T & s, unsigned int jrank, unsigned int trank)
 {
     pi_bcast(&s, 1, bwc_pi_type<T>::value, jrank, trank, pi->m);
 }
@@ -109,12 +109,12 @@ template<> void bcast<bool>(parallelizing_info_ptr pi, bool & s, unsigned int jr
 }
 /* below are two overloads */
 template<typename T, size_t N> 
-void
+static void
 bcast(parallelizing_info_ptr pi, std::array<T, N> & s, unsigned int jrank, unsigned int trank)
 {
     pi_bcast(s.data(), N, bwc_pi_type<T>::value, jrank, trank, pi->m);
 }
-void bcast(parallelizing_info_ptr pi, std::string & s, unsigned int jrank, unsigned int trank)
+static void bcast(parallelizing_info_ptr pi, std::string & s, unsigned int jrank, unsigned int trank)
 {
     size_t sz = s.size();
     pi_bcast(&sz, 1, BWC_PI_SIZE_T, jrank, trank, pi->m);
@@ -124,7 +124,7 @@ void bcast(parallelizing_info_ptr pi, std::string & s, unsigned int jrank, unsig
     pi_bcast(foo.data(), sz, BWC_PI_BYTE, jrank, trank, pi->m);
     s = std::string(foo.begin(), foo.end());
 }
-template<typename T> void allreduce(parallelizing_info_ptr pi, T & s, pi_op_ptr op)
+template<typename T> static void allreduce(parallelizing_info_ptr pi, T & s, pi_op_ptr op)
 {
     pi_allreduce(NULL, &s, 1, bwc_pi_type<T>::value, op, pi->m);
 }
@@ -206,13 +206,13 @@ static inline void write32(std::ostream& os, uint32_t const & x)
 
 
 template<bool withcoeffs>
-void inner_loop(uint32_t * p, uint32_t offset, unsigned int i0, unsigned int i1, std::ifstream & RW, std::ifstream& DATA, std::ifstream& COEFFS)
+static void inner_loop(uint32_t * p, uint32_t offset, unsigned int i0, unsigned int i1, std::ifstream & RW, std::ifstream& DATA, std::ifstream& COEFFS)
 {
     /* TODO: display progress */
     p += i0 + offset * (1 + withcoeffs);
     for(unsigned int i = i0 ; i < i1 ; i++) {
-        uint32_t next_offset = read32(RW);
-        unsigned int w = *p++ = next_offset - offset;
+        uint32_t const next_offset = read32(RW);
+        unsigned int const w = *p++ = next_offset - offset;
         offset = next_offset;
         auto q = p;
         if (!withcoeffs) {
@@ -238,7 +238,7 @@ void matrix_file::read(int direction, std::string const & sanity_check_vector MA
     /* if direction=0 we need .rows .row_offsets .row_coeffs */
     /* if direction=1 we need .cols .col_offsets .col_coeffs */
 
-    int d = direction;
+    int const d = direction;
     
     require_lookup();
 
@@ -255,10 +255,10 @@ void matrix_file::read(int direction, std::string const & sanity_check_vector MA
 #pragma omp parallel
 #endif
         {
-            subdivision D(nrowcols[d], omp_get_num_threads());
+            subdivision const D(nrowcols[d], omp_get_num_threads());
 
-            unsigned int i0 = D.nth_block_start(omp_get_thread_num());
-            unsigned int i1 = D.nth_block_end(omp_get_thread_num());
+            unsigned int const i0 = D.nth_block_start(omp_get_thread_num());
+            unsigned int const i1 = D.nth_block_end(omp_get_thread_num());
 
             std::ifstream RW(rwname, std::ios::in | std::ios::binary);
             if (!RW) vanished(rwname);
@@ -288,7 +288,7 @@ void matrix_file::read(int direction, std::string const & sanity_check_vector MA
             }
         }
     } else {
-        int other = d ^ 1;
+        int const other = d ^ 1;
         /* We will read the matrix in the wrong order, but use the known
          * offsets (in the correct direction) in order to place data
          * correctly.
@@ -302,8 +302,8 @@ void matrix_file::read(int direction, std::string const & sanity_check_vector MA
         }
         std::string cwname = mfile + dotrowcol_offsets(d);
         std::string rwname = mfile + dotrowcol_offsets(other);
-        std::string dataname = mfile + dotrowcols(other);
-        std::string coeffsname = mfile + dotrowcol_coeffs(d);
+        std::string const dataname = mfile + dotrowcols(other);
+        std::string const coeffsname = mfile + dotrowcol_coeffs(d);
 
         /* We need to load all offsets in the final direction beforehand
          * because it's a transposed read.
@@ -340,7 +340,7 @@ void matrix_file::read(int direction, std::string const & sanity_check_vector MA
          * beginning-of-row markers to memory at the same time.
          */
         for(unsigned int j = 0 ; j < nrowcols[d] ; j++) {
-            uint32_t w = offsets[j + 1] - offsets[j];
+            uint32_t const w = offsets[j + 1] - offsets[j];
             offsets[j] = j + offsets[j] * (1 + withcoeffs);
             p[offsets[j]++] = w;
         }
@@ -349,11 +349,11 @@ void matrix_file::read(int direction, std::string const & sanity_check_vector MA
          * the offsets[] vector
          */
         for(unsigned int i = 0 ; i < nrowcols[other] ; i++) {
-            uint32_t next_z = read32(RW);
-            uint32_t w = next_z - z;
+            uint32_t const next_z = read32(RW);
+            uint32_t const w = next_z - z;
             z = next_z;
             for(uint32_t k = 0 ; k < w ; k++) {
-                uint32_t j = read32(DATA);
+                uint32_t const j = read32(DATA);
                 ASSERT_ALWAYS(j < nrowcols[d]);
                 p[offsets[j]++] = i;
                 if (withcoeffs)
@@ -367,7 +367,7 @@ void matrix_file::read(int direction, std::string const & sanity_check_vector MA
 void matrix_file::dump_data(std::ostream& os) const
 {
     for(auto p = begin() ; p != end() ; ) {
-        uint32_t w = *p++;
+        uint32_t const w = *p++;
         for(unsigned int i = 0 ; i < w ; i++, p += 1 + withcoeffs) {
             write32(os, bfix32(p[0]));
         }
@@ -378,7 +378,7 @@ void matrix_file::dump_offsets(std::ostream& os) const
 {
     uint32_t z = 0;
     for(auto p = begin() ; p != end() ; ) {
-        uint32_t w = *p++;
+        uint32_t const w = *p++;
         z += w;
         write32(os, bfix32(z));
         p += w;
@@ -391,7 +391,7 @@ void matrix_file::dump_coeffs(std::ostream& os) const
     if (!withcoeffs) return;
 
     for(auto p = begin() ; p != end() ; ) {
-        uint32_t w = *p++;
+        uint32_t const w = *p++;
         for(unsigned int i = 0 ; i < w ; i++, p += 1 + withcoeffs) {
             write32(os, bfix32(p[1]));
         }

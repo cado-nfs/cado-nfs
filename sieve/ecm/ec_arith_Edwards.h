@@ -1,12 +1,5 @@
-#include <stdio.h>
 #ifndef EC_ARITH_EDWARDS_H_
 #define EC_ARITH_EDWARDS_H_
-
-#ifndef mod_init
-  #error "One of the mod*_default.h headers must be included before this file"
-#endif
-
-#include "ec_arith_common.h"
 
 /* a=-1 Twisted Edwards elliptic curves
  *
@@ -19,8 +12,19 @@
  * Constant needed in computation: none
  */
 
+
+#ifndef mod_init
+#error "One of the mod*_default.h headers must be included before this file"
+#endif
+
+#include <stdio.h>
+#include "ec_arith_common.h"
 #ifdef ECM_COUNT_OPS
 #include "ec_arith_cost.h"
+#endif
+
+
+#ifdef ECM_COUNT_OPS
 static unsigned int _count_edwards_dbl, _count_edwards_dblext,
                     _count_edwards_tpl, _count_edwards_tplext,
                     _count_edwards_add, _count_edwards_addext,

@@ -5,6 +5,8 @@ if [ "$CADO_DEBUG" ] ; then
 fi
 set -e
 
+WORKDIR=${wdir:?missing}
+
 RELSD="${WORKDIR:?missing}/rels_dupsup"
 RELSR="${WORKDIR:?missing}/rels_raw"
 RELSF="${WORKDIR:?missing}/rels_filtered"

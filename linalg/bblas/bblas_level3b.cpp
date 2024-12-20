@@ -1,9 +1,12 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <cstring>
 #include <cstdint>                        // for uint64_t, UINT64_C
+
 #ifdef HAVE_SSE2
 #include <emmintrin.h>                     // for __m128i, _mm_and_si128
 #endif
+
 #include "bblas_level3b.hpp"
 #include "bblas_level3c.hpp"  // for mul_6464lt_6464_lookup4
 #include "bblas_mat64.hpp"    // for mat64
@@ -35,9 +38,9 @@ void mul_6464_6464_sse(mat64 & C, mat64 const & A, mat64 const & B)/*{{{*/
 	__m128i c = _mm_setzero_si128();
 	__m128i a = *Aw++;
 
-	__m128i one = _cado_mm_set1_epi64_c(1);
+	__m128i const one = _cado_mm_set1_epi64_c(1);
 	for (i = 0; i < 64; i++) {
-	    __m128i bw = _cado_mm_set1_epi64(B[i]);
+	    __m128i const bw = _cado_mm_set1_epi64(B[i]);
 	    // c ^= (bw & -(a & one));
             c = _mm_xor_si128(c, _mm_and_si128(bw, _mm_sub_epi64(_mm_setzero_si128(), _mm_and_si128(a, one))));
 	    a = _mm_srli_epi64(a, 1);
@@ -68,8 +71,8 @@ void addmul_6464_6464_fragment_lookup4(mat64 & C,/*{{{*/
                    unsigned int yi1)
 {
     uint64_t Bx[16][16];
-    unsigned int j0 = yi0 / 4;
-    unsigned int j1 = (yi1 + 3) / 4;
+    unsigned int const j0 = yi0 / 4;
+    unsigned int const j1 = (yi1 + 3) / 4;
     for(unsigned int j = j0 ; j < j1 ; j++) {
         const uint64_t * bb = B.data() + 4 * j;
         uint64_t w = 0;

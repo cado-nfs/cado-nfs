@@ -1,14 +1,17 @@
+#include "cado.h" // IWYU pragma: keep
+
 #define __STDCPP_MATH_SPEC_FUNCS__ 201003L
 #define __STDCPP_WANT_MATH_SPEC_FUNCS__ 1       /* for expint() */
-#include "cado.h" // IWYU pragma: keep
+
 #include <cmath>
+
 #include <vector>
 #include <sstream>
-#include "cxx_mpz.hpp"
-#include "cado_expression_parser.hpp"
 
-#include "misc.h"
+#include "cado_expression_parser.hpp"
+#include "cxx_mpz.hpp"
 #include "getprime.h"
+#include "misc.h"
 
 double nprimes_interval(double p0, double p1)
 {
@@ -28,8 +31,8 @@ std::vector<unsigned long> subdivide_primes_interval(unsigned long p0, unsigned 
 {
     std::vector<unsigned long> ret;
     ret.push_back(p0);
-    unsigned long previous = p0;
-    double total_count = nprimes_interval(p0, p1);
+    unsigned long const previous = p0;
+    double const total_count = nprimes_interval(p0, p1);
     /* by proceeding like this, we're wasting time, since p1 always
      * serves as an endpoint, so that we have a complexity which is
      * roughly n * log(p1-p0). We could have something like log(p1-p0) +
@@ -40,12 +43,12 @@ std::vector<unsigned long> subdivide_primes_interval(unsigned long p0, unsigned 
         /* find smallest p such that nprimes_interval(previous, p) >= i *
          * total_count / n ; do simple dichotomy.
          */
-        double target = i * total_count / n;
+        double const target = i * total_count / n;
         unsigned long q0 = previous;
         unsigned long q1 = p1;
         unsigned long q = previous + (p1 - previous) / (n - i);
         for( ; q > q0 ; ) {
-            double r = nprimes_interval(p0, q);
+            double const r = nprimes_interval(p0, q);
             if (r < target)
                 q0 = q;
             else
@@ -89,7 +92,7 @@ struct mpz_parser_traits {
     void set_mpz(cxx_mpz & a, cxx_mpz const & z) {
         mpz_set(a, z);
     }
-    void set_literal_power(cxx_mpz &, char, unsigned long) {
+    void set_literal_power(cxx_mpz &, std::string const&, unsigned long) {
         // never called. we could do some gymnastics to statically elide
         // this call, but that does not seem to be worth it.
     }
@@ -146,3 +149,13 @@ std::vector<std::pair<cxx_mpz, int> > trial_division(cxx_mpz const& n0, unsigned
 }
 /*}}}*/
 
+/*
+ * derived_filename as in misc.h has C linkage, so we can't have a C++
+ * overload. OTOH, only replay.c uses the C version.
+std::string derived_filename(std::string const & s, const char * what, const char * ext)
+{
+    char * p = derived_filename(s.c_str(), what, ext);
+    std::string r(p);
+    p.clear();
+}
+*/

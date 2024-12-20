@@ -147,13 +147,13 @@ class lingen_file_input : public lingen_input_wrapper_base
 
 struct lingen_random_input : public lingen_input_wrapper_base
 {
-    gmp_randstate_ptr rstate;
+    cxx_gmp_randstate & rstate;
     size_t next_src_k = 0;
     size_t length;
     lingen_random_input(matpoly::arith_hard * ab,
                         unsigned int nrows,
                         unsigned int ncols,
-                        gmp_randstate_ptr rstate,
+                        cxx_gmp_randstate & rstate,
                         size_t length)
       : lingen_input_wrapper_base(ab, nrows, ncols)
       , rstate(rstate)

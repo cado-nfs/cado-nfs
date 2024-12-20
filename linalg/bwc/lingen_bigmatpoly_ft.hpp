@@ -1,10 +1,11 @@
-#ifndef BIGMATPOLY_FT_HPP_
-#define BIGMATPOLY_FT_HPP_
+#ifndef LINGEN_BIGMATPOLY_FT_HPP_
+#define LINGEN_BIGMATPOLY_FT_HPP_
 
 #include "lingen_matpoly_ft.hpp"
 #include "lingen_bigmatpoly.hpp"
 #include "lingen_fft_select.hpp" // IWYU pragma: keep
 #include "lingen_call_companion.hpp"
+
 /*
 #ifdef LINGEN_BINARY
 struct gf2x_fake_fft_info;
@@ -33,4 +34,4 @@ extern template class bigmatpoly_ft<gf2x_ternary_fft_info>;
 extern template class bigmatpoly_ft<fft_transform_info>;
 #endif
 
-#endif	/* BIGMATPOLY_FT_HPP_ */
+#endif	/* LINGEN_BIGMATPOLY_FT_HPP_ */

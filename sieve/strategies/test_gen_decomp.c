@@ -39,8 +39,7 @@ $ gen_decomp 60 524288
   To test the function generate_all_decomp ()!!
 */
 
-int
-main (int argc, char *argv[])
+int main(int argc, char const * argv[])
 {
   unsigned long lim;
   int mfb;

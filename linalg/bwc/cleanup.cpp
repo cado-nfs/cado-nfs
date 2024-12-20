@@ -12,15 +12,15 @@
 #include "params.h"     // param_list
 #include "macros.h"
 
-void usage()
+static void usage()
 {
     fprintf(stderr, "Usage: ./cleanup -ncols <N> -out <file> <file.0> <file.1> ...\n");
 }
 // coverity[root_function]
-int main(int argc, char **argv)
+int main(int argc, char const * argv[])
 {
-    param_list pl;
-    param_list_init(pl);
+    cxx_param_list pl;
+
     /* Vectors must be *in order* !!! */
     argv++,argc--;
     unsigned int ncols = 0;
@@ -41,11 +41,11 @@ int main(int argc, char **argv)
         ASSERT_ALWAYS(ncols % 64 == 0);
 
     blockmatrix S(ncols, ncols);
-    blockmatrix ST(ncols, ncols);
+    blockmatrix const ST(ncols, ncols);
     blockmatrix T(ncols, ncols);
     S.set_identity();
     uint64_t * kzone = (uint64_t *) malloc(FLAT_BYTES_WITH_READAHEAD(ncols, ncols));
-    int limbs_per_row = iceildiv(ncols, 64);
+    int const limbs_per_row = iceildiv(ncols, 64);
 
     unsigned int common_nrows = 0;
     unsigned int nrows;
@@ -60,7 +60,7 @@ int main(int argc, char **argv)
     /* read very first file, deduce some important info about sizes */
     {
         struct stat sbuf[1];
-        int rc = stat(argv[0], sbuf);
+        int const rc = stat(argv[0], sbuf);
         if (rc < 0) { perror(argv[0]); exit(EXIT_FAILURE); }
         ASSERT_ALWAYS(sbuf->st_size % (ncols/8) == 0);
         nrows = sbuf->st_size / (ncols/8);
@@ -71,16 +71,16 @@ int main(int argc, char **argv)
     blockmatrix kprev(nrows, ncols);
     blockmatrix kfinal(nrows, ncols);
     kfinal.set_zero();
-    blockmatrix kS(nrows, ncols);
+    blockmatrix const kS(nrows, ncols);
     uint64_t * zone = (uint64_t *) malloc(FLAT_BYTES_WITH_READAHEAD(ncols, nrows));
-    int limbs_per_col = iceildiv(nrows, 64);
+    int const limbs_per_col = iceildiv(nrows, 64);
     int prevrank = ncols;
     int rank0 = 0;
 
 
     for(int i = 0 ; i < argc ; i++) {
         struct stat sbuf[1];
-        int rc = stat(argv[i], sbuf);
+        int const rc = stat(argv[i], sbuf);
         if (rc < 0) { perror(argv[i]); exit(EXIT_FAILURE); }
         ASSERT_ALWAYS(sbuf->st_size % (ncols/8) == 0);
         nrows = sbuf->st_size / (ncols/8);
@@ -97,7 +97,7 @@ int main(int argc, char **argv)
 
         blockmatrix::copy_transpose_to_flat(zone, limbs_per_col, k);
         // coverity[swapped_arguments]
-        int rank = spanned_basis(
+        int const rank = spanned_basis(
                 (mp_limb_t *) kzone,
                 (mp_limb_t *) zone,
                 ncols,
@@ -144,7 +144,7 @@ int main(int argc, char **argv)
 
     /* Oh, now we need to check the combined rank of all these */
     blockmatrix::copy_transpose_to_flat(zone, limbs_per_col, kfinal);
-    int rankf = spanned_basis(
+    int const rankf = spanned_basis(
             (mp_limb_t *) kzone,
             (mp_limb_t *) zone,
             ncols,
@@ -162,7 +162,7 @@ int main(int argc, char **argv)
     printf("%s: written %d kernel vectors\n", outfile, rankf);
     free(zone);
     free(kzone);
-    param_list_clear(pl);
+
 
     return 0;
 }

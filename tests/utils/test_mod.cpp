@@ -15,7 +15,7 @@
 #include "misc.h"
 
 template <typename T>
-T randomInteger();
+static T randomInteger();
 
 template<>
 Integer64 randomInteger<Integer64>() {
@@ -31,7 +31,7 @@ template<>
 cxx_mpz randomInteger<cxx_mpz>() {
     cxx_mpz r;
     uint64_t randomWords[10];
-    size_t len = u64_random(state) % 10 + 1;
+    size_t const len = u64_random(state) % 10 + 1;
     for (size_t i = 0; i < len; i++)
         randomWords[i] = u64_random(state);
     const bool ok = r.set(randomWords, len);
@@ -58,7 +58,7 @@ public:
     bool test_one_init(Integer n) const {
         if (!T::valid(n))
             return true;
-        Modulus m(n);
+        Modulus const m(n);
         Residue r(m);
         
         m.set1(r);
@@ -91,8 +91,8 @@ public:
     
     bool test_set(const unsigned long iter) const {
         for (unsigned long i = 0; i < iter; i++) {
-            Modulus m = randomModulus();
-            Integer a = randomInteger<Integer>();
+            Modulus const m = randomModulus();
+            Integer const a = randomInteger<Integer>();
             Residue t(m);
             m.set(t, a);
             Integer r;
@@ -100,7 +100,7 @@ public:
 
             cxx_mpz N  = modToMpz(m);
             cxx_mpz A = (cxx_mpz) a;
-            cxx_mpz R = (cxx_mpz) r;
+            cxx_mpz const R = (cxx_mpz) r;
             cxx_mpz R1;
             mpz_mod(R1, A, N);
             if (R1 != R) {
@@ -112,13 +112,13 @@ public:
     }
     
     bool test_neg() const {
-        Modulus m = randomModulus();
+        Modulus const m = randomModulus();
         Integer a, M;
         Residue r(m);
         m.neg(r, r);
         m.get(a, r);
         if (a != 0) {
-            cxx_mpz N  = modToMpz(m);
+            cxx_mpz const N  = modToMpz(m);
             std::cerr << typeid(T).name() << "::neg(0) wrong for modulus " << N << std::endl;
             return false;
         }
@@ -128,7 +128,7 @@ public:
         m.neg(r, r);
         m.get(a, r);
         if (a != M - 1) {
-            cxx_mpz N  = modToMpz(m);
+            cxx_mpz const N  = modToMpz(m);
             std::cerr << typeid(T).name() << "::neg(1) wrong for modulus " << N << std::endl;
             return false;
         }
@@ -136,7 +136,7 @@ public:
     }
 
     bool test_one_sqr(Integer i, Integer &n) const {
-        Modulus m(n);
+        Modulus const m(n);
         Residue a(m);
         Integer r;
         m.set(a, i);
@@ -154,7 +154,7 @@ public:
     }
     
     bool test_one_mul(Integer i, Integer j, Integer &n) const {
-        Modulus m(n);
+        Modulus const m(n);
         Residue a(m), b(m);
         Integer r;
         m.set(a, i);
@@ -254,8 +254,8 @@ public:
     bool test_divn(const unsigned long iter) const {
         bool ok = true;
         for (unsigned long i = 0; i < iter; i++) {
-            Modulus m = randomModulus();
-            Integer ai = randomInteger<Integer>();
+            Modulus const m = randomModulus();
+            Integer const ai = randomInteger<Integer>();
             Residue a(m);
             m.set(a, ai);
             ok &= test_one_divn(a, m);
@@ -282,7 +282,7 @@ public:
     bool test_one_pow(const Integer &base, const uint64_t *exponent, const size_t len, const Integer &n) const {
         if (!T::valid(n))
             return true;
-        Modulus m(n);
+        Modulus const m(n);
         Residue p(m), b(m);
         Integer r, e;
         cxx_mpz R;
@@ -357,13 +357,13 @@ public:
         }
 
         for (unsigned long i = 0; i < iter; i++) {
-            Modulus m = randomModulus();
-            Integer b = randomInteger<Integer>();
+            Modulus const m = randomModulus();
+            Integer const b = randomInteger<Integer>();
             m.getmod(n);
             
             const size_t maxlen = 10;
             uint64_t e2[maxlen];
-            size_t len = u64_random(state) % (maxlen - 1) + 1;
+            size_t const len = u64_random(state) % (maxlen - 1) + 1;
             for (size_t i = 0; i < len; i++)
                 e2[i] = u64_random(state);
             ok &= test_one_pow(Integer(2), e2, 1, n);
@@ -385,7 +385,7 @@ public:
         bool ok = true;
         const char *prime_str[2] = {"composite", "prime"};
         if (m.sprp2() != isPrime) {
-            cxx_mpz N = modToMpz(m);
+            cxx_mpz const N = modToMpz(m);
             std::cerr << N << " incorrectly declared " << prime_str[!isPrime] << " by " << typeid(T).name() << "::sprp2()" << std::endl;
             ok = false;
         }
@@ -394,7 +394,7 @@ public:
             Residue r(m);
             m.set(r, b);
             if (m.sprp(r) != isPrime) {
-                cxx_mpz N = modToMpz(m);
+                cxx_mpz const N = modToMpz(m);
                 std::cerr << N << " incorrectly declared " << prime_str[!isPrime] << " by " << typeid(T).name() << "::sprp(" << b << ")" << std::endl;
                 ok = false;
             }
@@ -408,7 +408,7 @@ public:
             return true;
         }
 
-        Modulus m(n);
+        Modulus const m(n);
         return test_one_sprp(m, isPrime);
     }
 
@@ -441,9 +441,9 @@ public:
     bool test_isprime(const unsigned long iter) const {
         bool ok = true;
         for (unsigned long i = 0; i < iter; i++) {
-            Modulus m = randomModulus();
+            Modulus const m = randomModulus();
             cxx_mpz M = modToMpz(m);
-            bool gmpIsPrime = mpz_probab_prime_p(M, 10);
+            bool const gmpIsPrime = mpz_probab_prime_p(M, 10);
             ok &= test_one_isprime(m, gmpIsPrime);
         }
         if (ok) {
@@ -473,7 +473,7 @@ public:
     bool test_gcd(const unsigned long iter) const {
         bool ok = true;
         
-        Modulus m = randomModulus();
+        Modulus const m = randomModulus();
         ok &= test_one_gcd(Integer(0), m);
         ok &= test_one_gcd(Integer(1), m);
         Integer a;
@@ -482,8 +482,8 @@ public:
         ok &= test_one_gcd(a - 1, m);
         
         for (unsigned long i = 0; i < iter; i++) {
-            Modulus m = randomModulus();
-            Integer a = randomInteger<Integer>();
+            Modulus const m = randomModulus();
+            Integer const a = randomInteger<Integer>();
             ok &= test_one_gcd(a, m);
         }
         if (ok) {
@@ -497,11 +497,11 @@ public:
         Integer i;
         Residue ar(m), ir(m);
         m.set(ar, a);
-        bool invExists1 = m.inv(ir, ar);
+        bool const invExists1 = m.inv(ir, ar);
         m.get(i, ir);
         
         cxx_mpz A = (cxx_mpz) a, M = modToMpz(m), I;
-        int invExists2 = mpz_invert(I, A, M);
+        int const invExists2 = mpz_invert(I, A, M);
 
         if (invExists1 != (invExists2 != 0)) {
             std::cerr << typeid(T).name() << "::inv(" << A << ", " << M << ") wrongly thinks inverse " << (invExists1 ? "exists" : "does not exist") << std::endl;
@@ -517,7 +517,7 @@ public:
     bool test_inv(const unsigned long iter) const {
         bool ok = true;
         
-        Modulus m = randomModulus();
+        Modulus const m = randomModulus();
         ok &= test_one_inv(Integer(0), m);
         ok &= test_one_inv(Integer(1), m);
         Integer a;
@@ -526,8 +526,8 @@ public:
         ok &= test_one_inv(a - 1, m);
         
         for (unsigned long i = 0; i < iter; i++) {
-            Modulus m = randomModulus();
-            Integer a = randomInteger<Integer>();
+            Modulus const m = randomModulus();
+            Integer const a = randomInteger<Integer>();
             ok &= test_one_inv(a, m);
         }
         if (ok) {
@@ -583,7 +583,7 @@ public:
         bool ok = true;
         
         for (unsigned long i_test = 0; i_test < iter; i_test++) {
-            Modulus m = randomModulus();
+            Modulus const m = randomModulus();
             Residue a[10]{m, m, m, m, m, m, m, m, m, m}; /* Shoutout to C++ */
             Residue c(m);
             for (size_t i_residue = 0; i_residue < 10; i_residue++) {
@@ -605,10 +605,10 @@ public:
         bool ok = true;
         Residue ar(m);
         m.set(ar, a);
-        int jacobi1 = m.jacobi(ar);
+        int const jacobi1 = m.jacobi(ar);
 
         cxx_mpz A = (cxx_mpz) a, M = modToMpz(m);
-        int jacobi2 = mpz_jacobi(A, M);
+        int const jacobi2 = mpz_jacobi(A, M);
 
         if (jacobi1 != jacobi2) {
             std::cerr << typeid(T).name() << "::jacobi(" << A << ", " << M << ") = " << jacobi1 << " wrong" << std::endl;
@@ -622,11 +622,11 @@ public:
         bool ok = true;
 
         if (T::valid(Integer(1))) {
-            Modulus m(Integer(1));
+            Modulus const m(Integer(1));
             ok &= test_one_jacobi(Integer(0), m);
         }
         
-        Modulus m = randomModulus(true);
+        Modulus const m = randomModulus(true);
         ok &= test_one_jacobi(Integer(0), m);
         ok &= test_one_jacobi(Integer(1), m);
         Integer a;
@@ -635,8 +635,8 @@ public:
         ok &= test_one_jacobi(a - 1, m);
         
         for (unsigned long i = 0; i < iter; i++) {
-            Modulus m = randomModulus(true);
-            Integer a = randomInteger<Integer>();
+            Modulus const m = randomModulus(true);
+            Integer const a = randomInteger<Integer>();
             ok &= test_one_jacobi(a, m);
         }
         if (ok) {
@@ -648,7 +648,7 @@ public:
     bool test_modop() const {
         Integer n;
         {
-            Modulus m = randomModulus();
+            Modulus const m = randomModulus();
             ResidueOp r(m), s(m), t(m);
             n = randomInteger<Integer>();
         
@@ -665,7 +665,7 @@ public:
         }
         n = 727;
         if (Modulus::valid(n)) {
-            Modulus m(n);
+            Modulus const m(n);
             ResidueOp r(m);
 
             r = 2;
@@ -712,7 +712,7 @@ ModulusREDC64 Tests<ModulusREDC64>::randomModulus(const bool odd MAYBE_UNUSED) c
 
 template<>
 ModulusREDC126 Tests<ModulusREDC126>::randomModulus(const bool odd MAYBE_UNUSED) const {
-    Integer128 m(u64_random(state) | 1, u64_random(state) & (UINT64_MAX >> 2));
+    Integer128 const m(u64_random(state) | 1, u64_random(state) & (UINT64_MAX >> 2));
     return ModulusREDC126(m);
 }
 
@@ -721,27 +721,28 @@ ModulusMPZ Tests<ModulusMPZ>::randomModulus(const bool odd) const {
     ModulusMPZ::Integer i = randomInteger<ModulusMPZ::Integer>();
     if (odd && mpz_even_p(i))
         i += 1;
-    ModulusMPZ m(i);
+    ModulusMPZ const m(i);
     return m;
 }
 
-int main(int argc, const char **argv) {
+int main(int argc, char const * argv[])
+{
     unsigned long iter = 100;
     bool ok = true;
   
     tests_common_cmdline(&argc, &argv, PARSE_SEED | PARSE_ITER);
     tests_common_get_iter(&iter);
 
-    Tests<Modulus64> test1;
+    Tests<Modulus64> const test1;
     ok &= test1.runTests(iter);
     
-    Tests<ModulusREDC64> test2;
+    Tests<ModulusREDC64> const test2;
     ok &= test2.runTests(iter);
     
-    Tests<ModulusREDC126> test3;
+    Tests<ModulusREDC126> const test3;
     ok &= test3.runTests(iter);
     
-    Tests<ModulusMPZ> test4;
+    Tests<ModulusMPZ> const test4;
     ok &= test4.runTests(iter);
   
     tests_common_clear();

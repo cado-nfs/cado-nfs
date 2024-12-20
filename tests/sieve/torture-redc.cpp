@@ -17,7 +17,7 @@
 /* smaller p bits are good to spot some corner cases that happen only with
  * probability 1/p
  * */
-int minimum_p_bits = 10;
+static int minimum_p_bits = 10;
 
 /*
  *
@@ -33,12 +33,12 @@ int minimum_p_bits = 10;
 // [[THEORY]]  Compute:
 // [[THEORY]]    * x/2^32 mod p as an integer in [0, p[
 
-int redc_32_preconditions(const int64_t x, const uint32_t p, const uint32_t invp)
+static int redc_32_preconditions(const int64_t x, const uint32_t p, const uint32_t invp)
 {
-    cxx_mpz xx(x);
-    cxx_mpz pp(p);
-    cxx_mpz ii(invp);
-    cxx_mpz z = ii*pp+1;
+    cxx_mpz const xx(x);
+    cxx_mpz const pp(p);
+    cxx_mpz const ii(invp);
+    cxx_mpz const z = ii*pp+1;
 
     cxx_mpz B = 1;
     B <<= 32;
@@ -54,7 +54,7 @@ int redc_32_preconditions(const int64_t x, const uint32_t p, const uint32_t invp
 }
 
 template<typename T>
-int redc_32_reference(const T x, const uint32_t p)
+static int redc_32_reference(const T x, const uint32_t p)
 {
     cxx_mpz xx(x);
     cxx_mpz pp(p);
@@ -71,12 +71,12 @@ int redc_32_reference(const T x, const uint32_t p)
 
 
 /* x is at most B*p */
-int redc_u32_preconditions(const uint64_t x, const uint32_t p, const uint32_t invp)
+static int redc_u32_preconditions(const uint64_t x, const uint32_t p, const uint32_t invp)
 {
-    cxx_mpz xx(x);
-    cxx_mpz pp(p);
-    cxx_mpz ii(invp);
-    cxx_mpz z = ii*pp+1;
+    cxx_mpz const xx(x);
+    cxx_mpz const pp(p);
+    cxx_mpz const ii(invp);
+    cxx_mpz const z = ii*pp+1;
 
     cxx_mpz B = 1;
     B <<= 32;
@@ -90,11 +90,11 @@ int redc_u32_preconditions(const uint64_t x, const uint32_t p, const uint32_t in
     return 1;
 }
 
-int redc_32_postconditions(uint32_t u, const int64_t x, const uint32_t p, const uint32_t invp MAYBE_UNUSED)
+static int redc_32_postconditions(uint32_t u, const int64_t x, const uint32_t p, const uint32_t invp MAYBE_UNUSED)
 {
-    cxx_mpz uu(u);
-    cxx_mpz xx(x);
-    cxx_mpz pp(p);
+    cxx_mpz const uu(u);
+    cxx_mpz const xx(x);
+    cxx_mpz const pp(p);
 
     cxx_mpz B = 1;
     B <<= 32;
@@ -105,11 +105,11 @@ int redc_32_postconditions(uint32_t u, const int64_t x, const uint32_t p, const 
     return 1;
 }
 
-int redc_u32_postconditions(uint32_t u, const uint64_t x, const uint32_t p, const uint32_t invp MAYBE_UNUSED)
+static int redc_u32_postconditions(uint32_t u, const uint64_t x, const uint32_t p, const uint32_t invp MAYBE_UNUSED)
 {
-    cxx_mpz uu(u);
-    cxx_mpz xx(x);
-    cxx_mpz pp(p);
+    cxx_mpz const uu(u);
+    cxx_mpz const xx(x);
+    cxx_mpz const pp(p);
 
     cxx_mpz B = 1;
     B <<= 32;
@@ -120,8 +120,9 @@ int redc_u32_postconditions(uint32_t u, const uint64_t x, const uint32_t p, cons
     return 1;
 }
 
+#if 0
 /* This version seems to be ok with 31-bit p */
-uint32_t
+static uint32_t
 ok31_redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
 {
   uint32_t t = (uint32_t)x * invp;
@@ -136,8 +137,10 @@ ok31_redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
     return 42;
   return u;
 }
+#endif
 
-inline uint32_t
+#if 0
+static inline uint32_t
 oldbuggy_redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
 {
   uint32_t t = (uint32_t) x * invp;                            /* t = x * invp mod 2^32 */
@@ -148,12 +151,13 @@ oldbuggy_redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
   if ((int32_t) t >= 0) u = t;
   return u;
 }
+#endif
 
 #if defined(GENUINE_GNUC)
 #pragma GCC optimize ("no-tree-loop-vectorize")
 #endif
 template <bool CARRY>
-int test_redc_32(gmp_randstate_t rstate, size_t N, bool check, bool signed_x = true)
+static int test_redc_32(gmp_randstate_t rstate, size_t N, bool check, bool signed_x = true)
 {
     constexpr unsigned int loops = 1024;
     constexpr int maximum_p_bits = CARRY ? 32 : 31;
@@ -169,7 +173,7 @@ int test_redc_32(gmp_randstate_t rstate, size_t N, bool check, bool signed_x = t
 
     for(size_t i = 0 ; i < N ; i++) {
         /* number of bits in [minimum_p_bits..32] */
-        size_t pbits = minimum_p_bits + gmp_urandomb_ui(rstate, minimum_p_bits) % (maximum_p_bits+1-minimum_p_bits);
+        size_t const pbits = minimum_p_bits + gmp_urandomb_ui(rstate, minimum_p_bits) % (maximum_p_bits+1-minimum_p_bits);
         cxx_mpz p;
         mpz_rrandomb(p, rstate, pbits);
         uint64_t pi = mpz_get_uint64(p);
@@ -213,7 +217,7 @@ int test_redc_32(gmp_randstate_t rstate, size_t N, bool check, bool signed_x = t
         }
     }
 
-    clock_t clk0 = clock();
+    clock_t const clk0 = clock();
 
     if (check) {
         if (signed_x) {
@@ -258,11 +262,11 @@ int test_redc_32(gmp_randstate_t rstate, size_t N, bool check, bool signed_x = t
                     fake_sum += redc_u32<CARRY>(xs[i], ps[i], ips[i]);
             }
         }
-        volatile uint32_t fake_sum_vol = fake_sum;
+        volatile uint32_t const fake_sum_vol = fake_sum;
         if (fake_sum_vol) {}
     }
 
-    clock_t clk1 = clock();
+    clock_t const clk1 = clock();
 
     if (check) {
         if (signed_x) {
@@ -310,13 +314,13 @@ int test_redc_32(gmp_randstate_t rstate, size_t N, bool check, bool signed_x = t
 }
 
 template <bool CARRY>
-int test_redc_u32(gmp_randstate_t rstate, size_t N, bool check)
+static int test_redc_u32(gmp_randstate_t rstate, size_t N, bool check)
 {
     return test_redc_32<CARRY>(rstate, N, check, false);
 }
 
 // coverity[root_function]
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     setbuf(stdout, NULL);
     setbuf(stderr, NULL);

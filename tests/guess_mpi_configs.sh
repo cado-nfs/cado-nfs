@@ -19,7 +19,7 @@
 #       ditto for exporter_mpi_extra_args and mpi_extra_args
 
 : ${bindir:=$PROJECT_BINARY_DIR}
-: ${bindir?missing variable}
+: ${bindir:?missing variable}
 
 # not sure that it makes sense to have this script distinct from bwc.pl
 
@@ -159,7 +159,11 @@ set_mpi_derived_variables()
         nnodes=1
     fi
 
-    ncores=$(egrep '^core[[:space:]]+id[[:space:]]+:' /proc/cpuinfo | sort -u | wc -l)
+    if [ -x "$build_tree/tests/hwloc_cado_helper" ] ; then
+        ncores=$("$build_tree/tests/hwloc_cado_helper" --ncores)
+    else
+        ncores=$(egrep '^core[[:space:]]+id[[:space:]]+:' /proc/cpuinfo | sort -u | wc -l)
+    fi
 
     if [ "$CI_JOB_NAME" ] && [ "$family" = openmpi ] ; then
         # we get failures similar to what is reported there

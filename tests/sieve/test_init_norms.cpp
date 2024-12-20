@@ -1,4 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstdarg> // needed by gmp_vfprintf // IWYU pragma: keep
@@ -6,30 +7,33 @@
 #include <cinttypes> /* for PRIx64 macro and strtoumax */
 #include <cmath>   // for ceiling, floor in cfrac
 #include <cfloat>
-#include <algorithm>
+#include <climits>                // INT_MAX INT_MIN
+
+#include <memory>                 // for shared_ptr, allocator_traits<>::val...
+#include <string>                 // for string, operator==
 #include <vector>
+
 #ifdef HAVE_MINGW
 #include <fcntl.h>   /* for _O_BINARY */
 #endif
-#include <climits>                // INT_MAX INT_MIN
+
 #include <gmp.h>                  // for mpz_srcptr, gmp_urandomm_ui, gmp_vf...
-#include <memory>                 // for shared_ptr, allocator_traits<>::val...
-#include <string>                 // for string, operator==
+
 #include "cado_poly.h"            // for cxx_cado_poly, cado_poly_read, cado...
 #include "cxx_mpz.hpp"            // for cxx_mpz
+#include "las-config.h"
+#include "las-norms.hpp"
 #include "las-qlattice.hpp"       // for qlattice_basis
 #include "las-siever-config.hpp"  // for siever_config
 #include "las-todo-entry.hpp"     // for las_todo_entry
-#include "mpz_poly.h"             // for mpz_poly, mpz_poly_srcptr
-#include "las-config.h"
-#include "las-norms.hpp"
-#include "rootfinder.h" // mpz_poly_roots
-#include "verbose.h"    // verbose_output_print
-#include "timing.h"     // wct_seconds
 #include "macros.h"
+#include "mpz_poly.h"             // for mpz_poly, mpz_poly_srcptr
 #include "params.h"
+#include "rootfinder.h" // mpz_poly_roots
+#include "timing.h"     // wct_seconds
+#include "verbose.h"    // verbose_output_print
 
-int adjust_strategy = 0;
+static int adjust_strategy = 0;
 
 /*{{{ stuff copied from las.cpp */
 /* Put in r the smallest legitimate special-q value that it at least
@@ -48,7 +52,7 @@ next_legitimate_specialq(mpz_t r, const mpz_t s, const unsigned long diff)
 }
 
 
-void ensure_qrange_has_prime_ideals(cxx_mpz const & q0, cxx_mpz & q1, mpz_poly_srcptr f)
+static void ensure_qrange_has_prime_ideals(cxx_mpz const & q0, cxx_mpz & q1, mpz_poly_srcptr f)
 {
     /* For random sampling, it's important that for all integers in
      * the range [q0, q1[, their nextprime() is within the range, and
@@ -130,10 +134,11 @@ static void declare_usage(cxx_param_list & pl)/*{{{*/
 }/*}}}*/
 
 // coverity[root_function]
-int main (int argc0, char *argv0[])/*{{{*/
+int main(int argc0, char const * argv0[])
+    /*{{{*/
 {
     int argc = argc0;
-    char **argv = argv0;
+    const char **argv = argv0;
 
 #ifdef HAVE_MINGW
     _fmode = _O_BINARY;     /* Binary open for all files */
@@ -178,8 +183,8 @@ int main (int argc0, char *argv0[])/*{{{*/
 
     ok = ok && param_list_parse_mpz(pl, "q0", q0);
     ok = ok && param_list_parse_int(pl, "sqside", &sqside);
-    bool okrange = ok && param_list_parse_mpz(pl, "q1", q1);
-    bool ok_qrho = ok && param_list_parse_mpz(pl, "rho", rho);
+    bool const okrange = ok && param_list_parse_mpz(pl, "q1", q1);
+    bool const ok_qrho = ok && param_list_parse_mpz(pl, "rho", rho);
     param_list_parse_int(pl, "check-bucket", &check_bucket);
     param_list_parse_int(pl, "nfills-speed-test", &nfills_speed_test);
     param_list_parse_int(pl, "random-sample", &nq_max);
@@ -275,9 +280,9 @@ int main (int argc0, char *argv0[])/*{{{*/
                 mpz_add(q, q, q0);
                 next_legitimate_specialq(q, q, 0);
                 cxx_mpz roots[MAX_DEGREE];
-                int nroots = mpz_poly_roots ((mpz_t*)roots, cpoly->pols[sqside], q, rstate);
+                int const nroots = mpz_poly_roots ((mpz_t*)roots, cpoly->pols[sqside], q, rstate);
                 if (nroots) {
-                    unsigned long i = gmp_urandomm_ui(rstate, nroots);
+                    unsigned long const i = gmp_urandomm_ui(rstate, nroots);
                     rho = roots[i];
                     break;
                 }
@@ -290,7 +295,7 @@ int main (int argc0, char *argv0[])/*{{{*/
         sieve_range_adjust Adj(doing, cpoly, config_base);
 
         /* Try strategies for adopting the sieving range */
-        int should_discard = !Adj.sieve_info_adjust_IJ();
+        int const should_discard = !Adj.sieve_info_adjust_IJ();
 
         if (should_discard) {
                 verbose_output_vfprint(0, 1, gmp_vfprintf,
@@ -351,7 +356,7 @@ int main (int argc0, char *argv0[])/*{{{*/
 
         std::shared_ptr<lognorm_base> lognorms[NCODES][2];
 
-        for(int side : sides) {
+        for(int const side : sides) {
             for(size_t c = 0 ; c < impls.size() ; c++) {
                 std::string const & s(impls[c]);
                 if (s == "reference") {
@@ -366,18 +371,18 @@ int main (int argc0, char *argv0[])/*{{{*/
             }
         }
 
-        int logI = conf.logI;
-        size_t I = 1UL << logI;
-        size_t J = Adj.J;
-        int B = 1 << LOG_BUCKET_REGION;
+        int const logI = conf.logI;
+        size_t const I = 1UL << logI;
+        size_t const J = Adj.J;
+        int const B = 1 << LOG_BUCKET_REGION;
         for(size_t c = 0 ; c < impls.size() ; c++) {
             S[c] = new unsigned char[B + MEMSET_MIN];
             memset(S[c], 0, B);
         }
 
         /* do a correctness check */
-        for(int side : sides) {
-            int N = (check_bucket >= 0) ? check_bucket : gmp_urandomm_ui(rstate, iceildiv(I*J, B));     
+        for(int const side : sides) {
+            int const N = (check_bucket >= 0) ? check_bucket : gmp_urandomm_ui(rstate, iceildiv(I*J, B));     
             for(size_t c = 0 ; c < impls.size() ; c++) {
                 lognorms[c][side]->fill(S[c], N);
                 if (c == 0) continue;
@@ -388,7 +393,7 @@ int main (int argc0, char *argv0[])/*{{{*/
                 double d1=0;
                 double d2=0;
                 for(int i = 0 ; i < B ; i++) {
-                    int d = (int) S[c][i] - (int) S[0][i];
+                    int const d = (int) S[c][i] - (int) S[0][i];
                     if (d < dmin) { dmin = d; idmin = i; }
                     if (d > dmax) { dmax = d; idmax = i; }
                     d1 += d;
@@ -422,7 +427,7 @@ int main (int argc0, char *argv0[])/*{{{*/
         /* do a speed test. Since B is essentially fixed, there's
          * no real need to make that adaptative.
          */
-        for(int side : sides) {
+        for(int const side : sides) {
             gmp_randstate_t rstate2;
 
             for(size_t c = 0 ; c < impls.size() ; c++) {
@@ -449,17 +454,17 @@ int main (int argc0, char *argv0[])/*{{{*/
     }
 
     {
-        size_t B = 1 << LOG_BUCKET_REGION;
-        size_t n = B * nq_max;
+        size_t const B = 1 << LOG_BUCKET_REGION;
+        size_t const n = B * nq_max;
         printf("\n# difference values versus %s code over %zu cells\n",
                 impls[0].c_str(),
                 n);
-        for(int side : sides) {
+        for(int const side : sides) {
             for(size_t c = 1 ; c < impls.size() ; c++) {
-                double a = (double) dd[c][side] / n;
-                int amin = ddmin[c][side];
-                int amax = ddmax[c][side];
-                double a2 = (double) dd2[c][side] / n - a*a;
+                double const a = (double) dd[c][side] / n;
+                int const amin = ddmin[c][side];
+                int const amax = ddmax[c][side];
+                double const a2 = (double) dd2[c][side] / n - a*a;
                 printf("# Side %d, %s: %.3f [%d - %d, sd %.3f]\n",
                         side,
                         impls[c].c_str(),
@@ -470,13 +475,13 @@ int main (int argc0, char *argv0[])/*{{{*/
     }
 
     if (nfills_speed_test) {
-        size_t n = nfills_speed_test * nq_max;
+        size_t const n = nfills_speed_test * nq_max;
         printf("\n# microseconds per bucket region [average over %zu fills, min-max over %d fills]\n", n, nfills_speed_test);
-        for(int side : sides) {
+        for(int const side : sides) {
             for(size_t c = 0 ; c < impls.size() ; c++) {
                 double a = tt[c][side] / nq_max;
-                double amin = ttmin[c][side] / nfills_speed_test;
-                double amax = ttmax[c][side] / nfills_speed_test;
+                double const amin = ttmin[c][side] / nfills_speed_test;
+                double const amax = ttmax[c][side] / nfills_speed_test;
                 double a2 = tt2[c][side] / nq_max - a*a;
                 a /= nfills_speed_test;
                 a2 = sqrt(a2) / nfills_speed_test;

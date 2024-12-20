@@ -4,8 +4,10 @@ TESTBENCH="$1"
 INPUTFILE="$2"
 shift 2
 
-REQUIRED_OUTPUT="`mktemp ${TMPDIR-/tmp}/ecm-ref.XXXXXXXX`"
-INPUTNUMBERS="`mktemp ${TMPDIR-/tmp}/ecm-in.XXXXXXXX`"
+TMPDIR=${wdir-/tmp}
+
+REQUIRED_OUTPUT="`mktemp ${TMPDIR}/ecm-ref.XXXXXXXX`"
+INPUTNUMBERS="`mktemp ${TMPDIR}/ecm-in.XXXXXXXX`"
 # First word on each line is the input number
 sed 's/ *#.*$//' < "${INPUTFILE}" | grep . | cut -d " " -f 1 > "${INPUTNUMBERS}" || exit 1
 # Remaining words are the required output

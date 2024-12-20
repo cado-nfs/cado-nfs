@@ -1,6 +1,13 @@
-#include "cado.h"
+#include "cado.h"       // NOLINT(misc-include-cleaner)
+
+#include <climits>
+
 #include <algorithm>
-#include <limits.h>
+#include <stdexcept>
+#include <map>
+#include <string>
+
+#include "params.h"
 #include "las-side-config.hpp"
 
 void siever_side_config::declare_usage(cxx_param_list & pl)

@@ -12,10 +12,6 @@
 
 // I don't want to look into this code, really.
 // NOLINTBEGIN
-#ifdef _POSIX_C_SOURCE
-#undef _POSIX_C_SOURCE
-#endif
-#define _POSIX_C_SOURCE 200809L
 
 #include <stdio.h>
 #include <string.h>
@@ -99,7 +95,8 @@ static void ab_cons () {
   }
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char const * argv[])
+{
   pthread_t ab_tc;
   pthread_attr_t ab_attr;
   uintptr_t cpy_ab_cptp = 0;

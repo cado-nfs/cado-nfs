@@ -4,7 +4,7 @@
 #include "test_bblas_level4.hpp"
 #include "time_bblas_common.hpp"
 
-#ifdef  HAVE_M4RI
+#ifdef HAVE_M4RI
 /* m4ri types are defined in m4ri/misc.h
  * rci_t: rows and column indices
  * wi_t: "indices for array of words that make up a row"

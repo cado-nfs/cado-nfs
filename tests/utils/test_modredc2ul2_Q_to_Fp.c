@@ -6,8 +6,7 @@
 
 #define P_LEN 128
 
-int
-main (int argc, const char *argv[])
+int main(int argc, char const * argv[])
 {
   unsigned long iter = 100000;
   tests_common_cmdline (&argc, &argv, PARSE_ITER | PARSE_VERBOSE);

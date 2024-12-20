@@ -1,23 +1,27 @@
 #include "cado.h"
-#include <sys/types.h>
-#include <unistd.h>
-#include <stdint.h>
+
+#include <cstdint>
+#include <cstdio>
+
 #include <vector>
 #include <array>
 #include <tuple>
 #include <string>
 #include <map>
-#include <stdio.h>
+#include <algorithm>
+
+#include <sys/types.h>
+#include <unistd.h>
+#if defined(HAVE_AVX512F) || defined(HAVE_AVX2) || defined(HAVE_AVX) || defined(HAVE_SSE41)
+#include <x86intrin.h>
+#endif
+
 #include "gcd.h"
 #include "macros.h"
 #include "getprime.h"
 #include "fb-types.h"
 #include "las-plattice.hpp"
 #include "fmt/format.h"
-#include <algorithm>
-#if defined(HAVE_AVX512F) || defined(HAVE_AVX2) || defined(HAVE_AVX) || defined(HAVE_SSE41)
-#include <x86intrin.h>
-#endif
 
 // see bug #30052
 #if GNUC_VERSION_ATLEAST(12,0,0) && ! GNUC_VERSION_ATLEAST(13,0,0)
@@ -26,6 +30,7 @@
 #pragma GCC diagnostic ignored "-Winit-self"
 #endif
 
+// scan-headers: stop here
 
 /* see plattice.sage */
 
@@ -231,7 +236,7 @@ struct call_simd<2> : public call_simd_base<2> {
 };
 
 template<typename T>
-inline 
+static inline 
 typename std::enable_if<T::old_interface, unsigned long>::type
 test_inner(plattice_proxy * L, test_wrap const & tw, a_test const * aa)
 {
@@ -240,7 +245,7 @@ test_inner(plattice_proxy * L, test_wrap const & tw, a_test const * aa)
 }
 
 template<typename T>
-inline 
+static inline 
 typename std::enable_if<T::old_interface, unsigned long>::type
 test_inner(plattice_proxy * L, test_wrap const & tw, a_test const * aa, const size_t M)
 {
@@ -251,18 +256,18 @@ test_inner(plattice_proxy * L, test_wrap const & tw, a_test const * aa, const si
 }
 
 template<typename T>
-inline
+static inline
 typename std::enable_if<!T::old_interface && T::batch_count == 1, unsigned long>::type
 test_inner(plattice_proxy * L, test_wrap const & tw, a_test const * aa)
 {
-    bool proj = aa->r >= aa->q;
+    bool const proj = aa->r >= aa->q;
     L->initial_basis(aa->q, proj ? (aa->r - aa->q) : aa->r, proj);
     T::call(*L, tw.I);
     return L->mi0;
 }
 
 template<typename T>
-inline
+static inline
 typename std::enable_if<!T::old_interface && T::batch_count == 1, unsigned long>::type
 test_inner(plattice_proxy * L, test_wrap const & tw, a_test const * aa, const size_t M)
 {
@@ -273,7 +278,7 @@ test_inner(plattice_proxy * L, test_wrap const & tw, a_test const * aa, const si
 }
 
 template<typename T>
-inline
+static inline
 typename std::enable_if<!T::old_interface && T::batch_count != 1, unsigned long>::type
 test_inner(plattice_proxy * L, test_wrap const & tw, a_test const * aa, size_t N = T::batch_count)
 {
@@ -282,9 +287,9 @@ test_inner(plattice_proxy * L, test_wrap const & tw, a_test const * aa, size_t N
     /* prepare the lattices for all calls. */
     for(j = 0 ; j < N ; j++) {
         // unsigned long p = tests[j].p;
-        unsigned long q = aa[j].q;
-        unsigned long r = aa[j].r;
-        bool proj = r >= q;
+        unsigned long const q = aa[j].q;
+        unsigned long const r = aa[j].r;
+        bool const proj = r >= q;
         L[j].initial_basis(q, proj ? (r-q) : r, proj);
         if (L[j].needs_special_treatment(tw.I))
             normal = false;
@@ -299,7 +304,7 @@ test_inner(plattice_proxy * L, test_wrap const & tw, a_test const * aa, size_t N
 }
 
 template<typename T>
-void test_correctness(test_wrap & tw)
+static void test_correctness(test_wrap & tw)
 {
     if (tw.nocheck) return;
     constexpr size_t N = T::batch_count;
@@ -319,7 +324,7 @@ void test_correctness(test_wrap & tw)
                 test_inner<call_simplistic>(Lref, tw, &(tests[i]), N);
                 test_inner<T>(L, tw, &(tests[i]), N);
             } else {
-                size_t M = tests.size() - i;
+                size_t const M = tests.size() - i;
                 test_inner<call_simplistic>(Lref, tw, &(tests[i]), M);
                 test_inner<T>(L, tw, &(tests[i]), M);
             }
@@ -332,63 +337,60 @@ void test_correctness(test_wrap & tw)
             }
         } catch (plattice_proxy::error const & e) {
             a_test const & aa = tests[i+j];
-            std::string c = "failed in-algorithm check";
-            std::string t = fmt::format(
-                    FMT_STRING("p^k={}^{} r={}"), aa.p, aa.k, aa.r);
-            std::string msg = fmt::format(FMT_STRING("{}: {} check for {}\n"),
-                    thiscode, c, t);
-            fputs(msg.c_str(), stderr);
+            fmt::print(stderr, "{}: failed in-algorithm check"
+                    " for p^k={}^{} r={}\n",
+                    thiscode,
+                    aa.p, aa.k, aa.r);
             if (!T::has_known_bugs) tw.failed = true;
         } catch (post_condition_error const & e) {
             if (nfailed < 16) {
                 a_test const & aa = tests[i+j];
-                std::string c = fmt::format("failed check ({})", when);
-                std::string t = fmt::format(
-                        FMT_STRING("p^k={}^{} r={}"), aa.p, aa.k, aa.r);
-                std::string msg = fmt::format(
-                        FMT_STRING("{}: {} check for {}\n"), thiscode, c, t);
-                fputs(msg.c_str(), stderr);
+                fmt::print(stderr,
+                        "{}: failed check ({}) for "
+                        "p^k={}^{} r={}\n",
+                        thiscode, when,
+                        aa.p, aa.k, aa.r);
                 if (!T::has_known_bugs) tw.failed = true;
                 if (++nfailed >= 16)
-                    fprintf(stderr, "%s: stopped reporting errors, go fix your program\n", thiscode.c_str());
+                    fmt::print(stderr, "{}:"
+                            " stopped reporting errors, go fix your program\n",
+                            thiscode);
             }
         } catch (disagreement const & e) {
             if (nfailed < 16) {
                 a_test const & aa = tests[i+j];
-                std::string t = fmt::format(
-                        FMT_STRING("p^k={}^{} r={}"), aa.p, aa.k, aa.r);
                 std::string msg = fmt::format(
-                        FMT_STRING("{}: disagreement with simplistic on {}\n"), thiscode, t);
+                        "{}: disagreement with simplistic on p^k={}^{} r={}\n",
+                        thiscode,
+                        aa.p, aa.k, aa.r);
                 msg += fmt::format(
-                        FMT_STRING("simplistic: [({}, {}), ({}, {})]\n"),
-                            Lref[j].get_i0(),
-                            Lref[j].get_j0(),
-                            Lref[j].get_i1(),
-                            Lref[j].get_j1());
+                        "simplistic: [({}, {}), ({}, {})]\n",
+                        Lref[j].get_i0(), Lref[j].get_j0(),
+                        Lref[j].get_i1(), Lref[j].get_j1());
                 msg += fmt::format(
-                        FMT_STRING("{}: [({}, {}), ({}, {})]\n"),
-                            thiscode,
-                            L[j].get_i0(),
-                            L[j].get_j0(),
-                            L[j].get_i1(),
-                            L[j].get_j1());
+                        "{}: [({}, {}), ({}, {})]\n",
+                        thiscode,
+                        L[j].get_i0(), L[j].get_j0(),
+                        L[j].get_i1(), L[j].get_j1());
                 fputs(msg.c_str(), stderr);
                 if (!T::has_known_bugs) tw.failed = true;
                 if (++nfailed >= 16)
-                    fprintf(stderr, "%s: stopped reporting errors, go fix your program\n", thiscode.c_str());
+                    fmt::print(stderr, "{}:"
+                            " stopped reporting errors, go fix your program\n",
+                            thiscode);
             }
         }
     }
 }
 
 template<typename T>
-inline
+static inline
 typename std::enable_if<T::batch_count != 1, unsigned long>::type
 test_speed(test_wrap & tw)
 {
     test_correctness<T>(tw);
     if (!tw.timing) return 0;
-    clock_t clk0 = clock();
+    clock_t const clk0 = clock();
     unsigned long dummy_local = 0;
     size_t i;
     for(i = 0 ; i + T::batch_count <= tw.tests.size() ; i += T::batch_count) {
@@ -399,36 +401,36 @@ test_speed(test_wrap & tw)
         plattice_proxy L[T::batch_count];
         dummy_local += test_inner<T>(L, tw, &tw.tests[i], tw.tests.size() - i);
     }
-    clock_t clk1 = clock();
+    clock_t const clk1 = clock();
     if (tw.timing) {
-        printf("# %s: %zu tests in %.4fs\n",
+        fmt::print("# {}: {} tests in {:.4f}s\n",
                 T::what, tw.tests.size(), ((double)(clk1-clk0))/CLOCKS_PER_SEC);
     }
     return dummy_local;
 }
 
 template<typename T>
-inline
+static inline
 typename std::enable_if<T::batch_count == 1, unsigned long>::type
 test_speed(test_wrap & tw)
 {
     test_correctness<T>(tw);
     if (!tw.timing) return 0;
-    clock_t clk0 = clock();
+    clock_t const clk0 = clock();
     unsigned long dummy_local = 0;
     for(a_test const & aa : tw.tests) {
         plattice_proxy L[T::batch_count];
         dummy_local += test_inner<T>(L, tw, &aa);
     }
-    clock_t clk1 = clock();
+    clock_t const clk1 = clock();
     if (tw.timing) {
-        printf("# %s: %zu tests in %.4fs\n",
+        fmt::print("# {}: {} tests in {:.4f}s\n",
                 T::what, tw.tests.size(), ((double)(clk1-clk0))/CLOCKS_PER_SEC);
     }
     return dummy_local;
 }
 
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     setbuf(stdout, NULL);
     setbuf(stderr, NULL);
@@ -482,7 +484,7 @@ int main(int argc, char * argv[])
     gmp_randinit_default(rstate);
     if (!seed) {
         seed = getpid();
-        if (!quiet) printf("seeding with pid = %lu\n", seed);
+        if (!quiet) fmt::print("seeding with pid = {}\n", seed);
     }
     gmp_randseed_ui(rstate, seed);
 
@@ -495,18 +497,18 @@ int main(int argc, char * argv[])
     tests.emplace_back(a_test { 1579, 1579, 1579, 1 });
 
     for( ; tw.tests.size() < ntests ; ) {
-        unsigned long j = gmp_urandomm_ui(rstate, prime_powers.size());
+        unsigned long const j = gmp_urandomm_ui(rstate, prime_powers.size());
         unsigned long p;
         int k;
         std::tie(p, k) = prime_powers[j];
         unsigned long q = 1;
         for(int s = k ; s-- ; q*=p) ;
         unsigned long r = gmp_urandomm_ui(rstate, q + q / p);
-        bool proj = r >= q;
+        bool const proj = r >= q;
         if (proj)
             r = q + p * (r - q);
 
-        a_test aa { p, q, r, k };
+        a_test const aa { p, q, r, k };
 
         tests.emplace_back(aa);
 
@@ -522,12 +524,12 @@ int main(int argc, char * argv[])
         auto jt = tests.begin();
         for(auto const & aa : tests) {
             plattice_proxy L;
-            bool proj = aa.r >= aa.q;
+            bool const proj = aa.r >= aa.q;
             L.initial_basis(aa.q, proj ? (aa.r - aa.q) : aa.r, proj);
             if (L.check_pre_conditions(tw.I)) {
                 *jt++ = aa;
             } else {
-                fprintf(stderr, "skipping out-of-range test for p^k=%lu^%d r=%lu\n", aa.p, aa.k, aa.r);
+                fmt::print(stderr, "skipping out-of-range test for p^k={}^{} r={}\n", aa.p, aa.k, aa.r);
             }
         }
         tests.erase(jt, tests.end());
@@ -577,7 +579,7 @@ int main(int argc, char * argv[])
          */
         std::map<int, unsigned long> T;
         for(auto const & aa : tests) {
-            bool proj = aa.r >= aa.q;
+            bool const proj = aa.r >= aa.q;
             plattice_proxy L;
             L.initial_basis(aa.q, proj ? (aa.r - aa.q) : aa.r, proj);
             if (L.needs_special_treatment(tw.I)) {
@@ -588,12 +590,13 @@ int main(int argc, char * argv[])
             }
         }
         for(auto & kv : stats) {
-            int k = kv.first;
-            printf("%d:", k);
-            for(auto & dn : kv.second) {
-                printf(" %s:%d", dn.first.c_str(), dn.second);
-            }
-            printf("\n");
+            fmt::print("{}: {}\n", kv.first,
+                    join(kv.second.begin(), kv.second.end(), " ",
+                        [](decltype(kv.second)::value_type const & v) {
+                        return fmt::format("{}:{}", v.first, v.second);
+                        }
+                        )
+                    );
         }
         unsigned long sumT = 0;
         for(auto const & x : T) {
@@ -601,7 +604,7 @@ int main(int argc, char * argv[])
         }
         unsigned long cumulative = 0;
         for(auto const & x : T) {
-            printf("%d: %lu (%.1f%%) (%.1f%%)\n", x.first, x.second, 100.0 * x.second / sumT, 100.0 * (cumulative += x.second) / sumT);
+            fmt::print("{}: {} ({:.1f}%%) ({:.1f}%%)\n", x.first, x.second, 100.0 * x.second / sumT, 100.0 * (cumulative += x.second) / sumT);
             if (x.first >= 16) break;
         }
     }

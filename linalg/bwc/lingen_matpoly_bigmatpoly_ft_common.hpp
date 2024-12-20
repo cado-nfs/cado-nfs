@@ -13,11 +13,10 @@
  * they're evidently already included in the two main consumers of this
  * file. */
 
-/* Use matpoly as imported from lingen_matpoly_ft.hpp */
 #include "lingen_matpoly_ft.hpp"
 #include "lingen_mul_substeps.hpp"
 #include "subdivision.hpp"
-#include "logline.h"
+#include "logline.hpp"
 
 template<typename T>
 struct OP_CTX_base {

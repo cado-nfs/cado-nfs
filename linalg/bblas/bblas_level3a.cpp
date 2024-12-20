@@ -1,5 +1,9 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <cstdint>
+
+#include <gmp.h>
+
 #include "bblas_level3a.hpp"
 #include "bblas_mat64.hpp"
 #include "gmp_aux.h"    // memfill_random
@@ -50,7 +54,7 @@ void mat64_transpose_recursive_inplace(mat64 & a)/*{{{*/
             a[k] ^= t;
             a[k | j] ^= t << j;
             */
-            uint64_t t = (a[k] >> j ^ (a[k | j])) & m;
+            uint64_t const t = (a[k] >> j ^ (a[k | j])) & m;
             a[k] ^= t << j;
             a[k | j] ^= t;
         }

@@ -11,13 +11,13 @@ indexed_relation_tmpl<Storage>::indexed_relation_tmpl(relation const & rel, renu
 {
     Storage::set_active_sides(rel.active_sides);
     for(unsigned int side_index = 0 ; side_index < 2 ; side_index++) {
-        int side = rel.active_sides[side_index];
+        int const side = rel.active_sides[side_index];
         for(auto const & pr : rel.sides[side]) {
-            p_r_values_t p = mpz_get_ui(pr.p);
+            p_r_values_t const p = mpz_get_ui(pr.p);
             p_r_values_t r = mpz_get_ui(pr.r);
             if ((int) side == rel.rational_side)
                 r = relation_compute_r(a, b, p);
-            renumber_t::p_r_side ipr { p, r, side };
+            renumber_t::p_r_side const ipr { p, r, side };
 
             if (R.is_bad(ipr)) {
                 auto ie = R.indices_from_p_a_b(ipr, pr.e, a, b);
@@ -25,7 +25,7 @@ indexed_relation_tmpl<Storage>::indexed_relation_tmpl(relation const & rel, renu
                     for(int k = ie.second[i] ; k-- ; )
                         (*this)[side_index].push_back(ie.first + i);
             } else {
-                index_t i = R.index_from_p_r(ipr);
+                index_t const i = R.index_from_p_r(ipr);
                 for(int k = pr.e ; k-- ; )
                     (*this)[side_index].push_back(i);
             }
@@ -77,7 +77,7 @@ template<typename Storage>
 std::ostream& operator<<(std::ostream& os, indexed_relation_tmpl<Storage> const & rel)
 {
 #if 0
-    os << fmt::format(FMT_STRING("{:x},{:x}"), (uint64_t) rel.a, rel.b);
+    os << fmt::format("{:x},{:x}", (uint64_t) rel.a, rel.b);
     /* this sorts the indices before printing. A priori there's no real
      * point in doing that, but just in case.
      *
@@ -92,15 +92,15 @@ std::ostream& operator<<(std::ostream& os, indexed_relation_tmpl<Storage> const 
     std::sort(S.begin(), S.end());
 
         for(auto i : S) {
-            os << c << fmt::format(FMT_STRING("{:x}"), i);
+            os << c << fmt::format("{:x}", i);
             c = ',';
         }
 #else
-    os << fmt::format(FMT_STRING("{:x},{:x}"), rel.a, rel.b);
+    os << fmt::format("{:x},{:x}", rel.a, rel.b);
     char c = ':';
     for(auto const & s : rel.containers()) {
         for(auto i : s) {
-            os << c << fmt::format(FMT_STRING("{:x}"), i);
+            os << c << fmt::format("{:x}", i);
             c = ',';
         }
     }

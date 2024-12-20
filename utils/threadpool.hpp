@@ -2,36 +2,20 @@
 #define THREADPOOL_HPP_
 
 #include <cerrno>        // for EBUSY
-#include <pthread.h>      // for pthread_cond_broadcast, pthread_cond_destroy
 #include <cstddef>       // for size_t, NULL
+
 #include <memory>         // for shared_ptr, make_shared
 #include <mutex>          // for mutex
 #include <type_traits>    // for is_base_of
 #include <vector>         // for vector
 #include <condition_variable>
+
+#include <pthread.h>      // for pthread_cond_broadcast, pthread_cond_destroy
+
 #include "macros.h"       // for ASSERT_ALWAYS
 #include "utils_cxx.hpp"  // for call_dtor, NonCopyable
+
 struct clonable_exception;
-
-
-#if 0
-/* Verbosely log all mutex and condition variable operations */
-#include <typeinfo>
-#include <verbose.h>
-#include <stdio.h>
-static inline void
-thread_log(const char *c, const char *m, const void *p)
-{
-  unsigned long id;
-  const pthread_t pid = pthread_self();
-  memcpy(&id, &pid, MIN(sizeof(id), sizeof(pid)));
-  verbose_output_print(0, 0, "Thread %lx: %s.%s(%p)\n", id, c, m, p);
-  fflush(stdout);
-}
-#define LOG do{thread_log(typeid(this).name(), __func__, this);}while(0)
-#else
-#define LOG
-#endif
 
 /* C++11 already has classes for mutex and condition_variable */
 /* All the synchronization stuff could be moved to the implementation if

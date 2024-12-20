@@ -38,14 +38,14 @@ void perm_matrix_transpose(perm_matrix_ptr x, perm_matrix_srcptr y)
 void perm_matrix_get_matrix(mat64 * qm, perm_matrix_ptr qp)
 {
     int * phi = qp->v;
-    int n = qp->n;
+    int const n = qp->n;
     ASSERT_ALWAYS((n%64)==0);
-    int nb = n/64;
+    int const nb = n/64;
     memset((void *) qm, 0, nb*nb*sizeof(mat64));
     uint64_t * qq = (uint64_t*) qm;
     for(int k = 0 ; k < n ; ) {
         for(int jq = 0 ; jq < 64 ; jq++, k++, qq++) {
-            int v = phi[k];
+            int const v = phi[k];
             ASSERT_ALWAYS(v >= 0);
             qq[v&~63]=((uint64_t)1)<<(v%64);
         }
@@ -63,7 +63,7 @@ void perm_matrixtab_complete(int * phi, uint64_t * bits, int nbits)
     for(int offset=0 ; offset < nbits ; offset+=64) {
         for(uint64_t w = bits[offset/64], z ; w ; w^=z) {
             z = w^(w&(w-1));
-            uint64_t j = cado_ctz64(w);
+            uint64_t const j = cado_ctz64(w);
             *phi++ = offset + j;
         }
     }
@@ -80,7 +80,7 @@ void pqperms_from_phi(perm_matrix_ptr p, perm_matrix_ptr q, int * phi, int m, in
     uint64_t ns[n/64]; for(int j = 0 ; j < n/64 ; j++) ns[j]=~((uint64_t)0);
     uint64_t w;
     for(int k = 0 ; k < m ; k++) {
-        int v = phi[k];
+        int const v = phi[k];
         if (v < 0) continue;
         p->v[ip++] = k; w=((uint64_t)1)<<(k%64); ms[k/64]^=w;
         q->v[jq++] = v; w=((uint64_t)1)<<(v%64); ns[v/64]^=w;

@@ -3,22 +3,21 @@
 
 #include "cado_config.h"  // for HAVE_GETRUSAGE
 #include <stdio.h>
+
+#ifdef __cplusplus
+#include <istream>      // std::istream // IWYU pragma: keep
+#include <ostream>      // std::ostream // IWYU pragma: keep
+#include <memory>
+#include <vector>
+#include <string>
+#endif
+
 #ifdef  HAVE_GETRUSAGE
 #include <sys/time.h>   // IWYU pragma: keep
 #include <sys/resource.h>       // IWYU pragma: keep
 #endif
 
-/* Length of preempt buffer. Must be a power of 2. */
-#define PREEMPT_BUF (1<<22)
-
-/* Length of one write in preempt buffer. Between 64 and 1024 Ko
-   seems best. */
-#define PREEMPT_ONE_READ (PREEMPT_BUF>>2)
-
 #ifdef __cplusplus
-extern "C" {
-#endif
-
 /* Return a unix commands list with antebuffer. Example:
  * antebuffer X file_relation1 | cat -
  * antebuffer X file_relation2.gz file_relation3.gz | gzip -dc -
@@ -27,8 +26,13 @@ extern "C" {
 
  * antebuffer_cmd is /path/to/antebuffer <X>, where <X> is an integer
  * denoting the size of the antebuffer (24 means 2^24 bytes).
-*/
-extern char ** prepare_grouped_command_lines (char ** list_of_files);
+ */
+std::vector<std::string> prepare_grouped_command_lines(std::vector<std::string> const & list_of_files);
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* Search the executable in PATH and, if found, return in real_path the
    complete path WITH the executable in the end */
@@ -71,7 +75,7 @@ extern int is_supported_compression_format(const char * s);
 extern int filename_matches_one_compression_format(const char * path);
 
 /* Put in sfx the suffix in s (can be "" or NULL) */
-extern void get_suffix_from_filename (char *s, char const **sfx);
+extern void get_suffix_from_filename (const char *s, char const **sfx);
 
 /* Takes a filename, possibly ending with any recognized compression
  * extension, and returns the associated file stream. The stream may have
@@ -104,29 +108,26 @@ extern int fclose_maybe_compressed2 (FILE * f, const char * name, struct rusage 
 #endif
 
 #ifdef __cplusplus
-#include <istream>      // std::istream // IWYU pragma: keep
-#include <ostream>      // std::ostream // IWYU pragma: keep
-#include <memory>
 class cado_pipe_streambuf;
 
 class streambase_maybe_compressed : virtual public std::ios {
-    bool pipe;
+    bool pipe = false;
     protected:
     std::unique_ptr<cado_pipe_streambuf> pbuf;
     std::unique_ptr<std::filebuf> fbuf;
-    std::streambuf * buf;
+    std::streambuf * buf = nullptr;
     std::string orig_name;
     std::string tempname;
     public:
     /* I don't think that we need a default ctor, do we ? */
-    streambase_maybe_compressed(const char * name, std::ios_base::openmode mode);
+    streambase_maybe_compressed(std::string const & name, std::ios_base::openmode mode);
     /* Note that in output mode, the file will first be created with a
      * temp name, and eventually only the dtor will move it from that
      * temp name to the final location.
      * (this behaviour might be system-dependent).
      */
     ~streambase_maybe_compressed() override;
-    void open(const char * name, std::ios_base::openmode mode);
+    void open(std::string const &, std::ios_base::openmode mode);
     void close();
     bool is_pipe() const { return pipe; }
     streambase_maybe_compressed(streambase_maybe_compressed const &) = delete;
@@ -138,11 +139,11 @@ class streambase_maybe_compressed : virtual public std::ios {
 template <class charT, class Traits = std::char_traits<charT> >
 class basic_ifstream_maybe_compressed : public streambase_maybe_compressed, public std::basic_istream<charT, Traits> {
 public:
-    explicit basic_ifstream_maybe_compressed(const char * name)
+    explicit basic_ifstream_maybe_compressed(std::string const & name)
         : streambase_maybe_compressed(name, std::ios::in)
         , std::basic_istream<charT, Traits>(buf)
     {}
-    void open(const char * name) {
+    void open(std::string const & name) {
         streambase_maybe_compressed::open(name, std::ios::in);
     }
 };
@@ -150,11 +151,11 @@ public:
 template <class charT, class Traits = std::char_traits<charT> >
 class basic_ofstream_maybe_compressed : public streambase_maybe_compressed, public std::basic_ostream<charT, Traits> {
 public:
-    explicit basic_ofstream_maybe_compressed(const char * name)
+    explicit basic_ofstream_maybe_compressed(std::string const & name)
         : streambase_maybe_compressed(name, std::ios::out)
         , std::basic_ostream<charT, Traits>(buf)
     {}
-    void open(const char * name) {
+    void open(std::string const & name) {
         streambase_maybe_compressed::open(name, std::ios::out);
     }
 };

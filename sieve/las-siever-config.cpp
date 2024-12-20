@@ -201,8 +201,8 @@ fb_factorbase::key_type siever_config::instantiate_thresholds(int side) const
 siever_config siever_config_pool::get_config_for_q(las_todo_entry const & doing) const /*{{{*/
 {
     siever_config config = base;
-    unsigned int bitsize = mpz_sizeinbase(doing.p, 2);
-    int side = doing.side;
+    unsigned int const bitsize = mpz_sizeinbase(doing.p, 2);
+    int const side = doing.side;
 
     /* Do we have a hint table with specifically tuned parameters,
      * well suited to this problem size ? */
@@ -296,7 +296,7 @@ void siever_config_pool::parse_hints_file(const char * filename)/*{{{*/
         t = strtod(x, &x); ASSERT_ALWAYS(t >= 0);
         h.expected_success = t;
         for( ; *x && isspace(*x) ; x++) ;
-        char letter MAYBE_UNUSED = *x;
+        char const letter MAYBE_UNUSED = *x;
         for( ; *x && !isdigit(*x) ; x++) ;
         z = strtoul(x, &x, 10); ASSERT_ALWAYS(z > 0);
         if (letter == 'I') {
@@ -319,7 +319,7 @@ void siever_config_pool::parse_hints_file(const char * filename)/*{{{*/
              * this means lambda */
             {
                 for( ; *x && !isdigit(*x) ; x++) ;
-                double t = strtod(x, &x); ASSERT_ALWAYS(t > 0);
+                double const t = strtod(x, &x); ASSERT_ALWAYS(t > 0);
                 if (t < 10) {
                     sc.sides[s].lambda = t;
                     sc.sides[s].mfb = t * sc.sides[s].lpb;
@@ -340,7 +340,7 @@ void siever_config_pool::parse_hints_file(const char * filename)/*{{{*/
         }
         for( ; *x ; x++) ASSERT_ALWAYS(isspace(*x));
 
-        key_type K(side, bitsize);
+        key_type const K(side, bitsize);
 
         if (hints.find(K) != hints.end()) {
             fprintf(stderr, "Error: two hints found for %d@%d\n",

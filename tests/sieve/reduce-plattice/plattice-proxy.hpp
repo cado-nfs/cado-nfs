@@ -4,6 +4,8 @@
 #include <map>
 #include "las-plattice.hpp"
 
+// scan-headers: stop here
+
 struct plattice_proxy : public plattice_info {
     /* use this default ctor only for the comparison with the reference
      * routines.

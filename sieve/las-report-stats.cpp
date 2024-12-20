@@ -21,7 +21,7 @@ void las_report::display_survivor_counters() const
     verbose_output_print(0, 2, "# survivors not_both_multiples_of_p: %lu\n", S.not_both_multiples_of_p);
     unsigned long s = S.not_both_multiples_of_p;
     for(int pside = 0 ; pside < 2 ; pside++) {
-        int side = trialdiv_first_side ^ pside;
+        int const side = trialdiv_first_side ^ pside;
         unsigned long sx = S.trial_divided_on_side[side];
         ASSERT_ALWAYS(s == sx || sx == 0);
         if (s && !sx) {

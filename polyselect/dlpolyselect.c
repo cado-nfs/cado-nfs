@@ -166,7 +166,7 @@ check_SM (mpz_poly_srcptr ff, mpz_srcptr ell)
 */
 static int
 print_nonlinear_poly_info (mpz_poly_srcptr ff, double alpha_f, mpz_poly_srcptr gg,
-                           int format,  mpz_t n, mpz_t ell)
+                           int format,  mpz_srcptr n, mpz_srcptr ell)
 {
     double skew, logmu[2], alpha_g_approx, alpha_g, score, score_approx;
     static double best_score = DBL_MAX;
@@ -181,30 +181,52 @@ print_nonlinear_poly_info (mpz_poly_srcptr ff, double alpha_f, mpz_poly_srcptr g
 
     score_approx = logmu[1] + alpha_g_approx + logmu[0] + alpha_f;
 
-    if (score_approx >= best_score + ALPHA_BOUND_GUARD)
-      return 0;
+    int better;
+
+#ifdef HAVE_OPENMP
+#pragma omp critical
+#endif
+    better = (score_approx >= best_score + ALPHA_BOUND_GUARD);
+
+    if (better)
+        return 0;
 
     /* now get a more precise alpha value */
     alpha_g = get_alpha (gg, get_alpha_bound ());
 
-    score = logmu[1] + alpha_g + logmu[0] + alpha_f;
-    if (score_approx - score > max_guard)
 #ifdef HAVE_OPENMP
 #pragma omp critical
 #endif
-      max_guard = score_approx - score;
+    {
+        score = logmu[1] + alpha_g + logmu[0] + alpha_f;
+        if (score_approx - score > max_guard)
+            max_guard = score_approx - score;
+    }
 
     double E = 0.0;
     if (opt_flag == 0)
       {
-        if (score >= best_score)
-          return 0; /* only print record scores */
+          int better;
+
+#ifdef HAVE_OPENMP
+#pragma omp critical
+#endif
+          better = (score >= best_score);
+
+          if (better)
+              return 0; /* only print record scores */
       }
     else /* optimize Murphy-E */
       {
-        if (score >= best_score + 1.0) /* the guard 1.0 seems good in
-                                          practice */
-          return 0;
+          int better;
+
+#ifdef HAVE_OPENMP
+#pragma omp critical
+#endif
+          better = (score >= best_score + 1.0); /* the guard 1.0 seems
+                                                   good in practice */
+          if (better)
+                  return 0;
 
         /* compute Murphy-E */
         cado_poly p;
@@ -218,8 +240,17 @@ print_nonlinear_poly_info (mpz_poly_srcptr ff, double alpha_f, mpz_poly_srcptr g
         E = MurphyE (p, Bf, Bg, Area, MURPHY_K, get_alpha_bound ());
         cado_poly_clear(p);
 	END_TIMER (TIMER_MURPHYE);
-        if (E <= bestE)
-            return 0;
+
+        {
+            int better;
+#ifdef HAVE_OPENMP
+#pragma omp critical
+#endif
+            better = E > bestE;
+
+            if (!better)
+                return 0;
+        }
       }
 
     /* Possibly check the number of roots mod ell of f and g, assuming that
@@ -230,12 +261,13 @@ print_nonlinear_poly_info (mpz_poly_srcptr ff, double alpha_f, mpz_poly_srcptr g
         if (! check_SM(gg, ell))
             return 0;
     }
-    bestE = E;
 
 #ifdef HAVE_OPENMP
 #pragma omp critical
 #endif
     {
+        bestE = E;
+
       if (score < best_score)
         best_score = score;
 
@@ -269,7 +301,7 @@ print_nonlinear_poly_info (mpz_poly_srcptr ff, double alpha_f, mpz_poly_srcptr g
 	      logmu[1], alpha_g, logmu[1] + alpha_g, nr);
       printf ("# f+g score %1.2f\n", score);
       if (opt_flag)
-        cado_poly_fprintf_MurphyE (stdout, E, Bf, Bg, Area, "");
+        cado_poly_fprintf_MurphyE (stdout, NULL, 1, E, Bf, Bg, Area);
 
       printf ("\n");
       fflush (stdout);
@@ -591,17 +623,21 @@ polygen_JL2 (mpz_t n,
     lognorm_f = L2_lognorm (f, skew_f);
     score_f = lognorm_f + alpha_f;
 
-    if (score_f < best_score_f)
 #ifdef HAVE_OPENMP
 #pragma omp critical
 #endif
-      best_score_f = score_f;
+    {
+        if (score_f < best_score_f)
+            best_score_f = score_f;
+    }
 
-    if (score_f > worst_score_f)
 #ifdef HAVE_OPENMP
 #pragma omp critical
 #endif
-      worst_score_f = score_f;
+    {
+        if (score_f > worst_score_f)
+            worst_score_f = score_f;
+    }
 
 #ifdef HAVE_OPENMP
 #pragma omp critical
@@ -738,8 +774,7 @@ usage ()
     exit (1);
 }
 
-int
-main (int argc, char *argv[])
+int main(int argc, char const * argv[])
 {
     int i;
     mpz_t N;

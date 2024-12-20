@@ -560,7 +560,7 @@ read_purgedfile (typerow_t **mat, const char* filename, index_t nrows,
   {
     printf("Reading sparse matrix from %s\n", filename);
     fflush(stdout);
-    char *fic[2] = {(char *) filename, NULL};
+    const char * fic[2] = {filename, NULL};
     replay_read_data_t tmp = (replay_read_data_t) {
         .mat= mat,
         .ncols = ncols,
@@ -821,7 +821,7 @@ static void declare_usage(param_list pl)
 }
 
 static void
-usage (param_list pl, char *argv0)
+usage (param_list pl, const char *argv0)
 {
     param_list_print_usage(pl, argv0, stderr);
     exit(EXIT_FAILURE);
@@ -833,10 +833,9 @@ usage (param_list pl, char *argv0)
 // M_purged that were added together to form this new row in M_small.
 // TODO: replace this index by the index to rels directly to skip one
 // indirection???
-int
-main(int argc, char *argv[])
+int main(int argc, char const * argv[])
 {
-  char * argv0 = argv[0];
+  const char * argv0 = argv[0];
   uint64_t Nmax = 0;
   uint64_t nrows, ncols;
   typerow_t **newrows;

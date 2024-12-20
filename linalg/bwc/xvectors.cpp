@@ -1,27 +1,59 @@
-#include "cado.h" // IWYU pragma: keep
-#include <cstdio>
+#include "cado.h"   // IWYU pragma: keep
+
+#include <algorithm>
 #include <cinttypes>
+#include <cstdio>
 #include <cstdlib>
 #include <fstream>
-#include <algorithm>
+
+#include "gmp_aux.h"
+#include "macros.h" // for FATAL_ERROR_CHECK
 #include "parallelizing_info.hpp"
 #include "xvectors.hpp"
-#include "macros.h"              // for FATAL_ERROR_CHECK
 
-void setup_x_random(uint32_t * xs,
-        unsigned int m, unsigned int nx, unsigned int nr,
-        parallelizing_info_ptr pi, gmp_randstate_t rstate)
+std::unique_ptr<uint32_t[]>
+setup_x_random(unsigned int m, unsigned int nx, unsigned int nr,
+               parallelizing_info_ptr pi, cxx_gmp_randstate & rstate,
+               std::vector<unsigned int> const & forced)
 {
+    std::unique_ptr<uint32_t[]> xs(new uint32_t[nx * m]);
+
+    if (forced.size() > m) {
+        fmt::print(stderr,
+                "Warning: we will place coefficients in X "
+                "to account for the {} zero columns, but we will "
+                "not be able to do so in a way that completely "
+                "the rank defect, since m={} is less than {}\n",
+                forced.size(), m, forced.size());
+    }
+
     /* Here, everybody has to agree on an array of random values. The xs
      * pointer is on the stack of each calling thread, so threads must
      * converge to a commmon point of view on the data.
      */
     // job 0 thread 0 decides for everybody.
     if (pi->m->trank == 0 && pi->m->jrank == 0) {
-        for(unsigned int i = 0 ; i < m ; i++) {
-            for(;;) {
-                for(unsigned int j = 0 ; j < nx ; j++)
-                    xs[i*nx+j] = gmp_urandomm_ui(rstate, nr);
+        /* Some parts here deserve a comment. First, we want to make sure
+         * that none of the m vectors that we generate has duplicate
+         * non-zero positions (see below).
+         * Furthermore, there's a tricky logic in actually placing the
+         * "forced" non-zero coordinates: we don't want them to appear in
+         * batches over the same vector. It's much better to spread them
+         * over several. Hence the funny transposition (i+j*m <-->
+         * i*nx+j)
+         */
+        for (bool collision = true ; collision ;) {
+            collision = false;
+            unsigned int c = 0;
+            for (unsigned int i = 0; i < m && !collision ; i++) {
+                for (unsigned int j = 0; j < nx && !collision ; j++) {
+                    if (i + j * m < forced.size()) {
+                        ASSERT_ALWAYS(c < forced.size());
+                        xs[i * nx + j] = forced[c++];
+                    } else {
+                        xs[i * nx + j] = gmp_urandomm_ui(rstate, nr);
+                    }
+                }
                 if (nx == 1)
                     break;
                 /* Make sure that there's no collision. Not that it
@@ -30,25 +62,23 @@ void setup_x_random(uint32_t * xs,
                  * it does not make a lot of sense to have duplicates,
                  * since that amounts to having nothing anyway...
                  */
-                std::sort(xs + i * nx, xs + (i + 1) * nx);
-                int collision=0;
-                for(unsigned int j = 1 ; j < nx ; j++) {
-                    if (xs[i*nx+j] == xs[i*nx+j-1]) {
-                        collision=1;
+                std::sort(xs.get() + i * nx, xs.get() + (i + 1) * nx);
+                for (unsigned int j = 1; j < nx; j++) {
+                    if (xs[i * nx + j] == xs[i * nx + j - 1]) {
+                        collision = true;
                         break;
                     }
                 }
-                if (!collision)
-                    break;
             }
         }
     }
-    pi_bcast(xs, nx * m * sizeof(uint32_t), BWC_PI_BYTE, 0, 0, pi->m);
+    pi_bcast(xs.get(), nx * m * sizeof(uint32_t), BWC_PI_BYTE, 0, 0, pi->m);
+
+    return xs;
 }
 
-std::unique_ptr<uint32_t[]>
-load_x(unsigned int m, unsigned int & nx,
-        parallelizing_info_ptr pi)
+std::unique_ptr<uint32_t[]> load_x(unsigned int m, unsigned int & nx,
+                                   parallelizing_info_ptr pi)
 {
     std::ifstream is;
 
@@ -65,11 +95,13 @@ load_x(unsigned int m, unsigned int & nx,
 #endif
     std::unique_ptr<uint32_t[]> xs(new unsigned int[nx * m]);
     if (pi->m->trank == 0 && pi->m->jrank == 0) {
-        for (unsigned int i = 0, k = 0 ; i < m; i++) {
-            for (unsigned int j = 0 ; j < nx; j++, k++) {
+        for (unsigned int i = 0, k = 0; i < m; i++) {
+            for (unsigned int j = 0; j < nx; j++, k++) {
                 is >> xs[k];
                 if (!is) {
-                    fprintf(stderr, "Short read in X, after reading data for %u rows (compared to expected %u)\n",
+                    fprintf(stderr,
+                            "Short read in X, after reading data for %u rows "
+                            "(compared to expected %u)\n",
                             i, m);
                     abort();
                 }
@@ -81,20 +113,20 @@ load_x(unsigned int m, unsigned int & nx,
     return xs;
 }
 
-std::unique_ptr<uint32_t[]>
-set_x_fake(unsigned int m, unsigned int & nx,
-        parallelizing_info_ptr pi)
+std::unique_ptr<uint32_t[]> set_x_fake(unsigned int m, unsigned int & nx,
+                                       parallelizing_info_ptr pi)
 {
     /* Don't bother. */
-    nx=3;
+    nx = 3;
     std::unique_ptr<uint32_t[]> xs(new unsigned int[nx * m]);
-    for(unsigned int i = 0 ; i < nx*m ; i++)
+    for (unsigned int i = 0; i < nx * m; i++)
         xs[i] = i;
     serialize(pi->m);
     return xs;
 }
 
-void save_x(const uint32_t * xs, unsigned int m, unsigned int nx, parallelizing_info_ptr pi)
+void save_x(uint32_t const * xs, unsigned int m, unsigned int nx,
+            parallelizing_info_ptr pi)
 {
     /* Here, we expect that the data is already available to everybody, so
      * no synchronization is necessary.
@@ -104,13 +136,13 @@ void save_x(const uint32_t * xs, unsigned int m, unsigned int nx, parallelizing_
         std::ofstream fx("X");
         FATAL_ERROR_CHECK(!fx, "Cannot open X for writing");
         fx << nx << "\n";
-        for(unsigned int i = 0 ; i < m ; i++) {
-            for(unsigned int k = 0 ; k < nx ; k++) {
-                if (k) fx << " ";
-                fx << xs[i*nx+k];
+        for (unsigned int i = 0; i < m; i++) {
+            for (unsigned int k = 0; k < nx; k++) {
+                if (k)
+                    fx << " ";
+                fx << xs[i * nx + k];
             }
             fx << "\n";
         }
     }
 }
-

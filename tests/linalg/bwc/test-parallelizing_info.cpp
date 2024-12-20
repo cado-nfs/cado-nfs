@@ -9,9 +9,9 @@
 #include "portability.h" // asprintf // IWYU pragma: keep
 #include "params.h"
 
-int verbose = 0;
+static int verbose = 0;
 
-void * test_code(parallelizing_info_ptr pi, param_list_ptr pl MAYBE_UNUSED, void * dummy MAYBE_UNUSED)
+static void * test_code(parallelizing_info_ptr pi, cxx_param_list & pl MAYBE_UNUSED, void * dummy MAYBE_UNUSED)
 {
     serialize(pi->m);
     char * report_string;
@@ -49,11 +49,11 @@ void * test_code(parallelizing_info_ptr pi, param_list_ptr pl MAYBE_UNUSED, void
 }
 
 // coverity[root_function]
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
-    char ** argv0 = argv;
+    const char ** argv0 = argv;
 
-    MPI_Init(&argc, &argv);
+    MPI_Init(&argc, (char ***) &argv);
 
     cxx_param_list pl;
 

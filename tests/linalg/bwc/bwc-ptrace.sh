@@ -101,6 +101,8 @@ rhsfile="$rhs"
 : ${interval=50}
 # : ${mm_impl=basicp}
 
+nullspace_lowercase=$(echo $nullspace | tr A-Z a-z)
+
 if ! type -p seq >/dev/null ; then
     seq() {
         first="$1"
@@ -139,6 +141,7 @@ EOF
 argument_checking() {
     case "$nullspace" in
         left|right) ;;
+        LEFT|RIGHT) ;;
         *) echo "\$nullspace must be left or right" >&2; usage;;
     esac
     if [ "$prime" != 2 ] ; then
@@ -223,7 +226,7 @@ create_test_matrix_if_needed() {
     # It's better to look for a kernel which is not trivial. Thus
     # specifying --kright for random generation is a good move prior to
     # running this script for nullspace=right
-    kside="--k$nullspace"
+    kside="--k${nullspace_lowercase}"
 
     # We only care the binary matrix, really. Nevertheless, the random
     # matrix is created as text, and later transformed to binary format.
@@ -243,12 +246,12 @@ create_test_matrix_if_needed() {
     if [ "$prime" = 2 ] ; then
         basename=$mats/t${escaped_size}
         matrix="$basename.matrix.bin"
-        rmargs+=(--k$nullspace ${random_matrix_minkernel})
+        rmargs+=(--k${nullspace_lowercase} ${random_matrix_minkernel})
         # ncols=
     elif ! [ "$nrhs" ] ; then
         basename=$mats/t${escaped_size}p
         matrix="$basename.matrix.bin"
-        rmargs+=(--k$nullspace ${random_matrix_minkernel})
+        rmargs+=(--k${nullspace_lowercase} ${random_matrix_minkernel})
         rmargs+=(-c ${random_matrix_maxcoeff})
         rmargs+=(-Z)
     else
@@ -272,7 +275,7 @@ create_test_matrix_if_needed() {
         matrix="$basename.matrix.bin"
         rhsfile="$basename.rhs.txt"
         rmargs+=(-c ${random_matrix_maxcoeff})
-        rmargs+=(rhs="$nrhs,$prime,$rhsfile")
+        rmargs+=(rhs="$nrhs,$prime,$rhsfile,${nullspace_lowercase}")
     fi
     rmargs=($nrows $ncols -s $seed "${rmargs[@]}" --freq --binary --output "$matrix")
     rwfile=${matrix%%bin}rw.bin
@@ -306,22 +309,8 @@ create_auxiliary_weight_files() {
     if [ "$prime" != 2 ] ; then withcoeffs=--withcoeffs ; fi
     case "$matrix" in
         *.txt)
-            if [ "$rhsfile" ] ; then
-                # It's really a hassle to keep the conversion code (which
-                # existed until dad7019)
-                echo "Please supply $rhs as a *binary* file, please\n" >&2
-                exit 1
-            fi
-            matrix_txt="$matrix"
-            matrix=${matrix%%txt}bin
-            rwfile=${matrix%%bin}rw.bin
-            cwfile=${matrix%%bin}cw.bin
-            if [ "$matrix" -nt "$matrix_txt" ] && [ "$rwfile" -nt "$matrix_txt" ] && [ "$cwfile" -nt "$matrix_txt" ] ; then
-                echo "Taking existing $mfile, $rwfile, $cwfile as accompanying $matrix_txt"
-            else
-                echo "Creating files $matrix, $rwfile, $cwfile from $matrix_txt"
-                $bindir/mf_scan  --ascii-in $withcoeffs --mfile $matrix_txt  --freq --binary-out --ofile $matrix
-            fi
+            echo "please convert the matrix to binary first" >&2
+            exit 1
             ;;
         *.bin)
             rwfile=${matrix%%bin}rw.bin
@@ -329,7 +318,7 @@ create_auxiliary_weight_files() {
             if [ "$rwfile" -nt "$matrix" ] && [ "$cwfile" -nt "$matrix" ] ; then
                 echo "Taking existing $rwfile, $cwfile as accompanying $matrix"
             else
-                $bindir/mf_scan  --binary-in $withcoeffs --mfile $matrix --freq
+                $bindir/mf_scan2  $withcoeffs --mfile $matrix --freq
             fi
             ;;
     esac
@@ -535,14 +524,14 @@ magma_save_matrix() { # {{{
     fi > $mdir/vectorspace.m
 
     placemats() {
-        if [ "$nullspace" = left ] ; then
+        if [ "${nullspace_lowercase}" = left ] ; then
             transpose_if_left="Transpose"
         else
             transpose_if_left=""
         fi
         cat <<-EOF
             p:=$prime;
-            nullspace:="$nullspace";
+            nullspace:="${nullspace_lowercase}";
             xtr:=func<x|$transpose_if_left(x)>;
             M:=Matrix(GF(p),Matrix (M));
             nr:=Nrows(M);
@@ -828,8 +817,12 @@ fi
 if [ "$sage" ] ; then
     cmd=/bin/true
     magma_sage_check_parameters
-    cd `dirname "$0"`
+    cd `dirname "$0"`/../..
     export PYTHONUNBUFFERED=true
+    # we want cado_sage to be accessible. Note that as we customarily run
+    # sage within a docker container, it's best if this PYTHONPATH is a
+    # relative subdirectory.
+    export PYTHONPATH=sagemath
     check_script_diagnostic_fd=1
     if [ "$FORCE_BWC_EXTERNAL_CHECKS_OUTPUT_ON_FD3" ] && (exec 1>&3) 2>&- ; then
         check_script_diagnostic_fd=3
@@ -837,12 +830,16 @@ if [ "$sage" ] ; then
     sage_args=( m=$m n=$n p=$prime
                 wdir=$wdir matrix=$matrix
                 nh=$Nh nv=$Nv
+                nullspace=$nullspace
     )
     if [ "$wordsize" != 64 ] ; then
         sage_args+=(wordsize=$wordsize)
     fi
+    if [ "$rhsfile" ] ; then
+        sage_args+=(rhs=$rhsfile)
+    fi
     if [ "$CADO_DEBUG" ] ; then set -x ; fi
     set -eo pipefail
-    "$sage" bwc.sage "${sage_args[@]}" >&${check_script_diagnostic_fd}
+    "$sage" linalg/bwc/bwc.sage "${sage_args[@]}" >&${check_script_diagnostic_fd}
     eval $old_setx
 fi

@@ -1,15 +1,22 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
 #include <cinttypes>    // for PRIu64, SCNu64
 #include <cstdint>      // for uint64_t, int32_t, int64_t, uint8_t
+
+#include <vector>
+#include <mutex>
+
 #include <pthread.h>     // for pthread_mutex_lock, pthread_mutex_unlock
 #ifdef HAVE_MINGW
 #include <fcntl.h>   /* for _O_BINARY */
 #endif
+
 #include <gmp.h>
+
 #include "bit_vector.h"  // for bit_vector_set, bit_vector, bit_vector_getbit
 #include "cado_poly.h"  // cado_poly
 #include "cxx_mpz.hpp"
@@ -22,7 +29,7 @@
 #include "params.h"
 #include "purgedfile.h" // purgedfile_read_firstline
 #include "renumber.hpp"
-#include "sm_utils.h"   // sm_side_info_clear
+#include "sm_utils.hpp"   // sm_side_info_clear
 #include "stats.h"                     // stats_data_t
 #include "timing.h"      // for wct_seconds
 #include "typedefs.h"    // for ideal_merge_t, index_t, weight_t, PRid, prime_t
@@ -30,11 +37,11 @@
 
 #define DEBUG 0
 
-stats_data_t stats; /* struct for printing progress */
+static stats_data_t stats; /* struct for printing progress */
 
 /*********************** mutex for multi threaded version ********************/
 /* used as mutual exclusion lock for reading the status of logarithms */
-pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+static std::mutex lock;
 
 /**** Relations structure used for computing the logarithms from the rels ****/
 typedef struct
@@ -106,7 +113,7 @@ struct logtab
     int nbsm;
     cxx_mpz ell;
     cado_poly_srcptr cpoly;
-    sm_side_info *sm_info;
+    std::vector<sm_side_info> const & sm_info;
     private:
     mp_limb_t * data;
     public:
@@ -210,17 +217,17 @@ struct logtab
     uint64_t smlog_index(int side, int idx_sm) const {
         uint64_t h = nprimes;
         for(int i = 0 ; i < side ; i++) {
-            h += sm_info[i]->nsm;
+            h += sm_info[i].nsm;
         }
         return h + idx_sm;
     }
     public:
     bool is_zero(uint64_t h) const {
-        mpz_ro_accessor z = (*this)[h];
+        mpz_ro_accessor const z = (*this)[h];
         return mpz_cmp_ui ((mpz_srcptr) z, 0) == 0;
     }
     bool is_known(uint64_t h) const {
-        mpz_ro_accessor z = (*this)[h];
+        mpz_ro_accessor const z = (*this)[h];
         return mpz_cmp ((mpz_srcptr) z, ell) < 0;
     }
     mpz_ro_accessor operator[](uint64_t h) const {
@@ -243,7 +250,7 @@ struct logtab
         mpn_copyi(p, v->_mp_d, mpz_size(v));
     }
 
-    logtab(cado_poly_srcptr cpoly, sm_side_info * sm_info, uint64_t nprimes, mpz_srcptr ell)
+    logtab(cado_poly_srcptr cpoly, std::vector<sm_side_info> const & sm_info, uint64_t nprimes, mpz_srcptr ell)
         : nprimes(nprimes)
           , cpoly(cpoly)
           , sm_info(sm_info)
@@ -252,7 +259,7 @@ struct logtab
         nknown = 0;
         nbsm = 0;
         for(int side = 0 ; side < cpoly->nb_polys ; side++) {
-            nbsm += sm_info[side]->nsm;
+            nbsm += sm_info[side].nsm;
         }
         data = (mp_limb_t *) malloc((nprimes + nbsm) * mpz_size(ell) * sizeof(mp_limb_t));
         FATAL_ERROR_CHECK(data == NULL, "Cannot allocate memory");
@@ -270,10 +277,11 @@ struct read_data
   logtab & log;
   uint64_t nrels;
   cado_poly_ptr cpoly;
-  sm_side_info *sm_info;
+  std::vector<sm_side_info> const & sm_info;
   renumber_t & renum_tab;
   read_data(logtab & log, uint64_t nrels,
-          cado_poly_ptr cpoly, sm_side_info *sm_info,
+          cado_poly_ptr cpoly,
+          std::vector<sm_side_info> const & sm_info,
           renumber_t & renum_tab)
       : log(log)
       , nrels(nrels)
@@ -294,21 +302,21 @@ struct read_data
 /* number of SM that must be used. */
 
 /* Callback function called by filter_rels in compute_log_from_rels */
-void *
+static void *
 thread_sm (void * context_data, earlyparsed_relation_ptr rel)
 {
     read_data & data = * (read_data *) context_data;
     log_rel_t *lrel = &(data.rels[rel->num]);
 
     mpz_ptr l = lrel->log_known_part;
-    int64_t a = rel->a;
-    uint64_t b = rel->b;
+    int64_t const a = rel->a;
+    uint64_t const b = rel->b;
 
     uint64_t nonvoidside = 0; /* bit vector of which sides appear in the rel */
     if (data.cpoly->nb_polys > 2) {
         for (weight_t i = 0; i < rel->nb; i++) {
-          index_t h = rel->primes[i].h;
-          int side = data.renum_tab.p_r_from_index(h).side;
+          index_t const h = rel->primes[i].h;
+          int const side = data.renum_tab.p_r_from_index(h).side;
           nonvoidside |= ((uint64_t) 1) << side;
         }
         /* nonvoidside must *not* be a power of two. If it is, then we
@@ -330,31 +338,31 @@ thread_sm (void * context_data, earlyparsed_relation_ptr rel)
          */
         int c = 0;
         for(int side = 0 ; side < data.cpoly->nb_polys ; side++) {
-            sm_side_info_srcptr S = data.sm_info[side];
-            if (S->nsm > 0 && (nonvoidside & (((uint64_t) 1) << side))) {
+            sm_side_info const & S = data.sm_info[side];
+            if (S.nsm > 0 && (nonvoidside & (((uint64_t) 1) << side))) {
 #define xxxDOUBLECHECK_SM
 #ifdef DOUBLECHECK_SM
                 /* I doubt that this is really compatible with our
                  * changes in the SM mode.
                  */
                 mpz_poly u;
-                mpz_poly_init(u, MAX(1, S->f->deg-1));
+                mpz_poly_init(u, MAX(1, S.f->deg-1));
                 mpz_poly_setcoeff_int64(u, 0, a);
                 mpz_poly_setcoeff_int64(u, 1, -b);
                 compute_sm_piecewise(u, u, S);
-                ASSERT_ALWAYS(u->deg < S->f->deg);
-                ASSERT_ALWAYS(u->deg == S->f->deg - 1);
-                for(int i = 0 ; i < S->nsm; i++) {
-                    if (S->mode == SM_MODE_LEGACY_PRE2018)
-                        ASSERT_ALWAYS(mpz_cmp(u->coeff[S->f->deg-1-i],rel->sm[c + i
+                ASSERT_ALWAYS(u->deg < S.f->deg);
+                ASSERT_ALWAYS(u->deg == S.f->deg - 1);
+                for(int i = 0 ; i < S.nsm; i++) {
+                    if (S.mode == SM_MODE_LEGACY_PRE2018)
+                        ASSERT_ALWAYS(mpz_cmp(u->coeff[S.f->deg-1-i],rel->sm[c + i
 ]) == 0);
                     else
                         ASSERT_ALWAYS(mpz_cmp(u->coeff[i],rel->sm[c + i]) == 0);
                 }
 
 #endif
-                ASSERT_ALWAYS(c + S->nsm <= rel->sm_size);
-                for(int i = 0 ; i < S->nsm ; i++, c++) {
+                ASSERT_ALWAYS(c + S.nsm <= rel->sm_size);
+                for(int i = 0 ; i < S.nsm ; i++, c++) {
                     mpz_addmul(l, data.log.smlog(side, i), rel->sm[c]);
                 }
                 mpz_mod(l, l, data.log.ell);
@@ -366,25 +374,22 @@ thread_sm (void * context_data, earlyparsed_relation_ptr rel)
     } else {
         mpz_srcptr ell = data.log.ell;
         for(int side = 0 ; side < data.cpoly->nb_polys ; side++) {
-            sm_side_info_srcptr S = data.sm_info[side];
-            if (S->nsm > 0 && (nonvoidside & (((uint64_t) 1) << side))) {
-                mpz_poly u;
-                mpz_poly_init(u, MAX(1, S->f->deg-1));
-                mpz_poly_setcoeff_int64(u, 0, a);
-                mpz_poly_setcoeff_int64(u, 1, -b);
-                compute_sm_piecewise(u, u, S);
-                ASSERT_ALWAYS(u->deg < S->f->deg);
-                if (S->mode == SM_MODE_LEGACY_PRE2018) {
-                    for(int i = S->f->deg-1-u->deg; i < S->nsm; i++) {
-                        mpz_addmul (l, data.log.smlog(side, i), mpz_poly_coeff_const(u, S->f->deg-1-i));
+            sm_side_info const & S = data.sm_info[side];
+            if (S.nsm > 0 && (nonvoidside & (((uint64_t) 1) << side))) {
+                cxx_mpz_poly u;
+                mpz_poly_set_ab(u, a, b);
+                S.compute_piecewise(u, u);
+                ASSERT_ALWAYS(u->deg < S.f->deg);
+                if (S.mode == SM_MODE_LEGACY_PRE2018) {
+                    for(int i = S.f->deg-1-u->deg; i < S.nsm; i++) {
+                        mpz_addmul (l, data.log.smlog(side, i), mpz_poly_coeff_const(u, S.f->deg-1-i));
                     }
                 } else {
-                    for(int i = 0; i < S->nsm; i++) {
+                    for(int i = 0; i < S.nsm; i++) {
                         mpz_addmul (l, data.log.smlog(side, i), mpz_poly_coeff_const(u, i));
                     }
                 }
                 mpz_mod(l, l, ell);
-                mpz_poly_clear(u);
             }
         }
     }
@@ -394,7 +399,7 @@ thread_sm (void * context_data, earlyparsed_relation_ptr rel)
 
 /****************** Computation of missing logarithms ************************/
 /* Callback function called by filter_rels in compute_log_from_rels */
-void *
+static void *
 thread_insert (void * context_data, earlyparsed_relation_ptr rel)
 {
   read_data & data = * (read_data *) context_data;
@@ -404,8 +409,8 @@ thread_insert (void * context_data, earlyparsed_relation_ptr rel)
   int c = 0;
   for (unsigned int i = 0; i < rel->nb; i++)
   {
-    index_t h = rel->primes[i].h;
-    exponent_t e = rel->primes[i].e;
+    index_t const h = rel->primes[i].h;
+    exponent_t const e = rel->primes[i].e;
 
     if (data.log.is_known(h)) {
       mpz_addmul_si (lrel->log_known_part, data.log[h], e);
@@ -434,9 +439,11 @@ nb_unknown_log (read_data & data, uint64_t i)
   int c = 0;
   for (j = 0, k = 0; k < len; k++)
   {
-    pthread_mutex_lock (&lock);
-    bool known = data.log.is_known(p[k].id);
-    pthread_mutex_unlock (&lock);
+      bool known;
+      {
+          std::lock_guard<std::mutex> dummy(lock);
+          known = data.log.is_known(p[k].id);
+      }
 
     if (!known) {
       if (j != k)
@@ -462,14 +469,13 @@ static inline unsigned int
 compute_missing_log (logtab::mpz_rw_accessor dest, mpz_t vlog, int32_t e, mpz_t ell)
 {
   unsigned int ret;
-  mpz_t tmp;
-  mpz_init_set_si (tmp, e);
+  cxx_mpz tmp = e;
   mpz_invert (tmp, tmp, ell);
   mpz_neg (vlog, vlog);
   mpz_mul (vlog, vlog, tmp);
   mpz_mod (tmp, vlog, ell);
 
-  pthread_mutex_lock (&lock);
+  std::lock_guard<std::mutex> dummy(lock);
   if (dest.is_known()) {
       // log was already computed by another thread
       ret = 0;
@@ -477,9 +483,7 @@ compute_missing_log (logtab::mpz_rw_accessor dest, mpz_t vlog, int32_t e, mpz_t 
       dest = tmp;
       ret = 1;
   }
-  pthread_mutex_unlock (&lock);
 
-  mpz_clear (tmp);
   return ret;
 }
 
@@ -495,7 +499,7 @@ log_do_one_part_of_iter (read_data & data, bit_vector not_used, uint64_t start,
   {
     if (bit_vector_getbit(not_used, (size_t) i))
     {
-      weight_t nb = nb_unknown_log (data, i);
+      weight_t const nb = nb_unknown_log (data, i);
       if (nb <= 1)
       {
         bit_vector_clearbit(not_used, (size_t) i);
@@ -508,7 +512,7 @@ log_do_one_part_of_iter (read_data & data, bit_vector not_used, uint64_t start,
         }
         else if (nb == 1)
         {
-          ideal_merge_t ideal = data.rels[i].unknown[0];
+          ideal_merge_t const ideal = data.rels[i].unknown[0];
           computed +=
              compute_missing_log (data.log[ideal.id], vlog, ideal.e,
                                   data.log.ell);
@@ -542,7 +546,7 @@ typedef struct
 
 #define GRAPH_DEP_IS_LOG_UNKNOWN(G, h) (G.tab[h].state == NODE_DEP_LOG_UNKNOWN)
 
-graph_dep_t
+static graph_dep_t
 graph_dep_init (uint64_t size)
 {
   node_dep_t *tab = NULL;
@@ -552,14 +556,14 @@ graph_dep_init (uint64_t size)
   return (graph_dep_t) {.size = size, .tab = tab};
 }
 
-void
+static void
 graph_dep_clear (graph_dep_t G)
 {
   free(G.tab);
 }
 
 /* Set G[h].state accordingly to log[h] values */
-void
+static void
 graph_dep_set_log_already_known (graph_dep_t G, logtab const & log)
 {
   for (uint64_t h = 0; h < log.nprimes; h++)
@@ -569,7 +573,7 @@ graph_dep_set_log_already_known (graph_dep_t G, logtab const & log)
   }
 }
 
-uint64_t
+static uint64_t
 graph_dep_needed_rels_from_index (graph_dep_t G, index_t h, light_rels_t rels,
                                   bit_vector needed_rels)
 {
@@ -590,10 +594,10 @@ graph_dep_needed_rels_from_index (graph_dep_t G, index_t h, light_rels_t rels,
   }
   else
   {
-    uint64_t relnum = G.tab[h].i;
+    uint64_t const relnum = G.tab[h].i;
     bit_vector_setbit (needed_rels, relnum);
     uint64_t nadded = 1;
-    weight_t nb_needed = rels[relnum].len;
+    weight_t const nb_needed = rels[relnum].len;
 
 #if DEBUG >= 1
     fprintf (stderr, "DEBUG: h = %" PRid " can be reconstructed\n", h);
@@ -603,7 +607,7 @@ graph_dep_needed_rels_from_index (graph_dep_t G, index_t h, light_rels_t rels,
 
     for (weight_t j = 0; j < nb_needed; j++)
     {
-      index_t hh = rels[relnum].needed[j];
+      index_t const hh = rels[relnum].needed[j];
       if (!bit_vector_getbit (needed_rels, G.tab[hh].i))
       {
         nadded += graph_dep_needed_rels_from_index (G, hh, rels, needed_rels);
@@ -622,17 +626,17 @@ struct dep_read_data
 };
 
 /* Callback function called by filter_rels in compute_needed_rels */
-void *
+static void *
 dep_thread_insert (void * context_data, earlyparsed_relation_ptr rel)
 {
-  dep_read_data & data = * (dep_read_data *) context_data;
+  dep_read_data  const& data = * (dep_read_data *) context_data;
   light_rels_t lrel = &(data.rels[rel->num]);
   unsigned int next = 0;
   index_t buf[REL_MAX_SIZE];
 
   for (unsigned int i = 0; i < rel->nb; i++)
   {
-    index_t h = rel->primes[i].h;
+    index_t const h = rel->primes[i].h;
     if (GRAPH_DEP_IS_LOG_UNKNOWN(data.G, h))
       buf[next++] = h;
   }
@@ -655,11 +659,13 @@ dep_nb_unknown_log (dep_read_data & data, uint64_t i, index_t *h)
 
   for (nb = 0, k = 0; k < data.rels[i].len; k++)
   {
-    pthread_mutex_lock (&lock);
-    int unknow = GRAPH_DEP_IS_LOG_UNKNOWN (data.G, p[k]);
-    pthread_mutex_unlock (&lock);
+    int unknown;
+    {
+        std::lock_guard<std::mutex> dummy(lock);
+        unknown = GRAPH_DEP_IS_LOG_UNKNOWN (data.G, p[k]);
+    }
 
-    if (unknow) // we do not know the log if this ideal
+    if (unknown) // we do not know the log if this ideal
     {
       nb++;
       *h = p[k];
@@ -681,7 +687,7 @@ dep_do_one_part_of_iter (dep_read_data & data, bit_vector not_used,
     if (bit_vector_getbit(not_used, (size_t) i))
     {
       index_t h = 0; // Placate gcc
-      weight_t nb = dep_nb_unknown_log(data, i, &h);
+      weight_t const nb = dep_nb_unknown_log(data, i, &h);
       if (nb <= 1)
       {
         bit_vector_clearbit(not_used, (size_t) i);
@@ -712,12 +718,12 @@ typedef struct {
   int version; /* 0 means call dep_* , 1 means call log_* */
 } thread_info;
 
-void * thread_start(void *arg)
+static void * thread_start(void *arg)
 {
   thread_info *ti = (thread_info *) arg;
   bit_vector_ptr not_used = ti->not_used;
-  uint64_t start = ti->offset;
-  uint64_t end = start + ti->nb;
+  uint64_t const start = ti->offset;
+  uint64_t const end = start + ti->nb;
 
   if (ti->version == 0)
   {
@@ -816,7 +822,7 @@ dep_do_one_iter_mt (dep_read_data & d, bit_vector bv, int nt, uint64_t nrels)
 /* Read the logarithms computed by the linear algebra */
 static void
 read_log_format_LA (logtab & log, const char *logfile, const char *idealsfile,
-                    sm_side_info *sm_info, int nb_polys)
+                    std::vector<sm_side_info> const & sm_info, int nb_polys)
 {
   uint64_t i, ncols, col;
   index_t h;
@@ -846,7 +852,7 @@ read_log_format_LA (logtab & log, const char *logfile, const char *idealsfile,
     FATAL_ERROR_CHECK (col >= ncols, "Too big value of column number");
     FATAL_ERROR_CHECK (h >= log.nprimes, "Too big value of index");
 
-    int ret = gmp_fscanf (flog, "%Zd\n", tmp_log);
+    int const ret = gmp_fscanf (flog, "%Zd\n", tmp_log);
     FATAL_ERROR_CHECK (ret != 1, "Error in file containing logarithms values");
 
     ASSERT_ALWAYS (col == i);
@@ -861,9 +867,9 @@ read_log_format_LA (logtab & log, const char *logfile, const char *idealsfile,
 
   for(int side = 0; side < nb_polys; side++)
   {
-      for (int ism = 0; ism < sm_info[side]->nsm; ism++)
+      for (int ism = 0; ism < sm_info[side].nsm; ism++)
       {
-        int ret = gmp_fscanf (flog, "%Zd\n", tmp_log);
+        int const ret = gmp_fscanf (flog, "%Zd\n", tmp_log);
         FATAL_ERROR_CHECK (ret != 1, "Error in file containing logarithms values");
         log.smlog(side, ism) = tmp_log;
       }
@@ -875,9 +881,9 @@ read_log_format_LA (logtab & log, const char *logfile, const char *idealsfile,
 
   for(int side = 0; side < nb_polys; side++)
   {
-    if (sm_info[side]->nsm)
+    if (sm_info[side].nsm)
       printf ("# Logarithms for %d SM columns on side %d were also read\n",
-              sm_info[side]->nsm, side);
+              sm_info[side].nsm, side);
   }
   mpz_clear (tmp_log);
   fclose_maybe_compressed (flog, logfile);
@@ -955,7 +961,7 @@ read_log_format_reconstruct (logtab & log, MAYBE_UNUSED renumber_t const & renum
  * renumber table!!! */
 static void
 write_log (const char *filename, logtab & log, renumber_t const & tab, 
-	   sm_side_info *sm_info)
+	   std::vector<sm_side_info> const & sm_info)
 {
   uint64_t i;
   FILE *f = NULL;
@@ -980,7 +986,7 @@ write_log (const char *filename, logtab & log, renumber_t const & tab,
       {
         base_already_set = 1;
         /* base = 1/log[i] mod ell */
-        int ret = mpz_invert (base, log[i], log.ell);
+        int const ret = mpz_invert (base, log[i], log.ell);
         ASSERT_ALWAYS (ret != 0);
         mpz_set_ui(scaled, 1);
         log.force_set(i, scaled);
@@ -1013,7 +1019,7 @@ write_log (const char *filename, logtab & log, renumber_t const & tab,
       if (!log.is_known(i)) continue;
       nknown++;
       // TODO forward iterator
-      renumber_t::p_r_side x = tab.p_r_from_index(i);
+      renumber_t::p_r_side const x = tab.p_r_from_index(i);
       if (x.side != tab.get_rational_side())
           gmp_fprintf (f, "%" PRid " %" PRpr " %d %" PRpr " %Zd\n",
                   (index_t) i, x.p, x.side, x.r, (mpz_srcptr) log[i]);
@@ -1027,12 +1033,12 @@ write_log (const char *filename, logtab & log, renumber_t const & tab,
   for (int nsm = 0, i = tab.get_size(); nsm < log.nbsm; nsm++)
   {
     // compute side
-    int side, nsm_tot = sm_info[0]->nsm, jnsm = nsm;
+    int side, nsm_tot = sm_info[0].nsm, jnsm = nsm;
     for(side = 0; ((int)nsm) >= nsm_tot; side++){
-	nsm_tot += sm_info[side+1]->nsm;
-	jnsm -= sm_info[side]->nsm;
+	nsm_tot += sm_info[side+1].nsm;
+	jnsm -= sm_info[side].nsm;
     }
-    ASSERT_ALWAYS ((jnsm >= 0) && (jnsm < sm_info[side]->nsm));
+    ASSERT_ALWAYS ((jnsm >= 0) && (jnsm < sm_info[side].nsm));
     if (log.is_zero(i+nsm)) {
         printf("# Note: on side %d, log of SM number %d is zero\n", side, jnsm);
     } else {
@@ -1043,7 +1049,7 @@ write_log (const char *filename, logtab & log, renumber_t const & tab,
             (mpz_srcptr) log[i+nsm]);
   }
 
-  uint64_t missing = tab.get_size() - nknown;
+  uint64_t const missing = tab.get_size() - nknown;
   printf ("# factor base contains %" PRIu64 " elements\n"
           "# logarithms of %" PRIu64 " elements are known (%.1f%%)\n"
           "# logarithms of %" PRIu64 " elements are missing (%.1f%%)\n",
@@ -1065,7 +1071,7 @@ compute_log_from_rels (bit_vector needed_rels,
 {
   double wct_tt0, wct_tt;
   uint64_t total_computed = 0, iter = 0, computed;
-  uint64_t nrels = nrels_purged + nrels_del;
+  uint64_t const nrels = nrels_purged + nrels_del;
   ASSERT_ALWAYS (nrels_needed > 0);
 
   /* Reading all relations */
@@ -1077,13 +1083,17 @@ compute_log_from_rels (bit_vector needed_rels,
   printf ("# DEBUG: Using %d thread(s) for thread_sm\n", nt);
 #endif
   fflush(stdout);
-  char *fic[3] = {(char *) relspfilename, (char *) relsdfilename, NULL};
+  char const *fic[3] = {
+      (const char *) relspfilename,
+      (const char *) relsdfilename,
+      nullptr
+  };
 
   /* When purged.gz and relsdel.gz both have SM info included, we may
    * have an advantage in having more threads for thread_insert. Note
    * though that we'll most probably be limited by gzip throughput */
 
-  int ni = 1;
+  int const ni = 1;
   int ns = nt;
   
   if (!filename_matches_one_compression_format(relspfilename) && !filename_matches_one_compression_format(relsdfilename)) {
@@ -1107,7 +1117,7 @@ compute_log_from_rels (bit_vector needed_rels,
   printf ("# Starting to compute missing logarithms from rels\n");
 
   /* adjust the number of threads based on the number of needed relations */
-  double ntm = ceil((nrels_needed + 0.0)/SIZE_BLOCK);
+  double const ntm = ceil((nrels_needed + 0.0)/SIZE_BLOCK);
   if (nt > ntm)
     nt = (int) ntm;
 
@@ -1140,7 +1150,7 @@ compute_log_from_rels (bit_vector needed_rels,
   printf ("# Computing %" PRIu64 " new logarithms took %.1fs (wall-clock "
           "time)\n", total_computed, wct_seconds() - wct_tt0);
 
-  size_t c = bit_vector_popcount(needed_rels);
+  size_t const c = bit_vector_popcount(needed_rels);
   if (c != 0)
     fprintf(stderr, "### Warning, %zu relations were not used\n", c);
 
@@ -1163,8 +1173,8 @@ compute_needed_rels (bit_vector needed_rels,
   double wct_tt0, wct_tt;
   // uint64_t total_computed = 0;
   uint64_t iter = 0, computed;
-  uint64_t nrels = nrels_purged + nrels_del;
-  graph_dep_t dep_graph = graph_dep_init (log.nprimes);
+  uint64_t const nrels = nrels_purged + nrels_del;
+  graph_dep_t const dep_graph = graph_dep_init (log.nprimes);
   light_rels_t rels = light_rels_init (nrels);
 
   graph_dep_set_log_already_known (dep_graph, log);
@@ -1177,7 +1187,7 @@ compute_needed_rels (bit_vector needed_rels,
   /* Reading all relations */
   printf ("# Reading relations from %s and %s\n", relspfilename, relsdfilename);
   fflush(stdout);
-  char *fic[3] = {(char *) relspfilename, (char *) relsdfilename, NULL};
+  char const * fic[3] = {(const char *) relspfilename, (const char *) relsdfilename, NULL};
   filter_rels (fic, (filter_rels_callback_t) &dep_thread_insert, (void *) &data,
                EARLYPARSE_NEED_INDEX, NULL, NULL);
 
@@ -1185,7 +1195,7 @@ compute_needed_rels (bit_vector needed_rels,
   printf ("# Starting to compute dependencies from rels\n");
 
   /* adjust the number of threads based on the number of relations */
-  double ntm = ceil((nrels + 0.0)/SIZE_BLOCK);
+  double const ntm = ceil((nrels + 0.0)/SIZE_BLOCK);
   if (nt > ntm)
     nt = (int) ntm;
 
@@ -1282,7 +1292,7 @@ static void declare_usage(param_list pl)
 }
 
 static void
-usage (param_list pl, char *argv0)
+usage (param_list pl, char const * argv0)
 {
     param_list_print_usage(pl, argv0, stderr);
     exit(EXIT_FAILURE);
@@ -1291,9 +1301,9 @@ usage (param_list pl, char *argv0)
 
 // coverity[root_function]
 int
-main(int argc, char *argv[])
+main(int argc, char const * argv[])
 {
-  char *argv0 = argv[0];
+  char const * argv0 = argv[0];
 
   uint64_t nrels_tot = 0, nrels_purged, nrels_del, nrels_needed;
   uint64_t nprimes;
@@ -1445,28 +1455,28 @@ main(int argc, char *argv[])
   set_antebuffer_path (argv0, path_antebuffer);
 
   /* Init data for computation of the SMs. */
-  sm_side_info * sm_info = new sm_side_info[cpoly->nb_polys];
+  std::vector<sm_side_info> sm_info;
   for (int side = 0; side < cpoly->nb_polys; side++)
   {
-    sm_side_info_init(sm_info[side], cpoly->pols[side], ell, 0);
-    sm_side_info_set_mode(sm_info[side], sm_mode_string);
+    sm_info.emplace_back(cpoly->pols[side], ell, 0);
+    sm_info[side].set_mode(sm_mode_string);
     fprintf(stdout, "\n# Polynomial on side %d:\n# F[%d] = ", side, side);
     mpz_poly_fprintf(stdout, cpoly->pols[side]);
     printf("# SM info on side %d:\n", side);
-    sm_side_info_print(stdout, sm_info[side]);
+    sm_info[side].print(stdout);
     if (nsm_arg[side] >= 0)
-      sm_info[side]->nsm = nsm_arg[side]; /* command line wins */
-    printf("# Will use %d SMs on side %d\n", sm_info[side]->nsm, side);
+      sm_info[side].nsm = nsm_arg[side]; /* command line wins */
+    printf("# Will use %d SMs on side %d\n", sm_info[side].nsm, side);
 
     /* do some consistency checks */
-    if (sm_info[side]->unit_rank != sm_info[side]->nsm)
+    if (sm_info[side].unit_rank != sm_info[side].nsm)
     {
       fprintf(stderr, "# On side %d, unit rank is %d, computing %d SMs ; "
-                      "weird.\n", side, sm_info[side]->unit_rank,
-                      sm_info[side]->nsm);
+                      "weird.\n", side, sm_info[side].unit_rank,
+                      sm_info[side].nsm);
       /* for the 0 case, we haven't computed anything: prevent the
        * user from asking SM data anyway */
-      ASSERT_ALWAYS(sm_info[side]->unit_rank != 0);
+      ASSERT_ALWAYS(sm_info[side].unit_rank != 0);
     }
   }
   fflush(stdout);
@@ -1535,8 +1545,6 @@ main(int argc, char *argv[])
               nrels_del, nrels_needed, mt,
               data);
       printf ("# %" PRIu64 " logarithms are known.\n", log.nknown);
-      extern double m_seconds;
-      fprintf(stderr, "# %.2f\n", m_seconds);
   }
   else
     printf ("# All wanted logarithms are already known, skipping this step\n");
@@ -1548,10 +1556,6 @@ main(int argc, char *argv[])
 
   /* freeing and closing */
   mpz_clear(ell);
-
-  for (int side = 0 ; side < cpoly->nb_polys ; side++)
-    sm_side_info_clear (sm_info[side]);
-  delete[] sm_info;
 
   bit_vector_clear(rels_to_process);
   param_list_clear (pl);

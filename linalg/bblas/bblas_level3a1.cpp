@@ -29,7 +29,7 @@ void binary_matpoly_to_polmat_simple_and_stupid(mat64 * dst, unsigned long const
     /* src is assumed row-major */
     ASSERT_ALWAYS((n%64)==0);
     ASSERT_ALWAYS((m%64)==0);
-    size_t stride = iceildiv(len, ULONG_BITS);
+    size_t const stride = iceildiv(len, ULONG_BITS);
     memset((void *) dst, 0, (m/64) * (n/64) * len * sizeof(mat64));
     mat64 * q0 = dst;
     unsigned long const * p0 = src;
@@ -61,7 +61,7 @@ void binary_polmat_to_matpoly_simple_and_stupid(unsigned long * dst, mat64 const
     /* src is assumed row-major */
     ASSERT_ALWAYS((n%64)==0);
     ASSERT_ALWAYS((m%64)==0);
-    size_t stride = iceildiv(len, ULONG_BITS);
+    size_t const stride = iceildiv(len, ULONG_BITS);
     memset(dst, 0, m * n * stride * sizeof(unsigned long));
     mat64 const * q0 = src;
     unsigned long * p0 = dst;
@@ -89,12 +89,12 @@ void binary_polmat_to_matpoly_simple_and_stupid(unsigned long * dst, mat64 const
 /* implements binary_matpoly_to_polmat */
 void binary_matpoly_to_polmat_nested_transpositions(mat64* dst, unsigned long const* src, unsigned int m, unsigned int n, unsigned int len) /*{{{*/
 {
-    unsigned int M = m / 64;
-    unsigned int N = n / 64;
-    unsigned int Lu = iceildiv(len, ULONG_BITS);
+    unsigned int const M = m / 64;
+    unsigned int const N = n / 64;
+    unsigned int const Lu = iceildiv(len, ULONG_BITS);
     static_assert(64 % ULONG_BITS == 0, "ULONG_BITS must divide 64");
     ASSERT_ALWAYS(Lu % (64 / ULONG_BITS) == 0);
-    unsigned int L = Lu / (64 / ULONG_BITS);
+    unsigned int const L = Lu / (64 / ULONG_BITS);
 
     uint64_t* temp = new uint64_t[m * n * L];
 
@@ -119,12 +119,12 @@ void binary_matpoly_to_polmat_nested_transpositions(mat64* dst, unsigned long co
 /* implements binary_polmat_to_matpoly */
 void binary_polmat_to_matpoly_nested_transpositions(unsigned long * dst_u, mat64 const * src, unsigned int m, unsigned int n, unsigned int len)/*{{{*/
 {
-    unsigned int M = m / 64;
-    unsigned int N = n / 64;
-    unsigned int Lu = iceildiv(len, ULONG_BITS);
+    unsigned int const M = m / 64;
+    unsigned int const N = n / 64;
+    unsigned int const Lu = iceildiv(len, ULONG_BITS);
     static_assert(64 % ULONG_BITS == 0, "ULONG_BITS must divide 64");
     ASSERT_ALWAYS(Lu % (64 / ULONG_BITS) == 0);
-    unsigned int L = Lu / (64 / ULONG_BITS);
+    unsigned int const L = Lu / (64 / ULONG_BITS);
 
     uint64_t * temp = new uint64_t[m*n*L];
 
@@ -164,12 +164,12 @@ void binary_polmat_to_matpoly_nested_transpositions(unsigned long * dst_u, mat64
 /* implements binary_matpoly_transpose_to_polmat */
 void binary_matpoly_transpose_to_polmat_nested_transpositions(mat64* dst, unsigned long const* src, unsigned int m, unsigned int n, unsigned int len) /*{{{*/
 {
-    unsigned int M = m / 64;
-    unsigned int N = n / 64;
-    unsigned int Lu = iceildiv(len, ULONG_BITS);
+    unsigned int const M = m / 64;
+    unsigned int const N = n / 64;
+    unsigned int const Lu = iceildiv(len, ULONG_BITS);
     static_assert(64 % ULONG_BITS == 0, "ULONG_BITS must divide 64");
     ASSERT_ALWAYS(Lu % (64 / ULONG_BITS) == 0);
-    unsigned int L = Lu / (64 / ULONG_BITS);
+    unsigned int const L = Lu / (64 / ULONG_BITS);
 
     uint64_t* temp = new uint64_t[m * n * L];
 
@@ -196,12 +196,12 @@ void binary_matpoly_transpose_to_polmat_nested_transpositions(mat64* dst, unsign
 /* implements binary_polmat_to_matpoly_transpose */
 void binary_polmat_to_matpoly_transpose_nested_transpositions(unsigned long * dst_u, mat64 const * src, unsigned int m, unsigned int n, unsigned int len)/*{{{*/
 {
-    unsigned int M = m / 64;
-    unsigned int N = n / 64;
-    unsigned int Lu = iceildiv(len, ULONG_BITS);
+    unsigned int const M = m / 64;
+    unsigned int const N = n / 64;
+    unsigned int const Lu = iceildiv(len, ULONG_BITS);
     static_assert(64 % ULONG_BITS == 0, "ULONG_BITS must divide 64");
     ASSERT_ALWAYS(Lu % (64 / ULONG_BITS) == 0);
-    unsigned int L = Lu / (64 / ULONG_BITS);
+    unsigned int const L = Lu / (64 / ULONG_BITS);
 
     uint64_t * temp = new uint64_t[m*n*L];
     uint64_t * dst = (uint64_t *) dst_u;

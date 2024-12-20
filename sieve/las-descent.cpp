@@ -42,16 +42,16 @@ bool register_contending_relation(las_info const & las, las_todo_entry const & d
             relation::pr const & v(rel.sides[side][i]);
             if (mpz_cmp(doing.p, v.p) == 0)
                 continue;
-            p_r_values_t p = mpz_get_ui(v.p);
+            p_r_values_t const p = mpz_get_ui(v.p);
             if (v.p.fits<p_r_values_t>()) {
-                p_r_values_t r = mpz_get_ui(v.r);
+                p_r_values_t const r = mpz_get_ui(v.r);
                 if (las.dlog_base.is_known(side, p, r))
                     continue;
             }
 
-            unsigned int n = mpz_sizeinbase(v.p, 2);
-            siever_config_pool::key_type K(side, n);
-            double e = las.config_pool.hint_expected_time(K);
+            unsigned int const n = mpz_sizeinbase(v.p, 2);
+            siever_config_pool::key_type const K(side, n);
+            double const e = las.config_pool.hint_expected_time(K);
             if (e < 0) {
                 /* This is not worrysome per se. We just do
                  * not have the info in the descent hint table,
@@ -97,7 +97,7 @@ void postprocess_specialq_descent(las_info & las, las_todo_list & todo, las_todo
         }
         verbose_output_end_batch();
         {
-            unsigned int n = mpz_sizeinbase(doing.p, 2);
+            unsigned int const n = mpz_sizeinbase(doing.p, 2);
             verbose_output_start_batch();
             verbose_output_print (0, 1, "# taking path: ");
             for(int i = 0 ; i < doing.depth ; i++) {
@@ -105,9 +105,9 @@ void postprocess_specialq_descent(las_info & las, las_todo_list & todo, las_todo
             }
             verbose_output_print (0, 1, "%d@%d ->", n, doing.side);
             for(unsigned int i = 0 ; i < winner.outstanding.size() ; i++) {
-                int side = winner.outstanding[i].first;
+                int const side = winner.outstanding[i].first;
                 relation::pr const & v(winner.outstanding[i].second);
-                unsigned int n = mpz_sizeinbase(v.p, 2);
+                unsigned int const n = mpz_sizeinbase(v.p, 2);
                 verbose_output_print (0, 1, " %d@%d", n, side);
             }
             if (winner.outstanding.empty()) {
@@ -122,16 +122,16 @@ void postprocess_specialq_descent(las_info & las, las_todo_list & todo, las_todo
             /* reschedule the possibly still missing large primes in the
              * todo list */
             for(unsigned int i = 0 ; i < winner.outstanding.size() ; i++) {
-                int side = winner.outstanding[i].first;
+                int const side = winner.outstanding[i].first;
                 relation::pr const & v(winner.outstanding[i].second);
-                unsigned int n = mpz_sizeinbase(v.p, 2);
+                unsigned int const n = mpz_sizeinbase(v.p, 2);
                 verbose_output_vfprint(0, 1, gmp_vfprintf, "# [descent] " HILIGHT_START "pushing side-%d (%Zd,%Zd) [%d@%d]" HILIGHT_END " to todo list (now size %zu)\n", side, (mpz_srcptr) v.p, (mpz_srcptr) v.r, n, side, todo.size() + 1);
                 todo.push_withdepth(v.p, v.r, side, doing.depth + 1);
             }
         }
     } else {
         las.tree.mark_try_again(doing.iteration + 1);
-        unsigned int n = mpz_sizeinbase(doing.p, 2);
+        unsigned int const n = mpz_sizeinbase(doing.p, 2);
         verbose_output_print (0, 1, "# taking path: %d@%d -> loop (#%d)", n, doing.side, doing.iteration + 1);
         verbose_output_vfprint (0, 1, gmp_vfprintf, " \t%d %Zd %Zd\n", doing.side,
                 (mpz_srcptr) doing.p,

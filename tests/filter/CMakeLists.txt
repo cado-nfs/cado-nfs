@@ -1,11 +1,9 @@
 cado_define_test(SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/testsm.sh
-    PRECOMMAND
-    "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
+    PROVIDE_TEMPORARY_WDIR
     TARGET_DEPENDENCIES sm)
 
 cado_define_test(SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/test_filter_galois.sh
-    PRECOMMAND
-    "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
+    PROVIDE_TEMPORARY_WDIR
     TARGET_DEPENDENCIES filter_galois)
 
 set(sage_opt)
@@ -21,7 +19,8 @@ cado_define_test(test_dup2${sage_opt}
    PRECOMMAND
    "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh"
    --env WORKDIR
-   TARGET_DEPENDENCIES freerel debug_renumber dup2 ${deps})
+   TARGET_DEPENDENCIES freerel debug_renumber dup2 ${deps}
+   )
 
 if (SAGE)
     add_dependencies(all_sagemath_test_dependencies test_dup2${sage_opt}_dependencies)
@@ -29,14 +28,15 @@ endif()
 
 if(DEFINED ENV{CHECKS_EXPENSIVE})
     # rels found by:
-    # makefb -poly c105_30003.poly    -lim 1600000 -side 1 -out /tmp/r1.gz
-    # las -poly c105_30003.poly -I 12 -sqside 1 -q0 300000 -q1 300020 -lim0 1000000 -lim1 1600000 -lpb0 25 -lpb1 26 -mfb0 50 -mfb1 52 -fb1 /tmp/r1.gz -v
+    # ./build/sieve/makefb   -poly ./tests/misc/test_renumber.data/c105_30003.poly   -lim 1600000 -side 1 -out /tmp/r1.gz
+    # ./build/sieve/las  -I 14    -poly ./tests/misc/test_renumber.data/c105_30003.poly   -sqside 1 -q0 300000 -q1 300020 -lim0 1000000 -lim1 1600000 -lpb0 22 -lpb1 23 -mfb0 50 -mfb1 52 -fb1 /tmp/r1.gz -v
 cado_divert_test(test_dup2${sage_opt} c105_30003
     APPEND_ARGUMENTS
     -poly ${CADO_NFS_SOURCE_DIR}/tests/misc/test_renumber.data/c105_30003.poly
     -rels ${CMAKE_CURRENT_SOURCE_DIR}/c105_30003.rels.gz
-    -lpbs 25,26
-    TIMEOUT 120
+    -lpbs 22,23
+    TIMEOUT 90
+    ${AVOID_CONCURRENT_UNDER_COVERAGE}
     )
 endif()
 
@@ -48,5 +48,15 @@ cado_divert_test(test_dup2${sage_opt} c105_30004
     -dl
     -S daa017e17f50607820e7896dcc3a05370364b3b4
     -R 2959973f1
-    TIMEOUT 60
+    TIMEOUT 90
     )
+
+cado_define_test(test_sm_with_small_ell
+    PROGRAM
+    ${CADO_NFS_BINARY_DIR}/filter/sm_append
+    -ell 79
+    -in   ${CMAKE_CURRENT_SOURCE_DIR}/c30_sm_small_ell.purged
+    -poly ${CMAKE_CURRENT_SOURCE_DIR}/c30_sm_small_ell.poly
+    TARGET_DEPENDENCIES sm_append
+    EXPECT_FAIL
+)

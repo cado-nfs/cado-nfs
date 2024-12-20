@@ -11,6 +11,11 @@
  */
 
 #define EMIT_ADDRESSABLE_shash_add
+#define NEW_ROOTSIEVE
+#define INIT_FACTOR 8UL
+//#define DEBUG_POLYSELECT
+
+#define BATCH_SIZE 20
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,7 +32,6 @@
 #include "polyselect_norms.h"
 #include "polyselect_alpha.h"
 #include "polyselect_shash.h"
-#include "polyselect_locals.h"
 #include "polyselect_poly_header.h"
 #include "modredc_ul.h"
 #include "mpz_vector.h"
@@ -36,11 +40,6 @@
 #include "verbose.h"    // verbose_decl_usage
 #include "auxiliary.h"  // DEFAULT_INCR
 
-#define NEW_ROOTSIEVE
-#define INIT_FACTOR 8UL
-//#define DEBUG_POLYSELECT
-
-#define BATCH_SIZE 20
 
 #ifdef NEW_ROOTSIEVE
 #include "ropt.h"
@@ -350,9 +349,9 @@ twocubics_match (unsigned long p1, unsigned long p2, const int64_t i,
       best_E = E;
       gmp_printf("n: %Zd\n", header->N);
       for (int i = 0; i <= f->deg; i++)
-        gmp_printf ("c%d: %Zd\n", i, f->coeff[i]);
+        gmp_printf ("c%d: %Zd\n", i, mpz_poly_coeff_const(f, i));
       for (int i = 0; i <= g->deg; i++)
-        gmp_printf ("Y%d: %Zd\n", i, g->coeff[i]);
+        gmp_printf ("Y%d: %Zd\n", i, mpz_poly_coeff_const(g, i));
       printf ("skew: %1.2f\n", skewness);
       printf ("# f lognorm %1.2f, alpha %1.2f, score %1.2f\n",
               logmu[1], alpha[1], logmu[1] + alpha[1]);
@@ -453,10 +452,9 @@ usage (const char *argv, const char * missing, param_list pl)
   exit (EXIT_FAILURE);
 }
 
-int
-main (int argc, char *argv[])
+int main(int argc, char const * argv[])
 {
-  char **argv0 = argv;
+  char const ** argv0 = argv;
   int quiet = 0, nthreads = 1;
 
   polyselect_main_data main_data;

@@ -20,19 +20,21 @@ std::tuple<unsigned int, unsigned int> get_minmax_delta(std::vector<unsigned int
     }
     return std::make_tuple(mindelta, maxdelta);
 }/*}}}*/
-unsigned int get_min_delta(std::vector<unsigned int> const & delta)/*{{{*/
+
+#if 0
+static unsigned int get_min_delta(std::vector<unsigned int> const & delta)/*{{{*/
 {
     unsigned int mindelta, maxdelta;
     std::tie(mindelta, maxdelta) = get_minmax_delta(delta);
     return mindelta;
 }/*}}}*/
-unsigned int get_max_delta(std::vector<unsigned int> const & delta)/*{{{*/
+static unsigned int get_max_delta(std::vector<unsigned int> const & delta)/*{{{*/
 {
     unsigned int mindelta, maxdelta;
     std::tie(mindelta, maxdelta) = get_minmax_delta(delta);
     return maxdelta;
 }/*}}}*/
-
+#endif
 
 unsigned int expected_pi_length(bw_dimensions & d, unsigned int len)/*{{{*/
 {
@@ -55,11 +57,11 @@ unsigned int expected_pi_length(bw_dimensions & d, unsigned int len)/*{{{*/
      * more than sheer luck, and we use it to detect generating rows.
      */
 
-    unsigned int m = d.m;
-    unsigned int n = d.n;
-    unsigned int b = m + n;
+    unsigned int const m = d.m;
+    unsigned int const n = d.n;
+    unsigned int const b = m + n;
     matpoly::arith_hard * ab MAYBE_UNUSED = & d.ab;
-    unsigned int res = 1 + iceildiv(len * m, b);
+    unsigned int const res = 1 + iceildiv(len * m, b);
 #ifndef LINGEN_BINARY
     mpz_srcptr p = ab->characteristic();
     unsigned int l;
@@ -72,7 +74,7 @@ unsigned int expected_pi_length(bw_dimensions & d, unsigned int len)/*{{{*/
     }
 #else
     // K is GF(2), period.
-    unsigned int l = 1;
+    unsigned int const l = 1;
 #endif
     // unsigned int safety = iceildiv(abgroupsize(ab), m * sizeof(abelt));
     unsigned int safety = iceildiv(64, m * l);
@@ -104,11 +106,11 @@ unsigned int expected_pi_length_lowerbound(bw_dimensions & d, unsigned int len)/
      * most below the bound.
      * In particular, it is sufficient to derive from the code above!
      */
-    unsigned int m = d.m;
-    unsigned int n = d.n;
-    unsigned int b = m + n;
+    unsigned int const m = d.m;
+    unsigned int const n = d.n;
+    unsigned int const b = m + n;
     matpoly::arith_hard * ab MAYBE_UNUSED = & d.ab;
-    unsigned int res = 1 + (len * m) / b;
+    unsigned int const res = 1 + (len * m) / b;
 #ifndef LINGEN_BINARY
     cxx_mpz p(ab->characteristic());
     unsigned int l;
@@ -120,9 +122,9 @@ unsigned int expected_pi_length_lowerbound(bw_dimensions & d, unsigned int len)/
         l = mpz_sizeinbase(p, 2);
     }
 #else
-    unsigned int l = 1;
+    unsigned int const l = 1;
 #endif
-    unsigned int safety = iceildiv(64, m * l);
+    unsigned int const safety = iceildiv(64, m * l);
     return safety < res ? res - safety : 0;
 }/*}}}*/
 

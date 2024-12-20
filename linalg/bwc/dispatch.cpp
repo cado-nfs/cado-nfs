@@ -25,7 +25,7 @@
 #include "mmt_vector_pair.hpp"
 #include "matmul_top_comm.hpp"
 
-void mmt_full_vec_set_dummy1(mmt_vec & y, size_t unpadded)
+static void mmt_full_vec_set_dummy1(mmt_vec & y, size_t unpadded)
 {
     mmt_full_vec_set_zero(y);
 
@@ -46,7 +46,7 @@ void mmt_full_vec_set_dummy1(mmt_vec & y, size_t unpadded)
 #else
     for(unsigned int j = 0 ; j < y.pi->wr[y.d]->njobs ; j++) {
         for(size_t di = 0 ; di < mmt_my_own_size_in_items(y) ; di++) {
-            size_t i = y.i0 + mmt_my_own_offset_in_items(y, j) + di;
+            size_t const i = y.i0 + mmt_my_own_offset_in_items(y, j) + di;
             if (i >= unpadded)
                 break;
             arith_generic::elt * dst = y.abase->vec_subvec(mmt_my_own_subvec(y, j), di);
@@ -61,7 +61,7 @@ void mmt_full_vec_set_dummy1(mmt_vec & y, size_t unpadded)
     y.consistency = 2;
 }
 
-void mmt_full_vec_set_dummy2(mmt_vec & y, size_t unpadded)
+static void mmt_full_vec_set_dummy2(mmt_vec & y, size_t unpadded)
 {
     mmt_full_vec_set_zero(y);
 
@@ -82,7 +82,7 @@ void mmt_full_vec_set_dummy2(mmt_vec & y, size_t unpadded)
 #else
     for(unsigned int j = 0 ; j < y.pi->wr[y.d]->njobs ; j++) {
         for(size_t di = 0 ; di < mmt_my_own_size_in_items(y) ; di++) {
-            size_t i = y.i0 + mmt_my_own_offset_in_items(y, j) + di;
+            size_t const i = y.i0 + mmt_my_own_offset_in_items(y, j) + di;
             if (i >= unpadded)
                 break;
             arith_generic::elt * dst = y.abase->vec_subvec(mmt_my_own_subvec(y, j), di);
@@ -97,10 +97,10 @@ void mmt_full_vec_set_dummy2(mmt_vec & y, size_t unpadded)
     y.consistency = 2;
 }
 
-void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED)
+static void * dispatch_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
 
-    int ys[2] = { bw->ys[0], bw->ys[1], };
+    int const ys[2] = { bw->ys[0], bw->ys[1], };
     /*
      * Hmm. Interleaving doesn't make a lot of sense for this program,
      * right ? Furthermore, it gets in the way for the sanity checks. We
@@ -114,7 +114,6 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
 
     std::unique_ptr<arith_generic> A(arith_generic::instance(bw->p, ys[1]-ys[0]));
     std::unique_ptr<arith_cross_generic> AxA(arith_cross_generic::instance(A.get(), A.get()));
-    block_control_signals();
 
     /*****************************************
      *             Watch out !               *
@@ -140,15 +139,15 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
     mmt_vec & y = ymy[0];
     mmt_vec & my = ymy[1];
 
-    unsigned int unpadded = MAX(mmt.n0[0], mmt.n0[1]);
+    unsigned int const unpadded = MAX(mmt.n0[0], mmt.n0[1]);
 
     const char * sanity_check_vector = param_list_lookup_string(pl, "sanity_check_vector");
-    int only_export = param_list_lookup_string(pl, "export_cachelist") != NULL;
+    int const only_export = param_list_lookup_string(pl, "export_cachelist") != nullptr;
 
     // in no situation shall we try to do our sanity check if we've just
     // been told to export our cache list. Note also that this sanity
     // check is currently only valid for GF(2).
-    if (sanity_check_vector != NULL && !only_export && mpz_cmp_ui(bw->p, 2) == 0 && mmt.abase->simd_groupsize()) {
+    if (sanity_check_vector != nullptr && !only_export && mpz_cmp_ui(bw->p, 2) == 0 && mmt.abase->simd_groupsize()) {
         /* We have computed a sanity check vector, which is H=M*K, with K
          * constant and easily given. Note that we have not computed K*M,
          * but really M*K. Thus independently of which side we prefer, we
@@ -167,7 +166,7 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
         mmt_full_vec_set_dummy1(y, unpadded);
 
         mmt_vec_twist(mmt, y);
-        matmul_top_mul(mmt, ymy.vectors(), NULL);
+        matmul_top_mul(mmt, ymy.vectors(), nullptr);
         mmt_vec_untwist(mmt, y);
 
         mmt_vec_save(y, "Hx%u-%u", unpadded, 0);
@@ -212,7 +211,7 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
                 A->vec_subvec(my.v, offset_c),
                 A->vec_subvec(y.v, offset_v),
                 how_many);
-        pi_allreduce(NULL, dp0, A->simd_groupsize(), mmt.pitype, BWC_PI_SUM, pi->m);
+        pi_allreduce(nullptr, dp0, A->simd_groupsize(), mmt.pitype, BWC_PI_SUM, pi->m);
 
         /* now we can throw away Hx */
 
@@ -223,7 +222,7 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
         {
             mmt_vector_pair myy(mmt, 0);
             mmt_full_vec_set(myy[0], my);
-            matmul_top_mul(mmt, myy.vectors(), NULL);
+            matmul_top_mul(mmt, myy.vectors(), nullptr);
             mmt_full_vec_set(my, myy[0]);
         }
         mmt_vec_untwist(mmt, my);
@@ -236,8 +235,8 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
                 A->vec_subvec(my.v, offset_c),
                 A->vec_subvec(y.v, offset_v),
                 how_many);
-        pi_allreduce(NULL, dp1, A->simd_groupsize(), mmt.pitype, BWC_PI_SUM, pi->m);
-        int diff = memcmp(dp0, dp1, A->vec_elt_stride(A->simd_groupsize()));
+        pi_allreduce(nullptr, dp1, A->simd_groupsize(), mmt.pitype, BWC_PI_SUM, pi->m);
+        int const diff = memcmp(dp0, dp1, A->vec_elt_stride(A->simd_groupsize()));
         if (pi->m->jrank == 0 && pi->m->trank == 0) {
             if (diff) {
                 printf("%s : failed\n", checkname);
@@ -250,17 +249,16 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
         A->free(dp1);
     }
 
-    return NULL;
+    return nullptr;
 }
 
 
 // coverity[root_function]
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
-    param_list pl;
+    cxx_param_list pl;
 
     bw_common_init(bw, &argc, &argv);
-    param_list_init(pl);
     parallelizing_info_init();
 
     bw_common_decl_usage(pl);
@@ -284,18 +282,15 @@ int main(int argc, char * argv[])
         if (!rank) param_list_print_usage(pl, bw->original_argv[0], stderr);
         MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
-    // param_list_clear(pl);
 
     if (bw->ys[0] < 0) { fprintf(stderr, "no ys value set\n"); exit(1); }
 
     /* Forcibly disable interleaving here */
     param_list_remove_key(pl, "interleaving");
 
-    catch_control_signals();
     pi_go(dispatch_prog, pl, 0);
 
     parallelizing_info_finish();
-    param_list_clear(pl);
     bw_common_clear(bw);
 
     return 0;

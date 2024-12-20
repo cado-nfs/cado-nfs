@@ -24,6 +24,8 @@ run() {
   "$@"
 }
 
+WORKDIR=${wdir:?missing}
+
 if ! [ -x "${LAS_BINARY:?missing}" ] ; then
   echo "Las binary \$LAS_BINARY = ${LAS_BINARY} is not an executable file" >&2
   exit 1

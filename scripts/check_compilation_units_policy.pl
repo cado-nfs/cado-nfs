@@ -95,7 +95,7 @@ FILE: for my $f (@all_files) {
             if ($guard_score == 2 && /^#endif/) { $guard_score++; }
             if (/pragma multi include/) { $guard_score=3; }
             if ($cxxguard_score == 0 && /__cplusplus/) { $cxxguard_score=1; }
-            if (/pragma no prototypes/) { $cxxguard_score=2; }
+            if (/(scan-headers:|pragma) no prototypes/) { $cxxguard_score=2; }
             if (/generated automatically/i) { $cxxguard_score=2; }
             if (/automatically generated/i) { $cxxguard_score=2; }
             if ($ENABLE_CHECK_FOR_NO_CADO_H_IN_HEADERS && /^\s*#\s*include\s*.*cado\.h/) {
@@ -105,7 +105,7 @@ FILE: for my $f (@all_files) {
         } else {
             if (/^\s*#\s*include/) {
                 push @includes, [ $lnum, $_ ];
-                if (defined($self_include) && /\"$self_include\"/) {
+                if (defined($self_include) && /[\"\/]$self_include\"/) {
                     push @include_self, $aa;
                 }
                 if (/.*cado\.h/) { push @include_cado, $aa; }

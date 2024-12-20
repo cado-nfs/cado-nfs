@@ -1,9 +1,10 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdio.h>        // for fprintf, stderr, asprintf
-#include <stdlib.h>       // for free, abort
-#include <stdarg.h>
-#include <errno.h>
-#include <string.h>
+
+#include <cstdio>        // for fprintf, stderr, asprintf
+#include <cstdlib>       // for free, abort
+#include <cstdarg>
+#include <cerrno>
+#include <cstring>
 
 #include <sys/stat.h>
 #include <unistd.h>
@@ -14,21 +15,20 @@
 
 #include "bwc_config.h" // BUILD_DYNAMICALLY_LINKABLE_BWC // IWYU pragma: keep
 
-#ifdef  BUILD_DYNAMICALLY_LINKABLE_BWC
+#ifdef BUILD_DYNAMICALLY_LINKABLE_BWC
 #include <dlfcn.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include "solib-naming.h" // IWYU pragma: keep
 #endif
 
 #include <gmp.h>          // for mp_bits_per_limb
+
 #include "macros.h"       // for FATAL_ERROR_CHECK, iceildiv
 #include "matmul.hpp"
 #include "verbose.h"
 #include "portability.h" // asprintf // IWYU pragma: keep
 #include "params.h"
 
-void matmul_decl_usage(param_list_ptr pl)
+void matmul_decl_usage(cxx_param_list & pl)
 {
     param_list_decl_usage(pl, "mm_impl",
             "name of the lower layer matmul implementation");
@@ -65,7 +65,7 @@ void matmul_decl_usage(param_list_ptr pl)
             "skip saving the cache file to disk");
 }
 
-void matmul_lookup_parameters(param_list_ptr pl)
+void matmul_lookup_parameters(cxx_param_list & pl)
 {
     param_list_lookup_string(pl, "mm_impl");
     param_list_lookup_string(pl, "mm_store_transposed");
@@ -90,17 +90,15 @@ void matmul_lookup_parameters(param_list_ptr pl)
 
 
 #ifndef  BUILD_DYNAMICALLY_LINKABLE_BWC
-#define MATMUL_NAME_INNER(abase, impl, func) matmul_ ## abase ## _ ## impl ## _ ## func
-#define MATMUL_NAME_INNER0(abase, impl, func) MATMUL_NAME_INNER(abase, impl, func)
-#define CONFIGURE_MATMUL_LIB(d_, i_)				\
-    } else if (strcmp(impl, #i_) == 0 && strcmp(dimpl, #d_) == 0) {		\
-        extern void MATMUL_NAME_INNER0(d_, i_, rebind)(matmul_ptr mm);	\
-        return MATMUL_NAME_INNER0(d_, i_, rebind);
+#define CONFIGURE_MATMUL_LIB(d_, i_)			\
+    } else if (impl == #i_ && dimpl == #d_) {		\
+        extern matmul_interface_ctor_t CADO_CONCATENATE4(new_matmul_, d_, _, i_);       \
+        return &CADO_CONCATENATE4(new_matmul_, d_, _, i_);
 
 
 /* this is a function taking two strings, and returning a pointer to a
  * function taking a matmul_ptr and returning void */
-void (*get_rebinder(const char * impl, const char * dimpl))(matmul_ptr mm)
+static matmul_interface_ctor_t * reach_ctor(std::string const & impl, std::string const & dimpl)
 {
     if (0) {
         return NULL;
@@ -124,285 +122,242 @@ void (*get_rebinder(const char * impl, const char * dimpl))(matmul_ptr mm)
     CONFIGURE_MATMUL_LIB(p8      , basicp)
     */
     } else {
-        fprintf(stderr, "Cannot find the proper rebinder for data backend = %s and matmul backend = %s ; are the corresponding configuration lines present in local.sh or linalg/bwc/CMakeLists.txt ?\n", dimpl, impl);
+        fmt::print(stderr, "Cannot find the proper rebinder for data backend = {} and matmul backend = {} ; are the corresponding configuration lines present in local.sh or linalg/bwc/CMakeLists.txt ?\n", dimpl, impl);
         return NULL;
     }
 }
 #endif
 
-matmul_ptr matmul_init(arith_generic * x, unsigned int nr, unsigned int nc, const char * locfile, const char * impl, param_list pl, int optimized_direction)
+std::shared_ptr<matmul_interface> matmul_interface::create(arith_generic * x,
+        unsigned int nr,
+        unsigned int nc,
+        std::string const & locfile,
+        std::string const & impl,
+        cxx_param_list & pl,
+        int optimized_direction)
 {
-    ASSERT_ALWAYS(pl);
+    if (impl.empty()) {
+        const char * tmp = param_list_lookup_string(pl, "mm_impl");
 
-    struct matmul_public_s fake[1];
-    memset(fake, 0, sizeof(fake));
+        if (tmp) return create(x, nr, nc, locfile, tmp, pl, optimized_direction);
 
-    if (!impl) { impl = param_list_lookup_string(pl, "mm_impl"); }
-    if (!impl) {
-        const char * tmp = param_list_lookup_string(pl, "prime");
-        if (tmp && strcmp(tmp, "2") != 0) {
-#ifdef HAVE_CXX11
-            impl = "zone";
-#else   /* HAVE_CXX11 */
-            impl = "basicp";
-#endif  /* HAVE_CXX11 */
-        } else {
-            impl = "bucket";
-        }
+        tmp = x->is_characteristic_two() ? "bucket" : "zone";
+
+        return create(x, nr, nc, locfile, tmp, pl, optimized_direction);
     }
 
-    typedef void (*rebinder_t)(matmul_ptr mm);
-    rebinder_t rebinder;
+    matmul_public stem;
+
+    // there's not much more that we can init, but it's already
+    // something...
+    stem.dim[0] = nr;
+    stem.dim[1] = nc;
+    stem.locfile = locfile;
+    param_list_parse(pl, "no_save_cache", stem.no_save_cache);
+
+    std::shared_ptr<matmul_interface> mm;
+
+    matmul_interface_ctor_t * ctor;
 
 #ifdef  BUILD_DYNAMICALLY_LINKABLE_BWC
-    char solib[256];
-    snprintf(solib, sizeof(solib),
-            SOLIB_PREFIX "matmul_%s_%s" SOLIB_SUFFIX,
-            x->impl_name().c_str(), impl);
+    {
+        void * handle;
+        std::string solib = fmt::format(
+                SOLIB_PREFIX "matmul_{}_{}" SOLIB_SUFFIX,
+                x->impl_name(), impl);
+        static std::mutex pp;
+        std::lock_guard<std::mutex> const dummy(pp);
+        handle = dlopen(solib.c_str(), RTLD_NOW);
+        if (handle == nullptr) {
+            fmt::print(stderr, "loading {}: {}\n", solib, dlerror());
+            abort();
+        }
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-cstyle-cast)
+        auto ctor_getter = (matmul_interface_ctor_t *(*)()) dlsym(handle, "matmul_solib_reach_ctor");
+        ctor = (*ctor_getter)();
+        // stem.solib_handle.reset(handle);
+        if (ctor == nullptr) {
+            fmt::print(stderr, "loading {}: {}\n", solib, dlerror());
+            abort();
+        }
+        /* We're using the fact that shared_ptr virtualizes the dtor,
+         * which is quite helpful, here.
+         */
+        mm = std::unique_ptr<matmul_interface, remove_shared_lib_after_object> {
+                (*ctor)(std::move(stem), x, pl, optimized_direction),
+                { handle },
+        };
 
-    static pthread_mutex_t pp = PTHREAD_MUTEX_INITIALIZER;
-    pthread_mutex_lock(&pp);
-    void * handle = dlopen(solib, RTLD_NOW);
-    if (handle == NULL) {
-        fprintf(stderr, "loading %s: %s\n", solib, dlerror());
-        abort();
     }
-    rebinder = (rebinder_t) dlsym(handle, "matmul_solib_do_rebinding");
-    if (rebinder == NULL) {
-        fprintf(stderr, "loading %s: %s\n", solib, dlerror());
-        abort();
-    }
-    pthread_mutex_unlock(&pp);
 #else   /* BUILD_DYNAMICALLY_LINKABLE_BWC */
-    std::string impl_name = x->impl_name();
-    rebinder = get_rebinder(impl, impl_name.c_str());
+    {
+        /* the naive deleter works well in that case. We're still
+         * interested in having a shared_ptr for other reasons
+         * (interleaving), but beyond that no custom deletion is
+         * necessary. */
+        ctor = reach_ctor(impl, x->impl_name());
+        ASSERT_ALWAYS(ctor != nullptr);
+        mm = std::unique_ptr<matmul_interface> {
+                (*ctor)(std::move(stem), x, pl, optimized_direction)
+        };
+    }
 #endif   /* BUILD_DYNAMICALLY_LINKABLE_BWC */
 
-    (*rebinder)(fake);
-    matmul_ptr mm = fake->bind->init(x->concrete(), pl, optimized_direction);
-    if (mm == NULL) return NULL;
-#ifdef  BUILD_DYNAMICALLY_LINKABLE_BWC
-    mm->solib_handle = handle;
-#endif
-    (*rebinder)(mm);
+    if (!mm) return mm;
 
-    mm->dim[0] = nr;
-    mm->dim[1] = nc;
+    // NOTE that store_transposed is a priori set up by the
+    // implementation.
 
-    // this just copies the locfile field from the parent structure
-    // matmul_top... Except that for benches, the matmul structure lives
-    // outside of this.
-    mm->locfile = locfile;
-    param_list_parse_int(pl, "no_save_cache", &mm->no_save_cache);
-
-    if (locfile) {
-        int rc = asprintf(&mm->cachefile_name, "%s-%s%s.bin", locfile, mm->bind->impl, mm->store_transposed ? "T" : "");
-        FATAL_ERROR_CHECK(rc < 0, "out of memory");
-    } else {
-        mm->cachefile_name = NULL;
+    if (!locfile.empty()) {
+        mm->cachefile_name = fmt::format("{}-{}{}.bin",
+                locfile,
+                impl,
+                mm->store_transposed ? "T" : "");
     }
 
-    mm->local_cache_copy = NULL;
-
     const char * local_cache_copy_dir = param_list_lookup_string(pl, "local_cache_copy_dir");
-    if (local_cache_copy_dir && mm->cachefile_name) {
-        char * basename;
-        basename = strrchr(mm->cachefile_name, '/');
-        if (basename == NULL) {
-            basename = mm->cachefile_name;
-        }
+    if (local_cache_copy_dir && !mm->cachefile_name.empty()) {
         struct stat sbuf[1];
-        int rc = stat(local_cache_copy_dir, sbuf);
+        int const rc = stat(local_cache_copy_dir, sbuf);
         if (rc < 0) {
             fprintf(stderr, "Warning: accessing %s is not possible: %s\n",
                     local_cache_copy_dir, strerror(errno));
             return mm;
         }
-        rc = asprintf(&mm->local_cache_copy, "%s/%s", local_cache_copy_dir, basename);
-        FATAL_ERROR_CHECK(rc < 0, "out of memory");
+
+        auto it = mm->cachefile_name.rfind('/');
+        it = (it == std::string::npos) ? 0 : (it + 1);
+
+        mm->local_cache_copy = fmt::format("{}/{}",
+                local_cache_copy_dir,
+                mm->cachefile_name.substr(it));
     }
 
     return mm;
 }
 
-void matmul_build_cache(matmul_ptr mm, matrix_u32_ptr m)
+void matmul_interface::save_to_local_copy()
 {
-    /*
-    if (m == NULL) {
-        fprintf(stderr, "Called matmul_build_cache() with NULL as matrix_u32_ptr argument. A guaranteed abort() !\n");
-    }
-    */
-    /* read from ->locfile if the raw_matrix_u32 structure has not yet
-     * been created. */
-    mm->bind->build_cache(mm, m ? m->p : NULL, m ? m->size : 0);
-}
-
-static void save_to_local_copy(matmul_ptr mm)
-{
-    if (mm->no_save_cache ||
-        !mm->local_cache_copy ||
-        !mm->cachefile_name)
+    if (no_save_cache ||
+        local_cache_copy.empty() ||
+        cachefile_name.empty())
         return;
 
     struct stat sbuf[1];
     int rc;
 
-    rc = stat(mm->cachefile_name, sbuf);
+    rc = stat(cachefile_name.c_str(), sbuf);
     if (rc < 0) {
-        fprintf(stderr, "stat(%s): %s\n", mm->cachefile_name, strerror(errno));
+        fmt::print("stat({}): {}\n", cachefile_name, strerror(errno));
         return;
     }
-    unsigned long fsize = sbuf->st_size;
+    size_t const fsize = sbuf->st_size;
 
 #ifdef HAVE_STATVFS_H
     /* Check for remaining space on the filesystem */
-    char * dirname = strdup(mm->local_cache_copy);
-    char * last_slash = strrchr(dirname, '/');
-    if (last_slash == NULL) {
-        free(dirname);
-        dirname = strdup(".");
-    } else {
-        *last_slash = 0;
-    }
-
+        auto it = local_cache_copy.rfind('/');
+        std::string dirname = (it == std::string::npos) ? "." : local_cache_copy.substr(0, it);
 
     struct statvfs sf[1];
-    rc = statvfs(dirname, sf);
+    rc = statvfs(dirname.c_str(), sf);
     if (rc >= 0) {
-        unsigned long mb = sf->f_bsize * sf->f_bavail;
+        size_t const mb = sf->f_bsize * sf->f_bavail;
 
-        if (fsize > mb * 0.5) {
-            fprintf(stderr, "Copying %s to %s would occupy %lu MB out of %lu MB available, so more than 50%%. Skipping copy\n",
-                    mm->cachefile_name, dirname, fsize >> 20, mb >> 20);
-            free(dirname);
+        if (fsize > size_t(0.5*double(mb))) {
+            fmt::print(stderr, "Copying {} to {} would occupy {} MB out of {} MB available, so more than 50%. Skipping copy\n",
+                    cachefile_name, dirname, fsize >> 20, mb >> 20);
             return;
         }
-        fprintf(stderr, "%lu MB available on %s\n", mb >> 20, dirname);
+        fmt::print(stderr, "{} MB available on {}n", mb >> 20, dirname);
     } else {
-        fprintf(stderr, "Cannot do statvfs on %s (skipping check for available disk space): %s\n", dirname, strerror(errno));
+        fmt::print(stderr, "Cannot do statvfs on {} (skipping check for available disk space): {}\n", dirname, strerror(errno));
     }
-    free(dirname);
 #endif
 
 
     if (verbose_enabled(CADO_VERBOSE_PRINT_BWC_CACHE_MAJOR_INFO)) {
-        fprintf(stderr, "Also saving cache data to %s (%lu MB)\n", mm->local_cache_copy, fsize >> 20);
+        fmt::print(stderr, "Also saving cache data to {} ({} MB)\n",
+                local_cache_copy,
+                fsize >> 20);
     }
 
-    char * normal_cachefile = mm->cachefile_name;
-    mm->cachefile_name = mm->local_cache_copy;
-    mm->bind->save_cache(mm);
-    mm->cachefile_name = normal_cachefile;
+    std::string const normal_cachefile = cachefile_name;
+    cachefile_name = local_cache_copy;
+    save_cache();
+    cachefile_name = normal_cachefile;
 }
 
-int matmul_reload_cache(matmul_ptr mm)
+/* This is wicked. It's the main entry point of cache reloading, but it
+ * dares play games with the cache name before the instance method gets
+ * called. In turn, that instance method calls
+ * matmul_common_reload_cache_fopen.
+ *
+ * It would make more sense if matmul_common_reload_cache_fopen chose
+ * which file to load in its implementation, rather than here.
+ */
+
+int matmul_interface::reload_cache()
 {
     struct stat sbuf[2][1];
     int rc;
-    if (!mm->cachefile_name)
+    if (cachefile_name.empty())
         return 0;
-    rc = stat(mm->cachefile_name, sbuf[0]);
+    rc = stat(cachefile_name.c_str(), sbuf[0]);
     if (rc < 0) {
         return 0;
     }
-    int local_is_ok = mm->local_cache_copy != NULL;
+    int local_is_ok = !local_cache_copy.empty();
     if (local_is_ok) {
         /* coverity[toctou] */
-        rc = stat(mm->local_cache_copy, sbuf[1]);
+        rc = stat(local_cache_copy.c_str(), sbuf[1]);
         local_is_ok = rc == 0;
     }
 
     if (local_is_ok && (sbuf[0]->st_size != sbuf[1]->st_size)) {
-        fprintf(stderr, "%s and %s differ in size ; latter ignored\n",
-                mm->cachefile_name,
-                mm->local_cache_copy);
-        unlink(mm->local_cache_copy);
+        fmt::print(stderr, "{} and {} differ in size ; latter ignored\n",
+                cachefile_name,
+                local_cache_copy);
+        unlink(local_cache_copy.c_str());
         local_is_ok = 0;
     }
 
     if (local_is_ok && (sbuf[0]->st_mtime > sbuf[1]->st_mtime)) {
-        fprintf(stderr, "%s is newer than %s ; latter ignored\n",
-                mm->cachefile_name,
-                mm->local_cache_copy);
-        unlink(mm->local_cache_copy);
+        fmt::print(stderr, "{} is newer than {} ; latter ignored\n",
+                cachefile_name,
+                local_cache_copy);
+        unlink(local_cache_copy.c_str());
         local_is_ok = 0;
     }
 
     if (!local_is_ok) {
         // no local copy.
-        rc = mm->bind->reload_cache(mm);
+        rc = reload_cache_private();
         if (rc == 0)
             return 0;
         // succeeded in loading data.
-        save_to_local_copy(mm);
+        save_to_local_copy();
         return 1;
     } else {
-        char * normal_cachefile = mm->cachefile_name;
-        mm->cachefile_name = mm->local_cache_copy;
-        rc = mm->bind->reload_cache(mm);
-        mm->cachefile_name = normal_cachefile;
+        std::string const normal_cachefile = cachefile_name;
+        cachefile_name = local_cache_copy;
+        rc = reload_cache_private();
+        cachefile_name = normal_cachefile;
         return rc;
     }
 }
 
-void matmul_save_cache(matmul_ptr mm)
+void matmul_interface::save_cache()
 {
-    if (mm->no_save_cache) return;
-    mm->bind->save_cache(mm);
-    save_to_local_copy(mm);
+    // nothing fancy here. Maybe more stuff could come, but it's probably
+    // better to keep it clean. For symmetry, we have a front-end /
+    // back-end mechanism for reload_cache, so we have one here, that's
+    // it.
+    save_cache_private();
 }
 
-void matmul_mul(matmul_ptr mm, void * dst, void const * src, int d)
-{
-    /* d == 1: this is a matrix-times-vector product.
-     * d == 0: this is a vector-times-matrix product.
-     *
-     * In terms of number of rows and columns of vectors, this has
-     * implications of course.
-     *
-     * A matrix times vector product takes a src vector of mm->dim[1]
-     * coordinates, and outputs a dst vector of mm->dim[0] coordinates.
-     *
-     * This external interface is _not_ concerned with the value of the
-     * mm->store_transposed flag. That one only relates to how the
-     * implementation layer expects the data to be presented when the
-     * cache is being built.
-     */
-    mm->bind->mul(mm, dst, src, d);
+#ifdef  BUILD_DYNAMICALLY_LINKABLE_BWC
+void matmul_interface::remove_shared_lib_after_object::operator()(matmul_interface * mm) {
+    delete mm;
+    dlclose(solib_handle);
 }
-
-void matmul_report(matmul_ptr mm, double scale)
-{
-    mm->bind->report(mm, scale);
-}
-
-void matmul_clear(matmul_ptr mm)
-{
-    if (mm->report_string_size) {
-        free(mm->report_string);
-        mm->report_string = NULL;
-    }
-    if (mm->cachefile_name != NULL) free(mm->cachefile_name);
-    if (mm->local_cache_copy != NULL) free(mm->local_cache_copy);
-    mm->locfile = NULL;
-#ifdef BUILD_DYNAMICALLY_LINKABLE_BWC
-    void * handle = mm->solib_handle;
-    mm->bind->clear(mm);
-    dlclose(handle);
-#else
-    mm->bind->clear(mm);
 #endif
-}
-
-void matmul_auxv(matmul_ptr mm, int op, va_list ap)
-{
-    mm->bind->auxv (mm, op, ap);
-}
-
-void matmul_aux(matmul_ptr mm, int op, ...)
-{
-    va_list ap;
-    va_start(ap, op);
-    matmul_auxv (mm, op, ap);
-    va_end(ap);
-}

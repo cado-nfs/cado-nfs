@@ -36,6 +36,47 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 
 extern double bound_f, bound_g, area;
 
+struct cado_poly_stats_s {
+    /* This goes with one cado_poly object. Each polynomial has its
+     * stats, except that we don't compute them for the rational
+     * polynomials.
+     */
+    struct {
+        unsigned int nrroots;
+        double lognorm;
+        double alpha;
+        double alpha_proj;
+        /* This is the "expected" value of E after root sieving. It takes
+         * into account the potential gain from rotation, given the
+         * degrees of freedom that are given by the linear polynomial.
+         *
+         * (in contrast, the "true" E is just lognorm+alpha)
+         *
+         * This field is 0 if we've computed the stats with
+         * cado_poly_compute_stats (a priori final stats), and >0 only if
+         * the computation was done with
+         * cado_poly_compute_expected_stats.
+         */
+        double exp_E;
+    } (*pols)[1];
+    int nb_polys;
+};
+typedef struct cado_poly_stats_s cado_poly_stats[1];
+typedef struct cado_poly_stats_s * cado_poly_stats_ptr;
+typedef const struct cado_poly_stats_s * cado_poly_stats_srcptr;
+
+extern void cado_poly_stats_init(cado_poly_stats_ptr spoly, int nb_polys);
+extern void cado_poly_stats_clear(cado_poly_stats_ptr spoly);
+
+/* returns the average exp_E for nonlinear polynomials */
+extern double cado_poly_compute_expected_stats(cado_poly_stats_ptr, cado_poly_srcptr cpoly);
+
+/* returns the average of E=lognorm+alpha for nonlinear polynomials */
+extern double cado_poly_compute_stats(cado_poly_stats_ptr, cado_poly_srcptr cpoly);
+
+extern void cado_poly_fprintf_stats(FILE * fp, const char * prefix, cado_poly_srcptr cpoly, cado_poly_stats_srcptr spoly);
+
+
 /* The maximum degree supported is MAX_DEGREE, as defined in cado_poly.h */
 
 #define NORM_MARGIN 0.2
@@ -60,16 +101,15 @@ double get_alpha_affine_p (mpz_poly_srcptr f, unsigned long p, gmp_randstate_ptr
 /* poly info, being called in order */
 void print_cadopoly_fg (FILE*, mpz_poly_srcptr, mpz_poly_srcptr, mpz_srcptr);
 double print_cadopoly (FILE*, cado_poly_srcptr);
-void print_cadopoly_extra (FILE*, cado_poly, int, char**, double);
+void print_cadopoly_extra (FILE*, cado_poly, int, char const **, double);
 double print_poly_fg (mpz_poly_srcptr, mpz_poly_srcptr, mpz_srcptr, int);
+
+void cado_poly_set_skewness_if_undefined(cado_poly_ptr cpoly);
 long rotate_aux (mpz_poly_ptr f, mpz_poly_srcptr, long k0, long k, unsigned int t);
 void rotate_auxg_z (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_srcptr k, unsigned int t) __attribute__((deprecated));
 
-double cado_poly_fprintf_with_info (FILE *, cado_poly_ptr, const char *, int);
-double cado_poly_fprintf_with_info_and_MurphyE (FILE *fp, cado_poly_ptr,
-                                                double, double, double, double,
-                                                const char *);
 double expected_rotation_gain (mpz_poly_srcptr f, mpz_poly_srcptr g);
+
 void expected_growth (rotation_space *r, mpz_poly_srcptr f, mpz_poly_srcptr g,
                       int i, double maxlognorm, double skew);
 

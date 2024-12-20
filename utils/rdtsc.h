@@ -9,6 +9,8 @@
 #define RDTSC_H_
 
 #include <stdint.h>
+#include <stdlib.h>
+
 #include "macros.h"
 
 /* Enable at most one of these three defines, preferably in the including
@@ -17,7 +19,7 @@
 // #define USE_PERF 1
 // #define USE_JEVENTS 1
 
-#include <stdlib.h>
+// scan-headers: stop here
 
 uint64_t u32_to_64(uint32_t low, uint32_t high)
 { return ((uint64_t) high << 32) + (uint64_t) low; }

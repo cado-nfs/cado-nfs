@@ -1,17 +1,22 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <string.h>
-#include <inttypes.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstdint>
+#include <cstring>
+#include <cinttypes>
+#include <ctime>
+#include <cerrno>
+#include <cmath>
+#include <climits>
+
+#include <memory>
+#include <algorithm>
+
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <time.h>
-#include <errno.h>
-#include <math.h>
-#include <limits.h>
 #include <sys/time.h>
-#include "mf.h"
+
+
 #include "mod_ul.h"
 #include "balancing.hpp"
 #include "rowset_heap.h"
@@ -22,9 +27,11 @@
 #include "macros.h"
 #include "params.h"
 
+#include "utils_cxx.hpp"        // for unique_ptr<FILE>
+
 typedef int (*sortfunc_t) (const void *, const void *);
 
-int revcmp_2u32(const uint32_t * a, const uint32_t * b)
+static int revcmp_2u32(const uint32_t * a, const uint32_t * b)
 {
     if (a[0] > b[0]) return -1;
     if (b[0] > a[0]) return 1;
@@ -41,7 +48,8 @@ struct slice {
     uint32_t i0;
 };
 
-int slice_finding_helper(const uint32_t * key, const struct slice * elem)/*{{{*/
+#if 0
+static int slice_finding_helper(const uint32_t * key, const struct slice * elem)/*{{{*/
 {
     if (*key < elem->i0) {
         return -1;
@@ -51,7 +59,7 @@ int slice_finding_helper(const uint32_t * key, const struct slice * elem)/*{{{*/
     return 0;
 }
 
-unsigned int which_slice(const struct slice * slices, unsigned int ns, uint32_t k)
+static unsigned int which_slice(const struct slice * slices, unsigned int ns, uint32_t k)
 {
     const struct slice * found = (const struct slice *) bsearch(
             (const void *) &k, (const void *) slices,
@@ -62,9 +70,11 @@ unsigned int which_slice(const struct slice * slices, unsigned int ns, uint32_t 
     } else {
         return found - slices;
     }
-}/*}}}*/
+}
+#endif
+/*}}}*/
 
-void free_slices(struct slice * slices, unsigned int n)
+static void free_slices(struct slice * slices, unsigned int n)
 {
     unsigned int i;
     for(i = 0 ; i < n ; i++) {
@@ -73,14 +83,14 @@ void free_slices(struct slice * slices, unsigned int n)
     free(slices);
 }
 
-struct slice * alloc_slices(unsigned int water, unsigned int n)
+static struct slice * alloc_slices(unsigned int water, unsigned int n)
 {
     struct slice * res;
     unsigned int i;
 
     res = (struct slice*) malloc(n * sizeof(struct slice));
 
-    uint32_t common_size = water / n;
+    uint32_t const common_size = water / n;
 
     // we now require equal-sized blocks.
     ASSERT_ALWAYS(water % n == 0);
@@ -97,7 +107,7 @@ struct slice * alloc_slices(unsigned int water, unsigned int n)
 /* {{{ shuffle_rtable: This is the basic procedure which dispatches rows
  * (or columns) in buckets according to our preferred strategy
  */
-struct slice * shuffle_rtable(
+static struct slice * shuffle_rtable(
         const char * text,
         uint32_t * rt,
         uint32_t n,
@@ -133,8 +143,8 @@ struct slice * shuffle_rtable(
      */
     for(i = 0 ; i < n ; i++) {
         pop_heap(heap, heap + ns);
-        int j = heap[ns-1].i;
-        int pos = slices[j].nrows-heap[ns-1].room;
+        int const j = heap[ns-1].i;
+        int const pos = slices[j].nrows-heap[ns-1].room;
         ASSERT(heap[ns-1].room);
         slices[j].r[pos] = rt[2*i+1];
         heap[ns-1].s += rt[2*i];
@@ -149,7 +159,7 @@ struct slice * shuffle_rtable(
     qsort(heap, ns, sizeof(struct bucket), (sortfunc_t) &heap_index_compare);
 
     for(i = 0 ; i < ns ; i++) {
-        int j = heap[i].i;
+        int const j = heap[i].i;
         ASSERT(heap[i].i == (int) i);
         printf("%s slice %d, span=%ld, weight=%ld\n",
                 text,
@@ -183,15 +193,16 @@ struct slice * shuffle_rtable(
 /* }}} */
 
 /* {{{ read the mfile header if we have it, deduce #coeffs */
-void read_mfile_header(balancing & bal, const char * mfile, int withcoeffs)
+static void read_mfile_header(balancing & bal, std::string const & mfile, int withcoeffs)
 {
     struct stat sbuf_mat[1];
-    int rc = stat(mfile, sbuf_mat);
+    int const rc = stat(mfile.c_str(), sbuf_mat);
     if (rc < 0) {
-        fprintf(stderr, "Reading %s: %s (not fatal)\n", mfile, strerror(errno));
-        printf("%s: %" PRIu32 " rows %" PRIu32 " cols\n",
+        fmt::print(stderr, "Reading {}: {} (not fatal)\n", mfile, strerror(errno));
+        fmt::print("{}: {} rows {} cols\n",
                 mfile, bal.nrows, bal.ncols);
-        printf("%s: main input file not present locally, total weight unknown\n", mfile);
+        fmt::print("{}: main input file not present locally,"
+                " total weight unknown\n", mfile);
         bal.ncoeffs = 0;
     } else {
         bal.ncoeffs = sbuf_mat->st_size / sizeof(uint32_t) - bal.nrows;
@@ -203,31 +214,26 @@ void read_mfile_header(balancing & bal, const char * mfile, int withcoeffs)
             bal.ncoeffs /= 2;
         }
 
-        int extra = bal.ncols - bal.nrows;
+        int const extra = int(bal.ncols - bal.nrows);
         if (extra > 0) {
-            printf( "%s: %" PRIu32 " rows %" PRIu32 " cols"
-                    " (%d extra cols)"
-                    " weight %" PRIu64 "\n",
+            fmt::print("{}: {} rows {} cols ({} extra cols) weight {}\n",
                     mfile, bal.nrows, bal.ncols,
                     extra,
                     bal.ncoeffs);
         } else if (extra < 0) {
-            printf( "%s: %" PRIu32 " rows %" PRIu32 " cols"
-                    " (%d extra rows)"
-                    " weight %" PRIu64 "\n",
+            fmt::print("{}: {} rows {} cols ({} extra rows) weight {}\n",
                     mfile, bal.nrows, bal.ncols,
                     -extra,
                     bal.ncoeffs);
         } else {
-            printf( "%s: %" PRIu32 " rows %" PRIu32 " cols"
-                    " weight %" PRIu64 "\n",
+            fmt::print("{}: {} rows {} cols weight {}\n",
                     mfile, bal.nrows, bal.ncols, bal.ncoeffs);
         }
     }
 }
 /* }}} */
 
-void mf_bal_decl_usage(param_list_ptr pl)
+void mf_bal_decl_usage(cxx_param_list & pl)
 {
    param_list_decl_usage(pl, "mfile", "matrix file (can also be given freeform)");
    param_list_decl_usage(pl, "rwfile", "row weight file (defaults to <mfile>.rw)");
@@ -241,7 +247,7 @@ void mf_bal_decl_usage(param_list_ptr pl)
    param_list_decl_usage(pl, "skip_decorrelating_permutation", "solve for the matrix M instead of the matrix P*M with P a fixed stirring matrix");
 }
 
-void mf_bal_configure_switches(param_list_ptr pl, struct mf_bal_args * mba)
+void mf_bal_configure_switches(cxx_param_list & pl, struct mf_bal_args * mba)
 {
     param_list_configure_switch(pl, "--quiet", &mba->quiet);
     // param_list_configure_switch(pl, "--display-correlation", &display_correlation);
@@ -250,13 +256,13 @@ void mf_bal_configure_switches(param_list_ptr pl, struct mf_bal_args * mba)
 }
 
 
-void mf_bal_parse_cmdline(struct mf_bal_args * mba, param_list_ptr pl, int * p_argc, char *** p_argv)
+void mf_bal_parse_cmdline(struct mf_bal_args * mba, cxx_param_list & pl, int * p_argc, char const *** p_argv)
 {
     unsigned int wild =  0;
     (*p_argv)++,(*p_argc)--;
     for(;(*p_argc);) {
-        char * q;
-        if (param_list_update_cmdline(pl, &(*p_argc), &(*p_argv))) continue;
+        const char * q;
+        if (param_list_update_cmdline(pl, p_argc, p_argv)) continue;
 
         if ((*p_argv)[0][0] != '-' && wild == 0 && (q = strchr((*p_argv)[0],'x')) != NULL) {
             mba->nh = atoi((*p_argv)[0]);
@@ -279,7 +285,7 @@ void mf_bal_parse_cmdline(struct mf_bal_args * mba, param_list_ptr pl, int * p_a
     }
 }
 
-void mf_bal_interpret_parameters(struct mf_bal_args * mba, param_list_ptr pl)
+void mf_bal_interpret_parameters(struct mf_bal_args * mba, cxx_param_list & pl)
 {
     const char * tmp;
 
@@ -290,27 +296,31 @@ void mf_bal_interpret_parameters(struct mf_bal_args * mba, param_list_ptr pl)
 
     if ((tmp = param_list_lookup_string(pl, "reorder")) != NULL) {
         if (strcmp(tmp, "auto") == 0) {
-            mba->do_perm[1] = mf_bal_args::MF_BAL_PERM_AUTO;
             mba->do_perm[0] = mf_bal_args::MF_BAL_PERM_AUTO;
-        } else if (strcmp(tmp, "rows") == 0) {
-            mba->do_perm[1] = mf_bal_args::MF_BAL_PERM_NO;
-            mba->do_perm[0] = mf_bal_args::MF_BAL_PERM_YES;
-        } else if (strcmp(tmp, "columns") == 0) {
-            mba->do_perm[1] = mf_bal_args::MF_BAL_PERM_YES;
+            mba->do_perm[1] = mf_bal_args::MF_BAL_PERM_AUTO;
+        } else if (strcmp(tmp, "none") == 0) {
             mba->do_perm[0] = mf_bal_args::MF_BAL_PERM_NO;
+            mba->do_perm[1] = mf_bal_args::MF_BAL_PERM_NO;
+        } else if (strcmp(tmp, "rows") == 0) {
+            mba->do_perm[0] = mf_bal_args::MF_BAL_PERM_YES;
+            mba->do_perm[1] = mf_bal_args::MF_BAL_PERM_NO;
+        } else if (strcmp(tmp, "columns") == 0) {
+            mba->do_perm[0] = mf_bal_args::MF_BAL_PERM_NO;
+            mba->do_perm[1] = mf_bal_args::MF_BAL_PERM_YES;
         } else if (strcmp(tmp, "rows,columns") == 0) {
-            mba->do_perm[1] = mf_bal_args::MF_BAL_PERM_YES;
             mba->do_perm[0] = mf_bal_args::MF_BAL_PERM_YES;
+            mba->do_perm[1] = mf_bal_args::MF_BAL_PERM_YES;
         } else if (strcmp(tmp, "columns,rows") == 0) {
-            mba->do_perm[1] = mf_bal_args::MF_BAL_PERM_YES;
             mba->do_perm[0] = mf_bal_args::MF_BAL_PERM_YES;
+            mba->do_perm[1] = mf_bal_args::MF_BAL_PERM_YES;
         } else if (strcmp(tmp, "both") == 0) {
-            mba->do_perm[1] = mf_bal_args::MF_BAL_PERM_YES;
             mba->do_perm[0] = mf_bal_args::MF_BAL_PERM_YES;
+            mba->do_perm[1] = mf_bal_args::MF_BAL_PERM_YES;
         } else {
             fprintf(stderr, "Argument \"%s\" to the \"reorder\" parameter not understood\n"
                     "Supported values are:\n"
                     "\tauto (default)\n"
+                    "\tnone\n"
                     "\trows\n"
                     "\tcolumns\n"
                     "\tboth (equivalent forms: \"rows,columns\" or \"columns,rows\"\n",
@@ -319,18 +329,10 @@ void mf_bal_interpret_parameters(struct mf_bal_args * mba, param_list_ptr pl)
         }
     }
 
-    if ((tmp = param_list_lookup_string(pl, "mfile")) != NULL) {
-        mba->mfile = tmp;
-    }
-    if ((tmp = param_list_lookup_string(pl, "rwfile")) != NULL) {
-        mba->rwfile = tmp;
-    }
-    if ((tmp = param_list_lookup_string(pl, "cwfile")) != NULL) {
-        mba->cwfile = tmp;
-    }
-    if ((tmp = param_list_lookup_string(pl, "out")) != NULL) {
-        mba->bfile = tmp;
-    }
+    param_list_parse(pl, "mfile", mba->mfile);
+    param_list_parse(pl, "rwfile", mba->rwfile);
+    param_list_parse(pl, "cwfile", mba->cwfile);
+    param_list_parse(pl, "out", mba->bfile);
     param_list_parse_int(pl, "skip_decorrelating_permutation", &mba->skip_decorrelating_permutation);
 }
 
@@ -340,57 +342,48 @@ void mf_bal_adjust_from_option_string(struct mf_bal_args * mba, const char * opt
      * adjust the mba structure.
      */
     if (!opts) return;
-    /* Create a new param_list from opts {{{ */
-    char ** n_argv;
-    char ** n_argv0;
-    int n_argc;
-    char * my_opts;
     ASSERT_ALWAYS(opts);
-    my_opts = strdup(opts);
-    n_argv0 = n_argv = (char **) malloc(strlen(my_opts) * sizeof(char*));
-    n_argc = 0;
-    n_argv[n_argc++]=strdup("mf_bal");
-    for(char * q = my_opts, * qq; q != NULL; q = qq) {
-        qq = strchr(q, ',');
-        if (qq) { *qq++='\0'; }
-        n_argv[n_argc++]=q;
-    }
 
-    param_list pl2;
-    param_list_init(pl2);
+    /* Create a new param_list from opts {{{ */
+    auto my_opts = split(opts, ",");
+    int n_argc = 1 + int(my_opts.size());
+    std::vector<const char *> n_argv_v;
+    n_argv_v.reserve(n_argc);
+    n_argv_v.push_back("mf_bal");
+    for(auto const & s : my_opts) {
+        n_argv_v.push_back(s.c_str());
+    }
+    const char ** n_argv = n_argv_v.data();
+    /* }}} */
+
+    cxx_param_list pl2;
 
     mf_bal_decl_usage(pl2);
     mf_bal_configure_switches(pl2, mba);
     mf_bal_parse_cmdline(mba, pl2, &n_argc, &n_argv);
     mf_bal_interpret_parameters(mba, pl2);
-
-    param_list_clear(pl2);
-    free(my_opts);
-    free(n_argv0[0]);
-    free(n_argv0);
-
-    /* }}} */
 }
 
 void mf_bal(struct mf_bal_args * mba)
 {
     int rc;
     /* we sometimes allocate strings, which need to be freed eventually */
-    char * freeit[2] = { NULL, NULL, };
-    if (mba->mfile && !mba->rwfile) {
-        mba->rwfile = freeit[0] = build_mat_auxfile(mba->mfile, "rw", ".bin");
+    if (!mba->mfile.empty() && mba->rwfile.empty()) {
+        mba->rwfile = std::unique_ptr<char, free_delete<char>>(
+                derived_filename(mba->mfile.c_str(), "rw", ".bin")).get();
     }
 
-    if (mba->mfile && !mba->cwfile) {
-        mba->cwfile = freeit[1] = build_mat_auxfile(mba->mfile, "cw", ".bin");
+    if (!mba->mfile.empty() && mba->cwfile.empty()) {
+        mba->cwfile = std::unique_ptr<char, free_delete<char>>(
+                derived_filename(mba->mfile.c_str(), "cw", ".bin")).get();
     }
 
-    if (!mba->rwfile) { fprintf(stderr, "No rwfile given\n"); exit(1); }
-    if (!mba->cwfile) { fprintf(stderr, "No cwfile given\n"); exit(1); }
-    if (!mba->mfile) {
+    if (mba->mfile.empty()) {
         fprintf(stderr, "Matrix file name (mfile) must be given, even though the file itself does not have to be present\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
+    if (mba->rwfile.empty()) { fprintf(stderr, "No rwfile given\n"); exit(1); }
+    if (mba->cwfile.empty()) { fprintf(stderr, "No cwfile given\n"); exit(1); }
 
     balancing bal;
     balancing_init(bal);
@@ -399,12 +392,12 @@ void mf_bal(struct mf_bal_args * mba)
     bal.nv = mba->nv;
 
     struct stat sbuf[2][1];
-    rc = stat(mba->rwfile, sbuf[0]);
-    if (rc < 0) { perror(mba->rwfile); exit(1); }
+    rc = stat(mba->rwfile.c_str(), sbuf[0]);
+    if (rc < 0) { perror(mba->rwfile.c_str()); exit(1); }
     bal.nrows = sbuf[0]->st_size / sizeof(uint32_t);
 
-    rc = stat(mba->cwfile, sbuf[1]);
-    if (rc < 0) { perror(mba->cwfile); exit(1); }
+    rc = stat(mba->cwfile.c_str(), sbuf[1]);
+    if (rc < 0) { perror(mba->cwfile.c_str()); exit(1); }
     bal.ncols = sbuf[1]->st_size / sizeof(uint32_t);
 
     if (bal.ncols > bal.nrows) {
@@ -453,11 +446,11 @@ void mf_bal(struct mf_bal_args * mba)
     /* }}} */
 
     const char * text[2] = { "row", "column", };
-    unsigned int matsize[2] = { bal.nrows, bal.ncols, };
-    unsigned int gridsize[2] = { (unsigned int) mba->nh, (unsigned int) mba->nv };
+    unsigned int const matsize[2] = { bal.nrows, bal.ncols, };
+    unsigned int const gridsize[2] = { (unsigned int) mba->nh, (unsigned int) mba->nv };
     unsigned int block[2];
     unsigned int padding[2];
-    uint32_t * weights[2];
+    std::unique_ptr<uint32_t[]> weights[2];
     uint32_t nzero[2];
     double avg[2], sdev[2];
 
@@ -487,26 +480,26 @@ void mf_bal(struct mf_bal_args * mba)
                 gridsize[d],
                 gridsize[!d], block[d], gridsize[!d] * block[d], text[d]);
 
-        size_t n = matsize[d] + padding[d];
+        size_t const n = matsize[d] + padding[d];
 
         /* Read the file with row or column weights */
-        const char * filename = d == 0 ? mba->rwfile : mba->cwfile;
-        FILE * fw = fopen(filename, "rb");
-        if (fw == NULL) { perror(filename); exit(1); }
-        weights[d] = (uint32_t *) malloc(n * sizeof(uint32_t));
-        memset(weights[d], 0, n * sizeof(uint32_t));
+        std::string const filename = d == 0 ? mba->rwfile : mba->cwfile;
+        std::unique_ptr<FILE> const fw(fopen(filename.c_str(), "rb"));
+        if (!fw) { perror(filename.c_str()); exit(1); }
+        weights[d].reset(new uint32_t[n]);
+        std::fill_n(weights[d].get(), n, 0);
         /* Padding rows and cols have zero weight of course */
         double t_w;
         t_w = -wct_seconds();
-        size_t nr = fread32_little(weights[d], matsize[d], fw);
+        size_t const nr = fread32_little(weights[d].get(), matsize[d], fw.get());
         t_w += wct_seconds();
-        fclose(fw);
+
         if (nr < matsize[d]) {
-            fprintf(stderr, "%s: short %s count\n", filename, text[d]);
-            exit(1);
+            fmt::print(stderr, "{}: short {} count\n", filename, text[d]);
+            exit(EXIT_FAILURE);
         }
-        printf("read %s in %.1f s (%.1f MB / s)\n", filename, t_w,
-                1.0e-6 * sbuf[d]->st_size / t_w);
+        fmt::print("read {} in {:.1f} s ({:.1f} MB / s)\n",
+                filename, t_w, 1.0e-6 * double(sbuf[d]->st_size) / t_w);
         /* count zero rows or columns */
         nzero[d] = 0;
         for(size_t r = 0 ; r < matsize[d] ; r++) {
@@ -514,8 +507,7 @@ void mf_bal(struct mf_bal_args * mba)
         }
 
         if (mba->do_perm[d] == mf_bal_args::MF_BAL_PERM_NO) {
-            free(weights[d]);
-            weights[d] = NULL;
+            weights[d].reset();
             continue;
         }
 
@@ -540,9 +532,9 @@ void mf_bal(struct mf_bal_args * mba)
                 ASSERT(balancing_pre_shuffle(bal, rx) == r);
                 ASSERT(rx < matsize[d]);
             }
-            uint32_t w = weights[d][rx];
+            uint32_t const w = weights[d][rx];
             totalweight += w;
-            double x = w;
+            double const x = w;
             perm[2*r]=w;
             perm[2*r+1]=r;
             s1 += x;
@@ -554,17 +546,17 @@ void mf_bal(struct mf_bal_args * mba)
 
         if (bal.ncoeffs) {
             if (totalweight != bal.ncoeffs) {
-                fprintf(stderr, "Inconsistency in number of coefficients\n"
-                        "From %s: %" PRIu64 ", from file sizes; %" PRIu64 "\n",
+                fmt::print(stderr, "Inconsistency in number of coefficients\n"
+                        "From {}: {}, from file sizes; {}\n",
                         filename, totalweight, bal.ncoeffs);
-                fprintf(stderr, "Maybe use the --withcoeffs option for DL matrices ?\n");
+                fmt::print(stderr, "Maybe use the --withcoeffs option for DL matrices ?\n");
                 exit(1);
             }
         } else {
             bal.ncoeffs = totalweight;
-            printf("%" PRIu64 " coefficients counted\n", totalweight);
+            fmt::print("{} coefficients counted\n", totalweight);
         }
-        printf("%" PRIu32 " %ss ; avg %.1f sdev %.1f [scan time %.1f s]\n",
+        fmt::print("{} {} ; avg {:.1f} sdev {:.1f} [scan time {:.1f} s]\n",
                 matsize[d], text[d], avg[d], sdev[d], t_w);
     }
 
@@ -624,13 +616,11 @@ void mf_bal(struct mf_bal_args * mba)
                 dcorr);
     }
 #endif
-    if (mba->do_perm[0] != mf_bal_args::MF_BAL_PERM_NO) free(weights[0]);
-    if (mba->do_perm[1] != mf_bal_args::MF_BAL_PERM_NO) free(weights[1]);
 
     if (mba->do_perm[0] == mf_bal_args::MF_BAL_PERM_AUTO) {
-        int choose = sdev[1] > sdev[0];
-        printf("Choosing a %s permutation based on largest deviation"
-                " (%.2f > %.2f)\n",
+        int const choose = sdev[1] > sdev[0];
+        fmt::print("Choosing a {} permutation based on largest deviation"
+                " ({:.2f} > {:.2f})\n",
                 text[choose], sdev[choose], sdev[!choose]);
         mba->do_perm[choose] = mf_bal_args::MF_BAL_PERM_YES;
         mba->do_perm[!choose] = mf_bal_args::MF_BAL_PERM_NO;
@@ -638,12 +628,15 @@ void mf_bal(struct mf_bal_args * mba)
 
     bal.flags = 0;
 
+    /* this is where the rowperm / colperm objects change from bein a
+     * list of pairs (index, provenance tag) to just the indices
+     */
     for(int d = 0 ; d < 2 ; d++) {
         if (mba->do_perm[d] == mf_bal_args::MF_BAL_PERM_NO) continue;
         bal.flags |= (d == 0) ? FLAG_ROWPERM : FLAG_COLPERM;
         uint32_t ** pperm = d == 0 ? &bal.rowperm : &bal.colperm;
         struct slice * h = shuffle_rtable(text[d], *pperm, matsize[d] + padding[d], gridsize[d]);
-        /* we can now make the column permutation tidier */
+        /* we can now make the row or column permutation tidier */
         *pperm = (uint32_t *) realloc(*pperm, (matsize[d] + padding[d]) * sizeof(uint32_t));
         for(unsigned int ii = 0 ; ii < gridsize[d] ; ii++) {
             const struct slice * r = &(h[ii]);
@@ -661,7 +654,6 @@ void mf_bal(struct mf_bal_args * mba)
     balancing_write(bal, mba->mfile, mba->bfile);
     balancing_clear(bal);
 
-    if (freeit[0]) free(freeit[0]);
-    if (freeit[1]) free(freeit[1]);
+
 }
 

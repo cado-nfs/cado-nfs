@@ -5,10 +5,11 @@
 #include <cstdio>                     // for fprintf, stderr, stdout, FILE
 #include <cstdlib>                    // for abort, malloc, realloc, free
 #include <cstring>                    // for memset, memcpy, strcmp, strerror
-#ifdef  HAVE_GETRUSAGE
+#ifdef HAVE_GETRUSAGE
 #include <sys/resource.h>              // for rusage // IWYU pragma: keep
 #endif
 #include <mutex>
+#include <thread>
 #include <condition_variable>
 #include <sys/types.h>                 // for int8_t ssize_t
 #include <gmp.h>
@@ -120,7 +121,26 @@ struct ifb_locking_lightweight {/*{{{*/
             explicit inline t() : x(0) {}
             inline void store(T a) { x = a; }
             inline t& operator=(T const& a) { store(a); return *this; }
-            inline T increment() { return x++; }
+            /* c++20 frowns upon volatile. Well, it kinda forces us to
+             * use atomics, in fact. Let's silence the issue for the
+             * moment. It may well be that the correct way to go is the
+             * code branch above. But I still long for the optimal way to
+             * write things so that there's a 1-to-1 correspondence with
+             * the simple and easy code here.
+             */
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-volatile"
+#elif defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wvolatile"
+#endif
+            T increment() { return x++; }
+#ifdef __clang__
+#pragma clang diagnostic pop
+#elif defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
         };
 #endif
     };
@@ -351,11 +371,11 @@ template<typename locking, int n>
 earlyparsed_relation_ptr
 inflight_rels_buffer<locking, n>::schedule(int k)
 {
-    int prev = k ? (k-1) : (n-1);
+    int const prev = k ? (k-1) : (n-1);
     // coverity[result_independent_of_operands]
     ASSERT(active[k] <= locking::max_supported_concurrent);
     size_t s;
-    size_t a = k ? 0 : SIZE_BUF_REL;
+    size_t const a = k ? 0 : SIZE_BUF_REL;
     /* in 1-thread scenario, scheduled[k] == completed[k] */
     locking::lock(m + prev);
     if (locking::max_supported_concurrent == 1) {       /* static check */
@@ -615,7 +635,7 @@ static int prime_t_cmp(prime_t * a, prime_t * b)
 
 static int prime_t_cmp_indices(prime_t * a, prime_t * b)
 {
-    int r = (a->h > b->h) - (b->h > a->h);
+    int const r = (a->h > b->h) - (b->h > a->h);
     return r;
 }
 
@@ -821,7 +841,7 @@ earlyparser_index_maybeabhexa(earlyparsed_relation_ptr rel, ringbuf_ptr r,
     unsigned int n = 0;
     int is_sorted = 1;
 
-    char next_delim = parsesm ? ':' : '\n';
+    char const next_delim = parsesm ? ':' : '\n';
     int c = '\0';
     for( ; ; ) {
         uint64_t pr;
@@ -906,34 +926,26 @@ earlyparser_abindex_hexa_sm (earlyparsed_relation_ptr rel, ringbuf_ptr r)
 /************************************************************************/
 
 /*{{{ filter_rels producer thread */
-struct filter_rels_producer_thread_arg_s {
-    ringbuf_ptr rb;
-    /* NULL-terminated list of zero-terminated strings giving filenames
-     * (in fact, shell commands for providing filename contents).
-     */
-    char ** input_files;
-    timingstats_dict_ptr stats;
-};
 
-void * filter_rels_producer_thread(struct filter_rels_producer_thread_arg_s * arg)
+static void * filter_rels_producer_thread(
+    ringbuf_ptr r,
+    std::vector<std::string> const & input_files,
+    timingstats_dict_ptr stats)
 {
-    ringbuf_ptr r = arg->rb;
-
-    char ** filename = arg->input_files;
-
-    for( ; *filename ; filename++) {
+    for(auto const & filename : input_files) {
         int status;
         /* We expect all the "filenames" to have been returned by
          * prepare_grouped_command_lines, thus in fact be commands to be
          * passed through popen()
          */
-        FILE * f = cado_popen(*filename, "r");
-        ssize_t rc = ringbuf_feed_stream(r, f);
-        int saved_errno = errno;
+        FILE * f = cado_popen(filename.c_str(), "r");
+        ssize_t const rc = ringbuf_feed_stream(r, f);
+        int const saved_errno = errno;
 #ifdef  HAVE_GETRUSAGE
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
         struct rusage rus;
         status = cado_pclose2(f, &rus);
-        if (arg->stats) timingstats_dict_add(arg->stats, "feed-in", &rus);
+        if (stats) timingstats_dict_add(stats, "feed-in", &rus);
 #else
         status = cado_pclose(f);
 #endif
@@ -949,12 +961,12 @@ void * filter_rels_producer_thread(struct filter_rels_producer_thread_arg_s * ar
                     __func__,
                     strerror(errno),
                     rc < 0 ? "reading from" : "closing",
-                    *filename);
+                    filename.c_str());
             abort();
         }
     }
     ringbuf_mark_done(r);
-    if (arg->stats) timingstats_dict_add_mythread(arg->stats, "producer");
+    if (stats) timingstats_dict_add_mythread(stats, "producer");
     /*
     double thread_times[2];
     thread_seconds_user_sys(thread_times);
@@ -962,37 +974,34 @@ void * filter_rels_producer_thread(struct filter_rels_producer_thread_arg_s * ar
             thread_times[0],
             thread_times[1]);
             */
-    return NULL;
+    return nullptr;
 }
 /*}}}*/
 
 /*{{{ filter_rels consumer thread */
 template<typename inflight_t>
-struct filter_rels_consumer_thread_arg_s {
-    void *(*callback_fct) (void *, earlyparsed_relation_ptr);
-    void * callback_arg;
-    int k;
-    inflight_t * inflight;
-    timingstats_dict_ptr stats;
-    static void * f(struct filter_rels_consumer_thread_arg_s<inflight_t> * arg)
-    {
-        arg->inflight->enter(arg->k);
-        earlyparsed_relation_ptr slot;
-        for( ; (slot = arg->inflight->schedule(arg->k)) != NULL ; ) {
-            (*arg->callback_fct)(arg->callback_arg, slot);
-            arg->inflight->complete(arg->k, slot);
-        }
-
-        arg->inflight->leave(arg->k);
-        /*
-        double thread_times[2];
-        thread_seconds_user_sys(thread_times);
-        fprintf(stderr, "Consumer thread (level %d) ends after having spent %.2fs+%.2fs on cpu\n", arg->k, thread_times[0], thread_times[1]);
-        */
-        if (arg->stats) timingstats_dict_add_mythread(arg->stats, "consumer");
-        return NULL;
+static void filter_rels_consumer_thread(
+    void *(*callback_fct) (void *, earlyparsed_relation_ptr),
+    void * callback_arg,
+    int k,
+    inflight_t * inflight,
+    timingstats_dict_ptr stats)
+{
+    inflight->enter(k);
+    earlyparsed_relation_ptr slot;
+    for( ; (slot = inflight->schedule(k)) != NULL ; ) {
+        (*callback_fct)(callback_arg, slot);
+        inflight->complete(k, slot);
     }
-};
+
+    inflight->leave(k);
+    /*
+       double thread_times[2];
+       thread_seconds_user_sys(thread_times);
+       fprintf(stderr, "Consumer thread (level %d) ends after having spent %.2fs+%.2fs on cpu\n", k, thread_times[0], thread_times[1]);
+       */
+    if (stats) timingstats_dict_add_mythread(stats, "consumer");
+}
 
 /*}}}*/
 
@@ -1017,7 +1026,7 @@ struct filter_rels_consumer_thread_arg_s {
 /* see non-templated filter_rels2 below to see how this template is
  * instantiated */
 template<typename inflight_t>
-uint64_t filter_rels2_inner(char ** input_files,
+static uint64_t filter_rels2_inner(std::vector<std::string> const & input_files,
         filter_rels_description * desc,
         int earlyparse_needed_data,
         bit_vector_srcptr active,
@@ -1028,15 +1037,13 @@ uint64_t filter_rels2_inner(char ** input_files,
     size_t nB = 0;
 
     /* {{{ setup and start the producer thread (for the first pipe) */
-    char ** commands = prepare_grouped_command_lines(input_files);
-    pthread_t thread_producer1;
-    struct filter_rels_producer_thread_arg_s args1[1];
+    auto commands = prepare_grouped_command_lines(input_files);
+
     ringbuf rb;
-    ringbuf_init(rb, PREEMPT_BUF);
-    args1->rb = rb;
-    args1->input_files = commands;
-    args1->stats = stats;
-    pthread_create(&thread_producer1, NULL, (void *(*)(void*)) filter_rels_producer_thread, args1);
+    ringbuf_init(rb, 0);
+
+    std::thread producer(filter_rels_producer_thread, rb, commands, stats);
+
     /* }}} */
 
     /* {{{ configure the (limited) parsing we will do on the relations
@@ -1124,7 +1131,7 @@ uint64_t filter_rels2_inner(char ** input_files,
     if (earlyparse_needed_data & _(LINE)) {
         for (unsigned int i = 0 ; i < SIZE_BUF_REL; i++) {
             inflight->rels[i]->line = (char*) malloc(RELATION_MAX_BYTES);
-	    if (inflight->rels[i]->line == NULL)
+	    if (!inflight->rels[i]->line)
 	      {
 		fprintf (stderr, "Cannot allocate memory\n");
 		abort ();
@@ -1138,22 +1145,21 @@ uint64_t filter_rels2_inner(char ** input_files,
     /* these first few linse are also found in the non-templated function
      * which instantiates and calls us.
      */
-    /* Currently we only have had use for n==2 or n==3 */
-    typedef filter_rels_consumer_thread_arg_s<inflight_t> cons_arg_t;
-    cons_arg_t * cons_args = new cons_arg_t[ncons];
-    pthread_t * cons = new pthread_t[ncons];
+
+    std::vector<std::thread> consumers;
+    consumers.reserve(ncons);
     for(int j = 0, k = 1 ; j < ncons ; j+=desc[k-1].n, k++) {
         ASSERT_ALWAYS(k < n);
-        cons_args[j].callback_fct = desc[k-1].f;
-        cons_args[j].callback_arg = desc[k-1].arg;
-        cons_args[j].k = k;
-        cons_args[j].inflight = inflight;
-        cons_args[j].stats = stats;
         for(int i = 0 ; i < desc[k-1].n ; i++) {
-            /* this calls filter_rels_consumer_thread_arg_s<inflight_t>::f */
-            pthread_create(&cons[i+j], NULL, (void *(*)(void*)) &cons_arg_t::f, &cons_args[j]);
+            consumers.emplace_back(filter_rels_consumer_thread<inflight_t>, 
+                    desc[k-1].f,
+                    desc[k-1].arg,
+                    k,
+                    inflight,
+                    stats);
         }
     }
+
     /* }}} */
 
     /* {{{ main loop */
@@ -1173,7 +1179,7 @@ uint64_t filter_rels2_inner(char ** input_files,
             pthread_cond_wait(rb->bored, rb->mx);
         }
         avail_seen = rb->avail_to_read; /* must be before mutex unlock ! */
-        int done = rb->done;            /* must be before mutex unlock ! */
+        int const done = rb->done;            /* must be before mutex unlock ! */
         pthread_mutex_unlock(rb->mx);
         if (avail_seen == 0 && done) {
             /* end of producer1 is with rb->done = 1 -- which is
@@ -1187,7 +1193,7 @@ uint64_t filter_rels2_inner(char ** input_files,
         int nl;
         for(size_t avail_offset = 0; avail_offset < avail_seen && (nl = ringbuf_strchr(rb, '\n', 0)) > 0 ; ) {
             if (*rb->rhead != '#') {
-                uint64_t relnum = nrels++;
+                uint64_t const relnum = nrels++;
                 if (!active || bit_vector_getbit(active, relnum)) {
                     earlyparsed_relation_ptr slot = inflight->schedule(0);
                     slot->num = relnum;
@@ -1216,12 +1222,9 @@ uint64_t filter_rels2_inner(char ** input_files,
     /*}}}*/
 
     /* {{{ join all threads */
-    for(int j = 0 ; j < ncons ; j++) {
-        pthread_join(cons[j], NULL);
-    }
-    delete[] cons;
-    delete[] cons_args;
-    pthread_join(thread_producer1, NULL);
+    for(auto & t : consumers)
+        t.join();
+    producer.join();
     /*}}}*/
 
     /* NOTE: the inflight dtor is called automatically */
@@ -1233,12 +1236,26 @@ uint64_t filter_rels2_inner(char ** input_files,
 
     /* clean producer stuff */
     ringbuf_clear(rb);
-    filelist_clear(commands);
 
     return nactive;
 }
 
-uint64_t filter_rels2(char ** input_files,
+uint64_t filter_rels2(char const ** input_files,
+        struct filter_rels_description * desc,
+        int earlyparse_needed_data,
+        bit_vector_srcptr active,
+        timingstats_dict_ptr stats)
+{
+    std::vector<std::string> stl_input_files;
+    for(char const ** x = input_files ; *x ; x++) {
+        stl_input_files.emplace_back(*x);
+    }
+    return filter_rels2(stl_input_files, desc, earlyparse_needed_data, active, stats);
+}
+
+
+
+uint64_t filter_rels2(std::vector<std::string> const & input_files,
         filter_rels_description * desc,
         int earlyparse_needed_data,
         bit_vector_srcptr active,
@@ -1248,10 +1265,8 @@ uint64_t filter_rels2(char ** input_files,
     int n;      /* number of levels of the pipe */
     // int ncons = 0;      /* total number of consumers (levels >=1) */
 
-    for (unsigned int k = 0; input_files[k]; k++)
-    {
-      if (strcmp (input_files[k], "-") == 0)
-      {
+    for(auto const & f : input_files) {
+      if (f == "-") {
         fprintf (stderr, "Error, using - to read from standard input does "
                          "not work.\nPlease use named pipes instead.\n");
         abort ();
@@ -1282,3 +1297,19 @@ uint64_t filter_rels2(char ** input_files,
     }
 }
 
+uint64_t filter_rels(char const ** input_files,
+        filter_rels_callback_t f,
+        void * arg,
+        int earlyparse_needed_data,
+        bit_vector_srcptr active,
+        timingstats_dict_ptr stats)
+{
+    struct filter_rels_description desc[2] = {
+        { f, arg, 1, }, { nullptr, nullptr, 0, },
+    };
+    std::vector<std::string> stl_input_files;
+    for(char const ** x = input_files ; *x ; x++) {
+        stl_input_files.emplace_back(*x);
+    }
+    return filter_rels2(stl_input_files, desc, earlyparse_needed_data, active, stats);
+}

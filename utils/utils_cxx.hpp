@@ -1,12 +1,16 @@
 #ifndef UTILS_CXX_HPP_
 #define UTILS_CXX_HPP_
 
-#include <limits>
-#include <type_traits>
 #include <cstdio>
 #include <cstdlib>
+#include <limits>
 #include <memory>
 #include <string>
+#include <type_traits>
+#include <vector>
+
+#include "fmt/format.h"
+
 #include "macros.h"
 
 /* Base class with private copy-constructor and assignment operator.
@@ -205,9 +209,10 @@ template <typename T, typename U >
 using integral_fits_t = typename integral_fits<T, U>::type;
 
 /* Use this for unique_ptr's of objects allocated with malloc() */
+template<typename T>
 struct free_delete
 {
-    void operator()(void* x) {
+    void operator()(T* x) {
         free(x);        // NOLINT(cppcoreguidelines-no-malloc,hicpp-no-malloc)
     }
 };
@@ -222,5 +227,94 @@ struct std::default_delete<FILE>
 {
     void operator()(FILE* x) { fclose(x); }
 };
+
+#define CADO_DEFAULT_CXX_CTOR(T)        \
+    T() = default
+
+#define CADO_DEFAULT_COPY_CTOR(T)       \
+    T(T const &) = default
+
+#define CADO_DEFAULT_COPY_ASSIGNMENT(T) \
+    T& operator=(T const &) = default
+
+#define CADO_DEFAULT_MOVE_CTOR(T)       \
+    T(T&&) = default
+
+#define CADO_DEFAULT_MOVE_ASSIGNMENT(T) \
+    T& operator=(T&&) = default
+
+#define CADO_DEFAULT_ALL_FIVE(T)        \
+    CADO_DEFAULT_CXX_CTOR(T);           \
+    CADO_DEFAULT_COPY_CTOR(T);          \
+    CADO_DEFAULT_COPY_ASSIGNMENT(T);    \
+    CADO_DEFAULT_MOVE_CTOR(T);          \
+    CADO_DEFAULT_MOVE_ASSIGNMENT(T)
+
+
+static inline std::vector<std::string> split(
+        const std::string& s,
+        const std::string& delimiter)
+{
+    std::vector<std::string> tokens;
+    size_t pos = 0, next;
+    for ( ;
+            (next = s.find(delimiter, pos)) != std::string::npos ;
+            pos = next + delimiter.size()
+            )
+        tokens.push_back(s.substr(pos, next - pos));
+    tokens.push_back(s.substr(pos));
+
+    return tokens;
+}
+
+/* do we want these on iterables instead of vectors ? */
+template<typename ItemType>
+static inline std::string join(std::vector<ItemType> const & items,
+        const std::string& delimiter)
+{
+    std::string ret;
+    for(auto const & s : items) {
+        if (!ret.empty()) ret += delimiter;
+        ret += fmt::format("{}", s);
+    }
+    return ret;
+}
+
+template<>
+inline std::string join<std::string>(std::vector<std::string> const & items,
+        const std::string& delimiter)
+{
+    std::string ret;
+    for(auto const & s : items) {
+        if (!ret.empty()) ret += delimiter;
+        ret += s;
+    }
+    return ret;
+}
+
+template<typename Lambda, typename Iterable>
+static inline std::string join(Iterable first, Iterable last,
+        const std::string& delimiter,
+        Lambda lambda)
+{
+    std::string ret;
+    for(Iterable x = first ; x != last ; ++x) {
+        if (!ret.empty()) ret += delimiter;
+        ret += lambda(*x);
+    }
+    return ret;
+}
+
+/* not sure it's really needed. after all, we might want to have a
+ * generic map construction
+ */
+template<typename Lambda, typename ItemType>
+static inline std::string join(std::vector<ItemType> const & items,
+        const std::string& delimiter,
+        Lambda lambda)
+{
+    return join(items.begin(), items.end(), delimiter, lambda);
+}
+
 
 #endif	/* UTILS_CXX_HPP_ */

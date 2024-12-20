@@ -19,6 +19,9 @@
 #include "mpz_poly.h"
 #include "timing.h"             // for milliseconds
 #include "polyselect_norms.h"
+#include "ropt_sublattice_priority_queue.h"
+#include "ropt_single_sublattice_priority_queue.h"
+#include "ropt_sublattice_crt.h"
 
 
 /**
@@ -26,7 +29,7 @@
  */
 static inline void
 find_sublattice_lift ( node *firstchild,
-                       single_sublattice_pq *top,
+                       single_sublattice_priority_queue_ptr top,
                        unsigned int * f_ui,
                        unsigned int * g_ui,
                        unsigned int * fuv_ui,
@@ -177,11 +180,12 @@ find_sublattice_lift ( node *firstchild,
     if (curr_e == e) {
       tmpnode = currnode->firstchild;
       while (tmpnode != NULL) {
-        insert_single_sublattice_pq ( top,
-                                      tmpnode->u,
-                                      tmpnode->v,
-                                      tmpnode->val,
-                                      e );
+        struct single_sublattice_info S[1];
+        S->u = tmpnode->u;
+        S->v = tmpnode->v;
+        S->e = e;
+        S->val = tmpnode->val;
+        single_sublattice_priority_queue_push(top, S);
         tmpnode2 = tmpnode;
         tmpnode = tmpnode->nextsibling;
 
@@ -219,7 +223,7 @@ find_sublattice_lift ( node *firstchild,
  * pairs, we consider all the simple + multi roots.
  */
 static inline void
-find_sublattice ( single_sublattice_pq *top,
+find_sublattice ( single_sublattice_priority_queue_ptr top,
                   ropt_poly_srcptr poly,
                   unsigned int p,
                   char e )
@@ -276,11 +280,13 @@ find_sublattice ( single_sublattice_pq *top,
     node *tmpnode;
     currnode = root->firstchild;
     while (currnode != NULL) {
-      insert_single_sublattice_pq ( top,
-                                    currnode->u,
-                                    currnode->v,
-                                    currnode->val,
-                                    1 );
+      struct single_sublattice_info S[1];
+      S->u = currnode->u;
+      S->v = currnode->v;
+      S->val = currnode->val;
+      S->e = 1;
+
+      single_sublattice_priority_queue_push(top, S);
       tmpnode = currnode;
       currnode = currnode->nextsibling;
       free_node (&tmpnode);
@@ -304,12 +310,12 @@ find_sublattice ( single_sublattice_pq *top,
 
       /* case when (u, v) only has single roots */
       if (c == 1) {
-
-        insert_single_sublattice_pq ( top,
-                                      currnode->u,
-                                      currnode->v,
-                                      currnode->nr / ((float)(p - 1)),
-                                      1 );
+        struct single_sublattice_info S[1];
+        S->u = currnode->u;
+        S->v = currnode->v;
+        S->val = currnode->nr / (float) (p-1);
+        S->e = 1;
+        single_sublattice_priority_queue_push(top, S);
 
         /* delete this node */
         tmpnode = currnode;
@@ -328,12 +334,10 @@ find_sublattice ( single_sublattice_pq *top,
 
     /* data struct for the lift */
     unsigned int *f_ui, *g_ui, *fuv_ui;
-    f_ui = (unsigned int*) malloc (
-      (poly->d + 1) * sizeof (unsigned int) );
-    fuv_ui = (unsigned int*) malloc (
-      (poly->d + 1) * sizeof (unsigned int) );
-    g_ui = (unsigned int*) malloc (
-      2 * sizeof (unsigned int) );
+    int d = mpz_poly_degree(poly->cpoly->pols[1]);
+    f_ui = (unsigned int*) malloc ( (d + 1) * sizeof (unsigned int) );
+    fuv_ui = (unsigned int*) malloc ( (d + 1) * sizeof (unsigned int) );
+    g_ui = (unsigned int*) malloc ( 2 * sizeof (unsigned int) );
 
     if ( (f_ui == NULL) ||
          (g_ui == NULL) ||
@@ -343,15 +347,15 @@ find_sublattice ( single_sublattice_pq *top,
     }
 
     /* compute f (mod pe) */
-    reduce_poly_uint (f_ui, poly->f, pe);
-    reduce_poly_uint (g_ui, poly->g, pe);
+    reduce_poly_uint (f_ui, poly->cpoly->pols[1], pe);
+    reduce_poly_uint (g_ui, poly->cpoly->pols[0], pe);
 
     find_sublattice_lift ( root->firstchild,
                            top,
                            f_ui,
                            g_ui,
                            fuv_ui,
-                           poly->d,
+                           d,
                            p,
                            e,
                            2 );
@@ -363,88 +367,6 @@ find_sublattice ( single_sublattice_pq *top,
 
   mpz_clear (tmp);
   free_node(&root);
-}
-
-
-/**
- * Compute crt and add (u, v) to queue.
- */
-static inline void
-return_combined_sublattice_crt ( ropt_s1param_ptr s1param,
-                                 ropt_bound_srcptr bound,
-                                 unsigned int *ind,
-                                 unsigned int ***individual_sublattices,
-                                 float **individual_sublattices_weighted_val,
-                                 unsigned int *tprimes,
-                                 sublattice_pq *pqueue )
-{
-  unsigned int i, e, pe[s1param->tlen_e_sl];
-  mpz_t sum, inv, re, pe_z, tmpu1, tmpu2;
-  float val = 0.0;
-  
-  mpz_init (sum);
-  mpz_init (inv);
-  mpz_init (re);
-  mpz_init (pe_z);
-  mpz_init (tmpu1);
-  mpz_init (tmpu2);
-
-  /* compute pe[] */
-  for (i = 0; i < s1param->tlen_e_sl; i ++) {
-    pe[i] = 1;
-    /* note, the true e can be different from the s1param->e_sl[] */
-    for (e = 0; e < individual_sublattices[i][ind[i]][2]; e ++)
-      pe[i] *= tprimes[i];
-  }
-
-  /* compute modulus based on pe[], put it 
-     temperorily to s1param->modulus */
-  mpz_set_ui (s1param->modulus, 1UL);
-  for (i = 0; i < s1param->tlen_e_sl; i ++) {
-    mpz_mul_ui (s1param->modulus, s1param->modulus, pe[i]);
-  }
-
-  /* compute u */
-  mpz_set_ui (sum, 0);
-  for (i = 0; i < s1param->tlen_e_sl; i ++) {
-    mpz_divexact_ui (re, s1param->modulus, pe[i]);
-    mpz_set_ui (pe_z, pe[i]);
-    mpz_invert (inv, re, pe_z);
-    mpz_mul_ui (inv, inv, individual_sublattices[i][ind[i]][0]);
-    mpz_mul (inv, inv, re);
-    mpz_add (sum, sum, inv);
-    val += log( (double) tprimes[i] ) * 
-      individual_sublattices_weighted_val[i][ind[i]];
-  }
-  mpz_mod (tmpu1, sum, s1param->modulus);
-  mpz_sub (tmpu2, s1param->modulus, tmpu1); // tmpu2 > 0
-  
-  /* if u is good, compute v */
-  if ( mpz_cmp_si (tmpu1, bound->global_u_boundr) <= 0 ||
-       mpz_cmp_si (tmpu2, -bound->global_u_boundl) <= 0 ) {
-
-    /* compute v */
-    mpz_set_ui (sum, 0);
-    for (i = 0; i < s1param->tlen_e_sl; i ++) {
-      mpz_divexact_ui (re, s1param->modulus, pe[i]);
-      mpz_set_ui (pe_z, pe[i]);
-      mpz_invert (inv, re, pe_z);
-      mpz_mul_ui (inv, inv, individual_sublattices[i][ind[i]][1]);
-      mpz_mul (inv, inv, re);
-      mpz_add (sum, sum, inv);
-    }
-    mpz_mod (tmpu2, sum, s1param->modulus);
-
-    /* insert this node */
-    insert_sublattice_pq ( pqueue, tmpu1, tmpu2, s1param->modulus, val );
-  }
-
-  mpz_clear (sum);
-  mpz_clear (inv);
-  mpz_clear (re);
-  mpz_clear (pe_z);
-  mpz_clear (tmpu1);
-  mpz_clear (tmpu2);
 }
 
 
@@ -464,59 +386,49 @@ return_combined_sublattice_check_tlen ( ropt_s1param_ptr s1param )
   }
 
   /* check */
-  if (s1param->tlen_e_sl < 1 || s1param->tlen_e_sl > 10) {
+  if (s1param->tlen_e_sl < 1) {
     fprintf ( stderr, "Error, number of primes in \"-e\" (len_e_sl) "
               "should be between 1 and 10\n" );
     exit(1);
   }
 }
 
-
 /**
  * Return all sublattices by calling CRT, where for each sublattice,
- * the seperate (mod p) valuations are the best ones.
+ * the separate (mod p) valuations are the best ones.
  */
 static inline int
-return_combined_sublattice ( ropt_poly_ptr poly,
+return_combined_sublattice ( ropt_poly_srcptr poly,
                              ropt_s1param_ptr s1param,
-                             ropt_bound_ptr bound,
-                             sublattice_pq *pqueue,
+                             ropt_bound_srcptr bound,
+                             sublattice_priority_queue_ptr pqueue,
                              int verbose )
 {
-  /* get s1param->tlen_e_sl */
   return_combined_sublattice_check_tlen (s1param);
 
-  unsigned int i, j, k, count,
-    t_primes[s1param->tlen_e_sl],
-    t_e_sl[s1param->tlen_e_sl],
-    t_size[s1param->tlen_e_sl],
-    ind[s1param->tlen_e_sl],
-    ***individual_sublattices;
-  float **individual_sublattices_weighted_val;
-  single_sublattice_pq *top;
+  size_t t_nprimes = s1param->tlen_e_sl;
 
-  /* sublattice[i][length][] save (u, v) for prime[i] */
-  individual_sublattices = (unsigned int ***) malloc (
-    s1param->tlen_e_sl * sizeof (unsigned int **) );
+  unsigned int t_primes[t_nprimes], t_e_sl[t_nprimes];
 
-  individual_sublattices_weighted_val = (float **) malloc (
-    s1param->tlen_e_sl * sizeof (float *) );
-
-  if ( individual_sublattices == NULL ||
-       individual_sublattices_weighted_val == NULL ) {
-    fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
-    exit (1);
+  /* get t_primes and t_e_sl. These are subsets of ropt_primes and
+   * s1param->e_sl (restricting to the positive e_sl values).
+   *
+   * XXX it is probably feasible to simplify the code path by adopting a
+   * "full lattice" approach for e_sl[i]=0 below.
+   *
+   * XXX I think some of the s1param fields could/should be dropped.
+   */
+  {
+      unsigned int j = 0;
+      for (unsigned int i = 0; i < s1param->len_e_sl; i ++) {
+          if (s1param->e_sl[i] != 0) {
+              t_primes[j] = ropt_primes[i];
+              t_e_sl[j++] = s1param->e_sl[i];
+          }
+      }
+      /* j should equal the true length here */
+      ASSERT_ALWAYS (j == (unsigned int) t_nprimes);
   }
-
-  /* get t_primes and t_e_sl */
-  for (i = 0, j = 0; i < s1param->len_e_sl; i ++) {
-    if (s1param->e_sl[i] != 0) {
-      t_primes[j] = ropt_primes[i];
-      t_e_sl[j++] = s1param->e_sl[i];
-    }
-  }
-  /* j should equal the true length here */
-  ASSERT_ALWAYS (j == s1param->tlen_e_sl);
 
   /* decide the number of top individual sublattices. Note that
      the s1param->tlen_e_sl must be already set */
@@ -525,265 +437,49 @@ return_combined_sublattice ( ropt_poly_ptr poly,
   else
     ropt_s1param_setup_individual_nbest_sl_tune (s1param);
 
-  /* for each prime[i], lift the roots */
-  for (i = 0; i < s1param->tlen_e_sl; i ++) {
 
-    new_single_sublattice_pq (&top, s1param->individual_nbest_sl[i]);
+  single_sublattice_priority_queue * tops;
+
+  tops = (single_sublattice_priority_queue *) malloc(t_nprimes * sizeof(single_sublattice_priority_queue));
+
+
+  /* for each prime[i], lift the roots */
+  for (unsigned i = 0; i < t_nprimes; i ++) {
+
+    single_sublattice_priority_queue_init(tops[i], s1param->individual_nbest_sl[i]);
 
     /* find individual sublattices */
-    find_sublattice (top, poly, t_primes[i], t_e_sl[i]);
-    t_size[i] = top->used - 1;
+    find_sublattice (tops[i], poly, t_primes[i], t_e_sl[i]);
 
     /* if length zero, this set of parameters fails. */
-    if (t_size[i] == 0) {
-      for (k = 0; k < s1param->tlen_e_sl; k ++) {
-        for (j = 0; j < t_size[i]; j ++) {
-          if (individual_sublattices[k][j] != NULL)
-            free (individual_sublattices[k][j]);
-        }
-        if (individual_sublattices[k] != NULL) {
-          free (individual_sublattices[k]);
-        }
-        if (individual_sublattices_weighted_val[k] != NULL) {
-          free (individual_sublattices_weighted_val[k]);
-        }
+    if (single_sublattice_priority_queue_empty(tops[i])) {
+      for (unsigned int j = 0; j <= i ; j++) {
+          single_sublattice_priority_queue_clear(tops[j]);
       }
-      if (individual_sublattices != NULL)
-        free (individual_sublattices);
-      if (individual_sublattices_weighted_val != NULL)
-        free (individual_sublattices_weighted_val);
+      free(tops);
       return 0;
     }
 
-    /* allocate array for the i-th prime. */
-    individual_sublattices[i] = (unsigned int **) malloc (
-      t_size[i] * sizeof(unsigned int *) );
-    individual_sublattices_weighted_val[i] = (float *) malloc (
-      t_size[i] * sizeof(float) );
-    if ( (individual_sublattices)[i] == NULL || 
-         (individual_sublattices_weighted_val)[i] == NULL ) {
-      fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
-      exit (1);
-    }
-
-    for (j = 0; j < t_size[i]; j ++) {
-
-      (individual_sublattices)[i][j] = (unsigned int *) 
-        malloc ( 3 * sizeof(unsigned int) );
-      if ( individual_sublattices[i][j] == NULL ) {
-        fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
-        exit (1);
-      }
-
-      individual_sublattices[i][j][0] = top->u[j+1];
-      individual_sublattices[i][j][1] = top->v[j+1];
-      individual_sublattices[i][j][2] = (unsigned int) top->e[j+1];
-      individual_sublattices_weighted_val[i][j] = top->val[j+1];
-      /*
-        fprintf ( stderr, "SUBLATTICE: #%u, (%u, %u), e: %u, val: %.2f\n",
-        j, 
-        individual_sublattices[i][j][0],
-        individual_sublattices[i][j][1],
-        individual_sublattices[i][j][2],
-        individual_sublattices_weighted_val[i][j] );
-      */
-    }
-
-    free_single_sublattice_pq (&top);
-
     if (verbose >= 2)
       fprintf ( stderr,
-                "# Info: p: %2u, max_e: %2u, list_size: %6u\n",
-                t_primes[i], t_e_sl[i], t_size[i] );
+                "# Info: p: %2u, max_e: %2u, list_size: %6zu\n",
+                t_primes[i], t_e_sl[i],
+                single_sublattice_priority_queue_size(tops[i]));
+
 
   }
 
-  /* Loop over combinations of all arrays. This is awkward.
-     We could map 0 ... \prod pe[i] to the indices of the
-     arrays in the price of using more arithmetic. */
-
-  /* 2 */
-  if (s1param->tlen_e_sl == 1) {
-    for (ind[0] = 0; ind[0] < t_size[0]; ind[0] ++)
-      return_combined_sublattice_crt ( s1param,
-                                       bound,
-                                       ind,
-                                       individual_sublattices,
-                                       individual_sublattices_weighted_val,
-                                       t_primes,
-                                       pqueue );
-  }
-  /* 2, 3 */
-  else if (s1param->tlen_e_sl == 2) {
-    for (ind[0] = 0; ind[0] < t_size[0]; ind[0] ++)
-      for (ind[1] = 0; ind[1] < t_size[1]; ind[1] ++)
-        return_combined_sublattice_crt ( s1param,
-                                         bound,
-                                         ind,
-                                         individual_sublattices,
-                                         individual_sublattices_weighted_val,
-                                         t_primes,
-                                         pqueue );
-  }
-  /* 2, 3, 5 */
-  else if (s1param->tlen_e_sl == 3) {
-    for (ind[0] = 0; ind[0] < t_size[0]; ind[0] ++)
-      for (ind[1] = 0; ind[1] < t_size[1]; ind[1] ++)
-        for (ind[2] = 0; ind[2] < t_size[2]; ind[2] ++)
-          return_combined_sublattice_crt ( s1param,
-                                           bound,
-                                           ind,
-                                           individual_sublattices,
-                                           individual_sublattices_weighted_val,
-                                           t_primes,
-                                           pqueue );
-  }
-  /* 2, 3, 5, 7 */
-  else if (s1param->tlen_e_sl == 4) {
-    for (ind[0] = 0; ind[0] < t_size[0]; ind[0] ++)
-      for (ind[1] = 0; ind[1] < t_size[1]; ind[1] ++)
-        for (ind[2] = 0; ind[2] < t_size[2]; ind[2] ++)
-          for (ind[3] = 0; ind[3] < t_size[3]; ind[3] ++)
-            return_combined_sublattice_crt ( s1param,
-                                             bound,
-                                             ind,
-                                             individual_sublattices,
-                                             individual_sublattices_weighted_val,
-                                             t_primes,
-                                             pqueue );
-  }
-  /* 2, 3, 5, 7, 11 */
-  else if (s1param->tlen_e_sl == 5) {
-    for (ind[0] = 0; ind[0] < t_size[0]; ind[0] ++)
-      for (ind[1] = 0; ind[1] < t_size[1]; ind[1] ++)
-        for (ind[2] = 0; ind[2] < t_size[2]; ind[2] ++)
-          for (ind[3] = 0; ind[3] < t_size[3]; ind[3] ++)
-            for (ind[4] = 0; ind[4] < t_size[4]; ind[4] ++)
-              return_combined_sublattice_crt ( s1param,
-                                               bound,
-                                               ind,
-                                               individual_sublattices,
-                                               individual_sublattices_weighted_val,
-                                               t_primes,
-                                               pqueue );
-  }
-  /* 2, 3, 5, 7, 11, 13 */
-  else if (s1param->tlen_e_sl == 6) {
-    for (ind[0] = 0; ind[0] < t_size[0]; ind[0] ++)
-      for (ind[1] = 0; ind[1] < t_size[1]; ind[1] ++)
-        for (ind[2] = 0; ind[2] < t_size[2]; ind[2] ++)
-          for (ind[3] = 0; ind[3] < t_size[3]; ind[3] ++)
-            for (ind[4] = 0; ind[4] < t_size[4]; ind[4] ++)
-              for (ind[5] = 0; ind[5] < t_size[5]; ind[5] ++)
-                return_combined_sublattice_crt ( s1param,
-                                                 bound,
-                                                 ind,
-                                                 individual_sublattices,
-                                                 individual_sublattices_weighted_val,
-                                                 t_primes,
-                                                 pqueue );
-  }
-  /* 2, 3, 5, 7, 11, 13, 17 */
-  else if (s1param->tlen_e_sl == 7) {
-    for (ind[0] = 0; ind[0] < t_size[0]; ind[0] ++)
-      for (ind[1] = 0; ind[1] < t_size[1]; ind[1] ++)
-        for (ind[2] = 0; ind[2] < t_size[2]; ind[2] ++)
-          for (ind[3] = 0; ind[3] < t_size[3]; ind[3] ++)
-            for (ind[4] = 0; ind[4] < t_size[4]; ind[4] ++)
-              for (ind[5] = 0; ind[5] < t_size[5]; ind[5] ++)
-                for (ind[6] = 0; ind[6] < t_size[6]; ind[6] ++)
-                  return_combined_sublattice_crt ( s1param,
-                                                   bound,
-                                                   ind,
-                                                   individual_sublattices,
-                                                   individual_sublattices_weighted_val,
-                                                   t_primes,
-                                                   pqueue );
-  }
-  /* 2, 3, 5, 7, 11, 13, 17, 19 */
-  else if (s1param->tlen_e_sl == 8) {
-    for (ind[0] = 0; ind[0] < t_size[0]; ind[0] ++)
-      for (ind[1] = 0; ind[1] < t_size[1]; ind[1] ++)
-        for (ind[2] = 0; ind[2] < t_size[2]; ind[2] ++)
-          for (ind[3] = 0; ind[3] < t_size[3]; ind[3] ++)
-            for (ind[4] = 0; ind[4] < t_size[4]; ind[4] ++)
-              for (ind[5] = 0; ind[5] < t_size[5]; ind[5] ++)
-                for (ind[6] = 0; ind[6] < t_size[6]; ind[6] ++)
-                  for (ind[7] = 0; ind[7] < t_size[7]; ind[7] ++)
-                    return_combined_sublattice_crt ( s1param,
-                                                     bound,
-                                                     ind,
-                                                     individual_sublattices,
-                                                     individual_sublattices_weighted_val,
-                                                     t_primes,
-                                                     pqueue );
-  }
-  /* 2, 3, 5, 7, 11, 13, 17, 19, 23 */
-  else if (s1param->tlen_e_sl == 9) {
-    for (ind[0] = 0; ind[0] < t_size[0]; ind[0] ++)
-      for (ind[1] = 0; ind[1] < t_size[1]; ind[1] ++)
-        for (ind[2] = 0; ind[2] < t_size[2]; ind[2] ++)
-          for (ind[3] = 0; ind[3] < t_size[3]; ind[3] ++)
-            for (ind[4] = 0; ind[4] < t_size[4]; ind[4] ++)
-              for (ind[5] = 0; ind[5] < t_size[5]; ind[5] ++)
-                for (ind[6] = 0; ind[6] < t_size[6]; ind[6] ++)
-                  for (ind[7] = 0; ind[7] < t_size[7]; ind[7] ++)
-                    for (ind[8] = 0; ind[8] < t_size[8]; ind[8] ++)
-                      return_combined_sublattice_crt ( s1param,
-                                                       bound,
-                                                       ind,
-                                                       individual_sublattices,
-                                                       individual_sublattices_weighted_val,
-                                                       t_primes,
-                                                       pqueue );
-  }
-  /* 2, 3, 5, 7, 11, 13, 17, 19, 23, 29 */
-  else if (s1param->tlen_e_sl == 10) {
-    for (ind[0] = 0; ind[0] < t_size[0]; ind[0] ++)
-      for (ind[1] = 0; ind[1] < t_size[1]; ind[1] ++)
-        for (ind[2] = 0; ind[2] < t_size[2]; ind[2] ++)
-          for (ind[3] = 0; ind[3] < t_size[3]; ind[3] ++)
-            for (ind[4] = 0; ind[4] < t_size[4]; ind[4] ++)
-              for (ind[5] = 0; ind[5] < t_size[5]; ind[5] ++)
-                for (ind[6] = 0; ind[6] < t_size[6]; ind[6] ++)
-                  for (ind[7] = 0; ind[7] < t_size[7]; ind[7] ++)
-                    for (ind[8] = 0; ind[8] < t_size[8]; ind[8] ++)
-                      for (ind[9] = 0; ind[9] < t_size[9]; ind[9] ++)
-                        return_combined_sublattice_crt ( s1param,
-                                                         bound,
-                                                         ind,
-                                                         individual_sublattices,
-                                                         individual_sublattices_weighted_val,
-                                                         t_primes,
-                                                         pqueue );
-  }
-  /* too aggressive */
-  else {
-    fprintf ( stderr, "Error, number of primes in \"-e\" (len_e_sl) "
-              "should be between 1 and 10\n" );
-    exit (1);
-  }
+  unsigned int count = ropt_sublattice_combine_all_crt(t_nprimes, t_primes, tops, bound, pqueue);
 
   /* info */
   if (verbose >= 2) {
-    /* Compute s1param->modulus */
-    count = 1;
-    for (i = 0; i < s1param->tlen_e_sl; i ++) {
-      count *= t_size[i];
-    }
     fprintf (stderr, "# Info: computed %8u CRTs\n", count);
   }
 
-  /* clearence */
-  for (i = 0; i < s1param->tlen_e_sl; i ++) {
-    for (j = 0; j < t_size[i]; j ++) {
-      free (individual_sublattices[i][j]);
-    }
-    free (individual_sublattices[i]);
-    free (individual_sublattices_weighted_val[i]);
+  for (unsigned int j = 0; j < t_nprimes ; j++) {
+      single_sublattice_priority_queue_clear(tops[j]);
   }
-  free (individual_sublattices);
-  free (individual_sublattices_weighted_val);
+  free(tops);
 
   return 1;
 }
@@ -796,10 +492,10 @@ return_combined_sublattice ( ropt_poly_ptr poly,
  * by the size of u.
  */
 static inline int
-return_best_sublattice ( ropt_poly_ptr poly,
+return_best_sublattice ( ropt_poly_srcptr poly,
                          ropt_s1param_ptr s1param,
                          ropt_bound_ptr bound,
-                         sublattice_pq *pqueue,
+                         sublattice_priority_queue_ptr pqueue,
                          int verbose )
 {
   unsigned long tmp = bound->global_u_boundr;
@@ -818,7 +514,7 @@ return_best_sublattice ( ropt_poly_ptr poly,
   /* If no sublattice is found with u < bound->global_u_bound,
      then we try to enlarge u bound. */
   int count = 1;
-  while (pqueue->used == 1) {
+  while (sublattice_priority_queue_empty(pqueue)) {
     if (bound->global_u_boundr < (LONG_MAX>>1)) {
       bound->global_u_boundr *= 2;
       if (verbose >= 2) {
@@ -842,9 +538,9 @@ return_best_sublattice ( ropt_poly_ptr poly,
   /* info */
   if (verbose >= 2) {
     fprintf ( stderr,
-              "# Info: found    %8d lat (\"size_total_sublattices\") "
+              "# Info: found    %8zu lat (\"size_total_sublattices\") "
               "where |u| < %lu\n",
-              pqueue->used - 1, bound->global_u_boundr);
+              sublattice_priority_queue_size(pqueue), bound->global_u_boundr);
   }
 
   /* recover, for deg 6 poly */
@@ -853,70 +549,25 @@ return_best_sublattice ( ropt_poly_ptr poly,
   return 1;
 }
 
-
-/**
- * Stage 1: record good sublattices to "alpha_pqueue".
+/* This is used by sublattice_priority_queue_do()
  */
-int
-ropt_stage1 ( ropt_poly_ptr poly,
-              ropt_bound_ptr bound,
-              ropt_s1param_ptr s1param,
-              ropt_param_srcptr param,
-              alpha_pq *alpha_pqueue,
-              int current_w )
+struct transfer_to_alpha_priority_queue_arg {
+    alpha_pq * alpha_pqueue;
+    cado_poly_srcptr cpoly;
+    int current_w;
+};
+
+void transfer_to_alpha_priority_queue(mpz_srcptr u, mpz_srcptr v, mpz_srcptr modulus, void * arg)
 {
-  int st = 0, i, re;
-  double alpha_lat;
-  mpz_poly Fuv;
-  sublattice_pq *pqueue;
-  unsigned long len_part_alpha = s1param->nbest_sl *
-    TUNE_RATIO_STAGE1_PART_ALPHA * param->effort;
-  unsigned long len_full_alpha = s1param->nbest_sl *
-    TUNE_RATIO_STAGE1_FULL_ALPHA * param->effort;
+    struct transfer_to_alpha_priority_queue_arg * A = arg;
 
-  if (len_part_alpha < 2)
-    len_part_alpha = 2; /* required by new_sublattice_pq() */
+    /* fuv is f+(u*x+v)*g */
+    mpz_poly Fuv;
+    mpz_poly_init (Fuv, -1);
 
-  /* size-cutoff of top sublattices based on partial alpha */
-  new_sublattice_pq (&pqueue, len_part_alpha);
-  
-  /* return the nbest sublattices to pqueue ranked by the size of u */
-  if (param->verbose >= 2)
-    st = milliseconds ();
+    compute_fuv_mp ( Fuv, A->cpoly->pols[1], A->cpoly->pols[0], u, v);
 
-  re = return_best_sublattice ( poly,
-                                s1param,
-                                bound,
-                                pqueue,
-                                param->verbose );
-
-  if (re == -1) {
-    free_sublattice_pq (&pqueue);
-    return -1;
-  }
-
-  if (param->verbose >= 2) {
-    gmp_fprintf ( stderr, "# Info: found    %8lu lat with part alpha\n",
-                  pqueue->used-1);
-    if ((long) len_full_alpha > pqueue->used-1)
-      len_full_alpha = pqueue->used-1;
-    gmp_fprintf ( stderr, "# Info: ranked   %8lu lat with full alpha\n",
-                  len_full_alpha);
-    gmp_fprintf ( stderr, "# Info: find best lat took %lums\n",
-                  milliseconds () - st );
-  }
-
-  /* fuv is f+(u*x+v)*g */
-  mpz_poly_init (Fuv, poly->d);
-
-  if (param->verbose >= 2)
-    st = milliseconds ();
-  
-  /* put pqueue into the global alpha_pqueue ranked by parial alpha */
-  for (i = 1; i < pqueue->used; i ++) {
-    compute_fuv_mp ( Fuv, poly->f, poly->g,
-                     pqueue->u[i], pqueue->v[i] );
-
+    double alpha_lat;
 
 #if RANK_SUBLATTICE_BY_E
     /* use exp_E as benchmark instead of alpha. */
@@ -932,33 +583,85 @@ ropt_stage1 ( ropt_poly_ptr poly,
     skew = L2_skewness (Fuv, SKEWNESS_DEFAULT_PREC);
     double logmu = L2_lognorm (Fuv, skew);
     gmp_fprintf ( stderr, "# Info: insert lat #%4d, (w, u, v): "
-                  "(%d, %Zd, %Zd) (mod %Zd), partial_alpha: %.2f,"
-                  "lognorm: %.2f\n",
-                  i,
-                  current_w,
-                  pqueue->u[i],
-                  pqueue->v[i],
-                  pqueue->modulus[i],
-                  alpha_lat,
-                  logmu );
+            "(%d, %Zd, %Zd) (mod %Zd), partial_alpha: %.2f,"
+            "lognorm: %.2f\n",
+            i,
+            current_w,
+            pqueue->u[i],
+            pqueue->v[i],
+            pqueue->modulus[i],
+            alpha_lat,
+            logmu );
 #endif
 
     /* insert to a global priority queue */
-    insert_alpha_pq ( alpha_pqueue,
-                      current_w,
-                      pqueue->u[i],
-                      pqueue->v[i],
-                      pqueue->modulus[i],
-                      alpha_lat );
+    insert_alpha_pq (A->alpha_pqueue,
+            A->current_w,
+            u, v, modulus, alpha_lat);
+    mpz_poly_clear (Fuv);
+}
+
+/**
+ * Stage 1: record good sublattices to "alpha_pqueue".
+ */
+int
+ropt_stage1 ( ropt_poly_srcptr poly,
+              ropt_bound_ptr bound,
+              ropt_s1param_ptr s1param,
+              ropt_param_srcptr param,
+              alpha_pq *alpha_pqueue,
+              int current_w )
+{
+  int st = 0, re;
+  sublattice_priority_queue pqueue;
+  size_t len_part_alpha = s1param->nbest_sl *
+    TUNE_RATIO_STAGE1_PART_ALPHA * param->effort;
+  size_t len_full_alpha = s1param->nbest_sl *
+    TUNE_RATIO_STAGE1_FULL_ALPHA * param->effort;
+
+  /* size-cutoff of top sublattices based on partial alpha */
+  sublattice_priority_queue_init (pqueue, len_part_alpha);
+  
+  /* return the nbest sublattices to pqueue ranked by the size of u */
+  if (param->verbose >= 2)
+    st = milliseconds ();
+
+  re = return_best_sublattice ( poly,
+                                s1param,
+                                bound,
+                                pqueue,
+                                param->verbose );
+
+  if (re == -1) {
+    sublattice_priority_queue_clear (pqueue);
+    return -1;
   }
+
+  if (param->verbose >= 2) {
+    gmp_fprintf ( stderr, "# Info: found    %8lu lat with part alpha\n",
+            sublattice_priority_queue_size(pqueue));
+    gmp_fprintf ( stderr, "# Info: ranked   %8zu lat with full alpha\n",
+                  MIN(len_full_alpha, sublattice_priority_queue_size(pqueue)));
+    gmp_fprintf ( stderr, "# Info: find best lat took %lums\n",
+                  milliseconds () - st );
+  }
+
+  if (param->verbose >= 2)
+    st = milliseconds ();
+  
+  struct transfer_to_alpha_priority_queue_arg arg[1];
+  arg->alpha_pqueue = alpha_pqueue;
+  arg->cpoly = poly->cpoly;
+  arg->current_w = current_w;
+
+  sublattice_priority_queue_do(pqueue, transfer_to_alpha_priority_queue, arg);
  
   if (param->verbose >= 2)
     gmp_fprintf ( stderr, "# Info: rank lat took %lums\n",
                   milliseconds () - st );
 
   /* free priority queue */
-  free_sublattice_pq (&pqueue);
-  mpz_poly_clear (Fuv);
+  sublattice_priority_queue_clear(pqueue);
 
   return 0;
 }

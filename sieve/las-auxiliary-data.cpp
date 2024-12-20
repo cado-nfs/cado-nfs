@@ -47,7 +47,7 @@ nfs_aux::~nfs_aux()
     ASSERT_ALWAYS_NOTHROW(dest_rt);
 
     if (!complete) {
-        std::lock_guard<std::mutex> lock(rt.mm);
+        std::lock_guard<std::mutex> const lock(rt.mm);
         dest_rt->rep.accumulate_and_clear(std::move(rt.rep));
         dest_rt->timer += rt.timer;
         return;
@@ -110,7 +110,7 @@ nfs_aux::~nfs_aux()
     }
 
     auto D = rt.timer.filter_by_category();
-    timetree_t::timer_data_type qtcpu = rt.timer.total_counted_time();
+    timetree_t::timer_data_type const qtcpu = rt.timer.total_counted_time();
 
     std::ostringstream os;
     os << doing;
@@ -153,7 +153,7 @@ nfs_aux::~nfs_aux()
     verbose_output_end_batch();
 
     {
-        std::lock_guard<std::mutex> lock(dest_rt->mm);
+        std::lock_guard<std::mutex> const lock(dest_rt->mm);
         dest_rt->rep.accumulate_and_clear(std::move(rt.rep));
         dest_rt->timer += rt.timer;
     }

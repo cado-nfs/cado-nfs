@@ -241,8 +241,7 @@ snfscost (const double difficulty)
 }
 
 
-int 
-main (int argc, char **argv)
+int main(int argc, char const * argv[])
 {
   int format = FRANKE; /* Output format */
   mpz_t x;

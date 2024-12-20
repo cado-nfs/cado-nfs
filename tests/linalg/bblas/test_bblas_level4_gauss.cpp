@@ -12,14 +12,14 @@
 #include "test_bblas_level4.hpp"
 #include "time_bblas_common.hpp"
 
-int gauss_MN_C(unsigned int bM, unsigned int bN, gmp_randstate_t rstate)
+static int gauss_MN_C(unsigned int bM, unsigned int bN, gmp_randstate_t rstate)
 {
     constexpr const unsigned int B = mat64::width;
-    unsigned int M = B * bM;
-    unsigned int N = B * bN;
+    unsigned int const M = B * bM;
+    unsigned int const N = B * bN;
     mat64 * mm = mat64::alloc(bM * bN);
     memfill_random(mm, bM * bN * sizeof(mat64), rstate);
-    int r = kernel((mp_limb_t*)mm, NULL, M, N, N/ULONG_BITS, M/ULONG_BITS);
+    int const r = kernel((mp_limb_t*)mm, NULL, M, N, N/ULONG_BITS, M/ULONG_BITS);
     mat64::free(mm, bM * bN);
     return r;
 }

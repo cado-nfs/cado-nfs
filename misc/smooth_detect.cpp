@@ -1,23 +1,28 @@
 #include "cado.h"
 
-#include "cxx_mpz.hpp"
-#include "ecm.h"
+#include <climits>
+#include <cmath>
+#include <cstdbool>
+#include <cstdio>
+#include <cstdlib>
+#include <ctime>
+
+#include <algorithm>
+#include <iostream>
+#include <set>
+#include <vector>
+
+#include <sys/time.h>
+
+#include <gmp.h>
 #include "fmt/core.h"
 #include "fmt/format.h"
+
+#include "cxx_mpz.hpp"
+#include "ecm.h"
 #include "macros.h"
 #include "smooth_detect.hpp"
-#include <algorithm>
-#include <gmp.h>
-#include <iostream>
-#include <limits.h>
-#include <math.h>
-#include <set>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/time.h>
-#include <time.h>
-#include <vector>
+
 
 // For a bug in ecm ?
 static double default_B1done;
@@ -51,7 +56,7 @@ static const double expected_effort[MAX_PBIT] = {
     81857570, 84194044, 107900749, 94609433, 136660173 // 95 - 99
 };
 
-double
+static double
 get_time()
 {
     return (double)(clock()) / CLOCKS_PER_SEC;
@@ -65,31 +70,24 @@ get_time()
 std::ostream&
 operator<<(std::ostream& os, descent_init_candidate const& c)
 {
-#if FMT_VERSION < 90000
-    cxx_mpz u0 = c.u0;
-    cxx_mpz v0 = c.v0;
-    cxx_mpz u = c.u;
-    cxx_mpz v = c.v;
-#else
     cxx_mpz const & u0 = c.u0;
     cxx_mpz const & v0 = c.v0;
     cxx_mpz const & u = c.u;
     cxx_mpz const & v = c.v;
-#endif
     return os
-           << fmt::format(FMT_STRING("Candidate e = {}\n"), c.e)
-           << fmt::format(FMT_STRING("u0={}\nv0={}\n"), u0, v0)
+           << fmt::format("Candidate e = {}\n", c.e)
+           << fmt::format("u0={}\nv0={}\n", u0, v0)
            << fmt::format(
-                FMT_STRING("u={} ({} bits) largest prime so far of {} bits)\n"),
+                "u={} ({} bits) largest prime so far of {} bits)\n",
                 u,
                 mpz_sizeinbase(c.u, 2),
                 c.lpu)
            << fmt::format(
-                FMT_STRING("v={} ({} bits) largest prime so far of {} bits)\n"),
+                "v={} ({} bits) largest prime so far of {} bits)\n",
                 v,
                 mpz_sizeinbase(c.v, 2),
                 c.lpv)
-           << fmt::format(FMT_STRING("effort={:.0f}\n"), c.effort);
+           << fmt::format("effort={:.0f}\n", c.effort);
 }
 
 // if effort is such that all primes up to b-bits have been removed,
@@ -100,7 +98,7 @@ operator<<(std::ostream& os, descent_init_candidate const& c)
 bool
 descent_init_candidate::is_probably_not_smooth(unsigned int bound) const
 {
-    double eff = effort;
+    double const eff = effort;
     unsigned int bits = 0;
     while ((bits < MAX_PBIT) && (2 * expected_effort[bits] < eff)) {
         bits++;
@@ -111,14 +109,14 @@ descent_init_candidate::is_probably_not_smooth(unsigned int bound) const
     // bits -= 3; // take some margin
 
     for (unsigned int k = 2; k < 4; ++k) {
-        unsigned long bu = mpz_sizeinbase(u, 2);
+        unsigned long const bu = mpz_sizeinbase(u, 2);
         if ((bu < (k + 1) * bits) && (bu > k * bound)) {
-            //      printf("Probably not smooth, level %d: %lu bits!\n", k, bu);
+            //      fmt::print("Probably not smooth, level {}: {} bits!\n", k, bu);
             return true;
         }
-        unsigned long bv = mpz_sizeinbase(v, 2);
+        unsigned long const bv = mpz_sizeinbase(v, 2);
         if ((bv < (k + 1) * bits) && (bv > k * bound)) {
-            //      printf("Probably not smooth, level %d: %lu bits!\n", k, bv);
+            //      fmt::print("Probably not smooth, level {}: {} bits!\n", k, bv);
             return true;
         }
     }
@@ -137,13 +135,13 @@ descent_init_candidate::is_probably_not_smooth(unsigned int bound) const
 // are fully factored. If there are still more than max_size elements,
 // keep those with smallest cost.
 
-void
+static void
 purge(std::vector<descent_init_candidate>& P,
       unsigned int max_size,
       unsigned int lmax)
 {
     ASSERT(std::is_sorted(P.begin(), P.end()));
-    std::vector<descent_init_candidate>::iterator w = P.begin();
+    auto w = P.begin();
 
     for (auto r = P.begin(); r != P.end(); ++r) {
         if (!r->is_factored()
@@ -155,15 +153,14 @@ purge(std::vector<descent_init_candidate>& P,
                 break;
         }
     }
-    return;
 }
 
-std::ostream&
+static std::ostream&
 operator<<(std::ostream& os, std::vector<descent_init_candidate> const& P)
 {
     size_t i = 0;
     for (auto const& C : P) {
-        os << fmt::format(FMT_STRING("{}: {} {} ({})\n"),
+        os << fmt::format("{}: {} {} ({})\n",
                           i,
                           mpz_sizeinbase(C.u, 2),
                           mpz_sizeinbase(C.v, 2),
@@ -217,7 +214,7 @@ operator<<(std::ostream& os, ecm_stats const& s)
     for (int i = 1; i < MIN(500, MAX_CPT); ++i) {
         if (s.nb_test[i] <= 100)
             break;
-        os << fmt::format(FMT_STRING(" {:.0f}"), s.aver_gain[i]);
+        os << fmt::format(" {:.0f}", s.aver_gain[i]);
     }
     os << " ]\n";
     return os;
@@ -247,7 +244,7 @@ struct context
     }
 };
 
-double
+static double
 remove_small_factors(mpz_t z)
 {
     double gain = 0.0;
@@ -263,7 +260,7 @@ remove_small_factors(mpz_t z)
 }
 
 // get a B1, so that we can quickly cover the target effort
-double
+static double
 get_B1_from_effort(double effort, double minB1)
 {
     double B1 = minB1;
@@ -275,12 +272,12 @@ get_B1_from_effort(double effort, double minB1)
     return B1;
 }
 
-void
+static void
 my_ecm_factor(cxx_mpz& f, cxx_mpz& z, double B1)
 {
     ecm_params ecm_par;
     ecm_init(ecm_par);
-    long sig = random();
+    long const sig = random();
     mpz_set_ui(ecm_par->sigma, sig);
     ecm_par->B1done = default_B1done; /* issue with ECM 6.4.x */
     ecm_factor(f, z, B1, ecm_par);
@@ -294,7 +291,7 @@ my_ecm_factor(cxx_mpz& f, cxx_mpz& z, double B1)
 //   0: non-smooth
 //   -1: early stop, no more candidate to test.
 
-int
+static int
 smooth_detect_one_step(descent_init_candidate& winner, context& ctx)
 {
     descent_init_candidate C;
@@ -302,7 +299,7 @@ smooth_detect_one_step(descent_init_candidate& winner, context& ctx)
     double gain_u = 0;
     double gain_v = 0;
     do {
-        int ret = ctx.next_cand(C, ctx.param_next_cand);
+        int const ret = ctx.next_cand(C, ctx.param_next_cand);
         if (ret == 0) {
             return -1; // early stop, no more candidates.
         }
@@ -473,20 +470,20 @@ smooth_detect(int (*next_cand)(descent_init_candidate&, const void*),
 
     descent_init_candidate C;
 
-    double tm = get_time();
+    double const tm = get_time();
     int cpt = 0;
     int found = 0;
     while (found == 0) {
         found = smooth_detect_one_step(C, ctx);
         cpt++;
         if (param.verbose && (cpt % 20 == 0)) {
-            printf("***** Pool status after %d candidates in %.1fs\n",
+            fmt::print("***** Pool status after {} candidates in {:.1f}s\n",
                    cpt,
                    get_time() - tm);
-            printf("current_effort = %.0f\n", ctx.current_effort);
-            printf("current max B1 = %.0f\n",
+            fmt::print("current_effort = {:.0f}\n", ctx.current_effort);
+            fmt::print("current max B1 = {:.0f}\n",
                    get_B1_from_effort(ctx.current_effort, ctx.minB1));
-            printf("current stats:\n");
+            fmt::print("current stats:\n");
             std::cout << ctx.stats;
             std::cout << ctx.pool;
         }

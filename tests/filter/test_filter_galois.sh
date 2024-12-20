@@ -26,14 +26,14 @@ done
 FG="$build_tree/filter/filter_galois"
 SOURCE_TEST_DIR="`dirname "$0"`"
 
-: ${WORKDIR?missing}
+: ${wdir:?missing}
 
 poly="${SOURCE_TEST_DIR}/test_filter_galois.d20.poly"
 renumber="${SOURCE_TEST_DIR}/test_filter_galois.d20.renumber"
 rels="${SOURCE_TEST_DIR}/test_filter_galois.d20.rels"
-outrels="${WORKDIR}/test_filter_galois.d20.rels"
+outrels="${wdir}/test_filter_galois.d20.rels"
 args="-poly ${poly} -nrels 35 -renumber ${renumber} -galois _y -dl\
-       -outdir ${WORKDIR} ${rels}"
+       -outdir ${wdir} ${rels}"
 
 SHA1BIN=sha1sum
 if ! type -p "$SHA1BIN" > /dev/null ; then SHA1BIN=sha1 ; fi
@@ -44,7 +44,7 @@ if ! type -p "$SHA1BIN" > /dev/null ; then
 fi
 
 if ! "${FG}" ${args}; then
-  echo "$0: filter_galois binary failed. Files remain in ${WORKDIR}"
+  echo "$0: filter_galois binary failed. Files remain in ${wdir}"
   exit 1
 fi
 
@@ -59,7 +59,7 @@ echo "Got SHA1 of ${SHA1}"
 echo "expected ${REFERENCE_SHA1}"
 if [ "${SHA1}" != "${REFERENCE_SHA1}" ] ; then
   if [ "$CADO_DEBUG" ] ; then
-      REFMSG=". Files remain in ${WORKDIR}"
+      REFMSG=". Files remain in ${wdir}"
   else
       REFMSG=". Set CADO_DEBUG=1 to examine log output"
   fi

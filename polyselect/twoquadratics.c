@@ -86,9 +86,9 @@ void cado_poly_extended_print_cado_format(FILE *out, cado_poly_extended poly,
 
   gmp_fprintf(out, "n: %Zd\n", N);
   for (int i = 0; i < 3; i++)
-    gmp_fprintf(out, "c%d: %Zd\n", i, f0->coeff[i]);
+    gmp_fprintf(out, "c%d: %Zd\n", i, f0->_coeff[i]);
   for (int i = 0; i < 3; i++)
-    gmp_fprintf(out, "Y%d: %Zd\n", i, f1->coeff[i]);
+    gmp_fprintf(out, "Y%d: %Zd\n", i, f1->_coeff[i]);
   fprintf(out, "skew: %1.2f\n", L2_combined_skewness2(f0, f1, SKEWNESS_DEFAULT_PREC));
 }
 
@@ -338,10 +338,9 @@ static void usage (const char *argv, param_list pl)
   exit (EXIT_FAILURE);
 }
 
-int
-main (int argc, char *argv[])
+int main(int argc, char const * argv[])
 {
-  char *argv0 = argv[0];
+  const char * argv0 = argv[0];
   int verbose = 0, quiet = 0, print = 0;
 
   mpz_t N, minP, maxP, max_skewness;

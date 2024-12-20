@@ -60,7 +60,7 @@ while [ $# -gt 0 ] ; do
     fi
 done
 
-: "${CADO_NFS_BINARY_DIR?missing}"
+: "${CADO_NFS_BINARY_DIR:?missing}"
 
 redirect_unless_debug() {
     file="$1"
@@ -83,8 +83,7 @@ if [ "$kleft" -ge "$((nrows/4))" ] ; then
     kleft=$((nrows/4))
 fi
 
-$CADO_NFS_BINARY_DIR/linalg/bwc/random_matrix $nrows $ncols $density seed=1 kleft=$kleft > $wdir/mat.txt
-$CADO_NFS_BINARY_DIR/linalg/bwc/mf_scan mfile=$wdir/mat.txt --freq --binary-out --ofile $wdir/mat.bin
+$CADO_NFS_BINARY_DIR/linalg/bwc/random_matrix $nrows $ncols $density seed=1 kleft=$kleft --binary --output $wdir/mat.bin --freq
 
 file_is_zero() {
     tt=$(mktemp "$wdir/XXXXXXXXXXXXXX")
@@ -99,7 +98,7 @@ file_is_zero() {
 # care about replicating permutations.
 $CADO_NFS_BINARY_DIR/linalg/bwc/mf_bal $nh $nv $wdir/mat.bin skip_decorrelating_permutation=1 out=$wdir/bal.bin --rectangular
 
-$CADO_NFS_BINARY_DIR/linalg/bwc/bwc.pl :mpirun "${mpithr_args[@]}" -- $CADO_NFS_BINARY_DIR/linalg/bwc/blocklanczos m=64 n=64 ys=0..64 matrix=mat.bin wdir=$wdir balancing=bal.bin seed=1 interval=$((nrows/10+1)) no_save_cache=1 "${bwc_extra[@]}" skip_bw_early_rank_check=1
+$CADO_NFS_BINARY_DIR/linalg/bwc/bwc.pl :mpirun "${mpithr_args[@]}" -- $CADO_NFS_BINARY_DIR/linalg/bwc/blocklanczos m=64 n=64 ys=0..64 matrix=mat.bin wdir=$wdir balancing=bal.bin seed=1 interval=$((nrows/10+1)) no_save_cache=1 "${bwc_extra[@]}" skip_bw_early_rank_check=1 wdir=$wdir
 
 if [ $nullspace = left ] ; then
     $CADO_NFS_BINARY_DIR/tests/linalg/bwc/short_matmul -t $wdir/mat.bin $wdir/blsolution0-64.0 $wdir/blsolution0-64.0.image

@@ -83,6 +83,12 @@ struct cxx_mpz_polymodF {
 
 std::ostream& operator<<(std::ostream& o, cxx_mpz_polymodF const & f);
 std::istream& operator>>(std::istream& in, cxx_mpz_polymodF & f);
+
+#if GNUC_VERSION_ATLEAST(4,3,0)
+extern void mpz_poly_init(cxx_mpz_poly & pl, int) __attribute__((error("mpz_poly_init must not be called on a mpz_poly reference -- it is the caller's business (via a ctor)")));
+extern void mpz_poly_clear(cxx_mpz_poly & pl) __attribute__((error("mpz_poly_clear must not be called on a mpz_poly reference -- it is the caller's business (via a dtor)")));
+#endif
+
 #endif
 
 

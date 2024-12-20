@@ -1,14 +1,17 @@
 /* This file is not compilable as-is, it must be included by another file. */
+#include "cado.h" // IWYU pragma: keep
+
 #ifndef mod_init
-  #error "One of the mod*_default.h headers must be included before this file"
+#error "One of the mod*_default.h headers must be included before this file"
 #endif
 
-#include "cado.h" // IWYU pragma: keep
 #include <math.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "facul_ecm.h"
+
+// scan-headers: skip
 
 /* define to print number of operations of ECM (/!\ not thread-safe) */
 //#define ECM_COUNT_OPS

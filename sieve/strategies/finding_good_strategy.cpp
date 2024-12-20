@@ -8,10 +8,12 @@
 
 #include "facul_ecm.h"
 #include "facul.hpp"
+#include "facul_method.hpp"
 #include "fm.h" // fm_t
 #include "tab_fm.h" // tabular_fm_t
 #include "tab_strategy.h"
 #include "finding_good_strategy.h"
+#include "strategy.h"
 #include "macros.h"
 
 //#define STATS 
@@ -109,7 +111,7 @@ subroutine_dicho(const tabular_strategy_t * tab_strat, double s, int ind_min,
     if (ind_max - ind_min <= 1)
 	return ind_min;
 
-    int middle = floor((ind_max + ind_min) / 2);
+    int const middle = floor((ind_max + ind_min) / 2);
     double slope_middle;
     if (middle == 0)
 	slope_middle = INFINITY;
@@ -133,7 +135,7 @@ static int
 subroutine_compute_slope_yt_dicho(const tabular_strategy_t * tab_strat,
 				  double s)
 {
-    int len = tab_strat->index;
+    int const len = tab_strat->index;
     if (len == 1)
 	return 0;
     else
@@ -150,7 +152,7 @@ compute_slope_yt(tabular_strategy_t *** matrix_strat, unsigned long **distrib_C,
     for (int r1 = 0; r1 < len_abs; r1++) {
 	for (int r2 = 0; r2 < len_ord; r2++) {
 	    if (distrib_C[r1][r2] > EPSILON_DBL) {
-		int index =
+		int const index =
 		    subroutine_compute_slope_yt_dicho(matrix_strat[r1][r2], s);
 		Y += distrib_C[r1][r2] *
 		    matrix_strat[r1][r2]->tab[index]->proba;
@@ -174,7 +176,7 @@ sampling_function_interval(tabular_strategy_t *** matrix_strat,
 #endif
     double max_s = 0, max_yt = 0;
     for (double s = init_s; s < maxi_s; s += pas) {
-	double yt =
+	double const yt =
 	    compute_slope_yt(matrix_strat, distrib_C, len_abs, len_ord, s, C0);
 	if (yt > max_yt) {
 	    max_s = s;
@@ -205,7 +207,7 @@ sampling_function(tabular_strategy_t *** matrix_strat,
     double s = init_s;
     int chronos = 0;
     while (chronos < 100) {
-	double yt =
+	double const yt =
 	    compute_slope_yt(matrix_strat, distrib_C, len_abs, len_ord, s, C0);
 	if (yt > max_yt) {
 	    chronos = 0;
@@ -235,13 +237,13 @@ strategy_t ***compute_best_strategy(tabular_strategy_t *** matrix_strat,
 				    unsigned long **distrib_C, int len_abs,
 				    int len_ord, double C0)
 {
-    double step_s = 1;
+    double const step_s = 1;
     //find a interesting interval to search optimal value for s.
     double max_s = sampling_function(matrix_strat, distrib_C,
 				     len_abs, len_ord, C0, 0, step_s);
 
     //search the optimal value of s.
-    double min = (max_s - step_s > 0) ? max_s - step_s : 0;
+    double const min = (max_s - step_s > 0) ? max_s - step_s : 0;
 
     max_s = sampling_function_interval(matrix_strat, distrib_C,
 				       len_abs, len_ord,
@@ -259,7 +261,7 @@ strategy_t ***compute_best_strategy(tabular_strategy_t *** matrix_strat,
 	    if (distrib_C[r1][r2] < EPSILON_DBL)
 		matrix_res[r1][r2] = NULL;
 	    else {
-		int index =
+		int const index =
 		    subroutine_compute_slope_yt_dicho(matrix_strat[r1][r2],
 						      max_s);
 		matrix_res[r1][r2] =

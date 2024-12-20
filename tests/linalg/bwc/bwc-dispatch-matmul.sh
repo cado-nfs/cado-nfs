@@ -7,7 +7,7 @@ if [ "$CADO_DEBUG" ] ; then set -x ; fi
 # only arguments understood are mpi= thr= seed=
 
 : ${bindir:=$PROJECT_BINARY_DIR}
-: ${bindir?missing variable}
+: ${bindir:?missing variable}
 
 # inject the variables that were provided by guess_mpi_configs
 if [ "$mpi" ] ; then
@@ -53,7 +53,7 @@ while [ $# -gt 0 ] ; do
     fi
 done
 
-: ${bindir?missing variable}
+: ${bindir:?missing variable}
 
 if ! [ -d "$bindir" ] ; then
     echo "bindir $bindir does not exist" >&2
@@ -92,7 +92,7 @@ trap cleanup EXIT
 
 # MPI=/localdisk/ethome/Packages/openmpi-1.8.2 DEBUG=1 make -j8
 
-"$bindir/linalg/bwc/mf_scan" --ascii-in --mfile <("$bindir/linalg/bwc/random_matrix" $nrows -d $density -s $seed)  --binary-out --freq --ofile $D/$M.bin
+"$bindir/linalg/bwc/random_matrix" $nrows -d $density -s $seed --binary -o $D/$M.bin --freq
 
 $bindir/linalg/bwc/mf_bal mfile=$D/$M.bin out=$D/ $nh $nv
 

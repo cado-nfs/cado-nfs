@@ -25,12 +25,13 @@ command line is faster than the current code:
 */
 
 #include "cado.h" // IWYU pragma: keep
-#include "macros.h"
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstdint> /* for UINT32_MAX */
 #include <cinttypes>
 #include <cstring>
+
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
@@ -38,6 +39,8 @@ command line is faster than the current code:
 #include <sys/syscall.h>
 
 #include <gmp.h>
+
+#include "macros.h"
 #include "timing.h"
 #include "cado_poly.h"
 #include "getprime.h"
@@ -74,15 +77,15 @@ static const char *format_names[] = {
 };
 
 
-int line_number = 0;
-int verbose = 0;
-int skip_freerel_primes = 0;
-int num_threads = 1;
+static int line_number = 0;
+static int verbose = 0;
+static int skip_freerel_primes = 0;
+static int num_threads = 1;
 
-uint64_t relations_written = 0;
+static uint64_t relations_written = 0;
 
 /* used for counting time in different processes */
-timingstats_dict_t stats = {0};
+static timingstats_dict_t stats = {0};
 
 struct worker {
     pid_t pid = 0;
@@ -140,32 +143,32 @@ struct relation_data {
     read_relation_func read_relation;
     print_relation_func print_relation;
 
-    char* relation_filename;
+    const char * relation_filename;
 
     int iformat;
     int oformat;
 
 };
 
-uint32_t
+static uint32_t
 get_uint32 (FILE *fp)
 {
   uint32_t w;
-  size_t ok = fread (&w, sizeof (uint32_t), 1, fp);
+  size_t const ok = fread (&w, sizeof (uint32_t), 1, fp);
   ASSERT_ALWAYS (ok != 0);
   return w;
 }
 
-int32_t
+static int32_t
 get_int32 (FILE *fp)
 {
   int32_t w;
-  size_t ok = fread (&w, sizeof (int32_t), 1, fp);
+  size_t const ok = fread (&w, sizeof (int32_t), 1, fp);
   ASSERT_ALWAYS (ok != 0);
   return w;
 }
 
-int get_format_lines(int iformat) {
+static int get_format_lines(int iformat) {
     switch (iformat) {
     case FORMAT_CADO:
     case FORMAT_CWI:
@@ -182,7 +185,8 @@ int get_format_lines(int iformat) {
 
 /* prints a large prime, given its low and high 32-bit parts.
    Currently not used. */
-void
+#if 0
+static void
 print_large_prime (uint32_t l, uint32_t h)
 {
   mpz_t P;
@@ -194,10 +198,11 @@ print_large_prime (uint32_t l, uint32_t h)
   mpz_out_str (stdout, 16, P);
   mpz_clear (P);
 }
+#endif
 
 /* Return 1 if the largest prime in rel is < 2^lpb or if lpb == 0, 
    return 0 otherwise */
-int
+static int
 checksize_relation_cado (relation  *rel, int32_t *rfb, int32_t *afb, int lpb)
 {
   unsigned int i;
@@ -259,7 +264,7 @@ checksize_relation_cado (relation  *rel, int32_t *rfb, int32_t *afb, int lpb)
    where a and p are printed in decimal, p1,...,qn are printed in hexadecimal,
    p1,p2,...,pn are the primes on the rational side.
 */
-void
+static void
 print_relation_cado (FILE* fp, relation  *rel, relation_data * data)
 {
 
@@ -332,13 +337,13 @@ print_relation_cado (FILE* fp, relation  *rel, relation_data * data)
    X 96f8323 1413403 1369 16B5 1A0C77 347 55D 3 5 65 71 9D F42439
    Y 444B A6CF C827 2C8627 B 25 209 527 B 2 2 2
 */
-void
+static void
 print_relation_fk (FILE* fp, relation  *rel, relation_data * data)
 {
   unsigned int i, j;
   int32_t *rfb = data->rfb;
   int32_t *afb = data->afb;
-  int iformat = data->iformat;
+  int const iformat = data->iformat;
 
   if (rel->a > 0)
     fprintf(fp, "W %" PRIx64 " %" PRIx64 "\n", rel->a, rel->b);
@@ -415,7 +420,7 @@ print_primes_cwi (FILE* fp, unsigned long *primes, unsigned long *exp,
       }
 }
 
-void
+static void
 print_relation_cwi (FILE* fp, relation  *rel, relation_data * data)
 {
   unsigned long i, nr, na;
@@ -461,7 +466,7 @@ print_relation_cwi (FILE* fp, relation  *rel, relation_data * data)
 }
 
 /* norm <- |f(a,b)| = |f[d]*a^d + ... + f[0]*b^d| */
-void
+static void
 eval_algebraic (mpz_t norm, mpz_t *f, int d, long a, unsigned long b)
 {
   mpz_t B; /* powers of b */
@@ -534,7 +539,7 @@ trialdiv (unsigned long *primes, unsigned long *exps, unsigned int *n,
 
 /* Read one relation in CADO format from fp, and put it in rel.
    Return 1 if relation is valid, 0 if invalid, -1 if end of file. */
-int
+static int
 read_relation_cado (FILE *fp, relation  *rel, relation_data * data MAYBE_UNUSED)
 {
   int c;
@@ -602,13 +607,13 @@ read_relation_cado (FILE *fp, relation  *rel, relation_data * data MAYBE_UNUSED)
   return 1;
 }
 
-int 
-fk_read_line (char *lp, const int maxlen, FILE *fp, char *file)
+static int 
+fk_read_line (const char * lp, const int maxlen, FILE *fp, const char *file)
 {
   int i, skip;
 
   do {
-    if (fgets (lp, maxlen, fp) == NULL)
+    if (fgets ((char*) lp, maxlen, fp) == NULL)
       return 0; /* Possibly EOF */
 
     line_number ++;
@@ -634,7 +639,7 @@ fk_read_line (char *lp, const int maxlen, FILE *fp, char *file)
   return 1;
 }
 
-int 
+static int 
 fk_read_primes (char **lp, unsigned long *exponent, unsigned long *primes)
 {
   unsigned int i;
@@ -659,12 +664,12 @@ fk_read_primes (char **lp, unsigned long *exponent, unsigned long *primes)
   return i;
 }
 
-int
+static int
 read_relation_fk (FILE *fp, relation  *rel, relation_data * data)
 {
   char line[512];
   char *lp;
-  char* file = data->relation_filename;
+  const char * file = data->relation_filename;
 
   /* Read the "W" line with the a and b values */
   do
@@ -728,7 +733,7 @@ read_relation_fk (FILE *fp, relation  *rel, relation_data * data)
 
 /* Read one relation in CWI format from fp, and put it in rel.
    Return 1 if relation is valid, 0 if invalid, -1 if end of file. */
-int
+static int
 read_relation_cwi (FILE *fp, relation  *rel, relation_data * data)
 {
   int ret, side;
@@ -763,7 +768,7 @@ read_relation_cwi (FILE *fp, relation  *rel, relation_data * data)
   for (side = 0; side < 2; side++)
     {
       /* if alg_first == 0, do rational primes for side == 0 */
-      int rat_now = side == (alg_first ? 1 : 0);
+      int const rat_now = side == (alg_first ? 1 : 0);
       unsigned int *fb_entries = 
         rat_now ? &rel->rfb_entries : &rel->afb_entries;
       unsigned long *primes = rat_now ? rel->rprimes : rel->aprimes;
@@ -805,7 +810,7 @@ read_relation_cwi (FILE *fp, relation  *rel, relation_data * data)
    in GGNFS, file rels.c).
    Return value: 1 if relation is ok, 0 if invalid, -1 if end of file.
 */
-int
+static int
 read_relation_ggnfs (FILE *fp, relation  *rel, relation_data * data)
 {
   uint32_t size_field; /* 32 bits */
@@ -815,7 +820,7 @@ read_relation_ggnfs (FILE *fp, relation  *rel, relation_data * data)
   unsigned sp_entries; /* Number of sprimes according to file */
   int32_t p;
   mpz_t *f = data->f;
-  int degf = data->degf;
+  int const degf = data->degf;
   int32_t *afb = data->afb;
   mpz_t norm;
 
@@ -934,8 +939,8 @@ static int fix_relation(relation  *rel, cado_poly_ptr cpoly, unsigned int * lpb)
       /* check for correctness of the factorization of the norms */
       for(weight_t i = 0; i < *entries; i++)
       {
-        p_r_values_t p = primes[i];
-        exponent_t e = exp[i];
+        p_r_values_t const p = primes[i];
+        exponent_t const e = exp[i];
         ASSERT_ALWAYS(p != 0); /* could reveal a problem in parsing */
         ASSERT_ALWAYS(e > 0); /* non positive exponent is not possible */
         for (int j = 0; j < e; j++)
@@ -953,7 +958,7 @@ static int fix_relation(relation  *rel, cado_poly_ptr cpoly, unsigned int * lpb)
       {
           /* complete at least for primes up to 10000 (because of GGNFS and Msieve
            * that skip these primes) */
-          unsigned long max_p = MAX(lpb_max[side], 10000);
+          unsigned long const max_p = MAX(lpb_max[side], 10000);
           prime_info pi;
           prime_info_init (pi);
           for (unsigned long p = 2; mpz_cmp_ui (norm[side], 1) != 0 && p < max_p ;
@@ -982,7 +987,7 @@ static int fix_relation(relation  *rel, cado_poly_ptr cpoly, unsigned int * lpb)
 
 /* Read one relation in CADO format from fp, and put it in rel.
    Return 1 if relation is valid, 0 if invalid, -1 if end of file. */
-int
+static int
 read_relation_renumbered (FILE *fp, relation  *rel, relation_data * data)
 {
   int c;
@@ -1070,7 +1075,7 @@ read_relation_renumbered (FILE *fp, relation  *rel, relation_data * data)
    base is into afb, and the coefficients of the algebraic polynomial are into
    f[0]...f[degf].
 */
-unsigned long
+static unsigned long
 convert_relations (FILE* infp, FILE* outfp, int lpb, int multi, unsigned int rels_in_file, relation_data * data)
 {
   relation  rel[1];
@@ -1122,7 +1127,7 @@ convert_relations (FILE* infp, FILE* outfp, int lpb, int multi, unsigned int rel
 
 /* read fp until the string s is found,
    the next char read by getc (fp) is the one following s. */
-void
+static void
 get_string (const char *s, FILE *fp, int verbose)
 {
   int l, i, c;
@@ -1146,7 +1151,7 @@ get_string (const char *s, FILE *fp, int verbose)
    *afb_size), and put coefficients from algebraic polynomial in f[0]..f[d].
    Returns degree d.
 */
-int
+static int
 read_fb (FILE *fp, int32_t **rfb, int32_t *rfb_size, int32_t **afb, 
          int32_t *afb_size, int verbose, mpz_t *f)
 {
@@ -1233,7 +1238,7 @@ read_fb (FILE *fp, int32_t **rfb, int32_t *rfb_size, int32_t **afb,
 }
 
 static void
-usage (char *s)
+usage (const char *s)
 {
   fprintf (stderr, "Usage: %s [options] f0 f1 ...\n", s);
   fprintf (stderr, "       where f0 f1 ... are input files with relations\n");
@@ -1256,10 +1261,10 @@ usage (char *s)
 
 }
 
-void* read_rels(void* _args) {
+static void* read_rels(void* _args) {
     thread_rel_args * args = (thread_rel_args *) _args;
     worker * workers = args->workers;
-    int num_workers = args->num_workers;
+    int const num_workers = args->num_workers;
     FILE* fp = args->fp;
 
     char line[MAX_LINE_LEN];
@@ -1287,10 +1292,10 @@ void* read_rels(void* _args) {
 }
 
 
-void* read_ggnfs_rels(void* _args) {
+static void* read_ggnfs_rels(void* _args) {
     thread_rel_args * args = (thread_rel_args *) _args;
     worker * workers = args->workers;
-    int num_workers = args->num_workers;
+    int const num_workers = args->num_workers;
     FILE* fp = args->fp;
 
     uint32_t i = 0;
@@ -1300,7 +1305,7 @@ void* read_ggnfs_rels(void* _args) {
     if (verbose) fprintf(stderr, "# read_ggnfs_rels() started\n");
 
     for (i = 0; !feof(fp); i++) {
-        int fd = workers[i % num_workers].fd[0];
+        int const fd = workers[i % num_workers].fd[0];
         uint32_t size_field;
         uint32_t rfb_entries, afb_entries, sp_entries, num_lrp, num_lap;
 
@@ -1365,7 +1370,7 @@ void* read_ggnfs_rels(void* _args) {
 #define READ_PARTIAL  0
 #define READ_COMPLETE 1
 
-int read_until(worker * worker, char** buf, int* bufsize, const char* needle) {
+static int read_until(worker * worker, char** buf, int* bufsize, const char* needle) {
     int ret = 0;
     if (worker->readpos >= worker->bufsize) {
         ret = read(worker->fd[0], worker->readbuf, sizeof(worker->readbuf));
@@ -1398,10 +1403,10 @@ int read_until(worker * worker, char** buf, int* bufsize, const char* needle) {
 }
 
 
-void* write_rels(void* _args) {
+static void* write_rels(void* _args) {
     thread_rel_args * args = (thread_rel_args *) _args;
     worker * workers = args->workers;
-    int num_workers = args->num_workers;
+    int const num_workers = args->num_workers;
     FILE* fp MAYBE_UNUSED = args->fp;
 
     if (verbose) fprintf(stderr, "# write_rels() started\n");
@@ -1440,8 +1445,7 @@ void* write_rels(void* _args) {
     return NULL;
 }
 
-int
-main (int argc, char *argv[])
+int main(int argc, char const * argv[])
 {
   FILE *fp;
   int32_t *rfb = NULL, *afb = NULL;
@@ -1451,7 +1455,7 @@ main (int argc, char *argv[])
   int oformat = FORMAT_CADO; /* default output format */
   mpz_t f[DEGF_MAX + 1];
   int num_files = 0;
-  char *program_name = argv[0];
+  const char * program_name = argv[0];
   int lpb = 0; /* 0 means no bound */
   int multi = 1, in_alg_first = 0, out_alg_first = 0;
 
@@ -1465,11 +1469,11 @@ main (int argc, char *argv[])
   read_relation_func read_relation = NULL;
   print_relation_func print_relation = NULL;
 
-  char *fbfile = NULL; /* name of factor base file */
-  char *relsfile = NULL; /* name of binary file to read */
-  char* polyfile = NULL; /* The polynomial file */
-  char* renumberfile = NULL; /* The renumbered file */
-  char* outfile = NULL;
+  const char * fbfile = NULL; /* name of factor base file */
+  const char * relsfile = NULL; /* name of binary file to read */
+  const char * polyfile = NULL; /* The polynomial file */
+  const char * renumberfile = NULL; /* The renumbered file */
+  const char * outfile = NULL;
 
   FILE* out_fp = stdout;
 
@@ -1760,7 +1764,7 @@ main (int argc, char *argv[])
       }
 
       if (num_threads <= 1) {
-          unsigned long num_rels = convert_relations (fp, out_fp, lpb, multi, rels_in_file, &data);
+          unsigned long const num_rels = convert_relations (fp, out_fp, lpb, multi, rels_in_file, &data);
           if (verbose) fprintf(stderr, "# Converted %lu relations from file: %s!\n", num_rels, relsfile);
           continue;
       }
@@ -1792,7 +1796,7 @@ main (int argc, char *argv[])
           setsockopt(fd[0], SOL_SOCKET, SO_SNDBUF, &sendbuf, sizeof(sendbuf));
           setsockopt(fd[1], SOL_SOCKET, SO_SNDBUF, &sendbuf, sizeof(sendbuf));
 
-          int ret = fork();
+          int const ret = fork();
           if (ret == -1) {
               perror("fork()");
               exit (1);
@@ -1867,7 +1871,7 @@ main (int argc, char *argv[])
           data.relation_filename = filename;
           if (verbose) fprintf(stderr, "# Worker-%d started tid=%ld\n", i, gettid());
 
-          unsigned long num_rels = convert_relations (stdin, stdout, lpb, multi, rels_in_file, &data);
+          unsigned long const num_rels = convert_relations (stdin, stdout, lpb, multi, rels_in_file, &data);
 
           // Worker finished successfully
           if (verbose) fprintf(stderr, "# Worker-%d finished converting %lu relations!\n", i, num_rels);

@@ -8,6 +8,7 @@
 #include "macros.h"
 #include "powers_of_p.h"
 #include "timing.h"     // wct_seconds
+#include "misc.h"
 
 double program_starttime;
 double print_delay = 0.1;
@@ -47,6 +48,7 @@ static void WRAP_mpz_mul(mpz_ptr c, mpz_srcptr a, mpz_srcptr b)
     }
 }
 
+/*
 static void WRAP_mpz_invert(mpz_ptr c, mpz_srcptr a, mpz_srcptr b)
 {
     double t0 = seconds();
@@ -61,6 +63,7 @@ static void WRAP_mpz_invert(mpz_ptr c, mpz_srcptr a, mpz_srcptr b)
         printf("inv %zu %zu (%.1f) %.1f %.1f (%.1f%%)\n", na, nb, (double)na/nb, t1-t0, w1-w0, rate);
     }
 }
+*/
 
 static void WRAP_mpz_addmul(mpz_ptr c, mpz_srcptr a, mpz_srcptr b)
 {
@@ -109,7 +112,7 @@ static void WRAP_mpz_mod(mpz_ptr c, mpz_srcptr a, mpz_srcptr p)
 /* }}} */
 
 /* {{{ evaluation of polynomials (one or two polynomials) */
-static void mp_poly_eval_mod(mpz_ptr r, mpz_t * poly, int deg, mpz_srcptr a, mpz_srcptr q, mpz_srcptr qx)
+static void mp_poly_eval_mod(mpz_ptr r, mpz_t * poly, int deg, mpz_srcptr a, mpz_srcptr q /* , mpz_srcptr qx MAYBE_UNUSED */)
 {
     int i;
 
@@ -124,17 +127,17 @@ static void mp_poly_eval_mod(mpz_ptr r, mpz_t * poly, int deg, mpz_srcptr a, mpz
     WRAP_mpz_mod(r, r, q);
 }
 
-static void mp_2poly_eval_mod(mpz_ptr r, mpz_ptr s, mpz_t * f, mpz_t * g, int degf, int degg, mpz_srcptr a, mpz_srcptr q, mpz_srcptr qx)
+static void mp_2poly_eval_mod(mpz_ptr r, mpz_ptr s, mpz_t * f, mpz_t * g, int degf, int degg, mpz_srcptr a, mpz_srcptr q /* , mpz_srcptr qx */)
 {
     int i;
 
     if (r == NULL) {
-        mp_poly_eval_mod(s, g, degg, a, q, qx);
+        mp_poly_eval_mod(s, g, degg, a, q /* , qx */);
         return;
     }
 
     if (s == NULL) {
-        mp_poly_eval_mod(r, f, degf, a, q, qx);
+        mp_poly_eval_mod(r, f, degf, a, q /* , qx */);
         return;
     }
 
@@ -199,7 +202,10 @@ void root_lift(struct prime_data * p, mpz_ptr rx, mpz_ptr irx, int precision)/* 
     // f(r) (to full precision), and obtain 1/f'(r) to half-precision. We
     // compute f'(r) to half-precision as a side-effect of the
     // computation of f(r).
-    mp_2poly_eval_mod(tb, fprime, f_hat, f_hat_diff, degree, degree-1, rx, pk, qk);
+    mp_2poly_eval_mod(tb, fprime,
+            f_hat, f_hat_diff, degree, degree-1,
+            rx, pk
+            /* , qk */);
     /* use irx. only one iteration of newton.  */
     WRAP_mpz_mod(fprime, fprime, pl);
     WRAP_mpz_mul(ta, irx, fprime);
@@ -220,7 +226,7 @@ void root_lift(struct prime_data * p, mpz_ptr rx, mpz_ptr irx, int precision)/* 
 
 #define EXAMPLE_FROM_RSA768
 
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     program_starttime = wct_seconds();
 
@@ -322,7 +328,7 @@ int main(int argc, char * argv[])
 
     mpz_srcptr p1 = power_lookup_const(prime->powers, 1);
 
-    mp_poly_eval_mod(irx, f_hat_diff, degree-1, rx, p1, NULL);
+    mp_poly_eval_mod(irx, f_hat_diff, degree-1, rx, p1 /* , NULL */);
     mpz_invert(irx, irx, p1);
 
     fprintf(stderr, "# [%2.2lf] Lifting (%lu,x-%lu)\n", WCT, p, r);

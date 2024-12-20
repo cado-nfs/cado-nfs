@@ -3,7 +3,9 @@
 
 // pragma no prototypes
 #include <inttypes.h>   // PRIx32 etc
-#include "ularith.h" /* NEEDED for LONG_BIT (32 or 64) */
+#include "ularith.h" /* NEEDED for ULONG_BITS (32 or 64) */
+
+// scan-headers: stop here
 
 /* data type to store the (p,r) values */
 #ifndef SIZEOF_P_R_VALUES
@@ -23,8 +25,8 @@
 #error "SIZEOF_INDEX should be smaller or equal to SIZEOF_P_R_VALUES"
 #endif
 
-#if (SIZEOF_P_R_VALUES * 8) > LONG_BIT
-#error "SIZEOF_P_R_VALUES cannot be greater than LONG_BIT / 8"
+#if (SIZEOF_P_R_VALUES * 8) > ULONG_BITS
+#error "SIZEOF_P_R_VALUES cannot be greater than ULONG_BITS / 8"
 #endif
 
 #if SIZEOF_P_R_VALUES == 4

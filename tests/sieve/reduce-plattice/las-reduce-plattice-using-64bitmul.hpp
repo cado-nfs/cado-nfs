@@ -6,7 +6,10 @@
  * all these pieces of code are put in separate files, but these must be
  * #included from within the class itself.
  */
-#ifndef LAS_PLATTICE_H
+
+// scan-headers: skip
+
+#ifndef LAS_PLATTICE_HPP
 #error "This prologue is only here to please clangd !!!"
 #include <cstdint>
 #include "macros.h"
@@ -166,7 +169,7 @@ void using_64bit_mul(uint32_t I) {
 #undef ASSERT_CONSISTENCY
 }
 
-#ifndef LAS_PLATTICE_H
+#ifndef LAS_PLATTICE_HPP
 #error "This epilogue is only here to please clangd !!!"
 };
 #endif

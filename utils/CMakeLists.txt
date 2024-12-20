@@ -25,18 +25,27 @@ set (sources
         polyroots.c 
         tdict.cpp
         version_info.c
-	modified_files.c threadpool.cpp mpz_poly_bivariate.c
+	modified_files.c threadpool.cpp mpz_poly_bivariate.cpp
         gmpxx.cpp
         rho.c gpf.cpp
         sha1.c
         fd_streambuf.cpp
         cado_pipe_streambuf.cpp
-        numbertheory.cpp
+        numbertheory/number_field.cpp
+        numbertheory/number_field_element.cpp
+        numbertheory/number_field_fractional_ideal.cpp
+        numbertheory/number_field_order.cpp
+        numbertheory/number_field_order_element.cpp
+        numbertheory/number_field_prime_ideal.cpp
+        numbertheory/numbertheory_internals.cpp
+        numbertheory/all_valuations_above_p.cpp
+        mpz_mat_accessors.cpp
         badideals.cpp
         json.cpp
         indexed_relation.cpp
         cado-sighandlers.cpp
         mmap_allocator.cpp
+        random_distributions.cpp
         ${fmt_sources}
 )
 
@@ -108,6 +117,10 @@ add_executable(numbertheory_tool numbertheory_tool.cpp)
 target_link_libraries (numbertheory_tool utils)
 
 install(TARGETS numbertheory_tool RUNTIME DESTINATION ${LIBSUFFIX}/utils)
+
+if(ENABLE_SHARED AND HAVE_GDB_PYTHON_PRETTY_PRINT)
+configure_file(hook_cado_nfs_gdb.py.in libutils.so-gdb.py ESCAPE_QUOTES @ONLY)
+endif()
 
 include(CMakeLists-nodist.txt OPTIONAL)
 

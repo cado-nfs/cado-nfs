@@ -1,4 +1,6 @@
 // pragma multi include
+// scan-headers: skip
+
 /* Renames mod_ function names so that the function for the desired
    arithmetic type/width is used */
 

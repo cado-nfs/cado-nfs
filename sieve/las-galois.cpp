@@ -180,10 +180,10 @@ skip_galois_roots(const int orig_nroots, const mpz_t q, mpz_t *roots,
 
     if(nroots == 0)
 	return 0;
-    galois_action gal_action(galois_autom);
-    unsigned int ord = gal_action.get_order();
+    galois_action const gal_action(galois_autom);
+    unsigned int const ord = gal_action.get_order();
     modulusul_t mm;
-    unsigned long qq = mpz_get_ui(q);
+    unsigned long const qq = mpz_get_ui(q);
     modul_initmod_ul(mm, qq);
     if (nroots % ord) {
         fprintf(stderr, "Number of roots modulo q is not divisible by %d. Don't know how to interpret -galois.\n", ord);
@@ -217,7 +217,7 @@ skip_galois_roots(const int orig_nroots, const mpz_t q, mpz_t *roots,
 	ASSERT_ALWAYS(rr == rr0);
 	// look at roots
 	for(int l = k+1; l < nroots; l++){
-	    unsigned long ss = mpz_get_ui(roots[l]);
+	    unsigned long const ss = mpz_get_ui(roots[l]);
 	    modul_set_ul(r2, ss, mm);
 	    for(unsigned int i = 0; i < ord-1; i++)
 		if(modul_equal(r2, conj[i], mm)){

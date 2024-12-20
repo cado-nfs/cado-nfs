@@ -2,14 +2,18 @@
 #include <cmath>       // for ldexp, sqrt
 #include <cstdlib>     // for malloc, free, atoi, calloc
 #include <cstring>     // for strcmp, strlen, strncpy
-#include <regex.h>      // for regmatch_t, regcomp, regexec, regfree, REG_EX...
+
 #include <stdexcept>
+
+#include <regex.h>      // for regmatch_t, regcomp, regexec, regfree, REG_EX...
+
+#include "fmt/format.h"
+
 #include "facul_strategies.hpp"
 #include "pm1.h"        // for pm1_plan_t, pm1_clear_plan, pm1_make_plan
 #include "pp1.h"        // for pp1_plan_t, pp1_clear_plan, pp1_make_plan
 #include "macros.h"
 #include "verbose.h"
-#include "fmt/format.h"
 
 //#define USE_LEGACY_DEFAULT_STRATEGY 1
 
@@ -45,7 +49,7 @@ nb_curves90 (const unsigned int lpb)
   /* The following table, computed with do_table(10,33,ntries=10000) from the
      facul.sage file, ensures a probability of at least about 90% to find a
      factor below 2^lpb with n = T[lpb]. */
-  int T[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 0-9 */
+  int const T[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 0-9 */
              0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 10-19 */
 	     /* lpb=20 */ 1, /* 0:0.878100, 1:0.969600 */
 	     /* lpb=21 */ 1, /* 1:0.940400 */
@@ -187,7 +191,7 @@ nb_curves99 (const unsigned int lpb)
 /*}}}*/
 
 /* TODO: move elsewhere. */
-const char * parameterization_name(ec_parameterization_t p)
+static const char * parameterization_name(ec_parameterization_t p)
 {
     switch(p) {
         case BRENT12:     return "ECM-B12";
@@ -356,7 +360,7 @@ private:
                 res.parameter = std::stoi(std::string(str + p[4].rm_so, str + p[4].rm_eo));
             res.B1 = std::stoi(std::string(str + p[5].rm_so, str + p[5].rm_eo));
             res.B2 = std::stoi(std::string(str + p[6].rm_so, str + p[6].rm_eo));
-            std::string mtoken(str + p[2].rm_so, str + p[2].rm_eo);
+            std::string const mtoken(str + p[2].rm_so, str + p[2].rm_eo);
             if (mtoken == "PM1")
                 res.method = PM1_METHOD;
             else if (mtoken == "PP1-27")
@@ -405,8 +409,8 @@ class parameter_sequence_tracker {/*{{{*/
     std::map<unsigned int, std::vector<std::pair<bool, unsigned long>>> seq;
     public:
     parameter_sequence_tracker() {
-        decltype(seq)::mapped_type::value_type z { true, 0 };
-        decltype(seq)::mapped_type Z { z , z };
+        decltype(seq)::mapped_type::value_type const z { true, 0 };
+        decltype(seq)::mapped_type const Z { z , z };
         seq[BRENT12] = Z;
         seq[MONTY12] = Z;
         seq[MONTY16] = Z;
@@ -428,7 +432,7 @@ class parameter_sequence_tracker {/*{{{*/
     bool follows_sequence(int side, ec_parameterization_t para, unsigned long p)
     {
         if (!seq[para][side].first) return false;
-        bool t = (p == ec_valid_parameter_from_sequence(para, seq[para][side].second));
+        bool const t = (p == ec_valid_parameter_from_sequence(para, seq[para][side].second));
         if (t) seq[para][side].second++;
         return t;
     }
@@ -440,7 +444,7 @@ class parameter_sequence_tracker {/*{{{*/
          * them from the default choices.
          */
         if (!seq[para][side].first)
-            throw strategy_file_parser::error(fmt::format(FMT_STRING("cannot use a parameter from the default sequence for parameterization {} after a non-default one was set"), parameterization_name(para)));
+            throw strategy_file_parser::error(fmt::format("cannot use a parameter from the default sequence for parameterization {} after a non-default one was set", parameterization_name(para)));
         return ec_valid_parameter_from_sequence(para, seq[para][side].second++);
     }
     void break_sequence(int side, ec_parameterization_t para)
@@ -503,17 +507,17 @@ strategy_file_parser::operator()(std::vector<unsigned int> const & mfb, FILE * f
                 } else if (regexp_define(macro, str)) {
                     auto it = macros.emplace(macro, value_type());
                     if (!it.second)
-                        throw error(fmt::format(FMT_STRING("macro {} redefined"), macro));
+                        throw error(fmt::format("macro {} redefined", macro));
                     current = &it.first->second;
                 } else if (regexp_use(macro, str)) {
                     if (current == nullptr)
                         throw error("dangling macro use");
                     auto it = macros.find(macro);
                     if (it == macros.end())
-                        throw error(fmt::format(FMT_STRING("macro {} unknown"), macro));
+                        throw error(fmt::format("macro {} unknown", macro));
                     auto const & M = it->second;
                     if (current == &M) {
-                        throw error(fmt::format(FMT_STRING("circular use of macro {} file"), macro));
+                        throw error(fmt::format("circular use of macro {} file", macro));
                     }
                     current->insert(current->end(), M.begin(), M.end());
                 } else if (regexp_fm(fm, str)) {
@@ -521,13 +525,13 @@ strategy_file_parser::operator()(std::vector<unsigned int> const & mfb, FILE * f
                         throw error("dangling methods");
                     current->push_back(fm);
                 } else {
-                    throw error(fmt::format(FMT_STRING("cannot parse {}"), str));
+                    throw error(fmt::format("cannot parse {}", str));
                 }
             }
         }
     } catch(error const & e) {
-        throw std::runtime_error(fmt::format(FMT_STRING(
-                        "Parse error on line {} of strategies file: {}"),
+        throw std::runtime_error(fmt::format(
+                        "Parse error on line {} of strategies file: {}",
                         lnum, e.what()));
     }
 
@@ -551,8 +555,8 @@ strategy_file_parser::operator()(std::vector<unsigned int> const & mfb, FILE * f
         try {
             parameter_sequence_tracker::fill_default_parameters(c.second);
         } catch(error const & e) {
-            throw std::runtime_error(fmt::format(FMT_STRING(
-                        "Parse error in strategies file while setting parameters for r0={},r1={}: {}"),
+            throw std::runtime_error(fmt::format(
+                        "Parse error in strategies file while setting parameters for r0={},r1={}: {}",
                         index_st[0], index_st[1], e.what()));
         }
         parsed_file.insert(c);
@@ -561,13 +565,13 @@ strategy_file_parser::operator()(std::vector<unsigned int> const & mfb, FILE * f
     return parsed_file;
 }
 
-void fprint_one_chain(FILE * file, std::vector<facul_method_side> const & v)
+static void fprint_one_chain(FILE * file, std::vector<facul_method_side> const & v)
 {
     parameter_sequence_tracker tracker;
 
     /* TODO: refactor at least some of this closer to facul_method */
     for(facul_method_side const & ms : v) {
-        int side = ms.side;
+        int const side = ms.side;
         facul_method const & fm = * ms.method;
         switch(fm.method) {
             case PM1_METHOD:
@@ -640,7 +644,7 @@ void facul_strategies::print(FILE * file) const/*{{{*/
     for (unsigned int r = 0; r <= mfb[0]; r++) {
         for (unsigned int a = 0; a <= mfb[1]; a++) {
             std::vector<facul_method_side> const & v = (*this)(r, a);
-            unsigned int p = popularity[&v];
+            unsigned int const p = popularity[&v];
             ASSERT_ALWAYS(p > 0);       // see above.
             if (p >= 2 && v.size() >= 2) {
                 fprintf(file, "define same_as_%u_%u\n", r, a);
@@ -655,7 +659,7 @@ void facul_strategies::print(FILE * file) const/*{{{*/
             std::vector<facul_method_side> const & v = (*this)(r, a);
             if (v.empty()) continue;
             fprintf (file, "r0=%u,r1=%u\n", r, a);
-            unsigned int p = popularity[&v];
+            unsigned int const p = popularity[&v];
             ASSERT_ALWAYS(p > 0);       // see above.
             if (p >= 2 && v.size() >= 2) {
                 fprintf(file, "  use same_as_%u_%u\n", r, a);
@@ -677,7 +681,7 @@ facul_strategies_base::facul_strategies_base (
     ASSERT_ALWAYS(mfb.size() == lim.size());
     auto pBB = BB.begin();
     auto pBBB = BBB.begin();
-    for(double b: B) {
+    for(double const b: B) {
         *pBB++ = perfectly_sieved ? b*b : 0;
         *pBBB++ = b*b*b;
     }
@@ -756,7 +760,7 @@ std::vector<facul_method_side> const & facul_strategies::operator()(unsigned int
     if (direct_access.empty()) {
         return uniform_strategy[r < a];
     } else {
-        static std::vector<facul_method_side> placeholder;
+        static std::vector<facul_method_side> const placeholder;
         auto it = direct_access_get(r, a);
         if (it != nullptr)
             return *it;
@@ -862,7 +866,7 @@ Warning: changing the value of B2 might break the sieving tests.
 */
         /* we round B2 to (2k+1)*105, thus k is the integer nearest to
            B2/210-0.5 */
-        unsigned long B2 = (2 * (unsigned int) ((50.0 * B1) / 210.0) + 1) * 105;
+        unsigned long const B2 = (2 * (unsigned int) ((50.0 * B1) / 210.0) + 1) * 105;
 
 #ifdef USE_LEGACY_DEFAULT_STRATEGY
         /* FIXME: are MONTY12 and MONTYTWED12 swapped, perhaps ? */
@@ -907,7 +911,7 @@ facul_strategies::facul_strategies (
 	const int verbose)
     : facul_strategies_base(lim, lpb, mfb, perfectly_sieved)
 {
-    int nsides = lim.size();
+    int const nsides = lim.size();
 
     int max_ncurves = -1;
     for(int side = 0 ; side < nsides ; side++) {
@@ -942,7 +946,7 @@ facul_strategies::facul_strategies (
          * uniform_strategy[r < a]
          */
         for (int z = 0; z < nsides; z++) {
-            int side = first ^ z;
+            int const side = first ^ z;
             int n = ncurves[side] + (chain_parameters.size() - max_ncurves);
             for(facul_method::parameters const & mp: chain_parameters) {
                 if (!n--)

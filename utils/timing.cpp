@@ -1,8 +1,16 @@
 #include "cado.h" // IWYU pragma: keep
-#include <utility> // pair
-// IWYU pragma: no_include <bits/types/struct_rusage.h>
-#include <pthread.h>
+
 #include <cstdio>       // FILE // IWYU pragma: keep
+
+#include <utility> // pair
+#ifdef HAVE_GETRUSAGE
+/* I'm including some STL code for the timer info layer, but this could
+ * equally well be done in C */
+#include <map>
+#include <string>
+#endif
+
+// IWYU pragma: no_include <bits/types/struct_rusage.h>
 #ifdef HAVE_RESOURCE_H
 #include <sys/resource.h>	/* for cputime */
 #endif
@@ -10,15 +18,20 @@
 #include <ctime>
 #endif
 #include <sys/time.h>	/* for gettimeofday */
+#include <pthread.h>
+
 #include "timing.h"
 #include "memusage.h"
 
-#ifdef HAVE_GETRUSAGE
-/* I'm including some STL code for the timer info layer, but this could
- * equally well be done in C */
-#include <map>
-#include <string>
+#if !defined(HAVE_RUSAGE_THREAD) && defined(__linux)
+#include <unistd.h>
+#include <sys/syscall.h>
+#include <stdarg.h>
+#include <string.h>
+#include <stdlib.h>
+#include "portability.h"
 #endif
+
 
 /* return total user time (all threads) */
 uint64_t
@@ -133,9 +146,17 @@ seconds_user_sys (double * res)
 double
 wct_seconds (void)
 {
+#ifdef HAVE_CLOCK_MONOTONIC
+    struct timespec ts[1];
+    clock_gettime(CLOCK_MONOTONIC, ts);
+    double r = 1.0e-9 * (double) ts->tv_nsec;
+    r += (double) ts->tv_sec;
+    return r;
+#else
     struct timeval tv[1];
     gettimeofday (tv, nullptr);
     return (double)tv->tv_sec + (double)tv->tv_usec*1.0e-6;
+#endif
 }
 
 /* Print timings (cpu/wct) and memory usage since cpu0/wct0.
@@ -164,12 +185,6 @@ void thread_seconds_user_sys(double * res)
     res[1] = (double)ru->ru_stime.tv_sec + (double)ru->ru_stime.tv_usec/1.0e6;
 }
 #elif defined(__linux)
-#include <unistd.h>
-#include <sys/syscall.h>
-#include <stdarg.h>
-#include <string.h>
-#include <stdlib.h>
-#include "portability.h"
 
 static inline pid_t gettid() { return syscall(SYS_gettid); }
 

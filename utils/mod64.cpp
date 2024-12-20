@@ -1,10 +1,12 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include "mod64.hpp"
 #include "modredc64.hpp" // IWYU pragma: keep
-
-typedef Modulus64 Modulus;
-#include "mod64_common.cpp"
 #include "macros.h"
+
+// scan-headers: stop here
+typedef Modulus64 Modulus;
+#include "mod64_common.cpp"     // NOLINT(bugprone-suspicious-include)
 
 /* Put 1/s (mod t) in r and return 1 if s is invertible, 
    or set r to 0 and return 0 if s is not invertible */
@@ -123,13 +125,13 @@ Modulus64::inv_powerof2 (Residue &r, const Residue &A) const
       set(r, even_inv_lookup_table[(y-1) >> 1] & (x-1));
     else
     {
-      uint64_t h = x >> (u64arith_ctz(x) >> 1);
-            Modulus64 m2(h);
+      uint64_t const h = x >> (u64arith_ctz(x) >> 1);
+            Modulus64 const m2(h);
       Residue B(*this);
       m2.set_reduced (B, (y & (h-1)));
 
       m2.inv_powerof2 (r, B);
-      uint64_t t = get_u64(r);
+      uint64_t const t = get_u64(r);
       set(r,  (2 * t - t*t*y) & (x-1));
     }
     return 1;

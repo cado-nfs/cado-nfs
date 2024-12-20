@@ -1,5 +1,5 @@
-#ifndef	FAKEMPI_H_
-#define	FAKEMPI_H_
+#ifndef FAKEMPI_H_
+#define FAKEMPI_H_
 // IWYU pragma: private, include "select_mpi.h"
 #include <stdlib.h>
 #include <string.h>
@@ -36,7 +36,7 @@ typedef int MPI_Request;
 
 #define MPI_Type_size(x, s)     *(s)=fakempi_sizeof_type(x)
 
-#define MPI_COMM_WORLD	0
+#define MPI_COMM_WORLD 0
 
 #define MPI_THREAD_SINGLE       0
 #define MPI_THREAD_FUNNELED     1
@@ -282,11 +282,5 @@ static inline int MPI_Get_version(int * ver, int * subver)
 #ifdef __cplusplus
 }
 #endif
-
-/* See at the beginning of this file.
-#ifdef  __GNUC__
-#pragma GCC diagnostic pop
-#endif
-*/
 
 #endif /* FAKEMPI_H_ */

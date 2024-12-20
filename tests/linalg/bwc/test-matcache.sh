@@ -38,7 +38,7 @@ while [ $# -gt 0 ] ; do
     fi
 done
 
-: ${bindir?missing variable}
+: ${bindir:?missing variable}
 
 if ! [ "$N" ] ; then usage ; fi
 
@@ -56,9 +56,7 @@ wdir=$(mktemp -d  ${TMPDIR-/tmp}/cado-nfs.XXXXXXXX)
 cleanup() { if ! [ "$CADO_DEBUG" ] ; then rm -rf $wdir ; fi ; }
 trap cleanup EXIT
 
-$bindir/linalg/bwc/random_matrix $N -d $dens  --binary -o $wdir/mat.bin -s $seed
-
-# $bindir/linalg/bwc/mf_scan mfile=$wdir/mat.bin --binary-in --freq
+$bindir/linalg/bwc/random_matrix $N -d $dens  --binary -o $wdir/mat.bin --freq -s $seed
 
 bench_arg_left=-t
 cachesuffix_left=T

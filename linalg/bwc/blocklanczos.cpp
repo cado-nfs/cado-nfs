@@ -3,7 +3,12 @@
 #include <cstdlib>
 #include <cstdint>              // for uint64_t, UINT64_C
 #include <cstring>              // for memcpy, memset
+
+#include <memory>
+
 #include <gmp.h>                 // for gmp_randclear, gmp_randinit_default
+
+#include "gmp_aux.h"
 #include "matmul.hpp"              // for matmul_public_s
 #include "parallelizing_info.hpp"
 #include "matmul_top.hpp"
@@ -19,140 +24,21 @@
 #include "macros.h"
 #include "portability.h" // asprintf // IWYU pragma: keep
 #include "matmul_top_comm.hpp"
+#include "blocklanczos.hpp"
+#include "blocklanczos_extraction.hpp"
 
 
-int exit_code = 0;
-
-struct blstate {
-    std::unique_ptr<arith_generic> A;
-    matmul_top_data mmt;
-    std::unique_ptr<arith_cross_generic> AxA;
-    mmt_vec y, my;
-
-
-    gmp_randstate_t rstate;
-
-    /* We'll need several intermediary n*n matrices. These will be
-     * allocated everywhere (we set flags to 0, so as to avoid having
-     * shared vectors) */
-    mmt_vec V[3];
-    mat64 L[3];
-    bit_vector D[3];
-
-    /* Here are the semantics of the data fields above.
-     *
-     * For iteration n, we let n0 = n%3, n1 = (n-1)%3, n2 = (n-2)%3.
-     *
-     * V[n0] is the V vector which is the input to iteration n. It does
-     *       not consist of independent  vectors.
-     * D[n0] is the extracted set of columns, computed from V[n0] (and
-     *       also from D[n1]. Together, V[n0] and D[n0] allow to compute
-     *       the basis of the n-th sub vector space W, although no
-     *       explicit data is reserved to its storage.
-     * L[n0] is computed from V[n0] and D[n0], and is some sort of local
-     *       inverse (iirc, it's W_i^{inv} in most accounts).
-     *
-     * of course *[n1] and *[n2] are the same for the previous steps.
-     *
-     * In order to compute the vector for step n + 1, the data to be used
-     * is V[*], L[*], and D[n0, n1]
-     */
-    blstate(parallelizing_info_ptr pi, param_list_ptr pl);
-    blstate(blstate const&) = delete;
-    blstate& operator=(blstate const&) = delete;
-    ~blstate();
-    void set_start();
-    void load(unsigned int iter);
-    void save(unsigned int iter);
-    void save_result(unsigned int iter);
-    void operator()(parallelizing_info_ptr pi);
-};
-
-/* given a 64 by 64 symmetric matrix A (given as 64 uint64_t's), and an input
- * bitmap S given in the form of one uint64_t, compute B and T so that
- * the following hold:
- *
- *    (i)    B = T * B = B * T
- *    (ii)   B * A * T = T
- *    (iii)  rank(B) = rank(A)
- *    (iv)   (1-S)*T = 1-S
- *
- * where S is identified with the diagonal matrix whose entries are given by S.
- *
- * In other words, this inverts (ii) a maximal minor (iii) in the matrix A,
- * selecting in priority (iv) for defining this minor the row indices
- * which are zero in S.
- *
- * The matrix A is clobbered.
- *
- * This routine does some allocation on the stack. Speed is not critical.
- */
-uint64_t extraction_step(uint64_t * B, uint64_t * A, uint64_t S)
-{
-    int order[64], reorder[64];
-    uint64_t B0[64];
-    uint64_t T = 0;
-    /* convert to a priority list, in a "save trees" style.  */
-    for(int o=64,z=0,i=64;i-->0;) order[S&(UINT64_C(1)<<i)?--o:z++]=i;
-    for(int i = 0 ; i < 64 ; i++) B0[i] = UINT64_C(1)<<i;
-    for(int i = 0 ; i < 64 ; i++) reorder[i]=-1;
-    for(int j = 0 ; j < 64 ; j++) {
-        int oj = order[j];
-        uint64_t mj = UINT64_C(1)<<oj;
-        int p = -1;
-        for(int i = 0 ; i < 64 ; i++) {
-            int oi = order[i];
-            uint64_t mi = UINT64_C(1)<<oi;
-            if (T & mi) continue;
-            if (A[oi] & mj) {
-                p = i;
-                break;
-            }
-        }
-        if (p < 0) continue;
-
-        int op = order[p];
-        /* Of course it's important to use indices op and oj here ! */
-        reorder[op] = oj;
-        uint64_t mp = UINT64_C(1) << op;
-        /* We have a pivot, great. */
-        ASSERT_ALWAYS(!(T & mp));
-        T |= mp;
-        /* add row op to all rows except itself */
-        for(int i = 0 ; i < 64 ; i++) {
-            if (i == p) continue;
-            int oi = order[i];
-            uint64_t x = ~-!(A[oi] & mj);
-            B0[oi] ^= B0[op] & x;
-            A[oi] ^= A[op] & x;
-        }
-    }
-    /* Now at this point, we have some more work to do.
-     *
-     * A*T is now almost the identity matrix -- its square is diagonal
-     * with zeros and ones, so A*T is just an involution. The reorder[]
-     * array just has this involution.
-     *
-     * B is such that B*original_A = new_A.
-     *
-     * The matrix we want to return is new_A*T*b*T. We use reorder[] to
-     * actually copy this into A.
-     */
-    memset(B, 0, sizeof(B0));
-    for(int i = 0 ; i < 64 ; i++) {
-        if (reorder[i] >= 0)
-            B[reorder[i]]=B0[i]&T;
-    }
-    return T;
-}
-
-
-blstate::blstate(parallelizing_info_ptr pi, param_list_ptr pl)
+blstate::blstate(parallelizing_info_ptr pi, cxx_param_list & pl)
     : A(arith_generic::instance(bw->p, bw->ys[1]-bw->ys[0]))
     , mmt(A.get(), pi, pl, bw->dir)
     , AxA(arith_cross_generic::instance(A.get(), A.get()))
-    , y(mmt,0,0,  bw->dir, 0, mmt.n[bw->dir])
-    , my(mmt,0,0, !bw->dir, 0, mmt.n[!bw->dir])
+    , y(mmt, nullptr, nullptr,  bw->dir, 0, mmt.n[bw->dir])
+    , my(mmt, nullptr, nullptr, !bw->dir, 0, mmt.n[!bw->dir])
+    , V {
+        mmt_vec(mmt, nullptr, nullptr, bw->dir, 0, mmt.n[bw->dir]),
+        mmt_vec(mmt, nullptr, nullptr, bw->dir, 0, mmt.n[bw->dir]),
+        mmt_vec(mmt, nullptr, nullptr, bw->dir, 0, mmt.n[bw->dir]),
+    }
 {
     /* Note that THREAD_SHARED_VECTOR can't work in a block Lanczos
      * context, since both ways are used for input and output.
@@ -163,11 +49,8 @@ blstate::blstate(parallelizing_info_ptr pi, param_list_ptr pl)
      * footprint in the end.
      */
 
-    gmp_randinit_default(rstate);
-
     /* it's not really in the plans yet */
     ASSERT_ALWAYS(mmt.matrices.size() == 1);
-
 
     for(int i = 0 ; i < 3 ; i++) {
         /* We also need D_n, D_{n-1}, D_{n-2}. Those are in fact bitmaps.
@@ -175,9 +58,7 @@ blstate::blstate(parallelizing_info_ptr pi, param_list_ptr pl)
         bit_vector_init(D[i], bw->n);
         /* We need as well the two previous vectors. For these, distributed
          * storage will be ok. */
-        mmt_vec_setup(V[i], mmt,0,0, bw->dir, 0, mmt.n[bw->dir]);
     }
-
 }
 
 blstate::~blstate()
@@ -188,7 +69,6 @@ blstate::~blstate()
          * Not clear that the bitmap type is really the one we want, though. */
         bit_vector_clear(D[i]);
     }
-    gmp_randclear(rstate);
 }
 
 void blstate::set_start()
@@ -206,15 +86,15 @@ void blstate::set_start()
 
 void blstate::load( unsigned int iter)
 {
-    unsigned int i0 = iter % 3;
-    unsigned int i1 = (iter+3-1) % 3;
-    unsigned int i2 = (iter+3-2) % 3;
+    unsigned int const i0 = iter % 3;
+    unsigned int const i1 = (iter+3-1) % 3;
+    unsigned int const i2 = (iter+3-2) % 3;
     parallelizing_info_ptr pi = mmt.pi;
 
     char * filename_base;
     int rc = asprintf(&filename_base, "blstate.%u", iter);
     ASSERT_ALWAYS(rc >= 0);
-    int tcan_print = bw->can_print && pi->m->trank == 0;
+    int const tcan_print = bw->can_print && pi->m->trank == 0;
     if (tcan_print) { printf("Loading %s.* ...", filename_base); fflush(stdout); }
 
     char * tmp;
@@ -257,15 +137,15 @@ void blstate::load( unsigned int iter)
 
 void blstate::save(unsigned int iter)
 {
-    unsigned int i0 = iter % 3;
-    unsigned int i1 = (iter+3-1) % 3;
-    unsigned int i2 = (iter+3-2) % 3;
+    unsigned int const i0 = iter % 3;
+    unsigned int const i1 = (iter+3-1) % 3;
+    unsigned int const i2 = (iter+3-2) % 3;
     parallelizing_info_ptr pi = mmt.pi;
 
     char * filename_base;
     int rc = asprintf(&filename_base, "blstate.%u", iter);
     ASSERT_ALWAYS(rc >= 0);
-    int tcan_print = bw->can_print && pi->m->trank == 0;
+    int const tcan_print = bw->can_print && pi->m->trank == 0;
     if (tcan_print) { printf("Saving %s.* ...", filename_base); fflush(stdout); }
 
     char * tmp;
@@ -308,19 +188,19 @@ void blstate::save(unsigned int iter)
  *
  * This is a collective operation.
  */
-int mmt_vec_echelon(mat64 & m, mmt_vec const & v0)
+static int mmt_vec_echelon(mat64 & m, mmt_vec const & v0)
 {
     m = 1;
     uint64_t * v = (uint64_t *) mmt_my_own_subvec(v0);
-    size_t eblock = mmt_my_own_size_in_items(v0);
+    size_t const eblock = mmt_my_own_size_in_items(v0);
     /* This is the total number of non-zero coordinates of the vector v */
-    size_t n = v0.n;
+    size_t const n = v0.n;
     /* In all what follows, we'll talk about v being a 64*n matrix, with
      * [v[i]&1] being "the first row", and so on.  */
     uint64_t usedrows = 0;
     int rank = 0;
     for(int i = 0 ; i < 64 ; i++) {
-        uint64_t mi = UINT64_C(1) << i;
+        uint64_t const mi = UINT64_C(1) << i;
         /* Find the earliest column which has non-zero in the i-th row */
         unsigned int j;
         for(j = 0 ; j < eblock ; j++) {
@@ -369,7 +249,7 @@ int mmt_vec_echelon(mat64 & m, mmt_vec const & v0)
     Z = 0;
     N = 0;
     for(int i = 0 ; i < 64 ; i++) {
-        uint64_t mi = UINT64_C(1) << i;
+        uint64_t const mi = UINT64_C(1) << i;
         if (usedrows & mi) {
             N[nN++] = m[i];
         } else {
@@ -395,7 +275,7 @@ void blstate::save_result( unsigned int iter)
 {
     mat64 m0, m1, m2;
     int r;
-    unsigned int i0 = iter % 3;
+    unsigned int const i0 = iter % 3;
     parallelizing_info_ptr pi = mmt.pi;
 
     /* bw->dir=0: mmt.n0[bw->dir] = number of rows */
@@ -405,7 +285,7 @@ void blstate::save_result( unsigned int iter)
     char * tmp;
     int rc;
 
-    int tcan_print = bw->can_print && pi->m->trank == 0;
+    int const tcan_print = bw->can_print && pi->m->trank == 0;
     if (tcan_print) { printf("Saving %s.* ...\n", filename_base); fflush(stdout); }
 
     mmt_full_vec_set(y, V[i0]);
@@ -457,7 +337,7 @@ void blstate::save_result( unsigned int iter)
         ASSERT_ALWAYS(rc >= 0);
         FILE * f = fopen(tmp, "wb");
         ASSERT_ALWAYS(f);
-        size_t rc = fwrite(m1.data(), sizeof(mat64), 1, f);
+        size_t const rc = fwrite(m1.data(), sizeof(mat64), 1, f);
         ASSERT_ALWAYS(rc == (size_t) 1);
         fclose(f);
         free(tmp);
@@ -483,7 +363,7 @@ void blstate::save_result( unsigned int iter)
         ASSERT_ALWAYS(rc >= 0);
         FILE * f = fopen(tmp, "wb");
         ASSERT_ALWAYS(f);
-        size_t rc = fwrite(m2.data(), sizeof(mat64), 1, f);
+        size_t const rc = fwrite(m2.data(), sizeof(mat64), 1, f);
         ASSERT_ALWAYS(rc == (size_t) 1);
         fclose(f);
         free(tmp);
@@ -514,12 +394,14 @@ void blstate::save_result( unsigned int iter)
 }
 
 
-void blstate::operator()(parallelizing_info_ptr pi)
+int blstate::operator()(parallelizing_info_ptr pi)
 {
-    int tcan_print = bw->can_print && pi->m->trank == 0;
+    int exit_code = 0;
+
+    int const tcan_print = bw->can_print && pi->m->trank == 0;
     struct timing_data timing[1];
 
-    size_t nelts_for_nnmat = bw->n * (bw->n / A->simd_groupsize());
+    size_t const nelts_for_nnmat = bw->n * (bw->n / A->simd_groupsize());
 
     serialize(pi->m);
 
@@ -694,7 +576,7 @@ void blstate::operator()(parallelizing_info_ptr pi)
             ASSERT_ALWAYS(D[i0]->n == 64);
 
             {
-                size_t eblock = mmt_my_own_size_in_items(y);
+                size_t const eblock = mmt_my_own_size_in_items(y);
                 ASSERT_ALWAYS(y.abase->elt_stride() == sizeof(uint64_t));
 
                 // Here are the operations we will now perform
@@ -714,11 +596,11 @@ void blstate::operator()(parallelizing_info_ptr pi)
                 uint64_t * VA  = (uint64_t *) mmt_my_own_subvec(y);
                 uint64_t * X   = (uint64_t *) mmt_my_own_subvec(y);
                 uint64_t D0;
-                uint64_t D1 = D[i1]->p[0];
+                uint64_t const D1 = D[i1]->p[0];
                 mat64 & mvav = *(mat64*) vav;
                 mat64 & mvaav = *(mat64*) vaav;
                 mat64 & mL0 = L[i0];
-                mat64 & mL1 = L[i1];
+                mat64  const& mL1 = L[i1];
                 mat64 & mL2 = L[i2];
                 mat64 m0, m1, m2, t;
 
@@ -727,7 +609,7 @@ void blstate::operator()(parallelizing_info_ptr pi)
 
                 D0 = D[i0]->p[0] = extraction_step(mL0.data(), t.data(), D1);
 
-                int Ni = bit_vector_popcount(D[i0]);
+                int const Ni = bit_vector_popcount(D[i0]);
                 sum_Ni += Ni;
                 // int defect = bw->n - Ni;
                 // printf("step %d, dim=%d\n", s+i, Ni);
@@ -820,9 +702,13 @@ void blstate::operator()(parallelizing_info_ptr pi)
     serialize(pi->m);
 
     timing_clear(timing);
+
+    return exit_code;
 }
 
-void * bl_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED)
+static int exit_code = 0;
+
+static void * bl_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
     /* so many features we do not support ! */
     ASSERT_ALWAYS(bw->m == bw->n);
@@ -834,28 +720,22 @@ void * bl_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED
     ASSERT_ALWAYS(!pi->interleaved);
 
     // int withcoeffs = mpz_cmp_ui(bw->p, 2) > 0;
-    block_control_signals();
 
     blstate bl(pi, pl);
 
     bl(pi);
 
-    return NULL;
+    return nullptr;
 }
 
 
-/* The unit test for extraction_step, which is a static function here,
- * actually includes the source file. We just want to make sure we don't
- * expose main()
- */
-#ifndef BL_TESTING
 // coverity[root_function]
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
-    param_list pl;
+    cxx_param_list pl;
 
     bw_common_init(bw, &argc, &argv);
-    param_list_init(pl);
+
     parallelizing_info_init();
 
     bw_common_decl_usage(pl);
@@ -870,7 +750,6 @@ int main(int argc, char * argv[])
     matmul_top_lookup_parameters(pl);
     /* interpret our parameters */
     if (bw->ys[0] < 0) { fprintf(stderr, "no ys value set\n"); exit(1); }
-    catch_control_signals();
 
     if (param_list_warn_unused(pl)) {
         int rank;
@@ -882,9 +761,8 @@ int main(int argc, char * argv[])
     pi_go(bl_prog, pl, 0);
 
     parallelizing_info_finish();
-    param_list_clear(pl);
+
     bw_common_clear(bw);
 
     return exit_code;
 }
-#endif

@@ -1,5 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <cstdint>                      // for uint64_t, UINT64_C
+
 #include "bblas_mat64.hpp"  // for mat64
 #include "bblas_level4.hpp"
 
@@ -33,11 +35,11 @@ full_echelon_6464_imm(mat64& mm, mat64& e, mat64 const& m)
         e[j] = z;
         r++;
         // cancelled_cols |= mask;
-        uint64_t er = e[j];
+        uint64_t const er = e[j];
         for (k = 0; k < 64; k++) {
             if (k == j)
                 continue;
-            uint64_t w = -((mm[k] & mask) != 0);
+            uint64_t const w = -((mm[k] & mask) != 0);
             mm[k] ^= pr & w;
             e[k] ^= er & w;
         }

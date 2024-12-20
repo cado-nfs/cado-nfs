@@ -1,10 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
 
-#ifndef TRACE_K
-#error "This file *must* be compiled with TRACE_K defined"
-#define TRACE_K 1
-#endif
-
 /* This compilation units reacts to TRACK_CODE_PATH and uses macros
  * such as WHERE_AM_I_UPDATE.
  * This compilation unit _must_ produce different object files depending
@@ -12,16 +7,18 @@
  * The WHERE_AM_I_UPDATE macro itself is defined in las-where-am-i.hpp
  */
 
-#include <array>                         // for array, array<>::value_type
+#include <cstdint>
 #include <cinttypes>                     // for PRId64, PRIu64, SCNd64, SCNu64
 #include <climits>                       // for UINT_MAX
 #include <cstdio>                       // for fprintf, sscanf, stderr
 #include <cstdlib>                      // for exit, EXIT_FAILURE
 #include <cstdarg>  // IWYU pragma: keep // because we want _gmp_vfprintf !
+
+#include <array>                         // for array, array<>::value_type
 #include <memory>                        // for unique_ptr, operator!=
 #include <string>                        // for string
+
 #ifdef HAVE_CXXABI_H
-/* We use that to demangle C++ names */
 #include <cxxabi.h> // IWYU pragma: keep
 #endif
 #ifdef HAVE_EXECINFO
@@ -31,10 +28,11 @@
 #include <gmp.h>                         // for gmp_vfprintf, mpz_divexact_ui
 
 #include "cxx_mpz.hpp"
+#include "fb.hpp"
+#include "fb-types.h"
 #include "las-where-am-i.hpp"
 #include "las-where-am-i-debug.hpp"
 #include "las-info.hpp"       // otherwise las_info is incomplete in nfs_work
-
 #include "las-config.h"                  // for LOG_BUCKET_REGION
 #include "las-coordinates.hpp"           // for convert_*_to_*
 #include "las-norms.hpp"                 // for lognorm_smart
@@ -45,6 +43,11 @@
 #include "macros.h"                      // for ASSERT_ALWAYS
 #include "verbose.h"    // verbose_output_print
 #include "params.h"
+
+#ifndef TRACE_K
+#error "This file *must* be compiled with TRACE_K defined"
+#define TRACE_K 1
+#endif
 
 int extern_trace_on_spot_ab(int64_t a, uint64_t b) {
     return trace_on_spot_ab(a, b);
@@ -81,11 +84,9 @@ trace_ab_t trace_ab { 0, 0 };
 trace_ij_t trace_ij { 0, UINT_MAX, };
 
 /* Those are from the parameter list. */
-std::unique_ptr<trace_ab_t> pl_ab;
-std::unique_ptr<trace_ij_t> pl_ij;
-std::unique_ptr<trace_Nx_t> pl_Nx;
-
-int have_trace_ab = 0, have_trace_ij = 0, have_trace_Nx = 0;
+static std::unique_ptr<trace_ab_t> pl_ab;
+static std::unique_ptr<trace_ij_t> pl_ij;
+static std::unique_ptr<trace_Nx_t> pl_Nx;
 
 /* two norms of the traced (a,b) pair */
 std::array<cxx_mpz, 2> traced_norms;  // XXX HARDCODED 2
@@ -139,8 +140,8 @@ void where_am_I::interpret_parameters(cxx_param_list & pl)
  */
 void where_am_I::begin_special_q(nfs_work const & ws)
 {
-    int logI = ws.conf.logI;
-    unsigned int J = ws.J;
+    int const logI = ws.conf.logI;
+    unsigned int const J = ws.J;
     qlattice_basis const & Q(ws.Q);
 
     /* At most one of the three coordinates must be specified */
@@ -214,22 +215,22 @@ int test_divisible(where_am_I const & w)
 
     /* Note that when we are reaching here through apply_one_bucket, we
      * do not know the prime number. */
-    fbprime_t p = w->p;
+    fbprime_t const p = w->p;
     if (p==0) return 1;
 
     const unsigned int logI = w->logI;
     const unsigned int I = 1U << logI;
 
     const unsigned long X = w->x + (w->N << LOG_BUCKET_REGION);
-    long i = (long) (X & (I-1)) - (long) (I/2);
-    unsigned long j = X >> logI;
+    long const i = (long) (X & (I-1)) - (long) (I/2);
+    unsigned long const j = X >> logI;
     fbprime_t q;
 
     q = fb_is_power (p, NULL);
     if (q == 0)
         q = p;
 
-    int rc = mpz_divisible_ui_p (traced_norms[w->side], (unsigned long) q);
+    int const rc = mpz_divisible_ui_p (traced_norms[w->side], (unsigned long) q);
 
     if (rc)
         mpz_divexact_ui (traced_norms[w->side], traced_norms[w->side], (unsigned long) q);
@@ -246,7 +247,7 @@ int test_divisible(where_am_I const & w)
 #if defined(HAVE_CXXABI_H) && defined(HAVE_EXECINFO)
 static std::string remove_trailing_address_suffix(std::string const& a, std::string& suffix)
 {
-    size_t pos = a.find('+');
+    size_t const pos = a.find('+');
     if (pos == a.npos) {
         suffix.clear();
         return a;
@@ -257,13 +258,13 @@ static std::string remove_trailing_address_suffix(std::string const& a, std::str
 
 static std::string get_parenthesized_arg(std::string const& a, std::string& prefix, std::string& suffix)
 {
-    size_t pos = a.find('(');
+    size_t const pos = a.find('(');
     if (pos == a.npos) {
         prefix=a;
         suffix.clear();
         return std::string();
     }
-    size_t pos2 = a.find(')', pos + 1);
+    size_t const pos2 = a.find(')', pos + 1);
     if (pos2 == a.npos) {
         prefix=a;
         suffix.clear();
@@ -277,7 +278,7 @@ static std::string get_parenthesized_arg(std::string const& a, std::string& pref
 
 /* Do this so that the _real_ caller is always 2 floors up. Must *NOT* be
  * a static function, for this very reason ! */
-void sieve_increase_logging_backend(unsigned char *S, const unsigned char logp, where_am_I const & w)
+static void sieve_increase_logging_backend(unsigned char *S, const unsigned char logp, where_am_I const & w)
 {
     if (!trace_on_spot_Nx(w->N, w->x))
         return;

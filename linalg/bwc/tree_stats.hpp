@@ -191,7 +191,7 @@ class tree_stats {
             return find_pending_smallstep() != nullptr;
         }
 
-        std::ostream& debug_print(std::ostream& s, std::string indent) const;
+        std::ostream& debug_print(std::ostream& s, std::string const & indent) const;
         step_time & operator+=(step_time const & x);
     };/*}}}*/
 
