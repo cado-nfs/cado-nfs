@@ -21,25 +21,16 @@ class nfs_work;
 #endif
 
 struct where_am_I {
-#ifdef TRACK_CODE_PATH
     where_am_I();
     where_am_I(where_am_I const &);
     where_am_I & operator=(where_am_I const &);
     ~where_am_I();
-#else
-    // coverity[uninit_member]
-    where_am_I() {}
-    // coverity[uninit_member]
-    where_am_I(where_am_I const &) {}
-    where_am_I & operator=(where_am_I const &) { return *this; }
-    ~where_am_I() {}
-#endif
     static void decl_usage(cxx_param_list &);
     static void interpret_parameters(cxx_param_list &);
     static void begin_special_q(nfs_work const &);
     private:
     struct impl;  // forward declaration of the implementation class
-    impl * pimpl;
+    impl * pimpl = nullptr;
     public:
     impl * operator->() { return pimpl; };
     impl const * operator->() const { return pimpl; };

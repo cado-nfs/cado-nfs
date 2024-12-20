@@ -76,6 +76,17 @@ extern int param_list_update_cmdline(param_list_ptr pl,
 template<typename T>
 int param_list_parse(param_list_ptr pl, const char * key, T & r);
 
+/* this returns a default constructed T if the key is absent */
+template<typename T>
+T
+param_list_parse(param_list_ptr pl, const char * key)
+{
+    T r;
+    param_list_parse<T>(pl, key, r);
+    return r;
+}
+
+
 template<typename T>
 int param_list_parse_per_side(param_list_ptr pl, const char * key, T * lpb_arg, int n, enum args_per_side_policy_t policy);
 

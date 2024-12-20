@@ -1,8 +1,8 @@
 #include "cado.h"       // IWYU pragma: keep
+
 #include <gmp.h>
 #include "cxx_mpz.hpp"
 #include "mpz_mat.h"
-#include "mpz_poly.h"
 #include "macros.h"
 
 static void foo()
