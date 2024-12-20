@@ -371,11 +371,12 @@ process_bucket_region_run::survivors_t process_bucket_region_run::search_survivo
             verbose_output_print(TRACE_CHANNEL, 0, ", S[%zu][%u]=%u", i,
                                  trace_Nx.x, S[i] ? S[0][trace_Nx.x] : ~0u);
         }
-        verbose_output_print(TRACE_CHANNEL, 0, "\n");
-        verbose_output_vfprint(TRACE_CHANNEL, 0, gmp_vfprintf,
-                "# Remaining norms which have not been accounted for in sieving: (%Zd, %Zd)\n",
-                (mpz_srcptr) traced_norms[0],
-                (mpz_srcptr) traced_norms[1]);
+        verbose_output_print(TRACE_CHANNEL, 0, "\n# Remaining norms which have not been accounted for in sieving: (");
+        for (size_t i = 0; i < traced_norms.size(); ++i) {
+            verbose_output_vfprint(TRACE_CHANNEL, 0, gmp_vfprintf, "%s%Zd",
+                i ? ", " : "", (mpz_srcptr) traced_norms[i]);
+        }
+        verbose_output_print(TRACE_CHANNEL, 0, ")\n");
     }
 #endif  /* }}} */
 

@@ -79,7 +79,7 @@ extern struct trace_Nx_t trace_Nx;
 extern struct trace_ab_t trace_ab;
 extern struct trace_ij_t trace_ij;
 
-extern std::array<cxx_mpz, 2> traced_norms; // XXX HARDCODED 2
+extern std::vector<cxx_mpz> traced_norms;
 
 static inline int trace_on_spot_N(unsigned int N) {
     if (trace_Nx.x == UINT_MAX) return 0;
