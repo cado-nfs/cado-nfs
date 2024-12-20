@@ -18,13 +18,14 @@
 #include "verbose.h"
 class nfs_aux; // IWYU pragma: keep
 
-nfs_work::thread_data::thread_data(thread_data && o) : ws(o.ws)
+nfs_work::thread_data::thread_data(thread_data && o)
+    : ws(o.ws),
+    sides(o.sides),
+    SS(o.SS)
 {
-    for(unsigned int side = 0 ; side < sides.size() ; side++) {
-        sides[side].bucket_region = o.sides[side].bucket_region;
-        o.sides[side].bucket_region = NULL;
+    for(auto & s: o.sides) {
+        s.bucket_region = NULL;
     }
-    SS = o.SS;
     o.SS = NULL;
 }
 
@@ -56,7 +57,8 @@ nfs_work::thread_data::thread_data(thread_data const & o)
 #endif
 
 nfs_work::thread_data::thread_data(nfs_work & ws)
-    : ws(ws)
+    : ws(ws),
+    sides(ws.sides.size())
 {
     for(unsigned int side = 0 ; side < sides.size() ; side++) {
         sides[side].bucket_region = NULL;
@@ -118,8 +120,9 @@ nfs_work::nfs_work(las_info & _las, int nr_workspaces)
     th.reserve(_las.number_of_threads_per_subjob());
     for(int x = _las.number_of_threads_per_subjob() ; x-- ; )
         th.emplace_back(*this);
-    sides[0].dumpfile.open(las.dump_filename, Q.doing, 0);
-    sides[1].dumpfile.open(las.dump_filename, Q.doing, 1);
+    for (size_t i = 0; i < sides.size(); ++i) {
+      sides[i].dumpfile.open(las.dump_filename, Q.doing, i);
+    }
 }
 
 nfs_work_cofac::nfs_work_cofac(las_info & las, nfs_work const & ws) :

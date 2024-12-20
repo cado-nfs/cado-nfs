@@ -200,7 +200,7 @@ class nfs_work {
         };
 
         nfs_work &ws;  /* a pointer to the parent structure, really */
-        std::array<side_data, 2> sides; /* XXX HARDCODED 2 */
+        std::vector<side_data> sides;
         /* SS is used only in process_bucket region */
         unsigned char *SS = NULL;
 
