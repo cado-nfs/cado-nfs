@@ -59,7 +59,7 @@ sieve_shared_data::side_data::side_data(int side,
 sieve_shared_data::sieve_shared_data( /*{{{*/
         cxx_cado_poly const & cpoly,
         cxx_param_list & pl)
-    : cpoly(cpoly)
+    : cpoly(cpoly), sides{(size_t) cpoly->nb_polys}
 {
     cofactfilename = param_list_lookup_string (pl, "file-cofact");
 }
