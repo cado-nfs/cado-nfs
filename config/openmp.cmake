@@ -8,10 +8,12 @@ if (OPENMP_FOUND)
     message(STATUS "C libraries for OpenMP: ${OpenMP_C_LIBRARIES}")
     message(STATUS "C++ flags for OpenMP: ${OpenMP_CXX_FLAGS}")
     message(STATUS "C++ libraries for OpenMP: ${OpenMP_CXX_LIBRARIES}")
-    # Don't set unconditionally !
-    # set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-    # set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-
+    # FindOpenMP produces a space-separated list... If more than one
+    # option is required, this will get in our way.
+    separate_arguments(OpenMP_C_FLAGS)
+    separate_arguments(OpenMP_CXX_FLAGS)
+    separate_arguments(OpenMP_C_LIBRARIES)
+    separate_arguments(OpenMP_CXX_LIBRARIES)
 else()
     # OpenMP.cmake leaves crap around with clang.
     set(OpenMP_C_FLAGS CACHE STRING "C compiler flags for OpenMP parallelization" FORCE)
