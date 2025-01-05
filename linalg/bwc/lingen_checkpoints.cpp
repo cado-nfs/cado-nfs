@@ -489,13 +489,14 @@ static int load_mpi_checkpoint_file_scattered(bmstatus & bm, cp_which which, big
     if (!ok) {
         return false;
     }
-    MPI_Bcast(&Xsize, 1, MPI_INT, 0, bm.com[0]);
+    MPI_Bcast(&Xsize, 1, CADO_MPI_SIZE_T, 0, bm.com[0]);
     int const b = runtime_numeric_cast<int>(m + n);
     MPI_Bcast(bm.delta.data(), b, MPI_UNSIGNED, 0, bm.com[0]);
     MPI_Bcast(bm.lucky.data(), b, MPI_INT, 0, bm.com[0]);
     MPI_Bcast(&bm.done, 1, MPI_INT, 0, bm.com[0]);
     int commsize;
     MPI_Comm_size(bm.com[0], &commsize);
+    printf("rk=%d, Xsize=%zu\n", rank, Xsize);
     logline_begin(stdout, SIZE_MAX, "Reading %s (MPI, scattered)",
             cp.datafile.c_str());
     switch (which) {
@@ -576,7 +577,7 @@ static int load_mpi_checkpoint_file_gathered(bmstatus & bm, cp_which which, bigm
          * exist.
          */
         return false;
-    MPI_Bcast(&Xsize, 1, MPI_INT, 0, bm.com[0]);
+    MPI_Bcast(&Xsize, 1, CADO_MPI_SIZE_T, 0, bm.com[0]);
     int const b = runtime_numeric_cast<int>(m + n);
     MPI_Bcast(bm.delta.data(), b, MPI_UNSIGNED, 0, bm.com[0]);
     MPI_Bcast(bm.lucky.data(), b, MPI_INT, 0, bm.com[0]);
