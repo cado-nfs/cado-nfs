@@ -329,7 +329,7 @@ read_container_impl<Container>
 read_container(Container & c,
     typename Container::size_type N = std::numeric_limits<typename Container::size_type>::max())
 {
-    return read_container_impl(c, N);
+    return read_container_impl<Container> { c, N };
 }
 
 template<typename Container>
