@@ -17,7 +17,7 @@ target_link_libraries(explain_indexed_relation utils)
 
 add_executable(indexed_relations_to_density EXCLUDE_FROM_ALL indexed_relations_to_density.cpp)
 target_link_libraries(indexed_relations_to_density utils_with_io)
-set_target_properties(indexed_relations_to_density PROPERTIES
-  COMPILE_FLAGS "${OpenMP_CXX_FLAGS}" LINK_FLAGS "${OpenMP_CXX_FLAGS}")
+
+mark_targets_as_openmp(indexed_relations_to_density)
 
 include(CMakeLists-nodist.txt OPTIONAL)

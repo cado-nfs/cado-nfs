@@ -258,10 +258,7 @@ cado_define_test(test_iceildiv.c)
 
 if (HAVE_OPENMP)
     add_executable(omp_get_max_threads omp_get_max_threads.c)
-    set_target_properties(omp_get_max_threads
-        PROPERTIES
-        COMPILE_FLAGS "${OpenMP_CXX_FLAGS}"
-        LINK_FLAGS "${OpenMP_CXX_FLAGS}")
+    mark_targets_as_openmp(omp_get_max_threads)
     # virtually all targets in cado-nfs depend on utils, and we want to
     # be sure that in all situations, the check environment will have
     # this binary available after the build step. Having utils depend on
@@ -272,10 +269,7 @@ endif()
 if (HAVE_HWLOC)
     add_executable(hwloc_cado_helper hwloc_cado_helper.c)
     target_link_libraries(hwloc_cado_helper hwloc)
-    set_target_properties(hwloc_cado_helper
-        PROPERTIES
-        COMPILE_FLAGS "${OpenMP_CXX_FLAGS}"
-        LINK_FLAGS "${OpenMP_CXX_FLAGS}")
+    mark_targets_as_openmp(hwloc_cado_helper)
     # same trick
     add_dependencies(utils hwloc_cado_helper)
 endif()

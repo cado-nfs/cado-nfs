@@ -453,20 +453,11 @@ foreach(layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
     set(our_compile_flags)
     parse_arith_layer(${layer} our_compile_flags)
     set(layer ${canonical_arith_layer})
-    string_join(our_compile_flags_string " " ${our_compile_flags})
-
-    set_target_properties(test_matpoly_${layer} PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} ${our_compile_flags_string}"
-        LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
 
     add_executable(time_matpoly_ft_parallel_${layer} EXCLUDE_FROM_ALL
         time_matpoly_ft_parallel.cpp)
     target_link_libraries(time_matpoly_ft_parallel_${layer}
         lingen_${layer}_support)
-
-    set_target_properties(time_matpoly_ft_parallel_${layer} PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} ${our_compile_flags_string}"
-        LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
 
     add_executable(test_lingen_mini_${layer} EXCLUDE_FROM_ALL
         test_lingen_mini.cpp
@@ -474,9 +465,23 @@ foreach(layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
     target_link_libraries(test_lingen_mini_${layer}
         lingen_${layer}_core)
 
-    set_target_properties(test_lingen_mini_${layer} PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} ${our_compile_flags_string}"
-        LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
+    mark_targets_as_mpi(
+        test_matpoly_${layer}
+        time_matpoly_ft_parallel_${layer}
+        test_lingen_mini_${layer})
+
+    mark_targets_as_openmp(
+        test_matpoly_${layer}
+        time_matpoly_ft_parallel_${layer}
+        test_lingen_mini_${layer})
+
+    set_property(
+        TARGET
+        test_matpoly_${layer}
+        time_matpoly_ft_parallel_${layer}
+        test_lingen_mini_${layer}
+        APPEND PROPERTY COMPILE_OPTIONS ${our_compile_flags})
+
 endforeach()
 
 foreach(layer b64)
@@ -504,20 +509,29 @@ foreach(layer b64)
     set(our_compile_flags)
     parse_arith_layer(${layer} our_compile_flags)
     list(APPEND our_compile_flags -DLINGEN_BINARY)
-    string_join(our_compile_flags_string " " ${our_compile_flags})
 
     # (unused for p=2 anyway)
     # ARGUMENTS --prime 2
-    set_target_properties(test_matpoly_${layer} PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} ${our_compile_flags_string}"
-        LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
+
     add_executable(time_matpoly_ft_parallel_${layer} EXCLUDE_FROM_ALL
         time_matpoly_ft_parallel.cpp)
     target_link_libraries(time_matpoly_ft_parallel_${layer}
         lingen_${layer}_support)
-    set_target_properties(time_matpoly_ft_parallel_${layer} PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} ${our_compile_flags_string}"
-        LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
+
+    mark_targets_as_mpi(
+        test_matpoly_${layer}
+        time_matpoly_ft_parallel_${layer})
+
+    mark_targets_as_openmp(
+        test_matpoly_${layer}
+        time_matpoly_ft_parallel_${layer})
+
+    set_property(
+        TARGET
+        test_matpoly_${layer}
+        time_matpoly_ft_parallel_${layer}
+        APPEND PROPERTY COMPILE_OPTIONS ${our_compile_flags})
+
 
     cado_define_test(TEST_NAME test_matpoly_basecase_${layer}
         PROGRAM
@@ -532,9 +546,10 @@ endforeach()
 
 add_executable(check_mpi_problems EXCLUDE_FROM_ALL
         ${CADO_NFS_SOURCE_DIR}/linalg/bwc/check_mpi_problems.c)
-set_target_properties(check_mpi_problems PROPERTIES
-    COMPILE_FLAGS "--mpi ${OpenMP_C_FLAGS} -DWANT_MAIN"
-    LINK_FLAGS "--mpi ${OpenMP_C_FLAGS}")
+
+mark_targets_as_mpi(check_mpi_problems)
+set_property(TARGET check_mpi_problems
+    APPEND PROPERTY COMPILE_DEFINITIONS WANT_MAIN)
 
 
 set(mod2_plain_mpi_tests mpi_rect1 mpi_rect2 mpi_square1 mpi_square2)
@@ -617,9 +632,7 @@ endif()
 
 add_executable(test-parallelizing_info test-parallelizing_info.cpp)
 target_link_libraries(test-parallelizing_info utils bwc_base)
-set_target_properties(test-parallelizing_info PROPERTIES
-    COMPILE_FLAGS "--mpi"
-    LINK_FLAGS "--mpi")
+mark_targets_as_mpi(test-parallelizing_info)
 set(mpiconfs mpi_rect1 mpi_rect2 mpi_square1 mpi_square2)
 if (NOT HAVE_MPI OR CMAKE_VERSION VERSION_LESS 3.9)
     set(mpiconfs)
@@ -671,10 +684,7 @@ endif()
 #########################################################################
 
 add_executable(spmv_test EXCLUDE_FROM_ALL spmv_test.cpp)
-set_target_properties(spmv_test PROPERTIES
-            LINKER_LANGUAGE CXX
-            COMPILE_FLAGS "--mpi"
-            LINK_FLAGS "--mpi")
+mark_targets_as_mpi(spmv_test)
 target_link_libraries(spmv_test bwc_base)
 
 add_executable(short_matmul short_matmul.c)
@@ -845,10 +855,7 @@ include_directories(${PROJECT_BINARY_DIR}/linalg/bwc)
 
 add_executable(test_hello test_hello.cpp)
 target_link_libraries(test_hello bwc_base)
-set_target_properties(test_hello PROPERTIES
-    LINKER_LANGUAGE CXX
-    COMPILE_FLAGS "--mpi"
-    LINK_FLAGS "--mpi")
+mark_targets_as_mpi(test_hello)
 set(mpiconfs mpi_rect1 mpi_square1)
 if(DEFINED ENV{CHECKS_EXPENSIVE})
     set(mpiconfs ${mpiconfs} mpi_rect2 mpi_square2)
@@ -879,10 +886,7 @@ endforeach()
 cado_define_test(test_bl_extraction.cpp
     ${PROJECT_SOURCE_DIR}/linalg/bwc/blocklanczos_extraction.cpp
     LIBRARIES bwc_base bitlinalg)
-set_target_properties(test_bl_extraction PROPERTIES
-                LINKER_LANGUAGE CXX
-                COMPILE_FLAGS "--mpi"
-                LINK_FLAGS "--mpi")
+mark_targets_as_mpi(test_bl_extraction)
 
 #########################################################################
 
@@ -941,9 +945,8 @@ cado_define_test(test_matrix_file.cpp
     NO_DEFAULT_RUN
     LIBRARIES utils)
 
-set_target_properties(test_matrix_file PROPERTIES
-    COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
-    LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
+mark_targets_as_mpi(test_matrix_file)
+mark_targets_as_openmp(test_matrix_file)
 
 cado_define_test(test_matrix_file_script
     PROVIDE_TEMPORARY_WDIR
