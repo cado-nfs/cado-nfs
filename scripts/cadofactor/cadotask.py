@@ -5747,7 +5747,14 @@ class SqrtTask(Task):
             self.factors[str(factor)] = isprime
 
     def get_factors(self):
-        return self.factors.keys()
+        N = self.params["N"]
+        F = []
+        for p in sorted([int(p) for p in self.factors.keys()]):
+            assert N % p == 0
+            while N % p == 0:
+                F.append(str(p))
+                N = N // p
+        return F
 
     @staticmethod
     def miller_rabin_pass(number, base):
