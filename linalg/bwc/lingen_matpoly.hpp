@@ -12,6 +12,7 @@
 #include "arith-hard.hpp"
 #include "submatrix_range.hpp"
 #include "tree_stats.hpp"
+#include "runtime_numeric_cast.hpp"
 
 struct polymat;
 

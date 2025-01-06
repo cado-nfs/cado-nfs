@@ -471,15 +471,9 @@ endif()
 
 ######################################################################
 # Try to detect whether pthreads and/or MPI are available.
-# This checks the MPI and PTHREADS environment variables.
 # As a result:
-# - If pthreads are available:
-#   * WITH_PTHREADS is defined to 1 as a cmake variable.
-#   * -DWITH_PTHREADS is added for the compilation of every file (because
-#     it can't hurt).
-#   In fact, in recent versions, pthread support is mandatory. Still,
-#   this piece of cmake checks the avaibility of the function
-#   pthread_barrier_wait, which is optional.
+# - pthreads are mandatory, but we also check the avaibility of the
+#   function pthread_barrier_wait, which is optional.
 # - If mpi is available:
 #   * WITH_MPI is defined to 1 as a cmake variable.
 #   * _NOTHING_ from the build environment is changed by default, because

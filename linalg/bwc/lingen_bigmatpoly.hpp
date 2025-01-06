@@ -40,7 +40,7 @@ struct bigmatpoly_model {
  */
 class bigmatpoly : public bigmatpoly_model {
     public:
-    matpoly::arith_hard * ab = NULL;
+    matpoly::arith_hard * ab = nullptr;
     unsigned int m = 0;     /* total number of rows */
     unsigned int n = 0;     /* total number of cols */
     /* The following three are also in cells */
@@ -50,28 +50,29 @@ class bigmatpoly : public bigmatpoly_model {
      * not all entries in the local cell are relevant */
     unsigned int m0r() const { return subdivision(m, m1).nth_block_size(irank()); }
     unsigned int n0r() const { return subdivision(n, n1).nth_block_size(jrank()); }
-    inline unsigned int nrows() const { return m; }
-    inline unsigned int ncols() const { return n; }
+    unsigned int nrows() const { return m; }
+    unsigned int ncols() const { return n; }
     private:
     size_t size = 0;
     std::vector<matpoly> cells;
     public:
 
-    bigmatpoly(bigmatpoly_model const &);
+    explicit bigmatpoly(bigmatpoly_model const &);
     bigmatpoly(matpoly::arith_hard *, bigmatpoly_model const &, unsigned int m, unsigned int n, int len);
-    bigmatpoly similar_shell() const { return bigmatpoly(ab, get_model(), m, n, 0); }
+    bigmatpoly similar_shell() const { return { ab, get_model(), m, n, 0 }; }
     bigmatpoly(bigmatpoly const&) = delete;
     bigmatpoly& operator=(bigmatpoly const&) = delete;
-    bigmatpoly(bigmatpoly &&);
-    bigmatpoly& operator=(bigmatpoly &&);
+    bigmatpoly(bigmatpoly &&) noexcept;
+    bigmatpoly& operator=(bigmatpoly &&) noexcept;
+    ~bigmatpoly() = default;
     matpoly & my_cell() { return cell(irank(), jrank()); }
     matpoly const & my_cell() const { return cell(irank(), jrank()); }
     /* {{{ access interface for bigmatpoly */
     private:
-    inline matpoly & cell(unsigned int i, unsigned int j) {
+    matpoly & cell(unsigned int i, unsigned int j) {
         return cells[i*n1+j];
     }
-    inline matpoly const & cell(unsigned int i, unsigned int j) const {
+    matpoly const & cell(unsigned int i, unsigned int j) const {
         return cells[i*n1+j];
     }
     public:
@@ -81,11 +82,11 @@ class bigmatpoly : public bigmatpoly_model {
     bool check_pre_init() const { return size == 0; }
 
     // void realloc(int newalloc);
-    inline void shrink_to_fit() { my_cell().shrink_to_fit(); }
+    void shrink_to_fit() { my_cell().shrink_to_fit(); }
     void zero();
     void clear() { *this = bigmatpoly(get_model()); }
 
-    inline size_t get_size() const { return size; }
+    size_t get_size() const { return size; }
     void set_size(size_t size);
     void zero_pad(size_t size);
     void zero_with_size(size_t size) { set_size(0); zero_pad(size); }

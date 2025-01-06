@@ -51,18 +51,13 @@ set(BWC_EXTRA_BACKENDS "" CACHE STRING "list of pairs (arithmetic,matmul) backen
 # Note that whenever a target (at least very certainly an executable)
 # links an mpi compiled library, it must be marked as mpi as well.
 
-macro(mark_mpi_target target)
-    set_target_properties(${target} PROPERTIES
-        COMPILE_FLAGS "--mpi"
-        LINK_FLAGS "--mpi")
-endmacro()
 macro(mpi_add_library target)
     add_library(${target} ${ARGN})
-    mark_mpi_target(${target})
+    mark_targets_as_mpi(${target})
 endmacro()
 macro(mpi_add_executable target)
     add_executable(${target} ${ARGN})
-    mark_mpi_target(${target})
+    mark_targets_as_mpi(${target})
 endmacro()
 
 ### bwc_base
@@ -138,12 +133,6 @@ endif()
 mpi_add_executable(mf_scan2 ${EXCLUDE_FROM_RELEASE_BUILD} mf_scan2.cpp)
 target_link_libraries(mf_scan2 bwc_base)
 
-if (HAVE_OPENMP)
-set_target_properties(mf_scan2 PROPERTIES
-    COMPILE_FLAGS "${OpenMP_CXX_FLAGS}"
-    LINK_FLAGS "${OpenMP_CXX_FLAGS}")
-endif()
-
 
 include_directories(${CADO_NFS_SOURCE_DIR}/linalg)
 
@@ -158,9 +147,7 @@ add_executable(random_matrix ${EXCLUDE_FROM_RELEASE_BUILD}
     random_matrix.cpp)
 set_property(TARGET random_matrix PROPERTY COMPILE_DEFINITIONS WANT_MAIN)
 target_link_libraries(random_matrix utils m)
-set_target_properties(random_matrix PROPERTIES
-        COMPILE_FLAGS "--mpi"
-        LINK_FLAGS "--mpi")
+mark_targets_as_mpi(random_matrix)
 
 if(BUILD_DYNAMICALLY_LINKABLE_BWC)
     set(SOLIB_PREFIX ${CMAKE_SHARED_LIBRARY_PREFIX})
@@ -255,8 +242,7 @@ endmacro()
 
 add_library(bwc_arith ${CADO_SHARED} arith-generic.cpp)
 target_link_libraries(bwc_arith ${gmp_libname} utils)
-set_target_properties(bwc_arith PROPERTIES COMPILE_FLAGS "--mpi")
-set_target_properties(bwc_arith PROPERTIES LINK_FLAGS "--mpi")
+mark_targets_as_mpi(bwc_arith)
 
 
 
@@ -290,13 +276,12 @@ if(BUILD_DYNAMICALLY_LINKABLE_BWC)
         # To be honest, we don't really need the compile flags here. All
         # code is pulled in from arith-generic.cpp, which does not
         # include arith-hard.hpp
-        string_join(our_compile_flags_string " " ${our_compile_flags})
 
         add_library(arithmetic_${v} ${CADO_SHARED} arith-generic.cpp)
         target_link_libraries(arithmetic_${v} utils)
-        set_target_properties(arithmetic_${v} PROPERTIES
-            COMPILE_FLAGS "--mpi ${our_compile_flags_string}"
-            LINK_FLAGS "--mpi")
+        mark_targets_as_mpi(arithmetic_${v})
+        set_property(TARGET arithmetic_${v}
+            APPEND PROPERTY COMPILE_OPTIONS ${our_compile_flags})
         install(TARGETS arithmetic_${v} DESTINATION ${LIBSUFFIX}/linalg/bwc)
     endforeach()
 
@@ -351,6 +336,7 @@ set(matmul_sliced_sources   matmul-sliced.cpp)
 set(matmul_bucket_sources   matmul-bucket.cpp)
 
 
+
 macro(CONFIGURE_MATMUL_LIB v i)
         parse_arith_layer(${v} our_compile_flags)
         list(APPEND our_compile_flags -DMM_IMPL=${i})
@@ -380,10 +366,9 @@ macro(CONFIGURE_MATMUL_LIB v i)
 
         add_library(matmul_${v}_${i} ${CADO_SHARED} ${sources})
         target_link_libraries(matmul_${v}_${i} matmul_common)#  bwc_mpfq)
-        string_join(our_compile_flags_string " " ${our_compile_flags})
-        set_target_properties(matmul_${v}_${i} PROPERTIES
-            COMPILE_FLAGS "--mpi ${our_compile_flags_string}"
-            LINK_FLAGS "--mpi")
+        mark_targets_as_mpi(matmul_${v}_${i})
+        set_property(TARGET matmul_${v}_${i}
+            APPEND PROPERTY COMPILE_OPTIONS ${our_compile_flags})
         if(ENABLE_SHARED)
             install(TARGETS matmul_${v}_${i} DESTINATION ${LIBSUFFIX}/linalg/bwc)
         endif()
@@ -485,8 +470,8 @@ else()
     include_directories(${GF2X_INCDIR})
 endif()
 # This **MUST** match the #define in gf2x/Makefile.am
-set_source_files_properties(lingen_qcode_binary.cpp COMPILE_FLAGS
-    "-DCANTOR_BASE_FIELD_SIZE=128")
+set_property(SOURCE lingen_qcode_binary.cpp
+    APPEND PROPERTY COMPILE_DEFINITIONS CANTOR_BASE_FIELD_SIZE=128)
 
 add_executable(cleanup cleanup.cpp)
 target_link_libraries(cleanup bitlinalg utils m)
@@ -497,13 +482,11 @@ install(TARGETS cleanup RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)
 # so there's absolutely no point in making it shared.
 file(GLOB flint_fft_files flint-fft/*.c)
 add_library(flint-fft ${flint_fft_files})
-set_target_properties(flint-fft PROPERTIES
-    COMPILE_FLAGS "--mpi ${OpenMP_C_FLAGS}"
-    LINK_FLAGS "--mpi ${OpenMP_C_FLAGS}")
 add_library(flint-fft-debug EXCLUDE_FROM_ALL ${flint_fft_files})
-set_target_properties(flint-fft-debug PROPERTIES
-    COMPILE_FLAGS "--mpi ${OpenMP_C_FLAGS} -DDEBUG_FFT"
-    LINK_FLAGS "--mpi ${OpenMP_C_FLAGS}")
+mark_targets_as_mpi(flint-fft flint-fft-debug)
+mark_targets_as_openmp(flint-fft flint-fft-debug)
+set_property(TARGET flint-fft-debug
+    APPEND PROPERTY COMPILE_DEFINITIONS DEBUG_FFT)
 
 # These files are not dependent on the mpfq layer, therefore it's ok to
 # put all of them in a common convenience library.
@@ -519,10 +502,8 @@ add_library(lingen_common_support
     lingen_call_companion.cpp
     )
 target_link_libraries(lingen_common_support ${gmp_libname} utils)
-set_target_properties(lingen_common_support PROPERTIES
-    COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
-    LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
-    )
+mark_targets_as_openmp(lingen_common_support)
+mark_targets_as_mpi(lingen_common_support)
 
 foreach(v ${internal_arithmetic_backends_gfp} b64)
     parse_arith_layer(${v} our_compile_flags)
@@ -581,11 +562,10 @@ foreach(v ${internal_arithmetic_backends_gfp} b64)
     add_executable(lingen_verify_checkpoints_${v}
         lingen_verify_checkpoints.cpp
         )
-    string_join(our_compile_flags_string " " ${our_compile_flags})
-
-    set_target_properties(lingen_verify_checkpoints_${v} PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} ${our_compile_flags_string}"
-        LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
+    mark_targets_as_mpi(lingen_verify_checkpoints_${v})
+    mark_targets_as_openmp(lingen_verify_checkpoints_${v})
+    set_property(TARGET lingen_verify_checkpoints_${v}
+        APPEND PROPERTY COMPILE_OPTIONS ${our_compile_flags})
     target_link_libraries(lingen_verify_checkpoints_${v} utils ${gmp_libname})
 
     # lingen_bz could make sense for testing, but we certainly do not
@@ -622,19 +602,10 @@ foreach(v ${internal_arithmetic_backends_gfp} b64)
     # we also need link flags, and config/openmp.cmake won't provide them
     # separately.
 
-    # set_source_files_properties(lingen.cpp PROPERTIES COMPILE_FLAGS "${OpenMP_CXX_FLAGS}")
-    set_target_properties(lingen_${v}_support PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} ${our_compile_flags_string}"
-        LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
-        )
-    set_target_properties(lingen_${v}_core PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} ${our_compile_flags_string}"
-        LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
-        )
-    set_target_properties(lingen_${v} PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} ${our_compile_flags_string}"
-        LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
-        )
+    mark_targets_as_mpi(lingen_${v}_support lingen_${v}_core lingen_${v})
+    mark_targets_as_openmp(lingen_${v}_support lingen_${v}_core lingen_${v})
+    set_property(TARGET lingen_${v}_support lingen_${v}_core lingen_${v}
+        APPEND PROPERTY COMPILE_OPTIONS ${our_compile_flags})
 endforeach(v)
 
 add_custom_target(bwc_matmul_gf2)

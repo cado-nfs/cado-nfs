@@ -10,9 +10,9 @@
 #ifdef WITH_MPI
 #define OMPI_SKIP_MPICXX
 #define MPICH_SKIP_MPICXX
-#include <mpi.h>
+#include <mpi.h>        // IWYU pragma: export
 #else
-#include "fakempi.h"
+#include "fakempi.h"    // IWYU pragma: export
 #endif
 
 #endif	/* SELECT_MPI_H_ */

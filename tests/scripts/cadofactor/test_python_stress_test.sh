@@ -30,7 +30,6 @@ server_args=(340282366920938463463374607431768211457
     $wdir/parameters.F7
     tasks.polyselect.import=${CADO_NFS_SOURCE_DIR}/tests/misc/F7.poly
     tasks.maxwu=200
-    tasks.sieve.qrange=10
     tasks.filter.run=False
     server.whitelist=localhost
     server.threaded=True
@@ -39,12 +38,23 @@ server_args=(340282366920938463463374607431768211457
     tasks.sieve.rels_wanted=15000
 )
 
+
+db_directory=$wdir
 if [ $db_backend = mysql ] ; then
+    db_directory=/var/lib/mysql
     mysql -e "DROP DATABASE cado_nfs;" 2>/dev/null || :
     # This requires cooperation from the early setup. For example, on CI
     # runners, this setup gets done in the shell function
     # after_package_install in ci/ci.sh
     server_args+=(database=db:mysql://$(id -nu)@_unix_socket//run/mysqld/mysqld.sock/cado_nfs)
+fi
+
+
+if df $db_directory | grep -q tmpfs ; then
+    server_args+=(tasks.sieve.qrange=10)
+else
+    echo "$db_directory is not on a tmpfs filesystem: we reduce the number of server roundtrips because committing to the physical block device is likely to be a huge source of contention"
+    server_args+=(tasks.sieve.qrange=100)
 fi
 
 server_args+=(
@@ -62,7 +72,9 @@ server_pid=$!
 url=
 i=0
 
-while ! [ "$url" ] && [ $i -lt 30 ] ; do
+# As odd as it may seem, we do come across situations where merely
+# starting the server takes a very long time
+while ! [ "$url" ] && [ $i -lt 45 ] ; do
     if ! [ -f "$logfile" ] ; then
         echo "Waiting for server to create $logfile" >&2
     elif [[ $(grep 'additional.*client.*server' "$logfile") =~ --server=([^ ]*) ]] ; then

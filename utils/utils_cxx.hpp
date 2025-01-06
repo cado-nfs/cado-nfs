@@ -316,5 +316,33 @@ static inline std::string join(std::vector<ItemType> const & items,
     return join(items.begin(), items.end(), delimiter, lambda);
 }
 
+/* use this as: input_stream >> read_container(container, maximum_size)
+ * or possibly: input_stream >> read_container(container)
+ */
+template<typename Container>
+struct read_container_impl {
+    Container & c;
+    typename Container::size_type N;
+};
+template<typename Container>
+read_container_impl<Container>
+read_container(Container & c,
+    typename Container::size_type N = std::numeric_limits<typename Container::size_type>::max())
+{
+    return read_container_impl<Container> { c, N };
+}
+
+template<typename Container>
+std::istream& operator>>(std::istream& is, read_container_impl<Container>&& R)
+{
+    R.c.clear();
+    for(typename Container::size_type i = 0 ; is && i < R.N ; ++i) {
+        typename Container::value_type v;
+        if (is >> v)
+            R.c.emplace_back(std::move(v));
+    }
+    return is;
+}
+
 
 #endif	/* UTILS_CXX_HPP_ */

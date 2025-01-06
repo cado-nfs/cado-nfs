@@ -562,10 +562,6 @@ cado_define_test(test_init_norms.cpp
     NO_DEFAULT_RUN
     LIBRARIES utils tests
 )
-set_target_properties(test_init_norms PROPERTIES 
-    COMPILE_FLAGS "${OpenMP_C_FLAGS}"
-    LINK_FLAGS "${OpenMP_CXX_FLAGS}")
-
 
 cado_divert_test(test_init_norms c120_basic
     ARGUMENTS

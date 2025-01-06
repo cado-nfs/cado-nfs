@@ -15,13 +15,11 @@ add_executable (twocubics
     twocubics.c
     $<TARGET_OBJECTS:polyselect_middle>
     )
-set_target_properties(twocubics PROPERTIES
-  COMPILE_FLAGS "${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
+mark_targets_as_openmp(twocubics)
 target_link_libraries (twocubics polyselect_common utils ${pthread_libs})
 
 add_executable (rootsieve1 EXCLUDE_FROM_ALL rootsieve1.c ${ropt_sources})
-set_target_properties(rootsieve1 PROPERTIES
-  COMPILE_FLAGS "${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
+mark_targets_as_openmp(rootsieve1)
 target_link_libraries (rootsieve1 polyselect_common)
 
 # vim: set ft=cmake:

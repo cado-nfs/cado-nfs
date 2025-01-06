@@ -23,22 +23,25 @@ add_executable(merge merge.c merge_heap.c merge_bookkeeping.c
     merge_compute_weights.c
     read_purgedfile_in_parallel.c mst.c merge_replay_matrix.c sparse.c)
 target_link_libraries(merge utils_with_io)
-set_target_properties(merge PROPERTIES
-  COMPILE_FLAGS "${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
+mark_targets_as_openmp(merge)
+
+macro(mark_targets_as_dl t)
+    set_property(TARGET ${t} APPEND PROPERTY COMPILE_OPTIONS -DFOR_DL)
+endmacro()
 
 add_executable(merge-dl merge.c merge_heap.c merge_bookkeeping.c
     merge_compute_weights.c
     read_purgedfile_in_parallel.c mst.c merge_replay_matrix.c sparse.c)
 target_link_libraries(merge-dl utils_with_io)
-set_target_properties(merge-dl PROPERTIES
-  COMPILE_FLAGS "-DFOR_DL ${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
+mark_targets_as_dl(merge-dl)
+mark_targets_as_openmp(merge-dl)
 
 add_executable(replay replay.c sparse.c)
 target_link_libraries(replay utils_with_io)
 
 add_executable(replay-dl replay.c sparse.c)
 target_link_libraries(replay-dl utils_with_io)
-set_target_properties(replay-dl PROPERTIES COMPILE_FLAGS "-DFOR_DL")
+mark_targets_as_dl(replay-dl)
 
 add_executable(reconstructlog-dl reconstructlog.cpp)
 target_link_libraries(reconstructlog-dl utils_with_io)
@@ -55,30 +58,16 @@ target_link_libraries(shrink_rels utils)
 if (${WITH_MPI})
     add_definitions(-DWITH_MPI)
 endif()
+
 add_executable(sm sm.cpp)
 target_link_libraries(sm utils_with_io)
-if (${WITH_MPI})
-    set_target_properties(sm PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_C_FLAGS}" LINK_FLAGS "--mpi ${OpenMP_C_FLAGS}")
-else()
-    set_target_properties(sm PROPERTIES
-        COMPILE_FLAGS "${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
-endif()
 
 add_executable(sm_append sm_append.cpp)
 target_link_libraries(sm_append utils)
-if (${WITH_MPI})
-set_target_properties(sm_append PROPERTIES
-  COMPILE_FLAGS "--mpi ${OpenMP_C_FLAGS}"
-  LINK_FLAGS "--mpi ${OpenMP_C_FLAGS}"
-  )
-else()
-set_target_properties(sm_append PROPERTIES
-  COMPILE_FLAGS "${OpenMP_C_FLAGS}"
-  LINK_FLAGS "${OpenMP_C_FLAGS}"
-  )
-endif()
 
+
+mark_targets_as_openmp(sm sm_append)
+mark_targets_as_mpi(sm sm_append)
 
 
 install(TARGETS ${bin_list} RUNTIME DESTINATION ${LIBSUFFIX}/filter)
