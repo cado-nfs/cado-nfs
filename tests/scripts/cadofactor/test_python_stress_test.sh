@@ -62,7 +62,9 @@ server_pid=$!
 url=
 i=0
 
-while ! [ "$url" ] && [ $i -lt 30 ] ; do
+# As odd as it may seem, we do come across situations where merely
+# starting the server takes a very long time
+while ! [ "$url" ] && [ $i -lt 45 ] ; do
     if ! [ -f "$logfile" ] ; then
         echo "Waiting for server to create $logfile" >&2
     elif [[ $(grep 'additional.*client.*server' "$logfile") =~ --server=([^ ]*) ]] ; then
