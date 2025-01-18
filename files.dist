@@ -5,6 +5,9 @@
 # are *NOT* recognized (by the fascist sanity check program).
 .clang-format
 .clang-tidy
+.github/actions/test-suite/action.yml
+.github/workflows/main.yml
+.github/workflows/prepare-and-use-container.yml
 .gitlab-ci.yml
 .gitmodules
 AUTHORS

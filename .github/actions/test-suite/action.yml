@@ -1,0 +1,25 @@
+# The common test suite currently reacts on the build name
+name: 'Common test suite'
+
+inputs:
+  path:
+    # because we're pretty much annoyed by the permissions problem with
+    # the user (on the host) that runs the runner versus the user that
+    # runs stuff in the container and eventually creates file in the
+    # runner work dir that is mapped to the runner namespace, we find it
+    # better to separate host-level checkouts from container-level
+    # checkouts.
+    description: 'path where the tree was checked out, relative to the runner work directory'
+    type: string
+    default: .
+
+runs:
+  using: "composite"
+  steps:
+      - run: |
+          env DISPLAY_CONFIG=1 ci/ci/00-prepare-docker.sh
+        working-directory: ${{ inputs.path }}
+        shell: sh
+      - run: ci/ci/40-testsuite.sh
+        working-directory: ${{ inputs.path }}
+        shell: bash

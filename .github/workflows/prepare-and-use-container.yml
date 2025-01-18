@@ -1,0 +1,118 @@
+
+name: prepare-and-use-container
+
+on:
+  workflow_call:
+    inputs:
+      job-name:
+        required: true
+        type: string
+        description: 'name of the job for which we need to prepare the container'
+      registry:
+        required: false
+        type: string
+        description: 'package registry to use'
+        default: ghcr.io
+
+    secrets:
+      username:
+        required: false
+        description: 'username for package registry'
+
+      password:
+        required: false
+        description: 'password for package registry'
+
+    outputs:
+      image:
+        description: 'path to generated image'
+        value: ${{ jobs.prepare.outputs.image }}
+
+jobs:
+  prepare:
+    runs-on: [ linux, x64, self-hosted ]
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.mangle.outputs.full_image }}
+      tagged_image: ${{ steps.meta.outputs.tags }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: host-checkout
+          submodules: 'true'
+
+      # following https://github.com/docker/build-push-action#inputs
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v2.1.0
+        with:
+          registry: ${{ inputs.registry }}
+          username: ${{ secrets.username }}
+          password: ${{ secrets.password }}
+
+      - name: Mangle image name
+        id: mangle
+        run: |
+          X="${{ inputs.job-name }}"
+          image_base="${X// /_}"
+          image="${{ github.repository }}/$image_base"
+          full_image="${{ inputs.registry }}/$image"
+          cache="${full_image}:buildcache"
+          echo image_base="$image_base" >> $GITHUB_OUTPUT
+          echo image="$image" >> $GITHUB_OUTPUT
+          echo full_image="$full_image" >> $GITHUB_OUTPUT
+          echo cache="$cache" >> $GITHUB_OUTPUT
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ steps.mangle.outputs.full_image }}
+
+      - name: create Dockerfile and context
+        id: create-context
+        run: |
+          tmp=${{ runner.temp }} JOB_NAME="${{ inputs.job-name }}" bash host-checkout/ci/ci/00-docker-build.sh "${{ inputs.job-name }}"
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: ${{ steps.create-context.outputs.context }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ steps.mangle.outputs.cache }}
+          cache-to: type=registry,ref=${{ steps.mangle.outputs.cache }},mode=max
+
+      # - name: finish and write summary
+      #   run: |
+      #     echo "### Container ${{ steps.mangle.outputs.image }} ready! :rocket:" >> $GITHUB_STEP_SUMMARY
+
+  use:
+    permissions:
+      actions: write
+    runs-on: [ linux, x64, self-hosted ]
+    needs: prepare
+    container:
+      image: ${{ needs.prepare.outputs.tagged_image }}
+      credentials:
+        username: ${{ secrets.username }}
+        password: ${{ secrets.password }}
+    env:
+      JOB_NAME: "${{ inputs.job-name }}"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: container-checkout
+          submodules: 'true'
+      - uses: ./container-checkout/.github/actions/test-suite
+        with:
+          path: container-checkout
+      - if: "failure()"
+        uses: "andymckay/cancel-action@0.3"
+        # see also https://github.com/orgs/community/discussions/38361
