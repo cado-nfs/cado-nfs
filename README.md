@@ -4,6 +4,8 @@ The main page of the Cado-NFS source code is
 If you're accessing the cado-nfs source from a different link, it may be
 an outdated fork.
 
+[![main test suite](https://github.com/cado-nfs/cado-nfs/actions/workflows/main.yml/badge.svg)](https://github.com/cado-nfs/cado-nfs/actions/workflows/main.yml)
+
 [![pipeline status](https://gitlab.inria.fr/cado-nfs/cado-nfs/badges/master/pipeline.svg)](https://gitlab.inria.fr/cado-nfs/cado-nfs/-/pipelines?ref=master)
 [![coverage report](https://gitlab.inria.fr/cado-nfs/cado-nfs/badges/master/coverage.svg)](https://gitlab.inria.fr/cado-nfs/cado-nfs/-/jobs/artifacts/master/file/coverage/lcov/index.html?job=merge+coverage+tests)
 [![coverity scan](https://scan.coverity.com/projects/23184/badge.svg)](https://scan.coverity.com/projects/cado-nfs)
