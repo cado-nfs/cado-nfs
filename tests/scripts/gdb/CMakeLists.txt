@@ -86,6 +86,9 @@ foreach(layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS} b64)
 
     target_link_libraries(test_gdb_printers_bwc_${layer}
         lingen_${layer}_support)
+    # There should be a way to inherit this. Anyway, since
+    # lingen_${layer}_support is mpi, this binary has to be mpi too!
+    mark_targets_as_mpi(test_gdb_printers_bwc_${layer})
 
     add_dependencies(all_gdb_printer_tests test_gdb_printers_bwc_${layer})
 
