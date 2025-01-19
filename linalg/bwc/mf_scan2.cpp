@@ -108,7 +108,7 @@ static inline uint32_t get_segment_size(unsigned int t) { return 1UL << (t-1); }
 
 struct segment {
     std::vector<std::atomic<uint32_t>> data;
-    static_assert(sizeof(decltype(data)::value_type) == sizeof(uint32_t));
+    static_assert(sizeof(decltype(data)::value_type) == sizeof(uint32_t), "size mismatch");
     static size_t segment_size(unsigned int t) { return get_segment_size(t); }
     explicit segment(unsigned int t)
         : data(segment_size(t))
