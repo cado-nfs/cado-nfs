@@ -94,7 +94,7 @@ jobs:
   long-checks:
     uses: ./.github/workflows/prepare-and-use-container.yml
     with:
-      job-name: 'checks expensive with gcc'
+      job-name: 'expensive checks with gcc'
     #   registry: ghcr.io
     # secrets:
     #   username: ${{ github.actor }}
