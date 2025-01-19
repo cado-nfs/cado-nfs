@@ -106,13 +106,16 @@ jobs:
     env:
       JOB_NAME: "${{ inputs.job-name }}"
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out cado-nfs
+        uses: actions/checkout@v4
         with:
           path: container-checkout
           submodules: 'true'
       - uses: ./container-checkout/.github/actions/test-suite
+        name: Build cado-nfs and run the test suite
         with:
           path: container-checkout
       - if: "failure()"
+        name: Cancel all workflows in case of failure
         uses: "andymckay/cancel-action@0.5"
         # see also https://github.com/orgs/community/discussions/38361
