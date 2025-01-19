@@ -24,7 +24,7 @@ static inline uint64_t uint64_random(gmp_randstate_t rstate)
 }
 
 struct test_bblas_base {
-    gmp_randstate_t rstate;
+    cxx_gmp_randstate rstate;
 
     unsigned int nmax;
 
@@ -53,12 +53,16 @@ struct test_bblas_base {
 
     typedef std::vector<std::string> tags_t;
 
-    test_bblas_base(unsigned int nmax);
+    explicit test_bblas_base(unsigned int nmax);
+    test_bblas_base(test_bblas_base const&) = delete;
+    test_bblas_base(test_bblas_base &&) = delete;
+    test_bblas_base& operator=(test_bblas_base const&) = delete;
+    test_bblas_base& operator=(test_bblas_base &&) = delete;
     ~test_bblas_base();
 
     void set_seed(int seed) { gmp_randseed_ui(rstate, seed); }
 
-    bool matches(std::string const & s, tags_t const & T, bool & match);
+    static bool matches(std::string const & s, tags_t const & T, bool & match);
 };
 
 #endif	/* TEST_BBLAS_BASE_HPP_ */
