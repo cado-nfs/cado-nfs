@@ -8,7 +8,7 @@ jobs:
       # defer the launch of the few expensive checks.
       matrix:
         # we have two gcc:latest (one for normal checks, one for
-        # expensive checks, and three debian-testing (one normal, one
+        # expensive checks), and three debian-testing (one normal, one
         # with 32-bit abi, and one with shared libs). It could make sense
         # to share a few of them a little bit.
         instance: [
@@ -92,14 +92,9 @@ jobs:
       password: ${{ secrets.INRIA_GITLAB_REGISTRY_PASSWORD }}
 
   long-checks:
-    strategy:
-      matrix:
-        instance: [
-          'expensive with gcc',
-        ]
     uses: ./.github/workflows/prepare-and-use-container.yml
     with:
-      job-name: 'checks ${{ matrix.instance }}'
+      job-name: 'checks expensive with gcc'
     #   registry: ghcr.io
     # secrets:
     #   username: ${{ github.actor }}
