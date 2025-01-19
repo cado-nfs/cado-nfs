@@ -13,13 +13,27 @@ inputs:
     type: string
     default: .
 
+  shell-runner:
+    required: false
+    type: boolean
+    default: false
+    description: 'whether this job expects a shell runner'
+
+
 runs:
+  # see https://github.com/orgs/community/discussions/51280 for the
+  # explanation of why we can't set an env globally at the action level,
+  # at least not in all cases.
   using: "composite"
   steps:
-      - run: |
+    - run: |
+        if ${{ inputs.shell-runner }} ; then
+          env DISPLAY_CONFIG=1 ci/ci/00-prepare-shell.sh
+        else
           env DISPLAY_CONFIG=1 ci/ci/00-prepare-docker.sh
-        working-directory: ${{ inputs.path }}
-        shell: sh
-      - run: ci/ci/40-testsuite.sh
-        working-directory: ${{ inputs.path }}
-        shell: bash
+        fi
+      working-directory: ${{ inputs.path }}
+      shell: sh
+    - run: ci/ci/40-testsuite.sh
+      working-directory: ${{ inputs.path }}
+      shell: bash

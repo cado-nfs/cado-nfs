@@ -1,0 +1,37 @@
+
+name: use-shell-runner
+
+on:
+  workflow_call:
+    inputs:
+      job-name:
+        required: true
+        type: string
+        description: 'name of the job for which we need to prepare the container'
+      runner-tags:
+        required: true
+        type: string
+        description: 'the runner tags to request (JSON)'
+        default: '["linux", "x64", "self-hosted"]'
+
+jobs:
+  use:
+    env:
+      JOB_NAME: "${{ inputs.job-name }}"
+    runs-on: ${{ fromJSON(inputs.runner-tags) }}
+    permissions:
+      actions: write
+    steps:
+      - name: Check out cado-nfs
+        uses: actions/checkout@v4
+        with:
+          submodules: 'true'
+      - uses: ./.github/actions/test-suite
+        with:
+          job-name: "${{ inputs.job-name }}"
+          shell-runner: true
+        name: Build cado-nfs and run the test suite
+      - if: "failure()"
+        name: Cancel all workflows in case of failure
+        uses: "andymckay/cancel-action@0.5"
+        # see also https://github.com/orgs/community/discussions/38361

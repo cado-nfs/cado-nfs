@@ -103,3 +103,9 @@ jobs:
     secrets:
       username: ${{ secrets.INRIA_GITLAB_REGISTRY_USERNAME }}
       password: ${{ secrets.INRIA_GITLAB_REGISTRY_PASSWORD }}
+
+  osx-checks:
+    uses: ./.github/workflows/use-shell-runner.yml
+    with:
+      job-name: "checks on osx system"
+      runner-tags: '[ "ARM64", "macOS", "self-hosted" ]'

@@ -37,6 +37,8 @@ jobs:
     outputs:
       image: ${{ steps.mangle.outputs.full_image }}
       tagged_image: ${{ steps.meta.outputs.tags }}
+    env:
+      JOB_NAME: "${{ inputs.job-name }}"
     steps:
       - name: Checkout
         uses: actions/checkout@v4

@@ -8,6 +8,7 @@
 .github/actions/test-suite/action.yml
 .github/workflows/main.yml
 .github/workflows/prepare-and-use-container.yml
+.github/workflows/use-shell-runner.yml
 .gitlab-ci.yml
 .gitmodules
 AUTHORS
