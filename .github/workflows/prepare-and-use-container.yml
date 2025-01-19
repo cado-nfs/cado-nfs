@@ -114,5 +114,5 @@ jobs:
         with:
           path: container-checkout
       - if: "failure()"
-        uses: "andymckay/cancel-action@0.3"
+        uses: "andymckay/cancel-action@0.5"
         # see also https://github.com/orgs/community/discussions/38361
