@@ -488,9 +488,16 @@ struct las_parallel_desc::helper {
     }/*}}}*/
 #endif
    int interpret_memory_binding_specifier() {
+       memory_binding_size = interpret_generic_binding_specifier(memory_binding_specifier_string);
 #ifdef HAVE_HWLOC
-       if (depth) {
-           memory_binding_size = interpret_generic_binding_specifier(memory_binding_specifier_string);
+       if (!memory_binding_size) {
+           std::ostringstream os;
+           os
+               << "# Memory binding specifier: request: "
+               << memory_binding_specifier_string
+               << " ; ignored (asymmetric topology?)\n";
+           full_diagnostics += os.str();
+       } else if (depth) {
            std::ostringstream os;
            os
                << "# Memory binding specifier: request: "
@@ -499,13 +506,9 @@ struct las_parallel_desc::helper {
                << textual_description_for_binding(memory_binding_size)
                << "\n";
            full_diagnostics += os.str();
-           return memory_binding_size;
-       } else
-#endif
-       {
-           /* just check for errors */
-           return interpret_generic_binding_specifier(memory_binding_specifier_string);
        }
+#endif
+       return memory_binding_size;
    }
    int interpret_cpu_binding_specifier() {
 #ifdef HAVE_HWLOC
@@ -609,8 +612,7 @@ struct las_parallel_desc::helper {
            objsize *= x;
        }
        if (cap < 0) cap = number_of(-1, 0);
-       if (objsize > cap)
-           objsize = cap;
+       objsize = std::min(objsize, cap);
        if (is_fit)
            objsize = acceptable_binding(objsize);
        std::string const divisor_string = sub(6);
