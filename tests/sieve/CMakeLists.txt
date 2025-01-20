@@ -183,6 +183,7 @@ cado_define_test(F9
 
 cado_divert_test(F9 sieve
         APPEND_ENVIRONMENT
+            CADO_DEBUG=1
             REL_COUNT=431
             REFERENCE_SHA1=e04ae591795ff30af703a2235a4f9fd09d17b380
             REFERENCE_REVISION=ede066464ba58b2d6127fa256cef01706282e0ed

@@ -23,10 +23,13 @@ inputs:
 runs:
   # see https://github.com/orgs/community/discussions/51280 for the
   # explanation of why we can't set an env globally at the action level,
-  # at least not in all cases.
+  # at least not in all cases. The JOB_NAME env variable is set in the
+  # caller workflow (i.e. in prepare-and-use-container and in
+  # use-shell-runner)
   using: "composite"
   steps:
-    - run: |
+    - name: Install or verify packages for ${{ inputs.job-name }}
+      run: |
         if ${{ inputs.shell-runner }} ; then
           env DISPLAY_CONFIG=1 ci/ci/00-prepare-shell.sh
         else
