@@ -28,7 +28,6 @@ jobs:
           submodules: 'true'
       - uses: ./.github/actions/test-suite
         with:
-          job-name: "${{ inputs.job-name }}"
           shell-runner: true
         name: Build cado-nfs and run the test suite
       - if: "failure()"
