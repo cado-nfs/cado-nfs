@@ -143,15 +143,6 @@ struct las_parallel_desc::helper {
 
             hwloc_topology_load(topology);
 
-            hwloc_obj_t root = hwloc_get_root_obj(topology);
-            if (!root->symmetric_subtree) {
-                fprintf(stderr, "# Topology is not symmetric,"
-                        " cannot proceed with replication"
-                        " of the las process with the current code."
-                        " No cpu/memory binding will be set.\n");
-                /* simply stick to the default */
-                return;
-            }
         }/*}}}*/
         depth = hwloc_topology_get_depth(topology);
         depth_per_level.reserve(depth);
@@ -162,14 +153,30 @@ struct las_parallel_desc::helper {
             depth_per_level.push_back(x / n);
             n = x;
         }
-        char buf[1024];
-        hwloc_topology_export_synthetic(topology, buf, sizeof(buf), HWLOC_TOPOLOGY_EXPORT_SYNTHETIC_FLAG_NO_ATTRS );
-        synthetic_topology_string = buf;
+
+        hwloc_obj_t root = hwloc_get_root_obj(topology);
+        if (!root->symmetric_subtree) {
+            fprintf(stderr, "# Topology is not symmetric,"
+                    " cannot proceed with replication"
+                    " of the las process with the current code."
+                    " No cpu/memory binding will be set.\n");
+            /* simply stick to the default. We'll use depth=0 as an
+             * indicator of this situation, and we must make sure
+             * that we return sane defaults in all cases. It's quite
+             * ugly and should be reworked.
+             */
+            return;
+        }
 
         /* Form a sensible set of defaults, for one unbound thread */
         memory_binding_size = number_of(-1,0);
         cpu_binding_size = memory_binding_size;
         compute_binding_bitmaps();
+
+        char buf[1024];
+        hwloc_topology_export_synthetic(topology, buf, sizeof(buf), HWLOC_TOPOLOGY_EXPORT_SYNTHETIC_FLAG_NO_ATTRS );
+        synthetic_topology_string = buf;
+
 #endif
     }/*}}}*/
 
@@ -1155,6 +1162,9 @@ int las_parallel_desc::set_subjob_mem_binding(int k MAYBE_UNUSED) const
 #ifdef HAVE_HWLOC
     if (help->depth == 0)
         return -1;
+    if (help->memory_binding_nodesets.empty())
+        return -1;
+
     ASSERT_ALWAYS(0<= k && k < (int) help->subjob_binding_cpusets.size());
     int const m = k / number_of_subjobs_per_memory_binding_zone();
     ASSERT_ALWAYS(m < (int) help->memory_binding_nodesets.size());
