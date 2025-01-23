@@ -70,7 +70,12 @@ class CadoNumberFieldWrapper(object):
         def closure_map(x, prec=53):
             # Do not use K.places(prec): it won't do what you expect
             pl = K.places(prec=prec)
-            r1, r2 = K.signature()
+            #r1, r2 = K.signature()
+            # calling K.signature() is surprisingly slow
+            # it internally calls a pari function that constructs an integral basis for some reason
+            # we do this instead:
+            r1 = len(K.defining_polynomial().real_roots())
+            r2 = (len(K.defining_polynomial().complex_roots()) - r1) // 2
 
             if x == 0:
                 # I don't think theere much sense in returning something
