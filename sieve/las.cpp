@@ -260,12 +260,14 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
     /* FIXME: I think that this code misses the case of sublat. */
 
     /* sc.instantiate_thresholds() depends on sc.logI */
-    fb_factorbase::key_type K[2] {
-        sc.instantiate_thresholds(0),
-        sc.instantiate_thresholds(1)
-    };
+    std::vector<fb_factorbase::key_type> K;
 
-    bool const do_resieve = sc.sides[0].lim && sc.sides[1].lim;
+    int nonzero_sieve_sides = 0;
+    for(int side = 0 ; side < (int) sc.sides.size() ; side++) {
+        K.emplace_back(sc.instantiate_thresholds(side));
+        nonzero_sieve_sides += sc.sides[0].lim != 0;
+    }
+    const bool do_resieve = nonzero_sieve_sides > 1;
 
     size_t memory = 0;
     size_t more;
@@ -292,8 +294,7 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
     for(int side = 0 ; side < las.cpoly->nb_polys ; side++) {
         int m;
         for(m = 0 ; m < FB_MAX_PARTS && K[side].thresholds[m] < sc.sides[side].lim; ++m);
-        if (m > toplevel)
-            toplevel = m;
+        toplevel = std::max(m, toplevel);
     }
 
     if (toplevel == 0) toplevel++;
