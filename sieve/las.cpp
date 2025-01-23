@@ -11,38 +11,44 @@
  * The WHERE_AM_I_UPDATE macro itself is defined in las-where-am-i.hpp
  */
 
-#include <cstdint>     /* AIX wants it first (it's a bug) */
-#include <cinttypes>                      // for PRId64, PRIu64
-#include <climits>                        // for ULONG_MAX
-#include <cmath>                          // for log, pow, sqrt
 #include <algorithm>                      // for min, max, max_element
 #include <array>                          // for array, array<>::value_type
+#include <climits>                        // for ULONG_MAX
+#include <cmath>                          // for log, pow, sqrt
 #include <condition_variable>             // for condition_variable
+#include <cstdarg>             // IWYU pragma: keep
+#include <cstdint>     /* AIX wants it first (it's a bug) */
 #include <cstdio>                         // for size_t, fprintf, stderr
 #include <cstdlib>                        // for exit, EXIT_FAILURE, EXIT_SU...
-#include <cstdarg>             // IWYU pragma: keep
+#include <fstream>                        // for ifstream
 #include <functional>                     // for ref
 #include <iomanip>                        // for operator<<, setprecision
+#include <istream>                        // for operator>>
 #include <list>                           // for list, _List_iterator
 #include <map>                            // for map
 #include <memory>                         // for allocator, shared_ptr, make...
 #include <mutex>                          // for mutex, lock_guard, unique_lock
 #include <ostream>                        // for operator<<, ostringstream
-#include <istream>                        // for operator>>
-#include <fstream>                        // for ifstream
 #include <string>                         // for string, basic_string, opera...
 #include <thread>                         // for thread
-#include <type_traits>                    // for remove_reference<>::type
 #include <utility>                        // for move, pair
 #include <vector>                         // for vector<>::iterator, vector
+
+#include <dirent.h>
+
 #include <gmp.h>                          // for mpz_srcptr, gmp_vfprintf
+#include "fmt/core.h"
+
 #include "bucket.hpp"                     // for bucket_slice_alloc_defaults
+#include "cado-sighandlers.h"
 #include "cado_poly.h"
 #include "cxx_mpz.hpp"
 #include "ecm/batch.hpp"                      // for cofac_list, cofac_candidate
 #include "ecm/facul.hpp"                      // for facul_print_stats
+#include "ecm/facul_strategies_stats.hpp"
 #include "fb-types.h"                     // for fbprime_t, sublat_t, slice_...
 #include "fb.hpp"                         // for fb_factorbase::key_type
+#include "json.hpp"
 #include "las-auxiliary-data.hpp"         // for report_and_timer, nfs_aux
 #include "las-bkmult.hpp"                 // for buckets_are_full, bkmult_sp...
 #include "las-choose-sieve-area.hpp"      // for choose_sieve_area, never_di...
@@ -52,6 +58,7 @@
 #include "las-descent.hpp"                // for postprocess_specialq_descent
 #include "las-divide-primes.hpp"          // for display_bucket_prime_stats
 #include "las-dlog-base.hpp"              // IWYU pragma: keep
+#include "las-duplicate.hpp"
 #include "las-fill-in-buckets.hpp"        // for downsort_tree, fill_in_buck...
 #include "las-globals.hpp"                // for main_output, base_memory
 #include "las-info.hpp"                   // for las_info, las_info::batch_p...
@@ -64,7 +71,6 @@
 #include "las-qlattice.hpp"               // for qlattice_basis, operator<<
 #include "las-report-stats.hpp"           // for las_report, coarse_las_timers
 #include "las-siever-config.hpp"          // for siever_config::side_config
-#include "cado-sighandlers.h"
 #include "las-smallsieve.hpp"             // for small_sieve_activate_many_s...
 #include "las-threads-work-data.hpp"      // for nfs_work, nfs_work::side_data
 #include "las-todo-entry.hpp"             // for las_todo_entry
@@ -84,13 +90,6 @@
 #include "timing.h"             // for seconds
 #include "utils_cxx.hpp"
 #include "verbose.h"
-#include "json.hpp"
-#include "ecm/facul_strategies_stats.hpp"
-#include "fmt/format.h"
-#include <sys/types.h>
-#include <dirent.h>
-#include "las-duplicate.hpp"
-
 
 
 
