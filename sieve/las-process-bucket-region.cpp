@@ -517,11 +517,9 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
 
     cofac_standalone cur;
 
-
-    for (size_t i_surv = 0 ; i_surv < survivors.size(); i_surv++) {
+    for(const size_t x : survivors) {
         if (dlp_descent && ws.las.tree.must_take_decision())
             break;
-        const size_t x = survivors[i_surv];
         ASSERT_ALWAYS (Sx[x] != 255);
         ASSERT(x < ((size_t) 1 << LOG_BUCKET_REGION));
 
@@ -577,7 +575,6 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
         adjustIJsublat(i, j, ws.Q.sublat);
 
         if (do_resieve) {
-
             for(int pside = 0 ; pass && pside < nsides ; pside++) {
                 int const side = trialdiv_first_side ^ pside;
                 nfs_work::side_data  const& wss(ws.sides[side]);
@@ -740,9 +737,9 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
             continue; /* we deal with all cofactors at the end of subjob */
         }
 
-        auto D = new detached_cofac_parameters(wc_p, aux_p, std::move(cur));
+        auto * D = new detached_cofac_parameters(wc_p, aux_p, std::move(cur));
 
-        if (!dlp_descent) {
+        if (!dlp_descent && !exit_after_rel_found) {
             /* We must make sure that we join the async threads at some
              * point, otherwise we'll leak memory. It seems more appropriate
              * to batch-join only, so this is done at the las_subjob level */
@@ -750,20 +747,21 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
             worker->get_pool().add_task(detached_cofac, D, N, 1); /* id N, queue 1 */
         } else {
             /* We must proceed synchronously for the descent */
-            auto res = dynamic_cast<detached_cofac_result*>(detached_cofac(worker, D, N));
-            bool cc = false;
+            std::unique_ptr<detached_cofac_result> res(
+                    dynamic_cast<detached_cofac_result*>(
+                    detached_cofac(worker, D, N)));
+
             if (res->rel_p) {
-                cc = register_contending_relation(ws.las, ws.Q.doing, *res->rel_p);
-            }
-            delete res;
-            if (cc)
+                if (dlp_descent)
+                    register_contending_relation(ws.las, ws.Q.doing, *res->rel_p);
                 break;
+            }
         }
     }
 }/*}}}*/
 void process_bucket_region_run::operator()() {/*{{{*/
 
-    int const nsides = sides.size();
+    int const nsides = (int) sides.size();
 
     // This is too verbose.
     // fprintf(stderr, "=== entering PBR for report id %lu\n", rep.id);
@@ -778,8 +776,10 @@ void process_bucket_region_run::operator()() {/*{{{*/
             return;
     } else if (exit_after_rel_found) {
         if (rep.reports) {
-            std::lock_guard<std::mutex> const foo(protect_global_exit_semaphore);
-            global_exit_semaphore=1;
+            if (exit_after_rel_found > 1) {
+                std::lock_guard<std::mutex> const foo(protect_global_exit_semaphore);
+                global_exit_semaphore=1;
+            }
             return;
         }
     }
