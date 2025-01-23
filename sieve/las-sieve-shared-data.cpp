@@ -59,14 +59,14 @@ sieve_shared_data::side_data::side_data(int side,
 sieve_shared_data::sieve_shared_data( /*{{{*/
         cxx_cado_poly const & cpoly,
         cxx_param_list & pl)
-    : cpoly(cpoly)
+    : cpoly(cpoly), sides{(size_t) cpoly->nb_polys}
 {
     cofactfilename = param_list_lookup_string (pl, "file-cofact");
 }
 void sieve_shared_data::load_factor_base(cxx_param_list & pl, int nthreads) /*{{{*/
 {
-    sides[0] = side_data {0, cpoly, pl, nthreads};
-    sides[1] = side_data {1, cpoly, pl, nthreads};
+    for (int i = 0; i < cpoly->nb_polys; i ++)
+        sides[i] = side_data {i, cpoly, pl, nthreads};
 }
 /*}}}*/
 /*}}}*/

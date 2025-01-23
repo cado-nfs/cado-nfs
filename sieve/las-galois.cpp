@@ -25,7 +25,7 @@ static void adwg(std::ostream& os, const char *comment, unsigned long *cpt,
 static void remove_galois_factors(relation &rel, int p, int vp){
     int ok = 0;
 
-    for(int side = 0 ; side < 2 ; side++){
+    for(unsigned int side = 0 ; side < rel.sides.size() ; side++){
 	for(unsigned int i = 0 ; i < rel.sides[side].size(); i++)
 	    if(mpz_cmp_ui(rel.sides[side][i].p, p) == 0){
 		ok = 1;
@@ -41,7 +41,7 @@ static void remove_galois_factors(relation &rel, int p, int vp){
 static void add_galois_factors(relation &rel, int p, int vp){
     int ok[2] = {0, 0};
 
-    for(int side = 0 ; side < 2 ; side++){
+    for(unsigned int side = 0 ; side < rel.sides.size() ; side++){
 	for(unsigned int i = 0 ; i < rel.sides[side].size(); i++)
 	    if(mpz_cmp_ui(rel.sides[side][i].p, p) == 0){
 		ok[side] = 1;
@@ -49,7 +49,7 @@ static void add_galois_factors(relation &rel, int p, int vp){
 	    }
     }
     // FIXME: are we sure this is safe?
-    for(int side = 0 ; side < 2 ; side++)
+    for(unsigned int side = 0 ; side < rel.sides.size() ; side++)
 	if(ok[side] == 0)
 	    /* we must add p^vp */
 	    for(int i = 0; i < vp; i++)

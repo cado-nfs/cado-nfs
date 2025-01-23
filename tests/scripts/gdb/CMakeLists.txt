@@ -6,6 +6,9 @@ include_directories(${CADO_NFS_SOURCE_DIR}/linalg/bblas)
 add_custom_target(all_gdb_printer_tests)
 
 add_compile_options(-g -O0)
+if(CMAKE_C_COMPILER_ID MATCHES "^Clang")
+add_compile_options(-fno-limit-debug-info)
+endif()
 
 add_executable(test_gdb_printers test_gdb_printers.cpp)
 target_link_libraries(test_gdb_printers utils)

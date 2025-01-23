@@ -1,7 +1,8 @@
 #include "cado.h"       // IWYU pragma: keep
-#include <stdlib.h>
-#include "params.h"
+#include <cstdlib>
+
 #include "macros.h"
+#include "params.h"
 #include "lingen_matpoly_select.hpp"
 
 static void foo()

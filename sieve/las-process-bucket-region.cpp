@@ -236,7 +236,7 @@ process_bucket_region_run::process_bucket_region_run(process_bucket_region_spawn
     memset(SS, 0, BUCKET_REGION);
 
     /* see comment in process_bucket_region_run::operator()() */
-    do_resieve = ws.conf.sides[0].lim && ws.conf.sides[1].lim;
+    do_resieve = ws.conf.sides[0].lim && (nsides == 1 || ws.conf.sides[1].lim);
 
     /* we're ready to go ! processing is in the operator() method.
     */
@@ -302,7 +302,7 @@ void process_bucket_region_run::apply_buckets(int side)/*{{{*/
 
 static void update_checksums(nfs_work::thread_data & tws, nfs_aux::thread_data & taux)
 {
-    for(int side = 0 ; side < 2 ; side++)
+    for(unsigned int side = 0 ; side < tws.sides.size() ; side++)
         taux.update_checksums(side, tws.sides[side].bucket_region, BUCKET_REGION);
 }
 
@@ -366,30 +366,31 @@ process_bucket_region_run::survivors_t process_bucket_region_run::search_survivo
 #ifdef TRACE_K /* {{{ */
     if (trace_on_spot_Nx(N, trace_Nx.x)) {
         verbose_output_print(TRACE_CHANNEL, 0,
-                "# When entering factor_survivors for bucket %u, "
-                "S[0][%u]=%u, S[1][%u]=%u\n",
-                trace_Nx.N, trace_Nx.x,
-                S[0] ? S[0][trace_Nx.x] : ~0u,
-                trace_Nx.x,
-                S[1] ? S[1][trace_Nx.x] : ~0u);
-        verbose_output_vfprint(TRACE_CHANNEL, 0, gmp_vfprintf,
-                "# Remaining norms which have not been accounted for in sieving: (%Zd, %Zd)\n",
-                (mpz_srcptr) traced_norms[0],
-                (mpz_srcptr) traced_norms[1]);
+                "# When entering factor_survivors for bucket %u", trace_Nx.N);
+        for (size_t i = 0; i < S.size(); ++i) {
+            verbose_output_print(TRACE_CHANNEL, 0, ", S[%zu][%u]=%u", i,
+                                 trace_Nx.x, S[i] ? S[0][trace_Nx.x] : ~0u);
+        }
+        verbose_output_print(TRACE_CHANNEL, 0, "\n# Remaining norms which have not been accounted for in sieving: (");
+        for (size_t i = 0; i < traced_norms.size(); ++i) {
+            verbose_output_vfprint(TRACE_CHANNEL, 0, gmp_vfprintf, "%s%Zd",
+                i ? ", " : "", (mpz_srcptr) traced_norms[i]);
+        }
+        verbose_output_print(TRACE_CHANNEL, 0, ")\n");
     }
 #endif  /* }}} */
 
 #ifdef TRACE_K /* {{{ */
-    nfs_work::side_data  const& side0(ws.sides[0]);
-    nfs_work::side_data  const& side1(ws.sides[1]);
     for (int x = 0; x < 1 << LOG_BUCKET_REGION; x++) {
         if (trace_on_spot_Nx(N, x)) {
-            verbose_output_print(TRACE_CHANNEL, 0,
-                    "# side0.Bound[%u]=%u, side1.Bound[%u]=%u\n",
-                    S[0] ? S[0][trace_Nx.x] : ~0u,
-                    S[0] ? (S[0][x] <= side0.lognorms.bound ? 0 : side0.lognorms.bound) : ~0u,
-                    S[1] ? S[1][trace_Nx.x] : ~0u,
-                    S[1] ? (S[1][x] <= side1.lognorms.bound ? 0 : side1.lognorms.bound) : ~0u);
+            for (size_t i = 0; i < S.size(); ++i) {
+                auto &bound = ws.sides[i].lognorms.bound;
+                verbose_output_print(TRACE_CHANNEL, 0,
+                                  "%c side%zu.Bound[%u]=%u", i ? ',' : '#', i,
+                                  S[i] ? S[i][trace_Nx.x] : ~0u,
+                                  S[i] ? (S[i][x] <= bound ? 0 : bound) : ~0u);
+            }
+            verbose_output_print(TRACE_CHANNEL, 0, "\n");
         }
     }
 #endif /* }}} */
@@ -404,7 +405,7 @@ process_bucket_region_run::survivors_t process_bucket_region_run::search_survivo
 
         unsigned char * const both_S[2] = {
             S[0] ? S[0] + offset : NULL,
-            S[1] ? S[1] + offset : NULL,
+            S.size() > 1 && S[1] ? S[1] + offset : NULL,
         };
         /* TODO FIXME XXX that's weird. How come don't we merge that with
          * the lognorm computation that goes in the ws.sides[side]
@@ -526,7 +527,7 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
 
         rep.survivors.after_sieve++;
 
-        if (S[0] && S[1])
+        if (S[0] && S.size() > 1 && S[1])
             rep.mark_survivor(S[0][x], S[1][x]);
 
         /* For factor_leftover_norm, we need to pass the information of the
@@ -541,7 +542,7 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
         /* start building a new object. This is a swap operation */
         cur = cofac_standalone(nsides, N, x, ws.conf.logI, ws.Q);
 
-        for(int side = 0 ; side < 2 ; side++) {
+        for(int side = 0 ; side < nsides ; side++) {
             if (ws.sides[side].no_fb()) continue;
             cur.S[side] = S[side][x];
         }
@@ -577,7 +578,7 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
 
         if (do_resieve) {
 
-            for(int pside = 0 ; pass && pside < 2 ; pside++) {
+            for(int pside = 0 ; pass && pside < nsides ; pside++) {
                 int const side = trialdiv_first_side ^ pside;
                 nfs_work::side_data  const& wss(ws.sides[side]);
 
@@ -656,7 +657,7 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
             /* no resieve, so no list of prime factors to divide. No
              * point in doing trial division anyway either.
              */
-            for(int side = 0 ; side < 2 ; side++) {
+            for(int side = 0 ; side < nsides ; side++) {
                 CHILD_TIMER_PARAMETRIC(timer, "side ", side, " pre-cofactoring checks");
                 TIMER_CATEGORY(timer, cofactoring(side));
 
@@ -894,7 +895,7 @@ void process_many_bucket_regions(nfs_work & ws, std::shared_ptr<nfs_work_cofac> 
             /* We need to compute more init positions */
             int const more = std::min(SMALL_SIEVE_START_POSITIONS_MAX_ADVANCE, ws.nb_buckets[1] - done);
 
-            for(int side = 0 ; side < 2 ; side++) {
+            for(unsigned int side = 0 ; side < ws.sides.size() ; side++) {
                 nfs_work::side_data  const& wss(ws.sides[side]);
                 if (wss.no_fb()) continue;
                 pool.add_task_lambda([=,&ws](worker_thread * worker, int){
@@ -922,7 +923,7 @@ void process_many_bucket_regions(nfs_work & ws, std::shared_ptr<nfs_work_cofac> 
             ready = more;
 
             /* Now these new start positions are ready to be used */
-            for(int side = 0 ; side < 2 ; side++) {
+            for(unsigned int side = 0 ; side < ws.sides.size() ; side++) {
                 nfs_work::side_data & wss(ws.sides[side]);
                 if (wss.no_fb()) continue;
                 small_sieve_activate_many_start_positions(wss.ssd);
