@@ -20,6 +20,7 @@ from sage.rings.real_double import RDF
 from sage.rings.real_mpfr import RealField
 from sage.symbolic.ring import SR
 from sage.functions.log import exp
+from cypari2.pari_instance import Pari
 
 # This class is only here to embed code that is attached to the cado-nfs
 # diagram. Of course, almost everything we'll ever need is there in
@@ -28,7 +29,14 @@ from sage.functions.log import exp
 
 
 class CadoNumberFieldWrapper(object):
-    def __init__(self, K):
+    def __init__(self, K, trial_division_bound=10**7):
+        # Many operations on ideals will internally call K.pari_nf(), which factors the discriminant.
+        # This will stall when the discriminant is huge.
+        # pari does let you give a trial division bound for factoring the discriminant, but sage doesn't properly expose it.
+        # So we initialize K._pari_nf ourselves. The code below is K.pari_nf() except we provide a trial division bound.
+        pari = Pari()
+        nf = pari([K.pari_polynomial("y"), trial_division_bound])
+        K._pari_nf = nf.nfinit()
         self.K = K
 
     def LogMap(self, prec=53):

@@ -147,7 +147,8 @@ class CadoPolyFile(object):
             raise ValueError(f"Cannot parse line in poly file: {line}")
 
     def __create_fields(self):
-        self.K = [NumberField(f, names=f"alpha{i}")
+        # avoid fully factoring the discriminant, just do trial division up to 10**7
+        self.K = [NumberField(f, maximize_at_primes=[p for p,e in f.discriminant().factor(limit=10**7) if e>1], names=f"alpha{i}")
                   for i, f in enumerate(self.f)]
 
     def __check_resultant(self):
