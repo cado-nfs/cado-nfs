@@ -42,7 +42,7 @@ class CadoNumberFieldWrapper(object):
         K._pari_nf = nf.nfinit()
         self.K = K
 
-    def LogMap(self, prec=53):
+    def LogMap(self, *args, **kwargs):
         """
         Compute the log embeddings.
 
@@ -74,35 +74,16 @@ class CadoNumberFieldWrapper(object):
             True
 
         """
-
+        pl = self.places(*args, **kwargs)
         K = self.K
-        R = RealField(prec)
+        r1 = len(K.defining_polynomial().real_roots())
+        r2 = (len(K.defining_polynomial().complex_roots()) - r1) // 2
+        R = getattr(pl[0].codomain(), 'real_field', pl[0].codomain())
+        def closure_map(x):
+            return vector([R(abs(sigma(x))).log() for sigma in pl[:r1]] +
+                          [2 * R(abs(tau(x))).log() for tau in pl[r1:]])
+        return Hom(K, VectorSpace(R, r1 + r2), Sets())(closure_map)
 
-        def closure_map(x, prec=53):
-            # Do not use K.places(prec): it won't do what you expect
-            pl = self.places(precision=prec)
-            #r1, r2 = K.signature()
-            # calling K.signature() is surprisingly slow
-            # it internally calls a pari function that constructs an integral basis for some reason
-            # we do this instead:
-            r1 = len(K.defining_polynomial().real_roots())
-            r2 = (len(K.defining_polynomial().complex_roots()) - r1) // 2
-
-            if x == 0:
-                # I don't think theere much sense in returning something
-                # different from -infinity here.
-                return vector([-SR(Infinity)] * (r1 + r2))
-
-            x_logs = []
-            x_logs += [R(abs(sigma(x))).log()
-                       for sigma in pl[:r1] ]
-            x_logs += [2 * R(abs(tau(x))).log()
-                       for tau in pl[r1:] ]
-
-            return vector(x_logs)
-
-        hom = Hom(K, VectorSpace(R, len(closure_map(K(0), prec))), Sets())
-        return hom(closure_map)
 
     # def LogDriftMap(self, prec=53):
     #     """
