@@ -632,6 +632,7 @@ template int param_list_parse<uint64_t>(param_list_ptr pl, const char * key, uin
 
 template int param_list_parse<double>(param_list_ptr pl, const char * key, double & r);
 template int param_list_parse<std::vector<int>>(param_list_ptr pl, const char * key, std::vector<int> & r);
+template int param_list_parse<std::vector<unsigned int>>(param_list_ptr pl, const char * key, std::vector<unsigned int> & r);
 template int param_list_parse<std::vector<std::string>>(param_list_ptr pl, const char * key, std::vector<std::string> & r);
 
 template int param_list_parse<std::string>(param_list_ptr pl, const char * key, std::string & r);
