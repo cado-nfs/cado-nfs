@@ -9,6 +9,12 @@
 
 #ifdef __cplusplus
 #include <string>      // for string
+#include <ostream>
+#include <type_traits>
+#include <utility>
+
+#include "fmt/core.h"
+#include "fmt/ostream.h"
 #endif
 
 #include "macros.h"    // for GNUC_VERSION_ATLEAST
@@ -125,7 +131,54 @@ struct cxx_double_poly {
     double_poly_ptr operator->() { return x; }
     double_poly_srcptr operator->() const { return x; }
     std::string print_poly(std::string const& var) const;
+
+    template<typename T>
+    class named_proxy {
+        static_assert(std::is_reference<T>::value, "T must be a reference");
+        typedef typename std::remove_reference<T>::type V;
+        typedef typename std::remove_const<V>::type Vnc;
+        typedef named_proxy<Vnc &> nc;
+        static constexpr const bool is_c = std::is_const<V>::value;
+        public:
+        T c;
+        std::string x;
+        named_proxy(T c, std::string x)
+            : c(c), x(std::move(x))
+        {}
+        template<
+                typename U = T,
+                typename = typename std::enable_if<
+                    std::is_same<U, nc>::value
+                >::type
+            >
+        explicit named_proxy(U const & c) : c(c.c), x(c.x) {}
+    };
+
+    named_proxy<cxx_double_poly &> named(std::string const & x) {
+        return { *this, x };
+    }
+    named_proxy<cxx_double_poly const &> named(std::string const & x) const {
+        return { *this, x };
+    }
+
 };
+
+/* printing needs a way to specify the variables... */
+inline std::ostream& operator<<(std::ostream& o, cxx_double_poly::named_proxy<cxx_double_poly const &> const & f)
+{
+    return o << f.c.print_poly(f.x);
+}
+
+/* we do have a default behaviour, though */
+inline std::ostream& operator<<(std::ostream& o, cxx_double_poly const & f)
+{
+    return o << f.named("x");
+}
+
+namespace fmt {
+    template <> struct formatter<cxx_double_poly>: ostream_formatter {};
+}
+
 #if GNUC_VERSION_ATLEAST(4,3,0)
 extern void double_poly_init(cxx_double_poly & pl, int) __attribute__((error("double_poly_init must not be called on a double_poly reference -- it is the caller's business (via a ctor)")));
 extern void double_poly_clear(cxx_double_poly & pl) __attribute__((error("double_poly_clear must not be called on a double_poly reference -- it is the caller's business (via a dtor)")));

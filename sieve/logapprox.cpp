@@ -1,20 +1,80 @@
 #include "cado.h" // IWYU pragma: keep
 
+#include <cfenv>
 #include <cmath>             // for exp
 #include <cstdio>            // for fprintf, stderr
 #include <algorithm>         // for sort, max
 #include <initializer_list>  // for initializer_list
 #include <iterator>          // for begin, end
 #include <limits>            // for numeric_limits
+#include <vector>
+#include <utility>
+#include <list>
+
+#include "fmt/core.h"
+
 #include "double_poly.h"  // cxx_double_poly
 #include "logapprox.hpp"
 #include "macros.h"          // for ASSERT_ALWAYS, UNLIKELY
+#include "runtime_numeric_cast.hpp"
+#include "polynomial.hpp"
 
 
 #define xxxDEBUG_LOGAPPROX
 
 /* This should be 1/Jmax */
 #define SMALLEST_MEANINGFUL_LOGAPPROX_INTERVAL  (1.0/262144)
+
+static std::vector<double> roots_helper(cxx_double_poly const & f)
+{
+    /* double_poly_compute_all_roots will almost _always_ report inexact
+     * computations in some way or another...
+     */
+#if 0
+    std::feclearexcept(FE_ALL_EXCEPT);
+    {
+        std::vector<double> res(f->deg, 0);
+        const auto n = double_poly_compute_all_roots(res.data(), f);
+        res.erase(res.begin() + n, res.end());
+        sort(begin(res), end(res));
+
+        if (!std::fetestexcept(FE_INEXACT))
+            return res;
+    }
+
+    fmt::print(stderr, "# double_poly_compute_all_roots reported inexact computation, using long double code\n");
+#endif
+
+    /* This uses polynomial<T>, possibly for T=long double, for the roots
+     * computation. T=long double is more accurate, but unfortunately it's
+     * also considerably slower, to the point that it's probably barely
+     * usable. The impact is per-special q and not per-sieve region, so it's
+     * not *that* bad, but still, it's troubling enough (about 8 extra
+     * seconds on the test case of #30107).
+     */
+    typedef double T;
+    polynomial<T> lf;
+    for(int i = 0 ; i <= f->deg ; i++) lf[i] = f->coeff[i];
+    auto v = lf.roots();
+    std::vector<double> res(v.begin(), v.end());
+
+#if 0
+    /* just check consistency with the old code */
+    std::vector<double> res0(f->deg, 0);
+    const auto n = double_poly_compute_all_roots(res0.data(), f);
+    res0.erase(res0.begin() + n, res0.end());
+    ASSERT_ALWAYS(n == (unsigned int) res.size());
+    sort(begin(res), end(res));
+    sort(begin(res0), end(res0));
+    for(unsigned int i = 0 ; i < n ; i++) {
+        int a = cado_math_aux::accurate_bits(res[i], res0[i]);
+        ASSERT_ALWAYS(a >= 53);
+    }
+#endif
+
+    sort(begin(res), end(res));
+    return res;
+}
 
 /* modify our left end to include the approximation which is provided
  * on argument.
@@ -35,22 +95,16 @@ piecewise_linear_function& piecewise_linear_function::merge_right(piecewise_line
     return *this;
 }/*}}}*/
 
-piecewise_linear_approximator::piecewise_linear_approximator(cxx_double_poly const & f, double scale) : f(f), scale(scale) {/*{{{*/
-    f_roots.assign(f->deg, 0);
-    unsigned int n = double_poly_compute_all_roots(f_roots.data(), f);
-    f_roots.erase(f_roots.begin() + n, f_roots.end());
-    sort(begin(f_roots), end(f_roots));
-
-    if (f->deg == 1) return;
-
+piecewise_linear_approximator::piecewise_linear_approximator(cxx_double_poly const & f, double scale)
+    : f(f)
+    , f_roots(roots_helper(f))
+    , scale(scale)
+{/*{{{*/
     double_poly_derivative(f1, f);
-    f1_roots.assign(f1->deg, 0);
-    n = double_poly_compute_all_roots(f1_roots.data(), f1);
-    f1_roots.erase(f1_roots.begin() + n, f1_roots.end());
-    sort(begin(f1_roots), end(f1_roots));
+    f1_roots = roots_helper(f1);
 }/*}}}*/
 
-std::vector<double> piecewise_linear_approximator::roots_off_course(cxx_double_poly const& uv, bool divide_root, double r)/*{{{*/
+std::vector<double> piecewise_linear_approximator::roots_off_course(cxx_double_poly const& uv, bool divide_root, double r) const/*{{{*/
 {
     std::vector<double> res;
     for(double const m : { std::exp(scale), std::exp(-scale) }) {
@@ -59,14 +113,13 @@ std::vector<double> piecewise_linear_approximator::roots_off_course(cxx_double_p
         double_poly_submul_double(d, uv, m);
         if (divide_root)
             double_poly_div_linear(d, d, r);
-        std::vector<double> roots(d->deg, 0);
-        unsigned int const n = double_poly_compute_all_roots(roots.data(), d);
-        res.insert(res.end(), roots.begin(), roots.begin() + n);
+        auto roots = roots_helper(d);
+        res.insert(res.end(), roots.begin(), roots.end());
     }
     return res;
 }/*}}}*/
 
-piecewise_linear_function piecewise_linear_approximator::expand_at_root(double r)/*{{{*/
+piecewise_linear_function piecewise_linear_approximator::expand_at_root(double r) const /*{{{*/
 {
     double const v = double_poly_eval(f1, r);
     double const u = -r*v;
@@ -100,14 +153,19 @@ piecewise_linear_function piecewise_linear_approximator::expand_at_root(double r
     piecewise_linear_function res;
     res.endpoints.push_back(r0);
     res.endpoints.push_back(r1);
-    res.equations.push_back(std::make_pair(u,v));
+    res.equations.emplace_back(u, v);
     return res;
 }/*}}}*/
 
-piecewise_linear_function piecewise_linear_approximator::C0_from_points(std::list<double> const & r)/*{{{*/
+piecewise_linear_function piecewise_linear_approximator::C0_from_points(std::list<double> const & r) const /*{{{*/
 {
+    /* This computes the chords that connect the different points in the
+     * list r. Each has equation u+v*x. r must have size at least two
+     * (well, a size one list will yield no chord and that's it)
+     */
     piecewise_linear_function res;
     res.endpoints = r;
+    ASSERT_ALWAYS(!r.empty());
     auto it = r.begin();
     double a = *it++;
     double fa = double_poly_eval(f, a);
@@ -116,7 +174,7 @@ piecewise_linear_function piecewise_linear_approximator::C0_from_points(std::lis
         double const fb = double_poly_eval(f, b);
         double const u = (b*fa-a*fb)/(b-a);
         double const v = (fb-fa)/(b-a);
-        res.equations.push_back(std::make_pair(u,v));
+        res.equations.emplace_back(u, v);
         a = b;
         fa = fb;
     }
@@ -130,7 +188,7 @@ piecewise_linear_function piecewise_linear_approximator::C0_from_points(std::lis
  */
 /* This assumes that the interval [i0,i1] is free of roots of the
  * polynomial f */
-piecewise_linear_function piecewise_linear_approximator::fill_gap(double i0, double i1) {/*{{{*/
+piecewise_linear_function piecewise_linear_approximator::fill_gap(double i0, double i1) const {/*{{{*/
     piecewise_linear_function todo, done;
     todo = C0_from_points(std::list<double>({i0,i1}));
     done = piecewise_linear_function(i0);
@@ -198,7 +256,7 @@ piecewise_linear_function piecewise_linear_approximator::fill_gap(double i0, dou
                     newsplits.push_back(r);
                 }
                 newsplits.push_back(r1);
-                next_noderivativeroot = newsplits.size() - 1;
+                next_noderivativeroot = runtime_numeric_cast<int>(newsplits.size()) - 1;
             } else {
                 /* either we insert a midpoint which is the earliest
                  * of the off-course roots we identified, or we
@@ -230,7 +288,7 @@ piecewise_linear_function piecewise_linear_approximator::fill_gap(double i0, dou
     return done;
 }/*}}}*/
 
-piecewise_linear_function piecewise_linear_approximator::logapprox(double i0, double i1)/*{{{*/
+piecewise_linear_function piecewise_linear_approximator::logapprox(double i0, double i1) const /*{{{*/
 {
     if (f->deg == 1) {
         /* the general code does not work well for linear functions.
@@ -243,9 +301,13 @@ piecewise_linear_function piecewise_linear_approximator::logapprox(double i0, do
         double const r = f_roots.front();
         double const v = double_poly_eval(f1, r);
         double const u = -r*v;
-        res.equations.push_back(std::make_pair(u,v));
+        res.equations.emplace_back(u, v);
         return res;
     }
+#ifdef DEBUG_LOGAPPROX
+    fmt::print("Computing lognorm approximation for {} over interval [{},{}]\n",
+            f, i0, i1);
+#endif
     piecewise_linear_function done(i0);
     for(auto r: f_roots) {
         if (r < i0) continue;
@@ -268,8 +330,7 @@ piecewise_linear_function piecewise_linear_approximator::logapprox(double i0, do
         piecewise_linear_function G = fill_gap(u1, i1);
         done.merge_right(G);
     }
-    if (done.endpoints.back() >= i1)
-        done.endpoints.back() = i1;
+    done.endpoints.back() = std::min(done.endpoints.back(), i1);
 
     return done;
 }/*}}}*/

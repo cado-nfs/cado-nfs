@@ -12,11 +12,17 @@
 #include <list>                   // for _List_const_iterator, list
 #include <sstream>                // IWYU pragma: keep
 #include <utility>                // for swap, pair
+
 #include <gmp.h> // IWYU pragma: keep // for gmp_vfprintf, mpz_srcptr, ...
+#include "fmt/core.h"
+
+#include "mpz_poly.h"
 #include "cxx_mpz.hpp"
 #include "las-norms.hpp"
+#include "double_poly.h"
 #include "fb-types.h"             // for sublat_t
 #include "las-config.h"           // for LOG_BUCKET_REGION, LOGNORM_GUARD_BITS
+#include "las-qlattice.hpp"       // for qlattice_basis
 #include "las-siever-config.hpp"  // for siever_config::side_config, siever_...
 #include "las-todo-entry.hpp"     // for las_todo_entry
 #include "rho.h"        // dickman_rho_local
@@ -356,6 +362,7 @@ lognorm_base::lognorm_base(siever_config const & sc, cxx_cado_poly const & cpoly
 
 void lognorm_base::norm(mpz_ptr x, int i, unsigned int j) const {
     mpz_poly_homogeneous_eval_siui(x, fij, i, j);
+    mpz_abs(x, x);
 }
 unsigned char lognorm_base::lognorm(int i, unsigned int j) const {
     cxx_mpz x;
@@ -529,8 +536,9 @@ lognorm_smart::lognorm_smart(siever_config const & sc, cxx_cado_poly const & cpo
         cexp2[i] = lg2_reciprocal((i-LOGNORM_GUARD_BITS)/scale);
 
     if (fijd->deg > 1) {
-        piecewise_linear_approximator A(fijd, log(2)/scale);
         int const I = 1 << logI;
+        // fmt::print("Computing lognorm approximation for {} over interval [{},{}]\n", fij, -(I/2), (I/2));
+        piecewise_linear_approximator A(fijd, log(2)/scale);
         G = A.logapprox(-(I/2), I/2);
     }
 }/*}}}*/

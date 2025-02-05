@@ -1,28 +1,31 @@
 /* test fb_root_in_qlattice_31bits */
-
 #include "cado.h" // IWYU pragma: keep
-#include <cinttypes>               // for PRId64, PRIu64
+
 #include <cstdint>                 // for uint32_t, uint64_t
 #include <cstring>                 // for strcmp
 #include <cstdio>
 #include <cstdlib>
-#include <memory>                   // for allocator_traits<>::value_type
+
 #include <vector>
 #include <array>
 #include <iostream>
-#include <sstream>
+
 #include <gmp.h>
-#include "fb-types.h"               // for fbprime_t, FBPRIME_FORMAT
-#include "gmp_aux.h"                // for mpz_add_int64, mpz_init_set_int64
-#include "las-arith.hpp"            // for invmod_redc_32
-#include "macros.h"
-#include "las-qlattice.hpp"
-#include "las-fbroot-qlattice.hpp"
-#include "fb.hpp"
-#include "timing.h"  // seconds
 #include "fmt/ostream.h"
 #include "fmt/format.h"
+#include "fmt/core.h"
+
+#include "cado_poly.h"              // MAX_DEGREE
+#include "cxx_mpz.hpp"
+#include "fb-types.h"               // for fbprime_t, FBPRIME_FORMAT
+#include "fb.hpp"
+#include "gmp_aux.h"                // for mpz_add_int64, mpz_init_set_int64
+#include "las-arith.hpp"            // for invmod_redc_32
+#include "las-fbroot-qlattice.hpp"
+#include "las-qlattice.hpp"
+#include "macros.h"
 #include "tests_common.h"
+#include "timing.h"  // seconds
 
 /*
  * R encodes (p:1) if R<p, or (1:R-p) if R >= p
@@ -60,7 +63,7 @@ template <> struct formatter<qlattice_basis>: ostream_formatter {};
 
 
 static fb_root_p1_t<cxx_mpz>
-ref_fb_root_in_qlattice (fbprime_t p, fb_root_p1 R, qlattice_basis basis)
+ref_fb_root_in_qlattice (fbprime_t p, fb_root_p1 R, qlattice_basis const & basis)
 {
   cxx_mpz num, den;
 
@@ -82,7 +85,7 @@ ref_fb_root_in_qlattice (fbprime_t p, fb_root_p1 R, qlattice_basis basis)
       mpz_add_int64 (num, num, basis.b1);
   }
 
-  if (mpz_gcd_ui(NULL, den, p) != 1) {
+  if (mpz_gcd_ui(nullptr, den, p) != 1) {
       /* root is projective */
       mpz_invert (num, num, cxx_mpz(p));
       mpz_mul(num, num, den);
@@ -233,7 +236,7 @@ test_chain_fb_root_in_qlattice_batch(basis_citer_t basis_begin,
         double st = seconds ();
         fbroot_t fake_sum = 0; /* Fake sum to stop compiler from optimizing away
                                   everything due to unused results */
-        for (basis_citer_t basis_iter = basis_begin;
+        for (auto basis_iter = basis_begin;
                 basis_iter != basis_end; basis_iter++) {
             for (unsigned long i_fb = 0; i_fb < N; i_fb++) {
                 typename fb_entry_x_roots<Nr_roots>::transformed_entry_t fbt;
@@ -257,7 +260,7 @@ test_chain_fb_root_in_qlattice_batch(basis_citer_t basis_begin,
 
     if (do_test) {
         /* Compare all the transformed roots with the reference implementation */
-        for (basis_citer_t basis_iter = basis_begin;
+        for (auto basis_iter = basis_begin;
                 basis_iter != basis_end; basis_iter++) {
             for (unsigned long i_fb = 0; i_fb < N; i_fb++) {
                 typename fb_entry_x_roots<Nr_roots>::transformed_entry_t fbt;
@@ -289,11 +292,13 @@ test_chain_fb_root_in_qlattice_batch(basis_citer_t basis_begin,
                     /* If batch transform did not work and there actually was a
                      * projective transformed root, then all went as it should. */
                 } else {
-                    /* If batch transform worked, check that it agrees with reference roots */
-                    if (0) {
+                    /* If batch transform worked, check that it agrees
+                     * with reference roots
+                    if (false) {
                         fmt::print(stderr, "p = {}, fbt.get_q() = {}\n",
                                        p, fbt.get_q());
                     }
+                     * */
                     for (unsigned char i_root = 0; i_root + 1 < Nr_roots + 1; i_root++) {
                         if (fbt_ref[i_root].r != fbt.get_r(i_root) || fbt_ref[i_root].is_projective()) {
                             print_error_and_exit(p, fbv[i_fb].get_r(i_root), fbt.get_r(i_root),
@@ -323,8 +328,8 @@ test_chain_fb_root_in_qlattice_batch<0>(basis_citer_t basis_begin MAYBE_UNUSED,
                                          mpz_t u MAYBE_UNUSED,
                                          const bool do_speed MAYBE_UNUSED,
                                          const bool do_test MAYBE_UNUSED,
-                                         const int bits MAYBE_UNUSED) {
-    return;
+                                         const int bits MAYBE_UNUSED)
+{
 }
 
 static void test_one_root_31bits(const fbprime_t p, fb_root_p1 const & Rab, const uint32_t invp,
@@ -341,166 +346,137 @@ static void
 test_fb_root_in_qlattice_31bits (const bool test_timing,
     const bool test_correctness, const unsigned long N)
 {
-  fbprime_t *p, *R, r;
-  uint32_t *invp;
-  unsigned long i, j;
-  mpz_t t, u;
-  std::vector<qlattice_basis> basis;
-  double st;
+    std::vector<fbprime_t> p, R;
+    std::vector<uint32_t> invp;
+    fbprime_t r;
+    cxx_mpz t, u;
+    std::vector<qlattice_basis> basis;
+    double st;
 
-  mpz_init (t);
-  mpz_init (u);
+    p.assign(N, 0);
+    R.assign(N, 0);
+    invp.assign(N, 0);
+    basis.assign(N, qlattice_basis());
 
-  p = (fbprime_t*) malloc (N * sizeof (fbprime_t));
-  ASSERT_ALWAYS(p != NULL);
-  R = (fbprime_t*) malloc (N * sizeof (fbprime_t));
-  ASSERT_ALWAYS(R != NULL);
-  invp = (uint32_t*) malloc (N * sizeof (uint32_t));
-  ASSERT_ALWAYS(invp != NULL);
-  basis.assign(N, qlattice_basis());
-
-  if (0 < N) {
-      p[0] = 4294967291U;
-      R[0] = p[0] - 1;
-      invp[0] = make_invp32(p[0], t, u);
-  }
-
-  /* generate p[i], R[i], invp[i] for 0 <= i < N */
-  for (i = 1; i < N; i++) {
-      p[i] = make_random_fb_prime(t);
-      R[i] = make_random_fb_root(p[i], t);
-      /* invp[i] is -1/p[i] mod 2^32 */
-      invp[i] = make_invp32(p[i], t, u);
-  }
-
-    /* Fill the first up to 16 basis entries with extremal bases */
-    for (j = 0; j < N && j < 16; j++) {
-        make_extremal_basis(basis[j], 31, j);
+    if (0 < N) {
+        p[0] = 4294967291U;
+        R[0] = p[0] - 1;
+        invp[0] = make_invp32(p[0], t, u);
     }
-  
-    /* Fill the remaining basis entries with random bases */
-    for (j = 16; j < N; j++) {
-        make_random_basis(basis[j], t, 31);
+
+    /* generate p[i], R[i], invp[i] for 0 <= i < N */
+    for (unsigned long i = 0; i < N; i++) {
+        if (i == 0) {
+            p[0] = 4294967291U;
+            R[0] = p[0] - 1;
+        } else {
+            p[i] = make_random_fb_prime(t);
+            R[i] = make_random_fb_root(p[i], t);
+        }
+        /* invp[i] is -1/p[i] mod 2^32 */
+        invp[i] = make_invp32(p[i], t, u);
+
+        /* Fill the first up to 16 basis entries with extremal bases */
+        if (i < 16)
+            make_extremal_basis(basis[i], 31, i);
+        else
+            make_random_basis(basis[i], t, 31);
+
     }
 
     test_chain_fb_root_in_qlattice_batch<MAX_DEGREE>(basis.cbegin(), basis.cend(), N, t, u, test_timing, test_correctness, 31);
 
     /* Timing of fb_root_in_qlattice_31bits(), i.e., without batch inversion */
     if (test_timing) {
-      /* efficiency test */
-      st = seconds ();
-      r = 0;
-      for (j = 0; j < N; j++)
-          for (i = 0; i < N; i++) {
-              fb_root_p1 const Rab { R[i], false };
-              auto Rij = fb_root_in_qlattice_31bits (p[i], Rab, invp[i], basis[j]);
-              r += Rij.r;
-          }
-      st = seconds () - st;
-      fmt::print ("fb_root_in_qlattice_31bits: {} tests took {:.2f}s (r={})\n",
-              N * N, st, r);
+        /* efficiency test */
+        st = seconds ();
+        r = 0;
+        for (unsigned long j = 0; j < N; j++)
+            for (unsigned long i = 0; i < N; i++) {
+                fb_root_p1 const Rab { R[i], false };
+                auto Rij = fb_root_in_qlattice_31bits (p[i], Rab, invp[i], basis[j]);
+                r += Rij.r;
+            }
+        st = seconds () - st;
+        fmt::print ("fb_root_in_qlattice_31bits: {} tests took {:.2f}s (r={})\n",
+                N * N, st, r);
     }
 
-  /* Test of fb_root_in_qlattice_31bits(), i.e., without batch inversion */
-  if (test_correctness) {
-      for (i = 0; i < N; i++)
-          for (j = 0; j < N; j++)
-              test_one_root_31bits(p[i], R[i], invp[i], basis[j]);
-  }
-
-  free (p);
-  free (R);
-  free (invp);
-
-  mpz_clear (t);
-  mpz_clear (u);
+    /* Test of fb_root_in_qlattice_31bits(), i.e., without batch inversion */
+    if (test_correctness) {
+        for (unsigned long i = 0; i < N; i++)
+            for (unsigned long j = 0; j < N; j++)
+                test_one_root_31bits(p[i], R[i], invp[i], basis[j]);
+    }
 }
 
 static void
 test_fb_root_in_qlattice_127bits (const bool test_timing,
     const bool test_correctness, const unsigned long N)
 {
-  fbprime_t *p, *R, r;
-  uint32_t *invp32;
-  uint64_t *invp64;
-  unsigned long i, j;
-  mpz_t t, u;
-  std::vector<qlattice_basis> basis;
-  double st;
+    std::vector<fbprime_t> p, R;
+    std::vector<uint32_t> invp32;
+    std::vector<uint64_t> invp64;
+    fbprime_t r;
+    cxx_mpz t, u;
+    std::vector<qlattice_basis> basis;
+    double st;
 
-  mpz_init (t);
-  mpz_init (u);
+    p.assign(N, 0);
+    R.assign(N, 0);
+    invp32.assign(N, 0);
+    invp64.assign(N, 0);
+    basis.assign(N, qlattice_basis());
 
-  p = (fbprime_t*) malloc (N * sizeof (fbprime_t));
-  ASSERT_ALWAYS(p != NULL);
-  R = (fbprime_t*) malloc (N * sizeof (fbprime_t));
-  ASSERT_ALWAYS(R != NULL);
-  invp32 = (uint32_t*) malloc (N * sizeof (uint32_t));
-  ASSERT_ALWAYS(invp32 != NULL);
-  invp64 = (uint64_t*) malloc (N * sizeof (uint64_t));
-  ASSERT_ALWAYS(invp64 != NULL);
-  basis.assign(N, qlattice_basis());
+    /* generate p[i], R[i], invp32[i], invp64[i] for 0 <= i < N */
+    for (unsigned long i = 0; i < N; i++) {
+        p[i] = make_random_fb_prime(t);
+        R[i] = make_random_fb_root(p[i], t);
+        invp32[i] = make_invp32(p[i], t, u);
+        invp64[i] = make_invp64(p[i], t, u);
 
-  /* generate p[i], R[i], invp32[i], invp64[i] for 0 <= i < N */
-  for (i = 0; i < N; i++) {
-      p[i] = make_random_fb_prime(t);
-      R[i] = make_random_fb_root(p[i], t);
-      invp32[i] = make_invp32(p[i], t, u);
-      invp64[i] = make_invp64(p[i], t, u);
-  }
-
-    /* Fill the first up to 16 basis entries with extremal bases */
-    for (j = 0; j < N && j < 16; j++) {
-        make_extremal_basis(basis[j], 63, j);
+        /* Fill the first up to 16 basis entries with extremal bases */
+        if (i < 16)
+            make_extremal_basis(basis[i], 63, i);
+        else
+            make_random_basis(basis[i], t, 63);
     }
-  
-  /* generate basis[j] for 0 <= j < N */
-  for (j = 16; j < N; j++) {
-      make_random_basis(basis[j], t, 63);
-  }
 
-  test_chain_fb_root_in_qlattice_batch<MAX_DEGREE>(basis.cbegin(), basis.cend(), N, t, u, test_timing, test_correctness, 127);
+    test_chain_fb_root_in_qlattice_batch<MAX_DEGREE>(basis.cbegin(), basis.cend(), N, t, u, test_timing, test_correctness, 127);
 
-  if (test_timing) {
-      /* efficiency test */
-      st = seconds ();
-      r = 0;
-      for (j = 0; j < N; j++)
-          for (i = 0; i < N; i++) {
-              fb_root_p1 const Rab = R[i];
-              auto Rij = fb_root_in_qlattice_127bits (p[i], Rab, invp64[i], basis[j]);
-              r += Rij.r;
-          }
-      st = seconds () - st;
-      fmt::print ("fb_root_in_qlattice_127bits: {} tests took {:.2f}s (r={})\n",
-              N * N, st, r);
-  }
+    if (test_timing) {
+        /* efficiency test */
+        st = seconds ();
+        r = 0;
+        for (unsigned long j = 0; j < N; j++)
+            for (unsigned long i = 0; i < N; i++) {
+                fb_root_p1 const Rab = R[i];
+                auto Rij = fb_root_in_qlattice_127bits (p[i], Rab, invp64[i], basis[j]);
+                r += Rij.r;
+            }
+        st = seconds () - st;
+        fmt::print ("fb_root_in_qlattice_127bits: {} tests took {:.2f}s (r={})\n",
+                N * N, st, r);
+    }
 
-  if (test_correctness) {
-      /* correctness test */
-      for (i = 0; i < N; i++) {
-          for (j = 0; j < N; j++) {
-              fb_root_p1 const Rab = R[i];
-              fb_root_p1 const r127 = fb_root_in_qlattice_127bits (p[i], R[i], invp64[i], basis[j]);
-              auto rref = ref_fb_root_in_qlattice (p[i], R[i], basis[j]);
-              if (rref != r127)
-                  print_error_and_exit(p[i], Rab, r127, rref, basis[j], 127);
-          }
-      }
-  }
+    if (test_correctness) {
+        /* correctness test */
+        for (unsigned long i = 0; i < N; i++) {
+            for (unsigned long j = 0; j < N; j++) {
+                fb_root_p1 const Rab = R[i];
+                fb_root_p1 const r127 = fb_root_in_qlattice_127bits (p[i], R[i], invp64[i], basis[j]);
+                auto rref = ref_fb_root_in_qlattice (p[i], R[i], basis[j]);
+                if (rref != r127)
+                    print_error_and_exit(p[i], Rab, r127, rref, basis[j], 127);
+            }
+        }
+    }
 
-  free (p);
-  free (R);
-  free (invp32);
-  free (invp64);
-
-  mpz_clear (t);
-  mpz_clear (u);
 }
 
 /* exercise bugs in fb_root_in_qlattice_127bits */
 static void
-bug20200225 (void)
+bug20200225 ()
 {
     {
         /* exercises bug in assembly part of invmod_redc_32 (starting
@@ -534,13 +510,18 @@ bug20200225 (void)
     {
         fbprime_t const p = 3628762957;
         fb_root_p1 const Rab { 1702941053 };
+        /* This is a redc64 value. Our code only works with redc32
+         * values, though */
         uint64_t const invp = 5839589727713490555UL;
         qlattice_basis const basis { 
             -2503835703516628395L, 238650852,
                 -3992552824749287692L, 766395543
         };
         auto rref = ref_fb_root_in_qlattice (p, Rab, basis);
-        fb_root_p1 const r127 = fb_root_in_qlattice_127bits (p, Rab, invp, basis);
+        fb_root_p1 const r127 = fb_root_in_qlattice_127bits (
+                /* the cast to redc_invp_t narrows invp to a redc32
+                 * value, which is what the routine expects! */
+                p, Rab, (redc_invp_t) invp, basis);
         if (rref != r127)
             print_error_and_exit(p, Rab, r127, rref, basis, 127);
     }
@@ -564,13 +545,18 @@ bug20200225 (void)
     {
         fbprime_t const p = 3725310689;
         fb_root_p1 const Rab = 2661839516;
+        /* This is a redc64 value. Our code only works with redc32
+         * values, though */
         uint64_t const invp = 1066179678986106591UL;
         qlattice_basis const basis {
             3008222006914909739L, 877054135,
             3170231873717741170L, 932375769,
         };
         auto rref = ref_fb_root_in_qlattice (p, Rab, basis);
-        fb_root_p1 const r127 = fb_root_in_qlattice_127bits (p, Rab, invp, basis);
+        fb_root_p1 const r127 = fb_root_in_qlattice_127bits (
+                /* the cast to redc_invp_t narrows invp to a redc32
+                 * value, which is what the routine expects! */
+                p, Rab, (redc_invp_t) invp, basis);
         if (rref != r127)
             print_error_and_exit(p, Rab, r127, rref, basis, 127);
     }
@@ -612,19 +598,19 @@ bug20200225 (void)
 // coverity[root_function]
 int main(int argc, char const * argv[])
 {
-  unsigned long N = 100;
-  int test_correctness = 1, test_timing = 1;
+    unsigned long N = 100;
+    int test_correctness = 1, test_timing = 1;
 
-  setbuf(stdout, NULL);
-  setbuf(stderr, NULL);
+    setvbuf(stdout, nullptr, _IONBF, 0);
+    setvbuf(stderr, nullptr, _IONBF, 0);
 
-  tests_common_cmdline(&argc, &argv, PARSE_SEED | PARSE_ITER | PARSE_CHECK | PARSE_TIME);
-  tests_common_get_iter(&N);
-  tests_common_get_check_and_time(&test_correctness, &test_timing);
+    tests_common_cmdline(&argc, &argv, PARSE_SEED | PARSE_ITER | PARSE_CHECK | PARSE_TIME);
+    tests_common_get_iter(&N);
+    tests_common_get_check_and_time(&test_correctness, &test_timing);
 
-  bug20200225 ();
-  test_fb_root_in_qlattice_31bits (test_timing != 0, test_correctness != 0, N);
-  test_fb_root_in_qlattice_127bits (test_timing != 0, test_correctness != 0, N);
+    bug20200225 ();
+    test_fb_root_in_qlattice_31bits (test_timing != 0, test_correctness != 0, N);
+    test_fb_root_in_qlattice_127bits (test_timing != 0, test_correctness != 0, N);
 
-  return 0;
+    return 0;
 }

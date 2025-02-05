@@ -30,15 +30,15 @@ class piecewise_linear_approximator {
     std::vector<double> f_roots;
     std::vector<double> f1_roots;
     double scale;
-    std::vector<double> roots_off_course(cxx_double_poly const& uv, bool divide_root=false, double r = 0);
-    piecewise_linear_function expand_at_root(double r);
-    piecewise_linear_function C0_from_points(std::list<double> const & r);
+    std::vector<double> roots_off_course(cxx_double_poly const& uv, bool divide_root=false, double r = 0) const;
+    piecewise_linear_function expand_at_root(double r) const;
+    piecewise_linear_function C0_from_points(std::list<double> const & r) const;
     /* This assumes that the interval [i0,i1] is free of roots of the
      * polynomial f */
-    piecewise_linear_function fill_gap(double i0, double i1);
+    piecewise_linear_function fill_gap(double i0, double i1) const;
     public:
     piecewise_linear_approximator(cxx_double_poly const & f, double scale);
-    piecewise_linear_function logapprox(double i0, double i1);
+    piecewise_linear_function logapprox(double i0, double i1) const;
 };
 
 #endif	/* LOGAPPROX_HPP_ */

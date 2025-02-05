@@ -15,13 +15,13 @@
 #include <cctype>       // isdigit etc
 #include <cstdio>       // fprintf // IWYU pragma: keep
 #include <cstdlib>
+#include <cstdint>
 #include <cstring>
 
 #include <sstream>      // std::ostringstream // IWYU pragma: keep
 #include <vector>
 #include <string>
 #include <ostream>        // for operator<<, basic_ostream, basic_ostream::o...
-#include <exception>
 #include <memory>
 
 #include <gmp.h>
@@ -36,6 +36,7 @@
 #include "portability.h"  // for strlcpy
 #include "rootfinder.h"   // for mpz_poly_roots_mpz
 #include "cado_expression_parser.hpp"
+#include "runtime_numeric_cast.hpp"
 #include "macros.h"
 /* and just because we expose a proxy to usp.c's root finding... */
 #include "usp.h"          // for numberOfRealRoots
@@ -657,7 +658,7 @@ void mpz_poly_init(mpz_poly_ptr f, int d)
   if (d < 0)
   {
     f->alloc = 0;
-    f->_coeff = (mpz_t *) NULL;
+    f->_coeff = (mpz_t *) nullptr;
   }
   else
   {
@@ -679,8 +680,10 @@ void mpz_poly_realloc (mpz_poly_ptr f, unsigned int nc)
   ASSERT_ALWAYS(nc <= (unsigned int) INT_MAX);
   if (f->alloc < nc)
     {
-      f->_coeff = (mpz_t*) realloc (f->_coeff, nc * sizeof (mpz_t));
-      FATAL_ERROR_CHECK (f->_coeff == NULL, "not enough memory");
+      auto * p = (mpz_t *) realloc (f->_coeff, nc * sizeof (mpz_t));
+      if (!p) free(f->_coeff);
+      FATAL_ERROR_CHECK (p == nullptr, "not enough memory");
+      f->_coeff = p;
       for (unsigned int i = f->alloc; i < nc; i++)
         mpz_init (f->_coeff[i]);
       f->alloc = nc;
@@ -723,7 +726,7 @@ mpz_poly_set_ab (mpz_poly_ptr rel, int64_t a, uint64_t b)
 {
     mpz_poly_set_zero(rel);
     mpz_poly_setcoeff_int64(rel, 0, a);
-    mpz_poly_setcoeff_int64(rel, 1, -b);
+    mpz_poly_setcoeff_int64(rel, 1, -runtime_numeric_cast<int64_t>(b));
 }
 
 /* rel <- a-b*x */
@@ -746,21 +749,12 @@ void mpz_poly_set_mpz_ab (mpz_poly_ptr rel, mpz_srcptr a, mpz_srcptr b)
 }
 
 /* swap f and g */
-void
+    void
 mpz_poly_swap (mpz_poly_ptr f, mpz_poly_ptr g)
 {
-  int i;
-  mpz_t *t;
-
-  i = f->alloc;
-  f->alloc = g->alloc;
-  g->alloc = i;
-  i = f->deg;
-  f->deg = g->deg;
-  g->deg = i;
-  t = f->_coeff;
-  f->_coeff = g->_coeff;
-  g->_coeff = t;
+    std::swap(f->alloc, g->alloc);
+    std::swap(f->deg, g->deg);
+    std::swap(f->_coeff, g->_coeff);
 }
 
 /* Free polynomial f in mpz_poly. */
@@ -768,9 +762,9 @@ void mpz_poly_clear(mpz_poly_ptr f)
 {
   for (unsigned i = 0; i < f->alloc; ++i)
     mpz_clear(f->_coeff[i]);
-  if (f->_coeff != NULL)
+  if (f->_coeff != nullptr)
     free(f->_coeff);
-  f->_coeff = NULL; /* to avoid a double-free */
+  f->_coeff = nullptr; /* to avoid a double-free */
   memset(f, 0, sizeof(mpz_poly));
   f->deg = -1;
   f->alloc = 0; /* to avoid a double-free */
@@ -791,7 +785,7 @@ struct urandomm {
 struct urandomm_ui {
     typedef unsigned long argtype;
     argtype k;
-    urandomm_ui(argtype k) : k(k) {}
+    explicit urandomm_ui(argtype k) : k(k) {}
     void fetch_half(cxx_mpz & h) const {
         h = k / 2;
     }
@@ -1026,13 +1020,15 @@ void mpz_poly_div_xi(mpz_poly_ptr g, mpz_poly_srcptr f, int i)
         return;
     }
     if (g == f) {
-        /* rotate the coefficients, don't do any freeing */
-        mpz_t * temp = (mpz_t*) malloc(i * sizeof(mpz_t));
-        memcpy(temp, g->_coeff, i * sizeof(mpz_t));
+        /* rotate the coefficients, don't do any freeing of the mpz's: we
+         * assume that we might have a use for them later.
+         * (new mpz_t[] does obviously not call mpz_init)
+         */
+        const auto temp = std::unique_ptr<mpz_t[]>(new mpz_t[i]);
+        memcpy(temp.get(), g->_coeff, i * sizeof(mpz_t));
         memmove(g->_coeff, g->_coeff + i, (g->deg + 1 - i) * sizeof(mpz_t));
-        memcpy(g->_coeff + (g->deg + 1 - i), temp, i * sizeof(mpz_t));
+        memcpy(g->_coeff + (g->deg + 1 - i), temp.get(), i * sizeof(mpz_t));
         g->deg -= i;
-        free(temp);
         return;
     }
 
@@ -1121,7 +1117,7 @@ int mpz_poly_asprintf(char ** res, mpz_poly_srcptr f)
     size_t size = 0;
     int rc;
     static const size_t batch = 4;
-    *res = NULL;
+    *res = nullptr;
 
     alloc += batch;
     *res = (char*) realloc(*res, alloc);
@@ -3224,7 +3220,7 @@ mpz_poly_homography (mpz_poly_ptr Fij, mpz_poly_srcptr F, int64_t H[4])
   mpz_poly_cleandeg(Fij, Fij->deg);
 }
 
-/* v <- |f(i,j)|, where f is homogeneous of degree d */
+/* v <- f(i,j), where f is homogeneous of degree d */
 void mpz_poly_homogeneous_eval_siui (mpz_ptr v, mpz_poly_srcptr f, const int64_t i, const uint64_t j)
 {
   unsigned int k = f->deg;
@@ -3249,7 +3245,6 @@ void mpz_poly_homogeneous_eval_siui (mpz_ptr v, mpz_poly_srcptr f, const int64_t
           }
         mpz_addmul (v, f->_coeff[k], jpow);
       }
-  mpz_abs (v, v); /* avoids problems with negative norms */
 }
 
 /* put in c the content of f */
@@ -4883,8 +4878,7 @@ struct mpz_poly_parser_traits {
     mpz_poly_parser_traits(std::string const & x)
         : x(x)
     {}
-    struct parse_error : public std::exception {};
-    struct unexpected_literal : public parse_error {
+    struct unexpected_literal : public cado_expression_parser_details::parse_error {
         std::string msg;
         unexpected_literal(std::string const & v)
             : msg(std::string("unexpected literal " + v))
@@ -4895,28 +4889,29 @@ struct mpz_poly_parser_traits {
     };
     static constexpr const int accept_literals = 1;
     typedef cxx_mpz_poly type;
-    void add(cxx_mpz_poly & c, cxx_mpz_poly const & a, cxx_mpz_poly const & b) {
+    typedef cxx_mpz number_type;
+    static void add(cxx_mpz_poly & c, cxx_mpz_poly const & a, cxx_mpz_poly const & b) {
         mpz_poly_add(c, a, b);
     }
-    void sub(cxx_mpz_poly & c, cxx_mpz_poly const & a, cxx_mpz_poly const & b) {
+    static void sub(cxx_mpz_poly & c, cxx_mpz_poly const & a, cxx_mpz_poly const & b) {
         mpz_poly_sub(c, a, b);
     }
-    void neg(cxx_mpz_poly & c, cxx_mpz_poly const & a) {
+    static void neg(cxx_mpz_poly & c, cxx_mpz_poly const & a) {
         mpz_poly_neg(c, a);
     }
-    void mul(cxx_mpz_poly & c, cxx_mpz_poly const & a, cxx_mpz_poly const & b) {
+    static void mul(cxx_mpz_poly & c, cxx_mpz_poly const & a, cxx_mpz_poly const & b) {
         mpz_poly_mul(c, a, b);
     }
-    void pow_ui(cxx_mpz_poly & c, cxx_mpz_poly const & a, unsigned long e) {
+    static void pow_ui(cxx_mpz_poly & c, cxx_mpz_poly const & a, unsigned long e) {
         mpz_poly_pow_ui(c, a, e);
     }
-    void swap(cxx_mpz_poly & a, cxx_mpz_poly & b) {
+    static void swap(cxx_mpz_poly & a, cxx_mpz_poly & b) {
         mpz_poly_swap(a, b);
     }
-    void set_mpz(cxx_mpz_poly & a, cxx_mpz const & z) {
+    static void set(cxx_mpz_poly & a, cxx_mpz const & z) {
         mpz_poly_set_mpz(a, z);
     }
-    void set_literal_power(cxx_mpz_poly & a, std::string const & v, unsigned long e) {
+    void set_literal_power(cxx_mpz_poly & a, std::string const & v, unsigned long e) const {
         if (v == x)
             mpz_poly_set_xi(a, e);
         else
@@ -4924,7 +4919,7 @@ struct mpz_poly_parser_traits {
     }
 };
 
-std::istream& operator>>(std::istream& in, cxx_mpz_poly::named_proxy<cxx_mpz_poly &> F)
+std::istream& operator>>(std::istream& in, cxx_mpz_poly::named_proxy<cxx_mpz_poly &> const & F)
 {
     std::string line;
     for(;;in.get()) {
@@ -4940,10 +4935,7 @@ std::istream& operator>>(std::istream& in, cxx_mpz_poly::named_proxy<cxx_mpz_pol
 
     try {
         F.c = P.parse();
-    } catch (mpz_poly_parser_traits::parse_error const & p) {
-        in.setstate(std::ios_base::failbit);
-        return in;
-    } catch (poly_parser::parse_error const & p) {
+    } catch (cado_expression_parser_details::parse_error const & p) {
         in.setstate(std::ios_base::failbit);
         return in;
     }
@@ -4951,7 +4943,7 @@ std::istream& operator>>(std::istream& in, cxx_mpz_poly::named_proxy<cxx_mpz_pol
     return in;
 }
 
-std::ostream& operator<<(std::ostream& o, cxx_mpz_poly::named_proxy<cxx_mpz_poly const &> F)
+std::ostream& operator<<(std::ostream& o, cxx_mpz_poly::named_proxy<cxx_mpz_poly const &> const & F)
 {
     return o << F.c.print_poly(std::string(F.x));
 }

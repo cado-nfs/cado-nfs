@@ -161,11 +161,11 @@ int mpz_poly_asprintf(char ** res, mpz_poly_srcptr f);
  * endl = 1 if "\n" at the end of fprintf. */
 void mpz_poly_fprintf_endl (FILE *fp, mpz_poly_srcptr f, int endl);
 void mpz_poly_fprintf(FILE *fp, mpz_poly_srcptr f);
-void mpz_poly_fprintf_coeffs (FILE *fp, mpz_poly_srcptr f, const char sep);
-void mpz_poly_fscanf_coeffs (FILE *fp, mpz_poly_ptr f, const char sep);
+void mpz_poly_fprintf_coeffs (FILE *fp, mpz_poly_srcptr f, char sep);
+void mpz_poly_fscanf_coeffs (FILE *fp, mpz_poly_ptr f, char sep);
 void mpz_poly_fprintf_cado_format (FILE *fp, mpz_poly_srcptr f,
-                                   const char letter, const char *pre);
-void mpz_poly_asprintf_cado_format (char **pstr, mpz_poly_srcptr f, const char letter,
+                                   char letter, const char *pre);
+void mpz_poly_asprintf_cado_format (char **pstr, mpz_poly_srcptr f, char letter,
                               const char *prefix);
 void mpz_poly_print_raw(mpz_poly_srcptr f);
 #ifdef MPZ_POLY_TIMINGS
@@ -333,18 +333,22 @@ struct cxx_mpz_poly {
     mpz_poly x;
 
     ATTRIBUTE_NODISCARD
-    inline int degree() const { return x->deg; } /* handy */
+    int degree() const { return x->deg; } /* handy */
 
     // NOLINTBEGIN(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
     cxx_mpz_poly() { mpz_poly_init(x, -1); }
 
-    cxx_mpz_poly(mpz_poly_srcptr f) { mpz_poly_init(x, -1); mpz_poly_set(x, f); }
+    // NOLINTNEXTLINE(hicpp-explicit-conversions)
+    cxx_mpz_poly(mpz_poly_srcptr f) {
+        mpz_poly_init(x, -1);
+        mpz_poly_set(x, f);
+    }
     cxx_mpz_poly(cxx_mpz_poly const & o) {
         mpz_poly_init(x, -1);
         mpz_poly_set(x, o.x);
     }
     template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
-    cxx_mpz_poly (const T & rhs) {
+    cxx_mpz_poly (const T & rhs) {      // NOLINT(hicpp-explicit-conversions)
         mpz_poly_init(x, -1);
         *this = rhs;
     }
@@ -355,6 +359,7 @@ struct cxx_mpz_poly {
         mpz_poly_set_mpz(x, b);
         return *this;
     }
+    // NOLINTNEXTLINE(hicpp-explicit-conversions)
     cxx_mpz_poly (const cxx_mpz & rhs) {
         mpz_poly_init(x, -1);
         *this = rhs;
@@ -364,15 +369,16 @@ struct cxx_mpz_poly {
         return *this;
     }
 #if __cplusplus >= 201103L
-    cxx_mpz_poly(cxx_mpz_poly && o) {
+    cxx_mpz_poly(cxx_mpz_poly && o) noexcept {
         mpz_poly_init(x, -1);
         mpz_poly_swap(x, o.x);
     }
-    cxx_mpz_poly& operator=(cxx_mpz_poly && o) {
+    cxx_mpz_poly& operator=(cxx_mpz_poly && o) noexcept {
         mpz_poly_swap(x, o.x);
         return *this;
     }
 #endif
+    // NOLINTNEXTLINE(hicpp-explicit-conversions)
     cxx_mpz_poly(std::string const & e) : cxx_mpz_poly() {
         mpz_poly_set_from_expression(x, e.c_str());
     }
@@ -380,6 +386,7 @@ struct cxx_mpz_poly {
         mpz_poly_set_from_expression(x, e.c_str());
         return *this;
     }
+    // NOLINTNEXTLINE(hicpp-explicit-conversions)
     cxx_mpz_poly(const char * e) : cxx_mpz_poly() {
         mpz_poly_set_from_expression(x, e);
     }
@@ -392,10 +399,13 @@ struct cxx_mpz_poly {
     ~cxx_mpz_poly() { mpz_poly_clear(x); }
 
     cxx_mpz_poly & operator=(cxx_mpz_poly const & o) {
-        mpz_poly_set(x, o.x);
+        if (this != &o)
+            mpz_poly_set(x, o.x);
         return *this;
     }
+    // NOLINTNEXTLINE(hicpp-explicit-conversions)
     operator mpz_poly_ptr() { return x; }
+    // NOLINTNEXTLINE(hicpp-explicit-conversions)
     operator mpz_poly_srcptr() const { return x; }
     mpz_poly_ptr operator->() { return x; }
     mpz_poly_srcptr operator->() const { return x; }
@@ -411,9 +421,10 @@ struct cxx_mpz_poly {
         public:
         T c;
         std::string x;
-        named_proxy(T c, std::string const & x)
-            : c(c), x(x)
+        named_proxy(T c, std::string x)
+            : c(c), x(std::move(x))
         {}
+        /*
         template<
                 typename U = T,
                 typename = typename std::enable_if<
@@ -421,13 +432,14 @@ struct cxx_mpz_poly {
                 >::type
             >
         named_proxy(U const & c) : c(c.c), x(c.x) {}
+        */
     };
 
     named_proxy<cxx_mpz_poly &> named(std::string const & x) {
-        return named_proxy<cxx_mpz_poly &>(*this, x);
+        return { *this, x };
     }
     named_proxy<cxx_mpz_poly const &> named(std::string const & x) const {
-        return named_proxy<cxx_mpz_poly const &>(*this, x);
+        return { *this, x };
     }
 
     /* A few initializers and convenience functions */
@@ -438,18 +450,19 @@ struct cxx_mpz_poly {
         mpz_poly_cleandeg(x, 0);
         return *this;
     }
-    inline cxx_mpz_poly(mpz_srcptr c) : cxx_mpz_poly() { *this = c; }
+    // NOLINTNEXTLINE(hicpp-explicit-conversions)
+    cxx_mpz_poly(mpz_srcptr c) : cxx_mpz_poly() { *this = c; }
     bool operator==(mpz_srcptr a) const {
         if (mpz_cmp_ui(a, 0) == 0) return x->deg == -1;
         return x->deg == 0 && mpz_cmp(mpz_poly_coeff_const(x, 0), a) == 0;
     }
-    inline bool operator==(mpz_poly_srcptr a) const { return mpz_poly_cmp(x, a) == 0; }
-    inline bool operator!=(mpz_poly_srcptr a) const { return mpz_poly_cmp(x, a) != 0; }
-    inline bool operator<(mpz_poly_srcptr a) const { return mpz_poly_cmp(x, a) < 0; }
+    bool operator==(mpz_poly_srcptr a) const { return mpz_poly_cmp(x, a) == 0; }
+    bool operator!=(mpz_poly_srcptr a) const { return mpz_poly_cmp(x, a) != 0; }
+    bool operator<(mpz_poly_srcptr a) const { return mpz_poly_cmp(x, a) < 0; }
     /* we need to add these explicitly in order to resolve ambiguities */
-    inline bool operator==(cxx_mpz_poly const & a) const { return mpz_poly_cmp(x, a) == 0; }
-    inline bool operator!=(cxx_mpz_poly const & a) const { return mpz_poly_cmp(x, a) != 0; }
-    inline bool operator<(cxx_mpz_poly const & a) const { return mpz_poly_cmp(x, a) < 0; }
+    bool operator==(cxx_mpz_poly const & a) const { return mpz_poly_cmp(x, a) == 0; }
+    bool operator!=(cxx_mpz_poly const & a) const { return mpz_poly_cmp(x, a) != 0; }
+    bool operator<(cxx_mpz_poly const & a) const { return mpz_poly_cmp(x, a) < 0; }
 
 
     template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
@@ -458,7 +471,7 @@ struct cxx_mpz_poly {
         return x->deg == 0 && gmp_auxx::mpz_cmp(mpz_poly_coeff_const(x, 0), a) == 0;
     }
     template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
-    inline bool operator!=(T a) const { return !((*this) == a); }
+    bool operator!=(T a) const { return !((*this) == a); }
 
     // mpz_ptr operator[](unsigned int i) { return mpz_poly_coeff_const(x, i); }
     mpz_srcptr
@@ -478,8 +491,8 @@ struct cxx_mpz_poly {
 
 
 /* printing needs a way to specify the variables... */
-std::ostream& operator<<(std::ostream& o, cxx_mpz_poly::named_proxy<cxx_mpz_poly const &> f);
-std::istream& operator>>(std::istream& in, cxx_mpz_poly::named_proxy<cxx_mpz_poly &> f);
+std::ostream& operator<<(std::ostream& o, cxx_mpz_poly::named_proxy<cxx_mpz_poly const &> const & f);
+std::istream& operator>>(std::istream& in, cxx_mpz_poly::named_proxy<cxx_mpz_poly &> const & f);
 
 /* we do have a default behaviour, though */
 inline std::ostream& operator<<(std::ostream& o, cxx_mpz_poly const & f)

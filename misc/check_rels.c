@@ -174,6 +174,7 @@ process_one_relation (earlyparsed_relation_ptr rel)
       side_to_index[side] = side_index;
       mpz_poly_ptr ps = cpoly->pols[side];
       mpz_poly_homogeneous_eval_siui (norm[side_index], ps, rel->a, rel->b);
+      mpz_abs(norm[side_index], norm[side_index]);
       if (verbose) {
           gmp_fprintf (stderr, "#   norm on side %d = %Zu\n", side, norm[side_index]);
           fflush (stderr);
