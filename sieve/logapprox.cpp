@@ -13,7 +13,6 @@
 
 #include "fmt/core.h"
 
-#include "double_poly.h"  // cxx_double_poly
 #include "logapprox.hpp"
 #include "macros.h"          // for ASSERT_ALWAYS, UNLIKELY
 #include "runtime_numeric_cast.hpp"
@@ -25,26 +24,8 @@
 /* This should be 1/Jmax */
 #define SMALLEST_MEANINGFUL_LOGAPPROX_INTERVAL  (1.0/262144)
 
-static std::vector<double> roots_helper(cxx_double_poly const & f)
+static std::vector<double> roots_helper(polynomial<double> const & f)
 {
-    /* double_poly_compute_all_roots will almost _always_ report inexact
-     * computations in some way or another...
-     */
-#if 0
-    std::feclearexcept(FE_ALL_EXCEPT);
-    {
-        std::vector<double> res(f->deg, 0);
-        const auto n = double_poly_compute_all_roots(res.data(), f);
-        res.erase(res.begin() + n, res.end());
-        sort(begin(res), end(res));
-
-        if (!std::fetestexcept(FE_INEXACT))
-            return res;
-    }
-
-    fmt::print(stderr, "# double_poly_compute_all_roots reported inexact computation, using long double code\n");
-#endif
-
     /* This uses polynomial<T>, possibly for T=long double, for the roots
      * computation. T=long double is more accurate, but unfortunately it's
      * also considerably slower, to the point that it's probably barely
@@ -54,23 +35,9 @@ static std::vector<double> roots_helper(cxx_double_poly const & f)
      */
     typedef double T;
     polynomial<T> lf;
-    for(int i = 0 ; i <= f->deg ; i++) lf[i] = f->coeff[i];
+    for(int i = 0 ; i <= f.degree() ; i++) lf[i] = f[i];
     auto v = lf.roots();
     std::vector<double> res(v.begin(), v.end());
-
-#if 0
-    /* just check consistency with the old code */
-    std::vector<double> res0(f->deg, 0);
-    const auto n = double_poly_compute_all_roots(res0.data(), f);
-    res0.erase(res0.begin() + n, res0.end());
-    ASSERT_ALWAYS(n == (unsigned int) res.size());
-    sort(begin(res), end(res));
-    sort(begin(res0), end(res0));
-    for(unsigned int i = 0 ; i < n ; i++) {
-        int a = cado_math_aux::accurate_bits(res[i], res0[i]);
-        ASSERT_ALWAYS(a >= 53);
-    }
-#endif
 
     sort(begin(res), end(res));
     return res;
@@ -95,24 +62,22 @@ piecewise_linear_function& piecewise_linear_function::merge_right(piecewise_line
     return *this;
 }/*}}}*/
 
-piecewise_linear_approximator::piecewise_linear_approximator(cxx_double_poly const & f, double scale)
+piecewise_linear_approximator::piecewise_linear_approximator(polynomial<double> const & f, double scale)
     : f(f)
+    , f1(f.derivative())
     , f_roots(roots_helper(f))
+    , f1_roots(roots_helper(f1))
     , scale(scale)
-{/*{{{*/
-    double_poly_derivative(f1, f);
-    f1_roots = roots_helper(f1);
-}/*}}}*/
+{ }
 
-std::vector<double> piecewise_linear_approximator::roots_off_course(cxx_double_poly const& uv, bool divide_root, double r) const/*{{{*/
+std::vector<double> piecewise_linear_approximator::roots_off_course(polynomial<double> const& uv, bool divide_root, double r) const/*{{{*/
 {
     std::vector<double> res;
     for(double const m : { std::exp(scale), std::exp(-scale) }) {
-        cxx_double_poly d;
-        double_poly_set(d, f);
-        double_poly_submul_double(d, uv, m);
+        polynomial<double> d = f;
+        d.submul(uv, m);
         if (divide_root)
-            double_poly_div_linear(d, d, r);
+            d = d.div_linear(r);
         auto roots = roots_helper(d);
         res.insert(res.end(), roots.begin(), roots.end());
     }
@@ -121,16 +86,13 @@ std::vector<double> piecewise_linear_approximator::roots_off_course(cxx_double_p
 
 piecewise_linear_function piecewise_linear_approximator::expand_at_root(double r) const /*{{{*/
 {
-    double const v = double_poly_eval(f1, r);
+    double const v = f1(r);
     double const u = -r*v;
-    cxx_double_poly uv(1);
-    uv->coeff[0] = u;
-    uv->coeff[1] = v;
-    double_poly_cleandeg(uv, 1);
+    polynomial<double> uv { u, v };
     double r0 = std::numeric_limits<double>::lowest();
     double r1 = std::numeric_limits<double>::max();
 
-    if (!v)
+    if (v == 0)
         /* inflection points cause real trouble */
         fprintf(stderr, "# Warning: logapprox encountered a (quasi-) inflection point. We cannot fulfill our requirements\n");
 
@@ -168,10 +130,10 @@ piecewise_linear_function piecewise_linear_approximator::C0_from_points(std::lis
     ASSERT_ALWAYS(!r.empty());
     auto it = r.begin();
     double a = *it++;
-    double fa = double_poly_eval(f, a);
+    double fa = f(a);
     for(; it != r.end() ; it++) {
         double const b = *it;
-        double const fb = double_poly_eval(f, b);
+        double const fb = f(b);
         double const u = (b*fa-a*fb)/(b-a);
         double const v = (fb-fa)/(b-a);
         res.equations.emplace_back(u, v);
@@ -216,10 +178,7 @@ piecewise_linear_function piecewise_linear_approximator::fill_gap(double i0, dou
         std::pair<double, double> const uv=todo.equations.front();
         todo.equations.pop_front();
 
-        cxx_double_poly guv(1);
-        guv->coeff[0] = uv.first;
-        guv->coeff[1] = uv.second;
-        double_poly_cleandeg(guv,1);
+        polynomial<double> guv { uv.first, uv.second };
         std::vector<double> roots;
         for(double const r : roots_off_course(guv)) {
             if (r >= r0s && r <= r1s)
@@ -290,7 +249,7 @@ piecewise_linear_function piecewise_linear_approximator::fill_gap(double i0, dou
 
 piecewise_linear_function piecewise_linear_approximator::logapprox(double i0, double i1) const /*{{{*/
 {
-    if (f->deg == 1) {
+    if (f.degree() == 1) {
         /* the general code does not work well for linear functions.
          * Well, of course, a linear approximation to a linear function
          * is easy to find.
@@ -299,7 +258,7 @@ piecewise_linear_function piecewise_linear_approximator::logapprox(double i0, do
         res.endpoints.push_back(i1);
         ASSERT_ALWAYS(f_roots.size() == 1);
         double const r = f_roots.front();
-        double const v = double_poly_eval(f1, r);
+        double const v = f1(r);
         double const u = -r*v;
         res.equations.emplace_back(u, v);
         return res;

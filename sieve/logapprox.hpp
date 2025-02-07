@@ -4,7 +4,7 @@
 #include <list>     // for list
 #include <utility>  // for pair
 #include <vector>   // for vector
-#include "double_poly.h"  // for cxx_double_poly
+#include "polynomial.hpp"
 
 struct piecewise_linear_function {
     std::list<double> endpoints;
@@ -25,19 +25,19 @@ struct piecewise_linear_function {
 };
 
 class piecewise_linear_approximator {
-    cxx_double_poly const & f;
-    cxx_double_poly f1;
+    polynomial<double> const & f;
+    polynomial<double> f1;
     std::vector<double> f_roots;
     std::vector<double> f1_roots;
     double scale;
-    std::vector<double> roots_off_course(cxx_double_poly const& uv, bool divide_root=false, double r = 0) const;
+    std::vector<double> roots_off_course(polynomial<double> const& uv, bool divide_root=false, double r = 0) const;
     piecewise_linear_function expand_at_root(double r) const;
     piecewise_linear_function C0_from_points(std::list<double> const & r) const;
     /* This assumes that the interval [i0,i1] is free of roots of the
      * polynomial f */
     piecewise_linear_function fill_gap(double i0, double i1) const;
     public:
-    piecewise_linear_approximator(cxx_double_poly const & f, double scale);
+    piecewise_linear_approximator(polynomial<double> const & f, double scale);
     piecewise_linear_function logapprox(double i0, double i1) const;
 };
 

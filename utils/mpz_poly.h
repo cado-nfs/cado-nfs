@@ -8,15 +8,12 @@
 #include <gmp.h>
 
 #ifdef __cplusplus
-#include <sstream>
 #include <string>
 #include <vector>
 #include <utility>
 #include <istream>      // std::istream // IWYU pragma: keep
 #include <ostream>      // std::ostream // IWYU pragma: keep
 #include <type_traits>
-#include <string>
-#include <vector>
 #include <istream>      // std::istream // IWYU pragma: keep
 #include <ostream>      // std::ostream // IWYU pragma: keep
 #endif
@@ -25,7 +22,6 @@
 #include "fmt/ostream.h"
 #include "fmt/format.h"
 #endif
-#include "gmp_aux.h"
 
 #ifdef __cplusplus
 #include "cxx_mpz.hpp"
@@ -531,7 +527,7 @@ namespace fmt {
 }
 
 
-cxx_mpz_poly prod(std::vector<std::pair<cxx_mpz_poly, int>> const &lf, mpz_srcptr modulus = NULL, mpz_srcptr invm = NULL);
+cxx_mpz_poly prod(std::vector<std::pair<cxx_mpz_poly, int>> const &lf, mpz_srcptr modulus = nullptr, mpz_srcptr invm = nullptr);
 std::vector<std::pair<cxx_mpz_poly, int>> mpz_poly_factor(mpz_poly_srcptr f, mpz_srcptr p, gmp_randstate_t rstate);
 std::vector<std::pair<cxx_mpz_poly, int>> 
 mpz_poly_factor_and_lift_padically(mpz_poly_srcptr f, mpz_srcptr ell, int prec, gmp_randstate_t rstate);

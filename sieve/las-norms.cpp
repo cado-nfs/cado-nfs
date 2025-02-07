@@ -8,9 +8,12 @@
 #include <cmath>                  // for fabs, log2, sqrt, pow, trunc, ceil
 #include <cstdint>                // for int64_t, uint32_t
 #include <cstdarg>             // IWYU pragma: keep
+
 #include <iomanip>                // for operator<<, setprecision
+#include <ios>
 #include <list>                   // for _List_const_iterator, list
 #include <sstream>                // IWYU pragma: keep
+#include <string>
 #include <utility>                // for swap, pair
 
 #include <gmp.h> // IWYU pragma: keep // for gmp_vfprintf, mpz_srcptr, ...
@@ -19,7 +22,7 @@
 #include "mpz_poly.h"
 #include "cxx_mpz.hpp"
 #include "las-norms.hpp"
-#include "double_poly.h"
+#include "polynomial.hpp"
 #include "fb-types.h"             // for sublat_t
 #include "las-config.h"           // for LOG_BUCKET_REGION, LOGNORM_GUARD_BITS
 #include "las-qlattice.hpp"       // for qlattice_basis
@@ -115,29 +118,6 @@ static inline void memset_with_writeahead(void *s, int c, size_t n, size_t n0)
 
 
 /*}}}*/
-/* {{{ some utility stuff which I believe is now covered by double_poly, in
- * fact. Should check that.  */
-
-/* This computes u = scale^deg(f) * f(x/scale)
- * not the same as double_poly_scale, deleted in commit
- * c480fe82174a9de96e1cd35b2317fdf0de3678ab
- *
- * Note that this is a local function only, let's keep it here...
- */
-static inline void
-double_poly_reverse_scale(double_poly_ptr u, double_poly_srcptr f, const double scale)
-{
-    double_poly_realloc(u, f->deg + 1);
-    if (f->deg < 0) {
-        double_poly_set_zero(u);
-        return;
-    }
-    int d = f->deg;
-    u->coeff[d] = f->coeff[d];
-    for(double h = scale ; d-- ; h *= scale) u->coeff[d] = f->coeff[d] * h;
-    double_poly_cleandeg(u, f->deg);
-}
-/* }}} */
 
 
 /***********************************************************************/
@@ -151,38 +131,18 @@ double_poly_reverse_scale(double_poly_ptr u, double_poly_srcptr f, const double 
 /* {{{ get_maxnorm_aux (for x in (0,s)) */
 /* return max |g(x)| for x in (0, s) where s can be negative,
    and g(x) = g[d]*x^d + ... + g[1]*x + g[0] */
-static double get_maxnorm_aux (double_poly_srcptr poly, double s)
+static double get_maxnorm_aux (polynomial<double> const & poly, double s)
 {
-  double_poly derivative;
-  const int d = poly->deg;
+  const int d = poly.degree();
 
   ASSERT_ALWAYS(d >= 0);
 
   if (d == 0)
-    return fabs (poly->coeff[0]);
+    return fabs (poly[0]);
 
-  double *roots = (double*) malloc (poly->deg * sizeof (double));
-  FATAL_ERROR_CHECK(roots == NULL, "malloc failed");
-
-  /* Compute the derivative of polynomial */
-  double_poly_init (derivative, d - 1);
-  double_poly_derivative (derivative, poly);
-
-  /* Look for extrema of the polynomial, i.e., for roots of the derivative */
-  const unsigned int nr_roots = double_poly_compute_roots(roots, derivative, s);
-
-  /* now abscissae of all extrema of poly are 0, roots[0], ...,
-     roots[nr_roots-1], s */
-  double gmax = fabs (poly->coeff[0]);
-  for (unsigned int k = 0; k <= nr_roots; k++)
-    {
-      double const x = (k < nr_roots) ? roots[k] : s;
-      double const va = fabs (double_poly_eval (poly, x));
-      if (va > gmax)
-        gmax = va;
-    }
-  free (roots);
-  double_poly_clear(derivative);
+  double gmax = std::max(std::fabs (poly[0]), std::fabs(poly(s)));
+  for(auto x : poly.derivative().positive_roots(s))
+      gmax = std::max(gmax, poly(x));
   return gmax;
 }
 /* }}} */
@@ -190,11 +150,9 @@ static double get_maxnorm_aux (double_poly_srcptr poly, double s)
 /* {{{ get_maxnorm_aux_pm (for x in (-s,s)) */
 /* Like get_maxnorm_aux(), but for interval [-s, s] */
 static double
-get_maxnorm_aux_pm (double_poly_srcptr poly, double s)
+get_maxnorm_aux_pm (polynomial<double> const & poly, double s)
 {
-  double const norm1 = get_maxnorm_aux(poly, s);
-  double const norm2 = get_maxnorm_aux(poly, -s);
-  return (norm2 > norm1) ? norm2 : norm1;
+  return std::max(get_maxnorm_aux(poly, s), get_maxnorm_aux(poly, -s));
 }
 /* }}} */
 
@@ -214,29 +172,16 @@ get_maxnorm_aux_pm (double_poly_srcptr poly, double s)
  *     maximum is f[d]*X^d, and is attained in (a).
  */
 double
-get_maxnorm_rectangular (double_poly_srcptr src_poly, const double X,
+get_maxnorm_rectangular (polynomial<double> const & poly, const double X,
 			 const double Y)
 {
-  const unsigned int d = src_poly->deg;
-  double norm, max_norm;
+    double d = poly.degree();
+    /* (b) determine the maximum of |f(x)| * Y^d for -X/Y <= x <= X/Y */
+    double b = get_maxnorm_aux_pm (poly, X/Y) * std::pow(Y, d);
 
-  /* Make copy of polynomial as we need to revert the coefficients */
-  double_poly poly;
-  double_poly_init (poly, d);
-  double_poly_set (poly, src_poly);
-
-  /* (b) determine the maximum of |f(x)| * Y^d for -X/Y <= x <= X/Y */
-  max_norm = get_maxnorm_aux_pm (poly, X/Y) * pow(Y, (double)d);
-
-  /* (a) determine the maximum of |g(y)| for -1 <= y <= 1, with g(y) = F(s,y) */
-  double_poly_revert(poly, poly);
-  norm = get_maxnorm_aux_pm (poly, Y/X) * pow(X, (double)d);
-  if (norm > max_norm)
-    max_norm = norm;
-
-  double_poly_clear(poly);
-
-  return max_norm;
+    /* (a) determine the maximum of |g(y)| for -1 <= y <= 1, with g(y) = F(s,y) */
+    double a = get_maxnorm_aux_pm (poly.reciprocal(), Y/X) * std::pow(X, d);
+    return std::max(a, b);
 }
 /* }}} */
 /* }}} */
@@ -299,12 +244,12 @@ lognorm_base::lognorm_base(siever_config const & sc, cxx_cado_poly const & cpoly
         ASSERT_ALWAYS(mpz_poly_divisible_mpz(fij, Q.doing.p));
         mpz_poly_divexact_mpz(fij, fij, Q.doing.p);
     }
-    double_poly_set_mpz_poly(fijd, fij);
+    fijd = polynomial<double>(fij);
     // Take sublat into account: multiply all coefs by m^deg.
     // We do it only for the floating point version, that is used to
     // compute a bound on the norms, and in the norm_init phase.
     if (Q.sublat.m > 0)
-        double_poly_mul_double(fijd, fijd, pow(Q.sublat.m, fijd->deg));
+        fijd *= pow(Q.sublat.m, fijd.degree());
 
     int const I = 1 << logI;
 
@@ -373,28 +318,28 @@ unsigned char lognorm_base::lognorm(int i, unsigned int j) const {
     /* common definitions -- for the moment it's a macro, eventually I
      * expect it's gonna be something else, probably simply replicated
      * code, who knows... */
-#define LOGNORM_FILL_COMMON_DEFS()				         \
-    unsigned int log_lines_per_region = MAX(0, LOG_BUCKET_REGION - logI);\
-    unsigned int log_regions_per_line = MAX(0, logI - LOG_BUCKET_REGION);\
-    unsigned int regions_per_line = 1 << log_regions_per_line;           \
-    unsigned int region_rank_in_line = N & (regions_per_line - 1);       \
+#define LOGNORM_FILL_COMMON_DEFS()				        \
+    const unsigned int log_lines_per_region = MAX(0, LOG_BUCKET_REGION - logI);\
+    const unsigned int log_regions_per_line = MAX(0, logI - LOG_BUCKET_REGION);\
+    const unsigned int regions_per_line = 1 << log_regions_per_line;    \
+    const unsigned int region_rank_in_line = N & (regions_per_line - 1);\
     unsigned int j0 = (N >> log_regions_per_line) << log_lines_per_region;    \
-    unsigned int j1 = j0 + (1 << log_lines_per_region);                  \
-    int I = 1 << logI;						         \
-    int i0 = (region_rank_in_line << LOG_BUCKET_REGION) - I/2;           \
-    int i1 = i0 + (1 << MIN(LOG_BUCKET_REGION, logI));                   \
+    const unsigned int j1 = j0 + (1 << log_lines_per_region);           \
+    const int I = 1 << logI;						\
+    const int i0 = (region_rank_in_line << LOG_BUCKET_REGION) - I/2;    \
+    const int i1 = i0 + (1 << MIN(LOG_BUCKET_REGION, logI));            \
     do {} while (0)
 
 #define LOGNORM_COMMON_HANDLE_ORIGIN() do {				\
-    bool has_haxis = !j0;                                               \
-    bool has_vaxis = region_rank_in_line == ((regions_per_line-1)/2);   \
-    bool has_origin = has_haxis && has_vaxis;                           \
+    const bool has_haxis = !j0;                                         \
+    const bool has_vaxis = region_rank_in_line == ((regions_per_line-1)/2);   \
+    const bool has_origin = has_haxis && has_vaxis;                     \
     if (UNLIKELY(has_origin)) {						\
 	/* compute only the norm for i = 1. Everybody else is 255. */	\
         memset(S, 255, i1-i0);						\
         if (has_origin) {						\
-            double norm = (log2(fabs(fijd->coeff[fijd->deg]))) * scale;	\
-            S[1 - i0] = LOGNORM_GUARD_BITS + (unsigned char) (norm);			\
+            const double norm = (log2(fabs(fijd.lc()))) * scale;	\
+            S[1 - i0] = LOGNORM_GUARD_BITS + (unsigned char) (norm);	\
         }								\
         /* And now make sure we start at the next line */		\
         S+=I;								\
@@ -459,15 +404,15 @@ static void lognorm_fill_rat_reference(
         uint32_t N,
         int logI,
         double scale,
-        cxx_double_poly const & fijd,
+        polynomial<double> const & fijd,
         double maxlog2,
         const unsigned char * L) /* L = lognorm_table */
 {
     LOGNORM_FILL_COMMON_DEFS();
     LOGNORM_COMMON_HANDLE_ORIGIN();
 
-    double const u0 = fijd->coeff[0];
-    double const u1 = fijd->coeff[1];
+    double const u0 = fijd[0];
+    double const u1 = fijd[1];
 
     int const l = lognorm_reference::NORM_BITS - (int) ceil(log2(maxlog2));
 
@@ -498,7 +443,7 @@ static void lognorm_fill_rat_reference(
 /* {{{ void lognorm_fill_alg_reference */
 /* Exact initialisation of F(i,j) with degre >= 2 (not mandatory). Slow.
    Internal function, only with simple types, for unit/integration testing. */
-static void lognorm_fill_alg_reference (unsigned char *S, uint32_t N, int logI, double scale, cxx_double_poly const & fijd)
+static void lognorm_fill_alg_reference (unsigned char *S, uint32_t N, int logI, double scale, polynomial<double> const & fijd)
 {
     LOGNORM_FILL_COMMON_DEFS();
     LOGNORM_COMMON_HANDLE_ORIGIN();
@@ -506,18 +451,18 @@ static void lognorm_fill_alg_reference (unsigned char *S, uint32_t N, int logI, 
     double const modscale = scale/0x100000;
     const double offset = 0x3FF00000 - LOGNORM_GUARD_BITS / modscale;
 
-    cxx_double_poly u;
+    polynomial<double> u;
     for (unsigned int j = j0 ; j < j1 ; j++) {
-        double_poly_reverse_scale(u, fijd, j);
+        u = fijd.reverse_scale(j);
         for(int i = i0; i < i0 + I; i++) {
-            *S++ = lg2(fabs(double_poly_eval (u, i)), offset, modscale);
+            *S++ = lg2(std::fabs(u(i)), offset, modscale);
         }
     }
 }
 /* }}} */
 void lognorm_reference::fill(unsigned char * S, int N) const/*{{{*/
 {
-    if (fijd->deg == 1)
+    if (fijd.degree() == 1)
         lognorm_fill_rat_reference(S, N, logI, scale, fijd, maxlog2, lognorm_table);
     else
         lognorm_fill_alg_reference(S, N, logI, scale, fijd);
@@ -535,7 +480,7 @@ lognorm_smart::lognorm_smart(siever_config const & sc, cxx_cado_poly const & cpo
     for (int i = 0; i < 257 ; i++)
         cexp2[i] = lg2_reciprocal((i-LOGNORM_GUARD_BITS)/scale);
 
-    if (fijd->deg > 1) {
+    if (fijd.degree() > 1) {
         int const I = 1 << logI;
         // fmt::print("Computing lognorm approximation for {} over interval [{},{}]\n", fij, -(I/2), (I/2));
         piecewise_linear_approximator A(fijd, log(2)/scale);
@@ -552,7 +497,7 @@ static inline double compute_y(double G, double offset, double modscale) {
 /* Initialize lognorms of the bucket region S[] number N, for F(i,j) with
  * degree = 1.
  */
-static void lognorm_fill_rat_smart_inner (unsigned char *S, int i0, int i1, unsigned int j0, unsigned int j1, double scale, cxx_double_poly const & fijd, const double *cexp2)
+static void lognorm_fill_rat_smart_inner (unsigned char *S, int i0, int i1, unsigned int j0, unsigned int j1, double scale, polynomial<double> const & fijd, const double *cexp2)
 {
     double const modscale = scale / 0x100000;
     double const offset = 0x3FF00000 - LOGNORM_GUARD_BITS / modscale;
@@ -569,8 +514,8 @@ static void lognorm_fill_rat_smart_inner (unsigned char *S, int i0, int i1, unsi
      * we have 0 <= log2(z) - L(z) < 0.0861, for any real z > 0.
      */
 
-    double const u0 = fijd->coeff[0];
-    double const u1 = fijd->coeff[1];
+    double const u0 = fijd[0];
+    double const u1 = fijd[1];
 
     if (UNLIKELY(u1 == 0)) {
         /* constant approximating functions do occur, see bug 21684. This
@@ -708,7 +653,7 @@ static void lognorm_fill_rat_smart_inner (unsigned char *S, int i0, int i1, unsi
 #undef COMPUTE_Y
 }
 
-static void lognorm_fill_rat_smart (unsigned char *S, uint32_t N, int logI, double scale, cxx_double_poly const & fijd, const double *cexp2)
+static void lognorm_fill_rat_smart (unsigned char *S, uint32_t N, int logI, double scale, polynomial<double> const & fijd, const double *cexp2)
 {
     LOGNORM_FILL_COMMON_DEFS();
     LOGNORM_COMMON_HANDLE_ORIGIN();
@@ -716,7 +661,7 @@ static void lognorm_fill_rat_smart (unsigned char *S, uint32_t N, int logI, doub
 }
 /* }}} */
 
-static void lognorm_fill_alg_smart (unsigned char *S, uint32_t N, int logI, double scale, cxx_double_poly const & fijd, piecewise_linear_function const & G, const double *cexp2) /* {{{ */
+static void lognorm_fill_alg_smart (unsigned char *S, uint32_t N, int logI, double scale, polynomial<double> const & fijd, piecewise_linear_function const & G, const double *cexp2) /* {{{ */
 {
     LOGNORM_FILL_COMMON_DEFS();
     LOGNORM_COMMON_HANDLE_ORIGIN();
@@ -734,12 +679,10 @@ static void lognorm_fill_alg_smart (unsigned char *S, uint32_t N, int logI, doub
          */
         auto it = G.endpoints.begin();
         double r0 = *it++;
-        cxx_double_poly uv_pol(1);
-        uv_pol->deg = 1;
         // int i = i0;
         double mj1 = j;
-        ASSERT(fijd->deg > 1);
-        for(int d = fijd->deg ; --d > 1 ; )
+        ASSERT(fijd.degree() > 1);
+        for(int d = fijd.degree() ; --d > 1 ; )
             mj1 *= j;
         for(std::pair<double, double> const & uv : G.equations) {
             double const r1 = *it++;
@@ -750,9 +693,9 @@ static void lognorm_fill_alg_smart (unsigned char *S, uint32_t N, int logI, doub
             // ASSERT(Gi0 >= i);
             if (Gi1 > Gi0) {
                 // ASSERT(Gi0 == i);
-                uv_pol->coeff[0] = uv.first * mj1;
-                uv_pol->coeff[1] = uv.second * mj1;
-                lognorm_fill_rat_smart_inner(S, Gi0, Gi1, j, j+1, scale, uv_pol, cexp2);
+                lognorm_fill_rat_smart_inner(S, Gi0, Gi1, j, j+1, scale, 
+                        polynomial<double> { uv.first, uv.second } * mj1,
+                        cexp2);
                 S += Gi1 - Gi0;
                 // i = Gi1;
             }
@@ -764,7 +707,7 @@ static void lognorm_fill_alg_smart (unsigned char *S, uint32_t N, int logI, doub
 
 void lognorm_smart::fill(unsigned char * S, int N) const/*{{{*/
 {
-    if (fijd->deg > 1)
+    if (fijd.degree() > 1)
         lognorm_fill_alg_smart(S, N, logI, scale, fijd, G, cexp2);
     else
         lognorm_fill_rat_smart(S, N, logI, scale, fijd, cexp2);
@@ -785,54 +728,42 @@ void lognorm_smart::fill(unsigned char * S, int N) const/*{{{*/
    X * f'(u*X/Y) * (1+u^2) - d * Y * u * f(u*X/Y).
 */
 static double
-get_maxnorm_circular (double_poly_srcptr src_poly, const double X,
+get_maxnorm_circular (polynomial<double> const & src_poly, const double X,
 		      const double Y)
 {
-  const unsigned int d = src_poly->deg;
-  double_poly poly;
-  double *roots, x, y, v, max_norm, t;
-  unsigned int nr, i;
-
-  double_poly_init (poly, d + 1);
+  const int d = src_poly.degree();
+  polynomial<double> poly;
+  double x, y, v, max_norm, t;
 
   /* first compute X * f'(u*X/Y) * (1+u^2) */
-  poly->coeff[0] = 0.0;
-  poly->coeff[1] = 0.0;
-  for (i = 1; i <= d; i++)
+  poly[0] = 0.0;
+  poly[1] = 0.0;
+  for (int i = 1; i <= d; i++)
     {
       t = pow (X / Y, (double) i - 1.0);
       /* the following will set coefficients of degree 2, 3, ..., d+1 */
-      poly->coeff[i + 1] = X * (double) i * src_poly->coeff[i] * t;
+      poly[i + 1] = X * (double) i * src_poly[i] * t;
       /* the following will add to coefficients of degree 0, 1, ..., d-1 */
-      poly->coeff[i - 1] += X * (double) i * src_poly->coeff[i] * t;
+      poly[i - 1] += X * (double) i * src_poly[i] * t;
     }
 
   /* now subtract d * Y * u * f(u*X/Y) */
-  for (i = 0; i <= d; i++)
+  for (int i = 0; i <= d; i++)
     {
-      t = src_poly->coeff[i] * pow (X / Y, (double) i);
-      poly->coeff[i + 1] -= (double) d * Y * t;
+      t = src_poly[i] * pow (X / Y, (double) i);
+      poly[i + 1] -= (double) d * Y * t;
     }
-  double_poly_cleandeg(poly, d + 1);
 
-  roots = (double*) malloc ((d + 2) * sizeof (double));
-  nr = double_poly_compute_all_roots (roots, poly);
+  auto roots = poly.roots();
 
   /* evaluate at y=0 */
-  max_norm = fabs (src_poly->coeff[d] * pow (X, (double) d));
-  for (i = 0; i < nr; i++)
-    {
-      double const u = roots[i];
+  max_norm = fabs (src_poly[d] * pow (X, (double) d));
+  for (const auto u : roots) {
       x = X * u / sqrt (1.0 + u * u);
       y = Y / sqrt (1.0 + u * u);
-      v = double_poly_eval (src_poly, x / y) * pow (y, (double) d);
-      v = fabs (v);
-      if (v > max_norm)
-	max_norm = v;
-    }
-
-  free (roots);
-  double_poly_clear(poly);
+      v = fabs (src_poly(x, y));
+      max_norm = std::max(max_norm, fabs(v));
+  }
 
   return max_norm;
 }
@@ -855,7 +786,7 @@ void sieve_range_adjust::prepare_fijd()/*{{{*/
             ASSERT_ALWAYS(mpz_poly_divisible_mpz(fz, Q.doing.p));
             mpz_poly_divexact_mpz(fz, fz, Q.doing.p);
         }
-        double_poly_set_mpz_poly(fijd[side], fz);
+        fijd[side] = polynomial<double>(fz);
     }
 }/*}}}*/
 
@@ -893,7 +824,7 @@ sieve_range_adjust::sieve_info_update_norm_data_Jmax (bool keep_logI)
   const double fudge_factor = 2.0;
   if (!keep_logI)
       logI = (logA+1)/2;
-  const double I = (double) (1 << logI);
+  const auto I = (double) (1 << logI);
   const double q = mpz_get_d(Q.doing.p);
   const double skew = cpoly->skew;
   const double A = (1 << logI)*sqrt(q*skew);
@@ -907,14 +838,11 @@ sieve_range_adjust::sieve_info_update_norm_data_Jmax (bool keep_logI)
     {
       /* Compute the best possible maximum norm, i.e., assuming a nice
          circular sieve region in the a,b-plane */
-      double_poly dpoly;
-      double_poly_init (dpoly, cpoly->pols[side]->deg);
-      double_poly_set_mpz_poly (dpoly, cpoly->pols[side]);
+      polynomial<double> dpoly(cpoly->pols[side]);
       if (Q.sublat.m > 0)
-          double_poly_mul_double(dpoly, dpoly, pow(Q.sublat.m, cpoly->pols[side]->deg));
+          dpoly *= pow(Q.sublat.m, cpoly->pols[side]->deg);
       double maxnorm = get_maxnorm_circular (dpoly, fudge_factor*A/2.,
               fudge_factor*B);
-      double_poly_clear (dpoly);
       if (side == Q.doing.side)
         maxnorm /= q;
 
@@ -948,7 +876,7 @@ sieve_range_adjust::sieve_info_update_norm_data_Jmax (bool keep_logI)
  * eventually)
  */
 sieve_range_adjust::vec<double> operator*(sieve_range_adjust::vec<double> const& a, sieve_range_adjust::mat<int> const& m) {
-    return sieve_range_adjust::vec<double>(a[0]*m(0,0)+a[1]*m(1,0),a[0]*m(0,1)+a[1]*m(1,1));
+    return {a[0]*m(0,0)+a[1]*m(1,0), a[0]*m(0,1)+a[1]*m(1,1)};
 }
 
 qlattice_basis operator*(sieve_range_adjust::mat<int> const& m, qlattice_basis const& Q) {
@@ -1013,7 +941,7 @@ double sieve_range_adjust::estimate_yield_in_sieve_area(mat<int> const& shuffle,
             double sprod = 0;
             double p0 = 1;
             for(int side = 0 ; side < nsides ; side++) {
-                double const z = double_poly_eval_homogeneous(fijd[side], xys[0], xys[1]);
+                double const z = fijd[side].eval(xys[0], xys[1]);
                 double const a = log2(fabs(z));
                 double const d = dickman_rho_local(a/conf.sides[side].lpb, fabs(z));
                 verbose_output_print(0, 4, " %d %e %e", side, z, d);
@@ -1259,7 +1187,7 @@ int sieve_range_adjust::round_to_full_bucket_regions(const char * origin, std::s
 /*}}}*/
 
  
-uint32_t sieve_range_adjust::get_minimum_J()
+uint32_t sieve_range_adjust::get_minimum_J() const
 {
     /* no longer dependent on the number of threads */
     return 1 << MAX(1, (LOG_BUCKET_REGION - logI));

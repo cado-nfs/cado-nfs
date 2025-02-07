@@ -8,11 +8,12 @@
 
 #include <gmp.h>                  // for mpz_ptr
 #include "cado_poly.h"   // cxx_cado_poly
-#include "double_poly.h"
+#include "polynomial.hpp"
 #include "las-config.h"           // for LOG_BUCKET_REGION
 #include "las-qlattice.hpp"       // for qlattice_basis
 #include "las-siever-config.hpp"  // for siever_config
 #include "logapprox.hpp"          // for piecewise_linear_function
+#include "polynomial.hpp"
 #include "macros.h"               // for MAYBE_UNUSED
 #include "mpz_poly.h"
 
@@ -22,7 +23,7 @@ struct las_todo_entry; // IWYU pragma: keep
 #define ADJUST_STRATEGY2_MIN_SQUEEZE 0
 #define ADJUST_STRATEGY2_MAX_SQUEEZE 3
 
-double get_maxnorm_rectangular (double_poly_srcptr src_poly, const double X, const double Y);
+double get_maxnorm_rectangular (polynomial<double> const & src_poly, double X, double Y);
 
 struct lognorm_base {/*{{{*/
     int logI, J;
@@ -37,7 +38,7 @@ struct lognorm_base {/*{{{*/
     cxx_mpz_poly fij;  /* coefficients of F(a0*i+a1*j, b0*i+b1*j)
                         * (divided by q on the special-q side) */
 
-    cxx_double_poly fijd;      /* coefficients of F_q (divided by q
+    polynomial<double> fijd;      /* coefficients of F_q (divided by q
                                 * on the special q side) */
 
     double scale;      /* scale used for logarithms for fb and norm.
@@ -116,7 +117,7 @@ private:
                                  */
     cado_poly_srcptr cpoly;
     // int nb_threads;  // no longer needed.
-    std::vector<cxx_double_poly> fijd;
+    std::vector<polynomial<double>> fijd;
     int logA;
 public:
     int logI;
@@ -164,7 +165,7 @@ public:
     // a fall-back measure for desperate cases.
     // XXX when estimated_yield() wins, this will probably no longer be
     // necessary.
-    uint32_t get_minimum_J();
+    uint32_t get_minimum_J() const;
     void set_minimum_J_anyway();
 
     siever_config const& config() const { return conf; }

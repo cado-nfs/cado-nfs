@@ -18,6 +18,7 @@
 #include <istream>
 #include <cctype>
 #include <ios>
+#include <initializer_list>
 
 #include <gmp.h>
 #include "fmt/format.h"
@@ -92,6 +93,7 @@ struct polynomial {
         return *this;
     }
     explicit polynomial(T v) : coeffs(1, v) { cleandeg(); }
+    polynomial(std::initializer_list<T> l) : coeffs(l.begin(), l.end()) {}
 
     explicit operator cxx_mpz_poly() const {
         cxx_mpz_poly res;
@@ -151,6 +153,7 @@ struct polynomial {
                     return r;
         }
     }
+    T operator()(T x) const { return eval(x); }
 
     /* Evaluate the homogenous polynomial induced by f at the pair
      * (x,y). That is, compute the sum f[i]*x^i*y^(n-i), where n is
@@ -176,6 +179,7 @@ struct polynomial {
                     return s;
         }
     }
+    T operator()(T x, T y) const { return eval(x, y); }
 
     /* uses arbitrary precision */
     T eval_safe(T x) const
@@ -352,6 +356,20 @@ struct polynomial {
         h.coeffs.reserve(coeffs.size());
         for(int i = 0 ; i <= degree() ; i++)
             h[degree()-i] = coeffs[i];
+        return h;
+    }
+
+    /* This computes u = scale^deg(f) * f(x/scale)
+     * not the same as double_poly_scale, deleted in commit
+     * c480fe82174a9de96e1cd35b2317fdf0de3678ab
+     */
+    polynomial reverse_scale(double scale) const
+    {
+        polynomial h;
+        int d = degree();
+        h.coeffs.reserve(coeffs.size());
+        h[d] = lc();
+        for(T s = scale ; d-- ; s *= scale) h[d] = coeffs[d] * s;
         return h;
     }
 
