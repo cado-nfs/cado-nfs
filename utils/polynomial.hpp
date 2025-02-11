@@ -7,18 +7,19 @@
  * be possible to use this type more generically
  */
 
-#include <string>      // for string
+#include <algorithm>
+#include <cctype>
+#include <cmath>
+#include <cstddef>
+#include <initializer_list>
+#include <ios>
+#include <istream>
 #include <ostream>
+#include <sstream>
+#include <string>      // for string
 #include <type_traits>
 #include <utility>
 #include <vector>
-#include <cstddef>
-#include <cmath>
-#include <sstream>
-#include <istream>
-#include <cctype>
-#include <ios>
-#include <initializer_list>
 
 #include <gmp.h>
 #include "fmt/format.h"
@@ -81,6 +82,14 @@ struct polynomial {
     polynomial(polynomial &&) = default;
     polynomial& operator=(polynomial const&) = default;
     polynomial& operator=(polynomial &&) = default;
+
+    /* all instantations love each other */
+    template<typename U> friend struct polynomial;
+    TEMPLATE_ENABLED_ON_TEMPLATE_ARG(
+            typename U,
+            (!std::is_same<U, T>::value))
+        polynomial(polynomial<U> const & a)
+        : coeffs { a.coeffs.begin(), a.coeffs.end() } {}
 
     void set_zero() { coeffs.clear(); }
     void set_xi(unsigned int i) {
@@ -594,6 +603,7 @@ struct polynomial {
         const auto positive = positive_roots();
 
         w.insert(w.end(), positive.begin(), positive.end());
+        std::sort(w.begin(), w.end());
 
         return w;
     }
@@ -724,7 +734,7 @@ struct polynomial {
 #if __cplusplus >= 202002L
     int operator<=>(polynomial const & f) const { return spaceship(f); }
 #endif
-    bool operator==(polynomial const & f) const { return operator<=>(f) == 0; }
+    bool operator==(polynomial const & f) const { return spaceship(f) == 0; }
     bool operator!=(polynomial const & f) const { return !operator==(f); }
     bool operator<(polynomial const & f) const { return spaceship(f) < 0; }
     bool operator<=(polynomial const & f) const { return spaceship(f) <= 0; }

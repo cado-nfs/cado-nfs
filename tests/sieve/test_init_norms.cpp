@@ -23,6 +23,7 @@
 #include "cado_poly.h"            // for cxx_cado_poly, cado_poly_read, cado...
 #include "cxx_mpz.hpp"            // for cxx_mpz
 #include "las-config.h"
+#include "las-coordinates.hpp"
 #include "las-norms.hpp"
 #include "las-qlattice.hpp"       // for qlattice_basis
 #include "las-siever-config.hpp"  // for siever_config
@@ -257,6 +258,11 @@ int main(int argc0, char const * argv0[])
         }
     }
 
+    /* only the smart layer defines a per-object stats info (number of
+     * logapprox endpoints).
+     */
+    size_t impl_stats[NCODES][2] = {{0,}};
+
     if (okrange)
         ensure_qrange_has_prime_ideals(q0, q1, cpoly->pols[sqside]);
 
@@ -343,16 +349,17 @@ int main(int argc0, char const * argv0[])
         }
         verbose_output_print(0, 2, "# I=%u; J=%u\n", 1U << conf.logI, Adj.J);
 
-        std::shared_ptr<lognorm_base> lognorms[NCODES][2];
+        std::unique_ptr<lognorm_base> lognorms[NCODES][2];
 
         for(int const side : sides) {
             for(size_t c = 0 ; c < impls.size() ; c++) {
                 std::string const & s(impls[c]);
                 if (s == "reference") {
-                    lognorms[c][side] = std::make_shared<lognorm_reference>(conf, cpoly, side, Adj.Q, Adj.logI, Adj.J);
+                    lognorms[c][side].reset(new lognorm_reference(conf, cpoly, side, Adj.Q, Adj.logI, Adj.J));
                 } else if (s == "smart") {
-                    /* For the moment we keep the "smart" code... */
-                    lognorms[c][side] = std::make_shared<lognorm_smart>(conf, cpoly, side, Adj.Q, Adj.logI, Adj.J);
+                    lognorms[c][side].reset(
+                            new lognorm_smart(conf, cpoly, side, Adj.Q, Adj.logI, Adj.J));
+                    impl_stats[c][side] += dynamic_cast<lognorm_smart*>(lognorms[c][side].get())->G.endpoints.size();
                 } else {
                     fprintf(stderr, "no such implementation: %s\n", s.c_str());
                     exit(EXIT_FAILURE);
@@ -371,20 +378,20 @@ int main(int argc0, char const * argv0[])
 
         /* do a correctness check */
         for(int const side : sides) {
-            int const N = (check_bucket >= 0) ? check_bucket : (int) gmp_urandomm_ui(rstate, iceildiv(I*J, B));     
+            unsigned int const N = (check_bucket >= 0) ? check_bucket : (unsigned int) gmp_urandomm_ui(rstate, iceildiv(I*J, B));     
             for(size_t c = 0 ; c < impls.size() ; c++) {
                 lognorms[c][side]->fill(S[c], N);
                 if (c == 0) continue;
                 int dmin=INT_MAX;
                 int dmax=INT_MIN;
-                int idmin=-1;
-                int idmax=-1;
+                unsigned int xdmin = UINT_MAX;
+                unsigned int xdmax = UINT_MAX;
                 double d1=0;
                 double d2=0;
-                for(int i = 0 ; i < B ; i++) {
-                    int const d = (int) S[c][i] - (int) S[0][i];
-                    if (d < dmin) { dmin = d; idmin = i; }
-                    if (d > dmax) { dmax = d; idmax = i; }
+                for(int x = 0 ; x < B ; x++) {
+                    int const d = (int) S[c][x] - (int) S[0][x];
+                    if (d < dmin) { dmin = d; xdmin = x; }
+                    if (d > dmax) { dmax = d; xdmax = x; }
                     d1 += d;
                     d2 += d*d;
                 }
@@ -395,10 +402,23 @@ int main(int argc0, char const * argv0[])
                 if (dmin < -hush_max_jitter || dmax > hush_max_jitter) {
                     d1 /= B;
                     d2 /= B;
-                    fprintf(stderr, "Norm computation disagree for side %d (region %d, %s vs %s); min %d (@%d) max %d (@%d) avg %.1f sdev %.1f\n",
+                    int imin; unsigned int jmin; double zmin;
+                    convert_Nx_to_ij(imin, jmin, N, xdmin, logI);
+                    zmin = (double) imin / jmin;
+                    int imax; unsigned int jmax; double zmax;
+                    convert_Nx_to_ij(imax, jmax, N, xdmax, logI);
+                    zmax = (double) imax / jmax;
+
+                    fprintf(stderr, "Norm computation disagree for side %d"
+                            " (region %d, %s vs %s);\n",
                             side, N,
-                            impls[c].c_str(), impls[0].c_str(),
-                            dmin, idmin, dmax, idmax, d1, sqrt(d2 - d1*d1));
+                            impls[c].c_str(), impls[0].c_str());
+                        fprintf(stderr, " min %d (@%d == %d,%u ~ %.2f)\n",
+                            dmin, xdmin, imin, jmin, zmin);
+                        fprintf(stderr, " max %d (@%d == %d,%u ~ %.2f)\n",
+                            dmax, xdmax, imax, jmax, zmax);
+                        fprintf(stderr, " avg %.1f sdev %.1f\n",
+                            d1, sqrt(d2 - d1*d1));
                 }
                 if (MAX(-dmin, dmax) > abort_on_jitter[side]) {
                     gmp_fprintf(stderr,
@@ -463,6 +483,17 @@ int main(int argc0, char const * argv0[])
 
     if (nfills_speed_test) {
         size_t const n = nfills_speed_test * nq_max;
+        for(int const side : sides) {
+            for(size_t c = 0 ; c < impls.size() ; c++) {
+                if (impl_stats[c][side]) {
+                    fmt::print("# side {}, {}: approximation using {} lines"
+                            " (avg over {} q's)\n",
+                            side, impls[c],
+                            double(impl_stats[c][side]) / nq_max,
+                            nq_max);
+                }
+            }
+        }
         printf("\n# microseconds per bucket region [average over %zu fills, min-max over %d fills]\n", n, nfills_speed_test);
         for(int const side : sides) {
             for(size_t c = 0 ; c < impls.size() ; c++) {

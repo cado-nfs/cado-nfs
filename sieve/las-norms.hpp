@@ -5,10 +5,11 @@
 #include <cstring>               // for memset
 #include <ostream>                // for operator<<, ostream
 #include <string>                 // for string
+#include <vector>
+#include <array>
 
 #include <gmp.h>                  // for mpz_ptr
 #include "cado_poly.h"   // cxx_cado_poly
-#include "polynomial.hpp"
 #include "las-config.h"           // for LOG_BUCKET_REGION
 #include "las-qlattice.hpp"       // for qlattice_basis
 #include "las-siever-config.hpp"  // for siever_config
@@ -26,7 +27,8 @@ struct las_todo_entry; // IWYU pragma: keep
 double get_maxnorm_rectangular (polynomial<double> const & src_poly, double X, double Y);
 
 struct lognorm_base {/*{{{*/
-    int logI, J;
+    int logI;
+    uint32_t J;
 
     unsigned char bound; /* A sieve array entry is a sieve survivor if it is
                             at most "bound" on each side */
@@ -38,8 +40,9 @@ struct lognorm_base {/*{{{*/
     cxx_mpz_poly fij;  /* coefficients of F(a0*i+a1*j, b0*i+b1*j)
                         * (divided by q on the special-q side) */
 
-    polynomial<double> fijd;      /* coefficients of F_q (divided by q
+    polynomial<double> fijd;   /* coefficients of F_q (divided by q
                                 * on the special q side) */
+    polynomial<long double> fijld; /* same with long double */
 
     double scale;      /* scale used for logarithms for fb and norm.
                         * must be of form (int)x * 0.1 */
@@ -47,13 +50,13 @@ struct lognorm_base {/*{{{*/
     lognorm_base() = default;
     lognorm_base(lognorm_base const &) = default;
     lognorm_base& operator=(lognorm_base const &) = default;
-    lognorm_base(siever_config const & sc, cxx_cado_poly const & cpoly, int side, qlattice_basis const & Q, int logI, int J);
-    virtual ~lognorm_base() {}
+    lognorm_base(siever_config const & sc, cxx_cado_poly const & cpoly, int side, qlattice_basis const & Q, int logI, uint32_t J);
+    virtual ~lognorm_base() = default;
 
     void norm(mpz_ptr x, int i, unsigned int j) const;
     unsigned char lognorm(int i, unsigned int j) const;
 
-    virtual void fill(unsigned char * S, int N MAYBE_UNUSED) const {
+    virtual void fill(unsigned char * S, unsigned int N MAYBE_UNUSED) const {
         /* Whether we put something or not here is not really important.
          * A no-op would do as well. */
         memset(S, 255, 1U << LOG_BUCKET_REGION);
@@ -72,14 +75,17 @@ struct lognorm_reference : public lognorm_base {/*{{{*/
      * This imposes NORM_BITS >= 8, or even >= 9 for large factorizations. */
     static const int NORM_BITS = 10;
 
-    unsigned char lognorm_table[1 << NORM_BITS];
+    std::array<unsigned char, 1 << NORM_BITS> lognorm_table {};
 
     lognorm_reference() = default;
     lognorm_reference(lognorm_reference const &) = default;
     lognorm_reference& operator=(lognorm_reference const &) = default;
-    lognorm_reference(siever_config const & sc, cxx_cado_poly const & cpoly, int side, qlattice_basis const & Q, int logI, int J);
-    virtual ~lognorm_reference() {}
-    virtual void fill(unsigned char * S, int N) const;
+    lognorm_reference(siever_config const & sc, cxx_cado_poly const & cpoly, int side, qlattice_basis const & Q, int logI, uint32_t J);
+    ~lognorm_reference() override = default;
+    void fill(unsigned char * S, unsigned int N) const override;
+    private:
+    void fill_alg(unsigned char * S, uint32_t N) const;
+    void fill_rat(unsigned char * S, uint32_t N) const;
 };
 
 /*}}}*/
@@ -87,7 +93,10 @@ struct lognorm_smart : public lognorm_base {/*{{{*/
     /* This table depends on the scale of the logarithm, so clearly it
      * can't be shared between sides.
      */
-    double cexp2[257];
+    std::array<double, 257> cexp2 {};
+    private:
+    static std::array<double, 257> cexp2_init(double scale);
+    public:
     /* For degree>1 only: a piecewise linear approximation of the
      * polynomial, which is within an multiplicative factor of the
      * original one on the segment [-I,I]x{1}.
@@ -98,9 +107,13 @@ struct lognorm_smart : public lognorm_base {/*{{{*/
     lognorm_smart& operator=(lognorm_smart const &) = default;
     lognorm_smart(lognorm_smart &&) = default;
     lognorm_smart & operator=(lognorm_smart &&) = default;
-    lognorm_smart(siever_config const & sc, cxx_cado_poly const & cpoly, int side, qlattice_basis const & Q, int logI, int J);
-    virtual ~lognorm_smart() {}
-    virtual void fill(unsigned char * S, int N) const;
+    lognorm_smart(siever_config const & sc, cxx_cado_poly const & cpoly, int side, qlattice_basis const & Q, int logI, uint32_t J);
+    ~lognorm_smart() override = default;
+    void fill(unsigned char * S, unsigned int N) const override;
+    private:
+    void fill_rat_inner (unsigned char *S, int i0, int i1, unsigned int j0, unsigned int j1, polynomial<double> const & fijd) const;
+    void fill_alg(unsigned char * S, uint32_t N) const;
+    void fill_rat(unsigned char * S, uint32_t N) const;
 };
 
 /*}}}*/
@@ -115,13 +128,13 @@ private:
                                  * sieving fields, since by design these
                                  * can be decided *after* the adjustment.
                                  */
-    cado_poly_srcptr cpoly;
+    cxx_cado_poly const & cpoly;
     // int nb_threads;  // no longer needed.
     std::vector<polynomial<double>> fijd;
     int logA;
 public:
-    int logI;
-    uint32_t J;
+    int logI = 0;
+    uint32_t J = 0;
 
 #if 0
     sieve_range_adjust(las_todo_entry const & doing, las_info const & las)
@@ -142,15 +155,13 @@ public:
      *
      * Note that the ctor for qlattice_basis calls SkewGauss
      */
-    sieve_range_adjust(las_todo_entry const & doing, cado_poly_srcptr cpoly, siever_config const & conf)
-        : Q(doing, cpoly->skew), conf(conf), cpoly(cpoly)
+    sieve_range_adjust(las_todo_entry const & doing, cxx_cado_poly const & cpoly, siever_config const & conf)
+        : Q(doing, cpoly->skew)
+        , conf(conf)
+        , cpoly(cpoly)
+        , logA(conf.logA)
     {
-        logA = conf.logA;
-        logI = J = 0;
     }
-    sieve_range_adjust() = default;
-    sieve_range_adjust(sieve_range_adjust&&) = default;
-    sieve_range_adjust& operator=(sieve_range_adjust&&) = default;
 
     /* There are three strategies to do a post-SkewGauss adjustment of
      * the q-lattice basis.  */
@@ -171,11 +182,11 @@ public:
     siever_config const& config() const { return conf; }
 private:
     template<typename T> struct mat {
-        T x[4];
+        std::array<T, 4> x;
         T const& operator()(int i, int j) const { return x[2*i+j]; }
         T & operator()(int i, int j) { return x[2*i+j]; }
-        mat(T a, T b, T c, T d) { x[0]=a; x[1]=b; x[2]=c; x[3]=d; }
-        mat(T y[4]) { x[0]=y[0]; x[1]=y[1]; x[2]=y[2]; x[3]=y[3]; }
+        mat(T a, T b, T c, T d) : x { a, b, c, d } {}
+        explicit mat(T y[4]) : x { y[0], y[1], y[2], y[3] } {}
         std::ostream& print_me(std::ostream& o) const {
             o << "["
                 << x[0] << ", "
@@ -186,9 +197,9 @@ private:
         }
     };
     template<typename T> struct vec {
-        T x[2];
-        vec(T a, T b) { x[0] = a; x[1] = b; }
-        vec(T y[2]) { x[0] = y[0]; x[1] = y[1]; }
+        std::array<T, 2> x;
+        vec(T a, T b) : x { a, b } {}
+        explicit vec(T y[2]) : x { y[0], y[1] } {}
         T const& operator[](int i) const { return x[i]; }
         T & operator[](int i) { return x[i]; }
         T const& operator()(int i) const { return x[i]; }
@@ -204,7 +215,7 @@ private:
     friend qlattice_basis operator*(sieve_range_adjust::mat<int> const& m, qlattice_basis const& Q) ;
     void prepare_fijd();
     int round_to_full_bucket_regions(const char *, std::string const & s = std::string());
-    double estimate_yield_in_sieve_area(mat<int> const& shuffle, int squeeze, int N);
+    double estimate_yield_in_sieve_area(mat<int> const& shuffle, int squeeze, unsigned int N);
 };/*}}}*/
 
 extern sieve_range_adjust::vec<double> operator*(sieve_range_adjust::vec<double> const& a, sieve_range_adjust::mat<int> const& m) ;

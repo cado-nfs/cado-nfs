@@ -4,7 +4,10 @@
 #include <cstdint>
 #include <cmath>
 #include <cstddef>
+#include <climits>
+
 #include <limits>
+#include <type_traits>
 
 #include <gmp.h>
 #include "cxx_mpz.hpp"
@@ -22,14 +25,14 @@ namespace cado_math_aux
 
     template<typename T, int n>
         struct multiply_by_poweroftwo {
-            constexpr T operator()(T x) {
+            constexpr T operator()(T x) const {
                 return multiply_by_poweroftwo<T, n-1>()(2*x);
             }
         };
 
     template<typename T>
         struct multiply_by_poweroftwo<T, 0> {
-            constexpr T operator()(T x) {
+            constexpr T operator()(T x) const {
                 return x;
             }
         };
@@ -86,9 +89,9 @@ namespace cado_math_aux
     /* This one is in gmp_aux.h */
     template<> inline long double mpz_get<long double>(mpz_srcptr x) { return mpz_get_ld(x); }
 
-    template<typename T> void do_not_outsmart_me(T &) {}
+    template<typename T> static inline void do_not_outsmart_me(T &) {}
 #if defined(__i386)
-    template<> void do_not_outsmart_me<double>(double & x) {
+    template<> inline void do_not_outsmart_me<double>(double & x) {
         volatile double mx = x; x = mx;
     }
 #endif
@@ -115,7 +118,8 @@ namespace cado_math_aux
             T y = std::ldexp(x, std::numeric_limits<T>::digits);
             /* y / 2^digits == c * 2^e - sgn(c)/2 */
             /* y == c * 2^(e-digits) - sgn(c)*2^(digits-1) */
-            static_assert(std::numeric_limits<T>::digits <= 64);
+            static_assert(std::numeric_limits<T>::digits <= 64,
+                    "only double or extended precision formats are supported");
             cxx_mpz z;
             mpz_set_si(z, sgn(c));
             mpz_mul_2exp(z, z, std::numeric_limits<T>::digits-1);
@@ -127,6 +131,43 @@ namespace cado_math_aux
                 mpz_div_2exp(z, z, std::numeric_limits<T>::digits - e);
             }
             return z;
+        }
+
+    template<typename T>
+    typename std::enable_if<std::is_floating_point<T>::value, T>::type
+    ulp(T r) {
+        /*
+         * Let next(r) be the smallest floating point
+         * number strictly larger than r.
+         *
+         * ilog(b) computes I such that |r| * 2^-I is in [1,2)
+         *
+         * we want ulp(r) = next(|r|)-|r|
+         * we also have ulp(r)/2^I = next(|r|/2^I)-|r|
+         * because |r| is in the same binade as 1,
+         *  ulp(r)/2^I == next(1)-1 = epsilon().
+         */
+        return std::ldexp(std::numeric_limits<T>::epsilon(), std::ilogb(r));
+    }
+
+    template<typename T>
+        class constant_time_square_root {
+            static constexpr T mid(T a, T b) { return (a+b)/2; }
+            static constexpr T above(T m, T x) { return m*m > x; }
+            static constexpr T recurse(T a, T b, T m, T x)
+            { return above(m, x) ? sqrt(a, m, x) : sqrt(m, b, x); }
+            static constexpr T sqrt(T a, T b, T m, T x)
+            { return m == a ? a : recurse(a, b, m, x); }
+            static constexpr T sqrt(T a, T b, T x)
+            { return sqrt(a, b, mid(a, b), x); }
+            public:
+            static constexpr typename std::enable_if<std::is_integral<T>::value, T>::type sqrt(T x)
+            { return sqrt(T(0), (T(1) << (std::numeric_limits<T>::digits/2)), x); }
+        };
+
+    template<typename T>
+        static constexpr typename std::enable_if<std::is_integral<T>::value, T>::type constant_sqrt(T x) {
+            return constant_time_square_root<T>::sqrt(x);
         }
 }
 

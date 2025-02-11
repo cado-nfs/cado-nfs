@@ -1,12 +1,24 @@
 #include "cado.h"
-
-#include "arith-generic.hpp"
-#include "arith-mod2.hpp"
-#include "arith-modp.hpp"
 #include "bwc_config.h"
-#include "gmp_aux.h"
+
+#include <cstddef>
+#include <cstdlib>
+
+#include <string>
+
 #ifdef BUILD_DYNAMICALLY_LINKABLE_BWC
 #include <dlfcn.h>
+#endif
+#include <gmp.h>
+#include "fmt/format.h"
+
+#include "arith-generic.hpp"
+#include "arith-mod2.hpp"       // IWYU pragma: keep
+#include "arith-modp.hpp"       // IWYU pragma: keep
+#include "gmp_aux.h"
+#include "cxx_mpz.hpp"
+
+#ifdef BUILD_DYNAMICALLY_LINKABLE_BWC
 #include "solib-naming.h"
 #endif
 
@@ -40,7 +52,9 @@ struct arith_wrapper: public arith_generic, public T {
         }
     public:
 
-    template<typename... Args> arith_wrapper(Args&&... args) : T(std::forward<Args>(args)...) {}
+    template<typename... Args> arith_wrapper(Args&&... args)
+        : T { std::forward<Args>(args)... }
+    {}
     T * concrete() override { return dynamic_cast<T *>(this); }
     T const * concrete() const override { return dynamic_cast<T const *>(this); }
 
@@ -161,7 +175,7 @@ struct arith_wrapper: public arith_generic, public T {
 };
 
 #ifdef ARITH_LAYER
-extern "C" void * arith_layer(mpz_srcptr p, int simd_groupsize) {
+extern "C" void * arith_layer(mpz_srcptr p, unsigned int simd_groupsize) {
 #ifdef ARITH_MOD2
     return new arith_wrapper<arith_mod2::gf2<ARITH_SIMD_GROUPSIZE>>(p, simd_groupsize);
 #elif defined(ARITH_MODP)
@@ -236,7 +250,7 @@ struct try_variable_instances {
 #endif
 
 
-arith_generic * arith_generic::instance(mpz_srcptr p, int simd_groupsize)
+arith_generic * arith_generic::instance(mpz_srcptr p, unsigned int simd_groupsize)
 {
 #ifdef  BUILD_DYNAMICALLY_LINKABLE_BWC
     std::string libname;
@@ -254,21 +268,21 @@ arith_generic * arith_generic::instance(mpz_srcptr p, int simd_groupsize)
     }
 
     void * handle = dlopen(libname.c_str(), RTLD_NOW);
-    if (handle == NULL) {
+    if (handle == nullptr) {
         fprintf(stderr, "loading %s: %s\n", libname.c_str(), dlerror());
         /* We might have compiled variable-width interfaces. These can be
          * used as fallbacks if the proper solib is not found.
          */
         fprintf(stderr, "*** TRYING TO FALL BACK TO VARIABLE-WIDTH CODE [%s]\n", vlibname.c_str());
         handle = dlopen(vlibname.c_str(), RTLD_NOW);
-        if (handle == NULL) {
+        if (handle == nullptr) {
             fprintf(stderr, "loading %s: %s\n", vlibname.c_str(), dlerror());
             abort();
         }
     }
     typedef void * (*f_t)(mpz_srcptr, unsigned int);
     f_t f = (f_t) dlsym(handle, "arith_layer");
-    if (f == NULL) {
+    if (f == nullptr) {
         fprintf(stderr, "loading %s: %s\n", libname.c_str(), dlerror());
         abort();
     }

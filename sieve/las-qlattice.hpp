@@ -6,7 +6,8 @@
 #include <exception>    // IWYU pragma: keep   // for exception
 #include <cstdint>             // for int64_t, uint64_t, INT64_C, uint32_t
 #include <iosfwd>              // for ostream
-#include <vector>              // for vector
+
+#include "fmt/ostream.h"
 
 #include "fb-types.h"          // for fbprime_t, redc_invp_t, sublat_t
 #include "las-todo-entry.hpp"  // for las_todo_entry
@@ -22,8 +23,8 @@ struct qlattice_basis {
     sublat_t sublat;
 
     qlattice_basis() = default;
-    inline double skewed_norm0(double s) const { return a0*a0/s+b0*b0*s; }
-    inline double skewed_norm1(double s) const { return a1*a1/s+b1*b1*s; }
+    double skewed_norm0(double s) const { return a0*a0/s+b0*b0*s; }
+    double skewed_norm1(double s) const { return a1*a1/s+b1*b1*s; }
 
     // Assumes ell is prime.
     bool is_coprime_to(unsigned long ell) const {
@@ -37,7 +38,7 @@ struct qlattice_basis {
         }
     }
 
-    inline bool fits_31bits() const {
+    bool fits_31bits() const {
         constexpr int64_t t31 = INT64_C(1) << 31;
         return !(
                  a0 <  -t31 || a0 >= t31 ||
@@ -62,5 +63,10 @@ struct qlattice_basis {
 };
 
 std::ostream& operator<<(std::ostream& os, qlattice_basis const & Q);
+
+namespace fmt {
+    template <> struct formatter<qlattice_basis>: ostream_formatter {};
+}
+
 
 #endif	/* LAS_QLATTICE_HPP_ */

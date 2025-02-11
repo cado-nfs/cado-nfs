@@ -8,14 +8,13 @@
 #include <gmp.h>
 
 #ifdef __cplusplus
+#include <array>
 #include <string>
 #include <vector>
 #include <utility>
 #include <istream>      // std::istream // IWYU pragma: keep
 #include <ostream>      // std::ostream // IWYU pragma: keep
 #include <type_traits>
-#include <istream>      // std::istream // IWYU pragma: keep
-#include <ostream>      // std::ostream // IWYU pragma: keep
 #endif
 
 #ifdef __cplusplus
@@ -27,6 +26,10 @@
 #include "cxx_mpz.hpp"
 #endif
 #include "macros.h"
+#if !GMP_VERSION_ATLEAST(6,3,0)
+#include "gmp_aux.h"
+#endif
+
 
 #define xxxMPZ_POLY_TIMINGS
 // for timings of roots mod p (beware, this is not thread-safe)
@@ -255,7 +258,7 @@ void mpz_poly_pseudo_division(mpz_poly_ptr q, mpz_poly_ptr r,
 void mpz_poly_pseudo_remainder(mpz_poly_ptr r,
     mpz_poly_srcptr a, mpz_poly_srcptr b);
 void mpz_poly_xgcd_mpz(mpz_poly_ptr gcd, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_poly_ptr u, mpz_poly_ptr v, mpz_srcptr p);
-void mpz_poly_homography (mpz_poly_ptr Fij, mpz_poly_srcptr F, int64_t H[4]);
+
 void mpz_poly_homogeneous_eval_siui (mpz_ptr v, mpz_poly_srcptr f, int64_t i, uint64_t j);
 void mpz_poly_content (mpz_ptr c, mpz_poly_srcptr F);
 int mpz_poly_has_trivial_content (mpz_poly_srcptr F);
@@ -482,6 +485,12 @@ struct cxx_mpz_poly {
      */
     mpz_srcptr
     operator[](unsigned int i) const ATTRIBUTE_DEPRECATED { return this->coeff(i); }
+    cxx_mpz_poly homography (std::array<int64_t, 4> const & H) const;
+    cxx_mpz_poly divexact(cxx_mpz const & a) const {
+        cxx_mpz_poly Q;
+        mpz_poly_divexact_mpz(Q, *this, a);
+        return Q;
+    }
 };
 
 

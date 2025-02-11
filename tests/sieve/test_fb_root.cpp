@@ -58,7 +58,6 @@ static std::ostream& operator<<(std::ostream& os, fb_root_p1_t<T> const & R)
  */
 namespace fmt {
 template <typename T> struct formatter<fb_root_p1_t<T>>: ostream_formatter {};
-template <> struct formatter<qlattice_basis>: ostream_formatter {};
 }
 
 

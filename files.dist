@@ -1362,6 +1362,7 @@ tests/sieve/c60.sample
 tests/sieve/c90_21505.poly
 tests/sieve/c90_21553.poly
 tests/sieve/c95_21684.poly
+tests/sieve/c97_30107.poly
 tests/sieve/ecm/CMakeLists.txt
 tests/sieve/ecm/buggy1.st
 tests/sieve/ecm/buggy2.st

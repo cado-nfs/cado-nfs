@@ -9,6 +9,7 @@
 #include <istream>
 #include <string>
 #include <vector>
+#include <utility>
 
 #include <gmp.h>
 
@@ -299,7 +300,12 @@ struct cado_expression_parser : public T, public cado_expression_parser_details:
     using typename T::number_type;
 
     template<typename... Args>
-    explicit cado_expression_parser(Args&& ...args): T(std::forward<Args>(args)...) {}
+    explicit cado_expression_parser(Args&& ...args)
+    /* we need braced initialization, otherwise the compiler (at least
+     * clang++15 on macs) will look for an explicitly defined ctor
+     */
+    : T { std::forward<Args>(args)... }
+    {}
 
 private:
 

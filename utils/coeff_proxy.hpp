@@ -12,7 +12,7 @@ namespace cado_details {
     template<typename P>
     struct coeff_proxy {
         P & p;
-        typedef P::coefficient_type T;
+        typedef typename P::coefficient_type T;
         int i;
         // NOLINTNEXTLINE(hicpp-explicit-conversions)
         operator T() { return (i <= p.degree()) ? p.coeffs[i] : 0; }
@@ -36,7 +36,7 @@ namespace cado_details {
     template<typename P>
     struct const_coeff_proxy {
         P const & p;
-        typedef P::coefficient_type T;
+        typedef typename P::coefficient_type T;
         int i;
         // NOLINTNEXTLINE(hicpp-explicit-conversions)
         operator T() { return (i <= p.degree()) ? p.coeffs[i] : 0; }

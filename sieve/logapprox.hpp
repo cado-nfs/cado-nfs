@@ -4,41 +4,70 @@
 #include <list>     // for list
 #include <utility>  // for pair
 #include <vector>   // for vector
+
 #include "polynomial.hpp"
 
 struct piecewise_linear_function {
-    std::list<double> endpoints;
-    std::list<std::pair<double,double>> equations;
+    std::vector<double> endpoints;
+    std::vector<std::pair<double,double>> equations;
+    bool has_precision_issues = false;
     piecewise_linear_function() = default;
-    piecewise_linear_function(double r) : endpoints(1, r) {}
-    piecewise_linear_function(piecewise_linear_function const &) = default;
-    piecewise_linear_function(piecewise_linear_function &&) = default;
-    piecewise_linear_function & operator=(piecewise_linear_function const &) = default;
-    piecewise_linear_function & operator=(piecewise_linear_function &&) = default;
-    /* modify our left end to include the approximation which is provided
-     * on argument.
-     * Warning: this is made constant time by using splice(), so that the
-     * argument is destroyed ! */
-    piecewise_linear_function& merge_left(piecewise_linear_function & o);
-    /* guess what... */
-    piecewise_linear_function& merge_right(piecewise_linear_function & o);
+
+    /* this is a precursor to piecewise_linear_function */
+    struct precursor {
+        std::list<double> endpoints;
+        std::list<std::pair<double,double>> equations;
+        bool has_precision_issues = false;
+        precursor() = default;
+        explicit precursor(double r) : endpoints(1, r) {}
+        precursor(precursor const &) = default;
+        precursor(precursor &&) = default;
+        precursor & operator=(precursor const &) = default;
+        precursor & operator=(precursor &&) = default;
+        ~precursor() = default;
+        /* modify our left end to include the approximation which is provided
+         * on argument.
+         * Warning: this is made constant time by using splice(), so that the
+         * argument is destroyed ! */
+        precursor& merge_left(precursor & o);
+        /* guess what... */
+        precursor& merge_right(precursor & o);
+    };
+
+    explicit piecewise_linear_function(precursor const & p)
+        : endpoints(p.endpoints.begin(), p.endpoints.end())
+        , equations(p.equations.begin(), p.equations.end())
+        , has_precision_issues(p.has_precision_issues)
+    {}
 };
 
+template<typename T>
 class piecewise_linear_approximator {
-    polynomial<double> const & f;
-    polynomial<double> f1;
-    std::vector<double> f_roots;
-    std::vector<double> f1_roots;
-    double scale;
-    std::vector<double> roots_off_course(polynomial<double> const& uv, bool divide_root=false, double r = 0) const;
-    piecewise_linear_function expand_at_root(double r) const;
-    piecewise_linear_function C0_from_points(std::list<double> const & r) const;
+    polynomial<T> f;
+    polynomial<T> f1;
+    polynomial<T> f2;
+    std::vector<T> f_roots;
+    std::vector<T> f1_roots;
+    T scale;
+    std::vector<T> roots_off_course(polynomial<T> const& uv) const;
+    piecewise_linear_function::precursor expand_at_root(T r) const;
+    piecewise_linear_function::precursor C0_from_points(std::list<T> const & r) const;
     /* This assumes that the interval [i0,i1] is free of roots of the
      * polynomial f */
-    piecewise_linear_function fill_gap(double i0, double i1) const;
+    piecewise_linear_function::precursor fill_gap(T i0, T i1) const;
     public:
-    piecewise_linear_approximator(polynomial<double> const & f, double scale);
-    piecewise_linear_function logapprox(double i0, double i1) const;
+    piecewise_linear_approximator(polynomial<T> const & f, T scale);
+    /* exceptions will only be thrown if the three conditions below hold:
+     *  - (super)::report_precision_issues_on_double
+     *  - T == double
+     *  - allow_exceptions
+     * otherwise the presence of precision issues is only reported in the
+     * has_precision_issue flag of the result.
+     */
+    piecewise_linear_function logapprox(T i0, T i1) const;
 };
+
+extern template class piecewise_linear_approximator<double>;
+extern template class piecewise_linear_approximator<long double>;
 
 #endif	/* LOGAPPROX_HPP_ */

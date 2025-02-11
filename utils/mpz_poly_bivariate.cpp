@@ -444,12 +444,7 @@ void cxx_mpz_poly_bivariate::transpose(self & a, self const & b)
 
 static constexpr int nth_evaluation_point(int i)
 {
-    if (i == 0)
-        return 0;
-    if (i & 1)
-        return (i+1)/2;
-    else
-        return -(i/2);
+    return (i & 1) ? ((i+1)/2) : (-(i/2));
 }
 
 void cxx_mpz_poly_bivariate::resultant_y(cxx_mpz_poly & resultant,

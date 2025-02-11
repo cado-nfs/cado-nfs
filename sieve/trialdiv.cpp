@@ -6,10 +6,9 @@
 #include <cstdio>
 #endif
 
-#include <algorithm>    // for min
+#include <cstddef>
 #include <climits>      // for ULONG_MAX
 #include <cstdint>      // for uint64_t
-#include <cmath>        // IWYU pragma: keep // std::sqrt (albeit in constexpr)
 #include <gmp.h>        // for __mpz_struct, mp_limb_t, mp_ptr, mpz_cmp_ui
 
 #include "trialdiv.hpp"
@@ -17,20 +16,6 @@
 #include "cxx_mpz.hpp"
 #include "ularith.h"    // for ularith_mul_ul_ul_2ul, ularith_add_2ul_2ul
 
-/* shortcoming of C++11. C++17 would (I think) allow this be defined
- * directly in the struct body and get a real compile-time constant,
- * without the need for an out-of-class definition. However, on top of
- * that, clang complaints on sqrt not being constexpr, which is a bit
- * weird given that the prototype appears to mention it as being
- * constexpr. Anyway.
- */
-unsigned long trialdiv_data::max_p =
-            (TRIALDIV_MAXLEN == 1) ?
-                ULONG_MAX :
-                std::min(
-                        (unsigned long) (std::sqrt(ULONG_MAX / (TRIALDIV_MAXLEN - 1)) - 1),
-                        ULONG_MAX);
-/* clang warns on this with ABI=32 (division by zero undefined). Compiler bug */
 
 static void
 trialdiv_init_divisor (trialdiv_divisor_t *d, const unsigned long p)

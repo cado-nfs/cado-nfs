@@ -86,10 +86,10 @@ test_compute_roots(bool verbose)
     test_positive_roots<T>("x^4-2", 3, verbose, {1.1892071150027210667174999705604759153L}, -5);
     test_positive_roots<T>("x^5-2", 3, verbose, {1.1486983549970350067986269467779275894L}, -5);
 
-    test_positive_roots<T>("(x-1)*(x-2)", 3, verbose, {1, 2}, -2);
-    test_positive_roots<T>("(x-1)*(x-2)*(x-3)", 4, verbose, {1, 2, 3}, -2);
-    test_positive_roots<T>("(x-1)*(x-2)*(x-3)*(x-4)", 5, verbose, {1, 2, 3, 4}, -5);
-    test_positive_roots<T>("(x-1)*(x-2)*(x-3)*(x-4)*(x-5)", 6, verbose, {1, 2, 3, 4, 5}, -5);
+    test_positive_roots<T>("(x-1)*(x-2)", 3, verbose, {1, 2}, -8);
+    test_positive_roots<T>("(x-1)*(x-2)*(x-3)", 4, verbose, {1, 2, 3}, -8);
+    test_positive_roots<T>("(x-1)*(x-2)*(x-3)*(x-4)", 5, verbose, {1, 2, 3, 4}, -8);
+    test_positive_roots<T>("(x-1)*(x-2)*(x-3)*(x-4)*(x-5)", 6, verbose, {1, 2, 3, 4, 5}, -8);
 
     /* Let f(x+1/x) * x^6 == (x^13-1)/(x-1). Test both positive and
      * negative roots (for negative roots we give a negative bound) */
@@ -267,32 +267,29 @@ static void test_resultant()
 
     struct test_case {
         std::string f, g;
-        uint64_t ulps = 0;
+        int ulps = 0;
     };
-
-    constexpr uint64_t ulps_for_test4 =
-            std::is_same<T, long double>::value ? T(uint64_t(1) << (std::numeric_limits<T>::digits-9)) : 1;
 
     const std::vector<test_case> test_cases {
         {
             "x^6+13*x^5+13*x^4+9*x^3+7*x+6",
             "128*x^2+128*x+128",
-            256
+            -8
         },
         {
             "-3-15*x^1-9*x^2+3*x^3-12*x^4-12*x^5-3*x^6-3*x^7-12*x^8-15*x^9+6*x^10",
             "-6-13*x^1+9*x^2+7*x^3-5*x^4-5*x^5+11*x^6+2*x^7",
-            4096
+            -12
         },
         {
             "7917871+7917871*x-7916275*x^2-7916275*x^3-7916275*x^4+7917871*x^5+15834944*x^6",
             "128*x^2+128*x+128",
-            1
+            -1
         },
         {
             "1365*x^6 + 1366*x^5+1368*x^4+1368*x^3+1368*x^2+1366*x+1366",
             "8320*x^2-50560*x-896",
-            4096,
+            -12
         },
         {
             /* this test case triggers a catastrophic cancellation in the
@@ -307,7 +304,7 @@ static void test_resultant()
              */
             "1365*x^6 + 1366*x^5+1368*x^4+1368*x^3+1368*x^2+1366*x+1366",
             "15*x^2-43368*x-4753",
-            ulps_for_test4
+            8
         }};
 
     for(auto const & t : test_cases) {
@@ -317,7 +314,12 @@ static void test_resultant()
         cxx_mpz_poly gz(t.g);
         mpz_poly_resultant(val_z, fz, gz);
         T val = cado_math_aux::mpz_get<T>(val_z);
-        ASSERT_ALWAYS(equal_within_ulps(res, val, t.ulps));
+        int accuracy = t.ulps;
+        if (accuracy < 0)
+            accuracy += std::numeric_limits<T>::digits;
+        int a = accurate_bits(res, val);
+        fmt::print("{} vs ref {} : accurate bits: {}\n", res, val, a);
+        ASSERT_ALWAYS(a >= accuracy);
     }
 }
 

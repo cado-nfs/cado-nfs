@@ -20,6 +20,7 @@
 
 #include <sstream>      // std::ostringstream // IWYU pragma: keep
 #include <vector>
+#include <array>
 #include <string>
 #include <ostream>        // for operator<<, basic_ostream, basic_ostream::o...
 #include <memory>
@@ -3127,11 +3128,11 @@ mpz_poly_xgcd_mpz (mpz_poly_ptr d, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_pol
         cxx_mpz inv;
         mpz_invert(inv, r0->_coeff[r0->deg], p);
         mpz_poly_mul_mpz(r0, r0, inv);
-        mpz_poly_mod_mpz(r0, r0, p, NULL);
+        mpz_poly_mod_mpz(r0, r0, p, nullptr);
         mpz_poly_mul_mpz(u0, u0, inv);
-        mpz_poly_mod_mpz(u0, u0, p, NULL);
+        mpz_poly_mod_mpz(u0, u0, p, nullptr);
         mpz_poly_mul_mpz(v0, v0, inv);
-        mpz_poly_mod_mpz(v0, v0, p, NULL);
+        mpz_poly_mod_mpz(v0, v0, p, nullptr);
     }
 
     mpz_poly_swap(u, u0);
@@ -3143,81 +3144,67 @@ mpz_poly_xgcd_mpz (mpz_poly_ptr d, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_pol
 /* Put in fij[] the coefficients of f'(i) = F(a0*i+a1, b0*i+b1).
    Assumes the coefficients of fij[] are initialized.
 */
-void
-mpz_poly_homography (mpz_poly_ptr Fij, mpz_poly_srcptr F, int64_t H[4])
+cxx_mpz_poly cxx_mpz_poly::homography (std::array<int64_t, 4> const & H) const
 {
-  int k, l;
-  mpz_t *g; /* will contain the coefficients of (b0*i+b1)^l */
-  mpz_t f0;
-  mpz_t *f = F->_coeff;
-  int const d = F->deg;
+    cxx_mpz_poly const & F(*this);
+    cxx_mpz_poly Fij = F;
+    cxx_mpz f0;
+    int const d = F->deg;
 
-  mpz_poly_realloc (Fij, d + 1);
+    mpz_t * fij = Fij->_coeff;
 
-  mpz_t *fij = Fij->_coeff;
-  for (k = 0; k <= d; k++)
-    mpz_set (fij[k], f[k]);
+    /* g holds the coefficients of (b0*i+b1)^l */
+    std::vector<cxx_mpz> g(d+1);
 
-  Fij->deg = d;
+    /* Let h(x) = quo(f(x), x), then F(x,y) = H(x,y)*x + f0*y^d, thus
+       F(a0*i+a1, b0*i+b1) = H(a0*i+a1, b0*i+b1)*(a0*i+a1) + f0*(b0*i+b1)^d.
+       We use that formula recursively. */
 
-  g = (mpz_t*) malloc ((d + 1) * sizeof (mpz_t));
-  FATAL_ERROR_CHECK (g == NULL, "not enough memory");
-  for (k = 0; k <= d; k++)
-    mpz_init (g[k]);
-  mpz_init (f0);
+    mpz_set_ui (g[0], 1); /* g = 1 */
 
-  /* Let h(x) = quo(f(x), x), then F(x,y) = H(x,y)*x + f0*y^d, thus
-     F(a0*i+a1, b0*i+b1) = H(a0*i+a1, b0*i+b1)*(a0*i+a1) + f0*(b0*i+b1)^d.
-     We use that formula recursively. */
-
-  mpz_set_ui (g[0], 1); /* g = 1 */
-
-  for (k = d - 1; k >= 0; k--)
+    for (int k = d - 1; k >= 0; k--)
     {
-      /* invariant: we have already translated coefficients of degree > k,
-         in f[k+1..d], and g = (b0*i+b1)^(d - (k+1)), with coefficients in
-         g[0..d - (k+1)]:
-         f[k] <- a1*f[k+1]
-         ...
-         f[l] <- a0*f[l]+a1*f[l+1] for k < l < d
-         ...
-         f[d] <- a0*f[d] */
-      mpz_swap (f0, fij[k]); /* save the new constant coefficient */
-      mpz_mul_si (fij[k], fij[k + 1], H[2]);
-      for (l = k + 1; l < d; l++)
+        /* invariant: we have already translated coefficients of degree > k,
+           in f[k+1..d], and g = (b0*i+b1)^(d - (k+1)), with coefficients in
+           g[0..d - (k+1)]:
+           f[k] <- a1*f[k+1]
+           ...
+           f[l] <- a0*f[l]+a1*f[l+1] for k < l < d
+           ...
+           f[d] <- a0*f[d] */
+        mpz_swap (f0, fij[k]); /* save the new constant coefficient */
+        mpz_mul_si (fij[k], fij[k + 1], H[2]);
+        for (int l = k + 1; l < d; l++)
         {
-          mpz_mul_si (fij[l], fij[l], H[0]);
-          mpz_addmul_si (fij[l], fij[l + 1], H[2]);
+            mpz_mul_si (fij[l], fij[l], H[0]);
+            mpz_addmul_si (fij[l], fij[l + 1], H[2]);
         }
-      mpz_mul_si (fij[d], fij[d], H[0]);
+        mpz_mul_si (fij[d], fij[d], H[0]);
 
-      /* now compute (b0*i+b1)^(d-k) from the previous (b0*i+b1)^(d-k-1):
-         g[d-k] = b0*g[d-k-1]
-         ...
-         g[l] = b1*g[l]+b0*g[l-1] for 0 < l < d-k
-         ...
-         g[0] = b1*g[0]
-      */
-      mpz_mul_si (g[d - k], g[d - k - 1], H[1]);
-      for (l = d - k - 1; l > 0; l--)
+        /* now compute (b0*i+b1)^(d-k) from the previous (b0*i+b1)^(d-k-1):
+           g[d-k] = b0*g[d-k-1]
+           ...
+           g[l] = b1*g[l]+b0*g[l-1] for 0 < l < d-k
+           ...
+           g[0] = b1*g[0]
+           */
+        mpz_mul_si (g[d - k], g[d - k - 1], H[1]);
+        for (int l = d - k - 1; l > 0; l--)
         {
-          mpz_mul_si (g[l], g[l], H[3]);
-          mpz_addmul_si (g[l], g[l-1], H[1]);
+            mpz_mul_si (g[l], g[l], H[3]);
+            mpz_addmul_si (g[l], g[l-1], H[1]);
         }
-      mpz_mul_si (g[0], g[0], H[3]);
+        mpz_mul_si (g[0], g[0], H[3]);
 
-      /* now g has degree d-k, and we add f0*g */
-      for (l = 0; l <= d-k; l++)
-          mpz_addmul(fij[l+k], g[l], f0);
+        /* now g has degree d-k, and we add f0*g */
+        for (int l = 0; l <= d-k; l++)
+            mpz_addmul(fij[l+k], g[l], f0);
 
     }
 
-  mpz_clear (f0);
-  for (k = 0; k <= d; k++)
-    mpz_clear (g[k]);
-  free (g);
+    mpz_poly_cleandeg(Fij, Fij->deg);
 
-  mpz_poly_cleandeg(Fij, Fij->deg);
+    return Fij;
 }
 
 /* v <- f(i,j), where f is homogeneous of degree d */

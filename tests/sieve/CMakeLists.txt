@@ -520,9 +520,12 @@ cado_define_test(c60_fakereltest
 )
 
 # Try with default TRIALDIV_MAXLEN, whatever it may be
+# tests in debug mode tend to take very long when used with GLIBCXX_DEBUG
 cado_define_test(test_trialdiv.cpp
     $<TARGET_OBJECTS:trialdiv>
-    LIBRARIES utils tests)
+    LIBRARIES utils tests
+    TIMEOUT 30
+)
 
 macro (add_trialdiv_test MAXLEN)
     cado_define_test(test_trialdiv_${MAXLEN} SOURCES test_trialdiv.cpp
@@ -650,6 +653,18 @@ cado_divert_test(test_init_norms bug21684b
     # jitter.
     --abort-on-jitter 2,5
     -check-bucket 4
+)
+
+cado_divert_test(test_init_norms bug30107
+    ARGUMENTS
+    -poly ${CMAKE_CURRENT_SOURCE_DIR}/c97_30107.poly
+    -A 28
+    -sqside 1 -q0 2031811 -rho 1838948
+    -lim1 2097152 -lpb1 21 -mfb1 45 -powlim 80
+    -lim0 1024 -lpb0 10 -mfb0 10
+    -norm-sides 1
+    --check-bucket 127
+    --abort-on-jitter 0,5 -B 16
 )
 
 # we have no pretense to have optimized code for these cases, so don't

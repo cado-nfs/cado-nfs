@@ -24,8 +24,8 @@ namespace multityped_array_details {
     template<typename T, int depth> struct dig : public dig<typename T::super, depth-1> {};
     template<typename T> struct dig<T,0> {
         typedef typename T::type type;
-        static inline type & get(T & A) { return A.x; }
-        static inline type const & get(T const & A) { return A.x; }
+        static type & get(T & A) { return A.x; }
+        static type const & get(T const & A) { return A.x; }
     };
 }
 
@@ -38,17 +38,17 @@ template<template<int> class F, int n0, int n1> struct multityped_array : public
      * F<k>::type, but that would ruin the nice diagnostic that
      * static_assert offers here
      */
-    template<int k> inline typename F<k>::type& get() {
+    template<int k> typename F<k>::type& get() {
         static_assert(n0 <= k && k < n1, "attempt to get member of multityped_array out of bounds");
         return multityped_array_details::dig<self, n1-1-k>::get(*this);
     }
-    template<int k> inline typename F<k>::type const & get() const {
+    template<int k> typename F<k>::type const & get() const {
         static_assert(n0 <= k && k < n1, "attempt to get member of multityped_array out of bounds");
         return multityped_array_details::dig<self, n1-1-k>::get(*this);
     }
     template<typename... Args> multityped_array(Args&&... args)
-        : super(std::forward<Args>(args)...)
-        , x(std::forward<Args>(args)...)
+        : super { std::forward<Args>(args)... }
+        , x { std::forward<Args>(args)... }
     {}
 };
 template<template<int> class F, int n0> struct multityped_array<F, n0, n0> {

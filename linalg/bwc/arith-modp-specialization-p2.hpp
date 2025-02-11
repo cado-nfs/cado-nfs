@@ -20,7 +20,7 @@ struct gfp<2> : public gfp_base<2, gfp<2>>
     using super::sub;
     template<typename... Args>
     gfp(Args&&... args)
-      : super(std::forward<Args>(args)...)
+      : super { std::forward<Args>(args)... }
     {}
     static inline void add(elt_ur_for_add& dst, elt const& src)
     {

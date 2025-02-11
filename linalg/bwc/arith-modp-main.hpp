@@ -1348,7 +1348,7 @@ struct gfp : public gfp_base<n, gfp<n>>
     typedef gfp_base<n, gfp<n>> super;
     template<typename... Args>
     gfp(Args&&... args)
-      : super(std::forward<Args>(args)...)
+      : super { std::forward<Args>(args)... }
     {}
 };
 

@@ -16,8 +16,9 @@ template<typename T> struct lock_guarded_container : public T {
     std::mutex & mutex() const { return mm; }
     /* forward the constructors of the embedded container. No lock needed
      * here. */
-    template<typename... Args> explicit lock_guarded_container(Args&& ...args) :
-        T(std::forward<Args>(args)...) {}
+    template<typename... Args> explicit lock_guarded_container(Args&& ...args)
+        : T { std::forward<Args>(args)... }
+    {}
     /* add a few of our own to circumvent the lack of copy/move for the
      * mutex.
      * We considered having a dedicated (private) ctor taking a transient
