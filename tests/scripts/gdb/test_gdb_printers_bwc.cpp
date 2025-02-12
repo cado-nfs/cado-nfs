@@ -47,7 +47,7 @@ int main(int argc, char const * argv[])
     if (param_list_warn_unused(pl))
         exit(EXIT_FAILURE);
 
-    matpoly::arith_hard K(p, 1);
+    matpoly::arith_hard K(p, 1U);
     matpoly M(&K, m, n, 0);
 
     M.realloc(3);

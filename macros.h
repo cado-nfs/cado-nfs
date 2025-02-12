@@ -522,4 +522,14 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,(X),(
 #define CADO_STRINGIZE(x) CADO_STRINGIZE_(x)
 #endif
 
+#ifdef __cplusplus
+#if __cplusplus < 202002L
+#define TEMPLATE_ENABLED_ON_TEMPLATE_ARG(decl, cond)    \
+    template<decl, typename = typename std::enable_if< cond >::type >
+#else
+#define TEMPLATE_ENABLED_ON_TEMPLATE_ARG(decl, cond)    \
+    template<decl> requires (cond)
+#endif
+#endif
+
 #endif	/* CADO_MACROS_H_ */

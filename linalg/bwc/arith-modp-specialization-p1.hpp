@@ -21,7 +21,7 @@ struct gfp<1> : public gfp_base<1, gfp<1>>
 
     template<typename... Args>
     gfp(Args&&... args)
-      : super(std::forward<Args>(args)...)
+      : super { std::forward<Args>(args)... }
     {}
 
     static inline void add_ur(elt_ur_for_add& dst, elt_ur_for_add const& src)

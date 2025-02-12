@@ -5,6 +5,7 @@
 #define xxxCONCURRENCY_DEBUG
 
 #include <cstdio>            // for FILE
+#include <cstddef>
 
 #include <map>
 #include <vector>

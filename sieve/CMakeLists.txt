@@ -36,6 +36,7 @@ add_library(las_core_b0 OBJECT
         las-config.c
         las-norms.cpp
         logapprox.cpp
+        las-coordinates.cpp
 )
 
 add_library(las_core_b OBJECT
@@ -56,7 +57,6 @@ add_library(las_core_b OBJECT
         las-globals.cpp
         las-threads-work-data.cpp
         las-dumpfile.cpp
-        las-coordinates.cpp
         las-duplicate.cpp
         las-plattice.cpp
         las-descent.cpp

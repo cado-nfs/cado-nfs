@@ -1,10 +1,15 @@
 #include "cado.h" // IWYU pragma: keep
+
+#include <cstdint>
 #include <cinttypes>               // for PRId64
 #include <cstdio>              // IWYU pragma: keep
 #include <cstdarg>             // IWYU pragma: keep
+
+#include <memory>
+
 #include <gmp.h>                   // for mpz_srcptr, gmp_vfprintf
+
 #include "cado_poly.h"   // cxx_cado_poly
-#include "cxx_mpz.hpp"   // for cxx_mpz
 #include "fb-types.h"              // for sublat_t
 #include "las-auxiliary-data.hpp"  // for nfs_aux, report_and_timer
 #include "las-choose-sieve-area.hpp"
@@ -15,6 +20,7 @@
 #include "las-siever-config.hpp"   // for siever_config, siever_config_pool
 #include "las-todo-entry.hpp"      // for las_todo_entry
 #include "macros.h"                // for MAYBE_UNUSED
+#include "mpz_poly.h"
 #include "tdict.hpp"               // for timetree_t
 #include "verbose.h"    // verbose_output_vfprint
 
@@ -27,7 +33,7 @@ static bool choose_sieve_area(las_info const & las,
         qlattice_basis & Q,
         uint32_t & J)
 {
-    sieve_range_adjust Adj;
+    std::unique_ptr<sieve_range_adjust> Adj;
 
     int const adjust_strategy = las.adjust_strategy;
     {
@@ -45,7 +51,7 @@ static bool choose_sieve_area(las_info const & las,
      * strategies for that.
      */
     try {
-        Adj = sieve_range_adjust(doing, las.cpoly, conf);
+        Adj.reset(new sieve_range_adjust(doing, las.cpoly, conf));
     } catch (qlattice_basis::too_skewed const & x) {
         verbose_output_vfprint(0, 1, gmp_vfprintf,
                 "# "
@@ -58,7 +64,7 @@ static bool choose_sieve_area(las_info const & las,
         return false;
     }
 
-    if (!support_large_q && !Adj.Q.fits_31bits()) { // for fb_root_in_qlattice_31bits
+    if (!support_large_q && !Adj->Q.fits_31bits()) { // for fb_root_in_qlattice_31bits
         verbose_output_print(2, 1,
                 "# Warning, special-q basis is too skewed,"
                 " skipping this special-q."
@@ -73,17 +79,17 @@ static bool choose_sieve_area(las_info const & las,
      * sublattice we will sieve is irrelevant at this point, as what we
      * do will be shared for all sublattices).
      */
-    Adj.Q.sublat.m = conf.sublat_bound;
+    Adj->Q.sublat.m = conf.sublat_bound;
 
     {
 
     /* Try strategies for adopting the sieving range */
 
-    int const should_discard = !Adj.sieve_info_adjust_IJ();
+    int const should_discard = !Adj->sieve_info_adjust_IJ();
 
     if (should_discard) {
         if (never_discard) {
-            Adj.set_minimum_J_anyway();
+            Adj->set_minimum_J_anyway();
         } else {
             verbose_output_vfprint(0, 1, gmp_vfprintf,
                     "# "
@@ -98,7 +104,7 @@ static bool choose_sieve_area(las_info const & las,
                     doing.side,
                     (mpz_srcptr) doing.p,
                     (mpz_srcptr) doing.r,
-                    Adj.Q.a0, Adj.Q.b0, Adj.Q.a1, Adj.Q.b1, Adj.J);
+                    Adj->Q.a0, Adj->Q.b0, Adj->Q.a1, Adj->Q.b1, Adj->J);
             return false;
         }
     }
@@ -107,22 +113,22 @@ static bool choose_sieve_area(las_info const & las,
      * values, too. Also, strategy 0 wants strategy 1 to run first.
      */
     if (adjust_strategy != 1)
-        Adj.sieve_info_update_norm_data_Jmax();
+        Adj->sieve_info_update_norm_data_Jmax();
 
     if (adjust_strategy >= 2)
-        Adj.adjust_with_estimated_yield();
+        Adj->adjust_with_estimated_yield();
 
     if (adjust_strategy >= 3) {
         /* Let's change that again. We tell the code to keep logI as
          * it is currently. */
-        Adj.sieve_info_update_norm_data_Jmax(true);
+        Adj->sieve_info_update_norm_data_Jmax(true);
     }
 
     /* check whether J is too small after the adjustments */
-    if (Adj.J < Adj.get_minimum_J())
+    if (Adj->J < Adj->get_minimum_J())
     {
         if (never_discard) {
-            Adj.set_minimum_J_anyway();
+            Adj->set_minimum_J_anyway();
         } else {
             verbose_output_vfprint(0, 1, gmp_vfprintf,
                     "# "
@@ -138,7 +144,7 @@ static bool choose_sieve_area(las_info const & las,
                     "; a1=%" PRId64
                     "; b1=%" PRId64
                     "; raw_J=%u;\n",
-                    Adj.Q.a0, Adj.Q.b0, Adj.Q.a1, Adj.Q.b1, Adj.J);
+                    Adj->Q.a0, Adj->Q.b0, Adj->Q.a1, Adj->Q.b1, Adj->J);
             return false;
         }
     }
@@ -152,10 +158,8 @@ static bool choose_sieve_area(las_info const & las,
      *
      */
     {
-        int64_t H[4] = { Adj.Q.a0, Adj.Q.b0, Adj.Q.a1, Adj.Q.b1 };
-        cxx_mpz_poly fij;
-    
-        mpz_poly_homography (fij, las.cpoly->pols[doing.side], H);
+        cxx_mpz_poly fij = las.cpoly[doing.side].homography(
+                { Adj->Q.a0, Adj->Q.b0, Adj->Q.a1, Adj->Q.b1 });
 
         if (fij->deg < las.cpoly->pols[doing.side]->deg) {
             verbose_output_vfprint(0, 1, gmp_vfprintf,
@@ -172,18 +176,17 @@ static bool choose_sieve_area(las_info const & las,
                     "; a1=%" PRId64
                     "; b1=%" PRId64
                     "; raw_J=%u; // explanation: tripped over rational root.\n",
-                    Adj.Q.a0, Adj.Q.b0, Adj.Q.a1, Adj.Q.b1, Adj.J);
+                    Adj->Q.a0, Adj->Q.b0, Adj->Q.a1, Adj->Q.b1, Adj->J);
             return false;
         }
     }
 
-
     /* At this point we've decided on a new configuration for the
      * siever.
      */
-    conf.logI = Adj.logI;
-    Q = Adj.Q;
-    J = Adj.J;
+    conf.logI = Adj->logI;
+    Q = Adj->Q;
+    J = Adj->J;
 
     }
 

@@ -46,7 +46,7 @@ struct matpoly_checker_base {
     unsigned long seed;
 
     matpoly_checker_base(cxx_mpz const & p, unsigned int m, unsigned int n, unsigned int len1, unsigned int len2, cxx_gmp_randstate & rstate0)
-        : ab(p, 1)
+        : ab(p, 1U)
         , m(m)
         , n(n)
         , len1(len1)
