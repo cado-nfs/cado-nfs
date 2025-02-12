@@ -2,7 +2,6 @@
 
 #include <cmath>
 #include <cstdlib>
-#include <cstdint>
 
 #include <vector>
 #include <array>
@@ -270,8 +269,11 @@ static void test_resultant()
 #ifdef HAVE_CXX20
         int ulps = 0;
 #else
-        /* with pre-c++20, the =0 breaks brace-initializer-list ctors,
-         * apparently */
+        /* default member initializers prevent the struct from being an
+         * aggregate until c++14. Oddly enough, it seems to still cause
+         * trouble with icpx with c++20.
+         * https://stackoverflow.com/questions/39344444/brace-aggregate-initialization-for-structs-with-default-values
+         */
         int ulps;
 #endif
     };
