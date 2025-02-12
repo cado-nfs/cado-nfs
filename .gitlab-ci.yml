@@ -13,16 +13,21 @@ variables:
 
 
 clean-pipelines:
+  # run this only in the master branch, since the GITLAB_ACCESS_TOKEN is
+  # (now) protected, and cannot be used by pipelines from other branches.
   stage: publish
   allow_failure: true
   variables:
     GITLAB_URL: https://gitlab.inria.fr/
+  rules:
+    - if: $CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH == "master"
+      when: always
+    - when: never
   image: registry.gitlab.inria.fr/sdt-pfo/tools/gitlab-quotas-helper-component/poetry-python:1.7.1-3.12
   script:
     - cmd=("gitlab-api connect project $CI_PROJECT_ID pipelines --days 365")
     - cmd+=" delete --force"
     - eval $cmd
-  when: always
 
 # include:
 #   - component: $CI_SERVER_FQDN/sdt-pfo/tools/gitlab-quotas-helper-component/clean-pipelines@1.0.1
