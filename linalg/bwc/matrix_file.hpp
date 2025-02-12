@@ -6,6 +6,8 @@
 #include <string>
 #include <utility>
 #include <array>
+#include <vector>
+
 #include "parallelizing_info.hpp"
 #include "params.h"
 
@@ -73,13 +75,13 @@ struct matrix_file : public std::vector<uint32_t> {
     // static inline const char * rowcol(int d) { const char * x[2] = { "row", "col", }; return x[d != 0]; }
     static constexpr const char * rowcol[2] { "row", "col" };
     private:
-    static inline std::string dotrowcols(int d) {
+    static std::string dotrowcols(int d) {
         return std::string(".") + rowcol[d] + "s";
     }
-    static inline std::string dotrowcol_coeffs(int d) {
+    static std::string dotrowcol_coeffs(int d) {
         return std::string(".") + rowcol[d] + "_coeffs";
     }
-    static inline std::string dotrowcol_offsets(int d) {
+    static std::string dotrowcol_offsets(int d) {
         return std::string(".") + rowcol[d] + "_offsets";
     }
     
@@ -166,8 +168,8 @@ struct matrix_file : public std::vector<uint32_t> {
 
     /* filled by lookup() */
     std::array<uint32_t, 2> nrowcols = {};
-    inline uint32_t nrows() const { return nrowcols[0]; }
-    inline uint32_t ncols() const { return nrowcols[1]; }
+    uint32_t nrows() const { return nrowcols[0]; }
+    uint32_t ncols() const { return nrowcols[1]; }
     uint64_t ncoeffs = 0;
 
     /* The in-memory representation, which is obtained as a result of

@@ -60,7 +60,7 @@ int main()
 
         /* same for these, except that they do have an unrecognized
          * suffix that we choose not to parse */
-        { "0x1.ffp-1f",   1, "/Z", 0x1.ffp-1,           0 },
+        { "0x1.ffp-1f",   1, "/Z", .998046875,          0 },
         { "0u.2p1",       5, "/",  0,                   0 },
         { "0p.2p1",       5, "/",  0,                   0 },
         // in the cases below it's because we have a p exponent suffix
