@@ -5,6 +5,9 @@
 #include <string.h>
 #include <time.h>
 #include <errno.h>
+
+#include <gmp.h>
+
 #include "tests_common.h"
 #include "portability.h" // IWYU pragma: keep
 
@@ -15,6 +18,22 @@ static int parsed_iter = 0;
 unsigned long iter;
 static int verbose = 0, quiet = 0, want_check = 0, want_time = 0;
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
+
+int tests_run_under_valgrind ()
+{
+    /* This is only effective under linux. If on macs, we would want to
+     * use DYLD_INSERT_LIBRARIES instead
+     */
+    char *p = getenv ("LD_PRELOAD");
+    if (p == NULL)
+        return 0;
+    return (strstr (p, "/valgrind/") != NULL ||
+            strstr (p, "/vgpreload") != NULL);
+#if 0
+    if (getenv("VALGRIND") != NULL)
+        return 1
+#endif
+}
 
 /* Return non-zero iff |d2| is in the interval |d1| * (1 +- err_margin) */
 int

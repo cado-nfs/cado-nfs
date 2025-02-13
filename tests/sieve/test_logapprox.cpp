@@ -1,16 +1,15 @@
 #include "cado.h" // IWYU pragma: keep
 #include <cstring>
-#include <initializer_list>  // for initializer_list
 
-#include <utility>           // for pair
 #include <iostream>
 
 #include "fmt/core.h"
 
 #include "logapprox.hpp"
 #include "macros.h"
-#include "polynomial.hpp"
 #include "mpz_poly.h"
+#include "polynomial.hpp"
+#include "tests_common.h"
 
 /* The logapprox test is not as interesting as the test_init_norms test.
  * Here, we have different kind of behaviors depending on the compiler
@@ -76,18 +75,18 @@ static int test_from_bug30107(bool display)
     fmt::print("# {}\n", Fd.equations.size());
     ASSERT_ALWAYS(Fd.equations.size() == 63 || Fd.equations.size() == 65);
 
-#ifndef VALGRIND
-    /* long double code with valgrind seems to behave a little bit
-     * differently, and I'm not very much interested in tracking down the
-     * why and how.
-     */
-    const piecewise_linear_approximator<long double> Al(
-            polynomial<long double>(F), 0.34229490398021989L);
-    const piecewise_linear_function Fl = Al.logapprox(-64,64);
-    if (display) display_logapprox(Fl);
-    fmt::print("# {}\n", Fl.equations.size());
-    ASSERT_ALWAYS(Fl.equations.size() == 65);
-#endif
+    if (!tests_run_under_valgrind()) {
+        /* long double code with valgrind seems to behave a little bit
+         * differently, and I'm not very much interested in tracking down the
+         * why and how.
+         */
+        const piecewise_linear_approximator<long double> Al(
+                polynomial<long double>(F), 0.34229490398021989L);
+        const piecewise_linear_function Fl = Al.logapprox(-64,64);
+        if (display) display_logapprox(Fl);
+        fmt::print("# {}\n", Fl.equations.size());
+        ASSERT_ALWAYS(Fl.equations.size() == 65);
+    }
     return 0;
 }
 
