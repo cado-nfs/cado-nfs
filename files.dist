@@ -1366,6 +1366,7 @@ tests/sieve/c60.sample
 tests/sieve/c90_21505.poly
 tests/sieve/c90_21553.poly
 tests/sieve/c95_21684.poly
+tests/sieve/c97_30107.poly
 tests/sieve/ecm/CMakeLists.txt
 tests/sieve/ecm/buggy1.st
 tests/sieve/ecm/buggy2.st
@@ -1500,6 +1501,7 @@ tests/utils/test-rootfinder-script.sh
 tests/utils/test-sort.cpp
 tests/utils/test_bit_vector.c
 tests/utils/test_cache.c
+tests/utils/test_cado_expression_parser.cpp
 tests/utils/test_cado_poly.cpp
 tests/utils/test_cxx_mpz_mat.cpp
 tests/utils/test_cxx_mpz_poly.cpp
@@ -1537,6 +1539,7 @@ tests/utils/test_mpz_poly_parsing.cpp
 tests/utils/test_mpz_vector.c
 tests/utils/test_multityped_array.cpp
 tests/utils/test_omega.c
+tests/utils/test_polynomial.cpp
 tests/utils/test_polyroots.c
 tests/utils/test_random_distributions.cpp
 tests/utils/test_relation.cpp
@@ -1574,6 +1577,7 @@ utils/cado-endian.h
 utils/cado-sighandlers.cpp
 utils/cado-sighandlers.h
 utils/cado_expression_parser.hpp
+utils/cado_math_aux.hpp
 utils/cado_pipe_streambuf.cpp
 utils/cado_pipe_streambuf.hpp
 utils/cado_poly.c
@@ -1581,6 +1585,7 @@ utils/cado_poly.h
 utils/cado_popen.c
 utils/cado_popen.h
 utils/clonable-exception.hpp
+utils/coeff_proxy.hpp
 utils/crc.c
 utils/crc.h
 utils/cxx_mpz.hpp
@@ -1733,6 +1738,7 @@ utils/omp_proxy.h
 utils/params-extra.cpp
 utils/params.cpp
 utils/params.h
+utils/polynomial.hpp
 utils/polyroots.c
 utils/polyroots.h
 utils/purgedfile.c

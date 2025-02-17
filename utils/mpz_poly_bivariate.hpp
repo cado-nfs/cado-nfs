@@ -28,6 +28,12 @@
 #include <ostream>
 #include <type_traits>
 #include <vector>
+#include <algorithm>
+
+#include <gmp.h>
+
+#include "macros.h"
+#include "runtime_numeric_cast.hpp"
 
 class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
 {
@@ -41,9 +47,9 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
         ATTRIBUTE_DEPRECATED /* it's too dangerous */
         : super(d+1) {}
 #endif
-    inline int degree() const { return ((int)size()) - 1; }
-    inline int degree_y() const { return degree(); }
-    inline int degree_x() const
+    int degree() const { return ((int)size()) - 1; }
+    int degree_y() const { return degree(); }
+    int degree_x() const
     {
         int d = -1;
         for (auto const & c: *this) {
@@ -51,13 +57,13 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
         }
         return d;
     }
-    inline int degree_in_yi(unsigned int i) const
+    int degree_in_yi(unsigned int i) const
     {
         if ((int)i >= degree())
             return -1;
         return mpz_poly_degree((*this)[i]);
     }
-    inline int degree_in_xi(unsigned int i) const
+    int degree_in_xi(unsigned int i) const
     {
         for (int d = degree_y(); d >= 0; d--) {
             if (mpz_poly_degree((*this)[d]) >= (int)i &&
@@ -87,15 +93,15 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
     }
     std::string print_poly(std::string const & var) const;
 
-    void swap(self & a) { ((super &)*this).swap((super &)a); }
+    void swap(self & a) noexcept { ((super &)*this).swap((super &)a); }
 
   private:
     void cleandeg(int deg)
     {
-        ASSERT(deg >= -1);
-        if ((size_t)(deg + 1) >= size())
-            deg = size() - 1;
-        erase(begin() + deg + 1, end());
+        ASSERT_ALWAYS(deg >= -1);
+        if (runtime_numeric_cast<size_t>(deg + 1) >= size())
+            deg = runtime_numeric_cast<int>(size() - 1);
+        erase(begin() + (deg + 1), end());
         while (!empty() && super::back() == 0)
             pop_back();
     }
@@ -307,7 +313,7 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
     static void mul(self &, self const &, mpz_poly_srcptr);
     static void mul(self &, self const &, mpz_srcptr);
     static void pow_ui(self &, self const &, unsigned long);
-    static inline void mod_fy(self & a, self const & b, mpz_poly_srcptr fy)
+    static void mod_fy(self & a, self const & b, mpz_poly_srcptr fy)
     {
         self FY {lifted_y(fy)};
         mod_fy(a, b, FY);
@@ -338,7 +344,7 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
 /* printing needs a way to specify the variables... */
 std::ostream & operator<<(
     std::ostream & o,
-    cxx_mpz_poly_bivariate::named_proxy<cxx_mpz_poly_bivariate const &> f);
+    cxx_mpz_poly_bivariate::named_proxy<cxx_mpz_poly_bivariate const &> const & f);
 std::istream &
 operator>>(std::istream & in,
            cxx_mpz_poly_bivariate::named_proxy<cxx_mpz_poly_bivariate &> f);

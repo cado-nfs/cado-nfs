@@ -900,6 +900,7 @@ factor_one (
         mpz_set(cofac, C.cofactor[side]);
         if (recomp_norm) {
             mpz_poly_homogeneous_eval_siui (norm, cpoly->pols[side], a, b);
+            mpz_abs(norm, norm);
         } else {
             if (C.doing_p->side == side) {
                 mpz_mul(norm, cofac, C.doing_p->p);

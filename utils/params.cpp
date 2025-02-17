@@ -1,27 +1,30 @@
 #include "cado.h" // IWYU pragma: keep
-#include <ios>
+
+
 #include <cctype>
-#include <limits>
+#include <cerrno>
+#include <climits>             /* INT_MIN INT_MAX */
+#include <cstdarg>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+
+#include <mutex>
 #include <sstream>
 #include <stdexcept>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>              /* isdigit isspace */
-#include <limits.h>             /* INT_MIN INT_MAX */
-#include <errno.h>
-#include <stdarg.h>
-#include <inttypes.h>
-#include <mutex>
-#include <stdio.h>
+#include <utility>
+#include <vector>
+
 #include <gmp.h>
-#include <type_traits>
-#include <ios>
+
 #include "fmt/core.h"
 #include "fmt/format.h"
 #include "cxx_mpz.hpp"
 
 #include "params.h"
 #include "macros.h"
+#include "misc.h"
+#include "mpz_poly.h"
 #include "version_info.h"
 #include "verbose.h"
 #include "portability.h" // strdup // IWYU pragma: keep
@@ -95,7 +98,7 @@ void param_list_print_usage(param_list_srcptr pl, const char * argv0, FILE *f)
 {
     param_list_impl const & pli = *static_cast<param_list_impl const *>(pl->pimpl);
 
-    if (argv0 != NULL)
+    if (argv0 != nullptr)
         fprintf(f, "Usage: %s <parameters>\n", argv0);
 
     if (!pli.usage_header.empty())
@@ -110,7 +113,7 @@ void param_list_print_usage(param_list_srcptr pl, const char * argv0, FILE *f)
     for(auto const & s : pli.switches) {
         std::string & v = full_doc[s.first];
         if (v.empty()) v = "UNDOCUMENTED";
-        v = std::string("(switch) ") + v;
+        v = fmt::format("(switch) {}", v);
     }
 
     /* prepend "(alias -BLAH) " to the documentation of all alissed
@@ -119,7 +122,7 @@ void param_list_print_usage(param_list_srcptr pl, const char * argv0, FILE *f)
     for(auto const & a : pli.aliases) {
         std::string & v = full_doc[a.second];
         if (v.empty()) v = "UNDOCUMENTED";
-        v = std::string("(alias -") + a.first + ") " + v;
+        v = fmt::format("(alias -{}) {}", a.first, v);
     }
 
     for(auto const & d : full_doc) {
@@ -182,20 +185,20 @@ int param_list_read_stream(param_list_ptr pl, FILE *f, int stop_on_empty_line)
     const int linelen = 2048;
     char line[linelen];
     while (!feof(f)) {
-        if (fgets(line, linelen, f) == NULL)
+        if (fgets(line, linelen, f) == nullptr)
             break;
         if (line[0] == '#')
             continue;
         // remove possible comment at end of line.
         char * hash;
-        if ((hash = strchr(line, '#')) != NULL) {
+        if ((hash = strchr(line, '#')) != nullptr) {
             *hash = '\0';
         }
 
         char * p = line;
 
         // trailing space
-        int l = strlen(p);
+        auto l = strlen(p);
         for( ; l && isspace((int)(unsigned char)p[l-1]) ; l--);
         p[l] = '\0';
 
@@ -216,13 +219,13 @@ int param_list_read_stream(param_list_ptr pl, FILE *f, int stop_on_empty_line)
         // pl dictionary. That looks like a pretty obscure hack, in fact.
         // Do we ever use it ?
         l = 0;
-        if (!(isalpha((int)(unsigned char)p[l]) || p[l] == '_' || p[l] == '-')) {
-            param_list_add_key(pl, NULL, line, PARAMETER_FROM_FILE);
+        if (!isalpha((int)(unsigned char)p[l]) && p[l] != '_' && p[l] != '-') {
+            param_list_add_key(pl, nullptr, line, PARAMETER_FROM_FILE);
             continue;
         }
         for( ; p[l] && (isalnum((int)(unsigned char)p[l]) || p[l] == '_' || p[l] == '-') ; l++);
 
-        int const lhs_length = l;
+        auto const lhs_length = l;
 
         if (lhs_length == 0) {
             fprintf(stderr, "Parse error, no usable key for config line:\n%s\n",
@@ -259,9 +262,8 @@ int param_list_read_stream(param_list_ptr pl, FILE *f, int stop_on_empty_line)
 
 int param_list_read_file(param_list_ptr pl, const char * name)
 {
-    FILE * f;
-    f = fopen(name, "r");
-    if (f == NULL) {
+    FILE * f = fopen(name, "r");
+    if (f == nullptr) {
         fprintf(stderr, "Cannot read %s\n", name);
         exit(1);
     }
@@ -281,8 +283,8 @@ int param_list_configure_alias(param_list_ptr pl, const char * key, const char *
             fprintf(stderr, "# Warning: an alias %s is declared to the key %s, which is undocumented\n", alias, key);
     }
 
-    ASSERT_ALWAYS(alias != NULL);
-    ASSERT_ALWAYS(key != NULL);
+    ASSERT_ALWAYS(alias != nullptr);
+    ASSERT_ALWAYS(key != nullptr);
 
     pli.aliases[alias] = key;
     return 0;
@@ -305,7 +307,7 @@ int param_list_update_cmdline(param_list_ptr pl,
         int * p_argc, char const *** p_argv)
 {
     param_list_impl & pli = *static_cast<param_list_impl *>(pl->pimpl);
-    ASSERT_ALWAYS(*p_argv != NULL);
+    ASSERT_ALWAYS(*p_argv != nullptr);
     if (!pli.cmdline_argv0) {
         pli.cmdline_argv0 = (*p_argv)-1;
         pli.cmdline_argc0 = (*p_argc)+1;
@@ -360,7 +362,7 @@ int param_list_update_cmdline(param_list_ptr pl,
         for(auto & s : pli.switches) {
             if (s.first == arg2) {
                 if (s.second) {
-                    /* Note that a switch with a NULL pointer is allowed
+                    /* Note that a switch with a nullptr pointer is allowed
                      */
                     if (negate)
                         *s.second = 0;
@@ -400,7 +402,7 @@ int param_list_update_cmdline(param_list_ptr pl,
    mutex locking to make look-ups thread safe; the caller must not access
    any param_list entries by itself. */
 static const char *
-get_assoc_ptr(param_list_ptr pl, const char * key, bool stealth = false, int * const seen = NULL)
+get_assoc_ptr(param_list_ptr pl, const char * key, bool stealth = false, int * const seen = nullptr)
 {
     param_list_impl & pli = *static_cast<param_list_impl *>(pl->pimpl);
     std::lock_guard<std::mutex> const dummy(mutex);
@@ -411,7 +413,7 @@ get_assoc_ptr(param_list_ptr pl, const char * key, bool stealth = false, int * c
     }
     auto it = pli.p.find(key ? key : "");
     if (it == pli.p.end())
-        return NULL;
+        return nullptr;
 
     it->second.parsed = 1;
     if (seen) *seen = it->second.seen;
@@ -419,7 +421,7 @@ get_assoc_ptr(param_list_ptr pl, const char * key, bool stealth = false, int * c
 }
 
 static int
-get_assoc(param_list_ptr pl, const char * key, std::string & value, bool stealth = false, int * const seen = NULL)
+get_assoc(param_list_ptr pl, const char * key, std::string & value, bool stealth = false, int * const seen = nullptr)
 {
     const char * t = get_assoc_ptr(pl, key, stealth, seen);
     if (t)
@@ -429,7 +431,9 @@ get_assoc(param_list_ptr pl, const char * key, std::string & value, bool stealth
 
 
 struct parameter_exception : public std::runtime_error {
-    parameter_exception(std::string const & what) : std::runtime_error(what) {}
+    explicit parameter_exception(std::string const & what)
+        : std::runtime_error(what)
+    {}
 };
 
 /* recognize any integer in one of the following forms:
@@ -793,15 +797,15 @@ static int param_list_parse_list(param_list_ptr pl, const char * key, std::vecto
 int param_list_parse_string_list_alloc(param_list_ptr pl, const char * key, char *** r, int * n, const char * sep)
 {
     char * value;
-    *r = NULL;
+    *r = nullptr;
     *n = 0;
     int parsed = 0;
-    if (!get_assoc(pl, key, &value, NULL))
+    if (!get_assoc(pl, key, &value, nullptr))
         return 0;
     for( ; ; ) {
         char * v = strstr(value, sep);
         int itemsize;
-        if (v == NULL) {
+        if (v == nullptr) {
             itemsize = strlen(value);
         } else {
             itemsize = v - value;
@@ -921,7 +925,7 @@ void param_list_display(param_list_srcptr pl, FILE *f)
 void param_list_save(param_list_srcptr pl, const char * filename)
 {
     FILE * f = fopen(filename, "w");
-    if (f == NULL) {
+    if (f == nullptr) {
         fprintf(stderr, "fopen(%s): %s\n", filename, strerror(errno));
         exit(1);
     }

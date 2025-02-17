@@ -17,8 +17,6 @@ add_library(las_core_0 OBJECT las-side-config.cpp)
 
 add_executable(freerel freerel.cpp $<TARGET_OBJECTS:las_core_0>)
 target_link_libraries(freerel utils)
-set_target_properties(freerel PROPERTIES COMPILE_FLAGS "${OpenMP_CXX_FLAGS}")
-set_target_properties(freerel PROPERTIES LINK_FLAGS "${OpenMP_CXX_FLAGS}")
 
 # las_core_a has just very very basic types and code that can be used
 # (and are actually used) by some unit tests.
@@ -38,6 +36,7 @@ add_library(las_core_b0 OBJECT
         las-config.c
         las-norms.cpp
         logapprox.cpp
+        las-coordinates.cpp
 )
 
 add_library(las_core_b OBJECT
@@ -58,7 +57,6 @@ add_library(las_core_b OBJECT
         las-globals.cpp
         las-threads-work-data.cpp
         las-dumpfile.cpp
-        las-coordinates.cpp
         las-duplicate.cpp
         las-plattice.cpp
         las-descent.cpp
@@ -105,7 +103,6 @@ add_executable(las
     $<TARGET_OBJECTS:trialdiv>
     )
 target_link_libraries (las facul utils)
-set_target_properties(las PROPERTIES LINK_FLAGS "${OpenMP_CXX_FLAGS}")
 
 add_executable(las_tracek
     las-where-am-i-debug.cpp
@@ -119,7 +116,6 @@ add_executable(las_tracek
     $<TARGET_OBJECTS:trialdiv>
     )
 target_link_libraries (las_tracek facul utils)
-set_target_properties(las_tracek PROPERTIES LINK_FLAGS "${OpenMP_CXX_FLAGS}")
 set_property(TARGET las_tracek PROPERTY COMPILE_DEFINITIONS TRACE_K=1)
 
 add_executable(las_descent
@@ -134,7 +130,6 @@ add_executable(las_descent
     $<TARGET_OBJECTS:trialdiv>
     )
 target_link_libraries (las_descent facul utils)
-set_target_properties(las_descent PROPERTIES LINK_FLAGS "${OpenMP_CXX_FLAGS}")
 set_property(TARGET las_descent PROPERTY COMPILE_DEFINITIONS DLP_DESCENT SUPPORT_LARGE_Q)
 
 add_executable (fb_test EXCLUDE_FROM_ALL fb.cpp)
@@ -154,7 +149,6 @@ add_executable(dupsup dupsup.cpp
     $<TARGET_OBJECTS:trialdiv>
     )
 target_link_libraries(dupsup facul)
-set_target_properties(dupsup PROPERTIES LINK_FLAGS "${OpenMP_CXX_FLAGS}")
 
 add_executable(fake_rels EXCLUDE_FROM_ALL fake_rels.cpp
     # I don't like this situation where there's a single object file that

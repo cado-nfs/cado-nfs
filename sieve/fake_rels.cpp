@@ -186,7 +186,10 @@ static void remove_special_q(relation & rel, las_todo_entry const & Q)
 
 
 struct model_relation : public indexed_relation_byside {
-    template<typename... Args> model_relation(Args&&... args) : indexed_relation_byside(std::forward<Args>(args)...) {}
+    template<typename... Args>
+        model_relation(Args&&... args)
+        : indexed_relation_byside { std::forward<Args>(args)... }
+    {}
     model_relation perturb(std::vector<indexrange> const & Ind, gmp_randstate_t buf) const
     {
         auto R = [buf]() { return u64_random(buf); };

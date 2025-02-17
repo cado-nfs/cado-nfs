@@ -134,6 +134,20 @@ struct cxx_cado_poly {
     operator cado_poly_srcptr() const { return x; }
     cado_poly_ptr operator->() { return x; }
     cado_poly_srcptr operator->() const { return x; }
+
+    cxx_mpz_poly const & operator[](int i) const {
+        /* This is really a gross hack. Since an mpz_poly is really just
+         * the same thing as an mpz_poly in memory, just return the
+         * mpz_poly by pretending that it's a cxx_mpz_poly. I confess
+         * it's ugly, and I'd of course like to make cxx_mpz_poly the
+         * first class citizen instead, but I can't because of
+         * polyselect.
+         */
+        ASSERT_ALWAYS(i < x->nb_polys);
+        mpz_poly_srcptr p = x->pols[i];
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+        return *reinterpret_cast<cxx_mpz_poly const *>(p);
+    }
 };
 #if GNUC_VERSION_ATLEAST(4,3,0)
 extern void cado_poly_init(cxx_cado_poly & pl) __attribute__((error("cado_poly_init must not be called on a cado_poly reference -- it is the caller's business (via a ctor)")));

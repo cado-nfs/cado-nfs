@@ -1,10 +1,13 @@
 #include "cado.h" // IWYU pragma: keep
 // IWYU pragma: no_include <sys/param.h>
+#include <cstddef>
 #include <climits>                     // for INT_MAX, UINT_MAX
 #include <algorithm>                    // for min, max
 #include <array>                        // for array
 #include <tuple>                        // for tie
 #include <utility>                      // for swap
+
+#include "runtime_numeric_cast.hpp"
 #include "lingen_bigmatpoly.hpp"
 #include "lingen_matpoly_select.hpp"
 #include "lingen_mul_substeps.hpp"
@@ -13,6 +16,7 @@
 #include "macros.h"
 #include "submatrix_range.hpp"          // for submatrix_range
 #include "tree_stats.hpp"               // for tree_stats
+#include "select_mpi.h"
 
 int bigmatpoly_model::rank() const
 {
@@ -39,9 +43,9 @@ int bigmatpoly_model::jrank() const
 /* {{{  init/zero/clear interface for bigmatpoly */
 
 bigmatpoly_model::bigmatpoly_model(MPI_Comm * comm, unsigned int m, unsigned int n)
+    : m1(m)
+    , n1(n)
 {
-    m1 = m;
-    n1 = n;
     memcpy(com, comm, 3 * sizeof(MPI_Comm));
 }
 
@@ -57,7 +61,7 @@ void bigmatpoly::finish_init(matpoly::arith_hard * ab, unsigned int m, unsigned 
     // n0 = subdivision(n, n1).nth_block_size(jrank());;
     m0 = subdivision(m, m1).block_size_upper_bound();
     n0 = subdivision(n, n1).block_size_upper_bound();
-    size = len;
+    size = runtime_numeric_cast<size_t>(len);
     my_cell() = matpoly(ab, m0, n0, len);
 }
 
@@ -66,27 +70,20 @@ void bigmatpoly::finish_init(matpoly::arith_hard * ab, unsigned int m, unsigned 
  * on with bigmatpoly_finish_init
  */
 bigmatpoly::bigmatpoly(bigmatpoly_model const & model)
-    : bigmatpoly_model(model), ab(NULL), m(0), n(0)
+    : bigmatpoly_model(model)
+    , cells(m1 * n1)
 {
-    m0 = n0 = 0;
-    size = 0;
-    /* en0ept that finish_init wants this allocated. We could, of course,
-     * do the reservation in finish_init, but better have both ctors
-     * leave the same post-condition.
-     */
-    cells.reserve(m1*n1);
-    for(unsigned int k = m1*n1; k--;) cells.emplace_back();
 }
 
 bigmatpoly::bigmatpoly(matpoly::arith_hard * ab, bigmatpoly_model const & model, unsigned int m, unsigned int n, int len)
-    : bigmatpoly_model(model), ab(ab), m(m), n(n)
+    : bigmatpoly_model(model)
+    , ab(ab)
+    , m(m)
+    , n(n)
+    , m0(subdivision(m, m1).block_size_upper_bound())
+    , n0(subdivision(n, n1).block_size_upper_bound())
+    , cells(m1 * n1)
 {
-    cells.reserve(m1*n1);
-    for(unsigned int k = m1*n1; k--;) cells.emplace_back();
-    // m0 = subdivision(m, m1).nth_block_size(irank());;
-    // n0 = subdivision(n, n1).nth_block_size(jrank());;
-    m0 = subdivision(m, m1).block_size_upper_bound();
-    n0 = subdivision(n, n1).block_size_upper_bound();
     /* Either none or all must be non-zero */
     ASSERT_ALWAYS((!m||!n||!len) ^ (m&&n&&len));
     if (!len)
@@ -101,17 +98,17 @@ bigmatpoly::bigmatpoly(matpoly::arith_hard * ab, bigmatpoly_model const & model,
     finish_init(ab, m, n, len);
 }
 
-bigmatpoly::bigmatpoly(bigmatpoly && a)
+bigmatpoly::bigmatpoly(bigmatpoly && a) noexcept
     : bigmatpoly_model(a.get_model())
     , ab(a.ab)
     , m(a.m), n(a.n)
     , m0(a.m0), n0(a.n0)
+    , size(a.size)
+    , cells(std::move(a.cells))
 {
-    size=a.size;
     a.m0=a.n0=a.m=a.n=a.size=0;
-    std::swap(cells, a.cells);
 }
-bigmatpoly& bigmatpoly::operator=(bigmatpoly&& a)
+bigmatpoly& bigmatpoly::operator=(bigmatpoly&& a) noexcept
 {
     get_model() = a.get_model();
     ab = a.ab;
@@ -120,8 +117,8 @@ bigmatpoly& bigmatpoly::operator=(bigmatpoly&& a)
     m0 = a.m0;
     n0 = a.n0;
     size=a.size;
-    a.m0=a.n0=a.m=a.n=a.size=0;
     std::swap(cells, a.cells);
+    a.m0=a.n0=a.m=a.n=a.size=0;
     return *this;
 }
 /* }}} */
@@ -488,30 +485,30 @@ struct OP_CTX {
         MPI_Type_free(&mpi_entry_a);
         MPI_Type_free(&mpi_entry_b);
     }
-    inline int a_irank() const { return a.irank(); }
-    inline int b_irank() const { return b.irank(); }
-    inline int a_jrank() const { return a.jrank(); }
-    inline int b_jrank() const { return b.jrank(); }
-    inline int mesh_inner_size() const { return a.n1; }
+    int a_irank() const { return a.irank(); }
+    int b_irank() const { return b.irank(); }
+    int a_jrank() const { return a.jrank(); }
+    int b_jrank() const { return b.jrank(); }
+    int mesh_inner_size() const { return a.n1; }
     static const bool uses_mpi = true;
-    inline void mesh_checks() const {
+    void mesh_checks() const {
         ASSERT_ALWAYS(a.get_model().is_square());
         ASSERT_ALWAYS(a.get_model() == b.get_model());
         ASSERT_ALWAYS(a.irank() == b.irank());
         ASSERT_ALWAYS(a.jrank() == b.jrank());
     }
     void alloc_c_if_needed(size_t size) const {
-        if (c.m != a.m || c.n != a.n || c.get_size() != size)
+        if (c.m != a.m || c.n != a.n || runtime_numeric_cast<size_t>(c.get_size()) != size)
             c = bigmatpoly(a.ab, a.get_model(), a.m, b.n, size);
     }
-    inline matpoly const & a_local() { return a.my_cell(); }
-    inline matpoly const & b_local() { return b.my_cell(); }
-    inline matpoly & c_local() { return c.my_cell(); }
-    inline void a_allgather(void * p, int n) {
+    matpoly const & a_local() { return a.my_cell(); }
+    matpoly const & b_local() { return b.my_cell(); }
+    matpoly & c_local() { return c.my_cell(); }
+    void a_allgather(void * p, int n) {
         MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
                p, n, mpi_entry_a, a.get_model().com[1]);
     }
-    inline void b_allgather(void * p, int n) {
+    void b_allgather(void * p, int n) {
         MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
                p, n, mpi_entry_b, b.get_model().com[2]);
     }

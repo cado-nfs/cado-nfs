@@ -924,6 +924,7 @@ static int fix_relation(relation  *rel, cado_poly_ptr cpoly, unsigned int * lpb)
       ASSERT_ALWAYS(side < 2);
       mpz_poly_ptr ps = cpoly->pols[side];
       mpz_poly_homogeneous_eval_siui (norm[side], ps, rel->a, rel->b);
+      mpz_abs (norm[side], norm[side]);
   }
 
   unsigned int* entries = &rel->rfb_entries;

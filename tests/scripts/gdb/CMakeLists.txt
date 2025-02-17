@@ -22,8 +22,9 @@ cado_define_test(
     PROGRAM
     ${GDB_EXECUTABLE}
     -ex "add-auto-load-safe-path ${CADO_NFS_BINARY_DIR}"
+    -ex "file ${CMAKE_CURRENT_BINARY_DIR}/test_gdb_printers"
     -x ${CMAKE_CURRENT_SOURCE_DIR}/test_gdb_printers.gdb
-    --batch --args  ${CMAKE_CURRENT_BINARY_DIR}/test_gdb_printers
+    --batch
     TARGET_DEPENDENCIES
     test_gdb_printers
     EXPECT_SHA1 79cddcf25b16b8faaa4bc0e3ad26c2fb64c6d5d1
@@ -61,12 +62,12 @@ foreach(layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS} b64)
     if(t)
         set(width ${CMAKE_MATCH_1})
         set(p "${prime_${width}}")
-        set(extra --prime ${p})
+        set(extra "--prime ${p}")
     elseif(layer STREQUAL "pz")
         set(t TRUE)
         set(width "z")
         set(p "${prime_${width}}")
-        set(extra "--prime" ${p})
+        set(extra "--prime ${p}")
     elseif(layer STREQUAL "b64")
         link_directories (${CADO_NFS_BINARY_DIR}/gf2x/fft/.libs)
         link_directories (${CADO_NFS_BINARY_DIR}/gf2x/.libs)
@@ -85,6 +86,9 @@ foreach(layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS} b64)
 
     target_link_libraries(test_gdb_printers_bwc_${layer}
         lingen_${layer}_support)
+    # There should be a way to inherit this. Anyway, since
+    # lingen_${layer}_support is mpi, this binary has to be mpi too!
+    mark_targets_as_mpi(test_gdb_printers_bwc_${layer})
 
     add_dependencies(all_gdb_printer_tests test_gdb_printers_bwc_${layer})
 
@@ -98,10 +102,10 @@ foreach(layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS} b64)
         PROGRAM
         ${GDB_EXECUTABLE}
         -ex "add-auto-load-safe-path ${CADO_NFS_BINARY_DIR}"
+        -ex "file ${CMAKE_CURRENT_BINARY_DIR}/test_gdb_printers_bwc_${layer}"
+        -ex "set args ${extra}"
         -x ${CMAKE_CURRENT_SOURCE_DIR}/test_gdb_printers_bwc.gdb
         --batch
-        --args ${CMAKE_CURRENT_BINARY_DIR}/test_gdb_printers_bwc_${layer}
-        ${extra}
         TARGET_DEPENDENCIES
         test_gdb_printers_bwc_${layer}
         SHA1_ON_REGEXP_LINES "^\\$"

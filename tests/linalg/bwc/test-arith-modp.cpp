@@ -10,6 +10,7 @@
 #include "arith-modp.hpp"
 #include "cxx_mpz.hpp"
 #include "gmp-hacks.h"     // for MPN_SET_MPZ, MPZ_SET_MPN
+#include "gmp_aux.h"
 #include "macros.h"
 #include "tests_common.h"
 #include "timing.h"
@@ -51,7 +52,7 @@ static void do_tests(unsigned long iter, int summands, int cbound )
             /* Support p not having its high bit set! */
             mpz_fdiv_q_2exp(pz, pz, gmp_urandomm_ui(state, GMP_LIMB_BITS));
         } while (mpz_size(pz) < maximum_limbs || mpz_even_p(pz) || mpz_cmp_ui(pz, 1) == 0);
-        F field(pz, 1);
+        F field(pz, 1U);
 
         size_t const N = field.template nlimbs<typename F::elt>();
 

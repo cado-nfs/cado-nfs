@@ -3,6 +3,7 @@
 
 #include "macros.h"
 #include "params.h"
+#include "bw-common.h"
 #include "lingen_matpoly_select.hpp"
 
 static void foo()
@@ -13,6 +14,8 @@ int main(int argc, char const * argv[])
 {
     cxx_mpz p;
     cxx_param_list pl;
+
+    bw_common_init(bw, &argc, &argv);
 
     const char * argv0 = argv[0];
     argv++,argc--;
@@ -44,7 +47,7 @@ int main(int argc, char const * argv[])
     if (param_list_warn_unused(pl))
         exit(EXIT_FAILURE);
 
-    matpoly::arith_hard K(p, 1);
+    matpoly::arith_hard K(p, 1U);
     matpoly M(&K, m, n, 0);
 
     M.realloc(3);
@@ -66,4 +69,6 @@ int main(int argc, char const * argv[])
 
     ASSERT_ALWAYS(M.nrows() == m);
     foo();
+
+    bw_common_clear(bw);
 }

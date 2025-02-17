@@ -228,14 +228,14 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set (CMAKE_CXX_FLAGS "-export-dynamic ${CMAKE_CXX_FLAGS}")
 elseif(CMAKE_C_COMPILER_ID MATCHES "IntelLLVM")
     message(STATUS "Applying flags for icc (icx)")
-    set (CMAKE_CXX_FLAGS "-fp-model=precise -std=c++11 ${CMAKE_CXX_FLAGS}")
     if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "2025")
-        set (CMAKE_CXX_FLAGS   "-std=c++20 ${CMAKE_CXX_FLAGS}")
+        set (CMAKE_CXX_FLAGS "-fp-model=precise -std=c++20 ${CMAKE_CXX_FLAGS}")
         message(STATUS "Enabling C++20 support")
         set(HAVE_CXX20 1)
         set(HAVE_CXX11 1)
     else()
 	message(STATUS "Enabling C++11 support")
+        set (CMAKE_CXX_FLAGS "-fp-model=precise -std=c++11 ${CMAKE_CXX_FLAGS}")
         set(HAVE_CXX11 1)
     endif()
 elseif(CMAKE_C_COMPILER_ID MATCHES "Intel")
@@ -471,15 +471,9 @@ endif()
 
 ######################################################################
 # Try to detect whether pthreads and/or MPI are available.
-# This checks the MPI and PTHREADS environment variables.
 # As a result:
-# - If pthreads are available:
-#   * WITH_PTHREADS is defined to 1 as a cmake variable.
-#   * -DWITH_PTHREADS is added for the compilation of every file (because
-#     it can't hurt).
-#   In fact, in recent versions, pthread support is mandatory. Still,
-#   this piece of cmake checks the avaibility of the function
-#   pthread_barrier_wait, which is optional.
+# - pthreads are mandatory, but we also check the avaibility of the
+#   function pthread_barrier_wait, which is optional.
 # - If mpi is available:
 #   * WITH_MPI is defined to 1 as a cmake variable.
 #   * _NOTHING_ from the build environment is changed by default, because

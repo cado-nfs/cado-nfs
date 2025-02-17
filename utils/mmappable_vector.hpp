@@ -1,16 +1,16 @@
 #ifndef UTILS_MMAPPABLE_VECTOR_HPP_
 #define UTILS_MMAPPABLE_VECTOR_HPP_
 
-#include "mmap_allocator.hpp"
+#include <cstdio>
+
 #include <algorithm>
 #include <iterator>
 #include <limits>
 #include <memory>
 #include <stdexcept>
-#include <stdio.h>
-#include <string>
 #include <type_traits>
-#include <vector>
+
+#include "mmap_allocator.hpp"
 
 /* see bdfb2543f for a version that plays ugly tricks with the
  * std::vector internal fields. The version below doesn't do such things.
@@ -88,7 +88,7 @@ class mmappable_vector : public A
         swap(t);
     };
 
-    mmappable_vector(mmappable_vector<T, A>&& o)
+    mmappable_vector(mmappable_vector<T, A>&& o) noexcept
       : _start(o._start)
       , _finish(o._finish)
       , _end_of_storage(o._end_of_storage)
@@ -99,7 +99,7 @@ class mmappable_vector : public A
         o._end_of_storage = nullptr;
     }
 
-    mmappable_vector& operator=(mmappable_vector<T, A>&& o) {
+    mmappable_vector& operator=(mmappable_vector<T, A>&& o) noexcept {
         swap(o);
         return *this;
     }
@@ -140,40 +140,40 @@ class mmappable_vector : public A
     public:
     ~mmappable_vector() { A::deallocate(_start, capacity()); }
 
-    inline size_type capacity() const { return _end_of_storage - _start; }
-    inline size_type size() const { return _finish - _start; }
+    size_type capacity() const { return _end_of_storage - _start; }
+    size_type size() const { return _finish - _start; }
 
-    inline iterator begin() { return _start; }
-    inline iterator end() { return _finish; }
-    inline reverse_iterator rbegin() { return reverse_iterator(_finish); }
-    inline reverse_iterator rend() { return reverse_iterator(_start); }
-    inline const_iterator cbegin() const { return _start; }
-    inline const_iterator cend() const { return _finish; }
-    inline const_reverse_iterator crbegin() const
+    iterator begin() { return _start; }
+    iterator end() { return _finish; }
+    reverse_iterator rbegin() { return reverse_iterator(_finish); }
+    reverse_iterator rend() { return reverse_iterator(_start); }
+    const_iterator cbegin() const { return _start; }
+    const_iterator cend() const { return _finish; }
+    const_reverse_iterator crbegin() const
     {
         return reverse_iterator(_finish);
     }
-    inline const_reverse_iterator crend() const
+    const_reverse_iterator crend() const
     {
         return reverse_iterator(_start);
     }
-    inline const_iterator begin() const { return _start; }
-    inline const_iterator end() const { return _finish; }
-    inline const_reverse_iterator rbegin() const
+    const_iterator begin() const { return _start; }
+    const_iterator end() const { return _finish; }
+    const_reverse_iterator rbegin() const
     {
         return reverse_iterator(_finish);
     }
-    inline const_reverse_iterator rend() const
+    const_reverse_iterator rend() const
     {
         return reverse_iterator(_start);
     }
 
-    static inline size_type max_size()
+    static size_type max_size()
     {
         return std::numeric_limits<size_type>::max();
     }
 
-    inline bool empty() const { return _finish == _start; }
+    bool empty() const { return _finish == _start; }
 
     /* missing:
      *
@@ -193,31 +193,31 @@ class mmappable_vector : public A
             _end_of_storage = t + n;
         }
     }
-    inline reference operator[](size_type n) { return _start[n]; }
-    inline const_reference operator[](size_type n) const { return _start[n]; }
-    inline reference at(size_type n)
+    reference operator[](size_type n) { return _start[n]; }
+    const_reference operator[](size_type n) const { return _start[n]; }
+    reference at(size_type n)
     {
         if (n >= size())
             throw std::out_of_range("mmappable_vector::at");
         return (*this)[n];
     }
-    inline const_reference at(size_type n) const
+    const_reference at(size_type n) const
     {
         if (n >= size())
             throw std::out_of_range("mmappable_vector::at");
         return (*this)[n];
     }
-    inline reference front() { return *_start; }
-    inline const_reference front() const { return *_start; }
-    inline reference back() { return *rbegin(); }
-    inline const_reference back() const { return *rbegin(); }
-    inline pointer data() { return _start; }
-    inline const_pointer data() const { return _start; }
+    reference front() { return *_start; }
+    const_reference front() const { return *_start; }
+    reference back() { return *rbegin(); }
+    const_reference back() const { return *rbegin(); }
+    pointer data() { return _start; }
+    const_pointer data() const { return _start; }
 
-    inline allocator_type get_allocator() { return (allocator_type) * this; }
+    allocator_type get_allocator() { return (allocator_type) * this; }
 
     private:
-    inline allocator_type& get_allocator_ref()
+    allocator_type& get_allocator_ref()
     {
         return (allocator_type&)*this;
     }
@@ -249,7 +249,7 @@ class mmappable_vector : public A
     template<typename... Args>
     void emplace_back(Args&&... args)
     {
-        push_back(value_type(std::forward<Args>(args)...));
+        push_back(value_type { std::forward<Args>(args)... });
     }
 
     void clear() { _finish = _start; }
@@ -308,7 +308,7 @@ class mmappable_vector : public A
         get_allocator_ref() = A();
     }
 
-    void swap(mmappable_vector<T, A>& x)
+    void swap(mmappable_vector<T, A>& x) noexcept
     {
         std::swap((allocator_type&)*this, (allocator_type&)x);
         std::swap(_start, x._start);
@@ -319,7 +319,7 @@ class mmappable_vector : public A
 
 template<typename T, typename A>
 void
-swap(mmappable_vector<T, A>& a, mmappable_vector<T, A>& b)
+swap(mmappable_vector<T, A>& a, mmappable_vector<T, A>& b) noexcept
 {
     a.swap(b);
 }
