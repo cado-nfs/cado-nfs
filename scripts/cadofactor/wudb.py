@@ -100,7 +100,7 @@ class WuTable(DbTable):
               ("errorcode", "INTEGER", ""),
               ("failedcommand", "INTEGER", ""),
               ("timeverified", "TEXT", ""),
-              ("retryof", "INTEGER", "REFERENCES %s" % tablename),
+              ("retryof", "INTEGER", "REFERENCES %s(wurowid)" % tablename),
               ("priority", "INTEGER", "")
               )
     primarykey = fields[0][0]
