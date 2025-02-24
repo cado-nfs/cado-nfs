@@ -342,6 +342,17 @@ mysql specific expensive checks on debian-testing system with gcc:
     - *checks-script
   <<: *checks-junit-report
 
+mysql specific expensive checks on debian12 system with gcc:
+  <<: *common-template
+  image: debian:testing
+  stage: thorough
+  needs: []
+  before_script:
+    - ci/ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
 checks under valgrind on debian-testing system on a debug build with gcc:
   rules:
     # valgrind checking takes many hours. It's simply not feasible for it to be
