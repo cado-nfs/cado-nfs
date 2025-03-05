@@ -7,12 +7,14 @@
 #ifdef __cplusplus
 #include <istream>
 #include <map>
+#include <string>
+#include <utility>
+#include <stdexcept>
 #endif
 
 #include <gmp.h>
 
 #include "macros.h"
-#include "misc.h"       // mpz_set_from_expression
 #ifdef __cplusplus
 #include "cxx_mpz.hpp"
 #endif
@@ -255,13 +257,19 @@ struct param_list_impl {
         enum parameter_origin origin;
         bool parsed;
         int seen;
-        parameter(std::string const & value = std::string(), 
+        explicit parameter(std::string value = std::string(), 
                 enum parameter_origin origin = PARAMETER_FROM_FILE,
-                bool parsed = 0,
+                bool parsed = false,
                 int seen = 1)
-            : value(value), origin(origin), parsed(parsed), seen(seen) {}
+            : value(std::move(value))
+            , origin(origin)
+            , parsed(parsed)
+            , seen(seen) {}
         parameter(parameter const &) = default;
         parameter& operator=(parameter const &) = default;
+        parameter(parameter &&) = default;
+        parameter& operator=(parameter &&) = default;
+        ~parameter() = default;
     };
     std::map<std::string, parameter, collate> p;
     // aliases

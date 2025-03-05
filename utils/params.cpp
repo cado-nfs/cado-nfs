@@ -10,6 +10,7 @@
 #include <cstring>
 
 #include <mutex>
+#include <string>
 #include <sstream>
 #include <stdexcept>
 #include <utility>
@@ -334,12 +335,7 @@ int param_list_update_cmdline(param_list_ptr pl,
         }
     }
 
-    if (has_dashes && !rhs.empty()) {
-        /* Maybe we should support this, after all? Could -v=5 be
-         * something useful?
-         */
-        return 0;
-    }
+    /* Note that we now support --option=X as well */
 
     bool negate = false;
 
@@ -348,39 +344,51 @@ int param_list_update_cmdline(param_list_ptr pl,
             arg2 = arg2.substr(3);
             negate = true;
         }
+
+        /* negate + having a rhs does not make sense */
+        if (negate && !rhs.empty())
+            return 0;
     }
 
-    for(auto const & a : pli.aliases) {
-        if (a.first == arg2) {
-            arg2 = a.second;
-        }
+    {
+        auto const it = pli.aliases.find(arg2);
+        if (it != pli.aliases.end())
+            arg2 = it->second;
     }
-    
-    if (has_dashes) {
-        ASSERT_ALWAYS(rhs.empty());
 
-        for(auto & s : pli.switches) {
-            if (s.first == arg2) {
-                if (s.second) {
-                    /* Note that a switch with a nullptr pointer is allowed
-                     */
-                    if (negate)
-                        *s.second = 0;
-                    else
-                        ++*s.second;
-                }
-                /* add it to the dictionary, so that
-                 * param_list_parse_switch can find it later on.
-                 */
-                param_list_add_key(pli, arg2, std::string(), PARAMETER_FROM_CMDLINE);
-                (*p_argv)+=1;
-                (*p_argc)-=1;
-                return 1;
+    auto const it = pli.switches.find(arg2);
+    if (it != pli.switches.end()) {
+        if (it->second) {
+            /* Note that a switch with a nullptr pointer is allowed
+            */
+            if (negate) {
+                *it->second = 0;
+            } else if (rhs.empty()) {
+                ++*it->second;
+            } else {
+                size_t pos;
+                int const v = stoi(rhs, &pos);
+                if (pos != rhs.size())
+                    return 0;
+                *it->second = v;
             }
         }
+        /* add it to the dictionary, so that
+         * param_list_parse_switch can find it later on.
+         */
+        param_list_add_key(pli, arg2, std::string(), PARAMETER_FROM_CMDLINE);
+        (*p_argv)+=1;
+        (*p_argc)-=1;
+        return 1;
+    } else {
+        /* negate only makes sense for a switch! */
+        if (negate)
+            return 0;
+    }
 
-        /* We have dashes, we're not a switch. We have no RHS yet, take
-         * it from the rest of the command line */
+    if (rhs.empty()) {
+        /* If we have no RHS yet, take it from the rest of the command
+         * line */
 
         if (*p_argc < 2)
             return 0;
@@ -389,6 +397,7 @@ int param_list_update_cmdline(param_list_ptr pl,
         (*p_argv)+=1;
         (*p_argc)-=1;
     }
+
     if (!rhs.empty()) {
         param_list_add_key(pli, arg2, rhs, PARAMETER_FROM_CMDLINE);
         (*p_argv)+=1;
