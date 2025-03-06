@@ -39,7 +39,7 @@ struct direction_flag {
 
 template<>
 int param_list_parse<direction_flag>(param_list_ptr pl,
-        const char * arg,
+        std::string const & arg,
         direction_flag & D)
 {
     std::string r;
@@ -66,8 +66,8 @@ int main(int argc, char const * argv[])
     std::string matrixfile;
     std::string tmpdir = "/tmp";
 
-    setvbuf(stdout,NULL,_IONBF,0);
-    setvbuf(stderr,NULL,_IONBF,0);
+    setvbuf(stdout, nullptr, _IONBF, 0);
+    setvbuf(stderr, nullptr, _IONBF, 0);
 
     cxx_param_list pl;
 

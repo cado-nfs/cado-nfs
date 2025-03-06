@@ -1,8 +1,8 @@
 #include "cado.h"
-#include <array>
+
 #include "matmul_top.hpp"
 #include "matmul_top_comm.hpp"
-
+#include "misc.h"
 #include "timing.h"
 #include "verbose.h"
 

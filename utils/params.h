@@ -7,12 +7,14 @@
 #ifdef __cplusplus
 #include <istream>
 #include <map>
+#include <string>
+#include <utility>
+#include <stdexcept>
 #endif
 
 #include <gmp.h>
 
 #include "macros.h"
-#include "misc.h"       // mpz_set_from_expression
 #ifdef __cplusplus
 #include "cxx_mpz.hpp"
 #endif
@@ -52,8 +54,7 @@ extern void param_list_swap(param_list_ptr pl, param_list_ptr pl0);
 extern void param_list_decl_usage(param_list_ptr pl, const char * key,
         const char * doc);
 extern void param_list_print_usage(param_list_srcptr pl, const char * argv0, FILE *f);
-extern void param_list_usage_header(param_list_ptr pl, const char * hdr, ...)
-    ATTR_PRINTF(2, 3);
+extern void param_list_usage_header(param_list_ptr pl, const char * hdr);
 
 // takes a file, in the Cado-NFS params format, and stores the dictionary
 // of parameters to pl.
@@ -74,12 +75,12 @@ extern int param_list_update_cmdline(param_list_ptr pl,
 
 #ifdef __cplusplus
 template<typename T>
-int param_list_parse(param_list_ptr pl, const char * key, T & r);
+int param_list_parse(param_list_ptr pl, std::string const & key, T & r);
 
 /* this returns a default constructed T if the key is absent */
 template<typename T>
 T
-param_list_parse(param_list_ptr pl, const char * key)
+param_list_parse(param_list_ptr pl, std::string const & key)
 {
     T r;
     param_list_parse<T>(pl, key, r);
@@ -88,39 +89,39 @@ param_list_parse(param_list_ptr pl, const char * key)
 
 
 template<typename T>
-int param_list_parse_per_side(param_list_ptr pl, const char * key, T * lpb_arg, int n, enum args_per_side_policy_t policy);
+int param_list_parse_per_side(param_list_ptr pl, std::string const & key, T * lpb_arg, int n, enum args_per_side_policy_t policy);
 
-extern template int param_list_parse_per_side<double>(param_list_ptr pl, const char * key, double * lpb_arg, int n, enum args_per_side_policy_t policy);
-extern template int param_list_parse_per_side<int>(param_list_ptr pl, const char * key, int * lpb_arg, int n, enum args_per_side_policy_t policy);
-extern template int param_list_parse_per_side<unsigned int>(param_list_ptr pl, const char * key, unsigned int * lpb_arg, int n, enum args_per_side_policy_t policy);
+extern template int param_list_parse_per_side<double>(param_list_ptr pl, std::string const & key, double * lpb_arg, int n, enum args_per_side_policy_t policy);
+extern template int param_list_parse_per_side<int>(param_list_ptr pl, std::string const & key, int * lpb_arg, int n, enum args_per_side_policy_t policy);
+extern template int param_list_parse_per_side<unsigned int>(param_list_ptr pl, std::string const & key, unsigned int * lpb_arg, int n, enum args_per_side_policy_t policy);
 #ifndef UNSIGNED_LONG_IS_EXACTLY_UNSIGNED
-extern template int param_list_parse_per_side<unsigned long>(param_list_ptr pl, const char * key, unsigned long * lpb_arg, int n, enum args_per_side_policy_t policy);
+extern template int param_list_parse_per_side<unsigned long>(param_list_ptr pl, std::string const & key, unsigned long * lpb_arg, int n, enum args_per_side_policy_t policy);
 #endif
-extern template int param_list_parse_per_side<std::string>(param_list_ptr pl, const char * key, std::string * lpb_arg, int n, enum args_per_side_policy_t policy);
+extern template int param_list_parse_per_side<std::string>(param_list_ptr pl, std::string const & key, std::string * lpb_arg, int n, enum args_per_side_policy_t policy);
 
 /* We have all of these defined in params.cpp, and they can be used from
  * c++ code only.
  */
-extern template int param_list_parse<bool>(param_list_ptr pl, const char * key, bool & r);
-extern template int param_list_parse<int>(param_list_ptr pl, const char * key, int & r);
-extern template int param_list_parse<unsigned int>(param_list_ptr pl, const char * key, unsigned int & r);
+extern template int param_list_parse<bool>(param_list_ptr pl, std::string const & key, bool & r);
+extern template int param_list_parse<int>(param_list_ptr pl, std::string const & key, int & r);
+extern template int param_list_parse<unsigned int>(param_list_ptr pl, std::string const & key, unsigned int & r);
 #ifndef LONG_IS_EXACTLY_INT
-extern template int param_list_parse<long>(param_list_ptr pl, const char * key, long & r);
+extern template int param_list_parse<long>(param_list_ptr pl, std::string const & key, long & r);
 #endif
 #ifndef UNSIGNED_LONG_IS_EXACTLY_UNSIGNED
-extern template int param_list_parse<unsigned long>(param_list_ptr pl, const char * key, unsigned long & r);
+extern template int param_list_parse<unsigned long>(param_list_ptr pl, std::string const & key, unsigned long & r);
 #endif
 #ifndef INT64_T_IS_EXACTLY_LONG
-extern template int param_list_parse<int64_t>(param_list_ptr pl, const char * key, int64_t & r);
+extern template int param_list_parse<int64_t>(param_list_ptr pl, std::string const & key, int64_t & r);
 #endif
 #ifndef UINT64_T_IS_EXACTLY_UNSIGNED_LONG
-extern template int param_list_parse<uint64_t>(param_list_ptr pl, const char * key, uint64_t & r);
+extern template int param_list_parse<uint64_t>(param_list_ptr pl, std::string const & key, uint64_t & r);
 #endif
-extern template int param_list_parse<double>(param_list_ptr pl, const char * key, double & r);
-extern template int param_list_parse<std::vector<int>>(param_list_ptr pl, const char * key, std::vector<int> & r);
-extern template int param_list_parse<std::vector<std::string>>(param_list_ptr pl, const char * key, std::vector<std::string> & r);
-extern template int param_list_parse<cxx_mpz>(param_list_ptr pl, const char * key, cxx_mpz & r);
-extern template int param_list_parse<cxx_mpz_poly>(param_list_ptr pl, const char * key, cxx_mpz_poly & r);
+extern template int param_list_parse<double>(param_list_ptr pl, std::string const & key, double & r);
+extern template int param_list_parse<std::vector<int>>(param_list_ptr pl, std::string const & key, std::vector<int> & r);
+extern template int param_list_parse<std::vector<std::string>>(param_list_ptr pl, std::string const & key, std::vector<std::string> & r);
+extern template int param_list_parse<cxx_mpz>(param_list_ptr pl, std::string const & key, cxx_mpz & r);
+extern template int param_list_parse<cxx_mpz_poly>(param_list_ptr pl, std::string const & key, cxx_mpz_poly & r);
 #endif
 
 
@@ -138,14 +139,12 @@ extern int param_list_parse_uint64(param_list_ptr, const char *, uint64_t *);
 extern int param_list_parse_double(param_list_ptr, const char *, double *);
 extern int param_list_parse_double_and_double(param_list_ptr, const char *,
     double *, const char *);
-extern int param_list_parse_string(param_list_ptr, const char *, char *, size_t);
 extern int param_list_parse_mpz(param_list_ptr, const char *, mpz_ptr);
 extern int param_list_parse_intxint(param_list_ptr, const char * key, int * r);
 extern int param_list_parse_int_and_int(param_list_ptr, const char * key, int * r, const char * sep);
 int param_list_parse_uint_and_uint(param_list_ptr, const char * key, unsigned int * r, const char * sep);
 extern int param_list_parse_long_and_long(param_list_ptr, const char * key, long * r, const char * sep);
 extern int param_list_parse_ulong_and_ulong(param_list_ptr pl, const char * key, unsigned long * r, const char * sep);
-// extern int param_list_parse_string_list_alloc(param_list_ptr, const char * key, char *** r, int * n, const char * sep);
 extern size_t param_list_get_list_count(param_list_ptr pl, const char * key);
 extern int param_list_parse_int_list(param_list_ptr, const char * key, int * r, size_t n, const char * sep);
 int param_list_parse_uint64_and_uint64(param_list_ptr, const char * key,
@@ -174,8 +173,6 @@ extern int param_list_parse_size_t(param_list_ptr, const char * key, size_t * r)
 extern int param_list_parse_switch(param_list_ptr, const char * key);
 
 extern const char * param_list_lookup_string(param_list_ptr, const char * key);
-
-extern void param_list_save(param_list_srcptr, const char * filename);
 
 // This one allows shorthands. Notice that the alias string has to
 // contain the exact form of the wanted alias, which may be either "-x",
@@ -207,10 +204,15 @@ extern void param_list_remove_key(param_list_ptr, const char * key);
 // for debugging.
 extern void param_list_display(param_list_srcptr, FILE *f);
 
+#if 0
+/* these two are never used */
+extern void param_list_save(param_list_srcptr, const char * filename);
+
 // quick way to reinject parameters in the param_list (presumably before
 // saving)
 extern int param_list_save_parameter(param_list_ptr, enum parameter_origin o, 
         const char * key, const char * format, ...) ATTR_PRINTF(4,5);
+#endif
 
 // This function is a shorthand which does employ some hackery put into
 // param lists, which remember their oldest argv, argc pair.
@@ -255,13 +257,19 @@ struct param_list_impl {
         enum parameter_origin origin;
         bool parsed;
         int seen;
-        parameter(std::string const & value = std::string(), 
+        explicit parameter(std::string value = std::string(), 
                 enum parameter_origin origin = PARAMETER_FROM_FILE,
-                bool parsed = 0,
+                bool parsed = false,
                 int seen = 1)
-            : value(value), origin(origin), parsed(parsed), seen(seen) {}
+            : value(std::move(value))
+            , origin(origin)
+            , parsed(parsed)
+            , seen(seen) {}
         parameter(parameter const &) = default;
         parameter& operator=(parameter const &) = default;
+        parameter(parameter &&) = default;
+        parameter& operator=(parameter &&) = default;
+        ~parameter() = default;
     };
     std::map<std::string, parameter, collate> p;
     // aliases

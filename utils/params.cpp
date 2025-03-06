@@ -6,10 +6,12 @@
 #include <climits>             /* INT_MIN INT_MAX */
 #include <cstdarg>
 #include <cstdio>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 
 #include <mutex>
+#include <string>
 #include <sstream>
 #include <stdexcept>
 #include <utility>
@@ -63,17 +65,10 @@ int param_list_empty(param_list_srcptr pl)
     return pli.p.empty();
 }
 
-void param_list_usage_header(param_list_ptr pl, const char * hdr, ...)
+void param_list_usage_header(param_list_ptr pl, const char * hdr)
 {
     param_list_impl & pli = *static_cast<param_list_impl *>(pl->pimpl);
-    va_list ap;
-    va_start(ap, hdr);
-    char * tmp;
-    int const rc = vasprintf(&tmp, hdr, ap);
-    ASSERT_ALWAYS(rc >= 0);
-    pli.usage_header = std::string(tmp);
-    free(tmp);
-    va_end(ap);
+    pli.usage_header = hdr;
 }
 
 void param_list_decl_usage(param_list_ptr pl, const char * key, const char * doc)
@@ -89,8 +84,7 @@ void param_list_decl_usage(param_list_ptr pl, const char * key, const char * doc
 }
 
 
-static int is_documented_key(param_list_srcptr pl, const char *key) {
-    param_list_impl & pli = *static_cast<param_list_impl *>(pl->pimpl);
+static int is_documented_key(param_list_impl const & pli, std::string const & key) {
     return pli.documentation.find(key) != pli.documentation.end();
 }
 
@@ -161,6 +155,7 @@ void param_list_add_key(param_list_ptr pl,
         const char * key, const char * value, enum parameter_origin o)
 {
     param_list_impl & pli = *static_cast<param_list_impl *>(pl->pimpl);
+    ASSERT_ALWAYS(key != nullptr);
     param_list_add_key(pli, key, value, o);
 }
 
@@ -279,7 +274,7 @@ int param_list_configure_alias(param_list_ptr pl, const char * key, const char *
     for(int i = 0 ; i < 2 && *alias == '-' ; alias++, i++) ;
 
     if (pli.use_doc) {
-        if (!is_documented_key(pl, key))
+        if (!is_documented_key(pli, key))
             fprintf(stderr, "# Warning: an alias %s is declared to the key %s, which is undocumented\n", alias, key);
     }
 
@@ -296,7 +291,7 @@ int param_list_configure_switch(param_list_ptr pl, const char * switchname, int 
     for(int i = 0 ; i < 2 && *switchname == '-' ; switchname++, i++) ;
     
     if (pli.use_doc)
-        if (!is_documented_key(pl, switchname))
+        if (!is_documented_key(pli, switchname))
             fprintf(stderr, "# Warning: a switch %s is declared but is undocumented\n", switchname);
 
     pli.switches[switchname] = ptr;
@@ -334,12 +329,7 @@ int param_list_update_cmdline(param_list_ptr pl,
         }
     }
 
-    if (has_dashes && !rhs.empty()) {
-        /* Maybe we should support this, after all? Could -v=5 be
-         * something useful?
-         */
-        return 0;
-    }
+    /* Note that we now support --option=X as well */
 
     bool negate = false;
 
@@ -348,39 +338,52 @@ int param_list_update_cmdline(param_list_ptr pl,
             arg2 = arg2.substr(3);
             negate = true;
         }
+
+        /* negate + having a rhs does not make sense */
+        if (negate && !rhs.empty())
+            return 0;
     }
 
-    for(auto const & a : pli.aliases) {
-        if (a.first == arg2) {
-            arg2 = a.second;
-        }
+    {
+        auto const it = pli.aliases.find(arg2);
+        if (it != pli.aliases.end())
+            arg2 = it->second;
     }
-    
-    if (has_dashes) {
-        ASSERT_ALWAYS(rhs.empty());
 
-        for(auto & s : pli.switches) {
-            if (s.first == arg2) {
-                if (s.second) {
-                    /* Note that a switch with a nullptr pointer is allowed
-                     */
-                    if (negate)
-                        *s.second = 0;
-                    else
-                        ++*s.second;
-                }
-                /* add it to the dictionary, so that
-                 * param_list_parse_switch can find it later on.
-                 */
-                param_list_add_key(pli, arg2, std::string(), PARAMETER_FROM_CMDLINE);
-                (*p_argv)+=1;
-                (*p_argc)-=1;
-                return 1;
+    auto const it = pli.switches.find(arg2);
+    if (it != pli.switches.end()) {
+        if (it->second) {
+            /* Note that a switch with a nullptr pointer is allowed
+            */
+            if (negate) {
+                *it->second = 0;
+            } else if (rhs.empty()) {
+                ++*it->second;
+            } else {
+                size_t pos;
+                int const v = stoi(rhs, &pos);
+                if (pos != rhs.size())
+                    return 0;
+                *it->second = v;
             }
         }
+        /* add it to the dictionary, so that
+         * param_list_parse_switch can find it later on.
+         */
+        param_list_add_key(pli, arg2, std::string(), PARAMETER_FROM_CMDLINE);
+        (*p_argv)+=1;
+        (*p_argc)-=1;
+        return 1;
+    } else {
+        /* negate only makes sense for a switch! */
+        if (negate)
+            return 0;
+    }
 
-        /* We have dashes, we're not a switch. We have no RHS yet, take
-         * it from the rest of the command line */
+    if (has_dashes && rhs.empty()) {
+        /* If we have no RHS yet, take it from the rest of the command
+         * line IF AND ONLY IF our key starts with dashes. No-dash format
+         * only groks a rhs introduced with an = sign. */
 
         if (*p_argc < 2)
             return 0;
@@ -389,6 +392,7 @@ int param_list_update_cmdline(param_list_ptr pl,
         (*p_argv)+=1;
         (*p_argc)-=1;
     }
+
     if (!rhs.empty()) {
         param_list_add_key(pli, arg2, rhs, PARAMETER_FROM_CMDLINE);
         (*p_argv)+=1;
@@ -398,30 +402,39 @@ int param_list_update_cmdline(param_list_ptr pl,
     return 0;
 }
 
+static std::string drop_one_or_two_leading_dashes(std::string key)
+{
+    size_t i = 0;
+    for( ; i < 2 && i < key.size() && key[i] == '-' ; i++) ;
+    if (i) key = key.substr(i);
+    return key;
+}
+
+
 /* Look up an entry in a param_list, and update the parsed flag. It does
    mutex locking to make look-ups thread safe; the caller must not access
    any param_list entries by itself. */
 static const char *
-get_assoc_ptr(param_list_ptr pl, const char * key, bool stealth = false, int * const seen = nullptr)
+get_assoc_ptr(param_list_ptr pl, std::string const & key0, bool stealth = false, int * const seen = nullptr)
 {
+    auto key = drop_one_or_two_leading_dashes(key0);
     param_list_impl & pli = *static_cast<param_list_impl *>(pl->pimpl);
     std::lock_guard<std::mutex> const dummy(mutex);
     if (pli.use_doc) {
-        for(int i = 0 ; i < 2 && *key == '-' ; key++, i++) ;
-        if (!stealth && !is_documented_key(pl, key)) 
-            fprintf(stderr, "# Warning: parameter %s is checked by this program but is undocumented.\n", key);
+        if (!stealth && !is_documented_key(pli, key)) 
+            fmt::print(stderr, "# Warning: parameter {} is checked by this program but is undocumented.\n", key);
     }
-    auto it = pli.p.find(key ? key : "");
+    auto it = pli.p.find(key);
     if (it == pli.p.end())
         return nullptr;
 
-    it->second.parsed = 1;
+    it->second.parsed = true;
     if (seen) *seen = it->second.seen;
     return it->second.value.data();
 }
 
 static int
-get_assoc(param_list_ptr pl, const char * key, std::string & value, bool stealth = false, int * const seen = nullptr)
+get_assoc(param_list_ptr pl, std::string const & key, std::string & value, bool stealth = false, int * const seen = nullptr)
 {
     const char * t = get_assoc_ptr(pl, key, stealth, seen);
     if (t)
@@ -562,7 +575,7 @@ template<> struct parse<cxx_mpz> {
 };
 
 template<typename T>
-static int param_list_parse_inner(param_list_ptr pl, const char * key, T & r, bool stealth = false)
+static int param_list_parse_inner(param_list_ptr pl, std::string const & key, T & r, bool stealth = false)
 {
     std::string value;
     std::string diagnostic;
@@ -584,7 +597,7 @@ static int param_list_parse_inner(param_list_ptr pl, const char * key, T & r, bo
 
 template<>
 int
-param_list_parse_inner<bool>(param_list_ptr pl, const char * key, bool & r, bool stealth)
+param_list_parse_inner<bool>(param_list_ptr pl, std::string const & key, bool & r, bool stealth)
 {
     std::string value;
     std::string diagnostic;
@@ -615,32 +628,32 @@ param_list_parse_inner<bool>(param_list_ptr pl, const char * key, bool & r, bool
 
 template<typename T>
 int
-param_list_parse(param_list_ptr pl, const char * key, T & r)
+param_list_parse(param_list_ptr pl, std::string const & key, T & r)
 {
     return param_list_parse_inner<T>(pl, key, r);
 }
 
 
-template int param_list_parse<bool>(param_list_ptr pl, const char * key, bool & r);
-template int param_list_parse<int>(param_list_ptr pl, const char * key, int & r);
-template int param_list_parse<unsigned int>(param_list_ptr pl, const char * key, unsigned int & r);
+template int param_list_parse<bool>(param_list_ptr pl, std::string const & key, bool & r);
+template int param_list_parse<int>(param_list_ptr pl, std::string const & key, int & r);
+template int param_list_parse<unsigned int>(param_list_ptr pl, std::string const & key, unsigned int & r);
 #ifndef LONG_IS_EXACTLY_INT
-template int param_list_parse<long>(param_list_ptr pl, const char * key, long & r);
-template int param_list_parse<unsigned long>(param_list_ptr pl, const char * key, unsigned long & r);
+template int param_list_parse<long>(param_list_ptr pl, std::string const & key, long & r);
+template int param_list_parse<unsigned long>(param_list_ptr pl, std::string const & key, unsigned long & r);
 #endif
 
 #ifndef INT64_T_IS_EXACTLY_LONG
-template int param_list_parse<int64_t>(param_list_ptr pl, const char * key, int64_t & r);
-template int param_list_parse<uint64_t>(param_list_ptr pl, const char * key, uint64_t & r);
+template int param_list_parse<int64_t>(param_list_ptr pl, std::string const & key, int64_t & r);
+template int param_list_parse<uint64_t>(param_list_ptr pl, std::string const & key, uint64_t & r);
 #endif
 
-template int param_list_parse<double>(param_list_ptr pl, const char * key, double & r);
-template int param_list_parse<std::vector<int>>(param_list_ptr pl, const char * key, std::vector<int> & r);
-template int param_list_parse<std::vector<std::string>>(param_list_ptr pl, const char * key, std::vector<std::string> & r);
+template int param_list_parse<double>(param_list_ptr pl, std::string const & key, double & r);
+template int param_list_parse<std::vector<int>>(param_list_ptr pl, std::string const & key, std::vector<int> & r);
+template int param_list_parse<std::vector<std::string>>(param_list_ptr pl, std::string const & key, std::vector<std::string> & r);
 
-template int param_list_parse<std::string>(param_list_ptr pl, const char * key, std::string & r);
-template int param_list_parse<cxx_mpz>(param_list_ptr pl, const char * key, cxx_mpz & r);
-template int param_list_parse<cxx_mpz_poly>(param_list_ptr pl, const char * key, cxx_mpz_poly & r);
+template int param_list_parse<std::string>(param_list_ptr pl, std::string const & key, std::string & r);
+template int param_list_parse<cxx_mpz>(param_list_ptr pl, std::string const & key, cxx_mpz & r);
+template int param_list_parse<cxx_mpz_poly>(param_list_ptr pl, std::string const & key, cxx_mpz_poly & r);
 
 int param_list_parse_long(param_list_ptr pl, const char * key, long * r)
 {
@@ -680,19 +693,6 @@ int param_list_parse_uint(param_list_ptr pl, const char * key, unsigned int * r)
 int param_list_parse_double(param_list_ptr pl, const char * key, double * r)
 {
     return param_list_parse<double>(pl, key, *r);
-}
-
-int param_list_parse_string(param_list_ptr pl, const char * key, char * r, size_t n)
-{
-    std::string value;
-    if (!get_assoc(pl, key, value))
-        return 0;
-    if (r && strlcpy(r, value.c_str(), n) > n) {
-        throw parameter_exception { fmt::format(
-                " parameter for key {} does not fit within string buffer"
-                " of length {}\n", key, n) };
-    }
-    return 1;
 }
 
 int param_list_parse_mpz(param_list_ptr pl, const char * key,
@@ -772,7 +772,7 @@ int param_list_parse_double_and_double(param_list_ptr pl, const char * key, doub
 
 
 template<typename T>
-static int param_list_parse_list(param_list_ptr pl, const char * key, std::vector<T> & res, const char * sep, bool stealth = false)
+static int param_list_parse_list(param_list_ptr pl, std::string const & key, std::vector<T> & res, const char * sep, bool stealth = false)
 {
     std::string value;
     std::string diagnostic;
@@ -784,41 +784,13 @@ static int param_list_parse_list(param_list_ptr pl, const char * key, std::vecto
     } catch (parameter_exception const & e) {
         diagnostic = e.what();
     }
-    std::ostringstream ss;
-    ss << "cannot cast parameter " << key << " to list of elements of type " << typeid(T).name();
+    auto ss = fmt::format("cannot cast parameter {}"
+            " to list of elements of type {}",
+            key, typeid(T).name());
     if (!diagnostic.empty())
-        ss << ": " << diagnostic;
-    throw parameter_exception(ss.str());
+        ss += fmt::format(": {}", diagnostic);
+    throw parameter_exception(ss);
 }
-
-#if 0
-/* shouldn't exist, really */
-int param_list_parse_string_list_alloc(param_list_ptr pl, const char * key, char *** r, int * n, const char * sep)
-{
-    char * value;
-    *r = nullptr;
-    *n = 0;
-    int parsed = 0;
-    if (!get_assoc(pl, key, &value, nullptr))
-        return 0;
-    for( ; ; ) {
-        char * v = strstr(value, sep);
-        int itemsize;
-        if (v == nullptr) {
-            itemsize = strlen(value);
-        } else {
-            itemsize = v - value;
-        }
-        *r = realloc(*r, (parsed + 1) * sizeof(char *));
-        (*r)[parsed++] = strndup(value, itemsize);
-        if (!v)
-            break;
-        value = v + strlen(sep);
-    }
-    *n = parsed;
-    return parsed;
-}
-#endif
 
 size_t param_list_get_list_count(param_list_ptr pl, const char * key)
 {
@@ -879,8 +851,7 @@ int param_list_parse_switch(param_list_ptr pl, const char * key)
 {
     std::string value;
     int seen;
-    for(int i = 0 ; i < 2 && *key == '-' ; key++, i++) ;
-    if (!get_assoc(pl, key, value, false, &seen))
+    if (!get_assoc(pl, drop_one_or_two_leading_dashes(key), value, false, &seen))
         return 0;
     if (!value.empty())
         throw parameter_exception(fmt::format("Parse error: option {} accepts no argument\n", key));
@@ -921,6 +892,8 @@ void param_list_display(param_list_srcptr pl, FILE *f)
         fprintf(f,"%s=%s\n", p.first.c_str(), p.second.value.c_str());
 }
 
+#if 0
+/* never used, not even covered. */
 void param_list_save(param_list_srcptr pl, const char * filename)
 {
     FILE * f = fopen(filename, "w");
@@ -948,7 +921,7 @@ int param_list_save_parameter(param_list_ptr pl, enum parameter_origin o,
 
     return rc;
 }
-
+#endif
 
 void param_list_print_command_line(FILE * stream, param_list_srcptr pl)
 {
@@ -1042,17 +1015,13 @@ void param_list_generic_failure(param_list_srcptr pl, const char *missing)
  * input vector.
  */
 template<typename T>
-int param_list_parse_per_side(param_list_ptr pl, const char * key, T * lpb_arg, int n, enum args_per_side_policy_t policy)
+int param_list_parse_per_side(param_list_ptr pl, std::string const & key0, T * lpb_arg, int n, enum args_per_side_policy_t policy)
 {
-    for(int i = 0 ; i < 2 && *key == '-' ; key++, i++) ;
-    ASSERT_ALWAYS(*key);
+    auto key = drop_one_or_two_leading_dashes(key0);
     int has_lpb01 = 0;
     for(int side = 0 ; side < n ; side++) {
-        char * keyi;
-        int const rc = asprintf(&keyi, "%s%u", key, side);
-        ASSERT_ALWAYS(rc >= 0);
+        auto keyi = fmt::format("{}{}", key, side);
         int const gotit = param_list_parse_inner<T>(pl, keyi, lpb_arg[side], true);
-        free(keyi);
         if (!gotit && side == 0 && policy == ARGS_PER_SIDE_DEFAULT_COPY_PREVIOUS)
             break;
         if (gotit)
@@ -1061,30 +1030,23 @@ int param_list_parse_per_side(param_list_ptr pl, const char * key, T * lpb_arg, 
     if (has_lpb01 && policy == ARGS_PER_SIDE_DEFAULT_COPY_PREVIOUS) {
         /* at this point we know that key0 has a value */
         for(int side = 0 ; side < n ; side++) {
-            char * keyi;
-            int const rc = asprintf(&keyi, "%s%u", key, side);
-            ASSERT_ALWAYS(rc >= 0);
+            auto keyi = fmt::format("{}{}", key, side);
             if (side)
                 lpb_arg[side] = lpb_arg[side - 1];
             int const gotit = param_list_parse_inner<T>(pl, keyi, lpb_arg[side], true);
             ASSERT_ALWAYS(side > 0 || gotit);
-            free(keyi);
         }
     }
 
     int has_nlpbs;
     std::vector<T> temp;
     {
-
         if (!(has_nlpbs = param_list_parse_list(pl, key, temp, ","))) {
             char const c = std::string(key).back();
             if (c != 'x' && c != 's') {
                 /* try with s. */
-                char * keys;
-                int const rc = asprintf(&keys, "%ss", key);
-                ASSERT_ALWAYS(rc >= 0);
+                auto keys = key + "s";
                 has_nlpbs = param_list_parse_list(pl, keys, temp, ",", true);
-                free(keys);
             }
         }
         has_nlpbs = temp.size();
@@ -1093,13 +1055,13 @@ int param_list_parse_per_side(param_list_ptr pl, const char * key, T * lpb_arg, 
         if (has_nlpbs > n)
             throw parameter_exception(fmt::format(
                             "Number of values for parameter {}"
-                            " exceeds the maximum {}."
-                        , key, n));
+                            " exceeds the maximum {}.",
+                            key, n));
 
     }
 
     if (has_nlpbs && has_lpb01) {
-        fprintf(stderr, "Error, %1$s[01] and %1$s are incompatible\n", key);
+        fmt::print(stderr, "Error, {0}s[01] and {0}s are incompatible\n", key);
         exit(EXIT_FAILURE);
     }
 
@@ -1115,8 +1077,8 @@ int param_list_parse_per_side(param_list_ptr pl, const char * key, T * lpb_arg, 
             lpb_arg[has_nlpbs] = lpb_arg[has_lpb01-1];
 
         if (has_nlpbs != n) {
-            fprintf(stderr,
-                    "Error, the number of values given for %ss does not "
+            fmt::print(stderr,
+                    "Error, the number of values given for {}s does not "
                     "correspond to the number of polynomials\n", key);
         }
     }
@@ -1142,10 +1104,10 @@ int param_list_parse_uint_args_per_side(param_list_ptr pl, const char * key, uns
 /* We're only using these from C++ code at the moment, so that it is
  * sufficient to instantiate them here.
  */
-template int param_list_parse_per_side<double>(param_list_ptr pl, const char * key, double * lpb_arg, int n, enum args_per_side_policy_t policy);
-template int param_list_parse_per_side<int>(param_list_ptr pl, const char * key, int * lpb_arg, int n, enum args_per_side_policy_t policy);
-template int param_list_parse_per_side<unsigned int>(param_list_ptr pl, const char * key, unsigned int * lpb_arg, int n, enum args_per_side_policy_t policy);
+template int param_list_parse_per_side<double>(param_list_ptr pl, std::string const & key, double * lpb_arg, int n, enum args_per_side_policy_t policy);
+template int param_list_parse_per_side<int>(param_list_ptr pl, std::string const & key, int * lpb_arg, int n, enum args_per_side_policy_t policy);
+template int param_list_parse_per_side<unsigned int>(param_list_ptr pl, std::string const & key, unsigned int * lpb_arg, int n, enum args_per_side_policy_t policy);
 #ifndef UNSIGNED_LONG_IS_EXACTLY_UNSIGNED
-template int param_list_parse_per_side<unsigned long>(param_list_ptr pl, const char * key, unsigned long * lpb_arg, int n, enum args_per_side_policy_t policy);
+template int param_list_parse_per_side<unsigned long>(param_list_ptr pl, std::string const & key, unsigned long * lpb_arg, int n, enum args_per_side_policy_t policy);
 #endif
-template int param_list_parse_per_side<std::string>(param_list_ptr pl, const char * key, std::string * lpb_arg, int n, enum args_per_side_policy_t policy);
+template int param_list_parse_per_side<std::string>(param_list_ptr pl, std::string const & key, std::string * lpb_arg, int n, enum args_per_side_policy_t policy);
