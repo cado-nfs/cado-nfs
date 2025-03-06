@@ -52,6 +52,15 @@ cado_define_test(full_c30
     ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=16 OMP_THREAD_LIMIT=16
     TIMEOUT 360
         )
+    cado_divert_test(full_c30 pq2
+        ARGUMENTS
+        1000000008500000023430000020691
+        slaves.downloadretry=1
+        --server-threads 2
+        SHA1_ON_REGEXP_LINES "^[0-9 ]*$"
+        EXPECT_SHA1 a56b28a490e2a8f240f6102c695456e59d119a9e
+    )
+
     if(pz IN_LIST BWC_GFP_ARITHMETIC_BACKENDS)
         # no need to have both the JL and non-JL in normal tests, I
         # think, given that there's always at least one machine that does

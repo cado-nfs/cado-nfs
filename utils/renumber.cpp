@@ -1,8 +1,6 @@
 #include "cado.h" // IWYU pragma: keep
 // IWYU pragma: no_include <ext/alloc_traits.h>
 #include <algorithm>
-#include <fstream>      // std::ifstream // IWYU pragma: keep
-#include <iomanip>      // std::hex // IWYU pragma: keep
 #include <iostream>     // std::cout
 #include <limits>
 #include <list>
@@ -18,8 +16,7 @@
 #include <gmp.h>               // for mpz_get_ui, mpz_divisible_ui_p, mpz_t
 #include "badideals.hpp"
 #include "cxx_mpz.hpp"         // for cxx_mpz
-#include "mpz_mat.h"         // for mpz_mat
-#include "numbertheory.hpp"  // for factorization_of_prime
+#include "misc.h"
 #include "getprime.h"          // for getprime_mt, prime_info_clear, prime_i...
 #include "gmp_aux.h"           // for ulong_isprime, nbits, mpz_get_uint64
 #include "gzip.h"       // ifstream_maybe_compressed
