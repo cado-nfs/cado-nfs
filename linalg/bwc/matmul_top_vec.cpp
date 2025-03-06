@@ -1,11 +1,22 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+
+#include <utility>
+
+#include "arith-generic.hpp"
 #include "gmp_aux.h"
+#include "macros.h"
+#include "matmul.hpp"
 #include "matmul_top.hpp"
-#include "matmul_top_vec.hpp"
 #include "matmul_top_comm.hpp"
-#include "timing.h"
+#include "matmul_top_vec.hpp"
+#include "misc.h"
+#include "parallelizing_info.hpp"
 #include "portability.h"
+#include "timing.h"
 
 /* At some point we had this. Not sure it's still useful. */
 #define ABASE_UNIVERSAL_READAHEAD_ITEMS 8
@@ -753,7 +764,7 @@ void mmt_vec_set_random_inconsistent(mmt_vec & v, cxx_gmp_randstate & rstate)
     mmt_vec_allreduce(v);
 }
 
-void mmt_vec_set_x_indices(mmt_vec & y, uint32_t * gxvecs, int m, unsigned int nx)
+void mmt_vec_set_x_indices(mmt_vec & y, uint32_t const * gxvecs, int m, unsigned int nx)
 {
     int const shared = mmt_vec_is_shared(y);
     arith_generic * A = y.abase;
