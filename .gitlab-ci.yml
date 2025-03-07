@@ -524,7 +524,7 @@ checks on osx system:
  
 # See #30036: it seems that testing with gcc on freebsd is
 # definitely too much pain now.
-checks on freebsd13.4 system with clang:
+checks on freebsd13.5 system with clang:
   <<: *common-template
   stage: thorough
   needs: [ "checks on osx system" ]
@@ -532,7 +532,7 @@ checks on freebsd13.4 system with clang:
     - freebsd-tanker
   script:
     - make -C ci/ci/utilities/tanker
-    - ci/ci/50-libvirt-wrap-tests.sh freebsd:13.4 ci/ci/40-testsuite.sh
+    - ci/ci/50-libvirt-wrap-tests.sh freebsd:13.5 ci/ci/40-testsuite.sh
 
 checks on freebsd14.2 system with clang:
   <<: *common-template
