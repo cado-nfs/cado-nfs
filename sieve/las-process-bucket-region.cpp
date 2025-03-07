@@ -23,7 +23,10 @@
 #include <mutex>                          // for lock_guard, mutex
 #include <utility>                        // for move
 #include <vector>                         // for vector
+
 #include <gmp.h>                          // for gmp_vfprintf, mpz_srcptr
+#include "fmt/format.h"
+
 #include "gmp_aux.h"
 #include "las-process-bucket-region.hpp"  // for process_bucket_region_spawn
 #include "bucket.hpp"                     // for bare_bucket_update_t<>::br_...
@@ -404,8 +407,8 @@ process_bucket_region_run::survivors_t process_bucket_region_run::search_survivo
         int const offset = (j-j0) << logI;
 
         unsigned char * const both_S[2] = {
-            S[0] ? S[0] + offset : NULL,
-            S.size() > 1 && S[1] ? S[1] + offset : NULL,
+            S[0] ? S[0] + offset : nullptr,
+            S.size() > 1 && S[1] ? S[1] + offset : nullptr,
         };
         /* TODO FIXME XXX that's weird. How come don't we merge that with
          * the lognorm computation that goes in the ws.sides[side]
@@ -449,7 +452,7 @@ process_bucket_region_run::survivors_t process_bucket_region_run::search_survivo
     }
 
     /* This used to be called convert_survivors */
-    return survivors_t(begin(temp_sv), end(temp_sv));
+    return { begin(temp_sv), end(temp_sv) };
 }/*}}}*/
 void process_bucket_region_run::purge_buckets(int side)/*{{{*/
 {
@@ -515,7 +518,6 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
     int const N = first_region0_index + already_done + bucket_relative_index;
     unsigned char * Sx = S[0] ? S[0] : S[1];
 
-    cofac_standalone cur;
 
     for(const size_t x : survivors) {
         if (dlp_descent && ws.las.tree.must_take_decision())
@@ -538,7 +540,7 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
         SIBLING_TIMER(timer, "check_coprime");
 
         /* start building a new object. This is a swap operation */
-        cur = cofac_standalone(nsides, N, x, ws.conf.logI, ws.Q);
+        cofac_standalone cur { nsides, N, x, ws.conf.logI, ws.Q };
 
         for(int side = 0 ; side < nsides ; side++) {
             if (ws.sides[side].no_fb()) continue;
@@ -738,6 +740,13 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
         }
 
         auto rab = relation_ab(cur);
+
+        if (dlp_descent && ws.las.tree.must_avoid(rab)) {
+            auto msg = fmt::format("ignoring relation {},{} which already appears in the descent tree", rab.az, rab.bz);
+            verbose_output_print(0, 1, "# %s\n", msg.c_str());
+            continue;
+        }
+
         auto * D = new detached_cofac_parameters(wc_p, aux_p, std::move(cur));
 
         if (!dlp_descent && !exit_after_rel_found) {
@@ -746,9 +755,6 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
              * to batch-join only, so this is done at the las_subjob level */
             // worker->get_pool().get_result(1, false);
             worker->get_pool().add_task(detached_cofac, D, N, 1); /* id N, queue 1 */
-        } else if (dlp_descent && ws.las.tree.must_avoid(rab)) {
-            auto msg = fmt::format("ignoring relation {},{} which already appears in the descent tree", rab.az, rab.bz);
-            verbose_output_print(0, 1, "# %s\n", msg.c_str());
         } else {
             /* We must proceed synchronously for the descent */
             std::unique_ptr<detached_cofac_result> res(
