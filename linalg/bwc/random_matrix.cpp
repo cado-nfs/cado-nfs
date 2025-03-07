@@ -52,7 +52,7 @@ struct random_matrix_process_data; /* {{{ */
 struct rhs_writer {// {{{
     int n = 0;
     cxx_mpz p;
-    std::unique_ptr<FILE> f;
+    std::unique_ptr<FILE, delete_FILE> f;
     operator bool() const { return n; }
     rhs_writer() = default;
     ~rhs_writer() = default;
@@ -125,12 +125,12 @@ struct random_matrix_process_data {
     unsigned long seed = 0;
     int maxcoeff = 0;
     int ascii = 0;
-    std::unique_ptr<FILE> owned_out;
+    std::unique_ptr<FILE, delete_FILE> owned_out;
     FILE * out = nullptr;
 
     rhs_writer rhs;
 
-    std::unique_ptr<FILE> cw, rw;
+    std::unique_ptr<FILE, delete_FILE> cw, rw;
 
     static void configure_aliases(cxx_param_list & pl) {
         param_list_configure_alias(pl, "output", "o");

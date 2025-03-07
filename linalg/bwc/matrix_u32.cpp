@@ -59,7 +59,7 @@ matrix_u32::from_file(std::string const & mfile,
     m.p.assign(msize, 0);
 
     fmt::print("Reading {}\n", mfile);
-    std::unique_ptr<FILE> const f(fopen(mfile.c_str(), "rb"));
+    std::unique_ptr<FILE, delete_FILE> const f(fopen(mfile.c_str(), "rb"));
     ASSERT_ALWAYS(f);
     size_t const nread = fread(m.p.data(), sizeof(uint32_t), msize, f.get());
     if (nread < msize) {

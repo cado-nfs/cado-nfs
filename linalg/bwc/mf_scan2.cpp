@@ -19,7 +19,7 @@
 #include "timing.h"     // wct_seconds
 #include "misc.h"       // size_disp
 #include "fix-endianness.h" // fwrite32_little
-#include "utils_cxx.hpp"        // for unique_ptr<FILE>
+#include "utils_cxx.hpp"        // for unique_ptr<FILE, delete_FILE>
 
 static void mf_scan2_decl_usage(cxx_param_list & pl)
 {
@@ -393,11 +393,11 @@ int main(int argc, char const * argv[])
 
     /* Start with the input */
 
-    std::unique_ptr<FILE> const f_in(fopen(mfile.c_str(), "rb"));
+    std::unique_ptr<FILE, delete_FILE> const f_in(fopen(mfile.c_str(), "rb"));
     if (!f_in) { perror(mfile.c_str()); exit(EXIT_FAILURE); }
-    std::unique_ptr<FILE> const f_rw(fopen(rwfile.c_str(), "wb"));
+    std::unique_ptr<FILE, delete_FILE> const f_rw(fopen(rwfile.c_str(), "wb"));
     if (!f_rw) { perror(rwfile.c_str()); exit(EXIT_FAILURE); }
-    std::unique_ptr<FILE> const f_cw(fopen(cwfile.c_str(), "wb"));
+    std::unique_ptr<FILE, delete_FILE> const f_cw(fopen(cwfile.c_str(), "wb"));
     if (!f_cw) { perror(cwfile.c_str()); exit(EXIT_FAILURE); }
 
     ASSERT_ALWAYS(threads >= 2);

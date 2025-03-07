@@ -1,11 +1,12 @@
 #include "cado.h" // IWYU pragma: keep
 
+#include <cstdio>
+#include <cstring>      // strlcpy (openbsd) // IWYU pragma: keep
+
 #include <list>
 #include <map>
 #include <string>
-// #include <iostream>
-#include <sstream>
-#include <cstring>      // strlcpy (openbsd) // IWYU pragma: keep
+
 
 #include "las-descent-trees.hpp"
 #include "portability.h"
@@ -26,13 +27,12 @@ int descent_tree::display_tree(FILE* o, tree * t, string const& prefix) {
         }
     }
     fprintf(o, "%s%s [%1.4f]%s\t\t%s\n",
-            prefix.c_str(), t->label().c_str(), t->spent,
+            prefix.c_str(), t->label.shortname().c_str(), t->spent,
             comment,
             t->label.fullname().c_str());
     string const new_prefix = prefix + "  ";
-    typedef list<tree *>::iterator it_t;
-    for(it_t i = t->children.begin() ; i != t->children.end() ; i++) {
-        if (!display_tree(o, *i, new_prefix))
+    for(auto const & c : t->children) {
+        if (!display_tree(o, c, new_prefix))
             res = 0;
     }
     if (!t->contender)
@@ -56,32 +56,25 @@ struct collected_stats {
 
 void descent_tree::display_all_trees(FILE * o)
 {
-    typedef list<tree *>::iterator it_t;
     int total = 0, good = 0;
-    for(it_t i = forest.begin() ; i != forest.end() ; i++, total++) {
-        bool const xs = is_successful(*i);
-        good += display_tree(o, *i, xs ? "# ": "# FAILED ");
+    for(auto const & f : forest) {
+        bool const xs = is_successful(f);
+        good += display_tree(o, f, xs ? "# ": "# FAILED ");
+        total++;
     }
     fprintf(o, "# Success %d/%d (%1.2f%%)\n", good, total,
             100.0 * (double) good / total);
     list<collected_stats> const foo;
     typedef map<tree_label, list<collected_stats> > stats_t;
     stats_t stats;
-    typedef stats_t::iterator sit_t;
-    for(it_t i = forest.begin() ; i != forest.end() ; i++, total++) {
-        collected_stats const w(is_successful(*i),
-                (*i)->spent,
-                tree_depth(*i),
-                tree_weight(*i)
+    for(auto const & f : forest) {
+        stats[f->label].emplace_back(
+                is_successful(f),
+                f->spent,
+                tree_depth(f),
+                tree_weight(f)
                 );
-        sit_t const it = stats.find((*i)->label);
-        if (it == stats.end()) {
-            list<collected_stats> v;
-            v.push_back(w);
-            stats.insert(make_pair((*i)->label, v));
-        } else {
-            it->second.push_back(w);
-        }
+        total++;
     }
 #if 0
     /* (since we've dropped the dependence on siever_config, we no

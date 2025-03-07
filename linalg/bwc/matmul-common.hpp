@@ -8,13 +8,13 @@
 
 #include <sys/stat.h>
 
-#include "utils_cxx.hpp"        // for unique_ptr<FILE>
+#include "utils_cxx.hpp"        // for unique_ptr<FILE, delete_FILE>
 #include "macros.h"  // for DIE_ERRNO_DIAG, FATAL_ERROR_CHECK
 
 struct matmul_public;
 
-std::unique_ptr<FILE> matmul_common_reload_cache_fopen(size_t, matmul_public & mm, uint32_t magic);
-std::unique_ptr<FILE> matmul_common_save_cache_fopen(size_t, matmul_public const & mm, uint32_t magic);
+std::unique_ptr<FILE, delete_FILE> matmul_common_reload_cache_fopen(size_t, matmul_public & mm, uint32_t magic);
+std::unique_ptr<FILE, delete_FILE> matmul_common_save_cache_fopen(size_t, matmul_public const & mm, uint32_t magic);
 
 extern const char * const rowcol[2];  // [0] = "row" [1] = "col"
 

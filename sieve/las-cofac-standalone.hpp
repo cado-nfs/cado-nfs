@@ -2,10 +2,9 @@
 #define LAS_COFAC_STANDALONE_HPP_
 
 #include <cstdio>                // for FILE, size_t
-#include <array>                  // for array
 #include <cstdint>                // for uint8_t, int64_t, uint64_t
 #include <vector>                 // for vector
-#include <gmp.h> // mpz_even_p // IWYU pragma: keep
+
 #include "cxx_mpz.hpp"
 #include "ecm/batch.hpp"              // for cofac_list
 #include "las-divide-primes.hpp"  // for factor_list_t
@@ -22,6 +21,8 @@ struct cofac_standalone {
     std::vector<std::vector<cxx_mpz>> lps;
     int64_t a;
     uint64_t b;
+
+    explicit operator relation_ab() const { return { a, b }; }
 #ifdef SUPPORT_LARGE_Q
     cxx_mpz az, bz;
 #endif
@@ -37,10 +38,10 @@ struct cofac_standalone {
         return ((mpz_even_p(az) && mpz_even_p(bz)));
 #endif
     }/*}}}*/
-    bool gcd_coprime_with_q(las_todo_entry const & E);
+    bool gcd_coprime_with_q(las_todo_entry const & E) const;
     bool ab_coprime() const;
     void print_as_survivor(FILE * f);
-    relation get_relation(las_todo_entry const & doing);
+    relation get_relation(las_todo_entry const & doing) const;
     void transfer_to_cofac_list(lock_guarded_container<cofac_list> & L, las_todo_entry const & doing);
     int factor_both_leftover_norms(nfs_work_cofac & wc);
 };

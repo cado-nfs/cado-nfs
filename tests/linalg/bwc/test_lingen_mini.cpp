@@ -76,7 +76,7 @@ static void do_one_lingen(std::string const & filename, cxx_param_list &pl)
     ASSERT_ALWAYS(ok);
     */
 
-    std::unique_ptr<FILE> data(fopen(cp.datafile.c_str(), "rb"));
+    std::unique_ptr<FILE, delete_FILE> data(fopen(cp.datafile.c_str(), "rb"));
     if (!data) {
         fmt::print(stderr, "Warning: cannot open {}\n", cp.datafile);
         return;

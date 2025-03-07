@@ -194,7 +194,7 @@ static inline bool operator==(relation::pr const& a, relation::pr const& b) {
 void relation::compress()
 {
     for(auto & v : sides) {
-        std::sort(v.begin(), v.end(), pr_cmp());
+        std::sort(v.begin(), v.end());
         unsigned int j = 0;
         for(unsigned int i = 0; i < v.size() ; j++) {
             if (j < i) {

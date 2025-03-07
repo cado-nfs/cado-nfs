@@ -3,23 +3,35 @@
 #include <cctype>          // for isspace, isdigit
 #include <cerrno>          // for errno
 #include <climits>         // for UINT_MAX
+#include <cstdarg>         // IWYU pragma: keep
+#include <cstdint>
+#include <cstdio>
 #include <cstdlib>         // for exit, EXIT_FAILURE, strtoul
 #include <cstring>         // for strerror
-#include <cstdarg>         // IWYU pragma: keep
+
 #include <algorithm>       // for find, min
-#include <memory>          // for allocator_traits<>::value_type
-#include <vector>          // for vector, vector<>::iterator
+#include <fstream>
 #include <sstream>
 #include <thread>                         // for thread
+#include <vector>          // for vector, vector<>::iterator
+#include <mutex>
+#include <string>
+#include <stdexcept>
+
 #include <gmp.h>           // for mpz_set, mpz_cmp_ui, mpz_t, mpz_cmp, gmp_r...
+#include "fmt/format.h"
+
+#include "cado_poly.h"
+#include "cxx_mpz.hpp"
 #include "gmp_aux.h"
-#include "las-todo-list.hpp"
 #include "las-galois.hpp"  // for skip_galois_roots
+#include "las-todo-entry.hpp"
+#include "las-todo-list.hpp"
 #include "macros.h"        // for ASSERT_ALWAYS
 #include "mpz_poly.h"
+#include "params.h"
 #include "rootfinder.h" // mpz_poly_roots_ulong
 #include "verbose.h"    // verbose_output_print
-#include "params.h"
 
 /* Put in r the smallest legitimate special-q value that it at least
  * s + diff (note that if s+diff is already legitimate, then r = s+diff
@@ -51,8 +63,8 @@ static void next_legitimate_specialq(cxx_mpz & r, cxx_mpz const & s, const unsig
 
 void las_todo_list::configure_switches(cxx_param_list & pl)
 {
-    param_list_configure_switch(pl, "-allow-compsq", NULL);
-    param_list_configure_switch(pl, "-print-todo-list", NULL);
+    param_list_configure_switch(pl, "-allow-compsq", nullptr);
+    param_list_configure_switch(pl, "-print-todo-list", nullptr);
 }
 
 void las_todo_list::declare_usage(cxx_param_list & pl)
@@ -70,20 +82,9 @@ void las_todo_list::declare_usage(cxx_param_list & pl)
     param_list_decl_usage(pl, "print-todo-list", "only print the special-q's to be sieved");
 }
 
-las_todo_list::~las_todo_list()
-{
-    if (todo_list_fd) {
-        fclose(todo_list_fd);
-        todo_list_fd = NULL;
-    }
-}
-
 las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
     : cpoly(cpoly)
 {
-    nq_pushed = 0;
-    nq_max = UINT_MAX;
-    random_sampling = 0;
     if (param_list_parse_uint(pl, "random-sample", &nq_max)) {
         random_sampling = 1;
     } else if (param_list_parse_uint(pl, "nq", &nq_max)) {
@@ -100,21 +101,20 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
         verbose_output_print(0, 1, "# Warning: sqside not given, "
                 "assuming side 1 for backward compatibility.\n");
     }
+    ASSERT_ALWAYS(sqside >= 0 && sqside < cpoly->nb_polys);
 
     /* Init and parse info regarding work to be done by the siever */
     /* Actual parsing of the command-line fragments is done within
      * las_todo_feed, but this is an admittedly contrived way to work */
     const char * filename = param_list_lookup_string(pl, "todo");
     if (filename) {
-        todo_list_fd = fopen(filename, "r");
-        if (todo_list_fd == NULL) {
+        todo_list_fd.reset(new std::ifstream(filename));
+        if (todo_list_fd->fail()) {
             fprintf(stderr, "%s: %s\n", filename, strerror(errno));
             /* There's no point in proceeding, since it would really change
              * the behaviour of the program to do so */
             exit(EXIT_FAILURE);
         }
-    } else {
-        todo_list_fd = NULL;
     }
 
     /* composite special-q ? Note: this block is present both in
@@ -146,8 +146,7 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
         return;
     }
 
-    gmp_randstate_t rstate;
-    gmp_randinit_default(rstate);
+    cxx_gmp_randstate rstate;
 
     if (mpz_cmp_ui(q1, 0) != 0) {
         next_legitimate_specialq(q0, q0, 0, *this);
@@ -221,8 +220,6 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
             exit(EXIT_FAILURE);
         }
     }
-
-    gmp_randclear(rstate);
 }
 
 /* {{{ Populating the todo list */
@@ -284,7 +281,7 @@ bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
             }
 
             for (auto const & r : roots)
-                my_list.push_back({q, r});
+                my_list.emplace_back(q, r);
 
             next_legitimate_specialq(q, fac_q, q, 1, *this);
         }
@@ -363,76 +360,51 @@ bool las_todo_list::feed_qlist()
     if (!super::empty())
         return true;
 
-    char line[1024];
-    char * x;
-    for( ; ; ) {
-        /* We should consider the blocking case as well. (e.g. we're
-         * reading from a pipe.)  */
-        x = fgets(line, sizeof(line), todo_list_fd);
-        /* Tolerate comments and blank lines */
-        if (x == NULL) return 0;
-        if (*x == '#') continue;
-        for( ; *x && isspace(*x) ; x++) ;
-        if (!*x) continue;
-        break;
-    }
+    std::string line;
+    auto is_comment = [](std::string const & s) {
+        for(auto c : s) {
+            if (c == '#') return true;
+            if (!isspace(c)) return false;
+        }
+        return true;
+    };
+
+    for( ; std::getline(*todo_list_fd, line) && is_comment(line) ; ) ;
+
+    if (!*todo_list_fd)
+        return false;
 
     /* We have a new entry to parse */
-    cxx_mpz p, r;
+    cxx_mpz p, r = -1;
     int side = -1;
-    int rc;
-    switch(*x++) {
-        case '0':
-        case '1':
-        case '2':
-        case '3':
-        case '4':
-        case '5':
-        case '6':
-        case '7':
-        case '8':
-        case '9':
-                   x--;
-                   errno = 0;
-                   side = strtoul(x, &x, 0);
-                   ASSERT_ALWAYS(!errno);
-                   ASSERT_ALWAYS(side < cpoly->nb_polys);
-                   break;
-        default:
-                   fprintf(stderr,
-                           "parse error in todo file, while reading: %s\n",
-                           line);
-                   /* We may as well default on the command-line switch */
-                   exit(EXIT_FAILURE);
+    std::istringstream is(line);
+    std::string tail;
+    is >> side >> p;
+    if (!is.eof()) {
+        is >> r;
+    }
+    if (!is || (!is.eof() && (is >> tail, !is_comment(tail))))
+        throw std::runtime_error(
+                fmt::format(
+                    "parse error in todo file"
+                    " while reading {}", line));
+    auto const & f = cpoly->pols[side];
+    /* specifying the rational root as <0
+     * means that it must be recomputed. Putting 0 does not have this
+     * effect, since it is a legitimate value after all.
+     */
+    if (r < 0) {
+        // For rational side, we can compute the root easily.
+        ASSERT_ALWAYS(f->deg == 1);
+        cxx_gmp_randstate rstate;
+        std::vector<cxx_mpz> roots = mpz_poly_roots(f, p, rstate);
+        ASSERT_ALWAYS(roots.size() == 1);
+        r = roots[0];
     }
 
-    int nread1 = 0;
-    int nread2 = 0;
+    ASSERT_ALWAYS(p > 0);
+    ASSERT_ALWAYS(r >= 0);
 
-    gmp_randstate_t rstate;
-    gmp_randinit_default(rstate);
-    mpz_set_ui(r, 0);
-    for( ; *x && !isdigit(*x) ; x++) ;
-    rc = gmp_sscanf(x, "%Zi%n %Zi%n", (mpz_ptr) p, &nread1, (mpz_ptr) r, &nread2);
-    ASSERT_ALWAYS(rc == 1 || rc == 2); /* %n does not count */
-    x += (rc==1) ? nread1 : nread2;
-    {
-        mpz_poly_ptr f = cpoly->pols[side];
-        /* specifying the rational root as <0
-         * means that it must be recomputed. Putting 0 does not have this
-         * effect, since it is a legitimate value after all.
-         */
-        if (rc < 2 || (f->deg == 1 && rc == 2 && mpz_cmp_ui(r, 0) < 0)) {
-            // For rational side, we can compute the root easily.
-            ASSERT_ALWAYS(f->deg == 1);
-            /* ugly cast, yes */
-            int const nroots = mpz_poly_roots ((mpz_t*) &r, f, p, rstate);
-            ASSERT_ALWAYS(nroots == 1);
-        }
-    }
-    gmp_randclear(rstate);
-
-    for( ; *x ; x++) ASSERT_ALWAYS(isspace(*x));
     push_unlocked(p, r, side);
     return true;
 }
@@ -440,7 +412,7 @@ bool las_todo_list::feed_qlist()
 
 bool las_todo_list::feed(gmp_randstate_t rstate)
 {
-    std::lock_guard<std::mutex> const foo(mm);
+    const std::lock_guard<std::mutex> foo(mm);
     if (!super::empty())
         return true;
     if (todo_list_fd)
@@ -453,7 +425,7 @@ bool las_todo_list::feed(gmp_randstate_t rstate)
  */
 las_todo_entry * las_todo_list::feed_and_pop(gmp_randstate_t rstate)
 {
-    std::lock_guard<std::mutex> const foo(mm);
+    const std::lock_guard<std::mutex> foo(mm);
     if (super::empty()) {
         if (todo_list_fd)
             feed_qlist();
@@ -482,7 +454,6 @@ void las_todo_list::print_todo_list(cxx_param_list & pl, gmp_randstate_ptr rstat
     }
 
     std::vector<std::vector<las_todo_entry>> lists(nthreads);
-    std::vector<std::thread> subjobs;
 
     auto segment = [&, this](unsigned int i) {
         cxx_param_list pl2 = pl;
@@ -529,8 +500,10 @@ void las_todo_list::print_todo_list(cxx_param_list & pl, gmp_randstate_ptr rstat
                 (mpz_srcptr) q0, (mpz_srcptr) q1, nthreads);
     }
 
+    std::vector<std::thread> subjobs;
+    subjobs.reserve(nthreads);
     for(int subjob = 0 ; subjob < nthreads ; ++subjob)
-        subjobs.push_back(std::thread(segment, subjob));
+        subjobs.emplace_back(segment, subjob);
     for(auto & t : subjobs) t.join();
     for(auto const & v : lists) {
         for(auto const & doing : v) {

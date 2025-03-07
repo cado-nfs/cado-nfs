@@ -1,10 +1,13 @@
 #ifndef TDICT_HPP_
 #define TDICT_HPP_
 
+#include <cstdint>
+
 #include <map>
 #include <string>
 #include <sstream>
-#include <pthread.h>
+#include <mutex>
+
 #include "timing.h"
 #include <cstddef>   // for NULL
 #include <utility>    // for pair
@@ -18,7 +21,7 @@ struct cxx_param_list;
 namespace tdict {
     struct timer_none {
         typedef int type;
-        inline type operator()() const { return 0; }
+        type operator()() const { return 0; }
     };
 }
 #ifndef DISABLE_TIMINGS
@@ -99,8 +102,8 @@ namespace tdict {
     inline bool operator<(key const& o1, key const& o2) { return o1.magic < o2.magic; }
     class slot_base {
 
-        slot_base(slot_base const&) = delete;
         public:
+        slot_base(slot_base const&) = delete;
         typedef std::map<key, const tdict::slot_base*> dict_t;
         protected:
         key k;
@@ -137,42 +140,33 @@ namespace tdict {
             return d;
 #endif
         };
-        static pthread_mutex_t m;
-        static void lock(){pthread_mutex_lock(&m);}
-        static void unlock(){pthread_mutex_unlock(&m);}
+        static std::mutex m;
         public:
         // helgrind complains, here. I think that helgrind is wrong.
         // key base_key() const { lock(); key ret = k; unlock(); return ret; }
         key const & base_key() const { return k; }
         slot_base() : k(0) {
-            lock();
+            const std::lock_guard<std::mutex> dummy(m);
             dict_t& dict(get_dict(1));
             k = key(dict.size());
             dict[k.dict_key()] = this;
-            unlock();
         }
         ~slot_base() {
-            lock();
-            dict_t& dict(get_dict());
-            dict[k] = NULL;
-            get_dict(-1);
-            unlock();
+            const std::lock_guard<std::mutex> dummy(m);
+            get_dict()[k] = nullptr;
         }
         public:
         static std::string print(key x) {
-            lock();
+            const std::lock_guard<std::mutex> dummy(m);
             dict_t& dict(get_dict());
             dict_t::const_iterator it = dict.find(x.dict_key());
             if (it == dict.end()) {
-                unlock();
                 throw "Bad magic";
             }
             const tdict::slot_base * b = it->second;
             if (b == NULL) {
-                unlock();
                 return "FIXME: deleted timer";
             }
-            unlock();
             return b->_print(x.parameter());
         }
         virtual std::string _print(int) const = 0;
@@ -192,12 +186,16 @@ namespace tdict {
     class slot_parametric : public slot_base {
         std::string s,t;
         public:
-        slot_parametric(std::string const& s) : s(s) { }
-        slot_parametric(std::string const& s, std::string const& t) : s(s), t(t) { }
+        slot_parametric(std::string s)
+            : s(std::move(s))
+        { }
+        slot_parametric(std::string s, std::string t)
+            : s(std::move(s))
+            , t(std::move(t)) { }
         key operator()(int p) const {
             return base_key().encode(p);
         }
-        virtual std::string _print(int p) const {
+        std::string _print(int p) const override {
             std::ostringstream ss;
             ss << s << p << t;
             return ss.str();
@@ -217,10 +215,8 @@ namespace tdict {
         struct type {
             double t = 0;
             double w = 0;
-            type(type const&) = default;
-            type(type&&) = default;
             type() = default;
-            type(int) : t(0), w(0) {}
+            type(int) {}
             type(double t, double w) : t(t), w(w) {}
             type& operator-=(type const & o) {
                 t-=o.t;
@@ -238,9 +234,9 @@ namespace tdict {
         };
         type operator()() const {
             if (tdict::global_enable)
-                return type(seconds_thread(), wct_seconds());
+                return { seconds_thread(), wct_seconds() };
             else
-                return type();
+                return {};
         }
     };
 #ifdef  HAVE_GCC_STYLE_AMD64_INLINE_ASM
@@ -320,19 +316,19 @@ namespace tdict {
         }
         struct accounting_base {
             tree& t;
-            inline accounting_base(tree& t): t(t) {}
-            inline ~accounting_base() {}
+            accounting_base(tree& t): t(t) {}
+            ~accounting_base() {}
         };
         /* This one is useful so that ctor/dtor order works right.
         */
         struct accounting_activate : public accounting_base {
-            inline accounting_activate(tree& t): accounting_base(t) { accounting_base::t.start(); }
-            inline ~accounting_activate() { accounting_base::t.stop(); }
+            accounting_activate(tree& t): accounting_base(t) { accounting_base::t.start(); }
+            ~accounting_activate() { accounting_base::t.stop(); }
         };
         struct accounting_activate_recursive : public accounting_base {
             bool act = false;
-            inline accounting_activate_recursive(tree& t): accounting_base(t), act(!t.running()) { if (act) accounting_base::t.start(); }
-            inline ~accounting_activate_recursive() { if (act) accounting_base::t.stop(); }
+            accounting_activate_recursive(tree& t): accounting_base(t), act(!t.running()) { if (act) accounting_base::t.start(); }
+            ~accounting_activate_recursive() { if (act) accounting_base::t.stop(); }
         };
         template<typename BB>
             struct accounting_child_meta : public BB {
@@ -363,8 +359,8 @@ namespace tdict {
 
         struct accounting_debug : public accounting_base {
             std::ostream& o;
-            inline accounting_debug(tree& t, std::ostream&o): accounting_base(t), o(o) {}
-            inline ~accounting_debug() {
+            accounting_debug(tree& t, std::ostream&o): accounting_base(t), o(o) {}
+            ~accounting_debug() {
                 o << "# debug print\n";
                 o << accounting_base::t.display();
                 o << "# --\n";
@@ -609,20 +605,20 @@ class : public tdict::slot_base {
 #define TIMER_TYPE_(T)   std::remove_reference<decltype(T)>::type
 #define CHILD_TIMER(T, name)                                            \
     TIMER_DEBUG_MESSAGE_(T);                                         	\
-    static tdict::slot UNIQUE_ID(slot)(name);		                \
+    static const tdict::slot UNIQUE_ID(slot)(name);		                \
     const typename TIMER_TYPE_(T)::accounting_child UNIQUE_ID(sentry)(T,UNIQUE_ID(slot))
 #define CHILD_TIMER_PARAMETRIC(T, name, arg, suffix)                    \
     TIMER_DEBUG_MESSAGE_(T);                                         	\
-    static tdict::slot_parametric UNIQUE_ID(slot)(name, suffix);    	\
+    static const tdict::slot_parametric UNIQUE_ID(slot)(name, suffix);    	\
     const typename TIMER_TYPE_(T)::accounting_child UNIQUE_ID(sentry)(T,UNIQUE_ID(slot)(arg))
 #define SIBLING_TIMER(T, name) do {					\
         TIMER_DEBUG_MESSAGE_(T);					\
-        static tdict::slot x(name);					\
+        static const tdict::slot x(name);					\
         const typename TIMER_TYPE_(T)::accounting_sibling UNIQUE_ID(sentry) (T,x);	\
     } while (0)
 #define SIBLING_TIMER_PARAMETRIC(T, name, arg, suffix) do {		\
         TIMER_DEBUG_MESSAGE_(T);					\
-        static tdict::slot_parametric x(name, suffix);			\
+        static const tdict::slot_parametric x(name, suffix);			\
         const typename TIMER_TYPE_(T)::accounting_sibling UNIQUE_ID(sentry) (T,x(arg));\
     } while (0)
 #define BOOKKEEPING_TIMER(T)						\
@@ -638,7 +634,7 @@ class : public tdict::slot_base {
     TIMER_DEBUG_MESSAGE_(T);						\
     const typename TIMER_TYPE_(T)::accounting_debug UNIQUE_ID(sentry) (T, o);
 #define CHILD_TIMER_FUZZY(T, U, name)                \
-    static tdict::slot UNIQUE_ID(slot)(name);		                \
+    static const tdict::slot UNIQUE_ID(slot)(name);		                \
     tdict::tie_timer<typename TIMER_TYPE_(T)::timer_type, fast_timetree_t::timer_type> U(T, UNIQUE_ID(slot))
 
 
@@ -659,9 +655,9 @@ struct timetree_t {
     std::string display() const { return std::string(); }
     /* what should we do */
     bool running() const { return false; }
-    inline void nop() const {}
-    inline void start() const {}
-    inline void stop() const {}
+    void nop() const {}
+    void start() const {}
+    void stop() const {}
     void add_foreign_time(timer_data_type const &) const {}
 };
 

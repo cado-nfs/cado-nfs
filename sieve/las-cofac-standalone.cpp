@@ -1,19 +1,26 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <inttypes.h> // for PRId64, PRIu64 // IWYU pragma: keep
+#ifndef SUPPORT_LARGE_Q
+#include <cinttypes> // for PRId64, PRIu64 // IWYU pragma: keep
+#endif
+#include <cstddef>
+
 #include <array>                       // for array, array<>::value_type
-#include <cstdint>                     // for uint8_t
 #include <mutex>                       // for lock_guard, mutex
 #include <vector>                      // for vector
 
 #include <gmp.h>                       // for mpz_srcptr, gmp_fprintf, mpz_c...
 
-#include "las-cofac-standalone.hpp"    // for cofac_standalone
-#include "gcd.h"       // for bin_gcd_int64_safe // IWYU pragma: keep
 #include "ecm/batch.hpp"                   // for cofac_list
+#ifndef SUPPORT_LARGE_Q
+#include "gcd.h"
+#endif
+#ifdef SUPPORT_LARGE_Q
+#include "cxx_mpz.hpp"
+#endif
+#include "las-cofac-standalone.hpp"    // for cofac_standalone
 #include "las-cofactor.hpp"            // for factor_both_leftover_norms
 #include "las-coordinates.hpp"         // for convert_Nx_to_ab
-#include "las-divide-primes.hpp"       // for factor_list_t
 #include "las-siever-config.hpp"       // for siever_config::side_config
 #include "las-threads-work-data.hpp"   // for nfs_work_cofac
 #include "las-todo-entry.hpp"          // for las_todo_entry
@@ -50,7 +57,7 @@ cofac_standalone::cofac_standalone(int nsides, int N, size_t x, int logI, qlatti
 bool cofac_standalone::trace_on_spot() const {/*{{{*/
     return extern_trace_on_spot_ab(a, b);
 }/*}}}*/
-bool cofac_standalone::gcd_coprime_with_q(las_todo_entry const & E) {/*{{{*/
+bool cofac_standalone::gcd_coprime_with_q(las_todo_entry const & E) const {/*{{{*/
     /* Since the q-lattice is exactly those (a, b) with
        a == rho*b (mod q), q|b  ==>  q|a  ==>  q | gcd(a,b) */
     /* In case of composite sq, have to check all factors... */
@@ -107,7 +114,7 @@ void cofac_standalone::print_as_survivor(FILE * f) {/*{{{*/
             (mpz_srcptr) norm[1]);
 #endif
 }/*}}}*/
-relation cofac_standalone::get_relation(las_todo_entry const & doing) {/*{{{*/
+relation cofac_standalone::get_relation(las_todo_entry const & doing) const {/*{{{*/
 #ifndef SUPPORT_LARGE_Q
     relation rel(a, b);
 #else
@@ -120,13 +127,13 @@ relation cofac_standalone::get_relation(las_todo_entry const & doing) {/*{{{*/
         for (auto const& z : factors[side])
             rel.add(side, z, 0);
         for (auto const& z : lps[side])
-            rel.add(side, z, 0);
+            rel.add(side, z, cxx_mpz(0));
     }
     if (doing.is_prime()) {
-        rel.add(doing.side, doing.p, 0);
+        rel.add(doing.side, doing.p, cxx_mpz(0));
     } else {
         for (auto const& facq : doing.prime_factors)
-            rel.add(doing.side, facq, 0);
+            rel.add(doing.side, facq, cxx_mpz(0));
     }
 
     rel.compress();

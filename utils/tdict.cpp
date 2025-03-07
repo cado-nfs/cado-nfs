@@ -1,6 +1,10 @@
 #include "cado.h" // IWYU pragma: keep
+
+#include <map>
 #include <ostream>    // std::ostream // IWYU pragma: keep
+
 #include <pthread.h>
+
 #include "tdict.hpp"
 #include "params.h"
 
@@ -11,7 +15,7 @@ int global_enable;
 
 #ifndef DISABLE_TIMINGS
 
-pthread_mutex_t slot_base::m = PTHREAD_MUTEX_INITIALIZER;
+std::mutex slot_base::m;
 
 void declare_usage(cxx_param_list & pl)
 {
