@@ -576,6 +576,23 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
         convert_Nx_to_ij (i, j, N, x, ws.conf.logI);
         adjustIJsublat(i, j, ws.Q.sublat);
 
+        auto rab = relation_ab(cur);
+
+        if (dlp_descent && ws.las.tree.must_avoid(rab)) {
+            /* This is important if we want to avoid loops! */
+            auto msg = fmt::format("ignoring relation {},{} which already appears in the descent tree", rab.az, rab.bz);
+            verbose_output_print(0, 1, "# %s\n", msg.c_str());
+            /* it's a hack, only because
+             * las_report::display_survivor_counters chains
+             * rep.survivors.not_both_multiples_of_p with
+             * trial_divided_on_side[], which gets in our way of we want
+             * to insert another test. This would need to be refactored.
+             */
+            rep.survivors.not_both_multiples_of_p--;
+            continue;
+        }
+
+
         if (do_resieve) {
             for(int pside = 0 ; pass && pside < nsides ; pside++) {
                 int const side = trialdiv_first_side ^ pside;
@@ -724,15 +741,6 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
             if (!rel_hash.insert(ab).second) continue;
         }
 #endif
-
-        auto rab = relation_ab(cur);
-
-        if (dlp_descent && ws.las.tree.must_avoid(rab)) {
-            /* This is important if we want to avoid loops! */
-            auto msg = fmt::format("ignoring relation {},{} which already appears in the descent tree", rab.az, rab.bz);
-            verbose_output_print(0, 1, "# %s\n", msg.c_str());
-            continue;
-        }
 
         rep.survivors.enter_cofactoring++;
 
