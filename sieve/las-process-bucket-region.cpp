@@ -725,6 +725,15 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
         }
 #endif
 
+        auto rab = relation_ab(cur);
+
+        if (dlp_descent && ws.las.tree.must_avoid(rab)) {
+            /* This is important if we want to avoid loops! */
+            auto msg = fmt::format("ignoring relation {},{} which already appears in the descent tree", rab.az, rab.bz);
+            verbose_output_print(0, 1, "# %s\n", msg.c_str());
+            continue;
+        }
+
         rep.survivors.enter_cofactoring++;
 
         // we'll do the printing later.
@@ -737,14 +746,6 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
              * same time !!! */
             cur.transfer_to_cofac_list(ws.cofac_candidates, aux_p->doing);
             continue; /* we deal with all cofactors at the end of subjob */
-        }
-
-        auto rab = relation_ab(cur);
-
-        if (dlp_descent && ws.las.tree.must_avoid(rab)) {
-            auto msg = fmt::format("ignoring relation {},{} which already appears in the descent tree", rab.az, rab.bz);
-            verbose_output_print(0, 1, "# %s\n", msg.c_str());
-            continue;
         }
 
         auto * D = new detached_cofac_parameters(wc_p, aux_p, std::move(cur));
