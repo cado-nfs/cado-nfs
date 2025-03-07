@@ -1,16 +1,17 @@
 #ifndef TDICT_HPP_
 #define TDICT_HPP_
 
+#include <cstddef>   // for NULL
 #include <cstdint>
 
 #include <map>
 #include <string>
 #include <sstream>
 #include <mutex>
-
-#include "timing.h"
-#include <cstddef>   // for NULL
 #include <utility>    // for pair
+
+#include "lock_guarded_container.hpp"
+#include "timing.h"
 #include "macros.h"   // for ASSERT_ALWAYS, CADO_CONCATENATE3, MAYBE_UNUSED
 struct cxx_param_list;
 
@@ -108,7 +109,7 @@ namespace tdict {
         protected:
         key k;
         private:
-        static dict_t& get_dict(int x MAYBE_UNUSED = 0) {
+        static lock_guarded_container<dict_t>& get_dict() {
             /* The code below leaks, I know. Unfortunately I can't stow
              * the static member initialization in an other compilation
              * unit, or SIOF will kill me. See also "Meyers Singleton".
@@ -121,50 +122,34 @@ namespace tdict {
              * object themselves -- which is not guaranteed by the
              * interface.
              */
-#if 1
-            static dict_t d;   /* trusty leaky */
+            static lock_guarded_container<dict_t> d;   /* trusty leaky */
             return d;
-#else
-            static dict_t * d;
-            static size_t nkeys;
-            if (x > 0) {
-                if (nkeys++ == 0) {
-                    d = new dict_t();
-                }
-            } else if (x < 0) {
-                if (--nkeys == 0) {
-                    delete d;
-                    d = NULL;
-                }
-            }
-            return d;
-#endif
         };
-        static std::mutex m;
         public:
         // helgrind complains, here. I think that helgrind is wrong.
         // key base_key() const { lock(); key ret = k; unlock(); return ret; }
         key const & base_key() const { return k; }
         slot_base() : k(0) {
-            const std::lock_guard<std::mutex> dummy(m);
-            dict_t& dict(get_dict(1));
-            k = key(dict.size());
-            dict[k.dict_key()] = this;
+            auto & D(get_dict());
+            const std::lock_guard<std::mutex> dummy(D.mutex());
+            k = key(D.size());
+            D[k.dict_key()] = this;
         }
         ~slot_base() {
-            const std::lock_guard<std::mutex> dummy(m);
-            get_dict()[k] = nullptr;
+            auto & D(get_dict());
+            const std::lock_guard<std::mutex> dummy(D.mutex());
+            D[k] = nullptr;
         }
         public:
         static std::string print(key x) {
-            const std::lock_guard<std::mutex> dummy(m);
-            dict_t& dict(get_dict());
-            dict_t::const_iterator it = dict.find(x.dict_key());
-            if (it == dict.end()) {
+            auto & D(get_dict());
+            const std::lock_guard<std::mutex> dummy(D.mutex());
+            auto it = D.find(x.dict_key());
+            if (it == D.end()) {
                 throw "Bad magic";
             }
             const tdict::slot_base * b = it->second;
-            if (b == NULL) {
+            if (b == nullptr) {
                 return "FIXME: deleted timer";
             }
             return b->_print(x.parameter());

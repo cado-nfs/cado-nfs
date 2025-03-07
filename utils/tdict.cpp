@@ -15,8 +15,6 @@ int global_enable;
 
 #ifndef DISABLE_TIMINGS
 
-std::mutex slot_base::m;
-
 void declare_usage(cxx_param_list & pl)
 {
     param_list_decl_usage(pl, "T",   "enable fine-grain timings (use twice to get them for each q)");
