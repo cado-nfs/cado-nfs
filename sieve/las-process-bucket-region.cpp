@@ -24,7 +24,6 @@
 #include <utility>                        // for move
 #include <vector>                         // for vector
 #include <gmp.h>                          // for gmp_vfprintf, mpz_srcptr
-#include "cxx_mpz.hpp"
 #include "gmp_aux.h"
 #include "las-process-bucket-region.hpp"  // for process_bucket_region_spawn
 #include "bucket.hpp"                     // for bare_bucket_update_t<>::br_...
@@ -56,6 +55,7 @@
 #include "las-where-am-i-proxy.hpp"            // for where_am_I
 #include "las-where-am-i.hpp"             // for where_am_I, WHERE_AM_I_UPDATE
 #include "macros.h"                       // for ASSERT_ALWAYS, ASSERT, MAX
+#include "relation.hpp"
 #include "tdict.hpp"                      // for slot, timetree_t, CHILD_TIMER
 #include "threadpool.hpp"                 // for worker_thread, thread_pool
 #include "verbose.h"
@@ -737,6 +737,7 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
             continue; /* we deal with all cofactors at the end of subjob */
         }
 
+        auto rab = relation_ab(cur);
         auto * D = new detached_cofac_parameters(wc_p, aux_p, std::move(cur));
 
         if (!dlp_descent && !exit_after_rel_found) {
@@ -745,6 +746,9 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
              * to batch-join only, so this is done at the las_subjob level */
             // worker->get_pool().get_result(1, false);
             worker->get_pool().add_task(detached_cofac, D, N, 1); /* id N, queue 1 */
+        } else if (dlp_descent && ws.las.tree.must_avoid(rab)) {
+            auto msg = fmt::format("ignoring relation {},{} which already appears in the descent tree", rab.az, rab.bz);
+            verbose_output_print(0, 1, "# %s\n", msg.c_str());
         } else {
             /* We must proceed synchronously for the descent */
             std::unique_ptr<detached_cofac_result> res(

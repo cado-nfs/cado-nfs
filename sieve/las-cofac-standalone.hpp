@@ -22,9 +22,11 @@ struct cofac_standalone {
     int64_t a;
     uint64_t b;
 
-    explicit operator relation_ab() const { return { a, b }; }
 #ifdef SUPPORT_LARGE_Q
     cxx_mpz az, bz;
+    explicit operator relation_ab() const { return { az, bz }; }
+#else
+    explicit operator relation_ab() const { return { a, b }; }
 #endif
     cofac_standalone();
     cofac_standalone(int nsides, int N, size_t x, int logI, qlattice_basis const & Q);
