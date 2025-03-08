@@ -1,16 +1,22 @@
 #ifndef LAS_TODO_LIST_HPP_
 #define LAS_TODO_LIST_HPP_
 
-#include <algorithm>
 #include <cstdint>            // for uint64_t, UINT64_MAX
 #include <cstdio>             // for FILE, NULL, size_t
+#include <climits>
+
+#include <algorithm>
 #include <list>                // for list
+#include <memory>
 #include <mutex>               // for mutex, lock_guard
 #include <stack>               // for swap, stack
+
 #include <gmp.h>               // for gmp_randstate_t
+
 #include "cxx_mpz.hpp"
 #include "cado_poly.h"
 #include "las-todo-entry.hpp"  // for las_todo_entry
+
 struct cxx_param_list;
 
 class las_todo_list : private std::stack<las_todo_entry> {
@@ -20,12 +26,12 @@ class las_todo_list : private std::stack<las_todo_entry> {
     /* "history" is append-only: everything we pop from the stack goes
      * here, and lives until the destruction */
     std::list<las_todo_entry> history;
-    unsigned int nq_max = 0;
+    unsigned int nq_max = UINT_MAX;
     int random_sampling = 0;
     cxx_mpz q0;
     cxx_mpz q1;
-    const char * galois;        /* Used to skip some primes */
-    FILE * todo_list_fd = NULL;
+    const char * galois = nullptr;        /* Used to skip some primes */
+    std::unique_ptr<std::ifstream> todo_list_fd;
     bool feed_qrange(gmp_randstate_t);
     bool feed_qlist();
     void push_withdepth_unlocked(cxx_mpz const & p, cxx_mpz const & r, int side, int depth, int iteration = 0)
@@ -37,7 +43,7 @@ class las_todo_list : private std::stack<las_todo_entry> {
         push_withdepth_unlocked(p, r, side, 0);
     }
     public:
-    int sqside;
+    int sqside = -1;
     /* For composite special-q: note present both in las_info and
      * las_todo_list */
     bool allow_composite_q = false;
@@ -51,7 +57,7 @@ class las_todo_list : private std::stack<las_todo_entry> {
     size_t size() const { return super::size(); }
     void push_withdepth(cxx_mpz const & p, cxx_mpz const & r, int side, int depth, int iteration = 0)
     {
-        std::lock_guard<std::mutex> foo(mm);
+        const std::lock_guard<std::mutex> foo(mm);
         push_withdepth_unlocked(p, r, side, depth, iteration);
     }
     void push(cxx_mpz const & p, cxx_mpz const & r, int side)
@@ -60,18 +66,18 @@ class las_todo_list : private std::stack<las_todo_entry> {
     }
     void push_closing_brace(int depth)
     {
-        std::lock_guard<std::mutex> foo(mm);
+        const std::lock_guard<std::mutex> foo(mm);
         super::push(las_todo_entry(-1, depth));
     }
     las_todo_entry pop()
     {
-        std::lock_guard<std::mutex> foo(mm);
+        const std::lock_guard<std::mutex> foo(mm);
         las_todo_entry r = super::top();
         super::pop();
         return r;
     }
 
-    int is_closing_brace(las_todo_entry const & doing) const
+    static int is_closing_brace(las_todo_entry const & doing)
     {
         return doing.side < 0;
     }
@@ -81,16 +87,20 @@ class las_todo_list : private std::stack<las_todo_entry> {
 
     bool feed(gmp_randstate_t rstate);
     las_todo_entry * feed_and_pop(gmp_randstate_t rstate);
+    las_todo_list(las_todo_list const &) = delete;
+    las_todo_list(las_todo_list &&) = delete;
+    las_todo_list& operator=(las_todo_list const &) = delete;
+    las_todo_list& operator=(las_todo_list &&) = delete;
+    ~las_todo_list() = default;
 
     las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl);
-    ~las_todo_list();
 
     super save() {
-        std::lock_guard<std::mutex> foo(mm);
-        return (super)*this;
+        const std::lock_guard<std::mutex> foo(mm);
+        return *this; /* NOLINT(cppcoreguidelines-slicing) */
     }
     void restore(super && x) {
-        std::lock_guard<std::mutex> foo(mm);
+        const std::lock_guard<std::mutex> foo(mm);
         std::swap((super&)*this, x);
     }
 

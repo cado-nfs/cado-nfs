@@ -1,7 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
-#include <algorithm>              // for max
 #include <cmath>                  // for isfinite, INFINITY
-#include <memory>                 // for allocator_traits<>::value_type
 #include <utility>                // for pair, make_pair
 #include <vector>                 // for vector
 #include <cstdio>              // IWYU pragma: keep
@@ -19,6 +17,7 @@
 #include "relation.hpp"           // for relation::pr, relation
 #include "typedefs.h"             // p_r_values_t
 #include "verbose.h"
+#include "las-info.hpp"
 
 /* This returns true only if this descent node is now done, either based
  * on the new relation we have registered, or because the previous
@@ -37,7 +36,7 @@ bool register_contending_relation(las_info const & las, las_todo_entry const & d
     contender.rel = rel;
     double time_left = 0;
 
-    for(int side = 0 ; side < 2 ; side++) {
+    for(int side = 0 ; side < las.cpoly->nb_polys ; side++) {
         for(unsigned int i = 0 ; i < rel.sides[side].size() ; i++) {
             relation::pr const & v(rel.sides[side][i]);
             if (mpz_cmp(doing.p, v.p) == 0)
@@ -63,7 +62,7 @@ bool register_contending_relation(las_info const & las, las_todo_entry const & d
                 if (std::isfinite(time_left))
                     time_left += e;
             }
-            contender.outstanding.push_back(std::make_pair(side, v));
+            contender.outstanding.emplace_back(side, v);
         }
     }
     verbose_output_print(0, 1, "# [descent] This relation entails an additional time of %.2f for the smoothing process (%zu children)\n",

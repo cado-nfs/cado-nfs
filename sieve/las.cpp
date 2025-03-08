@@ -11,38 +11,44 @@
  * The WHERE_AM_I_UPDATE macro itself is defined in las-where-am-i.hpp
  */
 
-#include <cstdint>     /* AIX wants it first (it's a bug) */
-#include <cinttypes>                      // for PRId64, PRIu64
-#include <climits>                        // for ULONG_MAX
-#include <cmath>                          // for log, pow, sqrt
 #include <algorithm>                      // for min, max, max_element
 #include <array>                          // for array, array<>::value_type
+#include <climits>                        // for ULONG_MAX
+#include <cmath>                          // for log, pow, sqrt
 #include <condition_variable>             // for condition_variable
+#include <cstdarg>             // IWYU pragma: keep
+#include <cstdint>     /* AIX wants it first (it's a bug) */
 #include <cstdio>                         // for size_t, fprintf, stderr
 #include <cstdlib>                        // for exit, EXIT_FAILURE, EXIT_SU...
-#include <cstdarg>             // IWYU pragma: keep
+#include <fstream>                        // for ifstream
 #include <functional>                     // for ref
 #include <iomanip>                        // for operator<<, setprecision
+#include <istream>                        // for operator>>
 #include <list>                           // for list, _List_iterator
 #include <map>                            // for map
 #include <memory>                         // for allocator, shared_ptr, make...
 #include <mutex>                          // for mutex, lock_guard, unique_lock
 #include <ostream>                        // for operator<<, ostringstream
-#include <istream>                        // for operator>>
-#include <fstream>                        // for ifstream
 #include <string>                         // for string, basic_string, opera...
 #include <thread>                         // for thread
-#include <type_traits>                    // for remove_reference<>::type
 #include <utility>                        // for move, pair
 #include <vector>                         // for vector<>::iterator, vector
+
+#include <dirent.h>
+
 #include <gmp.h>                          // for mpz_srcptr, gmp_vfprintf
+#include "fmt/core.h"
+
 #include "bucket.hpp"                     // for bucket_slice_alloc_defaults
+#include "cado-sighandlers.h"
 #include "cado_poly.h"
 #include "cxx_mpz.hpp"
 #include "ecm/batch.hpp"                      // for cofac_list, cofac_candidate
 #include "ecm/facul.hpp"                      // for facul_print_stats
+#include "ecm/facul_strategies_stats.hpp"
 #include "fb-types.h"                     // for fbprime_t, sublat_t, slice_...
 #include "fb.hpp"                         // for fb_factorbase::key_type
+#include "json.hpp"
 #include "las-auxiliary-data.hpp"         // for report_and_timer, nfs_aux
 #include "las-bkmult.hpp"                 // for buckets_are_full, bkmult_sp...
 #include "las-choose-sieve-area.hpp"      // for choose_sieve_area, never_di...
@@ -52,6 +58,7 @@
 #include "las-descent.hpp"                // for postprocess_specialq_descent
 #include "las-divide-primes.hpp"          // for display_bucket_prime_stats
 #include "las-dlog-base.hpp"              // IWYU pragma: keep
+#include "las-duplicate.hpp"
 #include "las-fill-in-buckets.hpp"        // for downsort_tree, fill_in_buck...
 #include "las-globals.hpp"                // for main_output, base_memory
 #include "las-info.hpp"                   // for las_info, las_info::batch_p...
@@ -64,7 +71,6 @@
 #include "las-qlattice.hpp"               // for qlattice_basis, operator<<
 #include "las-report-stats.hpp"           // for las_report, coarse_las_timers
 #include "las-siever-config.hpp"          // for siever_config::side_config
-#include "cado-sighandlers.h"
 #include "las-smallsieve.hpp"             // for small_sieve_activate_many_s...
 #include "las-threads-work-data.hpp"      // for nfs_work, nfs_work::side_data
 #include "las-todo-entry.hpp"             // for las_todo_entry
@@ -84,13 +90,6 @@
 #include "timing.h"             // for seconds
 #include "utils_cxx.hpp"
 #include "verbose.h"
-#include "json.hpp"
-#include "ecm/facul_strategies_stats.hpp"
-#include "fmt/format.h"
-#include <sys/types.h>
-#include <dirent.h>
-#include "las-duplicate.hpp"
-
 
 
 
@@ -192,7 +191,7 @@ static size_t expected_memory_usage_per_binding_zone(siever_config const & sc,/*
      */
     size_t memory = 0;
 
-    for(int side = 0 ; side < 2 ; side++) {
+    for(int side = 0 ; side < las.cpoly->nb_polys ; side++) {
         if (!sc.sides[side].lim) continue;
         double const p1 = sc.sides[side].lim;
         double const p0 = 2;
@@ -261,12 +260,14 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
     /* FIXME: I think that this code misses the case of sublat. */
 
     /* sc.instantiate_thresholds() depends on sc.logI */
-    fb_factorbase::key_type K[2] {
-        sc.instantiate_thresholds(0),
-        sc.instantiate_thresholds(1)
-    };
+    std::vector<fb_factorbase::key_type> K;
 
-    bool const do_resieve = sc.sides[0].lim && sc.sides[1].lim;
+    int nonzero_sieve_sides = 0;
+    for(int side = 0 ; side < (int) sc.sides.size() ; side++) {
+        K.emplace_back(sc.instantiate_thresholds(side));
+        nonzero_sieve_sides += sc.sides[0].lim != 0;
+    }
+    const bool do_resieve = nonzero_sieve_sides > 1;
 
     size_t memory = 0;
     size_t more;
@@ -290,11 +291,10 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
     // toplevel is computed by fb_factorbase::slicing::slicing, based on
     // thresholds in fbK
     int toplevel = -1;
-    for(int side = 0 ; side < 2 ; side++) {
+    for(int side = 0 ; side < las.cpoly->nb_polys ; side++) {
         int m;
         for(m = 0 ; m < FB_MAX_PARTS && K[side].thresholds[m] < sc.sides[side].lim; ++m);
-        if (m > toplevel)
-            toplevel = m;
+        toplevel = std::max(m, toplevel);
     }
 
     if (toplevel == 0) toplevel++;
@@ -364,7 +364,7 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
         // fill the buckets locally with short hints (and short positions:
         // bucket_update_t<1, shorthint_t>)
 
-        for(int side = 0 ; side < 2 ; side++) {
+        for(int side = 0 ; side < las.cpoly->nb_polys ; side++) {
             if (!sc.sides[side].lim) continue;
             /* In truth, I sort of know it isn't valid. We've built most
              * of the stuff on the idea that there's a global "toplevel"
@@ -453,7 +453,7 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
             }
         }
 
-        for(int side = 0 ; side < 2 ; side++) {
+        for(int side = 0 ; side < las.cpoly->nb_polys ; side++) {
             if (!sc.sides[side].lim) continue;
             double const p1 = K[side].thresholds[1];
             double const p0 = K[side].thresholds[0];
@@ -510,7 +510,7 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
     } else if (toplevel == 1) {
         // *ALL* bucket updates are computed in one go as
         // bucket_update_t<1, shorthint_t>
-        for(int side = 0 ; side < 2 ; side++) {
+        for(int side = 0 ; side < las.cpoly->nb_polys ; side++) {
             if (!sc.sides[side].lim) continue;
             ASSERT_ALWAYS(K[side].thresholds[1] == sc.sides[side].lim);
             double const p1 = K[side].thresholds[1];
@@ -728,7 +728,7 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
             ws.allocate_buckets(*aux_p, pool);
         }
 
-        for(int side = 0 ; side < 2 ; side++) {
+        for(int side = 0 ; side < nsides ; side++) {
             nfs_work::side_data  const& wss(ws.sides[side]);
             if (wss.no_fb()) continue;
 
@@ -744,7 +744,7 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
          */
         BOOKKEEPING_TIMER(timer_special_q);
 
-        for(int side = 0 ; side < 2 ; side++) {
+        for(int side = 0 ; side < nsides ; side++) {
             nfs_work::side_data  const& wss(ws.sides[side]);
             if (wss.no_fb()) continue;
             pool.add_task_lambda([&ws,aux_p,side](worker_thread * worker,int){
@@ -870,15 +870,17 @@ static bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_
      */
     WHERE_AM_I_UPDATE(aux.w, logI, ws.conf.logI);
     WHERE_AM_I_UPDATE(aux.w, pQ, &ws.Q);
-    WHERE_AM_I_UPDATE(aux.w, sides[0].fbs, ws.sides[0].fbs);
-    WHERE_AM_I_UPDATE(aux.w, sides[1].fbs, ws.sides[1].fbs);
+    WHERE_AM_I_UPDATE(aux.w, sides, decltype(aux.w->sides){ws.sides.size()});
+    for (size_t i = 0; i < ws.sides.size(); ++i) {
+        WHERE_AM_I_UPDATE(aux.w, sides[i].fbs, ws.sides[i].fbs);
+    }
     for(auto & t : aux.th) t.w = aux.w;
 
 
     /* Currently we assume that we're doing sieving + resieving on
      * both sides, or we're not. In the latter case, we expect to
      * complete the factoring work with batch cofactorization */
-    ASSERT_ALWAYS(las.batch || las.batch_print_survivors.filename || (ws.conf.sides[0].lim && ws.conf.sides[1].lim));
+    ASSERT_ALWAYS(las.batch || las.batch_print_survivors.filename || las.cpoly->nb_polys == 1 || (ws.conf.sides[0].lim && ws.conf.sides[1].lim));
 
     std::shared_ptr<nfs_work_cofac> wc_p;
 
@@ -938,7 +940,8 @@ static bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_
     return true;
 }/*}}}*/
 
-static void prepare_timer_layout_for_multithreaded_tasks(timetree_t & timer)
+static void prepare_timer_layout_for_multithreaded_tasks(timetree_t & timer,
+                                                         int nb_polys)
 {
     /* This does nothing. We're just setting up the required
      * empty shell so that all the multithreaded tasks that
@@ -947,7 +950,7 @@ static void prepare_timer_layout_for_multithreaded_tasks(timetree_t & timer)
      */
 #ifndef DISABLE_TIMINGS
     timetree_t::accounting_child const x(timer, tdict_slot_for_threads);
-    for (int side = 0; side < 2; ++side) {
+    for (int side = 0; side < nb_polys; ++side) {
         MARK_TIMER_FOR_SIDE(timer, side);
         TIMER_CATEGORY(timer, sieving(side));
     }
@@ -1134,7 +1137,7 @@ static void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_
 
                     ACTIVATE_TIMER(timer_special_q);
 
-                    prepare_timer_layout_for_multithreaded_tasks(timer_special_q);
+                    prepare_timer_layout_for_multithreaded_tasks(timer_special_q, las.cpoly->nb_polys);
 
                     bool const done = do_one_special_q(las, workspaces, aux_p, pool);
 

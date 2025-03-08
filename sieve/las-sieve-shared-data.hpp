@@ -5,6 +5,7 @@
 #include <map>                         // for map, swap
 #include <memory>                      // for shared_ptr
 #include <utility>                     // for pair
+#include <vector>                      // for vector
 
 #include "cado_poly.h"
 #include "mpz_poly.h"
@@ -99,7 +100,7 @@ struct sieve_shared_data {
 
     /* }}} */
 
-    side_data sides[2];
+    std::vector<side_data> sides;
 
     /* Most of the member functions below which take a side argument
      * should be members of the side_data structure instead.

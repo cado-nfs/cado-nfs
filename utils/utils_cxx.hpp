@@ -220,7 +220,11 @@ struct free_delete
 /* This makes it possible to replace FILE* by std::unique_ptr<FILE>
  * almost transparently. (note that we can't do that with
  * fclose_maybe_compressed, unfortunately, since it requires to keep
- * track of the file name)
+ * track of the file name).
+ * However it is probably preferrable to define the deleter explicitly
+ * with the std::unique_ptr<FILE, delete_FILE> form, which does not rely
+ * on presence/absence of the utils_cxx.hpp header which tampers with the
+ * std namespace.
  */
 template<>
 struct std::default_delete<FILE>
@@ -228,6 +232,11 @@ struct std::default_delete<FILE>
     void operator()(FILE* x) { fclose(x); }
 };
 
+typedef std::default_delete<FILE> delete_FILE;
+
+// these macros are not very useful. The added benefit to having all the
+// stuff expanded is minor, or even nonexistent.
+// NOLINTBEGIN(bugprone-macro-parentheses)
 #define CADO_DEFAULT_CXX_CTOR(T)        \
     T() = default
 
@@ -249,6 +258,26 @@ struct std::default_delete<FILE>
     CADO_DEFAULT_COPY_ASSIGNMENT(T);    \
     CADO_DEFAULT_MOVE_CTOR(T);          \
     CADO_DEFAULT_MOVE_ASSIGNMENT(T)
+
+#define CADO_DELETE_COPY_CTOR(T)       \
+    T(T const &) = delete
+
+#define CADO_DELETE_COPY_ASSIGNMENT(T) \
+    T& operator=(T const &) = delete
+
+#define CADO_DELETE_MOVE_CTOR(T)       \
+    T(T&&) = delete
+
+#define CADO_DELETE_MOVE_ASSIGNMENT(T) \
+    T& operator=(T&&) = delete
+
+#define CADO_DELETE_ALL_FOUR(T)         \
+    CADO_DELETE_COPY_CTOR(T);           \
+    CADO_DELETE_COPY_ASSIGNMENT(T);     \
+    CADO_DELETE_MOVE_CTOR(T);           \
+    CADO_DELETE_MOVE_ASSIGNMENT(T)
+
+// NOLINTEND(bugprone-macro-parentheses)
 
 
 static inline std::vector<std::string> split(

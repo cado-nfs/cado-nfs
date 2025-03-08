@@ -6,7 +6,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <cinttypes>
 
 #include <vector>
 #include <mutex>
@@ -556,7 +555,7 @@ void dispatcher::reader_thread_data::read()/*{{{*/
     unsigned int const row0 = D.row0_per_reader[ridx];
     unsigned int const row1 = D.row0_per_reader[ridx+1];
 
-    std::unique_ptr<FILE> const f(fopen(mfile.c_str(), "rb"));
+    std::unique_ptr<FILE, delete_FILE> const f(fopen(mfile.c_str(), "rb"));
     ASSERT_ALWAYS(f);
     {
         size_t const rc = fseek(f.get(), long(D.offset_per_reader[ridx]), SEEK_SET);
@@ -716,7 +715,7 @@ void dispatcher::reader_thread_data::read()/*{{{*/
                 CADO_MPI_UINT64_T, D.reader_comm);
 
         if (D.reader_map.index[pi->m->jrank] == 0) {
-            std::unique_ptr<FILE> const f(fopen(check_vector_filename.c_str(), "wb"));
+            std::unique_ptr<FILE, delete_FILE> const f(fopen(check_vector_filename.c_str(), "wb"));
             size_t const rc = fwrite(full.data(), sizeof(uint64_t), bal.nrows, f.get());
             ASSERT_ALWAYS(rc == bal.nrows);
         }

@@ -13,7 +13,10 @@
 #include <string>              // for string, getline, operator!=, operator>>
 #include <utility>             // for pair, operator==, swap, make_pair
 #include <vector>              // for vector
+
 #include <gmp.h>               // for mpz_t, operator>>, gmp_randclear, gmp_...
+#include "fmt/core.h"
+
 #include "cxx_mpz.hpp"
 #include "gmp_aux.h"           // for mpz_p_valuation
 #include "macros.h"
@@ -564,6 +567,36 @@ static int do_valuations_of_ideal_batch(param_list_ptr pl) /*{{{*/
 }
 /*}}}*/
 
+static int do_maximal_order(cxx_param_list & pl)
+{
+    cxx_gmp_randstate state;
+    unsigned long seed = 0;
+    if (param_list_parse_ulong(pl, "seed", &seed)) {
+        gmp_randseed_ui(state, seed);
+    }
+
+    unsigned long bound;
+    if (!param_list_parse(pl, "bound", bound)) {
+        usage(pl, original_argv, "missing bound argument for maximal_order");
+    }
+
+    std::string polystr;
+    if (!param_list_parse(pl, "poly", polystr)) usage(pl, original_argv, "missing poly argument");
+    const cxx_mpz_poly f(polystr);
+
+    number_field K(f);
+    K.bless("K", "alpha");
+    fmt::print("print(\"working with {}\")\n", K);
+
+    number_field_order OK = K.maximal_order(bound);
+    // OK.bless("OK");
+
+    for(auto const & e : OK.basis())
+        fmt::print("{}\n", e);
+
+    return 0;
+}
+
 static int do_number_theory_object_interface(param_list_ptr pl)
 {
     cxx_gmp_randstate state;
@@ -752,6 +785,8 @@ int main(int argc, char const * argv[])
         rc = do_linear_algebra_timings(pl);
     } else if (strcmp(tmp, "nt-object-interface") == 0) {
         rc = do_number_theory_object_interface(pl);
+    } else if (strcmp(tmp, "maximal-order") == 0) {
+        rc = do_maximal_order(pl);
     } else {
         usage(pl, original_argv, "unknown test");
     }

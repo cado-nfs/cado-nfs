@@ -35,6 +35,7 @@ void las_report::display_survivor_counters() const
         }
     }
     ASSERT_ALWAYS(S.enter_cofactoring == s);
+
     verbose_output_print(0, 2, "# survivors enter_cofactoring: %lu\n", S.enter_cofactoring);
     verbose_output_print(0, 2, "# survivors cofactored: %lu (%.1f%%)\n", S.cofactored, 100.0 * ratio(S.cofactored, S.enter_cofactoring));
     verbose_output_print(0, 2, "# survivors smooth: %lu\n", S.smooth);

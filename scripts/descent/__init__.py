@@ -8,7 +8,8 @@ from .general_class import GeneralClass
 from .descent_upper_class import DescentUpperClass
 from .descent_middle_class import DescentMiddleClass
 from .descent_lower_class import DescentLowerClass
-from .descent_utils import drive_me_crazy, feature_set_hwloc
+from .descent_utils import drive_me_crazy, feature_set_hwloc, FailedDescent
+
 
 def descent_main():
     # Parse command line arguments

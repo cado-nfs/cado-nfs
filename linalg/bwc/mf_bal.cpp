@@ -28,7 +28,7 @@
 #include "macros.h"
 #include "params.h"
 
-#include "utils_cxx.hpp"        // for unique_ptr<FILE>
+#include "utils_cxx.hpp"        // for unique_ptr<FILE, delete_FILE>
 
 typedef int (*sortfunc_t) (const void *, const void *);
 
@@ -485,7 +485,7 @@ void mf_bal(struct mf_bal_args * mba)
 
         /* Read the file with row or column weights */
         std::string const filename = d == 0 ? mba->rwfile : mba->cwfile;
-        std::unique_ptr<FILE> const fw(fopen(filename.c_str(), "rb"));
+        std::unique_ptr<FILE, delete_FILE> const fw(fopen(filename.c_str(), "rb"));
         if (!fw) { perror(filename.c_str()); exit(1); }
         weights[d].reset(new uint32_t[n]);
         std::fill_n(weights[d].get(), n, 0);

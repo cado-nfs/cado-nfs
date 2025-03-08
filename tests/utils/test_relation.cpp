@@ -100,13 +100,13 @@ static int test_compute_all_r (unsigned int nb)
     {
       mpz_set_ui (tp, gmp_urandomb_ui(state, 31));
       mpz_nextprime(tp, tp);
-      t1.add(0, tp, NULL);
+      t1.add(0, tp, cxx_mpz(0));
     }
     for (uint8_t k = 0; k <= gmp_urandomm_ui(state, 5); k++)
     {
       mpz_set_ui (tp, gmp_urandomb_ui(state, 31));
       mpz_nextprime(tp, tp);
-      t1.add(1, tp, NULL);
+      t1.add(1, tp, cxx_mpz(0));
     }
 
     relation t2 = t1;

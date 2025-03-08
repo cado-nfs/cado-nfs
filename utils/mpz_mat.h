@@ -272,6 +272,8 @@ struct cxx_mpz_mat {
     bool operator!=(cxx_mpz_mat const & o) const {
         return mpz_mat_cmp(x, o.x) != 0;
     }
+    inline int nrows() const { return x->m; }
+    inline int ncols() const { return x->n; }
     operator mpz_mat_ptr() { return x; }
     operator mpz_mat_srcptr() const { return x; }
     mpz_mat_ptr operator->() { return x; }
@@ -327,6 +329,8 @@ struct cxx_mpq_mat {
     bool operator!=(cxx_mpq_mat const & o) const {
         return mpq_mat_cmp(x, o.x) != 0;
     }
+    inline int nrows() const { return x->m; }
+    inline int ncols() const { return x->n; }
     operator mpq_mat_ptr() { return x; }
     operator mpq_mat_srcptr() const { return x; }
     mpq_mat_ptr operator->() { return x; }

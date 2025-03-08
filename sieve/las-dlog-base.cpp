@@ -99,7 +99,7 @@ void las_dlog_base::read()
 
     renumber_table.read_from_file(renumberfilename, 1);
 
-    for(int side = 0 ; side < 2 ; side++) {
+    for(int side = 0 ; side < renumber_table.get_nb_polys() ; side++) {
         if (lpb[side] != renumber_table.get_lpb(side)) {
             fprintf(stderr, "lpb%d=%lu different from lpb%d=%u stored in renumber table, probably a bug\n", side, lpb[side], side, renumber_table.get_lpb(side));
             exit(EXIT_FAILURE);

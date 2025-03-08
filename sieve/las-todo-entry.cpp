@@ -1,8 +1,14 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <ostream>     // for operator<<, ostream, basic_ostream, basic_ostr...
 #include <istream>     // for operator>>, istream, ...
 #include <sstream>     // for istringstream
+#include <string>
+#include <ios>
+
 #include <gmp.h>
+
+#include "cxx_mpz.hpp"
 #include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
 #include "gmp_aux.h"
 #include "las-todo-entry.hpp"

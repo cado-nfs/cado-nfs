@@ -15,13 +15,13 @@
 #include <vector>              // for vector
 
 #include <gmp.h>               // for mpz_srcptr, gmp_asprintf, mpz_sizeinbase
+#include "fmt/format.h"
 
 #include "las-todo-entry.hpp"  // for las_todo_entry
 #include "macros.h"            // for ASSERT_ALWAYS
 #include "relation.hpp"        // for relation_ab, relation, relation::pr
 #include "timing.h"             // for seconds
 #include "verbose.h"            // for verbose_output_print
-#include "cxx_mpz.hpp"          // for cxx_mpz
 
 #ifdef isfinite
 /* isfinite is c99 and std::isfinite is c++11 ; it's not totally clear
@@ -42,24 +42,20 @@ struct descent_tree {
     struct tree_label {
         int side = 0;
         relation::pr pr;
-        tree_label() { }
-        tree_label(int side, relation::pr const& pr ) : side(side), pr(pr) {}
+        tree_label() = default;
+        tree_label(int side, relation::pr pr )
+            : side(side)
+            , pr(std::move(pr)) {}
         tree_label(int side, mpz_srcptr p, mpz_srcptr r) :side(side), pr(p, r) {}
-        std::string operator()() const {
-            std::ostringstream os;
-            os << mpz_sizeinbase(pr.p, 2) << '@' << side;
-            return os.str();
+        std::string shortname() const {
+            return fmt::format("{}@{}", mpz_sizeinbase(pr.p, 2), side);
         }
         std::string fullname() const {
-            char * str;
-            gmp_asprintf(&str, "%d %Zd %Zd", side, (mpz_srcptr) pr.p, (mpz_srcptr) pr.r);
-            std::string s = str;
-            free(str);
-            return s;
+            return fmt::format("{} {} {}", side, pr.p, pr.r);
         }
         bool operator<(const tree_label& o) const {
-            if (pr_cmp()(pr, o.pr)) return true;
-            if (pr_cmp()(o.pr, pr)) return false;
+            if (pr < o.pr) return true;
+            if (o.pr < pr) return false;
             return side < o.side;
         }
     };
@@ -81,19 +77,31 @@ struct descent_tree {
     struct candidate_relation {
         relation rel;
         std::vector<std::pair<int, relation::pr> > outstanding;
-        double time_left;
-        double deadline;
+        double time_left = INFINITY;
+        double deadline = INFINITY;
         // bool marked_taken;      /* false until we take the decision */
-        candidate_relation() : time_left(INFINITY), deadline(INFINITY) {} // , marked_taken(false) {}
+        candidate_relation() = default;
         candidate_relation& operator=(candidate_relation const& o) {
+            if (this == &o) return *this;
             /* nothing very fancy, except that we keep the old deadline.
              * */
             rel = o.rel;
             outstanding = o.outstanding;
             time_left = o.time_left;
-            if (o.deadline < deadline) deadline = o.deadline;
+            deadline = std::min(deadline, o.deadline);
             return *this;
         }
+        candidate_relation(candidate_relation const & o) = default;
+        candidate_relation& operator=(candidate_relation && o) noexcept {
+            rel = o.rel;
+            outstanding = o.outstanding;
+            time_left = o.time_left;
+            deadline = std::min(deadline, o.deadline);
+            return *this;
+        }
+        candidate_relation(candidate_relation && o) noexcept = default;
+        ~candidate_relation() = default;
+
         bool operator<(candidate_relation const& b) const
         {
             if (!rel) return false;
@@ -119,20 +127,24 @@ struct descent_tree {
         double spent = 0;
         candidate_relation contender;
         std::list<tree *> children;
-        int try_again;
-        tree(tree_label const& label) : label(label), try_again(0) { }
+        bool try_again = false;
+        explicit tree(tree_label label)
+            : label(std::move(label))
+        {}
         ~tree() {
-            typedef std::list<tree *>::iterator it_t;
-            for(it_t i = children.begin() ; i != children.end() ; i++)
-                delete *i;
+            for(auto const & c : children)
+                delete c;
             children.clear();
         }
+        tree(tree const &) = delete;
+        tree(tree &&) = delete;
+        tree& operator=(tree const &) = delete;
+        tree& operator=(tree &&) = delete;
         bool is_successful() const {
             if (!contender.rel && !try_again)
                 return false;
-            typedef std::list<tree *>::const_iterator it_t;
-            for(it_t i = children.begin() ; i != children.end() ; i++) {
-                if (!(*i)->is_successful())
+            for(auto const & c : children) {
+                if (!c->is_successful())
                     return false;
             }
             return true;
@@ -162,19 +174,21 @@ struct descent_tree {
 
 
     ~descent_tree() {
-        typedef std::list<tree *>::iterator it_t;
-        for(it_t i = forest.begin() ; i != forest.end() ; i++)
-            delete *i;
+        for(auto const & f : forest)
+            delete f;
         forest.clear();
     }
 
     /* designing a copy ctor for this structure would be tedious */
     descent_tree() = default;
     descent_tree(descent_tree const& t) = delete;
+    descent_tree(descent_tree && t) = delete;
+    descent_tree& operator=(descent_tree const& t) = delete;
+    descent_tree& operator=(descent_tree && t) = delete;
 
     void new_node(las_todo_entry const & doing) {
-        std::lock_guard<std::mutex> lock(tree_lock);
-        int level = doing.depth;
+        const std::lock_guard<std::mutex> lock(tree_lock);
+        const int level = doing.depth;
         ASSERT_ALWAYS(level == (int) current.size());
         tree * kid = new tree(tree_label(doing.side, doing.p, doing.r));
         kid->spent = -seconds();
@@ -217,29 +231,27 @@ struct descent_tree {
      * should be taken now, and register this relation has having been
      * taken */
     bool must_take_decision() {
-        std::lock_guard<std::mutex> lock(tree_lock);
-        bool res = current.back()->contender.wins_the_game();
-        return res;
+        const std::lock_guard<std::mutex> lock(tree_lock);
+        return current.back()->contender.wins_the_game();
     }
 
     void take_decision() {
         /* must be called outside multithreaded context */
         // current.back()->contender.marked_taken = true;
-        relation_ab ab = current.back()->contender.rel;
-        visited.insert(ab);
+        visited.insert(current.back()->contender.rel);
     }
 
     /* this returns true if the decision should be taken now */
     bool new_candidate_relation(candidate_relation& newcomer)
     {
-        std::lock_guard<std::mutex> lock(tree_lock);
+        const std::lock_guard<std::mutex> lock(tree_lock);
         candidate_relation & defender(current.back()->contender);
         if (newcomer < defender) {
             if (newcomer.outstanding.empty()) {
                 verbose_output_print(0, 1, "# [descent] Yiippee, splitting done\n");
             } else if (std::isfinite(defender.deadline)) {
                 /* This implies that newcomer.deadline is also finite */
-                double delta = defender.time_left-newcomer.time_left;
+                const double delta = defender.time_left-newcomer.time_left;
                 verbose_output_print(0, 1, "# [descent] Improved ETA by %.2f\n", delta);
             } else if (defender) {
                 /* This implies that we have fewer outstanding
@@ -253,36 +265,32 @@ struct descent_tree {
                 verbose_output_print(0, 1, "# [descent] still searching for %.2f\n", defender.deadline - seconds());
             }
         }
-        bool res = defender.wins_the_game();
-        return res;
+        return defender.wins_the_game();
     }
 
-    bool must_avoid(relation const& rel) const {
-        relation_ab ab = rel;
-        std::lock_guard<std::mutex> lock(tree_lock);
-        bool answer = visited.find(ab) != visited.end();
-        return answer;
+    bool must_avoid(relation_ab const& ab) const {
+        const std::lock_guard<std::mutex> lock(tree_lock);
+        return visited.find(ab) != visited.end();
     }
-    int depth() {
-        return current.size();
+    bool must_avoid(relation const& rel) const {
+        return must_avoid((relation_ab const &) rel);
+    }
+    int depth() const {
+        return (int) current.size();
     }
     bool is_successful(tree * t) {
         return t->is_successful();
     }
     int tree_depth(tree * t) {
         int d = 0;
-        typedef std::list<tree *>::iterator it_t;
-        for(it_t i = t->children.begin() ; i != t->children.end() ; i++) {
-            d = std::max(d, 1 + tree_depth(*i));
-        }
+        for(auto const & c : t->children)
+            d = std::max(d, 1 + tree_depth(c));
         return d;
     }
     int tree_weight(tree * t) {
         int w = 1;
-        typedef std::list<tree *>::iterator it_t;
-        for(it_t i = t->children.begin() ; i != t->children.end() ; i++) {
-            w += tree_weight(*i);
-        }
+        for(auto const & c : t->children)
+            w += tree_weight(c);
         return w;
     }
     int display_tree(FILE* o, tree * t, std::string const& prefix);

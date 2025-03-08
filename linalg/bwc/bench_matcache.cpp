@@ -37,7 +37,7 @@
 #include "portability.h" // asprintf // IWYU pragma: keep
 #include "version_info.h" // cado_revision_string
 #include "worker-threads.h"
-#include "utils_cxx.hpp"        // for unique_ptr<FILE>
+#include "utils_cxx.hpp"        // for unique_ptr<FILE, delete_FILE>
 
 static void usage()
 {
@@ -224,7 +224,7 @@ void bench_args::do_simple_matmul_if_requested()// {{{
 
     P.fill_both_vectors_zero();
 
-    std::unique_ptr<FILE> f(fopen(srcvecname.c_str(), "rb"));
+    std::unique_ptr<FILE, delete_FILE> f(fopen(srcvecname.c_str(), "rb"));
     if (!f) {
         fmt::print(stderr, "fopen({}): {}\n", srcvecname, strerror(errno));
         exit(EXIT_FAILURE);

@@ -4,9 +4,11 @@
 #include <cstdint>      // for uint64_t
 #include <iosfwd>       // for ostream
 #include <vector>       // for vector
+#include <utility>
 
 #include <gmp.h>        // for mpz_cmp, mpz_cmp_ui, mpz_mul_ui, mpz_set_ui
 #include "fmt/ostream.h"
+#include "fmt/core.h"
 
 #include "macros.h"     // for ASSERT_ALWAYS
 
@@ -45,21 +47,29 @@ struct las_todo_entry {
     /* Empty p, r is used for "closing brace" */
     las_todo_entry(const int side, const int depth) : side(side), depth(depth), iteration(0) { }
 
-    las_todo_entry(cxx_mpz const & p, cxx_mpz const & r, const int side, const int depth = 0, const int iteration = 0) :
-        p(p), r(r), side(side), depth(depth), iteration(iteration)
+    las_todo_entry(cxx_mpz p, cxx_mpz r, const int side, const int depth = 0, const int iteration = 0)
+        : p(std::move(p))
+        , r(std::move(r))
+        , side(side)
+        , depth(depth)
+        , iteration(iteration)
     {
         find_prime_factors();
     }
 
-    las_todo_entry(cxx_mpz const & p, cxx_mpz const & r, const int side, std::vector<uint64_t> & prime_factors, const int depth = 0, const int iteration = 0) :
-        p(p), r(r), side(side), prime_factors(prime_factors), depth(depth), iteration(iteration)
+    las_todo_entry(cxx_mpz p, cxx_mpz r, const int side, std::vector<uint64_t> & prime_factors, const int depth = 0, const int iteration = 0)
+        : p(std::move(p))
+        , r(std::move(r))
+        , side(side)
+        , prime_factors(prime_factors)
+        , depth(depth)
+        , iteration(iteration)
     {
         /* make sure that the factorization provided is correct */
-        cxx_mpz t;
-        mpz_set_ui(t, 1);
+        cxx_mpz t = 1;
         for(auto x : prime_factors)
             mpz_mul_ui(t, t, x);
-        ASSERT_ALWAYS(mpz_cmp(p, t) == 0);
+        ASSERT_ALWAYS(mpz_cmp(this->p, t) == 0);
     }
 
     // Given a *prime* ell, check whether ell is coprime to current
@@ -81,6 +91,12 @@ private:
 };
 
 std::ostream& operator<<(std::ostream&, las_todo_entry const &);
+
+/* this parsing routine is used exclusively in fake_rels.cpp, and it goes
+ * to some level of complication in order to parse what operator<<
+ * prints. At least we have symmetry, sure. But overall, I don't think we
+ * should expose this kind of parsing globally
+ */
 std::istream& operator>>(std::istream&, las_todo_entry &);
 
 namespace fmt {

@@ -70,7 +70,8 @@ Checks: "-*,
         -readability-named-parameter,
         -readability-inconsistent-declaration-parameter-name,
         -readability-math-missing-parentheses,
-        -readability-isolate-declaration
+        -readability-isolate-declaration,
+        -readability-use-anyofallof
 "
 
 CheckOptions:

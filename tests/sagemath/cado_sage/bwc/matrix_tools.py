@@ -39,6 +39,9 @@ def mrev(M, n):
 def mdeg(M):
     return max([a.degree() for a in M.list()])
 
+def mval(M):
+    return min([a.valuation() for a in M.list()])
+
 
 def mmod(M, n):
     KP = M.base_ring()

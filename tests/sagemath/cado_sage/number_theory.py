@@ -18,8 +18,12 @@ from sage.rings.padics.factory import Zp
 from sage.rings.rational_field import QQ
 from sage.rings.real_double import RDF
 from sage.rings.real_mpfr import RealField
+from sage.rings.real_mpfi import RealIntervalField
+from sage.rings.complex_mpfr import ComplexField
+from sage.rings.complex_interval_field import ComplexIntervalField
 from sage.symbolic.ring import SR
 from sage.functions.log import exp
+from cypari2.pari_instance import Pari
 
 # This class is only here to embed code that is attached to the cado-nfs
 # diagram. Of course, almost everything we'll ever need is there in
@@ -28,10 +32,17 @@ from sage.functions.log import exp
 
 
 class CadoNumberFieldWrapper(object):
-    def __init__(self, K):
+    def __init__(self, K, trial_division_bound=10**7):
+        # Many operations on ideals will internally call K.pari_nf(), which factors the discriminant.
+        # This will stall when the discriminant is huge.
+        # pari does let you give a trial division bound for factoring the discriminant, but sage doesn't properly expose it.
+        # So we initialize K._pari_nf ourselves. The code below is K.pari_nf() except we provide a trial division bound.
+        pari = Pari()
+        nf = pari([K.pari_polynomial("y"), trial_division_bound])
+        K._pari_nf = nf.nfinit()
         self.K = K
 
-    def LogMap(self, prec=53):
+    def LogMap(self, *args, **kwargs):
         """
         Compute the log embeddings.
 
@@ -46,8 +57,8 @@ class CadoNumberFieldWrapper(object):
 
         further fixes:
          - clean up the code,
-         - add better treatment of the precision (for consistency with
-           K.places())
+         - add better treatment of the precision (in the same way as we
+           corrected K.places())
          - add better treatment of log(0)
 
         TESTS:
@@ -63,28 +74,16 @@ class CadoNumberFieldWrapper(object):
             True
 
         """
-
+        pl = self.places(*args, **kwargs)
         K = self.K
-        R = RDF if prec == 53 else RealField(prec)
+        r1 = len(K.defining_polynomial().real_roots())
+        r2 = (len(K.defining_polynomial().complex_roots()) - r1) // 2
+        R = getattr(pl[0].codomain(), 'real_field', pl[0].codomain())
+        def closure_map(x):
+            return vector([R(abs(sigma(x))).log() for sigma in pl[:r1]] +
+                          [2 * R(abs(tau(x))).log() for tau in pl[r1:]])
+        return Hom(K, VectorSpace(R, r1 + r2), Sets())(closure_map)
 
-        def closure_map(x, prec=53):
-            # Do not use K.places(prec): it won't do what you expect
-            pl = K.places(prec=prec)
-            r1, r2 = K.signature()
-
-            if x == 0:
-                # I don't think theere much sense in returning something
-                # different from -infinity here.
-                return vector([-SR(Infinity)] * (r1 + r2))
-
-            x_logs = []
-            x_logs += [ R(abs(sigma(x))).log() for sigma in pl[:r1] ]
-            x_logs += [ 2 * R(abs(tau(x))).log() for tau in pl[r1:] ]
-
-            return vector(x_logs)
-
-        hom = Hom(K, VectorSpace(R, len(closure_map(K(0), prec))), Sets())
-        return hom(closure_map)
 
     # def LogDriftMap(self, prec=53):
     #     """
@@ -297,7 +296,7 @@ class CadoNumberFieldWrapper(object):
             sage: N = CadoNumberFieldWrapper(F)
             sage: z = alpha^2 - 12 * alpha + 47
             sage: Rz = N.real_representation_of_embeddings(z)
-            sage: pl = F.places()
+            sage: pl = N.places()
             sage: r1, r2 = F.signature()
             sage: eR = [p(z) for p in pl[:r1]]
             sage: eC = flatten([(p(z), p(z).conjugate()) for p in pl[r1:]])
@@ -307,26 +306,24 @@ class CadoNumberFieldWrapper(object):
             True
         """
 
-        if prec == 53:
-            C = CDF
-        else:
-            C = ComplexField(prec)
-
         K = self.K
-        pl = K.places(prec=prec)
+        pl = self.places(precision=prec, interval_based=True)
         r1, r2 = K.signature()
         embs = [ P(z) for P in pl[:r1] ]
-        sqrt2 = sqrt(C(2))
+        sqrt2 = sqrt(pl[0].codomain()(2))
         embs += flatten([list(sqrt2 * P(z)) for P in pl[r1:]])
+        if any(x.diameter() > 1 for x in embs):
+            raise FloatingPointError("insufficient precision")
         return vector(embs)
 
     def all_complex_roots(self, prec=53):
         K = self.K
-        pl = K.places(all_complex=True, prec=prec)
+        pl = self.places(all_complex=True, precision=prec)
         r1, r2 = K.signature()
         z = K.gen()
         embs = [ P(z) for P in pl[:r1] ]
-        embs += flatten([(P(z), P(z).conjugate()) for P in pl[r1:]])
+        embs += flatten([(x,x.conjugate())
+                         for x in [P(z) for P in pl[r1:]]])
         return vector(embs)
 
     def modules_of_embeddings_from_log_embeddings(self, logs):
@@ -365,8 +362,49 @@ class CadoNumberFieldWrapper(object):
 
         return vector(rr + cc)
 
+    def places(self, precision=53, all_complex=False, interval_based=False):
+        """
+        K.places() is practically unusable:
+         - all_complex happens to be its _first_ argument, so if you call
+           K.places(80), you really don't get what you would expect
+         - if we _really_ want interval arithmetic, there's no reason why
+           we would not to _also_ specify a precision value
+         - RDF and CDF seem to go back to the libm and _not_ get correct
+           rounding at all, which leads to all sorts of surprises (like
+           roots being wrong by several dozens of ulps).
+        """
 
+        if interval_based:
+            R = RealIntervalField(precision)
+            C = ComplexIntervalField(precision)
+        else:
+            R = RealField(precision)
+            C = ComplexField(precision)
 
+        f = self.K.defining_polynomial()
+
+        # first, find the intervals with roots, and see how much
+        # precision we need to approximate the roots
+        all_intervals = [x[0] for x in f.roots(C)]
+
+        # first, set up the real places
+        if interval_based:
+            if all_complex:
+                real_intervals = [z for z in all_intervals if 0 in z.imag()]
+            else:
+                real_intervals = [x for x,y in all_intervals if 0 in y]
+        else:
+            if all_complex:
+                real_intervals = [z for z in all_intervals if z.imag().is_zero()]
+            else:
+                real_intervals = [x for x,y in all_intervals if y.is_zero()]
+
+        real_places = [self.K.hom([i], check=False) for i in real_intervals]
+
+        complex_places = [self.K.hom([i], check=False)
+                          for i in all_intervals if i.imag() > 0]
+
+        return real_places + complex_places
 
 
 class CadoNumberTheory(object):

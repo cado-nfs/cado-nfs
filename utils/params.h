@@ -119,6 +119,7 @@ extern template int param_list_parse<uint64_t>(param_list_ptr pl, std::string co
 #endif
 extern template int param_list_parse<double>(param_list_ptr pl, std::string const & key, double & r);
 extern template int param_list_parse<std::vector<int>>(param_list_ptr pl, std::string const & key, std::vector<int> & r);
+extern template int param_list_parse<std::vector<unsigned int>>(param_list_ptr pl, std::string const & key, std::vector<unsigned int> & r);
 extern template int param_list_parse<std::vector<std::string>>(param_list_ptr pl, std::string const & key, std::vector<std::string> & r);
 extern template int param_list_parse<cxx_mpz>(param_list_ptr pl, std::string const & key, cxx_mpz & r);
 extern template int param_list_parse<cxx_mpz_poly>(param_list_ptr pl, std::string const & key, cxx_mpz_poly & r);
