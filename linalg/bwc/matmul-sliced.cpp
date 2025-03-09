@@ -189,7 +189,7 @@ void matmul_sliced<Arith>::build_cache(matrix_u32 && m)
 
         /*
            std::cout << "Packing " << npack << " rows from " << current
-           << " to " << next << std::endl;
+           << " to " << next << "\n";
            */
         typedef std::vector<std::pair<uint32_t, uint32_t> > L_t;
         L_t L;

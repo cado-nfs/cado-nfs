@@ -16,7 +16,7 @@ struct print {
         constexpr size_t n = std::tuple_size<T>::value;
         std::cout << "field has " << n << " elements";
         for(auto a : x) std::cout << " " << a;
-        std::cout << std::endl;
+        std::cout << "\n";
     }
 };
 
@@ -28,7 +28,7 @@ struct print2 {
         std::cout << "field has " << n << " elements";
         for(auto a : x) std::cout << " " << a;
         std::cout << " [" << k << "]";
-        std::cout << std::endl;
+        std::cout << "\n";
     }
 };
 
@@ -80,7 +80,7 @@ int main()
     multityped_array_foreach(fill(), A);
 
     type_factory<3>::type A3 = A.get<3>();
-    std::cout << "A3[2] == " << A3[2] << std::endl;
+    std::cout << "A3[2] == " << A3[2] << "\n";
 
     multityped_array_foreach(print2 {1}, A);
 
@@ -89,5 +89,5 @@ int main()
 
     int s = multityped_array_fold(accumulate_sizes(), 0, A);
 
-    std::cout << "total " << s << std::endl;
+    std::cout << "total " << s << "\n";
 }

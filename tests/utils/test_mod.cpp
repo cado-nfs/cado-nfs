@@ -65,7 +65,7 @@ public:
         Integer one;
         m.get(one, r);
         if (one != 1){
-            std::cerr << typeid(T).name() << " Precomputed constant 1 wrong for modulus " << n << std::endl;
+            std::cerr << typeid(T).name() << " Precomputed constant 1 wrong for modulus " << n << "\n";
             std::cerr << one << std::endl;
             return false;
         } else {

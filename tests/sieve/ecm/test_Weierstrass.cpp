@@ -111,7 +111,7 @@ TestWeierstrass<MODULUS>::oneTest ( const Curve &c,
     } else if (operation == 3) {
         order = p1.point_order (1, 0, 1);
         if (order != expectedOrder) {
-            std::cerr << "Computed order is " << order << " but expected " << expectedOrder << std::endl;
+            std::cerr << "Computed order is " << order << " but expected " << expectedOrder << "\n";
             return false;
         }
         return true;
@@ -121,16 +121,16 @@ TestWeierstrass<MODULUS>::oneTest ( const Curve &c,
 
     if ( !pResult.isValid() || pReference != pResult ) {
         ok = false;
-        std::cerr << "Computed point is wrong" << std::endl;
-        std::cerr << "Testing " << typeid(*this).name() << "::" << operationNames[operation] << ":" << std::endl;
-        std::cerr << c << std::endl;
-        std::cerr << "p1 = " << p1 << std::endl;
+        std::cerr << "Computed point is wrong\n";
+        std::cerr << "Testing " << typeid(*this).name() << "::" << operationNames[operation] << ":\n";
+        std::cerr << c << "\n";
+        std::cerr << "p1 = " << p1 << "\n";
         if (operation == 0)
-            std::cerr << "p2 = " << p2 << std::endl;
+            std::cerr << "p2 = " << p2 << "\n";
         if (operation == 2)
-            std::cerr << "mult = " << mult << std::endl;
-        std::cerr << "pReference = " << pReference << std::endl;
-        std::cerr << "pResult = " << pResult << std::endl;
+            std::cerr << "mult = " << mult << "\n";
+        std::cerr << "pReference = " << pReference << "\n";
+        std::cerr << "pResult = " << pResult << "\n";
     }
     return ok;
 }
@@ -175,21 +175,21 @@ TestWeierstrass<MODULUS>::parseLine(const char *line) const {
         operation = 3;
         affine = true;
     } else {
-        std::cerr << "Did not understand line:" << std::endl << line << std::endl;
+        std::cerr << "Did not understand line:\n" << line << "\n";
         return false;
     }
 
     Modulus *m = initMod(M);
-    if (m == NULL) {
+    if (!m) {
         if (verbose) {
-            std::cout << "Could not process modulus " << M << std::endl;
+            std::cout << "Could not process modulus " << M << "\n";
         }
         return true; /* This Modulus type can't test this value. This is not an error. */
     }
     Residue a ( *m );
     bool ok = true;
     if (!setResidue(a, *m, A)) {
-        std::cerr << "Could not set point" << std::endl;
+        std::cerr << "Could not set point\n";
         ok = false;
     }
     Curve const c ( *m, a );
@@ -200,7 +200,7 @@ TestWeierstrass<MODULUS>::parseLine(const char *line) const {
         if (!setPoint ( p1, *m, P1x, P1y ) ||
             !setPoint ( p2, *m, P2x, P2y ) ||
             !setPoint ( pReference, *m, PReferencex, PReferencey )) {
-            std::cerr << "Could not set point" << std::endl;
+            std::cerr << "Could not set point\n";
             ok = false;
         } else {
             ok &= oneTest(c, operation, p1, p2, mult, pReference, order);
@@ -211,7 +211,7 @@ TestWeierstrass<MODULUS>::parseLine(const char *line) const {
         if (!setPoint ( p1, *m, P1x, P1y, P1z ) ||
             !setPoint ( p2, *m, P2x, P2y, P2z ) ||
             !setPoint ( pReference, *m, PReferencex, PReferencey, PReferencez )) {
-            std::cerr << "Could not set point" << std::endl;
+            std::cerr << "Could not set point\n";
             ok = false;
         } else {
             ok &= oneTest(c, operation, p1, p2, mult, pReference, order);
@@ -233,10 +233,7 @@ int main(int argc, char const * argv[])
         exit(EXIT_FAILURE);
     }
     FILE *inputfile = fopen(argv[1], "r");
-    if (inputfile == NULL) {
-        perror("Could not open file");
-        exit(EXIT_FAILURE);
-    }
+    DIE_ERRNO_DIAG(!inputfile, "fopen(%s)", argv[1]);
     
     TestWeierstrass<Modulus64> const test1(verbose);
     TestWeierstrass<ModulusREDC64> const test2(verbose);
@@ -246,14 +243,14 @@ int main(int argc, char const * argv[])
     constexpr size_t buflen = 1024;
     char line[buflen];
     while (!feof(inputfile)) {
-        if (fgets(line, sizeof(line), inputfile) == NULL)
+        if (fgets(line, sizeof(line), inputfile) == nullptr)
             break;
         size_t len = strlen(line);
         if (len > 0) {
             if (line[len - 1] == '\n')
                 len--;
             else if (len == buflen - 1) {
-                std::cerr << "No newline in input. Buffer too small?" << std::endl;
+                std::cerr << "No newline in input. Buffer too small?\n";
                 abort();
             }
         }

@@ -5,7 +5,6 @@
 #include <sstream> // istringstream // IWYU pragma: keep
 #include <vector>
 #include <utility>
-#include <memory>              // for allocator_traits<>::value_type
 #include <string>              // for string, basic_string
 #include <gmp.h>               // for mpz_cmp, mpz_set_str, mpz_t
 #include "json.hpp"
@@ -26,7 +25,7 @@ int main()
             std::cerr << "cannot parse json: " << example.first << "\n";
             exit(EXIT_FAILURE);
         }
-        std::cout << f << std::endl;
+        std::cout << f << "\n";
     }
     for(auto const & example : expected_failures) {
         json f;

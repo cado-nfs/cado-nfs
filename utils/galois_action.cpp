@@ -1,13 +1,13 @@
 #include "cado.h"           // IWYU pragma: keep
-#include <iostream>         // for std::cerr, std::endl
-#include "misc.h"           // for safe_abs64
-#include "mod_ul.h"         // for modul_clear, modul_clearmod, modul_get_ul
 
+#include <iostream>         // for std::cerr
 #include <stdexcept>        // for std::runtime_error
 #include <unordered_map>    // for unordered_map
 #include <vector>           // for vector
 
 #include "galois_action.hpp"
+#include "misc.h"           // for safe_abs64
+#include "mod_ul.h"         // for modul_clear, modul_clearmod, modul_get_ul
 
 /* action: none
  * x -> x
@@ -675,7 +675,7 @@ size_t galois_action::compute_action_on_index(std::vector<index_t> &sigma,
                                   << "ideal (" << id0.p << ", " << r0
                                   << ") on side " << id0.side << ", got r="
                                   << sigma_r << " which does not correspond"
-                                  << " to an ideal" << std::endl;
+                                  << " to an ideal" << "\n";
                         throw std::runtime_error("wrong orbit computation");
                     }
                     sigma[index_of_r[sigma_r]] = i0;
@@ -686,7 +686,7 @@ size_t galois_action::compute_action_on_index(std::vector<index_t> &sigma,
                     std::cerr << "Error, orbit of ideal (" << id0.p << ", "
                               << r0 << ") on side " << id0.side
                               << " has an orbit of length " << n
-                              << "instead of 1 or " << order << std::endl;
+                              << "instead of 1 or " << order << "\n";
                     throw std::runtime_error("wrong orbit size");
                 }
                 norbits += n == order;

@@ -2,8 +2,11 @@
 #include <cmath>
 #include <cstdlib>
 #include <climits>
+
 #include <mutex>
 #include <vector>
+#include <utility>
+
 #include "getprime.h"
 #include "ularith.h"
 #include "gpf.h"
@@ -38,7 +41,7 @@ void gpf_init(unsigned int m)
     }
     prime_info pi;
     prime_info_init (pi);
-    const unsigned int max_sieve = sqrt(m + 1);
+    const unsigned int max_sieve = std::sqrt(m + 1);
 
     /* Do 2 separately so the compiler can use bit shift for division */
     if (2 <= max_sieve) {

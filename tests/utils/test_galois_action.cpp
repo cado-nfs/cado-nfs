@@ -1,6 +1,6 @@
 #include "cado.h" // IWYU pragma: keep
 #include <cstdint>          // for UINT64_C, INT64_C
-#include <iostream>         // for std::cout, std::endl, ...
+#include <iostream>         // for std::cout
 #include "tests_common.h"   // for tests_common_cmdline, tests_common_clear, ...
 #include "utils/galois_action.hpp"
 
@@ -27,7 +27,7 @@ test_galois_apply_one(galois_action const & G,
                     std::cout << "error in " << __func__ << ": with " << G
                               << ": G.apply(" << r << ", " << p << ") should "
                               << "be a fixed point but got " << sigma_r
-                              << std::endl;
+                              << "\n";
                 }
             } else {
                 /* Upper bound the nb of iter by 1000 to avoid endless loop that
@@ -43,7 +43,7 @@ test_galois_apply_one(galois_action const & G,
                     std::cout << "error in " << __func__ << ": with " << G
                               << ": orbit of (" << r << ", " << p << ") should "
                               << "of length " << G.get_order() << " but has "
-                              << "length " << n << std::endl;
+                              << "length " << n << "\n";
                 }
             }
             ret &= b;
@@ -127,7 +127,7 @@ test_galois_hash()
             if (!(h0 op h1)) {                                                \
                 std::cout << "error in " << __func__ << ": with " << g << ":" \
                           << " hash(" #a0 ", " #b0 ") " inv_op_str            \
-                          << " hash(" #a1 ", " #b1 ")" << std::endl;          \
+                          << " hash(" #a1 ", " #b1 ")" << "\n";          \
                 ret = false;                                                  \
             }                                                                 \
         }while(0)

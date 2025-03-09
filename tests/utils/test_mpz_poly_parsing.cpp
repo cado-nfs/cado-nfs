@@ -46,7 +46,7 @@ static void tests_univariate()
             throw std::runtime_error("cannot parse polynomial\n");
         std::ostringstream os;
         os << f;
-        std::cout << os.str() << std::endl;
+        std::cout << os.str() << "\n";
         ASSERT_ALWAYS((size_t)(f->deg+1) == example.second.size());
         for(size_t i = 0 ; i < example.second.size() ; ++i)
             ASSERT_ALWAYS(mpz_cmp(mpz_poly_coeff_const(f, i), example.second[i]) == 0);
@@ -92,7 +92,7 @@ static void tests_bivariate()
         }
         std::ostringstream os;
         os << f.named("a0", "a1");
-        std::cout << os.str() << std::endl;
+        std::cout << os.str() << "\n";
         std::istringstream is(os.str());
         decltype(f) g;
         ASSERT_ALWAYS(is >> g.named("a0", "a1") && f == g);

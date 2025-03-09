@@ -1211,9 +1211,9 @@ static void test_mpz_poly_interpolation(unsigned long iter)
         cxx_mpz_poly tmp;
         const int ok = mpz_poly_interpolate(tmp, points, evaluations);
         if (!ok || (tmp != f)) {
-            std::cerr << "// bug in resultant" << std::endl;
-            std::cerr << f << std::endl;
-            std::cerr << tmp << std::endl;
+            std::cerr << "// bug in resultant" << "\n";
+            std::cerr << f << "\n";
+            std::cerr << tmp << "\n";
         }
         ASSERT_ALWAYS(tmp == f);
         ASSERT_ALWAYS(ok);

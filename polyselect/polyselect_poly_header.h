@@ -10,7 +10,7 @@ extern "C" {
 /* structure to store information on N, d, ad, etc... */
 struct polyselect_poly_header_s {
   mpz_t N;
-  unsigned long d;
+  int d;
   /* ad could be made a const pointer to the polyselect_thread_locals
    * structure, but this is incompatible with doing the match processsing
    * asynchronously.

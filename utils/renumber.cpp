@@ -1,19 +1,23 @@
 #include "cado.h" // IWYU pragma: keep
-// IWYU pragma: no_include <ext/alloc_traits.h>
+
+#include <cstring>             // for strcmp
+#include <cstdio> // stdout // IWYU pragma: keep
+#include <climits> // UINT_MAX // IWYU pragma: keep
+
 #include <algorithm>
 #include <iostream>     // std::cout
 #include <limits>
 #include <list>
 #include <memory>              // for allocator_traits<>::value_type, unique...
+#include <mutex>
 #include <sstream>      // std::ostringstream // IWYU pragma: keep
 #include <stdexcept>
 #include <string>
-#include <mutex>
 #include <vector>
-#include <cstring>             // for strcmp
-#include <cstdio> // stdout // IWYU pragma: keep
-#include <climits> // UINT_MAX // IWYU pragma: keep
+
 #include <gmp.h>               // for mpz_get_ui, mpz_divisible_ui_p, mpz_t
+#include "fmt/format.h"
+
 #include "badideals.hpp"
 #include "cxx_mpz.hpp"         // for cxx_mpz
 #include "misc.h"
@@ -28,7 +32,6 @@
 #include "rootfinder.h" // mpz_poly_roots
 #include "stats.h"      // for the builder process
 #include "macros.h"
-#include "fmt/format.h"
 
 #if defined(__GLIBCXX__) && defined(_GLIBCXX_DEBUG) && defined(_GLIBCXX_DEBUG_DISABLE_CHECK_PARTITIONED)
 namespace __gnu_debug {
@@ -735,7 +738,7 @@ void renumber_t::write_header(std::ostream& os) const
     // So if we want (for the moment) to provide old-format renumber
     // files that can be parsed by old code, we can only convey the
     // format information as an (unparsed) side note.
-    os << "# Renumber file using format " << format << std::endl;
+    os << "# Renumber file using format " << format << "\n";
 
     /* Write the polynomials as comments */
     for (int i = 0; i < get_nb_polys() ; i++) {
@@ -779,11 +782,11 @@ void renumber_t::write_bad_ideals(std::ostream& os) const
             }
             if (n == 0) os << "not used";
         }
-        os << std::endl;
+        os << "\n";
         unsigned int n = 0;
         for(auto const & b : bad_ideals)
             if (b.first.side == side) n++;
-        os << side << " " << n << std::endl;
+        os << side << " " << n << "\n";
         for(auto const & b : bad_ideals) {
             if (b.first.side == side) {
                 os << b.second;

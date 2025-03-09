@@ -31,25 +31,24 @@
 #include <stdio.h>
 #include <stdlib.h>		// malloc ...
 #include <stdint.h>		// uint64_t
+
 #include <gmp.h>
-#include <sys/time.h>
+
 #include "macros.h"		// ASSERT
-#include "misc.h"
-#ifdef HAVE_HWLOC
-#include "hwloc-aux.h"
-#endif
+#include "mpz_poly.h"
 #include "params.h"
 #include "polyselect_main_queue.h"
+#include "polyselect_poly_header.h"
 #include "polyselect_thread_league.h"
 #include "polyselect_collisions.h"
 #include "polyselect_shash.h"
+#include "polyselect_stats.h"
 #include "polyselect_match.h"
 #include "polyselect_norms.h"
 #include "polyselect_thread.h"
 #include "polyselect_alpha.h"
 #include "polyselect_special_q.h"
 #include "portability.h"
-#include "roots_mod.h"
 #include "size_optimization.h"
 #include "timing.h"		// for seconds
 #include "verbose.h"		// verbose_output_print

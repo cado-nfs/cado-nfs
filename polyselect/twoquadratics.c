@@ -1,11 +1,15 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <gmp.h>
 #include <math.h>
+
+#include <gmp.h>
+
 #include "auxiliary.h"
 #include "area.h"
 #include "murphyE.h"
+#include "mpz_poly.h"
 #include "mpz_vector.h"
 #include "macros.h"
 #include "gmp_aux.h"

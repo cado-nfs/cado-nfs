@@ -23,7 +23,7 @@ static void test_mpz_poly_bivariate_trivialities()
             f.named("x", "y");
 
         std::ostringstream os;
-        os << f << std::endl;
+        os << f << "\n";
 
         std::istringstream(os.str()) >> g;
         ASSERT_ALWAYS(f == g);
@@ -96,7 +96,7 @@ static void test_mpz_poly_bivariate_trivialities()
 
         T::pow_ui(f, f, 3);
         std::ostringstream os;
-        os << f.named("x", "y") << std::endl;
+        os << f.named("x", "y") << "\n";
         std::istringstream(os.str()) >> g;
         bool ok = (f == g);
         ASSERT_ALWAYS(ok);
@@ -177,11 +177,11 @@ static void test_mpz_poly_bivariate_resultant(unsigned long iter)
         int const ok = (rx != 0) && (ry != 0) &&
                        (mpz_poly_degree(rx) == mpz_poly_degree(ry));
         if (!ok) {
-            std::cerr << "// bug in resultant" << std::endl;
-            std::cerr << "f = " << f << std::endl;
-            std::cerr << "g = " << g << std::endl;
-            std::cerr << "rx = " << rx << std::endl;
-            std::cerr << "ry = " << ry << std::endl;
+            std::cerr << "// bug in resultant" << "\n";
+            std::cerr << "f = " << f << "\n";
+            std::cerr << "g = " << g << "\n";
+            std::cerr << "rx = " << rx << "\n";
+            std::cerr << "ry = " << ry << "\n";
         }
         ASSERT_ALWAYS(ok);
     }
@@ -203,11 +203,11 @@ static void test_mpz_poly_bivariate_resultant(unsigned long iter)
             tmp.named("x");
         ok = (tmp == ry);
         if (!ok) {
-            std::cerr << "// bug in resultant" << std::endl;
-            std::cerr << "f = " << f << std::endl;
-            std::cerr << "g = " << g << std::endl;
-            std::cerr << "ry = " << ry << std::endl;
-            std::cerr << "expected = " << tmp << std::endl;
+            std::cerr << "// bug in resultant" << "\n";
+            std::cerr << "f = " << f << "\n";
+            std::cerr << "g = " << g << "\n";
+            std::cerr << "ry = " << ry << "\n";
+            std::cerr << "expected = " << tmp << "\n";
         }
         ASSERT_ALWAYS(ok);
 
@@ -215,11 +215,11 @@ static void test_mpz_poly_bivariate_resultant(unsigned long iter)
         std::istringstream("y^5 - y^4 + 2*y^2 - 2*y + 1") >> tmp.named("y");
         ok = (tmp == rx);
         if (!ok) {
-            std::cerr << "// bug in resultant" << std::endl;
-            std::cerr << "f = " << f << std::endl;
-            std::cerr << "g = " << g << std::endl;
-            std::cerr << "rx = " << rx << std::endl;
-            std::cerr << "expected = " << tmp << std::endl;
+            std::cerr << "// bug in resultant" << "\n";
+            std::cerr << "f = " << f << "\n";
+            std::cerr << "g = " << g << "\n";
+            std::cerr << "rx = " << rx << "\n";
+            std::cerr << "expected = " << tmp << "\n";
         }
         ASSERT_ALWAYS(ok);
     }
@@ -241,11 +241,11 @@ static void test_mpz_poly_bivariate_resultant(unsigned long iter)
             tmp.named("x");
         ok = (tmp == ry);
         if (!ok) {
-            std::cerr << "// bug in resultant" << std::endl;
-            std::cerr << "f = " << f << std::endl;
-            std::cerr << "g = " << g << std::endl;
-            std::cerr << "ry = " << ry << std::endl;
-            std::cerr << "expected = " << tmp << std::endl;
+            std::cerr << "// bug in resultant" << "\n";
+            std::cerr << "f = " << f << "\n";
+            std::cerr << "g = " << g << "\n";
+            std::cerr << "ry = " << ry << "\n";
+            std::cerr << "expected = " << tmp << "\n";
         }
         ASSERT_ALWAYS(ok);
 
@@ -255,11 +255,11 @@ static void test_mpz_poly_bivariate_resultant(unsigned long iter)
             tmp.named("y");
         ok = (tmp == rx);
         if (!ok) {
-            std::cerr << "// bug in resultant" << std::endl;
-            std::cerr << "f = " << f << std::endl;
-            std::cerr << "g = " << g << std::endl;
-            std::cerr << "rx = " << rx << std::endl;
-            std::cerr << "expected = " << tmp << std::endl;
+            std::cerr << "// bug in resultant" << "\n";
+            std::cerr << "f = " << f << "\n";
+            std::cerr << "g = " << g << "\n";
+            std::cerr << "rx = " << rx << "\n";
+            std::cerr << "expected = " << tmp << "\n";
         }
         ASSERT_ALWAYS(ok);
     }
@@ -289,10 +289,10 @@ static void test_mpz_poly_bivariate_resultant(unsigned long iter)
              ry.coeff(42) ==
                  "1494774748820383618990632550811343575455342810669737"_mpz;
         if (!ok) {
-            std::cerr << "// bug in resultant" << std::endl;
-            std::cerr << "f = " << f << std::endl;
-            std::cerr << "g = " << g << std::endl;
-            std::cerr << "ry = " << ry << std::endl;
+            std::cerr << "// bug in resultant" << "\n";
+            std::cerr << "f = " << f << "\n";
+            std::cerr << "g = " << g << "\n";
+            std::cerr << "ry = " << ry << "\n";
         }
         ASSERT_ALWAYS(ok);
 
@@ -303,10 +303,10 @@ static void test_mpz_poly_bivariate_resultant(unsigned long iter)
             rx.coeff(42) ==
                 "392307271360601863563100893262849685478724955452018428897254854297277064613707763200"_mpz;
         if (!ok) {
-            std::cerr << "// bug in resultant" << std::endl;
-            std::cerr << "f = " << f << std::endl;
-            std::cerr << "g = " << g << std::endl;
-            std::cerr << "rx = " << rx << std::endl;
+            std::cerr << "// bug in resultant" << "\n";
+            std::cerr << "f = " << f << "\n";
+            std::cerr << "g = " << g << "\n";
+            std::cerr << "rx = " << rx << "\n";
         }
         ASSERT_ALWAYS(ok);
     }

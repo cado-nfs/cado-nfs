@@ -98,7 +98,7 @@ static void test_SatisfiesMinMaxHeap_Alternating(size_t nvalues)
 
     /*
     for (unsigned int i = 0; i < nvalues; ++i)
-        std::cout << values[i] << " ?= " << T.sortedValues[i] << std::endl;
+        std::cout << values[i] << " ?= " << T.sortedValues[i] << "\n";
         */
 
     FATAL_ERROR_CHECK(

@@ -454,7 +454,7 @@ public:
                 zout << heap_[i] << (i != heap_.size() - 1 ? ", " : "");
         zout << "}";
 
-        zout << std::endl;
+        zout << "\n";
     }
 #endif
     typename Container::iterator begin() { return heap_.begin(); }
