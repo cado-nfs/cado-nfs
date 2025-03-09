@@ -238,12 +238,12 @@ void mpz_mat_LLL(mpz_ptr det, mpz_mat_ptr M, mpz_mat_ptr U, mpz_srcptr a,
 struct cxx_mpz_mat {
     mpz_mat x;
     cxx_mpz_mat() { mpz_mat_init(x, 0, 0); }
-    cxx_mpz_mat(int m, int n) { mpz_mat_init(x, m, n); }
-    cxx_mpz_mat(int m, int n, unsigned long z) {
+    cxx_mpz_mat(unsigned int m, unsigned int n) { mpz_mat_init(x, m, n); }
+    cxx_mpz_mat(unsigned int m, unsigned int n, unsigned long z) {
         mpz_mat_init(x, m, n);
         mpz_mat_set_ui(x, z);
     }
-    cxx_mpz_mat(int m, int n, mpz_srcptr z) {
+    cxx_mpz_mat(unsigned int m, unsigned int n, mpz_srcptr z) {
         mpz_mat_init(x, m, n);
         mpz_mat_set_mpz(x, z);
     }
@@ -272,14 +272,14 @@ struct cxx_mpz_mat {
     bool operator!=(cxx_mpz_mat const & o) const {
         return mpz_mat_cmp(x, o.x) != 0;
     }
-    inline int nrows() const { return x->m; }
-    inline int ncols() const { return x->n; }
+    unsigned int nrows() const { return x->m; }
+    unsigned int ncols() const { return x->n; }
     operator mpz_mat_ptr() { return x; }
     operator mpz_mat_srcptr() const { return x; }
     mpz_mat_ptr operator->() { return x; }
     mpz_mat_srcptr operator->() const { return x; }
-    mpz_ptr operator ()(int i, int j) { return mpz_mat_entry(x, i, j); }
-    mpz_srcptr operator ()(int i, int j) const { return mpz_mat_entry_const(x, i, j); }
+    mpz_ptr operator ()(unsigned int i, unsigned int j) { return mpz_mat_entry(x, i, j); }
+    mpz_srcptr operator ()(unsigned int i, unsigned int j) const { return mpz_mat_entry_const(x, i, j); }
 };
 #if GNUC_VERSION_ATLEAST(4,3,0)
 extern void mpz_mat_init(cxx_mpz_mat & pl, unsigned int, unsigned int) __attribute__((error("mpz_mat_init must not be called on a mpz_mat reference -- it is the caller's business (via a ctor)")));
@@ -288,8 +288,8 @@ extern void mpz_mat_clear(cxx_mpz_mat & pl) __attribute__((error("mpz_mat_clear 
 struct cxx_mpq_mat {
     mpq_mat x;
     cxx_mpq_mat() { mpq_mat_init(x, 0, 0); }
-    cxx_mpq_mat(int m, int n) { mpq_mat_init(x, m, n); }
-    cxx_mpq_mat(int m, int n, unsigned long z) {
+    cxx_mpq_mat(unsigned int m, unsigned int n) { mpq_mat_init(x, m, n); }
+    cxx_mpq_mat(unsigned int m, unsigned int n, unsigned long z) {
         mpq_mat_init(x, m, n);
         mpq_mat_set_ui(x, z);
     }
@@ -329,14 +329,14 @@ struct cxx_mpq_mat {
     bool operator!=(cxx_mpq_mat const & o) const {
         return mpq_mat_cmp(x, o.x) != 0;
     }
-    inline int nrows() const { return x->m; }
-    inline int ncols() const { return x->n; }
+    unsigned int nrows() const { return x->m; }
+    unsigned int ncols() const { return x->n; }
     operator mpq_mat_ptr() { return x; }
     operator mpq_mat_srcptr() const { return x; }
     mpq_mat_ptr operator->() { return x; }
     mpq_mat_srcptr operator->() const { return x; }
-    mpq_ptr operator ()(int i, int j) { return mpq_mat_entry(x, i, j); }
-    mpq_srcptr operator ()(int i, int j) const { return mpq_mat_entry_const(x, i, j); }
+    mpq_ptr operator ()(unsigned int i, unsigned int j) { return mpq_mat_entry(x, i, j); }
+    mpq_srcptr operator ()(unsigned int i, unsigned int j) const { return mpq_mat_entry_const(x, i, j); }
 };
 
 extern std::ostream& operator<<(std::ostream& os, cxx_mpz_mat const& M);

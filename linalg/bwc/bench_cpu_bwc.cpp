@@ -3,36 +3,23 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <cstdint>              // for uint32_t
 
 #include <memory>
-#include <string>                // for string, operator+
-
-#ifdef HAVE_RESOURCE_H
-#include <sys/resource.h>	/* for cputime */
-#endif
-#include <sys/time.h>	/* for gettimeofday */
 
 #include <gmp.h>
 #include "fmt/core.h"            // for check_format_string
-#include "fmt/printf.h" // fmt::fprintf // IWYU pragma: keep
-#include "fmt/format.h"
 
-#include "gmp_aux.h"
-#include "matmul.hpp"              // for matmul_public_s
-#include "parallelizing_info.hpp"
-#include "matmul_top.hpp"
-#include "select_mpi.h"
-#include "params.h"
-#include "xvectors.hpp"
-#include "bw-common.h"
-#include "async.hpp"
-#include "xdotprod.hpp"
 #include "arith-generic.hpp"
-#include "arith-cross.hpp"
+#include "bw-common.h"
+#include "gmp_aux.h"
 #include "macros.h"
+#include "matmul_top.hpp"
 #include "matmul_top_vec.hpp"
 #include "mmt_vector_pair.hpp"
+#include "parallelizing_info.hpp"
+#include "params.h"
+#include "runtime_numeric_cast.hpp"
+#include "select_mpi.h"
 #include "timing.h"
 
 using namespace fmt::literals;
@@ -102,11 +89,12 @@ static void * bench_cpu_prog(parallelizing_info_ptr pi, cxx_param_list & pl, voi
             // matmul_top_mul(mmt, ymy, timing);
             {
                 int const d = ymy[0].d;
-                int const nmats_odd = mmt.matrices.size() & 1;
-                int midx = (d ? (mmt.matrices.size() - 1) : 0);
-                for(size_t l = 0 ; l < mmt.matrices.size() ; l++) {
+                int const NM = runtime_numeric_cast<int>(mmt.matrices.size());
+                int const nmats_odd = NM & 1;
+                int midx = (d ? (NM - 1) : 0);
+                for(int l = 0 ; l < NM ; l++) {
                     mmt_vec & src = ymy[l];
-                    int const last = l == (mmt.matrices.size() - 1);
+                    int const last = l == (NM - 1);
                     int const lnext = last && !nmats_odd ? 0 : (l+1);
                     mmt_vec & dst = ymy[lnext];
 
@@ -187,7 +175,7 @@ int main(int argc, char const * argv[])
         MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
 
-    pi_go(bench_cpu_prog, pl, 0);
+    pi_go(bench_cpu_prog, pl, nullptr);
 
     parallelizing_info_finish();
     

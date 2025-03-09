@@ -18,26 +18,29 @@
 #include <cinttypes>
 #include <cstring>
 
+#include <string>
 #include <memory>
+#include <vector>
+#include <utility>
 
-#include <sys/time.h>
 #include <pthread.h>            // for pthread_mutex_lock, pthread_mutex_unlock
 
 #include <gmp.h>
 #include "fmt/core.h"
 
-#include "gmp_aux.h"
-#include "matrix_u32.hpp"     // for matrix_u32
-#include "crc.h"        // cado_crc_lfsr
-#include "macros.h"
-#include "matmul.hpp"
 #include "arith-cross.hpp"
 #include "arith-generic.hpp"
+#include "crc.h"        // cado_crc_lfsr
+#include "cxx_mpz.hpp"    // for cxx_mpz
+#include "gmp_aux.h"
+#include "macros.h"
+#include "matmul.hpp"
+#include "matrix_u32.hpp"     // for matrix_u32
 #include "params.h"
 #include "portability.h" // asprintf // IWYU pragma: keep
+#include "utils_cxx.hpp"        // for unique_ptr<FILE, delete_FILE>
 #include "version_info.h" // cado_revision_string
 #include "worker-threads.h"
-#include "utils_cxx.hpp"        // for unique_ptr<FILE, delete_FILE>
 
 static void usage()
 {
@@ -82,6 +85,10 @@ struct bench_args {// {{{
     double tmax = 100.0;
     unsigned int nmax = UINT_MAX;
 
+    bench_args(bench_args const &) = delete;
+    bench_args(bench_args &&) = delete;
+    bench_args& operator=(bench_args const &) = delete;
+    bench_args& operator=(bench_args &&) = delete;
 
     static void configure_aliases(cxx_param_list & pl) {
         param_list_configure_alias(pl, "--transpose", "-t");
@@ -171,7 +178,7 @@ static void check_func(struct worker_threads_group * tg MAYBE_UNUSED, int tnum, 
 
 static void mul_func(struct worker_threads_group * tg MAYBE_UNUSED, int tnum, struct bench_args * ba)/*{{{*/
 {
-    private_args & p(ba->p[tnum]);
+    private_args const & p(ba->p[tnum]);
     auto * dstvec = (ba->transpose ? p.colvec : p.rowvec).get();
     auto * srcvec = (ba->transpose ? p.rowvec : p.colvec).get();
     p.mm->mul(dstvec, srcvec, !ba->transpose);
@@ -179,7 +186,7 @@ static void mul_func(struct worker_threads_group * tg MAYBE_UNUSED, int tnum, st
 
 static void clear_func(struct worker_threads_group * tg MAYBE_UNUSED, int tnum, struct bench_args * ba)/*{{{*/
 {
-    private_args & p(ba->p[tnum]);
+    private_args const & p(ba->p[tnum]);
     p.mm->report(ba->freq);
 
     pthread_mutex_lock(&tg->mu);
@@ -215,7 +222,7 @@ void bench_args::do_simple_matmul_if_requested()// {{{
     if (!param_list_parse(pl, "srcvec", srcvecname))
         return;
 
-    private_args & P(p[0]);
+    private_args const & P(p[0]);
 
     if (nthreads > 1) {
         fmt::print(stderr, "srcvec incompatible with multithread\n");
@@ -273,8 +280,7 @@ void bench_args::do_timing_run()// {{{
 
     auto timecap = clock_t(tmax * CLOCKS_PER_SEC);
 
-    if (next > timecap)
-        next = timecap;
+    next = std::min(next, timecap);
 
     fmt::print("Note: timings in seconds per iterations are given in cpu seconds ;\n");
     fmt::print("Note: with {} threads, this means {:.2f} walltime seconds.\n", nthreads, 1.0 / nthreads);
@@ -289,10 +295,10 @@ void bench_args::do_timing_run()// {{{
         t1 = t;
         unsigned int nlast = NLAST;
         n++;
-        if (n < nlast) nlast = n;
+        nlast = std::min(nlast, n);
         if (dt > next || n == nmax - 1) {
             do { next += 0.25 * CLOCKS_PER_SEC; } while (dt > next);
-            if (next > timecap) next = timecap;
+            next = std::min(next, timecap);
             dt /= CLOCKS_PER_SEC;
 
             auto fromstart = fmt::format("{} iters in {}s",
@@ -477,8 +483,8 @@ static void banner(int argc, char const * argv[])// {{{
 
 int main(int argc, char const * argv[])
 {
-    setbuf(stdout, nullptr);
-    setbuf(stderr, nullptr);
+    setvbuf(stdout, nullptr, _IONBF, 0);
+    setvbuf(stderr, nullptr, _IONBF, 0);
 
     banner(argc, argv);
 

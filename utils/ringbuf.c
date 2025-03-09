@@ -1,9 +1,13 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#include <pthread.h>
+
 #include "macros.h"
 #include "ringbuf.h"
 #include "portability.h"
@@ -71,8 +75,12 @@ static void ringbuf_grow__(ringbuf_ptr r, size_t claim)
         r->rhead = r->p;
         r->whead = r->p + r->avail_to_read;
     } else {
-        r->p = realloc(r->p, newalloc);
-        FATAL_ERROR_CHECK(r->p == NULL, "Cannot allocate memory");
+        char * newp = realloc(r->p, newalloc);
+        if (!newp) {
+            free(r->p);
+            FATAL_ERROR_CHECK(newp == NULL, "Cannot allocate memory");
+        }
+        r->p = newp;
         r->rhead = r->p;
         r->whead = r->p;
     }

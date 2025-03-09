@@ -6,6 +6,7 @@
 #include <ostream>
 #include <string>
 #include <memory>
+#include <ios>
 
 #include <gmp.h>
 #include "gmpxx.hpp"

@@ -1,10 +1,19 @@
-#include "cado.h"
+#include "cado.h"       // IWYU pragma: keep
 
+#include <cstddef>
+
+#include <vector>
+#include <tuple>
+
+#include "fmt/core.h"
+
+#include "mpz_mat.h"
 #include "numbertheory/number_field.hpp"
 #include "numbertheory/number_field_fractional_ideal.hpp"
 #include "numbertheory/number_field_prime_ideal.hpp"
 #include "numbertheory/number_field_element.hpp"
 #include "numbertheory/numbertheory_internals.hpp"
+#include "runtime_numeric_cast.hpp"
 
 int number_field_fractional_ideal::valuation(number_field_prime_ideal const & fkp) const
 {
@@ -16,7 +25,7 @@ number_field_fractional_ideal::number_field_fractional_ideal(number_field_order 
     : O(O)
 {
     int const n = O.number_field().degree();
-    cxx_mpq_mat G(gens.size(), n);
+    cxx_mpq_mat G(runtime_numeric_cast<int>(gens.size()), n);
     for(size_t i = 0 ; i < gens.size() ; i++)
         mpq_mat_submat_set(G, i, 0, gens[i].coefficients, 0, 0, 1, n);
     std::tie(ideal_basis_matrix, denominator) = numbertheory_internals::generate_ideal(O.basis_matrix, O.multiplication_table, G);
