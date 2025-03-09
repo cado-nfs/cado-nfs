@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <stdexcept>
+#include <sstream>
 
 #include "fmt/core.h"
 

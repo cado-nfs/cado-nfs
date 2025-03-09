@@ -31,6 +31,7 @@ cado_define_test(test_modredc_2ul2.c LIBRARIES utils tests ARGUMENTS 1000
     TIMEOUT 120
 )
 cado_define_test(test_sm_utils.cpp LIBRARIES utils ARGUMENTS ${CMAKE_CURRENT_SOURCE_DIR}/test_sm_utils.data)
+cado_divert_test(test_sm_utils failure EXPECT_FAIL ARGUMENTS ${CMAKE_CURRENT_SOURCE_DIR}/test_sm_utils_failure.data)
 cado_define_test(test_mpz_poly.cpp
     LIBRARIES utils tests
     AVOID_CONCURRENT 4

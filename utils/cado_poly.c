@@ -455,7 +455,7 @@ cado_poly_fprintf (FILE *fp, const char * prefix, cado_poly_srcptr cpoly)
       if (prefix)
         fputs (prefix, fp);
       fprintf (fp, "poly%u=", side);
-      mpz_poly_fprintf_coeffs (fp, cpoly->pols[side], ',');
+      mpz_poly_fprintf_coeffs (fp, cpoly->pols[side], ",");
     }
   }
 

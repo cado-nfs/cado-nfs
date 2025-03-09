@@ -158,10 +158,9 @@ static inline mpz_ptr mpz_poly_lc_w (mpz_poly_ptr f) {
 int mpz_poly_asprintf(char ** res, mpz_poly_srcptr f);
 /* Print coefficients of f.
  * endl = 1 if "\n" at the end of fprintf. */
-void mpz_poly_fprintf_endl (FILE *fp, mpz_poly_srcptr f, int endl);
 void mpz_poly_fprintf(FILE *fp, mpz_poly_srcptr f);
-void mpz_poly_fprintf_coeffs (FILE *fp, mpz_poly_srcptr f, char sep);
-void mpz_poly_fscanf_coeffs (FILE *fp, mpz_poly_ptr f, char sep);
+void mpz_poly_fprintf_coeffs (FILE *fp, mpz_poly_srcptr f, const char * sep);
+void mpz_poly_fscanf_coeffs (FILE *fp, mpz_poly_ptr f, const char * sep);
 void mpz_poly_fprintf_cado_format (FILE *fp, mpz_poly_srcptr f,
                                    char letter, const char *pre);
 void mpz_poly_asprintf_cado_format (char **pstr, mpz_poly_srcptr f, char letter,
@@ -524,9 +523,12 @@ extern void mpz_poly_clear(cxx_mpz_poly & pl) __attribute__((error("mpz_poly_cle
 #endif
 
 struct mpz_poly_coeff_list {
-    cxx_mpz_poly const & P;
+    cxx_mpz_poly P;
     std::string sep;
-    mpz_poly_coeff_list(cxx_mpz_poly const & P, std::string const & sep = ", "): P(P), sep(sep) {}
+    explicit mpz_poly_coeff_list(cxx_mpz_poly P, std::string sep = ", ")
+        : P(std::move(P))
+        , sep(std::move(sep))
+        {}
 };
 std::ostream& operator<<(std::ostream& os, mpz_poly_coeff_list const & P);
 

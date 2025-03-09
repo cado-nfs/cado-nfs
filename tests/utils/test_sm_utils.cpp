@@ -5,11 +5,15 @@
 #include <cstdio>
 #include <cstdlib> // for EXIT_FAILURE, EXIT_SUCCESS
 
+#include <istream>
+#include <fstream>
 #include <vector>
 
 #include <gmp.h>
+#include "fmt/core.h"
 
 #include "cxx_mpz.hpp"
+#include "istream_matcher.hpp"
 #include "macros.h"
 #include "mpz_poly.h"   // mpz_poly_srcptr
 #include "sm_utils.hpp" // sm_relset_t
@@ -17,11 +21,13 @@
 #define FREQ 2 // when possible one time out of FREQ we try sm_single_rel
 
 /* Return number of errors */
-static int test_sm(FILE * datafile)
+static int test_sm(std::istream&& datafile)
 {
+    istream_matcher is(datafile);
+
     int err = 0;
     do {
-        int ret, degF, degN, degD, nb_ab, nbSM;
+        int degF, degN, degD, nb_ab, nbSM;
         unsigned int nb_test_single_rel = 0;
         cxx_mpz_poly F, N, Nc, D, Dc, SM, SMc;
         cxx_mpz tmp, ell;
@@ -29,73 +35,64 @@ static int test_sm(FILE * datafile)
         uint64_t b, len_relset, r[MAX_LEN_RELSET];
         std::vector<pair_and_sides> ab_polys;
         sm_relset relset;
-
-        ret = fscanf(datafile, "in %d", &degF);
-        if (ret == EOF)
+        is >> "in" >> degF;
+        if (is.eof())
             break;
-        else
-            ASSERT_ALWAYS(ret == 1);
 
         for (int i = 0; i <= degF; i++) {
-            gmp_fscanf(datafile, " %Zi", (mpz_ptr)tmp);
+            is >> tmp;
             mpz_poly_setcoeff(F, i, tmp);
         }
+        is >> ell;
 
-        gmp_fscanf(datafile, " %Zi", (mpz_ptr)ell);
+        sm_side_info sm_info(F, ell, false);
 
-        sm_side_info sm_info(F, ell, 0);
-
-        ret = fscanf(datafile, " %d", &nb_ab);
-        ASSERT_ALWAYS(ret == 1);
+        is >> nb_ab;
 
         for (int i = 0; i < nb_ab; i++) {
-            ret = fscanf(datafile, " %" SCNd64 " %" SCNu64 "", &a, &b);
-            ASSERT_ALWAYS(ret == 2);
-            pair_and_sides ps(a, b, 0, 1);
-            ab_polys.push_back(ps);
+            is >> a >> b;
+            ab_polys.emplace_back(a, b, 0, 1);
         }
 
-        ret = fscanf(datafile, " %" SCNu64 "", &len_relset);
-        ASSERT_ALWAYS(ret == 1);
+        is >> len_relset;
         ASSERT_ALWAYS(len_relset <= MAX_LEN_RELSET);
 
         for (uint64_t i = 0; i < len_relset; i++) {
-            ret = fscanf(datafile, " %" SCNu64 " %" SCNd64 "", &r[i], &e[i]);
-            ASSERT_ALWAYS(ret == 2);
+            is >> r[i] >> e[i];
         }
 
-        ret = fscanf(datafile, "\nout %d", &degN);
-        ASSERT_ALWAYS(ret == 1);
+        /* make sure that all input was parsed correctly */
+        is.ws();
+        ASSERT_ALWAYS(is);
+
+        is >> "out" >> degN;
         ASSERT_ALWAYS(degN >= -1);
 #ifdef __COVERITY__
         __coverity_mark_pointee_as_sanitized(&degN, GENERIC);
 #endif
 
         for (int i = 0; i <= degN; i++) {
-            gmp_fscanf(datafile, " %Zi", (mpz_ptr)tmp);
+            is >> tmp;
             mpz_poly_setcoeff(N, i, tmp);
         }
 
-        ret = fscanf(datafile, " %d", &degD);
-        ASSERT_ALWAYS(ret == 1);
+        is >> degD;
+        ASSERT_ALWAYS(0 <= degD);
 
         for (int i = 0; i <= degD; i++) {
-            gmp_fscanf(datafile, " %Zi", (mpz_ptr)tmp);
+            is >> tmp;
             mpz_poly_setcoeff(D, i, tmp);
         }
 
-        ret = fscanf(datafile, " %d", &nbSM);
-        ASSERT_ALWAYS(ret == 1);
-        ASSERT_ALWAYS(nbSM <= degF);
+        is >> nbSM;
+        ASSERT_ALWAYS(0 <= nbSM && nbSM <= degF);
 
         for (int i = 0; i < nbSM; i++) {
-            gmp_fscanf(datafile, " %Zi", (mpz_ptr)tmp);
+            is >> tmp;
             mpz_poly_setcoeff(SM, i, tmp);
         }
 
-        char c = ' ';
-        ret = fscanf(datafile, "%c", &c);
-        ASSERT_ALWAYS(ret == 1 && c == '\n');
+        is.ws();
 
         //     /* Real tests begin here */
         //     /* artificially duplicate data, to test both sides */
@@ -120,48 +117,47 @@ static int test_sm(FILE * datafile)
         // mpz_poly_clear(SMc2);
 
         /* In case of error, print all relevant information */
-        if (mpz_poly_cmp(SM, SMc) != 0) {
+        if (SM != SMc) {
             err++;
-            fprintf(stderr,
+            fmt::print(stderr,
                     "### ERROR: computation of SM is wrong with:\nF = ");
             mpz_poly_fprintf(stderr, F);
-            gmp_fprintf(stderr, "ell = %Zi\nell2 = %Zi\n\n", (mpz_srcptr)ell,
-                        (mpz_srcptr)sm_info.ell2);
+            fmt::print(stderr, "ell = {}\nell2 = {}\n\n", ell, sm_info.ell2);
             sm_info.print(stderr);
             fprintf(stderr, "# Relation-set is:\n%" PRIu64 "", len_relset);
             for (uint64_t i = 0; i < len_relset; i++)
-                fprintf(stderr, " %" PRIu64 ":%" PRId64 "", r[i], e[i]);
+                fmt::print(stderr, " {}:{}", r[i], e[i]);
             fprintf(stderr, "\n# (a,b) pairs are:\n");
             for (int i = 0; i < nb_ab; i++) {
                 cxx_mpz tmp;
                 mpz_neg(tmp, mpz_poly_coeff_const(ab_polys[i].ab, 1));
-                gmp_fprintf(stderr, "%d %" SCNd64 ",%" SCNu64 "\n", i,
-                            mpz_poly_coeff_const(ab_polys[i].ab, 0),
-                            (mpz_srcptr)tmp);
+                fmt::print(stderr, "{} {},{}\n",
+                        i, cxx_mpz(mpz_poly_coeff_const(ab_polys[i].ab, 0)),
+                        tmp);
             }
-            if (mpz_poly_cmp(N, Nc) != 0) {
-                fprintf(stderr,
+            if (N != Nc) {
+                fmt::print(stderr,
                         "# Expected numerator in fraction corresponding to "
                         "the relation-set:\n");
-                mpz_poly_fprintf(stderr, N);
+                fmt::print(stderr, "{}\n", N);
                 fprintf(stderr, "# Instead computed numerator is:\n");
-                mpz_poly_fprintf(stderr, Nc);
+                fmt::print(stderr, "{}\n", Nc);
             }
-            if (mpz_poly_cmp(D, Dc) != 0) {
-                fprintf(stderr,
+            if (D != Dc) {
+                fmt::print(stderr,
                         "# Expected denominator in fraction corresponding to "
                         "the relation-set:\n");
-                mpz_poly_fprintf(stderr, D);
-                fprintf(stderr, "# Instead computed denominator is:\n");
-                mpz_poly_fprintf(stderr, Dc);
+                fmt::print(stderr, "{}\n", D);
+                fmt::print(stderr, "# Instead computed denominator is:\n");
+                fmt::print(stderr, "{}\n", Dc);
             }
             fprintf(stderr, "# Values of SM should be:\n");
             for (int i = 0; i < nbSM; i++) {
-                gmp_fprintf(stderr, "%Zi ", mpz_poly_coeff_const(SM, i));
+                fmt::print(stderr, "{} ", cxx_mpz(mpz_poly_coeff_const(SM, i)));
             }
             fprintf(stderr, "\n# but computed values of SM are:\n");
             for (int i = 0; i < nbSM; i++) {
-                gmp_fprintf(stderr, "%Zi ", mpz_poly_coeff_const(SMc, i));
+                fmt::print(stderr, "{} ", cxx_mpz(mpz_poly_coeff_const(SMc, i)));
             }
             fprintf(stderr, "\n#######################\n");
         }
@@ -172,15 +168,11 @@ static int test_sm(FILE * datafile)
 
 int main(int argc, char const * argv[])
 {
-    FILE * datafile = nullptr;
-
     ASSERT_ALWAYS(argc == 2);
     char const * datafilename = argv[1];
-    datafile = fopen(datafilename, "r");
 
-    int const err = test_sm(datafile);
+    int const err = test_sm(std::ifstream(datafilename));
 
-    fclose(datafile);
     if (err)
         fprintf(stderr, "# %d erro%s found\n", err, (err == 1) ? "r" : "rs");
     return (err) ? EXIT_FAILURE : EXIT_SUCCESS;

@@ -1,6 +1,9 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
+#include <cstddef>
 #include <cmath>
+#include <climits>
+#include <cstdlib>
 
 #include <algorithm>
 #include <vector>
@@ -131,8 +134,8 @@ struct test_column_distribution : public matrix_column_distribution {
         , e(e)
     {
     }
-    inline double q(double x) const override { return pow(x / double(N), e); }
-    inline double qrev(double x) const override
+    double q(double x) const override { return pow(x / double(N), e); }
+    double qrev(double x) const override
     {
         return pow(x, 1.0 / e) * double(N);
     }

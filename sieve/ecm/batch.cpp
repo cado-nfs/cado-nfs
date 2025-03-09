@@ -1063,7 +1063,7 @@ output_batch (FILE *fp, unsigned long B, unsigned long L,
   ASSERT_ALWAYS (ret > 0);
   ret = fprintf (fp, "%lu\n", L);
   ASSERT_ALWAYS (ret > 0);
-  mpz_poly_fprintf_coeffs (fp, cpoly, ' ');
+  mpz_poly_fprintf_coeffs (fp, cpoly, " ");
   ret = mpz_out_raw (fp, P);
   if (ret == 0)
     {
@@ -1103,7 +1103,7 @@ input_batch (FILE *fp, unsigned long B, unsigned long L, cxx_mpz_poly const & cp
   CHECK_Z(ret == 1, "Cannot read L\n");
   CHECK_2(Lread == L, "Inconsistent L: expected %lu, file has %lu\n", L, Lread);
   mpz_poly_init (pol_read, cpoly->deg);
-  mpz_poly_fscanf_coeffs (fp, pol_read, ' ');
+  mpz_poly_fscanf_coeffs (fp, pol_read, " ");
   if (mpz_poly_cmp (pol_read, cpoly) != 0)
     {
       fprintf (stderr, "Error while reading batch product from %s:\n", f);

@@ -1,25 +1,32 @@
 #include "cado.h" // IWYU pragma: keep
-// IWYU pragma: no_include <bits/types/struct_rusage.h>
+
 #include <cerrno>                     // for errno
 #include <climits>                    // for INT_MAX
 #include <cstdio>                     // for fprintf, stderr, stdout, FILE
 #include <cstdlib>                    // for abort, malloc, realloc, free
 #include <cstring>                    // for memset, memcpy, strcmp, strerror
+#include <cstdint>
+#include <ctime>
+
+#include <memory>
+#include <mutex>
+#include <string>
+#include <thread>
+#include <condition_variable>
+#if !defined(__x86_64) && !defined(__i386)
+#include <atomic>
+#endif
+
 #ifdef HAVE_GETRUSAGE
 #include <sys/resource.h>              // for rusage // IWYU pragma: keep
 #endif
-#include <mutex>
-#include <thread>
-#include <condition_variable>
-#include <sys/types.h>                 // for int8_t ssize_t
 #include <gmp.h>
-#include <atomic>
+
 #include "barrier.h"                   // for barrier_destroy, barrier_init
 #include "cado_popen.h"                // for cado_pclose2, cado_popen
 #include "filter_io.h"
 #include "gzip.h"                      // prepare_grouped_command_lines
 #include "macros.h"                    // for ASSERT_ALWAYS, ASSERT, UNLIKELY
-#include "misc.h"                      // filelist_clear
 #include "ringbuf.h"                   // for ringbuf_s, ringbuf_ptr, RINGBU...
 #include "stats.h"                     // stats_data_t
 #include "portability.h" // sleep // IWYU pragma: keep
@@ -40,26 +47,26 @@ struct ifb_locking_posix {/*{{{*/
         class t {
             T x;
             public:
-            inline T load() const { return x; }
-            inline void store(T a) { x = a; }
-            explicit inline t(T const& a) : x(a) {}
-            explicit inline t() : x(0) {}
-            inline t& operator=(T const& a) { x = a; return *this; }
-            inline T increment() { return x++; }
+            T load() const { return x; }
+            void store(T a) { x = a; }
+            explicit t(T const& a) : x(a) {}
+            explicit t() : x(0) {}
+            t& operator=(T const& a) { x = a; return *this; }
+            T increment() { return x++; }
         };
     };
     typedef std::mutex  lock_t;
     typedef std::condition_variable   cond_t;
-    static inline void lock(lock_t * m) { m->lock(); }
-    static inline void unlock(lock_t * m) { m->unlock(); }
-    static inline void wait(cond_t * c, lock_t * m) {
+    static void lock(lock_t * m) { m->lock(); }
+    static void unlock(lock_t * m) { m->unlock(); }
+    static void wait(cond_t * c, lock_t * m) {
         std::unique_lock<std::mutex> foo(*m, std::adopt_lock);
         c->wait(foo);
         foo.release();
     }
-    static inline void signal(cond_t * c) { c->notify_one(); }
-    static inline void signal_broadcast(cond_t * c) { c->notify_all(); }
-    static inline int isposix() { return 1; }
+    static void signal(cond_t * c) { c->notify_one(); }
+    static void signal_broadcast(cond_t * c) { c->notify_all(); }
+    static int isposix() { return 1; }
 };
 /*}}}*/
 
@@ -105,22 +112,22 @@ struct ifb_locking_lightweight {/*{{{*/
         class t : private std::atomic<T> {
             typedef std::atomic<T> super;
             public:
-            inline T load() const { return super::load(std::memory_order_acquire); }
-            explicit inline t(T const& a) : super(a) {}
-            explicit inline t() : super(0) {}
-            inline void store(T a) { super::store(a, std::memory_order_release); }
-            inline t& operator=(T const& a) { store(a); return *this; }
-            inline T increment() { return super::fetch_add(1, std::memory_order_acq_rel); }
+            T load() const { return super::load(std::memory_order_acquire); }
+            explicit t(T const& a) : super(a) {}
+            explicit t() : super(0) {}
+            void store(T a) { super::store(a, std::memory_order_release); }
+            t& operator=(T const& a) { store(a); return *this; }
+            T increment() { return super::fetch_add(1, std::memory_order_acq_rel); }
         };
 #else
         class t {
             volatile T x;
             public:
-            inline T load() const { return x; }
-            explicit inline t(T const& a) : x(a) {}
-            explicit inline t() : x(0) {}
-            inline void store(T a) { x = a; }
-            inline t& operator=(T const& a) { store(a); return *this; }
+            T load() const { return x; }
+            explicit t(T const& a) : x(a) {}
+            explicit t() : x(0) {}
+            void store(T a) { x = a; }
+            t& operator=(T const& a) { store(a); return *this; }
             /* c++20 frowns upon volatile. Well, it kinda forces us to
              * use atomics, in fact. Let's silence the issue for the
              * moment. It may well be that the correct way to go is the
@@ -146,13 +153,13 @@ struct ifb_locking_lightweight {/*{{{*/
     };
     typedef int lock_t;
     typedef int cond_t;
-    template<typename T> static inline T next(T a, int) { return a; }
-    static inline void lock(lock_t *) {}
-    static inline void unlock(lock_t *) {}
-    static inline void wait(cond_t *, lock_t *) { NANOSLEEP(); }
-    static inline void signal(cond_t *) {}
-    static inline void signal_broadcast(cond_t *) {}
-    static inline int isposix() { return 0; }
+    template<typename T> static T next(T a, int) { return a; }
+    static void lock(lock_t *) {}
+    static void unlock(lock_t *) {}
+    static void wait(cond_t *, lock_t *) { NANOSLEEP(); }
+    static void signal(cond_t *) {}
+    static void signal_broadcast(cond_t *) {}
+    static int isposix() { return 0; }
 };
 /*}}}*/
 
@@ -170,7 +177,7 @@ struct status_table {
     typedef typename locking::template critical_datatype<size_t>::t csize_t;
     typename locking::template critical_datatype<int8_t>::t x[SIZE_BUF_REL];
     /* {{{ ::catchup() (for ::schedule() termination) */
-    inline void catchup(csize_t & last_completed, size_t last_scheduled, int level) {
+    void catchup(csize_t & last_completed, size_t last_scheduled, int level) {
         size_t c = last_completed.load();
         for( ; c < last_scheduled ; c++) {
             if (x[c & (SIZE_BUF_REL-1)].load() < level)
@@ -184,7 +191,7 @@ struct status_table {
      * processing (the value of schedule[k] when it was called prior to
      * giving me this relation to process).
      */
-    inline void catchup_until_mine_completed(csize_t & last_completed, size_t me, int level) {
+    void catchup_until_mine_completed(csize_t & last_completed, size_t me, int level) {
         const size_t slot = me & (SIZE_BUF_REL-1);
         size_t c = last_completed.load();
         ASSERT(x[slot].load() == (int8_t) (level-1));
@@ -209,7 +216,7 @@ struct status_table {
         ASSERT(x[slot].load() == (int8_t) (level));
     }
     /*}}}*/
-    inline void update_shouldbealreadyok(size_t slot, int level) {
+    void update_shouldbealreadyok(size_t slot, int level) {
         if (level < 0) {
             x[slot & (SIZE_BUF_REL-1)].store(level);
         } else {
@@ -221,13 +228,13 @@ struct status_table {
 template<>
 struct status_table<ifb_locking_lightweight> {
     typedef ifb_locking_lightweight::critical_datatype<size_t>::t csize_t;
-    static inline void catchup(csize_t & last_completed, size_t last_scheduled, int) {
+    static void catchup(csize_t & last_completed, size_t last_scheduled, int) {
         ASSERT_ALWAYS(last_completed.load() == last_scheduled);
     }
-    static inline void catchup_until_mine_completed(csize_t & last_completed, size_t, int) {
+    static void catchup_until_mine_completed(csize_t & last_completed, size_t, int) {
         last_completed.increment();
     }
-    inline void update_shouldbealreadyok(size_t, int) {}
+    void update_shouldbealreadyok(size_t, int) {}
 };
 /* }}} */
 
@@ -261,13 +268,13 @@ struct inflight_rels_buffer {
     void complete(int, earlyparsed_relation_srcptr);
     
     /* computation threads joining the computation are calling these */
-    inline void enter(int k) {
+    void enter(int k) {
         locking::lock(m+k); active[k]++; locking::unlock(m+k);
         sync_point.arrive_and_wait();
     }
     /* leave() is a no-op, since active-- is performed as part of the
      * normal drain() call */
-    inline void leave(int) { }
+    void leave(int) { }
 
     /* The calling scenario is as follows.
      *

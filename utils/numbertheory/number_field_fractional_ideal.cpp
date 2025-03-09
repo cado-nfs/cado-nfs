@@ -12,6 +12,7 @@
 #include "numbertheory/number_field_fractional_ideal.hpp"
 #include "numbertheory/number_field_prime_ideal.hpp"
 #include "numbertheory/number_field_element.hpp"
+#include "numbertheory/number_field_order.hpp"
 #include "numbertheory/numbertheory_internals.hpp"
 #include "runtime_numeric_cast.hpp"
 
