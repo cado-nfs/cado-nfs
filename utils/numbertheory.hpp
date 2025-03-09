@@ -9,6 +9,6 @@
 #include "numbertheory/number_field_prime_ideal.hpp"
 
 /* TODO: do away with it! */
-#include "numbertheory/numbertheory_internals.hpp"
+#include "numbertheory/numbertheory_internals.hpp"   // IWYU pragma: private
 
 #endif	/* NUMBERTHEORY_HPP_ */

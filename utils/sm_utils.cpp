@@ -6,7 +6,6 @@
 #include <cstring>     // strcmp memset
 
 #include <vector>
-#include <stdexcept>
 
 #include <gmp.h>
 #include "fmt/core.h"
@@ -17,7 +16,6 @@
 #include "mpz_poly.h"   // mpz_poly
 #include "mpz_mat.h"
 #include "sm_utils.hpp"
-#include "cado_poly.h"  // NB_POLYS_MAX
 #include "numbertheory.hpp"
 
 #define xxxxWIP_SM
@@ -56,7 +54,7 @@ void sm_side_info::compute_piecewise(cxx_mpz_poly & dst, cxx_mpz_poly const & u)
         } else {
             ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_coeff_const(g, 1), 1) == 0);
             mpz_poly_set(chunks[j], u);
-            mpz_poly_mod_f_mod_mpz(chunks[j], g, ell2, NULL, NULL);
+            mpz_poly_mod_f_mod_mpz(chunks[j], g, ell2, nullptr, nullptr);
             ASSERT_ALWAYS(chunks[j]->deg == 0);
             mpz_ptr c = mpz_poly_coeff(chunks[j], 0);
             mpz_powm(c, c, exponents[j], ell2);
@@ -216,47 +214,6 @@ print_sm (FILE *f, sm_side_info const & S, mpz_poly_srcptr SM)
 }
 
 
-void
-sm_relset_init (sm_relset_t r, const mpz_poly_srcptr * F, int nb_polys)
-{
-  r->nb_polys = nb_polys;
-  r->num = (mpz_poly *) malloc(nb_polys * sizeof(mpz_poly));
-  r->denom = (mpz_poly *) malloc(nb_polys * sizeof(mpz_poly));
-  for (int side = 0; side < nb_polys; side++) {
-    mpz_poly_init (r->num[side], F[side] ? mpz_poly_degree(F[side]) : -1);
-    mpz_poly_init (r->denom[side],  F[side] ? mpz_poly_degree(F[side]) : -1);
-  }
-}
-
-void
-sm_relset_clear (sm_relset_t r)
-{
-  for (int side = 0; side < r->nb_polys; side++) {
-    mpz_poly_clear (r->num[side]);
-    mpz_poly_clear (r->denom[side]);
-  }
-  free(r->num);
-  free(r->denom);
-}
-
-void
-sm_relset_copy (sm_relset_t r, sm_relset_srcptr s)
-{
-  if (r == s)
-      return;
-  sm_relset_clear(r);
-  r->nb_polys = s->nb_polys;
-  r->num = (mpz_poly *) malloc(s->nb_polys * sizeof(mpz_poly));
-  r->denom = (mpz_poly *) malloc(s->nb_polys * sizeof(mpz_poly));
-  for (int side = 0; side < r->nb_polys; side++) {
-    mpz_poly_init (r->num[side], -1);
-    mpz_poly_init (r->denom[side], -1);
-    mpz_poly_set (r->num[side], s->num[side]);
-    mpz_poly_set (r->denom[side], s->denom[side]);
-  }
-}
-
-
 /* Given an array of row indices and an array of abpolys,
  * construct the polynomial that corresponds to the relation-set, i.e. 
  *          rel = prod(abpoly[rk]^ek)
@@ -264,68 +221,52 @@ sm_relset_copy (sm_relset_t r, sm_relset_srcptr s)
  * and abpoly[rk] = bk*x - ak.
  * rel is built as a fraction (sm_relset_t) and should be initialized.
  */
-void
-sm_build_one_relset(sm_relset_ptr rel,
-                    const uint64_t *r, const int64_t *e, int len,
+sm_relset
+sm_build_one_relset(
+                    const uint64_t *r, const int64_t *e, size_t len,
                     std::vector<pair_and_sides> const & ps,
-                    const mpz_poly_srcptr * F, int nb_polys,
+                    std::vector<mpz_poly_srcptr> const & F,
 		    mpz_srcptr ell2)
 {
-  mpz_t ee;
-  mpz_init(ee);  
-  mpz_poly * tmp = (mpz_poly *) malloc(nb_polys * sizeof(mpz_poly));
-  memset(tmp, 0, nb_polys * sizeof(mpz_poly));
-  for (int side = 0; side < nb_polys; side++) {
-    if (F[side] == NULL) continue;
-    mpz_poly_init(tmp[side], F[side]->deg);
-  }
+  cxx_mpz ee;
+  sm_relset rel(F.size());
+  std::vector<cxx_mpz_poly> tmp(F.size());
 
   /* Set the initial fraction to 1 / 1 */
-  for (int side = 0; side < nb_polys; side++) {
-    mpz_poly_set_zero (rel->num[side]);
-    mpz_poly_setcoeff_si(rel->num[side], 0, 1); 
-    mpz_poly_set_zero (rel->denom[side]);
-    mpz_poly_setcoeff_si(rel->denom[side], 0, 1); 
+  for (size_t side = 0; side < F.size(); side++) {
+      rel.num[side] = 1;
+      rel.denom[side] = 1;
   }
 
-  for(int k = 0 ; k < len ; k++)
+  for(size_t k = 0 ; k < len ; k++)
   {
     /* Should never happen! */
     ASSERT_ALWAYS(e[k] != 0);
     cxx_mpz_poly const & ab = ps[r[k]].ab;
-    const unsigned int * si = ps[r[k]].active_sides;
+    auto const & si = ps[r[k]].active_sides;
 
     if (e[k] > 0)
     {
       mpz_set_si(ee, e[k]);
       /* TODO: mpz_poly_long_power_mod_f_mod_mpz */
-      for (int i = 0 ; i < 2 ; i++) {
-          unsigned int const s = si[i];
-          if (F[s] == NULL) continue;
+      for (auto const s : si) {
+          if (F[s] == nullptr) continue;
           mpz_poly_pow_mod_f_mod_mpz(tmp[s], ab, F[s], ee, ell2);
-          mpz_poly_mul_mod_f_mod_mpz(rel->num[s], rel->num[s], tmp[s],
-                  F[s], ell2, NULL, NULL);
+          mpz_poly_mul_mod_f_mod_mpz(rel.num[s], rel.num[s], tmp[s],
+                  F[s], ell2, nullptr, nullptr);
       }
     } else {
       mpz_set_si(ee, -e[k]);
       /* TODO: mpz_poly_long_power_mod_f_mod_mpz */
-      for (int i = 0 ; i < 2 ; i++) {
-          unsigned int const s = si[i];
-          if (F[s] == NULL) continue;
+      for (auto const s : si) {
+          if (F[s] == nullptr) continue;
           mpz_poly_pow_mod_f_mod_mpz(tmp[s], ab, F[s], ee, ell2);
-          mpz_poly_mul_mod_f_mod_mpz(rel->denom[s], rel->denom[s], tmp[s], F[s],
-                  ell2, NULL, NULL);
+          mpz_poly_mul_mod_f_mod_mpz(rel.denom[s], rel.denom[s], tmp[s], F[s],
+                  ell2, nullptr, nullptr);
       }
     }
   }
-  for (int s = 0; s < nb_polys; ++s) {
-    if (F[s] == NULL) continue;
-    mpz_poly_cleandeg(rel->num[s], F[s]->deg);
-    mpz_poly_cleandeg(rel->denom[s], F[s]->deg);
-    mpz_poly_clear(tmp[s]);
-  }
-  free(tmp);
-  mpz_clear (ee);
+  return rel;
 }
 
 static int compute_unit_rank(mpz_poly_srcptr f)
@@ -366,7 +307,7 @@ static void compute_change_of_basis_matrix(cxx_mpz_mat & matrix, mpz_poly_srcptr
         mpz_poly_xgcd_mpz(d, g, h, a, b, ell);
 
         /* we now have the complete cofactor */
-        mpz_poly_mul_mod_f_mod_mpz(h, b, h, f, ell, NULL, NULL);
+        mpz_poly_mul_mod_f_mod_mpz(h, b, h, f, ell, nullptr, nullptr);
         for(int j = 0 ; j < g->deg ; j++, s++) {
             /* store into the matrix the coefficients of x^j*h
              * modulo f */
@@ -375,7 +316,7 @@ static void compute_change_of_basis_matrix(cxx_mpz_mat & matrix, mpz_poly_srcptr
                     mpz_set(mpz_mat_entry(matrix, s, k), mpz_poly_coeff_const(h, k));
             }
             mpz_poly_mul_xi(h, h, 1);
-            mpz_poly_mod_f_mod_mpz(h, f, ell, NULL, NULL);
+            mpz_poly_mod_f_mod_mpz(h, f, ell, nullptr, nullptr);
         }
     }
 }
@@ -565,7 +506,7 @@ sm_side_info::sm_side_info(mpz_poly_srcptr f0, mpz_srcptr ell, bool handle_small
 
 void sm_side_info::set_mode(const char * mode_string)
 {
-    if (mode_string == NULL || strcmp(mode_string, "default") == 0) {
+    if (mode_string == nullptr || strcmp(mode_string, "default") == 0) {
         mode = SM_MODE_2018;
     } else if (strcmp(mode_string, "2018") == 0) {
         mode = SM_MODE_2018;
