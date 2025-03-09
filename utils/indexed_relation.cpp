@@ -1,13 +1,27 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+
+#include <cstddef>
+
 #include <algorithm>
+#include <istream>
+#include <ostream>
+#include <string>
+#include <ios>
+
+#include <gmp.h>
 #include "fmt/core.h"
 #include "fmt/format.h"
-#include "relation-tools.h"
+
+#include "gmp_aux.h"
 #include "indexed_relation.hpp"
+#include "relation.hpp"
+#include "relation-tools.h"
+#include "renumber.hpp"
+#include "typedefs.h"
 
 template<typename Storage>
 indexed_relation_tmpl<Storage>::indexed_relation_tmpl(relation const & rel, renumber_t const & R)
-    : relation_ab(rel)
+    : relation_ab((relation_ab const &) rel)
 {
     Storage::set_active_sides(rel.active_sides);
     for(unsigned int side_index = 0 ; side_index < 2 ; side_index++) {

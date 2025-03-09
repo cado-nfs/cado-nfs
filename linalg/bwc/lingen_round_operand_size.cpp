@@ -1,5 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
 
+#include <cstddef>
+
 #include "lingen_round_operand_size.hpp"
 
 size_t lingen_round_operand_size(size_t x, int bits) {/*{{{*/

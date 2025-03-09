@@ -467,7 +467,7 @@ average_valuation_affine_root (mpz_poly_ptr f, unsigned long p, unsigned long r 
 }
 #endif
 
-int alpha_bound = ALPHA_BOUND; /* default value */
+unsigned long alpha_bound = ALPHA_BOUND; /* default value */
 
 /* affecting a global variable in a central state like this should be
  * avoided. It's rather ridiculous to have this, and reflects bad design.

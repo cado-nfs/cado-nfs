@@ -206,12 +206,14 @@ int main(int argc, char const * argv[])
             continue;
         did_merge++;
         FILE * f = fopen("A.temp", "wb");
+        DIE_ERRNO_DIAG(!f, "fopen(%s)", "A.temp");
         for(unsigned int k = k0 ; k < k1 ; k++) {
             char * tmp;
             int rc = asprintf(&tmp, "A%u-%u.%u-%u",
                     a->a[k]->n0,a->a[k]->n1,a->a[k]->j0,a->a[k]->j1);
             ASSERT_ALWAYS(rc >= 0);
             FILE * g = fopen(tmp, "rb");
+            DIE_ERRNO_DIAG(!g, "fopen(%s)", tmp);
             char buf[BUFSIZ];
             for( ; ; ) {
                 int nr = fread(buf, 1, BUFSIZ, g);
@@ -276,6 +278,7 @@ int main(int argc, char const * argv[])
     }
 
     FILE * f = fopen("A.temp", "wb");
+    DIE_ERRNO_DIAG(!f, "fopen(%s)", "A.temp");
     for(unsigned int k0 = 0, k1 ; k0 < a->n ; k0 = k1) {
         unsigned int j0 = a->a[k0]->j0;
         unsigned int j1 = a->a[k0]->j1;
@@ -314,10 +317,7 @@ int main(int argc, char const * argv[])
                     a->a[k]->n0,a->a[k]->n1,a->a[k]->j0,a->a[k]->j1);
             ASSERT_ALWAYS(rc >= 0);
             rs[k - k0] = fopen(tmp, "rb");
-            if (rs[k-k0] == NULL) {
-                fprintf(stderr, "fopen(%s): %s\n", tmp, strerror(errno));
-                exit(EXIT_FAILURE);
-            }
+            DIE_ERRNO_DIAG(rs[k-k0] == NULL, "fopen(%s)", tmp);
             free(tmp);
         }
 
@@ -334,7 +334,6 @@ int main(int argc, char const * argv[])
                     sz = (a->a[k]->n1 - a->a[k]->n0) * bits_per_coeff/ CHAR_BIT;
                     rz = fread(ptr, 1, sz, rs[k-k0]);
                     if (rz < sz) {
-                        rc = 2;
                         fprintf(stderr, "fwrite: short read\n");
                         exit(EXIT_FAILURE);
                     }
