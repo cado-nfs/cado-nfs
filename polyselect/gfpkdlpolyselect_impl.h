@@ -40,9 +40,9 @@ typedef struct {
 } fPyphi_t;
 
 typedef struct {
-  unsigned int deg_f;
-  unsigned int deg_Py;
-  unsigned int deg_phi;
+  int deg_f;
+  int deg_Py;
+  int deg_phi;
   int size;
   const fPyphi_t* tab;
 } fPyphi_poly_t;

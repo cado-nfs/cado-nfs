@@ -2,12 +2,12 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
 
 #include <gmp.h>
 
 #include "auxiliary.h"
 #include "area.h"
+#include "cado_poly.h"
 #include "murphyE.h"
 #include "mpz_poly.h"
 #include "mpz_vector.h"

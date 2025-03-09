@@ -41,12 +41,12 @@
 extern "C" {
 #endif
 
-void gfpk_print_params(unsigned int n, mpz_srcptr p, mpz_srcptr ell);
+void gfpk_print_params(int n, mpz_srcptr p, mpz_srcptr ell);
 
 // the function to call for generating a .poly file.
 // works only for n=2 at the moment.
 // , mpz_t ell, unsigned int mnfs
-int gfpkdlpolyselect( unsigned int n, mpz_srcptr p, mpz_srcptr ell, unsigned int mnfs, const char* out_filename);
+int gfpkdlpolyselect(int n, mpz_srcptr p, mpz_srcptr ell, int mnfs, const char* out_filename);
 
 #ifdef __cplusplus
 }

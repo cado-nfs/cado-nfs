@@ -1,13 +1,16 @@
 #include "cado.h" // IWYU pragma: keep
 // IWYU pragma: no_include <ext/alloc_traits.h>
 #include <cstdlib>
+
 #include <iostream>
 #include <sstream> // istringstream // IWYU pragma: keep
 #include <vector>
 #include <utility>
-#include <memory>              // for allocator_traits<>::value_type
+#include <stdexcept>
 #include <string>              // for string, basic_string
+
 #include <gmp.h>               // for mpz_cmp, mpz_set_str, mpz_t
+
 #include "cxx_mpz.hpp"
 #include "mpz_poly.h"
 #include "mpz_poly_bivariate.hpp"
@@ -66,11 +69,14 @@ static void tests_bivariate()
     struct test2 {
         std::string x,y;
         std::string s;
-        test2(std::string const & x, std::string const & y, std::string const & s)
-        : x(x), y(y), s(s)
+        test2(std::string x, std::string y, std::string s)
+        : x(std::move(x))
+        , y(std::move(y))
+        , s(std::move(s))
         {}
     };
-    std::vector<test2> examples {
+
+    const std::vector<test2> examples {
         { "x", "y", "x+y" },
         { "x", "t", "(x-t)^3+t+x" },
     };

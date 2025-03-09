@@ -1,8 +1,11 @@
 #include "cado.h" // IWYU pragma: keep
 
+#include <cstdint>
+
 #include "mod64.hpp"
 #include "modredc64.hpp" // IWYU pragma: keep
 #include "macros.h"
+#include "u64arith.h"
 
 // scan-headers: stop here
 typedef Modulus64 Modulus;
@@ -34,13 +37,13 @@ Modulus64::inv (Residue &r, const Residue &sp) const
   if (s == 0)
     {
       set0(r); /* Not invertible */
-      return 0;
+      return false;
     }
 
   if (s == 1)
     {
       set1(r);
-      return 1;
+      return true;
     }
 
   u1 = 1;
@@ -80,7 +83,7 @@ Modulus64::inv (Residue &r, const Residue &sp) const
 	{
 	  /* printf ("s=%lu t=%lu found %lu\n", s[0], t[0], u2); */
 	  set0(r); /* non-trivial gcd */
-	  return 0;
+	  return false;
 	}
 
       if (u1 < 0)
@@ -96,11 +99,11 @@ Modulus64::inv (Residue &r, const Residue &sp) const
   ASSERT(is1 (tmp));
 #endif
 
-  return 1;
+  return true;
 }
 
 /* even_inv_lookup_table[i] is 1/(2*i+1) mod 128 */
-static uint64_t even_inv_lookup_table[64] = {
+static const uint64_t even_inv_lookup_table[64] = {
   1, 43, 77, 55, 57, 35, 69, 111, 113, 27, 61, 39, 41, 19, 53, 95, 97, 11, 45,
   23, 25, 3, 37, 79, 81, 123, 29, 7, 9, 115, 21, 63, 65, 107, 13, 119, 121, 99,
   5, 47, 49, 91, 125, 103, 105, 83, 117, 31, 33, 75, 109, 87, 89, 67, 101, 15,
@@ -111,12 +114,13 @@ static uint64_t even_inv_lookup_table[64] = {
 bool
 Modulus64::inv_powerof2 (Residue &r, const Residue &A) const
 {
-  uint64_t x = getmod_u64(), y = get_u64(A);
+  const uint64_t x = getmod_u64();
+  const uint64_t y = get_u64(A);
 
   ASSERT (!(x & (x-1))); /* assert that x is a power of 2 */
   ASSERT (y < x);
   if (!(y & 1))
-    return 0;
+    return false;
   else
   {
     if (!(x >> 4)) /* x = 2, 4 or 8 */
@@ -134,7 +138,7 @@ Modulus64::inv_powerof2 (Residue &r, const Residue &A) const
       uint64_t const t = get_u64(r);
       set(r,  (2 * t - t*t*y) & (x-1));
     }
-    return 1;
+    return true;
   }
 }
 

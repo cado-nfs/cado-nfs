@@ -1,7 +1,11 @@
 #include "cado.h" // IWYU pragma: keep
-#include <pthread.h>
+
 #include <cstring>
+#include <cstdlib>
 #include <cstdio>
+
+#include <pthread.h>
+
 #include "tests_common.h"
 #include "threadpool.hpp"
 #include "macros.h"        // for MAYBE_UNUSED, MIN

@@ -1,9 +1,13 @@
 #include "cado.h" // IWYU pragma: keep
+
+#include <stdarg.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h> // free realloc malloc abort
+
 #include <pthread.h>
+
 #include "verbose.h"
 #include "portability.h" // strdup // IWYU pragma: keep
 #include "macros.h"

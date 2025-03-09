@@ -1,8 +1,10 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <cstdint>
 #include <cinttypes>
 #include <cstdio>
 #include <cstdlib>
+
 #include "macros.h"
 #include "tests_common.h"
 #include "utils/u64arith.h"
