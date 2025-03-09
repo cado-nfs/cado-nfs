@@ -1,8 +1,11 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <string.h>
-#include <pthread.h>
-#include <unistd.h>     // nanosleep is in posix 2001
+#include <time.h>     // nanosleep is in posix 2001
 #include <stdio.h>
+
+#include <pthread.h>
+
 #include "tests_common.h"
 #include "verbose.h"
 #include "portability.h" // sleep // IWYU pragma: keep

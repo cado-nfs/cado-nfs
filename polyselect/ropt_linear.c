@@ -23,9 +23,13 @@
 
 
 #include "cado.h" // IWYU pragma: keep
+
 #include <stdio.h>
+
 #include <gmp.h>
+
 #include "auxiliary.h"  // rotate_aux
+#include "mpz_poly.h"
 #include "ropt.h" // ropt_get_bestpoly
 #include "ropt_arith.h" // ROPT_NPRIMES
 #include "ropt_stage1.h" // ropt_stage1

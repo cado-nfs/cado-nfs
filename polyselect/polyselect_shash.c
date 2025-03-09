@@ -1,8 +1,19 @@
-#include "cado.h"
-#include <pthread.h>
+#include "cado.h" // IWYU pragma: keep
+
+#include <stddef.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <inttypes.h>
+
+#include <gmp.h>
+
+#include "dllist.h"
 #include "polyselect_shash.h"
 #include "polyselect_match.h"
+#include "polyselect_thread.h"
 #include "misc.h"
+#include "macros.h"
 
 /*
  * This is an implementation of a quick hash table with integer entries
@@ -105,6 +116,7 @@ polyselect_shash_init_multi (polyselect_shash_t * H, unsigned int init_size, uns
         if (alloc_k * k >= alloc)
             alloc = alloc_k * k;
     }
+    ASSERT_ALWAYS(alloc > 0);
     H[0]->alloc = alloc;
     H[0]->mem = (uint64_t*) malloc (H[0]->alloc * sizeof (uint64_t));
     H[0]->pmem = (uint32_t*) malloc (H[0]->alloc * sizeof (uint32_t));
@@ -205,19 +217,19 @@ polyselect_shash_find_collision_multi(const polyselect_shash_t * H, unsigned int
 #define polyselect_SHASH_RESEARCH(TH,I)				\
   do {							\
     key = ((I) >> 32) + (I);				\
-    if (UNLIKELY(*TH)) do {				\
-      if (UNLIKELY(*TH == key)) { free (T); return 1; }	\
-    } while (*(++TH));					\
-    *TH = key;						\
+    if (UNLIKELY(*(TH))) do {				\
+      if (UNLIKELY(*(TH) == key)) { free (T); return 1; }	\
+    } while (*(++(TH)));					\
+    *(TH) = key;						\
   } while (0)
 
   /* XXX what does this macro do? Documentation needed!
    */
 #define polyselect_SHASH_TH_I(TH,I,IND)			\
   do {						\
-    I = Hj[IND];				\
-    TH = T + ((I >> LN2SHASH_NBUCKETS) & mask); \
-    __builtin_prefetch(TH, 1, 3);		\
+    (I) = Hj[(IND)];				\
+    (TH) = T + (((I) >> LN2SHASH_NBUCKETS) & mask); \
+    __builtin_prefetch((TH), 1, 3);		\
   } while (0)					\
 
   /* We implicitly assume that all H[0] .. to H[multi-1] share identical

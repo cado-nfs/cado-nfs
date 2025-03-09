@@ -79,7 +79,7 @@ struct shrink_action {
             rel.sort();
             rel.compress(dl);
 
-            os << rel << std::endl;
+            os << rel << "\n";
         }
     }
 };

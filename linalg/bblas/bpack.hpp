@@ -93,10 +93,10 @@ template<typename matrix_pointer> struct bpack_view_base {
     }
     unsigned int mblocks;
     unsigned int nblocks;
-    inline unsigned int nrows() const { return mblocks * B; }
-    inline unsigned int ncols() const { return nblocks * B; }
-    inline unsigned int nrowblocks() const { return mblocks; }
-    inline unsigned int ncolblocks() const { return nblocks; }
+    unsigned int nrows() const { return mblocks * B; }
+    unsigned int ncols() const { return nblocks * B; }
+    unsigned int nrowblocks() const { return mblocks; }
+    unsigned int ncolblocks() const { return nblocks; }
     bpack_view_base(matrix_pointer X, unsigned int mblocks, unsigned int nblocks) : X(X), mblocks(mblocks), nblocks(nblocks) { }
 };
 
@@ -118,13 +118,13 @@ struct bpack_const_view : public bpack_view_base<bitmat<T> const *>
     bool is_uppertriangular() const;
     bool triangular_is_unit() const;
     bool operator==(int a) const;
-    inline bool overlaps(bpack_const_view<T> v) {
+    bool overlaps(bpack_const_view<T> v) {
         if (v.X <= X && (v.X + v.mblocks + v.nblocks) > X) return true;
         if (X <= v.X && (X + mblocks + nblocks) > v.X) return true;
         return false;
     }
     bool operator==(const_view_t) const;
-    inline bool operator==(view_t v) const { return *this == v.const_view(); }
+    bool operator==(view_t v) const { return *this == v.const_view(); }
 };
 
 template<typename T>
@@ -161,9 +161,9 @@ struct bpack_view : bpack_view_base<bitmat<T> *> {
     void propagate_row_permutations(std::vector<unsigned int> const &);
     void invert_lower_triangular();
 
-    inline bool is_lowertriangular() const { return const_view().is_lowertriangular(); }
-    inline bool is_uppertriangular() const { return const_view().is_uppertriangular(); }
-    inline bool triangular_is_unit() const { return const_view().triangular_is_unit(); }
+    bool is_lowertriangular() const { return const_view().is_lowertriangular(); }
+    bool is_uppertriangular() const { return const_view().is_uppertriangular(); }
+    bool triangular_is_unit() const { return const_view().triangular_is_unit(); }
 
     void fill_random(gmp_randstate_t rstate);
     void make_uppertriangular();
@@ -173,13 +173,13 @@ struct bpack_view : bpack_view_base<bitmat<T> *> {
     void triangular_make_unit();
     bpack_view<T>& set(int a);
     bpack_view<T>& set(bpack_const_view<T> v);
-    inline bpack_view<T>& set(bpack_view<T> v) { return set(v.const_view()); }
-    inline bpack_view<T>& set(bpack<T> const & v) { return set(v.view()); }
-    inline bool operator==(int a) const { return const_view() == a; }
-    inline bool overlaps(bpack_view<T> v) { return const_view().overlaps(v.const_view()); }
-    inline bool overlaps(bpack_const_view<T> v) { return const_view().overlaps(v); }
-    inline bool operator==(const_view_t v) const { return const_view() == v; }
-    inline bool operator==(view_t v) const { return const_view() == v.const_view(); }
+    bpack_view<T>& set(bpack_view<T> v) { return set(v.const_view()); }
+    bpack_view<T>& set(bpack<T> const & v) { return set(v.view()); }
+    bool operator==(int a) const { return const_view() == a; }
+    bool overlaps(bpack_view<T> v) { return const_view().overlaps(v.const_view()); }
+    bool overlaps(bpack_const_view<T> v) { return const_view().overlaps(v); }
+    bool operator==(const_view_t v) const { return const_view() == v; }
+    bool operator==(view_t v) const { return const_view() == v.const_view(); }
 };
 
 template<typename T>
@@ -190,10 +190,10 @@ struct bpack : public bpack_ops<T> {
     typename matrix::vector_type X;
     unsigned int mblocks;
     unsigned int nblocks;
-    inline unsigned int nrows() const { return mblocks * B; }
-    inline unsigned int ncols() const { return nblocks * B; }
-    inline unsigned int nrowblocks() const { return mblocks; }
-    inline unsigned int ncolblocks() const { return nblocks; }
+    unsigned int nrows() const { return mblocks * B; }
+    unsigned int ncols() const { return nblocks * B; }
+    unsigned int nrowblocks() const { return mblocks; }
+    unsigned int ncolblocks() const { return nblocks; }
     bpack(unsigned int m, unsigned int n) : X((m/B)*(n/B)), mblocks(m/B), nblocks(n/B) {
         ASSERT_ALWAYS(m % B == 0);
         ASSERT_ALWAYS(n % B == 0);
@@ -207,9 +207,9 @@ struct bpack : public bpack_ops<T> {
 
     matrix & cell(unsigned int bi, unsigned int bj) { return view().cell(bi, bj); }
     matrix const & cell(unsigned int bi, unsigned int bj) const { return view().cell(bi, bj); }
-    inline bpack<T>& operator=(int a) { view().set(a); return *this; }
-    inline bool operator==(int a) const { return view() == a; }
-    inline bpack(const_view_t a)
+    bpack<T>& operator=(int a) { view().set(a); return *this; }
+    bool operator==(int a) const { return view() == a; }
+    bpack(const_view_t a)
         : bpack(a.nrows(), a.ncols())
     {
         std::copy_n(&a.cell(0,0), a.nrowblocks() * a.ncolblocks(), &cell(0,0));
@@ -224,19 +224,19 @@ struct bpack : public bpack_ops<T> {
     }
     void invert_lower_triangular() { return view().invert_lower_triangular(); }
 
-    inline bool is_lowertriangular() const { return view().is_lowertriangular(); }
-    inline bool is_uppertriangular() const { return view().is_uppertriangular(); }
-    inline bool triangular_is_unit() const { return view().triangular_is_unit(); }
+    bool is_lowertriangular() const { return view().is_lowertriangular(); }
+    bool is_uppertriangular() const { return view().is_uppertriangular(); }
+    bool triangular_is_unit() const { return view().triangular_is_unit(); }
 
-    inline void fill_random(gmp_randstate_t rstate) { view().fill_random(rstate); }
-    inline void make_uppertriangular() { view().make_uppertriangular(); }
-    inline void make_lowertriangular() { view().make_lowertriangular(); }
-    inline void make_unit_uppertriangular() { view().make_unit_uppertriangular(); }
-    inline void make_unit_lowertriangular() { view().make_unit_lowertriangular(); }
-    inline void triangular_make_unit() { view().triangular_make_unit(); }
-    inline bool operator==(const_view_t v) const { return const_view() == v; }
-    inline bool operator==(view_t v) const { return const_view() == v.const_view(); }
-    inline bool operator==(bpack<T> const & v) const { return const_view() == v.const_view(); }
+    void fill_random(gmp_randstate_t rstate) { view().fill_random(rstate); }
+    void make_uppertriangular() { view().make_uppertriangular(); }
+    void make_lowertriangular() { view().make_lowertriangular(); }
+    void make_unit_uppertriangular() { view().make_unit_uppertriangular(); }
+    void make_unit_lowertriangular() { view().make_unit_lowertriangular(); }
+    void triangular_make_unit() { view().triangular_make_unit(); }
+    bool operator==(const_view_t v) const { return const_view() == v; }
+    bool operator==(view_t v) const { return const_view() == v.const_view(); }
+    bool operator==(bpack<T> const & v) const { return const_view() == v.const_view(); }
 };
 
 /* The code is in bpack.cpp ; presently there are no specializations, but

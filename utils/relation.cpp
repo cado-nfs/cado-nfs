@@ -9,9 +9,11 @@
 #include <algorithm>
 #include <sstream> // std::ostringstream // IWYU pragma: keep
 #include <string>
-#include <iomanip> // std::hex // IWYU pragma: keep
+#include <ios>
+
 #include <gmp.h>
 
+#include "gmp_aux.h"
 #include "macros.h" /* for ASSERT_ALWAYS */
 #include "relation.hpp"
 #include "relation-tools.h"
@@ -170,10 +172,8 @@ void relation::fixup_r(bool also_rational)
             if ((int) side == rational_side)
                 continue;
         }
-        for(unsigned int i = 0 ; i < sides[side_index].size() ; i++) {
-            if (mpz_cmp_ui(sides[side_index][i].r,0) == 0) {
-                pr & x(sides[side_index][i]);
-
+        for(auto & x : sides[side_index]) {
+            if (mpz_cmp_ui(x.r,0) == 0) {
                 mpz_set(x.r, bz);
                 if (mpz_invert(x.r, x.r, x.p)) {
                     mpz_mul(x.r, x.r, az);

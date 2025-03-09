@@ -1,7 +1,12 @@
-#include "cado.h"
+#include "cado.h"       // IWYU pragma: keep
+
+#include <stdio.h>
 #include <float.h>
 #include <math.h>
 #include <stdlib.h>
+
+#include <gmp.h>
+
 #include "polyselect_data_series.h"
 #include "macros.h"
 #include "gcd.h"
@@ -38,7 +43,12 @@ polyselect_data_series_add (polyselect_data_series_ptr s, double x)
   if (s->size == s->alloc)
     {
       s->alloc += 1 + s->alloc / 2;
-      s->x = realloc (s->x, s->alloc * sizeof (double));
+      double * nx = realloc (s->x, s->alloc * sizeof (double));
+      if (!nx) {
+          free(s->x);
+          FATAL_ERROR_CHECK(!nx, "out of memory");
+      }
+      s->x = nx;
     }
   s->x[s->size++] = x;
   s->sum += x;

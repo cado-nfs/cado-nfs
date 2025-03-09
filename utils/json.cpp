@@ -1,11 +1,18 @@
 #include "cado.h" // IWYU pragma: keep
-#include "macros.h"
+
+#include <climits>
+#include <cctype>
+
+#include <ios>
+#include <string>
+#include <vector>
 #include <exception>
 #include <sstream>
-#include <limits.h>
+#include <ostream>
+#include <istream>
+
+#include "macros.h"
 #include "json.hpp"
-
-
 
 struct json_parser {
     struct parse_error: public std::exception {
@@ -13,7 +20,7 @@ struct json_parser {
     };
     struct tokenizer_error: public std::exception {
         std::string message;
-        tokenizer_error(std::istream& is) {
+        explicit tokenizer_error(std::istream& is) {
             std::string s;
             std::getline(is, s);
             std::ostringstream os;
@@ -55,9 +62,9 @@ private:
     std::vector<expression_token>::const_iterator ctok;
     std::vector<std::string>::const_iterator cstr;
     std::vector<double>::const_iterator cnum;
-    inline bool dry() { return ctok == tokens.end(); }
-    inline void next() { if (!dry()) ctok++; }
-    inline bool test(expression_token s) { return !dry() && *ctok == s; }
+    bool dry() { return ctok == tokens.end(); }
+    void next() { if (!dry()) ctok++; }
+    bool test(expression_token s) { return !dry() && *ctok == s; }
     bool accept(expression_token s) {
         if (!test(s)) return false;
         next();
@@ -95,13 +102,13 @@ public:
             if (trailing_comma) throw parse_error();
             return jj;
         } else if (accept(JNULL)) {
-            return json(new json_null());
+            return { new json_null() };
         } else if (accept(NUMBER)) {
-            return json(new json_number(*cnum++));
+            return { new json_number(*cnum++) };
         } else if (accept(BOOL)) {
-            return json(new json_bool(*cnum++));
+            return { new json_bool(*cnum++) };
         } else if (accept(STRING)) {
-            return json(new json_string(*cstr++));
+            return { new json_string(*cstr++) };
         } else {
             throw parse_error();
         }

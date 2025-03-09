@@ -926,7 +926,7 @@ int main(int argc, char const * argv[])
     double scale = 1;
     if (argc == 2) {
         std::istringstream (argv[1]) >> scale;
-        std::cout << "running with scale="<<scale<<std::endl;
+        std::cout << "running with scale="<<scale<<"\n";
     }
 
     std::vector<int> X;
@@ -939,7 +939,7 @@ int main(int argc, char const * argv[])
     std::vector<it_t> pool = find_value_change_points_recursive()(f, X.cbegin(), X.cend());
 
     for(auto const & p : pool) {
-        std::cout << *p << " " << scale*log(*p) << std::endl;
+        std::cout << *p << " " << scale*log(*p) << "\n";
     }
 }
 #endif

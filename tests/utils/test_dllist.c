@@ -1,6 +1,9 @@
 #include "cado.h" // IWYU pragma: keep
 #include <stdlib.h>
 #include <stdio.h>
+
+#include <gmp.h>
+
 #include "tests_common.h"
 #include "macros.h"
 #include "dllist.h"
@@ -56,7 +59,7 @@ test_dllist(size_t len MAYBE_UNUSED)
         }
         struct junk * foo = malloc(sizeof(struct junk));
         foo->a = i;
-        if ((i + rand()) % 2 == 0) {
+        if ((i + gmp_urandomm_ui(state, 1 << 20)) % 2 == 0) {
             dllist_push_front(&all, &foo->head);
         } else {
             dllist_push_back(&all, &foo->head);

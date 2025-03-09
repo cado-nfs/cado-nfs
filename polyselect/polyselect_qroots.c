@@ -110,7 +110,7 @@ polyselect_qroots_rearrange (polyselect_qroots_ptr R)
 }
 
 void
-polyselect_qroots_add (polyselect_qroots_ptr R, unsigned int q, unsigned int nr, uint64_t *roots)
+polyselect_qroots_add (polyselect_qroots_ptr R, unsigned int q, unsigned int nr, const uint64_t * roots)
 {
   unsigned int i;
 

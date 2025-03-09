@@ -21,7 +21,7 @@ typedef const struct polyselect_qroots_s * polyselect_qroots_srcptr;
 
 void polyselect_qroots_init (polyselect_qroots_ptr);
 void polyselect_qroots_realloc (polyselect_qroots_ptr, unsigned long);
-void polyselect_qroots_add (polyselect_qroots_ptr, unsigned int, unsigned int, uint64_t*);
+void polyselect_qroots_add (polyselect_qroots_ptr, unsigned int, unsigned int, const uint64_t*);
 void polyselect_qroots_print (polyselect_qroots_srcptr);
 void polyselect_qroots_rearrange (polyselect_qroots_ptr R);
 void polyselect_qroots_clear (polyselect_qroots_ptr);

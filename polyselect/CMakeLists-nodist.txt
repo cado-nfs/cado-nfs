@@ -10,14 +10,15 @@ target_link_libraries (twoquadratics polyselect_common)
 add_executable (sopt sopt.c)
 target_link_libraries (sopt polyselect_common)
 
-add_executable (twocubics
-    EXCLUDE_FROM_ALL
-    twocubics.c
-    $<TARGET_OBJECTS:polyselect_middle>
-    )
-mark_targets_as_openmp(twocubics)
-target_link_libraries (twocubics polyselect_common utils ${pthread_libs})
-
+# this one has failed to compile for several years.
+# add_executable (twocubics
+#     EXCLUDE_FROM_ALL
+#     twocubics.c
+#     $<TARGET_OBJECTS:polyselect_middle>
+#     )
+# mark_targets_as_openmp(twocubics)
+# target_link_libraries (twocubics polyselect_common utils ${pthread_libs})
+ 
 add_executable (rootsieve1 EXCLUDE_FROM_ALL rootsieve1.c ${ropt_sources})
 mark_targets_as_openmp(rootsieve1)
 target_link_libraries (rootsieve1 polyselect_common)

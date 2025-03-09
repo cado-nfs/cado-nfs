@@ -1,7 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
 
 #include <cstdint>
-#include <math.h>
+#include <cmath>
 
 #include "fb-types.h"
 #include "las-arith.hpp"
@@ -16,7 +16,7 @@ fbprime_t is_prime_power(fbprime_t q)
 
     for (maxk = 0, p = q; p > 1; p /= 2, maxk++);
     for (k = maxk; k >= 2; k--) {
-        p = (fbprime_t) (pow((double) q, 1.0 / (double) k) + 0.5);
+        p = (fbprime_t) lround(pow((double) q, 1.0 / (double) k));
         if (q % p == 0)
             return p;
     }

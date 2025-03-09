@@ -2,11 +2,11 @@
 #include "mod_ul.h"
 #include "mod_ul_default.h"
 
-// NOLINTNEXTLINE(bugprone-suspicious-include)
-#include "mod_ul_common.c"
+#include "mod_ul_common.c" // NOLINT(bugprone-suspicious-include)
 
 #include "modredc_ul.h"
 #include "macros.h"
+#include "ularith.h"
 
 
 /* Put 1/s (mod t) in r and return 1 if s is invertible, 

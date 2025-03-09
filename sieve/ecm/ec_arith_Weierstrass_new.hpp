@@ -38,8 +38,8 @@ public:
         Integer A, M;
         m.get (A, a);
         m.getmod(M);
-        os << pre << "Weierstrass curve: y^2 = x^3 + a*x + b" << std::endl
-           << pre << "a = " << A << " over Z/mZ, m = " << M << std::endl;
+        os << pre << "Weierstrass curve: y^2 = x^3 + a*x + b" << "\n"
+           << pre << "a = " << A << " over Z/mZ, m = " << M << "\n";
     }
     friend std::ostream & operator<<(std::ostream &os, const ECWeierstrass<MODULUS> &c) {
         c.print(os, NULL);

@@ -1,18 +1,15 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
+#include <cstdlib>
 #include <climits>
 #include <cmath>
 #include <cstdbool>
 #include <cstdio>
-#include <cstdlib>
 #include <ctime>
 
 #include <algorithm>
 #include <iostream>
-#include <set>
 #include <vector>
-
-#include <sys/time.h>
 
 #include <gmp.h>
 #include "fmt/core.h"
@@ -190,9 +187,9 @@ class ecm_stats
         if (i >= MAX_CPT) {
             abort();
         }
-        double newav = aver_gain[i] * nb_test[i] + gain;
+        double newav = aver_gain[i] * double(nb_test[i]) + gain;
         nb_test[i]++;
-        newav /= nb_test[i];
+        newav /= double(nb_test[i]);
         aver_gain[i] = newav;
     }
 
@@ -228,14 +225,14 @@ struct context
 {
     std::vector<descent_init_candidate> pool;
     ecm_stats stats;
-    const void* param_next_cand;
+    const void* param_next_cand = nullptr;
     int (*next_cand)(descent_init_candidate&,
                      const void*); // new candidate put in first arg.
-    unsigned long target;          // smoothness bound (in bits)
-    double current_effort;         // current effort per candidate.
-    double max_effort;
-    unsigned long max_pool_size;
-    double minB1;
+    unsigned long target = 0;      // smoothness bound (in bits)
+    double current_effort = 0;     // current effort per candidate.
+    double max_effort = 0;
+    unsigned long max_pool_size = 0;
+    double minB1 = 0;
 
     void increase_effort()
     {
