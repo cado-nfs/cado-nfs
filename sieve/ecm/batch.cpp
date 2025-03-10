@@ -42,6 +42,7 @@
 #include "relation.hpp"        // for relation
 #include "rootfinder.h" // mpz_poly_roots_ulong
 #include "timing.h"             // for seconds
+#include "utils_cxx.hpp"
 
 /* This function is useful in the openmp context. This segment goes
  * parallel, and all threads except the calling thread subtract their
@@ -128,9 +129,9 @@ mpz_product_tree_add_ui (mpz_product_tree t, unsigned long n)
         {
           if (i+1 == t->size) /* realloc */
             {
-              t->l = (mpz_t *) realloc (t->l, (t->size + 1) * sizeof (mpz_t));
+              checked_realloc(t->l, t->size + 1);
               mpz_init_set_ui (t->l[t->size], 1);
-              t->n = (unsigned long *) realloc (t->n, (t->size + 1) * sizeof (unsigned long));
+              checked_realloc(t->n, t->size + 1);
               t->n[t->size] = 0;
               t->size++;
             }

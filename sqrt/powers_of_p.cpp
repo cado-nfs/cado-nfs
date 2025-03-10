@@ -4,14 +4,19 @@
  * in fact is of type power_lookup_table
  */
 #include "cado.h" // IWYU pragma: keep
+
 #include <cstddef>      /* see https://gcc.gnu.org/gcc-4.9/porting_to.html */
 #include <cstdlib>
 #include <cstdio>
+
 #include <utility>                 // pair
 #include <map>
+
 #include <gmp.h>
 #include <pthread.h>
+
 #include "powers_of_p.h"
+#include "utils_cxx.hpp"
 
 using namespace std;
 
@@ -26,7 +31,7 @@ struct power_lookup_table {
     int extra_power_swapstore(mpz_ptr w) {
         if (nz == alloc) {
             alloc += alloc ? alloc / 4 : 16;
-            z = (mpz_ptr *) realloc(z, alloc * sizeof(mpz_t));
+            checked_realloc(z, alloc);
         }
         z[nz] = (mpz_ptr) malloc(sizeof(mpz_t));
         mpz_init(z[nz]);

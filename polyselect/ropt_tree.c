@@ -5,13 +5,16 @@
 
 
 #include "cado.h" // IWYU pragma: keep
+                  //
 #include <float.h>      // FLT_MAX DBL_MAX
 #include <stdio.h>      // fprintf stderr
 #include <stdlib.h>     // free malloc
-#include <stdint.h>     /* AIX wants it first (it's a bug) */
-#include <gmp.h>
-#include "ropt_tree.h"
+#include <stdint.h>
 
+#include <gmp.h>
+
+#include "ropt_tree.h"
+#include "macros.h"
 
 #if 0 /* Leave them for debug */
 /**
@@ -101,13 +104,10 @@ alloc_r_node ( node *pnode )
     pnode->roottype = (char *)
       malloc ( sizeof (char) );
     pnode->alloc = 1;
-  }
-  else {
-    pnode->r = (unsigned int *)
-      realloc ( pnode->r, 2 * pnode->nr * sizeof (unsigned int) );
-    pnode->roottype = (char *)
-      realloc ( pnode->roottype, 2 * pnode->nr * sizeof (char) );
-    pnode->alloc = (pnode->alloc * 2);
+  } else {
+      CHECKED_REALLOC(pnode->r, 2 * pnode->nr, unsigned int);
+      CHECKED_REALLOC(pnode->roottype, 2 * pnode->nr, char);
+      pnode->alloc = (pnode->alloc * 2);
   }
 
   if (pnode->r == NULL) {

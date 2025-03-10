@@ -108,7 +108,7 @@ buffer_add (buffer_struct_t *buf, char *s)
     {
       buf->alloc = buf->size + n;
       buf->alloc += buf->alloc / MARGIN;
-      buf->buf = realloc (buf->buf, buf->alloc * sizeof (char));
+      CHECKED_REALLOC(buf->buf, buf->alloc, char);
     }
   memcpy (buf->buf + buf->size, s, n * sizeof (char));
   buf->size += n - 1; /* don't count final '\0' */

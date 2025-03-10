@@ -1,8 +1,20 @@
-#include "cado.h"
-#include <stdlib.h>
-#include <math.h>
+#include "cado.h" // IWYU pragma: keep
+
+#include <cstdio>
+#include <cstdlib>
+#include <cmath>
+#include <climits>
+#include <cstring>
+
+#include <gmp.h>
+
+#include "gmp_aux.h"
 #include "random_distributions.hpp"
 #include "macros.h"
+
+#ifndef M_PI
+#error "Uh, on a posix platform, we should have M_PI defined"
+#endif
 
 /* random picking */
 double random_uniform(cxx_gmp_randstate & rstate)
@@ -28,13 +40,13 @@ double random_normal_standard(cxx_gmp_randstate & rstate)
     static double vlast = 0;
     if (last) { --last; return vlast; }
 #endif
-    double u = random_uniform(rstate);
-    double v = random_uniform(rstate);
-    double rho = sqrt(-2*log(u));
-    double theta = 2*M_PI*v;
-    double x = rho*cos(theta);
+    const double u = random_uniform(rstate);
+    const double v = random_uniform(rstate);
+    const double rho = sqrt(-2*log(u));
+    const double theta = 2*M_PI*v;
+    const double x = rho*cos(theta);
 #ifdef ALLOW_NON_REENTRANT_random_normal_standard
-    double y = rho*sin(theta);
+    const double y = rho*sin(theta);
     vlast=y;
     last++;
 #endif
@@ -51,7 +63,7 @@ double random_normal(cxx_gmp_randstate & rstate, double mean, double sdev)
 double extreme_normal(double n, double mean, double sdev)
 {
     /* See Cramer, Mathematical methods of statistics, p. 575 (7th printing). */
-    double x = sqrt(2*log(n))+(log(log(n))+log(4*M_PI)-2*0.5772)/(2*sqrt(2*log(n)));
+    const double x = sqrt(2*log(n))+(log(log(n))+log(4*M_PI)-2*0.5772)/(2*sqrt(2*log(n)));
     return mean + x * sdev;
 }
 
@@ -63,7 +75,7 @@ double random_normal_constrained(cxx_gmp_randstate & rstate, double mean, double
      * our case.
      */
     for(;;) {
-        double x = round(random_normal(rstate, mean, sdev));
+        const double x = round(random_normal(rstate, mean, sdev));
         if (x >= a && x < b) return x;
     }
 }
@@ -76,7 +88,7 @@ double random_normal_constrained(cxx_gmp_randstate & rstate, double mean, double
  * normal approximation can end up being catastrophic if we're more
  * Poisson-like.
  */
-void accuracy_of_normal_approximation_to_binomial(double * my, double *mx, unsigned long a, unsigned long b)
+void accuracy_of_normal_approximation_to_binomial(double * my, const double *mx, unsigned long a, unsigned long b)
 {
     /* Let e(x) = 1/sqrt(2*pi)*exp(-x^2/2).
      * We have:
@@ -112,15 +124,15 @@ void accuracy_of_normal_approximation_to_binomial(double * my, double *mx, unsig
      * M2 = m^2 + 2*m*s * (S1/S0)(a*,b*) + s^2 * (S2/S0)(a*,b*)
      * sdev = s * sqrt(((S2-S1^2)/S0)(a*,b*))
      */
-    double m = mx[0];
-    double s = mx[1];
-    double as = (a-m)/s;
-    double bs = (b-m)/s;
-    double eas = exp(-as*as/2)/sqrt(2*M_PI);
-    double ebs = exp(-bs*bs/2)/sqrt(2*M_PI);
-    double S0 = (erf(bs/sqrt(2))-erf(as/sqrt(2)))/2;
-    double S1 = eas - ebs;
-    double S2 = as*eas - bs*ebs + S0;
+    const double m = mx[0];
+    const double s = mx[1];
+    const double as = ((double) a-m)/s;
+    const double bs = ((double) b-m)/s;
+    const double eas = exp(-as*as/2)/sqrt(2*M_PI);
+    const double ebs = exp(-bs*bs/2)/sqrt(2*M_PI);
+    const double S0 = (erf(bs/sqrt(2))-erf(as/sqrt(2)))/2;
+    const double S1 = eas - ebs;
+    const double S2 = as*eas - bs*ebs + S0;
     /*
        double M0 = s * S0;
        double M1 = s * (m*S0 + s*S1);
@@ -143,22 +155,22 @@ double random_poisson(cxx_gmp_randstate & rstate, double lambda)
     if (lambda < 10) {
         return random_uniform(rstate)*2*lambda;
     }
-    double c = 0.767 - 3.36/lambda;
-    double beta = M_PI/sqrt(3.0*lambda);
-    double alpha = beta*lambda;
-    double k = log(c) - lambda - log(beta);
+    const double c = 0.767 - 3.36/lambda;
+    const double beta = M_PI/sqrt(3.0*lambda);
+    const double alpha = beta*lambda;
+    const double k = log(c) - lambda - log(beta);
 
     for(;;) {
-        double u = random_uniform(rstate);
-        double x = (alpha - log((1.0 - u)/u))/beta;
-        int n = (int) floor(x + 0.5);
+        const double u = random_uniform(rstate);
+        const double x = (alpha - log((1.0 - u)/u))/beta;
+        const int n = (int) floor(x + 0.5);
         if (n < 0)
             continue;
-        double v = random_uniform(rstate);
-        double y = alpha - beta*x;
-        double temp = 1.0 + exp(y);
-        double lhs = y + log(v/(temp*temp));
-        double rhs = k + n*log(lambda) - lgamma(n-1);
+        const double v = random_uniform(rstate);
+        const double y = alpha - beta*x;
+        const double temp = 1.0 + exp(y);
+        const double lhs = y + log(v/(temp*temp));
+        const double rhs = k + n*log(lambda) - lgamma(n-1);
         if (lhs <= rhs)
             return n;
     }
@@ -171,17 +183,17 @@ double random_binomial(cxx_gmp_randstate & rstate, unsigned long n, double p)
      * This first way of doing things is appropriate when mean \pm 3
      * times sdev is good.
      */
-    double mean = n * p;
-    double sdev = sqrt(n * p * (1-p));
-    if (0 <= mean - 3 * sdev && mean + 3 * sdev <= n) {
-        return random_normal_constrained(rstate, mean, sdev, 0, n);
+    const double mean = (double) n * p;
+    const double sdev = sqrt((double) n * p * (1-p));
+    if (0 <= mean - 3 * sdev && mean + 3 * sdev <= (double) n) {
+        return random_normal_constrained(rstate, mean, sdev, 0, (double) n);
     }
     /* otherwise we'll return the Poisson approximation, which does not
      * care much about the standard deviation, but matches relatively
      * well as far as our application is concerned. */
 
     double r;
-    for( ; (r = random_poisson(rstate, mean)) >= n ; ) ;
+    for( ; (r = random_poisson(rstate, mean)) >= (double) n ; ) ;
     return r;
 }
 
@@ -239,7 +251,7 @@ void punched_interval_pre_free_pool(punched_interval_ptr * pool, int max, int pr
                 (*pool)->has_left, max);
     }
     punched_interval_ptr q = * pool;
-    int size = (*pool)->has_left;
+    const int size = (*pool)->has_left;
     for(int i = 0 ; q->has_left >= max ; i++) {
         ASSERT_ALWAYS(q->left);
         ASSERT_ALWAYS(q->has_left == size - i);
@@ -303,8 +315,8 @@ static unsigned long punched_interval_pick_inner(punched_interval_ptr * pool, pu
         } else {
             i = floor(r);
         }
-        double x0 = D.q(i);
-        double x1 = D.q(i + 1);
+        const double x0 = D.q(i);
+        const double x1 = D.q(i + 1);
         punched_interval_punch_inner(pool, c, x0, x1);
         return i;
     }
@@ -319,7 +331,7 @@ static unsigned long punched_interval_pick_inner(punched_interval_ptr * pool, pu
         /* modify x. It's more than just xc ! */
         xc += c->right->b0 - c->left->b1;
         double const h = c->right->holes;
-        unsigned long i = punched_interval_pick_inner(pool, c->right, D, xc);
+        const unsigned long i = punched_interval_pick_inner(pool, c->right, D, xc);
         c->holes += c->right->holes - h;
         return i;
     }

@@ -10,6 +10,7 @@
 #include "macros.h"
 #include "modredc_ul.h" // MODREDCUL_MAXBITS
 #include "point.h"      // point_get_number
+#include "utils_cxx.hpp"
 
 
 
@@ -347,10 +348,10 @@ static strategy_t *concat_strategies(strategy_t * st1, strategy_t * st2,
     int const len1 = st1->tab_fm->index;
     int const len2 = st2->tab_fm->index;
     st->len_side = len1 + len2;
-    if (st->side == NULL)
+    if (st->side == nullptr)
 	st->side = (int*) malloc(sizeof(int) * (st->len_side));
     else
-	st->side = (int*) realloc(st->side, sizeof(int) * (st->len_side));
+        checked_realloc(st->side, st->len_side);
     int side = first_side;
     for (int i = 0; i < len1; i++) {
 	strategy_add_fm(st, st1->tab_fm->tab[i]);

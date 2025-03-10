@@ -254,8 +254,7 @@ bucket_array_t<LEVEL, HINT>::realloc_slice_start(const size_t extra_space)
   const size_t new_size = size_b_align * new_alloc_slices;
   slice_start = (update_t **) realloc_aligned(slice_start, old_size, new_size, 0x40);
   ASSERT_ALWAYS(slice_start != NULL);
-  slice_index = (slice_index_t *) realloc(slice_index, new_alloc_slices * sizeof(slice_index_t));
-  ASSERT_ALWAYS(slice_index != NULL);
+  checked_realloc(slice_index, new_alloc_slices);
   memset(slice_index + alloc_slices, 0, extra_space * sizeof(slice_index_t));
   alloc_slices = new_alloc_slices;
 }

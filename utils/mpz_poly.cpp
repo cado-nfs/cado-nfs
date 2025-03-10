@@ -41,6 +41,7 @@
 #include "runtime_numeric_cast.hpp"
 /* and just because we expose a proxy to usp.c's root finding... */
 #include "usp.h" // for numberOfRealRoots
+#include "utils_cxx.hpp"
 
 // scan-headers: stop here
 #ifdef MPZ_POLY_TIMINGS
@@ -674,11 +675,7 @@ void mpz_poly_realloc(mpz_poly_ptr f, unsigned int nc)
 {
     ASSERT_ALWAYS(nc <= (unsigned int)INT_MAX);
     if (f->alloc < nc) {
-        auto * p = (mpz_t *)realloc(f->_coeff, nc * sizeof(mpz_t));
-        if (!p)
-            free(f->_coeff);
-        FATAL_ERROR_CHECK(p == nullptr, "not enough memory");
-        f->_coeff = p;
+        checked_realloc(f->_coeff, nc);
         for (unsigned int i = f->alloc; i < nc; i++)
             mpz_init(f->_coeff[i]);
         f->alloc = nc;
@@ -1206,7 +1203,7 @@ void mpz_poly_asprintf_cado_format(char ** pstr, mpz_poly_srcptr f,
                 break;
             }
             size *= 2;
-            str = (char *)realloc(str, size);
+            checked_realloc(str, size);
         }
     }
     *pstr = str;
@@ -3564,8 +3561,7 @@ static void mpz_poly_factor_list_prepare_write(mpz_poly_factor_list_ptr l,
 {
     if (index >= l->alloc) {
         l->alloc = index + 4 + l->alloc / 4;
-        l->factors = (mpz_poly_with_m *)realloc(
-            l->factors, l->alloc * sizeof(mpz_poly_with_m));
+        checked_realloc(l->factors, l->alloc);
         /* We need to set something. A zero polynomial has NULL storage
          * area, so that will do (realloc behaves as needed).  */
         for (int i = l->size; i < l->alloc; i++) {

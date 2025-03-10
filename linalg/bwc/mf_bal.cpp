@@ -638,7 +638,7 @@ void mf_bal(struct mf_bal_args * mba)
         uint32_t ** pperm = d == 0 ? &bal.rowperm : &bal.colperm;
         struct slice * h = shuffle_rtable(text[d], *pperm, matsize[d] + padding[d], gridsize[d]);
         /* we can now make the row or column permutation tidier */
-        *pperm = (uint32_t *) realloc(*pperm, (matsize[d] + padding[d]) * sizeof(uint32_t));
+        checked_realloc(*pperm, matsize[d] + padding[d]);
         for(unsigned int ii = 0 ; ii < gridsize[d] ; ii++) {
             const struct slice * r = &(h[ii]);
             memcpy(*pperm + r->i0, r->r, r->nrows * sizeof(uint32_t));

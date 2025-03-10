@@ -58,8 +58,7 @@ bytecode_encoder_add_one (bytecode_encoder_ptr e, bytecode_elt b)
   if (e->len >= e->nalloc)
   {
     e->nalloc += 32;
-    e->bc = (bytecode) realloc (e->bc, e->nalloc * sizeof (bytecode_elt));
-    ASSERT_ALWAYS (e->bc != NULL);
+    CHECKED_REALLOC(e->bc, e->nalloc, bytecode_elt);
   }
 
   e->bc[e->len] = b;
@@ -408,9 +407,7 @@ prac_cache_add_one (unsigned int k, const prac_cost_t *opcost, double best_mul,
   if (prac_cache_nb >= prac_cache_alloc)
   {
     prac_cache_alloc += 16;
-    prac_cache = (prac_cache_t *)
-                 realloc (prac_cache, prac_cache_alloc * sizeof (prac_cache_t));
-    ASSERT_ALWAYS (prac_cache != NULL);
+    CHECKED_REALLOC(prac_cache, prac_cache_alloc, prac_cache_t);
   }
 
   prac_cache[prac_cache_nb++] = (prac_cache_t) { .k = k, .opcost= opcost,

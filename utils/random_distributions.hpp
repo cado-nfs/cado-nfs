@@ -1,7 +1,8 @@
 #ifndef UTILS_RANDOM_DISTRIBUTIONS_HPP_
 #define UTILS_RANDOM_DISTRIBUTIONS_HPP_
 
-#include <gmp.h>
+#include <cstdio>
+
 #include "gmp_aux.h"
 
 /* Some generic functions for random picking along distributions
@@ -27,7 +28,7 @@ double random_normal_constrained(cxx_gmp_randstate & rstate, double mean, double
  * normal approximation can end up being catastrophic if we're more
  * Poisson-like.
  */
-void accuracy_of_normal_approximation_to_binomial(double * my, double *mx, unsigned long a, unsigned long b);
+void accuracy_of_normal_approximation_to_binomial(double * my, const double *mx, unsigned long a, unsigned long b);
 
 double random_poisson(cxx_gmp_randstate & rstate, double lambda);
 

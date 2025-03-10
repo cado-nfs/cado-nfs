@@ -373,5 +373,20 @@ std::istream& operator>>(std::istream& is, read_container_impl<Container>&& R)
     return is;
 }
 
+template<typename T>
+void checked_realloc(T * & var, size_t N)
+{
+    if (!(N)) {
+        free(var);
+        (var) = nullptr;
+    } else {
+        T * p = (T *) realloc((var), (N) * sizeof(T));
+        if (!p && (var) != nullptr)
+            free((var));
+        ASSERT_ALWAYS(p != nullptr);
+        (var) = p;
+    }
+}
+
 
 #endif	/* UTILS_CXX_HPP_ */

@@ -21,24 +21,9 @@ polyselect_qroots_realloc (polyselect_qroots_ptr R, unsigned long newalloc)
 {
   ASSERT (newalloc >= R->size);
   R->alloc = newalloc;
-  R->q = realloc (R->q, newalloc * sizeof (unsigned int));
-  if (R->q == NULL)
-    {
-      fprintf(stderr, "Error, cannot reallocate memory in %s\n", __func__);
-      exit(1);
-    }
-  R->nr = realloc (R->nr, newalloc * sizeof (unsigned int));
-  if (R->nr == NULL)
-    {
-      fprintf(stderr, "Error, cannot reallocate memory in %s\n", __func__);
-      exit(1);
-    }
-  R->roots = realloc (R->roots, newalloc * sizeof (uint64_t*));
-  if (R->roots == NULL)
-    {
-      fprintf(stderr, "Error, cannot reallocate memory in %s\n", __func__);
-      exit(1);
-    }
+  CHECKED_REALLOC(R->q, newalloc, unsigned int);
+  CHECKED_REALLOC(R->nr, newalloc, unsigned int);
+  CHECKED_REALLOC(R->roots, newalloc, uint64_t *);
 }
 
 /* reorder by decreasing number of roots (nr) 

@@ -30,6 +30,7 @@
 #include "ringbuf.h"                   // for ringbuf_s, ringbuf_ptr, RINGBU...
 #include "stats.h"                     // stats_data_t
 #include "portability.h" // sleep // IWYU pragma: keep
+#include "utils_cxx.hpp"
 
 /* This is a configuration variable which may be set by the caller (it's
  * possible to bind it to a command-line argument)
@@ -485,7 +486,7 @@ void realloc_buffer_primes(earlyparsed_relation_ptr buf)
 	memcpy(buf->primes, p, NB_PRIMES_OPT * sizeof(prime_t));
     } else {
 	buf->nb_alloc += buf->nb_alloc >> 1;
-	buf->primes = (prime_t *) realloc(buf->primes, buf->nb_alloc * sizeof(prime_t));
+	checked_realloc(buf->primes, buf->nb_alloc);
 	if (!buf->primes) {
             fprintf(stderr, "malloc failure: %s\n", __func__);
             abort();
@@ -882,7 +883,7 @@ earlyparser_index_maybeabhexa(earlyparsed_relation_ptr rel, ringbuf_ptr r,
         /* We need some more stuff. */
         for(rel->sm_size = 0 ; c != '\n' ; rel->sm_size++) {
             if (rel->sm_size >= rel->sm_alloc) {
-                rel->sm = (mpz_t*) realloc((void*) rel->sm, (rel->sm_alloc + 1) * sizeof(mpz_t));
+                checked_realloc(rel->sm, rel->sm_alloc + 1);
                 mpz_init(rel->sm[rel->sm_size]);
                 rel->sm_alloc++;
             }

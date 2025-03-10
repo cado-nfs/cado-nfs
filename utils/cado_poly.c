@@ -28,7 +28,7 @@ void cado_poly_init(cado_poly_ptr cpoly)
 void cado_poly_provision_new_poly(cado_poly_ptr cpoly)
 {
     cpoly->nb_polys++;
-    cpoly->pols = realloc(cpoly->pols, cpoly->nb_polys * sizeof(mpz_poly));
+    CHECKED_REALLOC(cpoly->pols, cpoly->nb_polys, mpz_poly);
     mpz_poly_init(cpoly->pols[cpoly->nb_polys-1], -1);
 }
 

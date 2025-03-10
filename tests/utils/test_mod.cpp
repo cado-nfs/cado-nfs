@@ -23,12 +23,12 @@ static T randomInteger();
 
 template<>
 Integer64 randomInteger<Integer64>() {
-    return Integer64(u64_random(state));
+    return { u64_random(state) };
 }
 
 template<>
 Integer128 randomInteger<Integer128>() {
-    return Integer128(u64_random(state), u64_random(state));
+    return { u64_random(state), u64_random(state) };
 }
 
 template<>
@@ -708,18 +708,18 @@ public:
 
 template<>
 Modulus64 Tests<Modulus64>::randomModulus(const bool odd) const {
-    return Modulus64(u64_random(state) | (odd ? 1 : 0));
+    return { u64_random(state) | (odd ? 1 : 0) };
 }
 
 template<>
 ModulusREDC64 Tests<ModulusREDC64>::randomModulus(const bool odd MAYBE_UNUSED) const {
-    return ModulusREDC64(u64_random(state) | 1);
+    return { u64_random(state) | 1 };
 }
 
 template<>
 ModulusREDC126 Tests<ModulusREDC126>::randomModulus(const bool odd MAYBE_UNUSED) const {
     Integer128 const m(u64_random(state) | 1, u64_random(state) & (UINT64_MAX >> 2));
-    return ModulusREDC126(m);
+    return { m };
 }
 
 template<>

@@ -11,11 +11,11 @@
 
 struct prime_info_s {
   unsigned long offset;  /* offset for current primes */
-  long current;          /* index of previous prime */
+  unsigned long current;  /* index of previous prime */
   unsigned int *primes;  /* small primes up to sqrt(p) */
   unsigned long nprimes; /* length of primes[] */
   unsigned char *sieve;  /* sieving table */
-  long len;              /* length of sieving table */
+  unsigned long len;     /* length of sieving table */
   unsigned int *moduli;  /* offset for small primes */
 };
 typedef struct prime_info_s prime_info[1];

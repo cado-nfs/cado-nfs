@@ -75,12 +75,7 @@ static void ringbuf_grow__(ringbuf_ptr r, size_t claim)
         r->rhead = r->p;
         r->whead = r->p + r->avail_to_read;
     } else {
-        char * newp = realloc(r->p, newalloc);
-        if (!newp) {
-            free(r->p);
-            FATAL_ERROR_CHECK(newp == NULL, "Cannot allocate memory");
-        }
-        r->p = newp;
+        CHECKED_REALLOC(r->p, newalloc, char);
         r->rhead = r->p;
         r->whead = r->p;
     }

@@ -691,11 +691,7 @@ fasterVersion (typerow_t **newrows, const char *sparsename,
         if (newrows[i] != NULL)
           newrows[j++] = newrows[i]; /* we always have j <= i */
       small_nrows = j;
-      typerow_t ** t = realloc (newrows, small_nrows * sizeof (typerow_t *));
-      if (!t)
-          free(newrows);
-      ASSERT_ALWAYS (t != NULL);
-      newrows = t;
+      CHECKED_REALLOC(newrows, small_nrows, typerow_t *);
     }
 
   /* if index was asked: crunch the empty rows as above, create the index and

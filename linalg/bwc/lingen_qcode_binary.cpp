@@ -901,8 +901,8 @@ void test_basecase_bblas(matpoly::arith_hard * ab, unsigned int m, unsigned int 
     tt = wct_seconds() - tt;
     printf("%.3f\n", tt);
 
-    if (1) {
+    {
         matpoly const mp_Epi = matpoly::mul(mp_E, mp_pi);
-        printf("valuation check: %u\n", mp_Epi.valuation());
+        printf("valuation check: %zu\n", mp_Epi.valuation());
     }
 }/*}}}*/

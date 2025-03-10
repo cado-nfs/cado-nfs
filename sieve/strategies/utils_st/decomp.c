@@ -44,7 +44,7 @@ int decomp_get_len(decomp_t * t)
 void decomp_set_decomp(decomp_t * t, int *tab, int len)
 {
     t->len = len;
-    t->tab = realloc (t->tab, t->len * sizeof(int));
+    CHECKED_REALLOC(t->tab, t->len, int);
     for (int i = 0; i < t->len; i++)
 	t->tab[i] = tab[i];
 }

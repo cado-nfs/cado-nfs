@@ -22,6 +22,7 @@
 #include "double_poly.h"
 #include "double_poly_complex_roots.h"
 #include "polyroots.h"
+#include "utils_cxx.hpp"
 
 // scan-headers: stop here
 
@@ -46,7 +47,7 @@ using std::isinf;
 #endif
 
 #define STATIC_ANALYSIS_ASSERT_DATA_HEALTH(d) do {		     	   \
-    ASSERT_FOR_STATIC_ANALYZER(((d)->alloc == 0) == ((d)->coeff == NULL)); \
+    ASSERT_FOR_STATIC_ANALYZER(((d)->alloc == 0) == ((d)->coeff == nullptr)); \
     ASSERT_FOR_STATIC_ANALYZER((d)->deg >= -1);                            \
     ASSERT_FOR_STATIC_ANALYZER((unsigned int) ((d)->deg+1) <= (d)->alloc);  \
 } while (0)
@@ -63,13 +64,13 @@ double_poly_init (double_poly_ptr p, int d)
     if (d < 0) {
         p->deg = -1;
         p->alloc = 0;
-        p->coeff = NULL;
+        p->coeff = nullptr;
     } else {
         ASSERT_ALWAYS(d < INT_MAX);
         p->alloc = d + 1;
         p->deg = -1;
         p->coeff = (double*) malloc ((d + 1) * sizeof (double));
-        FATAL_ERROR_CHECK(p->coeff == NULL, "malloc failed");
+        FATAL_ERROR_CHECK(p->coeff == nullptr, "malloc failed");
     }
     STATIC_ANALYSIS_ASSERT_DATA_HEALTH(p);
 }
@@ -90,8 +91,7 @@ double_poly_realloc (double_poly_ptr p, unsigned int nc)
     ASSERT_ALWAYS(nc <= (unsigned int) INT_MAX);
     if (p->alloc < nc) {
         p->alloc = nc;
-        p->coeff = (double*) realloc(p->coeff, p->alloc * sizeof(double));
-        FATAL_ERROR_CHECK(p->coeff == NULL, "malloc failed");
+        checked_realloc(p->coeff, p->alloc);
     }
     STATIC_ANALYSIS_ASSERT_DATA_HEALTH(p);
 }
@@ -577,7 +577,7 @@ double_poly_compute_roots(double *roots, double_poly_srcptr poly, double s)
         return 0; /* Constant non-zero poly -> no roots */
 
     dg = (double_poly *) malloc (d * sizeof (double_poly));
-    FATAL_ERROR_CHECK(dg == NULL, "malloc failed");
+    FATAL_ERROR_CHECK(dg == nullptr, "malloc failed");
 
     dg[0]->deg = poly->deg;
     dg[0]->coeff = poly->coeff;
@@ -883,7 +883,7 @@ static int double_poly_pseudo_division(double_poly_ptr q, double_poly_ptr r,
 static int double_poly_pseudo_remainder(double_poly_ptr r,
     double_poly_srcptr a, double_poly_srcptr b)
 {
-    return double_poly_pseudo_division(NULL, r, a, b);
+    return double_poly_pseudo_division(nullptr, r, a, b);
 }
 
 //TODO: follow the modification of mpz_poly_resultant.
@@ -1013,7 +1013,7 @@ double_poly_swap (double_poly_ptr f, double_poly_ptr g)
 
 /* Parse a space-separated string as polynomial coefficients.
  * Exactly one space between coefficients, none at start or end of string.
- * If poly is NULL, nothing is written, but number of coefficients is
+ * If poly is nullptr, nothing is written, but number of coefficients is
  * returned.
  */
 void double_poly_set_string(double_poly_ptr poly, const char *str)

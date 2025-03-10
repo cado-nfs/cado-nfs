@@ -125,6 +125,27 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #define ASSERT_FOR_STATIC_ANALYZER(x)
 #endif
 
+#ifndef __cplusplus
+/* c++: do not realloc at all, or if you really insist, use
+ * checked_realloc from utils_cxx.hpp
+ */
+// NOLINTBEGIN(bugprone-macro-parentheses)
+#define CHECKED_REALLOC(var, N, type)   do {				\
+    if ((N) == 0) {							\
+        free(var);							\
+        (var) = NULL;							\
+    } else {								\
+        type * __p = (type *) realloc((var), (N) * sizeof(type));	\
+        if (!__p && (var) != NULL)					\
+            free((var));						\
+        ASSERT_ALWAYS(__p != NULL);					\
+        (var) = __p;							\
+    }									\
+} while (0)
+// NOLINTEND(bugprone-macro-parentheses)
+#endif
+
+
 /*********************************************************************/
 /* Helper macros */
 /* See README.macro_usage */
