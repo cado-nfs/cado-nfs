@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <math.h>
 #include "polyselect_priority_queue.h"
+#include "macros.h"
 
 void polyselect_priority_queue_init(polyselect_priority_queue_ptr Q, size_t n)
 {
@@ -24,7 +25,7 @@ void polyselect_priority_queue_reset(polyselect_priority_queue_ptr Q)
 }
 void polyselect_priority_queue_resize(polyselect_priority_queue_ptr Q, size_t n)
 {
-    Q->data = (double *) realloc(Q->data, n * sizeof(double));
+    CHECKED_REALLOC(Q->data, n, double);
     for(size_t i = Q->size ; i < n ; i++) {
         Q->data[i] = NAN;
     }

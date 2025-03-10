@@ -157,9 +157,7 @@ char const ** filelist_from_file(const char * basepath, const char * filename,
 
         if (nfiles == nfiles_alloc) {
             nfiles_alloc += nfiles_alloc / 2 + 16;
-            // NOLINTNEXTLINE(bugprone-suspicious-realloc-usage)
-            files = (char const **) realloc(files, nfiles_alloc * sizeof(char const *));
-            FATAL_ERROR_CHECK(files == NULL, "cannot allocate memory");
+            CHECKED_REALLOC(files, nfiles_alloc, char const *);
         }
         if (basepath) {
             char * name;
@@ -175,9 +173,7 @@ char const ** filelist_from_file(const char * basepath, const char * filename,
 
     if (nfiles == nfiles_alloc) {
         nfiles_alloc += nfiles_alloc / 2 + 16;
-        // NOLINTNEXTLINE(bugprone-suspicious-realloc-usage)
-        files = (char const **) realloc(files, nfiles_alloc * sizeof(char const *));
-        FATAL_ERROR_CHECK(files == NULL, "cannot allocate memory");
+        CHECKED_REALLOC(files, nfiles_alloc, char const *);
     }
     files[nfiles++] = NULL;
     return files;

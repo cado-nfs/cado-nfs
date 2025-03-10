@@ -39,7 +39,7 @@ static int test_compute_r (unsigned int nb)
 
   for (unsigned int i = 0; i < nb; i++)
   {
-    uint64_t a;
+    int64_t a;
     uint64_t b;
     unsigned long p;
 
@@ -96,13 +96,13 @@ static int test_compute_all_r (unsigned int nb)
       uint64_t b = u64_random(state); b += !b;
       relation t1(a, b);
 
-    for (uint8_t k = 0; k <= gmp_urandomm_ui(state, 5); k++)
+    for (unsigned long k = 0; k <= gmp_urandomm_ui(state, 5); k++)
     {
       mpz_set_ui (tp, gmp_urandomb_ui(state, 31));
       mpz_nextprime(tp, tp);
       t1.add(0, tp, cxx_mpz(0));
     }
-    for (uint8_t k = 0; k <= gmp_urandomm_ui(state, 5); k++)
+    for (unsigned long k = 0; k <= gmp_urandomm_ui(state, 5); k++)
     {
       mpz_set_ui (tp, gmp_urandomb_ui(state, 31));
       mpz_nextprime(tp, tp);
@@ -112,7 +112,7 @@ static int test_compute_all_r (unsigned int nb)
     relation t2 = t1;
     t1.fixup_r();
 
-    for (uint8_t k = 0; k < t2.sides[1].size() ; k++)
+    for (size_t k = 0; k < t2.sides[1].size() ; k++)
     {
       mpz_set_int64 (ta, t2.a);
       mpz_set_uint64 (tb, t2.b);
@@ -151,44 +151,43 @@ static int
 test_conversion (unsigned int nb)
 {
   int err = 0;
-  char *s1, *s2, *tmp;
-  s1 = (char *) malloc (25 * sizeof(char));
-  s2 = (char *) malloc (25 * sizeof(char));
+
+  std::unique_ptr<char[]> s1(new char[25]);
+  std::unique_ptr<char[]> s2(new char[25]);
+  char *tmp;
   cxx_mpz t;
 
 
   for (unsigned int i = 0; i < nb; i++)
   {
-    uint64_t const a = u64_random(state);
-    int64_t const b = i64_random(state);
+    int64_t const a = i64_random(state);
+    uint64_t const b = u64_random(state);
 
-    mpz_set_uint64 (t, a);
+    mpz_set_int64 (t, a);
 
-    mpz_get_str(s1, 10, t);
-    tmp = u64toa10 (s2, a);
+    mpz_get_str(s1.get(), 10, t);
+    tmp = d64toa10 (s2.get(), a);
     *tmp = '\0';
-    err += check_str_err (s1, s2, t);
+    err += check_str_err (s1.get(), s2.get(), t);
 
-    mpz_get_str(s1, 16, t);
-    tmp = u64toa16 (s2, a);
+    mpz_get_str(s1.get(), 16, t);
+    tmp = d64toa16 (s2.get(), a);
     *tmp = '\0';
-    err += check_str_err (s1, s2, t);
+    err += check_str_err (s1.get(), s2.get(), t);
 
 
-    mpz_set_int64 (t, b);
+    mpz_set_uint64 (t, b);
 
-    mpz_get_str(s1, 10, t);
-    tmp = d64toa10 (s2, b);
+    mpz_get_str(s1.get(), 10, t);
+    tmp = u64toa10 (s2.get(), b);
     *tmp = '\0';
-    err += check_str_err (s1, s2, t);
+    err += check_str_err (s1.get(), s2.get(), t);
 
-    mpz_get_str(s1, 16, t);
-    tmp = d64toa16 (s2, b);
+    mpz_get_str(s1.get(), 16, t);
+    tmp = u64toa16 (s2.get(), b);
     *tmp = '\0';
-    err += check_str_err (s1, s2, t);
+    err += check_str_err (s1.get(), s2.get(), t);
   }
-  free(s1);
-  free(s2);
 
   return err;
 }

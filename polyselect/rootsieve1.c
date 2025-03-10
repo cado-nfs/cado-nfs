@@ -17,23 +17,28 @@
 */
 
 #include "cado.h" // IWYU pragma: keep
+
 #include <float.h>      // DBL_MAX
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <gmp.h>
 #include <math.h>
-#include "auxiliary.h" /* for common routines with polyselect.c */
+
+#include <gmp.h>
+
 #include "area.h"
+#include "auxiliary.h" /* for common routines with polyselect.c */
+#include "gcd.h"
+#include "gmp_aux.h"    // ulong_isprime
+#include "macros.h"
+#include "mpz_poly.h"
 #include "murphyE.h"
-#include "size_optimization.h"
+#include "omp_proxy.h"
 #include "polyselect_alpha.h"
 #include "polyselect_norms.h"
-#include "omp_proxy.h"
-#include "gmp_aux.h"    // ulong_isprime
+#include "size_optimization.h"
 #include "timing.h"     // seconds
-#include "macros.h"
-#include "gcd.h"
+
 /* define ORIGINAL if you want the original algorithm from the paper */
 // #define ORIGINAL
 
@@ -103,8 +108,7 @@ initPrimes (unsigned long B)
   for (p = 2; p < B; p += 1 + (p > 2))
     if (ulong_isprime (p))
       Primes[nprimes++] = p;
-  Primes = realloc (Primes, nprimes * sizeof (unsigned long));
-  ASSERT_ALWAYS(Primes != NULL);
+  CHECKED_REALLOC(Primes, primes, unsigned long);
 
   /* compute prime powers */
   Q = malloc (nprimes * sizeof (unsigned long));
@@ -290,8 +294,7 @@ best_classes (cado_poly poly0, long mod, int keep, long vmin, long vmax,
       if ((t % p) == 0)
         {
           nfactors ++;
-          factors = realloc (factors, nfactors * sizeof (unsigned long));
-          ASSERT_ALWAYS(factors != NULL);
+          CHECKED_REALLOC(factors, nfactors, unsigned long);
           q = 1;
           while ((t % p) == 0)
             {

@@ -4,8 +4,7 @@
 // scan-headers: no prototypes
 // scan-headers: stop here
 
-#include "cado_mpi_config.h"
-#include "macros.h"
+#include "cado_mpi_config.h"    // IWYU pragma: keep
 
 #ifdef WITH_MPI
 #define OMPI_SKIP_MPICXX

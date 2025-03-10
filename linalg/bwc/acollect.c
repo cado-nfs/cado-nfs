@@ -68,8 +68,7 @@ unsigned int read_afiles(struct afile_list * a, int bits_per_coeff)
     for( ; (de = readdir(dir)) != NULL ; ) {
         if (a->n >= a->alloc) {
             a->alloc += 32 + a->alloc / 4;
-            // NOLINTNEXTLINE(bugprone-suspicious-realloc-usage)
-            a->a = realloc(a->a, a->alloc * sizeof(afile));
+            CHECKED_REALLOC(a->a, a->alloc, afile);
             FATAL_ERROR_CHECK(a->a == NULL, "cannot allocate memory");
         }
         afile_ptr A = a->a[a->n];

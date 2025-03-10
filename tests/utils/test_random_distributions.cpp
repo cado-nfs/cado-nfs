@@ -1,6 +1,9 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
+#include <cstddef>
 #include <cmath>
+#include <climits>
+#include <cstdlib>
 
 #include <algorithm>
 #include <vector>
@@ -32,7 +35,7 @@ static void test_random_normal_standard(cxx_gmp_randstate & rstate,
         if (l >= 1024) {
             ASSERT_ALWAYS(std::abs(m) <= 0.1);
             ASSERT_ALWAYS(std::abs(sd - 1) <= 0.1);
-            fprintf(stderr, "%s: checks passed\n", __func__);
+            fmt::print(stderr, "{}: checks passed\n", __func__);
         }
     }
 }
@@ -50,12 +53,12 @@ static void test_random_normal(cxx_gmp_randstate & rstate, double xm, double xs,
         }
         double const m = s / double(l);
         double const sd = sqrt(ss / double(l) - m * m);
-        fprintf(stderr, "%s: after %lu picks, mean=%.3f sdev=%.3f\n", __func__,
+        fmt::print(stderr, "{}: after {} picks, mean={:.3f} sdev={:.3f}\n", __func__,
                 l, m, sd);
         if (l >= 1024) {
             ASSERT_ALWAYS(abs(m - xm) <= 0.1 * xs);
             ASSERT_ALWAYS(abs(sd - xs) <= 0.1 * xs);
-            fprintf(stderr, "%s: checks passed\n", __func__);
+            fmt::print(stderr, "{}: checks passed\n", __func__);
         }
     }
 }
@@ -68,9 +71,9 @@ static void test_random_normal_constrained(cxx_gmp_randstate & rstate,
     double s = 0, ss = 0;
     double mmx[2] = {xm, xs}, mmy[2];
     accuracy_of_normal_approximation_to_binomial(mmy, mmx, a, b);
-    fprintf(stderr,
-            "%s: want (%.3f,%.3f), expect instead (%.3f,%.3f) when truncating "
-            "to [%lu,%lu]\n",
+    fmt::print(stderr,
+            "{}: want ({:.3f},{:.3f}), expect instead ({:.3f},{:.3f}) when truncating "
+            "to [{},{}]\n",
             __func__, mmx[0], mmx[1], mmy[0], mmy[1], a, b);
     for (unsigned long i = 0, l = logscale_report; l <= N;
          l *= logscale_report) {
@@ -82,12 +85,12 @@ static void test_random_normal_constrained(cxx_gmp_randstate & rstate,
         }
         double const m = s / double(l);
         double const sd = sqrt(ss / double(l) - m * m);
-        fprintf(stderr, "%s: after %lu picks, mean=%.3f sdev=%.3f\n", __func__,
+        fmt::print(stderr, "{}: after {} picks, mean={:.3f} sdev={:.3f}\n", __func__,
                 l, m, sd);
         if (l >= 1024) {
             ASSERT_ALWAYS(abs(m - mmy[0]) <= 0.1 * mmy[1]);
             ASSERT_ALWAYS(abs(sd - mmy[1]) <= 0.1 * mmy[1]);
-            fprintf(stderr, "%s: checks passed\n", __func__);
+            fmt::print(stderr, "{}: checks passed\n", __func__);
         }
     }
 }
@@ -113,12 +116,12 @@ static void test_random_poisson(cxx_gmp_randstate & rstate, double xm,
         }
         double const m = s / double(l);
         double const sd = sqrt(ss / double(l) - m * m);
-        fprintf(stderr, "%s: after %lu picks, mean=%.3f sdev=%.3f\n", __func__,
+        fmt::print(stderr, "{}: after {} picks, mean={:.3f} sdev={:.3f}\n", __func__,
                 l, m, sd);
         if (l >= 1024) {
             ASSERT_ALWAYS(abs(m / xm - 1) <= 0.1);
             ASSERT_ALWAYS(abs(sd / sqrt(xm) - 1) <= 0.1);
-            fprintf(stderr, "%s: checks passed\n", __func__);
+            fmt::print(stderr, "{}: checks passed\n", __func__);
         }
     }
 }
@@ -131,8 +134,8 @@ struct test_column_distribution : public matrix_column_distribution {
         , e(e)
     {
     }
-    inline double q(double x) const override { return pow(x / double(N), e); }
-    inline double qrev(double x) const override
+    double q(double x) const override { return pow(x / double(N), e); }
+    double qrev(double x) const override
     {
         return pow(x, 1.0 / e) * double(N);
     }
@@ -150,24 +153,22 @@ static void test_arbitrary(cxx_gmp_randstate & rstate, unsigned long iter)
         std::vector<int> bins(K, 0);
 
         if (iter < K) {
-            fprintf(stderr, "too few iterations, check skipped");
+            fmt::print(stderr, "too few iterations, check skipped");
             continue;
         }
 
         for (unsigned long j = 0; j < iter / K; j++) {
-            punched_interval_ptr pool = nullptr;
-            punched_interval_ptr range = punched_interval_alloc(&pool, 0, 1);
+            punched_interval::pool_t pool;
+            auto range = punched_interval::alloc(pool, 0, 1);
             for (unsigned long i = 0; i < K; i++) {
-                unsigned long const a =
-                    punched_interval_pick(&pool, range, C, rstate);
+                unsigned long const a = range->pick(pool, C, rstate);
                 ASSERT_ALWAYS(a < C.N);
                 bins[a / K]++;
             }
             /* just for fun, print the contents after the first round */
             if (j == 0)
-                punched_interval_print(stdout, range);
-            punched_interval_free(range, &pool);
-            punched_interval_free_pool(&pool);
+                range->print(stdout);
+            punched_interval::recycle(std::move(range), pool);
         }
 
         unsigned long const npicks = (iter / K) * K;
@@ -178,7 +179,7 @@ static void test_arbitrary(cxx_gmp_randstate & rstate, unsigned long iter)
             double const nd = C.q(double(std::min((i + 1) * K, C.N)));
             int const got = bins[i];
             double const expect = double(npicks) * (nd - d);
-            // printf("%zu %d %.1f\n", i, got, expect);
+            // fmt::print("{} {} {:.1f}\n", i, got, expect);
             s0++;
             s1 += (got - expect);
             s2 += (got - expect) * (got - expect);
@@ -186,14 +187,15 @@ static void test_arbitrary(cxx_gmp_randstate & rstate, unsigned long iter)
         }
         double const mean = s1 / s0,
                      sdev = sqrt(s2 / s0 - (s1 / s0) * (s1 / s0));
-        printf("[[e=%.1f]] After %lu rounds of filling %zu bins with %zu "
-               "random picks (which means %.1f in each bin on average), "
-               "comparison with expectation: mean=%.1f, sdev=%.1f\n",
-               C.e, iter / K, K, K, double(npicks) / double(K), mean, sdev);
+        fmt::print(
+                "[[e={:.1f}]] After {} rounds of filling {} bins with {} "
+                "random picks (which means {:.1f} in each bin on average), "
+                "comparison with expectation: mean={:.1f}, sdev={:.1f}\n",
+                C.e, iter / K, K, K, double(npicks) / double(K), mean, sdev);
 
         ASSERT_ALWAYS(mean < 10);
         ASSERT_ALWAYS(sdev < (sqrt(iter) * 10));
-        printf("checks passed\n");
+        fmt::print("checks passed\n");
     }
 }
 

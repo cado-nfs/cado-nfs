@@ -7,9 +7,9 @@
 #include <limits>
 #include <string>
 #include <stdexcept>
-#include <type_traits>
+#include <utility>
 
-#include <sys/types.h>
+#include <sys/types.h>  // off_t // IWYU pragma: keep
 
 #include "macros.h"
 
@@ -20,6 +20,7 @@
 
 namespace mmap_allocator_details
 {
+    // NOLINTNEXTLINE(misc-include-cleaner)
     typedef off_t offset_type;
     typedef size_t size_type;
 
@@ -31,13 +32,11 @@ namespace mmap_allocator_details
     };
 
     struct mmap_allocator_exception: public std::runtime_error {
-        mmap_allocator_exception(const char *msg_param):
+        explicit mmap_allocator_exception(const char *msg_param):
             std::runtime_error(msg_param) { }
 
-        mmap_allocator_exception(std::string msg_param):
+        explicit mmap_allocator_exception(std::string const & msg_param):
             std::runtime_error(msg_param) { }
-
-        virtual ~mmap_allocator_exception(void) noexcept { }
     };
 
     /* Only the mmapped_file is something we can use to grab mapping
@@ -54,6 +53,9 @@ namespace mmap_allocator_details
                 size_type length_mapped;       /* page-aligned */
                 public:
                 mapping(const char * filename, enum access_mode amode, offset_type offset, size_type length);
+                mapping(std::string const & filename, enum access_mode amode, offset_type offset, size_type length)
+                    : mapping(filename.c_str(), amode, offset, length)
+                {}
                 ~mapping();
                 void * get(offset_type, size_type);
                 void put(void *, offset_type, size_type);
@@ -93,9 +95,9 @@ namespace mmap_allocator_details
                 size_type length;
                 /* with shared_mapping above that defines an operator
                  * bool, we just say "return file" */
-                operator bool() const { return file != nullptr; }
+                explicit operator bool() const { return file != nullptr; }
                 void * get(size_type s) {
-                    if (s == 0) return NULL;
+                    if (s == 0) return nullptr;
                     ASSERT_ALWAYS(s == length);
                     return file->get(offset, length);
                 }
@@ -109,7 +111,8 @@ namespace mmap_allocator_details
             segment get_segment(offset_type offset, size_type length) {
                 return segment { m, offset, length };
             }
-            mmapped_file(const char * fname, access_mode mode = READ_ONLY, offset_type offset = 0, size_type length = std::numeric_limits<size_type>::max()) : m(std::make_shared<mapping>(fname, mode, offset, length)) {}
+            explicit mmapped_file(const char * fname, access_mode mode = READ_ONLY, offset_type offset = 0, size_type length = std::numeric_limits<size_type>::max()) : m(std::make_shared<mapping>(fname, mode, offset, length)) {}
+            explicit mmapped_file(std::string const & fname, access_mode mode = READ_ONLY, offset_type offset = 0, size_type length = std::numeric_limits<size_type>::max()) : mmapped_file(fname.c_str(), mode, offset, length) {}
     };
 
     template <typename T> class mmap_allocator: public std::allocator<T>
@@ -135,9 +138,9 @@ namespace mmap_allocator_details
         private:
             mmapped_file::segment s;
         public:
-            bool has_defined_mapping() const { return s; }
-            template<typename _Tp1>
-            struct rebind { typedef mmap_allocator<_Tp1> other; };
+            bool has_defined_mapping() const { return bool(s); }
+            template<typename Tp1>
+            struct rebind { typedef mmap_allocator<Tp1> other; };
 
 #if __cplusplus < 201703L
             pointer allocate(size_type n, const void *hint=0)
@@ -153,7 +156,7 @@ namespace mmap_allocator_details
 #endif
                 }
 
-                if (n == 0) return NULL;
+                if (n == 0) return nullptr;
 
                 return (pointer) s.get(n*sizeof(T));
             }
@@ -170,14 +173,14 @@ namespace mmap_allocator_details
                 s.put(p, n*sizeof(T));
             }
 
+            explicit mmap_allocator(const std::allocator<T> &a): std::allocator<T>(a) {}
             mmap_allocator() = default;
-            mmap_allocator(const std::allocator<T> &a): std::allocator<T>(a) {}
-            mmap_allocator(const mmap_allocator &) = default;
-            ~mmap_allocator() = default;
 
             /* These are the only ctors that enable a behaviour that
              * differs from the stl container */
-            mmap_allocator(mmapped_file::segment const & s) : s(s) {}
+            explicit mmap_allocator(mmapped_file::segment s)
+                : s(std::move(s))
+            {}
             mmap_allocator(mmapped_file m, offset_type offset, size_type length) : s(m.get_segment(offset, length * sizeof(T))) {}
             mmap_allocator(const char * f, access_mode mode, offset_type offset, size_type length) : mmap_allocator(mmapped_file(f, mode, offset, length*sizeof(T)), offset, length) {}
 

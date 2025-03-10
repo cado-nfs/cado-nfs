@@ -248,15 +248,8 @@ add_output(struct outputs_s *output, FILE * const out, const int verbosity)
 {
     const size_t new_nr = output->nr_outputs + 1;
 
-    FILE ** const new_output = (FILE **) realloc(output->outputs, new_nr * sizeof(FILE *));
-    if (new_output == NULL)
-        return 0;
-    output->outputs = new_output;
-
-    int * const new_verbosity = (int *) realloc(output->verbosity, new_nr * sizeof(int));
-    if (new_verbosity == NULL)
-        return 0;
-    output->verbosity = new_verbosity;
+    CHECKED_REALLOC(output->outputs, new_nr, FILE *);
+    CHECKED_REALLOC(output->verbosity, new_nr, int);
 
     output->nr_outputs = new_nr;
     output->outputs[new_nr - 1] = out;

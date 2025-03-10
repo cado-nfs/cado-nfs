@@ -141,17 +141,8 @@ void prime_info_small_primes_table_bootstrap(prime_info_ptr pi)
 {
     pi->nprimes = 1;
 
-    pi->primes =
-	(unsigned int *) realloc(pi->primes,
-				 pi->nprimes * sizeof(unsigned int));
-    /* assume this "small" malloc will not fail in normal usage */
-    ASSERT(pi->primes != NULL);
-
-    pi->moduli =
-	(unsigned int *) realloc(pi->moduli,
-				 pi->nprimes * sizeof(unsigned int));
-    /* assume this "small" malloc will not fail in normal usage */
-    ASSERT(pi->moduli != NULL);
+    CHECKED_REALLOC(pi->primes, pi->nprimes, unsigned int);
+    CHECKED_REALLOC(pi->moduli, pi->nprimes, unsigned int);
 
     if (pi->offset <= 3)
 	pi->offset = 3;
@@ -184,10 +175,8 @@ void prime_info_small_primes_table_expand(prime_info_ptr pi)
 	unsigned int k, p, j, ok;
 	k = pi->nprimes;
 	pi->nprimes *= 2;
-	pi->primes = (unsigned int *) realloc(pi->primes, pi->nprimes *
-					      sizeof(unsigned int));
-	pi->moduli = (unsigned int *) realloc(pi->moduli, pi->nprimes *
-					      sizeof(unsigned int));
+        CHECKED_REALLOC(pi->primes, pi->nprimes, unsigned int);
+        CHECKED_REALLOC(pi->moduli, pi->nprimes, unsigned int);
 	/* assume those "small" realloc's will not fail in normal usage */
 	ASSERT(pi->primes != NULL && pi->moduli != NULL);
 	for (p = pi->primes[k - 1]; k < pi->nprimes; k++) {
@@ -220,15 +209,14 @@ void prime_info_small_primes_table_expand(prime_info_ptr pi)
 void prime_info_sieving_table_expand(prime_info_ptr pi)
 {
     /* enlarge sieving table if too small */
-    if (pi->len && (unsigned long) pi->len * pi->len >= pi->offset)
+    if (pi->len && pi->len * pi->len >= pi->offset)
 	return;
 
     pi->len += pi->len == 0;
-    for (; (unsigned long) pi->len * pi->len < pi->offset; pi->len *= 2);
+    for (; pi->len * pi->len < pi->offset; pi->len *= 2);
 
-    pi->sieve = (unsigned char *) realloc(pi->sieve, pi->len + 1);
-    /* assume this "small" malloc will not fail in normal usage */
-    ASSERT(pi->sieve != NULL);
+
+    CHECKED_REALLOC(pi->sieve, pi->len + 1, unsigned char);
 
     pi->sieve[pi->len] = 1;	/* End mark */
 }
@@ -236,12 +224,10 @@ void prime_info_sieving_table_expand(prime_info_ptr pi)
 void prime_info_sieve_more(prime_info_ptr pi)
 {
     /* now sieve for new primes */
-    long k;
-    unsigned long j, p;
-
     memset(pi->sieve, 1, sizeof(unsigned char) * (pi->len + 1));
-    for (j = 0; j < pi->nprimes; j++) {
-	p = pi->primes[j];
+    for (unsigned long j = 0; j < pi->nprimes; j++) {
+	unsigned long p = pi->primes[j];
+        unsigned long k;
 	for (k = pi->moduli[j]; k < pi->len; k += p)
 	    pi->sieve[k] = 0;
 	pi->moduli[j] = k - pi->len;	/* for next sieving array */

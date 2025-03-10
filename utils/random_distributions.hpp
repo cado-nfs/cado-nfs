@@ -1,7 +1,10 @@
 #ifndef UTILS_RANDOM_DISTRIBUTIONS_HPP_
 #define UTILS_RANDOM_DISTRIBUTIONS_HPP_
 
-#include <gmp.h>
+#include <cstdio>
+
+#include <memory>
+
 #include "gmp_aux.h"
 
 /* Some generic functions for random picking along distributions
@@ -27,12 +30,25 @@ double random_normal_constrained(cxx_gmp_randstate & rstate, double mean, double
  * normal approximation can end up being catastrophic if we're more
  * Poisson-like.
  */
-void accuracy_of_normal_approximation_to_binomial(double * my, double *mx, unsigned long a, unsigned long b);
+void accuracy_of_normal_approximation_to_binomial(double * my, const double *mx, unsigned long a, unsigned long b);
 
 double random_poisson(cxx_gmp_randstate & rstate, double lambda);
 
 /* This is the random variable associated to the *size* of the sample */
 double random_binomial(cxx_gmp_randstate & rstate, unsigned long n, double p);
+
+struct matrix_column_distribution {
+    // virtual double p(double x) const = 0;
+    virtual double q(double x) const = 0;
+    virtual double qrev(double x) const = 0;
+    // virtual double qq(double x) const = 0;
+    matrix_column_distribution() = default;
+    matrix_column_distribution(matrix_column_distribution const&) = default;
+    matrix_column_distribution(matrix_column_distribution &&) = default;
+    matrix_column_distribution& operator=(matrix_column_distribution const&) = default;
+    matrix_column_distribution& operator=(matrix_column_distribution &&) = default;
+    virtual ~matrix_column_distribution() = default;
+};
 
 
 /* Let X be an integer random variable on [0,N) with probability mass
@@ -60,46 +76,33 @@ double random_binomial(cxx_gmp_randstate & rstate, unsigned long n, double p);
  * punched interval, on each side of one hole (and these intervals may,
  * in turn, contain further holes).
  */
-struct punched_interval_s {
-    double b0, b1;
-    double holes;
-    int has_left;
+struct punched_interval {
+    double b0 = 0, b1 = 0;
+    double holes = 0;
+    int has_left = 0;
+
+    typedef std::unique_ptr<punched_interval> node_t;
+    std::unique_ptr<punched_interval> left, right;
+
     /* free blocks use the "left" pointer below for the next argument in
      * the free list */
-    struct punched_interval_s * left;
-    struct punched_interval_s * right;
-};
-typedef struct punched_interval_s * punched_interval_ptr;
+    typedef node_t pool_t;
 
-void punched_interval_free(punched_interval_ptr c, punched_interval_ptr * pool);
+    static void recycle(node_t &&, pool_t &);
+    static node_t alloc(pool_t &, double b0, double b1);
 
-punched_interval_ptr punched_interval_alloc(punched_interval_ptr * pool, double b0, double b1);
+    void print_rec(FILE *) const;
+    void print(FILE *) const;
 
-void punched_interval_free_pool(punched_interval_ptr * pool);
-
-void punched_interval_pre_free_pool(punched_interval_ptr * pool, int max, int print);
-
-void punched_interval_print_rec(FILE * f, punched_interval_ptr c);
-
-void punched_interval_print(FILE * f, punched_interval_ptr c);
-
-struct matrix_column_distribution {
-    // virtual double p(double x) const = 0;
-    virtual double q(double x) const = 0;
-    virtual double qrev(double x) const = 0;
-    // virtual double qq(double x) const = 0;
-    matrix_column_distribution() = default;
-    matrix_column_distribution(matrix_column_distribution const&) = default;
-    matrix_column_distribution(matrix_column_distribution &&) = default;
-    matrix_column_distribution& operator=(matrix_column_distribution const&) = default;
-    matrix_column_distribution& operator=(matrix_column_distribution &&) = default;
-    virtual ~matrix_column_distribution() = default;
-};
-
-unsigned long punched_interval_pick(punched_interval_ptr * pool,
-        punched_interval_ptr c,
+    unsigned long pick(pool_t & pool,
         matrix_column_distribution const & D,
         cxx_gmp_randstate & rstate);
 
+    private:
+    void punch_inner(pool_t & pool, double x0, double x1);
+    unsigned long pick_inner(pool_t & pool,
+        matrix_column_distribution const & D,
+        double x);
+};
 
 #endif	/* UTILS_RANDOM_DISTRIBUTIONS_HPP_ */

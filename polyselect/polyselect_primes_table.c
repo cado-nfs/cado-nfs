@@ -1,11 +1,14 @@
-#include "cado.h"
+#include "cado.h"       // IWYU pragma: keep
+
+#include <stdint.h>
 #include <stdlib.h>
 #include <inttypes.h>
+
 #include "getprime.h"
 #include "misc.h"
 #include "polyselect_primes_table.h"
 #include "timing.h"
-
+#include "macros.h"
 
 /* init prime array */
 /* initialize primes in [P,2*P] */
@@ -38,11 +41,7 @@ initPrimes ( unsigned long P,
   for (nprimes = 0; (p = getprime_mt (pi)) <= Pmax; nprimes++) {
     if (nprimes + 1 >= maxprimes) {
       maxprimes += maxprimes / 10;
-      *primes = (uint32_t*) realloc (*primes, maxprimes * sizeof (uint32_t));
-      if ( (*primes) == NULL) {
-        fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
-        exit (1);
-      }
+      CHECKED_REALLOC(*primes, maxprimes, uint32_t);
     }
     (*primes)[nprimes] = p;
   }

@@ -66,7 +66,7 @@ void strategy_add_fm_side(strategy_t * t, fm_t * elem, int side)
 	ASSERT(t->side != NULL);
     } else {
 	t->len_side++;
-	t->side = realloc(t->side, sizeof(int) * (t->len_side));
+        CHECKED_REALLOC(t->side, t->len_side, int);
     }
     t->side[t->len_side - 1] = side;
 }

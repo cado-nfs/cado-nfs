@@ -1,12 +1,13 @@
 #include "cado.h" // IWYU pragma: keep
-// IWYU pragma: no_include <ext/alloc_traits.h>
+
 #include <cstdlib>
+
 #include <iostream>
-#include <sstream> // istringstream // IWYU pragma: keep
+#include <sstream>
 #include <vector>
 #include <utility>
-#include <string>              // for string, basic_string
-#include <gmp.h>               // for mpz_cmp, mpz_set_str, mpz_t
+#include <string>
+
 #include "json.hpp"
 
 static const std::vector<std::pair<std::string, std::string>> examples {

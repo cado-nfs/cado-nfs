@@ -1,13 +1,19 @@
 #include "cado.h"           // IWYU pragma: keep
 
+#include <cstddef>
+#include <cstdint>
+
 #include <iostream>         // for std::cerr
 #include <stdexcept>        // for std::runtime_error
+#include <string>
 #include <unordered_map>    // for unordered_map
 #include <vector>           // for vector
 
 #include "galois_action.hpp"
 #include "misc.h"           // for safe_abs64
 #include "mod_ul.h"         // for modul_clear, modul_clearmod, modul_get_ul
+#include "renumber.hpp"
+#include "typedefs.h"
 
 /* action: none
  * x -> x
@@ -215,7 +221,7 @@ public:
          *      the only negative first coeff is the second one: -b
          *      we compute the hash of (-b, a-b)
          */
-        uint64_t const ua = (uint64_t) a;
+        auto const ua = (uint64_t) a;
         if (a <= 0) {
             return CA * ua + CB * b;
         } else if (ua < b) {
@@ -560,9 +566,9 @@ public:
 };
 
 galois_action::galois_action(const std::string &action)
-    : impl(NULL)
+    : impl(nullptr)
 {
-    if (action == "none" || action == "" || action == "id" || action == "Id")
+    if (action == "none" || action.empty() || action == "id" || action == "Id")
         impl = static_cast<impl_ptr>(new galois_action_none());
     else if (action == "autom2.1" || action == "autom2.1g" || action == "1/y")
         impl = static_cast<impl_ptr>(new galois_action_inv());
@@ -682,7 +688,7 @@ size_t galois_action::compute_action_on_index(std::vector<index_t> &sigma,
                     index_of_r.erase(sigma_r);
                     sigma_r = apply(sigma_r, id0.p);
                 }
-                if (!(n == 1 || n == order)) {
+                if (n != 1 && n != order) {
                     std::cerr << "Error, orbit of ideal (" << id0.p << ", "
                               << r0 << ") on side " << id0.side
                               << " has an orbit of length " << n

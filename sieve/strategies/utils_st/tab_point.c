@@ -28,8 +28,7 @@ void tabular_point_free(tabular_point_t * t)
 
 void tabular_point_realloc(tabular_point_t * t)
 {
-    t->tab = realloc(t->tab, t->size * 2 * (sizeof(point_t *)));
-    ASSERT(t->tab != NULL);
+    CHECKED_REALLOC(t->tab, t->size * 2, point_t *);
     t->size *= 2;
 }
 

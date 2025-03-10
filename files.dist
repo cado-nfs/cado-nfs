@@ -1549,6 +1549,7 @@ tests/utils/test_runtime_numeric_cast.cpp
 tests/utils/test_sha1.c
 tests/utils/test_sm_utils.cpp
 tests/utils/test_sm_utils.data
+tests/utils/test_sm_utils_failure.data
 tests/utils/test_smallset.cpp
 tests/utils/test_strlcat.c
 tests/utils/test_strlcpy.c
@@ -1653,7 +1654,7 @@ utils/lll.c
 utils/lll.h
 utils/lock_guarded_container.hpp
 utils/lucas_V_mod.h
-utils/memalloc.c
+utils/memalloc.cpp
 utils/memalloc.h
 utils/memory.c
 utils/memory.h

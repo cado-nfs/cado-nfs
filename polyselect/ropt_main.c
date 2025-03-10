@@ -816,8 +816,7 @@ static int main_basic (int argc, char const * argv[])
       if (rparam->verbose > 0)
         fprintf (stderr, "# Reallocating input_polys\n");
       unsigned int new_size = 2 * size_input_polys;
-      input_polys = (cado_poly *) realloc (input_polys, new_size * sizeof (cado_poly));
-      ASSERT_ALWAYS (input_polys != NULL);
+      CHECKED_REALLOC(input_polys, new_size, cado_poly);
       for (unsigned int i = size_input_polys; i < new_size; i++)
         cado_poly_init (input_polys[i]);
       size_input_polys = new_size;

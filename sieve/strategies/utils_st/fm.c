@@ -71,8 +71,7 @@ int fm_get_len_p_min(fm_t * t)
 void fm_set_method(fm_t * t, unsigned long *value, int len)
 {
     if (len != t->len_method) {	//realloc
-	t->method = realloc(t->method, len * (sizeof(unsigned long)));
-	ASSERT(t->method != NULL);
+        CHECKED_REALLOC(t->method, len, unsigned long);
 	t->len_method = len;
     }
 
@@ -85,8 +84,7 @@ void fm_set_proba(fm_t * t, double *value, int len, int len_p_min)
     ASSERT (len >= 0);
     t->len_p_min = len_p_min;
     if (len != t->len_proba) {	//realloc
-	t->proba = realloc(t->proba, len * (sizeof(double)));
-	ASSERT(t->proba != NULL);
+	CHECKED_REALLOC(t->proba, len, double);
 	t->len_proba = len;
     }
 
@@ -100,8 +98,7 @@ void fm_set_time(fm_t * t, double *value, int len)
 	return;
 
     if (len != t->len_time) {	//realloc
-	t->time = realloc(t->time, len * (sizeof(double)));
-	ASSERT(t->time != NULL);
+	CHECKED_REALLOC(t->time, len, double);
 	t->len_time = len;
     }
 

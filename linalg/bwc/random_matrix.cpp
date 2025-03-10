@@ -370,9 +370,9 @@ struct random_matrix_ddata : public matrix_column_distribution {
         return v * (pow(x + offset, gamma) - pow(offset, gamma));
     }
 
-    std::vector<uint32_t> generate_row(cxx_gmp_randstate & rstate, punched_interval_ptr * pool) const;
+    std::vector<uint32_t> generate_row(cxx_gmp_randstate & rstate, punched_interval::pool_t & pool) const;
     std::vector<uint32_t> generate_row(cxx_gmp_randstate & rstate) const;
-    uint32_t generate_row(cxx_gmp_randstate & rstate, uint32_t * ptr, punched_interval_ptr * pool) const;
+    uint32_t generate_row(cxx_gmp_randstate & rstate, uint32_t * ptr, punched_interval::pool_t & pool) const;
     int32_t generate_coefficient(cxx_gmp_randstate & rstate, unsigned long j MAYBE_UNUSED) const;
 
     /* get random matrices, _AND_ fill the stats */
@@ -509,7 +509,7 @@ void random_matrix_ddata::adjust(random_matrix_process_data const & r, paralleli
 /* }}} */
 
 
-std::vector<uint32_t> random_matrix_ddata::generate_row(cxx_gmp_randstate & rstate, punched_interval_ptr * pool) const
+std::vector<uint32_t> random_matrix_ddata::generate_row(cxx_gmp_randstate & rstate, punched_interval::pool_t & pool) const
 {
     /* pick a row weight */
     /*
@@ -519,28 +519,28 @@ std::vector<uint32_t> random_matrix_ddata::generate_row(cxx_gmp_randstate & rsta
     std::vector<uint32_t> ret;
     // NOLINTNEXTLINE(bugprone-narrowing-conversions,cppcoreguidelines-narrowing-conversions)
     for( ; (weight = random_poisson(rstate, mean)) >= ncols ; );
-    punched_interval_ptr range = punched_interval_alloc(pool, 0, mean);
+
+    auto range = punched_interval::alloc(pool, 0, mean);
     for(uint32_t i = 0 ; i < weight ; i++) {
         // punched_interval_print(stdout, range);
-        uint32_t k = punched_interval_pick(pool, range, *this, rstate);
+        uint32_t k = range->pick(pool, *this, rstate);
         if (k >= ncols)
             k = ncols - 1;
         ret.push_back(k);
     }
     std::sort(ret.begin(), ret.end());
-    punched_interval_free(range, pool);
+    punched_interval::recycle(std::move(range), pool);
     return ret;
 }
 
 std::vector<uint32_t> random_matrix_ddata::generate_row(cxx_gmp_randstate & rstate) const
 {
-    punched_interval_ptr pool = nullptr;
-    auto ret = generate_row(rstate, &pool);
-    punched_interval_free_pool(&pool);
+    punched_interval::pool_t pool;
+    auto ret = generate_row(rstate, pool);
     return ret;
 }
 
-uint32_t random_matrix_ddata::generate_row(cxx_gmp_randstate & rstate, uint32_t * ptr, punched_interval_ptr * pool) const
+uint32_t random_matrix_ddata::generate_row(cxx_gmp_randstate & rstate, uint32_t * ptr, punched_interval::pool_t & pool) const
 {
     auto const v = generate_row(rstate, pool);
     std::copy(v.begin(), v.end(), ptr);
@@ -663,10 +663,10 @@ matrix_u32 random_matrix_ddata::get_byrows(cxx_gmp_randstate & rstate)
     last_printed->z = 0;
 
     /* we'd like to avoid constant malloc()'s and free()'s */
-    punched_interval_ptr pool = nullptr;
+    punched_interval::pool_t pool;
     for(unsigned long i = 0 ; i < nrows ; i++) {
         // long v = 0;
-        auto v = generate_row(rstate, & pool);
+        auto v = generate_row(rstate, pool);
         ret.p.push_back(v.size());
         for(auto j : v) {
             ret.p.push_back(j);
@@ -691,7 +691,6 @@ matrix_u32 random_matrix_ddata::get_byrows(cxx_gmp_randstate & rstate)
         ret.p.push_back(0);
     }
     if (print) fmt::print("\n");
-    punched_interval_free_pool(&pool);
 
     double const e = double(total_coeffs) / double(nrows);
     double const s = double(tot_sq) / double(nrows);
@@ -734,7 +733,7 @@ matrix_u32 random_matrix_ddata::get_bycolumns(cxx_gmp_randstate & rstate)
     /* Then in fact it's easier, as we can avoid inverse transform
      * sampling for the computation of the coefficients */
     // int heavy = 1;
-    punched_interval_ptr pool = nullptr;
+    punched_interval::pool_t pool;
     for(unsigned long j = 0 ; j < ncols ; j++) {
         double const p = this->p(double(j));
         G.scale = p;
@@ -782,7 +781,6 @@ matrix_u32 random_matrix_ddata::get_bycolumns(cxx_gmp_randstate & rstate)
     for(unsigned long j = 0 ; j < padcols ; j++) {
         ret.p.push_back(0);
     }
-    punched_interval_free_pool(&pool);
 
     double const e = double(total_coeffs) / double(nrows);
     double const s = double(tot_sq) / double(nrows);
@@ -889,13 +887,13 @@ static void random_matrix_process_print(random_matrix_process_data & r, random_m
     ptr.reserve(r.ncols);
     uint64_t total_coeffs = 0;
     double tot_sq = 0;
-    punched_interval_ptr pool = nullptr;
+    punched_interval::pool_t pool;
     for(unsigned long i = 0 ; i < r.nrows ; i++) {
         long v = 0;
         if (i >= F.nrows)
             ptr.clear();
         else
-            ptr = F.generate_row(rstate, &pool);
+            ptr = F.generate_row(rstate, pool);
         if (avoid_zero_columns && i >= (unsigned long) (0.9 * double(r.ncols))) {
             for( ; next_priority_col < r.ncols ; next_priority_col++)
                 if (!colweights[next_priority_col]) break;
@@ -961,7 +959,6 @@ static void random_matrix_process_print(random_matrix_process_data & r, random_m
             fwrite(colweights.get(), sizeof(uint32_t), r.ncols, r.cw.get());
         }
     }
-    punched_interval_free_pool(&pool);
     F.total_coeffs = total_coeffs;
     double const e = (double) total_coeffs / double(r.nrows);
     double const s = (double) tot_sq / double(r.nrows);

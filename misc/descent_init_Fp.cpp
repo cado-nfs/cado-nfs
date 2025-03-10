@@ -1,29 +1,30 @@
 #include "cado.h" // IWYU pragma: keep
 
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
+
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <deque>
+#include <map>
+#include <algorithm>
+#include <utility>
+
+#include <unistd.h>
+#include <gmp.h>
+#include "fmt/core.h"
+
+
 #include "cado_poly.h" // cado_poly
 #include "ecm.h"
 #include "lll.h" // mat_Z LLL
 #include "macros.h"
 #include "mpz_poly.h" // mpz_poly
 #include "smooth_detect.hpp"
-#include <gmp.h>
-#include <math.h>
-#include <thread>
-#include <mutex>
-#include <condition_variable>
-#include <deque>
-#include <map>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <time.h>
-#include <unistd.h>
-#include <algorithm>
-#include <iostream>
-#include "fmt/core.h"
-#include "fmt/format.h"
 #include "mpz_mat.h"
 
 static double default_B1done;
@@ -616,24 +617,22 @@ main(int argc0, char const * argv0[])
                 continue;
             }
 
-            std::cout << fmt::format("U = {}\nV = {}\nu = {}\nv = {}\n",
-                    mpz_poly_coeff_list(U,","),
-                    mpz_poly_coeff_list(V,","),
+            fmt::print("U = {}\nV = {}\nu = {}\nv = {}\n",
+                    mpz_poly_coeff_list(U, ","),
+                    mpz_poly_coeff_list(V, ","),
                     u, v);
 
-            std::cout << "fac_u =";
+            fmt::print("fac_u =");
             for(cxx_mpz const & p : facu) {
-                std::cout << fmt::format(" {},{}",
-                        p, find_root(p, U, params.f));
+                fmt::print(" {},{}", p, find_root(p, U, params.f));
             }
-            std::cout << "\n";
+            fmt::print("\n");
 
-            std::cout << "fac_v =";
+            fmt::print("fac_v =");
             for(cxx_mpz const & p : facv) {
-                std::cout << fmt::format(" {},{}",
-                        p, find_root(p, V, params.f));
+                fmt::print(" {},{}", p, find_root(p, V, params.f));
             }
-            std::cout << "\n";
+            fmt::print("\n");
 
         }
         fmt::print("Youpi: e = {} is a winner\n", winner.second.e);

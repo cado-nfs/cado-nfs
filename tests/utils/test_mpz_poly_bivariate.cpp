@@ -1,12 +1,16 @@
 #include "cado.h" // IWYU pragma: keep
+#include <cstdlib>
+
+#include <iostream>
+#include <sstream>
+
+#include <gmp.h>
+
+#include "cxx_mpz.hpp"
 #include "macros.h"
 #include "mpz_poly.h"
 #include "mpz_poly_bivariate.hpp"
 #include "tests_common.h"
-#include <cstdlib>
-#include <gmp.h>
-#include <iostream>
-#include <sstream>
 
 static void test_mpz_poly_bivariate_trivialities()
 {
@@ -157,7 +161,7 @@ static cxx_mpz operator"" _mpz(char const * str, size_t)
 static void test_mpz_poly_bivariate_resultant(unsigned long iter)
 {
     for (unsigned long i = 0; i < iter; i++) {
-        int const d = 2 + gmp_urandomm_ui(state, 5);
+        int const d = 2 + (int) gmp_urandomm_ui(state, 5);
 
         cxx_mpz_poly_bivariate f, g;
 

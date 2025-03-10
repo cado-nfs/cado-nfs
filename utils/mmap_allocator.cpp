@@ -1,7 +1,10 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <cstdio>
+
 #include <string>       // std::string
 #include <exception>    // std::terminate
+#include <limits>
 
 #include <sys/mman.h>  // for PROT_READ, mmap, munmap, MAP_SHARED, PROT_WRITE
 #include <sys/stat.h>  // for fstat, stat
@@ -9,7 +12,6 @@
 #include <unistd.h>    // for sysconf, _SC_PAGE_SIZE, close
 
 #include "mmap_allocator.hpp"
-
 
 /* This is inspired from https://github.com/johannesthoma/mmap_allocator
  * License is LGPL.

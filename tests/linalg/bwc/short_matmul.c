@@ -120,7 +120,7 @@ void short_matmul_binary(FILE * out, FILE * v,  const char * uri, int mul_left)
                     unsigned long old_ncols = ncols;
                     for( ; x >= ncols ; ncols += ncols / 10);
                     fprintf(stderr, "re-allocating vec array, now %lu cols\n", ncols);
-                    vec = realloc(vec, ncols * sizeof(uint64_t));
+                    CHECKED_REALLOC(vec, ncols, uint64_t);
                     memset(vec + old_ncols, 0, (ncols - old_ncols) * sizeof(uint64_t));
                 }
                 vec[x] ^= w;
@@ -150,7 +150,7 @@ void short_matmul_prime(FILE * out, FILE * v,  const char * uri, int mul_left, m
 
     unsigned long ncols = sbuf->st_size;
     unsigned long nrows;
-    size_t coeffsize = sizeof(mp_limb_t) * mpz_size(p);
+    const size_t coeffsize = sizeof(mp_limb_t) * mpz_size(p);
     ASSERT(ncols % coeffsize == 0);
     ncols /= coeffsize;
     if (mul_left == 0) {
@@ -250,7 +250,7 @@ void short_matmul_prime(FILE * out, FILE * v,  const char * uri, int mul_left, m
                     unsigned long old_ncols = ncols;
                     for( ; x >= ncols ; ncols += ncols / 10);
                     fprintf(stderr, "re-allocating vec array, now %lu cols\n", ncols);
-                    vec = realloc(vec, ncols * coeffsize);
+                    CHECKED_REALLOC(vec, ncols * mpz_size(p), mp_limb_t);
                     memset(vec + old_ncols * mpz_size(p),
                             0, (ncols - old_ncols) * coeffsize);
                 }
@@ -265,7 +265,7 @@ void short_matmul_prime(FILE * out, FILE * v,  const char * uri, int mul_left, m
         unsigned long k;
         for(k = 0 ; k < nrows ; k++) {
             // printf("%016" PRIx64 "\n", w);
-            fwrite(vec + k * mpz_size(p),coeffsize, 1, out);
+            fwrite(vec + k * mpz_size(p), coeffsize, 1, out);
         }
     }
     mpz_clear(tmp);

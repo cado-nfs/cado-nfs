@@ -1,15 +1,19 @@
 #include "cado.h" // IWYU pragma: keep
+
+#include <stdint.h>
 #include <errno.h>       // for errno
 #include <inttypes.h>    // for PRIu64
 #include <string.h>      // for memset, strerror
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+
 #include <pthread.h>
+
 #include "bit_vector.h"  // for BV_BITS
 #include "filter_io.h"  // earlyparsed_relation_ptr
 #include "purge_matrix.h"
-#include "memalloc.h"  // for my_malloc_free_all
+#include "memalloc.h"  // for index_my_malloc
 #include "misc.h"       // for UMAX
 #include "typedefs.h"  // weight_t
 #include "macros.h"
@@ -68,7 +72,6 @@ purge_matrix_clear (purge_matrix_ptr mat)
 {
   free (mat->cols_weight);
   free (mat->sum2_row);
-  my_malloc_free_all();
   free(mat->row_compact);
 
   memset (mat, 0, sizeof (purge_matrix_t));

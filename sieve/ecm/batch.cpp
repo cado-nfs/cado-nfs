@@ -42,6 +42,7 @@
 #include "relation.hpp"        // for relation
 #include "rootfinder.h" // mpz_poly_roots_ulong
 #include "timing.h"             // for seconds
+#include "utils_cxx.hpp"
 
 /* This function is useful in the openmp context. This segment goes
  * parallel, and all threads except the calling thread subtract their
@@ -128,9 +129,9 @@ mpz_product_tree_add_ui (mpz_product_tree t, unsigned long n)
         {
           if (i+1 == t->size) /* realloc */
             {
-              t->l = (mpz_t *) realloc (t->l, (t->size + 1) * sizeof (mpz_t));
+              checked_realloc(t->l, t->size + 1);
               mpz_init_set_ui (t->l[t->size], 1);
-              t->n = (unsigned long *) realloc (t->n, (t->size + 1) * sizeof (unsigned long));
+              checked_realloc(t->n, t->size + 1);
               t->n[t->size] = 0;
               t->size++;
             }
@@ -1063,7 +1064,7 @@ output_batch (FILE *fp, unsigned long B, unsigned long L,
   ASSERT_ALWAYS (ret > 0);
   ret = fprintf (fp, "%lu\n", L);
   ASSERT_ALWAYS (ret > 0);
-  mpz_poly_fprintf_coeffs (fp, cpoly, ' ');
+  mpz_poly_fprintf_coeffs (fp, cpoly, " ");
   ret = mpz_out_raw (fp, P);
   if (ret == 0)
     {
@@ -1103,7 +1104,7 @@ input_batch (FILE *fp, unsigned long B, unsigned long L, cxx_mpz_poly const & cp
   CHECK_Z(ret == 1, "Cannot read L\n");
   CHECK_2(Lread == L, "Inconsistent L: expected %lu, file has %lu\n", L, Lread);
   mpz_poly_init (pol_read, cpoly->deg);
-  mpz_poly_fscanf_coeffs (fp, pol_read, ' ');
+  mpz_poly_fscanf_coeffs (fp, pol_read, " ");
   if (mpz_poly_cmp (pol_read, cpoly) != 0)
     {
       fprintf (stderr, "Error while reading batch product from %s:\n", f);
