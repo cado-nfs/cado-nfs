@@ -13,7 +13,7 @@
 #include <gmp.h>
 #include "fmt/ostream.h"
 #include "fmt/format.h"
-#include "fmt/core.h"
+#include "fmt/base.h"
 
 #include "cado_poly.h"              // MAX_DEGREE
 #include "cxx_mpz.hpp"

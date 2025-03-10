@@ -218,15 +218,14 @@ static void modul_poly_mul(modul_poly_t h, modul_poly_t const f,
 {
     int df = f->degree;
     int dg = g->degree;
-    int i, j;
     modul_poly_t res;
     residueul_t aux;
 
     modul_poly_init(res, df + dg);
-    for (i = 0; i <= df + dg; ++i)
+    for (int i = 0; i <= df + dg; ++i)
         modul_set0(res->coeff[i], p);
-    for (i = 0; i <= df; ++i)
-        for (j = 0; j <= dg; ++j) {
+    for (int i = 0; i <= df; ++i)
+        for (int j = 0; j <= dg; ++j) {
             modul_mul(aux, f->coeff[i], g->coeff[j], p);
             modul_add(res->coeff[i + j], res->coeff[i + j], aux, p);
         }

@@ -7,12 +7,13 @@
 #include <cerrno>
 
 #include <array>
-#include <stdexcept>
-#include <ios>  // std::ios_base::openmode // IWYU pragma: keep
 #include <fstream>  // filebuf
+#include <ios>  // std::ios_base::openmode // IWYU pragma: keep
+#include <iosfwd>   // filebuf too?
+#include <stdexcept>
+#include <string>
+#include <vector>
 
-// IWYU pragma: no_include <bits/types/struct_rusage.h>
-#include <sys/types.h> // pid_t
 #include <sys/wait.h>  // WIFEXITED WEXITSTATUS (on freebsd at least)
 #include <unistd.h>     // close getpid
 #include <sys/stat.h> // stat // IWYU pragma: keep
@@ -31,9 +32,9 @@
 #include "portability.h" // realpath
 
 struct suffix_handler {
-    std::string suffix;
-    std::string pfmt_in;
-    std::string pfmt_out;
+    const char * suffix;
+    const char * pfmt_in;
+    const char * pfmt_out;
 };
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
@@ -76,8 +77,8 @@ int is_supported_compression_format(const char * s)
 int filename_matches_one_compression_format(const char * path)
 {
     for(auto const & r : supported_compression_formats) {
-        if (r.suffix.empty()) continue;
-        if (has_suffix(path, r.suffix.c_str())) return 1;
+        if (!*r.suffix) continue;
+        if (has_suffix(path, r.suffix)) return 1;
     }
     return 0;
 }
@@ -85,9 +86,9 @@ int filename_matches_one_compression_format(const char * path)
 void get_suffix_from_filename (const char *s, char const **sfx)
 {
   for(auto const & r : supported_compression_formats) {
-    if (has_suffix(s, r.suffix.c_str()))
+    if (has_suffix(s, r.suffix))
     {
-      *sfx = r.suffix.c_str();
+      *sfx = r.suffix;
       return;
     }
   }
@@ -195,7 +196,7 @@ std::vector<std::string> prepare_grouped_command_lines(std::vector<std::string> 
         std::string cmd_prefix, cmd_postfix;
         const struct suffix_handler * this_suffix = nullptr;
         for (auto const & r : supported_compression_formats) {
-            if (has_suffix(it->c_str(), r.suffix.c_str())) {
+            if (has_suffix(it->c_str(), r.suffix)) {
                 this_suffix = &r;
                 break;
             }
@@ -203,7 +204,7 @@ std::vector<std::string> prepare_grouped_command_lines(std::vector<std::string> 
         ASSERT_ALWAYS(this_suffix);
 
         if (*antebuffer) {
-            if (!this_suffix->pfmt_in.empty()) {
+            if (*this_suffix->pfmt_in) {
                 /* antebuffer 24 file1.gz file2.gz file3.gz | gzip -dc - */
                 cmd_prefix  = fmt::format("{} {}", antebuffer, antebuffer_buffer_size);
                 cmd_postfix = fmt::format(" | {}", fmt::format(fmt::runtime(this_suffix->pfmt_in), "-"));
@@ -213,7 +214,7 @@ std::vector<std::string> prepare_grouped_command_lines(std::vector<std::string> 
                 cmd_prefix  = fmt::format("{} {}", antebuffer, antebuffer_buffer_size);
             }
         } else {
-            if (!this_suffix->pfmt_in.empty()) {
+            if (*this_suffix->pfmt_in) {
                 /* gzip -dc file1.gz file2.gz file3.gz */
                 cmd_prefix = fmt::format(fmt::runtime(this_suffix->pfmt_in), "");
             } else {
@@ -231,7 +232,7 @@ std::vector<std::string> prepare_grouped_command_lines(std::vector<std::string> 
         for( ; it != list_of_files.end() ; ++it) {
             const struct suffix_handler * other_suffix = nullptr;
             for (auto const & r : supported_compression_formats) {
-                if (has_suffix(it->c_str(), r.suffix.c_str())) {
+                if (has_suffix(it->c_str(), r.suffix)) {
                     other_suffix = &r;
                     break;
                 }
@@ -270,8 +271,8 @@ fopen_maybe_compressed2 (const char * orig_name, const char * mode, int* p_pipef
         return nullptr;
 
     for(auto const & r : supported_compression_formats) {
-        if (!has_suffix(name.c_str(), r.suffix.c_str())) continue;
-        if (suf) *suf = r.suffix.c_str();
+        if (!has_suffix(name.c_str(), r.suffix)) continue;
+        if (suf) *suf = r.suffix;
         std::string command, tempname;
 
         /* Just *any* file that we write to will get a .tmp.$PID suffix
@@ -279,9 +280,9 @@ fopen_maybe_compressed2 (const char * orig_name, const char * mode, int* p_pipef
         if (strchr(mode, 'w'))
             name = tempname = fmt::format("{}.tmp.{}", name, getpid());
 
-        if (strchr(mode, 'r') && !r.pfmt_in.empty())
+        if (strchr(mode, 'r') && *r.pfmt_in)
             command = fmt::format(fmt::runtime(r.pfmt_in), name);
-        else if (strchr(mode, 'w') && !r.pfmt_out.empty())
+        else if (strchr(mode, 'w') && *r.pfmt_out)
             command = fmt::format(fmt::runtime(r.pfmt_out), name);
 
         if (!command.empty()) {
@@ -328,16 +329,16 @@ fclose_maybe_compressed2 (FILE * f, const char * orig_name, void * rr MAYBE_UNUS
     std::string name = orig_name;
 
     for(auto const & r : supported_compression_formats) {
-        if (!has_suffix(name.c_str(), r.suffix.c_str())) continue;
+        if (!has_suffix(name.c_str(), r.suffix)) continue;
         /* It doesn't really make sense to imagine that one of these two
          * may exist and not the other */
-        ASSERT_ALWAYS((r.pfmt_out.empty()) == (r.pfmt_in.empty()));
+        ASSERT_ALWAYS((!*r.pfmt_out) == (!*r.pfmt_in));
 
         const std::string tempname = fmt::format("{}.tmp.{}", name, getpid());
 
         int ret;
 
-        if (!r.pfmt_in.empty() || !r.pfmt_out.empty()) {
+        if (*r.pfmt_in || *r.pfmt_out) {
 #ifdef  HAVE_GETRUSAGE
             if (rr)
                 ret = cado_pclose2(f, rr);
@@ -415,11 +416,11 @@ void streambase_maybe_compressed::open(std::string const & name_arg, std::ios_ba
         throw std::runtime_error("cannot open file for writing");
      */
     for(auto const & r : supported_compression_formats) {
-        if (!has_suffix(orig_name.c_str(), r.suffix.c_str())) continue;
+        if (!has_suffix(orig_name.c_str(), r.suffix)) continue;
         std::string command;
-        if (mode & std::ios_base::in && !r.pfmt_in.empty())
+        if (mode & std::ios_base::in && *r.pfmt_in)
             command = fmt::format(fmt::runtime(r.pfmt_in), name);
-        else if (mode & std::ios_base::out && !r.pfmt_out.empty())
+        else if (mode & std::ios_base::out && *r.pfmt_out)
             command = fmt::format(fmt::runtime(r.pfmt_out), name);
 
         if (!command.empty()) {

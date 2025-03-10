@@ -3,7 +3,7 @@
 #include <memory>
 
 #include <gmp.h>
-#include "fmt/core.h"
+#include "fmt/base.h"
 #include "fmt/format.h"
 
 #include "cxx_mpz.hpp"

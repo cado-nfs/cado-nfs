@@ -11,7 +11,7 @@
 #include <algorithm>
 
 #include <gmp.h>
-#include "fmt/core.h"
+#include "fmt/base.h"
 
 #include "gmp_aux.h"
 #include "macros.h"

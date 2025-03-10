@@ -9,7 +9,7 @@
 #include <sstream>
 
 #include <gmp.h>
-#include "fmt/core.h"
+#include "fmt/base.h"
 #include "fmt/format.h"
 
 #include "macros.h"

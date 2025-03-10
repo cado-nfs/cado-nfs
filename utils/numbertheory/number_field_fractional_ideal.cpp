@@ -5,7 +5,7 @@
 #include <vector>
 #include <tuple>
 
-#include "fmt/core.h"
+#include "fmt/base.h"
 
 #include "mpz_mat.h"
 #include "numbertheory/number_field.hpp"

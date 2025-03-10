@@ -9,7 +9,7 @@
 #include <limits>
 #include <type_traits>
 
-#include "fmt/core.h"
+#include "fmt/base.h"
 
 
 #include "cado_math_aux.hpp"

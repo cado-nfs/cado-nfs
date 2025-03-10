@@ -1,11 +1,18 @@
-#include "cado.h"
-#include "misc.h"
-#include "getprime.h"
-#include <iostream>
+#include "cado.h" // IWYU pragma: keep
+
 #include <cstring>
 #include <cstdlib>
 #include <cstdio>
-#include "fmt/format.h"
+#include <cstdint>
+#include <climits>
+
+#include <algorithm>
+#include <vector>
+
+#include "fmt/base.h"
+
+#include "misc.h"
+#include "getprime.h"
 #include "params.h"
 
 static void decl_usage(cxx_param_list & pl)
@@ -62,8 +69,8 @@ int main(int argc, char const * argv[])
                 i-1, n, q0, q1,
                 100.0 * double(q1 - q0) / double(p1 - p0) * double(n),
                 est, exact);
-        if (exact > max) max = exact;
-        if (exact < min) min = exact;
+        max = std::max(max, exact);
+        min = std::min(min, exact);
     }
     fmt::print("adjusted max/min = {:.3f}\n", double(max) / double(min));
     prime_info_clear(pi);
@@ -82,8 +89,8 @@ int main(int argc, char const * argv[])
         fmt::print("arithmetic interval {}/{}: [{}, {}), estimate {:.0f} primes, exact {}\n",
                 i-1, n, q0, q1,
                 est, exact);
-        if (exact > max) max = exact;
-        if (exact < min) min = exact;
+        max = std::max(max, exact);
+        min = std::min(min, exact);
     }
     fmt::print("arithmetic max/min = {:.3f}\n", double(max) / double(min));
     prime_info_clear(pi);

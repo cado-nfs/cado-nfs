@@ -4,7 +4,7 @@
 
 #include <memory>
 
-#include "fmt/core.h"
+#include "fmt/base.h"
 
 #include "cxx_mpz.hpp"
 #include "mpz_mat.h"

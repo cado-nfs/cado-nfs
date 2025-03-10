@@ -22,7 +22,7 @@
 #include <unistd.h>                    // for unlink, access, R_OK, X_OK
 #include <gmp.h>                       // for operator<<, mpz_cmp
 
-#include "fmt/core.h"                  // for check_format_string, char_t
+#include "fmt/base.h"                  // for check_format_string, char_t
 #include "fmt/format.h"                // for basic_buffer::append, basic_pa...
 #include "arith-hard.hpp"
 #include "lingen_bw_dimensions.hpp"

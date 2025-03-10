@@ -20,7 +20,7 @@
 #include <sys/stat.h>           // for stat
 
 #include <gmp.h>                // for mpz_cmp_ui
-#include "fmt/core.h"
+#include "fmt/base.h"
 #include "fmt/format.h"
 
 #include "arith-cross.hpp"

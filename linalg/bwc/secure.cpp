@@ -13,7 +13,7 @@
 #include <sys/stat.h>
 
 #include <gmp.h>
-#include "fmt/core.h"            // for check_format_string
+#include "fmt/base.h"
 #include "fmt/format.h"
 
 #include "gmp_aux.h"

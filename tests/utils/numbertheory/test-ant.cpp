@@ -15,7 +15,7 @@
 #include <vector>              // for vector
 
 #include <gmp.h>               // for mpz_t, operator>>, gmp_randclear, gmp_...
-#include "fmt/core.h"
+#include "fmt/base.h"
 #include "fmt/format.h"
 
 #include "cxx_mpz.hpp"

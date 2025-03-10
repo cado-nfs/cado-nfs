@@ -10,7 +10,7 @@
 #include <vector>
 
 #include <gmp.h>
-#include "fmt/core.h"
+#include "fmt/base.h"
 
 #include "cxx_mpz.hpp"
 #include "istream_matcher.hpp"

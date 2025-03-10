@@ -17,7 +17,7 @@
 #include <utility>                // for swap, pair
 
 #include <gmp.h> // IWYU pragma: keep // for gmp_vfprintf, mpz_srcptr, ...
-#include "fmt/core.h"
+#include "fmt/base.h"
 
 #include "cado_poly.h"
 #include "cxx_mpz.hpp"
