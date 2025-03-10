@@ -1,8 +1,13 @@
 #include "cado.h" // IWYU pragma: keep
 // IWYU pragma: no_include <ext/alloc_traits.h>
+#include <cstddef>
 #include <cstdint>                // for SIZE_MAX
+
 #include <queue>                   // for queue, priority_queue
 #include <utility>                 // for move
+
+#include <pthread.h>
+
 #include "clonable-exception.hpp"  // for clonable_exception
 #include "timing.h"                // for seconds_thread
 #include "threadpool.hpp"
@@ -38,13 +43,13 @@ worker_thread::worker_thread(thread_pool &_pool, const size_t _preferred_queue, 
         // coverity[uninit_member]
         return;
     }
-    int const rc = pthread_create(&thread, NULL, pool.thread_work_on_tasks_static, this);
+    int const rc = pthread_create(&thread, nullptr, pool.thread_work_on_tasks_static, this);
     ASSERT_ALWAYS(rc == 0);
 }
 
 worker_thread::~worker_thread() {
   if (preferred_queue == SIZE_MAX) return;
-  int const rc = pthread_join(thread, NULL);
+  int const rc = pthread_join(thread, nullptr);
   // timer.self will be essentially lost here. the best thing to do is to
   // create a phony task which collects the busy wait times for all
   // threads, at regular intervals, so that timer.self will be
@@ -64,7 +69,7 @@ public:
   int id = 0;
   double cost = 0.0; // costly tasks are scheduled first.
 
-  bool is_terminal() { return func == NULL; }
+  bool is_terminal() { return func == nullptr; }
 
   thread_task(task_function_t _func, task_parameters *_parameters, int _id, double _cost) :
     func(_func), parameters(_parameters), id(_id), cost(_cost) {}
@@ -139,7 +144,7 @@ thread_pool::thread_work_on_tasks_static(void *arg)
 {
     worker_thread *I = static_cast<worker_thread *>(arg);
     I->pool.thread_work_on_tasks(*I);
-    return NULL;
+    return nullptr;
 }
 
 void
@@ -163,13 +168,13 @@ thread_pool::thread_work_on_tasks(worker_thread & I)
           tt += seconds_thread();
           task_result *result = task(&I);
           tt -= seconds_thread();
-          if (result != NULL)
+          if (result != nullptr)
               add_result(queue, result);
       } catch (clonable_exception const& e) {
           tt -= seconds_thread();
           add_exception(queue, e.clone());
           /* We need to wake the listener... */
-          add_result(queue, NULL);
+          add_result(queue, nullptr);
       }
   }
   tt += seconds_thread();
@@ -198,13 +203,13 @@ thread_pool::add_task(task_function_t func, task_parameters * params,
         created[queue]++;
         try {
             task_result *result = func(threads.data(), params, id);
-            if (result != NULL)
+            if (result != nullptr)
                 results[queue].push(result);
         } catch (clonable_exception const& e) {
             exceptions[queue].push(e.clone());
             /* We do this in the asynchronous case. It isn't clear that
              * we need to do the same in the syncronous case. */
-            results[queue].push(NULL);
+            results[queue].push(nullptr);
         }
         return;
     }
@@ -283,7 +288,7 @@ thread_pool::add_exception(const size_t queue, clonable_exception * e) {
 }
 
 /* Get a result from the specified results queue. If no result is available,
-   waits with blocking=true, and returns NULL with blocking=false. */
+   waits with blocking=true, and returns nullptr with blocking=false. */
 task_result *
 thread_pool::get_result(const size_t queue, const bool blocking) {
   task_result *result;
@@ -327,7 +332,7 @@ void thread_pool::drain_all_queues()
 
 /* get an exception from the specified exceptions queue. This is
  * obviously non-blocking, because exceptions are exceptional. So when no
- * exception is there, we return NULL. When there is one, we return a
+ * exception is there, we return nullptr. When there is one, we return a
  * pointer to a newly allocated copy of it.
  */
 clonable_exception * thread_pool::get_exception(const size_t queue) {

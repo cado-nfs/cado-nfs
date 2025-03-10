@@ -169,7 +169,7 @@ void entry_list_clear(entry_list *L) {
 void push_entry(entry_list *L, entry E) {
     if (L->len == L->alloc) {
         L->alloc += 10;
-        L->list = (entry *)realloc(L->list, (L->alloc)*sizeof(entry));
+        CHECKED_REALLOC(L->list, L->alloc, entry);
     }
     L->list[L->len++] = E;
 }

@@ -2,6 +2,10 @@
 
 set -e
 
+if [ "$CADO_DEBUG" ] ; then
+    set -x
+fi
+
 build_tree="$PROJECT_BINARY_DIR"
 DL=
 

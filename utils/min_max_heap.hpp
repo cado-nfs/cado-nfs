@@ -34,7 +34,7 @@ class min_max_heap // Root is on Max level
     /**
      * @brief Returns the log base 2 of a number @b zvalue.
      **/
-    static inline unsigned int log2(unsigned int zvalue)
+    static unsigned int log2(unsigned int zvalue)
     {
         // log2(0) is undefined so error
         if (zvalue == 0) throw std::domain_error("Log base 2 of 0 is undefined.");
@@ -65,7 +65,7 @@ class min_max_heap // Root is on Max level
      * @brief Returns the index of the parent of the node specified by
      *        @c zindex.
      **/
-    static inline unsigned int parent(unsigned int zindex)
+    static unsigned int parent(unsigned int zindex)
     {
         return (zindex - 1) / 2;
     }
@@ -74,7 +74,7 @@ class min_max_heap // Root is on Max level
      * @brief Returns the index of the left child of the node specified by
      *        @c zindex.
      **/
-    static inline unsigned int leftChild(unsigned int zindex)
+    static unsigned int leftChild(unsigned int zindex)
     {
         return 2 * zindex + 1;
     }
@@ -83,7 +83,7 @@ class min_max_heap // Root is on Max level
      * @brief Returns the index of the right child of the node specified by
      *        @c zindex.
      **/
-    static inline unsigned int rightChild(unsigned int zindex)
+    static unsigned int rightChild(unsigned int zindex)
     {
         return 2 * zindex + 2;
     }
@@ -92,7 +92,7 @@ class min_max_heap // Root is on Max level
      * @brief Returns @c true if the node specified by @c zindex is on a
      *        @e min-level.
      **/
-    static inline bool isOnMinLevel(unsigned int zindex)
+    static bool isOnMinLevel(unsigned int zindex)
     {
         return log2(zindex + 1) % 2 == 1;
     }
@@ -101,7 +101,7 @@ class min_max_heap // Root is on Max level
      * @brief Returns @c true if the node specified by @c zindex is on a
      *        @e max-level.
      **/
-    static inline bool isOnMaxLevel(unsigned int zindex)
+    static bool isOnMaxLevel(unsigned int zindex)
     {
         return !isOnMinLevel(zindex);
     }
@@ -454,7 +454,7 @@ public:
                 zout << heap_[i] << (i != heap_.size() - 1 ? ", " : "");
         zout << "}";
 
-        zout << std::endl;
+        zout << "\n";
     }
 #endif
     typename Container::iterator begin() { return heap_.begin(); }

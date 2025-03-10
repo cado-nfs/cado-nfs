@@ -637,7 +637,9 @@ struct prep_object {
 
     unsigned int do_one_trial(unsigned int nx)
     { // {{{
-
+        if (tcan_print)
+            fmt::print("// Choosing new projection vectors with"
+                    " {} non-zero coordinates per x vector\n", nx);
         // generate indices w.r.t *unpadded* dimensions !
         xvecs = setup_x_random(bw->m, nx, unpadded, pi, rstate, Z);
 

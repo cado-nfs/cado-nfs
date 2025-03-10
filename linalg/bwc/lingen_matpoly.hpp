@@ -89,7 +89,7 @@ public:
     bool is_tight() const { return alloc == size; }
 
     matpoly() = default;
-    matpoly(arith_hard * ab, unsigned int m, unsigned int n, int len);
+    matpoly(arith_hard * ab, unsigned int m, unsigned int n, size_t len);
     matpoly(matpoly const&) = delete;
     matpoly& operator=(matpoly const&) = delete;
     matpoly& set(matpoly const&);
@@ -112,17 +112,17 @@ public:
     ptr part(unsigned int i, unsigned int j) {
         return ab->vec_subvec(x, (i*n+j)*alloc);
     }
-    ptr part_head(unsigned int i, unsigned int j, unsigned int k) {
+    ptr part_head(unsigned int i, unsigned int j, size_t k) {
         return ab->vec_subvec(part(i, j), k);
     }
-    elt & coeff(unsigned int i, unsigned int j, unsigned int k=0) {
+    elt & coeff(unsigned int i, unsigned int j, size_t k=0) {
         return ab->vec_item(part(i, j), k);
     }
     struct coeff_accessor_proxy {
         arith_hard * ab;
         arith_hard::elt * p;
         coeff_accessor_proxy(matpoly& F, unsigned int i,
-                unsigned int j, unsigned int k)
+                unsigned int j, size_t k)
             : ab(F.ab), p(F.part_head(i, j, k))
         {
         }
@@ -131,24 +131,24 @@ public:
             return *this;
         }
     };
-    coeff_accessor_proxy coeff_accessor(unsigned int i, unsigned int j, unsigned int k = 0) {
+    coeff_accessor_proxy coeff_accessor(unsigned int i, unsigned int j, size_t k = 0) {
         return { *this, i, j, k };
     }
     srcptr part(unsigned int i, unsigned int j) const {
         return ab->vec_subvec(x, (i*n+j)*alloc);
     }
-    srcptr part_head(unsigned int i, unsigned int j, unsigned int k) const {
+    srcptr part_head(unsigned int i, unsigned int j, size_t k) const {
         return ab->vec_subvec(part(i, j), k);
     }
-    elt const & coeff(unsigned int i, unsigned int j, unsigned int k=0) const {
+    elt const & coeff(unsigned int i, unsigned int j, size_t k=0) const {
         return ab->vec_item(part(i, j), k);
     }
     /* }}} */
     void set_constant_ui(unsigned long e);
     void set_constant(elt const & e);
     /* Note that this method does not change the size field */
-    void fill_random(unsigned int k0, unsigned int k1, cxx_gmp_randstate & rstate);
-    void clear_and_set_random(unsigned int len, cxx_gmp_randstate & rstate)
+    void fill_random(size_t k0, size_t k1, cxx_gmp_randstate & rstate);
+    void clear_and_set_random(size_t len, cxx_gmp_randstate & rstate)
     {
         if (len > capacity())
             zero_pad(len);
@@ -158,11 +158,11 @@ public:
     }
 
     int cmp(matpoly const & b) const;
-    void multiply_column_by_x(unsigned int j, unsigned int size);
-    void divide_column_by_x(unsigned int j, unsigned int size);
-    void truncate(matpoly const & src, unsigned int size);
-    void truncate(unsigned int size) { truncate(*this, size); }
-    int tail_is_zero(unsigned int size);
+    void multiply_column_by_x(unsigned int j, size_t size);
+    void divide_column_by_x(unsigned int j, size_t size);
+    void truncate(matpoly const & src, size_t size);
+    void truncate(size_t size) { truncate(*this, size); }
+    int tail_is_zero(size_t size);
     /* not to be confused with the former. the following two are in fact
      * relevant only to the binary interface. They're just noops here.
      */
@@ -170,23 +170,23 @@ public:
     void clear_high_word() {}
 
     /* This changes size to nsize, and fills [size..nsize[ with zeroes */
-    void zero_pad(unsigned int nsize); /* changes size to nsize */
+    void zero_pad(size_t nsize); /* changes size to nsize */
 
     void zero_with_size(size_t size) { set_size(0); zero_pad(size); }
 
     void extract_column(
-        unsigned int jdst, unsigned int kdst,
-        matpoly const & src, unsigned int jsrc, unsigned int ksrc);
-    void zero_column(unsigned int jdst, unsigned int kdst);
+        unsigned int jdst, size_t kdst,
+        matpoly const & src, unsigned int jsrc, size_t ksrc);
+    void zero_column(unsigned int jdst, size_t kdst);
 #if 0
     /* These two are implemented, but unused and untested anyway */
     void transpose_dumb(matpoly const & src);
     void extract_row_fragment(unsigned int i1, unsigned int j1,
         matpoly const & src, unsigned int i0, unsigned int j0,
-        unsigned int n);
+        size_t n);
 #endif
-    void rshift(matpoly const &, unsigned int k);
-    void rshift(unsigned int k);
+    void rshift(matpoly const &, size_t k);
+    void rshift(size_t k);
 
     /* It is probably wise to avoid the mul and mp functions below. The
      * first-class citizens are the caching alternatives.
@@ -216,8 +216,8 @@ public:
     }
  
     void set_polymat(polymat const & src);
-    int coeff_is_zero(unsigned int k) const;
-    void coeff_set_zero(unsigned int k);
+    int coeff_is_zero(size_t k) const;
+    void coeff_set_zero(size_t k);
 
     struct view_t : public submatrix_range {
         matpoly & M;
@@ -250,7 +250,7 @@ public:
     static void addmul(view_t t, const_view_t t0, const_view_t t1);
     static void addmp(view_t t, const_view_t t0, const_view_t t1);
 
-    matpoly truncate_and_rshift(unsigned int truncated_size, unsigned int rshift);
+    matpoly truncate_and_rshift(size_t truncated_size, size_t rshift);
 };
 
 #endif	/* LINGEN_MATPOLY_HPP_ */

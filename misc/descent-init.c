@@ -287,11 +287,9 @@ void
 pool_add (pool p, unsigned long e, mpz_t u0, mpz_t v0, mpz_t u, mpz_t v,
           int uprime, int vprime, double B1, unsigned long l)
 {
-  unsigned int i;
-
-  p->list = realloc (p->list, (p->n + 1) * sizeof (cand));
+  CHECKED_REALLOC(p->list, p->n + 1, cand);
   cand_init_set (p->list[p->n], e, u0, v0, u, v, uprime, vprime, B1, l);
-  for (i = p->n; i > 0 && cost (p->list[i-1]) > cost (p->list[i]); i--)
+  for (unsigned int i = p->n; i > 0 && cost (p->list[i-1]) > cost (p->list[i]); i--)
     cand_swap (p->list[i-1], p->list[i]);
   p->n += 1;
 }
@@ -356,7 +354,7 @@ pool_scan (pool p, ecm_params params, unsigned long L, double S1, double *S2)
   if (j < oldn)
     {
       unsigned long imin, imax;
-      p->list = realloc (p->list, p->n * sizeof (cand));
+      CHECKED_REALLOC(p->list, p->n, cand);
       printf ("Remains %lu candidate(s) in pool", p->n);
       if (p->n == 0)
         printf ("\n");

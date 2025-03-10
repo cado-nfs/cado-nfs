@@ -1,13 +1,26 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+
+#include <climits>
+
+#include <memory>
+
+#include "fmt/core.h"
+
+#include "cxx_mpz.hpp"
+#include "mpz_mat.h"
+#include "gmp_aux.h"
 #include "numbertheory/number_field.hpp"
-#include "numbertheory/number_field_element.hpp"
+#include "numbertheory/number_field_element.hpp"        // IWYU pragma: keep
+#include "numbertheory/number_field_fractional_ideal.hpp"
+#include "numbertheory/number_field_order.hpp"
+#include "numbertheory/fmt_helpers.hpp"
 #include "numbertheory/number_field_prime_ideal.hpp"
 #include "numbertheory/numbertheory_internals.hpp"
 
 number_field_prime_ideal::operator two_element() const
 {
     number_field_order const & O = order();
-    if (!cached_two_element.get()) {
+    if (!cached_two_element) {
         auto T = numbertheory_internals::prime_ideal_two_element(O.basis_matrix, O.number_field().defining_polynomial(), O.multiplication_table, ideal_basis_matrix);
         cached_two_element = std::unique_ptr<two_element>(new two_element(T.first, O(T.second)));
     }
@@ -27,7 +40,7 @@ int number_field_prime_ideal::valuation(number_field_fractional_ideal const & I)
     if (v == INT_MAX) return v;
 
     int const w = mpz_p_valuation(I.denominator, p);
-    return v-w*e;
+    return v - w * e;
 
 }
 

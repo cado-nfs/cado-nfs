@@ -3,14 +3,16 @@
 #include <cstdio>                // for printf
 #include <cstdint>
 #include <algorithm>
-#include <map>                    // for map
 #include <string>                 // for basic_string, string
 #include <utility>                // for pair
 #include <vector>                 // for vector
+
 #include <gmp.h>                  // for gmp_urandomm_ui, mpz_clear, mpz_div...
+
 #include "bblas_bitmat.hpp"       // for bitmat<>::vector_type, bitmat
 #include "bblas_level4_ple_internal.hpp"
 #include "bpack.hpp"              // for bpack, bpack_view, bpack_const_view
+#include "cxx_mpz.hpp"
 #include "gmp_aux.h"              // for mpz_get_uint64, memfill_random
 #include "macros.h"               // for ASSERT_ALWAYS
 #include "test_bblas_base.hpp"    // for test_bblas_base, test_bblas_base::t...
@@ -200,6 +202,7 @@ int test_bblas_level4::test_PLE_move_L_fragments(unsigned int m, unsigned int n)
         std::vector<unsigned int> pivs;
         /* generating binomial(n, r) is like generating with repetition r
          * things among n-(r-1) = n-r+1.  */
+        pivs.reserve(r);
         for(unsigned int k = 0 ; k < r ; k++)
             pivs.push_back(gmp_urandomm_ui(rstate, n-r+1));
         std::sort(pivs.begin(), pivs.end());
@@ -298,10 +301,8 @@ int test_bblas_level4::test_PLE_move_L_fragments(unsigned int m, unsigned int n)
          * so that it's 3NN+1+(ii&1) = 1 << (z + ((z^ii)&1))
          */
         for(unsigned int ii = 0 ; ii < m ; ii++) {
-            mpz_t NN;
-            mpz_init(NN);
-            unsigned int z = ii;
-            if (z >= r) z = r;
+            cxx_mpz NN;
+            unsigned int z = std::min(ii, r);
             mpz_ui_pow_ui(NN, 2, z + ((z ^ ii) & 1));
             mpz_sub_ui(NN,NN,1 + (ii & 1));
             ASSERT_ALWAYS(mpz_divisible_ui_p(NN, 3));
@@ -314,7 +315,6 @@ int test_bblas_level4::test_PLE_move_L_fragments(unsigned int m, unsigned int n)
                 ASSERT_ALWAYS(c == 0);
                 if (z < B) break;
             }
-            mpz_clear(NN);
         }
     }
 

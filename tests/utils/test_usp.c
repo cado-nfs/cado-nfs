@@ -2,7 +2,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <gmp.h>
+
 #include "macros.h"
+#include "mpz_poly.h"
 #include "tests_common.h"
 #include "usp.h"
 

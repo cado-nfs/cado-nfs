@@ -1,5 +1,10 @@
 #include "cado.h" // IWYU pragma: keep
 
+#include <cstddef>
+
+#include <memory>
+#include <mutex>
+
 #include "las-globals.hpp"
 
 #include "las-config.h"

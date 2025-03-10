@@ -17,6 +17,7 @@
 #include <sys/time.h>
 
 
+#include "misc.h"
 #include "mod_ul.h"
 #include "balancing.hpp"
 #include "rowset_heap.h"
@@ -27,7 +28,7 @@
 #include "macros.h"
 #include "params.h"
 
-#include "utils_cxx.hpp"        // for unique_ptr<FILE>
+#include "utils_cxx.hpp"        // for unique_ptr<FILE, delete_FILE>
 
 typedef int (*sortfunc_t) (const void *, const void *);
 
@@ -484,7 +485,7 @@ void mf_bal(struct mf_bal_args * mba)
 
         /* Read the file with row or column weights */
         std::string const filename = d == 0 ? mba->rwfile : mba->cwfile;
-        std::unique_ptr<FILE> const fw(fopen(filename.c_str(), "rb"));
+        std::unique_ptr<FILE, delete_FILE> const fw(fopen(filename.c_str(), "rb"));
         if (!fw) { perror(filename.c_str()); exit(1); }
         weights[d].reset(new uint32_t[n]);
         std::fill_n(weights[d].get(), n, 0);
@@ -637,7 +638,7 @@ void mf_bal(struct mf_bal_args * mba)
         uint32_t ** pperm = d == 0 ? &bal.rowperm : &bal.colperm;
         struct slice * h = shuffle_rtable(text[d], *pperm, matsize[d] + padding[d], gridsize[d]);
         /* we can now make the row or column permutation tidier */
-        *pperm = (uint32_t *) realloc(*pperm, (matsize[d] + padding[d]) * sizeof(uint32_t));
+        checked_realloc(*pperm, matsize[d] + padding[d]);
         for(unsigned int ii = 0 ; ii < gridsize[d] ; ii++) {
             const struct slice * r = &(h[ii]);
             memcpy(*pperm + r->i0, r->r, r->nrows * sizeof(uint32_t));

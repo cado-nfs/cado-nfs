@@ -43,6 +43,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "verbose.h"    // verbose_decl_usage
 #include "portability.h" // strdup  // IWYU pragma: keep
 #include "macros.h"
+#include "merge_replay_matrix.h"
 
 #define DEBUG 0
 
@@ -54,7 +55,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 
 static unsigned long
 flushSparse(const char *sparsename, typerow_t **sparsemat, index_t small_nrows,
-            index_t small_ncols, index_t *code, index_t skip, int bin)
+            index_t small_ncols, const index_t * code, index_t skip, int bin)
 {
 #ifdef FOR_DL
   ASSERT_ALWAYS (skip == 0);
@@ -330,7 +331,6 @@ renumber (index_t small_ncols, index_t *colweight, index_t ncols,
           MAYBE_UNUSED const char *idealsfilename)
 {
     index_t k, nb;
-    index_signed_t j;
     index_t *tmp;
 
 #ifdef FOR_DL
@@ -343,6 +343,7 @@ renumber (index_t small_ncols, index_t *colweight, index_t ncols,
     }
 #endif
 
+    ASSERT_ALWAYS(small_ncols);
     tmp = (index_t *) malloc ((small_ncols << 1) * sizeof(index_t));
     ASSERT_ALWAYS(tmp != NULL);
     memset(tmp, 0, (small_ncols << 1) * sizeof(index_t));
@@ -362,7 +363,9 @@ renumber (index_t small_ncols, index_t *colweight, index_t ncols,
     qsort (tmp, small_ncols, 2*sizeof(index_t), cmp_index2);
     memset (colweight, 0, ncols * sizeof(index_t));
     // useful for BW + skipping heavy part only...
-    for (j = nb - 1, k = 1; j >= 0; j -= 2)
+    index_signed_t j;
+    ASSERT_ALWAYS(nb >= 1);
+    for (j = (index_signed_t) (nb - 1), k = 1; j >= 0; j -= 2)
       {
         colweight[tmp[j]] = k++; // always this +1 trick
 #ifdef FOR_DL
@@ -688,8 +691,7 @@ fasterVersion (typerow_t **newrows, const char *sparsename,
         if (newrows[i] != NULL)
           newrows[j++] = newrows[i]; /* we always have j <= i */
       small_nrows = j;
-      newrows = (typerow_t **) realloc (newrows, small_nrows * sizeof (typerow_t *));
-      ASSERT_ALWAYS (newrows != NULL);
+      CHECKED_REALLOC(newrows, small_nrows, typerow_t *);
     }
 
   /* if index was asked: crunch the empty rows as above, create the index and
@@ -847,8 +849,8 @@ int main(int argc, char const * argv[])
     _fmode = _O_BINARY;     /* Binary open for all files */
 #endif
 
-    setbuf(stdout, NULL);
-    setbuf(stderr, NULL);
+    setvbuf(stderr, NULL, _IONBF, 0);
+    setvbuf(stdout, NULL, _IONBF, 0);
 
     param_list pl;
     param_list_init(pl);

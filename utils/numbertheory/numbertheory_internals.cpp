@@ -484,7 +484,7 @@ static vector<pair<cxx_mpz_mat, int> > factorization_of_prime_inner(
             mpz_mat_vertical_join(Ix, Ix, Ip);
             mpz_mat_hermite_form_rev(Ix, NULL);
             mpz_mat_submat_swap(Ihead,0,0,Ix,0,0,n,n);
-            ideals.push_back(make_pair(Ihead, e));
+            ideals.emplace_back(Ihead, e);
         } else {
             mpz_mat_hermite_form_rev(Ix, NULL);
             mpz_mat_submat_swap(Ihead,0,0,Ix,0,0,n,n);
@@ -855,7 +855,8 @@ numbertheory_internals::write_element_as_list_of_integers(cxx_mpq_mat const& the
     mpq_mat_numden(theta, theta_denom, theta_q);
     std::vector<cxx_mpz> res;
     res.push_back(theta_denom);
+    res.reserve(theta->n + 1);
     for(unsigned int i = 0 ; i < theta->n ; i++)
-        res.push_back(mpz_mat_entry(theta, 0, i));
+        res.emplace_back(mpz_mat_entry(theta, 0, i));
     return res;
 }

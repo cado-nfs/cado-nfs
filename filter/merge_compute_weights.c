@@ -117,7 +117,7 @@ void bucket_flush(bucket_ptr bu, col_weight_t * dst, size_t when, int T, pthread
         bu->mode = PRIVATE_CACHE;
         if (bu->alloc < (1 << 16)) {
             bu->alloc = 1 << 16;
-            bu->data = realloc(bu->data, bu->alloc * sizeof(uint16_t));
+            CHECKED_REALLOC(bu->data, bu->alloc, uint16_t);
         }
         bu->size = 1 << 16;
         memset(bu->data, 0, (1 << 16) * sizeof(uint16_t));
@@ -134,7 +134,7 @@ static inline void bucket_push(bucket_ptr bu, uint16_t j, col_weight_t * dst, si
     } else {
         if (bu->size >= bu->alloc) {
             bu->alloc = MAX(16, 2 * bu->alloc);
-            bu->data = realloc(bu->data, bu->alloc * sizeof(uint16_t));
+            CHECKED_REALLOC(bu->data, bu->alloc, uint16_t);
         }
         bu->data[bu->size++] = j;
         if (bu->size == bucket_B)

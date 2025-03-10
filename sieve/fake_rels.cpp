@@ -627,7 +627,7 @@ int main(int argc, char const * argv[])
   fmt::print ("# Done reading renumber table\n");
   fflush (stdout);
 
-  for (int side = 0; side < 2; ++side) {
+  for (int side = 0; side < ren_table.get_nb_polys(); ++side) {
       if (ren_table.get_lpb(side) != (unsigned long)lpb[side]) {
           fmt::print(stderr, "Error: on side {}, lpb on the command-line is different from the one in the renumber file\n", side);
           exit(EXIT_FAILURE);

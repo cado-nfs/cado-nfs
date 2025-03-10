@@ -2,6 +2,11 @@
 #include <climits>                       // for UINT_MAX
 #include <cstddef>                       // for size_t
 #include <cstdint>
+
+#include <vector>
+
+#include <gmp.h>
+
 #include "bpack.hpp"
 // #include "bblas_level4.hpp"
 #include "bblas_bitmat.hpp"  // for bitmat
@@ -9,14 +14,15 @@
 #include "bblas_level4_ple_internal_inl.hpp" // IWYU pragma: keep
 #include "gmp_aux.h"    // memfill_random
 #include "omp_proxy.h" // IWYU pragma: keep
+#include "macros.h"
 
 /* Is it sufficient to meet the ODR requirement ? There are places where
  * we do std::min(B, foo). That requires that a definition of B be
  * available somewhere. It's not clear to me that the following kind of
  * template constexpr definition does the trick.
- */
 template<typename T> constexpr const unsigned int bpack_view_base<T>::B;
 template<typename T> constexpr const unsigned int bpack<T>::B;
+ */
 
 template<typename T>
 void bpack_view<T>::fill_random(gmp_randstate_t rstate) {

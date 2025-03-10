@@ -48,7 +48,7 @@ static void * program(parallelizing_info_ptr pi, cxx_param_list & pl MAYBE_UNUSE
         pi_log_clear(pi->wr[1]);
     }
 
-    return NULL;
+    return nullptr;
 }
 
 int main(int argc, char const * argv[])
@@ -57,6 +57,7 @@ int main(int argc, char const * argv[])
     int size;
     cxx_param_list pl;
 
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
     MPI_Init(&argc, (char ***) &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -88,7 +89,7 @@ int main(int argc, char const * argv[])
         exit(EXIT_FAILURE);
     }
 
-    pi_go(program, pl, 0);
+    pi_go(program, pl, nullptr);
 
     parallelizing_info_finish();
 

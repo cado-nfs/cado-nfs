@@ -8,8 +8,7 @@
  * Free Software Foundation; either version 2.1 of the License, or (at your
  * option) any later version.  See <http://www.gnu.org/licenses/>. */
 
-#include "stdlib.h"
-#include "gmp.h"
+#include <gmp.h>
 #include "flint.h"
 #include "fft.h"
 

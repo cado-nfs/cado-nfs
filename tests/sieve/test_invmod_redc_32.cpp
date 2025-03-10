@@ -6,10 +6,15 @@
 #include <cstdio>                  // for fprintf
 #include <cstdlib>                 // for exit
 #include <cmath>                   // for sqrt
-#include "las-arith.hpp"           // for invmod_redc_32
+
+#include <gmp.h>
+
 #include "gcd.h"
-#include "tests_common.h"
+#include "las-arith.hpp"           // for invmod_redc_32
+#include "macros.h"
 #include "misc.h"
+#include "tests_common.h"
+#include "ularith.h"
 
 // coverity[root_function]
 int main(int argc, char const * argv[])
@@ -50,7 +55,7 @@ int main(int argc, char const * argv[])
                 to_add = 0;
         }
 
-        unsigned long const sqrtN = sqrt(N) + 1;
+        unsigned long const sqrtN = lround(std::sqrt(N) + 1);
         for (unsigned int i = 0; i < sqrtN; i++) {
             for (unsigned int j = 0; j < sqrtN; j++) {
                 unsigned long t;

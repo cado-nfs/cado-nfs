@@ -1,9 +1,15 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <cstdlib>
-#include <gmp.h>
+
 #include <sstream>
 #include <istream>
 #include <fstream>
+#include <string>
+
+#include <gmp.h>
+
+#include "params.h"
 #include "tests_common.h"
 #include "cado_poly.h"
 #include "mpz_poly.h"
@@ -58,7 +64,7 @@ extern "C" int cado_poly_set_plist(cado_poly_ptr cpoly, param_list_ptr pl);
 static int cado_poly_read (cxx_cado_poly & poly, std::istream& is)
 {
   cxx_param_list pl;
-  param_list_read(pl, is, 0);
+  param_list_read(pl, is, false);
   int const r = cado_poly_set_plist (poly, pl);
   return r;
 }

@@ -1,4 +1,4 @@
-#include "cado.h"       // NOLINT(misc-include-cleaner)
+#include "cado.h"       // IWYU pragma: keep
 
 #include <cstring>
 

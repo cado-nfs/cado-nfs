@@ -23,8 +23,10 @@
 #include <mutex>                          // for lock_guard, mutex
 #include <utility>                        // for move
 #include <vector>                         // for vector
+
 #include <gmp.h>                          // for gmp_vfprintf, mpz_srcptr
-#include "cxx_mpz.hpp"
+#include "fmt/format.h"
+
 #include "gmp_aux.h"
 #include "las-process-bucket-region.hpp"  // for process_bucket_region_spawn
 #include "bucket.hpp"                     // for bare_bucket_update_t<>::br_...
@@ -56,6 +58,7 @@
 #include "las-where-am-i-proxy.hpp"            // for where_am_I
 #include "las-where-am-i.hpp"             // for where_am_I, WHERE_AM_I_UPDATE
 #include "macros.h"                       // for ASSERT_ALWAYS, ASSERT, MAX
+#include "relation.hpp"
 #include "tdict.hpp"                      // for slot, timetree_t, CHILD_TIMER
 #include "threadpool.hpp"                 // for worker_thread, thread_pool
 #include "verbose.h"
@@ -236,7 +239,7 @@ process_bucket_region_run::process_bucket_region_run(process_bucket_region_spawn
     memset(SS, 0, BUCKET_REGION);
 
     /* see comment in process_bucket_region_run::operator()() */
-    do_resieve = ws.conf.sides[0].lim && ws.conf.sides[1].lim;
+    do_resieve = ws.conf.sides[0].lim && (nsides == 1 || ws.conf.sides[1].lim);
 
     /* we're ready to go ! processing is in the operator() method.
     */
@@ -302,7 +305,7 @@ void process_bucket_region_run::apply_buckets(int side)/*{{{*/
 
 static void update_checksums(nfs_work::thread_data & tws, nfs_aux::thread_data & taux)
 {
-    for(int side = 0 ; side < 2 ; side++)
+    for(unsigned int side = 0 ; side < tws.sides.size() ; side++)
         taux.update_checksums(side, tws.sides[side].bucket_region, BUCKET_REGION);
 }
 
@@ -366,30 +369,31 @@ process_bucket_region_run::survivors_t process_bucket_region_run::search_survivo
 #ifdef TRACE_K /* {{{ */
     if (trace_on_spot_Nx(N, trace_Nx.x)) {
         verbose_output_print(TRACE_CHANNEL, 0,
-                "# When entering factor_survivors for bucket %u, "
-                "S[0][%u]=%u, S[1][%u]=%u\n",
-                trace_Nx.N, trace_Nx.x,
-                S[0] ? S[0][trace_Nx.x] : ~0u,
-                trace_Nx.x,
-                S[1] ? S[1][trace_Nx.x] : ~0u);
-        verbose_output_vfprint(TRACE_CHANNEL, 0, gmp_vfprintf,
-                "# Remaining norms which have not been accounted for in sieving: (%Zd, %Zd)\n",
-                (mpz_srcptr) traced_norms[0],
-                (mpz_srcptr) traced_norms[1]);
+                "# When entering factor_survivors for bucket %u", trace_Nx.N);
+        for (size_t i = 0; i < S.size(); ++i) {
+            verbose_output_print(TRACE_CHANNEL, 0, ", S[%zu][%u]=%u", i,
+                                 trace_Nx.x, S[i] ? S[0][trace_Nx.x] : ~0u);
+        }
+        verbose_output_print(TRACE_CHANNEL, 0, "\n# Remaining norms which have not been accounted for in sieving: (");
+        for (size_t i = 0; i < traced_norms.size(); ++i) {
+            verbose_output_vfprint(TRACE_CHANNEL, 0, gmp_vfprintf, "%s%Zd",
+                i ? ", " : "", (mpz_srcptr) traced_norms[i]);
+        }
+        verbose_output_print(TRACE_CHANNEL, 0, ")\n");
     }
 #endif  /* }}} */
 
 #ifdef TRACE_K /* {{{ */
-    nfs_work::side_data  const& side0(ws.sides[0]);
-    nfs_work::side_data  const& side1(ws.sides[1]);
     for (int x = 0; x < 1 << LOG_BUCKET_REGION; x++) {
         if (trace_on_spot_Nx(N, x)) {
-            verbose_output_print(TRACE_CHANNEL, 0,
-                    "# side0.Bound[%u]=%u, side1.Bound[%u]=%u\n",
-                    S[0] ? S[0][trace_Nx.x] : ~0u,
-                    S[0] ? (S[0][x] <= side0.lognorms.bound ? 0 : side0.lognorms.bound) : ~0u,
-                    S[1] ? S[1][trace_Nx.x] : ~0u,
-                    S[1] ? (S[1][x] <= side1.lognorms.bound ? 0 : side1.lognorms.bound) : ~0u);
+            for (size_t i = 0; i < S.size(); ++i) {
+                auto &bound = ws.sides[i].lognorms.bound;
+                verbose_output_print(TRACE_CHANNEL, 0,
+                                  "%c side%zu.Bound[%u]=%u", i ? ',' : '#', i,
+                                  S[i] ? S[i][trace_Nx.x] : ~0u,
+                                  S[i] ? (S[i][x] <= bound ? 0 : bound) : ~0u);
+            }
+            verbose_output_print(TRACE_CHANNEL, 0, "\n");
         }
     }
 #endif /* }}} */
@@ -403,8 +407,8 @@ process_bucket_region_run::survivors_t process_bucket_region_run::search_survivo
         int const offset = (j-j0) << logI;
 
         unsigned char * const both_S[2] = {
-            S[0] ? S[0] + offset : NULL,
-            S[1] ? S[1] + offset : NULL,
+            S[0] ? S[0] + offset : nullptr,
+            S.size() > 1 && S[1] ? S[1] + offset : nullptr,
         };
         /* TODO FIXME XXX that's weird. How come don't we merge that with
          * the lognorm computation that goes in the ws.sides[side]
@@ -448,7 +452,7 @@ process_bucket_region_run::survivors_t process_bucket_region_run::search_survivo
     }
 
     /* This used to be called convert_survivors */
-    return survivors_t(begin(temp_sv), end(temp_sv));
+    return { begin(temp_sv), end(temp_sv) };
 }/*}}}*/
 void process_bucket_region_run::purge_buckets(int side)/*{{{*/
 {
@@ -514,19 +518,16 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
     int const N = first_region0_index + already_done + bucket_relative_index;
     unsigned char * Sx = S[0] ? S[0] : S[1];
 
-    cofac_standalone cur;
 
-
-    for (size_t i_surv = 0 ; i_surv < survivors.size(); i_surv++) {
+    for(const size_t x : survivors) {
         if (dlp_descent && ws.las.tree.must_take_decision())
             break;
-        const size_t x = survivors[i_surv];
         ASSERT_ALWAYS (Sx[x] != 255);
         ASSERT(x < ((size_t) 1 << LOG_BUCKET_REGION));
 
         rep.survivors.after_sieve++;
 
-        if (S[0] && S[1])
+        if (S[0] && S.size() > 1 && S[1])
             rep.mark_survivor(S[0][x], S[1][x]);
 
         /* For factor_leftover_norm, we need to pass the information of the
@@ -539,9 +540,9 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
         SIBLING_TIMER(timer, "check_coprime");
 
         /* start building a new object. This is a swap operation */
-        cur = cofac_standalone(nsides, N, x, ws.conf.logI, ws.Q);
+        cofac_standalone cur { nsides, N, x, ws.conf.logI, ws.Q };
 
-        for(int side = 0 ; side < 2 ; side++) {
+        for(int side = 0 ; side < nsides ; side++) {
             if (ws.sides[side].no_fb()) continue;
             cur.S[side] = S[side][x];
         }
@@ -575,9 +576,25 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
         convert_Nx_to_ij (i, j, N, x, ws.conf.logI);
         adjustIJsublat(i, j, ws.Q.sublat);
 
-        if (do_resieve) {
+        auto rab = relation_ab(cur);
 
-            for(int pside = 0 ; pass && pside < 2 ; pside++) {
+        if (dlp_descent && ws.las.tree.must_avoid(rab)) {
+            /* This is important if we want to avoid loops! */
+            auto msg = fmt::format("ignoring relation {},{} which already appears in the descent tree", rab.az, rab.bz);
+            verbose_output_print(0, 1, "# %s\n", msg.c_str());
+            /* it's a hack, only because
+             * las_report::display_survivor_counters chains
+             * rep.survivors.not_both_multiples_of_p with
+             * trial_divided_on_side[], which gets in our way of we want
+             * to insert another test. This would need to be refactored.
+             */
+            rep.survivors.not_both_multiples_of_p--;
+            continue;
+        }
+
+
+        if (do_resieve) {
+            for(int pside = 0 ; pass && pside < nsides ; pside++) {
                 int const side = trialdiv_first_side ^ pside;
                 nfs_work::side_data  const& wss(ws.sides[side]);
 
@@ -656,7 +673,7 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
             /* no resieve, so no list of prime factors to divide. No
              * point in doing trial division anyway either.
              */
-            for(int side = 0 ; side < 2 ; side++) {
+            for(int side = 0 ; side < nsides ; side++) {
                 CHILD_TIMER_PARAMETRIC(timer, "side ", side, " pre-cofactoring checks");
                 TIMER_CATEGORY(timer, cofactoring(side));
 
@@ -739,9 +756,9 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
             continue; /* we deal with all cofactors at the end of subjob */
         }
 
-        auto D = new detached_cofac_parameters(wc_p, aux_p, std::move(cur));
+        auto * D = new detached_cofac_parameters(wc_p, aux_p, std::move(cur));
 
-        if (!dlp_descent) {
+        if (!dlp_descent && !exit_after_rel_found) {
             /* We must make sure that we join the async threads at some
              * point, otherwise we'll leak memory. It seems more appropriate
              * to batch-join only, so this is done at the las_subjob level */
@@ -749,20 +766,21 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
             worker->get_pool().add_task(detached_cofac, D, N, 1); /* id N, queue 1 */
         } else {
             /* We must proceed synchronously for the descent */
-            auto res = dynamic_cast<detached_cofac_result*>(detached_cofac(worker, D, N));
-            bool cc = false;
+            std::unique_ptr<detached_cofac_result> res(
+                    dynamic_cast<detached_cofac_result*>(
+                    detached_cofac(worker, D, N)));
+
             if (res->rel_p) {
-                cc = register_contending_relation(ws.las, ws.Q.doing, *res->rel_p);
-            }
-            delete res;
-            if (cc)
+                if (dlp_descent)
+                    register_contending_relation(ws.las, ws.Q.doing, *res->rel_p);
                 break;
+            }
         }
     }
 }/*}}}*/
 void process_bucket_region_run::operator()() {/*{{{*/
 
-    int const nsides = sides.size();
+    int const nsides = (int) sides.size();
 
     // This is too verbose.
     // fprintf(stderr, "=== entering PBR for report id %lu\n", rep.id);
@@ -777,8 +795,10 @@ void process_bucket_region_run::operator()() {/*{{{*/
             return;
     } else if (exit_after_rel_found) {
         if (rep.reports) {
-            std::lock_guard<std::mutex> const foo(protect_global_exit_semaphore);
-            global_exit_semaphore=1;
+            if (exit_after_rel_found > 1) {
+                std::lock_guard<std::mutex> const foo(protect_global_exit_semaphore);
+                global_exit_semaphore=1;
+            }
             return;
         }
     }
@@ -894,7 +914,7 @@ void process_many_bucket_regions(nfs_work & ws, std::shared_ptr<nfs_work_cofac> 
             /* We need to compute more init positions */
             int const more = std::min(SMALL_SIEVE_START_POSITIONS_MAX_ADVANCE, ws.nb_buckets[1] - done);
 
-            for(int side = 0 ; side < 2 ; side++) {
+            for(unsigned int side = 0 ; side < ws.sides.size() ; side++) {
                 nfs_work::side_data  const& wss(ws.sides[side]);
                 if (wss.no_fb()) continue;
                 pool.add_task_lambda([=,&ws](worker_thread * worker, int){
@@ -922,7 +942,7 @@ void process_many_bucket_regions(nfs_work & ws, std::shared_ptr<nfs_work_cofac> 
             ready = more;
 
             /* Now these new start positions are ready to be used */
-            for(int side = 0 ; side < 2 ; side++) {
+            for(unsigned int side = 0 ; side < ws.sides.size() ; side++) {
                 nfs_work::side_data & wss(ws.sides[side]);
                 if (wss.no_fb()) continue;
                 small_sieve_activate_many_start_positions(wss.ssd);

@@ -9,14 +9,18 @@
 #include <algorithm>
 #include <sstream> // std::ostringstream // IWYU pragma: keep
 #include <string>
-#include <iomanip> // std::hex // IWYU pragma: keep
+#include <ios>
+#include <locale>
+#include <vector>
+
 #include <gmp.h>
 
+#include "gmp_aux.h"
 #include "macros.h" /* for ASSERT_ALWAYS */
 #include "relation.hpp"
 #include "relation-tools.h"
 #include "misc.h"
-
+#include "istream_matcher.hpp"
 /*
  * Convention for I/O of rels:
  *   a and b are printed in decimal
@@ -27,37 +31,62 @@
 int
 relation::parse(const char *line)
 {
-    int consumed;
+    if (line[0] == '#')
+        return 0;
 
-    if (gmp_sscanf(line, "%Zd,%Zd%n", (mpz_ptr) az, (mpz_ptr)bz, &consumed) < 2)
+    /* This is just to let the libc++ parsing happily grok the integers
+     * in relations as they are, and _then_ we implement our
+     * syntax verifications
+     */
+    struct relation_locale: std::ctype<char>
+    {
+        relation_locale(): std::ctype<char>(get_table()) {}
+
+        static std::ctype_base::mask const* get_table()
+        {
+            static std::vector<std::ctype_base::mask>
+                rc(std::ctype<char>::table_size,std::ctype_base::space);
+            std::fill(&rc['0'], &rc['9'+1], std::ctype_base::digit);
+            std::fill(&rc['a'], &rc['f'+1], std::ctype_base::xdigit);
+            std::fill(&rc['A'], &rc['F'+1], std::ctype_base::xdigit);
+            rc['-'] = std::ctype_base::punct;
+            return rc.data();
+        }
+    };
+
+    const std::string S(line);
+    std::istringstream is(S);
+    is.imbue(std::locale(std::locale(), new relation_locale()));
+    istream_matcher ism(is);
+
+    ism >> az >> "," >> bz;
+
+    if (!is)
         return 0;
     a = mpz_get_int64(az);
     b = mpz_get_uint64(bz);
 
-    if (line[consumed] == '@') {
-        consumed++;
-        int c;
-        if (sscanf(line + consumed, "%u,%u%n",
-                &active_sides[0],
-                &active_sides[1],
-                &c) < 2)
-            return 0;
-        consumed += c;
+    if (ism.peek() == '@') {
+        ism >> "@" >> active_sides[0] >> "," >> active_sides[1];
     } else {
         active_sides[0] = 0;
         active_sides[1] = 1;
     }
-    ASSERT_ALWAYS (line[consumed] == ':');
-    consumed++;
+
+    ism >> ":";
 
     sides[0].clear();
     sides[1].clear();
 
-    int comma_allowed = 0;
-
+    bool comma_allowed = false;
     unsigned int side_index = 0;
-    while(line[consumed] != '\0' && line[consumed] != '\n') {
-        if (line[consumed] == ':') {
+
+    ism >> std::hex;
+
+    for( ; !ism.eof() ; ) {
+        char c = ism.peek();
+        if (c == ':') {
+            ism.get();
             side_index++;
             /* We do not support specifying sides in a relation by typing
              * in zillions of colons.  That is not well-defined, since we
@@ -65,21 +94,20 @@ relation::parse(const char *line)
              * one of the number fields (see #21707)
              */
             ASSERT_ALWAYS(side_index < 2);
-            consumed++;
+            comma_allowed = false;
             continue;
-        } else if (comma_allowed && line[consumed] == ',') {
-            consumed++;
-            // NOLINTNEXLINE(clang-analyzer-deadcode.DeadStores)
-            comma_allowed = 0;
+        } else if (comma_allowed && c == ',') {
+            ism.get();
+        } else if (c == '\n') {
+            break;
         }
 
         unsigned long p;
-        int consumed_p;
-        if (sscanf(line + consumed, "%lx%n", &p, &consumed_p) < 1)
+        ism >> p;
+        if (!ism)
             return 0;
         add(side_index, p);
-        consumed += consumed_p;
-        comma_allowed = 1;
+        comma_allowed = true;
     }
     compress();
     fixup_r();
@@ -170,10 +198,8 @@ void relation::fixup_r(bool also_rational)
             if ((int) side == rational_side)
                 continue;
         }
-        for(unsigned int i = 0 ; i < sides[side_index].size() ; i++) {
-            if (mpz_cmp_ui(sides[side_index][i].r,0) == 0) {
-                pr & x(sides[side_index][i]);
-
+        for(auto & x : sides[side_index]) {
+            if (mpz_cmp_ui(x.r,0) == 0) {
                 mpz_set(x.r, bz);
                 if (mpz_invert(x.r, x.r, x.p)) {
                     mpz_mul(x.r, x.r, az);
@@ -194,7 +220,7 @@ static inline bool operator==(relation::pr const& a, relation::pr const& b) {
 void relation::compress()
 {
     for(auto & v : sides) {
-        std::sort(v.begin(), v.end(), pr_cmp());
+        std::sort(v.begin(), v.end());
         unsigned int j = 0;
         for(unsigned int i = 0; i < v.size() ; j++) {
             if (j < i) {

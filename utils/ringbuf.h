@@ -56,13 +56,13 @@ extern "C" {
 
 extern void ringbuf_init(ringbuf_ptr r, size_t initial_size);
 extern void ringbuf_clear(ringbuf_ptr r);
-extern int ringbuf_put(ringbuf_ptr r, char * p, size_t s);
+extern size_t ringbuf_put(ringbuf_ptr r, char * p, size_t s);
 extern void ringbuf_mark_done(ringbuf_ptr r);
 extern int ringbuf_is_done(ringbuf_ptr r);
 
 /* see above for the distinction between these two get() calls */
-extern int ringbuf_get(ringbuf_ptr r, char * p, size_t s);
-extern int ringbuf_get2(ringbuf_ptr r, void ** p, size_t s);
+extern size_t ringbuf_get(ringbuf_ptr r, char * p, size_t s);
+extern size_t ringbuf_get2(ringbuf_ptr r, void ** p, size_t s);
 
 extern int ringbuf_strchr(ringbuf_ptr r, int c, size_t offset);
 
@@ -85,9 +85,9 @@ extern int ringbuf_skip_get(ringbuf_ptr r, size_t s);
  * ringbug_skip_get(r_, n)
  */
 #define RINGBUF_GET_ONE_BYTE(c_, r_, s_) do {				\
-    c_ = *(s_)++;							\
-    if (s_ >= r_->p + r_->alloc) {					\
-        s_ = r_->p;							\
+    (c_) = (unsigned char) *(s_)++;					\
+    if ((s_) >= (r_)->p + (r_)->alloc) {				\
+        (s_) = (r_)->p;							\
     }									\
 } while (0)
 

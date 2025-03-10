@@ -1,8 +1,10 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
-#include <vector>
+#include <cstddef>
+
 #include <array>
 #include <iostream>
+#include <utility>
 
 #include "multityped_array.hpp"
 
@@ -16,7 +18,7 @@ struct print {
         constexpr size_t n = std::tuple_size<T>::value;
         std::cout << "field has " << n << " elements";
         for(auto a : x) std::cout << " " << a;
-        std::cout << std::endl;
+        std::cout << "\n";
     }
 };
 
@@ -28,7 +30,7 @@ struct print2 {
         std::cout << "field has " << n << " elements";
         for(auto a : x) std::cout << " " << a;
         std::cout << " [" << k << "]";
-        std::cout << std::endl;
+        std::cout << "\n";
     }
 };
 
@@ -49,7 +51,7 @@ struct return_pointer_if_in_subrange {
             return &(x[k]);
         } else {
             k -= x.size();
-            return NULL;
+            return nullptr;
         }
     }
     template<typename T>
@@ -58,7 +60,7 @@ struct return_pointer_if_in_subrange {
             return &(x[k]);
         } else {
             k -= x.size();
-            return NULL;
+            return nullptr;
         }
     }
 };
@@ -80,14 +82,14 @@ int main()
     multityped_array_foreach(fill(), A);
 
     type_factory<3>::type A3 = A.get<3>();
-    std::cout << "A3[2] == " << A3[2] << std::endl;
+    std::cout << "A3[2] == " << A3[2] << "\n";
 
     multityped_array_foreach(print2 {1}, A);
 
-    int v = 5;
+    const int v = 5;
     multityped_array_locate<return_pointer_if_in_subrange>()(A, v);
 
-    int s = multityped_array_fold(accumulate_sizes(), 0, A);
+    const int s = multityped_array_fold(accumulate_sizes(), 0, A);
 
-    std::cout << "total " << s << std::endl;
+    std::cout << "total " << s << "\n";
 }

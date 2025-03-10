@@ -8,7 +8,7 @@
 #include "matmul.hpp"   // for matmul_public_s
 #include "matmul-common.hpp"
 #include "verbose.h"
-#include "utils_cxx.hpp"        // for unique_ptr<FILE>
+#include "utils_cxx.hpp"        // for unique_ptr<FILE, delete_FILE>
 
 #define MM_COMMON_MAGIC 0xb0010003UL
 
@@ -16,9 +16,9 @@ const char * const rowcol[2] = { "row", "col", };
 
 /* Factor out some stuff which turns out to appear fairly often */
 
-std::unique_ptr<FILE> matmul_common_reload_cache_fopen(size_t stride, matmul_public & mm, uint32_t magic)
+std::unique_ptr<FILE, delete_FILE> matmul_common_reload_cache_fopen(size_t stride, matmul_public & mm, uint32_t magic)
 {
-    std::unique_ptr<FILE> f;
+    std::unique_ptr<FILE, delete_FILE> f;
     if (mm.cachefile_name.empty()) return f;
     f.reset(fopen(mm.cachefile_name.c_str(), "rb"));
     if (!f) return f;
@@ -59,9 +59,9 @@ std::unique_ptr<FILE> matmul_common_reload_cache_fopen(size_t stride, matmul_pub
     return f;
 }
 
-std::unique_ptr<FILE> matmul_common_save_cache_fopen(size_t stride, matmul_public const & mm, uint32_t magic)
+std::unique_ptr<FILE, delete_FILE> matmul_common_save_cache_fopen(size_t stride, matmul_public const & mm, uint32_t magic)
 {
-    std::unique_ptr<FILE> f;
+    std::unique_ptr<FILE, delete_FILE> f;
     if (mm.cachefile_name.empty()) return f;
     f.reset(fopen(mm.cachefile_name.c_str(), "wb"));
     if (!f) {

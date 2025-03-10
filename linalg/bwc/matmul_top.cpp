@@ -32,7 +32,7 @@
 #include "timing.h"     // wct_seconds
 #include "verbose.h"    // CADO_VERBOSE_PRINT_BWC_CACHE_BUILD
 #include "matmul_top_comm.hpp"
-#include "utils_cxx.hpp"        // for unique_ptr<FILE>
+#include "utils_cxx.hpp"        // for unique_ptr<FILE, delete_FILE>
 
 ///////////////////////////////////////////////////////////////////
 /* Start with stuff that does not depend on abase at all -- this
@@ -1261,7 +1261,7 @@ static int export_cache_list_if_requested(matmul_top_matrix & Mloc, parallelizin
                 info.get(),  int(pi->m->ncores * (len+1)), MPI_BYTE,
                 pi->m->pals);
         if (pi->m->jrank == 0) {
-            std::unique_ptr<FILE> const f(fopen(cachelist, "wb"));
+            std::unique_ptr<FILE, delete_FILE> const f(fopen(cachelist, "wb"));
             DIE_ERRNO_DIAG(!f, "fopen(%s)", cachelist);
             for(unsigned int j = 0 ; j < pi->m->njobs ; j++) {
                 unsigned int const j0 = j * pi->m->ncores;

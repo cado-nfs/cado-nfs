@@ -140,15 +140,15 @@ class BwcShuffling(object):
 
     def __preshuf(self, x):
         bal = self.M.balancing
-        if x >= bal.nc:
+        if x >= min(bal.nr, bal.nc):
             return x
-        return (bal.pa * x + bal.pb) % bal.nc
+        return (bal.pa * x + bal.pb) % min(bal.nr, bal.nc)
 
     def __preshuf_inv(self, x):
         bal = self.M.balancing
-        if x >= bal.nc:
+        if x >= min(bal.nr, bal.nc):
             return x
-        return (bal.pai * x + bal.pbi) % bal.nc
+        return (bal.pai * x + bal.pbi) % min(bal.nr, bal.nc)
 
     def __pr(self, x):
         # nrp:=nv*(chunk*Ceiling(x/chunk)) where x is Ceiling (nr/(nh*nv));

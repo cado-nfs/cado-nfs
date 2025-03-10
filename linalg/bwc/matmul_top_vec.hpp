@@ -97,7 +97,7 @@ extern void mmt_vec_set_random_through_file(mmt_vec & v, const char * name, unsi
  * changes ! */
 extern void mmt_vec_set_random_inconsistent(mmt_vec & v, cxx_gmp_randstate & rstate);
 extern unsigned long mmt_vec_hamming_weight(mmt_vec const & y);
-extern void mmt_vec_set_x_indices(mmt_vec & y, uint32_t * gxvecs, int m, unsigned int nx);
+extern void mmt_vec_set_x_indices(mmt_vec & y, uint32_t const * gxvecs, int m, unsigned int nx);
 extern void mmt_vec_set_expanded_copy_of_local_data(mmt_vec & y, const void * v, unsigned int n);
 
 extern void mmt_own_vec_set(mmt_vec & w, mmt_vec const & v);

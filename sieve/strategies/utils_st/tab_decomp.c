@@ -33,8 +33,7 @@ void tabular_decomp_free(tabular_decomp_t * t)
 
 void tabular_decomp_realloc(tabular_decomp_t * t)
 {
-    t->tab = realloc(t->tab, t->size * 2 * (sizeof(decomp_t *)));
-    ASSERT_ALWAYS(t->tab != NULL);
+    CHECKED_REALLOC(t->tab, t->size * 2, decomp_t *);
     t->size *= 2;
 }
 

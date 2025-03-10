@@ -31,6 +31,7 @@ cado_define_test(test_modredc_2ul2.c LIBRARIES utils tests ARGUMENTS 1000
     TIMEOUT 120
 )
 cado_define_test(test_sm_utils.cpp LIBRARIES utils ARGUMENTS ${CMAKE_CURRENT_SOURCE_DIR}/test_sm_utils.data)
+cado_divert_test(test_sm_utils failure EXPECT_FAIL ARGUMENTS ${CMAKE_CURRENT_SOURCE_DIR}/test_sm_utils_failure.data)
 cado_define_test(test_mpz_poly.cpp
     LIBRARIES utils tests
     AVOID_CONCURRENT 4
@@ -65,7 +66,8 @@ cado_define_test(test_mpz_poly_bivariate.cpp LIBRARIES utils tests TIMEOUT 60)
 cado_define_test(test_smallset.cpp LIBRARIES)
 cado_define_test(test_mpz_mat.c LIBRARIES utils)
 cado_define_test(test_gpf.c LIBRARIES utils)
-cado_define_test(test-sort.cpp ARGUMENTS --log-bigsize 14 --max-span 128 LIBRARIES ${gmp_libname})
+cado_define_test(test-sort.cpp ARGUMENTS --log-bigsize 14 --max-span 128
+    LIBRARIES utils)
 cado_define_test(test_u64arith.cpp LIBRARIES utils tests)
 cado_define_test(test_mod.cpp LIBRARIES utils tests)
 cado_define_test(test_multityped_array.cpp LIBRARIES utils)

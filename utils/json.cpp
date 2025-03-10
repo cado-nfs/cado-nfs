@@ -1,11 +1,19 @@
 #include "cado.h" // IWYU pragma: keep
-#include "macros.h"
+
+#include <climits>
+#include <cctype>
+
+#include <ios>
+#include <string>
+#include <vector>
 #include <exception>
+#include <stdexcept>
 #include <sstream>
-#include <limits.h>
+#include <ostream>
+#include <istream>
+
+#include "macros.h"
 #include "json.hpp"
-
-
 
 struct json_parser {
     struct parse_error: public std::exception {
@@ -13,7 +21,7 @@ struct json_parser {
     };
     struct tokenizer_error: public std::exception {
         std::string message;
-        tokenizer_error(std::istream& is) {
+        explicit tokenizer_error(std::istream& is) {
             std::string s;
             std::getline(is, s);
             std::ostringstream os;
@@ -55,9 +63,9 @@ private:
     std::vector<expression_token>::const_iterator ctok;
     std::vector<std::string>::const_iterator cstr;
     std::vector<double>::const_iterator cnum;
-    inline bool dry() { return ctok == tokens.end(); }
-    inline void next() { if (!dry()) ctok++; }
-    inline bool test(expression_token s) { return !dry() && *ctok == s; }
+    bool dry() { return ctok == tokens.end(); }
+    void next() { if (!dry()) ctok++; }
+    bool test(expression_token s) { return !dry() && *ctok == s; }
     bool accept(expression_token s) {
         if (!test(s)) return false;
         next();
@@ -95,13 +103,13 @@ public:
             if (trailing_comma) throw parse_error();
             return jj;
         } else if (accept(JNULL)) {
-            return json(new json_null());
+            return { new json_null() };
         } else if (accept(NUMBER)) {
-            return json(new json_number(*cnum++));
+            return { new json_number(*cnum++) };
         } else if (accept(BOOL)) {
-            return json(new json_bool(*cnum++));
+            return { new json_bool(*cnum++) };
         } else if (accept(STRING)) {
-            return json(new json_string(*cstr++));
+            return { new json_string(*cstr++) };
         } else {
             throw parse_error();
         }
@@ -115,6 +123,113 @@ public:
     }
 
 
+    bool tokenize_string(std::istream& is, int & c) {
+        if (c != '"')
+            return false;
+        is.get(), c=is.peek();
+        std::string s;
+        for(;!is.eof();is.get(), c=is.peek()) {
+            if (c == '"') {
+                is.get(), c=is.peek();
+                break;
+            }
+            if (c == '\\') {
+                is.get(), c=is.peek();
+                if (c == '\\') { s += '\\'; }
+                else if (c == '/') { s += '/'; }
+                else if (c == 'n') { s += '\n'; }
+                else if (c == 't') { s += '\t'; }
+                else if (c == 'r') { s += '\r'; }
+                else if (c == 'b') { s += '\b'; }
+                else if (c == 'u') { throw tokenizer_error(is); }
+                else { s += (char) c; /* any character may be escaped */ }
+            } else {
+                s += (char) c;
+            }
+        }
+        tokens.push_back(STRING);
+        strings.push_back(s);
+        return true;
+    }
+    bool tokenize_delimiter(std::istream& is, int & c)
+    {
+        if (c == '[') { is.get(); tokens.push_back(LEFT_SQUARE_BRACKET);
+        } else if (c == ']') { is.get(); tokens.push_back(RIGHT_SQUARE_BRACKET);
+        } else if (c == '{') { is.get(); tokens.push_back(LEFT_BRACE);
+        } else if (c == '}') { is.get(); tokens.push_back(RIGHT_BRACE);
+        } else if (c == ',') { is.get(); tokens.push_back(COMMA);
+        } else if (c == ':') { is.get(); tokens.push_back(COLON);
+        } else {
+            return false;
+        }
+        return true;
+    }
+    bool tokenize_null(std::istream& is, int & c)
+    {
+        if (c == 'n') {
+            /* the only thing we can do know is detect one of the
+             * values null, true, false
+             */
+            is.get(), c=is.peek();
+            if (c != 'u') { throw tokenizer_error(is); } is.get(), c=is.peek();
+            if (c != 'l') { throw tokenizer_error(is); } is.get(), c=is.peek();
+            if (c != 'l') { throw tokenizer_error(is); } is.get(), c=is.peek();
+            tokens.push_back(JNULL);
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    bool tokenize_number(std::istream& is, int & c)
+    {
+        if (isdigit(c) || c == '-' || c == '+') {
+            int sign = 1;
+            double d = 0;
+            double m = 10;
+            double f = 1;
+            if (c == '-') { is.get(), c=is.peek(); sign = -1; }
+            else if (c == '+') { is.get(), c=is.peek(); }
+
+            /* we don't support fractionals very cautiously, we don't
+             * support exponents, etc. It's quite lame.
+             */
+            if (!isdigit(c)) throw tokenizer_error(is);
+            for(;!is.eof() && (isdigit(c) || (c == '.' && m == 10));is.get(), c=is.peek()) {
+                if (c == '.' && m == 10) { m = 1; f = 0.1; continue; }
+                d = d * m + (c - '0') * f;
+                if (f < 1) f = f*0.1;
+            }
+            d = d * sign;
+            numbers.push_back(d);
+            tokens.push_back(NUMBER);
+            return true;
+        }
+        return false;
+    }
+    bool tokenize_boolean_literal(std::istream& is, int & c)
+    {
+        if (c == 't') {
+            is.get(), c=is.peek();
+            if (c != 'r') { throw tokenizer_error(is); } is.get(), c=is.peek();
+            if (c != 'u') { throw tokenizer_error(is); } is.get(), c=is.peek();
+            if (c != 'e') { throw tokenizer_error(is); } is.get(), c=is.peek();
+            tokens.push_back(BOOL);
+            numbers.push_back(1);
+            return true;
+        } else if (c == 'f') {
+            is.get(), c=is.peek();
+            if (c != 'a') { throw tokenizer_error(is); } is.get(), c=is.peek();
+            if (c != 'l') { throw tokenizer_error(is); } is.get(), c=is.peek();
+            if (c != 's') { throw tokenizer_error(is); } is.get(), c=is.peek();
+            if (c != 'e') { throw tokenizer_error(is); } is.get(), c=is.peek();
+            tokens.push_back(BOOL);
+            numbers.push_back(0);
+            return true;
+        } else {
+            return false;
+        }
+    }
     bool tokenize(std::istream& is) {
         tokens.clear();
         strings.clear();
@@ -128,80 +243,16 @@ public:
             }
             /* c is the next non-whitespace character */
             if (is.eof()) break;
-            if (c == '"') {
-                is.get(), c=is.peek();
-                std::string s;
-                for(;!is.eof();is.get(), c=is.peek()) {
-                    if (c == '"') {
-                        is.get(), c=is.peek();
-                        break;
-                    }
-                    if (c == '\\') {
-                        is.get(), c=is.peek();
-                        if (c == '\\') { s += '\\'; }
-                        else if (c == '/') { s += '/'; }
-                        else if (c == 'n') { s += '\n'; }
-                        else if (c == 't') { s += '\t'; }
-                        else if (c == 'r') { s += '\r'; }
-                        else if (c == 'b') { s += '\b'; }
-                        else if (c == 'u') { throw tokenizer_error(is); }
-                        else { s += c; /* any character may be escaped */ }
-                    } else {
-                        s += c;
-                    }
-                }
-                tokens.push_back(STRING);
-                strings.push_back(s);
-            } else if (c == '[') { is.get(); tokens.push_back(LEFT_SQUARE_BRACKET);
-            } else if (c == ']') { is.get(); tokens.push_back(RIGHT_SQUARE_BRACKET);
-            } else if (c == '{') { is.get(); tokens.push_back(LEFT_BRACE);
-            } else if (c == '}') { is.get(); tokens.push_back(RIGHT_BRACE);
-            } else if (c == ',') { is.get(); tokens.push_back(COMMA);
-            } else if (c == ':') { is.get(); tokens.push_back(COLON);
-            } else if (isdigit(c) || c == '-' || c == '+') {
-                int sign = 1;
-                double d = 0;
-                double m = 10;
-                double f = 1;
-                if (c == '-') { is.get(), c=is.peek(); sign = -1; }
-                else if (c == '+') { is.get(), c=is.peek(); }
-                
-                /* we don't support fractionals very cautiously, we don't
-                 * support exponents, etc. It's quite lame.
-                 */
-                if (!isdigit(c)) throw tokenizer_error(is);
-                for(;!is.eof() && (isdigit(c) || (c == '.' && m == 10));is.get(), c=is.peek()) {
-                    if (c == '.' && m == 10) { m = 1; f = 0.1; continue; }
-                    d = d * m + (c - '0') * f;
-                    if (f < 1) f = f*0.1;
-                }
-                d = d * sign;
-                numbers.push_back(d);
-                tokens.push_back(NUMBER);
-            } else if (c == 'n') {
-                /* the only thing we can do know is detect one of the
-                 * values null, true, false
-                 */
-                is.get(), c=is.peek();
-                if (c != 'u') { throw tokenizer_error(is); } is.get(), c=is.peek();
-                if (c != 'l') { throw tokenizer_error(is); } is.get(), c=is.peek();
-                if (c != 'l') { throw tokenizer_error(is); } is.get(), c=is.peek();
-                tokens.push_back(JNULL);
-            } else if (c == 't') {
-                is.get(), c=is.peek();
-                if (c != 'r') { throw tokenizer_error(is); } is.get(), c=is.peek();
-                if (c != 'u') { throw tokenizer_error(is); } is.get(), c=is.peek();
-                if (c != 'e') { throw tokenizer_error(is); } is.get(), c=is.peek();
-                tokens.push_back(BOOL);
-                numbers.push_back(1);
-            } else if (c == 'f') {
-                is.get(), c=is.peek();
-                if (c != 'a') { throw tokenizer_error(is); } is.get(), c=is.peek();
-                if (c != 'l') { throw tokenizer_error(is); } is.get(), c=is.peek();
-                if (c != 's') { throw tokenizer_error(is); } is.get(), c=is.peek();
-                if (c != 'e') { throw tokenizer_error(is); } is.get(), c=is.peek();
-                tokens.push_back(BOOL);
-                numbers.push_back(0);
+            if (tokenize_string(is, c)) {
+                /* happy */
+            } else if (tokenize_delimiter(is, c)) {
+                /* happy */
+            } else if (tokenize_number(is, c)) {
+                /* happy */
+            } else if (tokenize_null(is, c)) {
+                /* happy */
+            } else if (tokenize_boolean_literal(is, c)) {
+                /* happy */
             } else {
                 throw tokenizer_error(is);
             }

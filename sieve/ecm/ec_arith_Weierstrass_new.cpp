@@ -244,8 +244,8 @@ uint64_t ECWeierstrass<MODULUS>::AffinePoint::point_order (const uint64_t known_
                   i += j * known_m; /* Negatives, so iP = -jP and (i+j)P = 0 */
                 else
                   {
-                    std::cerr << "Matching x-coordinates, but y neither equal nor negatives" << std::endl;
-                    std::cerr << "giant_min = " << giant_min << ",  i = " << i << ",  j = " << j << std::endl;
+                    std::cerr << "Matching x-coordinates, but y neither equal nor negatives" << "\n";
+                    std::cerr << "giant_min = " << giant_min << ",  i = " << i << ",  j = " << j << "\n";
                     abort();
                   }
               }

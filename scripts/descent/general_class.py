@@ -89,7 +89,7 @@ class GeneralClass(object):
             self._tmpdir = self.args.tmpdir
             # do mkdir ???
         else:
-            self._tmpdir = tempfile.mkdtemp(dir="/tmp")
+            self._tmpdir = tempfile.mkdtemp(prefix="cado-nfs.")
         self.hello()
         self.__load_badidealdata()
         if self.args.no_logs:
@@ -230,7 +230,7 @@ class GeneralClass(object):
                     raise ValueError("How do I parse a polynomial?")
                     # d['Y'] = ZZ['x'](v).list()
                 else:
-                    d['Y'] = [ int(x) for x in v.split(',') ]
+                    d['Y'] = [int(x) for x in v.split(',')]
             if 'poly1' in d:
                 assert 'c' not in d
                 v = d["poly1"]
@@ -238,7 +238,7 @@ class GeneralClass(object):
                     raise ValueError("How do I parse a polynomial?")
                     # d['c'] = ZZ['x'](v).list()
                 else:
-                    d['c'] = [ int(x) for x in v.split(',') ]
+                    d['c'] = [int(x) for x in v.split(',')]
         return d
 
     def p(self):
@@ -304,7 +304,7 @@ class GeneralClass(object):
             s += ["--log", self.log()]
         if not self.has_rational_side():
             s += ["--fb0", self.fb0()]
-        return [ str(x) for x in s ]
+        return [str(x) for x in s]
 
     # There's no las_init_base_args, since DescentUpperClass uses only
     # its very own arguments.

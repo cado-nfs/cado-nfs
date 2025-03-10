@@ -105,7 +105,7 @@ int barrier_wait_unlocked(barrier_t * barrier,
 {
     int rc = 0;
 
-    rc = barrier_finish_unlocked(barrier);
+    barrier_finish_unlocked(barrier);
 
     --barrier->left;
 

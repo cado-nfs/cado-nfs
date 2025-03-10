@@ -23,8 +23,6 @@
 #include <string>
 #include <cstdarg>     // for va_end, va_list, va_start
 #include <cstdint>     // for int64_t, uint64_t
-#include <iosfwd>       // for std
-#include <memory>       // for allocator_traits<>::value_type
 #include <gmp.h>
 #include "cado_poly.h"  // for NB_POLYS_MAX, cado_poly_clear, cado_poly_init
 #include "gzip.h"       // fopen_maybe_compressed
@@ -326,7 +324,7 @@ static void sm_append_slave(std::vector<sm_side_info> const & sm_info, int nb_po
 static void sm_append_sync(FILE * in, FILE * out, std::vector<sm_side_info> const & sm_info, int nb_polys)
 {
     char buf[1024];
-    cxx_mpz_poly pol, smpol;
+    cxx_mpz_poly smpol;
     int maxdeg = sm_info[0].f->deg;
     for(int side = 1; side < nb_polys; side++)
         maxdeg = MAX(maxdeg, sm_info[side].f->deg);
@@ -354,7 +352,9 @@ static void sm_append_sync(FILE * in, FILE * out, std::vector<sm_side_info> cons
             exit(EXIT_FAILURE);
         }
 
-        mpz_poly_init_set_ab(pol, a*sign, b);
+        cxx_mpz_poly pol;
+
+        mpz_poly_set_ab(pol, a*sign, b);
 
         fputs(buf, out);
         fputc(':', out);

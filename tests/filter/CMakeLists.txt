@@ -58,5 +58,4 @@ cado_define_test(test_sm_with_small_ell
     -in   ${CMAKE_CURRENT_SOURCE_DIR}/c30_sm_small_ell.purged
     -poly ${CMAKE_CURRENT_SOURCE_DIR}/c30_sm_small_ell.poly
     TARGET_DEPENDENCIES sm_append
-    EXPECT_FAIL
 )

@@ -250,7 +250,7 @@ reduce_column_mod_previous(matpoly& M, std::vector<unsigned int>& pivots)
 static void
 normalize_column(matpoly& M, std::vector<unsigned int> const& pivots)
 {
-    auto tmp = M.ab->alloc();
+    auto * tmp = M.ab->alloc();
     unsigned int const r = pivots.size() - 1;
     unsigned int const u = pivots.back();
     /* Multiply the column so that the pivot becomes -1 */

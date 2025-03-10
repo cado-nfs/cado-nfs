@@ -1,11 +1,20 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
+#include <string.h>
+
 #include "omp_proxy.h"
 #include "timing.h"
 #include "merge_heap.h"
+#include "merge_replay_matrix.h"
 #include "sparse.h"
 #include "read_purgedfile_in_parallel.h"
+#include "macros.h"
+#include "typedefs.h"
+
 
 uint64_t * rows_per_thread;
 off_t * spos_tab;
@@ -120,7 +129,7 @@ void vector_of_typerow_pointer_push_back(vector_of_typerow_pointer_ptr V, typero
 {
     if (V->size >= V->alloc) {
         size_t newalloc = MAX(V->size * 2, 16);
-        V->x = (typerow_t **) realloc(V->x, newalloc * sizeof(typerow_t *));
+        CHECKED_REALLOC(V->x, newalloc, typerow_t *);
         V->alloc = newalloc;
     }
     V->x[V->size++] = p;
@@ -158,7 +167,7 @@ void vector_of_typerow_push_back(vector_of_typerow_ptr V, const typerow_t * p)
 {
     if (V->size >= V->alloc) {
         size_t newalloc = MAX(V->size * 2, 16);
-        V->x = (typerow_t *) realloc(V->x, newalloc * sizeof(typerow_t));
+        CHECKED_REALLOC(V->x, newalloc, typerow_t);
         V->alloc = newalloc;
     }
     memcpy(V->x + V->size++, p, sizeof(typerow_t));

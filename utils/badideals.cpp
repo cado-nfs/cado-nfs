@@ -30,7 +30,7 @@ std::ostream& badideal::print_dot_badideals_file(std::ostream & o, int side) con
     o << p
         << "," << r
         << ":" << side
-        << ": " << nbad << std::endl;
+        << ": " << nbad << "\n";
     return o;
 }/*}}}*/
 std::ostream& badideal::print_dot_badidealinfo_file(std::ostream& o, int side) const {/*{{{*/
@@ -41,7 +41,7 @@ std::ostream& badideal::print_dot_badidealinfo_file(std::ostream& o, int side) c
         for(unsigned int k = 0 ; k < br.v.size() ; k++) {
             o << " " << br.v[k];
         }
-        o << std::endl;
+        o << "\n";
     }
     return o;
 }/*}}}*/
@@ -57,7 +57,7 @@ std::ostream& badideal::operator<<(std::ostream& os) const
         << dec
         << "  " << nbad
         << "  " << branches.size()
-        << std::endl;
+        << "\n";
     for(unsigned int j = 0 ; j < branches.size() ; j++) {
         badideal::branch const& br(branches[j]);
         os << p << " " << br.k << " " << br.r;
@@ -65,7 +65,7 @@ std::ostream& badideal::operator<<(std::ostream& os) const
         for(unsigned int k = 0 ; k < br.v.size() ; k++) {
             os << " " << br.v[k];
         }
-        os << std::endl;
+        os << "\n";
     }
     os.flags(ff);
     return os;
@@ -150,7 +150,7 @@ static vector<badideal::branch> lift_root(numbertheory_internals::all_valuations
             br.v = A.multiply_inertia(v);
             dead_branches_reports.push_back(br);
         } else {
-            live_branches.push_back(make_pair(nQ, newvals));
+            live_branches.emplace_back(nQ, newvals);
         }
         live_ideals.insert(live_ideals.end(), alive.begin(), alive.end());
     }

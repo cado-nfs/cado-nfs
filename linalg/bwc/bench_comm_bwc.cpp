@@ -1,32 +1,16 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <cstdio>
 #include <cstdlib>
-#include <cstdint>              // for uint32_t
 #include <memory>
-#include <string>                // for string, operator+
-#include <gmp.h>                 // for gmp_randclear, gmp_randinit_default
-#ifdef HAVE_RESOURCE_H
-#include <sys/resource.h>	/* for cputime */
-#endif
-#include <sys/time.h>	/* for gettimeofday */
-#include "matmul.hpp"              // for matmul_public_s
+
 #include "parallelizing_info.hpp"
 #include "matmul_top.hpp"
 #include "select_mpi.h"
 #include "params.h"
-#include "xvectors.hpp"
 #include "bw-common.h"
-#include "async.hpp"
-#include "xdotprod.hpp"
 #include "arith-generic.hpp"
-#include "arith-cross.hpp"
-#include "fmt/core.h"            // for check_format_string
-#include "fmt/printf.h" // fmt::fprintf // IWYU pragma: keep
-#include "fmt/format.h"
 #include "macros.h"
-#include "timing.h"
-
-using namespace fmt::literals;
 
 static void * bench_comm_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {

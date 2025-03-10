@@ -5,6 +5,7 @@
 
 #include "modredc126.hpp"
 #include "macros.h"
+#include "u64arith.h"
 
 /* Divide residue by 3. Returns 1 if division is possible, 0 otherwise.
    Assumes that a+3m does not overflow */
@@ -28,7 +29,7 @@ ModulusREDC126::div3 (Residue &r, const Residue &a) const
 #endif
 
     if (m3 == 0)
-        return 0;
+        return false;
 
     set(t, a);
 
@@ -68,7 +69,7 @@ ModulusREDC126::div3 (Residue &r, const Residue &a) const
     ASSERT_EXPENSIVE (equal (a_backup, t));
 #endif
 
-    return 1;
+    return true;
 }
 
 
@@ -217,7 +218,6 @@ ModulusREDC126::gcd (Integer &r, const Residue &A) const
     }
     r = Integer(b[0], b[1]);
 
-    return;
 }
 
 
@@ -381,16 +381,16 @@ ModulusREDC126::sprp (const Residue &b) const
   Residue r(*this), minusone(*this);
   Integer mm1;
   int po2 = 0;
-  bool i = 0;
 
   getmod (mm1);
 
   if (mm1 == 1)
-    return 0;
+    return false;
 
   /* Let m-1 = 2^l * k, k odd. Set mm1 = k, po2 = l */
   mm1 -= 1;
   po2 = mm1.ctz();
+  ASSERT_ALWAYS((unsigned int) po2 < Integer::maxsize() * Integer::getWordSize());
   mm1 >>= po2;
 
   set1 (minusone);
@@ -398,9 +398,7 @@ ModulusREDC126::sprp (const Residue &b) const
 
   /* Exponentiate */
   pow (r, b, mm1);
-  i = find_minus1 (r, minusone, po2);
-
-  return i;
+  return find_minus1 (r, minusone, po2);
 }
 
 
@@ -420,6 +418,8 @@ ModulusREDC126::sprp2 () const
     /* Let m-1 = 2^l * k, k odd. Set mm1 = k, po2 = l */
     --mm1;
     po2 = mm1.ctz();
+
+    ASSERT_ALWAYS((unsigned int) po2 < Integer::maxsize() * Integer::getWordSize());
     mm1 >>= po2;
 
     set1 (minusone);
@@ -452,6 +452,7 @@ ModulusREDC126::isprime () const
     /* Set mm1 to the odd part of m-1 */
     mm1 = n - 1;
     po2 = mm1.ctz();
+    ASSERT_ALWAYS((unsigned int) po2 < Integer::maxsize() * Integer::getWordSize());
     mm1 >>= po2;
 
     set1 (minusone);
@@ -459,74 +460,75 @@ ModulusREDC126::isprime () const
 
     /* Do base 2 SPRP test */
     pow2 (r1, mm1);
-    /* If n is prime and 1 or 7 (mod 8), then 2 is a square (mod n)
-       and one fewer squarings must suffice. This does not strengthen the
-       test but saves one squaring for composite input */
-    if (n.getWord(0) % 8 == 7) {
-        if (!is1 (r1))
-            goto end;
-    } else if (!find_minus1 (r1, minusone, po2 - ((n.getWord(0) % 8 == 7) ? 1 : 0)))
-        goto end; /* Not prime */
 
-    /* Base 3 is poor at identifying composites == 1 (mod 3), but good at
-       identifying composites == 2 (mod 3). Thus we use it only for 2 (mod 3) */
-    i = n.getWord(0) % 3 + n.getWord(1) % 3;
-    if (i == 1 || i == 4)
-    {
-        npow<7> (r1, mm1, *this); /* r = 7^mm1 mod m */
-        if (!find_minus1 (r1, minusone, po2))
-            goto end; /* Not prime */
+    do {
+        /* If n is prime and 1 or 7 (mod 8), then 2 is a square (mod n)
+           and one fewer squarings must suffice. This does not strengthen the
+           test but saves one squaring for composite input */
+        if (n.getWord(0) % 8 == 7) {
+            if (!is1 (r1))
+                break;
+        } else if (!find_minus1 (r1, minusone, po2 - ((n.getWord(0) % 8 == 7) ? 1 : 0)))
+            break; /* Not prime */
 
-        set_reduced (b, 61); /* Use addition chain? */
-        pow (r1, b, mm1); /* r = 61^mm1 mod m */
-        if (!find_minus1 (r1, minusone, po2))
-            goto end; /* Not prime */
+        /* Base 3 is poor at identifying composites == 1 (mod 3), but
+         * good at identifying composites == 2 (mod 3). Thus we use it
+         * only for 2 (mod 3) */
+        i = n.getWord(0) % 3 + n.getWord(1) % 3;
+        if (i == 1 || i == 4)
+        {
+            npow<7> (r1, mm1, *this); /* r = 7^mm1 mod m */
+            if (!find_minus1 (r1, minusone, po2))
+                break; /* Not prime */
 
-        npow<5> (r1, mm1, *this); /* r = 5^mm1 mod m */
-        if (!find_minus1 (r1, minusone, po2))
-            goto end; /* Not prime */
+            set_reduced (b, 61); /* Use addition chain? */
+            pow (r1, b, mm1); /* r = 61^mm1 mod m */
+            if (!find_minus1 (r1, minusone, po2))
+                break; /* Not prime */
 
-        /* These are the base 2,5,7,61 SPSP < 10^13 and n == 1 (mod 3) */
+            npow<5> (r1, mm1, *this); /* r = 5^mm1 mod m */
+            if (!find_minus1 (r1, minusone, po2))
+                break; /* Not prime */
 
-        r = n != UINT64_C(30926647201) &&
-            n != UINT64_C(45821738881) &&
-            n != UINT64_C(74359744201) &&
-            n != UINT64_C(90528271681) &&
-            n != UINT64_C(110330267041) &&
-            n != UINT64_C(373303331521) &&
-            n != UINT64_C(440478111067) &&
-            n != UINT64_C(1436309367751) &&
-            n != UINT64_C(1437328758421) &&
-            n != UINT64_C(1858903385041) &&
-            n != UINT64_C(4897239482521) &&
-            n != UINT64_C(5026103290981) &&
-            n != UINT64_C(5219055617887) &&
-            n != UINT64_C(5660137043641) &&
-            n != UINT64_C(6385803726241);
-    }
-    else
-    {
-        /* Case n % 3 == 0, 2 */
+            /* These are the base 2,5,7,61 SPSP < 10^13 and n == 1 (mod 3) */
 
-        npow<3> (r1, mm1, *this); /* r = 3^mm1 mod m */
-        if (!find_minus1 (r1, minusone, po2))
-            goto end; /* Not prime */
+            r = n != UINT64_C(30926647201) &&
+                n != UINT64_C(45821738881) &&
+                n != UINT64_C(74359744201) &&
+                n != UINT64_C(90528271681) &&
+                n != UINT64_C(110330267041) &&
+                n != UINT64_C(373303331521) &&
+                n != UINT64_C(440478111067) &&
+                n != UINT64_C(1436309367751) &&
+                n != UINT64_C(1437328758421) &&
+                n != UINT64_C(1858903385041) &&
+                n != UINT64_C(4897239482521) &&
+                n != UINT64_C(5026103290981) &&
+                n != UINT64_C(5219055617887) &&
+                n != UINT64_C(5660137043641) &&
+                n != UINT64_C(6385803726241);
+        } else {
+            /* Case n % 3 == 0, 2 */
 
-        npow<5> (r1, mm1, *this); /* r = 5^mm1 mod m */
-        if (!find_minus1 (r1, minusone, po2))
-            goto end; /* Not prime */
+            npow<3> (r1, mm1, *this); /* r = 3^mm1 mod m */
+            if (!find_minus1 (r1, minusone, po2))
+                break; /* Not prime */
 
-        /* These are the base 2,3,5 SPSP < 10^13 and n == 2 (mod 3) */
+            npow<5> (r1, mm1, *this); /* r = 5^mm1 mod m */
+            if (!find_minus1 (r1, minusone, po2))
+                break; /* Not prime */
 
-        r = n != UINT64_C(244970876021) &&
-            n != UINT64_C(405439595861) &&
-            n != UINT64_C(1566655993781) &&
-            n != UINT64_C(3857382025841) &&
-            n != UINT64_C(4074652846961) &&
-            n != UINT64_C(5783688565841);
-    }
+            /* These are the base 2,3,5 SPSP < 10^13 and n == 2 (mod 3) */
 
-end:
+            r = n != UINT64_C(244970876021) &&
+                n != UINT64_C(405439595861) &&
+                n != UINT64_C(1566655993781) &&
+                n != UINT64_C(3857382025841) &&
+                n != UINT64_C(4074652846961) &&
+                n != UINT64_C(5783688565841);
+        }
+    } while (false);
+
 #if defined(PARI)
     printf ("isprime(%lu) == %d /* PARI */\n", n, r);
 #endif
@@ -582,7 +584,7 @@ ModulusREDC126::inv (Residue &r, const Residue &A) const
     ASSERT_EXPENSIVE (m[0] % 2 != 0);
 
     if (is0(A))
-        return 0;
+        return false;
 
     getmod (b);
 
@@ -655,7 +657,7 @@ ModulusREDC126::inv (Residue &r, const Residue &A) const
     } while (a != b);
 
     if (a != 1) /* Non-trivial GCD */
-        return 0;
+        return false;
 
     ASSERT_ALWAYS (t >= 0);
 
@@ -684,9 +686,8 @@ ModulusREDC126::inv (Residue &r, const Residue &A) const
         u64arith_shrd (&(s[1]), s[2], s[1], t);
 
         u = Integer(s[0], s[1]);
-        t = 0;
+        // t = 0;
     }
-    ASSERT_FOR_STATIC_ANALYZER(t == 0); // consume t
 
     u.get(r.r, 2);
 #ifdef WANT_ASSERT_EXPENSIVE
@@ -694,7 +695,7 @@ ModulusREDC126::inv (Residue &r, const Residue &A) const
     ASSERT_EXPENSIVE (is1 (tmp));
 #endif
 
-    return 1;
+    return true;
 }
 
 bool
@@ -704,7 +705,7 @@ ModulusREDC126::batchinv (Residue *r, const uint64_t *a, const size_t n,
   Residue R(*this);
 
   if (n == 0)
-    return 1;
+    return true;
 
   r[0] = a[0];
 
@@ -716,10 +717,10 @@ ModulusREDC126::batchinv (Residue *r, const uint64_t *a, const size_t n,
 
   /* Computes R = beta^2/r[n-1] */
   if (!inv(R, r[n - 1]))
-    return 0;
+    return false;
   /* R = beta^2 beta'^{n-1} \prod_{0 <= j < n} a[j]^{-1} */
 
-  if (c != NULL) {
+  if (c != nullptr) {
     Residue t(*this);
     t = *c;
     mul(R, R, t);
@@ -751,7 +752,7 @@ ModulusREDC126::batchinv (Residue *r, const uint64_t *a, const size_t n,
   redc1(R, R); /* R := beta * beta'^{-1} / a[0] / beta',
                   with beta = beta'^2, this is 1/a[0] */
   set(r[0], R);
-  return 1;
+  return true;
 }
 
 #if 0

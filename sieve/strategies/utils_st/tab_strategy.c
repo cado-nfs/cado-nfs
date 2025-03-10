@@ -36,8 +36,7 @@ void tabular_strategy_free(tabular_strategy_t * t)
 
 void tabular_strategy_realloc(tabular_strategy_t * t)
 {
-    t->tab = realloc(t->tab, t->size * 2 * (sizeof(strategy_t *)));
-    ASSERT_ALWAYS(t->tab != NULL);
+    CHECKED_REALLOC(t->tab, t->size * 2, strategy_t *);
     t->size *= 2;
 }
 

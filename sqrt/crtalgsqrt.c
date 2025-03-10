@@ -175,7 +175,7 @@ logprint(const char * fmt, ...)
 
     size_t wt = strlen(prefix) + strlen(fmt) + 80;
     if (wt > st) {
-        t = realloc(t, wt);
+        CHECKED_REALLOC(t, wt, char);
         st = wt;
     }
     snprintf(t, st, "# [%2.2lf] %s%s", WCT, prefix, pfmt);

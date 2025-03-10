@@ -19,9 +19,9 @@ typedef struct {
 // tables containing polynomials f
 // how to encode phi form ?
 typedef struct {
-  unsigned int deg_f;
-  unsigned int deg_Py;
-  unsigned int deg_phi;
+  int deg_f;
+  int deg_Py;
+  int deg_phi;
   int size; // nb of elements f in table
   const tPyf_t* tab; // la table de {f, Py, phi}
   long int phi[MAX_DEGREE + 1][DEG_PY]; // poly whose coefficients are themselves poly in Y 
@@ -40,9 +40,9 @@ typedef struct {
 } fPyphi_t;
 
 typedef struct {
-  unsigned int deg_f;
-  unsigned int deg_Py;
-  unsigned int deg_phi;
+  int deg_f;
+  int deg_Py;
+  int deg_phi;
   int size;
   const fPyphi_t* tab;
 } fPyphi_poly_t;

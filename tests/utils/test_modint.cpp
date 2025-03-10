@@ -18,13 +18,13 @@ class Tests {
         i = 1;
         i = z;
         if (i != 0) {
-            std::cerr << "Setting to 0 failed" << std::endl;
+            std::cerr << "Setting to 0 failed" << "\n";
             return false;
         }
         z = 5;
         i = z;
         if (i != 5) {
-            std::cerr << "Setting to 5 failed" << std::endl;
+            std::cerr << "Setting to 5 failed" << "\n";
             return false;
         }
         return true;
@@ -44,7 +44,7 @@ class Tests {
             V_str << V;
             v_str << v;
             if (V_str.str() != v_str.str()) {
-                std::cerr << "GMP output: " << V << ", Integer output: " << v << std::endl;
+                std::cerr << "GMP output: " << V << ", Integer output: " << v << "\n";
                 ok = false;;
             }
         }

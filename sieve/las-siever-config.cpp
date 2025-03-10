@@ -55,18 +55,18 @@ void siever_config::display(int side, unsigned int bitsize) const /*{{{*/
 /* {{{ Parse default siever config (fill all possible fields). Return
  * true if the parsed siever config is complete and can be used without
  * per-special-q info. */
-bool siever_config::parse_default(siever_config & sc, cxx_param_list & pl, int n)
+bool siever_config::parse_default(siever_config & sc, cxx_param_list & pl, int nb_polys)
 {
     /* The default config is not necessarily a complete bit of
      * information.
      */
 
-    auto found = siever_side_config::parse(pl, sc.sides, n);
+    auto found = siever_side_config::parse(pl, sc.sides, nb_polys);
 
     bool complete = true;
 
     for (auto const & s : { "lim", "lpb", "mfb" }) {
-        if (found[s] < 2)
+        if (found[s] < nb_polys)
             complete = false;
     }
 

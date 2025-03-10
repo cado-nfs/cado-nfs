@@ -1,9 +1,13 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#include <pthread.h>
+
 #include "macros.h"
 #include "ringbuf.h"
 #include "portability.h"
@@ -58,11 +62,9 @@ static void ringbuf_grow__(ringbuf_ptr r, size_t claim)
     if (r->avail_to_read) {
         char * newp = malloc(newalloc);
         size_t tail = r->alloc - (r->rhead - r->p);
-        ptrdiff_t head = r->avail_to_read - tail;
-        // tail + head == r->avail_to_read
-        if (head > 0) {
+        if (tail < r->avail_to_read) {
             memcpy(newp, r->rhead, tail);
-            memcpy(newp + tail, r->p, head);
+            memcpy(newp + tail, r->p, r->avail_to_read - tail);
         } else {
             memcpy(newp, r->rhead, r->avail_to_read);
         }
@@ -71,8 +73,7 @@ static void ringbuf_grow__(ringbuf_ptr r, size_t claim)
         r->rhead = r->p;
         r->whead = r->p + r->avail_to_read;
     } else {
-        r->p = realloc(r->p, newalloc);
-        FATAL_ERROR_CHECK(r->p == NULL, "Cannot allocate memory");
+        CHECKED_REALLOC(r->p, newalloc, char);
         r->rhead = r->p;
         r->whead = r->p;
     }
@@ -107,8 +108,9 @@ void ringbuf_clear(ringbuf_ptr r)
 
 
 
-int ringbuf_put(ringbuf_ptr r, char * p, size_t s)
+size_t ringbuf_put(ringbuf_ptr r, char * p, size_t s)
 {
+    ASSERT_ALWAYS(p != NULL);
     pthread_mutex_lock(r->mx);
     // fprintf(stderr, "put(%zu): (ravail: %zu, wavail: %zu)\n", s, r->avail_to_read, r->avail_to_write);
     for( ; s > r->avail_to_write ; ) {
@@ -143,6 +145,7 @@ int ringbuf_put(ringbuf_ptr r, char * p, size_t s)
     } else {
         ASSERT(tail > 0);
         ASSERT(s > tail);
+        ASSERT_ALWAYS(r->whead != NULL);
         memcpy(r->whead, p, tail);
 #ifndef NDEBUG
         ptrdiff_t head = r->avail_to_write - tail;
@@ -181,7 +184,7 @@ int ringbuf_is_done(ringbuf_ptr r)
     return x;
 }
 
-int ringbuf_get(ringbuf_ptr r, char * p, size_t s)
+size_t ringbuf_get(ringbuf_ptr r, char * p, size_t s)
 {
     pthread_mutex_lock(r->mx);
     // fprintf(stderr, "get(%zu): (ravail: %zu, wavail: %zu)\n", s, r->avail_to_read, r->avail_to_write);
@@ -231,7 +234,7 @@ int ringbuf_get(ringbuf_ptr r, char * p, size_t s)
     return s;
 }
 
-int ringbuf_get2(ringbuf_ptr r, void ** p, size_t s)
+size_t ringbuf_get2(ringbuf_ptr r, void ** p, size_t s)
 {
     if (*p) {
         return ringbuf_get(r, *p, s);
@@ -252,7 +255,7 @@ int ringbuf_get2(ringbuf_ptr r, void ** p, size_t s)
 
 ssize_t ringbuf_feed_stream(ringbuf_ptr r, FILE * f)
 {
-    ssize_t nread = 0;
+    size_t nread = 0;
 
     /* We are the only thread decreasing the avail_to_write counter in
      * rb. So we may keep a copy of its value, which will always be a
@@ -305,7 +308,10 @@ ssize_t ringbuf_feed_stream(ringbuf_ptr r, FILE * f)
             pthread_cond_signal(r->bored);
             pthread_mutex_unlock(r->mx);
         } else if (feof(f)) {
-            return nread;
+            /* this interface returns ssize_t, which is a pity since it
+             * is not the same signedness as nread...
+             */
+            return (ssize_t) nread;
         } else {
             return -1;
         }
@@ -326,15 +332,15 @@ int ringbuf_strchr(ringbuf_ptr r, int c, size_t offset)
     ASSERT_ALWAYS(offset <= r->avail_to_read);
     pthread_mutex_unlock(r->mx);
     size_t tail = r->alloc - (r->rhead - r->p);
-    int s = offset;
-    for(; (size_t) s < tail ; s++) {
+    size_t s = offset;
+    for(; s < tail ; s++) {
         if (r->rhead[s] == c)
-            return s;
+            return (int) s;
     }
     tail = r->avail_to_read - s;
     for(int t = 0 ; (size_t) t < tail ; s++,t++) {
         if (r->p[t] == c)
-            return s;
+            return (int) s;
     }
     return -1;
 }

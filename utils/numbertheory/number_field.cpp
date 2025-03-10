@@ -1,12 +1,22 @@
 #include "cado.h" // IWYU pragma: keep
 
+#include <memory>
+
+#include <gmp.h>
+#include "fmt/core.h"
+#include "fmt/format.h"
+
+#include "cxx_mpz.hpp"
+#include "macros.h"
+#include "misc.h"
+#include "mpz_mat.h"
+#include "mpz_poly.h"
+#include "numbertheory/fmt_helpers.hpp"
 #include "numbertheory/number_field.hpp"
+#include "numbertheory/number_field_element.hpp"
 #include "numbertheory/number_field_order.hpp"
 #include "numbertheory/number_field_order_element.hpp"
-#include "numbertheory/number_field_element.hpp"
 #include "numbertheory/numbertheory_internals.hpp"
-#include "getprime.h"
-#include "misc.h"
 
 number_field::number_field(cxx_mpz_poly const & f)
     : f(f)
@@ -38,7 +48,7 @@ void number_field::bless(const char * name, const char * varname)
 }
 
 number_field_element number_field::gen() const {
-    return number_field_element(*this, "x");
+    return { *this, "x" };
 }
 
 number_field_order number_field::order(number_field_element const & a) const
@@ -55,7 +65,7 @@ number_field_order number_field::order(number_field_element const & a) const
         x = x * a;
         mpq_mat_submat_set(B, i, 0, x.coefficients, 0, 0, 1, n);
     }
-    return number_field_order(*this, B);
+    return { *this, B };
 }
 
 number_field_order number_field::equation_order() const
@@ -69,12 +79,12 @@ number_field_order number_field::equation_order() const
         mpq_set_z(B(i,i), x);
         mpz_mul(x, x, mpz_poly_lc(f));
     }
-    return number_field_order(*this, B);
+    return { *this, B };
 }
 
 number_field_order number_field::p_maximal_order(cxx_mpz const & p) const
 {
-    return number_field_order(*this, numbertheory_internals::p_maximal_order(defining_polynomial(), p));
+    return { *this, numbertheory_internals::p_maximal_order(defining_polynomial(), p) };
 }
 
 static cxx_mpq_mat companion_matrix(cxx_mpz_poly const & f)
@@ -93,7 +103,7 @@ static cxx_mpq_mat companion_matrix(cxx_mpz_poly const & f)
 
 cxx_mpq_mat number_field::trace_matrix() const
 {
-    if (cached_trace_matrix.get() == nullptr) {
+    if (cached_trace_matrix == nullptr) {
         cxx_mpz_poly const & f(defining_polynomial());
         int const n = degree();
         cxx_mpq_mat C = companion_matrix(f);
@@ -115,7 +125,7 @@ cxx_mpq_mat number_field::trace_matrix() const
 
 number_field_order const& number_field::maximal_order(unsigned long prime_limit) const
 {
-    if (cached_maximal_order.get() == nullptr) {
+    if (cached_maximal_order == nullptr) {
 
         number_field_order O = equation_order();
 
@@ -124,9 +134,7 @@ number_field_order const& number_field::maximal_order(unsigned long prime_limit)
         mpz_mul(disc, disc, mpz_poly_lc(f));
 
         /* We're not urged to use ecm here */
-        std::vector<std::pair<cxx_mpz,int> > const small_primes = trial_division(disc, prime_limit, disc);
-
-        for(auto const & pe : small_primes) {
+        for(auto const & pe : trial_division(disc, prime_limit, disc)) {
             fmt::print("{} {}\n", pe.first, O);
         }
 
@@ -140,15 +148,15 @@ number_field_order const& number_field::maximal_order(unsigned long prime_limit)
 
 number_field_element number_field::operator()(cxx_mpz_poly const & a, cxx_mpz const & d) const
 {
-    return number_field_element(*this, a, d);
+    return { *this, a, d };
 }
 number_field_element number_field::operator()(cxx_mpq_mat const & a) const
 {
-    return number_field_element(*this, a);
+    return { *this, a };
 }
 number_field_element number_field::operator()(cxx_mpz_mat const & a, cxx_mpz const & d) const
 {
-    return number_field_element(*this, a, d);
+    return { *this, a, d };
 }
 
 number_field_element number_field::operator()(number_field_order_element const & e) const
@@ -156,7 +164,7 @@ number_field_element number_field::operator()(number_field_order_element const &
     ASSERT_ALWAYS(this == &e.order().number_field());
     cxx_mpq_mat c = e.coefficients;
     mpq_mat_mul(c, c, e.order().basis_matrix);
-    return number_field_element(*this, c);
+    return { *this, c };
 }
 
 

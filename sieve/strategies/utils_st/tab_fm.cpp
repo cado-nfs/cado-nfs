@@ -4,26 +4,27 @@
 #include "facul.hpp"
 #include "tab_fm.h"
 #include "macros.h"
+#include "utils_cxx.hpp"
 
 static const double EPSILON_DBL = 0.000001;
 
 tabular_fm_t *tabular_fm_create(void)
 {
     tabular_fm_t *t = (tabular_fm_t*) malloc(sizeof(tabular_fm_t));
-    ASSERT_ALWAYS(t != NULL);
+    ASSERT_ALWAYS(t != nullptr);
 
     t->index = 0;
     t->size = 2;
 
     t->tab = (fm_t **) malloc(t->size * sizeof(fm_t *));
-    ASSERT_ALWAYS(t->tab != NULL);
+    ASSERT_ALWAYS(t->tab != nullptr);
 
     return t;
 }
 
 void tabular_fm_free(tabular_fm_t * t)
 {
-    if (t != NULL)
+    if (t != nullptr)
 	{
 	    for (int i = 0; i < t->index; i++)	//size
 		fm_free(t->tab[i]);
@@ -34,8 +35,7 @@ void tabular_fm_free(tabular_fm_t * t)
 
 void tabular_fm_realloc(tabular_fm_t * t)
 {
-    t->tab = (fm_t **) realloc(t->tab, t->size * 2 * (sizeof(fm_t *)));
-    ASSERT(t->tab != NULL);
+    checked_realloc(t->tab, t->size * 2);
     t->size *= 2;
 }
 
@@ -75,7 +75,7 @@ tabular_fm_set_index(tabular_fm_t * t, unsigned long *method, int len_method,
 
     if (ind >= t->index) {
 	t->tab[ind] = fm_create();
-	ASSERT(t->tab[ind] != NULL);
+	ASSERT(t->tab[ind] != nullptr);
     }
 
     fm_set_method(t->tab[ind], method, len_method);
@@ -88,7 +88,7 @@ tabular_fm_set_index(tabular_fm_t * t, unsigned long *method, int len_method,
 fm_t *tabular_fm_get_fm(tabular_fm_t * t, int index)
 {
     if (index >= t->index)
-	return NULL;
+	return nullptr;
     return t->tab[index];
 }
 
@@ -218,8 +218,8 @@ static fm_t *sub_routine_fm_fscanf(FILE * file, int *current_char)
 
 tabular_fm_t* tabular_fm_fscan(FILE * file)
 {
-    if (file == NULL)
-	return NULL;
+    if (file == nullptr)
+	return nullptr;
     tabular_fm_t * res = tabular_fm_create ();
     int current_char = fgetc(file);
     int const rc = ungetc(current_char, file);

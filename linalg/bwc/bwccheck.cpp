@@ -829,7 +829,7 @@ static void * check_prog(cxx_param_list & pl MAYBE_UNUSED, int argc, char const 
     free(ymy);
 #endif
 
-    return NULL;
+    return nullptr;
 }
 
 
@@ -839,13 +839,9 @@ int main(int argc, char const * argv[])
 
     bw_common_init(bw, &argc, &argv);
 
-
     param_list_usage_header(pl,
-            "Usage: %s [options] -- [list of file names]\n"
-            "\n"
             "File names are checked together (all relevant checks tying files to eachother within the provided argument list are done). The program tells which checks have been done\n"
-            "Options are as follows. Note that not all are relevant to this program specifically:\n",
-            argv[0]);
+            "Options are as follows. Note that not all are relevant to this program specifically:\n");
 
     bw_common_decl_usage(pl);
     /* declare local parameters and switches: none here (so far). */

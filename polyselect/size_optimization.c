@@ -33,8 +33,7 @@ list_mpz_realloc (list_mpz_ptr l, uint64_t newalloc)
                    "%" PRIu64 ", will be reallocated to newalloc = %" PRIu64
                    "\n", __FILE__, __func__, l->alloc, l->len, newalloc);
 #endif
-  l->tab = (mpz_t *) realloc (l->tab, newalloc * sizeof (mpz_t));
-  ASSERT_ALWAYS (l->tab != NULL);
+  CHECKED_REALLOC(l->tab, newalloc, mpz_t);
   for (uint64_t i = l->alloc; i < newalloc; i++)
     mpz_init (l->tab[i]);
   l->alloc = newalloc;

@@ -32,6 +32,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include <vector>
 #include <memory>        // for unique_ptr, allocator_traits<>::value_type
 #include <utility>       // for pair
+#include <ios>
 
 #include "fmt/core.h"
 #include "fmt/format.h"
@@ -75,7 +76,6 @@ struct freerel_data_t : public renumber_t::hook {
         param_list_lookup_string(pl, "pmin");
         param_list_lookup_string(pl, "pmax");
     }
-    ~freerel_data_t() override { }
 };
 
 freerel_data_t::freerel_data_t(cxx_param_list & pl, cxx_cado_poly const & cpoly, std::vector<unsigned int> const & lpb) : sink(param_list_lookup_string(pl, "out"))
@@ -182,7 +182,7 @@ main(int argc, char const * argv[])
         if (param_list_update_cmdline(pl, &argc, &argv))
             continue;
         FILE* f;
-        if ((f = fopen(argv[0], "r")) != NULL) {
+        if ((f = fopen(argv[0], "r")) != nullptr) {
             param_list_read_stream(pl, f, 0);
             fclose(f);
             argv++, argc--;

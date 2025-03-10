@@ -1,6 +1,7 @@
 #ifndef UTILS_ISTREAM_MATCHER_HPP_
 #define UTILS_ISTREAM_MATCHER_HPP_
 
+#include <string>
 #include <istream>
 #include <ios>
 #include <iterator>
@@ -11,8 +12,18 @@
 template<typename CharT, typename Traits = std::char_traits<CharT>>
 struct istream_matcher {
     std::basic_istream<CharT, Traits> & r;
-    istream_matcher(std::basic_istream<CharT, Traits> & r) : r(r) {}
+    explicit istream_matcher(std::basic_istream<CharT, Traits> & r) : r(r) {}
     operator bool() const { return (bool) r; }
+    /* we can't conveniently overload >> std::ws for this type, probably
+     * because it doesn't derive from std::ws as it should
+     */
+    istream_matcher& ws() { r >> std::ws; return *this; }
+    bool eof() const { return r.eof(); }
+    bool good() const { return r.good(); }
+    bool bad() const { return r.bad(); }
+    bool fail() const { return r.fail(); }
+    int peek() const { return r.peek(); }
+    int get() const { return r.get(); }
 };
 
 template<typename CharT, typename Traits, typename T>
@@ -20,6 +31,7 @@ inline istream_matcher<CharT, Traits> &operator >>(istream_matcher<CharT, Traits
     is.r >> x;
     return is;
 }
+
 
 template<typename CharT, typename Traits, std::size_t N>
 istream_matcher<CharT, Traits> &operator >>(istream_matcher<CharT, Traits> &is, char const (& literal)[N])

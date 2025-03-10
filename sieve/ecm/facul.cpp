@@ -263,7 +263,7 @@ facul_both_src (std::vector<std::vector<cxx_mpz>> & factors, const FaculModulusB
     }
     // begin the auxiliary factorization
     if (is_smooth[0] >= 1 && is_smooth[1] >= 1) {
-        for (int side = 0; side < 2; side++) {
+        for (int side = 0; side < nsides; side++) {
             if (is_smooth[side] == FACUL_AUX) {
                 for (int ind_cof = 0; ind_cof < 2; ind_cof++) {
                     // factor f[side][0] or/and f[side][1]
@@ -335,7 +335,7 @@ facul_both (std::vector<std::vector<cxx_mpz>> & factors,
   if (mpz_cmp_ui (N[1], 1UL) == 0)
     is_smooth[1] = FACUL_SMOOTH;
 
-  for (int side = 0; side < 2; side++)
+  for (int side = 0; side < nsides; side++)
     {
       /* If the composite does not fit into our modular arithmetic, return
 	 no factor */
@@ -350,7 +350,7 @@ facul_both (std::vector<std::vector<cxx_mpz>> & factors,
     }
 
   found = facul_both_src (factors, n, strategies, cof, is_smooth);
-  for (int side = 0; side < 2; side++)
+  for (int side = 0; side < nsides; side++)
     {
       if (found[side] > 1)
 	{

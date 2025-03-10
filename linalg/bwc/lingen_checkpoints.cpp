@@ -19,10 +19,8 @@
 #include <algorithm>
 #include <memory>
 
-
 #include <unistd.h>                    // for unlink, access, R_OK, X_OK
 #include <gmp.h>                       // for operator<<, mpz_cmp
-
 
 #include "fmt/core.h"                  // for check_format_string, char_t
 #include "fmt/format.h"                // for basic_buffer::append, basic_pa...
@@ -585,7 +583,7 @@ static int load_mpi_checkpoint_file_gathered(bmstatus & bm, cp_which which, bigm
     logline_begin(stdout, SIZE_MAX, "Reading %s (MPI, gathered)",
             cp.datafile.c_str());
     do {
-        std::unique_ptr<FILE> data;
+        std::unique_ptr<FILE, delete_FILE> data;
         if (!rank) {
             data.reset(fopen(cp.datafile.c_str(), "rb"));
             ok = bool(data);

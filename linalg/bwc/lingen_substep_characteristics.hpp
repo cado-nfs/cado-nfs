@@ -353,7 +353,7 @@ struct lingen_substep_characteristics {
 
         complete_tvec(os, tvec, F, kl, kh);
 
-        os << std::endl;
+        os << "\n";
         return tvec;
     }/*}}}*/
 

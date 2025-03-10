@@ -1159,7 +1159,9 @@ void fill_in_buckets_toplevel(nfs_work &ws, nfs_aux & aux, thread_pool &pool, in
     // per se, we're not doing anything here.
     // CHILD_TIMER(timer, __func__);
     
-    bool const do_resieve = ws.conf.sides[0].lim && ws.conf.sides[1].lim;
+    bool const do_resieve = std::all_of(ws.conf.sides.cbegin(),
+                                        ws.conf.sides.cend(),
+                            [](siever_side_config const & s) { return s.lim; });
 
     if (do_resieve) {
         switch (ws.toplevel) {
@@ -1253,6 +1255,7 @@ downsort_tree_inner(
     multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS> & precomp_plattice,
     where_am_I & w)
 {
+    int nsides = ws.las.cpoly->nb_polys;
     nfs_aux & aux(*aux_p);
     timetree_t & timer(aux.rt.timer);
 
@@ -1265,7 +1268,7 @@ downsort_tree_inner(
 
   WHERE_AM_I_UPDATE(w, N, first_region0_index);
 
-  for (int side = 0; side < 2; ++side) {
+  for (int side = 0; side < nsides; ++side) {
     nfs_work::side_data & wss(ws.sides[side]);
     if (wss.no_fb()) continue;
 
@@ -1356,7 +1359,7 @@ downsort_tree_inner(
        * las.cpp
        */
       ASSERT(ws.toplevel > 1);
-      for(int side = 0 ; side < 2 ; side++) {
+      for(int side = 0 ; side < nsides ; side++) {
           nfs_work::side_data  const& wss(ws.sides[side]);
           if (wss.no_fb()) continue;
           pool.add_task_lambda([=,&ws,&aux](worker_thread * worker, int){

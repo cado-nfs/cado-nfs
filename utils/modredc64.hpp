@@ -8,8 +8,11 @@
 
 /**********************************************************************/
 #include <cstdlib>       // for size_t, llabs, NULL
-#include <new>            // for operator new
 #include <cstdint>
+
+#include <new>            // for operator new
+#include <utility>
+
 #include "macros.h"
 #include "u64arith.h"
 #include "modint.hpp"
@@ -32,10 +35,12 @@ public:
         Residue() = delete;
         Residue(const Modulus &m MAYBE_UNUSED) : r(0) {}
         Residue(const Modulus &m MAYBE_UNUSED, const Residue &s) : r(s.r) {}
-        Residue(const Residue &&s) : r(s.r) {}
+        Residue(Residue &&s) = default;
+        Residue& operator=(Residue &&s) = default;
     protected:
-        Residue &operator=(const Residue &s) {r = s.r; return *this;}
-        Residue &operator=(const Integer &s) {r = 0; s.get(&r, 1); return *this;}
+        Residue (Residue const &s) = default;
+        Residue &operator=(Residue const &s) = default;
+        Residue &operator=(Integer const &s) {r = 0; s.get(&r, 1); return *this;}
         Residue &operator=(const uint64_t s) {r = s; return *this;}
     };
 
@@ -80,24 +85,36 @@ protected:
 
     /* Methods of the API */
 public:
-    static Integer getminmod() {return Integer(1);}
-    static Integer getmaxmod() {return Integer(UINT64_MAX);}
+    static Integer getminmod() { return { 1 }; }
+    static Integer getmaxmod() { return { UINT64_MAX }; }
     static void getminmod(Integer &r) {r = getminmod();}
     static void getmaxmod(Integer &r) {r = getmaxmod();}
     static bool valid(const Integer &m) {
         return getminmod() <= m && m <= getmaxmod() && m % 2 == 1;
     }
     /* Methods for the modulus */
-    ModulusREDC64 (const uint64_t s) : m(s), invm(-u64arith_invmod (s)), one(*this) {
-        int shift = u64arith_clz(m);
-        uint64_t ml = m << shift, dummy;
+    ModulusREDC64 (const uint64_t s)
+        : m(s)
+        , invm(-u64arith_invmod (s))
+        , one(*this)
+    {
+        const int shift = u64arith_clz(m);
+        const uint64_t ml = m << shift;
+        uint64_t dummy;
         mrecip = u64arith_reciprocal_for_div(ml);
         u64arith_divqr_2_1_1_recip_precomp(&dummy, &one.r, 0, 1, ml, mrecip,
                                            shift);
     }
-    ModulusREDC64(const ModulusREDC64 &s) : m(s.m), invm(s.invm), mrecip(s.mrecip), one(s) {one = s.one;}
-    ModulusREDC64 (const Integer &s) : ModulusREDC64(s.getWord(0)) {}
-    ~ModulusREDC64 () {}
+
+    ModulusREDC64(ModulusREDC64 const &s) = default;
+    ModulusREDC64(ModulusREDC64 &&s) = default;
+    ModulusREDC64& operator=(ModulusREDC64 const &s) = default;
+    ModulusREDC64& operator=(ModulusREDC64 &&s) = default;
+    ~ModulusREDC64() = default;
+
+    explicit ModulusREDC64 (const Integer &s)
+        : ModulusREDC64(s.getWord(0))
+    {}
 
     uint64_t getmod_u64 () const {return m;}
     void getmod (Integer &r) const {r = Integer(m);}
@@ -110,16 +127,16 @@ public:
      */
     Residue *newArray(const size_t len) const {
         void *t = operator new[](len * sizeof(Residue));
-        if (t == NULL)
-            return NULL;
-        Residue *ptr = static_cast<Residue *>(t);
+        if (t == nullptr)
+            return nullptr;
+        auto *ptr = static_cast<Residue *>(t);
         for(size_t i = 0; i < len; i++) {
             new(&ptr[i]) Residue(*this);
         }
         return ptr;
     }
 
-    void deleteArray(Residue *ptr, const size_t len) const {
+    static void deleteArray(Residue *ptr, const size_t len) {
         for(size_t i = len; i > 0; i++) {
             ptr[i - 1].~Residue();
         }
@@ -148,9 +165,9 @@ public:
     }
     void set_reduced (Residue &r, const Integer &s) const {set_reduced(r, s.getWord(0));}
     void set_int64 (Residue &r, const int64_t s) const {set(r, llabs(s)); if (s < 0) neg(r, r);}
-    void set0 (Residue &r) const {r.r = 0;}
-    void set1 (Residue &r) const {r = one;}
-    void swap (Residue &a, Residue &b) const {uint64_t t = a.r; a.r = b.r; b.r = t;}
+    static void set0 (Residue &r) { r.r = 0; }
+    void set1 (Residue &r) const { r = one; }
+    static void swap (Residue &a, Residue &b) { std::swap(a.r, b.r); }
 
     void get (Integer &r, const Residue &s) const {
         assertValid (s);
@@ -247,22 +264,21 @@ public:
 
     bool next (Residue &r) const {return (++r.r == m);}
     bool finished (const Residue &r) const {return (r.r == m);}
-    bool div2 (Residue &r, const Residue &a) const {r.r = u64arith_div2mod(a.r, m); return 1;}
+    bool div2 (Residue &r, const Residue &a) const {r.r = u64arith_div2mod(a.r, m); return true;}
     bool div3 (Residue &, const Residue &) const;
     bool div5 (Residue &, const Residue &) const;
     bool div7 (Residue &, const Residue &) const;
     bool div11 (Residue &, const Residue &) const;
     bool div13 (Residue &, const Residue &) const;
     void gcd (Integer &, const Residue &) const;
-    void pow (Residue &, const Residue &, const uint64_t) const;
-    void pow (Residue &, const Residue &, const uint64_t *, const size_t) const;
+    void pow (Residue &, const Residue &, uint64_t) const;
+    void pow (Residue &, const Residue &, const uint64_t *, size_t) const;
     void pow (Residue &, const Residue &, const Integer &) const;
-    void pow2 (Residue &, const uint64_t) const;
-    void pow2 (Residue &, const uint64_t *, const size_t) const;
+    void pow2 (Residue &, uint64_t) const;
+    void pow2 (Residue &, const uint64_t *, size_t) const;
     void pow2 (Residue &r, const Integer &) const;
-    void pow3 (Residue &, const uint64_t) const;
-    void V (Residue &r, Residue *rp1, const Residue &b,
-            const uint64_t k) const;
+    void pow3 (Residue &, uint64_t) const;
+    void V (Residue &r, Residue *rp1, const Residue &b, uint64_t k) const;
     bool sprp (const Residue &) const;
     bool sprp2 () const;
     bool isprime () const;
@@ -270,10 +286,10 @@ public:
     bool inv_odd (Residue &, const Residue &) const;
     bool intinv (Residue &, const Residue &) const;
     bool batchinv (Residue *, const Residue *, size_t, const Residue *) const;
-    bool batchinv_u64 (uint64_t *, const uint64_t *, uint64_t, const size_t) const;
-    bool batch_Q_to_Fp (uint64_t *, uint64_t, uint64_t, uint64_t, const uint64_t *, size_t) const;
+    bool batchinv_u64 (uint64_t *, const uint64_t *, uint64_t, size_t) const;
+    static bool batch_Q_to_Fp (uint64_t *, uint64_t, uint64_t, uint64_t, const uint64_t *, size_t);
     int jacobi (const Residue &) const;
 protected:
-    bool find_minus1 (Residue &r1, const Residue &minusone, const int po2) const;
+    bool find_minus1 (Residue &r1, const Residue &minusone, int po2) const;
 };
 #endif  /* MODREDC64_HPP */

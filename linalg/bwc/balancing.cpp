@@ -1,11 +1,15 @@
 #include "cado.h" // IWYU pragma: keep
-#include <string.h>
-#include <inttypes.h>
-#include <stdio.h>
-#include <stdint.h>
+
+#include <cerrno>
+#include <cinttypes>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+
+#include <memory>
+
 #include <sys/stat.h>
-#include <errno.h>
-#include <stdlib.h>
 
 #include "balancing.hpp"
 #include "portability.h" // asprintf // IWYU pragma: keep
@@ -13,7 +17,7 @@
 #include "crc.h"        // cado_crc_lfsr
 #include "misc.h"       // has_suffix
 #include "macros.h"
-#include "utils_cxx.hpp"        // for unique_ptr<FILE>
+#include "utils_cxx.hpp"        // for unique_ptr<FILE, delete_FILE>
 
 void balancing_set_row_col_count(balancing & bal)
 {
@@ -62,7 +66,7 @@ void balancing_finalize(balancing & bal)
 void balancing_write_inner(balancing const & bal, std::string const & filename)
 {
     fmt::print(stderr, "Writing balancing data to {}\n", filename);
-    std::unique_ptr<FILE> const pfile(fopen(filename.c_str(), "wb"));
+    std::unique_ptr<FILE, delete_FILE> const pfile(fopen(filename.c_str(), "wb"));
     if (!pfile) {
         perror(filename.c_str());
         abort();
@@ -178,7 +182,7 @@ void balancing_read_header(balancing & bal, std::string const & filename)
     ASSERT_ALWAYS(!filename.empty());
     std::string hdrname = std::unique_ptr<char, free_delete<char>>(
             derived_filename(filename.c_str(), "hdr", ".bin")).get();
-    std::unique_ptr<FILE> pfile(fopen(filename.c_str(), "rb"));
+    std::unique_ptr<FILE, delete_FILE> pfile(fopen(filename.c_str(), "rb"));
     if (!pfile) {
         pfile.reset(fopen(hdrname.c_str(), "rb"));
         if (!pfile) {
@@ -194,7 +198,7 @@ void balancing_read_header(balancing & bal, std::string const & filename)
 void balancing_read(balancing & bal, std::string const & filename)
 {
     ASSERT_ALWAYS(!filename.empty());
-    std::unique_ptr<FILE> pfile (fopen (filename.c_str(), "rb"));
+    std::unique_ptr<FILE, delete_FILE> pfile (fopen (filename.c_str(), "rb"));
     if (!pfile) {
         perror(filename.c_str());
         abort();

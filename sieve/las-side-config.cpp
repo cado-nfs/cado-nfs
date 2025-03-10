@@ -1,10 +1,11 @@
-#include "cado.h"       // NOLINT(misc-include-cleaner)
+#include "cado.h"       // IWYU pragma: keep
 
 #include <climits>
 
 #include <algorithm>
 #include <stdexcept>
 #include <map>
+#include <vector>
 #include <string>
 
 #include "params.h"
@@ -29,25 +30,25 @@ void batch_side_config::declare_usage(cxx_param_list & pl)
 }
 
 #define DISPATCH_PARAMETER2(type, name, argname, dfl, policy) do {	\
-        std::vector<type> t(n, dfl);		                        \
-        int r = param_list_parse_per_side<type>(pl,			\
-                    argname, t.data(), n, policy);			\
+        std::vector<type> t(nb_polys, dfl);		                \
+        const int r = param_list_parse_per_side<type>(pl,		\
+                    argname, t.data(), nb_polys, policy);		\
         res[#name] = r;                                                 \
         if (!r && std::find(mo.begin(), mo.end(), argname) != mo.end())	\
             throw std::runtime_error("Parameter " argname		\
                     " is mandatory (for all sides)");			\
-        for(int i = 0 ; i < n ; i++)					\
+        for(int i = 0 ; i < nb_polys ; i++)				\
             v[i].name = t[i];						\
     } while (0)
 
 #define DISPATCH_PARAMETER(type, name, dfl, policy)     \
             DISPATCH_PARAMETER2(type, name, #name, dfl, policy)
 
-std::map<std::string, int> siever_side_config::parse(cxx_param_list & pl, std::vector<siever_side_config> & v, int n,
+std::map<std::string, int> siever_side_config::parse(cxx_param_list & pl, std::vector<siever_side_config> & v, int nb_polys,
     std::vector<std::string> const & mandatory)
 {
     std::map<std::string, int> res;
-    v.assign(n, {});
+    v.assign(nb_polys, {});
     auto const & mo = mandatory;
 
 
@@ -67,11 +68,11 @@ void siever_side_config::lookup_parameters(cxx_param_list & pl, int nsides)
     siever_side_config::parse(pl, v, nsides);
 }
 
-std::map<std::string, int> batch_side_config::parse(cxx_param_list & pl, std::vector<batch_side_config> & v, int n,
+std::map<std::string, int> batch_side_config::parse(cxx_param_list & pl, std::vector<batch_side_config> & v, int nb_polys,
     std::vector<std::string> const & mandatory)
 {
     std::map<std::string, int> res;
-    v.assign(n, {});
+    v.assign(nb_polys, {});
     auto const & mo = mandatory;
 
     // for(auto & s: v) s.batchmfb = s.batchlpb = s.lpb;

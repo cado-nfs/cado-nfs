@@ -114,8 +114,10 @@ struct siever_config {
         template<typename OtherLasType>
         bool operator()(OtherLasType const& o) const { return (*this)(o.conf); }
         bool operator()(siever_config const& o) const {
+            if (sc.sides.size() != o.sides.size())
+                return false;
             bool ok = true;
-            for(int side = 0 ; side < 2 ; side++) {
+            for(unsigned int side = 0 ; side < sc.sides.size(); side++) {
                 ok = ok && sc.sides[side].lim == o.sides[side].lim;
                 ok = ok && sc.sides[side].powlim == o.sides[side].powlim;
             }
@@ -145,8 +147,10 @@ struct siever_config {
         template<typename OtherLasType>
         bool operator()(OtherLasType const& o) const { return (*this)(o.conf); }
         bool operator()(siever_config const& o) const { 
+            if (sc.sides.size() != o.sides.size())
+                return false;
             bool ok = true;
-            for(int side = 0 ; side < 2 ; side++) {
+            for(unsigned int side = 0 ; side < sc.sides.size(); side++) {
                 ok = ok && sc.sides[side].lambda == o.sides[side].lambda;
                 ok = ok && sc.sides[side].lpb == o.sides[side].lpb;
                 ok = ok && sc.sides[side].mfb == o.sides[side].mfb;
@@ -156,12 +160,17 @@ struct siever_config {
         }
         struct comparison {
             bool operator()(siever_config const& a, siever_config const& b) const {
-                return std::tie(
-                        a.sides[0].lambda, a.sides[0].lpb, a.sides[0].mfb, a.sides[0].ncurves,
-                        a.sides[1].lambda, a.sides[1].lpb, a.sides[1].mfb, a.sides[1].ncurves) <
-                    std::tie(
-                        b.sides[0].lambda, b.sides[0].lpb, b.sides[0].mfb, b.sides[0].ncurves,
-                        b.sides[1].lambda, b.sides[1].lpb, b.sides[1].mfb, b.sides[1].ncurves);
+                unsigned int min = std::min(a.sides.size(), b.sides.size());
+                for(unsigned int s = 0 ; s < min; s++) {
+                    auto as = std::tie(a.sides[s].lambda, a.sides[s].lpb,
+                                       a.sides[s].mfb, a.sides[s].ncurves);
+                    auto bs = std::tie(b.sides[s].lambda, b.sides[s].lpb,
+                                       b.sides[s].mfb, b.sides[s].ncurves);
+                    if (as == bs)
+                        continue;
+                    return as < bs;
+                }
+                return a.sides.size() < b.sides.size();
             }
         };
 

@@ -88,7 +88,7 @@ public:
 
     static constexpr bool over_gf2 = true;
     // static void add_to_main_memory_pool(size_t s);
-    // arith_hard * ab = NULL;
+    // arith_hard * ab = nullptr;
     /* Note that in a sense, we're perverting the b64 layer anyway, since
      * what we're really doing is _NOT_ simd at all.
      */
@@ -100,8 +100,8 @@ public:
 private:
     size_t size = 0;    /* in bits */
     size_t alloc_words = 0;
-    ptr x = NULL;
-    static inline size_t b2w_x(size_t n) {
+    ptr x = nullptr;
+    static size_t b2w_x(size_t n) {
         /* We always use an even number of words. It seems stupid, but
          * some of the routines that play an important role in
          * block-based lingen basecase really want 64*64 matrices of
@@ -111,13 +111,13 @@ private:
         static_assert(64 % ULONG_BITS == 0, "ULONG_BITS must divide 64");
         return BITS_TO_WORDS(n, 64) * (64 / ULONG_BITS);
     }
-    static inline size_t b2w(size_t n) {
+    static size_t b2w(size_t n) {
         return BITS_TO_WORDS(n, ULONG_BITS);
     }
     /*{{{*/
-    // inline size_t colstride() const { return nrows() * stride(); }/*}}}*/
+    // size_t colstride() const { return nrows() * stride(); }/*}}}*/
 public:
-    inline size_t capacity() const { return alloc_words * ULONG_BITS; }
+    size_t capacity() const { return alloc_words * ULONG_BITS; }
     const void * data_area() const { return x; }
     bool is_tight() const { return alloc_words == b2w(size); }
     size_t data_entry_size_in_bytes() const {
@@ -141,27 +141,27 @@ public:
     size_t data_alloc_size_in_bytes() const {
         return m * n * data_entry_alloc_size_in_bytes();
     }
-    inline unsigned int nrows() const { return m; }
-    inline unsigned int ncols() const { return n; }
-    inline size_t get_size() const { return size; }
+    unsigned int nrows() const { return m; }
+    unsigned int ncols() const { return n; }
+    size_t get_size() const { return size; }
     void set_size(size_t s) { size = s; }
     size_t get_true_nonzero_size() const;
-    unsigned int valuation() const;
+    size_t valuation() const;
 
-    matpoly() { m=n=0; size=0; alloc_words=0; x=NULL; }
-    matpoly(arith_hard * ab, unsigned int m, unsigned int n, int len);
+    matpoly() { m=n=0; size=0; alloc_words=0; x=nullptr; }
+    matpoly(arith_hard * ab, unsigned int m, unsigned int n, size_t len);
     matpoly(matpoly const&) = delete;
     matpoly& operator=(matpoly const&) = delete;
     matpoly& set(matpoly const&);
-    matpoly(matpoly &&);
-    matpoly& operator=(matpoly &&);
+    matpoly(matpoly &&) noexcept;
+    matpoly& operator=(matpoly &&) noexcept;
     ~matpoly();
-    matpoly similar_shell() const { return matpoly(nullptr, m, n, 0); }
+    matpoly similar_shell() const { return { nullptr, m, n, 0 }; }
     bool check_pre_init() const ATTRIBUTE_WARN_UNUSED_RESULT {
-        return x == NULL;
+        return x == nullptr;
     }
     void realloc(size_t new_number_of_coeffs);
-    inline void shrink_to_fit() { realloc(size); }
+    void shrink_to_fit() { realloc(size); }
     void zero();
     void clear() { *this = matpoly(); }
 
@@ -169,35 +169,35 @@ public:
     /* part_head does not _promise_ to point to coefficient k exactly. In
      * the simd case (lingen_matpoly_binary.hpp) it points to the word
      * where coefficient k can be found */
-    inline ptr part(unsigned int i, unsigned int j) {
+    ptr part(unsigned int i, unsigned int j) {
         return x + (i*n+j)*alloc_words;
     }
-    // inline elt& coeff(unsigned int i, unsigned int j) { return *part(i, j); }
-    inline srcptr part(unsigned int i, unsigned int j) const {
+    // elt& coeff(unsigned int i, unsigned int j) { return *part(i, j); }
+    srcptr part(unsigned int i, unsigned int j) const {
         return x + (i*n+j)*alloc_words;
     }
     public:
-    inline ptr part_head(unsigned int i, unsigned int j, unsigned int k) {
+    ptr part_head(unsigned int i, unsigned int j, size_t k) {
         /* k is a number of bits. Only k/ULONG_BITS matter (see
          * ab->vec_subvec)
          */
         return ab->vec_subvec(part(i, j), k);
     }
-    inline srcptr part_head(unsigned int i, unsigned int j, unsigned int k) const {
+    srcptr part_head(unsigned int i, unsigned int j, size_t k) const {
         /* k is a number of bits. Only k/ULONG_BITS matter (see
          * ab->vec_subvec)
          */
         return ab->vec_subvec(part(i, j), k);
     }
-    inline elt coeff(unsigned int i, unsigned int j, unsigned int k) const {
+    elt coeff(unsigned int i, unsigned int j, size_t k) const {
         /* k is a number of bits */
         return (*part_head(i, j, k) >> (k % ULONG_BITS)) != 0;
     }
     struct coeff_accessor_proxy {
         unsigned long & p;
-        unsigned int kr;
+        size_t kr;
         coeff_accessor_proxy(matpoly& F, unsigned int i,
-                unsigned int j, unsigned int k)
+                unsigned int j, size_t k)
             : p(*F.part_head(i, j, k))
             , kr(k % ULONG_BITS)
         {
@@ -208,7 +208,7 @@ public:
             return *this;
         }
     };
-    inline coeff_accessor_proxy coeff(unsigned int i, unsigned int j, unsigned int k) {
+    coeff_accessor_proxy coeff(unsigned int i, unsigned int j, size_t k) {
         return coeff_accessor_proxy(*this, i, j, k);
     }
     public:
@@ -226,9 +226,9 @@ public:
     void set_constant(unsigned long e) { set_constant_ui(e); }
 
     /* Note that this does not affect the size field */
-    void fill_random(unsigned int k0, unsigned int k1, cxx_gmp_randstate & rstate);
+    void fill_random(size_t k0, size_t k1, cxx_gmp_randstate & rstate);
 
-    void clear_and_set_random(unsigned int len, cxx_gmp_randstate & rstate)
+    void clear_and_set_random(size_t len, cxx_gmp_randstate & rstate)
     {
         if (len > capacity())
             zero_pad(len);
@@ -237,34 +237,34 @@ public:
         set_size(len);
     }
     int cmp(matpoly const & b) const;
-    void multiply_column_by_x(unsigned int j, unsigned int size);
-    void divide_column_by_x(unsigned int j, unsigned int size);
-    void truncate(matpoly const & src, unsigned int size);
-    void truncate(unsigned int size) { truncate(*this, size); }
+    void multiply_column_by_x(unsigned int j, size_t size);
+    void divide_column_by_x(unsigned int j, size_t size);
+    void truncate(matpoly const & src, size_t size);
+    void truncate(size_t size) { truncate(*this, size); }
     /* This checks that coefficients of degree k to size-1 are zero.
      */
-    int tail_is_zero(unsigned int k) const;
+    int tail_is_zero(size_t k) const;
 public:
     /* not to be confused with the former. a priori this is an
      * implementation detail. At times, we want to assert that.
      */
     bool high_word_is_clear() const;
 private:
-    void clear_high_word_common(unsigned int length);
+    void clear_high_word_common(size_t length);
 public:
-    inline void clear_high_word() { clear_high_word_common(size); }
+    void clear_high_word() { clear_high_word_common(size); }
 public:
     /* This changes size to nsize, and fills [size..nsize[ with zeroes */
-    void zero_pad(unsigned int nsize);
+    void zero_pad(size_t nsize);
 
     void zero_with_size(size_t size) { set_size(0); zero_pad(size); }
 
     void extract_column(
-        unsigned int jdst, unsigned int kdst,
-        matpoly const & src, unsigned int jsrc, unsigned int ksrc);
-    void zero_column(unsigned int jdst, unsigned int kdst);
-    void rshift(matpoly const &, unsigned int k);
-    void rshift(unsigned int k);
+        unsigned int jdst, size_t kdst,
+        matpoly const & src, unsigned int jsrc, size_t ksrc);
+    void zero_column(unsigned int jdst, size_t kdst);
+    void rshift(matpoly const &, size_t k);
+    void rshift(size_t k);
 
     void add(matpoly const & a, matpoly const & b);
     void sub(matpoly const & a, matpoly const & b);
@@ -293,17 +293,17 @@ public:
  
 
     // void set_polymat(polymat const & src);
-    int coeff_is_zero(unsigned int k) const;
-    void coeff_set_zero(unsigned int k);
+    int coeff_is_zero(size_t k) const;
+    void coeff_set_zero(size_t k);
 
     struct view_t : public submatrix_range {
         matpoly & M;
         view_t(matpoly & M, submatrix_range S) : submatrix_range(S), M(M) {}
         view_t(matpoly & M) : submatrix_range(M), M(M) {}
-        inline ptr part(unsigned int i, unsigned int j) {
+        ptr part(unsigned int i, unsigned int j) {
             return M.part(i0+i, j0+j);
         }
-        inline srcptr part(unsigned int i, unsigned int j) const {
+        srcptr part(unsigned int i, unsigned int j) const {
             return M.part(i0+i, j0+j);
         }
         void zero();
@@ -314,7 +314,7 @@ public:
         const_view_t(matpoly const & M, submatrix_range S) : submatrix_range(S), M(M) {}
         const_view_t(matpoly const & M) : submatrix_range(M), M(M) {}
         const_view_t(view_t const & V) : submatrix_range(V), M(V.M) {}
-        inline srcptr part(unsigned int i, unsigned int j) const {
+        srcptr part(unsigned int i, unsigned int j) const {
             return M.part(i0+i, j0+j);
         }
     };
@@ -327,7 +327,7 @@ public:
     static void addmul(view_t t, const_view_t t0, const_view_t t1);
     static void addmp(view_t t, const_view_t t0, const_view_t t1);
 
-    matpoly truncate_and_rshift(unsigned int truncated_size, unsigned int rshift);
+    matpoly truncate_and_rshift(size_t truncated_size, size_t rshift);
 };
 
 #endif	/* LINGEN_MATPOLY_BINARY_HPP_ */
