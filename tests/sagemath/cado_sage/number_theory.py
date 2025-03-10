@@ -388,10 +388,16 @@ class CadoNumberFieldWrapper(object):
         all_intervals = [x[0] for x in f.roots(C)]
 
         # first, set up the real places
-        if all_complex:
-            real_intervals = [z for z in all_intervals if z.imag().is_zero()]
+        if interval_based:
+            if all_complex:
+                real_intervals = [z for z in all_intervals if 0 in z.imag()]
+            else:
+                real_intervals = [x for x,y in all_intervals if 0 in y]
         else:
-            real_intervals = [x for x,y in all_intervals if y.is_zero()]
+            if all_complex:
+                real_intervals = [z for z in all_intervals if z.imag().is_zero()]
+            else:
+                real_intervals = [x for x,y in all_intervals if y.is_zero()]
 
         real_places = [self.K.hom([i], check=False) for i in real_intervals]
 
