@@ -92,8 +92,8 @@ public:
   // move is ok
   worker_thread(worker_thread&&) = default;
   // worker_thread& operator=(worker_thread&&) = default;
-  int rank() const;
-  int nthreads() const;
+  size_t rank() const;
+  size_t nthreads() const;
   /* It doesn't seem that unholy to me to have a thread access the pool
    * it originates from. It's possibly a good way to do continuations,
    * for example.
