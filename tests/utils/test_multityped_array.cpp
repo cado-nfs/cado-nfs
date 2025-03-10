@@ -1,8 +1,10 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
-#include <vector>
+#include <cstddef>
+
 #include <array>
 #include <iostream>
+#include <utility>
 
 #include "multityped_array.hpp"
 
@@ -49,7 +51,7 @@ struct return_pointer_if_in_subrange {
             return &(x[k]);
         } else {
             k -= x.size();
-            return NULL;
+            return nullptr;
         }
     }
     template<typename T>
@@ -58,7 +60,7 @@ struct return_pointer_if_in_subrange {
             return &(x[k]);
         } else {
             k -= x.size();
-            return NULL;
+            return nullptr;
         }
     }
 };
@@ -84,10 +86,10 @@ int main()
 
     multityped_array_foreach(print2 {1}, A);
 
-    int v = 5;
+    const int v = 5;
     multityped_array_locate<return_pointer_if_in_subrange>()(A, v);
 
-    int s = multityped_array_fold(accumulate_sizes(), 0, A);
+    const int s = multityped_array_fold(accumulate_sizes(), 0, A);
 
     std::cout << "total " << s << "\n";
 }

@@ -78,7 +78,7 @@ cado_poly_swap (cado_poly_ptr p, cado_poly_ptr q)
     if (p == q) return;
     mpz_swap (p->n, q->n);
     { double t = p->skew; p->skew = q->skew; q->skew = t; }
-    { unsigned int t = p->nb_polys; p->nb_polys = q->nb_polys; q->nb_polys = t; }
+    { int t = p->nb_polys; p->nb_polys = q->nb_polys; q->nb_polys = t; }
     { mpz_poly * t = p->pols; p->pols = q->pols; q->pols = t; }
 }
 
@@ -119,7 +119,7 @@ int cado_poly_set_plist(cado_poly_ptr cpoly, param_list_ptr pl)
     mpz_t coeff;
     mpz_init(coeff);
     /* reading polynomials coefficient by coefficient */
-    for (unsigned int i = 0; i <= MAX_DEGREE; i++)
+    for (int i = 0; i <= MAX_DEGREE; i++)
     {
       char tc[4]; snprintf(tc, sizeof(tc), "c%d", i);
       char tX[4]; snprintf(tX, sizeof(tX), "X%d", i);

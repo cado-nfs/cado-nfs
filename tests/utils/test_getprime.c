@@ -72,22 +72,30 @@ int main(int argc, char const * argv[])
             continue;
         }
         if (argc > 1 && strcmp(argv[0], "-seek") == 0) {
-            seek = atol(argv[1]);
+            char * p;
+            seek = strtol(argv[1], &p, 0);
+            ASSERT_ALWAYS(*p == '\0');
             argc--,argv++;
             continue;
         }
         if (argc > 1 && strcmp(argv[0], "-bound") == 0) {
-            bound = atol(argv[1]);
+            char * p;
+            bound = strtol(argv[1], &p, 0);
+            ASSERT_ALWAYS(*p == '\0');
             argc--,argv++;
             continue;
         }
         if (argc > 1 && strcmp(argv[0], "-count") == 0) {
-            count = atol(argv[1]);
+            char * p;
+            count = strtol(argv[1], &p, 0);
+            ASSERT_ALWAYS(*p == '\0');
             argc--,argv++;
             continue;
         }
         if (argc > 1 && strcmp(argv[0], "-exp-max") == 0) {
-            exp_max = atol(argv[1]);
+            char * p;
+            exp_max = strtol(argv[1], &p, 0);
+            ASSERT_ALWAYS(*p == '\0');
             argc--,argv++;
             continue;
         }

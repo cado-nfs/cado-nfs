@@ -4,9 +4,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <vector>
-#include <memory>
 #include <string>
-#include <sstream>
 // #include <sys/time.h>
 #include "mmap_allocator.hpp"
 #include "mmappable_vector.hpp"
@@ -48,7 +46,7 @@ static void test_test_file(int count, const char * fname, bool expect_zeros)
     fclose(f);
 }
 
-static void test_mmap(void)
+static void test_mmap()
 {
     generate_test_file(1024, TESTFILE);
     generate_test_file(1024*1024, TESTFILE2);
@@ -142,7 +140,7 @@ static void test_mmap(void)
     }
 }
 
-static void test_conversion(void)
+static void test_conversion()
 {
     fprintf(stderr, "Testing conversion between STL vector and mmap vector.\n");
     generate_test_file(1024, TESTFILE);
@@ -166,7 +164,7 @@ static void test_conversion(void)
     }
 }
 
-static void test_shortcut_interface(void)
+static void test_shortcut_interface()
 {
     fprintf(stderr, "Testing shortcut interface\n");
 
@@ -194,7 +192,7 @@ static void test_shortcut_interface(void)
     }
 }
 
-static void test_cache_bug(void)
+static void test_cache_bug()
 {
     mmappable_vector<int> vec;
 
@@ -224,7 +222,7 @@ static void read_large_file(enum access_mode mode)
     // fprintf(stderr, "Mode: %d Time: %lu.%06lu\n", mode, (t2.tv_sec - t.tv_sec)-(t2.tv_usec < t.tv_usec), (t2.tv_usec < t.tv_usec)*1000000 + (t2.tv_usec - t.tv_usec));
 }
 
-static void test_large_file(void)
+static void test_large_file()
 {
     fprintf(stderr, "Testing large file.\n");
     generate_test_file(FILESIZE, TESTFILE); /* 1G */
@@ -234,7 +232,7 @@ static void test_large_file(void)
     read_large_file(READ_WRITE_SHARED);
 }
 
-static void test_multiple_open(void)
+static void test_multiple_open()
 {
     generate_test_file(1024, TESTFILE);
     generate_test_file(1024, TESTFILE2);
@@ -267,7 +265,7 @@ static void test_multiple_open(void)
     }
 }
 
-static void test_allocate_0_bytes(void) /* shouldn't segfault */
+static void test_allocate_0_bytes() /* shouldn't segfault */
 {
     fprintf(stderr, "Testing vectors of mmappable_vectors.\n");
 
