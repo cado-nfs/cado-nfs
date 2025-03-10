@@ -25,7 +25,7 @@ struct min_max_heap_test_case {
     /// The values in unsorted values in ascending order.
     std::vector<int> sortedValues;
 
-    min_max_heap_test_case(size_t nvalues)
+    explicit min_max_heap_test_case(size_t nvalues)
     {
         unsortedValues.resize(nvalues);
         sortedValues.resize(nvalues);

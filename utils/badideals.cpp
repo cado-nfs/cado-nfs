@@ -150,7 +150,7 @@ static vector<badideal::branch> lift_root(numbertheory_internals::all_valuations
             br.v = A.multiply_inertia(v);
             dead_branches_reports.push_back(br);
         } else {
-            live_branches.push_back(make_pair(nQ, newvals));
+            live_branches.emplace_back(nQ, newvals);
         }
         live_ideals.insert(live_ideals.end(), alive.begin(), alive.end());
     }

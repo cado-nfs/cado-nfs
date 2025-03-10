@@ -623,7 +623,7 @@ pair<dispatcher, combiner> create_dispatcher_and_combiner(zone const& q)/*{{{*/
         uint16_t destrow_id = ijc.first;
         int32_t coeff = ijc.third;
         D.push_back(col_id);
-        C.aux.push_back(make_pair(destrow_id, coeff));
+        C.aux.emplace_back(destrow_id, coeff);
     }
     return make_pair(D, C);
 }/*}}}*/
@@ -709,11 +709,11 @@ void matmul_zone<Arith, fast_gfp>::build_cache(matrix_u32 && m)/*{{{*/
                     cstats(c);
                     if (c < 0 && c >= -coeff_repeat_bound) {
                         for( ; c++ ; ) {
-                            z.qm.push_back(make_pair(k, j));
+                            z.qm.emplace_back(k, j);
                         }
                     } else if (c > 0 && c <= coeff_repeat_bound) {
                         for( ; c-- ; ) {
-                            z.qp.push_back(make_pair(k, j));
+                            z.qp.emplace_back(k, j);
                         }
                     } else {
                         z.qg.push_back(triple_161632(k, j, c));
