@@ -15,21 +15,21 @@ roots_mod_uint64 (uint64_t *r, uint64_t a, int d, uint64_t p, gmp_randstate_ptr 
 
 /* sort the roots r[0], ..., r[n-1] in increasing order */
 static void
-sort_roots (uint64_t *r, int n)
+sort_roots (uint64_t *r, unsigned int n)
 {
-  int i, j;
   uint64_t t;
 
-  for (i = 1; i < n; i++)
+  for (unsigned int i = 1; i < n; i++)
     {
       t = r[i];
+      unsigned int j;
       for (j = i; j > 0 && r[j-1] > t; j--)
         r[j] = r[j-1];
       r[j] = t;
     }
 }
 
-int 
+unsigned int 
 roots_mod_mpz(uint64_t *r, uint64_t a, int d, uint64_t p, gmp_randstate_ptr rstate)
 {
   mpz_poly F;
@@ -39,7 +39,7 @@ roots_mod_mpz(uint64_t *r, uint64_t a, int d, uint64_t p, gmp_randstate_ptr rsta
   mpz_poly_set_xi(F, d);
 
   mpz_set_uint64 (mpz_poly_coeff(F, 0), p - a);
-  int n = mpz_poly_roots_uint64 (r, F, p, rstate);
+  unsigned int n = mpz_poly_roots_uint64 (r, F, p, rstate);
   mpz_poly_clear(F);
 
   sort_roots (r, n);
@@ -96,9 +96,9 @@ int main(int argc, char const * argv[])
   while (p <= maxp) {
     for (a = mina; a <= maxa && a < p; a++) {
       for (d = mind; d <= maxd; d++) {
-        n1 = roots_mod_uint64 (r1, a, d, p, rstate);
+        n1 = roots_mod_uint64 (r1, a, (int) d, p, rstate);
         if (check) {
-          n2 = roots_mod_mpz (r2, a, d, p, rstate);
+          n2 = roots_mod_mpz (r2, a, (int) d, p, rstate);
           if (n1 != n2) {
             fprintf (stderr, "Error: for a=%lu, d=%lu, p=%lu, roots_mod_uint64()"
                      " reports %d roots, roots_mod_mpz() reports %d\n", 

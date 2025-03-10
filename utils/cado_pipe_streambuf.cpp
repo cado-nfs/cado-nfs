@@ -1,7 +1,9 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <stdexcept>
 #include <ios>
-#include <cstddef>      // for NULL
+
+#include "fd_streambuf.hpp"
 #include "cado_pipe_streambuf.hpp"
 #include "cado_popen.h"
 

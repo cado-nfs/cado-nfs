@@ -11,19 +11,12 @@
    blocks. Instead, we allocate memory in big blocks of size BLOCK_SIZE. */
 
 
-/* memory blocks are allocated of that # of index_t's */
-#define BLOCK_SIZE (1U<<20U)
-#define BLOCK_INDEX_BYTES (BLOCK_SIZE * sizeof(index_t))
-#define BLOCK_IDEALMERGE_BYTES (BLOCK_SIZE * sizeof(ideal_merge_t))
-#define INIT_NB_BLOCK (1U<<16U)
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-index_t * index_my_malloc (unsigned int);
-ideal_merge_t * idealmerge_my_malloc (unsigned int);
-void my_malloc_free_all ();
+index_t * index_my_malloc (size_t);
+ideal_merge_t * ideal_merge_my_malloc (size_t);
 size_t get_my_malloc_bytes ();
 
 #ifdef __cplusplus

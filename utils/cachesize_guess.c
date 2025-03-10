@@ -11,7 +11,7 @@
 #define L1_NUM 11
 #define N 1000000000
 
-int
+size_t
 cachesize_guess (int verbose)
 {
   unsigned long T[L1_NUM][2] = {{10, 1021}, {11, 2039}, {12, 4093},

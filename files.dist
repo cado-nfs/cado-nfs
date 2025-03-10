@@ -1654,7 +1654,7 @@ utils/lll.c
 utils/lll.h
 utils/lock_guarded_container.hpp
 utils/lucas_V_mod.h
-utils/memalloc.c
+utils/memalloc.cpp
 utils/memalloc.h
 utils/memory.c
 utils/memory.h

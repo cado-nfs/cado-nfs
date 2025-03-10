@@ -1,4 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
+
+#include <stdint.h>
+
 #include "typedefs.h"   // p_r_values_t
 #include "mod_ul.h"     // modulusul_t
 #include "relation-tools.h"
@@ -41,7 +44,7 @@ u64toa10 (char *p, uint64_t m)
   do
     {
       n = m / 10;
-      *p++ = (unsigned char) ((m - n * 10) + '0');
+      *p++ = (char) ('0' + (m - n * 10));
       m = n;
     }
   while (m);

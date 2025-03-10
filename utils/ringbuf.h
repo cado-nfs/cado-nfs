@@ -56,13 +56,13 @@ extern "C" {
 
 extern void ringbuf_init(ringbuf_ptr r, size_t initial_size);
 extern void ringbuf_clear(ringbuf_ptr r);
-extern int ringbuf_put(ringbuf_ptr r, char * p, size_t s);
+extern size_t ringbuf_put(ringbuf_ptr r, char * p, size_t s);
 extern void ringbuf_mark_done(ringbuf_ptr r);
 extern int ringbuf_is_done(ringbuf_ptr r);
 
 /* see above for the distinction between these two get() calls */
-extern int ringbuf_get(ringbuf_ptr r, char * p, size_t s);
-extern int ringbuf_get2(ringbuf_ptr r, void ** p, size_t s);
+extern size_t ringbuf_get(ringbuf_ptr r, char * p, size_t s);
+extern size_t ringbuf_get2(ringbuf_ptr r, void ** p, size_t s);
 
 extern int ringbuf_strchr(ringbuf_ptr r, int c, size_t offset);
 

@@ -297,6 +297,17 @@ class mmappable_vector : public A
         get_allocator_ref() = A(filename, mode, offset, length);
         mmap(length);
     }
+
+    typename std::enable_if<
+      std::is_same<mmap_allocator_details::mmap_allocator<T>, A>::value>::type
+    mmap_file(std::string const & filename,
+              mmap_allocator_details::access_mode mode,
+              mmap_allocator_details::offset_type offset,
+              mmap_allocator_details::size_type length)
+    {
+        return mmap_file(filename.c_str(), mode, offset, length);
+    }
+
     typename std::enable_if<
       std::is_same<mmap_allocator_details::mmap_allocator<T>, A>::value>::type
     munmap_file()

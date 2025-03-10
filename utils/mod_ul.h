@@ -338,9 +338,10 @@ MAYBE_UNUSED static inline int modul_is1(residueul_t const a,
     return (a[0] == 1UL);
 }
 
-MAYBE_UNUSED static inline void modul_add(residueul_t r, residueul_t const a,
-                                          residueul_t const b,
-                                          modulusul_t const m)
+MAYBE_UNUSED static inline void modul_add(residueul_t r,
+        residueul_t const a,
+        residueul_t const b,
+        modulusul_t const m)
 {
 #ifdef MODTRACE
     printf("modul_add: a = %lu, b = %lu", a[0], b[0]);

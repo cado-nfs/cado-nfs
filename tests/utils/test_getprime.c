@@ -43,7 +43,7 @@ test_getprime_range (unsigned long lower_bound, unsigned long upper_bound, unsig
 
   prime_info_seek(pi, lower_bound);
 
-  for (p = lower_bound, i = 0; (p = getprime_mt (pi)) < upper_bound; i++) {
+  for (i = 0; (p = getprime_mt (pi)) < upper_bound; i++) {
       if (verbose)
           printf("%lu\n", p);
   }

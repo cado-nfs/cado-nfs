@@ -1,6 +1,10 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <stdio.h>
 #include <stdlib.h>
+
+#include <gmp.h>
+
 #include "bit_vector.h"
 #include "tests_common.h"
 #include "macros.h"
@@ -82,6 +86,7 @@ test_bit_vector_read_from_file (void)
   // think it's a problem, really.
   // coverity[secure_temp]
   FILE * f = tmpfile();
+  DIE_ERRNO_DIAG(f == NULL, "tmpfile(%s)", "");
   bit_vector_write_to_stream (b, f);
   fseek(f, 0L, SEEK_SET);
   bit_vector_init (c, n);
