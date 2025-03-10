@@ -15,13 +15,14 @@
 #include <cctype>       // isdigit etc
 #include <cstdio>       // fprintf // IWYU pragma: keep
 #include <cstdlib>
+#include <cstdint>
 #include <cstring>
 
 #include <sstream>      // std::ostringstream // IWYU pragma: keep
 #include <vector>
+#include <array>
 #include <string>
 #include <ostream>        // for operator<<, basic_ostream, basic_ostream::o...
-#include <exception>
 #include <memory>
 
 #include <gmp.h>
@@ -36,6 +37,7 @@
 #include "portability.h"  // for strlcpy
 #include "rootfinder.h"   // for mpz_poly_roots_mpz
 #include "cado_expression_parser.hpp"
+#include "runtime_numeric_cast.hpp"
 #include "macros.h"
 /* and just because we expose a proxy to usp.c's root finding... */
 #include "usp.h"          // for numberOfRealRoots
@@ -657,7 +659,7 @@ void mpz_poly_init(mpz_poly_ptr f, int d)
   if (d < 0)
   {
     f->alloc = 0;
-    f->_coeff = (mpz_t *) NULL;
+    f->_coeff = (mpz_t *) nullptr;
   }
   else
   {
@@ -679,8 +681,10 @@ void mpz_poly_realloc (mpz_poly_ptr f, unsigned int nc)
   ASSERT_ALWAYS(nc <= (unsigned int) INT_MAX);
   if (f->alloc < nc)
     {
-      f->_coeff = (mpz_t*) realloc (f->_coeff, nc * sizeof (mpz_t));
-      FATAL_ERROR_CHECK (f->_coeff == NULL, "not enough memory");
+      auto * p = (mpz_t *) realloc (f->_coeff, nc * sizeof (mpz_t));
+      if (!p) free(f->_coeff);
+      FATAL_ERROR_CHECK (p == nullptr, "not enough memory");
+      f->_coeff = p;
       for (unsigned int i = f->alloc; i < nc; i++)
         mpz_init (f->_coeff[i]);
       f->alloc = nc;
@@ -723,7 +727,7 @@ mpz_poly_set_ab (mpz_poly_ptr rel, int64_t a, uint64_t b)
 {
     mpz_poly_set_zero(rel);
     mpz_poly_setcoeff_int64(rel, 0, a);
-    mpz_poly_setcoeff_int64(rel, 1, -b);
+    mpz_poly_setcoeff_int64(rel, 1, -runtime_numeric_cast<int64_t>(b));
 }
 
 /* rel <- a-b*x */
@@ -746,21 +750,12 @@ void mpz_poly_set_mpz_ab (mpz_poly_ptr rel, mpz_srcptr a, mpz_srcptr b)
 }
 
 /* swap f and g */
-void
+    void
 mpz_poly_swap (mpz_poly_ptr f, mpz_poly_ptr g)
 {
-  int i;
-  mpz_t *t;
-
-  i = f->alloc;
-  f->alloc = g->alloc;
-  g->alloc = i;
-  i = f->deg;
-  f->deg = g->deg;
-  g->deg = i;
-  t = f->_coeff;
-  f->_coeff = g->_coeff;
-  g->_coeff = t;
+    std::swap(f->alloc, g->alloc);
+    std::swap(f->deg, g->deg);
+    std::swap(f->_coeff, g->_coeff);
 }
 
 /* Free polynomial f in mpz_poly. */
@@ -768,9 +763,9 @@ void mpz_poly_clear(mpz_poly_ptr f)
 {
   for (unsigned i = 0; i < f->alloc; ++i)
     mpz_clear(f->_coeff[i]);
-  if (f->_coeff != NULL)
+  if (f->_coeff != nullptr)
     free(f->_coeff);
-  f->_coeff = NULL; /* to avoid a double-free */
+  f->_coeff = nullptr; /* to avoid a double-free */
   memset(f, 0, sizeof(mpz_poly));
   f->deg = -1;
   f->alloc = 0; /* to avoid a double-free */
@@ -791,7 +786,7 @@ struct urandomm {
 struct urandomm_ui {
     typedef unsigned long argtype;
     argtype k;
-    urandomm_ui(argtype k) : k(k) {}
+    explicit urandomm_ui(argtype k) : k(k) {}
     void fetch_half(cxx_mpz & h) const {
         h = k / 2;
     }
@@ -1026,13 +1021,15 @@ void mpz_poly_div_xi(mpz_poly_ptr g, mpz_poly_srcptr f, int i)
         return;
     }
     if (g == f) {
-        /* rotate the coefficients, don't do any freeing */
-        mpz_t * temp = (mpz_t*) malloc(i * sizeof(mpz_t));
-        memcpy(temp, g->_coeff, i * sizeof(mpz_t));
+        /* rotate the coefficients, don't do any freeing of the mpz's: we
+         * assume that we might have a use for them later.
+         * (new mpz_t[] does obviously not call mpz_init)
+         */
+        const auto temp = std::unique_ptr<mpz_t[]>(new mpz_t[i]);
+        memcpy(temp.get(), g->_coeff, i * sizeof(mpz_t));
         memmove(g->_coeff, g->_coeff + i, (g->deg + 1 - i) * sizeof(mpz_t));
-        memcpy(g->_coeff + (g->deg + 1 - i), temp, i * sizeof(mpz_t));
+        memcpy(g->_coeff + (g->deg + 1 - i), temp.get(), i * sizeof(mpz_t));
         g->deg -= i;
-        free(temp);
         return;
     }
 
@@ -1121,7 +1118,7 @@ int mpz_poly_asprintf(char ** res, mpz_poly_srcptr f)
     size_t size = 0;
     int rc;
     static const size_t batch = 4;
-    *res = NULL;
+    *res = nullptr;
 
     alloc += batch;
     *res = (char*) realloc(*res, alloc);
@@ -3131,11 +3128,11 @@ mpz_poly_xgcd_mpz (mpz_poly_ptr d, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_pol
         cxx_mpz inv;
         mpz_invert(inv, r0->_coeff[r0->deg], p);
         mpz_poly_mul_mpz(r0, r0, inv);
-        mpz_poly_mod_mpz(r0, r0, p, NULL);
+        mpz_poly_mod_mpz(r0, r0, p, nullptr);
         mpz_poly_mul_mpz(u0, u0, inv);
-        mpz_poly_mod_mpz(u0, u0, p, NULL);
+        mpz_poly_mod_mpz(u0, u0, p, nullptr);
         mpz_poly_mul_mpz(v0, v0, inv);
-        mpz_poly_mod_mpz(v0, v0, p, NULL);
+        mpz_poly_mod_mpz(v0, v0, p, nullptr);
     }
 
     mpz_poly_swap(u, u0);
@@ -3147,84 +3144,70 @@ mpz_poly_xgcd_mpz (mpz_poly_ptr d, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_pol
 /* Put in fij[] the coefficients of f'(i) = F(a0*i+a1, b0*i+b1).
    Assumes the coefficients of fij[] are initialized.
 */
-void
-mpz_poly_homography (mpz_poly_ptr Fij, mpz_poly_srcptr F, int64_t H[4])
+cxx_mpz_poly cxx_mpz_poly::homography (std::array<int64_t, 4> const & H) const
 {
-  int k, l;
-  mpz_t *g; /* will contain the coefficients of (b0*i+b1)^l */
-  mpz_t f0;
-  mpz_t *f = F->_coeff;
-  int const d = F->deg;
+    cxx_mpz_poly const & F(*this);
+    cxx_mpz_poly Fij = F;
+    cxx_mpz f0;
+    int const d = F->deg;
 
-  mpz_poly_realloc (Fij, d + 1);
+    mpz_t * fij = Fij->_coeff;
 
-  mpz_t *fij = Fij->_coeff;
-  for (k = 0; k <= d; k++)
-    mpz_set (fij[k], f[k]);
+    /* g holds the coefficients of (b0*i+b1)^l */
+    std::vector<cxx_mpz> g(d+1);
 
-  Fij->deg = d;
+    /* Let h(x) = quo(f(x), x), then F(x,y) = H(x,y)*x + f0*y^d, thus
+       F(a0*i+a1, b0*i+b1) = H(a0*i+a1, b0*i+b1)*(a0*i+a1) + f0*(b0*i+b1)^d.
+       We use that formula recursively. */
 
-  g = (mpz_t*) malloc ((d + 1) * sizeof (mpz_t));
-  FATAL_ERROR_CHECK (g == NULL, "not enough memory");
-  for (k = 0; k <= d; k++)
-    mpz_init (g[k]);
-  mpz_init (f0);
+    mpz_set_ui (g[0], 1); /* g = 1 */
 
-  /* Let h(x) = quo(f(x), x), then F(x,y) = H(x,y)*x + f0*y^d, thus
-     F(a0*i+a1, b0*i+b1) = H(a0*i+a1, b0*i+b1)*(a0*i+a1) + f0*(b0*i+b1)^d.
-     We use that formula recursively. */
-
-  mpz_set_ui (g[0], 1); /* g = 1 */
-
-  for (k = d - 1; k >= 0; k--)
+    for (int k = d - 1; k >= 0; k--)
     {
-      /* invariant: we have already translated coefficients of degree > k,
-         in f[k+1..d], and g = (b0*i+b1)^(d - (k+1)), with coefficients in
-         g[0..d - (k+1)]:
-         f[k] <- a1*f[k+1]
-         ...
-         f[l] <- a0*f[l]+a1*f[l+1] for k < l < d
-         ...
-         f[d] <- a0*f[d] */
-      mpz_swap (f0, fij[k]); /* save the new constant coefficient */
-      mpz_mul_si (fij[k], fij[k + 1], H[2]);
-      for (l = k + 1; l < d; l++)
+        /* invariant: we have already translated coefficients of degree > k,
+           in f[k+1..d], and g = (b0*i+b1)^(d - (k+1)), with coefficients in
+           g[0..d - (k+1)]:
+           f[k] <- a1*f[k+1]
+           ...
+           f[l] <- a0*f[l]+a1*f[l+1] for k < l < d
+           ...
+           f[d] <- a0*f[d] */
+        mpz_swap (f0, fij[k]); /* save the new constant coefficient */
+        mpz_mul_si (fij[k], fij[k + 1], H[2]);
+        for (int l = k + 1; l < d; l++)
         {
-          mpz_mul_si (fij[l], fij[l], H[0]);
-          mpz_addmul_si (fij[l], fij[l + 1], H[2]);
+            mpz_mul_si (fij[l], fij[l], H[0]);
+            mpz_addmul_si (fij[l], fij[l + 1], H[2]);
         }
-      mpz_mul_si (fij[d], fij[d], H[0]);
+        mpz_mul_si (fij[d], fij[d], H[0]);
 
-      /* now compute (b0*i+b1)^(d-k) from the previous (b0*i+b1)^(d-k-1):
-         g[d-k] = b0*g[d-k-1]
-         ...
-         g[l] = b1*g[l]+b0*g[l-1] for 0 < l < d-k
-         ...
-         g[0] = b1*g[0]
-      */
-      mpz_mul_si (g[d - k], g[d - k - 1], H[1]);
-      for (l = d - k - 1; l > 0; l--)
+        /* now compute (b0*i+b1)^(d-k) from the previous (b0*i+b1)^(d-k-1):
+           g[d-k] = b0*g[d-k-1]
+           ...
+           g[l] = b1*g[l]+b0*g[l-1] for 0 < l < d-k
+           ...
+           g[0] = b1*g[0]
+           */
+        mpz_mul_si (g[d - k], g[d - k - 1], H[1]);
+        for (int l = d - k - 1; l > 0; l--)
         {
-          mpz_mul_si (g[l], g[l], H[3]);
-          mpz_addmul_si (g[l], g[l-1], H[1]);
+            mpz_mul_si (g[l], g[l], H[3]);
+            mpz_addmul_si (g[l], g[l-1], H[1]);
         }
-      mpz_mul_si (g[0], g[0], H[3]);
+        mpz_mul_si (g[0], g[0], H[3]);
 
-      /* now g has degree d-k, and we add f0*g */
-      for (l = 0; l <= d-k; l++)
-          mpz_addmul(fij[l+k], g[l], f0);
+        /* now g has degree d-k, and we add f0*g */
+        for (int l = 0; l <= d-k; l++)
+            mpz_addmul(fij[l+k], g[l], f0);
 
     }
 
-  mpz_clear (f0);
-  for (k = 0; k <= d; k++)
-    mpz_clear (g[k]);
-  free (g);
+    mpz_poly_cleandeg(Fij, Fij->deg);
 
-  mpz_poly_cleandeg(Fij, Fij->deg);
+    return Fij;
 }
 
-/* v <- |f(i,j)|, where f is homogeneous of degree d */
+/* v <- f(i,j), where f is homogeneous of degree d */
 void mpz_poly_homogeneous_eval_siui (mpz_ptr v, mpz_poly_srcptr f, const int64_t i, const uint64_t j)
 {
   unsigned int k = f->deg;
@@ -3249,7 +3232,6 @@ void mpz_poly_homogeneous_eval_siui (mpz_ptr v, mpz_poly_srcptr f, const int64_t
           }
         mpz_addmul (v, f->_coeff[k], jpow);
       }
-  mpz_abs (v, v); /* avoids problems with negative norms */
 }
 
 /* put in c the content of f */
@@ -4883,8 +4865,7 @@ struct mpz_poly_parser_traits {
     mpz_poly_parser_traits(std::string const & x)
         : x(x)
     {}
-    struct parse_error : public std::exception {};
-    struct unexpected_literal : public parse_error {
+    struct unexpected_literal : public cado_expression_parser_details::parse_error {
         std::string msg;
         unexpected_literal(std::string const & v)
             : msg(std::string("unexpected literal " + v))
@@ -4895,28 +4876,29 @@ struct mpz_poly_parser_traits {
     };
     static constexpr const int accept_literals = 1;
     typedef cxx_mpz_poly type;
-    void add(cxx_mpz_poly & c, cxx_mpz_poly const & a, cxx_mpz_poly const & b) {
+    typedef cxx_mpz number_type;
+    static void add(cxx_mpz_poly & c, cxx_mpz_poly const & a, cxx_mpz_poly const & b) {
         mpz_poly_add(c, a, b);
     }
-    void sub(cxx_mpz_poly & c, cxx_mpz_poly const & a, cxx_mpz_poly const & b) {
+    static void sub(cxx_mpz_poly & c, cxx_mpz_poly const & a, cxx_mpz_poly const & b) {
         mpz_poly_sub(c, a, b);
     }
-    void neg(cxx_mpz_poly & c, cxx_mpz_poly const & a) {
+    static void neg(cxx_mpz_poly & c, cxx_mpz_poly const & a) {
         mpz_poly_neg(c, a);
     }
-    void mul(cxx_mpz_poly & c, cxx_mpz_poly const & a, cxx_mpz_poly const & b) {
+    static void mul(cxx_mpz_poly & c, cxx_mpz_poly const & a, cxx_mpz_poly const & b) {
         mpz_poly_mul(c, a, b);
     }
-    void pow_ui(cxx_mpz_poly & c, cxx_mpz_poly const & a, unsigned long e) {
+    static void pow_ui(cxx_mpz_poly & c, cxx_mpz_poly const & a, unsigned long e) {
         mpz_poly_pow_ui(c, a, e);
     }
-    void swap(cxx_mpz_poly & a, cxx_mpz_poly & b) {
+    static void swap(cxx_mpz_poly & a, cxx_mpz_poly & b) {
         mpz_poly_swap(a, b);
     }
-    void set_mpz(cxx_mpz_poly & a, cxx_mpz const & z) {
+    static void set(cxx_mpz_poly & a, cxx_mpz const & z) {
         mpz_poly_set_mpz(a, z);
     }
-    void set_literal_power(cxx_mpz_poly & a, std::string const & v, unsigned long e) {
+    void set_literal_power(cxx_mpz_poly & a, std::string const & v, unsigned long e) const {
         if (v == x)
             mpz_poly_set_xi(a, e);
         else
@@ -4924,7 +4906,7 @@ struct mpz_poly_parser_traits {
     }
 };
 
-std::istream& operator>>(std::istream& in, cxx_mpz_poly::named_proxy<cxx_mpz_poly &> F)
+std::istream& operator>>(std::istream& in, cxx_mpz_poly::named_proxy<cxx_mpz_poly &> const & F)
 {
     std::string line;
     for(;;in.get()) {
@@ -4940,10 +4922,7 @@ std::istream& operator>>(std::istream& in, cxx_mpz_poly::named_proxy<cxx_mpz_pol
 
     try {
         F.c = P.parse();
-    } catch (mpz_poly_parser_traits::parse_error const & p) {
-        in.setstate(std::ios_base::failbit);
-        return in;
-    } catch (poly_parser::parse_error const & p) {
+    } catch (cado_expression_parser_details::parse_error const & p) {
         in.setstate(std::ios_base::failbit);
         return in;
     }
@@ -4951,7 +4930,7 @@ std::istream& operator>>(std::istream& in, cxx_mpz_poly::named_proxy<cxx_mpz_pol
     return in;
 }
 
-std::ostream& operator<<(std::ostream& o, cxx_mpz_poly::named_proxy<cxx_mpz_poly const &> F)
+std::ostream& operator<<(std::ostream& o, cxx_mpz_poly::named_proxy<cxx_mpz_poly const &> const & F)
 {
     return o << F.c.print_poly(std::string(F.x));
 }

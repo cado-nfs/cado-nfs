@@ -86,7 +86,8 @@ struct facul_method {
         */
         template<typename... Args>
         parameters_with_side(int side, Args&&... args)
-        : parameters(std::forward<Args>(args)...), side(side)
+        : parameters { std::forward<Args>(args)... }
+        , side(side)
         {}
         bool operator<(parameters_with_side const & a) const {
                 return

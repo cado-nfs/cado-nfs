@@ -1,6 +1,7 @@
 #ifndef TEST_BBLAS_LEVEL4_HPP_
 #define TEST_BBLAS_LEVEL4_HPP_
 
+#include <cstdio>
 #include <set>
 #include <string>
 #include <vector>
@@ -9,7 +10,7 @@
 
 struct test_bblas_level4 : public test_bblas_base
 {
-    test_bblas_level4(unsigned int n) : test_bblas_base(n) {}
+    explicit test_bblas_level4(unsigned int n) : test_bblas_base(n) {}
 
     /* in test_bblas_level4_pluq.cpp */
     static tags_t pluq_tags;
@@ -22,7 +23,6 @@ struct test_bblas_level4 : public test_bblas_base
     /* in test_bblas_level4_ple.cpp */
     static tags_t ple_tags;
     void ple();
-
     template<typename T>
     void meta_ple();
     /* unit tests for the internal ops of PLE */
@@ -41,7 +41,7 @@ struct test_bblas_level4 : public test_bblas_base
     void m4ri_plu_tests(int n);
 #endif
 
-    void banner()
+    static void banner()
     {
         printf("-- level-4 tests (reductions / factorizations of matrices) --\n");
     }

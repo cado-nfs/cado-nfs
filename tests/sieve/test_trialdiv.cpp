@@ -17,7 +17,7 @@
 static void
 trialdiv_stdinput(const unsigned long pmax, const int verbose)
 {
-    std::vector<unsigned long> primes;
+  std::vector<unsigned long> primes;
   unsigned long p;
   cxx_mpz N;
   prime_info pi;

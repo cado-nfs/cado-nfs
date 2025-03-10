@@ -1,14 +1,23 @@
 #include "cado.h" // IWYU pragma: keep
 
+// NOLINTBEGIN(bugprone-reserved-identifier,cert-dcl37-c,cert-dcl51-cpp)
 #define __STDCPP_MATH_SPEC_FUNCS__ 201003L
 #define __STDCPP_WANT_MATH_SPEC_FUNCS__ 1       /* for expint() */
+// NOLINTEND(bugprone-reserved-identifier,cert-dcl37-c,cert-dcl51-cpp)
 
 #include <cmath>
+#include <cstddef>
 
 #include <vector>
 #include <sstream>
+#include <algorithm>
+#include <string>
+#include <utility>
+
+#include <gmp.h>
 
 #include "cado_expression_parser.hpp"
+#include "runtime_numeric_cast.hpp"
 #include "cxx_mpz.hpp"
 #include "getprime.h"
 #include "misc.h"
@@ -32,7 +41,9 @@ std::vector<unsigned long> subdivide_primes_interval(unsigned long p0, unsigned 
     std::vector<unsigned long> ret;
     ret.push_back(p0);
     unsigned long const previous = p0;
-    double const total_count = nprimes_interval(p0, p1);
+    double const total_count = nprimes_interval(
+            (double) (p0),
+            (double) (p1));
     /* by proceeding like this, we're wasting time, since p1 always
      * serves as an endpoint, so that we have a complexity which is
      * roughly n * log(p1-p0). We could have something like log(p1-p0) +
@@ -48,7 +59,9 @@ std::vector<unsigned long> subdivide_primes_interval(unsigned long p0, unsigned 
         unsigned long q1 = p1;
         unsigned long q = previous + (p1 - previous) / (n - i);
         for( ; q > q0 ; ) {
-            double const r = nprimes_interval(p0, q);
+            double const r = nprimes_interval(
+                    (double) (p0),
+                    (double) (q));
             if (r < target)
                 q0 = q;
             else
@@ -71,28 +84,29 @@ void subdivide_primes_interval_proxy(unsigned long * r, unsigned long p0, unsign
 struct mpz_parser_traits {
     static constexpr const int accept_literals = 0;
     typedef cxx_mpz type;
-    void add(cxx_mpz & c, cxx_mpz const & a, cxx_mpz const & b) {
+    typedef cxx_mpz number_type;
+    static void add(cxx_mpz & c, cxx_mpz const & a, cxx_mpz const & b) {
         mpz_add(c, a, b);
     }
-    void sub(cxx_mpz & c, cxx_mpz const & a, cxx_mpz const & b) {
+    static void sub(cxx_mpz & c, cxx_mpz const & a, cxx_mpz const & b) {
         mpz_sub(c, a, b);
     }
-    void neg(cxx_mpz & c, cxx_mpz const & a) {
+    static void neg(cxx_mpz & c, cxx_mpz const & a) {
         mpz_neg(c, a);
     }
-    void mul(cxx_mpz & c, cxx_mpz const & a, cxx_mpz const & b) {
+    static void mul(cxx_mpz & c, cxx_mpz const & a, cxx_mpz const & b) {
         mpz_mul(c, a, b);
     }
-    void pow_ui(cxx_mpz & c, cxx_mpz const & a, unsigned long e) {
+    static void pow_ui(cxx_mpz & c, cxx_mpz const & a, unsigned long e) {
         mpz_pow_ui(c, a, e);
     }
-    void swap(cxx_mpz & a, cxx_mpz & b) {
+    static void swap(cxx_mpz & a, cxx_mpz & b) {
         mpz_swap(a, b);
     }
-    void set_mpz(cxx_mpz & a, cxx_mpz const & z) {
+    static void set(cxx_mpz & a, cxx_mpz const & z) {
         mpz_set(a, z);
     }
-    void set_literal_power(cxx_mpz &, std::string const&, unsigned long) {
+    static void set_literal_power(cxx_mpz &, std::string const&, unsigned long) {
         // never called. we could do some gymnastics to statically elide
         // this call, but that does not seem to be worth it.
     }
@@ -109,9 +123,9 @@ int mpz_set_from_expression(mpz_ptr f, const char * value)
         P.tokenize(is);
         cxx_mpz tmp = P.parse();
         mpz_set(f, tmp);
-    } catch (integer_parser::token_error const & p) {
+    } catch (cado_expression_parser_details::token_error const & p) {
         return 0;
-    } catch (integer_parser::parse_error const & p) {
+    } catch (cado_expression_parser_details::parse_error const & p) {
         return 0;
     }
     return 1;
@@ -140,7 +154,7 @@ std::vector<std::pair<cxx_mpz, int> > trial_division(cxx_mpz const& n0, unsigned
         int k = 0;
         for( ; mpz_divisible_ui_p(n, p) ; mpz_fdiv_q_ui(n, n, p), k++);
         bound_shift = (mpz_sizeinbase(n, 2) + 1) / 2;
-        res.push_back(std::make_pair(cxx_mpz(p), k));
+        res.emplace_back(p, k);
     }
     // cout << "remaining discriminant " << n << "\n";
     cofactor = n;

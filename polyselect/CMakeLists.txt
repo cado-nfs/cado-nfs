@@ -36,16 +36,14 @@ add_library(polyselect_middle
     polyselect_shash.c
     polyselect_stats.c
 )
-set_target_properties(polyselect_middle PROPERTIES
-  COMPILE_FLAGS "${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
+mark_targets_as_openmp(polyselect_middle)
 
 add_executable (polyselect
     polyselect.c
     $<TARGET_OBJECTS:polyselect_middle>
     )
 target_link_libraries (polyselect polyselect_common ${pthread_libs})
-set_target_properties(polyselect PROPERTIES
-  COMPILE_FLAGS "${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
+mark_targets_as_openmp(polyselect)
 
 add_executable (polyselect_ropt
     ropt_main.c
@@ -66,16 +64,14 @@ add_executable (polyselect_ropt
     ropt_sublattice_priority_queue.cpp
 )
 target_link_libraries (polyselect_ropt polyselect_common ${pthread_libs})
-set_target_properties(polyselect_ropt PROPERTIES
-  COMPILE_FLAGS "${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
+mark_targets_as_openmp(polyselect_ropt)
 
 
 add_executable (polyselect_gfpn polyselect_gfpn.c gfpkdlpolyselect.c)
 target_link_libraries (polyselect_gfpn  polyselect_common utils)
 
 add_executable (polyselect3 polyselect3.c)
-set_target_properties(polyselect3 PROPERTIES
-  COMPILE_FLAGS "${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
+mark_targets_as_openmp(polyselect3)
 target_link_libraries (polyselect3 polyselect_common utils)
 
 if(ENABLE_SHARED)
@@ -87,8 +83,7 @@ install(TARGETS polyselect3 RUNTIME DESTINATION ${LIBSUFFIX}/polyselect)
 
 # dlpolyselect
 add_executable (dlpolyselect dlpolyselect.c)
-set_target_properties(dlpolyselect PROPERTIES
-  COMPILE_FLAGS "${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
+mark_targets_as_openmp(dlpolyselect)
 target_link_libraries (dlpolyselect polyselect_common utils)
 install(TARGETS dlpolyselect RUNTIME DESTINATION ${LIBSUFFIX}/polyselect)
 

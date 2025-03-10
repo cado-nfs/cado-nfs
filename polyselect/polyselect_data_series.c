@@ -152,10 +152,15 @@ polyselect_data_series_estimate_weibull_moments2(double *beta, double *eta, poly
  */
 void polyselect_data_series_merge(polyselect_data_series_ptr to, polyselect_data_series_srcptr from)
 {
-  if (to->size + from->size >= to->alloc)
+  if (to->size + from->size > to->alloc)
     {
       to->alloc = (to->size + from->size) + to->alloc / 2;
-      to->x = realloc (to->x, to->alloc * sizeof (double));
+      double * x = realloc (to->x, to->alloc * sizeof (double));
+      if (x == NULL) {
+          free(to->x);
+          FATAL_ERROR_CHECK(1, "out of memory");
+      }
+      to->x = x;
     }
   for(size_t d = 0 ; d < from->size ; d++)
       to->x[to->size++] = from->x[d];

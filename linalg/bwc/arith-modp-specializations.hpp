@@ -41,7 +41,7 @@
         using typename super::elt_ur_for_add;                                  \
         template<typename... Args>                                             \
         gfp(Args&&... args)                                                    \
-          : super(std::forward<Args>(args)...)                                 \
+          : super { std::forward<Args>(args)... }                              \
         {}                                                                     \
         using super::add_ur;                                                   \
         using super::sub_ur;                                                   \

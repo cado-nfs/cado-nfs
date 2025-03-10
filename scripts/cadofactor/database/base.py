@@ -102,19 +102,22 @@ class ConnectionWrapperBase(object, metaclass=abc.ABCMeta):
 
     def harness_transaction(self, mode, transaction,
                             *args, replay=True, **kwargs):
+        i = 0
         while True:
             try:
                 with self.transaction(mode) as cursor:
                     return transaction(cursor, *args, **kwargs)
             except TransactionAborted as e:
                 if replay:
+                    i += 1
                     logger.warning("rolling back and retrying transaction"
+                                   f" (#{i})"
                                    ": thread 0x%08x connection 0x%08x"
                                    " transaction lambda %s",
                                    threading.current_thread().ident,
                                    id(self),
                                    transaction)
-                    time.sleep(1)
+                    time.sleep(min(1, 0.125 * 2**i))
                 else:
                     raise e
 

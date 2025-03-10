@@ -295,6 +295,8 @@ class ApiServer(flask.Flask):
 
         options = {}
 
+        nthreads = 1
+
         if threaded:
             if type(threaded) is int:
                 nthreads = threaded
@@ -309,7 +311,7 @@ class ApiServer(flask.Flask):
         self._run_object = Foo(self.address, serverport, self, **options)
         self._run_args = []
         self._run_kwargs = {}
-        self.logger.info("Running from werkzeug")
+        self.logger.info("Running from werkzeug (%d thread(s))", nthreads)
 
         scheme = 'https' if self._ssl_context else 'http'
         bound_address = self._run_object.server.socket.getsockname()[0]

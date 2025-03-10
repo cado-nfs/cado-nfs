@@ -52,6 +52,15 @@ cado_define_test(full_c30
     ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=16 OMP_THREAD_LIMIT=16
     TIMEOUT 360
         )
+    cado_divert_test(full_c30 pq2
+        ARGUMENTS
+        1000000008500000023430000020691
+        slaves.downloadretry=1
+        --server-threads 2
+        SHA1_ON_REGEXP_LINES "^[0-9 ]*$"
+        EXPECT_SHA1 a56b28a490e2a8f240f6102c695456e59d119a9e
+    )
+
     if(pz IN_LIST BWC_GFP_ARITHMETIC_BACKENDS)
         # no need to have both the JL and non-JL in normal tests, I
         # think, given that there's always at least one machine that does
@@ -258,10 +267,7 @@ cado_define_test(test_iceildiv.c)
 
 if (HAVE_OPENMP)
     add_executable(omp_get_max_threads omp_get_max_threads.c)
-    set_target_properties(omp_get_max_threads
-        PROPERTIES
-        COMPILE_FLAGS "${OpenMP_CXX_FLAGS}"
-        LINK_FLAGS "${OpenMP_CXX_FLAGS}")
+    mark_targets_as_openmp(omp_get_max_threads)
     # virtually all targets in cado-nfs depend on utils, and we want to
     # be sure that in all situations, the check environment will have
     # this binary available after the build step. Having utils depend on
@@ -272,10 +278,7 @@ endif()
 if (HAVE_HWLOC)
     add_executable(hwloc_cado_helper hwloc_cado_helper.c)
     target_link_libraries(hwloc_cado_helper hwloc)
-    set_target_properties(hwloc_cado_helper
-        PROPERTIES
-        COMPILE_FLAGS "${OpenMP_CXX_FLAGS}"
-        LINK_FLAGS "${OpenMP_CXX_FLAGS}")
+    mark_targets_as_openmp(hwloc_cado_helper)
     # same trick
     add_dependencies(utils hwloc_cado_helper)
 endif()

@@ -1,14 +1,26 @@
-#include "cado.h"
+#include "cado.h"       // IWYU pragma: keep
+
+#include <cstddef>
+
+#include <algorithm>
 #include <fstream>
 #include <stdexcept>
+#include <utility>
+
 #include <sys/stat.h>
-#include <type_traits>
-#include <algorithm>
-#include "matrix_file.hpp"
-#include "omp_proxy.h"
-#include "subdivision.hpp"
+
 #include "cado-endian.h"
 #include "fix-endianness.h"
+#include "matrix_file.hpp"
+#include "omp_proxy.h"
+#include "parallelizing_info.hpp"
+#include "subdivision.hpp"
+
+#if __cplusplus < 201703L
+/* https://stackoverflow.com/questions/8016780/undefined-reference-to-static-constexpr-char
+ */
+constexpr const char * matrix_file::rowcol[2];
+#endif
 
 int matrix_file::lookup()/*{{{*/
 {
@@ -214,7 +226,7 @@ static void inner_loop(uint32_t * p, uint32_t offset, unsigned int i0, unsigned 
         uint32_t const next_offset = read32(RW);
         unsigned int const w = *p++ = next_offset - offset;
         offset = next_offset;
-        auto q = p;
+        auto * q = p;
         if (!withcoeffs) {
             read32(DATA, p, w);
             if (!std::is_sorted(p, p+w))
@@ -225,7 +237,7 @@ static void inner_loop(uint32_t * p, uint32_t offset, unsigned int i0, unsigned 
                 *p++ = read32(DATA);
                 *p++ = read32(COEFFS);
             }
-            auto h = reinterpret_cast<std::pair<uint32_t, int32_t> *>(q);
+            auto * h = reinterpret_cast<std::pair<uint32_t, int32_t> *>(q);
             if (!std::is_sorted(h, h+w)) {
                 std::sort(h, h + w);
             }

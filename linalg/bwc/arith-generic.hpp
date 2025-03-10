@@ -6,6 +6,8 @@
 #include <ostream>
 #include <memory>
 
+#include <gmp.h>
+
 #include "cxx_mpz.hpp"
 #include "gmp_aux.h"
 #include "arith-concrete-base.hpp"      // IWYU pragma: export
@@ -57,10 +59,10 @@ struct arith_generic {
     virtual elt * vec_subvec(elt *, size_t) const = 0;
     virtual elt const * vec_subvec(elt const *, size_t) const = 0;
 
-    inline elt & vec_item(elt * p, size_t k) const { return *vec_subvec(p, k); }
-    inline elt const & vec_item(elt const * p, size_t k) const { return *vec_subvec(p, k); }
+    elt & vec_item(elt * p, size_t k) const { return *vec_subvec(p, k); }
+    elt const & vec_item(elt const * p, size_t k) const { return *vec_subvec(p, k); }
     virtual size_t vec_elt_stride(size_t) const = 0;
-    inline size_t elt_stride() const { return vec_elt_stride(1); }
+    size_t elt_stride() const { return vec_elt_stride(1); }
     virtual bool is_zero(elt const &) const = 0;
     virtual void simd_set_ui_at(elt &, size_t, int) const = 0;
     virtual void simd_add_ui_at(elt &, size_t, int) const = 0;
@@ -94,7 +96,7 @@ struct arith_generic {
 
     virtual ~arith_generic() = default;
 
-    static arith_generic * instance(mpz_srcptr p, int simd_groupsize);
+    static arith_generic * instance(mpz_srcptr p, unsigned int simd_groupsize);
 
     struct elt_deleter {
         arith_generic * A;

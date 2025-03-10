@@ -35,20 +35,29 @@ struct runtime_numeric_cast_impl {
         explicit cast_overflow(FROM_TYPE x)
         : runtime_numeric_cast_overflow(fmt::format("overflow while casting {} of type {} to type {}", x, typeid(FROM_TYPE).name(), typeid(TO_TYPE).name())) {}
     };
-    static_assert(std::is_integral<TO_TYPE>::value,
-            "destination type TO_TYPE must be integral");
+    static_assert(std::is_integral<TO_TYPE>::value
+            /* we can probably get along with floating point destination
+             * types, too. However it's not totally trivial, given that
+             * we rely on the max() valued of a narrowed-to type target
+             * to be cast-able to the the source type. Which isn't the
+             * case for long->double
+             */
+            // || std::is_floating_point<TO_TYPE>::value
+            , "destination type TO_TYPE must be integral");
     template<typename FROM_TYPE> struct traits {
     static_assert(std::is_integral<FROM_TYPE>::value,
             "source type FROM_TYPE must be integral");
     static constexpr bool T_signed = std::is_signed<FROM_TYPE>::value;
     static constexpr bool U_signed = std::is_signed<TO_TYPE>::value;
+    static constexpr int T_digits = std::numeric_limits<FROM_TYPE>::digits;
+    static constexpr int U_digits = std::numeric_limits<TO_TYPE>::digits;
     static constexpr bool same_sign = T_signed == U_signed;
     static constexpr bool both_signed = T_signed && U_signed;
     static constexpr bool both_unsigned = !T_signed && !U_signed;
-    static constexpr bool widening = sizeof(TO_TYPE) >= sizeof(FROM_TYPE);
-    static constexpr bool same_size = sizeof(TO_TYPE) == sizeof(FROM_TYPE);
+    static constexpr bool widening = U_digits >= T_digits;
+    static constexpr bool same_size = U_digits == T_digits;
     static constexpr bool strict_widening = widening && !same_size;
-    static constexpr bool narrowing = sizeof(TO_TYPE) < sizeof(FROM_TYPE);
+    static constexpr bool narrowing = U_digits < T_digits;
     static constexpr bool to_signed = U_signed && ! T_signed;
     static constexpr bool to_unsigned = T_signed && ! U_signed;
     static_assert(!(same_sign && widening) || (std::numeric_limits<FROM_TYPE>::max() <= std::numeric_limits<TO_TYPE>::max()), "same-sign, widening cast expects compatible max values");

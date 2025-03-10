@@ -11,15 +11,33 @@ image: gcc
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
 
-include:
-  - component: $CI_SERVER_FQDN/sdt-pfo/tools/gitlab-quotas-helper-component/clean-pipelines@1.0.1
-    inputs:
-      days: 365
-      dry_run: false
-      stage: publish
-    rules:
-    - if: $CI_COMMIT_BRANCH && ($CI_COMMIT_BRANCH == "master")
 
+clean-pipelines:
+  # run this only in the master branch, since the GITLAB_ACCESS_TOKEN is
+  # (now) protected, and cannot be used by pipelines from other branches.
+  stage: publish
+  allow_failure: true
+  variables:
+    GITLAB_URL: https://gitlab.inria.fr/
+  rules:
+    - if: $CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH == "master"
+      when: always
+    - when: never
+  image: registry.gitlab.inria.fr/sdt-pfo/tools/gitlab-quotas-helper-component/poetry-python:1.7.1-3.12
+  script:
+    - cmd=("gitlab-api connect project $CI_PROJECT_ID pipelines --days 365")
+    - cmd+=" delete --force"
+    - eval $cmd
+
+# include:
+#   - component: $CI_SERVER_FQDN/sdt-pfo/tools/gitlab-quotas-helper-component/clean-pipelines@1.0.1
+#     inputs:
+#       days: 365
+#       dry_run: false
+#       stage: publish
+#     rules:
+#     - if: $CI_COMMIT_BRANCH && ($CI_COMMIT_BRANCH == "master")
+# 
 # artifacts are a subset of pipelines..
 # - component: $CI_SERVER_FQDN/sdt-pfo/tools/gitlab-quotas-helper-component/clean-artifacts@1.0.1 
 #   inputs:
@@ -324,6 +342,17 @@ mysql specific expensive checks on debian-testing system with gcc:
     - *checks-script
   <<: *checks-junit-report
 
+mysql specific expensive checks on debian12 system with gcc:
+  <<: *common-template
+  image: debian:testing
+  stage: thorough
+  needs: []
+  before_script:
+    - ci/ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
 checks under valgrind on debian-testing system on a debug build with gcc:
   rules:
     # valgrind checking takes many hours. It's simply not feasible for it to be
@@ -577,6 +606,7 @@ dry-run containers:
     - apk update
     - apk add make bash git
     - make -f docker/Makefile NOW=$(date +%Y%m%d%H%M-$CI_COMMIT_SHA)
+
 
 
 # "cache" is only when the runners have a notion of available cache

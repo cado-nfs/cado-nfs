@@ -193,7 +193,7 @@ struct gf2_override : public gf2_base<G, T>
 {
     template<typename... Args>
     gf2_override(Args&&... args)
-      : gf2_base<G, T>(std::forward<Args>(args)...)
+      : gf2_base<G, T> { std::forward<Args>(args)... }
     {}
 };
 
@@ -217,7 +217,7 @@ struct gf2_base_type
     */
     template<typename... Args>
     gf2_base_type(Args&&... args)
-      : elt(std::forward<Args>(args)...)
+      : elt { std::forward<Args>(args)... }
     {}
     inline void zero() { std::fill_n(elt::begin(), K, 0); }
 };
@@ -275,7 +275,7 @@ struct gf2_override<128, T> : public gf2_base<128, T>
 {
     template<typename... Args>
     gf2_override(Args&&... args)
-      : gf2_base<G, T>(std::forward<Args>(args)...)
+      : gf2_base<G, T> { std::forward<Args>(args)... }
     {}
     /* {{{ assignments */
     static inline void set_random(elt& x, cxx_gmp_randstate & rstate)
@@ -307,7 +307,7 @@ struct gf2_base
 {
     template<typename... Args>
     gf2_base(Args&&... args)
-      : layout_traits<gf2_base_type<G>>(std::forward<Args>(args)...)
+      : layout_traits<gf2_base_type<G>> { std::forward<Args>(args)... }
     {}
     static constexpr const bool is_characteristic_two = true;
 
@@ -525,7 +525,7 @@ struct gf2_middle : public gf2_override<G, T>
 
     template<typename... Args>
     gf2_middle(Args&&... args)
-      : super(std::forward<Args>(args)...)
+      : super { std::forward<Args>(args)... }
     {}
     mpz_srcptr characteristic() const
     {
@@ -704,7 +704,7 @@ struct gf2 : public gf2_middle<G, gf2<G>>
     typedef gf2_middle<G, gf2<G>> super;
     // we have nothing specific to do with the ctor.
     // template<typename... Args> gf2(Args&&... args) :
-    // super(std::forward<Args>(args)...) {}
+    // super { std::forward<Args>(args)... }  {}
     gf2(mpz_srcptr p, unsigned int simd_groupsize)
       : super(simd_groupsize)
     {
