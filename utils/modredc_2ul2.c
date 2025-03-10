@@ -4,7 +4,7 @@
 
 #include "modredc_2ul2.h"
 #include "modredc_2ul2_default.h"
-#include "modredc_2ul_common.c"
+#include "modredc_2ul_common.c" // NOLINT(bugprone-suspicious-include)
 #include "ularith.h"
 #include "macros.h"
 
@@ -85,7 +85,7 @@ modredc2ul2_inv (residueredc2ul2_t r, const residueredc2ul2_t A,
       t += ULONG_BITS;
     }
   ASSERT_EXPENSIVE (a[0] != 0UL);
-  lsh = ularith_ctz (a[0]);
+  lsh = (int) ularith_ctz (a[0]);
   modredc2ul2_intshr (a, a, lsh);
   t += lsh;
 
@@ -121,7 +121,7 @@ modredc2ul2_inv (residueredc2ul2_t r, const residueredc2ul2_t A,
         {
 	  ASSERT_EXPENSIVE (ularith_ctz (b[0]) > 0);
         }
-      lsh = ularith_ctz (b[0]);
+      lsh = (int) ularith_ctz (b[0]);
       ASSERT_EXPENSIVE ((b[0] & ((1UL << lsh) - 1UL)) == 0UL);
       modredc2ul2_intshr (b, b, lsh);
       t += lsh;
@@ -159,7 +159,7 @@ modredc2ul2_inv (residueredc2ul2_t r, const residueredc2ul2_t A,
         {
 	  ASSERT_EXPENSIVE (ularith_ctz (a[0]) > 0);
         }
-	lsh = ularith_ctz (a[0]);
+	lsh = (int) ularith_ctz (a[0]);
         ASSERT_EXPENSIVE ((a[0] & ((1UL << lsh) - 1UL)) == 0UL);
 	modredc2ul2_intshr (a, a, lsh);
 	t += lsh;

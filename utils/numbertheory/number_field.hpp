@@ -12,6 +12,8 @@
 #include "mpz_poly.h"
 #include "mpz_mat.h"
 
+class number_field_element;
+
 class number_field {
     cxx_mpz_poly f;
     cxx_mpz_poly f_hat;
@@ -19,14 +21,14 @@ class number_field {
     mutable std::unique_ptr<cxx_mpq_mat> cached_trace_matrix;
     public:
     std::string name, varname;
-    number_field(cxx_mpz_poly const& f);
-    inline cxx_mpz_poly const& defining_polynomial() const { return f; }
+    explicit number_field(cxx_mpz_poly const& f);
+    cxx_mpz_poly const& defining_polynomial() const { return f; }
     int degree() const { return defining_polynomial().degree(); }
     number_field_element gen() const;
     number_field_element operator()(cxx_mpz_poly const &, cxx_mpz const & =1) const;
     number_field_element operator()(cxx_mpz_mat const &, cxx_mpz const & =1) const;
     number_field_element operator()(cxx_mpq_mat const &) const;
-    void bless(const char * name, const char * varname = NULL);
+    void bless(const char * name, const char * varname = nullptr);
     void bless(std::string const & name, std::string const & varname);
     void bless(std::string const & name);
     number_field_order equation_order() const;

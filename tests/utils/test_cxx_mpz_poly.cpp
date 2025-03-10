@@ -1,44 +1,41 @@
 #include "cado.h" // IWYU pragma: keep
-// IWYU pragma: no_include <ext/alloc_traits.h>
-// IWYU pragma: no_include <memory>
-// iwyu wants it for allocator_traits<>::value_type, which seems weird
+
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
 #include <algorithm>
-#include "mpz_poly.h"
 
-/*
- * we now have it in cxx_mpz_poly
-bool operator<(cxx_mpz_poly const& a, cxx_mpz_poly const& b) {
-    return mpz_poly_cmp(a, b) < 0;
-}
-bool operator<(cxx_mpz_poly & a, cxx_mpz_poly & b) {
-    return mpz_poly_cmp(a, b) < 0;
-}
-*/
+#include <gmp.h>
+#include "fmt/core.h"
+
+#include "gmp_aux.h"
+#include "mpz_poly.h"
+#include "macros.h"
 
 // coverity[root_function]
 int main(int argc, char const * argv[])
 {
+    cxx_gmp_randstate state;
+
     if (argc > 1) {
-        srand(atoi(argv[1]));
+        char * p;
+        const unsigned long seed = strtoul(argv[1], &p, 0);
+        ASSERT_ALWAYS(*p == '\0');
+        gmp_randseed_ui(state, seed);
     }
 
     std::vector<cxx_mpz_poly> v;
 
     for(int i = 0 ; i < 10 ; i++) {
         cxx_mpz_poly x;
-        int const jmax = rand() % 16;
-        for(int j = 0 ; j < jmax ; j++) {
-            mpz_poly_setcoeff_si(x, j, (rand() - (RAND_MAX / 2)));
-        }
+        int const jmax = gmp_urandomm_ui(state, 16);
+        mpz_poly_set_signed_rrandomb(x, jmax, state, 16);
+
         v.push_back(x);
     }
     sort(v.begin(), v.end());
 
-    for(size_t i = 0 ; i < v.size() ; i++) {
-        mpz_poly_fprintf(stdout, v[i]);
-    }
+    for(auto const & p : v)
+        fmt::print("{}\n", p);
 }
 

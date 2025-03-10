@@ -22,6 +22,8 @@ struct istream_matcher {
     bool good() const { return r.good(); }
     bool bad() const { return r.bad(); }
     bool fail() const { return r.fail(); }
+    int peek() const { return r.peek(); }
+    int get() const { return r.get(); }
 };
 
 template<typename CharT, typename Traits, typename T>

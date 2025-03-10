@@ -1,6 +1,11 @@
 #include "cado.h" // IWYU pragma: keep
+
+#include <cstdlib>
 #include <cstdint>          // for UINT64_C, INT64_C
+
 #include <iostream>         // for std::cout
+#include <vector>
+
 #include "tests_common.h"   // for tests_common_cmdline, tests_common_clear, ...
 #include "utils/galois_action.hpp"
 
@@ -122,8 +127,8 @@ test_galois_hash()
     bool ret = true;
 
 #define TEST_HASH_INNER(g, a0, b0, a1, b1, op, inv_op_str) do {               \
-            uint64_t h0 = g.hash_ab(INT64_C(a0), UINT64_C(b0), CA, CB);       \
-            uint64_t h1 = g.hash_ab(INT64_C(a1), UINT64_C(b1), CA, CB);       \
+            const uint64_t h0 = g.hash_ab(INT64_C(a0), UINT64_C(b0), CA, CB);       \
+            const uint64_t h1 = g.hash_ab(INT64_C(a1), UINT64_C(b1), CA, CB);       \
             if (!(h0 op h1)) {                                                \
                 std::cout << "error in " << __func__ << ": with " << g << ":" \
                           << " hash(" #a0 ", " #b0 ") " inv_op_str            \

@@ -73,6 +73,7 @@ Checks: "-*,
         -readability-inconsistent-declaration-parameter-name,
         -readability-math-missing-parentheses,
         -readability-isolate-declaration,
+        -readability-container-contains,
         -readability-use-anyofallof
 "
 

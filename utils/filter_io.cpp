@@ -8,21 +8,25 @@
 #include <cstdint>
 #include <ctime>
 
+#include <algorithm>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
+#include <vector>
 #include <condition_variable>
 #if !defined(__x86_64) && !defined(__i386)
 #include <atomic>
 #endif
 
+#include <pthread.h>
 #ifdef HAVE_GETRUSAGE
 #include <sys/resource.h>              // for rusage // IWYU pragma: keep
 #endif
 #include <gmp.h>
 
 #include "barrier.h"                   // for barrier_destroy, barrier_init
+#include "bit_vector.h"
 #include "cado_popen.h"                // for cado_pclose2, cado_popen
 #include "filter_io.h"
 #include "gzip.h"                      // prepare_grouped_command_lines
@@ -30,6 +34,9 @@
 #include "ringbuf.h"                   // for ringbuf_s, ringbuf_ptr, RINGBU...
 #include "stats.h"                     // stats_data_t
 #include "portability.h" // sleep // IWYU pragma: keep
+#include "runtime_numeric_cast.hpp"
+#include "timing.h"
+#include "typedefs.h"
 #include "utils_cxx.hpp"
 
 /* This is a configuration variable which may be set by the caller (it's
@@ -505,7 +512,7 @@ void realloc_buffer_primes(earlyparsed_relation_ptr buf)
                 " after reading %zd bytes from:\n"			\
                 "%s\n",							\
                 __func__,__FILE__,__LINE__,				\
-                expect, got, ptr - sline, sline);			\
+                expect, got, (ptr) - (sline), (sline));			\
         abort();							\
     }									\
 } while (0)
@@ -532,7 +539,10 @@ static inline int earlyparser_inner_read_ab_withbase(ringbuf_ptr r, const char *
         RINGBUF_GET_ONE_BYTE(c, r, p);
     }
     PARSER_ASSERT_ALWAYS(c, ',', *pp, p);
-    rel->a = negative ? -w : w;
+    if (negative)
+        rel->a = -runtime_numeric_cast<int64_t>(w);
+    else
+        rel->a = runtime_numeric_cast<int64_t>(w);
     RINGBUF_GET_ONE_BYTE(c, r, p);
     for (w = 0; (v = ugly[c]) < base;) {
         w = w * base + v;
@@ -614,7 +624,7 @@ earlyparser_inner_read_active_sides(ringbuf_ptr r, const char ** pp, earlyparsed
             w = w * BASE + v;       /* *16 ought to be optimized */
             RINGBUF_GET_ONE_BYTE(c, r, p);
         }
-        rel->active_sides[0] = w;
+        rel->active_sides[0] = runtime_numeric_cast<int>(w);
         PARSER_ASSERT_ALWAYS(c, ',', r->rhead, p);
         p++;
         RINGBUF_GET_ONE_BYTE(c, r, p);
@@ -622,7 +632,7 @@ earlyparser_inner_read_active_sides(ringbuf_ptr r, const char ** pp, earlyparsed
             w = w * BASE + v;       /* *16 ought to be optimized */
             RINGBUF_GET_ONE_BYTE(c, r, p);
         }
-        rel->active_sides[1] = w;
+        rel->active_sides[1] = runtime_numeric_cast<int>(w);
 #undef BASE
     } else {
         rel->active_sides[0] = 0;
@@ -633,19 +643,29 @@ earlyparser_inner_read_active_sides(ringbuf_ptr r, const char ** pp, earlyparsed
 }
 
 
-static int prime_t_cmp(prime_t * a, prime_t * b)
-{
-    int r = (a->side > b->side) - (b->side > a->side);
-    if (r) return r;
-    r = (a->p > b->p) - (b->p > a->p);
-    return r;
-}
+struct prime_t_cmp{
+    static int cmp(prime_t const * a, prime_t const * b)
+    {
+        int r = (a->side > b->side) - (b->side > a->side);
+        if (r) return r;
+        r = (a->p > b->p) - (b->p > a->p);
+        return r;
+    }
+    bool operator()(prime_t const & a, prime_t const & b) {
+        return cmp(&a, &b) < 0;
+    }
+};
 
-static int prime_t_cmp_indices(prime_t * a, prime_t * b)
-{
-    int const r = (a->h > b->h) - (b->h > a->h);
-    return r;
-}
+struct prime_t_cmp_indices{
+    static int cmp(prime_t const * a, prime_t const * b)
+    {
+        int const r = (a->h > b->h) - (b->h > a->h);
+        return r;
+    }
+    bool operator()(prime_t const & a, prime_t const & b) {
+        return cmp(&a, &b) < 0;
+    }
+};
 
 /* This earlyparser is the pass which is used to perform the renumbering
  * of the relation files. This has some implications.
@@ -670,18 +690,19 @@ static int earlyparser_abp_hexa(earlyparsed_relation_ptr rel, ringbuf_ptr r)
 static
 unsigned int sort_and_compress_rel_primes(prime_t * primes, unsigned int n)
 {
+    prime_t_cmp P;
     /* sort ; note that we're sorting correctly w.r.t the side as
      * well. We could of course exploit the fact that the sides
      * themselves are always in order, but the benefit is likely to
      * be small. Anyway this branch is not critical, as we prefer
      * to have las create sorted files */
-    qsort(primes, n, sizeof(prime_t), (int(*)(const void*,const void*))prime_t_cmp);
+    std::sort(primes, primes + n, P);
     /* compress. idiomatic albeit subtle loop. */
     unsigned int i,j;
     prime_t * qq = primes;
     for(i = j = 0 ; i < n ; j++) {
         qq[j] = qq[i];
-        for(i++ ; i < n && prime_t_cmp(qq+i, qq+j) == 0 ; i++) {
+        for(i++ ; i < n && !P(qq[j], qq[i]) ; i++) {
             qq[j].e += qq[i].e;
         }
     }
@@ -691,18 +712,19 @@ unsigned int sort_and_compress_rel_primes(prime_t * primes, unsigned int n)
 static
 unsigned int sort_and_compress_rel_indices(prime_t * primes, unsigned int n)
 {
+    prime_t_cmp_indices P;
     /* sort ; note that we're sorting correctly w.r.t the side as
      * well. We could of course exploit the fact that the sides
      * themselves are always in order, but the benefit is likely to
      * be small. Anyway this branch is not critical, as we prefer
      * to have las create sorted files */
-    qsort(primes, n, sizeof(prime_t), (int(*)(const void*,const void*))prime_t_cmp_indices);
+    std::sort(primes, primes + n, P);
     /* compress. idiomatic albeit subtle loop. */
     unsigned int i,j;
     prime_t * qq = primes;
     for(i = j = 0 ; i < n ; j++) {
         qq[j] = qq[i];
-        for(i++ ; i < n && prime_t_cmp_indices(qq+i, qq+j) == 0 ; i++) {
+        for(i++ ; i < n && !P(qq[j], qq[i]) ; i++) {
             qq[j].e += qq[i].e;
         }
     }
@@ -997,7 +1019,7 @@ static void filter_rels_consumer_thread(
 {
     inflight->enter(k);
     earlyparsed_relation_ptr slot;
-    for( ; (slot = inflight->schedule(k)) != NULL ; ) {
+    for( ; (slot = inflight->schedule(k)) != nullptr ; ) {
         (*callback_fct)(callback_arg, slot);
         inflight->complete(k, slot);
     }
