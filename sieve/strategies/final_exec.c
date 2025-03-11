@@ -7,6 +7,7 @@
 #include "params.h"     // param_list
 #include "strategy.h"
 #include "tab_strategy.h"
+#include "macros.h"
 
 /************************************************************************/
 /*             USAGE                                                    */
@@ -123,6 +124,7 @@ int main(int argc, char const * argv[])
 
     printf("EXTRACT DATA C\n");
     FILE *file_C = fopen(pathname_C, "r");
+    DIE_ERRNO_DIAG(!file_C, "fopen(%s)", pathname_C);
     unsigned long **matrix_C = extract_matrix_C(file_C, mfb0 + 1, mfb1 + 1);
     if (matrix_C == NULL) {
 	fprintf(stderr, "Error while reading file %s\n", pathname_C);
@@ -137,6 +139,7 @@ int main(int argc, char const * argv[])
 			      time_C);
 
     FILE *file_output = fopen(pathname_output, "w");
+    DIE_ERRNO_DIAG(!file_output, "fopen(%s)", pathname_output);
     int err = fprint_final_strategy(file_output, matrix_strat_res,
 				    mfb0 + 1, mfb1 + 1);
     if (err == -1) {

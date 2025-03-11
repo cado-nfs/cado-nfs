@@ -1,5 +1,7 @@
 #include "cado.h"
 
+#include <vector>
+
 #include "facul_method.hpp"
 #include "facul_ecm.h"  // for ecm_plan_t, ecm_make_plan, ecm_clear_plan
 #include "macros.h"     // for ASSERT_ALWAYS, ASSERT, MAYBE_UNUSED
