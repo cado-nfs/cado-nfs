@@ -5,7 +5,9 @@
 #include <stdint.h> // uint64_t
 #include "polyselect_qroots.h"
 #include "polyselect_poly_header.h"
-#include "gmp_aux.h"
+
+#include "gmp_aux.h"    // IWYU pragma: keep
+                        // (provides gmp_randstate_ptr if gmp lacks it)
 
 /* declarations */
 
@@ -34,9 +36,9 @@ extern unsigned long binomial (unsigned long, unsigned long);
 
 extern void comp_sq_roots (polyselect_poly_header_srcptr, polyselect_qroots_ptr, gmp_randstate_ptr);
 
-extern void crt_sq (mpz_ptr, mpz_ptr, unsigned long *, unsigned long *, unsigned long);
+extern void crt_sq (mpz_ptr, mpz_ptr, unsigned long const *, unsigned long *, unsigned long);
 
-extern uint64_t return_q_norq (polyselect_qroots_srcptr, unsigned long *, unsigned long);
+extern uint64_t return_q_norq (polyselect_qroots_srcptr, unsigned long const *, unsigned long);
 
 #ifdef __cplusplus
 }

@@ -5,15 +5,14 @@
  */
 #include "cado.h" // IWYU pragma: keep
 
-#include <cstddef>      /* see https://gcc.gnu.org/gcc-4.9/porting_to.html */
 #include <cstdlib>
 #include <cstdio>
 
 #include <utility>                 // pair
 #include <map>
+#include <mutex>
 
 #include <gmp.h>
-#include <pthread.h>
 
 #include "powers_of_p.h"
 #include "utils_cxx.hpp"
@@ -21,12 +20,12 @@
 using namespace std;
 
 struct power_lookup_table {
-    mutable pthread_mutex_t mx[1];
+    mutable std::mutex mx;
     unsigned long p;
     typedef map<int, int> m_t;
-    mpz_ptr * z;
-    unsigned int alloc;
-    unsigned int nz;
+    mpz_ptr * z = nullptr;
+    unsigned int alloc = 0;
+    unsigned int nz = 0;
     m_t m;
     int extra_power_swapstore(mpz_ptr w) {
         if (nz == alloc) {
@@ -39,17 +38,14 @@ struct power_lookup_table {
         nz++;
         return nz-1;
     }
-    power_lookup_table(unsigned long p) : p(p), z(NULL), alloc(0), nz(0) {
-        pthread_mutex_init(mx, NULL);
-    }
+    power_lookup_table(unsigned long p) : p(p) { }
     ~power_lookup_table() {
-        pthread_mutex_destroy(mx);
         for(unsigned int i = 0 ; i < nz ; i++) {
             mpz_clear(z[i]);
             free(z[i]);
         }
         free(z);
-        z = NULL;
+        z = nullptr;
     }
     mpz_srcptr operator()(int i);
     mpz_srcptr operator()(int i) const;
@@ -58,29 +54,26 @@ struct power_lookup_table {
 
 mpz_srcptr power_lookup_table::operator()(int i)
 {
-    pthread_mutex_lock(mx);
+    const std::lock_guard<std::mutex> dummy(mx);
     mpz_srcptr res = inside(i);
-    pthread_mutex_unlock(mx);
     return res;
 }
 
 mpz_srcptr power_lookup_table::operator()(int i) const
 {
-    pthread_mutex_lock(mx);
-    m_t::const_iterator const px = m.find(i);
+    const std::lock_guard<std::mutex> dummy(mx);
+    auto const px = m.find(i);
     if (px == m.end()) {
-        pthread_mutex_unlock(mx);
         fprintf(stderr, "Fatal error: we would have expected p^%d to have been computed already\n", i);
         abort();
     }
     mpz_srcptr res = z[px->second];
-    pthread_mutex_unlock(mx);
     return res;
 }
 
 mpz_srcptr power_lookup_table::inside(int i)
 {
-    m_t::const_iterator const px = m.find(i);
+    auto const px = m.find(i);
     if (px != m.end()) {
         mpz_srcptr res = z[px->second];
         return res;
@@ -121,17 +114,17 @@ void * power_lookup_table_init(unsigned long p)
 
 void power_lookup_table_clear(void * t)
 {
-    power_lookup_table * pt = static_cast<power_lookup_table *>(t);
-    return delete pt;
+    auto * pt = static_cast<power_lookup_table *>(t);
+    delete pt;
 }
 
 mpz_srcptr power_lookup(void * t, int i)
 {
-    power_lookup_table * pt = static_cast<power_lookup_table *>(t);
+    auto * pt = static_cast<power_lookup_table *>(t);
     return (*pt)(i);
 }
 mpz_srcptr power_lookup_const(const void * t, int i)
 {
-    const power_lookup_table * pt = static_cast<const power_lookup_table *>(t);
+    auto const * pt = static_cast<const power_lookup_table *>(t);
     return (*pt)(i);
 }

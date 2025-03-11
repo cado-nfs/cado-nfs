@@ -29,9 +29,9 @@ class number_field_order {
     /* return the order given by this basis (n*n matrix with respect to
      * the number field polynomial basis in alpha)
      */
-    number_field_order(class number_field const &, cxx_mpq_mat const &);
+    number_field_order(class number_field const &, cxx_mpq_mat);
     public:
-    inline class number_field const & number_field() const { return K; }
+    class number_field const & number_field() const { return K; }
 
     number_field_order_element operator()(cxx_mpz_mat const &) const;
 
@@ -58,11 +58,11 @@ class number_field_order {
         , multiplication_table(a.multiplication_table)
     {}
 
-    number_field_order(number_field_order && a)
+    number_field_order(number_field_order && a) noexcept
         : K(a.K)
-        , basis_matrix(a.basis_matrix)
-        , inv_basis_matrix(a.inv_basis_matrix)
-        , multiplication_table(a.multiplication_table)
+        , basis_matrix(std::move(a.basis_matrix))
+        , inv_basis_matrix(std::move(a.inv_basis_matrix))
+        , multiplication_table(std::move(a.multiplication_table))
     {}
 };
 

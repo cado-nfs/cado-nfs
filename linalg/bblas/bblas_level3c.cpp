@@ -600,8 +600,8 @@ void mul_N64_6464_avx2(uint64_t *C,/*{{{*/
         uint64_t c = 0;
         uint64_t a = *A++;
         for (int i = 0; i < 64; i++) {
-            c ^= (B[i] & -(a & UINT64_C(1)));
-            a >>= UINT64_C(1);
+            c ^= (B[i] & -(a & uint64_t(1)));
+            a >>= 1;
         }
         *C++ = c;
     }

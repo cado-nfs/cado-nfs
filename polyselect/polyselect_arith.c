@@ -1,12 +1,18 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdio.h> // fprintf
-#include <stdlib.h>     // exit free malloc
+
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+
 #include <gmp.h>
+
+#include "gmp_aux.h"    // IWYU pragma: keep
+                        // (provides gmp_randstate_ptr if gmp lacks it)
 #include "polyselect_arith.h"
 #include "polyselect_special_q.h"    // SPECIAL_Q...
+#include "polyselect_qroots.h"
+#include "polyselect_poly_header.h"
 #include "roots_mod.h"
-#include "gcd.h"       // for invert_ul
-#include "gmp_aux.h"       // mpz_set_uint64
 
 
 /* first combination of k elements among 0, ..., n-1: 0, 1, 2, 3, \cdots */
@@ -196,7 +202,7 @@ number_comb (polyselect_qroots_srcptr SQ_R, unsigned long k, unsigned long lq)
  */
 void
 crt_sq(mpz_ptr qqz,
-       mpz_ptr r, unsigned long *q, unsigned long *rq, unsigned long lq)
+       mpz_ptr r, unsigned long const *q, unsigned long *rq, unsigned long lq)
 {
   mpz_t prod, pprod, mod, inv, sum;
   unsigned long qq[lq];
@@ -243,7 +249,7 @@ crt_sq(mpz_ptr qqz,
  * XXX This function belongs to polyselect_qroots.[ch], IMHO
  */
 uint64_t
-return_q_norq (polyselect_qroots_srcptr SQ_R, unsigned long *idx_q, unsigned long k)
+return_q_norq (polyselect_qroots_srcptr SQ_R, unsigned long const *idx_q, unsigned long k)
 {
   unsigned long i;
   uint64_t q = 1;

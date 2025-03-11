@@ -22,6 +22,7 @@
 #include <sys/resource.h> // IWYU pragma: keep
 #endif
 
+#include "fmt/base.h"
 #include "fmt/format.h"
 
 #include "macros.h"

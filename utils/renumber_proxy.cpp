@@ -1,8 +1,16 @@
 #include "cado.h" // IWYU pragma: keep
+
+#include <cstdint>
+#include <cstddef>
+
 #include <utility>       // for pair
 #include <vector>        // for vector
+
+#include "cado_poly.h"
+#include "mpz_poly.h"
 #include "renumber.hpp"
 #include "renumber_proxy.h"
+#include "typedefs.h"
 
 static inline const renumber_t * deref(renumber_proxy_srcptr R)
 {

@@ -1,7 +1,11 @@
 #include "cado.h" // IWYU pragma: keep
+
+#include <stdio.h>
 #include <inttypes.h>
 #include <stdlib.h>
+
 #include <gmp.h>
+
 #include "macros.h"
 #include "gf2x.h"
 #include "gf2x-fft.h"

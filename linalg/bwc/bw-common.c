@@ -1,15 +1,19 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <inttypes.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <errno.h>
 #include <ctype.h>
-#include <stdio.h>
-#include <math.h>
+#include <errno.h>
+#include <inttypes.h>
 #include <limits.h>
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include <unistd.h>
+
 #include <gmp.h>
+
 #include "bw-common.h"
 #include "select_mpi.h"
 #include "portability.h" // strdup // IWYU pragma: keep

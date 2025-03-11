@@ -7,19 +7,18 @@
 
 #include <iostream>
 #include <sstream>
+#include <vector>
 
 #include <gmp.h>
-#include "fmt/base.h"
-#include "fmt/format.h"
 
-#include "macros.h"
-#include "gmp_aux.h"
-#include "mpz_poly.h"
 #include "cxx_mpz.hpp"
-#include "mpz_polymodF.h"
+#include "gmp_aux.h"
+#include "macros.h"
+#include "mpz_poly.h"
 #include "mpz_poly_parallel.hpp"
-#include "tests_common.h"
+#include "mpz_polymodF.h"
 #include "portability.h" //  IWYU pragma: keep
+#include "tests_common.h"
 
 static void mpz_poly_setcoeffs_ui_var(mpz_poly f, int d, ...)
 {
@@ -323,10 +322,10 @@ test_mpz_poly_sqr_mod_f_mod_mpz (unsigned long iter)
       else
         P->deg = -1; /* P=0 */
       mpz_poly_init (Q, d - 1);
-      mpz_poly_sqr_mod_f_mod_mpz (Q, P, f, m, NULL, NULL);
+      mpz_poly_sqr_mod_f_mod_mpz (Q, P, f, m, nullptr, nullptr);
       if (iter == 0)
         ASSERT_ALWAYS(Q->deg == -1);
-      mpz_poly_mul_mod_f_mod_mpz (Q, P, P, f, m, NULL, NULL);
+      mpz_poly_mul_mod_f_mod_mpz (Q, P, P, f, m, nullptr, nullptr);
       if (iter == 0)
         ASSERT_ALWAYS(Q->deg == -1);
       mpz_poly_clear (f);
@@ -341,7 +340,7 @@ test_mpz_poly_sqr_mod_f_mod_mpz (unsigned long iter)
    mpz_poly_setcoeff_si, mpz_poly_cmp, mpz_poly_eval,
    mpz_poly_eval_mod_mpz and mpz_poly_eval_several_mod_mpz */
 static void
-test_mpz_poly_fprintf (void)
+test_mpz_poly_fprintf()
 {
   mpz_poly f, g;
   mpz_t c, v[2], m, invm;
@@ -645,7 +644,7 @@ static void test_mpz_poly_is_root(unsigned long iter)
         mpz_poly_setcoeff_si(ell, 1, 1);
         mpz_neg(mpz_poly_coeff(ell, 0), r);
         mpz_poly_mul(f, f, ell);
-        mpz_poly_mod_mpz(f, f, p, NULL);
+        mpz_poly_mod_mpz(f, f, p, nullptr);
         mpz_mod(r, r, p);
     }
 
@@ -672,7 +671,7 @@ static void test_mpz_poly_factor(unsigned long iter)
     mpz_poly_set_from_expression(f, "x+2*x^2+2*x^3+2*x^4");
     mpz_poly_factor(lf, f, p, state);
     ASSERT_ALWAYS(lf->size == 1);
-    mpz_poly_mod_mpz(f, f, p, NULL);
+    mpz_poly_mod_mpz(f, f, p, nullptr);
     ASSERT_ALWAYS(mpz_poly_cmp(lf->factors[0]->f, f) == 0);
 
     mpz_poly_set_from_expression(f, "1+2*x^2+2*x^3+2*x^4");
@@ -682,7 +681,7 @@ static void test_mpz_poly_factor(unsigned long iter)
     mpz_poly_set_from_expression(f, "x-2*x^2-2*x^3-2*x^4");
     mpz_poly_factor(lf, f, p, state);
     ASSERT_ALWAYS(lf->size == 1);
-    mpz_poly_mod_mpz(f, f, p, NULL);
+    mpz_poly_mod_mpz(f, f, p, nullptr);
     ASSERT_ALWAYS(mpz_poly_cmp(lf->factors[0]->f, f) == 0);
 
 
@@ -795,7 +794,7 @@ static void test_mpz_poly_factor(unsigned long iter)
         mpz_rrandomb(p, state, 20);
         mpz_nextprime(p, p);
         mpz_poly_set_signed_rrandomb(f, 10, state, 10);
-        mpz_poly_mod_mpz(f, f, p, NULL);
+        mpz_poly_mod_mpz(f, f, p, nullptr);
         // mpz_poly_fprintf(stderr, f);
         mpz_poly_factor(lf, f, p, state);
         mpz_poly g;
@@ -803,9 +802,9 @@ static void test_mpz_poly_factor(unsigned long iter)
         mpz_poly_set_xi(g, 0);
         for(int i = 0 ; i < lf->size ; i++) {
             mpz_poly_with_m_ptr fx = lf->factors[i];
-            mpz_poly_pow_ui_mod_f_mod_mpz(fx->f, fx->f, NULL, fx->m, p); 
+            mpz_poly_pow_ui_mod_f_mod_mpz(fx->f, fx->f, nullptr, fx->m, p); 
             mpz_poly_mul(g, g, fx->f);
-            mpz_poly_mod_mpz(g, g, p, NULL);
+            mpz_poly_mod_mpz(g, g, p, nullptr);
         }
         mpz_poly_makemonic_mod_mpz(f, f, p);
         ASSERT_ALWAYS(mpz_poly_cmp(f, g) == 0);
@@ -831,12 +830,10 @@ static void test_mpz_poly_factor_padic(unsigned long iter)
         cxx_mpz disc = 0;
         for( ; mpz_cmp_ui(disc, 0) == 0 ; ) {
             /* pick a degree between 2 and 10 */
-            unsigned long const deg = gmp_urandomm_ui(rstate, 8) + 2;
-
-            for(unsigned long i = 0 ; i < deg ; i++)
-                mpz_poly_setcoeff_ui(f, i, gmp_urandomm_ui(rstate, 100));
+            int const deg = 2 + (int) gmp_urandomm_ui(rstate, 8);
+            mpz_poly_set_urandomm_ui(f, deg, state, 100);
             mpz_poly_setcoeff_ui(f, deg, 1);
-            mpz_poly_mod_mpz(f, f, p, NULL);
+            mpz_poly_mod_mpz(f, f, p, nullptr);
 
             mpz_poly_discriminant(disc, f);
             mpz_mod(disc, disc, p);
@@ -911,7 +908,7 @@ static void test_mpz_poly_trivialities()
 
     /* check that (x+1)^5 div x is irreducible mod 13 */
     mpz_poly_setcoeffs_ui_var(g, 1, 1, 1);
-    mpz_poly_pow_ui_mod_f_mod_mpz(g, g, NULL, 5, p);
+    mpz_poly_pow_ui_mod_f_mod_mpz(g, g, nullptr, 5, p);
     mpz_poly_div_xi(f, g, 6);
     ASSERT_ALWAYS(f->deg == -1);
     mpz_poly_div_xi(f, g, 0);
@@ -1114,8 +1111,8 @@ test_mpz_poly_discriminant (unsigned long iter)
 
     while (iter--)
     {
-        int N = 10;
-        int d = 1 + gmp_urandomm_ui(state, N-1);
+        const int N = 10;
+        int d = 1 + (int) gmp_urandomm_ui(state, N-1);
         mpz_poly_set_urandomm_ui(f, d, state, 2);
         mpz_poly_discriminant (D, f);
     }
@@ -1193,14 +1190,14 @@ static void test_mpz_poly_interpolation(unsigned long iter)
     }
 
     for(unsigned long i = 0 ; i < iter ; i++) {
-        const int d = 4 + gmp_urandomm_ui(state, 97);
+        const int d = 4 + (int) gmp_urandomm_ui(state, 97);
         cxx_mpz_poly f;
         mpz_poly_set_rrandomb(f, d, state, 5);
 
         std::vector<cxx_mpz> points;
         std::vector<cxx_mpz> evaluations;
 
-        int neval = d + 1;
+        const int neval = d + 1;
 
         for(int i = 0 ; i < neval ; i++) {
             cxx_mpz t(i), e;

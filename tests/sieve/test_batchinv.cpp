@@ -1,14 +1,14 @@
-/* test batchinvredc_u32 */
-
 #include "cado.h" // IWYU pragma: keep
+
 #include <cinttypes>               // for PRId64, PRIu64
+#include <cstdlib>
 #include <cstdint>                 // for uint32_t, uint64_t
 #include <cstdio>
-#include "fb-types.h"               // for fbprime_t, FBPRIME_FORMAT
+
 #include "las-arith.hpp"            // for batchinvredc_u32
-#include "macros.h"
 #include "gcd.h"
 #include "tests_common.h"
+#include "misc.h"
 
 static inline uint32_t
 mulmod(const uint32_t a, const uint32_t b, const uint32_t p) {
@@ -31,7 +31,7 @@ test_batchinvredc_u32(const uint32_t *a, const uint32_t p, const uint32_t invp, 
         fprintf (stderr, "Inverse should %shave worked but %s\n",
                  should_work ? "" : "not ", worked ? "did" : "didn't");
         return false;
-    } else if (worked == true) {
+    } else if (worked) {
         for (size_t i = 0; i < n; i++) {
             if (mulmod(a[i], r[i], p) != two32) {
                 fprintf (stderr, "2^32 * %" PRIu32 "^-1 (mod %" PRIu32 ") wrong: %" PRIu32 "\n",
@@ -53,14 +53,14 @@ int main(int argc, char const * argv[])
   unsigned long N = 100;
   bool all_ok = true;
 
-  setbuf(stdout, NULL);
-  setbuf(stderr, NULL);
+  setvbuf(stdout, nullptr, _IONBF, 0);
+  setvbuf(stderr, nullptr, _IONBF, 0);
 
   tests_common_cmdline(&argc, &argv, PARSE_SEED | PARSE_ITER);
   tests_common_get_iter(&N);
   
   for (size_t n = 0; all_ok && n < N; n++) {
-      const uint32_t p = (uint64_t) u64_random (state) | 1;
+      const uint32_t p = u64_random (state) | uint64_t(1);
       const uint32_t invp = -invmod_po2 (p);
       bool should_work = true;
       
@@ -68,7 +68,7 @@ int main(int argc, char const * argv[])
       /* Try one that may or may not work, depending on which residues RNG
        * gives us */
       for (size_t i = 0; i < n; i++) {
-          a[i] = (uint64_t) u64_random(state);
+          a[i] = u64_random(state);
           should_work &= gcd_ul(a[i], p) == 1;
       }
       

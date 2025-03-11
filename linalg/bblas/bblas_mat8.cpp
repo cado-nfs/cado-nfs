@@ -1,5 +1,9 @@
 #include "cado.h" // IWYU pragma: keep
+
+#include <cstdint>
+
 #include <algorithm>                      // for min
+
 #include "macros.h"                       // for ASSERT
 #include "bblas_bitmat.hpp"  // for bitmat_ops, bblas_bitmat_de...
 #include "bblas_mat8.hpp"
@@ -10,16 +14,16 @@ using namespace bblas_bitmat_details;
 template<>
 void bitmat_ops<uint8_t>::add(mat8 & C, mat8 const & A, mat8 const & B)
 {
-    uint64_t & Cx = * (uint64_t *) C.data();
-    uint64_t const & Ax = * (uint64_t const *) A.data();
-    uint64_t const & Bx = * (uint64_t const *) B.data();
+    auto & Cx = * (uint64_t *) C.data();
+    auto const & Ax = * (uint64_t const *) A.data();
+    auto const & Bx = * (uint64_t const *) B.data();
     Cx = Ax ^ Bx;
 }
 
 template<>
 void bitmat_ops<uint8_t>::transpose(mat8 & C, mat8 const & A)
 {
-    uint64_t aa = * (uint64_t const *) A.data();
+    auto aa = * (uint64_t const *) A.data();
 
     uint64_t t;
     t = (aa ^ (aa >> 28));

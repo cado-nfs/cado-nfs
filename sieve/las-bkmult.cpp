@@ -1,7 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cstddef>
 #include <sstream>
+#include <ios>
 
 #include "las-bkmult.hpp"
 
@@ -22,7 +22,7 @@ bkmult_specifier::bkmult_specifier(const char * specifier)
 {
     const char * p = specifier;
     for(const char * q ; *p ; p = q + (*q != '\0') ) {
-        const char * colon = NULL;
+        const char * colon = nullptr;
         for(q = p ; *q && *q != ',' ; q++)
             if (*q == ':')
                 colon = q;
@@ -37,7 +37,7 @@ bkmult_specifier::bkmult_specifier(const char * specifier)
             ASSERT_ALWAYS(p[0] >= '1' && p[0] <= '9');
             ASSERT_ALWAYS(p[1] == 's' || p[1] == 'l');
             dict_t::key_type const key(p[0]-'0', p[1]);
-            dict.insert(std::make_pair(key, v));
+            dict[key] = v;
         } else {
             std::string const vs(p, q);
             std::istringstream is(vs);

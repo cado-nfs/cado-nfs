@@ -1,17 +1,17 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 // #define WLEN ULONG_BITS
 // #define GF2X_WORDSIZE ULONG_BITS
 #define GF2X_MAYBE_UNUSED MAYBE_UNUSED
 #define CANTOR_BASE_FIELD_SIZE 64
 
+#include <cstdint>
 #include <cstring>
+
 #include "bblas_mat64.hpp"
 #include "bblas_level5.hpp"
 #include "bblas_level3a.hpp"  // for mat64_add
-#include "bblas_level3b.hpp"  // for mul_6464_6464
 #include "memory.h"      // malloc_aligned
-#include "macros.h"                      // for ASSERT, ASSERT_ALWAYS
 
 
 #include "gf2x-cantor-field-impl.h"
@@ -20,7 +20,7 @@ void m64pol_mul_gf2_64_bitslice(mat64 * r, mat64 const * a1, mat64 const * a2)/*
 {
     unsigned int const n1 = 64;
     unsigned int const n2 = 64;
-    mat64 * t = (mat64 *) malloc_aligned((n1 + n2 -1) * sizeof(mat64), 64);
+    auto * t = (mat64 *) malloc_aligned((n1 + n2 -1) * sizeof(mat64), 64);
     m64pol_mul_kara(t, a1, a2, n1, n2);
     /* This reduces modulo the polynomial x^64+x^4+x^3+x+1 */
     for(unsigned int i = n1 + n2 - 2 ; i >= 64 ; i--) {
@@ -37,10 +37,10 @@ void m64pol_scalmul_gf2_64_bitslice(mat64 * r, mat64 const * a, uint64_t * s)/*{
 {
     unsigned int const n1 = 64;
     unsigned int const n2 = 64;
-    mat64 * t = (mat64 *) malloc_aligned((n1 + n2 -1) * sizeof(mat64), 64);
+    auto * t = (mat64 *) malloc_aligned((n1 + n2 -1) * sizeof(mat64), 64);
     memset((void *) t, 0, (n1 + n2 -1) * sizeof(mat64));
     for(unsigned int i = 0 ; i < 64 ; i++) {
-        if (((s[0]>>i)&UINT64_C(1))==0) continue;
+        if (((s[0]>>i)&uint64_t(1))==0) continue;
         m64pol_add(t+i, t+i, a, 64);
         // for(unsigned int j = 0 ; j < 64 ; j++) { mat64_add(t[i+j], t[i+j], a[j]); }
     }
@@ -61,7 +61,7 @@ void m64pol_scalmul_gf2_64_bitslice2(mat64 * r, mat64 const * a, uint64_t * s)/*
      * them to start with. */
     unsigned int const n1 = 64;
     unsigned int const n2 = 64;
-    mat64 * t = (mat64 *) malloc_aligned((n1 + n2 -1) * sizeof(mat64), 64);
+    auto * t = (mat64 *) malloc_aligned((n1 + n2 -1) * sizeof(mat64), 64);
     memset((void *) t, 0, (n1 + n2 -1) * sizeof(mat64));
 
     /* Precompute multiples of a */
@@ -70,7 +70,7 @@ void m64pol_scalmul_gf2_64_bitslice2(mat64 * r, mat64 const * a, uint64_t * s)/*
      * be looked at (since presently 4 wins over 2).
      */
 #define NMULTS  2
-    mat64 * am_area = (mat64 *) malloc_aligned((1 << NMULTS) * (64 + NMULTS - 1) * sizeof(mat64), 64);
+    auto * am_area = (mat64 *) malloc_aligned((1 << NMULTS) * (64 + NMULTS - 1) * sizeof(mat64), 64);
     mat64 * am[1 << NMULTS];
 
     for(unsigned int i = 0 ; i < (1 << NMULTS) ; i++) {
