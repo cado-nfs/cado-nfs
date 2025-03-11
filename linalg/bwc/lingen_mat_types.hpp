@@ -909,7 +909,7 @@ void compose_inner(
     tpolmat<fft_type> tmp(s1.nrows, s2.ncols, o);
     ASSERT(s1.ncols == s2.nrows);
     unsigned int nbits;
-    nbits = o.size() * sizeof(typename remove_pointer<ptr>::elt) * CHAR_BIT;
+    nbits = o.size0_bytes() * CHAR_BIT;
     if (s(s1.nrows, s1.ncols, s2.ncols, nbits)) {
         compose_strassen(tmp, s1, s2, o, s);
     } else {

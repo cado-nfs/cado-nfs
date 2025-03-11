@@ -461,13 +461,13 @@ install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/bwc.pl DESTINATION
 
 ### This is the old binary lingen code. It is meant to go away.
 if(NOT HAVE_GF2X)
-link_directories (${CADO_NFS_BINARY_DIR}/gf2x/fft/.libs)
-link_directories (${CADO_NFS_BINARY_DIR}/gf2x/.libs)
-include_directories(${CADO_NFS_BINARY_DIR}/gf2x/fft)
-include_directories(${CADO_NFS_SOURCE_DIR}/gf2x/fft)
+    include_directories(${CADO_NFS_SOURCE_DIR}/gf2x/fft)
+    include_directories(${CADO_NFS_BINARY_DIR}/gf2x/fft)
+    link_directories (${CADO_NFS_BINARY_DIR}/gf2x/.libs)
+    link_directories (${CADO_NFS_BINARY_DIR}/gf2x/fft/.libs)
 else()
-    link_directories(${GF2X_LIBDIR})
     include_directories(${GF2X_INCDIR})
+    link_directories(${GF2X_LIBDIR})
 endif()
 # This **MUST** match the #define in gf2x/Makefile.am
 set_property(SOURCE lingen_qcode_binary.cpp
@@ -641,6 +641,16 @@ bwc_program_extra(build_matcache build_matcache.cpp)
 target_link_libraries(build_matcache bwc_base)
 bwc_program_extra(bench_matcache bench_matcache.cpp worker-threads.c)
 target_link_libraries(bench_matcache bwc_base)
+
+add_executable(bench_polmatmul EXCLUDE_FROM_ALL bench_polmatmul.cpp)
+set_property(SOURCE bench_polmatmul.cpp
+    APPEND PROPERTY COMPILE_DEFINITIONS CANTOR_BASE_FIELD_SIZE=128)
+mark_targets_as_openmp(bench_polmatmul)
+
+if(NOT HAVE_GF2X)
+add_dependencies(bench_polmatmul gf2x-build)
+endif()
+target_link_libraries(bench_polmatmul utils gf2x gf2x-fft)
 
 
 include(CMakeLists-nodist.txt OPTIONAL)
