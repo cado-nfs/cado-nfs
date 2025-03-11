@@ -739,8 +739,6 @@ bool get_g_CONJ(mpz_poly g[], mpz_poly phi, ppf_t params_g, int f_id,
 int gfpkdlpolyselect(int n, mpz_srcptr p, mpz_srcptr ell MAYBE_UNUSED,
                      int const mnfs, char const * out_filename)
 {
-    bool found_f = false, found_g = false;
-    int f_id;
     int return_code = 0;
     int deg_f = 2 * n, deg_g = 2 * n;
     // take the largest possibility as default init for deg_f and deg_g.
@@ -757,86 +755,88 @@ int gfpkdlpolyselect(int n, mpz_srcptr p, mpz_srcptr ell MAYBE_UNUSED,
     // params->ell = ell;
     params->mnfs = mnfs;
 
-    if (n == 2) {
-        get_degree_CONJ_f_g(n, &deg_f, &deg_g);
-        polygen_CONJ_get_tab_f(deg_f, &ff);
-        // ff pointe sur une structure qui contient tout ce qu'il faut : une
-        // table de {f, Py, phi} plus quelques autres parametres
-        if (ff != NULL) {
-            mpz_poly_init(f, deg_f);
-            mpz_poly * g = (mpz_poly *)malloc(mnfs * sizeof(mpz_poly));
-            FATAL_ERROR_CHECK(g == NULL,
-                              "not enough memory to allocate for table of g.");
-            for (int i = 0; i < mnfs; i++) {
-                mpz_poly_init(g[i], ff->deg_phi);
+    if (n != 2) {
+        /* not supported */
+        return 0;
+    }
+
+    get_degree_CONJ_f_g(n, &deg_f, &deg_g);
+    polygen_CONJ_get_tab_f(deg_f, &ff);
+
+    if (ff == NULL) {
+        printf("\n# pb ff == NULL.\n");
+        // NO ff available for this n.
+        return 0;
+    }
+
+    // ff pointe sur une structure qui contient tout ce qu'il faut : une
+    // table de {f, Py, phi} plus quelques autres parametres
+    mpz_poly_init(f, deg_f);
+    mpz_poly * g = (mpz_poly *)malloc(mnfs * sizeof(mpz_poly));
+    FATAL_ERROR_CHECK(g == NULL,
+            "not enough memory to allocate for table of g.");
+    for (int i = 0; i < mnfs; i++) {
+        mpz_poly_init(g[i], ff->deg_phi);
+    }
+    mpz_poly_init(phi, n);
+
+    for(int f_id = 0 ; f_id < ff->size ; f_id++) {
+        // 1. find a good f in table. If no f is found, return failed and
+        // exit 0. tab_roots_Py will be mpz_init() inside the get_f_CONJ
+        // function.
+        if (!get_f_CONJ(&f_id, tab_roots_Py, &nb_roots_Py, ff, p))
+            continue;
+
+        // 2. find a good g with LLL.
+        if (get_g_CONJ(g, phi, params_g, f_id, tab_roots_Py,
+                    nb_roots_Py, ff, params))
+        {
+
+            mpz_poly_setcoeffs_si(f, ff->tab[f_id].f, ff->deg_f);
+            FILE * outputpoly;
+            if (out_filename != NULL) {
+                outputpoly = fopen(out_filename, "w");
+                ASSERT_ALWAYS(outputpoly != NULL);
+            } else {
+                outputpoly = stdout;
             }
-            mpz_poly_init(phi, n);
-            // 1. find a good f in table. If no f is found, return failed and
-            // exit 0. tab_roots_Py will be mpz_init() inside the get_f_CONJ
-            // function.
-            f_id = 0;
+            gmp_fprintf(outputpoly, "n: %Zd\n", p);
+            fprintf(outputpoly, "skew: 1.0\n");
+            mpz_poly_fprintf_cado_format_line(outputpoly, f, 0,
+                    "f");
+            fprintf_gfpn_poly_info(outputpoly, f, "f");
 
-            while ((f_id < ff->size) && (!(found_f && found_g))) {
-                found_f = get_f_CONJ(&f_id, tab_roots_Py, &nb_roots_Py, ff, p);
-                if (found_f) {
-                    ASSERT((f_id >= 0) && (f_id < (ff->size)));
-                    // 2. find a good g with LLL.
-                    found_g = get_g_CONJ(g, phi, params_g, f_id, tab_roots_Py,
-                                         nb_roots_Py, ff, params);
-
-                    if (found_g) {
-                        mpz_poly_setcoeffs_si(f, ff->tab[f_id].f, ff->deg_f);
-                        FILE * outputpoly;
-                        if (out_filename != NULL) {
-                            outputpoly = fopen(out_filename, "w");
-                            ASSERT_ALWAYS(outputpoly != NULL);
-                        } else {
-                            outputpoly = stdout;
-                        }
-                        gmp_fprintf(outputpoly, "n: %Zd\n", p);
-                        fprintf(outputpoly, "skew: 1.0\n");
-                        mpz_poly_fprintf_cado_format_line(outputpoly, f, 0,
-                                                          "f");
-                        fprintf_gfpn_poly_info(outputpoly, f, "f");
-
-                        for (int i = 0; i < mnfs; i++) {
-                            mpz_poly_fprintf_cado_format_line(outputpoly, g[i],
-                                                              i + 1, "g");
-                            fprintf_gfpn_poly_info(outputpoly, g[i], "g");
-                        }
-                        fprintf(outputpoly, "# gcd(f, g) = phi = ");
-                        for (int i = 0; i <= phi->deg; i++) {
-                            gmp_fprintf(outputpoly, "%Zd",
-                                        mpz_poly_coeff_const(phi, i));
-                            if (i != phi->deg) {
-                                fprintf(outputpoly, ",");
-                            } else {
-                                fprintf(outputpoly, "\n");
-                            }
-                        }
-
-                        fclose(outputpoly);
-                        return_code = 1;
-                    } else { // f found but g not found
-                        f_id++;
-                    }
-                    for (int k = 0; k < nb_roots_Py; k++)
-                        mpz_clear(tab_roots_Py[k]);
-                } else { // f not found
-                    f_id++;
-                } // end if--then--else f_found
-            } // end while not (found_f && found_g)
-            mpz_poly_clear(f);
-            mpz_poly_clear(phi);
             for (int i = 0; i < mnfs; i++) {
-                mpz_poly_clear(g[i]);
+                mpz_poly_fprintf_cado_format_line(outputpoly, g[i],
+                        i + 1, "g");
+                fprintf_gfpn_poly_info(outputpoly, g[i], "g");
             }
-            free(g);
-        } else {
-            printf("\n# pb ff == NULL.\n");
-            // NO ff available for this n.
+            fprintf(outputpoly, "# gcd(f, g) = phi = ");
+            for (int i = 0; i <= phi->deg; i++) {
+                gmp_fprintf(outputpoly, "%Zd",
+                        mpz_poly_coeff_const(phi, i));
+                if (i != phi->deg) {
+                    fprintf(outputpoly, ",");
+                } else {
+                    fprintf(outputpoly, "\n");
+                }
+            }
+
+            fclose(outputpoly);
+            return_code = 1;
+            break;
         }
-    } // else n not supported (n=2 only at the moment)
+        for (int k = 0; k < nb_roots_Py; k++)
+            mpz_clear(tab_roots_Py[k]);
+    }
+
+    mpz_poly_clear(f);
+    mpz_poly_clear(phi);
+    for (int i = 0; i < mnfs; i++) {
+        mpz_poly_clear(g[i]);
+    }
+    free(g);
+
     return return_code;
 }
 
