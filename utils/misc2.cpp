@@ -17,7 +17,6 @@
 #include <gmp.h>
 
 #include "cado_expression_parser.hpp"
-#include "runtime_numeric_cast.hpp"
 #include "cxx_mpz.hpp"
 #include "getprime.h"
 #include "misc.h"

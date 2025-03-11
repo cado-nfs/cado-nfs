@@ -7,7 +7,7 @@
 #include <string>                // for string, operator+
 
 #include <gmp.h>                 // for gmp_randclear, gmp_randinit_default
-#include "fmt/core.h"            // for check_format_string
+#include "fmt/base.h"            // for check_format_string
 #include "fmt/format.h"
 
 #include "gmp_aux.h"

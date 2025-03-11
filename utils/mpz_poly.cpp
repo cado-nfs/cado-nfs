@@ -4214,6 +4214,7 @@ mpz_poly_factor(mpz_poly_srcptr f, mpz_srcptr p, gmp_randstate_t rstate)
     mpz_poly_factor_list_init(lf);
     mpz_poly_factor(lf, f, p, rstate);
     std::vector<std::pair<cxx_mpz_poly, int>> res;
+    res.reserve(lf->size);
     for (int i = 0; i < lf->size; i++) {
         res.emplace_back(lf->factors[i]->f, lf->factors[i]->m);
     }
@@ -5098,7 +5099,7 @@ static void multievaluate_derivative(std::vector<cxx_mpz> & ret,
     cxx_mpz_poly tmp;
     mpz_poly_mod(tmp, P, T->A);
     if (T->i1 == T->i0 + 1) {
-        ret.push_back(tmp.coeff(0));
+        ret.emplace_back(tmp.coeff(0));
     } else {
         multievaluate_derivative(ret, T->children[0], tmp);
         multievaluate_derivative(ret, T->children[1], tmp);

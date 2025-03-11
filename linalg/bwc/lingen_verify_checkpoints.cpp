@@ -20,7 +20,6 @@
 
 #include <iostream>     // std::cout // IWYU pragma: keep
 #include <fstream>      // std::ifstream // IWYU pragma: keep
-#include <sstream>      // std::istringstream // IWYU pragma: keep
 #include <vector>
 #include <stdexcept>                 // for runtime_error
 #include <string>                    // for string, operator+, basic_string
@@ -29,9 +28,8 @@
 
 #include <unistd.h>
 #include <gmp.h>
-#include "fmt/core.h"                // for check_format_string, char_t, format
 #include "fmt/format.h"
-#include "fmt/printf.h" // IWYU pragma: keep
+#include "fmt/printf.h"
 
 #include "gmp_aux.h"
 #include "cxx_mpz.hpp"

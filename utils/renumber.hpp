@@ -78,7 +78,7 @@ private:/*{{{ internal data fields*/
     int format = format_flat;
 
     /* all the (p,r,side) description of the bad ideals */
-    std::vector<std::pair<p_r_side, badideal> > bad_ideals;
+    std::vector<std::pair<p_r_side, badideal>> bad_ideals;
 
     p_r_values_t bad_ideals_max_p = 0;
 
@@ -98,7 +98,7 @@ private:/*{{{ internal data fields*/
      *
      * note that the ramified primes are a subset of these.
      */
-    std::vector<std::vector<std::pair<cxx_mpz,int> >> small_primes;
+    std::vector<std::vector<std::pair<cxx_mpz,int>>> small_primes;
 
     mutable std::map<p_r_side, int> exceptional_inertia;
 

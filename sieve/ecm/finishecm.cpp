@@ -14,6 +14,7 @@
 #include "cxx_mpz.hpp"  // cxx_mpz
 
 #include "facul.hpp"    // for facul, facul_clear_strategy, facul_make_strategy
+#include "facul_strategies.hpp"
 
 static void declare_usage(param_list pl)
 {
@@ -45,7 +46,7 @@ main (int argc, char const *argv[])
       if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
 
       /* Could also be a file */
-      if ((f = fopen(argv[0], "r")) != NULL) {
+      if ((f = fopen(argv[0], "r")) != nullptr) {
           param_list_read_stream(pl, f, 0);
           fclose(f);
           argv++,argc--;
@@ -60,7 +61,7 @@ main (int argc, char const *argv[])
   param_list_print_command_line(stdout, pl);
 
     const char * infilename;
-  if ((infilename = param_list_lookup_string(pl, "in")) == NULL) {
+  if ((infilename = param_list_lookup_string(pl, "in")) == nullptr) {
       fprintf(stderr, "Error: parameter -in is mandatory\n");
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);

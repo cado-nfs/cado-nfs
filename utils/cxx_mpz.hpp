@@ -1,20 +1,20 @@
 #ifndef CXX_MPZ_HPP_
 #define CXX_MPZ_HPP_
 
-#include "macros.h"
+#include <cstdlib>
 
-#include <gmp.h>
 #include <istream>
 #include <ostream>
-#include <limits>
 #include <type_traits>
-#include <stdlib.h>
-#include "fmt/format.h"
-#include "fmt/ostream.h"
 #include <sstream>
-#include "fmt/core.h"
+
+#include <gmp.h>
+#include "fmt/ostream.h"
+#include "fmt/base.h"
+
 #include "gmp_aux.h"
 #include "gmp_auxx.hpp"
+#include "macros.h"
 
 struct cxx_mpz {
 public:

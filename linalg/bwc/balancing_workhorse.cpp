@@ -17,9 +17,7 @@
 
 #include "balancing.hpp"
 #include "balancing_workhorse.hpp"
-#include "fmt/core.h"            // for check_format_string
-#include "fmt/format.h"          // for basic_buffer::append, basic_parse_co...
-#include "fmt/printf.h" // IWYU pragma: keep
+#include "fmt/base.h"            // for check_format_string
 #include "macros.h"              // for ASSERT_ALWAYS, ASSERT
 #include "misc.h"                // for size_disp, derived_filename
 #include "parallelizing_info.hpp"

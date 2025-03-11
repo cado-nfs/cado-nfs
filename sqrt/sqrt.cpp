@@ -37,7 +37,7 @@
 #include <sys/stat.h>
 
 #include <gmp.h>
-#include "fmt/core.h"
+#include "fmt/base.h"
 #include "fmt/format.h"
 
 #include "cado_poly.h"  // cado_poly

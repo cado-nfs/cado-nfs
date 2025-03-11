@@ -5,7 +5,6 @@
 #include <gmp.h>
 #include "tests_common.h"
 #include "sieve/ecm/mpqs_doit.h"
-#include "misc.h"
 
 /* Set N to a crude approximation to 2^(b/2) */
 void

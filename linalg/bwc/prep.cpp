@@ -1,33 +1,37 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cinttypes>
 #include <cstdint> // for uint32_t
 #include <cstdio>
 #include <cstdlib>
 #include <cstring> // for memset
+#include <climits>
 #include <ctime>   // for time
+
+#include <algorithm>
+#include <ios>
+#include <istream>
+#include <fstream>
 #include <memory>
 #include <set>
 #include <utility>
+#include <vector>
 
 #include <gmp.h>
+#include "fmt/base.h"
 
-#include "gmp_aux.h"
 #include "abase_proxy.hpp"
 #include "arith-generic.hpp"
-#include "balancing.hpp" // for balancing_pre_shuffle
-#include "bblas_gauss.h"
 #include "bw-common.h"
 #include "cxx_mpz.hpp"
+#include "gmp_aux.h"
 #include "macros.h"
 #include "matmul_top.hpp"
 #include "matmul_top_comm.hpp"
+#include "matmul_top_vec.hpp"
 #include "mmt_vector_pair.hpp"
 #include "parallelizing_info.hpp"
 #include "params.h"
-#include "portability.h" // asprintf // IWYU pragma: keep
 #include "select_mpi.h"
-#include "utils_cxx.hpp"
 #include "xdotprod.hpp"
 #include "xvectors.hpp"
 

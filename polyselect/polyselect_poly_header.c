@@ -1,5 +1,7 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+
 #include <gmp.h>
+
 #include "polyselect_poly_header.h"
 
 

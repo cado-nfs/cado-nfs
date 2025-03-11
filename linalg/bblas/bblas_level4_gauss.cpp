@@ -1,44 +1,60 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+
+#include <cstdint>
 #include <cstring>
-#include <gmp.h>                         // for mp_limb_t
-#include <cstdint>                      // for uint64_t, UINT64_C
-#include "bblas_mat64.hpp"  // for mat64
-#include "macros.h"                      // for ATTRIBUTE
-#include "bblas_level4.hpp"
+
+#include <algorithm>
+#include <array>
+
+#include <gmp.h>
+
 #include "bblas_gauss.h"
+#include "bblas_level4.hpp"
+#include "bblas_mat64.hpp" // for mat64
 
 int gauss_6464_C(mat64 & mm, mat64 & e, mat64 const & m)
 {
     mm = m;
     uint64_t * ee[64];
-    for(int j = 0 ; j < 64 ; j++) ee[j] = &(e[j]);
-    int const r = kernel((mp_limb_t *) mm.data(), (mp_limb_t **) ee, 64, 64, 64/ULONG_BITS, 64/ULONG_BITS);
+    for (int j = 0; j < 64; j++)
+        ee[j] = &(e[j]);
+    int const r = kernel((mp_limb_t *)mm.data(), (mp_limb_t **)ee, 64, 64,
+                         64 / ULONG_BITS, 64 / ULONG_BITS);
     return r;
 }
 
 int gauss_6464_imm(mat64 & mm, mat64 & e, mat64 const & m)
 {
     mm = m;
-    uint64_t mask=1;
-    uint64_t taken=0;
+    uint64_t mask = 1;
+    uint64_t taken = 0;
     // uint64_t cancelled_cols=0;
     int r = 0;
-    for(int j = 0 ; j < 64 ; j++, mask<<=1) e[j]=mask;
-    mask=1;
-    for(int j = 0 ; j < 64 ; j++, mask<<=1) {
+    for (int j = 0; j < 64; j++, mask <<= 1)
+        e[j] = mask;
+    mask = 1;
+    for (int j = 0; j < 64; j++, mask <<= 1) {
         int k = 0;
-        uint64_t z = UINT64_C(1);
+        uint64_t z = 1;
         uint64_t pr;
-        for(k = 0 ; z && !(((pr=mm[k])&mask) && !(taken&z)); k++, z<<=1) ;
-        if (!z) continue;
-        taken|=z;
+        for (k = 0; z; k++, z <<= 1) {
+            if (taken & z)
+                continue;
+            pr = mm[k];
+            if (pr & mask)
+                break;
+        }
+
+        if (!z)
+            continue;
+        taken |= z;
         r++;
         // cancelled_cols|=mask;
         uint64_t const er = e[k];
-        for(k++ ; k < 64 ; k++) {
-            uint64_t const w = -((mm[k]&mask)!=0);
-            mm[k]^=pr&w;
-            e[k]^=er&w;
+        for (k++; k < 64; k++) {
+            uint64_t const w = -((mm[k] & mask) != 0);
+            mm[k] ^= pr & w;
+            e[k] ^= er & w;
         }
     }
     return r;
@@ -46,9 +62,10 @@ int gauss_6464_imm(mat64 & mm, mat64 & e, mat64 const & m)
 
 int gauss_128128_C(mat64 * m)
 {
-    mat64 mm[4] ATTRIBUTE((aligned(64))); /* handy, even though it does not properly reflect how data is used */
+    std::array<mat64, 4> mm;
     std::copy(m, m + 4, std::begin(mm));
-    int const r = kernel((mp_limb_t*)mm, NULL, 128, 128, 128/ULONG_BITS, 128/ULONG_BITS);
+    int const r = kernel((mp_limb_t *) mm.front().data(),
+            nullptr, 128, 128, 128 / ULONG_BITS, 128 / ULONG_BITS);
     return r;
 }
 
@@ -87,7 +104,7 @@ int gauss_128128_imm(uint64_t * m)
         uint64_t er = e[k];
         int k0=k;
 #define TRIANGULAR_ONLY /* speeds up things by 20 to 25% */
-#ifndef  TRIANGULAR_ONLY
+#ifndef TRIANGULAR_ONLY
         k = 0;
 #endif
         for( ; k < 64 ; k++) {
@@ -100,4 +117,3 @@ int gauss_128128_imm(uint64_t * m)
     return r;
 }
 #endif
-

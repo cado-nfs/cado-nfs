@@ -1,16 +1,22 @@
 #include "cado.h" // IWYU pragma: keep
 #include <cstdlib>
+#include <cstddef>
 #include <cstdio>
 #include <climits>
+#include <cstdint>
+
 #include <algorithm>
 #include <vector>
 #include <type_traits>   // for is_same
 #include <memory>
+#include <utility>
+
 #include <gmp.h>
+
 #include "cxx_mpz.hpp"   // for cxx_mpz
-#include "gmp_aux.h"
 #include "macros.h"
 #include "mod_ul.h"      // for residueul_t, modul_clear, modul_clearmod
+#include "mpz_poly.h"
 #include "modul_poly.h"
 #include "rootfinder.h"
 #include "portability.h" // IWYU pragma: keep
@@ -56,7 +62,7 @@ mpz_poly_roots_ulong (unsigned long *r, mpz_poly_srcptr F, unsigned long p, gmp_
     if (!r)
       return modul_poly_roots(nullptr, F, pp, rstate);
 
-    auto rr = std::unique_ptr<residueul_t>(new residueul_t[d]);
+    auto rr = std::unique_ptr<residueul_t[]>(new residueul_t[d]);
     for(int i = 0 ; i < d ; i++)
       modul_init_noset0(rr.get()[i], pp);
 
@@ -200,12 +206,12 @@ struct poly_roots_impl_details
 
 template<>
 struct poly_roots_impl_details<unsigned long> {
-    static inline void mul(unsigned long& a, unsigned long const & b, unsigned long const &c) { a = b * c; }
-    static inline unsigned long mul(unsigned long const & b, unsigned long const &c) { return b * c; }
-    static inline void add(unsigned long& a, unsigned long const & b, unsigned long const &c) { a = b + c; }
-    static inline unsigned long add(unsigned long const & b, unsigned long const &c) { return b + c; }
-    static inline void mod(unsigned long& a, unsigned long const & b, unsigned long const &c) { a = b % c; }
-    static inline unsigned long mod(unsigned long const & b, unsigned long const &c) { return b % c; }
+    static void mul(unsigned long& a, unsigned long const & b, unsigned long const &c) { a = b * c; }
+    static unsigned long mul(unsigned long const & b, unsigned long const &c) { return b * c; }
+    static void add(unsigned long& a, unsigned long const & b, unsigned long const &c) { a = b + c; }
+    static unsigned long add(unsigned long const & b, unsigned long const &c) { return b + c; }
+    static void mod(unsigned long& a, unsigned long const & b, unsigned long const &c) { a = b % c; }
+    static unsigned long mod(unsigned long const & b, unsigned long const &c) { return b % c; }
     static void invmod(unsigned long& y, unsigned long const & x, unsigned long const & p) {
         cxx_mpz xx,pp,yy;
         mpz_set_ui(xx,x);
@@ -224,19 +230,19 @@ struct poly_roots_impl_details<unsigned long> {
         mpz_set_ui(xx, x);
         return mpz_probab_prime_p(xx, 1);
     }
-    static inline bool fits(cxx_mpz const & x) { return mpz_fits_ulong_p(x); }
-    static inline unsigned long get_from_cxx_mpz(cxx_mpz const & x) { return mpz_get_ui(x); }
+    static bool fits(cxx_mpz const & x) { return mpz_fits_ulong_p(x); }
+    static unsigned long get_from_cxx_mpz(cxx_mpz const & x) { return mpz_get_ui(x); }
 };
 
 #ifndef UINT64_T_IS_EXACTLY_UNSIGNED_LONG
 template<>
 struct poly_roots_impl_details<uint64_t> {
-    static inline void mul(uint64_t& a, uint64_t const & b, uint64_t const &c) { a = b * c; }
-    static inline uint64_t mul(uint64_t const & b, uint64_t const &c) { return b * c; }
-    static inline void add(uint64_t& a, uint64_t const & b, uint64_t const &c) { a = b + c; }
-    static inline uint64_t add(uint64_t const & b, uint64_t const &c) { return b + c; }
-    static inline void mod(uint64_t& a, uint64_t const & b, uint64_t const &c) { a = b % c; }
-    static inline uint64_t mod(uint64_t const & b, uint64_t const &c) { return b % c; }
+    static void mul(uint64_t& a, uint64_t const & b, uint64_t const &c) { a = b * c; }
+    static uint64_t mul(uint64_t const & b, uint64_t const &c) { return b * c; }
+    static void add(uint64_t& a, uint64_t const & b, uint64_t const &c) { a = b + c; }
+    static uint64_t add(uint64_t const & b, uint64_t const &c) { return b + c; }
+    static void mod(uint64_t& a, uint64_t const & b, uint64_t const &c) { a = b % c; }
+    static uint64_t mod(uint64_t const & b, uint64_t const &c) { return b % c; }
     static void invmod(uint64_t& y, uint64_t const & x, uint64_t const & p) {
         cxx_mpz xx,pp,yy;
         mpz_set_uint64(xx,x);
@@ -255,43 +261,43 @@ struct poly_roots_impl_details<uint64_t> {
         mpz_set_uint64(xx, x);
         return mpz_probab_prime_p(xx, 1);
     }
-    static inline bool fits(cxx_mpz const & x) { return mpz_fits_uint64_p(x); }
-    static inline uint64_t get_from_cxx_mpz(cxx_mpz const & x) { return mpz_get_uint64(x); }
+    static bool fits(cxx_mpz const & x) { return mpz_fits_uint64_p(x); }
+    static uint64_t get_from_cxx_mpz(cxx_mpz const & x) { return mpz_get_uint64(x); }
 };
 #endif
 
 template<>
 struct poly_roots_impl_details<cxx_mpz> {
-    static inline cxx_mpz mul(cxx_mpz const & b, cxx_mpz const &c) {
+    static cxx_mpz mul(cxx_mpz const & b, cxx_mpz const &c) {
         cxx_mpz r;
         mul(r,b,c);
         return r;
     }
-    static inline void mul(cxx_mpz& a, cxx_mpz const & b, cxx_mpz const &c) {
+    static void mul(cxx_mpz& a, cxx_mpz const & b, cxx_mpz const &c) {
         mpz_mul(a, b, c);
     }
-    static inline void mul(cxx_mpz& a, cxx_mpz const & b, unsigned long const &c) {
+    static void mul(cxx_mpz& a, cxx_mpz const & b, unsigned long const &c) {
         mpz_mul_ui(a, b, c);
     }
 #ifndef UINT64_T_IS_EXACTLY_UNSIGNED_LONG
-    static inline void mul(cxx_mpz& a, cxx_mpz const & b, uint64_t const &c) {
+    static void mul(cxx_mpz& a, cxx_mpz const & b, uint64_t const &c) {
         mpz_mul_uint64(a, b, c);
     }
 #endif
-    static inline cxx_mpz add(cxx_mpz const & b, cxx_mpz const &c) {
+    static cxx_mpz add(cxx_mpz const & b, cxx_mpz const &c) {
         cxx_mpz r;
         add(r,b,c);
         return r;
     }
-    static inline void add(cxx_mpz& a, cxx_mpz const & b, cxx_mpz const &c) {
+    static void add(cxx_mpz& a, cxx_mpz const & b, cxx_mpz const &c) {
         mpz_add(a, b, c);
     }
-    static inline cxx_mpz mod(cxx_mpz const & b, cxx_mpz const &c) {
+    static cxx_mpz mod(cxx_mpz const & b, cxx_mpz const &c) {
         cxx_mpz r;
         mod(r,b,c);
         return r;
     }
-    static inline void mod(cxx_mpz& a, cxx_mpz const & b, cxx_mpz const &c) {
+    static void mod(cxx_mpz& a, cxx_mpz const & b, cxx_mpz const &c) {
         mpz_mod(a, b, c);
     }
     static void invmod(cxx_mpz& y, cxx_mpz const & x, cxx_mpz const & p) {
@@ -300,8 +306,8 @@ struct poly_roots_impl_details<cxx_mpz> {
     static bool probab_prime_p(cxx_mpz const & x) { 
         return mpz_probab_prime_p(x, 10);
     }
-    static inline bool fits(cxx_mpz const &) { return true; }
-    static inline cxx_mpz get_from_cxx_mpz(cxx_mpz const & x) { return x; }
+    static bool fits(cxx_mpz const &) { return true; }
+    static cxx_mpz get_from_cxx_mpz(cxx_mpz const & x) { return x; }
 };
 
 template<typename T, typename F>

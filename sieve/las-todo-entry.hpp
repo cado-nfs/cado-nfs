@@ -8,7 +8,7 @@
 
 #include <gmp.h>        // for mpz_cmp, mpz_cmp_ui, mpz_mul_ui, mpz_set_ui
 #include "fmt/ostream.h"
-#include "fmt/core.h"
+#include "fmt/base.h"
 
 #include "macros.h"     // for ASSERT_ALWAYS
 

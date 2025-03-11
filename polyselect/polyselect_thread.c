@@ -1,13 +1,26 @@
 #include "cado.h"
+
+#include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#include <sys/time.h>
-#include "polyselect_thread.h"
+#include <limits.h>
+
+#include <sys/time.h>   // timeval
+#include <pthread.h>
+
 #ifdef HAVE_HWLOC
 #include "hwloc.h"
 #endif
+
+#include "polyselect_thread.h"
 #include "polyselect_match.h"
+#include "polyselect_thread_team.h"
+#include "polyselect_thread_league.h"
+#include "polyselect_main_data.h"
+#include "polyselect_stats.h"
 #include "dllist.h"
+#include "macros.h"
+#include "portability.h"        // vasprintf
 
 void polyselect_thread_bind(polyselect_thread_ptr thread MAYBE_UNUSED)
 {
@@ -79,7 +92,8 @@ void polyselect_thread_chronogram_init(const char * filename)
         return;
     }
     chronogram = fopen(filename, "w");
-    setbuf(chronogram, NULL);
+    DIE_ERRNO_DIAG(!chronogram, "fopen(%s)", filename);
+    setvbuf(chronogram, NULL, _IONBF, 0);
 }
 
 void polyselect_thread_chronogram_clear()

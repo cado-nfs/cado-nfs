@@ -1,12 +1,16 @@
 #include "cado.h" // IWYU pragma: keep
-#define _GNU_SOURCE
+
 #include <string.h>
-#include <errno.h>
+#include <stdlib.h>
+
 #include <stdio.h>
 #include <unistd.h>
 #include <assert.h>
+
+#include <gmp.h>
+
 #include "gmp_aux.h"    // mpn_rrandom
-#include "flint-fft/fft.h"
+
 #include "flint-fft/flint.h"                // for FLINT_BITS
 #include "flint-fft/transform_interface.h"  // for fft_add, fft_do_dft, fft_...
 #include "portability.h"

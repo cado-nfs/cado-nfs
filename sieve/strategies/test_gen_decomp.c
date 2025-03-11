@@ -30,7 +30,10 @@ $ gen_decomp 60 524288
 */
 
 #include "cado.h" // IWYU pragma: keep
+
 #include <stdlib.h>
+#include <limits.h>
+
 #include "macros.h"
 #include "gen_decomp.h"
 #include "tab_decomp.h"
@@ -41,12 +44,14 @@ $ gen_decomp 60 524288
 
 int main(int argc, char const * argv[])
 {
-  unsigned long lim;
-  int mfb;
   ASSERT_ALWAYS (argc == 3);
-  mfb = atoi (argv[1]);
-  lim = atol (argv[2]);
-  tabular_decomp_t* res = generate_all_decomp (mfb, lim);
+  char * p;
+  long mfb = strtol(argv[1], &p, 0);
+  ASSERT_ALWAYS(*p == '\0');
+  ASSERT_ALWAYS(mfb <= INT_MAX);
+  unsigned long lim = strtoul (argv[2], &p, 0);
+  ASSERT_ALWAYS(*p == '\0');
+  tabular_decomp_t* res = generate_all_decomp ((int) mfb, lim);
 
   tabular_decomp_print (res);
 

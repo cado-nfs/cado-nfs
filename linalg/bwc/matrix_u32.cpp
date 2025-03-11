@@ -1,14 +1,17 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
+#include <cstdio>
+#include <cstdlib>
 #include <cstdint>
 #include <cstring>
 #include <cerrno>
 
-#include <array>
+#include <string>
+#include <memory>
 
 #include <sys/stat.h>
 
-#include "fmt/core.h"
+#include "fmt/base.h"
 
 #include "utils_cxx.hpp"
 

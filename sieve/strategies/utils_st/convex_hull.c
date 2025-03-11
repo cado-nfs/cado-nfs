@@ -1,6 +1,9 @@
 #include "cado.h" // IWYU pragma: keep
-#include "convex_hull.h"
 #include <math.h>
+
+#include "convex_hull.h"
+#include "point.h"
+#include "tab_point.h"
 
 /*
   The following model begin from the most left point and finish by the

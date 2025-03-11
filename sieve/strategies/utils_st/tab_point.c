@@ -1,8 +1,10 @@
 #include "cado.h" // IWYU pragma: keep
-#include "tab_point.h"
-#include "macros.h"
 
 #include <stdlib.h>
+
+#include "point.h"
+#include "macros.h"
+#include "tab_point.h"
 
 tabular_point_t *tabular_point_create(void)
 {
@@ -53,6 +55,6 @@ void tabular_point_add(tabular_point_t * t, int numero, double x, double y)
     if (t->index >= t->size)
 	tabular_point_realloc(t);
     t->tab[t->index] = point_create(numero, x, y);
-    ASSERT(t->tab[t->index] != NULL);
+    ASSERT_ALWAYS(t->tab[t->index] != NULL);
     t->index++;
 }

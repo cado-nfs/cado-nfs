@@ -13,6 +13,7 @@
 #include <sstream>      // std::ostringstream // IWYU pragma: keep
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <gmp.h>               // for mpz_get_ui, mpz_divisible_ui_p, mpz_t

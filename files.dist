@@ -59,6 +59,7 @@ config/detect-coverage.cmake
 config/detect-static-analysis.cmake
 config/execinfo.cmake
 config/fmt.cmake
+config/fmtbase.h.in
 config/gas-assembly.cmake
 config/gcc-bug-58805.c
 config/gcc-bugs.cmake
@@ -1170,7 +1171,6 @@ sieve/trialdiv.cpp
 sieve/trialdiv.hpp
 sqrt/CMakeLists.txt
 sqrt/Makefile
-sqrt/checkdep.c
 sqrt/crtalgsqrt.c
 sqrt/knapsack.c
 sqrt/knapsack.h

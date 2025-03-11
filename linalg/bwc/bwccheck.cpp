@@ -1,6 +1,4 @@
 #include "cado.h" // IWYU pragma: keep
-// IWYU pragma: no_include <ext/alloc_traits.h>
-// IWYU pragma: no_include <memory>
 
 #include <cerrno>              // for ENOENT, errno
 #include <climits>             // for UINT_MAX
@@ -20,14 +18,12 @@
 #include <sys/stat.h>           // for stat
 
 #include <gmp.h>                // for mpz_cmp_ui
-#include "fmt/core.h"
+#include "fmt/base.h"
 #include "fmt/format.h"
 
 #include "arith-cross.hpp"
 #include "arith-generic.hpp"
 #include "bw-common.h"          // for bw, bw_common_clear, bw_common_decl_u...
-#include "fmt/core.h"           // for check_format_string
-#include "fmt/format.h"         // for basic_buffer::append, basic_parse_con...
 #include "macros.h"             // for ASSERT_ALWAYS, MAYBE_UNUSED
 #include "misc.h"               // ok_NOKNOK
 #include "params.h"             // for param_list_clear, param_list_init
@@ -62,7 +58,7 @@ struct Cfile : public string {
         int const rc = sscanf(my_basename(x), "Cv%u-%u.%u", &j0, &j1, &stretch);
         if (rc != 3) throw std::runtime_error("want Cv%u-%u.%u");
     }
-    inline bool operator<(Cfile const& o) {
+    bool operator<(Cfile const& o) {
         return stretch < o.stretch;
     }
 };
@@ -74,7 +70,7 @@ struct Dfile : public string {
         int const rc = sscanf(my_basename(x), "Cd%u-%u.%u", &j0, &j1, &stretch);
         if (rc != 3) throw std::runtime_error("want Cd%u-%u.%u");
     }
-    inline bool operator<(Dfile const& o) {
+    bool operator<(Dfile const& o) {
         return stretch < o.stretch;
     }
 };
@@ -88,7 +84,7 @@ struct Rfile : public string {
         nchecks = nc0;
         if (nc0 != nc1) throw std::runtime_error("want Cr0-NCHECKS.0-NCHECKS");
     }
-    inline bool operator<(Rfile const& o) {
+    bool operator<(Rfile const& o) {
         return nchecks < o.nchecks;
     }
 };
@@ -100,7 +96,7 @@ struct Tfile : public string {
         int const rc = sscanf(my_basename(x), "Ct0-%u.0-%d", &nchecks, &m);
         if (rc != 2) throw std::runtime_error("want Ct0-%u.0-%d");
     }
-    inline bool operator<(Tfile const& o) {
+    bool operator<(Tfile const& o) {
         if (nchecks != o.nchecks) return nchecks < o.nchecks;
         return m < o.m;
     }
@@ -116,7 +112,7 @@ struct Vfile : public string {
         int const rc = sscanf(my_basename(x), "V%u-%u.%u", &j0, &j1, &n);
         if (rc != 3) throw std::runtime_error("want " "V%u-%u.%u");
     }
-    inline bool operator<(Vfile const& o) {
+    bool operator<(Vfile const& o) {
         if (j0 != o.j0) return j0 < o.j0;
         if (j1 != o.j1) return j1 < o.j1;
         if (n != o.n) return n < o.n;
@@ -137,7 +133,7 @@ struct Afile : public string {
         int const rc = sscanf(my_basename(x), "A%u-%u.%u-%u", &j0, &j1, &n0, &n1);
         if (rc != 4) throw std::runtime_error("want " "A%u-%u.%u-%u");
     }
-    inline bool operator<(Afile const& o) {
+    bool operator<(Afile const& o) {
         if (j0 != o.j0) return j0 < o.j0;
         if (j1 != o.j1) return j1 < o.j1;
         if (n0 != o.n0) return n0 < o.n0;
@@ -160,7 +156,7 @@ struct Ffile : public string {
         int rc = sscanf(my_basename(x), F_FILE_SLICE_PATTERN2, &s0, &s1, &j0, &j1);
         if (rc != 4) throw std::runtime_error("want " F_FILE_SLICE_PATTERN2);
     }
-    inline bool operator<(Ffile const& o) {
+    bool operator<(Ffile const& o) {
         if (s0 != o.s0) return s0 < o.s0;
         if (s1 != o.s1) return s1 < o.s1;
         if (j0 != o.j0) return j0 < o.j0;
@@ -185,7 +181,7 @@ struct Sfile : public string {
         int rc = sscanf(my_basename(x), S_FILE_BASE_PATTERN ".%u-%u", &s0, &s1, &j0, &j1, &n0, &n1);
         if (rc != 6) throw std::runtime_error("want " S_FILE_BASE_PATTERN ".%u-%u");
     }
-    inline bool operator<(Sfile const& o) {
+    bool operator<(Sfile const& o) {
         if (s0 != o.s0) return s0 < o.s0;
         if (s1 != o.s1) return s1 < o.s1;
         if (j0 != o.j0) return j0 < o.j0;

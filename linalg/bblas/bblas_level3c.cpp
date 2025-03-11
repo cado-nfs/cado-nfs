@@ -1,5 +1,8 @@
 #include "cado.h" // IWYU pragma: keep
+
+#include <cstdint>
 #include <cstring>
+
 #include "bblas_level2a.hpp"  // for addmul_To64_o64
 #include "bblas_level2b.hpp"  // for mul_o64_6464, mul_o64_T6464
 #include "bblas_level3a.hpp"  // for mat64_transpose
@@ -7,6 +10,7 @@
 #include "bblas_mat64.hpp"    // for mat64
 #include "bblas_simd.hpp"
 #include "macros.h"                        // for MAYBE_UNUSED
+
 // the whole point of bblas_simd is to avoid including these files...
 // IWYU pragma: no_include <emmintrin.h>
 // IWYU pragma: no_include <immintrin.h>
@@ -134,7 +138,7 @@ static void mul_N64_6464_lookup4_blocks(mat64 *C,/*{{{*/
     for (size_t b = 0 ; b < nblocks ; b++) {
         mat64 const & AA = A[b * Astride];
         mat64 & CC = C[b * Cstride];
-        for (size_t i = 0 ; i < 64; i++) {
+        for (int i = 0 ; i < 64; i++) {
             uint64_t aa = AA[i];
             CC[i] = Bx[0][aa & 15]; aa>>=4;
             CC[i]^= Bx[1][aa & 15]; aa>>=4;
@@ -187,7 +191,7 @@ static void addmul_N64_6464_lookup4_blocks(mat64 *C,/*{{{*/
     for (size_t b = 0 ; b < nblocks ; b++) {
         mat64 const & AA = A[b * Astride];
         mat64 & CC = C[b * Cstride];
-        for (size_t i = 0 ; i < 64; i++) {
+        for (int i = 0 ; i < 64; i++) {
             uint64_t aa = AA[i];
             CC[i]^= Bx[0][aa & 15]; aa>>=4;
             CC[i]^= Bx[1][aa & 15]; aa>>=4;
@@ -559,8 +563,8 @@ void mul_N64_6464_avx2(uint64_t *C,/*{{{*/
      */
     size_t j;
     constexpr const unsigned int SIMD = 4;
-    __m256i *Cw = (__m256i *) C;
-    __m256i *Aw = (__m256i *) A;
+    auto *Cw = (__m256i *) C;
+    auto *Aw = (__m256i *) A;
 
     /* If m is odd, then we can't do sse all the way through because of
      * data width */
@@ -593,11 +597,11 @@ void mul_N64_6464_avx2(uint64_t *C,/*{{{*/
     C += j;
     A += j;
     for (; j < m; j++) {
-        uint64_t c = UINT64_C(0);
+        uint64_t c = 0;
         uint64_t a = *A++;
         for (int i = 0; i < 64; i++) {
-            c ^= (B[i] & -(a & UINT64_C(1)));
-            a >>= UINT64_C(1);
+            c ^= (B[i] & -(a & uint64_t(1)));
+            a >>= 1;
         }
         *C++ = c;
     }
@@ -615,8 +619,8 @@ void mul_N64_6464_sse(uint64_t *C,/*{{{*/
      */
     size_t j;
     constexpr const unsigned int SIMD = 2;
-    __m128i *Cw = (__m128i *) C;
-    __m128i *Aw = (__m128i *) A;
+    auto *Cw = (__m128i *) C;
+    auto *Aw = (__m128i *) A;
 
     /* If m is odd, then we can't do sse all the way through because of
      * data width */
@@ -636,7 +640,7 @@ void mul_N64_6464_sse(uint64_t *C,/*{{{*/
     C += j;
     A += j;
     for (; j < m; j++) {
-	uint64_t c = UINT64_C(0);
+	uint64_t c = 0;
 	uint64_t a = *A++;
 	for (int i = 0; i < 64; i++) {
 	    c ^= (B[i] & -(a & UINT64_C(1)));
@@ -730,8 +734,8 @@ static void addmul_N64_6464_avx2(uint64_t *C,/*{{{*/
 		 mat64 const & B, size_t m)
 {
     size_t j;
-    __m256i *Cw = (__m256i *) C;
-    __m256i *Aw = (__m256i *) A;
+    auto *Cw = (__m256i *) C;
+    auto *Aw = (__m256i *) A;
 
     /* If m is odd, then we can't do sse all the way through because of
      * data width */
@@ -740,7 +744,7 @@ static void addmul_N64_6464_avx2(uint64_t *C,/*{{{*/
         __m256i c = _mm256_setzero_si256();
 	__m256i a = *Aw++;
 
-        __m256i const one = _mm256_set1_epi64x(INT64_C(1));
+        __m256i const one = _mm256_set1_epi64x(1);
 	for (int i = 0; i < 64; i++) {
 	    __m256i const bw = _mm256_set1_epi64x(B[i]);
 	    // c ^= (bw & -(a & one));
@@ -753,7 +757,7 @@ static void addmul_N64_6464_avx2(uint64_t *C,/*{{{*/
     C += j;
     A += j;
     for (; j < m; j++) {
-	uint64_t c = UINT64_C(0);
+	uint64_t c = 0;
 	uint64_t a = *A++;
 	for (int i = 0; i < 64; i++) {
 	    c ^= (B[i] & -(a & UINT64_C(1)));
@@ -771,8 +775,8 @@ void addmul_N64_6464_sse(uint64_t *C,/*{{{*/
 		 mat64 const & B, size_t m)
 {
     size_t j;
-    __m128i *Cw = (__m128i *) C;
-    __m128i *Aw = (__m128i *) A;
+    auto *Cw = (__m128i *) C;
+    auto *Aw = (__m128i *) A;
 
     /* If m is odd, then we can't do sse all the way through because of
      * data width */
@@ -794,7 +798,7 @@ void addmul_N64_6464_sse(uint64_t *C,/*{{{*/
     C += j;
     A += j;
     for (; j < m; j++) {
-	uint64_t c = UINT64_C(0);
+	uint64_t c = 0;
 	uint64_t a = *A++;
 	for (int i = 0; i < 64; i++) {
 	    c ^= (B[i] & -(a & UINT64_C(1)));
@@ -828,13 +832,13 @@ void mul_TN64_N64_C(mat64 & b, uint64_t const * A, uint64_t const * x, unsigned 
 /* implements addmul_TN64_N64 */
 void addmul_TN64_N64_C(mat64 & b, uint64_t const * A, uint64_t const * x, unsigned int ncol)/*{{{*/
 {
-    uint64_t idx, i, rA;
+    uint64_t idx, rA;
     uint64_t rx;
 
     for(idx = 0; idx < ncol; idx++) {
         rA = A[idx];
         rx = x[idx];
-        for(i = 0; i < 64; i++) {
+        for(int i = 0; i < 64; i++) {
             b[i] ^= rx & -(rA & 1);
             rA >>= 1;
         }
@@ -864,7 +868,7 @@ void mul_TN32_N64_C(uint64_t * b, uint32_t const * A, uint64_t const * x, unsign
 void addmul_TN64K_N64_sse2(uint64_t * w, uint64_t const * u, uint64_t const * v, unsigned int n, unsigned int K)/*{{{*/
 {
     for(unsigned int i = 0 ; i < n ; i++) {
-        __m128i * w0 = (__m128i*) w;
+        auto * w0 = (__m128i*) w;
         // TODO: It's possible to expand more, and use a __m128i
         // mb[4][2], or even [4]. This wouldn't change the code much
         // (see the m128 version), and is likely to speed things up a
@@ -891,15 +895,15 @@ void addmul_TN64K_N64_sse2(uint64_t * w, uint64_t const * u, uint64_t const * v,
 
 void addmul_TN64K_N64_C(uint64_t * b, uint64_t const * A, uint64_t const * x, unsigned int ncol, unsigned int K)/*{{{*/
 {
-    uint64_t idx, i, rA;
+    uint64_t idx, rA;
     uint64_t rx;
 
     for(idx = 0; idx < ncol; idx++) {
         rx = x[idx];
-        uint64_t * pb = (uint64_t *) b;
+        auto * pb = (uint64_t *) b;
         for(unsigned int j = 0 ; j < K ; j++) {
             rA = *A++;
-            for(i = 0; i < 64; i++) {
+            for(int i = 0; i < 64; i++) {
                 *pb++ ^= rx & -(rA & 1);
                 rA >>= 1;
             }

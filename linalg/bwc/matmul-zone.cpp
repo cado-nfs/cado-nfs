@@ -314,12 +314,12 @@ struct placed_block {/*{{{*/
     placed_block() { i0 = j0 = 0; }
     placed_block(unsigned int i0, unsigned int j0) : i0(i0), j0(j0) {}
     struct rowmajor_sorter {/*{{{*/
-        inline bool operator()(placed_block const& a, placed_block const& b) const {
+        bool operator()(placed_block const& a, placed_block const& b) const {
             return a.i0 < b.i0 || (a.i0 == b.i0 && a.j0 < b.j0);
         }
     };/*}}}*/
     struct colmajor_sorter {/*{{{*/
-        inline bool operator()(placed_block const& a, placed_block const& b) const {
+        bool operator()(placed_block const& a, placed_block const& b) const {
             return a.j0 < b.j0 || (a.j0 == b.j0 && a.i0 < b.i0);
         }
     };/*}}}*/
@@ -348,19 +348,19 @@ public:
     qg_t qg;
     zone() {}
     zone(unsigned int i0, unsigned int j0) : placed_block(i0, j0) {}
-    inline bool empty() const { return qp.empty() && qm.empty() && qg.empty(); }
-    inline size_t size() const { return qp.size() + qm.size() + qg.size(); }
+    bool empty() const { return qp.empty() && qm.empty() && qg.empty(); }
+    size_t size() const { return qp.size() + qm.size() + qg.size(); }
     void mul(Arith const *, fast_elt_ur_for_add *, const fast_elt *) const;
     void tmul(Arith const *, fast_elt_ur_for_add *, const fast_elt *) const;
 
     struct sort_qpm {
-        inline bool operator()(qpm_t::value_type const& a, qpm_t::value_type const& b) const {
+        bool operator()(qpm_t::value_type const& a, qpm_t::value_type const& b) const {
             return a.second < b.second;
         }
     };
 
     struct sort_qg {
-        inline bool operator()(qg_t::value_type const& a, qg_t::value_type const& b) const {
+        bool operator()(qg_t::value_type const& a, qg_t::value_type const& b) const {
             return a.second < b.second;
         }
     };
@@ -550,7 +550,7 @@ struct coeff_stats {/*{{{*/
 };
 /*}}}*/
 struct sort_jc {/*{{{*/
-    inline bool operator()(pair<uint32_t, int32_t> const& a, pair<uint32_t,int32_t> const& b) const {
+    bool operator()(pair<uint32_t, int32_t> const& a, pair<uint32_t,int32_t> const& b) const {
         return a.first < b.first;
     }
 };
@@ -623,7 +623,7 @@ pair<dispatcher, combiner> create_dispatcher_and_combiner(zone const& q)/*{{{*/
         uint16_t destrow_id = ijc.first;
         int32_t coeff = ijc.third;
         D.push_back(col_id);
-        C.aux.push_back(make_pair(destrow_id, coeff));
+        C.aux.emplace_back(destrow_id, coeff);
     }
     return make_pair(D, C);
 }/*}}}*/
@@ -709,11 +709,11 @@ void matmul_zone<Arith, fast_gfp>::build_cache(matrix_u32 && m)/*{{{*/
                     cstats(c);
                     if (c < 0 && c >= -coeff_repeat_bound) {
                         for( ; c++ ; ) {
-                            z.qm.push_back(make_pair(k, j));
+                            z.qm.emplace_back(k, j);
                         }
                     } else if (c > 0 && c <= coeff_repeat_bound) {
                         for( ; c-- ; ) {
-                            z.qp.push_back(make_pair(k, j));
+                            z.qp.emplace_back(k, j);
                         }
                     } else {
                         z.qg.push_back(triple_161632(k, j, c));

@@ -23,7 +23,7 @@ if (DEFINED ENV{FMT_LIBDIR})
 endif()
 
 # Try in three passes, otherwise cmake gets in the way...
-find_path   (FMT_INCDIR fmt/core.h HINTS ${FMT_INCDIR_HINTS} DOC "fmt headers"
+find_path   (FMT_INCDIR fmt/format.h HINTS ${FMT_INCDIR_HINTS} DOC "fmt headers"
         NO_DEFAULT_PATH
         NO_SYSTEM_ENVIRONMENT_PATH
         NO_CMAKE_PATH
@@ -32,12 +32,12 @@ find_path   (FMT_INCDIR fmt/core.h HINTS ${FMT_INCDIR_HINTS} DOC "fmt headers"
         NO_CMAKE_FIND_ROOT_PATH
         )
 if(NOT FMT_INCDIR)
-find_path   (FMT_INCDIR fmt/core.h HINTS ${FMT_INCDIR_HINTS} DOC "fmt headers"
+find_path   (FMT_INCDIR fmt/format.h HINTS ${FMT_INCDIR_HINTS} DOC "fmt headers"
         NO_DEFAULT_PATH
         )
 endif()
 if(NOT FMT_INCDIR)
-find_path   (FMT_INCDIR fmt/core.h HINTS ${FMT_INCDIR_HINTS} DOC "fmt headers")
+find_path   (FMT_INCDIR fmt/format.h HINTS ${FMT_INCDIR_HINTS} DOC "fmt headers")
 endif()
 
 find_library(FMT_LIB    fmt   HINTS ${FMT_LIBDIR_HINTS} DOC "fmt library"
@@ -106,9 +106,9 @@ int main(void)
 #if FMT_VERSION >= 90000
     cxx_foo b;
     cxx_foo const & a = b;
-    std::cout << fmt::format(\"{} {} {}\", \"Catch\", 22, a) << \"\\n\";
+    std::cout << fmt::format(\"{} {} {}\", \"Catch\", 22, a) << \"\\\\n\";
 #else
-    std::cout << fmt::format(\"{} {}\", \"Catch\", 22) << \"\\n\";
+    std::cout << fmt::format(\"{} {}\", \"Catch\", 22) << \"\\\\n\";
 #endif
     return 0;
 }
@@ -141,6 +141,33 @@ if(NOT HAVE_FMT_GOOD_FOR_CXX20)
     set(fmt_error "too old: version>11.0.2 is required for c++20")
     set(HAVE_FMT "" CACHE INTERNAL "Test fmt library")
 endif()
+else()
+    # oldish fmt, no cxx20 -> we might need to create base.h by ourselves
+    find_path   (FMT_INCDIR2 fmt/base.h
+        HINTS ${FMT_INCDIR_HINTS} DOC "fmt base.h"
+        NO_DEFAULT_PATH
+        NO_SYSTEM_ENVIRONMENT_PATH
+        NO_CMAKE_PATH
+        NO_CMAKE_ENVIRONMENT_PATH
+        NO_CMAKE_SYSTEM_PATH
+        NO_CMAKE_FIND_ROOT_PATH
+    )
+    if(NOT FMT_INCDIR2)
+        find_path   (FMT_INCDIR2 fmt/base.h
+            HINTS ${FMT_INCDIR_HINTS} DOC "fmt base.h header"
+            NO_DEFAULT_PATH
+        )
+    endif()
+    if(NOT FMT_INCDIR2)
+        find_path   (FMT_INCDIR2 fmt/base.h
+            HINTS ${FMT_INCDIR_HINTS} DOC "fmt base.h header"
+        )
+    endif()
+    if(NOT FMT_INCDIR2)
+        message(STATUS "Providing fmt/base.h as a convenience to include fmt/core.h")
+        configure_file(${PROJECT_SOURCE_DIR}/config/fmtbase.h.in
+            ${PROJECT_BINARY_DIR}/fmt/base.h)
+    endif()
 endif()
 if(HAVE_FMT)
     message(STATUS "Using the fmt library found on the system")

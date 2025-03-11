@@ -1,0 +1,4 @@
+/* This is used for libfmt versions 9 and 10, which don't have fmt/base.h
+ * yet
+ */
+#include "fmt/core.h"

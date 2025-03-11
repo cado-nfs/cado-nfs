@@ -6,9 +6,10 @@
 #include <cstdlib>
 
 #include <algorithm>
+#include <utility>
 #include <vector>
 
-#include "fmt/core.h"
+#include "fmt/base.h"
 
 #include "gmp_aux.h"
 #include "macros.h"

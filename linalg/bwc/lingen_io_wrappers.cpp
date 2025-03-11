@@ -15,8 +15,8 @@
 #include <gmp.h>        // mpn_lshift
 #include "misc.h"       // bit_reverse
 #endif
-#include "fmt/core.h"
-#include "fmt/format.h" // IWYU pragma: keep
+#include "fmt/base.h"
+#include "fmt/format.h"
 #include "lingen_average_matsize.hpp"
 #include "lingen_bmstatus.hpp"
 #include "lingen_io_matpoly.hpp"

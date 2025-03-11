@@ -1,7 +1,7 @@
 #ifndef UTILS_NUMBERTHEORY_FMT_HELPERS_HPP_
 #define UTILS_NUMBERTHEORY_FMT_HELPERS_HPP_
 
-#include "fmt/core.h"
+#include "fmt/base.h"
 #include "fmt/format.h"
 
 namespace fmt {

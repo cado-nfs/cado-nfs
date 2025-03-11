@@ -1,10 +1,20 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <inttypes.h>
 
+#include <gmp.h>
+#include <pthread.h>
+
+#include "gmp_aux.h"
+#include "macros.h"
+#include "polyselect_poly_header.h"
+#include "polyselect_primes_table.h"
 #include "polyselect_proots.h"
 #include "polyselect_thread.h"
+#include "polyselect_thread_team.h"
 #include "gcd.h"
 #include "roots_mod.h"
 
@@ -36,7 +46,7 @@ polyselect_proots_init (polyselect_proots_ptr R,
 void
 polyselect_proots_add ( polyselect_proots_ptr R,
              unsigned long nr,
-             uint64_t *roots,
+             uint64_t const * roots,
              unsigned long index )
 {
   unsigned int i;

@@ -26,7 +26,7 @@
 #include <pthread.h>            // for pthread_mutex_lock, pthread_mutex_unlock
 
 #include <gmp.h>
-#include "fmt/core.h"
+#include "fmt/base.h"
 
 #include "arith-cross.hpp"
 #include "arith-generic.hpp"

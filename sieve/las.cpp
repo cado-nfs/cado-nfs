@@ -37,7 +37,7 @@
 #include <dirent.h>
 
 #include <gmp.h>                          // for mpz_srcptr, gmp_vfprintf
-#include "fmt/core.h"
+#include "fmt/base.h"
 
 #include "bucket.hpp"                     // for bucket_slice_alloc_defaults
 #include "cado-sighandlers.h"

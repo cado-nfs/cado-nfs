@@ -7,7 +7,7 @@
 #include <cstdlib>
 
 #include <gmp.h>
-#include "fmt/core.h"
+#include "fmt/base.h"
 
 #include "cxx_mpz.hpp"
 #include "gmp_aux.h"         // for mpz_set_int64, mpz_set_uint64
