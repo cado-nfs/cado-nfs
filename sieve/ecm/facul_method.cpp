@@ -1,4 +1,6 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+
+#include <cstdlib>
 
 #include <vector>
 
@@ -25,7 +27,7 @@ facul_method::~facul_method()
 facul_method::facul_method(parameters const & p, const int verbose)
 {
     method = p.method;
-    plan = NULL;
+    plan = nullptr;
 
     /* we don't need to store B1 and B2 in the method object. They all go
      * in the bytecode anyway
@@ -56,12 +58,16 @@ facul_method::facul_method(parameters const & p, const int verbose)
             break;
     }
 
-    ASSERT_ALWAYS(plan != NULL);
+    ASSERT_ALWAYS(plan != nullptr);
 }
 
 void facul_method_side::fix_is_last(std::vector<facul_method_side> & v)
 {
     int is_last[2] = {1,1};
+    /* The order of the loop is important, here. Until we have c++14, we
+     * have no langugage-level range-based for loop substitutes, so let's
+     * stay with iterators */
+    // NOLINTNEXTLINE(modernize-loop-convert)
     for(auto it = v.rbegin() ; it != v.rend() ; ++it) {
         it->is_last = is_last[it->side];
         is_last[it->side] = 0;
