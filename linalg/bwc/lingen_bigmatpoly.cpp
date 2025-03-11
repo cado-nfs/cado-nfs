@@ -563,34 +563,34 @@ template<typename OP_T> struct mp_or_mul : public OP_CTX {
         end_plan_smallstep();
     }
     template<typename... Args>
-    inline void begin_smallstep(Args&& ...args) {
+    void begin_smallstep(Args&& ...args) {
         if (M) stats.begin_smallstep(args...);
     }
     template<typename... Args>
-    inline void skip_smallstep(Args&& ...args) {
+    void skip_smallstep(Args&& ...args) {
         if (M) stats.skip_smallstep(args...);
     }
     template<typename... Args>
-    inline void end_smallstep(Args&& ...args) {
+    void end_smallstep(Args&& ...args) {
         if (M) stats.end_smallstep(args...);
     }
     template<typename... Args>
-    inline void plan_smallstep(Args&& ...args) {
+    void plan_smallstep(Args&& ...args) {
         if (M) stats.plan_smallstep(args...);
     }
     template<typename... Args>
-    inline void begin_plan_smallstep_microsteps(Args&& ...args) {
+    void begin_plan_smallstep_microsteps(Args&& ...args) {
         if (M) stats.begin_plan_smallstep_microsteps(args...);
     }
     template<typename... Args>
-    inline void begin_plan_smallstep(Args&& ...args) {
+    void begin_plan_smallstep(Args&& ...args) {
         if (M) stats.begin_plan_smallstep(args...);
     }
     template<typename... Args>
-    inline void end_plan_smallstep(Args&& ...args) {
+    void end_plan_smallstep(Args&& ...args) {
         if (M) stats.end_plan_smallstep(args...);
     }
-    inline bool local_smallsteps_done(bool compulsory = false) {
+    bool local_smallsteps_done(bool compulsory = false) {
         return M ? stats.local_smallsteps_done(compulsory) : true;
     }
 
@@ -1048,7 +1048,7 @@ struct scatter_gather_base {/*{{{*/
         reqs = new MPI_Request[rank() ? 1 : (m1 * n1)];
     }/*}}}*/
 
-    static inline size_t roundup_simd(size_t x) {
+    static size_t roundup_simd(size_t x) {
         constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
         return simd * iceildiv(x, simd);
     }

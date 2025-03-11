@@ -5,12 +5,6 @@
 #include "facul.hpp"
 #include "modset.hpp"   // for FaculModulusBase
 
-struct cxx_mpz_cmp {
-    inline bool operator()(cxx_mpz const& a, cxx_mpz const & b) {
-        return mpz_cmp(a, b) < 0;
-    }
-};
-
 int
 facul (std::vector<cxx_mpz> & factors, cxx_mpz const & N, facul_strategy_oneside const & strategy)
 {
@@ -25,27 +19,27 @@ facul (std::vector<cxx_mpz> & factors, cxx_mpz const & N, facul_strategy_oneside
     gmp_fprintf (stderr, "%Zd", N);
 #endif
 
-    if (mpz_sgn (N) <= 0)
+    if (N <= 0)
         return -1;
-    if (mpz_cmp_ui (N, 1UL) == 0)
+    if (N == 1)
         return 0;
 
     /* Use the fastest modular arithmetic that's large enough for this input */
     const FaculModulusBase *m = FaculModulusBase::init_mpz(N);
     /* If the composite does not fit into our modular arithmetic, return
        no factor */
-    if (m == NULL)
+    if (m == nullptr)
         return 0;
 
     found = m->facul_doit(factors, strategy, 0);
 
     delete m;
-    m = NULL;
+    m = nullptr;
 
     if (found > 1)
     {
         /* Sort the factors we found */
-        std::sort(factors.begin() + factors_previous_size, factors.end(), cxx_mpz_cmp());
+        std::sort(factors.begin() + factors_previous_size, factors.end());
     }
 
     return found;
@@ -82,7 +76,7 @@ facul_aux (std::vector<cxx_mpz> & factors, const FaculModulusBase *m,
       if (i < STATS_LEN)
 	stats_called_aux[i]++;
 #endif  /* ENABLE_UNSAFE_FACUL_STATS */
-      const FaculModulusBase *fm = NULL, *cfm = NULL;
+      const FaculModulusBase *fm = nullptr, *cfm = nullptr;
 
       int const res_fac = m->facul_doit_onefm(factors,
             *meth.method, fm, cfm,
@@ -116,7 +110,7 @@ facul_aux (std::vector<cxx_mpz> & factors, const FaculModulusBase *m,
 	res_fac == 1  Only one factor has been found. Hence, our
 	factorization is not finished.
       */
-      if (fm != NULL)
+      if (fm != nullptr)
 	{
 	  int const found2 = facul_aux (factors, fm, strategies,
 				  methods, i+1, side);
@@ -124,17 +118,17 @@ facul_aux (std::vector<cxx_mpz> & factors, const FaculModulusBase *m,
 	    {
 	      found = FACUL_NOT_SMOOTH;
 	      delete cfm;
-              cfm = NULL;
+              cfm = nullptr;
 	      delete fm;
-              fm = NULL;
+              fm = nullptr;
 	      break;
 	    }
 	  else
 	    found += found2;
 	  delete fm;
-          fm = NULL;
+          fm = nullptr;
 	}
-      if (cfm != NULL)
+      if (cfm != nullptr)
 	{
 	  int const found2 = facul_aux (factors, cfm, strategies,
 				  methods, i+1, side);
@@ -145,7 +139,7 @@ facul_aux (std::vector<cxx_mpz> & factors, const FaculModulusBase *m,
 	  else
 	    found += found2;
 	  delete cfm;
-          cfm = NULL;
+          cfm = nullptr;
 	  break;
 	}
       break;
@@ -181,7 +175,7 @@ facul_both_src (std::vector<std::vector<cxx_mpz>> & factors, const FaculModulusB
     if (methods.empty())
         return found;
 
-    const FaculModulusBase *f[2][2] = {{NULL, NULL}, {NULL, NULL}};
+    const FaculModulusBase *f[2][2] = {{nullptr, nullptr}, {nullptr, nullptr}};
 #ifdef ENABLE_UNSAFE_FACUL_STATS
     int stats_nb_side = 0, stats_index_transition = 0;
 #endif  /* ENABLE_UNSAFE_FACUL_STATS */
@@ -267,7 +261,7 @@ facul_both_src (std::vector<std::vector<cxx_mpz>> & factors, const FaculModulusB
             if (is_smooth[side] == FACUL_AUX) {
                 for (int ind_cof = 0; ind_cof < 2; ind_cof++) {
                     // factor f[side][0] or/and f[side][1]
-                    if (f[side][ind_cof] != NULL)
+                    if (f[side][ind_cof] != nullptr)
                     {
                         // **IF** we reach here, then some is_smooth[side] was
                         // set to FACUL_AUX somehow, and this can only happen if
@@ -356,7 +350,7 @@ facul_both (std::vector<std::vector<cxx_mpz>> & factors,
 	{
 	  /* Sort the factors we found */
           ASSERT_ALWAYS(factors[side].size() == (size_t) found[side]);
-          std::sort(factors[side].begin(), factors[side].end(), cxx_mpz_cmp());
+          std::sort(factors[side].begin(), factors[side].end());
 	}
     }
 

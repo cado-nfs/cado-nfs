@@ -104,7 +104,7 @@ struct call_production {
     static constexpr const bool has_known_bugs = false;
     static constexpr const bool old_interface = false;
     static constexpr const char * what = "production";
-    static inline void call(plattice_proxy & L, uint32_t I, a_test = a_test()) {
+    static void call(plattice_proxy & L, uint32_t I, a_test = a_test()) {
         asm volatile("");
         L.reduce(I);
         asm volatile("");
@@ -116,7 +116,7 @@ struct call_production_noasm {
     static constexpr const bool has_known_bugs = false;
     static constexpr const bool old_interface = false;
     static constexpr const char * what = "mimick_production_noasm";
-    static inline void call(plattice_proxy & L, uint32_t I, a_test = a_test()) {
+    static void call(plattice_proxy & L, uint32_t I, a_test = a_test()) {
         asm volatile("");
         L.mimick_production_noasm(I);
         asm volatile("");
@@ -128,7 +128,7 @@ struct call_two_legs {
     static constexpr const bool has_known_bugs = false;
     static constexpr const bool old_interface = false;
     static constexpr const char * what = "two_legs";
-    static inline void call(plattice_proxy & L, uint32_t I, a_test = a_test()) {
+    static void call(plattice_proxy & L, uint32_t I, a_test = a_test()) {
         L.reduce_plattice_two_legs(I);
     }
 };
@@ -138,7 +138,7 @@ struct call_simplistic {
     static constexpr const char * what = "simplistic";
     static constexpr const bool has_known_bugs = false;
     static constexpr const bool old_interface = false;
-    static inline void call(plattice_proxy & L, uint32_t I, a_test = a_test()) {
+    static void call(plattice_proxy & L, uint32_t I, a_test = a_test()) {
         L.reduce_plattice_simplistic(I);
     }
 };
@@ -149,7 +149,7 @@ struct call_using_64bit_mul {
     static constexpr const char * what = "using_64bit_mul";
     static constexpr const bool has_known_bugs = false;
     static constexpr const bool old_interface = false;
-    static inline void call(plattice_proxy & L, uint32_t I, a_test = a_test()) {
+    static void call(plattice_proxy & L, uint32_t I, a_test = a_test()) {
         L.using_64bit_mul(I);
     }
 };
@@ -159,7 +159,7 @@ struct call_swapping_loop {
     static constexpr const char * what = "swapping_loop";
     static constexpr const bool has_known_bugs = false;
     static constexpr const bool old_interface = false;
-    static inline void call(plattice_proxy & L, uint32_t I, a_test = a_test()) {
+    static void call(plattice_proxy & L, uint32_t I, a_test = a_test()) {
         L.swapping_loop(I);
     }
 };
@@ -169,7 +169,7 @@ struct call_swapping_loop2 {
     static constexpr const char * what = "swapping_loop2";
     static constexpr const bool has_known_bugs = false;
     static constexpr const bool old_interface = false;
-    static inline void call(plattice_proxy & L, uint32_t I, a_test = a_test()) {
+    static void call(plattice_proxy & L, uint32_t I, a_test = a_test()) {
         L.swapping_loop2(I);
     }
 };
@@ -179,7 +179,7 @@ struct call_old_reference {
     static constexpr const char * what = "old_reference";
     static constexpr const bool has_known_bugs = true;
     static constexpr const bool old_interface = true;
-    static inline void call(plattice_proxy & L, uint32_t I, a_test const & aa) {
+    static void call(plattice_proxy & L, uint32_t I, a_test const & aa) {
         reference(&L, aa.q, aa.r, I);
     }
 };
@@ -189,7 +189,7 @@ struct call_reference2 {
     static constexpr const char * what = "reference2";
     static constexpr const bool has_known_bugs = true;
     static constexpr const bool old_interface = true;
-    static inline void call(plattice_proxy & L, uint32_t I, a_test const & aa) {
+    static void call(plattice_proxy & L, uint32_t I, a_test const & aa) {
         reference2(&L, aa.q, aa.r, I);
     }
 };
@@ -200,7 +200,7 @@ struct call_reference2_asm {
     static constexpr const char * what = "reference2_asm";
     static constexpr const bool has_known_bugs = true;
     static constexpr const bool old_interface = true;
-    static inline void call(plattice_proxy & L, uint32_t I, a_test const & aa) {
+    static void call(plattice_proxy & L, uint32_t I, a_test const & aa) {
         reference2_asm(&L, aa.q, aa.r, I);
     }
 };
@@ -211,7 +211,7 @@ struct call_simd_base {
     static constexpr const size_t batch_count = N;
     static constexpr const bool has_known_bugs = false;
     static constexpr const bool old_interface = false;
-    static inline void call(plattice_proxy * pL, uint32_t I) {
+    static void call(plattice_proxy * pL, uint32_t I) {
         simd<N>(pL, I);
     }
 };

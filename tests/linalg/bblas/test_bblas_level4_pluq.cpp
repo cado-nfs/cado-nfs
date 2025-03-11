@@ -1,10 +1,9 @@
 #include "cado.h" // IWYU pragma: keep
-// IWYU pragma: no_include <ext/alloc_traits.h>
+
 #include <cstdio>                // for printf
+
 #include <algorithm>              // for fill_n
-#include <memory>                 // for allocator_traits<>::value_type
-#include <string>                 // for basic_string
-#include <vector>                 // for vector
+
 #include "bblas_bitmat.hpp"       // for bitmat<>::vector_type, bitmat
 #include "bblas_level3b.hpp"      // for mul_6464_6464
 #include "bblas_mat64.hpp"
@@ -45,20 +44,20 @@ static void check_pluq(perm_matrix_ptr p, mat64 * l, mat64 * u, perm_matrix_ptr 
     std::fill_n(pu.begin(), (n/B)*(n/B), 0);
 
     for(unsigned int i = 0 ; i < (n/B) ; i++ )
-    for(unsigned int j = 0 ; j < (n/B) ; j++ )
-    for(unsigned int k = 0 ; k < (n/B) ; k++ ) {
-        mat64::addmul(pu[i*(n/B)+j], pm[i*(n/B)+k], u[k*(n/B)+j]);
-    }
+        for(unsigned int j = 0 ; j < (n/B) ; j++ )
+            for(unsigned int k = 0 ; k < (n/B) ; k++ ) {
+                mat64::addmul(pu[i*(n/B)+j], pm[i*(n/B)+k], u[k*(n/B)+j]);
+            }
 
     mat64::vector_type puq((n/B)*(n/B));
     std::fill_n(puq.data(), (n/B)*(n/B), 0);
 
     for(unsigned int i = 0 ; i < (n/B) ; i++ )
-    for(unsigned int j = 0 ; j < (n/B) ; j++ )
-    for(unsigned int k = 0 ; k < (n/B) ; k++ ) {
-        mul_6464_6464(puq[i*(n/B)+j], pu[i*(n/B)+k], qmt[k*(n/B)+j]);
-    }
-    
+        for(unsigned int j = 0 ; j < (n/B) ; j++ )
+            for(unsigned int k = 0 ; k < (n/B) ; k++ ) {
+                mul_6464_6464(puq[i*(n/B)+j], pu[i*(n/B)+k], qmt[k*(n/B)+j]);
+            }
+
     /* at this point puq = p*u*transpose(q) should be a upper triangular,
      * with normalized diagonal. */
     for(unsigned int i = 0 ; i < (n/B) ; i++ ) {
@@ -69,10 +68,10 @@ static void check_pluq(perm_matrix_ptr p, mat64 * l, mat64 * u, perm_matrix_ptr 
     std::fill_n(lm.data(), (n/B)*(n/B), 0);
 
     for(unsigned int i = 0 ; i < (n/B) ; i++ )
-    for(unsigned int j = 0 ; j < (n/B) ; j++ )
-    for(unsigned int k = 0 ; k <= i ; k++ ) {
-        mat64::addmul(lm[i*(n/B)+j], l[i*(n/B)+k], m[k*(n/B)+j]);
-    }
+        for(unsigned int j = 0 ; j < (n/B) ; j++ )
+            for(unsigned int k = 0 ; k <= i ; k++ ) {
+                mat64::addmul(lm[i*(n/B)+j], l[i*(n/B)+k], m[k*(n/B)+j]);
+            }
 
     for(unsigned int i = 0 ; i < (n/B) ; i++ ) {
         ASSERT_ALWAYS(l[i*(n/B)+i].is_lowertriangular());

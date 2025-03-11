@@ -1,6 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cstdio>       // FILE // IWYU pragma: keep
+#include <cstdio>
+#include <cstdint>
 
 #include <utility> // pair
 #ifdef HAVE_GETRUSAGE

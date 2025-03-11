@@ -93,7 +93,7 @@ class patterns : public patterns_base<ELEMTYPE> {
 public:
   /* A demultiplexer that returns the correct mask array for a given "stride"
      value. */
-  static inline const ELEMTYPE *get_mask(unsigned int stride) {
+  static const ELEMTYPE *get_mask(unsigned int stride) {
       switch (stride) {
           case 2: return patterns_base<ELEMTYPE>::mask2;
           case 4: return patterns_base<ELEMTYPE>::mask4;
@@ -110,7 +110,7 @@ public:
   /* Return a mask of stride "stride", shifted by "shift", via an unaligned
      memory read */
   template <typename SIMDTYPE>
-  static inline SIMDTYPE
+  static SIMDTYPE
   get_shifted_mask(const unsigned int stride, const fbprime_t shift)
   {
       const ELEMTYPE * mask = get_mask(stride);
@@ -121,7 +121,7 @@ public:
   /* Return a sieving pattern of stride "stride", shifted by "shift", with
      value "elem" in locations where it hits */
   template <typename SIMDTYPE>
-  static inline SIMDTYPE
+  static SIMDTYPE
   get_pattern(const unsigned int stride, const fbprime_t shift, const ELEMTYPE elem)
   {
       const SIMDTYPE shifted_mask = get_shifted_mask<SIMDTYPE>(stride, shift);

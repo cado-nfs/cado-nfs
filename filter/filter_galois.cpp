@@ -1,26 +1,29 @@
 #include "cado.h" // IWYU pragma: keep
-#include <cinttypes>        // for PRId64, PRIu64
+
 #include <cstdint>          // for int64_t, uint64_t, uint32_t
-#include <cstring>          // for strcmp, strlen, memcpy, memset, strdup
 #include <cstdio>            // for fprintf, stderr, asprintf, FILE
 #include <cstdlib>           // for free, abort, exit, malloc, EXIT_FAILURE
-#include <tuple>            // for tuple, get
-#include <vector>           // for vector
-#include <string>           // for string
+#include <cstring>          // for strcmp, strlen, memcpy, memset, strdup
+
+#include <algorithm>
+#include <iostream>
 #include <memory>
+#include <ostream>
+#include <string>           // for string
+#include <vector>           // for vector
+
 #ifdef HAVE_MINGW
 #include <fcntl.h>   /* for _O_BINARY */
 #endif
+
 #include "cado_poly.h"       // for cado_poly_clear, cado_poly_init, cado_po...
 #include "filter_config.h"   // for CA_DUP2, CB_DUP2
 #include "filter_io.h"       // for earlyparsed_relation_s, filter_rels_desc...
 #include "fmt/base.h"        // for fmt::print
-#include "fmt/format.h"
 #include "galois_action.hpp"  // for galois_action
 #include "gzip.h"            // for fclose_maybe_compressed, fopen_maybe_com...
 #include "macros.h"          // for ASSERT_ALWAYS, UNLIKELY
 #include "misc.h"            // for filelist_clear, filelist_from_file
-#include "mod_ul.h"          // for modul_clear, modul_clearmod, modul_get_ul
 #include "params.h"          // for param_list_decl_usage, param_list_lookup...
 #include "portability.h" // strdup  // IWYU pragma: keep
 #include "relation-tools.h"  // for u64toa16, d64toa16
@@ -107,7 +110,7 @@ static void *
 thread_galois (void * context_data, earlyparsed_relation_ptr rel)
 {
   unsigned int is_dup;
-  auto data = *(thread_galois_arg const *) context_data;
+  auto const & data = *(thread_galois_arg const *) context_data;
 
   const std::vector<index_t> &sigma = data.ga_id_cache;
   const galois_action &G = data.gal_action;

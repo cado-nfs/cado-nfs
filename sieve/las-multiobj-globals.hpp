@@ -6,7 +6,7 @@
  * where it can be avoided at zero cost.
  */
 
-extern int support_large_q;
-extern int dlp_descent;
+extern const int support_large_q;
+extern const int dlp_descent;
 
 #endif	/* LAS_MULTIOBJ_GLOBALS_HPP_ */

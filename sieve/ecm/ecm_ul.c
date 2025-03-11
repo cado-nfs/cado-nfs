@@ -1,9 +1,12 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <stdio.h>
 #include <stdlib.h> // abort
-#include "modredc_ul.h"
+
+#include "modredc_ul.h" // IWYU pragma: keep
 #include "modredc_ul_default.h"
-#include "ecm.c"
+
+#include "ecm.c"        // NOLINT(bugprone-suspicious-include)
 #include "facul_ecm.h"             // for BRENT12, MONTY12, MONTY16, MONTYTW...
 #include "ec_parameterization.h"   // ec_parameterization_Brent_Suyama_ul
 #include "ec_arith_common.h"       // ec_point_clear

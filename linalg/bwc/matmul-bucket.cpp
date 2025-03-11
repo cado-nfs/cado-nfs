@@ -420,7 +420,7 @@ struct matmul_bucket_methods {
         ASSERT_ALWAYS(small1||!small2);
         ASSERT_ALWAYS(small1||small2||large||vsc||huge);
     }
-    inline bool operator<(matmul_bucket_methods const& o) {
+    bool operator<(matmul_bucket_methods const& o) {
         if (vsc != o.vsc) return vsc < o.vsc;
         if (huge != o.huge) return huge < o.huge;
         if (large != o.large) return large < o.large;
@@ -428,7 +428,7 @@ struct matmul_bucket_methods {
         if (small2 != o.small2) return small2 < o.small2;
         return false;
     }
-    inline bool something_beyond(const char * s) const {
+    bool something_beyond(const char * s) const {
         matmul_bucket_methods const o(s);
         if (o.huge || o.vsc) return false;
         if (o.large) return huge || vsc;

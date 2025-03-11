@@ -15,7 +15,7 @@
 #include <ostream> // ostream operator<<
 #include <stdexcept>     // for runtime_error
 
-#include "fmt/core.h"    // for format, check_format_string
+#include "fmt/base.h"
 #include "fmt/format.h"
 
 #include "params.h"      // for cxx_param_list, param_list_decl_usage, param...

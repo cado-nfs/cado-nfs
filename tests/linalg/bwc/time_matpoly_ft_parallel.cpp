@@ -34,7 +34,7 @@ struct matpoly_checker_ft {
         gmp_randseed_ui(rstate, seed);
     }
     private:
-    static inline int max_threads() {
+    static int max_threads() {
 #ifdef HAVE_OPENMP
         return omp_get_max_threads();
 #else

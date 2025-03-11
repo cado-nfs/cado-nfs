@@ -45,7 +45,7 @@ void m64pol_scalmul_gf2_128_bitslice(mat64 * r, mat64 const * a, uint64_t const 
     const std::unique_ptr<mat64, free_aligned_obj> t((mat64 *) malloc_aligned((n1 + n2 -1) * sizeof(mat64), 64));
     memset((void *) t.get(), 0, (n1 + n2 -1) * sizeof(mat64));
     for(unsigned int i = 0 ; i < 128 ; i++) {
-        if (((s[i/64]>>(i&63)) & UINT64_C(1))==0) continue;
+        if (((s[i/64]>>(i&63)) & uint64_t(1))==0) continue;
         for(unsigned int j = 0 ; j < 64 ; j++) {
             mat64_add(t.get()[i+j], t.get()[i+j], a[j]);
         }

@@ -215,7 +215,7 @@ public:
     void copy_to(unsigned long * a) const {
         memcpy(a, x, width * sizeof(unsigned long));
     }
-    inline bool operator[](size_t k) const {
+    bool operator[](size_t k) const {
         return x[k / ULONG_BITS] & (1UL << (k % ULONG_BITS));
     }
     typename std::enable_if<std::is_same<pointer_type, unsigned long *>::value, void>::type
@@ -230,11 +230,11 @@ class bitarray<constant_width<1>, unsigned long *> : private constant_width<1> {
     pointer_type x;
 public:
     bitarray(width_type w, pointer_type x) : width_type(w), x(x) {}
-    inline bitarray operator^=(bitarray const & a) { *x ^= *a.x; return *this; }
-    inline void lshift1() { *x <<= 1; }
-    inline void copy_from(const unsigned long * a) { *x = *a; }
-    inline void copy_to(unsigned long * a) const { *a = *x; }
-    inline bool operator[](size_t k) const {
+    bitarray operator^=(bitarray const & a) { *x ^= *a.x; return *this; }
+    void lshift1() { *x <<= 1; }
+    void copy_from(const unsigned long * a) { *x = *a; }
+    void copy_to(unsigned long * a) const { *a = *x; }
+    bool operator[](size_t k) const {
         return *x & (1UL << k);
     }
     void set1() { *x = 1; }
@@ -248,8 +248,8 @@ class bitarray<constant_width<1>, const unsigned long *> : private constant_widt
     pointer_type x;
 public:
     bitarray(width_type w, pointer_type x) : width_type(w), x(x) {}
-    inline void copy_to(unsigned long * a) const { *a = *x; }
-    inline bool operator[](size_t k) const {
+    void copy_to(unsigned long * a) const { *a = *x; }
+    bool operator[](size_t k) const {
         return *x & (1UL << k);
     }
 };
@@ -267,14 +267,14 @@ public:
         memset(x, 0, m*n*width*sizeof(unsigned long));
     }
     ~ulmat_rowmajor() { delete[] x; }
-    inline bitarray<width_type, unsigned long *> operator()(unsigned int i, unsigned int j) {
+    bitarray<width_type, unsigned long *> operator()(unsigned int i, unsigned int j) {
         return bitarray<width_type, unsigned long *>((width_type) *this, x + (i * n + j) * width);
     }
-    inline bitarray<width_type, const unsigned long *> operator()(unsigned int i, unsigned int j) const {
+    bitarray<width_type, const unsigned long *> operator()(unsigned int i, unsigned int j) const {
         return bitarray<width_type, unsigned long *>((width_type) *this, x + (i * n + j) * width);
     }
-    // inline unsigned long (*row(unsigned int i))[WIDTH] { return x + i * n; }
-    // inline const unsigned long (*row(unsigned int i)const)[WIDTH] { return x + i * n; }
+    // unsigned long (*row(unsigned int i))[WIDTH] { return x + i * n; }
+    // const unsigned long (*row(unsigned int i)const)[WIDTH] { return x + i * n; }
 };
 
 template<typename width_type>
@@ -290,17 +290,17 @@ public:
         memset(x, 0, m*n*width*sizeof(unsigned long));
     }
     ~ulmat_colmajor() { delete[] x; }
-    inline bitarray<width_type, unsigned long *> operator()(unsigned int i, unsigned int j) {
+    bitarray<width_type, unsigned long *> operator()(unsigned int i, unsigned int j) {
         return bitarray<width_type, unsigned long *>((width_type) *this, x + (j * m + i) * width);
     }
-    inline bitarray<width_type, const unsigned long *> operator()(unsigned int i, unsigned int j) const {
+    bitarray<width_type, const unsigned long *> operator()(unsigned int i, unsigned int j) const {
         return bitarray<width_type, unsigned long *>((width_type) *this, x + (j * m + i) * width);
     }
-    inline bitarray<variable_width, unsigned long *> column(unsigned int j) {
+    bitarray<variable_width, unsigned long *> column(unsigned int j) {
         return bitarray<variable_width, unsigned long *>(m * width, x + (j * m) * width);
     }
-    inline const unsigned long * column(unsigned int j) const { return (*this)(0, j); }
-    inline void lshift1_column(unsigned int j) {
+    const unsigned long * column(unsigned int j) const { return (*this)(0, j); }
+    void lshift1_column(unsigned int j) {
         unsigned long * c = x + (j * m) * width;
         mpn_lshift(c, c, width, 1);
 #ifdef HAVE_OPENMP
@@ -309,7 +309,7 @@ public:
         for(unsigned int i = 0 ; i < m ; i++)
             c[i*width] &= ~1UL;
     }
-    inline void xor_column(unsigned int k, unsigned int pivot) {
+    void xor_column(unsigned int k, unsigned int pivot) {
 #if 1
         column(k) ^= column(pivot);
 #else
