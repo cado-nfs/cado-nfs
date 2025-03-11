@@ -4,6 +4,8 @@
 #include <cstdint>               // for uint64_t, UINT64_C, UINT8_C, uint32_t
 #include <cstring>
 
+#include <memory>
+
 #include <gmp.h>                  // for gmp_urandomm_ui
 
 #include "bblas_bitmat.hpp"
@@ -99,16 +101,16 @@ void test_bblas_level3::matpoly_polmat() {
     mat64 * A = mat64::alloc(n * K * L);
     mat64 * B = mat64::alloc(n * K * L);
     size_t const datasize = K * 64 * L * 64 * iceildiv(n, ULONG_BITS) * (64 / ULONG_BITS);
-    unsigned long * data = new unsigned long[datasize];
-    unsigned long * data_t = new unsigned long[datasize];
+    const std::unique_ptr<unsigned long[]> data(new unsigned long[datasize]);
+    const std::unique_ptr<unsigned long[]> data_t(new unsigned long[datasize]);
     memfill_random(A, n * K * L * sizeof(mat64), rstate);
     printf(" -- conversion of %u*%u*%zu bit matrices to/from %u*%u %zu-bit polynomials\n", 
             K, L, n, K * 64, L * 64, n);
-    TIME1(5, binary_polmat_to_matpoly_simple_and_stupid, data, A, K * 64, L * 64, n);
-    TIME1(5, binary_polmat_to_matpoly_nested_transpositions, data_t, A, K * 64, L * 64, n);
-    ASSERT_ALWAYS(memcmp(data, data_t, datasize * sizeof(unsigned long)) == 0);
+    TIME1(5, binary_polmat_to_matpoly_simple_and_stupid, data.get(), A, K * 64, L * 64, n);
+    TIME1(5, binary_polmat_to_matpoly_nested_transpositions, data_t.get(), A, K * 64, L * 64, n);
+    ASSERT_ALWAYS(memcmp(data.get(), data_t.get(), datasize * sizeof(unsigned long)) == 0);
 
-    TIME1(5, binary_matpoly_to_polmat_simple_and_stupid, B, data, K * 64, L * 64, n);
+    TIME1(5, binary_matpoly_to_polmat_simple_and_stupid, B, data.get(), K * 64, L * 64, n);
     for(unsigned int i = 0 ; i < K ; i++ ) {
         for(unsigned int j = 0 ; j < L ; j++ ) {
             for(size_t k = 0 ; k < n ; k++) {
@@ -116,7 +118,7 @@ void test_bblas_level3::matpoly_polmat() {
             }
         }
     }
-    TIME1(5, binary_matpoly_to_polmat_nested_transpositions, B, data, K * 64, L * 64, n);
+    TIME1(5, binary_matpoly_to_polmat_nested_transpositions, B, data.get(), K * 64, L * 64, n);
     for(unsigned int i = 0 ; i < K ; i++ ) {
         for(unsigned int j = 0 ; j < L ; j++ ) {
             for(size_t k = 0 ; k < n ; k++) {
@@ -124,8 +126,6 @@ void test_bblas_level3::matpoly_polmat() {
             }
         }
     }
-    delete[] data;
-    delete[] data_t;
     mat64::free(A, n*K*L);
     mat64::free(B, n*K*L);
 }
@@ -261,13 +261,13 @@ void test_bblas_level3::trsm() {
 
     for(unsigned int k = 0 ; k < 1000 ; k++) {
         mat64 Lr;
-        unsigned int const n0 = gmp_urandomm_ui(rstate, 64);
-        unsigned int const n1 = gmp_urandomm_ui(rstate, 65 - n0) + n0;
+        int const n0 = gmp_urandomm_ui(rstate, 64);
+        int const n1 = gmp_urandomm_ui(rstate, 65 - n0) + n0;
         mat64_fill_random(Lr, rstate);
         L = 1;
-        for(unsigned int i = n0 + 1 ; i < n1 ; i++) {
+        for(int i = n0 + 1 ; i < n1 ; i++) {
             /* import bits [n0..i-1] from Lr */
-            uint64_t const m = (-(UINT64_C(1) << n0)) & ((UINT64_C(1) << i)-1);
+            uint64_t const m = (-(uint64_t(1) << n0)) & ((uint64_t(1) << i)-1);
             L[i] ^= Lr[i] & m;
         }
 
@@ -314,13 +314,13 @@ void test_bblas_level3::m8()
 
     for(unsigned int k = 0 ; k < 1000 ; k++) {
         mat8 Lr;
-        unsigned int const n0 = gmp_urandomm_ui(rstate, mat8::width);
-        unsigned int const n1 = gmp_urandomm_ui(rstate, mat8::width + 1 - n0) + n0;
+        int const n0 = gmp_urandomm_ui(rstate, mat8::width);
+        int const n1 = gmp_urandomm_ui(rstate, mat8::width + 1 - n0) + n0;
         mat8::fill_random(Lr, rstate);
         L = 1;
-        for(unsigned int i = n0 + 1 ; i < n1 ; i++) {
+        for(int i = n0 + 1 ; i < n1 ; i++) {
             /* import bits [n0..i-1] from Lr */
-            uint8_t const m = (-(UINT8_C(1) << n0)) & ((UINT8_C(1) << i)-1);
+            uint8_t const m = (-(uint8_t(1) << n0)) & ((uint8_t(1) << i)-1);
             L[i] ^= Lr[i] & m;
         }
 
