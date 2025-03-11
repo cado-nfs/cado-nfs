@@ -46,6 +46,7 @@ void numbertheory_internals::all_valuations_above_p::bless_side(int side)
 std::vector<int> numbertheory_internals::all_valuations_above_p::operator()(number_field_fractional_ideal const & I) const
 {
     std::vector<int> res;
+    res.reserve(F.size());
     for(auto const & fkp : F)
         res.push_back(I.valuation(fkp));
     return res;

@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <string>
 #include <utility>
+#include <stdexcept>
 
 #include <gmp.h>
 
@@ -172,3 +173,4 @@ std::string derived_filename(std::string const & s, const char * what, const cha
     p.clear();
 }
 */
+

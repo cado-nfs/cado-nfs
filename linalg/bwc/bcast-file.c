@@ -115,7 +115,7 @@ int main(int argc, char const * argv[])
     MPI_Comm_size(comm, &size);
     MPI_Comm_rank(comm, &rank);
     if (!duplicate)
-    printf("reduced node %d/%d on %s\n", rank,size,nodename);
+        printf("reduced node %d/%d on %s\n", rank,size,nodename);
 
     for(int i = 1 ; i < argc && !duplicate; i++) {
         int rc;

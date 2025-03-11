@@ -5,23 +5,28 @@
 
 
 #include "cado.h" // IWYU pragma: keep
+
 #include <stdio.h>      // fprintf stderr
 #include <stdlib.h> // free malloc exit
 #include <limits.h>     // LONG_MAX
-#include <math.h>     // log
+
+
 #include <gmp.h>
+
 #include "auxiliary.h"  // get_alpha
+#include "cado_poly.h"
+#include "macros.h"
+#include "mpz_poly.h"
+#include "polyselect_norms.h"
+#include "ropt_arith.h" // reduce_poly_ul ...
+#include "ropt_param.h" // TUNE_RATIO_STAGE1_FULL_ALPHA ...
+#include "ropt_single_sublattice_priority_queue.h"
 #include "ropt_stage1.h"
 #include "ropt_str.h" // ropt_poly_t
-#include "ropt_arith.h" // reduce_poly_ul ...
-#include "ropt_tree.h" // node ...
-#include "ropt_param.h" // TUNE_RATIO_STAGE1_FULL_ALPHA ...
-#include "mpz_poly.h"
-#include "timing.h"             // for milliseconds
-#include "polyselect_norms.h"
-#include "ropt_sublattice_priority_queue.h"
-#include "ropt_single_sublattice_priority_queue.h"
 #include "ropt_sublattice_crt.h"
+#include "ropt_sublattice_priority_queue.h"
+#include "ropt_tree.h" // node ...
+#include "timing.h"             // for milliseconds
 
 
 /**
@@ -213,8 +218,6 @@ find_sublattice_lift ( node *firstchild,
 
     free_node (&tmpnode);
   } // next sibling of current node
-
-  return;
 }
 
 

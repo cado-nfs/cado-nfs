@@ -219,8 +219,8 @@ bool lingen_checkpoint::checkpoint_already_present() const/*{{{*/
         ok = test.load_aux_file(Xsize);     /* rank>0 always returns 1 */
     } catch (lingen_checkpoint::invalid_aux_file const & inv) {
         if (!rank)
-        fmt::print(stderr, "Overwriting bogus checkpoint file {} [{}]\n",
-                datafile, inv.what());
+            fmt::print(stderr, "Overwriting bogus checkpoint file {} [{}]\n",
+                    datafile, inv.what());
         exc = 1;
     }
     if (mpi) MPI_Allreduce(MPI_IN_PLACE, &exc, 1, MPI_INT, MPI_MAX, bm.com[0]);

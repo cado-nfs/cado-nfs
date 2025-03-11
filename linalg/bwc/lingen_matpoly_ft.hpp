@@ -41,8 +41,8 @@ public:
     unsigned int n = 0;
     std::array<size_t, 3> fft_alloc_sizes;
     ptr data = NULL;
-    inline unsigned int nrows() const { return m; }
-    inline unsigned int ncols() const { return n; }
+    unsigned int nrows() const { return m; }
+    unsigned int ncols() const { return n; }
 
     bool check_pre_init() const { return data == NULL; }
     /* {{{ ctor / dtor */
@@ -95,10 +95,10 @@ public:
     }
     /* }}} */
     /* {{{ direct access interface */
-    inline ptr part(unsigned int i, unsigned int j) {
+    ptr part(unsigned int i, unsigned int j) {
         return (ptr) pointer_arith(data, (i*n+j) * fft_alloc_sizes[0]);
     }
-    inline srcptr part(unsigned int i, unsigned int j) const {
+    srcptr part(unsigned int i, unsigned int j) const {
         return (ptr) pointer_arith(data, (i*n+j) * fft_alloc_sizes[0]);
     }
     /* }}} */
@@ -107,10 +107,10 @@ public:
         matpoly_ft & M;
         view_t(matpoly_ft & M, submatrix_range S) : submatrix_range(S), M(M) {}
         view_t(matpoly_ft & M) : submatrix_range(M), M(M) {}
-        inline ptr part(unsigned int i, unsigned int j) {
+        ptr part(unsigned int i, unsigned int j) {
             return M.part(i0+i, j0+j);
         }
-        inline srcptr part(unsigned int i, unsigned int j) const {
+        srcptr part(unsigned int i, unsigned int j) const {
             return M.part(i0+i, j0+j);
         }
         void zero() { /*{{{*/
@@ -167,14 +167,14 @@ public:
             }
             ASSERT(check());
         }/*}}}*/
-        inline int check() { return const_view_t(*this).check(); }
+        int check() { return const_view_t(*this).check(); }
     };/*}}}*/
     struct const_view_t : public submatrix_range {/*{{{*/
         matpoly_ft const & M;
         const_view_t(matpoly_ft const & M, submatrix_range S) : submatrix_range(S), M(M) {}
         const_view_t(matpoly_ft const & M) : submatrix_range(M), M(M) {}
         const_view_t(view_t const & V) : submatrix_range(V), M(V.M) {}
-        inline srcptr part(unsigned int i, unsigned int j) const {
+        srcptr part(unsigned int i, unsigned int j) const {
             return M.part(i0+i, j0+j);
         }
         bool check() {/*{{{*/
@@ -193,14 +193,14 @@ public:
     view_t view() { return view_t(*this); }
     const_view_t view() const { return const_view_t(*this); }
 
-    inline void zero(submatrix_range R) { view(R).zero(); }
-    inline void zero() { view().zero(); }
+    void zero(submatrix_range R) { view(R).zero(); }
+    void zero() { view().zero(); }
 
 #if 0
-    inline void fill_random(submatrix_range const & R, cxx_gmp_randstate & rstate) {
+    void fill_random(submatrix_range const & R, cxx_gmp_randstate & rstate) {
         view(R).fill_random(rstate);
     }
-    inline void fill_random(cxx_gmp_randstate & rstate) {
+    void fill_random(cxx_gmp_randstate & rstate) {
         view().fill_random(rstate);
     }
 #endif
@@ -335,10 +335,10 @@ void add(matpoly_ft::view_t t, matpoly_ft::const_view_t t0, matpoly_ft::const_vi
 
     static matpoly mp_caching_adj(tree_stats & stats, matpoly const & a, matpoly const & b, unsigned int adj, lingen_call_companion::mul_or_mp_times * M);
     static matpoly mul_caching_adj(tree_stats & stats, matpoly const & a, matpoly const & b, unsigned int adj, lingen_call_companion::mul_or_mp_times * M);
-    static inline matpoly mp_caching(tree_stats & stats, matpoly const & a, matpoly const & b, lingen_call_companion::mul_or_mp_times * M) {
+    static matpoly mp_caching(tree_stats & stats, matpoly const & a, matpoly const & b, lingen_call_companion::mul_or_mp_times * M) {
         return mp_caching_adj(stats, a, b, UINT_MAX, M);
     }
-    static inline matpoly mul_caching(tree_stats & stats, matpoly const & a, matpoly const & b, lingen_call_companion::mul_or_mp_times * M) {
+    static matpoly mul_caching(tree_stats & stats, matpoly const & a, matpoly const & b, lingen_call_companion::mul_or_mp_times * M) {
         return mul_caching_adj(stats, a, b, UINT_MAX, M);
     }
 };

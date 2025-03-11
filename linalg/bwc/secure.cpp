@@ -17,10 +17,8 @@
 #include "fmt/format.h"
 
 #include "gmp_aux.h"
-#include "async.hpp"
 #include "bw-common.h"
 #include "macros.h"
-#include "matmul.hpp"              // for matmul_public_s
 #include "matmul_top.hpp"
 #include "matmul_top_comm.hpp"
 #include "arith-generic.hpp"
@@ -64,7 +62,7 @@ static int legacy_check_mode = 0;
 static void * sec_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
 
-    int const fake = param_list_lookup_string(pl, "random_matrix") != NULL;
+    int const fake = param_list_lookup_string(pl, "random_matrix") != nullptr;
 
     ASSERT_ALWAYS(!pi->interleaved);
 
@@ -84,7 +82,7 @@ static void * sec_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * ar
     mmt_vector_pair myy(mmt, !bw->dir);
     mmt_vec & my = myy[0];
 
-    mmt_vec dvec(mmt,0,0, !bw->dir, /* shared ! */ 1, mmt.n[!bw->dir]);
+    mmt_vec dvec(mmt, nullptr, nullptr, !bw->dir, /* shared ! */ 1, mmt.n[!bw->dir]);
 
     unsigned int const unpadded = MAX(mmt.n0[0], mmt.n0[1]);
 
@@ -127,7 +125,7 @@ static void * sec_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * ar
     /* Cr is a list of matrices of size nchecks * nchecks */
     /* It depends only on the random seed */
     std::string const Rfilename = fmt::format("Cr0-{}.0-{}", nchecks, nchecks);
-    FILE * Rfile = NULL;
+    FILE * Rfile = nullptr;
     size_t const R_coeff_size = A->vec_elt_stride(nchecks);
 
 
@@ -145,7 +143,7 @@ static void * sec_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * ar
                 FILE * steal_file_pointer() {
                     /* Note that this breaks the conversion to bool */
                     FILE * rf = f;
-                    f = NULL;
+                    f = nullptr;
                     return rf;
                 }
                 ~file_guard() { if (f) fclose(f); }
@@ -156,9 +154,9 @@ static void * sec_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * ar
                     int const rc = fstat(fileno(f), sbuf);
                     if (rc != 0) {
                         fclose(f);
-                        f = NULL;
+                        f = nullptr;
                     }
-                    /* f != NULL implies rc == 0 at this point */
+                    /* f != nullptr implies rc == 0 at this point */
                 }
                 operator bool() const { return f; }
             };/*}}}*/
@@ -237,7 +235,7 @@ static void * sec_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * ar
             }
             /* }}} */
 
-            ASSERT_ALWAYS(Rfile != NULL);
+            ASSERT_ALWAYS(Rfile != nullptr);
 
             pi_bcast(Tdata, bw->m, A_pi, 0, 0, pi->m);
         } else {
@@ -410,7 +408,7 @@ static void * sec_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * ar
             dvec.consistency = 1;
             mmt_vec_broadcast(dvec);
             pi_log_op(mmt.pi->m, "iteration %d", k);
-            matmul_top_mul(mmt, myy.vectors(), NULL);
+            matmul_top_mul(mmt, myy.vectors(), nullptr);
 
             if (tcan_print) {
                 putchar('.');
@@ -443,7 +441,7 @@ static void * sec_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * ar
 
     A->free(Tdata);
 
-    return NULL;
+    return nullptr;
 }
 
 // coverity[root_function]
@@ -478,11 +476,10 @@ int main(int argc, char const * argv[])
         MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
 
-    pi_go(sec_prog, pl, 0);
+    pi_go(sec_prog, pl, nullptr);
 
     parallelizing_info_finish();
 
     bw_common_clear(bw);
     return 0;
 }
-

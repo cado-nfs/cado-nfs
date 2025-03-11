@@ -248,6 +248,7 @@ vector<badideal> badideals_above_p(cxx_mpz_poly const& f, int side, cxx_mpz cons
         for(unsigned int j = 0 ; j < lifts.size() ; j++) {
             badideal::branch & br(lifts[j]);
             vector<int> w;
+            w.reserve(nonzero.size());
             for(unsigned int k = 0 ; k < nonzero.size() ; k++) {
                 w.push_back(br.v[nonzero[k]]);
 
