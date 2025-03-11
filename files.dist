@@ -1171,7 +1171,6 @@ sieve/trialdiv.cpp
 sieve/trialdiv.hpp
 sqrt/CMakeLists.txt
 sqrt/Makefile
-sqrt/checkdep.c
 sqrt/crtalgsqrt.c
 sqrt/knapsack.c
 sqrt/knapsack.h

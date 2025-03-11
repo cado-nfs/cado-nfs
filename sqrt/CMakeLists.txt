@@ -13,9 +13,6 @@ set_target_properties(sqrt PROPERTIES
     COMPILE_FLAGS "${OpenMP_CXX_FLAGS}"
     LINK_FLAGS "${OpenMP_CXX_FLAGS}")
 
-add_executable(checkdep ${EXCLUDE_FROM_RELEASE_BUILD} checkdep.c)
-target_link_libraries(checkdep utils)
-
 install(TARGETS sqrt RUNTIME DESTINATION ${LIBSUFFIX}/sqrt)
 
 if (HAVE_CABSL AND HAVE_CLOG)
