@@ -1,13 +1,16 @@
 #ifndef LAS_APPLY_BUCKETS_HPP_
 #define LAS_APPLY_BUCKETS_HPP_
 
+#include "cado_config.h"
+
+#ifdef HAVE_SSE2
+#include <emmintrin.h>
+#endif
+
 #include "macros.h"
 #include "bucket.hpp"
 #include "cado-endian.h"
 #include "las-where-am-i.hpp"      // for where_am_I, WHERE_AM_I_UPDATE
-#ifdef HAVE_SSE2
-#include <emmintrin.h>
-#endif
 
 /* {{{ apply_buckets */
 template <typename HINT>

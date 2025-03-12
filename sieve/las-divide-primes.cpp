@@ -1,15 +1,18 @@
 #include "cado.h" // IWYU pragma: keep
 
 #include <cstdlib>              // for abort
-#include <algorithm>            // for find, max
 #include <cinttypes>            // for PRId64, PRIu64, PRIx64
 #include <cstdint>              // for uint64_t, int64_t
 #include <cstdio>               // for fprintf, size_t, FILE
+#include <cstdarg>             // IWYU pragma: keep
+
+#include <algorithm>            // for find, max
 #include <ostream> // IWYU pragma: keep
 #include <sstream>              // ostringstream // IWYU pragma: keep
 #include <string>               // for char_traits, basic_string
-#include <cstdarg>             // IWYU pragma: keep
+
 #include <gmp.h>                // for gmp_vfprintf, mpz_divisible_ui_p, mpz...
+
 #include "bucket.hpp"           // for bucket_update_t, bucket_array_complete
 #include "cxx_mpz.hpp"
 #include "las-divide-primes.hpp"
