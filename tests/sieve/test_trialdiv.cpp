@@ -150,7 +150,9 @@ int main(int argc, char const * argv[])
         fprintf(stderr, "-i requires a value for pmax on the command line\n");
         exit (EXIT_FAILURE);
     }
-    trialdiv_stdinput (atol(argv[1]), verbose);
+    long pmax;
+    pmax = atol(argv[1]);
+    trialdiv_stdinput (pmax, verbose);
     exit (EXIT_SUCCESS);
   }
 

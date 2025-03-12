@@ -14,7 +14,9 @@ using namespace std;
 int main(int argc, char const * argv[])
 {
     if (argc > 1) {
-        srand(atoi(argv[1]));
+        unsigned int seed;
+        seed = atoi(argv[1]);
+        srand(seed);
     }
 
     map<unsigned long, cxx_mpz_mat> v;
