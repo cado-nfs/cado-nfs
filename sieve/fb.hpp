@@ -7,6 +7,7 @@
 
 #include <cstddef>                    // for size_t, NULL
 #include <cstdio>                     // for fprintf, FILE
+
 #include <algorithm>                   // for sort, max
 #include <array>                       // for array
 #include <iosfwd>                      // for ostream

@@ -2,6 +2,7 @@
 #define LAS_CONFIG_H_
 
 #include "cado_config.h"  // HAVE_SSE2
+
 #include <stddef.h>
 
 /* un-sieving of locations where gcd(i,j)>1 instead of testing gcd for

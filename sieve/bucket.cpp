@@ -12,6 +12,7 @@
 #include <cinttypes>               // for PRIu32
 #include <cstdlib>                 // for size_t, NULL, free, realloc
 #include <cstring>                 // for memset
+
 #include <new>                     // for bad_alloc
 #ifdef TRACE_K
 #include <type_traits>             // for is_same

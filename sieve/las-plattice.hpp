@@ -2,6 +2,7 @@
 #define LAS_PLATTICE_HPP
 
 #include <cstdint>
+
 #include <vector>
 #include <limits>
 
