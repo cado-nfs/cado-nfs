@@ -988,4 +988,8 @@ cado_divert_test(test_linalg_example p1_30105
 )
 endif()
 
+cado_define_test(test_bwc_filenames.cpp
+    ${PROJECT_SOURCE_DIR}/linalg/bwc/bwc_filenames.cpp
+    LIBRARIES utils)
+
 add_subdirectory (flint-fft)

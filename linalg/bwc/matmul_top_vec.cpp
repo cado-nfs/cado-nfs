@@ -3,8 +3,12 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <cerrno>
 
 #include <utility>
+
+#include "fmt/base.h"
+#include "fmt/format.h"
 
 #include "arith-generic.hpp"
 #include "gmp_aux.h"
@@ -486,12 +490,12 @@ void mmt_vec_clear_padding(mmt_vec & v, size_t unpadded, size_t padded)
 
 /* {{{ generic interfaces for load/save */
 /* {{{ load */
-int mmt_vec_load(mmt_vec & v, const char * filename_pattern, unsigned int itemsondisk, unsigned int block_position)
+int mmt_vec_load(mmt_vec & v, std::string const & filename_pattern, unsigned int itemsondisk, unsigned int block_position)
 {
     serialize(v.pi->m);
     int const tcan_print = v.pi->m->trank == 0 && v.pi->m->jrank == 0;
 
-    ASSERT_ALWAYS(strstr(filename_pattern, "%u-%u") != NULL);
+    ASSERT_ALWAYS(filename_pattern.find("{}-{}") != std::string::npos);
 
     int const char2 = v.abase->is_characteristic_two();
     int const splitwidth = char2 ? 64 : 1;
@@ -508,31 +512,29 @@ int mmt_vec_load(mmt_vec & v, const char * filename_pattern, unsigned int itemso
 
     for(unsigned int b = 0 ; global_ok && b < Adisk_multiplex ; b++) {
         unsigned int const b0 = block_position + b * Adisk_width;
-        char * filename;
-        int rc;
-        rc = asprintf(&filename, filename_pattern, b0, b0 + splitwidth);
-        ASSERT_ALWAYS(rc >= 0);
+        auto filename = fmt::format(fmt::runtime(filename_pattern), b0, b0 + splitwidth);
         double tt = -wct_seconds();
         if (tcan_print) {
-            printf("Loading %s ...", filename);
+            fmt::print("Loading {} ...", filename);
             fflush(stdout);
         }
         pi_file_handle f;
-        int const ok = pi_file_open(f, v.pi, v.d, filename, "rb");
+        int const ok = pi_file_open(f, v.pi, v.d, filename.c_str(), "rb");
         /* "ok" is globally consistent after pi_file_open */
         if (!ok) {
             if (v.pi->m->trank == 0 && v.pi->m->jrank == 0) {
-                fprintf(stderr, "ERROR: failed to load %s: %s\n", filename, strerror(errno));
+                fmt::print(stderr, "ERROR: failed to load {}: {}\n",
+                        filename, strerror(errno));
             }
         } else {
             serialize(v.pi->m);
-            ssize_t const s = pi_file_read_chunk(f, mychunk, mysize, sizeondisk,
+            size_t const s = pi_file_read_chunk(f, mychunk, mysize, sizeondisk,
                     bigstride, b * smallstride, (b+1) * smallstride);
-            int const ok = s >= 0 && (size_t) s == sizeondisk / Adisk_multiplex;
+            int const ok = s == sizeondisk / Adisk_multiplex;
             /* "ok" is globally consistent after pi_file_read_chunk */
             if (!ok) {
                 if (v.pi->m->trank == 0 && v.pi->m->jrank == 0) {
-                    fprintf(stderr, "ERROR: failed to load %s: short read, %s\n", filename, errno ? strerror(errno) : "no error reported via errno");
+                    fmt::print(stderr, "ERROR: failed to load {}: short read, {}\n", filename, errno ? strerror(errno) : "no error reported via errno");
                 }
             }
             /* Always reduce mod p after load */
@@ -545,14 +547,12 @@ int mmt_vec_load(mmt_vec & v, const char * filename_pattern, unsigned int itemso
             serialize_threads(v.pi->m);
             pi_file_close(f);
         }
-        free(filename);
         tt += wct_seconds();
         if (ok && tcan_print) {
-            char buf[20], buf2[20];
-            printf(" done [%s in %.2fs, %s/s]\n",
-                    size_disp(sizeondisk / Adisk_multiplex, buf),
+            fmt::print(" done [{} in {:.2f}, {}/s]\n",
+                    size_disp(sizeondisk / Adisk_multiplex),
                     tt,
-                    size_disp(sizeondisk / Adisk_multiplex / tt, buf2));
+                    size_disp(sizeondisk / Adisk_multiplex / tt));
         }
         global_ok = global_ok && ok;
     }
@@ -562,12 +562,12 @@ int mmt_vec_load(mmt_vec & v, const char * filename_pattern, unsigned int itemso
 }
 /* }}} */
 /* {{{ save */
-int mmt_vec_save(mmt_vec & v, const char * filename_pattern, unsigned int itemsondisk, unsigned int block_position)
+int mmt_vec_save(mmt_vec & v, std::string const & filename_pattern, unsigned int itemsondisk, unsigned int block_position)
 {
     serialize_threads(v.pi->m);
     int const tcan_print = v.pi->m->trank == 0 && v.pi->m->jrank == 0;
 
-    ASSERT_ALWAYS(strstr(filename_pattern, "%u-%u") != NULL);
+    ASSERT_ALWAYS(filename_pattern.find("{}-{}") != std::string::npos);
 
     int const char2 = v.abase->is_characteristic_two();
     int const splitwidth = char2 ? 64 : 1;
@@ -584,57 +584,50 @@ int mmt_vec_save(mmt_vec & v, const char * filename_pattern, unsigned int itemso
 
     for(unsigned int b = 0 ; b < Adisk_multiplex ; b++) {
         unsigned int const b0 = block_position + b * Adisk_width;
-        char * filename;
-        int rc = asprintf(&filename, filename_pattern, b0, b0 + splitwidth);
-        ASSERT_ALWAYS(rc >= 0);
-        char * tmpfilename;
-        rc = asprintf(&tmpfilename, "%s.tmp", filename);
-        ASSERT_ALWAYS(rc >= 0);
+        auto filename = fmt::format(fmt::runtime(filename_pattern), b0, b0 + splitwidth);
+        auto tmpfilename = filename + ".tmp";
         double tt = -wct_seconds();
         if (tcan_print) {
-            printf("Saving %s ...", filename);
+            fmt::print("Saving {} ...", filename);
             fflush(stdout);
         }
         pi_file_handle f;
-        int ok = pi_file_open(f, v.pi, v.d, tmpfilename, "wb");
+        int ok = pi_file_open(f, v.pi, v.d, tmpfilename.c_str(), "wb");
         /* "ok" is globally consistent after pi_file_open */
         if (!ok) {
             if (v.pi->m->trank == 0 && v.pi->m->jrank == 0) {
-                fprintf(stderr, "WARNING: failed to save %s: %s\n", filename, strerror(errno));
-                unlink(tmpfilename);    // just in case
+                fmt::print(stderr, "WARNING: failed to save {}: {}\n", filename, strerror(errno));
+                unlink(tmpfilename.c_str());    // just in case
             }
         } else {
             ASSERT_ALWAYS(v.consistency == 2);
             serialize_threads(v.pi->m);
-            ssize_t const s = pi_file_write_chunk(f, mychunk, mysize, sizeondisk,
+            size_t const s = pi_file_write_chunk(f, mychunk, mysize, sizeondisk,
                     bigstride, b * smallstride, (b+1) * smallstride);
             serialize_threads(v.pi->m);
-            ok = s >= 0 && (size_t) s == sizeondisk / Adisk_multiplex;
+            ok = s == sizeondisk / Adisk_multiplex;
             /* "ok" is globally consistent after pi_file_write_chunk */
             if (!ok && v.pi->m->trank == 0 && v.pi->m->jrank == 0) {
-                fprintf(stderr, "ERROR: failed to save %s: short write, %s\n", filename, errno ? strerror(errno) : "no error reported via errno");
+                fmt::print(stderr, "ERROR: failed to save {}: short write, {}\n", filename, errno ? strerror(errno) : "no error reported via errno");
             }
             ok = pi_file_close(f);
             if (!ok && v.pi->m->trank == 0 && v.pi->m->jrank == 0) {
-                fprintf(stderr, "ERROR: failed to save %s: failed fclose, %s\n", filename, errno ? strerror(errno) : "no error reported via errno");
+                fmt::print(stderr, "ERROR: failed to save {}: failed fclose, {}\n", filename, errno ? strerror(errno) : "no error reported via errno");
             }
             if (v.pi->m->trank == 0 && v.pi->m->jrank == 0) {
-                ok = rename(tmpfilename, filename) == 0;
+                ok = rename(tmpfilename.c_str(), filename.c_str()) == 0;
                 if (!ok) {
-                    fprintf(stderr, "ERROR: failed to save %s: failed rename, %s\n", filename, errno ? strerror(errno) : "no error reported via errno");
+                    fmt::print(stderr, "ERROR: failed to save {}: failed rename, {}\n", filename, errno ? strerror(errno) : "no error reported via errno");
                 }
             }
             pi_bcast(&ok, 1, BWC_PI_INT, 0, 0, v.pi->m);
         }
-        free(filename);
-        free(tmpfilename);
         tt += wct_seconds();
         if (tcan_print) {
-            char buf[20], buf2[20];
-            printf(" done [%s in %.2fs, %s/s]\n",
-                    size_disp(sizeondisk / Adisk_multiplex, buf),
+            fmt::print(" done [{} in {:.2f}, {}/s]\n",
+                    size_disp(sizeondisk / Adisk_multiplex),
                     tt,
-                    size_disp(sizeondisk / Adisk_multiplex / tt, buf2));
+                    size_disp(sizeondisk / Adisk_multiplex / tt));
         }
         global_ok = global_ok && ok;
     }
@@ -674,7 +667,7 @@ int mmt_vec_save(mmt_vec & v, const char * filename_pattern, unsigned int itemso
 // Doing a mmt_vec_broadcast columns will ensure that each row contains
 // the complete data set for our vector.
 
-void mmt_vec_set_random_through_file(mmt_vec & v, const char * filename_pattern, unsigned int itemsondisk, cxx_gmp_randstate & rstate, unsigned int block_position)
+void mmt_vec_set_random_through_file(mmt_vec & v, std::string const & filename_pattern, unsigned int itemsondisk, cxx_gmp_randstate & rstate, unsigned int block_position)
 {
     /* FIXME: this generates the complete vector on rank 0, saves it, and
      * loads it again. But I'm a bit puzzled by the choice of saving a
@@ -682,6 +675,8 @@ void mmt_vec_set_random_through_file(mmt_vec & v, const char * filename_pattern,
      * incorrect, we want n0[!d] here.
      */
     
+    ASSERT_ALWAYS(filename_pattern.find("{}-{}") != std::string::npos);
+
     arith_generic * A = v.abase;
     parallelizing_info_ptr pi = v.pi;
     int const tcan_print = v.pi->m->trank == 0 && v.pi->m->jrank == 0;
@@ -697,10 +692,7 @@ void mmt_vec_set_random_through_file(mmt_vec & v, const char * filename_pattern,
     if (pi->m->trank == 0 && pi->m->jrank == 0) {
         for(unsigned int b = 0 ; b < Adisk_multiplex ; b++) {
             unsigned int const b0 = block_position + b * Adisk_width;
-            char * filename;
-            int rc;
-            rc = asprintf(&filename, filename_pattern, b0, b0 + splitwidth);
-            ASSERT_ALWAYS(rc >= 0);
+            auto filename = fmt::format(fmt::runtime(filename_pattern), b0, b0 + splitwidth);
 
             /* we want to create v.n / Adisk_multiplex entries --
              * but we can't do that with access to just A. So we
@@ -715,27 +707,22 @@ void mmt_vec_set_random_through_file(mmt_vec & v, const char * filename_pattern,
             A->vec_set_random(y, nitems, rstate);
             double tt = -wct_seconds();
             if (tcan_print) {
-                printf("Creating random vector %s...", filename);
+                fmt::print("Creating random vector {}...", filename);
                 fflush(stdout);
             }
-            FILE * f = fopen(filename, "wb");
-            ASSERT_ALWAYS(f);
-            rc = fwrite(y, A->vec_elt_stride(1), loc_itemsondisk, f);
-            ASSERT_ALWAYS(rc == (int) loc_itemsondisk);
-            fclose(f);
+            auto f = fopen_helper(filename, "wb");
+            const size_t rc = fwrite(y, A->vec_elt_stride(1), loc_itemsondisk, f.get());
+            ASSERT_ALWAYS(rc == loc_itemsondisk);
             tt += wct_seconds();
             if (tcan_print) {
                 size_t const sizeondisk = A->vec_elt_stride(loc_itemsondisk);
                 size_t const fraction = sizeondisk / Adisk_multiplex;
-                char buf[20], buf2[20];
-                printf(" done [%s in %.2fs, %s/s]\n",
-                        size_disp(fraction, buf),
+                fmt::print(" done [{} in {:.2f}, {}/s]\n",
+                        size_disp(fraction),
                         tt,
-                        size_disp(fraction / tt, buf2));
+                        size_disp(fraction / tt));
             }
             A->free(y);
-
-            free(filename);
         }
     }
     int const ok = mmt_vec_load(v, filename_pattern, itemsondisk, block_position);
@@ -764,13 +751,13 @@ void mmt_vec_set_random_inconsistent(mmt_vec & v, cxx_gmp_randstate & rstate)
     mmt_vec_allreduce(v);
 }
 
-void mmt_vec_set_x_indices(mmt_vec & y, uint32_t const * gxvecs, int m, unsigned int nx)
+void mmt_vec_set_x_indices(mmt_vec & y, std::vector<uint32_t> const & gxvecs, unsigned int j0, unsigned int j1, unsigned int nx)
 {
     int const shared = mmt_vec_is_shared(y);
     arith_generic * A = y.abase;
     mmt_full_vec_set_zero(y);
     if (!shared || y.pi->wr[y.d]->trank == 0) {
-        for(int j = 0 ; j < m ; j++) {
+        for(unsigned int j = j0 ; j < j1 ; j++) {
             for(unsigned int k = 0 ; k < nx ; k++) {
                 uint32_t const i = gxvecs[j*nx+k];
                 // set bit j of entry i to 1.
@@ -778,7 +765,7 @@ void mmt_vec_set_x_indices(mmt_vec & y, uint32_t const * gxvecs, int m, unsigned
                     continue;
                 {
                     arith_generic::elt & x = A->vec_item(y.v, i - y.i0);
-                    A->simd_add_ui_at(x, j, 1);
+                    A->simd_add_ui_at(x, j - j0, 1);
                 }
             }
         }

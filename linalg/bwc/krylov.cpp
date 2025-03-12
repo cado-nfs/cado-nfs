@@ -26,6 +26,8 @@
 #include "macros.h"
 #include "mmt_vector_pair.hpp"
 #include "utils_cxx.hpp"
+#include "bwc_filenames.hpp"
+
 using namespace fmt::literals;
 
 struct check_data {
@@ -37,10 +39,8 @@ struct check_data {
     pi_datatype_ptr Ac_pi;
     std::unique_ptr<arith_cross_generic> AxAc;
     mmt_vec check_vector;
-    arith_generic::elt * Tdata = NULL;
-    arith_generic::elt * ahead = NULL;
-
-    int legacy_check_mode = 0;
+    arith_generic::elt * Tdata = nullptr;
+    arith_generic::elt * ahead = nullptr;
 
     int tcan_print = 0;
 
@@ -67,39 +67,28 @@ struct check_data {
          * Therefore, we must really understand the check vector as
          * playing a role in the very same direction of the y vector!
          */
-        std::string const Cv_filename = fmt::format("Cv%u-%u.{}", bw->interval);
-        int ok = mmt_vec_load(check_vector, Cv_filename, mmt.n0[bw->dir], 0);
+        std::string const Cv_filename_pattern = bwc_Cv_file::pattern(bw->interval);
+        int ok = mmt_vec_load(check_vector, Cv_filename_pattern, mmt.n0[bw->dir], 0);
         if (!ok) {
             if (tcan_print)
-                fmt::print(stderr, "check file {} not found, trying legacy check mode\n", Cv_filename);
-            std::string const C_filename = fmt::format("C%u-%u.{}", bw->interval);
-            ok = mmt_vec_load(check_vector, C_filename, mmt.n0[bw->dir], 0);
-            if (!ok) {
-                if (tcan_print)
-                    fmt::print(stderr, "check file {} not found either\n", C_filename);
-                pi_abort(EXIT_FAILURE, pi->m);
-            }
-            legacy_check_mode = 1;
+                fmt::print(stderr, "check file {} not found", Cv_filename_pattern);
+            pi_abort(EXIT_FAILURE, pi->m);
         }
-        if (!legacy_check_mode) {
-            std::string const Ct_filename = fmt::format("Ct0-{}.0-{}", nchecks, bw->m);
-            Tdata = Ac->alloc(bw->m, ALIGNMENT_ON_ALL_BWC_VECTORS);
-            if (pi->m->trank == 0 && pi->m->jrank == 0) {
-                FILE * Tfile = fopen(Ct_filename.c_str(), "rb");
-                int const rc = fread(Tdata, Ac->vec_elt_stride(bw->m), 1, Tfile);
-                ASSERT_ALWAYS(rc == 1);
-                fclose(Tfile);
-            }
-            if (tcan_print) fmt::print("loaded {}\n", Ct_filename);
-            pi_bcast(Tdata, bw->m, Ac_pi, 0, 0, pi->m);
+        std::string const Ct_filename = fmt::format("Ct0-{}.0-{}", nchecks, bw->m);
+        Tdata = Ac->alloc(bw->m, ALIGNMENT_ON_ALL_BWC_VECTORS);
+        if (pi->m->trank == 0 && pi->m->jrank == 0) {
+            auto Tfile = fopen_helper(Ct_filename, "rb");
+            size_t const rc = fread(Tdata, Ac->vec_elt_stride(bw->m), 1, Tfile.get());
+            ASSERT_ALWAYS(rc == 1);
         }
+        if (tcan_print) fmt::print("loaded {}\n", Ct_filename);
+        pi_bcast(Tdata, bw->m, Ac_pi, 0, 0, pi->m);
 
         ahead = A->alloc(nchecks, ALIGNMENT_ON_ALL_BWC_VECTORS);
     }
     ~check_data() {
         A->free(ahead);
-        if (!legacy_check_mode)
-            Ac->free(Tdata);
+        Ac->free(Tdata);
         pi_free_arith_datatype(pi, Ac_pi);
     }
 
@@ -129,18 +118,15 @@ struct check_data {
     }
 
 
-    bool verify(mmt_vec const & y, uint32_t * gxvecs, int nx)
+    bool verify(mmt_vec const & y, std::vector<uint32_t> const & gxvecs, int nx) const
     {
         /* Last dot product. This must cancel ! */
-        if (legacy_check_mode) {
-            x_dotprod(ahead, gxvecs, nchecks, nx, y, -1);
-        } else {
-            arith_generic::elt * tmp1 = NULL;
+            arith_generic::elt * tmp1 = nullptr;
             tmp1 = A->alloc(nchecks, ALIGNMENT_ON_ALL_BWC_VECTORS);
             for(int c = 0 ; c < bw->m ; c += nchecks) {
                 /* First zero out the matrix of size nchecks * nbys.  */
                 A->vec_set_zero(tmp1, nchecks);
-                x_dotprod(tmp1, gxvecs + c * nx, nchecks, nx, y, -1);
+                x_dotprod(tmp1, gxvecs, c, c + nchecks, nx, y, -1);
                 /* And now compute the product transpose(part of
                  * T)*ahead_tmp, and subtract that from our check value
                  */
@@ -151,18 +137,16 @@ struct check_data {
                         nchecks);
             }
             A->free(tmp1);
-        }
 
-        pi_allreduce(NULL, ahead, nchecks, mmt.pitype, BWC_PI_SUM, pi->m);
+        pi_allreduce(nullptr, ahead, nchecks, mmt.pitype, BWC_PI_SUM, pi->m);
         return A->vec_is_zero(ahead, nchecks);
     }
 };
 
 static void * krylov_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
-    int const legacy_check_mode = 0;
-    int fake = param_list_lookup_string(pl, "random_matrix") != NULL;
-    fake = fake || param_list_lookup_string(pl, "static_random_matrix") != NULL;
+    int fake = param_list_lookup_string(pl, "random_matrix") != nullptr;
+    fake = fake || param_list_lookup_string(pl, "static_random_matrix") != nullptr;
     if (fake) bw->skip_online_checks = 1;
     int const tcan_print = bw->can_print && pi->m->trank == 0;
     struct timing_data timing[1];
@@ -187,14 +171,14 @@ static void * krylov_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void *
 
     serialize(pi->m);
     
-    std::unique_ptr<uint32_t[]> gxvecs;
+    std::vector<uint32_t> gxvecs;
     unsigned int nx = 0;
     if (!fake) {
         gxvecs = load_x(bw->m, nx, pi);
     } else {
         gxvecs = set_x_fake(bw->m, nx, pi);
     }
-    indices_twist(mmt, gxvecs.get(), nx * bw->m, bw->dir);
+    indices_twist(mmt, gxvecs, bw->dir);
 
     /* let's be generous with interleaving protection. I don't want to be
      * bothered, really */
@@ -211,7 +195,7 @@ static void * krylov_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void *
      */
     serialize(pi->m);
     if (!fake) {
-        int const ok = mmt_vec_load(ymy[0], fmt::format("V%u-%u.{}", bw->start), unpadded, ys[0]);
+        int const ok = mmt_vec_load(ymy[0], bwc_V_file::pattern(bw->start), unpadded, ys[0]);
         ASSERT_ALWAYS(ok);
     } else {
         cxx_gmp_randstate rstate;
@@ -226,7 +210,7 @@ static void * krylov_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void *
          * generating something consistent.
          */
         if (pi->m->trank == 0 && !bw->seed) {
-            bw->seed = time(NULL);
+            bw->seed = time(nullptr);
             MPI_Bcast(&bw->seed, 1, MPI_INT, 0, pi->m->pals);
         }
         serialize_threads(pi->m);
@@ -235,7 +219,7 @@ static void * krylov_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void *
             printf("// Random generator seeded with %d\n", bw->seed);
         }
         if (tcan_print) { printf("Creating fake %s...", v_name); fflush(stdout); }
-        mmt_vec_set_random_through_file(mmt, NULL, v_name, bw->dir, bw->start, unpadded, rstate);
+        mmt_vec_set_random_through_file(mmt, nullptr, v_name, bw->dir, bw->start, unpadded, rstate);
         if (tcan_print) { printf("done\n"); }
 #else
         unsigned long const g = pi->m->jrank * pi->m->ncores + pi->m->trank;
@@ -311,7 +295,7 @@ static void * krylov_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void *
         for(int i = 0 ; i < bw->interval ; i++) {
             /* Compute the product by x */
             x_dotprod(A->vec_subvec(xymats, i * bw->m),
-                    gxvecs.get(), bw->m, nx, ymy[0], 1);
+                    gxvecs, 0, bw->m, nx, ymy[0], 1);
 
             matmul_top_mul(mmt, ymy.vectors(), timing);
 
@@ -323,9 +307,8 @@ static void * krylov_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void *
         pi_interleaving_flip(pi);
         pi_interleaving_flip(pi);
 
-        if (C && !C->verify(ymy[0], gxvecs.get(), nx)) {
-            fmt::print("Failed {}check at iteration {}\n",
-                    legacy_check_mode ? "(legacy) " : "",
+        if (C && !C->verify(ymy[0], gxvecs, nx)) {
+            fmt::print("Failed check at iteration {}\n",
                     s + bw->interval);
             exit(1);
         }
@@ -359,7 +342,7 @@ static void * krylov_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void *
         }
 
         if (!fake) {
-            mmt_vec_save(ymy[0], fmt::format("V%u-%u.{}", s + bw->interval), unpadded, ys[0]);
+            mmt_vec_save(ymy[0], bwc_V_file::pattern(s + bw->interval), unpadded, ys[0]);
         }
 
         if (pi->m->trank == 0 && pi->m->jrank == 0) {

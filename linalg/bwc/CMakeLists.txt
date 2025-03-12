@@ -106,6 +106,7 @@ set(bwc_base_sources
     balancing_workhorse.cpp
     arith-cross.cpp
     matrix_u32.cpp
+    bwc_filenames.cpp
 )
 
 mpi_add_library(bwc_base ${CADO_SHARED} ${bwc_base_sources})
@@ -439,7 +440,7 @@ bwc_program(acollect acollect.c)
 bwc_program(prep prep.cpp xdotprod.cpp)
 target_link_libraries(prep bitlinalg)
 bwc_program(krylov krylov.cpp xdotprod.cpp)
-bwc_program(bwccheck bwccheck.cpp xdotprod.cpp)
+bwc_program(bwccheck bwccheck.cpp xdotprod.cpp bwc_filenames.cpp)
 bwc_program(dispatch dispatch.cpp xdotprod.cpp)
 bwc_program(mksol mksol.cpp xdotprod.cpp)
 bwc_program(gather gather.cpp)

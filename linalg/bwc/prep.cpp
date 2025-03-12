@@ -15,9 +15,11 @@
 #include <set>
 #include <utility>
 #include <vector>
+#include <string>
 
 #include <gmp.h>
 #include "fmt/base.h"
+#include "fmt/format.h"
 
 #include "abase_proxy.hpp"
 #include "arith-generic.hpp"
@@ -34,29 +36,30 @@
 #include "select_mpi.h"
 #include "xdotprod.hpp"
 #include "xvectors.hpp"
+#include "bwc_filenames.hpp"
 
 static void bw_rank_check(matmul_top_data & mmt, cxx_param_list & pl)
 {
     int const tcan_print = bw->can_print && mmt.pi->m->trank == 0;
     unsigned int const r = matmul_top_rank_upper_bound(mmt);
     if (tcan_print) {
-        printf("Matrix rank is at most %u (based on zero columns and rows "
+        fmt::print("Matrix rank is at most {} (based on zero columns and rows "
                "encountered)\n",
                r);
     }
     int skip = 0;
     param_list_parse_int(pl, "skip_bw_early_rank_check", &skip);
     if (bw->m + r < mmt.n0[0]) {
-        fprintf(
+        fmt::print(
             stderr,
-            "Based on the parameter m (=%u) and the rank defect of the matrix "
-            "(>=%u), we can't expect to compute solutions reliably.\n",
+            "Based on the parameter m (={}) and the rank defect of the matrix "
+            "(>={}), we can't expect to compute solutions reliably.\n",
             bw->m, mmt.n0[0] - r);
         if (skip) {
-            fprintf(stderr,
+            fmt::print(stderr,
                     "Proceeding anyway as per skip_bw_early_rank_check=1\n");
         } else {
-            fprintf(stderr, "Aborting. Use skip_bw_early_rank_check=1 to "
+            fmt::print(stderr, "Aborting. Use skip_bw_early_rank_check=1 to "
                             "proceed nevertheless.\n");
             exit(EXIT_FAILURE);
         }
@@ -266,7 +269,7 @@ struct prep_object {
     mmt_vec & y;
     unsigned int const unpadded;
     unsigned int nrhs = 0;
-    std::unique_ptr<uint32_t[]> xvecs;
+    std::vector<uint32_t> xvecs;
     std::vector<unsigned int> Z;
 
     prep_object(parallelizing_info_ptr pi, cxx_param_list & pl)
@@ -413,8 +416,10 @@ struct prep_object {
              */
             mmt_vec_apply_T(mmt, rhs_vecs[j]);
 
-            std::string const name =
-                fmt::format("V{}-{}.0", j * splitwidth, (j + 1) * splitwidth);
+            auto pat = bwc_V_file::pattern(0);
+
+            std::string const name = fmt::format(fmt::runtime(pat),
+                    j * splitwidth, (j + 1) * splitwidth);
 
             if (tcan_print)
                 fmt::print("// Creating {} (extraction from {})\n", name,
@@ -423,7 +428,7 @@ struct prep_object {
             /* although the RHS vectors have mmt->n0[!bw->dir], we save
              * then wrt the unpadded dimension, which is max(mmt->n0[*])
              */
-            mmt_vec_save(rhs_vecs[j], "V%u-%u.0", unpadded, j);
+            mmt_vec_save(rhs_vecs[j], pat, unpadded, j);
         }
 
         return nrhs;
@@ -437,9 +442,11 @@ struct prep_object {
         int const tcan_print = bw->can_print && pi->m->trank == 0;
 
         for (unsigned int j = nrhs; j < (unsigned int)bw->n; j += splitwidth) {
-            mmt_vec_set_random_through_file(y, "V%u-%u.0", unpadded, rstate, j);
+            auto pat = bwc_V_file::pattern(0);
+            mmt_vec_set_random_through_file(y, pat, unpadded, rstate, j);
             if (tcan_print)
-                fmt::print("// generated V{}-{}.0\n", j, j + splitwidth);
+                fmt::print("// generated {}\n",
+                        fmt::format(fmt::runtime(pat), j, j + splitwidth));
         }
     } // }}}
 
@@ -482,7 +489,7 @@ struct prep_object {
             } else if (ntri >= my_nx * 10) {
                 ++my_nx;
                 if (tcan_print)
-                    printf("// Getting bored. Trying %u x vectors\n", my_nx);
+                    fmt::print("// Getting bored. Trying {} x vectors\n", my_nx);
             }
             serialize_threads(pi->m);
 
@@ -494,13 +501,13 @@ struct prep_object {
             unsigned int const rk = do_one_trial(my_nx);
 
             if (tcan_print)
-                printf("// Dimension of kernel: %d\n", bw->m - rk);
+                fmt::print("// Dimension of kernel: {}\n", bw->m - rk);
 
             if (rk == (unsigned int)bw->m) {
                 if (tcan_print)
-                    printf("// Found good x,y vector pair after %u trials\n",
+                    fmt::print("// Found good x,y vector pair after {} trials\n",
                            ntri + 1);
-                save_x(xvecs.get(), bw->m, my_nx, pi);
+                save_x(xvecs, bw->m, my_nx, pi);
                 return;
             }
         }
@@ -520,8 +527,8 @@ struct prep_object {
         // everything in the xymats array, and compute the rank later on.
 
         for (size_t j = 0; j < A_multiplex; j++) {
-            int const ok =
-                mmt_vec_load(y, "V%u-%u.0", unpadded, j * splitwidth);
+            auto pat = bwc_V_file::pattern(0);
+            int const ok = mmt_vec_load(y, pat, unpadded, j * splitwidth);
             ASSERT_ALWAYS(ok);
 
             /*
@@ -537,7 +544,7 @@ struct prep_object {
             for (unsigned int k = 0; k < iterations; k++) {
                 x_dotprod(
                     A->vec_subvec(xymats.get(), (k * A_multiplex + j) * bw->m),
-                    xvecs.get(), bw->m, nx, y, 1);
+                    xvecs, 0, bw->m, nx, y, 1);
                 mmt_vec_twist(mmt, y);
                 matmul_top_mul(mmt, ymy.vectors(), nullptr);
                 mmt_vec_untwist(mmt, y);

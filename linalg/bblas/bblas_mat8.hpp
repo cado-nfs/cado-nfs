@@ -5,8 +5,8 @@
 // IWYU pragma: friend ".*/bblas.*"
 // IWYU pragma: friend "bpack.hpp"
 
-#include <stddef.h>          // for size_t
-#include <stdint.h>          // for uint8_t
+#include <cstddef>          // for size_t
+#include <cstdint>          // for uint8_t
 #include "bblas_bitmat.hpp"
 
 /* we provide a matrix type for 8*8 matrices. This should not be

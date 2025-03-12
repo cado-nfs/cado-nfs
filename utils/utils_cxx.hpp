@@ -382,7 +382,15 @@ void checked_realloc(T * & var, size_t N)
     }
 }
 
+static inline std::unique_ptr<FILE, delete_FILE> fopen_helper(std::string const & filename, const char * mode, bool accept_failure = false)
+{
+    std::unique_ptr<FILE, delete_FILE> f(fopen(filename.c_str(), mode));
+    DIE_ERRNO_DIAG(!f && !accept_failure, "fopen(%s)", filename.c_str());
+    return f;
+}
+
 struct decomposed_path : public std::vector<std::string> {
+    decomposed_path() : decomposed_path("/") {}
     explicit decomposed_path(std::string const &);
     explicit decomposed_path(const char * s) : decomposed_path(std::string(s)) {}
     explicit operator std::string() const;

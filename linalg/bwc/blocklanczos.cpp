@@ -7,6 +7,8 @@
 #include <memory>
 
 #include <gmp.h>                 // for gmp_randclear, gmp_randinit_default
+#include "fmt/format.h"
+#include "fmt/base.h"
 
 #include "gmp_aux.h"
 #include "matmul.hpp"              // for matmul_public_s
@@ -26,6 +28,8 @@
 #include "matmul_top_comm.hpp"
 #include "blocklanczos.hpp"
 #include "blocklanczos_extraction.hpp"
+#include "bwc_filenames.hpp"
+#include "utils_cxx.hpp"
 
 
 blstate::blstate(parallelizing_info_ptr pi, cxx_param_list & pl)
@@ -80,7 +84,7 @@ void blstate::set_start()
     }
     /* matmul_top_vec_init has already set V to zero */
     /* for bw->dir=0, mmt.n0[0] is the number of rows. */
-    mmt_vec_set_random_through_file(V[0], "blstart.0.V%u-%u.i0", mmt.n0[bw->dir], rstate, 0);
+    mmt_vec_set_random_through_file(V[0], "blstart.0.V{}-{}.i0", mmt.n0[bw->dir], rstate, 0);
     mmt_own_vec_set(y, V[0]);
 }
 
@@ -91,48 +95,38 @@ void blstate::load( unsigned int iter)
     unsigned int const i2 = (iter+3-2) % 3;
     parallelizing_info_ptr pi = mmt.pi;
 
-    char * filename_base;
-    int rc = asprintf(&filename_base, "blstate.%u", iter);
-    ASSERT_ALWAYS(rc >= 0);
+    auto filename_base = fmt::format("blstate.{}.", iter);
     int const tcan_print = bw->can_print && pi->m->trank == 0;
-    if (tcan_print) { printf("Loading %s.* ...", filename_base); fflush(stdout); }
-
-    char * tmp;
+    if (tcan_print) { fmt::print("Loading {}* ...", filename_base); fflush(stdout); }
 
     if (pi->m->jrank == 0 && pi->m->trank == 0) {
-        rc = asprintf(&tmp, "%s.control", filename_base);
-        ASSERT_ALWAYS(rc >= 0);
-        FILE * f = fopen(tmp, "rb");
-        bit_vector_read_from_stream(D[i1], f);
+        auto tmp = filename_base + "control";
+        auto f = fopen_helper(tmp, "rb");
+        bit_vector_read_from_stream(D[i1], f.get());
         size_t rc;
-        rc = fread(L[i1].data(), sizeof(mat64), 1, f);
-        ASSERT_ALWAYS(rc == (size_t) 1);
-        rc = fread(L[i2].data(), sizeof(mat64), 1, f);
-        ASSERT_ALWAYS(rc == (size_t) 1);
-        fclose(f);
-        free(tmp);
+        rc = fread(L[i1].data(), sizeof(mat64), 1, f.get());
+        ASSERT_ALWAYS(rc == 1);
+        rc = fread(L[i2].data(), sizeof(mat64), 1, f.get());
+        ASSERT_ALWAYS(rc == 1);
     }
 
-    rc = asprintf(&tmp, "%s.V%s.i0", filename_base, "%u-%u");
-    ASSERT_ALWAYS(rc >= 0);
+    std::string tmp;
+    int rc;
+
+    tmp = filename_base + bwc_V_file::pattern(iter);
     rc = mmt_vec_load(V[i0], tmp, mmt.n0[bw->dir], 0);
     ASSERT_ALWAYS(rc >= 0);
-    free(tmp);
 
-    rc = asprintf(&tmp, "%s.V%s.i1", filename_base, "%u-%u");
-    ASSERT_ALWAYS(rc >= 0);
+    tmp = filename_base + bwc_V_file::pattern(iter + 1);
     rc = mmt_vec_load(V[i1], tmp, mmt.n0[bw->dir], 0);
     ASSERT_ALWAYS(rc >= 0);
-    free(tmp);
 
-    rc = asprintf(&tmp, "%s.V%s.i2", filename_base, "%u-%u");
+    tmp = filename_base + bwc_V_file::pattern(iter + 2);
     ASSERT_ALWAYS(rc >= 0);
     rc = mmt_vec_load(V[i2], tmp, mmt.n0[bw->dir], 0);
     ASSERT_ALWAYS(rc >= 0);
-    free(tmp);
 
-    if (tcan_print) { printf("done\n"); fflush(stdout); }
-    free(filename_base);
+    if (tcan_print) { fmt::print("done\n"); fflush(stdout); }
 }
 
 void blstate::save(unsigned int iter)
@@ -142,42 +136,30 @@ void blstate::save(unsigned int iter)
     unsigned int const i2 = (iter+3-2) % 3;
     parallelizing_info_ptr pi = mmt.pi;
 
-    char * filename_base;
-    int rc = asprintf(&filename_base, "blstate.%u", iter);
-    ASSERT_ALWAYS(rc >= 0);
+    auto filename_base = fmt::format("blstate.{}", iter);
     int const tcan_print = bw->can_print && pi->m->trank == 0;
-    if (tcan_print) { printf("Saving %s.* ...", filename_base); fflush(stdout); }
-
-    char * tmp;
+    if (tcan_print) { fmt::print("Saving {}.* ...", filename_base); fflush(stdout); }
 
     if (pi->m->jrank == 0 && pi->m->trank == 0) {
-        rc = asprintf(&tmp, "%s.control", filename_base);
-        ASSERT_ALWAYS(rc >= 0);
-        FILE * f = fopen(tmp, "wb");
-        bit_vector_write_to_stream(D[i1], f);
-        size_t rc;
-        rc = fwrite(L[i1].data(), sizeof(mat64), 1, f);
-        ASSERT_ALWAYS(rc == (size_t) 1);
-        fclose(f);
-        free(tmp);
+        auto tmp = filename_base + ".control";
+        auto f = fopen_helper(tmp, "wb");
+        bit_vector_write_to_stream(D[i1], f.get());
+        const size_t rc = fwrite(L[i1].data(), sizeof(mat64), 1, f.get());
+        ASSERT_ALWAYS(rc == 1);
     }
-    rc = asprintf(&tmp, "%s.V%s.i0", filename_base, "%u-%u");
-    ASSERT_ALWAYS(rc >= 0);
+
+    std::string tmp;
+
+    tmp = filename_base + bwc_V_file::pattern(iter);
     mmt_vec_save(V[i0], tmp, mmt.n0[bw->dir], 0);
-    free(tmp);
 
-    rc = asprintf(&tmp, "%s.V%s.i1", filename_base, "%u-%u");
-    ASSERT_ALWAYS(rc >= 0);
+    tmp = filename_base + bwc_V_file::pattern(iter + 1);
     mmt_vec_save(V[i1], tmp, mmt.n0[bw->dir], 0);
-    free(tmp);
 
-    rc = asprintf(&tmp, "%s.V%s.i2", filename_base, "%u-%u");
-    ASSERT_ALWAYS(rc >= 0);
+    tmp = filename_base + bwc_V_file::pattern(iter + 2);
     mmt_vec_save(V[i2], tmp, mmt.n0[bw->dir], 0);
-    free(tmp);
 
-    if (tcan_print) { printf("done\n"); fflush(stdout); }
-    free(filename_base);
+    if (tcan_print) { fmt::print("done\n"); fflush(stdout); }
 }
 
 /* Given a *BINARY* vector block of *EXACTLY* 64 vectors (that is, we
@@ -191,7 +173,7 @@ void blstate::save(unsigned int iter)
 static int mmt_vec_echelon(mat64 & m, mmt_vec const & v0)
 {
     m = 1;
-    uint64_t * v = (uint64_t *) mmt_my_own_subvec(v0);
+    auto * v = (uint64_t *) mmt_my_own_subvec(v0);
     size_t const eblock = mmt_my_own_size_in_items(v0);
     /* This is the total number of non-zero coordinates of the vector v */
     size_t const n = v0.n;
@@ -227,7 +209,7 @@ static int mmt_vec_echelon(mat64 & m, mmt_vec const & v0)
         }
         /* TODO: once we require mpi-3.0, use MPI_UINT64_T instead */
         ASSERT_ALWAYS(sizeof(unsigned long long) == sizeof(uint64_t));
-        pi_allreduce(NULL, &control, 1, BWC_PI_UNSIGNED_LONG_LONG, BWC_PI_MAX, v0.pi->m);
+        pi_allreduce(nullptr, &control, 1, BWC_PI_UNSIGNED_LONG_LONG, BWC_PI_MAX, v0.pi->m);
         /* add row i to all rows where we had a coeff in column j */
         /* we'll do that for all coefficients in the block, but on m this
          * is just one single operation */
@@ -281,21 +263,18 @@ void blstate::save_result( unsigned int iter)
     /* bw->dir=0: mmt.n0[bw->dir] = number of rows */
     /* bw->dir=1: mmt.n0[bw->dir] = number of columns */
 
-    const char * filename_base = "blaux";
-    char * tmp;
-    int rc;
+    std::string filename_base = "blaux.";
+
 
     int const tcan_print = bw->can_print && pi->m->trank == 0;
-    if (tcan_print) { printf("Saving %s.* ...\n", filename_base); fflush(stdout); }
+    if (tcan_print) { fmt::print("Saving {}* ...\n", filename_base); fflush(stdout); }
 
     mmt_full_vec_set(y, V[i0]);
 
     /* save raw V because it's conceivably useful */
     ASSERT_ALWAYS(y.n == mmt.n[bw->dir]);
-    rc = asprintf(&tmp, "%s.Y%s", filename_base, "%u-%u");
-    ASSERT_ALWAYS(rc >= 0);
-    mmt_vec_save(y, tmp, mmt.n0[bw->dir], 0);
-    free(tmp);
+
+    mmt_vec_save(y, filename_base + "Y{}-{}", mmt.n0[bw->dir], 0);
 
     mmt_vec_twist(mmt, y);
     matmul_top_mul_cpu(mmt, 0, y.d, my, y);
@@ -311,19 +290,16 @@ void blstate::save_result( unsigned int iter)
      */
     ASSERT_ALWAYS(my.n == mmt.n[!bw->dir]);
     ASSERT_ALWAYS(y.n == mmt.n[bw->dir]);
-    rc = asprintf(&tmp, "%s.MY%s", filename_base, "%u-%u");
-    ASSERT_ALWAYS(rc >= 0);
-    mmt_vec_save(my, tmp, mmt.n0[!bw->dir], 0);
-    free(tmp);
+    mmt_vec_save(my, filename_base + "MY{}-{}", mmt.n0[!bw->dir], 0);
 
     /* Do some rank calculations */
     /* m0 is just temp stuff. */
     mmt_full_vec_set(y, V[i0]);
     r = mmt_vec_echelon(m0, y);
-    if (tcan_print) printf("\trank(V) == %d\n", r);
+    if (tcan_print) fmt::print("\trank(V) == {}\n", r);
     /* m1 will be largest rank matrix such that m1*V*M == 0 */
     r = mmt_vec_echelon(m1,  my);
-    if (tcan_print) printf("\trank(V*M) == %d\n", r);
+    if (tcan_print) fmt::print("\trank(V*M) == {}\n", r);
 
     /* good, so now let's look for real nullspace elements. Since
      * we've put V*M in RREF, we know what transformation of V
@@ -333,14 +309,9 @@ void blstate::save_result( unsigned int iter)
         m1[i] = 0;
     }
     if (pi->m->jrank == 0 && pi->m->trank == 0) {
-        rc = asprintf(&tmp, "%s.M1", filename_base);
-        ASSERT_ALWAYS(rc >= 0);
-        FILE * f = fopen(tmp, "wb");
-        ASSERT_ALWAYS(f);
-        size_t const rc = fwrite(m1.data(), sizeof(mat64), 1, f);
-        ASSERT_ALWAYS(rc == (size_t) 1);
-        fclose(f);
-        free(tmp);
+        auto f = fopen_helper(filename_base + "M1", "wb");
+        size_t const rc = fwrite(m1.data(), sizeof(mat64), 1, f.get());
+        ASSERT_ALWAYS(rc == 1);
     }
     /* Now set y = m1 * V */
     mmt_full_vec_set(y, V[i0]);
@@ -353,20 +324,15 @@ void blstate::save_result( unsigned int iter)
      * combinations which lead to zero, so that m2*m1 should have rank
      * precisely the rank of the nullspace */
     r = mmt_vec_echelon(m2, y);
-    if (tcan_print) printf("\trank(V cap nullspace(M)) == %d\n", r);
+    if (tcan_print) fmt::print("\trank(V cap nullspace(M)) == {}\n", r);
     /* Now we have the really interesting basis of the nullspace */
     for(int i = r ; i < 64 ; i++) {
         m2[i] = 0;
     }
     if (pi->m->jrank == 0 && pi->m->trank == 0) {
-        rc = asprintf(&tmp, "%s.M2", filename_base);
-        ASSERT_ALWAYS(rc >= 0);
-        FILE * f = fopen(tmp, "wb");
-        ASSERT_ALWAYS(f);
-        size_t const rc = fwrite(m2.data(), sizeof(mat64), 1, f);
-        ASSERT_ALWAYS(rc == (size_t) 1);
-        fclose(f);
-        free(tmp);
+        auto f = fopen_helper(filename_base + "M2", "wb");
+        size_t const rc = fwrite(m2.data(), sizeof(mat64), 1, f.get());
+        ASSERT_ALWAYS(rc == 1);
     }
     serialize(mmt.pi->m);
     /* Now apply m2*m1 to v, for real */
@@ -383,14 +349,11 @@ void blstate::save_result( unsigned int iter)
 
     /* Now save the reduced kernel basis */
     ASSERT_ALWAYS(y.n == mmt.n[bw->dir]);
-    rc = asprintf(&tmp, "%s.YR%s", filename_base, "%u-%u");
-    ASSERT_ALWAYS(rc >= 0);
-    mmt_vec_save(y, tmp, mmt.n0[bw->dir], 0);
-    free(tmp);
+    mmt_vec_save(y, filename_base + "YR{}-{}", mmt.n0[bw->dir], 0);
 
-    if (tcan_print) { printf("Saving %s.* ...done\n", filename_base); fflush(stdout); }
+    if (tcan_print) { fmt::print("Saving {}* ...done\n", filename_base); fflush(stdout); }
 
-    mmt_vec_save(y, "blsolution%u-%u.0", mmt.n0[bw->dir], 0);
+    mmt_vec_save(y, "blsolution{}-{}.0", mmt.n0[bw->dir], 0);
 }
 
 
@@ -436,7 +399,7 @@ int blstate::operator()(parallelizing_info_ptr pi)
     }
 
     if (tcan_print) {
-        printf ("Target iteration is %u ; going to %u\n", bw->end,
+        fmt::print ("Target iteration is {} ; going to {}\n", bw->end,
                 bw->interval * iceildiv(bw->end, bw->interval));
     }
 
@@ -559,7 +522,7 @@ int blstate::operator()(parallelizing_info_ptr pi)
                     mmt_my_own_subvec(y),
                     mmt_my_own_size_in_items(y));
 
-            pi_allreduce(NULL, vav,
+            pi_allreduce(nullptr, vav,
                     nelts_for_nnmat, mmt.pitype, BWC_PI_SUM, pi->m);
 
             A->vec_set_zero(vaav, nelts_for_nnmat);
@@ -569,7 +532,7 @@ int blstate::operator()(parallelizing_info_ptr pi)
                     mmt_my_own_subvec(y),
                     mmt_my_own_size_in_items(y));
 
-            pi_allreduce(NULL, vaav, nelts_for_nnmat,
+            pi_allreduce(nullptr, vaav, nelts_for_nnmat,
                     mmt.pitype, BWC_PI_SUM, pi->m);
 
 
@@ -612,7 +575,7 @@ int blstate::operator()(parallelizing_info_ptr pi)
                 int const Ni = bit_vector_popcount(D[i0]);
                 sum_Ni += Ni;
                 // int defect = bw->n - Ni;
-                // printf("step %d, dim=%d\n", s+i, Ni);
+                // fmt::print("step {}, dim={}\n", s+i, Ni);
                 if (Ni == 0) {
                     break;
                 }
@@ -651,7 +614,7 @@ int blstate::operator()(parallelizing_info_ptr pi)
 
         serialize(pi->m);
         if (i < bw->interval) {
-            if (tcan_print) printf("Finished at iteration %d, sum_dim=%d=N*(%u-%.3f)\n", s+i, sum_Ni, bw->n, bw->n-(double)sum_Ni/(s+i));
+            if (tcan_print) fmt::print("Finished at iteration {}, sum_dim={}=N*({}-{:.3f})\n", s+i, sum_Ni, bw->n, bw->n-(double)sum_Ni/(s+i));
 
             save_result(s+i);
             /* We need to cheat somewhat */
@@ -667,7 +630,7 @@ int blstate::operator()(parallelizing_info_ptr pi)
         save(s+bw->interval);
         serialize(pi->m);
 
-        if (tcan_print) printf("N=%d ; sum_dim=%d=N*(%u-%.3f)\n", s+i, sum_Ni, bw->n, bw->n-(double)sum_Ni/(s+i));
+        if (tcan_print) fmt::print("N={} ; sum_dim={}=N*({}-{:.3f})\n", s+i, sum_Ni, bw->n, bw->n-(double)sum_Ni/(s+i));
         // reached s + bw->interval. Count our time on cpu, and compute the sum.
         timing_disp_collective_oneline(pi, timing, s + bw->interval, tcan_print, "blocklanczos");
     }
@@ -688,7 +651,7 @@ int blstate::operator()(parallelizing_info_ptr pi)
 
     if (auto_end && bw->end == auto_end) {
         if (tcan_print) {
-            printf("FAILED blocklanczos (no collapse found for inner product).\n");
+            fmt::print("FAILED blocklanczos (no collapse found for inner product).\n");
         }
         if (serialize_threads(pi->m)) {
             exit_code = 1;
@@ -696,7 +659,7 @@ int blstate::operator()(parallelizing_info_ptr pi)
         serialize_threads(pi->m);
     } else {
         if (tcan_print) {
-            printf("Done blocklanczos.\n");
+            fmt::print("Done blocklanczos.\n");
         }
     }
     serialize(pi->m);
@@ -749,7 +712,7 @@ int main(int argc, char const * argv[])
     parallelizing_info_lookup_parameters(pl);
     matmul_top_lookup_parameters(pl);
     /* interpret our parameters */
-    if (bw->ys[0] < 0) { fprintf(stderr, "no ys value set\n"); exit(1); }
+    if (bw->ys[0] < 0) { fmt::print(stderr, "no ys value set\n"); exit(1); }
 
     if (param_list_warn_unused(pl)) {
         int rank;

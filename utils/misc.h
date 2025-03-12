@@ -254,6 +254,8 @@ safe_abs64(const int64_t n) {
     return (n < 0) ? -(uint64_t)n : (uint64_t)n;
 }
 
+size_t file_bytes(FILE * f);
+
 const char *size_disp_fine(size_t s, char buf[16], double cutoff);
 const char *size_disp(size_t s, char buf[16]);
 

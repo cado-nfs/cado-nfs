@@ -6,7 +6,9 @@
 #include <cstring> // for memset
 
 #include <memory>
+#include <vector>
 
+#include "fmt/format.h"
 #include <gmp.h> // for gmp_randclear, gmp_randinit_default
 
 #include "arith-generic.hpp"
@@ -170,16 +172,16 @@ static void * tst_prog(parallelizing_info_ptr pi, cxx_param_list & pl,
         mmt_vec_set_0n(v, mmt.n0[0]);
         /* We save the Z files, although it's useless, the checking done
          * here is allright */
-        mmt_vec_save(v, "Z%u-%u.0", mmt.n0[0], 0);
+        mmt_vec_save(v, "Z{}-{}.0", mmt.n0[0], 0);
         mmt_apply_identity(vi, v);
         mmt_vec_allreduce(vi);
         mmt_vec_clear_padding(vi, mmt.n0[1], mmt.n0[0]);
         mmt_vec_check_equal_0n(vi, mmt.n0[1]);
-        mmt_vec_save(vi, "ZI%u-%u.0", mmt.n0[1], 0);
+        mmt_vec_save(vi, "ZI{}-{}.0", mmt.n0[1], 0);
         mmt_apply_identity(vii, vi);
         mmt_vec_allreduce(vii);
         mmt_vec_check_equal_0n(vii, MIN(mmt.n0[0], mmt.n0[1]));
-        mmt_vec_save(vi, "ZII%u-%u.0", mmt.n0[0], 0);
+        mmt_vec_save(vi, "ZII{}-{}.0", mmt.n0[0], 0);
     }
 
     /* Now check that mmt_apply_S and mmt_unapply_S do what they are
@@ -340,7 +342,7 @@ static void * tst_prog(parallelizing_info_ptr pi, cxx_param_list & pl,
         mmt_vec y(mmt, 0, 0, 1, /* shared ! */ 1, mmt.n[1]);
         mmt_vec my(mmt, 0, 0, 0, 0, mmt.n[0]);
         serialize(pi->m);
-        mmt_vec_set_random_through_file(y, "Y%u-%u.0", mmt.n0[1], rstate, 0);
+        mmt_vec_set_random_through_file(y, "Y{}-{}.0", mmt.n0[1], rstate, 0);
         /* recall that for all purposes, bwc operates with M*T^-1 and not M
          */
         mmt_vec_apply_T(mmt, y);
@@ -351,7 +353,7 @@ static void * tst_prog(parallelizing_info_ptr pi, cxx_param_list & pl,
          */
         mmt_vec_allreduce(my);
         mmt_vec_untwist(mmt, my);
-        mmt_vec_save(my, "MY%u-%u.0", mmt.n0[0], 0);
+        mmt_vec_save(my, "MY{}-{}.0", mmt.n0[0], 0);
     }
 
     /* vector times matrix product */
@@ -361,7 +363,7 @@ static void * tst_prog(parallelizing_info_ptr pi, cxx_param_list & pl,
         mmt_vec w(mmt, 0, 0, 0, /* shared ! */ 1, mmt.n[0]);
         mmt_vec wm(mmt, 0, 0, 1, 0, mmt.n[1]);
         serialize(pi->m);
-        mmt_vec_set_random_through_file(w, "W%u-%u.0", mmt.n0[0], rstate, 0);
+        mmt_vec_set_random_through_file(w, "W{}-{}.0", mmt.n0[0], rstate, 0);
         mmt_vec_twist(mmt, w);
         matmul_top_mul_cpu(mmt, 0, w.d, wm, w);
         /* It's not the same if we do allreduce+untwist, thus stay on the
@@ -376,56 +378,45 @@ static void * tst_prog(parallelizing_info_ptr pi, cxx_param_list & pl,
         mmt_vec_allreduce(wm);
         mmt_vec_untwist(mmt, wm);
         mmt_vec_unapply_T(mmt, wm);
-        mmt_vec_save(wm, "WM%u-%u.0", mmt.n0[1], 0);
+        mmt_vec_save(wm, "WM{}-{}.0", mmt.n0[1], 0);
     }
 
     /* indices_twist */
     {
-        uint32_t * xx;
         unsigned int const m = 2;
         unsigned int const nx = 2;
-        xx = (uint32_t *)malloc(m * nx * sizeof(uint32_t));
-        for (unsigned int k = 0; k < m * nx; k++) {
-            xx[k] = gmp_urandomm_ui(rstate, mmt.n0[0]);
-        }
-        pi_bcast(xx, m * nx * sizeof(uint32_t), BWC_PI_BYTE, 0, 0, pi->m);
+        std::vector<uint32_t> xx(m * nx, 0);
+        for (auto & x : xx)
+            x = gmp_urandomm_ui(rstate, mmt.n0[0]);
+        pi_bcast(xx.data(), xx.size() * sizeof(uint32_t), BWC_PI_BYTE, 0, 0, pi->m);
         for (int d = 0; d < 2; d++) {
-            char * tmp;
-            int rc;
+            std::string pat;
+
             mmt_vec x(mmt, 0, 0, d, /* shared ! */ 1, mmt.n[d]);
 
             /* prepare a first vector */
-            mmt_vec_set_x_indices(x, xx, m, nx);
-            rc = asprintf(&tmp, "Xa%s.%d", "%u-%u", d);
-            ASSERT_ALWAYS(rc >= 0);
-            mmt_vec_save(x, tmp, mmt.n[d], 0);
-            free(tmp);
+            mmt_vec_set_x_indices(x, xx, 0, m, nx);
+            pat = std::string("Xa{}-{}.").append(fmt::format("{}", d));
+            mmt_vec_save(x, pat, mmt.n[d], 0);
 
             /* and then a second vector, which should be equal */
-            indices_twist(mmt, xx, nx * m, d);
-            mmt_vec_set_x_indices(x, xx, m, nx);
+            indices_twist(mmt, xx, d);
+            mmt_vec_set_x_indices(x, xx, 0, m, nx);
             mmt_vec_untwist(mmt, x);
-            rc = asprintf(&tmp, "Xb%s.%d", "%u-%u", d);
-            ASSERT_ALWAYS(rc >= 0);
-            mmt_vec_save(x, tmp, mmt.n[d], 0);
-            free(tmp);
+            pat = std::string("Xb{}-{}.").append(fmt::format("{}", d));
+            mmt_vec_save(x, pat, mmt.n[d], 0);
 
             /* now for the twisted versions, too */
-            mmt_vec_set_x_indices(x, xx, m, nx);
+            mmt_vec_set_x_indices(x, xx, 0, m, nx);
             mmt_vec_twist(mmt, x);
-            rc = asprintf(&tmp, "XTa%s.%d", "%u-%u", d);
-            ASSERT_ALWAYS(rc >= 0);
-            mmt_vec_save(x, tmp, mmt.n[d], 0);
-            free(tmp);
+            pat = std::string("XTa{}-{}.").append(fmt::format("{}", d));
+            mmt_vec_save(x, pat, mmt.n[d], 0);
 
-            indices_twist(mmt, xx, nx * m, d);
-            mmt_vec_set_x_indices(x, xx, m, nx);
-            rc = asprintf(&tmp, "XTb%s.%d", "%u-%u", d);
-            ASSERT_ALWAYS(rc >= 0);
-            mmt_vec_save(x, tmp, mmt.n[d], 0);
-            free(tmp);
+            indices_twist(mmt, xx, d);
+            mmt_vec_set_x_indices(x, xx, 0, m, nx);
+            pat = std::string("XTb{}-{}.").append(fmt::format("{}", d));
+            mmt_vec_save(x, pat, mmt.n[d], 0);
         }
-        free(xx);
     }
 
     /* could also be tested:

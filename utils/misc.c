@@ -346,3 +346,16 @@ extern void bit_reverse(unsigned long * dst, const unsigned long * ptr, size_t n
     if (i == j)
         dst[i] = bitrev1(ptr[i]);
 }
+
+size_t file_bytes(FILE * f)
+{
+    if (!f)
+        return 0;
+    struct stat sbuf[1];
+    memset(sbuf, 0, sizeof(struct stat));
+    int const rc = fstat(fileno(f), sbuf);
+    if (rc != 0)
+        return 0;
+    return sbuf->st_size;
+}
+

@@ -499,6 +499,8 @@ linalg/bwc/bw-common.c
 linalg/bwc/bw-common.h
 linalg/bwc/bwc.pl
 linalg/bwc/bwc_config_h.in
+linalg/bwc/bwc_filenames.cpp
+linalg/bwc/bwc_filenames.hpp
 linalg/bwc/bwccheck.cpp
 linalg/bwc/check_mpi_problems.c
 linalg/bwc/cleanup.cpp
@@ -1268,6 +1270,7 @@ tests/linalg/bwc/test-parallelizing_info.cpp
 tests/linalg/bwc/test-plingen.sh
 tests/linalg/bwc/test-spmv.sh
 tests/linalg/bwc/test_bl_extraction.cpp
+tests/linalg/bwc/test_bwc_filenames.cpp
 tests/linalg/bwc/test_cpubinding.cpp
 tests/linalg/bwc/test_hello.cpp
 tests/linalg/bwc/test_lingen_example.sh

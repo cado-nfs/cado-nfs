@@ -1,10 +1,11 @@
 #ifndef MATMUL_TOP_HPP_
 #define MATMUL_TOP_HPP_
 
-#include <stddef.h>
-#include <stdint.h>
+#include <cstddef>
+#include <cstdint>
 
 #include <string>
+#include <vector>
 #include <array>
 #include <gmp.h>                 // for gmp_randstate_t
 
@@ -127,6 +128,6 @@ extern void mmt_vec_unapply_S(matmul_top_data & mmt, int midx, mmt_vec & y);
 extern void mmt_vec_apply_P(matmul_top_data & mmt, mmt_vec & y);
 extern void mmt_vec_unapply_P(matmul_top_data & mmt, mmt_vec & y);
 extern void mmt_apply_identity(mmt_vec & w, mmt_vec const & v);
-extern void indices_twist(matmul_top_data & mmt, uint32_t * xs, unsigned int n, int d);
+extern void indices_twist(matmul_top_data & mmt, std::vector<uint32_t> & xs, int d);
 
 #endif	/* MATMUL_TOP_HPP_ */

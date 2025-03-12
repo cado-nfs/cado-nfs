@@ -1,22 +1,26 @@
 #include "cado.h"   // IWYU pragma: keep
 
 #include <algorithm>
-#include <cinttypes>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+
+#include <vector>
+
+#include "fmt/base.h"
 
 #include "gmp_aux.h"
 #include "macros.h" // for FATAL_ERROR_CHECK
 #include "parallelizing_info.hpp"
 #include "xvectors.hpp"
+#include "utils_cxx.hpp"
 
-std::unique_ptr<uint32_t[]>
+std::vector<uint32_t>
 setup_x_random(unsigned int m, unsigned int nx, unsigned int nr,
                parallelizing_info_ptr pi, cxx_gmp_randstate & rstate,
                std::vector<unsigned int> const & forced)
 {
-    std::unique_ptr<uint32_t[]> xs(new uint32_t[nx * m]);
+    std::vector<uint32_t> xs(nx * m);
 
     if (forced.size() > m) {
         fmt::print(stderr,
@@ -62,7 +66,7 @@ setup_x_random(unsigned int m, unsigned int nx, unsigned int nr,
                  * it does not make a lot of sense to have duplicates,
                  * since that amounts to having nothing anyway...
                  */
-                std::sort(xs.get() + i * nx, xs.get() + (i + 1) * nx);
+                std::sort(xs.data() + i * nx, xs.data() + (i + 1) * nx);
                 for (unsigned int j = 1; j < nx; j++) {
                     if (xs[i * nx + j] == xs[i * nx + j - 1]) {
                         collision = true;
@@ -72,12 +76,12 @@ setup_x_random(unsigned int m, unsigned int nx, unsigned int nr,
             }
         }
     }
-    pi_bcast(xs.get(), nx * m * sizeof(uint32_t), BWC_PI_BYTE, 0, 0, pi->m);
+    pi_bcast(xs.data(), xs.size() * sizeof(uint32_t), BWC_PI_BYTE, 0, 0, pi->m);
 
     return xs;
 }
 
-std::unique_ptr<uint32_t[]> load_x(unsigned int m, unsigned int & nx,
+std::vector<uint32_t> load_x(unsigned int m, unsigned int & nx,
                                    parallelizing_info_ptr pi)
 {
     std::ifstream is;
@@ -93,7 +97,7 @@ std::unique_ptr<uint32_t[]> load_x(unsigned int m, unsigned int & nx,
 #ifdef __COVERITY__
     __coverity_mark_pointee_as_sanitized__(pnx, LOOP_BOUND);
 #endif
-    std::unique_ptr<uint32_t[]> xs(new unsigned int[nx * m]);
+    std::vector<uint32_t> xs(nx * m);
     if (pi->m->trank == 0 && pi->m->jrank == 0) {
         for (unsigned int i = 0, k = 0; i < m; i++) {
             for (unsigned int j = 0; j < nx; j++, k++) {
@@ -108,41 +112,37 @@ std::unique_ptr<uint32_t[]> load_x(unsigned int m, unsigned int & nx,
             }
         }
     }
-    pi_bcast(xs.get(), nx * m * sizeof(uint32_t), BWC_PI_BYTE, 0, 0, pi->m);
+    pi_bcast(xs.data(), xs.size() * sizeof(uint32_t), BWC_PI_BYTE, 0, 0, pi->m);
 
     return xs;
 }
 
-std::unique_ptr<uint32_t[]> set_x_fake(unsigned int m, unsigned int & nx,
+std::vector<uint32_t> set_x_fake(unsigned int m, unsigned int & nx,
                                        parallelizing_info_ptr pi)
 {
     /* Don't bother. */
     nx = 3;
-    std::unique_ptr<uint32_t[]> xs(new unsigned int[nx * m]);
+    std::vector<uint32_t> xs(nx * m);
     for (unsigned int i = 0; i < nx * m; i++)
         xs[i] = i;
     serialize(pi->m);
     return xs;
 }
 
-void save_x(uint32_t const * xs, unsigned int m, unsigned int nx,
+void save_x(std::vector<uint32_t> const & xs, unsigned int m, unsigned int nx,
             parallelizing_info_ptr pi)
 {
     /* Here, we expect that the data is already available to everybody, so
      * no synchronization is necessary.
      */
     if (pi->m->trank == 0 && pi->m->jrank == 0) {
+        ASSERT_ALWAYS(xs.size() == m * nx);
         // write the X vector
         std::ofstream fx("X");
         FATAL_ERROR_CHECK(!fx, "Cannot open X for writing");
         fx << nx << "\n";
         for (unsigned int i = 0; i < m; i++) {
-            for (unsigned int k = 0; k < nx; k++) {
-                if (k)
-                    fx << " ";
-                fx << xs[i * nx + k];
-            }
-            fx << "\n";
+            fx << join(xs.data() + i * nx, xs.data() + (i + 1) * nx, " ") << "\n";
         }
     }
 }

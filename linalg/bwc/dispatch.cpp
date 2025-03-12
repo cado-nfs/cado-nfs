@@ -171,7 +171,7 @@ static void * dispatch_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void
         matmul_top_mul(mmt, ymy.vectors(), nullptr);
         mmt_vec_untwist(mmt, y);
 
-        mmt_vec_save(y, "Hx%u-%u", unpadded, 0);
+        mmt_vec_save(y, "Hx{}-{}", unpadded, 0);
 
         // compare if files are equal.
         if (pi->m->jrank == 0 && pi->m->trank == 0) {
@@ -228,7 +228,7 @@ static void * dispatch_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void
             mmt_full_vec_set(my, myy[0]);
         }
         mmt_vec_untwist(mmt, my);
-        mmt_vec_save(my, "Hy%u-%u", unpadded, 0);
+        mmt_vec_save(my, "Hy{}-{}", unpadded, 0);
 
         mmt_full_vec_set_dummy1(y, unpadded);
 
