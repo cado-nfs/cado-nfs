@@ -1060,7 +1060,8 @@ read_relation_renumbered (FILE *fp, relation  *rel, relation_data * data)
 
   /* Add missing primes - Not they will be added out-of-order */
   std::vector<unsigned int> lpb;
-  for(int side = 0 ; side < (int) renumber_table->get_nb_polys() ; side++)
+  lpb.reserve(renumber_table->get_nb_polys());
+  for(int side = 0 ; side < renumber_table->get_nb_polys() ; side++)
       lpb.push_back(renumber_table->get_lpb(side));
   fix_relation(rel, cpoly, lpb.data());
 

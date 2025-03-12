@@ -834,6 +834,16 @@ cado_define_test(SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/test-matcache.sh
     bwc_matmul_gf2
 )
 
+# This test is not very important. And honestly. since we don't use its
+# output, it way very well be total garbage. The whole point is that
+# bench_polmatmul contains important test code that should perhaps
+# persist, and therefore we want this code to at least keep basic
+# functionality.
+cado_define_test(PROGRAM
+    ${CADO_NFS_BINARY_DIR}/linalg/bwc/bench_polmatmul
+    5000 4 4
+    TARGET_DEPENDENCIES bench_polmatmul TIMEOUT 40)
+
 #########################################################################
 
 cado_define_test(TEST_NAME bwc_staged_krylov
@@ -977,5 +987,9 @@ cado_divert_test(test_linalg_example p1_30105
     lingen_verify_checkpoints_p1
 )
 endif()
+
+cado_define_test(test_bwc_filenames.cpp
+    ${PROJECT_SOURCE_DIR}/linalg/bwc/bwc_filenames.cpp
+    LIBRARIES utils)
 
 add_subdirectory (flint-fft)

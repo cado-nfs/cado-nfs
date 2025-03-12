@@ -19,25 +19,25 @@ namespace bblas_bitmat_details {
     bool bitmat_ops<T>::is_lowertriangular(bitmat<T> const & A) {
         T mask = ~(T) 1;
         for(unsigned int k = 0 ; k < bitmat<T>::width ; k++, mask<<=1) {
-            if (A[k] & mask) return 0;
+            if (A[k] & mask) return false;
         }
-        return 1;
+        return true;
     }
     template<typename T>
     bool bitmat_ops<T>::is_uppertriangular(bitmat<T> const & A) {
         T mask = 1;
         for(unsigned int k = 0 ; k < bitmat<T>::width ; k++, mask<<=1) {
-            if (A[k]&(mask-1)) return 0;
+            if (A[k]&(mask-1)) return false;
         }
-        return 1;
+        return true;
     }
     template<typename T>
     bool bitmat_ops<T>::triangular_is_unit(bitmat<T> const & A) {
         T mask = 1;
         for(unsigned int k = 0 ; k < bitmat<T>::width ; k++, mask<<=1) {
-            if (!(A[k]&mask)) return 0;
+            if (!(A[k]&mask)) return false;
         }
-        return 1;
+        return true;
     }
     template<typename T>
     void bitmat_ops<T>::extract_uppertriangular(bitmat<T> & a, bitmat<T> const & b) {

@@ -82,7 +82,9 @@ int main(int argc, const char **argv)
                 "  where N is the number of limbs of operands\n");
         exit(1);
     }
-    int N = atoi(argv[1]);
+    char * p; 
+    int N = (int) strtol(argv[1], &p, 0);
+    ASSERT_ALWAYS(*p == '\0');
 
     if (N <= 0)
         return EXIT_FAILURE;

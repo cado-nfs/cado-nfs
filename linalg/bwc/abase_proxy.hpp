@@ -12,12 +12,11 @@
 #include "parallelizing_info.hpp"
 
 struct abase_proxy {
-
     parallelizing_info_ptr pi;
     std::unique_ptr<arith_generic> A;
     pi_datatype_ptr A_pi;
 
-    abase_proxy(parallelizing_info_ptr pi, int width)
+    abase_proxy(parallelizing_info_ptr pi, unsigned int width)
         : pi(pi)
         , A(arith_generic::instance(bw->p, width))
         , A_pi(pi_alloc_arith_datatype(pi, A.get()))
@@ -29,7 +28,8 @@ struct abase_proxy {
     abase_proxy & operator=(abase_proxy &&) = default;
     static abase_proxy most_natural(parallelizing_info_ptr pi)
     {
-        return {pi, mpz_cmp_ui(bw->p, 2) == 0 ? 64 : 1};
+        const unsigned int width = mpz_cmp_ui(bw->p, 2) == 0 ? 64 : 1;
+        return { pi, width };
     }
     std::map<arith_generic *, std::shared_ptr<arith_cross_generic>> tdict;
     arith_cross_generic * templates(arith_generic * A1)

@@ -5,9 +5,11 @@
 // IWYU pragma: friend ".*/bblas.*"
 // IWYU pragma: friend "bpack.hpp"
 
-#include <stddef.h>          // for size_t
-#include <stdint.h>          // for uint64_t
+#include <cstddef>          // for size_t
+#include <cstdint>          // for uint64_t
+
 #include "macros.h"          // for ATTRIBUTE
+
 #include "bblas_bitmat.hpp"
 
 /* The attribute seems to be really necessary, and actually abided by by

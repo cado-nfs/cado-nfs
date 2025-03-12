@@ -4,7 +4,7 @@
 
 #include "las-config.h"
 #include "macros.h"
-#include "verbose.h"    // verbose_output_print
+#include "verbose.h" // verbose_output_print
 
 int las_production_mode = 0;
 
@@ -62,6 +62,7 @@ void las_display_config_flags()
 #ifdef SKIP_GCD3
     verbose_output_print(0, 1, " SKIP_GCD3");
 #endif
-    verbose_output_print(0, 1, " LOGNORM_GUARD_BITS=%1.2f", (double) LOGNORM_GUARD_BITS);
+    verbose_output_print(0, 1, " LOGNORM_GUARD_BITS=%1.2f",
+                         (double)LOGNORM_GUARD_BITS);
     verbose_output_print(0, 1, "\n");
-}				/* }}} */
+} /* }}} */

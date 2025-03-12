@@ -11,14 +11,13 @@
  */
 
 #include "cado.h" // IWYU pragma: keep
-#include "auxiliary.h"
-#include "area.h"
-#include "murphyE.h"
-#include <ctype.h>
+
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
+
 #include <gmp.h>
-#include "cado_poly.h"
+
 #include "gfpkdlpolyselect.h"
 #include "gfpkdlpolyselect_impl.h"
 #include "macros.h"
@@ -83,7 +82,9 @@ int main(int argc, char const * argv[])
             argc -= 2;
         }
         else if (argc >= 3 && strcmp (argv[1], "-k") == 0) {
-            k = atoi (argv[2]);
+            char * p;
+            k = (int) strtol(argv[2], &p, 0);
+            ASSERT_ALWAYS(*p == '\0');
             argv += 2;
             argc -= 2;
         }

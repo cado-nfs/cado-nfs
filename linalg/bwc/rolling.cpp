@@ -32,7 +32,7 @@ void keep_rolling_checkpoints(std::string const & stem, unsigned int v)
     for(struct dirent * de; (de = readdir(d)) != NULL ; ) {
         unsigned int k;
         std::istringstream is(de->d_name);
-        istream_matcher<char> m(is);
+        istream_matcher m(is);
         if (!(m >> stem >> "." >> k))
             continue;
         if (v && k > v)

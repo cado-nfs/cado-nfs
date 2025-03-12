@@ -514,6 +514,7 @@ bench_proba_time_pset (int method, ec_parameterization_t curve,
     int const nb_test_max = 10000;
     std::vector<cxx_mpz> N;
     double *disp = distribution_prime_number(len_p_min, len_p_max);
+    N.reserve(nb_test_max);
     for (int i = 0; i < nb_test_max; i++)
 	{
 	    /* generation of the integers N[i] (which will be

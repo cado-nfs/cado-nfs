@@ -1,31 +1,3 @@
-link_directories (${CADO_NFS_BINARY_DIR}/gf2x/.libs)
-link_directories (${CADO_NFS_BINARY_DIR}/gf2x/gf2x-fft/.libs)
-include_directories(${CADO_NFS_SOURCE_DIR}/gf2x/fft)
-include_directories(${CADO_NFS_SOURCE_DIR}/gf2x/fft/mpfq)
-
-if(NOT HAVE_GF2X)
-link_directories (${CADO_NFS_BINARY_DIR}/gf2x/fft/.libs)
-link_directories (${CADO_NFS_BINARY_DIR}/gf2x/.libs)
-include_directories(${CADO_NFS_BINARY_DIR}/gf2x/fft)
-include_directories(${CADO_NFS_SOURCE_DIR}/gf2x/fft)
-include_directories(${CADO_NFS_SOURCE_DIR}/gf2x/fft/mpfq)
-else()
-    link_directories(${GF2X_LIBDIR})
-    include_directories(${GF2X_INCDIR})
-endif()
-
-
-
-add_executable(bench_polmatmul EXCLUDE_FROM_ALL bench_polmatmul.cpp)
-set_property(SOURCE bench_polmatmul.cpp
-    APPEND PROPERTY COMPILE_DEFINITIONS CANTOR_BASE_FIELD_SIZE=128)
-mark_targets_as_openmp(bench_polmatmul)
-target_link_libraries(bench_polmatmul utils gf2x)
-
-if(NOT HAVE_GF2X)
-add_dependencies(bench_polmatmul gf2x-build)
-endif()
-
 add_executable(bcast-file EXCLUDE_FROM_ALL bcast-file.c)
 mark_targets_as_mpi(bcast-file)
 

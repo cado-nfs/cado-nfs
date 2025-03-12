@@ -7,7 +7,9 @@
 #include <cstdlib>
 #include <cerrno>
 
+#include <algorithm>
 #include <memory>
+#include <vector>
 
 #include <unistd.h>               // for access, unlink, ssize_t, R_OK
 #include <sys/stat.h>             // for stat, mkdir
@@ -17,22 +19,21 @@
 
 #include "async.hpp"              // for timing_next_timer, timing_data (ptr...
 #include "balancing_workhorse.hpp"
-#include "intersections.h"
 #include "bwc_config.h" // IWYU pragma: keep
-#include "macros.h"     // ASSERT_ALWAYS // IWYU pragma: keep
+#include "intersections.h"
+#include "macros.h"
 #include "matmul.hpp"
 #include "matmul_top.hpp"
-#include "mf_bal.hpp"
-#include "misc.h"
-#include "params.h"
-#include "portability.h" // asprintf // IWYU pragma: keep
-#include "random_matrix.hpp"
+#include "matmul_top_comm.hpp"
 #include "matrix_u32.hpp"       // for matrix_u32
+#include "mf_bal.hpp"
+#include "parallelizing_info.hpp"
+#include "params.h"
+#include "random_matrix.hpp"
 #include "select_mpi.h"
 #include "timing.h"     // wct_seconds
+#include "utils_cxx.hpp"
 #include "verbose.h"    // CADO_VERBOSE_PRINT_BWC_CACHE_BUILD
-#include "matmul_top_comm.hpp"
-#include "utils_cxx.hpp"        // for unique_ptr<FILE, delete_FILE>
 
 ///////////////////////////////////////////////////////////////////
 /* Start with stuff that does not depend on abase at all -- this
@@ -629,8 +630,9 @@ static void get_local_permutations_ranges(matmul_top_data & mmt, int d, unsigned
     jj[1] = e * (pos[d]+1)  * mmt.pi->wr[!d]->totalsize;
 }
 
-void indices_twist(matmul_top_data & mmt, uint32_t * xs, unsigned int n, int d)
+void indices_twist(matmul_top_data & mmt, std::vector<uint32_t> & xs, int d)
 {
+    const unsigned int n = xs.size();
     int const midx = d == 0 ? 0 : (mmt.matrices.size() - 1);
     matmul_top_matrix  const& Mloc = mmt.matrices[midx];
     /* d == 1: twist(v) = v*Sc^-1
@@ -661,7 +663,7 @@ void indices_twist(matmul_top_data & mmt, uint32_t * xs, unsigned int n, int d)
             else
                 xs[k] = 0;
         }
-        pi_allreduce(nullptr, xs, n * sizeof(uint32_t), BWC_PI_BYTE, BWC_PI_BXOR, mmt.pi->m);
+        pi_allreduce(nullptr, xs.data(), xs.size() * sizeof(uint32_t), BWC_PI_BYTE, BWC_PI_BXOR, mmt.pi->m);
     } else if (Mloc.has_perm(!d) && (Mloc.bal.flags & FLAG_REPLICATE)) {
         ASSERT_ALWAYS(Mloc.n[0] == Mloc.n[1]);
         /* implicit S -- first we get the bits about the S in the other
@@ -702,7 +704,7 @@ void indices_twist(matmul_top_data & mmt, uint32_t * xs, unsigned int n, int d)
                 xs[k] = 0;
             }
         }
-        pi_allreduce(nullptr, xs, n * sizeof(uint32_t), BWC_PI_BYTE, BWC_PI_BXOR, mmt.pi->m);
+        pi_allreduce(nullptr, xs.data(), xs.size() * sizeof(uint32_t), BWC_PI_BYTE, BWC_PI_BXOR, mmt.pi->m);
     }
 }
 /* }}} */
@@ -1139,7 +1141,7 @@ matmul_top_data::matmul_top_data(
         }
         if (static_random_matrix) {
             ASSERT_ALWAYS(i == 0);
-            Mloc.mname = strdup(static_random_matrix);
+            Mloc.mname = std::string(static_random_matrix);
         }
         if (Mloc.bname.empty()) {
             /* returns NULL is mname is NULL */
@@ -1261,8 +1263,7 @@ static int export_cache_list_if_requested(matmul_top_matrix & Mloc, parallelizin
                 info.get(),  int(pi->m->ncores * (len+1)), MPI_BYTE,
                 pi->m->pals);
         if (pi->m->jrank == 0) {
-            std::unique_ptr<FILE, delete_FILE> const f(fopen(cachelist, "wb"));
-            DIE_ERRNO_DIAG(!f, "fopen(%s)", cachelist);
+            auto f = fopen_helper(cachelist, "wb");
             for(unsigned int j = 0 ; j < pi->m->njobs ; j++) {
                 unsigned int const j0 = j * pi->m->ncores;
                 fprintf(f.get(), "get-cache ");

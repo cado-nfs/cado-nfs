@@ -11,6 +11,7 @@
 #include <sstream>
 #include <ostream>
 #include <istream>
+#include <utility>
 
 #include "macros.h"
 #include "json.hpp"

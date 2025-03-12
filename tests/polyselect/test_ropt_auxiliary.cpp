@@ -1,7 +1,9 @@
-#include "cado.h"
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include "cado.h" // IWYU pragma: keep
+
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+
 #include <gmp.h>
 #include "mpz_poly.h"
 #include "cxx_mpz.hpp"
@@ -26,7 +28,7 @@ check_num (double x, double y, double emax)
 }
 
 static void
-test_L2_lognorm (void)
+test_L2_lognorm ()
 {
   mpz_poly p;
   double n;
@@ -190,7 +192,7 @@ test_L2_skewness (int t)
 
 // TODO: add test based on experiments done with rsa896 polynomials
 static void
-test_size_optimization (void)
+test_size_optimization ()
 {
   mpz_poly f, g, f_opt, g_opt;
   double n;

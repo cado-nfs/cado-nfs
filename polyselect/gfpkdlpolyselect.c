@@ -739,7 +739,7 @@ bool get_g_CONJ(mpz_poly g[], mpz_poly phi, ppf_t params_g, int f_id,
 int gfpkdlpolyselect(int n, mpz_srcptr p, mpz_srcptr ell MAYBE_UNUSED,
                      int const mnfs, char const * out_filename)
 {
-    int return_code = 0;
+    int done = 0;
     int deg_f = 2 * n, deg_g = 2 * n;
     // take the largest possibility as default init for deg_f and deg_g.
     mpz_poly f;
@@ -780,7 +780,7 @@ int gfpkdlpolyselect(int n, mpz_srcptr p, mpz_srcptr ell MAYBE_UNUSED,
     }
     mpz_poly_init(phi, n);
 
-    for(int f_id = 0 ; f_id < ff->size ; f_id++) {
+    for(int f_id = 0 ; f_id < ff->size && !done ; f_id++) {
         // 1. find a good f in table. If no f is found, return failed and
         // exit 0. tab_roots_Py will be mpz_init() inside the get_f_CONJ
         // function.
@@ -823,8 +823,7 @@ int gfpkdlpolyselect(int n, mpz_srcptr p, mpz_srcptr ell MAYBE_UNUSED,
             }
 
             fclose(outputpoly);
-            return_code = 1;
-            break;
+            done = 1;
         }
         for (int k = 0; k < nb_roots_Py; k++)
             mpz_clear(tab_roots_Py[k]);
@@ -837,7 +836,7 @@ int gfpkdlpolyselect(int n, mpz_srcptr p, mpz_srcptr ell MAYBE_UNUSED,
     }
     free(g);
 
-    return return_code;
+    return done;
 }
 
 // print functions

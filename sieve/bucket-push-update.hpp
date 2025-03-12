@@ -6,12 +6,12 @@
 #endif
 
 #include "bucket.hpp"
-#include "las-where-am-i.hpp"       // WHERE_AM_I_UPDATE
+#include "las-where-am-i.hpp" // WHERE_AM_I_UPDATE
 #include "macros.h"
 
-template<int LEVEL, typename HINT>
-inline void
-bucket_array_t<LEVEL, HINT>::push_update(const int i, const update_t& update)
+template <int LEVEL, typename HINT>
+inline void bucket_array_t<LEVEL, HINT>::push_update(int const i,
+                                                     update_t const & update)
 {
 #ifdef SAFE_BUCKET_ARRAYS
     if (bucket_write[i] >= bucket_start[i + 1]) {
@@ -23,9 +23,8 @@ bucket_array_t<LEVEL, HINT>::push_update(const int i, const update_t& update)
     *bucket_write[i]++ = update;
 }
 
-template<int LEVEL, typename HINT>
-inline void
-bucket_single<LEVEL, HINT>::push_update(const update_t& update)
+template <int LEVEL, typename HINT>
+inline void bucket_single<LEVEL, HINT>::push_update(update_t const & update)
 {
 #ifdef SAFE_BUCKETS_SINGLE
     if (start + _size <= write) {
@@ -37,8 +36,8 @@ bucket_single<LEVEL, HINT>::push_update(const update_t& update)
     *(write++) = update;
 }
 
-template<int LEVEL, typename HINT>
-inline const typename bucket_single<LEVEL, HINT>::update_t&
+template <int LEVEL, typename HINT>
+inline typename bucket_single<LEVEL, HINT>::update_t const &
 bucket_single<LEVEL, HINT>::get_next_update()
 {
 #ifdef SAFE_BUCKETS_SINGLE
@@ -47,23 +46,21 @@ bucket_single<LEVEL, HINT>::get_next_update()
     return *read++;
 }
 
-template<int LEVEL, typename HINT>
-inline void
-bucket_array_t<LEVEL, HINT>::push_update(
-       const uint64_t offset, const fbprime_t p,
-       const slice_offset_t slice_offset, const slice_index_t slice_index,
-      where_am_I& w MAYBE_UNUSED)
-  {
-      int logB = LOG_BUCKET_REGIONS[LEVEL];
-      const uint64_t bucket_number = offset >> logB;
-      ASSERT_EXPENSIVE(bucket_number < n_bucket);
-      update_t update(offset & ((UINT64_C(1) << logB) - 1), p, slice_offset, slice_index);
-      WHERE_AM_I_UPDATE(w, i, slice_index);
+template <int LEVEL, typename HINT>
+inline void bucket_array_t<LEVEL, HINT>::push_update(
+    uint64_t const offset, fbprime_t const p, slice_offset_t const slice_offset,
+    slice_index_t const slice_index, where_am_I & w MAYBE_UNUSED)
+{
+    int logB = LOG_BUCKET_REGIONS[LEVEL];
+    uint64_t const bucket_number = offset >> logB;
+    ASSERT_EXPENSIVE(bucket_number < n_bucket);
+    update_t update(offset & ((UINT64_C(1) << logB) - 1), p, slice_offset,
+                    slice_index);
+    WHERE_AM_I_UPDATE(w, i, slice_index);
 #if defined(TRACE_K)
-      log_this_update(update, offset, bucket_number, w);
+    log_this_update(update, offset, bucket_number, w);
 #endif
-      push_update(bucket_number, update);
-  }
+    push_update(bucket_number, update);
+}
 
-
-#endif	/* BUCKET_PUSH_UPDATE_HPP_ */
+#endif /* BUCKET_PUSH_UPDATE_HPP_ */
