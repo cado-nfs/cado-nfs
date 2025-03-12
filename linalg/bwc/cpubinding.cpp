@@ -125,7 +125,7 @@ class thread_split {
     bool operator==(thread_split const& o) const {
         return t[0] == o.t[0] && t[1] == o.t[1];
     }
-    inline bool operator!=(thread_split const& o) const {
+    bool operator!=(thread_split const& o) const {
         return (!operator==(o));
     }
 

@@ -1,9 +1,14 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+
+#include <cstring>
+
 #include <string>
 #include <vector>
 #include <iostream>
 #include <fstream>
 #include <memory>
+#include <stdexcept>
+
 #include "matrix_file.hpp"
 #include "sha1.h"
 #include "params.h"
@@ -13,12 +18,12 @@ static std::ostream * bind(cxx_param_list & pl, const char * option_name, std::s
     const char * filename = param_list_lookup_string(pl, option_name);
 
     if (!filename)
-        return NULL;
+        return nullptr;
 
     if (strcmp(filename, "-") == 0)
         return &std::cout;
 
-    auto p = new std::ofstream(filename, std::ios::out | std::ios::binary);
+    auto * p = new std::ofstream(filename, std::ios::out | std::ios::binary);
     if (!*p) throw std::runtime_error(std::string(filename) + ": cannot open");
     b.reset(p);
 
@@ -39,7 +44,7 @@ int main(int argc, char const * argv[])
     for( ; argc ; ) {
         if (param_list_update_cmdline(pl, &argc, &argv)) continue;
         if (argv[0][0] != '-' && wild.size() < 3) {
-            wild.push_back(argv[0]);
+            wild.emplace_back(argv[0]);
             argv++, argc--;
             continue;
         }

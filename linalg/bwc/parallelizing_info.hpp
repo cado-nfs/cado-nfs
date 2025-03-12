@@ -14,7 +14,6 @@
 #include <mutex>
 #endif
 
-#include <sys/types.h>        // for ssize_t
 #include <sys/time.h>         // for struct timeval
 
 #include "barrier.h"          // for barrier_t
@@ -285,12 +284,12 @@ extern void pi_hello(parallelizing_info_ptr pi);
 /* I/O functions */
 extern int pi_file_open(pi_file_handle_ptr f, parallelizing_info_ptr pi, int inner, const char * name, const char * mode);
 extern int pi_file_close(pi_file_handle_ptr f);
-/* totalsize is the size which should be on disk. It may be shorter than
+/* sizeondisk is the size which should be on disk. It may be shorter than
  * the sum of the individual sizes, in case of padding */
-extern ssize_t pi_file_write(pi_file_handle_ptr f, void * buf, size_t size, size_t totalsize);
-extern ssize_t pi_file_read(pi_file_handle_ptr f, void * buf, size_t size, size_t totalsize);
-extern ssize_t pi_file_write_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t totalsize, size_t chunksize, size_t spos, size_t epos);
-extern ssize_t pi_file_read_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t totalsize, size_t chunksize, size_t spos, size_t epos);
+extern size_t pi_file_write(pi_file_handle_ptr f, void * buf, size_t size, size_t sizeondisk);
+extern size_t pi_file_read(pi_file_handle_ptr f, void * buf, size_t size, size_t sizeondisk);
+extern size_t pi_file_write_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t sizeondisk, size_t chunksize, size_t spos, size_t epos);
+extern size_t pi_file_read_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t sizeondisk, size_t chunksize, size_t spos, size_t epos);
 
 /* the parallelizing_info layer has some collective operations which
  * deliberately have prototypes simlar or identical to their mpi

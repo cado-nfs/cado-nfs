@@ -37,7 +37,7 @@
 #include <dirent.h>
 
 #include <gmp.h>                          // for mpz_srcptr, gmp_vfprintf
-#include "fmt/core.h"
+#include "fmt/base.h"
 
 #include "bucket.hpp"                     // for bucket_slice_alloc_defaults
 #include "cado-sighandlers.h"
@@ -1647,6 +1647,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
          * mechanism, and the descent tree thing is altogether not obvious
          */
         const int nsubjobs = dlp_descent ? 1 : las.number_of_subjobs_total();
+        subjobs.reserve(nsubjobs);
         for(int subjob = 0 ; subjob < nsubjobs ; ++subjob) {
             /* when references are passed through variadic template arguments
              * as for the std::thread ctor, we have automatic decaying unless

@@ -26,7 +26,7 @@
 #include <pthread.h>            // for pthread_mutex_lock, pthread_mutex_unlock
 
 #include <gmp.h>
-#include "fmt/core.h"
+#include "fmt/base.h"
 
 #include "arith-cross.hpp"
 #include "arith-generic.hpp"
@@ -132,7 +132,7 @@ struct bench_args {// {{{
 
         A.reset(arith_generic::instance(prime, nbys));
 
-        fmt::print(stderr, "Using implementation \"%s\"\n", impl);
+        fmt::print(stderr, "Using implementation \"{}\"\n", impl);
         transpose = param_list_parse_switch(pl, "--transpose");
         rebuild   = param_list_parse_switch(pl, "--rebuild");
 
@@ -213,7 +213,7 @@ void bench_args::display_per_thread_info() const// {{{
                 P.mm->dim[1],
                 P.mm->ncoeffs);
     }
-    fmt::print (stderr, "total %" PRIu64 " coeffs\n", ncoeffs_total);
+    fmt::print (stderr, "total {} coeffs\n", ncoeffs_total);
 }// }}}
 
 void bench_args::do_simple_matmul_if_requested()// {{{
@@ -245,7 +245,7 @@ void bench_args::do_simple_matmul_if_requested()// {{{
             n * sizeof(uint64_t), srcvecname);
     size_t const nread = fread(srcvec, sizeof(uint64_t), n, f.get());
     if (nread != size_t(n)) {
-        fmt::print(stderr, "short read (%d < %d)\n", nread, n);
+        fmt::print(stderr, "short read ({} < {})\n", nread, n);
         exit(1);
     }
 
@@ -512,7 +512,7 @@ int main(int argc, char const * argv[])
             argv++,argc--;
             continue;
         }
-        fmt::print (stderr, "Unknown option: %s\n", argv[0]);
+        fmt::print (stderr, "Unknown option: {}\n", argv[0]);
         usage();
     }
 
@@ -548,7 +548,7 @@ int main(int argc, char const * argv[])
         ba.fill_all_vectors_random(rstate);
 
         ba.do_for_all_threads(check_func);
-        fmt::print(stderr, "Check %d ok\n", t);
+        fmt::print(stderr, "Check {} ok\n", t);
     }
     if (ba.nchecks)
         fmt::print("All {} checks passed\n", ba.nchecks);
@@ -560,7 +560,7 @@ int main(int argc, char const * argv[])
     
 
     ba.do_timing_run();
-    // fmt::print("Scanned %lu coeffs in total\n", n * ncoeffs_total);
+    // fmt::print("Scanned {} coeffs in total\n", n * ncoeffs_total);
 
     ba.do_for_all_threads(clear_func);
 

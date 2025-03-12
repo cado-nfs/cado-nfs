@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <sstream>
 
-#include "fmt/core.h"
+#include "fmt/base.h"
 
 #include "cado_expression_parser.hpp"
 #include "macros.h"

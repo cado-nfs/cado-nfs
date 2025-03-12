@@ -1,10 +1,16 @@
 #include "cado.h" // IWYU pragma: keep
+#include <cstdint>
+
+#include <vector>
+
 #include "arith-generic.hpp"
-#include "parallelizing_info.hpp"  // for parallelizing_info_s, pi_comm, seria...
 #include "matmul_top_vec.hpp"
+#include "parallelizing_info.hpp" // for parallelizing_info_s, pi_comm, seria...
 #include "xdotprod.hpp"
 
-void x_dotprod(arith_generic::elt * dst, uint32_t const * xv, unsigned int m, unsigned int nx, mmt_vec const & v, int sign)
+void x_dotprod(arith_generic::elt * dst, std::vector<uint32_t> const & xv,
+               unsigned int j0, unsigned int j1, unsigned int nx,
+               mmt_vec const & v, int sign)
 {
     /* We're reading from the shared right vector data -- this area is
      * written to by the other threads in the column. Some of them might
@@ -17,15 +23,15 @@ void x_dotprod(arith_generic::elt * dst, uint32_t const * xv, unsigned int m, un
         // ASSERT_ALWAYS(0);
     }
 
-    for(unsigned int j = 0 ; j < m ; j++) {
-        arith_generic::elt & where = v.abase->vec_item(dst, j);
-        for(unsigned int t = 0 ; t < nx ; t++) {
-            uint32_t const i = xv[j*nx+t];
+    for (unsigned int j = j0; j < j1; j++) {
+        arith_generic::elt & where = v.abase->vec_item(dst, j - j0);
+        for (unsigned int t = 0; t < nx; t++) {
+            uint32_t const i = xv[j * nx + t];
             unsigned int const vi0 = v.i0 + mmt_my_own_offset_in_items(v);
             unsigned int const vi1 = vi0 + mmt_my_own_size_in_items(v);
             if (i < vi0 || i >= vi1)
                 continue;
-            arith_generic::elt  const& coeff = v.abase->vec_item(v.v, i - v.i0);
+            arith_generic::elt const & coeff = v.abase->vec_item(v.v, i - v.i0);
             if (sign > 0) {
                 v.abase->add_and_reduce(where, coeff);
             } else {
@@ -34,4 +40,3 @@ void x_dotprod(arith_generic::elt * dst, uint32_t const * xv, unsigned int m, un
         }
     }
 }
-

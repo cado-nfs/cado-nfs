@@ -5,7 +5,7 @@
 #include <iostream>
 #include <memory>
 #include <type_traits>
-#include "fmt/core.h"
+#include "fmt/base.h"
 #include "fmt/format.h"
 #include "macros.h"
 #include "misc.h"

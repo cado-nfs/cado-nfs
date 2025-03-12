@@ -15,8 +15,8 @@
 #include <gmp.h>        // mpn_lshift
 #include "misc.h"       // bit_reverse
 #endif
-#include "fmt/core.h"
-#include "fmt/format.h" // IWYU pragma: keep
+#include "fmt/base.h"
+#include "fmt/format.h"
 #include "lingen_average_matsize.hpp"
 #include "lingen_bmstatus.hpp"
 #include "lingen_io_matpoly.hpp"
@@ -29,8 +29,6 @@
 
 /* This one is currently in lingen_io_matpoly.cpp, but that file will go
  * away eventually */
-
-extern unsigned int io_matpoly_block_size;
 
 constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
 constexpr const unsigned int splitwidth = matpoly::over_gf2 ? 64 : 1;
@@ -831,6 +829,7 @@ void lingen_F_from_PI::reorder_solutions()
     }
     {
         std::vector<sol_desc> sols2;
+        sols2.reserve(sol_score.size());
         for(auto const & s : sol_score) {
             sols2.push_back(sols[s[1]]);
         }

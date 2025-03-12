@@ -58,9 +58,6 @@ struct logline {
     std::vector<std::string> prefixes;
 };
 
-double logline_serialize();
-void logline_unserialize(double);
-
 static struct logline * current;
 
 static size_t logline_thresholds[10] = {

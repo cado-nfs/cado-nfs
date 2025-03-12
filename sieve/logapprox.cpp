@@ -10,7 +10,7 @@
 #include <utility>
 #include <vector>
 
-#include "fmt/core.h"
+#include "fmt/base.h"
 
 #include "logapprox.hpp"
 #include "macros.h"          // for ASSERT_ALWAYS, UNLIKELY

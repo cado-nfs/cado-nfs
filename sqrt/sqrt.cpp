@@ -37,7 +37,7 @@
 #include <sys/stat.h>
 
 #include <gmp.h>
-#include "fmt/core.h"
+#include "fmt/base.h"
 #include "fmt/format.h"
 
 #include "cado_poly.h"  // cado_poly
@@ -457,6 +457,7 @@ read_ab_pairs_from_depfile(std::string const & depname, M const & m, std::string
             nthreads = MAX_IO_THREADS;
         fmt::print(stderr, "{}: Doing I/O with {} threads\n", message, nthreads);
         std::vector<off_t> spos_tab;
+        spos_tab.reserve(nthreads);
         for(unsigned int i = 0 ; i < nthreads ; i++)
             spos_tab.push_back((endpos * i) / nthreads);
         spos_tab.push_back(endpos);

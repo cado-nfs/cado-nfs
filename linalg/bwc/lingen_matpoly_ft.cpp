@@ -12,22 +12,22 @@ template<typename fft_type> struct OP_CTX<matpoly, fft_type> : public OP_CTX_bas
     typedef fft_type FFT;
     template<typename... Args>
     OP_CTX(tree_stats & stats, Args&&... args) : OP_CTX_base<T>(args...), stats(stats) {}
-    inline int a_irank() const { return 0; }
-    inline int b_irank() const { return 0; }
-    inline int a_jrank() const { return 0; }
-    inline int b_jrank() const { return 0; }
-    inline int mesh_inner_size() const { return 1; }
+    int a_irank() const { return 0; }
+    int b_irank() const { return 0; }
+    int a_jrank() const { return 0; }
+    int b_jrank() const { return 0; }
+    int mesh_inner_size() const { return 1; }
     static const bool uses_mpi = false;
-    inline void mesh_checks() const { }
+    void mesh_checks() const { }
     void alloc_c_if_needed(size_t size) {
         if (c.m != a.m || c.n != a.n || c.capacity() != size)
             c = T(a.ab, a.m, b.n, size);
     }
-    inline matpoly const & a_local()const  { return a; }
-    inline matpoly const & b_local() const { return b; }
-    inline matpoly & c_local() { return c; }
-    inline void a_allgather(void *, int) const {}
-    inline void b_allgather(void *, int) const {}
+    matpoly const & a_local()const  { return a; }
+    matpoly const & b_local() const { return b; }
+    matpoly & c_local() { return c; }
+    void a_allgather(void *, int) const {}
+    void b_allgather(void *, int) const {}
     template<typename OP> void doit(OP & op, lingen_call_companion::mul_or_mp_times * M) {
         size_t ram = SIZE_MAX;
         if (M) {

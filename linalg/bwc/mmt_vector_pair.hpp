@@ -8,8 +8,8 @@
 
 class mmt_vector_pair : public std::vector<mmt_vec> {
 public:
-    mmt_vec & operator[](int i) { return ((std::vector<mmt_vec> &)*this)[i]; }
-    mmt_vec const & operator[](int i) const { return ((std::vector<mmt_vec> const &)*this)[i]; }
+    mmt_vec & operator[](unsigned int i) { return ((std::vector<mmt_vec> &)*this)[i]; }
+    mmt_vec const & operator[](unsigned int i) const { return ((std::vector<mmt_vec> const &)*this)[i]; }
 
     mmt_vector_pair(matmul_top_data &, int);
     mmt_vector_pair(mmt_vector_pair const &) = delete;

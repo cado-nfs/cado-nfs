@@ -18,7 +18,7 @@ full_echelon_6464_imm(mat64& mm, mat64& e, mat64 const& m)
     mask = 1;
     for (int j = 0; j < 64; j++, mask <<= 1) {
         int k = 0;
-        uint64_t z = UINT64_C(1);
+        uint64_t z = 1;
         uint64_t pr;
         for (k = 0; z; k++, z <<= 1) {
             pr = mm[k];

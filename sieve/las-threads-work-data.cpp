@@ -1,32 +1,35 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <algorithm>
-#include <string.h>        // for size_t, NULL, memset
+#include <cstring>
+
 #include <ostream>         // for operator<<, basic_ostream, ostringstream
 #include <string>          // for char_traits, basic_string, string
 #include <type_traits>     // for is_same
+#include <sstream>
+#include <utility>
 
-#include "las-threads-work-data.hpp"
-
-#include "macros.h"        // for ASSERT_ALWAYS, iceildiv
-
-#include "ecm/batch.hpp"       // for cofac_list
 #include "bucket.hpp"      // for bucket_array_t, emptyhint_t (ptr only)
+#include "ecm/batch.hpp"       // for cofac_list
+#include "las-config.h"
+#include "las-bkmult.hpp"
 #include "las-info.hpp"    // for las_info
 #include "las-memory.hpp"  // for las_memory_accessor
+#include "las-threads-work-data.hpp"
+#include "multityped_array.hpp"
+#include "macros.h"        // for ASSERT_ALWAYS, iceildiv
 #include "threadpool.hpp"  // for thread_pool
 #include "verbose.h"
+
 class nfs_aux; // IWYU pragma: keep
 
-nfs_work::thread_data::thread_data(thread_data && o)
+nfs_work::thread_data::thread_data(thread_data && o) noexcept
     : ws(o.ws),
-    sides(o.sides),
+    sides(std::move(o.sides)),
     SS(o.SS)
 {
-    for(auto & s: o.sides) {
-        s.bucket_region = NULL;
-    }
-    o.SS = NULL;
+    for(auto & s: o.sides)
+        s.bucket_region = nullptr;
+    o.SS = nullptr;
 }
 
 #if 0
@@ -35,11 +38,11 @@ nfs_work::thread_data::thread_data(thread_data const & o)
     : ws(o.ws)
 {
     for(unsigned int side = 0 ; side < sides.size() ; side++) {
-        ASSERT_ALWAYS(o.sides[side].bucket_region == NULL);
-        sides[side].bucket_region = NULL;
+        ASSERT_ALWAYS(o.sides[side].bucket_region == nullptr);
+        sides[side].bucket_region = nullptr;
     }
-    ASSERT_ALWAYS(o.SS == NULL);
-    SS = NULL;
+    ASSERT_ALWAYS(o.SS == nullptr);
+    SS = nullptr;
 #if 0
     /* We do not need MEMSET_MIN here. However we're making life easier
      * for the memory allocator if we allocate and free always the same
@@ -61,7 +64,7 @@ nfs_work::thread_data::thread_data(nfs_work & ws)
     sides(ws.sides.size())
 {
     for(unsigned int side = 0 ; side < sides.size() ; side++) {
-        sides[side].bucket_region = NULL;
+        sides[side].bucket_region = nullptr;
         if (ws.sides[side].no_fb()) continue;
         sides[side].bucket_region = ws.local_memory.alloc_bucket_region();
     }
@@ -74,10 +77,10 @@ nfs_work::thread_data::~thread_data()
     for(unsigned int side = 0 ; side < sides.size() ; side++) {
         if (ws.sides[side].no_fb()) continue;
         ws.local_memory.free_bucket_region(sides[side].bucket_region);
-        sides[side].bucket_region = NULL;
+        sides[side].bucket_region = nullptr;
     }
     ws.local_memory.free_bucket_region(SS);
-    SS = NULL;
+    SS = nullptr;
 }
 
 /* only used once a siever_config has been attached to the parent structure */
@@ -128,9 +131,9 @@ nfs_work::nfs_work(las_info & _las, int nr_workspaces)
 nfs_work_cofac::nfs_work_cofac(las_info & las, nfs_work const & ws) :
     las(las),
     sc(ws.conf),
-    doing(ws.Q.doing)
+    doing(ws.Q.doing),
+    strategies(las.get_strategies(sc))
 {
-    strategies = las.get_strategies(sc);
 }
 
 /* Prepare to work on sieving a special-q as described by _si.
@@ -147,8 +150,7 @@ void nfs_work::allocate_buckets(nfs_aux & aux, thread_pool & pool)
 
     bool const do_resieve = conf.sides[0].lim && (las.cpoly->nb_polys == 1 || conf.sides[1].lim);
 
-    for (unsigned int side = 0; side < sides.size(); side++) {
-        side_data & wss(sides[side]);
+    for (auto & wss : sides) {
         if (wss.no_fb()) continue;
         wss.group.allocate_buckets(
                 local_memory,
@@ -227,16 +229,16 @@ nfs_work::buckets_max_full()
 double nfs_work::check_buckets_max_full()
 {
     double mf0 = 0, mf;
-    mf = buckets_max_full<3, shorthint_t>(); if (mf > mf0) mf0 = mf;
-    mf = buckets_max_full<2, shorthint_t>(); if (mf > mf0) mf0 = mf;
-    mf = buckets_max_full<2, longhint_t>();  if (mf > mf0) mf0 = mf;
-    mf = buckets_max_full<1, shorthint_t>(); if (mf > mf0) mf0 = mf;
-    mf = buckets_max_full<1, longhint_t>();  if (mf > mf0) mf0 = mf;
-    mf = buckets_max_full<3, emptyhint_t>(); if (mf > mf0) mf0 = mf;
-    mf = buckets_max_full<2, emptyhint_t>(); if (mf > mf0) mf0 = mf;
-    mf = buckets_max_full<2, logphint_t>();  if (mf > mf0) mf0 = mf;
-    mf = buckets_max_full<1, emptyhint_t>(); if (mf > mf0) mf0 = mf;
-    mf = buckets_max_full<1, logphint_t>();  if (mf > mf0) mf0 = mf;
+    mf = buckets_max_full<3, shorthint_t>(); mf0 = std::max(mf0, mf);
+    mf = buckets_max_full<2, shorthint_t>(); mf0 = std::max(mf0, mf);
+    mf = buckets_max_full<2, longhint_t>();  mf0 = std::max(mf0, mf);
+    mf = buckets_max_full<1, shorthint_t>(); mf0 = std::max(mf0, mf);
+    mf = buckets_max_full<1, longhint_t>();  mf0 = std::max(mf0, mf);
+    mf = buckets_max_full<3, emptyhint_t>(); mf0 = std::max(mf0, mf);
+    mf = buckets_max_full<2, emptyhint_t>(); mf0 = std::max(mf0, mf);
+    mf = buckets_max_full<2, logphint_t>();  mf0 = std::max(mf0, mf);
+    mf = buckets_max_full<1, emptyhint_t>(); mf0 = std::max(mf0, mf);
+    mf = buckets_max_full<1, logphint_t>();  mf0 = std::max(mf0, mf);
     return mf0;
 }
 
@@ -295,8 +297,7 @@ void nfs_work::compute_toplevel_and_buckets()
         side_data  const& wss(sides[side]);
         if (wss.no_fb()) continue;
 
-        int const level = wss.fbs->get_toplevel();
-        if (level > toplevel) toplevel = level;
+        toplevel = std::max(toplevel, wss.fbs->get_toplevel());
     }
     ASSERT_ALWAYS(toplevel >= 1);
 
@@ -335,7 +336,7 @@ void nfs_work::prepare_for_new_q(las_info & las0) {
         wss.lognorms = lognorm_smart(conf, las.cpoly, side, Q, conf.logI, J);
 
         if (las.no_fb(side)) {
-            wss.fbs = NULL;
+            wss.fbs = nullptr;
             continue;
         }
 

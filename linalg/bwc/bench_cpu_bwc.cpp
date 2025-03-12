@@ -7,7 +7,6 @@
 #include <memory>
 
 #include <gmp.h>
-#include "fmt/core.h"            // for check_format_string
 
 #include "arith-generic.hpp"
 #include "bw-common.h"
@@ -21,8 +20,6 @@
 #include "runtime_numeric_cast.hpp"
 #include "select_mpi.h"
 #include "timing.h"
-
-using namespace fmt::literals;
 
 static void * bench_cpu_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {

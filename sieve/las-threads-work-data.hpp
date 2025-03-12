@@ -230,7 +230,7 @@ class nfs_work {
          * so that this is possible.
          */
         thread_data(thread_data const &) = delete;
-        thread_data(thread_data &&);
+        thread_data(thread_data &&) noexcept;
         ~thread_data();
         friend class nfs_work;
         private:

@@ -296,27 +296,14 @@ static inline std::vector<std::string> split(
     return tokens;
 }
 
-/* do we want these on iterables instead of vectors ? */
-template<typename ItemType>
-static inline std::string join(std::vector<ItemType> const & items,
+template<typename Iterable>
+static inline std::string join(Iterable first, Iterable last,
         const std::string& delimiter)
 {
     std::string ret;
-    for(auto const & s : items) {
-        if (!ret.empty()) ret += delimiter;
-        ret += fmt::format("{}", s);
-    }
-    return ret;
-}
-
-template<>
-inline std::string join<std::string>(std::vector<std::string> const & items,
-        const std::string& delimiter)
-{
-    std::string ret;
-    for(auto const & s : items) {
-        if (!ret.empty()) ret += delimiter;
-        ret += s;
+    for(Iterable x = first ; x != last ; ++x) {
+        if (x != first) ret += delimiter;
+        ret += fmt::format("{}", *x);
     }
     return ret;
 }
@@ -328,10 +315,17 @@ static inline std::string join(Iterable first, Iterable last,
 {
     std::string ret;
     for(Iterable x = first ; x != last ; ++x) {
-        if (!ret.empty()) ret += delimiter;
+        if (x != first) ret += delimiter;
         ret += lambda(*x);
     }
     return ret;
+}
+
+template<typename ItemType>
+static inline std::string join(std::vector<ItemType> const & items,
+        const std::string& delimiter)
+{
+    return join(items.begin(), items.end(), delimiter);
 }
 
 /* not sure it's really needed. after all, we might want to have a
@@ -388,5 +382,23 @@ void checked_realloc(T * & var, size_t N)
     }
 }
 
+static inline std::unique_ptr<FILE, delete_FILE> fopen_helper(std::string const & filename, const char * mode, bool accept_failure = false)
+{
+    std::unique_ptr<FILE, delete_FILE> f(fopen(filename.c_str(), mode));
+    DIE_ERRNO_DIAG(!f && !accept_failure, "fopen(%s)", filename.c_str());
+    return f;
+}
+
+struct decomposed_path : public std::vector<std::string> {
+    decomposed_path() : decomposed_path("/") {}
+    explicit decomposed_path(std::string const &);
+    explicit decomposed_path(const char * s) : decomposed_path(std::string(s)) {}
+    explicit operator std::string() const;
+    std::string dirname() const;
+    std::string basename() const { return back(); }
+    bool is_relative() const;
+    bool is_absolute() const { return !is_relative(); }
+    std::string extension() const;
+};
 
 #endif	/* UTILS_CXX_HPP_ */

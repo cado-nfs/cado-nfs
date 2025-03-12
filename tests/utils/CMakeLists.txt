@@ -95,6 +95,7 @@ add_test_fstream_maybe_compressed(HAVE_LZMA lzma)
 cado_divert_test(test_fstream_maybe_compressed none ARGUMENTS test)
 cado_define_test(test_min_max_heap.cpp LIBRARIES tests)
 cado_define_test(test_random_distributions.cpp LIBRARIES utils tests)
+cado_define_test(test_decomposed_path.cpp LIBRARIES utils tests)
 
 cado_define_test(
     SCRIPT
@@ -142,3 +143,4 @@ if(SAGE)
     )
     cado_divert_test(test_explain_relations_with_sagemath_c30 dl APPEND_ARGUMENTS -dl)
 endif()
+

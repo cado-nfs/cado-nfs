@@ -2,8 +2,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+
 #include "macros.h"
 #include "strategy.h"
+#include "fm.h"
+#include "tab_fm.h"
 
 strategy_t *strategy_create()
 {

@@ -1,9 +1,18 @@
-#include "cado.h"
-#include <math.h>
-#include "polyselect_stats.h"
-#include "timing.h"
+#include "cado.h" // IWYU pragma: keep
+
+#include <stddef.h>
+#include <stdio.h>
+#include <string.h>
+
+#include <gmp.h>
+
+#include "macros.h"
 #include "misc.h"
 #include "memusage.h"
+#include "polyselect_data_series.h"
+#include "polyselect_priority_queue.h"
+#include "polyselect_stats.h"
+#include "timing.h"
 
 void polyselect_stats_init(polyselect_stats_ptr stats, size_t keep)
 {

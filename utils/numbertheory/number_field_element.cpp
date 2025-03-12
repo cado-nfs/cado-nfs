@@ -1,8 +1,16 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
+#include <utility>
+
+#include <gmp.h>
+#include "fmt/base.h"
+
+#include "cxx_mpz.hpp"
 #include "numbertheory/number_field_element.hpp"
 #include "numbertheory/number_field.hpp"
+#include "numbertheory/fmt_helpers.hpp"
 #include "mpz_mat_accessors.h"
+#include "mpz_poly.h"
 
 number_field_element::number_field_element(class number_field const & K, cxx_mpz_poly const & a, cxx_mpz const & d)
     : K(K)
@@ -132,7 +140,7 @@ auto fmt::formatter<number_field_element>::format(number_field_element const & e
         mpq_mat_numden(mz, d, e.coefficients);
         fmt::format_to(ctx.out(), "{}", d);
         for(int i = 0 ; i < e.number_field().degree() ; i++)
-            fmt::format_to(ctx.out(), " {}", *(cxx_mpz *)mz(0,i));
+            fmt::format_to(ctx.out(), " {}", cxx_mpz(mz(0,i)));
     }
     return ctx.out();
 }

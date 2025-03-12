@@ -11,6 +11,7 @@
 #include <sstream>
 #include <ostream>
 #include <istream>
+#include <utility>
 
 #include "macros.h"
 #include "json.hpp"
@@ -148,7 +149,7 @@ public:
             }
         }
         tokens.push_back(STRING);
-        strings.push_back(s);
+        strings.push_back(std::move(s));
         return true;
     }
     bool tokenize_delimiter(std::istream& is, int & c)

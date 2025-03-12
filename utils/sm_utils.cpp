@@ -1,5 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
 
+#define xxxxWIP_SM
+
 #include <cstdint>
 #include <cstdio>  // FILE
 #include <cstdlib> // free, malloc, abort
@@ -7,7 +9,9 @@
 
 #include <vector>
 
-#include "fmt/core.h"
+#ifdef WIP_SM
+#include "fmt/base.h"
+#endif
 #include <gmp.h>
 
 #include "cxx_mpz.hpp"
@@ -17,8 +21,6 @@
 #include "mpz_poly.h" // mpz_poly
 #include "numbertheory.hpp"
 #include "sm_utils.hpp"
-
-#define xxxxWIP_SM
 
 /* u and dst may be equal */
 void sm_side_info::compute_piecewise(cxx_mpz_poly & dst,

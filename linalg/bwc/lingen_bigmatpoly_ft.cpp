@@ -95,19 +95,19 @@ template<typename fft_type> struct OP_CTX<bigmatpoly, fft_type> : public OP_CTX_
                 int rank;
                 MPI_Comm_rank(a.get_model().com[0], &rank);
                 if (rank == 0)
-                fprintf(stderr, "Transform size for %s with input operand sizes (%zu, %zu) is (%zu,%zu,%zu), which exceeds expected (%zu,%zu,%zu) (anticipated for operand sizes (%zu, %zu). Adjusting memory\n",
-                        op.op_name(),
-                        a.get_size(),
-                        b.get_size(),
-                        alloc_sizes[0],
-                        alloc_sizes[1],
-                        alloc_sizes[2],
-                        M->fft_alloc_sizes[0],
-                        M->fft_alloc_sizes[1],
-                        M->fft_alloc_sizes[2],
-                        M->asize,
-                        M->bsize
-                       );
+                    fprintf(stderr, "Transform size for %s with input operand sizes (%zu, %zu) is (%zu,%zu,%zu), which exceeds expected (%zu,%zu,%zu) (anticipated for operand sizes (%zu, %zu). Adjusting memory\n",
+                            op.op_name(),
+                            a.get_size(),
+                            b.get_size(),
+                            alloc_sizes[0],
+                            alloc_sizes[1],
+                            alloc_sizes[2],
+                            M->fft_alloc_sizes[0],
+                            M->fft_alloc_sizes[1],
+                            M->fft_alloc_sizes[2],
+                            M->asize,
+                            M->bsize
+                           );
                 /* save it to the object. this means that we must pay
                  * attention to taking it by reference in the calling
                  * function.

@@ -17,11 +17,15 @@
 #include <type_traits>             // for is_same
 #endif
 
+/* bucket.hpp and bucket-push-update.hpp sort of go hand in hand, but as
+ * they're written we can't make two standalone files that include
+ * eachother */
+#include "bucket-push-update.hpp"  // IWYU pragma: keep
+
 #include "bucket.hpp"              // for bucket_array_t, bucket_update_t
 #include "memory.h"             // free_aligned
 #include "verbose.h"             // verbose_output_print
 
-#include "bucket-push-update.hpp"  // for bucket_single::push_update
 #include "fb-types.h"              // for slice_index_t, FBPRIME_FORMAT, fbp...
 #include "fb.hpp"                  // for fb_factorbase, fb_factorbase::slicing
 #include "iqsort.h"                // for QSORT
@@ -76,13 +80,13 @@ void
 bucket_array_t<LEVEL, HINT>::move(bucket_array_t<LEVEL, HINT> &other)
 {
 #define MOVE_ENTRY(x, zero) do {x = other.x; other.x = zero;} while(0)
-  MOVE_ENTRY(big_data, NULL);
+  MOVE_ENTRY(big_data, nullptr);
   MOVE_ENTRY(big_size, 0);
-  MOVE_ENTRY(bucket_write, NULL);
-  MOVE_ENTRY(bucket_start, NULL);
-  MOVE_ENTRY(bucket_read, NULL);
-  MOVE_ENTRY(slice_index, NULL);
-  MOVE_ENTRY(slice_start, NULL);
+  MOVE_ENTRY(bucket_write, nullptr);
+  MOVE_ENTRY(bucket_start, nullptr);
+  MOVE_ENTRY(bucket_read, nullptr);
+  MOVE_ENTRY(slice_index, nullptr);
+  MOVE_ENTRY(slice_start, nullptr);
   MOVE_ENTRY(n_bucket, 0);
   MOVE_ENTRY(size_b_align, 0);
   MOVE_ENTRY(nr_slices, 0);
@@ -162,7 +166,7 @@ bucket_array_t<LEVEL, HINT>::allocate_memory(
   const size_t new_size_b_align = ((sizeof(void *) * new_n_bucket + 0x3F) & ~((size_t) 0x3F));
 
   if (new_big_size > big_size) {
-    if (big_data != NULL)
+    if (big_data != nullptr)
       memory.physical_free (big_data, big_size);
     if (bitmask_line_ordinate) {
         verbose_output_print(0, 3, "# [%d%c] Allocating %zu bytes for %" PRIu32 " buckets of %zu to %zu update entries of %zu bytes each\n",
@@ -179,7 +183,7 @@ bucket_array_t<LEVEL, HINT>::allocate_memory(
     }
     big_size = new_big_size;
     big_data = (update_t *) memory.physical_alloc (big_size, 1);
-    void * internet_of_things MAYBE_UNUSED = NULL;
+    void * internet_of_things MAYBE_UNUSED = nullptr;
   }
 
   if (!big_data)
@@ -189,9 +193,9 @@ bucket_array_t<LEVEL, HINT>::allocate_memory(
   n_bucket = new_n_bucket;
 
   if (new_size_b_align > size_b_align) {
-    int const all_null =  (bucket_write == NULL) &&
-                    (bucket_start == NULL) &&
-                    (bucket_read == NULL);
+    int const all_null =  (bucket_write == nullptr) &&
+                    (bucket_start == nullptr) &&
+                    (bucket_read == nullptr);
     int const none_null = bucket_write &&
                     bucket_start &&
                     bucket_read;
@@ -240,8 +244,8 @@ template <int LEVEL, typename HINT>
 void
 bucket_array_t<LEVEL, HINT>::free_slice_start()
 {
-  free_aligned(slice_start); slice_start = NULL;
-  free(slice_index); slice_index = NULL;
+  free_aligned(slice_start); slice_start = nullptr;
+  free(slice_index); slice_index = nullptr;
   alloc_slices = 0;
 }
 
@@ -251,14 +255,14 @@ bucket_array_t<LEVEL, HINT>::realloc_slice_start(const size_t extra_space)
 {
   const size_t new_alloc_slices = alloc_slices + extra_space;
   if (alloc_slices)
-  verbose_output_print(0, 3, "# [%d%c] Reallocating BA->slice_start from %zu entries to %zu entries\n",
-                       LEVEL, HINT::rtti[0],
-                       alloc_slices, new_alloc_slices);
+      verbose_output_print(0, 3, "# [%d%c] Reallocating BA->slice_start from %zu entries to %zu entries\n",
+              LEVEL, HINT::rtti[0],
+              alloc_slices, new_alloc_slices);
 
   const size_t old_size = size_b_align * alloc_slices;
   const size_t new_size = size_b_align * new_alloc_slices;
   slice_start = (update_t **) realloc_aligned(slice_start, old_size, new_size, 0x40);
-  ASSERT_ALWAYS(slice_start != NULL);
+  ASSERT_ALWAYS(slice_start != nullptr);
   checked_realloc(slice_index, new_alloc_slices);
   memset(slice_index + alloc_slices, 0, extra_space * sizeof(slice_index_t));
   alloc_slices = new_alloc_slices;

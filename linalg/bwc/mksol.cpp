@@ -8,9 +8,10 @@
 #include <string>                // for string
 #include <memory>
 #include <vector>
+#include <utility>
 
 #include <gmp.h>
-#include "fmt/core.h"
+#include "fmt/base.h"
 #include "fmt/format.h"
 
 #include "arith-cross.hpp"
@@ -27,12 +28,12 @@
 #include "parallelizing_info.hpp"
 #include "params.h"
 #include "select_mpi.h"
-
-using namespace fmt::literals;
+#include "bwc_filenames.hpp"
+#include "utils_cxx.hpp"
 
 static void * mksol_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
-    int const fake = param_list_lookup_string(pl, "random_matrix") != NULL;
+    int const fake = param_list_lookup_string(pl, "random_matrix") != nullptr;
     if (fake) bw->skip_online_checks = 1;
     int const tcan_print = bw->can_print && pi->m->trank == 0;
     struct timing_data timing[1];
@@ -127,7 +128,7 @@ static void * mksol_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * 
     cxx_gmp_randstate rstate;
     if (fake) {
         if (pi->m->trank == 0 && !bw->seed) {
-            bw->seed = time(NULL);
+            bw->seed = time(nullptr);
             MPI_Bcast(&bw->seed, 1, MPI_INT, 0, pi->m->pals);
         }
         serialize_threads(pi->m);
@@ -227,7 +228,7 @@ static void * mksol_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * 
         As->vec_set_zero(fcoeffs[k], one_fcoeff * bw->interval);
     }
     ASSERT_ALWAYS(Av_width * Af_multiplex == (unsigned int) As->simd_groupsize());
-    arith_generic::elt * fcoeff_tmp = NULL;
+    arith_generic::elt * fcoeff_tmp = nullptr;
     if (Af_multiplex > 1) {
             (fcoeff_tmp) = As->alloc(one_fcoeff / Af_multiplex * bw->interval, ALIGNMENT_ON_ALL_BWC_VECTORS);
             As->vec_set_zero(fcoeff_tmp, one_fcoeff / Af_multiplex * bw->interval);
@@ -245,19 +246,21 @@ static void * mksol_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * 
     }
     /* }}} */
 
-    int bw_end_copy = bw->end; /* avoid race conditions w/ interleaving */
+    unsigned int bw_end_copy = bw->end; /* avoid race conditions w/ interleaving */
     pi_interleaving_flip(pi);
     pi_interleaving_flip(pi);
 
-    for(int s = bw->start ; s < bw_end_copy ; s += bw->checkpoint_precious ) {
+    for(unsigned int s = bw->start ; s < bw_end_copy ; s += bw->checkpoint_precious ) {
+        const bwc_iteration_range nrange { s, s + bw->checkpoint_precious };
+
         serialize(pi->m);
         for(int i = 0 ; i < bw->n / splitwidth ; i++) {
             int const ys[2] = { i * splitwidth, (i + 1) * splitwidth };
-            std::string const v_name = fmt::format("V%u-%u.{}", s);
+            auto pat = bwc_V_file::pattern(s);
             if (fake) {
-                mmt_vec_set_random_through_file(vi[i], v_name, unpadded, rstate, ys[0]);
+                mmt_vec_set_random_through_file(vi[i], pat, unpadded, rstate, ys[0]);
             } else {
-                int const ok = mmt_vec_load(vi[i], v_name, unpadded, ys[0]);
+                int const ok = mmt_vec_load(vi[i], pat, unpadded, ys[0]);
                 ASSERT_ALWAYS(ok);
             }
             mmt_vec_twist(mmt, vi[i]);
@@ -267,7 +270,7 @@ static void * mksol_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * 
 
         mmt_full_vec_set_zero(ymy[0]);
 
-        int sx = MIN(bw_end_copy, s + bw->checkpoint_precious);
+        unsigned int sx = MIN(bw_end_copy, s + bw->checkpoint_precious);
         if (tcan_print) {
             /*
             fmt::print("// bw->start={} bw_end_copy={} sx={} s={}\n",
@@ -283,8 +286,8 @@ static void * mksol_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * 
 
         for(int i_window = 0 ; i_window < n_windows ; i_window++) {
             /* We'll read from coefficient s0 */
-            int s0 = s + (n_windows - 1 - i_window) * bw->interval;
-            int s1 = s + (n_windows     - i_window) * bw->interval;
+            unsigned int s0 = s + (n_windows - 1 - i_window) * bw->interval;
+            unsigned int s1 = s + (n_windows     - i_window) * bw->interval;
             if (s0 >= bw_end_copy)
                 continue;
 
@@ -321,9 +324,8 @@ static void * mksol_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * 
                                     i * Av_width, (i + 1) * Av_width);
 
                             // fmt::print("[{}] reading from {}\n", pi->interleaved ? pi->interleaved->idx : -1, tmp);
-                            FILE * f = fopen(f_name.c_str(), "rb");
-                            DIE_ERRNO_DIAG(f == NULL, "fopen(%s)", f_name.c_str());
-                            rc = fseek(f, one_fcoeff / Af_multiplex * s0, SEEK_SET);
+                            auto f = fopen_helper(f_name, "rb");
+                            rc = fseek(f.get(), one_fcoeff / Af_multiplex * s0, SEEK_SET);
                             if (rc >= 0) {
                                 /* Read everything in one go. We might want to
                                  * reconsider how the coefficients inside the
@@ -333,8 +335,8 @@ static void * mksol_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * 
                                  * surely it does in the binary case where individual
                                  * F files are a priori made of 64*64 matrices.
                                  */
-                                rc = fread(buffer, one_fcoeff / Af_multiplex, bw->interval, f);
-                                ASSERT_ALWAYS(rc >= 0 && rc <= bw->interval);
+                                rc = (int) fread(buffer, one_fcoeff / Af_multiplex, bw->interval, f.get());
+                                ASSERT_ALWAYS(rc <= bw->interval);
                                 if (Af_multiplex > 1) {
                                     /* spread to fcoeff */
                                     const arith_generic::elt * src = buffer;
@@ -361,7 +363,6 @@ static void * mksol_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * 
                             }
                             /* TODO: *maybe* transpose the F coefficients
                              * at this point */
-                            fclose(f);
                         }
                     }
                 }
@@ -373,7 +374,7 @@ static void * mksol_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * 
                                 s0, s1, bw_end_copy);
                         exit(EXIT_FAILURE);
                     }
-                    sx = bw_end_copy = s0+rc;
+                    sx = bw_end_copy = s0 + rc;
                 }
             }
             serialize(pi->m);
@@ -387,8 +388,7 @@ static void * mksol_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * 
             if (s0 == bw_end_copy)
                 continue;
 
-            if (bw_end_copy < s1)
-                s1 = bw_end_copy;
+            s1 = std::min(bw_end_copy, s1);
 
             if (tcan_print && short_read)
                 fmt::print("We read {} coefficients from F in total\n", bw_end_copy);
@@ -413,7 +413,7 @@ static void * mksol_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * 
 
                 size_t const eblock = mmt_my_own_size_in_items(ymy[0]);
 
-                for(int k = 0 ; k < s1 - s0 ; k++) {
+                for(unsigned int k = 0 ; k < s1 - s0 ; k++) {
 
                     serialize_threads(pi->m);
 
@@ -480,9 +480,9 @@ static void * mksol_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * 
              * really (and As_multiplex == 1)
              */
             int const j = 0;
-            std::string const s_name = fmt::format("S.sols%u-%u.{}-{}", s, s + bw->checkpoint_precious);
+            auto pat = bwc_S_file::pattern(nrange);
             ASSERT_ALWAYS(ymy[0].abase->simd_groupsize() == As_width);
-            mmt_vec_save(ymy[0], s_name, unpadded,
+            mmt_vec_save(ymy[0], pat, unpadded,
                     solutions[0] + j * As_width);
         }
     }
@@ -509,7 +509,7 @@ static void * mksol_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * 
 
     timing_clear(timing);
 
-    return NULL;
+    return nullptr;
 }
 
 // coverity[root_function]
@@ -543,7 +543,7 @@ int main(int argc, char const * argv[])
         MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
 
-    pi_go(mksol_prog, pl, 0);
+    pi_go(mksol_prog, pl, nullptr);
 
     parallelizing_info_finish();
 

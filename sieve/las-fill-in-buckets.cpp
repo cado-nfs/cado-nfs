@@ -9,12 +9,14 @@
 
 #include <cstddef>                        // for size_t, NULL
 #include <cstdint>                        // for uint32_t, uint64_t
+
 #include <algorithm>                      // for max_element, min
 #include <array>                          // for array
 #include <limits>                         // for numeric_limits
 #include <memory>                         // for shared_ptr, allocator, __sh...
 #include <utility>                        // for move
 #include <vector>                         // for vector, vector<>::iterator
+
 #include "macros.h"                       // for CADO_CONCATENATE, ASSERT_AL...
 #include "las-fill-in-buckets.hpp"        // for precomp_plattice_t, downsor...
 #include "bucket-push-update.hpp"         // for bucket_array_t::push_update

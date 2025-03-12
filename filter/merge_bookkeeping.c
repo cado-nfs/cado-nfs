@@ -1,6 +1,7 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+
 #include <stdio.h>
-#include "timing.h"  // seconds
+
 #include "merge_bookkeeping.h"
 
 int merge_pass = 0;

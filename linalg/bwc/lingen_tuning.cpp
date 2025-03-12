@@ -19,7 +19,7 @@
 #include <vector>                              // for vector
 
 #include <gmp.h>                               // for mp_limb_t, mpz_size
-#include "fmt/core.h"                          // for check_format_string
+#include "fmt/base.h"                          // for check_format_string
 #include "fmt/format.h"                        // for basic_buffer::append
 #include "fmt/ostream.h"                       // for formatbuf<>::int_type
 

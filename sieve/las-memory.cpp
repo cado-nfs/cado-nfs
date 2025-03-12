@@ -28,7 +28,7 @@ las_memory_accessor::~las_memory_accessor()
 {
     // std::lock_guard<std::mutex> dummy(frequent_regions_pool.mutex());
     // ASSERT_ALWAYS(bucket_regions_pool.empty());
-    for(auto x : large_pages_for_pool) free_aligned(x);
+    for(auto * x : large_pages_for_pool) free_aligned(x);
     large_pages_for_pool.clear();
 }
 

@@ -1,8 +1,11 @@
 #include "cado.h"
+
 #include <cstdint>          // for uint64_t, UINT64_C
+
 #include "bblas_mat64.hpp"  // for mat64
 #include "bblas_level4.hpp"
 #include "bblas_simd.hpp"
+
 // the whole point of bblas_simd is to avoid including these files...
 // IWYU pragma: no_include <emmintrin.h>
 // IWYU pragma: no_include <smmintrin.h>
@@ -19,7 +22,7 @@ int LUP64_imm(mat64 & l, mat64 & u, mat64 & p, mat64 const & a)
 {
     u = a;
     uint64_t mask=1;
-    uint64_t todo=~UINT64_C(0);
+    uint64_t todo=~uint64_t(0);
     int r = 0;
     for(int j = 0 ; j < 64 ; j++, mask<<=1) p[j]=l[j]=mask;
     mask=1;
@@ -54,8 +57,8 @@ int LUP64_imm(mat64 & l, mat64 & u, mat64 & p, mat64 const & a)
         __m128i const vv = _cado_mm_set1_epi64(v);
         __m128i const pp = _cado_mm_set1_epi64(pr);
         __m128i const ee = _cado_mm_set1_epi64(l[j]);
-        __m128i * uu = (__m128i*) (u.data()+k);
-        __m128i * ll = (__m128i*) (l.data()+k);
+        auto * uu = (__m128i*) (u.data()+k);
+        auto * ll = (__m128i*) (l.data()+k);
         for( ; k < 64 ; k+=2 ) {
             __m128i const ww = _mm_cmpeq_epi64(_mm_and_si128(*uu,vv),vv);
             *uu = _mm_xor_si128(*uu, _mm_and_si128(pp, ww));

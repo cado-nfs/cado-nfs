@@ -20,7 +20,6 @@
 
 #include <iostream>     // std::cout // IWYU pragma: keep
 #include <fstream>      // std::ifstream // IWYU pragma: keep
-#include <sstream>      // std::istringstream // IWYU pragma: keep
 #include <vector>
 #include <stdexcept>                 // for runtime_error
 #include <string>                    // for string, operator+, basic_string
@@ -29,16 +28,13 @@
 
 #include <unistd.h>
 #include <gmp.h>
-#include "fmt/core.h"                // for check_format_string, char_t, format
 #include "fmt/format.h"
-#include "fmt/printf.h" // IWYU pragma: keep
 
 #include "gmp_aux.h"
 #include "cxx_mpz.hpp"
 #include "gmp-hacks.h"
 #include "arith-hard.hpp"        // for mpfq_p_1_field_specify, MPFQ_PRI...
 #include "lingen_bmstatus.hpp"
-#include "lingen_bw_dimensions.hpp"  // for bw_dimensions
 #include "lingen_checkpoints.hpp"
 #include "lingen_hints.hpp"  // for lingen_hints
 #include "macros.h"
@@ -119,7 +115,7 @@ class matrix_reader
         for (unsigned int k = 1 ; k < 64 ; k++) {
             for (unsigned int s = 0 ; c < k * k ; c++, s++) {
                 filename = stem + fmt::format(".{}.data", c);
-                fprintf(stderr, "test %s\n", filename.c_str());
+                fmt::print(stderr, "test {}\n", filename.c_str());
                 if (access(filename.c_str(), R_OK) != 0) {
                     if (s == 0) {
                         if (k-1 == 1) {
@@ -215,7 +211,7 @@ public:
                     F.read((char*)PTR(tmp), sz);
                     bool const good_read = F.good();
                     if (!good_read) {
-                        fmt::fprintf(stderr, "read error on file (%i,%i) [%s] when reading coefficient of degree %u, local position (%u,%u). File offset of coefficient is %zd\n",
+                        fmt::print(stderr, "read error on file ({},{}) [{}] when reading coefficient of degree {}, local position ({},{}). File offset of coefficient is {}\n",
                                 block_i,
                                 block_j,
                                 get_filename_ij(k, block_i, block_j),
@@ -237,9 +233,9 @@ public:
 #ifdef WARNING
                         if (SIZ(tmp) != 0 &&
                                 !warned_padding[(i0 + di) * ncols + j0 + dj]) {
-                            fprintf(
+                            fmt::print(
                                     stderr,
-                                    "Warning, padding coefficient %lu,%lu is not zero\n",
+                                    "Warning, padding coefficient {},{} is not zero\n",
                                     i0 + di,
                                     j0 + dj);
                             warned_padding[(i0 + di) * ncols + j0 + dj] = true;
@@ -464,9 +460,9 @@ do_check_pi(std::string const & pi_left_filename,
 
     cxx_mpz x;
     mpz_urandomm_nz(x, state, prime); /* random variable */
-    // printf("Using seed %lu\n", seed);
+    // fmt::print("Using seed {}\n", seed);
     if (verbose)
-        gmp_printf("x=%Zd\n", (mpz_srcptr)x);
+        fmt::print("x={}\n", x);
 
     auto const cp = read_cp_aux(pi_filename);
 
@@ -502,12 +498,12 @@ do_check_pi(std::string const & pi_left_filename,
     cxx_mpz res_right = scalar_product(u, piac_times_v);
 
     if (mpz_cmp(res_left, res_right) != 0) {
-        fprintf(stderr, "FAILED %s\n", check_name.c_str());
-        gmp_printf("res_left  = %Zd\n", (mpz_srcptr)res_left);
-        gmp_printf("res_right = %Zd\n", (mpz_srcptr)res_right);
+        fmt::print(stderr, "FAILED {}\n", check_name);
+        fmt::print("res_left  = {}\n", res_left);
+        fmt::print("res_right = {}\n", res_right);
         ret = 0;
     } else {
-        printf("ok %s\n", check_name.c_str());
+        fmt::print("ok {}\n", check_name);
         ret = 1;
     }
 
@@ -530,7 +526,7 @@ do_check_E_short(std::string const& E_filename, std::string const& pi_filename)
     cxx_mpz x;
     mpz_urandomm_nz(x, state, prime); /* random variable */
     if (verbose)
-        gmp_printf("x=%Zd\n", (mpz_srcptr)x);
+        fmt::print("x={}\n", x);
 
     /* Note that all the useful info is in the aux file for pi, really.
      * The one for E is stored at t0, and is not really useful.
@@ -606,11 +602,11 @@ do_check_E_short(std::string const& E_filename, std::string const& pi_filename)
     }
 
     if (mpz_cmp_ui(res, 0) != 0) {
-        fprintf(stderr, "FAILED %s\n", check_name.c_str());
-        gmp_printf("res  = %Zd\n", (mpz_srcptr)res);
+        fmt::print(stderr, "FAILED {}\n", check_name);
+        fmt::print("res  = {}\n", res);
         ret = 0;
     } else {
-        printf("ok %s\n", check_name.c_str());
+        fmt::print("ok {}\n", check_name);
         ret = 1;
     }
 
@@ -627,16 +623,16 @@ static int sanity_check(std::string const & filename)
     size_t Xsize;
     try {
         if (!lcp.load_aux_file(Xsize)) {
-            fmt::fprintf(stderr, "%s is missing\n", lcp.auxfile);
+            fmt::print(stderr, "{} is missing\n", lcp.auxfile);
             return false;
         }
         int const sdata_ok = access(lcp.sdatafile.c_str(), R_OK) == 0;
         int const gdata_ok = lcp.rank || access(lcp.gdatafile.c_str(), R_OK) == 0;
-        fmt::fprintf(stderr, "scattered datafile %s: %s\n", lcp.sdatafile, sdata_ok ? "ok" : "not found");
-        fmt::fprintf(stderr, "gathered datafile %s: %s\n", lcp.gdatafile, gdata_ok ? "ok" : "not found");
+        fmt::print(stderr, "scattered datafile {}: {}\n", lcp.sdatafile, sdata_ok ? "ok" : "not found");
+        fmt::print(stderr, "gathered datafile {}: {}\n", lcp.gdatafile, gdata_ok ? "ok" : "not found");
         return sdata_ok || gdata_ok;
     } catch (lingen_checkpoint::invalid_aux_file const & inv) {
-        fmt::fprintf(stderr, "Invalid checkpoint aux file %s [%s]\n",
+        fmt::print(stderr, "Invalid checkpoint aux file {} [{}]\n",
                 lcp.auxfile, inv.what());
         return false;
     }
@@ -680,11 +676,11 @@ int main(int argc, char const * argv[])
                 argc--, argv++;
                 continue;
             } else {
-                fprintf(stderr, "bad argument list\n");
+                fmt::print(stderr, "bad argument list\n");
                 exit(EXIT_FAILURE);
             }
         }
-        fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
+        fmt::print(stderr, "Unhandled parameter {}\n", argv[0]);
         param_list_print_usage(pl, argv0, stderr);
         exit(EXIT_FAILURE);
     }
@@ -705,12 +701,12 @@ int main(int argc, char const * argv[])
     }
     param_list_parse_ulong(pl, "seed", &seed);
     if (!param_list_parse_uint(pl, "m", &bw_parameters.m)) {
-        fprintf(stderr, "Missing parameter: m\n");
+        fmt::print(stderr, "Missing parameter: m\n");
         param_list_print_usage(pl, argv0, stderr);
         exit(EXIT_FAILURE);
     }
     if (!param_list_parse_uint(pl, "n", &bw_parameters.n)) {
-        fprintf(stderr, "Missing parameter: n\n");
+        fmt::print(stderr, "Missing parameter: n\n");
         param_list_print_usage(pl, argv0, stderr);
         exit(EXIT_FAILURE);
     }

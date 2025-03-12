@@ -10,22 +10,20 @@
 #include <math.h> // log
 #include <stdio.h>
 #include <gmp.h>
+
+#include "auxiliary.h" // print_poly_fg ALG_SIDE ALPHA_BOUND
+#include "cachesize_cpuid.h" // cachesize_cpuid
 #include "cado_poly.h"
 #include "mpz_poly.h"
-#include "ropt_io.h"
+#include "murphyE.h"    // MurphyE MURPHY_K
+#include "polyselect_alpha.h"
+#include "polyselect_norms.h"
 #include "ropt.h"
+#include "ropt_arith.h" // Lemma21
+#include "ropt_io.h"
+#include "ropt_param.h"    // L1_cachesize MAX_LINE_LENGTH
 #include "ropt_str.h" // ropt_poly_t ...
 #include "size_optimization.h"
-#include "usp.h"
-#include "murphyE.h"    // MurphyE MURPHY_K
-#include "ropt_param.h"    // L1_cachesize MAX_LINE_LENGTH
-#include "cachesize_cpuid.h" // cachesize_cpuid
-#include "auxiliary.h" // print_poly_fg ALG_SIDE ALPHA_BOUND
-#include "ropt_arith.h" // Lemma21
-#include "polyselect_norms.h"
-#include "polyselect_alpha.h"
-#include "cado_poly.h"
-#include "mpz_poly.h"
 
 /**
  * Get L1 cache size in the beginning.

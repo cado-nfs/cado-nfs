@@ -85,35 +85,37 @@ class
     T x[width]; // ATTRIBUTE((aligned(64))) ;
 
     public:
-    static inline bitmat * alloc(size_t n) {
+    static bitmat * alloc(size_t n) {
         bitmat * p = allocator_type().allocate(n);
         return new(p) bitmat[n];
     }
-    static inline void free(bitmat * p, size_t n) {
+    static void free(bitmat * p, size_t n) {
         ::operator delete (p, p);
         allocator_type().deallocate(p, n);
     }
 
-    inline T* data() { return x; }
-    inline const T* data() const { return x; }
+    T* data() { return x; }
+    const T* data() const { return x; }
     T& operator[](int i) { return x[i]; }
     T operator[](int i) const { return x[i]; }
-    inline bool operator==(bitmat const& a) const
+    T& operator[](unsigned int i) { return x[i]; }
+    T operator[](unsigned int i) const { return x[i]; }
+    bool operator==(bitmat const& a) const
     {
         /* anyway we're not going to do it any smarter in instantiations,
          * so let's rather keep this as a simple and stupid inline */
         return memcmp(x, a.x, sizeof(x)) == 0;
     }
-    inline bool operator!=(bitmat const& a) const { return !operator==(a); }
+    bool operator!=(bitmat const& a) const { return !operator==(a); }
     bitmat() { memset(x, 0, sizeof(x)); }
-    inline bitmat(bitmat const& a) { memcpy(x, a.x, sizeof(x)); }
-    inline bitmat& operator=(bitmat const& a)
+    bitmat(bitmat const& a) { memcpy(x, a.x, sizeof(x)); }
+    bitmat& operator=(bitmat const& a)
     {
         memcpy(x, a.x, sizeof(x));
         return *this;
     }
-    inline bitmat(int a) { *this = a; }
-    inline bitmat& operator=(int a)
+    bitmat(int a) { *this = a; }
+    bitmat& operator=(int a)
     {
         if (a & 1) {
             T mask = 1;
@@ -124,7 +126,7 @@ class
         }
         return *this;
     }
-    inline bool operator==(int a) const
+    bool operator==(int a) const
     {
         if (a&1) {
             T mask = a&1;
@@ -136,16 +138,16 @@ class
         }
         return true;
     }
-    inline bool operator!=(int a) const { return !operator==(a); }
+    bool operator!=(int a) const { return !operator==(a); }
 
-    inline bool is_lowertriangular() const { return ops::is_lowertriangular(*this); }
-    inline bool is_uppertriangular() const { return ops::is_uppertriangular(*this); }
-    inline bool triangular_is_unit() const { return ops::triangular_is_unit(*this); }
-    inline void make_uppertriangular() { ops::make_uppertriangular(*this); }
-    inline void make_lowertriangular() { ops::make_lowertriangular(*this); }
-    inline void make_unit_uppertriangular() { ops::make_unit_uppertriangular(*this); }
-    inline void make_unit_lowertriangular() { ops::make_unit_lowertriangular(*this); }
-    inline void triangular_make_unit() { ops::triangular_make_unit(*this); }
+    bool is_lowertriangular() const { return ops::is_lowertriangular(*this); }
+    bool is_uppertriangular() const { return ops::is_uppertriangular(*this); }
+    bool triangular_is_unit() const { return ops::triangular_is_unit(*this); }
+    void make_uppertriangular() { ops::make_uppertriangular(*this); }
+    void make_lowertriangular() { ops::make_lowertriangular(*this); }
+    void make_unit_uppertriangular() { ops::make_unit_uppertriangular(*this); }
+    void make_unit_lowertriangular() { ops::make_unit_lowertriangular(*this); }
+    void triangular_make_unit() { ops::triangular_make_unit(*this); }
 };
 
 #endif	/* BBLAS_BITMAT_HPP_ */

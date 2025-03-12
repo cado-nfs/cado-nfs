@@ -1279,7 +1279,7 @@ fb_factorbase::slicing::slicing(fb_factorbase const & fb, fb_factorbase::key_typ
 struct fb_power_t {
     fbprime_t p, q;
     unsigned char k;
-    inline bool operator<(fb_power_t const & o) const { return q < o.q; }
+    bool operator<(fb_power_t const & o) const { return q < o.q; }
 };
 
 /* Create a list of prime powers (with exponent >1) up to powlim */

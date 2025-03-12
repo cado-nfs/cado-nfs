@@ -1,5 +1,6 @@
 #include "cado.h" // IWYU pragma: keep
 
+#include <climits>
 #include <cctype>
 #include <cerrno>
 #include <cinttypes>
@@ -11,12 +12,11 @@
 #include <cstring>
 
 #include <array>
-#include <fstream>
-#include <iostream>
 #include <thread>
+#include <set>
+#include <utility>
 
 #include <pthread.h>      // for pthread_t
-#include <sys/types.h>
 #include <sys/time.h>   // gettimeofday
 #ifdef HAVE_UTSNAME_H
 #include <sys/utsname.h>
@@ -49,14 +49,14 @@ static inline void pi_comm_init_pthread_things(pi_comm_ptr w, const char * desc)
 
 static inline void pi_comm_destroy_pthread_things(pi_comm_ptr w)
 {
-    barrier_destroy(w->th->bh, NULL);
+    barrier_destroy(w->th->bh, nullptr);
     my_pthread_barrier_destroy(w->th->b);
 
     pthread_mutex_destroy(w->th->m);
     /* Beware ! Freeing mustn't happen more than once ! */
     free(w->th->desc);
     delete w->th;
-    w->th = NULL;
+    w->th = nullptr;
 }
 
 static void print_several(unsigned int n1, unsigned int n2, char a, char b, unsigned int w)
@@ -125,7 +125,7 @@ typedef void * (*pthread_callee_t)(void*);
    MPI_Comm_rank(*comm, &rank);
    fprintf(stderr, "Fatal MPI error ;\n");
    fprintf(stderr, " job %d in a comm. of size %d ;\n", rank, size);
-   if (err == NULL) {
+   if (err == nullptr) {
    fprintf(stderr, " no error code.\n");
    } else {
    char buf[MPI_MAX_ERROR_STRING];
@@ -140,7 +140,7 @@ typedef void * (*pthread_callee_t)(void*);
 void grid_print(parallelizing_info_ptr pi, char * buf, size_t siz, int print)
 {
     unsigned long maxsize = siz;
-    pi_allreduce(NULL, &maxsize, 1, BWC_PI_UNSIGNED_LONG, BWC_PI_MAX, pi->m);
+    pi_allreduce(nullptr, &maxsize, 1, BWC_PI_UNSIGNED_LONG, BWC_PI_MAX, pi->m);
 
     // TODO: rewrite
     char * strings = (char *) malloc(pi->m->totalsize * maxsize);
@@ -154,14 +154,14 @@ void grid_print(parallelizing_info_ptr pi, char * buf, size_t siz, int print)
     ASSERT_ALWAYS(rc >= 0);
     snprintf(strings + me * maxsize, maxsize, fmt, buf);
     free(fmt);
-    pi_allreduce(NULL, strings, pi->m->totalsize * maxsize, BWC_PI_BYTE, BWC_PI_BXOR, pi->m);
+    pi_allreduce(nullptr, strings, pi->m->totalsize * maxsize, BWC_PI_BYTE, BWC_PI_BXOR, pi->m);
 
     char * ptr = strings;
 
     serialize(pi->m);
 
     if (print) {
-        /* There's also the null byte counted in siz. So that makes one
+        /* There's also the nullptr byte counted in siz. So that makes one
          * less.
          */
         unsigned int const nj0 = pi->wr[0]->njobs;
@@ -434,7 +434,7 @@ static void pi_init_mpilevel(parallelizing_info_ptr pi, cxx_param_list & pl)
     /* prepare the cpu binding messages, and print the unique messages we
      * receive */
     if (!verbose_enabled(CADO_VERBOSE_PRINT_BWC_CPUBINDING)) {
-        pi->cpubinding_info = cpubinding_get_info(NULL, pl, thr[0], thr[1]);
+        pi->cpubinding_info = cpubinding_get_info(nullptr, pl, thr[0], thr[1]);
     } else {
         char * cpubinding_messages;
         pi->cpubinding_info = cpubinding_get_info(&cpubinding_messages, pl, thr[0], thr[1]);
@@ -459,8 +459,8 @@ static void pi_init_mpilevel(parallelizing_info_ptr pi, cxx_param_list & pl)
                 big_pool, chunksize, MPI_BYTE, pi->m->pals);
 
         if (pi->m->jrank == 0) {
-            // const char * refnode = NULL;
-            const char * ref = NULL;
+            // const char * refnode = nullptr;
+            const char * ref = nullptr;
             for(unsigned int i = 0 ; i < pi->m->njobs ; i++) {
                 const char * node = big_pool + i * chunksize;
                 const char * msg = node + PI_NAMELEN;
@@ -530,7 +530,7 @@ pi_grid_init(parallelizing_info_ptr pi)
     parallelizing_info * grid;
     grid = (parallelizing_info *) malloc(nhc * nvc * sizeof(parallelizing_info));
     // setting to zero is important, since several fields are ensured as
-    // null.
+    // nullptr.
     memset(grid, 0, nhc * nvc * sizeof(parallelizing_info));
 
     char commname[64];
@@ -899,7 +899,7 @@ void pi_log_op(pi_comm_ptr wr, const char * fmt, ...)
 
     struct pi_log_entry * e = &(lb->t[lb->next]);
 
-    gettimeofday(e->tv, NULL);
+    gettimeofday(e->tv, nullptr);
 
     vsnprintf(e->what, sizeof(e->what), fmt, ap);
     if (wr->ncores > 1)
@@ -998,13 +998,13 @@ void pi_log_print_all(parallelizing_info_ptr pi)
 
 /* {{{ predefined types and operations */
 static struct pi_datatype_s pi_predefined_types[] = {
-    { MPI_INT,	                NULL, sizeof(int) },
-    { MPI_DOUBLE,	        NULL, sizeof(double) },
-    { MPI_BYTE,	                NULL, 1 },
-    { MPI_UNSIGNED,	        NULL, sizeof(unsigned) },
-    { MPI_UNSIGNED_LONG,	NULL, sizeof(unsigned long) },
-    { MPI_UNSIGNED_LONG_LONG,	NULL, sizeof(unsigned long long) },
-    { MPI_LONG,	                NULL, sizeof(long) },
+    { MPI_INT,	                nullptr, sizeof(int) },
+    { MPI_DOUBLE,	        nullptr, sizeof(double) },
+    { MPI_BYTE,	                nullptr, 1 },
+    { MPI_UNSIGNED,	        nullptr, sizeof(unsigned) },
+    { MPI_UNSIGNED_LONG,	nullptr, sizeof(unsigned long) },
+    { MPI_UNSIGNED_LONG_LONG,	nullptr, sizeof(unsigned long long) },
+    { MPI_LONG,	                nullptr, sizeof(long) },
 };
 
 /* TODO: mpi-3.0 introduced (at last) MPI_UINT64_T and friends. There are
@@ -1106,7 +1106,7 @@ static struct reduction_function predefined_functions[] = {
     { MPI_UNSIGNED_LONG_LONG, MPI_MIN,  (thread_reducer_t) reducer_ulonglong_min, },
     { MPI_UNSIGNED_LONG_LONG, MPI_MAX,  (thread_reducer_t) reducer_ulonglong_max, },
     { MPI_UNSIGNED_LONG_LONG, MPI_SUM,  (thread_reducer_t) reducer_ulonglong_sum, },
-    { 0, 0, NULL, },
+    { 0, 0, nullptr, },
 };
 
 static thread_reducer_t lookup_reduction_function(MPI_Datatype datatype, MPI_Op op)
@@ -1162,7 +1162,7 @@ static void pi_init_attribute_things()
 {
     BWC_PI_SUM->f_stock = pi_dispatch_op_add_stock;
     BWC_PI_SUM->f_custom = pi_dispatch_op_add_custom;
-    MPI_Type_create_keyval(MPI_TYPE_DUP_FN, MPI_TYPE_NULL_DELETE_FN, &pi_mpi_attribute_key, NULL);
+    MPI_Type_create_keyval(MPI_TYPE_DUP_FN, MPI_TYPE_NULL_DELETE_FN, &pi_mpi_attribute_key, nullptr);
     MPI_Op_create((pi_op_s::MPI_Op_t) BWC_PI_SUM->f_stock, 1, &BWC_PI_SUM->custom);
 }
 
@@ -1406,7 +1406,7 @@ void pi_thread_allreduce(void *ptr, void *dptr, size_t count,
      */
     if (ptr && ptr != dptr) {
         memcpy(dptr, ptr, count * datatype->item_size);
-        ptr = NULL;
+        ptr = nullptr;
     }
     struct pi_collective_arg a[1];
     a->wr = wr;
@@ -1443,7 +1443,7 @@ static void pi_allreduce_mpi_inner(
 /* This intentionally has the same prototype as MPI_Allreduce */
 /* Only a few operations and datatypes are supported.
  *
- * NULL at sendbuf means in-place.
+ * nullptr at sendbuf means in-place.
  */
 void pi_allreduce(void *sendbuf, void *recvbuf, size_t count,
         pi_datatype_ptr datatype, pi_op_ptr op, pi_comm_ptr wr)
@@ -1484,8 +1484,8 @@ void pi_allgather(void * sendbuf,
         size_t recvcount, pi_datatype_ptr recvtype,
         pi_comm_ptr wr)
 {
-    ASSERT_ALWAYS(sendbuf == NULL);
-    ASSERT_ALWAYS(sendtype == NULL);
+    ASSERT_ALWAYS(sendbuf == nullptr);
+    ASSERT_ALWAYS(sendtype == nullptr);
     ASSERT_ALWAYS(sendcount == 0);
     size_t const per_thread = recvcount * recvtype->item_size;
     /* share the adress of the leader's buffer with everyone */
@@ -1580,7 +1580,7 @@ int pi_data_eq(void *buffer, size_t count, pi_datatype_ptr datatype, pi_comm_ptr
 /*{{{ collective malloc and free (thread-level of course) */
 void * shared_malloc(pi_comm_ptr wr, size_t size)
 {
-    void * ptr = NULL;
+    void * ptr = nullptr;
     if (wr->trank == 0) ptr = malloc(size);
     pi_thread_bcast(&ptr, sizeof(void*), BWC_PI_BYTE, 0, wr);
     return ptr;
@@ -1589,7 +1589,7 @@ void * shared_malloc(pi_comm_ptr wr, size_t size)
 
 void * shared_malloc_set_zero(pi_comm_ptr wr, size_t size)
 {
-    void * ptr = NULL;
+    void * ptr = nullptr;
     if (wr->trank == 0) {
         ptr = malloc(size);
         memset(ptr, 0, size);
@@ -1634,7 +1634,7 @@ int serialize_threads__(pi_comm_ptr w, const char * s MAYBE_UNUSED, unsigned int
 #endif
     my_pthread_barrier_wait(w->th->b);
     // struct timeval tv[1];
-    // gettimeofday(tv, NULL);
+    // gettimeofday(tv, nullptr);
     // printf("%.2f\n", tv->tv_sec + (double) tv->tv_usec / 1.0e6);
     // sleep(1);
     return w->trank == 0;
@@ -1729,7 +1729,7 @@ int pi_file_open(pi_file_handle_ptr f, parallelizing_info_ptr pi, int inner, con
     f->pi = pi;
     f->inner = inner;
     f->outer = !inner;
-    f->f = NULL;
+    f->f = nullptr;
     f->name = strdup(name);
     f->mode = strdup(mode);
     int failed = 0;
@@ -1739,7 +1739,7 @@ int pi_file_open(pi_file_handle_ptr f, parallelizing_info_ptr pi, int inner, con
          * http://pubs.opengroup.org/onlinepubs/9699919799/functions/fopen.html
          */
         f->f = fopen(name, mode);
-        if (f->f == NULL)
+        if (f->f == nullptr)
             failed = errno ? errno : EIO;;
     }
     pi_bcast(&failed, 1, BWC_PI_INT, 0, 0, f->pi->m);
@@ -1798,7 +1798,7 @@ static ssize_t pi_file_read_leader(pi_file_handle_ptr f, void * buf, size_t size
 */
 
 /* size is the chunk size on each core */
-ssize_t pi_file_write(pi_file_handle_ptr f, void * buf, size_t size, size_t totalsize)
+size_t pi_file_write(pi_file_handle_ptr f, void * buf, size_t size, size_t totalsize)
 {
     return pi_file_write_chunk(f, buf, size, totalsize, 1, 0, 1);
 }
@@ -1813,16 +1813,16 @@ ssize_t pi_file_write(pi_file_handle_ptr f, void * buf, size_t size, size_t tota
  * a short read occurs, set errno (globally) to the value returned by the
  * fwrite function at the leader node.
  */
-ssize_t pi_file_write_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t totalsize, size_t chunksize, size_t spos, size_t epos)
+size_t pi_file_write_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t sizeondisk, size_t chunksize, size_t spos, size_t epos)
 {
     // coverity[result_independent_of_operands]
     ASSERT_ALWAYS(size <= ULONG_MAX);
     ASSERT_ALWAYS(spos <= chunksize);
     ASSERT_ALWAYS(spos <= epos);
     ASSERT_ALWAYS(epos <= chunksize);
-    ASSERT_ALWAYS(totalsize % chunksize == 0);
+    ASSERT_ALWAYS(sizeondisk % chunksize == 0);
     ASSERT_ALWAYS(size % chunksize == 0);
-    size_t const loc_totalsize = (totalsize / chunksize) * (epos - spos);
+    size_t const loc_sizeondisk = (sizeondisk / chunksize) * (epos - spos);
     size_t const loc_size = (size / chunksize) * (epos - spos);
     size_t const chunk_per_rank = size / chunksize;
 
@@ -1849,7 +1849,7 @@ ssize_t pi_file_write_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_
      */
     void * sbuf = shared_malloc_set_zero(f->pi->m, loc_size * nci);
 
-    long res = 0;
+    size_t res = 0;
     int failed = 0;
 
     for(unsigned int xjo = 0 ; xjo < njo ; xjo++) {
@@ -1886,16 +1886,16 @@ ssize_t pi_file_write_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_
                                     MPI_STATUS_IGNORE);
                         }
                         if (!failed) {
-                            size_t const wanna_write = MIN(nci * loc_size, loc_totalsize - res);
+                            size_t const wanna_write = MIN(nci * loc_size, loc_sizeondisk - res);
                             if (wanna_write < nci * loc_size)
                                 ASSERT_ALWAYS(area_is_zero(sbuf, wanna_write, nci * loc_size));
                             /* POSIX fwrite is required to set errno
                              * http://pubs.opengroup.org/onlinepubs/9699919799/functions/fwrite.html
                              */
                             errno = 0;
-                            ssize_t const x = fwrite(sbuf, 1, wanna_write, f->f);
+                            size_t const x = fwrite(sbuf, 1, wanna_write, f->f);
                             res += x;
-                            if (x < (ssize_t) wanna_write)
+                            if (x < wanna_write)
                                 failed = errno ? errno : EIO;
                         }
                     } else if (jm == xj) {
@@ -1908,33 +1908,33 @@ ssize_t pi_file_write_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_
         }
     }
     shared_free(f->pi->m, sbuf);
-    pi_bcast(&res, 1, BWC_PI_LONG, 0, 0, f->pi->m);
+    pi_bcast(&res, 1, BWC_PI_SIZE_T, 0, 0, f->pi->m);
     pi_bcast(&failed, 1, BWC_PI_INT, 0, 0, f->pi->m);
     if (failed) errno = failed;
     return res;
 }
 
-ssize_t pi_file_read(pi_file_handle_ptr f, void * buf, size_t size, size_t totalsize)
+size_t pi_file_read(pi_file_handle_ptr f, void * buf, size_t size, size_t sizeondisk)
 {
-    return pi_file_read_chunk(f, buf, size, totalsize, 1, 0, 1);
+    return pi_file_read_chunk(f, buf, size, sizeondisk, 1, 0, 1);
 }
 
 /*
  * Return a globally consistent count of read items. A full read is when
- * exactly (totalsize / chunksize) * (epos - spos) items are read.  When
+ * exactly (sizeondisk / chunksize) * (epos - spos) items are read.  When
  * a short read occurs, set errno (globally) to the value returned by the
  * fread function at the leader node.
  */
-ssize_t pi_file_read_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t totalsize, size_t chunksize, size_t spos, size_t epos)
+size_t pi_file_read_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t sizeondisk, size_t chunksize, size_t spos, size_t epos)
 {
     // coverity[result_independent_of_operands]
     ASSERT_ALWAYS(size <= ULONG_MAX);
     ASSERT_ALWAYS(spos <= chunksize);
     ASSERT_ALWAYS(spos <= epos);
     ASSERT_ALWAYS(epos <= chunksize);
-    ASSERT_ALWAYS(totalsize % chunksize == 0);
+    ASSERT_ALWAYS(sizeondisk % chunksize == 0);
     ASSERT_ALWAYS(size % chunksize == 0);
-    size_t const loc_totalsize = (totalsize / chunksize) * (epos - spos);
+    size_t const loc_sizeondisk = (sizeondisk / chunksize) * (epos - spos);
     size_t const loc_size = (size / chunksize) * (epos - spos);
     size_t const chunk_per_rank = size / chunksize;
 
@@ -1957,7 +1957,7 @@ ssize_t pi_file_read_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t
 
     void * sbuf = shared_malloc_set_zero(f->pi->m, loc_size * nci);
 
-    long res = 0;
+    size_t res = 0;
     int failed = 0;
 
     for(unsigned int xjo = 0 ; xjo < njo ; xjo++) {
@@ -1973,14 +1973,14 @@ ssize_t pi_file_read_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t
                         /* leader node to read then send data */
                         memset(sbuf, 0, nci * loc_size);
                         if (!failed) {
-                            size_t const wanna_read = MIN(nci * loc_size, loc_totalsize - res);
+                            size_t const wanna_read = MIN(nci * loc_size, loc_sizeondisk - res);
                             /* POSIX fread is required to set errno
                              * http://pubs.opengroup.org/onlinepubs/9699919799/functions/fread.html
                              */
                             errno = 0;
-                            ssize_t const x = fread(sbuf, 1, wanna_read, f->f);
+                            size_t const x = fread(sbuf, 1, wanna_read, f->f);
                             res += x;
-                            if (x < (ssize_t) wanna_read)
+                            if (x < wanna_read)
                                 failed = errno ? errno : EIO;
                         }
                         if (xj) {       /* except to itself... */
@@ -2018,7 +2018,7 @@ ssize_t pi_file_read_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t
         }
     }
     shared_free(f->pi->m, sbuf);
-    pi_bcast(&res, 1, BWC_PI_LONG, 0, 0, f->pi->m);
+    pi_bcast(&res, 1, BWC_PI_SIZE_T, 0, 0, f->pi->m);
     pi_bcast(&failed, 1, BWC_PI_INT, 0, 0, f->pi->m);
     if (failed) errno = failed;
     return res;

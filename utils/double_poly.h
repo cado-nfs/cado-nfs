@@ -13,7 +13,7 @@
 #include <type_traits>
 #include <utility>
 
-#include "fmt/core.h"
+#include "fmt/base.h"
 #include "fmt/ostream.h"
 #endif
 

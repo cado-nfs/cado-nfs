@@ -20,8 +20,8 @@ typedef struct timing_interval_data_s timing_interval_data[1];
 
 struct timing_data {
     int go_mark;
-    int begin_mark;
-    int end_mark;
+    unsigned int begin_mark;
+    unsigned int end_mark;
     int last_print;
     int next_print;
     int which;

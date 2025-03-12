@@ -4,7 +4,7 @@
 
 #include <sys/utsname.h>                  // for uname, utsname
 
-#include "fmt/core.h"
+#include "fmt/base.h"
 
 #include "gmp_aux.h"
 #include "bw-common.h"                    // for bw, bw_common_clear, bw_com...

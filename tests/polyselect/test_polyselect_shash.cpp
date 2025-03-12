@@ -43,7 +43,7 @@ struct polyselect_shash_config {
     typedef uint32_t tie_breaker_type;
     static constexpr const unsigned int log2_open_hash_extra_size = 2;
     static constexpr const unsigned int open_hash_tail_overrun_protection = 16;
-    static inline tie_breaker_type tie_breaker(input_type x) {
+    static tie_breaker_type tie_breaker(input_type x) {
         return x + (x >> 32);
     }
 };
@@ -68,7 +68,7 @@ class bucket_hash {
     bucket_hash(bucket_hash const &) = delete;
     bucket_hash& operator= (bucket_hash const &) = delete;
 
-    static inline size_t get_alloc_size(size_t expected_entries) {
+    static size_t get_alloc_size(size_t expected_entries) {
         size_t alloc_size = expected_entries + 2 * std::sqrt(expected_entries);
         alloc_size *= 1.125;
         size_t const bucket_size = iceildiv(alloc_size, Nbuckets);
@@ -76,7 +76,7 @@ class bucket_hash {
         return alloc_size;
     }
 
-    static inline size_t get_secondary_size(size_t bucket_size) {
+    static size_t get_secondary_size(size_t bucket_size) {
         return next_power_of_2(bucket_size) << config::log2_open_hash_extra_size;
     }
 
@@ -108,7 +108,7 @@ class bucket_hash {
     ~bucket_hash() {
         delete[] data;
     }
-    inline void push(T const& x) {
+    void push(T const& x) {
         U const u = x;
         /* It's a matter of taste if we want to shift by log2_nbuckets
          * now or later. We'll compare bucket by bucket, so the equality

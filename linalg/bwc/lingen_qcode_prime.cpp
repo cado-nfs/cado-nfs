@@ -210,6 +210,7 @@ struct bw_lingen_basecase_raw_object {
          * delta. So the delta[] array keeps referring to physical
          * indices, and we'll tune this in the end. */
         std::vector<std::pair<int, int>> ctable_pre;
+        ctable_pre.reserve(b);
         for(unsigned int j = 0; j < b; j++)
             ctable_pre.emplace_back(bm.delta[j], j);
         std::sort(std::begin(ctable_pre), std::end(ctable_pre));

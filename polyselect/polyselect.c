@@ -27,19 +27,26 @@
  * it's gcc specific. We can't expect such a thing to work with other
  * compilers.
  */
-#include <stdbool.h>		// bool
+#include <stdbool.h>
 #include <stdio.h>
-#include <stdlib.h>		// malloc ...
-#include <stdint.h>		// uint64_t
+#include <stdlib.h>
+#include <stdint.h>
+#include <string.h>
+
+#include <pthread.h>
 
 #include <gmp.h>
 
-#include "macros.h"		// ASSERT
+#include "macros.h"
 #include "mpz_poly.h"
 #include "params.h"
+#include "polyselect_data_series.h"
+#include "polyselect_main_data.h"
 #include "polyselect_main_queue.h"
 #include "polyselect_poly_header.h"
+#include "polyselect_priority_queue.h"
 #include "polyselect_thread_league.h"
+#include "polyselect_thread_team.h"
 #include "polyselect_collisions.h"
 #include "polyselect_shash.h"
 #include "polyselect_stats.h"
@@ -236,7 +243,7 @@ polyselect_process_match_async(polyselect_thread_league_srcptr league, polyselec
   mpz_pow_ui(mtilde, m, header->d - 1);
   mpz_mul(mtilde, mtilde, adm1);
   mpz_sub(t, t, mtilde);
-  for (unsigned long j = header->d - 2; j > 0; j--)
+  for (int j = header->d - 2; j > 0; j--)
     {
       check_divexact(t, t, "t", l, "l");
       /* t = a_j*m^j + l*R thus a_j = t/m^j mod l */

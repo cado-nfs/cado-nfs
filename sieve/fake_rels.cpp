@@ -708,6 +708,7 @@ int main(int argc, char const * argv[])
   double t0 = seconds ();
   double wct_t0 = wct_seconds ();
 
+  threads.reserve(mt);
   for(int i = 0 ; i < mt ; i++)
       threads.emplace_back(worker, i, mt, 
               Ind, sample, qs,

@@ -119,7 +119,7 @@ struct segment {
     segment(segment &&) = delete;
     segment& operator=(segment &&) = delete;
     ~segment() = default;
-    inline void incr(uint32_t c) { data[c]++; }
+    void incr(uint32_t c) { data[c]++; }
     uint32_t * non_atomic_data() { return (uint32_t *) (data.data()); }
 };
 

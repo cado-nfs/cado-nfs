@@ -1,33 +1,36 @@
 #include "cado.h" // IWYU pragma: keep
-// IWYU pragma: no_include <memory>
-#include <cinttypes>
+
 #include <cstdio>
 #include <cstring>
 #include <climits>
-#include <cstdint>              // for uint32_t
-#include <ctime>                // for time
+#include <cstdint>
+#include <ctime>
 #include <cstdlib>
-#include <memory>
 
-#include <vector>
-#include <array>
-#include <set>
-#include <map>
-#include <tuple>
 #include <algorithm>
-#include <utility>               // for pair, make_pair
+#include <array>
+#include <stdexcept>
+#include <map>
+#include <memory>
+#include <set>
 #include <sstream>
+#include <string>
+#include <tuple>
+#include <utility>
+#include <vector>
 
-#include <dirent.h>
-#include <pthread.h>             // for pthread_mutex_lock, pthread_mutex_un...
+#include <pthread.h>
 
-#include <gmp.h>                 // for mpz_cmp_ui, gmp_randclear, gmp_randi...
+#include <gmp.h>
+#include "fmt/base.h"
+#include "fmt/format.h"
 
 #include "gmp_aux.h"
 #include "bw-common.h"
 #include "cxx_mpz.hpp"
 #include "matmul_top.hpp"
 #include "matmul_top_comm.hpp"
+#include "matmul_top_vec.hpp"
 #include "arith-generic.hpp"
 #include "arith-cross.hpp"
 #include "abase_proxy.hpp"
@@ -35,125 +38,90 @@
 #include "params.h"
 #include "portability.h"
 #include "select_mpi.h"
-#include "verbose.h"    // verbose_enabled
+#include "verbose.h"
 #include "macros.h"
 #include "mmt_vector_pair.hpp"
 #include "utils_cxx.hpp"
-
-struct sfile_info {/*{{{*/
-    unsigned int s0,s1;
-    unsigned int iter0;
-    unsigned int iter1;
-    char name[NAME_MAX];
-    char name_pattern[NAME_MAX];
-    static bool match(sfile_info& v, const char * name) {
-        int k;
-        int rc;
-        unsigned int s0,s1;
-        unsigned int iter0, iter1;
-        rc = sscanf(name, "S.sols%u-%u.%u-%u%n", &s0, &s1, &iter0, &iter1, &k);
-        if (rc < 4 || k != (int) strlen(name))
-            return false;
-        v.s0 = s0;
-        v.s1 = s1;
-        v.iter0 = iter0;
-        v.iter1 = iter1;
-        size_t const res = strlcpy(v.name, name, NAME_MAX);
-        ASSERT_ALWAYS(res < NAME_MAX);
-        snprintf(v.name_pattern, sizeof(name_pattern), "S.sols%%u-%%u.%u-%u", iter0, iter1);
-        return true;
-    }
-};/*}}}*/
-
-static bool operator<(sfile_info const & a, sfile_info const & b)/*{{{*/
-{
-    if (a.iter1 < b.iter1) return true;
-    if (a.iter1 > b.iter1) return false;
-    if (a.iter0 < b.iter0) return true;
-    if (a.iter0 > b.iter0) return false;
-    if (a.s1 < b.s1) return true;
-    if (a.s1 > b.s1) return false;
-    if (a.s0 < b.s0) return true;
-    if (a.s0 > b.s0) return false;
-    return false;
-}/*}}}*/
+#include "bwc_filenames.hpp"
 
 static int exitcode = 0;
 
-static std::vector<sfile_info> prelude(parallelizing_info_ptr pi)/*{{{*/
+static std::vector<bwc_iteration_range> prelude(parallelizing_info_ptr pi)/*{{{*/
 {
     int const leader = pi->m->jrank == 0 && pi->m->trank == 0;
-    int const char2 = mpz_cmp_ui(bw->p, 2) == 0;
-    int const splitwidth = char2 ? 64 : 1;
-    std::vector<sfile_info> res;
+    std::vector<bwc_iteration_range> iteration_ranges;
     serialize_threads(pi->m);
-    if (leader) {
-        /* It's our job to collect the directory data.  */
-        DIR * dir = opendir(".");
-        struct dirent * de;
-        for( ; (de = readdir(dir)) != NULL ; ) {
-            sfile_info sf;
-            if (!sfile_info::match(sf, de->d_name))
-                continue;
-            res.push_back(sf);
-            if (bw->interval && sf.iter1 % bw->interval != 0) {
-                fprintf(stderr,
-                        "Warning: %s is not a checkpoint at a multiple of "
-                        "the interval value %d -- this might indicate a "
-                        "severe bug with leftover data, likely to corrupt "
-                        "the final computation\n", sf.name, bw->interval);
-            }
-        }
-        closedir(dir);
-        sort(res.begin(), res.end());
 
-        std::vector<sfile_info> res2;
-        auto it = res.begin();
-        for( ; it < res.end() ; ) {
-            if (it->s0 < bw->solutions[0] || it->s0 >= bw->solutions[1]) {
-                it++;
+    if (leader) {
+        std::map<bwc_iteration_range, std::vector<bwc_S_file>> by_iter;
+        for(auto const & S : bwc_file_base::ls<bwc_S_file>(".")) {
+            /* filter out the files that do not correspond to the
+             * solution range we're interested in! */
+            if (S.s0 < bw->solutions[0] || S.s0 >= bw->solutions[1])
                 continue;
-            }
-            /* try to read a complete set of files at this iteration */
-            unsigned int x = bw->solutions[0];
-            unsigned int const z = bw->solutions[1];
-            bool ok = true;
-            auto current = *it;
-            for(unsigned int y ; ok && x < z ; x = y, it++) {
-                y = x + splitwidth;
-                ok = it->s0 == x && it->s1 == y;
-            }
-            if (ok) {
-                current.s0 = bw->solutions[0];
-                current.s1 = bw->solutions[1];
-                res2.push_back(current);
-            }
+            if (S.s1 <= bw->solutions[0] || S.s1 > bw->solutions[1])
+                continue;
+
+            /* sanity check */
+            if (bw->interval && S.n1 % bw->interval != 0)
+                fmt::print(stderr,
+                        "Warning: {} is not a checkpoint at a multiple of "
+                        "the interval value {} -- this might indicate a "
+                        "severe bug with leftover data, likely to corrupt "
+                        "the final computation\n", S, bw->interval);
+
+            /* prepare for hole checking */
+            by_iter[S].push_back(S);
         }
-        std::swap(res, res2);
 
         unsigned int prev_iter = 0;
-        for(size_t i = 0 ; i < res.size() ; i++) {
-            sfile_info const & cur(res[i]);
-            if (cur.iter0 && cur.iter0 != prev_iter) {
-                fprintf(stderr, "Within the set of S files, file "
-                        "%s seems to be the first "
-                        "to come after iteration %u, therefore there is "
-                        "a gap for the range %u..%u\n",
-                        cur.name, prev_iter, prev_iter, cur.iter0);
-                exit(EXIT_FAILURE);
+        for(auto const & cur : by_iter) {
+            unsigned int n0 = cur.first[0];
+            unsigned int n1 = cur.first[1];
+            if (n0 != prev_iter)
+                throw std::runtime_error(fmt::format(
+                            "Within the set of S files, file(s) "
+                            "{} seems come first "
+                            "after iteration {}, therefore there is "
+                            "a gap for the range {}..{}\n",
+                            join(cur.second, " "), prev_iter, prev_iter, n0));
+            prev_iter = n1;
+
+            /* It also makes sense to verify that we have a collection of
+             * files that do match our solution range. The mmt_vec_load
+             * will collect files based on that.
+             */
+            unsigned int prev_s = bw->solutions[0];
+            for(auto const & S : cur.second) {
+                if (S.s0 != prev_s)
+                    throw std::runtime_error(fmt::format(
+                                "For iterations {}-{}, we don't have"
+                                " the files for solution columns {}-{}",
+                                n0, n1,
+                                prev_s, S.s0));
+                prev_s = S.s1;
             }
-            prev_iter = cur.iter1;
+            if (prev_s != bw->solutions[1])
+                throw std::runtime_error(fmt::format(
+                            "For iterations {}-{}, we don't have"
+                            " the files for solution columns {}-{}",
+                            n0, n1,
+                            prev_s, bw->solutions[1]));
+
+            iteration_ranges.emplace_back(cur.first);
         }
     }
 
     serialize(pi->m);
-    unsigned long s = res.size();
+    unsigned long s = iteration_ranges.size();
     pi_bcast(&s, 1, BWC_PI_UNSIGNED_LONG, 0, 0, pi->m);
     if (!leader)
-        res.assign(s, sfile_info());
-    pi_bcast(res.data(), s * sizeof(sfile_info), BWC_PI_BYTE, 0, 0, pi->m);
+        iteration_ranges.assign(s, {});
+    pi_bcast(iteration_ranges.data(),
+            s * sizeof(decltype(iteration_ranges)::value_type), BWC_PI_BYTE,
+            0, 0, pi->m);
     serialize(pi->m);
-    return res;
+    return iteration_ranges;
 }/*}}}*/
 
 static void fprint_signed(FILE * f, arith_generic * A, arith_generic::elt const & x)
@@ -168,7 +136,7 @@ static void fprint_signed(FILE * f, arith_generic * A, arith_generic::elt const 
         A->cxx_out(os, x);
     }
     A->free(minus);
-    fprintf(f, "%s", os.str().c_str());
+    fmt::print(f, "{}", os.str());
 }
 
 static std::vector<unsigned int> indices_of_zero_or_nonzero_values(mmt_vec & y, unsigned int maxidx, int want_nonzero)/*{{{*/
@@ -232,14 +200,14 @@ static std::vector<unsigned int> get_possibly_wrong_columns(matmul_top_data & mm
          * test and update it here.
          * at pi->m->jrank > 0, we don't care about the seed anyway
          */
-        bw->seed = time(NULL);
+        bw->seed = (int) time(nullptr);
         MPI_Bcast(&bw->seed, 1, MPI_INT, 0, pi->m->pals);
     }
     serialize_threads(pi->m);
 
     gmp_randseed_ui(rstate, bw->seed);
     if (tcan_print)
-        printf("// Random generator seeded with %d\n", bw->seed);
+        fmt::print("// Random generator seeded with {}\n", bw->seed);
 
     /* Do that in the opposite direction compared to ymy */
     mmt_vector_pair zmz(mmt, !bw->dir);
@@ -251,7 +219,7 @@ static std::vector<unsigned int> get_possibly_wrong_columns(matmul_top_data & mm
     mmt_vec_truncate_above_index(mmt, z, mmt.n0[bw->dir]);
     mmt_vec_apply_T(mmt, z);
     mmt_vec_twist(mmt, z);
-    matmul_top_mul(mmt, zmz.vectors(), NULL);
+    matmul_top_mul(mmt, zmz.vectors(), nullptr);
     mmt_vec_untwist(mmt, z);
     mmt_apply_identity(mz, z);
     mmt_vec_allreduce(mz);
@@ -273,7 +241,7 @@ static std::vector<unsigned int> get_possibly_wrong_columns(matmul_top_data & mm
     mmt_vec_truncate_above_index(mmt, z, mmt.n0[!bw->dir]);
     mmt_vec_apply_T(mmt, z);
     mmt_vec_twist(mmt, z);
-    matmul_top_mul(mmt, zmz.vectors(), NULL);
+    matmul_top_mul(mmt, zmz.vectors(), nullptr);
     mmt_vec_untwist(mmt, z);
     mmt_apply_identity(mz, z);
     mmt_vec_allreduce(mz);
@@ -322,20 +290,24 @@ static void compress_vector_to_sparse(arith_generic::elt * matrix, unsigned int 
 
 struct rhs /*{{{*/ {
     matmul_top_data & mmt;
-    arith_generic * A;
-    unsigned int nrhs;
-    arith_generic::elt * rhscoeffs;
+    arith_generic * A = nullptr;
+    unsigned int nrhs = 0;
+    arith_generic::elt * rhscoeffs = nullptr;
     abase_proxy natural;
-    arith_generic * Av;
+    arith_generic * Av = nullptr;
 
     rhs(rhs const&) = delete;
+    rhs(rhs &&) = delete;
+    rhs& operator=(rhs const&) = delete;
+    rhs& operator=(rhs &&) = delete;
 
-    rhs(matmul_top_data & mmt, const char * rhs_name, unsigned int solutions[2]) : mmt(mmt), A(mmt.abase), natural(abase_proxy::most_natural(mmt.pi)) /* {{{ */
+    rhs(matmul_top_data & mmt,
+            const char * rhs_name,
+            bwc_solution_range const & solutions)
+        : mmt(mmt)
+        , A(mmt.abase)
+        , natural(abase_proxy::most_natural(mmt.pi)) /* {{{ */
     {
-        nrhs = 0;
-        rhscoeffs = NULL;
-        Av = NULL;
-
         if (!rhs_name) return;
 
         parallelizing_info_ptr pi = mmt.pi;
@@ -352,18 +324,20 @@ struct rhs /*{{{*/ {
         Av = natural.A.get();
 
         if (leader)
-            get_rhs_file_header(rhs_name, NULL, &nrhs, NULL);
+            get_rhs_file_header(rhs_name, nullptr, &nrhs, nullptr);
         pi_bcast(&nrhs, 1, BWC_PI_UNSIGNED, 0, 0, pi->m);
 
         if (tcan_print) {
-            printf("** Informational note about GF(p) inhomogeneous system:\n");
-            printf("   Original matrix dimensions: %" PRIu32" %" PRIu32"\n", mmt.n0[0], mmt.n0[1]);
-            printf("   We expect to obtain a vector of size %" PRIu32"\n",
+            fmt::print("** Informational note about GF(p) inhomogeneous system:\n");
+            fmt::print("   Original matrix dimensions: {} {}\n",
+                    mmt.n0[0], mmt.n0[1]);
+            fmt::print("   We expect to obtain a vector of size {}\n",
                     mmt.n0[!bw->dir] + nrhs);
-            printf("   which we hope will be a kernel vector for (M_square||RHS).\n"
+            fmt::print(
+                    "   which we hope will be a kernel vector for (M_square||RHS).\n"
                     "   We will discard the coefficients which correspond to padding columns\n"
                     "   This entails keeping coordinates in the intervals\n"
-                    "   [0..%" PRIu32"[ and [%" PRIu32"..%" PRIu32"[\n"
+                    "   [0..{}[ and [{}..{}[\n"
                     "   in the result.\n"
                     "** end note.\n",
                     mmt.n0[bw->dir], mmt.n0[!bw->dir], mmt.n0[!bw->dir] + nrhs);
@@ -384,26 +358,21 @@ struct rhs /*{{{*/ {
             unsigned int const Av_multiplex = (solutions[1] - solutions[0]) / splitwidth;
             for(unsigned int j = 0 ; j < nrhs ; j++) {
                 for(unsigned int i = 0 ; i < Av_multiplex ; i++) {
-                    char * tmp;
                     unsigned int const s0 = solutions[0] + i * splitwidth;
                     unsigned int const s1 = solutions[0] + (i + 1) * splitwidth;
-                    int rc = asprintf(&tmp, "F.sols%u-%u.%u-%u.rhs", s0, s1, j, j+splitwidth);
+                    std::string tmp = fmt::format("F.sols{}-{}.{}-{}.rhs", s0, s1, j, j+splitwidth);
                     if (verbose_enabled(CADO_VERBOSE_PRINT_BWC_LOADING_MKSOL_FILES)) {
-                        printf("loading %s\n", tmp);
+                        fmt::print("loading {}\n", tmp);
                     }
-                    ASSERT_ALWAYS(rc >= 0);
-                    FILE * f = fopen(tmp, "rb");
-                    ASSERT_ALWAYS(f);
-                    rc = fread(
+                    const auto f = fopen_helper(tmp, "rb");
+                    const size_t rc = fread(
                             Av->vec_subvec(rhscoeffs, j * Av_multiplex + i),
                             Av->elt_stride(),
-                            1, f);
+                            1, f.get());
                     ASSERT_ALWAYS(rc == 1);
                     if (Av->is_zero(Av->vec_item(rhscoeffs, j * Av_multiplex + i))) {
-                        printf("Notice: coefficient for vector V%u-%u in file %s is zero\n", j, j+1, tmp);
+                        fmt::print("Notice: coefficient for vector V{}-{} in file {} is zero\n", j, j+1, tmp);
                     }
-                    fclose(f);
-                    free(tmp);
                 }
             }
         }
@@ -414,26 +383,29 @@ struct rhs /*{{{*/ {
         if (rhscoeffs)
             A->free(rhscoeffs);
     }/*}}}*/
-    void fwrite_rhs_coeffs(FILE * f, unsigned int i=0) /* {{{ */
+
+    void fwrite_rhs_coeffs(FILE * f, unsigned int i=0) const /* {{{ */
     {
         unsigned int const Av_multiplex = A->simd_groupsize() / Av->simd_groupsize();
         for(unsigned int j = 0 ; j < nrhs ; j++) {
-            int const rc = fwrite(
+            size_t const rc = fwrite(
                     Av->vec_subvec(rhscoeffs, j * Av_multiplex + i),
                     Av->elt_stride(),
                     1, f);
             ASSERT_ALWAYS(rc == 1);
         }
     }/*}}}*/
-    void fprint_rhs_coeffs(FILE * f2) /* {{{ */
+
+    void fprint_rhs_coeffs(FILE * f2) const /* {{{ */
     {
         for(uint32_t i = 0 ; i < nrhs ; i++) {
             std::ostringstream os;
             A->cxx_out(os, A->vec_item(rhscoeffs, i));
-            fprintf(f2, "%s\n", os.str().c_str());
+            fmt::print(f2, "{}\n", os.str());
         }
     }/*}}}*/
-    operator bool() const { return nrhs; }
+
+    explicit operator bool() const { return nrhs; }
 
     void add_contribution(mmt_vec & y) const/*{{{*/
     {
@@ -452,7 +424,7 @@ struct rhs /*{{{*/ {
         mmt_vec vi(mmt,Av,Av_pi, bw->dir, /* shared ! */ 1, mmt.n[bw->dir]);
 
         for(unsigned int j = 0 ; j < nrhs ; j++) {
-            int const ok = mmt_vec_load(vi, "V%u-%u.0", unpadded, j);
+            int const ok = mmt_vec_load(vi, bwc_V_file::pattern(0), unpadded, j);
             ASSERT_ALWAYS(ok);
 
             natural.templates(A)->addmul_tiny(
@@ -511,8 +483,8 @@ static std::tuple<int, int> check_zero_and_padding(mmt_vec & y, unsigned int max
                 mmt_my_own_subvec(y), my_input_coordinates),
             my_pad_coordinates);
 
-    pi_allreduce(NULL, &input_is_zero, 1, BWC_PI_INT, BWC_PI_MIN, y.pi->m);
-    pi_allreduce(NULL, &pad_is_zero, 1, BWC_PI_INT, BWC_PI_MIN, y.pi->m);
+    pi_allreduce(nullptr, &input_is_zero, 1, BWC_PI_INT, BWC_PI_MIN, y.pi->m);
+    pi_allreduce(nullptr, &pad_is_zero, 1, BWC_PI_INT, BWC_PI_MIN, y.pi->m);
 
     return std::make_tuple(input_is_zero, pad_is_zero);
 }/*}}}*/
@@ -533,7 +505,7 @@ static std::tuple<int, int, int> test_one_vector(matmul_top_data & mmt, mmt_vect
         mmt_vec_apply_T(mmt, y);
         serialize(pi->m);
         mmt_vec_twist(mmt, y);
-        matmul_top_mul(mmt, ymy.vectors(), NULL);
+        matmul_top_mul(mmt, ymy.vectors(), nullptr);
         mmt_vec_untwist(mmt, y);
         serialize(pi->m);
         /* Add the contributions from the right-hand side vectors, to see
@@ -550,7 +522,7 @@ static std::tuple<int, int, int> test_one_vector(matmul_top_data & mmt, mmt_vect
          * course, so we don't heave the same headache as above */
         int is_zero = A->vec_is_zero(
                 mmt_my_own_subvec(y), mmt_my_own_size_in_items(y));
-        pi_allreduce(NULL, &is_zero, 1, BWC_PI_INT, BWC_PI_MIN, pi->m);
+        pi_allreduce(nullptr, &is_zero, 1, BWC_PI_INT, BWC_PI_MIN, pi->m);
 
         hamming_out = is_zero ? 0 : mmt_vec_hamming_weight(y);
     }
@@ -586,7 +558,7 @@ class parasite_fixer {/*{{{*/
 
     // typedef std::map<std::pair<unsigned int, unsigned int>, cxx_mpz> pre_matrix_t;
 
-    arith_generic::elt * matrix;
+    arith_generic::elt * matrix = nullptr;
     public:
     bool attempt_to_fix;
 
@@ -595,8 +567,11 @@ class parasite_fixer {/*{{{*/
     size_t nrows() const { return rows.size(); }
     std::vector<std::pair<std::array<unsigned int, 2>, int> > pivot_list;
 
-    parasite_fixer(matmul_top_data & mmt) : mmt(mmt), A(mmt.abase), pi(mmt.pi) {/*{{{*/
-        matrix = NULL;
+    explicit parasite_fixer(matmul_top_data & mmt)
+        : mmt(mmt)
+        , A(mmt.abase)
+        , pi(mmt.pi)
+    {/*{{{*/
         int const tcan_print = bw->can_print && pi->m->trank == 0;
 
         cols = get_possibly_wrong_columns(mmt);
@@ -604,14 +579,14 @@ class parasite_fixer {/*{{{*/
         attempt_to_fix = !cols.empty() && cols.size() < 64;
 
         if (!cols.empty() && tcan_print) {
-            printf("# %zu possibly wrong coordinates detected"
+            fmt::print("# {} possibly wrong coordinates detected"
                     " in solution vector because the matrix"
                     " has a non-trivial nilpotent space.\n",
                     cols.size());
             if (attempt_to_fix) {
-                printf("# Will try to fix\n");
+                fmt::print("# Will try to fix\n");
             } else {
-                printf("# Deliberately avoiding attempt to fix because"
+                fmt::print("# Deliberately avoiding attempt to fix because"
                         " this number of vectors is large."
                         " It is rather an indication that something is wrong."
                         " Proceeding anyway\n");
@@ -621,6 +596,9 @@ class parasite_fixer {/*{{{*/
     }/*}}}*/
 
     parasite_fixer(parasite_fixer const&) = delete;
+    parasite_fixer(parasite_fixer &&) = delete;
+    parasite_fixer& operator=(parasite_fixer const&) = delete;
+    parasite_fixer& operator=(parasite_fixer &&) = delete;
 
     /*{{{ row_coordinates_of_nonzero_cols(matmul_top_data & mmt) */
     std::vector<unsigned int> row_coordinates_of_nonzero_cols(matmul_top_data & mmt, std::vector<unsigned int> const& cols)
@@ -643,10 +621,10 @@ class parasite_fixer {/*{{{*/
             }
             mmt_vec_apply_T(mmt, y);
             mmt_vec_twist(mmt, y);
-            matmul_top_mul(mmt, ymy.vectors(), NULL);
+            matmul_top_mul(mmt, ymy.vectors(), nullptr);
             mmt_vec_untwist(mmt, y);
             /* Not entirely clear to me if I should unapply_T here or not
-            */
+             */
             mmt_apply_identity(my, y);
             mmt_vec_allreduce(my);
             mmt_vec_unapply_T(mmt, my);
@@ -696,7 +674,7 @@ class parasite_fixer {/*{{{*/
             }
         }
 
-        pi_allreduce(NULL, matrix,
+        pi_allreduce(nullptr, matrix,
                 rows.size() * cols.size(),
                 mmt.pitype, BWC_PI_SUM, pi->m);
     }/*}}}*/
@@ -705,38 +683,38 @@ class parasite_fixer {/*{{{*/
     void debug_print_local_matrix(arith_generic::elt * matrix,
             std::vector<unsigned int> const & rows,
             std::vector<unsigned int> const & cols,
-            arith_generic::elt * nz = NULL)/*{{{*/
+            arith_generic::elt * nz = nullptr)/*{{{*/
     {
         size_t const nr = rows.size();
         size_t const nc = cols.size();
-        printf("# Dump of the full matrix%s as seen by J%uT%u\n",
+        fmt::print("# Dump of the full matrix{} as seen by J{}T{}\n",
                 nz ? " (with coefficients of the vector encountered)" : "",
                 pi->m->jrank, pi->m->trank);
         unsigned int kk = 0;
         unsigned int const B = A->simd_groupsize();
         unsigned int const cblocks = iceildiv(nc, B);
-        printf("#\t\t");
+        fmt::print("#\t\t");
         for(unsigned int jj = 0 ; jj < nc ; jj++) {
-            printf("[%u] ", cols[jj]);
+            fmt::print("[{}] ", cols[jj]);
         }
-        printf("\n");
+        fmt::print("\n");
         for(unsigned int ii = 0 ; ii < nr ; ii++) {
-            printf("#\t%u\t", rows[ii]);
+            fmt::print("#\t{}\t", rows[ii]);
             for(unsigned int jj = 0 ; jj < cblocks ; jj++) {
-                printf(" ");
+                fmt::print(" ");
                 fprint_signed(stdout, A, A->vec_item(matrix, kk));
                 kk++;
             }
             if (nz) {
-                printf(" ");
+                fmt::print(" ");
                 fprint_signed(stdout, A, A->vec_item(nz, ii));
             }
-            printf("\n");
+            fmt::print("\n");
         }
     }/*}}}*/
 
 #if 0
-    void debug_print_all_local_matrices(arith_generic::elt * nz = NULL)/*{{{*/
+    void debug_print_all_local_matrices(arith_generic::elt * nz = nullptr)/*{{{*/
     {
         for(unsigned int jr = 0 ; jr < pi->m->njobs ; jr++) {
             for(unsigned int tr = 0 ; tr < pi->m->ncores ; tr++) {
@@ -786,10 +764,11 @@ class parasite_fixer {/*{{{*/
 
             std::vector<unsigned int> vcols(scols.begin(), scols.end());
             std::vector<unsigned int> vrows;
+            vrows.reserve(srows.size());
             for(auto x : srows) vrows.push_back(rows[x]);
 
             if (tcan_print)
-                printf("# Pass %d: checking for error fixing pivots within a matrix of dimension %zu*%zu\n", spin, vrows.size(), vcols.size());
+                fmt::print("# Pass {}: checking for error fixing pivots within a matrix of dimension {}*{}\n", spin, vrows.size(), vcols.size());
 
             arith_generic::elt * mat;
             arith_generic::elt ** pmat = &mat;
@@ -811,7 +790,7 @@ class parasite_fixer {/*{{{*/
                 }
                 mmt_vec_apply_T(mmt, y);
                 mmt_vec_twist(mmt, y);
-                matmul_top_mul(mmt, ymy.vectors(), NULL);
+                matmul_top_mul(mmt, ymy.vectors(), nullptr);
                 mmt_vec_untwist(mmt, y);
                 /* Not entirely clear to me if I should unapply_T here or not
                 */
@@ -825,12 +804,12 @@ class parasite_fixer {/*{{{*/
                 serialize(pi->m);
             }
 
-            pi_allreduce(NULL, *pmat,
+            pi_allreduce(nullptr, *pmat,
                     cblocks * vrows.size(),
                     mmt.pitype, BWC_PI_SUM, pi->m);
 
             if (leader) {
-                printf("Print matrix of size %zu*%zu\n", srows.size(), scols.size());
+                fmt::print("Print matrix of size {}*{}\n", srows.size(), scols.size());
                 debug_print_local_matrix(matrix, vrows, vcols);
             }
 
@@ -866,30 +845,32 @@ class parasite_fixer {/*{{{*/
             }
 
             for(auto const & pp : pivots) {
-                unsigned int xi = pp.first;
-                unsigned int j = pp.second.first;
+                const unsigned int xi = pp.first;
+                const unsigned int j = pp.second.first;
                 int const v = pp.second.second;
                 if (v == 2) continue;
                 if (tcan_print)
-                    printf("Found pivot for row %u:"
-                            " column %u has coefficient %d\n",
+                    fmt::print("Found pivot for row {}:"
+                            " column {} has coefficient {}\n",
                             rows[xi], j, v);
                 srows.erase(xi);
                 if (scols.erase(j)) {
                     drop++;
                     /* XXX colum j may have already been deleted */
-                    std::array<unsigned int, 2> const xij {{ xi, j }};
-                    pivot_list.push_back({xij, v});
+                    std::array<unsigned int, 2> const xij { xi, j };
+                    pivot_list.emplace_back(xij, v);
                 }
             }
             if (spin)
                 A->free(mat);
 
             if (tcan_print)
-                printf("# Pass %d: number of cols has dropped by %u. We have %zu rows (at most) and %zu columns left\n", spin, drop, srows.size(), scols.size());
+                fmt::print("# Pass {}: number of cols has dropped by {}."
+                        " We have {} rows (at most) and {} columns left\n",
+                        spin, drop, srows.size(), scols.size());
             /* use this marker to indicate synchronization */
-            std::array<unsigned int, 2> const xij {{ 0u, 0u }};
-            pivot_list.push_back({xij, 0});
+            std::array<unsigned int, 2> const xij { 0U, 0U };
+            pivot_list.emplace_back(xij, 0);
         }
         if (!scols.empty()) {
             /* we exited with drop==0 then, so srows correctly reflects
@@ -897,9 +878,11 @@ class parasite_fixer {/*{{{*/
             for(auto r : srows) {
                 auto it = pivots.find(r);
                 if (it != pivots.end()) {
-                    printf("For row %u, only pivot found is non-trivial. Please implement that code\n", rows[r]);
+                    fmt::print("For row {}, only pivot found is non-trivial."
+                            " Please implement that code\n", rows[r]);
                 } else {
-                    printf("For row %u, linear algebra reduction is needed. Please implement real code\n", rows[r]);
+                    fmt::print("For row {}, linear algebra reduction is needed."
+                            " Please implement real code\n", rows[r]);
                 }
             }
         }
@@ -935,19 +918,19 @@ class parasite_fixer {/*{{{*/
         nz_pos = indices_of_nonzero_values(my, mmt.n0[!bw->dir]);
 
         if (tcan_print) {
-            printf("# Input vector has %s input, %s padding\n",
+            fmt::print("# Input vector has {} input, {} padding\n",
                     input_is_zero ? "zero" : "non-zero",
                     pad_is_zero ? "zero" : "non-zero");
-            printf("# Output has Hamming weight %d\n", hamming_out);
+            fmt::print("# Output has Hamming weight {}\n", hamming_out);
         }
         if (!std::includes(rows.begin(), rows.end(), nz_pos.begin(), nz_pos.end())) {
             if (tcan_print)
-                printf("# Note: cannot attempting to fix %zu wrong coordinates, not included in the set of %zu known possibly wrong ones\n", nz_pos.size(), rows.size());
+                fmt::print("# Note: cannot attempting to fix {} wrong coordinates, not included in the set of {} known possibly wrong ones\n", nz_pos.size(), rows.size());
             return res;
         }
 
         if (tcan_print)
-            printf("# Note: all the non-zero coordinates are included in the output of the \"possibly wrong\" columns, which is a good sign\n");
+            fmt::print("# Note: all the non-zero coordinates are included in the output of the \"possibly wrong\" columns, which is a good sign\n");
 
         arith_generic::elt * nz;
 
@@ -957,7 +940,7 @@ class parasite_fixer {/*{{{*/
         nz = A->alloc(rows.size(), ALIGNMENT_ON_ALL_BWC_VECTORS);
         A->vec_set_zero(nz, rows.size());
         compress_vector_to_sparse(nz, 0, 1, my, rows);
-        pi_allreduce(NULL, nz, rows.size(), mmt.pitype, BWC_PI_SUM, pi->m); 
+        pi_allreduce(nullptr, nz, rows.size(), mmt.pitype, BWC_PI_SUM, pi->m); 
 
         if (leader) debug_print_local_matrix(matrix, rows, cols, nz);
 
@@ -974,7 +957,7 @@ class parasite_fixer {/*{{{*/
                 std::tie(input_is_zero, pad_is_zero, hamming_out) = res;
                 A->vec_set_zero(nz, rows.size());
                 compress_vector_to_sparse(nz, 0, 1, my, rows);
-                pi_allreduce(NULL, nz, rows.size(), mmt.pitype, BWC_PI_SUM, pi->m); 
+                pi_allreduce(nullptr, nz, rows.size(), mmt.pitype, BWC_PI_SUM, pi->m); 
 
                 if (leader) debug_print_local_matrix(matrix, rows, cols, nz);
                 continue;
@@ -996,13 +979,13 @@ class parasite_fixer {/*{{{*/
 
             if (own_i0 <= j && j < own_i1) {
                 arith_generic::elt & source = A->vec_item(y_saved.v, j - y_saved.i0);
-                printf("Row %u, coefficient is ", rows[ii]);
+                fmt::print("Row {}, coefficient is ", rows[ii]);
                 fprint_signed(stdout, A, source);
                 if (v == -1) {
-                    printf(" ; fixing by adding to coordinate %u\n", j);
+                    fmt::print(" ; fixing by adding to coordinate {}\n", j);
                     A->add_and_reduce(source, error);
                 } else if (v == 1) {
-                    printf(" ; fixing by subtracting from coordinate %u\n", j);
+                    fmt::print(" ; fixing by subtracting from coordinate {}\n", j);
                     A->sub_and_reduce(source, error);
                 } else {
                     ASSERT_ALWAYS(0);
@@ -1016,7 +999,7 @@ class parasite_fixer {/*{{{*/
         serialize(pi->m);
 
         if (tcan_print)
-            printf("# After fix, Hamming weight is %d\n", hamming_out);
+            fmt::print("# After fix, Hamming weight is {}\n", hamming_out);
 
         // if (leader) debug_print_local_matrix(matrix, rows, cols, nz);
 
@@ -1033,7 +1016,7 @@ static void * gather_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void *
     int const tcan_print = bw->can_print && pi->m->trank == 0;
     int const leader = pi->m->jrank == 0 && pi->m->trank == 0;
 
-    unsigned int solutions[2] = { bw->solutions[0], bw->solutions[1], };
+    bwc_solution_range sol_range { bw->solutions[0], bw->solutions[1], };
     int const char2 = mpz_cmp_ui(bw->p, 2) == 0;
 
     /* Define and initialize our arithmetic back-ends. More or less the
@@ -1042,12 +1025,12 @@ static void * gather_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void *
 
     /* {{{ main arithmetic backend: for the solutions we compute. */
     // unsigned int A_multiplex MAYBE_UNUSED = 1;
-    unsigned int const A_width = solutions[1]-solutions[0];
+    unsigned int const A_width = sol_range[1] - sol_range[0];
     if ((char2 && (A_width != 64 && A_width != 128 && A_width != 256))
             || (!char2 && A_width > 1))
     {
-        fprintf(stderr,
-                "We cannot support computing %u solutions at a time "
+        fmt::print(stderr,
+                "We cannot support computing {} solutions at a time "
                 "with one single Spmv operation, given the currently "
                 "implemented code\n",
                 A_width);
@@ -1066,7 +1049,7 @@ static void * gather_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void *
     mmt_vector_pair ymy(mmt, bw->dir);
     mmt_vec & y = ymy[0];
 
-    mmt_vec y_saved(mmt,0,0, bw->dir, mmt_vec_is_shared(y), mmt.n[bw->dir]);
+    mmt_vec y_saved(mmt, nullptr, nullptr, bw->dir, mmt_vec_is_shared(y), mmt.n[bw->dir]);
 
     /* this is really a misnomer, because in the typical case, M is
      * rectangular, and then the square matrix does induce some padding.
@@ -1076,34 +1059,37 @@ static void * gather_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void *
      * are arranged to be multiples */
     unsigned int const unpadded = MAX(mmt.n0[0], mmt.n0[1]);
 
-    std::vector<sfile_info> sl = prelude(pi);
+    auto sl = prelude(pi);
     if (sl.empty()) {
         if (tcan_print) {
-            fprintf(stderr, "Found zero S files for solution range %u..%u. "
+            fmt::print(stderr, "Found zero S files for solution range {}..{}. "
                     "Problem with command line ?\n",
-                    solutions[0], solutions[1]);
+                    sol_range[0], sol_range[1]);
             pthread_mutex_lock(pi->m->th->m);
             exitcode=1;
             pthread_mutex_unlock(pi->m->th->m);
         }
         serialize_threads(pi->m);
-        return NULL;
+        return nullptr;
     }
 
-    rhs R(mmt, param_list_lookup_string(pl, "rhs"), solutions);
+    rhs R(mmt, param_list_lookup_string(pl, "rhs"), sol_range);
 
     if (tcan_print)
-        printf("Trying to build solutions %u..%u\n", solutions[0], solutions[1]);
+        fmt::print("Trying to build solutions {}..{}\n", sol_range[0], sol_range[1]);
 
     serialize(mmt.pi->m);
 
     { /* {{{ Collect now the sum of the LHS contributions */
-        mmt_vec svec(mmt,0,0, bw->dir, /* shared ! */ 1, mmt.n[bw->dir]);
+        mmt_vec svec(mmt, nullptr, nullptr, bw->dir, /* shared ! */ 1, mmt.n[bw->dir]);
         for(auto const & S : sl) {
+            auto pat = bwc_S_file::pattern(S);
+            /* sl is an iteration range */
             if (tcan_print && verbose_enabled(CADO_VERBOSE_PRINT_BWC_LOADING_MKSOL_FILES)) {
-                fmt::print("loading {}\n", S.name);
+                fmt::print("loading contributions from iterations {}-{}\n",
+                        S.n0, S.n1);
             }
-            int const ok = mmt_vec_load(svec, S.name_pattern, unpadded, solutions[0]);
+            int const ok = mmt_vec_load(svec, pat, unpadded, sol_range[0]);
             ASSERT_ALWAYS(ok);
 
             A->vec_add_and_reduce(
@@ -1193,17 +1179,17 @@ static void * gather_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void *
         is_zero = hamming_out == 0;
 
         /* {{{ save file. If input is zero, bail out */
+        auto Kpat = bwc_K_file::pattern(i-1);
+        if (input_is_zero)
+            Kpat = std::string("zero").append(Kpat);
+        bwc_K_file Kfile(sol_range, i-1);
         {
-            char * tmp;
-            int const rc = asprintf(&tmp, "%sK.sols%%u-%%u.%d", input_is_zero ? "zero" : "",
-                    i-1);
-            ASSERT_ALWAYS(rc >= 0);
-            mmt_vec_save(y_saved, tmp, unpadded, solutions[0]);
+            mmt_vec_save(y_saved, Kpat, unpadded, sol_range[0]);
             if (input_is_zero) {
                 if (tcan_print)
-                    fprintf(stderr,
-                            "Using %sM^%u%s as input: Found zero vector."
-                            " (coordinates on the padding part are %s zero)."
+                    fmt::print(stderr,
+                            "Using {}M^{}{} as input: Found zero vector."
+                            " (coordinates on the padding part are {} zero)."
                             "\n"
                             "No solution found."
                             " Most certainly a bug."
@@ -1213,50 +1199,42 @@ static void * gather_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void *
                             bw->dir ? " * V" : "",
                             pad_is_zero ? "also" : "NOT");
                 if (tcan_print && !pad_is_zero) {
-                    char * tmp2;
-                    int const rc = asprintf(&tmp2, tmp, solutions[0], solutions[1]);
-                    ASSERT_ALWAYS(rc >= 0);
-                    fprintf(stderr,
-                            "For reference, this useless vector (non-zero out, zero in) is stored in %s."
-                            "\n",
-                            tmp2);
-                    free(tmp2);
+                    fmt::print(stderr,
+                            "For reference,"
+                            " this useless vector (non-zero out, zero in)"
+                            " is stored in zero{}.\n",
+                            Kfile);
                 }
                 serialize(pi->m);
                 pthread_mutex_lock(pi->m->th->m);
                 exitcode=1;
                 pthread_mutex_unlock(pi->m->th->m);
-                free(tmp);
-                return NULL;
+                return nullptr;
             }
-            free(tmp);
         }
         /* }}} */
 
         if (tcan_print) {
-            char * hwinfo = NULL;
-            if (hamming_out && tcan_print) {
-                int const rc = asprintf(&hwinfo, ", Hamming weight is %d", hamming_out);
-                ASSERT_ALWAYS(rc >= 0);
-            }
+            std::string hwinfo;
+            std::string zinfo = is_zero ? "zero" : "NOT zero";
+            if (hamming_out)
+                hwinfo = fmt::format(", Hamming weight is {}", hamming_out);
+
             if (R) {
                 const char * strings[] = {
-                    "V * M^%u + R is %s%s\n", /* unsupported anyway */
-                    "M^%u * V + R is %s%s\n",};
-                printf(strings[bw->dir], i, is_zero ? "zero" : "NOT zero",
-                        hwinfo ? hwinfo : "");
+                    "V * M^{} + R is {}{}\n", /* unsupported anyway */
+                    "M^{} * V + R is {}{}\n",};
+                fmt::print(fmt::runtime(strings[bw->dir]), i, zinfo, hwinfo);
             } else {
                 const char * strings[] = {
-                    "V * M^%u is %s%s [K.sols%u-%u.%u contains V * M^%u]!\n",
-                    "M^%u * V is %s%s [K.sols%u-%u.%u contains M^%u * V]!\n",
+                    "V * M^{} is {}{} [{} contains V * M^{}]!\n",
+                    "M^{} * V is {}{} [{} contains M^{} * V]!\n",
                 };
-                printf(strings[bw->dir], i,
-                        is_zero ? "zero" : "NOT zero",
-                        hwinfo ? hwinfo : "",
-                        solutions[0], solutions[1], i-1, i-1);
+                fmt::print(fmt::runtime(strings[bw->dir]), i,
+                        zinfo,
+                        hwinfo,
+                        Kfile, i-1);
             }
-            if (hamming_out && tcan_print)
-                free(hwinfo);
         }
 
         if (is_zero) {
@@ -1269,11 +1247,20 @@ static void * gather_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void *
     /* we exit with an untwisted vector. */
 
     if (!is_zero) {
-        int const nb_nonzero_coeffs=mmt_vec_hamming_weight(y);
+        unsigned long const nb_nonzero_coeffs = mmt_vec_hamming_weight(y);
         if (tcan_print) {
-            printf("Solution range %u..%u: no solution found [%d non zero coefficients in result], most probably a bug\n", solutions[0], solutions[1], nb_nonzero_coeffs);
-            if (nb_nonzero_coeffs < bw->n) {
-                printf("There is some likelihood that by combining %d different solutions (each entailing a separate mksol run), or even with iterates of a single solution (then with a single mksol run) a full solution can be recovered. Ask for support.\n", nb_nonzero_coeffs + 1);
+            fmt::print("Solution range {}..{}: no solution found"
+                    " [{} non zero coefficients in result],"
+                    " most probably a bug\n",
+                    sol_range[0], sol_range[1], nb_nonzero_coeffs);
+            if (nb_nonzero_coeffs < (unsigned long) bw->n) {
+                fmt::print("There is some likelihood that by combining"
+                        " {} different solutions"
+                        " (each entailing a separate mksol run),"
+                        " or even with iterates of a single solution"
+                        " (then with a single mksol run)"
+                        " a full solution can be recovered."
+                        " Ask for support.\n", nb_nonzero_coeffs + 1);
                 /* A case that we do see is with
                  * test_bwc_modp_homogeneous_minimal_mn4 and seed=8 (in
                  * 64-bit mode). Iterates are confined to a 1-dimensional
@@ -1285,7 +1272,7 @@ static void * gather_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void *
         pthread_mutex_lock(pi->m->th->m);
         exitcode=1;
         pthread_mutex_unlock(pi->m->th->m);
-        return NULL;
+        return nullptr;
     }
 
     if (leader) {
@@ -1300,70 +1287,58 @@ static void * gather_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void *
          */
         ASSERT_ALWAYS(winning_iter == 0 || !R);
         int const splitwidth = char2 ? 64 : 1;
-        unsigned int const Av_multiplex = (solutions[1] - solutions[0]) / splitwidth;
+        unsigned int const Av_multiplex = (sol_range[1] - sol_range[0]) / splitwidth;
         for(unsigned int i = 0 ; i < Av_multiplex ; ++i) {
-            unsigned int const sol0 = solutions[0] + i * splitwidth;
-            unsigned int const sol1 = sol0 + splitwidth;
-            char * tmp;
-            int rc = asprintf(&tmp, "K.sols%u-%u.%u", sol0, sol1, winning_iter);
-            ASSERT_ALWAYS(rc >= 0);
+            auto tmp = std::string(bwc_K_file(sol_range, winning_iter));
             /* {{{ append the RHS coefficients if relevant */
             if (R) {
-                printf("Expanding %s so as to include the coefficients for the %d RHS columns\n", tmp, R.nrhs);
-                FILE * f = fopen(tmp, "ab");
-                ASSERT_ALWAYS(f);
-                rc = fseek(f, 0, SEEK_END);
+                fmt::print("Expanding {} so as to include"
+                        " the coefficients for the {} RHS columns\n",
+                        tmp, R.nrhs);
+                auto f = fopen_helper(tmp, "ab");
+                const int rc = fseek(f.get(), 0, SEEK_END);
                 ASSERT_ALWAYS(rc >= 0);
-                R.fwrite_rhs_coeffs(f, i);
-                fclose(f);
+                R.fwrite_rhs_coeffs(f.get(), i);
             }
 
-            printf("%s is now a %s nullspace vector for %s"
-                    " (for a square M of dimension %" PRIu32"x%" PRIu32").\n",
+            fmt::print("{} is now a {} nullspace vector for {}"
+                    " (for a square M of dimension {}x{}).\n",
                     tmp,
                     bw_dirtext[bw->dir],
                     R ? "(M|RHS)" : "M",
                     unpadded, unpadded);
             /* }}} */
 
-            char * tmp2;
-            rc = asprintf(&tmp2, "K.sols%u-%u.%u.txt", sol0, sol0 + splitwidth, winning_iter);
-            ASSERT_ALWAYS(rc >= 0);
+            auto tmp2 = tmp + ".txt";
             /* {{{ write an ascii version while we're at it */
             {
-                FILE * f  = fopen(tmp, "rb");
-                FILE * f2 = fopen(tmp2, "w");
-                ASSERT_ALWAYS(f);
-                ASSERT_ALWAYS(f2);
+                auto f = fopen_helper(tmp, "rb");
+                auto f2 = fopen_helper(tmp2, "w");
                 arith_generic::elt * data = A->alloc(1);
                 for(uint32_t i = 0 ; i < mmt.n0[bw->dir] ; i++) {
-                    size_t const rc = fread(data, A->elt_stride() / Av_multiplex, 1, f);
+                    size_t const rc = fread(data, A->elt_stride() / Av_multiplex, 1, f.get());
                     ASSERT_ALWAYS(rc == 1);
                     std::ostringstream os;
                     A->cxx_out(os, *data);
-                    fprintf(f2, "%s\n", os.str().c_str());
+                    fmt::print(f2.get(), "{}\n", os.str());
                 }
                 A->free(data);
-                R.fprint_rhs_coeffs(f2);
-                fclose(f);
-                fclose(f2);
+                R.fprint_rhs_coeffs(f2.get());
             }
 
-            printf("%s (in ascii) is now a %s nullspace vector for %s"
-                    " (for the original M, of dimension %" PRIu32"x%" PRIu32").\n",
+            fmt::print("{} (in ascii) is now a {} nullspace vector for {}"
+                    " (for the original M, of dimension {}x{}).\n",
                     tmp2,
                     bw_dirtext[bw->dir],
                     R ? "(M|RHS)" : "M",
                     mmt.n0[0], mmt.n0[1]);
             /* }}} */
-            free(tmp2);
-            free(tmp);
         }
     }
 
     serialize(pi->m);
 
-    return NULL;
+    return nullptr;
 }
 
 // coverity[root_function]
@@ -1406,7 +1381,7 @@ int main(int argc, char const * argv[])
         MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
 
-    pi_go(gather_prog, pl, 0);
+    pi_go(gather_prog, pl, nullptr);
 
     parallelizing_info_finish();
 

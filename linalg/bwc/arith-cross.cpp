@@ -62,7 +62,7 @@ struct add_dotprod {
  */
 template<>
 struct add_dotprod<0,1> {
-    inline void operator()(
+    void operator()(
             uint64_t * w,
             const uint64_t * u,
             const uint64_t * v, unsigned int n,
@@ -80,7 +80,7 @@ struct add_dotprod<0,1> {
  */
 template<>
 struct add_dotprod<0,2> {
-    inline void operator()(
+    void operator()(
             uint64_t * w,           // 128 at a time
             const uint64_t * u,     // 64K at a time
             const uint64_t * v,     // 128 at a time
@@ -223,7 +223,7 @@ struct addmul_tiny {
 
 /* Transpose a matrix of 64K rows of 64L bits */
 struct transpose {
-    inline void operator()(uint64_t * w, const uint64_t * u, unsigned int K, unsigned int L) const
+    void operator()(uint64_t * w, const uint64_t * u, unsigned int K, unsigned int L) const
     {
 #if 1
         /* We have 1*(64*K)*L*1 64-bit words */

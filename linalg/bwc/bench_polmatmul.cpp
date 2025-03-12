@@ -7,6 +7,8 @@
 #include <cmath>
 #include <climits>
 
+#include <algorithm>
+#include <memory>
 #include <vector>
 
 #include <sys/time.h>
@@ -14,7 +16,6 @@
 #include <gmp.h>
 
 #include "gf2x-fft.h"
-#include "gf2x.h"
 #include "lingen_mat_types.hpp"
 #include "macros.h"
 #include "portability.h"
@@ -65,20 +66,20 @@ void bench_polmul(unsigned int d1, unsigned int d2)
 #endif
 
 #define NREPS_MAX       1000
-#define REPEAT_TIME_MAX 1
+#define REPEAT_TIME_MAX 0.1
 #define do_and_noprinttime(v, line) do {		        	\
-    clock_t tt = clock();						\
+    const clock_t tt = clock();						\
     unsigned int r;							\
-    clock_t clocklim = tt + REPEAT_TIME_MAX * CLOCKS_PER_SEC;		\
+    const clock_t clocklim = tt + REPEAT_TIME_MAX * CLOCKS_PER_SEC;	\
     for(r = 0 ; r < NREPS_MAX && clock() < clocklim ; r++) {		\
         line;								\
     }									\
-    v=(double) (clock()-tt)/r/CLOCKS_PER_SEC;           		\
+    (v) = (double) (clock()-tt)/r/CLOCKS_PER_SEC;           		\
 } while (0)
 
 #define do_and_printtime(v, line, fmt, scale) do {			\
-    do_and_noprinttime(v, line);                            \
-    printf(fmt, v * scale);                                                 \
+    do_and_noprinttime(v, line);                                        \
+    printf(fmt, (v) * (scale));                                         \
 } while (0)
 
 #if 0
@@ -251,19 +252,19 @@ struct foo {
     static unsigned int default_selector_data[];
 };
 
-template<> logbook foo<gf2x_fake_fft>::l = logbook();
-template<> logbook foo<gf2x_cantor_fft>::l = logbook();
-template<> logbook foo<gf2x_ternary_fft>::l = logbook();
-template<> my_strassen_selector foo<gf2x_fake_fft>::s = my_strassen_selector();
-template<> my_strassen_selector foo<gf2x_cantor_fft>::s = my_strassen_selector();
-template<> my_strassen_selector foo<gf2x_ternary_fft>::s = my_strassen_selector();
+template<> logbook foo<gf2x_fake_fft_info>::l = logbook();
+template<> logbook foo<gf2x_cantor_fft_info>::l = logbook();
+template<> logbook foo<gf2x_ternary_fft_info>::l = logbook();
+template<> my_strassen_selector foo<gf2x_fake_fft_info>::s = my_strassen_selector();
+template<> my_strassen_selector foo<gf2x_cantor_fft_info>::s = my_strassen_selector();
+template<> my_strassen_selector foo<gf2x_ternary_fft_info>::s = my_strassen_selector();
 
 #define STRASSEN_THRESHOLDS_AS_CPP_CONSTANTS
 #include "strassen-thresholds.hpp"
 /*
-template<> unsigned int foo<gf2x_fake_fft>::default_selector_data[] = {};
-template<> unsigned int foo<gf2x_cantor_fft>::default_selector_data[] = {};
-template<> unsigned int foo<gf2x_ternary_fft>::default_selector_data[] = {};
+template<> unsigned int foo<gf2x_fake_fft_info>::default_selector_data[] = {};
+template<> unsigned int foo<gf2x_cantor_fft_info>::default_selector_data[] = {};
+template<> unsigned int foo<gf2x_ternary_fft_info>::default_selector_data[] = {};
 */
 
 template<typename T> struct pointed_type {};
@@ -275,7 +276,7 @@ static int depth(fft_type const& o, size_t d1, size_t d2, size_t d3)
 {
     int k;
     my_strassen_selector& s(foo<fft_type>::s);
-    size_t nbits = o.size() * sizeof(typename pointed_type<typename fft_type::ptr>::type) * CHAR_BIT;
+    size_t nbits = o.size0_bytes() * CHAR_BIT;
     for( k = 0 ; (((d1|d2|d3) >> k) & 1UL) == 0 ; k++) {
 
         if (!s(d1 >> k, d2 >> k, d3 >> k, nbits))
@@ -326,12 +327,16 @@ static void fft_times(double& dft1, double& dft2, double& compose, double& ift,
     typename T::ptr f = o.alloc(1);
     typename T::ptr g = o.alloc(1);
     /* Make sure we're timing for at least a second. */
-    unsigned long n3 = n1 + n2 - 1;
+    const unsigned long n3 = n1 + n2 - 1;
 
-    do_and_printtime(dft1, o.dft(f, tidy_data(data, n1), n1), " %.2f", 1.0e6);
-    do_and_printtime(dft2, o.dft(g, tidy_data(data, n2), n2), " %.2f", 1.0e6);
-    do_and_printtime(compose, o.compose(g, g, f), " %.2f", 1.0e6);
-    do_and_printtime(ift, o.ift(tidy_data(data, n3), n3, g), " %.2f", 1.0e6);
+    typedef typename pointed_type<typename T::ptr>::type elt;
+    const std::unique_ptr<elt[]> temp1((elt *) new char[o.size1_bytes()]);
+    const std::unique_ptr<elt[]> temp2((elt *) new char[o.size2_bytes()]);
+
+    do_and_printtime(dft1, o.dft(f, tidy_data(data, n1), n1, temp1.get()), " %.2f", 1.0e6);
+    do_and_printtime(dft2, o.dft(g, tidy_data(data, n2), n2, temp1.get()), " %.2f", 1.0e6);
+    do_and_printtime(compose, o.compose(g, g, f, temp2.get()), " %.2f", 1.0e6);
+    do_and_printtime(ift, o.ift(tidy_data(data, n3), n3, g, temp1.get()), " %.2f", 1.0e6);
 
     o.free(f, 1);
     o.free(g, 1);
@@ -350,10 +355,11 @@ static void randomize(polmat & t)
     template<typename fft_type>
 static void randomize(tpolmat<fft_type> & t)
 {
+    auto alloc_sizes = t.po->get_alloc_sizes();
+    mp_size_t N = alloc_sizes[0] / sizeof(mp_limb_t);
     for(unsigned int i = 0 ; i < t.nrows ; i++) {
         for(unsigned int j = 0 ; j < t.ncols ; j++) {
-            mpn_random((mp_limb_t *) t.poly(i,j),
-                    (t.po->size() * sizeof(typename pointed_type<typename fft_type::ptr>::type)) / sizeof(mp_limb_t));
+            mpn_random((mp_limb_t *) t.poly(i,j), N);
         }
     }
 }
@@ -407,8 +413,12 @@ void bench_polmatmul(const char * s,
 }
 #endif
 
-    template<typename fft_type>
-static void tune_strassen1(fft_type const& base,
+/* The fft_type const& argument was meant as a "base" fft type with which
+ * we would strive to be compatible. Unfortunately this functionality got
+ * killed in gf2x in 2019
+ */
+template<typename fft_type>
+static void tune_strassen1(fft_type const&,
         unsigned int d1, unsigned int d2, unsigned int d3, size_t maxlen)
 {
     my_strassen_selector& s(foo<fft_type>::s);
@@ -462,8 +472,8 @@ static void tune_strassen1(fft_type const& base,
             // unsigned int t0 = wt0 * ULONG_BITS;
             unsigned int t = wt * ULONG_BITS;
             if (t == 0) { t = 2; }
-            fft_type o(t / 2, t / 2, base);
-            unsigned int tr = (o.size() * sizeof(typename pointed_type<typename fft_type::ptr>::type)) * CHAR_BIT;
+            fft_type o(t / 2, t / 2);
+            unsigned int tr = o.size0_bytes() * CHAR_BIT;
             tpolmat<fft_type> tf(dd1, dd2, o);
             tpolmat<fft_type> tg(dd2, dd3, o);
             tpolmat<fft_type> th(dd1, dd3, o);
@@ -488,8 +498,7 @@ static void tune_strassen1(fft_type const& base,
                 earliest_good_strassen = tr;
             }
         }
-        if (wt1 > max_wt)
-            wt1 = max_wt;
+        wt1 = std::min(wt1, max_wt);
         old_wt = wt1;
         if (wt1 == max_wt) wt1 = UINT_MAX;
         if (wt1 == min_wt) wt1 = 0;
@@ -600,7 +609,7 @@ static level_info bench_one_polmm_projected_sub(fft_type& o, unsigned long d1, u
     double dft1, dft2, compose, ift;
     fft_times(dft1, dft2, compose, ift, o, n1, n2, data);
     double total_compose_time = compose * nmults(o, d1, d2, d3);
-    int d = depth(o, d1, d2,  d3);
+    int d = depth(o, d1, d2, d3);
 
     res.nstrassen = d;
     res.dft = dft1 * d1 * d2 + dft2 * d2 * d3;
@@ -622,16 +631,17 @@ static level_info bench_one_polmm_projected(unsigned long d1, unsigned long d2, 
             d1, d2, n1, 
             d2, d3, n2);
 
-    gf2x_cantor_fft oc(n1, n2); printf("c128:");
+    gf2x_cantor_fft_info oc(n1, n2); printf("c128:");
     level_info lc = bench_one_polmm_projected_sub(oc, d1, d2, d3, n1, n2, data);
     lc.engine = "c128";
 
-    gf2x_fake_fft of(n1, n2); printf("fake:");
+    gf2x_fake_fft_info of(n1, n2); printf("fake:");
     level_info lf = bench_one_polmm_projected_sub(of, d1, d2, d3, n1, n2, data);
     lf.engine = "fake";
 
-    gf2x_ternary_fft os(n1, n2, 81); printf("tfft(%u):", 81);
+    gf2x_ternary_fft_info os(n1, n2); printf("tfft(%u):", 81);
     level_info ls = bench_one_polmm_projected_sub(os, d1, d2, d3, n1, n2, data);
+    os.adjust(GF2X_FFT_ADJUST_DEPTH, 81);
     ls.engine = "tfft(81)";
 
     if (lc < lf) {
@@ -713,16 +723,17 @@ static level_info bench_one_polmm_complete(unsigned long d1, unsigned long d2, u
             d1, d2, n1, 
             d2, d3, n2);
 
-    gf2x_cantor_fft oc(n1, n2); printf("c128:");
+    gf2x_cantor_fft_info oc(n1, n2); printf("c128:");
     level_info lc = bench_one_polmm_complete_sub(oc, d1, d2, d3, n1, n2);
     lc.engine = "c128";
 
-    gf2x_fake_fft of(n1, n2); printf("fake:");
+    gf2x_fake_fft_info of(n1, n2); printf("fake:");
     level_info lf = bench_one_polmm_complete_sub(of, d1, d2, d3, n1, n2);
     lf.engine = "fake";
 
-    gf2x_ternary_fft os(n1, n2, 81); printf("tfft(%u):", 81);
+    gf2x_ternary_fft_info os(n1, n2); printf("tfft(%u):", 81);
     level_info ls = bench_one_polmm_complete_sub(os, d1, d2, d3, n1, n2);
+    os.adjust(GF2X_FFT_ADJUST_DEPTH, 81);
     ls.engine = "tfft(81)";
 
     if (lc < lf) {
@@ -742,7 +753,7 @@ static level_info bench_one_polmm_complete(unsigned long d1, unsigned long d2, u
 
 static void tune_strassen_global(unsigned long m, unsigned long n, unsigned long N)
 {
-    unsigned long b = m + n;
+    const unsigned long b = m + n;
 #if 1
     /* Tune for E * pi */
     /* disabling, as in reality it's a middle product, and we're not
@@ -764,15 +775,16 @@ static void tune_strassen_global(unsigned long m, unsigned long n, unsigned long
         printf("Top-level multiplications E*pi: len %zu, %lux%lu * len %zu, %lux%lu (alpha=%.2f)\n",
                 n1, m, b, n2, b, b, (double) n1/n2);
 
-        gf2x_cantor_fft oc(n1, n2);
+        gf2x_cantor_fft_info oc(n1, n2);
         printf("=== c128 ===\n");
         tune_strassen1(oc, m, b, b, n1 + n2 - 1);
 
-        gf2x_fake_fft of(n1, n2);
+        gf2x_fake_fft_info of(n1, n2);
         printf("=== fake ===\n");
         tune_strassen1(of, m, b, b, n1 + n2 - 1);
 
-        gf2x_ternary_fft os(n1, n2, 81);
+        gf2x_ternary_fft_info os(n1, n2);
+        os.adjust(GF2X_FFT_ADJUST_DEPTH, 81);
         printf("=== tfft(%u) ===\n", 81);
         tune_strassen1(os, m, b, b, n1 + n2 - 1);
 
@@ -786,6 +798,7 @@ static void tune_strassen_global(unsigned long m, unsigned long n, unsigned long
     }
     /* Tune for pi * pi */
     {
+        ASSERT_ALWAYS(b && m && n);
         size_t const d = (N * b / m / n);
 
         unsigned long const dl = d-d/2;
@@ -793,15 +806,16 @@ static void tune_strassen_global(unsigned long m, unsigned long n, unsigned long
         size_t const n1 = pi_l_len;
         size_t const n2 = pi_l_len;
 
-        gf2x_cantor_fft oc(n1, n2);
+        gf2x_cantor_fft_info oc(n1, n2);
         printf("=== c128 ===\n");
         tune_strassen1(oc, b, b, b, n1 + n2 - 1);
 
-        gf2x_fake_fft of(n1, n2);
+        gf2x_fake_fft_info of(n1, n2);
         printf("=== fake ===\n");
         tune_strassen1(of, b, b, b, n1 + n2 - 1);
 
-        gf2x_ternary_fft os(n1, n2, 81);
+        gf2x_ternary_fft_info os(n1, n2);
+        os.adjust(GF2X_FFT_ADJUST_DEPTH, 81);
         printf("=== tfft(%u) ===\n", 81);
         tune_strassen1(os, b, b, b, n1 + n2 - 1);
 
@@ -813,9 +827,9 @@ static void tune_strassen_global(unsigned long m, unsigned long n, unsigned long
         printf("gf2x: %u levels of strassen, %lu pol.muls\n",
                 depth(os,b,b,b), nmults(os,b,b,b));
     }
-    foo<gf2x_cantor_fft>::s.dump("C128");
-    foo<gf2x_fake_fft>::s.dump("FAKE");
-    foo<gf2x_ternary_fft>::s.dump("gf2x_ternary_fft");
+    foo<gf2x_cantor_fft_info>::s.dump("C128");
+    foo<gf2x_fake_fft_info>::s.dump("FAKE");
+    foo<gf2x_ternary_fft_info>::s.dump("gf2x_ternary_fft");
 #endif
 }
 
@@ -868,7 +882,7 @@ static void do_polmm_timings(unsigned long m, unsigned long n, unsigned long N)
         level_info r = bench_one_polmm_projected(b, b, b, pi_l_len, pi_l_len, data);
         results.push_back(r);
         // bench_one_polmm_complete(m, b, b, d-chop, pi_l_len);
-        // bench_one_polmm_complete(b, b, b, pi_l_len, pi_l_len);
+        bench_one_polmm_complete(b, b, b, pi_l_len, pi_l_len);
 
 #if 0
         /* Start by benching degree d polynomial multiplication */
@@ -878,17 +892,17 @@ static void do_polmm_timings(unsigned long m, unsigned long n, unsigned long N)
         bench_c128(d, d);
 
         /* Now the matrix versions */
-        bench_polmatmul<gf2x_cantor_fft>("gf2x_cantor_fft", n, n, d, d);
-        bench_polmatmul<gf2x_fake_fft>("gf2x_fake_fft", n, n, d, d);
-        bench_polmatmul<gf2x_ternary_fft>("gf2x_ternary_fft", n, n, d, d);
+        bench_polmatmul<gf2x_cantor_fft_info>("gf2x_cantor_fft", n, n, d, d);
+        bench_polmatmul<gf2x_fake_fft_info>("gf2x_fake_fft", n, n, d, d);
+        bench_polmatmul<gf2x_ternary_fft_info>("gf2x_ternary_fft", n, n, d, d);
 
         /* Now do these again, but for unbalanced computations */
 
         bench_polmul(d, d/4);
         bench_c128(d, d/4);
-        bench_polmatmul<gf2x_cantor_fft>("gf2x_cantor_fft", n/2, n, d, d/4);
-        bench_polmatmul<gf2x_fake_fft>("gf2x_fake_fft", n/2, n, d, d/4);
-        bench_polmatmul<gf2x_ternary_fft>("gf2x_ternary_fft", n/2, n, d, d/4);
+        bench_polmatmul<gf2x_cantor_fft_info>("gf2x_cantor_fft", n/2, n, d, d/4);
+        bench_polmatmul<gf2x_fake_fft_info>("gf2x_fake_fft", n/2, n, d, d/4);
+        bench_polmatmul<gf2x_ternary_fft_info>("gf2x_ternary_fft", n/2, n, d, d/4);
 #endif
     }
     free(data);
@@ -912,8 +926,8 @@ static void do_polmm_timings(unsigned long m, unsigned long n, unsigned long N)
 int main(int argc, char const * argv[])
 {
     /* This is a bench program. We want the output quick.  */
-    setbuf(stdout, NULL);
-    setbuf(stderr, NULL);
+    setvbuf(stdout, nullptr, _IONBF, 0);
+    setvbuf(stderr, nullptr, _IONBF, 0);
 
     unsigned long m = 0, n = 0, N = 0;
     argc--,argv++;
@@ -954,22 +968,24 @@ int main(int argc, char const * argv[])
         size_t d = (N * b / m / n);
         size_t n1 = d;
         size_t n2 = d * m / b;
-        gf2x_cantor_fft oc(n1, n2); printf("c128");
+        gf2x_cantor_fft_info oc(n1, n2); printf("c128");
         tune_strassen(oc, MAX_CONSIDERED_THRESHOLD);
-        gf2x_fake_fft of(n1, n2); printf("fake");
+        gf2x_fake_fft_info of(n1, n2); printf("fake");
         tune_strassen(of, MAX_CONSIDERED_THRESHOLD);
-        gf2x_ternary_fft os(n1, n2, 81); printf("tfft(%u)", 81);
+        gf2x_ternary_fft_info os(n1, n2, 81); printf("tfft(%u)", 81);
         tune_strassen(of, MAX_CONSIDERED_THRESHOLD);
     }
 #endif
 
-    foo<gf2x_cantor_fft>::s.threshold(b,b,b) = UINT_MAX;
-    foo<gf2x_fake_fft>::s.threshold(b,b,b) = UINT_MAX;
-    foo<gf2x_ternary_fft>::s.threshold(b,b,b) = UINT_MAX;
+    foo<gf2x_cantor_fft_info>::s.threshold(b,b,b) = UINT_MAX;
+    foo<gf2x_fake_fft_info>::s.threshold(b,b,b) = UINT_MAX;
+    foo<gf2x_ternary_fft_info>::s.threshold(b,b,b) = UINT_MAX;
 
     do_polmm_timings(m, n, N);
+
     tune_strassen_global(m, n, N);
     do_polmm_timings(m, n, N);
+
     return 0;
 }
 

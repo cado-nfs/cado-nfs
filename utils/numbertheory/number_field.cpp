@@ -3,7 +3,7 @@
 #include <memory>
 
 #include <gmp.h>
-#include "fmt/core.h"
+#include "fmt/base.h"
 #include "fmt/format.h"
 
 #include "cxx_mpz.hpp"
@@ -65,7 +65,7 @@ number_field_order number_field::order(number_field_element const & a) const
         x = x * a;
         mpq_mat_submat_set(B, i, 0, x.coefficients, 0, 0, 1, n);
     }
-    return { *this, B };
+    return { *this, std::move(B) };
 }
 
 number_field_order number_field::equation_order() const
@@ -79,7 +79,7 @@ number_field_order number_field::equation_order() const
         mpq_set_z(B(i,i), x);
         mpz_mul(x, x, mpz_poly_lc(f));
     }
-    return { *this, B };
+    return { *this, std::move(B) };
 }
 
 number_field_order number_field::p_maximal_order(cxx_mpz const & p) const

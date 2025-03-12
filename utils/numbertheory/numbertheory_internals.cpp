@@ -687,7 +687,7 @@ struct hypercube_walk {/*{{{*/
             last = make_pair(-1, -1);
             return *this;
         }
-        inline bool operator!=(iterator const& x) const { return last != x.last; }
+        bool operator!=(iterator const& x) const { return last != x.last; }
         vector<int> & operator*() { return v; }
     };
     int n,B;

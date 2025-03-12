@@ -1,5 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <stdio.h>
+
 #include "las-config.h"
 #include "macros.h"
 #include "verbose.h"    // verbose_output_print

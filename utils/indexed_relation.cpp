@@ -9,7 +9,7 @@
 #include <ios>
 
 #include <gmp.h>
-#include "fmt/core.h"
+#include "fmt/base.h"
 #include "fmt/format.h"
 
 #include "gmp_aux.h"

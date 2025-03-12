@@ -35,7 +35,7 @@ void mat64_fill_random(mat64 & w, gmp_randstate_t rstate)
 }
 void mat64_add_C(mat64 & C, mat64 const & A, mat64 const & B)/*{{{*/
 {
-    for(unsigned int j = 0 ; j < mat64::width ; j++) {
+    for(int j = 0 ; j < mat64::width ; j++) {
         C[j] = A[j] ^ B[j];
     }
 }

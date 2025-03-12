@@ -102,13 +102,13 @@ struct matmul_sliced : public matmul_interface {
         x >>= 16;
         data.push_back(x & ((1U << 16) - 1));
     }
-    static inline uint32_t read32(data_t::const_iterator & q) {
+    static uint32_t read32(data_t::const_iterator & q) {
         uint32_t res;
         res = *q++;
         res |= ((uint32_t) *q++) << 16;
         return res;
     }
-    static inline uint32_t read32(const uint16_t * & q) {
+    static uint32_t read32(const uint16_t * & q) {
         uint32_t res;
         res = *q++;
         res |= ((uint32_t) *q++) << 16;

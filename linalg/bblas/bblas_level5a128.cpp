@@ -22,6 +22,15 @@ struct free_aligned_obj
     void operator()(void* x) { free_aligned(x); }
 };
 
+#if GNUC_VERSION_ATLEAST(6,1,0)
+/* just because we're doing a unique_ptr on a type with an attribute.
+ * Sigh.
+ */
+/* https://gcc.gnu.org/bugzilla/show_bug.cgi?id=69884 */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wignored-attributes"
+#endif
+
 void m64pol_mul_gf2_128_bitslice(mat64 * r, mat64 const * a1, mat64 const * a2)/*{{{*/
 {
     unsigned int const n1 = 128;
@@ -45,7 +54,7 @@ void m64pol_scalmul_gf2_128_bitslice(mat64 * r, mat64 const * a, uint64_t const 
     const std::unique_ptr<mat64, free_aligned_obj> t((mat64 *) malloc_aligned((n1 + n2 -1) * sizeof(mat64), 64));
     memset((void *) t.get(), 0, (n1 + n2 -1) * sizeof(mat64));
     for(unsigned int i = 0 ; i < 128 ; i++) {
-        if (((s[i/64]>>(i&63)) & UINT64_C(1))==0) continue;
+        if (((s[i/64]>>(i&63)) & uint64_t(1))==0) continue;
         for(unsigned int j = 0 ; j < 64 ; j++) {
             mat64_add(t.get()[i+j], t.get()[i+j], a[j]);
         }
@@ -59,6 +68,10 @@ void m64pol_scalmul_gf2_128_bitslice(mat64 * r, mat64 const * a, uint64_t const 
     }
     memcpy((void *) r, t.get(), 128 * sizeof(mat64));
 }/*}}}*/
+
+#if GNUC_VERSION_ATLEAST(6,1,0)
+#pragma GCC diagnostic pop
+#endif
 
 void m64pol_mul_gf2_128_nobitslice(uint64_t * r, uint64_t * a1, uint64_t * a2)/*{{{*/
 {

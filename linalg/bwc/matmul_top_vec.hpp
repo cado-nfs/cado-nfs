@@ -1,9 +1,15 @@
 #ifndef MATMUL_TOP_VEC_HPP_
 #define MATMUL_TOP_VEC_HPP_
 
+#include <cstdint>
+
+#include <string>
+#include <memory>
+
 #include "gmp_aux.h"
 #include "parallelizing_info.hpp"
 #include "arith-generic.hpp"
+#include "macros.h"
 
 struct matmul_top_data;
 
@@ -91,13 +97,11 @@ extern arith_generic::elt * mmt_my_own_subvec(mmt_vec & v);
 extern arith_generic::elt * mmt_my_own_subvec(mmt_vec & v, unsigned int);
 extern arith_generic::elt const * mmt_my_own_subvec(mmt_vec const & v);
 
-extern void mmt_vec_set_random_through_file(mmt_vec & v, const char * name, unsigned int itemsondisk, cxx_gmp_randstate & rstate, unsigned int block_position);
-
 /* do not use this function if you want consistency when the splitting
  * changes ! */
 extern void mmt_vec_set_random_inconsistent(mmt_vec & v, cxx_gmp_randstate & rstate);
 extern unsigned long mmt_vec_hamming_weight(mmt_vec const & y);
-extern void mmt_vec_set_x_indices(mmt_vec & y, uint32_t const * gxvecs, int m, unsigned int nx);
+extern void mmt_vec_set_x_indices(mmt_vec & y, std::vector<uint32_t> const & gxvecs, unsigned int j0, unsigned int j1, unsigned int nx);
 extern void mmt_vec_set_expanded_copy_of_local_data(mmt_vec & y, const void * v, unsigned int n);
 
 extern void mmt_own_vec_set(mmt_vec & w, mmt_vec const & v);
@@ -112,8 +116,8 @@ extern void mmt_vec_add_basis_vector(mmt_vec & v, unsigned int j);
 #if 0
 extern void matmul_top_fill_random_source_generic(matmul_top_data & mmt, size_t stride, mmt_vec & v, int d);
 #endif
-extern int mmt_vec_load(mmt_vec & v, const char * name, unsigned int itemsondisk, unsigned int block_position) ATTRIBUTE_WARN_UNUSED_RESULT;
-extern int mmt_vec_save(mmt_vec & v, const char * name, unsigned int itemsondisk, unsigned int block_position);
+extern int mmt_vec_load(mmt_vec & v, std::string const & name, unsigned int itemsondisk, unsigned int block_position) ATTRIBUTE_WARN_UNUSED_RESULT;
+extern int mmt_vec_save(mmt_vec & v, std::string const & name, unsigned int itemsondisk, unsigned int block_position);
 extern void mmt_vec_clear_padding(mmt_vec & v, size_t unpadded, size_t padded);
 
 static inline int mmt_vec_is_shared(mmt_vec const & v) {
@@ -122,18 +126,7 @@ static inline int mmt_vec_is_shared(mmt_vec const & v) {
 
 extern void mmt_vec_share_across_threads(mmt_vec & v);
 
-static inline void mmt_vec_set_random_through_file(mmt_vec & v, std::string const & name, unsigned int itemsondisk, cxx_gmp_randstate & rstate, unsigned int block_position) {
-    mmt_vec_set_random_through_file(v, name.c_str(), itemsondisk, rstate, block_position);
-}
-static inline int mmt_vec_load(mmt_vec & v, std::string const & name, unsigned int itemsondisk, unsigned int block_position) ATTRIBUTE_WARN_UNUSED_RESULT;
-static inline int mmt_vec_load(mmt_vec & v, std::string const & name, unsigned int itemsondisk, unsigned int block_position)
-{
-    return mmt_vec_load(v, name.c_str(), itemsondisk, block_position);
-}
-static inline int mmt_vec_save(mmt_vec & v, std::string const & name, unsigned int itemsondisk, unsigned int block_position)
-{
-    return mmt_vec_save(v, name.c_str(), itemsondisk, block_position);
-}
+extern void mmt_vec_set_random_through_file(mmt_vec & v, std::string const & name, unsigned int itemsondisk, cxx_gmp_randstate & rstate, unsigned int block_position);
 
 // private ?
 extern void mmt_vec_downgrade_consistency(mmt_vec & v);

@@ -32,6 +32,8 @@ command line is faster than the current code:
 #include <cinttypes>
 #include <cstring>
 
+#include <vector>
+
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
@@ -40,14 +42,14 @@ command line is faster than the current code:
 
 #include <gmp.h>
 
-#include "macros.h"
-#include "timing.h"
 #include "cado_poly.h"
 #include "getprime.h"
-#include "renumber.hpp"
 #include "gzip.h"
 #include "macros.h"
-#include "filter_io.h"  // filter_rels
+#include "mpz_poly.h"
+#include "renumber.hpp"
+#include "timing.h"
+#include "typedefs.h"
 
 #define MAX_PRIMES 255 /* maximal number of factor base primes */
 #define MAX_LPRIMES 3  /* maximal number of large primes */
@@ -1058,7 +1060,8 @@ read_relation_renumbered (FILE *fp, relation  *rel, relation_data * data)
 
   /* Add missing primes - Not they will be added out-of-order */
   std::vector<unsigned int> lpb;
-  for(int side = 0 ; side < (int) renumber_table->get_nb_polys() ; side++)
+  lpb.reserve(renumber_table->get_nb_polys());
+  for(int side = 0 ; side < renumber_table->get_nb_polys() ; side++)
       lpb.push_back(renumber_table->get_lpb(side));
   fix_relation(rel, cpoly, lpb.data());
 

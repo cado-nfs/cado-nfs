@@ -9,21 +9,23 @@
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
-#include <gmp.h>                 // for mpz_cmp_ui
+
 #include <memory>
-#include "balancing.hpp"           // for DUMMY_VECTOR_COORD_VALUE, DUMMY_VECT...
-#include "parallelizing_info.hpp"
-#include "matmul_top.hpp"
-#include "select_mpi.h"
-#include "params.h"
-#include "bw-common.h"
-#include "async.hpp"
-#include "arith-generic.hpp"
+
+#include <gmp.h>                 // for mpz_cmp_ui
+
 #include "arith-cross.hpp"
+#include "arith-generic.hpp"
+#include "balancing.hpp"         // for DUMMY_VECTOR_COORD_VALUE, DUMMY_VECT...
+#include "bw-common.h"
 #include "intersections.h"
 #include "macros.h"
+#include "matmul_top.hpp"
+#include "matmul_top_vec.hpp"
 #include "mmt_vector_pair.hpp"
-#include "matmul_top_comm.hpp"
+#include "parallelizing_info.hpp"
+#include "params.h"
+#include "select_mpi.h"
 
 static void mmt_full_vec_set_dummy1(mmt_vec & y, size_t unpadded)
 {
@@ -169,7 +171,7 @@ static void * dispatch_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void
         matmul_top_mul(mmt, ymy.vectors(), nullptr);
         mmt_vec_untwist(mmt, y);
 
-        mmt_vec_save(y, "Hx%u-%u", unpadded, 0);
+        mmt_vec_save(y, "Hx{}-{}", unpadded, 0);
 
         // compare if files are equal.
         if (pi->m->jrank == 0 && pi->m->trank == 0) {
@@ -226,7 +228,7 @@ static void * dispatch_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void
             mmt_full_vec_set(my, myy[0]);
         }
         mmt_vec_untwist(mmt, my);
-        mmt_vec_save(my, "Hy%u-%u", unpadded, 0);
+        mmt_vec_save(my, "Hy{}-{}", unpadded, 0);
 
         mmt_full_vec_set_dummy1(y, unpadded);
 

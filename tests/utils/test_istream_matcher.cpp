@@ -16,14 +16,14 @@ int main()
         {
             std::istringstream is(data);
             int x;
-            istream_matcher<char> m(is);
+            istream_matcher m(is);
             ASSERT_ALWAYS(m >> "Catch" >> x && x == 22);
         }
 
         {
             std::istringstream is(data);
             int x;
-            istream_matcher<char> m(is);
+            istream_matcher m(is);
             ASSERT_ALWAYS(!(m >> "Catch" >> std::noskipws >> x));
         }
 
@@ -31,7 +31,7 @@ int main()
             std::istringstream is(data);
             const std::string prefix("Catch");
             int x;
-            istream_matcher<char> m(is);
+            istream_matcher m(is);
             ASSERT_ALWAYS(!(m >> prefix >> std::noskipws >> x));
         }
     }
@@ -42,14 +42,14 @@ int main()
         {
             std::istringstream is(data);
             int x;
-            istream_matcher<char> m(is);
+            istream_matcher m(is);
             ASSERT_ALWAYS(m >> "Catch" >> x && x == 22);
         }
 
         {
             std::istringstream is(data);
             int x;
-            istream_matcher<char> m(is);
+            istream_matcher m(is);
             ASSERT_ALWAYS(m >> "Catch" >> std::noskipws >> x && x == 22);
         }
     }
