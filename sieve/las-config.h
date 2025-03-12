@@ -1,7 +1,7 @@
 #ifndef LAS_CONFIG_H_
 #define LAS_CONFIG_H_
 
-#include "cado_config.h"  // HAVE_SSE2
+#include "cado_config.h" // HAVE_SSE2
 
 #include <stddef.h>
 
@@ -9,7 +9,7 @@
  * each survivor. Appears slower than default. This code has always been
  * #ifdef'd out, but maybe can be improved enough to make it worthwhile
  */
-#define xxxUNSIEVE_NOT_COPRIME  /* see las-unsieve.c */
+#define xxxUNSIEVE_NOT_COPRIME /* see las-unsieve.c */
 
 #define FB_MAX_PARTS 4
 
@@ -36,7 +36,7 @@ extern int las_production_mode;
 }
 #endif
 
-#define DESCENT_DEFAULT_GRACE_TIME_RATIO 0.2    /* default value */
+#define DESCENT_DEFAULT_GRACE_TIME_RATIO 0.2 /* default value */
 
 /* (Re-)define this to support larger q. This is almost mandatory for the
  * descent.
@@ -86,8 +86,8 @@ extern int las_production_mode;
 /* A memset with less than MEMSET_MIN bytes is slower than a fixed
  * memset (which is inlined with special code). So, if possible, it is
  * worthwhile to write:
- *   if (LIKELY(ts <= MEMSET_MIN)) memset (S, i, MEMSET_MIN); else memset (S, i, ts);
- * Some write-ahead allocation has to be provided for at malloc() time.
+ *   if (LIKELY(ts <= MEMSET_MIN)) memset (S, i, MEMSET_MIN); else memset (S, i,
+ * ts); Some write-ahead allocation has to be provided for at malloc() time.
  */
 #define MEMSET_MIN 64
 
@@ -99,4 +99,4 @@ void las_display_config_flags();
 }
 #endif
 
-#endif	/* LAS_CONFIG_H_ */
+#endif /* LAS_CONFIG_H_ */
