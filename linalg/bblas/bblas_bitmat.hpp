@@ -98,6 +98,8 @@ class
     const T* data() const { return x; }
     T& operator[](int i) { return x[i]; }
     T operator[](int i) const { return x[i]; }
+    T& operator[](unsigned int i) { return x[i]; }
+    T operator[](unsigned int i) const { return x[i]; }
     bool operator==(bitmat const& a) const
     {
         /* anyway we're not going to do it any smarter in instantiations,

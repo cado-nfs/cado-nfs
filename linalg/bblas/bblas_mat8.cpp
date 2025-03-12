@@ -123,7 +123,9 @@ static void trsm8_naive(mat8 const & L,
         unsigned int n0,
         unsigned int n1)
 {
-    ASSERT(n0 <= n1);
+    ASSERT_ALWAYS(n0 <= mat8::width);
+    ASSERT_ALWAYS(n1 <= mat8::width);
+    ASSERT_ALWAYS(n0 <= n1);
     if (n1 <= n0 + 1) return;
     /* need to determine the very first fragment before we can align */
     if (n0 % 4) {
@@ -147,8 +149,18 @@ static void trsm8_naive(mat8 const & L,
             c[7]=uu[2]^c[3];
             m=7;
         }
-        for(unsigned int i = n0b ; i < n1 ; i++)
+        for(unsigned int i = n0b ; i < n1 ; i++) {
+            /* with g++ 13.3.0 we encounter a stringop-overflow report,
+             * which _seems_ spurious. The tracker entry
+             *     https://gcc.gnu.org/bugzilla/show_bug.cgi?id=106297
+             * suggests to silence it with
+             *     if (i >= mat8::width) __builtin_unreachable ();
+             * However there does seem to be value in properly checking
+             * that n0 and n1 are within the acceptable bounds, which is
+             * done above.
+             */
             U[i] ^= c[(L[i] >> n0)&m];
+        }
         n0 = n0b;
     }
     if (n1 <= n0 + 1) return;
