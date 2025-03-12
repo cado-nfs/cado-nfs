@@ -31,8 +31,8 @@ void mul_6464_6464_sse(mat64 & C, mat64 const & A, mat64 const & B)/*{{{*/
     int i;
     C = 0;
  
-    __m128i *Cw = (__m128i *) C.data();
-    __m128i *Aw = (__m128i *) A.data();
+    auto *Cw = (__m128i *) C.data();
+    auto *Aw = (__m128i *) A.data();
 
     for (int j = 0; j < 64; j += 2) {
 	__m128i c = _mm_setzero_si128();
@@ -93,10 +93,10 @@ void addmul_6464_6464_fragment_lookup4(mat64 & C,/*{{{*/
         Bx[j][9]  = w; w ^= bb[0];
         Bx[j][8]  = w;
     }
-    uint64_t mask = (UINT64_C(1) << yi1) - (UINT64_C(1) << yi0);
+    uint64_t mask = (uint64_t(1) << yi1) - (uint64_t(1) << yi0);
     if (yi1 == 64)
-        mask = - (UINT64_C(1) << yi0);
-    for (size_t i = i0; i < i1; i++) {
+        mask = - (uint64_t(1) << yi0);
+    for (unsigned int i = i0; i < i1; i++) {
         uint64_t aa = (A[i] & mask) >> (4 * j0);
         for(unsigned int j = j0 ; j < j1 ; j++) {
             C[i]^= Bx[j][aa & 15]; aa>>=4;

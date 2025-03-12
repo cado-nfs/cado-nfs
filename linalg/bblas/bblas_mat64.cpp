@@ -1,11 +1,22 @@
 #include "cado.h" // IWYU pragma: keep
+
+#include <cstddef>
+#include <cstdint>
+
 #include "bblas_bitmat.hpp"   // for bitmat_ops, bblas_bitmat_d...
-#include "bblas_bitmat_inl.hpp" // many generic inlines of the bitmat type // IWYU pragma: keep
 #include "bblas_level3a.hpp"  // for mat64_add, mat64_transpose
 #include "bblas_level3b.hpp"
 #include "bblas_level3c.hpp"  // for addmul_6464_blocks, mul_64...
 #include "bblas_level3d.hpp"
 #include "bblas_mat64.hpp"
+
+/* bblas_bitmat_inl.hpp makes it possible to instantiate 
+ * bblas_bitmat_details::bitmat_ops<uint64_t>, which we choose to do
+ * here. We do not _use_ the prototypes here, but this compilation unit
+ * is not an absurd place to force the instantiation.
+ */
+#include "bblas_bitmat_inl.hpp" // IWYU pragma: keep
+
 
 using namespace bblas_bitmat_details;
 

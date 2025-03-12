@@ -98,7 +98,7 @@ static void addmul8_naive(mat8 & C,
     uint8_t mask = (1 << yi1) - (1 << yi0);
     if (yi1 == 8)
         mask = - (1 << yi0);
-    for (size_t i = i0; i < i1; i++) {
+    for (unsigned int i = i0; i < i1; i++) {
         uint8_t aa = (A[i] & mask) >> (4 * j0);
         for(unsigned int j = j0 ; j < j1 ; j++) {
             C[i]^= Bx[j][aa & 15]; aa>>=4;
