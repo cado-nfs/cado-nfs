@@ -1,7 +1,7 @@
 #ifndef FILTER_CONFIG_H_
 #define FILTER_CONFIG_H_
 
-// scan-headers: skip
+#include "typedefs.h"
 
 /* Duplicate removal */
 /*********************/
@@ -130,5 +130,15 @@ cmp_index2 (const void *p, const void *q)
   else
     return (x[1] < y[1]) ? 1 : -1;
 }
+
+#ifndef FOR_DL
+static inline int cmp_typerow_t(const void * a, const void * b) {
+    return cmp_index(a, b);
+}
+#else
+static inline int cmp_typerow_t(const void * a, const void * b) {
+    return cmp_ideal_merge(a, b);
+}
+#endif
 
 #endif /* FILTER_CONFIG_H_ */

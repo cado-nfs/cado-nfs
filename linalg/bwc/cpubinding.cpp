@@ -8,7 +8,6 @@
 #include <cstdlib>            // for free, NULL
 #include <cctype>
 
-#include <type_traits>         // for remove_reference<>::type
 #include <utility>             // for pair, move, swap, make_pair
 #include <string>
 #include <map>

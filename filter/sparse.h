@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <stdint.h> /* for int32_t */
+
 #include "typedefs.h"   // index_t
 #include "merge_replay_matrix.h"        // typerow_t
 
@@ -30,8 +31,15 @@ void compressRow (index_t *row, index_t *buf, int n);
 #ifdef __cplusplus
 }
 #endif
+
 #endif
 #endif
+
+#define matCell(mat, i, k) rowCell((mat)->rows[(i)], (k))
+#define rowLength(row, i) rowCell((row)[(i)], 0)
+#define matLengthRow(mat, i) matCell((mat), (i), 0)
+#define isRowNull(mat, i) ((mat)->rows[(i)] == NULL)
+
 
 // Structures for the data to create the index file.
 // This is an array of relation-sets.

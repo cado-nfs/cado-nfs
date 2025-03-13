@@ -12,7 +12,6 @@
 #include <stdexcept>            // for runtime_error
 #include <string>               // for string, basic_string, operator<<, cha...
 #include <utility>              // for pair, make_pair
-#include <array>
 #include <vector>               // for vector
 
 #include <sys/stat.h>           // for stat

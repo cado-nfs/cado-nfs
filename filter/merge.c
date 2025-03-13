@@ -52,19 +52,19 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "macros.h"
 #include "memory.h"             // malloc_aligned
 #include "memusage.h"   // PeakMemusage
+#include "merge_bookkeeping.h"
+#include "merge_compute_weights.h"
+#include "merge_heap.h"
 #include "misc.h"       // UMAX
 #include "mst.h"
 #include "omp_proxy.h"
 #include "params.h"     // param_list_parse_*
 #include "purgedfile.h"     // for purgedfile_read_firstline
+#include "read_purgedfile_in_parallel.h"
 #include "sparse.h"
 #include "timing.h"  // seconds
 #include "typedefs.h"  // weight_t
 #include "verbose.h"    // verbose_interpret_parameters
-#include "merge_heap.h"
-#include "merge_bookkeeping.h"
-#include "merge_compute_weights.h"
-#include "read_purgedfile_in_parallel.h"
 
 #ifdef DEBUG
 static void

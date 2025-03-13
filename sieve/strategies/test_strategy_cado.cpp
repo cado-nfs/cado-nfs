@@ -25,30 +25,33 @@
 
 #include <gmp.h>
 
-#include "gmp_aux.h"
-#include "pm1.h"
-#include "pp1.h"
-#include "facul_ecm.h"
+#include "cxx_mpz.hpp"  // cxx_mpz
+#include "decomp.h"     // decomp_t
 #include "facul.hpp"
-#include "facul_fwd.hpp"
-#include "fm.h" // fm_t fm_set_method
+#include "facul_ecm.h"
+#include "facul_method.hpp"
+#include "facul_strategies.hpp"
 #include "finding_good_strategy.h"
+#include "fm.h" // fm_t fm_set_method
 #include "generate_factoring_method.hpp"
 #include "generate_strategies.h"
-#include "tab_strategy.h"
-#include "tab_fm.h"
-#include "decomp.h"     // decomp_t
-#include "tab_decomp.h"
-#include "cxx_mpz.hpp"  // cxx_mpz
-#include "timing.h"  // microseconds
-#include "params.h"     // param_list
+#include "gmp_aux.h"
 #include "macros.h"
-#include "modredc_ul.h" // MODREDCUL_MAXBITS
-#include "stage2.h" // stage2_plan_t
-#include "strategy.h"                     // for strategy_t, strategy_add_fm
 #include "misc.h"   // u64_random  // IWYU: keep
+#include "modredc_ul.h" // MODREDCUL_MAXBITS
+#include "params.h"     // param_list
+#include "strategy.h"                     // for strategy_t, strategy_add_fm
+#include "tab_decomp.h"
+#include "tab_fm.h"
+#include "tab_strategy.h"
+#include "timing.h"  // microseconds
+// #include "facul_fwd.hpp"
+// #include "pm1.h"
+// #include "pp1.h"
+// #include "stage2.h" // stage2_plan_t
+
 #ifdef COMPILE_DEAD_CODE
-#include "facul.hpp"
+// #include "facul.hpp"
 #endif
 
 // int CONST_TEST_R = 55;
@@ -134,7 +137,7 @@ static tabular_strategy_t *generate_strategy_cado(tabular_fm_t * methods,
 
     int const lim = 2 * fbb - 1;
 
-    ASSERT_ALWAYS((tab_dec == NULL) == (r < lim));
+    ASSERT_ALWAYS((tab_dec == nullptr) == (r < lim));
 
     if (r < lim) {
 	fm_t *zero = fm_create();

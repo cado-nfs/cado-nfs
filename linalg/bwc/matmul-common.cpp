@@ -2,8 +2,13 @@
 
 #include <cerrno>
 #include <cstring>
+#include <cstddef>
 #include <cstdio>
-#include <cstdlib>   // for abort
+#include <cstdlib>
+
+#include <memory>
+
+#include "fmt/base.h"
 
 #include "matmul.hpp"   // for matmul_public_s
 #include "matmul-common.hpp"

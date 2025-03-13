@@ -1,10 +1,10 @@
 #ifndef MERGE_REPLAY_MATRIX_H
 #define MERGE_REPLAY_MATRIX_H
 
-#include <stddef.h>    // for NULL
-#include <stdint.h>    // for uint64_t, uint32_t
+#include <stddef.h>
+#include <stdint.h>
+
 #include "typedefs.h"
-#include "filter_config.h"
 
 // scan-headers: stop here
 
@@ -12,14 +12,12 @@
 #define TRACE_ROW -1 // 59496 // put to -1 if not...!
 
 #ifndef FOR_DL
-#define typerow_t index_t
-#define cmp_typerow_t cmp_index
+typedef index_t typerow_t;
 #else
-#define typerow_t ideal_merge_t
-#define cmp_typerow_t cmp_ideal_merge
+typedef ideal_merge_t typerow_t;
 #endif
 
-#define col_weight_t unsigned char
+typedef unsigned char col_weight_t;
 
 /* rows correspond to relations, and columns to primes (or prime ideals) */
 typedef struct {
@@ -65,13 +63,6 @@ void initMat(filter_matrix_t *, uint32_t);
 void clearMat (filter_matrix_t *mat);
 
 void print_row(filter_matrix_t *mat, index_t i);
-
-#define matCell(mat, i, k) rowCell((mat)->rows[(i)], (k))
-#define rowLength(row, i) rowCell((row)[(i)], 0)
-#define matLengthRow(mat, i) matCell((mat), (i), 0)
-#define isRowNull(mat, i) ((mat)->rows[(i)] == NULL)
-
-#define SPARSE_ITERATE(mat, i, k) for((k)=1; (k)<=lengthRow((mat),(i)); (k)++)
 
 int weightSum(filter_matrix_t *mat, index_t i1, index_t i2, index_t j);
 
