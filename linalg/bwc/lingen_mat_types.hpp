@@ -2,7 +2,6 @@
 #define LINGEN_MAT_TYPES_HPP_
 
 #include <cstdint>
-#include <cinttypes>
 #include <cstdlib>
 #include <cstring>
 #include <cstdio>
@@ -21,12 +20,10 @@
 #include "misc.h"
 #include "crc.h"        // cado_crc_lfsr
 #include "macros.h"
+#include "gmp_aux.h"
 
 /* See the discussion in lingen_binary about the pros and cons of data
  * ordering schemes */
-
-template<typename POD>/*{{{*/
-inline void podswap(POD& a, POD& b) { POD c; c = a; a = b; b = c; } /*}}}*/
 
 struct bcol;
 struct bmat;
@@ -35,7 +32,7 @@ struct polmat;
 struct bcol {/*{{{*/
     friend struct bmat;
     unsigned int nrows;
-    inline unsigned int stride() const { return BITS_TO_WORDS(nrows, ULONG_BITS); }
+    unsigned int stride() const { return BITS_TO_WORDS(nrows, ULONG_BITS); }
     private:
     unsigned long * x;
     public:
@@ -54,13 +51,13 @@ struct bcol {/*{{{*/
     public:
     ~bcol() { mydelete(x, stride()); }
     void swap(bcol& a) {
-        podswap(nrows, a.nrows);
-        podswap(x, a.x);
+        std::swap(nrows, a.nrows);
+        std::swap(x, a.x);
     }
     void zero() {
         memset(x, 0, stride() * sizeof(unsigned long));
     }
-    inline unsigned long coeff(unsigned int i) const
+    unsigned long coeff(unsigned int i) const
     {
         ASSERT(i < nrows);
         unsigned int offset = i / ULONG_BITS;
@@ -88,7 +85,7 @@ struct bmat { /* This is for example small-e, an m times b matrix *//*{{{*/
     unsigned int ncols;
     private:
     unsigned long * x;
-    inline unsigned int stride() const { return BITS_TO_WORDS(nrows, ULONG_BITS); }
+    unsigned int stride() const { return BITS_TO_WORDS(nrows, ULONG_BITS); }
     public:
     bmat(unsigned int nrows, unsigned int ncols)
         : nrows(nrows), ncols(ncols), x(mynew<unsigned long>(ncols*stride()))
@@ -114,9 +111,9 @@ private:
     }
 public:
     void swap(bmat& a) {
-        podswap(nrows, a.nrows);
-        podswap(ncols, a.ncols);
-        podswap(x,a.x);
+        std::swap(nrows, a.nrows);
+        std::swap(ncols, a.ncols);
+        std::swap(x,a.x);
     }
     ~bmat() {
         mydelete(x, ncols*stride());
@@ -128,7 +125,7 @@ public:
         return dst;
     }
 #endif
-    inline unsigned long coeff(unsigned int i, unsigned int j) const
+    unsigned long coeff(unsigned int i, unsigned int j) const
     {
         ASSERT(i < nrows);
         ASSERT(j < ncols);
@@ -174,8 +171,8 @@ struct polmat { /* {{{ */
     private:
     unsigned long * x;
     long   * _deg;
-    inline size_t stride() const { return BITS_TO_WORDS(ncoef, ULONG_BITS); }/*{{{*/
-    inline size_t colstride() const { return nrows * stride(); }/*}}}*/
+    size_t stride() const { return BITS_TO_WORDS(ncoef, ULONG_BITS); }/*{{{*/
+    size_t colstride() const { return nrows * stride(); }/*}}}*/
     public:
     long& deg(unsigned int j) { ASSERT(j < ncols); return _deg[j]; }/*{{{*/
     long deg(unsigned int j) const { ASSERT(j < ncols); return _deg[j]; }
@@ -186,7 +183,7 @@ struct polmat { /* {{{ */
         }
         return m;
     }/*}}}*/
-    inline unsigned long maxlength() const { return 1 + maxdeg(); }
+    unsigned long maxlength() const { return 1 + maxdeg(); }
     private:
     void alloc() {
         /* we don't care about exceptions */
@@ -230,14 +227,14 @@ struct polmat { /* {{{ */
     ~polmat() {
         clear();
     }
-    inline void swap(polmat & n) {
-        podswap(nrows,n.nrows);
-        podswap(ncols,n.ncols);
-        podswap(ncoef,n.ncoef);
-        podswap(x,n.x);
-        podswap(_deg,n._deg);
+    void swap(polmat & n) {
+        std::swap(nrows,n.nrows);
+        std::swap(ncols,n.ncols);
+        std::swap(ncoef,n.ncoef);
+        std::swap(x,n.x);
+        std::swap(_deg,n._deg);
     }
-    inline void copy(polmat & n) {
+    void copy(polmat & n) {
         clear();
         nrows=n.nrows;
         ncols=n.ncols;
@@ -452,6 +449,12 @@ struct polmat { /* {{{ */
             deg(j) = (k+1) * ULONG_BITS - cado_clzl(y[k]) - 1;
         }
     } /* }}} */
+    void randomize(gmp_randstate_ptr state)
+    {
+        memfill_random(x, nrows * ncols * stride(), state);
+        clear_highbits();
+    }
+
     unsigned long * poly(unsigned int i, unsigned int j)/*{{{*/
     {
         ASSERT(i < nrows);
@@ -609,8 +612,8 @@ template<typename fft_type> struct tpolmat /* {{{ */
     private:
     typename fft_type::ptr x;
     int   * _deg;
-    // inline unsigned int stride() const { return BITS_TO_WORDS(ncoef, ULONG_BITS); }
-    // inline unsigned int colstride() const { return nrows * stride(); }
+    // unsigned int stride() const { return BITS_TO_WORDS(ncoef, ULONG_BITS); }
+    // unsigned int colstride() const { return nrows * stride(); }
     public:
     int& deg(unsigned int j) { ASSERT(j < ncols); return _deg[j]; }
     int const & deg(unsigned int j) const { ASSERT(j < ncols); return _deg[j]; }
@@ -646,12 +649,12 @@ template<typename fft_type> struct tpolmat /* {{{ */
         x = NULL;
         mydelete(_deg, ncols);
     }
-    inline void swap(tpolmat & n) {
-        podswap(nrows,n.nrows);
-        podswap(ncols,n.ncols);
-        podswap(po,n.po);
-        podswap(x,n.x);
-        podswap(_deg,n._deg);
+    void swap(tpolmat & n) {
+        std::swap(nrows,n.nrows);
+        std::swap(ncols,n.ncols);
+        std::swap(po,n.po);
+        std::swap(x,n.x);
+        std::swap(_deg,n._deg);
     }
     public:
 #if 0
@@ -662,6 +665,10 @@ template<typename fft_type> struct tpolmat /* {{{ */
         return dst;
     }
 #endif
+    void randomize(gmp_randstate_ptr state)
+    {
+        memfill_random(x, nrows * ncols * po->size0_bytes(), state);
+    }
     typename fft_type::ptr poly(unsigned int i, unsigned int j)
     {
         ASSERT(i < nrows);
