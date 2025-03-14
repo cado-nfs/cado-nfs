@@ -9,29 +9,36 @@
 
 #include <algorithm>
 #include <memory>
+#include <string>
+#include <utility>
 #include <vector>
 
-#include <unistd.h>               // for access, unlink, ssize_t, R_OK
-#include <sys/stat.h>             // for stat, mkdir
-#include <pthread.h>              // for pthread_mutex_lock, pthread_mutex_u...
+#include <unistd.h>
+#include <sys/stat.h>
+#include <pthread.h>
 
-#include "async.hpp"              // for timing_next_timer, timing_data (ptr...
+#include "fmt/base.h"
+#include "fmt/format.h"
+
+#include "async.hpp"
+#include "arith-generic.hpp"
+#include "balancing.hpp"
 #include "balancing_workhorse.hpp"
-#include "bwc_config.h" // IWYU pragma: keep
 #include "intersections.h"
 #include "macros.h"
 #include "matmul.hpp"
 #include "matmul_top.hpp"
 #include "matmul_top_comm.hpp"
-#include "matrix_u32.hpp"       // for matrix_u32
+#include "matmul_top_vec.hpp"
+#include "matrix_u32.hpp"
 #include "mf_bal.hpp"
 #include "parallelizing_info.hpp"
 #include "params.h"
 #include "random_matrix.hpp"
 #include "select_mpi.h"
-#include "timing.h"     // wct_seconds
+#include "timing.h"
 #include "utils_cxx.hpp"
-#include "verbose.h"    // CADO_VERBOSE_PRINT_BWC_CACHE_BUILD
+#include "verbose.h"
 
 ///////////////////////////////////////////////////////////////////
 /* Start with stuff that does not depend on abase at all -- this

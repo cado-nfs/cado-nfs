@@ -47,14 +47,14 @@ class las_memory_accessor {
     void touch(void *, size_t);
     public:
 
-    static inline size_t bucket_region_size() {
+    static size_t bucket_region_size() {
         /* round to next multiple of 128 */
         return (((BUCKET_REGION + MEMSET_MIN) - 1) | 127) + 1;
     }
     void * alloc_frequent_size(size_t);
     void free_frequent_size(void *, size_t);
-    inline unsigned char * alloc_bucket_region() { return (unsigned char *) alloc_frequent_size(bucket_region_size()); }
-    inline void free_bucket_region(unsigned char * p) { free_frequent_size((void *) p, bucket_region_size()); }
+    unsigned char * alloc_bucket_region() { return (unsigned char *) alloc_frequent_size(bucket_region_size()); }
+    void free_bucket_region(unsigned char * p) { free_frequent_size((void *) p, bucket_region_size()); }
 
     void * physical_alloc(size_t, bool = false) ATTR_ASSUME_ALIGNED(256);
     void physical_free(void*, size_t);

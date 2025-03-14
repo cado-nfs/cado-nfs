@@ -1,10 +1,13 @@
 #include "cado.h"       // IWYU pragma: keep
+
+#include <cstdio>
 #include <cstdlib>
 
+#include "bw-common.h"
+#include "cxx_mpz.hpp"
+#include "lingen_matpoly_select.hpp"
 #include "macros.h"
 #include "params.h"
-#include "bw-common.h"
-#include "lingen_matpoly_select.hpp"
 
 static void foo()
 {

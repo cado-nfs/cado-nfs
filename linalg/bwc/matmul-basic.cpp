@@ -1,17 +1,19 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cstdarg>         // for va_list, va_end, va_start
-#include <cstddef>         // for ptrdiff_t
 #include <cstdio>
 #include <cstdlib>
 #include <cstdint>
 #include <cstring>
 
+#include <utility>
+#include <vector>
+
+#include "arith-generic.hpp"
+#include "arith-hard.hpp"
+#include "macros.h"
 #include "matmul.hpp"
 #include "matmul-common.hpp"
-#include "arith-hard.hpp"
-#include "matmul_facade.hpp"
-#include "macros.h"
+#include "matrix_u32.hpp"
 #include "params.h"
 
 /* This extension is used to distinguish between several possible

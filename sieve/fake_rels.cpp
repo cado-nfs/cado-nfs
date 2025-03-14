@@ -4,42 +4,41 @@
 #include <cstdlib>
 #include <cstring> /* for strcmp() */
 #include <cmath> /* for sqrt and floor and log and ceil */
-#include <cstdint>           // for uint64_t, int64_t, UINT64_MAX
+#include <cstdint>
 
-#include <vector>
 #include <algorithm>
-#include <iosfwd>            // for std
-#include <memory>            // for allocator_traits<>::value_type
-#include <set>
-#include <map>
-#include <iterator>
-#include <sstream>
-#include <mutex>
-#include <thread>
+#include <iosfwd>
 #include <iostream>
+#include <iterator>
+#include <map>
+#include <mutex>
+#include <set>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <thread>
+#include <utility>
+#include <vector>
 
 #include <pthread.h>
 
-#include <gmp.h>             // for gmp_randstate_t, gmp_randclear, gmp_rand...
-#include "fmt/format.h"       // for cxx_cado_poly, cado_poly_read, cado_poly_s
+#include <gmp.h>
+#include "fmt/base.h"
+#include "fmt/format.h"
 
-#include "cado_poly.h"       // for cxx_cado_poly, cado_poly_read, cado_poly_s
-#include "mpz_poly.h"        // for mpz_poly
-#include "renumber_proxy.h"
-#include "typedefs.h"   // index_t p_r_values_t
-#include "renumber.hpp" // renumber_t
-#include "relation.hpp"
-#include "las-todo-entry.hpp"
-#include "relation-tools.h"
-#include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
-#include "gzip.h"       // fopen_maybe_compressed
-#include "rootfinder.h" // mpz_poly_roots_uint64
-#include "timing.h" // wct_seconds
-#include "verbose.h"    // verbose_decl_usage
-#include "macros.h"
-#include "params.h"
-#include "misc.h"
+#include "cado_poly.h"
+#include "cxx_mpz.hpp"
+#include "gzip.h"
 #include "indexed_relation.hpp"
+#include "las-todo-entry.hpp"
+#include "macros.h"
+#include "misc.h"
+#include "params.h"
+#include "relation.hpp"
+#include "renumber.hpp"
+#include "timing.h"
+#include "typedefs.h"
+#include "verbose.h"
 
 static int verbose = 0; /* verbosity level */
 

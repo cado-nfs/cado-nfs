@@ -1,27 +1,33 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cinttypes>   // PRIu32 // IWYU pragma: keep
-#include <climits> // ULONG_MAX
+#include <climits>
 #include <cstdio>
 #include <cstdlib>
 #include <cfloat>
 #include <cstring>
-#include <cstdint>              // for uint32_t, int32_t, uint64_t
+#include <cstdint>
 #include <cmath>
 #include <ctime>
 
-#include <vector>
 #include <algorithm>
+#include <memory>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include <gmp.h>
+#include "fmt/base.h"
+#include "fmt/format.h"
 
+#include "cxx_mpz.hpp"
 #include "gmp_aux.h"
 #include "macros.h"
-#include "misc.h" // derived_filename mkdir_with_parents next_power_of_2
+#include "misc.h"
 #include "parallelizing_info.hpp"
-#include "portability.h" // strdup // IWYU pragma: keep
-#include "params.h"              // for param_list_configure_switch, param_l...
-#include "verbose.h"  // verbose_enabled // IWYU pragma: keep
+#include "portability.h"
+#include "params.h"
 #include "random_distributions.hpp"
 #include "matrix_u32.hpp"
 #include "utils_cxx.hpp"
@@ -30,6 +36,11 @@
 #ifndef WANT_MAIN
 #include "random_matrix.hpp"
 #include "balancing.hpp"
+#include "verbose.h"
+#endif
+
+#ifdef WANT_MAIN
+#include <cinttypes>
 #endif
 
 /* The random generation works as follows.
@@ -218,7 +229,7 @@ rhs_writer::rhs_writer(random_matrix_process_data const & R, cxx_param_list & pl
 
     size_t rhs_rows = R.nrows;
     if (tokens.size() == 4) {
-        auto l = tokens[3];
+        auto const & l = tokens[3];
         if (l == "left" || l == "LEFT")
             rhs_rows = R.ncols;
         else if (l == "right" || l == "RIGHT")
@@ -693,7 +704,7 @@ matrix_u32 random_matrix_ddata::get_byrows(cxx_gmp_randstate & rstate)
     if (print) fmt::print("\n");
 
     double const e = double(total_coeffs) / double(nrows);
-    double const s = double(tot_sq) / double(nrows);
+    double const s = tot_sq / double(nrows);
     double const sdev = sqrt(s - e*e);
     row_avg = e;
     row_sdev = sdev;
@@ -769,13 +780,11 @@ matrix_u32 random_matrix_ddata::get_bycolumns(cxx_gmp_randstate & rstate)
         tot_sq += (double) weight * (double) weight;
         if (print && should_print_now(last_printed, ret.p.size() * sizeof(uint32_t))) {
             time_t const dt = last_printed->t - t0;
-            char buf[16];
-            char buf2[16];
             fmt::print("{}, {} cols in {} s ; {}/s (last weight: {}) \n",
-                    size_disp(ret.p.size() * sizeof(uint32_t), buf),
+                    size_disp(ret.p.size() * sizeof(uint32_t)),
                     j,
                     (int) dt,
-                    size_disp(dt > 0 ? (size_t) (ret.p.size() * sizeof(uint32_t) / dt) : 0, buf2), weight);
+                    size_disp(dt > 0 ? (size_t) (ret.p.size() * sizeof(uint32_t) / dt) : 0), weight);
         }
     }
     for(unsigned long j = 0 ; j < padcols ; j++) {
@@ -783,7 +792,7 @@ matrix_u32 random_matrix_ddata::get_bycolumns(cxx_gmp_randstate & rstate)
     }
 
     double const e = double(total_coeffs) / double(nrows);
-    double const s = double(tot_sq) / double(nrows);
+    double const s = tot_sq / double(nrows);
     double const sdev = sqrt(s - e*e);
     row_avg = e;
     row_sdev = sdev;
