@@ -24,6 +24,7 @@
 
 #include <gmp.h>
 
+#include "gmp_aux.h"
 #include "polyselect_shash.h"
 #include "macros.h"
 #include "misc.h"

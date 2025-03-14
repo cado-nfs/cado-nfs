@@ -1,11 +1,12 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <stdlib.h>        // for abort
-#include <cstddef>         // for size_t
-#include <cstdint>         // for uint8_t, uint32_t, uint64_t
+#include <cstdlib>
+#include <cstddef>
+#include <cstdint>
+
 #ifdef HAVE_SSSE3
 #include <emmintrin.h>
-#include <tmmintrin.h>  // IWYU pragma: keep
+#include <tmmintrin.h>
 #endif
 #ifdef HAVE_AVX2
 #include <immintrin.h>
@@ -14,9 +15,10 @@
 #include <arm_neon.h>
 #endif
 
-#include "intrinsics.hpp"  // for adds, andnot, loadu, set1, _and, set0
-#include "macros.h"        // for ATTRIBUTE, ATTRIBUTE_ARTIFICIAL, ASSERT
-#include "ularith.h"       // for ularith_submod_ul_ul
+#include "fb-types.h"
+#include "intrinsics.hpp"
+#include "macros.h"
+#include "ularith.h"
 
 #include "las-sieve2357.hpp"
 

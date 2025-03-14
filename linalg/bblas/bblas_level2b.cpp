@@ -22,7 +22,7 @@ void mul_o64_6464_C_lsb(uint64_t * r, uint64_t a, mat64 const & w)/*{{{*/
 {
     uint64_t c = 0;
     for (unsigned int i = 0; i < 64; i++) {
-	c ^= (w[i] & -(a & UINT64_C(1)));
+	c ^= (w[i] & -(a & uint64_t(1)));
 	a >>= 1;
     }
     *r = c;

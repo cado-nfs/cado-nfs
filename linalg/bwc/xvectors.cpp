@@ -1,5 +1,7 @@
 #include "cado.h"   // IWYU pragma: keep
 
+#include <cstdint>
+
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
@@ -7,13 +9,14 @@
 
 #include <vector>
 
+#include <gmp.h>
 #include "fmt/base.h"
 
 #include "gmp_aux.h"
-#include "macros.h" // for FATAL_ERROR_CHECK
+#include "macros.h"
 #include "parallelizing_info.hpp"
-#include "xvectors.hpp"
 #include "utils_cxx.hpp"
+#include "xvectors.hpp"
 
 std::vector<uint32_t>
 setup_x_random(unsigned int m, unsigned int nx, unsigned int nr,

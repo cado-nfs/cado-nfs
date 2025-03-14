@@ -1,32 +1,34 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <cstdio>
 #include <cstdlib>
-#include <cstdint>              // for uint32_t
+#include <cstdint>
 
 #include <memory>
-#include <string>                // for string, operator+
+#include <string>
+#include <vector>
 
-#include <gmp.h>                 // for gmp_randclear, gmp_randinit_default
-#include "fmt/base.h"            // for check_format_string
+#include <gmp.h>
+#include "fmt/base.h"
 #include "fmt/format.h"
 
-#include "gmp_aux.h"
-#include "matmul.hpp"              // for matmul_public_s
-#include "parallelizing_info.hpp"
-#include "matmul_top.hpp"
-#include "select_mpi.h"
-#include "params.h"
-#include "xvectors.hpp"
-#include "bw-common.h"
-#include "async.hpp"
-#include "xdotprod.hpp"
-#include "rolling.hpp"
-#include "arith-generic.hpp"
 #include "arith-cross.hpp"
-#include "macros.h"
-#include "mmt_vector_pair.hpp"
-#include "utils_cxx.hpp"
+#include "arith-generic.hpp"
+#include "async.hpp"
+#include "bw-common.h"
 #include "bwc_filenames.hpp"
+#include "gmp_aux.h"
+#include "macros.h"
+#include "matmul_top.hpp"
+#include "matmul_top_vec.hpp"
+#include "mmt_vector_pair.hpp"
+#include "parallelizing_info.hpp"
+#include "params.h"
+#include "rolling.hpp"
+#include "select_mpi.h"
+#include "utils_cxx.hpp"
+#include "xdotprod.hpp"
+#include "xvectors.hpp"
 
 using namespace fmt::literals;
 
@@ -68,7 +70,7 @@ struct check_data {
          * playing a role in the very same direction of the y vector!
          */
         std::string const Cv_filename_pattern = bwc_Cv_file::pattern(bw->interval);
-        int ok = mmt_vec_load(check_vector, Cv_filename_pattern, mmt.n0[bw->dir], 0);
+        const int ok = mmt_vec_load(check_vector, Cv_filename_pattern, mmt.n0[bw->dir], 0);
         if (!ok) {
             if (tcan_print)
                 fmt::print(stderr, "check file {} not found", Cv_filename_pattern);

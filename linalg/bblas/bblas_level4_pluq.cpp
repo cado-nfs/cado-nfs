@@ -1,17 +1,21 @@
 #include "cado.h"
-// IWYU pragma: no_include <ext/alloc_traits.h>
-#include <cstdint>                        // for uint64_t
-#include <cstring>                        // for memcpy, NULL
+
+#include <cstdint>
+#include <cstring>
+
+#include <algorithm>
+#include <utility>
+
+#include "bblas_level4.hpp"
+#include "bblas_perm_matrix.hpp"
+#include "bblas_simd.hpp"
 #include "linalg/bblas/bblas_bitmat.hpp"   // for bitmat<>::vector_type
 #include "linalg/bblas/bblas_level3a.hpp"  // for mat64_add
 #include "linalg/bblas/bblas_level3b.hpp"  // for mul_6464_6464
 #include "linalg/bblas/bblas_mat64.hpp"    // for mat64
 #include "macros.h"                        // for ATTRIBUTE, ASSERT, ASSERT_...
-#include "bblas_level4.hpp"
-#include "bblas_simd.hpp"
-#include "bblas_perm_matrix.hpp"
 #include "misc.h"      // cado_ctz64
-// the whole point of bblas_simd is to avoid including these files...
+
 // IWYU pragma: no_include <mmintrin.h>
 // IWYU pragma: no_include <emmintrin.h>
 // IWYU pragma: no_include <smmintrin.h>
@@ -29,7 +33,7 @@ static int PLUQ64_inner(int * phi, mat64 & l, mat64 & u, mat64 const & a, int co
     const int m = 64;
     const int n = 64;
     int phi0[64];
-    if (phi == NULL) {
+    if (phi == nullptr) {
         phi = phi0;
         for(int i = 0 ; i < 64 ; i++) phi[i]=-1;
     }
@@ -64,8 +68,8 @@ static int PLUQ64_inner(int * phi, mat64 & l, mat64 & u, mat64 const & a, int co
         __m128i const vv = _cado_mm_set1_epi64(v);
         __m128i const pp = _cado_mm_set1_epi64(r);
         __m128i const ee = _cado_mm_set1_epi64(l[i]);
-        __m128i * uu = (__m128i*) (u.data() + k);
-        __m128i * ll = (__m128i*) (l.data() + k);
+        auto * uu = (__m128i*) (u.data() + k);
+        auto * ll = (__m128i*) (l.data() + k);
         for( ; k < n ; k+=2 ) {
             __m128i const ww = _mm_cmpeq_epi64(_mm_and_si128(*uu,vv),vv);
             *uu = _mm_xor_si128(*uu, _mm_and_si128(pp, ww));
@@ -141,7 +145,7 @@ int PLUQ64_n(int * phi, mat64 & l, mat64 * u, mat64 const * a, int n)
     return nspins*m+b;
 }
 
-static inline void bli_64x64N_clobber(mat64 & h, mat64 * us, int * phi, int nb)
+static inline void bli_64x64N_clobber(mat64 & h, mat64 * us, int const * phi, int nb)
 {
     /* problem: we're modifying U here. So either we do a copy of U,
      * which can be probelmatic memory-wise, or we do an extraction ;
@@ -161,15 +165,15 @@ static inline void bli_64x64N_clobber(mat64 & h, mat64 * us, int * phi, int nb)
         int k = 0;
 #if defined(HAVE_SSE41) && !defined(VALGRIND)
         __m128i const mm = _cado_mm_set1_epi64(m);
-        __m128i * uu = (__m128i*) us[d].data();
-        __m128i * hh = (__m128i*) h.data();
+        auto * uu = (__m128i*) us[d].data();
+        auto * hh = (__m128i*) h.data();
         __m128i const hi = _cado_mm_set1_epi64(h[i]);
         int const ii=i/2;
         for( ; k < ii ; k++) {
             __m128i const ww = _mm_cmpeq_epi64(_mm_and_si128(*uu++,mm),mm);
             for(int b = 0 ; b < nb ; b++) {
                 // ((__m128i*)us[b])[k] ^= ww & _cado_mm_set1_epi64(us[b][i]);
-                __m128i * z = ((__m128i*)us[b].data()) + k;
+                auto * z = ((__m128i*)us[b].data()) + k;
                 *z = _mm_xor_si128(*z, _mm_and_si128(ww, _cado_mm_set1_epi64(us[b][i])));
             }
             hh[k] = _mm_xor_si128(hh[k], _mm_and_si128(ww, hi));

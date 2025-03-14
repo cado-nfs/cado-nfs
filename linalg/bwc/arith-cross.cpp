@@ -1,14 +1,21 @@
-#include "cado.h"
-#include <algorithm>
+#include "cado.h" // IWYU pragma: keep
+
+#include <cstdint>
+
+#include <memory>
+
+#include <gmp.h>
+
+#ifdef HAVE_SSE2
+#include <x86intrin.h>
+#endif
 
 #include "arith-cross.hpp"
 #include "bblas_level3a.hpp"
 #include "bblas_level3a1.hpp"
 #include "bblas_level3c.hpp"
-
-#ifdef HAVE_SSE2
-#include <x86intrin.h>
-#endif
+#include "bblas_mat64.hpp"
+#include "macros.h"
 
 /* code for add_dotprod {{{ */
 /* Parameter L may be fixed at the template level, and used as a way to
@@ -228,19 +235,18 @@ struct transpose {
 #if 1
         /* We have 1*(64*K)*L*1 64-bit words */
         /* We want 1*K*L*64*1 64-bit words */
-        uint64_t* temp = new uint64_t[K*L*64];
+        std::unique_ptr<uint64_t[]> temp(new uint64_t[K*L*64]);
         if (u != w)
             generic_transpose_words<uint64_t>(w, u, 1, 64, K*L, 1);
         else
-            generic_transpose_words_inplace<uint64_t>(w, 1, 64, K*L, 1, temp);
+            generic_transpose_words_inplace<uint64_t>(w, 1, 64, K*L, 1, temp.get());
         for (unsigned int k = 0; k < K * L; k++) {
             mat64& d(reinterpret_cast<mat64&>(w[k]));
             mat64_transpose(d, d);
         }
         /* We have 1*K*L*64*1 64-bit words */
         /* We want 1*L*(64*K)*1 64-bit words */
-        generic_transpose_words_inplace<uint64_t>(w, 1, K, L*64, 1, temp);
-        delete[] temp;
+        generic_transpose_words_inplace<uint64_t>(w, 1, K, L*64, 1, temp.get());
 #else
         uint64_t md = 1UL;
         unsigned int od = 0;
@@ -278,28 +284,32 @@ struct arith_cross_gf2<0, L>
     {
         ASSERT_ALWAYS(L == 0 || g1 == L * 64);
     }
-    virtual void add_dotprod(arith_generic::elt * w, arith_generic::elt const * u, arith_generic::elt const * v, unsigned int n) const override
+    void add_dotprod(arith_generic::elt * w, arith_generic::elt const * u, arith_generic::elt const * v, unsigned int n) const override
     {
-        auto xw = reinterpret_cast<uint64_t *>(w);
-        auto xv = reinterpret_cast<const uint64_t *>(v);
-        auto xu = reinterpret_cast<const uint64_t *>(u);
+        auto * xw = reinterpret_cast<uint64_t *>(w);
+        auto const * xv = reinterpret_cast<const uint64_t *>(v);
+        auto const * xu = reinterpret_cast<const uint64_t *>(u);
         ::add_dotprod<0,L>()(xw,xu,xv,n,g0/64,g1/64);
     }
 
-    virtual void addmul_tiny(arith_generic::elt * w, arith_generic::elt const * u, arith_generic::elt const * v, unsigned int n) const override {
-        auto xw = reinterpret_cast<uint64_t *>(w);
-        auto xv = reinterpret_cast<const uint64_t *>(v);
-        auto xu = reinterpret_cast<const uint64_t *>(u);
+    void addmul_tiny(arith_generic::elt * w, arith_generic::elt const * u, arith_generic::elt const * v, unsigned int n) const override {
+        auto * xw = reinterpret_cast<uint64_t *>(w);
+        auto const * xv = reinterpret_cast<const uint64_t *>(v);
+        auto const * xu = reinterpret_cast<const uint64_t *>(u);
         ::addmul_tiny<0,L>()(xw,xu,xv,n,g0/64,g1/64);
     }
 
-    virtual void transpose(arith_generic::elt * w, arith_generic::elt const * u) const override {
-        auto xw = reinterpret_cast<uint64_t *>(w);
-        auto xu = reinterpret_cast<const uint64_t *>(u);
+    void transpose(arith_generic::elt * w, arith_generic::elt const * u) const override {
+        auto * xw = reinterpret_cast<uint64_t *>(w);
+        auto const * xu = reinterpret_cast<const uint64_t *>(u);
         ::transpose()(xw,xu,g0/64,g1/64);
     }
 
-    virtual ~arith_cross_gf2() override = default;
+    ~arith_cross_gf2() override = default;
+    arith_cross_gf2(arith_cross_gf2 const &) = delete;
+    arith_cross_gf2(arith_cross_gf2 &&) = delete;
+    arith_cross_gf2& operator=(arith_cross_gf2 const &) = delete;
+    arith_cross_gf2& operator=(arith_cross_gf2 &&) = delete;
 };
 
 struct arith_cross_gfp : public arith_cross_generic
@@ -313,22 +323,26 @@ struct arith_cross_gfp : public arith_cross_generic
         ASSERT_ALWAYS(mpz_cmp(A->characteristic(), A1->characteristic()) == 0);
         ASSERT_ALWAYS(A->impl_name() == A1->impl_name());
     }
-    virtual void add_dotprod(arith_generic::elt * w, arith_generic::elt const * u, arith_generic::elt const * v, unsigned int n) const override
+    void add_dotprod(arith_generic::elt * w, arith_generic::elt const * u, arith_generic::elt const * v, unsigned int n) const override
     {
         A->vec_add_dotprod(*w, u, v, n);
     }
 
-    virtual void addmul_tiny(arith_generic::elt * w, arith_generic::elt const * u, arith_generic::elt const * v, unsigned int n) const override
+    void addmul_tiny(arith_generic::elt * w, arith_generic::elt const * u, arith_generic::elt const * v, unsigned int n) const override
     {
         A->vec_addmul_and_reduce(w, u, *v, n);
     }
 
-    virtual void transpose(arith_generic::elt * w, arith_generic::elt const * u) const override
+    void transpose(arith_generic::elt * w, arith_generic::elt const * u) const override
     {
         A->set(*w, *u);
     }
 
-    virtual ~arith_cross_gfp() override = default;
+    ~arith_cross_gfp() override = default;
+    arith_cross_gfp(arith_cross_gfp const &) = delete;
+    arith_cross_gfp(arith_cross_gfp &&) = delete;
+    arith_cross_gfp& operator=(arith_cross_gfp const &) = delete;
+    arith_cross_gfp& operator=(arith_cross_gfp &&) = delete;
 };
 
 arith_cross_generic * arith_cross_generic::instance(arith_generic * A0, arith_generic * A1)
@@ -341,10 +355,10 @@ arith_cross_generic * arith_cross_generic::instance(arith_generic * A0, arith_ge
         else
             return new arith_cross_gf2<0,0>(A0, A1);
     } else if (mpz_cmp(A0->characteristic(), A1->characteristic()) == 0) {
-        if (A0->simd_groupsize() != 1) return NULL;
-        if (A1->simd_groupsize() != 1) return NULL;
+        if (A0->simd_groupsize() != 1) return nullptr;
+        if (A1->simd_groupsize() != 1) return nullptr;
         return new arith_cross_gfp(A0,A1);
     } else {
-        return NULL;
+        return nullptr;
     }
 }

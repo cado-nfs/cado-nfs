@@ -1,5 +1,13 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+
+#include <stdint.h>
+#include <string.h>
+
+#include <gmp.h>
+
+#include "dllist.h"
 #include "polyselect_match.h"
+#include "polyselect_poly_header.h"
 #include "polyselect_thread.h"
 
 void polyselect_match_info_clear(polyselect_match_info_ptr task)

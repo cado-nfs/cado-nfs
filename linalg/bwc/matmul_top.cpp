@@ -15,8 +15,6 @@
 #include <sys/stat.h>             // for stat, mkdir
 #include <pthread.h>              // for pthread_mutex_lock, pthread_mutex_u...
 
-#include <gmp.h>
-
 #include "async.hpp"              // for timing_next_timer, timing_data (ptr...
 #include "balancing_workhorse.hpp"
 #include "bwc_config.h" // IWYU pragma: keep

@@ -2,18 +2,23 @@
 /* 
  * Authors: Joshua Peignier and Emmanuel Thomé
  */
-#include <gmp.h>        // for mpz_t, mpz_mul, mpq_denref, mpq_numref, mpz_c...
-#include <algorithm>    // for sort
-#include <cstdio>       // for NULL, size_t
-#include <sstream>      // std::ostringstream // IWYU pragma: keep
-#include <memory>       // for allocator_traits<>::value_type
-#include <string>       // for char_traits, operator<<, string
-#include <type_traits>  // for __strip_reference_wrapper<>::__type
-#include "fmt/format.h"
-#include "cxx_mpz.hpp"  // for cxx_mpz, operator<<
-#include "gmp_aux.h"    // for mpz_p_valuation
-#include "macros.h"     // for ASSERT_ALWAYS
+#include <climits>
+#include <cstdio>
+
+#include <algorithm>
+#include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include <gmp.h>
+
+#include "cxx_mpz.hpp"
+#include "gmp_aux.h"
+#include "macros.h"
+#include "mpz_mat.h"
 #include "mpz_mat_accessors.h"
+#include "mpz_poly.h"
 #include "numbertheory_internals.hpp"
 #include "numbertheory_fwd_types.hpp"
 
@@ -92,7 +97,7 @@ cxx_mpz_mat numbertheory_internals::multiplication_table_of_order(cxx_mpq_mat co
         }
         mpq_mat_mul(T, T, R);
         cxx_mpz_mat Tz;
-        int const rc = mpq_mat_numden(Tz, NULL, T);
+        int const rc = mpq_mat_numden(Tz, nullptr, T);
         if (!rc) {
             throw element_not_integral();
         }
@@ -140,7 +145,7 @@ static cxx_mpz_mat multiplication_table_of_ideal(cxx_mpz_mat const& M,
         mpz_mat_mul(Tz, I, Tz);
         cxx_mpq_mat T(Tz);
         mpq_mat_mul(T, T, R);
-        int const rc = mpq_mat_numden(Tz, NULL, T);
+        int const rc = mpq_mat_numden(Tz, nullptr, T);
         ASSERT_ALWAYS(rc);
         for (unsigned int j = 0; j < n; j++) {
             mpz_mat_submat_swap(MI, i, j*n, Tz, j, 0, 1, n);
@@ -307,7 +312,7 @@ cxx_mpq_mat numbertheory_internals::p_maximal_order(cxx_mpz_poly const& f, cxx_m
     cxx_mpz_mat Dz;
     cxx_mpz den;
     mpq_mat_numden(Dz, den, D);
-    mpz_mat_hermite_form_rev(Dz, NULL);
+    mpz_mat_hermite_form_rev(Dz, nullptr);
     mpq_mat_set_mpz_mat_denom(D, Dz, den);
     return D;
 }
@@ -328,7 +333,7 @@ static cxx_mpz_poly mpz_mat_minpoly_mod_mpz(cxx_mpz_mat M, cxx_mpz const& p)
     }
     cxx_mpz_mat K;
     mpz_mat_kernel_mod_mpz(K, B, p);
-    mpz_mat_gauss_backend_mod_mpz(K, NULL, p);
+    mpz_mat_gauss_backend_mod_mpz(K, nullptr, p);
 
     /* TODO: write down exactly what we need in terms of ordering from
      * mpz_mat_gauss_backend_mod_ui. I take it that we're happy if it
@@ -456,7 +461,7 @@ static vector<pair<cxx_mpz_mat, int> > factorization_of_prime_inner(
         mpz_mat_kernel_mod_mpz(E, E, p);
         /* This line is just to be exactly in line with what magma says
          */
-        mpz_mat_gauss_backend_mod_mpz(E, NULL, p);
+        mpz_mat_gauss_backend_mod_mpz(E, nullptr, p);
         mpz_mat_mul_mod_mpz(E, E, J, p);
         characteristic_subspaces.push_back(E);
     }
@@ -482,11 +487,11 @@ static vector<pair<cxx_mpz_mat, int> > factorization_of_prime_inner(
         cxx_mpz_mat Ihead(n, n);
         if (Ci->m == e * f->deg) {
             mpz_mat_vertical_join(Ix, Ix, Ip);
-            mpz_mat_hermite_form_rev(Ix, NULL);
+            mpz_mat_hermite_form_rev(Ix, nullptr);
             mpz_mat_submat_swap(Ihead,0,0,Ix,0,0,n,n);
             ideals.emplace_back(Ihead, e);
         } else {
-            mpz_mat_hermite_form_rev(Ix, NULL);
+            mpz_mat_hermite_form_rev(Ix, nullptr);
             mpz_mat_submat_swap(Ihead,0,0,Ix,0,0,n,n);
             vector<pair<cxx_mpz_mat, int> > more_ideals;
             more_ideals = factorization_of_prime_inner(B,M,p,Ip,Ihead,Ci,state);
@@ -563,7 +568,7 @@ cxx_mpz_mat numbertheory_internals::valuation_helper_for_ideal(cxx_mpz_mat const
 
     cxx_mpz_mat ker;
     mpz_mat_kernel_mod_mpz(ker, MI, p);
-    mpz_mat_hermite_form(ker, NULL);
+    mpz_mat_hermite_form(ker, nullptr);
 
     cxx_mpz_mat res(1, n);
     mpz_mat_submat_swap(res, 0, 0, ker, 0, 0, 1, n);
@@ -601,10 +606,10 @@ pair<cxx_mpz_mat, cxx_mpz> numbertheory_internals::generate_ideal(cxx_mpq_mat co
         }
     }
     /* And put this in HNF */
-    mpz_mat_hermite_form_rev(products, NULL);
+    mpz_mat_hermite_form_rev(products, nullptr);
     cxx_mpz_mat I(n,n);
     mpz_mat_submat_swap(I,0,0,products,0,0,n,n);
-    return make_pair(I, denom);
+    return { I, denom };
 }//}}}
 
 int numbertheory_internals::prime_ideal_inertia_degree(cxx_mpz_mat const& I)/*{{{*/

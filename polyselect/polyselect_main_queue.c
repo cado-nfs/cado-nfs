@@ -1,13 +1,20 @@
-#include "cado.h"
-#include <stdbool.h>		// bool
-#include <float.h>		// DBL_MAX
+#include "cado.h" // IWYU pragma: keep
+
+#include <float.h>
 #include <limits.h>
-#include <math.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include <pthread.h>
-#include "size_optimization.h"
+
+#include <gmp.h>
+
 #include "auxiliary.h"
-#include "gcd.h"		// for gcd_ul
-#include "timing.h"		// for seconds
+#include "macros.h"
+#include "mpz_poly.h"
 #include "polyselect_main_queue.h"
 #include "polyselect_norms.h"
 #include "portability.h"

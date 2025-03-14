@@ -1,18 +1,24 @@
 #include "cado.h" // IWYU pragma: keep
-#include <cctype>              // for isspace, isdigit
-#include <cerrno>              // for errno
-#include <climits>            // for ULONG_MAX
-#include <cstdio>             // for fprintf, stderr, fclose, fgets, fopen
-#include <cstdlib>            // for exit, strtoul, strtod, EXIT_FAILURE
-#include <gmp.h>               // for mpz_sizeinbase
-#include "cxx_mpz.hpp"   // for cxx_mpz
-#include "fb-types.h"          // for fbprime_t
-#include "las-multiobj-globals.hpp"     // for dlp_descent
+
+#include <cctype>
+#include <cerrno>
+#include <climits>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+
+#include <gmp.h>
+
+#include "fb.hpp"
+#include "fb-types.h"
+#include "las-config.h"
+#include "las-multiobj-globals.hpp"
 #include "las-siever-config.hpp"
-#include "las-todo-entry.hpp"  // for las_todo_entry
-#include "macros.h"            // for ASSERT_ALWAYS, MAYBE_UNUSED
-#include "params.h"     // param_list_parse_*
-#include "verbose.h"    // verbose_output_print
+#include "las-side-config.hpp"
+#include "las-todo-entry.hpp"
+#include "macros.h"
+#include "params.h"
+#include "verbose.h"
 
 /* siever_config stuff */
 
@@ -186,9 +192,9 @@ fb_factorbase::key_type siever_config::instantiate_thresholds(int side) const
         bucket_thresh = 1UL << logI;
     }
 
-    if (bucket_thresh > fbb) bucket_thresh = fbb;
+    bucket_thresh = std::min(bucket_thresh, fbb);
     if (bucket_thresh1 == 0 || bucket_thresh1 > fbb) bucket_thresh1 = fbb;
-    if (bucket_thresh > bucket_thresh1) bucket_thresh1 = bucket_thresh;
+    bucket_thresh1 = std::max(bucket_thresh1, bucket_thresh);
 
     return fb_factorbase::key_type {
         {{bucket_thresh, bucket_thresh1, fbb, fbb}},
@@ -252,7 +258,7 @@ void siever_config_pool::parse_hints_file(const char * filename)/*{{{*/
     char line[1024];
     FILE * f;
     f = fopen(filename, "r");
-    if (f == NULL) {
+    if (f == nullptr) {
         fprintf(stderr, "%s: %s\n", filename, strerror(errno));
         /* There's no point in proceeding, since it would really change
          * the behaviour of the program to do so */
@@ -263,7 +269,7 @@ void siever_config_pool::parse_hints_file(const char * filename)/*{{{*/
         double t;
         unsigned long z;
         /* Tolerate comments and blank lines */
-        if (x == NULL) break;
+        if (x == nullptr) break;
         for( ; *x && isspace(*x) ; x++) ;
         if (*x == '#') continue;
         if (!*x) continue;
@@ -355,7 +361,6 @@ void siever_config_pool::parse_hints_file(const char * filename)/*{{{*/
 /*}}}*/
 siever_config_pool::siever_config_pool(cxx_param_list & pl, int nb_polys)/*{{{*/
 {
-    default_config_ptr = NULL;
     if (siever_config::parse_default(base, pl, nb_polys))
         default_config_ptr = &base;
 
