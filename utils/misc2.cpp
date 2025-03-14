@@ -13,7 +13,6 @@
 #include <algorithm>
 #include <string>
 #include <utility>
-#include <stdexcept>
 
 #include <gmp.h>
 

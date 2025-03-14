@@ -1,6 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
@@ -79,10 +78,10 @@ int main(int argc, char const * argv[])
         tests.emplace_back("all");
 
     if (!seed)
-        seed = time(NULL);
+        seed = time(nullptr);
 
-    setbuf(stdout, NULL);
-    setbuf(stderr, NULL);
+    setvbuf(stdout, nullptr, _IONBF, 0);
+    setvbuf(stderr, nullptr, _IONBF, 0);
 
     print_features();
 

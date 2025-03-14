@@ -8,15 +8,16 @@
  */
 
 #include <cstdint>
-#include <cinttypes>                     // for PRId64, PRIu64, SCNd64, SCNu64
-#include <climits>                       // for UINT_MAX
-#include <cstdio>                       // for fprintf, sscanf, stderr
-#include <cstdlib>                      // for exit, EXIT_FAILURE
+#include <cinttypes>
+#include <climits>
+#include <cstdio>
+#include <cstdlib>
 #include <cstdarg>  // IWYU pragma: keep // because we want _gmp_vfprintf !
 
-#include <array>                         // for array, array<>::value_type
-#include <memory>                        // for unique_ptr, operator!=
-#include <string>                        // for string
+#include <array>
+#include <memory>
+#include <string>
+#include <vector>
 
 #ifdef HAVE_CXXABI_H
 #include <cxxabi.h> // IWYU pragma: keep
@@ -32,16 +33,16 @@
 #include "fb-types.h"
 #include "las-where-am-i.hpp"
 #include "las-where-am-i-debug.hpp"
-#include "las-info.hpp"       // otherwise las_info is incomplete in nfs_work
-#include "las-config.h"                  // for LOG_BUCKET_REGION
-#include "las-coordinates.hpp"           // for convert_*_to_*
-#include "las-norms.hpp"                 // for lognorm_smart
-#include "las-qlattice.hpp"              // for qlattice_basis
-#include "las-siever-config.hpp"         // for siever_config
-#include "las-threads-work-data.hpp"     // for nfs_work, nfs_work::side_data
-#include "las-where-am-i-proxy.hpp"      // for where_am_I, where_am_I::pimpl_t
-#include "macros.h"                      // for ASSERT_ALWAYS
-#include "verbose.h"    // verbose_output_print
+#include "las-info.hpp"
+#include "las-config.h"
+#include "las-coordinates.hpp"
+#include "las-norms.hpp"
+#include "las-qlattice.hpp"
+#include "las-siever-config.hpp"
+#include "las-threads-work-data.hpp"
+#include "las-where-am-i-proxy.hpp"
+#include "macros.h"
+#include "verbose.h"
 #include "params.h"
 
 #ifndef TRACE_K

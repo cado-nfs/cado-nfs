@@ -3,8 +3,6 @@
 #include <map>
 #include <ostream>    // std::ostream // IWYU pragma: keep
 
-#include <pthread.h>
-
 #include "tdict.hpp"
 #include "params.h"
 

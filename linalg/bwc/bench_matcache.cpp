@@ -15,9 +15,9 @@
 #include <ctime>
 #include <cerrno>
 #include <climits>
-#include <cinttypes>
 #include <cstring>
 
+#include <algorithm>
 #include <string>
 #include <memory>
 #include <vector>
@@ -27,6 +27,7 @@
 
 #include <gmp.h>
 #include "fmt/base.h"
+#include "fmt/format.h"
 
 #include "arith-cross.hpp"
 #include "arith-generic.hpp"
