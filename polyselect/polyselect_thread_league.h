@@ -4,6 +4,7 @@
 #include "polyselect_main_data.h"
 #include "polyselect_primes_table.h"
 #include "dllist.h"
+
 #ifdef HAVE_HWLOC
 #include <hwloc.h>
 #endif

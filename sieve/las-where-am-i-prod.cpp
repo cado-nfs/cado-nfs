@@ -11,12 +11,12 @@
 #error "This file *must not* be compiled with TRACE_K defined"
 #endif
 
-// IWYU pragma: no_include "las-where-am-i.hpp"
-#include <cstdint>                    // for int64_t, uint64_t
-#include <memory>                     // for unique_ptr
+#include <cstdint>
 
 #include "las-where-am-i-proxy.hpp"   // for where_am_I, where_am_I::pimpl_t
-#include "las-where-am-i-prod.hpp"    // for where_am_I::impl
+
+/* las-where-am-i-prod.hpp defines the (empty) struct where_am_I::impl */
+#include "las-where-am-i-prod.hpp" // IWYU pragma: keep
 
 
 struct cxx_param_list; // IWYU pragma: keep
@@ -36,7 +36,7 @@ int extern_trace_on_spot_ab(int64_t, uint64_t) {
  */
 
 where_am_I::where_am_I() = default;
-where_am_I::~where_am_I() = default;
+where_am_I::~where_am_I() = default;    // NOLINT
 where_am_I::where_am_I(where_am_I const & x) = default;
 where_am_I & where_am_I::operator=(where_am_I const & x) = default;
 
@@ -53,7 +53,6 @@ void where_am_I::interpret_parameters(cxx_param_list &)
  */
 void where_am_I::begin_special_q(nfs_work const &)
 {
-    return;
 }
 
 /* }}} */

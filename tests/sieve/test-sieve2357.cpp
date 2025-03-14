@@ -1,4 +1,4 @@
-#include "cado.h"  // IWYU pragma: keep
+#include "cado.h" // IWYU pragma: keep
 
 // #define DO_TIMING 1
 #if defined(DO_TIMING) && defined(HAVE_JEVENTS)

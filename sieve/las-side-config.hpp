@@ -1,10 +1,11 @@
 #ifndef LAS_SIDE_CONFIG_HPP_
 #define LAS_SIDE_CONFIG_HPP_
 
-#include "params.h"
 #include <string>
 #include <vector>
 #include <map>
+
+#include "params.h"
 
 #define SIDE_CONFIG_COLLECTOR(C, lpb)				\
     static std::vector<decltype(C::lpb)>                        \

@@ -1,12 +1,12 @@
 #ifndef LAS_SIEVER_CONFIG_HPP_
 #define LAS_SIEVER_CONFIG_HPP_
 
-#include <cstring>      // for memcmp, NULL
-#include <map>           // for operator==, map<>::const_iterator, _Rb_tree_...
-#include <tuple>         // for tie, operator<, tuple
-#include <utility>       // for pair
-#include "fb.hpp"        // for fb_factorbase, fb_factorbase::key_type
-#include "params.h"     // param_list_ptr
+#include <cstring>
+#include <map>
+#include <tuple>
+#include <utility>
+#include "fb.hpp"
+#include "params.h"
 #include "las-side-config.hpp"
 
 struct las_todo_entry; // IWYU pragma: keep
@@ -202,9 +202,9 @@ struct siever_config_pool {
     hint_table_t hints;
 
     descent_hint const * get_hint(int side, unsigned int bitsize) const {
-        hint_table_t::const_iterator it = hints.find(key_type(side, bitsize));
+        auto it = hints.find(key_type(side, bitsize));
         if (it == hints.end())
-            return NULL;
+            return nullptr;
         else
             return &it->second;
     }
@@ -222,7 +222,7 @@ struct siever_config_pool {
      * before going to the batch step.
      */
 
-    siever_config const * default_config_ptr;
+    siever_config const * default_config_ptr = nullptr;
     siever_config base;
 
     siever_config get_config_for_q(las_todo_entry const& doing) const;

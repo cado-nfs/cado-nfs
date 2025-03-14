@@ -5,20 +5,18 @@
 */
 
 #include "cado.h" // IWYU pragma: keep
+
 #include <float.h> // for DBL_MAX
 #include <stdio.h>
 #include <stdlib.h>
+
 #include "auxiliary.h"
 #include "cado_poly.h"
-#include "mpz_poly.h"
+#include "macros.h"
 #include "params.h"
-#include "size_optimization.h"
-#include "usp.h"        // numberOfRealRoots
-#include "verbose.h"             // verbose_decl_usage
-#include "polyselect_norms.h"
-#include "polyselect_alpha.h"
 #include "portability.h"
-
+#include "size_optimization.h"
+#include "verbose.h"
 
 static void
 declare_usage(param_list pl)

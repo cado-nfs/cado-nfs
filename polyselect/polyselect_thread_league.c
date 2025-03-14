@@ -1,6 +1,18 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+
+#include <stdlib.h>
+
+#include <pthread.h>
+
+#ifdef HAVE_HWLOC
+#include <hwloc.h>
+#endif
+
+#include "dllist.h"
 #include "polyselect_thread_league.h"
 #include "polyselect_primes_table.h"
+#include "polyselect_main_data.h"
+#include "macros.h"
 
 void polyselect_thread_league_init(polyselect_thread_league_ptr league, polyselect_main_data_srcptr main, unsigned int league_index MAYBE_UNUSED)
 {

@@ -10,37 +10,42 @@
 
 #include "cado.h" // IWYU pragma: keep
 
-#include <cctype>  // isdigit etc
-#include <climits> // ULONG_MAX
+#include <cctype>
+#include <climits>
 #include <cstdint>
-#include <cstdio> // fprintf // IWYU pragma: keep
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
-#include <array>
-#include <memory>
-#include <ostream> // for operator<<, basic_ostream, basic_ostream::o...
-#include <sstream> // std::ostringstream // IWYU pragma: keep
+#include <algorithm>
+#include <ios>
+#include <istream>
+#include <ostream>
+#include <sstream>
 #include <string>
+#ifdef HAVE_OPENMP
+#include <type_traits>
+#endif
 #include <utility>
 #include <vector>
 
 #include <gmp.h>
+#include "fmt/base.h"
 
 #include "cado_expression_parser.hpp"
-#include "cxx_mpz.hpp"   // for cxx_mpz
-#include "double_poly.h" // for double_poly_s, double_poly_srcptr
-#include "gmp_aux.h"     // for mpz_addmul_si, mpz_mul_uint64, mpz_ndiv_r
-#include "lll.h"         // for mat_Z, LLL
+#include "cxx_mpz.hpp"
+#include "double_poly.h"
+#include "gmp_aux.h"
+#include "lll.h"
 #include "macros.h"
 #include "mpz_poly.h"
+#include "mpz_polymodF.h"
 #include "mpz_poly_parallel.hpp"
-#include "omp_proxy.h"   // IWYU pragma: keep
-#include "portability.h" // for strlcpy
-#include "rootfinder.h"  // for mpz_poly_roots_mpz
+#include "portability.h"
+#include "rootfinder.h"
 #include "runtime_numeric_cast.hpp"
 /* and just because we expose a proxy to usp.c's root finding... */
-#include "usp.h" // for numberOfRealRoots
+#include "usp.h"
 #include "utils_cxx.hpp"
 
 // scan-headers: stop here

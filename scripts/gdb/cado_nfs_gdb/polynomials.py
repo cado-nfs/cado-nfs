@@ -20,7 +20,9 @@ def nlimbs(K, x):
             nT = T.strip_typedefs()
             # print(f"== {T} -> {nT}")
             T = nT
-    rx = r"^arith_modp::details::gfp_base<(\d+)(?:ul)?,.*$"
+    # It's ul (mp_limb_t == unsigned long) on 64-bit, but u (mp_limb_t ==
+    # unsigned long == unsigned int) on 32-bit !
+    rx = r"^arith_modp::details::gfp_base<(\d+)(?:ul?)?,.*$"
     if m := re.match(rx, str(T)):
         w = int(m.group(1))
         if w:

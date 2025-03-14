@@ -1,4 +1,4 @@
-#include "cado.h"       // IWYU pragma: keep
+#include "cado.h" // IWYU pragma: keep
 
 // #define WLEN ULONG_BITS
 // #define GF2X_WORDSIZE ULONG_BITS
@@ -14,7 +14,7 @@
 #include "bblas_level5.hpp"
 #include "bblas_level3a.hpp"  // for mat64_add
 #include "memory.h"      // malloc_aligned
-
+#include "macros.h"
 #include "gf2x-cantor-field-impl.h"
 
 struct free_aligned_obj

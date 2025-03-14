@@ -1,10 +1,10 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 #include <iostream>
 
-#include "flint-fft/transform_interface.h"
+#include <gmp.h>
 
-#include "macros.h"
+#include "flint-fft/transform_interface.h"
 
 using namespace std;
 

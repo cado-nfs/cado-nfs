@@ -18,21 +18,23 @@
 #pragma GCC diagnostic ignored "-Wunknown-pragmas"
 #endif
 
-#include <cstdint>     /* AIX wants it first (it's a bug) */
+#include <cerrno>
+#include <cinttypes>
+#include <climits>
+#include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <cinttypes>
-#include <cmath> /* for log */
-#include <cerrno>
 
-#include <mutex>
-#include <memory>
-#include <string>
+#include <algorithm>
 #include <fstream>
-#include <vector>
-#include <utility> // pair
+#include <memory>
+#include <mutex>
+#include <string>
 #include <thread>
+#include <utility> // pair
+#include <vector>
 
 #include <sys/stat.h>
 
@@ -49,6 +51,7 @@
 #include "memusage.h"   // PeakMemusage
 #include "modul_poly.h" // modul_poly
 #include "mpz_poly.h"   // mpz_poly
+#include "mpz_polymodF.h"   // mpz_poly
 #include "mpz_poly_parallel.hpp"
 #include "omp_proxy.h"
 #include "purgedfile.h" // purgedfile_read_firstline
@@ -449,14 +452,14 @@ read_ab_pairs_from_depfile(std::string const & depname, M const & m, std::string
         }
     } else {
         /* We _can_ seek. Good news ! */
-        const off_t endpos = ftell(depfile);
+        const long endpos = ftell(depfile);
         /* Find accurate starting positions for everyone */
         unsigned int nthreads = omp_get_max_threads();
         /* cap the number of I/O threads */
         if (nthreads > MAX_IO_THREADS)
             nthreads = MAX_IO_THREADS;
         fmt::print(stderr, "{}: Doing I/O with {} threads\n", message, nthreads);
-        std::vector<off_t> spos_tab;
+        std::vector<long> spos_tab;
         spos_tab.reserve(nthreads);
         for(unsigned int i = 0 ; i < nthreads ; i++)
             spos_tab.push_back((endpos * i) / nthreads);
@@ -479,7 +482,7 @@ read_ab_pairs_from_depfile(std::string const & depname, M const & m, std::string
             unsigned long loc_nab = 0;
             unsigned long loc_nfree = 0;
             cxx_mpz a, b;
-            for(off_t pos = ftell(fi) ; pos < spos_tab[i+1] ; ) {
+            for(long pos = ftell(fi) ; pos < spos_tab[i+1] ; ) {
                 const int rc = gmp_fscanf(fi, "%Zd %Zd", (mpz_ptr) a, (mpz_ptr) b);
                 pos = ftell(fi);
                 /* We may be tricked by initial white space, since our

@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 /* This is a c++ implementation of the exact same algorithm as in
  * polyselect_shash.c. (see comments there for the description of the
@@ -12,16 +12,21 @@
 
 #include <ctime>
 #include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 
-#include <stdexcept>
-#include <vector>
 #include <algorithm>
-#include <type_traits>
 #include <sstream>
+#include <string>
+#include <type_traits>
+#include <vector>
 
 #include <gmp.h>
 
+#include "gmp_aux.h"
 #include "polyselect_shash.h"
+#include "macros.h"
 #include "misc.h"
 
 /*{{{ silly utility */
@@ -155,9 +160,7 @@ int main()
 {
     polyselect_shash_t H;
 
-    gmp_randstate_t rstate;
-
-    gmp_randinit_default(rstate);
+    cxx_gmp_randstate rstate;
 
     constexpr int64_t umax = INT64_C(2000000000000);
     constexpr int pushed_entries = 1000000;
@@ -247,7 +250,6 @@ int main()
         std::string const s = os.str();
         printf("%d %d %.2f%s\n", i, found, (double) (clock() - st) / CLOCKS_PER_SEC, s.c_str());
     }
-    gmp_randclear(rstate);
 
     if (collisions_c_code != collisions_cxx_code) {
         fprintf(stderr, "The two implementations don't give matching results\n");

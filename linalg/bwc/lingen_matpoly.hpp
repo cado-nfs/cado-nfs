@@ -42,8 +42,26 @@ private:
     static memory_pool_type memory;
 
 public:
+    /* The matpoly memory guard, as long as it remains in scope,
+     * registers an allowed allocation size for the singleton object
+     * matpoly::memory.
+     *
+     * Copying the guard is a no-op, since doing so does not add up to
+     * the allowed area.
+     *
+     * On the other hand, moving a guard does transfer the allowed
+     * allocation size to the new scope
+     */
     struct memory_guard : private memory_pool_type::guard_base {
-        memory_guard(size_t s) : memory_pool_type::guard_base(memory, s) {}
+        explicit memory_guard(size_t s) : memory_pool_type::guard_base(memory, s) {}
+        memory_guard(memory_guard const &) : memory_pool_type::guard_base(memory, 0) {}
+        memory_guard& operator=(memory_guard const &) = delete;
+
+        /* See memory_pool_type::guard_base for the reason why we can't
+         * move the guard objects (at least yet)
+         */
+        memory_guard(memory_guard &&) = delete;
+        memory_guard& operator=(memory_guard &&) = delete;
         // we're in a dtor, hence nothrow, yet we have
         // ASSERT_ALWAYS...
         // coverity[exn_spec_violation]

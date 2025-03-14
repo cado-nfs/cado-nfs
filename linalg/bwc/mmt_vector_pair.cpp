@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 #include "mmt_vector_pair.hpp"
 #include "matmul_top.hpp"

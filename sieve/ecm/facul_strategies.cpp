@@ -1,15 +1,26 @@
 #include "cado.h" // IWYU pragma: keep
-#include <cmath>       // for ldexp, sqrt
-#include <cstdlib>     // for malloc, free, atoi, calloc
-#include <cstring>     // for strcmp, strlen, strncpy
 
+#include <cctype>
+#include <climits>
+#include <cmath>        // ldexp, sqrt
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+
+#include <array>
+#include <map>
 #include <stdexcept>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include <regex.h>      // for regmatch_t, regcomp, regexec, regfree, REG_EX...
 
 #include "fmt/format.h"
 
 #include "facul_strategies.hpp"
+#include "facul_ecm.h"
+#include "facul_method.hpp"
 #include "pm1.h"        // for pm1_plan_t, pm1_clear_plan, pm1_make_plan
 #include "pp1.h"        // for pp1_plan_t, pp1_clear_plan, pp1_make_plan
 #include "macros.h"
@@ -201,7 +212,7 @@ static const char * parameterization_name(ec_parameterization_t p)
         case MONTYTWED16: return "ECM-TM16";
     }
     ASSERT_ALWAYS(0);
-    return NULL;
+    return nullptr;
 }
 
 struct strategy_file_parser {/*{{{*/
@@ -395,7 +406,7 @@ private:
     public:
 
     struct error : public std::runtime_error {
-        error(std::string const & s) : std::runtime_error(s) {}
+        explicit error(std::string const & s) : std::runtime_error(s) {}
     };
 
     /* This only returns the vector of descriptions. The methods are not
@@ -482,7 +493,7 @@ strategy_file_parser::operator()(std::vector<unsigned int> const & mfb, FILE * f
     fseek (file, 0, SEEK_SET);
     int lnum = 1;
     try {
-        for(char line[10000]; fgets (line, sizeof(line), file) != NULL ; lnum++)
+        for(char line[10000]; fgets (line, sizeof(line), file) != nullptr ; lnum++)
         {
             const char * str = line;
 
@@ -618,7 +629,7 @@ void facul_strategies::print(FILE * file) const/*{{{*/
      */
     ASSERT_ALWAYS(B.size() == 2);
 
-    if (file == NULL)
+    if (file == nullptr)
         return;
     // print info lpb ...
     fprintf (file,

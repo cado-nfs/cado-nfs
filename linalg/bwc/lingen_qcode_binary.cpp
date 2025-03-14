@@ -1,17 +1,18 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 #include <climits>                       // for UINT_MAX
 #include <cstdio>                        // for printf
 #include <cstdlib>                       // for free, malloc
 #include <cstring>                       // for memset, memcpy
-#include <cstdint>                        // for uint64_t
+#include <cstdint>
 
-#include <array>                          // for array<>::iterator, array
-#include <iterator>                       // for begin
-#include <utility>                        // for swap
 #include <algorithm>
-#include <vector>
+#include <array>
 #include <type_traits>
+#include <utility>
+#include <vector>
+
+#include <gmp.h>
 
 #include "gmp_aux.h"
 #include "lingen_qcode_binary.hpp"
@@ -19,6 +20,7 @@
 #include "lingen_bmstatus.hpp"            // for bmstatus
 #include "lingen_bw_dimensions.hpp"       // for bw_dimensions
 #include "lingen_call_companion.hpp"      // for lingen_call_companion
+#include "lingen_matpoly_select.hpp"
 #include "macros.h"                       // for ASSERT_ALWAYS, iceildiv
 #include "timing.h"                       // for wct_seconds
 #include "tree_stats.hpp"                 // for tree_stats, tree_stats::sen...

@@ -1,16 +1,21 @@
 #include "cado.h" // IWYU pragma: keep
-#include "cxx_mpz.hpp"
-#include "lll.h" // mat_Z, LLL
-#include "macros.h"
-#include "mpz_mat.h"
-#include <algorithm>
+
 #include <climits> /* for INT_MAX */
 #include <cstdio>  // FILE // IWYU pragma: keep
 #include <cstdlib>
 #include <cstring>
-#include <gmp.h>
+
+#include <algorithm>
 #include <ostream>
 #include <vector>
+
+#include <gmp.h>
+
+#include "cxx_mpz.hpp"
+#include "lll.h" // mat_Z, LLL
+#include "macros.h"
+#include "mpz_mat.h"
+#include "mpz_poly.h"
 
 /*{{{ entry access*/
 mpz_ptr mpz_mat_entry(mpz_mat_ptr M, unsigned int i, unsigned int j)

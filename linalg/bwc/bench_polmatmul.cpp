@@ -714,19 +714,7 @@ static level_info bench_one_polmm_projected(unsigned long d1, unsigned long d2,
     os.adjust(GF2X_FFT_ADJUST_DEPTH, 81);
     ls.engine = "tfft(81)";
 
-    if (lc < lf) {
-        if (lc < ls) {
-            return lc;
-        } else {
-            return ls;
-        }
-    } else {
-        if (lf < ls) {
-            return lf;
-        } else {
-            return ls;
-        }
-    }
+    return std::min(std::min(lc, lf), ls);
 }
 
 template <typename fft_type>
@@ -832,19 +820,7 @@ static level_info bench_one_polmm_complete(unsigned long d1, unsigned long d2,
     os.adjust(GF2X_FFT_ADJUST_DEPTH, 81);
     ls.engine = "tfft(81)";
 
-    if (lc < lf) {
-        if (lc < ls) {
-            return lc;
-        } else {
-            return ls;
-        }
-    } else {
-        if (lf < ls) {
-            return lf;
-        } else {
-            return ls;
-        }
-    }
+    return std::min(std::min(lc, lf), ls);
 }
 
 static void tune_strassen_global(unsigned long m, unsigned long n,

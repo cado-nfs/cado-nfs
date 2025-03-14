@@ -1,9 +1,11 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <cstdio> // FILE // IWYU pragma: keep
 #include <cstdlib>
-#include "facul.hpp"
-#include "tab_fm.h"
+
+#include "facul_method.hpp"
 #include "macros.h"
+#include "tab_fm.h"
 #include "utils_cxx.hpp"
 
 static const double EPSILON_DBL = 0.000001;
@@ -108,7 +110,7 @@ void tabular_fm_put_zero(tabular_fm_t * t, int index)
 bool tabular_fm_is_zero(tabular_fm_t * t, int index)
 {
     if(index >= t->index)
-	return 0;
+	return false;
     return fm_is_zero(t->tab[index]);
 }
 

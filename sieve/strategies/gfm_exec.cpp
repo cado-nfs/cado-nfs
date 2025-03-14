@@ -9,6 +9,7 @@
 
 #include <gmp.h>
 
+#include "gmp_aux.h"
 #include "params.h"     // param_list
 #include "facul_ecm.h"
 #include "facul_method.hpp" // EC_METHOD ...

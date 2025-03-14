@@ -1,9 +1,11 @@
 #ifndef	CADO_TYPEDEFS_H_
 #define	CADO_TYPEDEFS_H_
 
+#include "cado_config.h"
+
 // pragma no prototypes
+#include <stdint.h>
 #include <inttypes.h>   // PRIx32 etc
-#include "ularith.h" /* NEEDED for ULONG_BITS (32 or 64) */
 
 // scan-headers: stop here
 

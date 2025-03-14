@@ -2,6 +2,7 @@
 
 #include <cstring>
 
+#include <algorithm>
 #include <ostream>         // for operator<<, basic_ostream, ostringstream
 #include <string>          // for char_traits, basic_string, string
 #include <type_traits>     // for is_same

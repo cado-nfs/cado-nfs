@@ -1,6 +1,9 @@
 #include "cado.h" // IWYU pragma: keep
+
+#include <cstdint>
 #include <cstring>
 #include <cstdlib>                      // for free, malloc
+
 #include "macros.h"                      // for ASSERT_ALWAYS
 #include "bblas_mat64.hpp"  // for mat64
 #include "bblas_perm_matrix.hpp"
@@ -15,7 +18,7 @@ void perm_matrix_init(perm_matrix_ptr x, int n)
 }
 void perm_matrix_clear(perm_matrix_ptr x)
 {
-    free(x->v); x->v = NULL; x->n = 0;
+    free(x->v); x->v = nullptr; x->n = 0;
 }
 void perm_matrix_transpose(perm_matrix_ptr x, perm_matrix_srcptr y)
 {
@@ -42,7 +45,7 @@ void perm_matrix_get_matrix(mat64 * qm, perm_matrix_ptr qp)
     ASSERT_ALWAYS((n%64)==0);
     int const nb = n/64;
     memset((void *) qm, 0, nb*nb*sizeof(mat64));
-    uint64_t * qq = (uint64_t*) qm;
+    auto * qq = (uint64_t*) qm;
     for(int k = 0 ; k < n ; ) {
         for(int jq = 0 ; jq < 64 ; jq++, k++, qq++) {
             int const v = phi[k];

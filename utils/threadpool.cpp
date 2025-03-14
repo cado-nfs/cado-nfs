@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint> // for SIZE_MAX
 
+#include <condition_variable>
 #include <mutex>
 #include <queue>   // for queue, priority_queue
 #include <vector>

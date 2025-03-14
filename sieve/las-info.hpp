@@ -3,36 +3,35 @@
 
 #include "cado_config.h"               // for HAVE_HWLOC
 
-#include <cstddef>                    // for NULL
+#include <condition_variable>
+#include <cstdint>
+#include <list>
+#include <map>
+#include <mutex>
+#include <string>
+#include <thread>
+#include <utility>
+#include <vector>
 
-#include <array>                       // for array
-#include <condition_variable>          // for condition_variable
-#include <cstdint>                     // for uint64_t, UINT64_MAX
-#include <list>                        // for list
-#include <map>                         // for map
-#include <mutex>                       // for mutex, lock_guard
-#include <thread>                      // for thread
-#include <utility>                     // for forward
-#include <vector>                      // for vector
-
-#include <gmp.h>
-
-#include "cado_poly.h"   // cxx_cado_poly
-#include "ecm/batch.hpp"               // for cofac_list
-#include "ecm/facul.hpp"                   // for facul_strategies
-#include "fb.hpp"                      // for fb_factorbase, fb_factorbase::...
+#include "cado_poly.h"
+#include "ecm/batch.hpp"
+#include "fb.hpp"
+#include "gmp_aux.h"
 #ifdef HAVE_HWLOC
 #include "hwloc-aux.h"
 #endif
-#include "las-bkmult.hpp"              // for bkmult_specifier, bkmult_speci...
-#include "las-cofactor.hpp"            // for cofactorization_statistics
+#include "ecm/facul_strategies.hpp"
+#include "las-bkmult.hpp"
+#include "las-cofactor.hpp"
 #include "las-dlog-base.hpp"
-#include "las-memory.hpp"              // for las_memory_accessor
-#include "las-parallel.hpp"            // for las_parallel_desc
-#include "las-sieve-shared-data.hpp"   // for sieve_shared_data, sieve_share...
-#include "las-siever-config.hpp"       // for siever_config (ptr only), siev...
+#include "las-memory.hpp"
+#include "las-parallel.hpp"
+#include "las-side-config.hpp"
+#include "las-sieve-shared-data.hpp"
+#include "las-siever-config.hpp"
 #include "params.h"
-#include "utils_cxx.hpp" // NonCopyable
+#include "trialdiv.hpp"
+#include "utils_cxx.hpp"
 
 // scan-headers: stop here
 
@@ -66,7 +65,7 @@ struct las_info : public las_parallel_desc, private NonCopyable {
 
     /* It's not ``general operational'', but global enough to be here */
     cxx_cado_poly cpoly;
-    gmp_randstate_t rstate;
+    cxx_gmp_randstate rstate;
 
     // ----- default config and adaptive configs
     siever_config_pool config_pool;
@@ -88,14 +87,12 @@ struct las_info : public las_parallel_desc, private NonCopyable {
 #ifdef HAVE_HWLOC
     mutable std::map<cxx_hwloc_nodeset, sieve_shared_data> shared_structure_cache;
     sieve_shared_data & local_cache() const {
-        cxx_hwloc_nodeset nn = current_memory_binding();
-        return shared_structure_cache.at(nn);
+        return shared_structure_cache.at(current_memory_binding());
     }
     std::map<cxx_hwloc_nodeset, las_memory_accessor> las_memory_accessor_cache;
     public:
     las_memory_accessor & local_memory_accessor() {
-        cxx_hwloc_nodeset nn = current_memory_binding();
-        return las_memory_accessor_cache.at(nn);
+        return las_memory_accessor_cache.at(current_memory_binding());
     }
     private:
 #else
@@ -139,7 +136,7 @@ struct las_info : public las_parallel_desc, private NonCopyable {
 
     public:
     bool grow_bk_multiplier(bkmult_specifier::key_type const& key, double& ratio, double & new_value, double& old_value) {/*{{{*/
-        std::lock_guard<std::mutex> foo(mm);
+        const std::lock_guard<std::mutex> foo(mm);
         old_value = bk_multiplier.get(key);
         if (old_value > new_value) {
             return false;
@@ -153,7 +150,7 @@ struct las_info : public las_parallel_desc, private NonCopyable {
         }
     }/*}}}*/
     bkmult_specifier get_bk_multiplier() const {/*{{{*/
-        std::lock_guard<std::mutex> foo(mm);
+        const std::lock_guard<std::mutex> foo(mm);
         return bk_multiplier;
     }/*}}}*/
 
@@ -162,7 +159,7 @@ struct las_info : public las_parallel_desc, private NonCopyable {
     bool allow_composite_q = false;
     uint64_t qfac_min = 1024;
     uint64_t qfac_max = UINT64_MAX;
-    inline bool is_in_qfac_range(uint64_t p) const {
+    bool is_in_qfac_range(uint64_t p) const {
         return (p >= qfac_min) && (p <= qfac_max);
     }
 
@@ -170,8 +167,6 @@ struct las_info : public las_parallel_desc, private NonCopyable {
     std::vector<unsigned long> dupqmax;   /* largest q sieved, for dupsup */
  
     // ----- stuff roughly related to the descent
-    unsigned int max_hint_bitsize[2];
-    int * hint_lookups[2]; /* quick access indices into hint_table */
     /* This is an opaque pointer to C++ code. */
     void * descent_helper;
     las_dlog_base dlog_base;
@@ -232,20 +227,17 @@ struct las_info : public las_parallel_desc, private NonCopyable {
 
 
     /* typicall call order is as follows */
-    las_info(cxx_param_list &);
+    explicit las_info(cxx_param_list &);
     template<typename... Args> void set_parallel(cxx_param_list &pl, Args&& ...args) {
         (las_parallel_desc&)*this = las_parallel_desc(pl, std::forward<Args>(args)...);
         prepare_sieve_shared_data(pl);
     }
     void prepare_sieve_shared_data(cxx_param_list & pl);
     void load_factor_base(cxx_param_list & pl);
-    ~las_info();
 
     static void declare_usage(cxx_param_list & pl);
     static void configure_switches(cxx_param_list & pl);
     static void configure_aliases(cxx_param_list & pl);
 };
-/*  */
-
 
 #endif	/* LAS_INFO_HPP_ */

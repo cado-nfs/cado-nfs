@@ -1,8 +1,17 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
+#include <cstdio>
+#include <cstddef>
+#include <cstdlib>
+#include <cstring>
+
+#include "macros.h"
 #include "matmul_top.hpp"
 #include "matmul_top_comm.hpp"
+#include "matmul_top_vec.hpp"
 #include "misc.h"
+#include "parallelizing_info.hpp"
+#include "select_mpi.h"
 #include "timing.h"
 #include "verbose.h"
 
@@ -327,7 +336,7 @@ static void alternative_reduce_scatter_parallel [[maybe_unused]] (pi_comm_ptr xr
             break;
 
         if (xr->trank == 0) {
-            MPI_Request * r = NULL;
+            MPI_Request * r = nullptr;
             r = (MPI_Request *) malloc(2 * xr->ncores * sizeof(MPI_Request));
             for(unsigned int w = 0 ; w < xr->ncores ; w++) {
                 MPI_Request * rs = r + 2*w;
@@ -793,7 +802,7 @@ static void matmul_top_comm_bench_helper(int * pk, double * pt,
 	t1 = wct_seconds();
 	cont = t1 < t0 + 0.25;
 	cont = cont && (t1 < t0 + 1 || k < 100);
-        pi_allreduce(NULL, &cont, 1, BWC_PI_INT, BWC_PI_MIN, v.pi->m);
+        pi_allreduce(nullptr, &cont, 1, BWC_PI_INT, BWC_PI_MIN, v.pi->m);
 	if (!cont)
 	    break;
         /* It's difficult to be faithful to the requirements on
