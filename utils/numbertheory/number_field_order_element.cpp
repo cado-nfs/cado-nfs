@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 #include "numbertheory/number_field_order_element.hpp"
 #include "numbertheory/number_field_element.hpp"

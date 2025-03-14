@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 #include "ropt_single_sublattice_priority_queue.h"
 #include "ropt_single_sublattice_priority_queue_impl.hpp"

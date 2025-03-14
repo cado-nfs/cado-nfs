@@ -1,4 +1,4 @@
-#include "cado.h" /* HAVE_* macros ! */
+#include "cado.h" // IWYU pragma: keep
 
 #include <algorithm>
 #include <cstdio>

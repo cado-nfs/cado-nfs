@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 #include <climits>                       // for UINT_MAX
 #include <cstdio>                        // for printf

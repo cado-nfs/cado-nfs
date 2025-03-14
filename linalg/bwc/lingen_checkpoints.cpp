@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 // IWYU pragma: no_include "mpfq_fake.hpp"
 // IWYU pragma: no_include "mpfq_layer.h"
 // IWYU pragma: no_include <sys/param.h>

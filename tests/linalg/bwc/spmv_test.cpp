@@ -1,4 +1,4 @@
-#include "cado.h"  // IWYU pragma: keep
+#include "cado.h" // IWYU pragma: keep
 
 #include <cstdint> // for uint32_t, uint64_t
 #include <cstdio>

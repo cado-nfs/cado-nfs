@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 #include "matmul_top.hpp"
 #include "matmul_top_comm.hpp"

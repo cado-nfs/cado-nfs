@@ -12,7 +12,7 @@
   [read this first](https://sympa.inria.fr/sympa/arc/cado-nfs/2020-10/msg00006.html).
 */
 
-#include "cado.h"		// IWYU pragma: keep
+#include "cado.h" // IWYU pragma: keep
 
 #define EMIT_ADDRESSABLE_shash_add
 
