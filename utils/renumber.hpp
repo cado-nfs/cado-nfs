@@ -1,24 +1,29 @@
 #ifndef RENUMBER_HPP_
 #define RENUMBER_HPP_
 
-#include <cstdint>     /* AIX wants it first (it's a bug) */
-#include <algorithm>
+#include <climits>
+#include <cstddef>
+#include <cstdint>
 #include <cstdio>
-#include <limits>
-#include <string>
+
+#include <algorithm>
 #include <array>
-#include <vector>
-#include <stdexcept>
+#include <istream>
 #include <iterator>
-#include <climits>     // for UINT_MAX
-#include <iosfwd>       // for istream, ostream, ptrdiff_t
-#include <utility>      // for pair
-#include "macros.h"     // for ASSERT_ALWAYS
-#include "mpz_poly.h"   // for mpz_poly, mpz_poly_s, mpz_poly_srcptr
-#include "typedefs.h"
-#include "cado_poly.h"
+#include <map>
+#include <ostream>
+#include <stdexcept>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "badideals.hpp"
-// IWYU pragma: no_forward_declare badideal
+#include "cado_poly.h"
+#include "cxx_mpz.hpp"
+#include "macros.h"
+#include "mpz_poly.h"
+#include "typedefs.h"
+
 struct cxx_param_list; // IWYU pragma: keep
 
 /* To build a renumber table in memory in the simplest way, the
@@ -48,7 +53,7 @@ struct cxx_param_list; // IWYU pragma: keep
 
 struct renumber_t {
     struct corrupted_table : public std::runtime_error {/*{{{*/
-        corrupted_table(std::string const &);
+        explicit corrupted_table(std::string const &);
     };/*}}}*/
     struct p_r_side {/*{{{*/
         p_r_values_t p;
@@ -121,43 +126,43 @@ private:/*{{{ internal data fields*/
 
 public:
     /* various accessors {{{*/
-    inline int get_format() const { return format; }
-    inline unsigned int get_lpb(int i) const { return lpb[i]; }
-    inline int get_max_lpb() const { return *std::max_element(lpb.begin(), lpb.end()); }
-    inline int get_min_lpb() const { return *std::min_element(lpb.begin(), lpb.end()); }
-    inline uint64_t get_size() const { return above_all; }
-    inline int get_nb_polys() const { return cpoly->nb_polys; }
-    inline mpz_poly_srcptr get_poly(int side) const { return cpoly->pols[side]; }
-    inline int get_poly_deg(int side) const { return get_poly(side)->deg; }
-    inline int get_rational_side() const {
+    int get_format() const { return format; }
+    unsigned int get_lpb(int i) const { return lpb[i]; }
+    unsigned int get_max_lpb() const { return *std::max_element(lpb.begin(), lpb.end()); }
+    unsigned int get_min_lpb() const { return *std::min_element(lpb.begin(), lpb.end()); }
+    uint64_t get_size() const { return above_all; }
+    int get_nb_polys() const { return cpoly->nb_polys; }
+    mpz_poly_srcptr get_poly(int side) const { return cpoly->pols[side]; }
+    int get_poly_deg(int side) const { return get_poly(side)->deg; }
+    int get_rational_side() const {
         for(int side = 0 ; side < get_nb_polys() ; side++) {
             if (get_poly_deg(side) == 1) return side;
         }
         return -1;
     }
-    inline index_t get_max_index() const { return above_all; }
-    inline index_t get_max_cached_index() const { return above_cache; }
-    inline index_t number_of_additional_columns() const { return above_add; }
+    index_t get_max_index() const { return above_all; }
+    index_t get_max_cached_index() const { return above_cache; }
+    index_t number_of_additional_columns() const { return above_add; }
     /* sides where the J ideal is non trivial (even in the degree 1
      * case). So it's really the list of sides where f is not monic
      */
     std::vector<int> get_sides_of_additional_columns() const;
-    inline index_t number_of_bad_ideals() const { return above_bad - above_add; }
-    inline size_t get_memory_size() const {
+    index_t number_of_bad_ideals() const { return above_bad - above_add; }
+    size_t get_memory_size() const {
         return flat_data.size() * sizeof(decltype(flat_data)::value_type);
     }
 /*}}}*/
 
     /*{{{ default ctors */
     renumber_t() = default;
-    // ~renumber_t() = default;
+    ~renumber_t() = default;
     renumber_t(renumber_t const &) = delete;
     renumber_t& operator=(renumber_t const &) = delete;
-    renumber_t(renumber_t &&) = default;
+    renumber_t(renumber_t &&) noexcept = default;
     renumber_t& operator=(renumber_t &&) = default;
     /*}}}*/
 
-    renumber_t(cxx_cado_poly const & cpoly) : cpoly(cpoly), lpb(cpoly->nb_polys, 0) {}
+    explicit renumber_t(cxx_cado_poly const & cpoly) : cpoly(cpoly), lpb(cpoly->nb_polys, 0) {}
 
     /*{{{ configuration when creating the table */
     void set_lpb(std::vector<unsigned int> const & x) {
@@ -167,7 +172,7 @@ public:
     /*}}}*/
 
     /*{{{ reading the table */
-    void read_from_file(const char * filename, int for_dl);
+    void read_from_file(const char * filename, bool for_dl);
     void recompute_debug_number_theoretic_stuff();
     /*}}}*/
 
@@ -191,10 +196,10 @@ public:
     int is_bad(index_t & first_index, index_t h) const;
 
     /* two convenience shortcuts, to avoid curlies */
-    inline int is_bad(p_r_values_t p, p_r_values_t r, int side) const {
+    int is_bad(p_r_values_t p, p_r_values_t r, int side) const {
         return is_bad({p, r, side});
     }
-    inline int is_bad(index_t & index, p_r_values_t p, p_r_values_t r, int side) const {
+    int is_bad(index_t & index, p_r_values_t p, p_r_values_t r, int side) const {
         return is_bad(index, {p, r, side});
     }
 
@@ -210,7 +215,7 @@ public:
     }
 
     index_t index_from_p_r (p_r_side) const;
-    inline index_t index_from_p_r (p_r_values_t p, p_r_values_t r, int side) const {
+    index_t index_from_p_r (p_r_values_t p, p_r_values_t r, int side) const {
         return index_from_p_r({p, r, side});
     }
     p_r_side p_r_from_index (index_t) const;
@@ -254,8 +259,8 @@ public:
 
     static void builder_declare_usage(cxx_param_list &);
     static void builder_lookup_parameters(cxx_param_list &);
-    index_t build(cxx_param_list &, int for_dl, hook * = nullptr);
-    index_t build(int for_dl, hook * = nullptr);
+    index_t build(cxx_param_list &, bool for_dl, hook * = nullptr);
+    index_t build(bool for_dl, hook * = nullptr);
     /* }}} */
 
     /*{{{ debugging aids*/
@@ -327,7 +332,7 @@ public:
             index_t i;
         public:
             typedef p_r_side                value_type;
-            typedef std::ptrdiff_t          difference_type;
+            typedef ptrdiff_t               difference_type;
             typedef p_r_side const *        const_pointer;
             typedef p_r_side const &        const_reference;
             typedef std::input_iterator_tag iterator_category;
