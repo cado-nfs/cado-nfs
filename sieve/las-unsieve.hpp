@@ -6,7 +6,7 @@
 #include <utility>                 // pair
 #include <vector>
 #include "ularith.h"
-#include "fb-types.h" // for sublat_t
+#include "fb-types.hpp"
 
 #ifdef HAVE_SSE2
 #include <emmintrin.h>

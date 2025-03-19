@@ -27,7 +27,7 @@
 #include "memory.h"   // free_aligned
 #include "verbose.h"  // verbose_output_print
 
-#include "fb-types.h"               // for slice_index_t, FBPRIME_FORMAT, fbp...
+#include "fb-types.hpp"
 #include "fb.hpp"                   // for fb_factorbase, fb_factorbase::slicing
 #include "iqsort.h"                 // for QSORT
 #include "las-config.h"             // for BUCKET_REGIONS, LOG_BUCKET_REGIONS

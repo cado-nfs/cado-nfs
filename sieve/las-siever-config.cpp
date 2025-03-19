@@ -10,7 +10,7 @@
 #include <gmp.h>
 
 #include "fb.hpp"
-#include "fb-types.h"
+#include "fb-types.hpp"
 #include "las-config.h"
 #include "las-multiobj-globals.hpp"
 #include "las-siever-config.hpp"

@@ -19,7 +19,7 @@
 #include "gcd.h"
 #include "macros.h"
 #include "getprime.h"
-#include "fb-types.h"
+#include "fb-types.hpp"
 #include "las-plattice.hpp"
 #include "fmt/format.h"
 

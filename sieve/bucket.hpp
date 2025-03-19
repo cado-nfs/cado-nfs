@@ -24,7 +24,7 @@
 #include <string>
 #endif
 
-#include "fb-types.h"
+#include "fb-types.hpp"
 #include "fb.hpp"
 #include "las-config.h"
 #include "las-memory.hpp"

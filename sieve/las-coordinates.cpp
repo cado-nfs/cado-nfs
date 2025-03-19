@@ -5,7 +5,7 @@
 
 #include <gmp.h>              // for mpz_clear, mpz_init, mpz_t, mpz_sgn
 
-#include "fb-types.h"
+#include "fb-types.hpp"
 #include "gmp_aux.h"
 #include "las-coordinates.hpp"
 #include "las-config.h"        // for LOG_BUCKET_REGION

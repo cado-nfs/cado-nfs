@@ -1,38 +1,39 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cstring>             // for strcmp
-#include <cstdio> // stdout // IWYU pragma: keep
-#include <climits> // UINT_MAX // IWYU pragma: keep
+#include <cstdint>
+#include <cstdio>
+#include <climits>
 
 #include <algorithm>
-#include <iostream>     // std::cout
+#include <iostream>
 #include <limits>
 #include <list>
-#include <memory>              // for allocator_traits<>::value_type, unique...
+#include <memory>
 #include <mutex>
-#include <sstream>      // std::ostringstream // IWYU pragma: keep
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include <gmp.h>               // for mpz_get_ui, mpz_divisible_ui_p, mpz_t
+#include <gmp.h>
 #include "fmt/format.h"
 
 #include "badideals.hpp"
-#include "cxx_mpz.hpp"         // for cxx_mpz
+#include "cxx_mpz.hpp"
 #include "misc.h"
-#include "getprime.h"          // for getprime_mt, prime_info_clear, prime_i...
-#include "gmp_aux.h"           // for ulong_isprime, nbits, mpz_get_uint64
-#include "gzip.h"       // ifstream_maybe_compressed
-#include "mod_ul.h"     // modulusul_t
-#include "mpz_poly.h"   // mpz_poly
-#include "omp_proxy.h" // IWYU pragma: keep
-#include "params.h"            // for cxx_param_list, param_list_lookup_string
+#include "getprime.h"
+#include "gmp_aux.h"
+#include "gzip.h"
+#include "mod_ul.h"
+#include "mpz_poly.h"
+#include "omp_proxy.h"
+#include "params.h"
 #include "renumber.hpp"
-#include "rootfinder.h" // mpz_poly_roots
-#include "stats.h"      // for the builder process
+#include "rootfinder.h"
+#include "stats.h"
 #include "macros.h"
+#include "typedefs.h"
 
 #if defined(__GLIBCXX__) && defined(_GLIBCXX_DEBUG) && defined(_GLIBCXX_DEBUG_DISABLE_CHECK_PARTITIONED)
 namespace __gnu_debug {
@@ -154,79 +155,65 @@ static renumber_t::corrupted_table cannot_find_p(p_r_values_t p) {/*{{{*/
 #endif
 
 static renumber_t::corrupted_table wrong_entry(p_r_values_t p, p_r_values_t vr) {/*{{{*/
-    std::ostringstream os;
-    os << std::hex;
-    os << "above prime 0x" << p
-        << ", the index 0x" << vr << " makes no sense";
-    return renumber_t::corrupted_table(os.str());
+    auto msg = fmt::format("above p=0x{:x}, the index 0x{:x} makes no sense",
+            p, vr);
+    return renumber_t::corrupted_table(msg);
 }/*}}}*/
 static renumber_t::corrupted_table prime_is_too_large(p_r_values_t p) {/*{{{*/
-    std::ostringstream os;
-    os << std::hex;
-    os << "prime 0x" << p << " is too large!";
+    auto msg = fmt::format("prime 0x{:x} is too large!", p);
 #if SIZEOF_INDEX != 8
-    os << "\n"
-        << "Note: above 2^32 ideals or relations,"
-        << " add FLAGS_SIZE=\"-DSIZEOF_P_R_VALUES=8 -DSIZEOF_INDEX=8\""
-        << " to local.sh\n";
+    msg += "\n"
+        "Note: above 2^32 ideals or relations,"
+        " add FLAGS_SIZE=\"-DSIZEOF_P_R_VALUES=8 -DSIZEOF_INDEX=8\""
+        " to local.sh\n";
 #endif
-    return renumber_t::corrupted_table(os.str());
+    return renumber_t::corrupted_table(msg);
 }/*}}}*/
 static renumber_t::corrupted_table prime_maps_to_garbage(int format, p_r_values_t p, index_t i, p_r_values_t q)/*{{{*/
 {
-    std::ostringstream os;
-    os << std::hex;
-    os << "cached index for prime p=0x" << p;
-    os << " is 0x" << i << ", which points to q=0x" << q;
-    if (format == renumber_t::format_flat)
-        os << " (should be p)";
-    else
-        os << " (should be vp)";
-    os << " ; note: isprime(p)==" << ulong_isprime(p);
-    return renumber_t::corrupted_table(os.str());
+    auto msg = fmt::format("cached index for prime p=0x{:x} is 0x{:x},"
+            " which points to q=0x{:x} (should be {}) ;"
+            " note: isprime(p)=={}",
+            p, i, q,
+            format == renumber_t::format_flat ? "p" : "vp",
+            ulong_isprime(p));
+    return renumber_t::corrupted_table(msg);
 }/*}}}*/
 static renumber_t::corrupted_table prime_maps_to_garbage(int format, p_r_values_t p, index_t i)/*{{{*/
 {
-    std::ostringstream os;
-    os << std::hex;
-    os << "cached index for prime p=0x" << p;
-    os << " is 0x" << i << ", which points nowhere";
-    if (format == renumber_t::format_flat)
-        os << " (should be p)";
-    else
-        os << " (should be vp)";
-    os << " ; note: isprime(p)==" << ulong_isprime(p);
-    return renumber_t::corrupted_table(os.str());
+    auto msg = fmt::format("cached index for prime p=0x{:x} is 0x{:x},"
+            " which points nowhere (should be {}) ;"
+            " note: isprime(p)=={}",
+            p, i,
+            format == renumber_t::format_flat ? "p" : "vp",
+            ulong_isprime(p));
+    return renumber_t::corrupted_table(msg);
 }/*}}}*/
 static renumber_t::corrupted_table cannot_find_pr(renumber_t::p_r_side x)/*{{{*/
 {
-    std::ostringstream os;
-    os << std::hex;
-    os << "cannot find p=0x" << x.p << ", r=0x" << x.r << " on side " << x.side;
+    auto msg = fmt::format("cannot find p=0x{:x}, r=0x{:x} on side {}",
+            x.p, x.r, x.side);
     /* #30012 and #30048 are cases where we see composites. #30048 in
      * particular sees the code crashing here, which is really cryptic.
      * We can alleviate that with a simple test.
      */
     if (!ulong_isprime(x.p)) {
-        os << " ; NOTE that this p is not prime"
-            << ", which is very unexpected. See bug #30048";
+        msg += " ; NOTE that this p is not prime"
+            ", which is very unexpected. See bug #30048";
     }
-    return renumber_t::corrupted_table(os.str());
+    return renumber_t::corrupted_table(msg);
 }/*}}}*/
 static renumber_t::corrupted_table cannot_lookup_p_a_b_in_bad_ideals(renumber_t::p_r_side x, int64_t a, uint64_t b)/*{{{*/
 {
-    std::ostringstream os;
-    os << "failed bad ideal lookup for"
-        << " (a,b)=(" << a << "," << b << ")"
-        << " at p=0x" << std::hex << x.p
-        << " on side " << x.side;
-    return renumber_t::corrupted_table(os.str());
+    auto msg = fmt::format(
+            "failed bad ideal lookup for (a,b)=({},{})"
+            " at p=0x{:x} on side {}",
+            a, b, x.p, x.side);
+    return renumber_t::corrupted_table(msg);
 }/*}}}*/
 static renumber_t::corrupted_table parse_error(std::string const & what)/*{{{*/
 {
-    std::ostringstream os;
-    os << "parse error (" << what << ")";
-    return renumber_t::corrupted_table(os.str());
+    return renumber_t::corrupted_table(fmt::format("parse error ({})", what));
 }/*}}}*/
 /* }}} */
 
@@ -325,10 +312,9 @@ renumber_t::cooked renumber_t::cook(unsigned long p, std::vector<std::vector<uns
                     }});
         }
     }
-    std::ostringstream os;
+    C.text.clear();
     for(auto x : C.flat)
-        os << x[0] << " " << x[1] << "\n";
-    C.text = os.str();
+        C.text += fmt::format("{} {}\n", x[0], x[1]);
     return C;
 }
 
@@ -946,7 +932,7 @@ void renumber_t::read_table(std::istream& is)
     }
 }
 
-void renumber_t::read_from_file(const char * filename, int for_dl)
+void renumber_t::read_from_file(const char * filename, bool for_dl)
 {
     ifstream_maybe_compressed is(filename);
     if (for_dl)
@@ -973,53 +959,37 @@ void renumber_t::recompute_debug_number_theoretic_stuff()
 std::string renumber_t::debug_data(index_t i) const
 {
     p_r_side const x = p_r_from_index (i);
-    std::ostringstream os;
 
-    os << "i=0x" << std::hex << i;
+    std::string s = fmt::format("i=0x{:x} tab[i]=", i);
 
     if (is_additional_column (i)) {
-        if (has_merged_additional_column()) {
-            os << " tab[i]=#"
-                << " added column for both sides combined";
-        } else {
-            os << " tab[i]=#"
-                << " added column for side " << std::dec << x.side;
-        }
+        s += fmt::format("# added column for {}",
+                has_merged_additional_column()
+                ? "both sides combined"
+                : fmt::format("side {}", x.side));
     } else if (is_bad(i)) {
-        os << " tab[i]=#"
-            << " bad ideal";
+        s += "# bad ideal";
         index_t j = i - above_add;
         for(auto const & b : bad_ideals) {
             if (j < (index_t) b.second.nbad) {
-                os << std::dec
-                    << " (number " << (1+j) << "/" << b.second.nbad << ")";
+                s += fmt::format(" (number {}/{})", 1+j, b.second.nbad);
                 break;
             }
             j -= b.second.nbad;
         }
-        os  << " above"
-            << " (" << x.p << "," << x.r << ")"
-            << " on side " << x.side;
+        s += fmt::format(" above ({},{}) on side {}", x.p, x.r, x.side);
     } else {
         i -= above_bad;
-        os << std::hex;
-        {
-            os << " tab[i]=";
-            os << " (0x" << flat_data[i][0] << ",0x" << flat_data[i][1] << ")";
-        }
-        os << " p=0x" << x.p;
+        s += fmt::format(" (0x{:x},0x{:x})", flat_data[i][0], flat_data[i][1]);
         if (x.side == get_rational_side()) {
-            os << " rat";
-            os << " side " << std::dec << x.side;
+            s += fmt::format(" p=0x{:x} rat side {}", x.p, x.side);
         } else {
-            os << " r=0x" << x.r;
-            os << " side " << std::dec << x.side;
+            s += fmt::format(" p=0x{:x} r=0x{:x} side {}", x.p, x.r, x.side);
             if (x.r == x.p)
-                os << " proj";
+                s += " proj";
         }
     }
-
-    return os.str();
+    return s;
 }
 
 /* return valid sagemath code that describes the ideal */
@@ -1111,10 +1081,9 @@ std::string renumber_t::debug_data_machine_description(index_t i) const
                 if (b.second.machine_description.empty()) {
                     throw std::runtime_error("call compute_bad_ideals() first!\n");
                 }
-                std::ostringstream os;
-                os << "generic " << x.side
-                   << " " << b.second.machine_description[j];
-                return os.str();
+                return fmt::format("generic {} {}",
+                        x.side,
+                        b.second.machine_description[j]);
             }
             j -= b.second.nbad;
         }
@@ -1130,12 +1099,9 @@ std::string renumber_t::debug_data_machine_description(index_t i) const
             cxx_mpz_poly const f(cpoly->pols[x.side]);
             for(auto const & y : small_primes[x.side]) {
                 if (x.p == y.first) {
-                    std::ostringstream os;
-                    os << "generic " << x.side
-                        << " "
-                        << generic_machine_description(f, x.side, x.p, x.r);
-
-                    return os.str();
+                    return fmt::format("generic {} {}",
+                            x.side,
+                            generic_machine_description(f, x.side, x.p, x.r));
                 }
             }
 
@@ -1316,7 +1282,7 @@ void renumber_t::builder::postprocess(prime_chunk & P)/*{{{*/
      * to freerel_file any free relation encountered. This is done
      * synchronously.
      *
-     * (if freerel_file is NULL, store only into the renumber table)
+     * (if freerel_file is nullptr, store only into the renumber table)
      */
     for(size_t i = 0; i < P.primes.size() ; i++) {
         p_r_values_t const p = P.primes[i];
@@ -1397,20 +1363,20 @@ index_t renumber_t::builder::operator()()/*{{{*/
     return R_max_index;
 }/*}}}*/
 
-index_t renumber_t::build(int for_dl, hook * f)
+index_t renumber_t::build(bool for_dl, hook * f)
 {
     cxx_param_list pl;
     return build(pl, for_dl, f);
 }
 
-index_t renumber_t::build(cxx_param_list & pl, int for_dl, hook * f)
+index_t renumber_t::build(cxx_param_list & pl, bool for_dl, hook * f)
 {
     const char * renumberfilename = param_list_lookup_string(pl, "renumber");
     const char * format_string = param_list_lookup_string(pl, "renumber_format");
 
-    if (format_string == NULL) {
+    if (format_string == nullptr) {
         set_format(format_flat);
-    } else if (strcmp(format_string, "flat") == 0) {
+    } else if (std::string(format_string) == "flat") {
         format = format_flat;
     } else {
         throw std::runtime_error("cannot use this renumber format");

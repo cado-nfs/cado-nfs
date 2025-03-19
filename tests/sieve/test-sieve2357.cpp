@@ -28,7 +28,7 @@
 #include "rdtsc.h"
 #endif
 #endif
-#include "fb-types.h" // for fbprime_t, fbroot_t
+#include "fb-types.hpp"
 #include "las-sieve2357.hpp"
 #include "las-where-am-i-proxy.hpp" // for where_am_I
 #include "memory.h"                 // free_aligned

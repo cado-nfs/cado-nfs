@@ -507,6 +507,8 @@ static void * tst_prog(parallelizing_info_ptr pi, cxx_param_list & pl,
     memset(oldv[1], 0, sizeof(mmt_vec));
 #endif
 
+    matmul_top_report(mmt, 1.0, 1);
+
     // A->oo_field_clear(A);
 
     if (verbose) {

@@ -10,6 +10,7 @@ ncols=100
 density=10
 seed=1
 : ${bindir:=$PROJECT_BINARY_DIR}
+: ${bindir:?missing}
 bwc_extra=()
 mf_bal_extra=()
 nh=1
@@ -151,7 +152,21 @@ for impl in "${backends[@]}" ; do
     # times M in the file WM. Which of these products uses the "fast" or
     # "slow" code depdens on $ns.
     for ns in ${nullspace_values[@]} ; do
-        redirect_unless_debug $wdir/spmv-$impl-left.out $bindir/linalg/bwc/bwc.pl :mpirun ${bwc_extra} -- $bindir/tests/linalg/bwc/spmv_test wdir=$wdir "${bwc_common[@]}" prime=$prime balancing=$B matrix=$wdir/mat.bin nullspace=$ns mm_impl=$impl no_save_cache=1 "${bwc_extra[@]}" skip_bw_early_rank_check=1
+        spmv_args=(
+            wdir=$wdir
+            "${bwc_common[@]}"
+            prime=$prime
+            balancing=$B
+            matrix=$wdir/mat.bin
+            nullspace=$ns
+            mm_impl=$impl
+            no_save_cache=1
+            "${bwc_extra[@]}"
+            skip_bw_early_rank_check=1
+            verbose_flags=all-bwc-cache,all-bwc-sub-timings
+            # rebuild_cache=1
+        )
+        redirect_unless_debug $wdir/spmv-$impl-left.out $bindir/linalg/bwc/bwc.pl :mpirun ${bwc_extra} -- $bindir/tests/linalg/bwc/spmv_test "${spmv_args[@]}"
         # check done within the C code.
         # diff -q $wdir/Z0-$splitwidth.0 $wdir/ZI0-$splitwidth.0
         # diff -q $wdir/Z0-$splitwidth.0 $wdir/ZII0-$splitwidth.0

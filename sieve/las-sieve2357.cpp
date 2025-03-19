@@ -15,7 +15,7 @@
 #include <arm_neon.h>
 #endif
 
-#include "fb-types.h"
+#include "fb-types.hpp"
 #include "intrinsics.hpp"
 #include "macros.h"
 #include "ularith.h"

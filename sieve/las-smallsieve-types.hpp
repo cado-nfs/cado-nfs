@@ -3,7 +3,7 @@
 
 #include <vector>
 #include "las-forwardtypes.hpp"
-#include "fb-types.h"
+#include "fb-types.hpp"
 #include "fb.hpp"
 #include "macros.h"
 

@@ -25,7 +25,7 @@
 
 #include "bucket-push-update.hpp"       // for bucket_single::push_update
 #include "bucket.hpp"                   // for bucket_update_t, bucket_primes_t
-#include "fb-types.h"                   // for fbprime_t, FBROOT_FORMAT, FBP...
+#include "fb-types.hpp"
 #include "fb.hpp"                       // for fb_entry_general, fb_factorba...
 #include "gcd.h"       // for gcd_ul
 #include "las-arith.hpp"                // for invmod_32

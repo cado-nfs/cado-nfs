@@ -17,7 +17,7 @@
 
 #include "cado_poly.h"              // MAX_DEGREE
 #include "cxx_mpz.hpp"
-#include "fb-types.h"               // for fbprime_t, FBPRIME_FORMAT
+#include "fb-types.hpp"
 #include "fb.hpp"
 #include "gmp_aux.h"                // for mpz_add_int64, mpz_init_set_int64
 #include "las-arith.hpp"            // for invmod_redc_32
@@ -582,6 +582,27 @@ bug20200225 ()
         uint64_t const invp = 1431655765;
         qlattice_basis const basis {
             -14730287151, 11, -6528529, -2,
+        };
+        auto rref = ref_fb_root_in_qlattice (p, Rab, basis);
+        fb_root_p1 const r127 = fb_root_in_qlattice_127bits (p, Rab, invp, basis);
+        if (rref != r127)
+            print_error_and_exit(p, Rab, r127, rref, basis, 127);
+    }
+    {
+        /* This is with
+         * f1=-201985095924438464843258385780-2092848637636605284780511*x
+         *    +200523270267920133662*x^2+383823019593599*x^3-6458886018*x^4
+         *    +10080*x^5
+         * and side-1 q=598766043859183; rho=150546891162130 (within a
+         * descent), leading to
+         *      a0=-1285560395691; b0=15859721; a1=-23568698; b1=-175;
+         *      I=1024; J=32768
+         */
+        fbprime_t const p = 3;
+        fb_root_p1 const Rab = 2;
+        uint64_t const invp = 1431655765;
+        qlattice_basis const basis {
+            -1285560395691, 15859721, -23568698, -175,
         };
         auto rref = ref_fb_root_in_qlattice (p, Rab, basis);
         fb_root_p1 const r127 = fb_root_in_qlattice_127bits (p, Rab, invp, basis);

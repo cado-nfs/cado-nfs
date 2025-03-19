@@ -1027,7 +1027,7 @@ sieve/ecm/stage2.c
 sieve/ecm/stage2.h
 sieve/ecm/testbench.cpp
 sieve/fake_rels.cpp
-sieve/fb-types.h
+sieve/fb-types.hpp
 sieve/fb.cpp
 sieve/fb.hpp
 sieve/freerel.cpp

@@ -166,7 +166,7 @@ fb_entry_general::fb_entry_general(fb_entry_x_roots<Nr_roots> const & e)
         /* Use simple constructor for root */
         // with Nr_roots==0, coverity likes to complain
         // coverity[dead_error_line]
-        roots[i] = e.roots[i];
+        roots[i] = fb_general_root(e.roots[i]);
     }
     nr_roots = Nr_roots;
 }
@@ -672,7 +672,7 @@ struct fb_factorbase::helper_functor_append {
         if (!isG && N > deg)
             return;
         for (auto it = pool.begin(); it != pool.end();) {
-            fb_entry_general const E = std::move(*it);
+            auto const E = *it;
             /* see above */
             ASSERT(E.nr_roots > 0 && E.nr_roots <= deg);
             /* why E.nr_roots == deg-1 ? Because it *can* happen,
@@ -695,7 +695,7 @@ struct fb_factorbase::helper_functor_append {
                 if (!x.weight_cdf.empty())
                     w += x.weight_cdf.back();
                 x.weight_cdf.push_back(w);
-                x.push_back(std::move(E));
+                x.push_back(FB_ENTRY_TYPE(std::move(E)));
                 pool.erase(it);
                 it = it_next;
             } else {
