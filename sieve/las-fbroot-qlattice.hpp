@@ -4,6 +4,8 @@
 #include <cstdio>             // for fprintf, stderr
 #include <cstdint>             // for int64_t, uint64_t, INT64_C, uint32_t
 
+#include <gmp.h>
+
 #include "fb-types.h"          // for fbprime_t, redc_invp_t, sublat_t
 #include "las-arith.hpp"       // for redc_32, invmod_redc_32, invmod_po2
 #include "las-qlattice.hpp"
@@ -146,7 +148,7 @@ fb_root_in_qlattice_31bits (const fbprime_t p, const fb_root_p1 R,
   int64_t aux1, aux2;
   uint32_t u, v;
 
-  // ASSERT_EXPENSIVE(basis.fits_31bits());
+  ASSERT_EXPENSIVE(basis.fits_31bits());
   static_assert (CARRYCHECK == 0 || CARRYCHECK == 1 , "Invalid CARRYCHECK value" );
   
   /* Handle powers of 2 separately, REDC doesn't like them */
@@ -234,11 +236,11 @@ fb_root_in_qlattice_31bits_batch (fbroot_t *r_ij, const fbprime_t p,
 {
   /* p must be odd for REDC to work */
   ASSERT(p % 2 == 1);
-  // ASSERT_ALWAYS(basis.fits_31bits());
+  ASSERT_EXPENSIVE(basis.fits_31bits());
   static_assert (CARRYCHECK == 0 || CARRYCHECK == 1 , "Invalid CARRYCHECK value" );
 
   for (size_t i_root = 0; i_root < n_roots; i_root++) {
-      int64_t den = basis.a0 - (int64_t)r_ab[i_root] *basis.b0;
+      const int64_t den = basis.a0 - (int64_t)r_ab[i_root] *basis.b0;
       /* USE_NATIVE_MOD is slightly slower on Intel i5-4590 with gcc 9.2.1:
        * test_fb_root 10000 reports 14.49s instead of 13.26s
        * (same pattern on i7-8550U)
@@ -275,16 +277,58 @@ fb_root_in_qlattice_31bits_batch (fbroot_t *r_ij, const fbprime_t p,
   return true;
 }
 
+static fb_root_p1_t<cxx_mpz>
+reference_fb_root_in_qlattice (fbprime_t p, fb_root_p1 R, qlattice_basis const & basis)
+{
+  cxx_mpz num, den;
+
+  if (R.is_affine()) {
+      den = -basis.b0;
+      mpz_mul_ui (den, den, R.r);
+      mpz_add_int64 (den, den, basis.a0);
+
+      num = basis.b1;
+      mpz_mul_ui (num, num, R.r);
+      mpz_sub_int64 (num, num, basis.a1);
+  } else {
+      den = basis.a0;
+      mpz_mul_ui (den, den, R.r);
+      mpz_sub_int64 (den, den, basis.b0);
+
+      num = -basis.a1;
+      mpz_mul_ui (num, num, R.r);
+      mpz_add_int64 (num, num, basis.b1);
+  }
+
+  if (mpz_gcd_ui(nullptr, den, p) != 1) {
+      /* root is projective */
+      mpz_invert (num, num, cxx_mpz(p));
+      mpz_mul(num, num, den);
+      mpz_mod_ui(num, num, p);
+      return { num, true };
+  } else {
+      mpz_invert (den, den, cxx_mpz(p));
+      mpz_mul(num, num, den);
+      mpz_mod_ui(num, num, p);
+      return { num, false };
+  }
+}
+
+
 /* This one is slower, but should be correct under the relaxed condition
  * that q be at most 127 bits or so, so that the coordinates of the
- * Q-lattice can be as large as 63 bits. We call redc 7 times here, instead
- * of 3 for fb_root_in_qlattice_31bits.
+ * Q-lattice can be as large as 63 bits. We call redc many more times here.
  */
 template <int CARRYCHECK>
 static inline fb_root_p1
 fb_root_in_qlattice_127bits (const fbprime_t p, const fb_root_p1 R,
-        const redc_invp_t invp, const qlattice_basis &basis)
+        redc_invp_t MAYBE_UNUSED, const qlattice_basis &basis)
 {
+    auto ref = reference_fb_root_in_qlattice(p, R, basis);
+
+    return { (fbprime_t) mpz_get_ui(ref.r), ref.proj };
+
+#if 0
   int64_t aux1, aux2;
   uint64_t u, v;
   
@@ -299,9 +343,34 @@ fb_root_in_qlattice_127bits (const fbprime_t p, const fb_root_p1 R,
       aux1 = ((int64_t)R)*(int64_t) redc_32(basis.b1, p, invp) - (int64_t) redc_32(basis.a1, p, invp);
       aux2 = (int64_t) redc_32(basis.a0, p, invp) - ((int64_t)R)*(int64_t) redc_32(basis.b0, p, invp);
          */
-        uint64_t Rl = R.r;
-        uint64_t b1l = redc_32<CARRYCHECK>(basis.b1, p, invp);
-        uint64_t b0l = redc_32<CARRYCHECK>(basis.b0, p, invp);
+#if 0
+      /* we decompose the basis entries as hi*2^32+lo with lo and hi
+       * signed. We form these as 32-bit integers, but cast them to
+       * 64-bit ones because it's needed for the multiplications that we
+       * do.
+       */
+      const int64_t b0_lo = (int32_t) basis.b0;
+      const int64_t b0_hi = (int32_t) (basis.b0 >> 32) + (b0_lo < 0);
+      const int64_t b1_lo = (int32_t) basis.b1;
+      const int64_t b1_hi = (int32_t) (basis.b1 >> 32) + (b1_lo < 0);
+      const int64_t a0_lo = (int32_t) basis.a0;
+      const int64_t a0_hi = (int32_t) (basis.a0 >> 32) + (a0_lo < 0);
+      const int64_t a1_lo = (int32_t) basis.a1;
+      const int64_t a1_hi = (int32_t) (basis.a1 >> 32) + (a1_lo < 0);
+      const int64_t r = R.r;
+      /* compute b1*r-a1 and a0*r-b0. We do this separately for both words.
+       * We get resuls of reach redc_32<> in [0,p).
+       */
+      const uint32_t aux1_lo = redc_32<CARRYCHECK>(r * b1_lo - a1_lo);
+      const uint32_t aux1_hi = redc_32<CARRYCHECK>(r * b1_hi - a1_hi);
+      const uint32_t aux2_lo = redc_32<CARRYCHECK>(r * a0_lo - b0_lo);
+      const uint32_t aux2_hi = redc_32<CARRYCHECK>(r * a0_hi - b0_hi);
+#endif
+
+
+        const uint64_t Rl = R.r;
+        const uint64_t b1l = redc_32<CARRYCHECK>(basis.b1, p, invp);
+        const uint64_t b0l = redc_32<CARRYCHECK>(basis.b0, p, invp);
         aux1 = Rl*b1l;
         aux2 = Rl*b0l;
         /* If we have an overflow in the products above, replace by
@@ -345,9 +414,9 @@ fb_root_in_qlattice_127bits (const fbprime_t p, const fb_root_p1 R,
       aux1 = (int64_t) redc_32(basis.b1, p, invp) - ((int64_t)(R - p))*(int64_t) redc_32(basis.a1, p, invp);
       aux2 = ((int64_t)(R - p))*(int64_t) redc_32(basis.a0, p, invp) - (int64_t) redc_32(basis.b0, p, invp);
       */
-        uint64_t Rpl = R.r;
-        uint64_t a1l = redc_32<CARRYCHECK>(basis.a1, p, invp);
-        uint64_t a0l = redc_32<CARRYCHECK>(basis.a0, p, invp);
+        const uint64_t Rpl = R.r;
+        const uint64_t a1l = redc_32<CARRYCHECK>(basis.a1, p, invp);
+        const uint64_t a0l = redc_32<CARRYCHECK>(basis.a0, p, invp);
         aux1 = Rpl*a1l;
         aux2 = Rpl*a0l;
         /* same analysis as above */
@@ -399,6 +468,8 @@ fb_root_in_qlattice_127bits (const fbprime_t p, const fb_root_p1 R,
       /* Warning: we have the same overflow problem as above. */
       return fb_root_p1::projective_root(redc_32<CARRYCHECK> (aux2 * v, p, invp));
     }
+#endif
+
 }
 
 /** Transforms roots r_ab (mod p) according to a lattice basis.
