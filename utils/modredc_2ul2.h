@@ -221,7 +221,6 @@ MAYBE_UNUSED
 static inline void
 modredc2ul2_intclear (modintredc2ul2_t r MAYBE_UNUSED)
 {
-  return;
 }
 
 
@@ -592,7 +591,6 @@ MAYBE_UNUSED
 static inline void
 modredc2ul2_clearmod (modulusredc2ul2_t m MAYBE_UNUSED)
 {
-  return;
 }
 
 
@@ -614,7 +612,6 @@ static inline void
 modredc2ul2_init_noset0 (residueredc2ul2_t r MAYBE_UNUSED, 
 			 const modulusredc2ul2_t m MAYBE_UNUSED)
 {
-  return;
 }
 
 
@@ -623,7 +620,6 @@ static inline void
 modredc2ul2_clear (residueredc2ul2_t r MAYBE_UNUSED, 
 		   const modulusredc2ul2_t m MAYBE_UNUSED)
 {
-  return;
 }
 
 

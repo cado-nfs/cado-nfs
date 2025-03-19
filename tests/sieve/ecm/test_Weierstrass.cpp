@@ -1,13 +1,17 @@
 #include "cado.h" // IWYU pragma: keep
-#include "tests_common.h"
-#include <cstdint>
+
 #include <cinttypes>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>                                // for strlen
+
 #include <typeinfo>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>                                // for strlen
-#include <gmp.h>                                   // for mpz_ptr, gmp_sscanf
 #include <iostream>                                // for operator<<, endl
+
+#include <gmp.h>                                   // for mpz_ptr, gmp_sscanf
+
+#include "tests_common.h"
 #include "cxx_mpz.hpp"                             // for cxx_mpz, operator==
 #include "modint.hpp"                              // for operator<<
 #include "mod64.hpp"

@@ -2,9 +2,13 @@
 #define LAS_SIEVER_CONFIG_HPP_
 
 #include <cstring>
+
+#include <algorithm>
 #include <map>
+#include <vector>
 #include <tuple>
 #include <utility>
+
 #include "fb.hpp"
 #include "params.h"
 #include "las-side-config.hpp"
@@ -124,7 +128,7 @@ struct siever_config {
             return ok;
         }
     };
-    has_same_fb_parameters same_fb_parameters() const { return has_same_fb_parameters(*this); }
+    has_same_fb_parameters same_fb_parameters() const { return { *this }; }
     /*}}}*/
 #if 0
     /*{{{ has_same_sieving -- currently duplicates has_same_fb_parameters */
@@ -175,7 +179,7 @@ struct siever_config {
         };
 
     };
-    has_same_cofactoring same_cofactoring() const { return has_same_cofactoring(*this); }
+    has_same_cofactoring same_cofactoring() const { return { *this }; }
     /*}}}*/
 };
 

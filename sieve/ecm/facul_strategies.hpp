@@ -100,7 +100,7 @@ public:
             std::vector<unsigned int> const & mfb,
             std::vector<int> ncurves,
             bool,
-            const int);
+            int);
 
     facul_strategies(
             std::vector<unsigned long> const & lim,

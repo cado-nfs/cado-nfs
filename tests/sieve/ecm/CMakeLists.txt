@@ -71,6 +71,8 @@ cado_define_test(test_chains.c LIBRARIES tests facul utils)
 cado_define_test(test_Weierstrass.cpp LIBRARIES tests facul utils
                  ARGUMENTS ${CADO_NFS_SOURCE_DIR}/tests/sieve/ecm/test_Weierstrass.input)
 
+cado_define_test(test_facul_default.cpp LIBRARIES tests facul utils)
+
 cado_define_test(test_strategy_file_parser.cpp
     LIBRARIES tests facul utils
     NO_DEFAULT_RUN)

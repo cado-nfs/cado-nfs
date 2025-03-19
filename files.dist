@@ -1392,6 +1392,7 @@ tests/sieve/ecm/test_factor_ecmm16_1_100_1000.inp
 tests/sieve/ecm/test_factor_pm1_2_100_1000.inp
 tests/sieve/ecm/test_factor_pp1_27_100_1000.inp
 tests/sieve/ecm/test_factor_pp1_65_100_1000.inp
+tests/sieve/ecm/test_facul_default.cpp
 tests/sieve/ecm/test_mpqs.c
 tests/sieve/ecm/test_order_ecm_10_1000000000_1000001000.inp
 tests/sieve/ecm/test_order_ecm_10_1000000_1001000.inp
