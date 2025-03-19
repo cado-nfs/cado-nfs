@@ -5,8 +5,8 @@
 
 /* Elementary data types for the factor base */
 
-#include <stdint.h>
-#include <inttypes.h>
+#include <cstdint>
+#include <cinttypes>
 #include "las-config.h"
 
 typedef uint32_t fbprime_t; /* 32 bits should be enough for everyone */
@@ -52,8 +52,8 @@ template<typename T>
 struct fb_root_p1_t {
     T r;
     bool proj;
-    inline bool is_affine() const { return !proj; }
-    inline bool is_projective() const { return proj; }
+    bool is_affine() const { return !proj; }
+    bool is_projective() const { return proj; }
     fb_root_p1_t(T const & r, bool proj = false) : r(r), proj(proj) {}
     fb_root_p1_t(fb_root_p1_t const &) = default;
     fb_root_p1_t(fb_root_p1_t &&) = default;
@@ -62,7 +62,7 @@ struct fb_root_p1_t {
     fb_root_p1_t& operator=(fb_root_p1_t &&) = default;
     static fb_root_p1_t affine_root(fbprime_t r) { return r; }
     static fb_root_p1_t projective_root(fbprime_t r) { return fb_root_p1_t { r, true }; }
-    inline fbprime_t to_old_format(fbprime_t p) const { return r + (proj ? p : 0); }
+    fbprime_t to_old_format(fbprime_t p) const { return r + (proj ? p : 0); }
     static fb_root_p1_t<T> from_old_format(fbprime_t old_r, fbprime_t q) {
         return fb_root_p1_t<T>((old_r >= q) ? (old_r - q) : old_r, old_r >= q);;
     }

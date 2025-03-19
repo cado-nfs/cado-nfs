@@ -10,7 +10,7 @@
 #include <vector>                     // for std::vector
 
 #include "las-where-am-i-proxy.hpp"        // for where_am_I
-#include "fb-types.h"   // for fbprime_t, fbroot_t, slice_index_t
+#include "fb-types.hpp"
 #include "fb.hpp"       // for fb_factorbase
 #include "las-config.h" // for LOG_BUCKET_REGION
 struct cxx_mpz;          // IWYU pragma: keep

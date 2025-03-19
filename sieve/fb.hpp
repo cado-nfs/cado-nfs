@@ -5,7 +5,7 @@
 #ifndef FB_HPP_
 #define FB_HPP_
 
-#include <cstddef> // for size_t, NULL
+#include <cstddef> // for size_t
 #include <cstdio>  // for fprintf, FILE
 
 #include <algorithm>   // for sort, max
@@ -23,7 +23,7 @@
 #include "macros.h"    // for ASSERT_ALWAYS, ASSERT, MAYBE_U...
 #include "mpz_poly.h"  // for cxx_mpz, cxx_mpz_poly
 
-#include "fb-types.h"                 // for fbprime_t, slice_index_t, fbro...
+#include "fb-types.hpp"
 #include "las-config.h"               // for FB_MAX_PARTS
 #include "lock_guarded_container.hpp" // for lock_guarded_container
 #include "mmap_allocator.hpp"         // for mmap_allocator
@@ -65,14 +65,14 @@ struct fb_general_root {
      * potentially uninitialized bytes.
      */
     fbroot_t r = 0;
-    bool proj = 0;
+    bool proj = false;
     unsigned char exp = 0, oldexp = 0;
 
   private:
     unsigned char dummy_padding_byte MAYBE_UNUSED_PRIVATE_DATA_MEMBER = 0;
 
   public:
-    fb_general_root() {}
+    fb_general_root() = default;
     fb_general_root(fbroot_t const r, unsigned char const nexp,
                     unsigned char const oldexp, bool const proj = false)
         : r(r)
@@ -81,22 +81,20 @@ struct fb_general_root {
         , oldexp(oldexp)
     {
     }
-    fb_general_root(fbroot_t const r)
+    explicit fb_general_root(fbroot_t r)
         : r(r)
-        , proj(false)
         , exp(1)
-        , oldexp(0)
     {
     }
     /* Create a root from a linear polynomial */
     static fb_general_root fb_linear_root(fbprime_t q,
                                           cxx_mpz_poly const & poly,
-                                          unsigned char const nexp,
-                                          unsigned char const oldexp);
+                                          unsigned char nexp,
+                                          unsigned char oldexp);
 
     /* Constructor from the old format of storing projective roots, which has q
        added to the root if the root is projective */
-    fb_general_root(fb_root_p1 const R, unsigned char const nexp = 1,
+    explicit fb_general_root(fb_root_p1 const R, unsigned char const nexp = 1,
                     unsigned char const oldexp = 0)
         : r(R.r)
         , proj(R.proj)
@@ -123,8 +121,8 @@ struct fb_general_root {
             fprintf(out, ":%hhu:%hhu", oldexp, this->exp);
     }
 
-    void transform(fb_general_root & result, fbprime_t const q,
-                   redc_invp_t const invq, qlattice_basis const & basis) const;
+    void transform(fb_general_root & result, fbprime_t q,
+                   redc_invp_t invq, qlattice_basis const & basis) const;
 };
 #if __cplusplus >= 201703L
 /* std::has_unique_object_representations should be almost what we want,
@@ -163,11 +161,11 @@ class fb_entry_general
        operate on both kind of entries */
     static bool const is_general_type = true;
     static unsigned char const fixed_nr_roots = 0;
-    inline int get_nr_roots() const { return nr_roots; }
+    int get_nr_roots() const { return nr_roots; }
 
-    fb_entry_general() {}
+    fb_entry_general() = default;
     template <int Nr_roots>
-    fb_entry_general(fb_entry_x_roots<Nr_roots> const & e);
+    explicit fb_entry_general(fb_entry_x_roots<Nr_roots> const & e);
     fbprime_t get_q() const { return q; }
     fbroot_t get_r(size_t const i) const { return roots[i].r; };
     fbroot_t get_proj(size_t const i) const { return roots[i].proj; };
@@ -236,9 +234,9 @@ template <int Nr_roots> class fb_entry_x_roots
     static unsigned char const k = 1, nr_roots = Nr_roots;
     static bool const is_general_type = false;
     static unsigned char const fixed_nr_roots = Nr_roots;
-    inline int get_nr_roots() const { return Nr_roots; }
+    int get_nr_roots() const { return Nr_roots; }
     // fb_entry_x_roots() {};
-    fb_entry_x_roots(fbprime_t p, redc_invp_t invq, fbroot_t * roots)
+    fb_entry_x_roots(fbprime_t p, redc_invp_t invq, const fbroot_t * roots)
         : p(p)
         , invq(invq)
     {
@@ -246,7 +244,7 @@ template <int Nr_roots> class fb_entry_x_roots
             this->roots[i] = roots[i];
     }
     /* Allow assignment-construction from general entries */
-    fb_entry_x_roots(fb_entry_general const & e)
+    explicit fb_entry_x_roots(fb_entry_general const & e)
         : p(e.p)
         , invq(e.invq)
     {
@@ -287,7 +285,7 @@ class fb_slice_interface
 {
   public:
     fb_slice_interface() = default;
-    virtual ~fb_slice_interface() {}
+    virtual ~fb_slice_interface() = default;
     virtual size_t size() const = 0;
     virtual unsigned char get_logp() const = 0;
     virtual fbprime_t get_prime(slice_offset_t offset) const = 0;
@@ -331,12 +329,12 @@ template <typename FB_ENTRY_TYPE> class fb_slice : public fb_slice_interface
 
   public:
     typedef FB_ENTRY_TYPE entry_t;
-    inline typename fb_entry_vector::const_iterator begin() const
+    typename fb_entry_vector::const_iterator begin() const
     {
         return _begin;
     }
-    inline typename fb_entry_vector::const_iterator end() const { return _end; }
-    inline size_t size() const override { return _end - _begin; }
+    typename fb_entry_vector::const_iterator end() const { return _end; }
+    size_t size() const override { return _end - _begin; }
     unsigned char get_logp() const override { return logp; }
     fbprime_t get_prime(slice_offset_t offset) const override
     {
@@ -389,15 +387,15 @@ template <typename T> struct entries_and_cdf {
          * at a time (say, 16), so as to minimize the cost of finding the
          * split points */
         weight_container_type weight_cdf;
-        inline weight_container_type::const_iterator weight_begin() const
+        weight_container_type::const_iterator weight_begin() const
         {
             return weight_cdf.begin();
         }
-        inline weight_container_type::const_iterator weight_end() const
+        weight_container_type::const_iterator weight_end() const
         {
             return weight_cdf.end();
         }
-        inline weight_container_type::size_type weight_size() const
+        weight_container_type::size_type weight_size() const
         {
             return weight_cdf.size();
         }
@@ -599,7 +597,7 @@ class fb_factorbase
                         return &(x[k]);
                     } else {
                         k -= x.size();
-                        return NULL;
+                        return nullptr;
                     }
                 }
             };
@@ -616,11 +614,11 @@ class fb_factorbase
                  * elegantly ?
                  */
                 if (index < first_slice_index)
-                    return NULL;
+                    return nullptr;
                 slice_index_t idx = index - first_slice_index;
                 if (idx >= nslices()) {
                     // index = idx - nslices();
-                    return NULL;
+                    return nullptr;
                 }
                 fb_slice_interface const * res =
                     multityped_array_locate<helper_functor_get>()(slices, idx);
@@ -694,7 +692,7 @@ class fb_factorbase
             /* index: global index across all fb parts */
             fb_slice_interface const & operator[](slice_index_t index) const
             {
-                /* This bombs out at runtime if get returns NULL, but
+                /* This bombs out at runtime if get returns nullptr, but
                  * then it should be an indication of a programmer
                  * mistake.
                  */
@@ -724,13 +722,13 @@ class fb_factorbase
                 if (index < p.first_slice_index + p.nslices())
                     return p.get(index);
             }
-            return NULL;
+            return nullptr;
         }
 
       public:
         part const & get_part(int i) const { return parts[i]; }
 
-        inline int get_toplevel() const { return toplevel; }
+        int get_toplevel() const { return toplevel; }
 
         /* This accesses the *fb_slice* with this index. Not the vector of
          * slices !
@@ -831,7 +829,7 @@ class fb_factorbase
      * As in the std::map case, the non-const accessor is allowed to
      * create stuff. */
 
-    inline slicing & operator[](key_type const & K)
+    slicing & operator[](key_type const & K)
     {
         std::lock_guard<std::mutex> foo(cache.mutex());
         auto it = cache.find(K);
@@ -843,7 +841,7 @@ class fb_factorbase
         return res;
     }
 
-    inline slicing const & operator[](key_type const & K) const
+    slicing const & operator[](key_type const & K) const
     {
         return cache.at(K);
     }

@@ -17,7 +17,7 @@
 #include <arm_neon.h>
 #endif
 
-#include "fb-types.h"     // for fbprime_t
+#include "fb-types.hpp"
 struct where_am_I;
 
 

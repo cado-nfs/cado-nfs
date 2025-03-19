@@ -4,7 +4,7 @@
 #include <cstdarg>
 #include <cstdio>
 #include <vector>
-#include "fb-types.h"   // sublat_t
+#include "fb-types.hpp"
 #include "fb.hpp"
 #include "las-forwardtypes.hpp"
 #include "macros.h"

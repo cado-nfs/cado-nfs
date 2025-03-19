@@ -7,9 +7,10 @@
 #include <cstdint>             // for int64_t, uint64_t, INT64_C, uint32_t
 #include <iosfwd>              // for ostream
 
+#include "fmt/base.h"
 #include "fmt/ostream.h"
 
-#include "fb-types.h"          // for fbprime_t, redc_invp_t, sublat_t
+#include "fb-types.hpp"
 #include "las-todo-entry.hpp"  // for las_todo_entry
 
 struct qlattice_basis {
@@ -39,13 +40,12 @@ struct qlattice_basis {
     }
 
     bool fits_31bits() const {
-        constexpr int64_t t31 = INT64_C(1) << 31;
-        return !(
-                 a0 <  -t31 || a0 >= t31 ||
-                 a1 <  -t31 || a1 >= t31 ||
-                 b0 <  -t31 || b0 >= t31 ||
-                 b1 <  -t31 || b1 >= t31
-                 );
+        constexpr int64_t t31 = int64_t(1) << 31;
+        return a0 >= -t31 && a0 < t31 &&
+               a1 >= -t31 && a1 < t31 &&
+               b0 >= -t31 && b0 < t31 &&
+               b1 >= -t31 && b1 < t31
+               ;
     }
 
     struct too_skewed : public std::exception { };

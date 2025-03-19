@@ -46,7 +46,7 @@
 #include "ecm/batch.hpp"                      // for cofac_list, cofac_candidate
 #include "ecm/facul.hpp"                      // for facul_print_stats
 #include "ecm/facul_strategies_stats.hpp"
-#include "fb-types.h"                     // for fbprime_t, sublat_t, slice_...
+#include "fb-types.hpp"
 #include "fb.hpp"                         // for fb_factorbase::key_type
 #include "json.hpp"
 #include "las-auxiliary-data.hpp"         // for report_and_timer, nfs_aux

@@ -10,7 +10,7 @@
 #include <cinttypes>      // for PRI* macros
 
 #include "macros.h"       // for ASSERT, UNLIKELY, GNUC_VERSION_ATLEAST, MAY...
-#include "fb-types.h"     // for fbprime_t
+#include "fb-types.hpp"
 #include "misc.h"          // cado_ctz
 #include "mod_ul.h"        // for modul_clear, modul_clearmod, modul_get_ul
 #include "verbose.h"
@@ -157,6 +157,7 @@ template <bool CARRYCHECK>
 static inline uint32_t // NO_INLINE
 redc_32(const int64_t x, const uint32_t p, const redc_invp_t invp)
 {
+  ASSERT_EXPENSIVE(x > 0 && (x >> 32) < p || x < 0 && ((-x) >> 32) < p);
   ASSERT_EXPENSIVE(CARRYCHECK || redc_no_carry(p));
   uint32_t t = (uint32_t)x * invp;
   uint64_t tp = (uint64_t)t * (uint64_t)p;
@@ -267,13 +268,14 @@ addmod_u32 (const uint32_t a, const uint32_t b, const uint32_t m)
 // return result on succes (new a value), UINT32_MAX on failure
 
 static inline uint32_t // NO_INLINE
-invmod_redc_32(uint32_t a, const uint32_t orig_b, const uint32_t invb) {
+invmod_redc_32(uint32_t a, const uint32_t orig_b, const uint32_t invb)
+{
   uint32_t b = orig_b;
   ASSERT (a < b);
   if (UNLIKELY(!a)) return a; /* or we get infinite loop */
   if (UNLIKELY(!(b & 1))) {
     uint32_t pa = a;
-    invmod_32(&pa, (uint32_t) b);
+    invmod_32(&pa, b);
     return pa;
   }
   const uint32_t p = b;
@@ -289,8 +291,8 @@ invmod_redc_32(uint32_t a, const uint32_t orig_b, const uint32_t invb) {
       goto done;
     lsh = cado_ctz(diff1);
     diff1 >>= lsh;
-    uint32_t v2 = v << lsh;
-    uint32_t diff2 = (a - b) >> lsh;
+    const uint32_t v2 = v << lsh;
+    const uint32_t diff2 = (a - b) >> lsh;
     v += u;
     u <<= lsh;
     t += lsh;

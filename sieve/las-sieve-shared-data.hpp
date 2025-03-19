@@ -10,7 +10,7 @@
 #include "cado_poly.h"
 #include "mpz_poly.h"
 #include "ecm/facul.hpp"                   // for facul_strategies_t
-#include "fb-types.h"                  // for fbprime_t
+#include "fb-types.hpp"
 #include "fb.hpp"                      // for fb_factorbase, fb_factorbase::...
 #include "las-siever-config.hpp"       // for siever_config, siever_config::...
 #include "lock_guarded_container.hpp"  // for lock_guarded_container

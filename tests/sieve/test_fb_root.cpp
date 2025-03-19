@@ -17,7 +17,7 @@
 
 #include "cado_poly.h"              // MAX_DEGREE
 #include "cxx_mpz.hpp"
-#include "fb-types.h"               // for fbprime_t, FBPRIME_FORMAT
+#include "fb-types.hpp"
 #include "fb.hpp"
 #include "gmp_aux.h"                // for mpz_add_int64, mpz_init_set_int64
 #include "las-arith.hpp"            // for invmod_redc_32

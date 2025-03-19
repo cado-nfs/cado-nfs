@@ -8,7 +8,7 @@
 
 #include "macros.h"
 
-#include "fb-types.h"
+#include "fb-types.hpp"
 #include "gcd.h"        // for gcd_ul
 #include "las-config.h" // for NOPROFILE_INLINE
 #include "misc.h"       // for UMAX

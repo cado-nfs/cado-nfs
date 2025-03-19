@@ -30,7 +30,7 @@
 
 #include "cxx_mpz.hpp"
 #include "fb.hpp"
-#include "fb-types.h"
+#include "fb-types.hpp"
 #include "las-where-am-i.hpp"
 #include "las-where-am-i-debug.hpp"
 #include "las-info.hpp"

@@ -19,7 +19,7 @@
 
 #include "bucket-push-update.hpp"        // for bucket_array_t::push_update
 #include "bucket.hpp"                    // for longhint_t (ptr only), buck...
-#include "fb-types.h"                    // for sublat_t, slice_offset_t
+#include "fb-types.hpp"
 #include "fb.hpp"                        // for fb_slice, fb_factorbase
 #include "las-auxiliary-data.hpp"        // for nfs_aux, nfs_aux::thread_data
 #include "las-bkmult.hpp"                // for buckets_are_full

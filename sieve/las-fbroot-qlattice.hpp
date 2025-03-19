@@ -6,7 +6,7 @@
 
 #include <gmp.h>
 
-#include "fb-types.h"          // for fbprime_t, redc_invp_t, sublat_t
+#include "fb-types.hpp"
 #include "las-arith.hpp"       // for redc_32, invmod_redc_32, invmod_po2
 #include "las-qlattice.hpp"
 #include "macros.h"            // for LIKELY, UNLIKELY, ASSERT_ALWAYS, ASSERT
@@ -16,24 +16,24 @@
    depending on the value of p. */
 template <int CARRYCHECK = 2>
 static inline fb_root_p1
-fb_root_in_qlattice_31bits (const fbprime_t p, const fb_root_p1 R,
-        const redc_invp_t invp, const qlattice_basis &basis);
+fb_root_in_qlattice_31bits (fbprime_t p, fb_root_p1 R,
+        redc_invp_t invp, const qlattice_basis &basis);
 template <int CARRYCHECK = 2>
 static inline fb_root_p1
-fb_root_in_qlattice_127bits (const fbprime_t p, const fb_root_p1 R,
-        const redc_invp_t invp, const qlattice_basis &basis);
+fb_root_in_qlattice_127bits (fbprime_t p, fb_root_p1 R,
+        redc_invp_t invp, const qlattice_basis &basis);
 
 /* batch calls expect affine inputs and affine outputs */
 template <int CARRYCHECK = 2>
 static inline bool
-fb_root_in_qlattice_31bits_batch (fbroot_t *r_ij, const fbprime_t p,
-        const fbroot_t *r_ab, const redc_invp_t invp,
-        const qlattice_basis &basis, const size_t n_roots);
+fb_root_in_qlattice_31bits_batch (fbroot_t *r_ij, fbprime_t p,
+        const fbroot_t *r_ab, redc_invp_t invp,
+        const qlattice_basis &basis, size_t n_roots);
 template <int CARRYCHECK = 2>
 static inline bool
-fb_root_in_qlattice_127bits_batch (fbroot_t *r_ij, const fbprime_t p,
-        const fbroot_t *r_ab, const redc_invp_t invp, const qlattice_basis &basis,
-        const size_t n_roots);
+fb_root_in_qlattice_127bits_batch (fbroot_t *r_ij, fbprime_t p,
+        const fbroot_t *r_ab, redc_invp_t invp, const qlattice_basis &basis,
+        size_t n_roots);
 
 /* Specialize the case CARRYCHECK=2 and call the template instance
    with CARRYCHECK=0 or 1, depending on the value of p. */
@@ -85,11 +85,9 @@ fb_root_in_qlattice_127bits_batch<2> (fbroot_t *r_ij, const fbprime_t p,
 
 /* fb_root_in_qlattice returns (R*b1-a1)/(a0-R*b0) mod p */
 #if defined(SUPPORT_LARGE_Q)
-/* The reason why the special-q is constrained to some limit is quite
- * clearly linked to the fb_root_in_qlattice variant being used. However,
- * it does not seem to be exactly 31 or 127 bits. This should be
- * investigated */
-#define MAX_SPECIALQ_BITSIZE    126
+/* Here, we only assume that the q-lattice basis entries are int64_t's.
+ * This means that redc_32 is a bit sub-optimal.
+ */
 static inline fb_root_p1
 fb_root_in_qlattice(const fbprime_t p, const fb_root_p1 R,
         const redc_invp_t invp, const qlattice_basis &basis);
@@ -108,11 +106,10 @@ fb_root_in_qlattice_batch (fbroot_t *r_ij, const fbprime_t p,
                                               n_roots);
 }
 #else
-
-#define MAX_SPECIALQ_BITSIZE    30
+/* We want the q-lattice entries to fit within 31 bits */
 static inline fb_root_p1
-fb_root_in_qlattice(const fbprime_t p, const fb_root_p1 R,
-        const redc_invp_t invp, const qlattice_basis &basis);
+fb_root_in_qlattice(fbprime_t p, fb_root_p1 R,
+        redc_invp_t invp, const qlattice_basis &basis);
 static inline fb_root_p1
 fb_root_in_qlattice(const fbprime_t p, const fb_root_p1 R,
         const redc_invp_t invp, const qlattice_basis &basis)
@@ -131,7 +128,7 @@ fb_root_in_qlattice_batch (fbroot_t *r_ij, const fbprime_t p,
 
 /* This helper function is used for powers of 2. See below */
 static inline fb_root_p1
-fb_root_in_qlattice_po2 (const fbprime_t p, const fb_root_p1 R,
+fb_root_in_qlattice_po2 (fbprime_t p, fb_root_p1 R,
         const qlattice_basis &basis);
 
 /* This version fb_root_in_qlattice_31bits mandates that the coordinates
@@ -502,8 +499,8 @@ fb_root_in_qlattice_127bits_batch (fbroot_t *r_ij, const fbprime_t p,
 
     for (size_t i_root = 0; i_root < n_roots; i_root++) {
         int64_t den;
-        uint64_t Rl = r_ab[i_root];
-        uint64_t b0l = redc_32<CARRYCHECK>(basis.b0, p, invp);
+        const uint64_t Rl = r_ab[i_root];
+        const uint64_t b0l = redc_32<CARRYCHECK>(basis.b0, p, invp);
         den = Rl*b0l;
         if (den < 0) den -= ((uint64_t)p)<<32;
         den = redc_32<CARRYCHECK>(basis.a0, p, invp) - den;
@@ -525,8 +522,8 @@ fb_root_in_qlattice_127bits_batch (fbroot_t *r_ij, const fbprime_t p,
     for (size_t i_root = 0; i_root < n_roots; i_root++) {
         int64_t aux1;
         uint32_t u;
-        uint64_t Rl = r_ab[i_root];
-        uint64_t b1l = redc_32<CARRYCHECK>(basis.b1, p, invp);
+        const uint64_t Rl = r_ab[i_root];
+        const uint64_t b1l = redc_32<CARRYCHECK>(basis.b1, p, invp);
         aux1 = Rl*b1l;
         if (aux1 < 0) aux1 -= ((uint64_t)p)<<32;
         aux1 = aux1 - redc_32<CARRYCHECK>(basis.a1, p, invp);
