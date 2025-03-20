@@ -198,6 +198,9 @@ facul_both_src(std::vector<std::vector<cxx_mpz>> & factors,
             continue;
         }
 
+        ASSERT_ALWAYS(!f[side][0]);
+        ASSERT_ALWAYS(!f[side][1]);
+
 #ifdef ENABLE_UNSAFE_FACUL_STATS
         if (stats_current_index < STATS_LEN)
             stats_called[stats_current_index]++;
@@ -217,6 +220,12 @@ facul_both_src(std::vector<std::vector<cxx_mpz>> & factors,
             found[side] = -1;
             break;
         }
+        if (res_fac == 0 && f[side][0] && f[side][1]) {
+            /* a composite split! */
+            is_smooth[side] = FACUL_AUX;
+            continue;
+        }
+
         if (res_fac == 0) {
             /* No factor found. If it was the last method for this
                side, then one stops the cofactorization. Otherwise, one
