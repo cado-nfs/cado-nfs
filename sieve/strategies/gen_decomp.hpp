@@ -3,6 +3,6 @@
 
 #include "tab_decomp.hpp"
 
-tabular_decomp_t* generate_all_decomp (unsigned int mfb, unsigned long lim);
+tabular_decomp generate_all_decomp (unsigned int mfb, unsigned long lim);
 
 #endif /* GEN_DECOMP_H */

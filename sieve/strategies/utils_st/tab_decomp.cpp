@@ -7,83 +7,30 @@
 
 #include <regex.h>
 
+#include <stdexcept>
+#include <ios>
+
 #include "decomp.hpp"
 #include "tab_decomp.hpp"
 #include "macros.h"
 #include "utils_cxx.hpp"
 
-tabular_decomp_t *tabular_decomp_create(void)
+
+std::ostream& operator<<(std::ostream& os, tabular_decomp const & t)
 {
-    auto * t = (tabular_decomp_t *) malloc(sizeof(tabular_decomp_t));
-    ASSERT_ALWAYS(t != NULL);
-
-    t->index = 0;
-    t->alloc = 2;
-
-    t->tab = (decomp_t **) malloc(t->alloc * sizeof(decomp_t *));
-    ASSERT_ALWAYS(t->tab != NULL);
-
-    return t;
+    for(auto const & D : t)
+        os << D << "\n";
+    return os;
 }
 
-void tabular_decomp_free(tabular_decomp_t * t)
+std::istream& operator>>(std::istream& is, tabular_decomp &)
 {
-    if (t != NULL)
-	{
-	    for (int i = 0; i < t->index; i++)
-		decomp_free(t->tab[i]);
-	    free(t->tab);
-	    free(t);
-	}
+    throw std::runtime_error("not implemented");
+    is.setstate(std::ios::failbit);
+    return is;
 }
 
-void tabular_decomp_realloc(tabular_decomp_t * t)
-{
-    checked_realloc(t->tab, t->alloc * 2);
-    t->alloc *= 2;
-}
-
-void tabular_decomp_add(tabular_decomp_t * t, unsigned int len, unsigned int *tab, double nb_elem)
-{
-    if (t->index >= t->alloc)
-	tabular_decomp_realloc(t);
-    t->tab[t->index] = decomp_create(len, tab, nb_elem);
-    t->index++;
-}
-
-void tabular_decomp_add_decomp(tabular_decomp_t * t, decomp_t * decomp)
-{
-    tabular_decomp_add(t, decomp->len, decomp->tab, decomp->nb_elem);
-}
-
-void tabular_decomp_concat(tabular_decomp_t * t1, tabular_decomp_t * t2)
-{
-    int len = t2->index;
-    for (int i = 0; i < len; i++)
-	tabular_decomp_add_decomp(t1, t2->tab[i]);
-}
-
-decomp_t *tabular_decomp_get_decomp(tabular_decomp_t * t, int index)
-{
-    return t->tab[index];
-}
-
-int tabular_decomp_fprint(FILE * output_file, tabular_decomp_t * t)
-{
-    for (int i = 0; i < t->index; i++)
-	{
-	    int err = decomp_fprint(output_file, t->tab[i]);
-	    if (err < 0)
-		return err;
-	}
-    return 0;
-}
-
-int tabular_decomp_print(tabular_decomp_t * t)
-{
-    return tabular_decomp_fprint(stdout, t);
-}
-
+#if 0
 static decomp_t *analyse_line(char *line)
 {
     regex_t preg_decomp;
@@ -163,3 +110,4 @@ tabular_decomp_t *tabular_decomp_fscan(FILE * file)
     }
     return res;
 }
+#endif

@@ -128,7 +128,7 @@ This function generates the strategy of cado and computes the
   concatenation of all methods in 'methods'.
 */
 static tabular_strategy_t *generate_strategy_cado(tabular_fm_t * methods,
-					   tabular_decomp_t * tab_dec,
+					   tabular_decomp const & tab_dec,
                                            unsigned int fbb,
 					   unsigned int lpb, 
                                            unsigned int r)
@@ -138,7 +138,7 @@ static tabular_strategy_t *generate_strategy_cado(tabular_fm_t * methods,
 
     unsigned int const lim = 2 * fbb - 1;
 
-    ASSERT_ALWAYS((tab_dec == nullptr) == (r < lim));
+    ASSERT_ALWAYS((tab_dec.empty()) == (r < lim));
 
     if (r < lim) {
 	fm_t *zero = fm_create();
@@ -224,24 +224,17 @@ static tabular_strategy_t ***generate_matrix_cado(const char *name_directory_dec
 
     unsigned int lim = 2 * fbb0 - 1;
     for (unsigned int r0 = 0; r0 <= mfb0; r0++) {
-	tabular_decomp_t *tab_decomp = nullptr;
+	tabular_decomp tab_decomp;
 	if (r0 >= lim) {
-	    char name_file[200];
-            snprintf(name_file, sizeof(name_file),
-		    "%s/decomp_%lu_%u", name_directory_decomp, lim0, r0);
-	    FILE *file = fopen(name_file, "r");
-
-	    tab_decomp = tabular_decomp_fscan(file);
-
-	    if (tab_decomp == nullptr) {
-		fprintf(stderr, "impossible to read '%s'\n", name_file);
+            auto filename = fmt::format("{}/decomp_{}_{}", name_directory_decomp, lim0, r0);
+            std::ifstream is(filename);
+            if (!(is >> tab_decomp)) {
+                fmt::print(stderr, "Cannot read {}\n", filename);
 		exit(EXIT_FAILURE);
 	    }
-	    fclose(file);
 	}
 	data_rat[r0] = generate_strategy_cado(methods, tab_decomp,
 					      fbb0, lpb0, r0);
-	tabular_decomp_free(tab_decomp);
     }
 
     /*
@@ -250,26 +243,18 @@ static tabular_strategy_t ***generate_matrix_cado(const char *name_directory_dec
      */
     lim = 2 * fbb1 - 1;
     for (unsigned int r1 = 0; r1 <= mfb1; r1++) {
-	tabular_decomp_t *tab_decomp = nullptr;
+	tabular_decomp tab_decomp;
 	if (r1 >= lim) {
-	    char name_file[200];
-	    snprintf(name_file, sizeof(name_file),
-		    "%s/decomp_%lu_%u", name_directory_decomp, lim1, r1);
-	    FILE *file = fopen(name_file, "r");
-
-	    tab_decomp = tabular_decomp_fscan(file);
-
-	    if (tab_decomp == nullptr) {
-		fprintf(stderr, "impossible to read '%s'\n", name_file);
+            auto filename = fmt::format("{}/decomp_{}_{}", name_directory_decomp, lim1, r1);
+            std::ifstream is(filename);
+            if (!(is >> tab_decomp)) {
+                fmt::print(stderr, "Cannot read {}\n", filename);
 		exit(EXIT_FAILURE);
 	    }
-	    fclose(file);
 	}
 
 	tabular_strategy_t *strat_r1 =
 	    generate_strategy_cado(methods, tab_decomp, fbb1, lpb1, r1);
-
-	tabular_decomp_free(tab_decomp);
 
 	for (unsigned int r0 = 0; r0 <= mfb0; r0++) {
 	  tabular_strategy_t *res =
@@ -292,16 +277,9 @@ static tabular_strategy_t ***generate_matrix_cado(const char *name_directory_dec
 /************************************************************************/
 /*                  To interleave our strategies                        */
 /************************************************************************/
-static MAYBE_UNUSED int is_good_decomp(decomp_t * dec, unsigned int len_p_min, unsigned int len_p_max)
-{
-    for (unsigned int i = 0; i < dec->len; i++)
-	if (dec->tab[i] > len_p_max || dec->tab[i] < len_p_min)
-	    return false;
-    return true;
-}
 
 //problem if tab_edc == nullptr;
-static double compute_time_strategy_ileav(tabular_decomp_t ** init_tab, strategy_t * strat,
+static double compute_time_strategy_ileav(std::array<tabular_decomp, 2> const & init_tab, strategy_t * strat,
 				   unsigned int* fbb,
                                    unsigned int* lpb,
                                    unsigned int* r)
@@ -342,22 +320,16 @@ static double compute_time_strategy_ileav(tabular_decomp_t ** init_tab, strategy
     double time_average = 0;
     //store the number of elements in the different decompositions!
     double all = 0.0;
-    int const nb_decomp0 = init_tab[0]->index;
-    int const nb_decomp1 = init_tab[1]->index;
-    for (int index_decomp0 = 0; index_decomp0 < nb_decomp0; index_decomp0++)
-      for (int index_decomp1 = 0; index_decomp1 < nb_decomp1; index_decomp1++)
-	{
-	  decomp_t *dec[2];
-	  dec[0] = init_tab[0]->tab[index_decomp0];
-	  dec[1] = init_tab[1]->tab[index_decomp1];
+    for (auto const & D0 : init_tab[0]) {
+      for (auto const & D1 : init_tab[1]) {
 	  double time_dec = 0;
 	  double proba_fail_side[2] = {1, 1};//didn't find a non-trivial factor!
 
 	  double proba_run_next_fm = 1;
 
 	  //to know if a side should be consider or not!
-	  int const is_bad_dec[2] = {!is_good_decomp (dec[0], fbb[0], lpb[0]),
-			       !is_good_decomp (dec[1], fbb[1], lpb[1])};
+	  int const is_bad_dec[2] = {!is_good_decomp (D0, fbb[0], lpb[0]),
+			       !is_good_decomp (D1, fbb[1], lpb[1])};
 	  
 	  double time_method = 0;
 
@@ -396,7 +368,7 @@ static double compute_time_strategy_ileav(tabular_decomp_t ** init_tab, strategy
 	    time_dec += time_method * proba_run_next_fm;
 
 	    double const proba_fail_method =
-	      compute_proba_method_one_decomp (dec[side], elem);
+	      compute_proba_method_one_decomp (side ? D1 : D0, elem);
 	    
 	    proba_fail_side[side] *= proba_fail_method;
 
@@ -416,7 +388,7 @@ static double compute_time_strategy_ileav(tabular_decomp_t ** init_tab, strategy
 		  proba_fail_side[side] = 0; 
 	      }
 	  }	  
-	  double const nb_elem = dec[1]->nb_elem*dec[0]->nb_elem;
+	  double const nb_elem = D1.nb_elem * D0.nb_elem;
 	  time_average += time_dec * nb_elem;
 	  /* int is_good[2] = {is_good_decomp (dec[0], fbb[0], lpb[0]), */
 	  /* 		    is_good_decomp (dec[1], fbb[1], lpb[1])};	   */
@@ -425,6 +397,7 @@ static double compute_time_strategy_ileav(tabular_decomp_t ** init_tab, strategy
 	  
 	  all += nb_elem;
 	}
+    }
     //printf ("prob = %lf\n", prob/all);
     if (all < 0.00000001) //all==0
       {
@@ -437,7 +410,7 @@ static double compute_time_strategy_ileav(tabular_decomp_t ** init_tab, strategy
 static strategy_t*
 gen_strat_r0_r1_ileav_st_rec (strategy_t * strat_r0, int index_r0,
 			      strategy_t * strat_r1, int index_r1,
-			      tabular_decomp_t ** init_tab,
+			      std::array<tabular_decomp, 2> const & init_tab,
 			      unsigned int* fbb,
                               unsigned int* lpb,
                               unsigned int* r,
@@ -573,7 +546,7 @@ gen_strat_r0_r1_ileav_st_rec (strategy_t * strat_r0, int index_r0,
 static MAYBE_UNUSED strategy_t*
 gen_strat_r0_r1_ileav_st(strategy_t * strat_r0,
 			 strategy_t * strat_r1,
-			 tabular_decomp_t ** init_tab,
+			 std::array<tabular_decomp, 2> const & init_tab,
 			 unsigned int* fbb,
                          unsigned int* lpb,
                          unsigned int* r)
@@ -616,7 +589,7 @@ gen_strat_r0_r1_ileav_st(strategy_t * strat_r0,
 
 static tabular_strategy_t *gen_strat_r0_r1_ileav(tabular_strategy_t * strat_r0,
 					  tabular_strategy_t * strat_r1,
-					  tabular_decomp_t ** init_tab,
+					  std::array<tabular_decomp, 2> const & init_tab,
 					  unsigned int* fbb,
                                           unsigned int* lpb,
                                           unsigned int* r)
@@ -703,24 +676,17 @@ static MAYBE_UNUSED tabular_strategy_t *** generate_matrix_cado_ileav(
 
     unsigned int lim = 2 * fbb0 - 1;
     for (unsigned int r0 = 0; r0 <= mfb0; r0++) {
-	tabular_decomp_t *tab_decomp = nullptr;
+	tabular_decomp tab_decomp;
 	if (r0 >= lim) {
-	    char name_file[200];
-	    snprintf(name_file, sizeof(name_file),
-		    "%s/decomp_%lu_%u", name_directory_decomp, lim0, r0);
-	    FILE *file = fopen(name_file, "r");
-
-	    tab_decomp = tabular_decomp_fscan(file);
-
-	    if (tab_decomp == nullptr) {
-		fprintf(stderr, "impossible to read '%s'\n", name_file);
+            auto filename = fmt::format("{}/decomp_{}_{}", name_directory_decomp, lim0, r0);
+            std::ifstream is(filename);
+            if (!(is >> tab_decomp)) {
+                fmt::print(stderr, "Cannot read {}\n", filename);
 		exit(EXIT_FAILURE);
 	    }
-	    fclose(file);
 	}
 	data_rat[r0] = generate_strategy_cado(methods, tab_decomp,
 					      fbb0, lpb0, r0);
-	tabular_decomp_free(tab_decomp);
     }
 
     /*
@@ -730,20 +696,14 @@ static MAYBE_UNUSED tabular_strategy_t *** generate_matrix_cado_ileav(
     lim = 2 * fbb1 - 1;
     for (unsigned int r1 = 0; r1 <= mfb1; r1++) {
       printf ("r1 = %u\n", r1);
-	tabular_decomp_t *tab_decomp = nullptr;
-	char name_file[200];
+	tabular_decomp tab_decomp;
 	if (r1 >= lim) {
-	    snprintf(name_file, sizeof(name_file),
-		    "%s/decomp_%lu_%u", name_directory_decomp, lim1, r1);
-	    FILE *file = fopen(name_file, "r");
-
-	    tab_decomp = tabular_decomp_fscan(file);
-
-	    if (tab_decomp == nullptr) {
-		fprintf(stderr, "impossible to read '%s'\n", name_file);
+            auto filename = fmt::format("{}/decomp_{}_{}", name_directory_decomp, lim1, r1);
+            std::ifstream is(filename);
+            if (!(is >> tab_decomp)) {
+                fmt::print(stderr, "Cannot read {}\n", filename);
 		exit(EXIT_FAILURE);
 	    }
-	    fclose(file);
 	}
 
 	tabular_strategy_t *strat_r1 =
@@ -758,20 +718,16 @@ static MAYBE_UNUSED tabular_strategy_t *** generate_matrix_cado_ileav(
 	    }
 	  else
 	    {
-	      snprintf(name_file, sizeof(name_file),
-		      "%s/decomp_%lu_%u", name_directory_decomp, lim0, r0);
-	      FILE *file = fopen(name_file, "r");
-
-	      tabular_decomp_t* tab_decomp_r0 = tabular_decomp_fscan(file);
-	      
-	      if (tab_decomp_r0 == nullptr) {
-		fprintf(stderr, "impossible to read '%s'\n", name_file);
-		exit(EXIT_FAILURE);
-	      }
-	      fclose(file);
+                tabular_decomp tab_decomp_r0;
+                auto filename = fmt::format("{}/decomp_{}_{}", name_directory_decomp, lim0, r0);
+                std::ifstream is(filename);
+                if (!(is >> tab_decomp_r0)) {
+                    fmt::print(stderr, "Cannot read {}\n", filename);
+                    exit(EXIT_FAILURE);
+                }
 
 	      
-	      tabular_decomp_t* init_tab[2] = {tab_decomp_r0, tab_decomp}; //todo!!
+              std::array<tabular_decomp, 2> init_tab {tab_decomp_r0, tab_decomp};
 	      unsigned int fbb[2] = {fbb0, fbb1};
 	      unsigned int lpb[2] = {lpb0, lpb1};
 	      unsigned int r[2] = {r0, r1};
@@ -781,7 +737,6 @@ static MAYBE_UNUSED tabular_strategy_t *** generate_matrix_cado_ileav(
 	    }
 	}
 	tabular_strategy_free(strat_r1);
-	tabular_decomp_free(tab_decomp);
     }
 
     //free
@@ -856,20 +811,15 @@ static tabular_strategy_t ***generate_matrix_ileav(const char *name_directory_de
     lim = 2 * fbb1 - 1;
     for (unsigned int r1 = 0; r1 <= mfb1; r1++) {
       printf ("r1 = %u\n", r1);
-	tabular_decomp_t *tab_decomp = nullptr;
-	char name_file[200];
+	tabular_decomp tab_decomp;
 	if (r1 >= lim) {
-            snprintf(name_file, sizeof(name_file),
-		    "%s/decomp_%lu_%u", name_directory_decomp, lim1, r1);
-	    FILE *file = fopen(name_file, "r");
+            auto filename = fmt::format("{}/decomp_{}_{}", name_directory_decomp, lim1, r1);
+            std::ifstream is(filename);
 
-	    tab_decomp = tabular_decomp_fscan(file);
-
-	    if (tab_decomp == nullptr) {
-		fprintf(stderr, "impossible to read '%s'\n", name_file);
+            if (!(is >> tab_decomp)) {
+                fmt::print(stderr, "Cannot read {}\n", filename);
 		exit(EXIT_FAILURE);
 	    }
-	    fclose(file);
 	}
 	char name_file_in[strlen(name_directory_str) + 64];
 	FILE * file_in;
@@ -896,20 +846,16 @@ static tabular_strategy_t ***generate_matrix_ileav(const char *name_directory_de
 	    }
 	  else
 	    {
-                snprintf(name_file, sizeof(name_file),
-		      "%s/decomp_%lu_%u", name_directory_decomp, lim0, r0);
-	      FILE *file = fopen(name_file, "r");
-
-	      tabular_decomp_t* tab_decomp_r0 = tabular_decomp_fscan(file);
-	      
-	      if (tab_decomp_r0 == nullptr) {
-		fprintf(stderr, "impossible to read '%s'\n", name_file);
-		exit(EXIT_FAILURE);
-	      }
-	      fclose(file);
+                tabular_decomp tab_decomp_r0;
+                auto filename = fmt::format("{}/decomp_{}_{}", name_directory_decomp, lim0, r0);
+                std::ifstream is(filename);
+                if (!(is >> tab_decomp_r0)) {
+                    fmt::print(stderr, "Cannot read {}\n", filename);
+                    exit(EXIT_FAILURE);
+                }
 
 	      
-	      tabular_decomp_t* init_tab[2] = {tab_decomp_r0, tab_decomp}; //todo!!
+                std::array<tabular_decomp, 2> init_tab {tab_decomp_r0, tab_decomp};
 	      unsigned int fbb[2] = {fbb0, fbb1};
 	      unsigned int lpb[2] = {lpb0, lpb1};
 	      unsigned int r[2] = {r0, r1};
@@ -919,7 +865,6 @@ static tabular_strategy_t ***generate_matrix_ileav(const char *name_directory_de
 	    }
 	}
 	tabular_strategy_free(strat_r1);
-	tabular_decomp_free(tab_decomp);
     }
 
     //free
@@ -939,16 +884,16 @@ static tabular_strategy_t ***generate_matrix_ileav(const char *name_directory_de
 
 #ifdef COMPILE_DEAD_CODE
 static int
-select_random_index_dec(double sum_nb_elem, tabular_decomp_t* t, gmp_randstate_ptr state)
+select_random_index_dec(double sum_nb_elem, tabular_decomp const & t, gmp_randstate_ptr state)
 {
     //100000 to consider approximation of distribution
     double const alea = gmp_urandomm_ui(state, 10000);
     int i = 0;
-    double bound = (t->tab[0]->nb_elem/sum_nb_elem) * 10000;
-    int const len = t->index;
+    double bound = (t[0].nb_elem/sum_nb_elem) * 10000;
+    int const len = (int) t.size();
     while (i < (len-1) && (alea - bound) >= 1) {
 	i++;
-	bound += (t->tab[i]->nb_elem/sum_nb_elem) * 10000;
+	bound += (t[i].nb_elem/sum_nb_elem) * 10000;
     }
     return i;
 }
@@ -964,15 +909,15 @@ TODO: a function of the same name, yet behaving somewhat differently, exists in 
 #ifdef COMPILE_DEAD_CODE
 static MAYBE_UNUSED weighted_success
 bench_proba_time_st(gmp_randstate_t state, facul_strategy_oneside const & strategy,
-		    tabular_decomp_t* init_tab, int r, MAYBE_UNUSED int lpb)
+		    tabular_decomp const & init_tab, int r, MAYBE_UNUSED int lpb)
 {
     size_t nb_test = 0, nb_success = 0;
     int const nb_test_max = 100000;
     double time = 0;
     
     double sum_dec = 0;
-    for (int i = 0; i < init_tab->index; i++)
-	sum_dec += init_tab->tab[i]->nb_elem;
+    for (auto const & D : init_tab)
+	sum_dec += D.nb_elem;
 
     std::vector<cxx_mpz> f;
 
@@ -983,7 +928,7 @@ bench_proba_time_st(gmp_randstate_t state, facul_strategy_oneside const & strate
              * then the status can not be FACUL_MAYBE.  */
             int const index = select_random_index_dec(sum_dec, init_tab,
                     state);
-            int const len_p = init_tab->tab[index]->tab[0];
+            int const len_p = init_tab[index][0];
 
             cxx_mpz const N = generate_composite_integer(state, len_p, r);
 
@@ -1085,7 +1030,7 @@ static facul_strategies convert_strategy_to_facul_strategies (strategy_t* t,
 static MAYBE_UNUSED weighted_success
 bench_proba_time_st_both(gmp_randstate_t state,
                          strategy_t * t,
-			 tabular_decomp_t ** init_tab,
+                         std::array<tabular_decomp, 2> const & init_tab,
 			 const unsigned int * r,
                          const unsigned long * fbb,
                          const unsigned int * lpb,
@@ -1105,8 +1050,8 @@ bench_proba_time_st_both(gmp_randstate_t state,
   
     double sum_dec[2] = {0,0};
     for (int side = 0; side < 2; side++)
-      for (int i = 0; i < init_tab[side]->index; i++)
-	sum_dec[side] += init_tab[side]->tab[i]->nb_elem;
+      for (auto const & D : init_tab[side])
+          sum_dec[side] += D.nb_elem;
 
 #if 1
     // Classic: bench without interleaving
@@ -1123,7 +1068,7 @@ bench_proba_time_st_both(gmp_randstate_t state,
             cxx_mpz N[2];
             for(int side = 0 ; side < 2 ; side++) {
                 int const index = select_random_index_dec(sum_dec[side], init_tab[side], state);
-                int const len_p = init_tab[side]->tab[index]->tab[1];
+                int const len_p = init_tab[side][index][1];
                 N[side] = generate_composite_integer(state, len_p, r[side]);
             }
             /* N is composed by two prime factors, by the previous
@@ -1155,7 +1100,7 @@ bench_proba_time_st_both(gmp_randstate_t state,
             std::vector<cxx_mpz> N(2);
             for(int side = 0 ; side < 2 ; side++) {
                 int const index = select_random_index_dec(sum_dec[side], init_tab[side], state);
-                int const len_p = init_tab[side]->tab[index]->tab[1];
+                int const len_p = init_tab[side][index][1];
                 N[side] = generate_composite_integer(state_copy, len_p, r[side]);
             }
             /* N is composed by two prime factors, by the previous

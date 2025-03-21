@@ -2,30 +2,43 @@
 #define DECOMP_HPP
 
 #include <cstdio>
+#include <vector>
+#include <ostream>
 
-typedef struct decomp {
-    unsigned int *tab;
-    unsigned int len;		//length of the decomposition
-    double nb_elem;		//number of elements which satisfy
-				//this decomposition
-} decomp_t;
+#include "fmt/base.h"
+#include "fmt/ostream.h"
 
-decomp_t *decomp_create(unsigned int len, const unsigned int *tab, double nb_elem);
 
-void decomp_free(decomp_t * t);
+struct decomp : public std::vector<unsigned int> {
+    double nb_elem = 0; //number of elements which satisfy this decomposition
+    template<typename... Args>
+        explicit decomp(double n, Args&&... args)
+        : std::vector<unsigned int>(std::forward<Args>(args)...)
+        , nb_elem(n)
+    {}
+    decomp() = default;
+    ~decomp() = default;
+    decomp(decomp const &) = default;
+    decomp(decomp &&) = default;
+    decomp& operator=(decomp const &) = default;
+    decomp& operator=(decomp &&) = default;
+};
 
-double decomp_get_nb_elem(decomp_t * t);
+static inline unsigned int is_good_decomp(decomp const & D, unsigned int len_p_min, unsigned int len_p_max)
+{
+    for (auto x : D)
+	if (x > len_p_max || x < len_p_min)
+	    return false;
+    return true;
+}
 
-const unsigned int *decomp_get_tab(decomp_t * t);
+std::istream& operator>>(std::istream& is, decomp &);
+std::ostream& operator<<(std::ostream& o, decomp const & D);
 
-unsigned int decomp_get_len(decomp_t * t);
+namespace fmt {
+    template<>
+    struct formatter<decomp>: ostream_formatter {};
+}
 
-void decomp_set_decomp(decomp_t * t, const unsigned int *tab, unsigned int len);
-
-void decomp_set_nb_elem(decomp_t * t, double nb_elem);
-
-int decomp_fprint(FILE * output_file, decomp_t * t);
-
-int decomp_print(decomp_t * t);
 
 #endif				/* DECOMP_HPP */

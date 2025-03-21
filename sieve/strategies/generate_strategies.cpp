@@ -5,6 +5,8 @@
 #include <cfloat>
 #include <cstdio>
 
+#include <fstream>
+
 #include "convex_hull.hpp"
 #include "facul_method.hpp"
 #include "generate_strategies.hpp"
@@ -16,14 +18,6 @@
 
 
 
-static unsigned int is_good_decomp(decomp_t * dec, unsigned int len_p_min, unsigned int len_p_max)
-{
-    for (unsigned int i = 0; i < dec->len; i++)
-	if (dec->tab[i] > len_p_max || dec->tab[i] < len_p_min)
-	    return false;
-    return true;
-}
-
 /************************************************************************/
 /*                      COLLECT DATA FOR ONLY ONE COFACTOR              */
 /************************************************************************/
@@ -32,15 +26,15 @@ static unsigned int is_good_decomp(decomp_t * dec, unsigned int len_p_min, unsig
   use this method 'fm'.
  */
 double
-compute_proba_method_one_decomp (decomp_t* dec, fm_t* fm)
+compute_proba_method_one_decomp (decomp const & D, fm_t* fm)
 {
     const double *proba_suc = fm_get_proba(fm);
     unsigned int const len_proba = fm_get_len_proba(fm);
     double proba_fail = 1; 
-    for (unsigned int i = 0; i < dec->len; i++) {
-	unsigned int const j = dec->tab[i] - fm->len_p_min;
+    for (auto j : D) {
+	j -= fm->len_p_min;
 	if (j < len_proba)
-	    proba_fail *= (1 - proba_suc[j]);
+	    proba_fail *= 1 - proba_suc[j];
 	//else //the probability seems closest to 0.
     }   
     return proba_fail;
@@ -50,24 +44,22 @@ compute_proba_method_one_decomp (decomp_t* dec, fm_t* fm)
   Compute the probability to find a non-trivial factor in a good decomposition.
  */
 double
-compute_proba_strategy(tabular_decomp_t * init_tab, strategy_t * strat,
+compute_proba_strategy(tabular_decomp const & init_tab, strategy_t * strat,
 		       unsigned int len_p_min, unsigned int len_p_max)
 {
     double all = 0.0;
     double nb_found_elem = 0;
     int const nb_fm = tabular_fm_get_index(strat->tab_fm);
-    int const nb_decomp = init_tab->index;
     tabular_fm_t *tab_fm = strat->tab_fm;
 
-    for (int index_decomp = 0; index_decomp < nb_decomp; index_decomp++) {
-	decomp_t *dec = init_tab->tab[index_decomp];
-	if (is_good_decomp(dec, len_p_min, len_p_max)) {
+    for (auto const & D : init_tab) {
+	if (is_good_decomp(D, len_p_min, len_p_max)) {
 	    //the probability to doesn't find a non trivial factor
 	    //with all methods in our strategy.
 	    double p_fail_all = 1;
 	    for (int index_fm = 0; index_fm < nb_fm; index_fm++) {
 		fm_t* elem = tabular_fm_get_fm(tab_fm, index_fm);
-		double const p_fail_one = compute_proba_method_one_decomp (dec, elem);
+		double const p_fail_one = compute_proba_method_one_decomp (D, elem);
 		p_fail_all *= p_fail_one;
 		if (elem->method[0] == PM1_METHOD ||
 		    elem->method[0] == PP1_27_METHOD ||
@@ -76,9 +68,9 @@ compute_proba_strategy(tabular_decomp_t * init_tab, strategy_t * strat,
 		    //not independant.
 		    p_fail_all = (p_fail_one + p_fail_all) / 2;
 	    }
-	    nb_found_elem += (1 - p_fail_all) * dec->nb_elem;
+	    nb_found_elem += (1 - p_fail_all) * D.nb_elem;
 	}
-	all += dec->nb_elem;
+	all += D.nb_elem;
     }
     if (all < (double)LDBL_EPSILON) // all == 0.0 -> it exists any decomposition!
       return 0;
@@ -89,10 +81,9 @@ compute_proba_strategy(tabular_decomp_t * init_tab, strategy_t * strat,
   Compute the average time when we apply our strategy 'strat' in a
   cofactor of r bits!
 */
-double compute_time_strategy(tabular_decomp_t * init_tab, strategy_t * strat, unsigned int r)
+double compute_time_strategy(tabular_decomp const & init_tab, strategy_t * strat, unsigned int r)
 {
     int const nb_fm = tabular_fm_get_index(strat->tab_fm);
-    int const nb_decomp = init_tab->index;
     tabular_fm_t *tab_fm = strat->tab_fm;
     //{{
     /*
@@ -112,8 +103,7 @@ double compute_time_strategy(tabular_decomp_t * init_tab, strategy_t * strat, un
     double time_average = 0;
     //store the number of elements in the different decompositions!
     double all = 0.0;
-    for (int index_decomp = 0; index_decomp < nb_decomp; index_decomp++) {
-	decomp_t *dec = init_tab->tab[index_decomp];
+    for (auto const & D : init_tab) {
 	double time_dec = 0;
 	double proba_fail_all = 1;
 	double time_method = 0;
@@ -128,7 +118,7 @@ double compute_time_strategy(tabular_decomp_t * init_tab, strategy_t * strat, un
 	    time_dec += time_method * proba_fail_all;
 	    
 	    double const proba_fail_method = 
-	      compute_proba_method_one_decomp (dec, elem);
+	      compute_proba_method_one_decomp (D, elem);
 	    proba_fail_all *= proba_fail_method;
 	    if (elem->method[0] == PM1_METHOD ||
 		elem->method[0] == PP1_27_METHOD ||
@@ -138,8 +128,8 @@ double compute_time_strategy(tabular_decomp_t * init_tab, strategy_t * strat, un
 	      proba_fail_all = (proba_fail_all + proba_fail_method) / 2;
 	}
 
-	time_average += time_dec * dec->nb_elem;
-	all += dec->nb_elem;
+	time_average += time_dec * D.nb_elem;
+	all += D.nb_elem;
     }
     if (all < (double)LDBL_EPSILON) // all == 0.0 -> it exists any decomposition!
       return 0;
@@ -188,7 +178,7 @@ static void
 generate_collect_iter_ecm(fm_t * zero, tabular_fm_t * ecm,
 			  int ind_ecm, strategy_t * strat, int ind_tab,
 			  int index_iter, int len_iteration, int lbucket,
-			  tabular_decomp_t *init_tab,
+			  tabular_decomp const & init_tab,
 			  tabular_strategy_t**all_strat_ptr,
 			  unsigned int fbb, 
                           unsigned int lpb,
@@ -255,7 +245,7 @@ generate_collect_iter_ecm(fm_t * zero, tabular_fm_t * ecm,
   such that: 
  PM1 (0/1) + PP1 (0/1) + ECM-M12(0/1/2...)+ ECM-M16/B12(0/1)+ ECM-M12(0/1/...)
 */
-tabular_strategy_t *generate_strategies_oneside(tabular_decomp_t * init_tab,
+tabular_strategy_t *generate_strategies_oneside(tabular_decomp const & init_tab,
 						fm_t * zero, tabular_fm_t * pm1,
 						tabular_fm_t * pp1,
 						tabular_fm_t * ecm,
@@ -270,7 +260,7 @@ tabular_strategy_t *generate_strategies_oneside(tabular_decomp_t * init_tab,
     unsigned int const fbb = ceil (log2 ((double) (lim + 1)));
     unsigned int const lim_is_prime = 2 * fbb - 1;
 
-    ASSERT_ALWAYS((init_tab != nullptr) == (r >= lim_is_prime));
+    ASSERT_ALWAYS(!init_tab.empty() == (r >= lim_is_prime));
 
     /*
       In this case, r is already a prime number!
@@ -485,25 +475,18 @@ tabular_strategy_t ***generate_matrix(const char *name_directory_decomp,
 
     unsigned int lim_is_prime = 2 * fbb0 - 1;
     for (unsigned int r0 = 0; r0 <= mfb0; r0++) {
-	tabular_decomp_t *tab_decomp = nullptr;
+	tabular_decomp tab_decomp;
 	if (r0 >= lim_is_prime) {
-	    char name_file[200];
-	    snprintf(name_file, sizeof(name_file),
-		    "%s/decomp_%lu_%d", name_directory_decomp, lim0, r0);
-	    FILE *file = fopen(name_file, "r");
-
-	    tab_decomp = tabular_decomp_fscan(file);
-
-	    if (tab_decomp == nullptr) {
-		fprintf(stderr, "impossible to read '%s'\n", name_file);
+            auto filename = fmt::format("{}/decomp_{}_{}", name_directory_decomp, lim0, r0);
+            std::ifstream is(filename);
+            if (!(is >> tab_decomp)) {
+                fmt::print(stderr, "Cannot read {}\n", filename);
 		exit(EXIT_FAILURE);
 	    }
-	    fclose(file);
 	}
 	data_rat[r0] =
 	    generate_strategies_oneside(tab_decomp, zero, pm1, pp1,
 					ecm, ncurves, lim0, lpb0, r0);
-	tabular_decomp_free(tab_decomp);
     }
 
     /*
@@ -512,26 +495,19 @@ tabular_strategy_t ***generate_matrix(const char *name_directory_decomp,
      */
     lim_is_prime = 2 * fbb1 - 1;
     for (unsigned int r1 = 0; r1 <= mfb1; r1++) {
-	tabular_decomp_t *tab_decomp = nullptr;
+	tabular_decomp tab_decomp;
 	if (r1 >= lim_is_prime) {
-	    char name_file[200];
-	    snprintf(name_file, sizeof(name_file),
-		    "%s/decomp_%lu_%d", name_directory_decomp, lim1, r1);
-	    FILE *file = fopen(name_file, "r");
-
-	    tab_decomp = tabular_decomp_fscan(file);
-
-	    if (tab_decomp == nullptr) {
-		fprintf(stderr, "impossible to read '%s'\n", name_file);
+            auto filename = fmt::format("{}/decomp_{}_{}", name_directory_decomp, lim1, r1);
+            std::ifstream is(filename);
+            if (!(is >> tab_decomp)) {
+                fmt::print(stderr, "Cannot read {}\n", filename);
 		exit(EXIT_FAILURE);
 	    }
-	    fclose(file);
 	}
 
 	tabular_strategy_t *strat_r1 =
 	  generate_strategies_oneside(tab_decomp, zero, pm1, pp1,
 				      ecm, ncurves, lim1, lpb1, r1);
-	tabular_decomp_free(tab_decomp);
 
 	for (unsigned int r0 = 0; r0 <= mfb0; r0++) {
 	    tabular_strategy_t *res =

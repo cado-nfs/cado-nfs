@@ -5,6 +5,8 @@
 #include <cstdlib>
 #include <cstring>
 
+#include <fstream>
+
 #include "facul_ecm.h"
 #include "facul_method.hpp"
 #include "fm.hpp"
@@ -154,15 +156,15 @@ int main(int argc, char const * argv[])
         }
 
         char const * file_out = param_list_lookup_string(pl, "out");
+
         FILE * file = stdout;
         if (file_out) {
             file = fopen(file_out, "w");
             DIE_ERRNO_DIAG(!file, "fopen(%s)", file_out);
         }
 
-        tabular_decomp_t * res = generate_all_decomp(mfb0, lim0);
-        tabular_decomp_fprint(file, res);
-        tabular_decomp_free(res);
+        tabular_decomp res = generate_all_decomp(mfb0, lim0);
+        fmt::print(file, "{}", res);
         if (file_out)
             fclose(file);
 
@@ -369,7 +371,7 @@ int main(int argc, char const * argv[])
                 // precompute the convex hull for one bit size of cofactor
                 int const fbb0 = ceil(log2((double)(lim0 + 1)));
                 int const lim_is_prime = 2 * fbb0 - 1;
-                tabular_decomp_t * tab_decomp = nullptr;
+                tabular_decomp tab_decomp;
                 if (r0 >= lim_is_prime) {
                     char const * name_file_decomp;
                     if ((name_file_decomp = param_list_lookup_string(
@@ -380,18 +382,14 @@ int main(int argc, char const * argv[])
                         param_list_print_usage(pl, argv[0], stderr);
                         exit(EXIT_FAILURE);
                     }
-                    FILE * file_decomp = fopen(name_file_decomp, "r");
-                    DIE_ERRNO_DIAG(!file_decomp, "fopen(%s)", name_file_decomp);
-                    tab_decomp = tabular_decomp_fscan(file_decomp);
-                    ASSERT_ALWAYS(tab_decomp);
-                    fclose(file_decomp);
+                    std::ifstream is(name_file_decomp);
+                    if (!(is >> tab_decomp))
+                        ASSERT_ALWAYS(0);
                 }
 
                 tabular_strategy_t * res = generate_strategies_oneside(
                     tab_decomp, zero, data_pm1, data_pp1, data_ecm, ncurves,
                     lim0, lpb0, r0);
-
-                tabular_decomp_free(tab_decomp);
 
                 char name_file[strlen(directory_out) + 64];
                 snprintf(name_file, sizeof(name_file), "%s/strategies%lu_%d",

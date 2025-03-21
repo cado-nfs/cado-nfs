@@ -13,20 +13,19 @@
 /*                      COLLECT DATA FOR ONLY ONE COFACTOR              */
 /************************************************************************/
 
-double
-compute_proba_method_one_decomp (decomp_t* dec, fm_t* fm);
+double compute_proba_method_one_decomp (decomp const & dec, fm_t* fm);
 
-double compute_proba_strategy(tabular_decomp_t * init_tab, strategy_t * strat,
+double compute_proba_strategy(tabular_decomp const & init_tab, strategy_t * strat,
 			      unsigned int len_p_min, unsigned int len_p_max);
 
-double compute_time_strategy(tabular_decomp_t * init_tab, strategy_t * strat, 
+double compute_time_strategy(tabular_decomp const & init_tab, strategy_t * strat, 
 			     unsigned int r);
 
 /************************************************************************/
 /*                   GENERATE MATRIX                                    */
 /************************************************************************/
 
-tabular_strategy_t *generate_strategies_oneside(tabular_decomp_t * tab_decomp,
+tabular_strategy_t *generate_strategies_oneside(tabular_decomp const & tab_decomp,
 						fm_t * zero,
 						tabular_fm_t * pm1,
 						tabular_fm_t * pp1,

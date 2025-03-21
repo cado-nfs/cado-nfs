@@ -34,6 +34,8 @@ $ gen_decomp 60 524288
 #include <cstdlib>
 #include <climits>
 
+#include <iostream>
+
 #include "macros.h"
 #include "gen_decomp.hpp"
 #include "tab_decomp.hpp"
@@ -51,11 +53,10 @@ int main(int argc, char const * argv[])
   ASSERT_ALWAYS(mfb <= INT_MAX);
   unsigned long lim = strtoul (argv[2], &p, 0);
   ASSERT_ALWAYS(*p == '\0');
-  tabular_decomp_t* res = generate_all_decomp ((int) mfb, lim);
+  tabular_decomp res = generate_all_decomp ((int) mfb, lim);
 
-  tabular_decomp_print (res);
+  std::cout << res;
 
-  tabular_decomp_free (res);
   
   return EXIT_SUCCESS;
 }

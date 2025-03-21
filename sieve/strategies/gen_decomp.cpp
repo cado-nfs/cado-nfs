@@ -102,10 +102,10 @@ psi (unsigned int *l, unsigned int k, unsigned long mfb, unsigned long lim)
   return (double) ok * S / (double) tot;
 }
 
-tabular_decomp_t*
+tabular_decomp
 generate_all_decomp (unsigned int mfb, unsigned long lim)
 {
-  tabular_decomp_t* res = tabular_decomp_create();  
+  tabular_decomp res;
   unsigned int l[256];
   double p0, p1;
 
@@ -135,10 +135,7 @@ generate_all_decomp (unsigned int mfb, unsigned long lim)
 	    continue;
           while (1)
             {
-              double val = psi (l, k, mfb, lim);
-	      decomp_t* tmp = decomp_create (k, l, val);
-	      tabular_decomp_add_decomp (res, tmp); 
-	      decomp_free (tmp);
+	      res.emplace_back(psi (l, k, mfb, lim), l, l + k);
 
               /* next partition of mfb + j */
               unsigned int t;
