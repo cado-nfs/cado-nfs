@@ -195,11 +195,11 @@ static tabular_strategy_t ***generate_matrix_cado(const char *name_directory_dec
        the first side, and r1 for the second side.
      */
     tabular_strategy_t ***matrix = (tabular_strategy_t***) malloc(sizeof(*matrix) * (mfb0 + 1));
-    ASSERT(matrix != NULL);
+    ASSERT(matrix != nullptr);
 
     for (int r0 = 0; r0 <= mfb0; r0++) {
 	matrix[r0] = (tabular_strategy_t**) malloc(sizeof(tabular_strategy_t *) * (mfb1 + 1));
-	ASSERT(matrix[r0] != NULL);
+	ASSERT(matrix[r0] != nullptr);
     }
 
     int const fbb0 = ceil (log2 ((double) (lim0 + 1)));
@@ -219,7 +219,7 @@ static tabular_strategy_t ***generate_matrix_cado(const char *name_directory_dec
 
     int lim = 2 * fbb0 - 1;
     for (int r0 = 0; r0 <= mfb0; r0++) {
-	tabular_decomp_t *tab_decomp = NULL;
+	tabular_decomp_t *tab_decomp = nullptr;
 	if (r0 >= lim) {
 	    char name_file[200];
             snprintf(name_file, sizeof(name_file),
@@ -228,7 +228,7 @@ static tabular_strategy_t ***generate_matrix_cado(const char *name_directory_dec
 
 	    tab_decomp = tabular_decomp_fscan(file);
 
-	    if (tab_decomp == NULL) {
+	    if (tab_decomp == nullptr) {
 		fprintf(stderr, "impossible to read '%s'\n", name_file);
 		exit(EXIT_FAILURE);
 	    }
@@ -245,7 +245,7 @@ static tabular_strategy_t ***generate_matrix_cado(const char *name_directory_dec
      */
     lim = 2 * fbb1 - 1;
     for (int r1 = 0; r1 <= mfb1; r1++) {
-	tabular_decomp_t *tab_decomp = NULL;
+	tabular_decomp_t *tab_decomp = nullptr;
 	if (r1 >= lim) {
 	    char name_file[200];
 	    snprintf(name_file, sizeof(name_file),
@@ -254,7 +254,7 @@ static tabular_strategy_t ***generate_matrix_cado(const char *name_directory_dec
 
 	    tab_decomp = tabular_decomp_fscan(file);
 
-	    if (tab_decomp == NULL) {
+	    if (tab_decomp == nullptr) {
 		fprintf(stderr, "impossible to read '%s'\n", name_file);
 		exit(EXIT_FAILURE);
 	    }
@@ -296,7 +296,7 @@ static MAYBE_UNUSED int is_good_decomp(decomp_t * dec, int len_p_min, int len_p_
     return true;
 }
 
-//problem if tab_edc == NULL;
+//problem if tab_edc == nullptr;
 static double compute_time_strategy_ileav(tabular_decomp_t ** init_tab, strategy_t * strat,
 				   int* fbb, int* lpb, int* r)
 {
@@ -441,11 +441,11 @@ gen_strat_r0_r1_ileav_st_rec (strategy_t * strat_r0, int index_r0,
 
   /* if (index_r0 >= len_r0 && */
   /*     index_r1 >= len_r1) */
-  /*   return NULL; */
+  /*   return nullptr; */
   /* printf ("%d (max= %d), %d (max=%d)\n", index_r0, len_r0, */
   /* 	  index_r1, len_r1); */
   
-  if (current_st == NULL)
+  if (current_st == nullptr)
     {
       current_st = strategy_create ();
       current_index = 0;
@@ -453,7 +453,7 @@ gen_strat_r0_r1_ileav_st_rec (strategy_t * strat_r0, int index_r0,
       current_st->side = (int*) malloc(sizeof(int) * (current_st->len_side));
     }
     
-  strategy_t *tmp0 = NULL, *tmp1 = NULL;
+  strategy_t *tmp0 = nullptr, *tmp1 = nullptr;
 
   if (index_r0 < len_r0)
     {
@@ -523,7 +523,7 @@ gen_strat_r0_r1_ileav_st_rec (strategy_t * strat_r0, int index_r0,
 
   //end of the recursion!
   
-  if (tmp0 == NULL && tmp1 == NULL)
+  if (tmp0 == nullptr && tmp1 == nullptr)
     {
       strategy_t* final_st = strategy_create ();
       final_st->len_side = max_len;
@@ -546,9 +546,9 @@ gen_strat_r0_r1_ileav_st_rec (strategy_t * strat_r0, int index_r0,
       return final_st;
     }
   
-  if (tmp0 == NULL)
+  if (tmp0 == nullptr)
     return tmp1;
-  else if (tmp1 == NULL)
+  else if (tmp1 == nullptr)
     return tmp0;
   else if (tmp0->time < tmp1->time)
     {
@@ -624,7 +624,7 @@ static tabular_strategy_t *gen_strat_r0_r1_ileav(tabular_strategy_t * strat_r0,
 	strategy_t* st2 = gen_strat_r0_r1_ileav_st_rec(strat_r0->tab[r0], 0,
 						       strat_r1->tab[r1], 0,
 						       init_tab, fbb, lpb, r,
-						       NULL, 0);
+						       nullptr, 0);
 	//printf ("INTERL proba=%lf, time=%lf\n", st->proba, st->time);
 	//strategy_print (st);
 	tabular_strategy_add_strategy (res, st2);
@@ -667,11 +667,11 @@ static MAYBE_UNUSED tabular_strategy_t *** generate_matrix_cado_ileav(
        the first side, and r1 for the second side.
      */
     tabular_strategy_t ***matrix = (tabular_strategy_t***) malloc(sizeof(*matrix) * (mfb0 + 1));
-    ASSERT(matrix != NULL);
+    ASSERT(matrix != nullptr);
 
     for (int r0 = 0; r0 <= mfb0; r0++) {
 	matrix[r0] = (tabular_strategy_t**) malloc(sizeof(tabular_strategy_t *) * (mfb1 + 1));
-	ASSERT(matrix[r0] != NULL);
+	ASSERT(matrix[r0] != nullptr);
     }
     
     int const fbb0 = ceil (log2 ((double) (lim0 + 1)));
@@ -691,7 +691,7 @@ static MAYBE_UNUSED tabular_strategy_t *** generate_matrix_cado_ileav(
 
     int lim = 2 * fbb0 - 1;
     for (int r0 = 0; r0 <= mfb0; r0++) {
-	tabular_decomp_t *tab_decomp = NULL;
+	tabular_decomp_t *tab_decomp = nullptr;
 	if (r0 >= lim) {
 	    char name_file[200];
 	    snprintf(name_file, sizeof(name_file),
@@ -700,7 +700,7 @@ static MAYBE_UNUSED tabular_strategy_t *** generate_matrix_cado_ileav(
 
 	    tab_decomp = tabular_decomp_fscan(file);
 
-	    if (tab_decomp == NULL) {
+	    if (tab_decomp == nullptr) {
 		fprintf(stderr, "impossible to read '%s'\n", name_file);
 		exit(EXIT_FAILURE);
 	    }
@@ -718,7 +718,7 @@ static MAYBE_UNUSED tabular_strategy_t *** generate_matrix_cado_ileav(
     lim = 2 * fbb1 - 1;
     for (int r1 = 0; r1 <= mfb1; r1++) {
       printf ("r1 = %d\n", r1);
-	tabular_decomp_t *tab_decomp = NULL;
+	tabular_decomp_t *tab_decomp = nullptr;
 	char name_file[200];
 	if (r1 >= lim) {
 	    snprintf(name_file, sizeof(name_file),
@@ -727,7 +727,7 @@ static MAYBE_UNUSED tabular_strategy_t *** generate_matrix_cado_ileav(
 
 	    tab_decomp = tabular_decomp_fscan(file);
 
-	    if (tab_decomp == NULL) {
+	    if (tab_decomp == nullptr) {
 		fprintf(stderr, "impossible to read '%s'\n", name_file);
 		exit(EXIT_FAILURE);
 	    }
@@ -752,7 +752,7 @@ static MAYBE_UNUSED tabular_strategy_t *** generate_matrix_cado_ileav(
 
 	      tabular_decomp_t* tab_decomp_r0 = tabular_decomp_fscan(file);
 	      
-	      if (tab_decomp_r0 == NULL) {
+	      if (tab_decomp_r0 == nullptr) {
 		fprintf(stderr, "impossible to read '%s'\n", name_file);
 		exit(EXIT_FAILURE);
 	      }
@@ -795,11 +795,11 @@ static tabular_strategy_t ***generate_matrix_ileav(const char *name_directory_de
        the first side, and r1 for the second side.
      */
     tabular_strategy_t ***matrix = (tabular_strategy_t***) malloc(sizeof(*matrix) * (mfb0 + 1));
-    ASSERT(matrix != NULL);
+    ASSERT(matrix != nullptr);
 
     for (int r0 = 0; r0 <= mfb0; r0++) {
 	matrix[r0] = (tabular_strategy_t**) malloc(sizeof(tabular_strategy_t *) * (mfb1 + 1));
-	ASSERT(matrix[r0] != NULL);
+	ASSERT(matrix[r0] != nullptr);
     }
     
     int const fbb0 = ceil (log2 ((double) (lim0 + 1)));
@@ -826,7 +826,7 @@ static tabular_strategy_t ***generate_matrix_ileav(const char *name_directory_de
 		name_directory_str, lim0, r0);
 	file_in = fopen(name_file_in, "r");
 	data_rat[r0] = tabular_strategy_fscan(file_in);
-	if (data_rat[r0] == NULL) {
+	if (data_rat[r0] == nullptr) {
 	  fprintf(stderr,
 		  "Parser error: can't read the file '%s'\n",
 		  name_file_in);
@@ -842,7 +842,7 @@ static tabular_strategy_t ***generate_matrix_ileav(const char *name_directory_de
     lim = 2 * fbb1 - 1;
     for (int r1 = 0; r1 <= mfb1; r1++) {
       printf ("r1 = %d\n", r1);
-	tabular_decomp_t *tab_decomp = NULL;
+	tabular_decomp_t *tab_decomp = nullptr;
 	char name_file[200];
 	if (r1 >= lim) {
             snprintf(name_file, sizeof(name_file),
@@ -851,7 +851,7 @@ static tabular_strategy_t ***generate_matrix_ileav(const char *name_directory_de
 
 	    tab_decomp = tabular_decomp_fscan(file);
 
-	    if (tab_decomp == NULL) {
+	    if (tab_decomp == nullptr) {
 		fprintf(stderr, "impossible to read '%s'\n", name_file);
 		exit(EXIT_FAILURE);
 	    }
@@ -865,7 +865,7 @@ static tabular_strategy_t ***generate_matrix_ileav(const char *name_directory_de
 		name_directory_str, lim1, r1);
 	file_in = fopen(name_file_in, "r");
 	tabular_strategy_t *strat_r1 = tabular_strategy_fscan(file_in);
-	if (strat_r1 == NULL) {
+	if (strat_r1 == nullptr) {
 	  fprintf(stderr,
 		  "Parser error: can't read the file '%s'\n",
 		  name_file_in);
@@ -888,7 +888,7 @@ static tabular_strategy_t ***generate_matrix_ileav(const char *name_directory_de
 
 	      tabular_decomp_t* tab_decomp_r0 = tabular_decomp_fscan(file);
 	      
-	      if (tab_decomp_r0 == NULL) {
+	      if (tab_decomp_r0 == nullptr) {
 		fprintf(stderr, "impossible to read '%s'\n", name_file);
 		exit(EXIT_FAILURE);
 	      }
@@ -1053,7 +1053,7 @@ static facul_strategies convert_strategy_to_facul_strategies (strategy_t* t,
         ec_parameterization_t const curve = (ec_parameterization_t) fm->method[1];
         unsigned long const B1 = fm->method[2];
         unsigned long const B2 = fm->method[3];
-        int const side = (t->side != NULL)?t->side[i]:0;
+        int const side = t->side ? t->side[i] : 0;
         unsigned long parameter = 1;
         if (method == EC_METHOD && curve != MONTY16) {
             for( ; (parameter = u64_random(rstate)) < 2 ; );
@@ -1244,7 +1244,7 @@ int main(int argc, char const * argv[])
 	}
 	/* Could also be a file */
 	FILE *f;
-	if ((f = fopen(argv[0], "r")) != NULL) {
+	if ((f = fopen(argv[0], "r")) != nullptr) {
 	    param_list_read_stream(pl, f, 0);
 	    fclose(f);
 	    argv++, argc--;
@@ -1316,7 +1316,7 @@ int main(int argc, char const * argv[])
     const char *name_directory_decomp;
     //  "/localdisk/trichard/results/decomp_cofactor/decomp_tmp";
     if ((name_directory_decomp =
-	 param_list_lookup_string(pl, "decomp")) == NULL) {
+	 param_list_lookup_string(pl, "decomp")) == nullptr) {
 	fputs("Parser error: Please re-run with the option "
 	      "-decomp and a valid directory name.\n", stderr);
 	exit(EXIT_FAILURE);
@@ -1324,7 +1324,7 @@ int main(int argc, char const * argv[])
     //option: distribution cofactors 
     const char *name_file_cofactor;
     //"/localdisk/trichard/cado768/cofactors";
-    if ((name_file_cofactor = param_list_lookup_string(pl, "dist")) == NULL) {
+    if ((name_file_cofactor = param_list_lookup_string(pl, "dist")) == nullptr) {
     	fputs("Parser error: Please re-run with the option -dist "
     	      "followed by the pathname of the file which stores the "
     	      "distribution of our cofactors.\n", stderr);
@@ -1333,7 +1333,7 @@ int main(int argc, char const * argv[])
 
     FILE *file_C = fopen(name_file_cofactor, "r");
     unsigned long **distrib_C = extract_matrix_C(file_C, mfb0 + 1, mfb1 + 1);
-    if (distrib_C == NULL) {
+    if (distrib_C == nullptr) {
     	fprintf(stderr, "Error while reading file %s\n", name_file_cofactor);
     	exit(EXIT_FAILURE);
     }
@@ -1350,7 +1350,7 @@ int main(int argc, char const * argv[])
     //tabular_fm_fprint (filee, methods);
     //fclose (filee);
     FILE* file_in = fopen ("/localdisk/trichard/cadoRSA155/data_fm_25", "r");
-    if (file_in == NULL)
+    if (file_in == nullptr)
       {
     	fprintf (stderr,
     		 "impossible to read: /localdisk/trichard/cadoRSA155/data_fm_25\n");
@@ -1439,7 +1439,7 @@ int main(int argc, char const * argv[])
     /* strategy_t* res = gen_strat_r0_r1_ileav_st_rec(strat1, 0, */
     /* 						   strat2, 0, */
     /* 						   init_tab, fbb, lpb, r, */
-    /* 						   NULL, 0); */
+    /* 						   nullptr, 0); */
     /* printf ("resutat!!!!\n"); */
     /* printf ("theo: proba = %lf, tps = %lf\n", res->proba, res->time); */
     /* //strategy_print (res); */
@@ -1492,7 +1492,7 @@ int main(int argc, char const * argv[])
     	    Y += distrib_C[r0][r1] * matrix[r0][r1]->tab[0]->proba;
     	    T += distrib_C[r0][r1] * matrix[r0][r1]->tab[0]->time;
 	    //test: Add test with our strategy!
-	    if (0)//matrix_strat_res[r0][r1] != NULL)
+	    if (0)//matrix_strat_res[r0][r1] != nullptr)
 	      {
 	    	printf ("cado r0=%d, r1=%d, p =%lf, t = %lf\n", r0, r1,
 	    		matrix[r0][r1]->tab[0]->proba,
@@ -1518,11 +1518,11 @@ int main(int argc, char const * argv[])
     fprint_final_strategy(file_output, matrix_strat_res,
 			  mfb0 + 1, mfb1 + 1);
     fclose (file_output);
-    /* if (pathname_output != NULL) { */
+    /* if (pathname_output != nullptr) { */
     /* 	FILE *file_output = fopen(pathname_output, "w"); */
     /* 	for (int r0 = 0; r0 <= mfb0; r0++) */
     /* 	    for (int r1 = 0; r1 <= mfb1; r1++) */
-    /* 		if (matrix[r0][r1]->tab[0] != NULL) { */
+    /* 		if (matrix[r0][r1]->tab[0] != nullptr) { */
     /* 		    fprintf(file_output, */
     /* 			    "[r0=%d, r1=%d] : (p = %lf, t = %lf)\n", */
     /* 			    r0, r1, matrix[r0][r1]->tab[0]->proba, */
@@ -1545,7 +1545,7 @@ int main(int argc, char const * argv[])
     const char *pathname_output;
     pathname_output = param_list_lookup_string(pl, "out");
 
-    if (pathname_output != NULL)
+    if (pathname_output != nullptr)
       {
 	FILE *file_output = fopen(pathname_output, "w");
 	fprint_final_strategy(file_output, matrix_strat_res,

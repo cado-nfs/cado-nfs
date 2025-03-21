@@ -100,8 +100,8 @@ static void add_openmp_subtimings(double & extra_time MAYBE_UNUSED)
 static void
 mpz_product_tree_init (mpz_product_tree t)
 {
-  t->l = NULL;
-  t->n = NULL;
+  t->l = nullptr;
+  t->n = nullptr;
   t->size = 0;
 }
 
@@ -192,7 +192,7 @@ prime_list_poly (std::vector<unsigned long> & L, prime_info pi,
 
   for (unsigned long p = 2 ; p <= pmax ; p = getprime_mt(pi))
     if (mpz_divisible_ui_p (mpz_poly_lc(f), p) ||
-        mpz_poly_roots_ulong (NULL, f, p, rstate) > 0)
+        mpz_poly_roots_ulong (nullptr, f, p, rstate) > 0)
         L.push_back(p);
 
   gmp_randclear(rstate);
@@ -264,7 +264,7 @@ prime_tree_poly (mpz_product_tree L, unsigned long pmax, cxx_mpz_poly const& f, 
 #endif
       for (int j = 0; j < i; j++)
         if (mpz_divisible_ui_p (mpz_poly_lc(f), q[j]) == 0 &&
-            mpz_poly_roots_ulong (NULL, f, q[j], rstate_per_thread[omp_get_thread_num()]) == 0)
+            mpz_poly_roots_ulong (nullptr, f, q[j], rstate_per_thread[omp_get_thread_num()]) == 0)
           q[j] = 0;
 
       /* sequential part: mpz_product_tree_add_ui is fast */
@@ -1139,7 +1139,7 @@ create_batch_file (std::string const & fs, cxx_mpz & P, unsigned long B, unsigne
 {
   FILE *fp;
   double e0, s, st, wct;
-  const char * f = fs.empty() ? NULL : fs.c_str();
+  const char * f = fs.empty() ? nullptr : fs.c_str();
 
   if (L <= B) {
       /* We may be content with having a product tree on one side only.
@@ -1171,8 +1171,7 @@ create_batch_file (std::string const & fs, cxx_mpz & P, unsigned long B, unsigne
   st = seconds_thread ();
   wct = wct_seconds ();
 
-  if (f == NULL) /* case 1 */
-    {
+  if (f == nullptr) { /* case 1 */
       fprintf (out, "# batch: creating large prime product");
       fflush (out);
       create_batch_product (P, L, cpoly, extra_time);

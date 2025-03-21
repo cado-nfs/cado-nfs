@@ -23,7 +23,7 @@ class cofactorization_statistics {
     std::mutex lock;
 public:
     cofactorization_statistics(param_list_ptr pl);
-    bool active() { return file != NULL; }
+    bool active() { return file != nullptr; }
     void call(int bits0, int bits1);
     void print();
     void call(std::vector<cxx_mpz> const & norm, std::vector<int> & cof_bitsize) {

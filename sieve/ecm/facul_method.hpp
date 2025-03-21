@@ -15,7 +15,7 @@
 
 struct facul_method {
     long method = 0;    /* Which method to use (P-1, P+1 or ECM) */
-    void *plan = NULL;  /* Parameters for that method */
+    void *plan = nullptr;  /* Parameters for that method */
 
     struct parameters {
         int method = 0;
@@ -103,7 +103,7 @@ struct facul_method {
     facul_method(facul_method&& o) {
         plan = o.plan;
         method = o.method;
-        o.plan = NULL;
+        o.plan = nullptr;
         o.method = 0;
     }
     facul_method& operator=(facul_method&& o) {

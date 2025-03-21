@@ -27,7 +27,6 @@ facul_method::~facul_method()
 facul_method::facul_method(parameters const & p, const int verbose)
 {
     method = p.method;
-    plan = nullptr;
 
     /* we don't need to store B1 and B2 in the method object. They all go
      * in the bytecode anyway

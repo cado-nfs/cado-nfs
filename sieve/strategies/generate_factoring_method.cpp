@@ -56,7 +56,7 @@ double *distribution_prime_number(int min, int max)
     ASSERT(len >= 0);
 
     double *tab = (double*) malloc(len * sizeof(double));
-    ASSERT(tab != NULL);
+    ASSERT(tab != nullptr);
 
     unsigned long elem = pow(2, min);
     int log_elem = min;
@@ -261,7 +261,7 @@ void bench_proba(gmp_randstate_t state, tabular_fm_t * fm, int len_p_min,
     if (nb_test_max == 0)
         nb_test_max = 10000;
     double *proba = (double*) malloc(p_max * sizeof(double));
-    ASSERT(proba != NULL);
+    ASSERT(proba != nullptr);
 
     unsigned long *param;
     fm_t *elem;
@@ -430,10 +430,10 @@ int *choice_parameters(int method, int len_p_min)
 	}
 
     } else {
-	return NULL;
+	return nullptr;
     }
     int *result = (int*) malloc(6 * sizeof(int));
-    ASSERT(result != NULL);
+    ASSERT(result != nullptr);
     result[0] = b1_min;
     result[1] = b1_max;
     result[2] = b1_step;
@@ -477,7 +477,7 @@ static weighted_success bench_proba_time_pset_onefm(facul_strategy_oneside const
   the probability and the cost to find a prime number for each size between 
   'len_p_min' and 'len_p_max'. The type of these methods is specified by 
   two parameters : 'method' and 'curve', and the parameters B1 and B2 are 
-  given by 'param_region' or, if it's equal to NULL, use the default sieve.
+  given by 'param_region' or, if it's equal to nullptr, use the default sieve.
 */
 
 tabular_fm_t *
@@ -489,7 +489,7 @@ bench_proba_time_pset (int method, ec_parameterization_t curve,
     int c_min, c_max;
     int b1_min, b1_max;
     int c_step, b1_step;
-    if (param_region != NULL) {
+    if (param_region != nullptr) {
 	b1_min = param_region[0];
 	b1_max = param_region[1];
 	b1_step = param_region[2];
@@ -657,8 +657,8 @@ tabular_fm_t *generate_factoring_methods(gmp_randstate_t state, int len_p_min,
 tabular_fm_t *convex_hull_from_file(FILE * file_in, FILE * file_out)
 {
     tabular_fm_t *all_st = tabular_fm_fscan(file_in);
-    if (all_st == NULL)
-	return NULL;
+    if (all_st == nullptr)
+	return nullptr;
 
     tabular_fm_t *res = convex_hull_fm(all_st);
 
@@ -667,7 +667,7 @@ tabular_fm_t *convex_hull_from_file(FILE * file_in, FILE * file_out)
     int const err = tabular_fm_fprint(file_out, res);
     if (err < 0) {
         tabular_fm_free(res);
-	return NULL;
+	return nullptr;
     }
 
     return res;
@@ -705,10 +705,10 @@ tabular_fm_t *filtering(tabular_fm_t * tab, int final_nb_methods)
     //create the matrix with the average dist between a pair of methods!
     int const nb_methods = tab->index;
     double **dist = (double**) malloc(nb_methods * sizeof(double *));
-    ASSERT(dist != NULL);
+    ASSERT(dist != nullptr);
     for (int i = 0; i < nb_methods; i++) {
 	dist[i] = (double*) malloc((nb_methods) * sizeof(double));
-	ASSERT(dist[i] != NULL);
+	ASSERT(dist[i] != nullptr);
     }
     for (int i = 0; i < nb_methods; i++) {
 	dist[i][i] = 0;

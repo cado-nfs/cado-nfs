@@ -62,7 +62,7 @@ int main(int argc, char const * argv[])
 
     declare_usage(pl);
     /* 
-       Passing NULL is allowed here. Find value with
+       Passing nullptr is allowed here. Find value with
        param_list_parse_switch later on 
      */
     param_list_configure_switch(pl, "ch", nullptr);
@@ -154,7 +154,7 @@ int main(int argc, char const * argv[])
 	/* Extract the method and the curve\n" */
 	const char *name_fm = param_list_lookup_string(pl, "m");
 
-	if (name_fm != NULL) {
+	if (name_fm != nullptr) {
 	    if (strcmp(name_fm, "PM1") == 0)
 		method = PM1_METHOD;
 	    else if (strcmp(name_fm, "PP1-27") == 0)
@@ -219,7 +219,7 @@ int main(int argc, char const * argv[])
         /* if -out is not given, print to stdout */
 	FILE *file_out = (name_file_out == nullptr)
           ? stdout : fopen(name_file_out, "w");
-        DIE_ERRNO_DIAG(file_out == NULL, "fopen(%s)", name_file_out);
+        DIE_ERRNO_DIAG(file_out == nullptr, "fopen(%s)", name_file_out);
 	int const err = tabular_fm_fprint(file_out, res);
 	if (err < 0) {
 	    fprintf(stderr,

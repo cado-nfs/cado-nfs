@@ -271,7 +271,7 @@ tabular_strategy_t *generate_strategies_oneside(tabular_decomp_t * init_tab,
     int const fbb = ceil (log2 ((double) (lim + 1)));
     int const lim_is_prime = 2 * fbb - 1;
 
-    ASSERT_ALWAYS((init_tab != NULL) == (r >= lim_is_prime));
+    ASSERT_ALWAYS((init_tab != nullptr) == (r >= lim_is_prime));
 
     /*
       In this case, r is already a prime number!
@@ -465,11 +465,11 @@ tabular_strategy_t ***generate_matrix(const char *name_directory_decomp,
        the first side, and r1 for the second side.
      */
     tabular_strategy_t ***matrix = (tabular_strategy_t***) malloc(sizeof(*matrix) * (mfb0 + 1));
-    ASSERT(matrix != NULL);
+    ASSERT(matrix != nullptr);
 
     for (int r0 = 0; r0 <= mfb0; r0++) {
 	matrix[r0] = (tabular_strategy_t**) malloc(sizeof(*matrix[r0]) * (mfb1 + 1));
-	ASSERT(matrix[r0] != NULL);
+	ASSERT(matrix[r0] != nullptr);
     }
 
     /*
@@ -486,7 +486,7 @@ tabular_strategy_t ***generate_matrix(const char *name_directory_decomp,
 
     int lim_is_prime = 2 * fbb0 - 1;
     for (int r0 = 0; r0 <= mfb0; r0++) {
-	tabular_decomp_t *tab_decomp = NULL;
+	tabular_decomp_t *tab_decomp = nullptr;
 	if (r0 >= lim_is_prime) {
 	    char name_file[200];
 	    snprintf(name_file, sizeof(name_file),
@@ -495,7 +495,7 @@ tabular_strategy_t ***generate_matrix(const char *name_directory_decomp,
 
 	    tab_decomp = tabular_decomp_fscan(file);
 
-	    if (tab_decomp == NULL) {
+	    if (tab_decomp == nullptr) {
 		fprintf(stderr, "impossible to read '%s'\n", name_file);
 		exit(EXIT_FAILURE);
 	    }
@@ -513,7 +513,7 @@ tabular_strategy_t ***generate_matrix(const char *name_directory_decomp,
      */
     lim_is_prime = 2 * fbb1 - 1;
     for (int r1 = 0; r1 <= mfb1; r1++) {
-	tabular_decomp_t *tab_decomp = NULL;
+	tabular_decomp_t *tab_decomp = nullptr;
 	if (r1 >= lim_is_prime) {
 	    char name_file[200];
 	    snprintf(name_file, sizeof(name_file),
@@ -522,7 +522,7 @@ tabular_strategy_t ***generate_matrix(const char *name_directory_decomp,
 
 	    tab_decomp = tabular_decomp_fscan(file);
 
-	    if (tab_decomp == NULL) {
+	    if (tab_decomp == nullptr) {
 		fprintf(stderr, "impossible to read '%s'\n", name_file);
 		exit(EXIT_FAILURE);
 	    }
