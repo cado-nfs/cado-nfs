@@ -58,8 +58,8 @@ int factor_both_leftover_norms(
 
 /* handy shortcut. Can't have it defined at the facul.hpp level because
  * facul does not know about las stuff. */
-static inline facul_strategies * facul_make_strategies (siever_config const & conf, FILE* file, const int verbose);
-static inline facul_strategies * facul_make_strategies (siever_config const & conf, FILE* file, const int verbose)
+static inline facul_strategies * facul_make_strategies (siever_config const & conf, FILE* file, int verbose);
+static inline facul_strategies * facul_make_strategies (siever_config const & conf, FILE* file, int verbose)
 {
     std::vector<unsigned long> lim(conf.sides.size());
     std::vector<unsigned int> lpb(conf.sides.size());

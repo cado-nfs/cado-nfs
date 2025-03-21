@@ -49,7 +49,7 @@ cxx_mpz mod_intget_cxx_mpz(const modint_t x) {
     return c;
 }
 
-static inline const FaculModulusBase *
+static inline FaculModulusBase *
 modset_init (modint_t m)
 {
   return FaculModulusBase::MOD_APPEND_TYPE(init)(m);

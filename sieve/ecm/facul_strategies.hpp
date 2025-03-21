@@ -67,6 +67,14 @@ struct facul_strategies_base {
             std::vector<unsigned int> const & lpb,
             std::vector<unsigned int> const & mfb,
             bool perfectly_sieved);
+
+    explicit facul_strategies_base(facul_strategy_oneside const & s1)
+        : B { s1.B }
+        , lpb { s1.lpb }
+        , BB { s1.BB }
+        , BBB { s1.BBB }
+        , mfb { s1.mfb }
+        {}
 };
 
 struct facul_strategies : public facul_strategies_base {
@@ -108,7 +116,7 @@ public:
             std::vector<unsigned int> const & mfb,
             bool,
             FILE *,
-            const int);
+            int);
 
     facul_strategies(
             std::vector<unsigned long> const & lim,
@@ -116,7 +124,7 @@ public:
             std::vector<unsigned int> const & mfb,
             bool,
             strategy_file const &,
-            const int);
+            int);
 
     void print(FILE *) const;
 

@@ -428,7 +428,7 @@ int *choice_parameters(int method, int len_p_min)
     } else {
 	return nullptr;
     }
-    int *result = (int*) malloc(6 * sizeof(int));
+    auto * result = (int*) malloc(6 * sizeof(int));
     ASSERT(result != nullptr);
     result[0] = b1_min;
     result[1] = b1_max;

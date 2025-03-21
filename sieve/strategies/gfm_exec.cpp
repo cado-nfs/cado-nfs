@@ -103,11 +103,11 @@ int main(int argc, char const * argv[])
 		  "-in and -out with each one a valid file name.\n", stderr);
 	    exit(EXIT_FAILURE);
 	}
-	FILE *file_in = fopen(pathname_fch_in, "r");
-        DIE_ERRNO_DIAG(file_in == NULL, "fopen(%s)", pathname_fch_in);
-	FILE *file_out = fopen(pathname_fch_out, "w");
-        DIE_ERRNO_DIAG(file_out == NULL, "fopen(%s)", pathname_fch_out);
-	tabular_fm_t *res_ch = convex_hull_from_file(file_in, file_out);
+
+        auto file_in = fopen_helper(pathname_fch_in, "r");
+        auto file_out = fopen_helper(pathname_fch_out, "w");
+
+	tabular_fm_t *res_ch = convex_hull_from_file(file_in.get(), file_out.get());
 	if (res_ch == nullptr) {
 	    fprintf(stderr, "impossible to read %s\n"
 		    "impossible to write in the file %s\n",
@@ -115,8 +115,6 @@ int main(int argc, char const * argv[])
 	    exit(EXIT_FAILURE);
 	}
 	tabular_fm_free(res_ch);
-	fclose(file_in);
-	fclose(file_out);
     } else {
 	//default values
 	int lb = -1, ub = -1, len_n = -1, method = -1;

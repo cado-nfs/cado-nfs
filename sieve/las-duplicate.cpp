@@ -127,7 +127,7 @@ static las_todo_entry special_q_from_ab(const int64_t a, const uint64_t b, sq_wi
     mpz_mul_int64(r, r, a);
     mpz_mod(r, r, p);
 
-    return las_todo_entry(p, r, side);
+    return { p, r, side };
 }
 
 /* If e == 0, returns 1. Otherwise, if b > lim, returns b.
@@ -457,9 +457,9 @@ relation_is_duplicate(relation const& rel,
      * that we're doing the dlp desecent, in which case we couldn't care
      * less about duplicates check anyway.
      */
-    for(int side = 0 ; side < nsides ; side++) {
-        for(unsigned int i = 0 ; i < rel.sides[side].size() ; i++) {
-            if (!mpz_fits_uint64_p(rel.sides[side][i].p))
+    for(auto const & s : rel.sides) {
+        for(auto const & pr : s) {
+            if (!mpz_fits_uint64_p(pr.p))
                 return false;
         }
     }

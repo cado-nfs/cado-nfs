@@ -100,7 +100,7 @@ struct facul_method {
     facul_method() = default;
     facul_method(facul_method const &) = delete;
     facul_method& operator=(facul_method const &) = delete;
-    facul_method(facul_method&& o) {
+    facul_method(facul_method&& o) noexcept {
         plan = o.plan;
         method = o.method;
         o.plan = nullptr;
@@ -111,7 +111,7 @@ struct facul_method {
         std::swap(method, o.method);
         return *this;
     }
-    facul_method(parameters const &, const int verbose = 0);
+    facul_method(parameters const &, int verbose = 0);
     ~facul_method();
 };
 
@@ -121,12 +121,12 @@ struct facul_method_side {
     facul_method const * method;
 
     int side;           /* To know on which side this method will be applied */
-    int is_last;        /* To know if this method is the last on its side
+    bool is_last = false;        /* To know if this method is the last on its side
                            (used when you chain methods).  */
     static void fix_is_last(std::vector<facul_method_side>& v);
 
     facul_method_side(facul_method const * method, int side)
-        : method(method), side(side), is_last(0)
+        : method(method), side(side)
     { }
 };
 

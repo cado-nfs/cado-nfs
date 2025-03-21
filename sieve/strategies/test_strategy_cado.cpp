@@ -1079,7 +1079,7 @@ static facul_strategies convert_strategy_to_facul_strategies (strategy_t* t,
     facul_strategies::strategy_file S;
     S[r_] = mps;
 
-    return facul_strategies(B, lpb_, mfb_, true, S, 0);
+    return { B, lpb_, mfb_, true, S, 0 };
 }
 #endif  /* COMPILE_DEAD_CODE */
 
@@ -1147,7 +1147,7 @@ bench_proba_time_st_both(gmp_randstate_t state,
             //getchar ();
         }
     }
-    weighted_success res(nb_success, time, nb_test);
+    weighted_success res { nb_success, time, nb_test };
     printf ("classic: prob = %lf, temps = %lf\n", res.prob, res.time);
 #endif
 
@@ -1189,7 +1189,7 @@ bench_proba_time_st_both(gmp_randstate_t state,
             //getchar();
         }
     }
-    weighted_success const res2(nb_success, time, nb_test);
+    weighted_success const res2 { nb_success, time, nb_test };
     printf ("interL: proba = %lf, time = %lf\n", res2.prob, res2.time);
 #endif
 

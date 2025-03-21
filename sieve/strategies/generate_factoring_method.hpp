@@ -108,7 +108,7 @@ struct weighted_success {
     double time = 0;
     // weighted_success() = default;
     weighted_success(double p, double t) : prob(p), time(t) {}
-    weighted_success(double p, double t, size_t N) : prob(p/N), time(t/N) {}
+    weighted_success(size_t p, double t, size_t N) : prob(p/N), time(t/N) {}
 };
 
 #endif				/* GENERATE_FACTORING_METHOD_HPP */

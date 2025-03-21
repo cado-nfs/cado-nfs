@@ -1,15 +1,17 @@
 #include "cado.h" // IWYU pragma: keep
-#include <math.h>
-#include <stdlib.h>
-#include <float.h>
-#include <stdio.h>
+
+#include <cmath>
+#include <cstdlib>
+#include <cfloat>
+#include <cstdio>
+
 #include "convex_hull.h"
+#include "facul_method.hpp"
 #include "generate_strategies.h"
-#include "facul.hpp"
-#include "facul_ecm.h"
 #include "macros.h"
-#include "modredc_ul.h" // MODREDCUL_MAXBITS
-#include "point.h"      // point_get_number
+#include "modredc_ul.h"
+#include "point.h"
+#include "tab_point.h"
 #include "utils_cxx.hpp"
 
 
