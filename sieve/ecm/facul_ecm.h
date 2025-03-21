@@ -42,25 +42,25 @@ int ecm_15ul (modintredc15ul_t, const modulusredc15ul_t, const ecm_plan_t *);
 int ecm_2ul2 (modintredc2ul2_t, const modulusredc2ul2_t, const ecm_plan_t *);
 int ecm_mpz (modintmpz_t, const modulusmpz_t, const ecm_plan_t *);
 
-unsigned long ec_parameterization_point_order_ul (const ec_parameterization_t,
-                                                  const unsigned long,
-                                                  const unsigned long,
-                                                  const unsigned long,
+unsigned long ec_parameterization_point_order_ul (ec_parameterization_t,
+                                                  unsigned long,
+                                                  unsigned long,
+                                                  unsigned long,
                                                   const modulusredcul_t,
-                                                  const int);
-unsigned long ec_parameterization_curve_order_ul (const ec_parameterization_t,
-                                                  const unsigned long,
+                                                  int);
+unsigned long ec_parameterization_curve_order_ul (ec_parameterization_t,
+                                                  unsigned long,
                                                   const modulusredcul_t);
 
-void ecm_make_plan (ecm_plan_t *, const unsigned int, const unsigned int, 
-		    const ec_parameterization_t, const unsigned long, const int, const int);
+void ecm_make_plan (ecm_plan_t *, unsigned int, unsigned int, 
+		    ec_parameterization_t, unsigned long, int, int);
 
 void ecm_clear_plan (ecm_plan_t *);
 
-int ec_parameter_is_valid (ec_parameterization_t, const unsigned long);
+int ec_parameter_is_valid (ec_parameterization_t, unsigned long);
 unsigned long
 ec_valid_parameter_from_sequence (ec_parameterization_t parameterization,
-                       const unsigned long sequence_value);
+                       unsigned long sequence_value);
 
 #ifdef __cplusplus
 }

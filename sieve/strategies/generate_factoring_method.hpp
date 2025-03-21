@@ -51,16 +51,17 @@ int *choice_parameters(int method, int len_p_min);
 tabular_fm_t *bench_proba_time_pset(int method, ec_parameterization_t curve,
 				    gmp_randstate_t state,
 				    int len_p_min, int len_p_max,
-				    int len_n, int *param_region);
+				    int len_n, const int *param_region);
 
 tabular_fm_t *generate_factoring_methods(gmp_randstate_t state, int len_p_min,
 					 int len_p_max, int len_n, int opt_ch,
-					 int *param_sieve);
+					 const int *param_sieve);
 
 tabular_fm_t *generate_factoring_methods_mc(gmp_randstate_t state,
 					    int len_p_min, int len_p_max,
 					    int len_n, int method, ec_parameterization_t curve,
-					    int opt_ch, int *param_sieve);
+					    int opt_ch,
+                                            const int *param_sieve);
 
 /************************************************************************/
 /*                      ANALYSE AND FILTER */

@@ -4,14 +4,14 @@
 #include "macros.h"
 #include "decomp.h"
 
-decomp_t *decomp_create(int len, int *tab, double nb_elem)
+decomp_t *decomp_create(unsigned int len, const unsigned int *tab, double nb_elem)
 {
     decomp_t *t = malloc(sizeof(*t));
     ASSERT_ALWAYS(t != NULL);
     t->len = len;
-    t->tab = malloc(t->len * sizeof(int));
+    t->tab = malloc(t->len * sizeof(unsigned int));
     ASSERT_ALWAYS(t->tab != NULL);
-    for (int i = 0; i < t->len; i++)
+    for (unsigned int i = 0; i < t->len; i++)
 	t->tab[i] = tab[i];
     t->nb_elem = nb_elem;
     return t;
@@ -31,21 +31,21 @@ double decomp_get_nb_elem(decomp_t * t)
     return t->nb_elem;
 }
 
-int *decomp_get_tab(decomp_t * t)
+const unsigned int *decomp_get_tab(decomp_t * t)
 {
     return t->tab;
 }
 
-int decomp_get_len(decomp_t * t)
+unsigned int decomp_get_len(decomp_t * t)
 {
     return t->len;
 }
 
-void decomp_set_decomp(decomp_t * t, int *tab, int len)
+void decomp_set_decomp(decomp_t * t, const unsigned int *tab, unsigned int len)
 {
     t->len = len;
-    CHECKED_REALLOC(t->tab, t->len, int);
-    for (int i = 0; i < t->len; i++)
+    CHECKED_REALLOC(t->tab, t->len, unsigned int);
+    for (unsigned int i = 0; i < t->len; i++)
 	t->tab[i] = tab[i];
 }
 
@@ -61,7 +61,7 @@ int decomp_fprint(FILE * output_file, decomp_t * t)
     if (t == NULL)
 	return -2;
     fprintf(output_file, "[ ");
-    for (int l = 0; l < t->len - 1; l++)
+    for (unsigned int l = 0; l < t->len - 1; l++)
 	fprintf(output_file, "%d, ", t->tab[l]);
     fprintf(output_file, "%d ] : %f\n", t->tab[t->len - 1], t->nb_elem);
     return 0;

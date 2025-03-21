@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 #include <regex.h>
 
@@ -41,7 +42,7 @@ void tabular_decomp_realloc(tabular_decomp_t * t)
     t->size *= 2;
 }
 
-void tabular_decomp_add(tabular_decomp_t * t, int len, int *tab, double nb_elem)
+void tabular_decomp_add(tabular_decomp_t * t, unsigned int len, unsigned int *tab, double nb_elem)
 {
     if (t->index >= t->size)
 	tabular_decomp_realloc(t);
@@ -92,7 +93,7 @@ static decomp_t *analyse_line(char *line)
     const char *str_process = &line[0];
     const int len_max = 10;
     char **res = malloc(sizeof(*res) * len_max);
-    int ind_res = -1;
+    unsigned int ind_res = UINT_MAX;
     while (str_process[0] != '\0') {
 	//printf ("line-->'%s'\n", str_process);
 	/*TEST REGULAR EXPRESSION  'preg_decomp */
@@ -121,15 +122,18 @@ static decomp_t *analyse_line(char *line)
     }
     decomp_t *dec = NULL;
     //create decomp_t* dec
-    if (ind_res != -1) {
-	int tab[ind_res];
-	for (int i = 0; i < ind_res; i++) {
-	    tab[i] = atoi(res[i]);
+    if (ind_res != UINT_MAX) {
+	unsigned int * tab = malloc(ind_res * sizeof(unsigned int));
+	for (unsigned int i = 0; i < ind_res; i++) {
+            int z = atoi(res[i]);
+            ASSERT_ALWAYS(z >= 0);
+	    tab[i] = (unsigned int) z;
 	    free(res[i]);
 	}
 	double nb_elem = strtod(res[ind_res], NULL);
 	free(res[ind_res]);
 	dec = decomp_create(ind_res, tab, nb_elem);
+        free(tab);
     }
     //free
     regfree(&preg_decomp);

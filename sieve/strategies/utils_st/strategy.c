@@ -103,7 +103,7 @@ int strategy_fprint (FILE * output_file, strategy_t * t)
 
     for (int i = 0; i < tmp->index; i++) {
 	fm_t *fm = tmp->tab[i];
-	for (int j = 0; j < fm->len_method; j++)
+	for (unsigned int j = 0; j < fm->len_method; j++)
 	    fprintf(output_file, "%lu ", fm->method[j]);
 	if (is_alloced_side)
 	    fprintf(output_file, "%d", t->side[i]);

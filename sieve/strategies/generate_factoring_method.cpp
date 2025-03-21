@@ -185,7 +185,7 @@ generate_fm (int method,
 
     std::vector<facul_method::parameters> const m(1,
             { method, B1, B2, curve, sigma, 1 });
-    return facul_strategy_oneside(0ul, 0u, 0u, m, 0);
+    return { 0UL, 0U, 0U, m, 0 };
 }
 
 /************************************************************************/
@@ -260,20 +260,18 @@ void bench_proba(gmp_randstate_t state, tabular_fm_t * fm, int len_p_min,
         p_max = 100;
     if (nb_test_max == 0)
         nb_test_max = 10000;
-    double *proba = (double*) malloc(p_max * sizeof(double));
+    auto * proba = (double*) malloc(p_max * sizeof(double));
     ASSERT(proba != nullptr);
 
-    unsigned long *param;
-    fm_t *elem;
 
     //Will contain the our composite integers!
     std::vector<std::vector<cxx_mpz>> N(p_max);
     
     for (int i = 0; i < len; i++) {
-	elem = tabular_fm_get_fm(fm, i);
-	param = fm_get_method(elem);
+        fm_t * elem = tabular_fm_get_fm(fm, i);
+        const unsigned long * param = fm_get_method(elem);
 	unsigned long const method = param[0];
-	ec_parameterization_t const curve = (ec_parameterization_t) param[1];
+	auto const curve = (ec_parameterization_t) param[1];
 	unsigned long const B1 = param[2];
 	unsigned long const B2 = param[3];
 
@@ -307,8 +305,6 @@ void bench_proba(gmp_randstate_t state, tabular_fm_t * fm, int len_p_min,
 */
 void bench_time(gmp_randstate_t state, tabular_fm_t * fm, size_t nb_test)
 {
-    unsigned long *param;
-    fm_t *elem;
     int const len = fm->index;	//number of methods!
     //precompute 4 arrays for our bench_time!
     //{{
@@ -327,10 +323,10 @@ void bench_time(gmp_randstate_t state, tabular_fm_t * fm, size_t nb_test)
     }
     //}}
     for (int i = 0; i < len; i++) {
-	elem = tabular_fm_get_fm(fm, i);
-	param = fm_get_method(elem);
+        fm_t * elem = tabular_fm_get_fm(fm, i);
+        const unsigned long * param = fm_get_method(elem);
 	unsigned long const method = param[0];
-	ec_parameterization_t const curve = (ec_parameterization_t) param[1];
+	auto const curve = ec_parameterization_t(param[1]);
 	unsigned long const B1 = param[2];
 	unsigned long const B2 = param[3];
 	if (B1 != 0 || B2 != 0) {
@@ -483,7 +479,7 @@ static weighted_success bench_proba_time_pset_onefm(facul_strategy_oneside const
 tabular_fm_t *
 bench_proba_time_pset (int method, ec_parameterization_t curve,
                        gmp_randstate_t state, int len_p_min, int len_p_max,
-                       int len_n, int *param_region)
+                       int len_n, const int *param_region)
 {
     //define the sieve region
     int c_min, c_max;
@@ -588,7 +584,8 @@ bench_proba_time_pset (int method, ec_parameterization_t curve,
 tabular_fm_t *generate_factoring_methods_mc(gmp_randstate_t state,
 					    int len_p_min, int len_p_max,
 					    int len_n, int method, ec_parameterization_t curve,
-					    int opt_ch, int *param_sieve)
+					    int opt_ch,
+                                            const int *param_sieve)
 {
     ASSERT(len_p_min <= len_p_max);
 
@@ -614,7 +611,7 @@ tabular_fm_t *generate_factoring_methods_mc(gmp_randstate_t state,
 
 tabular_fm_t *generate_factoring_methods(gmp_randstate_t state, int len_p_min,
 					 int len_p_max, int len_n, int opt_ch,
-					 int *param_sieve)
+					 const int *param_sieve)
 {
 
     tabular_fm_t *gfm = tabular_fm_create();
@@ -715,7 +712,7 @@ tabular_fm_t *filtering(tabular_fm_t * tab, int final_nb_methods)
 	//trade off for i.
 	fm_t *eli = tabular_fm_get_fm(tab, i);
 	double compromis_i[eli->len_proba];
-	for (int p = 0; p < eli->len_proba; p++) {
+	for (unsigned int p = 0; p < eli->len_proba; p++) {
 	    if (eli->proba[p] > EPSILON_DBL)
 		compromis_i[p] = eli->time[get_nb_word(p)] / eli->proba[p];
 	    else //if (eli->time[p] < EPSILON_DBL): fm zero!
@@ -726,7 +723,7 @@ tabular_fm_t *filtering(tabular_fm_t * tab, int final_nb_methods)
 	    //trade off for j.
 	    fm_t *elj = tabular_fm_get_fm(tab, j);
 	    double compromis_j[elj->len_proba];
-	    for (int p = 0; p < elj->len_proba; p++) {
+	    for (unsigned int p = 0; p < elj->len_proba; p++) {
 		if (elj->proba[p] > EPSILON_DBL)
 		    compromis_j[p] = elj->time[get_nb_word(p)] / elj->proba[p];
 		else //if (elj->time[p] < EPSILON_DBL): fm zero!
@@ -735,9 +732,8 @@ tabular_fm_t *filtering(tabular_fm_t * tab, int final_nb_methods)
 
 	    //compute dist
 	    double moy_dist = 0;
-	    int const nb_elem = (elj->len_proba < eli->len_proba)?
-		elj->len_proba:eli->len_proba;
-	    for (int p = 0; p < nb_elem; p++) {
+	    unsigned int const nb_elem = MIN(elj->len_proba, eli->len_proba);
+	    for (unsigned int p = 0; p < nb_elem; p++) {
 		double tmp = compromis_i[p] - compromis_j[p];
 		tmp *=tmp;
 		moy_dist += tmp;

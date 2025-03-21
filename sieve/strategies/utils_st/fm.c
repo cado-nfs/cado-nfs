@@ -33,66 +33,65 @@ void fm_free(fm_t * t)
 	}
 }
 
-unsigned long *fm_get_method(fm_t * t)
+const unsigned long *fm_get_method(fm_t * t)
 {
     return t->method;
 }
 
-double *fm_get_proba(fm_t * t)
+const double *fm_get_proba(fm_t * t)
 {
     return t->proba;
 }
 
-double *fm_get_time(fm_t * t)
+const double *fm_get_time(fm_t * t)
 {
     return t->time;
 }
 
-int fm_get_len_method(fm_t * t)
+unsigned int fm_get_len_method(fm_t * t)
 {
     return t->len_method;
 }
 
-int fm_get_len_proba(fm_t * t)
+unsigned int fm_get_len_proba(fm_t * t)
 {
     return t->len_proba;
 }
 
-int fm_get_len_time(fm_t * t)
+unsigned int fm_get_len_time(fm_t * t)
 {
     return t->len_time;
 }
 
-int fm_get_len_p_min(fm_t * t)
+unsigned int fm_get_len_p_min(fm_t * t)
 {
     return t->len_p_min;
 }
 
-void fm_set_method(fm_t * t, unsigned long *value, int len)
+void fm_set_method(fm_t * t, const unsigned long *value, unsigned int len)
 {
     if (len != t->len_method) {	//realloc
         CHECKED_REALLOC(t->method, len, unsigned long);
 	t->len_method = len;
     }
 
-    for (int i = 0; i < t->len_method; i++)
+    for (unsigned int i = 0; i < t->len_method; i++)
 	t->method[i] = value[i];
 }
 
-void fm_set_proba(fm_t * t, double *value, int len, int len_p_min)
+void fm_set_proba(fm_t * t, const double *value, unsigned int len, unsigned int len_p_min)
 {
-    ASSERT (len >= 0);
     t->len_p_min = len_p_min;
     if (len != t->len_proba) {	//realloc
 	CHECKED_REALLOC(t->proba, len, double);
 	t->len_proba = len;
     }
 
-    for (int i = 0; i < t->len_proba; i++)
+    for (unsigned int i = 0; i < t->len_proba; i++)
 	t->proba[i] = value[i];
 }
 
-void fm_set_time(fm_t * t, double *value, int len)
+void fm_set_time(fm_t * t, const double *value, unsigned int len)
 {
     if (len == 0)
 	return;
@@ -102,7 +101,7 @@ void fm_set_time(fm_t * t, double *value, int len)
 	t->len_time = len;
     }
 
-    for (int i = 0; i < t->len_time; i++)
+    for (unsigned int i = 0; i < t->len_time; i++)
 	t->time[i] = value[i];
 }
 
@@ -119,9 +118,9 @@ void fm_put_zero(fm_t * t)
 {
     t->method[2] = 0;		//B1
     t->method[3] = 0;		//B2
-    for (int i = 0; i < t->len_proba; i++)
+    for (unsigned int i = 0; i < t->len_proba; i++)
 	t->proba[i] = 0;
-    for (int i = 0; i < t->len_time; i++)
+    for (unsigned int i = 0; i < t->len_time; i++)
 	t->time[i] = 0;
 }
 
@@ -132,8 +131,8 @@ bool fm_is_zero(fm_t * t)
 
 int fm_is_equal(fm_t * c1, fm_t * c2)
 {
-    int len = c1->len_method;
-    for (int i = 0; i < len; i++)
+    unsigned int len = c1->len_method;
+    for (unsigned int i = 0; i < len; i++)
 	if (c1->method[i] != c2->method[i])
 	    return false;
     return true;
@@ -149,22 +148,22 @@ int fm_fprint(FILE * file, fm_t * elem)
     if (file == NULL)
 	return -1;
 
-    unsigned long *method = fm_get_method(elem);
-    int len_method = fm_get_len_method(elem);
-    for (int i = 0; i < len_method; i++)
+    const unsigned long *method = fm_get_method(elem);
+    unsigned int len_method = fm_get_len_method(elem);
+    for (unsigned int i = 0; i < len_method; i++)
 	fprintf(file, "%lu ", method[i]);
     fputs("| ", file);
 
     fprintf(file, "%d ", elem->len_p_min);
-    double *proba = fm_get_proba(elem);
-    int len_proba = fm_get_len_proba(elem);
-    for (int i = 0; i < len_proba; i++)
+    const double *proba = fm_get_proba(elem);
+    unsigned int len_proba = fm_get_len_proba(elem);
+    for (unsigned int i = 0; i < len_proba; i++)
 	fprintf(file, "%lf ", proba[i]);
     fputs("| ", file);
 
-    double *time = fm_get_time(elem);
-    int len_time = fm_get_len_time(elem);
-    for (int i = 0; i < len_time; i++)
+    const double *time = fm_get_time(elem);
+    unsigned int len_time = fm_get_len_time(elem);
+    for (unsigned int i = 0; i < len_time; i++)
 	fprintf(file, "%lf ", time[i]);
 
     fputs("|\n", file);
