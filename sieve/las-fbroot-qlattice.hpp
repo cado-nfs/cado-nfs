@@ -29,12 +29,13 @@ static inline bool
 fb_root_in_qlattice_31bits_batch (fbroot_t *r_ij, fbprime_t p,
         const fbroot_t *r_ab, redc_invp_t invp,
         const qlattice_basis &basis, size_t n_roots);
+#if 0
 template <int CARRYCHECK = 2>
 static inline bool
 fb_root_in_qlattice_127bits_batch (fbroot_t *r_ij, fbprime_t p,
-        const fbroot_t *r_ab, redc_invp_t invp, const qlattice_basis &basis,
-        size_t n_roots);
-
+        const fbroot_t *r_ab, redc_invp_t invp,
+        const qlattice_basis &basis, size_t n_roots);
+#endif
 /* Specialize the case CARRYCHECK=2 and call the template instance
    with CARRYCHECK=0 or 1, depending on the value of p. */
 template<> inline fb_root_p1
@@ -70,6 +71,7 @@ fb_root_in_qlattice_127bits<2>(const fbprime_t p, const fb_root_p1 R,
         return fb_root_in_qlattice_127bits<1>(p, R, invp, basis);
 }
 
+#if 0
 template<> inline bool
 fb_root_in_qlattice_127bits_batch<2> (fbroot_t *r_ij, const fbprime_t p,
         const fbroot_t *r_ab, const redc_invp_t invp, const qlattice_basis &basis,
@@ -82,6 +84,7 @@ fb_root_in_qlattice_127bits_batch<2> (fbroot_t *r_ij, const fbprime_t p,
         return fb_root_in_qlattice_127bits_batch<1> (r_ij, p, r_ab, invp, basis,
                                               n_roots);
 }
+#endif
 
 /* fb_root_in_qlattice returns (R*b1-a1)/(a0-R*b0) mod p */
 #if defined(SUPPORT_LARGE_Q)
@@ -89,8 +92,8 @@ fb_root_in_qlattice_127bits_batch<2> (fbroot_t *r_ij, const fbprime_t p,
  * This means that redc_32 is a bit sub-optimal.
  */
 static inline fb_root_p1
-fb_root_in_qlattice(const fbprime_t p, const fb_root_p1 R,
-        const redc_invp_t invp, const qlattice_basis &basis);
+fb_root_in_qlattice(fbprime_t p, fb_root_p1 R,
+        redc_invp_t invp, const qlattice_basis &basis);
 static inline fb_root_p1
 fb_root_in_qlattice(const fbprime_t p, const fb_root_p1 R,
         const redc_invp_t invp, const qlattice_basis &basis)
@@ -98,12 +101,19 @@ fb_root_in_qlattice(const fbprime_t p, const fb_root_p1 R,
     return fb_root_in_qlattice_127bits(p, R, invp, basis);
 }
 static inline bool
-fb_root_in_qlattice_batch (fbroot_t *r_ij, const fbprime_t p,
-        const fbroot_t *r_ab, const redc_invp_t invp, const qlattice_basis &basis,
-        const size_t n_roots)
+fb_root_in_qlattice_batch (fbroot_t *r_ij MAYBE_UNUSED,
+        const fbprime_t p MAYBE_UNUSED,
+        const fbroot_t *r_ab MAYBE_UNUSED, const redc_invp_t invp MAYBE_UNUSED, const qlattice_basis &basis MAYBE_UNUSED,
+        size_t n_roots MAYBE_UNUSED)
 {
+    /* See #30012 and merge request !198 -- !196 was not complete! */
+    /* By returning false, we force all roots to be processed one by one.
+     */
+    return false;
+    /*
     return fb_root_in_qlattice_127bits_batch (r_ij, p, r_ab, invp, basis,
                                               n_roots);
+                                              */
 }
 #else
 /* We want the q-lattice entries to fit within 31 bits */
@@ -469,6 +479,8 @@ fb_root_in_qlattice_127bits (const fbprime_t p, const fb_root_p1 R,
 
 }
 
+#if 0
+/* see #30112 / !198 */
 /** Transforms roots r_ab (mod p) according to a lattice basis.
  *
  * Each transformed root r_ij[i] is
@@ -536,6 +548,24 @@ fb_root_in_qlattice_127bits_batch (fbroot_t *r_ij, const fbprime_t p,
         r_ij[i_root] = (fbprime_t) mulmodredc_u32<CARRYCHECK>(u, inverses[i_root], p, invp);
     }
 
+    return true;
+}
+#endif
+
+static inline bool
+fb_root_in_qlattice_127bits_batch (fbroot_t *r_ij, fbprime_t p,
+        const fbroot_t *r_ab, redc_invp_t invp,
+        const qlattice_basis &basis, size_t n_roots)
+{
+    // tests definitely want to have an fb_root_in_qlattice_127bits_batch
+    // function, so we'll make them one. However this function is not
+    // used in production.
+    // Batch transform failed: do roots one at a time.
+    for (unsigned char i = 0; i != n_roots; i++) {
+        auto R = fb_root_in_qlattice_127bits(p, r_ab[i], invp, basis);
+        if (R.proj) return false;
+        r_ij[i] = R.r;
+    }
     return true;
 }
 
