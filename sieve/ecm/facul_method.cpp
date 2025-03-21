@@ -1,5 +1,6 @@
 #include "cado.h" // IWYU pragma: keep
 
+#include <cstdio>
 #include <cstdlib>
 
 #include <vector>
@@ -25,10 +26,8 @@ facul_method::~facul_method()
 
 
 facul_method::facul_method(parameters const & p, const int verbose)
+    : method(p.method)
 {
-    method = p.method;
-    plan = nullptr;
-
     /* we don't need to store B1 and B2 in the method object. They all go
      * in the bytecode anyway
      */
@@ -56,6 +55,9 @@ facul_method::facul_method(parameters const & p, const int verbose)
 
             ecm_make_plan ((ecm_plan_t *) plan, B1, B2, p.parameterization, p.parameter, p.extra_primes, verbose);
             break;
+        case NO_METHOD:
+        case MPQS_METHOD:
+            ASSERT_ALWAYS(0);
     }
 
     ASSERT_ALWAYS(plan != nullptr);

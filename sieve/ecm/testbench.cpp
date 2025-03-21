@@ -38,26 +38,28 @@ To test the mpz arithmetic on a 64-bit processor:
 #include "cado.h" // IWYU pragma: keep
 // IWYU pragma: no_include <ext/alloc_traits.h>
 
-#include <climits>              // for ULONG_MAX
-#include <cstdint>              /* AIX wants it first (it's a bug) */
-#include <cstdio>               // for printf, NULL, fprintf, stderr, fclose
-#include <cstdlib>              // for strtoul, malloc, exit, free, strtol
-#include <cstring>              // for strcmp, strncmp
+#include <climits>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
-#include <vector>               // for vector
+#include <vector>
 
-#include <gmp.h>                // for gmp_printf, mpz_srcptr, mpz_get_ui
+#include <gmp.h>
+#include "fmt/base.h"
 
 #include "cxx_mpz.hpp"
-#include "facul.hpp"     // for facul_strategy_t, facul, facul_clear...
-#include "facul_ecm.h"   // for ec_parameter_is_valid, BRENT12, ec_p...
+#include "facul.hpp"
+#include "facul_ecm.h"
 #include "facul_method.hpp"
 #include "facul_strategies.hpp"
-#include "facul_strategies_stats.hpp" // for facul_strategy_t, facul, facul_clear...
-#include "macros.h"                   // for ASSERT
-#include "modredc_ul.h"         // for modredcul_clearmod, modredcul_initmo...
-#include "modredc_ul_default.h" // for modulus_t
-#include "timing.h"             // microseconds
+#include "facul_strategies_stats.hpp"
+#include "macros.h"
+#include "modredc_ul.h"
+#include "modredc_ul_default.h"
+#include "timing.h"
+#include "utils_cxx.hpp"
 
 #define MAX_METHODS 20
 
@@ -86,42 +88,32 @@ static void print_pointorder(unsigned long const p,
     modredcul_clearmod(m);
 }
 
-static int tryfactor(cxx_mpz const & N, facul_strategy_oneside const & strategy,
-                     int const verbose, int const printfactors,
-                     int const printnonfactors, int const printcofactors)
+static facul_status tryfactor(cxx_mpz const & N, facul_strategy_oneside const & strategy,
+                     int const verbose, bool const printfactors,
+                     bool const printnonfactors)
 {
-    std::vector<cxx_mpz> f;
-    int facul_code;
-
     if (verbose >= 2)
         gmp_printf("Trying to factor %Zd\n", (mpz_srcptr)N);
 
-    facul_code = facul(f, N, strategy);
+    auto const res = facul(N, strategy);
 
     if (verbose >= 2)
-        gmp_printf("facul returned code %d\n", facul_code);
+        fmt::print("facul returned code {}\n", int(res.status));
 
-    if (printfactors && facul_code > 0) {
-        int j;
-        gmp_printf("%Zd", (mpz_srcptr)f[0]);
-        for (j = 1; j < facul_code; j++)
-            gmp_printf(" %Zd", (mpz_srcptr)f[j]);
-        if (printcofactors) {
-            cxx_mpz c;
-            mpz_set(c, N);
-            for (j = 0; j < facul_code; j++)
-                mpz_divexact(c, c, f[j]);
-            if (mpz_cmp_ui(c, 1) != 0)
-                gmp_printf(" %Zd", (mpz_srcptr)c);
-        }
-        printf("\n");
+    /* NOTE: there used to be a "printcofactors" parameter, but in fact
+     * it's impossible for FACUL_SMOOTH to be returned if the
+     * factorization is not complete.
+     */
+    switch(res.status) {
+        case FACUL_SMOOTH:
+            if (printfactors)
+                fmt::print("{}\n", join(res.primes, " "));
+            break;
+        case FACUL_NOT_SMOOTH:
+        case FACUL_MAYBE:
+            if (printnonfactors) fmt::print("{}\n", N);
     }
-
-    if (printnonfactors &&
-        (facul_code == 0 || facul_code == FACUL_NOT_SMOOTH)) {
-        gmp_printf("%Zd\n", (mpz_srcptr)N);
-    }
-    return facul_code;
+    return res.status;
 }
 
 static void print_help(char const * programname)
@@ -159,7 +151,6 @@ static void print_help(char const * programname)
         "strategies\n");
     printf("-vf      Print factors that are found\n");
     printf("-vnf     Print input numbers where no factor was found\n");
-    printf("-vcf     Print cofactor if any factors were found\n");
     printf(
         "-cof <n> Multiply each number to test by <num> before calling facul.\n"
         "         NOTE: facul does not report input numbers as factors,\n"
@@ -197,7 +188,6 @@ int main(int argc, char const * argv[])
     int only_primes = 0, verbose = 0, quiet = 0;
     int printfactors = 0;
     int printnonfactors = 0;
-    int printcofactors = 0;
     int do_pointorder = 0;
     unsigned long po_parameter = 0;
     ec_parameterization_t po_parameterization = BRENT12;
@@ -328,10 +318,6 @@ int main(int argc, char const * argv[])
             printnonfactors = 1;
             argc -= 1;
             argv += 1;
-        } else if (argc > 1 && strcmp(argv[1], "-vcf") == 0) {
-            printcofactors = 1;
-            argc -= 1;
-            argv += 1;
         } else if (argc > 2 && strcmp(argv[1], "-inpstop") == 0) {
             inpstop = strtoul(argv[2], NULL, 10);
             argc -= 2;
@@ -417,7 +403,7 @@ int main(int argc, char const * argv[])
             } else {
                 mpz_mul_ui(N, cof, i);
                 if (tryfactor(N, strategy, verbose, printfactors,
-                              printnonfactors, printcofactors)) {
+                              printnonfactors)) {
                     hits++;
                     if (mod > 0)
                         hitsmod[i % mod]++;
@@ -463,7 +449,7 @@ int main(int argc, char const * argv[])
             } else {
                 mpz_mul(N, N, cof);
                 if (tryfactor(N, strategy, verbose, printfactors,
-                              printnonfactors, printcofactors))
+                              printnonfactors))
                     hits++;
             }
         }

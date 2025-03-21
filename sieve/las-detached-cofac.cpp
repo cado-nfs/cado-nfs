@@ -58,7 +58,7 @@ static detached_cofac_result * detached_cofac_inner(worker_thread * worker, deta
     int const pass = cur.factor_both_leftover_norms(wc);
     rep.survivors.cofactored += (pass != 0);
 
-    auto res = new detached_cofac_result;
+    auto * res = new detached_cofac_result;
 
     if (cur.trace_on_spot() && pass == 0) {
         verbose_output_print(TRACE_CHANNEL, 0,

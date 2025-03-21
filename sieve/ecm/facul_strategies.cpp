@@ -602,7 +602,7 @@ static void fprint_one_chain(FILE * file, std::vector<facul_method_side> const &
                 break;
             case EC_METHOD:
                 {
-                    ecm_plan_t * e = (ecm_plan_t*) fm.plan;
+                    auto const * e = (ecm_plan_t const *) fm.plan;
                     if (tracker.follows_sequence(ms.side, e->parameterization, e->parameter)) {
                         fprintf (file, " S%d: %s,%d,%d\n", side,
                                 parameterization_name(e->parameterization),

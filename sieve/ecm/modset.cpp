@@ -1,14 +1,24 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <limits.h>        // for ULONG_BITS
-#include <stdlib.h>        // for abort, size_t
+#include <climits>        // for ULONG_BITS
+#include <cstdlib>        // for abort, size_t
 
+#include <vector>
+#include <memory>
+
+#include <gmp.h>
+
+#include "cxx_mpz.hpp"
 #include "modset.hpp"
-
 #include "macros.h"        // for ASSERT_ALWAYS
-
 #include "facul.hpp"       // for facul_strategy_t
 #include "facul_doit.hpp"  // for facul_doit, facul_doit_onefm
+#include "facul_method.hpp"
+#include "mod_mpz.h"      // for modmpz_clearmod, modmpz_initmod_int, modmp...
+#include "modredc_15ul.h" // for modredc15ul_clearmod, modredc15ul_initmod_int
+#include "modredc_2ul2.h" // for modredc2ul2_clearmod, modredc2ul2_initmod_int
+#include "modredc_ul.h"   // for modredcul_clearmod, modredcul_initmod_int
+
 struct cxx_mpz;
 
 
@@ -17,13 +27,13 @@ struct cxx_mpz;
  * function signature. Thus we cannot use a function template, either,
  * as all the instances of the template would have the same signature. */
 
-const FaculModulusBase *
+FaculModulusBase *
 FaculModulusBase::init_ul (const modintredcul_t n)
 {
   return new FaculModulusUl(n);
 }
 
-const FaculModulusBase *
+FaculModulusBase *
 FaculModulusBase::init_15ul (const modintredc15ul_t n)
 {
   const size_t bits = modredc15ul_intbits (n);
@@ -35,7 +45,7 @@ FaculModulusBase::init_15ul (const modintredc15ul_t n)
     modintredcul_t i;
     modredcul_intinit(i);
     modredcul_intset_uls(i, t1, nr_words);
-    FaculModulusUl *m = new FaculModulusUl(i);
+    auto *m = new FaculModulusUl(i);
     modredcul_intclear(i);
     return m;
   }
@@ -45,7 +55,7 @@ FaculModulusBase::init_15ul (const modintredc15ul_t n)
     abort();
 }
 
-const FaculModulusBase *
+FaculModulusBase *
 FaculModulusBase::init_2ul2 (const modintredc2ul2_t n)
 {
   const size_t bits = modredc2ul2_intbits (n);
@@ -57,14 +67,14 @@ FaculModulusBase::init_2ul2 (const modintredc2ul2_t n)
     modintredcul_t i;
     modredcul_intinit(i);
     modredcul_intset_uls(i, t1, nr_words);
-    FaculModulusUl *m = new FaculModulusUl(i);
+    auto *m = new FaculModulusUl(i);
     modredcul_intclear(i);
     return m;
   } else if (bits <= MODREDC15UL_MAXBITS) {
       modintredc15ul_t t2;
       modredc15ul_intinit (t2);
       modredc15ul_intset_uls (t2, t1, nr_words);
-      FaculModulus15Ul *m = new FaculModulus15Ul (t2);
+      auto *m = new FaculModulus15Ul (t2);
       modredc15ul_intclear (t2);
       return m;
     }
@@ -76,7 +86,7 @@ FaculModulusBase::init_2ul2 (const modintredc2ul2_t n)
       abort();
 }
 
-const FaculModulusBase *
+FaculModulusBase *
 FaculModulusBase::init_mpz (const modintmpz_t n)
 {
   const size_t bits = modmpz_intbits (n);
@@ -118,94 +128,78 @@ FaculModulusBase::init_mpz (const modintmpz_t n)
       m = new FaculModulusMpz(n);
     }
   else
-      abort();
+      return nullptr;
   return m;
 }
 
-int FaculModulusUl::facul_doit(std::vector<cxx_mpz> & factors,
-    facul_strategy_oneside const & strategy, const int method_start) const
-{
-    return ::facul_doit (factors, m, strategy, method_start);
-}
-
-int FaculModulusUl::facul_doit_onefm (std::vector<cxx_mpz> & factors,
-    facul_method const & method, const FaculModulusBase * &fm,
-    const FaculModulusBase * &cfm, unsigned long lpb, double assume_prime_thresh,
+facul_status FaculModulusUl::facul_doit_onefm (std::vector<cxx_mpz> & factors,
+    facul_method const & method,
+    std::vector<std::unique_ptr<FaculModulusBase>> & composites,
+    unsigned long lpb, double assume_prime_thresh,
     double BBB) const
 {
-    return ::facul_doit_onefm (factors, m, method, fm, cfm, lpb,
+    return ::facul_doit_onefm (factors, m, method, composites, lpb,
         assume_prime_thresh, BBB);
 }
 
-void
-FaculModulusUl::get_z (mpz_t z) const
+cxx_mpz
+FaculModulusUl::get_z () const
 {
-    mpz_set_ui (z, m->m);
+    return { m->m };
 }
 
-int FaculModulus15Ul::facul_doit(std::vector<cxx_mpz> & factors, 
-    facul_strategy_oneside const & strategy, const int method_start) const
-{
-    return ::facul_doit (factors, m, strategy, method_start);
-}
-
-int FaculModulus15Ul::facul_doit_onefm (std::vector<cxx_mpz> & factors,
-    facul_method const & method, const FaculModulusBase * &fm,
-    const FaculModulusBase * &cfm, unsigned long lpb, double assume_prime_thresh,
+facul_status FaculModulus15Ul::facul_doit_onefm (std::vector<cxx_mpz> & factors,
+    facul_method const & method,
+    std::vector<std::unique_ptr<FaculModulusBase>> & composites,
+    unsigned long lpb, double assume_prime_thresh,
     double BBB) const
 {
-    return ::facul_doit_onefm (factors, m, method, fm, cfm, lpb,
+    return ::facul_doit_onefm (factors, m, method, composites, lpb,
         assume_prime_thresh, BBB);
 }
 
-void
-FaculModulus15Ul::get_z (mpz_t z) const
+cxx_mpz
+FaculModulus15Ul::get_z () const
 {
+    cxx_mpz z;
     mpz_set_ui (z, m->m[1]);
     mpz_mul_2exp (z, z, ULONG_BITS);
     mpz_add_ui (z, z, m->m[0]);
+    return z;
 }
 
-int FaculModulus2Ul2::facul_doit(std::vector<cxx_mpz> & factors, 
-    facul_strategy_oneside const & strategy, const int method_start) const
-{
-    return ::facul_doit (factors, m, strategy, method_start);
-}
-
-int FaculModulus2Ul2::facul_doit_onefm (std::vector<cxx_mpz> & factors,
-    facul_method const & method, const FaculModulusBase * &fm,
-    const FaculModulusBase * &cfm, unsigned long lpb, double assume_prime_thresh,
+facul_status FaculModulus2Ul2::facul_doit_onefm (std::vector<cxx_mpz> & factors,
+    facul_method const & method,
+    std::vector<std::unique_ptr<FaculModulusBase>> & composites,
+    unsigned long lpb, double assume_prime_thresh,
     double BBB) const
 {
-    return ::facul_doit_onefm (factors, m, method, fm, cfm, lpb,
+    return ::facul_doit_onefm (factors, m, method, composites, lpb,
         assume_prime_thresh, BBB);
 }
 
-void
-FaculModulus2Ul2::get_z (mpz_t z) const
+cxx_mpz
+FaculModulus2Ul2::get_z () const
 {
+    cxx_mpz z;
     mpz_set_ui (z, m->m[1]);
     mpz_mul_2exp (z, z, ULONG_BITS);
     mpz_add_ui (z, z, m->m[0]);
+    return z;
 }
 
-int FaculModulusMpz::facul_doit(std::vector<cxx_mpz> & factors, 
-    facul_strategy_oneside const & strategy, const int method_start) const
-{
-    return ::facul_doit (factors, m, strategy, method_start);
-}
-
-int FaculModulusMpz::facul_doit_onefm (std::vector<cxx_mpz> & factors,
-    facul_method const & method, const FaculModulusBase * &fm,
-    const FaculModulusBase * &cfm, unsigned long lpb, double assume_prime_thresh,
+facul_status FaculModulusMpz::facul_doit_onefm (std::vector<cxx_mpz> & factors,
+    facul_method const & method,
+    std::vector<std::unique_ptr<FaculModulusBase>> & composites,
+    unsigned long lpb, double assume_prime_thresh,
     double BBB) const
 {
-    return ::facul_doit_onefm (factors, m, method, fm, cfm, lpb,
+    return ::facul_doit_onefm (factors, m, method, composites, lpb,
         assume_prime_thresh, BBB);
 }
 
-void
-FaculModulusMpz::get_z (mpz_t z) const
+cxx_mpz
+FaculModulusMpz::get_z () const
 {
-    mpz_set (z, m);
+    return { m };
 }

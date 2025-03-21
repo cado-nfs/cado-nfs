@@ -146,7 +146,6 @@ MAYBE_UNUSED
 static inline void
 modredcul_intclear (modintredcul_t r MAYBE_UNUSED)
 {
-  return;
 }
 
 
@@ -381,7 +380,6 @@ MAYBE_UNUSED
 static inline void
 modredcul_clearmod (modulusredcul_t m MAYBE_UNUSED)
 {
-  return;
 }
 
 
@@ -403,7 +401,6 @@ static inline void
 modredcul_init_noset0 (residueredcul_t r MAYBE_UNUSED,
                        const modulusredcul_t m MAYBE_UNUSED)
 {
-  return;
 }
 
 
@@ -412,7 +409,6 @@ static inline void
 modredcul_clear (residueredcul_t r MAYBE_UNUSED,
                  const modulusredcul_t m MAYBE_UNUSED)
 {
-  return;
 }
 
 

@@ -57,7 +57,7 @@
 // int CONST_TEST_R = 55;
 
 #ifdef COMPILE_DEAD_CODE
-static MAYBE_UNUSED tabular_fm_t *generate_methods_cado(const int lpb)
+static MAYBE_UNUSED tabular_fm_t *generate_methods_cado(const unsigned int lpb)
 {
     /* we set mfb = 3*lpb to avoid the special case of 2 large primes */
     int const n = nb_curves (lpb, 3 * lpb);
@@ -129,13 +129,15 @@ This function generates the strategy of cado and computes the
   concatenation of all methods in 'methods'.
 */
 static tabular_strategy_t *generate_strategy_cado(tabular_fm_t * methods,
-					   tabular_decomp_t * tab_dec, int fbb,
-					   int lpb, int r)
+					   tabular_decomp_t * tab_dec,
+                                           unsigned int fbb,
+					   unsigned int lpb, 
+                                           unsigned int r)
 {
     tabular_strategy_t *tab_strat = tabular_strategy_create();
     strategy_t *strat = strategy_create();
 
-    int const lim = 2 * fbb - 1;
+    unsigned int const lim = 2 * fbb - 1;
 
     ASSERT_ALWAYS((tab_dec == nullptr) == (r < lim));
 
@@ -186,8 +188,12 @@ static tabular_strategy_t *generate_strategy_cado(tabular_fm_t * methods,
 
 static tabular_strategy_t ***generate_matrix_cado(const char *name_directory_decomp,
 					   tabular_fm_t * methods,
-					   unsigned long lim0, int lpb0, int mfb0,
-					   unsigned long lim1, int lpb1, int mfb1)
+					   unsigned long lim0,
+                                           unsigned int lpb0,
+                                           unsigned int mfb0,
+					   unsigned long lim1,
+                                           unsigned int lpb1,
+                                           unsigned int mfb1)
 {
     /*
        allocates the matrix which contains all optimal strategies for
@@ -195,11 +201,11 @@ static tabular_strategy_t ***generate_matrix_cado(const char *name_directory_dec
        the first side, and r1 for the second side.
      */
     tabular_strategy_t ***matrix = (tabular_strategy_t***) malloc(sizeof(*matrix) * (mfb0 + 1));
-    ASSERT(matrix != NULL);
+    ASSERT(matrix != nullptr);
 
-    for (int r0 = 0; r0 <= mfb0; r0++) {
+    for (unsigned int r0 = 0; r0 <= mfb0; r0++) {
 	matrix[r0] = (tabular_strategy_t**) malloc(sizeof(tabular_strategy_t *) * (mfb1 + 1));
-	ASSERT(matrix[r0] != NULL);
+	ASSERT(matrix[r0] != nullptr);
     }
 
     int const fbb0 = ceil (log2 ((double) (lim0 + 1)));
@@ -217,18 +223,18 @@ static tabular_strategy_t ***generate_matrix_cado(const char *name_directory_dec
     tabular_strategy_t **data_rat = (tabular_strategy_t**) malloc(sizeof(tabular_strategy_t *) * (mfb0 + 1));
     ASSERT(data_rat);
 
-    int lim = 2 * fbb0 - 1;
-    for (int r0 = 0; r0 <= mfb0; r0++) {
-	tabular_decomp_t *tab_decomp = NULL;
+    unsigned int lim = 2 * fbb0 - 1;
+    for (unsigned int r0 = 0; r0 <= mfb0; r0++) {
+	tabular_decomp_t *tab_decomp = nullptr;
 	if (r0 >= lim) {
 	    char name_file[200];
             snprintf(name_file, sizeof(name_file),
-		    "%s/decomp_%lu_%d", name_directory_decomp, lim0, r0);
+		    "%s/decomp_%lu_%u", name_directory_decomp, lim0, r0);
 	    FILE *file = fopen(name_file, "r");
 
 	    tab_decomp = tabular_decomp_fscan(file);
 
-	    if (tab_decomp == NULL) {
+	    if (tab_decomp == nullptr) {
 		fprintf(stderr, "impossible to read '%s'\n", name_file);
 		exit(EXIT_FAILURE);
 	    }
@@ -244,17 +250,17 @@ static tabular_strategy_t ***generate_matrix_cado(const char *name_directory_dec
        data for each r_1. So :
      */
     lim = 2 * fbb1 - 1;
-    for (int r1 = 0; r1 <= mfb1; r1++) {
-	tabular_decomp_t *tab_decomp = NULL;
+    for (unsigned int r1 = 0; r1 <= mfb1; r1++) {
+	tabular_decomp_t *tab_decomp = nullptr;
 	if (r1 >= lim) {
 	    char name_file[200];
 	    snprintf(name_file, sizeof(name_file),
-		    "%s/decomp_%lu_%d", name_directory_decomp, lim1, r1);
+		    "%s/decomp_%lu_%u", name_directory_decomp, lim1, r1);
 	    FILE *file = fopen(name_file, "r");
 
 	    tab_decomp = tabular_decomp_fscan(file);
 
-	    if (tab_decomp == NULL) {
+	    if (tab_decomp == nullptr) {
 		fprintf(stderr, "impossible to read '%s'\n", name_file);
 		exit(EXIT_FAILURE);
 	    }
@@ -266,7 +272,7 @@ static tabular_strategy_t ***generate_matrix_cado(const char *name_directory_dec
 
 	tabular_decomp_free(tab_decomp);
 
-	for (int r0 = 0; r0 <= mfb0; r0++) {
+	for (unsigned int r0 = 0; r0 <= mfb0; r0++) {
 	  tabular_strategy_t *res =
 	    generate_strategy_r0_r1(data_rat[r0], strat_r1);
 	  matrix[r0][r1] = res;
@@ -275,7 +281,7 @@ static tabular_strategy_t ***generate_matrix_cado(const char *name_directory_dec
     }
 
     //free
-    for (int r0 = 0; r0 <= mfb0; r0++)
+    for (unsigned int r0 = 0; r0 <= mfb0; r0++)
 	tabular_strategy_free(data_rat[r0]);
     free(data_rat);
 
@@ -287,18 +293,19 @@ static tabular_strategy_t ***generate_matrix_cado(const char *name_directory_dec
 /************************************************************************/
 /*                  To interleave our strategies                        */
 /************************************************************************/
-static MAYBE_UNUSED int is_good_decomp(decomp_t * dec, int len_p_min, int len_p_max)
+static MAYBE_UNUSED int is_good_decomp(decomp_t * dec, unsigned int len_p_min, unsigned int len_p_max)
 {
-    int const len = dec->len;
-    for (int i = 0; i < len; i++)
+    for (unsigned int i = 0; i < dec->len; i++)
 	if (dec->tab[i] > len_p_max || dec->tab[i] < len_p_min)
 	    return false;
     return true;
 }
 
-//problem if tab_edc == NULL;
+//problem if tab_edc == nullptr;
 static double compute_time_strategy_ileav(tabular_decomp_t ** init_tab, strategy_t * strat,
-				   int* fbb, int* lpb, int* r)
+				   unsigned int* fbb,
+                                   unsigned int* lpb,
+                                   unsigned int* r)
 {
     int const nb_fm = tabular_fm_get_index(strat->tab_fm);
     tabular_fm_t *tab_fm = strat->tab_fm;
@@ -322,7 +329,7 @@ static double compute_time_strategy_ileav(tabular_decomp_t ** init_tab, strategy
       64 bits. So, if you don't add 0.5 to MODREDCUL_MAXBITS, you
       lost the equal and thus insert an error in your maths.
     */
-    int ind_time[2];
+    unsigned int ind_time[2];
     for (int side = 0; side < 2; side++)
       {
 	double const half_word = (MODREDCUL_MAXBITS+0.5)/2.0;
@@ -381,7 +388,7 @@ static double compute_time_strategy_ileav(tabular_decomp_t ** init_tab, strategy
 	    else 
 	      proba_run_next_fm = proba_fail_side[side];
 	    
-	    int const len_time = fm_get_len_time (elem);
+	    unsigned int const len_time = fm_get_len_time (elem);
 	    if (ind_time[side] >= len_time)
 	      time_method = elem->time[len_time-1];
 	    else
@@ -432,7 +439,9 @@ static strategy_t*
 gen_strat_r0_r1_ileav_st_rec (strategy_t * strat_r0, int index_r0,
 			      strategy_t * strat_r1, int index_r1,
 			      tabular_decomp_t ** init_tab,
-			      int* fbb, int* lpb, int* r,
+			      unsigned int* fbb,
+                              unsigned int* lpb,
+                              unsigned int* r,
 			      strategy_t* current_st, int current_index)
 {
   int const len_r0 = strat_r0->tab_fm->index;
@@ -441,11 +450,11 @@ gen_strat_r0_r1_ileav_st_rec (strategy_t * strat_r0, int index_r0,
 
   /* if (index_r0 >= len_r0 && */
   /*     index_r1 >= len_r1) */
-  /*   return NULL; */
+  /*   return nullptr; */
   /* printf ("%d (max= %d), %d (max=%d)\n", index_r0, len_r0, */
   /* 	  index_r1, len_r1); */
   
-  if (current_st == NULL)
+  if (current_st == nullptr)
     {
       current_st = strategy_create ();
       current_index = 0;
@@ -453,7 +462,7 @@ gen_strat_r0_r1_ileav_st_rec (strategy_t * strat_r0, int index_r0,
       current_st->side = (int*) malloc(sizeof(int) * (current_st->len_side));
     }
     
-  strategy_t *tmp0 = NULL, *tmp1 = NULL;
+  strategy_t *tmp0 = nullptr, *tmp1 = nullptr;
 
   if (index_r0 < len_r0)
     {
@@ -523,7 +532,7 @@ gen_strat_r0_r1_ileav_st_rec (strategy_t * strat_r0, int index_r0,
 
   //end of the recursion!
   
-  if (tmp0 == NULL && tmp1 == NULL)
+  if (tmp0 == nullptr && tmp1 == nullptr)
     {
       strategy_t* final_st = strategy_create ();
       final_st->len_side = max_len;
@@ -546,9 +555,9 @@ gen_strat_r0_r1_ileav_st_rec (strategy_t * strat_r0, int index_r0,
       return final_st;
     }
   
-  if (tmp0 == NULL)
+  if (tmp0 == nullptr)
     return tmp1;
-  else if (tmp1 == NULL)
+  else if (tmp1 == nullptr)
     return tmp0;
   else if (tmp0->time < tmp1->time)
     {
@@ -566,7 +575,9 @@ static MAYBE_UNUSED strategy_t*
 gen_strat_r0_r1_ileav_st(strategy_t * strat_r0,
 			 strategy_t * strat_r1,
 			 tabular_decomp_t ** init_tab,
-			 int* fbb, int* lpb, int* r)
+			 unsigned int* fbb,
+                         unsigned int* lpb,
+                         unsigned int* r)
 {
   int const len_r0 = strat_r0->tab_fm->index;
   int const len_r1 = strat_r1->tab_fm->index;
@@ -607,12 +618,14 @@ gen_strat_r0_r1_ileav_st(strategy_t * strat_r0,
 static tabular_strategy_t *gen_strat_r0_r1_ileav(tabular_strategy_t * strat_r0,
 					  tabular_strategy_t * strat_r1,
 					  tabular_decomp_t ** init_tab,
-					  int* fbb, int* lpb, int* r)
+					  unsigned int* fbb,
+                                          unsigned int* lpb,
+                                          unsigned int* r)
 {
   tabular_strategy_t* res = tabular_strategy_create();//generate_strategy_r0_r1(strat_r0, strat_r1);
   int const len0 = strat_r0->index;
   int const len1 = strat_r1->index;
-  //printf ("r0 = %d, r1=%d\n", r[0], r[1]);
+  //printf ("r0 = %u, r1=%u\n", r[0], r[1]);
   //printf ("CLASSIC proba=%lf, time=%lf\n", res->tab[0]->proba, res->tab[0]->time);
   //  strategy_print (res->tab[0]);
   for (int r0 = 0; r0 < len0; r0++)
@@ -624,7 +637,7 @@ static tabular_strategy_t *gen_strat_r0_r1_ileav(tabular_strategy_t * strat_r0,
 	strategy_t* st2 = gen_strat_r0_r1_ileav_st_rec(strat_r0->tab[r0], 0,
 						       strat_r1->tab[r1], 0,
 						       init_tab, fbb, lpb, r,
-						       NULL, 0);
+						       nullptr, 0);
 	//printf ("INTERL proba=%lf, time=%lf\n", st->proba, st->time);
 	//strategy_print (st);
 	tabular_strategy_add_strategy (res, st2);
@@ -639,7 +652,7 @@ static tabular_strategy_t *gen_strat_r0_r1_ileav(tabular_strategy_t * strat_r0,
 	/*   } */
 	/* if (nb_chg > 1) */
 	/*   { */
-	/*     printf ("r0 = %d, r1=%d\n", r[0], r[1]); */
+	/*     printf ("r0 = %u, r1=%u\n", r[0], r[1]); */
 	/* printf ("CLASSI proba=%lf, time=%lf\n", st1->proba, st1->time); */
 	/* printf ("INTERL proba=%lf, time=%lf\n", st2->proba, st2->time); */
 	    //getchar();
@@ -658,8 +671,8 @@ static tabular_strategy_t *gen_strat_r0_r1_ileav(tabular_strategy_t * strat_r0,
 static MAYBE_UNUSED tabular_strategy_t *** generate_matrix_cado_ileav(
         const char *name_directory_decomp,
         tabular_fm_t * methods,
-        unsigned long lim0, int lpb0, int mfb0,
-        unsigned long lim1, int lpb1, int mfb1)
+        unsigned long lim0, unsigned int lpb0, unsigned int mfb0,
+        unsigned long lim1, unsigned int lpb1, unsigned int mfb1)
 {
     /*
        allocates the matrix which contains all optimal strategies for
@@ -667,15 +680,15 @@ static MAYBE_UNUSED tabular_strategy_t *** generate_matrix_cado_ileav(
        the first side, and r1 for the second side.
      */
     tabular_strategy_t ***matrix = (tabular_strategy_t***) malloc(sizeof(*matrix) * (mfb0 + 1));
-    ASSERT(matrix != NULL);
+    ASSERT(matrix != nullptr);
 
-    for (int r0 = 0; r0 <= mfb0; r0++) {
+    for (unsigned int r0 = 0; r0 <= mfb0; r0++) {
 	matrix[r0] = (tabular_strategy_t**) malloc(sizeof(tabular_strategy_t *) * (mfb1 + 1));
-	ASSERT(matrix[r0] != NULL);
+	ASSERT(matrix[r0] != nullptr);
     }
     
-    int const fbb0 = ceil (log2 ((double) (lim0 + 1)));
-    int const fbb1 = ceil (log2 ((double) (lim1 + 1)));
+    unsigned int const fbb0 = ceil (log2 ((double) (lim0 + 1)));
+    unsigned int const fbb1 = ceil (log2 ((double) (lim1 + 1)));
 
     /*
        For each r0 in [fbb0..mfb0], we precompute and strore the data
@@ -689,18 +702,18 @@ static MAYBE_UNUSED tabular_strategy_t *** generate_matrix_cado_ileav(
     tabular_strategy_t **data_rat = (tabular_strategy_t**) malloc(sizeof(tabular_strategy_t *) * (mfb0 + 1));
     ASSERT(data_rat);
 
-    int lim = 2 * fbb0 - 1;
-    for (int r0 = 0; r0 <= mfb0; r0++) {
-	tabular_decomp_t *tab_decomp = NULL;
+    unsigned int lim = 2 * fbb0 - 1;
+    for (unsigned int r0 = 0; r0 <= mfb0; r0++) {
+	tabular_decomp_t *tab_decomp = nullptr;
 	if (r0 >= lim) {
 	    char name_file[200];
 	    snprintf(name_file, sizeof(name_file),
-		    "%s/decomp_%lu_%d", name_directory_decomp, lim0, r0);
+		    "%s/decomp_%lu_%u", name_directory_decomp, lim0, r0);
 	    FILE *file = fopen(name_file, "r");
 
 	    tab_decomp = tabular_decomp_fscan(file);
 
-	    if (tab_decomp == NULL) {
+	    if (tab_decomp == nullptr) {
 		fprintf(stderr, "impossible to read '%s'\n", name_file);
 		exit(EXIT_FAILURE);
 	    }
@@ -716,18 +729,18 @@ static MAYBE_UNUSED tabular_strategy_t *** generate_matrix_cado_ileav(
        data for each r_1. So :
      */
     lim = 2 * fbb1 - 1;
-    for (int r1 = 0; r1 <= mfb1; r1++) {
-      printf ("r1 = %d\n", r1);
-	tabular_decomp_t *tab_decomp = NULL;
+    for (unsigned int r1 = 0; r1 <= mfb1; r1++) {
+      printf ("r1 = %u\n", r1);
+	tabular_decomp_t *tab_decomp = nullptr;
 	char name_file[200];
 	if (r1 >= lim) {
 	    snprintf(name_file, sizeof(name_file),
-		    "%s/decomp_%lu_%d", name_directory_decomp, lim1, r1);
+		    "%s/decomp_%lu_%u", name_directory_decomp, lim1, r1);
 	    FILE *file = fopen(name_file, "r");
 
 	    tab_decomp = tabular_decomp_fscan(file);
 
-	    if (tab_decomp == NULL) {
+	    if (tab_decomp == nullptr) {
 		fprintf(stderr, "impossible to read '%s'\n", name_file);
 		exit(EXIT_FAILURE);
 	    }
@@ -738,7 +751,7 @@ static MAYBE_UNUSED tabular_strategy_t *** generate_matrix_cado_ileav(
 	    generate_strategy_cado(methods, tab_decomp, fbb1, lpb1, r1);
 
 
-	for (int r0 = 0; r0 <= mfb0; r0++) {
+	for (unsigned int r0 = 0; r0 <= mfb0; r0++) {
 	  if (r0 < 2*fbb0-1 || r1 < 2*fbb1-1)
 	    {
 	      matrix[r0][r1] =
@@ -747,12 +760,12 @@ static MAYBE_UNUSED tabular_strategy_t *** generate_matrix_cado_ileav(
 	  else
 	    {
 	      snprintf(name_file, sizeof(name_file),
-		      "%s/decomp_%lu_%d", name_directory_decomp, lim0, r0);
+		      "%s/decomp_%lu_%u", name_directory_decomp, lim0, r0);
 	      FILE *file = fopen(name_file, "r");
 
 	      tabular_decomp_t* tab_decomp_r0 = tabular_decomp_fscan(file);
 	      
-	      if (tab_decomp_r0 == NULL) {
+	      if (tab_decomp_r0 == nullptr) {
 		fprintf(stderr, "impossible to read '%s'\n", name_file);
 		exit(EXIT_FAILURE);
 	      }
@@ -760,9 +773,9 @@ static MAYBE_UNUSED tabular_strategy_t *** generate_matrix_cado_ileav(
 
 	      
 	      tabular_decomp_t* init_tab[2] = {tab_decomp_r0, tab_decomp}; //todo!!
-	      int fbb[2] = {fbb0, fbb1};
-	      int lpb[2] = {lpb0, lpb1};
-	      int r[2] = {r0, r1};
+	      unsigned int fbb[2] = {fbb0, fbb1};
+	      unsigned int lpb[2] = {lpb0, lpb1};
+	      unsigned int r[2] = {r0, r1};
 	      matrix[r0][r1] = gen_strat_r0_r1_ileav(data_rat[r0],
 						     strat_r1, init_tab,
 						     fbb, lpb, r);
@@ -773,7 +786,7 @@ static MAYBE_UNUSED tabular_strategy_t *** generate_matrix_cado_ileav(
     }
 
     //free
-    for (int r0 = 0; r0 <= mfb0; r0++)
+    for (unsigned int r0 = 0; r0 <= mfb0; r0++)
 	tabular_strategy_free(data_rat[r0]);
     free(data_rat);
 
@@ -784,10 +797,12 @@ static MAYBE_UNUSED tabular_strategy_t *** generate_matrix_cado_ileav(
 
 static tabular_strategy_t ***generate_matrix_ileav(const char *name_directory_decomp,
 					    const char *name_directory_str,
-					    unsigned long lim0, int lpb0,
-					    int mfb0,
-					    unsigned long lim1, int lpb1,
-					    int mfb1)
+					    unsigned long lim0,
+                                            unsigned int lpb0,
+					    unsigned int mfb0,
+					    unsigned long lim1,
+                                            unsigned int lpb1,
+					    unsigned int mfb1)
 {
     /*
        allocates the matrix which contains all optimal strategies for
@@ -795,15 +810,15 @@ static tabular_strategy_t ***generate_matrix_ileav(const char *name_directory_de
        the first side, and r1 for the second side.
      */
     tabular_strategy_t ***matrix = (tabular_strategy_t***) malloc(sizeof(*matrix) * (mfb0 + 1));
-    ASSERT(matrix != NULL);
+    ASSERT(matrix != nullptr);
 
-    for (int r0 = 0; r0 <= mfb0; r0++) {
+    for (unsigned int r0 = 0; r0 <= mfb0; r0++) {
 	matrix[r0] = (tabular_strategy_t**) malloc(sizeof(tabular_strategy_t *) * (mfb1 + 1));
-	ASSERT(matrix[r0] != NULL);
+	ASSERT(matrix[r0] != nullptr);
     }
     
-    int const fbb0 = ceil (log2 ((double) (lim0 + 1)));
-    int const fbb1 = ceil (log2 ((double) (lim1 + 1)));
+    unsigned int const fbb0 = ceil (log2 ((double) (lim0 + 1)));
+    unsigned int const fbb1 = ceil (log2 ((double) (lim1 + 1)));
 
     /*
        For each r0 in [fbb0..mfb0], we precompute and strore the data
@@ -817,16 +832,16 @@ static tabular_strategy_t ***generate_matrix_ileav(const char *name_directory_de
     tabular_strategy_t **data_rat = (tabular_strategy_t**) malloc(sizeof(tabular_strategy_t *) * (mfb0 + 1));
     ASSERT(data_rat);
 
-    int lim = 2 * fbb0 - 1;
-    for (int r0 = 0; r0 <= mfb0; r0++) {
+    unsigned int lim = 2 * fbb0 - 1;
+    for (unsigned int r0 = 0; r0 <= mfb0; r0++) {
 	char name_file_in[strlen(name_directory_str) + 64];
 	FILE * file_in;
 	//get back the best strategies for r0!
-	snprintf(name_file_in, sizeof(name_file_in), "%s/strategies%lu_%d",
+	snprintf(name_file_in, sizeof(name_file_in), "%s/strategies%lu_%u",
 		name_directory_str, lim0, r0);
 	file_in = fopen(name_file_in, "r");
 	data_rat[r0] = tabular_strategy_fscan(file_in);
-	if (data_rat[r0] == NULL) {
+	if (data_rat[r0] == nullptr) {
 	  fprintf(stderr,
 		  "Parser error: can't read the file '%s'\n",
 		  name_file_in);
@@ -840,18 +855,18 @@ static tabular_strategy_t ***generate_matrix_ileav(const char *name_directory_de
        data for each r_1. So :
      */
     lim = 2 * fbb1 - 1;
-    for (int r1 = 0; r1 <= mfb1; r1++) {
-      printf ("r1 = %d\n", r1);
-	tabular_decomp_t *tab_decomp = NULL;
+    for (unsigned int r1 = 0; r1 <= mfb1; r1++) {
+      printf ("r1 = %u\n", r1);
+	tabular_decomp_t *tab_decomp = nullptr;
 	char name_file[200];
 	if (r1 >= lim) {
             snprintf(name_file, sizeof(name_file),
-		    "%s/decomp_%lu_%d", name_directory_decomp, lim1, r1);
+		    "%s/decomp_%lu_%u", name_directory_decomp, lim1, r1);
 	    FILE *file = fopen(name_file, "r");
 
 	    tab_decomp = tabular_decomp_fscan(file);
 
-	    if (tab_decomp == NULL) {
+	    if (tab_decomp == nullptr) {
 		fprintf(stderr, "impossible to read '%s'\n", name_file);
 		exit(EXIT_FAILURE);
 	    }
@@ -861,11 +876,11 @@ static tabular_strategy_t ***generate_matrix_ileav(const char *name_directory_de
 	FILE * file_in;
 	//get back the best strategies for r0!
 	snprintf(name_file_in, sizeof(name_file_in), 
-                "%s/strategies%lu_%d",
+                "%s/strategies%lu_%u",
 		name_directory_str, lim1, r1);
 	file_in = fopen(name_file_in, "r");
 	tabular_strategy_t *strat_r1 = tabular_strategy_fscan(file_in);
-	if (strat_r1 == NULL) {
+	if (strat_r1 == nullptr) {
 	  fprintf(stderr,
 		  "Parser error: can't read the file '%s'\n",
 		  name_file_in);
@@ -873,7 +888,7 @@ static tabular_strategy_t ***generate_matrix_ileav(const char *name_directory_de
 	}
 	fclose(file_in);
 
-	for (int r0 = 0; r0 <= mfb0; r0++) {
+	for (unsigned int r0 = 0; r0 <= mfb0; r0++) {
 	  if (r0 < 2*fbb0-1 || r0 > 3*fbb0-2 ||
 	      r1 < 2*fbb1-1 || r1 > 3*fbb1-2)
 	    {
@@ -883,12 +898,12 @@ static tabular_strategy_t ***generate_matrix_ileav(const char *name_directory_de
 	  else
 	    {
                 snprintf(name_file, sizeof(name_file),
-		      "%s/decomp_%lu_%d", name_directory_decomp, lim0, r0);
+		      "%s/decomp_%lu_%u", name_directory_decomp, lim0, r0);
 	      FILE *file = fopen(name_file, "r");
 
 	      tabular_decomp_t* tab_decomp_r0 = tabular_decomp_fscan(file);
 	      
-	      if (tab_decomp_r0 == NULL) {
+	      if (tab_decomp_r0 == nullptr) {
 		fprintf(stderr, "impossible to read '%s'\n", name_file);
 		exit(EXIT_FAILURE);
 	      }
@@ -896,9 +911,9 @@ static tabular_strategy_t ***generate_matrix_ileav(const char *name_directory_de
 
 	      
 	      tabular_decomp_t* init_tab[2] = {tab_decomp_r0, tab_decomp}; //todo!!
-	      int fbb[2] = {fbb0, fbb1};
-	      int lpb[2] = {lpb0, lpb1};
-	      int r[2] = {r0, r1};
+	      unsigned int fbb[2] = {fbb0, fbb1};
+	      unsigned int lpb[2] = {lpb0, lpb1};
+	      unsigned int r[2] = {r0, r1};
 	      matrix[r0][r1] =
 		gen_strat_r0_r1_ileav(data_rat[r0], strat_r1,
 					      init_tab, fbb, lpb, r);
@@ -909,7 +924,7 @@ static tabular_strategy_t ***generate_matrix_ileav(const char *name_directory_de
     }
 
     //free
-    for (int r0 = 0; r0 <= mfb0; r0++)
+    for (unsigned int r0 = 0; r0 <= mfb0; r0++)
 	tabular_strategy_free(data_rat[r0]);
     free(data_rat);
 
@@ -952,7 +967,7 @@ static MAYBE_UNUSED weighted_success
 bench_proba_time_st(gmp_randstate_t state, facul_strategy_oneside const & strategy,
 		    tabular_decomp_t* init_tab, int r, MAYBE_UNUSED int lpb)
 {
-    int nb_test = 0, nb_success = 0;
+    size_t nb_test = 0, nb_success = 0;
     int const nb_test_max = 100000;
     double time = 0;
     
@@ -964,32 +979,31 @@ bench_proba_time_st(gmp_randstate_t state, facul_strategy_oneside const & strate
 
     while (nb_test < nb_test_max)
 	{
-	    /*
-	       f will contain the prime factor of N that the strategy
-	       found.  Note that N is composed by two prime factors by the
-	       previous function.
-	    */
-            int const index = select_random_index_dec(sum_dec, init_tab, state);
+            /* N is composed by two prime factors, by the previous
+             * function. Therefore, if a non trivial split was found,
+             * then the status can not be FACUL_MAYBE.  */
+            int const index = select_random_index_dec(sum_dec, init_tab,
+                    state);
             int const len_p = init_tab->tab[index]->tab[0];
 
             cxx_mpz const N = generate_composite_integer(state, len_p, r);
 
             f.clear();
             time -= microseconds();
-	    int const nfound = facul(f, N, strategy);
+	    auto const res = facul(N, strategy);
             time += microseconds();
-            nb_success += (nfound != 0);
+
+            nb_success += res.status != FACUL_MAYBE;
 	    nb_test++;
 	}
     
-    return weighted_success(nb_success, time, nb_test);
+    return { nb_success, time, nb_test };
 }
 #endif  /* COMPILE_DEAD_CODE */
 
 #ifdef COMPILE_DEAD_CODE
 //convert type: from strategy_t to facul_strategy_t.
-static facul_strategy_oneside convert_strategy_to_facul_strategy (strategy_t* t, unsigned long lim,
-						      int lpb, int side)
+static facul_strategy_oneside convert_strategy_to_facul_strategy (strategy_t* t, unsigned long lim, unsigned int lpb, int side)
 {
     tabular_fm_t* tab_fm = strategy_get_tab_fm (t);
 
@@ -1000,15 +1014,15 @@ static facul_strategy_oneside convert_strategy_to_facul_strategy (strategy_t* t,
               continue;
 
           fm_t* fm = tab_fm->tab[i];
-          int const method = (int)fm->method[0];
-          ec_parameterization_t const curve = (ec_parameterization_t) fm->method[1];
-          unsigned long const B1 = fm->method[2];
-          unsigned long const B2 = fm->method[3];
+          auto const method = facul_method_code(fm->method[0]);
+          auto const curve = ec_parameterization_t(fm->method[1]);
+          auto const B1 = fm->method[2];
+          auto const B2 = fm->method[3];
 
           mps.emplace_back(
                   method, B1, B2,
                   curve,
-                  curve == MONTY16 ? 1 : 4,
+                  curve == MONTY16 ? 1UL : 4UL,
                   0     // extra_primes. It's 1 almost everywhere else, wtf?
             );
     }
@@ -1049,11 +1063,11 @@ static facul_strategies convert_strategy_to_facul_strategies (strategy_t* t,
     for (int i = 0; i < tab_fm->index; i++)
     {
         fm_t* fm = tab_fm->tab[i];
-        int const method = (int)fm->method[0];
-        ec_parameterization_t const curve = (ec_parameterization_t) fm->method[1];
-        unsigned long const B1 = fm->method[2];
-        unsigned long const B2 = fm->method[3];
-        int const side = (t->side != NULL)?t->side[i]:0;
+        auto const method = facul_method_code(fm->method[0]);
+        auto const curve = ec_parameterization_t(fm->method[1]);
+        auto const B1 = fm->method[2];
+        auto const B2 = fm->method[3];
+        int const side = t->side ? t->side[i] : 0;
         unsigned long parameter = 1;
         if (method == EC_METHOD && curve != MONTY16) {
             for( ; (parameter = u64_random(rstate)) < 2 ; );
@@ -1064,7 +1078,7 @@ static facul_strategies convert_strategy_to_facul_strategies (strategy_t* t,
     facul_strategies::strategy_file S;
     S[r_] = mps;
 
-    return facul_strategies(B, lpb_, mfb_, true, S, 0);
+    return { B, lpb_, mfb_, true, S, 0 };
 }
 #endif  /* COMPILE_DEAD_CODE */
 
@@ -1083,8 +1097,8 @@ bench_proba_time_st_both(gmp_randstate_t state,
      */
     unsigned long lim[2] = {1UL << (fbb[0]-1), 1UL << (fbb[1]-1) };
 
-    int nb_test = 0, nb_success = 0;
-    int const nb_test_max = 10000;
+    size_t nb_test = 0, nb_success = 0;
+    size_t const nb_test_max = 10000;
     double time = 0;
     
     gmp_randstate_t state_copy;
@@ -1105,7 +1119,6 @@ bench_proba_time_st_both(gmp_randstate_t state,
     nb_test = 0;
     time = 0;
     {
-        std::vector<cxx_mpz> f;
         while (nb_test < nb_test_max)
         {
             cxx_mpz N[2];
@@ -1114,25 +1127,18 @@ bench_proba_time_st_both(gmp_randstate_t state,
                 int const len_p = init_tab[side]->tab[index]->tab[1];
                 N[side] = generate_composite_integer(state, len_p, r[side]);
             }
-            /*
-               f will contain the prime factor of N that the strategy
-               found.  Note that N is composed by two prime factors by the
-               previous function.
-               */
-            f.clear();
+            /* N is composed by two prime factors, by the previous
+             * function. Therefore, if a non trivial split was found,
+             * then the status can not be FACUL_MAYBE.  */
             time -= microseconds();
-            int nfound = facul(f, N[0], facul_st_s0);
-            if (nfound) {
-                f.clear();
-                nfound = facul(f, N[1], facul_st_s1);
-                nb_success += (nfound != 0);
-            }
+            nb_success += facul(N[0], facul_st_s0).status != FACUL_MAYBE
+                       && facul(N[1], facul_st_s1).status != FACUL_MAYBE;
             time += microseconds();
             nb_test++;
             //getchar ();
         }
     }
-    weighted_success res(nb_success, time, nb_test);
+    weighted_success res { nb_success, time, nb_test };
     printf ("classic: prob = %lf, temps = %lf\n", res.prob, res.time);
 #endif
 
@@ -1145,7 +1151,6 @@ bench_proba_time_st_both(gmp_randstate_t state,
     time = 0;
 
     {
-        std::vector<std::vector<cxx_mpz>> f(2);
         while (nb_test < nb_test_max)
         {
             std::vector<cxx_mpz> N(2);
@@ -1154,18 +1159,12 @@ bench_proba_time_st_both(gmp_randstate_t state,
                 int const len_p = init_tab[side]->tab[index]->tab[1];
                 N[side] = generate_composite_integer(state_copy, len_p, r[side]);
             }
-            /*
-               f will contain the prime factor of N that the strategy
-               found.  Note that N is composed by two prime factors by the
-               previous function.
-               */
-            f[0].clear();
-            f[1].clear();
+            /* N is composed by two prime factors, by the previous
+             * function. Therefore, if a non trivial split was found,
+             * then the status can not be FACUL_MAYBE.  */
             time -= microseconds();
-            int is_smooth[2] = {0,0};
-            facul_both(f, N, facul_st, is_smooth);
-            if (is_smooth[0]==1 && is_smooth[1]==1)
-                nb_success++;
+            auto const res = facul_both(N, facul_st);
+            nb_success += res[0].status == FACUL_SMOOTH && res[1].status == FACUL_SMOOTH;
             time += microseconds();
             nb_test++;
             /* printf ("[%d, %d]\n", (int)mpz_sizeinbase (N[nb_test][0], 2), */
@@ -1174,7 +1173,7 @@ bench_proba_time_st_both(gmp_randstate_t state,
             //getchar();
         }
     }
-    weighted_success const res2(nb_success, time, nb_test);
+    weighted_success const res2 { nb_success, time, nb_test };
     printf ("interL: proba = %lf, time = %lf\n", res2.prob, res2.time);
 #endif
 
@@ -1244,7 +1243,7 @@ int main(int argc, char const * argv[])
 	}
 	/* Could also be a file */
 	FILE *f;
-	if ((f = fopen(argv[0], "r")) != NULL) {
+	if ((f = fopen(argv[0], "r")) != nullptr) {
 	    param_list_read_stream(pl, f, 0);
 	    fclose(f);
 	    argv++, argc--;
@@ -1257,23 +1256,23 @@ int main(int argc, char const * argv[])
 
     //option parser
     unsigned long lim0 = 0;
-    int lpb0 = -1;
+    unsigned int lpb0 = 0;
     unsigned long lim1 = 0;
-    int lpb1 = -1;
-    int mfb0 = -1;
-    int mfb1 = -1;
+    unsigned int lpb1 = 0;
+    unsigned int mfb0 = 0;
+    unsigned int mfb1 = 0;
     double C0 = -1;
 
     param_list_parse_ulong(pl, "lim0", &lim0);
-    param_list_parse_int(pl, "lpb1", &lpb1);
+    param_list_parse_uint(pl, "lpb1", &lpb1);
     param_list_parse_ulong(pl, "lim1", &lim1);
-    param_list_parse_int(pl, "mfb1", &mfb1);
-    param_list_parse_int(pl, "lpb0", &lpb0);
-    param_list_parse_int(pl, "mfb0", &mfb0);
+    param_list_parse_uint(pl, "mfb1", &mfb1);
+    param_list_parse_uint(pl, "lpb0", &lpb0);
+    param_list_parse_uint(pl, "mfb0", &mfb0);
     param_list_parse_double(pl, "t", &C0);
 
-    if (lim0 == 0 || lpb0 == -1 || mfb0 == -1 ||
-	lim1 == 0 || lpb1 == -1 || mfb1 == -1 || C0 == -1) {
+    if (lim0 == 0 || lpb0 == 0 || mfb0 == 0 ||
+	lim1 == 0 || lpb1 == 0 || mfb1 == 0 || C0 == -1) {
 	fputs("ALL parameters are mandatory!\n", stderr);
 	exit(EXIT_FAILURE);
     }
@@ -1288,8 +1287,8 @@ int main(int argc, char const * argv[])
     /* tabular_strategy_add_strategy (tab, st); */
     /* tabular_strategy_t* res=  generate_strategy_r0_r1 (tab, tab); */
     /* FILE* filee = fopen("strategy_check_28_33_66_99","w"); */
-    /* for (int r0 = 0; r0 <= mfb0; r0++) */
-    /*   for (int r1 = 0; r1 <= mfb1; r1++) */
+    /* for (unsigned int r0 = 0; r0 <= mfb0; r0++) */
+    /*   for (unsigned int r1 = 0; r1 <= mfb1; r1++) */
     /* 	{ */
     /* 	  fprintf(filee, */
     /* 		  "[r0=%d, r1=%d] : (p = %lf, t = %lf)\n", */
@@ -1316,7 +1315,7 @@ int main(int argc, char const * argv[])
     const char *name_directory_decomp;
     //  "/localdisk/trichard/results/decomp_cofactor/decomp_tmp";
     if ((name_directory_decomp =
-	 param_list_lookup_string(pl, "decomp")) == NULL) {
+	 param_list_lookup_string(pl, "decomp")) == nullptr) {
 	fputs("Parser error: Please re-run with the option "
 	      "-decomp and a valid directory name.\n", stderr);
 	exit(EXIT_FAILURE);
@@ -1324,7 +1323,7 @@ int main(int argc, char const * argv[])
     //option: distribution cofactors 
     const char *name_file_cofactor;
     //"/localdisk/trichard/cado768/cofactors";
-    if ((name_file_cofactor = param_list_lookup_string(pl, "dist")) == NULL) {
+    if ((name_file_cofactor = param_list_lookup_string(pl, "dist")) == nullptr) {
     	fputs("Parser error: Please re-run with the option -dist "
     	      "followed by the pathname of the file which stores the "
     	      "distribution of our cofactors.\n", stderr);
@@ -1333,7 +1332,7 @@ int main(int argc, char const * argv[])
 
     FILE *file_C = fopen(name_file_cofactor, "r");
     unsigned long **distrib_C = extract_matrix_C(file_C, mfb0 + 1, mfb1 + 1);
-    if (distrib_C == NULL) {
+    if (distrib_C == nullptr) {
     	fprintf(stderr, "Error while reading file %s\n", name_file_cofactor);
     	exit(EXIT_FAILURE);
     }
@@ -1350,7 +1349,7 @@ int main(int argc, char const * argv[])
     //tabular_fm_fprint (filee, methods);
     //fclose (filee);
     FILE* file_in = fopen ("/localdisk/trichard/cadoRSA155/data_fm_25", "r");
-    if (file_in == NULL)
+    if (file_in == nullptr)
       {
     	fprintf (stderr,
     		 "impossible to read: /localdisk/trichard/cadoRSA155/data_fm_25\n");
@@ -1367,17 +1366,17 @@ int main(int argc, char const * argv[])
 
     /* int r0 = 62, r1=63; */
     /* assert (r0 <= mfb0 && r1 <= mfb1); */
-    /* printf ("r0 = %d, r1= %d\n", r0, r1); */
+    /* printf ("r0 = %u, r1= %u\n", r0, r1); */
     /* char name_file[200]; */
     /* snprintf(name_file, sizeof(name_file), */
-    /* 	    "%s/decomp_%lu_%d", name_directory_decomp, lim0, r0);//modify it!! */
+    /* 	    "%s/decomp_%lu_%u", name_directory_decomp, lim0, r0);//modify it!! */
     /* printf ("%s\n", name_file); */
     /* fflush(stdout); */
     /* FILE *file = fopen(name_file, "r"); */
     /* tabular_decomp_t* init_tab0 = tabular_decomp_fscan (file); */
     /* fclose (file); */
     /* snprintf(name_file, sizeof(name_file), */
-    /* 	    "%s/decomp_%lu_%d", name_directory_decomp, lim1, r1);//modify it!! */
+    /* 	    "%s/decomp_%lu_%u", name_directory_decomp, lim1, r1);//modify it!! */
     /* printf ("%s\n", name_file); */
     /* file = fopen(name_file, "r"); */
     /* tabular_decomp_t* init_tab1 = tabular_decomp_fscan (file); */
@@ -1439,7 +1438,7 @@ int main(int argc, char const * argv[])
     /* strategy_t* res = gen_strat_r0_r1_ileav_st_rec(strat1, 0, */
     /* 						   strat2, 0, */
     /* 						   init_tab, fbb, lpb, r, */
-    /* 						   NULL, 0); */
+    /* 						   nullptr, 0); */
     /* printf ("resutat!!!!\n"); */
     /* printf ("theo: proba = %lf, tps = %lf\n", res->proba, res->time); */
     /* //strategy_print (res); */
@@ -1487,17 +1486,17 @@ int main(int argc, char const * argv[])
     
     //eval our strategy!
     double Y = 0, T = C0;
-    for (int r0 = 0; r0 <= mfb0; r0++) {
-    	for (int r1 = 0; r1 <= mfb1; r1++) {
+    for (unsigned int r0 = 0; r0 <= mfb0; r0++) {
+    	for (unsigned int r1 = 0; r1 <= mfb1; r1++) {
     	    Y += distrib_C[r0][r1] * matrix[r0][r1]->tab[0]->proba;
     	    T += distrib_C[r0][r1] * matrix[r0][r1]->tab[0]->time;
 	    //test: Add test with our strategy!
-	    if (0)//matrix_strat_res[r0][r1] != NULL)
+	    if (0)//matrix_strat_res[r0][r1] != nullptr)
 	      {
-	    	printf ("cado r0=%d, r1=%d, p =%lf, t = %lf\n", r0, r1,
+	    	printf ("cado r0=%u, r1=%u, p =%lf, t = %lf\n", r0, r1,
 	    		matrix[r0][r1]->tab[0]->proba,
 	    		matrix[r0][r1]->tab[0]->time);
-	    	printf ("file r0=%d, r1=%d, p =%lf, t = %lf\n", r0, r1,
+	    	printf ("file r0=%u, r1=%u, p =%lf, t = %lf\n", r0, r1,
 	    		matrix_strat_res[r0][r1]->proba,
 	    		matrix_strat_res[r0][r1]->time);
 	    	printf ("number of pair: %lu\n", distrib_C[r0][r1]);
@@ -1518,13 +1517,13 @@ int main(int argc, char const * argv[])
     fprint_final_strategy(file_output, matrix_strat_res,
 			  mfb0 + 1, mfb1 + 1);
     fclose (file_output);
-    /* if (pathname_output != NULL) { */
+    /* if (pathname_output != nullptr) { */
     /* 	FILE *file_output = fopen(pathname_output, "w"); */
-    /* 	for (int r0 = 0; r0 <= mfb0; r0++) */
-    /* 	    for (int r1 = 0; r1 <= mfb1; r1++) */
-    /* 		if (matrix[r0][r1]->tab[0] != NULL) { */
+    /* 	for (unsigned int r0 = 0; r0 <= mfb0; r0++) */
+    /* 	    for (unsigned int r1 = 0; r1 <= mfb1; r1++) */
+    /* 		if (matrix[r0][r1]->tab[0] != nullptr) { */
     /* 		    fprintf(file_output, */
-    /* 			    "[r0=%d, r1=%d] : (p = %lf, t = %lf)\n", */
+    /* 			    "[r0=%u, r1=%u] : (p = %lf, t = %lf)\n", */
     /* 			    r0, r1, matrix[r0][r1]->tab[0]->proba, */
     /* 			    matrix[r0][r1]->tab[0]->time); */
     /* 		    strategy_fprint_design(file_output, matrix[r0][r1]->tab[0]); */
@@ -1545,7 +1544,7 @@ int main(int argc, char const * argv[])
     const char *pathname_output;
     pathname_output = param_list_lookup_string(pl, "out");
 
-    if (pathname_output != NULL)
+    if (pathname_output != nullptr)
       {
 	FILE *file_output = fopen(pathname_output, "w");
 	fprint_final_strategy(file_output, matrix_strat_res,
@@ -1553,8 +1552,8 @@ int main(int argc, char const * argv[])
 	fclose (file_output);
       }
     //free matrix_strat_res
-    for (int r0 = 0; r0 <= mfb0; r0++){
-      for (int r1 = 0; r1 <= mfb1; r1++)
+    for (unsigned int r0 = 0; r0 <= mfb0; r0++){
+      for (unsigned int r1 = 0; r1 <= mfb1; r1++)
 	strategy_free(matrix_strat_res[r0][r1]);
       free(matrix_strat_res[r0]);
     }
@@ -1564,12 +1563,12 @@ int main(int argc, char const * argv[])
     //{{test bench strategy!
     /* int r0 = CONST_TEST_R; */
     /* int r1 = CONST_TEST_R; */
-    /* printf ("r0 = %d, r1 = %d, lpb0 = %d, lpb1 = %d\n", r0, r1, lpb0, lpb1); */
+    /* printf ("r0 = %u, r1 = %u, lpb0 = %u, lpb1 = %u\n", r0, r1, lpb0, lpb1); */
     /* //printf ("nb call = %lu\n", distrib_C[r0][r1]); */
     /* printf ("proba found: %lf, %lf\n", matrix[r0][r1]->tab[0]->proba, matrix[r0][r1]->tab[0]->time); */
     /* char name_file[200]; */
     /* snprintf(name_file, sizeof(name_file), */
-    /* 	    "%s/decomp_%d_%d", name_directory_decomp, fbb0, r0); */
+    /* 	    "%s/decomp_%u_%u", name_directory_decomp, fbb0, r0); */
     /* FILE *file = fopen(name_file, "r"); */
     
     /* tabular_decomp_t* tab_decomp = tabular_decomp_fscan(file); */
@@ -1586,7 +1585,7 @@ int main(int argc, char const * argv[])
     /* facul_clear_strategy(facul_st); */
     /* //r1 */
     /* snprintf(name_file, sizeof(name_file), */
-    /* 	    "%s/decomp_%d_%d", name_directory_decomp, fbb1, r1); */
+    /* 	    "%s/decomp_%u_%u", name_directory_decomp, fbb1, r1); */
     /* file = fopen(name_file, "r"); */
     
     /* tab_decomp = tabular_decomp_fscan(file); */
@@ -1602,8 +1601,8 @@ int main(int argc, char const * argv[])
     //}}
     
     //free
-    for (int r0 = 0; r0 <= mfb0; r0++) {
-	for (int r1 = 0; r1 <= mfb1; r1++)
+    for (unsigned int r0 = 0; r0 <= mfb0; r0++) {
+	for (unsigned int r1 = 0; r1 <= mfb1; r1++)
 	    tabular_strategy_free(matrix[r0][r1]);
 	free(distrib_C[r0]);
 	free(matrix[r0]);

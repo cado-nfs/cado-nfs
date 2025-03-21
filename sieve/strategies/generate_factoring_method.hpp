@@ -37,7 +37,7 @@ generate_composite_integer_interval(gmp_randstate_t state,
 /* This generate a 1-sided strategy with just one single method, and (for
  * ECM) a randomly chosen parameter sigma. extra_primes is set to 1.
  */
-facul_strategy_oneside generate_fm (int method,
+facul_strategy_oneside generate_fm (facul_method_code method,
                                unsigned long B1, unsigned long B2,
                                ec_parameterization_t curve
                                );
@@ -46,21 +46,22 @@ facul_strategy_oneside generate_fm (int method,
 /*                      Create Factoring Methods */
 /************************************************************************/
 
-int *choice_parameters(int method, int len_p_min);
+int *choice_parameters(facul_method_code method, int len_p_min);
 
-tabular_fm_t *bench_proba_time_pset(int method, ec_parameterization_t curve,
+tabular_fm_t *bench_proba_time_pset(facul_method_code method, ec_parameterization_t curve,
 				    gmp_randstate_t state,
 				    int len_p_min, int len_p_max,
-				    int len_n, int *param_region);
+				    int len_n, const int *param_region);
 
 tabular_fm_t *generate_factoring_methods(gmp_randstate_t state, int len_p_min,
 					 int len_p_max, int len_n, int opt_ch,
-					 int *param_sieve);
+					 const int *param_sieve);
 
 tabular_fm_t *generate_factoring_methods_mc(gmp_randstate_t state,
 					    int len_p_min, int len_p_max,
-					    int len_n, int method, ec_parameterization_t curve,
-					    int opt_ch, int *param_sieve);
+					    int len_n, facul_method_code method, ec_parameterization_t curve,
+					    int opt_ch,
+                                            const int *param_sieve);
 
 /************************************************************************/
 /*                      ANALYSE AND FILTER */
@@ -107,7 +108,7 @@ struct weighted_success {
     double time = 0;
     // weighted_success() = default;
     weighted_success(double p, double t) : prob(p), time(t) {}
-    weighted_success(double p, double t, size_t N) : prob(p/N), time(t/N) {}
+    weighted_success(size_t p, double t, size_t N) : prob(p/N), time(t/N) {}
 };
 
 #endif				/* GENERATE_FACTORING_METHOD_HPP */

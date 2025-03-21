@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-tabular_decomp_t* generate_all_decomp (int mfb, unsigned long lim);
+tabular_decomp_t* generate_all_decomp (unsigned int mfb, unsigned long lim);
 
 #ifdef __cplusplus
 }

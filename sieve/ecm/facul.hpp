@@ -2,26 +2,31 @@
 #define FACUL_HPP_
 
 #include <vector>
-#include <map>
+
 #include "facul_strategies.hpp"
 
 struct cxx_mpz;
 
 /* we should have FACUL_NOT_SMOOTH < 0, FACUL_MAYBE = 0,
    and FACUL_SMOOTH, FACUL_AUX >= 1 */
-#define FACUL_NOT_SMOOTH (-1)
-#define FACUL_MAYBE (0)
-#define FACUL_SMOOTH (1)
-#define FACUL_AUX (2)
+
+enum facul_status {
+    FACUL_NOT_SMOOTH = -1,
+    FACUL_MAYBE      = 0,
+    FACUL_SMOOTH     = 1,
+};
 
 #define STATS_LEN 128
 
-int facul (std::vector<cxx_mpz> &, cxx_mpz const &, facul_strategy_oneside const &);
 
-std::vector<int>
-facul_both (std::vector<std::vector<cxx_mpz>>&,
-            std::vector<cxx_mpz> & ,
-	    facul_strategies const &,
-            int *);
+struct facul_result {
+    facul_status status = FACUL_MAYBE;
+    std::vector<cxx_mpz> primes;
+};
+
+facul_result facul (cxx_mpz const &, facul_strategy_oneside const &);
+
+std::vector<facul_result>
+facul_both (std::vector<cxx_mpz> const & , facul_strategies const &);
 
 #endif /* FACUL_HPP_ */

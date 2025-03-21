@@ -122,7 +122,7 @@ class nfs_work {
          */
         fb_factorbase::slicing const * fbs = NULL;
 
-        inline bool no_fb() const { return fbs == NULL; }
+        bool no_fb() const { return fbs == NULL; }
 
         trialdiv_data const * td;
 

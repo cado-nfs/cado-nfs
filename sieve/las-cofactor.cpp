@@ -1,17 +1,17 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <inttypes.h>      // for PRIu32
-#include <stdlib.h>        // for exit, EXIT_FAILURE
-#include <algorithm>       // for max
-#include <cstdint>         // for uint32_t
-#include <memory>          // for allocator_traits<>::value_type
-#include <vector>          // for vector
+#include <cinttypes>
+#include <cstdlib>
+#include <algorithm>
+#include <cstdint>
+#include <vector>
 
 #include "las-cofactor.hpp"
 
-#include "macros.h"        // for ASSERT_ALWAYS, ASSERT
+#include "macros.h"
 
-#include "ecm/facul.hpp"       // for FACUL_SMOOTH, facul_both, FACUL_MAYBE, FAC...
+#include "ecm/facul.hpp"
+#include "ecm/facul_strategies.hpp"
 #include "las-siever-config.hpp"  // for siever_config::side_config, siever_...
 #include "modredc_15ul.h"  // for modredc15ul_clearmod, modredc15ul_initmod_int
 #include "modredc_2ul2.h"  // for modredc2ul2_clearmod, modredc2ul2_initmod_int
@@ -220,8 +220,8 @@ check_leftover_norm (cxx_mpz const & n, siever_side_config const & scs)
    1   both cofactors are smooth
 */
 
-int factor_both_leftover_norms(
-        std::vector<cxx_mpz> & n,
+facul_status factor_both_leftover_norms(
+        std::vector<cxx_mpz> const & n,
         std::vector<std::vector<cxx_mpz>> & factors,
         std::vector<unsigned long> const & Bs,
         facul_strategies const & strat)
@@ -229,45 +229,40 @@ int factor_both_leftover_norms(
     ASSERT_ALWAYS(n.size() == 2);
     ASSERT_ALWAYS(factors.size() == 2);
     ASSERT_ALWAYS(Bs.size() == 2);
-    int is_smooth[2] = {FACUL_MAYBE, FACUL_MAYBE};
-    /* To remember if a cofactor is already factored.*/
-
     for (int side = 0; side < 2; side++) {
-        factors[side].clear();
-
-        double const B = (double) Bs[side];
-        /* If n < B^2, then n is prime, since all primes < B have been removed */
-        if (mpz_get_d (n[side]) < B * B)
-            is_smooth[side] = FACUL_SMOOTH;
+        ASSERT_ALWAYS(Bs[side] == strat.B[side]);
     }
 
     /* call the facul library */
-    std::vector<int> facul_code = facul_both (factors, n, strat, is_smooth);
-
-    if (is_smooth[0] != FACUL_SMOOTH || is_smooth[1] != FACUL_SMOOTH) {
-        if (is_smooth[0] == FACUL_NOT_SMOOTH || is_smooth[1] == FACUL_NOT_SMOOTH)
-            return -1;
-        else
-            return 0;
+    auto fac = facul_both(n, strat);
+    for(auto const & f : fac) {
+        if (f.status == FACUL_NOT_SMOOTH)
+            return FACUL_NOT_SMOOTH;
     }
-
-    /* now we know both cofactors are smooth */
-    for (int side = 0; side < 2; side++) {
-        /* facul_code[side] is the number of found (smooth) factors */
-        for (int i = 0; i < facul_code[side]; i++) {
-            /* we know that factors found by facul_both() are primes < L */
-            mpz_divexact (n[side], n[side], factors[side][i]);
-            /* repeated factors should not be a problem, since they will
-               be dealt correctly in the filtering */
+    for(int side = 0 ; side < 2 ; side++) {
+        auto & f = fac[side];
+        if (f.status == FACUL_MAYBE) {
+            /* We couldn't factor this number. So we don't know. It
+             * happens also for tiny examples, which is a bit of a pity
+             * (see full_p30_JL test for example).
+             * Maybe it's due to our incomplete backtracking.
+             * I don't have a firm opinion as to whether this needs
+             * further investigation or not. At any rate, a "MAYBE" on
+             * one side means a global "MAYBE", and for consistency with
+             * what the code has been doing for quite some time, let's
+             * return that.
+             */
+            return FACUL_MAYBE;
         }
-
-        /* since the cofactor is smooth, n[side] is a prime < L here */
-        if (mpz_cmp_ui (n[side], 1) > 0) {
-            /* 1 is special */
-            factors[side].push_back(n[side]);
-        }
+#ifndef NDEBUG
+        cxx_mpz z = 1;
+        for(auto const & p : f.primes)
+            z *= p;
+        ASSERT_ALWAYS(z == n[side]);
+#endif
+        std::swap(factors[side], f.primes);
     }
-    return 1; /* both cofactors are smooth */
+    return FACUL_SMOOTH;
 }
 
 

@@ -3,6 +3,7 @@
 #include <math.h>
 #include "decomp.h"
 #include "gen_decomp.h"
+#include "tab_decomp.h"
 
 #define PREC 1000000
 
@@ -36,7 +37,7 @@ prime_pi (unsigned long i)
 
 /* generate a random i-bit integer, distributed with density in 1/log(x). */
 static double
-gen_random (unsigned long i)
+gen_random (unsigned int i)
 {
   double n0 = prime_pi (i - 1);
   double n1 = prime_pi (i);
@@ -58,24 +59,27 @@ double T[256] = {0,};
    l[0]-bit * l[1]-bit * ... * l[k-1]-bit
    with product of mfb bits, each prime should be >= lim */
 static double
-psi (int *l, int k, unsigned long mfb, unsigned long lim)
+psi (unsigned int *l, unsigned int k, unsigned long mfb, unsigned long lim)
 {
   unsigned long ok, tot;
-  int i, j;
-  double S, p, r, rmin, rmax;
+  double S, r, rmin, rmax;
 
   ok = tot = 0;
-  for (S = 1.0, i = 0; i < k; S *= T[l[i]], i++);
+  S = 1;
+  for (unsigned int i = 0 ; i < k ; i++)
+      S *= T[l[i]];
+
   if (S == 0.0)
     return 0;
-  rmin = ldexp (1.0, mfb - 1);
-  rmax = ldexp (1.0, mfb);
+  rmin = ldexp (1.0, (int) mfb - 1);
+  rmax = ldexp (1.0, (int) mfb);
   while (tot < PREC)
     {
-      for (r = 1.0, i = 0; i < k; i++)
+      r = 1;
+      for (unsigned int i = 0 ; i < k ; i++)
         {
-          p = gen_random (l[i]);
-          if (p >= lim)
+          double p = gen_random (l[i]);
+          if (p >= (double) lim)
             r *= p;
           else
             r = 0.0;
@@ -85,8 +89,9 @@ psi (int *l, int k, unsigned long mfb, unsigned long lim)
         ok ++;
     }
   //printf ("%lu", mfb);
-  for (i = 0; i < k; i++)
+  for (unsigned int i = 0; i < k; i++)
     {
+      unsigned int j;
       for (j = 1; i >= j && l[i-j] == l[i]; j++);
       S /= (double) j;
     }
@@ -98,34 +103,32 @@ psi (int *l, int k, unsigned long mfb, unsigned long lim)
 }
 
 tabular_decomp_t*
-generate_all_decomp (int mfb, unsigned long lim)
+generate_all_decomp (unsigned int mfb, unsigned long lim)
 {
   tabular_decomp_t* res = tabular_decomp_create();  
-  int i, j, k, kmax;
-  int l[256], u;
-  int imin, t, s;
+  unsigned int l[256];
   double p0, p1;
 
-  imin = ceil (log2 ((double) (lim + 1)));
-  for (i = 1; (i < 256) && i <= mfb; i++)
+  unsigned int imin = ceil (log2 ((double) (lim + 1)));
+  for (unsigned int i = 1; (i < 256) && i <= mfb; i++)
     {
-      p0 = ldexp (1.0, i - 1);
+      p0 = ldexp (1.0, (int) i - 1);
       p0 = (p0 < (double) lim) ? (double) lim / log ((double) lim)
         : prime_pi (i - 1);
-      p1 = ldexp (1.0, i);
+      p1 = ldexp (1.0, (int) i);
       p1 = (p1 <= (double) lim) ? (double) lim / log ((double) lim)
         : prime_pi (i);
       T[i] = p1 - p0;
       // if (T[i] != 0) printf ("T[%lu]=%.0f\n", i, T[i]);
     }
-  kmax = floor (log (ldexp (1.0, mfb)) / log ((double) lim));
-  for (k = 2; k <= kmax; k++)
+  unsigned int kmax = floor (log (ldexp (1.0, (int) mfb)) / log ((double) lim));
+  for (unsigned int k = 2; k <= kmax; k++)
     {
       /* a product l[0]-bit * l[1]-bit * ... * l[k-1]-bit can have
          l[0] + l[1] + ... + l[k-1] - (k-1) bits */
-      for (j = 0; j < k; j++)
+      for (unsigned int j = 0; j < k; j++)
         {
-          for (i = 0; i < k - 1; i++)
+          for (unsigned int i = 0; i < k - 1; i++)
             l[i] = imin;
           l[k-1] = mfb + j - (k - 1) * imin;
 	  if (l[k-1] < imin)
@@ -138,13 +141,14 @@ generate_all_decomp (int mfb, unsigned long lim)
 	      decomp_free (tmp);
 
               /* next partition of mfb + j */
+              unsigned int t;
               for (t = k - 1; t > 0; t--)
                 /* try to increase l[t-1] and decrease l[t] */
                 if (l[t-1] + 1 <= l[t])
                   {
                     l[t-1] ++;
-                    s = 1;
-                    for (u = t; u < k; u++)
+                    unsigned int s = 1;
+                    for (unsigned int u = t; u < k; u++)
                       {                  
                         s -= l[u];
                         l[u] = l[u-1];

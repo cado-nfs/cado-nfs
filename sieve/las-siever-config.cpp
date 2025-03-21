@@ -1,13 +1,18 @@
 #include "cado.h" // IWYU pragma: keep
 
 #include <cctype>
+#include <cmath>
 #include <cerrno>
 #include <climits>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
+#include <algorithm>
+#include <string>
+
 #include <gmp.h>
+#include "fmt/format.h"
 
 #include "fb.hpp"
 #include "fb-types.hpp"
@@ -222,21 +227,32 @@ siever_config siever_config_pool::get_config_for_q(las_todo_entry const & doing)
         verbose_output_print(0, 1, "#\n# NOTE:"
                 " we are re-playing this special-q because of"
                 " %d previous failed attempt(s)\n", doing.iteration);
-        /* update sieving parameters here */
-        double ratio = double(config.sides[0].mfb) /
-            double(config.sides[0].lpb);
-        config.sides[0].lpb += doing.iteration;
-        config.sides[0].mfb = ratio*config.sides[0].lpb;
-        ratio = double(config.sides[1].mfb) /
-            double(config.sides[1].lpb);
-        config.sides[1].lpb += doing.iteration;
-        config.sides[1].mfb = ratio*config.sides[1].lpb;
+
+        std::string parameters_info;
+
+        if (doing.iteration <= 2) {
+            /* The first two retries simply sieve more, but with the
+             * exact same bounds. This is being overly cautious, but we
+             * don't like the idea of letting the lpb grow too eagerly in
+             * these situations, as this has the potential to introduce
+             * loops in the descent.
+             */
+            config.logA += doing.iteration;
+            parameters_info += fmt::format(" A={}", config.logA);
+        } else {
+            for(size_t side = 0 ; side < config.sides.size() ; side++) {
+                auto & s = config.sides[side];
+                const double lambda = double(s.mfb) / double(s.lpb);
+                s.lpb += doing.iteration-2;
+                s.mfb = lround(lambda * double(s.lpb));
+                parameters_info += fmt::format(" lpb{}={} mfb{}={}",
+                        side, s.lpb, side, s.mfb);
+            }
+        }
+
         verbose_output_print(0, 1,
-                "# NOTE: current values of lpb/mfb: %d,%d %d,%d\n#\n", 
-                config.sides[0].lpb,
-                config.sides[0].mfb,
-                config.sides[1].lpb,
-                config.sides[1].mfb);
+                "# NOTE: modified parameters are: %s\n#\n", 
+                parameters_info.c_str());
     }
 
     return config;
