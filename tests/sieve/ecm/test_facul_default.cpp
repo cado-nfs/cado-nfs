@@ -34,18 +34,16 @@ int main()
     std::vector<cxx_mpz> n {
         "266630219"_mpz, "8435925448634188287568341721097"_mpz
     };
-    std::vector<std::vector<cxx_mpz>> factors { {}, {} };
 
     // int res = factor_both_leftover_norms(n, factors, lim, strat);
-    int is_smooth[2] = { FACUL_SMOOTH, FACUL_MAYBE };
-    auto ret = facul_both(factors, n, strat, is_smooth);
+    auto ret = facul_both(n, strat);
 
     /* This replicates what we have in factor_both_leftover_norms */
     for(int i = 0 ; i < 2 ; i++) {
-        fmt::print("n={} --> {}\n", n[i], is_smooth[i]);
+        fmt::print("n={} --> {}\n", n[i], int(ret[i].status));
         cxx_mpz z = 1;
         cxx_mpz N = n[i];
-        for(auto const & p : factors[i]) {
+        for(auto const & p : ret[i].primes) {
             fmt::print("\t{}\n", p);
             z *= p;
             mpz_divexact(N, N, p);

@@ -63,35 +63,33 @@ Thus the function to check for duplicates needs the following information:
 
 #include "cado.h" // IWYU pragma: keep
 
-#include <algorithm>
-#include <cinttypes>                  // for PRId8, PRId64, PRIu64
-#include <climits>                    // for ULONG_MAX
-#include <cstdio>                     // for size_t
-#include <array>                      // for array, array<>::value_type
-#include <cstdint>                    // for uint64_t, uint8_t, int64_t, uin...
-#include <iosfwd>                     // for ostringstream, ostream
-#include <memory>                     // for allocator_traits<>::value_type
-#include <string>                     // for basic_string
-#include <vector>                     // for vector
-#include <cstdarg>             // IWYU pragma: keep
-#include <gmp.h>                      // for mpz_srcptr, gmp_vfprintf, mpz_g...
+#include <cinttypes>
+#include <climits>
+#include <cstdio>
+#include <array>
+#include <cstdint>
+#include <iosfwd>
+#include <vector>
+#include <cstdarg>
+#include <gmp.h>
 
 #include "cado_poly.h"
 #include "cxx_mpz.hpp"
 #include "las-duplicate.hpp"
-#include "ecm/facul.hpp"                  // for facul_strategies_t
-#include "fb.hpp"                     // for fb_log
+#include "ecm/facul.hpp"
+#include "fb.hpp"
 #include "gmp_aux.h"
-#include "las-choose-sieve-area.hpp"  // for choose_sieve_area
-#include "las-cofactor.hpp"           // for check_leftover_norm, factor_bot...
-#include "las-coordinates.hpp"        // for convert_ab_to_ij
-#include "las-norms.hpp"              // for lognorm_smart
-#include "las-qlattice.hpp"           // for operator<<, qlattice_basis
-#include "las-siever-config.hpp"      // for siever_config::side_config, sie...
-#include "las-todo-entry.hpp"         // for las_todo_entry
-#include "macros.h"                   // for ASSERT_ALWAYS
+#include "las-choose-sieve-area.hpp"
+#include "las-cofactor.hpp"
+#include "las-coordinates.hpp"
+#include "las-norms.hpp"
+#include "las-qlattice.hpp"
+#include "las-side-config.hpp"
+#include "las-siever-config.hpp"
+#include "las-todo-entry.hpp"
+#include "macros.h"
 #include "mpz_poly.h"
-#include "relation.hpp"               // for relation
+#include "relation.hpp"
 #include "verbose.h"
 
 
@@ -329,11 +327,11 @@ sq_finds_relation(las_info const & las,
   }
 
   std::vector<std::vector<cxx_mpz>> f(nsides);
-  int const pass = factor_both_leftover_norms(cof, f,
+  facul_status const pass = factor_both_leftover_norms(cof, f,
           siever_side_config::collect_lim(conf.sides),
           *las.get_strategies(conf));
 
-  if (pass <= 0) {
+  if (pass != FACUL_SMOOTH) {
     if (talk) verbose_output_vfprint(0, VERBOSE_LEVEL, gmp_vfprintf,
         "# DUPECHECK norms not both smooth, left over factors: %Zd, %Zd\n",
         (mpz_srcptr) cof[0], (mpz_srcptr) cof[1]);

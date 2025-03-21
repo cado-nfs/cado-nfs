@@ -5,20 +5,25 @@
 #include <tuple>
 #include <utility>
 #include <vector>
-#include "facul_ecm.h"  // for ecm_parameterization_t
 
-#define PM1_METHOD 1
-#define PP1_27_METHOD 2
-#define PP1_65_METHOD 3
-#define EC_METHOD 4
-#define MPQS_METHOD 5
+#include "facul_ecm.h"  // for ecm_parameterization_t
+#include "macros.h"
+
+enum facul_method_code {
+    NO_METHOD     = 0,
+    PM1_METHOD    = 1,
+    PP1_27_METHOD = 2,
+    PP1_65_METHOD = 3,
+    EC_METHOD     = 4,
+    MPQS_METHOD   = 5,
+};
 
 struct facul_method {
-    long method = 0;    /* Which method to use (P-1, P+1 or ECM) */
+    facul_method_code method;    /* Which method to use (P-1, P+1 or ECM) */
     void *plan = nullptr;  /* Parameters for that method */
 
     struct parameters {
-        int method = 0;
+        facul_method_code method = NO_METHOD;
         unsigned long B1 = 0;
         unsigned long B2 = 0;
 
@@ -43,17 +48,19 @@ struct facul_method {
         parameters& operator=(parameters const&) = default;
         parameters& operator=(parameters &&) = default;
 
-        parameters(int method, unsigned long B1, unsigned long B2)
+        parameters(enum facul_method_code method, unsigned long B1, unsigned long B2)
             : method(method), B1(B1), B2(B2)
         {
             ASSERT_ALWAYS(method != EC_METHOD);
         }
 
-        parameters(int method, unsigned long B1, unsigned long B2, ec_parameterization_t parameterization, unsigned long parameter, int extra_primes = 1)
-            : method(method), B1(B1), B2(B2),
-            parameterization(parameterization),
-            parameter(parameter),
-            extra_primes(extra_primes)
+        parameters(enum facul_method_code method, unsigned long B1, unsigned long B2, ec_parameterization_t parameterization, unsigned long parameter, int extra_primes = 1)
+            : method(method)
+            , B1(B1)
+            , B2(B2)
+            , parameterization(parameterization)
+            , parameter(parameter)
+            , extra_primes(extra_primes)
         {
             ASSERT_ALWAYS(method == EC_METHOD);
         }
@@ -104,7 +111,7 @@ struct facul_method {
         plan = o.plan;
         method = o.method;
         o.plan = nullptr;
-        o.method = 0;
+        o.method = NO_METHOD;
     }
     facul_method& operator=(facul_method&& o) {
         std::swap(plan, o.plan);

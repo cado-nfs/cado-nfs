@@ -117,7 +117,7 @@ int main(int argc, char const * argv[])
 	tabular_fm_free(res_ch);
     } else {
 	//default values
-	int lb = -1, ub = -1, len_n = -1, method = -1;
+	int lb = -1, ub = -1, len_n = -1;
         ec_parameterization_t curve = MONTY12;
 	// {b1min, b1max, b1step, cmin, cmax, cstep}
         std::vector<int> param(6, 0);
@@ -151,6 +151,8 @@ int main(int argc, char const * argv[])
 
 	/* Extract the method and the curve\n" */
 	const char *name_fm = param_list_lookup_string(pl, "m");
+
+        facul_method_code method = NO_METHOD;
 
 	if (name_fm != nullptr) {
 	    if (strcmp(name_fm, "PM1") == 0)
@@ -201,7 +203,7 @@ int main(int argc, char const * argv[])
                    */
 	}
 
-	if (method == -1)
+	if (method == NO_METHOD)
 	    res = generate_factoring_methods
 		(state, lb, ub, len_n, opt_ch, param_sieve);
 	else {

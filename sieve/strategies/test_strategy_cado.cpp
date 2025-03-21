@@ -979,32 +979,31 @@ bench_proba_time_st(gmp_randstate_t state, facul_strategy_oneside const & strate
 
     while (nb_test < nb_test_max)
 	{
-	    /*
-	       f will contain the prime factor of N that the strategy
-	       found.  Note that N is composed by two prime factors by the
-	       previous function.
-	    */
-            int const index = select_random_index_dec(sum_dec, init_tab, state);
+            /* N is composed by two prime factors, by the previous
+             * function. Therefore, if a non trivial split was found,
+             * then the status can not be FACUL_MAYBE.  */
+            int const index = select_random_index_dec(sum_dec, init_tab,
+                    state);
             int const len_p = init_tab->tab[index]->tab[0];
 
             cxx_mpz const N = generate_composite_integer(state, len_p, r);
 
             f.clear();
             time -= microseconds();
-	    int const nfound = facul(f, N, strategy);
+	    auto const res = facul(N, strategy);
             time += microseconds();
-            nb_success += (nfound != 0);
+
+            nb_success += res.status != FACUL_MAYBE;
 	    nb_test++;
 	}
     
-    return weighted_success(nb_success, time, nb_test);
+    return { nb_success, time, nb_test };
 }
 #endif  /* COMPILE_DEAD_CODE */
 
 #ifdef COMPILE_DEAD_CODE
 //convert type: from strategy_t to facul_strategy_t.
-static facul_strategy_oneside convert_strategy_to_facul_strategy (strategy_t* t, unsigned long lim,
-						      int lpb, int side)
+static facul_strategy_oneside convert_strategy_to_facul_strategy (strategy_t* t, unsigned long lim, unsigned int lpb, int side)
 {
     tabular_fm_t* tab_fm = strategy_get_tab_fm (t);
 
@@ -1015,7 +1014,7 @@ static facul_strategy_oneside convert_strategy_to_facul_strategy (strategy_t* t,
               continue;
 
           fm_t* fm = tab_fm->tab[i];
-          int const method = (int)fm->method[0];
+          auto const method = facul_method_code(fm->method[0]);
           auto const curve = ec_parameterization_t(fm->method[1]);
           auto const B1 = fm->method[2];
           auto const B2 = fm->method[3];
@@ -1023,7 +1022,7 @@ static facul_strategy_oneside convert_strategy_to_facul_strategy (strategy_t* t,
           mps.emplace_back(
                   method, B1, B2,
                   curve,
-                  curve == MONTY16 ? 1 : 4,
+                  curve == MONTY16 ? 1UL : 4UL,
                   0     // extra_primes. It's 1 almost everywhere else, wtf?
             );
     }
@@ -1064,7 +1063,7 @@ static facul_strategies convert_strategy_to_facul_strategies (strategy_t* t,
     for (int i = 0; i < tab_fm->index; i++)
     {
         fm_t* fm = tab_fm->tab[i];
-        int const method = (int)fm->method[0];
+        auto const method = facul_method_code(fm->method[0]);
         auto const curve = ec_parameterization_t(fm->method[1]);
         auto const B1 = fm->method[2];
         auto const B2 = fm->method[3];
@@ -1120,7 +1119,6 @@ bench_proba_time_st_both(gmp_randstate_t state,
     nb_test = 0;
     time = 0;
     {
-        std::vector<cxx_mpz> f;
         while (nb_test < nb_test_max)
         {
             cxx_mpz N[2];
@@ -1129,19 +1127,12 @@ bench_proba_time_st_both(gmp_randstate_t state,
                 int const len_p = init_tab[side]->tab[index]->tab[1];
                 N[side] = generate_composite_integer(state, len_p, r[side]);
             }
-            /*
-               f will contain the prime factor of N that the strategy
-               found.  Note that N is composed by two prime factors by the
-               previous function.
-               */
-            f.clear();
+            /* N is composed by two prime factors, by the previous
+             * function. Therefore, if a non trivial split was found,
+             * then the status can not be FACUL_MAYBE.  */
             time -= microseconds();
-            int nfound = facul(f, N[0], facul_st_s0);
-            if (nfound) {
-                f.clear();
-                nfound = facul(f, N[1], facul_st_s1);
-                nb_success += (nfound != 0);
-            }
+            nb_success += facul(N[0], facul_st_s0).status != FACUL_MAYBE
+                       && facul(N[1], facul_st_s1).status != FACUL_MAYBE;
             time += microseconds();
             nb_test++;
             //getchar ();
@@ -1160,7 +1151,6 @@ bench_proba_time_st_both(gmp_randstate_t state,
     time = 0;
 
     {
-        std::vector<std::vector<cxx_mpz>> f(2);
         while (nb_test < nb_test_max)
         {
             std::vector<cxx_mpz> N(2);
@@ -1169,18 +1159,12 @@ bench_proba_time_st_both(gmp_randstate_t state,
                 int const len_p = init_tab[side]->tab[index]->tab[1];
                 N[side] = generate_composite_integer(state_copy, len_p, r[side]);
             }
-            /*
-               f will contain the prime factor of N that the strategy
-               found.  Note that N is composed by two prime factors by the
-               previous function.
-               */
-            f[0].clear();
-            f[1].clear();
+            /* N is composed by two prime factors, by the previous
+             * function. Therefore, if a non trivial split was found,
+             * then the status can not be FACUL_MAYBE.  */
             time -= microseconds();
-            int is_smooth[2] = {0,0};
-            facul_both(f, N, facul_st, is_smooth);
-            if (is_smooth[0]==1 && is_smooth[1]==1)
-                nb_success++;
+            auto const res = facul_both(N, facul_st);
+            nb_success += res[0].status == FACUL_SMOOTH && res[1].status == FACUL_SMOOTH;
             time += microseconds();
             nb_test++;
             /* printf ("[%d, %d]\n", (int)mpz_sizeinbase (N[nb_test][0], 2), */

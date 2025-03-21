@@ -5,6 +5,10 @@
 #include <stdbool.h>
 
 typedef struct fm {
+    // facul_method_code
+    // ec_parameterization_t
+    // unsigned long
+    // unsigned long
     unsigned long *method;	//contain: METHOD, CURVE, B1, B2
     double *proba;
     double *time;

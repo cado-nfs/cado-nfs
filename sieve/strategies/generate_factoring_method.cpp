@@ -170,7 +170,7 @@ generate_composite_integer_interval(gmp_randstate_t state,
 */
 
 facul_strategy_oneside
-generate_fm (int method,
+generate_fm (facul_method_code method,
         unsigned long B1,
         unsigned long B2,
         ec_parameterization_t curve)
@@ -217,9 +217,9 @@ bench_proba_fm(facul_strategy_oneside const & strategy, gmp_randstate_t state,
         if (nb_test == N.size())
             N.push_back(generate_composite_integer(state, len_p, len_n));
 
-	int const nfound = facul(f, N[nb_test], strategy);
+	auto res = facul(N[nb_test], strategy);
 
-	nb_success += (nfound != 0);
+	nb_success += res.status != FACUL_MAYBE;
 	nb_test++;
     }
 
@@ -230,14 +230,12 @@ double
 bench_time_fm_onelength(facul_strategy_oneside const & method, std::vector<cxx_mpz> & N, size_t nb_test)
 {
     double tps = 0;
-    std::vector<cxx_mpz> f;
 
     uint64_t starttime, endtime;
     starttime = microseconds();
 
     for (size_t i = 0; i < nb_test; i++) {
-        f.clear();
-	facul(f, N[i], method);
+	auto f = facul(N[i], method);
     }
     
     endtime = microseconds();
@@ -270,7 +268,7 @@ void bench_proba(gmp_randstate_t state, tabular_fm_t * fm, int len_p_min,
     for (int i = 0; i < len; i++) {
         fm_t * elem = tabular_fm_get_fm(fm, i);
         const unsigned long * param = fm_get_method(elem);
-	unsigned long const method = param[0];
+	auto const method = facul_method_code(param[0]);
 	auto const curve = (ec_parameterization_t) param[1];
 	unsigned long const B1 = param[2];
 	unsigned long const B2 = param[3];
@@ -325,7 +323,7 @@ void bench_time(gmp_randstate_t state, tabular_fm_t * fm, size_t nb_test)
     for (int i = 0; i < len; i++) {
         fm_t * elem = tabular_fm_get_fm(fm, i);
         const unsigned long * param = fm_get_method(elem);
-	unsigned long const method = param[0];
+	auto const method = facul_method_code(param[0]);
 	auto const curve = ec_parameterization_t(param[1]);
 	unsigned long const B1 = param[2];
 	unsigned long const B2 = param[3];
@@ -359,7 +357,7 @@ void bench_time(gmp_randstate_t state, tabular_fm_t * fm, size_t nb_test)
    res[5]=c_step 
    TODO: these parameters will be improved :)
 */
-int *choice_parameters(int method, int len_p_min)
+int *choice_parameters(facul_method_code method, int len_p_min)
 {
     int b1_min, b1_max, b1_step, c_min, c_max, c_step;
     if (method == PM1_METHOD ||
@@ -458,8 +456,8 @@ static weighted_success bench_proba_time_pset_onefm(facul_strategy_oneside const
         //computes the the time of execution
         f.clear();
         ASSERT_ALWAYS(nb_test < N.size());
-	int const nfound = facul(f, N[nb_test], strategy);
-        nb_succes+= (nfound != 0);
+	auto f = facul(N[nb_test], strategy);
+        nb_succes+= f.status != FACUL_MAYBE;
 	nb_test++;
     }
     endtime = microseconds();
@@ -477,7 +475,7 @@ static weighted_success bench_proba_time_pset_onefm(facul_strategy_oneside const
 */
 
 tabular_fm_t *
-bench_proba_time_pset (int method, ec_parameterization_t curve,
+bench_proba_time_pset (facul_method_code method, ec_parameterization_t curve,
                        gmp_randstate_t state, int len_p_min, int len_p_max,
                        int len_n, const int *param_region)
 {
@@ -583,7 +581,8 @@ bench_proba_time_pset (int method, ec_parameterization_t curve,
 */
 tabular_fm_t *generate_factoring_methods_mc(gmp_randstate_t state,
 					    int len_p_min, int len_p_max,
-					    int len_n, int method, ec_parameterization_t curve,
+					    int len_n, facul_method_code method,
+                                            ec_parameterization_t curve,
 					    int opt_ch,
                                             const int *param_sieve)
 {
@@ -620,7 +619,7 @@ tabular_fm_t *generate_factoring_methods(gmp_randstate_t state, int len_p_min,
     int ind_method = 0;
     int ind_curve = 0;
     ec_parameterization_t const curve[3] = {MONTY12, MONTY16, BRENT12};
-    int const method[4] = {PM1_METHOD, PP1_27_METHOD, PP1_65_METHOD, EC_METHOD};
+    facul_method_code const method[4] = {PM1_METHOD, PP1_27_METHOD, PP1_65_METHOD, EC_METHOD};
     while (ind_method < 4 && ind_curve < 3) {
 
 	printf("method = %d, curve = %d\n",

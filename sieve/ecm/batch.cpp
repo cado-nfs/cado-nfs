@@ -14,14 +14,14 @@
 #include <cstdlib>             // for free, malloc, exit, abort, realloc
 #include <cstdint>
 
-#include <exception>
-#include <iterator>            // for begin, end
-#include <list>                // for list, operator!=, _List_iterator, list...
-#include <sstream>             // for operator<<, ostringstream, basic_ostream
+#include <iterator>
+#include <list>
+#include <memory>
+#include <sstream>
 #include <stdexcept>
-#include <string>              // for basic_string
+#include <string>
 #include <utility>
-#include <vector>              // for vector
+#include <vector>
 
 #include <gmp.h>
 #include "fmt/format.h"
@@ -768,7 +768,6 @@ factor_simple_minded (std::vector<cxx_mpz> &factors,
     if (mpz_cmp_ui(cofac, 1) > 0)
         composites.emplace_back(std::move(cofac), methods.begin());
 
-    const FaculModulusBase *fm[2] = {NULL, NULL};
 
     /* This calls facul_doit_onefm repeatedly,  until there's no work
      * left.
@@ -796,7 +795,10 @@ factor_simple_minded (std::vector<cxx_mpz> &factors,
 	   facul_doit_onefm_mpz, it means fm[j] has not been set. */
 
         std::vector<cxx_mpz> temp;
-        int const nf = facul_doit_onefm (temp, n0, *pm, fm[0], fm[1], lpb, BB, BBB);
+        std::vector<std::unique_ptr<FaculModulusBase>> comp;
+
+        facul_status const nf = facul_doit_onefm (temp, n0, *pm, comp,
+                lpb, BB, BBB);
         pm++;
 
         /* Could happen if we allowed a cofactor bound after batch
@@ -809,8 +811,7 @@ factor_simple_minded (std::vector<cxx_mpz> &factors,
         /* In this case, no prime factor was stored, no composite was
          * stored: the input number has not been changed, we move on to
          * the next method */
-        if (nf == 0 && fm[0] == NULL
-	            && fm[1] == NULL) {
+        if (nf == 0 && comp.empty()) {
             composites.front().second = pm;
             continue;
         }
@@ -819,21 +820,14 @@ factor_simple_minded (std::vector<cxx_mpz> &factors,
          * cofactors found */
         composites.pop_front();
 
-        ASSERT_ALWAYS(temp.size() == (size_t) nf);
         /* temp[0..nf-1] are prime factors of n, 0 <= nf <= 2 */
-        for (int j = 0; j < nf; j++) {
-            factors.push_back(std::move(temp[j]));
-        }
+        for (auto & c : temp)
+            factors.push_back(std::move(c));
 
         /* we may also have composites */
-        for (int j = 0; j < 2; j++) {
-            if (fm[j] == NULL) continue;
-
+        for (auto & c : comp) {
             /* fm is a non-trivial composite factor */
-            cxx_mpz t;
-            fm[j]->get_z (t);
-            delete fm[j];
-            fm[j] = NULL;
+            auto t = c->get_z();
 
             /* t should be composite, i.e., t >= BB */
             ASSERT(mpz_cmp_d (t, BB) >= 0);

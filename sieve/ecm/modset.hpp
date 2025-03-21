@@ -29,12 +29,13 @@ class FaculModulusBase
     static FaculModulusBase * init_2ul2(modintredc2ul2_t const n);
     static FaculModulusBase * init_mpz(modintmpz_t const n);
 
-  virtual void get_z (mpz_t) const = 0;
-  virtual int facul_doit(std::vector<cxx_mpz> &, facul_strategy_oneside const &,
-    const int) const = 0;
-  virtual int facul_doit_onefm (std::vector<cxx_mpz> &,
-    facul_method const &, const FaculModulusBase * &,
-    const FaculModulusBase * &, unsigned long, double, double) const = 0;
+    virtual cxx_mpz get_z() const = 0;
+    virtual facul_status facul_doit_onefm(
+            std::vector<cxx_mpz> &,
+            facul_method const &,
+            std::vector<std::unique_ptr<FaculModulusBase>> &,
+            unsigned long,
+            double, double) const = 0;
     virtual int isprime() const = 0;
 };
 
@@ -46,12 +47,10 @@ class FaculModulusUl : public FaculModulusBase
     FaculModulusUl(modintredcul_t const n) { modredcul_initmod_int(m, n); }
     ~FaculModulusUl() override { modredcul_clearmod(m); }
     int isprime() const override { return modredcul_isprime(m); }
-    void get_z (mpz_t) const;
-    int facul_doit(std::vector<cxx_mpz> & factors,
-        facul_strategy_oneside const & strategy, const int method_start) const;
-    int facul_doit_onefm (std::vector<cxx_mpz> &,
-        facul_method const &, const FaculModulusBase * &,
-        const FaculModulusBase * &, unsigned long, double, double) const;
+    cxx_mpz get_z() const override;
+    facul_status facul_doit_onefm(std::vector<cxx_mpz> &, facul_method const &,
+            std::vector<std::unique_ptr<FaculModulusBase>> &,
+                         unsigned long, double, double) const override;
 };
 
 class FaculModulus15Ul : public FaculModulusBase
@@ -65,12 +64,10 @@ class FaculModulus15Ul : public FaculModulusBase
     }
     ~FaculModulus15Ul() override { modredc15ul_clearmod(m); }
     int isprime() const override { return modredc15ul_isprime(m); }
-    void get_z (mpz_t) const;
-    int facul_doit(std::vector<cxx_mpz> & factors,
-        facul_strategy_oneside const & strategy, const int method_start) const;
-    int facul_doit_onefm (std::vector<cxx_mpz> &,
-        facul_method const &, const FaculModulusBase * &,
-        const FaculModulusBase * &, unsigned long, double, double) const;
+    cxx_mpz get_z() const override;
+    facul_status facul_doit_onefm(std::vector<cxx_mpz> &, facul_method const &,
+            std::vector<std::unique_ptr<FaculModulusBase>> &,
+                         unsigned long, double, double) const override;
 };
 
 class FaculModulus2Ul2 : public FaculModulusBase
@@ -84,12 +81,10 @@ class FaculModulus2Ul2 : public FaculModulusBase
     }
     ~FaculModulus2Ul2() override { modredc2ul2_clearmod(m); }
     int isprime() const override { return modredc2ul2_isprime(m); }
-    void get_z (mpz_t) const;
-    int facul_doit(std::vector<cxx_mpz> & factors,
-        facul_strategy_oneside const & strategy, const int method_start) const;
-    int facul_doit_onefm (std::vector<cxx_mpz> &,
-        facul_method const &, const FaculModulusBase * &,
-        const FaculModulusBase * &, unsigned long, double, double)const ;
+    cxx_mpz get_z() const override;
+    facul_status facul_doit_onefm(std::vector<cxx_mpz> &, facul_method const &,
+                         std::vector<std::unique_ptr<FaculModulusBase>> &,
+                         unsigned long, double, double) const override;
 };
 
 class FaculModulusMpz : public FaculModulusBase
@@ -100,12 +95,10 @@ class FaculModulusMpz : public FaculModulusBase
     FaculModulusMpz(modintmpz_t const n) { modmpz_initmod_int(m, n); }
     ~FaculModulusMpz() override { modmpz_clearmod(m); }
     int isprime() const override { return modmpz_isprime(m); }
-    void get_z (mpz_t) const;
-    int facul_doit(std::vector<cxx_mpz> & factors,
-        facul_strategy_oneside const & strategy, const int method_start) const;
-    int facul_doit_onefm (std::vector<cxx_mpz> &,
-        facul_method const &, const FaculModulusBase * &,
-        const FaculModulusBase * &, unsigned long, double, double) const;
+    cxx_mpz get_z() const override;
+    facul_status facul_doit_onefm(std::vector<cxx_mpz> &, facul_method const &,
+                         std::vector<std::unique_ptr<FaculModulusBase>> &,
+                         unsigned long, double, double) const override;
 };
 
 #endif

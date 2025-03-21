@@ -132,90 +132,74 @@ FaculModulusBase::init_mpz (const modintmpz_t n)
   return m;
 }
 
-int FaculModulusUl::facul_doit(std::vector<cxx_mpz> & factors,
-    facul_strategy_oneside const & strategy, const int method_start) const
-{
-    return ::facul_doit (factors, m, strategy, method_start);
-}
-
-int FaculModulusUl::facul_doit_onefm (std::vector<cxx_mpz> & factors,
-    facul_method const & method, const FaculModulusBase * &fm,
-    const FaculModulusBase * &cfm, unsigned long lpb, double assume_prime_thresh,
+facul_status FaculModulusUl::facul_doit_onefm (std::vector<cxx_mpz> & factors,
+    facul_method const & method,
+    std::vector<std::unique_ptr<FaculModulusBase>> & composites,
+    unsigned long lpb, double assume_prime_thresh,
     double BBB) const
 {
-    return ::facul_doit_onefm (factors, m, method, fm, cfm, lpb,
+    return ::facul_doit_onefm (factors, m, method, composites, lpb,
         assume_prime_thresh, BBB);
 }
 
-void
-FaculModulusUl::get_z (mpz_t z) const
+cxx_mpz
+FaculModulusUl::get_z () const
 {
-    mpz_set_ui (z, m->m);
+    return { m->m };
 }
 
-int FaculModulus15Ul::facul_doit(std::vector<cxx_mpz> & factors, 
-    facul_strategy_oneside const & strategy, const int method_start) const
-{
-    return ::facul_doit (factors, m, strategy, method_start);
-}
-
-int FaculModulus15Ul::facul_doit_onefm (std::vector<cxx_mpz> & factors,
-    facul_method const & method, const FaculModulusBase * &fm,
-    const FaculModulusBase * &cfm, unsigned long lpb, double assume_prime_thresh,
+facul_status FaculModulus15Ul::facul_doit_onefm (std::vector<cxx_mpz> & factors,
+    facul_method const & method,
+    std::vector<std::unique_ptr<FaculModulusBase>> & composites,
+    unsigned long lpb, double assume_prime_thresh,
     double BBB) const
 {
-    return ::facul_doit_onefm (factors, m, method, fm, cfm, lpb,
+    return ::facul_doit_onefm (factors, m, method, composites, lpb,
         assume_prime_thresh, BBB);
 }
 
-void
-FaculModulus15Ul::get_z (mpz_t z) const
+cxx_mpz
+FaculModulus15Ul::get_z () const
 {
+    cxx_mpz z;
     mpz_set_ui (z, m->m[1]);
     mpz_mul_2exp (z, z, ULONG_BITS);
     mpz_add_ui (z, z, m->m[0]);
+    return z;
 }
 
-int FaculModulus2Ul2::facul_doit(std::vector<cxx_mpz> & factors, 
-    facul_strategy_oneside const & strategy, const int method_start) const
-{
-    return ::facul_doit (factors, m, strategy, method_start);
-}
-
-int FaculModulus2Ul2::facul_doit_onefm (std::vector<cxx_mpz> & factors,
-    facul_method const & method, const FaculModulusBase * &fm,
-    const FaculModulusBase * &cfm, unsigned long lpb, double assume_prime_thresh,
+facul_status FaculModulus2Ul2::facul_doit_onefm (std::vector<cxx_mpz> & factors,
+    facul_method const & method,
+    std::vector<std::unique_ptr<FaculModulusBase>> & composites,
+    unsigned long lpb, double assume_prime_thresh,
     double BBB) const
 {
-    return ::facul_doit_onefm (factors, m, method, fm, cfm, lpb,
+    return ::facul_doit_onefm (factors, m, method, composites, lpb,
         assume_prime_thresh, BBB);
 }
 
-void
-FaculModulus2Ul2::get_z (mpz_t z) const
+cxx_mpz
+FaculModulus2Ul2::get_z () const
 {
+    cxx_mpz z;
     mpz_set_ui (z, m->m[1]);
     mpz_mul_2exp (z, z, ULONG_BITS);
     mpz_add_ui (z, z, m->m[0]);
+    return z;
 }
 
-int FaculModulusMpz::facul_doit(std::vector<cxx_mpz> & factors, 
-    facul_strategy_oneside const & strategy, const int method_start) const
-{
-    return ::facul_doit (factors, m, strategy, method_start);
-}
-
-int FaculModulusMpz::facul_doit_onefm (std::vector<cxx_mpz> & factors,
-    facul_method const & method, const FaculModulusBase * &fm,
-    const FaculModulusBase * &cfm, unsigned long lpb, double assume_prime_thresh,
+facul_status FaculModulusMpz::facul_doit_onefm (std::vector<cxx_mpz> & factors,
+    facul_method const & method,
+    std::vector<std::unique_ptr<FaculModulusBase>> & composites,
+    unsigned long lpb, double assume_prime_thresh,
     double BBB) const
 {
-    return ::facul_doit_onefm (factors, m, method, fm, cfm, lpb,
+    return ::facul_doit_onefm (factors, m, method, composites, lpb,
         assume_prime_thresh, BBB);
 }
 
-void
-FaculModulusMpz::get_z (mpz_t z) const
+cxx_mpz
+FaculModulusMpz::get_z () const
 {
-    mpz_set (z, m);
+    return { m };
 }

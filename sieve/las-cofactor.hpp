@@ -3,15 +3,19 @@
 
 // IWYU pragma: no_include <ext/alloc_traits.h>
 
-#include <cstdint>               // for uint32_t
-#include <cstdio>                // for FILE, NULL
-#include <mutex>                  // for mutex
-#include <vector>                 // for vector
-#include <gmp.h>                  // for mpz_sizeinbase
-#include "cxx_mpz.hpp"  // for cxx_mpz
-#include "ecm/facul.hpp"          // for facul_make_strategies, facul_strate...
-#include "las-siever-config.hpp"  // for siever_config::side_config, siever_...
-#include "params.h"     // param_list_ptr
+#include <cstdio>
+#include <cstdint>
+
+#include <mutex>
+#include <vector>
+
+#include <gmp.h>
+
+#include "cxx_mpz.hpp"
+#include "ecm/facul.hpp"
+#include "las-siever-config.hpp"
+#include "params.h"
+#include "ecm/facul_strategies.hpp"
 
 class cofactorization_statistics {
     /* We rarely use this, if ever. Do we want to generalize this at all?
@@ -50,8 +54,8 @@ public:
 
 int check_leftover_norm (cxx_mpz const & n, siever_side_config const & sc);
 
-int factor_both_leftover_norms(
-        std::vector<cxx_mpz> & norms,
+facul_status factor_both_leftover_norms(
+        std::vector<cxx_mpz> const & norms,
         std::vector<std::vector<cxx_mpz>> &,
         std::vector<unsigned long> const &,
         facul_strategies const &);
