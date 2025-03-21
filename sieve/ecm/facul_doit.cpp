@@ -28,6 +28,7 @@
 #include "cxx_mpz.hpp"
 #include "mod_ul.h"
 #include "macros.h"
+#include "utils_cxx.hpp"
 
 #ifdef ENABLE_UNSAFE_FACUL_STATS
 extern unsigned long stats_called[];
@@ -58,19 +59,6 @@ modset_init (modint_t m)
   return FaculModulusBase::MOD_APPEND_TYPE(init)(m);
 }
 
-struct wrapped_modint_t {
-    modint_t n;
-    // NOLINTBEGIN(hicpp-use-equals-default,modernize-use-equals-default)
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
-    explicit wrapped_modint_t() { mod_intinit(n); }
-    ~wrapped_modint_t() { mod_intclear(n); }
-    // NOLINTEND(hicpp-use-equals-default,modernize-use-equals-default)
-    wrapped_modint_t(wrapped_modint_t const &) = delete;
-    wrapped_modint_t(wrapped_modint_t &&) = delete;
-    wrapped_modint_t& operator=(wrapped_modint_t const &) = delete;
-    wrapped_modint_t& operator=(wrapped_modint_t &&) = delete;
-};
-
 /*****************************************************************************/
 /*                       STRATEGY BOOK                                       */
 /*****************************************************************************/
@@ -96,35 +84,39 @@ facul_status facul_doit_onefm(std::vector<cxx_mpz> & factors,
 {
     ASSERT_ALWAYS(composites.empty());
 
-    wrapped_modint_t n;
-    wrapped_modint_t f;
+    modint_t n;
+    modint_t f;
+    mod_intinit(n);
+    mod_intinit(f);
+    auto dt_n = call_dtor([&](){mod_intclear(n);});
+    auto dt_f = call_dtor([&](){mod_intclear(f);});
     int bt;
 
-    mod_getmod_int (n.n, m);
-    mod_intset_ul (f.n, 1UL);
+    mod_getmod_int (n, m);
+    mod_intset_ul (f, 1UL);
 
     switch(method.method) {
         case PM1_METHOD:
-            bt = pm1 (f.n, m, (pm1_plan_t *) (method.plan));
+            bt = pm1 (f, m, (pm1_plan_t *) (method.plan));
             break;
         case PP1_27_METHOD:
-            bt = pp1_27 (f.n, m, (pp1_plan_t *) (method.plan));
+            bt = pp1_27 (f, m, (pp1_plan_t *) (method.plan));
             break;
         case PP1_65_METHOD:
-            bt = pp1_65 (f.n, m, (pp1_plan_t *) (method.plan));
+            bt = pp1_65 (f, m, (pp1_plan_t *) (method.plan));
             break;
         case EC_METHOD:
-            bt = ecm (f.n, m, (ecm_plan_t *) (method.plan));
+            bt = ecm (f, m, (ecm_plan_t *) (method.plan));
             break;
         case MPQS_METHOD:
-            bt = mpqs (f.n, m);
+            bt = mpqs (f, m);
             break;
         case NO_METHOD:
             ASSERT_ALWAYS(0);
     }
 
 
-    if (mod_intequal_ul (f.n, 1UL)) {
+    if (mod_intequal_ul (f, 1UL)) {
         if (bt == 0)
             /* No factor found, no backtracking... this was a simple miss. */
             return FACUL_MAYBE;
@@ -136,7 +128,7 @@ facul_status facul_doit_onefm(std::vector<cxx_mpz> & factors,
              * discover the factors yet. TODO. For now, just continue to
              * the next method. */
             return FACUL_MAYBE;
-    } else if (mod_intequal (f.n, n.n)) {
+    } else if (mod_intequal (f, n)) {
 #ifdef ENABLE_UNSAFE_FACUL_STATS
         if (stats_current_index < STATS_LEN)
             stats_found_n[stats_current_index]++;
@@ -156,25 +148,25 @@ facul_status facul_doit_onefm(std::vector<cxx_mpz> & factors,
        large for our smoothness bounds */
   
     /* A quick test if the factor is <= fbb^2 and >2^lpb */
-    double f_dbl = mod_intget_double (f.n);
+    double f_dbl = mod_intget_double (f);
     bool fprime = f_dbl < BB;
-    if (fprime && mod_intbits (f.n) > lpb)
+    if (fprime && mod_intbits (f) > lpb)
         /* A prime > 2^lpb, not smooth */
         return FACUL_NOT_SMOOTH;
-    else if (2 * lpb < mod_intbits (f.n) && f_dbl < BBB)
+    else if (2 * lpb < mod_intbits (f) && f_dbl < BBB)
         /* if L^2 < f < B^3, it cannot be smooth */
         return FACUL_NOT_SMOOTH;
 
     /* Compute the cofactor */
-    mod_intdivexact (n.n, n.n, f.n);
+    mod_intdivexact (n, n, f);
 
     /* Do the same tests, and see if the cofactor is something non smooth
      */
-    double n_dbl = mod_intget_double (n.n);
+    double n_dbl = mod_intget_double (n);
     bool cfprime = n_dbl < BB;
-    if (cfprime && mod_intbits (n.n) > lpb)
+    if (cfprime && mod_intbits (n) > lpb)
         return FACUL_NOT_SMOOTH;
-    else if (2 * lpb < mod_intbits (n.n) && n_dbl < BBB)
+    else if (2 * lpb < mod_intbits (n) && n_dbl < BBB)
         return FACUL_NOT_SMOOTH;
 
     /* At this point, if fprime or cfprime are false, it means that the
@@ -189,18 +181,18 @@ facul_status facul_doit_onefm(std::vector<cxx_mpz> & factors,
 
     std::unique_ptr<FaculModulusBase> fm;
     if (!fprime) {
-        fm.reset(modset_init(f.n));
+        fm.reset(modset_init(f));
         fprime = fm->isprime ();
-        if (fprime && mod_intbits (f.n) > lpb)
+        if (fprime && mod_intbits (f) > lpb)
             return FACUL_NOT_SMOOTH;
     }
 
     std::unique_ptr<FaculModulusBase> cfm;
 
     if (!cfprime) {
-        cfm.reset(modset_init(n.n));
+        cfm.reset(modset_init(n));
         cfprime = cfm->isprime();
-        if (cfprime && mod_intbits (n.n) > lpb)
+        if (cfprime && mod_intbits (n) > lpb)
             return FACUL_NOT_SMOOTH;
     }
 
@@ -208,13 +200,13 @@ facul_status facul_doit_onefm(std::vector<cxx_mpz> & factors,
        or is composite */
 
     if (fprime) {
-        factors.emplace_back(mod_intget_cxx_mpz(f.n));
+        factors.emplace_back(mod_intget_cxx_mpz(f));
     } else {
         composites.emplace_back(std::move(fm));
     }
 
     if (cfprime) {
-        factors.emplace_back(mod_intget_cxx_mpz(n.n));
+        factors.emplace_back(mod_intget_cxx_mpz(n));
     } else {
         composites.emplace_back(std::move(cfm));
     }
