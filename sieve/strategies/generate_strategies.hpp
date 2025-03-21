@@ -1,17 +1,13 @@
-#ifndef GENERATE_STRATEGIES_H
-#define GENERATE_STRATEGIES_H
+#ifndef GENERATE_STRATEGIES_HPP
+#define GENERATE_STRATEGIES_HPP
 
-#include "tab_decomp.h"
-#include "tab_strategy.h"
-#include "tab_point.h"
-#include "decomp.h"
-#include "fm.h"
-#include "tab_fm.h"
-#include "strategy.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "tab_decomp.hpp"
+#include "tab_strategy.hpp"
+#include "tab_point.hpp"
+#include "decomp.hpp"
+#include "fm.hpp"
+#include "tab_fm.hpp"
+#include "strategy.hpp"
 
 /************************************************************************/
 /*                      COLLECT DATA FOR ONLY ONE COFACTOR              */
@@ -51,16 +47,11 @@ tabular_strategy_t ***generate_matrix(const char *name_directory_decomp,
 /*                      CONVEX_HULL_ST                                  */
 /************************************************************************/
 
-tabular_point_t *convert_tab_point_to_tab_strategy(tabular_strategy_t * t);
+tabular_point convert_tab_point_to_tab_strategy(tabular_strategy_t * t);
 
-tabular_strategy_t *convert_tab_strategy_to_tab_point(tabular_point_t * t,
-						      tabular_strategy_t *
-						      init);
+tabular_strategy_t *convert_tab_strategy_to_tab_point(tabular_point const & t,
+						      tabular_strategy_t * init);
 
 tabular_strategy_t *convex_hull_strategy(tabular_strategy_t * t);
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif				/* GENERATE_STRATEGIES_H */
+#endif				/* GENERATE_STRATEGIES_HPP */

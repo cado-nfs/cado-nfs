@@ -1,25 +1,26 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <limits.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <climits>
 
 #include <regex.h>
 
-#include "decomp.h"
-#include "tab_decomp.h"
+#include "decomp.hpp"
+#include "tab_decomp.hpp"
 #include "macros.h"
+#include "utils_cxx.hpp"
 
 tabular_decomp_t *tabular_decomp_create(void)
 {
-    tabular_decomp_t *t = malloc(sizeof(*t));
+    auto * t = (tabular_decomp_t *) malloc(sizeof(tabular_decomp_t));
     ASSERT_ALWAYS(t != NULL);
 
     t->index = 0;
-    t->size = 2;
+    t->alloc = 2;
 
-    t->tab = malloc(t->size * sizeof(decomp_t *));
+    t->tab = (decomp_t **) malloc(t->alloc * sizeof(decomp_t *));
     ASSERT_ALWAYS(t->tab != NULL);
 
     return t;
@@ -38,13 +39,13 @@ void tabular_decomp_free(tabular_decomp_t * t)
 
 void tabular_decomp_realloc(tabular_decomp_t * t)
 {
-    CHECKED_REALLOC(t->tab, t->size * 2, decomp_t *);
-    t->size *= 2;
+    checked_realloc(t->tab, t->alloc * 2);
+    t->alloc *= 2;
 }
 
 void tabular_decomp_add(tabular_decomp_t * t, unsigned int len, unsigned int *tab, double nb_elem)
 {
-    if (t->index >= t->size)
+    if (t->index >= t->alloc)
 	tabular_decomp_realloc(t);
     t->tab[t->index] = decomp_create(len, tab, nb_elem);
     t->index++;
@@ -92,20 +93,20 @@ static decomp_t *analyse_line(char *line)
     //process the ligne
     const char *str_process = &line[0];
     const int len_max = 10;
-    char **res = malloc(sizeof(*res) * len_max);
+    char **res = (char **) malloc(sizeof(*res) * len_max);
     unsigned int ind_res = UINT_MAX;
     while (str_process[0] != '\0') {
 	//printf ("line-->'%s'\n", str_process);
 	/*TEST REGULAR EXPRESSION  'preg_decomp */
 	size_t nmatch = 2;
-	regmatch_t *pmatch = calloc(nmatch, sizeof(*pmatch));
+	regmatch_t *pmatch = (regmatch_t *) calloc(nmatch, sizeof(*pmatch));
 	regexec(&preg_decomp, str_process, nmatch, pmatch, 0);
 	if (pmatch[0].rm_so != pmatch[0].rm_eo) {
 	    int start = pmatch[1].rm_so;
 	    int end = pmatch[1].rm_eo;
 	    if (start != -1) {
 		int size = end - start;
-		char *el = malloc(sizeof(*el) * (size + 1));
+		char *el = (char *) malloc(sizeof(*el) * (size + 1));
 		ASSERT_ALWAYS(el != NULL);
 		strncpy(el, &str_process[start], size);
 		el[size] = '\0';
@@ -123,7 +124,7 @@ static decomp_t *analyse_line(char *line)
     decomp_t *dec = NULL;
     //create decomp_t* dec
     if (ind_res != UINT_MAX) {
-	unsigned int * tab = malloc(ind_res * sizeof(unsigned int));
+	unsigned int * tab = (unsigned int *) malloc(ind_res * sizeof(unsigned int));
 	for (unsigned int i = 0; i < ind_res; i++) {
             int z = atoi(res[i]);
             ASSERT_ALWAYS(z >= 0);

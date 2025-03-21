@@ -1,18 +1,13 @@
-#ifndef TAB_DECOMP_H
-#define TAB_DECOMP_H
+#ifndef TAB_DECOMP_HPP
+#define TAB_DECOMP_HPP
 
-#include <stdio.h>
-#include "decomp.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
+#include <cstdio>
+#include "decomp.hpp"
 
 typedef struct tabular_decomp {
     decomp_t **tab;
     int index;
-    int size;
+    int alloc;
 } tabular_decomp_t;
 
 tabular_decomp_t *tabular_decomp_create();
@@ -36,8 +31,4 @@ int tabular_decomp_print(tabular_decomp_t * t);
 
 tabular_decomp_t *tabular_decomp_fscan(FILE * file);
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif				/* TAB_DECOMP_H */
+#endif				/* TAB_DECOMP_HPP */

@@ -5,13 +5,13 @@
 #include <cfloat>
 #include <cstdio>
 
-#include "convex_hull.h"
+#include "convex_hull.hpp"
 #include "facul_method.hpp"
-#include "generate_strategies.h"
+#include "generate_strategies.hpp"
 #include "macros.h"
 #include "modredc_ul.h"
-#include "point.h"
-#include "tab_point.h"
+#include "point.hpp"
+#include "tab_point.hpp"
 #include "utils_cxx.hpp"
 
 
@@ -155,7 +155,7 @@ static void
 tabular_strategy_add_strategy_without_zero(tabular_strategy_t * t,
 					   strategy_t * strategy)
 {
-    if (t->index >= t->size)
+    if (t->index >= t->alloc)
 	tabular_strategy_realloc(t);
 
     strategy_t *elem = strategy_create();
@@ -559,35 +559,30 @@ tabular_strategy_t ***generate_matrix(const char *name_directory_decomp,
   compute the convex hull of a set of strategies.
  */
 
-tabular_point_t *convert_tab_point_to_tab_strategy(tabular_strategy_t * t)
+tabular_point convert_tab_point_to_tab_strategy(tabular_strategy_t * t)
 {
-    tabular_point_t *res = tabular_point_create();
+    tabular_point res;
     strategy_t *elem;
     for (int i = 0; i < t->index; i++) {
 	elem = t->tab[i];
-	tabular_point_add(res, i, elem->proba, elem->time);
+	res.emplace_back(i, elem->proba, elem->time);
     }
     return res;
 }
 
-tabular_strategy_t *convert_tab_strategy_to_tab_point(tabular_point_t * t,
+tabular_strategy_t *convert_tab_strategy_to_tab_point(tabular_point const & t,
 						      tabular_strategy_t * init)
 {
     tabular_strategy_t *res = tabular_strategy_create();
-    int const len = tabular_point_get_index(t);
-    for (int i = 0; i < len; i++) {
-	int const index = point_get_number(tabular_point_get_point(t, i));
-	tabular_strategy_add_strategy(res, init->tab[index]);
+    for (auto const & p : t) {
+	tabular_strategy_add_strategy(res, init->tab[p.number]);
     }
     return res;
 }
 
 tabular_strategy_t *convex_hull_strategy(tabular_strategy_t * t)
 {
-    tabular_point_t *tmp = convert_tab_point_to_tab_strategy(t);
-    tabular_point_t *res = convex_hull(tmp);
+    tabular_point res = convex_hull(convert_tab_point_to_tab_strategy(t));
     tabular_strategy_t *res_strat = convert_tab_strategy_to_tab_point(res, t);
-    tabular_point_free(tmp);
-    tabular_point_free(res);
     return res_strat;
 }

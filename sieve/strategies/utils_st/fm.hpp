@@ -1,8 +1,7 @@
-#ifndef CADO_FM_H
-#define CADO_FM_H
+#ifndef CADO_FM_HPP
+#define CADO_FM_HPP
 
-#include <stdio.h>
-#include <stdbool.h>
+#include <cstdio>
 
 typedef struct fm {
     // facul_method_code
@@ -66,4 +65,4 @@ int fm_fprint(FILE * output_file, fm_t * t);
 }
 #endif
 
-#endif				/* CADO_FM_H */
+#endif				/* CADO_FM_HPP */

@@ -1,20 +1,17 @@
-#ifndef TAB_STRATEGY_H
-#define TAB_STRATEGY_H
+#ifndef TAB_STRATEGY_HPP
+#define TAB_STRATEGY_HPP
 
-#include <stdio.h> // FILE
-#include "strategy.h"
+#include <cstdio> // FILE
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "strategy.hpp"
 
 typedef struct tabular_strategy {
     strategy_t **tab;
     int index;
-    int size;
+    int alloc;
 } tabular_strategy_t;
 
-tabular_strategy_t *tabular_strategy_create(void);
+tabular_strategy_t *tabular_strategy_create();
 
 void tabular_strategy_free(tabular_strategy_t * t);
 
@@ -40,8 +37,4 @@ int tabular_strategy_print(tabular_strategy_t * t);
 
 tabular_strategy_t* tabular_strategy_fscan (FILE* file);
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif				/* TAB_STRATEGY_H */
+#endif				/* TAB_STRATEGY_HPP */

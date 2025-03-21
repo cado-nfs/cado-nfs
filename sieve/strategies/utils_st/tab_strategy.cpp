@@ -1,23 +1,23 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 
 #include "macros.h"
-#include "tab_strategy.h"
-#include "strategy.h"
-#include "fm.h" // fm_t
-
+#include "tab_strategy.hpp"
+#include "strategy.hpp"
+#include "fm.hpp"
+#include "utils_cxx.hpp"
 
 tabular_strategy_t *tabular_strategy_create(void)
 {
-    tabular_strategy_t *t = malloc(sizeof(tabular_strategy_t));
+    tabular_strategy_t *t = (tabular_strategy_t *) malloc(sizeof(tabular_strategy_t));
     ASSERT_ALWAYS(t != NULL);
 
     t->index = 0;
-    t->size = 2;
+    t->alloc = 2;
 
-    t->tab = malloc(t->size * sizeof(strategy_t *));
+    t->tab = (strategy_t **) malloc(t->alloc * sizeof(strategy_t *));
     ASSERT_ALWAYS(t->tab != NULL);
 
     return t;
@@ -36,8 +36,8 @@ void tabular_strategy_free(tabular_strategy_t * t)
 
 void tabular_strategy_realloc(tabular_strategy_t * t)
 {
-    CHECKED_REALLOC(t->tab, t->size * 2, strategy_t *);
-    t->size *= 2;
+    checked_realloc(t->tab, t->alloc * 2);
+    t->alloc *= 2;
 }
 
 tabular_strategy_t *tabular_strategy_copy(tabular_strategy_t * t)
@@ -64,7 +64,7 @@ strategy_t *tabular_strategy_get_strategy(tabular_strategy_t * t, int index)
 void
 tabular_strategy_add_strategy(tabular_strategy_t * t, strategy_t * strategy)
 {
-    if (t->index >= t->size)
+    if (t->index >= t->alloc)
 	tabular_strategy_realloc(t);
     strategy_t *elem = strategy_copy(strategy);
     t->tab[t->index] = elem;

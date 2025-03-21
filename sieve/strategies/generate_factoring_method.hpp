@@ -2,13 +2,16 @@
 #define GENERATE_FACTORING_METHOD_HPP
 
 #include <cstdio>
+
 #include <vector>
+
 #include <gmp.h>
+
 #include "cxx_mpz.hpp"
 #include "facul.hpp"
 #include "facul_ecm.h"
-#include "tab_fm.h"
-#include "tab_point.h"
+#include "tab_fm.hpp"
+#include "tab_point.hpp"
 
 /************************************************************************/
 /*                      To generate numbers n=pq*/
@@ -90,9 +93,9 @@ tabular_fm_t *filtering(tabular_fm_t * fm, int final_nb_methods);
 /*                      CONVEX_HULL_FM                                  */
 /************************************************************************/
 
-tabular_point_t *convert_tab_point_to_tab_fm(tabular_fm_t * t);
+tabular_point convert_tab_point_to_tab_fm(tabular_fm_t * t);
 
-tabular_fm_t *convert_tab_fm_to_tab_point(tabular_point_t * t,
+tabular_fm_t *convert_tab_fm_to_tab_point(tabular_point const & t,
 					  tabular_fm_t * init);
 
 tabular_fm_t *convex_hull_fm(tabular_fm_t * t);

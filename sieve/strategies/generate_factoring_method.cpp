@@ -4,24 +4,21 @@
 #include <climits>
 #include <cmath>
 #include <cstdint>
-#include <cstdlib>
 #include <cstdio>
-#include <climits>      // ULONG_MAX // IWYU pragma: keep
+#include <cstdlib>
+
 #include <gmp.h>
-#include "convex_hull.h"
+
+#include "convex_hull.hpp"
 #include "cxx_mpz.hpp"
 #include "facul.hpp"
-#include "facul_fwd.hpp"
 #include "facul_ecm.h"
-#include "fm.h"
+#include "fm.hpp"
 #include "generate_factoring_method.hpp"
 #include "macros.h"
 #include "modredc_ul.h" // MODREDCUL_MAXBITS
 #include "modredc_15ul.h" // MODREDC15UL_MAXBITS
 #include "modredc_2ul2.h" // MODREDC2UL2_MAXBITS
-#include "pm1.h"
-#include "pp1.h"
-#include "point.h"      // point_t
 #include "timing.h"  // microseconds
 
 /*
@@ -835,36 +832,29 @@ tabular_fm_t *filtering(tabular_fm_t * tab, int final_nb_methods)
   to compute the convex hull of a set of factoring methods.
  */
 
-tabular_point_t *convert_tab_point_to_tab_fm(tabular_fm_t * t)
+tabular_point convert_tab_point_to_tab_fm(tabular_fm_t * t)
 {
-    tabular_point_t *res = tabular_point_create();
+    tabular_point res;
     int const len = tabular_fm_get_index(t);
-    fm_t *elem;
     for (int i = 0; i < len; i++) {
-	elem = tabular_fm_get_fm(t, i);
-	tabular_point_add(res, i, elem->proba[0], elem->time[0]);
+        fm_t * elem = tabular_fm_get_fm(t, i);
+	res.emplace_back(i, elem->proba[0], elem->time[0]);
     }
     return res;
 }
 
-tabular_fm_t *convert_tab_fm_to_tab_point(tabular_point_t * t,
+tabular_fm_t *convert_tab_fm_to_tab_point(tabular_point const & t,
 					  tabular_fm_t * init)
 {
     tabular_fm_t *res = tabular_fm_create();
-    int const len = tabular_point_get_index(t);
-    for (int i = 0; i < len; i++) {
-	int const index = point_get_number(tabular_point_get_point(t, i));
-	tabular_fm_add_fm(res, init->tab[index]);
-    }
+    for (auto const & p : t)
+	tabular_fm_add_fm(res, init->tab[p.number]);
     return res;
 }
 
 tabular_fm_t *convex_hull_fm(tabular_fm_t * t)
 {
-    tabular_point_t *tmp = convert_tab_point_to_tab_fm(t);
-    tabular_point_t *res = convex_hull(tmp);
+    tabular_point res = convex_hull(convert_tab_point_to_tab_fm(t));
     tabular_fm_t *res_fm = convert_tab_fm_to_tab_point(res, t);
-    tabular_point_free(tmp);
-    tabular_point_free(res);
     return res_fm;
 }

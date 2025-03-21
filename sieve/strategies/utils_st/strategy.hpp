@@ -1,13 +1,10 @@
-#ifndef STRATEGY_H
-#define STRATEGY_H
+#ifndef STRATEGY_HPP
+#define STRATEGY_HPP
 
-#include <stdio.h> // FILE
-#include "fm.h" // fm_t
-#include "tab_fm.h"
+#include <cstdio>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "fm.hpp"
+#include "tab_fm.hpp"
 
 /* TODO: kill this! This is just the same as an array of
  * facul_parameters_with_side. Okay, with timings. We can subclass.
@@ -47,8 +44,4 @@ int strategy_fprint(FILE * file, strategy_t * t);
 
 int strategy_print(strategy_t * t);
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif				/* STRATEGY_H */
+#endif				/* STRATEGY_HPP */

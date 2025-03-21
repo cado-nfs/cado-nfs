@@ -1,12 +1,12 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 
-#include "finding_good_strategy.h"
-#include "params.h"     // param_list
-#include "strategy.h"
-#include "tab_strategy.h"
+#include "finding_good_strategy.hpp"
+#include "params.h"
+#include "strategy.hpp"
+#include "tab_strategy.hpp"
 #include "macros.h"
 
 /************************************************************************/

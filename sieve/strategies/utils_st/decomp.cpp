@@ -1,15 +1,18 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdio.h>
-#include <stdlib.h>
+
+#include <cstdio>
+#include <cstdlib>
+
 #include "macros.h"
-#include "decomp.h"
+#include "decomp.hpp"
+#include "utils_cxx.hpp"
 
 decomp_t *decomp_create(unsigned int len, const unsigned int *tab, double nb_elem)
 {
-    decomp_t *t = malloc(sizeof(*t));
+    auto * t = (decomp_t *) malloc(sizeof(decomp_t));
     ASSERT_ALWAYS(t != NULL);
     t->len = len;
-    t->tab = malloc(t->len * sizeof(unsigned int));
+    t->tab = (unsigned int *) malloc(t->len * sizeof(unsigned int));
     ASSERT_ALWAYS(t->tab != NULL);
     for (unsigned int i = 0; i < t->len; i++)
 	t->tab[i] = tab[i];
@@ -44,7 +47,7 @@ unsigned int decomp_get_len(decomp_t * t)
 void decomp_set_decomp(decomp_t * t, const unsigned int *tab, unsigned int len)
 {
     t->len = len;
-    CHECKED_REALLOC(t->tab, t->len, unsigned int);
+    checked_realloc(t->tab, t->len);
     for (unsigned int i = 0; i < t->len; i++)
 	t->tab[i] = tab[i];
 }

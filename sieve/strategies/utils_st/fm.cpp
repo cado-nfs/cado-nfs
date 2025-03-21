@@ -1,22 +1,24 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include "fm.h"
-#include "macros.h"
 
-fm_t *fm_create(void)
+#include <cstdio>
+#include <cstdlib>
+
+#include "fm.hpp"
+#include "macros.h"
+#include "utils_cxx.hpp"
+
+fm_t *fm_create()
 {
-    fm_t *t = malloc(sizeof(*t));
+    fm_t *t = (fm_t *) malloc(sizeof(*t));
     ASSERT_ALWAYS(t != NULL);
     t->len_method = 4;
     t->len_proba = 1;
     t->len_time = 1;
-    t->method = calloc(t->len_method, sizeof(unsigned long));
+    t->method = (unsigned long *)  calloc(t->len_method, sizeof(unsigned long));
     ASSERT_ALWAYS(t->method != NULL);
-    t->proba = calloc(t->len_proba, sizeof(double));
+    t->proba = (double *) calloc(t->len_proba, sizeof(double));
     ASSERT_ALWAYS(t->proba != NULL);
-    t->time = calloc(t->len_time, sizeof(double));
+    t->time = (double *) calloc(t->len_time, sizeof(double));
     ASSERT_ALWAYS(t->time != NULL);
     t->len_p_min = 0;
     return t;
@@ -71,7 +73,7 @@ unsigned int fm_get_len_p_min(fm_t * t)
 void fm_set_method(fm_t * t, const unsigned long *value, unsigned int len)
 {
     if (len != t->len_method) {	//realloc
-        CHECKED_REALLOC(t->method, len, unsigned long);
+        checked_realloc(t->method, len);
 	t->len_method = len;
     }
 
@@ -83,7 +85,7 @@ void fm_set_proba(fm_t * t, const double *value, unsigned int len, unsigned int 
 {
     t->len_p_min = len_p_min;
     if (len != t->len_proba) {	//realloc
-	CHECKED_REALLOC(t->proba, len, double);
+	checked_realloc(t->proba, len);
 	t->len_proba = len;
     }
 
@@ -97,7 +99,7 @@ void fm_set_time(fm_t * t, const double *value, unsigned int len)
 	return;
 
     if (len != t->len_time) {	//realloc
-	CHECKED_REALLOC(t->time, len, double);
+	checked_realloc(t->time, len);
 	t->len_time = len;
     }
 

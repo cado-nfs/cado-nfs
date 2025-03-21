@@ -1,5 +1,4 @@
 #include "cado.h" // IWYU pragma: keep
-
 /*
   This binary allows to test our procedure choosing optimal
   strategies. In fact, using the strategy of CADO, we can use it to
@@ -26,24 +25,24 @@
 #include <gmp.h>
 
 #include "cxx_mpz.hpp"  // cxx_mpz
-#include "decomp.h"     // decomp_t
+#include "decomp.hpp"     // decomp_t
 #include "facul.hpp"
 #include "facul_ecm.h"
 #include "facul_method.hpp"
 #include "facul_strategies.hpp"
-#include "finding_good_strategy.h"
-#include "fm.h" // fm_t fm_set_method
+#include "finding_good_strategy.hpp"
+#include "fm.hpp" // fm_t fm_set_method
 #include "generate_factoring_method.hpp"
-#include "generate_strategies.h"
+#include "generate_strategies.hpp"
 #include "gmp_aux.h"
 #include "macros.h"
 #include "misc.h"   // u64_random  // IWYU: keep
 #include "modredc_ul.h" // MODREDCUL_MAXBITS
 #include "params.h"     // param_list
-#include "strategy.h"                     // for strategy_t, strategy_add_fm
-#include "tab_decomp.h"
-#include "tab_fm.h"
-#include "tab_strategy.h"
+#include "strategy.hpp"                     // for strategy_t, strategy_add_fm
+#include "tab_decomp.hpp"
+#include "tab_fm.hpp"
+#include "tab_strategy.hpp"
 #include "timing.h"  // microseconds
 // #include "facul_fwd.hpp"
 // #include "pm1.h"

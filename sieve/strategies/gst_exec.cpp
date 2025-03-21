@@ -7,14 +7,14 @@
 
 #include "facul_ecm.h"
 #include "facul_method.hpp"
-#include "fm.h"
-#include "gen_decomp.h"
-#include "generate_strategies.h"
+#include "fm.hpp"
+#include "gen_decomp.hpp"
+#include "generate_strategies.hpp"
 #include "macros.h"
 #include "params.h" // param_list
-#include "tab_decomp.h"
-#include "tab_fm.h"
-#include "tab_strategy.h"
+#include "tab_decomp.hpp"
+#include "tab_fm.hpp"
+#include "tab_strategy.hpp"
 
 /************************************************************************/
 /*                            USAGE                                     */

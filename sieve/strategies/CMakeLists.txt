@@ -3,9 +3,9 @@ include_directories (../ecm)
 include_directories (${CMAKE_CURRENT_BINARY_DIR})
 
 set (SUF_UTILS utils_st/)
-set (SRC_UTILS ${SUF_UTILS}point.c ${SUF_UTILS}tab_point.c
-    ${SUF_UTILS}convex_hull.c ${SUF_UTILS}fm.c ${SUF_UTILS}tab_fm.cpp
-    ${SUF_UTILS}strategy.c ${SUF_UTILS}tab_strategy.c)
+set (SRC_UTILS
+    ${SUF_UTILS}convex_hull.cpp ${SUF_UTILS}fm.cpp ${SUF_UTILS}tab_fm.cpp
+    ${SUF_UTILS}strategy.cpp ${SUF_UTILS}tab_strategy.cpp)
 
 set (LIB_EXEC m facul utils)
 
@@ -18,25 +18,25 @@ target_link_libraries(benchfm ${LIB_EXEC})
 add_executable(gst 
   gst_exec.cpp
   generate_strategies.cpp
-  gen_decomp.c
-  ${SUF_UTILS}/decomp.c
-  ${SUF_UTILS}/tab_decomp.c
+  gen_decomp.cpp
+  ${SUF_UTILS}/decomp.cpp
+  ${SUF_UTILS}/tab_decomp.cpp
   ${SRC_UTILS})
 
 target_link_libraries(gst ${LIB_EXEC})
 
 add_executable(finalst 
-  final_exec.c
+  final_exec.cpp
   finding_good_strategy.cpp
   ${SRC_UTILS})
 
 target_link_libraries(finalst ${LIB_EXEC})
 
 add_executable(gen_decomp
-  test_gen_decomp.c
-  gen_decomp.c
-  ${SUF_UTILS}/decomp.c
-  ${SUF_UTILS}/tab_decomp.c)
+  test_gen_decomp.cpp
+  gen_decomp.cpp
+  ${SUF_UTILS}/decomp.cpp
+  ${SUF_UTILS}/tab_decomp.cpp)
 
 if(MINGW)
     target_link_libraries(gen_decomp gnurx m utils)

@@ -9,11 +9,11 @@
 #include "facul_ecm.h"
 #include "facul.hpp"
 #include "facul_method.hpp"
-#include "fm.h" // fm_t
-#include "tab_fm.h" // tabular_fm_t
-#include "tab_strategy.h"
-#include "finding_good_strategy.h"
-#include "strategy.h"
+#include "fm.hpp" // fm_t
+#include "tab_fm.hpp" // tabular_fm_t
+#include "tab_strategy.hpp"
+#include "finding_good_strategy.hpp"
+#include "strategy.hpp"
 #include "macros.h"
 
 //#define STATS 

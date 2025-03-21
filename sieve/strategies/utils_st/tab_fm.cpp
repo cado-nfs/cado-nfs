@@ -5,7 +5,7 @@
 
 #include "facul_method.hpp"
 #include "macros.h"
-#include "tab_fm.h"
+#include "tab_fm.hpp"
 #include "utils_cxx.hpp"
 
 static const double EPSILON_DBL = 0.000001;
@@ -16,9 +16,9 @@ tabular_fm_t *tabular_fm_create(void)
     ASSERT_ALWAYS(t != nullptr);
 
     t->index = 0;
-    t->size = 2;
+    t->alloc = 2;
 
-    t->tab = (fm_t **) malloc(t->size * sizeof(fm_t *));
+    t->tab = (fm_t **) malloc(t->alloc * sizeof(fm_t *));
     ASSERT_ALWAYS(t->tab != nullptr);
 
     return t;
@@ -28,7 +28,7 @@ void tabular_fm_free(tabular_fm_t * t)
 {
     if (t != nullptr)
 	{
-	    for (int i = 0; i < t->index; i++)	//size
+	    for (int i = 0; i < t->index; i++)
 		fm_free(t->tab[i]);
 	    free(t->tab);
 	    free(t);
@@ -37,8 +37,8 @@ void tabular_fm_free(tabular_fm_t * t)
 
 void tabular_fm_realloc(tabular_fm_t * t)
 {
-    checked_realloc(t->tab, t->size * 2);
-    t->size *= 2;
+    checked_realloc(t->tab, t->alloc * 2);
+    t->alloc *= 2;
 }
 
 int tabular_fm_get_index(tabular_fm_t * t)
@@ -72,7 +72,7 @@ tabular_fm_set_index(tabular_fm_t * t, unsigned long *method, int len_method,
 		     double *proba, int len_proba, double *time, int len_time,
 		     int len_p_min, int ind)
 {
-    if (ind >= t->size)
+    if (ind >= t->alloc)
 	tabular_fm_realloc(t);
 
     if (ind >= t->index) {

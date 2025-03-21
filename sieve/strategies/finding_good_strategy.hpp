@@ -1,18 +1,13 @@
-#ifndef FINDING_GOOD_STRATEGY_H
-#define FINDING_GOOD_STRATEGY_H
+#ifndef FINDING_GOOD_STRATEGY_HPP
+#define FINDING_GOOD_STRATEGY_HPP
 
-#include <stdio.h>
-#include "strategy.h" // strategy_t
-#include "tab_strategy.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
+#include <cstdio>
+#include "strategy.hpp"
+#include "tab_strategy.hpp"
 
 tabular_strategy_t ***extract_matrix_strat(const char *pathname_st,
-					   const int len_abs,
-					   const int len_ord);
+					   int len_abs,
+					   int len_ord);
 
 unsigned long **extract_matrix_C(FILE * file, int len_abs, int len_ord);
 
@@ -26,10 +21,6 @@ void strategy_fprint_design(FILE * output_file, const strategy_t * t);
 
 int
 fprint_final_strategy(FILE * file, strategy_t *** matrix_strat_res,
-		      const int len_abs, const int len_ord);
+		      int len_abs, int len_ord);
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif				/* FINDING_GOOD_STRATEGY_H */
+#endif				/* FINDING_GOOD_STRATEGY_HPP */

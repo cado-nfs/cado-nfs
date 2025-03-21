@@ -5,7 +5,7 @@
 #include <ctime>
 #include <gmp.h>
 
-#include "tab_fm.h"     // tabular_fm_free
+#include "tab_fm.hpp"     // tabular_fm_free
 #include "generate_factoring_method.hpp"
 #include "params.h"     // param_list
 

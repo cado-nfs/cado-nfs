@@ -1,11 +1,7 @@
-#ifndef DECOMP_H
-#define DECOMP_H
+#ifndef DECOMP_HPP
+#define DECOMP_HPP
 
-#include <stdio.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <cstdio>
 
 typedef struct decomp {
     unsigned int *tab;
@@ -32,8 +28,4 @@ int decomp_fprint(FILE * output_file, decomp_t * t);
 
 int decomp_print(decomp_t * t);
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif				/* DECOMP_H */
+#endif				/* DECOMP_HPP */

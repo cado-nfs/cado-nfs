@@ -1,25 +1,17 @@
-#ifndef TAB_FM_H
-#define TAB_FM_H
+#ifndef TAB_FM_HPP
+#define TAB_FM_HPP
 
-#include <stdio.h>
-#ifndef __cplusplus
-#include <stdbool.h>
-#endif
+#include <cstdio>
 
-#include "fm.h"
+#include "fm.hpp"
 
 typedef struct tabular_fm {
     fm_t **tab;
     int index;
-    int size;
+    int alloc;
 } tabular_fm_t;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-
-tabular_fm_t *tabular_fm_create(void);
+tabular_fm_t *tabular_fm_create();
 
 void tabular_fm_free(tabular_fm_t * t);
 
@@ -69,7 +61,4 @@ void fm_swap(tabular_fm_t * t, int index1, int index2);
 //according to the probabilities!
 void tabular_fm_sort(tabular_fm_t * t);
 
-#ifdef __cplusplus
-}
-#endif
-#endif				/* TAB_FM_H */
+#endif				/* TAB_FM_HPP */

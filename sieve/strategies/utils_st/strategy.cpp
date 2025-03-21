@@ -1,16 +1,17 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
+
+#include <cstdio>
+#include <cstdlib>
 
 #include "macros.h"
-#include "strategy.h"
-#include "fm.h"
-#include "tab_fm.h"
+#include "strategy.hpp"
+#include "fm.hpp"
+#include "tab_fm.hpp"
+#include "utils_cxx.hpp"
 
 strategy_t *strategy_create()
 {
-    strategy_t *t = malloc(sizeof(strategy_t));
+    strategy_t *t = (strategy_t *) malloc(sizeof(strategy_t));
     ASSERT_ALWAYS (t != NULL);
     t->tab_fm = tabular_fm_create();
     t->proba = 0;
@@ -65,11 +66,11 @@ void strategy_add_fm_side(strategy_t * t, fm_t * elem, int side)
     tabular_fm_add_fm(t->tab_fm, elem);
     if (t->side == NULL) {
 	t->len_side = t->tab_fm->index;
-	t->side = calloc(t->len_side, sizeof(int));
+	t->side = (int *) calloc(t->len_side, sizeof(int));
 	ASSERT(t->side != NULL);
     } else {
 	t->len_side++;
-        CHECKED_REALLOC(t->side, t->len_side, int);
+        checked_realloc(t->side, t->len_side);
     }
     t->side[t->len_side - 1] = side;
 }
@@ -83,7 +84,7 @@ strategy_t *strategy_copy(strategy_t * t)
     //side
     if (t->side != NULL) {
 	elem->len_side = t->len_side;
-	elem->side = malloc(sizeof(int) * (elem->len_side));
+	elem->side = (int *) malloc(sizeof(int) * (elem->len_side));
 	for (int i = 0; i < elem->len_side; i++)
 	    elem->side[i] = t->side[i];
     }
