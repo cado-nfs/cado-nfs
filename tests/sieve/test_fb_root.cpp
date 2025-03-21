@@ -609,6 +609,24 @@ bug20200225 ()
         if (rref != r127)
             print_error_and_exit(p, Rab, r127, rref, basis, 127);
     }
+
+    {
+        fbprime_t const p = 4273;
+        constexpr size_t nroots = 3;
+        std::array<fbroot_t, nroots> const Rab { 3698, 3454, 827 };
+        uint64_t const invp = 3379283887;
+        qlattice_basis const basis {
+            -22223178967276, 82882403, -2164021285451, -27018774,
+        };
+        std::array<fbroot_t, nroots> Rt {};
+        const bool t = fb_root_in_qlattice_127bits_batch(Rt.data(), p, Rab.data(), invp, basis, nroots);
+        ASSERT_ALWAYS(t);
+        for(size_t i = 0 ; i < nroots ; i++) {
+            auto rref = ref_fb_root_in_qlattice (p, Rab[i], basis);
+            if (rref.proj || rref.r != Rt[i])
+                print_error_and_exit(p, Rab[i], Rt[i], rref, basis, 127);
+        }
+    }
 }
 
 /* The usual tests command line parameters "-seed" and "-iter" are accepted.
