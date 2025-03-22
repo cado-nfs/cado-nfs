@@ -8,12 +8,12 @@ typedef struct fm {
     // ec_parameterization_t
     // unsigned long
     // unsigned long
-    unsigned long *method;	//contain: METHOD, CURVE, B1, B2
-    double *proba;
-    double *time;
-    unsigned int len_method;		//lenght of the method (default:4)
-    unsigned int len_proba;		//index of array proba 
-    unsigned int len_time;		//index of array time
+    unsigned long * method; // contain: METHOD, CURVE, B1, B2
+    double * proba;
+    double * time;
+    unsigned int len_method; // lenght of the method (default:4)
+    unsigned int len_proba;  // index of array proba
+    unsigned int len_time;   // index of array time
     unsigned int len_p_min;
     /*
        The prime number such that : proba[i] equals to the probability
@@ -25,15 +25,15 @@ typedef struct fm {
 extern "C" {
 #endif
 
-fm_t *fm_create(void);
+fm_t * fm_create(void);
 
 void fm_free(fm_t * t);
 
-const unsigned long *fm_get_method(fm_t * t);
+unsigned long const * fm_get_method(fm_t * t);
 
-const double *fm_get_proba(fm_t * t);
+double const * fm_get_proba(fm_t * t);
 
-const double *fm_get_time(fm_t * t);
+double const * fm_get_time(fm_t * t);
 
 unsigned int fm_get_len_method(fm_t * t);
 
@@ -43,17 +43,18 @@ unsigned int fm_get_len_time(fm_t * t);
 
 unsigned int fm_get_len_p_min(fm_t * t);
 
-void fm_set_method(fm_t * t, const unsigned long *value, unsigned int len);
+void fm_set_method(fm_t * t, unsigned long const * value, unsigned int len);
 
-void fm_set_proba(fm_t * t, const double *value, unsigned int len, unsigned int len_p_min);
+void fm_set_proba(fm_t * t, double const * value, unsigned int len,
+                  unsigned int len_p_min);
 
-void fm_set_time(fm_t * t, const double *value, unsigned int len);
+void fm_set_time(fm_t * t, double const * value, unsigned int len);
 
 void fm_put_zero(fm_t * t);
 
 bool fm_is_zero(fm_t * t);
 
-fm_t *fm_copy(fm_t * t);
+fm_t * fm_copy(fm_t * t);
 
 int fm_is_equal(fm_t * c1, fm_t * c2);
 
@@ -65,4 +66,4 @@ int fm_fprint(FILE * output_file, fm_t * t);
 }
 #endif
 
-#endif				/* CADO_FM_HPP */
+#endif /* CADO_FM_HPP */

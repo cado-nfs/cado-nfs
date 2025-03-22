@@ -7,4 +7,4 @@ struct point {
     double y;
 };
 
-#endif				/* POINT_HPP */
+#endif /* POINT_HPP */

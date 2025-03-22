@@ -1,29 +1,28 @@
 #include "cado.h" // IWYU pragma: keep
 
+#include <climits>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <climits>
 
 #include <regex.h>
 
-#include <stdexcept>
 #include <ios>
+#include <stdexcept>
 
 #include "decomp.hpp"
-#include "tab_decomp.hpp"
 #include "macros.h"
+#include "tab_decomp.hpp"
 #include "utils_cxx.hpp"
 
-
-std::ostream& operator<<(std::ostream& os, tabular_decomp const & t)
+std::ostream & operator<<(std::ostream & os, tabular_decomp const & t)
 {
-    for(auto const & D : t)
+    for (auto const & D: t)
         os << D << "\n";
     return os;
 }
 
-std::istream& operator>>(std::istream& is, tabular_decomp &)
+std::istream & operator>>(std::istream & is, tabular_decomp &)
 {
     throw std::runtime_error("not implemented");
     is.setstate(std::ios::failbit);
