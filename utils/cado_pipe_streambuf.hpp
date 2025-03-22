@@ -1,5 +1,5 @@
-#ifndef CADO_PIPE_STREAMBUF_HPP_
-#define CADO_PIPE_STREAMBUF_HPP_
+#ifndef CADO_PIPE_STREAMBUF_HPP
+#define CADO_PIPE_STREAMBUF_HPP
 
 #include <ios>
 #include "fd_streambuf.hpp"
@@ -19,4 +19,4 @@ class cado_pipe_streambuf : public fd_streambuf {
 };
 
 
-#endif	/* CADO_PIPE_STREAMBUF_HPP_ */
+#endif	/* CADO_PIPE_STREAMBUF_HPP */

@@ -1,5 +1,5 @@
-#ifndef CADO_UTILS_POLYNOMIAL_HPP_
-#define CADO_UTILS_POLYNOMIAL_HPP_
+#ifndef CADO_UTILS_POLYNOMIAL_HPP
+#define CADO_UTILS_POLYNOMIAL_HPP
 
 /* This defines polynomial over arbitrary types, provided that these have
  * standard operator overloads defined. A priori we want to instantiate
@@ -963,4 +963,4 @@ namespace fmt {
 }
 
 
-#endif	/* CADO_UTILS_POLYNOMIAL_HPP_ */
+#endif	/* CADO_UTILS_POLYNOMIAL_HPP */

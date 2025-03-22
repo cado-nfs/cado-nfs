@@ -1,5 +1,5 @@
-#ifndef UTILS_CADO_MATH_AUX_HPP_
-#define UTILS_CADO_MATH_AUX_HPP_
+#ifndef CADO_UTILS_CADO_MATH_AUX_HPP
+#define CADO_UTILS_CADO_MATH_AUX_HPP
 
 #include <cstdint>
 #include <cmath>
@@ -172,4 +172,4 @@ namespace cado_math_aux
 }
 
 
-#endif	/* UTILS_CADO_MATH_AUX_HPP_ */
+#endif	/* CADO_UTILS_CADO_MATH_AUX_HPP */

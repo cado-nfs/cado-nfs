@@ -1,5 +1,5 @@
-#ifndef UTILS_ISTREAM_MATCHER_HPP_
-#define UTILS_ISTREAM_MATCHER_HPP_
+#ifndef CADO_UTILS_ISTREAM_MATCHER_HPP
+#define CADO_UTILS_ISTREAM_MATCHER_HPP
 
 #include <string>
 #include <istream>
@@ -58,4 +58,4 @@ basic_istream_matcher<CharT, Traits> &operator >>(basic_istream_matcher<CharT, T
     return is;
 }
 
-#endif	/* UTILS_ISTREAM_MATCHER_HPP_ */
+#endif	/* CADO_UTILS_ISTREAM_MATCHER_HPP */

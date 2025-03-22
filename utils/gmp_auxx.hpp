@@ -1,5 +1,5 @@
-#ifndef GMP_AUXX_HPP_
-#define GMP_AUXX_HPP_
+#ifndef CADO_GMP_AUXX_HPP
+#define CADO_GMP_AUXX_HPP
 
 #include <type_traits>
 #include <gmp.h>

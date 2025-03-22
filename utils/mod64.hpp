@@ -1,8 +1,8 @@
 /* A class for modular arithmetic with residues and modulus of up to 64
  * bits. */
 
-#ifndef MOD64_HPP
-#define MOD64_HPP
+#ifndef CADO_MOD64_HPP
+#define CADO_MOD64_HPP
 
 /**********************************************************************/
 #include <cstdint>
@@ -227,4 +227,4 @@ protected:
   bool find_minus1 (Residue &r1, const Residue &minusone, const int po2) const;
 };
 
-#endif  /* MOD64_HPP */
+#endif  /* CADO_MOD64_HPP */

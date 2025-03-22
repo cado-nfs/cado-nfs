@@ -1,5 +1,5 @@
-#ifndef UTILS_RANDOM_DISTRIBUTIONS_HPP_
-#define UTILS_RANDOM_DISTRIBUTIONS_HPP_
+#ifndef CADO_UTILS_RANDOM_DISTRIBUTIONS_HPP
+#define CADO_UTILS_RANDOM_DISTRIBUTIONS_HPP
 
 #include <cstdio>
 
@@ -105,4 +105,4 @@ struct punched_interval {
         double x);
 };
 
-#endif	/* UTILS_RANDOM_DISTRIBUTIONS_HPP_ */
+#endif	/* CADO_UTILS_RANDOM_DISTRIBUTIONS_HPP */

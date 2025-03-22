@@ -1,5 +1,5 @@
-#ifndef BLOCKMATRIX_HPP_
-#define BLOCKMATRIX_HPP_
+#ifndef CADO_BLOCKMATRIX_HPP
+#define CADO_BLOCKMATRIX_HPP
 
 #include <stddef.h>             // for NULL
 #include <stdint.h>             // for uint64_t
@@ -234,4 +234,4 @@ struct blockmatrix {
 #define FLAT_BYTES_WITH_READAHEAD(nr, nc) \
     iceildiv((nr), 64) * iceildiv((nc), 64) * sizeof(mat64)
 
-#endif	/* BLOCKMATRIX_HPP_ */
+#endif	/* CADO_BLOCKMATRIX_HPP */

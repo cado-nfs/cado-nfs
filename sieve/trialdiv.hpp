@@ -1,5 +1,5 @@
-#ifndef TRIALDIV_HPP_
-#define TRIALDIV_HPP_
+#ifndef CADO_TRIALDIV_HPP
+#define CADO_TRIALDIV_HPP
 
 #include <cstddef>   // for size_t
 #include <cstdint>   // for uint64_t, SIZE_MAX
@@ -67,4 +67,4 @@ struct trialdiv_data : public std::vector<trialdiv_divisor_t>
 #endif
 
 
-#endif	/* TRIALDIV_HPP_ */
+#endif	/* CADO_TRIALDIV_HPP */

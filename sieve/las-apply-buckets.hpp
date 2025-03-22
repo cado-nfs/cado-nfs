@@ -1,5 +1,5 @@
-#ifndef LAS_APPLY_BUCKETS_HPP_
-#define LAS_APPLY_BUCKETS_HPP_
+#ifndef CADO_LAS_APPLY_BUCKETS_HPP
+#define CADO_LAS_APPLY_BUCKETS_HPP
 
 #include "cado_config.h"
 
@@ -180,4 +180,4 @@ void apply_one_bucket<logphint_t>(unsigned char * S,
 }
 /* }}} */
 
-#endif /* LAS_APPLY_BUCKETS_HPP_ */
+#endif /* CADO_LAS_APPLY_BUCKETS_HPP */

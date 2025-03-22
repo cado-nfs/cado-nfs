@@ -1,5 +1,5 @@
-#ifndef LAS_TODO_LIST_HPP_
-#define LAS_TODO_LIST_HPP_
+#ifndef CADO_LAS_TODO_LIST_HPP
+#define CADO_LAS_TODO_LIST_HPP
 
 #include <cstdint>            // for uint64_t, UINT64_MAX
 #include <cstdio>             // for FILE, NULL, size_t
@@ -111,4 +111,4 @@ class las_todo_list : private std::stack<las_todo_entry> {
 };
 
 
-#endif	/* LAS_TODO_LIST_HPP_ */
+#endif	/* CADO_LAS_TODO_LIST_HPP */

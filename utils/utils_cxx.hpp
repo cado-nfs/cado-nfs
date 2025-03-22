@@ -1,5 +1,5 @@
-#ifndef UTILS_CXX_HPP_
-#define UTILS_CXX_HPP_
+#ifndef CADO_UTILS_CXX_HPP
+#define CADO_UTILS_CXX_HPP
 
 #include <cstdio>
 #include <cstdlib>
@@ -401,4 +401,4 @@ struct decomposed_path : public std::vector<std::string> {
     std::string extension() const;
 };
 
-#endif	/* UTILS_CXX_HPP_ */
+#endif	/* CADO_UTILS_CXX_HPP */

@@ -1,5 +1,5 @@
-#ifndef LAS_UNSIEVE_HPP_
-#define LAS_UNSIEVE_HPP_
+#ifndef CADO_LAS_UNSIEVE_HPP
+#define CADO_LAS_UNSIEVE_HPP
 
 #include "cado_config.h"
 #include <stdint.h>
@@ -111,4 +111,4 @@ void search_survivors_in_line_sse2_oneside(unsigned char * const SS,
         std::vector<uint32_t> &survivors);
 #endif
 
-#endif	/* LAS_UNSIEVE_HPP_ */
+#endif	/* CADO_LAS_UNSIEVE_HPP */

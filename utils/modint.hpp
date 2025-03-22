@@ -1,5 +1,5 @@
-#ifndef MODINT_HPP
-#define MODINT_HPP
+#ifndef CADO_MODINT_HPP
+#define CADO_MODINT_HPP
 
 #include <cassert>
 #include <iostream>

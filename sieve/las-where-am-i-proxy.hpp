@@ -1,5 +1,5 @@
-#ifndef LAS_WHERE_AM_I_PROXY_HPP_
-#define LAS_WHERE_AM_I_PROXY_HPP_
+#ifndef CADO_LAS_WHERE_AM_I_PROXY_HPP
+#define CADO_LAS_WHERE_AM_I_PROXY_HPP
 
 #include <memory>
 #include <stdlib.h>
@@ -41,4 +41,4 @@ struct where_am_I {
  * why not go for it ? */
 int extern_trace_on_spot_ab(int64_t a, uint64_t b);
 
-#endif	/* LAS_WHERE_AM_I_PROXY_HPP_ */
+#endif	/* CADO_LAS_WHERE_AM_I_PROXY_HPP */

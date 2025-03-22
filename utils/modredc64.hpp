@@ -3,8 +3,8 @@
    reduction after multiplication is done with REDC. Due to inlining,
    this file must be included in the caller's source code with #include */
 
-#ifndef MODREDC64_HPP
-#define MODREDC64_HPP
+#ifndef CADO_MODREDC64_HPP
+#define CADO_MODREDC64_HPP
 
 /**********************************************************************/
 #include <cstdlib>       // for size_t, llabs, NULL
@@ -292,4 +292,4 @@ public:
 protected:
     bool find_minus1 (Residue &r1, const Residue &minusone, int po2) const;
 };
-#endif  /* MODREDC64_HPP */
+#endif  /* CADO_MODREDC64_HPP */

@@ -1,5 +1,5 @@
-#ifndef LAS_WHERE_AM_I_DEBUG_HPP_
-#define LAS_WHERE_AM_I_DEBUG_HPP_
+#ifndef CADO_LAS_WHERE_AM_I_DEBUG_HPP
+#define CADO_LAS_WHERE_AM_I_DEBUG_HPP
 
 // IWYU pragma: private, include "las-where-am-i.hpp"
 
@@ -112,4 +112,4 @@ static inline int trace_on_spot_ij(int i, unsigned int j) {
 void sieve_increase_logging(unsigned char *S, const unsigned char logp, where_am_I const & w);
 void sieve_increase(unsigned char *S, const unsigned char logp, where_am_I const & w);
 
-#endif	/* LAS_WHERE_AM_I_DEBUG_HPP_ */
+#endif	/* CADO_LAS_WHERE_AM_I_DEBUG_HPP */

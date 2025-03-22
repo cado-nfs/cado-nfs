@@ -1,5 +1,5 @@
-#ifndef MPN_COMPILE_TIME_HPP_
-#define MPN_COMPILE_TIME_HPP_
+#ifndef CADO_MPN_COMPILE_TIME_HPP
+#define CADO_MPN_COMPILE_TIME_HPP
 
 #include <stddef.h>
 #include <gmp.h>
@@ -161,4 +161,4 @@ namespace mpn_compile_time {
 }
 
 
-#endif	/* MPN_COMPILE_TIME_HPP_ */
+#endif	/* CADO_MPN_COMPILE_TIME_HPP */

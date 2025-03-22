@@ -1,5 +1,5 @@
-#ifndef MODREDC126_HPP
-#define MODREDC126_HPP
+#ifndef CADO_MODREDC126_HPP
+#define CADO_MODREDC126_HPP
 
 /* Some functions for modular arithmetic with modulus in [2^64+1, 2^126-1].
    Moduli must be odd. Residues are stored in Montgomery form, reduction
@@ -753,4 +753,4 @@ protected:
 };
 
 
-#endif  /* MODREDC126_HPP */
+#endif  /* CADO_MODREDC126_HPP */

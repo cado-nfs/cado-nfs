@@ -1,5 +1,5 @@
-#ifndef RENUMBER_HPP_
-#define RENUMBER_HPP_
+#ifndef CADO_RENUMBER_HPP
+#define CADO_RENUMBER_HPP
 
 #include <climits>
 #include <cstddef>
@@ -352,5 +352,5 @@ public:
     const_iterator begin() const;
     const_iterator end() const;
 };
-#endif /* RENUMBER_HPP_ */
+#endif /* CADO_RENUMBER_HPP */
 

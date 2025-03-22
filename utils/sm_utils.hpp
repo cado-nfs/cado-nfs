@@ -1,5 +1,5 @@
-#ifndef SM_UTILS_HPP_
-#define SM_UTILS_HPP_
+#ifndef CADO_SM_UTILS_HPP
+#define CADO_SM_UTILS_HPP
 
 /* Which SMs are used ?
  * There have been several choices during time. We keep track of the old
@@ -187,4 +187,4 @@ void print_sm (FILE *f, sm_side_info const & S, mpz_poly_srcptr SM);
 void print_sm2 (FILE *f, sm_side_info const & S, mpz_poly_srcptr SM, const char * delim);
 
 
-#endif /* SM_UTILS_HPP_ */
+#endif /* CADO_SM_UTILS_HPP */

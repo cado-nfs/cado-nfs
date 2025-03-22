@@ -1,5 +1,5 @@
-#ifndef LAS_FORWARDTYPES_HPP_
-#define LAS_FORWARDTYPES_HPP_
+#ifndef CADO_LAS_FORWARDTYPES_HPP
+#define CADO_LAS_FORWARDTYPES_HPP
 
 #include <cstdint>
 

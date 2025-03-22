@@ -1,5 +1,5 @@
-#ifndef MOD_STDOP_HPP
-#define MOD_STDOP_HPP
+#ifndef CADO_MOD_STDOP_HPP
+#define CADO_MOD_STDOP_HPP
 
 /* Functions for residues. Slow and clean
   This class extends the Residue type of an existing Modulus type by adding
@@ -133,4 +133,4 @@ public:
   int jacobi() const {return m.jacobi(*this);}
 };
 
-#endif /* MOD_STDOP_HPP */
+#endif /* CADO_MOD_STDOP_HPP */

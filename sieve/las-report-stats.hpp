@@ -1,5 +1,5 @@
-#ifndef LAS_REPORT_STATS_HPP_
-#define LAS_REPORT_STATS_HPP_
+#ifndef CADO_LAS_REPORT_STATS_HPP
+#define CADO_LAS_REPORT_STATS_HPP
 
 #include <cstring> // for memset, size_t
 #include <exception>
@@ -172,4 +172,4 @@ struct coarse_las_timers
 #define TIMER_CATEGORY(timer, cat) /**/
 #endif
 
-#endif /* LAS_REPORT_STATS_HPP_ */
+#endif /* CADO_LAS_REPORT_STATS_HPP */

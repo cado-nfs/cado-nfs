@@ -1,5 +1,5 @@
-#ifndef UTILS_COEFF_PROXY_HPP_
-#define UTILS_COEFF_PROXY_HPP_
+#ifndef CADO_UTILS_COEFF_PROXY_HPP
+#define CADO_UTILS_COEFF_PROXY_HPP
 
 /* This is typically used in polynomial types, at least those that have:
  *      typedef P::coefficient_type
@@ -44,4 +44,4 @@ namespace cado_details {
 }
 
 
-#endif	/* UTILS_COEFF_PROXY_HPP_ */
+#endif	/* CADO_UTILS_COEFF_PROXY_HPP */

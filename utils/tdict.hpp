@@ -1,5 +1,5 @@
-#ifndef TDICT_HPP_
-#define TDICT_HPP_
+#ifndef CADO_TDICT_HPP
+#define CADO_TDICT_HPP
 
 #include <cstddef>   // for NULL
 #include <cstdint>
@@ -672,4 +672,4 @@ namespace tdict {
 
 #endif
 
-#endif	/* TDICT_HPP_ */
+#endif	/* CADO_TDICT_HPP */

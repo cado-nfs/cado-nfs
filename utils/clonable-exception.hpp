@@ -1,5 +1,5 @@
-#ifndef CLONABLE_EXCEPTION_HPP_
-#define CLONABLE_EXCEPTION_HPP_
+#ifndef CADO_CLONABLE_EXCEPTION_HPP
+#define CADO_CLONABLE_EXCEPTION_HPP
 
 #include <exception>
 
@@ -8,4 +8,4 @@ struct clonable_exception : public std::exception {
 };
 
 
-#endif	/* CLONABLE_EXCEPTION_HPP_ */
+#endif	/* CADO_CLONABLE_EXCEPTION_HPP */

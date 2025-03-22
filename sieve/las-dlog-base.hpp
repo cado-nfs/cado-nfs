@@ -1,5 +1,5 @@
-#ifndef LAS_DLOG_BASE_HPP_
-#define LAS_DLOG_BASE_HPP_
+#ifndef CADO_LAS_DLOG_BASE_HPP
+#define CADO_LAS_DLOG_BASE_HPP
 
 #include <vector>    // for vector
 #include "cado_poly.h"   // cxx_cado_poly
@@ -27,4 +27,4 @@ public:
 
 };
 
-#endif	/* LAS_DLOG_BASE_HPP_ */
+#endif	/* CADO_LAS_DLOG_BASE_HPP */

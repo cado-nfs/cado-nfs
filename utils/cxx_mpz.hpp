@@ -1,5 +1,5 @@
-#ifndef CXX_MPZ_HPP_
-#define CXX_MPZ_HPP_
+#ifndef CADO_CXX_MPZ_HPP
+#define CADO_CXX_MPZ_HPP
 
 #include <cstdlib>
 
@@ -243,4 +243,4 @@ namespace fmt {
     template <> struct formatter<cxx_mpq>: ostream_formatter {};
 }
 
-#endif	/* CXX_MPZ_HPP_ */
+#endif	/* CADO_CXX_MPZ_HPP */
