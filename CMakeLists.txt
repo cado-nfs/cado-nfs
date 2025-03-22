@@ -253,11 +253,18 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Intel")
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "AppleClang" OR CMAKE_HOST_SYSTEM_NAME
         STREQUAL "Darwin" AND CMAKE_CXX_COMPILER_ID MATCHES "Clang" )
     # Not the slightest idea when apple's clang became c++11-compliant.
-    if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "15.0.0")
+    # c++20 is for apple clang 16.0.0
+    if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "16.0.0")
         set (CMAKE_CXX_FLAGS   "-std=c++20 ${CMAKE_CXX_FLAGS}")
         set(HAVE_CXX11 1)
         set(HAVE_CXX20 1)
         message(STATUS "Enabling C++20 support")
+    elseif (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "15.0.0")
+        # vector::emplace_back + aggregate initialization fail with apple
+        # clang 15.
+        set (CMAKE_CXX_FLAGS   "-std=c++11 ${CMAKE_CXX_FLAGS}")
+        set(HAVE_CXX11 1)
+        message(STATUS "Enabling C++11 support")
     elseif (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "6.0.0")
         set (CMAKE_CXX_FLAGS   "-std=c++11 ${CMAKE_CXX_FLAGS}")
         set (HAVE_CXX11 1)
