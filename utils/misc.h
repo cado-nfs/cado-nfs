@@ -1,5 +1,5 @@
-#ifndef CADO_UTILS_MISC_H_
-#define CADO_UTILS_MISC_H_
+#ifndef CADO_UTILS_MISC_H
+#define CADO_UTILS_MISC_H
 
 #include "cado_config.h"  // for HAVE_GCC_STYLE_AMD64_INLINE_ASM, ULONGLONG_...
 #include <stddef.h>
@@ -405,4 +405,4 @@ template < typename _Tp > class pagealigned_allocator {
 std::vector<std::pair<cxx_mpz, int> > trial_division(cxx_mpz const& n0, unsigned long B, cxx_mpz & cofactor);
 #endif
 
-#endif	/* CADO_UTILS_MISC_H_ */
+#endif	/* CADO_UTILS_MISC_H */

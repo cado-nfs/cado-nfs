@@ -1,5 +1,5 @@
-#ifndef MODREDC_2UL2_DEFAULT_H_
-#define MODREDC_2UL2_DEFAULT_H_
+#ifndef CADO_MODREDC_2UL2_DEFAULT_H
+#define CADO_MODREDC_2UL2_DEFAULT_H
 
 #include "modredc_2ul2.h"
 
@@ -48,4 +48,4 @@
    implementations for 2UL2 and 2ul2. Maybe there's a prettier way */
 #undef mod_divn
 #define mod_divn modredc2ul2_divn
-#endif	/* MODREDC_2UL2_DEFAULT_H_ */
+#endif	/* CADO_MODREDC_2UL2_DEFAULT_H */

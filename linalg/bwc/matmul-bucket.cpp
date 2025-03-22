@@ -1868,7 +1868,7 @@ void builder<Arith>::do_all_huge_slices(uint32_t * p_i0, unsigned int imax, unsi
 #if defined(COMPRESS_COMBINERS_1) || \
     defined(COMPRESS_COMBINERS_2) || \
     defined(COMPRESS_COMBINERS_4)
-#ifdef MATMUL_SUB_VSC_COMBINE_H_
+#ifdef CADO_MATMUL_SUB_VSC_COMBINE_H
 #error "Please either fix or disable the assembly code for COMPRESS_COMBINERS"
 /* Anyway this idea doesn't work so well and changes little to the
  * running time. */
@@ -2233,7 +2233,7 @@ static inline uint64_t const ** cvt(arith_hard::elt const ** a) {
 
 static const uint16_t * matmul_sub_small1(arith_hard * ab MAYBE_UNUSED, arith_hard::elt * where, arith_hard::elt const * from, const uint16_t * q, unsigned int count)
 {
-#ifdef MATMUL_SUB_SMALL1_H_
+#ifdef CADO_MATMUL_SUB_SMALL1_H
     return matmul_sub_small1_asm(cvt(where), cvt(from), q, count);
 #else
     for(uint32_t c = 0 ; c < count ; c++) {
@@ -2250,7 +2250,7 @@ static const uint16_t * matmul_sub_small1(arith_hard * ab MAYBE_UNUSED, arith_ha
 
 static const uint16_t * matmul_sub_small1_tr(arith_hard * ab MAYBE_UNUSED, arith_hard::elt * where, arith_hard::elt const * from, const uint16_t * q, unsigned int count)
 {
-#ifdef MATMUL_SUB_SMALL1_TR_H_
+#ifdef CADO_MATMUL_SUB_SMALL1_TR_H
     return matmul_sub_small1_tr_asm(cvt(where), cvt(from), q, count);
 #else
     for(uint32_t c = 0 ; c < count ; c++) {
@@ -2267,7 +2267,7 @@ static const uint16_t * matmul_sub_small1_tr(arith_hard * ab MAYBE_UNUSED, arith
 
 static const uint16_t * matmul_sub_small2(arith_hard * ab MAYBE_UNUSED, arith_hard::elt * where, arith_hard::elt const * from, const uint16_t * q, unsigned int count)
 {
-#ifdef MATMUL_SUB_SMALL2_H_
+#ifdef CADO_MATMUL_SUB_SMALL2_H
     return matmul_sub_small2_asm(cvt(where), cvt(from), q, count);
 #else
     uint32_t j = 0;
@@ -2286,7 +2286,7 @@ static const uint16_t * matmul_sub_small2(arith_hard * ab MAYBE_UNUSED, arith_ha
 
 static const uint16_t * matmul_sub_small2_tr(arith_hard * ab MAYBE_UNUSED, arith_hard::elt * where, arith_hard::elt const * from, const uint16_t * q, unsigned int count)
 {
-#ifdef MATMUL_SUB_SMALL2_TR_H_
+#ifdef CADO_MATMUL_SUB_SMALL2_TR_H
     return matmul_sub_small2_tr_asm(cvt(where), cvt(from), q, count);
 #else
     uint32_t j = 0;
@@ -2381,7 +2381,7 @@ static inline void prepare_buckets(arith_hard * ab MAYBE_UNUSED, arith_hard::elt
 
 static inline void matmul_sub_large_fbi(arith_hard * ab MAYBE_UNUSED, arith_hard::elt ** sb, const arith_hard::elt * z, const uint8_t * q, unsigned int n)
 {
-#ifdef MATMUL_SUB_LARGE_FBI_H_
+#ifdef CADO_MATMUL_SUB_LARGE_FBI_H
     matmul_sub_large_fbi_asm(cvt(sb), cvt(z), q, n);
 #else
     /* Dispatch data found in z[0]...z[f(n-1)] such that z[f(i)] is in
@@ -2403,7 +2403,7 @@ static inline void matmul_sub_large_fbi(arith_hard * ab MAYBE_UNUSED, arith_hard
 static inline void
 matmul_sub_large_fbi_tr(arith_hard * ab MAYBE_UNUSED, arith_hard::elt ** sb, arith_hard::elt * z, const uint8_t * q, unsigned int n)
 {
-#ifdef MATMUL_SUB_LARGE_FBI_TR_H_
+#ifdef CADO_MATMUL_SUB_LARGE_FBI_TR_H
     matmul_sub_large_fbi_tr_asm(cvt(sb), cvt(z), q, n);
 #else
     /* Does the converse of the above */
@@ -2420,7 +2420,7 @@ matmul_sub_large_fbi_tr(arith_hard * ab MAYBE_UNUSED, arith_hard::elt ** sb, ari
 // static void matmul_sub_large_asb(arith_hard::elt * dst, const arith_hard::elt * z, const uint8_t * q, const unsigned int * ql) __attribute__((__noinline__));
 static void matmul_sub_large_asb(arith_hard * ab, arith_hard::elt * dst, const arith_hard::elt * z, const uint8_t * q, const unsigned int * ql)
 {
-#ifdef MATMUL_SUB_LARGE_ASB_H_
+#ifdef CADO_MATMUL_SUB_LARGE_ASB_H
     matmul_sub_large_asb(cvt(dst), cvt(z), q, ql);
 #else
     /* This ``applies'' the LSL_NBUCKETS_MAX small buckets whose
@@ -2444,7 +2444,7 @@ static void matmul_sub_large_asb(arith_hard * ab, arith_hard::elt * dst, const a
 
 static inline void matmul_sub_large_asb_tr(arith_hard * ab MAYBE_UNUSED, const arith_hard::elt * src, arith_hard::elt * z, const uint8_t * q, const unsigned int * ql)
 {
-#ifdef MATMUL_SUB_LARGE_ASB_TR_H_
+#ifdef CADO_MATMUL_SUB_LARGE_ASB_TR_H
     matmul_sub_large_asb_tr(cvt(src), cvt(z), q, ql);
 #else
     /* converse of the above */
@@ -2466,7 +2466,7 @@ static inline void matmul_sub_large_asb_tr(arith_hard * ab MAYBE_UNUSED, const a
 static void
 matmul_sub_large_fbd(arith_hard * ab MAYBE_UNUSED, arith_hard::elt ** sb, const arith_hard::elt * z, const uint8_t * q, unsigned int n)
 {
-#ifdef MATMUL_SUB_LARGE_FBD_H_
+#ifdef CADO_MATMUL_SUB_LARGE_FBD_H
     matmul_sub_large_fbd_asm(cvt(sb), cvt(z), q, n);
 #else
     /* Dispatch data found in z[0]...z[n] such that z[i] is in array
@@ -2483,7 +2483,7 @@ matmul_sub_large_fbd(arith_hard * ab MAYBE_UNUSED, arith_hard::elt ** sb, const 
 static inline void
 matmul_sub_large_fbd_tr(arith_hard * ab, arith_hard::elt ** sb, arith_hard::elt * z, const uint8_t * q, unsigned int n)
 {
-#ifdef MATMUL_SUB_LARGE_FBD_TR_H_
+#ifdef CADO_MATMUL_SUB_LARGE_FBD_TR_H
     matmul_sub_large_fbd_tr_asm(cvt(sb), arith_hard::from_pointer(z), q, n);
 #else
     /* Does the converse of the above */
@@ -2642,9 +2642,9 @@ static inline void matmul_bucket_mul_huge(matmul_bucket<Arith> * mm, slice_heade
     ASM_COMMENT("end of huge (very sparse) slices"); /* }}} */
 }
 
-static inline void matmul_sub_vsc_dispatch(arith_hard * ab, arith_hard::elt * dst, arith_hard::elt const * src, const uint16_t * q, unsigned int count)
+static inline void matmul_sub_vsc_dispatch(arith_hard * ab MAYBE_UNUSED, arith_hard::elt * dst, arith_hard::elt const * src, const uint16_t * q, unsigned int count)
 {
-#ifdef MATMUL_SUB_VSC_DISPATCH_H
+#ifdef CADO_MATMUL_SUB_VSC_DISPATCH_H
     matmul_sub_vsc_dispatch_asm(cvt(dst), cvt(src), q, count);
 #else
     // fmt::print("dispatch({}), sum={:x}\n", count, idiotic_sum((void*)q, count * sizeof(uint16_t)));
@@ -2657,7 +2657,7 @@ static inline void matmul_sub_vsc_dispatch(arith_hard * ab, arith_hard::elt * ds
 
 static inline void matmul_sub_vsc_combine(arith_hard * ab MAYBE_UNUSED, arith_hard::elt * dst, const arith_hard::elt * * mptrs, const uint8_t * q, unsigned int count, unsigned int defer MAYBE_UNUSED)
 {
-#ifdef MATMUL_SUB_VSC_COMBINE_H_
+#ifdef CADO_MATMUL_SUB_VSC_COMBINE_H
     matmul_sub_vsc_combine_asm(cvt(dst), cvt(mptrs), q, count, defer);
 #else
     // fmt::print("combine({}), defer {}\n", count, defer);
@@ -2720,7 +2720,7 @@ static inline void matmul_sub_vsc_combine(arith_hard * ab MAYBE_UNUSED, arith_ha
 #endif
 }
 
-#ifndef MATMUL_SUB_VSC_COMBINE_TR_H_
+#ifndef CADO_MATMUL_SUB_VSC_COMBINE_TR_H
 static inline void matmul_sub_vsc_combine_tr(arith_hard * ab MAYBE_UNUSED, arith_hard::elt ** mptrs, const arith_hard::elt * qw, const uint8_t * z, unsigned int count, unsigned int defer MAYBE_UNUSED)
 {
     // fmt::print("uncombine({}), defer {}\n", count, defer);
@@ -2783,7 +2783,7 @@ static inline void matmul_sub_vsc_combine_tr(arith_hard * ab MAYBE_UNUSED, arith
 }
 #endif
 
-#ifndef MATMUL_SUB_VSC_DISPATCH_TR_H_
+#ifndef CADO_MATMUL_SUB_VSC_DISPATCH_TR_H
 static inline void matmul_sub_vsc_dispatch_tr(arith_hard * ab MAYBE_UNUSED, arith_hard::elt * qr, const arith_hard::elt * q, const uint16_t * z, unsigned int count)
 {
     // fmt::print("undispatch({}), sum={:x}\n", count, idiotic_sum((void*)z, count * sizeof(uint16_t)));

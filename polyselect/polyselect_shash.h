@@ -1,5 +1,5 @@
-#ifndef POLYSELECT_SHASH_H_
-#define POLYSELECT_SHASH_H_
+#ifndef CADO_POLYSELECT_SHASH_H
+#define CADO_POLYSELECT_SHASH_H
 
 #include <stdint.h>     // int64_t
 #include <stdlib.h>
@@ -118,4 +118,4 @@ polyselect_shash_reset_multi (polyselect_shash_t * H, unsigned int multi);
 }
 #endif
 
-#endif	/* POLYSELECT_SHASH_H_ */
+#endif	/* CADO_POLYSELECT_SHASH_H */

@@ -1,5 +1,5 @@
-#ifndef CADO_UTILS_GMP_AUX_H_
-#define CADO_UTILS_GMP_AUX_H_
+#ifndef CADO_UTILS_GMP_AUX_H
+#define CADO_UTILS_GMP_AUX_H
 
 #include "cado_config.h"  // for ULONG_BITS
 #include <gmp.h>
@@ -231,4 +231,4 @@ extern void gmp_randclear(cxx_gmp_randstate & pl) __attribute__((error("gmp_rand
 #endif
 
 
-#endif	/* CADO_UTILS_GMP_AUX_H_ */
+#endif	/* CADO_UTILS_GMP_AUX_H */

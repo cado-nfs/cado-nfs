@@ -7,8 +7,8 @@
    where available.
 */
 
-#ifndef ULARITH_H
-#define ULARITH_H
+#ifndef CADO_ULARITH_H
+#define CADO_ULARITH_H
 
 #include <limits.h>
 #include <gmp.h>
@@ -927,4 +927,4 @@ ularith_redc(unsigned long *r, const unsigned long plow,
 #endif
 
 
-#endif /* ifndef ULARITH_H */
+#endif /* ifndef CADO_ULARITH_H */

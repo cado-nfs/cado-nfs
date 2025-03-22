@@ -1,5 +1,5 @@
-#ifndef MATMUL_SUB_VSC_COMBINE_H_
-#define MATMUL_SUB_VSC_COMBINE_H_
+#ifndef CADO_MATMUL_SUB_VSC_COMBINE_H
+#define CADO_MATMUL_SUB_VSC_COMBINE_H
 
 /* This is only compiled when the underlying layer is b64 */
 
@@ -16,4 +16,4 @@ extern void matmul_sub_vsc_combine_asm(uint64_t * dst, const uint64_t ** mptrs, 
 }
 #endif
 
-#endif	/* MATMUL_SUB_VSC_COMBINE_H_ */
+#endif	/* CADO_MATMUL_SUB_VSC_COMBINE_H */

@@ -1,5 +1,5 @@
-#ifndef POLYSELECT_THREAD_H_
-#define POLYSELECT_THREAD_H_
+#ifndef CADO_POLYSELECT_THREAD_H
+#define CADO_POLYSELECT_THREAD_H
 
 #include <pthread.h>
 #include <gmp.h>
@@ -95,4 +95,4 @@ extern void polyselect_thread_chronogram_chat(polyselect_thread_srcptr arg, cons
 }
 #endif
 
-#endif	/* POLYSELECT_THREAD_H_ */
+#endif	/* CADO_POLYSELECT_THREAD_H */

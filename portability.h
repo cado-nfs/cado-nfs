@@ -26,10 +26,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  * and POSIX functionality for systems that lack those.
  */
 
-#ifndef CADO_PORTABILITY_H_
-#define CADO_PORTABILITY_H_
+#ifndef CADO_PORTABILITY_H
+#define CADO_PORTABILITY_H
 
-#ifndef CADO_CONFIG_H_
+#ifndef CADO_CONFIG_H
 #error cado_config.h must be included before portability.h
 #endif
 
@@ -469,4 +469,4 @@ static inline long pagesize ()
 #define sleep(seconds) Sleep((seconds)*1000) 
 #endif /* HAVE_MINGW *//*}}}*/
 
-#endif /* ifndef CADO_PORTABILITY_H_ */
+#endif /* ifndef CADO_PORTABILITY_H */

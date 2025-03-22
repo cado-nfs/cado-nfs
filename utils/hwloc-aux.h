@@ -1,5 +1,5 @@
-#ifndef HWLOC_AUX_H_
-#define HWLOC_AUX_H_
+#ifndef CADO_HWLOC_AUX_H
+#define CADO_HWLOC_AUX_H
 
 #include <hwloc.h>
 
@@ -75,4 +75,4 @@ typedef cxx_hwloc_bitmap cxx_hwloc_cpuset;
 typedef cxx_hwloc_bitmap cxx_hwloc_nodeset;
 #endif
 
-#endif	/* HWLOC_AUX_H_ */
+#endif	/* CADO_HWLOC_AUX_H */

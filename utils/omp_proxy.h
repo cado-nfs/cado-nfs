@@ -1,5 +1,5 @@
-#ifndef OMP_PROXY_H_
-#define OMP_PROXY_H_
+#ifndef CADO_OMP_PROXY_H
+#define CADO_OMP_PROXY_H
 
 // scan-headers: skip
 
@@ -45,4 +45,4 @@ static inline int omp_get_thread_num()
 // IWYU pragma: end_exports
 
 
-#endif	/* OMP_PROXY_H_ */
+#endif	/* CADO_OMP_PROXY_H */

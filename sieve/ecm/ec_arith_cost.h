@@ -1,5 +1,5 @@
-#ifndef EC_ARITH_COST_H_
-#define EC_ARITH_COST_H_
+#ifndef CADO_EC_ARITH_COST_H
+#define CADO_EC_ARITH_COST_H
 
 // pragma no prototypes
 
@@ -16,4 +16,4 @@
 #define MONTGOMERY_DBL 5.        /* doubling */
 #define MONTGOMERY_dADD 6.       /* differential addition */
 
-#endif /* EC_ARITH_COST_H_ */
+#endif /* CADO_EC_ARITH_COST_H */

@@ -1,5 +1,5 @@
-#ifndef ROPT_LINEAR_H
-#define ROPT_LINEAR_H
+#ifndef CADO_ROPT_LINEAR_H
+#define CADO_ROPT_LINEAR_H
 
 #include "ropt_str.h" // ropt_info_t
 #include "ropt_tree.h"  // MurphyE_pq alpha_pq
@@ -82,4 +82,4 @@ ropt_MurphyE_to_alpha ( MurphyE_pq *E_pqueue,
 }
 #endif
 
-#endif /* ROPT_LINEAR_H */
+#endif /* CADO_ROPT_LINEAR_H */

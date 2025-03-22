@@ -1,5 +1,5 @@
-#ifndef POLYSELECT_MAIN_DATA_H_
-#define POLYSELECT_MAIN_DATA_H_
+#ifndef CADO_POLYSELECT_MAIN_DATA_H
+#define CADO_POLYSELECT_MAIN_DATA_H
 
 #include <gmp.h>
 #include <stdint.h>
@@ -132,4 +132,4 @@ extern void polyselect_main_data_go_parallel(polyselect_main_data_ptr main_data,
 }
 #endif
 
-#endif	/* POLYSELECT_MAIN_DATA_H_ */
+#endif	/* CADO_POLYSELECT_MAIN_DATA_H */

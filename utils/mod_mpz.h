@@ -1,5 +1,5 @@
-#ifndef MOD_MPZ_H
-#define MOD_MPZ_H
+#ifndef CADO_MOD_MPZ_H
+#define CADO_MOD_MPZ_H
 
 #include <limits.h>
 #include <stdint.h>
@@ -774,4 +774,4 @@ int modmpz_batchinv (residuempz_t *, const residuempz_t *,
 }
 #endif
 
-#endif  /* MOD_MPZ_H */
+#endif  /* CADO_MOD_MPZ_H */

@@ -1,5 +1,5 @@
-#ifndef ALLOC_PROXY_H_
-#define ALLOC_PROXY_H_
+#ifndef CADO_ALLOC_PROXY_H
+#define CADO_ALLOC_PROXY_H
 
 #ifdef __cplusplus
 #include <cstdlib>
@@ -48,4 +48,4 @@ inline void mydelete(T * & p, size_t s MAYBE_UNUSED) { delete[] p; p = NULL; }
 #endif
 #endif
 
-#endif	/* ALLOC_PROXY_H_ */
+#endif	/* CADO_ALLOC_PROXY_H */

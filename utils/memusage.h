@@ -1,5 +1,5 @@
-#ifndef MEMUSAGE_H_
-#define MEMUSAGE_H_
+#ifndef CADO_MEMUSAGE_H
+#define CADO_MEMUSAGE_H
 
 #include <stddef.h>
 
@@ -15,4 +15,4 @@ extern size_t PeakMemusage (void);
 }
 #endif
 
-#endif /* MEMUSAGE_H_ */
+#endif /* CADO_MEMUSAGE_H */

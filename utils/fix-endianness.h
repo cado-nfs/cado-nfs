@@ -1,11 +1,11 @@
-#ifndef FIX_ENDIANNESS_H_
-#define FIX_ENDIANNESS_H_
+#ifndef CADO_FIX_ENDIANNESS_H
+#define CADO_FIX_ENDIANNESS_H
 
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include "cado-endian.h"
-#ifdef HAVE_SYS_ENDIAN_H
+#ifdef CADO_HAVE_SYS_ENDIAN_H
 #include <sys/endian.h>
 #endif
 
@@ -43,4 +43,4 @@ static inline uint32_t bfix32(uint32_t x) { return bswap32(x); }
 #endif
 #endif
 
-#endif	/* FIX_ENDIANNESS_H_ */
+#endif	/* CADO_FIX_ENDIANNESS_H */

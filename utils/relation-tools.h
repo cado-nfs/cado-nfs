@@ -1,5 +1,5 @@
-#ifndef RELATION_TOOLS_H_
-#define RELATION_TOOLS_H_
+#ifndef CADO_RELATION_TOOLS_H
+#define CADO_RELATION_TOOLS_H
 
 #include <stdint.h>    // for int64_t, uint64_t
 #include "typedefs.h"  // for p_r_values_t
@@ -18,4 +18,4 @@ extern char * d64toa16 (char *p, int64_t m);
 }
 #endif
 
-#endif	/* RELATION_TOOLS_H_ */
+#endif	/* CADO_RELATION_TOOLS_H */

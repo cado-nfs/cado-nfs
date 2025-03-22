@@ -1,5 +1,5 @@
-#ifndef MOD_MPZ_DEFAULT_H_
-#define MOD_MPZ_DEFAULT_H_
+#ifndef CADO_MOD_MPZ_DEFAULT_H
+#define CADO_MOD_MPZ_DEFAULT_H
 
 #include "mod_mpz.h"
 
@@ -42,4 +42,4 @@
 #define MOD_PRINT_INT(x) x
 #define MOD_PRINT_MODULUS(m) m
 
-#endif	/* MOD_MPZ_DEFAULT_H_ */
+#endif	/* CADO_MOD_MPZ_DEFAULT_H */

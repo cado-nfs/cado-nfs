@@ -1,5 +1,5 @@
-#ifndef CADO_POLY_H_
-#define CADO_POLY_H_
+#ifndef CADO_POLY_H
+#define CADO_POLY_H
 
 #include <stdio.h>      // FILE
 #include <gmp.h>
@@ -157,4 +157,4 @@ extern void cado_poly_clear(cxx_cado_poly & pl) __attribute__((error("cado_poly_
 
 
 #endif
-#endif	/* CADO_POLY_H_ */
+#endif	/* CADO_POLY_H */

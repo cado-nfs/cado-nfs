@@ -1,5 +1,5 @@
-#ifndef CADO_CONFIG_H_
-#define CADO_CONFIG_H_
+#ifndef CADO_CONFIG_H
+#define CADO_CONFIG_H
 
 /* cado_config.h is auto-generated (by cmake) from cado_config_h.in
  * cado_config_h.in is *NOT* auto-generated */
@@ -212,4 +212,4 @@
 /* see also select_mpi.h for c++ templates meant to help in determining mpi type tags */
 
 /* vim:set ft=c: */
-#endif  /* CADO_CONFIG_H_ */
+#endif  /* CADO_CONFIG_H */

@@ -1,5 +1,5 @@
-#ifndef MATMUL_SUB_LARGE_FBI_H_
-#define MATMUL_SUB_LARGE_FBI_H_
+#ifndef CADO_MATMUL_SUB_LARGE_FBI_H
+#define CADO_MATMUL_SUB_LARGE_FBI_H
 
 /* This is only compiled when the underlying layer is b64 */
 
@@ -17,4 +17,4 @@ extern void matmul_sub_large_fbi_asm(uint64_t ** sb, const uint64_t * z, const u
 }
 #endif
 
-#endif	/* MATMUL_SUB_LARGE_FBI_H_ */
+#endif	/* CADO_MATMUL_SUB_LARGE_FBI_H */

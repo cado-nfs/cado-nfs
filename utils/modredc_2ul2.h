@@ -12,8 +12,8 @@
    functionality of function (add, mul, etc), and possibly underscore and 
    specification of what argument types the function takes (_ul, etc). */
 
-#ifndef MODREDC_2UL2_H
-#define MODREDC_2UL2_H
+#ifndef CADO_MODREDC_2UL2_H
+#define CADO_MODREDC_2UL2_H
 
 /**********************************************************************/
 #include "cado_config.h"  // for HAVE_GCC_STYLE_AMD64_INLINE_ASM
@@ -1341,4 +1341,4 @@ int modredc2ul2_jacobi (const residueredc2ul2_t, const modulusredc2ul2_t);
 }
 #endif
 
-#endif  /* MODREDC_2UL2_H */
+#endif  /* CADO_MODREDC_2UL2_H */

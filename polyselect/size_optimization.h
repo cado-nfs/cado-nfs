@@ -1,5 +1,5 @@
-#ifndef POLYSELECT_SIZE_OPTIMIZATION_H_
-#define POLYSELECT_SIZE_OPTIMIZATION_H_
+#ifndef CADO_POLYSELECT_SIZE_OPTIMIZATION_H
+#define CADO_POLYSELECT_SIZE_OPTIMIZATION_H
 
 #include <stdint.h>
 #include <gmp.h>
@@ -58,6 +58,6 @@ double size_optimization (mpz_poly_ptr, mpz_poly_ptr, mpz_poly_srcptr,
 #endif
 
 
-#endif	/* POLYSELECT_SIZE_OPTIMIZATION_H_ */
+#endif	/* CADO_POLYSELECT_SIZE_OPTIMIZATION_H */
 
 

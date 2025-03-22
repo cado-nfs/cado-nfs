@@ -1,5 +1,5 @@
-#ifndef ROPT_ARITH_H
-#define ROPT_ARITH_H
+#ifndef CADO_ROPT_ARITH_H
+#define CADO_ROPT_ARITH_H
 
 #include <gmp.h>
 #include "mpz_poly.h"

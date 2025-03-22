@@ -1,5 +1,5 @@
-#ifndef ROPT_PARAM_H
-#define ROPT_PARAM_H
+#ifndef CADO_ROPT_PARAM_H
+#define CADO_ROPT_PARAM_H
 
 #include <stddef.h>
 

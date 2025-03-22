@@ -8,8 +8,8 @@
    function (add, mul, etc), and possibly underscore and specification of
    what argument types the function takes (_ul, etc). */
 
-#ifndef MODREDC_UL_H
-#define MODREDC_UL_H
+#ifndef CADO_MODREDC_UL_H
+#define CADO_MODREDC_UL_H
 
 /**********************************************************************/
 #include "cado_config.h"  // just because we're a header.
@@ -796,4 +796,4 @@ int modredcul_jacobi (const residueredcul_t, const modulusredcul_t);
 }
 #endif
 
-#endif  /* MODREDC_UL_H */
+#endif  /* CADO_MODREDC_UL_H */

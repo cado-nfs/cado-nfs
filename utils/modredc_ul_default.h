@@ -1,5 +1,5 @@
-#ifndef MODREDC_UL_DEFAULT_H_
-#define MODREDC_UL_DEFAULT_H_
+#ifndef CADO_MODREDC_UL_DEFAULT_H
+#define CADO_MODREDC_UL_DEFAULT_H
 
 #include "modredc_ul.h"
 
@@ -43,4 +43,4 @@
 #define MOD_PRINT_INT(x) x[0]
 #define MOD_PRINT_MODULUS(x) x[0].m
 
-#endif	/* MODREDC_UL_DEFAULT_H_ */
+#endif	/* CADO_MODREDC_UL_DEFAULT_H */

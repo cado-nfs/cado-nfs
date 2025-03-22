@@ -7,8 +7,8 @@
   (add, mul, etc), and possibly underscore and specification of what argument
   types the function takes (_ul, etc). */
 
-#ifndef MOD_UL_H
-#define MOD_UL_H
+#ifndef CADO_MOD_UL_H
+#define CADO_MOD_UL_H
 
 #include "cado_config.h" // just because we're a header.
 /**********************************************************************/
@@ -692,4 +692,4 @@ int modul_jacobi(residueul_t const, modulusul_t const);
 }
 #endif
 
-#endif /* MOD_UL_H */
+#endif /* CADO_MOD_UL_H */

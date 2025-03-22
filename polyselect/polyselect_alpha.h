@@ -1,5 +1,5 @@
-#ifndef POLYSELECT_ALPHA_H_
-#define POLYSELECT_ALPHA_H_
+#ifndef CADO_POLYSELECT_ALPHA_H
+#define CADO_POLYSELECT_ALPHA_H
 
 #include "mpz_poly.h"
 #ifdef __cplusplus
@@ -26,4 +26,4 @@ extern double expected_alpha (double logK);
 }
 #endif
 
-#endif	/* POLYSELECT_ALPHA_H_ */
+#endif	/* CADO_POLYSELECT_ALPHA_H */

@@ -1,5 +1,5 @@
-#ifndef BYTECODE_MISHMASH_B1_DATA_H
-#define BYTECODE_MISHMASH_B1_DATA_H
+#ifndef CADO_BYTECODE_MISHMASH_B1_DATA_H
+#define CADO_BYTECODE_MISHMASH_B1_DATA_H
 
 /* This file was generated automatically */
 
@@ -2590,4 +2590,4 @@ static mishmash_B1_data_t mishmash_B1_data[] = {
     { .B1 = 1021, .len = sizeof(_B1_1021_bc)/sizeof(*_B1_1021_bc), .bc = _B1_1021_bc },
   }; /* end of B1_data array */
 
-#endif /* BYTECODE_MISHMASH_B1_DATA_H */
+#endif /* CADO_BYTECODE_MISHMASH_B1_DATA_H */

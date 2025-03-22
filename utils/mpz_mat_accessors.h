@@ -1,5 +1,5 @@
-#ifndef UTILS_MPZ_MAT_ACCESSORS_H_
-#define UTILS_MPZ_MAT_ACCESSORS_H_
+#ifndef CADO_UTILS_MPZ_MAT_ACCESSORS_H
+#define CADO_UTILS_MPZ_MAT_ACCESSORS_H
 
 #include <gmp.h>
 #include "mpz_mat.h"
@@ -23,4 +23,4 @@ void mpq_poly_to_mat_row(mpq_mat_ptr M, const unsigned int i, mpz_poly_srcptr f,
 }
 #endif
 
-#endif	/* UTILS_MPZ_MAT_ACCESSORS_H_ */
+#endif	/* CADO_UTILS_MPZ_MAT_ACCESSORS_H */

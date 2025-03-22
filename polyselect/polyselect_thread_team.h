@@ -1,5 +1,5 @@
-#ifndef POLYSELECT_THREAD_TEAM_H_
-#define POLYSELECT_THREAD_TEAM_H_
+#ifndef CADO_POLYSELECT_THREAD_TEAM_H
+#define CADO_POLYSELECT_THREAD_TEAM_H
 
 #include <pthread.h>
 
@@ -214,4 +214,4 @@ extern void cond_helper_wait(polyselect_thread_team_ptr team, struct polyselect_
 }
 #endif
 
-#endif	/* POLYSELECT_THREAD_TEAM_H_ */
+#endif	/* CADO_POLYSELECT_THREAD_TEAM_H */

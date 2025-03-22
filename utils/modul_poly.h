@@ -1,5 +1,5 @@
-#ifndef MODUL_POLY_H_
-#define MODUL_POLY_H_
+#ifndef CADO_MODUL_POLY_H
+#define CADO_MODUL_POLY_H
 
 /* This file provides polynomial arithmetic using the mod_ul layer.
  * mod_ul is rather tightly bound to providing arithmetic on unsigned
@@ -48,4 +48,4 @@ int modul_poly_is_squarefree (modul_poly_t, modulusul_t);
 }
 #endif
 
-#endif	/* MODUL_POLY_H_ */
+#endif	/* CADO_MODUL_POLY_H */

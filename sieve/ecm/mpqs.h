@@ -1,5 +1,5 @@
-#ifndef MPQS_H_
-#define MPQS_H_
+#ifndef CADO_MPQS_H
+#define CADO_MPQS_H
 
 #include "modredc_ul.h"
 #include "modredc_15ul.h"
@@ -19,5 +19,5 @@ int mpqs_mpz (modint_t, const modulus_t);
 }
 #endif
 
-#endif	/* MPQS_H_ */
+#endif	/* CADO_MPQS_H */
 

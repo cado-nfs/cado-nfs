@@ -1,5 +1,5 @@
-#ifndef VERBOSE_H_
-#define VERBOSE_H_
+#ifndef CADO_VERBOSE_H
+#define CADO_VERBOSE_H
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -117,4 +117,4 @@ int verbose_output_vfprint(size_t channel, int verbose, vfprintf_func_t func,
 }
 #endif
 
-#endif	/* VERBOSE_H_ */
+#endif	/* CADO_VERBOSE_H */

@@ -1,5 +1,5 @@
-#ifndef CADO_UTILS_GETPRIME_H_
-#define CADO_UTILS_GETPRIME_H_
+#ifndef CADO_UTILS_GETPRIME_H
+#define CADO_UTILS_GETPRIME_H
 
 // scan-headers: skip
 
@@ -44,4 +44,4 @@ extern unsigned long getprime (unsigned long) ATTRIBUTE_DEPRECATED;
 }
 #endif
 
-#endif	/* CADO_UTILS_GETPRIME_H_ */
+#endif	/* CADO_UTILS_GETPRIME_H */

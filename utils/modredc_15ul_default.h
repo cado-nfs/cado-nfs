@@ -1,5 +1,5 @@
-#ifndef MODREDC_15UL_DEFAULT_H_
-#define MODREDC_15UL_DEFAULT_H_
+#ifndef CADO_MODREDC_15UL_DEFAULT_H
+#define CADO_MODREDC_15UL_DEFAULT_H
 #include "modredc_15ul.h"
 
 // pragma no prototypes
@@ -48,4 +48,4 @@
 #undef mod_divn
 #define mod_divn modredc15ul_divn
 
-#endif	/* MODREDC_15UL_DEFAULT_H_ */
+#endif	/* CADO_MODREDC_15UL_DEFAULT_H */

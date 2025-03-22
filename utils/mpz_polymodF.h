@@ -1,5 +1,5 @@
-#ifndef MPZ_POLYMODF_H_
-#define MPZ_POLYMODF_H_
+#ifndef CADO_MPZ_POLYMODF_H
+#define CADO_MPZ_POLYMODF_H
 
 #include "mpz_poly.h"
 
@@ -96,4 +96,4 @@ extern void mpz_poly_clear(cxx_mpz_poly & pl) __attribute__((error("mpz_poly_cle
 
 
 
-#endif	/* MPZ_POLYMODF_H_ */
+#endif	/* CADO_MPZ_POLYMODF_H */

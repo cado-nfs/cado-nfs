@@ -1,5 +1,5 @@
-#ifndef ROPT_H
-#define ROPT_H
+#ifndef CADO_ROPT_H
+#define CADO_ROPT_H
 
 #include "cado_poly.h"
 #include "ropt_str.h"
@@ -41,4 +41,4 @@ void ropt_polyselect (cado_poly_ptr output_poly, cado_poly_srcptr input_poly,
 #endif
 
 
-#endif /* ROPT_H */
+#endif /* CADO_ROPT_H */

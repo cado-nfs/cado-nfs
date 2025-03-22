@@ -1,5 +1,5 @@
-#ifndef MOD_UL_DEFAULT_H_
-#define MOD_UL_DEFAULT_H_
+#ifndef CADO_MOD_UL_DEFAULT_H
+#define CADO_MOD_UL_DEFAULT_H
 
 #include "mod_ul.h"
 
@@ -33,4 +33,4 @@
 #define MOD_SIZE             MODUL_SIZE
 #define MOD_MAXBITS          MODUL_MAXBITS
 
-#endif	/* MOD_UL_DEFAULT_H_ */
+#endif	/* CADO_MOD_UL_DEFAULT_H */

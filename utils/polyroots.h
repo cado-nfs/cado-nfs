@@ -1,5 +1,5 @@
-#ifndef UTILS_POLYROOTS_H_
-#define UTILS_POLYROOTS_H_
+#ifndef CADO_UTILS_POLYROOTS_H
+#define CADO_UTILS_POLYROOTS_H
 
 /* Do not include this file directly. The way to access these functions
  * is via double_poly.h
@@ -20,4 +20,4 @@ uint32_t poly_roots_longdouble(const double *poly, uint32_t degree, long double 
 }
 #endif
 
-#endif	/* UTILS_POLYROOTS_H_ */
+#endif	/* CADO_UTILS_POLYROOTS_H */

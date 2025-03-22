@@ -1,5 +1,5 @@
-#ifndef POLYSELECT_DATA_SERIES_H_
-#define POLYSELECT_DATA_SERIES_H_
+#ifndef CADO_POLYSELECT_DATA_SERIES_H
+#define CADO_POLYSELECT_DATA_SERIES_H
 
 #include "gmp_aux.h"
 
@@ -56,4 +56,4 @@ extern void polyselect_data_series_merge(polyselect_data_series_ptr to, polysele
 }
 #endif
 
-#endif	/* POLYSELECT_DATA_SERIES_H_ */
+#endif	/* CADO_POLYSELECT_DATA_SERIES_H */
