@@ -161,10 +161,10 @@
 # understand this variable.
 
 ############################################################
-# GF2X_CONFIGURE_FLAGS: pass flags to gf2x's ./configure script.
+# GF2X_CONFIGURE_EXTRA_FLAGS: pass flags to gf2x's ./configure script.
 #
 # Example values:
-# GF2X_CONFIGURE_FLAGS="--silent --disable-shared"
+# GF2X_CONFIGURE_EXTRA_FLAGS="--silent --disable-shared"
 
 
 ############################################################
