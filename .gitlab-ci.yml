@@ -335,6 +335,8 @@ mysql specific expensive checks on debian-testing system with gcc:
   <<: *common-template
   image: debian:testing
   stage: thorough
+  # this is #30114
+  allow_failure: true
   needs: []
   before_script:
     - ci/ci/00-prepare-docker.sh
@@ -346,6 +348,8 @@ mysql specific expensive checks on debian12 system with gcc:
   <<: *common-template
   image: debian:testing
   stage: thorough
+  # this is #30114
+  allow_failure: true
   needs: []
   before_script:
     - ci/ci/00-prepare-docker.sh
