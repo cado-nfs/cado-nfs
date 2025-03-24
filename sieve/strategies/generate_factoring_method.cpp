@@ -838,7 +838,7 @@ tabular_point convert_tab_point_to_tab_fm(tabular_fm_t * t)
     int const len = tabular_fm_get_index(t);
     for (int i = 0; i < len; i++) {
         fm_t * elem = tabular_fm_get_fm(t, i);
-	res.emplace_back(i, elem->proba[0], elem->time[0]);
+	res.emplace_back(point { i, elem->proba[0], elem->time[0] });
     }
     return res;
 }

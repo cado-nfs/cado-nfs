@@ -232,7 +232,7 @@ struct my_strassen_selector {
         fmt::print("#else   /*  STRASSEN_THRESHOLDS_AS_CPP_CONSTANTS */\n");
         auto s = name;
         std::transform(s.begin(), s.end(), s.begin(),
-                       [](auto c) { return std::tolower(c); });
+                       [](char c) { return std::tolower(c); });
         fmt::print(
             "template<> unsigned int foo<{}>::default_selector_data[] = {{\n",
             s);

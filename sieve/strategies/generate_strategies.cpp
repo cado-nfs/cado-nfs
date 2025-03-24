@@ -541,7 +541,7 @@ tabular_point convert_tab_point_to_tab_strategy(tabular_strategy_t * t)
     strategy_t *elem;
     for (int i = 0; i < t->index; i++) {
 	elem = t->tab[i];
-	res.emplace_back(i, elem->proba, elem->time);
+	res.emplace_back(point { i, elem->proba, elem->time });
     }
     return res;
 }
