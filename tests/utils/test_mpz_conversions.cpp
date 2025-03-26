@@ -97,6 +97,11 @@ static void dotest(cxx_gmp_randstate & rstate)
          * have 0 <= abs(z)-abs(zd) < ulp(zd)
          */
         G<T>::gen(zd, z, rstate);
+        /*
+        fmt::print("zd0={}\n", zd);
+        fmt::print("z   ={}\n", z);
+        fmt::print("zd1={}\n", zd + ulp(zd) * sgn(zd));
+        */
 
         int b = mpz_sizeinbase(z, 2) - (mpz_cmp_ui(z, 0) == 0);
 

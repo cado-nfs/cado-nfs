@@ -127,11 +127,13 @@ namespace cado_math_aux
     template<typename T>
         cxx_mpz mpz_from(T c)
         {
-            temporary_round_mode dummy(FE_TOWARDZERO);
-
             /* This converts to an mpz integer with unit accuracy (of
              * course digits below the unit are lost). Rounding is
              * towards zero.
+             *
+             * It seems that we don't need to fiddle with the rounding
+             * mode here, the default truncation behavior of type casts
+             * (C99 § 6.3.1.4.1) is what we need.
              */
             if (c == 0) return 0;
             int e;
@@ -140,7 +142,7 @@ namespace cado_math_aux
             /* x is in (-1,0.5], [0.5,1) */
 
             constexpr int mantissa_bits = std::numeric_limits<T>::digits;
-            constexpr int si_bits = std::numeric_limits<long>::digits;
+            constexpr int ui_bits = std::numeric_limits<unsigned long>::digits;
             /* First convert the complete mantissa to a mantissa_bits-bit
              * signed integer. This is a constant number of conversion
              * operations, decided at compile time (and in most cases
@@ -151,38 +153,37 @@ namespace cado_math_aux
             cxx_mpz z = 0;
 
             int sx = sgn(x);
-            x -= sx * T(0.5);
 
-            for(int b = 0 ; b < mantissa_bits ; b += si_bits + 1, sx = 0) {
+            x *= sx;
+            /* now x is in [0.5, 1) -- we could possibly swallow one
+             * extra bit but that would be ridiculous gains since the
+             * number of iterations below would likely be unchanged */
+
+            for(int b = 0 ; b < mantissa_bits ; b += ui_bits) {
                 /* at this point we have
-                 * c * 2^(-e+b) = z + (x + sx/2) with either:
+                 * sx * c * 2^(-e+b) = z + (x) with:
                  *
                  *  - sx in {-1,0,1}
-                 *  - x in (-0.5,0.5)
+                 *  - x in [0,1)
                  *
-                 * On the first loop, sx==sgn(x), but later iterations
-                 * all have sx = 0.
                  */
 
-                const int ell = std::min(mantissa_bits - b, si_bits + 1);
+                const int ell = std::min(mantissa_bits - b, ui_bits);
                 const T x_ell = std::ldexp(x, ell);
-                const auto xr = std::lround(x_ell);
-                /* x*(2^ell) is in (-2^(ell-1), 2^(ell-1)) and xr
-                 * is its rounding to nearest, so definitely it's going
-                 * to be convertible to a long, since ell-1 <= si_bits.
+                const auto xr = (unsigned long) x_ell;
+                /* x*(2^ell) is in (0, 2^ell). We must
+                 * truncate it (not round to nearest) if we want an
+                 * unsigned long,
+                 * since ell <= ui_bits.
                  *
                  * Furthermore, we have
-                 * eps = x*(2^ell)-xr in (-0.5,0.5)
-                 * by virtue of rounding to nearest.
+                 * eps = x*(2^ell)-xr in [0,1)
                  */
 
-                /* c*2^(-e+b) = z + sx/2 + (xr+eps)/2^ell
-                 * c*2^(-e+b+ell) = z*2^ell + (sx*2^(ell-1)) + xr) + eps
+                /* sx*c*2^(-e+b) = z + (xr+eps)/2^ell
+                 * sx*c*2^(-e+b+ell) = z*2^ell + xr + eps
                  */
-                cxx_mpz zi = sx;
-                if (sx)
-                    mpz_mul_2exp(zi, zi, ell - 1);
-                mpz_add_si(zi, zi, long(xr));
+                cxx_mpz zi = xr;
 
                 mpz_mul_2exp(z, z, ell);
                 mpz_add(z, z, zi);
@@ -190,7 +191,7 @@ namespace cado_math_aux
                 /* prepare next iteration. I have small fears that there
                  * could be corner cases that allow the compiler to
                  * outsmart us. */
-                x -= x_ell - T(xr);
+                x = x_ell - T(xr);
             }
 
             if (e > mantissa_bits) {
@@ -198,6 +199,8 @@ namespace cado_math_aux
             } else {
                 mpz_tdiv_q_2exp(z, z, mantissa_bits - e);
             }
+            if (sx < 0)
+                mpz_neg(z, z);
             return z;
         }
 
