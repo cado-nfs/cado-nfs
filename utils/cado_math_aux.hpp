@@ -1,11 +1,12 @@
 #ifndef UTILS_CADO_MATH_AUX_HPP_
 #define UTILS_CADO_MATH_AUX_HPP_
 
-#include <cstdint>
 #include <cmath>
+#include <cfenv>
 #include <cstddef>
 #include <climits>
 
+#include <algorithm>
 #include <limits>
 #include <type_traits>
 
@@ -100,35 +101,102 @@ namespace cado_math_aux
         return (T(0) < val) - (val < T(0));
     }
 
+    struct temporary_round_mode {
+        int saved;
+        explicit temporary_round_mode(int mode)
+            : saved(fegetround())
+        {
+            fesetround(mode);
+        }
+        temporary_round_mode(temporary_round_mode const &) = delete;
+        temporary_round_mode(temporary_round_mode &&) = delete;
+        temporary_round_mode & operator=(temporary_round_mode const &) = delete;
+        temporary_round_mode & operator=(temporary_round_mode &&) = delete;
+        ~temporary_round_mode() { fesetround(saved); }
+    };
+
+    /* for floating point types, std::numeric_limits<T>::digits counts
+     * the implicit bit as well (when there is one -- IEEE 80-bit
+     * extended precision doesn't have one).
+     *
+     * E.g. on sysv 64-bit abi (meaning standard linux):
+     * static_assert(std::numeric_limits<double>::digits==53, "AA");
+     * static_assert(std::numeric_limits<long double>::digits==64, "AA");
+     */
+
     template<typename T>
         cxx_mpz mpz_from(T c)
         {
+            temporary_round_mode dummy(FE_TOWARDZERO);
+
             /* This converts to an mpz integer with unit accuracy (of
-             * course digits below the unit are lost)
+             * course digits below the unit are lost). Rounding is
+             * towards zero.
              */
             if (c == 0) return 0;
             int e;
             T x = std::frexp(c, &e);
-            /* x == c * 2^e */
-            x -= sgn(c) * T(0.5);
-            /* x + sgn(c)/2 == c * 2^e */
-            /* x is in (-0.5, 0.5) */
-            /* y is in (-2^(digits-1), 2^(digits-1)), which is always
-             * castable to an int64_t */
-            T y = std::ldexp(x, std::numeric_limits<T>::digits);
-            /* y / 2^digits == c * 2^e - sgn(c)/2 */
-            /* y == c * 2^(e-digits) - sgn(c)*2^(digits-1) */
-            static_assert(std::numeric_limits<T>::digits <= 64,
-                    "only double or extended precision formats are supported");
-            cxx_mpz z;
-            mpz_set_si(z, sgn(c));
-            mpz_mul_2exp(z, z, std::numeric_limits<T>::digits-1);
-            /* z = sgn(c)*2^(digits-1) */
-            mpz_add_int64(z, z, int64_t(y));
-            if (e > std::numeric_limits<T>::digits) {
-                mpz_mul_2exp(z, z, e - std::numeric_limits<T>::digits);
+            /* x == c * 2^-e */
+            /* x is in (-1,0.5], [0.5,1) */
+
+            constexpr int mantissa_bits = std::numeric_limits<T>::digits;
+            constexpr int si_bits = std::numeric_limits<long>::digits;
+            /* First convert the complete mantissa to a mantissa_bits-bit
+             * signed integer. This is a constant number of conversion
+             * operations, decided at compile time (and in most cases
+             * it's actually just one operation, except for quadruple
+             * precision long doubles on 64-bit platforms, or doubles and
+             * beyond on 32-bit platforms).
+             */
+            cxx_mpz z = 0;
+
+            int sx = sgn(x);
+            x -= sx * T(0.5);
+
+            for(int b = 0 ; b < mantissa_bits ; b += si_bits + 1, sx = 0) {
+                /* at this point we have
+                 * c * 2^(-e+b) = z + (x + sx/2) with either:
+                 *
+                 *  - sx in {-1,0,1}
+                 *  - x in (-0.5,0.5)
+                 *
+                 * On the first loop, sx==sgn(x), but later iterations
+                 * all have sx = 0.
+                 */
+
+                const int ell = std::min(mantissa_bits - b, si_bits + 1);
+                const T x_ell = std::ldexp(x, ell);
+                const auto xr = std::lround(x_ell);
+                /* x*(2^ell) is in (-2^(ell-1), 2^(ell-1)) and xr
+                 * is its rounding to nearest, so definitely it's going
+                 * to be convertible to a long, since ell-1 <= si_bits.
+                 *
+                 * Furthermore, we have
+                 * eps = x*(2^ell)-xr in (-0.5,0.5)
+                 * by virtue of rounding to nearest.
+                 */
+
+                /* c*2^(-e+b) = z + sx/2 + (xr+eps)/2^ell
+                 * c*2^(-e+b+ell) = z*2^ell + (sx*2^(ell-1)) + xr) + eps
+                 */
+                cxx_mpz zi = sx;
+                if (sx)
+                    mpz_mul_2exp(zi, zi, ell - 1);
+                mpz_add_si(zi, zi, long(xr));
+
+                mpz_mul_2exp(z, z, ell);
+                mpz_add(z, z, zi);
+
+                /* prepare next iteration. I have small fears that there
+                 * could be corner cases that allow the compiler to
+                 * outsmart us. */
+                x -= x_ell - T(xr);
+            }
+
+            if (e > mantissa_bits) {
+                mpz_mul_2exp(z, z, e - mantissa_bits);
             } else {
-                mpz_div_2exp(z, z, std::numeric_limits<T>::digits - e);
+                mpz_tdiv_q_2exp(z, z, mantissa_bits - e);
             }
             return z;
         }
@@ -149,6 +217,43 @@ namespace cado_math_aux
          */
         return std::ldexp(std::numeric_limits<T>::epsilon(), std::ilogb(r));
     }
+
+    /* This is the same as mpz_get_ld, but should get more mantissa bits
+     * correct if we are to use it with quad precision floating points.
+     */
+    template<typename T>
+    typename std::enable_if<std::is_floating_point<T>::value, T>::type
+    mpz_to (mpz_srcptr z)
+    {
+        T ld = 0;
+        cxx_mpz zr = z;
+
+        int b = mpz_sizeinbase(z, 2);
+        int e = b - std::numeric_limits<double>::max_exponent;
+        if (e > 0) {
+            /* First scale the input number down. There are still enough
+             * bits remaining to fill the mantissa, of course.
+             */
+            mpz_tdiv_q_2exp(zr, zr, e);
+        } else {
+            e = 0;
+        }
+
+        constexpr int M = std::numeric_limits<double>::digits;
+        constexpr int LM = std::numeric_limits<T>::digits;
+        cxx_mpz t;
+        for(int b = 0 ; b + M < LM ; b += M) {
+            double d = mpz_get_d (zr);
+            mpz_set_d (t, d);
+            mpz_sub (zr, zr, t);
+            ld += d;
+        }
+        ld += mpz_get_d (zr);
+        ld = std::ldexp(ld, e);
+        return ld;
+    }
+
+
 
     template<typename T>
         class constant_time_square_root {
