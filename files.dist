@@ -1518,6 +1518,7 @@ tests/utils/test_gcd.c
 tests/utils/test_getprime.c
 tests/utils/test_gmp_aux.c
 tests/utils/test_gpf.c
+tests/utils/test_integer_partitions.cpp
 tests/utils/test_intinv.c
 tests/utils/test_istream_matcher.cpp
 tests/utils/test_json_parsing.cpp
@@ -1649,6 +1650,7 @@ utils/hwloc-aux.c
 utils/hwloc-aux.h
 utils/indexed_relation.cpp
 utils/indexed_relation.hpp
+utils/integer_partitions.hpp
 utils/intrinsics.hpp
 utils/iqsort.h
 utils/is_non_narrowing_integral_conversion.hpp

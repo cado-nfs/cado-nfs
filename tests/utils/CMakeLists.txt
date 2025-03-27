@@ -97,6 +97,7 @@ cado_define_test(test_min_max_heap.cpp LIBRARIES tests)
 cado_define_test(test_random_distributions.cpp LIBRARIES utils tests)
 cado_define_test(test_decomposed_path.cpp LIBRARIES utils tests)
 cado_define_test(test_prime_count.cpp LIBRARIES utils tests)
+cado_define_test(test_integer_partitions.cpp LIBRARIES utils)
 
 cado_define_test(
     SCRIPT
