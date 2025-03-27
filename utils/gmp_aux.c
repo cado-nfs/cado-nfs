@@ -723,10 +723,9 @@ mpz_get_ld (mpz_srcptr z)
 int mpz_p_valuation(mpz_srcptr a, mpz_srcptr p)
 {
     mpz_t c;
-    mpz_init(c);
     int v = 0;
     if (mpz_size(a) == 0) return INT_MAX;
-    mpz_set(c, a);
+    mpz_init_set(c, a);
     for( ; mpz_divisible_p(c, p) ; v++)
         mpz_fdiv_q(c, c, p);
     mpz_clear(c);
@@ -738,10 +737,9 @@ int mpz_p_valuation(mpz_srcptr a, mpz_srcptr p)
 int mpz_p_valuation_ui(mpz_srcptr a, unsigned long p)
 {
     mpz_t c;
-    mpz_init(c);
     int v = 0;
     if (mpz_size(a) == 0) return INT_MAX;
-    mpz_set(c, a);
+    mpz_init_set(c, a);
     for( ; mpz_divisible_ui_p(c, p) ; v++)
         mpz_fdiv_q_ui(c, c, p);
     mpz_clear(c);
