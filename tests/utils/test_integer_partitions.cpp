@@ -19,5 +19,27 @@ int main()
         fmt::print("{} {} {}\n", i, a000041[i], s);
         ASSERT_ALWAYS(a000041[i] == s);
     }
+
+    const unsigned int a008483[] = {
+        1, 0, 0, 1, 1, 1, 2, 2, 3, 4, 5, 6, 9, 10, 13, 17, 21, 25, 33, 39, 49, 60, 73, 88, 110, 130, 158, 191, 230, 273, 331, 391, 468, 556, 660, 779, 927, 1087, 1284, 1510, 1775, 2075, 2438, 2842, 3323, 3872, 4510
+    };
+    for(unsigned int i = 1 ; i < 20 ; i++) {
+        unsigned int s = 0;
+        for(auto const & p MAYBE_UNUSED : integer_partitions(i, 3))
+            s++;
+
+        fmt::print("{} [3] {} {}\n", i, a008483[i], s);
+        ASSERT_ALWAYS(a008483[i] == s);
+    }
+
+    for(unsigned int min = 1 ; min < 8 ; min++) {
+        for(unsigned int i = 1 ; i < 20 ; i++) {
+            unsigned int s = 0;
+            for(auto const & p MAYBE_UNUSED : integer_partitions(i, min))
+                s++;
+
+            fmt::print("{} [{}] {}\n", i, min, s);
+        }
+    }
     return 0;
 }
