@@ -1651,6 +1651,7 @@ utils/indexed_relation.cpp
 utils/indexed_relation.hpp
 utils/intrinsics.hpp
 utils/iqsort.h
+utils/is_non_narrowing_integral_conversion.hpp
 utils/istream_matcher.hpp
 utils/json.cpp
 utils/json.hpp

@@ -73,16 +73,6 @@ namespace cado_math_aux
         }
 
     template<typename T>
-    void exact_form(cxx_mpz & m, int & e, T x)
-    {
-        int xe;
-        T mantissa = std::frexp(x, &xe);
-        constexpr int d = std::numeric_limits<T>::digits;
-        mpz_set_d(m, multiply_by_poweroftwo<T, d-1>(mantissa));
-        e -= (d-1);
-    }
-
-    template<typename T>
     T mpz_get(mpz_srcptr x);
     template<> inline float mpz_get<float>(mpz_srcptr x) { return mpz_get_d(x); }
     template<> inline double mpz_get<double>(mpz_srcptr x) { return mpz_get_d(x); }
@@ -134,6 +124,16 @@ namespace cado_math_aux
         }
 
     template<typename T>
+    void exact_form(cxx_mpz & m, int & e, T x)
+    {
+        int xe;
+        T mantissa = std::frexp(x, &xe);
+        constexpr int d = std::numeric_limits<T>::digits;
+        m = mpz_from<T>(std::ldexp(mantissa, d-1));
+        e -= (d-1);
+    }
+
+    template<typename T>
     typename std::enable_if<std::is_floating_point<T>::value, T>::type
     ulp(T r) {
         /*
@@ -169,6 +169,7 @@ namespace cado_math_aux
         static constexpr typename std::enable_if<std::is_integral<T>::value, T>::type constant_sqrt(T x) {
             return constant_time_square_root<T>::sqrt(x);
         }
+
 }
 
 

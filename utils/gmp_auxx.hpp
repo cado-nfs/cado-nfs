@@ -39,7 +39,7 @@ mpz_set (mpz_ptr a, const T b) {
 }
 
 inline void mpz_set (mpz_ptr a, const int64_t b) {
-    return mpz_set_int64(a, b);
+    mpz_set_int64(a, b);
 }
 
 inline void mpz_set (mpz_ptr a, const uint64_t b) {

@@ -6,12 +6,12 @@
 #include <istream>
 #include <ostream>
 #include <type_traits>
-#include <sstream>
 
 #include <gmp.h>
 #include "fmt/ostream.h"
 #include "fmt/base.h"
 
+#include "is_non_narrowing_integral_conversion.hpp"
 #include "gmp_aux.h"
 #include "gmp_auxx.hpp"
 #include "macros.h"
@@ -20,42 +20,88 @@ struct cxx_mpz {
 public:
     typedef mp_limb_t WordType;
     mpz_t x;
+    // NOLINTBEGIN(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
     cxx_mpz() { mpz_init(x); }
-    template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
+
+    template <typename T, typename std::enable_if<
+        cado_math_aux::is_non_narrowing_integral_conversion<T, int64_t>::value,
+        int>::type = 0 >
+    // NOLINTNEXTLINE(hicpp-explicit-conversions)
     cxx_mpz (const T & rhs) {
-        gmp_auxx::mpz_init_set(x, rhs);
+        gmp_auxx::mpz_init_set(x, int64_t(rhs));
+    }
+    template <typename T, typename std::enable_if<
+        cado_math_aux::is_non_narrowing_integral_conversion<T, int64_t>::value,
+        /*
+        std::is_integral<T>::value &&
+        std::is_signed<T>::value &&
+        std::is_convertible<T, int64_t>::value &&
+        std::numeric_limits<T>::min() >= std::numeric_limits<int64_t>::min() &&
+        std::numeric_limits<T>::max() <= std::numeric_limits<int64_t>::max(),
+        */
+        int>::type = 0 >
+    cxx_mpz & operator=(const T a) {
+        gmp_auxx::mpz_set(x, int64_t(a));
+        return *this;
+    }
+    template <typename T, typename std::enable_if<
+        cado_math_aux::is_non_narrowing_integral_conversion<T, uint64_t>::value,
+        /*
+        std::is_integral<T>::value &&
+        !std::is_signed<T>::value &&
+        std::is_convertible<T, uint64_t>::value &&
+        std::numeric_limits<T>::max() <= std::numeric_limits<uint64_t>::max(),
+        */
+        int>::type = 0 >
+    // NOLINTNEXTLINE(hicpp-explicit-conversions)
+    cxx_mpz (const T & rhs) {
+        gmp_auxx::mpz_init_set(x, uint64_t(rhs));
+    }
+    template <typename T, typename std::enable_if<
+        cado_math_aux::is_non_narrowing_integral_conversion<T, uint64_t>::value,
+        /*
+        std::is_integral<T>::value &&
+        !std::is_signed<T>::value &&
+        std::is_convertible<T, uint64_t>::value &&
+        std::numeric_limits<T>::max() <= std::numeric_limits<uint64_t>::max(),
+        */
+        int>::type = 0 >
+    cxx_mpz & operator=(const T a) {
+        gmp_auxx::mpz_set(x, uint64_t(a));
+        return *this;
     }
 
     ~cxx_mpz() { mpz_clear(x); }
     cxx_mpz(cxx_mpz const & o) {
         mpz_init_set(x, o.x);
     }
+    // NOLINTNEXTLINE(hicpp-explicit-conversions)
     cxx_mpz(mpz_srcptr a) {
         mpz_init_set(x, a);
     }
     cxx_mpz & operator=(cxx_mpz const & o) {
-        mpz_set(x, o.x);
+        if (&o != this)
+            mpz_set(x, o.x);
         return *this;
     }
-    /* XXX but this is C++14 ! */
-    template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
-    cxx_mpz & operator=(const T a) {
-        gmp_auxx::mpz_set(x, a);
-        return *this;
-    }
+    // NOLINTEND(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
 
 #if __cplusplus >= 201103L
-    cxx_mpz(cxx_mpz && o) {
-        mpz_init(x);
+    cxx_mpz(cxx_mpz && o) noexcept
+        : cxx_mpz()
+    {
         mpz_swap(x, o.x);
     }
-    cxx_mpz& operator=(cxx_mpz && o) {
-        mpz_swap(x, o.x);
+    cxx_mpz& operator=(cxx_mpz && o) noexcept {
+        if (&o != this)
+            mpz_swap(x, o.x);
         return *this;
     }
 #endif
+    // NOLINTBEGIN(hicpp-explicit-conversions)
     operator mpz_ptr() { return x; }
     operator mpz_srcptr() const { return x; }
+    // NOLINTEND(hicpp-explicit-conversions)
     mpz_ptr operator->() { return x; }
     mpz_srcptr operator->() const { return x; }
     explicit operator uint64_t() const {return mpz_get_uint64(x);}
