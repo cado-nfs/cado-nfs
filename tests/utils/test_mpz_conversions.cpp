@@ -54,7 +54,7 @@ template <typename T> struct example_gen_1 {
     }
 };
 
-/* This one, after all, is more direct. It does rely on mpz_to<> doing
+/* This one, after all, is more direct. It does rely on mpz_get<> doing
  * the right thing, though.
  */
 template <typename T> struct example_gen_2 {
@@ -67,7 +67,7 @@ template <typename T> struct example_gen_2 {
 
         mpz_rrandomb(z, rstate, std::min(2 * E, ET));
 
-        zd = mpz_to<T>(z);
+        zd = mpz_get<T>(z);
 
         if (gmp_urandomb_ui(rstate, 1)) {
             zd = -zd;
@@ -136,27 +136,8 @@ int main()
     dotest<double, example_gen_2>(rstate);
     dotest<long double, example_gen_2>(rstate);
 
-    // this one can't work because even though gcc boasts a __float128
-    // data type, it can't do ldexp on it (why?). It does seem that g++
-    // in c++23 mode has __STDCPP_FLOAT128_T__ *AND*
-    // _GLIBCXX_HAVE_FLOAT128_MATH, meaning that an ldexp function is
-    // available in that case
-
-    /* This float128 (raw hex bytes in memory) yields a wrong result of
-     * mpz_from().
-     *
-     * input
-     * 0x4077fffe0000007fffffffc0003fffff
-     * 2.65841542675122890537650317297503411e+36
-     *
-     * expected
-     * 0x1fffe0000007fffffffc0003fffff00
-     * 2658415426751228905376503172975034112
-     *
-     * got
-     * 2658415426751228905448699303330611456)
-     * 0x1fffe000000800001003dffc0008100
-     */
+    // To use this one, presently we need to use g++ (version 13 and up)
+    // and force c++23.
 #if __cplusplus >= 202302L && defined(__STDCPP_FLOAT128_T__)
     dotest<std::float128_t, example_gen_1>(rstate);
     dotest<std::float128_t, example_gen_2>(rstate);

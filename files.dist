@@ -1638,6 +1638,7 @@ utils/getprime.h
 utils/gmp-hacks.h
 utils/gmp_aux.c
 utils/gmp_aux.h
+utils/gmp_aux2.cpp
 utils/gmp_auxx.hpp
 utils/gmp_gcd.c
 utils/gmpxx.cpp

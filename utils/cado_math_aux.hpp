@@ -83,13 +83,6 @@ namespace cado_math_aux
         e -= (d-1);
     }
 
-    template<typename T>
-    T mpz_get(mpz_srcptr x);
-    template<> inline float mpz_get<float>(mpz_srcptr x) { return mpz_get_d(x); }
-    template<> inline double mpz_get<double>(mpz_srcptr x) { return mpz_get_d(x); }
-    /* This one is in gmp_aux.h */
-    template<> inline long double mpz_get<long double>(mpz_srcptr x) { return mpz_get_ld(x); }
-
     template<typename T> static inline void do_not_outsmart_me(T &) {}
 #if defined(__i386)
     template<> inline void do_not_outsmart_me<double>(double & x) {
@@ -226,7 +219,7 @@ namespace cado_math_aux
      */
     template<typename T>
     typename std::enable_if<std::is_floating_point<T>::value, T>::type
-    mpz_to (mpz_srcptr z)
+    mpz_get (mpz_srcptr z)
     {
         T ld = 0;
         cxx_mpz zr = z;

@@ -148,6 +148,9 @@ next_mpz_with_factor_constraints(mpz_ptr r,
 
 /* return the number of bits of p, counting from the least significant end */
 extern int nbits (uintmax_t p);
+
+/* The implementation of mpz_get_ld is in gmp_aux2.cpp
+ */
 extern long double mpz_get_ld (mpz_srcptr z);
 
 extern int mpz_p_valuation(mpz_srcptr a, mpz_srcptr p);
