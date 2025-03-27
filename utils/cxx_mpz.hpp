@@ -243,4 +243,12 @@ namespace fmt {
     template <> struct formatter<cxx_mpq>: ostream_formatter {};
 }
 
+/* a shorthand so that we can use user-defined literals */
+static inline cxx_mpz operator"" _mpz(char const * str, size_t)
+{
+    cxx_mpz res;
+    mpz_set_str(res, str, 0);
+    return res;
+}
+
 #endif	/* CADO_CXX_MPZ_HPP */

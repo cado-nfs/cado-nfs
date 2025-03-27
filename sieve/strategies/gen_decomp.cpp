@@ -3,89 +3,19 @@
 #include <cmath>
 #include <cstdlib>
 
+#include "misc.h"
+
 #include "decomp.hpp"
 #include "gen_decomp.hpp"
 #include "tab_decomp.hpp"
 
 #define PREC 1000000
 
-/* number of primes <= 2^n */
-/* All values below fit in 53-bit mantissa, so that makes well-defined
- * floating point literals.
- */
-double A7053[256] = {
-    0,
-    1,
-    2,
-    4,
-    6,
-    11,
-    18,
-    31,
-    54,
-    97,
-    172,
-    309,
-    564,
-    1028,
-    1900,
-    3512,
-    6542,
-    12251,
-    23000,
-    43390,
-    82025,
-    155611,
-    295947,
-    564163,
-    1077871,
-    2063689,
-    3957809,
-    7603553,
-    14630843,
-    28192750,
-    54400028,
-    105097565,
-    203280221,
-    393615806,
-    762939111,
-    1480206279,
-    2874398515,
-    5586502348,
-    10866266172,
-    21151907950,
-    41203088796,
-    80316571436,
-    156661034233,
-    305761713237,
-    597116381732,
-    1166746786182,
-    2280998753949,
-    4461632979717,
-    8731188863470,
-    17094432576778,
-    33483379603407,
-    65612899915304,
-    128625503610475,
-    0,
-};
-
-/* return prime_pi(2^i) */
-static double prime_pi(unsigned long i)
-{
-    if (A7053[i] != 0)
-        return (double)A7053[i];
-    else {
-        double x = ldexp(1.0, i);
-        return x / log(x);
-    }
-}
-
 /* generate a random i-bit integer, distributed with density in 1/log(x). */
 static double gen_random(unsigned int i)
 {
-    double n0 = prime_pi(i - 1);
-    double n1 = prime_pi(i);
+    double n0 = prime_pi_2exp(i - 1);
+    double n1 = prime_pi_2exp(i);
     double a, b, n;
 
     /* we assume the n-th prime is in a*n*log(n)+b, thus we want:
@@ -150,15 +80,15 @@ tabular_decomp generate_all_decomp(unsigned int mfb, unsigned long lim)
 {
     tabular_decomp res;
     unsigned int l[256];
-    double p0, p1;
-
     unsigned int imin = ceil(log2((double)(lim + 1)));
     for (unsigned int i = 1; (i < 256) && i <= mfb; i++) {
+        double p0, p1;
+
         p0 = ldexp(1.0, (int)i - 1);
         p0 = (p0 < (double)lim) ? (double)lim / log((double)lim)
-                                : prime_pi(i - 1);
+                                : prime_pi_2exp(i - 1);
         p1 = ldexp(1.0, (int)i);
-        p1 = (p1 <= (double)lim) ? (double)lim / log((double)lim) : prime_pi(i);
+        p1 = (p1 <= (double)lim) ? (double)lim / log((double)lim) : prime_pi_2exp(i);
         T[i] = p1 - p0;
         // if (T[i] != 0) printf ("T[%lu]=%.0f\n", i, T[i]);
     }
