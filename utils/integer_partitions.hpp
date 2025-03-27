@@ -2,6 +2,8 @@
 #define CADO_UTILS_INTEGER_PARTITIONS_HPP_
 
 #include <vector>
+#include <algorithm>
+
 #include "macros.h"
 
 /* This provides a range-iterable abstractions for the partitions of a
@@ -14,7 +16,7 @@ struct integer_partitions {
         : n(n)
         , min_part(min_part)
     {
-        ASSERT_ALWAYS(n > 0);
+        /* n == 0 is supported */
         ASSERT_ALWAYS(min_part > 0);
     }
     integer_partitions(integer_partitions const &) = default;
@@ -59,11 +61,20 @@ struct integer_partitions {
         /* an array, sorted in decreasing order */
         std::vector<unsigned int>
     {
+        typedef std::vector<unsigned int> super;
+        bool operator==(const_iterator & o) const {
+            return is_end == o.is_end &&
+                size() == o.size() &&
+                std::equal(begin(), end(), o.begin());
+        }
+        bool operator!=(const_iterator & o) const {
+            return !operator==(o);
+        }
         unsigned int min_part = 1;
+        bool is_end = false;
         explicit const_iterator(unsigned int min_part)
             : min_part(min_part)
         {}
-        typedef std::vector<unsigned int> super;
         // pre-increment
         const_iterator& operator++()
         {
@@ -73,6 +84,7 @@ struct integer_partitions {
                 for( ; s && (*this)[s-1] == min_part ; s--) ;
                 if (!s) {
                     clear();
+                    is_end = true;
                     return *this;
                 }
                 r += (size() - s) * min_part;
@@ -109,11 +121,125 @@ struct integer_partitions {
         const_iterator ret(min_part);
         if (n >= min_part)
             ret.assign(1, n);
+        else if (n)
+            ret.is_end = true;
         return ret;
     }
     // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
     const_iterator end() const {
         const_iterator ret(min_part);
+        ret.is_end = true;
+        return ret;
+    }
+};
+
+struct integer_partitions_in_k_parts {
+    unsigned int n;
+    unsigned int k;
+    unsigned int min_part;
+    integer_partitions_in_k_parts(unsigned int n, unsigned int k, unsigned int min_part=1)
+        : n(n)
+        , k(k)
+        , min_part(min_part)
+    {
+        /* n == 0 is supported */
+        ASSERT_ALWAYS(min_part > 0);
+    }
+    integer_partitions_in_k_parts(integer_partitions_in_k_parts const &) = default;
+    integer_partitions_in_k_parts(integer_partitions_in_k_parts &&) = default;
+    integer_partitions_in_k_parts& operator=(integer_partitions_in_k_parts const &) noexcept = default;
+    integer_partitions_in_k_parts& operator=(integer_partitions_in_k_parts &&) noexcept = default;
+    ~integer_partitions_in_k_parts() = default;
+
+    struct const_iterator :
+        /* an array, sorted in decreasing order */
+        std::vector<unsigned int>
+    {
+        typedef std::vector<unsigned int> super;
+        bool operator==(const_iterator & o) const {
+            return (is_end && o.is_end) ||
+                (size() == o.size() && std::equal(begin(), end(), o.begin()));
+        }
+        bool operator!=(const_iterator & o) const {
+            return !operator==(o);
+        }
+        unsigned int min_part = 1;
+        bool is_end = false;
+        explicit const_iterator(unsigned int min_part)
+            : min_part(min_part)
+        {}
+        // pre-increment
+        const_iterator& operator++()
+        {
+            const unsigned int k = size();
+            unsigned int t;
+            super & l = *this;
+            unsigned int spill = 0;
+            for (t = k - 1; t > 0; t--) {
+                /* try to increase l[t-1] and decrease l[t] */
+                if (l[t-1] + 1 <= l[t])
+                {
+                    l[t-1] ++;
+                    unsigned int s = 1;
+                    unsigned int dec = 0;
+                    for (unsigned int u = t; u < k; u++)
+                    {
+                        dec += l[u];
+                        l[u] = l[u-1];
+                        s += l[u];
+                    }
+                    /* recover spillover from previous iteration */
+                    s += spill;
+                    /* we also lost some */
+                    if (dec <= s) {
+                        s -= dec;
+                        dec = 0;
+                    } else {
+                        dec -= s;
+                        s = 0;
+                    }
+                    /* the total has increased by s-dec */
+                    if (l[k-1] + dec >= s) {
+                        l[k-1] += dec;
+                        l[k-1] -= s;
+                        spill = 0;
+                        if (l[k-2] <= l[k-1])
+                            break;
+                    } else {
+                        spill = s - (l[k-1] + dec);
+                        l[k-1] = 0;
+                    }
+                }
+            }
+            is_end = t == 0;
+            return *this;
+        }
+
+        // post-increment
+        const_iterator operator++(int)
+        {
+            const_iterator v = *this;
+            ++*this;
+            return v;
+        }
+
+        super const & operator*() const { return (super const &) *this; }
+    };
+
+    const_iterator begin() const {
+        const_iterator ret(min_part);
+        if (n < k * min_part) {
+            ret.is_end = true;
+        } else {
+            ret.assign(k, min_part);
+            ret[k-1] += n - k * min_part;
+        }
+        return ret;
+    }
+    // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+    const_iterator end() const {
+        const_iterator ret(min_part);
+        ret.is_end = true;
         return ret;
     }
 };
