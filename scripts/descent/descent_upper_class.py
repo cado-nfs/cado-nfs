@@ -64,9 +64,13 @@ class DescentUpperClass(object):
                             type=str,
                             default=None)
 
+    def has_log(self, *args):
+        if self.general.logDB is None:
+            return False
+        return self.general.logDB.has(*args)
+
     def __init__(self, general, args):
         self.general = general
-        self.logDB = general.logDB
         self.args = args
 
         if self.args.external_init is not None:
@@ -142,7 +146,7 @@ class DescentUpperClass(object):
             for q in fnum + fden:
                 if q in large_q:
                     continue
-                if self.logDB.has(q, -1, 0):
+                if self.has_log(q, -1, 0):
                     continue
                 logq = math.ceil(math.log(q, 2))
                 print("Will do further descent"
@@ -171,7 +175,7 @@ class DescentUpperClass(object):
                         if p in large_q:
                             continue
                         if side == 0:
-                            if not self.logDB.has(p, -1, 0):
+                            if not self.has_log(p, -1, 0):
                                 f.write("0 %d\n" % p)
                         else:
                             if b % p == 0:
@@ -343,7 +347,7 @@ class DescentUpperClass(object):
 
         lc_ratpol = int(general.poly_data()["Y"][1])
         for q in factNum + factDen:
-            if not self.logDB.has(q, -1, 0):
+            if not self.has_log(q, -1, 0):
                 if lc_ratpol % q == 0:
                     print("Would need to descend %s" % q,
                           "which divides the lc of the rational poly.")
@@ -355,7 +359,7 @@ class DescentUpperClass(object):
         if not os.path.exists(todofilename):
             with open(todofilename, "w") as f:
                 for q in factNum + factDen:
-                    if self.logDB.has(q, -1, 0):
+                    if self.has_log(q, -1, 0):
                         continue
                     logq = math.ceil(math.log(q, 2))
                     print("Will do further descent",
@@ -443,7 +447,7 @@ class DescentUpperClass(object):
                 for ideal in general.initfacu + general.initfacv:
                     q = ideal[0]
                     r = ideal[1]
-                    if self.logDB.has(q, r, self.side):
+                    if self.has_log(q, r, self.side):
                         continue
                     logq = math.ceil(math.log(q, 2))
                     print("Will do further descent",
