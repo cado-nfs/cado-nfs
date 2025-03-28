@@ -238,6 +238,7 @@ class DescentUpperClass(object):
                     gg[1][0].bit_length() < bound and
                     gg[0][1].bit_length() < bound and
                     gg[1][1].bit_length() < bound):
+                # we're happy
                 break
             print("Skewed reconstruction. Let's randomize the input.")
 

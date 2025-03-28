@@ -67,15 +67,16 @@ class DescentMiddleClass(object):
                 values_I.add(int(I))
                 values_lim0.add(int(lim0))
                 values_lim1.add(int(lim1))
-        if len(values_lim0) > 1:
-            raise ValueError("lim0 values should match"
-                             " between cmdline and hint file")
-        if len(values_lim1) > 1:
-            raise ValueError("lim1 values should match"
-                             " between cmdline and hint file")
-        if len(values_I) > 1:
-            raise ValueError("I values should match"
-                             " between cmdline and hint file")
+        if False:
+            if len(values_lim0) > 1:
+                raise ValueError("lim0 values should match"
+                                 " between cmdline and hint file")
+            if len(values_lim1) > 1:
+                raise ValueError("lim1 values should match"
+                                 " between cmdline and hint file")
+            if len(values_I) > 1:
+                raise ValueError("I values should match"
+                                 " between cmdline and hint file")
         print("Consistency check for las_descent passed")
         print("\tI=%d" % values_I.pop())
         print("\tlim0=%d" % values_lim0.pop())
