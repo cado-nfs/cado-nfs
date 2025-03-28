@@ -188,16 +188,51 @@ class DescentUpperClass(object):
                                 f.write("1 %d %d\n" % (p, r))
         return todofilename, [Num, Den, fnum, fden], descrelfile
 
-    def do_descent_for_real(self, z, seed):
+    
+    def do_descent_for_real(self, z, seed,
+                            randomize_multiplicatively=None):
+        """
+        This is a convenient entry point, limited to the first step of
+        the descent. The goal is to find an initial split for the target
+        z, i.e. an expression z=u/v with reasonaly smooth u and v. The
+        "T-kewness" approach is used.
+
+        This step typically requires randomization. We have two types of
+        randomization.
+         - by default, we do "exponential randomization", which is
+           accessed by `randomize_multiplicatively=False`. Here, a random
+           exponent h is chosen, and we look for a split of `z^h`. Of
+           course multiple such exponents h are tried, and this depends
+           on the seed. This is only doable if we know how to invert h
+           modulo the group order, and this is adapted to discrete
+           logarithms. The integer h is returned as a fourth return
+           value.
+         - The "multiplicative randomization", for which
+           `randomize_multiplicatively` is set to a non-zero integer e. In
+           this mode, a random number is picked, and we look for a split
+           of `m^e*z`. This is adapted to the computation of e-th roots.
+           The integer m is returned as a fourth return value. Note that
+           this mode also *implies* that we call this function directly,
+           and it is not compatible with what is done in
+           descent_lower_class.
+        """
         general = self.general
         p = general.p()
         bound = p.bit_length() // 2 + 20
         # make the randomness deterministic to be able to replay
         # interrupted computations.
         random.seed(seed)
-        general.initrandomizer = random.randrange(p)
         while True:
-            zz = pow(z, general.initrandomizer, p)
+            if randomize_multiplicatively is None:
+                h = random.randrange(p)
+                zz = pow(z, h, p)
+                general.initrandomizer = h
+            else:
+                e = randomize_multiplicatively
+                m = random.randrange(p)
+                zz = (pow(m, e, p) * z) % p
+                general.initrandomizer = m
+
             gg = self.__myxgcd(zz, p, self.tkewness)
             if (gg[0][0].bit_length() < bound and
                     gg[1][0].bit_length() < bound and
@@ -205,7 +240,6 @@ class DescentUpperClass(object):
                     gg[1][1].bit_length() < bound):
                 break
             print("Skewed reconstruction. Let's randomize the input.")
-            general.initrandomizer = random.randrange(p)
 
         tmpdir = general.tmpdir()
         prefix = f"{general.prefix()}.descent" \
@@ -375,7 +409,10 @@ class DescentUpperClass(object):
                     print("Will do further descent",
                           "for %d-bit rational prime %d" % (logq, q))
 
-        return todofilename, [Num, Den, factNum, factDen], None
+        return (todofilename,
+                [Num, Den, factNum, factDen],
+                None,
+                general.initrandomizer)
 
     def do_descent_nonlinear(self, z):
         general = self.general
@@ -470,17 +507,17 @@ class DescentUpperClass(object):
                               general.initfacv], None
 
     def do_descent(self, z):
-        general = self.general
-        if not self.external:
-            if general.has_rational_side():
-                seed = 42
-                while True:
-                    tdf, spl, frf = self.do_descent_for_real(z, seed)
-                    if tdf is not None:
-                        return tdf, spl, frf
-                    else:
-                        seed += 1
-            else:
-                return self.do_descent_nonlinear(z)
-        else:
+        if self.external:
             return self.use_external_data(z)
+
+        if not self.general.has_rational_side():
+            return self.do_descent_nonlinear(z)
+
+        seed = 42
+
+        while True:
+            tdf, spl, frf, *tail = self.do_descent_for_real(z, seed)
+            if tdf is not None:
+                return tdf, spl, frf
+            else:
+                seed += 1
