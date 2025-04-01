@@ -358,7 +358,7 @@ class DescentUpperClass(object):
         if rel_holder.v is None:
             print("No relation found!")
             print("Trying again with another random seed...")
-            return None, None, None
+            return None, None, None, None
 
         idx, rel = rel_holder.v
 
@@ -387,7 +387,7 @@ class DescentUpperClass(object):
                     print("Would need to descend %s" % q,
                           "which divides the lc of the rational poly.")
                     print("Trying again with a new seed.")
-                    return None, None, None
+                    return None, None, None, None
 
         todofilename = os.path.join(general.datadir(), prefix + "todo")
 
