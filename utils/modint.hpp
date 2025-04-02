@@ -179,9 +179,9 @@ class Integer128 {
 public:
     typedef uint64_t WordType;
     Integer128() : v{0,0} {}
-    Integer128(const uint64_t a) : v{a,0} {}
+    explicit Integer128(const uint64_t a) : v{a,0} {}
     Integer128(const uint64_t a0, const uint64_t a1) : v{a0,a1} {}
-    Integer128(Integer64 &a) : v{(uint64_t) a, 0} {}
+    explicit Integer128(Integer64 &a) : v{(uint64_t) a, 0} {}
     
     static size_t maxsize() {return 2;}
 

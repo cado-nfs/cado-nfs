@@ -1143,6 +1143,7 @@ sieve/strategies/finding_good_strategy.cpp
 sieve/strategies/finding_good_strategy.hpp
 sieve/strategies/gen_decomp.cpp
 sieve/strategies/gen_decomp.hpp
+sieve/strategies/gen_decomp_main.cpp
 sieve/strategies/generate_factoring_method.cpp
 sieve/strategies/generate_factoring_method.hpp
 sieve/strategies/generate_strategies.cpp
@@ -1150,7 +1151,6 @@ sieve/strategies/generate_strategies.hpp
 sieve/strategies/gfm_exec.cpp
 sieve/strategies/gst_exec.cpp
 sieve/strategies/script_gen_dec.sh
-sieve/strategies/test_gen_decomp.cpp
 sieve/strategies/utils_st/convex_hull.cpp
 sieve/strategies/utils_st/convex_hull.hpp
 sieve/strategies/utils_st/decomp.cpp
@@ -1442,6 +1442,7 @@ tests/sieve/sievetest.sh
 tests/sieve/strategies/CMakeLists.txt
 tests/sieve/strategies/test_benchfm.cpp
 tests/sieve/strategies/test_filtering.cpp
+tests/sieve/strategies/test_gen_decomp.cpp
 tests/sieve/strategies/test_generate_composite_numbers.cpp
 tests/sieve/strategies/test_generate_strategies.cpp
 tests/sieve/strategies/test_main_script.sh
@@ -1653,7 +1654,7 @@ utils/indexed_relation.hpp
 utils/integer_partitions.hpp
 utils/intrinsics.hpp
 utils/iqsort.h
-utils/is_non_narrowing_integral_conversion.hpp
+utils/is_non_narrowing_conversion.hpp
 utils/istream_matcher.hpp
 utils/json.cpp
 utils/json.hpp

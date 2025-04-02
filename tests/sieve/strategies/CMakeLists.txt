@@ -1,10 +1,10 @@
 set (SUF_SRC ${CADO_NFS_SOURCE_DIR}/sieve/strategies)
 
 set (SUF_UTILS ${SUF_SRC}/utils_st/)
-set (SRC_UTILS ${SUF_UTILS}point.c ${SUF_UTILS}tab_point.c
-  ${SUF_UTILS}convex_hull.c ${SUF_UTILS}fm.c ${SUF_UTILS}tab_fm.cpp
-  ${SUF_UTILS}strategy.c ${SUF_UTILS}tab_strategy.c
-  ${SUF_UTILS}decomp.c ${SUF_UTILS}tab_decomp.c)
+set (SRC_UTILS
+  ${SUF_UTILS}convex_hull.cpp ${SUF_UTILS}fm.cpp ${SUF_UTILS}tab_fm.cpp
+  ${SUF_UTILS}strategy.cpp ${SUF_UTILS}tab_strategy.cpp
+  ${SUF_UTILS}decomp.cpp ${SUF_UTILS}tab_decomp.cpp)
 
 set (LIB_EXEC m facul utils)
 
@@ -13,6 +13,14 @@ include_directories(${CADO_NFS_SOURCE_DIR}/sieve)
 include_directories(${CADO_NFS_SOURCE_DIR}/sieve/ecm)
 include_directories(${CADO_NFS_SOURCE_DIR}/sieve/strategies)
 include_directories(${CADO_NFS_SOURCE_DIR}/sieve/strategies/utils_st)
+
+cado_define_test(
+  test_gen_decomp.cpp
+  ${SUF_SRC}/gen_decomp.cpp
+  ${SUF_UTILS}/decomp.cpp
+  ${SUF_UTILS}/tab_decomp.cpp
+  ARGUMENTS 60 800000
+  LIBRARIES ${LIB_EXEC})
 
 if (HAVE_REGEX_H)
 cado_define_test(test_generate_composite_numbers.cpp

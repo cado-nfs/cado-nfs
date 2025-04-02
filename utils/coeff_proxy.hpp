@@ -13,16 +13,14 @@ namespace cado_details {
     struct coeff_proxy {
         P & p;
         typedef typename P::coefficient_type T;
-        int i;
+        unsigned int i;
         // NOLINTNEXTLINE(hicpp-explicit-conversions)
-        operator T() { return (i <= p.degree()) ? p.coeffs[i] : 0; }
+        operator T() { return (i < p.coeffs.size()) ? p.coeffs[i] : 0; }
         coeff_proxy& operator=(T x) {
-            if (i < p.degree()) {
+            if (i + 1 < p.coeffs.size()) {
                 p.coeffs[i] = x;
             } else {
-                p.coeffs.reserve(i + 1);
-                for(int j = p.degree() + 1 ; j <= i ; j++)
-                    p.coeffs.push_back(0);
+                p.coeffs.insert(p.coeffs.end(), (i + 1 - p.size()), T(0));
                 p.coeffs[i] = x;
                 p.cleandeg(p.degree());
             }
@@ -37,9 +35,9 @@ namespace cado_details {
     struct const_coeff_proxy {
         P const & p;
         typedef typename P::coefficient_type T;
-        int i;
+        unsigned int i;
         // NOLINTNEXTLINE(hicpp-explicit-conversions)
-        operator T() { return (i <= p.degree()) ? p.coeffs[i] : 0; }
+        operator T() { return (i < p.size()) ? p.coeffs[i] : 0; }
     };
 }
 

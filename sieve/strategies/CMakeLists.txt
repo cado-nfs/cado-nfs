@@ -33,16 +33,12 @@ add_executable(finalst
 target_link_libraries(finalst ${LIB_EXEC})
 
 add_executable(gen_decomp
-  test_gen_decomp.cpp
+  gen_decomp_main.cpp
   gen_decomp.cpp
   ${SUF_UTILS}/decomp.cpp
   ${SUF_UTILS}/tab_decomp.cpp)
 
-if(MINGW)
-    target_link_libraries(gen_decomp gnurx m utils)
-else()
-    target_link_libraries(gen_decomp m utils)
-endif()
+target_link_libraries(gen_decomp m utils)
 
 
 include(CMakeLists-nodist.txt OPTIONAL)

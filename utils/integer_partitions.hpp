@@ -63,9 +63,8 @@ struct integer_partitions {
     {
         typedef std::vector<unsigned int> super;
         bool operator==(const_iterator & o) const {
-            return is_end == o.is_end &&
-                size() == o.size() &&
-                std::equal(begin(), end(), o.begin());
+            if (is_end || o.is_end) return is_end && o.is_end;
+            return size() == o.size() && std::equal(begin(), end(), o.begin());
         }
         bool operator!=(const_iterator & o) const {
             return !operator==(o);
@@ -157,8 +156,8 @@ struct integer_partitions_in_k_parts {
     {
         typedef std::vector<unsigned int> super;
         bool operator==(const_iterator & o) const {
-            return (is_end && o.is_end) ||
-                (size() == o.size() && std::equal(begin(), end(), o.begin()));
+            if (is_end || o.is_end) return is_end && o.is_end;
+            return size() == o.size() && std::equal(begin(), end(), o.begin());
         }
         bool operator!=(const_iterator & o) const {
             return !operator==(o);

@@ -1,44 +1,44 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 #include <fcntl.h>              /* for _O_BINARY */
-#include "fm.h"      // for fm_set_proba, fm_set_method, fm_set_time, fm_free
+#include "fm.hpp"      // for fm_set_proba, fm_set_method, fm_set_time, fm_free
 #include "macros.h"
-#include "tab_fm.h"
+#include "tab_fm.hpp"
 
 //test equality between two fm!  check all parameters in the structure
 //fm, while fm_is_equal just see the parameter method!
 
-int fm_are_equals (fm_t* t1, fm_t* t2){
+static int fm_are_equals (fm_t const * t1, fm_t const * t2){
     //test method
-    int len_met1 = fm_get_len_method (t1);
-    int len_met2 = fm_get_len_method (t2);
+    const unsigned int len_met1 = fm_get_len_method (t1);
+    const unsigned int len_met2 = fm_get_len_method (t2);
     if (len_met2 != len_met1)
 	return 0;
-    unsigned long* tab_t1 = fm_get_method (t1);
-    unsigned long* tab_t2 = fm_get_method (t2);
-    for (int i = 0; i < len_met1; i++)
+    unsigned long const * tab_t1 = fm_get_method (t1);
+    unsigned long const * tab_t2 = fm_get_method (t2);
+    for (unsigned int i = 0; i < len_met1; i++)
 	if (tab_t1[i] != tab_t2[i])
 	    return 0;
     //test proba
-    int len_prob1 = fm_get_len_proba (t1);
-    int len_prob2 = fm_get_len_proba (t2);
+    const unsigned int len_prob1 = fm_get_len_proba (t1);
+    const unsigned int len_prob2 = fm_get_len_proba (t2);
     if (len_prob2 != len_prob1)
 	return 0;
-    double* tabp_t1 = fm_get_proba (t1);
-    double* tabp_t2 = fm_get_proba (t2);
-    double prec = 0.0001;
-    for (int i = 0; i < len_prob1; i++)
+    double const * tabp_t1 = fm_get_proba (t1);
+    double const * tabp_t2 = fm_get_proba (t2);
+    const double prec = 0.0001;
+    for (unsigned int i = 0; i < len_prob1; i++)
 	if (tabp_t1[i]- tabp_t2[i]> prec || tabp_t2[i]- tabp_t1[i]> prec)
 	    return 0;
     //test time
-    int len_time1 = fm_get_len_time (t1);
-    int len_time2 = fm_get_len_time (t2);
+    const unsigned int len_time1 = fm_get_len_time (t1);
+    const unsigned int len_time2 = fm_get_len_time (t2);
     if (len_time2 != len_time1)
 	return 0;
-    double* tabt_t1 = fm_get_time (t1);
-    double* tabt_t2 = fm_get_time (t2);
-    for (int i = 0; i < len_time1; i++)
+    double const * tabt_t1 = fm_get_time (t1);
+    double const * tabt_t2 = fm_get_time (t2);
+    for (unsigned int i = 0; i < len_time1; i++)
 	if (tabt_t1[i]- tabt_t2[i]> prec || tabt_t2[i]- tabt_t1[i]> prec)
 	    return 0;
     return 1;
@@ -46,13 +46,13 @@ int fm_are_equals (fm_t* t1, fm_t* t2){
 
 
 //test equality between two tab_fm!
-int tabular_fm_are_equals (tabular_fm_t* t1, tabular_fm_t* t2){
-    int len1 = t1->index;
-    int len2 = t2->index;
+static int tabular_fm_are_equals (tabular_fm_t const * t1, tabular_fm_t const * t2){
+    const unsigned int len1 = t1->size;
+    const unsigned int len2 = t2->size;
     if (len1 != len2)
 	return 0;
     
-    for (int i = 0; i < len1; i++)
+    for (unsigned int i = 0; i < len1; i++)
 	if (!fm_are_equals (tabular_fm_get_fm (t1, i),
 			    tabular_fm_get_fm (t2, i)))
 	    return 0;
@@ -61,12 +61,12 @@ int tabular_fm_are_equals (tabular_fm_t* t1, tabular_fm_t* t2){
 
 
 //check if the tab_fm is really sorted!
-int check_sort (tabular_fm_t* tab)
+static int check_sort (tabular_fm_t const * tab)
 {
-    int len = tab->index;
+    const unsigned int len = tab->size;
     if (len == 1)
 	return 1;
-    for (int i = 0; i < len-1; i++)
+    for (unsigned int i = 0; i < len-1; i++)
 	{
 	    if (fm_cmp (tab->tab[i], tab->tab[i+1]) > 0)
 		return 0;
@@ -117,7 +117,7 @@ int main ()
     tabular_fm_concat (tab1, tab2);
 
     if (!fm_are_equals(tabular_fm_get_fm(tab2, 0),
-		       tabular_fm_get_fm(tab1, tab1->index - tab2->index )))
+		       tabular_fm_get_fm(tab1, tab1->size - tab2->size )))
 	{
 	    fprintf (stderr, "error with the test(2)!!!\n");
 	    return EXIT_FAILURE;
@@ -140,8 +140,8 @@ int main ()
     // think it's a problem, really.
     // coverity[secure_temp]
     FILE* file = tmpfile();
-    DIE_ERRNO_DIAG(file == NULL, "tmpfile(%s)", "");
-    int errf = (tabular_fm_fprint (file, tab1) == -1);
+    DIE_ERRNO_DIAG(file == nullptr, "tmpfile(%s)", "");
+    const int errf = (tabular_fm_fprint (file, tab1) == -1);
     if (errf)
 	{
             fprintf (stderr, "write error on temp file\n");
@@ -149,7 +149,7 @@ int main ()
 	}
     fseek(file, 0, SEEK_SET);
     tabular_fm_t* tab3 = tabular_fm_fscan (file);
-    if (tab3 == NULL)
+    if (tab3 == nullptr)
 	{
             fprintf (stderr, "read error on temp file\n");
 	    exit (EXIT_FAILURE);

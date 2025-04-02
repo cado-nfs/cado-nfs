@@ -7,8 +7,8 @@
 
 typedef struct tabular_strategy {
     strategy_t ** tab;
-    int index;
-    int alloc;
+    unsigned int size;
+    unsigned int alloc;
 } tabular_strategy_t;
 
 tabular_strategy_t * tabular_strategy_create();
@@ -19,9 +19,9 @@ void tabular_strategy_realloc(tabular_strategy_t * t);
 
 tabular_strategy_t * tabular_strategy_copy(tabular_strategy_t * t);
 
-int tabular_strategy_get_index(tabular_strategy_t * t);
+unsigned int tabular_strategy_get_size(tabular_strategy_t const * t);
 
-strategy_t * tabular_strategy_get_strategy(tabular_strategy_t * t, int index);
+strategy_t * tabular_strategy_get_strategy(tabular_strategy_t * t, unsigned int index);
 
 void tabular_strategy_add_strategy(tabular_strategy_t * t,
                                    strategy_t * strategy);

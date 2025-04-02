@@ -1,6 +1,7 @@
 #ifndef CADO_CXX_MPZ_HPP
 #define CADO_CXX_MPZ_HPP
 
+#include <cstdint>
 #include <cstdlib>
 
 #include <istream>
@@ -11,7 +12,7 @@
 #include "fmt/ostream.h"
 #include "fmt/base.h"
 
-#include "is_non_narrowing_integral_conversion.hpp"
+#include "is_non_narrowing_conversion.hpp"
 #include "gmp_aux.h"
 #include "gmp_auxx.hpp"
 #include "macros.h"
@@ -24,14 +25,18 @@ public:
     cxx_mpz() { mpz_init(x); }
 
     template <typename T, typename std::enable_if<
-        cado_math_aux::is_non_narrowing_integral_conversion<T, int64_t>::value,
+        std::is_integral<T>::value &&
+        std::is_signed<T>::value &&
+        cado_math_aux::is_non_narrowing_conversion<T, int64_t>::value,
         int>::type = 0 >
     // NOLINTNEXTLINE(hicpp-explicit-conversions)
     cxx_mpz (const T & rhs) {
         gmp_auxx::mpz_init_set(x, int64_t(rhs));
     }
     template <typename T, typename std::enable_if<
-        cado_math_aux::is_non_narrowing_integral_conversion<T, int64_t>::value,
+        std::is_integral<T>::value &&
+        std::is_signed<T>::value &&
+        cado_math_aux::is_non_narrowing_conversion<T, int64_t>::value,
         /*
         std::is_integral<T>::value &&
         std::is_signed<T>::value &&
@@ -45,7 +50,9 @@ public:
         return *this;
     }
     template <typename T, typename std::enable_if<
-        cado_math_aux::is_non_narrowing_integral_conversion<T, uint64_t>::value,
+        std::is_integral<T>::value &&
+        !std::is_signed<T>::value &&
+        cado_math_aux::is_non_narrowing_conversion<T, uint64_t>::value,
         /*
         std::is_integral<T>::value &&
         !std::is_signed<T>::value &&
@@ -58,7 +65,9 @@ public:
         gmp_auxx::mpz_init_set(x, uint64_t(rhs));
     }
     template <typename T, typename std::enable_if<
-        cado_math_aux::is_non_narrowing_integral_conversion<T, uint64_t>::value,
+        std::is_integral<T>::value &&
+        !std::is_signed<T>::value &&
+        cado_math_aux::is_non_narrowing_conversion<T, uint64_t>::value,
         /*
         std::is_integral<T>::value &&
         !std::is_signed<T>::value &&

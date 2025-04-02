@@ -10,7 +10,10 @@
 #include "convex_hull.hpp"
 #include "facul_method.hpp"
 #include "generate_strategies.hpp"
+#include "strategy.hpp"
+#include "tab_strategy.hpp"
 #include "macros.h"
+#include "fm.hpp"
 #include "modredc_ul.h"
 #include "point.hpp"
 #include "tab_point.hpp"
@@ -26,7 +29,7 @@
   use this method 'fm'.
  */
 double
-compute_proba_method_one_decomp (decomp const & D, fm_t* fm)
+compute_proba_method_one_decomp (decomp const & D, fm_t const * fm)
 {
     const double *proba_suc = fm_get_proba(fm);
     unsigned int const len_proba = fm_get_len_proba(fm);
@@ -49,7 +52,7 @@ compute_proba_strategy(tabular_decomp const & init_tab, strategy_t * strat,
 {
     double all = 0.0;
     double nb_found_elem = 0;
-    int const nb_fm = tabular_fm_get_index(strat->tab_fm);
+    unsigned int const nb_fm = tabular_fm_get_size(strat->tab_fm);
     tabular_fm_t *tab_fm = strat->tab_fm;
 
     for (auto const & D : init_tab) {
@@ -57,8 +60,8 @@ compute_proba_strategy(tabular_decomp const & init_tab, strategy_t * strat,
 	    //the probability to doesn't find a non trivial factor
 	    //with all methods in our strategy.
 	    double p_fail_all = 1;
-	    for (int index_fm = 0; index_fm < nb_fm; index_fm++) {
-		fm_t* elem = tabular_fm_get_fm(tab_fm, index_fm);
+	    for (unsigned int index_fm = 0; index_fm < nb_fm; index_fm++) {
+		fm_t const * elem = tabular_fm_get_fm(tab_fm, index_fm);
 		double const p_fail_one = compute_proba_method_one_decomp (D, elem);
 		p_fail_all *= p_fail_one;
 		if (elem->method[0] == PM1_METHOD ||
@@ -83,7 +86,7 @@ compute_proba_strategy(tabular_decomp const & init_tab, strategy_t * strat,
 */
 double compute_time_strategy(tabular_decomp const & init_tab, strategy_t * strat, unsigned int r)
 {
-    int const nb_fm = tabular_fm_get_index(strat->tab_fm);
+    unsigned int const nb_fm = tabular_fm_get_size(strat->tab_fm);
     tabular_fm_t *tab_fm = strat->tab_fm;
     //{{
     /*
@@ -94,10 +97,10 @@ double compute_time_strategy(tabular_decomp const & init_tab, strategy_t * strat
       lost the equal and thus insert an error in your maths. 
     */
     double const half_word = (MODREDCUL_MAXBITS+0.5)/2.0;
-    int const number_half_wd = floor(r /half_word);
+    unsigned int const number_half_wd = floor(r /half_word);
     //the next computation is necessary in the relation with the
     //benchmark in gfm!
-    int const ind_time = (number_half_wd <2)? 0: number_half_wd - 1;
+    unsigned int const ind_time = (number_half_wd <2)? 0: number_half_wd - 1;
     //}}
 
     double time_average = 0;
@@ -108,9 +111,9 @@ double compute_time_strategy(tabular_decomp const & init_tab, strategy_t * strat
 	double proba_fail_all = 1;
 	double time_method = 0;
 	//compute the time of each decomposition
-	for (int index_fm = 0; index_fm < nb_fm; index_fm++) {
-	    fm_t* elem = tabular_fm_get_fm(tab_fm, index_fm);
-	    int const len_time = fm_get_len_time (elem);
+	for (unsigned int index_fm = 0; index_fm < nb_fm; index_fm++) {
+	    fm_t const * elem = tabular_fm_get_fm(tab_fm, index_fm);
+	    unsigned int const len_time = fm_get_len_time (elem);
 	    if (ind_time >= len_time)
 	      time_method = elem->time[len_time-1];
 	    else
@@ -145,13 +148,13 @@ static void
 tabular_strategy_add_strategy_without_zero(tabular_strategy_t * t,
 					   strategy_t * strategy)
 {
-    if (t->index >= t->alloc)
+    if (t->size >= t->alloc)
 	tabular_strategy_realloc(t);
 
     strategy_t *elem = strategy_create();
-    int const len = strategy->tab_fm->index;
+    unsigned int const len = strategy->tab_fm->size;
     int strat_is_zero = true;
-    for (int i = 0; i < len; i++) {
+    for (unsigned int i = 0; i < len; i++) {
 	if (!tabular_fm_is_zero(strategy->tab_fm, i)) {
 	    strat_is_zero = false;
 	    tabular_fm_add_fm(elem->tab_fm, strategy->tab_fm->tab[i]);
@@ -162,8 +165,8 @@ tabular_strategy_add_strategy_without_zero(tabular_strategy_t * t,
 
     elem->proba = strategy->proba;
     elem->time = strategy->time;
-    t->tab[t->index] = elem;
-    t->index++;
+    t->tab[t->size] = elem;
+    t->size++;
 }
 
 /************************************************************************/
@@ -176,8 +179,10 @@ tabular_strategy_add_strategy_without_zero(tabular_strategy_t * t,
  */
 static void
 generate_collect_iter_ecm(fm_t * zero, tabular_fm_t * ecm,
-			  int ind_ecm, strategy_t * strat, int ind_tab,
-			  int index_iter, int len_iteration, int lbucket,
+			  unsigned int ind_ecm, strategy_t * strat,
+                          unsigned int ind_tab,
+			  unsigned int index_iter, unsigned int len_iteration,
+                          unsigned int lbucket,
 			  tabular_decomp const & init_tab,
 			  tabular_strategy_t**all_strat_ptr,
 			  unsigned int fbb, 
@@ -186,7 +191,7 @@ generate_collect_iter_ecm(fm_t * zero, tabular_fm_t * ecm,
 {
     tabular_strategy_t * all_strat = *all_strat_ptr;
     if (index_iter >= len_iteration) {
-	int const nb_strat = all_strat->index;
+	unsigned int const nb_strat = all_strat->size;
 	tabular_strategy_add_strategy_without_zero(all_strat, strat);
 	double const proba =
 	    compute_proba_strategy(init_tab, all_strat->tab[nb_strat], fbb,lpb);
@@ -196,7 +201,7 @@ generate_collect_iter_ecm(fm_t * zero, tabular_fm_t * ecm,
 	strategy_set_proba(all_strat->tab[nb_strat], proba);
 	strategy_set_time(all_strat->tab[nb_strat], time);
     } else {
-	for (int i = ind_ecm; i < ecm->index; i++) {
+	for (unsigned int i = ind_ecm; i < ecm->size; i++) {
 	  /* The curve BRENT12 and MONTY16 are curves with only one
 	  sigma. So use it only one time.*/
 	  if (ecm->tab[i]->method[1] == MONTY16 || //MONTY16
@@ -212,7 +217,7 @@ generate_collect_iter_ecm(fm_t * zero, tabular_fm_t * ecm,
 	    }
 	  else //MONTY12
 	    {
-	      for (int j = 0; j < lbucket && ind_tab+j < strat->tab_fm->index; j++)
+	      for (unsigned int j = 0; j < lbucket && ind_tab+j < strat->tab_fm->size; j++)
 		{
 		  tabular_fm_set_fm_index(strat->tab_fm, ecm->tab[i], ind_tab+j);
 		}
@@ -225,7 +230,7 @@ generate_collect_iter_ecm(fm_t * zero, tabular_fm_t * ecm,
         all_strat = *all_strat_ptr; // might have changed during recursive call
     	/* to protect the ram, we reduce the number of strategies by
 	   the convex hull when this number become too big.*/
-	if (all_strat->index < 100000) {
+	if (all_strat->size < 100000) {
 	    tabular_strategy_t* ch = convex_hull_strategy(all_strat);
 	    //clear previous collect and start a new collect.
 	    tabular_strategy_free(all_strat);
@@ -289,8 +294,8 @@ tabular_strategy_t *generate_strategies_oneside(tabular_decomp const & init_tab,
     //contains strategies which will be processed.
     tabular_strategy_t *all_strat = tabular_strategy_create();
 
-    int const len_pm1 = pm1->index;
-    int const len_pp1 = pp1->index;
+    unsigned int const len_pm1 = pm1->size;
+    unsigned int const len_pp1 = pp1->size;
 
     //init strat
     int const len_strat = 2 + ncurves;
@@ -301,11 +306,11 @@ tabular_strategy_t *generate_strategies_oneside(tabular_decomp const & init_tab,
 
     tabular_fm_t *tab_strat = strat->tab_fm;
     //PM1
-    for (int ind_pm1 = 0; ind_pm1 < len_pm1; ind_pm1++) {
+    for (unsigned int ind_pm1 = 0; ind_pm1 < len_pm1; ind_pm1++) {
       double const current_proba_pm1 = pm1->tab[ind_pm1]->proba[0];
       tabular_fm_set_fm_index(tab_strat, pm1->tab[ind_pm1], 0);
       //PP1      
-      for (int ind_pp1 = 0; ind_pp1 < len_pp1; ind_pp1++) {
+      for (unsigned int ind_pp1 = 0; ind_pp1 < len_pp1; ind_pp1++) {
         if ( pp1->tab[ind_pp1]->method[2] != 0 //B1==0
 	     && pp1->tab[ind_pp1]->proba[0] < current_proba_pm1)
 	  continue;
@@ -334,8 +339,8 @@ static strategy_t *concat_strategies(strategy_t * st1, strategy_t * st2,
 				     int first_side)
 {
     strategy_t *st = strategy_create();
-    int const len1 = st1->tab_fm->index;
-    int const len2 = st2->tab_fm->index;
+    int const len1 = st1->tab_fm->size;
+    int const len2 = st2->tab_fm->size;
     st->len_side = len1 + len2;
     if (st->side == nullptr)
 	st->side = (int*) malloc(sizeof(int) * (st->len_side));
@@ -363,8 +368,8 @@ static strategy_t *concat_strategies(strategy_t * st1, strategy_t * st2,
 tabular_strategy_t *generate_strategy_r0_r1(tabular_strategy_t * strat_r0,
 					    tabular_strategy_t * strat_r1)
 {
-    int const len_r0 = strat_r0->index;
-    int const len_r1 = strat_r1->index;
+    unsigned int const len_r0 = strat_r0->size;
+    unsigned int const len_r1 = strat_r1->size;
 
     tabular_strategy_t *strat_r0_r1 = tabular_strategy_create();
     tabular_strategy_t *ch = tabular_strategy_create();
@@ -380,11 +385,11 @@ tabular_strategy_t *generate_strategy_r0_r1(tabular_strategy_t * strat_r0,
      */
 
     strategy_t *st;
-    for (int r = 0; r < len_r0; r++)	//first side
+    for (unsigned int r = 0; r < len_r0; r++)	//first side
     {
 	double const p0 = strat_r0->tab[r]->proba;
 	double const c0 = strat_r0->tab[r]->time;
-	for (int a = 0; a < len_r1; a++)	//second side
+	for (unsigned int a = 0; a < len_r1; a++)	//second side
 	{
 	    nb_strat++;
 	    //compute success ans cost:
@@ -539,7 +544,7 @@ tabular_point convert_tab_point_to_tab_strategy(tabular_strategy_t * t)
 {
     tabular_point res;
     strategy_t *elem;
-    for (int i = 0; i < t->index; i++) {
+    for (unsigned int i = 0; i < t->size; i++) {
 	elem = t->tab[i];
 	res.emplace_back(point { i, elem->proba, elem->time });
     }

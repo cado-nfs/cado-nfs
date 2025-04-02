@@ -13,7 +13,7 @@
 /*                      COLLECT DATA FOR ONLY ONE COFACTOR              */
 /************************************************************************/
 
-double compute_proba_method_one_decomp (decomp const & dec, fm_t* fm);
+double compute_proba_method_one_decomp (decomp const & dec, fm_t const * fm);
 
 double compute_proba_strategy(tabular_decomp const & init_tab, strategy_t * strat,
 			      unsigned int len_p_min, unsigned int len_p_max);

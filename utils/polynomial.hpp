@@ -22,7 +22,7 @@
 #include <vector>
 
 #include <gmp.h>
-#include "fmt/format.h"
+#include "fmt/base.h"
 #include "fmt/ostream.h"
 
 #include "macros.h"
@@ -73,8 +73,9 @@ struct polynomial {
     int degree() const {
         return runtime_numeric_cast<int>(coeffs.size())-1;
     }
+    unsigned int size() const { return coeffs.size(); }
 
-    T lc() const { ASSERT_ALWAYS(!coeffs.empty()); return coeffs[degree()]; }
+    T lc() const { ASSERT_ALWAYS(!coeffs.empty()); return coeffs.back(); }
 
     polynomial() = default;
     ~polynomial() = default;
@@ -96,6 +97,17 @@ struct polynomial {
         coeffs.assign((i+1), T(0));
         coeffs[i] = 1;
     }
+    /*
+     * use P[i] += v instead
+    polynomial& add_xi(unsigned int i, T v = 1) {
+        if (coeffs.size() <= i)
+            coeffs.insert(coeffs.end(), i + 1 - coeffs.size(), T(0));
+        coeffs[i] += v;
+        cleandeg();
+        return *this;
+    }
+    */
+
     polynomial& operator=(T v) {
         coeffs.clear();
         (*this)[0] = v;
@@ -106,7 +118,7 @@ struct polynomial {
 
     explicit operator cxx_mpz_poly() const {
         cxx_mpz_poly res;
-        for(int i = 0 ; i <= degree() ; i++) {
+        for(unsigned int i = 0 ; i < size() ; i++) {
             /* coeffs[i] may be float, double, or long double */
             mpz_poly_setcoeff(res, i, cado_math_aux::mpz_from<T>(coeffs[i]));
         }
@@ -124,7 +136,7 @@ struct polynomial {
     private:
     void cleandeg(int deg) {
         ASSERT_ALWAYS(deg >= -1);
-        ASSERT_ALWAYS((size_t) (deg + 1) <= coeffs.size());
+        ASSERT_ALWAYS((unsigned int) (deg + 1) <= size());
         for( ; deg >= 0 && coeffs[deg] == 0 ; deg--);
         coeffs.erase(coeffs.begin() + (deg + 1), coeffs.end());
     }
@@ -135,9 +147,9 @@ struct polynomial {
     friend struct cado_details::coeff_proxy<polynomial>;
     friend struct cado_details::const_coeff_proxy<polynomial>;
 
-    cado_details::coeff_proxy<polynomial> operator[](int i)
+    cado_details::coeff_proxy<polynomial> operator[](unsigned int i)
     { return { *this, i }; }
-    cado_details::const_coeff_proxy<polynomial> operator[](int i) const
+    cado_details::const_coeff_proxy<polynomial> operator[](unsigned int i) const
     { return { *this, i }; }
 
 
@@ -171,17 +183,16 @@ struct polynomial {
     T eval(T x, T y) const
     {
         T const * f = coeffs.data();
-        const int deg = degree();
 
-        switch (deg) {
-            case -1: return 0;
-            case 0: return f[0];
-            case 1: return y*f[0]+x*f[1];
-            case 2: return y*y*f[0]+x*(y*f[1]+x*f[2]);
+        switch (size()) {
+            case 0: return 0;
+            case 1: return f[0];
+            case 2: return y*f[0]+x*f[1];
+            case 3: return y*y*f[0]+x*(y*f[1]+x*f[2]);
             default:
                     T s = 0;
                     T px = 1;
-                    for(int k = 0 ; k <= deg ; k++) {
+                    for(unsigned int k = 0 ; k < size() ; k++) {
                         s = s * y + f[k] * px;
                         px = px * x;
                     }
@@ -279,9 +290,9 @@ struct polynomial {
         if (f == 0 || g == 0)
             return {};
         polynomial h;
-        h.coeffs.assign(f.degree() + g.degree() + 1, 0);
-        for(int i = 0 ; i <= f.degree() ; i++)
-            for(int j = 0 ; j <= g.degree(); j++)
+        h.coeffs.assign(f.size() + g.size() - 1, 0);
+        for(unsigned int i = 0 ; i < f.size() ; i++)
+            for(unsigned int j = 0 ; j < g.size(); j++)
                 h.coeffs[i+j] += f[i] * g[j];
         return h;
     }
@@ -290,13 +301,13 @@ struct polynomial {
     {
         polynomial const & f = *this;
         polynomial h;
-        h.coeffs.assign(std::max(f.degree(), g.degree()) + 1, 0);
-        int i = 0;
-        for( ; i <= f.degree() && i <= g.degree() ; i++)
+        h.coeffs.assign(std::max(f.size(), g.size()), 0);
+        unsigned int i = 0;
+        for( ; i < f.size() && i < g.size() ; i++)
             h.coeffs[i] = f[i] + g[i];
-        for( ; i <= f.degree() ; i++)
+        for( ; i < f.size() ; i++)
             h.coeffs[i] = f[i];
-        for( ; i <= g.degree() ; i++)
+        for( ; i < g.size() ; i++)
             h.coeffs[i] = g[i];
         h.cleandeg();
         return h;
@@ -307,12 +318,12 @@ struct polynomial {
         polynomial const & f = *this;
         polynomial h;
         h.coeffs.assign(std::max(f.degree(), g.degree()) + 1, 0);
-        int i = 0;
-        for( ; i <= f.degree() && i <= g.degree() ; i++)
+        unsigned int i = 0;
+        for( ; i < f.size() && i < g.size() ; i++)
             h.coeffs[i] = f[i] - g[i];
-        for( ; i <= f.degree() ; i++)
+        for( ; i < f.size() ; i++)
             h.coeffs[i] = f[i];
-        for( ; i <= g.degree() ; i++)
+        for( ; i < g.size() ; i++)
             h.coeffs[i] = -g[i];
         h.cleandeg();
         return h;
@@ -363,8 +374,8 @@ struct polynomial {
     {
         polynomial h;
         h.coeffs.reserve(coeffs.size());
-        for(int i = 0 ; i <= degree() ; i++)
-            h[degree()-i] = coeffs[i];
+        for(unsigned int i = 0 ; i < size() ; i++)
+            h[size()-1-i] = coeffs[i];
         return h;
     }
 
@@ -374,11 +385,13 @@ struct polynomial {
      */
     polynomial reverse_scale(double scale) const
     {
+        unsigned int sz = size();
+        if (!sz)
+            return {};
         polynomial h;
-        int d = degree();
-        h.coeffs.reserve(coeffs.size());
-        h[d] = lc();
-        for(T s = scale ; d-- ; s *= scale) h[d] = coeffs[d] * s;
+        h.coeffs.reserve(sz);
+        h[--sz] = lc();
+        for(T s = scale ; sz-- ; s *= scale) h[sz] = coeffs[sz] * s;
         return h;
     }
 

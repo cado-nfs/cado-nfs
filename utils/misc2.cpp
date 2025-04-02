@@ -21,19 +21,35 @@
 #include "getprime.h"
 #include "misc.h"
 #include "runtime_numeric_cast.hpp"
+#include "random_distributions.hpp"
 
 double nprimes_interval(double p0, double p1)
 {
+    double s0;
+    if (p0 <= 1) {
+        s0 = 0;
+    } else {
+        const double l0 = log(p0);
 #ifdef HAVE_STDCPP_MATH_SPEC_FUNCS
-    return std::expint(log(p1)) - std::expint(log(p0));
+        s0 = std::expint(l0);
 #else
-    /* that can't be sooo wrong... */
-    double l0 = log(p0);
-    double l1 = log(p1);
-    double s1 = p1*(1/l1+1/pow(l1,2)+2/pow(l1,3)+6/pow(l1,4));
-    double s0 = p0*(1/l0+1/pow(l0,2)+2/pow(l0,3)+6/pow(l0,4));
-    return s1 - s0;
+        s0 = p0*(1/l0+1/pow(l0,2)+2/pow(l0,3)+6/pow(l0,4));
 #endif
+    }
+
+    double s1;
+    if (p1 <= 1) {
+        s1 = 0;
+    } else {
+        const double l1 = log(p1);
+#ifdef HAVE_STDCPP_MATH_SPEC_FUNCS
+        s1 = std::expint(l1);
+#else
+        s1 = p1*(1/l1+1/pow(l1,2)+2/pow(l1,3)+6/pow(l1,4));
+#endif
+    }
+
+    return s1 - s0;
 }
 
 /* returns the number of primes <= 2^n ; result is exact up to some
@@ -63,6 +79,25 @@ double prime_pi_2exp(unsigned int n)
         return A7053[n];
     else
         return nprimes_interval(2, ldexp(1, runtime_numeric_cast<int>(n)));
+}
+
+/* generate a random i-bit integer that roughly follows the distribution
+ * of i-bit prime numbers
+ */
+double random_along_prime_distribution(unsigned int bits, gmp_randstate_t rstate)
+{
+    const double n0 = prime_pi_2exp(bits - 1);
+    const double n1 = prime_pi_2exp(bits);
+    double a, b, n;
+
+    /* we assume the n-th prime is in a*n*log(n)+b, thus we want:
+     *    a*n0*log(n0) + b = 2^(bits-1)
+     *    a*n1*log(n1) + b = 2^bits
+     */
+    a = ldexp(1.0, runtime_numeric_cast<int>(bits) - 1) / (n1 * log(n1) - n0 * log(n0));
+    b = ldexp(1.0, runtime_numeric_cast<int>(bits)) - a * n1 * log(n1);
+    n = n0 + (n1 - n0) * random_uniform(rstate);
+    return a * n * log(n) + b;
 }
 
 std::vector<unsigned long> subdivide_primes_interval(unsigned long p0, unsigned long p1, size_t n)

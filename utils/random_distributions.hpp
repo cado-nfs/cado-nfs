@@ -10,7 +10,7 @@
 /* Some generic functions for random picking along distributions
  */
 
-double random_uniform(cxx_gmp_randstate & rstate);
+double random_uniform(gmp_randstate_t rstate);
 
 double random_normal_standard(cxx_gmp_randstate & rstate);
 

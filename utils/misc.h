@@ -34,6 +34,7 @@ extern "C" {
 /* These are is in misc2.cpp */
 double nprimes_interval(double p0, double p1);
 double prime_pi_2exp(unsigned int n);
+double random_along_prime_distribution(unsigned int bits, gmp_randstate_t rstate);
 
 uint64_t u64_random(gmp_randstate_t buf);
 int64_t i64_random(gmp_randstate_t buf);

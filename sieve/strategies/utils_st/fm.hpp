@@ -29,19 +29,19 @@ fm_t * fm_create(void);
 
 void fm_free(fm_t * t);
 
-unsigned long const * fm_get_method(fm_t * t);
+unsigned long const * fm_get_method(fm_t const * t);
 
-double const * fm_get_proba(fm_t * t);
+double const * fm_get_proba(fm_t const * t);
 
-double const * fm_get_time(fm_t * t);
+double const * fm_get_time(fm_t const * t);
 
-unsigned int fm_get_len_method(fm_t * t);
+unsigned int fm_get_len_method(fm_t const * t);
 
-unsigned int fm_get_len_proba(fm_t * t);
+unsigned int fm_get_len_proba(fm_t const * t);
 
-unsigned int fm_get_len_time(fm_t * t);
+unsigned int fm_get_len_time(fm_t const * t);
 
-unsigned int fm_get_len_p_min(fm_t * t);
+unsigned int fm_get_len_p_min(fm_t const * t);
 
 void fm_set_method(fm_t * t, unsigned long const * value, unsigned int len);
 
@@ -52,15 +52,15 @@ void fm_set_time(fm_t * t, double const * value, unsigned int len);
 
 void fm_put_zero(fm_t * t);
 
-bool fm_is_zero(fm_t * t);
+bool fm_is_zero(fm_t const * t);
 
-fm_t * fm_copy(fm_t * t);
+fm_t * fm_copy(fm_t const * t);
 
-int fm_is_equal(fm_t * c1, fm_t * c2);
+int fm_is_equal(fm_t const * c1, fm_t const * c2);
 
-int fm_print(fm_t *);
+int fm_print(fm_t const *);
 
-int fm_fprint(FILE * output_file, fm_t * t);
+int fm_fprint(FILE * output_file, fm_t const * t);
 
 #ifdef __cplusplus
 }

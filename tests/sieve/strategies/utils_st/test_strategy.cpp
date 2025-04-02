@@ -1,24 +1,24 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdio.h>
-#include <stdlib.h>
-#include "fm.h"            // for fm_set_method, fm_set_proba, fm_set_time
-#include "strategy.h"      // for strategy_t, strategy_add_fm, strategy_free
-#include "tab_fm.h"        // for tabular_fm_get_fm, tabular_fm_t
-#include "tab_strategy.h"
+#include <cstdio>
+#include <cstdlib>
+#include "fm.hpp"            // for fm_set_method, fm_set_proba, fm_set_time
+#include "strategy.hpp"      // for strategy_t, strategy_add_fm, strategy_free
+#include "tab_fm.hpp"        // for tabular_fm_get_fm, tabular_fm_t
+#include "tab_strategy.hpp"
 #include "macros.h"
 
 //test equality between two fm!
-int fm_are_equals (fm_t* t1, fm_t* t2){
+static int fm_are_equals (fm_t const * t1, fm_t const * t2){
     //test just method because fscan and fprint strategy don't take in
     //consideration the probabilities and the time for each factoring
     //method.
-    int len_met1 = fm_get_len_method (t1);
-    int len_met2 = fm_get_len_method (t2);
+    unsigned int len_met1 = fm_get_len_method (t1);
+    unsigned int len_met2 = fm_get_len_method (t2);
     if (len_met2 != len_met1)
 	return 0;
-    unsigned long* tab_t1 = fm_get_method (t1);
-    unsigned long* tab_t2 = fm_get_method (t2);
-    for (int i = 0; i < len_met1; i++)
+    unsigned long const * tab_t1 = fm_get_method (t1);
+    unsigned long const * tab_t2 = fm_get_method (t2);
+    for (unsigned int i = 0; i < len_met1; i++)
 	if (tab_t1[i] != tab_t2[i])
 	    return 0;
     return 1;
@@ -26,20 +26,20 @@ int fm_are_equals (fm_t* t1, fm_t* t2){
 
 
 //test equality between two tab_fm!
-int tab_fm_are_equals (tabular_fm_t* t1, tabular_fm_t* t2){
-    int len1 = t1->index;
-    int len2 = t2->index;
+static int tab_fm_are_equals (tabular_fm_t const * t1, tabular_fm_t const * t2){
+    const unsigned int len1 = t1->size;
+    const unsigned int len2 = t2->size;
     if (len1 != len2)
 	return 0;
     
-    for (int i = 0; i < len1; i++)
+    for (unsigned int i = 0; i < len1; i++)
 	if (!fm_are_equals (tabular_fm_get_fm (t1, i),
 			    tabular_fm_get_fm (t2, i)))
 	    return 0;
     return 1;
 }
 //test equality between two strategies!
-int strategies_are_equals (strategy_t* t1, strategy_t* t2)
+static int strategies_are_equals (strategy_t const * t1, strategy_t const * t2)
 {
     //equality between two tab_fm
     if ( !tab_fm_are_equals (strategy_get_tab_fm (t1),
@@ -47,24 +47,24 @@ int strategies_are_equals (strategy_t* t1, strategy_t* t2)
 	return 0;
 
     //equality probab. and time
-    double p1 = strategy_get_proba (t1);
-    double p2 = strategy_get_proba (t2);
-    double prec = 0.0001;
+    const double p1 = strategy_get_proba (t1);
+    const double p2 = strategy_get_proba (t2);
+    const double prec = 0.0001;
     if (p1-p2 > prec || p2-p1 > prec)
 	return 0;
     return 1;
 }
 
 //test equality between two tabular_strategy_t!
-int tabular_strategies_are_equals (tabular_strategy_t* t1,
-				   tabular_strategy_t* t2)
+static int tabular_strategies_are_equals (tabular_strategy_t const * t1,
+				   tabular_strategy_t const * t2)
 {
     //equality between two tab_strategy
-    int len1 = t1->index;
-    int len2 = t2->index;
+    const unsigned int len1 = t1->size;
+    const unsigned int len2 = t2->size;
     if (len1 != len2)
 	return 0;
-    for (int i = 0; i < len1; i++)
+    for (unsigned int i = 0; i < len1; i++)
 	{
 	    if (!strategies_are_equals (t1->tab[i], t2->tab[i]))
 		return 0;
@@ -151,8 +151,8 @@ int main()
     // think it's a problem, really.
     // coverity[secure_temp]
     FILE* file = tmpfile();
-    DIE_ERRNO_DIAG(file == NULL, "tmpfile(%s)", "");
-    int errf = (tabular_strategy_fprint (file, tab) == -1);
+    DIE_ERRNO_DIAG(file == nullptr, "tmpfile(%s)", "");
+    const int errf = (tabular_strategy_fprint (file, tab) == -1);
     if (errf)
 	{
             fprintf (stderr, "write error on temp file\n");
@@ -160,7 +160,7 @@ int main()
 	}
     fseek(file, 0, SEEK_SET);
     tabular_strategy_t* tab2 = tabular_strategy_fscan (file);
-    if (tab2 == NULL)
+    if (tab2 == nullptr)
 	{
             fprintf (stderr, "read error on temp file\n");
 	    exit (EXIT_FAILURE);

@@ -34,37 +34,37 @@ void fm_free(fm_t * t)
     }
 }
 
-unsigned long const * fm_get_method(fm_t * t)
+unsigned long const * fm_get_method(fm_t const * t)
 {
     return t->method;
 }
 
-double const * fm_get_proba(fm_t * t)
+double const * fm_get_proba(fm_t const * t)
 {
     return t->proba;
 }
 
-double const * fm_get_time(fm_t * t)
+double const * fm_get_time(fm_t const * t)
 {
     return t->time;
 }
 
-unsigned int fm_get_len_method(fm_t * t)
+unsigned int fm_get_len_method(fm_t const * t)
 {
     return t->len_method;
 }
 
-unsigned int fm_get_len_proba(fm_t * t)
+unsigned int fm_get_len_proba(fm_t const * t)
 {
     return t->len_proba;
 }
 
-unsigned int fm_get_len_time(fm_t * t)
+unsigned int fm_get_len_time(fm_t const * t)
 {
     return t->len_time;
 }
 
-unsigned int fm_get_len_p_min(fm_t * t)
+unsigned int fm_get_len_p_min(fm_t const * t)
 {
     return t->len_p_min;
 }
@@ -107,7 +107,7 @@ void fm_set_time(fm_t * t, double const * value, unsigned int len)
         t->time[i] = value[i];
 }
 
-fm_t * fm_copy(fm_t * t)
+fm_t * fm_copy(fm_t const * t)
 {
     fm_t * cop = fm_create();
     fm_set_method(cop, t->method, t->len_method);
@@ -126,12 +126,12 @@ void fm_put_zero(fm_t * t)
         t->time[i] = 0;
 }
 
-bool fm_is_zero(fm_t * t)
+bool fm_is_zero(fm_t const * t)
 {
     return (t->method[2] == 0 && t->method[3] == 0);
 }
 
-int fm_is_equal(fm_t * c1, fm_t * c2)
+int fm_is_equal(fm_t const * c1, fm_t const * c2)
 {
     unsigned int len = c1->len_method;
     for (unsigned int i = 0; i < len; i++)
@@ -140,14 +140,14 @@ int fm_is_equal(fm_t * c1, fm_t * c2)
     return true;
 }
 
-int fm_print(fm_t * t)
+int fm_print(fm_t const * t)
 {
     return fm_fprint(stdout, t);
 }
 
-int fm_fprint(FILE * file, fm_t * elem)
+int fm_fprint(FILE * file, fm_t const * elem)
 {
-    if (file == NULL)
+    if (file == nullptr)
         return -1;
 
     unsigned long const * method = fm_get_method(elem);

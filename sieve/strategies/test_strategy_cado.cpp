@@ -152,10 +152,10 @@ generate_strategy_cado(tabular_fm_t * methods, tabular_decomp const & tab_dec,
         fm_free(zero);
     } else {
         /* we set mfb = 3*lpb to avoid the special case of 2 large primes */
-        int const len = 3 + nb_curves(lpb, 3 * lpb);
+        unsigned int const len = 3 + nb_curves(lpb, 3 * lpb);
         // printf ("len  = %d\n", len);
-        ASSERT(len <= methods->index);
-        for (int i = 0; i < len; i++)
+        ASSERT(len <= methods->size);
+        for (unsigned int i = 0; i < len; i++)
             strategy_add_fm(strat, methods->tab[i]);
 
         // eval
@@ -280,16 +280,16 @@ compute_time_strategy_ileav(std::array<tabular_decomp, 2> const & init_tab,
                             strategy_t * strat, unsigned int * fbb,
                             unsigned int * lpb, unsigned int * r)
 {
-    int const nb_fm = tabular_fm_get_index(strat->tab_fm);
+    unsigned int const nb_fm = tabular_fm_get_size(strat->tab_fm);
     tabular_fm_t * tab_fm = strat->tab_fm;
 
     //{{
-    int last_method_side[2] = {0, 0};
-    for (int index_fm = 0; index_fm < nb_fm; index_fm++) {
+    unsigned int last_method_side[2] = {0, 0};
+    for (unsigned int index_fm = 0; index_fm < nb_fm; index_fm++) {
         int const side = strat->side[index_fm];
         last_method_side[side] = index_fm;
     }
-    int const end_of_one_side = (last_method_side[0] < last_method_side[1])
+    unsigned int const end_of_one_side = (last_method_side[0] < last_method_side[1])
                                     ? last_method_side[0]
                                     : last_method_side[1];
 
@@ -331,8 +331,8 @@ compute_time_strategy_ileav(std::array<tabular_decomp, 2> const & init_tab,
             double time_method = 0;
 
             // compute the time of each decomposition
-            for (int index_fm = 0; index_fm < nb_fm; index_fm++) {
-                fm_t * elem = tabular_fm_get_fm(tab_fm, index_fm);
+            for (unsigned int index_fm = 0; index_fm < nb_fm; index_fm++) {
+                fm_t const * elem = tabular_fm_get_fm(tab_fm, index_fm);
                 int const side = strat->side[index_fm];
 
                 // probability to run the next method!
@@ -402,14 +402,15 @@ compute_time_strategy_ileav(std::array<tabular_decomp, 2> const & init_tab,
 }
 
 static strategy_t * gen_strat_r0_r1_ileav_st_rec(
-    strategy_t * strat_r0, int index_r0, strategy_t * strat_r1, int index_r1,
+    strategy_t * strat_r0,
+    unsigned int index_r0, strategy_t * strat_r1, unsigned int index_r1,
     std::array<tabular_decomp, 2> const & init_tab, unsigned int * fbb,
     unsigned int * lpb, unsigned int * r, strategy_t * current_st,
     int current_index)
 {
-    int const len_r0 = strat_r0->tab_fm->index;
-    int const len_r1 = strat_r1->tab_fm->index;
-    int const max_len = len_r0 + len_r1;
+    unsigned int const len_r0 = strat_r0->tab_fm->size;
+    unsigned int const len_r1 = strat_r1->tab_fm->size;
+    unsigned int const max_len = len_r0 + len_r1;
 
     /* if (index_r0 >= len_r0 && */
     /*     index_r1 >= len_r1) */
@@ -524,14 +525,14 @@ gen_strat_r0_r1_ileav_st(strategy_t * strat_r0, strategy_t * strat_r1,
                          unsigned int * fbb, unsigned int * lpb,
                          unsigned int * r)
 {
-    int const len_r0 = strat_r0->tab_fm->index;
-    int const len_r1 = strat_r1->tab_fm->index;
+    unsigned int const len_r0 = strat_r0->tab_fm->size;
+    unsigned int const len_r1 = strat_r1->tab_fm->size;
     int const max_len = len_r0 + len_r1;
 
     strategy_t * st = strategy_create();
     st->len_side = max_len;
     st->side = (int *)malloc(sizeof(int) * (st->len_side));
-    int index_r0 = 0, index_r1 = 0;
+    unsigned int index_r0 = 0, index_r1 = 0;
     int i = 0;
     int sequence = 2;
     while (i < max_len) {
@@ -563,14 +564,14 @@ gen_strat_r0_r1_ileav(tabular_strategy_t * strat_r0,
 {
     tabular_strategy_t * res = tabular_strategy_create(); // generate_strategy_r0_r1(strat_r0,
                                                           // strat_r1);
-    int const len0 = strat_r0->index;
-    int const len1 = strat_r1->index;
+    unsigned int const len0 = strat_r0->size;
+    unsigned int const len1 = strat_r1->size;
     // printf ("r0 = %u, r1=%u\n", r[0], r[1]);
     // printf ("CLASSIC proba=%lf, time=%lf\n", res->tab[0]->proba,
     // res->tab[0]->time);
     //   strategy_print (res->tab[0]);
-    for (int r0 = 0; r0 < len0; r0++)
-        for (int r1 = 0; r1 < len1; r1++) {
+    for (unsigned int r0 = 0; r0 < len0; r0++)
+        for (unsigned int r1 = 0; r1 < len1; r1++) {
             /* strategy_t* st1 = gen_strat_r0_r1_ileav_st(strat_r0->tab[r0], */
             /* 					   strat_r1->tab[r1], */
             /* 					   init_tab, fbb, lpb, r); */
@@ -696,7 +697,7 @@ static MAYBE_UNUSED tabular_strategy_t *** generate_matrix_cado_ileav(
                     exit(EXIT_FAILURE);
                 }
 
-                std::array<tabular_decomp, 2> init_tab {tab_decomp_r0,
+                const std::array<tabular_decomp, 2> init_tab {tab_decomp_r0,
                                                         tab_decomp};
                 unsigned int fbb[2] = {fbb0, fbb1};
                 unsigned int lpb[2] = {lpb0, lpb1};
@@ -819,7 +820,7 @@ generate_matrix_ileav(const char * name_directory_decomp,
                     exit(EXIT_FAILURE);
                 }
 
-                std::array<tabular_decomp, 2> init_tab {tab_decomp_r0,
+                const std::array<tabular_decomp, 2> init_tab {tab_decomp_r0,
                                                         tab_decomp};
                 unsigned int fbb[2] = {fbb0, fbb1};
                 unsigned int lpb[2] = {lpb0, lpb1};
@@ -845,14 +846,15 @@ generate_matrix_ileav(const char * name_directory_decomp,
 /************************************************************************/
 
 #ifdef COMPILE_DEAD_CODE
-static int select_random_index_dec(double sum_nb_elem, tabular_decomp const & t,
+static unsigned int select_random_index_dec(double sum_nb_elem, tabular_decomp const & t,
                                    gmp_randstate_ptr state)
 {
     // 100000 to consider approximation of distribution
     double const alea = gmp_urandomm_ui(state, 10000);
-    int i = 0;
+    unsigned int i = 0;
     double bound = (t[0].nb_elem / sum_nb_elem) * 10000;
-    int const len = (int)t.size();
+    unsigned int const len = (int)t.size();
+    ASSERT_ALWAYS(len);
     while (i < (len - 1) && (alea - bound) >= 1) {
         i++;
         bound += (t[i].nb_elem / sum_nb_elem) * 10000;
@@ -887,8 +889,8 @@ static MAYBE_UNUSED weighted_success bench_proba_time_st(
         /* N is composed by two prime factors, by the previous
          * function. Therefore, if a non trivial split was found,
          * then the status can not be FACUL_MAYBE.  */
-        int const index = select_random_index_dec(sum_dec, init_tab, state);
-        int const len_p = init_tab[index][0];
+        unsigned int const index = select_random_index_dec(sum_dec, init_tab, state);
+        unsigned int const len_p = init_tab[index][0];
 
         cxx_mpz const N = generate_composite_integer(state, len_p, r);
 
@@ -915,7 +917,7 @@ convert_strategy_to_facul_strategy(strategy_t * t, unsigned long lim,
 
     std::vector<facul_method::parameters> mps;
 
-    for (int i = 0; i < tab_fm->index; i++) {
+    for (unsigned int i = 0; i < tab_fm->size; i++) {
         if (t->side[i] != side)
             continue;
 
@@ -930,7 +932,7 @@ convert_strategy_to_facul_strategy(strategy_t * t, unsigned long lim,
         );
     }
 
-    return facul_strategy_oneside(lim, lpb, 4 * lpb, mps, 0);
+    return { lim, lpb, 4 * lpb, mps, 0 };
 }
 #endif /* COMPILE_DEAD_CODE */
 
@@ -950,7 +952,7 @@ static facul_strategies convert_strategy_to_facul_strategies(
     auto pB = B.begin();
     auto plpb = lpb_.begin();
     auto pmfb = mfb_.begin();
-    auto pr = r_.begin();
+    auto * pr = r_.data();
     for (int side = 0; side < 2; side++) {
         *pB++ = *fbb++;
         *plpb++ = *lpb++;
@@ -961,7 +963,7 @@ static facul_strategies convert_strategy_to_facul_strategies(
     std::vector<facul_method::parameters_with_side> mps;
 
     tabular_fm_t * tab_fm = strategy_get_tab_fm(t);
-    for (int i = 0; i < tab_fm->index; i++) {
+    for (unsigned int i = 0; i < tab_fm->size; i++) {
         fm_t * fm = tab_fm->tab[i];
         auto const method = facul_method_code(fm->method[0]);
         auto const curve = ec_parameterization_t(fm->method[1]);
@@ -1264,7 +1266,7 @@ int main(int argc, char const * argv[])
     }
     tabular_fm_t * methods = tabular_fm_fscan(file_in);
     /* we set mfb = 3*lpb0 to avoid the special-case of 2 large primes */
-    printf("len  = %d, (%d)\n", methods->index, 3 + nb_curves(lpb0, 3 * lpb0));
+    printf("len  = %u, (%d)\n", methods->size, 3 + nb_curves(lpb0, 3 * lpb0));
 
     // test computation of probabilities
     //{tab_init

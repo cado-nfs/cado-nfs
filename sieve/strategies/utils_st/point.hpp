@@ -2,7 +2,7 @@
 #define POINT_HPP
 
 struct point {
-    int number;
+    unsigned int number;
     double x;
     double y;
 };

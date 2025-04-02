@@ -16,7 +16,7 @@
 static int cmp_double(double a, double b)
 {
     double diff = a - b;
-    double precision = 0.0000000001;
+    double precision = 1e-10;
 
     if (diff < precision && diff > -1 * precision)
         return 0;

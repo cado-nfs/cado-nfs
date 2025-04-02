@@ -15,7 +15,7 @@ tabular_strategy_t * tabular_strategy_create(void)
         (tabular_strategy_t *)malloc(sizeof(tabular_strategy_t));
     ASSERT_ALWAYS(t != NULL);
 
-    t->index = 0;
+    t->size = 0;
     t->alloc = 2;
 
     t->tab = (strategy_t **)malloc(t->alloc * sizeof(strategy_t *));
@@ -27,7 +27,7 @@ tabular_strategy_t * tabular_strategy_create(void)
 void tabular_strategy_free(tabular_strategy_t * t)
 {
     if (t != NULL) {
-        for (int i = 0; i < t->index; i++)
+        for (unsigned int i = 0; i < t->size; i++)
             strategy_free(t->tab[i]);
         free(t->tab);
         free(t);
@@ -43,38 +43,32 @@ void tabular_strategy_realloc(tabular_strategy_t * t)
 tabular_strategy_t * tabular_strategy_copy(tabular_strategy_t * t)
 {
     tabular_strategy_t * res = tabular_strategy_create();
-    int len = t->index;
-    for (int i = 0; i < len; i++) {
+    unsigned int len = t->size;
+    for (unsigned int i = 0; i < len; i++) {
         tabular_strategy_add_strategy(res, t->tab[i]);
     }
     return res;
 }
 
-int tabular_strategy_get_index(tabular_strategy_t * t)
+unsigned int tabular_strategy_get_size(tabular_strategy_t const * t)
 {
-    return t->index;
-}
-
-strategy_t * tabular_strategy_get_strategy(tabular_strategy_t * t, int index)
-{
-    ASSERT(index <= t->index);
-    return t->tab[index];
+    return t->size;
 }
 
 void tabular_strategy_add_strategy(tabular_strategy_t * t,
                                    strategy_t * strategy)
 {
-    if (t->index >= t->alloc)
+    if (t->size >= t->alloc)
         tabular_strategy_realloc(t);
     strategy_t * elem = strategy_copy(strategy);
-    t->tab[t->index] = elem;
-    t->index++;
+    t->tab[t->size] = elem;
+    t->size++;
 }
 
 void tabular_strategy_concat(tabular_strategy_t * t1, tabular_strategy_t * t2)
 {
-    int len = t2->index;
-    for (int i = 0; i < len; i++)
+    unsigned int len = t2->size;
+    for (unsigned int i = 0; i < len; i++)
         tabular_strategy_add_strategy(t1, t2->tab[i]);
 }
 
@@ -93,7 +87,7 @@ tabular_strategy_t * tabular_strategy_concat_st(tabular_strategy_t * t1,
 
 int tabular_strategy_fprint(FILE * output_file, tabular_strategy_t * t)
 {
-    for (int i = 0; i < t->index; i++)
+    for (unsigned int i = 0; i < t->size; i++)
         if (strategy_fprint(output_file, t->tab[i]) == -1)
             return -1;
     return 0;

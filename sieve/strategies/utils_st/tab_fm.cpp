@@ -15,7 +15,7 @@ tabular_fm_t * tabular_fm_create(void)
     tabular_fm_t * t = (tabular_fm_t *)malloc(sizeof(tabular_fm_t));
     ASSERT_ALWAYS(t != nullptr);
 
-    t->index = 0;
+    t->size = 0;
     t->alloc = 2;
 
     t->tab = (fm_t **)malloc(t->alloc * sizeof(fm_t *));
@@ -27,7 +27,7 @@ tabular_fm_t * tabular_fm_create(void)
 void tabular_fm_free(tabular_fm_t * t)
 {
     if (t != nullptr) {
-        for (int i = 0; i < t->index; i++)
+        for (unsigned int i = 0; i < t->size; i++)
             fm_free(t->tab[i]);
         free(t->tab);
         free(t);
@@ -40,39 +40,44 @@ void tabular_fm_realloc(tabular_fm_t * t)
     t->alloc *= 2;
 }
 
-int tabular_fm_get_index(tabular_fm_t * t)
+unsigned int tabular_fm_get_size(tabular_fm_t const * t)
 {
-    return t->index;
+    return t->size;
 }
 
-void tabular_fm_add_fm(tabular_fm_t * t, fm_t * fm)
+void tabular_fm_add_fm(tabular_fm_t * t, fm_t const * fm)
 {
-    tabular_fm_set_fm_index(t, fm, t->index);
+    tabular_fm_set_fm_index(t, fm, t->size);
 }
 
-void tabular_fm_add(tabular_fm_t * t, unsigned long * method, int len_method,
-                    double * proba, int len_proba, double * time, int len_time,
-                    int len_p_min)
+void tabular_fm_add(tabular_fm_t * t,
+        unsigned long const * method, unsigned int len_method,
+        double const * proba, unsigned int len_proba,
+        double const * time, unsigned int len_time,
+        unsigned int len_p_min)
+
 {
     tabular_fm_set_index(t, method, len_method, proba, len_proba, time,
-                         len_time, len_p_min, t->index);
+                         len_time, len_p_min, t->size);
 }
 
-void tabular_fm_set_fm_index(tabular_fm_t * t, fm_t * fm, int ind)
+void tabular_fm_set_fm_index(tabular_fm_t * t, fm_t const * fm, unsigned int ind)
 {
     tabular_fm_set_index(t, fm->method, fm->len_method, fm->proba,
                          fm->len_proba, fm->time, fm->len_time, fm->len_p_min,
                          ind);
 }
 
-void tabular_fm_set_index(tabular_fm_t * t, unsigned long * method,
-                          int len_method, double * proba, int len_proba,
-                          double * time, int len_time, int len_p_min, int ind)
+void tabular_fm_set_index(tabular_fm_t * t,
+        unsigned long const * method, unsigned int len_method,
+        double const * proba, unsigned int len_proba,
+        double const * time, unsigned int len_time,
+        unsigned int len_p_min, unsigned int ind)
 {
     if (ind >= t->alloc)
         tabular_fm_realloc(t);
 
-    if (ind >= t->index) {
+    if (ind >= t->size) {
         t->tab[ind] = fm_create();
         ASSERT(t->tab[ind] != nullptr);
     }
@@ -80,41 +85,48 @@ void tabular_fm_set_index(tabular_fm_t * t, unsigned long * method,
     fm_set_method(t->tab[ind], method, len_method);
     fm_set_proba(t->tab[ind], proba, len_proba, len_p_min);
     fm_set_time(t->tab[ind], time, len_time);
-    if (ind >= t->index)
-        t->index++;
+    if (ind >= t->size)
+        t->size++;
 }
 
-fm_t * tabular_fm_get_fm(tabular_fm_t * t, int index)
+fm_t * tabular_fm_get_fm_rw(tabular_fm_t * t, unsigned int index)
 {
-    if (index >= t->index)
+    if (index >= t->size)
+        return nullptr;
+    return t->tab[index];
+}
+
+fm_t const * tabular_fm_get_fm(tabular_fm_t const * t, unsigned int index)
+{
+    if (index >= t->size)
         return nullptr;
     return t->tab[index];
 }
 
 void tabular_fm_concat(tabular_fm_t * t1, tabular_fm_t * t2)
 {
-    int const len = t2->index;
+    int const len = t2->size;
     for (int i = 0; i < len; i++)
         tabular_fm_add_fm(t1, t2->tab[i]);
 }
 
-void tabular_fm_put_zero(tabular_fm_t * t, int index)
+void tabular_fm_put_zero(tabular_fm_t * t, unsigned int index)
 {
-    if (index < t->index)
+    if (index < t->size)
         fm_put_zero(t->tab[index]);
 }
 
-bool tabular_fm_is_zero(tabular_fm_t * t, int index)
+bool tabular_fm_is_zero(tabular_fm_t const * t, unsigned int index)
 {
-    if (index >= t->index)
+    if (index >= t->size)
         return false;
     return fm_is_zero(t->tab[index]);
 }
 
-tabular_fm_t * extract_fm_method(tabular_fm_t * t, int method, int curve)
+tabular_fm_t * extract_fm_method(tabular_fm_t const * t, int method, int curve)
 {
     tabular_fm_t * res = tabular_fm_create();
-    int const len = t->index;
+    int const len = t->size;
     for (int i = 0; i < len; i++) {
         fm_t * el = t->tab[i];
         if ((int)el->method[0] == method) {
@@ -132,16 +144,16 @@ tabular_fm_t * extract_fm_method(tabular_fm_t * t, int method, int curve)
 /*           PRINT AND SCAN OUR FILES OF FACTORING METHODS              */
 /************************************************************************/
 
-int tabular_fm_print(tabular_fm_t * t)
+int tabular_fm_print(tabular_fm_t const * t)
 {
     return tabular_fm_fprint(stdout, t);
 }
 
-int tabular_fm_fprint(FILE * file, tabular_fm_t * t)
+int tabular_fm_fprint(FILE * file, tabular_fm_t const * t)
 {
-    int const len = t->index;
+    int const len = t->size;
     for (int i = 0; i < len; i++) {
-        fm_t * elem = tabular_fm_get_fm(t, i);
+        fm_t const * elem = tabular_fm_get_fm(t, i);
         if (fm_fprint(file, elem) < 0)
             return -1;
     }
@@ -178,7 +190,7 @@ static fm_t * sub_routine_fm_fscanf(FILE * file, int * current_char)
     double proba[len_proba];
     double time[len_time];
 
-    int ind = 0;
+    unsigned int ind = 0;
     int rc;
     while (ind < len_method && *current_char != '|') {
         rc = fscanf(file, "%lu", &method[ind++]);
@@ -187,6 +199,7 @@ static fm_t * sub_routine_fm_fscanf(FILE * file, int * current_char)
     }
     next_elem(file, current_char);
 
+    ASSERT_ALWAYS(ind == 4);
     fm_set_method(fm, method, ind);
 
     rc = fscanf(file, "%d", &fm->len_p_min);
@@ -259,7 +272,7 @@ int fm_cmp(fm_t * el1, fm_t * el2)
     return (diff_proba > EPSILON_DBL) ? 1 : -1;
 }
 
-void fm_swap(tabular_fm_t * t, int index1, int index2)
+void fm_swap(tabular_fm_t * t, unsigned int index1, unsigned int index2)
 {
     fm_t * c = t->tab[index1];
     t->tab[index1] = t->tab[index2];
@@ -268,7 +281,7 @@ void fm_swap(tabular_fm_t * t, int index1, int index2)
 
 static void tabular_fm_sort_rec(tabular_fm_t * t, int begin, int end)
 {
-    int index_max = begin;
+    unsigned int index_max = begin;
     for (int i = begin; i < end; i++) {
         if (fm_cmp(t->tab[i], t->tab[index_max]) > 0) {
             index_max = i;
@@ -279,7 +292,7 @@ static void tabular_fm_sort_rec(tabular_fm_t * t, int begin, int end)
 
 void tabular_fm_sort(tabular_fm_t * t)
 {
-    int max = t->index;
+    int max = t->size;
     while (max > 0) {
         tabular_fm_sort_rec(t, 0, max);
         max--;
