@@ -5,15 +5,11 @@
 #include <cstdlib>
 #include <cstring>
 
-#include <regex.h>
-
-#include <ios>
-#include <stdexcept>
+#include <istream>
+#include <ostream>
 
 #include "decomp.hpp"
-#include "macros.h"
 #include "tab_decomp.hpp"
-#include "utils_cxx.hpp"
 
 std::ostream & operator<<(std::ostream & os, tabular_decomp const & t)
 {
@@ -22,10 +18,16 @@ std::ostream & operator<<(std::ostream & os, tabular_decomp const & t)
     return os;
 }
 
-std::istream & operator>>(std::istream & is, tabular_decomp &)
+std::istream & operator>>(std::istream & is, tabular_decomp & t)
 {
-    throw std::runtime_error("not implemented");
-    is.setstate(std::ios::failbit);
+    for(;;) {
+        is >> std::ws;
+        if (is.eof())
+            break;
+        decomp D;
+        is >> D;
+        t.push_back(D);
+    }
     return is;
 }
 

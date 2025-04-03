@@ -4,14 +4,27 @@
 #include <cstdlib>
 
 #include <ostream>
+#include <istream>
 #include <algorithm>
 
 #include "decomp.hpp"
 #include "utils_cxx.hpp"
+#include "istream_matcher.hpp"
 
 std::ostream & operator<<(std::ostream & o, decomp const & D)
 {
     return o << "[ " << join(D, " ") << " ]: " << D.nb_elem;
+}
+
+std::istream & operator>>(std::istream & is, decomp & D)
+{
+    D.clear();
+    is >> expect_stream_separator('[');
+    for(unsigned int v ; is.good() && is >> std::ws && is.peek() != ']' ; ) {
+        is >> v;
+        D.push_back(v);
+    }
+    return is >> expect_stream_separator("]:") >> D.nb_elem;
 }
 
 bool decomp::operator<(decomp const & o) const

@@ -383,7 +383,8 @@ int main(int argc, char const * argv[])
                         exit(EXIT_FAILURE);
                     }
                     std::ifstream is(name_file_decomp);
-                    if (!(is >> tab_decomp))
+                    is >> tab_decomp;
+                    if (is.fail())
                         ASSERT_ALWAYS(0);
                 }
 

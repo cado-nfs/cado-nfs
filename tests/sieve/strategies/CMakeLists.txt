@@ -46,7 +46,10 @@ cado_define_test(test_benchfm.cpp
 if(DEFINED ENV{CHECKS_EXPENSIVE})
     cado_define_test(SCRIPT
         ${CMAKE_CURRENT_SOURCE_DIR}/test_main_script.sh
-        TARGET_DEPENDENCIES gfm benchfm gst finalst las makefb)
+        PROVIDE_TEMPORARY_WDIR
+        TARGET_DEPENDENCIES gfm benchfm gst finalst las makefb
+        TIMEOUT 240
+    )
 endif()
 endif()
 

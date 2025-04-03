@@ -47,9 +47,7 @@ is_good_decomp(decomp const & D, unsigned int len_p_min, unsigned int len_p_max)
     return true;
 }
 
-/* not implemented? And anyway, do we need it? */
 std::istream & operator>>(std::istream & is, decomp &);
-
 std::ostream & operator<<(std::ostream & o, decomp const & D);
 
 namespace fmt
