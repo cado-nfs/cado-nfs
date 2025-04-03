@@ -9,7 +9,7 @@
 
 #include "gcd.h"
 #include "misc.h"
-#include "modredc_ul.h"
+#include "arith/modredc_ul.h"
 #include "tests_common.h"
 
 static int verbose = 0;

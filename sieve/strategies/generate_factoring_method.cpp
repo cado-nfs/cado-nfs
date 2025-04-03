@@ -16,9 +16,9 @@
 #include "fm.hpp"
 #include "generate_factoring_method.hpp"
 #include "macros.h"
-#include "modredc_15ul.h" // MODREDC15UL_MAXBITS
-#include "modredc_2ul2.h" // MODREDC2UL2_MAXBITS
-#include "modredc_ul.h"   // MODREDCUL_MAXBITS
+#include "arith/modredc_15ul.h" // MODREDC15UL_MAXBITS
+#include "arith/modredc_2ul2.h" // MODREDC2UL2_MAXBITS
+#include "arith/modredc_ul.h"   // MODREDCUL_MAXBITS
 #include "timing.h"       // microseconds
 
 /*

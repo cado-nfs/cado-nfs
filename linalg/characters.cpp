@@ -98,7 +98,7 @@
 #include "gzip.h"       // fopen_maybe_compressed
 #include "macros.h"
 #include "misc.h"       // has_suffix
-#include "mod_ul.h"
+#include "arith/mod_ul.h"
 #include "mpz_poly.h"   // mpz_poly_ptr
 #include "params.h"     // param_list
 #include "purgedfile.h" // purgedfile_read_firstline

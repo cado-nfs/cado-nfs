@@ -14,7 +14,7 @@
 #include "tab_strategy.hpp"
 #include "macros.h"
 #include "fm.hpp"
-#include "modredc_ul.h"
+#include "arith/modredc_ul.h"
 #include "point.hpp"
 #include "tab_point.hpp"
 #include "utils_cxx.hpp"

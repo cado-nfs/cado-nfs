@@ -2,10 +2,13 @@
 #define CADO_LAS_UNSIEVE_HPP
 
 #include "cado_config.h"
-#include <stdint.h>
-#include <utility>                 // pair
+
+#include <cstdint>
+
+#include <utility>
 #include <vector>
-#include "ularith.h"
+
+#include "arith/ularith.h"
 #include "fb-types.hpp"
 
 #ifdef HAVE_SSE2

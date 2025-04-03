@@ -9,13 +9,13 @@
 #include <vector>
 #include <iostream>
 
-#include "macros.h"        // for ASSERT
-// #include "modint.hpp"      // for operator<<
+#include "macros.h"
+// #include "modint.hpp"
 
-#include "mod64.hpp"    // IWYU pragma: keep
-#include "modredc64.hpp"        // IWYU pragma: keep
-#include "modredc126.hpp"       // IWYU pragma: keep
-#include "mod_mpz_new.hpp"      // IWYU pragma: keep
+#include "arithxx/mod64.hpp"
+#include "arithxx/modredc64.hpp"
+#include "arithxx/modredc126.hpp"
+#include "arithxx/mod_mpz_new.hpp"
 #include "ec_arith_Weierstrass_new.hpp"
 
 /* Computes R=2P, with 1 inv, 4 muls (2 muls and 2 squares) and 8 add/sub.

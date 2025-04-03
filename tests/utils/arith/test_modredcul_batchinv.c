@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "tests_common.h"
-#include "modredc_ul.h"
+#include "arith/modredc_ul.h"
 #include "misc.h"
 
 static int verbose = 0;

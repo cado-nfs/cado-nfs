@@ -18,7 +18,7 @@
 #include "gpf.h"        // gpf_init
 #include "las-unsieve.hpp"  // for unsieve_data, unsieve_data::pattern_t
 #include "macros.h"         // for ASSERT_ALWAYS, no_break, MAYBE_UNUSED
-#include "ularith.h"        // for ularith_invmod
+#include "arith/ularith.h"        // for ularith_invmod
 #ifdef TRACE_K
 #include "las-where-am-i.hpp"             // for where_am_I, WHERE_AM_I_UPDATE
 #include "las-output.hpp"   // IWYU pragma: keep

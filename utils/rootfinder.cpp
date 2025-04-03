@@ -15,9 +15,9 @@
 
 #include "cxx_mpz.hpp"   // for cxx_mpz
 #include "macros.h"
-#include "mod_ul.h"      // for residueul_t, modul_clear, modul_clearmod
+#include "arith/mod_ul.h"      // for residueul_t, modul_clear, modul_clearmod
 #include "mpz_poly.h"
-#include "modul_poly.h"
+#include "arith/modul_poly.h"
 #include "rootfinder.h"
 #include "portability.h" // IWYU pragma: keep
 

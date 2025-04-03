@@ -8,7 +8,7 @@
 #include <utility>
 
 #include "getprime.h"
-#include "ularith.h"
+#include "arith/ularith.h"
 #include "gpf.h"
 #include "macros.h"     // ASSERT ASSERT_EXPENSIVE
 

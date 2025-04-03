@@ -6,8 +6,8 @@
 #include <gmp.h>
 
 #include "cxx_mpz.hpp"
-#include "u64arith.h"      // for u64arith_mul_1_1_2
-#include "ularith.h"    // IWYU pragma: keep
+#include "arithxx/u64arith.h"      // for u64arith_mul_1_1_2
+#include "arith/ularith.h"    // IWYU pragma: keep
 #include "mod_mpz_new.hpp"
 #include "macros.h"
 

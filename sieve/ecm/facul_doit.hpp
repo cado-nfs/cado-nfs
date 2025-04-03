@@ -4,10 +4,10 @@
 #include <memory>
 #include <vector>
 
-#include "modredc_ul.h"
-#include "modredc_15ul.h"
-#include "modredc_2ul2.h"
-#include "mod_mpz.h"
+#include "arith/modredc_ul.h"
+#include "arith/modredc_15ul.h"
+#include "arith/modredc_2ul2.h"
+#include "arith/mod_mpz.h"
 #include "facul.hpp"
 #include "facul_method.hpp"
 #include "modset.hpp"

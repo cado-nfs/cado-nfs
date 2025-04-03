@@ -1,10 +1,13 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <stdint.h>     /* AIX wants it first (it's a bug) */
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
-#include <gmp.h>
 #include <time.h>
+
+#include <gmp.h>
+
 #include "tests_common.h"
 #include "macros.h"
 #include "misc.h"

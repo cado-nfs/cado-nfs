@@ -4,7 +4,7 @@
 #include <iostream> // cerr
 #include <string>
 #include "cxx_mpz.hpp"
-#include "modint.hpp"
+#include "arithxx/modint.hpp"
 #include "tests_common.h"
 
 template <typename INTEGER>

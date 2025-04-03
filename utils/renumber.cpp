@@ -25,7 +25,7 @@
 #include "getprime.h"
 #include "gmp_aux.h"
 #include "gzip.h"
-#include "mod_ul.h"
+#include "arith/mod_ul.h"
 #include "mpz_poly.h"
 #include "omp_proxy.h"
 #include "params.h"

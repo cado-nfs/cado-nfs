@@ -18,7 +18,7 @@
 #include "fb-types.hpp"
 #include "intrinsics.hpp"
 #include "macros.h"
-#include "ularith.h"
+#include "arith/ularith.h"
 
 #include "las-sieve2357.hpp"
 

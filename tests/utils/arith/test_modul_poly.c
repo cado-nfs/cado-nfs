@@ -3,9 +3,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <gmp.h>
-#include "mod_ul.h"        // for modul_initmod_ul, modul_clearmod, modul_se...
+#include "arith/mod_ul.h"        // for modul_initmod_ul, modul_clearmod, modul_se...
 #include "mpz_poly.h"      // for mpz_poly
-#include "modul_poly.h"
+#include "arith/modul_poly.h"
 #include "gmp_aux.h"
 #include "tests_common.h"
 #include "cado_poly.h"

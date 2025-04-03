@@ -13,11 +13,11 @@
 
 #include "tests_common.h"
 #include "cxx_mpz.hpp"                             // for cxx_mpz, operator==
-#include "modint.hpp"                              // for operator<<
-#include "mod64.hpp"
-#include "modredc64.hpp"
-#include "modredc126.hpp"
-#include "mod_mpz_new.hpp"
+#include "arithxx/modint.hpp"                              // for operator<<
+#include "arithxx/mod64.hpp"
+#include "arithxx/modredc64.hpp"
+#include "arithxx/modredc126.hpp"
+#include "arithxx/mod_mpz_new.hpp"
 #include "sieve/ecm/ec_arith_Weierstrass_new.hpp"
 #include "macros.h"
 

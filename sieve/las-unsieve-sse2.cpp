@@ -26,7 +26,7 @@
 
 #include "las-unsieve.hpp"  // for extract_j_div, j_divisibility_helper, sea...
 #include "macros.h"         // for ASSERT_ALWAYS, MAYBE_UNUSED, no_break
-#include "ularith.h"        // for ularith_ctz
+#include "arith/ularith.h"        // for ularith_ctz
 #include "gcd.h"       // for bin_gcd_int64_safe
 
 static const int verify_gcd = 0; /* Enable slow but thorough test */

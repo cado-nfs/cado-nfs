@@ -49,7 +49,7 @@
 #include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
 #include "gzip.h"       // fopen_maybe_compressed
 #include "memusage.h"   // PeakMemusage
-#include "modul_poly.h" // modul_poly
+#include "arith/modul_poly.h" // modul_poly
 #include "mpz_poly.h"   // mpz_poly
 #include "mpz_polymodF.h"   // mpz_poly
 #include "mpz_poly_parallel.hpp"

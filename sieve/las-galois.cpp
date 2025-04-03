@@ -9,7 +9,7 @@
 #include "galois_action.hpp" // galois_action
 #include "las-galois.hpp"
 #include "macros.h"      // for ASSERT_ALWAYS
-#include "mod_ul.h"     // modulusul_t
+#include "arith/mod_ul.h"     // modulusul_t
 #include "relation.hpp"
 
 static void adwg(std::ostream& os, const char *comment, unsigned long *cpt,

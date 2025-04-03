@@ -14,10 +14,10 @@
 #include "facul.hpp"
 #include "facul_doit.hpp"
 #include "facul_method.hpp"
-#include "mod_mpz.h"
-#include "modredc_15ul.h"
-#include "modredc_2ul2.h"
-#include "modredc_ul.h"
+#include "arith/mod_mpz.h"
+#include "arith/modredc_15ul.h"
+#include "arith/modredc_2ul2.h"
+#include "arith/modredc_ul.h"
 
 struct cxx_mpz;
 

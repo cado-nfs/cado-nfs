@@ -10,11 +10,11 @@
 #include <gmp.h>
 
 #include "tests_common.h"
-#include "mod64.hpp"
-#include "modredc64.hpp"
-#include "modredc126.hpp"
-#include "mod_mpz_new.hpp"
-#include "modint.hpp"
+#include "arithxx/mod64.hpp"
+#include "arithxx/modredc64.hpp"
+#include "arithxx/modredc126.hpp"
+#include "arithxx/mod_mpz_new.hpp"
+#include "arithxx/modint.hpp"
 #include "macros.h"
 #include "misc.h"
 

@@ -3,8 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h> // abort
 
-#include "modredc_ul.h" // IWYU pragma: keep
-#include "modredc_ul_default.h"
+#include "arith/modredc_ul.h" // IWYU pragma: keep
+#include "arith/modredc_ul_default.h"
 
 #include "ecm.c"        // NOLINT(bugprone-suspicious-include)
 #include "facul_ecm.h"             // for BRENT12, MONTY12, MONTY16, MONTYTW...

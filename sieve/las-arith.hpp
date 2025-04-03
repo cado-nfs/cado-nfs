@@ -12,7 +12,7 @@
 #include "macros.h"       // for ASSERT, UNLIKELY, GNUC_VERSION_ATLEAST, MAY...
 #include "fb-types.hpp"
 #include "misc.h"          // cado_ctz
-#include "mod_ul.h"        // for modul_clear, modul_clearmod, modul_get_ul
+#include "arith/mod_ul.h"        // for modul_clear, modul_clearmod, modul_get_ul
 #include "verbose.h"
 
 #ifdef LAS_ARITH_INVMOD_HISTOGRAM

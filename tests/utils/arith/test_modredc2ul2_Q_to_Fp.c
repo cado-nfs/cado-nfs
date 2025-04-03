@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include "tests_common.h"
 #include "getprime.h"
-#include "modredc_2ul2.h"
+#include "arith/modredc_2ul2.h"
 
 #define P_LEN 128
 

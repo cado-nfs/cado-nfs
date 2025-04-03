@@ -37,7 +37,7 @@
 #include "gmp_aux.h"
 #include "macros.h"
 #include "misc.h"       // u64_random  // IWYU: keep
-#include "modredc_ul.h" // MODREDCUL_MAXBITS
+#include "arith/modredc_ul.h" // MODREDCUL_MAXBITS
 #include "params.h"     // param_list
 #include "strategy.hpp" // for strategy_t, strategy_add_fm
 #include "tab_decomp.hpp"
