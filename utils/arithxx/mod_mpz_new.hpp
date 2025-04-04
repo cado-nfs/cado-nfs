@@ -294,7 +294,7 @@ public:
         mp_limb_t cy;
         
         if (limbsPerUint64 == 1 || bm < GMP_NUMB_MAX) {
-            cy = mpn_add_1(r.r, a.r, (mp_limb_t) bm, mpz_size(m));
+            cy = mpn_add_1(r.r, a.r, mpz_size(m), bm);
         } else {
             mp_limb_t t[limbsPerUint64];
             const size_t toWrite = MIN(limbsPerUint64, mpz_size(m));
@@ -333,7 +333,7 @@ public:
         mp_limb_t bw;
         
         if (limbsPerUint64 == 1 || bm < GMP_NUMB_MAX) {
-            bw = mpn_sub_1(r.r, a.r, (mp_limb_t) bm, mpz_size(m));
+            bw = mpn_sub_1(r.r, a.r, mpz_size(m), bm);
         } else {
             mp_limb_t t[limbsPerUint64];
             const size_t toWrite = MIN(limbsPerUint64, mpz_size(m));
