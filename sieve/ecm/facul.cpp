@@ -102,7 +102,16 @@ facul_both(std::vector<cxx_mpz> const & N, facul_strategies const & strategies)
         if (N[side] == 1) {
             res[side].status = FACUL_SMOOTH;
             continue;
-        } else if (mpz_get_d(N[side]) < strategies.BB[side]) {
+        }
+
+        /* if strategies.B is only a 1-element vector, then
+         * conf.sides.size()==1 and the N[1] that we got is just a
+         * placeholder 1. So these asserts should hold
+         */
+        ASSERT_ALWAYS(side < (int) strategies.B.size());
+        ASSERT_ALWAYS(side < (int) strategies.BB.size());
+
+        if (mpz_get_d(N[side]) < strategies.BB[side]) {
             res[side].status = FACUL_SMOOTH;
             res[side].primes.emplace_back(N[side]);
             continue;

@@ -229,7 +229,7 @@ facul_status factor_both_leftover_norms(
     ASSERT_ALWAYS(n.size() == 2);
     ASSERT_ALWAYS(factors.size() == 2);
     ASSERT_ALWAYS(Bs.size() == 2);
-    for (int side = 0; side < 2; side++) {
+    for (int side = 0; side < 2 && side < (int) strat.B.size() ; side++) {
         ASSERT_ALWAYS(Bs[side] == strat.B[side]);
     }
 
