@@ -1,15 +1,18 @@
 #ifndef LAS_THREADS_HPP_
 #define LAS_THREADS_HPP_
 
-#include <cstddef>         // for size_t
-#include <array>           // for array
-#include <vector>          // for vector
-#include "bucket.hpp"      // for bucket_array_t, emptyhint_t (ptr only)
-#include "las-bkmult.hpp"  // for bkmult_specifier
-#include "las-config.h"    // for FB_MAX_PARTS
-#include "threadpool.hpp"  // for thread_pool (ptr only), condition_variable
-#include <mutex>
+#include <cstddef>
+
 #include <condition_variable>
+#include <array>
+#include <vector>
+
+#include "bucket.hpp"
+#include "las-bkmult.hpp"
+#include "las-config.h"
+#include "threadpool.hpp"
+#include "macros.h"
+
 class las_memory_accessor;
 class nfs_aux;
 
@@ -32,7 +35,7 @@ class reservation_array : public monitor {
   size_t find_free() const {
     return std::find(in_use.begin(), in_use.end(), false) - in_use.begin();
   }
-  inline T& use_(int i) {
+  T& use_(int i) {
       ASSERT_ALWAYS(!in_use[i]);
       in_use[i]=true; 
       return BAs[i];
@@ -63,7 +66,7 @@ public:
   std::vector<T> const& bucket_arrays() const { return BAs; }
 
   ATTRIBUTE_NODISCARD
-  inline int rank(T const & BA) const { return &BA - BAs.data(); }
+  int rank(T const & BA) const { return &BA - BAs.data(); }
 
   void reset_all_pointers() { for(auto & A : BAs) A.reset_pointers(); }
 

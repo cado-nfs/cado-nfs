@@ -615,7 +615,7 @@ class fb_factorbase
                  */
                 if (index < first_slice_index)
                     return nullptr;
-                slice_index_t idx = index - first_slice_index;
+                const slice_index_t idx = index - first_slice_index;
                 if (idx >= nslices()) {
                     // index = idx - nslices();
                     return nullptr;
@@ -809,12 +809,6 @@ class fb_factorbase
                 p.foreach_slice(f);
             }
         }
-        template <typename T> void foreach_slice(T && f)
-        {
-            for (auto & p: parts) {
-                p.foreach_slice(f);
-            }
-        }
 
         slicing() = default;
         slicing(fb_factorbase const & fb, key_type const & K);
@@ -822,7 +816,7 @@ class fb_factorbase
 
   private:
     lock_guarded_container<std::map<key_type, slicing>> cache;
-    int read(char const * const filename);
+    int read(char const * filename);
 
   public:
     /* accessors.
@@ -831,7 +825,7 @@ class fb_factorbase
 
     slicing & operator[](key_type const & K)
     {
-        std::lock_guard<std::mutex> foo(cache.mutex());
+        const std::lock_guard<std::mutex> foo(cache.mutex());
         auto it = cache.find(K);
         if (it != cache.end())
             return it->second;
