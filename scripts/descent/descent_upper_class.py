@@ -67,7 +67,6 @@ class DescentUpperClass(object):
     def has_log(self, *args):
         if self.general.logDB is None:
             p, r, side = args
-            assert side == self.side
             return p < self.lim
         return self.general.logDB.has(*args)
 
@@ -408,6 +407,8 @@ class DescentUpperClass(object):
                 for line in f:
                     side, q = line.strip().split(' ')
                     q = int(q)
+                    if self.has_log(q, -1, 0):
+                        continue
                     logq = math.ceil(math.log(q, 2))
                     print("Will do further descent",
                           "for %d-bit rational prime %d" % (logq, q))
