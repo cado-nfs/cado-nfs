@@ -55,6 +55,9 @@ NOPROFILE_STATIC
         auto it_end = sl.end();
 
         slice_index_t const slice_index = BA.get_slice_index(i_slice);
+
+        ASSERT(slice_index < fbp.nslices());
+
         unsigned char const logp = fbp[slice_index].get_logp();
 
         /* TODO: the code below is quite possibly correct, except perhaps for
