@@ -66,7 +66,9 @@ class DescentUpperClass(object):
 
     def has_log(self, *args):
         if self.general.logDB is None:
-            return False
+            p, r, side = args
+            assert side == self.side
+            return p < self.lim
         return self.general.logDB.has(*args)
 
     def __init__(self, general, args):
