@@ -821,9 +821,9 @@ class parasite_fixer {/*{{{*/
                  * are being considered within this pass.
                  */
                 const arith_generic::elt * row = A->vec_subvec(*pmat, ii * cblocks);
-                int const w = A->vec_simd_hamming_weight(row, cblocks);
+                size_t const w = A->vec_simd_hamming_weight(row, cblocks);
                 if (w == 1) {
-                    int const p = A->vec_simd_find_first_set(*dummy, row, cblocks);
+                    size_t const p = A->vec_simd_find_first_set(*dummy, row, cblocks);
                     if (char2) {
                         pivots[xi] = std::make_pair(vcols[p], 1);
                     } else {

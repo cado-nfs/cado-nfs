@@ -90,11 +90,11 @@ static unsigned int matrix_rank(arith_generic * A, arith_generic::elt * M,
         unsigned int rpiv = UINT_MAX;
         for (unsigned int r1 = r; r1 < nrows; r1++) {
             auto * row1 = A->vec_subvec(M, r1 * row_stride);
-            int const j1 = A->vec_simd_find_first_set(*elt, row1, row_stride);
-            if (j1 == -1)
+            size_t const j1 = A->vec_simd_find_first_set(*elt, row1, row_stride);
+            if (j1 == SIZE_MAX)
                 continue;
-            if (j1 < jpiv) {
-                jpiv = j1;
+            if (int(j1) < jpiv) {
+                jpiv = int(j1);
                 rpiv = r1;
             }
         }
@@ -118,9 +118,9 @@ static unsigned int matrix_rank(arith_generic * A, arith_generic::elt * M,
         A->vec_neg(buf.get(), buf.get(), row_stride);
         for (unsigned int r1 = r + 1; r1 < nrows; r1++) {
             auto * row1 = A->vec_subvec(M, r1 * row_stride);
-            int const j1 = A->vec_simd_find_first_set(*elt, row1, row_stride);
-            ASSERT_ALWAYS(j1 == -1 || j1 >= j);
-            if (j1 == j) // we have a coefficient to cancel
+            size_t const j1 = A->vec_simd_find_first_set(*elt, row1, row_stride);
+            ASSERT_ALWAYS(j1 == SIZE_MAX || int(j1) >= j);
+            if (int(j1) == j) // we have a coefficient to cancel
                 A->vec_addmul_and_reduce(row1, buf.get(), *elt, row_stride);
         }
         rank++;

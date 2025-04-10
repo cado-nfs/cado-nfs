@@ -34,9 +34,9 @@
 /*  this macro actually exposes the specialization in itself */
 #define EXPOSE_SPECIALIZATION(n)                                               \
     template<>                                                                 \
-    struct gfp<n> : public gfp_base<n, gfp<n>>                                 \
+    struct gfp<n> : public gfp_base<n, gfp<(n)>>                               \
     {                                                                          \
-        typedef gfp_base<n, gfp<n>> super;                                     \
+        typedef gfp_base<n, gfp<(n)>> super;                                   \
         using typename super::elt;                                             \
         using typename super::elt_ur_for_add;                                  \
         template<typename... Args>                                             \
@@ -50,44 +50,44 @@
          */                                                                    \
         using super::add;                                                      \
         using super::sub;                                                      \
-        static inline void add(elt_ur_for_add& dst, elt const& src)            \
+        static void add(elt_ur_for_add& dst, elt const& src)            \
         {                                                                      \
             asm("# gfp<" #n ", 1>::add\n" ADDSUB_CODE##n(add, adc));           \
         }                                                                      \
-        static inline void sub(elt_ur_for_add& dst, elt const& src)            \
+        static void sub(elt_ur_for_add& dst, elt const& src)            \
         {                                                                      \
             asm("# gfp<" #n ", 1>::sub\n" ADDSUB_CODE##n(sub, sbb));           \
         }                                                                      \
-        inline void add(elt_ur_for_add& dst,                            \
+        void add(elt_ur_for_add& dst,                            \
                                elt const& a,                                   \
                                elt const& b) const                                   \
         {                                                                      \
             set(dst, a);                                                 \
             add(dst, b);                                                       \
         }                                                                      \
-        inline void sub(elt_ur_for_add& dst,                            \
+        void sub(elt_ur_for_add& dst,                            \
                                elt const& a,                                   \
                                elt const& b) const                                   \
         {                                                                      \
             set(dst, a);                                                 \
             sub(dst, b);                                                       \
         }                                                                      \
-        inline void add(elt_ur_for_add& dst, elt_ur_for_add const& src) const \
+        void add(elt_ur_for_add& dst, elt_ur_for_add const& src) const \
         {                                                                      \
             add_ur(dst, src);                                                  \
         }                                                                      \
-        inline void sub(elt_ur_for_add& dst, elt_ur_for_add const& src) const \
+        void sub(elt_ur_for_add& dst, elt_ur_for_add const& src) const \
         {                                                                      \
             sub_ur(dst, src);                                                  \
         }                                                                      \
-        static inline void addmul_ui(elt_ur_for_add& dst,                      \
+        static void addmul_ui(elt_ur_for_add& dst,                      \
                                      elt const& src,                           \
                                      mp_limb_t x)                              \
         {                                                                      \
             mp_limb_t foo MAYBE_UNUSED;                                        \
             asm("# gfp<" #n ", 1>::addmul_ui\n" ADDSUBMUL_CODE##n(add, adc));  \
         }                                                                      \
-        static inline void submul_ui(elt_ur_for_add& dst,                      \
+        static void submul_ui(elt_ur_for_add& dst,                      \
                                      elt const& src,                           \
                                      mp_limb_t x)                              \
         {                                                                      \

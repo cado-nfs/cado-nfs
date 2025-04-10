@@ -3,14 +3,17 @@
 
 #include "cado_config.h"
 
+#include <cstddef>
 #include <cstdint>
+#include <cstdio>
 
 #include <algorithm>
 #include <array>
-#include <iomanip>
+#include <ios>
 #include <ostream>
 #include <sstream>
 #include <string>
+#include <type_traits>
 
 #if defined(HAVE_SSE41) && defined(HAVE_POPCNT)
 #include <x86intrin.h>
@@ -68,37 +71,37 @@ struct layout_traits<elt, true>
     typedef typename elt::value_type value_type;
 
     /*{{{ element layout information */
-    static constexpr inline size_t elt_stride() { return sizeof(elt); }
-    static inline size_t vec_elt_stride(size_t s) { return s * elt_stride(); }
+    static constexpr size_t elt_stride() { return sizeof(elt); }
+    static size_t vec_elt_stride(size_t s) { return s * elt_stride(); }
     /*}}}*/
 
     /*{{{ allocation / deallocation of (vectors of) elements */
-    static inline elt* alloc(size_t k = 1, size_t al = alignment_divisor<sizeof(elt)>::value) {
+    static elt* alloc(size_t k = 1, size_t al = alignment_divisor<sizeof(elt)>::value) {
         return reinterpret_cast<elt *>(malloc_aligned(k * sizeof(elt), al));
     }
-    static inline void free(elt* u) {
+    static void free(elt* u) {
         free_aligned(reinterpret_cast<void *>(u));
     }
-    static inline elt* realloc(elt* u, size_t k0, size_t k, size_t al = alignment_divisor<sizeof(elt)>::value)
+    static elt* realloc(elt* u, size_t k0, size_t k, size_t al = alignment_divisor<sizeof(elt)>::value)
     {
         return reinterpret_cast<elt *>(::realloc_aligned(reinterpret_cast<void *>(u), k0 * sizeof(elt), k * sizeof(elt), al));
     }
     /*}}}*/
 
     /* {{{ setting and setting to zero */
-    static inline elt& set(elt& x, elt const& a) { return x = a; }
-    static inline void set_zero(elt& x) { x.zero(); }
+    static elt& set(elt& x, elt const& a) { return x = a; }
+    static void set_zero(elt& x) { x.zero(); }
     /* }}} */
 
     /* {{{ vector arithmetic and copies */
-    static inline elt* vec_subvec(elt* p, size_t k) { return p + k; }
+    static elt* vec_subvec(elt* p, size_t k) { return p + k; }
 
-    static inline elt const* vec_subvec(elt const* p, size_t k)
+    static elt const* vec_subvec(elt const* p, size_t k)
     {
         return p + k;
     }
 
-    static inline void vec_set(elt* q, elt const* p, size_t n)
+    static void vec_set(elt* q, elt const* p, size_t n)
     {
         if (q < p)
             std::copy_n(p, n, q);
@@ -117,52 +120,52 @@ struct layout_traits<elt, false>
 {
     typedef typename elt::value_type X;
     unsigned int K;
-    inline unsigned int number_of_limbs() const { return K; }
-    inline unsigned int simd_groupsize() const { return K * 64; }
+    unsigned int number_of_limbs() const { return K; }
+    unsigned int simd_groupsize() const { return K * 64; }
     /* {{{ element layout information */
     /* These are really really weird */
-    inline size_t elt_stride() const { return K * sizeof(X); }
-    inline size_t vec_elt_stride(size_t s) const { return s * elt_stride(); }
+    size_t elt_stride() const { return K * sizeof(X); }
+    size_t vec_elt_stride(size_t s) const { return s * elt_stride(); }
     /* }}} */
 
     /* {{{ allocation / deallocation of (vectors of) elements */
-    inline elt* alloc(size_t k = 1, size_t al = sizeof(X)) const {
+    elt* alloc(size_t k = 1, size_t al = sizeof(X)) const {
         /* Do we want a runtime determination of the alignment ? */
         return reinterpret_cast<elt *>(malloc_aligned(k * K * sizeof(X), al));
     }
-    inline void free(elt* u) const {
+    void free(elt* u) const {
         free_aligned(reinterpret_cast<void *>(u));
     }
-    inline elt* realloc(elt* u, size_t k0, size_t k, size_t al = sizeof(X)) const
+    elt* realloc(elt* u, size_t k0, size_t k, size_t al = sizeof(X)) const
     {
         return reinterpret_cast<elt *>(::realloc_aligned(reinterpret_cast<void *>(u), k0 * K * sizeof(X), k * K * sizeof(X), al));
     }
     /* }}} */
 
     /* {{{ setting and setting to zero */
-    inline elt& set(elt& x, elt const& a) const
+    elt& set(elt& x, elt const& a) const
     {
         std::copy_n(a.data(), number_of_limbs(), x.data());
         return x;
     }
-    inline void set_zero(elt& x) const
+    void set_zero(elt& x) const
     {
         std::fill_n(x.data(), number_of_limbs(), 0);
     }
     /* }}} */
 
     /* {{{ vector arithmetic and copies */
-    inline elt* vec_subvec(elt* p, size_t k) const
+    elt* vec_subvec(elt* p, size_t k) const
     {
         return reinterpret_cast<elt*>(p->data() + k * number_of_limbs());
     }
 
-    inline elt const* vec_subvec(elt const* p, size_t k) const
+    elt const* vec_subvec(elt const* p, size_t k) const
     {
         return reinterpret_cast<elt const*>(p->data() + k * number_of_limbs());
     }
 
-    inline void vec_set(elt* q, elt const* p, size_t n) const
+    void vec_set(elt* q, elt const* p, size_t n) const
     {
         X* qx = q->data();
         X const* px = p->data();
@@ -219,7 +222,7 @@ struct gf2_base_type
     gf2_base_type(Args&&... args)
       : elt { std::forward<Args>(args)... }
     {}
-    inline void zero() { std::fill_n(elt::begin(), K, 0); }
+    void zero() { std::fill_n(elt::begin(), K, 0); }
 };
 
 /* This one is for the variable width case.
@@ -313,31 +316,31 @@ struct gf2_base
 
     typedef gf2_base_type<G> elt;
     typedef layout_traits<elt> layout;
-    static inline void simd_set_ui_at(elt& p, size_t k, int v)
+    static void simd_set_ui_at(elt& p, size_t k, int v)
     {
         uint64_t* xp = p.data();
-        uint64_t mask = ((uint64_t)1) << (k % 64);
+        const uint64_t mask = ((uint64_t)1) << (k % 64);
         xp[k / 64] =
           (xp[k / 64] & ~mask) | ((((uint64_t)v) << (k % 64)) & mask);
     }
-    static inline int simd_test_ui_at(elt const& p, size_t k)
+    static int simd_test_ui_at(elt const& p, size_t k)
     {
         uint64_t const* xp = p.data();
-        uint64_t mask = ((uint64_t)(1)) << (k % 64);
+        const uint64_t mask = ((uint64_t)(1)) << (k % 64);
         return (xp[k / 64] & mask) != 0;
     }
-    static inline void simd_add_ui_at(elt& p, size_t k, int v)
+    static void simd_add_ui_at(elt& p, size_t k, int v)
     {
         uint64_t* xp = p.data();
-        uint64_t mask = ((uint64_t)(v & 1)) << (k % 64);
+        const uint64_t mask = ((uint64_t)(v & 1)) << (k % 64);
         xp[k / 64] ^= mask;
     }
-    inline int simd_hamming_weight(elt const& p) const
+    int simd_hamming_weight(elt const& p) const
     {
         int w = 0;
         T const* tx = static_cast<T const*>(this);
 #if GNUC_VERSION_ATLEAST(3, 4, 0)
-        const unsigned long* xp =
+        const auto * xp =
           reinterpret_cast<const unsigned long*>(p.data());
         static_assert(!T::elt::is_constant_size ||
                         sizeof(typename T::elt) % sizeof(unsigned long) == 0,
@@ -359,7 +362,7 @@ struct gf2_base
     }
 
     /*{{{ predicates */
-    inline bool is_zero(elt const& x) const
+    bool is_zero(elt const& x) const
     {
         T const* tx = static_cast<T const*>(this);
         unsigned int K = tx->number_of_limbs();
@@ -370,7 +373,7 @@ struct gf2_base
         return true;
     }
 
-    inline int cmp(elt const& x, unsigned long a) const
+    int cmp(elt const& x, unsigned long a) const
     {
         T const* tx = static_cast<T const*>(this);
         unsigned int K = tx->number_of_limbs();
@@ -383,7 +386,7 @@ struct gf2_base
         return 0;
     }
 
-    inline int cmp(elt const& x, elt const& y) const
+    int cmp(elt const& x, elt const& y) const
     {
         T const* tx = static_cast<T const*>(this);
         unsigned int K = tx->number_of_limbs();
@@ -397,10 +400,10 @@ struct gf2_base
     /*}}}*/
 
     /* {{{ assignments */
-    inline elt& set(elt& x, elt const& a) const { return layout::set(x, a); }
-    inline void set_zero(elt& x) const { return layout::set_zero(x); }
+    elt& set(elt& x, elt const& a) const { return layout::set(x, a); }
+    void set_zero(elt& x) const { return layout::set_zero(x); }
 
-    inline elt& set(elt& x, unsigned long a) const
+    elt& set(elt& x, unsigned long a) const
     {
         T const* tx = static_cast<T const*>(this);
         tx->set_zero(x);
@@ -408,7 +411,7 @@ struct gf2_base
         return x;
     }
 
-    inline elt& set(elt& x, cxx_mpz const& a) const
+    elt& set(elt& x, cxx_mpz const& a) const
     {
         T const* tx = static_cast<T const*>(this);
         tx->set_zero(x);
@@ -421,19 +424,19 @@ struct gf2_base
         return x;
     }
 
-    inline elt& neg(elt& x, elt const& a) const
+    elt& neg(elt& x, elt const& a) const
     {
         T const* tx = static_cast<T const*>(this);
         return tx->set(x, a);
     }
 
-    inline elt& inverse(elt& x, elt const& a) const
+    elt& inverse(elt& x, elt const& a) const
     {
         T const* tx = static_cast<T const*>(this);
         return tx->set(x, a);
     }
 
-    inline void set_random(elt& x, cxx_gmp_randstate & rstate) const
+    void set_random(elt& x, cxx_gmp_randstate & rstate) const
     {
         T const* tx = static_cast<T const*>(this);
         unsigned int K = tx->number_of_limbs();
@@ -441,13 +444,13 @@ struct gf2_base
             x.data()[i] = u64_random(rstate);
     }
 
-    inline void stream_store(elt* dst, elt const& src) const { set(*dst, src); }
+    void stream_store(elt* dst, elt const& src) const { set(*dst, src); }
 
-    static inline void reduce(elt&) {}
+    static void reduce(elt&) {}
     /* }}} */
 
     /*{{{ addition, at the element level */
-    inline void add(elt& dst, elt const& a, elt const& b) const
+    void add(elt& dst, elt const& a, elt const& b) const
     {
         T const* tx = static_cast<T const*>(this);
         unsigned int K = tx->number_of_limbs();
@@ -465,7 +468,7 @@ struct gf2_base
     /*}}}*/
 
     /*{{{ I/O */
-    inline std::ostream& cxx_out(std::ostream& o, elt const& x) const
+    std::ostream& cxx_out(std::ostream& o, elt const& x) const
     {
         T const* tx = static_cast<T const*>(this);
         unsigned int K = tx->number_of_limbs();
@@ -478,13 +481,13 @@ struct gf2_base
         }
         return o;
     }
-    inline std::ostream& write(std::ostream& o, elt const& x)
+    std::ostream& write(std::ostream& o, elt const& x)
     {
         T const* tx = static_cast<T const*>(this);
         return o.write(reinterpret_cast<const char*>(x.data()),
                        tx->elt_stride());
     }
-    inline int fread(FILE* f, elt& x) const
+    int fread(FILE* f, elt& x) const
     {
         T const* tx = static_cast<T const*>(this);
         int ret =
@@ -493,7 +496,7 @@ struct gf2_base
             return ret;
         return ret;
     }
-    inline int fscan(FILE* f, elt& x) const
+    int fscan(FILE* f, elt& x) const
     {
         T const* tx = static_cast<T const*>(this);
         unsigned int K = tx->number_of_limbs();
@@ -503,7 +506,7 @@ struct gf2_base
             return 0;
         char* b = buf;
         for (unsigned int i = 0; i < K; i++, b += 16) {
-            std::string s(b, b + 16);
+            const std::string s(b, b + 16);
             std::istringstream is(s);
             is >> std::hex >> x.data()[i];
         }
@@ -530,23 +533,23 @@ struct gf2_middle : public gf2_override<G, T>
     mpz_srcptr characteristic() const
     {
         static mp_limb_t limbs[1] = { 2 };
-        static __mpz_struct a = { 1, 1, limbs };
+        static const __mpz_struct a = { 1, 1, limbs };
         return &a;
     }
 
     /*{{{ a few trivial proxies */
     using super::add;
-    inline void add(elt& dst, elt const& b) const
+    void add(elt& dst, elt const& b) const
     {
         T const* tx = static_cast<T const*>(this);
         tx->add(dst, dst, b);
     }
-    inline void add_and_reduce(elt& dst, elt const& b) const
+    void add_and_reduce(elt& dst, elt const& b) const
     {
         T const* tx = static_cast<T const*>(this);
         tx->add(dst, dst, b);
     }
-    inline void sub_and_reduce(elt& dst, elt const& b) const
+    void sub_and_reduce(elt& dst, elt const& b) const
     {
         T const* tx = static_cast<T const*>(this);
         tx->add(dst, dst, b);
@@ -557,13 +560,13 @@ struct gf2_middle : public gf2_override<G, T>
      */
 
     /*{{{ accessors inside vectors */
-    inline elt& vec_item(elt* p, size_t k) const
+    elt& vec_item(elt* p, size_t k) const
     {
         T const* tx = static_cast<T const*>(this);
         return *tx->vec_subvec(p, k);
     }
 
-    inline elt const& vec_item(elt const* p, size_t k) const
+    elt const& vec_item(elt const* p, size_t k) const
     {
         T const* tx = static_cast<T const*>(this);
         return *tx->vec_subvec(p, k);
@@ -571,7 +574,7 @@ struct gf2_middle : public gf2_override<G, T>
     /*}}}*/
 
     /* {{{ predicates on vectors */
-    inline int vec_cmp(elt const* a, elt const* b, size_t k) const
+    int vec_cmp(elt const* a, elt const* b, size_t k) const
     {
         T const* tx = static_cast<T const*>(this);
         for (size_t i = 0; i < k; i++) {
@@ -581,7 +584,7 @@ struct gf2_middle : public gf2_override<G, T>
         }
         return 0;
     }
-    inline bool vec_is_zero(elt const* p, size_t n) const
+    bool vec_is_zero(elt const* p, size_t n) const
     {
         T const* tx = static_cast<T const*>(this);
         for (size_t i = 0; i < n; i++)
@@ -592,7 +595,7 @@ struct gf2_middle : public gf2_override<G, T>
     /* }}} */
     /* {{{ assignments on vectors */
 
-    inline void vec_set_zero(elt* p, size_t n) const
+    void vec_set_zero(elt* p, size_t n) const
     {
         T const* tx = static_cast<T const*>(this);
         /* XXX This _should_ resolve to a memset */
@@ -600,13 +603,13 @@ struct gf2_middle : public gf2_override<G, T>
             tx->set_zero(tx->vec_item(p, i));
     }
 
-    inline void vec_neg(elt* q, elt const* p, size_t n) const
+    void vec_neg(elt* q, elt const* p, size_t n) const
     {
         T const* tx = static_cast<T const*>(this);
         tx->vec_set(q, p, n);
     }
 
-    inline void vec_set_random(elt* p, size_t k, cxx_gmp_randstate & rstate) const
+    void vec_set_random(elt* p, size_t k, cxx_gmp_randstate & rstate) const
     {
         T const* tx = static_cast<T const*>(this);
         for (size_t i = 0; i < k; ++i)
@@ -615,20 +618,20 @@ struct gf2_middle : public gf2_override<G, T>
     /* }}} */
 
     /*{{{ vec addition */
-    inline void vec_add(elt* q, elt const* p, size_t n) const
+    void vec_add(elt* q, elt const* p, size_t n) const
     {
         T const* tx = static_cast<T const*>(this);
         for (size_t i = 0; i < n; i++)
             tx->add(tx->vec_item(q, i), tx->vec_item(p, i));
     }
-    inline void vec_add_and_reduce(elt* q, elt const* p, size_t n) const
+    void vec_add_and_reduce(elt* q, elt const* p, size_t n) const
     {
         T const* tx = static_cast<T const*>(this);
         tx->vec_add(q, p, n);
     }
     /*}}}*/
     /*{{{ vec simd operations*/
-    static inline void vec_simd_set_ui_at(elt* p, size_t k, int v)
+    static void vec_simd_set_ui_at(elt* p, size_t k, int v)
     {
         // in truth, we know that everything is
         // contiguous, so it makes no sense to do a
@@ -636,28 +639,28 @@ struct gf2_middle : public gf2_override<G, T>
         // T::simd_set_ui_at(p[k / G], k%G, v);
         T::simd_set_ui_at(*p, k, v);
     }
-    static inline void vec_simd_add_ui_at(elt* p, size_t k, int v)
+    static void vec_simd_add_ui_at(elt* p, size_t k, int v)
     {
         // T::simd_add_ui_at(p[k / G], k%G, v);
         T::simd_add_ui_at(*p, k, v);
     }
-    static inline int vec_simd_test_ui_at(elt const* p, size_t k, int v)
+    static int vec_simd_test_ui_at(elt const* p, size_t k, int v)
     {
         return T::simd_test_ui_at(*p, k, v);
     }
 
-    inline int vec_simd_hamming_weight(elt const* p, size_t n) const
+    size_t vec_simd_hamming_weight(elt const* p, size_t n) const
     {
         T const* tx = static_cast<T const*>(this);
-        int r = 0;
+        size_t r = 0;
         for (size_t i = 0; i < n; ++i)
             r += tx->simd_hamming_weight(tx->vec_item(p, i));
         return r;
     }
-    inline int vec_simd_find_first_set(elt& r, elt const* p, size_t n) const
+    size_t vec_simd_find_first_set(elt& r, elt const* p, size_t n) const
     {
         T const* tx = static_cast<T const*>(this);
-        int j = 0;
+        size_t j = 0;
         for (size_t i = 0; i < n; ++i, j += tx->simd_groupsize()) {
             elt const& x = tx->vec_item(p, i);
             if (!tx->is_zero(x)) {
@@ -668,7 +671,7 @@ struct gf2_middle : public gf2_override<G, T>
                 }
             }
         }
-        return -1;
+        return SIZE_MAX;
     }
     /*}}}*/
     void vec_add_dotprod(elt&, elt const*, elt const*, size_t) const
