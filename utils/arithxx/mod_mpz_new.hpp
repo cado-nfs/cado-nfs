@@ -1,117 +1,163 @@
-/* A class for modular arithmetic with residues and modulus of up to 64
- * bits. */
+#ifndef CADO_UTILS_ARITHXX_MOD_MPZ_NEW_HPP
+#define CADO_UTILS_ARITHXX_MOD_MPZ_NEW_HPP
 
-#ifndef CADO_UTILS_MOD_MPZ_NEW_HPP
-#define CADO_UTILS_MOD_MPZ_NEW_HPP
+/* A class for modular arithmetic with residues and modulus or arbitrary
+ * size.
+ */
 
-/**********************************************************************/
+#include <cstddef>
 #include <cstdint>
-#include <gmp.h>          // for mp_limb_t, mpz_size, __gmpn_copyi, __gmpn_s...
-#include <cstddef>        // for size_t, NULL
-#include <new>            // for operator new
-#include "macros.h"
-#include "gmp_aux.h"      // for mpz_cmp_uint64, mpz_get_uint64, mpz_set_uint64
+
+#include <memory>
+
+#include <gmp.h>
+
 #include "cxx_mpz.hpp"
-// #include "modint.hpp"
-#include "mod_stdop.hpp"
+#include "gmp_aux.h"
+#include "macros.h"
 #include "misc.h"
+#include "arithxx_common.hpp"
 
-class ModulusMPZ {
-    /* Type definitions */
-public:
+
+struct arithxx_mod_mpz_new {
+    class Modulus;
+    class Residue;
     typedef cxx_mpz Integer;
-    class Residue {
-        friend class ModulusMPZ;
+};
+
+
+class arithxx_mod_mpz_new::Residue : public arithxx_details::Residue_base<arithxx_mod_mpz_new>
+{
+    typedef arithxx_mod_mpz_new layer;
+    friend class layer::Modulus;
+    friend struct arithxx_details::api<arithxx_mod_mpz_new>;
+
     protected:
-        mp_limb_t *r;
+    std::unique_ptr<mp_limb_t[]> r_owned;
+    mp_limb_t * r;
+
     public:
-        typedef ModulusMPZ Modulus;
-        typedef Modulus::Integer Integer;
-        typedef bool IsResidueType;
-        Residue() = delete;
-        Residue(const Modulus &m) {
-            r = new mp_limb_t[mpz_size(m.m) + 1];
-            mpn_zero(r, mpz_size(m.m) + 1);
-        }
-        Residue(const Modulus &m, const Residue &s) {
-            r = new mp_limb_t[mpz_size(m.m) + 1];
-            mpn_copyi(r, s.r, mpz_size(m.m));
-        }
-        ~Residue() {
-            delete[] r;
-        }
-        Residue(Residue &&s) : r(s.r) {
-            s.r = NULL;
-        }
-        Residue(Residue const & s) = delete;
-        Residue& operator=(Residue &&s) {
-            delete[] r;
-            r = s.r;
-            s.r = NULL;
-            return *this;
-        }
-        Residue& operator=(Residue const & s) = delete;
-    };
-
-    typedef ResidueStdOp<Residue> ResidueOp;
-
-    /* Data members */
-protected:
-    mpz_t m;
-    size_t bits;
-    static const size_t limbsPerUint64 = iceildiv(64, GMP_NUMB_BITS);
+    /* These two are implemented as inlines at the end of this header file */
+    explicit Residue(Modulus const & m);
+    Residue(Modulus const & m, Residue const & s);
     
+    Residue() = delete;
+};
+
+class arithxx_mod_mpz_new::Modulus
+    : public arithxx_details::api<arithxx_mod_mpz_new>
+
+{
+    typedef arithxx_mod_mpz_new layer;
+    friend class layer::Residue;
+
+    friend struct arithxx_details::api<arithxx_mod_mpz_new>;
+
+  protected:
+    /* Data members */
+    cxx_mpz m;
+    static constexpr mp_size_t limbsPerUint64 = iceildiv(64, GMP_NUMB_BITS);
+
+    /* {{{ ctors, validity range, and asserts */
+  public:
+    static bool valid(Integer const & m MAYBE_UNUSED) {
+        return mpz_sgn(m) > 0 && mpz_odd_p(m);
+    }
+
+    explicit Modulus(uint64_t const s)
+        : m(s)
+    {
+        ASSERT_ALWAYS(s > 0);
+    }
+    explicit Modulus(Integer const & s)
+        : m(s)
+    {
+        ASSERT_ALWAYS(mpz_sgn(s) > 0);
+    }
+    void getmod(Integer & r) const { mpz_set(r, m); }
+
+  protected:
+    // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+    void assertValid(Residue const & a MAYBE_UNUSED) const
+    {
+        ASSERT_EXPENSIVE(cmpM(a.r) < 0);
+    }
+    // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+    void assertValid(uint64_t const a MAYBE_UNUSED) const
+    {
+        ASSERT_EXPENSIVE(mpz_cmp_uint64(m, a) > 0);
+    }
+    // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+    void assertValid(mpz_srcptr s MAYBE_UNUSED) const
+    {
+        ASSERT_EXPENSIVE(mpz_cmp(s, m) < 0);
+    }
+    void assertValid(cxx_mpz const & s MAYBE_UNUSED) const
+    {
+        assertValid(mpz_srcptr(s));
+    }
+    /* }}} */
+
+  protected:
+
     /** Convert a uint64_t to an array of mp_limb_t.
      * Always writes exactly limbsToWrite limbs. */
-    static void uint64ToLimbs(mp_limb_t *r, const uint64_t s, const size_t limbsToWrite) {
+    static void uint64ToLimbs(mp_limb_t * r, uint64_t const s,
+                              size_t const limbsToWrite)
+    {
         uint64_t t = s;
         for (size_t i = 0; i < limbsToWrite; i++) {
             r[i] = t & GMP_NUMB_MASK;
 #if GMP_NUMB_BITS < 64
-                t >>= GMP_NUMB_BITS;
+            t >>= GMP_NUMB_BITS;
 #else
-                t = 0;
+            t = 0;
 #endif
         }
         ASSERT_ALWAYS(t == 0);
     }
-    
+
     /* Methods used internally */
     /** Set a residue to m.
      *  This leaves the residue in a non-reduced state. */
-    void setM(mp_limb_t *r) const {
-        mpn_copyi(r, m->_mp_d, mpz_size(m));
-    }
+    void setM(mp_limb_t * r) const { mpn_copyi(r, mpz_limbs_read(m), mpz_size(m)); }
     /** Add M to a residue, return carry */
-    mp_limb_t addM(mp_limb_t *r, const mp_limb_t *s) const {
-        return mpn_add_n(r, s, m->_mp_d, mpz_size(m));
+    mp_limb_t addM(mp_limb_t * r, mp_limb_t const * s) const
+    {
+        return mpn_add_n(r, s, mpz_limbs_read(m), mpz_size(m));
     }
     /** Subtract M from a residue, return borrow */
-    mp_limb_t subM(mp_limb_t *r, const mp_limb_t *s) const {
-        return mpn_sub_n(r, s, m->_mp_d, mpz_size(m));
+    mp_limb_t subM(mp_limb_t * r, mp_limb_t const * s) const
+    {
+        return mpn_sub_n(r, s, mpz_limbs_read(m), mpz_size(m));
     }
-    /** Returns a negative value if s < m, 0 if s == m, and a positive value if s > m. */
-    int cmpM(const mp_limb_t *s) const {
-        return mpn_cmp(s, m->_mp_d, mpz_size(m));
+    /** Returns a negative value if s < m, 0 if s == m, and a positive value if
+     * s > m. */
+    int cmpM(mp_limb_t const * s) const
+    {
+        return mpn_cmp(s, mpz_limbs_read(m), mpz_size(m));
     }
-    uint64_t modM(const uint64_t s) const {
-        if (bits > 64 || mpz_cmp_uint64(m, s) > 0)
+    uint64_t modM(uint64_t const s) const
+    {
+        if (mpz_sizeinbase(m, 2) > 64 || mpz_cmp_uint64(m, s) > 0)
             return s;
         /* m <= s, thus m fits in uint64_t */
-        uint64_t m64 = mpz_get_uint64(m);
+        const uint64_t m64 = mpz_get_uint64(m);
         /* We always make sure that the modulus in non-zero in the ctor
          */
         ASSERT_FOR_STATIC_ANALYZER(m64 != 0);
         return s % m64;
     }
-    void set_residue_u64(Residue &r, const uint64_t s) const {
+    void set_residue_u64(Residue & r, uint64_t const s) const
+    {
         ASSERT(mpz_cmp_uint64(m, s) > 0);
-        const size_t limbsToWrite = MIN(limbsPerUint64, mpz_size(m));
+        size_t const limbsToWrite = MIN(limbsPerUint64, mpz_size(m));
         uint64ToLimbs(r.r, s, limbsToWrite);
         for (size_t i = limbsToWrite; i < mpz_size(m); i++)
             r.r[i] = 0;
     }
-    void set_residue_mpz(Residue &r, const mpz_t s) const {
+    void set_residue_mpz(Residue & r, mpz_t const s) const
+    {
         ASSERT_ALWAYS(mpz_cmp(s, m) < 0);
         size_t written;
         mpz_export(r.r, &written, -1, sizeof(mp_limb_t), 0, GMP_NAIL_BITS, s);
@@ -119,289 +165,199 @@ protected:
         for (size_t i = written; i < mpz_size(m); i++)
             r.r[i] = 0;
     }
-    void set_mpz_residue(mpz_t r, const Residue &s) const {
-        mpz_import(r, mpz_size(m), -1, sizeof(mp_limb_t), 0, GMP_NAIL_BITS, s.r);
-    }
-    void assertValid(const Residue &a MAYBE_UNUSED) const {
-        ASSERT_EXPENSIVE (cmpM(a.r) < 0);
-    }
-    void assertValid(const uint64_t a MAYBE_UNUSED) const {
-        ASSERT_EXPENSIVE (mpz_cmp_uint64(m, a) > 0);
-    }
-    void assertValid(const mpz_t s MAYBE_UNUSED) const {
-        ASSERT_EXPENSIVE (mpz_cmp(s, m) < 0);
-    }
-    void assertValid(const cxx_mpz &s MAYBE_UNUSED) const {
-        assertValid((mpz_srcptr) s);
+    void set_mpz_residue(mpz_t r, Residue const & s) const
+    {
+        mpz_import(r, mpz_size(m), -1, sizeof(mp_limb_t), 0, GMP_NAIL_BITS,
+                   s.r);
     }
 
     /* Methods of the API */
-public:
-    static void getminmod(Integer &r) {
-        mpz_set_ui(r, 0);
-    }
-    static void getmaxmod(Integer &r) {
-        mpz_set_ui(r, 0);
-    }
-    static bool valid(const Integer &m MAYBE_UNUSED) {
-        return true;
-    }
-
-    ModulusMPZ(const uint64_t s) {
-        ASSERT_ALWAYS(s > 0);
-        mpz_init(m);
-        mpz_set_uint64(m, s);
-        bits = mpz_sizeinbase(m, 2);
-    }
-    ModulusMPZ(const ModulusMPZ &s) {
-        mpz_init_set(m, s.m);
-        bits = s.bits;
-    }
-    ModulusMPZ(const Integer &s) {
-        ASSERT_ALWAYS(mpz_sgn(s) > 0);
-        mpz_init(m);
-        mpz_set(m, s);
-        bits = mpz_sizeinbase(m, 2);
-    }
-    ~ModulusMPZ() {
-        mpz_clear(m);
-    }
-    void getmod (Integer &r) const {
-        mpz_set(r, m);
-    }
+  public:
 
     /* Methods for residues */
 
-    /** Allocate an array of len residues.
-     *
-     * Must be freed with deleteArray(), not with delete[].
-     */
-    Residue *newArray(const size_t len) const {
-        void *t = operator new[](len * sizeof(Residue));
-        if (t == NULL)
-            return NULL;
-        Residue *ptr = static_cast<Residue *>(t);
-        for(size_t i = 0; i < len; i++) {
-            new(&ptr[i]) Residue(*this);
-        }
-        return ptr;
-    }
-
-    void deleteArray(Residue *ptr, const size_t len) const {
-        for(size_t i = len; i > 0; i++) {
-            ptr[i - 1].~Residue();
-        }
-        operator delete[](ptr);
-    }
-
-
-    void set (Residue &r, const Residue &s) const {
+    /* {{{ set(*4), set_reduced(*2), set0, set1 */
+    void set(Residue & r, Residue const & s) const
+    {
         assertValid(s);
         mpn_copyi(r.r, s.r, mpz_size(m));
     }
-    void set (Residue &r, const uint64_t s) const {
-        const uint64_t sm = modM(s);
+    void set(Residue & r, uint64_t const s) const
+    {
+        uint64_t const sm = modM(s);
         set_residue_u64(r, sm);
     }
-    void set (Residue &r, const Integer &s) const {
+    void set(Residue & r, int64_t const s) const
+    {
+        uint64_t const u = modM(safe_abs64(s));
+        set_residue_u64(r, u);
+        if (s < 0)
+            neg(r, r);
+    }
+    void set(Residue & r, Integer const & s) const
+    {
         cxx_mpz t;
         mpz_mod(t, s, m);
         set_residue_mpz(r, t);
     }
     /* Sets the Residue to the class represented by the integer s. Assumes that
        s is reduced (mod m), i.e. 0 <= s < m */
-    void set_reduced (Residue &r, const uint64_t s) const {
+    void set_reduced(Residue & r, uint64_t const s) const
+    {
         assertValid(s);
         set_residue_u64(r, s);
     }
-    void set_reduced (Residue &r, const Integer &s) const {
+    void set_reduced(Residue & r, Integer const & s) const
+    {
         assertValid(r);
         set_residue_mpz(r, s);
     }
-    void set_int64 (Residue &r, const int64_t s) const {
-        const uint64_t u = modM(safe_abs64(s));
-        set_residue_u64(r, u);
-        if (s < 0)
-            neg(r, r);
-    }
-    void set0 (Residue &r) const {
-        mpn_zero(r.r, mpz_size(m));
-    }
-    void set1 (Residue &r) const {
+    void set0(Residue & r) const { mpn_zero(r.r, mpz_size(m)); }
+    void set1(Residue & r) const
+    {
         set0(r);
         if (mpz_cmp_ui(m, 1) > 0) {
             r.r[0] = 1;
         }
     }
-    /* Exchanges the values of the two arguments */
-    void swap (Residue &a, Residue &b) const {
-        mp_limb_t *t = a.r;
-        a.r = b.r;
-        b.r = t;
-    }
-    void get (Integer &r, const Residue &s) const {
+    /* }}} */
+
+    /* {{{ get equal is0 is1 */
+    void get(Integer & r, Residue const & s) const
+    {
         assertValid(s);
         set_mpz_residue(r, s);
     }
-    bool equal (const Residue &a, const Residue &b) const {
+    bool equal(Residue const & a, Residue const & b) const
+    {
         assertValid(a);
         assertValid(b);
         return mpn_cmp(a.r, b.r, mpz_size(m)) == 0;
     }
-    bool is0 (const Residue &a) const {
+    bool is0(Residue const & a) const
+    {
         assertValid(a);
         return mpn_zero_p(a.r, mpz_size(m));
     }
-    bool is1 (const Residue &a) const {
+    bool is1(Residue const & a) const
+    {
         assertValid(a);
         if (mpz_cmp_ui(m, 1) == 0)
-            return 1;
-        return a.r[0] == 1 && (mpz_size(m) == 1 || mpn_zero_p(a.r + 1, mpz_size(m) - 1));
+            return true;
+        return a.r[0] == 1 &&
+               (mpz_size(m) == 1 || mpn_zero_p(a.r + 1, mpz_size(m) - 1));
     }
-    void neg (Residue &r, const Residue &a) const {
+    /* }}} */
+
+    /* {{{ neg add(*2) add1 sub(*2) sub1 div2 */
+    void neg(Residue & r, Residue const & a) const
+    {
         assertValid(a);
         if (is0(a) != 0) {
             if (&r != &a)
                 set0(r);
         } else {
-            mp_limb_t bw = mpn_sub_n(r.r, m->_mp_d, r.r, mpz_size(m));
+            const mp_limb_t bw = mpn_sub_n(r.r, mpz_limbs_read(m), r.r, mpz_size(m));
             ASSERT_ALWAYS(bw == 0);
         }
         assertValid(r);
     }
-    void add (Residue &r, const Residue &a, const Residue &b) const {
+    void add(Residue & r, Residue const & a, Residue const & b) const
+    {
         assertValid(a);
         assertValid(b);
-        const mp_limb_t cy = mpn_add_n(r.r, a.r, b.r, mpz_size(m));
+        mp_limb_t const cy = mpn_add_n(r.r, a.r, b.r, mpz_size(m));
         if (cy || cmpM(r.r) >= 0) {
-            const mp_limb_t bw = subM(r.r, r.r);
+            mp_limb_t const bw = subM(r.r, r.r);
             ASSERT_ALWAYS(bw == cy);
         }
         assertValid(r);
     }
-    void add1 (Residue &r, const Residue &a) const {
+    void add1(Residue & r, Residue const & a) const
+    {
         assertValid(a);
-        const mp_limb_t cy = mpn_add_1(r.r, a.r, 1, mpz_size(m));
+        mp_limb_t const cy = mpn_add_1(r.r, a.r, 1, mpz_size(m));
         if (cy || cmpM(r.r) >= 0) {
-            const mp_limb_t bw = subM(r.r, r.r);
+            mp_limb_t const bw = subM(r.r, r.r);
             ASSERT_ALWAYS(bw == cy);
         }
         assertValid(r);
     }
-    void add (Residue &r, const Residue &a, const uint64_t b) const {
+    void add(Residue & r, Residue const & a, uint64_t const b) const
+    {
         assertValid(a);
-        const uint64_t bm = modM(b);
+        uint64_t const bm = modM(b);
         mp_limb_t cy;
-        
+
         if (limbsPerUint64 == 1 || bm < GMP_NUMB_MAX) {
             cy = mpn_add_1(r.r, a.r, mpz_size(m), bm);
         } else {
             mp_limb_t t[limbsPerUint64];
-            const size_t toWrite = MIN(limbsPerUint64, mpz_size(m));
+            mp_size_t const toWrite = MIN(limbsPerUint64, mpz_size(m));
 
             uint64ToLimbs(t, bm, limbsPerUint64);
             cy = mpn_add(r.r, a.r, mpz_size(m), t, toWrite);
         }
         if (cy || cmpM(r.r) >= 0) {
-            mp_limb_t bw = subM(r.r, r.r);
+            const mp_limb_t bw = subM(r.r, r.r);
             ASSERT_ALWAYS(bw == cy);
         }
         assertValid(r);
     }
-    void sub (Residue &r, const Residue &a, const Residue &b) const {
+    void sub(Residue & r, Residue const & a, Residue const & b) const
+    {
         assertValid(a);
         assertValid(b);
-        const mp_limb_t bw = mpn_sub_n(r.r, a.r, b.r, mpz_size(m));
+        mp_limb_t const bw = mpn_sub_n(r.r, a.r, b.r, mpz_size(m));
         if (bw) {
-            const mp_limb_t cy = addM(r.r, r.r);
+            mp_limb_t const cy = addM(r.r, r.r);
             ASSERT_ALWAYS(cy == bw);
         }
         assertValid(r);
     }
-    void sub1 (Residue &r, const Residue &a) const {
+    void sub1(Residue & r, Residue const & a) const
+    {
         assertValid(a);
-        const mp_limb_t bw = mpn_sub_1(r.r, a.r, 1, mpz_size(m));
+        mp_limb_t const bw = mpn_sub_1(r.r, a.r, 1, mpz_size(m));
         if (bw) {
-            const mp_limb_t cy = addM(r.r, r.r);
+            mp_limb_t const cy = addM(r.r, r.r);
             ASSERT_ALWAYS(cy == bw);
         }
         assertValid(r);
     }
-    void sub (Residue &r, const Residue &a, const uint64_t b) const {
+    void sub(Residue & r, Residue const & a, uint64_t const b) const
+    {
         assertValid(a);
-        const uint64_t bm = modM(b);
+        uint64_t const bm = modM(b);
         mp_limb_t bw;
-        
+
         if (limbsPerUint64 == 1 || bm < GMP_NUMB_MAX) {
             bw = mpn_sub_1(r.r, a.r, mpz_size(m), bm);
         } else {
             mp_limb_t t[limbsPerUint64];
-            const size_t toWrite = MIN(limbsPerUint64, mpz_size(m));
+            mp_size_t const toWrite = MIN(limbsPerUint64, mpz_size(m));
 
             uint64ToLimbs(t, bm, limbsPerUint64);
             bw = mpn_sub(r.r, a.r, mpz_size(m), t, toWrite);
         }
         if (bw) {
-            mp_limb_t cy = addM(r.r, r.r);
+            const mp_limb_t cy = addM(r.r, r.r);
             ASSERT_ALWAYS(cy == bw);
         }
         assertValid(r);
     }
-    void mul (Residue &r, const Residue &a, const Residue &b) const {
-        const size_t nrWords = mpz_size(m);
-        mp_limb_t Q[2];
-        mp_limb_t *t;
-        if (r.r == a.r || r.r == b.r) {
-            t = new mp_limb_t[nrWords + 1];
-        } else {
-            t = r.r;
-        }
-        t[nrWords] = mpn_mul_1 (t, a.r, nrWords, b.r[nrWords - 1]);
-        if (t[nrWords] != 0)
-            mpn_tdiv_qr (Q, t, 0, t, nrWords + 1, m->_mp_d, nrWords);
-        /* t <= (m-1) * beta */
-        for (size_t iWord = nrWords - 1; iWord > 0; iWord--) {
-            mpn_copyd(t + 1, t, nrWords);
-            t[0] = 0;
-            mp_limb_t msw = mpn_addmul_1 (t, a.r, nrWords, b.r[iWord - 1]);
-            t[nrWords] += msw;
-            mp_limb_t cy = t[nrWords] < msw;
-            if (cy) {
-                mp_limb_t bw = subM(t + 1, t + 1);
-                ASSERT_ALWAYS(bw == cy);
-            }
-            if (t[nrWords] != 0)
-                mpn_tdiv_qr (Q, t, 0, t, nrWords + 1, m->_mp_d, nrWords);
-        }
-        if (cmpM(t) >= 0) {
-            mpn_tdiv_qr (Q, t, 0, t, nrWords, m->_mp_d, nrWords);
-        }
-        if (r.r == a.r || r.r == b.r) {
-            mpn_copyi(r.r, t, nrWords);
-            delete[] t;
-        }
-    }
-    void sqr (Residue &r, const Residue &a) const {
-        mul(r, a, a);
-    }
-    bool next (Residue &r) const {
-        add1(r, r);
-        return finished(r);
-    }
-    bool finished (const Residue &r) const {
-        return is0(r);
-    }
-    bool div2 (Residue &r, const Residue &a) const {
+    bool div2(Residue & r, Residue const & a) const
+    {
         assertValid(a);
         if (mpz_even_p(m)) {
             return false;
         } else {
             if (a.r[0] % 2 == 0) {
-                mp_limb_t lsb = mpn_rshift(r.r, a.r, mpz_size(m), 1);
+                const mp_limb_t lsb = mpn_rshift(r.r, a.r, mpz_size(m), 1);
                 ASSERT_ALWAYS(lsb == 0);
             } else {
-                mp_limb_t cy = addM(r.r, a.r);
-                mp_limb_t lsb = mpn_rshift(r.r, r.r, mpz_size(m), 1);
+                const mp_limb_t cy = addM(r.r, a.r);
+                const mp_limb_t lsb = mpn_rshift(r.r, r.r, mpz_size(m), 1);
                 ASSERT_ALWAYS(lsb == 0);
                 r.r[mpz_size(m) - 1] |= cy << (GMP_NUMB_BITS - 1);
             }
@@ -409,58 +365,120 @@ public:
             return true;
         }
     }
+    /* }}} */
 
+    /* {{{ mul sqr */
+    void mul(Residue & r, Residue const & a, Residue const & b) const
+    {
+        mp_size_t const nrWords = mpz_size(m);
+        mp_limb_t Q[2];
+        mp_limb_t * t;
+        if (r.r == a.r || r.r == b.r) {
+            t = new mp_limb_t[nrWords + 1];
+        } else {
+            t = r.r;
+        }
+        t[nrWords] = mpn_mul_1(t, a.r, nrWords, b.r[nrWords - 1]);
+        if (t[nrWords] != 0)
+            mpn_tdiv_qr(Q, t, 0, t, nrWords + 1, mpz_limbs_read(m), nrWords);
+        /* t <= (m-1) * beta */
+        for (mp_size_t iWord = nrWords - 1; iWord > 0; iWord--) {
+            mpn_copyd(t + 1, t, nrWords);
+            t[0] = 0;
+            const mp_limb_t msw = mpn_addmul_1(t, a.r, nrWords, b.r[iWord - 1]);
+            t[nrWords] += msw;
+            const mp_limb_t cy = t[nrWords] < msw;
+            if (cy) {
+                const mp_limb_t bw = subM(t + 1, t + 1);
+                ASSERT_ALWAYS(bw == cy);
+            }
+            if (t[nrWords] != 0)
+                mpn_tdiv_qr(Q, t, 0, t, nrWords + 1, mpz_limbs_read(m), nrWords);
+        }
+        if (cmpM(t) >= 0) {
+            mpn_tdiv_qr(Q, t, 0, t, nrWords, mpz_limbs_read(m), nrWords);
+        }
+        if (r.r == a.r || r.r == b.r) {
+            mpn_copyi(r.r, t, nrWords);
+            delete[] t;
+        }
+    }
+    void sqr(Residue & r, Residue const & a) const
+    {
+        mul(r, a, a);
+    }
+    /* }}} */
+
+    /* {{{ V_dadd and V_dbl for Lucas sequences */
     /* Given a = V_n (x), b = V_m (x) and d = V_{n-m} (x), compute V_{m+n} (x).
-     * r can be the same variable as a or b but must not be the same variable as d.
+     * r can be the same variable as a or b but must not be the same variable as
+     * d.
      */
-    void V_dadd (Residue &r, const Residue &a, const Residue &b,
-                     const Residue &d) const {
-        ASSERT (&r != &d);
-        mul (r, a, b);
-        sub (r, r, d);
+    void V_dadd(Residue & r, Residue const & a, Residue const & b,
+                Residue const & d) const
+    {
+        ASSERT(&r != &d);
+        mul(r, a, b);
+        sub(r, r, d);
     }
 
     /* Given a = V_n (x) and two = 2, compute V_{2n} (x).
      * r can be the same variable as a but must not be the same variable as two.
      */
-    void V_dbl (Residue &r, const Residue &a, const Residue &two) const {
-        ASSERT (&r != &two);
-        sqr (r, a);
-        sub (r, r, two);
+    void V_dbl(Residue & r, Residue const & a, Residue const & two) const
+    {
+        ASSERT(&r != &two);
+        sqr(r, a);
+        sub(r, r, two);
     }
+    /* }}} */
 
+    /* {{{ iteration support */
+    bool next(Residue & r) const
+    {
+        add1(r, r);
+        return finished(r);
+    }
+    bool finished(Residue const & r) const { return is0(r); }
+    /* }}} */
 
     /* prototypes of non-inline functions */
-    bool div3 (Residue &, const Residue &) const;
-    bool div5 (Residue &, const Residue &) const;
-    bool div7 (Residue &, const Residue &) const;
-    bool div11 (Residue &, const Residue &) const;
-    bool div13 (Residue &, const Residue &) const;
-    bool divn (Residue &, const Residue &, unsigned long) const;
-    void gcd (Integer &, const Residue &) const;
-    void pow (Residue &, const Residue &, const uint64_t) const;
-    void pow (Residue &, const Residue &, const uint64_t *, const size_t) const;
-    void pow (Residue &r, const Residue &b, const Integer &e) const;
-    void pow2 (Residue &, const uint64_t) const;
-    void pow2 (Residue &, const uint64_t *, const size_t) const;
-    void pow2 (Residue &r, const Integer &e) const;
-    void pow3 (Residue &, uint64_t) const;
-    void V (Residue &, const Residue &, const uint64_t) const;
-    void V (Residue &, const Residue &, const uint64_t *, const int) const;
-    void V (Residue &r, const Residue &b, const Integer &e) const;
-    void V (Residue &r, Residue *rp1, const Residue &b,
-            const uint64_t k) const;
-    bool sprp (const Residue &) const;
-    bool sprp2 () const;
-    bool isprime () const;
-    bool inv (Residue &, const Residue &) const;
-    bool inv_odd (Residue &, const Residue &) const;
-    bool inv_powerof2 (Residue &, const Residue &) const;
-    bool batchinv (Residue *, const Residue *, size_t, const Residue *) const;
-    int jacobi (const Residue &) const;
-protected:
-    bool find_minus1 (Residue &r1, const Residue &minusone, const int po2) const;
-    bool divn (Residue &, const Residue &, unsigned long, const mp_limb_t *, mp_limb_t) const;
+    bool inv(Residue &, Residue const &) const;
+    bool inv_odd(Residue &, Residue const &) const;
+    bool inv_powerof2(Residue &, Residue const &) const;
+    int jacobi(Residue const &) const;
+
+  protected:
+    bool divn(Residue &, Residue const &, unsigned long, mp_limb_t const *,
+              mp_limb_t) const;
 };
 
-#endif  /* CADO_UTILS_MOD_MPZ_NEW_HPP */
+/* We have explicit specializations of these interfaces defined in
+ * mod_mpz_new.cpp. We must declare them here, otherwise we might end up
+ * instantiating the common code.
+ */
+template<>
+void arithxx_details::api<arithxx_mod_mpz_new>::pow(Residue &, Residue const &, uint64_t) const;
+template <>
+void arithxx_details::api<arithxx_mod_mpz_new>::pow(Residue & r, Residue const & b, Integer const & e) const;
+template<> 
+void arithxx_details::api<arithxx_mod_mpz_new>::pow (Residue &r, const Residue &b, const uint64_t *e, size_t nrWords) const;
+
+
+
+
+
+inline arithxx_mod_mpz_new::Residue::Residue(Modulus const & m)
+    : r_owned(new mp_limb_t[mpz_size(m.m) + 1])
+    , r(r_owned.get())
+{
+    mpn_zero(r, mpz_size(m.m) + 1);
+}
+inline arithxx_mod_mpz_new::Residue::Residue(Modulus const & m, Residue const & s)
+    : r_owned(new mp_limb_t[mpz_size(m.m) + 1])
+    , r(r_owned.get())
+{
+    mpn_copyi(r, s.r, mpz_size(m.m));
+}
+
+#endif /* CADO_UTILS_ARITHXX_MOD_MPZ_NEW_HPP */

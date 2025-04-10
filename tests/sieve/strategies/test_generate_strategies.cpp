@@ -1,4 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <cfloat>
 #include <climits>
 #include <cmath>
@@ -9,6 +10,9 @@
 
 #include <gmp.h>
 
+#include "arith/modredc_15ul.h"
+#include "arith/modredc_2ul2.h"
+#include "arith/modredc_ul.h"
 #include "cxx_mpz.hpp"
 #include "decomp.hpp"
 #include "facul.hpp"
@@ -19,9 +23,6 @@
 #include "generate_factoring_method.hpp"
 #include "generate_strategies.hpp"
 #include "macros.h"
-#include "arith/modredc_15ul.h"
-#include "arith/modredc_2ul2.h"
-#include "arith/modredc_ul.h"
 #include "random_distributions.hpp"
 #include "strategy.hpp"
 #include "tab_decomp.hpp"

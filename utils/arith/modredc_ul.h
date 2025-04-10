@@ -763,17 +763,17 @@ int modredcul_div13 (residueredcul_t, const residueredcul_t,
 void modredcul_gcd (modintredcul_t, const residueredcul_t,
                     const modulusredcul_t);
 void modredcul_pow_ul (residueredcul_t, const residueredcul_t,
-                       const unsigned long, const modulusredcul_t);
-void modredcul_2pow_ul (residueredcul_t, const unsigned long,
+                       unsigned long, const modulusredcul_t);
+void modredcul_2pow_ul (residueredcul_t, unsigned long,
                         const modulusredcul_t);
 void modredcul_pow_mp (residueredcul_t, const residueredcul_t,
-                   const unsigned long *, const int, const modulusredcul_t);
-void modredcul_2pow_mp (residueredcul_t, const unsigned long *, const int,
+                   const unsigned long *, int, const modulusredcul_t);
+void modredcul_2pow_mp (residueredcul_t, const unsigned long *, int,
                         const modulusredcul_t);
 void modredcul_V_ul (residueredcul_t, const residueredcul_t,
-		     const unsigned long, const modulusredcul_t);
+		     unsigned long, const modulusredcul_t);
 void modredcul_V_mp (residueredcul_t, const residueredcul_t,
-		     const unsigned long *, const int, const modulusredcul_t);
+		     const unsigned long *, int, const modulusredcul_t);
 int modredcul_sprp (const residueredcul_t, const modulusredcul_t);
 int modredcul_sprp2 (const modulusredcul_t);
 int modredcul_isprime (const modulusredcul_t);
@@ -782,10 +782,10 @@ int modredcul_inv (residueredcul_t, const residueredcul_t,
 int modredcul_intinv (residueredcul_t, const residueredcul_t,
                       const modulusredcul_t);
 int modredcul_batchinv (residueredcul_t *, const residueredcul_t *,
-                        const size_t, const residueredcul_t,
+                        size_t, const residueredcul_t,
                         const modulusredcul_t);
 int modredcul_batchinv_ul (unsigned long *, const unsigned long *,
-                           unsigned long, const size_t,
+                           unsigned long, size_t,
                            const modulusredcul_t);
 int modredcul_batch_Q_to_Fp (unsigned long *, unsigned long,
                              unsigned long, unsigned long,

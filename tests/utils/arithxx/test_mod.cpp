@@ -2,7 +2,6 @@
 #include <cstdint>     /* AIX wants it first (it's a bug) */
 #include <cstdlib>
 
-#include <array>
 #include <iostream>
 #include <typeinfo>
 #include "cxx_mpz.hpp"
@@ -43,13 +42,13 @@ cxx_mpz randomInteger<cxx_mpz>() {
     return r;
 }
 
-template <class T, typename = typename T::Residue>
+template <class layer>
 class Tests {
 public:
-    typedef T Modulus;
-    typedef typename T::Integer Integer;
-    typedef typename T::Residue Residue;
-    typedef typename T::ResidueOp ResidueOp;
+    typedef typename layer::Modulus Modulus;
+    typedef typename layer::Integer Integer;
+    typedef typename layer::Residue Residue;
+    typedef typename layer::Modulus::ResidueOp ResidueOp;
 
     Modulus randomModulus(bool odd = false) const;
     
@@ -59,8 +58,8 @@ public:
         return (cxx_mpz) n;
     }
 
-    bool test_one_init(Integer n) const {
-        if (!T::valid(n))
+    bool test_one_init(Integer const & n) const {
+        if (!Modulus::valid(n))
             return true;
         Modulus const m(n);
         Residue r(m);
@@ -69,7 +68,7 @@ public:
         Integer one;
         m.get(one, r);
         if (one != 1){
-            std::cerr << typeid(T).name() << " Precomputed constant 1 wrong for modulus " << n << "\n";
+            std::cerr << typeid(Modulus).name() << " Precomputed constant 1 wrong for modulus " << n << "\n";
             std::cerr << one << "\n";
             return false;
         } else {
@@ -88,7 +87,7 @@ public:
                 ok &= test_one_init(n + 2*i);
         }
         if (ok) {
-            std::cout << "tests<" << typeid(T).name() << ">::tests_init() passed" << "\n";
+            std::cout << "tests<" << typeid(Modulus).name() << ">::tests_init() passed" << "\n";
         }
         return ok;
     }
@@ -108,7 +107,7 @@ public:
             cxx_mpz R1;
             mpz_mod(R1, A, N);
             if (R1 != R) {
-                std::cerr << typeid(T).name() << "::set(" << A << ") wrong for modulus " << N << "\n";
+                std::cerr << typeid(Modulus).name() << "::set(" << A << ") wrong for modulus " << N << "\n";
                 return false;
             }
         }
@@ -123,7 +122,7 @@ public:
         m.get(a, r);
         if (a != 0) {
             cxx_mpz const N  = modToMpz(m);
-            std::cerr << typeid(T).name() << "::neg(0) wrong for modulus " << N << "\n";
+            std::cerr << typeid(Modulus).name() << "::neg(0) wrong for modulus " << N << "\n";
             return false;
         }
         m.getmod(M);
@@ -133,13 +132,13 @@ public:
         m.get(a, r);
         if (a != M - 1) {
             cxx_mpz const N  = modToMpz(m);
-            std::cerr << typeid(T).name() << "::neg(1) wrong for modulus " << N << "\n";
+            std::cerr << typeid(Modulus).name() << "::neg(1) wrong for modulus " << N << "\n";
             return false;
         }
         return true;
     }
 
-    bool test_one_sqr(Integer i, Integer &n) const {
+    bool test_one_sqr(Integer const & i, Integer const & n) const {
         Modulus const m(n);
         Residue a(m);
         Integer r;
@@ -152,13 +151,13 @@ public:
         mpz_mul(R, A, A);
         mpz_mod(R, R, N);
         if (R != (cxx_mpz) r) {
-            std::cerr << typeid(T).name() << "::sqr(" << A << ") mod " << n << " wrong result: " << r << "\n";
+            std::cerr << typeid(Modulus).name() << "::sqr(" << A << ") mod " << n << " wrong result: " << r << "\n";
             return false;
         }
         return true;
     }
     
-    bool test_one_mul(Integer i, Integer j, Integer &n) const {
+    bool test_one_mul(Integer const & i, Integer const & j, Integer const & n) const {
         Modulus const m(n);
         Residue a(m), b(m);
         Integer r;
@@ -173,14 +172,14 @@ public:
         mpz_mul(R, A, B);
         mpz_mod(R, R, N);
         if (R != (cxx_mpz) r) {
-            std::cerr << typeid(T).name() << "::mul(" << A << ", " << B << ") mod " << N << " wrong result: " << r << "\n";
+            std::cerr << typeid(Modulus).name() << "::mul(" << A << ", " << B << ") mod " << N << " wrong result: " << r << "\n";
             return false;
         }
         return true;
     }
     
-    bool test_one_mul(Integer n) const {
-        if (!T::valid(n))
+    bool test_one_mul(Integer const & n) const {
+        if (!Modulus::valid(n))
             return true;
 
         bool ok = true;
@@ -216,7 +215,7 @@ public:
             }
         }
         if (ok) {
-            std::cout << "tests<" << typeid(T).name() << ">::tests_mul() passed" << "\n";
+            std::cout << "tests<" << typeid(Modulus).name() << ">::tests_mul() passed" << "\n";
         }
         return ok;
     }
@@ -232,7 +231,7 @@ public:
             m.getmod(mi);
             m.get(ai, a);
             m.get(ri, r);
-            std::cerr << typeid(T).name() << "::div" << b << "(" << ai << ") = " << ri << " wrong for modulus " << mi << "\n";
+            std::cerr << typeid(Modulus).name() << "::div" << b << "(" << ai << ") = " << ri << " wrong for modulus " << mi << "\n";
             return false;
         }
         return true;
@@ -268,7 +267,7 @@ public:
             ok &= test_one_divn(a, m);
         }
         if (ok) {
-            std::cout << "tests<" << typeid(T).name() << ">::test_divn() passed" << "\n";
+            std::cout << "tests<" << typeid(Modulus).name() << ">::test_divn() passed" << "\n";
         }
         return ok;
     }
@@ -287,7 +286,7 @@ public:
     }
 
     bool test_one_pow(const Integer &base, const uint64_t *exponent, const size_t len, const Integer &n) const {
-        if (!T::valid(n))
+        if (!Modulus::valid(n))
             return true;
         Modulus const m(n);
         Residue p(m), b(m);
@@ -301,14 +300,14 @@ public:
         m.pow(p, b, exponent, len);
         m.get(r, p);
         if (R != (cxx_mpz) r) {
-            std::cerr << typeid(T).name() << "::pow(" << base << ", " << exponent << ", " << len << ") mod " << n << " wrong result: " << r << "\n";
+            std::cerr << typeid(Modulus).name() << "::pow(" << base << ", " << exponent << ", " << len << ") mod " << n << " wrong result: " << r << "\n";
             return false;
         }
         if (eFitsInt) {
             m.pow(p, b, e);
             m.get(r, p);
             if (R != (cxx_mpz) r) {
-                std::cerr << typeid(T).name() << "::pow(" << base << ", " << e << ") mod " << n << " wrong result: " << r << "\n";
+                std::cerr << typeid(Modulus).name() << "::pow(" << base << ", " << e << ") mod " << n << " wrong result: " << r << "\n";
                 return false;
             }
         }
@@ -316,7 +315,7 @@ public:
             m.pow(p, b, exponent[0]);
             m.get(r, p);
             if (R != (cxx_mpz) r) {
-                std::cerr << typeid(T).name() << "::pow(" << base << ", " << exponent << ") mod " << n << " wrong result: " << r << "\n";
+                std::cerr << typeid(Modulus).name() << "::pow(" << base << ", " << exponent << ") mod " << n << " wrong result: " << r << "\n";
                 return false;
             }
         }
@@ -324,14 +323,14 @@ public:
             m.pow2(p, exponent, len);
             m.get(r, p);
             if (R != (cxx_mpz) r) {
-                std::cerr << typeid(T).name() << "::pow2(" << exponent << ", " << len << ") mod " << n << " wrong result: " << r << "\n";
+                std::cerr << typeid(Modulus).name() << "::pow2(" << exponent << ", " << len << ") mod " << n << " wrong result: " << r << "\n";
                 return false;
             }
             if (eFitsInt) {
                 m.pow2(p, e);
                 m.get(r, p);
                 if (R != (cxx_mpz) r) {
-                    std::cerr << typeid(T).name() << "::pow2(" << e << ") mod " << n << " wrong result: " << r << "\n";
+                    std::cerr << typeid(Modulus).name() << "::pow2(" << e << ") mod " << n << " wrong result: " << r << "\n";
                     return false;
                 }
             }
@@ -339,7 +338,7 @@ public:
                 m.pow2(p, exponent[0]);
                 m.get(r, p);
                 if (R != (cxx_mpz) r) {
-                    std::cerr << typeid(T).name() << "::pow2(" << exponent << ") mod " << n << " wrong result: " << r << "\n";
+                    std::cerr << typeid(Modulus).name() << "::pow2(" << exponent << ") mod " << n << " wrong result: " << r << "\n";
                     return false;
                 }
             }
@@ -384,16 +383,16 @@ public:
         }
         
         if (ok) {
-            std::cout << "tests<" << typeid(T).name() << ">::test_pow() passed" << "\n";
+            std::cout << "tests<" << typeid(Modulus).name() << ">::test_pow() passed" << "\n";
         }        return ok;
     }
     
-    bool test_one_sprp(const Modulus m, const bool isPrime) const {
+    bool test_one_sprp(Modulus const & m, const bool isPrime) const {
         bool ok = true;
         const char *prime_str[2] = {"composite", "prime"};
         if (m.sprp2() != isPrime) {
             cxx_mpz const N = modToMpz(m);
-            std::cerr << N << " incorrectly declared " << prime_str[!isPrime] << " by " << typeid(T).name() << "::sprp2()" << "\n";
+            std::cerr << N << " incorrectly declared " << prime_str[!isPrime] << " by " << typeid(Modulus).name() << "::sprp2()" << "\n";
             ok = false;
         }
 
@@ -402,7 +401,7 @@ public:
             m.set(r, b);
             if (m.sprp(r) != isPrime) {
                 cxx_mpz const N = modToMpz(m);
-                std::cerr << N << " incorrectly declared " << prime_str[!isPrime] << " by " << typeid(T).name() << "::sprp(" << b << ")" << "\n";
+                std::cerr << N << " incorrectly declared " << prime_str[!isPrime] << " by " << typeid(Modulus).name() << "::sprp(" << b << ")" << "\n";
                 ok = false;
             }
         }
@@ -411,7 +410,7 @@ public:
     bool test_one_sprp(const uint64_t *a, const size_t l, const bool isPrime) const
     {
         Integer n;
-        if (!n.set(a, l) || !T::valid(n)) {
+        if (!n.set(a, l) || !Modulus::valid(n)) {
             return true;
         }
 
@@ -431,15 +430,15 @@ public:
         ok &= test_one_sprp(a4, sizeof(a4) / sizeof(a4[0]), false);
         
         if (ok) {
-            std::cout << "tests<" << typeid(T).name() << ">::tests_sprp() passed" << "\n";
+            std::cout << "tests<" << typeid(Modulus).name() << ">::tests_sprp() passed" << "\n";
         }
         return ok;
     }
     
-    bool test_one_isprime(const Modulus m, const bool isPrime) const {
+    bool test_one_isprime(Modulus const & m, const bool isPrime) const {
         const char *prime_str[2] = {"composite", "prime"};
         if (m.isprime() != isPrime) {
-            std::cerr << modToMpz(m) << " incorrectly declared " << prime_str[!isPrime] << " by " << typeid(T).name() << "::isprime()" << "\n";
+            std::cerr << modToMpz(m) << " incorrectly declared " << prime_str[!isPrime] << " by " << typeid(Modulus).name() << "::isprime()" << "\n";
             return false;
         }
         return true;
@@ -454,12 +453,12 @@ public:
             ok &= test_one_isprime(m, gmpIsPrime);
         }
         if (ok) {
-            std::cout << "tests<" << typeid(T).name() << ">::test_isprime() passed" << "\n";
+            std::cout << "tests<" << typeid(Modulus).name() << ">::test_isprime() passed" << "\n";
         }
         return ok;
     }
 
-    bool test_one_gcd (const Integer &i, const Modulus m) const {
+    bool test_one_gcd (const Integer &i, Modulus const & m) const {
         bool ok = true;
         Integer g;
         Residue r(m);
@@ -470,7 +469,7 @@ public:
         mpz_gcd(G, I, M);
         
         if (G != (cxx_mpz) g) {
-            std::cerr << typeid(T).name() << "::gcd(" << I << ", " << M << ") = " << g << " wrong" << "\n";
+            std::cerr << typeid(Modulus).name() << "::gcd(" << I << ", " << M << ") = " << g << " wrong" << "\n";
             ok = false;
         }
         
@@ -494,12 +493,12 @@ public:
             ok &= test_one_gcd(a, m);
         }
         if (ok) {
-            std::cout << "tests<" << typeid(T).name() << ">::test_gcd() passed" << "\n";
+            std::cout << "tests<" << typeid(Modulus).name() << ">::test_gcd() passed" << "\n";
         }
         return ok;
     }
     
-    bool test_one_inv (const Integer &a, const Modulus m) const {
+    bool test_one_inv (const Integer &a, Modulus const & m) const {
         bool ok = true;
         Integer i;
         Residue ar(m), ir(m);
@@ -511,10 +510,10 @@ public:
         int const invExists2 = mpz_invert(I, A, M);
 
         if (invExists1 != (invExists2 != 0)) {
-            std::cerr << typeid(T).name() << "::inv(" << A << ", " << M << ") wrongly thinks inverse " << (invExists1 ? "exists" : "does not exist") << "\n";
+            std::cerr << typeid(Modulus).name() << "::inv(" << A << ", " << M << ") wrongly thinks inverse " << (invExists1 ? "exists" : "does not exist") << "\n";
             ok = false;
         } else if (invExists1 && I != (cxx_mpz) i) {
-            std::cerr << typeid(T).name() << "::inv(" << A << ", " << M << ") = " << i << " wrong" << "\n";
+            std::cerr << typeid(Modulus).name() << "::inv(" << A << ", " << M << ") = " << i << " wrong" << "\n";
             ok = false;
         }
         
@@ -538,7 +537,7 @@ public:
             ok &= test_one_inv(a, m);
         }
         if (ok) {
-            std::cout << "tests<" << typeid(T).name() << ">::test_inv() passed" << "\n";
+            std::cout << "tests<" << typeid(Modulus).name() << ">::test_inv() passed" << "\n";
         }
         return ok;
     }
@@ -546,9 +545,9 @@ public:
     bool
     test_one_batchinv(const Residue *a, const size_t len, const Residue *c, const Modulus &m) const {
         ASSERT_ALWAYS(len <= 10);
-        Residue r[10] { m, m, m, m, m, m, m, m, m, m };
+        auto r = m.template make_array<10>();
         Residue t(m);
-        const bool batchinv_valid = m.batchinv(r, a, len, c);
+        const bool batchinv_valid = m.batchinv(r.data(), a, len, c);
         bool only_trivial_gcds = true;
         
         Integer g;
@@ -561,11 +560,11 @@ public:
 
         if (batchinv_valid) {
             if (!only_trivial_gcds) {
-                std::cerr << typeid(T).name() << "::batchinv() wrongly thinks inverse exists" << "\n";
+                std::cerr << typeid(Modulus).name() << "::batchinv() wrongly thinks inverse exists" << "\n";
                 return false;
             }
         } else if (only_trivial_gcds) {
-            std::cerr << typeid(T).name() << "::batchinv() wrongly thinks inverse does not exist" << "\n";
+            std::cerr << typeid(Modulus).name() << "::batchinv() wrongly thinks inverse does not exist" << "\n";
             return false;
         } else {
             /* batchinv reported no inverse exists and there is, in fact, a
@@ -579,7 +578,7 @@ public:
                 m.mul(t, t, *c);
             }
             if (!m.equal(t, r[i])) {
-                std::cerr << typeid(T).name() << "::batchinv() computed wrong inverse" << "\n";
+                std::cerr << typeid(Modulus).name() << "::batchinv() computed wrong inverse" << "\n";
                 return false;
             }
         }
@@ -591,7 +590,7 @@ public:
         
         for (unsigned long i_test = 0; i_test < iter; i_test++) {
             Modulus const m = randomModulus();
-            std::array<Residue, 10> a { m, m, m, m, m, m, m, m, m, m };
+            auto a = m.template make_array<10>();
             Residue c(m);
             for (auto & x : a)
                 m.set(x, randomInteger<Integer>());
@@ -602,12 +601,12 @@ public:
             }
         }
         if (ok) {
-            std::cout << "tests<" << typeid(T).name() << ">::test_batchinv() passed" << "\n";
+            std::cout << "tests<" << typeid(Modulus).name() << ">::test_batchinv() passed" << "\n";
         }
         return ok;
     }
     
-    bool test_one_jacobi (const Integer &a, const Modulus m) const {
+    bool test_one_jacobi (const Integer &a, Modulus const & m) const {
         bool ok = true;
         Residue ar(m);
         m.set(ar, a);
@@ -617,7 +616,7 @@ public:
         int const jacobi2 = mpz_jacobi(A, M);
 
         if (jacobi1 != jacobi2) {
-            std::cerr << typeid(T).name() << "::jacobi(" << A << ", " << M << ") = " << jacobi1 << " wrong" << "\n";
+            std::cerr << typeid(Modulus).name() << "::jacobi(" << A << ", " << M << ") = " << jacobi1 << " wrong" << "\n";
             ok = false;
         }
         
@@ -627,7 +626,7 @@ public:
     bool test_jacobi(const unsigned long iter) const {
         bool ok = true;
 
-        if (T::valid(Integer(1))) {
+        if (Modulus::valid(Integer(1))) {
             Modulus const m(Integer(1));
             ok &= test_one_jacobi(Integer(0), m);
         }
@@ -646,7 +645,7 @@ public:
             ok &= test_one_jacobi(a, m);
         }
         if (ok) {
-            std::cout << "tests<" << typeid(T).name() << ">::test_jacobi() passed" << "\n";
+            std::cout << "tests<" << typeid(Modulus).name() << ">::test_jacobi() passed" << "\n";
         }
         return ok;
     }
@@ -683,7 +682,7 @@ public:
             if ((Integer) r != 1)
                 return false;
         }
-        std::cout << "tests<" << typeid(T).name() << ">::test_modop() passed" << "\n";
+        std::cout << "tests<" << typeid(Modulus).name() << ">::test_modop() passed" << "\n";
         return true;
     }
     
@@ -707,28 +706,27 @@ public:
 };
 
 template<>
-Modulus64 Tests<Modulus64>::randomModulus(const bool odd) const {
-    return { u64_random(state) | (odd ? 1 : 0) };
+arithxx_mod64::Modulus Tests<arithxx_mod64>::randomModulus(const bool odd) const {
+    return Modulus(u64_random(state) | (odd ? 1 : 0));
 }
 
 template<>
-ModulusREDC64 Tests<ModulusREDC64>::randomModulus(const bool odd MAYBE_UNUSED) const {
-    return { u64_random(state) | 1 };
+arithxx_modredc64::Modulus Tests<arithxx_modredc64>::randomModulus(const bool odd MAYBE_UNUSED) const {
+    return Modulus(u64_random(state) | 1);
 }
 
 template<>
-ModulusREDC126 Tests<ModulusREDC126>::randomModulus(const bool odd MAYBE_UNUSED) const {
+arithxx_modredc126::Modulus Tests<arithxx_modredc126>::randomModulus(const bool odd MAYBE_UNUSED) const {
     Integer128 const m(u64_random(state) | 1, u64_random(state) & (UINT64_MAX >> 2));
-    return { m };
+    return Modulus(m);
 }
 
 template<>
-ModulusMPZ Tests<ModulusMPZ>::randomModulus(const bool odd) const {
-    ModulusMPZ::Integer i = randomInteger<ModulusMPZ::Integer>();
+arithxx_mod_mpz_new::Modulus Tests<arithxx_mod_mpz_new>::randomModulus(const bool odd) const {
+    Integer i = randomInteger<arithxx_mod_mpz_new::Integer>();
     if (odd && mpz_even_p(i))
         i += 1;
-    ModulusMPZ const m(i);
-    return m;
+    return Modulus(i);
 }
 
 int main(int argc, char const * argv[])
@@ -739,16 +737,16 @@ int main(int argc, char const * argv[])
     tests_common_cmdline(&argc, &argv, PARSE_SEED | PARSE_ITER);
     tests_common_get_iter(&iter);
 
-    Tests<Modulus64> const test1;
+    Tests<arithxx_mod64> const test1;
     ok &= test1.runTests(iter);
     
-    Tests<ModulusREDC64> const test2;
+    Tests<arithxx_modredc64> const test2;
     ok &= test2.runTests(iter);
     
-    Tests<ModulusREDC126> const test3;
+    Tests<arithxx_modredc126> const test3;
     ok &= test3.runTests(iter);
     
-    Tests<ModulusMPZ> const test4;
+    Tests<arithxx_mod_mpz_new> const test4;
     ok &= test4.runTests(iter);
   
     tests_common_clear();

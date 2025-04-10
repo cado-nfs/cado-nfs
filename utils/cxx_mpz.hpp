@@ -7,6 +7,7 @@
 #include <istream>
 #include <ostream>
 #include <type_traits>
+#include <memory>
 
 #include <gmp.h>
 #include "fmt/ostream.h"
@@ -133,17 +134,15 @@ public:
      * output is truncated. If len is greater, output is padded with zeroes.
      */
     void get(uint64_t *r, const size_t len) const {
-        const bool useTemp = len < size();
         size_t written;
-        uint64_t *t = (uint64_t *) mpz_export(useTemp ? NULL : r, &written,
-                                              -1, sizeof(uint64_t), 0, 0, x);
-        if (useTemp) {
+        if (len < size()) {
+            auto t = std::unique_ptr<uint64_t[]>(static_cast<uint64_t*>(mpz_export(nullptr, &written, -1, sizeof(uint64_t), 0, 0, x)));
             /* Here, len < written. Write only the len least significant words
              * to r */
             for (size_t i = 0; i < len; i++)
                 r[i] = t[i];
-            free(t);
         } else {
+            mpz_export(r, &written, -1, sizeof(uint64_t), 0, 0, x);
             ASSERT_ALWAYS(written <= len);
             for (size_t i = written; i < len; i++)
                 r[i] = 0;
@@ -151,8 +150,8 @@ public:
     }
 
     /* Should use a C++ iterator instead? Would that be slower? */
-    static int getWordSize() {return GMP_NUMB_BITS;}
-    size_t getWordCount() const {return mpz_size(x);}
+    static constexpr size_t word_bits = GMP_NUMB_BITS;
+    size_t size_in_words() const {return mpz_size(x);}
     WordType getWord(const size_t i) const {return mpz_getlimbn(x, i);}
 
     template <typename T>

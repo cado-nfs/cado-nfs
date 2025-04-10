@@ -329,6 +329,8 @@ std::vector<unsigned long> subdivide_primes_interval(unsigned long p0, unsigned 
 
 #ifdef __cplusplus
 /* Use in any function that uses iomanip temporarily.
+ *
+ * Hmm, how much different is it from std::istream::sentry
  */
 
 class IoStreamFlagsRestorer

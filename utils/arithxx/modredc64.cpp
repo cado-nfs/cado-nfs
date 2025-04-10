@@ -1,18 +1,22 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
 
+#include "arithxx_common.hpp"
 #include "macros.h"
 #include "modredc64.hpp"
 #include "u64arith.h"
 
+/* Only the .cpp source files that emit the non-inline symbols will
+ * include this impl header file. So even though it does not look like
+ * we're using it, in fact we are!  */
+#include "arithxx_api_impl.hpp"      // IWYU pragma: keep
+#include "arithxx_api64_impl.hpp"  // IWYU pragma: keep
+
 // scan-headers: stop here
 
-typedef ModulusREDC64 Modulus;
-#include "mod64_common.cpp" // NOLINT(bugprone-suspicious-include)
-
-bool Modulus::inv(Residue & r, const Residue & A) const
+bool arithxx_modredc64::Modulus::inv(Residue & r, const Residue & A) const
 {
     uint64_t x = m, y, u, v;
     int t, lsh;
@@ -132,7 +136,7 @@ bool Modulus::inv(Residue & r, const Residue & A) const
 
 /* same as inv, but for classical representation (not Montgomery).
    FIXME: should the operands be Integer type? */
-bool Modulus::intinv(Residue & r, Residue const & A) const
+bool arithxx_modredc64::Modulus::intinv(Residue & r, Residue const & A) const
 {
     uint64_t x = m, y, u, v;
     int t, lsh;
@@ -258,7 +262,7 @@ bool Modulus::intinv(Residue & r, Residue const & A) const
    If any inverse does not exists, returns 0 and contents of r are undefined,
    otherwise returns 1. */
 
-bool Modulus::batchinv_u64(uint64_t * r_ul, uint64_t const * a_ul,
+bool arithxx_modredc64::Modulus::batchinv_redc(uint64_t * r_ul, uint64_t const * a_ul,
                            uint64_t const c, size_t const n) const
 {
     Residue R(*this);
@@ -327,18 +331,18 @@ MAYBE_UNUSED static inline int check_divisible(uint64_t const lo,
    The memory pointed to be r and p must be non-overlapping.
    Returns 1 if successful. If any modular inverse does not exist,
    returns 0 and the contents of r are undefined. */
-bool Modulus::batch_Q_to_Fp(uint64_t * r, uint64_t const num,
+bool arithxx_modredc64::Modulus::batch_Q_to_Fp(uint64_t * r, uint64_t const num,
                             uint64_t const den, uint64_t const k,
                             uint64_t const * p, size_t const n)
 {
     uint64_t const ratio = num / den, rem = num % den;
-    Modulus const D(den);
+    arithxx_modredc64::Modulus const D(den);
 
     ASSERT_ALWAYS(den % 2 == 1);
     /* We use -rem (mod den) here. batchinv_ul() does not
        mandate its c parameter to be fully reduced, which occurs here in the
        case of rem == 0. */
-    if (D.batchinv_u64(r, p, den - rem, n) == 0) {
+    if (D.batchinv_redc(r, p, den - rem, n) == 0) {
         return false;
     }
 
@@ -350,3 +354,6 @@ bool Modulus::batch_Q_to_Fp(uint64_t * r, uint64_t const num,
 
     return true;
 }
+
+template struct arithxx_details::api<arithxx_modredc64>;
+template struct arithxx_details::api64<arithxx_modredc64>;

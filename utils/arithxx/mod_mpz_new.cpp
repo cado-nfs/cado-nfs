@@ -1,136 +1,118 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
 
 #include <gmp.h>
 
-#include "cxx_mpz.hpp"
-#include "arithxx/u64arith.h"      // for u64arith_mul_1_1_2
 #include "arith/ularith.h"    // IWYU pragma: keep
-#include "mod_mpz_new.hpp"
+#include "arithxx/u64arith.h" // for u64arith_mul_1_1_2
+#include "cxx_mpz.hpp"
 #include "macros.h"
+#include "mod_mpz_new.hpp"
+#include "arithxx_common.hpp"
 
-#define MOD_NO_SHARED_MOD_POW_UL 1
-#define MOD_NO_SHARED_MOD_POW_MP 1
-#define MOD_NO_SHARED_MOD_POW_INT 1
+/* Only the .cpp source files that emit the non-inline symbols will
+ * include this impl header file. So even though it does not look like
+ * we're using it, in fact we are!  */
+#include "arithxx_api_impl.hpp"      // IWYU pragma: keep
 
 // scan-headers: stop here
 
-typedef ModulusMPZ Modulus;
-#include "mod_common.cpp"     // NOLINT(bugprone-suspicious-include)
-
-void ModulusMPZ::pow (Residue &r, const Residue &b, const uint64_t e) const
+/* {{{ pow */
+template <>
+void arithxx_details::api<arithxx_mod_mpz_new>::pow(
+    Residue & r, Residue const & b, uint64_t const e) const
 {
+    auto const & me = static_cast<Modulus const &>(*this);
     cxx_mpz R, B;
-    set_mpz_residue(B, b);
+    me.set_mpz_residue(B, b);
     if (ULONG_BITS == 64) {
-        mpz_powm_ui(R, B, (unsigned long) e, m);
+        mpz_powm_ui(R, B, (unsigned long)e, me.m);
     } else {
-       cxx_mpz E(e);
-       mpz_powm(R, B, E, m);
+        cxx_mpz E(e);
+        mpz_powm(R, B, E, me.m);
     }
-    set_residue_mpz(r, R);
+    me.set_residue_mpz(r, R);
 }
 
-void ModulusMPZ::pow (Residue &r, const Residue &b, const Integer &e) const
+template <>
+void arithxx_details::api<arithxx_mod_mpz_new>::pow(
+    Residue & r, Residue const & b, Integer const & e) const
 {
+    auto const & me = static_cast<Modulus const &>(*this);
     cxx_mpz R, B;
-    set_mpz_residue(B, b);
-    mpz_powm(R, B, e, m);
-    set_residue_mpz(r, R);
-
+    me.set_mpz_residue(B, b);
+    mpz_powm(R, B, e, me.m);
+    me.set_residue_mpz(r, R);
 }
 
-void ModulusMPZ::pow (Residue &r, const Residue &b, const uint64_t *e, const size_t nrWords) const
+template <>
+void arithxx_details::api<arithxx_mod_mpz_new>::pow(
+    Residue & r, Residue const & b, uint64_t const * e,
+    size_t const nrWords) const
 {
     cxx_mpz E;
     E.set(e, nrWords);
     pow(r, b, E);
 }
+/* }}} */
 
-void ModulusMPZ::pow2 (Residue &r, const uint64_t e) const
+/* {{{ sprp, sprp2, and isprime */
+template <>
+bool arithxx_details::api<arithxx_mod_mpz_new>::isprime() const
 {
-    cxx_mpz R;
-    cxx_mpz B(2);
-    if (ULONG_BITS == 64) {
-        mpz_powm_ui(R, B, e, m);
-    } else {
-       cxx_mpz E(e);
-       mpz_powm(R, B, E, m);
-    }
-    set_residue_mpz(r, R);
+    auto const & me = static_cast<Modulus const &>(*this);
+    return mpz_probab_prime_p(me.m, 25);
 }
 
-void ModulusMPZ::pow2 (Residue &r, const Integer &e) const
+template <>
+bool arithxx_details::api<arithxx_mod_mpz_new>::sprp(
+    Residue const & a MAYBE_UNUSED) const
 {
-    cxx_mpz R, B(2);
-    mpz_powm(R, B, e, m);
-    set_residue_mpz(r, R);
-
+    return isprime();
 }
 
-void ModulusMPZ::pow2 (Residue &r, const uint64_t *e, const size_t nrWords) const
+template <>
+bool arithxx_details::api<arithxx_mod_mpz_new>::sprp2()
+    const
 {
-    cxx_mpz E;
-    E.set(e, nrWords);
-    pow2(r, E);
+    return isprime();
 }
+/* }}} */
 
-bool
-ModulusMPZ::div3(ModulusMPZ::Residue &r, ModulusMPZ::Residue const &a) const {
-    Residue t(*this);
-    const unsigned int mMod3 = mpz_tdiv_ui(m, 3);
-    const unsigned int aMod3 = mpn_mod_1(a.r, mpz_size(m), 3);
-
-    if (mMod3 == 0) {
-        return false;
-    }
-
-    mp_limb_t cy = 0;
-    if (aMod3 == 0) {
-        set(t, a);
-    } else if (aMod3 == mMod3) {
-        cy = addM(t.r, a.r);
-        cy += addM(t.r, t.r);
-    } else {
-        cy = addM(t.r, a.r);
-    }
-    const mp_limb_t spill = mpn_divexact_by3(r.r, t.r, mpz_size(m));
-    ASSERT_ALWAYS(cy != 0 || spill == 0);
-    
-    return true;
-}
-
-bool
-ModulusMPZ::divn (Residue &r, const Residue &a, const unsigned long b,
-                  const mp_limb_t *minvb, const mp_limb_t binvw MAYBE_UNUSED) const {
-    const mp_size_t sz = mpz_size(m);
-    const unsigned long mModB = mpz_tdiv_ui(m, b);
+/* {{{ ModulusMPZ::divn */
+bool arithxx_mod_mpz_new::Modulus::divn(Residue & r, Residue const & a, unsigned long const b,
+                      mp_limb_t const * minvb,
+                      mp_limb_t const binvw MAYBE_UNUSED) const
+{
+    mp_size_t const sz = mpz_size(m);
+    unsigned long const mModB = mpz_tdiv_ui(m, b);
 
     if (mModB == 0) {
         return false;
     }
 
-    const mp_limb_t aModB = mpn_mod_1(a.r, sz, b);
-    const mp_limb_t k = (minvb[mModB] * aModB) % b;
+    mp_limb_t const aModB = mpn_mod_1(a.r, sz, b);
+    mp_limb_t const k = (minvb[mModB] * aModB) % b;
 
     if (r.r != a.r) {
         mpn_copyi(r.r, a.r, sz);
     }
     mp_limb_t cy MAYBE_UNUSED;
-    cy = mpn_addmul_1 (r.r, m->_mp_d, sz, k);
+    cy = mpn_addmul_1(r.r, m->_mp_d, sz, k);
 
 #if defined(HAVE_MPN_DIVEXACT_1)
-    mpn_divexact_1 (r.r, r.r, sz, b);
+    mpn_divexact_1(r.r, r.r, sz, b);
 #else
     const mp_limb_t binvlimb = binvw & GMP_NUMB_MASK;
-    static_assert(GMP_LIMB_BITS <= 64, "Currently can't handle GMP_LIMB_BITS > 64");
+    static_assert(GMP_LIMB_BITS <= 64,
+                  "Currently can't handle GMP_LIMB_BITS > 64");
 
     mp_limb_t borrow = 0;
     mp_limb_t t0 = (r.r[0] * binvlimb) & GMP_NUMB_MASK;
     r.r[0] = t0;
-    
+
     for (mp_size_t i = 1; i < sz; i++) {
         mp_limb_t t1, t2;
 #if GMP_LIMB_BITS == 64
@@ -139,7 +121,7 @@ ModulusMPZ::divn (Residue &r, const Residue &a, const unsigned long b,
         // One might be unsigned long, and the other unsigned long long,
         // in which case we need pointer casts to avoid a compiler
         // warning.
-        u64arith_mul_1_1_2((uint64_t *) &t1, (uint64_t *) &t2, t0, b);
+        u64arith_mul_1_1_2((uint64_t *)&t1, (uint64_t *)&t2, t0, b);
 #elif GMP_LIMB_BITS == ULONG_BITS
         ularith_mul_ul_ul_2ul(&t1, &t2, t0, b);
 #else
@@ -161,7 +143,7 @@ ModulusMPZ::divn (Residue &r, const Residue &a, const unsigned long b,
         mp_limb_t t1, t2;
 #if GMP_LIMB_BITS == 64
         // see remark above.
-        u64arith_mul_1_1_2((uint64_t *) &t1, (uint64_t *) &t2, t0, b);
+        u64arith_mul_1_1_2((uint64_t *)&t1, (uint64_t *)&t2, t0, b);
 #elif GMP_LIMB_BITS == ULONG_BITS
         ularith_mul_ul_ul_2ul(&t1, &t2, t0, b);
 #else
@@ -178,88 +160,155 @@ ModulusMPZ::divn (Residue &r, const Residue &a, const unsigned long b,
 
     return true;
 }
+/* }}} */
+
+// {{{ div{3,5,7,11,13}
+template <>
+bool arithxx_details::api<arithxx_mod_mpz_new>::div3(
+    Residue & r, Residue const & a) const
+{
+    auto const & me = static_cast<Modulus const &>(*this);
+    Residue t(me);
+    unsigned int const mMod3 = mpz_tdiv_ui(me.m, 3);
+    unsigned int const aMod3 = mpn_mod_1(a.r, mpz_size(me.m), 3);
+
+    if (mMod3 == 0) {
+        return false;
+    }
+
+    mp_limb_t cy = 0;
+    if (aMod3 == 0) {
+        me.set(t, a);
+    } else if (aMod3 == mMod3) {
+        cy = me.addM(t.r, a.r);
+        cy += me.addM(t.r, t.r);
+    } else {
+        cy = me.addM(t.r, a.r);
+    }
+    mp_limb_t const spill = mpn_divexact_by3(r.r, t.r, mpz_size(me.m));
+    ASSERT_ALWAYS(cy != 0 || spill == 0);
+
+    return true;
+}
 
 /* Divide residue by 5. Returns 1 if division is possible, 0 otherwise */
 
-bool
-ModulusMPZ::div5 (Residue &r, const Residue &a) const
+template <>
+bool arithxx_details::api<arithxx_mod_mpz_new>::div5(
+    Residue & r, Residue const & a) const
 {
-  /* inv_5[i] = -1/i (mod 5) */
-  const mp_limb_t inv_5[5] = {0,4,2,3,1};
-  const auto c = (mp_limb_t) UINT64_C(0xcccccccccccccccd); /* 1/5 (mod 2^64) */
-  
-  return divn (r, a, 5, inv_5, c);
-}
+    auto const & me = static_cast<Modulus const &>(*this);
+    /* inv_5[i] = -1/i (mod 5) */
+    mp_limb_t const inv_5[5] = {0, 4, 2, 3, 1};
+    auto const c = (mp_limb_t)UINT64_C(0xcccccccccccccccd); /* 1/5 (mod 2^64) */
 
+    return me.divn(r, a, 5, inv_5, c);
+}
 
 /* Divide residue by 7. Returns 1 if division is possible, 0 otherwise */
 
-bool
-ModulusMPZ::div7 (Residue &r, const Residue &a) const
+template <>
+bool arithxx_details::api<arithxx_mod_mpz_new>::div7(
+    Residue & r, Residue const & a) const
 {
-  /* inv_7[i] = -1/i (mod 7) */
-  const mp_limb_t inv_7[7] = {0,6,3,2,5,4,1};
-  const auto c = (mp_limb_t) UINT64_C(0x6db6db6db6db6db7); /* 1/7 (mod 2^64) */
-  return divn (r, a, 7, inv_7, c);
+    auto const & me = static_cast<Modulus const &>(*this);
+    /* inv_7[i] = -1/i (mod 7) */
+    mp_limb_t const inv_7[7] = {0, 6, 3, 2, 5, 4, 1};
+    auto const c = (mp_limb_t)UINT64_C(0x6db6db6db6db6db7); /* 1/7 (mod 2^64) */
+    return me.divn(r, a, 7, inv_7, c);
 }
-
 
 /* Divide residue by 11. Returns 1 if division is possible, 0 otherwise */
 
-bool
-ModulusMPZ::div11 (Residue &r, const Residue &a) const
+template <>
+bool arithxx_details::api<arithxx_mod_mpz_new>::div11(
+    Residue & r, Residue const & a) const
 {
-  /* inv_11[i] = -1/i (mod 11) */
-  const mp_limb_t inv_11[11] = {0, 10, 5, 7, 8, 2, 9, 3, 4, 6, 1}; 
-  const auto c = (mp_limb_t) UINT64_C(0x2e8ba2e8ba2e8ba3); /* 1/11 (mod 2^64) */
-  return divn (r, a, 11, inv_11, c);
+    auto const & me = static_cast<Modulus const &>(*this);
+    /* inv_11[i] = -1/i (mod 11) */
+    mp_limb_t const inv_11[11] = {0, 10, 5, 7, 8, 2, 9, 3, 4, 6, 1};
+    auto const c =
+        (mp_limb_t)UINT64_C(0x2e8ba2e8ba2e8ba3); /* 1/11 (mod 2^64) */
+    return me.divn(r, a, 11, inv_11, c);
 }
-
 
 /* Divide residue by 13. Returns 1 if division is possible, 0 otherwise */
 
-bool
-ModulusMPZ::div13 (Residue &r, const Residue &a) const
+template <>
+bool arithxx_details::api<arithxx_mod_mpz_new>::div13(
+    Residue & r, Residue const & a) const
 {
-  /* inv_13[i] = -1/i (mod 13) */
-  const mp_limb_t inv_13[13] = {0, 12, 6, 4, 3, 5, 2, 11, 8, 10, 9, 7, 1}; 
-  const auto c = (mp_limb_t) UINT64_C(0x4ec4ec4ec4ec4ec5); /* 1/13 (mod 2^64) */
-  return divn (r, a, 13, inv_13, c);
+    auto const & me = static_cast<Modulus const &>(*this);
+    /* inv_13[i] = -1/i (mod 13) */
+    mp_limb_t const inv_13[13] = {0, 12, 6, 4, 3, 5, 2, 11, 8, 10, 9, 7, 1};
+    auto const c =
+        (mp_limb_t)UINT64_C(0x4ec4ec4ec4ec4ec5); /* 1/13 (mod 2^64) */
+    return me.divn(r, a, 13, inv_13, c);
 }
 
-void ModulusMPZ::gcd (Integer &r, const Residue &a) const {
+// }}}
+
+template<>
+void
+arithxx_details::api<arithxx_mod_mpz_new>::gcd
+(Integer & r, const Residue & a) const
+{
+    auto const & me = static_cast<Modulus const &>(*this);
     cxx_mpz A;
-    
-    set_mpz_residue(A, a);
-    mpz_gcd(r, A, m);
+
+    me.set_mpz_residue(A, a);
+    mpz_gcd(r, A, me.m);
 }
 
-bool ModulusMPZ::sprp(const Residue &a MAYBE_UNUSED) const
+template<>
+void arithxx_details::api<arithxx_mod_mpz_new>::pow2(Residue & r, uint64_t const e) const
 {
-    return isprime();
+    auto const & me = static_cast<Modulus const &>(*this);
+    cxx_mpz R;
+    cxx_mpz B(2);
+    if (ULONG_BITS == 64) {
+        mpz_powm_ui(R, B, e, me.m);
+    } else {
+        cxx_mpz E(e);
+        mpz_powm(R, B, E, me.m);
+    }
+    me.set_residue_mpz(r, R);
 }
 
-bool ModulusMPZ::sprp2() const
+template<>
+void arithxx_details::api<arithxx_mod_mpz_new>::pow2(Residue & r, Integer const & e) const
 {
-    return isprime();
+    auto const & me = static_cast<Modulus const &>(*this);
+    cxx_mpz R, B(2);
+    mpz_powm(R, B, e, me.m);
+    me.set_residue_mpz(r, R);
 }
 
-bool ModulusMPZ::isprime() const
+template<>
+void arithxx_details::api<arithxx_mod_mpz_new>::pow2(Residue & r, uint64_t const * e,
+                           size_t const nrWords) const
 {
-    return mpz_probab_prime_p(m, 25);
+    auto const & me = static_cast<Modulus const &>(*this);
+    cxx_mpz E;
+    E.set(e, nrWords);
+    me.pow2(r, E);
 }
 
-bool ModulusMPZ::inv (Residue &r, const Residue &a) const {
+bool arithxx_mod_mpz_new::Modulus::inv(Residue & r, Residue const & a) const
+{
     cxx_mpz A;
     set_mpz_residue(A, a);
-    const bool exists = mpz_invert(A, A, m);
+    bool const exists = mpz_invert(A, A, m);
     if (exists)
         set_residue_mpz(r, A);
     return exists;
 }
 
-int ModulusMPZ::jacobi(const Residue &a MAYBE_UNUSED) const {
+int arithxx_mod_mpz_new::Modulus::jacobi(Residue const & a MAYBE_UNUSED) const
+{
     cxx_mpz A;
     set_mpz_residue(A, a);
     return mpz_jacobi(A, m);
 }
+
+template struct arithxx_details::api<arithxx_mod_mpz_new>;
