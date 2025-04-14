@@ -276,7 +276,7 @@ class arithxx_mod_mpz_new::Modulus
     void add1(Residue & r, Residue const & a) const
     {
         assertValid(a);
-        mp_limb_t const cy = mpn_add_1(r.r, a.r, 1, mpz_size(m));
+        mp_limb_t const cy = mpn_add_1(r.r, a.r, mpz_size(m), 1);
         if (cy || cmpM(r.r) >= 0) {
             mp_limb_t const bw = subM(r.r, r.r);
             ASSERT_ALWAYS(bw == cy);
@@ -318,7 +318,7 @@ class arithxx_mod_mpz_new::Modulus
     void sub1(Residue & r, Residue const & a) const
     {
         assertValid(a);
-        mp_limb_t const bw = mpn_sub_1(r.r, a.r, 1, mpz_size(m));
+        mp_limb_t const bw = mpn_sub_1(r.r, a.r, mpz_size(m), 1);
         if (bw) {
             mp_limb_t const cy = addM(r.r, r.r);
             ASSERT_ALWAYS(cy == bw);
