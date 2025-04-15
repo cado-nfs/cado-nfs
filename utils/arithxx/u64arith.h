@@ -998,7 +998,7 @@ u64arith_sqrt (const uint64_t n)
 static inline uint64_t
 u64arith_post_process_inverse(const uint64_t r, const uint64_t p,
   const uint64_t rem, const uint64_t den_inv,
-  const uint64_t ratio, const uint64_t k)
+  const uint64_t ratio, const int k)
 {
   uint64_t t = (r * p + rem) * den_inv;
   const uint64_t ratio_p = (ratio >= p) ? ratio % p : ratio;
@@ -1009,7 +1009,7 @@ u64arith_post_process_inverse(const uint64_t r, const uint64_t p,
 
   ASSERT_EXPENSIVE(t < p);
   ASSERT_EXPENSIVE(k == 0 || p % 2 == 1);
-  for (uint64_t j = 0; j < k; j++) {
+  for (int j = 0; j < k; j++) {
     t = u64arith_div2mod(t, p);
   }
   return t;

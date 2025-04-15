@@ -36,9 +36,8 @@ public:
     void print (std::ostream &os, const char *prefix) const
     {
         const char *pre = prefix ? prefix : "";
-        Integer A, M;
-        m.get (A, a);
-        m.getmod(M);
+        const Integer A = m.get(a);
+        const Integer M = m.getmod();
         os << pre << "Weierstrass curve: y^2 = x^3 + a*x + b" << "\n"
            << pre << "a = " << A << " over Z/mZ, m = " << M << "\n";
     }
@@ -174,10 +173,8 @@ public:
 
         void print(std::ostream &os) const {
             if (finite) {
-                Integer X, Y;
-
-                curve.m.get (X, x);
-                curve.m.get (Y, y);
+                const Integer X = curve.m.get (x);
+                const Integer Y = curve.m.get (y);
                 os << "(" << X << " : " << Y << ")";
             } else {
                 os << "(point at infinity)";
@@ -301,11 +298,9 @@ public:
         }
 
         void print(std::ostream &os) const {
-            Integer X, Y, Z;
-
-            curve.m.get (X, x);
-            curve.m.get (Y, y);
-            curve.m.get (Z, z);
+            const Integer X = curve.m.get (x);
+            const Integer Y = curve.m.get (y);
+            const Integer Z = curve.m.get (z);
             os << "(" << X << " : " << Y << " : " << Z << ")";
         }
 

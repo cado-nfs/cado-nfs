@@ -24,7 +24,7 @@ template <>
 void arithxx_details::api<arithxx_mod_mpz_new>::pow(
     Residue & r, Residue const & b, uint64_t const e) const
 {
-    auto const & me = static_cast<Modulus const &>(*this);
+    auto const & me = downcast();
     cxx_mpz R, B;
     me.set_mpz_residue(B, b);
     if (ULONG_BITS == 64) {
@@ -40,7 +40,7 @@ template <>
 void arithxx_details::api<arithxx_mod_mpz_new>::pow(
     Residue & r, Residue const & b, Integer const & e) const
 {
-    auto const & me = static_cast<Modulus const &>(*this);
+    auto const & me = downcast();
     cxx_mpz R, B;
     me.set_mpz_residue(B, b);
     mpz_powm(R, B, e, me.m);
@@ -52,8 +52,7 @@ void arithxx_details::api<arithxx_mod_mpz_new>::pow(
     Residue & r, Residue const & b, uint64_t const * e,
     size_t const nrWords) const
 {
-    cxx_mpz E;
-    E.set(e, nrWords);
+    cxx_mpz E(e, nrWords);
     pow(r, b, E);
 }
 /* }}} */
@@ -62,7 +61,7 @@ void arithxx_details::api<arithxx_mod_mpz_new>::pow(
 template <>
 bool arithxx_details::api<arithxx_mod_mpz_new>::isprime() const
 {
-    auto const & me = static_cast<Modulus const &>(*this);
+    auto const & me = downcast();
     return mpz_probab_prime_p(me.m, 25);
 }
 
@@ -167,7 +166,7 @@ template <>
 bool arithxx_details::api<arithxx_mod_mpz_new>::div3(
     Residue & r, Residue const & a) const
 {
-    auto const & me = static_cast<Modulus const &>(*this);
+    auto const & me = downcast();
     Residue t(me);
     unsigned int const mMod3 = mpz_tdiv_ui(me.m, 3);
     unsigned int const aMod3 = mpn_mod_1(a.r, mpz_size(me.m), 3);
@@ -197,7 +196,7 @@ template <>
 bool arithxx_details::api<arithxx_mod_mpz_new>::div5(
     Residue & r, Residue const & a) const
 {
-    auto const & me = static_cast<Modulus const &>(*this);
+    auto const & me = downcast();
     /* inv_5[i] = -1/i (mod 5) */
     mp_limb_t const inv_5[5] = {0, 4, 2, 3, 1};
     auto const c = (mp_limb_t)UINT64_C(0xcccccccccccccccd); /* 1/5 (mod 2^64) */
@@ -211,7 +210,7 @@ template <>
 bool arithxx_details::api<arithxx_mod_mpz_new>::div7(
     Residue & r, Residue const & a) const
 {
-    auto const & me = static_cast<Modulus const &>(*this);
+    auto const & me = downcast();
     /* inv_7[i] = -1/i (mod 7) */
     mp_limb_t const inv_7[7] = {0, 6, 3, 2, 5, 4, 1};
     auto const c = (mp_limb_t)UINT64_C(0x6db6db6db6db6db7); /* 1/7 (mod 2^64) */
@@ -224,7 +223,7 @@ template <>
 bool arithxx_details::api<arithxx_mod_mpz_new>::div11(
     Residue & r, Residue const & a) const
 {
-    auto const & me = static_cast<Modulus const &>(*this);
+    auto const & me = downcast();
     /* inv_11[i] = -1/i (mod 11) */
     mp_limb_t const inv_11[11] = {0, 10, 5, 7, 8, 2, 9, 3, 4, 6, 1};
     auto const c =
@@ -238,7 +237,7 @@ template <>
 bool arithxx_details::api<arithxx_mod_mpz_new>::div13(
     Residue & r, Residue const & a) const
 {
-    auto const & me = static_cast<Modulus const &>(*this);
+    auto const & me = downcast();
     /* inv_13[i] = -1/i (mod 13) */
     mp_limb_t const inv_13[13] = {0, 12, 6, 4, 3, 5, 2, 11, 8, 10, 9, 7, 1};
     auto const c =
@@ -253,7 +252,7 @@ void
 arithxx_details::api<arithxx_mod_mpz_new>::gcd
 (Integer & r, const Residue & a) const
 {
-    auto const & me = static_cast<Modulus const &>(*this);
+    auto const & me = downcast();
     cxx_mpz A;
 
     me.set_mpz_residue(A, a);
@@ -263,7 +262,7 @@ arithxx_details::api<arithxx_mod_mpz_new>::gcd
 template<>
 void arithxx_details::api<arithxx_mod_mpz_new>::pow2(Residue & r, uint64_t const e) const
 {
-    auto const & me = static_cast<Modulus const &>(*this);
+    auto const & me = downcast();
     cxx_mpz R;
     cxx_mpz B(2);
     if (ULONG_BITS == 64) {
@@ -276,9 +275,24 @@ void arithxx_details::api<arithxx_mod_mpz_new>::pow2(Residue & r, uint64_t const
 }
 
 template<>
+void arithxx_details::api<arithxx_mod_mpz_new>::pow3(Residue & r, uint64_t const e) const
+{
+    auto const & me = downcast();
+    cxx_mpz R;
+    cxx_mpz B(3);
+    if (ULONG_BITS == 64) {
+        mpz_powm_ui(R, B, e, me.m);
+    } else {
+        cxx_mpz E(e);
+        mpz_powm(R, B, E, me.m);
+    }
+    me.set_residue_mpz(r, R);
+}
+
+template<>
 void arithxx_details::api<arithxx_mod_mpz_new>::pow2(Residue & r, Integer const & e) const
 {
-    auto const & me = static_cast<Modulus const &>(*this);
+    auto const & me = downcast();
     cxx_mpz R, B(2);
     mpz_powm(R, B, e, me.m);
     me.set_residue_mpz(r, R);
@@ -288,27 +302,29 @@ template<>
 void arithxx_details::api<arithxx_mod_mpz_new>::pow2(Residue & r, uint64_t const * e,
                            size_t const nrWords) const
 {
-    auto const & me = static_cast<Modulus const &>(*this);
-    cxx_mpz E;
-    E.set(e, nrWords);
-    me.pow2(r, E);
+    auto const & me = downcast();
+    me.pow2(r, cxx_mpz(e, nrWords));
 }
 
-bool arithxx_mod_mpz_new::Modulus::inv(Residue & r, Residue const & a) const
+template<>
+bool arithxx_details::api<arithxx_mod_mpz_new>::inv(Residue & r, Residue const & a) const
 {
+    auto const & me = downcast();
     cxx_mpz A;
-    set_mpz_residue(A, a);
-    bool const exists = mpz_invert(A, A, m);
+    me.set_mpz_residue(A, a);
+    bool const exists = mpz_invert(A, A, me.m);
     if (exists)
-        set_residue_mpz(r, A);
+        me.set_residue_mpz(r, A);
     return exists;
 }
 
-int arithxx_mod_mpz_new::Modulus::jacobi(Residue const & a MAYBE_UNUSED) const
+template<>
+int arithxx_details::api<arithxx_mod_mpz_new>::jacobi(Residue const & a MAYBE_UNUSED) const
 {
+    auto const & me = downcast();
     cxx_mpz A;
-    set_mpz_residue(A, a);
-    return mpz_jacobi(A, m);
+    me.set_mpz_residue(A, a);
+    return mpz_jacobi(A, me.m);
 }
 
 template struct arithxx_details::api<arithxx_mod_mpz_new>;

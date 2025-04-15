@@ -74,7 +74,7 @@ class arithxx_mod_mpz_new::Modulus
     {
         ASSERT_ALWAYS(mpz_sgn(s) > 0);
     }
-    void getmod(Integer & r) const { mpz_set(r, m); }
+    Integer getmod() const { return m; }
 
   protected:
     // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
@@ -156,7 +156,7 @@ class arithxx_mod_mpz_new::Modulus
         for (size_t i = limbsToWrite; i < mpz_size(m); i++)
             r.r[i] = 0;
     }
-    void set_residue_mpz(Residue & r, mpz_t const s) const
+    void set_residue_mpz(Residue & r, mpz_srcptr s) const
     {
         ASSERT_ALWAYS(mpz_cmp(s, m) < 0);
         size_t written;
@@ -165,7 +165,7 @@ class arithxx_mod_mpz_new::Modulus
         for (size_t i = written; i < mpz_size(m); i++)
             r.r[i] = 0;
     }
-    void set_mpz_residue(mpz_t r, Residue const & s) const
+    void set_mpz_residue(mpz_ptr r, Residue const & s) const
     {
         mpz_import(r, mpz_size(m), -1, sizeof(mp_limb_t), 0, GMP_NAIL_BITS,
                    s.r);
@@ -223,10 +223,12 @@ class arithxx_mod_mpz_new::Modulus
     /* }}} */
 
     /* {{{ get equal is0 is1 */
-    void get(Integer & r, Residue const & s) const
+    Integer get(Residue const & s) const
     {
+        Integer r;
         assertValid(s);
         set_mpz_residue(r, s);
+        return r;
     }
     bool equal(Residue const & a, Residue const & b) const
     {
@@ -432,21 +434,6 @@ class arithxx_mod_mpz_new::Modulus
         sub(r, r, two);
     }
     /* }}} */
-
-    /* {{{ iteration support */
-    bool next(Residue & r) const
-    {
-        add1(r, r);
-        return finished(r);
-    }
-    bool finished(Residue const & r) const { return is0(r); }
-    /* }}} */
-
-    /* prototypes of non-inline functions */
-    bool inv(Residue &, Residue const &) const;
-    bool inv_odd(Residue &, Residue const &) const;
-    bool inv_powerof2(Residue &, Residue const &) const;
-    int jacobi(Residue const &) const;
 
   protected:
     bool divn(Residue &, Residue const &, unsigned long, mp_limb_t const *,

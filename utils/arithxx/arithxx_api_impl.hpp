@@ -279,6 +279,25 @@ bool arithxx_details::api<layer>::batchinv(Residue * r,
     return true;
 }
 
+template <typename layer>
+bool arithxx_details::api<layer>::intinv(Integer & r, Integer const & a) const
+{
+    auto const & me = downcast();
+    Residue R(me);
+    bool const b = downcast().inv(R, downcast()(a));
+    r = me.get(R);
+    return b;
+}
+template <typename layer>
+bool arithxx_details::api<layer>::inv_odd(Residue & r, Residue const & a) const
+{
+    return downcast().inv(r, a);
+}
+template <typename layer>
+bool arithxx_details::api<layer>::inv_powerof2(Residue & r, Residue const & a) const
+{
+    return downcast().inv(r, a);
+}
 
 
 #endif	/* UTILS_ARITHXX_API_IMPL_HPP_ */

@@ -457,11 +457,11 @@ void
 arithxx_details::api64<layer>::gcd (Integer &g, const Residue &r) const
 {
     auto const & me = downcast();
-    uint64_t a, b, t;
+    uint64_t t;
 
-    a = r.r; /* This works the same for "a" in plain or Montgomery
-                representation */
-    b = me.getmod_u64 ();
+    auto a = uint64_t(r.r); /* This works the same for "a" in plain or Montgomery
+                         representation */
+    uint64_t b = me.getmod_u64 ();
     /* ASSERT (a < b); Should we require this? */
     ASSERT (b > 0);
 
@@ -633,13 +633,11 @@ int
 arithxx_details::api64<layer>::jacobi (const Residue &a_par) const
 {
     auto const & me = downcast();
-    uint64_t x;
-    uint64_t mm;
     unsigned int s, j;
 
     /* Get residue in Montgomery form directly without converting */
-    x = a_par.r;
-    mm = me.getmod_u64 ();
+    auto x = uint64_t(a_par.r);
+    uint64_t mm = me.getmod_u64 ();
     if (x == 0) {
         return (mm == 1) ? 1 : 0; /* Jacobi(0,1) = 1, Jacobi(0,>1) = 0 */
     }

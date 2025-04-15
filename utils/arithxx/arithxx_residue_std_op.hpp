@@ -100,9 +100,7 @@ class ResidueStdOp : public layer::Residue
 
     operator Integer()
     {
-        Integer r;
-        m.get(r, *this);
-        return r;
+        return m.get(*this);
     }
 
     ResidueStdOp operator-() const

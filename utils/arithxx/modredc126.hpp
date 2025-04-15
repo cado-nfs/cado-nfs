@@ -12,6 +12,7 @@
 #include <cstdint>
 
 #include <array>
+#include <vector>
 
 #include "macros.h"
 #include "misc.h"
@@ -32,34 +33,24 @@ class arithxx_modredc126::Residue : public arithxx_details::Residue_base<arithxx
     friend struct arithxx_details::api<layer>;
 
     protected:
-    uint64_t r[2];
+    Integer r;
 
     public:
     explicit Residue(Modulus const & m MAYBE_UNUSED)
-        : r {0, 0}
     { }
     Residue(Modulus const & m MAYBE_UNUSED, Residue const & s)
-        : r {s.r[0], s.r[1]}
+        : r {s.r}
     { }
 
     Residue() = delete;
 
-    protected:
-    /* We use these prototypes in batchinv_redc, but it isn't totally
-     * clear to me if we need to have them or not.
+private:
+    /* This is only used in batchinv_redc, where we play tricks
+     * with the Montgomery representation.
      */
-    Residue & operator=(Integer const & s)
-    {
-        r[1] = 0;
-        s.get(r, 2);
-        return *this;
-    }
-    Residue & operator=(uint64_t const s)
-    {
-        r[0] = s;
-        r[1] = 0;
-        return *this;
-    }
+    Residue(Modulus const & m MAYBE_UNUSED, Integer const & s)
+        : r(s)
+    {}
 };
 
 class arithxx_modredc126::Modulus
@@ -81,7 +72,7 @@ class arithxx_modredc126::Modulus
   public:
     static bool valid(Integer const & m)
     {
-        return Integer({1, 1}) <= m && m % 2 == 1;
+        return Integer(1, 1) <= m && m % 2 == 1 && !(m[1] >> 62);
     }
 
     explicit Modulus(Integer const s)
@@ -95,12 +86,13 @@ class arithxx_modredc126::Modulus
         uint64_t dummy, ml[2] = {m[0], m[1]};
         u64arith_shl_2(&ml[0], &ml[1], shift);
         mrecip = u64arith_reciprocal_for_div_3by2(ml[0], ml[1]);
-        u64arith_divqr_3_2_1_recip_precomp(&dummy, &one.r[0], &one.r[1], 0, 0,
+        u64arith_divqr_3_2_1_recip_precomp(&dummy, one.r.data(), one.r.data()+1, 0, 0,
                                            1, ml[0], ml[1], mrecip, shift);
     }
 
     /* Returns the modulus as an Integer. */
-    void getmod(Integer & r) const { r.set(m); }
+    // void getmod(Integer & r) const { r.set(m); }
+    Integer getmod() const { return Integer(m); }
 
   protected:
     // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
@@ -115,7 +107,7 @@ class arithxx_modredc126::Modulus
         const int shift = u64arith_clz(m[1]);
         uint64_t dummy, ml[2] = {m[0], m[1]};
         u64arith_shl_2(&ml[0], &ml[1], shift);
-        u64arith_divqr_3_2_1_recip_precomp(&dummy, &r.r[0], &r.r[1], 0, s.r[0],
+        u64arith_divqr_3_2_1_recip_precomp(&dummy, r.r.data(), r.r.data()+1, 0, s.r[0],
                                            s.r[1], ml[0], ml[1], mrecip, shift);
     }
     /* }}} */
@@ -148,13 +140,12 @@ class arithxx_modredc126::Modulus
 
     /* Do a one-word REDC, i.e., r == s / w (mod m), w = 2^64.
        If m > w, r < 2m. If s < m, then r < m */
-    void redc1(Residue & r, Residue const & s) const { redc1(r.r, s.r); }
+    void redc1(Residue & r, Residue const & s) const { redc1(r.r.data(), s.r.data()); }
     void redc1(Integer & r, Integer const & s) const
     {
-        uint64_t t[2];
-        s.get(t, 2);
-        redc1(t, t);
-        r = Integer(t[0], t[1]);
+        std::array<uint64_t, 2> t = s.get();
+        redc1(t.data(), t.data());
+        r = Integer(t);
     }
 
     /* Converts s out of Montgomery form by dividing by 2^(2*ULONG_BITS).
@@ -186,12 +177,10 @@ class arithxx_modredc126::Modulus
 
     void set(Residue & r, Integer const & s) const
     {
-        if (s < Integer(m[0], m[1])) {
-            s.get(r.r, 2);
+        if (s < Integer(m)) {
+            r.r = s;
         } else {
-            Integer t = s;
-            t = t % Integer(m[0], m[1]);
-            t.get(r.r, 2);
+            r.r = s % Integer(m);
         }
         tomontgomery(r, r);
     }
@@ -200,8 +189,8 @@ class arithxx_modredc126::Modulus
     void set_reduced(Residue & r, uint64_t const s) const { set(r, s); }
     void set_reduced(Residue & r, Integer s) const
     {
-        ASSERT(s < Integer(m[0], m[1]));
-        s.get(r.r, 2);
+        ASSERT(s < Integer(m));
+        r.r = s;
         tomontgomery(r, r);
     }
     // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
@@ -215,11 +204,11 @@ class arithxx_modredc126::Modulus
 
     /* {{{ get equal is0 is1 */
     /* Returns the residue as a modintredc2ul2_t */
-    void get(Integer & r, Residue const & s) const
+    Integer get(Residue const & s) const
     {
         Residue t(*this);
         frommontgomery(t, s);
-        r.set(t.r, 2);
+        return t.r;
     }
 
     /* do we really want to keep these two, or should we use operator== ?
@@ -255,8 +244,8 @@ class arithxx_modredc126::Modulus
         uint64_t const t0 = b.r[0],
                        t1 = b.r[1]; /* r, a, and/or b may overlap */
         set(r, a);
-        u64arith_add_2_2(&(r.r[0]), &(r.r[1]), t0, t1);
-        u64arith_sub_2_2_ge(&(r.r[0]), &(r.r[1]), m[0], m[1]);
+        u64arith_add_2_2(r.r.data(), r.r.data() + 1, t0, t1);
+        u64arith_sub_2_2_ge(r.r.data(), r.r.data() + 1, m[0], m[1]);
     }
 
     void sub(Residue & r, Residue const & a, Residue const & b) const
@@ -317,8 +306,8 @@ class arithxx_modredc126::Modulus
     {
         set(r, a);
         if (r.r[0] % 2 == 1)
-            u64arith_add_2_2(&r.r[0], &r.r[1], m[0], m[1]);
-        u64arith_shr_2(&r.r[0], &r.r[1], 1);
+            u64arith_add_2_2(r.r.data(), r.r.data() + 1, m[0], m[1]);
+        u64arith_shr_2(r.r.data(), r.r.data() + 1, 1);
         return true;
     }
     /* }}} */
@@ -336,7 +325,8 @@ class arithxx_modredc126::Modulus
 #define ABORT_IF_CY
 #endif
 
-    void mul(Residue & r, const Residue & a, const Residue & b) const
+  private:
+    void mul(Integer & r, const Integer & a, const Integer & b) const
     {
 #ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
         uint64_t dummy;
@@ -407,9 +397,9 @@ class arithxx_modredc126::Modulus
             "sbbq %[m1], %[t2]\n\t"
             "cmovc %%rax, %[t1]\n\t" /* Carry -> restore old result */
             "cmovc %%rdx, %[t2]\n\t"
-            : [t0] "=&r"(dummy), [t1] "=&r"(r.r[0]), [t2] "=&r"(r.r[1])
-            : [a0] "g"(a.r[0]), [a1] "g"(a.r[1]), [b0] "rm"(b.r[0]),
-              [b1] "rm"(b.r[1]), [m0] "rm"(m[0]), [m1] "rm"(m[1]),
+            : [t0] "=&r"(dummy), [t1] "=&r"(r[0]), [t2] "=&r"(r[1])
+            : [a0] "g"(a[0]), [a1] "g"(a[1]), [b0] "rm"(b[0]),
+              [b1] "rm"(b[1]), [m0] "rm"(m[0]), [m1] "rm"(m[1]),
               [invm] "rm"(invm)
             : "%rax", "%rdx", "cc");
 #else /* HAVE_GCC_STYLE_AMD64_INLINE_ASM */
@@ -418,19 +408,19 @@ class arithxx_modredc126::Modulus
         /* m < 1/4 W^2,  a,b < m */
 
         /* Product of the two low words */
-        u64arith_mul_1_1_2(&(t[0]), &(t[1]), a.r[0], b.r[0]);
+        u64arith_mul_1_1_2(&(t[0]), &(t[1]), a[0], b[0]);
 
         /* One REDC step */
         redc1(t, t); /* t < 2m < 1/2 W^2 */
 
         /* Products of one low and one high word  */
-        u64arith_mul_1_1_2(&pl, &ph, a.r[1], b.r[0]); /* ph:pl < 1/4 W^2 */
+        u64arith_mul_1_1_2(&pl, &ph, a[1], b[0]); /* ph:pl < 1/4 W^2 */
         u64arith_add_2_2(&(t[0]), &(t[1]), pl, ph);   /* t1:t0 < 3/4 W^2 */
-        u64arith_mul_1_1_2(&pl, &ph, a.r[0], b.r[1]); /* ph:pl < 1/4 W^2 */
+        u64arith_mul_1_1_2(&pl, &ph, a[0], b[1]); /* ph:pl < 1/4 W^2 */
         u64arith_add_2_2(&(t[0]), &(t[1]), pl, ph);   /* t1:t0 < W^2 */
 
         /* Product of the two high words */
-        u64arith_mul_1_1_2(&pl, &(t[2]), a.r[1], b.r[1]); /* t2:pl < 1/16 W^2 */
+        u64arith_mul_1_1_2(&pl, &(t[2]), a[1], b[1]); /* t2:pl < 1/16 W^2 */
         u64arith_add_1_2(&(t[1]), &(t[2]), pl); /* t2:t1:t0 < 1/16 W^3 + W^2 */
 
         /* Compute t2:t1:t0 := t2:t1:t0 + km, km < Wm < 1/4 W^3 */
@@ -447,9 +437,22 @@ class arithxx_modredc126::Modulus
 
         u64arith_sub_2_2_ge(&(t[1]), &(t[2]), m[0], m[1]);
 
-        r.r[0] = t[1];
-        r.r[1] = t[2];
+        r[0] = t[1];
+        r[1] = t[2];
 #endif
+    }
+    void mul(Residue & r, const Residue & a, const Integer & b) const
+    {
+        mul(r.r, a.r, b);
+    }
+  public:
+    /* of course a Residue is just an Integer with some added type info.
+     * We have a few distinct overloads of the mul code for convenience,
+     * mostly because of the batchinv_redc code which plays a few tricks.
+     */
+    void mul(Residue & r, const Residue & a, const Residue & b) const
+    {
+        mul(r.r, a.r, b.r);
     }
 
     void sqr(Residue & r, Residue const & a) const
@@ -600,37 +603,6 @@ class arithxx_modredc126::Modulus
     }
     /* }}} */
 
-    /* {{{ iteration support */
-    bool next(Residue & r) const
-    {
-        u64arith_add_1_2(&(r.r[0]), &(r.r[1]), 1);
-        return (finished(r));
-    }
-
-    bool finished(Residue const & r) const
-    {
-        return (r.r[0] == m[0] && r.r[1] == m[1]);
-    }
-    /* }}} */
-
-    /* prototypes of non-inline functions */
-    bool inv(Residue &, Residue const &) const;
-    bool batchinv_redc(Residue *, uint64_t const *, size_t, Integer const *) const;
-    struct batch_Q_to_Fp_context_s {
-        Integer c;
-        uint64_t rem_ul, ratio_ul, den_inv;
-        Modulus & m;
-    };
-    typedef struct batch_Q_to_Fp_context_s batch_Q_to_Fp_context_t;
-
-    batch_Q_to_Fp_context_t * batch_Q_to_Fp_init(Integer const &,
-                                                 Integer const &) const;
-    void batch_Q_to_Fp_clear(batch_Q_to_Fp_context_t *) const;
-
-    bool batch_Q_to_Fp(uint64_t *, batch_Q_to_Fp_context_t const *, uint64_t,
-                       int, uint64_t const *, size_t) const;
-    int jacobi(Residue const &) const;
-
   protected:
     /* Computes r = (a * b * 2^-64) mod m, where a is in REDC
      * representation */
@@ -728,7 +700,24 @@ class arithxx_modredc126::Modulus
 
     template <int B, typename WordType>
     void npow_oneWord(WordType mask, WordType word, Residue & t, Residue & u) const;
+
+  private:
+    std::vector<Integer> batchinv_redc(std::vector<uint64_t> const & a, Integer c) const;
+
+  public:
+    static std::vector<uint64_t> batch_Q_to_Fp(Integer const & num,
+            Integer const & den, int k,
+            std::vector<uint64_t> const & p);
+    struct batch_Q_to_Fp_context;
 };
+
+struct arithxx_modredc126::Modulus::batch_Q_to_Fp_context {
+    Integer remainder, quotient;
+    Modulus D;
+    batch_Q_to_Fp_context(Integer const & num, Integer const & den);
+    std::vector<uint64_t> operator()(std::vector<uint64_t> const & p, int k=0) const;
+};
+
 
 
 

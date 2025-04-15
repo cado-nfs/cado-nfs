@@ -119,9 +119,16 @@ public:
     /** Set the value of the cxx_mpz to that of the uint64_t array s,
      * least significant word first. 
      */
+private:
     bool set(const uint64_t *s, const size_t len) {
         mpz_import(x, len, -1, sizeof(uint64_t), 0, 0, s);
         return true;
+    }
+public:
+    cxx_mpz(const uint64_t *s, const size_t len)
+        : cxx_mpz()
+    {
+        set(s, len);
     }
 
     /** Return the size in uint64_ts that is required in the output for
@@ -276,12 +283,20 @@ inline cxx_mpz & operator>>=(cxx_mpz & a, const mp_bitcnt_t s)  { mpz_tdiv_q_2ex
 inline cxx_mpz operator>>(cxx_mpz & a, const mp_bitcnt_t s)  { cxx_mpz r{a}; mpz_tdiv_q_2exp(r, r, s); return r; }
 
 
-#if 0
 inline cxx_mpz operator|(cxx_mpz const & a, cxx_mpz const & b)  { cxx_mpz r; mpz_ior(r, a, b); return r; }
 inline cxx_mpz operator|(cxx_mpz const & a, const unsigned long b)  { cxx_mpz r; mpz_ior(r, a, cxx_mpz(b)); return r; }
 inline cxx_mpz & operator|=(cxx_mpz & a, cxx_mpz const & b)  { mpz_ior(a, a, b); return a; }
 inline cxx_mpz & operator|=(cxx_mpz & a, const unsigned long b)  { mpz_ior(a, a, cxx_mpz(b)); return a; }
-#endif
+
+inline cxx_mpz operator^(cxx_mpz const & a, cxx_mpz const & b)  { cxx_mpz r; mpz_xor(r, a, b); return r; }
+inline cxx_mpz operator^(cxx_mpz const & a, const unsigned long b)  { cxx_mpz r; mpz_xor(r, a, cxx_mpz(b)); return r; }
+inline cxx_mpz & operator^=(cxx_mpz & a, cxx_mpz const & b)  { mpz_xor(a, a, b); return a; }
+inline cxx_mpz & operator^=(cxx_mpz & a, const unsigned long b)  { mpz_xor(a, a, cxx_mpz(b)); return a; }
+
+inline cxx_mpz operator&(cxx_mpz const & a, cxx_mpz const & b)  { cxx_mpz r; mpz_and(r, a, b); return r; }
+inline cxx_mpz operator&(cxx_mpz const & a, const unsigned long b)  { cxx_mpz r; mpz_and(r, a, cxx_mpz(b)); return r; }
+inline cxx_mpz & operator&=(cxx_mpz & a, cxx_mpz const & b)  { mpz_and(a, a, b); return a; }
+inline cxx_mpz & operator&=(cxx_mpz & a, const unsigned long b)  { mpz_and(a, a, cxx_mpz(b)); return a; }
 
 inline bool operator==(cxx_mpq const & a, cxx_mpq const & b) { return mpq_cmp(a, b) == 0; }
 inline bool operator!=(cxx_mpq const & a, cxx_mpq const & b) { return mpq_cmp(a, b) != 0; }

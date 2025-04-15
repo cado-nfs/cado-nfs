@@ -79,6 +79,31 @@ namespace arithxx_details {
                     return make_array_impl(downcast(), make_index_sequence<N>());
                 }
 
+            Residue operator()(Integer const& a) const
+            {
+                Residue r(downcast());
+                downcast().set(r, a);
+                return r;
+            }
+            Residue operator()(uint64_t const a) const
+            {
+                Residue r(downcast());
+                downcast().set(r, a);
+                return r;
+            }
+            Residue operator()(int64_t const a) const
+            {
+                Residue r(downcast());
+                downcast().set(r, a);
+                return r;
+            }
+            Residue operator()(int const a) const
+            {
+                Residue r(downcast());
+                downcast().set(r, (int64_t) a);
+                return r;
+            }
+
             void pow(Residue &, Residue const &, uint64_t) const;
             void pow(Residue &, Residue const & b, Integer const & e) const;
             void pow(Residue &, Residue const &, uint64_t const *, size_t) const;
@@ -96,6 +121,13 @@ namespace arithxx_details {
             bool batchinv(Residue * r, Residue const * a, size_t n, Residue const * c) const;
 
             void gcd (Integer &, const Residue &) const;
+            int jacobi(Residue const &) const;
+
+
+            bool inv(Residue &, Residue const &) const;
+            bool intinv(Integer & r, Integer const & a) const;
+            bool inv_odd(Residue & r, Residue const & a) const;
+            bool inv_powerof2(Residue & r, Residue const & a) const;
 #if 0
             /* 
              * This is an interesting alternative. Currently, a function

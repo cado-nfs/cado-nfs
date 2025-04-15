@@ -145,6 +145,10 @@ public:
     StaticHistogram(StaticHistogram&&) = default;
 };
 
+struct convert_bool {
+    template<typename T>
+    bool operator()(T const & x) const { return bool(x); }
+};
 
 #if __cplusplus < 201402L
 namespace std {

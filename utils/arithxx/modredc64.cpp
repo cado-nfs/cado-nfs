@@ -3,6 +3,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include <vector>
+
 #include "arithxx_common.hpp"
 #include "macros.h"
 #include "modredc64.hpp"
@@ -16,9 +18,11 @@
 
 // scan-headers: stop here
 
-bool arithxx_modredc64::Modulus::inv(Residue & r, const Residue & A) const
+template<>
+bool arithxx_details::api<arithxx_modredc64>::inv(Residue & r, const Residue & A) const
 {
-    uint64_t x = m, y, u, v;
+    auto const & me = downcast();
+    uint64_t x = me.m, y, u, v;
     int t, lsh;
 
     ASSERT(A.r < x);
@@ -29,12 +33,12 @@ bool arithxx_modredc64::Modulus::inv(Residue & r, const Residue & A) const
 
     /* Let A = a*2^w, so we want the Montgomery representation of 1/a,
        which is 2^w/a. We start by getting y = a */
-    y = get_u64(A);
+    y = me.get_u64(A);
 
     /* We simply set y = a/2^w and t=0. The result before
        correction will be 2^(w+t)/a so we have to divide by t, which
        may be >64, so we may have to do a full and a variable width REDC. */
-    frommontgomery(y, y);
+    me.frommontgomery(y, y);
     /* Now y = a/2^w */
     t = 0;
 
@@ -92,7 +96,7 @@ bool arithxx_modredc64::Modulus::inv(Residue & r, const Residue & A) const
            We maintained ya == u2^t (mod m) and xa = -v2^t (mod m).
            So 1/a = -v2^t.
          */
-        u = m - v;
+        u = me.m - v;
         /* Now 1/a = u2^t */
     }
 
@@ -103,9 +107,8 @@ bool arithxx_modredc64::Modulus::inv(Residue & r, const Residue & A) const
        so that the low t bits of the sum are 0 and we can right-shift by t. */
     if (t >= 64) {
         uint64_t tlow, thigh;
-        tlow = u * invm; /* tlow <= 2^w-1 */
-        u64arith_mul_1_1_2(&tlow, &thigh, tlow,
-                           m); /* thigh:tlow <= (2^w-1)*m */
+        tlow = u * me.invm; /* tlow <= 2^w-1 */
+        u64arith_mul_1_1_2(&tlow, &thigh, tlow, me.m); /* thigh:tlow <= (2^w-1)*m */
         u = thigh + ((u != 0) ? 1 : 0);
         /* thigh:tlow + u < (2^w-1)*m + m < 2^w*m. No correction necesary */
         t -= 64;
@@ -118,9 +121,8 @@ bool arithxx_modredc64::Modulus::inv(Residue & r, const Residue & A) const
         /* Doing a left shift first and then a full REDC needs a modular
            addition at the end due to larger summands and thus is probably
            slower */
-        tlow = ((u * invm) & (((uint64_t)1 << t) - 1)); /* tlow <= 2^t-1 */
-        u64arith_mul_1_1_2(&tlow, &thigh, tlow,
-                           m); /* thigh:tlow <= m*(2^t-1) */
+        tlow = ((u * me.invm) & (((uint64_t)1 << t) - 1)); /* tlow <= 2^t-1 */
+        u64arith_mul_1_1_2(&tlow, &thigh, tlow, me.m); /* thigh:tlow <= m*(2^t-1) */
         u64arith_add_1_2(&tlow, &thigh,
                          u); /* thigh:tlow <= m*2^t-1 (since u<m) */
         /* Now the low t bits of tlow are 0 */
@@ -134,20 +136,25 @@ bool arithxx_modredc64::Modulus::inv(Residue & r, const Residue & A) const
     return true;
 }
 
-/* same as inv, but for classical representation (not Montgomery).
-   FIXME: should the operands be Integer type? */
-bool arithxx_modredc64::Modulus::intinv(Residue & r, Residue const & A) const
+/* same as inv, but for classical representation (not Montgomery). */
+template<>
+bool arithxx_details::api<arithxx_modredc64>::intinv(Integer & r, Integer const & A) const
 {
-    uint64_t x = m, y, u, v;
+    auto const & me = downcast();
+    uint64_t x = me.m, y, u, v;
     int t, lsh;
 
-    assertValid(A);
     ASSERT(x & 1);
 
-    if (is0(A))
+    if (A == 0)
         return false;
 
-    y = A.r;
+    y = uint64_t(A);
+
+    /* We don't expect it's going to happen normally, xcept maybe for tests */
+    if (y >= me.m)
+        y %= me.m;
+
     t = 0;
 
     u = 1;
@@ -174,7 +181,7 @@ bool arithxx_modredc64::Modulus::intinv(Residue & r, Residue const & A) const
             x >>= lsh;
             t += lsh;
             u <<= lsh;
-        } while (x > y); /* ~50% branch taken :( */
+        } while (x > y); /* about 50% branch taken :( */
 
         /* x is the one that got reduced, test if we're done */
         /* Here, x and y are odd, 0 < x <= y, u is even and v is odd */
@@ -214,7 +221,7 @@ bool arithxx_modredc64::Modulus::intinv(Residue & r, Residue const & A) const
         /* We exited the loop after reducing x */
         /* We maintained ya == u2^t (mod m) and xa = -v2^t (mod m).
            So 1/a = -v2^t. */
-        u = m - v;
+        u = me.m - v;
         /* Now 1/a = u2^t */
     }
 
@@ -225,9 +232,8 @@ bool arithxx_modredc64::Modulus::intinv(Residue & r, Residue const & A) const
        so that the low t bits of the sum are 0 and we can right-shift by t. */
     if (t >= 64) {
         uint64_t tlow, thigh;
-        tlow = u * invm; /* tlow <= 2^w-1 */
-        u64arith_mul_1_1_2(&tlow, &thigh, tlow,
-                           m); /* thigh:tlow <= (2^w-1)*m */
+        tlow = u * me.invm; /* tlow <= 2^w-1 */
+        u64arith_mul_1_1_2(&tlow, &thigh, tlow, me.m); /* thigh:tlow <= (2^w-1)*m */
         u = thigh + ((u != 0) ? 1 : 0);
         /* thigh:tlow + u < (2^w-1)*m + m < 2^w*m. No correction necesary */
         t -= 64;
@@ -240,11 +246,9 @@ bool arithxx_modredc64::Modulus::intinv(Residue & r, Residue const & A) const
         /* Doing a left shift first and then a full REDC needs a modular
            addition at the end due to larger summands and thus is probably
            slower */
-        tlow = ((u * invm) & (((uint64_t)1 << t) - 1)); /* tlow <= 2^t-1 */
-        u64arith_mul_1_1_2(&tlow, &thigh, tlow,
-                           m); /* thigh:tlow <= m*(2^t-1) */
-        u64arith_add_1_2(&tlow, &thigh,
-                         u); /* thigh:tlow <= m*2^t-1 (since u<m) */
+        tlow = ((u * me.invm) & (((uint64_t)1 << t) - 1)); /* tlow <= 2^t-1 */
+        u64arith_mul_1_1_2(&tlow, &thigh, tlow, me.m); /* thigh:tlow <= m*(2^t-1) */
+        u64arith_add_1_2(&tlow, &thigh, u); /* thigh:tlow <= m*2^t-1 (since u<m) */
         /* Now the low t bits of tlow are 0 */
         ASSERT_EXPENSIVE((tlow & (((uint64_t)1 << t) - 1)) == 0);
         u64arith_shrd(&tlow, thigh, tlow, t);
@@ -252,55 +256,63 @@ bool arithxx_modredc64::Modulus::intinv(Residue & r, Residue const & A) const
         ASSERT_EXPENSIVE((thigh >> t) == 0 && u < m);
     }
 
-    r.r = u;
+    r = u;
     return true;
 }
 
-/* Compute r[i] = a[i]^(-1) mod m, for 0 <= i < n, where a[i] are
-   non-negative integers and r[i] are integers with 0 <= r[i] < m.
-   a[i] need not be reduced modulo m. r_ul and a_ul must be non-overlapping.
-   If any inverse does not exists, returns 0 and contents of r are undefined,
-   otherwise returns 1. */
+/* Compute r[i] = c * a[i]^(-1) mod m, for 0 <= i < n, where a[i] are
+   non-negative integers and r[i] are integers with 0 <= r[i] < m.  a[i]
+   need not be reduced modulo m. r_ul and a_ul must be non-overlapping.
+   If any inverse does not exists, returns 0 and contents of r are
+   undefined, otherwise returns 1. */
 
-bool arithxx_modredc64::Modulus::batchinv_redc(uint64_t * r_ul, uint64_t const * a_ul,
-                           uint64_t const c, size_t const n) const
+std::vector<arithxx_modredc64::Integer>
+arithxx_modredc64::Modulus::batchinv_redc(std::vector<uint64_t> const & a, Integer c) const
 {
-    Residue R(*this);
-    uint64_t t; /* Not using the temp var, and writing directly into r[i],
-                        is slower, in spite of the restrict hint :( */
+    /* We simply don't convert c to or from Montgomery representation.
+     * Strangely enough, it all turns out well. */
 
-    /* We simply don't convert to or from Montgomery representation, but we
-       have to divide the big inverse by \beta twice.
-       Strangely enough, it all turns out well. */
+    if (a.empty())
+        return {};
 
-    if (n == 0)
-        return true;
-
-    /* Reduce a[0] % m, and store in r_ul[0]. We multiply by 1 (in REDC form),
-       which produces a reduced representative */
-    mul_u64_u64(t, one, a_ul[0]);
-    ASSERT_ALWAYS(t < m);
-    r_ul[0] = t;
-    for (size_t i = 1; i < n; i++) {
-        R.r = t;
-        mul_u64_u64(t, R, a_ul[i]);
-        ASSERT_ALWAYS(t < m);
-        r_ul[i] = t;
+    std::vector<Integer> r;
+    r.reserve(a.size());
+    /* The a[i]'s need not be reduced. When we multiply them by something
+     * (by 1 for a[0], for example), we get a reduced representative */
+    Residue R = one;
+    for (auto const & x : a) {
+        mul_u64_u64(R.r[0], R, x);
+        ASSERT_ALWAYS(R.r < m);
+        r.push_back(R.r);
     }
 
-    R.r = r_ul[n - 1];
+    /* r[i] is a reduced representative of a[0]*...*a[i]. It
+     * happens to be the Montgomery representative of
+     * a'_0*...*a'_i where a'_i = a[i]/beta.
+     */
     int const rc = inv(R, R);
     if (rc == 0)
-        return false;
-    mul_u64_u64(R.r, R, c);
-    frommontgomery(R.r, R.r);
+        return {};
 
-    for (size_t i = n - 1; i > 0; i--) {
-        mul_u64_u64(r_ul[i], R, r_ul[i - 1]);
-        mul_u64_u64(R.r, R, a_ul[i]);
+    /* R is the Montgomery representative of [a'_0*...*a'_{n-1}]^-1
+     * c is the Montgomery representative of c/beta
+     */
+    mul_u64_u64(R.r[0], R, uint64_t(c));
+    frommontgomery(R.r[0], R.r[0]);
+    /* R is now [a'_0*...*a'_{n-1}]^-1*c/beta, a.k.a the Montgomery
+     * representative of [a'_0*...*a'_{n-1}]^-1*c/beta^2 */
+
+    for (size_t i = a.size() - 1; i > 0; i--) {
+        mul_u64_u64(r[i][0], R, r[i - 1][0]);
+        /* r[i] is the Montgomery representative of a'_i^-1*c/beta^2
+         * i.e.
+         * r[i] = a'_i^-1*c/beta == (a_i / beta)^-1 * c/beta = c/a_i
+         */
+        mul_u64_u64(R.r[0], R, a[i]);
     }
-    r_ul[0] = R.r;
-    return true;
+    r[0] = R.r;
+
+    return r;
 }
 
 /* Let v = lo + 2^64 * hi and
@@ -326,33 +338,42 @@ MAYBE_UNUSED static inline int check_divisible(uint64_t const lo,
     return r == 0;
 }
 
+arithxx_modredc64::Modulus::batch_Q_to_Fp_context::batch_Q_to_Fp_context(
+        Integer const & num, Integer const & den)
+    : remainder(num[0] % den[0])
+    , quotient(num[0] / den[0])
+    , D(den)
+{
+}
+
+std::vector<uint64_t> arithxx_modredc64::Modulus::batch_Q_to_Fp_context::operator()(std::vector<uint64_t> const & p, int const k) const
+{
+    /* We use -rem (mod den) here. batchinv_ul() does not
+       mandate its c parameter to be fully reduced, which occurs here in the
+       case of rem == 0. */
+    auto r = D.batchinv_redc(p, Integer(D.m - remainder[0]));
+    if (r.empty())
+        return {};
+
+    std::vector<uint64_t> ri(p.size());
+
+    for (size_t i = 0; i < p.size(); i++)
+        ri[i] = u64arith_post_process_inverse(r[i][0], p[i],
+                remainder[0], -D.invm, quotient[0], k);
+
+    return ri;
+}
+
 /* For each 0 <= i < n, compute r[i] = num/(den*2^k) mod p[i].
    den must be odd. If k > 0, then all p[i] must be odd.
    The memory pointed to be r and p must be non-overlapping.
    Returns 1 if successful. If any modular inverse does not exist,
    returns 0 and the contents of r are undefined. */
-bool arithxx_modredc64::Modulus::batch_Q_to_Fp(uint64_t * r, uint64_t const num,
-                            uint64_t const den, uint64_t const k,
-                            uint64_t const * p, size_t const n)
+std::vector<uint64_t> arithxx_modredc64::Modulus::batch_Q_to_Fp(Integer const & num,
+                            Integer const & den, int const k,
+                            std::vector<uint64_t> const & p)
 {
-    uint64_t const ratio = num / den, rem = num % den;
-    arithxx_modredc64::Modulus const D(den);
-
-    ASSERT_ALWAYS(den % 2 == 1);
-    /* We use -rem (mod den) here. batchinv_ul() does not
-       mandate its c parameter to be fully reduced, which occurs here in the
-       case of rem == 0. */
-    if (D.batchinv_redc(r, p, den - rem, n) == 0) {
-        return false;
-    }
-
-    uint64_t const den_inv = u64arith_invmod(den);
-
-    for (size_t i = 0; i < n; i++)
-        r[i] =
-            u64arith_post_process_inverse(r[i], p[i], rem, den_inv, ratio, k);
-
-    return true;
+    return batch_Q_to_Fp_context(num, den)(p, k);
 }
 
 template struct arithxx_details::api<arithxx_modredc64>;

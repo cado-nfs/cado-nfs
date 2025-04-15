@@ -149,14 +149,13 @@ uint64_t ECWeierstrass<layer>::AffinePoint::point_order (const uint64_t known_m,
   Residue x(curve.m), d(curve.m);
   uint64_t min, max, i, j, order, cof, p;
   uint64_t giant_step, giant_min, baby_len;
-  Integer tm;
 
   ASSERT (known_r < known_m);
 
   if (is0())
       return 1;
   
-  curve.m.getmod (tm);
+  Integer tm = curve.m.getmod ();
 
   if (verbose >= 2)
   {
@@ -275,9 +274,8 @@ found_inf:
   smul (Pi, i);
   if (!Pi.is0())
     {
-      Integer tx1, ty1;
-      curve.m.get (tx1, x);
-      curve.m.get (ty1, y);
+      const Integer tx1 = curve.m.get (x);
+      const Integer ty1 = curve.m.get (y);
 #ifndef MODMPZ_MAXBITS
       fprintf (stderr, "ec_order: Error, %" PRIu64 "*(%" PRIu64 ", %" PRIu64 ") (mod %" PRIu64 ") is "
                "not the point at infinity\n",
@@ -326,11 +324,7 @@ found_inf:
   smul (Pi, order);
   if (!Pi.is0())
     {
-      Integer tx1, ty1;
-      curve.m.get (tx1, x);
-      curve.m.get (ty1, y);
-      fprintf (stderr, "ec_order: Error, final order %" PRIu64 " is wrong\n",
-               order);
+      fprintf (stderr, "ec_order: Error, final order %" PRIu64 " is wrong\n", order);
       abort ();
     }
 

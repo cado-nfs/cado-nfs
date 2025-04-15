@@ -25,32 +25,34 @@
 /* Put 1/s (mod t) in r and return 1 if s is invertible,
    or set r to 0 and return 0 if s is not invertible */
 
-bool arithxx_mod64::Modulus::inv(Residue & r, Residue const & sp) const
+template<>
+bool arithxx_details::api<arithxx_mod64>::inv(Residue & r, Residue const & sp) const
 {
+    auto const & me = downcast();
     int64_t u1, v1;
     uint64_t u2, v2, s, t;
 #ifndef NDEBUG
-    Residue tmp(*this);
+    Residue tmp(me);
 #endif
 
 #ifndef NDEBUG
     /* Remember input in case r overwrites it */
-    set(tmp, sp);
+    me.set(tmp, sp);
 #endif
 
-    s = get_u64(sp);
-    t = getmod_u64();
+    s = me.get_u64(sp);
+    t = me.getmod_u64();
 
     ASSERT(t > 0);
     ASSERT(s < t);
 
     if (s == 0) {
-        set0(r); /* Not invertible */
+        me.set0(r); /* Not invertible */
         return false;
     }
 
     if (s == 1) {
-        set1(r);
+        me.set1(r);
         return true;
     }
 
@@ -84,7 +86,7 @@ bool arithxx_mod64::Modulus::inv(Residue & r, Residue const & sp) const
 
         if (u2 != 1) {
             /* printf ("s=%lu t=%lu found %lu\n", s[0], t[0], u2); */
-            set0(r); /* non-trivial gcd */
+            me.set0(r); /* non-trivial gcd */
             return false;
         }
 
@@ -94,11 +96,11 @@ bool arithxx_mod64::Modulus::inv(Residue & r, Residue const & sp) const
 
     ASSERT((uint64_t)u1 < t);
 
-    set(r, (uint64_t)u1);
+    me.set(r, (uint64_t)u1);
 
 #ifndef NDEBUG
-    mul(tmp, tmp, r);
-    ASSERT(is1(tmp));
+    me.mul(tmp, tmp, r);
+    ASSERT(me.is1(tmp));
 #endif
 
     return true;
@@ -112,10 +114,12 @@ static uint64_t const even_inv_lookup_table[64] = {
     87, 89,  67,  101, 15, 17, 59, 93,  71,  73,  51,  85, 127};
 
 /* Faster modul_inv for the case where m = 2^k */
-bool arithxx_mod64::Modulus::inv_powerof2(Residue & r, Residue const & A) const
+template<>
+bool arithxx_details::api<arithxx_mod64>::inv_powerof2(Residue & r, Residue const & A) const
 {
-    uint64_t const x = getmod_u64();
-    uint64_t const y = get_u64(A);
+    auto const & me = downcast();
+    uint64_t const x = me.getmod_u64();
+    uint64_t const y = me.get_u64(A);
 
     ASSERT(!(x & (x - 1))); /* assert that x is a power of 2 */
     ASSERT(y < x);
@@ -123,25 +127,26 @@ bool arithxx_mod64::Modulus::inv_powerof2(Residue & r, Residue const & A) const
         return false;
     else {
         if (!(x >> 4)) /* x = 2, 4 or 8 */
-            set(r, y);
+            me.set(r, y);
         else if (!(x >> 8)) /* x = 16, 32, 64, or 128 */
-            set(r, even_inv_lookup_table[(y - 1) >> 1] & (x - 1));
+            me.set(r, even_inv_lookup_table[(y - 1) >> 1] & (x - 1));
         else {
             uint64_t const h = x >> (u64arith_ctz(x) >> 1);
             Modulus const m2(h);
-            Residue B(*this);
+            Residue B(me);
             m2.set_reduced(B, (y & (h - 1)));
 
             m2.inv_powerof2(r, B);
-            uint64_t const t = get_u64(r);
-            set(r, (2 * t - t * t * y) & (x - 1));
+            uint64_t const t = me.get_u64(r);
+            me.set(r, (2 * t - t * t * y) & (x - 1));
         }
         return true;
     }
 }
 
 /* Faster modul_inv for the case where m is odd */
-bool arithxx_mod64::Modulus::inv_odd(Residue & r, Residue const & A) const
+template<>
+bool arithxx_details::api<arithxx_mod64>::inv_odd(Residue & r, Residue const & A) const
 {
     /* TODO: do REDC trick like in ModulusREDC64 */
     return inv(r, A);

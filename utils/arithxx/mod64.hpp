@@ -45,8 +45,7 @@ class arithxx_mod64::Residue : public arithxx_details::Residue_base<arithxx_mod6
      */
     Residue & operator=(Integer const & s) ATTRIBUTE_DEPRECATED
     {
-        r = 0;
-        s.get(&r, 1);
+        r = s[0];
         return *this;
     }
     Residue & operator=(uint64_t const s) ATTRIBUTE_DEPRECATED
@@ -79,7 +78,7 @@ class arithxx_mod64::Modulus
     explicit Modulus(Integer const & s)
         : m(s)
     { }
-    void getmod(Integer & r) const { r = m; }
+    Integer getmod() const { return Integer(m); }
 
   protected:
     /* Methods used internally */
@@ -122,11 +121,9 @@ class arithxx_mod64::Modulus
         return s.r;
     }
 
-    /* Methods of the API */
-  public:
     uint64_t getmod_u64() const { return m; }
 
-    /* Methods for residues */
+  public:
 
     /* {{{ set(*4), set_reduced(*2), set0, set1 */
     void set(Residue & r, Residue const & s) const
@@ -165,10 +162,10 @@ class arithxx_mod64::Modulus
     /* }}} */
 
     /* {{{ get equal is0 is1 */
-    void get(Integer & r, Residue const & s) const
+    Integer get(Residue const & s) const
     {
         assertValid(s);
-        r = s.r;
+        return Integer(s.r);
     }
     bool equal(Residue const & a, Residue const & b) const
     {
@@ -281,15 +278,11 @@ class arithxx_mod64::Modulus
     }
     /* }}} */
 
-    /* {{{ iteration support */
-    bool next(Residue & r) const { return (++r.r == m); }
-    bool finished(Residue const & r) const { return (r.r == m); }
-    /* }}} */
-
     /* Computes (a / 2^wordsize) % m, but result can be r = m.
        Input a must not be equal 0 */
     void redcsemi_u64_not0(Residue & r, uint64_t const a,
                            uint64_t const invm) const
+        ATTRIBUTE_DEPRECATED    /* never used, never tested! */
     {
         uint64_t tlow, thigh;
         ASSERT(a != 0);
@@ -302,9 +295,5 @@ class arithxx_mod64::Modulus
         /* r <= floor ((2^w * (m + 1) - m) / 2^w) <= floor((m + 1) - m/2^w)
              <= m */
     }
-
-    bool inv(Residue &, Residue const &) const;
-    bool inv_odd(Residue &, Residue const &) const;
-    bool inv_powerof2(Residue &, Residue const &) const;
 };
 #endif /* CADO_UTILS_ARITHXX_MOD64_HPP */
