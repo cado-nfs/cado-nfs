@@ -254,30 +254,6 @@ class arithxx_mod64::Modulus
     }
     /* }}} */
 
-    /* {{{ V_dadd and V_dbl for Lucas sequences */
-    /* Given a = V_n (x), b = V_m (x) and d = V_{n-m} (x), compute V_{m+n} (x).
-     * r can be the same variable as a or b but must not be the same variable as
-     * d.
-     */
-    void V_dadd(Residue & r, Residue const & a, Residue const & b,
-                Residue const & d) const
-    {
-        ASSERT(&r != &d);
-        mul(r, a, b);
-        sub(r, r, d);
-    }
-
-    /* Given a = V_n (x) and two = 2, compute V_{2n} (x).
-     * r can be the same variable as a but must not be the same variable as two.
-     */
-    void V_dbl(Residue & r, Residue const & a, Residue const & two) const
-    {
-        ASSERT(&r != &two);
-        sqr(r, a);
-        sub(r, r, two);
-    }
-    /* }}} */
-
     /* Computes (a / 2^wordsize) % m, but result can be r = m.
        Input a must not be equal 0 */
     void redcsemi_u64_not0(Residue & r, uint64_t const a,

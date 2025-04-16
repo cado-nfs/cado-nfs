@@ -70,7 +70,7 @@ pretty much covered by the existing code.
 
 ## the residue interfaces.
 
-First, the various trivialities.
+### First, the various trivialities.
  - `init`, `init_noset0`, `clear`, `swap`: -> ctor/dtor
  - `set`, `set_ul`, `set_ul_reduced`, `set_int`, `set_int_reduced`: ->
    the `mod.set` and `mod.set_reduced` interfaces do this.
@@ -80,51 +80,58 @@ First, the various trivialities.
 Note that arithxx includes several other means to create a residue, such
 as `operator()`.
 
-Comparisons. We don't have full-fledged comparisons of `Residue` types.
+### Comparisons.
+
+We don't have full-fledged comparisons of `Residue` types.
 The existing interface only works via the `Modulus` member functions, and
 only does the following comparisons. Under the hood, these could all be
 done on the `Residue` types alone.
  - `equal`, `is0`, `is1`: -> `mod.{equal,is0,is1}`
 
-Addition/subtractions:
+### Addition/subtractions:
  - `add`, `add_ul`, `sub`, `sub_ul`, `neg`: -> `mod.{neg,add,sub}`
  - `add1`, `sub1`: -> `mod.{add1,sub1}`
 
-Mul/square. These are of course speed critical, most (all?) interfaces
+### Mul/square.
+
+These are of course speed critical, most (all?) interfaces
 have these coded right in the header file.
  - `mul`, `sqr`: -> same name
 
-Divisions by constants.
+### Divisions by constants.
  - `div2`, `div3`, `div5`, `div7`, `div11`, `div13`: -> same name
 
-Powers.
+### Powers.
  - `pow_ul`, `2pow_ul`, `pow_mp`, `2pow_mp`: -> `pow`
 
-Primality tests:
+### Primality tests:
  - `sprp`, `sprp2`, `isprime`: -> we have these with the same name,
    however testing is a bit deficient.
 
-Inversion / Euclidean algorithm
+### Inversion / Euclidean algorithm
  - `inv`, `gcd`, `jacobi`: -> same name
 
-## Iteration support
+### Iteration support
 
  - `next`, `finished`: the only use in our code base was not with the
    abstract interface but rather with modul_next and modul_finished
    directly.  The interface was clumsy isn't that of an iterator, and
    there's no test. -> **interface dropped**.
 
-## batch inversion
+### batch inversion
  - `batchinv`: -> same name
  - `batch_Q_to_Fp` and `batch_Q_to_Fp_context`. These correspond to dead
    code in `las-fill-in-buckets.cpp`, meant to compute rational roots in
    batches. It got commented out at some point. The backend code is now
    tested again, but not put in production.
 
-## I/O
-
+### I/O
  - `fprintf`, `printf`: -> all under the umbrella of libfmt overloads,
    now.
+
+### Lucas sequences
+ - `V`, `V_dadd`, `V_dbl`: TODO (Test)
+
 
 ## Interfaces that only exist in `arithxx`
  - `inv_odd` and `inv_powerof2`. These are in fact only specialized for

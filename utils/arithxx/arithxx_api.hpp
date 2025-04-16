@@ -13,6 +13,7 @@
 #endif
 
 #include "arithxx_residue_std_op.hpp"
+#include "macros.h"
 
 namespace arithxx_details {
 
@@ -117,7 +118,6 @@ namespace arithxx_details {
             bool div11(Residue &, Residue const &) const;
             bool div13(Residue &, Residue const &) const;
 
-            void V(Residue & r, Residue * rp1, Residue const & b, uint64_t k) const;
             bool batchinv(Residue * r, Residue const * a, size_t n, Residue const * c) const;
 
             void gcd (Integer &, const Residue &) const;
@@ -158,6 +158,43 @@ namespace arithxx_details {
             void pow2 (Residue &r, const uint64_t *e, size_t e_nrwords) const;
             void pow2 (Residue &r, const Integer &e) const;
             void pow3 (Residue &r, uint64_t e) const;
+
+            /* {{{ V_dadd and V_dbl for Lucas sequences.
+             *
+             * No implementation has specialized Lucas sequences code, so
+             * it's fine to define implementations right here. We compute
+             * V_n = V_n(b, 2), as defined by V_0=2, V_1=b, V_2=b^2-2
+             * (or, if b=x+y with xy=1, V_n=x^n+y^n).
+             */
+
+            /* Given a = V_n (x), b = V_m (x) and d = V_{n-m} (x), the
+             * differential addition V_dadd computes V_{m+n} (x).  r can
+             * be the same variable as a or b but must not be the same
+             * variable as d.
+             */
+            void V_dadd(Residue & r, Residue const & a, Residue const & b,
+                    Residue const & d) const
+            {
+                auto const & me = downcast();
+                ASSERT(&r != &d);
+                me.mul(r, a, b);
+                me.sub(r, r, d);
+            }
+
+            /* Given a = V_n (x) and two = 2, compute V_{2n} (x).  r can
+             * be the same variable as a but must not be the same
+             * variable as two.
+             */
+            void V_dbl(Residue & r, Residue const & a, Residue const & two) const
+            {
+                auto const & me = downcast();
+                ASSERT(&r != &two);
+                me.sqr(r, a);
+                me.sub(r, r, two);
+            }
+            /* }}} */
+
+            void V(Residue & r, Residue * rp1, Residue const & b, Integer const & k) const;
 
             protected:
             bool find_minus1 (Residue &r1, const Residue &minusone, int po2) const;

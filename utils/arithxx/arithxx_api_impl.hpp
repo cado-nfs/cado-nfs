@@ -163,7 +163,7 @@ void arithxx_details::api<layer>::pow(Residue & r,
 template <typename layer>
 void arithxx_details::api<layer>::V(Residue & r, Residue * rp1,
                                                  Residue const & b,
-                                                 uint64_t const k) const
+                                                 Integer const & k) const
 {
     auto const & me = downcast();
     Residue t0(me), t1(me), two(me);
@@ -189,32 +189,36 @@ void arithxx_details::api<layer>::V(Residue & r, Residue * rp1,
     } else /* k >= 3 */
     {
         /* Montgomery Ladder */
-        unsigned long mask;
-
-        mask = ~(0UL);
-        mask -= mask / 2; /* Now the most significant bit of i is set */
-        while ((mask & k) == 0)
-            mask >>= 1;
+        Integer mask = Integer(1) << (k.bits()-1);
 
         /* Most significant bit of k is 1, do it outside the loop */
         me.set(t0, b);        /* starting value t0 = V_1 (b) = b */
         me.V_dbl(t1, b, two); /* starting value t1 = V_2 (b) */
-        mask >>= 1;
 
+
+        // t_0 = V_{k // mask}(b)
+        // t_1 = V_{k // mask}(b)
+
+
+        /* XXX explicit conversions to bool are mandatory for cxx_mpz's!
+         */
         /* If the second most significant bit of k is 0, then we do the
          * iteration manually (to avoid to compute again V_2 (b)) As k >= 3, we
          * know that in this case k has at least 3 bits.
          */
-        if (!(k & mask)) /* (t0,t1) <- (V_2 (b), V_3 (b)) */
+        mask >>= 1;
+        if (!bool(k & mask)) /* (t0,t1) <- (V_2 (b), V_3 (b)) */
         {
             me.set(t0, t1);
             me.V_dadd(t1, t1, b, b);
+            // t_0 = V_{k // mask}(b)
+            // t_1 = V_{k // mask}(b)
             mask >>= 1;
         }
 
         for (; mask > 1; mask >>= 1) /* t0 = V_j (b) and t1 = V_{j+1} (b) */
         {
-            if (k & mask) /* j -> 2*j+1. Compute V_{2j+1} and V_{2j+2} */
+            if (bool(k & mask)) /* j -> 2*j+1. Compute V_{2j+1} and V_{2j+2} */
             {
                 me.V_dadd(t0, t1, t0, b);
                 me.V_dbl(t1, t1, two);
@@ -223,10 +227,12 @@ void arithxx_details::api<layer>::V(Residue & r, Residue * rp1,
                 me.V_dadd(t1, t1, t0, b);
                 me.V_dbl(t0, t0, two);
             }
+            // t_0 = V_{k // mask}(b)
+            // t_1 = V_{k // mask}(b)
         }
 
         /* Deal with least significant bit outside the loop */
-        if (k & mask) {
+        if (bool(k & mask)) {
             me.V_dadd(t0, t1, t0, b); /* cannot have r instead of t0, if r is the
                                     * same variable as b, the assert in
                                     * mod_V_dadd would fail */

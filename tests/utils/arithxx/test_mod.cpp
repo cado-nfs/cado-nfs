@@ -844,6 +844,80 @@ public:
         }
         return ok;
     }
+
+    /* This does one Lucas strong primality test on N, with starting
+     * point b
+     */
+    bool test_one_lucas(Integer const & N, Integer const & b) const
+    {
+        Modulus const m(N);
+        Integer ell = N + 1;
+        int k = 0;
+        for( ; (ell & 1) == 0 ; k++, ell>>=1) ;
+        ASSERT_ALWAYS(k);
+        Residue v(m);
+        m.V(v, nullptr, m(b), ell);
+        /* if v is already -2 or +2, things are not going to change */
+        Residue two = m(2);
+        Residue mtwo(m);
+        m.neg(mtwo, two);
+        if (m.equal(v, two) || m.equal(v, mtwo))
+            return true;
+        Residue w(m);
+        for(int i = 0 ; i < k ; i++) {
+            /* invariant: v = v_n = alpha^n + beta^n is neither 2 nor -2,
+             */
+            m.V_dbl(w, v, two); // w = v^2-2
+            /* Here, if N is prime then w can't be +2 because that would
+             * mean that v^2=4 and thus v == +2 or -2, which should both
+             * have been checked earlier. So w == 2 is a sign of
+             * compositeness.
+             */
+            if (m.equal(w, two))
+                return false;
+            if (m.equal(w, mtwo)) {
+                /* w = v_{2n}==-2=alpha^{2n}+beta^{2n} implies that
+                 * u_{2n}^2=(alpha^{2n}-beta^{2n})^2=v_{2n}^2-4=0 so that
+                 * (alpha/beta)^{2n}==1, which implies that
+                 * (alpha/beta)^n is a square root of 1. We can't have
+                 * alpha^n == beta^n since that would imply v_{2n}=+2,
+                 * which isn't. So if N  is prime we must have alpha^n ==
+                 * -beta^n, thus v_n==0
+                 */
+                return m.is0(v);
+            }
+            std::swap(v, w);
+        }
+        return m.equal(v, two) || m.equal(v, mtwo);
+    }
+
+
+    bool test_lucas(const unsigned long iter) const {
+        bool ok = true;
+        for (unsigned long i = 0; i < iter; i++) {
+            Integer const N = randomInteger<Integer>();
+            if (!Modulus::valid(N) || !mpz_probab_prime_p(cxx_mpz(N), 2)) {
+                i--;
+                continue;
+            }
+            /* want b^2-4 not a square */
+            Integer const b = randomInteger<Integer>();
+            auto const Nz = cxx_mpz(N);
+            auto const bz = cxx_mpz(b);
+            int const j = mpz_jacobi(bz-2, Nz) * mpz_jacobi(bz+2, Nz);
+            if (j != -1) {
+                i--;
+                continue;
+            }
+            ok &= test_one_lucas(N, b);
+            if (!ok)
+                fmt::print(stderr, "Tests<{}>::test_one_lucas incorrectly identified {} as composite\n", tname<layer>(), N);
+        }
+        if (ok) {
+            std::cout << "Tests<" << tname<layer>() << ">::test_lucas() passed" << "\n";
+        }
+        return ok;
+    }
     
     bool test_modop() const {
         Integer n;
@@ -897,6 +971,7 @@ public:
         ok &= test_jacobi(iter);
         ok &= test_batchinv(iter);
         ok &= test_batch_Q_to_Fp<layer>(iter);
+        ok &= test_lucas(iter);
         ok &= test_modop();
         return ok;
     }

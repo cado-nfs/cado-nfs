@@ -705,6 +705,4 @@ arithxx_details::api64<layer>::jacobi (const Residue &a_par) const
     return ((s & 2) == 0) ? 1 : -1;
 }
 
-
-
 #endif	/* UTILS_ARITHXX_API64_IMPL_HPP_ */
