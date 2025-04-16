@@ -120,8 +120,27 @@ class arithxx_modredc126::Modulus
         tomontgomery1(r, r);
     }
 
+    void redc1_wide_inplace(uint64_t *t) const
+    {
+        uint64_t k;
+        uint64_t pl, ph;
+
+        k = t[0] * invm;
+        u64arith_mul_1_1_2 (&pl, &ph, k, m[0]);
+        ph += (t[0] != 0UL);        // t[0] == 0
+        u64arith_add_1_2 (&(t[1]), &(t[2]), ph);
+        u64arith_mul_1_1_2 (&pl, &ph, k, m[1]); /* ph:pl < 1/4 W^2 */
+        u64arith_add_2_2 (&(t[1]), &(t[2]), pl, ph);
+    }
+
     void redc1(uint64_t * r, uint64_t const * s) const
     {
+#if 1
+        uint64_t t[3] = { s[0], s[1], 0 };
+        redc1_wide_inplace(t);
+        r[0] = t[1];
+        r[1] = t[2];
+#else
         uint64_t t[4], k;
 
         k = s[0] * invm;
@@ -136,6 +155,7 @@ class arithxx_modredc126::Modulus
         /* r = (k*m + s) / w, k <= w-1. If s < m, then r < m */
         r[0] = t[1];
         r[1] = t[2];
+#endif
     }
 
     /* Do a one-word REDC, i.e., r == s / w (mod m), w = 2^64.
@@ -403,7 +423,7 @@ class arithxx_modredc126::Modulus
               [invm] "rm"(invm)
             : "%rax", "%rdx", "cc");
 #else /* HAVE_GCC_STYLE_AMD64_INLINE_ASM */
-        uint64_t pl, ph, t[4], k;
+        uint64_t pl, ph, t[3];
 
         /* m < 1/4 W^2,  a,b < m */
 
@@ -424,21 +444,12 @@ class arithxx_modredc126::Modulus
         u64arith_add_1_2(&(t[1]), &(t[2]), pl); /* t2:t1:t0 < 1/16 W^3 + W^2 */
 
         /* Compute t2:t1:t0 := t2:t1:t0 + km, km < Wm < 1/4 W^3 */
-        k = t[0] * invm;
-        u64arith_mul_1_1_2(&pl, &ph, k, m[0]);
-        if (t[0] != 0UL)
-            ph++; /* t[0] = 0 */
-        u64arith_add_1_2(&(t[1]), &(t[2]), ph);
-        u64arith_mul_1_1_2(&pl, &ph, k, m[1]); /* ph:pl < 1/4 W^2 */
-        u64arith_add_2_2(&(t[1]), &(t[2]), pl, ph);
-        /* t2:t1:0 < 1/16 W^3 + W^2 + 1/4 W^3 < 5/16 W^3 + W^2 */
-
-        /* Result may be larger than m, but is < 2*m */
-
-        u64arith_sub_2_2_ge(&(t[1]), &(t[2]), m[0], m[1]);
-
+        redc1_wide_inplace(t);
         r[0] = t[1];
         r[1] = t[2];
+
+        /* Result may be larger than m, but is < 2*m */
+        u64arith_sub_2_2_ge(&(r[0]), &(r[1]), m[0], m[1]);
 #endif
     }
     void mul(Residue & r, const Residue & a, const Integer & b) const
@@ -540,7 +551,7 @@ class arithxx_modredc126::Modulus
             : "%rax", "%rdx", "cc");
 #else /* HAVE_GCC_STYLE_AMD64_INLINE_ASM */
 
-        uint64_t pl, ph, t[4], k;
+        uint64_t pl, ph, t[3];
 
         /* m < 1/4 W^2,  a < m */
 
@@ -560,21 +571,12 @@ class arithxx_modredc126::Modulus
         u64arith_add_1_2(&(t[1]), &(t[2]), pl); /* t2:t1:t0 < 1/16 W^3 + W^2 */
 
         /* Compute t2:t1:t0 := t2:t1:t0 + km, km < Wm < 1/4 W^3 */
-        k = t[0] * invm;
-        u64arith_mul_1_1_2(&pl, &ph, k, m[0]);
-        if (t[0] != 0UL)
-            ph++; /* t[0] = 0 */
-        u64arith_add_1_2(&(t[1]), &(t[2]), ph);
-        u64arith_mul_1_1_2(&pl, &ph, k, m[1]); /* ph:pl < 1/4 W^2 */
-        u64arith_add_2_2(&(t[1]), &(t[2]), pl, ph);
-        /* t2:t1:0 < 1/16 W^3 + W^2 + 1/4 W^3 < 5/16 W^3 + W^2 */
-
-        /* Result may be larger than m, but is < 2*m */
-
-        u64arith_sub_2_2_ge(&(t[1]), &(t[2]), m[0], m[1]);
-
+        redc1_wide_inplace(t);
         r.r[0] = t[1];
         r.r[1] = t[2];
+
+        /* Result may be larger than m, but is < 2*m */
+        u64arith_sub_2_2_ge(r.r.data(), r.r.data() + 1, m[0], m[1]);
 #endif
     }
     /* }}} */
@@ -648,7 +650,8 @@ class arithxx_modredc126::Modulus
         u64arith_mul_1_1_2(&pl, &ph, a.r[1], b);    /* ph:pl < 1/4 W^2 */
         u64arith_add_2_2(&(t[0]), &(t[1]), pl, ph); /* t1:t0 < 1/2 W^2 + W */
 
-        u64arith_sub_2_2(&(t[0]), &(t[1]), m[0], m[1]);
+        /* Result may be larger than m, but is < 2*m */
+        u64arith_sub_2_2_ge(&(t[0]), &(t[1]), m[0], m[1]);
 
         r.r[0] = t[0];
         r.r[1] = t[1];

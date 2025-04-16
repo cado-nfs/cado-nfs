@@ -77,6 +77,29 @@ modredc2ul2_tomontgomery (residueredc2ul2_t r, const residueredc2ul2_t s,
 }
 
 
+MAYBE_UNUSED
+static inline void
+modredc2ul2_redc1_wide_inplace (unsigned long t[3],
+        const modulusredc2ul2_t m)
+/* This "wide" redc computes a representative of t2:t1:t0 / 2^64,
+ * provided that T=t2:t1:t0 is not too large. More specifically, if
+ * m <= 2^127 (which is the case here) and T < m, then the result is at
+ * most 2m.
+ *
+ * The result is placed in t2:t1.
+ */
+{
+    unsigned long k;
+    unsigned long pl, ph;
+
+    k = t[0] * m[0].invm;
+    ularith_mul_ul_ul_2ul (&pl, &ph, k, m[0].m[0]);
+    ph += (t[0] != 0UL);        // t[0] == 0
+    ularith_add_ul_2ul (&(t[1]), &(t[2]), ph);
+    ularith_mul_ul_ul_2ul (&pl, &ph, k, m[0].m[1]); /* ph:pl < 1/4 W^2 */
+    ularith_add_2ul_2ul (&(t[1]), &(t[2]), pl, ph);
+}
+
 /* Do a one-word REDC, i.e., r == s / w (mod m), w = 2^ULONG_BITS. 
    If m > w, r < 2m. If s<m, then r<m */
 MAYBE_UNUSED
@@ -84,21 +107,31 @@ static inline void
 modredc2ul2_redc1 (residueredc2ul2_t r, const residueredc2ul2_t s,
 		   const modulusredc2ul2_t m)
 {
-  unsigned long t[4], k;
-  
-  k = s[0] * m[0].invm;
-  ularith_mul_ul_ul_2ul (&(t[0]), &(t[1]), k, m[0].m[0]);
-  if (s[0] != 0UL)
-    t[1]++;
-  t[2] = 0;
-  ularith_add_ul_2ul (&(t[1]), &(t[2]), s[1]); /* t[2] <= 1 */
-  ularith_mul_ul_ul_2ul (&(t[0]), &(t[3]), k, m[0].m[1]); /* t[3] < 2^w-1 */
-  ularith_add_2ul_2ul (&(t[1]), &(t[2]), t[0], t[3]);     /* t[2] < 2^w */
-
-  /* r = (k*m + s) / w, k <= w-1. If s < m, then r < m */
+#if 1
+  unsigned long t[3] = { s[0], s[1], 0 };
+  modredc2ul2_redc1_wide_inplace(t, m);
   r[0] = t[1];
   r[1] = t[2];
+#else
+  /* equivalent to the above, but uses one 7 temps instead of 6 */
+  unsigned long t[4], k;
+  unsigned long pl, ph;
+  
+  k = s[0] * m[0].invm;
+  ularith_mul_ul_ul_2ul (&(pl), &(ph), k, m[0].m[0]);
+  if (s[0] != 0UL)
+    ph++;
+  t[2] = 0;
+  ularith_add_ul_2ul (&(ph), &(t[2]), s[1]); /* t[2] <= 1 */
+  ularith_mul_ul_ul_2ul (&(t[0]), &(t[3]), k, m[0].m[1]); /* t[3] < 2^w-1 */
+  ularith_add_2ul_2ul (&(ph), &(t[2]), t[0], t[3]);     /* t[2] < 2^w */
+
+  /* r = (k*m + s) / w, k <= w-1. If s < m, then r < m */
+  r[0] = ph;
+  r[1] = t[2];
+#endif
 }
+
 
 /* Converts s out of Montgomery form by dividing by 2^(2*ULONG_BITS).
    Requires s < m. */
@@ -322,11 +355,9 @@ MAYBE_UNUSED
 static inline int
 modredc2ul2_intcmp (const modintredc2ul2_t a, const modintredc2ul2_t b)
 {
-  if (a[1] < b[1])
-    return -1;
-  if (a[1] > b[1])
-    return 1;
-  return (a[0] < b[0]) ? -1 : (a[0] == b[0]) ? 0 : 1;
+    int r = (a[1] > b[1]) - (a[1] < b[1]);
+    if (r) return r;
+    return  (a[0] > b[0]) - (a[0] < b[0]);
 }
 
 MAYBE_UNUSED
@@ -401,7 +432,7 @@ modredc2ul2_intbits (const modintredc2ul2_t a)
 /* r = trunc(s / 2^i) */
 MAYBE_UNUSED
 static inline void
-modredc2ul2_intshr (modintredc2ul2_t r, const modintredc2ul2_t s, const int i)
+modredc2ul2_intshr (modintredc2ul2_t r, const modintredc2ul2_t s, const unsigned int i)
 {
   if (i >= 2 * ULONG_BITS) {
     r[1] = r[0] = 0UL;
@@ -418,7 +449,7 @@ modredc2ul2_intshr (modintredc2ul2_t r, const modintredc2ul2_t s, const int i)
 /* r = (s * 2^i) % (2^(2 * ULONG_BITS)) */
 MAYBE_UNUSED
 static inline void
-modredc2ul2_intshl (modintredc2ul2_t r, const modintredc2ul2_t s, const int i)
+modredc2ul2_intshl (modintredc2ul2_t r, const modintredc2ul2_t s, const unsigned int i)
 {
   if (i >= 2 * ULONG_BITS) {
     r[1] = r[0] = 0UL;
@@ -992,7 +1023,7 @@ modredc2ul2_mul (residueredc2ul2_t r, const residueredc2ul2_t a,
   );
 #else /* HAVE_GCC_STYLE_AMD64_INLINE_ASM */
 
-  unsigned long pl, ph, t[4], k;
+  unsigned long pl, ph, t[3];
   
   ASSERT_EXPENSIVE (modredc2ul2_intlt (a, m[0].m));
   ASSERT_EXPENSIVE (modredc2ul2_intlt (b, m[0].m));
@@ -1022,21 +1053,14 @@ modredc2ul2_mul (residueredc2ul2_t r, const residueredc2ul2_t a,
   ularith_add_ul_2ul (&(t[1]), &(t[2]), pl); /* t2:t1:t0 < 1/16 W^3 + W^2 */
 
   /* Compute t2:t1:t0 := t2:t1:t0 + km, km < Wm < 1/4 W^3 */
-  k = t[0] * m[0].invm;
-  ularith_mul_ul_ul_2ul (&pl, &ph, k, m[0].m[0]);
-  if (t[0] != 0UL)
-    ph++; /* t[0] = 0 */
-  ularith_add_ul_2ul (&(t[1]), &(t[2]), ph);
-  ularith_mul_ul_ul_2ul (&pl, &ph, k, m[0].m[1]); /* ph:pl < 1/4 W^2 */
-  ularith_add_2ul_2ul (&(t[1]), &(t[2]), pl, ph);
-  /* t2:t1:0 < 1/16 W^3 + W^2 + 1/4 W^3 < 5/16 W^3 + W^2 */
-
-  /* Result may be larger than m, but is < 2*m */
-
-  ularith_sub_2ul_2ul_ge (&(t[1]), &(t[2]), m[0].m[0], m[0].m[1]);
-
+  modredc2ul2_redc1_wide_inplace (t, m);
   r[0] = t[1];
   r[1] = t[2];
+  /* r1:r0 < 1/16 W^2 + W + 1/4 W^2 < 5/16 W^2 + W */
+
+  /* Result may be larger than m, but is < 2*m */
+  ularith_sub_2ul_2ul_ge (&(r[0]), &(r[1]), m[0].m[0], m[0].m[1]);
+
 #endif
 #if defined(MODTRACE)
   printf (" == (%lu * 2^%d + %lu) /* PARI */ \n", r[1], ULONG_BITS, r[0]);
@@ -1141,7 +1165,7 @@ modredc2ul2_sqr (residueredc2ul2_t r, const residueredc2ul2_t a,
   );
 #else /* HAVE_GCC_STYLE_AMD64_INLINE_ASM */
 
-  unsigned long pl, ph, t[4], k;
+  unsigned long pl, ph, t[3];
   
   ASSERT_EXPENSIVE (modredc2ul2_intlt (a, m[0].m));
 #if defined(MODTRACE)
@@ -1167,21 +1191,14 @@ modredc2ul2_sqr (residueredc2ul2_t r, const residueredc2ul2_t a,
   ularith_add_ul_2ul (&(t[1]), &(t[2]), pl); /* t2:t1:t0 < 1/16 W^3 + W^2 */
 
   /* Compute t2:t1:t0 := t2:t1:t0 + km, km < Wm < 1/4 W^3 */
-  k = t[0] * m[0].invm;
-  ularith_mul_ul_ul_2ul (&pl, &ph, k, m[0].m[0]);
-  if (t[0] != 0UL)
-    ph++; /* t[0] = 0 */
-  ularith_add_ul_2ul (&(t[1]), &(t[2]), ph);
-  ularith_mul_ul_ul_2ul (&pl, &ph, k, m[0].m[1]); /* ph:pl < 1/4 W^2 */
-  ularith_add_2ul_2ul (&(t[1]), &(t[2]), pl, ph);
-  /* t2:t1:0 < 1/16 W^3 + W^2 + 1/4 W^3 < 5/16 W^3 + W^2 */
-
-  /* Result may be larger than m, but is < 2*m */
-
-  ularith_sub_2ul_2ul_ge (&(t[1]), &(t[2]), m[0].m[0], m[0].m[1]);
-
+  modredc2ul2_redc1_wide_inplace (t, m);
   r[0] = t[1];
   r[1] = t[2];
+  /* r1:r0 < 1/16 W^2 + W + 1/4 W^2 < 5/16 W^2 + W */
+
+  /* Result may be larger than m, but is < 2*m */
+  ularith_sub_2ul_2ul_ge (&(r[0]), &(r[1]), m[0].m[0], m[0].m[1]);
+
 #endif
 #if defined(MODTRACE)
   printf (" == (%lu * 2^%d + %lu) /* PARI */ \n", r[1], ULONG_BITS, r[0]);
@@ -1250,6 +1267,9 @@ modredc2ul2_divn (residueredc2ul2_t r, const residueredc2ul2_t a,
   t[1] += m[0].m[1] * k;
   ularith_add_2ul_2ul (&(t[0]), &(t[1]), a[0], a[1]);
 
+  /* Now t[1]:t[0] is divisible by n */
+  ASSERT_EXPENSIVE (((t[1] % n)*w_mod_n + t[0] % n) % n == 0UL);
+
   /* We want r = (a+km)/n. */
 
   /* May overwrite a */
@@ -1308,18 +1328,18 @@ int modredc2ul2_div13 (residueredc2ul2_t, const residueredc2ul2_t,
 void modredc2ul2_gcd (modintredc2ul2_t, const residueredc2ul2_t, 
 		      const modulusredc2ul2_t);
 void modredc2ul2_pow_ul (residueredc2ul2_t, const residueredc2ul2_t, 
-			 const unsigned long, const modulusredc2ul2_t);
-void modredc2ul2_2pow_ul (residueredc2ul2_t, const unsigned long, 
+			 unsigned long, const modulusredc2ul2_t);
+void modredc2ul2_2pow_ul (residueredc2ul2_t, unsigned long, 
                           const modulusredc2ul2_t);
 void modredc2ul2_pow_mp (residueredc2ul2_t, const residueredc2ul2_t, 
-			 const unsigned long *, const int, 
+			 const unsigned long *, int, 
 			 const modulusredc2ul2_t);
-void modredc2ul2_2pow_mp (residueredc2ul2_t, const unsigned long *, const int, 
+void modredc2ul2_2pow_mp (residueredc2ul2_t, const unsigned long *, int, 
 			  const modulusredc2ul2_t);
 void modredc2ul2_V_ul (residueredc2ul2_t, const residueredc2ul2_t, 
-		       const unsigned long, const modulusredc2ul2_t);
+		       unsigned long, const modulusredc2ul2_t);
 void modredc2ul2_V_mp (residueredc2ul2_t, const residueredc2ul2_t, 
-		       const unsigned long *, const int, 
+		       const unsigned long *, int, 
 		       const modulusredc2ul2_t);
 int modredc2ul2_sprp (const residueredc2ul2_t, const modulusredc2ul2_t);
 int modredc2ul2_sprp2 (const modulusredc2ul2_t);

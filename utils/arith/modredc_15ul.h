@@ -24,6 +24,10 @@
 #include "macros.h"
 #include "ularith.h"
 
+// as it turns out, modintredc15ul_t and modintredc2ul2_t are the same
+// type, and there's no point in having diverging implementations.
+#include "modredc_2ul2.h"
+
 /*********************************************************************/
 /* Helper macros */
 
@@ -35,15 +39,26 @@
 #define MODREDC15UL_MINBITS ULONG_BITS
 #define MODREDC15UL_MAXBITS (ULONG_BITS + ULONG_BITS/2)
 
-typedef unsigned long residueredc15ul_t[MODREDC15UL_SIZE];
-typedef unsigned long modintredc15ul_t[MODREDC15UL_SIZE];
+typedef residueredc2ul2_t residueredc15ul_t;
+typedef modintredc2ul2_t modintredc15ul_t;
+
+/* We can't simply typedef, because of the nasty tricks played by
+ * facul_doit_onefm, which is only resolved based on argument overloads.
+ *
+ * The stopgap solution is to redeclare a struct, which must be exactly
+ * the same as modulusredc2ul2_t, of course. And then do wild casts.
+ * Eeek...
+ *
+ * Pretty much everything here piggies-back onto modredc2ul2.
+ */
+
+// typedef modulusredc2ul2_t modulusredc15ul_t;
 struct __modulusredc15ul_t { 
   modintredc15ul_t m;
   residueredc15ul_t one;
   unsigned long invm;
 };
 typedef struct __modulusredc15ul_t modulusredc15ul_t[1];
-
 
 /* ==================== Functions used internally ==================== */
 
@@ -59,13 +74,7 @@ static inline void
 modredc15ul_tomontgomery (residueredc15ul_t r, const residueredc15ul_t s,
 			  const modulusredc15ul_t m)
 {
-  int i;
-
-  r[0] = s[0];
-  r[1] = s[1];
-  /* TODO FIXME: ridiculously slow */
-  for (i = 0; i < 2 * ULONG_BITS; i++)
-    modredc15ul_add (r, r, r, m);
+    modredc2ul2_tomontgomery(r, s, (const struct __modulusredc2ul2_t *) m);
 }
 
 
@@ -74,28 +83,7 @@ static inline void
 modredc15ul_frommontgomery (residueredc15ul_t r, const residueredc15ul_t s,
 			    const modulusredc15ul_t m)
 {
-  unsigned long t[5], k;
-  
-  /* Do two REDC steps */
-  k = s[0] * m[0].invm;
-  ularith_mul_ul_ul_2ul (&(t[0]), &(t[1]), k, m[0].m[0]);
-  if (t[0] != 0UL)
-    t[1]++;
-  t[2] = 0;
-  ularith_add_ul_2ul (&(t[1]), &(t[2]), s[1]); /* t[2] <= 1 */
-  ularith_mul_ul_ul_2ul (&(t[0]), &(t[4]), k, m[0].m[1]); /* t[4] < 2^(w/2) */
-  ularith_add_2ul_2ul (&(t[1]), &(t[2]), t[0], t[4]);
-  /* Here, t2:t1:0 = s + k*m */
-  k = t[1] * m[0].invm;
-  ularith_mul_ul_ul_2ul (&(t[0]), &(t[4]), k, m[0].m[0]);
-  if (t[0] != 0UL)
-    t[4]++;
-  t[3] = 0UL;
-  ularith_add_ul_2ul (&(t[2]), &(t[3]), t[4]); /* t[3] <= 1 */
-  ularith_mul_ul_ul_2ul (&(t[0]), &(t[4]), k, m[0].m[1]);
-  ularith_add_2ul_2ul (&(t[2]), &(t[3]), t[0], t[4]);
-  r[0] = t[2];
-  r[1] = t[3];
+    modredc2ul2_frommontgomery(r, s, (const struct __modulusredc2ul2_t *) m);
 }
 
 /* Do a one-word REDC, i.e., divide by 2^ULONG_BITS */
@@ -104,32 +92,20 @@ static inline void
 modredc15ul_redc1 (residueredc15ul_t r, const residueredc15ul_t s,
 		   const modulusredc15ul_t m)
 {
-  unsigned long t[4], k;
-  
-  k = s[0] * m[0].invm;
-  ularith_mul_ul_ul_2ul (&(t[0]), &(t[1]), k, m[0].m[0]);
-  if (t[0] != 0UL)
-    t[1]++;
-  t[2] = 0;
-  ularith_add_ul_2ul (&(t[1]), &(t[2]), s[1]); /* t[2] <= 1 */
-  ularith_mul_ul_ul_2ul (&(t[0]), &(t[3]), k, m[0].m[1]); /* t[3] < 2^(w/2) */
-  ularith_add_2ul_2ul (&(t[1]), &(t[2]), t[0], t[3]);
-
-  /* r = (k*m + s) div wb. k <= wb-1, s<m, thus r < m */
-  r[0] = t[1];
-  r[1] = t[2];
+    modredc2ul2_redc1(r, s, (const struct __modulusredc2ul2_t *) m);
 }
 
 /* ================= Functions that are part of the API ================= */
 
 /* Some functions for integers of the same width as the modulus */
+/* All functions here are just aliases for the 2ul2 functions.
+ */
 
 MAYBE_UNUSED
 static inline void
 modredc15ul_intinit (modintredc15ul_t r)
 {
-  r[0] = 0;
-  r[1] = 0;
+    modredc2ul2_intinit(r);
 }
 
 
@@ -137,7 +113,7 @@ MAYBE_UNUSED
 static inline void
 modredc15ul_intclear (modintredc15ul_t r MAYBE_UNUSED)
 {
-  return;
+    modredc2ul2_intclear(r);
 }
 
 
@@ -145,16 +121,14 @@ MAYBE_UNUSED
 static inline void
 modredc15ul_intset (modintredc15ul_t r, const modintredc15ul_t s)
 {
-  r[0] = s[0];
-  r[1] = s[1];
+    modredc2ul2_intset(r, s);
 }
 
 MAYBE_UNUSED
 static inline void
 modredc15ul_intset_ul (modintredc15ul_t r, const unsigned long s)
 {
-  r[0] = s;
-  r[1] = 0UL;
+    modredc2ul2_intset_ul(r, s);
 }
 
 MAYBE_UNUSED
@@ -162,66 +136,43 @@ static inline void
 modredc15ul_intset_uls (modintredc15ul_t r, const unsigned long *s, 
                         const size_t n)
 {
-  if (n == 0) {
-    r[0] = 0;
-    r[1] = 0;
-  } else if (n == 1) {
-    r[0] = s[0];
-    r[1] = 0;
-  } else if (n == 2) {
-    r[0] = s[0];
-    r[1] = s[1];
-  } else
-    abort();
+    modredc2ul2_intset_uls(r, s, n);
 }
 
 /* Get the least significant unsigned long of r */
 MAYBE_UNUSED
 static inline unsigned long 
-modredc15ul_intget_ul (const modintredc15ul_t s)
+modredc15ul_intget_ul (const modintredc15ul_t r)
 {
-  return s[0];
+    return modredc2ul2_intget_ul(r);
 }
 
 MAYBE_UNUSED
 static inline size_t  
 modredc15ul_intget_uls (unsigned long *r, const modintredc15ul_t s)
 {
-  r[0] = s[0];
-  if (s[1] != 0) {
-    r[1] = s[1];
-    return 2;
-  }
-  return 1;
+    return modredc2ul2_intget_uls(r, s);
 }
 
 MAYBE_UNUSED
 static inline double
 modredc15ul_intget_double (const modintredc15ul_t s)
 {
-  double d = (double) s[1];
-#if (ULONG_BITS == 32)
-  d *= 4294967296.0;
-#elif (ULONG_BITS == 64)
-  d *= 18446744073709551616.0;
-#else
-#error "unsupported value of ULONG_BITS"
-#endif
-  return d + (double) s[0];
+    return modredc2ul2_intget_double(s);
 }
 
 MAYBE_UNUSED
 static inline int
 modredc15ul_intequal (const modintredc15ul_t a, const modintredc15ul_t b)
 {
-  return (a[0] == b[0] && a[1] == b[1]);
+    return modredc2ul2_intequal(a, b);
 }
 
 MAYBE_UNUSED
 static inline int
 modredc15ul_intequal_ul (const modintredc15ul_t a, const unsigned long b)
 {
-  return (a[0] == b && a[1] == 0UL);
+    return modredc2ul2_intequal_ul(a, b);
 }
 
 /* Returns 1 if a < b, 0 otherwise */
@@ -229,52 +180,35 @@ MAYBE_UNUSED
 static inline int
 modredc15ul_intlt (const modintredc15ul_t a, const modintredc15ul_t b)
 {
-    modintredc15ul_t t;
-
-    modredc15ul_intset (t, a);
-    return ularith_sub_2ul_2ul_cy (&(t[0]), &(t[1]), b[0], b[1]);
+    return modredc2ul2_intlt(a, b);
 }
 
 MAYBE_UNUSED
 static inline int
 modredc15ul_intcmp (const modintredc15ul_t a, const modintredc15ul_t b)
 {
-  if (a[1] < b[1])
-    return -1;
-  if (a[1] > b[1])
-    return 1;
-  return (a[0] < b[0]) ? -1 : (a[0] == b[0]) ? 0 : 1;
+    return modredc2ul2_intcmp(a, b);
 }
 
 MAYBE_UNUSED
 static inline int
 modredc15ul_intcmp_ul (const modintredc15ul_t a, const unsigned long b)
 {
-  if (a[1] > 0UL)
-    return 1;
-  return (a[0] < b) ? -1 : (a[0] == b) ? 0 : 1;
+    return modredc2ul2_intcmp_ul(a, b);
 }
 
 MAYBE_UNUSED
 static inline int
 modredc15ul_intcmp_uint64 (const modintredc15ul_t a, const uint64_t b)
 {
-  ASSERT(ULONG_MAX == UINT32_MAX || ULONG_MAX == UINT64_MAX);
-  if (ULONG_MAX == UINT32_MAX) {
-    uint64_t t = ((uint64_t) a[1] << 32) + a[0];
-    return (t < b) ? -1 : (t == b) ? 0 : 1;
-  } else {
-    if (a[1] > 0UL)
-      return 1;
-    return (a[0] < b) ? -1 : (a[0] == b) ? 0 : 1;
-  }
+    return modredc2ul2_intcmp_uint64(a, b);
 }
 
 MAYBE_UNUSED
 static inline int
 modredc15ul_intfits_ul (const modintredc15ul_t a)
 {
-  return (a[1] == 0UL);
+    return modredc2ul2_intfits_ul(a);
 }
 
 MAYBE_UNUSED
@@ -282,10 +216,7 @@ static inline void
 modredc15ul_intadd (modintredc15ul_t r, const modintredc15ul_t a,
 		    const modintredc15ul_t b)
 {
-  modintredc15ul_t t;
-  modredc15ul_intset (t, a);
-  ularith_add_2ul_2ul (&(t[0]), &(t[1]), b[0], b[1]);
-  modredc15ul_intset (r, t);
+    modredc2ul2_intadd(r, a, b);
 }
 
 MAYBE_UNUSED
@@ -293,10 +224,7 @@ static inline void
 modredc15ul_intsub (modintredc15ul_t r, const modintredc15ul_t a,
 		    const modintredc15ul_t b)
 {
-  modintredc15ul_t t;
-  modredc15ul_intset (t, a);
-  ularith_sub_2ul_2ul (&(t[0]), &(t[1]), b[0], b[1]);
-  modredc15ul_intset (r, t);
+    modredc2ul2_intsub(r, a, b);
 }
 
 /* Returns the number of bits in a, that is, floor(log_2(a))+1. 
@@ -305,13 +233,7 @@ MAYBE_UNUSED
 static inline size_t 
 modredc15ul_intbits (const modintredc15ul_t a)
 {
-  if (a[1] > 0UL)
-    return 2*ULONG_BITS - ularith_clz (a[1]);
-
-  if (a[0] > 0UL)
-    return ULONG_BITS - ularith_clz (a[0]);
-  
-  return 0;
+    return modredc2ul2_intbits(a);
 }
 
 
@@ -320,15 +242,7 @@ MAYBE_UNUSED
 static inline void
 modredc15ul_intshr (modintredc15ul_t r, const modintredc15ul_t s, const unsigned int i)
 {
-  if (i >= 2 * ULONG_BITS) {
-    r[1] = r[0] = 0UL;
-  } else if (i >= ULONG_BITS) {
-    r[0] = s[1] >> (i - ULONG_BITS);
-    r[1] = 0UL; /* May overwrite s[1] */
-  } else { /* i < ULONG_BITS */
-    ularith_shrd (&(r[0]), s[1], s[0], i);
-    r[1] = s[1] >> i;
-  }
+    modredc2ul2_intshr(r, s, i);
 }
 
 
@@ -337,15 +251,7 @@ MAYBE_UNUSED
 static inline void
 modredc15ul_intshl (modintredc15ul_t r, const modintredc15ul_t s, const unsigned int i)
 {
-  if (i >= 2 * ULONG_BITS) {
-    r[1] = r[0] = 0UL;
-  } else if (i >= ULONG_BITS) {
-    r[1] = s[0] << (i - ULONG_BITS);
-    r[0] = 0UL;
-  } else { /* i < ULONG_BITS */
-    ularith_shld (&(r[1]), s[0], s[1], i);
-    r[0] = s[0] << i;
-  }
+    modredc2ul2_intshl(r, s, i);
 }
 
 
@@ -355,48 +261,14 @@ static inline void
 modredc15ul_intdivexact (modintredc15ul_t r, const modintredc15ul_t n,
                          const modintredc15ul_t d)
 {
-  modintredc15ul_t n1, d1;
-  unsigned long invf, r0, k0, k1;
-#ifdef WANT_ASSERT_EXPENSIVE
-  unsigned long s0 = n[0], s1 = n[1];
-#endif
-  
-  n1[0] = n[0];
-  n1[1] = n[1];
-  d1[0] = d[0];
-  d1[1] = d[1];
+    return modredc2ul2_intdivexact(r, n, d);
+}
 
-  /* Make d odd. TODO: use ctzl */
-  while (d1[0] % 2 == 0UL)
-    {
-      ASSERT_EXPENSIVE (n1[0] % 2 == 0UL);
-      ularith_shrd (&(d1[0]), d1[1], d1[0], 1);
-      d1[1] >>= 1;
-      ularith_shrd (&(n1[0]), n1[1], n1[0], 1);
-      n1[1] >>= 1;
-    }
-  
-  invf = ularith_invmod (d1[0]);
-  r0 = invf * n1[0];
-  ularith_mul_ul_ul_2ul (&k0, &k1, r0, d1[0]);
-  ularith_sub_2ul_2ul (&(n1[0]), &(n1[1]), k0, k1);
-  n1[1] -= r0 * d1[1];
-  ASSERT (n1[0] == 0UL);
-  r[0] = r0;
-  r[1] = invf * n1[1];
-#ifdef WANT_ASSERT_EXPENSIVE
-  ASSERT_EXPENSIVE (d[1] == 0UL || r[1] == 0UL);
-  ularith_mul_ul_ul_2ul (&k0, &k1, r[0], d[0]);
-  ularith_sub_2ul_2ul (&s0, &s1, k0, k1);
-  ASSERT_EXPENSIVE (s0 == 0UL);
-  ularith_mul_ul_ul_2ul (&k0, &k1, r[0], d[1]);
-  ASSERT_EXPENSIVE (k1 == 0UL);
-  s1 -= k0;
-  ularith_mul_ul_ul_2ul (&k0, &k1, r[1], d[0]);
-  ASSERT_EXPENSIVE (k1 == 0UL);
-  s1 -= k0;
-  ASSERT_EXPENSIVE (s1 == 0UL);
-#endif
+MAYBE_UNUSED
+static inline unsigned long
+modredc15ul_intmod_ul (const modintredc15ul_t n, const unsigned long d)
+{
+    return modredc2ul2_intmod_ul(n, d);
 }
 
 /* r = n%d */
@@ -405,55 +277,7 @@ static inline void
 modredc15ul_intmod (modintredc15ul_t r, const modintredc15ul_t n,
                     const modintredc15ul_t d)
 {
-  if (d[1] == 0UL)
-    {
-      if (n[1] < d[0])
-        {
-          unsigned long dummy;
-          ularith_div_2ul_ul_ul (&dummy, &(r[0]), n[0], n[1], d[0]);
-          r[1] = 0UL;
-        }
-      else
-        {
-          unsigned long t, dummy;
-          ularith_div_2ul_ul_ul (&dummy, &t, n[1], 0UL, d[0]);
-          ularith_div_2ul_ul_ul (&dummy, &(r[0]), n[0], t, d[0]);
-          r[1] = 0UL;
-        }
-    }
-  else    
-    {
-      modintredc15ul_t t1, t2;
-      unsigned long q, dummy;
-      int i;
-
-      /* Divide both by 2^k s.t. 2^(ULONG_BITS-1) <= d/2^k < 2^ULONG_BITS */
-      modredc15ul_intshr (t1, n, 1);
-      modredc15ul_intshr (t2, d, 1);
-      if (t2[1] != 0UL)
-        {
-          i = ULONG_BITS - ularith_clz (t2[1]);
-          modredc15ul_intshr (t1, t1, i);
-          modredc15ul_intshr (t2, t2, i);
-        }
-      ASSERT(t2[1] == 0);
-      ASSERT((t2[0] & (1UL << (ULONG_BITS - 1))) != 0UL);
-      ASSERT (t1[1] < t2[0]);
-      
-      ularith_div_2ul_ul_ul (&q, &dummy, t1[0], t1[1], t2[0]);
-      ularith_mul_ul_ul_2ul (&(t1[0]), &(t1[1]), q, d[0]);
-      t1[1] += q * d[1];
-      /* printf ("n=%lu*2^%d + %lu; d=%lu*2^%d + %lu; q=%lu; "
-              "t1=%lu*2^%d + %lu; ", 
-              n[1], ULONG_BITS, n[0], d[1], ULONG_BITS, d[0], q,
-              t1[1], ULONG_BITS, t1[0]); */
-      
-      if (modredc15ul_intlt (n, t1))
-        modredc15ul_intsub (t1, t1, d);
-      ASSERT(!modredc15ul_intlt (n, t1));
-      modredc15ul_intsub(r, n, t1);
-      /* printf ("r=%lu*2^%d + %lu;\n", r[1], ULONG_BITS, r[0]); */
-    }
+    modredc2ul2_intmod(r, n, d);
 }
 
 
@@ -464,22 +288,7 @@ MAYBE_UNUSED
 static inline void
 modredc15ul_initmod_int (modulusredc15ul_t m, const modintredc15ul_t s)
 {
-  ASSERT (s[1] > 0UL);
-  ASSERT (s[1] < (1UL << (ULONG_BITS / 2)));
-  modredc15ul_intset (m[0].m, s);
-  m[0].invm = -ularith_invmod (s[0]);
-
-  modredc15ul_intset_ul (m[0].one, 0UL);
-  modredc15ul_intsub (m[0].one, m[0].one, m[0].m); /* 2^128 - m */
-  modredc15ul_intmod (m[0].one, m[0].one, m[0].m);
-  
-#ifdef WANT_ASSERT_EXPENSIVE
-  {
-    modintredc15ul_t t;
-    modredc15ul_get_int (t, m[0].one, m);
-    ASSERT_EXPENSIVE (modredc15ul_intequal_ul (t, 1UL));
-  }
-#endif
+    modredc2ul2_initmod_int((struct __modulusredc2ul2_t *) m, s);
 }
 
 
@@ -488,15 +297,15 @@ MAYBE_UNUSED
 static inline void
 modredc15ul_getmod_int (modintredc15ul_t r, const modulusredc15ul_t m)
 {
-  modredc15ul_intset (r, m[0].m);
+    modredc2ul2_getmod_int(r, (const struct __modulusredc2ul2_t *) m);
 }
 
 
 MAYBE_UNUSED
 static inline void
-modredc15ul_clearmod (modulusredc15ul_t m MAYBE_UNUSED)
+modredc15ul_clearmod (modulusredc15ul_t m)
 {
-  return;
+    modredc2ul2_clearmod((struct __modulusredc2ul2_t *) m);
 }
 
 
@@ -507,7 +316,7 @@ MAYBE_UNUSED
 static inline void
 modredc15ul_init (residueredc15ul_t r, const modulusredc15ul_t m MAYBE_UNUSED)
 {
-  modredc15ul_intset_ul (r, 0UL);
+    modredc2ul2_init(r, (const struct __modulusredc2ul2_t *) m);
 }
 
 
@@ -518,7 +327,7 @@ static inline void
 modredc15ul_init_noset0 (residueredc15ul_t r MAYBE_UNUSED, 
 			 const modulusredc15ul_t m MAYBE_UNUSED)
 {
-  return;
+    modredc2ul2_init_noset0(r, (const struct __modulusredc2ul2_t *) m);
 }
 
 
@@ -527,7 +336,7 @@ static inline void
 modredc15ul_clear (residueredc15ul_t r MAYBE_UNUSED, 
 		   const modulusredc15ul_t m MAYBE_UNUSED)
 {
-  return;
+    modredc2ul2_clear(r, (const struct __modulusredc2ul2_t *) m);
 }
 
 
@@ -536,8 +345,7 @@ static inline void
 modredc15ul_set (residueredc15ul_t r, const residueredc15ul_t s, 
 		 const modulusredc15ul_t m MAYBE_UNUSED)
 {
-  ASSERT_EXPENSIVE (modredc15ul_intlt (s, m[0].m));
-  modredc15ul_intset (r, s);
+    modredc2ul2_set(r, s, (const struct __modulusredc2ul2_t *) m);
 }
 
 
@@ -546,15 +354,7 @@ static inline void
 modredc15ul_set_ul (residueredc15ul_t r, const unsigned long s, 
 		    const modulusredc15ul_t m)
 {
-  modredc15ul_intset_ul (r, s);
-  modredc15ul_tomontgomery (r, r, m);
-#ifdef WANT_ASSERT_EXPENSIVE
-  {
-    modintredc15ul_t t;
-    modredc15ul_get_int (t, r, m);
-    ASSERT_EXPENSIVE (t[0] == s && t[1] == 0UL);
-  }
-#endif
+    modredc2ul2_set_ul(r, s, (const struct __modulusredc2ul2_t *) m);
 }
 
 
@@ -566,7 +366,7 @@ static inline void
 modredc15ul_set_ul_reduced (residueredc15ul_t r, const unsigned long s, 
 			    const modulusredc15ul_t m MAYBE_UNUSED)
 {
-  modredc15ul_set_ul (r, s, m);
+    modredc2ul2_set_ul_reduced(r, s, (const struct __modulusredc2ul2_t *) m);
 }
 
 
@@ -575,12 +375,7 @@ static inline void
 modredc15ul_set_int (residueredc15ul_t r, const modintredc15ul_t s, 
 		     const modulusredc15ul_t m)
 {
-  if (!modredc15ul_intlt (s, m[0].m))
-    modredc15ul_intmod (r, s, m[0].m);
-  else
-    modredc15ul_intset (r, s);
-
-  modredc15ul_tomontgomery (r, r, m);
+    modredc2ul2_set_int(r, s, (const struct __modulusredc2ul2_t *) m);
 }
 
 
@@ -589,9 +384,7 @@ static inline void
 modredc15ul_set_int_reduced (residueredc15ul_t r, const modintredc15ul_t s, 
 			     const modulusredc15ul_t m)
 {
-  ASSERT (modredc15ul_intlt (s, m[0].m));
-  modredc15ul_intset (r, s);
-  modredc15ul_tomontgomery (r, r, m);
+    modredc2ul2_set_int_reduced(r, s, (const struct __modulusredc2ul2_t *) m);
 }
 
 
@@ -599,7 +392,7 @@ MAYBE_UNUSED
 static inline void 
 modredc15ul_set0 (residueredc15ul_t r, const modulusredc15ul_t m MAYBE_UNUSED) 
 { 
-  modredc15ul_intset_ul (r, 0UL);
+    modredc2ul2_set0(r, (const struct __modulusredc2ul2_t *) m);
 }
 
 
@@ -607,7 +400,7 @@ MAYBE_UNUSED
 static inline void 
 modredc15ul_set1 (residueredc15ul_t r, const modulusredc15ul_t m) 
 { 
-  modredc15ul_intset (r, m[0].one);
+    modredc2ul2_set1(r, (const struct __modulusredc2ul2_t *) m);
 }
 
 
@@ -618,12 +411,7 @@ static inline void
 modredc15ul_swap (residueredc15ul_t a, residueredc15ul_t b, 
 		  const modulusredc15ul_t m MAYBE_UNUSED)
 {
-  modintredc15ul_t t;
-  ASSERT_EXPENSIVE (modredc15ul_intlt (a, m[0].m));
-  ASSERT_EXPENSIVE (modredc15ul_intlt (b, m[0].m));
-  modredc15ul_intset (t, a);
-  modredc15ul_intset (a, b);
-  modredc15ul_intset (b, t);
+    modredc2ul2_swap(a, b, (const struct __modulusredc2ul2_t *) m);
 }
 
 
@@ -635,11 +423,7 @@ static inline unsigned long
 modredc15ul_get_ul (const residueredc15ul_t s, 
 		    const modulusredc15ul_t m MAYBE_UNUSED)
 {
-  unsigned long t[2];
-  ASSERT_EXPENSIVE (modredc15ul_intlt (s, m[0].m));
-  modredc15ul_frommontgomery (t, s, m);
-  ASSERT (t[1] == 0UL);
-  return t[0];
+    return modredc2ul2_get_ul(s, (const struct __modulusredc2ul2_t *) m);
 }
 
 
@@ -650,8 +434,7 @@ static inline void
 modredc15ul_get_int (modintredc15ul_t r, const residueredc15ul_t s, 
 		     const modulusredc15ul_t m MAYBE_UNUSED)
 {
-  ASSERT_EXPENSIVE (modredc15ul_intlt (s, m[0].m));
-  modredc15ul_frommontgomery (r, s, m);
+    modredc2ul2_get_int(r, s, (const struct __modulusredc2ul2_t *) m);
 }
 
 
@@ -660,9 +443,7 @@ static inline int
 modredc15ul_equal (const residueredc15ul_t a, const residueredc15ul_t b, 
 		   const modulusredc15ul_t m MAYBE_UNUSED)
 {
-  ASSERT_EXPENSIVE (modredc15ul_intlt (a, m[0].m));
-  ASSERT_EXPENSIVE (modredc15ul_intlt (b, m[0].m));
-  return (modredc15ul_intequal(a, b));
+    return modredc2ul2_equal(a, b, (const struct __modulusredc2ul2_t *) m);
 }
 
 
@@ -670,8 +451,7 @@ MAYBE_UNUSED
 static inline int
 modredc15ul_is0 (const residueredc15ul_t a, const modulusredc15ul_t m MAYBE_UNUSED)
 {
-  ASSERT_EXPENSIVE (modredc15ul_intlt (a, m[0].m));
-  return (modredc15ul_intequal_ul(a, 0UL));
+    return modredc2ul2_is0(a, (const struct __modulusredc2ul2_t *) m);
 }
 
 
@@ -679,8 +459,7 @@ MAYBE_UNUSED
 static inline int
 modredc15ul_is1 (const residueredc15ul_t a, const modulusredc15ul_t m MAYBE_UNUSED)
 {
-  ASSERT_EXPENSIVE (modredc15ul_intlt (a, m[0].m));
-  return (a[0] == m[0].one[0] && a[1] == m[0].one[1]);
+    return modredc2ul2_is1(a, (const struct __modulusredc2ul2_t *) m);
 }
 
 
@@ -689,14 +468,7 @@ static inline void
 modredc15ul_add (residueredc15ul_t r, const residueredc15ul_t a, 
 		 const residueredc15ul_t b, const modulusredc15ul_t m)
 {
-  const unsigned long t0 = b[0], t1 = b[1]; /* r, a, and/or b may overlap */
-  ASSERT_EXPENSIVE (modredc15ul_intlt (a, m[0].m));
-  ASSERT_EXPENSIVE (modredc15ul_intlt (b, m[0].m));
-
-  modredc15ul_intset (r, a);
-  ularith_add_2ul_2ul (&(r[0]), &(r[1]), t0, t1);
-  ularith_sub_2ul_2ul_ge (&(r[0]), &(r[1]), m[0].m[0], m[0].m[1]);
-  ASSERT_EXPENSIVE (modredc15ul_intlt (r, m[0].m));
+    modredc2ul2_add(r, a, b, (const struct __modulusredc2ul2_t *) m);
 }
 
 
@@ -705,39 +477,7 @@ static inline void
 modredc15ul_sub (residueredc15ul_t r, const residueredc15ul_t a, 
 		 const residueredc15ul_t b, const modulusredc15ul_t m)
 {
-  ASSERT_EXPENSIVE (modredc15ul_intlt (a, m[0].m));
-  ASSERT_EXPENSIVE (modredc15ul_intlt (b, m[0].m));
-
-#ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
-  {
-    unsigned long s1 = m[0].m[0], s2 = m[0].m[1], t1 = a[0], t2 = a[1];
-    
-    __asm__ __VOLATILE (
-	     "subq %4, %0\n\t"
-	     "sbbq %5, %1\n\t"    /* r -= b */
-	     "cmovncq %6, %2\n\t" /* If !carry, s = 0 */
-	     "cmovncq %6, %3\n"
-	     : "+&r" (t1), "+&r" (t2), "+&r" (s1), "+r" (s2)
-	     : ULARITH_CONSTRAINT_G (b[0]), 
-	       ULARITH_CONSTRAINT_G (b[1]), "rm" (0UL)
-	     : "cc"
-	     );
-    ularith_add_2ul_2ul (&t1, &t2, s1, s2);
-    r[0] = t1;
-    r[1] = t2;
-  }
-#else
-  {
-    unsigned long t1 = a[0], t2 = a[1];
-    ularith_sub_2ul_2ul (&t1, &t2, b[0], b[1]);
-    
-    if (t2 > a[1] || (t2 == a[1] && t1 > a[0]))
-      ularith_add_2ul_2ul (&t1, &t2, m[0].m[0], m[0].m[1]);
-
-    r[0] = t1;
-    r[1] = t2;
-  }
-#endif
+    modredc2ul2_sub(r, a, b, (const struct __modulusredc2ul2_t *) m);
 }
 
 
@@ -746,7 +486,7 @@ static inline void
 modredc15ul_add1 (residueredc15ul_t r, const residueredc15ul_t a, 
 		  const modulusredc15ul_t m)
 {
-  modredc15ul_add(r, a, m[0].one, m);
+    modredc2ul2_add1(r, a, (const struct __modulusredc2ul2_t *) m);
 }
 
 
@@ -755,14 +495,7 @@ static inline void
 modredc15ul_add_ul (residueredc15ul_t r, const residueredc15ul_t a,
 		    const unsigned long b, const modulusredc15ul_t m)
 {
-  residueredc15ul_t t;
-
-  /* TODO: speed up */
-  ASSERT_EXPENSIVE (modredc15ul_intlt (a, m[0].m));
-  modredc15ul_init_noset0 (t, m);
-  modredc15ul_set_ul (t, b, m);
-  modredc15ul_add (r, a, t, m);
-  modredc15ul_clear (t, m);
+    modredc2ul2_add_ul(r, a, b, (const struct __modulusredc2ul2_t *) m);
 }
 
 
@@ -771,14 +504,7 @@ static inline void
 modredc15ul_sub_ul (residueredc15ul_t r, const residueredc15ul_t a,
 		    const unsigned long b, const modulusredc15ul_t m)
 {
-  residueredc15ul_t t;
-
-  /* TODO: speed up */
-  ASSERT_EXPENSIVE (modredc15ul_intlt (a, m[0].m));
-  modredc15ul_init_noset0 (t, m);
-  modredc15ul_set_ul (t, b, m);
-  modredc15ul_sub (r, a, t, m);
-  modredc15ul_clear (t, m);
+    modredc2ul2_sub_ul(r, a, b, (const struct __modulusredc2ul2_t *) m);
 }
 
 
@@ -787,16 +513,7 @@ static inline void
 modredc15ul_neg (residueredc15ul_t r, const residueredc15ul_t a, 
 		 const modulusredc15ul_t m)
 {
-  ASSERT_EXPENSIVE (modredc15ul_intlt (a, m[0].m));
-  if (a[0] == 0UL && a[1] == 0UL)
-    modredc15ul_set (r, a, m);
-  else
-    {
-      unsigned long t1 = m[0].m[0], t2 = m[0].m[1];
-      ularith_sub_2ul_2ul (&t1, &t2, a[0], a[1]);
-      r[0] = t1;
-      r[1] = t2;
-    }
+    modredc2ul2_neg(r, a, (const struct __modulusredc2ul2_t *) m);
 }
 
 
@@ -805,13 +522,7 @@ static inline void
 modredc15ul_div2 (residueredc15ul_t r, const residueredc15ul_t a, 
 		  const modulusredc15ul_t m)
 {
-  ASSERT_EXPENSIVE (m[0].m[0] % 2UL != 0UL);
-  ASSERT_EXPENSIVE (modredc15ul_intlt (a, m[0].m));
-  modredc15ul_intset (r, a);
-  if (r[0] % 2UL == 1UL)
-    ularith_add_2ul_2ul (&(r[0]), &(r[1]), m[0].m[0], m[0].m[1]);
-  ularith_shrd (&(r[0]), r[1], r[0], 1);
-  r[1] >>= 1;
+    modredc2ul2_div2(r, a, (const struct __modulusredc2ul2_t *) m);
 }
 
 
@@ -938,7 +649,7 @@ modredc15ul_mul (residueredc15ul_t r, const residueredc15ul_t a,
     : "%rax", "%rdx", "cc"
   );
 #else
-  unsigned long pl, ph, t[4], k;
+  unsigned long pl, ph, t[3];
 
   ASSERT_EXPENSIVE (modredc15ul_intlt (a, m[0].m));
   ASSERT_EXPENSIVE (modredc15ul_intlt (b, m[0].m));
@@ -953,40 +664,25 @@ modredc15ul_mul (residueredc15ul_t r, const residueredc15ul_t a,
   ularith_mul_ul_ul_2ul (&(t[0]), &(t[1]), a[0], b[0]); /* t1:t0 = a[0]*b[0] <= W^2 - 2W + 1 */
 
   /* One REDC step */
-  k = t[0] * m[0].invm; /* k <= W-1 */
-  ularith_mul_ul_ul_2ul (&pl, &ph, k, m[0].m[0]); /* ph:pl = k*m[0] <= W^2 - 2W + 1 */
-  /* t[0] + pl == 0 (mod W) thus if t[0] or pl is not 0, a carry goes in ph */
-  ph += t[0] != 0UL; /* use t[0] instead of pl since it is known earlier */
-  /* ph <= W-1 */
-  t[2] = 0UL;
-  ularith_add_ul_2ul (&(t[1]), &(t[2]), ph); /* t2:t1:0 = a[0]*b[0] + k*m[0] <= 2*W^2 - 4W + 2, so
-                                                t2:t1 = (a[0]*b[0] + k*m[0]) / W <= 2*W - 4 */
-  ularith_mul_ul_ul_2ul (&pl, &ph, k, m[0].m[1]); /* ph:pl <= (W^(1/2)-1)*(W-1) = W^(3/2) - W - W^(1/2) + 1 */
-  ularith_add_2ul_2ul (&(t[1]), &(t[2]), pl, ph); /* t2:t1 <= W^(3/2) + W - W^(1/2) - 3 */
+  modredc15ul_redc1 (t, t, m);  /* t1:t0 <= W^(3/2) + W - W^(1/2) - 3 */
 
   /* Products of one low and one high word  */
   ularith_mul_ul_ul_2ul (&pl, &ph, a[1], b[0]);   /* ph:pl <= W^(3/2) - W - W^(1/2) + 1 */
-  ularith_add_2ul_2ul (&(t[1]), &(t[2]), pl, ph); /* t2:t1 <= 2W^(3/2) - 2W^(1/2) - 2 */
+  ularith_add_2ul_2ul (&(t[0]), &(t[1]), pl, ph); /* t1:t0 <= 2W^(3/2) - 2W^(1/2) - 2 */
   ularith_mul_ul_ul_2ul (&pl, &ph, a[0], b[1]);   /* ph:pl <= W^(3/2) - W - W^(1/2) + 1 */
-  ularith_add_2ul_2ul (&(t[1]), &(t[2]), pl, ph); /* t2:t1 <= 3W^(3/2) - 3W^(1/2) - W - 1 */
-  t[3] = 0UL;
+  ularith_add_2ul_2ul (&(t[0]), &(t[1]), pl, ph); /* t1:t0 <= 3W^(3/2) - 3W^(1/2) - W - 1 */
+
+  t[2] = 0UL;
   pl = a[1] * b[1];                               /* pl <= (W^(1/2)-1)^2 = W - 2W^(1/2) + 1 */
-  ularith_add_ul_2ul (&(t[2]), &(t[3]), pl);      /* t3:t2:t1 <= W^2 + W^(3/2) - 3W^(1/2) - 1 */
-  k = t[1] * m[0].invm;
-  ularith_mul_ul_ul_2ul (&pl, &ph, k, m[0].m[0]); /* ph:pl <= W^2 - 2W + 1 */
-  /* t[1] + pl == 0 (mod W) thus if t[1] or pl is not 0, a carry goes in ph */
-  ph += t[1] != 0UL;
-  ularith_add_ul_2ul (&(t[2]), &(t[3]), ph);      /* t3:t2:t1 <= 2W^2 + W^(3/2) - 2W - 3W^(1/2), t1 = 0 so
-						     t3:t2 <= 2W + W^(1/2) - 3 */
-  ularith_mul_ul_ul_2ul (&pl, &ph, k, m[0].m[1]); /* ph:pl <= W^(3/2) - W - W^(1/2) + 1 */
-  ularith_add_2ul_2ul (&(t[2]), &(t[3]), pl, ph); /* t3:t2 <= W^(3/2) + W - 2 */
+  ularith_add_ul_2ul (&(t[1]), &(t[2]), pl);      /* t2:t1:t0 <= W^2 + W^(3/2) - 3W^(1/2) - 1 */
+
+  modredc2ul2_redc1_wide_inplace(t, (const struct __modulusredc2ul2_t *) m);
+  r[0] = t[1];
+  r[1] = t[2];
+  /* r1:r0 <= W^(3/2) + W - 2 */
 
   /* Result may be larger than m, but is < 2*m */
-
-  ularith_sub_2ul_2ul_ge (&(t[2]), &(t[3]), m[0].m[0], m[0].m[1]);
-
-  r[0] = t[2];
-  r[1] = t[3];
+  ularith_sub_2ul_2ul_ge (&(r[0]), &(r[1]), m[0].m[0], m[0].m[1]);
 #endif
 
 #if defined(MODTRACE)
@@ -1095,47 +791,31 @@ modredc15ul_sqr (residueredc15ul_t r, const residueredc15ul_t a,
           a[1], ULONG_BITS, a[0], 2 * ULONG_BITS, m[0].m[1], ULONG_BITS, m[0].m[0]);
 #endif
   
-  unsigned long pl, ph, t[4], k;
+  unsigned long pl, ph, t[3];
   
   /* Square of low word */
   ularith_mul_ul_ul_2ul (&(t[0]), &(t[1]), a[0], a[0]); /* t1:t0 = a[0]*a[0] <= W^2 - 2W + 1 */
 
   /* One REDC step */
-  k = t[0] * m[0].invm; /* k <= W-1 */
-  ularith_mul_ul_ul_2ul (&pl, &ph, k, m[0].m[0]); /* ph:pl = k*m[0] <= W^2 - 2W + 1 */
-  /* t[0] + pl == 0 (mod W) */
-  if (pl != 0UL)
-    ph++; /* ph <= W-1 */
-  t[2] = 0UL;
-  ularith_add_ul_2ul (&(t[1]), &(t[2]), ph); /* t2:t1:0 = a[0]*a[0] + k*m[0] <= 2*W^2 - 4W + 2, so
-                                                t2:t1 = (a[0]*a[0] + k*m[0]) / W <= 2*W - 4 */
-  ularith_mul_ul_ul_2ul (&pl, &ph, k, m[0].m[1]); /* ph:pl <= (W^(1/2)-1)*(W-1) = W^(3/2) - W - W^(1/2) + 1 */
-  ularith_add_2ul_2ul (&(t[1]), &(t[2]), pl, ph); /* t2:t1 <= W^(3/2) + W - W^(1/2) - 3 */
+  modredc15ul_redc1 (t, t, m);  /* t1:t0 <= W^(3/2) + W - W^(1/2) - 3 */
 
   /* Product of low and high word  */
   ularith_mul_ul_ul_2ul (&pl, &ph, a[1], a[0]);   /* ph:pl <= W^(3/2) - W - W^(1/2) + 1 */
-  ularith_add_2ul_2ul (&(t[1]), &(t[2]), pl, ph); /* t2:t1 <= 2W^(3/2) - 2W^(1/2) - 2 */
-  ularith_add_2ul_2ul (&(t[1]), &(t[2]), pl, ph); /* t2:t1 <= 3W^(3/2) - 3W^(1/2) - W - 1 */
-  t[3] = 0UL;
+  ularith_add_2ul_2ul (&(t[0]), &(t[1]), pl, ph); /* t1:t0 <= 2W^(3/2) - 2W^(1/2) - 2 */
+  ularith_add_2ul_2ul (&(t[0]), &(t[1]), pl, ph); /* t1:t0 <= 3W^(3/2) - 3W^(1/2) - W - 1 */
 
   /* Square of high word */
+  t[2] = 0UL;
   pl = a[1] * a[1];                               /* pl <= (W^(1/2)-1)^2 = W - 2W^(1/2) + 1 */
-  ularith_add_ul_2ul (&(t[2]), &(t[3]), pl);      /* t3:t2:t1 <= W^2 + W^(3/2) - 3W^(1/2) - 1 */
-  k = t[1] * m[0].invm;
-  ularith_mul_ul_ul_2ul (&pl, &ph, k, m[0].m[0]); /* ph:pl <= W^2 - 2W + 1 */
-  if (pl != 0UL)
-    ph++;
-  ularith_add_ul_2ul (&(t[2]), &(t[3]), ph);      /* t3:t2:t1 <= 2W^2 + W^(3/2) - 2W - 3W^(1/2), t1 = 0 so
-						     t3:t2 <= 2W + W^(1/2) - 3 */
-  ularith_mul_ul_ul_2ul (&pl, &ph, k, m[0].m[1]); /* ph:pl <= W^(3/2) - W - W^(1/2) + 1 */
-  ularith_add_2ul_2ul (&(t[2]), &(t[3]), pl, ph); /* t3:t2 <= W^(3/2) + W - 2 */
+  ularith_add_ul_2ul (&(t[1]), &(t[2]), pl);      /* t2:t1:t0 <= W^2 + W^(3/2) - 3W^(1/2) - 1 */
+
+  modredc2ul2_redc1_wide_inplace(t, (const struct __modulusredc2ul2_t *) m);
+  r[0] = t[1];
+  r[1] = t[2];
+  /* r1:r0 <= W^(3/2) + W - 2 */
 
   /* Result may be larger than m, but is < 2*m */
-
-  ularith_sub_2ul_2ul_ge (&(t[2]), &(t[3]), m[0].m[0], m[0].m[1]);
-
-  r[0] = t[2];
-  r[1] = t[3];
+  ularith_sub_2ul_2ul_ge (&(r[0]), &(r[1]), m[0].m[0], m[0].m[1]);
 #endif
 
 #if defined(MODTRACE)
@@ -1149,8 +829,7 @@ MAYBE_UNUSED
 static inline int
 modredc15ul_next (residueredc15ul_t r, const modulusredc15ul_t m)
 {
-  ularith_add_ul_2ul (&(r[0]), &(r[1]), 1UL);
-  return (modredc15ul_intequal (r, m[0].m));
+    return modredc2ul2_next(r, (const struct __modulusredc2ul2_t *) m);
 }
 
 
@@ -1158,7 +837,7 @@ MAYBE_UNUSED
 static inline int
 modredc15ul_finished (const residueredc15ul_t r, const modulusredc15ul_t m)
 {
-  return (modredc15ul_intequal (r, m[0].m));
+    return modredc2ul2_finished(r, (const struct __modulusredc2ul2_t *) m);
 }
 
 
@@ -1177,56 +856,15 @@ modredc15ul_divn (residueredc15ul_t r, const residueredc15ul_t a,
 		  const unsigned long *inv_n, const unsigned long c,
 		  const modulusredc15ul_t m)
 {
-  const unsigned long an = ((a[1] % n)*w_mod_n + a[0] % n) % n;
-  const unsigned long mn = ((m[0].m[1] % n)*w_mod_n + m[0].m[0] % n) % n;
-  unsigned long k;
-  residueredc15ul_t t;
-#ifdef WANT_ASSERT_EXPENSIVE
-  residueredc15ul_t a_backup;
-
-  modredc15ul_init_noset0 (a_backup, m);
-  modredc15ul_set (a_backup, a, m);
-#endif
-  
-  modredc15ul_init_noset0 (t, m);
-  t[1] = a[1];
-  t[0] = a[0];
-  
-  if (inv_n[mn] == 0)
-    {
-      modredc15ul_clear (t, m);
-      return 0;
-    }
-
-  /* Make t[1]:t[0] divisible by n */
-  /* We want a+km == 0 (mod n), so k = -a*m^{-1} (mod n) */
-  k = (inv_n[mn] * an) % n;
-  ularith_mul_ul_ul_2ul (&(t[0]), &(t[1]), m[0].m[0], k);
-  t[1] += m[0].m[1] * k;
-  ularith_add_2ul_2ul (&(t[0]), &(t[1]), a[0], a[1]);
-  
-  /* Now t[1]:t[0] is divisible by n */
-  ASSERT_EXPENSIVE (((t[1] % n)*w_mod_n + t[0] % n) % n == 0UL);
-  
-  /* May overwrite a */
-  r[1] = t[1] / n;
-  r[0] = t[0] * c;
-
-#ifdef WANT_ASSERT_EXPENSIVE
-  {
-    unsigned long i;
-    modredc15ul_set (t, r, m);
-    for (i = 1; i < n; i++)
-      modredc15ul_add (t, t, r, m);
-    ASSERT_EXPENSIVE (modredc15ul_equal (t, a_backup, m));
-    modredc15ul_clear (a_backup, m);
-  }
-#endif
-
-  modredc15ul_clear (t, m);
-  return 1;
+    return modredc2ul2_divn(r, a, n, w_mod_n, inv_n, c, (const struct __modulusredc2ul2_t *) m);
 }
 
+static inline int
+modredc15ul_inv (residueredc15ul_t r, const residueredc15ul_t A, 
+		 const modulusredc15ul_t m) 
+{
+    return modredc2ul2_inv(r, A, (const struct __modulusredc2ul2_t *) m);
+}
 
 
 /* prototypes of non-inline functions */
@@ -1247,24 +885,22 @@ int modredc15ul_div13 (residueredc15ul_t, const residueredc15ul_t,
 void modredc15ul_gcd (modintredc15ul_t, const residueredc15ul_t, 
 		      const modulusredc15ul_t);
 void modredc15ul_pow_ul (residueredc15ul_t, const residueredc15ul_t, 
-			 const unsigned long, const modulusredc15ul_t);
-void modredc15ul_2pow_ul (residueredc15ul_t, const unsigned long, 
+			 unsigned long, const modulusredc15ul_t);
+void modredc15ul_2pow_ul (residueredc15ul_t, unsigned long, 
                           const modulusredc15ul_t);
 void modredc15ul_pow_mp (residueredc15ul_t, const residueredc15ul_t, 
-			 const unsigned long *, const int, 
+			 const unsigned long *, int, 
 			 const modulusredc15ul_t);
-void modredc15ul_2pow_mp (residueredc15ul_t, const unsigned long *, const int, 
+void modredc15ul_2pow_mp (residueredc15ul_t, const unsigned long *, int, 
 			  const modulusredc15ul_t);
 void modredc15ul_V_ul (residueredc15ul_t, const residueredc15ul_t, 
-		       const unsigned long, const modulusredc15ul_t);
+		       unsigned long, const modulusredc15ul_t);
 void modredc15ul_V_mp (residueredc15ul_t, const residueredc15ul_t, 
-		       const unsigned long *, const int, 
+		       const unsigned long *, int, 
 		       const modulusredc15ul_t);
 int modredc15ul_sprp (const residueredc15ul_t, const modulusredc15ul_t);
 int modredc15ul_sprp2 (const modulusredc15ul_t);
 int modredc15ul_isprime (const modulusredc15ul_t);
-int modredc15ul_inv (residueredc15ul_t, const residueredc15ul_t, 
-		     const modulusredc15ul_t);
 int modredc15ul_batchinv (residueredc15ul_t *, const residueredc15ul_t *,
                           size_t, const residueredc15ul_t,
                           const modulusredc15ul_t);

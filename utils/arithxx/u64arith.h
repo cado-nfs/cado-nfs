@@ -685,6 +685,10 @@ u64arith_reciprocal_for_div(const uint64_t d)
   return v4;
 }
 
+/* Given D=(d0,d1), compute (v, shift) such that
+ * 2^shift * D in [2^127, 2^128) and 
+ * v + 2^64 = (2^192-1) / (2^shift*D)
+ */
 static inline uint64_t
 u64arith_reciprocal_for_div_3by2(const uint64_t d0, const uint64_t d1)
 {
@@ -824,6 +828,12 @@ u64arith_divr_2_1_1 (uint64_t *r, uint64_t a1, const uint64_t a2,
 #endif
 }
 
+/* divide U=(u0,u1,u2) by D=(d0,d1), compute quotient in q[0] and
+ * remainder in [*R0,*R1]. U must be < 2^64*D.
+ *
+ * Helper information is (v, shift) as computed by
+ * u64arith_reciprocal_for_div_3by2
+ */
 static inline void
 u64arith_divqr_3_2_1_recip_precomp (
     uint64_t *q, uint64_t *R0, uint64_t *R1,
