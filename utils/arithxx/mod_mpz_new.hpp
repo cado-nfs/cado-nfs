@@ -259,7 +259,7 @@ class arithxx_mod_mpz_new::Modulus
             if (&r != &a)
                 set0(r);
         } else {
-            const mp_limb_t bw = mpn_sub_n(r.r, mpz_limbs_read(m), r.r, mpz_size(m));
+            const mp_limb_t bw = mpn_sub_n(r.r, mpz_limbs_read(m), a.r, mpz_size(m));
             ASSERT_ALWAYS(bw == 0);
         }
         assertValid(r);
