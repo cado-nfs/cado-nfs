@@ -51,7 +51,7 @@ public:
 private:
     Integer_base() : super {} {}
     explicit Integer_base(const uint64_t a) : super {a} {}
-    template<size_t N, typename XX = std::enable_if<N <= NN>::type>
+    template<size_t N, typename XX = typename std::enable_if<N <= NN>::type>
     explicit Integer_base(std::array<uint64_t, N> const & s) {
         std::copy_n(s.begin(), N, begin());
         std::fill_n(begin() + N, NN - N, 0);
@@ -241,9 +241,9 @@ public:
             throw std::invalid_argument("input does not fit");
     }
 
-    template<size_t N, typename XX = std::enable_if<N <= super::max_size_in_words>::type>
+    template<size_t N, typename XX = typename std::enable_if<N <= super::max_size_in_words>::type>
     explicit Integer64(std::array<uint64_t, N> const & s) : super(s) {}
-    template<size_t N, typename XX = std::enable_if<N <= super::max_size_in_words>::type>
+    template<size_t N, typename XX = typename std::enable_if<N <= super::max_size_in_words>::type>
     Integer64& operator=(std::array<uint64_t, N> const & s) { set(s); return *this; }
     Integer64& operator=(const cxx_mpz & s) { s.get(data(), max_size_in_words); return *this; }
     Integer64& operator=(const uint64_t a) { set(&a, 1); return *this; }
@@ -287,9 +287,9 @@ public:
         if (!super::set(begin, n))
             throw std::invalid_argument("input does not fit");
     }
-    template<size_t N, typename XX = std::enable_if<N <= super::max_size_in_words>::type>
+    template<size_t N, typename XX = typename std::enable_if<N <= super::max_size_in_words>::type>
     explicit Integer128(std::array<uint64_t, N> const & s) : super(s) {}
-    template<size_t N, typename XX = std::enable_if<N <= super::max_size_in_words>::type>
+    template<size_t N, typename XX = typename std::enable_if<N <= super::max_size_in_words>::type>
     Integer128& operator=(std::array<uint64_t, N> const & s) { set(s); return *this; }
     Integer128& operator=(const cxx_mpz & s) { s.get(data(), max_size_in_words); return *this; }
     Integer128& operator=(const uint64_t a) { set(&a, 1); return *this; }

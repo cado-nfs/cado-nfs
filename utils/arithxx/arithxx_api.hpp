@@ -7,11 +7,13 @@
 #include <array>
 #include <memory>
 #include <new>
+#include <type_traits>
 
 #if __cplusplus >= 201402L
 #include <utility>
 #endif
 
+#include "is_non_narrowing_conversion.hpp"
 #include "arithxx_residue_std_op.hpp"
 #include "macros.h"
 
@@ -86,24 +88,28 @@ namespace arithxx_details {
                 downcast().set(r, a);
                 return r;
             }
-            Residue operator()(uint64_t const a) const
-            {
-                Residue r(downcast());
-                downcast().set(r, a);
-                return r;
-            }
-            Residue operator()(int64_t const a) const
-            {
-                Residue r(downcast());
-                downcast().set(r, a);
-                return r;
-            }
-            Residue operator()(int const a) const
-            {
-                Residue r(downcast());
-                downcast().set(r, (int64_t) a);
-                return r;
-            }
+            template <typename T, typename std::enable_if<
+                std::is_integral<T>::value &&
+                !std::is_signed<T>::value &&
+                cado_math_aux::is_non_narrowing_conversion<T, uint64_t>::value,
+                int>::type = 0 >
+                    Residue operator()(T const a) const
+                    {
+                        Residue r(downcast());
+                        downcast().set(r, uint64_t(a));
+                        return r;
+                    }
+            template <typename T, typename std::enable_if<
+                std::is_integral<T>::value &&
+                std::is_signed<T>::value &&
+                cado_math_aux::is_non_narrowing_conversion<T, int64_t>::value,
+                int>::type = 0 >
+                    Residue operator()(T const a) const
+                    {
+                        Residue r(downcast());
+                        downcast().set(r, int64_t(a));
+                        return r;
+                    }
 
             void pow(Residue &, Residue const &, uint64_t) const;
             void pow(Residue &, Residue const & b, Integer const & e) const;

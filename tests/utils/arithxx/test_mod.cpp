@@ -764,8 +764,9 @@ public:
     template<typename T, typename = void>
         struct has_batch_Q_to_Fp : std::false_type {};
 
+    template<typename...> struct detect { typedef void type; };
     template<typename T>
-        struct has_batch_Q_to_Fp<T, std::void_t<decltype(&T::Modulus::batch_Q_to_Fp)>> : std::true_type {};
+        struct has_batch_Q_to_Fp<T, typename detect<decltype(&T::Modulus::batch_Q_to_Fp)>::type> : std::true_type {};
 
 #if 0
     template<typename L>
