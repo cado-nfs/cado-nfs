@@ -126,7 +126,7 @@ public:
     }
 
     /* Typecast operators */
-    explicit operator bool() const {return std::any_of(begin(), end());}
+    explicit operator bool() const {return std::any_of(begin(), end(), convert_bool());}
     explicit operator uint8_t() const {return (uint8_t) (*this)[0];}
     explicit operator uint16_t() const {return (uint16_t) (*this)[0];}
     explicit operator uint32_t() const {return (uint32_t) (*this)[0];}
@@ -150,10 +150,11 @@ public:
 
     bool operator==(uint64_t const a) const { return (*this)[0] == a && std::none_of(begin() + 1, end(), convert_bool()); }
     bool operator< (uint64_t const a) const { return (*this)[0] < a && std::none_of(begin() + 1, end(), convert_bool()); }
-    bool operator> (uint64_t const a) const { return (*this)[0] > a || ((*this)[0] == a && std::any_of(begin() + 1, end(), convert_bool())); }
+    bool operator> (uint64_t const a) const { return std::any_of(begin() + 1, end(), convert_bool()) || (*this)[0] > a; }
     bool operator!=(uint64_t const a) const { return !operator==(a); }
     bool operator>=(uint64_t const a) const { return !operator<(a); }
     bool operator<=(uint64_t const a) const { return !operator<(a); }
+
 
 
     T& operator|=(const T &a) { auto c = a.begin(); for(auto & v: *this) v |= *c++; return downcast(); }
@@ -165,7 +166,7 @@ public:
     T& operator^=(uint64_t a) { (*this)[0] ^= a; return downcast(); }
 
     T  operator| (const T &a) const { T r = downcast(); return r |= a; }
-    uint64_t  operator& (const T &a) const { T r = downcast(); return uint64_t(r &= a); }
+    T  operator& (const T &a) const { T r = downcast(); return r &= a; }
     T  operator^ (const T &a) const { T r = downcast(); return r ^= a; }
 
     T  operator| (uint64_t a) const { T r = downcast(); return r |= a; }
@@ -412,6 +413,11 @@ public:
     }
     
 };
+
+namespace fmt {
+    template <> struct formatter<Integer64>: ostream_formatter {};
+    template <> struct formatter<Integer128>: ostream_formatter {};
+}
 
 /* Make these types known to gmp_auxx::mpz_fits(). This also makes these types
    known to cxx_mpz::fits(). */
