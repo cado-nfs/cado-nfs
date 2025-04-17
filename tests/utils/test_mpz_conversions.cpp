@@ -54,6 +54,8 @@ template <typename T> struct example_gen_1 {
     }
 };
 
+template <typename T> constexpr char const * example_gen_1<T>::name;    // c++11
+
 /* This one, after all, is more direct. It does rely on mpz_get<> doing
  * the right thing, though.
  */
@@ -78,6 +80,8 @@ template <typename T> struct example_gen_2 {
         zd = std::ldexp(zd, -e);
     }
 };
+
+template <typename T> constexpr char const * example_gen_2<T>::name;    // c++11
 
 template <typename T, template <typename> class G>
 static void dotest(cxx_gmp_randstate & rstate)
