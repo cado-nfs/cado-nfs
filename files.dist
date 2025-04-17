@@ -1537,6 +1537,7 @@ tests/utils/test_modredc_ul.c
 tests/utils/test_modredcul_batchinv.c
 tests/utils/test_modredcul_batchinv_ul.c
 tests/utils/test_modul_poly.c
+tests/utils/test_mpz_conversions.cpp
 tests/utils/test_mpz_mat.c
 tests/utils/test_mpz_poly.cpp
 tests/utils/test_mpz_poly_bivariate.cpp
@@ -1637,6 +1638,7 @@ utils/getprime.h
 utils/gmp-hacks.h
 utils/gmp_aux.c
 utils/gmp_aux.h
+utils/gmp_aux2.cpp
 utils/gmp_auxx.hpp
 utils/gmp_gcd.c
 utils/gmpxx.cpp
