@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cfenv>
 #include <cstddef>
+#include <cstdint>
 #include <climits>
 
 #include <algorithm>
@@ -73,16 +74,6 @@ namespace cado_math_aux
             return c == 0 ? INT_MAX : -std::ilogb(c);
         }
 
-    template<typename T>
-    void exact_form(cxx_mpz & m, int & e, T x)
-    {
-        int xe;
-        T mantissa = std::frexp(x, &xe);
-        constexpr int d = std::numeric_limits<T>::digits;
-        mpz_set_d(m, multiply_by_poweroftwo<T, d-1>(mantissa));
-        e -= (d-1);
-    }
-
     template<typename T> static inline void do_not_outsmart_me(T &) {}
 #if defined(__i386)
     template<> inline void do_not_outsmart_me<double>(double & x) {
@@ -107,6 +98,39 @@ namespace cado_math_aux
         temporary_round_mode & operator=(temporary_round_mode &&) = delete;
         ~temporary_round_mode() { fesetround(saved); }
     };
+
+    static inline bool rounding_towards_zero_works()
+    {
+        /* This runtime check can detect dysfunctional math environments.
+         * valgrind is one of them, unfortunately.
+         */
+        temporary_round_mode dummy(FE_TOWARDZERO);
+        const double d0 = (uint64_t(1) << 52) + 1;
+        const double d1 = std::ldexp(d0, 53);
+        /* We can't initialize it as d = d0 + d1 because that wouldn't
+         * necessarily obey the rounding mode
+         */
+        volatile double d = d0;
+        d += d1;
+        return d == d1;
+    }
+
+    static inline bool valgrind_long_double_hopeless()
+    {
+        /* Another one. This time, the result is even more useless. Note
+         * that in fact, I'm not even sure that frexp _works_ under
+         * valgrind. ld prints as 0x8p+16381 and frexp returns 0. Both
+         * are clearly bogus.
+         */
+        volatile double d0 = 1.79769313486231570815e+308; // 0x1.fffffffffffffp+1023;
+        volatile double d1 = 1.9958403095347196e+292;     // 0x1.fffffffffffffp+970;
+        volatile long double ld = d0;
+        ld += d1;
+        int e;
+        std::frexp(ld, &e);
+        return e != 1025;
+    }
+
 
     /* for floating point types, std::numeric_limits<T>::digits counts
      * the implicit bit as well (when there is one -- IEEE 80-bit
@@ -196,6 +220,16 @@ namespace cado_math_aux
                 mpz_neg(z, z);
             return z;
         }
+
+    template<typename T>
+    void exact_form(cxx_mpz & m, int & e, T x)
+    {
+        int xe = 0;
+        T mantissa = std::frexp(x, &xe);
+        constexpr int d = std::numeric_limits<T>::digits;
+        m = mpz_from<T>(std::ldexp(mantissa, d-1));
+        e -= (d-1);
+    }
 
     template<typename T>
     typename std::enable_if<std::is_floating_point<T>::value, T>::type
