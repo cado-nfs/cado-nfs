@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h"       // IWYU pragma: keep
 
 #include <cfenv>
 #include <cmath>
@@ -11,7 +11,7 @@
 #include <stdfloat>
 #endif
 
-#include "fmt/core.h"
+#include "fmt/base.h"
 #include <gmp.h>
 
 #include "cado_math_aux.hpp"
@@ -135,15 +135,41 @@ int main()
 {
     cxx_gmp_randstate rstate;
 
-    dotest<double, example_gen_1>(rstate);
-    dotest<long double, example_gen_1>(rstate);
+    const bool do_ld = !cado_math_aux::valgrind_long_double_hopeless();
+    const bool do_gen1 = cado_math_aux::rounding_towards_zero_works();
+
+    if (!do_gen1) {
+        fmt::print(stderr,
+                "# note: tests that rely on the rounding mode are\n"
+                "# disabled because FE_TOWARDZERO does not work\n"
+                "# (are you running under valgrind?\n\n");
+    }
+
+    if (!do_ld) {
+        fmt::print(stderr,
+                "# note: this environment can't do fine-grained\n"
+                "# floating point checks, sorry\n"
+                "# (are you running under valgrind?\n\n");
+    }
+
+
+    if (do_gen1) {
+        dotest<double, example_gen_1>(rstate);
+        if (do_ld)
+            dotest<long double, example_gen_1>(rstate);
+    }
+
     dotest<double, example_gen_2>(rstate);
-    dotest<long double, example_gen_2>(rstate);
+    if (do_ld)
+        dotest<long double, example_gen_2>(rstate);
 
     // To use this one, presently we need to use g++ (version 13 and up)
     // and force c++23.
 #if __cplusplus >= 202302L && defined(__STDCPP_FLOAT128_T__)
-    dotest<std::float128_t, example_gen_1>(rstate);
-    dotest<std::float128_t, example_gen_2>(rstate);
+    if (do_ld) {
+        if (do_gen1)
+            dotest<std::float128_t, example_gen_1>(rstate);
+        dotest<std::float128_t, example_gen_2>(rstate);
+    }
 #endif
 }
