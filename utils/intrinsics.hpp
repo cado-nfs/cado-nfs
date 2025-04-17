@@ -5,6 +5,8 @@
    available under the same name, templated by the SIMD word type and the
    element type. */
 
+#include <cstdint>
+
 #include <limits>
 #include "macros.h"
 
@@ -64,9 +66,9 @@ adds(const SIMDTYPE a, const SIMDTYPE b)
 {
   const size_t N = sizeof(SIMDTYPE) / sizeof(ELEMTYPE);
   SIMDTYPE r;
-  ELEMTYPE *ap = (ELEMTYPE *)&a;
-  ELEMTYPE *bp = (ELEMTYPE *)&b;
-  ELEMTYPE *rp = (ELEMTYPE *)&r;
+  auto *ap = (ELEMTYPE *)&a;
+  auto *bp = (ELEMTYPE *)&b;
+  auto *rp = (ELEMTYPE *)&r;
   /* This is slow, but correct */
   for (size_t i = 0; i < N; i++) {
     if (std::numeric_limits<ELEMTYPE>::max() - ap[i] < bp[i])
@@ -88,7 +90,7 @@ template<>
 inline uint32_t ATTRIBUTE_ALWAYS_INLINE ATTRIBUTE_ARTIFICIAL
 set1<uint32_t, uint8_t>(const uint8_t c)
 {
-  uint32_t r = (uint32_t) c;
+  auto r = (uint32_t) c;
   r += r << 8;
   r += r << 16;
   return r;

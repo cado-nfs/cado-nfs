@@ -15,6 +15,7 @@ set (sources
         arith/mod_mpz.c
         gmp_aux.c
         arithxx/mod64.cpp arithxx/modredc64.cpp arithxx/modredc126.cpp arithxx/mod_mpz_new.cpp
+        gmp_aux2.cpp
         double_poly.cpp rootfinder.cpp params.cpp params-extra.cpp gcd.c
         gzip.cpp misc.c misc2.cpp utils_cxx.cpp
         mpz_mat.cpp mpz_poly.cpp crc.c purgedfile.c bit_vector.c
