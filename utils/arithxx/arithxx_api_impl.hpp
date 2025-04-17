@@ -347,9 +347,10 @@ bool arithxx_details::api<layer>::is_strong_lucas_pseudoprime() const
 
     /* Compute the sequence and decide */
     Integer ell = me.getmod() + 1;
-    int k = 0;
-    for( ; (ell & 1) == 0 ; k++, ell>>=1) ;
+    int k = ell.ctz();
     ASSERT_ALWAYS(k);
+    ell >>= k;
+
     Residue v(me);
     me.V(v, nullptr, P, ell);
     /* if v is already -2 or +2, things are not going to change */
