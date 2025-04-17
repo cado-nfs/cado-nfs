@@ -8,12 +8,14 @@
 
 #include "cado_config.h" // for HAVE_GCC_STYLE_AMD64_INLINE_ASM
 
-#include <cstddef>
 #include <cstdint>
 
 #include <array>
 #include <vector>
 
+#include <gmp.h>
+
+#include "cxx_mpz.hpp"
 #include "macros.h"
 #include "misc.h"
 #include "modint.hpp"
@@ -73,6 +75,9 @@ class arithxx_modredc126::Modulus
     static bool valid(Integer const & m)
     {
         return Integer(1, 1) <= m && m % 2 == 1 && !(m[1] >> 62);
+    }
+    static bool valid(cxx_mpz const & m) {
+        return m % 2 == 1 && m > 0 && mpz_sizeinbase(m, 2) > 64 && mpz_sizeinbase(m, 2) <= 126;
     }
 
     explicit Modulus(Integer const s)
@@ -667,18 +672,6 @@ class arithxx_modredc126::Modulus
               uint64_t w_mod_n,
               uint64_t const * inv_n,
               uint64_t c) const;
-
-    /* r = B*a, use t as a temporary */
-    template <int B>
-    void simple_mul(Residue & r, Residue const & a, Residue & t) const;
-    /* r = B^e */
-    template <int B>
-    void npow(Residue & r, uint64_t const * e, size_t e_nrwords) const;
-    template <int B> void npow(Residue & r, uint64_t e) const;
-    template <int B> void npow(Residue & r, Integer const & e) const;
-
-    template <int B, typename WordType>
-    void npow_oneWord(WordType mask, WordType word, Residue & t, Residue & u) const;
 
   private:
     std::vector<Integer> batchinv_redc(std::vector<uint64_t> const & a, Integer c) const;

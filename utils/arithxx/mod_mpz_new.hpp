@@ -61,7 +61,7 @@ class arithxx_mod_mpz_new::Modulus
     /* {{{ ctors, validity range, and asserts */
   public:
     static bool valid(Integer const & m MAYBE_UNUSED) {
-        return mpz_sgn(m) > 0 && mpz_odd_p(m);
+        return m > 0 && mpz_odd_p(m);
     }
 
     explicit Modulus(uint64_t const s)
@@ -415,21 +415,6 @@ class arithxx_mod_mpz_new::Modulus
     bool divn(Residue &, Residue const &, unsigned long, mp_limb_t const *,
               mp_limb_t) const;
 };
-
-/* We have explicit specializations of these interfaces defined in
- * mod_mpz_new.cpp. We must declare them here, otherwise we might end up
- * instantiating the common code.
- */
-template<>
-void arithxx_details::api<arithxx_mod_mpz_new>::pow(Residue &, Residue const &, uint64_t) const;
-template <>
-void arithxx_details::api<arithxx_mod_mpz_new>::pow(Residue & r, Residue const & b, Integer const & e) const;
-template<> 
-void arithxx_details::api<arithxx_mod_mpz_new>::pow (Residue &r, const Residue &b, const uint64_t *e, size_t nrWords) const;
-
-
-
-
 
 inline arithxx_mod_mpz_new::Residue::Residue(Modulus const & m)
     : r_owned(new mp_limb_t[mpz_size(m.m) + 1])

@@ -17,60 +17,6 @@
  * This is done in mod_mpz_new.cpp
  */
 
-/* Returns 1 if r1 == 1 (mod m) or if r1 == -1 (mod m) or if
-   one of r1^(2^1), r1^(2^2), ..., r1^(2^(po2-1)) == -1 (mod m),
-   zero otherwise. Requires -1 (mod m) in minusone. */
-
-template <typename layer>
-bool arithxx_details::api<layer>::find_minus1(
-    Residue & r1, Residue const & minusone, int const po2) const
-{
-    auto const & me = downcast();
-    int i;
-
-    if (me.is1(r1) || me.equal(r1, minusone))
-        return true;
-
-    for (i = 1; i < po2; i++) {
-        me.sqr(r1, r1);
-        if (me.equal(r1, minusone))
-            break;
-    }
-
-    return i < po2;
-}
-
-/* Compute r = b^e. Here, e is a uint64_t */
-
-template <typename layer>
-void arithxx_details::api<layer>::pow(Residue & r,
-                                                   Residue const & b,
-                                                   uint64_t const e) const
-{
-    auto const & me = downcast();
-    uint64_t mask;
-    Residue t(me);
-
-    if (e == 0) {
-        me.set1(r);
-        return;
-    }
-
-    /* Find highest set bit in e. */
-    mask = (uint64_t(1) << 63) >> u64arith_clz(e);
-
-    me.set(t, b);
-
-    while ((mask >>= 1) > 0) {
-        me.sqr(t, t);
-        if (e & mask) {
-            me.mul(t, t, b);
-        }
-    }
-    /* Now e = 0, mask = 1, and r^mask * b^0 = r^mask is the result we want */
-    me.set(r, t);
-}
-
 /* Compute r = b^e. Here e is a multiple precision integer
    sum_{i=0}^{e_nrwords-1} e[i] * (machine word base)^i.
    Assume e[e_nrwords-1] is not zero when e_nrwords > 0.
@@ -82,9 +28,10 @@ void arithxx_details::api<layer>::pow(Residue & r,
                                                    size_t const e_nrwords) const
 {
     auto const & me = downcast();
+    size_t i = e_nrwords;
+    auto const msb = uint64_t(1) << 63;
     uint64_t mask;
     Residue t(me);
-    int i = e_nrwords;
 
     while (i > 0 && e[i - 1] == 0)
         i--;
@@ -93,42 +40,37 @@ void arithxx_details::api<layer>::pow(Residue & r,
         me.set1(r);
         return;
     }
-    i--;
 
     /* Find highest set bit in e[i]. */
-    mask = (uint64_t(1) << 63) >> u64arith_clz(e[i]);
+    mask = msb >> u64arith_clz(e[i - 1]);
     /* t = 1, so t^(mask/2) * b^e = t^mask * b^e  */
-
-    /* Exponentiate */
 
     me.set(t, b); /* (r*b)^mask * b^(e-mask) = r^mask * b^e */
     mask >>= 1;
 
-    for (; i >= 0; i--) {
-        while (mask > 0) {
+    for (; i > 0; i--) {
+        auto const word = e[i - 1];
+        for ( ; mask > 0 ; mask >>=1) {
             me.sqr(t, t);
-            if (e[i] & mask)
+            if (word & mask)
                 me.mul(t, t, b);
-            mask >>= 1; /* (r^2)^(mask/2) * b^e = r^mask * b^e */
         }
-        mask = uint64_t(1) << 63;
+        mask = msb;
     }
     me.set(r, t);
 }
 
 template <typename layer>
-void arithxx_details::api<layer>::pow(Residue & r,
-                                                   Residue const & b,
-                                                   Integer const & e) const
+inline void arithxx_details::api<layer>::pow2(Residue & r, uint64_t const * e,
+                        size_t const e_nrwords) const
 {
     auto const & me = downcast();
-    size_t i = e.size_in_words();
-    int const bits = layer::Integer::word_bits;
-    auto const msb = (typename Integer::value_type)1 << (bits - 1);
-    typename Integer::value_type word, mask;
+    size_t i = e_nrwords;
+    auto const msb = uint64_t(1) << 63;
+    uint64_t mask;
     Residue t(me);
 
-    while (i > 0 && e.getWord(i - 1) == 0)
+    while (i > 0 && e[i - 1] == 0)
         i--;
 
     if (i == 0) {
@@ -136,25 +78,44 @@ void arithxx_details::api<layer>::pow(Residue & r,
         return;
     }
 
-    word = e.getWord(i - 1);
-    mask = msb >> u64arith_clz(word);
-
-    /* Exponentiate */
-
-    me.set(t, b);
+    mask = msb >> u64arith_clz(e[i - 1]);
     mask >>= 1;
 
+    me.set1(t);
+    me.add(t, t, t);
+
     for (; i > 0; i--) {
-        word = e.getWord(i - 1);
-        while (mask > 0) {
-            me.sqr(t, t);
-            if (word & mask)
-                me.mul(t, t, b);
-            mask >>= 1;
+        auto const word = e[i - 1];
+        for ( ; mask > 0 ; mask >>=1) {
+            me.sqr (t, t);
+            if (word & mask) {
+                me.add (t, t, t);
+            }
         }
         mask = msb;
     }
     me.set(r, t);
+}
+
+template <typename layer>
+inline void arithxx_details::api<layer>::pow(Residue & r, Residue const & b, uint64_t e) const
+{
+    pow(r, b, &e, 1);
+}
+
+template <typename layer>
+inline void arithxx_details::api<layer>::pow2(Residue &r, const uint64_t e) const {
+    pow2(r, &e, 1);
+}
+
+/* this does not work with mpz! */
+template <typename layer>
+inline void arithxx_details::api<layer>::pow(Residue & r, Residue const & b, Integer const & e) const {
+    pow(r, b, e.data(), e.size_in_words());
+}
+template <typename layer>
+inline void arithxx_details::api<layer>::pow2(Residue &r, const Integer &e) const {
+    pow2(r, e.data(), e.size_in_words());
 }
 
 /* Compute r = V_k (b) and rp1 = V_{k+1} (b) if rp1 != NULL
@@ -303,6 +264,131 @@ template <typename layer>
 bool arithxx_details::api<layer>::inv_powerof2(Residue & r, Residue const & a) const
 {
     return downcast().inv(r, a);
+}
+
+/* Returns 1 if m is a strong probable prime wrt base 2, 0 otherwise.
+   Assumes m > 1 and is odd.
+ */
+template <typename layer>
+bool arithxx_details::api<layer>::is_strong_pseudoprime_base2() const
+{
+    auto const & me = downcast();
+    Residue r(me), minusone(me);
+    int po2 = 1;
+
+    /* If m == 1,7 (mod 8), then 2 is a quadratic residue, and we must find
+       -1 with one less squaring. This does not reduce the number of
+       pseudo-primes because strong pseudo-primes are also Euler pseudo-primes,
+       but makes identifying composites a little faster on average. */
+    auto const mod8 = uint64_t(Integer(me.m) & 7);
+    if (mod8 == 1 || mod8 == 7)
+        po2--;
+
+    /* Set mm1 to the odd part of m-1 */
+    auto mm1 = (Integer(me.m) - 1) >> 1;
+    int k = mm1.ctz();
+    po2 += k;
+    mm1 >>= k;
+    /* Hence, m-1 = mm1 * 2^po2 */
+
+    me.set1(minusone);
+    me.neg(minusone, minusone);
+
+    /* Exponentiate */
+    me.pow2(r, mm1);
+
+    /* Now r == 2^mm1 (mod m) */
+
+    /* Returns true if r1 == 1 (mod m) or if r1 == -1 (mod m) or if
+       one of r1^(2^1), r1^(2^2), ..., r1^(2^(po2-1)) == -1 (mod m),
+       zero otherwise. Requires -1 (mod m) in minusone. */
+    if (me.is1(r) || me.equal(r, minusone))
+        return true;
+
+    for (int i = 1; i < po2; i++) {
+        me.sqr(r, r);
+        if (me.equal(r, minusone))
+            return true;
+    }
+
+    return false;
+}
+
+/* This implements the "strong quadratic "V" Lucas pseudoprimality test",
+ * with Q=1. I checked manually that none of the Miller-Rabin strong
+ * pseudoprimes also pass this test up to 2^64
+ */
+template <typename layer>
+bool arithxx_details::api<layer>::is_strong_lucas_pseudoprime() const
+{
+    auto const & me = downcast();
+
+    /* Find the sequence parameter P */
+    if (Integer(me.m) == 2) return true;
+    if (!(Integer(me.m) & 1)) return false;
+
+    Residue P = me(3);
+    Residue D = me(5);
+    for(int i = 0 ; me.jacobi(D) != -1 ; i++) {
+        me.add1(P, P);
+        me.add(D, D, P);
+        me.add(D, D, P);
+        me.add(D, D, P);
+        me.add(D, D, P);
+        me.add1(P, P);
+        if (i == 20) {
+            /* N might be a square, in which case we're going to loop
+             * forever here. */
+            if (mpz_perfect_square_p(cxx_mpz(Integer(me.m))))
+                return false;
+            // return mpz_probab_prime_p(N, 2);
+        }
+    }
+
+    /* Compute the sequence and decide */
+    Integer ell = me.getmod() + 1;
+    int k = 0;
+    for( ; (ell & 1) == 0 ; k++, ell>>=1) ;
+    ASSERT_ALWAYS(k);
+    Residue v(me);
+    me.V(v, nullptr, P, ell);
+    /* if v is already -2 or +2, things are not going to change */
+    Residue const two = me(2);
+    Residue mtwo(me);
+    me.neg(mtwo, two);
+    if (me.equal(v, two) || me.equal(v, mtwo))
+        return true;
+    for(int i = 0 ; i < k ; i++) {
+        if (me.is0(v))
+            return true;
+        /* invariant: v = v_n = alpha^n + beta^n is neither 2 nor -2,
+        */
+        me.V_dbl(v, v, two); // v_{2n} = v_n^2-2
+        /* Here, if N is prime then v_{2n} can't be +2 because that would
+         * mean that v_n^2=4 and thus v_n == +2 or -2, which should both
+         * have been checked earlier. So v_{2n} == 2 is a sign of
+         * compositeness. Likewise, v_{2n}=-2 can only happen if
+         * v_n^2=0. Since we checked v_n==0 before, that would mean
+         * that n is not squarefree, and thus not prime.
+         */
+        if (me.equal(v, two) || me.equal(v, mtwo))
+            return false;
+    }
+    return me.equal(v, two);
+}
+
+template <typename layer>
+bool arithxx_details::api<layer>::is_prime() const
+{
+    auto const & me = downcast();
+
+    if (!me.is_strong_pseudoprime_base2())
+        return false;
+
+    if (me.sprp2_is_enough())
+        return true;
+
+    return me.is_strong_lucas_pseudoprime();
 }
 
 

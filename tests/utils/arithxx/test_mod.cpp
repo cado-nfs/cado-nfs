@@ -1,16 +1,16 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cstdint>     /* AIX wants it first (it's a bug) */
+#include <cstdint> /* AIX wants it first (it's a bug) */
 #include <cstdlib>
 
 #include <iostream>
-#include <typeinfo>
 #include <string>
 #include <type_traits>
+#include <typeinfo>
 #include <vector>
 
-#include <gmp.h>
 #include "fmt/base.h"
+#include <gmp.h>
 
 #include "arithxx/mod64.hpp"
 #include "arithxx/mod_mpz_new.hpp"
@@ -23,82 +23,85 @@
 #include "tests_common.h"
 
 #ifdef __GNUG__
-#include <memory>
 #include <cxxabi.h>
+#include <memory>
 
-static std::string demangle(const char* name) {
+static std::string demangle(char const * name)
+{
 
     int status = -4; // some arbitrary value to eliminate the compiler warning
 
     // enable c++11 by passing the flag -std=c++11 to g++
-    const std::unique_ptr<char, void(*)(void*)> res {
-        abi::__cxa_demangle(name, nullptr, nullptr, &status),
-        std::free
-    };
+    std::unique_ptr<char, void (*)(void *)> const res {
+        abi::__cxa_demangle(name, nullptr, nullptr, &status), std::free};
 
-    return (status==0) ? res.get() : name ;
+    return (status == 0) ? res.get() : name;
 }
 
 #else
 
 // does nothing if not g++
-static std::string demangle(const char* name) {
+static std::string demangle(char const * name)
+{
     return name;
 }
 
 #endif
 
-template<typename T> static std::string tname() {
+template <typename T> static std::string tname()
+{
     return demangle(typeid(T).name());
 }
 
+template <typename T> static T randomInteger();
 
-template <typename T>
-static T randomInteger();
-
-template<>
-Integer64 randomInteger<Integer64>() {
+template <> Integer64 randomInteger<Integer64>()
+{
     return Integer64(u64_random(state));
 }
 
-template<>
-Integer128 randomInteger<Integer128>() {
+template <> Integer128 randomInteger<Integer128>()
+{
     return Integer128(u64_random(state), u64_random(state));
 }
 
-template<>
-cxx_mpz randomInteger<cxx_mpz>() {
+template <> cxx_mpz randomInteger<cxx_mpz>()
+{
     uint64_t randomWords[10];
     size_t const len = u64_random(state) % 10 + 1;
     for (size_t i = 0; i < len; i++)
         randomWords[i] = u64_random(state);
-    return { randomWords, len };
+    return {randomWords, len};
 }
 
-template <class layer>
-class Tests {
-public:
+template <class layer> class Tests
+{
+  public:
     typedef typename layer::Modulus Modulus;
     typedef typename layer::Integer Integer;
     typedef typename layer::Residue Residue;
     typedef typename layer::Modulus::ResidueOp ResidueOp;
 
     Modulus randomModulus(bool odd = false) const;
-    
-    static cxx_mpz modToMpz(const Modulus &m) {
-        const Integer n = m.getmod();
-        return (cxx_mpz) n;
+
+    static cxx_mpz modToMpz(Modulus const & m)
+    {
+        Integer const n = m.getmod();
+        return (cxx_mpz)n;
     }
 
-    bool test_one_init(Integer const & n) const {
+    bool test_one_init(cxx_mpz const & n) const
+    {
         if (!Modulus::valid(n))
             return true;
-        Modulus const m(n);
+        Modulus const m {Integer {n}};
         Residue const r = m(1);
-        
-        const Integer one = m.get(r);
-        if (one != 1){
-            std::cerr << tname<layer>() << " Precomputed constant 1 wrong for modulus " << n << "\n";
+
+        Integer const one = m.get(r);
+        if (one != 1) {
+            std::cerr << tname<layer>()
+                      << " Precomputed constant 1 wrong for modulus " << n
+                      << "\n";
             std::cerr << one << "\n";
             return false;
         } else {
@@ -106,24 +109,23 @@ public:
         }
     }
 
-    bool test_init() const {
+    bool test_init() const
+    {
         bool ok = true;
-        ok &= test_one_init(Integer(727));
+        ok &= test_one_init(727);
 
-        try {
-            const uint64_t a[] = {1, 1};
-            const Integer n(a, 2);
-            for (uint64_t i = 0; i < 10; i++)
-                ok &= test_one_init(n + 2*i);
-        } catch (std::invalid_argument const &) { // NOLINT
-        }
-        if (ok) {
-            std::cout << "Tests<" << tname<layer>() << ">::tests_init() passed" << "\n";
-        }
+        cxx_mpz n = mpz_from_expression("2^64+1");
+        for (uint64_t i = 0; i < 10; i++)
+            ok &= test_one_init(n + 2 * i);
+
+        if (ok)
+            std::cout << "Tests<" << tname<layer>() << ">::tests_init() passed"
+                      << "\n";
         return ok;
     }
-    
-    bool test_set(const unsigned long iter) const {
+
+    bool test_set(unsigned long const iter) const
+    {
         for (unsigned long i = 0; i < iter; i++) {
             Modulus const m = randomModulus();
             Integer const a = randomInteger<Integer>();
@@ -136,73 +138,83 @@ public:
             cxx_mpz R1;
             mpz_mod(R1, A, N);
             if (R1 != R) {
-                std::cerr << tname<layer>() << "::set(" << A << ") wrong for modulus " << N << "\n";
+                std::cerr << tname<layer>() << "::set(" << A
+                          << ") wrong for modulus " << N << "\n";
                 return false;
             }
         }
         return true;
     }
-    
-    bool test_neg() const {
+
+    bool test_neg() const
+    {
         Modulus const m = randomModulus();
         Residue r(m);
         m.neg(r, r);
         Integer a = m.get(r);
         if (a != 0) {
-            cxx_mpz const N  = modToMpz(m);
-            std::cerr << tname<layer>() << "::neg(0) wrong for modulus " << N << "\n";
+            cxx_mpz const N = modToMpz(m);
+            std::cerr << tname<layer>() << "::neg(0) wrong for modulus " << N
+                      << "\n";
             return false;
         }
-        const Integer M = m.getmod();
-        
+        Integer const M = m.getmod();
+
         r = m(1);
         m.neg(r, r);
         a = m.get(r);
         if (a != M - 1) {
-            cxx_mpz const N  = modToMpz(m);
-            std::cerr << tname<layer>() << "::neg(1) wrong for modulus " << N << "\n";
+            cxx_mpz const N = modToMpz(m);
+            std::cerr << tname<layer>() << "::neg(1) wrong for modulus " << N
+                      << "\n";
             return false;
         }
         return true;
     }
 
-    bool test_one_sqr(Integer const & i, Integer const & n) const {
+    bool test_one_sqr(Integer const & i, Integer const & n) const
+    {
         Modulus const m(n);
         Residue a = m(i);
         m.sqr(a, a);
-        const Integer r = m.get(a);
+        Integer const r = m.get(a);
         auto const A = cxx_mpz(i);
         auto const N = cxx_mpz(n);
         auto const R = (A * A) % N;
-        if (R != (cxx_mpz) r) {
-            std::cerr << tname<layer>() << "::sqr(" << A << ") mod " << n << " wrong result: " << r << "\n";
+        if (R != (cxx_mpz)r) {
+            std::cerr << tname<layer>() << "::sqr(" << A << ") mod " << n
+                      << " wrong result: " << r << "\n";
             return false;
         }
         return true;
     }
-    
-    bool test_one_mul(Integer const & i, Integer const & j, Integer const & n) const {
+
+    bool test_one_mul(Integer const & i, Integer const & j,
+                      Integer const & n) const
+    {
         Modulus const m(n);
-        Residue a = m(i), b=m(j);
+        Residue a = m(i), b = m(j);
         m.mul(a, a, b);
-        const Integer r = m.get(a);
+        Integer const r = m.get(a);
         auto const A = cxx_mpz(i);
         auto const B = cxx_mpz(j);
         auto const N = cxx_mpz(n);
         auto const R = (A * B) % N;
-        if (R != (cxx_mpz) r) {
-            std::cerr << tname<layer>() << "::mul(" << A << ", " << B << ") mod " << N << " wrong result: " << r << "\n";
+        if (R != (cxx_mpz)r) {
+            std::cerr << tname<layer>() << "::mul(" << A << ", " << B
+                      << ") mod " << N << " wrong result: " << r << "\n";
             return false;
         }
         return true;
     }
-    
-    bool test_one_mul(Integer const & n) const {
+
+    bool test_one_mul(Integer const & n) const
+    {
         if (!Modulus::valid(n))
             return true;
 
         bool ok = true;
-        
+
         for (uint64_t i = 1; i < 10; i++) {
             ok &= test_one_sqr(Integer(i), n);
             ok &= test_one_sqr(n - Integer(i), n);
@@ -219,7 +231,8 @@ public:
         return ok;
     }
 
-    bool test_one_add_sub(Modulus const & m) const {
+    bool test_one_add_sub(Modulus const & m) const
+    {
         Integer const a = randomInteger<Integer>();
         Integer const b = randomInteger<Integer>();
         Residue const ar = m(a);
@@ -241,7 +254,8 @@ public:
             m.sub(cr, ar, br);
             Integer const c = m.get(cr);
             cxx_mpz e = (cxx_mpz(a) - cxx_mpz(b)) % cxx_mpz(m.getmod());
-            if (e < 0) e += cxx_mpz(m.getmod());
+            if (e < 0)
+                e += cxx_mpz(m.getmod());
             if (cxx_mpz(c) != e)
                 return false;
         }
@@ -249,69 +263,75 @@ public:
             m.sub1(cr, ar);
             Integer const c = m.get(cr);
             cxx_mpz e = (cxx_mpz(a) - 1) % cxx_mpz(m.getmod());
-            if (e < 0) e += cxx_mpz(m.getmod());
+            if (e < 0)
+                e += cxx_mpz(m.getmod());
             if (cxx_mpz(c) != e)
                 return false;
         }
         return true;
     }
-    bool test_add_sub(unsigned long iter = 10) const {
+    bool test_add_sub(unsigned long iter = 10) const
+    {
         bool ok = true;
         for (unsigned long i = 0; ok && i < iter; i++) {
             Modulus const m = randomModulus(true);
             ok = ok && test_one_add_sub(m);
             if (!ok) {
-                std::cout
-                    << "Tests<" << tname<layer>() << ">::tests_add_sub() "
-                    << "FAILED for m=" << m.getmod() << "\n";
+                std::cout << "Tests<" << tname<layer>() << ">::tests_add_sub() "
+                          << "FAILED for m=" << m.getmod() << "\n";
             }
         }
         if (ok)
-            std::cout << "Tests<" << tname<layer>() << ">::tests_add_sub() passed\n";
+            std::cout << "Tests<" << tname<layer>()
+                      << ">::tests_add_sub() passed\n";
         return ok;
     }
-    
-    bool test_mul() const {
+
+    bool test_mul() const
+    {
         bool ok = true;
         ok &= test_one_mul(Integer(727));
         for (uint64_t i = 0; i < 10; i++) {
             ok &= test_one_mul(Integer(UINT64_MAX - i));
         }
-        try {
-            const uint64_t a[] = {1, 1};
-            const Integer n(a, 2);
+        cxx_mpz const a = mpz_from_expression("2^64 + 1");
+        if (Modulus::valid(a)) {
+            auto const n = Integer(a);
             ok &= test_one_mul(n);
             for (uint64_t i = 0; i < 10; i++) {
                 ok &= test_one_mul(n + i);
             }
-        } catch (std::invalid_argument const &) { // NOLINT
         }
         if (ok) {
-            std::cout << "Tests<" << tname<layer>() << ">::tests_mul() passed" << "\n";
+            std::cout << "Tests<" << tname<layer>() << ">::tests_mul() passed"
+                      << "\n";
         }
         return ok;
     }
-    
-    
-    bool cmp_one_divn (const Residue &r, const Residue &a, const uint64_t b, const Modulus &m) const {
+
+    bool cmp_one_divn(Residue const & r, Residue const & a, uint64_t const b,
+                      Modulus const & m) const
+    {
         /* Check that r * b == a */
         Residue const _b = m(b);
         Residue rb(m);
         m.mul(rb, r, _b);
         if (!m.equal(a, rb)) {
-            const Integer mi = m.getmod();
-            const Integer ai = m.get(a);
-            const Integer ri = m.get(r);
-            std::cerr << tname<layer>() << "::div" << b << "(" << ai << ") = " << ri << " wrong for modulus " << mi << "\n";
+            Integer const mi = m.getmod();
+            Integer const ai = m.get(a);
+            Integer const ri = m.get(r);
+            std::cerr << tname<layer>() << "::div" << b << "(" << ai
+                      << ") = " << ri << " wrong for modulus " << mi << "\n";
             return false;
         }
         return true;
     }
-    
-    bool test_one_divn(const Residue &a, const Modulus &m) const {
+
+    bool test_one_divn(Residue const & a, Modulus const & m) const
+    {
         bool ok = true;
         Residue r(m);
-        
+
         if (m.div2(r, a))
             ok &= cmp_one_divn(r, a, 2, m);
         if (m.div3(r, a))
@@ -324,11 +344,12 @@ public:
             ok &= cmp_one_divn(r, a, 11, m);
         if (m.div13(r, a))
             ok &= cmp_one_divn(r, a, 13, m);
-        
+
         return ok;
     }
-    
-    bool test_divn(const unsigned long iter) const {
+
+    bool test_divn(unsigned long const iter) const
+    {
         bool ok = true;
         for (unsigned long i = 0; i < iter; i++) {
             Modulus const m = randomModulus();
@@ -337,98 +358,105 @@ public:
             ok &= test_one_divn(a, m);
         }
         if (ok) {
-            std::cout << "Tests<" << tname<layer>() << ">::test_divn() passed" << "\n";
+            std::cout << "Tests<" << tname<layer>() << ">::test_divn() passed"
+                      << "\n";
         }
         return ok;
     }
-    
-    cxx_mpz compute_mpz_pow(const Integer &base, const Integer &exponent, const Integer &n) const {
-        cxx_mpz B = (cxx_mpz) base, E = (cxx_mpz) exponent, N = (cxx_mpz) n, R;
+
+    cxx_mpz compute_mpz_pow(Integer const & base, Integer const & exponent,
+                            Integer const & n) const
+    {
+        cxx_mpz B = (cxx_mpz)base, E = (cxx_mpz)exponent, N = (cxx_mpz)n, R;
         mpz_powm(R, B, E, N);
         return R;
     }
 
-    cxx_mpz compute_mpz_pow(const Integer &base, const uint64_t *exponent, const size_t len, const Integer &n) const {
+    cxx_mpz compute_mpz_pow(Integer const & base, uint64_t const * exponent,
+                            size_t const len, Integer const & n) const
+    {
         cxx_mpz R;
         mpz_powm(R, cxx_mpz(base), cxx_mpz(exponent, len), cxx_mpz(n));
         return R;
     }
 
-    bool test_one_pow(const Integer &base, const uint64_t *exponent, const size_t len, const Integer &n) const {
+    bool test_one_pow(Integer const & base, uint64_t const * exponent,
+                      size_t const len, Integer const & n) const
+    {
         if (!Modulus::valid(n))
             return true;
         Modulus const m(n);
         Residue p(m);
         Integer r, e;
         cxx_mpz const R = compute_mpz_pow(base, exponent, len, n);
-        
-        bool eFitsInt;
-        try {
-            e = Integer(exponent, len);
-            eFitsInt = true;
-        } catch (std::invalid_argument const &) {
-            eFitsInt = false;
-        }
-        
+
+        auto const ez = cxx_mpz(exponent, len);
+        bool const eFitsInt = Modulus::valid(ez);
+        if (eFitsInt)
+            e = Integer(ez);
+
         Residue const b = m(base);
         m.pow(p, b, exponent, len);
         r = m.get(p);
-        if (R != (cxx_mpz) r) {
-            std::cerr << tname<layer>() << "::pow(" << base << ", " << exponent << ", " << len << ") mod " << n << " wrong result: " << r << "\n";
+        if (R != (cxx_mpz)r) {
+            std::cerr << tname<layer>() << "::pow(" << base << ", " << exponent
+                      << ", " << len << ") mod " << n << " wrong result: " << r
+                      << "\n";
             return false;
         }
         if (eFitsInt) {
             m.pow(p, b, e);
             r = m.get(p);
-            if (R != (cxx_mpz) r) {
-                std::cerr << tname<layer>() << "::pow(" << base << ", " << e << ") mod " << n << " wrong result: " << r << "\n";
+            if (R != (cxx_mpz)r) {
+                std::cerr << tname<layer>() << "::pow(" << base << ", " << e
+                          << ") mod " << n << " wrong result: " << r << "\n";
                 return false;
             }
         }
         if (len == 1) {
             m.pow(p, b, exponent[0]);
             r = m.get(p);
-            if (R != (cxx_mpz) r) {
-                std::cerr << tname<layer>() << "::pow(" << base << ", " << exponent << ") mod " << n << " wrong result: " << r << "\n";
+            if (R != (cxx_mpz)r) {
+                std::cerr << tname<layer>() << "::pow(" << base << ", "
+                          << exponent << ") mod " << n << " wrong result: " << r
+                          << "\n";
                 return false;
             }
         }
         if (base == Integer(2)) {
             m.pow2(p, exponent, len);
             r = m.get(p);
-            if (R != (cxx_mpz) r) {
-                std::cerr << tname<layer>() << "::pow2(" << exponent << ", " << len << ") mod " << n << " wrong result: " << r << "\n";
+            if (R != (cxx_mpz)r) {
+                std::cerr << tname<layer>() << "::pow2(" << exponent << ", "
+                          << len << ") mod " << n << " wrong result: " << r
+                          << "\n";
                 return false;
             }
             if (eFitsInt) {
                 m.pow2(p, e);
                 r = m.get(p);
-                if (R != (cxx_mpz) r) {
-                    std::cerr << tname<layer>() << "::pow2(" << e << ") mod " << n << " wrong result: " << r << "\n";
+                if (R != (cxx_mpz)r) {
+                    std::cerr << tname<layer>() << "::pow2(" << e << ") mod "
+                              << n << " wrong result: " << r << "\n";
                     return false;
                 }
             }
             if (len == 1) {
                 m.pow2(p, exponent[0]);
                 r = m.get(p);
-                if (R != (cxx_mpz) r) {
-                    std::cerr << tname<layer>() << "::pow2(" << exponent << ") mod " << n << " wrong result: " << r << "\n";
+                if (R != (cxx_mpz)r) {
+                    std::cerr << tname<layer>() << "::pow2(" << exponent
+                              << ") mod " << n << " wrong result: " << r
+                              << "\n";
                     return false;
                 }
-            }
-        } else if (base == Integer(3)) {
-            m.pow3(p, exponent[0]);
-            r = m.get(p);
-            cxx_mpz const R = compute_mpz_pow(base, exponent, 1, n);
-            if (R != (cxx_mpz) r) {
-                std::cerr << tname<layer>() << "::pow3(" << exponent << ") mod " << n << " wrong result: " << r << "\n";
-                return false;
             }
         }
         return true;
     }
 
-    bool test_pow(const unsigned long iter) const {
+    bool test_pow(unsigned long const iter) const
+    {
         uint64_t e = 3;
         bool ok = true;
         ok &= test_one_pow(Integer(2), &e, 1, Integer(727));
@@ -437,20 +465,19 @@ public:
                 ok &= test_one_pow(Integer(b), &e, 1, Integer(727));
             }
         }
-        try {
-            const uint64_t a1[] = {1,1};
-            const Integer n(a1, 2);
+        cxx_mpz const a = mpz_from_expression("2^64 + 1");
+        if (Modulus::valid(a)) {
+            auto const n = Integer(a);
             e = 3;
             ok &= test_one_pow(Integer(2), &e, 1, n);
-        } catch (std::invalid_argument const &) { // NOLINT
         }
 
         for (unsigned long i = 0; i < iter; i++) {
             Modulus const m = randomModulus();
             Integer const b = randomInteger<Integer>();
-            const Integer n = m.getmod();
-            
-            const size_t maxlen = 10;
+            Integer const n = m.getmod();
+
+            size_t const maxlen = 10;
             uint64_t e2[maxlen];
             size_t const len = u64_random(state) % (maxlen - 1) + 1;
             for (size_t i = 0; i < len; i++)
@@ -464,72 +491,93 @@ public:
             ok &= test_one_pow(Integer(2), e2, len, n);
             ok &= test_one_pow(b, e2, len, n);
         }
-        
-        if (ok) {
-            std::cout << "Tests<" << tname<layer>() << ">::test_pow() passed" << "\n";
-        }        return ok;
-    }
-    
-    bool test_one_sprp(Modulus const & m, const bool isPrime) const {
-        bool ok = true;
-        const char *prime_str[2] = {"composite", "prime"};
-        if (m.sprp2() != isPrime) {
-            cxx_mpz const N = modToMpz(m);
-            std::cerr << N << " incorrectly declared " << prime_str[!isPrime] << " by " << tname<layer>() << "::sprp2()" << "\n";
-            ok = false;
-        }
 
-        for (unsigned long b = 2; b < 10; b++) {
-            Residue const r = m(b);
-            if (m.sprp(r) != isPrime) {
-                cxx_mpz const N = modToMpz(m);
-                std::cerr << N << " incorrectly declared " << prime_str[!isPrime] << " by " << tname<layer>() << "::sprp(" << b << ")" << "\n";
-                ok = false;
-            }
+        if (ok) {
+            std::cout << "Tests<" << tname<layer>() << ">::test_pow() passed"
+                      << "\n";
         }
         return ok;
     }
-    bool test_one_sprp(const uint64_t *a, const size_t l, const bool isPrime) const
+
+    bool test_one_sprp(cxx_mpz const & n, bool const isPrime) const
     {
-        try {
-            const Integer n(a, l);
-            if (!Modulus::valid(n))
-                return true;
-            Modulus const m(n);
-            return test_one_sprp(m, isPrime);
-        } catch (std::invalid_argument const &) {
+        char const * prime_str[2] = {"composite", "prime"};
+        if (!Modulus::valid(n))
             return true;
-        }
-
-    }
-
-    bool test_sprp(const unsigned long iter MAYBE_UNUSED) const {
-        bool ok = true;
-        const uint64_t a1[1] = {727};
-        const uint64_t a2[1] = {19 * 23};
-        const uint64_t a3[2] = {13, 1};
-        const uint64_t a4[2] = {27, 1};
-        ok &= test_one_sprp(a1, sizeof(a1) / sizeof(a1[0]), true);
-        ok &= test_one_sprp(a2, sizeof(a2) / sizeof(a2[0]), false);
-        ok &= test_one_sprp(a3, sizeof(a3) / sizeof(a3[0]), true);
-        ok &= test_one_sprp(a4, sizeof(a4) / sizeof(a4[0]), false);
-        
-        if (ok) {
-            std::cout << "Tests<" << tname<layer>() << ">::tests_sprp() passed" << "\n";
-        }
-        return ok;
-    }
-    
-    bool test_one_isprime(Modulus const & m, const bool isPrime) const {
-        const char *prime_str[2] = {"composite", "prime"};
-        if (m.isprime() != isPrime) {
-            std::cerr << modToMpz(m) << " incorrectly declared " << prime_str[!isPrime] << " by " << tname<layer>() << "::isprime()" << "\n";
+        auto const N = Integer(n);
+        Modulus const m(N);
+        if (m.is_strong_pseudoprime_base2() != isPrime) {
+            fmt::print(stderr,
+                       "{} incorrectly declared {} by "
+                       "{}::is_strong_pseudoprime_base2()\n",
+                       n, prime_str[!isPrime], tname<layer>());
             return false;
         }
         return true;
     }
-    
-    bool test_isprime(const unsigned long iter) const {
+
+    bool test_one_lucas_sprp(cxx_mpz const & n, bool const isPrime) const
+    {
+        char const * prime_str[2] = {"composite", "prime"};
+        if (!Modulus::valid(n))
+            return true;
+        Modulus const m {Integer {n}};
+        if (m.is_strong_lucas_pseudoprime() != isPrime) {
+            fmt::print(stderr,
+                       "{} incorrectly declared {} by "
+                       "{}::is_strong_lucas_pseudoprime()\n",
+                       n, prime_str[!isPrime], tname<layer>());
+            return false;
+        }
+        return true;
+    }
+
+    bool test_sprp(unsigned long const iter MAYBE_UNUSED) const
+    {
+        bool ok = true;
+        ok &= test_one_sprp((15841), true);                       // psp2
+        ok &= test_one_sprp((15859), true);                       // prime
+        ok &= test_one_sprp((31631), false);                      // lpsp
+        ok &= test_one_sprp((75350936251), true);                 // psp2
+        ok &= test_one_sprp((75350936291), true);                 // prime
+        ok &= test_one_sprp(mpz_from_expression("2^64+1"), true); // psp2
+        if (ok) {
+            std::cout << "Tests<" << tname<layer>() << ">::tests_sprp() passed"
+                      << "\n";
+        }
+        return ok;
+    }
+
+    bool test_lucas_sprp(unsigned long const iter MAYBE_UNUSED) const
+    {
+        bool ok = true;
+        ok &= test_one_lucas_sprp((15841), false);       // psp2
+        ok &= test_one_lucas_sprp((15859), true);        // prime
+        ok &= test_one_lucas_sprp((31631), true);        // lpsp
+        ok &= test_one_lucas_sprp((75350936251), false); // psp2
+        ok &= test_one_lucas_sprp((75350936291), true);  // prime
+        ok &= test_one_lucas_sprp(mpz_from_expression("2^64+1"), false); // psp2
+        if (ok) {
+            std::cout << "Tests<" << tname<layer>()
+                      << ">::tests_lucas_sprp() passed" << "\n";
+        }
+        return ok;
+    }
+
+    bool test_one_isprime(Modulus const & m, bool const isPrime) const
+    {
+        char const * prime_str[2] = {"composite", "prime"};
+        if (m.is_prime() != isPrime) {
+            std::cerr << modToMpz(m) << " incorrectly declared "
+                      << prime_str[!isPrime] << " by " << tname<layer>()
+                      << "::isprime()" << "\n";
+            return false;
+        }
+        return true;
+    }
+
+    bool test_isprime(unsigned long const iter) const
+    {
         bool ok = true;
         for (unsigned long i = 0; i < iter; i++) {
             Modulus const m = randomModulus();
@@ -538,87 +586,101 @@ public:
             ok &= test_one_isprime(m, gmpIsPrime);
         }
         if (ok) {
-            std::cout << "Tests<" << tname<layer>() << ">::test_isprime() passed" << "\n";
+            std::cout << "Tests<" << tname<layer>()
+                      << ">::test_isprime() passed" << "\n";
         }
         return ok;
     }
 
-    bool test_one_gcd (const Integer &i, Modulus const & m) const {
+    bool test_one_gcd(Integer const & i, Modulus const & m) const
+    {
         bool ok = true;
         Integer g;
         Residue const r = m(i);
         m.gcd(g, r);
-        
-        cxx_mpz I = (cxx_mpz) i, M = modToMpz(m), G;
+
+        cxx_mpz I = (cxx_mpz)i, M = modToMpz(m), G;
         mpz_gcd(G, I, M);
-        
-        if (G != (cxx_mpz) g) {
-            std::cerr << tname<layer>() << "::gcd(" << I << ", " << M << ") = " << g << " wrong" << "\n";
+
+        if (G != (cxx_mpz)g) {
+            std::cerr << tname<layer>() << "::gcd(" << I << ", " << M
+                      << ") = " << g << " wrong" << "\n";
             ok = false;
         }
-        
+
         return ok;
     }
-    
-    bool test_gcd(const unsigned long iter) const {
+
+    bool test_gcd(unsigned long const iter) const
+    {
         bool ok = true;
-        
+
         Modulus const m = randomModulus();
         ok &= test_one_gcd(Integer(0), m);
         ok &= test_one_gcd(Integer(1), m);
-        const Integer a = m.getmod();
+        Integer const a = m.getmod();
         ASSERT_ALWAYS(a > 0);
         ok &= test_one_gcd(a - 1, m);
-        
+
         for (unsigned long i = 0; i < iter; i++) {
             Modulus const m = randomModulus();
             Integer const a = randomInteger<Integer>();
             ok &= test_one_gcd(a, m);
         }
         if (ok) {
-            std::cout << "Tests<" << tname<layer>() << ">::test_gcd() passed" << "\n";
+            std::cout << "Tests<" << tname<layer>() << ">::test_gcd() passed"
+                      << "\n";
         }
         return ok;
     }
-    
-    bool test_one_inv (const Integer &a, Modulus const & m) const {
+
+    bool test_one_inv(Integer const & a, Modulus const & m) const
+    {
         bool ok = true;
 
-        cxx_mpz A = (cxx_mpz) a, M = modToMpz(m), I;
+        cxx_mpz A = (cxx_mpz)a, M = modToMpz(m), I;
         bool const invExists0 = mpz_invert(I, A, M);
-
 
         Residue const ar = m(a);
         Residue ir(m);
         bool const invExists1 = m.inv(ir, ar);
-        const Integer i = m.get(ir);
-        
+        Integer const i = m.get(ir);
+
         if (invExists0 != invExists1) {
-            std::cerr << tname<layer>() << "::inv(" << A << ", " << M << ") wrongly thinks inverse " << (invExists1 ? "exists" : "does not exist") << "\n";
+            std::cerr << tname<layer>() << "::inv(" << A << ", " << M
+                      << ") wrongly thinks inverse "
+                      << (invExists1 ? "exists" : "does not exist") << "\n";
             ok = false;
-        } else if (invExists1 && I != (cxx_mpz) i) {
-            std::cerr << tname<layer>() << "::inv(" << A << ", " << M << ") = " << i << " wrong" << "\n";
+        } else if (invExists1 && I != (cxx_mpz)i) {
+            std::cerr << tname<layer>() << "::inv(" << A << ", " << M
+                      << ") = " << i << " wrong" << "\n";
             ok = false;
         }
 
         if (mpz_odd_p(A)) {
             bool const invExists2 = m.inv_odd(ir, ar);
-            const Integer i = m.get(ir);
+            Integer const i = m.get(ir);
             if (invExists2 != invExists0) {
-                std::cerr << tname<layer>() << "::inv_odd(" << A << ", " << M << ") wrongly thinks inverse " << (invExists2 ? "exists" : "does not exist") << "\n";
+                std::cerr << tname<layer>() << "::inv_odd(" << A << ", " << M
+                          << ") wrongly thinks inverse "
+                          << (invExists2 ? "exists" : "does not exist") << "\n";
                 ok = false;
-            } else if (invExists0 && I != (cxx_mpz) i) {
-                std::cerr << tname<layer>() << "::inv_odd(" << A << ", " << M << ") = " << i << " wrong" << "\n";
+            } else if (invExists0 && I != (cxx_mpz)i) {
+                std::cerr << tname<layer>() << "::inv_odd(" << A << ", " << M
+                          << ") = " << i << " wrong" << "\n";
                 ok = false;
             }
         } else if (A != 0 && (A & (A - 1)) == 0) {
             bool const invExists3 = m.inv_powerof2(ir, ar);
-            const Integer i = m.get(ir);
+            Integer const i = m.get(ir);
             if (invExists3 != invExists0) {
-                std::cerr << tname<layer>() << "::inv_powerof2(" << A << ", " << M << ") wrongly thinks inverse " << (invExists3 ? "exists" : "does not exist") << "\n";
+                std::cerr << tname<layer>() << "::inv_powerof2(" << A << ", "
+                          << M << ") wrongly thinks inverse "
+                          << (invExists3 ? "exists" : "does not exist") << "\n";
                 ok = false;
-            } else if (invExists0 && I != (cxx_mpz) i) {
-                std::cerr << tname<layer>() << "::inv_powerof2(" << A << ", " << M << ") = " << i << " wrong" << "\n";
+            } else if (invExists0 && I != (cxx_mpz)i) {
+                std::cerr << tname<layer>() << "::inv_powerof2(" << A << ", "
+                          << M << ") = " << i << " wrong" << "\n";
                 ok = false;
             }
         }
@@ -627,47 +689,52 @@ public:
             Integer i;
             bool const invExists5 = m.intinv(i, a);
             if (invExists5 != invExists0) {
-                std::cerr << tname<layer>() << "::intinv(" << A << ", " << M << ") wrongly thinks inverse " << (invExists5 ? "exists" : "does not exist") << "\n";
+                std::cerr << tname<layer>() << "::intinv(" << A << ", " << M
+                          << ") wrongly thinks inverse "
+                          << (invExists5 ? "exists" : "does not exist") << "\n";
                 ok = false;
-            } else if (invExists0 && I != (cxx_mpz) i) {
-                std::cerr << tname<layer>() << "::intinv(" << A << ", " << M << ") = " << i << " wrong" << "\n";
+            } else if (invExists0 && I != (cxx_mpz)i) {
+                std::cerr << tname<layer>() << "::intinv(" << A << ", " << M
+                          << ") = " << i << " wrong" << "\n";
                 ok = false;
             }
         }
 
-
         return ok;
     }
-    
-    bool test_inv(const unsigned long iter) const {
+
+    bool test_inv(unsigned long const iter) const
+    {
         bool ok = true;
-        
+
         Modulus const m = randomModulus();
         ok &= test_one_inv(Integer(0), m);
         ok &= test_one_inv(Integer(1), m);
-        const Integer a = m.getmod();
+        Integer const a = m.getmod();
         ASSERT_ALWAYS(a > 0);
         ok &= test_one_inv(a - 1, m);
-        
+
         for (unsigned long i = 0; i < iter; i++) {
             Modulus const m = randomModulus();
             Integer const a = randomInteger<Integer>();
             ok &= test_one_inv(a, m);
         }
         if (ok) {
-            std::cout << "Tests<" << tname<layer>() << ">::test_inv() passed" << "\n";
+            std::cout << "Tests<" << tname<layer>() << ">::test_inv() passed"
+                      << "\n";
         }
         return ok;
     }
-    
-    bool
-    test_one_batchinv(const Residue *a, const size_t len, const Residue *c, const Modulus &m) const {
+
+    bool test_one_batchinv(Residue const * a, size_t const len,
+                           Residue const * c, Modulus const & m) const
+    {
         ASSERT_ALWAYS(len <= 10);
         auto r = m.template make_array<10>();
         Residue t(m);
-        const bool batchinv_valid = m.batchinv(r.data(), a, len, c);
+        bool const batchinv_valid = m.batchinv(r.data(), a, len, c);
         bool only_trivial_gcds = true;
-        
+
         Integer g;
         for (size_t i = 0; i < len; i++) {
             m.gcd(g, a[i]);
@@ -678,11 +745,15 @@ public:
 
         if (batchinv_valid) {
             if (!only_trivial_gcds) {
-                std::cerr << tname<layer>() << "::batchinv() wrongly thinks inverse exists" << "\n";
+                std::cerr << tname<layer>()
+                          << "::batchinv() wrongly thinks inverse exists"
+                          << "\n";
                 return false;
             }
         } else if (only_trivial_gcds) {
-            std::cerr << tname<layer>() << "::batchinv() wrongly thinks inverse does not exist" << "\n";
+            std::cerr << tname<layer>()
+                      << "::batchinv() wrongly thinks inverse does not exist"
+                      << "\n";
             return false;
         } else {
             /* batchinv reported no inverse exists and there is, in fact, a
@@ -696,22 +767,23 @@ public:
                 m.mul(t, t, *c);
             }
             if (!m.equal(t, r[i])) {
-                std::cerr << tname<layer>() << "::batchinv() computed wrong inverse" << "\n";
+                std::cerr << tname<layer>()
+                          << "::batchinv() computed wrong inverse" << "\n";
                 return false;
             }
         }
         return true;
     }
 
-    
-    bool test_batchinv(const unsigned long iter) const {
+    bool test_batchinv(unsigned long const iter) const
+    {
         bool ok = true;
-        
+
         for (unsigned long i_test = 0; i_test < iter; i_test++) {
             Modulus const m = randomModulus();
             auto a = m.template make_array<10>();
             Residue c(m);
-            for (auto & x : a)
+            for (auto & x: a)
                 x = m(randomInteger<Integer>());
             c = m(randomInteger<Integer>());
             for (size_t i_size = 0; i_size <= 10; i_size++) {
@@ -720,21 +792,22 @@ public:
             }
         }
         if (ok) {
-            std::cout << "Tests<" << tname<layer>() << ">::test_batchinv() passed" << "\n";
+            std::cout << "Tests<" << tname<layer>()
+                      << ">::test_batchinv() passed" << "\n";
         }
         return ok;
     }
 
-    bool
-    test_one_batch_Q_to_Fp(Integer const & num, Integer const & den, int k) const
+    bool test_one_batch_Q_to_Fp(Integer const & num, Integer const & den,
+                                int k) const
     {
         if (!Modulus::valid(den))
             return true;
 
-        static constexpr const int batch_size = 4;
+        static constexpr int const batch_size = 4;
         std::vector<uint64_t> M;
         M.reserve(batch_size);
-        for(int i = 0 ; i < batch_size ; i++) {
+        for (int i = 0; i < batch_size; i++) {
             cxx_mpz p;
             do {
                 p = cxx_mpz(randomModulus(true).getmod());
@@ -745,28 +818,34 @@ public:
         if (R.empty())
             return true;
         bool ok = true;
-        for(int i = 0 ; ok && i < batch_size ; i++) {
+        for (int i = 0; ok && i < batch_size; i++) {
             cxx_mpz t = cxx_mpz(R[i]) * cxx_mpz(den);
             mpz_mul_2exp(t, t, k);
             t -= cxx_mpz(num);
             t %= M[i];
             ok = t == 0;
             if (!ok) {
-                fmt::print(stderr, "Tests<{}>::test_one_batch_Q_to_Fp fails on {}/{}/2^{} mod {}\n",
-                        tname<layer>(),
-                        cxx_mpz(num),
-                        cxx_mpz(den), k, M[i]);
+                fmt::print(stderr,
+                           "Tests<{}>::test_one_batch_Q_to_Fp fails on "
+                           "{}/{}/2^{} mod {}\n",
+                           tname<layer>(), cxx_mpz(num), cxx_mpz(den), k, M[i]);
             }
         }
         return ok;
     }
 
-    template<typename T, typename = void>
-        struct has_batch_Q_to_Fp : std::false_type {};
+    template <typename T, typename = void>
+    struct has_batch_Q_to_Fp : std::false_type {
+    };
 
-    template<typename...> struct detect { typedef void type; };
-    template<typename T>
-        struct has_batch_Q_to_Fp<T, typename detect<decltype(&T::Modulus::batch_Q_to_Fp)>::type> : std::true_type {};
+    template <typename...> struct detect {
+        typedef void type;
+    };
+    template <typename T>
+    struct has_batch_Q_to_Fp<
+        T, typename detect<decltype(&T::Modulus::batch_Q_to_Fp)>::type>
+        : std::true_type {
+    };
 
 #if 0
     template<typename L>
@@ -776,14 +855,18 @@ public:
     template<typename L>
         typename std::enable_if<std::is_same<L, arithxx_modredc64>::value, bool>::type
 #else
-    template<typename L>
-        typename std::enable_if<!has_batch_Q_to_Fp<L>::value, bool>::type
-        test_batch_Q_to_Fp(const unsigned long) const { return true; }
+    template <typename L>
+    typename std::enable_if<!has_batch_Q_to_Fp<L>::value, bool>::type
+    test_batch_Q_to_Fp(const unsigned long) const
+    {
+        return true;
+    }
 
-    template<typename L>
-        typename std::enable_if<has_batch_Q_to_Fp<L>::value, bool>::type
+    template <typename L>
+    typename std::enable_if<has_batch_Q_to_Fp<L>::value, bool>::type
 #endif
-    test_batch_Q_to_Fp(const unsigned long iter) const {
+    test_batch_Q_to_Fp(const unsigned long iter) const
+    {
         bool ok = true;
         ok &= test_one_batch_Q_to_Fp(Integer(42), Integer(1009), 0);
         ok &= test_one_batch_Q_to_Fp(Integer(42), Integer(17), 0);
@@ -799,142 +882,73 @@ public:
             ok &= test_one_batch_Q_to_Fp(num, den, k);
         }
         if (ok)
-            std::cout << "Tests<" << tname<layer>() << ">::test_batch_Q_to_Fp() passed" << "\n";
+            std::cout << "Tests<" << tname<layer>()
+                      << ">::test_batch_Q_to_Fp() passed" << "\n";
         return ok;
     }
 
-    
-    bool test_one_jacobi (const Integer &a, Modulus const & m) const {
+    bool test_one_jacobi(Integer const & a, Modulus const & m) const
+    {
         bool ok = true;
         Residue const ar = m(a);
         int const jacobi1 = m.jacobi(ar);
 
-        cxx_mpz A = (cxx_mpz) a, M = modToMpz(m);
+        cxx_mpz A = (cxx_mpz)a, M = modToMpz(m);
         int const jacobi2 = mpz_jacobi(A, M);
 
         if (jacobi1 != jacobi2) {
-            std::cerr << tname<layer>() << "::jacobi(" << A << ", " << M << ") = " << jacobi1 << " wrong" << "\n";
+            std::cerr << tname<layer>() << "::jacobi(" << A << ", " << M
+                      << ") = " << jacobi1 << " wrong" << "\n";
             ok = false;
         }
-        
+
         return ok;
     }
-    
-    bool test_jacobi(const unsigned long iter) const {
+
+    bool test_jacobi(unsigned long const iter) const
+    {
         bool ok = true;
 
         if (Modulus::valid(Integer(1))) {
             Modulus const m(Integer(1));
             ok &= test_one_jacobi(Integer(0), m);
         }
-        
+
         Modulus const m = randomModulus(true);
         ok &= test_one_jacobi(Integer(0), m);
         ok &= test_one_jacobi(Integer(1), m);
-        const Integer a = m.getmod();
+        Integer const a = m.getmod();
         ASSERT_ALWAYS(a > 0);
         ok &= test_one_jacobi(a - 1, m);
-        
+
         for (unsigned long i = 0; i < iter; i++) {
             Modulus const m = randomModulus(true);
             Integer const a = randomInteger<Integer>();
             ok &= test_one_jacobi(a, m);
         }
         if (ok) {
-            std::cout << "Tests<" << tname<layer>() << ">::test_jacobi() passed" << "\n";
+            std::cout << "Tests<" << tname<layer>() << ">::test_jacobi() passed"
+                      << "\n";
         }
         return ok;
     }
 
-    /* This does one Lucas strong primality test on N, with starting
-     * point b
-     */
-    bool test_one_lucas(Integer const & N, Integer const & b) const
+    bool test_modop() const
     {
-        Modulus const m(N);
-        Integer ell = N + 1;
-        int k = 0;
-        for( ; (ell & 1) == 0 ; k++, ell>>=1) ;
-        ASSERT_ALWAYS(k);
-        Residue v(m);
-        m.V(v, nullptr, m(b), ell);
-        /* if v is already -2 or +2, things are not going to change */
-        Residue two = m(2);
-        Residue mtwo(m);
-        m.neg(mtwo, two);
-        if (m.equal(v, two) || m.equal(v, mtwo))
-            return true;
-        Residue w(m);
-        for(int i = 0 ; i < k ; i++) {
-            /* invariant: v = v_n = alpha^n + beta^n is neither 2 nor -2,
-             */
-            m.V_dbl(w, v, two); // w = v^2-2
-            /* Here, if N is prime then w can't be +2 because that would
-             * mean that v^2=4 and thus v == +2 or -2, which should both
-             * have been checked earlier. So w == 2 is a sign of
-             * compositeness.
-             */
-            if (m.equal(w, two))
-                return false;
-            if (m.equal(w, mtwo)) {
-                /* w = v_{2n}==-2=alpha^{2n}+beta^{2n} implies that
-                 * u_{2n}^2=(alpha^{2n}-beta^{2n})^2=v_{2n}^2-4=0 so that
-                 * (alpha/beta)^{2n}==1, which implies that
-                 * (alpha/beta)^n is a square root of 1. We can't have
-                 * alpha^n == beta^n since that would imply v_{2n}=+2,
-                 * which isn't. So if N  is prime we must have alpha^n ==
-                 * -beta^n, thus v_n==0
-                 */
-                return m.is0(v);
-            }
-            std::swap(v, w);
-        }
-        return m.equal(v, two) || m.equal(v, mtwo);
-    }
-
-
-    bool test_lucas(const unsigned long iter) const {
-        bool ok = true;
-        for (unsigned long i = 0; i < iter; i++) {
-            Integer const N = randomInteger<Integer>();
-            if (!Modulus::valid(N) || !mpz_probab_prime_p(cxx_mpz(N), 2)) {
-                i--;
-                continue;
-            }
-            /* want b^2-4 not a square */
-            Integer const b = randomInteger<Integer>();
-            auto const Nz = cxx_mpz(N);
-            auto const bz = cxx_mpz(b);
-            int const j = mpz_jacobi(bz-2, Nz) * mpz_jacobi(bz+2, Nz);
-            if (j != -1) {
-                i--;
-                continue;
-            }
-            ok &= test_one_lucas(N, b);
-            if (!ok)
-                fmt::print(stderr, "Tests<{}>::test_one_lucas incorrectly identified {} as composite\n", tname<layer>(), N);
-        }
-        if (ok) {
-            std::cout << "Tests<" << tname<layer>() << ">::test_lucas() passed" << "\n";
-        }
-        return ok;
-    }
-    
-    bool test_modop() const {
         Integer n;
         {
             Modulus const m = randomModulus();
             ResidueOp r(m), s(m), t(m);
             n = randomInteger<Integer>();
-        
+
             r = n;
             s = 2;
-            t = r*s;
-            if (t != r+r) {
+            t = r * s;
+            if (t != r + r) {
                 return false;
             }
             t += n;
-            if (t != r+r+r) {
+            if (t != r + r + r) {
                 return false;
             }
         }
@@ -945,18 +959,20 @@ public:
 
             r = 2;
             r = r.pow(n - 1);
-            if ((Integer) r != 1)
+            if ((Integer)r != 1)
                 return false;
             r = 5;
-            r = 5/r;
-            if ((Integer) r != 1)
+            r = 5 / r;
+            if ((Integer)r != 1)
                 return false;
         }
-        std::cout << "Tests<" << tname<layer>() << ">::test_modop() passed" << "\n";
+        std::cout << "Tests<" << tname<layer>() << ">::test_modop() passed"
+                  << "\n";
         return true;
     }
-    
-    bool runTests(const unsigned long iter) const {
+
+    bool runTests(unsigned long const iter) const
+    {
         bool ok = true;
         ok &= test_init();
         ok &= test_set(iter);
@@ -966,36 +982,44 @@ public:
         ok &= test_divn(iter);
         ok &= test_pow(iter);
         ok &= test_sprp(iter);
+        ok &= test_lucas_sprp(iter);
         ok &= test_isprime(iter);
         ok &= test_gcd(iter);
         ok &= test_inv(iter);
         ok &= test_jacobi(iter);
         ok &= test_batchinv(iter);
         ok &= test_batch_Q_to_Fp<layer>(iter);
-        ok &= test_lucas(iter);
         ok &= test_modop();
         return ok;
     }
 };
 
-template<>
-arithxx_mod64::Modulus Tests<arithxx_mod64>::randomModulus(const bool odd) const {
+template <>
+arithxx_mod64::Modulus Tests<arithxx_mod64>::randomModulus(bool const odd) const
+{
     return Modulus(u64_random(state) | (odd ? 1 : 0));
 }
 
-template<>
-arithxx_modredc64::Modulus Tests<arithxx_modredc64>::randomModulus(const bool odd MAYBE_UNUSED) const {
+template <>
+arithxx_modredc64::Modulus
+Tests<arithxx_modredc64>::randomModulus(bool const odd MAYBE_UNUSED) const
+{
     return Modulus(u64_random(state) | 1);
 }
 
-template<>
-arithxx_modredc126::Modulus Tests<arithxx_modredc126>::randomModulus(const bool odd MAYBE_UNUSED) const {
-    Integer128 const m(u64_random(state) | 1, u64_random(state) & (UINT64_MAX >> 2));
+template <>
+arithxx_modredc126::Modulus
+Tests<arithxx_modredc126>::randomModulus(bool const odd MAYBE_UNUSED) const
+{
+    Integer128 const m(u64_random(state) | 1,
+                       u64_random(state) & (UINT64_MAX >> 2));
     return Modulus(m);
 }
 
-template<>
-arithxx_mod_mpz_new::Modulus Tests<arithxx_mod_mpz_new>::randomModulus(const bool odd) const {
+template <>
+arithxx_mod_mpz_new::Modulus
+Tests<arithxx_mod_mpz_new>::randomModulus(bool const odd) const
+{
     Integer i = randomInteger<arithxx_mod_mpz_new::Integer>();
     if (odd && mpz_even_p(i))
         i += 1;
@@ -1006,22 +1030,22 @@ int main(int argc, char const * argv[])
 {
     unsigned long iter = 100;
     bool ok = true;
-  
+
     tests_common_cmdline(&argc, &argv, PARSE_SEED | PARSE_ITER);
     tests_common_get_iter(&iter);
 
     Tests<arithxx_mod64> const test1;
     ok &= test1.runTests(iter);
-    
+
     Tests<arithxx_modredc64> const test2;
     ok &= test2.runTests(iter);
-    
+
     Tests<arithxx_modredc126> const test3;
     ok &= test3.runTests(iter);
-    
+
     Tests<arithxx_mod_mpz_new> const test4;
     ok &= test4.runTests(iter);
-  
+
     tests_common_clear();
     exit(ok ? EXIT_SUCCESS : EXIT_FAILURE);
 }

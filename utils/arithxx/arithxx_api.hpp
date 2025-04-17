@@ -111,12 +111,11 @@ namespace arithxx_details {
                         return r;
                     }
 
-            void pow(Residue &, Residue const &, uint64_t) const;
-            void pow(Residue &, Residue const & b, Integer const & e) const;
-            void pow(Residue &, Residue const &, uint64_t const *, size_t) const;
-            bool sprp(Residue const &) const;
-            bool sprp2() const;
-            bool isprime() const;
+            bool is_strong_pseudoprime_base2() const;
+            bool is_strong_lucas_pseudoprime() const;
+            bool is_prime() const;
+            // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+            constexpr bool sprp2_is_enough() const { return false; }
 
             bool div3(Residue &, Residue const &) const;
             bool div5(Residue &, Residue const &) const;
@@ -160,10 +159,14 @@ namespace arithxx_details {
             }
 #endif
 
-            void pow2 (Residue &r, uint64_t e) const;
-            void pow2 (Residue &r, const uint64_t *e, size_t e_nrwords) const;
-            void pow2 (Residue &r, const Integer &e) const;
-            void pow3 (Residue &r, uint64_t e) const;
+            void pow(Residue &, Residue const &, uint64_t const *, size_t) const;
+            void pow2(Residue &r, const uint64_t *e, size_t e_nrwords) const;
+
+            void pow(Residue & r, Residue const & b, uint64_t e) const;
+            void pow2(Residue &r, const uint64_t e) const;
+
+            void pow(Residue & r, Residue const & b, Integer const & e) const;
+            void pow2(Residue &r, const Integer &e) const;
 
             /* {{{ V_dadd and V_dbl for Lucas sequences.
              *
@@ -201,9 +204,6 @@ namespace arithxx_details {
             /* }}} */
 
             void V(Residue & r, Residue * rp1, Residue const & b, Integer const & k) const;
-
-            protected:
-            bool find_minus1 (Residue &r1, const Residue &minusone, int po2) const;
         };
 }
 

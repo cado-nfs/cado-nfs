@@ -164,6 +164,8 @@ public:
     /* Should use a C++ iterator instead? Would that be slower? */
     static constexpr size_t word_bits = GMP_NUMB_BITS;
     size_t size_in_words() const {return mpz_size(x);}
+    const mp_limb_t * data() const { return mpz_limbs_read(x); }
+    mp_bitcnt_t ctz() const { return mpz_scan1(x, 0); }
     WordType getWord(const size_t i) const {return mpz_getlimbn(x, i);}
 
     template <typename T>

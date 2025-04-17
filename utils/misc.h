@@ -407,6 +407,7 @@ template < typename _Tp > class pagealigned_allocator {
 
 #ifdef __cplusplus
 std::vector<std::pair<cxx_mpz, int> > trial_division(cxx_mpz const& n0, unsigned long B, cxx_mpz & cofactor);
+cxx_mpz mpz_from_expression(const char *);
 #endif
 
 #endif	/* CADO_UTILS_MISC_H */

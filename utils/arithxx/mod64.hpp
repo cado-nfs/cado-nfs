@@ -7,11 +7,14 @@
 #include <cstdint>
 #include <cstdlib>
 
+#include <gmp.h>
+
 #include "macros.h"
 #include "modint.hpp"
 #include "misc.h"
 #include "u64arith.h"
 #include "arithxx_common.hpp"
+#include "cxx_mpz.hpp"
 
 struct arithxx_mod64 {
     class Modulus;
@@ -71,6 +74,7 @@ class arithxx_mod64::Modulus
     /* {{{ ctors, validity range, and asserts */
   public:
     static bool valid(Integer const & m) { return m % 2 == 1; }
+    static bool valid(cxx_mpz const & m) { return m % 2 == 1 && m > 0 && mpz_sizeinbase(m, 2) <= Integer::max_bits; }
 
     explicit Modulus(uint64_t const s)
         : m(s)

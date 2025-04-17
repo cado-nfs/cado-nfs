@@ -105,8 +105,8 @@ have these coded right in the header file.
  - `pow_ul`, `2pow_ul`, `pow_mp`, `2pow_mp`: -> `pow`
 
 ### Primality tests:
- - `sprp`, `sprp2`, `isprime`: -> we have these with the same name,
-   however testing is a bit deficient.
+ - `sprp`, `sprp2`, `isprime`: -> `is_strong_pseudoprime_base2` and
+   `is_prime`. We also have `is_strong_lucas_pseudoprime`.
 
 ### Inversion / Euclidean algorithm
  - `inv`, `gcd`, `jacobi`: -> same name

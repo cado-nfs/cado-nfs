@@ -231,7 +231,11 @@ public:
     /* This blob must carry over unchanged for all instantiations */
     Integer64() = default;
     explicit Integer64(const uint64_t a) : super(a) {}
-    explicit Integer64(cxx_mpz const & s) { s.get(data(), max_size_in_words); }
+    explicit Integer64(cxx_mpz const & s) {
+        if (s < 0 || mpz_sizeinbase(s, 2) > max_bits)
+            throw std::invalid_argument("input does not fit");
+        s.get(data(), max_size_in_words);
+    }
     Integer64(const uint64_t * begin, const uint64_t * end) {
         if (!super::set(begin, end))
             throw std::invalid_argument("input does not fit");
@@ -278,7 +282,11 @@ public:
     /* This blob must carry over unchanged for all instantiations */
     Integer128() = default;
     explicit Integer128(const uint64_t a) : super(a) {}
-    explicit Integer128(cxx_mpz const & s) { s.get(data(), max_size_in_words); }
+    explicit Integer128(cxx_mpz const & s) {
+        if (s < 0 || mpz_sizeinbase(s, 2) > max_bits)
+            throw std::invalid_argument("input does not fit");
+        s.get(data(), max_size_in_words);
+    }
     Integer128(const uint64_t * begin, const uint64_t * end) {
         if (!super::set(begin, end))
             throw std::invalid_argument("input does not fit");

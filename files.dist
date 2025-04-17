@@ -1492,6 +1492,7 @@ tests/utils/arith/test_modredcul_batchinv.c
 tests/utils/arith/test_modredcul_batchinv_ul.c
 tests/utils/arith/test_modul_poly.c
 tests/utils/arithxx/CMakeLists.txt
+tests/utils/arithxx/test_lucas.cpp
 tests/utils/arithxx/test_mod.cpp
 tests/utils/arithxx/test_modint.cpp
 tests/utils/buggy.poly

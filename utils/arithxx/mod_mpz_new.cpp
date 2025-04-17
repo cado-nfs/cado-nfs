@@ -3,6 +3,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include <memory>
+
 #include <gmp.h>
 
 #include "arith/ularith.h"    // IWYU pragma: keep
@@ -22,62 +24,39 @@
 /* {{{ pow */
 template <>
 void arithxx_details::api<arithxx_mod_mpz_new>::pow(
-    Residue & r, Residue const & b, uint64_t const e) const
-{
-    auto const & me = downcast();
-    cxx_mpz R, B;
-    me.set_mpz_residue(B, b);
-    if (ULONG_BITS == 64) {
-        mpz_powm_ui(R, B, (unsigned long)e, me.m);
-    } else {
-        cxx_mpz E(e);
-        mpz_powm(R, B, E, me.m);
-    }
-    me.set_residue_mpz(r, R);
-}
-
-template <>
-void arithxx_details::api<arithxx_mod_mpz_new>::pow(
-    Residue & r, Residue const & b, Integer const & e) const
-{
-    auto const & me = downcast();
-    cxx_mpz R, B;
-    me.set_mpz_residue(B, b);
-    mpz_powm(R, B, e, me.m);
-    me.set_residue_mpz(r, R);
-}
-
-template <>
-void arithxx_details::api<arithxx_mod_mpz_new>::pow(
     Residue & r, Residue const & b, uint64_t const * e,
     size_t const nrWords) const
 {
-    cxx_mpz E(e, nrWords);
-    pow(r, b, E);
-}
-/* }}} */
-
-/* {{{ sprp, sprp2, and isprime */
-template <>
-bool arithxx_details::api<arithxx_mod_mpz_new>::isprime() const
-{
     auto const & me = downcast();
-    return mpz_probab_prime_p(me.m, 25);
+    cxx_mpz R, B;
+    me.set_mpz_residue(B, b);
+    mpz_powm(R, B, cxx_mpz(e, nrWords), me.m);
+    me.set_residue_mpz(r, R);
 }
 
 template <>
-bool arithxx_details::api<arithxx_mod_mpz_new>::sprp(
-    Residue const & a MAYBE_UNUSED) const
+void arithxx_details::api<arithxx_mod_mpz_new>::pow2(
+    Residue & r, uint64_t const * e,
+    size_t const nrWords) const
 {
-    return isprime();
+    pow(r, downcast()(2), e, nrWords);
 }
 
 template <>
-bool arithxx_details::api<arithxx_mod_mpz_new>::sprp2()
-    const
+void arithxx_details::api<arithxx_mod_mpz_new>::pow(Residue & r, Residue const & b, Integer const & e) const
 {
-    return isprime();
+    size_t written;
+    auto t = std::unique_ptr<uint64_t[]>(static_cast<uint64_t*>(mpz_export(nullptr, &written, -1, sizeof(uint64_t), 0, 0, e.x)));
+    pow(r, b, t.get(), written);
 }
+template <>
+void arithxx_details::api<arithxx_mod_mpz_new>::pow2(Residue &r, const Integer &e) const
+{
+    size_t written;
+    auto t = std::unique_ptr<uint64_t[]>(static_cast<uint64_t*>(mpz_export(nullptr, &written, -1, sizeof(uint64_t), 0, 0, e.x)));
+    pow2(r, t.get(), written);
+}
+
 /* }}} */
 
 /* {{{ ModulusMPZ::divn */
@@ -257,53 +236,6 @@ arithxx_details::api<arithxx_mod_mpz_new>::gcd
 
     me.set_mpz_residue(A, a);
     mpz_gcd(r, A, me.m);
-}
-
-template<>
-void arithxx_details::api<arithxx_mod_mpz_new>::pow2(Residue & r, uint64_t const e) const
-{
-    auto const & me = downcast();
-    cxx_mpz R;
-    cxx_mpz B(2);
-    if (ULONG_BITS == 64) {
-        mpz_powm_ui(R, B, e, me.m);
-    } else {
-        cxx_mpz E(e);
-        mpz_powm(R, B, E, me.m);
-    }
-    me.set_residue_mpz(r, R);
-}
-
-template<>
-void arithxx_details::api<arithxx_mod_mpz_new>::pow3(Residue & r, uint64_t const e) const
-{
-    auto const & me = downcast();
-    cxx_mpz R;
-    cxx_mpz B(3);
-    if (ULONG_BITS == 64) {
-        mpz_powm_ui(R, B, e, me.m);
-    } else {
-        cxx_mpz E(e);
-        mpz_powm(R, B, E, me.m);
-    }
-    me.set_residue_mpz(r, R);
-}
-
-template<>
-void arithxx_details::api<arithxx_mod_mpz_new>::pow2(Residue & r, Integer const & e) const
-{
-    auto const & me = downcast();
-    cxx_mpz R, B(2);
-    mpz_powm(R, B, e, me.m);
-    me.set_residue_mpz(r, R);
-}
-
-template<>
-void arithxx_details::api<arithxx_mod_mpz_new>::pow2(Residue & r, uint64_t const * e,
-                           size_t const nrWords) const
-{
-    auto const & me = downcast();
-    me.pow2(r, cxx_mpz(e, nrWords));
 }
 
 template<>

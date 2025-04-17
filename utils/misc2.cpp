@@ -178,15 +178,18 @@ struct mpz_parser_traits {
 
 typedef cado_expression_parser<mpz_parser_traits> integer_parser;
 
-int mpz_set_from_expression(mpz_ptr f, const char * value)
+cxx_mpz mpz_from_expression(const char * value)
 {
     std::istringstream is(value);
-
     integer_parser P;
+    P.tokenize(is);
+    return P.parse();
+}
+
+int mpz_set_from_expression(mpz_ptr f, const char * value)
+{
     try {
-        P.tokenize(is);
-        cxx_mpz tmp = P.parse();
-        mpz_set(f, tmp);
+        mpz_set(f, mpz_from_expression(value));
     } catch (cado_expression_parser_details::token_error const & p) {
         return 0;
     } catch (cado_expression_parser_details::parse_error const & p) {
@@ -194,6 +197,7 @@ int mpz_set_from_expression(mpz_ptr f, const char * value)
     }
     return 1;
 }
+
 
 std::vector<std::pair<cxx_mpz, int> > trial_division(cxx_mpz const& n0, unsigned long B, cxx_mpz & cofactor)/*{{{*/
 {
