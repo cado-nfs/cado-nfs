@@ -52,7 +52,13 @@ private:
     Integer_base() : super {} {}
     explicit Integer_base(const uint64_t a) : super {a} {}
     template<size_t N, typename XX = typename std::enable_if<N <= NN>::type>
-    explicit Integer_base(std::array<uint64_t, N> const & s) {
+    explicit Integer_base(std::array<uint64_t, N> const & s)
+#if GNUC_VERSION_ATMOST(8, 0, 0)
+    /* It's probably a gcc bug. Definitely, the code below properly
+     * initializes the std::array parent */
+        : super()
+#endif
+    {
         std::copy_n(s.begin(), N, begin());
         std::fill_n(begin() + N, NN - N, 0);
     }
