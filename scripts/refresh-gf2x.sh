@@ -36,6 +36,7 @@ cp -f gf2x/toom-gpl-placeholder.c gf2x/toom-gpl.c
 sed -e "/^AM_MAINTAINER_MODE/ s/enable/disable/" -i gf2x/configure.ac
 
 (cd gf2x/ ; autoreconf -i)
+(cd gf2x/ ; rm -rf autom4te.cache || :)
 (cd gf2x/ ; xargs -r rm -f < no-distribute.txt)
 # find gf2x/ -type f | xargs -r git add
 rm -rf gf2x/jenkins
