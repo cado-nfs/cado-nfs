@@ -24,16 +24,14 @@
 #  Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #  02110-1301, USA.
 
-AC_INIT([gf2x],[1.3.1dev])
+AC_INIT([gf2x],[1.3.99])
 AC_SUBST([GF2X_VERSION_MAJOR],
 [regexp(AC_PACKAGE_VERSION,[\([0-9]+\)\.\([0-9]+\)\.\([0-9]+\)],[\1])])
 AC_SUBST([GF2X_VERSION_MINOR],
 [regexp(AC_PACKAGE_VERSION,[\([0-9]+\)\.\([0-9]+\)\.\([0-9]+\)],[\2])])
 AC_SUBST([GF2X_VERSION_PATCHLEVEL],
 [regexp(AC_PACKAGE_VERSION,[\([0-9]+\)\.\([0-9]+\)\.\([0-9]+\)],[\3])])
-AC_SUBST([GF2X_FFT_VERSION_MAJOR],[GF2X_VERSION_MAJOR])
-AC_SUBST([GF2X_FFT_VERSION_MINOR],[GF2X_VERSION_MINOR])
-AC_SUBST([GF2X_FFT_VERSION_PATCHLEVEL],[GF2X_VERSION_PATCHLEVEL])
+
 
 : ${CFLAGS=-g -O4}
 AC_CONFIG_AUX_DIR([config])
@@ -52,10 +50,8 @@ AC_FUNC_ALLOCA
 # 1:2:0 gf2x-1.2 -- that was a mistake
 # 2:0:0 gf2x-1.2.x branch
 # 3:0:0 gf2x-1.3 branch
-# the big changes to the fft interfaces (aug 2018) were done before gf2x-1.3 was
-# actually released, so we retain the version number 3:0:0.
-AC_SUBST([gf2x_lib_version], [3:0:0])
-AC_SUBST([gf2x_fft_lib_version], [3:1:0])
+# 4:0:0 gf2x-1.4 branch -- fft interface now merged in
+AC_SUBST([gf2x_lib_version], [4:0:0])
 
 AM_INIT_AUTOMAKE([1.13])
 
@@ -89,21 +85,9 @@ AC_ARG_ENABLE([pclmul],
               [AS_HELP_STRING([--enable-pclmul],
                               [Turn on pclmul code (default is yes)])])
 
-AC_ARG_ENABLE([fft-interface],
-              [AS_HELP_STRING([--enable-fft-interface],
-                [compile with the optional fft interface (default is no)])],
-                [
-                 AC_DEFINE([GF2X_HAS_FFT_INTERFACE_SUPPORT],[1],[This is defined if gf2x was configured with --enable-fft-interface])
-                 ],[])
-AM_CONDITIONAL([ENABLE_FFT_INTERFACE],[test "x$enable_fft_interface" = xyes])
-
 AC_PROG_CC
 AC_PROG_CXX
 AC_COMPILE_WARNINGS
-# We used to call AC_PROG_CC_C99, but this is now obsolete with
-# autoconf-2.71 (which is not in debian testing though -- so this
-# obsolete directive is still here)
-AC_PROG_CC_C99
 AC_PROG_CPP
 
 GF2X_PROG_CC_FOR_BUILD
@@ -175,7 +159,7 @@ if test x$hwdir = x ; then
      fi
     fi
     ;;
-   core2|opteron|x86_64|nocona|k10)
+   core2|opteron|x86_64|nocona|k10|core*)
     # Note: could set to something else if we have separate tuning files.
     if test "$gf2x_cv_cc_supports_pclmul" = "no" ; then
       hwdir=x86_64
@@ -208,11 +192,6 @@ if test x$hwdir = x ; then
      esac
     fi
     ;;
-   coreinhm) hwdir=x86_64;;
-   coreiwsm) hwdir=x86_64_pclmul ;;
-   coreisbr) hwdir=x86_64_pclmul ;;
-   coreiibr) hwdir=x86_64_pclmul ;;
-   coreihwl) hwdir=coreihwl ;;
    armv7l) hwdir=armv7l ;;
    neon) hwdir=armv7l ;;
    # TODO: add bobcat, bulldozer.
@@ -222,7 +201,7 @@ else
  AC_MSG_NOTICE([Using supplied hwdir value $hwdir])
 fi
 case "$hwdir" in
- x86_64*|coreihwl)
+ x86_64*|core*)
     if test "$gf2x_cv_cc_supports_sse2" = "no" ; then
       # this is only if we've been given an explicit --disable-sse2
       hwdir=x86_64_nosse
@@ -281,7 +260,7 @@ fi
 AC_CONFIG_HEADERS([gf2x/gf2x-config.h gf2x/gf2x-config-export.h gf2x.h])
 
 AC_CONFIG_FILES([version.sh Makefile tests/Makefile lowlevel/Makefile
-                 src/Makefile fft/Makefile  fft/gf2x-fft.h gf2x.h.in gf2x.pc])
+                 src/Makefile fft/Makefile  doc/Makefile gf2x.h.in gf2x.pc])
 
 AC_OUTPUT
 

@@ -1,6 +1,6 @@
 /* This file is part of the gf2x library.
 
-   Copyright 2007, 2008, 2009, 2010, 2013, 2014, 2015
+   Copyright 2007, 2008, 2009, 2010, 2013, 2014, 2015, 2017, 2023
    Richard Brent, Pierrick Gaudry, Emmanuel Thome', Paul Zimmermann
 
    This program is free software; you can redistribute it and/or modify it
@@ -79,7 +79,7 @@ int test(int n32bitwords, int d)
     if (!print_crc) {
         printf("w := %u;\n", GF2X_WORDSIZE);
 #ifdef  ENGINE_CANTOR
-        printf("b := %u;\n", CANTOR_BASE_FIELD_SIZE);
+        printf("b := %u;\n", GF2X_CANTOR_BASE_FIELD_SIZE);
 #endif
         printf("f := [\n");
         for(int i = 0 ; i < d ; i++)

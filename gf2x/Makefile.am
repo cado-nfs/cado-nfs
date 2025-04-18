@@ -26,12 +26,10 @@
 
 AUTOMAKE_OPTIONS=subdir-objects
 ACLOCAL_AMFLAGS=-I config --install
-AM_CPPFLAGS = -I$(top_srcdir) -I$(top_builddir) -I$(top_builddir)/fft -I$(top_srcdir)/fft
+AM_CPPFLAGS = -I$(top_srcdir) -I$(top_builddir) -I$(top_srcdir)/fft
 
 TAR_OPTIONS = --hard-dereference
 export TAR_OPTIONS
-
-FFT_SOURCES_ALWAYS=fft/gf2x-ternary-fft.c
 
 lib_LTLIBRARIES=libgf2x.la
 noinst_LIBRARIES=libgf2x-local.a
@@ -40,8 +38,24 @@ if HAVE_HIDDEN_VISIBILITY_ATTRIBUTE
 VH_FLAG=-fvisibility=hidden -DGF2X_EXPORTED="__attribute__((visibility(\"default\")))"
 endif
 
-libgf2x_la_SOURCES=gf2x.c toom.c toom128.c toom-gpl.c $(FFT_SOURCES_ALWAYS)
+# We don't need to define GF2X_CANTOR_BASE_FIELD_SIZE here, because the
+# default value (which we intend to use, because this is the one that
+# gets shipped in the library) is available in gf2x-fft.h
+#
+libgf2x_la_SOURCES=gf2x.c toom.c toom128.c toom-gpl.c \
+	fft/gf2x-fake-fft.c	\
+	fft/gf2x-ternary-fft.c	\
+	fft/gf2x-cantor-fft.c
 libgf2x_la_CFLAGS=$(AM_CFLAGS) $(VH_FLAG)
+
+gf2x_includedir=$(includedir)/gf2x
+gf2x_include_HEADERS=	\
+	fft/gf2x-fft.h		\
+	fft/gf2x-fake-fft.h		\
+	fft/gf2x-ternary-fft.h	\
+	fft/gf2x-cantor-fft.h	\
+	fft/gf2x-cantor-field-impl.h
+
 
 libgf2x_local_a_SOURCES=$(libgf2x_la_SOURCES)
 libgf2x_local_a_CFLAGS=$(AM_CFLAGS)
@@ -77,9 +91,9 @@ libgf2x_la_LDFLAGS=-version-info @gf2x_lib_version@ -no-undefined
 check-local: all
 	:
 
-SUBDIRS=lowlevel src . fft tests
+SUBDIRS=lowlevel src . fft tests doc
 
-DIST_SUBDIRS=lowlevel src . fft tests 
+DIST_SUBDIRS=lowlevel src . fft tests  doc
 
 DISTCLEANFILES=gf2x/gf2x-thresholds.h	\
 	       gf2x/gf2x_mul1.h		\
@@ -97,8 +111,6 @@ EXTRA_DIST+=gf2x/gf2x-impl.h
 EXTRA_DIST+=version.sh.in
 EXTRA_DIST+=BUGS
 EXTRA_DIST+=already_tuned
-EXTRA_DIST+=config/configfsf.sub
-EXTRA_DIST+=config/configfsf.guess
 EXTRA_DIST+=toom-gpl-placeholder.c
 EXTRA_DIST+=check-gf2x-version.c
 

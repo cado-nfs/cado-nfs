@@ -1,0 +1,169 @@
+\input texinfo    @c -*-texinfo-*-
+@c %**start of header
+@setfilename gf2x.info
+@documentencoding UTF-8
+@include version.texi
+@settitle gf2x @value{VERSION}
+@synindex tp fn
+@comment %**end of header
+
+@copying
+This manual describes how to install and use the gf2x
+library, version @value{VERSION}.
+
+Copyright 2007-2023 
+Richard Brent, Pierrick Gaudry, Emmanuel Thomé, Paul Zimmermann
+
+This program is free software; you can redistribute it and/or modify it
+under the terms of either:
+- If the archive contains a file named toom-gpl.c (not a trivial
+placeholder), the GNU General Public License as published by the Free
+Software Foundation; either version 3 of the License, or (at your
+option) any later version.
+- If the archive contains a file named toom-gpl.c which is a trivial
+placeholder, the GNU Lesser General Public License as published by
+the Free Software Foundation; either version 2.1 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the license text for more details.
+
+You should have received a copy of the GNU General Public License as
+well as the GNU Lesser General Public License along with this program;
+see the files COPYING and COPYING.LIB.  If not, write to the Free
+Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+02110-1301, USA.
+
+@end copying
+
+@dircategory Libraries
+@direntry
+* gf2x: (gf2x). gf2x Library (computations in GF(2)[x])
+@end direntry
+
+@c  html <meta name="description" content="...">
+@documentdescription
+How to install and use the gf2x library, version @value{VERSION}.
+@end documentdescription
+
+@c smallbook
+@finalout
+@setchapternewpage on
+
+@node Top, Copying, (dir), (dir)
+@top gf2x
+
+@insertcopying
+@sp 1
+
+@menu
+* Copying::                    gf2x Copying Conditions (LGPL).
+* Introduction to gf2x::       Brief introduction to gf2x.
+* Installing gf2x::            How to build and install the gf2x library
+* Reporting bugs::             Just in case
+* Data types::                 Data type for polynomials over GF(2)
+* Multiplication::             The main gf2x interfaces
+* FFT interface::              The FFT interface
+* C++ interface::              FFT and C++
+* Low-level routines::         Mutliplying small polynomials efficiently
+* Helping out::                Participate in the development of gf2x
+* Function Index::
+@end menu
+
+@node Copying, Introduction to gf2x, Top, Top
+@unnumbered gf2x Copying Conditions
+@cindex Copying conditions
+@cindex Conditions for copying gf2x
+@cindex License conditions
+
+This library is free software; you can redistribute it and/or modify it
+under the terms of either:
+- If the archive contains a file named toom-gpl.c (not a trivial
+placeholder), the GNU General Public License as published by the Free
+Software Foundation; either version 3 of the License, or (at your
+option) any later version.
+- If the archive contains a file named toom-gpl.c which is a trivial
+placeholder, the GNU Lesser General Public License as published by
+the Free Software Foundation; either version 2.1 of the License, or
+(at your option) any later version.
+
+This library is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the license text for more details.
+
+You should have received a copy of the GNU General Public License as well
+as the GNU Lesser General Public License along with this library; see the
+files @file{COPYING} and @file{COPYING.LIB}.  If not, write to the Free
+Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+02110-1301, USA.
+
+@node Introduction to gf2x, Installing gf2x, Copying, Top
+
+gf2x fulfills just one mission: multiplying polynomials over GF(2)[x],
+both small and large ones.
+
+Because coefficients of polynomials over GF(2) are simply bits, a packed
+representation is necessary. In a way, multiplying polynomials over GF(2)
+is like multiplying integers, except that you strip away all the carry
+propagation. Yet no specialized software library provides access to fast
+algorithms for doing this. gf2x fills this gap.
+
+gf2x takes advantage of both low-level assembly instuctions when they
+happen to be available, as well as advanced algorithms for the job.
+@itemize @bullet
+@item Assembly instruction for ``carry-less'' multiplication on 64-bit
+Intel CPUs
+@item Fine-tuned multiplication routines for small polynomials.
+@item Karatsuba and Toom-Cook algorithms
+@item Quasi-linear operations with FFT algorithms (both ternary FFT and
+Cantor additive FFT).
+@item Access to low-level parts of the FFT operations.
+@end itemize
+
+For up-to-date information on gf2x, and for the latest version of the
+library, please see the Git repository page at
+
+@display
+@uref{https://gitlab.inria.fr/gf2x/gf2x/}
+@end display
+
+@cindex Mailing lists
+There is a mailing list called @email{gf2x@@inria.fr}. Traffic is
+extremely low. See @ref{Reporting bugs} for information about reporting
+bugs.
+
+Being mostly a one-man project, gf2x is never complete. There is
+significant room for improvement in multiple aspects of the library. See
+@ref{Helping out} if you're interested in participating in the
+development.
+
+@node Installing gf2x, Reporting bugs, Introduction to gf2x, Top
+
+
+
+@node Reporting bugs, Data types, Installing gf2x, Top
+@node Data types, Multiplication, Reporting bugs, Top
+@node Multiplication, FFT interface, Data types, Top
+@node FFT interface, C++ interface, Multiplication, Top
+@node C++ interface, Low-level routines, FFT interface, Top
+@node Low-level routines, Helping out, C++ interface, Top
+@node Helping out, Function Index, Low-level routines, Top
+
+fat binary
+
+carry-less mul on other archs
+
+Gao-Mateer, done better
+https://dl.acm.org/doi/10.1109/TIT.2010.2079016
+
+https://arxiv.org/abs/1503.05761
+
+https://arxiv.org/abs/1708.09746
+https://github.com/fast-crypto-lab/bitpolymul
+
+
+@node Function Index, , Helping out, Top
+@unnumbered Function and Type Index
+@printindex fn
+
