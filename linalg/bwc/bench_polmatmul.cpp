@@ -682,6 +682,7 @@ bench_one_polmm_projected_sub(fft_type & o, unsigned long d1, unsigned long d2,
     res.dft = dft1 * double(d1 * d2) + dft2 * double(d2 * d3);
     res.ift = ift * double(d1 * d3);
     res.compose = total_compose_time;
+    res.engine = fft_type::name;
 
     fmt::print(" --> dft: {:.2f} ; mul(d{}): {:.2f} ; ift: {:.2f}\n",
                (dft1 * double(d1 * d2) + dft2 * double(d2 * d3)), d, total_compose_time,
