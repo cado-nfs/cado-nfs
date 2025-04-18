@@ -245,6 +245,7 @@ static void finish_write_and_clear_segments(uint32_t c, uint32_t colmax, FILE * 
 {
     for( ; c < colmax ; ) {
         unsigned int const t = get_segment_index(c);
+        ASSERT_ALWAYS(t < 64);
         std::lock_guard<std::mutex> const dummy(segment_mutexes[t]);
         uint32_t const c1 = c-get_segment_offset(t);
         uint32_t const max1 = MIN(colmax-get_segment_offset(t), get_segment_size(t));
