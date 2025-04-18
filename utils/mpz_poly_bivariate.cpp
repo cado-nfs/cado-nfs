@@ -339,10 +339,12 @@ void cxx_mpz_poly_bivariate::div_qr(cxx_mpz_poly_bivariate & q,
     }
 
     /* now df >= dg */
+    ASSERT_FOR_STATIC_ANALYZER(0 <= dg && dg <= df);
 
     r = f;
     q.assign(dq + 1, 0);
     cxx_mpz_poly tmp;
+
 
     for (int k = df - dg; k >= 0; k--) {
         ((super &)q)[k] = r[k + dg];
