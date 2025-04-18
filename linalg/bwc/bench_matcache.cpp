@@ -499,11 +499,12 @@ int main(int argc, char const * argv[])
 
     std::vector<std::string> mfiles;
 
+    mfiles.reserve(argc);
+
     for( ; argc ; ) {
         if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
         if (strcmp(argv[0],"--") == 0) {
             argv++, argc--;
-            mfiles.reserve(mfiles.size() + argc);
             for( ; argc ; argv++, argc--)
                 mfiles.emplace_back(argv[0]);
             break;
