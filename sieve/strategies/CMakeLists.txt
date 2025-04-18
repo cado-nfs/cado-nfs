@@ -7,7 +7,7 @@ set (SRC_UTILS
     ${SUF_UTILS}convex_hull.cpp ${SUF_UTILS}fm.cpp ${SUF_UTILS}tab_fm.cpp
     ${SUF_UTILS}strategy.cpp ${SUF_UTILS}tab_strategy.cpp)
 
-set (LIB_EXEC m facul utils)
+set (LIB_EXEC facul utils)
 
 add_executable(gfm gfm_exec.cpp generate_factoring_method.cpp ${SRC_UTILS})
 target_link_libraries(gfm ${LIB_EXEC})
@@ -38,7 +38,7 @@ add_executable(gen_decomp
   ${SUF_UTILS}/decomp.cpp
   ${SUF_UTILS}/tab_decomp.cpp)
 
-target_link_libraries(gen_decomp m utils)
+target_link_libraries(gen_decomp utils)
 
 
 include(CMakeLists-nodist.txt OPTIONAL)
