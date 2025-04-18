@@ -444,6 +444,7 @@ if("$ENV{ENABLE_SHARED}" OR BUILD_SHARED_LIBS)
         "${CMAKE_INSTALL_PREFIX}/${LIBSUFFIX}/polyselect"
         "${CMAKE_INSTALL_PREFIX}/${LIBSUFFIX}/linalg/bblas"
         "${CMAKE_INSTALL_PREFIX}/${LIBSUFFIX}/linalg/bwc"
+        "${CMAKE_INSTALL_PREFIX}/${LIBSUFFIX}/gf2x"
     )
     set(CMAKE_INSTALL_RPATH ${rpath})
     set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
@@ -457,6 +458,7 @@ endif()
 
 list(APPEND GF2X_CONFIGURE_FLAGS --disable-dependency-tracking)
 list(APPEND GF2X_CONFIGURE_FLAGS --enable-fft-interface)
+list(APPEND GF2X_CONFIGURE_FLAGS --prefix ${CMAKE_INSTALL_PREFIX} --libdir ${CMAKE_INSTALL_PREFIX}/${LIBSUFFIX}/gf2x)
 list(APPEND GF2X_CONFIGURE_FLAGS CC=${CMAKE_C_COMPILER})
 list(APPEND GF2X_CONFIGURE_FLAGS CXX=${CMAKE_CXX_COMPILER})
 list(APPEND GF2X_CONFIGURE_FLAGS CFLAGS=${GF2X_C_FLAGS})
@@ -567,7 +569,10 @@ add_custom_target(gf2x-build ALL
     COMMAND "${CMAKE_MAKE_PROGRAM}"
     COMMENT "Building gf2x"
 )
+
+install(CODE "execute_process(COMMAND ${CMAKE_MAKE_PROGRAM} install WORKING_DIRECTORY gf2x)")
 endif()
+
 
 add_subdirectory (utils)
 add_subdirectory (polyselect)
