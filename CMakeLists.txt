@@ -377,18 +377,6 @@ else()
     check_cpu_feature(neon COMPILER_FLAG -mfpu=neon DISPLAYNAME "ARM NEON")
 endif()
 
-list(APPEND GF2X_CONFIGURE_FLAGS --disable-shared)
-list(APPEND GF2X_CONFIGURE_FLAGS --disable-dependency-tracking)
-list(APPEND GF2X_CONFIGURE_FLAGS --enable-fft-interface)
-list(APPEND GF2X_CONFIGURE_FLAGS CC=${CMAKE_C_COMPILER})
-list(APPEND GF2X_CONFIGURE_FLAGS CXX=${CMAKE_CXX_COMPILER})
-list(APPEND GF2X_CONFIGURE_FLAGS CFLAGS=${GF2X_C_FLAGS})
-list(APPEND GF2X_CONFIGURE_FLAGS CXXFLAGS=${GF2X_CXX_FLAGS})
-list(APPEND GF2X_CONFIGURE_FLAGS LDFLAGS=${GF2X_LDFLAGS})
-list(APPEND GF2X_CONFIGURE_FLAGS $ENV{GF2X_CONFIGURE_EXTRA_FLAGS})
-
-get_override(GF2X_CONFIGURE_FLAGS GF2X_CONFIGURE_FLAGS)
-
 if (NOT DEFINED ENV{NO_INLINE_ASSEMBLY})
   include("${CADO_NFS_SOURCE_DIR}/config/gcc-inline-assembly.cmake")
 endif()
@@ -436,7 +424,7 @@ include("${CADO_NFS_SOURCE_DIR}/config/gdb.cmake")
 
 set(CADO_SHARED)
 
-if("$ENV{ENABLE_SHARED}")
+if("$ENV{ENABLE_SHARED}" OR BUILD_SHARED_LIBS)
     # cmake scripts here and there use the cmake variable, not the
     # environment variable.
     set(ENABLE_SHARED 1)
@@ -462,6 +450,21 @@ if("$ENV{ENABLE_SHARED}")
 else()
     message(STATUS "Building with static libraries (ENABLE_SHARED=\"$ENV{ENABLE_SHARED}\")")
 endif()
+
+if(NOT ENABLE_SHARED)
+    list(APPEND GF2X_CONFIGURE_FLAGS --disable-shared)
+endif()
+
+list(APPEND GF2X_CONFIGURE_FLAGS --disable-dependency-tracking)
+list(APPEND GF2X_CONFIGURE_FLAGS --enable-fft-interface)
+list(APPEND GF2X_CONFIGURE_FLAGS CC=${CMAKE_C_COMPILER})
+list(APPEND GF2X_CONFIGURE_FLAGS CXX=${CMAKE_CXX_COMPILER})
+list(APPEND GF2X_CONFIGURE_FLAGS CFLAGS=${GF2X_C_FLAGS})
+list(APPEND GF2X_CONFIGURE_FLAGS CXXFLAGS=${GF2X_CXX_FLAGS})
+list(APPEND GF2X_CONFIGURE_FLAGS LDFLAGS=${GF2X_LDFLAGS})
+list(APPEND GF2X_CONFIGURE_FLAGS $ENV{GF2X_CONFIGURE_EXTRA_FLAGS})
+
+get_override(GF2X_CONFIGURE_FLAGS GF2X_CONFIGURE_FLAGS)
 
 
 ######################################################################

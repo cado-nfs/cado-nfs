@@ -249,6 +249,8 @@ endif()
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
+# let's make this one an exception. As regards tests, I think it's okay
+# to have it static
 add_library (tests STATIC test_iter.c tests_common.c)
 target_link_libraries (tests ${gmp_libname})
 
