@@ -13,6 +13,7 @@
 #include "macros.h"
 #include "mod_mpz_new.hpp"
 #include "arithxx_common.hpp"
+#include "utils_cxx.hpp"
 
 /* Only the .cpp source files that emit the non-inline symbols will
  * include this impl header file. So even though it does not look like
@@ -46,14 +47,14 @@ template <>
 void arithxx_details::api<arithxx_mod_mpz_new>::pow(Residue & r, Residue const & b, Integer const & e) const
 {
     size_t written;
-    auto t = std::unique_ptr<uint64_t[]>(static_cast<uint64_t*>(mpz_export(nullptr, &written, -1, sizeof(uint64_t), 0, 0, e.x)));
+    auto t = std::unique_ptr<uint64_t[], free_delete>(static_cast<uint64_t*>(mpz_export(nullptr, &written, -1, sizeof(uint64_t), 0, 0, e.x)));
     pow(r, b, t.get(), written);
 }
 template <>
 void arithxx_details::api<arithxx_mod_mpz_new>::pow2(Residue &r, const Integer &e) const
 {
     size_t written;
-    auto t = std::unique_ptr<uint64_t[]>(static_cast<uint64_t*>(mpz_export(nullptr, &written, -1, sizeof(uint64_t), 0, 0, e.x)));
+    auto t = std::unique_ptr<uint64_t[], free_delete>(static_cast<uint64_t*>(mpz_export(nullptr, &written, -1, sizeof(uint64_t), 0, 0, e.x)));
     pow2(r, t.get(), written);
 }
 
