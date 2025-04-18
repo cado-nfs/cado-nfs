@@ -741,6 +741,8 @@ bench_one_polmm_complete_sub(fft_type & o, unsigned long d1, unsigned long d2,
 
     level_info res;
 
+    res.engine = fft_type::name;
+
     using namespace std::placeholders;
     {
         // NOLINTNEXTLINE(modernize-avoid-bind)
