@@ -48,7 +48,7 @@ step_configure() {
         export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
     fi
     if [ "$using_cmake_directly" ] ; then
-        (cd "$build_tree" ; cmake "$source_tree")
+        (cd "$build_tree" ; cmake "$source_tree" $pass_flags_to_cmake)
         # Ignore local.sh if we're building directly from cmake
     else
         "${MAKE}" cmake
