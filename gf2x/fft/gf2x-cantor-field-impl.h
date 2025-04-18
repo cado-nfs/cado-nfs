@@ -31,16 +31,17 @@
 #error "GF2X_CANTOR_BASE_FIELD_SIZE must be defined"
 #endif
 
+#include <string.h>
+
+#include "gf2x/gf2x-impl.h"
+
 #ifndef GF2X_WORDSIZE
 #error "GF2X_WORDSIZE must be defined"
 #endif
 
-#include <string.h>
-
 #include "fft/gf2x-cantor-fft.h"
 #include "fft/gf2x-fft-impl-utils.h"
 #include "gf2x.h"
-#include "gf2x/gf2x-impl.h"
 #include "gf2x/gf2x-small.h"
 
 #ifdef __cplusplus

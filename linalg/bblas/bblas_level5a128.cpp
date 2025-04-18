@@ -11,11 +11,6 @@
 #include "memory.h"      // malloc_aligned
 #include "macros.h"
 
-#include "gf2x.h"       // IWYU pragma: keep  (GF2X_WORDSIZE)
-#include "gf2x-impl.h"  // IWYU pragma: keep  (GF2X_WORDSIZE)
-
-// #define WLEN ULONG_BITS
-// #define GF2X_WORDSIZE ULONG_BITS
 #define GF2X_MAYBE_UNUSED MAYBE_UNUSED
 #define GF2X_CANTOR_BASE_FIELD_SIZE 128
 
