@@ -589,7 +589,7 @@ foreach(v ${internal_arithmetic_backends_gfp} b64)
         if(NOT HAVE_GF2X)
             add_dependencies(lingen_${v}_support gf2x-build)
         endif()
-        target_link_libraries(lingen_${v}_support gf2x-fft gf2x bblas)
+        target_link_libraries(lingen_${v}_support gf2x bblas)
     else()
         # In fact the dependency could be put on lingen_${v} instead ;
         # however time_matpoly_parallel relies on _support to provide the
@@ -651,7 +651,7 @@ mark_targets_as_openmp(bench_polmatmul)
 if(NOT HAVE_GF2X)
 add_dependencies(bench_polmatmul gf2x-build)
 endif()
-target_link_libraries(bench_polmatmul utils gf2x gf2x-fft)
+target_link_libraries(bench_polmatmul utils gf2x)
 
 
 include(CMakeLists-nodist.txt OPTIONAL)
