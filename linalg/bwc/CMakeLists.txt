@@ -147,7 +147,7 @@ configure_file(bwc.pl ${CMAKE_CURRENT_BINARY_DIR}/bwc.pl ESCAPE_QUOTES @ONLY)
 add_executable(random_matrix ${EXCLUDE_FROM_RELEASE_BUILD}
     random_matrix.cpp)
 set_property(TARGET random_matrix PROPERTY COMPILE_DEFINITIONS WANT_MAIN)
-target_link_libraries(random_matrix utils m)
+target_link_libraries(random_matrix utils)
 mark_targets_as_mpi(random_matrix)
 
 if(BUILD_DYNAMICALLY_LINKABLE_BWC)
@@ -439,6 +439,7 @@ endmacro()
 bwc_program(acollect acollect.c)
 bwc_program(prep prep.cpp xdotprod.cpp)
 target_link_libraries(prep bitlinalg)
+target_link_libraries(prep bblas)
 bwc_program(krylov krylov.cpp xdotprod.cpp)
 bwc_program(bwccheck bwccheck.cpp xdotprod.cpp bwc_filenames.cpp)
 bwc_program(dispatch dispatch.cpp xdotprod.cpp)
@@ -447,6 +448,7 @@ bwc_program(gather gather.cpp)
 bwc_program(secure secure.cpp)
 bwc_program(blocklanczos blocklanczos.cpp blocklanczos_extraction.cpp)
 target_link_libraries(blocklanczos bitlinalg)
+target_link_libraries(blocklanczos bblas)
 
 # bwc_program_base is good for programs that we don't want to see when we
 # do "make install"
@@ -475,15 +477,18 @@ set_property(SOURCE lingen_qcode_binary.cpp
     APPEND PROPERTY COMPILE_DEFINITIONS GF2X_CANTOR_BASE_FIELD_SIZE=128)
 
 add_executable(cleanup cleanup.cpp)
-target_link_libraries(cleanup bitlinalg utils m)
+target_link_libraries(cleanup bitlinalg utils)
 
 install(TARGETS cleanup RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)
 
 # This is a convenience library which is used **ONLY** by one binary,
 # so there's absolutely no point in making it shared.
 file(GLOB flint_fft_files flint-fft/*.c)
-add_library(flint-fft ${flint_fft_files})
-add_library(flint-fft-debug EXCLUDE_FROM_ALL ${flint_fft_files})
+add_library(flint-fft OBJECT ${flint_fft_files})
+if(ENABLE_SHARED)
+    set_property(TARGET flint-fft PROPERTY POSITION_INDEPENDENT_CODE ON)
+endif()
+add_library(flint-fft-debug OBJECT EXCLUDE_FROM_ALL ${flint_fft_files})
 mark_targets_as_mpi(flint-fft flint-fft-debug)
 mark_targets_as_openmp(flint-fft flint-fft-debug)
 set_property(TARGET flint-fft-debug
@@ -492,6 +497,7 @@ set_property(TARGET flint-fft-debug
 # These files are not dependent on the mpfq layer, therefore it's ok to
 # put all of them in a common convenience library.
 add_library(lingen_common_support 
+    OBJECT
     lingen_memory_pool.cpp
     logline.cpp
     check_mpi_problems.c
@@ -502,7 +508,10 @@ add_library(lingen_common_support
     lingen_hints.cpp
     lingen_call_companion.cpp
     )
-target_link_libraries(lingen_common_support ${gmp_libname} utils)
+if(ENABLE_SHARED)
+    set_property(TARGET lingen_common_support PROPERTY POSITION_INDEPENDENT_CODE ON)
+endif()
+# not-for-OBJECT target_link_libraries(lingen_common_support ${gmp_libname} utils)
 mark_targets_as_openmp(lingen_common_support)
 mark_targets_as_mpi(lingen_common_support)
 
@@ -572,18 +581,22 @@ foreach(v ${internal_arithmetic_backends_gfp} b64)
     # lingen_bz could make sense for testing, but we certainly do not
     # want to  use it.
     if(v STREQUAL "pz" OR v STREQUAL "b64" OR v STREQUAL "bz")
-        add_library(lingen_${v}_support ${lingen_${v}_support_sources})
-        add_library(lingen_${v}_core ${lingen_${v}_core_sources})
+        add_library(lingen_${v}_support ${CADO_SHARED} ${lingen_${v}_support_sources})
+        add_library(lingen_${v}_core OBJECT ${lingen_${v}_core_sources})
         add_executable(lingen_${v} ${lingen_${v}_main_sources})
         install(TARGETS lingen_${v} RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)
     else()
-        add_library(lingen_${v}_support EXCLUDE_FROM_ALL ${lingen_${v}_support_sources})
-        add_library(lingen_${v}_core EXCLUDE_FROM_ALL ${lingen_${v}_core_sources})
+        add_library(lingen_${v}_support ${CADO_SHARED} EXCLUDE_FROM_ALL ${lingen_${v}_support_sources})
+        add_library(lingen_${v}_core OBJECT EXCLUDE_FROM_ALL ${lingen_${v}_core_sources})
         add_executable(lingen_${v} EXCLUDE_FROM_ALL ${lingen_${v}_main_sources})
     endif()
+    install(TARGETS lingen_${v}_support DESTINATION ${LIBSUFFIX}/linalg/bwc)
 
     target_link_libraries(lingen_${v}_support lingen_common_support)
     target_link_libraries(lingen_${v}_core lingen_${v}_support)
+
+    target_link_libraries(lingen_${v}_support 
+        lingen_common_support ${gmp_libname} utils)
 
     if (v STREQUAL "b64")
         if(NOT HAVE_GF2X)
@@ -597,8 +610,13 @@ foreach(v ${internal_arithmetic_backends_gfp} b64)
         target_link_libraries(lingen_${v}_support flint-fft)
     endif()
 
-    target_link_libraries(lingen_${v} lingen_${v}_core)
-    target_link_libraries(lingen_verify_checkpoints_${v} lingen_${v}_support)
+    target_link_libraries(lingen_${v}
+        lingen_${v}_core
+        lingen_${v}_support
+    )
+    target_link_libraries(lingen_verify_checkpoints_${v}
+        lingen_${v}_support
+    )
 
     # we also need link flags, and config/openmp.cmake won't provide them
     # separately.
