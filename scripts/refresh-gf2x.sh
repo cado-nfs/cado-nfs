@@ -22,8 +22,11 @@ checkout_that() {
     cd "$OPWD"
     rm -rf "$path/.git"
     rm -rf "$path/apps"
-    sed -e s/apps// -i $path/Makefile.am
-    sed -e s/apps.Makefile// -i $path/configure.ac
+    sed -e 's/ apps//' -i $path/Makefile.am
+    sed -e 's/apps.Makefile//' -i $path/configure.ac
+    rm -rf "$path/doc"
+    sed -e 's/ doc//' -i $path/Makefile.am
+    sed -e 's/doc.Makefile//' -i $path/configure.ac
 }
 
 checkout_that ${gf2x_url} ${gf2x_rev} gf2x

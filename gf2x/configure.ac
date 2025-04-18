@@ -260,7 +260,7 @@ fi
 AC_CONFIG_HEADERS([gf2x/gf2x-config.h gf2x/gf2x-config-export.h gf2x.h])
 
 AC_CONFIG_FILES([version.sh Makefile tests/Makefile lowlevel/Makefile
-                 src/Makefile fft/Makefile  doc/Makefile gf2x.h.in gf2x.pc])
+                 src/Makefile fft/Makefile   gf2x.h.in gf2x.pc])
 
 AC_OUTPUT
 

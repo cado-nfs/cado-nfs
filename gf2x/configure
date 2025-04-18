@@ -23336,7 +23336,7 @@ fi
 ac_config_headers="$ac_config_headers gf2x/gf2x-config.h gf2x/gf2x-config-export.h gf2x.h"
 
 
-ac_config_files="$ac_config_files version.sh Makefile tests/Makefile lowlevel/Makefile src/Makefile fft/Makefile doc/Makefile gf2x.h.in gf2x.pc"
+ac_config_files="$ac_config_files version.sh Makefile tests/Makefile lowlevel/Makefile src/Makefile fft/Makefile gf2x.h.in gf2x.pc"
 
 
 cat >confcache <<\_ACEOF
@@ -24513,7 +24513,6 @@ do
     "lowlevel/Makefile") CONFIG_FILES="$CONFIG_FILES lowlevel/Makefile" ;;
     "src/Makefile") CONFIG_FILES="$CONFIG_FILES src/Makefile" ;;
     "fft/Makefile") CONFIG_FILES="$CONFIG_FILES fft/Makefile" ;;
-    "doc/Makefile") CONFIG_FILES="$CONFIG_FILES doc/Makefile" ;;
     "gf2x.h.in") CONFIG_FILES="$CONFIG_FILES gf2x.h.in" ;;
     "gf2x.pc") CONFIG_FILES="$CONFIG_FILES gf2x.pc" ;;
 
