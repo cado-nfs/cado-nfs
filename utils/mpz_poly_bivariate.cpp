@@ -384,6 +384,7 @@ void cxx_mpz_poly_bivariate::mul(cxx_mpz_poly_bivariate & a,
 void cxx_mpz_poly_bivariate::eval_fy(cxx_mpz_poly & a, self const & f,
                                      cxx_mpz_poly const & e)
 {
+    ASSERT_ALWAYS(f.degree() >= -1);
     if (f.degree() == -1) {
         a = 0;
         return;
