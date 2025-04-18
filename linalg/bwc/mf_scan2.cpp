@@ -174,6 +174,7 @@ struct parser_thread {
                     /* Get the bit size */
                     unsigned int const t = get_segment_index(c);
                     uint32_t const c1 = c-get_segment_offset(t);
+                    ASSERT_ALWAYS(t < 64);
                     ASSERT_ALWAYS(c1 < get_segment_size(t));
                     segment * x;
                     {
