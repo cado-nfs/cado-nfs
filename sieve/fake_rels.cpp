@@ -108,12 +108,12 @@ struct indexrange {
         //  uint64_t position = it - ind.begin();
         // Fast, approximate version:
         uint64_t const position = z >> 1; // half of indices on each side
-        uint64_t const range = uint64_t((double(position))*0.2);
-        uint64_t const low = MAX((int64_t)(position - range), 0);
+        auto const range = uint64_t((double(position))*0.2);
+        uint64_t const low = position > range ? position - range : 0;
         uint64_t high = MIN(position + range, ind.size());
         if (high == low)
             high++;
-        return ind[low + uint64_t(u64_random(buf)%(high-low))];
+        return ind[low + (u64_random(buf)%(high-low))];
     }
 
     p_r_values_t p_from_pos(uint64_t position) const {
