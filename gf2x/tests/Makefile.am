@@ -28,7 +28,7 @@
 # Be aware that ``make check'' from here cannot ensure that the
 # upper-level library is up-to-date.
 
-AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/fft -I$(top_srcdir)/fft/mpfq -I$(top_builddir)
+AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/fft -I$(top_builddir) -I$(top_builddir)/fft 
 AM_LDFLAGS = -no-install
 
 check_PROGRAMS=check-addmul
@@ -94,12 +94,12 @@ general_fftcheck_sources=check.c        \
 # the flags WITHOUT_CANTOR_TRUNCATION, CANTOR_GM, and CANTOR_GM_TRUNCATE
 # are irrelevant here, but we lazily copy the config block from
 # fft/Makefile.am
-CCOMMON=-DENGINE_CANTOR -DESCAPE_CANTOR_SYMBOLS
-C64=$(CCOMMON) -DCANTOR_BASE_FIELD_SIZE=64
+CCOMMON=-DENGINE_CANTOR
+C64=$(CCOMMON) -DGF2X_CANTOR_BASE_FIELD_SIZE=64
 C64nt=$(C64) -DWITHOUT_CANTOR_TRUNCATION
 C64gm=$(C64) -DCANTOR_GM
 C64gmt=$(C64gm) -DCANTOR_GM_TRUNCATE
-C128=$(CCOMMON) -DCANTOR_BASE_FIELD_SIZE=128
+C128=$(CCOMMON) -DGF2X_CANTOR_BASE_FIELD_SIZE=128
 C128nt=$(C128) -DWITHOUT_CANTOR_TRUNCATION
 C128gm=$(C128) -DCANTOR_GM
 C128gmt=$(C128gm) -DCANTOR_GM_TRUNCATE
@@ -131,7 +131,6 @@ TERNARY_NS=-DENGINE_TERNARY -DARTIFICIAL_NON_SPLIT_VERSION
 # -- begin arguments --
 #  ternary $(TERNARY)
 #  ternaryns $(TERNARY_NS)
-# if ENABLE_FFT_INTERFACE
 #  cantor64 $(C64)
 #  cantor64nt $(C64nt)
 #  cantor64gm $(C64gm)
@@ -140,7 +139,6 @@ TERNARY_NS=-DENGINE_TERNARY -DARTIFICIAL_NON_SPLIT_VERSION
 #  cantor128nt $(C128nt)
 #  cantor128gm $(C128gm)
 #  cantor128gmt $(C128gmt)
-# endif
 # -- end arguments --
 # -- begin sed --
 # /^check_ternaryns_LDADD/ && s/libternaryns/libternary/;
@@ -180,7 +178,6 @@ SYNTHESIZED_TESTS+=   \
     check_ternaryns_100000_2_cd1293a5.fft          \
     check_ternaryns_100000_3_91e7d307.fft
 endif
-if ENABLE_FFT_INTERFACE
 check_PROGRAMS+=check_cantor64
 check_cantor64_SOURCES=$(general_fftcheck_sources)
 check_cantor64_CFLAGS=$(AM_CFLAGS) $(C64)
@@ -317,7 +314,6 @@ endif
 #     check_cantor128gmt_100000_2_cd1293a5.fft          \
 #     check_cantor128gmt_100000_3_91e7d307.fft
 # endif
-endif
 # -- end generated code --
 check_PROGRAMS+=bench_ternary
 bench_ternary_SOURCES=bench.c check-and-bench-common.c test-tools.c

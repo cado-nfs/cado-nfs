@@ -566,7 +566,6 @@ add_custom_target(gf2x-build ALL
 )
 endif()
 
-# add_subdirectory (gf2x-fft)
 add_subdirectory (utils)
 add_subdirectory (polyselect)
 add_subdirectory (sieve)

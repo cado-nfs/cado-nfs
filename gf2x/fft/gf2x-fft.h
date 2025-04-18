@@ -1,6 +1,6 @@
 /* This file is part of the gf2x library.
 
-   Copyright 2007, 2008, 2009, 2010, 2013, 2014, 2015
+   Copyright 2007, 2008, 2009, 2010, 2013, 2014, 2015, 2019, 2023
    Richard Brent, Pierrick Gaudry, Emmanuel Thome', Paul Zimmermann
 
    This program is free software; you can redistribute it and/or modify it
@@ -28,17 +28,9 @@
 #ifndef GF2X_FFT_H_
 #define GF2X_FFT_H_
 
-/* This section of the header file is modified by ./configure */
-#define GF2X_FFT_VERSION_MAJOR      @GF2X_FFT_VERSION_MAJOR@
-#define GF2X_FFT_VERSION_MINOR      @GF2X_FFT_VERSION_MINOR@
-#define GF2X_FFT_VERSION_PATCHLEVEL      @GF2X_FFT_VERSION_PATCHLEVEL@
-/* For example, 10300 is gf2x-1.3.0
- * Versions before gf2x-1.3.0 had no version code */
-#define GF2X_FFT_VERSION_CODE (((GF2X_FFT_VERSION_MAJOR) * 10000) + ((GF2X_FFT_VERSION_MINOR) * 100) + (GF2X_FFT_VERSION_PATCHLEVEL))
-
 /* 64 may also be used */
-#ifndef CANTOR_BASE_FIELD_SIZE
-#define CANTOR_BASE_FIELD_SIZE 128
+#ifndef GF2X_CANTOR_BASE_FIELD_SIZE
+#define GF2X_CANTOR_BASE_FIELD_SIZE 128
 #endif
 
 /* The different GF2X_FFT_ADJUST_* constants are used by the
@@ -53,16 +45,12 @@
 #define GF2X_FFT_ADJUST_DEPTH           1
 
 /* FFT splitting is when a long FFT is reconstructed from two shorter
- * ones.
+ * ones. It is only used by the ternary FFT
  */
 #define GF2X_FFT_ADJUST_SPLIT_FFT       2
 
-
-#include "gf2x.h"
 #include "gf2x-fake-fft.h"
 #include "gf2x-cantor-fft.h"
 #include "gf2x-ternary-fft.h"
-
-extern int gf2x_fft_lib_version_code GF2X_EXPORTED;
 
 #endif	/* GF2X_FFT_H_ */

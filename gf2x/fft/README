@@ -1,4 +1,4 @@
-This sub-package provides a generic FFT API for multiplication of
+This part of the interface provides a generic FFT API for multiplication of
 polynomials over GF(2), and an implementation of Cantor's algorithm.
 
 Three different FFT types are defined. They define similar interfaces. In

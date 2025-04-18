@@ -1,10 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
 
-// #define WLEN ULONG_BITS
-// #define GF2X_WORDSIZE ULONG_BITS
-#define GF2X_MAYBE_UNUSED MAYBE_UNUSED
-#define CANTOR_BASE_FIELD_SIZE 128
-
 #include <cstring>
 #include <cstdint>
 
@@ -15,6 +10,10 @@
 #include "bblas_level3a.hpp"  // for mat64_add
 #include "memory.h"      // malloc_aligned
 #include "macros.h"
+
+#define GF2X_MAYBE_UNUSED MAYBE_UNUSED
+#define GF2X_CANTOR_BASE_FIELD_SIZE 128
+
 #include "gf2x-cantor-field-impl.h"
 
 struct free_aligned_obj

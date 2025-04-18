@@ -1,6 +1,6 @@
 /* This file is part of the gf2x library.
 
-   Copyright 2007, 2008, 2009, 2010, 2013, 2014, 2015
+   Copyright 2007, 2008, 2009, 2010, 2013, 2014, 2015, 2019, 2023
    Richard Brent, Pierrick Gaudry, Emmanuel Thome', Paul Zimmermann
 
    This program is free software; you can redistribute it and/or modify it
@@ -68,7 +68,7 @@ void gf2x_fake_fft_info_get_alloc_sizes(
     sizes[2] = 0;
 }
 
-char * GF2X_EXPORTED gf2x_fake_fft_info_explain(gf2x_fake_fft_info_srcptr p)
+char * gf2x_fake_fft_info_explain(gf2x_fake_fft_info_srcptr p)
 {
     int rc;
     char * line;

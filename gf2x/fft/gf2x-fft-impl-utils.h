@@ -1,11 +1,36 @@
+/* This file is part of the gf2x library.
+
+   Copyright 2019, 2023
+   Richard Brent, Pierrick Gaudry, Emmanuel Thome', Paul Zimmermann
+
+   This program is free software; you can redistribute it and/or modify it
+   under the terms of either:
+    - If the archive contains a file named toom-gpl.c (not a trivial
+    placeholder), the GNU General Public License as published by the Free
+    Software Foundation; either version 3 of the License, or (at your
+    option) any later version.
+    - If the archive contains a file named toom-gpl.c which is a trivial
+    placeholder, the GNU Lesser General Public License as published by
+    the Free Software Foundation; either version 2.1 of the License, or
+    (at your option) any later version.
+   
+   This program is distributed in the hope that it will be useful, but WITHOUT
+   ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+   FITNESS FOR A PARTICULAR PURPOSE.  See the license text for more details.
+   
+   You should have received a copy of the GNU General Public License as
+   well as the GNU Lesser General Public License along with this program;
+   see the files COPYING and COPYING.LIB.  If not, write to the Free
+   Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+   02110-1301, USA.
+*/
 #ifndef GF2X_FFT_IMPL_UTILS_H_
 #define GF2X_FFT_IMPL_UTILS_H_
 
-/* Assume wordlength  WLEN is 32 or 64 */
+/* Assume wordlength  GF2X_WORDSIZE is 32 or 64 */
 
 #include <stddef.h>
 
-#define WLEN GF2X_WORDSIZE
 /* Don't define MIN, MAX, ABS as inlines, as they're already quite
  *
  * customarily defined as macros */
@@ -31,29 +56,29 @@ static inline size_t CEIL(size_t a, size_t b)
 /* W(b) is the number of words needed to store b bits */
 static inline size_t W(size_t b)
 {
-    return CEIL(b, WLEN);
+    return CEIL(b, GF2X_WORDSIZE);
 }
 
-/* I(b) is the index word of bit b, assuming bits 0..WLEN-1
+/* I(b) is the index word of bit b, assuming bits 0..GF2X_WORDSIZE-1
    have index 0 */
 static inline size_t I(size_t b)
 {
-    return b / WLEN;
+    return b / GF2X_WORDSIZE;
 }
 
 static inline size_t R(size_t b)
 {
-    return b % WLEN;
+    return b % GF2X_WORDSIZE;
 }
 
 static inline size_t R2(size_t b)       /* remaining bits */
 {
-    return (-b) % WLEN;
+    return (-b) % GF2X_WORDSIZE;
 }
 
 static inline unsigned long MASK(size_t x)
 {
-    ASSERT(x < WLEN);
+    ASSERT(x < GF2X_WORDSIZE);
     return ((1UL << (x)) - 1UL);
 }
 
@@ -106,7 +131,7 @@ AddMod3 (unsigned long *a, unsigned long *b, unsigned long *c,
     a[i] = b[i] ^ c[i] ^ d[i];
 }
 
-/* c <- a * x^k, return carry out, 0 <= k < WLEN */
+/* c <- a * x^k, return carry out, 0 <= k < GF2X_WORDSIZE */
 static inline unsigned long
 Lsh (unsigned long *c, unsigned long *a, size_t n, size_t k)
 {
@@ -123,13 +148,13 @@ Lsh (unsigned long *c, unsigned long *a, size_t n, size_t k)
     unsigned long t, cy = 0;
     for (size_t i = 0; i < n; i++) {
 	t = (a[i] << k) | cy;
-	cy = a[i] >> (WLEN - k);
+	cy = a[i] >> (GF2X_WORDSIZE - k);
 	c[i] = t;
     }
     return cy;
 }
 
-/* c <- c + a * x^k, return carry out, 0 <= k < WLEN */
+/* c <- c + a * x^k, return carry out, 0 <= k < GF2X_WORDSIZE */
 
 static inline unsigned long AddLsh(unsigned long *c, unsigned long *a, size_t n,
 			    size_t k)
@@ -148,13 +173,13 @@ static inline unsigned long AddLsh(unsigned long *c, unsigned long *a, size_t n,
 
     for (size_t i = 0; i < n; i++) {
 	t = (a[i] << k) | cy;
-	cy = a[i] >> (WLEN - k);
+	cy = a[i] >> (GF2X_WORDSIZE - k);
 	c[i] ^= t;
     }
     return cy;
 }
 
-/* c <- a / x^k, return carry out, 0 <= k < WLEN */
+/* c <- a / x^k, return carry out, 0 <= k < GF2X_WORDSIZE */
 static inline unsigned long
 Rsh (unsigned long *c, const unsigned long *a, size_t n, size_t k)
 {
@@ -169,13 +194,13 @@ Rsh (unsigned long *c, const unsigned long *a, size_t n, size_t k)
     unsigned long t, cy = 0;
     for (size_t i = n; i-- ; ) {
 	t = (a[i] >> k) | cy;
-	cy = a[i] << (WLEN - k);
+	cy = a[i] << (GF2X_WORDSIZE - k);
 	c[i] = t;
     }
     return cy;
 }
 
-/* c <- c + a / x^k, return carry out, 0 <= k < WLEN */
+/* c <- c + a / x^k, return carry out, 0 <= k < GF2X_WORDSIZE */
 
 static inline unsigned long AddRsh(unsigned long *c, unsigned long *a, size_t n,
 			    size_t k)
@@ -191,7 +216,7 @@ static inline unsigned long AddRsh(unsigned long *c, unsigned long *a, size_t n,
 
     for (size_t i = n ; i-- ; ) {
 	t = (a[i] >> k) | cy;
-	cy = a[i] << (WLEN - k);
+	cy = a[i] << (GF2X_WORDSIZE - k);
 	c[i] ^= t;
     }
     return cy;
@@ -209,7 +234,7 @@ static inline void CopyBitsRsh(unsigned long * c, const unsigned long * c1, size
         size_t words_full = W(bits_c + shift);
         size_t pick = I(shift);
         size_t cnt = R(shift);
-        size_t tnc = WLEN - cnt;
+        size_t tnc = GF2X_WORDSIZE - cnt;
         Rsh(c, c1 + pick, t, cnt);
         /* words_full - pick - t is either 0 or 1 */
         if (words_full - pick == t + 1)

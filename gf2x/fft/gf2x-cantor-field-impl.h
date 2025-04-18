@@ -1,12 +1,47 @@
+/* This file is part of the gf2x library.
+
+   Copyright 2022, 2023
+   Richard Brent, Pierrick Gaudry, Emmanuel Thome', Paul Zimmermann
+
+   This program is free software; you can redistribute it and/or modify it
+   under the terms of either:
+    - If the archive contains a file named toom-gpl.c (not a trivial
+    placeholder), the GNU General Public License as published by the Free
+    Software Foundation; either version 3 of the License, or (at your
+    option) any later version.
+    - If the archive contains a file named toom-gpl.c which is a trivial
+    placeholder, the GNU Lesser General Public License as published by
+    the Free Software Foundation; either version 2.1 of the License, or
+    (at your option) any later version.
+   
+   This program is distributed in the hope that it will be useful, but WITHOUT
+   ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+   FITNESS FOR A PARTICULAR PURPOSE.  See the license text for more details.
+   
+   You should have received a copy of the GNU General Public License as
+   well as the GNU Lesser General Public License along with this program;
+   see the files COPYING and COPYING.LIB.  If not, write to the Free
+   Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+   02110-1301, USA.
+*/
 #ifndef GF2X_CANTOR_FIELD_IMPL_H_
 #define GF2X_CANTOR_FIELD_IMPL_H_
 
+#ifndef GF2X_CANTOR_BASE_FIELD_SIZE
+#error "GF2X_CANTOR_BASE_FIELD_SIZE must be defined"
+#endif
+
 #include <string.h>
+
+#include "gf2x/gf2x-impl.h"
+
+#ifndef GF2X_WORDSIZE
+#error "GF2X_WORDSIZE must be defined"
+#endif
 
 #include "fft/gf2x-cantor-fft.h"
 #include "fft/gf2x-fft-impl-utils.h"
 #include "gf2x.h"
-#include "gf2x/gf2x-impl.h"
 #include "gf2x/gf2x-small.h"
 
 #ifdef __cplusplus
@@ -18,8 +53,8 @@ extern "C" {
  * needs. These are pretty simple.
  *
  * We have two influential macros
- *   CANTOR_BASE_FIELD_SIZE  (128 or 64)
- *   WLEN  (64 or 32)
+ *   GF2X_CANTOR_BASE_FIELD_SIZE  (128 or 64)
+ *   GF2X_WORDSIZE  (64 or 32)
  *
  * The interfaces that we need are
  *  elt
@@ -45,7 +80,7 @@ typedef gf2x_cantor_fft_elt Kelt;
 typedef gf2x_cantor_fft_dst_elt Kdst_elt;
 typedef gf2x_cantor_fft_src_elt Ksrc_elt;
 
-typedef unsigned long Kelt_ur[2 * CANTOR_BASE_FIELD_SIZE / WLEN];
+typedef unsigned long Kelt_ur[2 * GF2X_CANTOR_BASE_FIELD_SIZE / GF2X_WORDSIZE];
 typedef unsigned long* Kdst_elt_ur;
 typedef const unsigned long* Ksrc_elt_ur;
 
@@ -104,13 +139,13 @@ static inline void Kmul(Kdst_elt r, Ksrc_elt s1, Ksrc_elt s2)
 
 static inline void Kmul_ur(Kdst_elt_ur t, Ksrc_elt s1, Ksrc_elt s2)
 {
-#if CANTOR_BASE_FIELD_SIZE == 128 && WLEN == 64
+#if GF2X_CANTOR_BASE_FIELD_SIZE == 128 && GF2X_WORDSIZE == 64
     gf2x_mul2(t, s1, s2);
-#elif CANTOR_BASE_FIELD_SIZE == 128 && WLEN == 32
+#elif GF2X_CANTOR_BASE_FIELD_SIZE == 128 && GF2X_WORDSIZE == 32
     gf2x_mul4(t, s1, s2);
-#elif CANTOR_BASE_FIELD_SIZE == 64 && WLEN == 64
+#elif GF2X_CANTOR_BASE_FIELD_SIZE == 64 && GF2X_WORDSIZE == 64
     gf2x_mul1(t, *s1, *s2);
-#elif CANTOR_BASE_FIELD_SIZE == 64 && WLEN == 32
+#elif GF2X_CANTOR_BASE_FIELD_SIZE == 64 && GF2X_WORDSIZE == 32
     gf2x_mul2(t, s1, s2);
 #else
 #error "Unsupported combination"
@@ -121,7 +156,7 @@ static inline void Kmul_ur(Kdst_elt_ur t, Ksrc_elt s1, Ksrc_elt s2)
 
 static inline void Kreduce(Kdst_elt r, Kdst_elt_ur t)
 {
-#if CANTOR_BASE_FIELD_SIZE == 128 && WLEN == 64
+#if GF2X_CANTOR_BASE_FIELD_SIZE == 128 && GF2X_WORDSIZE == 64
     unsigned long z;
     z = t[3];
     /* t[2],t[1] += z * X^128 = z * (X^7 + X^2 + X + 1) */
@@ -131,7 +166,7 @@ static inline void Kreduce(Kdst_elt r, Kdst_elt_ur t)
     z = t[2];
     r[0] = t[0] ^ (z << 7) ^ (z << 2) ^ (z << 1) ^ z;
     r[1] = t[1] ^ (z >> 57) ^ (z >> 62) ^ (z >> 63);
-#elif CANTOR_BASE_FIELD_SIZE == 64 && WLEN == 64
+#elif GF2X_CANTOR_BASE_FIELD_SIZE == 64 && GF2X_WORDSIZE == 64
     unsigned long s[2];
     /* 63 excess bits */
     {
@@ -166,7 +201,7 @@ static inline void Kreduce(Kdst_elt r, Kdst_elt_ur t)
         r[0] ^= z << 1;
         r[0] ^= z;
     }
-#elif CANTOR_BASE_FIELD_SIZE == 128 && WLEN == 32
+#elif GF2X_CANTOR_BASE_FIELD_SIZE == 128 && GF2X_WORDSIZE == 32
     unsigned long s[5];
     /* 127 excess bits */
     {
@@ -248,7 +283,7 @@ static inline void Kreduce(Kdst_elt r, Kdst_elt_ur t)
         r[0] ^= z << 1;
         r[0] ^= z;
     }
-#elif CANTOR_BASE_FIELD_SIZE == 64 && WLEN == 32
+#elif GF2X_CANTOR_BASE_FIELD_SIZE == 64 && GF2X_WORDSIZE == 32
     unsigned long s[3];
     /* 63 excess bits */
     {
