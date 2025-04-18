@@ -1,10 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
 
-// #define WLEN ULONG_BITS
-// #define GF2X_WORDSIZE ULONG_BITS
-#define GF2X_MAYBE_UNUSED MAYBE_UNUSED
-#define CANTOR_BASE_FIELD_SIZE 64
-
 #include <cstdint>
 #include <cstring>
 
@@ -13,6 +8,13 @@
 #include "bblas_level3a.hpp"  // for mat64_add
 #include "memory.h"      // malloc_aligned
 
+#include "gf2x.h"       // IWYU pragma: keep  (GF2X_WORDSIZE)
+#include "gf2x-impl.h"  // IWYU pragma: keep  (GF2X_WORDSIZE)
+
+// #define WLEN ULONG_BITS
+// #define GF2X_WORDSIZE ULONG_BITS
+#define GF2X_MAYBE_UNUSED MAYBE_UNUSED
+#define GF2X_CANTOR_BASE_FIELD_SIZE 64
 
 #include "gf2x-cantor-field-impl.h"
 

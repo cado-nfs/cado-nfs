@@ -472,7 +472,7 @@ else()
 endif()
 # This **MUST** match the #define in gf2x/Makefile.am
 set_property(SOURCE lingen_qcode_binary.cpp
-    APPEND PROPERTY COMPILE_DEFINITIONS CANTOR_BASE_FIELD_SIZE=128)
+    APPEND PROPERTY COMPILE_DEFINITIONS GF2X_CANTOR_BASE_FIELD_SIZE=128)
 
 add_executable(cleanup cleanup.cpp)
 target_link_libraries(cleanup bitlinalg utils m)
@@ -645,7 +645,7 @@ target_link_libraries(bench_matcache bwc_base)
 
 add_executable(bench_polmatmul EXCLUDE_FROM_ALL bench_polmatmul.cpp)
 set_property(SOURCE bench_polmatmul.cpp
-    APPEND PROPERTY COMPILE_DEFINITIONS CANTOR_BASE_FIELD_SIZE=128)
+    APPEND PROPERTY COMPILE_DEFINITIONS GF2X_CANTOR_BASE_FIELD_SIZE=128)
 mark_targets_as_openmp(bench_polmatmul)
 
 if(NOT HAVE_GF2X)

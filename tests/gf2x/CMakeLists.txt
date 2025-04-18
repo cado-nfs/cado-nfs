@@ -27,4 +27,4 @@ cado_define_test(test_cantor.c
     TARGET_DEPENDENCIES gf2x-build)
 # This **MUST** match the #define in gf2x/Makefile.am
 set_source_files_properties(test_cantor.c COMPILE_FLAGS
-        "-DCANTOR_BASE_FIELD_SIZE=128")
+    "-DGF2X_CANTOR_BASE_FIELD_SIZE=128")
