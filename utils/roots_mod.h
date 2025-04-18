@@ -1,5 +1,5 @@
-#ifndef ROOTS_MOD_H_
-#define ROOTS_MOD_H_
+#ifndef CADO_ROOTS_MOD_H
+#define CADO_ROOTS_MOD_H
 
 #include <stdint.h>
 #include "gmp_aux.h"
@@ -27,4 +27,4 @@ unsigned long enumeratediv (enumeratediv_t *);
 }
 #endif
 
-#endif	/* ROOTS_MOD_H_ */
+#endif	/* CADO_ROOTS_MOD_H */

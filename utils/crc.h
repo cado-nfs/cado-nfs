@@ -1,5 +1,5 @@
-#ifndef CRC_H_
-#define CRC_H_
+#ifndef CADO_CRC_H
+#define CADO_CRC_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -34,4 +34,4 @@ extern uint32_t cado_crc_lfsr_turn32_little(cado_crc_lfsr_ptr, const uint32_t *,
 }
 #endif
 
-#endif	/* CRC_H_ */
+#endif	/* CADO_CRC_H */

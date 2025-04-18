@@ -14,7 +14,7 @@
 #include "macros.h"
 #include "misc.h"
 #include "tests_common.h"
-#include "ularith.h"
+#include "arith/ularith.h"
 
 // coverity[root_function]
 int main(int argc, char const * argv[])

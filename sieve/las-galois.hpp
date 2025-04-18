@@ -1,5 +1,5 @@
-#ifndef LAS_GALOIS_HPP_
-#define LAS_GALOIS_HPP_
+#ifndef CADO_LAS_GALOIS_HPP
+#define CADO_LAS_GALOIS_HPP
 
 #include <ostream>
 
@@ -13,4 +13,4 @@ void add_relations_with_galois(const char *galois, std::ostream& os,
 				      const char *comment, unsigned long *cpt,
 				      relation &rel);
 
-#endif	/* LAS_GALOIS_HPP_ */
+#endif	/* CADO_LAS_GALOIS_HPP */

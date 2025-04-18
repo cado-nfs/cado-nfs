@@ -1,5 +1,5 @@
-#ifndef INTRINSICS_HPP_
-#define INTRINSICS_HPP_
+#ifndef CADO_INTRINSICS_HPP
+#define CADO_INTRINSICS_HPP
 
 /* A header file that make SIMD intrinsics that perform the same operation
    available under the same name, templated by the SIMD word type and the

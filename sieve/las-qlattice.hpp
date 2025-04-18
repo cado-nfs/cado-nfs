@@ -1,5 +1,5 @@
-#ifndef LAS_QLATTICE_HPP_
-#define LAS_QLATTICE_HPP_
+#ifndef CADO_LAS_QLATTICE_HPP
+#define CADO_LAS_QLATTICE_HPP
 
 // IWYU pragma: no_include <bits/exception.h>
 
@@ -69,4 +69,4 @@ namespace fmt {
 }
 
 
-#endif	/* LAS_QLATTICE_HPP_ */
+#endif	/* CADO_LAS_QLATTICE_HPP */

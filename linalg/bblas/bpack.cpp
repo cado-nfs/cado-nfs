@@ -16,14 +16,6 @@
 #include "omp_proxy.h" // IWYU pragma: keep
 #include "macros.h"
 
-/* Is it sufficient to meet the ODR requirement ? There are places where
- * we do std::min(B, foo). That requires that a definition of B be
- * available somewhere. It's not clear to me that the following kind of
- * template constexpr definition does the trick.
-template<typename T> constexpr const unsigned int bpack_view_base<T>::B;
-template<typename T> constexpr const unsigned int bpack<T>::B;
- */
-
 template<typename T>
 void bpack_view<T>::fill_random(gmp_randstate_t rstate) {
     memfill_random((void *) X, mblocks * nblocks * sizeof(bitmat<T>), rstate);
@@ -407,6 +399,7 @@ template struct bpack_const_view<uint64_t>;
 template struct bpack_const_view<uint8_t>;
 template struct bpack<uint64_t>;
 template struct bpack<uint8_t>;
+
 
 template struct PLE<uint64_t>;
 template struct PLE<uint8_t>;

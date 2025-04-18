@@ -266,7 +266,7 @@ int doinit(int * p_argc, char const *** p_argv, char ** pmpiinit_diag MAYBE_UNUS
                 prov, req);
         return 0;
     } else {
-#ifndef FAKEMPI_H_
+#ifndef CADO_FAKEMPI_H
         int rc = asprintf(pmpiinit_diag, "Successfully initialized MPI with %s\n", reqname);
         ASSERT_ALWAYS(rc >= 0);
 #endif
@@ -317,7 +317,7 @@ int bw_common_init(struct bw_params * bw, int * p_argc, char const *** p_argv)/*
         MPI_Get_library_version(libname, &len);
         printf("MPI library is %s [MPI-%d.%d]\n", libname, ver, subver);
 #else
-#ifndef FAKEMPI_H_
+#ifndef CADO_FAKEMPI_H
         /* It's rather misleading to speak about the MPI library when in
          * fact we're only using our placeholder API. */
         printf("MPI library follows [MPI-%d.%d]\n", ver, subver);

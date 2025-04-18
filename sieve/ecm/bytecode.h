@@ -1,5 +1,5 @@
-#ifndef BYTECODE_H_
-#define BYTECODE_H_
+#ifndef CADO_BYTECODE_H
+#define CADO_BYTECODE_H
 
 #include <stdint.h>
 #include <gmp.h>
@@ -132,4 +132,4 @@ int bytecode_mishmash_check (bytecode_const, mpz_srcptr, int);
 
 
 
-#endif /* BYTECODE_H_ */
+#endif /* CADO_BYTECODE_H */

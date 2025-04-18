@@ -5,8 +5,8 @@
  *      Author: kruppa
  */
 
-#ifndef RDTSC_H_
-#define RDTSC_H_
+#ifndef CADO_RDTSC_H
+#define CADO_RDTSC_H
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -347,4 +347,4 @@ printAllPmc()
 #endif
 }
 
-#endif /* RDTSC_H_ */
+#endif /* CADO_RDTSC_H */

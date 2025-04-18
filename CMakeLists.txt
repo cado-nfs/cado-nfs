@@ -192,7 +192,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.0)
         message(FATAL_ERROR "cado-nfs requires g++ version 5 or greater")
     endif()
-    set(HAVE_CXX11 1)
     if(MINGW)
         set (CMAKE_CXX_FLAGS "-std=gnu++11 ${CMAKE_CXX_FLAGS}")
     else()
@@ -201,22 +200,15 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         # avoid a false positive with libfmt. I observe
         # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=109717 with g++13
         # and not g++14
-        if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 14.0)
+        if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 14.0 AND NOT DEFINED ENV{NO_CXX20})
             set (CMAKE_CXX_FLAGS "-std=c++20 -Wno-c++11-compat ${CMAKE_CXX_FLAGS}")
             message(STATUS "Enabling C++20 support")
             set(HAVE_CXX20 1)
-        elseif (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0)
-            # we only require c++11, not c++17. However c++17 adds the
-            # possibility to benefit from some compile-time checks, of
-            # format strings notably. Therefore we choose to enable it
-            # sporadically. This has the downside that some
-            # c++17-specific constructs may appear to be valid on my
-            # machine. This will be caught by CI after the fact anyway.
-            set (CMAKE_CXX_FLAGS "-std=c++17 -Wno-c++11-compat ${CMAKE_CXX_FLAGS}")
-            message(STATUS "Enabling C++17 support")
+            set(HAVE_CXX11 1)
         else()
             set (CMAKE_CXX_FLAGS "-std=c++11 -Wno-c++11-compat ${CMAKE_CXX_FLAGS}")
             message(STATUS "Enabling C++11 support")
+            set(HAVE_CXX11 1)
         endif()
     endif()
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-literal-suffix")
@@ -228,13 +220,13 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set (CMAKE_CXX_FLAGS "-export-dynamic ${CMAKE_CXX_FLAGS}")
 elseif(CMAKE_C_COMPILER_ID MATCHES "IntelLLVM")
     message(STATUS "Applying flags for icc (icx)")
-    if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "2025")
+    if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "2025" AND NOT DEFINED ENV{NO_CXX20})
         set (CMAKE_CXX_FLAGS "-fp-model=precise -std=c++20 ${CMAKE_CXX_FLAGS}")
         message(STATUS "Enabling C++20 support")
         set(HAVE_CXX20 1)
         set(HAVE_CXX11 1)
     else()
-	message(STATUS "Enabling C++11 support")
+        message(STATUS "Enabling C++11 support")
         set (CMAKE_CXX_FLAGS "-fp-model=precise -std=c++11 ${CMAKE_CXX_FLAGS}")
         set(HAVE_CXX11 1)
     endif()
@@ -253,11 +245,18 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Intel")
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "AppleClang" OR CMAKE_HOST_SYSTEM_NAME
         STREQUAL "Darwin" AND CMAKE_CXX_COMPILER_ID MATCHES "Clang" )
     # Not the slightest idea when apple's clang became c++11-compliant.
-    if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "15.0.0")
+    # c++20 is for apple clang 16.0.0
+    if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "16.0.0" AND NOT DEFINED ENV{NO_CXX20})
         set (CMAKE_CXX_FLAGS   "-std=c++20 ${CMAKE_CXX_FLAGS}")
         set(HAVE_CXX11 1)
         set(HAVE_CXX20 1)
         message(STATUS "Enabling C++20 support")
+    elseif (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "15.0.0")
+        # vector::emplace_back + aggregate initialization fail with apple
+        # clang 15, even though it's legitimate c++20
+        set (CMAKE_CXX_FLAGS   "-std=c++11 ${CMAKE_CXX_FLAGS}")
+        set(HAVE_CXX11 1)
+        message(STATUS "Enabling C++11 support")
     elseif (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "6.0.0")
         set (CMAKE_CXX_FLAGS   "-std=c++11 ${CMAKE_CXX_FLAGS}")
         set (HAVE_CXX11 1)
@@ -272,15 +271,11 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "^Clang")
     # Caveat: Apple's clang identifies itself as plain Clang on some
     # occasions... I don't exactly know when and how, but there's some
     # potential for misconfiguration.
-    if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "16")
+    if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "16" AND NOT DEFINED ENV{NO_CXX20})
         set (CMAKE_CXX_FLAGS   "-std=c++20 ${CMAKE_CXX_FLAGS}")
         set(HAVE_CXX11 1)
         set(HAVE_CXX20 1)
         message(STATUS "Enabling C++20 support")
-    elseif (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "5")
-        set (CMAKE_CXX_FLAGS   "-std=c++17 ${CMAKE_CXX_FLAGS}")
-        set (HAVE_CXX11 1)
-        message(STATUS "Enabling C++17 support")
     elseif (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "3.3")
         set (CMAKE_CXX_FLAGS   "-std=c++11 ${CMAKE_CXX_FLAGS}")
         set (HAVE_CXX11 1)

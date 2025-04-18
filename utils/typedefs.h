@@ -1,5 +1,5 @@
-#ifndef	CADO_TYPEDEFS_H_
-#define	CADO_TYPEDEFS_H_
+#ifndef	CADO_TYPEDEFS_H
+#define	CADO_TYPEDEFS_H
 
 #include "cado_config.h"
 
@@ -80,4 +80,4 @@ typedef struct {
   double W; /* weight of the active part of the matrix */
 } info_mat_t;
 
-#endif	/* CADO_TYPEDEFS_H_ */
+#endif	/* CADO_TYPEDEFS_H */

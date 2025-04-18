@@ -7,6 +7,8 @@
 # test-mode, that is only a few methods are generated, and the benchs
 # will be very unprecise.
 
+set -e
+
 if [ "$CADO_DEBUG" ] ; then set -x ; fi
 
 if [ $# != 9 ] ; then
@@ -166,13 +168,15 @@ done
 echo "######## Strategies"
 # precompute strategies
 mkdir -p res_precompt_st
+xmin=`echo "l($lim0*$lim0)/l(2)" | bc -l | cut -d "." -f 1`
 for r0 in `seq 0 $mfb0`; do
-    cmd="$GST -gst_r -lim0 $lim0 -lpb0 $lpb0 -r0 $r0 -ncurves 20 -in All_methods -decomp decomp -out res_precompt_st"
+    cmd="$GST -gst_r -lim0 $lim0 -lpb0 $lpb0 -r0 $r0 -ncurves 20 -in All_methods -decomp decomp/decomp_${lim0}_${x} -out res_precompt_st"
     echo $cmd
     $cmd
 done
+xmin=`echo "l($lim1*$lim1)/l(2)" | bc -l | cut -d "." -f 1`
 for r0 in `seq 0 $mfb1`; do
-    cmd="$GST -gst_r -lim0 $lim1 -lpb0 $lpb1 -r0 $r0 -ncurves 20 -in All_methods -decomp decomp -out res_precompt_st"
+    cmd="$GST -gst_r -lim0 $lim1 -lpb0 $lpb1 -r0 $r0 -ncurves 20 -in All_methods -decomp decomp/decomp_${lim1}_${x} -out res_precompt_st"
     echo $cmd
     $cmd
 done

@@ -1,5 +1,5 @@
-#ifndef VERSION_INFO_H_
-#define VERSION_INFO_H_
+#ifndef CADO_VERSION_INFO_H
+#define CADO_VERSION_INFO_H
 
 #ifdef  __cplusplus
 extern "C" {
@@ -22,4 +22,4 @@ extern const char * cado_modified_files;
 }
 #endif
 
-#endif	/* VERSION_INFO_H_ */
+#endif	/* CADO_VERSION_INFO_H */

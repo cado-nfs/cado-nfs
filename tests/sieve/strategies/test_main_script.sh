@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 
+set -ex
+
 : ${CADO_NFS_SOURCE_DIR:?missing}
 : ${CADO_NFS_BINARY_DIR:?missing}
+: ${wdir:?missing}
 
-t=`mktemp -d ${TMPDIR-/tmp}/cado-nfs.XXXXXXXXX`
+t="$wdir"
 cd $t
 
 cat > c120.poly <<EOF

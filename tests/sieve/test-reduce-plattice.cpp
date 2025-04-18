@@ -2,13 +2,15 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
+#include <ctime>
 
-#include <vector>
-#include <array>
-#include <tuple>
-#include <string>
+#include <exception>
 #include <map>
-#include <algorithm>
+#include <string>
+#include <tuple>
+#include <type_traits>
+#include <vector>
 
 #include <sys/types.h>
 #include <unistd.h>
@@ -16,12 +18,13 @@
 #include <x86intrin.h>
 #endif
 
-#include "gcd.h"
+#include <gmp.h>
+#include "fmt/base.h"
+#include "fmt/format.h"
+
 #include "macros.h"
 #include "getprime.h"
-#include "fb-types.hpp"
 #include "las-plattice.hpp"
-#include "fmt/format.h"
 
 // see bug #30052
 #if GNUC_VERSION_ATLEAST(12,0,0) && ! GNUC_VERSION_ATLEAST(13,0,0)
@@ -110,6 +113,10 @@ struct call_production {
         asm volatile("");
     }
 };
+constexpr const size_t call_production::batch_count;    // c++-11
+constexpr const bool call_production::has_known_bugs;   // c++-11
+constexpr const bool call_production::old_interface;    // c++-11
+constexpr const char * call_production::what;   // c++-11
 
 struct call_production_noasm {
     static constexpr const size_t batch_count = 1;
@@ -123,6 +130,11 @@ struct call_production_noasm {
     }
 };
 
+constexpr const size_t call_production_noasm::batch_count;    // c++-11
+constexpr const bool call_production_noasm::has_known_bugs;   // c++-11
+constexpr const bool call_production_noasm::old_interface;    // c++-11
+constexpr const char * call_production_noasm::what;   // c++-11
+
 struct call_two_legs {
     static constexpr const size_t batch_count = 1;
     static constexpr const bool has_known_bugs = false;
@@ -133,6 +145,12 @@ struct call_two_legs {
     }
 };
 
+constexpr const size_t call_two_legs::batch_count;    // c++-11
+constexpr const bool call_two_legs::has_known_bugs;   // c++-11
+constexpr const bool call_two_legs::old_interface;    // c++-11
+constexpr const char * call_two_legs::what;   // c++-11
+
+
 struct call_simplistic {
     static constexpr const size_t batch_count = 1;
     static constexpr const char * what = "simplistic";
@@ -142,6 +160,11 @@ struct call_simplistic {
         L.reduce_plattice_simplistic(I);
     }
 };
+constexpr const size_t call_simplistic::batch_count;    // c++-11
+constexpr const bool call_simplistic::has_known_bugs;   // c++-11
+constexpr const bool call_simplistic::old_interface;    // c++-11
+constexpr const char * call_simplistic::what;   // c++-11
+
 
 
 struct call_using_64bit_mul {
@@ -153,6 +176,11 @@ struct call_using_64bit_mul {
         L.using_64bit_mul(I);
     }
 };
+constexpr const size_t call_using_64bit_mul::batch_count;    // c++-11
+constexpr const bool call_using_64bit_mul::has_known_bugs;   // c++-11
+constexpr const bool call_using_64bit_mul::old_interface;    // c++-11
+constexpr const char * call_using_64bit_mul::what;   // c++-11
+
 
 struct call_swapping_loop {
     static constexpr const size_t batch_count = 1;
@@ -163,6 +191,11 @@ struct call_swapping_loop {
         L.swapping_loop(I);
     }
 };
+constexpr const size_t call_swapping_loop::batch_count;    // c++-11
+constexpr const bool call_swapping_loop::has_known_bugs;   // c++-11
+constexpr const bool call_swapping_loop::old_interface;    // c++-11
+constexpr const char * call_swapping_loop::what;   // c++-11
+
 
 struct call_swapping_loop2 {
     static constexpr const size_t batch_count = 1;
@@ -173,6 +206,11 @@ struct call_swapping_loop2 {
         L.swapping_loop2(I);
     }
 };
+constexpr const size_t call_swapping_loop2::batch_count;    // c++-11
+constexpr const bool call_swapping_loop2::has_known_bugs;   // c++-11
+constexpr const bool call_swapping_loop2::old_interface;    // c++-11
+constexpr const char * call_swapping_loop2::what;   // c++-11
+
 
 struct call_old_reference {
     static constexpr const size_t batch_count = 1;
@@ -183,6 +221,11 @@ struct call_old_reference {
         reference(&L, aa.q, aa.r, I);
     }
 };
+constexpr const size_t call_old_reference::batch_count;    // c++-11
+constexpr const bool call_old_reference::has_known_bugs;   // c++-11
+constexpr const bool call_old_reference::old_interface;    // c++-11
+constexpr const char * call_old_reference::what;   // c++-11
+
 
 struct call_reference2 {
     static constexpr const size_t batch_count = 1;
@@ -193,6 +236,11 @@ struct call_reference2 {
         reference2(&L, aa.q, aa.r, I);
     }
 };
+constexpr const size_t call_reference2::batch_count;    // c++-11
+constexpr const bool call_reference2::has_known_bugs;   // c++-11
+constexpr const bool call_reference2::old_interface;    // c++-11
+constexpr const char * call_reference2::what;   // c++-11
+
 
 #ifdef TEST_ASSEMBLY_CODE_DELETED_BY_5f258ce8b
 struct call_reference2_asm {
@@ -204,6 +252,10 @@ struct call_reference2_asm {
         reference2_asm(&L, aa.q, aa.r, I);
     }
 };
+constexpr const size_t call_reference2_asm::batch_count;    // c++-11
+constexpr const bool call_reference2_asm::has_known_bugs;   // c++-11
+constexpr const bool call_reference2_asm::old_interface;    // c++-11
+constexpr const char * call_reference2_asm::what;   // c++-11
 #endif
 
 template<size_t N>
@@ -215,14 +267,20 @@ struct call_simd_base {
         simd<N>(pL, I);
     }
 };
+template<size_t N> constexpr const size_t call_simd_base<N>::batch_count;
+template<size_t N> constexpr const bool call_simd_base<N>::has_known_bugs;
+template<size_t N> constexpr const bool call_simd_base<N>::old_interface;
+
 
 struct call_simd_avx512 : public call_simd_base<16> {
     static constexpr const char * what = "simd-avx512";
 };
+constexpr const char * call_simd_avx512::what;  // c++-11
 
 struct call_simd_avx2 : public call_simd_base<8> {
     static constexpr const char * what = "simd-avx2";
 };
+constexpr const char * call_simd_avx2::what;  // c++-11
 
 template<size_t N>
 struct call_simd : public call_simd_base<N> {};
@@ -230,10 +288,12 @@ template<>
 struct call_simd<4> : public call_simd_base<4> {
     static constexpr const char * what = "simd-synthetic<4> (sse-4.1, maybe)";
 };
+constexpr const char * call_simd<4>::what;  // c++-11
 template<>
 struct call_simd<2> : public call_simd_base<2> {
     static constexpr const char * what = "simd-synthetic<2>";
 };
+constexpr const char * call_simd<2>::what;  // c++-11
 
 template<typename T>
 static inline 

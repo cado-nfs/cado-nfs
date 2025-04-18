@@ -1,5 +1,5 @@
-#ifndef LAS_SMALLSIEVE_GLUE_HPP_
-#define LAS_SMALLSIEVE_GLUE_HPP_
+#ifndef CADO_LAS_SMALLSIEVE_GLUE_HPP
+#define CADO_LAS_SMALLSIEVE_GLUE_HPP
 
 #include <cstdio>
 #include <climits>
@@ -822,4 +822,4 @@ struct small_sieve : public small_sieve_base {/*{{{*/
 /*}}}*/
 
 
-#endif	/* LAS_SMALLSIEVE_GLUE_HPP_ */
+#endif	/* CADO_LAS_SMALLSIEVE_GLUE_HPP */

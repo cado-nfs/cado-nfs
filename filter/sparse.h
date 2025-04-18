@@ -1,5 +1,5 @@
-#ifndef CADO_SPARSE_H_
-#define CADO_SPARSE_H_
+#ifndef CADO_SPARSE_H
+#define CADO_SPARSE_H
 
 #include <stdio.h>
 #include <stdint.h> /* for int32_t */
@@ -89,4 +89,4 @@ static inline void addRows(typerow_t **rows, index_t i1, index_t i2, index_t j) 
     addRowsUpdateIndex(rows, NULL, i1, i2, j);
 }
 
-#endif  /* CADO_SPARSE_H_ */
+#endif  /* CADO_SPARSE_H */

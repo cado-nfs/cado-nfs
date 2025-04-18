@@ -1,5 +1,5 @@
-#ifndef SINGLETON_REMOVAL_H_
-#define SINGLETON_REMOVAL_H_
+#ifndef CADO_SINGLETON_REMOVAL_H
+#define CADO_SINGLETON_REMOVAL_H
 
 #include "purge_matrix.h"
 #include <stdint.h>
@@ -17,4 +17,4 @@ int64_t singleton_removal (purge_matrix_ptr, unsigned int, int);
 #endif
 
 
-#endif /* SINGLETON_REMOVAL_H_ */
+#endif /* CADO_SINGLETON_REMOVAL_H */

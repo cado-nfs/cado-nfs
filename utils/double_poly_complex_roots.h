@@ -1,5 +1,5 @@
-#ifndef UTILS_DOUBLE_POLY_COMPLEX_ROOTS_H_
-#define UTILS_DOUBLE_POLY_COMPLEX_ROOTS_H_
+#ifndef CADO_UTILS_DOUBLE_POLY_COMPLEX_ROOTS_H
+#define CADO_UTILS_DOUBLE_POLY_COMPLEX_ROOTS_H
 
 #include <complex.h>    // IWYU pragma: keep
 #include "double_poly.h"
@@ -21,4 +21,4 @@ int double_poly_complex_roots_long(long double _Complex *roots, double_poly_srcp
 }
 #endif
 
-#endif	/* UTILS_DOUBLE_POLY_COMPLEX_ROOTS_H_ */
+#endif	/* CADO_UTILS_DOUBLE_POLY_COMPLEX_ROOTS_H */

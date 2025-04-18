@@ -1,5 +1,5 @@
-#ifndef BEST_POLYNOMIALS_QUEUE_H_
-#define BEST_POLYNOMIALS_QUEUE_H_
+#ifndef CADO_BEST_POLYNOMIALS_QUEUE_H
+#define CADO_BEST_POLYNOMIALS_QUEUE_H
 
 #include <stddef.h>
 #include "cado_poly.h"
@@ -29,4 +29,4 @@ void best_polynomials_queue_do(best_polynomials_queue_srcptr b, void (*f)(int, d
 }
 #endif
 
-#endif	/* BEST_POLYNOMIALS_QUEUE_H_ */
+#endif	/* CADO_BEST_POLYNOMIALS_QUEUE_H */

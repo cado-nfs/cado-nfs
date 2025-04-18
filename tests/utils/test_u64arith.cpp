@@ -7,7 +7,7 @@
 
 #include "macros.h"
 #include "tests_common.h"
-#include "utils/u64arith.h"
+#include "arithxx/u64arith.h"
 #include "misc.h"
 
 static void test_one_u64arith_gt_2_2(const uint64_t a1, const uint64_t a2,

@@ -1,5 +1,5 @@
-#ifndef LAS_REDUCE_PLATTICE_USING_64BITMUL_HPP_
-#define LAS_REDUCE_PLATTICE_USING_64BITMUL_HPP_
+#ifndef CADO_LAS_REDUCE_PLATTICE_USING_64BITMUL_HPP
+#define CADO_LAS_REDUCE_PLATTICE_USING_64BITMUL_HPP
 
 /* This is example code that is meant to go __into__ a class which has
  * several data members and function members defined. For maintenance,
@@ -9,7 +9,7 @@
 
 // scan-headers: skip
 
-#ifndef LAS_PLATTICE_HPP
+#ifndef CADO_LAS_PLATTICE_HPP
 #error "This prologue is only here to please clangd !!!"
 #include <cstdint>
 #include "macros.h"
@@ -169,9 +169,9 @@ void using_64bit_mul(uint32_t I) {
 #undef ASSERT_CONSISTENCY
 }
 
-#ifndef LAS_PLATTICE_HPP
+#ifndef CADO_LAS_PLATTICE_HPP
 #error "This epilogue is only here to please clangd !!!"
 };
 #endif
 
-#endif	/* LAS_REDUCE_PLATTICE_USING_64BITMUL_HPP_ */
+#endif	/* CADO_LAS_REDUCE_PLATTICE_USING_64BITMUL_HPP */

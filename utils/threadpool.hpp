@@ -1,5 +1,5 @@
-#ifndef THREADPOOL_HPP_
-#define THREADPOOL_HPP_
+#ifndef CADO_THREADPOOL_HPP
+#define CADO_THREADPOOL_HPP
 
 #include <cerrno>        // for EBUSY
 #include <cstddef>       // for size_t, NULL
@@ -278,4 +278,4 @@ public:
 #endif
 };
 
-#endif  /* THREADPOOL_HPP_ */
+#endif  /* CADO_THREADPOOL_HPP */

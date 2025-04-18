@@ -212,6 +212,17 @@ checks on debian-testing system with gcc:
     - *checks-script
   <<: *checks-junit-report
 
+c++11 only build on debian-testing system with gcc:
+  <<: *common-template
+  stage: early
+  image: debian:testing
+  variables:
+    NO_CXX20: 1
+  before_script:
+    - ci/ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+
 checks shared libs on debian-testing system with gcc:
   <<: *common-template
   stage: early

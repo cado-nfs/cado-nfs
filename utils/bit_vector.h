@@ -1,5 +1,5 @@
-#ifndef BIT_VECTOR_H_
-#define BIT_VECTOR_H_
+#ifndef CADO_BIT_VECTOR_H
+#define CADO_BIT_VECTOR_H
 
 #include <stdio.h>
 #include <stdint.h>
@@ -49,4 +49,4 @@ extern void bit_vector_write_to_stream(bit_vector_srcptr b, FILE * f);
 }
 #endif
 
-#endif	/* BIT_VECTOR_H_ */
+#endif	/* CADO_BIT_VECTOR_H */

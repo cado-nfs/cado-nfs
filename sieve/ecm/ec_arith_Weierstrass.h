@@ -1,5 +1,5 @@
-#ifndef EC_ARITH_WEIERSTRASS_H_
-#define EC_ARITH_WEIERSTRASS_H_
+#ifndef CADO_EC_ARITH_WEIERSTRASS_H
+#define CADO_EC_ARITH_WEIERSTRASS_H
 
 #ifndef mod_init
 #error "One of the mod*_default.h headers must be included before this file"
@@ -699,4 +699,4 @@ weierstrass_proj_smul_ui (ec_point_t P, const unsigned long e,
 #endif
 
 
-#endif /* EC_ARITH_WEIERSTRASS_H_ */
+#endif /* CADO_EC_ARITH_WEIERSTRASS_H */

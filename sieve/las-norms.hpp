@@ -1,5 +1,5 @@
-#ifndef LAS_NORMS_HPP_
-#define LAS_NORMS_HPP_
+#ifndef CADO_LAS_NORMS_HPP
+#define CADO_LAS_NORMS_HPP
 
 #include <cstdint>               // for uint32_t
 #include <cstring>               // for memset
@@ -221,4 +221,4 @@ private:
 extern sieve_range_adjust::vec<double> operator*(sieve_range_adjust::vec<double> const& a, sieve_range_adjust::mat<int> const& m) ;
 extern qlattice_basis operator*(sieve_range_adjust::mat<int> const& m, qlattice_basis const& Q) ;
 
-#endif	/* LAS_NORMS_HPP_ */
+#endif	/* CADO_LAS_NORMS_HPP */

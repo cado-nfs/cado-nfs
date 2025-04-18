@@ -2,18 +2,18 @@
 #include "generate_factoring_method.hpp"
 #include <stdlib.h>
 #include <math.h>
-#include "fm.h"                           // for fm_t, fm_create, fm_free
-#include "tab_fm.h"                       // for tabular_fm_free, tabular_fm_t
+#include "fm.hpp"                           // for fm_t, fm_create, fm_free
+#include "tab_fm.hpp"                       // for tabular_fm_free, tabular_fm_t
 
 //check if the spread of remaining methods is homogeneous.
-int check_filt (tabular_fm_t* res, int init_nb_method)
+int check_filt (tabular_fm_t* res, unsigned int init_nb_method)
 {
-    int len = res->index;
+    unsigned int len = res->size;
     if (len <= 2)//because less than two points isn't really representative!!!
 	return 1;
     double aver_gap_prat = 0;
     double aver_gap_theo = init_nb_method/(double)len;
-    for (int i = 0; i < len-1; i++)
+    for (unsigned int i = 0; i < len-1; i++)
 	aver_gap_prat += (res->tab[i+1]->method[0] - res->tab[i]->method[0]);
 
     aver_gap_prat /= (len-1);
@@ -32,7 +32,7 @@ int check_filt (tabular_fm_t* res, int init_nb_method)
 int main ()
 {
     unsigned int nb_fm = 10;
-    int final_nb_fm = 4;
+    unsigned int final_nb_fm = 4;
 
     tabular_fm_t* tab = tabular_fm_create ();
 

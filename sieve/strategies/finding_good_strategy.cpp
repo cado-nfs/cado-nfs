@@ -9,11 +9,11 @@
 #include "facul_ecm.h"
 #include "facul.hpp"
 #include "facul_method.hpp"
-#include "fm.h" // fm_t
-#include "tab_fm.h" // tabular_fm_t
-#include "tab_strategy.h"
-#include "finding_good_strategy.h"
-#include "strategy.h"
+#include "fm.hpp" // fm_t
+#include "tab_fm.hpp" // tabular_fm_t
+#include "tab_strategy.hpp"
+#include "finding_good_strategy.hpp"
+#include "strategy.hpp"
 #include "macros.h"
 
 //#define STATS 
@@ -33,19 +33,19 @@ static double EPSILON_DBL = LDBL_EPSILON;
 */
 
 tabular_strategy_t ***extract_matrix_strat(const char *pathname_st,
-					   const int len_abs, const int len_ord)
+					   const unsigned int len_abs, const unsigned int len_ord)
 {
 
     //allocate matrix
     tabular_strategy_t ***matrix = (tabular_strategy_t***) malloc(sizeof(*matrix) * len_abs);
     ASSERT(matrix != NULL);
-    for (int r1 = 0; r1 < len_abs; r1++) {
+    for (unsigned int r1 = 0; r1 < len_abs; r1++) {
 	matrix[r1] = (tabular_strategy_t**) malloc(sizeof(*matrix[r1]) * len_ord);
 	ASSERT(matrix[r1] != NULL);
     }
 
-    for (int r0 = 0; r0 < len_abs; r0++) {
-	for (int r1 = 0; r1 < len_ord; r1++) {
+    for (unsigned int r0 = 0; r0 < len_abs; r0++) {
+	for (unsigned int r1 = 0; r1 < len_ord; r1++) {
 	    char name_file[strlen(pathname_st) + 64];
 	    snprintf(name_file, sizeof(name_file), "%s/strategies_%d_%d", pathname_st, r0, r1);
 	    FILE *file = fopen(name_file, "r");
@@ -72,7 +72,7 @@ tabular_strategy_t ***extract_matrix_strat(const char *pathname_st,
   [len_abs][len_ord]. Note that if the size of cofactors are greater
   than len_abs or len_ord, then they aren't stored in the matrix.
 */
-unsigned long **extract_matrix_C(FILE * file, int len_abs, int len_ord)
+unsigned long **extract_matrix_C(FILE * file, unsigned int len_abs, unsigned int len_ord)
 {
     if (file == NULL)
 	return NULL;
@@ -80,16 +80,16 @@ unsigned long **extract_matrix_C(FILE * file, int len_abs, int len_ord)
     unsigned long **matrix_call = (unsigned long**) malloc(sizeof(*matrix_call) * len_abs);
     ASSERT(matrix_call != NULL);
 
-    for (int i = 0; i < len_abs; i++) {
+    for (unsigned int i = 0; i < len_abs; i++) {
       matrix_call[i] = (unsigned long *) calloc(len_ord, sizeof(*matrix_call[i]));
 	ASSERT(matrix_call[i]);
     }
 
     //collect data
-    int i, j;
+    unsigned int i, j;
     unsigned long c, unused_s;
     while (!feof(file)) {
-	if (fscanf(file, "%d %d %lu %lu\n", &i, &j, &c, &unused_s) != 4) {
+	if (fscanf(file, "%u %u %lu %lu\n", &i, &j, &c, &unused_s) != 4) {
             free(matrix_call);
 	    return NULL;
         }
@@ -104,9 +104,9 @@ unsigned long **extract_matrix_C(FILE * file, int len_abs, int len_ord)
 /*          SEARCH THE BEST STRATEGIES TO MAXIMIZE Y/T                  */
 /************************************************************************/
 
-static int
-subroutine_dicho(const tabular_strategy_t * tab_strat, double s, int ind_min,
-		 int ind_max, double slope_min, double slope_max)
+static unsigned int
+subroutine_dicho(const tabular_strategy_t * tab_strat, double s, unsigned int ind_min,
+		 unsigned int ind_max, double slope_min, double slope_max)
 {
     if (ind_max - ind_min <= 1)
 	return ind_min;
@@ -135,7 +135,7 @@ static int
 subroutine_compute_slope_yt_dicho(const tabular_strategy_t * tab_strat,
 				  double s)
 {
-    int const len = tab_strat->index;
+    int const len = tab_strat->size;
     if (len == 1)
 	return 0;
     else
@@ -145,12 +145,12 @@ subroutine_compute_slope_yt_dicho(const tabular_strategy_t * tab_strat,
 
 static double
 compute_slope_yt(tabular_strategy_t *** matrix_strat, unsigned long **distrib_C,
-		 int len_abs, int len_ord, double s, double C0)
+		 unsigned int len_abs, unsigned int len_ord, double s, double C0)
 {
     double Y = 0, T = C0;
 
-    for (int r1 = 0; r1 < len_abs; r1++) {
-	for (int r2 = 0; r2 < len_ord; r2++) {
+    for (unsigned int r1 = 0; r1 < len_abs; r1++) {
+	for (unsigned int r2 = 0; r2 < len_ord; r2++) {
 	    if (distrib_C[r1][r2] > EPSILON_DBL) {
 		int const index =
 		    subroutine_compute_slope_yt_dicho(matrix_strat[r1][r2], s);
@@ -166,7 +166,7 @@ compute_slope_yt(tabular_strategy_t *** matrix_strat, unsigned long **distrib_C,
 
 static double
 sampling_function_interval(tabular_strategy_t *** matrix_strat,
-			   unsigned long **distrib_C, int len_abs, int len_ord,
+			   unsigned long **distrib_C, unsigned int len_abs, unsigned int len_ord,
 			   double C0, double init_s, double maxi_s, double pas)
 {
 #ifdef STATS
@@ -195,7 +195,7 @@ sampling_function_interval(tabular_strategy_t *** matrix_strat,
 
 static double
 sampling_function(tabular_strategy_t *** matrix_strat,
-		  unsigned long **distrib_C, int len_abs, int len_ord,
+		  unsigned long **distrib_C, unsigned int len_abs, unsigned int len_ord,
 		  double C0, double init_s, double pas)
 {
 #ifdef STATS
@@ -234,8 +234,8 @@ sampling_function(tabular_strategy_t *** matrix_strat,
   (cofactor + precomputation sieve).
 */
 strategy_t ***compute_best_strategy(tabular_strategy_t *** matrix_strat,
-				    unsigned long **distrib_C, int len_abs,
-				    int len_ord, double C0)
+				    unsigned long **distrib_C, unsigned int len_abs,
+				    unsigned int len_ord, double C0)
 {
     double const step_s = 1;
     //find a interesting interval to search optimal value for s.
@@ -254,10 +254,10 @@ strategy_t ***compute_best_strategy(tabular_strategy_t *** matrix_strat,
     //build the matrix with the optimal strategies.
     strategy_t ***matrix_res = (strategy_t***) malloc(sizeof(*matrix_res) * len_abs);
     ASSERT(matrix_res != NULL);
-    for (int r1 = 0; r1 < len_abs; r1++) {
+    for (unsigned int r1 = 0; r1 < len_abs; r1++) {
 	matrix_res[r1] = (strategy_t**) malloc(sizeof(*matrix_res[r1]) * len_ord);
 	ASSERT(matrix_res[r1] != NULL);
-	for (int r2 = 0; r2 < len_ord; r2++) {
+	for (unsigned int r2 = 0; r2 < len_ord; r2++) {
 	    if (distrib_C[r1][r2] < EPSILON_DBL)
 		matrix_res[r1][r2] = NULL;
 	    else {
@@ -290,8 +290,8 @@ strategy_t ***compute_best_strategy(tabular_strategy_t *** matrix_strat,
  */
 void strategy_fprint_design(FILE * output_file, const strategy_t * t)
 {
-    tabular_fm_t *tmp = t->tab_fm;
-    for (int i = 0; i < tmp->index; i++) {
+    tabular_fm_t const *tmp = t->tab_fm;
+    for (unsigned int i = 0; i < tmp->size; i++) {
 	fprintf(output_file, "[S%d: ", t->side[i]);
 
 	fm_t *fm = tmp->tab[i];
@@ -322,15 +322,15 @@ void strategy_fprint_design(FILE * output_file, const strategy_t * t)
 }
 
 int fprint_final_strategy(FILE * file, strategy_t *** matrix_strat_res,
-			  const int len_abs, const int len_ord)
+			  const unsigned int len_abs, const unsigned int len_ord)
 {
-    if (file == NULL)
+    if (file == nullptr)
 	return -1;
-    for (int r0 = 0; r0 < len_abs; r0++)
-	for (int r1 = 0; r1 < len_ord; r1++)
-	    if (matrix_strat_res[r0][r1] != NULL) {
+    for (unsigned int r0 = 0; r0 < len_abs; r0++)
+	for (unsigned int r1 = 0; r1 < len_ord; r1++)
+	    if (matrix_strat_res[r0][r1] != nullptr) {
 		fprintf(file,
-			"[r0=%d, r1=%d] : (p = %lf, t = %lf)\n",
+			"[r0=%u, r1=%u] : (p = %lf, t = %lf)\n",
 			r0, r1, matrix_strat_res[r0][r1]->proba,
 			matrix_strat_res[r0][r1]->time);
 		strategy_fprint_design(file, matrix_strat_res[r0][r1]);

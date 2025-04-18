@@ -1,10 +1,10 @@
-#ifndef SIEVE_ECM_PM1_H_
-#define SIEVE_ECM_PM1_H_
+#ifndef CADO_SIEVE_ECM_PM1_H
+#define CADO_SIEVE_ECM_PM1_H
 
-#include "modredc_ul.h"
-#include "modredc_15ul.h"
-#include "modredc_2ul2.h"
-#include "mod_mpz.h"
+#include "arith/modredc_ul.h"
+#include "arith/modredc_15ul.h"
+#include "arith/modredc_2ul2.h"
+#include "arith/mod_mpz.h"
 #include "stage2.h"
 
 typedef struct {
@@ -63,5 +63,5 @@ void pm1_clear_plan (pm1_plan_t *);
 }
 #endif
 
-#endif	/* SIEVE_ECM_PM1_H_ */
+#endif	/* CADO_SIEVE_ECM_PM1_H */
 

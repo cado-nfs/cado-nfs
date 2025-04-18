@@ -1,5 +1,5 @@
-#ifndef GPF_H_
-#define GPF_H_
+#ifndef CADO_GPF_H
+#define CADO_GPF_H
 
 /* A look-up table of the largest prime factor of a non-negative integer i.
 

@@ -5,7 +5,7 @@
 // IWYU pragma: no_include "mpqs.h"       // for mpqs_15ul
 // IWYU pragma: no_include "pm1.h"        // for pm1_15ul
 // IWYU pragma: no_include "pp1.h"        // for pp1_27_15ul, pp1_65_15ul
-#include "modredc_15ul_default.h" // IWYU pragma: keep
+#include "arith/modredc_15ul_default.h" // IWYU pragma: keep
 #define pm1 pm1_15ul
 #define pp1_27 pp1_27_15ul
 #define pp1_65 pp1_65_15ul

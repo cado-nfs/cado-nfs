@@ -1,5 +1,5 @@
-#ifndef MPQS_DOIT_H_
-#define MPQS_DOIT_H_
+#ifndef CADO_MPQS_DOIT_H
+#define CADO_MPQS_DOIT_H
 
 #include <gmp.h>
 
@@ -14,4 +14,4 @@ void smooth_stat (int);
 }
 #endif
 
-#endif	/* MPQS_DOIT_H_ */
+#endif	/* CADO_MPQS_DOIT_H */

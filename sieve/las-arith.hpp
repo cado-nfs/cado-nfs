@@ -1,5 +1,5 @@
-#ifndef LAS_ARITH_HPP_
-#define LAS_ARITH_HPP_
+#ifndef CADO_LAS_ARITH_HPP
+#define CADO_LAS_ARITH_HPP
 
 // #define LAS_ARITH_INVMOD_HISTOGRAM 1
 
@@ -12,7 +12,7 @@
 #include "macros.h"       // for ASSERT, UNLIKELY, GNUC_VERSION_ATLEAST, MAY...
 #include "fb-types.hpp"
 #include "misc.h"          // cado_ctz
-#include "mod_ul.h"        // for modul_clear, modul_clearmod, modul_get_ul
+#include "arith/mod_ul.h"        // for modul_clear, modul_clearmod, modul_get_ul
 #include "verbose.h"
 
 #ifdef LAS_ARITH_INVMOD_HISTOGRAM
@@ -425,4 +425,4 @@ batchinvredc_u32 (uint32_t *r, const uint32_t *a, const size_t n,
 
 fbprime_t is_prime_power(fbprime_t q);
 
-#endif	/* LAS_ARITH_HPP_ */
+#endif	/* CADO_LAS_ARITH_HPP */

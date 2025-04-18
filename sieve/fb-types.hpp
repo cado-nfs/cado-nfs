@@ -1,5 +1,5 @@
-#ifndef FB_TYPES_H
-#define FB_TYPES_H
+#ifndef CADO_FB_TYPES_HPP
+#define CADO_FB_TYPES_HPP
 
 // pragma no prototypes
 

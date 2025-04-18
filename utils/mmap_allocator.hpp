@@ -1,5 +1,5 @@
-#ifndef UTILS_MMAP_ALLOCATOR_HPP
-#define UTILS_MMAP_ALLOCATOR_HPP
+#ifndef CADO_UTILS_MMAP_ALLOCATOR_HPP
+#define CADO_UTILS_MMAP_ALLOCATOR_HPP
 
 #include <cstdio>
 
@@ -187,4 +187,4 @@ namespace mmap_allocator_details
     };
 }
 
-#endif /* UTILS_MMAP_ALLOCATOR_HPP */
+#endif /* CADO_UTILS_MMAP_ALLOCATOR_HPP */

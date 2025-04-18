@@ -1,5 +1,5 @@
-#ifndef POLYSELECT_MAIN_QUEUE_H_
-#define POLYSELECT_MAIN_QUEUE_H_
+#ifndef CADO_POLYSELECT_MAIN_QUEUE_H
+#define CADO_POLYSELECT_MAIN_QUEUE_H
 
 #include <gmp.h>
 #include <stdint.h>
@@ -35,4 +35,4 @@ extern void polyselect_fprintf_poly_pair(FILE * fp, mpz_srcptr N,               
 }
 #endif
 
-#endif	/* POLYSELECT_MAIN_QUEUE_H_ */
+#endif	/* CADO_POLYSELECT_MAIN_QUEUE_H */

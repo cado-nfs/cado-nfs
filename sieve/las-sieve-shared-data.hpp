@@ -1,5 +1,5 @@
-#ifndef LAS_SIEVE_SHARED_DATA_HPP_
-#define LAS_SIEVE_SHARED_DATA_HPP_
+#ifndef CADO_LAS_SIEVE_SHARED_DATA_HPP
+#define CADO_LAS_SIEVE_SHARED_DATA_HPP
 
 #include <array>                       // for array
 #include <map>                         // for map, swap
@@ -165,4 +165,4 @@ struct sieve_shared_data {
     static void lookup_parameters(cxx_param_list &, int nsides = 2);
 };
 
-#endif	/* LAS_SIEVE_SHARED_DATA_HPP_ */
+#endif	/* CADO_LAS_SIEVE_SHARED_DATA_HPP */

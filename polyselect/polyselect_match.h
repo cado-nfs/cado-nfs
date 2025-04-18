@@ -1,5 +1,5 @@
-#ifndef POLYSELECT_MATCH_H_
-#define POLYSELECT_MATCH_H_
+#ifndef CADO_POLYSELECT_MATCH_H
+#define CADO_POLYSELECT_MATCH_H
 
 #include <stdint.h>
 #include "polyselect_poly_header.h"
@@ -33,4 +33,4 @@ extern void polyselect_match_info_set(polyselect_match_info_ptr job, unsigned lo
 }
 #endif
 
-#endif	/* POLYSELECT_MATCH_H_ */
+#endif	/* CADO_POLYSELECT_MATCH_H */

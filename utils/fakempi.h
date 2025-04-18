@@ -1,5 +1,5 @@
-#ifndef FAKEMPI_H_
-#define FAKEMPI_H_
+#ifndef CADO_FAKEMPI_H
+#define CADO_FAKEMPI_H
 // IWYU pragma: private, include "select_mpi.h"
 #include <stdlib.h>
 #include <string.h>
@@ -283,4 +283,4 @@ static inline int MPI_Get_version(int * ver, int * subver)
 }
 #endif
 
-#endif /* FAKEMPI_H_ */
+#endif /* CADO_FAKEMPI_H */

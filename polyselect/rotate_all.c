@@ -11,8 +11,8 @@
 #include "mpz_poly.h"           // for mpz_poly_s, mpz_poly, mpz_poly_discri...
 #include "auxiliary.h" /* for common routines with polyselect.c */
 #include "gmp_aux.h"    // ulong_isprime
-#include "mod_ul.h"     // modulusul_t
-#include "modul_poly.h"
+#include "arith/mod_ul.h"     // modulusul_t
+#include "arith/modul_poly.h"
 #include "size_optimization.h"
 #include "polyselect_norms.h"
 #include "polyselect_alpha.h"

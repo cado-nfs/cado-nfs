@@ -89,7 +89,7 @@ facul_both(std::vector<cxx_mpz> const & N, facul_strategies const & strategies)
             mpz_sizeinbase(N[0], 2),
             mpz_sizeinbase(N[1], 2));
 
-    std::vector<facul_result> res(nsides, {FACUL_NOT_SMOOTH , {}});
+    std::vector<facul_result> res(nsides, FACUL_NOT_SMOOTH);
 
     std::vector<std::vector<std::unique_ptr<FaculModulusBase>>> composites(nsides);
 
@@ -253,9 +253,9 @@ facul_result facul(cxx_mpz const & N, facul_strategy_oneside const & strategy)
 #endif
 
     if (N <= 0)
-        return { FACUL_NOT_SMOOTH, {} };
+        return FACUL_NOT_SMOOTH;
     if (N == 1)
-        return { FACUL_SMOOTH, {} };
+        return FACUL_SMOOTH;
 
     /* Use the fastest modular arithmetic that's large enough for this input */
     std::unique_ptr<FaculModulusBase> m(FaculModulusBase::init_mpz(N));
@@ -263,7 +263,7 @@ facul_result facul(cxx_mpz const & N, facul_strategy_oneside const & strategy)
     /* If the composite does not fit into our modular arithmetic, return
        no factor */
     if (!m)
-        return { FACUL_NOT_SMOOTH, {} };
+        return FACUL_NOT_SMOOTH;
 
     std::vector<std::unique_ptr<FaculModulusBase>> todo;
     todo.emplace_back(std::move(m));

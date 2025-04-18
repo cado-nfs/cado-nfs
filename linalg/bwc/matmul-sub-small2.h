@@ -1,5 +1,5 @@
-#ifndef MATMUL_SUB_SMALL2_H_
-#define MATMUL_SUB_SMALL2_H_
+#ifndef CADO_MATMUL_SUB_SMALL2_H
+#define CADO_MATMUL_SUB_SMALL2_H
 
 /* This is only compiled when the underlying layer is b64 */
 
@@ -17,5 +17,5 @@ const uint16_t * matmul_sub_small2_asm(uint64_t * where, uint64_t const * from, 
 }
 #endif
 
-#endif	/* MATMUL_SUB_SMALL2_H_ */
+#endif	/* CADO_MATMUL_SUB_SMALL2_H */
 

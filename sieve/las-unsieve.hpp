@@ -1,11 +1,14 @@
-#ifndef LAS_UNSIEVE_HPP_
-#define LAS_UNSIEVE_HPP_
+#ifndef CADO_LAS_UNSIEVE_HPP
+#define CADO_LAS_UNSIEVE_HPP
 
 #include "cado_config.h"
-#include <stdint.h>
-#include <utility>                 // pair
+
+#include <cstdint>
+
+#include <utility>
 #include <vector>
-#include "ularith.h"
+
+#include "arith/ularith.h"
 #include "fb-types.hpp"
 
 #ifdef HAVE_SSE2
@@ -111,4 +114,4 @@ void search_survivors_in_line_sse2_oneside(unsigned char * const SS,
         std::vector<uint32_t> &survivors);
 #endif
 
-#endif	/* LAS_UNSIEVE_HPP_ */
+#endif	/* CADO_LAS_UNSIEVE_HPP */

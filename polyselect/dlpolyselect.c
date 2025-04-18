@@ -102,7 +102,7 @@ int rrg = -1;                   /* see the -rrg option */
 
 /* MPZ_POLY_TIMINGS is defined (or maybe not) in utils/mpz_poly.h
  */
-#ifndef MPZ_POLY_H_
+#ifndef CADO_MPZ_POLY_H
 #error "please include mpz_poly.h first"
 #endif
 #ifdef MPZ_POLY_TIMINGS

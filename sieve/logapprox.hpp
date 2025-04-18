@@ -1,5 +1,5 @@
-#ifndef LOGAPPROX_HPP_
-#define LOGAPPROX_HPP_
+#ifndef CADO_LOGAPPROX_HPP
+#define CADO_LOGAPPROX_HPP
 
 #include <list>     // for list
 #include <utility>  // for pair
@@ -70,4 +70,4 @@ class piecewise_linear_approximator {
 extern template class piecewise_linear_approximator<double>;
 extern template class piecewise_linear_approximator<long double>;
 
-#endif	/* LOGAPPROX_HPP_ */
+#endif	/* CADO_LOGAPPROX_HPP */

@@ -1,5 +1,5 @@
-#ifndef LAS_OUTPUT_HPP_
-#define LAS_OUTPUT_HPP_
+#ifndef CADO_LAS_OUTPUT_HPP
+#define CADO_LAS_OUTPUT_HPP
 
 #include <cstdio>
 #include <string>
@@ -35,4 +35,4 @@ enum {
   NR_CHANNELS /* This must be the last element of the enum */
 };
 
-#endif	/* LAS_OUTPUT_HPP_ */
+#endif	/* CADO_LAS_OUTPUT_HPP */

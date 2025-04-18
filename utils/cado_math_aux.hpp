@@ -1,5 +1,5 @@
-#ifndef UTILS_CADO_MATH_AUX_HPP_
-#define UTILS_CADO_MATH_AUX_HPP_
+#ifndef CADO_UTILS_CADO_MATH_AUX_HPP
+#define CADO_UTILS_CADO_MATH_AUX_HPP
 
 #include <cmath>
 #include <cfenv>
@@ -304,7 +304,8 @@ namespace cado_math_aux
         static constexpr typename std::enable_if<std::is_integral<T>::value, T>::type constant_sqrt(T x) {
             return constant_time_square_root<T>::sqrt(x);
         }
+
 }
 
 
-#endif	/* UTILS_CADO_MATH_AUX_HPP_ */
+#endif	/* CADO_UTILS_CADO_MATH_AUX_HPP */

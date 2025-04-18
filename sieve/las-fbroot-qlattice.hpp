@@ -1,5 +1,5 @@
-#ifndef LAS_FBROOT_QLATTICE_HPP_
-#define LAS_FBROOT_QLATTICE_HPP_
+#ifndef CADO_LAS_FBROOT_QLATTICE_HPP
+#define CADO_LAS_FBROOT_QLATTICE_HPP
 
 #include <cstdio>             // for fprintf, stderr
 #include <cstdint>             // for int64_t, uint64_t, INT64_C, uint32_t
@@ -595,4 +595,4 @@ static inline fb_root_p1 fb_root_in_qlattice_po2 (const fbprime_t p, const fb_ro
     }
 }
 
-#endif	/* LAS_FBROOT_QLATTICE_HPP_ */
+#endif	/* CADO_LAS_FBROOT_QLATTICE_HPP */

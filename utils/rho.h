@@ -1,5 +1,5 @@
-#ifndef RHO_H_
-#define RHO_H_
+#ifndef CADO_RHO_H
+#define CADO_RHO_H
 
 /* Header file for rho.c.
 
@@ -33,4 +33,4 @@ double dickman_rho_local (double x, double N);
 }
 #endif
 
-#endif	/* RHO_H_ */
+#endif	/* CADO_RHO_H */

@@ -1,5 +1,5 @@
-#ifndef FILTER_IO_H_
-#define FILTER_IO_H_
+#ifndef CADO_FILTER_IO_H
+#define CADO_FILTER_IO_H
 
 #include <stdint.h>     // for uint64_t, int64_t
 #include <time.h>       // for NULL
@@ -156,4 +156,4 @@ extern uint64_t filter_rels2(std::vector<std::string> const & input_files,
                              bit_vector_srcptr active, timingstats_dict_ptr);
 #endif
 
-#endif /* FILTER_IO_H_ */
+#endif /* CADO_FILTER_IO_H */

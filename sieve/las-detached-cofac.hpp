@@ -1,5 +1,5 @@
-#ifndef LAS_DETACHED_COFAC_HPP_
-#define LAS_DETACHED_COFAC_HPP_
+#ifndef CADO_LAS_DETACHED_COFAC_HPP
+#define CADO_LAS_DETACHED_COFAC_HPP
 
 #include <memory>                    // for shared_ptr
 #include "las-cofac-standalone.hpp"  // for cofac_standalone
@@ -20,4 +20,4 @@ struct detached_cofac_result : public task_result {
 
 task_result * detached_cofac(worker_thread * worker, task_parameters * _param, int);
 
-#endif	/* LAS_DETACHED_COFAC_HPP_ */
+#endif	/* CADO_LAS_DETACHED_COFAC_HPP */

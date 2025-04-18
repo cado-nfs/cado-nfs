@@ -1,5 +1,5 @@
-#ifndef READ_PURGEDFILE_IN_PARALLEL_H_
-#define READ_PURGEDFILE_IN_PARALLEL_H_
+#ifndef CADO_READ_PURGEDFILE_IN_PARALLEL_H
+#define CADO_READ_PURGEDFILE_IN_PARALLEL_H
 
 #include <stdint.h>
 #include "merge_replay_matrix.h"
@@ -21,4 +21,4 @@ uint64_t read_purgedfile_in_parallel(filter_matrix_t * mat, const char * filenam
 }
 #endif
 
-#endif	/* READ_PURGEDFILE_IN_PARALLEL_H_ */
+#endif	/* CADO_READ_PURGEDFILE_IN_PARALLEL_H */

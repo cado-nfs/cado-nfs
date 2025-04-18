@@ -1,5 +1,5 @@
-#ifndef MULTITYPED_ARRAY_HPP_
-#define MULTITYPED_ARRAY_HPP_
+#ifndef CADO_MULTITYPED_ARRAY_HPP
+#define CADO_MULTITYPED_ARRAY_HPP
 
 #include <utility>
 
@@ -247,4 +247,4 @@ template<typename G> class multityped_array_locate {
         }
         */
 };
-#endif	/* MULTITYPED_ARRAY_HPP_ */
+#endif	/* CADO_MULTITYPED_ARRAY_HPP */

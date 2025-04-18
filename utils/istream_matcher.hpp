@@ -1,6 +1,9 @@
-#ifndef UTILS_ISTREAM_MATCHER_HPP_
-#define UTILS_ISTREAM_MATCHER_HPP_
+#ifndef CADO_UTILS_ISTREAM_MATCHER_HPP
+#define CADO_UTILS_ISTREAM_MATCHER_HPP
 
+#include <cstddef>
+
+#include <algorithm>
 #include <string>
 #include <istream>
 #include <ios>
@@ -58,4 +61,24 @@ basic_istream_matcher<CharT, Traits> &operator >>(basic_istream_matcher<CharT, T
     return is;
 }
 
-#endif	/* UTILS_ISTREAM_MATCHER_HPP_ */
+/* This is an alternative approach. Maybe it's better */
+struct expect_stream_separator {
+    std::string s;
+    explicit expect_stream_separator(char c)
+        : s(1, c)
+    {}
+    explicit expect_stream_separator(std::string s)
+        : s(std::move(s))
+    {}
+};
+
+static inline std::istream& operator>>(std::istream & is, expect_stream_separator const & e)
+{
+    if(!std::equal(std::begin(e.s), std::end(e.s), std::istreambuf_iterator<char>{is})) {
+        is.setstate(is.rdstate() | std::ios::failbit);
+    }
+    return is;
+}
+
+
+#endif	/* CADO_UTILS_ISTREAM_MATCHER_HPP */

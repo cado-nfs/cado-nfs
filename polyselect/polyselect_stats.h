@@ -1,5 +1,5 @@
-#ifndef POLYSELECT_STATS_H_
-#define POLYSELECT_STATS_H_
+#ifndef CADO_POLYSELECT_STATS_H
+#define CADO_POLYSELECT_STATS_H
 
 #include "polyselect_data_series.h"
 #include "polyselect_priority_queue.h"
@@ -66,4 +66,4 @@ extern void polyselect_stats_display_final(polyselect_stats_ptr stats, int verbo
 }
 #endif
 
-#endif	/* POLYSELECT_STATS_H_ */
+#endif	/* CADO_POLYSELECT_STATS_H */

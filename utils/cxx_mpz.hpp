@@ -1,17 +1,19 @@
-#ifndef CXX_MPZ_HPP_
-#define CXX_MPZ_HPP_
+#ifndef CADO_CXX_MPZ_HPP
+#define CADO_CXX_MPZ_HPP
 
+#include <cstdint>
 #include <cstdlib>
 
 #include <istream>
 #include <ostream>
 #include <type_traits>
-#include <sstream>
+#include <memory>
 
 #include <gmp.h>
 #include "fmt/ostream.h"
 #include "fmt/base.h"
 
+#include "is_non_narrowing_conversion.hpp"
 #include "gmp_aux.h"
 #include "gmp_auxx.hpp"
 #include "macros.h"
@@ -20,42 +22,101 @@ struct cxx_mpz {
 public:
     typedef mp_limb_t WordType;
     mpz_t x;
+    // NOLINTBEGIN(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
     cxx_mpz() { mpz_init(x); }
-    template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
+
+    template <typename T, typename std::enable_if<
+        std::is_integral<T>::value &&
+        std::is_signed<T>::value &&
+        cado_math_aux::is_non_narrowing_conversion<T, int64_t>::value,
+        int>::type = 0 >
+    // NOLINTNEXTLINE(hicpp-explicit-conversions)
     cxx_mpz (const T & rhs) {
-        gmp_auxx::mpz_init_set(x, rhs);
+        gmp_auxx::mpz_init_set(x, int64_t(rhs));
+    }
+    template <typename T, typename std::enable_if<
+        std::is_integral<T>::value &&
+        std::is_signed<T>::value &&
+        cado_math_aux::is_non_narrowing_conversion<T, int64_t>::value,
+        /*
+        std::is_integral<T>::value &&
+        std::is_signed<T>::value &&
+        std::is_convertible<T, int64_t>::value &&
+        std::numeric_limits<T>::min() >= std::numeric_limits<int64_t>::min() &&
+        std::numeric_limits<T>::max() <= std::numeric_limits<int64_t>::max(),
+        */
+        int>::type = 0 >
+    cxx_mpz & operator=(const T a) {
+        gmp_auxx::mpz_set(x, int64_t(a));
+        return *this;
+    }
+    template <typename T, typename std::enable_if<
+        std::is_integral<T>::value &&
+        !std::is_signed<T>::value &&
+        cado_math_aux::is_non_narrowing_conversion<T, uint64_t>::value,
+        /*
+        std::is_integral<T>::value &&
+        !std::is_signed<T>::value &&
+        std::is_convertible<T, uint64_t>::value &&
+        std::numeric_limits<T>::max() <= std::numeric_limits<uint64_t>::max(),
+        */
+        int>::type = 0 >
+    // NOLINTNEXTLINE(hicpp-explicit-conversions)
+    cxx_mpz (const T & rhs) {
+        gmp_auxx::mpz_init_set(x, uint64_t(rhs));
+    }
+    template <typename T, typename std::enable_if<
+        std::is_integral<T>::value &&
+        !std::is_signed<T>::value &&
+        cado_math_aux::is_non_narrowing_conversion<T, uint64_t>::value,
+        /*
+        std::is_integral<T>::value &&
+        !std::is_signed<T>::value &&
+        std::is_convertible<T, uint64_t>::value &&
+        std::numeric_limits<T>::max() <= std::numeric_limits<uint64_t>::max(),
+        */
+        int>::type = 0 >
+    cxx_mpz & operator=(const T a) {
+        gmp_auxx::mpz_set(x, uint64_t(a));
+        return *this;
     }
 
     ~cxx_mpz() { mpz_clear(x); }
     cxx_mpz(cxx_mpz const & o) {
         mpz_init_set(x, o.x);
     }
+    // NOLINTNEXTLINE(hicpp-explicit-conversions)
     cxx_mpz(mpz_srcptr a) {
         mpz_init_set(x, a);
     }
     cxx_mpz & operator=(cxx_mpz const & o) {
-        mpz_set(x, o.x);
+        if (&o != this)
+            mpz_set(x, o.x);
         return *this;
     }
-    /* XXX but this is C++14 ! */
-    template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
-    cxx_mpz & operator=(const T a) {
-        gmp_auxx::mpz_set(x, a);
-        return *this;
-    }
+    // NOLINTEND(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
 
 #if __cplusplus >= 201103L
-    cxx_mpz(cxx_mpz && o) {
-        mpz_init(x);
+    cxx_mpz(cxx_mpz && o) noexcept
+        : cxx_mpz()
+    {
         mpz_swap(x, o.x);
     }
-    cxx_mpz& operator=(cxx_mpz && o) {
-        mpz_swap(x, o.x);
+    cxx_mpz& operator=(cxx_mpz && o) noexcept {
+        if (&o != this)
+            mpz_swap(x, o.x);
         return *this;
     }
 #endif
+    // NOLINTBEGIN(hicpp-explicit-conversions)
     operator mpz_ptr() { return x; }
     operator mpz_srcptr() const { return x; }
+    /* it is very impotant to have the conversion to bool, otherwise the
+     * implicit conversion to mpz_ptr wins!
+     */
+    explicit operator bool() { return mpz_size(x) != 0; }
+    explicit operator bool() const { return mpz_size(x) != 0; }
+    // NOLINTEND(hicpp-explicit-conversions)
     mpz_ptr operator->() { return x; }
     mpz_srcptr operator->() const { return x; }
     explicit operator uint64_t() const {return mpz_get_uint64(x);}
@@ -63,9 +124,16 @@ public:
     /** Set the value of the cxx_mpz to that of the uint64_t array s,
      * least significant word first. 
      */
+private:
     bool set(const uint64_t *s, const size_t len) {
         mpz_import(x, len, -1, sizeof(uint64_t), 0, 0, s);
         return true;
+    }
+public:
+    cxx_mpz(const uint64_t *s, const size_t len)
+        : cxx_mpz()
+    {
+        set(s, len);
     }
 
     /** Return the size in uint64_ts that is required in the output for
@@ -78,17 +146,15 @@ public:
      * output is truncated. If len is greater, output is padded with zeroes.
      */
     void get(uint64_t *r, const size_t len) const {
-        const bool useTemp = len < size();
         size_t written;
-        uint64_t *t = (uint64_t *) mpz_export(useTemp ? NULL : r, &written,
-                                              -1, sizeof(uint64_t), 0, 0, x);
-        if (useTemp) {
+        if (len < size()) {
+            auto t = std::unique_ptr<uint64_t[]>(static_cast<uint64_t*>(mpz_export(nullptr, &written, -1, sizeof(uint64_t), 0, 0, x)));
             /* Here, len < written. Write only the len least significant words
              * to r */
             for (size_t i = 0; i < len; i++)
                 r[i] = t[i];
-            free(t);
         } else {
+            mpz_export(r, &written, -1, sizeof(uint64_t), 0, 0, x);
             ASSERT_ALWAYS(written <= len);
             for (size_t i = written; i < len; i++)
                 r[i] = 0;
@@ -96,14 +162,17 @@ public:
     }
 
     /* Should use a C++ iterator instead? Would that be slower? */
-    static int getWordSize() {return GMP_NUMB_BITS;}
-    size_t getWordCount() const {return mpz_size(x);}
+    static constexpr size_t word_bits = GMP_NUMB_BITS;
+    size_t size_in_words() const {return mpz_size(x);}
+    const mp_limb_t * data() const { return mpz_limbs_read(x); }
+    mp_bitcnt_t ctz() const { return mpz_scan1(x, 0); }
     WordType getWord(const size_t i) const {return mpz_getlimbn(x, i);}
 
     template <typename T>
     bool fits() const {
         return gmp_auxx::mpz_fits<T>(x);
     }
+    size_t bits() const { return mpz_sizeinbase(x, 2); }
 };
 
 template <>
@@ -216,18 +285,27 @@ template <typename T, std::enable_if_t<std::is_integral<T>::value && std::is_uns
 inline cxx_mpz & operator%=(cxx_mpz & a, const T b)   { mpz_tdiv_r_uint64(a, a, b); return a; }
 
 inline cxx_mpz & operator<<=(cxx_mpz & a, const mp_bitcnt_t s)  { mpz_mul_2exp(a, a, s); return a; }
-inline cxx_mpz operator<<(cxx_mpz & a, const mp_bitcnt_t s)  { cxx_mpz r{a}; mpz_mul_2exp(r, r, s); return r; }
+inline cxx_mpz operator<<(cxx_mpz const & a, const mp_bitcnt_t s)  { cxx_mpz r{a}; mpz_mul_2exp(r, r, s); return r; }
 
 inline cxx_mpz & operator>>=(cxx_mpz & a, const mp_bitcnt_t s)  { mpz_tdiv_q_2exp(a, a, s); return a; }
-inline cxx_mpz operator>>(cxx_mpz & a, const mp_bitcnt_t s)  { cxx_mpz r{a}; mpz_tdiv_q_2exp(r, r, s); return r; }
+inline cxx_mpz operator>>(cxx_mpz const & a, const mp_bitcnt_t s)  { cxx_mpz r{a}; mpz_tdiv_q_2exp(r, r, s); return r; }
 
 
-#if 0
+inline cxx_mpz operator~(cxx_mpz const & a) { cxx_mpz r; mpz_com(r, a); return r; }
 inline cxx_mpz operator|(cxx_mpz const & a, cxx_mpz const & b)  { cxx_mpz r; mpz_ior(r, a, b); return r; }
 inline cxx_mpz operator|(cxx_mpz const & a, const unsigned long b)  { cxx_mpz r; mpz_ior(r, a, cxx_mpz(b)); return r; }
 inline cxx_mpz & operator|=(cxx_mpz & a, cxx_mpz const & b)  { mpz_ior(a, a, b); return a; }
 inline cxx_mpz & operator|=(cxx_mpz & a, const unsigned long b)  { mpz_ior(a, a, cxx_mpz(b)); return a; }
-#endif
+
+inline cxx_mpz operator^(cxx_mpz const & a, cxx_mpz const & b)  { cxx_mpz r; mpz_xor(r, a, b); return r; }
+inline cxx_mpz operator^(cxx_mpz const & a, const unsigned long b)  { cxx_mpz r; mpz_xor(r, a, cxx_mpz(b)); return r; }
+inline cxx_mpz & operator^=(cxx_mpz & a, cxx_mpz const & b)  { mpz_xor(a, a, b); return a; }
+inline cxx_mpz & operator^=(cxx_mpz & a, const unsigned long b)  { mpz_xor(a, a, cxx_mpz(b)); return a; }
+
+inline cxx_mpz operator&(cxx_mpz const & a, cxx_mpz const & b)  { cxx_mpz r; mpz_and(r, a, b); return r; }
+inline cxx_mpz operator&(cxx_mpz const & a, const unsigned long b)  { cxx_mpz r; mpz_and(r, a, cxx_mpz(b)); return r; }
+inline cxx_mpz & operator&=(cxx_mpz & a, cxx_mpz const & b)  { mpz_and(a, a, b); return a; }
+inline cxx_mpz & operator&=(cxx_mpz & a, const unsigned long b)  { mpz_and(a, a, cxx_mpz(b)); return a; }
 
 inline bool operator==(cxx_mpq const & a, cxx_mpq const & b) { return mpq_cmp(a, b) == 0; }
 inline bool operator!=(cxx_mpq const & a, cxx_mpq const & b) { return mpq_cmp(a, b) != 0; }
@@ -243,4 +321,12 @@ namespace fmt {
     template <> struct formatter<cxx_mpq>: ostream_formatter {};
 }
 
-#endif	/* CXX_MPZ_HPP_ */
+/* a shorthand so that we can use user-defined literals */
+static inline cxx_mpz operator"" _mpz(char const * str, size_t)
+{
+    cxx_mpz res;
+    mpz_set_str(res, str, 0);
+    return res;
+}
+
+#endif	/* CADO_CXX_MPZ_HPP */

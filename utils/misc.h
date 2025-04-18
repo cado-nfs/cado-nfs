@@ -1,5 +1,5 @@
-#ifndef CADO_UTILS_MISC_H_
-#define CADO_UTILS_MISC_H_
+#ifndef CADO_UTILS_MISC_H
+#define CADO_UTILS_MISC_H
 
 #include "cado_config.h"  // for HAVE_GCC_STYLE_AMD64_INLINE_ASM, ULONGLONG_...
 #include <stddef.h>
@@ -31,8 +31,10 @@
 extern "C" {
 #endif
 
-/* This function is in misc2.cpp */
+/* These are is in misc2.cpp */
 double nprimes_interval(double p0, double p1);
+double prime_pi_2exp(unsigned int n);
+double random_along_prime_distribution(unsigned int bits, gmp_randstate_t rstate);
 
 uint64_t u64_random(gmp_randstate_t buf);
 int64_t i64_random(gmp_randstate_t buf);
@@ -327,6 +329,8 @@ std::vector<unsigned long> subdivide_primes_interval(unsigned long p0, unsigned 
 
 #ifdef __cplusplus
 /* Use in any function that uses iomanip temporarily.
+ *
+ * Hmm, how much different is it from std::istream::sentry
  */
 
 class IoStreamFlagsRestorer
@@ -403,6 +407,7 @@ template < typename _Tp > class pagealigned_allocator {
 
 #ifdef __cplusplus
 std::vector<std::pair<cxx_mpz, int> > trial_division(cxx_mpz const& n0, unsigned long B, cxx_mpz & cofactor);
+cxx_mpz mpz_from_expression(const char *);
 #endif
 
-#endif	/* CADO_UTILS_MISC_H_ */
+#endif	/* CADO_UTILS_MISC_H */

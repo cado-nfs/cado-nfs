@@ -1,5 +1,5 @@
-#ifndef POLYSELECT_PRIMES_TABLE_H_
-#define POLYSELECT_PRIMES_TABLE_H_
+#ifndef CADO_POLYSELECT_PRIMES_TABLE_H
+#define CADO_POLYSELECT_PRIMES_TABLE_H
 
 #include <stdint.h>
 #include <stddef.h>
@@ -24,4 +24,4 @@ extern void polyselect_primes_table_clear(polyselect_primes_table_ptr pt);
 }
 #endif
 
-#endif	/* POLYSELECT_PRIMES_TABLE_H_ */
+#endif	/* CADO_POLYSELECT_PRIMES_TABLE_H */

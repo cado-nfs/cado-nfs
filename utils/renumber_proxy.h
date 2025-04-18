@@ -1,5 +1,5 @@
-#ifndef RENUMBER_PROXY_H_
-#define RENUMBER_PROXY_H_
+#ifndef CADO_RENUMBER_PROXY_H
+#define CADO_RENUMBER_PROXY_H
 
 #ifndef __cplusplus
 #include <stdbool.h>
@@ -88,4 +88,4 @@ extern bool renumber_table_indices_from_p_a_b(renumber_proxy_srcptr R, index_t *
 }
 #endif
 
-#endif /* RENUMBER_PROXY_H_ */
+#endif /* CADO_RENUMBER_PROXY_H */

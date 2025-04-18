@@ -2,8 +2,8 @@
  *                Functions for the factor base                  *
  *****************************************************************/
 
-#ifndef FB_HPP_
-#define FB_HPP_
+#ifndef CADO_FB_HPP
+#define CADO_FB_HPP
 
 #include <cstddef> // for size_t
 #include <cstdio>  // for fprintf, FILE
@@ -899,4 +899,4 @@ unsigned char fb_log(double x, double y, double z);
 unsigned char fb_log_delta(fbprime_t, unsigned long, unsigned long, double);
 fbprime_t fb_is_power(fbprime_t, unsigned long *);
 
-#endif /* FB_HPP_ */
+#endif /* CADO_FB_HPP */

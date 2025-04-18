@@ -1,5 +1,5 @@
-#ifndef PURGE_MATRIX_H_
-#define PURGE_MATRIX_H_
+#ifndef CADO_PURGE_MATRIX_H
+#define CADO_PURGE_MATRIX_H
 
 #include <stdio.h>
 #include <stdint.h>
@@ -49,4 +49,4 @@ void purge_matrix_print_stats_rows_weight (FILE *, purge_matrix_srcptr, int);
 }
 #endif
 
-#endif /* PURGE_MATRIX_H_ */
+#endif /* CADO_PURGE_MATRIX_H */

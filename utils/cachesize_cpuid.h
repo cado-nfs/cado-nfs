@@ -1,5 +1,5 @@
-#ifndef CACHESIZE_CPUID_H_
-#define CACHESIZE_CPUID_H_
+#ifndef CADO_CACHESIZE_CPUID_H
+#define CADO_CACHESIZE_CPUID_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -11,4 +11,4 @@ int cachesize_cpuid (int verbose);
 }
 #endif
 
-#endif	/* CACHESIZE_CPUID_H_ */
+#endif	/* CADO_CACHESIZE_CPUID_H */

@@ -1,5 +1,5 @@
-#ifndef POLYSELECT_QROOTS_H_
-#define POLYSELECT_QROOTS_H_
+#ifndef CADO_POLYSELECT_QROOTS_H
+#define CADO_POLYSELECT_QROOTS_H
 
 #include <stdint.h>
 
@@ -31,4 +31,4 @@ void polyselect_qroots_clear (polyselect_qroots_ptr);
 }
 #endif
 
-#endif	/* POLYSELECT_QROOTS_H_ */
+#endif	/* CADO_POLYSELECT_QROOTS_H */

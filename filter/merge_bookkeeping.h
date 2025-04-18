@@ -1,5 +1,5 @@
-#ifndef MERGE_BOOKKEEPING_H_
-#define MERGE_BOOKKEEPING_H_
+#ifndef CADO_MERGE_BOOKKEEPING_H
+#define CADO_MERGE_BOOKKEEPING_H
 
 
 
@@ -83,4 +83,4 @@ print_timings (char *s, double cpu, double wct);
 }
 #endif
 
-#endif	/* MERGE_BOOKKEEPING_H_ */
+#endif	/* CADO_MERGE_BOOKKEEPING_H */

@@ -3,8 +3,7 @@
 
 #include "arith-modp-main.hpp"
 
-namespace arith_modp {
-namespace details {
+namespace arith_modp::details {
 
 /* gfp<1,1> */
 template<>
@@ -24,7 +23,7 @@ struct gfp<1> : public gfp_base<1, gfp<1>>
       : super { std::forward<Args>(args)... }
     {}
 
-    static inline void add_ur(elt_ur_for_add& dst, elt_ur_for_add const& src)
+    static void add_ur(elt_ur_for_add& dst, elt_ur_for_add const& src)
     {
         asm("# gfp<1, 1>::add\n"
             "addq %q2, %q0\n"
@@ -33,12 +32,12 @@ struct gfp<1> : public gfp_base<1, gfp<1>>
             : "rm"(src[0]), "rm"(src[1]));
     }
 
-    static inline void add(elt_ur_for_add& dst, elt_ur_for_add const& src)
+    static void add(elt_ur_for_add& dst, elt_ur_for_add const& src)
     {
         add_ur(dst, src);
     }
 
-    static inline void add(elt_ur_for_add& dst, elt const& src)
+    static void add(elt_ur_for_add& dst, elt const& src)
     {
         asm("# gfp<1, 1>::add\n"
             "addq %q2, %q0\n"
@@ -46,7 +45,7 @@ struct gfp<1> : public gfp_base<1, gfp<1>>
             : "+r"(dst[0]), "+r"(dst[1])
             : "rm"(src[0]));
     }
-    static inline void add(elt_ur_for_add& dst, elt const& a, elt const& b)
+    static void add(elt_ur_for_add& dst, elt const& a, elt const& b)
     {
         asm("# gfp<1, 1>::add\n"
             "movq %q2, %q0\n"
@@ -57,7 +56,7 @@ struct gfp<1> : public gfp_base<1, gfp<1>>
             : "rm"(a[0]), "rm"(b[0]));
     }
 
-    static inline void sub(elt_ur_for_add& dst, elt const& src)
+    static void sub(elt_ur_for_add& dst, elt const& src)
     {
         asm("# gfp<1, 1>::sub\n"
             "subq %q2, %q0\n"
@@ -66,7 +65,7 @@ struct gfp<1> : public gfp_base<1, gfp<1>>
             : "rm"(src[0]));
     }
 
-    static inline void sub_ur(elt_ur_for_add& dst, elt_ur_for_add const& src)
+    static void sub_ur(elt_ur_for_add& dst, elt_ur_for_add const& src)
     {
         asm("# gfp<1, 1>::sub\n"
             "subq %q2, %q0\n"
@@ -74,12 +73,12 @@ struct gfp<1> : public gfp_base<1, gfp<1>>
             : "+r"(dst[0]), "+r"(dst[1])
             : "rm"(src[0]), "rm"(src[1]));
     }
-    static inline void sub(elt_ur_for_add& dst, elt_ur_for_add const& src)
+    static void sub(elt_ur_for_add& dst, elt_ur_for_add const& src)
     {
         sub_ur(dst, src);
     }
 
-    static inline void sub(elt_ur_for_add& dst, elt const& a, elt const& b)
+    static void sub(elt_ur_for_add& dst, elt const& a, elt const& b)
     {
         asm("# gfp<1, 1>::sub\n"
             "movq %q2, %q0\n"
@@ -90,7 +89,7 @@ struct gfp<1> : public gfp_base<1, gfp<1>>
             : "rm"(a[0]), "rm"(b[0]));
     }
 
-    static inline void addmul_ui(elt_ur_for_add& dst,
+    static void addmul_ui(elt_ur_for_add& dst,
                                  elt const& src,
                                  mp_limb_t x)
     {
@@ -103,7 +102,7 @@ struct gfp<1> : public gfp_base<1, gfp<1>>
             : "=a"(foo), "=&d"(bar), [z0] "+rm"(dst[0]), [z1] "+rm"(dst[1])
             : "0"(src[0]), [mult] "r1m"(x));
     }
-    static inline void submul_ui(elt_ur_for_add& dst,
+    static void submul_ui(elt_ur_for_add& dst,
                                  elt const& src,
                                  mp_limb_t x)
     {
@@ -118,7 +117,6 @@ struct gfp<1> : public gfp_base<1, gfp<1>>
     }
 };
 
-}
 }
 
 #endif /* ARITH_MODP_SPECIALIZATION_P1_HPP_ */

@@ -1,5 +1,5 @@
-#ifndef WORKER_THREADS_H_
-#define WORKER_THREADS_H_
+#ifndef CADO_WORKER_THREADS_H
+#define CADO_WORKER_THREADS_H
 
 /*
  * This API develops the concept of ``worker threads''. The control flow
@@ -91,4 +91,4 @@ extern void worker_threads_clear(struct worker_threads_group * tg);
 }
 #endif
 
-#endif	/* WORKER_THREADS_H_ */
+#endif	/* CADO_WORKER_THREADS_H */

@@ -1,7 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <climits>        // for ULONG_BITS
-#include <cstdlib>        // for abort, size_t
+#include <climits>
+#include <cstdlib>
 
 #include <vector>
 #include <memory>
@@ -10,14 +10,14 @@
 
 #include "cxx_mpz.hpp"
 #include "modset.hpp"
-#include "macros.h"        // for ASSERT_ALWAYS
-#include "facul.hpp"       // for facul_strategy_t
-#include "facul_doit.hpp"  // for facul_doit, facul_doit_onefm
+#include "macros.h"
+#include "facul.hpp"
+#include "facul_doit.hpp"
 #include "facul_method.hpp"
-#include "mod_mpz.h"      // for modmpz_clearmod, modmpz_initmod_int, modmp...
-#include "modredc_15ul.h" // for modredc15ul_clearmod, modredc15ul_initmod_int
-#include "modredc_2ul2.h" // for modredc2ul2_clearmod, modredc2ul2_initmod_int
-#include "modredc_ul.h"   // for modredcul_clearmod, modredcul_initmod_int
+#include "arith/mod_mpz.h"
+#include "arith/modredc_15ul.h"
+#include "arith/modredc_2ul2.h"
+#include "arith/modredc_ul.h"
 
 struct cxx_mpz;
 

@@ -8,16 +8,19 @@ if(NOT HAVE_FMT)
 endif()
 
 set (sources 
-        cado_poly.c timing.cpp getprime.c mod_ul.c relation.cpp
+        cado_poly.c timing.cpp getprime.c
+        relation.cpp
         relation-tools.c
-        modredc_ul.c modredc_15ul.c modredc_2ul2.c modul_poly.c
-        gmp_aux.c gmp_aux2.cpp
-        mod64.cpp modredc64.cpp modredc126.cpp mod_mpz_new.cpp
+        arith/mod_ul.c arith/modredc_ul.c arith/modredc_15ul.c arith/modredc_2ul2.c arith/modul_poly.c
+        arith/mod_mpz.c
+        gmp_aux.c
+        arithxx/mod64.cpp arithxx/modredc64.cpp arithxx/modredc126.cpp arithxx/mod_mpz_new.cpp
+        gmp_aux2.cpp
         double_poly.cpp rootfinder.cpp params.cpp params-extra.cpp gcd.c
         gzip.cpp misc.c misc2.cpp utils_cxx.cpp
         mpz_mat.cpp mpz_poly.cpp crc.c purgedfile.c bit_vector.c
         barrier.c usp.c fix-endianness.c memusage.cpp
-        cachesize_cpuid.c cachesize_guess.c roots_mod.c mod_mpz.c
+        cachesize_cpuid.c cachesize_guess.c roots_mod.c
         renumber.cpp
         renumber_proxy.cpp
         ringbuf.c sm_utils.cpp galois_action.cpp memalloc.cpp

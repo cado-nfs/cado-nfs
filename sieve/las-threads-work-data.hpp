@@ -1,5 +1,5 @@
-#ifndef LAS_THREADS_WORK_DATA_HPP_
-#define LAS_THREADS_WORK_DATA_HPP_
+#ifndef CADO_LAS_THREADS_WORK_DATA_HPP
+#define CADO_LAS_THREADS_WORK_DATA_HPP
 
 #include <cstddef>                     // for NULL
 #include <cstdint>                     // for uint32_t
@@ -280,4 +280,4 @@ class nfs_work_cofac {
     nfs_work_cofac(las_info & las, nfs_work const & ws);
 };
 
-#endif	/* LAS_THREADS_WORK_DATA_HPP_ */
+#endif	/* CADO_LAS_THREADS_WORK_DATA_HPP */

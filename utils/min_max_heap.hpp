@@ -1,5 +1,5 @@
-#ifndef MIN_MAX_HEAP_HPP_
-#define MIN_MAX_HEAP_HPP_
+#ifndef CADO_MIN_MAX_HEAP_HPP
+#define CADO_MIN_MAX_HEAP_HPP
 
 /**
  * @file min_max_heap.hpp
@@ -463,4 +463,4 @@ public:
     typename Container::const_iterator end() const { return heap_.end(); }
 };
 
-#endif	/* MIN_MAX_HEAP_HPP_ */
+#endif	/* CADO_MIN_MAX_HEAP_HPP */

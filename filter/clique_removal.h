@@ -1,5 +1,5 @@
-#ifndef CLIQUE_REMOVAL_H_
-#define CLIQUE_REMOVAL_H_
+#ifndef CADO_CLIQUE_REMOVAL_H
+#define CADO_CLIQUE_REMOVAL_H
 
 /* A clique is a connected component of the graph where the nodes are the rows
    and the edges are the columns of weight 2.
@@ -23,5 +23,5 @@ void cliques_removal (purge_matrix_ptr, int64_t, unsigned int, int);
 }
 #endif
 
-#endif /* CLIQUE_REMOVAL_H_ */
+#endif /* CADO_CLIQUE_REMOVAL_H */
 

@@ -1,5 +1,5 @@
-#ifndef SMALLSET_HPP_
-#define SMALLSET_HPP_
+#ifndef CADO_SMALLSET_HPP
+#define CADO_SMALLSET_HPP
 
 // scan-headers: skip
 
@@ -380,4 +380,4 @@ public:
 };
 
 #endif /* if defined(HAVE_SSE2) */
-#endif /* ifndef SMALLSET_HPP_ */
+#endif /* ifndef CADO_SMALLSET_HPP */

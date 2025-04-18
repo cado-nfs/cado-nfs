@@ -1,5 +1,5 @@
-#ifndef ROWSET_HEAP_H_
-#define ROWSET_HEAP_H_
+#ifndef CADO_ROWSET_HEAP_H
+#define CADO_ROWSET_HEAP_H
 
 /*  Data type for buckets used in the priority queue stuff (w/ tests) */
 /* We'll arrange our slices in a priority heap, so that we'll always
@@ -31,4 +31,4 @@ extern void make_heap(struct bucket * __first, struct bucket * __last);
 }
 #endif
 
-#endif	/* ROWSET_HEAP_H_ */
+#endif	/* CADO_ROWSET_HEAP_H */

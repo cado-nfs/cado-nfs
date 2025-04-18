@@ -1,5 +1,5 @@
-#ifndef LAS_PLATTICE_HPP
-#define LAS_PLATTICE_HPP
+#ifndef CADO_LAS_PLATTICE_HPP
+#define CADO_LAS_PLATTICE_HPP
 
 #include <cstdint>
 
@@ -729,4 +729,4 @@ template <int> struct precomp_plattice_dense_t {
     typedef std::vector<plattices_dense_vector_t> type;
 };
 
-#endif /* LAS_PLATTICE_HPP */
+#endif /* CADO_LAS_PLATTICE_HPP */

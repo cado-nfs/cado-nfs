@@ -1,5 +1,5 @@
-#ifndef TRIALDIV_HPP_
-#define TRIALDIV_HPP_
+#ifndef CADO_TRIALDIV_HPP
+#define CADO_TRIALDIV_HPP
 
 #include <cstddef>   // for size_t
 #include <cstdint>   // for uint64_t, SIZE_MAX
@@ -36,7 +36,7 @@ struct trialdiv_data : public std::vector<trialdiv_divisor_t>
      * cado_math_aux which should be good enough.
      *
      * (I don't quite understand what max_p is, to be honest. It's seldom
-     * used. It was introdyced in b04031eb1 and 0af05e731).
+     * used. It was introduced in b04031eb1 and 0af05e731).
      */
     static constexpr unsigned long max_p = 
             (TRIALDIV_MAXLEN == 1) ?
@@ -67,4 +67,4 @@ struct trialdiv_data : public std::vector<trialdiv_divisor_t>
 #endif
 
 
-#endif	/* TRIALDIV_HPP_ */
+#endif	/* CADO_TRIALDIV_HPP */

@@ -1,5 +1,5 @@
-#ifndef GMP_HACKS_H_
-#define GMP_HACKS_H_
+#ifndef CADO_GMP_HACKS_H
+#define CADO_GMP_HACKS_H
 
 #include <string.h>
 #include <stdlib.h>
@@ -106,4 +106,4 @@ static inline void MPN_SET_MPZ(mp_limb_t * DST, size_t NLIMBS, mpz_srcptr SRC)
 #endif
 
 
-#endif /* GMP_HACKS_H_ */	
+#endif /* CADO_GMP_HACKS_H */	

@@ -1,5 +1,5 @@
-#ifndef POLYSELECT_AUXILIARY_H_
-#define POLYSELECT_AUXILIARY_H_
+#ifndef CADO_POLYSELECT_AUXILIARY_H
+#define CADO_POLYSELECT_AUXILIARY_H
 
 /* header file for auxiliary routines for polyselect
 
@@ -120,5 +120,5 @@ unsigned long get_alpha_bound (void);
 }
 #endif
 
-#endif	/* POLYSELECT_AUXILIARY_H_ */
+#endif	/* CADO_POLYSELECT_AUXILIARY_H */
 

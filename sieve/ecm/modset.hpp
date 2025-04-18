@@ -7,12 +7,12 @@
 #include <gmp.h>
 
 #include "cxx_mpz.hpp"
-#include "facul.hpp"      // for facul_strategy_t
-#include "facul_method.hpp"  // for facul_method const &
-#include "mod_mpz.h"      // for modmpz_clearmod, modmpz_initmod_int, modmp...
-#include "modredc_15ul.h" // for modredc15ul_clearmod, modredc15ul_initmod_int
-#include "modredc_2ul2.h" // for modredc2ul2_clearmod, modredc2ul2_initmod_int
-#include "modredc_ul.h"   // for modredcul_clearmod, modredcul_initmod_int
+#include "facul.hpp"
+#include "facul_method.hpp"
+#include "arith/mod_mpz.h"
+#include "arith/modredc_15ul.h"
+#include "arith/modredc_2ul2.h"
+#include "arith/modredc_ul.h"
 
 struct cxx_mpz;
 

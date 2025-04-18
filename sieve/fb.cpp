@@ -35,12 +35,12 @@
 #include "las-side-config.hpp"
 #include "macros.h"       // ASSERT // IWYU pragma: keep
 #include "misc.h"         // for strtoul_const, strtoull_const
-#include "mod_ul.h"       // for modul_set_ul_reduced, modul_clear
+#include "arith/mod_ul.h"       // for modul_set_ul_reduced, modul_clear
 #include "params.h"       // for cxx_param_list, param_list_parse_...
 #include "threadpool.hpp" // for thread_pool, task_result, task_parameters
 #include "timing.h"       // for seconds, wct_seconds
-#include "u64arith.h"     // for u64arith_invmod
-#include "ularith.h"      // for ularith_invmod
+#include "arithxx/u64arith.h"     // for u64arith_invmod
+#include "arith/ularith.h"      // for ularith_invmod
 #include "verbose.h"      // verbose_output_print
 
 struct qlattice_basis; // IWYU pragma: keep

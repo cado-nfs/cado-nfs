@@ -8,41 +8,40 @@
 
 #include <typeinfo>
 #include <iostream>                                // for operator<<, endl
+#include <memory>
 
 #include <gmp.h>                                   // for mpz_ptr, gmp_sscanf
 
 #include "tests_common.h"
 #include "cxx_mpz.hpp"                             // for cxx_mpz, operator==
-#include "modint.hpp"                              // for operator<<
-#include "mod64.hpp"
-#include "modredc64.hpp"
-#include "modredc126.hpp"
-#include "mod_mpz_new.hpp"
+#include "arithxx/mod64.hpp"
+#include "arithxx/modredc64.hpp"
+#include "arithxx/modredc126.hpp"
+#include "arithxx/mod_mpz_new.hpp"
 #include "sieve/ecm/ec_arith_Weierstrass_new.hpp"
 #include "macros.h"
 
-template <typename MODULUS>
+template <typename layer>
 class TestWeierstrass {
     int verbose;
 public:
-    typedef MODULUS Modulus;
-    typedef typename MODULUS::Residue Residue;
-    typedef typename MODULUS::Integer Integer;
-    typedef ECWeierstrass<MODULUS> Curve;
-    typedef typename ECWeierstrass<MODULUS>::AffinePoint AffinePoint;
-    typedef typename ECWeierstrass<MODULUS>::ProjectivePoint ProjectivePoint;
+    typedef typename layer::Modulus Modulus;
+    typedef typename layer::Residue Residue;
+    typedef typename layer::Integer Integer;
+    typedef ECWeierstrass<layer> Curve;
+    typedef typename ECWeierstrass<layer>::AffinePoint AffinePoint;
+    typedef typename ECWeierstrass<layer>::ProjectivePoint ProjectivePoint;
     
-    TestWeierstrass(int verbose) : verbose(verbose) {}
+    explicit TestWeierstrass(int verbose) : verbose(verbose) {}
     
-    Modulus *initMod(const cxx_mpz &s) const {
+    std::unique_ptr<Modulus> initMod(const cxx_mpz &s) const {
         Integer i;
         if (!s.fits<Integer>())
-            return NULL;
+            return {};
         i = s;
         if (!Modulus::valid(i))
-            return NULL;
-        Modulus *m = new Modulus(i);
-        return m;
+            return {};
+        return std::unique_ptr<Modulus>(new Modulus(i));
     }
 
     bool
@@ -83,18 +82,18 @@ public:
 
     template <typename Point>
     bool oneTest ( const Curve &c,
-        const int operation, const Point &p1, const Point &p2,
-        const uint64_t mult, const Point &pReference,
-        const uint64_t expectedOrder ) const;
+        int operation, const Point &p1, const Point &p2,
+        uint64_t mult, const Point &pReference,
+        uint64_t expectedOrder ) const;
 
     bool parseLine(const char *line) const;
 
 };
 
-template<typename MODULUS>
+template<typename layer>
 template <typename Point>
 bool
-TestWeierstrass<MODULUS>::oneTest ( const Curve &c,
+TestWeierstrass<layer>::oneTest ( const Curve &c,
         const int operation,  const Point &p1, const Point &p2,
         const uint64_t mult, const Point &pReference,
         const uint64_t expectedOrder ) const
@@ -139,9 +138,9 @@ TestWeierstrass<MODULUS>::oneTest ( const Curve &c,
     return ok;
 }
 
-template<typename MODULUS>
+template<typename layer>
 bool
-TestWeierstrass<MODULUS>::parseLine(const char *line) const {
+TestWeierstrass<layer>::parseLine(const char *line) const {
     cxx_mpz M, A, P1x, P1y, P1z, P2x, P2y, P2z, PReferencex, PReferencey, PReferencez;
     uint64_t mult = 0, order = 0;
     int operation;
@@ -183,27 +182,30 @@ TestWeierstrass<MODULUS>::parseLine(const char *line) const {
         return false;
     }
 
-    Modulus *m = initMod(M);
-    if (!m) {
+    auto pm = initMod(M);
+    if (!pm) {
         if (verbose) {
             std::cout << "Could not process modulus " << M << "\n";
         }
         return true; /* This Modulus type can't test this value. This is not an error. */
     }
-    Residue a ( *m );
+
+    Modulus & m = *pm;
+
+    Residue a ( m );
     bool ok = true;
-    if (!setResidue(a, *m, A)) {
+    if (!setResidue(a, m, A)) {
         std::cerr << "Could not set point\n";
         ok = false;
     }
-    Curve const c ( *m, a );
+    Curve const c ( m, a );
 
     if (affine) {
         AffinePoint p1 ( c ), p2 ( c ), pReference ( c );
 
-        if (!setPoint ( p1, *m, P1x, P1y ) ||
-            !setPoint ( p2, *m, P2x, P2y ) ||
-            !setPoint ( pReference, *m, PReferencex, PReferencey )) {
+        if (!setPoint ( p1, m, P1x, P1y ) ||
+            !setPoint ( p2, m, P2x, P2y ) ||
+            !setPoint ( pReference, m, PReferencex, PReferencey )) {
             std::cerr << "Could not set point\n";
             ok = false;
         } else {
@@ -212,16 +214,15 @@ TestWeierstrass<MODULUS>::parseLine(const char *line) const {
     } else {
         ProjectivePoint p1 ( c ), p2 ( c ), pReference ( c );
 
-        if (!setPoint ( p1, *m, P1x, P1y, P1z ) ||
-            !setPoint ( p2, *m, P2x, P2y, P2z ) ||
-            !setPoint ( pReference, *m, PReferencex, PReferencey, PReferencez )) {
+        if (!setPoint ( p1, m, P1x, P1y, P1z ) ||
+            !setPoint ( p2, m, P2x, P2y, P2z ) ||
+            !setPoint ( pReference, m, PReferencex, PReferencey, PReferencez )) {
             std::cerr << "Could not set point\n";
             ok = false;
         } else {
             ok &= oneTest(c, operation, p1, p2, mult, pReference, order);
         }
     }
-    delete m;
     return ok;
 }
 
@@ -239,10 +240,10 @@ int main(int argc, char const * argv[])
     FILE *inputfile = fopen(argv[1], "r");
     DIE_ERRNO_DIAG(!inputfile, "fopen(%s)", argv[1]);
     
-    TestWeierstrass<Modulus64> const test1(verbose);
-    TestWeierstrass<ModulusREDC64> const test2(verbose);
-    TestWeierstrass<ModulusREDC126> const test3(verbose);
-    TestWeierstrass<ModulusMPZ> const test4(verbose);
+    TestWeierstrass<arithxx_mod64> const test1(verbose);
+    TestWeierstrass<arithxx_modredc64> const test2(verbose);
+    TestWeierstrass<arithxx_modredc126> const test3(verbose);
+    TestWeierstrass<arithxx_mod_mpz_new> const test4(verbose);
 
     constexpr size_t buflen = 1024;
     char line[buflen];

@@ -14,8 +14,9 @@
 #include "trialdiv.hpp"
 #include "macros.h"     // for ASSERT, ASSERT_ALWAYS
 #include "cxx_mpz.hpp"
-#include "ularith.h"    // for ularith_mul_ul_ul_2ul, ularith_add_2ul_2ul
+#include "arith/ularith.h"    // for ularith_mul_ul_ul_2ul, ularith_add_2ul_2ul
 
+constexpr unsigned long trialdiv_data::max_p;   // c++11
 
 static void
 trialdiv_init_divisor (trialdiv_divisor_t *d, const unsigned long p)
