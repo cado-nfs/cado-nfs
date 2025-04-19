@@ -2094,8 +2094,8 @@ struct helper_functor_write_to_fbc_file {
         size_t written = 0;
         while (n > 0) {
             ssize_t const m = ::write(fbc, (char *)(x.data()) + written, n);
-            ASSERT_ALWAYS(m != -1);
-            ASSERT_ALWAYS(m <= (ssize_t)n);
+            ASSERT_ALWAYS(m >= 0);
+            ASSERT_ALWAYS((size_t) m <= n);
             n -= m;
             written += m;
         }
@@ -2120,8 +2120,8 @@ struct helper_functor_write_to_fbc_file_weight_part {
         while (n > 0) {
             ssize_t const m =
                 ::write(fbc, (char *)(&*x.weight_begin()) + written, n);
-            ASSERT_ALWAYS(m != -1);
-            ASSERT_ALWAYS(m <= (ssize_t)n);
+            ASSERT_ALWAYS(m >= 0);
+            ASSERT_ALWAYS((size_t) m <= n);
             n -= m;
             written += m;
         }
@@ -2286,7 +2286,8 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side,
              */
             size_t const n = os.str().size();
             ssize_t const m = ::write(fbc, os.str().c_str(), n);
-            ASSERT_ALWAYS(m == (ssize_t)n);
+            ASSERT_ALWAYS(m >= 0);
+            ASSERT_ALWAYS((size_t) m == n);
 
             helper_functor_write_to_fbc_file W1 {fbc, fbc_size, S.entries,
                                                  S.entries.begin()};

@@ -19,7 +19,7 @@ enum facul_method_code {
 };
 
 struct facul_method {
-    facul_method_code method;    /* Which method to use (P-1, P+1 or ECM) */
+    facul_method_code method = NO_METHOD;    /* Which method to use (P-1, P+1 or ECM) */
     void *plan = nullptr;  /* Parameters for that method */
 
     struct parameters {

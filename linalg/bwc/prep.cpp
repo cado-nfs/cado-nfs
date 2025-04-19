@@ -312,7 +312,7 @@ struct prep_object {
              * test and update it here.
              * at pi->m->jrank > 0, we don't care about the seed anyway
              */
-            bw->seed = (int)time(nullptr);
+            bw->seed = int(time(nullptr));
             MPI_Bcast(&bw->seed, 1, MPI_INT, 0, pi->m->pals);
         }
         serialize_threads(pi->m);

@@ -128,7 +128,7 @@ static void * mksol_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * 
     cxx_gmp_randstate rstate;
     if (fake) {
         if (pi->m->trank == 0 && !bw->seed) {
-            bw->seed = time(nullptr);
+            bw->seed = int(time(nullptr));
             MPI_Bcast(&bw->seed, 1, MPI_INT, 0, pi->m->pals);
         }
         serialize_threads(pi->m);

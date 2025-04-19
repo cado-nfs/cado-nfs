@@ -131,6 +131,8 @@ static double psi_probabilistic(std::vector<double> const & by_interval,
         n_above_lim++;
         ok += (rmin <= r && r <= rmax);
     }
+    if (!n_above_lim)
+        return 0;
     return (double) ok * S / (double) n_above_lim;
 }
 

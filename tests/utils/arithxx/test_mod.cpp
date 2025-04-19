@@ -871,11 +871,12 @@ template <class layer> class Tests
         ok &= test_one_batch_Q_to_Fp(Integer(42), Integer(1009), 0);
         ok &= test_one_batch_Q_to_Fp(Integer(42), Integer(17), 0);
         ok &= test_one_batch_Q_to_Fp(Integer(42), Integer(17), 3);
-        for (unsigned long i_test = 0; ok && i_test < iter; i_test++) {
+        unsigned long spin = 0;
+        for (unsigned long i_test = 0; ok && i_test < iter + spin; i_test++) {
             Integer const num = randomInteger<Integer>();
             Integer const den = randomInteger<Integer>() | 1;
             if (!Modulus::valid(den)) {
-                i_test--;
+                spin++;
                 continue;
             }
             int const k = gmp_urandomm_ui(state, 10);

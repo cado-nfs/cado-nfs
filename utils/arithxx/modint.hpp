@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 
-#include <iostream>
+#include <climits>
 #include <algorithm>
 #include <array>
 #include <stdexcept>
@@ -28,6 +28,7 @@
 template<typename T, size_t NN>
 class Integer_base : public std::array<uint64_t, NN>
 {
+    static_assert(0 < NN && NN < (size_t) INT_MAX, "absurd size for integers");
 public:
     T& downcast() { return static_cast<T&>(*this); }
     T const & downcast() const { return static_cast<T const &>(*this); }
