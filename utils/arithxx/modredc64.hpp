@@ -24,6 +24,17 @@ struct arithxx_modredc64 {
     class Modulus;
     class Residue;
     typedef Integer64 Integer;
+
+    /* When we multiply by a small constant, we use a left-to-right
+     * binary method. So we typically have log(n) shifts and log(n)/2
+     * additions, which should be compared to the cost of a runtime
+     * multiplication.
+     */
+    typedef std::integral_constant<int, 8> mul_c_cutoff;
+
+    /* this gives k such that 2^k*modulus-1 <= Integer::max_value
+     */
+    typedef std::integral_constant<int, 0> overflow_bits;
 };
 
 class arithxx_modredc64::Residue : public arithxx_details::Residue_base<arithxx_modredc64>

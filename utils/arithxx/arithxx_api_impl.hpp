@@ -6,6 +6,7 @@
 
 #include "arithxx_common.hpp"
 #include "u64arith.h"
+#include "cado_math_aux.hpp"
 
 /* This provides the _default_ instantiations for the non-inline functions
  * in arithxx_details::api.
@@ -391,6 +392,133 @@ bool arithxx_details::api<layer>::is_prime() const
 
     return me.is_strong_lucas_pseudoprime();
 }
+
+/* Modulus::divn */
+/* Division by small integer n.
+ * Returns 1 if n is invertible modulo m, 0 if not.
+ */
+
+template<typename layer>
+template<int n>
+bool arithxx_details::api<layer>::divn(Residue & r, Residue const & a) const
+{
+    using namespace cado_math_aux;
+    /*
+     * inv_n contains -1/i (mod n) if i is coprime to n, or 0 if i is not
+     * coprime to n, for 0 <= i < n c = n^(-1) (mod word base)
+     */
+    constexpr auto const & inv_n = array_map<n, minus_inverse_mod_n>::value;
+
+    auto const & me = downcast();
+
+    uint64_t const an = a.r.template mod_n<n>();
+    uint64_t const mn = me.m.template mod_n<n>();
+
+    if (inv_n[mn] == 0)
+        return false;
+
+    Residue t = a;
+
+    /* Make t[1]:t[0] == a+km (mod w^2) with a+km divisible by n */
+    /* We want a+km == 0 (mod n), so k = -a*m^{-1} (mod n) */
+    uint64_t k = (inv_n[mn] * an) % n;
+    ASSERT_ALWAYS((an + k * mn) % n == 0);
+
+    if (k == 0) {
+        /* nothing to do */
+    } else if (k == 1) {
+        t.r += me.m;
+        // u64arith_add_2_2(t.r.data(), t.r.data() + 1, me.m[0], me.m[1]);
+    } else if (k == 2) {
+        t.r += me.m;
+        t.r += me.m;
+        // u64arith_add_2_2(t.r.data(), t.r.data() + 1, me.m[0], me.m[1]);
+        // u64arith_add_2_2(t.r.data(), t.r.data() + 1, me.m[0], me.m[1]);
+    } else {
+        t.r += me.m * k;
+        /*
+        u64arith_mul_1_1_2(t.r.data(), t.r.data() + 1, me.m[0], k);
+        t.r[1] += me.m[1] * k;
+        u64arith_add_2_2(t.r.data(), t.r.data() + 1, a.r[0], a.r[1]);
+        */
+    }
+
+    // now t is congruent to a multiple of n modulo w^2. We might have
+    // encountered a carry in the previous additions, though (the sum can
+    // be as large as k times the max modulus).
+
+    constexpr bool has_carry = (n >> layer::overflow_bits::value) != 0;
+    typedef at_most<layer::mul_c_cutoff::value> chooser_mul;
+
+    r.r = Integer::template reduce_multiple<n, has_carry, chooser_mul>(t.r);
+
+#ifdef WANT_ASSERT_EXPENSIVE
+    {
+        uint64_t i;
+        me.set(t, r);
+        for (i = 1; i < n; i++)
+            me.add(t, t, r);
+        ASSERT_EXPENSIVE(me.equal(t, a));
+    }
+#endif
+
+    return true;
+}
+
+/* the mod 3 case is a bit special because there ain't many choices for
+ * the residues, and in the end we can save a % operation.
+ */
+template<typename layer>
+bool arithxx_details::api<layer>::div3(Residue & r, Residue const & a) const
+{
+    constexpr int n = 3;
+
+    using namespace cado_math_aux;
+
+    auto const & me = downcast();
+
+    uint64_t const an = a.r.template mod_n<n>();
+    uint64_t const mn = me.m.template mod_n<n>();
+
+    if (mn == 0)
+        return false;
+
+    Residue t = a;
+
+    if (an != 0) {
+        if (an + mn == 3) {
+            t.r += me.m;
+        } else {
+            t.r += me.m;
+            t.r += me.m;
+        }
+    }
+
+    // now t is congruent to a multiple of n modulo w^2. We might have
+    // encountered a carry in the previous additions, though.
+
+    constexpr bool has_carry = (n >> layer::overflow_bits::value) != 0;
+    typedef at_most<layer::mul_c_cutoff::value> chooser_mul;
+
+    r.r = Integer::template reduce_multiple<n, has_carry, chooser_mul>(t.r);
+
+#ifdef WANT_ASSERT_EXPENSIVE
+    {
+        uint64_t i;
+        me.set(t, r);
+        for (i = 1; i < n; i++)
+            me.add(t, t, r);
+        ASSERT_EXPENSIVE(me.equal(t, a));
+    }
+#endif
+
+    return true;
+}
+
+template <typename layer> bool arithxx_details::api<layer>::div5(Residue & r, Residue const & a) const { return divn<5>(r, a); }
+template <typename layer> bool arithxx_details::api<layer>::div7(Residue & r, Residue const & a) const { return divn<7>(r, a); }
+template <typename layer> bool arithxx_details::api<layer>::div11(Residue & r, Residue const & a) const { return divn<11>(r, a); }
+template <typename layer> bool arithxx_details::api<layer>::div13(Residue & r, Residue const & a) const { return divn<13>(r, a); }
 
 
 #endif	/* UTILS_ARITHXX_API_IMPL_HPP_ */

@@ -19,12 +19,6 @@ struct api64
     static_assert(std::is_same<Integer, Integer64>::value,
             "api64 assumes that our underlying integer type is Integer64");
 
-    bool div3(Residue &, Residue const &) const;
-    bool div5(Residue &, Residue const &) const;
-    bool div7(Residue &, Residue const &) const;
-    bool div11(Residue &, Residue const &) const;
-    bool div13(Residue &, Residue const &) const;
-
     void gcd (Integer &g, const Residue &r) const;
     int jacobi(Residue const &) const;
 

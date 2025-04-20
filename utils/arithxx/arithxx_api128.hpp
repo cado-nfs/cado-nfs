@@ -1,6 +1,7 @@
 #ifndef UTILS_ARITHXX_ARITHXX_API128_HPP_
 #define UTILS_ARITHXX_ARITHXX_API128_HPP_
 
+#include <cstdint>
 #include <type_traits>
 
 #include "arithxx_api.hpp"
@@ -18,14 +19,6 @@ struct api128
 
     static_assert(std::is_same<Integer, Integer128>::value,
             "api128 assumes that our underlying integer type is Integer128");
-
-    bool div3(Residue &, Residue const &) const;
-    /*
-    bool div5(Residue &, Residue const &) const;
-    bool div7(Residue &, Residue const &) const;
-    bool div11(Residue &, Residue const &) const;
-    bool div13(Residue &, Residue const &) const;
-    */
 
     // not yet
     // void gcd (Integer &g, const Residue &r) const;

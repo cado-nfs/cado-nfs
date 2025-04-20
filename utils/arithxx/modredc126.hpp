@@ -12,6 +12,7 @@
 
 #include <array>
 #include <vector>
+#include <type_traits>
 
 #include <gmp.h>
 
@@ -26,6 +27,17 @@ struct arithxx_modredc126 {
     class Modulus;
     class Residue;
     typedef Integer128 Integer;
+
+    /* When we multiply by a small constant, we use a left-to-right
+     * binary method. So we typically have log(n) shifts and log(n)/2
+     * additions, which should be compared to the cost of a runtime
+     * multiplication.
+     */
+    typedef std::integral_constant<int, 8> mul_c_cutoff;
+
+    /* this gives k such that 2^k*modulus-1 <= Integer::max_value
+     */
+    typedef std::integral_constant<int, 2> overflow_bits;
 };
 
 class arithxx_modredc126::Residue : public arithxx_details::Residue_base<arithxx_modredc126>
@@ -67,7 +79,7 @@ class arithxx_modredc126::Modulus
 
   protected:
     /* Data members */
-    std::array<uint64_t, 2> m;
+    Integer m;
     uint64_t invm;
     uint64_t mrecip;
     Residue one;
@@ -665,15 +677,6 @@ class arithxx_modredc126::Modulus
 #endif
         assertValid(r);
     }
-
-  protected:
-    /* These functions are used as building blocks in the specific
-     * instantiations of the api layer routines.
-     */
-    bool divn(Residue & r, Residue const & a, uint64_t n,
-              uint64_t w_mod_n,
-              uint64_t const * inv_n,
-              uint64_t c) const;
 
   private:
     std::vector<Integer> batchinv_redc(std::vector<uint64_t> const & a, Integer c) const;

@@ -117,12 +117,6 @@ namespace arithxx_details {
             // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
             constexpr bool sprp2_is_enough() const { return false; }
 
-            bool div3(Residue &, Residue const &) const;
-            bool div5(Residue &, Residue const &) const;
-            bool div7(Residue &, Residue const &) const;
-            bool div11(Residue &, Residue const &) const;
-            bool div13(Residue &, Residue const &) const;
-
             bool batchinv(Residue * r, Residue const * a, size_t n, Residue const * c) const;
 
             void gcd (Integer &, const Residue &) const;
@@ -204,6 +198,18 @@ namespace arithxx_details {
             /* }}} */
 
             void V(Residue & r, Residue * rp1, Residue const & b, Integer const & k) const;
+
+            private:
+            template<int n>
+                bool divn(Residue &, Residue const &) const;
+
+            public:
+            bool div3(Residue &, Residue const &) const;
+            bool div5(Residue &, Residue const &) const;
+            bool div7(Residue &, Residue const &) const;
+            bool div11(Residue &, Residue const &) const;
+            bool div13(Residue &, Residue const &) const;
+
         };
 }
 
