@@ -16,6 +16,7 @@
  * include this impl header file. So even though it does not look like
  * we're using it, in fact we are!  */
 #include "arithxx_api_impl.hpp"      // IWYU pragma: keep
+#include "arithxx_api128_impl.hpp"  // IWYU pragma: keep
 
 // scan-headers: stop here
 
@@ -89,6 +90,7 @@ bool arithxx_modredc126::Modulus::divn(Residue & r, Residue const & a, uint64_t 
 /* }}} */
 
 // {{{ div{3,5,7,11,13}
+#if 0
 /* Divide residue by 3. Returns 1 if division is possible, 0 otherwise.
    Assumes that a+3m does not overflow */
 template <>
@@ -140,14 +142,14 @@ bool arithxx_details::api<
     r.r[0] = t.r[0] * UINT64_C(0xaaaaaaaaaaaaaaab); /* 1/3 (mod 2^64) */
 
 #ifdef WANT_ASSERT_EXPENSIVE
-    add(t, r, r);
-    add(t, t, r);
-    ASSERT_EXPENSIVE(equal(a_backup, t));
+    me.add(t, r, r);
+    me.add(t, t, r);
+    ASSERT_EXPENSIVE(me.equal(a_backup, t));
 #endif
 
     return true;
 }
-
+#endif
 /* Divide residue by 5. Returns 1 if division is possible, 0 otherwise */
 template <>
 bool arithxx_details::api<
@@ -603,3 +605,4 @@ std::vector<uint64_t> arithxx_modredc126::Modulus::batch_Q_to_Fp(Integer const &
 }
 
 template struct arithxx_details::api<arithxx_modredc126>;
+template struct arithxx_details::api128<arithxx_modredc126>;

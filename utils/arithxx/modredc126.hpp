@@ -33,6 +33,7 @@ class arithxx_modredc126::Residue : public arithxx_details::Residue_base<arithxx
     typedef arithxx_modredc126 layer;
     friend class layer::Modulus;
     friend struct arithxx_details::api<layer>;
+    friend struct arithxx_details::api128<layer>;
 
     protected:
     Integer r;
@@ -56,12 +57,13 @@ private:
 };
 
 class arithxx_modredc126::Modulus
-    : public arithxx_details::api<arithxx_modredc126>
+    : public arithxx_details::api128<arithxx_modredc126>
 {
     typedef arithxx_modredc126 layer;
     friend class layer::Residue;
 
     friend struct arithxx_details::api<layer>;
+    friend struct arithxx_details::api128<layer>;
 
   protected:
     /* Data members */

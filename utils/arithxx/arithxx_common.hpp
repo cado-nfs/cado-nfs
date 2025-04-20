@@ -3,6 +3,7 @@
 
 #include "arithxx_api.hpp"       // IWYU pragma: export
 #include "arithxx_api64.hpp"     // IWYU pragma: export
+#include "arithxx_api128.hpp"     // IWYU pragma: export
 
 namespace arithxx_details {
     template <typename layer>

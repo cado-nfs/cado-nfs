@@ -1575,6 +1575,8 @@ utils/arith/modul_poly.h
 utils/arith/ularith.h
 utils/arithxx/README.md
 utils/arithxx/arithxx_api.hpp
+utils/arithxx/arithxx_api128.hpp
+utils/arithxx/arithxx_api128_impl.hpp
 utils/arithxx/arithxx_api64.hpp
 utils/arithxx/arithxx_api64_impl.hpp
 utils/arithxx/arithxx_api_impl.hpp

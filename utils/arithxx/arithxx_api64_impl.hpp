@@ -8,8 +8,6 @@
 #include "u64arith.h"
 #include "macros.h"
 
-/*  */
-
 // {{{ div{3,5,7,11,13}
 template <typename layer>
 bool arithxx_details::api64<layer>::div3(Residue & r,

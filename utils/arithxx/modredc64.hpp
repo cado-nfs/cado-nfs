@@ -73,7 +73,7 @@ class arithxx_modredc64::Modulus
 
   protected:
     /* Data members */
-    uint64_t m;
+    Integer m;
     uint64_t invm;
     uint64_t mrecip;
     Residue one;
@@ -89,8 +89,8 @@ class arithxx_modredc64::Modulus
         , invm(-u64arith_invmod(s))
         , one(*this)
     {
-        int const shift = u64arith_clz(m);
-        uint64_t const ml = m << shift;
+        int const shift = u64arith_clz(m[0]);
+        uint64_t const ml = m[0] << shift;
         uint64_t dummy;
         mrecip = u64arith_reciprocal_for_div(ml);
         u64arith_divqr_2_1_1_recip_precomp(&dummy, one.r.data(), 0, 1, ml, mrecip,
@@ -100,7 +100,7 @@ class arithxx_modredc64::Modulus
         : Modulus(s.getWord(0))
     {
     }
-    Integer getmod() const { return Integer(m); }
+    Integer getmod() const { return m; }
 
   protected:
     /* Methods used internally */
@@ -121,8 +121,8 @@ class arithxx_modredc64::Modulus
     void tomontgomery(Residue & r, Residue const & a) const
     {
         assertValid(a);
-        const int shift = u64arith_clz(m);
-        const uint64_t ml = m << shift;
+        const int shift = u64arith_clz(m[0]);
+        const uint64_t ml = m[0] << shift;
         uint64_t dummy;
         u64arith_divqr_2_1_1_recip_precomp(&dummy, r.r.data(), 0, a.r[0], ml, mrecip,
                                            shift);
@@ -134,7 +134,7 @@ class arithxx_modredc64::Modulus
         uint64_t tlow, thigh;
         assertValid(a);
         tlow = a * invm;
-        u64arith_mul_1_1_2(&tlow, &thigh, tlow, m);
+        u64arith_mul_1_1_2(&tlow, &thigh, tlow, m[0]);
         r = thigh + ((a != 0) ? 1 : 0);
     }
 
@@ -147,7 +147,7 @@ class arithxx_modredc64::Modulus
         return r;
     }
 
-    uint64_t getmod_u64() const { return m; }
+    uint64_t getmod_u64() const { return m[0]; }
 
   public:
 
@@ -167,7 +167,7 @@ class arithxx_modredc64::Modulus
         uint64_t plow, phigh;
 
         u64arith_mul_1_1_2(&plow, &phigh, s, one.r[0]);
-        u64arith_redc(r.r.data(), plow, phigh, m, invm);
+        u64arith_redc(r.r.data(), plow, phigh, m[0], invm);
         tomontgomery(r, r);
     }
 
@@ -233,11 +233,11 @@ class arithxx_modredc64::Modulus
         if (a.r == 0)
             r.r = a.r;
         else
-            r.r[0] = m - a.r[0];
+            r.r[0] = m[0] - a.r[0];
     }
     void add(Residue & r, Residue const & a, Residue const & b) const
     {
-        u64arith_addmod_1_1(r.r.data(), a.r[0], b.r[0], m);
+        u64arith_addmod_1_1(r.r.data(), a.r[0], b.r[0], m[0]);
     }
 
     /** XXX This is specific to Montgomery form */
@@ -253,7 +253,7 @@ class arithxx_modredc64::Modulus
     }
     void sub(Residue & r, Residue const & a, Residue const & b) const
     {
-        u64arith_submod_1_1(r.r.data(), a.r[0], b.r[0], m);
+        u64arith_submod_1_1(r.r.data(), a.r[0], b.r[0], m[0]);
     }
 
     /** XXX This is specific to Montgomery form */
@@ -270,7 +270,7 @@ class arithxx_modredc64::Modulus
 
     bool div2(Residue & r, Residue const & a) const
     {
-        r.r = u64arith_div2mod(a.r[0], m);
+        r.r = u64arith_div2mod(a.r[0], m[0]);
         return true;
     }
     /* }}} */
@@ -284,7 +284,7 @@ class arithxx_modredc64::Modulus
     {
         uint64_t plow, phigh;
 
-        ASSERT_EXPENSIVE(m % 2 != 0);
+        ASSERT_EXPENSIVE(m[0] % 2 != 0);
         assertValid(a);
 
         u64arith_mul_1_1_2(&plow, &phigh, a.r[0], b);
@@ -292,7 +292,7 @@ class arithxx_modredc64::Modulus
            phigh:plow <= (m-1)*(2^64 - 1) = m*2^64 - 2^64 - m + 1,
            and with m >= 1,
            phigh:plow <= m*2^64 - 2^64, so phigh < m. */
-        u64arith_redc(&r, plow, phigh, m, invm);
+        u64arith_redc(&r, plow, phigh, m[0], invm);
     }
   public:
     /* {{{ mul sqr */
@@ -311,7 +311,7 @@ class arithxx_modredc64::Modulus
         assertValid(a);
 
         u64arith_sqr_1_2(&plow, &phigh, a.r[0]);
-        u64arith_redc(r.r.data(), plow, phigh, m, invm);
+        u64arith_redc(r.r.data(), plow, phigh, m[0], invm);
     }
     /* }}} */
 

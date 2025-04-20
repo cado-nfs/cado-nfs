@@ -30,7 +30,7 @@ class arithxx_mod64::Residue : public arithxx_details::Residue_base<arithxx_mod6
     friend struct arithxx_details::api64<layer>;
 
     protected:
-    uint64_t r;
+    Integer r;
 
     public:
     explicit Residue(Modulus const & m MAYBE_UNUSED)
@@ -69,7 +69,7 @@ class arithxx_mod64::Modulus
 
   protected:
     /* Data members */
-    uint64_t m;
+    Integer m;
 
     /* {{{ ctors, validity range, and asserts */
   public:
@@ -82,7 +82,7 @@ class arithxx_mod64::Modulus
     explicit Modulus(Integer const & s)
         : m(s)
     { }
-    Integer getmod() const { return Integer(m); }
+    Integer getmod() const { return m; }
 
   protected:
     /* Methods used internally */
@@ -122,10 +122,10 @@ class arithxx_mod64::Modulus
     uint64_t get_u64(Residue const & s) const
     {
         assertValid(s);
-        return s.r;
+        return uint64_t(s.r);
     }
 
-    uint64_t getmod_u64() const { return m; }
+    uint64_t getmod_u64() const { return m[0]; }
 
   public:
 
@@ -136,7 +136,7 @@ class arithxx_mod64::Modulus
         r = s;
     }
 
-    void set(Residue & r, uint64_t const s) const { r.r = s % m; }
+    void set(Residue & r, uint64_t const s) const { r.r = s % m[0]; }
 
     void set(Residue & r, Integer const & s) const { set(r, s.getWord(0)); }
 
@@ -169,7 +169,7 @@ class arithxx_mod64::Modulus
     Integer get(Residue const & s) const
     {
         assertValid(s);
-        return Integer(s.r);
+        return s.r;
     }
     bool equal(Residue const & a, Residue const & b) const
     {
@@ -200,7 +200,7 @@ class arithxx_mod64::Modulus
     }
     void add(Residue & r, Residue const & a, Residue const & b) const
     {
-        u64arith_addmod_1_1(&r.r, a.r, b.r, m);
+        u64arith_addmod_1_1(r.r.data(), a.r[0], b.r[0], m[0]);
     }
 
 
@@ -214,26 +214,26 @@ class arithxx_mod64::Modulus
 
     void add(Residue & r, Residue const & a, uint64_t const b) const
     {
-        u64arith_addmod_1_1(&r.r, a.r, b % m, m);
+        u64arith_addmod_1_1(r.r.data(), a.r[0], b % m[0], m[0]);
     }
     void sub(Residue & r, Residue const & a, Residue const & b) const
     {
-        u64arith_submod_1_1(&r.r, a.r, b.r, m);
+        u64arith_submod_1_1(r.r.data(), a.r[0], b.r[0], m[0]);
     }
     void sub1(Residue & r, Residue const & a) const
     {
-        u64arith_submod_1_1(&r.r, a.r, 1, m);
+        u64arith_submod_1_1(r.r.data(), a.r[0], 1, m[0]);
     }
     void sub(Residue & r, Residue const & a, uint64_t const b) const
     {
-        u64arith_submod_1_1(&r.r, a.r, b % m, m);
+        u64arith_submod_1_1(r.r.data(), a.r[0], b % m[0], m[0]);
     }
     bool div2(Residue & r, Residue const & a) const
     {
         if (m % 2 == 0)
             return false;
         else {
-            r.r = u64arith_div2mod(a.r, m);
+            r.r = u64arith_div2mod(a.r[0], m[0]);
             return true;
         }
     }
@@ -246,15 +246,15 @@ class arithxx_mod64::Modulus
         uint64_t t1, t2;
         assertValid(a);
         assertValid(b);
-        u64arith_mul_1_1_2(&t1, &t2, a.r, b.r);
-        u64arith_divr_2_1_1(&r.r, t1, t2, m);
+        u64arith_mul_1_1_2(&t1, &t2, a.r[0], b.r[0]);
+        u64arith_divr_2_1_1(r.r.data(), t1, t2, m[0]);
     }
     void sqr(Residue & r, Residue const & a) const
     {
         uint64_t t1, t2;
         assertValid(a);
-        u64arith_mul_1_1_2(&t1, &t2, a.r, a.r);
-        u64arith_divr_2_1_1(&r.r, t1, t2, m);
+        u64arith_mul_1_1_2(&t1, &t2, a.r[0], a.r[0]);
+        u64arith_divr_2_1_1(r.r.data(), t1, t2, m[0]);
     }
     /* }}} */
 
@@ -267,7 +267,7 @@ class arithxx_mod64::Modulus
         uint64_t tlow, thigh;
         ASSERT(a != 0);
         tlow = a * invm; /* tlow <= 2^w-1 */
-        u64arith_mul_1_1_2(&tlow, &thigh, tlow, m);
+        u64arith_mul_1_1_2(&tlow, &thigh, tlow, m[0]);
         /* thigh:tlow <= (2^w-1) * m */
         r.r = thigh + 1;
         /* (thigh+1):tlow <= 2^w + (2^w-1) * m  <= 2^w + 2^w*m - m

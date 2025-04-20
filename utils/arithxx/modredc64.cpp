@@ -22,7 +22,7 @@ template<>
 bool arithxx_details::api<arithxx_modredc64>::inv(Residue & r, const Residue & A) const
 {
     auto const & me = downcast();
-    uint64_t x = me.m, y, u, v;
+    uint64_t x = me.m[0], y, u, v;
     int t, lsh;
 
     ASSERT(A.r < x);
@@ -96,7 +96,7 @@ bool arithxx_details::api<arithxx_modredc64>::inv(Residue & r, const Residue & A
            We maintained ya == u2^t (mod m) and xa = -v2^t (mod m).
            So 1/a = -v2^t.
          */
-        u = me.m - v;
+        u = me.m[0] - v;
         /* Now 1/a = u2^t */
     }
 
@@ -108,7 +108,7 @@ bool arithxx_details::api<arithxx_modredc64>::inv(Residue & r, const Residue & A
     if (t >= 64) {
         uint64_t tlow, thigh;
         tlow = u * me.invm; /* tlow <= 2^w-1 */
-        u64arith_mul_1_1_2(&tlow, &thigh, tlow, me.m); /* thigh:tlow <= (2^w-1)*m */
+        u64arith_mul_1_1_2(&tlow, &thigh, tlow, me.m[0]); /* thigh:tlow <= (2^w-1)*m */
         u = thigh + ((u != 0) ? 1 : 0);
         /* thigh:tlow + u < (2^w-1)*m + m < 2^w*m. No correction necesary */
         t -= 64;
@@ -122,14 +122,14 @@ bool arithxx_details::api<arithxx_modredc64>::inv(Residue & r, const Residue & A
            addition at the end due to larger summands and thus is probably
            slower */
         tlow = ((u * me.invm) & (((uint64_t)1 << t) - 1)); /* tlow <= 2^t-1 */
-        u64arith_mul_1_1_2(&tlow, &thigh, tlow, me.m); /* thigh:tlow <= m*(2^t-1) */
+        u64arith_mul_1_1_2(&tlow, &thigh, tlow, me.m[0]); /* thigh:tlow <= m*(2^t-1) */
         u64arith_add_1_2(&tlow, &thigh,
                          u); /* thigh:tlow <= m*2^t-1 (since u<m) */
         /* Now the low t bits of tlow are 0 */
         ASSERT_EXPENSIVE((tlow & (((uint64_t)1 << t) - 1)) == 0);
         u64arith_shrd(&tlow, thigh, tlow, t);
         u = tlow;
-        ASSERT_EXPENSIVE((thigh >> t) == 0 && u < m);
+        ASSERT_EXPENSIVE((thigh >> t) == 0 && u < m[0]);
     }
 
     r.r = u;
@@ -141,7 +141,7 @@ template<>
 bool arithxx_details::api<arithxx_modredc64>::intinv(Integer & r, Integer const & A) const
 {
     auto const & me = downcast();
-    uint64_t x = me.m, y, u, v;
+    uint64_t x = me.m[0], y, u, v;
     int t, lsh;
 
     ASSERT(x & 1);
@@ -152,8 +152,8 @@ bool arithxx_details::api<arithxx_modredc64>::intinv(Integer & r, Integer const 
     y = uint64_t(A);
 
     /* We don't expect it's going to happen normally, xcept maybe for tests */
-    if (y >= me.m)
-        y %= me.m;
+    if (y >= me.m[0])
+        y %= me.m[0];
 
     t = 0;
 
@@ -221,7 +221,7 @@ bool arithxx_details::api<arithxx_modredc64>::intinv(Integer & r, Integer const 
         /* We exited the loop after reducing x */
         /* We maintained ya == u2^t (mod m) and xa = -v2^t (mod m).
            So 1/a = -v2^t. */
-        u = me.m - v;
+        u = me.m[0] - v;
         /* Now 1/a = u2^t */
     }
 
@@ -233,7 +233,7 @@ bool arithxx_details::api<arithxx_modredc64>::intinv(Integer & r, Integer const 
     if (t >= 64) {
         uint64_t tlow, thigh;
         tlow = u * me.invm; /* tlow <= 2^w-1 */
-        u64arith_mul_1_1_2(&tlow, &thigh, tlow, me.m); /* thigh:tlow <= (2^w-1)*m */
+        u64arith_mul_1_1_2(&tlow, &thigh, tlow, me.m[0]); /* thigh:tlow <= (2^w-1)*m */
         u = thigh + ((u != 0) ? 1 : 0);
         /* thigh:tlow + u < (2^w-1)*m + m < 2^w*m. No correction necesary */
         t -= 64;
@@ -247,13 +247,13 @@ bool arithxx_details::api<arithxx_modredc64>::intinv(Integer & r, Integer const 
            addition at the end due to larger summands and thus is probably
            slower */
         tlow = ((u * me.invm) & (((uint64_t)1 << t) - 1)); /* tlow <= 2^t-1 */
-        u64arith_mul_1_1_2(&tlow, &thigh, tlow, me.m); /* thigh:tlow <= m*(2^t-1) */
+        u64arith_mul_1_1_2(&tlow, &thigh, tlow, me.m[0]); /* thigh:tlow <= m*(2^t-1) */
         u64arith_add_1_2(&tlow, &thigh, u); /* thigh:tlow <= m*2^t-1 (since u<m) */
         /* Now the low t bits of tlow are 0 */
         ASSERT_EXPENSIVE((tlow & (((uint64_t)1 << t) - 1)) == 0);
         u64arith_shrd(&tlow, thigh, tlow, t);
         u = tlow;
-        ASSERT_EXPENSIVE((thigh >> t) == 0 && u < m);
+        ASSERT_EXPENSIVE((thigh >> t) == 0 && u < m[0]);
     }
 
     r = u;
@@ -282,7 +282,7 @@ arithxx_modredc64::Modulus::batchinv_redc(std::vector<uint64_t> const & a, Integ
     Residue R = one;
     for (auto const & x : a) {
         mul_u64_u64(R.r[0], R, x);
-        ASSERT_ALWAYS(R.r < m);
+        ASSERT_ALWAYS(R.r < m[0]);
         r.push_back(R.r);
     }
 
@@ -351,7 +351,7 @@ std::vector<uint64_t> arithxx_modredc64::Modulus::batch_Q_to_Fp_context::operato
     /* We use -rem (mod den) here. batchinv_ul() does not
        mandate its c parameter to be fully reduced, which occurs here in the
        case of rem == 0. */
-    auto r = D.batchinv_redc(p, Integer(D.m - remainder[0]));
+    auto r = D.batchinv_redc(p, Integer(D.m[0] - remainder[0]));
     if (r.empty())
         return {};
 
