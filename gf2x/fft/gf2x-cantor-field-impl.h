@@ -39,7 +39,6 @@
 #error "GF2X_WORDSIZE must be defined"
 #endif
 
-#include "fft/gf2x-cantor-fft.h"
 #include "fft/gf2x-fft-impl-utils.h"
 #include "gf2x.h"
 #include "gf2x/gf2x-small.h"
@@ -76,10 +75,9 @@ extern "C" {
  *
  */
 
-typedef gf2x_cantor_fft_elt Kelt;
-typedef gf2x_cantor_fft_dst_elt Kdst_elt;
-typedef gf2x_cantor_fft_src_elt Ksrc_elt;
-
+typedef unsigned long Kelt[GF2X_CANTOR_BASE_FIELD_SIZE / GF2X_WORDSIZE];
+typedef unsigned long * Kdst_elt;
+typedef const unsigned long * Ksrc_elt;
 typedef unsigned long Kelt_ur[2 * GF2X_CANTOR_BASE_FIELD_SIZE / GF2X_WORDSIZE];
 typedef unsigned long* Kdst_elt_ur;
 typedef const unsigned long* Ksrc_elt_ur;

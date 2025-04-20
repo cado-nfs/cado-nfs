@@ -59,6 +59,19 @@
 #error "This is experimental code, and it seems to be slightly buggy. Do not use"
 #endif
 
+
+/* Note that gf2x-cantor-field-impl.[ch] defiles Kelt based on
+ * GF2X_CANTOR_BASE_FIELD_SIZE and gf2x-cantor-fft.h defines
+ * gf2x_cantor_fft_elt from GF2X_CANTOR_BASE_FIELD_SIZE as well. As we
+ * compile this compilation unit, we must not conflict with the data type
+ * that was used in gf2x-cantor-field-impl.c
+ */
+struct mock_static_assert {
+    int dummy[sizeof(Kelt) == sizeof(gf2x_cantor_fft_elt) ? 1 : -1];
+};
+
+
+
 /* Cantor transforms are always powers of two in size. But for truncated
  * transforms, we spare some of the computation. For direct transforms,
  * it seems just silly to not have shorter data. However, inverse
