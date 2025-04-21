@@ -45,6 +45,15 @@ namespace arithxx_details {
             typedef typename layer::Residue Residue;
             typedef typename layer::Integer Integer;
             
+            /* Data members */
+            Integer m;
+
+            Integer const & getmod() const { return m; }
+
+            explicit api(Integer const & m)
+                : m(m)
+            {}
+
             // we can't do this static assert yet (because Modulus is
             // incomplete), even though we'd like to.
             // static_assert(std::is_base_of<api<layer>, Modulus>::value, "CRTP condition violated");
@@ -141,7 +150,7 @@ namespace arithxx_details {
              * becomes annoying when we deal with overloads.
              *
              * One thing that might not work, though: forcing
-             * instantiation of api64<blah> does not seem to trigger
+             * instantiation of api_bysize<blah> does not seem to trigger
              * instantiation of api<blah>: if I remove the explicit
              * instantiation at the end of mod64.cpp I get linking
              * errors.
@@ -211,6 +220,11 @@ namespace arithxx_details {
             bool div13(Residue &, Residue const &) const;
 
         };
+
+
+    template <typename layer, typename Integer = typename layer::Integer>
+        struct api_bysize;
 }
+
 
 #endif	/* UTILS_ARITHXX_API_HPP_ */

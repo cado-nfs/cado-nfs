@@ -379,4 +379,4 @@ std::vector<uint64_t> arithxx_modredc64::Modulus::batch_Q_to_Fp(Integer const & 
 }
 
 template struct arithxx_details::api<arithxx_modredc64>;
-template struct arithxx_details::api64<arithxx_modredc64>;
+template struct arithxx_details::api_bysize<arithxx_modredc64>;

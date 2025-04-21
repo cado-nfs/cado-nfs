@@ -12,7 +12,7 @@
 
 template<typename layer>
 void
-arithxx_details::api128<layer>::gcd(Integer & r, const Residue & A) const
+arithxx_details::api_bysize<layer, Integer128>::gcd(Integer & r, const Residue & A) const
 {
     auto const & me = downcast();
 
@@ -69,7 +69,7 @@ arithxx_details::api128<layer>::gcd(Integer & r, const Residue & A) const
 }
 
 template<typename layer>
-int arithxx_details::api128<layer>::jacobi(Residue const & a_par) const
+int arithxx_details::api_bysize<layer, Integer128>::jacobi(Residue const & a_par) const
 {
     auto const & me = downcast();
     Integer s;
@@ -101,7 +101,7 @@ int arithxx_details::api128<layer>::jacobi(Residue const & a_par) const
 }
 
 template<typename layer>
-bool arithxx_details::api128<layer>::inv(Residue & r, Residue const & A) const
+bool arithxx_details::api_bysize<layer, Integer128>::inv(Residue & r, Residue const & A) const
 {
     static_assert(layer::uses_montgomery_representation::value,
             "This code assumes that the current layer uses Montgomery representation");

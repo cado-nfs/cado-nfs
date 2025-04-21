@@ -18,6 +18,9 @@
 #include "arithxx_api_impl.hpp"      // IWYU pragma: keep
 #include "arithxx_api128_impl.hpp"  // IWYU pragma: keep
 
+#include "arithxx_redc128.hpp"
+
+
 // scan-headers: stop here
 
 /* This computes the plain representatives (not Montgomery) of c/a[i],
@@ -46,7 +49,8 @@ std::vector<arithxx_modredc126::Integer> arithxx_modredc126::Modulus::batchinv_r
      * implicitly assume that a[0] is reduced. Which makes sense if our
      * base assumption is that our Modulus is larger than 64 bits.
      */
-    Residue R = Residue(me, Integer(a[0]));
+    Residue R(me);
+    R.r = a[0];
     r.emplace_back(R.r);
 
     /* beta' = 2^64, beta = 2^128 */
@@ -177,4 +181,4 @@ std::vector<uint64_t> arithxx_modredc126::Modulus::batch_Q_to_Fp(Integer const &
 }
 
 template struct arithxx_details::api<arithxx_modredc126>;
-template struct arithxx_details::api128<arithxx_modredc126>;
+template struct arithxx_details::api_bysize<arithxx_modredc126>;

@@ -20,6 +20,7 @@
 #include "u64arith.h"
 #include "arithxx_common.hpp"
 #include "cxx_mpz.hpp"
+#include "arithxx_redc64.hpp"
 
 struct arithxx_modredc64 {
     class Modulus;
@@ -40,83 +41,35 @@ struct arithxx_modredc64 {
     typedef std::true_type uses_montgomery_representation;
 };
 
-class arithxx_modredc64::Residue : public arithxx_details::Residue_base<arithxx_modredc64>
+/* okay, at this point it's a typedef, really... */
+class arithxx_modredc64::Residue
+    : public arithxx_details::Residue_base<arithxx_modredc64>
 {
-    typedef arithxx_modredc64 layer;
-    friend class layer::Modulus;
-    friend struct arithxx_details::api<layer>;
-    friend struct arithxx_details::api64<layer>;
-
-    protected:
-    Integer r;
-
-    public:
-    explicit Residue(Modulus const & m MAYBE_UNUSED)
-        : r(0)
-    { }
-    Residue(Modulus const & m MAYBE_UNUSED, Residue const & s)
-        : r(s.r)
-    { }
-
-    Residue() = delete;
-
-    protected:
-    /* These two prototypes are absent in arithxx_mod_mpz_new::Residue,
-     * so what gives? We'll mark them as deprecated for the time being.
-     */
-    Residue & operator=(Integer const & s) ATTRIBUTE_DEPRECATED
-    {
-        r = s[0];
-        return *this;
-    }
-    Residue & operator=(uint64_t const s) ATTRIBUTE_DEPRECATED
-    {
-        r = s;
-        return *this;
-    }
+    using Residue_base::Residue_base;
 };
 
 class arithxx_modredc64::Modulus
-    : public arithxx_details::api64<arithxx_modredc64>
+    : public arithxx_details::redc64<arithxx_modredc64>
 {
     typedef arithxx_modredc64 layer;
     friend class layer::Residue;
 
     friend struct arithxx_details::api<layer>;
-    friend struct arithxx_details::api64<layer>;
-
-  protected:
-    /* Data members */
-    Integer m;
-    uint64_t invm;
-    uint64_t mrecip;
-    Residue one;
-
+    friend struct arithxx_details::api_bysize<layer>;
 
     /* {{{ ctors, validity range, and asserts */
   public:
     static bool valid(Integer const & m) { return m % 2 == 1; }
     static bool valid(cxx_mpz const & m) { return m % 2 == 1 && m > 0 && mpz_sizeinbase(m, 2) <= Integer::max_bits; }
 
-    explicit Modulus(uint64_t const s)
-        : m(s)
-        , invm(-u64arith_invmod(s))
-        , one(*this)
-    {
-        int const shift = u64arith_clz(m[0]);
-        uint64_t const ml = m[0] << shift;
-        uint64_t dummy;
-        mrecip = u64arith_reciprocal_for_div(ml);
-        u64arith_divqr_2_1_1_recip_precomp(&dummy, one.r.data(), 0, 1, ml, mrecip,
-                                           shift);
-    }
-    explicit Modulus(Integer const & s)
-        : Modulus(s[0])
-    {
-    }
-    Integer getmod() const { return m; }
+    explicit Modulus(uint64_t s)
+        : Modulus(Integer(s))
+    { }
 
-  protected:
+    explicit Modulus(Integer const & s)
+        : redc64(s)
+    { }
+
     /* Methods used internally */
     // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
     void assertValid(Residue const & a MAYBE_UNUSED) const
@@ -130,99 +83,10 @@ class arithxx_modredc64::Modulus
     }
     /* }}} */
 
-  protected:
-    /* Computes (a * 2^64) % m */
-    void tomontgomery(Residue & r, Residue const & a) const
-    {
-        assertValid(a);
-        tomontgomery(r.r, a.r);
-    }
-    void tomontgomery(Integer & r, Integer const & a) const
-    {
-        const int shift = u64arith_clz(m[0]);
-        const uint64_t ml = m[0] << shift;
-        uint64_t dummy;
-        u64arith_divqr_2_1_1_recip_precomp(&dummy, r.data(), 0, a[0], ml, mrecip,
-                                           shift);
-    }
-    Integer tomontgomery(Integer const & a) const
-    {
-        Integer r;
-        tomontgomery(r, a);
-        return r;
-    }
-
-    /* Computes (a / 2^64) % m. Assumes a < m */
-    void frommontgomery(Residue & r, Residue const & a) const
-    {
-        assertValid(a);
-        frommontgomery(r.r, a.r);
-    }
-    void frommontgomery(uint64_t & r, uint64_t const & a) const
-    {
-        uint64_t tlow, thigh;
-        tlow = a * invm;
-        u64arith_mul_1_1_2(&tlow, &thigh, tlow, m[0]);
-        r = thigh + ((a != 0) ? 1 : 0);
-    }
-    void frommontgomery(Integer & r, Integer const & a) const
-    {
-        uint64_t tlow, thigh;
-        tlow = a[0] * invm;
-        u64arith_mul_1_1_2(&tlow, &thigh, tlow, m[0]);
-        r[0] = thigh + ((a != 0) ? 1 : 0);
-    }
-    Integer frommontgomery(Integer const & a) const
-    {
-        Integer r;
-        frommontgomery(r, a);
-        return r;
-    }
-
-    uint64_t get_u64(Residue const & s) const
-    {
-        return frommontgomery(s.r)[0];
-    }
-
-    uint64_t getmod_u64() const { return m[0]; }
-
   public:
 
-    /* {{{ set(*2), set_reduced(*1), set1, get, is1, add1, sub1: dependent on redc */
-    /* Puts in r the value of s * beta mod m, where beta is the word base.
-       Note: s can be any uint64_t, in particular can be larger than m.
-       When 0 <= s < m, use set_reduced for better efficiency. */
-    void set(Residue & r, uint64_t const s) const
-    {
-        uint64_t plow, phigh;
-
-        u64arith_mul_1_1_2(&plow, &phigh, s, one.r[0]);
-        u64arith_redc(r.r.data(), plow, phigh, m[0], invm);
-        tomontgomery(r, r);
-    }
-
-    void set(Residue & r, Integer const & s) const { set(r, s[0]); }
-
-    /* Sets the residue_t to the class represented by the integer s.
-     * Assumes that s is reduced (mod m), i.e. 0 <= s < m */
-    void set_reduced(Residue & r, uint64_t const s) const
-    {
-        assertValid(s);
-        r.r = s;
-        tomontgomery(r, r);
-    }
-    void set1(Residue & r) const { r = one; }
-
-    Integer get(Residue const & s) const
-    {
-        assertValid(s);
-        return frommontgomery(s.r);
-    }
-
-    bool is1(Residue const & a) const { return equal(a, one); }
-    void add1(Residue & r, Residue const & a) const { add(r, a, one); }
-    void sub1(Residue & r, Residue const & a) const { sub(r, a, one); }
-    /* }}} */
+    using redc<layer>::set;
+    using redc<layer>::set_reduced;
 
     /* {{{ set(*2), set_reduced(*1), set0 */
     void set(Residue & r, Residue const & s) const
@@ -231,10 +95,6 @@ class arithxx_modredc64::Modulus
         r = s;
     }
 
-    void set_reduced(Residue & r, Integer const & s) const
-    {
-        set_reduced(r, s[0]);
-    }
     void set(Residue & r, int64_t const s) const
     {
         set(r, safe_abs64(s));

@@ -22,6 +22,8 @@
 #include "modint.hpp"
 #include "u64arith.h"
 #include "arithxx_common.hpp"
+#include "arithxx_redc.hpp"
+#include "arithxx_redc128.hpp"
 
 struct arithxx_modredc126 {
     class Modulus;
@@ -42,53 +44,25 @@ struct arithxx_modredc126 {
     typedef std::true_type uses_montgomery_representation;
 };
 
-class arithxx_modredc126::Residue : public arithxx_details::Residue_base<arithxx_modredc126>
+/* okay, at this point it's a typedef, really... */
+class arithxx_modredc126::Residue
+    : public arithxx_details::Residue_base<arithxx_modredc126>
 {
-    typedef arithxx_modredc126 layer;
-    friend class layer::Modulus;
-    friend struct arithxx_details::api<layer>;
-    friend struct arithxx_details::api128<layer>;
-    friend struct arithxx_details::redc_interface<arithxx_details::api128<layer>>;
-
-    protected:
-    Integer r;
-
-    public:
-    explicit Residue(Modulus const & m MAYBE_UNUSED)
-    { }
-    Residue(Modulus const & m MAYBE_UNUSED, Residue const & s)
-        : r {s.r}
-    { }
-
-    Residue() = delete;
-
-private:
-    /* This is only used in batchinv_redc, where we play tricks
-     * with the Montgomery representation.
-     */
-    Residue(Modulus const & m MAYBE_UNUSED, Integer const & s)
-        : r(s)
-    {}
+    using Residue_base::Residue_base;
 };
 
 class arithxx_modredc126::Modulus
-    : public arithxx_details::redc_interface<
-                arithxx_details::api128<arithxx_modredc126>
-      >
+    : public arithxx_details::redc128<arithxx_modredc126>
 {
     typedef arithxx_modredc126 layer;
     friend class layer::Residue;
 
-    friend struct api<layer>;
-    friend struct api128<layer>;
-    friend struct redc_interface<api128<layer>>;
+    friend struct arithxx_details::api<layer>;
+    friend struct arithxx_details::api_bysize<layer>;
+    friend struct arithxx_details::redc<layer>;
+    friend struct arithxx_details::redc128<layer>;
 
   protected:
-    /* Data members */
-    Integer m;
-    uint64_t invm;
-    uint64_t mrecip;
-    Residue one;
 
     /* {{{ ctors, validity range, and asserts */
   public:
@@ -100,71 +74,32 @@ class arithxx_modredc126::Modulus
         return m % 2 == 1 && m > 0 && mpz_sizeinbase(m, 2) > 64 && mpz_sizeinbase(m, 2) <= (128 - layer::overflow_bits::value);
     }
 
-    explicit Modulus(Integer const s)
-        : m(s)
-        , one(*this)
+    explicit Modulus(Integer const & s)
+        : redc128(s)
     {
         ASSERT(valid(s));
-        invm = -u64arith_invmod(m[0]);
-
-        int const shift = u64arith_clz(m[1]);
-        uint64_t dummy, ml[2] = {m[0], m[1]};
-        u64arith_shl_2(&ml[0], &ml[1], shift);
-        mrecip = u64arith_reciprocal_for_div_3by2(ml[0], ml[1]);
-        u64arith_divqr_3_2_1_recip_precomp(&dummy, one.r.data(), one.r.data()+1, 0, 0,
-                                           1, ml[0], ml[1], mrecip, shift);
     }
-
-    /* Returns the modulus as an Integer. */
-    // void getmod(Integer & r) const { r.set(m); }
-    Integer const & getmod() const { return m; }
 
   protected:
     // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
     void assertValid(Residue const & r MAYBE_UNUSED) const
     {
-        ASSERT(u64arith_lt_2_2(r.r[0], r.r[1], m[0], m[1]));
+        ASSERT(r.r < m);
     }
     /* }}} */
 
   public:
 
-    /* {{{ set(*2), set_reduced(*1), set1, get, is1, add1, sub1: dependent on redc */
-    void set(Residue & r, uint64_t const s) const
-    {
-        r.r[0] = s;
-        r.r[1] = 0;
-        tomontgomery(r, r);
-    }
-    void set(Residue & r, Integer const & s) const
-    {
-        if (s < Integer(m)) {
-            r.r = s;
-        } else {
-            r.r = s % Integer(m);
-        }
-        tomontgomery(r, r);
-    }
-    void set_reduced(Residue & r, Integer s) const
-    {
-        ASSERT(s < Integer(m));
-        r.r = s;
-        tomontgomery(r, r);
-    }
-    void set1(Residue & r) const { set(r, one); }
-
-    /* Returns the residue as a modintredc2ul2_t */
-    Integer get(Residue const & s) const
-    {
-        Residue t(*this);
-        frommontgomery(t, s);
-        return t.r;
-    }
-
-    bool is1(Residue const & a) const { return equal(a, one); }
-    void add1(Residue & r, Residue const & a) const { add(r, a, one); }
-    void sub1(Residue & r, Residue const & a) const { sub(r, a, one); }
-    /* }}} */
+    using redc<layer>::set;
+    using redc<layer>::set_reduced;
+    /*
+     * these names are not ambiguous
+    using redc<layer>::set1;
+    using redc<layer>::is1;
+    using redc<layer>::add1;
+    using redc<layer>::sub1;
+    using redc<layer>::get;
+    */
 
     /* {{{ set(*2), set_reduced(*1), set0 */
     // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
@@ -614,8 +549,5 @@ struct arithxx_modredc126::Modulus::batch_Q_to_Fp_context {
     batch_Q_to_Fp_context(Integer const & num, Integer const & den);
     std::vector<uint64_t> operator()(std::vector<uint64_t> const & p, int k=0) const;
 };
-
-
-
 
 #endif /* CADO_UTILS_ARITHXX_MODREDC126_HPP */

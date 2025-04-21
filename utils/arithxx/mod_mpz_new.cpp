@@ -72,17 +72,17 @@ bool arithxx_mod_mpz_new::Modulus::divn(Residue & r, Residue const & a, unsigned
         return false;
     }
 
-    mp_limb_t const aModB = mpn_mod_1(a.r, sz, b);
+    mp_limb_t const aModB = mpn_mod_1(a.r.get(), sz, b);
     mp_limb_t const k = (minvb[mModB] * aModB) % b;
 
     if (r.r != a.r) {
-        mpn_copyi(r.r, a.r, sz);
+        mpn_copyi(r.r.get(), a.r.get(), sz);
     }
     mp_limb_t cy MAYBE_UNUSED;
-    cy = mpn_addmul_1(r.r, m->_mp_d, sz, k);
+    cy = mpn_addmul_1(r.r.get(), m->_mp_d, sz, k);
 
 #if defined(HAVE_MPN_DIVEXACT_1)
-    mpn_divexact_1(r.r, r.r, sz, b);
+    mpn_divexact_1(r.r.get(), r.r.get(), sz, b);
 #else
     const mp_limb_t binvlimb = binvw & GMP_NUMB_MASK;
     static_assert(GMP_LIMB_BITS <= 64,
@@ -149,7 +149,7 @@ bool arithxx_details::api<arithxx_mod_mpz_new>::div3(
     auto const & me = downcast();
     Residue t(me);
     unsigned int const mMod3 = mpz_tdiv_ui(me.m, 3);
-    unsigned int const aMod3 = mpn_mod_1(a.r, mpz_size(me.m), 3);
+    unsigned int const aMod3 = mpn_mod_1(a.r.get(), mpz_size(me.m), 3);
 
     if (mMod3 == 0) {
         return false;
@@ -159,12 +159,12 @@ bool arithxx_details::api<arithxx_mod_mpz_new>::div3(
     if (aMod3 == 0) {
         me.set(t, a);
     } else if (aMod3 == mMod3) {
-        cy = me.addM(t.r, a.r);
-        cy += me.addM(t.r, t.r);
+        cy = me.addM(t.r.get(), a.r.get());
+        cy += me.addM(t.r.get(), t.r.get());
     } else {
-        cy = me.addM(t.r, a.r);
+        cy = me.addM(t.r.get(), a.r.get());
     }
-    mp_limb_t const spill = mpn_divexact_by3(r.r, t.r, mpz_size(me.m));
+    mp_limb_t const spill = mpn_divexact_by3(r.r.get(), t.r.get(), mpz_size(me.m));
     ASSERT_ALWAYS(cy != 0 || spill == 0);
 
     return true;

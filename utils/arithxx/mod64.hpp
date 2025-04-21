@@ -37,54 +37,23 @@ struct arithxx_mod64 {
     typedef std::false_type uses_montgomery_representation;
 };
 
-class arithxx_mod64::Residue : public arithxx_details::Residue_base<arithxx_mod64>
+/* okay, at this point it's a typedef, really... */
+class arithxx_mod64::Residue
+    : public arithxx_details::Residue_base<arithxx_mod64>
 {
-    typedef arithxx_mod64 layer;
-    friend class layer::Modulus;
-    friend struct arithxx_details::api<layer>;
-    friend struct arithxx_details::api64<layer>;
-
-    protected:
-    Integer r;
-
-    public:
-    explicit Residue(Modulus const & m MAYBE_UNUSED)
-        : r(0)
-    { }
-    Residue(Modulus const & m MAYBE_UNUSED, Residue const & s)
-        : r(s.r)
-    { }
-
-    Residue() = delete;
-
-    protected:
-    /* These two prototypes are absent in arithxx_mod_mpz_new::Residue,
-     * so what gives? We'll mark them as deprecated for the time being.
-     */
-    Residue & operator=(Integer const & s) ATTRIBUTE_DEPRECATED
-    {
-        r = s[0];
-        return *this;
-    }
-    Residue & operator=(uint64_t const s) ATTRIBUTE_DEPRECATED
-    {
-        r = s;
-        return *this;
-    }
+    using Residue_base::Residue_base;
 };
 
 class arithxx_mod64::Modulus
-    : public arithxx_details::api64<arithxx_mod64>
+    : public arithxx_details::api_bysize<arithxx_mod64>
 {
     typedef arithxx_mod64 layer;
     friend class layer::Residue;
 
     friend struct arithxx_details::api<layer>;
-    friend struct arithxx_details::api64<layer>;
+    friend struct arithxx_details::api_bysize<layer>;
 
   protected:
-    /* Data members */
-    Integer m;
 
     /* {{{ ctors, validity range, and asserts */
   public:
@@ -92,12 +61,11 @@ class arithxx_mod64::Modulus
     static bool valid(cxx_mpz const & m) { return m % 2 == 1 && m > 0 && mpz_sizeinbase(m, 2) <= Integer::max_bits; }
 
     explicit Modulus(uint64_t const s)
-        : m(s)
+        : Modulus(Integer(s))
     { }
     explicit Modulus(Integer const & s)
-        : m(s)
+        : api_bysize(s)
     { }
-    Integer getmod() const { return m; }
 
   protected:
     /* Methods used internally */
@@ -114,32 +82,6 @@ class arithxx_mod64::Modulus
     /* }}} */
 
   protected:
-#if 0
-    /* Computes (a * 2^64) % m ; do we need it?*/
-    void tomontgomery(Residue & r, Residue const & a) const ATTRIBUTE_DEPRECATED
-    {
-        assertValid(a);
-        u64arith_divr_2_1_1(&r.r, 0, a.r, m);
-    }
-
-    /* Computes (a / 2^64) % m */
-    void frommontgomery(Residue & r, Residue const & a,
-                        uint64_t const invm) const ATTRIBUTE_DEPRECATED
-    {
-        uint64_t tlow, thigh;
-        assertValid(a);
-        tlow = a.r * invm;
-        u64arith_mul_1_1_2(&tlow, &thigh, tlow, m);
-        r.r = thigh + (a.r != 0 ? 1 : 0);
-    }
-#endif
-
-    uint64_t get_u64(Residue const & s) const
-    {
-        assertValid(s);
-        return uint64_t(s.r);
-    }
-
     uint64_t getmod_u64() const { return m[0]; }
 
   public:

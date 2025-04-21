@@ -10,14 +10,14 @@
 
 template<typename layer>
 void
-arithxx_details::api64<layer>::gcd (Integer &g, const Residue &r) const
+arithxx_details::api_bysize<layer, Integer64>::gcd (Integer &g, const Residue &r) const
 {
     auto const & me = downcast();
     uint64_t t;
 
     auto a = uint64_t(r.r); /* This works the same for "a" in plain or Montgomery
                          representation */
-    uint64_t b = me.getmod_u64 ();
+    uint64_t b = me.getmod()[0];
     /* ASSERT (a < b); Should we require this? */
     ASSERT (b > 0);
 
@@ -37,14 +37,14 @@ arithxx_details::api64<layer>::gcd (Integer &g, const Residue &r) const
 
 template <typename layer>
 int
-arithxx_details::api64<layer>::jacobi (const Residue &a_par) const
+arithxx_details::api_bysize<layer, Integer64>::jacobi (const Residue &a_par) const
 {
     auto const & me = downcast();
     unsigned int s, j;
 
     /* Get residue in Montgomery form directly without converting */
     auto x = uint64_t(a_par.r);
-    uint64_t mm = me.getmod_u64 ();
+    uint64_t mm = me.getmod()[0];
     if (x == 0) {
         return (mm == 1) ? 1 : 0; /* Jacobi(0,1) = 1, Jacobi(0,>1) = 0 */
     }

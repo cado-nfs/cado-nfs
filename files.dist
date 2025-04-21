@@ -1581,6 +1581,9 @@ utils/arithxx/arithxx_api64.hpp
 utils/arithxx/arithxx_api64_impl.hpp
 utils/arithxx/arithxx_api_impl.hpp
 utils/arithxx/arithxx_common.hpp
+utils/arithxx/arithxx_redc.hpp
+utils/arithxx/arithxx_redc128.hpp
+utils/arithxx/arithxx_redc64.hpp
 utils/arithxx/arithxx_residue_std_op.hpp
 utils/arithxx/mod64.cpp
 utils/arithxx/mod64.hpp
