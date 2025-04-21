@@ -447,7 +447,7 @@ bool arithxx_details::api<layer>::divn(Residue & r, Residue const & a) const
     // encountered a carry in the previous additions, though (the sum can
     // be as large as k times the max modulus).
 
-    constexpr bool has_carry = (n >> layer::overflow_bits::value) != 0;
+    constexpr bool has_carry = !multiplier_fits_in_overflow_bits<n, layer>::value;
     typedef at_most<layer::mul_c_cutoff::value> chooser_mul;
 
     r.r = Integer::template reduce_multiple<n, has_carry, chooser_mul>(t.r);
@@ -497,7 +497,7 @@ bool arithxx_details::api<layer>::div3(Residue & r, Residue const & a) const
     // now t is congruent to a multiple of n modulo w^2. We might have
     // encountered a carry in the previous additions, though.
 
-    constexpr bool has_carry = (n >> layer::overflow_bits::value) != 0;
+    constexpr bool has_carry = !multiplier_fits_in_overflow_bits<n, layer>::value;
     typedef at_most<layer::mul_c_cutoff::value> chooser_mul;
 
     r.r = Integer::template reduce_multiple<n, has_carry, chooser_mul>(t.r);

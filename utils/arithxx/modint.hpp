@@ -170,7 +170,7 @@ public:
     bool operator> (uint64_t const a) const { return std::any_of(begin() + 1, end(), convert_bool()) || (*this)[0] > a; }
     bool operator!=(uint64_t const a) const { return !operator==(a); }
     bool operator>=(uint64_t const a) const { return !operator<(a); }
-    bool operator<=(uint64_t const a) const { return !operator<(a); }
+    bool operator<=(uint64_t const a) const { return !operator>(a); }
 
 
 
@@ -216,9 +216,12 @@ public:
     T operator++ (int)                { T r = downcast(); ++r; return r;     }
     T operator-- (int)                { T r = downcast(); --r; return r;     }
     T operator+ (const T &a) const        { T r = downcast();  return r+=a;  }
-    T operator- (const T &a) const        { T r = downcast();  return r-=a;  }
     T operator+ (const uint64_t a) const  { T r = downcast();  return r+=a;  }
+    T operator- (const T &a) const        { T r = downcast();  return r-=a;  }
     T operator- (const uint64_t a) const  { T r = downcast();  return r-=a;  }
+    /* we use another name so that we don't get overload conflicts on
+     * operator- */
+    T operator- () const  { return downcast().unary_minus(); }
     T operator>>(const int i) const       { T r = downcast();  return r>>=i; }
     T operator<<(const int i) const       { T r = downcast();  return r<<=i; }
     T operator* (const T &a) const        { T r = downcast();  return r*=a;  }
@@ -291,6 +294,13 @@ public:
     Integer64& operator+=(const uint64_t a)   {(*this)[0] += a; return *this;}
     Integer64& operator-=(const uint64_t a)   {(*this)[0] -= a; return *this;}
     Integer64& operator>>=(const int i)       {(*this)[0] >>= i; return *this;}
+    Integer64& signed_shift_right(const int i) {
+        ASSERT_EXPENSIVE(0 <= i && i < 64);
+        auto hi = int64_t((*this)[0]);
+        (*this)[0] = uint64_t(hi >> i);
+        return *this;
+    }
+
     Integer64& operator<<=(const int i)       {(*this)[0] <<= i; return *this;}
     Integer64& operator*=(const Integer64 &a) {(*this)[0] *= a[0]; return *this;}
     Integer64& operator/=(const Integer64 &a) {(*this)[0] /= a[0]; return *this;}
@@ -298,6 +308,7 @@ public:
     Integer64& operator*=(const uint64_t a)   {(*this)[0] *= a; return *this;}
     Integer64& operator/=(const uint64_t a)   {(*this)[0] /= a; return *this;}
     Integer64& operator%=(const uint64_t a)   {(*this)[0] %= a; return *this;}
+    Integer64 unary_minus() const  { return Integer64 { -(*this)[0] }; }
 
 
     /* r = (*this)/a. We require a|(*this). */
@@ -352,6 +363,19 @@ public:
         }
         return *this;
     }
+    Integer128& signed_shift_right(const int i) {
+        ASSERT_EXPENSIVE(0 <= i && i < 128);
+        auto hi = int64_t((*this)[1]);
+        if (i >= 64) {
+            (*this)[0] = uint64_t(hi >> (i - 64));
+            (*this)[1] = hi < 0 ? uint64_t(-1) : 0;
+        } else {
+            u64arith_shrd(data(), (*this)[1], (*this)[0], i);
+            (*this)[1] = uint64_t(hi >> i);
+        }
+        return *this;
+    }
+
     Integer128& operator<<=(const int i) {
         ASSERT_EXPENSIVE(0 <= i && i < 128);
         if (i >= 64) {
@@ -409,6 +433,16 @@ public:
         }
         return *this;
     }
+
+    Integer128 unary_minus() const  {
+        auto a = *this;
+        a[1] = -a[1];
+        if (a[0] != 0)
+            a[1]--;
+        a[0] = -a[0];
+        return a;
+    }
+
     /* r = (*this)/a. We require a|(*this). */
     Integer128 divexact(const Integer128 &a) const {
         Integer128 n1, d1, r;

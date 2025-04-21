@@ -7,6 +7,8 @@
 #include <cstdint>
 #include <cstdlib>
 
+#include <type_traits>
+
 #include <gmp.h>
 
 #include "macros.h"
@@ -31,6 +33,8 @@ struct arithxx_mod64 {
     /* this gives k such that 2^k*modulus-1 <= Integer::max_value
      */
     typedef std::integral_constant<int, 0> overflow_bits;
+
+    typedef std::false_type uses_montgomery_representation;
 };
 
 class arithxx_mod64::Residue : public arithxx_details::Residue_base<arithxx_mod64>

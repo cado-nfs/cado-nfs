@@ -174,6 +174,13 @@ class Tests {
                 return false;
         }
 
+        {
+            const Integer mz0 = -z0;
+
+            if (mz0 + z0 != 0)
+                return false;
+        }
+
         return true;
     }
 

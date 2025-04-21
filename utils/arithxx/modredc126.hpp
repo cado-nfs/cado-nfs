@@ -11,8 +11,8 @@
 #include <cstdint>
 
 #include <array>
-#include <vector>
 #include <type_traits>
+#include <vector>
 
 #include <gmp.h>
 
@@ -38,6 +38,8 @@ struct arithxx_modredc126 {
     /* this gives k such that 2^k*modulus-1 <= Integer::max_value
      */
     typedef std::integral_constant<int, 2> overflow_bits;
+
+    typedef std::true_type uses_montgomery_representation;
 };
 
 class arithxx_modredc126::Residue : public arithxx_details::Residue_base<arithxx_modredc126>
@@ -46,6 +48,7 @@ class arithxx_modredc126::Residue : public arithxx_details::Residue_base<arithxx
     friend class layer::Modulus;
     friend struct arithxx_details::api<layer>;
     friend struct arithxx_details::api128<layer>;
+    friend struct arithxx_details::redc_interface<arithxx_details::api128<layer>>;
 
     protected:
     Integer r;
@@ -69,13 +72,16 @@ private:
 };
 
 class arithxx_modredc126::Modulus
-    : public arithxx_details::api128<arithxx_modredc126>
+    : public arithxx_details::redc_interface<
+                arithxx_details::api128<arithxx_modredc126>
+      >
 {
     typedef arithxx_modredc126 layer;
     friend class layer::Residue;
 
-    friend struct arithxx_details::api<layer>;
-    friend struct arithxx_details::api128<layer>;
+    friend struct api<layer>;
+    friend struct api128<layer>;
+    friend struct redc_interface<api128<layer>>;
 
   protected:
     /* Data members */
@@ -88,10 +94,10 @@ class arithxx_modredc126::Modulus
   public:
     static bool valid(Integer const & m)
     {
-        return Integer(1, 1) <= m && m % 2 == 1 && !(m[1] >> 62);
+        return Integer(1, 1) <= m && m % 2 == 1 && !(m[1] >> (64 - layer::overflow_bits::value));
     }
     static bool valid(cxx_mpz const & m) {
-        return m % 2 == 1 && m > 0 && mpz_sizeinbase(m, 2) > 64 && mpz_sizeinbase(m, 2) <= 126;
+        return m % 2 == 1 && m > 0 && mpz_sizeinbase(m, 2) > 64 && mpz_sizeinbase(m, 2) <= (128 - layer::overflow_bits::value);
     }
 
     explicit Modulus(Integer const s)
@@ -111,7 +117,7 @@ class arithxx_modredc126::Modulus
 
     /* Returns the modulus as an Integer. */
     // void getmod(Integer & r) const { r.set(m); }
-    Integer getmod() const { return Integer(m); }
+    Integer const & getmod() const { return m; }
 
   protected:
     // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
@@ -119,101 +125,17 @@ class arithxx_modredc126::Modulus
     {
         ASSERT(u64arith_lt_2_2(r.r[0], r.r[1], m[0], m[1]));
     }
-
-    /* r = s * 2^64 mod m */
-    void tomontgomery1(Residue & r, Residue const & s) const
-    {
-        const int shift = u64arith_clz(m[1]);
-        uint64_t dummy, ml[2] = {m[0], m[1]};
-        u64arith_shl_2(&ml[0], &ml[1], shift);
-        u64arith_divqr_3_2_1_recip_precomp(&dummy, r.r.data(), r.r.data()+1, 0, s.r[0],
-                                           s.r[1], ml[0], ml[1], mrecip, shift);
-    }
     /* }}} */
 
-  protected:
-    /* r = s * 2^128 mod m */
-    void tomontgomery(Residue & r, Residue const & s) const
-    {
-        tomontgomery1(r, s);
-        tomontgomery1(r, r);
-    }
-
-    void redc1_wide_inplace(uint64_t *t) const
-    {
-        uint64_t k;
-        uint64_t pl, ph;
-
-        k = t[0] * invm;
-        u64arith_mul_1_1_2 (&pl, &ph, k, m[0]);
-        ph += (t[0] != 0UL);        // t[0] == 0
-        u64arith_add_1_2 (&(t[1]), &(t[2]), ph);
-        u64arith_mul_1_1_2 (&pl, &ph, k, m[1]); /* ph:pl < 1/4 W^2 */
-        u64arith_add_2_2 (&(t[1]), &(t[2]), pl, ph);
-    }
-
-    void redc1(uint64_t * r, uint64_t const * s) const
-    {
-#if 1
-        uint64_t t[3] = { s[0], s[1], 0 };
-        redc1_wide_inplace(t);
-        r[0] = t[1];
-        r[1] = t[2];
-#else
-        uint64_t t[4], k;
-
-        k = s[0] * invm;
-        u64arith_mul_1_1_2(&(t[0]), &(t[1]), k, m[0]);
-        if (s[0] != 0)
-            t[1]++;
-        t[2] = 0;
-        u64arith_add_1_2(&(t[1]), &(t[2]), s[1]);       /* t[2] <= 1 */
-        u64arith_mul_1_1_2(&(t[0]), &(t[3]), k, m[1]);  /* t[3] < 2^w-1 */
-        u64arith_add_2_2(&(t[1]), &(t[2]), t[0], t[3]); /* t[2] < 2^w */
-
-        /* r = (k*m + s) / w, k <= w-1. If s < m, then r < m */
-        r[0] = t[1];
-        r[1] = t[2];
-#endif
-    }
-
-    /* Do a one-word REDC, i.e., r == s / w (mod m), w = 2^64.
-       If m > w, r < 2m. If s < m, then r < m */
-    void redc1(Residue & r, Residue const & s) const { redc1(r.r.data(), s.r.data()); }
-    void redc1(Integer & r, Integer const & s) const
-    {
-        std::array<uint64_t, 2> t = s.get();
-        redc1(t.data(), t.data());
-        r = Integer(t);
-    }
-
-    /* Converts s out of Montgomery form by dividing by 2^(2*ULONG_BITS).
-       Requires s < m. */
-    void frommontgomery(Residue & r, Residue const & s) const
-    {
-        /* Do two REDC steps */
-        redc1(r, s);
-        redc1(r, r);
-    }
-
   public:
-    /* {{{ set(*4), set_reduced(*2), set0, set1 */
 
-    // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
-    void set(Residue & r, Residue const & s) const { r = s; }
+    /* {{{ set(*2), set_reduced(*1), set1, get, is1, add1, sub1: dependent on redc */
     void set(Residue & r, uint64_t const s) const
     {
         r.r[0] = s;
         r.r[1] = 0;
         tomontgomery(r, r);
     }
-    void set(Residue & r, int64_t const s) const
-    {
-        set(r, safe_abs64(s));
-        if (s < 0)
-            neg(r, r);
-    }
-
     void set(Residue & r, Integer const & s) const
     {
         if (s < Integer(m)) {
@@ -223,25 +145,14 @@ class arithxx_modredc126::Modulus
         }
         tomontgomery(r, r);
     }
-    /* Sets the residueredc2ul2_t to the class represented by the integer s.
-       Assumes that s is reduced (mod m), i.e. 0 <= s < m */
-    void set_reduced(Residue & r, uint64_t const s) const { set(r, s); }
     void set_reduced(Residue & r, Integer s) const
     {
         ASSERT(s < Integer(m));
         r.r = s;
         tomontgomery(r, r);
     }
-    // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
-    void set0(Residue & r) const
-    {
-        r.r[0] = 0;
-        r.r[1] = 0;
-    }
     void set1(Residue & r) const { set(r, one); }
-    /* }}} */
 
-    /* {{{ get equal is0 is1 */
     /* Returns the residue as a modintredc2ul2_t */
     Integer get(Residue const & s) const
     {
@@ -250,40 +161,58 @@ class arithxx_modredc126::Modulus
         return t.r;
     }
 
+    bool is1(Residue const & a) const { return equal(a, one); }
+    void add1(Residue & r, Residue const & a) const { add(r, a, one); }
+    void sub1(Residue & r, Residue const & a) const { sub(r, a, one); }
+    /* }}} */
+
+    /* {{{ set(*2), set_reduced(*1), set0 */
+    // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+    void set(Residue & r, Residue const & s) const { r = s; }
+    void set(Residue & r, int64_t const s) const
+    {
+        set(r, safe_abs64(s));
+        if (s < 0)
+            neg(r, r);
+    }
+
+    /* Sets the residueredc2ul2_t to the class represented by the integer s.
+       Assumes that s is reduced (mod m), i.e. 0 <= s < m */
+    void set_reduced(Residue & r, uint64_t const s) const { set(r, s); }
+
+    // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+    void set0(Residue & r) const { r.r = 0; }
+
+    /* }}} */
+
+    /* {{{ equal is0 */
+
     /* do we really want to keep these two, or should we use operator== ?
      * comparison to 1 in montgomery form is tricky, though.
      */
     // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
     bool equal(Residue const & a, Residue const & b) const
     {
-        return (a.r[0] == b.r[0] && a.r[1] == b.r[1]);
+        return a.r == b.r;
     }
 
     // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
-    bool is0(Residue const & a) const { return (a.r[0] == 0 && a.r[1] == 0); }
+    bool is0(Residue const & a) const { return a.r == 0; }
 
-    bool is1(Residue const & a) const { return (equal(a, one)); }
     /* }}} */
 
     /* {{{ neg add(*2) add1 sub(*2) sub1 div2 */
     void neg(Residue & r, Residue const & a) const
     {
-        if (is0(a)) {
+        if (is0(a))
             set0(r);
-        } else {
-            uint64_t t0 = m[0], t1 = m[1];
-            u64arith_sub_2_2(&t0, &t1, a.r[0], a.r[1]);
-            r.r[0] = t0;
-            r.r[1] = t1;
-        }
+        else
+            r.r = m - a.r;
     }
 
     void add(Residue & r, Residue const & a, Residue const & b) const
     {
-        uint64_t const t0 = b.r[0],
-                       t1 = b.r[1]; /* r, a, and/or b may overlap */
-        set(r, a);
-        u64arith_add_2_2(r.r.data(), r.r.data() + 1, t0, t1);
+        r.r = a.r + b.r;
         u64arith_sub_2_2_ge(r.r.data(), r.r.data() + 1, m[0], m[1]);
     }
 
@@ -321,24 +250,15 @@ class arithxx_modredc126::Modulus
 #endif
     }
 
-    void add1(Residue & r, Residue const & a) const { add(r, a, one); }
-
-    void sub1(Residue & r, Residue const & a) const { sub(r, a, one); }
 
     void add(Residue & r, Residue const & a, uint64_t const b) const
     {
-        Residue t(*this);
-
-        set(t, b);
-        add(r, a, t);
+        add(r, a, downcast()(b));
     }
 
     void sub(Residue & r, Residue const & a, uint64_t const b) const
     {
-        Residue t(*this);
-
-        set(t, b);
-        sub(r, a, t);
+        sub(r, a, downcast()(b));
     }
 
     bool div2(Residue & r, Residue const & a) const

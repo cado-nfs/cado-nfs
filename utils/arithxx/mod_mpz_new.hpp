@@ -7,8 +7,10 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <climits>
 
 #include <memory>
+#include <type_traits>
 
 #include <gmp.h>
 
@@ -23,6 +25,12 @@ struct arithxx_mod_mpz_new {
     class Modulus;
     class Residue;
     typedef cxx_mpz Integer;
+
+    /* These two are not used for this layer, but for completeness... */
+    typedef std::integral_constant<int, 4> mul_c_cutoff;
+    typedef std::integral_constant<int, INT_MAX> overflow_bits;
+
+    typedef std::false_type uses_montgomery_representation;
 };
 
 

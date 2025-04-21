@@ -22,7 +22,8 @@ template<>
 bool arithxx_details::api<arithxx_modredc64>::inv(Residue & r, const Residue & A) const
 {
     auto const & me = downcast();
-    uint64_t x = me.m[0], y, u, v;
+    Integer x = me.m;
+    uint64_t u, v;
     int t, lsh;
 
     ASSERT(A.r < x);
@@ -33,12 +34,13 @@ bool arithxx_details::api<arithxx_modredc64>::inv(Residue & r, const Residue & A
 
     /* Let A = a*2^w, so we want the Montgomery representation of 1/a,
        which is 2^w/a. We start by getting y = a */
-    y = me.get_u64(A);
+    Integer y = me.frommontgomery(A.r);
 
     /* We simply set y = a/2^w and t=0. The result before
        correction will be 2^(w+t)/a so we have to divide by t, which
        may be >64, so we may have to do a full and a variable width REDC. */
-    me.frommontgomery(y, y);
+    y = me.frommontgomery(y);
+
     /* Now y = a/2^w */
     t = 0;
 
@@ -46,7 +48,7 @@ bool arithxx_details::api<arithxx_modredc64>::inv(Residue & r, const Residue & A
     v = 0;
 
     // make y odd
-    lsh = u64arith_ctz(y);
+    lsh = int(y.ctz());
     y >>= lsh;
     t += lsh;
     /* v <<= lsh; ??? v is 0 here */
@@ -59,7 +61,7 @@ bool arithxx_details::api<arithxx_modredc64>::inv(Residue & r, const Residue & A
             v += u;
             if (x == 0)
                 break;
-            lsh = u64arith_ctz(x);
+            lsh = int(x.ctz());
             ASSERT_EXPENSIVE(lsh > 0);
             x >>= lsh;
             t += lsh;
@@ -78,7 +80,7 @@ bool arithxx_details::api<arithxx_modredc64>::inv(Residue & r, const Residue & A
             u += v;
             if (y == 0)
                 break;
-            lsh = u64arith_ctz(y);
+            lsh = int(y.ctz());
             ASSERT_EXPENSIVE(lsh > 0);
             y >>= lsh;
             t += lsh;
@@ -151,7 +153,7 @@ bool arithxx_details::api<arithxx_modredc64>::intinv(Integer & r, Integer const 
 
     y = uint64_t(A);
 
-    /* We don't expect it's going to happen normally, xcept maybe for tests */
+    /* We don't expect it's going to happen normally, except maybe for tests */
     if (y >= me.m[0])
         y %= me.m[0];
 
@@ -298,7 +300,7 @@ arithxx_modredc64::Modulus::batchinv_redc(std::vector<uint64_t> const & a, Integ
      * c is the Montgomery representative of c/beta
      */
     mul_u64_u64(R.r[0], R, uint64_t(c));
-    frommontgomery(R.r[0], R.r[0]);
+    frommontgomery(R, R);
     /* R is now [a'_0*...*a'_{n-1}]^-1*c/beta, a.k.a the Montgomery
      * representative of [a'_0*...*a'_{n-1}]^-1*c/beta^2 */
 

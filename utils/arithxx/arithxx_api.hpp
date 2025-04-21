@@ -157,7 +157,7 @@ namespace arithxx_details {
             void pow2(Residue &r, const uint64_t *e, size_t e_nrwords) const;
 
             void pow(Residue & r, Residue const & b, uint64_t e) const;
-            void pow2(Residue &r, const uint64_t e) const;
+            void pow2(Residue &r, uint64_t e) const;
 
             void pow(Residue & r, Residue const & b, Integer const & e) const;
             void pow2(Residue &r, const Integer &e) const;

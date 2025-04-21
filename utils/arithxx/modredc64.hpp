@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <cstdlib>
 
+#include <type_traits>
 #include <vector>
 
 #include <gmp.h>
@@ -35,6 +36,8 @@ struct arithxx_modredc64 {
     /* this gives k such that 2^k*modulus-1 <= Integer::max_value
      */
     typedef std::integral_constant<int, 0> overflow_bits;
+
+    typedef std::true_type uses_montgomery_representation;
 };
 
 class arithxx_modredc64::Residue : public arithxx_details::Residue_base<arithxx_modredc64>
@@ -108,7 +111,7 @@ class arithxx_modredc64::Modulus
                                            shift);
     }
     explicit Modulus(Integer const & s)
-        : Modulus(s.getWord(0))
+        : Modulus(s[0])
     {
     }
     Integer getmod() const { return m; }
@@ -132,44 +135,60 @@ class arithxx_modredc64::Modulus
     void tomontgomery(Residue & r, Residue const & a) const
     {
         assertValid(a);
+        tomontgomery(r.r, a.r);
+    }
+    void tomontgomery(Integer & r, Integer const & a) const
+    {
         const int shift = u64arith_clz(m[0]);
         const uint64_t ml = m[0] << shift;
         uint64_t dummy;
-        u64arith_divqr_2_1_1_recip_precomp(&dummy, r.r.data(), 0, a.r[0], ml, mrecip,
+        u64arith_divqr_2_1_1_recip_precomp(&dummy, r.data(), 0, a[0], ml, mrecip,
                                            shift);
+    }
+    Integer tomontgomery(Integer const & a) const
+    {
+        Integer r;
+        tomontgomery(r, a);
+        return r;
     }
 
     /* Computes (a / 2^64) % m. Assumes a < m */
-    void frommontgomery(uint64_t & r, uint64_t const a) const
+    void frommontgomery(Residue & r, Residue const & a) const
+    {
+        assertValid(a);
+        frommontgomery(r.r, a.r);
+    }
+    void frommontgomery(uint64_t & r, uint64_t const & a) const
     {
         uint64_t tlow, thigh;
-        assertValid(a);
         tlow = a * invm;
         u64arith_mul_1_1_2(&tlow, &thigh, tlow, m[0]);
         r = thigh + ((a != 0) ? 1 : 0);
     }
-
+    void frommontgomery(Integer & r, Integer const & a) const
+    {
+        uint64_t tlow, thigh;
+        tlow = a[0] * invm;
+        u64arith_mul_1_1_2(&tlow, &thigh, tlow, m[0]);
+        r[0] = thigh + ((a != 0) ? 1 : 0);
+    }
+    Integer frommontgomery(Integer const & a) const
+    {
+        Integer r;
+        frommontgomery(r, a);
+        return r;
+    }
 
     uint64_t get_u64(Residue const & s) const
     {
-        uint64_t r;
-        assertValid(s);
-        frommontgomery(r, s.r[0]);
-        return r;
+        return frommontgomery(s.r)[0];
     }
 
     uint64_t getmod_u64() const { return m[0]; }
 
   public:
 
-    /* {{{ set(*4), set_reduced(*2), set0, set1 */
-    void set(Residue & r, Residue const & s) const
-    {
-        assertValid(s);
-        r = s;
-    }
-
-    /** XXX This is specific to Montgomery form */
+    /* {{{ set(*2), set_reduced(*1), set1, get, is1, add1, sub1: dependent on redc */
     /* Puts in r the value of s * beta mod m, where beta is the word base.
        Note: s can be any uint64_t, in particular can be larger than m.
        When 0 <= s < m, use set_reduced for better efficiency. */
@@ -182,9 +201,8 @@ class arithxx_modredc64::Modulus
         tomontgomery(r, r);
     }
 
-    void set(Residue & r, Integer const & s) const { set(r, s.getWord(0)); }
+    void set(Residue & r, Integer const & s) const { set(r, s[0]); }
 
-    /** XXX This is specific to Montgomery form */
     /* Sets the residue_t to the class represented by the integer s.
      * Assumes that s is reduced (mod m), i.e. 0 <= s < m */
     void set_reduced(Residue & r, uint64_t const s) const
@@ -193,9 +211,29 @@ class arithxx_modredc64::Modulus
         r.r = s;
         tomontgomery(r, r);
     }
+    void set1(Residue & r) const { r = one; }
+
+    Integer get(Residue const & s) const
+    {
+        assertValid(s);
+        return frommontgomery(s.r);
+    }
+
+    bool is1(Residue const & a) const { return equal(a, one); }
+    void add1(Residue & r, Residue const & a) const { add(r, a, one); }
+    void sub1(Residue & r, Residue const & a) const { sub(r, a, one); }
+    /* }}} */
+
+    /* {{{ set(*2), set_reduced(*1), set0 */
+    void set(Residue & r, Residue const & s) const
+    {
+        assertValid(s);
+        r = s;
+    }
+
     void set_reduced(Residue & r, Integer const & s) const
     {
-        set_reduced(r, s.getWord(0));
+        set_reduced(r, s[0]);
     }
     void set(Residue & r, int64_t const s) const
     {
@@ -207,76 +245,45 @@ class arithxx_modredc64::Modulus
     // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
     void set0(Residue & r) const { r.r = 0; }
 
-    /** XXX This is specific to Montgomery form */
-    void set1(Residue & r) const { r = one; }
     /* }}} */
 
-    /* {{{ get equal is0 is1 */
-    Integer get(Residue const & s) const
-    {
-        assertValid(s);
-        uint64_t t;
-        frommontgomery(t, s.r[0]);
-        return Integer(t);
-    }
-
+    /* {{{ equal is0 */
+    // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
     bool equal(Residue const & a, Residue const & b) const
     {
-        assertValid(a);
-        assertValid(b);
         return (a.r == b.r);
     }
-    bool is0(Residue const & a) const
-    {
-        assertValid(a);
-        return (a.r == 0);
-    }
-    bool is1(Residue const & a) const
-    {
-        return equal(a, one);
-    }
+    // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+    bool is0(Residue const & a) const { return (a.r == 0); }
     /* }}} */
 
     /* {{{ neg add(*2) add1 sub(*2) sub1 div2 */
     void neg(Residue & r, Residue const & a) const
     {
         assertValid(a);
-        if (a.r == 0)
-            r.r = a.r;
+        if (is0(a))
+            set0(r);
         else
-            r.r[0] = m[0] - a.r[0];
+            r.r = m - a.r;
     }
     void add(Residue & r, Residue const & a, Residue const & b) const
     {
         u64arith_addmod_1_1(r.r.data(), a.r[0], b.r[0], m[0]);
     }
 
-    /** XXX This is specific to Montgomery form */
-    void add1(Residue & r, Residue const & a) const { add(r, a, one); }
-
-    void add(Residue & r, Residue const & a, uint64_t const b) const
-    {
-        Residue t(*this);
-
-        assertValid(a);
-        set(t, b);
-        add(r, a, t);
-    }
     void sub(Residue & r, Residue const & a, Residue const & b) const
     {
         u64arith_submod_1_1(r.r.data(), a.r[0], b.r[0], m[0]);
     }
 
-    /** XXX This is specific to Montgomery form */
-    void sub1(Residue & r, Residue const & a) const { sub(r, a, one); }
+    void add(Residue & r, Residue const & a, uint64_t const b) const
+    {
+        add(r, a, downcast()(b));
+    }
 
     void sub(Residue & r, Residue const & a, uint64_t const b) const
     {
-        Residue t(*this);
-
-        assertValid(a);
-        set(t, b);
-        sub(r, a, t);
+        sub(r, a, downcast()(b));
     }
 
     bool div2(Residue & r, Residue const & a) const
