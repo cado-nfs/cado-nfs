@@ -8,6 +8,7 @@
 #include "strategy.hpp"
 #include "tab_strategy.hpp"
 #include "utils_cxx.hpp"
+#include "macros.h"
 
 tabular_strategy_t * tabular_strategy_create(void)
 {
@@ -113,7 +114,9 @@ static void next_number(FILE * file, int * current_char)
     while (*current_char != EOF && !is_number(*current_char)) {
         *current_char = fgetc(file);
     }
-    fseek(file, -1, SEEK_CUR);
+    // WTF? ungetc maybe?
+    int rc = fseek(file, -1, SEEK_CUR);
+    DIE_ERRNO_DIAG(rc < 0, "rewind(%s)", "strategy file");
 }
 
 tabular_strategy_t * tabular_strategy_fscan(FILE * file)
