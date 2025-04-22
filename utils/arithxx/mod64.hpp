@@ -13,7 +13,6 @@
 
 #include "macros.h"
 #include "modint.hpp"
-#include "misc.h"
 #include "u64arith.h"
 #include "arithxx_common.hpp"
 #include "cxx_mpz.hpp"
@@ -94,21 +93,7 @@ class arithxx_mod64::Modulus
 
   public:
 
-    /* {{{ neg add(*2) add1 sub(*2) sub1 div2 */
-    void neg(Residue & r, Residue const & a) const
-    {
-        assertValid(a);
-        if (a.r == 0)
-            r.r = a.r;
-        else
-            r.r = m - a.r;
-    }
-    void add(Residue & r, Residue const & a, Residue const & b) const
-    {
-        u64arith_addmod_1_1(r.r.data(), a.r[0], b.r[0], m[0]);
-    }
-
-
+    /* {{{ add(*2) add1 sub(*2) sub1 div2 */
     void add1(Residue & r, Residue const & a) const
     {
         assertValid(a);
@@ -117,6 +102,10 @@ class arithxx_mod64::Modulus
             r.r = 0;
     }
 
+    void add(Residue & r, Residue const & a, Residue const & b) const
+    {
+        u64arith_addmod_1_1(r.r.data(), a.r[0], b.r[0], m[0]);
+    }
     void add(Residue & r, Residue const & a, uint64_t const b) const
     {
         u64arith_addmod_1_1(r.r.data(), a.r[0], b % m[0], m[0]);

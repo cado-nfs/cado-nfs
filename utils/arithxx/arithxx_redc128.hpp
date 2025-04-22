@@ -81,5 +81,9 @@ struct arithxx_details::redc128
     /* redc1 has overloads in redc<layer>, we need to take them into
      * account */
     using redc<layer>::redc1;
+
+  protected:
+    std::vector<Integer> batchinv_redc(std::vector<uint64_t> const & a, Integer const & c) const;
+    friend struct arithxx_details::batch_Q_to_Fp_context<layer>;
 };
 #endif	/* UTILS_ARITHXX_ARITHXX_REDC128_HPP_ */

@@ -273,6 +273,15 @@ namespace arithxx_details {
             Integer get(Residue const & r) const { return r.r; }
             bool is1(Residue const& a) const { return a.r == 1; }
             /* }}} */
+            void neg(Residue & r, Residue const & a) const
+            {
+                auto const & me = downcast();
+                me.assertValid(a);
+                if (me.is0(a))
+                    me.set0(r);
+                else
+                    r.r = m - a.r;
+            }
         };
 
 

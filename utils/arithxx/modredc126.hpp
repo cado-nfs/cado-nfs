@@ -18,7 +18,6 @@
 
 #include "cxx_mpz.hpp"
 #include "macros.h"
-#include "misc.h"
 #include "modint.hpp"
 #include "u64arith.h"
 #include "arithxx_common.hpp"
@@ -92,26 +91,7 @@ class arithxx_modredc126::Modulus
 
   public:
 
-    using redc<layer>::set;
-    using redc<layer>::set_reduced;
-    /*
-     * these names are not ambiguous
-    using redc<layer>::set1;
-    using redc<layer>::is1;
-    using redc<layer>::add1;
-    using redc<layer>::sub1;
-    using redc<layer>::get;
-    */
-
-    /* {{{ neg add(*2) add1 sub(*2) sub1 div2 */
-    void neg(Residue & r, Residue const & a) const
-    {
-        if (is0(a))
-            set0(r);
-        else
-            r.r = m - a.r;
-    }
-
+    /* {{{ add(*2) add1 sub(*2) sub1 div2 */
     void add(Residue & r, Residue const & a, Residue const & b) const
     {
         r.r = a.r + b.r;
@@ -499,10 +479,6 @@ class arithxx_modredc126::Modulus
 #endif
         assertValid(r);
     }
-
-  private:
-    std::vector<Integer> batchinv_redc(std::vector<uint64_t> const & a, Integer c) const;
-    friend struct arithxx_details::batch_Q_to_Fp_context<layer>;
 };
 
 #endif /* CADO_UTILS_ARITHXX_MODREDC126_HPP */

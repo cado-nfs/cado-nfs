@@ -87,15 +87,7 @@ class arithxx_modredc64::Modulus
 
   public:
 
-    /* {{{ neg add(*2) add1 sub(*2) sub1 div2 */
-    void neg(Residue & r, Residue const & a) const
-    {
-        assertValid(a);
-        if (is0(a))
-            set0(r);
-        else
-            r.r = m - a.r;
-    }
+    /* {{{ add(*2) add1 sub(*2) sub1 div2 */
     void add(Residue & r, Residue const & a, Residue const & b) const
     {
         u64arith_addmod_1_1(r.r.data(), a.r[0], b.r[0], m[0]);
@@ -142,6 +134,9 @@ class arithxx_modredc64::Modulus
            phigh:plow <= m*2^64 - 2^64, so phigh < m. */
         u64arith_redc(&r, plow, phigh, m[0], invm);
     }
+    friend struct arithxx_details::redc64<layer>;
+
+
   public:
     /* {{{ mul sqr */
     /** XXX This is specific to Montgomery form */
@@ -162,12 +157,6 @@ class arithxx_modredc64::Modulus
         u64arith_redc(r.r.data(), plow, phigh, m[0], invm);
     }
     /* }}} */
-
-  private:
-    // return c/a[i] mod N, or an empty vector if one of the a[i] is not
-    // invertible
-    std::vector<Integer> batchinv_redc(std::vector<uint64_t> const & a, Integer c) const;
-    friend struct arithxx_details::batch_Q_to_Fp_context<layer>;
 };
 
 #endif /* CADO_UTILS_ARITHXX_MODREDC64_HPP */

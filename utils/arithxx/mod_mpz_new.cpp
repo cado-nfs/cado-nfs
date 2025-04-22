@@ -273,6 +273,8 @@ arithxx_mod_mpz_new::Integer arithxx_details::api<arithxx_mod_mpz_new>::get(Resi
 template<>
 void arithxx_details::api<arithxx_mod_mpz_new>::set(Residue & r, Residue const & s) const = delete;
 template<>
+void arithxx_details::api<arithxx_mod_mpz_new>::neg(Residue & r, Residue const & s) const = delete;
+template<>
 void arithxx_details::api<arithxx_mod_mpz_new>::set(Residue & r, uint64_t) const = delete;
 template<>
 bool arithxx_details::api<arithxx_mod_mpz_new>::is1(Residue const & r) const = delete;

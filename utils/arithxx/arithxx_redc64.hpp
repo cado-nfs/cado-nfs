@@ -3,6 +3,8 @@
 
 #include <cstdint>
 
+#include <vector>
+
 #include "u64arith.h"
 
 #include "arithxx_common.hpp"
@@ -83,6 +85,12 @@ struct arithxx_details::redc64
     /* redc1 has overloads in redc<layer>, we need to take them into
      * account */
     using redc<layer>::redc1;
+
+  protected:
+    // return c/a[i] mod N, or an empty vector if one of the a[i] is not
+    // invertible
+    std::vector<Integer> batchinv_redc(std::vector<uint64_t> const & a, Integer const & c) const;
+    friend struct arithxx_details::batch_Q_to_Fp_context<layer>;
 };
 
 
