@@ -260,4 +260,21 @@ int arithxx_details::api<arithxx_mod_mpz_new>::jacobi(Residue const & a MAYBE_UN
     return mpz_jacobi(A, me.m);
 }
 
+/* It's a bit awkward. We need to explicitly delete all the member
+ * templates that make no sense *and* that we explicitly override anyway
+ * in arithxx_mod_mpz_new::Modulus
+ */
+template<>
+void arithxx_details::api<arithxx_mod_mpz_new>::set_reduced(Residue & r, Integer const & s) const = delete;
+template<>
+void arithxx_details::api<arithxx_mod_mpz_new>::set1(Residue & r) const = delete;
+template<>
+arithxx_mod_mpz_new::Integer arithxx_details::api<arithxx_mod_mpz_new>::get(Residue const & r) const = delete;
+template<>
+void arithxx_details::api<arithxx_mod_mpz_new>::set(Residue & r, Residue const & s) const = delete;
+template<>
+void arithxx_details::api<arithxx_mod_mpz_new>::set(Residue & r, uint64_t) const = delete;
+template<>
+bool arithxx_details::api<arithxx_mod_mpz_new>::is1(Residue const & r) const = delete;
+
 template struct arithxx_details::api<arithxx_mod_mpz_new>;

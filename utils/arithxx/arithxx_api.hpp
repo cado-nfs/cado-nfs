@@ -16,6 +16,7 @@
 #include "is_non_narrowing_conversion.hpp"
 #include "arithxx_residue_std_op.hpp"
 #include "macros.h"
+#include "misc.h"
 
 namespace arithxx_details {
 
@@ -219,6 +220,59 @@ namespace arithxx_details {
             bool div11(Residue &, Residue const &) const;
             bool div13(Residue &, Residue const &) const;
 
+            /* {{{ set(*2), set_reduced(*1), set0 */
+            // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+            void set(Residue & r, Residue const & s) const { r = s; }
+            void set(Residue & r, int64_t const s) const
+            {
+                auto const & me = downcast();
+                me.set(r, safe_abs64(s));
+                if (s < 0)
+                    me.neg(r, r);
+            }
+
+            /* Sets the residueredc2ul2_t to the class represented by the integer s.
+               Assumes that s is reduced (mod m), i.e. 0 <= s < m */
+            void set_reduced(Residue & r, uint64_t const s) const {
+                auto const & me = downcast();
+                me.set(r, s);
+            }
+
+            // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+            void set0(Residue & r) const { r.r = 0; }
+
+            /* }}} */
+
+            /* {{{ equal is0 */
+
+            /* do we really want to keep these two, or should we use operator== ?
+             * comparison to 1 in montgomery form is tricky, though.
+             */
+            // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+            bool equal(Residue const & a, Residue const & b) const
+            {
+                return a.r == b.r;
+            }
+
+            // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+            bool is0(Residue const & a) const { return a.r == 0; }
+
+            /* }}} */
+
+            /* {{{ set(*2), set_reduced(*1), set1, get, is1: possibly overloaded by redc */
+            void set(Residue & r, uint64_t const s) const { r.r = s; }
+            void set(Residue & r, Integer const & s) const {
+                auto const & me = downcast();
+                if (s < me.m)
+                    me.set_reduced(r, s);
+                else
+                    me.set_reduced(r, s % me.m);
+            }
+            void set_reduced(Residue & r, Integer const & s) const { r.r = s; }
+            void set1(Residue & r) const { r.r = (m != 1); }
+            Integer get(Residue const & r) const { return r.r; }
+            bool is1(Residue const& a) const { return a.r == 1; }
+            /* }}} */
         };
 
 

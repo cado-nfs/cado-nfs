@@ -87,38 +87,6 @@ class arithxx_modredc64::Modulus
 
   public:
 
-    using redc<layer>::set;
-    using redc<layer>::set_reduced;
-
-    /* {{{ set(*2), set_reduced(*1), set0 */
-    void set(Residue & r, Residue const & s) const
-    {
-        assertValid(s);
-        r = s;
-    }
-
-    void set(Residue & r, int64_t const s) const
-    {
-        set(r, safe_abs64(s));
-        if (s < 0)
-            neg(r, r);
-    }
-
-    // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
-    void set0(Residue & r) const { r.r = 0; }
-
-    /* }}} */
-
-    /* {{{ equal is0 */
-    // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
-    bool equal(Residue const & a, Residue const & b) const
-    {
-        return (a.r == b.r);
-    }
-    // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
-    bool is0(Residue const & a) const { return (a.r == 0); }
-    /* }}} */
-
     /* {{{ neg add(*2) add1 sub(*2) sub1 div2 */
     void neg(Residue & r, Residue const & a) const
     {

@@ -103,41 +103,6 @@ class arithxx_modredc126::Modulus
     using redc<layer>::get;
     */
 
-    /* {{{ set(*2), set_reduced(*1), set0 */
-    // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
-    void set(Residue & r, Residue const & s) const { r = s; }
-    void set(Residue & r, int64_t const s) const
-    {
-        set(r, safe_abs64(s));
-        if (s < 0)
-            neg(r, r);
-    }
-
-    /* Sets the residueredc2ul2_t to the class represented by the integer s.
-       Assumes that s is reduced (mod m), i.e. 0 <= s < m */
-    void set_reduced(Residue & r, uint64_t const s) const { set(r, s); }
-
-    // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
-    void set0(Residue & r) const { r.r = 0; }
-
-    /* }}} */
-
-    /* {{{ equal is0 */
-
-    /* do we really want to keep these two, or should we use operator== ?
-     * comparison to 1 in montgomery form is tricky, though.
-     */
-    // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
-    bool equal(Residue const & a, Residue const & b) const
-    {
-        return a.r == b.r;
-    }
-
-    // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
-    bool is0(Residue const & a) const { return a.r == 0; }
-
-    /* }}} */
-
     /* {{{ neg add(*2) add1 sub(*2) sub1 div2 */
     void neg(Residue & r, Residue const & a) const
     {

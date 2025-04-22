@@ -94,66 +94,6 @@ class arithxx_mod64::Modulus
 
   public:
 
-    /* {{{ set(*4), set_reduced(*2), set0, set1 */
-    void set(Residue & r, Residue const & s) const
-    {
-        assertValid(s);
-        r = s;
-    }
-
-    void set(Residue & r, uint64_t const s) const { r.r = s % m[0]; }
-
-    void set(Residue & r, Integer const & s) const { set(r, s.getWord(0)); }
-
-
-    /* Sets the residue to the class represented by the integer s.
-     * Assumes that s is reduced (mod m), i.e. 0 <= s < m */
-    void set_reduced(Residue & r, uint64_t const s) const
-    {
-        assertValid(s);
-        r.r = s;
-    }
-    void set_reduced(Residue & r, Integer const & s) const
-    {
-        set_reduced(r, s.getWord(0));
-    }
-    void set(Residue & r, int64_t const s) const
-    {
-        set(r, safe_abs64(s));
-        if (s < 0)
-            neg(r, r);
-    }
-
-    // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
-    void set0(Residue & r) const { r.r = 0; }
-
-    void set1(Residue & r) const { r.r = (m != 1); }
-    /* }}} */
-
-    /* {{{ get equal is0 is1 */
-    Integer get(Residue const & s) const
-    {
-        assertValid(s);
-        return s.r;
-    }
-    bool equal(Residue const & a, Residue const & b) const
-    {
-        assertValid(a);
-        assertValid(b);
-        return (a.r == b.r);
-    }
-    bool is0(Residue const & a) const
-    {
-        assertValid(a);
-        return (a.r == 0);
-    }
-    bool is1(Residue const & a) const
-    {
-        assertValid(a);
-        return (a.r == 1);
-    }
-    /* }}} */
-
     /* {{{ neg add(*2) add1 sub(*2) sub1 div2 */
     void neg(Residue & r, Residue const & a) const
     {

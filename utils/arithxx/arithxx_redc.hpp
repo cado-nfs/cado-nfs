@@ -73,6 +73,11 @@ struct arithxx_details::redc
     }
     /* }}} */
 
+    /* the overloads here are *in addition* to the ones that exist by
+     * default */
+    using api<layer>::set;
+    using api<layer>::set_reduced;
+
     /* {{{ set(*2), set_reduced(*1), set1, get, is1, add1, sub1: dependent on redc */
     void set(Residue & r, uint64_t const s) const
     {
