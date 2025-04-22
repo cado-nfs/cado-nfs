@@ -80,6 +80,7 @@ static double one_bench(F const & f)
     for (r = 0; r < NREPS_MAX && clock() < clocklim; r++) {
         f();
     }
+    if (!r) return 0;
     return double(clock() - tt) / r / CLOCKS_PER_SEC;
 }
 
