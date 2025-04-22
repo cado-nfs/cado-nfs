@@ -1013,7 +1013,7 @@ int main(int argc, char const * argv[])
         }
         usage();
     }
-    // if (N == 0 || n == 0) usage();
+    if (!N || !m || !n) usage();
 
     unsigned long const b = m + n;
 
