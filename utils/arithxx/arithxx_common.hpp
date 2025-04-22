@@ -39,7 +39,7 @@ namespace arithxx_details {
     template<int n, typename layer>
         struct multiplier_fits_in_overflow_bits
         : public std::integral_constant<bool,
-            layer::overflow_bits::value == INT_MAX ||
+            layer::overflow_bits::value >= std::numeric_limits<int>::digits ||
             (n >> layer::overflow_bits::value == 0)> {};
 
     template<typename layer>

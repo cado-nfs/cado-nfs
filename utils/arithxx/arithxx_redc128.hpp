@@ -82,6 +82,10 @@ struct arithxx_details::redc128
      * account */
     using redc<layer>::redc1;
 
+  private:
+    /* Computes r = (a * b * 2^-64) mod m, where a is in REDC
+     * representation */
+    void mul_ul(Residue & r, Residue const & a, uint64_t b) const;
   protected:
     std::vector<Integer> batchinv_redc(std::vector<uint64_t> const & a, Integer const & c) const;
     friend struct arithxx_details::batch_Q_to_Fp_context<layer>;

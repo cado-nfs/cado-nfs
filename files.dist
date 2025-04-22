@@ -1600,6 +1600,8 @@ utils/arithxx/modredc126.cpp
 utils/arithxx/modredc126.hpp
 utils/arithxx/modredc64.cpp
 utils/arithxx/modredc64.hpp
+utils/arithxx/modredc96.cpp
+utils/arithxx/modredc96.hpp
 utils/arithxx/u64arith.h
 utils/badideals.cpp
 utils/badideals.hpp

@@ -1,7 +1,7 @@
-#ifndef CADO_UTILS_ARITHXX_MODREDC126_HPP
-#define CADO_UTILS_ARITHXX_MODREDC126_HPP
+#ifndef CADO_UTILS_ARITHXX_MODREDC96_HPP
+#define CADO_UTILS_ARITHXX_MODREDC96_HPP
 
-/* A class for modular arithmetic with modulus in [2^64+1, 2^126-1].
+/* A class for modular arithmetic with modulus in [2^64+1, 2^96-1].
  * Moduli must be odd. Residues are stored in Montgomery form, reduction
  * after multiplication is done with REDC. */
 
@@ -24,7 +24,7 @@
 #include "arithxx_redc.hpp"
 #include "arithxx_redc128.hpp"
 
-struct arithxx_modredc126 {
+struct arithxx_modredc96 {
     class Modulus;
     class Residue;
     typedef Integer128 Integer;
@@ -38,7 +38,7 @@ struct arithxx_modredc126 {
 
     /* this gives k such that 2^k*modulus-1 <= Integer::max_value
      */
-    typedef std::integral_constant<int, 2> overflow_bits;
+    typedef std::integral_constant<int, 32> overflow_bits;
 
     typedef std::true_type uses_montgomery_representation;
 
@@ -46,16 +46,16 @@ struct arithxx_modredc126 {
 };
 
 /* okay, at this point it's a typedef, really... */
-class arithxx_modredc126::Residue
-    : public arithxx_details::Residue_base<arithxx_modredc126>
+class arithxx_modredc96::Residue
+    : public arithxx_details::Residue_base<arithxx_modredc96>
 {
     using Residue_base::Residue_base;
 };
 
-class arithxx_modredc126::Modulus
-    : public arithxx_details::redc128<arithxx_modredc126>
+class arithxx_modredc96::Modulus
+    : public arithxx_details::redc128<arithxx_modredc96>
 {
-    typedef arithxx_modredc126 layer;
+    typedef arithxx_modredc96 layer;
     friend class layer::Residue;
 
     friend struct arithxx_details::api<layer>;
@@ -76,7 +76,7 @@ class arithxx_modredc126::Modulus
     }
 
     explicit Modulus(Integer const & s)
-        : redc128(s)
+        : redc128<layer>(s)
     {
         ASSERT(valid(s));
     }
@@ -87,8 +87,6 @@ class arithxx_modredc126::Modulus
     {
         ASSERT(r.r < m);
     }
-    /* }}} */
-
   public:
 
     /* {{{ add(*2) add1 sub(*2) sub1 div2 */
@@ -171,81 +169,92 @@ class arithxx_modredc126::Modulus
     {
 #ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
         uint64_t dummy;
-        __asm__ __VOLATILE(
+        __asm__ __VOLATILE (
                 /* Product of low words */
                 "movq %[a0], %%rax\n\t"
-                "mulq %[b0]\n\t" /* rdx:rax = a0*b0 <= (2^64-1)^2 */
+                "mulq %[b0]\n\t"         /* rdx:rax = a0*b0 */
                 "movq %%rdx, %[t0]\n\t"
                 /* Compute u0*m, add to t0:rax */
                 "imulq %[invm], %%rax\n\t"
-                "movq %%rax, %[t2]\n\t" /* t2 = u0 */
+                "movq %%rax, %[t2]\n\t"  /* t2 = u0 */
                 "xorl %k[t1], %k[t1]\n\t"
-                "mulq %[m0]\n\t"        /* rdx:rax = u0*m0 <= (2^64-1)^2 */
-                "negq %%rax\n\t"        /* if low word != 0, carry to high word */
-                "movq %[t2], %%rax\n\t" /* independent, goes in pipe 0 */
+                "mulq %[m0]\n\t"         /* rdx:rax = u0*m0 <= (2^64-1)^2 */
+                "negq %%rax\n\t"         /* if low word != 0, carry to high word */
+                "movq %[t2], %%rax\n\t"  /* independent, goes in pipe 0 */
                 "adcq %%rdx, %[t0]\n\t"
-                "setc %b[t1]\n\t" /* t1:t0 = (a0*b0 + u0*m0) / 2^64 <= 2*2^64 - 4 */
-                "mulq %[m1]\n\t"
+                "setc %b[t1]\n\t"        /* t1:t0 = (a0*b0+u0*m0)/2^64 <= (2^64-1)^2/2^64 = 2*2^64-4 */
+                "mulq %[m1]\n\t"         /* rdx:rax <= (2^64-1)*(2^32-1) = 2^96-2^64-2^32+1 */
                 "addq %%rax, %[t0]\n\t"
-                "movq %[a0], %%rax\n\t" /* independent, goes in pipe 0 */
-                "adcq %%rdx, %[t1]\n\t" /* t1:t0 = (a0*b0+u0*m)/2^64 */
-                ABORT_IF_CY             /* <= 2^126 - 2^62 */
+                "movq %[a0], %%rax\n\t"  /* independent, goes in pipe 0 */
+                "adcq %%rdx, %[t1]\n\t"  /* t1:t0 = (a0*b0+u0*m)/2^64 */
+                ABORT_IF_CY              /* <= ((2^64-1)^2 + 2^160 - 2^128 - 2^96 - 1)/2^64
+                                            <= 2^96 - 2^32 - 2 */
 
                 /* 2 products of low and high word */
                 "xorl %k[t2], %k[t2]\n\t"
-                "mulq %[b1]\n\t" /* rdx:rax = a0*b1 <= (2^64-1)*(2^63-2^32-1) */
+                "mulq %[b1]\n\t"         /* rdx:rax = a0*b1 <= (2^64-1)*(2^32-1) */
                 "addq %%rax, %[t0]\n\t"
-                "movq %[a1], %%rax\n\t" /* independent, goes in pipe 0 */
-                "adcq %%rdx, %[t1]\n\t" /* t1:t0 = (a0*b0+u0*m)/2^64 + a0*b1 */
-                ABORT_IF_CY             /* <= 2^126 - 2^62 + (2^64-1)*(2^63-2^32-1)
-                                           = 2^127 + 2^126 - 2^96 ... */
-
+                "movq %[a1], %%rax\n\t"  /* independent, goes in pipe 0 */
+                "adcq %%rdx, %[t1]\n\t"  /* t1:t0 = (a0*b0+u0*m)/2^64 + a0*b1 */
+                ABORT_IF_CY              /* <= 2^96 - 2^32 - 2 + 2*(2^64-1)*(2^32-1) 
+                                            = 2*2^96 - 2^64 - 2*2^32 - 1 */
                 /* Free slot here */
-                "mulq %[b0]\n\t" /* rdx:rax = a1*b0 <= (2^63-2^32-1)*(2^64-1) */
+                "mulq %[b0]\n\t"         /* rdx:rax = a1*b0 <= (2^64-1)*(2^32-1) */
                 "addq %%rax, %[t0]\n\t"
-                "movq %[a1], %%rax\n\t" /* independent, goes in pipe 0 */
-                "adcq %%rdx, %[t1]\n\t"
-                "setc %b[t2]\n\t" /* t2:t1:t0 = (a0*b0+u0*m)/2^64 + a0*b1 + a1*b0 */
-                /* <= 2^126 - 2^62 + 2*(2^64-1)*(2^63-2^32-1)
-                   = 2^128 + 2^126 - 2*2^96 ... */
+                "movq %[a1], %%rax\n\t"  /* independent, goes in pipe 0 */
+                "adcq %%rdx, %[t1]\n\t"  /* t1:t0 = (a0*b0+u0*m)/2^64 + a0*b1 + a1*b0 */
+                ABORT_IF_CY              /* <= 2*2^96 - 2^64 - 2*2^32 - 1 + (2^64-1)*(2^32-1)
+                                            =  3*2^96 - 2*2^64 - 3*2^32 */
+                /* Free slot here */
                 /* Product of high words */
-                "mulq %[b1]\n\t" /* rdx:rax = a1*b1 <= (2^63-2^32-1)^2 */
+                "imulq %[b1], %%rax\n\t" /* rax = a1*b1 <= (2^32-1)^2 = 2^64 - 2*2^32 + 1 */
                 "addq %%rax, %[t1]\n\t"
+                "setc %b[t2]\n\t"        /* t2:t1:rax = (a0*b0+u0*m)/2^64 + a0*b1 + a1*b0 + a1*b1*2^64
+                                            <= 3*2^96 - 2*2^64 - 3*2^32 + (2^32-1)^2*2^64
+                                            = 3*2^96 - 2*2^64 - 3*2^32 + 2^128 - 2*2^96 + 2^64
+                                            = 2^128 + 2^96 - 2^64 - 3*2^32 */
                 "movq %[t0], %%rax\n\t"
-                "adcq %%rdx, %[t2]\n\t" /* t2:t1:t0 = (a*b+u0*m)/2^64 */
-                ABORT_IF_CY /* <= ((2^127-2^96-1)^2+(2^64-1)*(2^126-2^64+1))/2^64
-                               = 2^190 - 2^160 ... */
-                /* Free slot here */
                 /* Compute u1*m, add to t2:t1:t0 */
                 "imulq %[invm], %%rax\n\t"
                 "movq %%rax, %[t0]\n\t" /* t0 = u1 */
-                /* Free slot here */
-                "mulq %[m0]\n\t" /* rdx:rax = m0*u1 <= (2^64-1)^2 */
-                "negq %%rax\n\t" /* if low word != 0, carry to high word */
+                "mulq %[m0]\n\t"       /* rdx:rax = u1*m0 <= (2^64-1)^2 = 2^128 - 2*2^64 + 1 */
+                "negq %%rax\n\t"       /* if low word != 0, carry to high word */
                 "movq %[t0], %%rax\n\t"
                 "adcq %%rdx, %[t1]\n\t"
-                "adcq $0,%[t2]\n\t" /* t2:t1:0 = (a*b+u0*m)/2^64 + u1*m0 */
-                ABORT_IF_CY         /* <= 2^190 - 2^160 + 2*2^128 + 2^126 ... */
+                "adcq $0,%[t2]\n\t"    /* t2:t1:0 = (a0*b0+u0*m)/2^64 + a0*b1 + a1*b0 + a1*b1*2^64 + u1*m0 */
+                ABORT_IF_CY            /* <= 2^128 + 2^96 - 2^64 - 3*2^32 + 2^128 - 2*2^64 + 1
+                                          = 2*2^128 + 2^96 - 3*2^64 - 3*2^32 + 1 */
+                /* t2:t1 = ((a0*b0+u0*m)/2^64 + a0*b1 + a1*b0  + u1*m0)/2^64 + a1*b1
+                   <= 2*2^64 + 2^32 - 4 */
 
-                "mulq %[m1]\n\t" /* rdx:rax = u1*m1 */
+                "mulq %[m1]\n\t"       /* rdx:rax = u1*m1 <= (2^64-1)*(2^32-1) */
                 "addq %%rax, %[t1]\n\t"
-                "adcq %%rdx, %[t2]\n\t" /* t2:t1 = ((a*b+u0*m)/2^64 + u1*m)/2^64 */
-                ABORT_IF_CY             /* <= 2^127 - 2^96 - 1 */
+                "adcq %%rdx, %[t2]\n\t"/* t2:t1 = ((a0*b0+u0*m)/2^64 + a0*b1 + a1*b0 + u1*m)/2^64 + a1*b1 */
+                ABORT_IF_CY            /* <= (2^128 + 2^96 - 2^64 - 3*2^32 + 2^160 - 2^128 - 2^96 - 1)/2^64
+                                          = (2^160 - 2^64 - 3*2^32 - 1)/2^64
+                                          <= 2^96 - 2 */
 
+                /* t2:t1:0:0 = a*b + u0*m + u1*m*2^64
+                   t2:t1 <= (a*b + u0*m + u1*m*2^64) / 2^128
+                   <= (m^2 + 2^64*m + 2^64*(2^64-1)*m) / 2^128
+                   =  (m^2 + 2^64*m + (2^128-2^64)*m)/2^128
+                   =  m + (m^2)/2^128
+                   <= m + (2^96*m)/2^128
+                   <= m + m/2^32 */
                 "movq %[t1], %%rax\n\t" /* See if result > m */
                 "movq %[t2], %%rdx\n\t"
                 "subq %[m0], %[t1]\n\t"
                 "sbbq %[m1], %[t2]\n\t"
-                "cmovc %%rax, %[t1]\n\t" /* Carry -> restore old result */
+                "cmovc %%rax, %[t1]\n\t" /* No carry -> copy new result */
                 "cmovc %%rdx, %[t2]\n\t"
-                : [t0] "=&r"(dummy), [t1] "=&r"(r[0]), [t2] "=&r"(r[1])
-                : [a0] "g"(a[0]), [a1] "g"(a[1]), [b0] "rm"(b[0]),
-                [b1] "rm"(b[1]), [m0] "rm"(m[0]), [m1] "rm"(m[1]),
-                [invm] "rm"(invm)
-                   : "%rax", "%rdx", "cc");
+                : [t0] "=&r" (dummy), [t1] "=&r" (r[0]), [t2] "=&r" (r[1])
+                : [a0] "rme" (a[0]), [a1] "rme" (a[1]), [b0] "rm" (b[0]), [b1] "rm" (b[1]),
+                [m0] "rm" (m[0]), [m1] "rm" (m[1]), [invm] "rm" (invm)
+                   : "%rax", "%rdx", "cc"
+                       );
 #else /* HAVE_GCC_STYLE_AMD64_INLINE_ASM */
         auto const & me = downcast();
-        uint64_t pl, ph, t[3];
+        uint64_t pl, ph, t[4];
 
         /* m < 1/4 W^2,  a,b < m */
 
@@ -256,22 +265,25 @@ class arithxx_modredc126::Modulus
         me.redc1(t, t); /* t < 2m < 1/2 W^2 */
 
         /* Products of one low and one high word  */
-        u64arith_mul_1_1_2(&pl, &ph, a[1], b[0]); /* ph:pl < 1/4 W^2 */
-        u64arith_add_2_2(&(t[0]), &(t[1]), pl, ph);   /* t1:t0 < 3/4 W^2 */
-        u64arith_mul_1_1_2(&pl, &ph, a[0], b[1]); /* ph:pl < 1/4 W^2 */
-        u64arith_add_2_2(&(t[0]), &(t[1]), pl, ph);   /* t1:t0 < W^2 */
+        u64arith_mul_1_1_2(&pl, &ph, a[1], b[0]);   // ph:pl <= w^3-w^2-w+1
+        u64arith_add_2_2(&(t[0]), &(t[1]), pl, ph); // t2:t1 <= 2w^3-2w-2
+        u64arith_mul_1_1_2(&pl, &ph, a[0], b[1]);   // ph:pl <= w^3-w^2-w+1
+        u64arith_add_2_2(&(t[0]), &(t[1]), pl, ph); // t2:t1 <= 3w^3-w^2-3w-1
+
 
         /* Product of the two high words */
-        u64arith_mul_1_1_2(&pl, &(t[2]), a[1], b[1]); /* t2:pl < 1/16 W^2 */
-        u64arith_add_1_2(&(t[1]), &(t[2]), pl); /* t2:t1:t0 < 1/16 W^3 + W^2 */
+        t[2] = 0;
+        pl = a[1] * b[1];                       // pl <= (w-1)^2 = w^2-2w1
+        u64arith_add_1_2(&(t[1]), &(t[2]), pl); // t2:t1:t0 < w^4+w^3-3w 
 
         /* Compute t2:t1:t0 := t2:t1:t0 + km, km < Wm < 1/4 W^3 */
+        // I think it's in fact a redc1, isn't it?
         me.redc1_wide_inplace(t);
         r[0] = t[1];
         r[1] = t[2];
 
         /* Result may be larger than m, but is < 2*m */
-        u64arith_sub_2_2_ge(&(r[0]), &(r[1]), m[0], m[1]);
+        u64arith_sub_2_2_ge(r.data(), r.data() + 1, m[0], m[1]);
 #endif
     }
     void mul(Residue & r, const Residue & a, const Integer & b) const
@@ -292,10 +304,10 @@ class arithxx_modredc126::Modulus
     {
 #ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
 
-        /* m <= 2^126-1
+        /* m <= 2^96-1
            Since m1>0, m*u is maximal for m0=1 and u=2^64-1, so
-           u*m is bounded by (2^126 - 2^64 + 1)*(2^64 - 1) =
-           2^190 - 2^128 - 2^126 + 2*2^64 - 1.
+           u*m is bounded by (2^96 - 2^64 + 1)*(2^64 - 1) =
+           2^190 - 2^128 - 2^96 + 2*2^64 - 1.
            If a,b <= 2^127-2^96-1, then
            ((a*b+u0*m)/2^64 + u1*m)/2^64 <=  2^127-2^96-1
            If we allow non-canonical residues up to 2^127-2^96-1, we can skip
@@ -306,61 +318,71 @@ class arithxx_modredc126::Modulus
         __asm__ __VOLATILE(
                 /* Product of low words */
                 "movq %[a0], %%rax\n\t"
-                "mulq %[a0]\n\t" /* rdx:rax = a0^2 <= (2^64-1)^2 */
+                "mulq %%rax\n\t"         /* rdx:rax = a0*a0 */
                 "movq %%rdx, %[t0]\n\t"
                 /* Compute u0*m, add to t0:rax */
                 "imulq %[invm], %%rax\n\t"
-                "movq %%rax, %[t2]\n\t" /* t2 = u0 */
+                "movq %%rax, %[t2]\n\t"  /* t2 = u0 */
                 "xorl %k[t1], %k[t1]\n\t"
-                "mulq %[m0]\n\t"        /* rdx:rax = u0*m0 <= (2^64-1)^2 */
-                "negq %%rax\n\t"        /* if low word != 0, carry to high word */
-                "movq %[t2], %%rax\n\t" /* independent, goes in pipe 0 */
+                "mulq %[m0]\n\t"         /* rdx:rax = u0*m0 <= (2^64-1)^2 */
+                "negq %%rax\n\t"         /* if low word != 0, carry to high word */
+                "movq %[t2], %%rax\n\t"  /* independent, goes in pipe 0 */
                 "adcq %%rdx, %[t0]\n\t"
-                "setc %b[t1]\n\t" /* t1:t0 = (a0^2 + u0*m0) / 2^64 <= 2*2^64 - 4 */
-                "mulq %[m1]\n\t"
+                "setc %b[t1]\n\t"        /* t1:t0 = (a0*a0+u0*m0)/2^64 <= (2^64-1)^2/2^64 = 2*2^64-4 */
+                "mulq %[m1]\n\t"         /* rdx:rax <= (2^64-1)*(2^32-1) = 2^96-2^64-2^32+1 */
                 "addq %%rax, %[t0]\n\t"
-                "movq %[a0], %%rax\n\t" /* independent, goes in pipe 0 */
-                "adcq %%rdx, %[t1]\n\t" /* t1:t0 = (a0^2+u0*m)/2^64 */
-                ABORT_IF_CY             /* <= 2^126 - 2^62 */
+                "movq %[a0], %%rax\n\t"  /* independent, goes in pipe 0 */
+                "adcq %%rdx, %[t1]\n\t"  /* t0:t1 = (a0*a0+u0*m)/2^64 */
+                ABORT_IF_CY              /* <= ((2^64-1)^2 + 2^160 - 2^96 - 2^128 - 1)/2^64
+                                            <= 2^96 - 2^32 - 2 */
 
-                /* 2 products of low and high word */
+                /* Product of low and high word */
                 "xorl %k[t2], %k[t2]\n\t"
-                "mulq %[a1]\n\t" /* rdx:rax = a0*a1 <= (2^64-1)*(2^63-2^32-1) */
+                "mulq %[a1]\n\t"         /* rdx:rax = a0*a1 <= (2^64-1)*(2^32-1) */
+                "shlq $1,%%rax\n\t"
+                "rclq $1,%%rdx\n\t"
+                ABORT_IF_CY
                 "addq %%rax, %[t0]\n\t"
-                "adcq %%rdx, %[t1]\n\t" /* t1:t0 = (a0^2+u0*m)/2^64 + a0*a1 */
-                ABORT_IF_CY             /* <= 2^126 - 2^62 + (2^64-1)*(2^63-2^32-1)
-                                           = 2^127 + 2^126 - 2^96 ... */
-                "addq %%rax, %[t0]\n\t"
-                "adcq %%rdx, %[t1]\n\t"
-                "movq %[a1], %%rax\n\t" /* independent, goes in pipe 0 */
-                "setc %b[t2]\n\t"       /* t2:t1:t0 = (a0*a0+u0*m)/2^64 + 2*a0*a1 */
-                /* <= 2^126 - 2^62 + 2*(2^64-1)*(2^63-2^32-1)
-                   = 2^128 + 2^126 - 2*2^96 ... */
-
-                /* Product of high words */
-                "mulq %[a1]\n\t" /* rdx:rax = a1^2 <= (2^63-2^32-1)^2 */
-                "addq %%rax, %[t1]\n\t"
-                "movq %[t0], %%rax\n\t"
-                "adcq %%rdx, %[t2]\n\t" /* t2:t1:t0 = (a^2+u0*m)/2^64 */
-                ABORT_IF_CY /* <= ((2^127-2^96-1)^2+(2^64-1)*(2^126-2^64+1))/2^64
-                               = 2^190 - 2^160 ... */
+                "adcq %%rdx, %[t1]\n\t"  /* t1:t0 = (a0*a0+u0*m)/2^64 + 2*a0*a1 */
+                ABORT_IF_CY              /* <= 2^96 - 2^32 - 2 + 2*(2^64-1)*(2^32-1)
+                                            =  3*2^96 - 2*2^64 - 3*2^32 */
+                "movq %[a1], %%rax\n\t"  /* independent, goes in pipe 0 */
                 /* Free slot here */
+                /* Product of high words */
+                "imulq %%rax, %%rax\n\t" /* rax = a1*a1 <= (2^32-1)^2 = 2^64 - 2*2^32 + 1 */
+                "addq %%rax, %[t1]\n\t"
+                "setc %b[t2]\n\t"        /* t2:t1:rax = (a0*a0+u0*m)/2^64 + 2*a0*a1 + a1*a1*2^64
+                                            <= 3*2^96 - 2*2^64 - 3*2^32 + (2^32-1)^2*2^64
+                                            = 3*2^96 - 2*2^64 - 3*2^32 + 2^128 - 2*2^96 + 2^64
+                                            = 2^128 + 2^96 - 2^64 - 3*2^32 */
+                "movq %[t0], %%rax\n\t"
                 /* Compute u1*m, add to t2:t1:t0 */
                 "imulq %[invm], %%rax\n\t"
                 "movq %%rax, %[t0]\n\t" /* t0 = u1 */
-                /* Free slot here */
-                "mulq %[m0]\n\t" /* rdx:rax = m0*u1 <= (2^64-1)^2 */
-                "negq %%rax\n\t" /* if low word != 0, carry to high word */
+                "mulq %[m0]\n\t"       /* rdx:rax = u1*m0 <= (2^64-1)^2 = 2^128 - 2*2^64 + 1 */
+                "negq %%rax\n\t"       /* if low word != 0, carry to high word */
                 "movq %[t0], %%rax\n\t"
                 "adcq %%rdx, %[t1]\n\t"
-                "adcq $0,%[t2]\n\t" /* t2:t1:0 = (a*a+u0*m)/2^64 + u1*m0 */
-                ABORT_IF_CY         /* <= 2^190 - 2^160 + 2*2^128 + 2^126 ... */
+                "adcq $0,%[t2]\n\t"    /* t2:t1:0 = (a0*a0+u0*m)/2^64 + 2*a0*a1 + a1*a1*2^64 + u1*m0 */
+                ABORT_IF_CY            /* <= 2^128 + 2^96 - 2^64 - 3*2^32 + 2^128 - 2*2^64 + 1
+                                          = 2*2^128 + 2^96 - 3*2^64 - 3*2^32 + 1 */
+                /* t2:t1 = ((a0*a0+u*m)/2^64 + a0*a1 + a1*a0  + u*m0)/2^64 + a1*a1
+                   <= 2*2^64 + 2^32 - 4 */
 
-                "mulq %[m1]\n\t" /* rdx:rax = u1*m1 */
+                "mulq %[m1]\n\t"       /* rdx:rax = u1*m1 <= (2^64-1)*(2^32-1) */
                 "addq %%rax, %[t1]\n\t"
-                "adcq %%rdx, %[t2]\n\t" /* t2:t1 = ((a*a+u0*m)/2^64 + u1*m)/2^64 */
-                ABORT_IF_CY             /* <= 2^127 - 2^96 - 1 */
+                "adcq %%rdx, %[t2]\n\t"/* t2:t1 = ((a0*a0+u0*m)/2^64 + 2*a0*a1 + u1*m)/2^64 + a1*a1 */
+                ABORT_IF_CY            /* <= (2^128 + 2^96 - 2^64 - 3*2^32 + 2^160 - 2^128 - 2^96 - 1)/2^64
+                                          = (2^160 - 2^64 - 3*2^32 - 1)/2^64
+                                          <= 2^96 - 2 */
 
+                /* t2:t1:0:0 = a*b + u0*m + u1*m*2^64
+                   t2:t1 <= (a*b + u0*m + u1*m*2^64) / 2^128
+                   <= (m^2 + 2^64*m + 2^64*(2^64-1)*m)/2^128
+                   =  (m^2 + 2^64*m + (2^128-2^64)*m)/2^128
+                   =  m + (m^2)/2^128
+                   <= m + (2^96*m)/2^128
+                   <= m + m/2^32 */
                 "movq %[t1], %%rax\n\t" /* See if result > m */
                 "movq %[t2], %%rdx\n\t"
                 "subq %[m0], %[t1]\n\t"
@@ -389,8 +411,9 @@ class arithxx_modredc126::Modulus
         u64arith_add_2_2(&(t[0]), &(t[1]), pl, ph);   /* t1:t0 < W^2 */
 
         /* Square of high word */
-        u64arith_mul_1_1_2(&pl, &(t[2]), a.r[1], a.r[1]); /* t2:pl < 1/16 W^2 */
-        u64arith_add_1_2(&(t[1]), &(t[2]), pl); /* t2:t1:t0 < 1/16 W^3 + W^2 */
+        t[2] = 0;
+        pl = a.r[1] * a.r[1];
+        u64arith_add_1_2(&(t[1]), &(t[2]), pl);
 
         /* Compute t2:t1:t0 := t2:t1:t0 + km, km < Wm < 1/4 W^3 */
         me.redc1_wide_inplace(t);
@@ -406,4 +429,4 @@ class arithxx_modredc126::Modulus
 #undef ABORT_IF_CY
 };
 
-#endif /* CADO_UTILS_ARITHXX_MODREDC126_HPP */
+#endif /* CADO_UTILS_ARITHXX_MODREDC96_HPP */
