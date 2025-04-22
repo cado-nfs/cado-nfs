@@ -7,13 +7,6 @@
 #include "arithxx_common.hpp"
 #include "macros.h"
 
-namespace arithxx_details {
-
-template<typename layer>
-struct redc;
-}
-
-
 template<typename layer>
 struct arithxx_details::redc
 : public api_bysize<layer>
@@ -127,6 +120,18 @@ struct arithxx_details::redc
         me.sub(r, a, me.one);
     }
     /* }}} */
+
+    public:
+
+    /* compute num/den/2^k mod p[i] for all i. den must be odd. p[i] must
+     * be odd (unless k=0, in which case even moduli are ok).
+     *
+     * This uses the modulus layer only under the hood, and relies on the
+     * fact that den is an acceptable modulus.
+     */
+    static std::vector<uint64_t> batch_Q_to_Fp(Integer const & num,
+            Integer const & den, int k,
+            std::vector<uint64_t> const & p);
 };
 
 

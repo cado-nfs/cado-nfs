@@ -15,6 +15,8 @@
  * we're using it, in fact we are!  */
 #include "arithxx_api_impl.hpp"      // IWYU pragma: keep
 #include "arithxx_api64_impl.hpp"  // IWYU pragma: keep
+#include "arithxx_redc_impl.hpp"  // IWYU pragma: keep
+#include "arithxx_batch_Q_to_Fp_impl.hpp"  // IWYU pragma: keep
 
 // scan-headers: stop here
 
@@ -317,6 +319,7 @@ arithxx_modredc64::Modulus::batchinv_redc(std::vector<uint64_t> const & a, Integ
     return r;
 }
 
+#if 0
 /* Let v = lo + 2^64 * hi and
    subtrahend = subtrahend_lo + subtrahend_hi * 2^64.
    Return 1 if (v - subtrahend) / divisor is a non-negative integer less than
@@ -339,44 +342,16 @@ MAYBE_UNUSED static inline int check_divisible(uint64_t const lo,
     u64arith_divqr_2_1_1(&q, &r, diff_lo, diff_hi, divisor);
     return r == 0;
 }
+#endif
 
-arithxx_modredc64::Modulus::batch_Q_to_Fp_context::batch_Q_to_Fp_context(
-        Integer const & num, Integer const & den)
-    : remainder(num[0] % den[0])
-    , quotient(num[0] / den[0])
-    , D(den)
-{
-}
+template<>
+arithxx_details::batch_Q_to_Fp_context<arithxx_modredc64>::batch_Q_to_Fp_context(Integer const & num, Integer const & den)
+        : remainder(num[0] % den[0])
+        , quotient(num[0] / den[0])
+        , D(den)
+    { }
 
-std::vector<uint64_t> arithxx_modredc64::Modulus::batch_Q_to_Fp_context::operator()(std::vector<uint64_t> const & p, int const k) const
-{
-    /* We use -rem (mod den) here. batchinv_ul() does not
-       mandate its c parameter to be fully reduced, which occurs here in the
-       case of rem == 0. */
-    auto r = D.batchinv_redc(p, Integer(D.m[0] - remainder[0]));
-    if (r.empty())
-        return {};
-
-    std::vector<uint64_t> ri(p.size());
-
-    for (size_t i = 0; i < p.size(); i++)
-        ri[i] = u64arith_post_process_inverse(r[i][0], p[i],
-                remainder[0], -D.invm, quotient[0], k);
-
-    return ri;
-}
-
-/* For each 0 <= i < n, compute r[i] = num/(den*2^k) mod p[i].
-   den must be odd. If k > 0, then all p[i] must be odd.
-   The memory pointed to be r and p must be non-overlapping.
-   Returns 1 if successful. If any modular inverse does not exist,
-   returns 0 and the contents of r are undefined. */
-std::vector<uint64_t> arithxx_modredc64::Modulus::batch_Q_to_Fp(Integer const & num,
-                            Integer const & den, int const k,
-                            std::vector<uint64_t> const & p)
-{
-    return batch_Q_to_Fp_context(num, den)(p, k);
-}
-
+template struct arithxx_details::batch_Q_to_Fp_context<arithxx_modredc64>;
+template struct arithxx_details::redc<arithxx_modredc64>;
 template struct arithxx_details::api<arithxx_modredc64>;
 template struct arithxx_details::api_bysize<arithxx_modredc64>;

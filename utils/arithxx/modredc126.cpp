@@ -3,12 +3,9 @@
 #include <cstdint>
 #include <cstdlib> // for abort
 
-#include <array>
 #include <vector>
 
-#include "macros.h"
 #include "modredc126.hpp"
-#include "u64arith.h"
 
 #include "arithxx_common.hpp"
 
@@ -17,6 +14,8 @@
  * we're using it, in fact we are!  */
 #include "arithxx_api_impl.hpp"      // IWYU pragma: keep
 #include "arithxx_api128_impl.hpp"  // IWYU pragma: keep
+#include "arithxx_redc_impl.hpp"  // IWYU pragma: keep
+#include "arithxx_batch_Q_to_Fp_impl.hpp"  // IWYU pragma: keep
 
 #include "arithxx_redc128.hpp"
 
@@ -136,49 +135,7 @@ std::vector<arithxx_modredc126::Integer> arithxx_modredc126::Modulus::batchinv_r
     return r;
 }
 
-arithxx_modredc126::Modulus::batch_Q_to_Fp_context::batch_Q_to_Fp_context(
-        Integer const & num,
-        Integer const & den)
-    : remainder(num % den)
-    , quotient((num - remainder).divexact(den))
-    , D(den)
-{
-    ASSERT_ALWAYS(quotient.size_in_words() <= 1);
-}
-
-
-std::vector<uint64_t>
-arithxx_modredc126::Modulus::batch_Q_to_Fp_context::operator()(
-        std::vector<uint64_t> const & p, int k) const
-{
-    auto r = D.batchinv_redc(p, Integer(D.m) - remainder);
-    if (r.empty())
-        return {};
-
-    std::vector<uint64_t> ri(p.size());
-
-    /* It's a bit weird. den==D.m takes two words, but we're apparently
-     * happy with one-word arithmetic.
-     */
-    for (size_t i = 0; i < p.size(); i++)
-        ri[i] = u64arith_post_process_inverse(r[i][0], p[i],
-                remainder[0], -D.invm, quotient[0], k);
-
-    /* We used to have a "neg" flag as well. */
-    return ri;
-}
-
-/* For each 0 <= i < n, compute r[i] = num/(den*2^k) mod p[i].
-   den must be odd. If k > 0, then all p[i] must be odd.
-   The memory pointed to be r and p must be non-overlapping.
-   Returns 1 if successful. If any modular inverse does not exist,
-   returns 0 and the contents of r are undefined. */
-std::vector<uint64_t> arithxx_modredc126::Modulus::batch_Q_to_Fp(Integer const & num,
-                            Integer const & den, int const k,
-                            std::vector<uint64_t> const & p)
-{
-    return batch_Q_to_Fp_context(num, den)(p, k);
-}
-
+template struct arithxx_details::batch_Q_to_Fp_context<arithxx_modredc126>;
+template struct arithxx_details::redc<arithxx_modredc126>;
 template struct arithxx_details::api<arithxx_modredc126>;
 template struct arithxx_details::api_bysize<arithxx_modredc126>;

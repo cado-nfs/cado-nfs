@@ -199,27 +199,7 @@ class arithxx_modredc64::Modulus
     // return c/a[i] mod N, or an empty vector if one of the a[i] is not
     // invertible
     std::vector<Integer> batchinv_redc(std::vector<uint64_t> const & a, Integer c) const;
-
-    public:
-
-    /* compute num/den/2^k mod p[i] for all i. den must be odd. p[i] must
-     * be odd (unless k=0, in which case even moduli are ok).
-     *
-     * This uses the modulus layer only under the hood, and relies on the
-     * fact that den is an acceptable modulus.
-     */
-    static std::vector<uint64_t> batch_Q_to_Fp(Integer const & num,
-            Integer const & den, int k,
-            std::vector<uint64_t> const & p);
-
-    struct batch_Q_to_Fp_context;
-};
-
-struct arithxx_modredc64::Modulus::batch_Q_to_Fp_context {
-    Integer remainder, quotient;
-    Modulus D;
-    batch_Q_to_Fp_context(Integer const & num, Integer const & den);
-    std::vector<uint64_t> operator()(std::vector<uint64_t> const & p, int k=0) const;
+    friend struct arithxx_details::batch_Q_to_Fp_context<layer>;
 };
 
 #endif /* CADO_UTILS_ARITHXX_MODREDC64_HPP */

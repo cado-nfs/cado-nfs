@@ -537,19 +537,7 @@ class arithxx_modredc126::Modulus
 
   private:
     std::vector<Integer> batchinv_redc(std::vector<uint64_t> const & a, Integer c) const;
-
-  public:
-    static std::vector<uint64_t> batch_Q_to_Fp(Integer const & num,
-            Integer const & den, int k,
-            std::vector<uint64_t> const & p);
-    struct batch_Q_to_Fp_context;
-};
-
-struct arithxx_modredc126::Modulus::batch_Q_to_Fp_context {
-    Integer remainder, quotient;
-    Modulus D;
-    batch_Q_to_Fp_context(Integer const & num, Integer const & den);
-    std::vector<uint64_t> operator()(std::vector<uint64_t> const & p, int k=0) const;
+    friend struct arithxx_details::batch_Q_to_Fp_context<layer>;
 };
 
 #endif /* CADO_UTILS_ARITHXX_MODREDC126_HPP */

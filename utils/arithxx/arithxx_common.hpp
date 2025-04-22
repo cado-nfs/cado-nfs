@@ -41,6 +41,14 @@ namespace arithxx_details {
         : public std::integral_constant<bool,
             layer::overflow_bits::value == INT_MAX ||
             (n >> layer::overflow_bits::value == 0)> {};
+
+    template<typename layer>
+        struct redc;
+
+    template<typename layer>
+        struct batch_Q_to_Fp_context;
 }
+
+
 
 #endif /* UTILS_ARITHXX_COMMON_HPP_ */
