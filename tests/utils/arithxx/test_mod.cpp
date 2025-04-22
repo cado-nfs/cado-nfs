@@ -16,6 +16,7 @@
 #include "arithxx/mod_mpz_new.hpp"
 #include "arithxx/modint.hpp"
 #include "arithxx/modredc126.hpp"
+#include "arithxx/modredc96.hpp"
 #include "arithxx/modredc64.hpp"
 #include "cxx_mpz.hpp"
 #include "macros.h"
@@ -62,7 +63,7 @@ template <> Integer64 randomInteger<Integer64>()
 
 template <> Integer128 randomInteger<Integer128>()
 {
-    return Integer128(u64_random(state), u64_random(state));
+    return { u64_random(state), u64_random(state) };
 }
 
 template <> cxx_mpz randomInteger<cxx_mpz>()
@@ -73,6 +74,7 @@ template <> cxx_mpz randomInteger<cxx_mpz>()
         randomWords[i] = u64_random(state);
     return {randomWords, len};
 }
+
 
 template <class layer> class Tests
 {
@@ -317,7 +319,7 @@ template <class layer> class Tests
         Residue rb(m);
         m.mul(rb, r, _b);
         if (!m.equal(a, rb)) {
-            Integer const mi = m.getmod();
+            Integer const & mi = m.getmod();
             Integer const ai = m.get(a);
             Integer const ri = m.get(r);
             std::cerr << tname<layer>() << "::div" << b << "(" << ai
@@ -710,7 +712,7 @@ template <class layer> class Tests
         Modulus const m = randomModulus();
         ok &= test_one_inv(Integer(0), m);
         ok &= test_one_inv(Integer(1), m);
-        Integer const a = m.getmod();
+        Integer const & a = m.getmod();
         ASSERT_ALWAYS(a > 0);
         ok &= test_one_inv(a - 1, m);
 
@@ -874,7 +876,7 @@ template <class layer> class Tests
         unsigned long spin = 0;
         for (unsigned long i_test = 0; ok && i_test < iter + spin; i_test++) {
             Integer const num = randomInteger<Integer>();
-            Integer const den = randomInteger<Integer>() | 1;
+            Integer const den = randomModulus(true).getmod();
             if (!Modulus::valid(den)) {
                 spin++;
                 continue;
@@ -1009,6 +1011,15 @@ Tests<arithxx_modredc64>::randomModulus(bool const odd MAYBE_UNUSED) const
 }
 
 template <>
+arithxx_modredc96::Modulus
+Tests<arithxx_modredc96>::randomModulus(bool const odd MAYBE_UNUSED) const
+{
+    Integer128 const m(u64_random(state) | 1,
+                       u64_random(state) & (UINT64_MAX >> 32));
+    return Modulus(m);
+}
+
+template <>
 arithxx_modredc126::Modulus
 Tests<arithxx_modredc126>::randomModulus(bool const odd MAYBE_UNUSED) const
 {
@@ -1040,6 +1051,9 @@ int main(int argc, char const * argv[])
 
     Tests<arithxx_modredc64> const test2;
     ok &= test2.runTests(iter);
+
+    Tests<arithxx_modredc96> const test3a;
+    ok &= test3a.runTests(iter);
 
     Tests<arithxx_modredc126> const test3;
     ok &= test3.runTests(iter);

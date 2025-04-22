@@ -53,10 +53,10 @@
 #include "gf2x.h"
 #include "gf2x/gf2x-config-export.h"
 #include "gf2x/gf2x-thresholds.h"       /* GF2X_WORDSIZE */
-#include "gf2x-fft.h"
 
+/* 64 may also be used */
 #ifndef GF2X_CANTOR_BASE_FIELD_SIZE
-#error "GF2X_CANTOR_BASE_FIELD_SIZE must be defined"
+#define GF2X_CANTOR_BASE_FIELD_SIZE 128
 #endif
 
 #ifndef GF2X_WORDSIZE

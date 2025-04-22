@@ -330,37 +330,45 @@ void siever_config_pool::parse_hints_file(const char * filename)/*{{{*/
             exit(EXIT_FAILURE);
         }
         
-        for(int s = 0 ; s < 2 ; s++) {
+        for(auto & S : sc.sides) {
             for( ; *x && isspace(*x) ; x++) ;
             z = strtoul(x, &x, 10); ASSERT_ALWAYS(z > 0);
-            sc.sides[s].lim = z;
+            S.lim = z;
             for( ; *x && !isdigit(*x) ; x++) ;
             z = strtoul(x, &x, 10); ASSERT_ALWAYS(z > 0);
-            sc.sides[s].lpb = z;
+            S.lpb = z;
             /* recognize this as a double. If it's < 10, we'll consider
              * this means lambda */
             {
                 for( ; *x && !isdigit(*x) ; x++) ;
                 double const t = strtod(x, &x); ASSERT_ALWAYS(t > 0);
                 if (t < 10) {
-                    sc.sides[s].lambda = t;
-                    sc.sides[s].mfb = t * sc.sides[s].lpb;
+                    S.lambda = t;
+                    S.mfb = t * S.lpb;
                     /* Then no "lambda" is allowed */
                     continue;
                 } else {
-                    sc.sides[s].mfb = t;
+                    S.mfb = t;
                 }
             }
             if (*x == ',') {
                 for( ; *x && !isdigit(*x) ; x++) ;
                 t = strtod(x, &x); ASSERT_ALWAYS(t > 0);
-                sc.sides[s].lambda = t;
+                S.lambda = t;
             } else {
                 /* this means "automatic" */
-                sc.sides[s].lambda = 0;
+                S.lambda = 0;
             }
         }
-        for( ; *x ; x++) ASSERT_ALWAYS(isspace(*x));
+        for( ; *x ; x++) {
+            if (*x == '#')
+                break;
+            if (!isspace(*x)) {
+                fprintf(stderr, "Error: found leftover data in hint file while reading line %d@%d (note that the polynomial file has %zu sides). Leftover text is %s\n", bitsize, side, sc.sides.size(), x);
+                exit(EXIT_FAILURE);
+            }
+        }
+
 
         key_type const K(side, bitsize);
 

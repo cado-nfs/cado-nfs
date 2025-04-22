@@ -1,3 +1,5 @@
+# The arithxx layer
+
 This modular arithmetic layer reimplements some stuff from
 [../arith](../arith).
 
@@ -9,11 +11,11 @@ We have the following implementations.
 
  - [`modredc64.hpp`](modredc64.hpp) ; same, with redc
 
- - [`modredc126.hpp`](modredc126.hpp) ; two 64-bit integers minus two bits.
+ - [`modredc96.hpp`](modredc96.hpp) ; 1.5 words, with redc
+
+ - [`modredc126.hpp`](modredc126.hpp) ; two 64-bit integers minus two bits, with redc
 
  - [`mod_mpz_new.hpp`](mod_mpz_new.hpp) ; an mpz-based type.
-
-Note that **we do not have code for 96-bit moduli at this point**.
 
 Implementations are both inlines in the `.hpp` files, and code in the
 `.cpp` files.
@@ -32,108 +34,91 @@ template class, which can be used to get nice operator overloads. Note
 that this does not provide copy-less compound operations.
 
 
-TODO:
- - We need a 1.5 word layer, so that we can eventually get rid of the C
-   interface.
-
 # compatibility map between the arith and arithxx interfaces
 
-## the `mod_int*` interfaces
+see [`compatibility_arith_arithxx.md`](compatibility_arith_arithxx.md)
 
-These concern the plain integers, not in any transformed form.
+# Internal structure of arithxx
 
-All of these are trivially handled by the `Integer_base` base class, or
-by boilerplate ctors. Note that this also works with `cxx_mpz`'s. Names
-are not exactly as below, though.
- - `init`, `clear`: -> ctor and dtor
- - `set`, `set_ul`, `set_uls`: -> ctors (copy, (`uint64_t`), (ptr+len))
- - `get_ul`, `get_uls`, `get_double`: -> explicit operators
- - `equal`, `equal_ul`, `cmp`, `cmp_ul`, `cmp_uint64`: -> comparisons
- - `fits_ul`: -> `fits_uint64_t`
+The `mod_mpz_new` differs a lot from the rest, and it's best if you don't
+look into it just yet. And in fact, this layer is so cumbersome that it
+might be reimplemented differently at some point.
 
-These are fairly easy too.
- - `add`, `sub`: operators.
- - `mod`, `divexact`: `operator%` and `divexact.
- - `bits`: same name. This returns bit length - ctz, aka sizeinbase(2)
+The primary citizes are `mod64`, `modredc64`, `modredc96`, and
+`modredc126`.
 
+All layers define three types: the `Integer` type, the `Residue` type,
+and the `Modulus` type.
 
-## the ```mod_*mod``` interfaces
+The `Integer` type is a fixed size integer, stored in a constant-size
+array of 64-bit words, that is wide enough to store the modulus.
 
-A `Modulus` type holds an `Integer` type, and we of course have
-ctor/dtor/conversion operations. Really nothing fancy here. Everything is
-pretty much covered by the existing code.
+The `Residue` type is really just an `Integer` in disguise. We use it in
+order to provide distinct overloads. Note that by design, in order to
+deal with a Residue (e.g. if you want to construct such an object), you
+must have a Modulus around.
 
- - `initmod_ul` `initmod_int`: -> ctor
- - `clearmod`: -> dtor
- - `getmod_ul` `getmod_int`: -> `getmod()`. There's no direct equivalent
-   of `getmod_ul`, but it's probably not much of an issue.
+The `Modulus` type is where all the stuff happens.
 
-## the residue interfaces.
+The `Modulus` type is implemented via the CRTP (Curiously recurring
+template pattern) technique. A `Modulus` actually inherits from a
+hierarchy of parent classes, parameterized by the layer class, and which
+are all allowed to downcast to the modulus class. This is made so that
+each of them can handle a specific subset of the functionalities,
+possibly overriding default values.
 
-### First, the various trivialities.
- - `init`, `init_noset0`, `clear`, `swap`: -> ctor/dtor
- - `set`, `set_ul`, `set_ul_reduced`, `set_int`, `set_int_reduced`: ->
-   the `mod.set` and `mod.set_reduced` interfaces do this.
- - `get_ul`, `get_int`: -> `mod.get(r)` (takes a `Residue`, returns an
-   `Integer`)
- - `set0`, `set1`: -> same name.
-Note that arithxx includes several other means to create a residue, such
-as `operator()`.
+In order, the possible base classes are:
+ - [`api<layer>`](arithxx_api.hpp). This implements the main modulus
+   constructor, and in particular the `m` data field. Some set/get
+   functions are implemented, as well as others that do things like
+   divisions by constant integers. All of them have access to
+   compile-time information about the modulus. *Default* implementations
+   for these methods are in
+   [`arithxx_api_impl.hpp`](arithxx_api_impl.hpp)
+ - `api_bysize<layer`, which exists as two (partial) specializations
+   [`arithxx_api_bysize<*, Integer64>`](arithxx_api64.hpp) and
+   [`arithxx_api_bysize<*, Integer128>`](arithxx_api128.hpp). There's
+   very little code for these classes. In a sense, most of what could go
+   here could also, and perhaps better, go to the `Integer` classes, the
+   `api` layer, or maybe one of the `redc` layers if applicable. For the
+   moment there is still a specific implementation of inversion for two
+   machine words in [`arithxx_api128_impl.hpp`](arithxx_api128_impl.hpp),
+   and that's it.
+ - [`redc<layer>`](arithxx_redc.hpp). This is of course very important to
+   redc implementations. This defines the specific data fields of moduli
+   classes that use redc, in particular a `Residue` representation of one
+   is stored. Some set/get functions are there, and they overload some of
+   the ones that exist in `api<layer>`.
+ - [`redc64<layer>`](arithxx_redc64.hpp) and
+   [`redc128<layer>`](arithxx_redc128.hpp). These contain actual
+   (possibly assembly, for instance) code that implement the redc
+   routine, for a given layer. The key functions are `redc1` and
+   `unredc1`, and overloads such as `frommontgomery` and `tomontgomery`
+   are defined from these.
 
-### Comparisons.
-
-We don't have full-fledged comparisons of `Residue` types.
-The existing interface only works via the `Modulus` member functions, and
-only does the following comparisons. Under the hood, these could all be
-done on the `Residue` types alone.
- - `equal`, `is0`, `is1`: -> `mod.{equal,is0,is1}`
-
-### Addition/subtractions:
- - `add`, `add_ul`, `sub`, `sub_ul`, `neg`: -> `mod.{neg,add,sub}`
- - `add1`, `sub1`: -> `mod.{add1,sub1}`
-
-### Mul/square.
-
-These are of course speed critical, most (all?) interfaces
-have these coded right in the header file.
- - `mul`, `sqr`: -> same name
-
-### Divisions by constants.
- - `div2`, `div3`, `div5`, `div7`, `div11`, `div13`: -> same name
-
-### Powers.
- - `pow_ul`, `2pow_ul`, `pow_mp`, `2pow_mp`: -> `pow`
-
-### Primality tests:
- - `sprp`, `sprp2`, `isprime`: -> `is_strong_pseudoprime_base2` and
-   `is_prime`. We also have `is_strong_lucas_pseudoprime`.
-
-### Inversion / Euclidean algorithm
- - `inv`, `gcd`, `jacobi`: -> same name
-
-### Iteration support
-
- - `next`, `finished`: the only use in our code base was not with the
-   abstract interface but rather with modul_next and modul_finished
-   directly.  The interface was clumsy isn't that of an iterator, and
-   there's no test. -> **interface dropped**.
-
-### batch inversion
- - `batchinv`: -> same name
- - `batch_Q_to_Fp` and `batch_Q_to_Fp_context`. These correspond to dead
-   code in `las-fill-in-buckets.cpp`, meant to compute rational roots in
-   batches. It got commented out at some point. The backend code is now
-   tested again, but not put in production.
-
-### I/O
- - `fprintf`, `printf`: -> all under the umbrella of libfmt overloads,
-   now.
-
-### Lucas sequences
- - `V`, `V_dadd`, `V_dbl`: TODO (Test)
+A final `Modulus` class may inherit from these, **starting from the last
+one that is relevant**. E.g. it's probably either `api_bysize` or
+`redc64` or `redc128`.
 
 
-## Interfaces that only exist in `arithxx`
- - `inv_odd` and `inv_powerof2`. These are in fact only specialized for
-   the `arithxx_mod64` layer.
- - `intinv`. It's rather silly. Only specialized for `arithxx_modredc64`.
+Note that most layers define their functions with external (not inline)
+linkage, and the implementations are in the `_impl.hpp` files. This is a
+design choice, given that we do not have to expose all the code to all
+potential users.
+
+For this reason, a final `Modulus` class has to include all the
+`_impl.hpp` from its `.cpp` compilation unit, **AND** explicitly
+instantiate **all the upper layers**, and this is so **even for layers
+that have some of their functions implicitly instantiated by the layers
+that derive from them**. This last bit is honestly a bit annoying, but
+it's an obvious consequence of lazy template instantiation.
+
+It may be called a nitpick, but this last bit causes some issues with the
+`mod_mpz_new` layer, for which some of our "generic" code actually
+doesn't apply. Inheritance actually masks all the non-functioning
+templates, and they don't have to be instantiated.  However, since we
+*do* instantiate the templates for the above reasons (because some
+"generic" code in these layers such as `gcd` needs to be emitted), and
+that we don't provide explicit specializations for `mod_mpz_new`, then we
+have a problem. For this reason, `mod_mpz_new.cpp` actually *deletes*
+these functions (which is a way of specializing.

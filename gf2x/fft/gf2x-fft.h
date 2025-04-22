@@ -28,11 +28,6 @@
 #ifndef GF2X_FFT_H_
 #define GF2X_FFT_H_
 
-/* 64 may also be used */
-#ifndef GF2X_CANTOR_BASE_FIELD_SIZE
-#define GF2X_CANTOR_BASE_FIELD_SIZE 128
-#endif
-
 /* The different GF2X_FFT_ADJUST_* constants are used by the
  * XXX_info_adjust functions. Not all adjustments are possible for all
  * fft back-ends.

@@ -21,10 +21,20 @@
 #include "gmp_aux.h"
 #include "gmp_auxx.hpp"
 #include "utils_cxx.hpp"
+#include "cado_math_aux.hpp"
 
 /* see also mpn_compile_time.hpp for a similar purpose (but a different
  * interface)
  */
+
+namespace Integer_details {
+
+    template<typename Integer, int n, bool has_carry=true>
+        struct reduce_multiple_impl;
+
+    template<typename Integer, int n, size_t k = Integer::max_size_in_words>
+        struct mod_n_impl;
+
 template<typename T, size_t NN>
 class Integer_base : public std::array<uint64_t, NN>
 {
@@ -160,7 +170,7 @@ public:
     bool operator> (uint64_t const a) const { return std::any_of(begin() + 1, end(), convert_bool()) || (*this)[0] > a; }
     bool operator!=(uint64_t const a) const { return !operator==(a); }
     bool operator>=(uint64_t const a) const { return !operator<(a); }
-    bool operator<=(uint64_t const a) const { return !operator<(a); }
+    bool operator<=(uint64_t const a) const { return !operator>(a); }
 
 
 
@@ -206,9 +216,12 @@ public:
     T operator++ (int)                { T r = downcast(); ++r; return r;     }
     T operator-- (int)                { T r = downcast(); --r; return r;     }
     T operator+ (const T &a) const        { T r = downcast();  return r+=a;  }
-    T operator- (const T &a) const        { T r = downcast();  return r-=a;  }
     T operator+ (const uint64_t a) const  { T r = downcast();  return r+=a;  }
+    T operator- (const T &a) const        { T r = downcast();  return r-=a;  }
     T operator- (const uint64_t a) const  { T r = downcast();  return r-=a;  }
+    /* we use another name so that we don't get overload conflicts on
+     * operator- */
+    T operator- () const  { return downcast().unary_minus(); }
     T operator>>(const int i) const       { T r = downcast();  return r>>=i; }
     T operator<<(const int i) const       { T r = downcast();  return r<<=i; }
     T operator* (const T &a) const        { T r = downcast();  return r*=a;  }
@@ -221,16 +234,31 @@ public:
     friend std::ostream & operator << (std::ostream &out, const T &s) {
         return out << cxx_mpz(s);
     }
+
+    template<int n, bool has_carry=true, typename chooser>
+        static T reduce_multiple(T & t, chooser const & c = {})
+        {
+            return Integer_details::reduce_multiple_impl<T, n, has_carry>::reduce(t, c);
+        }
+
+    template<int n>
+        uint64_t mod_n() const
+        {
+            return Integer_details::mod_n_impl<T, n>::value(downcast());
+        }
+
+    uint64_t high_word() const { return super::back(); }
 };
+}
 
 namespace fmt {
-    template <typename T, size_t NN> struct formatter<Integer_base<T, NN>>: ostream_formatter {};
+    template <typename T, size_t NN> struct formatter<Integer_details::Integer_base<T, NN>>: ostream_formatter {};
 }
 
 /* Integers of 64 bits. We want additional conversion function from/to
    arrays of uint64_t and mpz_ts. Unfortunately, we can't inherit from
    standard integer types, so there's a lot of clutter here. */
-class Integer64 : public Integer_base<Integer64, 1>
+class Integer64 : public Integer_details::Integer_base<Integer64, 1>
 {
 public:
     typedef Integer_base<Integer64, 1> super;
@@ -267,6 +295,14 @@ public:
     Integer64& operator+=(const uint64_t a)   {(*this)[0] += a; return *this;}
     Integer64& operator-=(const uint64_t a)   {(*this)[0] -= a; return *this;}
     Integer64& operator>>=(const int i)       {(*this)[0] >>= i; return *this;}
+    Integer64& signed_shift_right(const int i) {
+        ASSERT_EXPENSIVE(0 <= i && i < 64);
+        auto hi = int64_t((*this)[0]);
+        (*this)[0] = uint64_t(hi >> i);
+        return *this;
+    }
+    bool sign_bit() const { return ((int64_t)(*this)[0]) < 0; }
+
     Integer64& operator<<=(const int i)       {(*this)[0] <<= i; return *this;}
     Integer64& operator*=(const Integer64 &a) {(*this)[0] *= a[0]; return *this;}
     Integer64& operator/=(const Integer64 &a) {(*this)[0] /= a[0]; return *this;}
@@ -274,6 +310,7 @@ public:
     Integer64& operator*=(const uint64_t a)   {(*this)[0] *= a; return *this;}
     Integer64& operator/=(const uint64_t a)   {(*this)[0] /= a; return *this;}
     Integer64& operator%=(const uint64_t a)   {(*this)[0] %= a; return *this;}
+    Integer64 unary_minus() const  { return Integer64 { -(*this)[0] }; }
 
 
     /* r = (*this)/a. We require a|(*this). */
@@ -281,7 +318,7 @@ public:
     
 };
 
-class Integer128 : public Integer_base<Integer128, 2>
+class Integer128 : public Integer_details::Integer_base<Integer128, 2>
 {
 public:
     typedef Integer_base<Integer128, 2> super;
@@ -328,6 +365,20 @@ public:
         }
         return *this;
     }
+    Integer128& signed_shift_right(const int i) {
+        ASSERT_EXPENSIVE(0 <= i && i < 128);
+        auto hi = int64_t((*this)[1]);
+        if (i >= 64) {
+            (*this)[0] = uint64_t(hi >> (i - 64));
+            (*this)[1] = hi < 0 ? uint64_t(-1) : 0;
+        } else {
+            u64arith_shrd(data(), (*this)[1], (*this)[0], i);
+            (*this)[1] = uint64_t(hi >> i);
+        }
+        return *this;
+    }
+    bool sign_bit() const { return ((int64_t)(*this)[1]) < 0; }
+
     Integer128& operator<<=(const int i) {
         ASSERT_EXPENSIVE(0 <= i && i < 128);
         if (i >= 64) {
@@ -385,6 +436,16 @@ public:
         }
         return *this;
     }
+
+    Integer128 unary_minus() const  {
+        auto a = *this;
+        a[1] = -a[1];
+        if (a[0] != 0)
+            a[1]--;
+        a[0] = -a[0];
+        return a;
+    }
+
     /* r = (*this)/a. We require a|(*this). */
     Integer128 divexact(const Integer128 &a) const {
         Integer128 n1, d1, r;
@@ -447,6 +508,117 @@ template <>
 inline bool mpz_fits<Integer128> (mpz_srcptr v) {
     return mpz_sizeinbase(v, 2) <= 128;
 }
+
+}
+
+namespace Integer_details {
+    /* When we divide by small constants, there's a point where we create an
+     * Integer type that is in the congruence class of the input, and that is
+     * a multiple of the dividend. Or maybe just *congruent* to such a
+     * multiple, in case the actual multiple involves a carry limb that was
+     * discarded by wraparound.
+     *
+     * It's typically never a problem for Integer64, but it becomes
+     * awkward for Integer128 and above.
+     *
+     * To cater for this situation, we define two distinct algorithms in
+     * order to find the quotient. The first "simple" one is when there's no
+     * carry. A truncating division + a multiplication are enough.
+     *
+     */
+    template<int n>
+        struct reduce_multiple_impl<Integer128, n, false> {
+            template<typename ignore>
+                static Integer128 reduce(Integer128 const & t, ignore const &) {
+                    using namespace cado_math_aux;
+                    constexpr uint64_t c = invmod<n, uint64_t>::value();
+
+                    /* a = a1 * 2^w + a0, n|a
+                     * Let a = a' * n * 2^w + a'', a'' < n * 2^w.
+                     * n | a'', a'' / n < 2^w
+                     * So a / n = a' * w + a'' / n
+                     * a' = trunc(a1 / n)
+                     * a'' = a0 * n^{-1} (mod 2^w)
+                     * Hence we get the correct result with one one-word
+                     * multiplication and one one-word truncating
+                     * division by a small constant.
+                     *
+                     * note that the truncating division by n is
+                     * optimized by the compiler as a multiplication by c
+                     * plus whatever is needed to get the quotient right.
+                     */
+
+                    return { t[0] * c, t[1] / n };
+                }
+        };
+
+    /* If we do encounter a carry, then we're in for three
+     * multiplications (one of them by n which is a small constant) */
+    template<int n>
+        struct reduce_multiple_impl<Integer128, n, true> {
+            template<typename chooser_mul>
+                static Integer128 reduce(Integer128 & t, chooser_mul const & cm) {
+                    using namespace cado_math_aux;
+                    constexpr uint64_t c = invmod<n, uint64_t>::value();
+
+                    Integer128 r, t2;
+
+                    r[0] = t[0] * c;
+
+                    /* r0 == (a+km)/n (mod w)
+                       (r1*w + r0) * n = (a+km)
+                       (r1*w + r0) * n == t (mod w^2)
+                       r1*w*n == t - n*r0 (mod w^2)
+                       t - n*r0 == 0 (mod w), thus
+                       r1*n == (t - n*r0)/w (mod w) */
+
+                    mul_c<n>(t2, r[0], cm);;
+
+                    ASSERT_EXPENSIVE(t2[1] < n);
+                    t -= t2;
+
+                    ASSERT_EXPENSIVE(t[0] == 0);
+                    r[1] = t[1] * c;
+
+                    return r;
+                }
+        };
+
+    /* implementations for Integer64 are easy */
+    template<int n, bool b>
+        struct reduce_multiple_impl<Integer64, n, b> {
+            template<typename ignore>
+                static Integer64 reduce(Integer64 & t, ignore const &) {
+                    using namespace cado_math_aux;
+                    constexpr uint64_t c = invmod<n, uint64_t>::value();
+                    return Integer64 { t[0] * c };
+                }
+        };
+
+    /* This works only if n * NN does not overflow
+     */
+    template<typename Integer, int n, size_t k>
+        struct mod_n_impl {
+            static uint64_t value(Integer const & r) {
+                constexpr uint64_t w_mod_n = cado_math_aux::pow2_mod<64, n>::value();
+                return (mod_n_impl<Integer, n, k-1>::value(r) * w_mod_n + r[Integer::max_size_in_words-k] % n) % n;
+            }
+        };
+
+    /* this specialization is probably not necessary, but I don't want
+     * the compiler to do silly things. */
+    template<typename Integer, int n>
+        struct mod_n_impl<Integer, n, 1> {
+            static uint64_t value(Integer const & r) {
+                return r[Integer::max_size_in_words-1] % n;
+            }
+        };
+    template<typename Integer, int n>
+        struct mod_n_impl<Integer, n, 0> {
+            static uint64_t value(Integer const &) {
+                return 0;
+            }
+        };
 
 }
 

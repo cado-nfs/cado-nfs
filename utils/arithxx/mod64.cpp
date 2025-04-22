@@ -40,7 +40,7 @@ bool arithxx_details::api<arithxx_mod64>::inv(Residue & r, Residue const & sp) c
     me.set(tmp, sp);
 #endif
 
-    s = me.get_u64(sp);
+    s = sp.r[0];
     t = me.getmod_u64();
 
     ASSERT(t > 0);
@@ -119,7 +119,7 @@ bool arithxx_details::api<arithxx_mod64>::inv_powerof2(Residue & r, Residue cons
 {
     auto const & me = downcast();
     uint64_t const x = me.getmod_u64();
-    uint64_t const y = me.get_u64(A);
+    uint64_t const y = A.r[0];
 
     ASSERT(!(x & (x - 1))); /* assert that x is a power of 2 */
     ASSERT(y < x);
@@ -137,7 +137,7 @@ bool arithxx_details::api<arithxx_mod64>::inv_powerof2(Residue & r, Residue cons
             m2.set_reduced(B, (y & (h - 1)));
 
             m2.inv_powerof2(r, B);
-            uint64_t const t = me.get_u64(r);
+            uint64_t const t = r.r[0];
             me.set(r, (2 * t - t * t * y) & (x - 1));
         }
         return true;
@@ -153,4 +153,4 @@ bool arithxx_details::api<arithxx_mod64>::inv_odd(Residue & r, Residue const & A
 }
 
 template struct arithxx_details::api<arithxx_mod64>;
-template struct arithxx_details::api64<arithxx_mod64>;
+template struct arithxx_details::api_bysize<arithxx_mod64>;

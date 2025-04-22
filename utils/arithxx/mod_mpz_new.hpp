@@ -7,8 +7,11 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <climits>
 
 #include <memory>
+#include <type_traits>
+#include <utility>
 
 #include <gmp.h>
 
@@ -23,25 +26,54 @@ struct arithxx_mod_mpz_new {
     class Modulus;
     class Residue;
     typedef cxx_mpz Integer;
+
+    /* These two are not used for this layer, but for completeness... */
+    typedef std::integral_constant<int, 4> mul_c_cutoff;
+    typedef std::integral_constant<int, INT_MAX> overflow_bits;
+
+    typedef std::false_type uses_montgomery_representation;
+
+    typedef std::true_type even_moduli_allowed;
 };
 
-
-class arithxx_mod_mpz_new::Residue : public arithxx_details::Residue_base<arithxx_mod_mpz_new>
+/* unlike what happens with the other types, here we're *not* deriving
+ * from Residue_base, because our underling field is not an Integer
+ * object but rather a raw pointer.
+ */
+class arithxx_mod_mpz_new::Residue
 {
     typedef arithxx_mod_mpz_new layer;
     friend class layer::Modulus;
     friend struct arithxx_details::api<arithxx_mod_mpz_new>;
 
+#if 0
     protected:
     std::unique_ptr<mp_limb_t[]> r_owned;
     mp_limb_t * r;
 
     public:
-    /* These two are implemented as inlines at the end of this header file */
+    /* These two are implemented as inlines at the end of this header file
+     * (we must do so because the Modulus type isn't complete yet)
+     */
     explicit Residue(Modulus const & m);
     Residue(Modulus const & m, Residue const & s);
-    
+    Residue(Residue const & o) = delete;
+    Residue(Residue && o) noexcept : r(o.r) { o.r = nullptr; }
+    Residue& operator=(Residue const & o) = delete;
+    Residue& operator=(Residue && o) noexcept { std::swap(r, o.r); return *this; }
+    ~Residue() { delete[] r; }
     Residue() = delete;
+#else
+    protected:
+    std::unique_ptr<mp_limb_t[]> r;
+
+    public:
+    /* These two are implemented as inlines at the end of this header file
+     * (we must do so because the Modulus type isn't complete yet)
+     */
+    explicit Residue(Modulus const & m);
+    Residue(Modulus const & m, Residue const & s);
+#endif
 };
 
 class arithxx_mod_mpz_new::Modulus
@@ -54,8 +86,6 @@ class arithxx_mod_mpz_new::Modulus
     friend struct arithxx_details::api<arithxx_mod_mpz_new>;
 
   protected:
-    /* Data members */
-    cxx_mpz m;
     static constexpr mp_size_t limbsPerUint64 = iceildiv(64, GMP_NUMB_BITS);
 
     /* {{{ ctors, validity range, and asserts */
@@ -64,17 +94,16 @@ class arithxx_mod_mpz_new::Modulus
         return m > 0 && mpz_odd_p(m);
     }
 
-    explicit Modulus(uint64_t const s)
-        : m(s)
-    {
-        ASSERT_ALWAYS(s > 0);
-    }
     explicit Modulus(Integer const & s)
-        : m(s)
+        : api(s)
     {
         ASSERT_ALWAYS(mpz_sgn(s) > 0);
     }
-    Integer getmod() const { return m; }
+    explicit Modulus(uint64_t const s)
+        : Modulus(Integer(s))
+    {
+        ASSERT_ALWAYS(s > 0);
+    }
 
   protected:
     // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
@@ -152,7 +181,7 @@ class arithxx_mod_mpz_new::Modulus
     {
         ASSERT(mpz_cmp_uint64(m, s) > 0);
         size_t const limbsToWrite = MIN(limbsPerUint64, mpz_size(m));
-        uint64ToLimbs(r.r, s, limbsToWrite);
+        uint64ToLimbs(r.r.get(), s, limbsToWrite);
         for (size_t i = limbsToWrite; i < mpz_size(m); i++)
             r.r[i] = 0;
     }
@@ -160,7 +189,7 @@ class arithxx_mod_mpz_new::Modulus
     {
         ASSERT_ALWAYS(mpz_cmp(s, m) < 0);
         size_t written;
-        mpz_export(r.r, &written, -1, sizeof(mp_limb_t), 0, GMP_NAIL_BITS, s);
+        mpz_export(r.r.get(), &written, -1, sizeof(mp_limb_t), 0, GMP_NAIL_BITS, s);
         ASSERT_ALWAYS(written <= mpz_size(m));
         for (size_t i = written; i < mpz_size(m); i++)
             r.r[i] = 0;
@@ -168,7 +197,7 @@ class arithxx_mod_mpz_new::Modulus
     void set_mpz_residue(mpz_ptr r, Residue const & s) const
     {
         mpz_import(r, mpz_size(m), -1, sizeof(mp_limb_t), 0, GMP_NAIL_BITS,
-                   s.r);
+                   s.r.get());
     }
 
     /* Methods of the API */
@@ -180,7 +209,7 @@ class arithxx_mod_mpz_new::Modulus
     void set(Residue & r, Residue const & s) const
     {
         assertValid(s);
-        mpn_copyi(r.r, s.r, mpz_size(m));
+        mpn_copyi(r.r.get(), s.r.get(), mpz_size(m));
     }
     void set(Residue & r, uint64_t const s) const
     {
@@ -212,7 +241,7 @@ class arithxx_mod_mpz_new::Modulus
         assertValid(r);
         set_residue_mpz(r, s);
     }
-    void set0(Residue & r) const { mpn_zero(r.r, mpz_size(m)); }
+    void set0(Residue & r) const { mpn_zero(r.r.get(), mpz_size(m)); }
     void set1(Residue & r) const
     {
         set0(r);
@@ -234,12 +263,12 @@ class arithxx_mod_mpz_new::Modulus
     {
         assertValid(a);
         assertValid(b);
-        return mpn_cmp(a.r, b.r, mpz_size(m)) == 0;
+        return mpn_cmp(a.r.get(), b.r.get(), mpz_size(m)) == 0;
     }
     bool is0(Residue const & a) const
     {
         assertValid(a);
-        return mpn_zero_p(a.r, mpz_size(m));
+        return mpn_zero_p(a.r.get(), mpz_size(m));
     }
     bool is1(Residue const & a) const
     {
@@ -247,7 +276,7 @@ class arithxx_mod_mpz_new::Modulus
         if (mpz_cmp_ui(m, 1) == 0)
             return true;
         return a.r[0] == 1 &&
-               (mpz_size(m) == 1 || mpn_zero_p(a.r + 1, mpz_size(m) - 1));
+               (mpz_size(m) == 1 || mpn_zero_p(a.r.get() + 1, mpz_size(m) - 1));
     }
     /* }}} */
 
@@ -259,7 +288,7 @@ class arithxx_mod_mpz_new::Modulus
             if (&r != &a)
                 set0(r);
         } else {
-            const mp_limb_t bw = mpn_sub_n(r.r, mpz_limbs_read(m), a.r, mpz_size(m));
+            const mp_limb_t bw = mpn_sub_n(r.r.get(), mpz_limbs_read(m), a.r.get(), mpz_size(m));
             ASSERT_ALWAYS(bw == 0);
         }
         assertValid(r);
@@ -268,9 +297,9 @@ class arithxx_mod_mpz_new::Modulus
     {
         assertValid(a);
         assertValid(b);
-        mp_limb_t const cy = mpn_add_n(r.r, a.r, b.r, mpz_size(m));
-        if (cy || cmpM(r.r) >= 0) {
-            mp_limb_t const bw = subM(r.r, r.r);
+        mp_limb_t const cy = mpn_add_n(r.r.get(), a.r.get(), b.r.get(), mpz_size(m));
+        if (cy || cmpM(r.r.get()) >= 0) {
+            mp_limb_t const bw = subM(r.r.get(), r.r.get());
             ASSERT_ALWAYS(bw == cy);
         }
         assertValid(r);
@@ -278,9 +307,9 @@ class arithxx_mod_mpz_new::Modulus
     void add1(Residue & r, Residue const & a) const
     {
         assertValid(a);
-        mp_limb_t const cy = mpn_add_1(r.r, a.r, mpz_size(m), 1);
-        if (cy || cmpM(r.r) >= 0) {
-            mp_limb_t const bw = subM(r.r, r.r);
+        mp_limb_t const cy = mpn_add_1(r.r.get(), a.r.get(), mpz_size(m), 1);
+        if (cy || cmpM(r.r.get()) >= 0) {
+            mp_limb_t const bw = subM(r.r.get(), r.r.get());
             ASSERT_ALWAYS(bw == cy);
         }
         assertValid(r);
@@ -292,16 +321,16 @@ class arithxx_mod_mpz_new::Modulus
         mp_limb_t cy;
 
         if (limbsPerUint64 == 1 || bm < GMP_NUMB_MAX) {
-            cy = mpn_add_1(r.r, a.r, mpz_size(m), bm);
+            cy = mpn_add_1(r.r.get(), a.r.get(), mpz_size(m), bm);
         } else {
             mp_limb_t t[limbsPerUint64];
             mp_size_t const toWrite = MIN(limbsPerUint64, mpz_size(m));
 
             uint64ToLimbs(t, bm, limbsPerUint64);
-            cy = mpn_add(r.r, a.r, mpz_size(m), t, toWrite);
+            cy = mpn_add(r.r.get(), a.r.get(), mpz_size(m), t, toWrite);
         }
-        if (cy || cmpM(r.r) >= 0) {
-            const mp_limb_t bw = subM(r.r, r.r);
+        if (cy || cmpM(r.r.get()) >= 0) {
+            const mp_limb_t bw = subM(r.r.get(), r.r.get());
             ASSERT_ALWAYS(bw == cy);
         }
         assertValid(r);
@@ -310,9 +339,9 @@ class arithxx_mod_mpz_new::Modulus
     {
         assertValid(a);
         assertValid(b);
-        mp_limb_t const bw = mpn_sub_n(r.r, a.r, b.r, mpz_size(m));
+        mp_limb_t const bw = mpn_sub_n(r.r.get(), a.r.get(), b.r.get(), mpz_size(m));
         if (bw) {
-            mp_limb_t const cy = addM(r.r, r.r);
+            mp_limb_t const cy = addM(r.r.get(), r.r.get());
             ASSERT_ALWAYS(cy == bw);
         }
         assertValid(r);
@@ -320,9 +349,9 @@ class arithxx_mod_mpz_new::Modulus
     void sub1(Residue & r, Residue const & a) const
     {
         assertValid(a);
-        mp_limb_t const bw = mpn_sub_1(r.r, a.r, mpz_size(m), 1);
+        mp_limb_t const bw = mpn_sub_1(r.r.get(), a.r.get(), mpz_size(m), 1);
         if (bw) {
-            mp_limb_t const cy = addM(r.r, r.r);
+            mp_limb_t const cy = addM(r.r.get(), r.r.get());
             ASSERT_ALWAYS(cy == bw);
         }
         assertValid(r);
@@ -334,16 +363,16 @@ class arithxx_mod_mpz_new::Modulus
         mp_limb_t bw;
 
         if (limbsPerUint64 == 1 || bm < GMP_NUMB_MAX) {
-            bw = mpn_sub_1(r.r, a.r, mpz_size(m), bm);
+            bw = mpn_sub_1(r.r.get(), a.r.get(), mpz_size(m), bm);
         } else {
             mp_limb_t t[limbsPerUint64];
             mp_size_t const toWrite = MIN(limbsPerUint64, mpz_size(m));
 
             uint64ToLimbs(t, bm, limbsPerUint64);
-            bw = mpn_sub(r.r, a.r, mpz_size(m), t, toWrite);
+            bw = mpn_sub(r.r.get(), a.r.get(), mpz_size(m), t, toWrite);
         }
         if (bw) {
-            const mp_limb_t cy = addM(r.r, r.r);
+            const mp_limb_t cy = addM(r.r.get(), r.r.get());
             ASSERT_ALWAYS(cy == bw);
         }
         assertValid(r);
@@ -355,11 +384,11 @@ class arithxx_mod_mpz_new::Modulus
             return false;
         } else {
             if (a.r[0] % 2 == 0) {
-                const mp_limb_t lsb = mpn_rshift(r.r, a.r, mpz_size(m), 1);
+                const mp_limb_t lsb = mpn_rshift(r.r.get(), a.r.get(), mpz_size(m), 1);
                 ASSERT_ALWAYS(lsb == 0);
             } else {
-                const mp_limb_t cy = addM(r.r, a.r);
-                const mp_limb_t lsb = mpn_rshift(r.r, r.r, mpz_size(m), 1);
+                const mp_limb_t cy = addM(r.r.get(), a.r.get());
+                const mp_limb_t lsb = mpn_rshift(r.r.get(), r.r.get(), mpz_size(m), 1);
                 ASSERT_ALWAYS(lsb == 0);
                 r.r[mpz_size(m) - 1] |= cy << (GMP_NUMB_BITS - 1);
             }
@@ -378,16 +407,16 @@ class arithxx_mod_mpz_new::Modulus
         if (r.r == a.r || r.r == b.r) {
             t = new mp_limb_t[nrWords + 1];
         } else {
-            t = r.r;
+            t = r.r.get();
         }
-        t[nrWords] = mpn_mul_1(t, a.r, nrWords, b.r[nrWords - 1]);
+        t[nrWords] = mpn_mul_1(t, a.r.get(), nrWords, b.r[nrWords - 1]);
         if (t[nrWords] != 0)
             mpn_tdiv_qr(Q, t, 0, t, nrWords + 1, mpz_limbs_read(m), nrWords);
         /* t <= (m-1) * beta */
         for (mp_size_t iWord = nrWords - 1; iWord > 0; iWord--) {
             mpn_copyd(t + 1, t, nrWords);
             t[0] = 0;
-            const mp_limb_t msw = mpn_addmul_1(t, a.r, nrWords, b.r[iWord - 1]);
+            const mp_limb_t msw = mpn_addmul_1(t, a.r.get(), nrWords, b.r[iWord - 1]);
             t[nrWords] += msw;
             const mp_limb_t cy = t[nrWords] < msw;
             if (cy) {
@@ -401,7 +430,7 @@ class arithxx_mod_mpz_new::Modulus
             mpn_tdiv_qr(Q, t, 0, t, nrWords, mpz_limbs_read(m), nrWords);
         }
         if (r.r == a.r || r.r == b.r) {
-            mpn_copyi(r.r, t, nrWords);
+            mpn_copyi(r.r.get(), t, nrWords);
             delete[] t;
         }
     }
@@ -417,16 +446,14 @@ class arithxx_mod_mpz_new::Modulus
 };
 
 inline arithxx_mod_mpz_new::Residue::Residue(Modulus const & m)
-    : r_owned(new mp_limb_t[mpz_size(m.m) + 1])
-    , r(r_owned.get())
+    : r(new mp_limb_t[mpz_size(m.m) + 1])
 {
-    mpn_zero(r, mpz_size(m.m) + 1);
+    mpn_zero(r.get(), mpz_size(m.m) + 1);
 }
 inline arithxx_mod_mpz_new::Residue::Residue(Modulus const & m, Residue const & s)
-    : r_owned(new mp_limb_t[mpz_size(m.m) + 1])
-    , r(r_owned.get())
+    : r(new mp_limb_t[mpz_size(m.m) + 1])
 {
-    mpn_copyi(r, s.r, mpz_size(m.m));
+    mpn_copyi(r.get(), s.r.get(), mpz_size(m.m));
 }
 
 #endif /* CADO_UTILS_ARITHXX_MOD_MPZ_NEW_HPP */

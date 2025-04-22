@@ -2,7 +2,7 @@
 
 #include <cstdlib> // for abort
 
-#include "modredc126.hpp"
+#include "modredc96.hpp"
 
 #include "arithxx_common.hpp"
 
@@ -20,8 +20,8 @@
 
 // scan-headers: stop here
 
-template struct arithxx_details::batch_Q_to_Fp_context<arithxx_modredc126>;
-template struct arithxx_details::redc<arithxx_modredc126>;
-template struct arithxx_details::redc128<arithxx_modredc126>;
-template struct arithxx_details::api<arithxx_modredc126>;
-template struct arithxx_details::api_bysize<arithxx_modredc126>;
+template struct arithxx_details::batch_Q_to_Fp_context<arithxx_modredc96>;
+template struct arithxx_details::redc<arithxx_modredc96>;
+template struct arithxx_details::redc128<arithxx_modredc96>;
+template struct arithxx_details::api<arithxx_modredc96>;
+template struct arithxx_details::api_bysize<arithxx_modredc96>;

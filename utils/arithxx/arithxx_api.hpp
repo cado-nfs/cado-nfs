@@ -16,6 +16,7 @@
 #include "is_non_narrowing_conversion.hpp"
 #include "arithxx_residue_std_op.hpp"
 #include "macros.h"
+#include "misc.h"
 
 namespace arithxx_details {
 
@@ -45,6 +46,15 @@ namespace arithxx_details {
             typedef typename layer::Residue Residue;
             typedef typename layer::Integer Integer;
             
+            /* Data members */
+            Integer m;
+
+            Integer const & getmod() const { return m; }
+
+            explicit api(Integer const & m)
+                : m(m)
+            {}
+
             // we can't do this static assert yet (because Modulus is
             // incomplete), even though we'd like to.
             // static_assert(std::is_base_of<api<layer>, Modulus>::value, "CRTP condition violated");
@@ -117,12 +127,6 @@ namespace arithxx_details {
             // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
             constexpr bool sprp2_is_enough() const { return false; }
 
-            bool div3(Residue &, Residue const &) const;
-            bool div5(Residue &, Residue const &) const;
-            bool div7(Residue &, Residue const &) const;
-            bool div11(Residue &, Residue const &) const;
-            bool div13(Residue &, Residue const &) const;
-
             bool batchinv(Residue * r, Residue const * a, size_t n, Residue const * c) const;
 
             void gcd (Integer &, const Residue &) const;
@@ -147,7 +151,7 @@ namespace arithxx_details {
              * becomes annoying when we deal with overloads.
              *
              * One thing that might not work, though: forcing
-             * instantiation of api64<blah> does not seem to trigger
+             * instantiation of api_bysize<blah> does not seem to trigger
              * instantiation of api<blah>: if I remove the explicit
              * instantiation at the end of mod64.cpp I get linking
              * errors.
@@ -163,7 +167,7 @@ namespace arithxx_details {
             void pow2(Residue &r, const uint64_t *e, size_t e_nrwords) const;
 
             void pow(Residue & r, Residue const & b, uint64_t e) const;
-            void pow2(Residue &r, const uint64_t e) const;
+            void pow2(Residue &r, uint64_t e) const;
 
             void pow(Residue & r, Residue const & b, Integer const & e) const;
             void pow2(Residue &r, const Integer &e) const;
@@ -204,7 +208,86 @@ namespace arithxx_details {
             /* }}} */
 
             void V(Residue & r, Residue * rp1, Residue const & b, Integer const & k) const;
+
+            private:
+            template<int n>
+                bool divn(Residue &, Residue const &) const;
+
+            public:
+            bool div3(Residue &, Residue const &) const;
+            bool div5(Residue &, Residue const &) const;
+            bool div7(Residue &, Residue const &) const;
+            bool div11(Residue &, Residue const &) const;
+            bool div13(Residue &, Residue const &) const;
+
+            /* {{{ set(*2), set_reduced(*1), set0 */
+            // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+            void set(Residue & r, Residue const & s) const { r = s; }
+            void set(Residue & r, int64_t const s) const
+            {
+                auto const & me = downcast();
+                me.set(r, safe_abs64(s));
+                if (s < 0)
+                    me.neg(r, r);
+            }
+
+            /* Sets the residueredc2ul2_t to the class represented by the integer s.
+               Assumes that s is reduced (mod m), i.e. 0 <= s < m */
+            void set_reduced(Residue & r, uint64_t const s) const {
+                auto const & me = downcast();
+                me.set(r, s);
+            }
+
+            // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+            void set0(Residue & r) const { r.r = 0; }
+
+            /* }}} */
+
+            /* {{{ equal is0 */
+
+            /* do we really want to keep these two, or should we use operator== ?
+             * comparison to 1 in montgomery form is tricky, though.
+             */
+            // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+            bool equal(Residue const & a, Residue const & b) const
+            {
+                return a.r == b.r;
+            }
+
+            // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+            bool is0(Residue const & a) const { return a.r == 0; }
+
+            /* }}} */
+
+            /* {{{ set(*2), set_reduced(*1), set1, get, is1: possibly overloaded by redc */
+            void set(Residue & r, uint64_t const s) const { r.r = s; }
+            void set(Residue & r, Integer const & s) const {
+                auto const & me = downcast();
+                if (s < me.m)
+                    me.set_reduced(r, s);
+                else
+                    me.set_reduced(r, s % me.m);
+            }
+            void set_reduced(Residue & r, Integer const & s) const { r.r = s; }
+            void set1(Residue & r) const { r.r = (m != 1); }
+            Integer get(Residue const & r) const { return r.r; }
+            bool is1(Residue const& a) const { return a.r == 1; }
+            /* }}} */
+            void neg(Residue & r, Residue const & a) const
+            {
+                auto const & me = downcast();
+                me.assertValid(a);
+                if (me.is0(a))
+                    me.set0(r);
+                else
+                    r.r = m - a.r;
+            }
         };
+
+
+    template <typename layer, typename Integer = typename layer::Integer>
+        struct api_bysize;
 }
+
 
 #endif	/* UTILS_ARITHXX_API_HPP_ */

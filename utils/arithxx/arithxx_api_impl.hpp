@@ -4,8 +4,12 @@
 #include <cstdint>
 #include <cstddef>
 
+#include <algorithm>
+
 #include "arithxx_common.hpp"
 #include "u64arith.h"
+#include "cado_math_aux.hpp"
+#include "macros.h"
 
 /* This provides the _default_ instantiations for the non-inline functions
  * in arithxx_details::api.
@@ -390,6 +394,306 @@ bool arithxx_details::api<layer>::is_prime() const
         return true;
 
     return me.is_strong_lucas_pseudoprime();
+}
+
+/* Modulus::divn */
+/* Division by small integer n.
+ * Returns 1 if n is invertible modulo m, 0 if not.
+ */
+
+template<typename layer>
+template<int n>
+bool arithxx_details::api<layer>::divn(Residue & r, Residue const & a) const
+{
+    using namespace cado_math_aux;
+    /*
+     * inv_n contains -1/i (mod n) if i is coprime to n, or 0 if i is not
+     * coprime to n, for 0 <= i < n c = n^(-1) (mod word base)
+     */
+    constexpr auto const & inv_n = array_map<n, minus_inverse_mod_n>::value;
+
+    auto const & me = downcast();
+
+    uint64_t const an = a.r.template mod_n<n>();
+    uint64_t const mn = me.m.template mod_n<n>();
+
+    if (inv_n[mn] == 0)
+        return false;
+
+    Residue t = a;
+
+    /* Make t[1]:t[0] == a+km (mod w^2) with a+km divisible by n */
+    /* We want a+km == 0 (mod n), so k = -a*m^{-1} (mod n) */
+    uint64_t k = (inv_n[mn] * an) % n;
+    ASSERT_ALWAYS((an + k * mn) % n == 0);
+
+    if (k == 0) {
+        /* nothing to do */
+    } else if (k == 1) {
+        t.r += me.m;
+        // u64arith_add_2_2(t.r.data(), t.r.data() + 1, me.m[0], me.m[1]);
+    } else if (k == 2) {
+        t.r += me.m;
+        t.r += me.m;
+        // u64arith_add_2_2(t.r.data(), t.r.data() + 1, me.m[0], me.m[1]);
+        // u64arith_add_2_2(t.r.data(), t.r.data() + 1, me.m[0], me.m[1]);
+    } else {
+        t.r += me.m * k;
+        /*
+        u64arith_mul_1_1_2(t.r.data(), t.r.data() + 1, me.m[0], k);
+        t.r[1] += me.m[1] * k;
+        u64arith_add_2_2(t.r.data(), t.r.data() + 1, a.r[0], a.r[1]);
+        */
+    }
+
+    // now t is congruent to a multiple of n modulo w^2. We might have
+    // encountered a carry in the previous additions, though (the sum can
+    // be as large as k times the max modulus).
+
+    constexpr bool has_carry = !multiplier_fits_in_overflow_bits<n, layer>::value;
+    typedef at_most<layer::mul_c_cutoff::value> chooser_mul;
+
+    r.r = Integer::template reduce_multiple<n, has_carry, chooser_mul>(t.r);
+
+#ifdef WANT_ASSERT_EXPENSIVE
+    {
+        uint64_t i;
+        me.set(t, r);
+        for (i = 1; i < n; i++)
+            me.add(t, t, r);
+        ASSERT_EXPENSIVE(me.equal(t, a));
+    }
+#endif
+
+    return true;
+}
+
+/* the mod 3 case is a bit special because there ain't many choices for
+ * the residues, and in the end we can save a % operation.
+ */
+template<typename layer>
+bool arithxx_details::api<layer>::div3(Residue & r, Residue const & a) const
+{
+    constexpr int n = 3;
+
+    using namespace cado_math_aux;
+
+    auto const & me = downcast();
+
+    uint64_t const an = a.r.template mod_n<n>();
+    uint64_t const mn = me.m.template mod_n<n>();
+
+    if (mn == 0)
+        return false;
+
+    Residue t = a;
+
+    if (an != 0) {
+        if (an + mn == 3) {
+            t.r += me.m;
+        } else {
+            t.r += me.m;
+            t.r += me.m;
+        }
+    }
+
+    // now t is congruent to a multiple of n modulo w^2. We might have
+    // encountered a carry in the previous additions, though.
+
+    constexpr bool has_carry = !multiplier_fits_in_overflow_bits<n, layer>::value;
+    typedef at_most<layer::mul_c_cutoff::value> chooser_mul;
+
+    r.r = Integer::template reduce_multiple<n, has_carry, chooser_mul>(t.r);
+
+#ifdef WANT_ASSERT_EXPENSIVE
+    {
+        uint64_t i;
+        me.set(t, r);
+        for (i = 1; i < n; i++)
+            me.add(t, t, r);
+        ASSERT_EXPENSIVE(me.equal(t, a));
+    }
+#endif
+
+    return true;
+}
+
+template <typename layer> bool arithxx_details::api<layer>::div5(Residue & r, Residue const & a) const { return divn<5>(r, a); }
+template <typename layer> bool arithxx_details::api<layer>::div7(Residue & r, Residue const & a) const { return divn<7>(r, a); }
+template <typename layer> bool arithxx_details::api<layer>::div11(Residue & r, Residue const & a) const { return divn<11>(r, a); }
+template <typename layer> bool arithxx_details::api<layer>::div13(Residue & r, Residue const & a) const { return divn<13>(r, a); }
+
+template<typename layer>
+int arithxx_details::api<layer>::jacobi(Residue const & a_par) const
+{
+    auto const & me = downcast();
+
+    /* If we're in Montgomery form, then the modulus is odd and the
+     * number of bits is even, so that the Montgomery scaling does not
+     * change the squareness, so we can pull a_par.r without converting.
+     * If we're not, then we just pull the Integer from the Residue.
+     */
+    Integer x = a_par.r;
+    Integer mm = me.m;
+
+    /* Jacobi(0,1) = 1, Jacobi(0,>1) = 0 */
+    if (x == 0)
+        return mm == 1 ? 1 : 0;
+
+    ASSERT(x < mm);
+    ASSERT(mm & 1);
+
+    unsigned int j, s;
+
+    j = x.ctz();
+    x >>= j;
+    s = (j << 1) & (mm[0] ^ (mm[0] >> 1));
+    /* If we divide by an odd power of 2, and 2 is a QNR, flip sign */
+    /* 2 is a QNR (mod mm) iff mm = 3,5 (mod 8)
+     * mm = 1 = 001b:   1
+     * mm = 3 = 011b:  -1
+     * mm = 5 = 101b:  -1
+     * mm = 7 = 111b:   1
+     * Hence we can store in s the exponent of -1, i.e., s=0 for jacobi()=1
+     * and s=1 for jacobi()=-1, and update s ^= (mm>>1) & (mm>>2) & 1.
+     * We can do the &1 at the very end.
+     * 
+     * Small optimization: we store the exponent of -1 in the second bit
+     * of s.  The s ^= ((j<<1) & (mm ^ (mm>>1))) still needs 2 shift but
+     * one of them can be done with LEA, and f = s ^ (x&mm) needs no
+     * shift.
+     */
+
+    while (x > 1) {
+        /* Here, x < mm, x and mm are odd */
+
+        /* Implicitly swap by reversing roles of x and mm in next loop */
+        /* Flip sign if both are 3 (mod 4) */
+        s ^= (x[0] & mm[0]);
+
+        /* Make mm<x by subtracting and shifting */
+        do {
+            mm -= x;    /* Difference is even */
+            if (mm == 0)
+                break;
+            /* Make odd again */
+            j = mm.ctz();
+            s ^= (j << 1) & (x[0] ^ (x[0] >> 1));
+            mm >>= j;
+        } while (mm >= x);
+
+        if (mm <= 1) {
+            x = mm;
+            break;
+        }
+
+        /* Flip sign if both are 3 (mod 4) */
+        /* Implicitly swap again */
+        s ^= (x[0] & mm[0]);
+
+        /* Make x<mm by subtracting and shifting */
+        do {
+            x -= mm; /* Difference is even */
+            if (x == 0)
+                break;
+            /* Make odd again */
+            j = x.ctz();
+            s ^= (j << 1) & (mm[0] ^ (mm[0] >> 1));
+            x >>= j;
+        } while (x >= mm);
+    }
+
+    if (x == 0)
+        return 0;
+    return (s & 2) ? -1 : 1;
+}
+
+template<typename layer>
+void
+arithxx_details::api<layer>::gcd(Integer & r, const Residue & A) const
+{
+    auto const & me = downcast();
+
+    if (me.is0(A)) {
+        r = me.getmod();
+        return;
+    }
+
+    Integer a = A.r, b = me.m;
+
+    unsigned int s = 0;
+    if (layer::even_moduli_allowed::value) {
+        const unsigned int ja = a.ctz();
+        const unsigned int jb = b.ctz();
+        a >>= ja;
+        b >>= jb;
+        s = std::min(ja, jb);
+        if (b < a)
+            std::swap(a, b);
+    }
+
+    if (s + layer::overflow_bits::value < 2) {
+        if (b.high_word() & uint64_t(-(int64_t(1) << 62))) {
+            /* make a odd. */
+            a >>= a.ctz();
+            do {
+                ASSERT_EXPENSIVE(a[0] % 2 == 1);
+                ASSERT_EXPENSIVE(b[0] % 2 == 1);
+                ASSERT_EXPENSIVE(a < b);
+                b -= a;
+                if (b == 0) {
+                    r = a << s;
+                    return;
+                }
+                b >>= b.ctz();
+                if (b < a)
+                    std::swap(a, b);
+            } while (b.high_word() & uint64_t(-(int64_t(1)<<62)));
+        }
+    }
+
+    /* Each transformation step changes the pair (a,b) into a pair
+     * (a',b') such that max(|a'|, |b'|) <= max(|a|, |b|), provided that
+     * the inputs A.r and me.m are both < 2^126.
+     *
+     * Proof:
+     * |b±a| <= 2 max(|a|, |b|) < 2^127, and this ± result is followed by
+     * a right shift of at least one bit. Since the bound is less than
+     * 2^127, then b±a is correctly represented with the signed 2-word
+     * representation, and the signed right shift is correct. In
+     * particular, the bound is preserved.
+     */
+    while (a != 0) {
+        /* Make a odd */
+        a.signed_shift_right(int(a.ctz()));
+
+        /* Try to make the low two bits of b[0] zero */
+        ASSERT_EXPENSIVE(a[0] % 2 == 1);
+        ASSERT_EXPENSIVE(b[0] % 2 == 1);
+        if ((a[0] ^ b[0]) & 2)
+            b += a;
+        else
+            b -= a;
+
+        if (b == 0) {
+            r = a.sign_bit() ? -a : a;
+            r <<= s;
+            return;
+        }
+
+        /* Make b odd */
+        b.signed_shift_right(int(b.ctz()));
+        ASSERT_EXPENSIVE(a[0] % 2 == 1);
+        ASSERT_EXPENSIVE(b[0] % 2 == 1);
+
+        if ((a[0] ^ b[0]) & 2)
+            a += b;
+        else
+            a -= b;
+    }
+
+    r = b.sign_bit() ? -b : b;
+    r <<= s;
 }
 
 

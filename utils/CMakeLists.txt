@@ -14,7 +14,11 @@ set (sources
         arith/mod_ul.c arith/modredc_ul.c arith/modredc_15ul.c arith/modredc_2ul2.c arith/modul_poly.c
         arith/mod_mpz.c
         gmp_aux.c
-        arithxx/mod64.cpp arithxx/modredc64.cpp arithxx/modredc126.cpp arithxx/mod_mpz_new.cpp
+        arithxx/mod64.cpp
+        arithxx/modredc64.cpp
+        arithxx/modredc96.cpp
+        arithxx/modredc126.cpp
+        arithxx/mod_mpz_new.cpp
         gmp_aux2.cpp
         double_poly.cpp rootfinder.cpp params.cpp params-extra.cpp gcd.c
         gzip.cpp misc.c misc2.cpp utils_cxx.cpp

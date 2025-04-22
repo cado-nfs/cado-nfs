@@ -248,6 +248,7 @@ inline cxx_mpz & operator+=(cxx_mpz & a, cxx_mpz const & b) { mpz_add(a, a, b); 
 template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
 inline cxx_mpz & operator+=(cxx_mpz & a, const T b) { gmp_auxx::mpz_add(a, a, b); return a; }
 
+inline cxx_mpz operator-(cxx_mpz const & a) { cxx_mpz r; mpz_neg(r, a); return r; }
 inline cxx_mpz operator-(cxx_mpz const & a, cxx_mpz const & b) { cxx_mpz r; mpz_sub(r, a, b); return r; }
 template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
 inline cxx_mpz operator-(cxx_mpz const & a, const T b) { cxx_mpz r; gmp_auxx::mpz_sub(r, a, b); return r; }
