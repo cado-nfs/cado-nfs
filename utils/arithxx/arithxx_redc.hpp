@@ -22,8 +22,9 @@ struct arithxx_details::redc
     using typename api<layer>::Residue;
     using typename api<layer>::Integer;
     using api<layer>::downcast;
-
     using api_bysize<layer>::api_bysize;
+
+    static_assert(!layer::even_moduli_allowed::value);
 
     /* Do a one-word REDC, i.e., r == s / w (mod m), w = 2^64.
        If m > w, r < 2m. If s < m, then r < m */

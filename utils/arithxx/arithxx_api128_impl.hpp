@@ -11,69 +11,6 @@
 #include "macros.h"
 #include "u64arith.h"
 
-/* This gcd implementation is *mostly* generic, except for the ugly
- * requirement that we need two overflow bits.
- */
-template<typename layer>
-void
-arithxx_details::api_bysize<layer, Integer128>::gcd(Integer & r, const Residue & A) const
-{
-    static_assert(layer::overflow_bits::value >= 2);
-
-    auto const & me = downcast();
-
-    /* Since we do REDC arithmetic, we must have m odd */
-    ASSERT_EXPENSIVE(me.m[0] % 2 != 0);
-
-    if (me.is0(A)) {
-        r = me.getmod();
-        return;
-    }
-
-    Integer a = A.r, b = me.m;
-
-    /* Each transformation step changes the pair (a,b) into a pair
-     * (a',b') such that max(|a'|, |b'|) <= max(|a|, |b|), provided that
-     * the inputs A.r and me.m are both < 2^126.
-     *
-     * Proof:
-     * |b±a| <= 2 max(|a|, |b|) < 2^127, and this ± result is followed by
-     * a right shift of at least one bit. Since the bound is less than
-     * 2^127, then b±a is correctly represented with the signed 2-word
-     * representation, and the signed right shift is correct. In
-     * particular, the bound is preserved.
-     */
-    while (a != 0) {
-        /* Make a odd */
-        a.signed_shift_right(int(a.ctz()));
-
-        /* Try to make the low two bits of b[0] zero */
-        ASSERT_EXPENSIVE(a[0] % 2 == 1);
-        ASSERT_EXPENSIVE(b[0] % 2 == 1);
-        if ((a[0] ^ b[0]) & 2)
-            b += a;
-        else
-            b -= a;
-
-        if (b == 0) {
-            r = ((int64_t)a[1] < 0) ? -a : a;
-            return;
-        }
-
-        /* Make b odd */
-        b.signed_shift_right(int(b.ctz()));
-        ASSERT_EXPENSIVE(a[0] % 2 == 1);
-        ASSERT_EXPENSIVE(b[0] % 2 == 1);
-
-        if ((a[0] ^ b[0]) & 2)
-            a += b;
-        else
-            a -= b;
-    }
-
-    r = ((int64_t)b[1] < 0) ? -b : b;
-}
-
 /* TODO: clean this up. This implementation does not belong here, since
  * it has traces of redc and possibly of max 126 bits as well.
  */

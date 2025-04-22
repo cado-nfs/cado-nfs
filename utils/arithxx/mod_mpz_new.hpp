@@ -32,6 +32,8 @@ struct arithxx_mod_mpz_new {
     typedef std::integral_constant<int, INT_MAX> overflow_bits;
 
     typedef std::false_type uses_montgomery_representation;
+
+    typedef std::true_type even_moduli_allowed;
 };
 
 /* unlike what happens with the other types, here we're *not* deriving

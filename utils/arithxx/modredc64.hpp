@@ -39,6 +39,8 @@ struct arithxx_modredc64 {
     typedef std::integral_constant<int, 0> overflow_bits;
 
     typedef std::true_type uses_montgomery_representation;
+
+    typedef std::false_type even_moduli_allowed;
 };
 
 /* okay, at this point it's a typedef, really... */

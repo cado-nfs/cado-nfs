@@ -22,8 +22,6 @@ struct api_bysize<layer, Integer128>
     static_assert(std::is_same<Integer, Integer128>::value,
             "api128 assumes that our underlying integer type is Integer128");
 
-    void gcd (Integer &g, const Residue &r) const;
-
     bool inv(Residue &, Residue const &) const;
 
 };

@@ -21,8 +21,6 @@ struct api_bysize<layer, Integer64>
     static_assert(std::is_same<Integer, Integer64>::value,
             "api64 assumes that our underlying integer type is Integer64");
 
-    void gcd (Integer &g, const Residue &r) const;
-
     bool sprp2_is_enough() const { return downcast().m < 2047; }
 };
 }

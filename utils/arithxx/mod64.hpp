@@ -35,6 +35,11 @@ struct arithxx_mod64 {
     typedef std::integral_constant<int, 0> overflow_bits;
 
     typedef std::false_type uses_montgomery_representation;
+
+    /* IDK what this is good for, but as a matter fact, this code does
+     * seem to grok even moduli.
+     */
+    typedef std::true_type even_moduli_allowed;
 };
 
 /* okay, at this point it's a typedef, really... */
@@ -57,15 +62,18 @@ class arithxx_mod64::Modulus
 
     /* {{{ ctors, validity range, and asserts */
   public:
-    static bool valid(Integer const & m) { return m % 2 == 1; }
-    static bool valid(cxx_mpz const & m) { return m % 2 == 1 && m > 0 && mpz_sizeinbase(m, 2) <= Integer::max_bits; }
+    static bool valid(Integer const &) { return true; }
+    static bool valid(cxx_mpz const & m) { return m > 0 && mpz_sizeinbase(m, 2) <= Integer::max_bits; }
 
     explicit Modulus(uint64_t const s)
         : Modulus(Integer(s))
-    { }
+    {
+    }
     explicit Modulus(Integer const & s)
         : api_bysize(s)
-    { }
+    {
+        ASSERT(valid(m));
+    }
 
   protected:
     /* Methods used internally */

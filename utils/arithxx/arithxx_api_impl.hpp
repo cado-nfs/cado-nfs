@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <cstddef>
 
+#include <algorithm>
+
 #include "arithxx_common.hpp"
 #include "u64arith.h"
 #include "cado_math_aux.hpp"
@@ -604,6 +606,94 @@ int arithxx_details::api<layer>::jacobi(Residue const & a_par) const
     if (x == 0)
         return 0;
     return (s & 2) ? -1 : 1;
+}
+
+template<typename layer>
+void
+arithxx_details::api<layer>::gcd(Integer & r, const Residue & A) const
+{
+    auto const & me = downcast();
+
+    if (me.is0(A)) {
+        r = me.getmod();
+        return;
+    }
+
+    Integer a = A.r, b = me.m;
+
+    unsigned int s = 0;
+    if (layer::even_moduli_allowed::value) {
+        const unsigned int ja = a.ctz();
+        const unsigned int jb = b.ctz();
+        a >>= ja;
+        b >>= jb;
+        s = std::min(ja, jb);
+        if (b < a)
+            std::swap(a, b);
+    }
+
+    if (s + layer::overflow_bits::value < 2) {
+        if (b.high_word() & uint64_t(-(int64_t(1) << 62))) {
+            /* make a odd. */
+            a >>= a.ctz();
+            do {
+                ASSERT_EXPENSIVE(a[0] % 2 == 1);
+                ASSERT_EXPENSIVE(b[0] % 2 == 1);
+                ASSERT_EXPENSIVE(a < b);
+                b -= a;
+                if (b == 0) {
+                    r = a << s;
+                    return;
+                }
+                b >>= b.ctz();
+                if (b < a)
+                    std::swap(a, b);
+            } while (b.high_word() & uint64_t(-(int64_t(1)<<62)));
+        }
+    }
+
+    /* Each transformation step changes the pair (a,b) into a pair
+     * (a',b') such that max(|a'|, |b'|) <= max(|a|, |b|), provided that
+     * the inputs A.r and me.m are both < 2^126.
+     *
+     * Proof:
+     * |b±a| <= 2 max(|a|, |b|) < 2^127, and this ± result is followed by
+     * a right shift of at least one bit. Since the bound is less than
+     * 2^127, then b±a is correctly represented with the signed 2-word
+     * representation, and the signed right shift is correct. In
+     * particular, the bound is preserved.
+     */
+    while (a != 0) {
+        /* Make a odd */
+        a.signed_shift_right(int(a.ctz()));
+
+        /* Try to make the low two bits of b[0] zero */
+        ASSERT_EXPENSIVE(a[0] % 2 == 1);
+        ASSERT_EXPENSIVE(b[0] % 2 == 1);
+        if ((a[0] ^ b[0]) & 2)
+            b += a;
+        else
+            b -= a;
+
+        if (b == 0) {
+            r = a.sign_bit() ? -a : a;
+            r <<= s;
+            return;
+        }
+
+        /* Make b odd */
+        b.signed_shift_right(int(b.ctz()));
+        ASSERT_EXPENSIVE(a[0] % 2 == 1);
+        ASSERT_EXPENSIVE(b[0] % 2 == 1);
+
+        if ((a[0] ^ b[0]) & 2)
+            a += b;
+        else
+            a -= b;
+    }
+
+    r = b.sign_bit() ? -b : b;
+    r <<= s;
 }
 
 

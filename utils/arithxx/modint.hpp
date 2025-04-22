@@ -246,8 +246,9 @@ public:
         {
             return Integer_details::mod_n_impl<T, n>::value(downcast());
         }
-};
 
+    uint64_t high_word() const { return super::back(); }
+};
 }
 
 namespace fmt {
@@ -300,6 +301,7 @@ public:
         (*this)[0] = uint64_t(hi >> i);
         return *this;
     }
+    bool sign_bit() const { return ((int64_t)(*this)[0]) < 0; }
 
     Integer64& operator<<=(const int i)       {(*this)[0] <<= i; return *this;}
     Integer64& operator*=(const Integer64 &a) {(*this)[0] *= a[0]; return *this;}
@@ -375,6 +377,7 @@ public:
         }
         return *this;
     }
+    bool sign_bit() const { return ((int64_t)(*this)[1]) < 0; }
 
     Integer128& operator<<=(const int i) {
         ASSERT_EXPENSIVE(0 <= i && i < 128);
