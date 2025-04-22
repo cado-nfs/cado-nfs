@@ -7,6 +7,7 @@
 #include "arithxx_common.hpp"
 #include "u64arith.h"
 #include "cado_math_aux.hpp"
+#include "macros.h"
 
 /* This provides the _default_ instantiations for the non-inline functions
  * in arithxx_details::api.
@@ -519,6 +520,91 @@ template <typename layer> bool arithxx_details::api<layer>::div5(Residue & r, Re
 template <typename layer> bool arithxx_details::api<layer>::div7(Residue & r, Residue const & a) const { return divn<7>(r, a); }
 template <typename layer> bool arithxx_details::api<layer>::div11(Residue & r, Residue const & a) const { return divn<11>(r, a); }
 template <typename layer> bool arithxx_details::api<layer>::div13(Residue & r, Residue const & a) const { return divn<13>(r, a); }
+
+template<typename layer>
+int arithxx_details::api<layer>::jacobi(Residue const & a_par) const
+{
+    auto const & me = downcast();
+
+    /* If we're in Montgomery form, then the modulus is odd and the
+     * number of bits is even, so that the Montgomery scaling does not
+     * change the squareness, so we can pull a_par.r without converting.
+     * If we're not, then we just pull the Integer from the Residue.
+     */
+    Integer x = a_par.r;
+    Integer mm = me.m;
+
+    /* Jacobi(0,1) = 1, Jacobi(0,>1) = 0 */
+    if (x == 0)
+        return mm == 1 ? 1 : 0;
+
+    ASSERT(x < mm);
+    ASSERT(mm & 1);
+
+    unsigned int j, s;
+
+    j = x.ctz();
+    x >>= j;
+    s = (j << 1) & (mm[0] ^ (mm[0] >> 1));
+    /* If we divide by an odd power of 2, and 2 is a QNR, flip sign */
+    /* 2 is a QNR (mod mm) iff mm = 3,5 (mod 8)
+     * mm = 1 = 001b:   1
+     * mm = 3 = 011b:  -1
+     * mm = 5 = 101b:  -1
+     * mm = 7 = 111b:   1
+     * Hence we can store in s the exponent of -1, i.e., s=0 for jacobi()=1
+     * and s=1 for jacobi()=-1, and update s ^= (mm>>1) & (mm>>2) & 1.
+     * We can do the &1 at the very end.
+     * 
+     * Small optimization: we store the exponent of -1 in the second bit
+     * of s.  The s ^= ((j<<1) & (mm ^ (mm>>1))) still needs 2 shift but
+     * one of them can be done with LEA, and f = s ^ (x&mm) needs no
+     * shift.
+     */
+
+    while (x > 1) {
+        /* Here, x < mm, x and mm are odd */
+
+        /* Implicitly swap by reversing roles of x and mm in next loop */
+        /* Flip sign if both are 3 (mod 4) */
+        s ^= (x[0] & mm[0]);
+
+        /* Make mm<x by subtracting and shifting */
+        do {
+            mm -= x;    /* Difference is even */
+            if (mm == 0)
+                break;
+            /* Make odd again */
+            j = mm.ctz();
+            s ^= (j << 1) & (x[0] ^ (x[0] >> 1));
+            mm >>= j;
+        } while (mm >= x);
+
+        if (mm <= 1) {
+            x = mm;
+            break;
+        }
+
+        /* Flip sign if both are 3 (mod 4) */
+        /* Implicitly swap again */
+        s ^= (x[0] & mm[0]);
+
+        /* Make x<mm by subtracting and shifting */
+        do {
+            x -= mm; /* Difference is even */
+            if (x == 0)
+                break;
+            /* Make odd again */
+            j = x.ctz();
+            s ^= (j << 1) & (mm[0] ^ (mm[0] >> 1));
+            x >>= j;
+        } while (x >= mm);
+    }
+
+    if (x == 0)
+        return 0;
+    return (s & 2) ? -1 : 1;
+}
 
 
 #endif	/* UTILS_ARITHXX_API_IMPL_HPP_ */

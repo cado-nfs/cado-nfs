@@ -7,13 +7,19 @@
 
 #include "arithxx_common.hpp"
 #include "arithxx_api128.hpp"
+#include "modint.hpp"
 #include "macros.h"
 #include "u64arith.h"
 
+/* This gcd implementation is *mostly* generic, except for the ugly
+ * requirement that we need two overflow bits.
+ */
 template<typename layer>
 void
 arithxx_details::api_bysize<layer, Integer128>::gcd(Integer & r, const Residue & A) const
 {
+    static_assert(layer::overflow_bits::value >= 2);
+
     auto const & me = downcast();
 
     /* Since we do REDC arithmetic, we must have m odd */
@@ -68,38 +74,9 @@ arithxx_details::api_bysize<layer, Integer128>::gcd(Integer & r, const Residue &
     r = ((int64_t)b[1] < 0) ? -b : b;
 }
 
-template<typename layer>
-int arithxx_details::api_bysize<layer, Integer128>::jacobi(Residue const & a_par) const
-{
-    auto const & me = downcast();
-    Integer s;
-    int t = 1;
-
-    Integer a = me.get(a_par);
-    Integer m = me.getmod();
-
-    while (a != 0) {
-        while ((a & 1) == 0) { /* TODO speedup */
-            a >>= 1;
-            if ((m & 7) == 3 || (m & 7) == 5)
-                t = -t;
-        }
-        s = a; /* swap a and m */
-        a = m;
-        m = s;
-        if ((a & 3) == 3 && (m & 3) == 3)
-            t = -t;
-
-        /* m is odd here */
-        if (a >= m)
-            a %= m;
-    }
-    if (m != 1)
-        t = 0;
-
-    return t;
-}
-
+/* TODO: clean this up. This implementation does not belong here, since
+ * it has traces of redc and possibly of max 126 bits as well.
+ */
 template<typename layer>
 bool arithxx_details::api_bysize<layer, Integer128>::inv(Residue & r, Residue const & A) const
 {

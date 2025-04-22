@@ -23,7 +23,6 @@ struct api_bysize<layer, Integer128>
             "api128 assumes that our underlying integer type is Integer128");
 
     void gcd (Integer &g, const Residue &r) const;
-    int jacobi(Residue const &) const;
 
     bool inv(Residue &, Residue const &) const;
 

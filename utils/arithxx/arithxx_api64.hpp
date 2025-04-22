@@ -22,7 +22,6 @@ struct api_bysize<layer, Integer64>
             "api64 assumes that our underlying integer type is Integer64");
 
     void gcd (Integer &g, const Residue &r) const;
-    int jacobi(Residue const &) const;
 
     bool sprp2_is_enough() const { return downcast().m < 2047; }
 };
