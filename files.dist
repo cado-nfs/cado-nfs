@@ -1590,6 +1590,7 @@ utils/arithxx/arithxx_redc64.hpp
 utils/arithxx/arithxx_redc64_impl.hpp
 utils/arithxx/arithxx_redc_impl.hpp
 utils/arithxx/arithxx_residue_std_op.hpp
+utils/arithxx/compatibility_arith_arithxx.md
 utils/arithxx/mod64.cpp
 utils/arithxx/mod64.hpp
 utils/arithxx/mod64_common.cpp
