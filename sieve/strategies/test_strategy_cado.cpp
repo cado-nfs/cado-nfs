@@ -885,6 +885,9 @@ static MAYBE_UNUSED weighted_success bench_proba_time_st(
 
     std::vector<cxx_mpz> f;
 
+    if (sum_dec == 0)
+        return { 0, 0.0, 0 };
+
     while (nb_test < nb_test_max) {
         /* N is composed by two prime factors, by the previous
          * function. Therefore, if a non trivial split was found,
