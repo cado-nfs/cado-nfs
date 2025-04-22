@@ -44,7 +44,7 @@ The `mod_mpz_new` differs a lot from the rest, and it's best if you don't
 look into it just yet. And in fact, this layer is so cumbersome that it
 might be reimplemented differently at some point.
 
-The primary citizes are `mod64`, `modredc64`, `modredc96`, and
+The primary citizens (layers) are `mod64`, `modredc64`, `modredc96`, and
 `modredc126`.
 
 All layers define three types: the `Integer` type, the `Residue` type,
@@ -67,7 +67,7 @@ are all allowed to downcast to the modulus class. This is made so that
 each of them can handle a specific subset of the functionalities,
 possibly overriding default values.
 
-In order, the possible base classes are:
+In order, the possible base ("traits") classes are:
  - [`api<layer>`](arithxx_api.hpp). This implements the main modulus
    constructor, and in particular the `m` data field. Some set/get
    functions are implemented, as well as others that do things like
@@ -80,8 +80,9 @@ In order, the possible base classes are:
    [`arithxx_api_bysize<*, Integer128>`](arithxx_api128.hpp). There's
    very little code for these classes. In a sense, most of what could go
    here could also, and perhaps better, go to the `Integer` classes, the
-   `api` layer, or maybe one of the `redc` layers if applicable. For the
-   moment there is still a specific implementation of inversion for two
+   `api` traits class, or maybe one of the `redc` traits classes if
+   applicable. For the moment there is still a specific implementation of
+   inversion for two
    machine words in [`arithxx_api128_impl.hpp`](arithxx_api128_impl.hpp),
    and that's it.
  - [`redc<layer>`](arithxx_redc.hpp). This is of course very important to
@@ -101,10 +102,10 @@ one that is relevant**. E.g. it's probably either `api_bysize` or
 `redc64` or `redc128`.
 
 
-Note that most layers define their functions with external (not inline)
-linkage, and the implementations are in the `_impl.hpp` files. This is a
-design choice, given that we do not have to expose all the code to all
-potential users.
+Note that several traits classes define at least some of their functions
+with external (not inline) linkage, and the implementations are in the
+`_impl.hpp` files. This is a design choice, given that we do not have to
+expose all the code to all potential users.
 
 For this reason, a final `Modulus` class has to include all the
 `_impl.hpp` from its `.cpp` compilation unit, **AND** explicitly
@@ -119,6 +120,6 @@ doesn't apply. Inheritance actually masks all the non-functioning
 templates, and they don't have to be instantiated.  However, since we
 *do* instantiate the templates for the above reasons (because some
 "generic" code in these layers such as `gcd` needs to be emitted), and
-that we don't provide explicit specializations for `mod_mpz_new`, then we
+yet we don't provide explicit specializations for `mod_mpz_new`, we
 have a problem. For this reason, `mod_mpz_new.cpp` actually *deletes*
-these functions (which is a way of specializing.
+these functions (which is a way of specializing).
