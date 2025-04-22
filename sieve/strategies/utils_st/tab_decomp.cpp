@@ -26,7 +26,7 @@ std::istream & operator>>(std::istream & is, tabular_decomp & t)
             break;
         decomp D;
         is >> D;
-        t.push_back(D);
+        t.push_back(std::move(D));
     }
     return is;
 }
