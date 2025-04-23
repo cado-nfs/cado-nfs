@@ -20,8 +20,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 */
 
-#ifndef CADO_CADO_H
-#define CADO_CADO_H
+#ifndef CADO_H
+#define CADO_H
 
 // scan-headers: skip
 
@@ -176,4 +176,4 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #endif
 #endif
 
-#endif  /* CADO_H_ */
+#endif  /* CADO_H */
