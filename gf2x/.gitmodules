@@ -1,3 +1,4 @@
-[submodule "ci/utilities/tanker"]
-	path = ci/utilities/tanker
-	url = ../../thome/tanker.git
+[submodule "ci"]
+	path = ci/ci
+	url = ../../thome/ci-backend
+	branch = main

@@ -1,4 +1,4 @@
-#include "cado.h"       // IWYU pragma: keep
+#include "cado.h" // IWYU pragma: keep
 
 #include <cstdint>
 #include <cstring>
@@ -31,16 +31,16 @@ uint64_t extraction_step(uint64_t * B, uint64_t * A, uint64_t S)
     uint64_t B0[64];
     uint64_t T = 0;
     /* convert to a priority list, in a "save trees" style.  */
-    for(int o=64,z=0,i=64;i-->0;) order[S&(UINT64_C(1)<<i)?--o:z++]=i;
-    for(int i = 0 ; i < 64 ; i++) B0[i] = UINT64_C(1)<<i;
+    for(int o=64,z=0,i=64;i-->0;) order[S&(uint64_t(1)<<i)?--o:z++]=i;
+    for(int i = 0 ; i < 64 ; i++) B0[i] = uint64_t(1)<<i;
     for(int i = 0 ; i < 64 ; i++) reorder[i]=-1;
     for(int j = 0 ; j < 64 ; j++) {
         int const oj = order[j];
-        uint64_t const mj = UINT64_C(1)<<oj;
+        uint64_t const mj = uint64_t(1)<<oj;
         int p = -1;
         for(int i = 0 ; i < 64 ; i++) {
             int const oi = order[i];
-            uint64_t const mi = UINT64_C(1)<<oi;
+            uint64_t const mi = uint64_t(1)<<oi;
             if (T & mi) continue;
             if (A[oi] & mj) {
                 p = i;
@@ -52,7 +52,7 @@ uint64_t extraction_step(uint64_t * B, uint64_t * A, uint64_t S)
         int const op = order[p];
         /* Of course it's important to use indices op and oj here ! */
         reorder[op] = oj;
-        uint64_t const mp = UINT64_C(1) << op;
+        uint64_t const mp = uint64_t(1) << op;
         /* We have a pivot, great. */
         ASSERT_ALWAYS(!(T & mp));
         T |= mp;

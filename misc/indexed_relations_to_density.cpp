@@ -1,12 +1,15 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+
 #include <iostream>
 #include <iterator>
 #include <vector>
 #include <string>
 #include <sstream>
 #include <algorithm>
+
 #include "indexed_relation.hpp"
-#include "omp_proxy.h"
+#include "omp_proxy.h"  // IWYU pragma: keep
+#include "typedefs.h"
 
 /* This binary can be used on files in indexed form (e.g. out of dup2 or
  * out of purge) to recover the table of per-ideal density. This is just

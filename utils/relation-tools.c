@@ -3,7 +3,7 @@
 #include <stdint.h>
 
 #include "typedefs.h"   // p_r_values_t
-#include "mod_ul.h"     // modulusul_t
+#include "arith/mod_ul.h"     // modulusul_t
 #include "relation-tools.h"
 
 /*  a few conversion relations. We happen to export these */

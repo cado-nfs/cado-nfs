@@ -60,35 +60,21 @@ lib/cado-nfs-3.0.0/linalg/bwc/prep
 lib/cado-nfs-3.0.0/linalg/bwc/secure
 EOF
 
-rsync -a --files-from=- /usr/local/ /usr/local/factoring-linalg/ <<EOF
-lib/cado-nfs-3.0.0/linalg/bwc/libarithmetic_b128.so
-lib/cado-nfs-3.0.0/linalg/bwc/libarithmetic_b64.so
-lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_b128_bucket.so
-lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_b64_bucket.so
-lib/cado-nfs-3.0.0/linalg/bwc/lingen_b64
-EOF
+collect() { (cd /usr/local ; for x in "$@" ; do find -name "$x" ; done) ; }
 
-# # This is wrong. We have multiple binary configurations per prime size, a
-# # priori.
-# rsync -a --files-from=- /usr/local/ /usr/local/discretelog-linalg/ <<EOF
-# lib/cado-nfs-3.0.0/linalg/bwc/lingen_pz
-# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p1_zone.so
-# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p2_zone.so
-# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p3_zone.so
-# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p4_zone.so
-# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p5_zone.so
-# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p6_zone.so
-# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p7_zone.so
-# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p8_zone.so
-# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p9_zone.so
-# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p10_zone.so
-# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p11_zone.so
-# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p12_zone.so
-# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p13_zone.so
-# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p14_zone.so
-# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p15_zone.so
-# EOF
-# 
+(
+    collect "libarithmetic_b*.so"
+    collect "libmatmul_b*.so"
+    collect "lingen_b*.so"
+    collect "liblingen_b*"
+    collect "libgf2x.so*"
+) | rsync -a --files-from=- /usr/local/ /usr/local/factoring-linalg/
+
+(
+    collect "libarithmetic_p*.so"
+    collect "libmatmul_p*.so"
+    collect "liblingen_p*_support.so"
+) | rsync -a --files-from=- /usr/local/ /usr/local/discretelog-linalg/
 
 rsync -a --files-from=- /usr/local/ /usr/local/factoring-server/ <<EOF
 lib/cado-nfs-3.0.0/filter/merge

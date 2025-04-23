@@ -1,6 +1,12 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+
+#include <cctype>
+#include <cstddef>
+#include <cstdio>
+
 #include <istream>
 #include <string>
+
 #include "params.h"
 
 int param_list_read(param_list_ptr pl, std::istream & is, bool stop_on_empty_line)

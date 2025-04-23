@@ -1,7 +1,10 @@
 #include "cado.h" // IWYU pragma: keep
 
-// IWYU pragma: no_include <features.h>
-#include <cstdio>       // for fprintf, stderr
+#include <cstdio>
+#include <cstdlib>
+
+#include <memory>
+#include <utility>
 
 #ifdef HAVE_EXECINFO
 #include <execinfo.h>
@@ -14,6 +17,7 @@
 #include "lingen_memory_pool.hpp"
 #include "misc.h"
 #include "select_mpi.h"
+#include "utils_cxx.hpp"
 
 void memory_pool_details::inaccuracy_handler<true>::handle_expand(size_t already_allocated, size_t asked, size_t & previously_allowed)
 {
@@ -57,7 +61,7 @@ void memory_pool_details::alloc_check(const char * text, bool condition)
 static std::string remove_trailing_address_suffix(std::string const& a, std::string& suffix)
 {
     size_t const pos = a.find('+');
-    if (pos == a.npos) {
+    if (pos == std::string::npos) {
         suffix.clear();
         return a;
     }
@@ -68,16 +72,16 @@ static std::string remove_trailing_address_suffix(std::string const& a, std::str
 static std::string get_parenthesized_arg(std::string const& a, std::string& prefix, std::string& suffix)
 {
     size_t const pos = a.find('(');
-    if (pos == a.npos) {
+    if (pos == std::string::npos) {
         prefix=a;
         suffix.clear();
-        return std::string();
+        return {};
     }
     size_t const pos2 = a.find(')', pos + 1);
-    if (pos2 == a.npos) {
+    if (pos2 == std::string::npos) {
         prefix=a;
         suffix.clear();
-        return std::string();
+        return {};
     }
     prefix = a.substr(0, pos);
     suffix = a.substr(pos2 + 1);
@@ -85,16 +89,16 @@ static std::string get_parenthesized_arg(std::string const& a, std::string& pref
 }
 #endif
 
-memory_pool_exception::memory_pool_exception(std::string const & s)
+memory_pool_exception::memory_pool_exception(std::string message)
+    : message(std::move(message))
 {
-    message = s;
 #ifdef HAVE_EXECINFO
     int sz = 100;
 
     void * callers_addresses[sz];
-    char ** callers = NULL;
     sz = backtrace(callers_addresses, sz);
-    callers = backtrace_symbols(callers_addresses, sz);
+    std::unique_ptr<char *[], free_delete<char *>> callers;
+    callers.reset(backtrace_symbols(callers_addresses, sz));
 
     message += "\n";
     message += "======= Backtrace: =========\n";
@@ -113,11 +117,10 @@ memory_pool_exception::memory_pool_exception(std::string const & s)
             caller = remove_trailing_address_suffix(caller, address_suffix);
             {
                 int demangle_status;
-                char * freeme = abi::__cxa_demangle(caller.c_str(), 0, 0, &demangle_status);
-                if (demangle_status == 0) {
-                    caller = freeme;
-                    free(freeme);
-                }
+                const std::unique_ptr<char, free_delete<char>> freeme(
+                        abi::__cxa_demangle(caller.c_str(), nullptr, nullptr, &demangle_status));
+                if (freeme)
+                    caller = freeme.get();
             }
 
             /* Get rid of the type signature, it rather useless */
@@ -132,6 +135,5 @@ memory_pool_exception::memory_pool_exception(std::string const & s)
 #endif
         message += caller + "\n";
     }
-    free(callers);
 #endif
 }

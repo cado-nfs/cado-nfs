@@ -1,5 +1,5 @@
-#ifndef LAS_SIEVE_SHARED_DATA_HPP_
-#define LAS_SIEVE_SHARED_DATA_HPP_
+#ifndef CADO_LAS_SIEVE_SHARED_DATA_HPP
+#define CADO_LAS_SIEVE_SHARED_DATA_HPP
 
 #include <array>                       // for array
 #include <map>                         // for map, swap
@@ -10,7 +10,7 @@
 #include "cado_poly.h"
 #include "mpz_poly.h"
 #include "ecm/facul.hpp"                   // for facul_strategies_t
-#include "fb-types.h"                  // for fbprime_t
+#include "fb-types.hpp"
 #include "fb.hpp"                      // for fb_factorbase, fb_factorbase::...
 #include "las-siever-config.hpp"       // for siever_config, siever_config::...
 #include "lock_guarded_container.hpp"  // for lock_guarded_container
@@ -165,4 +165,4 @@ struct sieve_shared_data {
     static void lookup_parameters(cxx_param_list &, int nsides = 2);
 };
 
-#endif	/* LAS_SIEVE_SHARED_DATA_HPP_ */
+#endif	/* CADO_LAS_SIEVE_SHARED_DATA_HPP */

@@ -1,5 +1,5 @@
-#ifndef EC_PARAMETERIZATION_H_
-#define EC_PARAMETERIZATION_H_
+#ifndef CADO_EC_PARAMETERIZATION_H
+#define CADO_EC_PARAMETERIZATION_H
 
 #ifndef mod_init
 #error "One of the mod*_default.h headers must be included before this file"
@@ -733,4 +733,4 @@ ec_parameterization_Z6 (residue_t b, ec_point_t P0, const unsigned long k,
 }
 #endif
 
-#endif /* EC_PARAMETERIZATION_H_ */
+#endif /* CADO_EC_PARAMETERIZATION_H */

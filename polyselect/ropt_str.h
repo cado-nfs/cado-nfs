@@ -1,5 +1,5 @@
-#ifndef ROPT_STR_H
-#define ROPT_STR_H
+#ifndef CADO_ROPT_STR_H
+#define CADO_ROPT_STR_H
 #include <gmp.h>
 #include <stdbool.h>    // for bool (in C)
 #include "cado_poly.h"

@@ -11,8 +11,8 @@
  * \test TODO
  */
 
-#ifndef GFPKDLPOLYSELECT_H
-#define GFPKDLPOLYSELECT_H
+#ifndef CADO_GFPKDLPOLYSELECT_H
+#define CADO_GFPKDLPOLYSELECT_H
 
 #define ERROR_UNSPECIFIED 0
 #define POLY_OK 1
@@ -52,4 +52,4 @@ int gfpkdlpolyselect(int n, mpz_srcptr p, mpz_srcptr ell, int mnfs, const char* 
 }
 #endif
 
-#endif // GFPKDLPOLYSELECT_H
+#endif // CADO_GFPKDLPOLYSELECT_H

@@ -16,15 +16,6 @@
 #include "mpz_poly_bivariate.hpp"
 #include "macros.h"
 
-/* a shorthand so that we can use user-defined literals */
-// NOLINTNEXTLINE(hicpp-named-parameter,readability-named-parameter)
-static cxx_mpz operator "" _mpz (const char* str, size_t)
-{
-    cxx_mpz res;
-    mpz_set_str(res, str, 0);
-    return res;
-}
-
 // coverity[root_function]
 static void tests_univariate()
 {

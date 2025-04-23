@@ -10,7 +10,7 @@
 #include <gmp.h>                   // for mpz_srcptr, gmp_vfprintf
 
 #include "cado_poly.h"   // cxx_cado_poly
-#include "fb-types.h"              // for sublat_t
+#include "fb-types.hpp"
 #include "las-auxiliary-data.hpp"  // for nfs_aux, report_and_timer
 #include "las-choose-sieve-area.hpp"
 #include "las-info.hpp"            // for las_info, HILIGHT_END, HILIGHT_START

@@ -192,8 +192,7 @@ dnl  ---------------------
 dnl  Establish CC_FOR_BUILD, a C compiler for the build system.
 dnl
 dnl  If CC_FOR_BUILD is set then it's expected to work, likewise the old
-dnl  style HOST_CC, otherwise some likely candidates are tried, the same as
-dnl  configfsf.guess.
+dnl  style HOST_CC, otherwise some likely candidates are tried.
 
 AC_DEFUN([GF2X_PROG_CC_FOR_BUILD],
 [AC_REQUIRE([AC_PROG_CC])

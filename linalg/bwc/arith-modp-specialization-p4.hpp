@@ -4,8 +4,7 @@
 #include "arith-modp-main.hpp"
 #include "arith-modp-specializations.hpp"
 
-namespace arith_modp {
-namespace details {
+namespace arith_modp::details {
 
 /*  code for gfp<4, 1> */
 /*
@@ -80,7 +79,6 @@ namespace details {
 
 EXPOSE_SPECIALIZATION(4);
 
-}
 }
 
 #endif /* ARITH_MODP_SPECIALIZATION_P4_HPP_ */

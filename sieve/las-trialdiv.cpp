@@ -9,7 +9,6 @@
 #include <vector>                      // for vector, vector<>::iterator
 #include <gmp.h>                       // for mpz_divisible_ui_p, mpz_get_ui
 
-#include "fb-types.h"                  // for fbprime_t
 #include "fb.hpp"                      // for fb_factorbase::key_type, fb_en...
 #include "cxx_mpz.hpp"   // cxx_mpz
 #include "getprime.h"   // prime_info getprime_mt

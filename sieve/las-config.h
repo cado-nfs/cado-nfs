@@ -1,5 +1,5 @@
-#ifndef LAS_CONFIG_H_
-#define LAS_CONFIG_H_
+#ifndef CADO_LAS_CONFIG_H
+#define CADO_LAS_CONFIG_H
 
 #include "cado_config.h" // HAVE_SSE2
 
@@ -45,6 +45,10 @@ extern int las_production_mode;
  * siever that supports large q. The "normal" use case for this flag is
  * the las_descent binary, which is anyway _compiled_ with -DDLP_DESCENT
  * -DSUPPORT_LARGE_Q
+ *
+ * Tinkering with this definition is also the way to go if you want a
+ * las_tracek binary that works with large q's similar to the ones we
+ * have in the descent.
  */
 
 #ifndef SUPPORT_LARGE_Q
@@ -92,4 +96,4 @@ void las_display_config_flags();
 }
 #endif
 
-#endif /* LAS_CONFIG_H_ */
+#endif /* CADO_LAS_CONFIG_H */

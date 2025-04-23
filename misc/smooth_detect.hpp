@@ -1,5 +1,5 @@
-#ifndef SMOOTH_DETECT_HPP_
-#define SMOOTH_DETECT_HPP_
+#ifndef CADO_SMOOTH_DETECT_HPP
+#define CADO_SMOOTH_DETECT_HPP
 
 #include "cxx_mpz.hpp"
 #include <gmp.h>
@@ -125,4 +125,4 @@ smooth_detect(int (*next_cand)(descent_init_candidate&, const void*),
               unsigned long bound,
               smooth_detect_params const& param);
 
-#endif /* SMOOTH_DETECT_HPP_ */
+#endif /* CADO_SMOOTH_DETECT_HPP */

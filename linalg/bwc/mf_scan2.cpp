@@ -1,17 +1,23 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstdint>
 #include <cstring>
 
-#include <mutex>
+#include <algorithm>
 #include <atomic>
-#include <vector>
+#include <memory>
+#include <mutex>
+#include <string>
 #include <thread>
+#include <vector>
 
 #ifdef HAVE_HWLOC
 #include <hwloc.h>
 #endif
+
+#include "fmt/base.h"
 
 #include "ringbuf.h"
 #include "macros.h"          // for ASSERT_ALWAYS, MAX, MIN
@@ -62,11 +68,9 @@ class reporter {
         double const tt = wct_seconds();
         bool const want = tt >= last_report + delay;
         if (!force && !want) return;
-        char buf1[20];
-        char buf2[20];
         fmt::print("read {}, parsed {}, in {:.1f} s\n",
-                size_disp(produced, buf1),
-                size_disp(consumed.load(), buf2),
+                size_disp(produced),
+                size_disp(consumed.load()),
                 (last_report = tt) - t0);
         if (want)
             delay *= 1.189207;
@@ -170,6 +174,7 @@ struct parser_thread {
                     /* Get the bit size */
                     unsigned int const t = get_segment_index(c);
                     uint32_t const c1 = c-get_segment_offset(t);
+                    ASSERT_ALWAYS(t < 64);
                     ASSERT_ALWAYS(c1 < get_segment_size(t));
                     segment * x;
                     {
@@ -214,7 +219,7 @@ static void master_loop(ringbuf_ptr R, FILE * f_in, FILE * f_rw)
             ASSERT_ALWAYS(rc == 1);
         }
         for( ; row_length ; ) {
-            size_t const s = MIN(row_length, tw);
+            size_t const s = std::min((size_t) row_length, tw);
             auto k = fread32_little((uint32_t *) buf, s * (1 + c), f_in);
             if (k != s * (1+c)) {
                 fmt::print(stderr,
@@ -240,6 +245,7 @@ static void finish_write_and_clear_segments(uint32_t c, uint32_t colmax, FILE * 
 {
     for( ; c < colmax ; ) {
         unsigned int const t = get_segment_index(c);
+        ASSERT_ALWAYS(t < 64);
         std::lock_guard<std::mutex> const dummy(segment_mutexes[t]);
         uint32_t const c1 = c-get_segment_offset(t);
         uint32_t const max1 = MIN(colmax-get_segment_offset(t), get_segment_size(t));
@@ -368,13 +374,11 @@ int main(int argc, char const * argv[])
         const char * tmp = getenv("CADO_NFS_MAX_THREADS");
         if (tmp) {
             int const n = (int) strtoul(tmp, nullptr, 0);
-            if (n < threads) {
-                threads = n;
-            }
+            threads = std::min(threads, n);
         }
     }
 #else
-    uint64_t ram = 1 << 30;
+    uint64_t ram = uint64_t(1) << 30;
     int threads = 2;
 #endif
 

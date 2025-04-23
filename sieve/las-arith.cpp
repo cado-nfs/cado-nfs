@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <cmath>
 
-#include "fb-types.h"
+#include "fb-types.hpp"
 #include "las-arith.hpp"
 
 /* utility : is_prime_power */

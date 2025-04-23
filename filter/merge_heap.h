@@ -1,5 +1,5 @@
-#ifndef MERGE_HEAP_H_
-#define MERGE_HEAP_H_
+#ifndef CADO_MERGE_HEAP_H
+#define CADO_MERGE_HEAP_H
 
 #include "merge_replay_matrix.h"  // typerow_t, index_t
 
@@ -46,4 +46,4 @@ void heap_clear ();
 }
 #endif
 
-#endif	/* MERGE_HEAP_H_ */
+#endif	/* CADO_MERGE_HEAP_H */

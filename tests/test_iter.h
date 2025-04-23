@@ -1,5 +1,5 @@
-#ifndef TEST_ITER_H_
-#define TEST_ITER_H_
+#ifndef CADO_TEST_ITER_H
+#define CADO_TEST_ITER_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -30,4 +30,4 @@ void test_iter_uint64_next(void *, test_iter_t);
 }
 #endif
 
-#endif	/* TEST_ITER_H_ */
+#endif	/* CADO_TEST_ITER_H */

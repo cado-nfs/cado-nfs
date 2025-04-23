@@ -1,12 +1,16 @@
-#ifndef LAS_SIEVER_CONFIG_HPP_
-#define LAS_SIEVER_CONFIG_HPP_
+#ifndef CADO_LAS_SIEVER_CONFIG_HPP
+#define CADO_LAS_SIEVER_CONFIG_HPP
 
-#include <cstring>      // for memcmp, NULL
-#include <map>           // for operator==, map<>::const_iterator, _Rb_tree_...
-#include <tuple>         // for tie, operator<, tuple
-#include <utility>       // for pair
-#include "fb.hpp"        // for fb_factorbase, fb_factorbase::key_type
-#include "params.h"     // param_list_ptr
+#include <cstring>
+
+#include <algorithm>
+#include <map>
+#include <vector>
+#include <tuple>
+#include <utility>
+
+#include "fb.hpp"
+#include "params.h"
 #include "las-side-config.hpp"
 
 struct las_todo_entry; // IWYU pragma: keep
@@ -124,7 +128,7 @@ struct siever_config {
             return ok;
         }
     };
-    has_same_fb_parameters same_fb_parameters() const { return has_same_fb_parameters(*this); }
+    has_same_fb_parameters same_fb_parameters() const { return { *this }; }
     /*}}}*/
 #if 0
     /*{{{ has_same_sieving -- currently duplicates has_same_fb_parameters */
@@ -175,7 +179,7 @@ struct siever_config {
         };
 
     };
-    has_same_cofactoring same_cofactoring() const { return has_same_cofactoring(*this); }
+    has_same_cofactoring same_cofactoring() const { return { *this }; }
     /*}}}*/
 };
 
@@ -202,9 +206,9 @@ struct siever_config_pool {
     hint_table_t hints;
 
     descent_hint const * get_hint(int side, unsigned int bitsize) const {
-        hint_table_t::const_iterator it = hints.find(key_type(side, bitsize));
+        auto it = hints.find(key_type(side, bitsize));
         if (it == hints.end())
-            return NULL;
+            return nullptr;
         else
             return &it->second;
     }
@@ -222,7 +226,7 @@ struct siever_config_pool {
      * before going to the batch step.
      */
 
-    siever_config const * default_config_ptr;
+    siever_config const * default_config_ptr = nullptr;
     siever_config base;
 
     siever_config get_config_for_q(las_todo_entry const& doing) const;
@@ -247,4 +251,4 @@ struct siever_config_pool {
     static void declare_usage(cxx_param_list & pl);
 };
 
-#endif	/* LAS_SIEVER_CONFIG_HPP_ */
+#endif	/* CADO_LAS_SIEVER_CONFIG_HPP */

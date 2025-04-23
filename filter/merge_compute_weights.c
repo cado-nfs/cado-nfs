@@ -1,12 +1,19 @@
-#include "cado.h"
-#include <pthread.h>
+#include "cado.h" // IWYU pragma: keep
+
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
+#include <limits.h>
+
+#include <pthread.h>
+
 #include "macros.h"
-#include "omp_proxy.h"
+#include "merge_compute_weights.h"
 #include "sparse.h"
 #include "misc.h"
-#include "merge_compute_weights.h"
+#include "omp_proxy.h"
+#include "typedefs.h"
 
 /* 
  * This does a pass on the matrix data (all rows), and collects the

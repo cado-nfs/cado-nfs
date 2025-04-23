@@ -1,5 +1,5 @@
-#ifndef POLYSELECT_PROOTS_H_
-#define POLYSELECT_PROOTS_H_
+#ifndef CADO_POLYSELECT_PROOTS_H
+#define CADO_POLYSELECT_PROOTS_H
 
 #include <stdint.h>
 
@@ -33,4 +33,4 @@ polyselect_proots_compute_conductor(struct polyselect_thread_s * thread);
 }
 #endif
 
-#endif /* POLYSELECT_PROOTS_H_ */
+#endif /* CADO_POLYSELECT_PROOTS_H */

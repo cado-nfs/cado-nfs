@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "cado_poly.h"
 #include "ecm/facul_strategies.hpp"         // for facul_clear_strategies, facul_strategies_t
 #include "gmp_aux.h"    // nbits
 #include "las-cofactor.hpp"  // for facul_make_strategies

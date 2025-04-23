@@ -1,9 +1,11 @@
-#ifndef	CADO_TYPEDEFS_H_
-#define	CADO_TYPEDEFS_H_
+#ifndef	CADO_TYPEDEFS_H
+#define	CADO_TYPEDEFS_H
+
+#include "cado_config.h"
 
 // pragma no prototypes
+#include <stdint.h>
 #include <inttypes.h>   // PRIx32 etc
-#include "ularith.h" /* NEEDED for ULONG_BITS (32 or 64) */
 
 // scan-headers: stop here
 
@@ -78,4 +80,4 @@ typedef struct {
   double W; /* weight of the active part of the matrix */
 } info_mat_t;
 
-#endif	/* CADO_TYPEDEFS_H_ */
+#endif	/* CADO_TYPEDEFS_H */

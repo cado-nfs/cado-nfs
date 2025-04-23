@@ -2,13 +2,16 @@
 #define GENERATE_FACTORING_METHOD_HPP
 
 #include <cstdio>
+
 #include <vector>
+
 #include <gmp.h>
+
 #include "cxx_mpz.hpp"
 #include "facul.hpp"
 #include "facul_ecm.h"
-#include "tab_fm.h"
-#include "tab_point.h"
+#include "tab_fm.hpp"
+#include "tab_point.hpp"
 
 /************************************************************************/
 /*                      To generate numbers n=pq*/
@@ -37,7 +40,7 @@ generate_composite_integer_interval(gmp_randstate_t state,
 /* This generate a 1-sided strategy with just one single method, and (for
  * ECM) a randomly chosen parameter sigma. extra_primes is set to 1.
  */
-facul_strategy_oneside generate_fm (int method,
+facul_strategy_oneside generate_fm (facul_method_code method,
                                unsigned long B1, unsigned long B2,
                                ec_parameterization_t curve
                                );
@@ -46,21 +49,22 @@ facul_strategy_oneside generate_fm (int method,
 /*                      Create Factoring Methods */
 /************************************************************************/
 
-int *choice_parameters(int method, int len_p_min);
+int *choice_parameters(facul_method_code method, int len_p_min);
 
-tabular_fm_t *bench_proba_time_pset(int method, ec_parameterization_t curve,
+tabular_fm_t *bench_proba_time_pset(facul_method_code method, ec_parameterization_t curve,
 				    gmp_randstate_t state,
 				    int len_p_min, int len_p_max,
-				    int len_n, int *param_region);
+				    int len_n, const int *param_region);
 
 tabular_fm_t *generate_factoring_methods(gmp_randstate_t state, int len_p_min,
 					 int len_p_max, int len_n, int opt_ch,
-					 int *param_sieve);
+					 const int *param_sieve);
 
 tabular_fm_t *generate_factoring_methods_mc(gmp_randstate_t state,
 					    int len_p_min, int len_p_max,
-					    int len_n, int method, ec_parameterization_t curve,
-					    int opt_ch, int *param_sieve);
+					    int len_n, facul_method_code method, ec_parameterization_t curve,
+					    int opt_ch,
+                                            const int *param_sieve);
 
 /************************************************************************/
 /*                      ANALYSE AND FILTER */
@@ -89,9 +93,9 @@ tabular_fm_t *filtering(tabular_fm_t * fm, int final_nb_methods);
 /*                      CONVEX_HULL_FM                                  */
 /************************************************************************/
 
-tabular_point_t *convert_tab_point_to_tab_fm(tabular_fm_t * t);
+tabular_point convert_tab_point_to_tab_fm(tabular_fm_t * t);
 
-tabular_fm_t *convert_tab_fm_to_tab_point(tabular_point_t * t,
+tabular_fm_t *convert_tab_fm_to_tab_point(tabular_point const & t,
 					  tabular_fm_t * init);
 
 tabular_fm_t *convex_hull_fm(tabular_fm_t * t);
@@ -107,7 +111,10 @@ struct weighted_success {
     double time = 0;
     // weighted_success() = default;
     weighted_success(double p, double t) : prob(p), time(t) {}
-    weighted_success(double p, double t, size_t N) : prob(p/N), time(t/N) {}
+    weighted_success(size_t p, double t, size_t N)
+        : prob(double(p)/double(N))
+        , time(t/double(N))
+    {}
 };
 
 #endif				/* GENERATE_FACTORING_METHOD_HPP */

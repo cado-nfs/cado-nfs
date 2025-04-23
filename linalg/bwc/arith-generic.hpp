@@ -69,8 +69,8 @@ struct arith_generic {
     virtual int simd_hamming_weight(elt const &) const = 0;
     virtual void vec_simd_set_ui_at(elt * p, size_t k, int v) const = 0;
     virtual void vec_simd_add_ui_at(elt * p, size_t k, int v) const = 0;
-    virtual int vec_simd_hamming_weight(elt const * p, size_t n) const = 0;
-    virtual int vec_simd_find_first_set(elt &, elt const * p, size_t n) const = 0;
+    virtual size_t vec_simd_hamming_weight(elt const * p, size_t n) const = 0;
+    virtual size_t vec_simd_find_first_set(elt &, elt const * p, size_t n) const = 0;
     virtual std::ostream& cxx_out(std::ostream&, elt const &) const = 0;
 
     /* do not use this in C++ programs. Use the RAII alloc_vector instead

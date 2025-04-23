@@ -1,9 +1,9 @@
-#ifndef LAS_SMALLSIEVE_TYPES_HPP_
-#define LAS_SMALLSIEVE_TYPES_HPP_
+#ifndef CADO_LAS_SMALLSIEVE_TYPES_HPP
+#define CADO_LAS_SMALLSIEVE_TYPES_HPP
 
 #include <vector>
 #include "las-forwardtypes.hpp"
-#include "fb-types.h"
+#include "fb-types.hpp"
 #include "fb.hpp"
 #include "macros.h"
 

@@ -78,6 +78,8 @@ struct bwc_file_base : public decomposed_path {// {{{
 struct bwc_column_range {// {{{
     unsigned int j0 = 0;
     unsigned int j1 = 0;
+    bwc_column_range() = default;
+    bwc_column_range(unsigned int j0, unsigned int j1) : j0(j0), j1(j1) {}
     unsigned int operator[](unsigned int i) const {
         ASSERT_ALWAYS(i <= 1);
         return i ? j1 : j0;
@@ -94,6 +96,8 @@ struct bwc_column_range {// {{{
 struct bwc_solution_range {// {{{
     unsigned int s0 = 0;
     unsigned int s1 = 0;
+    bwc_solution_range() = default;
+    bwc_solution_range(unsigned int s0, unsigned int s1) : s0(s0), s1(s1) {}
     unsigned int operator[](unsigned int i) const {
         ASSERT_ALWAYS(i <= 1);
         return i ? s1 : s0;
@@ -110,6 +114,8 @@ struct bwc_solution_range {// {{{
 struct bwc_iteration_range {// {{{
     unsigned int n0 = 0;
     unsigned int n1 = 0;
+    bwc_iteration_range() = default;
+    bwc_iteration_range(unsigned int n0, unsigned int n1) : n0(n0), n1(n1) {}
     unsigned int operator[](unsigned int i) const {
         ASSERT_ALWAYS(i <= 1);
         return i ? n1 : n0;

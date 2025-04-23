@@ -1,6 +1,6 @@
 /* This file is part of the gf2x library.
 
-   Copyright 2007, 2008, 2009, 2010, 2012, 2013, 2015
+   Copyright 2007, 2008, 2009, 2010, 2012, 2013, 2015, 2016, 2018, 2019, 2021, 2022, 2023
    Richard Brent, Pierrick Gaudry, Emmanuel Thome', Paul Zimmermann
 
    This program is free software; you can redistribute it and/or modify it
@@ -177,12 +177,12 @@ static void Lshift(unsigned long *a, unsigned long *b, uint64_t k, size_t N)
                 a[I(N)] ^= s1;	/* restore high R(N) bits if they were
                                    overwritten by Lsh above.  */
                 a[2 * I(N)] = s2 ^ (s1 << R(N));
-                if (2 * R(N) > WLEN)
-                    a[2 * I(N) + 1] = s1 >> (WLEN - R(N));
+                if (2 * R(N) > GF2X_WORDSIZE)
+                    a[2 * I(N) + 1] = s1 >> (GF2X_WORDSIZE - R(N));
             }
         } else {
-            if (2 * R(N) > WLEN) {
-                a[1] = a[0] >> (WLEN - R(N));
+            if (2 * R(N) > GF2X_WORDSIZE) {
+                a[1] = a[0] >> (GF2X_WORDSIZE - R(N));
             }
             a[0] ^= a[0] << R(N);
         }
@@ -250,7 +250,7 @@ static void Lshift(unsigned long *a, unsigned long *b, uint64_t k, size_t N)
 
 /* a <- b * c mod x^(2*N)+x^(N)+1.
  * Assumes t has space for 2n words, and u for gf2x_toomspace(n) words,
- * where n = ceil(2N/WLEN).
+ * where n = ceil(2N/GF2X_WORDSIZE).
  * a and b may be equal.
  * a, b, c must have space for n words.
  */
@@ -260,7 +260,7 @@ static void MulMod(unsigned long *a, const unsigned long *b, const unsigned long
 {
     size_t n = W(2 * N), sh, l;
 
-    /* FIXME: in practice N is divisible by a multiple of 3, thus if WLEN is
+    /* FIXME: in practice N is divisible by a multiple of 3, thus if GF2X_WORDSIZE is
        a power of two, R(N) > 0 and W(N) = I(N) + 1, thus we can avoid a few
        tests below. */
 
@@ -284,9 +284,9 @@ static void MulMod(unsigned long *a, const unsigned long *b, const unsigned long
     if (I(N) < l) {
 	ASSERT(2 * l - 2 < n);
 	a[2 * l - 2] = u[1] ^ (u[0] << R(N));	/* 2R(N) bits */
-	if (2 * R(N) > WLEN) {
+	if (2 * R(N) > GF2X_WORDSIZE) {
 	    ASSERT(2 * l - 1 < n);
-	    a[2 * l - 1] = u[0] >> (WLEN - R(N));
+	    a[2 * l - 1] = u[0] >> (GF2X_WORDSIZE - R(N));
 	}
 	a[l - 1] ^= u[0];	/* restore low R(N) bits */
     }
@@ -320,7 +320,7 @@ static void bitrev(size_t i, size_t j, size_t K, size_t Z, size_t *perm)
 /* performs an FFT of length K on A[0], A[stride], A[(K-1)*stride] with
    omega=x^j as root of unity, where all computations are
    done modulo x^(2Np) + x^Np + 1.
-   Each A[i] has space for 2np words where np=ceil(Np/WLEN).
+   Each A[i] has space for 2np words where np=ceil(Np/GF2X_WORDSIZE).
    Assume omega^K = 1 mod x^(2Np) + x^Np + 1, i.e., mod x^(3Np)+1.
    t1, t2, t3 are buffers of 2np words.
    Assumes 0 <= j < 3*Np.
@@ -409,8 +409,8 @@ static void decompose(unsigned long **A, const unsigned long *a,
 	ASSERT(l < 2 * np);
 	Zero(A[i] + l, 2 * np - l);
 	k += M;
-	j += k / WLEN;
-	k %= WLEN;
+	j += k / GF2X_WORDSIZE;
+	k %= GF2X_WORDSIZE;
     }
 }
 
@@ -423,7 +423,7 @@ static void recompose(unsigned long * c, size_t cn, unsigned long **C, size_t K,
        Since we know the result has at most cn words, any value exceeding cn
        words is necessarily zero.
        Each C[i] has 2*Np bits, thus the full C has (K-1)*M+2*Np
-       = N - M + 2*Np >= N + Np >= 2*n*WLEN + Np bits.
+       = N - M + 2*Np >= N + Np >= 2*n*GF2X_WORDSIZE + Np bits.
        Thus exactly 2*Np-M bits wrap around mod x^N+1.
      *
      * (and in full generality, for any i, we have 2*Np-M bits of C[i]
@@ -476,11 +476,11 @@ static void recompose(unsigned long * c, size_t cn, unsigned long **C, size_t K,
 	}
 
 	k += M;
-	j += k / WLEN;
-	k %= WLEN;
+	j += k / GF2X_WORDSIZE;
+	k %= GF2X_WORDSIZE;
 	k1 += M;
-	j1 += k1 / WLEN;
-	k1 %= WLEN;
+	j1 += k1 / GF2X_WORDSIZE;
+	k1 %= GF2X_WORDSIZE;
     }
 }
 
@@ -502,10 +502,10 @@ static void recompose_simpler(unsigned long * c, size_t cn, size_t shift, unsign
     for(size_t i = 0 ; i < K ; i++) {
         /* C[i] has bits [i*M .. i*M + 2*Np[ */
         for(size_t l = 0 ; l < W(2*Np) ; l++) {
-            /* word l of C[i] has bits [i*M+l*WLEN..i*M+MAX((l+1)*WLEN,2*Np)[
+            /* word l of C[i] has bits [i*M+l*GF2X_WORDSIZE..i*M+MAX((l+1)*GF2X_WORDSIZE,2*Np)[
              */
-            size_t b0 = i * M + l * WLEN;
-            size_t b1 = i * M + MIN((l+1) * WLEN, 2 * Np);
+            size_t b0 = i * M + l * GF2X_WORDSIZE;
+            size_t b1 = i * M + MIN((l+1) * GF2X_WORDSIZE, 2 * Np);
             /* w has no extraneous high bits */
             unsigned long w = C[i][l];
             if (b1 <= shift)
@@ -522,7 +522,7 @@ static void recompose_simpler(unsigned long * c, size_t cn, size_t shift, unsign
                     continue;
                 size_t cnt = R(b0 - shift);
                 if (cnt) {
-                    size_t tnc = WLEN - cnt;
+                    size_t tnc = GF2X_WORDSIZE - cnt;
                     c[I(b0-shift)] ^= w << cnt;
                     if (I(b0 - shift) + 1 < cn)
                         c[I(b0-shift) + 1] ^= w >> tnc;
@@ -549,7 +549,7 @@ static inline size_t compute_np(size_t M, size_t K)
 
 // Wraps the polynomial represented by c mod x^N + 1
 // Assumes wraps at most once, i.e. deg(c) < 2N.
-// The high part of c (bits N to WLEN*cn) are cleared.
+// The high part of c (bits N to GF2X_WORDSIZE*cn) are cleared.
 // RPB 20070429
 
 static void wrap(unsigned long *c, size_t bits_c, size_t N)
@@ -557,7 +557,7 @@ static void wrap(unsigned long *c, size_t bits_c, size_t N)
     size_t i;
     size_t Nw = I(N);
     size_t Nb = R(N);
-    size_t Nbc = WLEN - Nb;
+    size_t Nbc = GF2X_WORDSIZE - Nb;
     size_t cn = W(bits_c);
 
     // Perhaps most of this could be done by a call to AddLsh ?
@@ -565,7 +565,7 @@ static void wrap(unsigned long *c, size_t bits_c, size_t N)
     if (N >= bits_c)
         return;
 
-    // xor bits N .. WLEN*cn of c to c[0...]
+    // xor bits N .. GF2X_WORDSIZE*cn of c to c[0...]
     if (Nb == 0) {
         for (i = 0; i < cn - Nw - 1; i++)
             c[i] ^= c[i + Nw];
@@ -584,7 +584,7 @@ static void wrap(unsigned long *c, size_t bits_c, size_t N)
 
 static void split_reconstruct(unsigned long * c, size_t bits_c, size_t shift, unsigned long * c1, unsigned long * c2, size_t cn, size_t K, size_t m1)
 {
-    size_t n = WLEN * cn;	// Max bit-size of full product
+    size_t n = GF2X_WORDSIZE * cn;	// Max bit-size of full product
     size_t delta = K;		// delta = n1 - n2;
     size_t jw, jn1w, jn1b, jn1bc, jdw, jdb, jdbc;
     unsigned long t, next;
@@ -598,7 +598,7 @@ static void split_reconstruct(unsigned long * c, size_t bits_c, size_t shift, un
     size_t n1 = K * m1;		// next possible multiple of K
     size_t j;
 
-    for (j = n - n1 - 1; (j % WLEN) != (WLEN - 1); j--) {
+    for (j = n - n1 - 1; (j % GF2X_WORDSIZE) != (GF2X_WORDSIZE - 1); j--) {
 	t = GETBIT(c1, j + delta) ^ GETBIT(c2, j + delta);
 	XORBIT(c1, j + n1, t);	// XOR assumes high part of c1 was zero
 	XORBIT(c1, j, t);
@@ -606,9 +606,9 @@ static void split_reconstruct(unsigned long * c, size_t bits_c, size_t shift, un
 
 // Now do the rest using full-word operations.
 
-    j -= WLEN - 1;
+    j -= GF2X_WORDSIZE - 1;
     jdb = R(j + delta);
-    jdbc = WLEN - 1 - jdb;
+    jdbc = GF2X_WORDSIZE - 1 - jdb;
     jn1b = R(j + n1);
     jw = I(j);
     jdw = I(j + delta);
@@ -624,7 +624,7 @@ static void split_reconstruct(unsigned long * c, size_t bits_c, size_t shift, un
 	    c1[jn1w] = t;
 	}
     } else {			// Usual case
-	for (jn1bc = WLEN - jn1b, jw++; jw-- ; jdw--, jn1w--) {
+	for (jn1bc = GF2X_WORDSIZE - jn1b, jw++; jw-- ; jdw--, jn1w--) {
 	    t = (next << 1) << jdbc;
 	    next = c1[jdw] ^ c2[jdw];
 	    t ^= next >> jdb;
@@ -636,7 +636,7 @@ static void split_reconstruct(unsigned long * c, size_t bits_c, size_t shift, un
 
 // Do a consistency check. This is cheap and detects most errors.
 // If DEBUG defined we check the first delta bits, otherwise we only
-// check the first WLEN bits.
+// check the first GF2X_WORDSIZE bits.
 
 #ifdef DEBUG
     for (j = 0; j < delta; j++) {
@@ -648,8 +648,8 @@ static void split_reconstruct(unsigned long * c, size_t bits_c, size_t shift, un
 #endif
 
 #ifndef NDEBUG
-    t = c2[0] ^ c1[0] ^ (c1[n2 / WLEN] >> n2 % WLEN) ^
-	((c1[n2 / WLEN + 1] << 1) << (WLEN - 1 - n2 % WLEN));
+    t = c2[0] ^ c1[0] ^ (c1[n2 / GF2X_WORDSIZE] >> n2 % GF2X_WORDSIZE) ^
+	((c1[n2 / GF2X_WORDSIZE + 1] << 1) << (GF2X_WORDSIZE - 1 - n2 % GF2X_WORDSIZE));
     if (t != 0) {
 	fprintf(stderr, "Consistency check failed in gf2x_mul_fft2, low word %lx\n", t);
         abort();
@@ -739,7 +739,7 @@ static int gf2x_ternary_fft_dft_inner_split(gf2x_ternary_fft_info_srcptr o, gf2x
     size_t K = o->K;
     size_t N = K * M;
 
-    // ASSERT(K >= WLEN);  // why ? I've seen this comment somewhere, but why ?
+    // ASSERT(K >= GF2X_WORDSIZE);  // why ? I've seen this comment somewhere, but why ?
     // ASSERT(2 * K * M >= W(bits_a + bits_b));
 
     // FIXME: This wrapping, and use of extra buffer space, should be
@@ -988,12 +988,12 @@ int gf2x_ternary_fft_ift(gf2x_ternary_fft_info_srcptr o, unsigned long * c, size
         unsigned long * c1 = malloc(cn * sizeof(unsigned long));
         if (c1 == NULL) return GF2X_ERROR_OUT_OF_MEMORY;
         Clear(c1, I(K * m1), cn);
-        rc = gf2x_ternary_fft_ift_inner(o, c1, cn * WLEN, tr, m1, temp1);
+        rc = gf2x_ternary_fft_ift_inner(o, c1, cn * GF2X_WORDSIZE, tr, m1, temp1);
         if (rc < 0) {
             free(c1);
             return rc;
         }
-        wrap(c1, cn1 * WLEN, K * m1);
+        wrap(c1, cn1 * GF2X_WORDSIZE, K * m1);
 
         tr += 2 * K * compute_np(m1, K);
 
@@ -1004,13 +1004,13 @@ int gf2x_ternary_fft_ift(gf2x_ternary_fft_info_srcptr o, unsigned long * c, size
             return GF2X_ERROR_OUT_OF_MEMORY;
         }
         Clear(c2, I(K * m2), cn);
-        rc = gf2x_ternary_fft_ift_inner(o, c2, cn * WLEN, tr, m2, temp1);
+        rc = gf2x_ternary_fft_ift_inner(o, c2, cn * GF2X_WORDSIZE, tr, m2, temp1);
         if (rc < 0) {
             free(c2);
             free(c1);
             return rc;
         }
-        wrap(c2, cn2 * WLEN, K * m2);
+        wrap(c2, cn2 * GF2X_WORDSIZE, K * m2);
 
         split_reconstruct(c, bits_c, o->mp_shift, c1, c2, cn0, K, m1);
         free(c1);
@@ -1047,11 +1047,11 @@ int gf2x_ternary_fft_info_adjust(
         size_t nwa = W(o->bits_a);
         size_t nwb = W(o->bits_b);
         if (o->split == 0) {
-            o->M = CEIL((nwa + nwb) * WLEN, K);	// ceil(bits(product)/K)
+            o->M = CEIL((nwa + nwb) * GF2X_WORDSIZE, K);	// ceil(bits(product)/K)
         } else {
-            ASSERT(K >= WLEN);
+            ASSERT(K >= GF2X_WORDSIZE);
             size_t cn2 = CEIL(nwa + nwb, 2);	// Space for half product
-            size_t m2 = CEIL(cn2 * WLEN, K);	// m2 = ceil(cn2*WLEN/K)
+            size_t m2 = CEIL(cn2 * GF2X_WORDSIZE, K);	// m2 = ceil(cn2*GF2X_WORDSIZE/K)
             size_t m1 = m2 + 1;		        // next possible M
             o->M = m1;
         }
@@ -1072,15 +1072,15 @@ int gf2x_ternary_fft_info_adjust(
         o->split = val != 0;
         if (o->split == 0) {
             if (o->mp_shift) {
-                o->M = CEIL(MAX(nwa, nwb) * WLEN, o->K);
+                o->M = CEIL(MAX(nwa, nwb) * GF2X_WORDSIZE, o->K);
             } else {
-                o->M = CEIL((nwa + nwb) * WLEN, o->K);// ceil(bits(product)/K)
+                o->M = CEIL((nwa + nwb) * GF2X_WORDSIZE, o->K);// ceil(bits(product)/K)
             }
         } else {
             /* do the same for middle product and normal product */
-            ASSERT(o->K >= WLEN);
+            ASSERT(o->K >= GF2X_WORDSIZE);
             size_t cn2 = CEIL(nwa + nwb, 2);	// Space for half product
-            size_t m2 = CEIL(cn2 * WLEN, o->K);	// m2 = ceil(cn2*WLEN/K)
+            size_t m2 = CEIL(cn2 * GF2X_WORDSIZE, o->K);	// m2 = ceil(cn2*GF2X_WORDSIZE/K)
             size_t m1 = m2 + 1;		        // next possible M
             o->M = m1;
         }
@@ -1242,9 +1242,9 @@ char * gf2x_ternary_fft_info_explain(gf2x_ternary_fft_info_srcptr p)
 /* multiplies {a, an} by {b, bn} using an FFT of length K,
    and stores the result into {c, an+bn}.
    The result is computed mod (x^N+1) where N = K*M.
-   Thus for a full product K*M should be >= (an+bn)*WLEN,
+   Thus for a full product K*M should be >= (an+bn)*GF2X_WORDSIZE,
    the size of product in bits. For the result mod (x^N+1)
-   it is only required that 2*K*M >= (an+bn)*WLEN */
+   it is only required that 2*K*M >= (an+bn)*GF2X_WORDSIZE */
 
 // here an and bn denote numbers of WORDS, while the gf2x_ternary_fft_* routines
 // are interested in number of BITS.
@@ -1253,7 +1253,7 @@ int gf2x_mul_fft(unsigned long *c, const unsigned long *a, size_t an,
 {
     gf2x_ternary_fft_info_t o;
     int rc;
-    rc = gf2x_ternary_fft_info_init(o, an * WLEN, bn * WLEN);
+    rc = gf2x_ternary_fft_info_init(o, an * GF2X_WORDSIZE, bn * GF2X_WORDSIZE);
     if (rc < 0) return rc;
     if (K < 0) {
         rc = gf2x_ternary_fft_info_adjust(o, GF2X_FFT_ADJUST_DEPTH, -K);
@@ -1306,7 +1306,7 @@ int gf2x_mul_fft(unsigned long *c, const unsigned long *a, size_t an,
         return GF2X_ERROR_OUT_OF_MEMORY;
     }
 
-    rc = gf2x_ternary_fft_dft(o, ta, a, an * WLEN, temp);
+    rc = gf2x_ternary_fft_dft(o, ta, a, an * GF2X_WORDSIZE, temp);
     if (rc < 0) {
         gf2x_ternary_fft_free(o, tc, 1);
         gf2x_ternary_fft_free(o, tb, 1);
@@ -1315,7 +1315,7 @@ int gf2x_mul_fft(unsigned long *c, const unsigned long *a, size_t an,
         gf2x_ternary_fft_info_clear(o);
         return rc;
     }
-    rc = gf2x_ternary_fft_dft(o, tb, b, bn * WLEN, temp);
+    rc = gf2x_ternary_fft_dft(o, tb, b, bn * GF2X_WORDSIZE, temp);
     if (rc < 0) {
         gf2x_ternary_fft_free(o, tc, 1);
         gf2x_ternary_fft_free(o, tb, 1);
@@ -1335,7 +1335,7 @@ int gf2x_mul_fft(unsigned long *c, const unsigned long *a, size_t an,
         return rc;
     }
 
-    rc = gf2x_ternary_fft_ift(o, c, (an+bn)*WLEN, tc, temp);
+    rc = gf2x_ternary_fft_ift(o, c, (an+bn)*GF2X_WORDSIZE, tc, temp);
     if (rc < 0) {
         gf2x_ternary_fft_free(o, tc, 1);
         gf2x_ternary_fft_free(o, tb, 1);

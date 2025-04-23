@@ -1,5 +1,5 @@
-#ifndef LAS_THREADS_HPP_
-#define LAS_THREADS_HPP_
+#ifndef CADO_LAS_THREADS_HPP
+#define CADO_LAS_THREADS_HPP
 
 #include <cstddef>         // for size_t
 #include <array>           // for array

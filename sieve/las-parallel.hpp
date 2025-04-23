@@ -1,5 +1,5 @@
-#ifndef LAS_PARALLEL_HPP_
-#define LAS_PARALLEL_HPP_
+#ifndef CADO_LAS_PARALLEL_HPP
+#define CADO_LAS_PARALLEL_HPP
 // IWYU pragma: no_include <bits/exception.h>
 #include "cado_config.h"     // for HAVE_HWLOC
 #include <exception> // IWYU pragma: keep  // for exception
@@ -129,4 +129,4 @@ public:
     };
 };
 
-#endif	/* LAS_PARALLEL_HPP_ */
+#endif	/* CADO_LAS_PARALLEL_HPP */

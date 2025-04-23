@@ -17,7 +17,7 @@
 #include "las-info.hpp"        // for las_info
 #include "las-todo-entry.hpp"  // for las_todo_entry
 #include "tdict.hpp"           // for timetree_t, slot, global_enable, slot_...
-#include "ularith.h"           // for ularith_addmod_ul_ul
+#include "arith/ularith.h"           // for ularith_addmod_ul_ul
 #include "verbose.h"
 
 void

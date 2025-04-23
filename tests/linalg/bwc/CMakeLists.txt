@@ -152,7 +152,8 @@ foreach(layer ${BWC_GFP_ARITHMETIC_BACKENDS})
 endforeach()
         
 macro(create_magma_sage_diversions t)
-    if(MAGMA)
+    # the magma code doesn't like 32-bits
+    if(MAGMA AND ULONG_BITS EQUAL 64)
         divert_bwc_test(${t} with_magma APPEND_ARGUMENTS magma=${MAGMA}
             TIMEOUT 180
         )

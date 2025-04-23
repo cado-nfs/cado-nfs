@@ -1,7 +1,9 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <stdint.h>
+
 #include "gcd.h"
-#include "mod_ul.h"
+#include "arith/mod_ul.h"
 #include "macros.h"   // for ASSERT
 #include "misc.h" /* for cado_ctzl */
 

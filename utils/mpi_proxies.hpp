@@ -1,5 +1,5 @@
-#ifndef MPI_PROXIES_HPP_
-#define MPI_PROXIES_HPP_
+#ifndef CADO_MPI_PROXIES_HPP
+#define CADO_MPI_PROXIES_HPP
 
 #include "select_mpi.h"
 #include <vector>
@@ -123,4 +123,4 @@ allgather(std::vector<T> const & in, std::vector<T> & out, MPI_Comm comm)
 } // end of namespace cado_mpi
 
 
-#endif	/* MPI_PROXIES_HPP_ */
+#endif	/* CADO_MPI_PROXIES_HPP */

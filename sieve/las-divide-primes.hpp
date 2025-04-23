@@ -1,5 +1,5 @@
-#ifndef LAS_DIVIDE_PRIMES_HPP_
-#define LAS_DIVIDE_PRIMES_HPP_
+#ifndef CADO_LAS_DIVIDE_PRIMES_HPP
+#define CADO_LAS_DIVIDE_PRIMES_HPP
 
 #include <algorithm>  // for max
 #include <cstdint>    // for uint64_t, int64_t
@@ -25,4 +25,4 @@ divide_known_primes (std::vector<uint64_t> & fl, cxx_mpz & norm, const unsigned 
            int64_t a, uint64_t b,
            fb_factorbase::slicing const & fbs);
 
-#endif	/* LAS_DIVIDE_PRIMES_HPP_ */
+#endif	/* CADO_LAS_DIVIDE_PRIMES_HPP */

@@ -11,11 +11,12 @@
 #error "This file assumes SSE-2 support!"
 #endif /* HAVE_SSE2 */
 
-#include <algorithm>        // for max
-#include <emmintrin.h>      // for __m128i, _mm_xor_si128, _mm_set1_epi8
 #include <cstdint>          // for uint32_t
 #include <cstdlib>          // for size_t, abs
+
 #include <vector>           // for vector
+
+#include <emmintrin.h>      // for __m128i, _mm_xor_si128, _mm_set1_epi8
 
 #ifdef TRACE_K
 #include "las-where-am-i.hpp"           // for where_am_I, WHERE_AM_I_UPDATE
@@ -25,7 +26,7 @@
 
 #include "las-unsieve.hpp"  // for extract_j_div, j_divisibility_helper, sea...
 #include "macros.h"         // for ASSERT_ALWAYS, MAYBE_UNUSED, no_break
-#include "ularith.h"        // for ularith_ctz
+#include "arith/ularith.h"        // for ularith_ctz
 #include "gcd.h"       // for bin_gcd_int64_safe
 
 static const int verify_gcd = 0; /* Enable slow but thorough test */

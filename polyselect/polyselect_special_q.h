@@ -1,5 +1,5 @@
-#ifndef POLYSELECT_SPECIAL_Q_H_
-#define POLYSELECT_SPECIAL_Q_H_
+#ifndef CADO_POLYSELECT_SPECIAL_Q_H
+#define CADO_POLYSELECT_SPECIAL_Q_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -22,5 +22,5 @@ extern const unsigned int SPECIAL_Q[];
 }
 #endif
 
-#endif	/* POLYSELECT_SPECIAL_Q_H_ */
+#endif	/* CADO_POLYSELECT_SPECIAL_Q_H */
 

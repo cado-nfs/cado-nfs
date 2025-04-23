@@ -59,6 +59,12 @@ struct matpoly_checker_base {
         // harmless.
         // coverity[uninit_member]
     }
+#if 0
+    matpoly_checker_base(matpoly_checker_base const & o) = delete;
+    matpoly_checker_base(matpoly_checker_base && o) = delete;
+    matpoly_checker_base& operator=(matpoly_checker_base const & o) = delete;
+    matpoly_checker_base& operator=(matpoly_checker_base && o) = delete;
+#else
     matpoly_checker_base(matpoly_checker_base const & o)
         : ab(o.ab)
         , m(o.m)
@@ -73,6 +79,7 @@ struct matpoly_checker_base {
         // harmless.
         // coverity[uninit_member]
     }
+#endif
 
     int ctor_and_pre_init() {
         matpoly const A(&ab, 0, 0, 0);
@@ -418,7 +425,7 @@ struct matpoly_checker_ft : public matpoly_checker_base {
         Q.clear_and_set_random(len2, rstate);
 
         matpoly const R0 = matpoly::mul(P, Q);
-        matpoly const R1 = matpoly_ft<fft_type>::mul_caching(stats, P, Q, NULL);
+        matpoly const R1 = matpoly_ft<fft_type>::mul_caching(stats, P, Q, nullptr);
 
         return (R0.cmp(R1) == 0);
     }
@@ -431,7 +438,7 @@ struct matpoly_checker_ft : public matpoly_checker_base {
         Q.clear_and_set_random(len2, rstate);
 
         matpoly const M0 = matpoly::mp(P, Q);
-        matpoly const M1 = matpoly_ft<fft_type>::mp_caching(stats, P, Q, NULL);
+        matpoly const M1 = matpoly_ft<fft_type>::mp_caching(stats, P, Q, nullptr);
 
         return M0.cmp(M1) == 0;
     }
@@ -470,8 +477,8 @@ int main(int argc, char const * argv[])
 
     cxx_param_list pl;
 
-    setbuf(stdout, nullptr);
-    setbuf(stderr, nullptr);
+    setvbuf(stdout, nullptr, _IONBF, 0);
+    setvbuf(stderr, nullptr, _IONBF, 0);
 
     declare_usage(pl);
 

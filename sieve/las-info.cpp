@@ -1,14 +1,24 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <climits>           // for ULONG_MAX
-#include <cmath>             // for log2
-#include <cstdio>             // for fprintf, NULL, stderr
-#include <cstdlib>           // for abort, exit, EXIT_FAILURE
-#include <gmp.h>              // for GMP_LIMB_BITS, gmp_randclear, gmp_randi...
-#include "ecm/batch.hpp"          // for cofac_list
+#include <climits>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+
+#ifdef HAVE_HWLOC
+#include <hwloc.h>
+#endif
+
+#include <gmp.h>
+
+#include "cado_poly.h"
+#include "las-cofactor.hpp"
 #include "las-info.hpp"
-#include "las-todo-list.hpp"  // for las_todo_list
-#include "macros.h"           // for ASSERT_ALWAYS
+#include "las-side-config.hpp"
+#include "las-siever-config.hpp"
+#include "las-sieve-shared-data.hpp"
+#include "las-todo-list.hpp"
+#include "macros.h"
 #include "params.h"
 
 /* las_info stuff */
@@ -22,9 +32,9 @@ void las_info::configure_switches(cxx_param_list & pl)
 {
     cxx_cado_poly::configure_switches(pl);
     las_todo_list::configure_switches(pl);
-    param_list_configure_switch(pl, "-allow-compsq", NULL);
-    param_list_configure_switch(pl, "-dup", NULL);
-    param_list_configure_switch(pl, "-batch", NULL);
+    param_list_configure_switch(pl, "-allow-compsq", nullptr);
+    param_list_configure_switch(pl, "-dup", nullptr);
+    param_list_configure_switch(pl, "-batch", nullptr);
 }
 
 void las_info::declare_usage(cxx_param_list & pl)
@@ -72,26 +82,10 @@ void las_info::prepare_sieve_shared_data(cxx_param_list & pl)
     set_loose_binding();
     for(int k = 0 ; k < number_of_subjobs_total() ; k+= number_of_subjobs_per_memory_binding_zone()) {
         set_subjob_mem_binding(k);
-        /* gcc pre 4.7 does not have map::emplace ; while it's
-         * admittedly not a c++11-complete compiler anyway, we still have
-         * hope to use such an ancient thing on a few machines (old *bsd,
-         * for example).
-         *
-         * See:
-         * https://gcc.gnu.org/bugzilla/show_bug.cgi?id=44436#c30
-         */
-#if 0
-        shared_structure_cache.emplace(
-                current_memory_binding(),
-                sieve_shared_data(cpoly, pl));
-#else
-        std::pair<cxx_hwloc_nodeset, sieve_shared_data> v(
-                current_memory_binding(),
-                sieve_shared_data(cpoly, pl));
-        shared_structure_cache.insert(std::move(v));
+        const auto nn = current_memory_binding();
+        shared_structure_cache.emplace(nn, sieve_shared_data(cpoly, pl));
         /* for this one, the default ctor is good enough */
-        las_memory_accessor_cache[current_memory_binding()];
-#endif
+        las_memory_accessor_cache[nn];
     }
     set_loose_binding();
 #else
@@ -110,7 +104,7 @@ void las_info::load_factor_base(cxx_param_list & pl)
          * compute the factor base just once, and copy it in ram, isn't
          * it ?
          */
-        shared_structure_cache.at(current_memory_binding()).load_factor_base(pl, number_of_threads_loose());
+        local_cache().load_factor_base(pl, number_of_threads_loose());
     }
     set_loose_binding();
 #else
@@ -121,9 +115,7 @@ void las_info::load_factor_base(cxx_param_list & pl)
 las_info::las_info(cxx_param_list & pl)
     : cpoly(pl)
     , config_pool(pl, cpoly->nb_polys)
-#ifdef HAVE_HWLOC
-    , shared_structure_cache()
-#else
+#ifndef HAVE_HWLOC
     , shared_structure_private(cpoly, pl)
 #endif
     , dlog_base(cpoly, pl)
@@ -135,7 +127,6 @@ las_info::las_info(cxx_param_list & pl)
     /* We strive to initialize things in the exact order they're written
      * in the struct */
     // ----- general operational flags {{{
-    gmp_randinit_default(rstate);
     unsigned long seed = 0;
     if (param_list_parse_ulong(pl, "seed", &seed))
         gmp_randseed_ui(rstate, seed);
@@ -163,7 +154,7 @@ las_info::las_info(cxx_param_list & pl)
     param_list_parse(pl, "relation_cache", relation_cache);
 
     // ----- stuff roughly related to the descent {{{
-    descent_helper = NULL;
+    descent_helper = nullptr;
     // }}}
 
     /* {{{ duplicate suppression */
@@ -225,15 +216,4 @@ las_info::las_info(cxx_param_list & pl)
     // }}} 
 
     dump_filename = param_list_lookup_string(pl, "dumpfile");
-}/*}}}*/
-
-
-las_info::~las_info()/*{{{*/
-{
-
-    // ----- general operational flags {{{
-    gmp_randclear(rstate);
-
-    // }}}
-
 }/*}}}*/

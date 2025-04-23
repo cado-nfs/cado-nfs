@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <inttypes.h>
 #include <pthread.h>
 #include <math.h>

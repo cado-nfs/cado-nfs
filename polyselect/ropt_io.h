@@ -1,5 +1,5 @@
-#ifndef ROPT_IO_H
-#define ROPT_IO_H
+#ifndef CADO_ROPT_IO_H
+#define CADO_ROPT_IO_H
 
 #include <stdio.h> // FILE
 #include <gmp.h>        // mpz_t

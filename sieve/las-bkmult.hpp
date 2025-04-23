@@ -1,5 +1,5 @@
-#ifndef LAS_BKMULT_HPP_
-#define LAS_BKMULT_HPP_
+#ifndef CADO_LAS_BKMULT_HPP
+#define CADO_LAS_BKMULT_HPP
 
 #include <map>                     // for map<>::key_type, operator!=, _Rb_t...
 #include <string>                  // for string, allocator
@@ -55,4 +55,4 @@ struct buckets_are_full : public clonable_exception {
 };
 
 
-#endif	/* LAS_BKMULT_HPP_ */
+#endif	/* CADO_LAS_BKMULT_HPP */

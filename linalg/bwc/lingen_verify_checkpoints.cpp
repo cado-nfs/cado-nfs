@@ -6,7 +6,7 @@
   Optional arguments: [-seed xxx] [-v]
 */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 // IWYU pragma: no_include <sys/param.h>
 // IWYU pragma: no_include <ext/alloc_traits.h>

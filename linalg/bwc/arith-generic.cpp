@@ -126,10 +126,10 @@ struct arith_wrapper: public arith_generic, public T {
     void vec_simd_add_ui_at(elt * a, size_t k, int v) const override {
         concrete()->vec_simd_set_ui_at(cast(a), k, v);
     }
-    int vec_simd_hamming_weight(elt const * a, size_t n) const override {
+    size_t vec_simd_hamming_weight(elt const * a, size_t n) const override {
         return concrete()->vec_simd_hamming_weight(cast(a), n);
     }
-    int vec_simd_find_first_set(elt & a, elt const * p, size_t n) const override {
+    size_t vec_simd_find_first_set(elt & a, elt const * p, size_t n) const override {
         return concrete()->vec_simd_find_first_set(cast(a), cast(p), n);
     }
     std::ostream& cxx_out(std::ostream& os, elt const & x) const override {

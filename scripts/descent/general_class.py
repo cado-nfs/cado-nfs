@@ -296,6 +296,7 @@ class GeneralClass(object):
              "--recursive-descent",
              "--allow-largesq",
              "--never-discard",  # useful for small computations.
+             "--adjust-strategy", 2,  # avoids shrinking.
              "--fb1", self.fb1(),
              "--poly", self.poly(),
              ]

@@ -1,5 +1,5 @@
-#ifndef BADIDEALS_HPP_
-#define BADIDEALS_HPP_
+#ifndef CADO_BADIDEALS_HPP
+#define CADO_BADIDEALS_HPP
 #include <string>
 #include <vector>
 #include <iosfwd>
@@ -69,4 +69,4 @@ inline std::ostream& operator<<(std::ostream& o, badideal const & b)
 }
 
 
-#endif	/* BADIDEALS_HPP_ */
+#endif	/* CADO_BADIDEALS_HPP */

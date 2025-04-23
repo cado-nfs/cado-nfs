@@ -1,5 +1,5 @@
-#ifndef ROPT_STAGE2_H
-#define ROPT_STAGE2_H
+#ifndef CADO_ROPT_STAGE2_H
+#define CADO_ROPT_STAGE2_H
 
 #include <stdint.h>      // int16_t
 #include "ropt_str.h"    // ropt_param ...
@@ -36,4 +36,4 @@ ropt_stage2 ( ropt_poly_srcptr poly,
 #endif
 
 
-#endif /* ROPT_STAGE2_H */
+#endif /* CADO_ROPT_STAGE2_H */

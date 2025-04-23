@@ -1,5 +1,5 @@
-#ifndef LAS_SMALLSIEVE_GLUE_HPP_
-#define LAS_SMALLSIEVE_GLUE_HPP_
+#ifndef CADO_LAS_SMALLSIEVE_GLUE_HPP
+#define CADO_LAS_SMALLSIEVE_GLUE_HPP
 
 #include <cstdio>
 #include <climits>
@@ -9,7 +9,7 @@
 #endif
 
 #include "las-forwardtypes.hpp"         // spos_t
-#include "fb-types.h"                   // fbprime_t
+#include "fb-types.hpp"
 #include "las-smallsieve-lowlevel.hpp"
 #include "las-smallsieve-types.hpp"
 
@@ -822,4 +822,4 @@ struct small_sieve : public small_sieve_base {/*{{{*/
 /*}}}*/
 
 
-#endif	/* LAS_SMALLSIEVE_GLUE_HPP_ */
+#endif	/* CADO_LAS_SMALLSIEVE_GLUE_HPP */

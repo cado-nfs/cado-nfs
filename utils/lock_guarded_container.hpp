@@ -1,5 +1,5 @@
-#ifndef LOCK_GUARDED_CONTAINER_HPP_
-#define LOCK_GUARDED_CONTAINER_HPP_
+#ifndef CADO_LOCK_GUARDED_CONTAINER_HPP
+#define CADO_LOCK_GUARDED_CONTAINER_HPP
 
 #include <mutex>
 
@@ -55,4 +55,4 @@ template<typename T> struct lock_guarded_container : public T {
     ~lock_guarded_container() = default;
 };
 
-#endif	/* LOCK_GUARDED_CONTAINER_HPP_ */
+#endif	/* CADO_LOCK_GUARDED_CONTAINER_HPP */

@@ -148,7 +148,7 @@ add_executable(dupsup dupsup.cpp
     $<TARGET_OBJECTS:las_core_0>
     $<TARGET_OBJECTS:trialdiv>
     )
-target_link_libraries(dupsup facul)
+target_link_libraries(dupsup facul utils)
 
 add_executable(fake_rels EXCLUDE_FROM_ALL fake_rels.cpp
     # I don't like this situation where there's a single object file that

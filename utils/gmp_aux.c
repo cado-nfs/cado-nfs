@@ -702,31 +702,14 @@ mpz_coprime_p (mpz_srcptr a, mpz_srcptr b)
   return (ret == 0) ? 1 : 0;
 }
 
-long double
-mpz_get_ld (mpz_srcptr z)
-{
-  long double ld;
-  double d;
-  mpz_t t;
-
-  d = mpz_get_d (z);
-  mpz_init (t);
-  mpz_set_d (t, d);
-  mpz_sub (t, z, t);
-  ld = (long double) d + (long double) mpz_get_d (t);
-  mpz_clear (t);
-  return ld;
-}
-
 /* returns the p-valuation of a, where p is expected to be prime. INT_MAX
  * is returned if a==0 */
 int mpz_p_valuation(mpz_srcptr a, mpz_srcptr p)
 {
     mpz_t c;
-    mpz_init(c);
     int v = 0;
     if (mpz_size(a) == 0) return INT_MAX;
-    mpz_set(c, a);
+    mpz_init_set(c, a);
     for( ; mpz_divisible_p(c, p) ; v++)
         mpz_fdiv_q(c, c, p);
     mpz_clear(c);
@@ -738,10 +721,9 @@ int mpz_p_valuation(mpz_srcptr a, mpz_srcptr p)
 int mpz_p_valuation_ui(mpz_srcptr a, unsigned long p)
 {
     mpz_t c;
-    mpz_init(c);
     int v = 0;
     if (mpz_size(a) == 0) return INT_MAX;
-    mpz_set(c, a);
+    mpz_init_set(c, a);
     for( ; mpz_divisible_ui_p(c, p) ; v++)
         mpz_fdiv_q_ui(c, c, p);
     mpz_clear(c);

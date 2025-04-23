@@ -4,7 +4,7 @@
 
 # Would compile, but implies a dependency on gmp-ecm, or so it seems.
 # add_executable(find_primes_hit find_primes_hit.c)
-# target_link_libraries(find_primes_hit utils m)
+# target_link_libraries(find_primes_hit utils)
 
 
 # macro(variant_facul base typewidth)
@@ -39,6 +39,7 @@ include_directories(. ..)
 
 # We now have wrappers, so it's very easy from the cmake perspective.
 add_library(facul
+    OBJECT
         ecm_ul.c
         pm1_ul.c
         pp1_ul.c

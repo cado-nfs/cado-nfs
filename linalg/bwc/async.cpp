@@ -1,17 +1,20 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdarg.h>      // for va_end, va_list, va_start
-#include <stddef.h>
-#include <string.h>
-#include <time.h>
-#include <ctype.h>
-#include <stdio.h>
-#include <stdlib.h>
+
+#include <stdarg.h>
+
+#include <cstddef>
+#include <cstring>
+#include <ctime>
+#include <cctype>
+#include <cstdio>
+#include <cstdlib>
+
 #include "async.hpp"
 #include "macros.h"
+#include "parallelizing_info.hpp"
 #include "portability.h" // asprintf // IWYU pragma: keep
-#include "timing.h" // seconds_user_sys
-#include "verbose.h"  // verbose_enabled
-#include "select_mpi.h"  // for my_pthread_sigmask
+#include "timing.h"
+#include "verbose.h"
 
 /* With respect to the currently running timer, extract a set of timing
  * values which is complete. That means a copy, except that for the

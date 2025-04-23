@@ -1,5 +1,5 @@
-#ifndef ROPT_SUBLATTICE_CRT_H_
-#define ROPT_SUBLATTICE_CRT_H_
+#ifndef CADO_ROPT_SUBLATTICE_CRT_H
+#define CADO_ROPT_SUBLATTICE_CRT_H
 
 #include "ropt_single_sublattice_priority_queue.h"
 #include "ropt_sublattice_priority_queue.h"
@@ -15,4 +15,4 @@ unsigned int ropt_sublattice_combine_all_crt(unsigned int nprimes, const unsigne
 }
 #endif
 
-#endif	/* ROPT_SUBLATTICE_CRT_H_ */
+#endif	/* CADO_ROPT_SUBLATTICE_CRT_H */

@@ -1,5 +1,5 @@
-#ifndef CADO_POPEN_H_
-#define CADO_POPEN_H_
+#ifndef CADO_POPEN_H
+#define CADO_POPEN_H
 // IWYU pragma: no_include <bits/types/struct_rusage.h>
 // IWYU pragma: no_forward_declare rusage
 #include "cado_config.h"  // just because we're a header.
@@ -35,4 +35,4 @@ static inline int cado_pclose(FILE * stream) { return pclose(stream); }
 }
 #endif
 
-#endif	/* CADO_POPEN_H_ */
+#endif	/* CADO_POPEN_H */

@@ -112,7 +112,8 @@ test_L2_skewness (int t)
   else if (t == 1)
     mpz_poly_setcoeff_ui(p, 0, 4294967295UL);
   else
-    mpz_poly_setcoeff_ui(p, 0, mrand48 ());
+    mpz_poly_setcoeff_ui(p, 0, gmp_urandomb_ui(state, GMP_LIMB_BITS));
+
   for (d = 1; d <= 7; d++)
     {
       if ((t == 0 || t == 1) && d > 1)
@@ -124,7 +125,7 @@ test_L2_skewness (int t)
       else
         {
           do
-            mpz_poly_setcoeff_ui(p, d, mrand48 ());
+            mpz_poly_setcoeff_ui(p, d, gmp_urandomb_ui(state, GMP_LIMB_BITS));
           while (mpz_cmp_ui (mpz_poly_coeff_const(p, d), 0) == 0);
         }
       p->deg = d;

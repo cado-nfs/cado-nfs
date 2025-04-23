@@ -1,4 +1,4 @@
-#include "cado.h"  // IWYU pragma: keep
+#include "cado.h" // IWYU pragma: keep
 
 // #define DO_TIMING 1
 #if defined(DO_TIMING) && defined(HAVE_JEVENTS)
@@ -28,7 +28,7 @@
 #include "rdtsc.h"
 #endif
 #endif
-#include "fb-types.h" // for fbprime_t, fbroot_t
+#include "fb-types.hpp"
 #include "las-sieve2357.hpp"
 #include "las-where-am-i-proxy.hpp" // for where_am_I
 #include "memory.h"                 // free_aligned

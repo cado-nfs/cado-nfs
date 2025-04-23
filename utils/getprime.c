@@ -22,7 +22,7 @@
 */
 
 /* compile with -DMAIN to use as a standalone program */
-#include "cado.h"		// IWYU pragma: keep
+#include "cado.h" // IWYU pragma: keep
 
 #include <stdio.h>
 #include <stdlib.h>

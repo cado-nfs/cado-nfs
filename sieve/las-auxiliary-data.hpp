@@ -1,5 +1,5 @@
-#ifndef LAS_AUXILIARY_DATA_HPP_
-#define LAS_AUXILIARY_DATA_HPP_
+#ifndef CADO_LAS_AUXILIARY_DATA_HPP
+#define CADO_LAS_AUXILIARY_DATA_HPP
 
 #include <cstddef>                     // for size_t
 #include <array>                       // for array
@@ -204,4 +204,4 @@ extern tdict::slot tdict_slot_for_fibt;
 
 #endif  /* DISABLE_TIMINGS */
 
-#endif	/* LAS_AUXILIARY_DATA_HPP_ */
+#endif	/* CADO_LAS_AUXILIARY_DATA_HPP */

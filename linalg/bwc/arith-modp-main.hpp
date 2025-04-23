@@ -1,10 +1,18 @@
 #ifndef ARITH_MODP_MAIN_HPP_
 #define ARITH_MODP_MAIN_HPP_
 
+#include <cstddef>
+#include <cstdio>
+#include <cstdint>
+
 #include <algorithm>
 #include <type_traits>
 #include <utility>
 #include <array>
+#include <string>
+#include <vector>
+#include <memory>
+
 #include <gmp.h>
 
 #include "cxx_mpz.hpp"
@@ -13,6 +21,7 @@
 #include "gmp_aux.h"
 #include "macros.h"
 #include "memory.h"
+#include "runtime_numeric_cast.hpp"
 
 #include "arith-concrete-base.hpp"
 
@@ -29,8 +38,7 @@
 
 #define xxxDEBUG_INFINITE_LOOPS
 
-namespace arith_modp {
-namespace details {
+namespace arith_modp::details {
 
     /* There is a good deal of complication that comes from the fact that
      * we want the same code to work for fixed-size types as well as for
@@ -80,15 +88,15 @@ template<unsigned int k, unsigned int ell> struct alignment_divisor<k,ell,1> : p
 #endif
 
 
-template<size_t N__, typename T>
+template<size_t NN, typename T>
 struct gfp_base : public arith_concrete_base
 {
-    static constexpr const size_t constant_width = N__;
-    static constexpr const bool is_constant_width = N__ > 0;
-    static constexpr const bool is_variable_width = N__ == 0;
-    static std::string impl_name() { return is_constant_width ? fmt::format("p{}", N__) : "pz"; }
+    static constexpr const size_t constant_width = NN;
+    static constexpr const bool is_constant_width = NN > 0;
+    static constexpr const bool is_variable_width = NN == 0;
+    static std::string impl_name() { return is_constant_width ? fmt::format("p{}", NN) : "pz"; }
     static constexpr const bool is_characteristic_two = false;
-    static constexpr bool simd_groupsize() { return 1; }
+    static constexpr int simd_groupsize() { return 1; }
 
     /* These three are empty structs. We only ever use them as
      * references.
@@ -104,25 +112,27 @@ struct gfp_base : public arith_concrete_base
      * For element construction, use ab->alloc (or ARITH_MODP_TEMPORARY_ALLOC, which sets a reference to something allocated on the stack)
      *
      */
-    struct elt : public arith_concrete_base::elt, public mp_limb_array<N__> {
+    struct elt : public arith_concrete_base::elt, public mp_limb_array<NN> {
         typedef std::integral_constant<int, 0> classifier;
-        static const int alignment = std::conditional<is_constant_width, alignment_divisor<N__>, std::integral_constant<unsigned int, 1>>::type::value * sizeof(mp_limb_t);
+        static const int alignment = std::conditional<is_constant_width, alignment_divisor<NN>, std::integral_constant<unsigned int, 1>>::type::value * sizeof(mp_limb_t);
         elt() = delete;
         elt& operator=(elt const &) = delete;
         elt(elt const &) = delete;
         elt& operator=(elt &&) = delete;
         elt(elt &&) = delete;
+        ~elt() = default;
     };
-    struct elt_ur_for_add : public mp_limb_array<N__ + (N__ > 0)> {
+    struct elt_ur_for_add : public mp_limb_array<NN + (NN > 0)> {
         typedef std::integral_constant<int, 1> classifier;
-        static const int alignment = std::conditional<is_constant_width, alignment_divisor<(N__ + 1)>, std::integral_constant<unsigned int, 1>>::type::value * sizeof(mp_limb_t);
+        static const int alignment = std::conditional<is_constant_width, alignment_divisor<(NN + 1)>, std::integral_constant<unsigned int, 1>>::type::value * sizeof(mp_limb_t);
         elt_ur_for_add() = delete;
         elt_ur_for_add& operator=(elt_ur_for_add const &) = delete;
         elt_ur_for_add(elt_ur_for_add const &) = delete;
         elt_ur_for_add& operator=(elt_ur_for_add &&) = delete;
         elt_ur_for_add(elt_ur_for_add &&) = delete;
+        ~elt_ur_for_add() = default;
     };
-    struct elt_ur_for_addmul : public mp_limb_array<2 * N__ + (N__ > 0)> {
+    struct elt_ur_for_addmul : public mp_limb_array<2 * NN + (NN > 0)> {
         typedef std::integral_constant<int, 2> classifier;
         static const int alignment = sizeof(mp_limb_t);
         elt_ur_for_addmul() = delete;
@@ -130,6 +140,7 @@ struct gfp_base : public arith_concrete_base
         elt_ur_for_addmul(elt_ur_for_addmul const &) = delete;
         elt_ur_for_addmul& operator=(elt_ur_for_addmul &&) = delete;
         elt_ur_for_addmul(elt_ur_for_addmul &&) = delete;
+        ~elt_ur_for_addmul() = default;
     };
 
     /*{{{ element layout information */
@@ -141,41 +152,41 @@ struct gfp_base : public arith_concrete_base
      *
      */
     template<typename X>
-        inline std::integral_constant<size_t, 0> overhead_limbs(typename std::enable_if<std::is_same<X, elt>::value, void *>::type = 0) const
-        { return std::integral_constant<size_t, 0>(); }
+        std::integral_constant<size_t, 0> overhead_limbs(typename std::enable_if<std::is_same<X, elt>::value, void *>::type = 0) const
+        { return {}; }
     template<typename X>
-        static inline std::integral_constant<size_t, 1> overhead_limbs(typename std::enable_if<std::is_same<X, elt_ur_for_add>::value, void *>::type = 0)
-        { return std::integral_constant<size_t, 1>(); }
+        static std::integral_constant<size_t, 1> overhead_limbs(typename std::enable_if<std::is_same<X, elt_ur_for_add>::value, void *>::type = 0)
+        { return {}; }
     template<typename X>
-        inline std::integral_constant<size_t, N__+1> overhead_limbs(typename std::enable_if<is_constant_width && std::is_same<X, elt_ur_for_addmul>::value, void *>::type = 0) const
-        { return std::integral_constant<size_t, N__+1>(); }
+        std::integral_constant<size_t, NN+1> overhead_limbs(typename std::enable_if<is_constant_width && std::is_same<X, elt_ur_for_addmul>::value, void *>::type = 0) const
+        { return std::integral_constant<size_t, NN+1>(); }
     template<typename X>
-        inline size_t overhead_limbs(typename std::enable_if<is_variable_width && std::is_same<X, elt_ur_for_addmul>::value, void *>::type = 0) const
+        size_t overhead_limbs(typename std::enable_if<is_variable_width && std::is_same<X, elt_ur_for_addmul>::value, void *>::type = 0) const
         { return nlimbs<elt>() + 1; }
 
     template<typename X>
-        inline std::integral_constant<size_t, N__> nlimbs(typename std::enable_if<is_constant_width && std::is_same<X, elt>::value, void *>::type = 0) const
-        { return std::integral_constant<size_t, N__>(); }
+        std::integral_constant<size_t, NN> nlimbs(typename std::enable_if<is_constant_width && std::is_same<X, elt>::value, void *>::type = 0) const
+        { return std::integral_constant<size_t, NN>(); }
     template<typename X>
-        inline size_t nlimbs(typename std::enable_if<is_variable_width && std::is_same<X, elt>::value, void *>::type = 0) const
+        size_t nlimbs(typename std::enable_if<is_variable_width && std::is_same<X, elt>::value, void *>::type = 0) const
         { return mpz_size(p); }
     template<typename X>
-        inline std::integral_constant<size_t, N__+1> nlimbs(typename std::enable_if<is_constant_width && std::is_same<X, elt_ur_for_add>::value, void *>::type = 0) const
-        { return std::integral_constant<size_t, N__+1>(); }
+        std::integral_constant<size_t, NN+1> nlimbs(typename std::enable_if<is_constant_width && std::is_same<X, elt_ur_for_add>::value, void *>::type = 0) const
+        { return std::integral_constant<size_t, NN+1>(); }
     template<typename X>
-        inline std::integral_constant<size_t, 2 * N__+1> nlimbs(typename std::enable_if<is_constant_width && std::is_same<X, elt_ur_for_addmul>::value, void *>::type = 0) const
-        { return std::integral_constant<size_t, 2 * N__+1>(); }
+        std::integral_constant<size_t, 2 * NN+1> nlimbs(typename std::enable_if<is_constant_width && std::is_same<X, elt_ur_for_addmul>::value, void *>::type = 0) const
+        { return std::integral_constant<size_t, 2 * NN+1>(); }
     template<typename X>
-        inline size_t nlimbs(typename std::enable_if<is_variable_width && std::is_same<X, elt_ur_for_add>::value, void *>::type = 0) const
+        size_t nlimbs(typename std::enable_if<is_variable_width && std::is_same<X, elt_ur_for_add>::value, void *>::type = 0) const
         { return nlimbs<elt>() + 1; }
     template<typename X>
-        inline size_t nlimbs(typename std::enable_if<is_variable_width && std::is_same<X, elt_ur_for_addmul>::value, void *>::type = 0) const
+        size_t nlimbs(typename std::enable_if<is_variable_width && std::is_same<X, elt_ur_for_addmul>::value, void *>::type = 0) const
         { return 2*nlimbs<elt>() + 1; }
 
     template<typename X>
-    inline size_t stride() const { return sizeof(mp_limb_t) * nlimbs<X>(); }
-    inline size_t elt_stride() const { return stride<elt>(); }
-    inline size_t vec_elt_stride(size_t s) const { return s * elt_stride(); }
+    size_t stride() const { return sizeof(mp_limb_t) * nlimbs<X>(); }
+    size_t elt_stride() const { return stride<elt>(); }
+    size_t vec_elt_stride(size_t s) const { return s * elt_stride(); }
 
     /*}}}*/
 
@@ -204,13 +215,14 @@ struct gfp_base : public arith_concrete_base
     gfp_base(gfp_base&&) = default;
     gfp_base& operator=(gfp_base const&) = default;
     gfp_base& operator=(gfp_base&&) = default;
+    ~gfp_base() = default;
     gfp_base(cxx_mpz const& p, unsigned int simd_groupsize)
       : p(p)
     {
         auto N = nlimbs<elt>();
         ASSERT_ALWAYS(simd_groupsize == 1);
-        size_t m = mpz_sizeinbase(p, 2);
-        ASSERT_ALWAYS(N__ == 0 || m <= (size_t) N * mp_bits_per_limb);
+        const size_t m = mpz_sizeinbase(p, 2);
+        ASSERT_ALWAYS(NN == 0 || m <= (size_t) N * mp_bits_per_limb);
         preinv_shift = (mp_bits_per_limb - m) % mp_bits_per_limb;
         cxx_mpz blah;
         compute_preinv(blah, overhead_limbs<elt_ur_for_add>());
@@ -246,28 +258,28 @@ struct gfp_base : public arith_concrete_base
      * anything that is _wider_ than mpn<N> = elt. Note that the
      * default type of X is elt
      */
-#define gfp_polymorphic_with_default(storage, ret_type)                        \
+#define gfp_polymorphic_with_default(ret_type)                        \
     template<typename X = elt>                                                 \
-    storage typename std::enable_if<std::is_base_of<mp_limb_array_base, X>::value, ret_type>::type
+    typename std::enable_if<std::is_base_of<mp_limb_array_base, X>::value, ret_type>::type
 
     /*
-#define gfp_polymorphic(storage, above, ret_type)                              \
+#define gfp_polymorphic(above, ret_type)                              \
     template<typename X>                                                       \
-    storage typename std::enable_if<(X::nlimbs >= N + above), ret_type>::type
+    storage typename std::enable_if<(X::nlimbs >= N + (above)), ret_type>::type
     */
 
-#define gfp_polymorphic(storage, above, ret_type)                              \
+#define gfp_polymorphic(above, ret_type)                              \
     template<typename X>                                                       \
-    storage typename std::enable_if<(X::classifier::value >= above), ret_type>::type
+    typename std::enable_if<(X::classifier::value >= (above)), ret_type>::type
 
-    gfp_polymorphic_with_default(inline, X*) alloc(size_t k = 1, size_t al = X::alignment) const
+    gfp_polymorphic_with_default(X*) alloc(size_t k = 1, size_t al = X::alignment) const
     {
         return reinterpret_cast<X *>(::malloc_aligned(k * stride<X>(), al));
     }
-    gfp_polymorphic_with_default(inline, void) free(X* u) const {
+    gfp_polymorphic_with_default(void) free(X* u) const {
         ::free_aligned(reinterpret_cast<void *>(u));
     }
-    gfp_polymorphic_with_default(inline, X*)
+    gfp_polymorphic_with_default(X*)
       realloc(X* u, size_t k0, size_t k, size_t al = X::alignment) const
     {
         return reinterpret_cast<X *>(::realloc_aligned(u->pointer(), k0 * stride<X>(), k * stride<X>(), al));
@@ -281,36 +293,36 @@ struct gfp_base : public arith_concrete_base
 
     /*}}}*/
     /*{{{ predicates */
-    gfp_polymorphic(inline, 0, bool) is_zero(X const& x) const
+    gfp_polymorphic(0, bool) is_zero(X const& x) const
     {
         return mpn_compile_time::mpn_zero_p(x, nlimbs<X>());
     }
 
-    gfp_polymorphic(inline, 0, int) cmp(X const& x, unsigned long a) const
+    gfp_polymorphic(0, int) cmp(X const& x, unsigned long a) const
     {
         return mpn_compile_time::mpn_cmp_ui(x, a, nlimbs<X>());
     }
 
-    gfp_polymorphic(inline, 0, int) cmp(X const& x, X const& y) const
+    gfp_polymorphic(0, int) cmp(X const& x, X const& y) const
     {
         return mpn_compile_time::mpn_cmp(x, y, nlimbs<X>());
     }
 
     /*}}}*/
     /* {{{ assignments */
-    gfp_polymorphic(inline, 0, X&) set(X& x, unsigned long a) const
+    gfp_polymorphic(0, X&) set(X& x, unsigned long a) const
     {
         mpn_compile_time::mpn_set_ui(x, a, nlimbs<X>());
         return x;
     }
 
-    gfp_polymorphic(inline, 0, X&) set(X& x, X const& a) const
+    gfp_polymorphic(0, X&) set(X& x, X const& a) const
     {
         mpn_compile_time::mpn_copyi(x, a, nlimbs<X>());
         return x;
     }
 
-    gfp_polymorphic(inline, 1, X&) set(X& a, elt const& x) const
+    gfp_polymorphic(1, X&) set(X& a, elt const& x) const
     {
         auto N = nlimbs<elt>();
         mp_limb_t * ax = a.pointer() + N;
@@ -320,17 +332,17 @@ struct gfp_base : public arith_concrete_base
         return a;
     }
 
-    gfp_polymorphic(inline, 0, X&) set(X& x, cxx_mpz const& a) const
+    gfp_polymorphic(0, X&) set(X& x, cxx_mpz const& a) const
     {
         mpn_compile_time::MPN_SET_MPZ(x.pointer(), nlimbs<X>(), a);
         return x;
     }
 
-    gfp_polymorphic(inline, 0, void) set_zero(X& x) const {
+    gfp_polymorphic(0, void) set_zero(X& x) const {
         mpn_compile_time::mpn_zero(x, nlimbs<X>());
     }
 
-    gfp_polymorphic(inline, 0, void)
+    gfp_polymorphic(0, void)
       set_random(X& x, cxx_gmp_randstate & rstate) const
     {
         T const* tx = static_cast<T const*>(this);
@@ -339,12 +351,12 @@ struct gfp_base : public arith_concrete_base
         tx->set(x, xz);
     }
 
-    inline bool upperlimbs_are_zero(elt_ur_for_add const & a) const
+    bool upperlimbs_are_zero(elt_ur_for_add const & a) const
     {
         return a[nlimbs<elt>()] == 0;
     }
 
-    inline bool upperlimbs_are_zero(elt_ur_for_addmul const & a) const
+    bool upperlimbs_are_zero(elt_ur_for_addmul const & a) const
     {
         auto N = nlimbs<elt>();
         mp_limb_t const * ax = a.pointer() + N;
@@ -352,27 +364,27 @@ struct gfp_base : public arith_concrete_base
         return mpn_compile_time::mpn_zero_p(ax, nx);
     }
 
-    inline void stream_store(elt* dst, elt const& src) const {
+    void stream_store(elt* dst, elt const& src) const {
         T const* tx = static_cast<T const*>(this);
         tx->set(*dst, src);
     }
     /* }}} */
 
     /*{{{ addition, at the element level (elt or wider) */
-    inline void propagate_carry(elt_ur_for_addmul& a, mp_limb_t cy) const
+    void propagate_carry(elt_ur_for_addmul& a, mp_limb_t cy) const
     {
         auto N = nlimbs<elt>();
         mp_limb_t * ax = a.pointer() + N;
         auto nx = overhead_limbs<elt_ur_for_addmul>();
         mpn_add_1(ax, ax, nx, cy);
     }
-    inline void propagate_carry(elt_ur_for_add& a, mp_limb_t cy) const
+    void propagate_carry(elt_ur_for_add& a, mp_limb_t cy) const
     {
         auto N = nlimbs<elt>();
         a[N] += cy;
     }
 
-    gfp_polymorphic(inline, 1, void) add(X& dst, elt const& a, elt const& b) const
+    gfp_polymorphic(1, void) add(X& dst, elt const& a, elt const& b) const
     {
         T const* tx = static_cast<T const*>(this);
         auto N = nlimbs<elt>();
@@ -382,7 +394,7 @@ struct gfp_base : public arith_concrete_base
         mpn_compile_time::mpn_zero(dx, nx);
         tx->propagate_carry(dst, cy);
     }
-    gfp_polymorphic(inline, 1, void) add(X& dst, elt const& src) const
+    gfp_polymorphic(1, void) add(X& dst, elt const& src) const
     {
         T const* tx = static_cast<T const*>(this);
         auto N = nlimbs<elt>();
@@ -392,12 +404,12 @@ struct gfp_base : public arith_concrete_base
     /* This addition is only for unreduced types. These types are
      * always considered wide enough so that overflows work.
      */
-    gfp_polymorphic(inline, 1, void) add_ur(X& dst, X const& src) const
+    gfp_polymorphic(1, void) add_ur(X& dst, X const& src) const
     {
         T const* tx = static_cast<T const*>(this);
         tx->add(dst, src);
     }
-    gfp_polymorphic(inline, 1, void) add(X& dst, X const& src) const
+    gfp_polymorphic(1, void) add(X& dst, X const& src) const
     {
         mpn_add_n(dst, dst, src, nlimbs<X>());
     }
@@ -405,7 +417,7 @@ struct gfp_base : public arith_concrete_base
     /* an addmul is ok for to go for an unreduced type which is
      * still somewhat narrow (only one extra limb).
      */
-    gfp_polymorphic(inline, 1, void)
+    gfp_polymorphic(1, void)
       addmul_ui(X& dst, elt const& src, mp_limb_t x) const
     {
         T const* tx = static_cast<T const*>(this);
@@ -416,20 +428,20 @@ struct gfp_base : public arith_concrete_base
     /*}}}*/
 
     /*{{{ subtraction, at the element level (elt or wider) */
-    inline void propagate_borrow(elt_ur_for_addmul& a, mp_limb_t cy) const
+    void propagate_borrow(elt_ur_for_addmul& a, mp_limb_t cy) const
     {
         auto N = nlimbs<elt>();
         mp_limb_t * ax = a.pointer() + N;
         auto nx = overhead_limbs<elt_ur_for_addmul>();
         mpn_sub_1(ax, ax, nx, cy);
     }
-    inline void propagate_borrow(elt_ur_for_add& a, mp_limb_t cy) const
+    void propagate_borrow(elt_ur_for_add& a, mp_limb_t cy) const
     {
         auto N = nlimbs<elt>();
         a[N] -= cy;
     }
 
-    gfp_polymorphic(inline, 1, void) sub(X& dst, elt const& a, elt const& b) const
+    gfp_polymorphic(1, void) sub(X& dst, elt const& a, elt const& b) const
     {
         T const* tx = static_cast<T const*>(this);
         auto N = nlimbs<elt>();
@@ -439,7 +451,7 @@ struct gfp_base : public arith_concrete_base
         mpn_compile_time::mpn_zero(dx, nx);
         tx->propagate_borrow(dst, cy);
     }
-    gfp_polymorphic(inline, 1, void) sub(X& dst, elt const& src) const
+    gfp_polymorphic(1, void) sub(X& dst, elt const& src) const
     {
         T const* tx = static_cast<T const*>(this);
         auto N = nlimbs<elt>();
@@ -449,12 +461,12 @@ struct gfp_base : public arith_concrete_base
     /* This subtraction is only for unreduced types. These types are
      * always considered wide enough so that overflows work.
      */
-    gfp_polymorphic(inline, 1, void) sub_ur(X& dst, X const& src) const
+    gfp_polymorphic(1, void) sub_ur(X& dst, X const& src) const
     {
         T const* tx = static_cast<T const*>(this);
         tx->sub(dst, src);
     }
-    gfp_polymorphic(inline, 1, void) sub(X& dst, X const& src) const
+    gfp_polymorphic(1, void) sub(X& dst, X const& src) const
     {
         mpn_sub_n(dst, dst, src, nlimbs<X>());
     }
@@ -462,7 +474,7 @@ struct gfp_base : public arith_concrete_base
     /* a submul is ok for to go for an unreduced type which is
      * still somewhat narrow (only one extra limb).
      */
-    gfp_polymorphic(inline, 1, void)
+    gfp_polymorphic(1, void)
       submul_ui(X& dst, elt const& src, mp_limb_t x) const
     {
         T const* tx = static_cast<T const*>(this);
@@ -483,7 +495,7 @@ struct gfp_base : public arith_concrete_base
      * statically have an idea of the "sign" of the unreduced
      * elements we're dealing with.
      */
-    inline void neg(elt& dst, elt const& src) const
+    void neg(elt& dst, elt const& src) const
     {
         T const* tx = static_cast<T const*>(this);
         auto N = nlimbs<elt>();
@@ -492,7 +504,7 @@ struct gfp_base : public arith_concrete_base
             mpn_add_n(dst, dst, tx->prime_limbs(), N);
     }
 
-    gfp_polymorphic(inline, 1, void) neg(X& dst, X const& src) const
+    gfp_polymorphic(1, void) neg(X& dst, X const& src) const
     {
         mpn_neg(dst, src, nlimbs<X>());
     }
@@ -521,7 +533,7 @@ struct gfp_base : public arith_concrete_base
     {
         mpz_set_ui(big, 1);
         size_t m = mpz_sizeinbase(p, 2);
-        size_t ell = e * mp_bits_per_limb;
+        const size_t ell = e * mp_bits_per_limb;
         mpz_mul_2exp(big, big, m + ell);
         mpz_fdiv_q(big, big, p);
         ASSERT_ALWAYS(mpz_sizeinbase(big, 2) == (ell + 1));
@@ -589,7 +601,7 @@ struct gfp_base : public arith_concrete_base
     /* this reduces a in place, and copies the result to r */
     private:
     template<typename X>
-    inline typename std::enable_if<std::is_same<X, elt_ur_for_add>::value,
+    typename std::enable_if<std::is_same<X, elt_ur_for_add>::value,
                                    mp_limb_t const *>::type
     preinv() const
     {
@@ -597,7 +609,7 @@ struct gfp_base : public arith_concrete_base
     }
 
     template<typename X>
-    inline
+    
       typename std::enable_if<std::is_same<X, elt_ur_for_addmul>::value,
                                    mp_limb_t const *>::type
                                        preinv() const
@@ -729,11 +741,11 @@ struct gfp_base : public arith_concrete_base
     /*}}}*/
     /*}}}*/
     /*{{{ add_and_reduce */
-    inline void add_and_reduce(elt& a, elt const& x) const
+    void add_and_reduce(elt& a, elt const& x) const
     {
         add_and_reduce(a, a, x);
     }
-    inline void add_and_reduce(elt& a, elt const& x, elt const& y) const
+    void add_and_reduce(elt& a, elt const& x, elt const& y) const
     {
         T const* tx = static_cast<T const*>(this);
         auto N = nlimbs<elt>();
@@ -746,11 +758,11 @@ struct gfp_base : public arith_concrete_base
     }
     /*}}}*/
     /*{{{ sub_and_reduce */
-    inline void sub_and_reduce(elt& a, elt const& x) const
+    void sub_and_reduce(elt& a, elt const& x) const
     {
         sub_and_reduce(a, a, x);
     }
-    inline void sub_and_reduce(elt& a, elt const& x, elt const& y) const
+    void sub_and_reduce(elt& a, elt const& x, elt const& y) const
     {
         T const* tx = static_cast<T const*>(this);
         auto N = nlimbs<elt>();
@@ -763,7 +775,7 @@ struct gfp_base : public arith_concrete_base
     }
     /*}}}*/
     /*{{{ I/O */
-    inline std::ostream& cxx_out(std::ostream& o, elt const& x) const
+    std::ostream& cxx_out(std::ostream& o, elt const& x) const
     {
         auto N = nlimbs<elt>();
         ARITH_MODP_TEMPORARY_ALLOC(this, elt, c);
@@ -772,11 +784,11 @@ struct gfp_base : public arith_concrete_base
         MPZ_SET_MPN(cz, (mp_limb_t const*)c, N);
         return o << cz;
     }
-    inline std::ostream& write(std::ostream& o, elt const& x) const
+    std::ostream& write(std::ostream& o, elt const& x) const
     {
         return o.write((const char*)x.pointer(), elt_stride());
     }
-    inline int fread(FILE* f, elt& x) const
+    int fread(FILE* f, elt& x) const
     {
         auto N = nlimbs<elt>();
         int ret = ::fread((char*)x.pointer(), elt_stride(), 1, f);
@@ -787,21 +799,21 @@ struct gfp_base : public arith_concrete_base
         }
         return ret;
     }
-    inline int fscan(FILE* f, elt& x) const
+    int fscan(FILE* f, elt& x) const
     {
         cxx_mpz xz;
-        size_t ret = mpz_inp_str(xz, f, 10);
+        const size_t ret = mpz_inp_str(xz, f, 10);
         if (!ret)
             return 0;
         if (xz < 0 || xz >= p) {
             mpz_mod(xz, xz, p);
         }
         set(x, xz);
-        return ret;
+        return runtime_numeric_cast<int>(ret);
     }
     /*}}}*/
 
-    inline void
+    void
       mul_ur(elt_ur_for_addmul& w, elt const& u, elt const& v) const
     {
         auto N = nlimbs<elt>();
@@ -821,7 +833,7 @@ struct gfp_base : public arith_concrete_base
         tx->reduce(w, t);
     }
 
-    inline void
+    void
       addmul_ur(elt_ur_for_addmul & w, elt const& u, elt const& v) const
     {
         T const* tx = static_cast<T const*>(this);
@@ -848,28 +860,28 @@ struct gfp_base : public arith_concrete_base
     }
 
     /*{{{ accessors inside vectors */
-    gfp_polymorphic(inline, 0, X*) vec_subvec(X* p, size_t k) const
+    gfp_polymorphic(0, X*) vec_subvec(X* p, size_t k) const
     {
         return reinterpret_cast<X*>(p->pointer() + k * nlimbs<X>());
     }
 
-    gfp_polymorphic(inline, 0, X&) vec_item(X* p, size_t k) const
+    gfp_polymorphic(0, X&) vec_item(X* p, size_t k) const
     {
         return *vec_subvec(p, k);
     }
 
-    gfp_polymorphic(inline, 0, X const*) vec_subvec(X const* p, size_t k) const
+    gfp_polymorphic(0, X const*) vec_subvec(X const* p, size_t k) const
     {
         return reinterpret_cast<X const*>(p->pointer() + k * nlimbs<X>());
     }
 
-    gfp_polymorphic(inline, 0, X const&) vec_item(X const* p, size_t k) const
+    gfp_polymorphic(0, X const&) vec_item(X const* p, size_t k) const
     {
         return *vec_subvec(p, k);
     }
     /*}}}*/
     /* {{{ predicates on vectors */
-    gfp_polymorphic(inline, 0, int)
+    gfp_polymorphic(0, int)
       vec_cmp(X const* a, X const* b, size_t k) const
     {
         T const* tx = static_cast<T const*>(this);
@@ -880,7 +892,7 @@ struct gfp_base : public arith_concrete_base
         }
         return 0;
     }
-    gfp_polymorphic(inline, 0, bool) vec_is_zero(X const* p, size_t n) const
+    gfp_polymorphic(0, bool) vec_is_zero(X const* p, size_t n) const
     {
         T const* tx = static_cast<T const*>(this);
         for (size_t i = 0; i < n; i++)
@@ -890,12 +902,12 @@ struct gfp_base : public arith_concrete_base
     }
     /* }}} */
     /* {{{ assignments on vectors */
-    gfp_polymorphic(inline, 0, void) vec_set_zero(X* p, size_t n) const
+    gfp_polymorphic(0, void) vec_set_zero(X* p, size_t n) const
     {
         std::fill_n(p->pointer(), n * nlimbs<X>(), 0);
     }
 
-    gfp_polymorphic(inline, 0, void) vec_set(X* q, X const* p, size_t n) const
+    gfp_polymorphic(0, void) vec_set(X* q, X const* p, size_t n) const
     {
         size_t nn = n * nlimbs<X>();
         if (q < p)
@@ -905,7 +917,7 @@ struct gfp_base : public arith_concrete_base
     }
 
     /* extension */
-    gfp_polymorphic(inline, 1, void)
+    gfp_polymorphic(1, void)
       vec_set(X* q, elt const* p, size_t n) const
     {
         T const* tx = static_cast<T const*>(this);
@@ -913,7 +925,7 @@ struct gfp_base : public arith_concrete_base
             tx->set(vec_item(q, i), vec_item(p, i));
     }
 
-    gfp_polymorphic(inline, 0, void)
+    gfp_polymorphic(0, void)
       vec_set_random(X* p, size_t k, cxx_gmp_randstate & rstate) const
     {
         T const* tx = static_cast<T const*>(this);
@@ -922,12 +934,12 @@ struct gfp_base : public arith_concrete_base
     }
     /* }}} */
     /*{{{ simd*/
-    inline void simd_set_ui_at(elt& p, size_t, int v) const
+    void simd_set_ui_at(elt& p, size_t, int v) const
     {
         T const* tx = static_cast<T const*>(this);
         tx->set(p, v);
     }
-    inline void simd_add_ui_at(elt& p, size_t, int v) const
+    void simd_add_ui_at(elt& p, size_t, int v) const
     {
         auto N = nlimbs<elt>();
         if (v > 0)
@@ -935,12 +947,12 @@ struct gfp_base : public arith_concrete_base
         else
             mpn_sub_1(p, p, N, -v);
     }
-    inline int simd_test_ui_at(elt const& p, size_t) const
+    int simd_test_ui_at(elt const& p, size_t) const
     {
         T const* tx = static_cast<T const*>(this);
         return !tx->is_zero(p);
     }
-    inline int simd_hamming_weight(elt const& p) const { return !is_zero(p); }
+    int simd_hamming_weight(elt const& p) const { return !is_zero(p); }
     /*}}}*/
 
     int inverse(elt& res, elt const& x) const
@@ -981,20 +993,20 @@ struct gfp_base : public arith_concrete_base
     }
 
     /*{{{ vec addition */
-    gfp_polymorphic(inline, 1, void)
+    gfp_polymorphic(1, void)
       vec_add(X* q, elt const* p, size_t n) const
     {
         T const* tx = static_cast<T const*>(this);
         for (size_t i = 0; i < n; i++)
             tx->add(vec_item(q, i), vec_item(p, i));
     }
-    gfp_polymorphic(inline, 1, void) vec_add(X* q, X* p, size_t n) const
+    gfp_polymorphic(1, void) vec_add(X* q, X* p, size_t n) const
     {
         T const* tx = static_cast<T const*>(this);
         for (size_t i = 0; i < n; i++)
             tx->add(vec_item(q, i), vec_item(p, i));
     }
-    inline void vec_add_and_reduce(elt* q,
+    void vec_add_and_reduce(elt* q,
                                    elt const* a,
                                    elt const* b,
                                    size_t n) const
@@ -1004,26 +1016,26 @@ struct gfp_base : public arith_concrete_base
             tx->add_and_reduce(
               vec_item(q, i), vec_item(a, i), vec_item(b, i));
     }
-    inline void vec_add_and_reduce(elt* q, elt const* a, size_t n) const
+    void vec_add_and_reduce(elt* q, elt const* a, size_t n) const
     {
         vec_add_and_reduce(q, q, a, n);
     }
     /*}}}*/
     /*{{{ vec subtraction */
-    gfp_polymorphic(inline, 1, void)
+    gfp_polymorphic(1, void)
       vec_sub(X* q, elt const* p, size_t n) const
     {
         T const* tx = static_cast<T const*>(this);
         for (size_t i = 0; i < n; i++)
             tx->sub(vec_item(q, i), vec_item(p, i));
     }
-    gfp_polymorphic(inline, 1, void) vec_sub(X* q, X* p, size_t n) const
+    gfp_polymorphic(1, void) vec_sub(X* q, X* p, size_t n) const
     {
         T const* tx = static_cast<T const*>(this);
         for (size_t i = 0; i < n; i++)
             tx->sub(vec_item(q, i), vec_item(p, i));
     }
-    inline void vec_sub_and_reduce(elt* q,
+    void vec_sub_and_reduce(elt* q,
                                    elt const* a,
                                    elt const* b,
                                    size_t n) const
@@ -1038,26 +1050,26 @@ struct gfp_base : public arith_concrete_base
     /*}}}*/
 
     /*{{{ vec negation*/
-    inline void vec_neg(elt* q, size_t n) const
+    void vec_neg(elt* q, size_t n) const
     {
         T const* tx = static_cast<T const*>(this);
         for (size_t i = 0; i < n; i++)
             tx->neg(vec_item(q, i), vec_item(q, i));
     }
-    inline void vec_neg(elt* q, elt const* p, size_t n) const
+    void vec_neg(elt* q, elt const* p, size_t n) const
     {
         T const* tx = static_cast<T const*>(this);
         /* used in matpoly_sub */
         for (size_t i = 0; i < n; i++)
             tx->neg(vec_item(q, i), vec_item(p, i));
     }
-    gfp_polymorphic(inline, 1, void) vec_neg(X* q, size_t n) const
+    gfp_polymorphic(1, void) vec_neg(X* q, size_t n) const
     {
         T const* tx = static_cast<T const*>(this);
         for (size_t i = 0; i < n; i++)
             tx->neg(vec_item(q, i), vec_item(q, i));
     }
-    gfp_polymorphic(inline, 1, void) vec_neg(X* q, X const* p, size_t n) const
+    gfp_polymorphic(1, void) vec_neg(X* q, X const* p, size_t n) const
     {
         T const* tx = static_cast<T const*>(this);
         /* used in matpoly_sub */
@@ -1068,7 +1080,7 @@ struct gfp_base : public arith_concrete_base
 
     /*{{{ vec reduction */
     /* Note that we depend on reduce() being available */
-    gfp_polymorphic(inline, 0, void) vec_reduce(elt* q, X* p, size_t n) const
+    gfp_polymorphic(0, void) vec_reduce(elt* q, X* p, size_t n) const
     {
         T const* tx = static_cast<T const*>(this);
         for (size_t i = 0; i < n; i++)
@@ -1077,25 +1089,25 @@ struct gfp_base : public arith_concrete_base
     /*}}}*/
 
     /*{{{ vec simd operations*/
-    inline void vec_simd_set_ui_at(elt* p, size_t k, int v) const
+    void vec_simd_set_ui_at(elt* p, size_t k, int v) const
     {
         T const* tx = static_cast<T const*>(this);
         tx->simd_set_ui_at(vec_item(p, k), 0, v);
     }
-    inline void vec_simd_add_ui_at(elt* p, size_t k, int v) const
+    void vec_simd_add_ui_at(elt* p, size_t k, int v) const
     {
         T const* tx = static_cast<T const*>(this);
         tx->simd_add_ui_at(vec_item(p, k), 0, v);
     }
-    inline int vec_simd_hamming_weight(elt const* p, size_t n) const
+    size_t vec_simd_hamming_weight(elt const* p, size_t n) const
     {
         T const* tx = static_cast<T const*>(this);
-        int r = 0;
+        size_t r = 0;
         for (size_t i = 0; i < n; ++i)
             r += tx->simd_hamming_weight(vec_item(p, i));
         return r;
     }
-    inline int vec_simd_find_first_set(elt& x, elt const* p, size_t n) const
+    size_t vec_simd_find_first_set(elt& x, elt const* p, size_t n) const
     {
         T const* tx = static_cast<T const*>(this);
         static_assert(T::simd_groupsize() == 1, "this code wants trivial simd");
@@ -1104,7 +1116,7 @@ struct gfp_base : public arith_concrete_base
                 return i;
             }
         }
-        return -1;
+        return SIZE_MAX;
     }
 
     /*}}}*/
@@ -1173,7 +1185,7 @@ struct gfp_base : public arith_concrete_base
         for (size_t i = 0; i < m + n - 1; ++i)
             mpn_copyi(vec_item(w, i), pW + i * nwords, nwords);
     }                                                   /*}}}*/
-    inline void vec_conv_ur_n(elt_ur_for_addmul* w,
+    void vec_conv_ur_n(elt_ur_for_addmul* w,
                               elt const* u,
                               elt const* v,
                               size_t n) const /*{{{*/
@@ -1264,11 +1276,10 @@ struct gfp_base : public arith_concrete_base
         tx->free(tmpu);
         tx->free(tmpv);
         tx->template free<elt_ur_for_addmul>(tmpw);
-        return;
     } /*}}}*/
 
     public:
-    inline void vec_conv(elt* w,
+    void vec_conv(elt* w,
                          elt const* u,
                          size_t n,
                          elt const* v,
@@ -1281,7 +1292,7 @@ struct gfp_base : public arith_concrete_base
         tx->vec_reduce(w, tmp, m + n - 1);
         tx->template free<elt_ur_for_addmul>(tmp);
     } /*}}}*/
-    inline void vec_conv_ur(elt_ur_for_addmul* w,
+    void vec_conv_ur(elt_ur_for_addmul* w,
                             elt const* u,
                             size_t n,
                             elt const* v,
@@ -1387,7 +1398,6 @@ template<typename T>
 struct fast_type : public T
 {};
 
-}
 }
 
 #endif /* ARITH_MODP_MAIN_HPP_ */

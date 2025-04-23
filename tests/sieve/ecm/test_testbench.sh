@@ -4,16 +4,23 @@ TESTBENCH="$1"
 INPUTFILE="$2"
 shift 2
 
-TMPDIR=${wdir-/tmp}
+if [ "$CADO_DEBUG" ] ; then
+    set -x
+fi
 
-REQUIRED_OUTPUT="`mktemp ${TMPDIR}/ecm-ref.XXXXXXXX`"
-INPUTNUMBERS="`mktemp ${TMPDIR}/ecm-in.XXXXXXXX`"
+set -e
+
+: ${wdir:=/tmp}
+: ${INPUTFILE:?missing}
+
+REQUIRED_OUTPUT="${wdir}/ecm.ref"
+INPUTNUMBERS="${wdir}/ecm.in"
 # First word on each line is the input number
-sed 's/ *#.*$//' < "${INPUTFILE}" | grep . | cut -d " " -f 1 > "${INPUTNUMBERS}" || exit 1
+sed 's/ *#.*$//' < "${INPUTFILE}" | grep . | cut -d " " -f 1 > "${INPUTNUMBERS}"
 # Remaining words are the required output
-sed 's/ *#.*$//' < "${INPUTFILE}" | grep . | cut -d " " -f 2- > "${REQUIRED_OUTPUT}" || exit 1
+sed 's/ *#.*$//' < "${INPUTFILE}" | grep . | cut -d " " -f 2- > "${REQUIRED_OUTPUT}"
 
-ACTUAL_OUTPUT="`mktemp ${TMPDIR-/tmp}/ecm-out.XXXXXXXX`"
+ACTUAL_OUTPUT="${wdir}/ecm.out"
 "${TESTBENCH}" -inp "${INPUTNUMBERS}" "$@" > "${ACTUAL_OUTPUT}"
 
 if ! diff -b "${REQUIRED_OUTPUT}" "${ACTUAL_OUTPUT}" > /dev/null
@@ -23,5 +30,4 @@ then
   exit 1
 fi
 
-rm -f "${REQUIRED_OUTPUT}" "${INPUTNUMBERS}" "${ACTUAL_OUTPUT}"
 exit 0

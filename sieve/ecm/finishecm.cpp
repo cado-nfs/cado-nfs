@@ -110,16 +110,13 @@ main (int argc, char const *argv[])
   while (fgets(str, MAX_SIZE, inp)) {
       if (str[0] == '#') continue;
       gmp_sscanf(str, "%ld %lu %Zd %Zd\n", &a, &b, mpz_ptr(R), mpz_ptr(A));
-      std::vector<cxx_mpz> factorsR, factorsA;
   
       if (mpz_sizeinbase(R, 2) > (size_t)lpb[0]) {
-          int const found = facul(factorsR, R, strategy0);
-          if (found <= 0)
+          if (facul(R, strategy0).status != FACUL_SMOOTH)
               continue;
       }
       if (mpz_sizeinbase(A, 2) > (size_t)lpb[1]) {
-          int const found = facul(factorsA, A, strategy1);
-          if (found <= 0)
+          if (facul(A, strategy1).status != FACUL_SMOOTH)
               continue;
       }
       nrels++;

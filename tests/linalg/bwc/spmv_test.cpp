@@ -1,4 +1,4 @@
-#include "cado.h"  // IWYU pragma: keep
+#include "cado.h" // IWYU pragma: keep
 
 #include <cstdint> // for uint32_t, uint64_t
 #include <cstdio>
@@ -506,6 +506,8 @@ static void * tst_prog(parallelizing_info_ptr pi, cxx_param_list & pl,
     memset(oldv[0], 0, sizeof(mmt_vec));
     memset(oldv[1], 0, sizeof(mmt_vec));
 #endif
+
+    matmul_top_report(mmt, 1.0, 1);
 
     // A->oo_field_clear(A);
 

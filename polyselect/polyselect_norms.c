@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <float.h>
 #include <math.h>
 #include "double_poly.h"

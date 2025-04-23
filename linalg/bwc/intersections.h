@@ -1,5 +1,5 @@
-#ifndef INTERSECTIONS_H
-#define INTERSECTIONS_H
+#ifndef CADO_INTERSECTIONS_H
+#define CADO_INTERSECTIONS_H
 
 /*
  * Structure for the intersection between an interval [i0..i1[ and
@@ -28,4 +28,4 @@ void intersect(unsigned int * plen, struct isect_info ** res, unsigned int * fen
 }
 #endif
 
-#endif	/* INTERSECTIONS_H */
+#endif	/* CADO_INTERSECTIONS_H */

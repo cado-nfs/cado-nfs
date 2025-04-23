@@ -1,6 +1,6 @@
 /* This file is part of the gf2x library.
 
-   Copyright 2007, 2008, 2009, 2010, 2013, 2015
+   Copyright 2007, 2008, 2009, 2010, 2013, 2015, 2018, 2019, 2021, 2023
    Richard Brent, Pierrick Gaudry, Emmanuel Thome', Paul Zimmermann
 
    This program is free software; you can redistribute it and/or modify it
@@ -34,8 +34,8 @@
 /* The section below is automatically generated */
 /* inline: init_empty order */
 
-#ifndef GF2X_FFT_EXPORTED
-#define GF2X_FFT_EXPORTED
+#ifndef GF2X_EXPORTED
+#define GF2X_EXPORTED
 #endif
 
 struct gf2x_ternary_fft_info;
@@ -49,7 +49,7 @@ typedef const struct gf2x_ternary_fft_info * gf2x_ternary_fft_info_srcptr;
  * or may not consist of plain-old datatypes only, so that it only
  * possible to copy it with care (see below).  
  * 
- * C code should use gf2x_ternary_fft_info_t preferrably, as it provides transparent
+ * C code should use gf2x_ternary_fft_info_t preferably, as it provides transparent
  * conversion to a pointer, and yet defines storage as well (à la GMP).
  *
  * C++ code should use gf2x_ternary_fft_info.  When the header is included from C++
@@ -69,7 +69,7 @@ extern "C" {
 extern int gf2x_ternary_fft_info_init(
         gf2x_ternary_fft_info_ptr p,
         size_t bits_a,
-        size_t bits_b) GF2X_FFT_EXPORTED;
+        size_t bits_b) GF2X_EXPORTED;
 /* Basic constructor. Used to multiply polynomials with the given number
  * of bits.
  *
@@ -81,7 +81,7 @@ extern int gf2x_ternary_fft_info_init(
 extern int gf2x_ternary_fft_info_init_mp(
         gf2x_ternary_fft_info_ptr p,
         size_t bits_a,
-        size_t bits_b) GF2X_FFT_EXPORTED;
+        size_t bits_b) GF2X_EXPORTED;
 /* Used to compute middle products of polynomials with the given number
  * of bits. That is, the result MP(a, b) consists of coefficients of
  * degrees MIN(bits_a, bits_b)-1 to MAX(bits_a, bits_b)-1 (inclusive),
@@ -118,15 +118,15 @@ static inline void gf2x_ternary_fft_info_init_empty(
 extern int gf2x_ternary_fft_info_adjust(
         gf2x_ternary_fft_info_ptr p,
         int adjust_kind,
-        long val) GF2X_FFT_EXPORTED;
+        long val) GF2X_EXPORTED;
 
 extern void gf2x_ternary_fft_info_clear(
-        gf2x_ternary_fft_info_ptr p) GF2X_FFT_EXPORTED;
+        gf2x_ternary_fft_info_ptr p) GF2X_EXPORTED;
 /* Destructor for the info type. */
 
 extern int gf2x_ternary_fft_info_copy(
         gf2x_ternary_fft_info_ptr p,
-        gf2x_ternary_fft_info_srcptr other) GF2X_FFT_EXPORTED;
+        gf2x_ternary_fft_info_srcptr other) GF2X_EXPORTED;
 /* Copy constructor. Returns 0 on success or GF2X_ERROR_OUT_OF_MEMORY.*/
 
 static inline int gf2x_ternary_fft_info_order(
@@ -135,7 +135,7 @@ static inline int gf2x_ternary_fft_info_order(
 
 extern void gf2x_ternary_fft_info_get_alloc_sizes(
         gf2x_ternary_fft_info_srcptr p,
-        size_t sizes[3]) GF2X_FFT_EXPORTED;
+        size_t sizes[3]) GF2X_EXPORTED;
 /* Fill the sizes array with three byte counts:
  *     sizes[0] : equivalent to gf2x_ternary_fft_transform_size(p) * sizeof(gf2x_ternary_fft_elt)
  *     sizes[1] : number of bytes of temp space that must be passed to each
@@ -147,7 +147,7 @@ extern void gf2x_ternary_fft_info_get_alloc_sizes(
  */
 
 extern char * gf2x_ternary_fft_info_explain(
-        gf2x_ternary_fft_info_srcptr p) GF2X_FFT_EXPORTED;
+        gf2x_ternary_fft_info_srcptr p) GF2X_EXPORTED;
 /* Returns a malloc()ed string that gives the description of what the
  * transform type is doing. The returned pointer may also be NULL if the
  * implementation does not provide that information. It should be freed
@@ -174,44 +174,44 @@ extern "C" {
 #endif
 
 extern size_t gf2x_ternary_fft_transform_size(
-        gf2x_ternary_fft_info_srcptr o) GF2X_FFT_EXPORTED;
+        gf2x_ternary_fft_info_srcptr o) GF2X_EXPORTED;
 /* Number of gf2x_ternary_fft_elt objects it takes to allocate one transform. */
 
 extern gf2x_ternary_fft_ptr gf2x_ternary_fft_alloc(
         gf2x_ternary_fft_info_srcptr o,
-        size_t n) GF2X_FFT_EXPORTED;
+        size_t n) GF2X_EXPORTED;
 /* Allocate space for n transforms. Equivalent to (gf2x_ternary_fft_ptr) malloc(n *
  * gf2x_ternary_fft_transform_size(p) * sizeof(gf2x_ternary_fft_elt)); */
 
 extern void gf2x_ternary_fft_free(
         gf2x_ternary_fft_info_srcptr o,
         gf2x_ternary_fft_ptr ptr,
-        size_t n) GF2X_FFT_EXPORTED;
+        size_t n) GF2X_EXPORTED;
 /* Free space for n transforms. */
 
 extern gf2x_ternary_fft_ptr gf2x_ternary_fft_get(
         gf2x_ternary_fft_info_srcptr o,
         gf2x_ternary_fft_ptr ptr,
-        size_t k) GF2X_FFT_EXPORTED;
+        size_t k) GF2X_EXPORTED;
 /* Get the k-th transform. */
 
 extern gf2x_ternary_fft_srcptr gf2x_ternary_fft_get_const(
         gf2x_ternary_fft_info_srcptr o,
         gf2x_ternary_fft_srcptr ptr,
-        size_t k) GF2X_FFT_EXPORTED;
+        size_t k) GF2X_EXPORTED;
 /* Get the k-th transform. */
 
 extern void gf2x_ternary_fft_zero(
         gf2x_ternary_fft_info_srcptr o,
         gf2x_ternary_fft_ptr ptr,
-        size_t n) GF2X_FFT_EXPORTED;
+        size_t n) GF2X_EXPORTED;
 /* Zero n consecutive transforms. */
 
 extern void gf2x_ternary_fft_cpy(
         gf2x_ternary_fft_info_srcptr o,
         gf2x_ternary_fft_ptr y,
         gf2x_ternary_fft_srcptr x,
-        size_t n) GF2X_FFT_EXPORTED;
+        size_t n) GF2X_EXPORTED;
 /* Copy n consecutive transforms (named "cpy" by analogy to memcpy)/ */
 
 static inline void gf2x_ternary_fft_export(
@@ -253,7 +253,7 @@ extern void gf2x_ternary_fft_fill_random(
         gf2x_ternary_fft_info_srcptr o,
         gf2x_ternary_fft_ptr ptr,
         size_t n,
-        gmp_randstate_t rstate) GF2X_FFT_EXPORTED;
+        gmp_randstate_t rstate) GF2X_EXPORTED;
 /* fill n consecutive transforms with random data from the provided
  * random state.
  */
@@ -263,7 +263,7 @@ extern void gf2x_ternary_fft_add(
         gf2x_ternary_fft_info_srcptr o,
         gf2x_ternary_fft_ptr tc,
         gf2x_ternary_fft_srcptr ta,
-        gf2x_ternary_fft_srcptr tb) GF2X_FFT_EXPORTED;
+        gf2x_ternary_fft_srcptr tb) GF2X_EXPORTED;
 /* Add two transforms to tc. tc==ta or tc==tb are allowed. */
 
 extern int gf2x_ternary_fft_dft(
@@ -271,7 +271,7 @@ extern int gf2x_ternary_fft_dft(
         gf2x_ternary_fft_ptr tr,
         const unsigned long * a,
         size_t bits_a,
-        gf2x_ternary_fft_ptr temp1) GF2X_FFT_EXPORTED;
+        gf2x_ternary_fft_ptr temp1) GF2X_EXPORTED;
 /* Compute the dft of the polynomial pointed to by a. Attention: the size
  * is given in number of *bits*, not in number of unsigned longs.  temp1
  * must point to storage of size sizes[1], with sizes[] filled as in the
@@ -286,7 +286,7 @@ extern int gf2x_ternary_fft_ift(
         unsigned long * c,
         size_t bits_c,
         gf2x_ternary_fft_ptr tr,
-        gf2x_ternary_fft_ptr temp1) GF2X_FFT_EXPORTED;
+        gf2x_ternary_fft_ptr temp1) GF2X_EXPORTED;
 /* Compute the ift of the transform tr, to polynomial pointed to by c.
  * Attention: the size is given in number of *bits*, not in number of
  * unsigned longs.  temp1 must point to storage of size sizes[1], with
@@ -301,7 +301,7 @@ extern int gf2x_ternary_fft_compose(
         gf2x_ternary_fft_ptr tc,
         gf2x_ternary_fft_srcptr ta,
         gf2x_ternary_fft_srcptr tb,
-        gf2x_ternary_fft_ptr temp2) GF2X_FFT_EXPORTED;
+        gf2x_ternary_fft_ptr temp2) GF2X_EXPORTED;
 /* Compose two DFTs.  temp2 must point to storage of size sizes[2], with
  * sizes[] filled as in the gf2x_ternary_fft_info_get_alloc_sizes call.
  *
@@ -316,7 +316,7 @@ extern int gf2x_ternary_fft_addcompose_n(
         gf2x_ternary_fft_srcptr * tb,
         size_t n,
         gf2x_ternary_fft_ptr temp2,
-        gf2x_ternary_fft_ptr temp1) GF2X_FFT_EXPORTED;
+        gf2x_ternary_fft_ptr temp1) GF2X_EXPORTED;
 /* Compose 2n DFTs, and add the result to tc. temp1 and temp2 must point to
  * storage of size sizes[1] and sizes[2], respectively, with sizes[]
  * filled as in the gf2x_ternary_fft_info_get_alloc_sizes call.
@@ -331,7 +331,7 @@ extern int gf2x_ternary_fft_addcompose(
         gf2x_ternary_fft_srcptr ta,
         gf2x_ternary_fft_srcptr tb,
         gf2x_ternary_fft_ptr temp2,
-        gf2x_ternary_fft_ptr temp1) GF2X_FFT_EXPORTED;
+        gf2x_ternary_fft_ptr temp1) GF2X_EXPORTED;
 /* Compose 2 DFTs, and add the result to tc. temp1 and temp2 must point to
  * storage of size sizes[1] and sizes[2], respectively, with sizes[]
  * filled as in the gf2x_ternary_fft_info_get_alloc_sizes call.

@@ -14,14 +14,14 @@
 #include <cstdlib>             // for free, malloc, exit, abort, realloc
 #include <cstdint>
 
-#include <exception>
-#include <iterator>            // for begin, end
-#include <list>                // for list, operator!=, _List_iterator, list...
-#include <sstream>             // for operator<<, ostringstream, basic_ostream
+#include <iterator>
+#include <list>
+#include <memory>
+#include <sstream>
 #include <stdexcept>
-#include <string>              // for basic_string
+#include <string>
 #include <utility>
-#include <vector>              // for vector
+#include <vector>
 
 #include <gmp.h>
 #include "fmt/format.h"
@@ -100,8 +100,8 @@ static void add_openmp_subtimings(double & extra_time MAYBE_UNUSED)
 static void
 mpz_product_tree_init (mpz_product_tree t)
 {
-  t->l = NULL;
-  t->n = NULL;
+  t->l = nullptr;
+  t->n = nullptr;
   t->size = 0;
 }
 
@@ -192,7 +192,7 @@ prime_list_poly (std::vector<unsigned long> & L, prime_info pi,
 
   for (unsigned long p = 2 ; p <= pmax ; p = getprime_mt(pi))
     if (mpz_divisible_ui_p (mpz_poly_lc(f), p) ||
-        mpz_poly_roots_ulong (NULL, f, p, rstate) > 0)
+        mpz_poly_roots_ulong (nullptr, f, p, rstate) > 0)
         L.push_back(p);
 
   gmp_randclear(rstate);
@@ -264,7 +264,7 @@ prime_tree_poly (mpz_product_tree L, unsigned long pmax, cxx_mpz_poly const& f, 
 #endif
       for (int j = 0; j < i; j++)
         if (mpz_divisible_ui_p (mpz_poly_lc(f), q[j]) == 0 &&
-            mpz_poly_roots_ulong (NULL, f, q[j], rstate_per_thread[omp_get_thread_num()]) == 0)
+            mpz_poly_roots_ulong (nullptr, f, q[j], rstate_per_thread[omp_get_thread_num()]) == 0)
           q[j] = 0;
 
       /* sequential part: mpz_product_tree_add_ui is fast */
@@ -705,7 +705,7 @@ trial_divide (std::vector<cxx_mpz>& factors, cxx_mpz & n, std::vector<unsigned l
 {
     for (auto p : SP) {
         while (mpz_divisible_ui_p (n, p)) {
-            factors.push_back(p);
+            factors.emplace_back(p);
             mpz_divexact_ui (n, n, p);
         }
     }
@@ -728,7 +728,7 @@ factor_simple_minded (std::vector<cxx_mpz> &factors,
               cxx_mpz& cofac,
               std::vector<uint64_t> const& sq_factors)
 {
-    double BB = B * B, BBB = B * B * B;
+    const double BB = B * B, BBB = B * B * B;
 
     if (mpz_cmp_ui(cofac, 0) == 0) {
         for (auto sqf : sq_factors) {
@@ -764,11 +764,10 @@ factor_simple_minded (std::vector<cxx_mpz> &factors,
 
     std::list<std::pair<cxx_mpz, std::vector<facul_method>::const_iterator>> composites;
     if (mpz_cmp_ui(n, 1) > 0) 
-        composites.push_back(std::make_pair(std::move(n), methods.begin()));
+        composites.emplace_back(std::move(n), methods.begin());
     if (mpz_cmp_ui(cofac, 1) > 0)
-        composites.push_back(std::make_pair(std::move(cofac), methods.begin()));
+        composites.emplace_back(std::move(cofac), methods.begin());
 
-    const FaculModulusBase *fm[2] = {NULL, NULL};
 
     /* This calls facul_doit_onefm repeatedly,  until there's no work
      * left.
@@ -796,7 +795,10 @@ factor_simple_minded (std::vector<cxx_mpz> &factors,
 	   facul_doit_onefm_mpz, it means fm[j] has not been set. */
 
         std::vector<cxx_mpz> temp;
-        int const nf = facul_doit_onefm (temp, n0, *pm, fm[0], fm[1], lpb, BB, BBB);
+        std::vector<std::unique_ptr<FaculModulusBase>> comp;
+
+        facul_status const nf = facul_doit_onefm (temp, n0, *pm, comp,
+                lpb, BB, BBB);
         pm++;
 
         /* Could happen if we allowed a cofactor bound after batch
@@ -809,8 +811,7 @@ factor_simple_minded (std::vector<cxx_mpz> &factors,
         /* In this case, no prime factor was stored, no composite was
          * stored: the input number has not been changed, we move on to
          * the next method */
-        if (nf == 0 && fm[0] == NULL
-	            && fm[1] == NULL) {
+        if (nf == 0 && comp.empty()) {
             composites.front().second = pm;
             continue;
         }
@@ -819,33 +820,33 @@ factor_simple_minded (std::vector<cxx_mpz> &factors,
          * cofactors found */
         composites.pop_front();
 
-        ASSERT_ALWAYS(temp.size() == (size_t) nf);
         /* temp[0..nf-1] are prime factors of n, 0 <= nf <= 2 */
-        for (int j = 0; j < nf; j++) {
-            factors.push_back(std::move(temp[j]));
-        }
+        for (auto & c : temp)
+            factors.push_back(std::move(c));
 
         /* we may also have composites */
-        for (int j = 0; j < 2; j++) {
-            if (fm[j] == NULL) continue;
-
+        for (auto & c : comp) {
             /* fm is a non-trivial composite factor */
-            cxx_mpz t;
-            fm[j]->get_z (t);
-            delete fm[j];
-            fm[j] = NULL;
+            auto t = c->get_z();
 
             /* t should be composite, i.e., t >= BB */
             ASSERT(mpz_cmp_d (t, BB) >= 0);
 
             if (mpz_perfect_square_p (t))
             {
-              mpz_sqrt (t, t);
-              composites.push_back(std::make_pair(t, pm));
-              composites.push_back(std::make_pair(std::move(t), pm));
+                /* Yes, this does happen, at least in the F9_batch test
+                 */
+                mpz_sqrt (t, t);
+                if (mpz_probab_prime_p(t, 1)) {
+                    factors.emplace_back(t);
+                    factors.emplace_back(std::move(t));
+                } else {
+                    composites.emplace_back(t, pm);
+                    composites.emplace_back(std::move(t), pm);
+                }
             }
             else
-              composites.push_back(std::make_pair(std::move(t), pm));
+              composites.emplace_back(std::move(t), pm);
         }
     }
 
@@ -1137,9 +1138,8 @@ void
 create_batch_file (std::string const & fs, cxx_mpz & P, unsigned long B, unsigned long L,
                    cxx_mpz_poly const & cpoly, FILE *out, int nthreads MAYBE_UNUSED, double & extra_time)
 {
-  FILE *fp;
   double e0, s, st, wct;
-  const char * f = fs.empty() ? NULL : fs.c_str();
+  const char * f = fs.empty() ? nullptr : fs.c_str();
 
   if (L <= B) {
       /* We may be content with having a product tree on one side only.
@@ -1171,42 +1171,25 @@ create_batch_file (std::string const & fs, cxx_mpz & P, unsigned long B, unsigne
   st = seconds_thread ();
   wct = wct_seconds ();
 
-  if (f == NULL) /* case 1 */
-    {
+  if (f == nullptr) { /* case 1 */
       fprintf (out, "# batch: creating large prime product");
       fflush (out);
       create_batch_product (P, L, cpoly, extra_time);
-      goto end;
-    }
-
-  fp = fopen (f, "r");
-  if (fp != NULL) /* case 3 */
-    {
-      fprintf (out, "# batch: reading large prime product");
-      fflush (out);
-      try {
-          input_batch (fp, B, L, cpoly, P, f);
-      } catch(std::exception const & e) {
-          fclose(fp);
-          throw e;
+  } else {
+      auto fp = fopen_helper(f, "r", true);
+      if (fp) { /* case 3 */
+          fprintf (out, "# batch: reading large prime product");
+          fflush (out);
+          input_batch (fp.get(), B, L, cpoly, P, f);
+      } else {
+          /* case 2 */
+          fprintf (out, "# batch: creating large prime product");
+          fflush (out);
+          create_batch_product (P, L, cpoly, extra_time);
+          output_batch (fopen_helper (f, "w").get(), B, L, cpoly, P, f);
       }
-      fclose(fp);
-      goto end;
-    }
+  }
 
-  /* case 2 */
-  fprintf (out, "# batch: creating large prime product");
-  fflush (out);
-  create_batch_product (P, L, cpoly, extra_time);
-
-  fp = fopen (f, "w");
-  ASSERT_ALWAYS(fp != NULL);
-
-  output_batch (fp, B, L, cpoly, P, f);
-
-  fclose (fp);
-
- end:
 
   gmp_fprintf (out, " of %zu bits took %.2fs (%.2fs + %.2fs ; wct %.2fs)\n",
                mpz_sizeinbase (P, 2),

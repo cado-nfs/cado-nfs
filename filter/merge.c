@@ -38,33 +38,33 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #endif
 #include <stdio.h>
 #include <stdlib.h>
-#include <inttypes.h>       // for PRIu64
-#include <stdint.h>         // for uint64_t, int32_t, int64_t, uint32_t
-#include <string.h>         // for memset, memcpy, strlen
-#ifdef HAVE_MINGW
-#include <fcntl.h>         /* for _O_BINARY */
-#endif
-#include "filter_io.h"  // earlyparsed_relation_ptr
+#include <inttypes.h>
+#include <stdint.h>
+#include <string.h>
+
+#include "filter_config.h"
+#include "filter_io.h"
 #ifdef FOR_DL
 #include "gcd.h"
 #endif
-#include "gzip.h"       // fopen_maybe_compressed
+#include "gzip.h"
 #include "macros.h"
-#include "memory.h"             // malloc_aligned
-#include "memusage.h"   // PeakMemusage
-#include "misc.h"       // UMAX
-#include "mst.h"
-#include "omp_proxy.h"
-#include "params.h"     // param_list_parse_*
-#include "purgedfile.h"     // for purgedfile_read_firstline
-#include "sparse.h"
-#include "timing.h"  // seconds
-#include "typedefs.h"  // weight_t
-#include "verbose.h"    // verbose_interpret_parameters
-#include "merge_heap.h"
+#include "memory.h"
+#include "memusage.h"
 #include "merge_bookkeeping.h"
 #include "merge_compute_weights.h"
+#include "merge_replay_matrix.h"
+#include "merge_heap.h"
+#include "misc.h"
+#include "mst.h"
+#include "omp_proxy.h"
+#include "params.h"
+#include "purgedfile.h"
 #include "read_purgedfile_in_parallel.h"
+#include "sparse.h"
+#include "timing.h"
+#include "typedefs.h"
+#include "verbose.h"
 
 #ifdef DEBUG
 static void

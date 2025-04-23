@@ -1,5 +1,5 @@
-#ifndef EC_ARITH_EDWARDS_H_
-#define EC_ARITH_EDWARDS_H_
+#ifndef CADO_EC_ARITH_EDWARDS_H
+#define CADO_EC_ARITH_EDWARDS_H
 
 /* a=-1 Twisted Edwards elliptic curves
  *
@@ -434,4 +434,4 @@ edwards_smul_ui (ec_point_t R, const ec_point_t P, const unsigned long k,
 #endif
 
 
-#endif /* EC_ARITH_EDWARDS_H_ */
+#endif /* CADO_EC_ARITH_EDWARDS_H */

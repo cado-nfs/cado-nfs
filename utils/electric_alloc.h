@@ -1,5 +1,5 @@
-#ifndef CADO_UTILS_ELECTRIC_ALLOC_H_
-#define CADO_UTILS_ELECTRIC_ALLOC_H_
+#ifndef CADO_UTILS_ELECTRIC_ALLOC_H
+#define CADO_UTILS_ELECTRIC_ALLOC_H
 
 /* This file is a debugging aid. It carries good chances of working on
  * POSIX system, but I wouldn't bet much on it, since mmap is kind of
@@ -104,4 +104,4 @@ template<typename T> inline void electric_delete(T * p, size_t s) {
 }
 #endif
 
-#endif  /* CADO_UTILS_ELECTRIC_ALLOC_H_ */
+#endif  /* CADO_UTILS_ELECTRIC_ALLOC_H */

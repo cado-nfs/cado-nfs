@@ -1,5 +1,5 @@
-#ifndef BASICNT_H_
-#define BASICNT_H_
+#ifndef CADO_BASICNT_H
+#define CADO_BASICNT_H
 
 
 /*****************************************************************
@@ -50,4 +50,4 @@ static inline uint32_t signed_mod_longto32 (long a, uint32_t p)
 }
 
 
-#endif	/* BASICNT_H_ */
+#endif	/* CADO_BASICNT_H */

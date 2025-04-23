@@ -1,14 +1,16 @@
 #include "cado.h" // IWYU pragma: keep
 
 #include <cstddef>
-#include <cstdint>               // for uint64_t, UINT64_C
+#include <cstdint>
+#include <cstdio>
 
 #include "bblas_mat64.hpp"
 #include "bblas_level5.hpp"
-#include "gmp_aux.h"              // for memfill_random
+#include "gmp_aux.h"
 #include "test_bblas_base.hpp"
 #include "test_bblas_level5.hpp"
 #include "time_bblas_common.hpp"
+
 #ifdef HAVE_M4RIE
 /* To test against m4rie routines, include a checkout of
  * https://bitbucket.org/malb/m4rie.git under linalg/m4rie, and run

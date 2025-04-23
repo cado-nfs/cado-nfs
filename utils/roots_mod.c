@@ -12,13 +12,13 @@
 #include <gmp.h>
 
 #include "macros.h" // ASSERT_ALWAYS
-#include "mod_ul.h"
-#include "modredc_ul_default.h"
+#include "arith/mod_ul.h"
+#include "arith/modredc_ul_default.h"
 #include "lucas_V_mod.h"
 #include "mpz_poly.h"
 #include "rootfinder.h"
 #include "roots_mod.h"
-#include "ularith.h" // ularith_ctz, ularith_sqrt
+#include "arith/ularith.h" // ularith_ctz, ularith_sqrt
 
 static unsigned int mod_roots(residue_t * rr, residue_t aa, unsigned int d,
                               modulus_t pp);

@@ -1,5 +1,5 @@
-#ifndef SELECT_MPI_H_
-#define SELECT_MPI_H_
+#ifndef CADO_SELECT_MPI_H
+#define CADO_SELECT_MPI_H
 
 // scan-headers: no prototypes
 // scan-headers: stop here
@@ -14,4 +14,4 @@
 #include "fakempi.h"    // IWYU pragma: export
 #endif
 
-#endif	/* SELECT_MPI_H_ */
+#endif	/* CADO_SELECT_MPI_H */

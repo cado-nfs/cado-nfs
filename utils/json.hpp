@@ -1,5 +1,5 @@
-#ifndef JSON_HPP_
-#define JSON_HPP_
+#ifndef CADO_JSON_HPP
+#define CADO_JSON_HPP
 
 #include <stdexcept>
 #include <vector>
@@ -136,4 +136,4 @@ std::ostream& operator<<(std::ostream& o, json const & f);
 std::istream& operator>>(std::istream& in, json & f);
 std::ostream& operator<<(std::ostream& o, json_base const & f);
 
-#endif	/* JSON_HPP_ */
+#endif	/* CADO_JSON_HPP */

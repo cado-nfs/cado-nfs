@@ -1,7 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
 
 #include <cstdlib>
-#include <cstdint>          // for UINT64_C, INT64_C
+#include <cstdint>
 
 #include <iostream>         // for std::cout
 #include <vector>

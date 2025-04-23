@@ -1,6 +1,6 @@
 /* This file is part of the gf2x library.
 
-   Copyright 2007, 2008, 2009, 2010, 2013, 2015
+   Copyright 2007, 2008, 2009, 2010, 2013, 2015, 2016, 2019
    Richard Brent, Pierrick Gaudry, Emmanuel Thome', Paul Zimmermann
 
    This program is free software; you can redistribute it and/or modify it
@@ -133,6 +133,10 @@ extern long gf2x_toomspace(long);
 extern short gf2x_best_utoom(unsigned long);
 extern long gf2x_toomuspace(long);
 
+#ifdef __cplusplus
+}
+#endif
+
 
 /* gf2x_mul_fft returns 0 on success, and a negative error
  * code among the GF2X_ERROR_* constants defined in gf2x.h.
@@ -141,6 +145,10 @@ extern long gf2x_toomuspace(long);
 #include "gf2x-ternary-fft.h"
 
 #define GF2X_MUL_FFT_MINIMUM_SIZE GF2X_TERNARY_FFT_MINIMUM_SIZE
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 extern int gf2x_mul_fft(unsigned long *c, const unsigned long *a, size_t an,
 		            const unsigned long *b, size_t bn, long K)

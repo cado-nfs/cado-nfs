@@ -1,5 +1,5 @@
-#ifndef BW_COMMON_H_
-#define BW_COMMON_H_
+#ifndef CADO_BW_COMMON_H
+#define CADO_BW_COMMON_H
 
 /* This file gathers the parameters that are relevant to all BW
  * programs -- most programs parse the corresponding values -- for some,
@@ -184,4 +184,4 @@ extern unsigned int bw_set_length_and_interval_mksol(struct bw_params * bw, unsi
 }
 #endif
 
-#endif	/* BW_COMMON_H_ */
+#endif	/* CADO_BW_COMMON_H */

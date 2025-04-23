@@ -21,18 +21,18 @@ extern int nb_curves (const unsigned int lpb, const unsigned int mfb);
  * well.
  */
 struct facul_strategy_oneside {
-  unsigned long B;
-  unsigned int lpb;  /* Large prime bound 2^lpb */
-  double BB;         /* The factor base bound squared.
-                      * We assume that primes <= fbb have already been
-                      * removed, thus any factor <= BB is assumed prime
-                      * without further test.
-                      * Note that BB is _only_ used for that, and that
-                      * setting BB=0 is an effective way to consider all
-                      * numbers as potential composites.
-                      */
-  double BBB;        /* The factor base bound cubed. */
-  unsigned int mfb;
+  unsigned long B = 0;
+  unsigned int lpb = 0;  /* Large prime bound 2^lpb */
+  double BB = 0;         /* The factor base bound squared.
+                          * We assume that primes <= fbb have already been
+                          * removed, thus any factor <= BB is assumed prime
+                          * without further test.
+                          * Note that BB is _only_ used for that, and that
+                          * setting BB=0 is an effective way to consider all
+                          * numbers as potential composites.
+                          */
+  double BBB = 0;        /* The factor base bound cubed. */
+  unsigned int mfb = 0;
   std::vector<facul_method> methods;  /* List of methods to try */
 
   /* B lpb mfb ncurves verbose */
@@ -67,6 +67,14 @@ struct facul_strategies_base {
             std::vector<unsigned int> const & lpb,
             std::vector<unsigned int> const & mfb,
             bool perfectly_sieved);
+
+    explicit facul_strategies_base(facul_strategy_oneside const & s1)
+        : B { s1.B }
+        , lpb { s1.lpb }
+        , BB { s1.BB }
+        , BBB { s1.BBB }
+        , mfb { s1.mfb }
+        {}
 };
 
 struct facul_strategies : public facul_strategies_base {
@@ -100,7 +108,7 @@ public:
             std::vector<unsigned int> const & mfb,
             std::vector<int> ncurves,
             bool,
-            const int);
+            int);
 
     facul_strategies(
             std::vector<unsigned long> const & lim,
@@ -108,7 +116,7 @@ public:
             std::vector<unsigned int> const & mfb,
             bool,
             FILE *,
-            const int);
+            int);
 
     facul_strategies(
             std::vector<unsigned long> const & lim,
@@ -116,7 +124,7 @@ public:
             std::vector<unsigned int> const & mfb,
             bool,
             strategy_file const &,
-            const int);
+            int);
 
     void print(FILE *) const;
 

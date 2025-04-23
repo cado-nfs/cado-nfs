@@ -1,5 +1,5 @@
-#ifndef POLYSELECT_COLLISIONS_H_
-#define POLYSELECT_COLLISIONS_H_
+#ifndef CADO_POLYSELECT_COLLISIONS_H
+#define CADO_POLYSELECT_COLLISIONS_H
 
 #include <gmp.h>
 #include "gmp_aux.h"
@@ -33,4 +33,4 @@ collision_on_sq_conductor(unsigned long c, polyselect_thread_ptr thread);
 }
 #endif
 
-#endif	/* POLYSELECT_COLLISIONS_H_ */
+#endif	/* CADO_POLYSELECT_COLLISIONS_H */

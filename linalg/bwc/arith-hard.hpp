@@ -5,8 +5,8 @@
  * This include file depends on compilation flags!
  */
 
-#include "arith-modp.hpp"
-#include "arith-mod2.hpp"
+#include "arith-modp.hpp"       // IWYU pragma: export
+#include "arith-mod2.hpp"       // IWYU pragma: export
 
 #if defined(ARITH_MOD2)
 typedef arith_mod2::gf2<ARITH_SIMD_GROUPSIZE> arith_hard;

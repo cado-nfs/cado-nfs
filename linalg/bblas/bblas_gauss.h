@@ -1,5 +1,5 @@
-#ifndef BBLAS_GAUSS_H
-#define BBLAS_GAUSS_H
+#ifndef CADO_BBLAS_GAUSS_H
+#define CADO_BBLAS_GAUSS_H
 
 #include <gmp.h>
 
@@ -45,4 +45,4 @@ extern int spanned_basis(mp_limb_t * lmat, mp_limb_t * mat, int nrows, int ncols
 }
 #endif
 
-#endif	/* BBLAS_GAUSS_H */
+#endif	/* CADO_BBLAS_GAUSS_H */

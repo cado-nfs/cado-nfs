@@ -2,27 +2,29 @@
  * Authors: Joshua Peignier and Emmanuel Thomé
  */
 #include "cado.h" // IWYU pragma: keep
-// IWYU pragma: no_include <memory>
-// iwyu wants it for allocator_traits<>::value_type, which seems weird
-#include <ostream>
-#include <iomanip>      // std::dec // IWYU pragma: keep
+
+#include <cstddef>
+
 #include <iostream>
+#include <ostream>
 #include <sstream>
+#include <stdexcept>
+#include <string>
 #include <utility>
+#include <vector>
 
-#include <cstddef> // size_t
 #include <gmp.h>
-#include <fmt/format.h>
+#include "fmt/format.h"
 
-#include "gmp_aux.h"  // mpz_p_valuation
-#include "mpz_mat.h"
-#include "numbertheory.hpp"
 #include "badideals.hpp"
-#include "rootfinder.h"
-#include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
-#include "macros.h" // ASSERT_ALWAYS // IWYU pragma: keep
+#include "cxx_mpz.hpp"
+#include "gmp_aux.h"
+#include "macros.h"
 #include "misc.h"
+#include "mpz_poly.h"
 #include "numbertheory/all_valuations_above_p.hpp"
+#include "rootfinder.h"
+#include "utils_cxx.hpp"
 
 using namespace std;
 
@@ -58,13 +60,10 @@ std::ostream& badideal::operator<<(std::ostream& os) const
         << "  " << nbad
         << "  " << branches.size()
         << "\n";
-    for(unsigned int j = 0 ; j < branches.size() ; j++) {
-        badideal::branch const& br(branches[j]);
+    for(auto const & br: branches) {
         os << p << " " << br.k << " " << br.r;
         ASSERT_ALWAYS(br.v.size() == (size_t) nbad);
-        for(unsigned int k = 0 ; k < br.v.size() ; k++) {
-            os << " " << br.v[k];
-        }
+        for(auto v : br.v) os << " " << v;
         os << "\n";
     }
     os.flags(ff);
@@ -85,18 +84,18 @@ badideal::badideal(std::istream& is)
     // coverity[tainted_argument]
     is >> p >> r >> nbad >> nbranches;
     if (!is) return;
+    branches.reserve(nbranches);
     for(unsigned int j = 0 ; j < nbranches ; j++) {
         badideal::branch br;
         is >> p >> br.k >> br.r;
         ASSERT_ALWAYS_OR_THROW(is, std::invalid_argument);
         br.v.assign(nbad, 0);
-        for(unsigned int k = 0 ; k < br.v.size() ; k++) {
-            is >> br.v[k];
+        for(auto & v : br.v) {
+            is >> v;
             ASSERT_ALWAYS_OR_THROW(is, std::invalid_argument);
         }
         branches.emplace_back(std::move(br));
     }
-    return;
 }
 
 static vector<cxx_mpz> lift_p1_elements(cxx_mpz const& p, int k, cxx_mpz const& x)/*{{{*/
@@ -214,9 +213,9 @@ vector<badideal> badideals_above_p(cxx_mpz_poly const& f, int side, cxx_mpz cons
 
     vector<cxx_mpz> roots = projective_roots_modp(f, p, state);
 
-    for(unsigned int i = 0 ; i < roots.size() ; i++) {
+    for(auto const & r : roots) {
         /* first try to decompose <p,(v*alpha-u)>*J */
-        vector<int> vals = A(1, roots[i]);
+        vector<int> vals = A(1, r);
 
         vector<int> nonzero;
         for(unsigned int k = 0 ; k < vals.size() ; k++) {
@@ -225,16 +224,16 @@ vector<badideal> badideals_above_p(cxx_mpz_poly const& f, int side, cxx_mpz cons
         if (nonzero.size() == 1)
             continue;
 
-        badideal b(p,roots[i], nonzero.size());
+        badideal b(p,r, nonzero.size());
 
-        vector<badideal::branch> lifts = lift_root(A, 1, roots[i], vals);
+        vector<badideal::branch> lifts = lift_root(A, 1, r, vals);
 
         ostringstream cmt;
-        cmt << "# p=" << p << ", r=" << roots[i] << " : " << nonzero.size() << " ideals among " << vals.size() << " are bad\n";
-        for(unsigned int j = 0 ; j < nonzero.size() ; j++) {
-            A.print_info(cmt, nonzero[j], roots[i], side);
-            b.sagemath_string.push_back(A.sagemath_string(nonzero[j], side));
-            b.machine_description.push_back(A.machine_description(nonzero[j]));
+        cmt << "# p=" << p << ", r=" << r << " : " << nonzero.size() << " ideals among " << vals.size() << " are bad\n";
+        for(auto nz : nonzero) {
+            A.print_info(cmt, nz, r, side);
+            b.sagemath_string.push_back(A.sagemath_string(nz, side));
+            b.machine_description.push_back(A.machine_description(nz));
         }
         cmt << "# " << lifts.size() << " branch"
             << (lifts.size() == 1 ? "" : "es") << " found\n";
@@ -245,14 +244,11 @@ vector<badideal> badideals_above_p(cxx_mpz_poly const& f, int side, cxx_mpz cons
 
         /* compres all branches so that we keep only the valuations in
          * the nonzero indirection table */
-        for(unsigned int j = 0 ; j < lifts.size() ; j++) {
-            badideal::branch & br(lifts[j]);
+        for(auto & br : lifts) {
             vector<int> w;
             w.reserve(nonzero.size());
-            for(unsigned int k = 0 ; k < nonzero.size() ; k++) {
-                w.push_back(br.v[nonzero[k]]);
-
-            }
+            for(auto nz : nonzero)
+                w.push_back(br.v[nz]);
             swap(br.v, w);
             b.branches.push_back(br);
         }

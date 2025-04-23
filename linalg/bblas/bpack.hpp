@@ -99,6 +99,11 @@ template<typename matrix_pointer> struct bpack_view_base {
     unsigned int ncolblocks() const { return nblocks; }
     bpack_view_base(matrix_pointer X, unsigned int mblocks, unsigned int nblocks) : X(X), mblocks(mblocks), nblocks(nblocks) { }
 };
+/* c++11 understand the static constexpr as a _declaration_, and insists
+ * on later seeing a _definition_. This one is. c++20 doesn't have this
+ * quirk.
+ */
+template<typename T> constexpr const unsigned int bpack_view_base<T>::B;        // c++11
 
 template<typename T>
 struct bpack_const_view : public bpack_view_base<bitmat<T> const *>
@@ -238,6 +243,10 @@ struct bpack : public bpack_ops<T> {
     bool operator==(view_t v) const { return const_view() == v.const_view(); }
     bool operator==(bpack<T> const & v) const { return const_view() == v.const_view(); }
 };
+
+/* same as above */
+template<typename T> constexpr const unsigned int bpack<T>::B;  // c++11
+
 
 /* The code is in bpack.cpp ; presently there are no specializations, but
  * if the need arises, we may define a few of them.

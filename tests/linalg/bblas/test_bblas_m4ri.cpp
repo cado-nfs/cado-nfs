@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "bblas.hpp"
 #include <cinttypes>
 #include "test_bblas_level4.hpp"

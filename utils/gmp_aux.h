@@ -1,5 +1,5 @@
-#ifndef CADO_UTILS_GMP_AUX_H_
-#define CADO_UTILS_GMP_AUX_H_
+#ifndef CADO_UTILS_GMP_AUX_H
+#define CADO_UTILS_GMP_AUX_H
 
 #include "cado_config.h"  // for ULONG_BITS
 #include <gmp.h>
@@ -148,6 +148,9 @@ next_mpz_with_factor_constraints(mpz_ptr r,
 
 /* return the number of bits of p, counting from the least significant end */
 extern int nbits (uintmax_t p);
+
+/* The implementation of mpz_get_ld is in gmp_aux2.cpp
+ */
 extern long double mpz_get_ld (mpz_srcptr z);
 
 extern int mpz_p_valuation(mpz_srcptr a, mpz_srcptr p);
@@ -231,4 +234,4 @@ extern void gmp_randclear(cxx_gmp_randstate & pl) __attribute__((error("gmp_rand
 #endif
 
 
-#endif	/* CADO_UTILS_GMP_AUX_H_ */
+#endif	/* CADO_UTILS_GMP_AUX_H */

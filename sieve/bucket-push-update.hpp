@@ -1,5 +1,5 @@
-#ifndef BUCKET_PUSH_UPDATE_HPP_
-#define BUCKET_PUSH_UPDATE_HPP_
+#ifndef CADO_BUCKET_PUSH_UPDATE_HPP
+#define CADO_BUCKET_PUSH_UPDATE_HPP
 
 #ifdef SAFE_BUCKET_ARRAYS
 #include <cstdio>
@@ -50,4 +50,4 @@ bucket_single<LEVEL, HINT>::get_next_update()
     return *read++;
 }
 
-#endif /* BUCKET_PUSH_UPDATE_HPP_ */
+#endif /* CADO_BUCKET_PUSH_UPDATE_HPP */

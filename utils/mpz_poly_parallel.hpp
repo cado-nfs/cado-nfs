@@ -1,5 +1,5 @@
-#ifndef MPZ_POLY_PARALLEL_HPP_
-#define MPZ_POLY_PARALLEL_HPP_
+#ifndef CADO_MPZ_POLY_PARALLEL_HPP
+#define CADO_MPZ_POLY_PARALLEL_HPP
 
 #include <gmp.h>
 #include "mpz_poly.h"
@@ -64,4 +64,4 @@ extern template struct mpz_poly_parallel_interface<mpz_poly_notparallel_info>;
 extern template struct mpz_poly_parallel_interface<mpz_poly_parallel_info>;
 
 
-#endif	/* MPZ_POLY_PARALLEL_HPP_ */
+#endif	/* CADO_MPZ_POLY_PARALLEL_HPP */

@@ -18,8 +18,10 @@
 
 #include "cado.h" // IWYU pragma: keep
 
-#include <float.h>      // DBL_MAX
+#include <float.h>
+#include <limits.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -28,6 +30,7 @@
 
 #include "area.h"
 #include "auxiliary.h" /* for common routines with polyselect.c */
+#include "cado_poly.h"
 #include "gcd.h"
 #include "gmp_aux.h"    // ulong_isprime
 #include "macros.h"

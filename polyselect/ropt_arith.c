@@ -13,7 +13,7 @@
 #include <gmp.h>
 
 #include "mpz_poly.h"
-#include "mod_ul.h"
+#include "arith/mod_ul.h"
 #include "macros.h"     // ASSERT
 #include "ropt_arith.h"
 #include "ropt_str.h"

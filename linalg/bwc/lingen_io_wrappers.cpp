@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 // IWYU pragma: no_include <ext/alloc_traits.h>
 // IWYU pragma: no_include <sys/param.h>
 #include <limits.h>                    // for UINT_MAX

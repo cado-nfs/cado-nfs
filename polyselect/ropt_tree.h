@@ -1,5 +1,5 @@
-#ifndef ROPT_TREE_H
-#define ROPT_TREE_H
+#ifndef CADO_ROPT_TREE_H
+#define CADO_ROPT_TREE_H
 
 #include <stdint.h>     // int16_t
 #include <gmp.h>
@@ -154,4 +154,4 @@ void remove_rep_MurphyE ( MurphyE_pq *pqueue );
 #endif
 
 
-#endif /* ROPT_TREE_H */
+#endif /* CADO_ROPT_TREE_H */

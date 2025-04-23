@@ -1,5 +1,5 @@
-#ifndef INDEXED_RELATION_HPP_
-#define INDEXED_RELATION_HPP_
+#ifndef CADO_INDEXED_RELATION_HPP
+#define CADO_INDEXED_RELATION_HPP
 
 
 /* indexed relations are those that appear after dup2. These are read by
@@ -121,4 +121,4 @@ extern template
 std::ostream& operator<<(std::ostream& os, indexed_relation_tmpl<indexed_relation_byside_storage> const & rel);
 typedef indexed_relation_tmpl<indexed_relation_byside_storage> indexed_relation_byside;
 
-#endif	/* INDEXED_RELATION_HPP_ */
+#endif	/* CADO_INDEXED_RELATION_HPP */

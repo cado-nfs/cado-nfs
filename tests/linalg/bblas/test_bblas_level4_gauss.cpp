@@ -1,7 +1,7 @@
-#include "cado.h"
-#include <stddef.h>               // for NULL
-#include <string>                 // for basic_string
-#include <gmp.h>                  // for gmp_randstate_t, mp_limb_t
+#include "cado.h" // IWYU pragma: keep
+
+#include <gmp.h>
+
 #include "bblas_gauss.h"
 #include "bblas_mat64.hpp"
 #include "bblas_level3a.hpp"      // for mat64_fill_random
@@ -19,7 +19,7 @@ static int gauss_MN_C(unsigned int bM, unsigned int bN, gmp_randstate_t rstate)
     unsigned int const N = B * bN;
     mat64 * mm = mat64::alloc(bM * bN);
     memfill_random(mm, bM * bN * sizeof(mat64), rstate);
-    int const r = kernel((mp_limb_t*)mm, NULL, M, N, N/ULONG_BITS, M/ULONG_BITS);
+    int const r = kernel((mp_limb_t*)mm, nullptr, M, N, N/ULONG_BITS, M/ULONG_BITS);
     mat64::free(mm, bM * bN);
     return r;
 }
@@ -42,7 +42,7 @@ void test_bblas_level4::gauss() {
     // TIME1(2, mul_N64_T6464, mm, e, m, 64);
     // TIME1(2, gauss_6464_C, mm, e, m);
     // TIME1(2, gauss_6464_imm, mm, e, m);
-    // TIME1(2, PLUQ64_inner, NULL, l, u, m, 0);
+    // TIME1(2, PLUQ64_inner, nullptr, l, u, m, 0);
     int phi[128];
     {
         perm_matrix p, q;

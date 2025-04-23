@@ -1,4 +1,4 @@
-#include "cado.h"           // IWYU pragma: keep
+#include "cado.h" // IWYU pragma: keep
 
 #include <cstddef>
 #include <cstdint>
@@ -11,7 +11,7 @@
 
 #include "galois_action.hpp"
 #include "misc.h"           // for safe_abs64
-#include "mod_ul.h"         // for modul_clear, modul_clearmod, modul_get_ul
+#include "arith/mod_ul.h"         // for modul_clear, modul_clearmod, modul_get_ul
 #include "renumber.hpp"
 #include "typedefs.h"
 

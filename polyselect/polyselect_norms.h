@@ -1,5 +1,5 @@
-#ifndef POLYSELECT_NORMS_H_
-#define POLYSELECT_NORMS_H_
+#ifndef CADO_POLYSELECT_NORMS_H
+#define CADO_POLYSELECT_NORMS_H
 
 #include "mpz_poly.h"
 
@@ -19,4 +19,4 @@ extern double L2_skew_lognorm (mpz_poly_srcptr, int);
 }
 #endif
 
-#endif	/* POLYSELECT_NORMS_H_ */
+#endif	/* CADO_POLYSELECT_NORMS_H */

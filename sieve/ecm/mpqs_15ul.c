@@ -1,8 +1,10 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <limits.h> // ULONG_BITS
 #include <gmp.h>
-#include "modredc_15ul.h"
-#include "modredc_15ul_default.h"
+
+#include "arith/modredc_15ul.h"
+#include "arith/modredc_15ul_default.h"
 #include "mpqs.h"
 #include "mpqs_doit.h"
 #include "macros.h"

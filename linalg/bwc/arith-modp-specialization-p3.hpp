@@ -4,8 +4,7 @@
 #include "arith-modp-main.hpp"
 #include "arith-modp-specializations.hpp"
 
-namespace arith_modp {
-namespace details {
+namespace arith_modp::details {
 
 /*  code for gfp<3, 1> */
 #define ADDSUBMUL_CODE3(op, opc)                                               \
@@ -41,7 +40,6 @@ namespace details {
 
 EXPOSE_SPECIALIZATION(3);
 
-}
 }
 
 #endif /* ARITH_MODP_SPECIALIZATION_P3_HPP_ */

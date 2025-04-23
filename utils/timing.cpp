@@ -3,7 +3,7 @@
 #include <cstdio>
 #include <cstdint>
 
-#include <utility> // pair
+#include <utility>
 #ifdef HAVE_GETRUSAGE
 /* I'm including some STL code for the timer info layer, but this could
  * equally well be done in C */
@@ -11,14 +11,14 @@
 #include <string>
 #endif
 
-// IWYU pragma: no_include <bits/types/struct_rusage.h>
-#ifdef HAVE_RESOURCE_H
+#ifdef HAVE_GETRUSAGE
 #include <sys/resource.h>	/* for cputime */
 #endif
-#ifdef HAVE_CLOCK_THREAD_CPUTIME_ID
+#if defined(HAVE_CLOCK_THREAD_CPUTIME_ID) || defined(HAVE_CLOCK_MONOTONIC)
 #include <ctime>
+#else
+#include <sys/time.h>   // gettimeofday // IWYU pragma: keep
 #endif
-#include <sys/time.h>	/* for gettimeofday */
 #include <pthread.h>
 
 #include "timing.h"

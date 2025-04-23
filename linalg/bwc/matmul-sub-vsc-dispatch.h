@@ -1,5 +1,5 @@
-#ifndef MATMUL_SUB_VSC_DISPATCH_H_
-#define MATMUL_SUB_VSC_DISPATCH_H_
+#ifndef CADO_MATMUL_SUB_VSC_DISPATCH_H
+#define CADO_MATMUL_SUB_VSC_DISPATCH_H
 
 /* This is only compiled when the underlying layer is b64 */
 
@@ -17,4 +17,4 @@ extern void matmul_sub_vsc_dispatch_asm(uint64_t * dst, uint64_t const * src, co
 }
 #endif
 
-#endif	/* MATMUL_SUB_VSC_DISPATCH_H_ */
+#endif	/* CADO_MATMUL_SUB_VSC_DISPATCH_H */

@@ -192,6 +192,18 @@ checks using cmake directly on alpine system with gcc:
     - *checks-script
   <<: *checks-junit-report
 
+checks using cmake directly with shared libs on alpine system with gcc:
+  <<: *common-template
+  stage: early
+  image: alpine
+  variables:
+    pass_flags_to_cmake: -DBUILD_SHARED_LIBS=ON
+  before_script:
+    - ci/ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
 checks on debian system with gcc:
   <<: *common-template
   stage: early
@@ -211,6 +223,17 @@ checks on debian-testing system with gcc:
   script:
     - *checks-script
   <<: *checks-junit-report
+
+c++11 only build on debian-testing system with gcc:
+  <<: *common-template
+  stage: early
+  image: debian:testing
+  variables:
+    NO_CXX20: 1
+  before_script:
+    - ci/ci/00-prepare-docker.sh
+  script:
+    - *checks-script
 
 checks shared libs on debian-testing system with gcc:
   <<: *common-template
@@ -335,6 +358,8 @@ mysql specific expensive checks on debian-testing system with gcc:
   <<: *common-template
   image: debian:testing
   stage: thorough
+  # this is #30114
+  allow_failure: true
   needs: []
   before_script:
     - ci/ci/00-prepare-docker.sh
@@ -346,6 +371,8 @@ mysql specific expensive checks on debian12 system with gcc:
   <<: *common-template
   image: debian:testing
   stage: thorough
+  # this is #30114
+  allow_failure: true
   needs: []
   before_script:
     - ci/ci/00-prepare-docker.sh

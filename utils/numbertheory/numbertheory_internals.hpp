@@ -4,9 +4,9 @@
 #include <vector>
 #include <utility>
 #include <string>
-#include <ostream>
+
 #include <gmp.h>
-#include "fmt/format.h"
+
 #include "mpz_poly.h"
 #include "mpz_mat.h"
 #include "cxx_mpz.hpp"

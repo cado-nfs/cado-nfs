@@ -1,5 +1,5 @@
-#ifndef NUMBERTHEORY_HPP_
-#define NUMBERTHEORY_HPP_
+#ifndef CADO_NUMBERTHEORY_HPP
+#define CADO_NUMBERTHEORY_HPP
 
 #include "numbertheory/number_field.hpp"                // IWYU pragma: export
 #include "numbertheory/number_field_element.hpp"        // IWYU pragma: export
@@ -11,4 +11,4 @@
 /* TODO: do away with it! */
 #include "numbertheory/numbertheory_internals.hpp"      // IWYU pragma: export
 
-#endif	/* NUMBERTHEORY_HPP_ */
+#endif	/* CADO_NUMBERTHEORY_HPP */

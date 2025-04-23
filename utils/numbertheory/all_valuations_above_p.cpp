@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 #include "gmp_aux.h"
 #include "all_valuations_above_p.hpp"

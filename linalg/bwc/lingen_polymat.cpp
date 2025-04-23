@@ -14,8 +14,8 @@
 #include "lingen_polymat.hpp"
 #include "macros.h"
 
-#define POLYMAT_MUL_KARA_CUTOFF_DEFAULT { 10, 10, {} }
-#define POLYMAT_MP_KARA_CUTOFF_DEFAULT  { 10, 10, {} }
+#define POLYMAT_MUL_KARA_CUTOFF_DEFAULT { 10, 10 }
+#define POLYMAT_MP_KARA_CUTOFF_DEFAULT  { 10, 10 }
 
 /*{{{ cutoffs and such */
 static struct polymat_cutoff_info polymat_mul_kara_cutoff =

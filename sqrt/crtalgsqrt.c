@@ -94,8 +94,8 @@
 #include "knapsack.h"
 #include "macros.h"
 #include "misc.h"       // size_disp cado_ctzl
-#include "mod_ul.h"
-#include "modul_poly.h"
+#include "arith/mod_ul.h"
+#include "arith/modul_poly.h"
 #include "mpz_poly.h"
 #include "params.h"     // param_list_parse_*
 #include "powers_of_p.h"

@@ -35,12 +35,12 @@
 #include "las-side-config.hpp"
 #include "macros.h"       // ASSERT // IWYU pragma: keep
 #include "misc.h"         // for strtoul_const, strtoull_const
-#include "mod_ul.h"       // for modul_set_ul_reduced, modul_clear
+#include "arith/mod_ul.h"       // for modul_set_ul_reduced, modul_clear
 #include "params.h"       // for cxx_param_list, param_list_parse_...
 #include "threadpool.hpp" // for thread_pool, task_result, task_parameters
 #include "timing.h"       // for seconds, wct_seconds
-#include "u64arith.h"     // for u64arith_invmod
-#include "ularith.h"      // for ularith_invmod
+#include "arithxx/u64arith.h"     // for u64arith_invmod
+#include "arith/ularith.h"      // for ularith_invmod
 #include "verbose.h"      // verbose_output_print
 
 struct qlattice_basis; // IWYU pragma: keep
@@ -166,7 +166,7 @@ fb_entry_general::fb_entry_general(fb_entry_x_roots<Nr_roots> const & e)
         /* Use simple constructor for root */
         // with Nr_roots==0, coverity likes to complain
         // coverity[dead_error_line]
-        roots[i] = e.roots[i];
+        roots[i] = fb_general_root(e.roots[i]);
     }
     nr_roots = Nr_roots;
 }
@@ -690,7 +690,7 @@ struct fb_factorbase::helper_functor_append {
         if (!isG && N > deg)
             return;
         for (auto it = pool.begin(); it != pool.end();) {
-            fb_entry_general const E = std::move(*it);
+            auto const E = *it;
             /* see above */
             ASSERT(E.nr_roots > 0 && E.nr_roots <= deg);
             /* why E.nr_roots == deg-1 ? Because it *can* happen,
@@ -713,7 +713,7 @@ struct fb_factorbase::helper_functor_append {
                 if (!x.weight_cdf.empty())
                     w += x.weight_cdf.back();
                 x.weight_cdf.push_back(w);
-                x.push_back(std::move(E));
+                x.push_back(FB_ENTRY_TYPE(std::move(E)));
                 pool.erase(it);
                 it = it_next;
             } else {
@@ -2158,8 +2158,8 @@ struct helper_functor_write_to_fbc_file {
         size_t written = 0;
         while (n > 0) {
             ssize_t const m = ::write(fbc, (char *)(x.data()) + written, n);
-            ASSERT_ALWAYS(m != -1);
-            ASSERT_ALWAYS(m <= (ssize_t)n);
+            ASSERT_ALWAYS(m >= 0);
+            ASSERT_ALWAYS((size_t) m <= n);
             n -= m;
             written += m;
         }
@@ -2184,8 +2184,8 @@ struct helper_functor_write_to_fbc_file_weight_part {
         while (n > 0) {
             ssize_t const m =
                 ::write(fbc, (char *)(&*x.weight_begin()) + written, n);
-            ASSERT_ALWAYS(m != -1);
-            ASSERT_ALWAYS(m <= (ssize_t)n);
+            ASSERT_ALWAYS(m >= 0);
+            ASSERT_ALWAYS((size_t) m <= n);
             n -= m;
             written += m;
         }
@@ -2350,7 +2350,8 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side,
              */
             size_t const n = os.str().size();
             ssize_t const m = ::write(fbc, os.str().c_str(), n);
-            ASSERT_ALWAYS(m == (ssize_t)n);
+            ASSERT_ALWAYS(m >= 0);
+            ASSERT_ALWAYS((size_t) m == n);
 
             helper_functor_write_to_fbc_file W1 {fbc, fbc_size, S.entries,
                                                  S.entries.begin()};

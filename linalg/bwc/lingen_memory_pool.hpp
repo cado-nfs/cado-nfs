@@ -9,6 +9,16 @@
 #include <exception> // std::exception // IWYU pragma: keep
 #include <string>
 
+/* A memory pool is an object from which heap storage may be allocated.
+ * No surprises here. The memory pool keeps track of the memory that is
+ * allocated and freed.
+ * The memory pool only tolerates allocation up to a certain limit. While
+ * the memory pool is generally a singleton object, it is possible to
+ * scope one or several "memory guards" that refer to this memory pool.
+ * Each memory guard adds up to the total accepted allocation size of the
+ * memory pool, and this memory is expected to be freed when the guard
+ * goes out of scope.
+ */
 #define MEMORY_POOL_ALLOC_CHECK(X) memory_pool_details::alloc_check(#X, (X))
 
 namespace memory_pool_details {
@@ -30,7 +40,7 @@ namespace memory_pool_details {
 class memory_pool_exception : public std::exception {
     std::string message;
 public:
-    memory_pool_exception(std::string const & s);
+    memory_pool_exception(std::string);
     virtual const char * what() const noexcept override { return message.c_str(); }
 };
 
@@ -122,6 +132,24 @@ struct memory_pool : public memory_pool_details::inaccuracy_handler<loose> {
              */
             MEMORY_POOL_ALLOC_CHECK(memory.allocated <= memory.allowed);
         }
+        guard_base(guard_base const &) = delete;
+        guard_base& operator=(guard_base const &) = delete;
+
+#if 0
+        guard_base(guard_base && g)
+        {
+            old_size = g.old_size;
+            my_size = g.my_size;
+            /* then we should modify the g fields so that its pre-dtor
+             * call becomes a no-op. Unfortunately, the interface doesn't
+             * let us do that, which is a very clear misfeature!
+             */
+        }
+        guard_base& operator=(guard_base &&) = delete;
+#else
+        guard_base(guard_base && g) = delete;
+        guard_base& operator=(guard_base &&) = delete;
+#endif
     };
 };
 

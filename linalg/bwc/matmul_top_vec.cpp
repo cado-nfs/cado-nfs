@@ -5,7 +5,11 @@
 #include <cstring>
 #include <cerrno>
 
+#include <string>
 #include <utility>
+#include <vector>
+
+#include <unistd.h>
 
 #include "fmt/base.h"
 #include "fmt/format.h"
@@ -21,6 +25,7 @@
 #include "parallelizing_info.hpp"
 #include "portability.h"
 #include "timing.h"
+#include "utils_cxx.hpp"
 
 /* At some point we had this. Not sure it's still useful. */
 #define ABASE_UNIVERSAL_READAHEAD_ITEMS 8

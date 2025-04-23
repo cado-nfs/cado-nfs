@@ -1,5 +1,5 @@
-#ifndef POLYSELECT_POLY_HEADER_H_
-#define POLYSELECT_POLY_HEADER_H_
+#ifndef CADO_POLYSELECT_POLY_HEADER_H
+#define CADO_POLYSELECT_POLY_HEADER_H
 
 #include <gmp.h>
 
@@ -36,4 +36,4 @@ int polyselect_poly_header_skip (polyselect_poly_header_srcptr, unsigned long);
 }
 #endif
 
-#endif	/* POLYSELECT_POLY_HEADER_H_ */
+#endif	/* CADO_POLYSELECT_POLY_HEADER_H */

@@ -1,5 +1,5 @@
-#ifndef DOUBLE_POLY_H_
-#define DOUBLE_POLY_H_
+#ifndef CADO_DOUBLE_POLY_H
+#define CADO_DOUBLE_POLY_H
 
 // IWYU pragma: no_include "mpz_poly.h"
 // the fwd-decl is enough
@@ -19,7 +19,7 @@
 
 #include "macros.h"    // for GNUC_VERSION_ATLEAST
 
-#ifndef MPZ_POLY_H_
+#ifndef CADO_MPZ_POLY_H
 typedef struct mpz_poly_s * mpz_poly_ptr;
 typedef const struct mpz_poly_s * mpz_poly_srcptr;
 #endif
@@ -37,7 +37,7 @@ struct double_poly_s {
 };
 
 typedef struct double_poly_s double_poly[1];
-#ifndef MPZ_POLY_H_
+#ifndef CADO_MPZ_POLY_H
 /* mpz_poly.h forward-declares these. Don't do it twice */
 typedef struct double_poly_s * double_poly_ptr;
 typedef const struct double_poly_s * double_poly_srcptr;
@@ -187,4 +187,4 @@ extern void double_poly_clear(cxx_double_poly & pl) __attribute__((error("double
 #endif
 
 
-#endif	/* DOUBLE_POLY_H_ */
+#endif	/* CADO_DOUBLE_POLY_H */

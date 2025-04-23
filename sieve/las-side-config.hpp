@@ -1,10 +1,11 @@
-#ifndef LAS_SIDE_CONFIG_HPP_
-#define LAS_SIDE_CONFIG_HPP_
+#ifndef CADO_LAS_SIDE_CONFIG_HPP
+#define CADO_LAS_SIDE_CONFIG_HPP
 
-#include "params.h"
 #include <string>
 #include <vector>
 #include <map>
+
+#include "params.h"
 
 #define SIDE_CONFIG_COLLECTOR(C, lpb)				\
     static std::vector<decltype(C::lpb)>                        \
@@ -65,4 +66,4 @@ struct batch_side_config {
 #undef SIDE_CONFIG_COLLECTOR
 
 
-#endif	/* LAS_SIDE_CONFIG_HPP_ */
+#endif	/* CADO_LAS_SIDE_CONFIG_HPP */

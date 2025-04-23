@@ -21,7 +21,7 @@
 
 #include "cado_poly.h"
 #include "cxx_mpz.hpp"
-#include "fb-types.h"             // for sublat_t
+#include "fb-types.hpp"
 #include "las-config.h"           // for LOG_BUCKET_REGION, LOGNORM_GUARD_BITS
 #include "las-norms.hpp"
 #include "las-qlattice.hpp"       // for qlattice_basis

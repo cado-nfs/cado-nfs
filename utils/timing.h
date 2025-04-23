@@ -1,5 +1,5 @@
-#ifndef CADO_UTILS_TIMING_H_
-#define CADO_UTILS_TIMING_H_
+#ifndef CADO_UTILS_TIMING_H
+#define CADO_UTILS_TIMING_H
 
 #include "cado_config.h"  // for HAVE_GETRUSAGE, HAVE_GCC_STYLE_AMD64_INLINE...
 
@@ -78,4 +78,4 @@ struct weighted_double {
 };
 #endif
 
-#endif	/* CADO_UTILS_TIMING_H_ */
+#endif	/* CADO_UTILS_TIMING_H */

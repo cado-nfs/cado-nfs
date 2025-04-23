@@ -1,5 +1,5 @@
-#ifndef UTILS_MMAPPABLE_VECTOR_HPP_
-#define UTILS_MMAPPABLE_VECTOR_HPP_
+#ifndef CADO_UTILS_MMAPPABLE_VECTOR_HPP
+#define CADO_UTILS_MMAPPABLE_VECTOR_HPP
 
 #include <cstdio>
 
@@ -335,4 +335,4 @@ swap(mmappable_vector<T, A>& a, mmappable_vector<T, A>& b) noexcept
     a.swap(b);
 }
 
-#endif /* UTILS_MMAPPABLE_VECTOR_HPP_ */
+#endif /* CADO_UTILS_MMAPPABLE_VECTOR_HPP */

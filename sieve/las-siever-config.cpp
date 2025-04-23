@@ -1,18 +1,29 @@
 #include "cado.h" // IWYU pragma: keep
-#include <cctype>              // for isspace, isdigit
-#include <cerrno>              // for errno
-#include <climits>            // for ULONG_MAX
-#include <cstdio>             // for fprintf, stderr, fclose, fgets, fopen
-#include <cstdlib>            // for exit, strtoul, strtod, EXIT_FAILURE
-#include <gmp.h>               // for mpz_sizeinbase
-#include "cxx_mpz.hpp"   // for cxx_mpz
-#include "fb-types.h"          // for fbprime_t
-#include "las-multiobj-globals.hpp"     // for dlp_descent
+
+#include <cctype>
+#include <cmath>
+#include <cerrno>
+#include <climits>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+
+#include <algorithm>
+#include <string>
+
+#include <gmp.h>
+#include "fmt/format.h"
+
+#include "fb.hpp"
+#include "fb-types.hpp"
+#include "las-config.h"
+#include "las-multiobj-globals.hpp"
 #include "las-siever-config.hpp"
-#include "las-todo-entry.hpp"  // for las_todo_entry
-#include "macros.h"            // for ASSERT_ALWAYS, MAYBE_UNUSED
-#include "params.h"     // param_list_parse_*
-#include "verbose.h"    // verbose_output_print
+#include "las-side-config.hpp"
+#include "las-todo-entry.hpp"
+#include "macros.h"
+#include "params.h"
+#include "verbose.h"
 
 /* siever_config stuff */
 
@@ -186,9 +197,9 @@ fb_factorbase::key_type siever_config::instantiate_thresholds(int side) const
         bucket_thresh = 1UL << logI;
     }
 
-    if (bucket_thresh > fbb) bucket_thresh = fbb;
+    bucket_thresh = std::min(bucket_thresh, fbb);
     if (bucket_thresh1 == 0 || bucket_thresh1 > fbb) bucket_thresh1 = fbb;
-    if (bucket_thresh > bucket_thresh1) bucket_thresh1 = bucket_thresh;
+    bucket_thresh1 = std::max(bucket_thresh1, bucket_thresh);
 
     return fb_factorbase::key_type {
         {{bucket_thresh, bucket_thresh1, fbb, fbb}},
@@ -216,21 +227,32 @@ siever_config siever_config_pool::get_config_for_q(las_todo_entry const & doing)
         verbose_output_print(0, 1, "#\n# NOTE:"
                 " we are re-playing this special-q because of"
                 " %d previous failed attempt(s)\n", doing.iteration);
-        /* update sieving parameters here */
-        double ratio = double(config.sides[0].mfb) /
-            double(config.sides[0].lpb);
-        config.sides[0].lpb += doing.iteration;
-        config.sides[0].mfb = ratio*config.sides[0].lpb;
-        ratio = double(config.sides[1].mfb) /
-            double(config.sides[1].lpb);
-        config.sides[1].lpb += doing.iteration;
-        config.sides[1].mfb = ratio*config.sides[1].lpb;
+
+        std::string parameters_info;
+
+        if (doing.iteration <= 2) {
+            /* The first two retries simply sieve more, but with the
+             * exact same bounds. This is being overly cautious, but we
+             * don't like the idea of letting the lpb grow too eagerly in
+             * these situations, as this has the potential to introduce
+             * loops in the descent.
+             */
+            config.logA += doing.iteration;
+            parameters_info += fmt::format(" A={}", config.logA);
+        } else {
+            for(size_t side = 0 ; side < config.sides.size() ; side++) {
+                auto & s = config.sides[side];
+                const double lambda = double(s.mfb) / double(s.lpb);
+                s.lpb += doing.iteration-2;
+                s.mfb = lround(lambda * double(s.lpb));
+                parameters_info += fmt::format(" lpb{}={} mfb{}={}",
+                        side, s.lpb, side, s.mfb);
+            }
+        }
+
         verbose_output_print(0, 1,
-                "# NOTE: current values of lpb/mfb: %d,%d %d,%d\n#\n", 
-                config.sides[0].lpb,
-                config.sides[0].mfb,
-                config.sides[1].lpb,
-                config.sides[1].mfb);
+                "# NOTE: modified parameters are: %s\n#\n", 
+                parameters_info.c_str());
     }
 
     return config;
@@ -252,7 +274,7 @@ void siever_config_pool::parse_hints_file(const char * filename)/*{{{*/
     char line[1024];
     FILE * f;
     f = fopen(filename, "r");
-    if (f == NULL) {
+    if (f == nullptr) {
         fprintf(stderr, "%s: %s\n", filename, strerror(errno));
         /* There's no point in proceeding, since it would really change
          * the behaviour of the program to do so */
@@ -263,7 +285,7 @@ void siever_config_pool::parse_hints_file(const char * filename)/*{{{*/
         double t;
         unsigned long z;
         /* Tolerate comments and blank lines */
-        if (x == NULL) break;
+        if (x == nullptr) break;
         for( ; *x && isspace(*x) ; x++) ;
         if (*x == '#') continue;
         if (!*x) continue;
@@ -308,37 +330,45 @@ void siever_config_pool::parse_hints_file(const char * filename)/*{{{*/
             exit(EXIT_FAILURE);
         }
         
-        for(int s = 0 ; s < 2 ; s++) {
+        for(auto & S : sc.sides) {
             for( ; *x && isspace(*x) ; x++) ;
             z = strtoul(x, &x, 10); ASSERT_ALWAYS(z > 0);
-            sc.sides[s].lim = z;
+            S.lim = z;
             for( ; *x && !isdigit(*x) ; x++) ;
             z = strtoul(x, &x, 10); ASSERT_ALWAYS(z > 0);
-            sc.sides[s].lpb = z;
+            S.lpb = z;
             /* recognize this as a double. If it's < 10, we'll consider
              * this means lambda */
             {
                 for( ; *x && !isdigit(*x) ; x++) ;
                 double const t = strtod(x, &x); ASSERT_ALWAYS(t > 0);
                 if (t < 10) {
-                    sc.sides[s].lambda = t;
-                    sc.sides[s].mfb = t * sc.sides[s].lpb;
+                    S.lambda = t;
+                    S.mfb = t * S.lpb;
                     /* Then no "lambda" is allowed */
                     continue;
                 } else {
-                    sc.sides[s].mfb = t;
+                    S.mfb = t;
                 }
             }
             if (*x == ',') {
                 for( ; *x && !isdigit(*x) ; x++) ;
                 t = strtod(x, &x); ASSERT_ALWAYS(t > 0);
-                sc.sides[s].lambda = t;
+                S.lambda = t;
             } else {
                 /* this means "automatic" */
-                sc.sides[s].lambda = 0;
+                S.lambda = 0;
             }
         }
-        for( ; *x ; x++) ASSERT_ALWAYS(isspace(*x));
+        for( ; *x ; x++) {
+            if (*x == '#')
+                break;
+            if (!isspace(*x)) {
+                fprintf(stderr, "Error: found leftover data in hint file while reading line %d@%d (note that the polynomial file has %zu sides). Leftover text is %s\n", bitsize, side, sc.sides.size(), x);
+                exit(EXIT_FAILURE);
+            }
+        }
+
 
         key_type const K(side, bitsize);
 
@@ -355,7 +385,6 @@ void siever_config_pool::parse_hints_file(const char * filename)/*{{{*/
 /*}}}*/
 siever_config_pool::siever_config_pool(cxx_param_list & pl, int nb_polys)/*{{{*/
 {
-    default_config_ptr = NULL;
     if (siever_config::parse_default(base, pl, nb_polys))
         default_config_ptr = &base;
 

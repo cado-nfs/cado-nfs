@@ -1,5 +1,5 @@
-#ifndef MPZ_POLY_BIVARIATE_HPP_
-#define MPZ_POLY_BIVARIATE_HPP_
+#ifndef CADO_MPZ_POLY_BIVARIATE_HPP
+#define CADO_MPZ_POLY_BIVARIATE_HPP
 
 /*
  * A bivariate poly structure is used for two things.

@@ -1,5 +1,5 @@
-#ifndef STATS_H_
-#define STATS_H_
+#ifndef CADO_STATS_H
+#define CADO_STATS_H
 
 #include <stdint.h>
 #include <stdio.h>
@@ -32,4 +32,4 @@ void stats_print_progress (stats_data_t, uint64_t, uint64_t, size_t, int);
 #ifdef __cplusplus
 }
 #endif
-#endif /* STATS_H_ */
+#endif /* CADO_STATS_H */

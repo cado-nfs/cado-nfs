@@ -1,0 +1,6 @@
+#ifndef UTILS_ARITHXX_API64_IMPL_HPP_
+#define UTILS_ARITHXX_API64_IMPL_HPP_
+
+/* nothing here! */
+
+#endif	/* UTILS_ARITHXX_API64_IMPL_HPP_ */

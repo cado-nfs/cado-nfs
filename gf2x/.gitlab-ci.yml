@@ -1,4 +1,4 @@
-# see also ci/debug.sh
+# see also ci/ci/debug.sh
 
 stages:
   - early
@@ -7,6 +7,9 @@ stages:
 
 image: gcc
 
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+ 
 # mostly copied from cado-nfs
   
 ############################################################################
@@ -41,135 +44,144 @@ checks with gcc:
   stage: early
   image: gcc:latest
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
-    - ci/40-testsuite.sh
+    - ci/ci/40-testsuite.sh
 
 checks LGPL code with gcc:
   <<: *common-template
   stage: early
   image: gcc:latest
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
-    - ci/40-testsuite.sh
+    - ci/ci/40-testsuite.sh
 
 checks make-dist tarball with gcc:
   <<: *common-template
   stage: early
   image: gcc:latest
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
-    - ci/40-testsuite.sh
+    - ci/ci/40-testsuite.sh
 
 checks out-of-source make-dist tarball with gcc:
   <<: *common-template
   stage: early
   image: gcc:latest
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
-    - ci/40-testsuite.sh
+    - ci/ci/40-testsuite.sh
 
 checks make-dist LGPL tarball with gcc:
   <<: *common-template
   stage: early
   image: gcc:latest
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
-    - ci/40-testsuite.sh
+    - ci/ci/40-testsuite.sh
 
 checks with gcc and architecture x86-64:
   <<: *common-template
   stage: early
   image: gcc:latest
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
-    - ci/40-testsuite.sh
+    - ci/ci/40-testsuite.sh
 
 checks with gcc and architecture nocona:
   <<: *common-template
   stage: early
   image: gcc:latest
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
-    - ci/40-testsuite.sh
+    - ci/ci/40-testsuite.sh
 
 checks with gcc and architecture core2:
   <<: *common-template
   stage: early
   image: gcc:latest
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
-    - ci/40-testsuite.sh
+    - ci/ci/40-testsuite.sh
 
 checks with gcc and architecture westmere:
   <<: *common-template
   stage: early
   image: gcc:latest
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
-    - ci/40-testsuite.sh
+    - ci/ci/40-testsuite.sh
 
 checks on alpine system with gcc:
   <<: *common-template
   stage: early
   image: alpine:latest
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
-    - ci/40-testsuite.sh
+    - ci/ci/40-testsuite.sh
+
+checks on debian-testing system with arm-linux-gnueabihf-gcc:
+  <<: *common-template
+  stage: early
+  image: debian:testing
+  before_script:
+    - ci/ci/00-prepare-docker.sh
+  script:
+    - ci/ci/40-testsuite.sh
+
+checks on debian-testing system with aarch64-linux-gnu-gcc:
+  <<: *common-template
+  stage: early
+  image: debian:testing
+  before_script:
+    - ci/ci/00-prepare-docker.sh
+  script:
+    - ci/ci/40-testsuite.sh
 
 checks on debian system with 32-bit gcc:
   <<: *common-template
   stage: early
   image: debian
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
-    - ci/40-testsuite.sh
+    - ci/ci/40-testsuite.sh
 
 checks out-of-source with gcc:
   <<: *common-template
   stage: early
   image: alpine
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
-    - ci/40-testsuite.sh
+    - ci/ci/40-testsuite.sh
 
 checks on debian10 system with gcc:
   <<: *common-template
   stage: early
   image: debian:10
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
-    - ci/40-testsuite.sh
-
-checks on debian9 system with gcc:
-  <<: *common-template
-  stage: early
-  image: debian:9
-  before_script:
-    - ci/00-prepare-docker.sh
-  script:
-    - ci/40-testsuite.sh
+    - ci/ci/40-testsuite.sh
 
 checks on opensuse system with gcc:
   <<: *common-template
   stage: early
   image: opensuse/leap
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
-    - ci/40-testsuite.sh
+    - ci/ci/40-testsuite.sh
 
 # We might consider testing various architectures with clang and gcc too.
 checks with clang:
@@ -177,9 +189,9 @@ checks with clang:
   image: silkeh/clang:latest
   stage: early
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
-    - ci/40-testsuite.sh
+    - ci/ci/40-testsuite.sh
 
 checks with icc:
   <<: *common-template
@@ -188,9 +200,9 @@ checks with icc:
   tags:
     - icc
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
-    - ci/40-testsuite.sh
+    - ci/ci/40-testsuite.sh
 
 #  expensive checks with gcc:
 #    <<: *common-template
@@ -198,9 +210,9 @@ checks with icc:
 #    # do not start it prematurely, in case previous jobs failed
 #    image: gcc:latest
 #    before_script:
-#      - ci/00-prepare-docker.sh
+#      - ci/ci/00-prepare-docker.sh
 #    script:
-#      - ci/40-testsuite.sh
+#      - ci/ci/40-testsuite.sh
 #  
 ############################################################################
 # Tests on slow machines and/or shell executors. They depend on nothing.
@@ -212,16 +224,16 @@ checks with icc:
 # #
 # # # very slow machines run with the shell executor anyway.
 # # # 00-prepare-shell.sh can only check if software is present.
-run on very slow machines:
+checks on very slow machines:
   <<: *common-template
   stage: early
   needs: []
   tags:
     - raspberry
   before_script:
-    - ci/00-prepare-shell.sh
+    - ci/ci/00-prepare-shell.sh
   script:
-    - ci/40-testsuite.sh
+    - ci/ci/40-testsuite.sh
  
 # in fact, this one should be quick !
 checks on osx system:
@@ -232,15 +244,13 @@ checks on osx system:
   tags:
     - osx
   before_script:
-    - ci/00-prepare-shell.sh
+    - ci/ci/00-prepare-shell.sh
   script:
-    - ci/40-testsuite.sh
+    - ci/ci/40-testsuite.sh
  
 # freebsd has clang by default, I see no compelling reason to test
 # primarily gcc. Sure, we may want to do both.
-checks on freebsd13.0 system with clang:
-  variables:
-    GIT_SUBMODULE_STRATEGY: recursive
+checks on freebsd14.2 system with clang:
   <<: *common-template
   stage: thorough
   # do not start it prematurely, in case previous jobs failed
@@ -248,12 +258,10 @@ checks on freebsd13.0 system with clang:
   tags:
     - freebsd-tanker
   script:
-    - make -C ci/utilities/tanker
-    - ci/50-libvirt-wrap-tests.sh freebsd:13.0 ci/40-testsuite.sh
+    - make -C ci/ci/utilities/tanker
+    - ci/ci/50-libvirt-wrap-tests.sh freebsd:14.2 ci/ci/40-testsuite.sh
 
-checks on 32-bit freebsd13.0 system with clang:
-  variables:
-    GIT_SUBMODULE_STRATEGY: recursive
+checks on freebsd13.5 system with clang:
   <<: *common-template
   stage: thorough
   # do not start it prematurely, in case previous jobs failed
@@ -261,6 +269,17 @@ checks on 32-bit freebsd13.0 system with clang:
   tags:
     - freebsd-tanker
   script:
-    - make -C ci/utilities/tanker
-    - ci/50-libvirt-wrap-tests.sh freebsd:13.0?arch=i386 ci/40-testsuite.sh
+    - make -C ci/ci/utilities/tanker
+    - ci/ci/50-libvirt-wrap-tests.sh freebsd:13.5 ci/ci/40-testsuite.sh
+
+checks on 32-bit freebsd13.5 system with clang:
+  <<: *common-template
+  stage: thorough
+  # do not start it prematurely, in case previous jobs failed
+  # needs: []
+  tags:
+    - freebsd-tanker
+  script:
+    - make -C ci/ci/utilities/tanker
+    - ci/ci/50-libvirt-wrap-tests.sh freebsd:13.5?arch=i386 ci/ci/40-testsuite.sh
 

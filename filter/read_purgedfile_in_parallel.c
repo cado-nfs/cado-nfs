@@ -6,13 +6,14 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "omp_proxy.h"
-#include "timing.h"
+#include "filter_config.h"
+#include "macros.h"
 #include "merge_heap.h"
 #include "merge_replay_matrix.h"
-#include "sparse.h"
+#include "omp_proxy.h"
 #include "read_purgedfile_in_parallel.h"
-#include "macros.h"
+#include "sparse.h"
+#include "timing.h"
 #include "typedefs.h"
 
 

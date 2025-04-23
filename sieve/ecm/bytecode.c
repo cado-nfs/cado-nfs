@@ -1,10 +1,13 @@
 #include "cado.h" // IWYU pragma: keep
 
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <pthread.h>
 #include <float.h>
+
+#include <pthread.h>
+
 #include <gmp.h>
 
 #include "macros.h"

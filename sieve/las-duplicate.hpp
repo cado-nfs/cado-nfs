@@ -1,5 +1,5 @@
-#ifndef LAS_DUPLICATE_HPP_
-#define LAS_DUPLICATE_HPP_
+#ifndef CADO_LAS_DUPLICATE_HPP
+#define CADO_LAS_DUPLICATE_HPP
 
 #include "las-info.hpp"  // for las_info
 struct las_todo_entry;

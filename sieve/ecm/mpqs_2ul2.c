@@ -1,8 +1,12 @@
 #include "cado.h" // IWYU pragma: keep
-#include "modredc_2ul2.h"
-#include "modredc_2ul2_default.h"
+
 #include <limits.h>
+
 #include <gmp.h>
+
+#include "arith/modredc_2ul2.h"
+#include "arith/modredc_2ul2_default.h"
+
 #include "mpqs.h"
 #include "mpqs_doit.h"
 #include "macros.h"

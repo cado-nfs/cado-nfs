@@ -1,8 +1,23 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+
 #include <stdarg.h>
-#include "polyselect_thread_team.h"
-#include "polyselect_thread.h"
+#include <stdlib.h>
+#include <string.h>
+
+#include <pthread.h>
+
+#include <gmp.h>
+
 #include "barrier.h"
+#include "macros.h"
+#include "polyselect_main_data.h"
+#include "polyselect_poly_header.h"
+#include "polyselect_proots.h"
+#include "polyselect_shash.h"
+#include "polyselect_stats.h"
+#include "polyselect_thread.h"
+#include "polyselect_thread_league.h"
+#include "polyselect_thread_team.h"
 
 void polyselect_thread_team_init(polyselect_thread_team_ptr team, polyselect_thread_league_ptr league, polyselect_main_data_ptr main, unsigned int team_index)
 {

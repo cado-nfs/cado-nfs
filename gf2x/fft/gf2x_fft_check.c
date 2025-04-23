@@ -1,6 +1,6 @@
 /* This file is part of the gf2x library.
 
-   Copyright 2007, 2008, 2009, 2010, 2013, 2014, 2015
+   Copyright 2007, 2008, 2009, 2010, 2013, 2014, 2015, 2018, 2019, 2023
    Richard Brent, Pierrick Gaudry, Emmanuel Thome', Paul Zimmermann
 
    This program is free software; you can redistribute it and/or modify it
@@ -496,12 +496,12 @@ void print_context_gf2x_cantor_fft(gf2x_cantor_fft_info_srcptr p GF2X_MAYBE_UNUS
         "clear;\n"
         "KP<x>:=PolynomialRing(GF(2));\n"
         , stdout);
-#if (CANTOR_BASE_FIELD_SIZE == 128)
+#if (GF2X_CANTOR_BASE_FIELD_SIZE == 128)
         fputs("L<z> := ext<GF(2) | x^128 + x^7 + x^2 + x + 1>;\n", stdout);
-#elif (CANTOR_BASE_FIELD_SIZE == 64)
+#elif (GF2X_CANTOR_BASE_FIELD_SIZE == 64)
         fputs("L<z> := ext<GF(2) | x^64 + x^4 + x^3 + x + 1>;\n", stdout);
 #else
-#error "CANTOR_BASE_FIELD_SIZE must be either 0 or 64"
+#error "GF2X_CANTOR_BASE_FIELD_SIZE must be either 0 or 64"
 #endif
     printf("w:=%d;\n", (int) ULONG_BITS);
     printf("fft_k:=%d;\n",p->k);

@@ -13,12 +13,12 @@
 #include <cstdlib>          // for abs, abort, size_t, NULL
 #include <cstring>          // for memcpy, memset
 #include <vector>           // for vector
-#include "fb-types.h"       // for sublat_t
+#include "fb-types.hpp"
 #include "gcd.h"       // for bin_gcd_int64_safe
 #include "gpf.h"        // gpf_init
 #include "las-unsieve.hpp"  // for unsieve_data, unsieve_data::pattern_t
 #include "macros.h"         // for ASSERT_ALWAYS, no_break, MAYBE_UNUSED
-#include "ularith.h"        // for ularith_invmod
+#include "arith/ularith.h"        // for ularith_invmod
 #ifdef TRACE_K
 #include "las-where-am-i.hpp"             // for where_am_I, WHERE_AM_I_UPDATE
 #include "las-output.hpp"   // IWYU pragma: keep

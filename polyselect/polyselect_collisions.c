@@ -1,4 +1,4 @@
-#include "cado.h"		// IWYU pragma: keep
+#include "cado.h" // IWYU pragma: keep
 
 #include <stdio.h>
 #include <stdlib.h>		// malloc ...
@@ -10,7 +10,7 @@
 #include <pthread.h>
 
 #include "macros.h"		// ASSERT
-#include "modredc_ul.h"
+#include "arith/modredc_ul.h"
 #include "polyselect_arith.h"
 #include "polyselect_collisions.h"
 #include "polyselect_main_data.h"

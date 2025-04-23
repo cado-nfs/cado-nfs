@@ -10,25 +10,25 @@
 #include <fstream>
 #include <algorithm>
 #include <stdexcept>
-#include <string>              // for string, getline, operator!=, operator>>
-#include <utility>             // for pair, operator==, swap, make_pair
-#include <vector>              // for vector
+#include <string>
+#include <utility>
+#include <vector>
 
-#include <gmp.h>               // for mpz_t, operator>>, gmp_randclear, gmp_...
+#include <gmp.h>
 #include "fmt/base.h"
 #include "fmt/format.h"
 
 #include "cxx_mpz.hpp"
 #include "getprime.h"
-#include "gmp_aux.h"           // for mpz_p_valuation
+#include "gmp_aux.h"
 #include "macros.h"
 #include "misc.h"
-#include "mpz_mat.h"           // for cxx_mpz_mat, cxx_mpq_mat, mpz_mat_fprint
+#include "mpz_mat.h"
 #include "mpz_poly.h"
 #include "numbertheory.hpp"
 #include "params.h"
-#include "portability.h" // strdup // IWYU pragma: keep
-#include "timing.h"     // seconds
+#include "portability.h"
+#include "timing.h"
 
 using namespace std;
 

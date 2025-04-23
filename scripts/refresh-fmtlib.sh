@@ -7,5 +7,7 @@ tmp=$(mktemp -d /tmp/XXXXXXX)
 trap "rm -rf $tmp" EXIT
 curl -sL "$URL" | (cd $tmp ; tar xzf -)
 rm -rf utils/embedded/fmt/*
-cp $tmp/*/*.rst $tmp/*/include/fmt/* $tmp/*/src/* utils/embedded/fmt
+# find $tmp/*/*.rst
+cp $tmp/*/include/fmt/* $tmp/*/src/* utils/embedded/fmt
+cp $tmp/*/ChangeLog.md $tmp/*/README.md $tmp/*/LICENSE utils/embedded/fmt
 git add utils/embedded/fmt/*

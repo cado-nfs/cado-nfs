@@ -1,5 +1,5 @@
-#ifndef CADO_UTILS_MEMORY_H_
-#define CADO_UTILS_MEMORY_H_
+#ifndef CADO_UTILS_MEMORY_H
+#define CADO_UTILS_MEMORY_H
 
 #include <stdlib.h>
 #ifdef __cplusplus

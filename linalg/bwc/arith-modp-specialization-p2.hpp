@@ -3,8 +3,7 @@
 
 #include "arith-modp-main.hpp"
 
-namespace arith_modp {
-namespace details {
+namespace arith_modp::details {
 
 /*  gfp<2,1> */
 template<>
@@ -22,7 +21,7 @@ struct gfp<2> : public gfp_base<2, gfp<2>>
     gfp(Args&&... args)
       : super { std::forward<Args>(args)... }
     {}
-    static inline void add(elt_ur_for_add& dst, elt const& src)
+    static void add(elt_ur_for_add& dst, elt const& src)
     {
         asm("# gfp<2, 1>::add\n"
             "addq %q[s0], %q[d0]\n"
@@ -32,7 +31,7 @@ struct gfp<2> : public gfp_base<2, gfp<2>>
             : [s0] "r"(src[0]), [s1] "r"(src[1]));
     }
 
-    static inline void add(elt_ur_for_add& dst, elt_ur_for_add const& src)
+    static void add(elt_ur_for_add& dst, elt_ur_for_add const& src)
     {
         asm("# gfp<2, 1>::add\n"
             "addq %q[s0], %q[d0]\n"
@@ -42,7 +41,7 @@ struct gfp<2> : public gfp_base<2, gfp<2>>
             : [s0] "r"(src[0]), [s1] "r"(src[1]), [s2] "r"(src[2]));
     }
 
-    static inline void sub(elt_ur_for_add& dst, elt const& src)
+    static void sub(elt_ur_for_add& dst, elt const& src)
     {
         asm("# gfp<2, 1>::sub\n"
             "subq %q[s0], %q[d0]\n"
@@ -51,7 +50,7 @@ struct gfp<2> : public gfp_base<2, gfp<2>>
             : [d0] "+rm"(dst[0]), [d1] "+rm"(dst[1]), [d2] "+rm"(dst[2])
             : [s0] "r"(src[0]), [s1] "r"(src[1]));
     }
-    static inline void sub(elt_ur_for_add& dst, elt_ur_for_add const& src)
+    static void sub(elt_ur_for_add& dst, elt_ur_for_add const& src)
     {
         asm("# gfp<2, 1>::sub\n"
             "subq %q[s0], %q[d0]\n"
@@ -60,18 +59,18 @@ struct gfp<2> : public gfp_base<2, gfp<2>>
             : [d0] "+rm"(dst[0]), [d1] "+rm"(dst[1]), [d2] "+rm"(dst[2])
             : [s0] "r"(src[0]), [s1] "r"(src[1]), [s2] "r"(src[2]));
     }
-    inline void add(elt_ur_for_add& dst, elt const& a, elt const& b) const
+    void add(elt_ur_for_add& dst, elt const& a, elt const& b) const
     {
         set(dst, a);
         add(dst, b);
     }
-    inline void sub(elt_ur_for_add& dst, elt const& a, elt const& b) const
+    void sub(elt_ur_for_add& dst, elt const& a, elt const& b) const
     {
         set(dst, a);
         sub(dst, b);
     }
 
-    static inline void addmul_ui(elt_ur_for_add& dst,
+    static void addmul_ui(elt_ur_for_add& dst,
                                  elt const& src,
                                  mp_limb_t x)
     {
@@ -97,7 +96,7 @@ struct gfp<2> : public gfp_base<2, gfp<2>>
             : "rcx");
     }
 
-    static inline void submul_ui(elt_ur_for_add& dst,
+    static void submul_ui(elt_ur_for_add& dst,
                                  elt const& src,
                                  mp_limb_t x)
     {
@@ -124,7 +123,6 @@ struct gfp<2> : public gfp_base<2, gfp<2>>
     }
 };
 
-}
 }
 
 #endif /* ARITH_MODP_SPECIALIZATION_P2_HPP_ */

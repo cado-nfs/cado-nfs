@@ -39,12 +39,12 @@
 #include <limits.h> // ULONG_MAX
 #include "timing.h"
 #include "macros.h"
-#include "mod_ul.h"
-#include "mod_ul_default.h"
-#include "modredc_ul.h"
+#include "arith/mod_ul.h"
+#include "arith/mod_ul_default.h"
+#include "arith/modredc_ul.h"
 #include "mpqs_doit.h"
 #include "gmp_aux.h"
-#include "ularith.h"
+#include "arith/ularith.h"
 
 #if 1
 /* Allows disabling static for profiling */

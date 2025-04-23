@@ -1,5 +1,5 @@
-#ifndef EC_ARITH_MONTGOMERY_H_
-#define EC_ARITH_MONTGOMERY_H_
+#ifndef CADO_EC_ARITH_MONTGOMERY_H
+#define CADO_EC_ARITH_MONTGOMERY_H
 
 #ifndef mod_init
 #error "One of the mod*_default.h headers must be included before this file"
@@ -440,4 +440,4 @@ montgomery_curve_order (residue_t A, ec_point_t P, const modulus_t m)
 }
 #endif
 
-#endif /* EC_ARITH_MONTGOMERY_H_ */
+#endif /* CADO_EC_ARITH_MONTGOMERY_H */

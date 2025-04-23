@@ -1,27 +1,30 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cinttypes> // for PRId64, PRIu64, PRIx64
-#include <cstdarg>   // IWYU pragma: keep
-#include <cstdint>   // for uint64_t, int64_t
-#include <cstdio>    // for fprintf, size_t, FILE
-#include <cstdlib>   // for abort
+#include <cinttypes>
+#include <cstdarg>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 
-#include <algorithm> // for find, max
-#include <ostream>   // IWYU pragma: keep
-#include <sstream>   // ostringstream // IWYU pragma: keep
-#include <string>    // for char_traits, basic_string
+#include <algorithm>
+#include <ostream>
+#include <sstream>
+#include <vector>
 
-#include <gmp.h> // for gmp_vfprintf, mpz_divisible_ui_p, mpz...
+#include <gmp.h>
 
-#include "bucket-push-update.hpp"
-#include "bucket.hpp" // for bucket_update_t, bucket_array_complete
+// bucket_primes_t::get_next_update
+#include "bucket-push-update.hpp" // IWYU pragma: keep
+
+#include "bucket.hpp"
 #include "cxx_mpz.hpp"
+#include "fb.hpp"
 #include "las-divide-primes.hpp"
-#include "las-output.hpp"           // for TRACE_CHANNEL
-#include "las-where-am-i-proxy.hpp" // for extern_trace_on_spot_ab
-#include "macros.h"                 // for UNLIKELY
-#include "trialdiv.hpp"             // for trialdiv_data, (anonymous)
-#include "verbose.h"                // verbose_output_print
+#include "las-output.hpp"
+#include "las-where-am-i-proxy.hpp"
+#include "macros.h"
+#include "trialdiv.hpp"
+#include "verbose.h"
 
 /*  Trial division */
 

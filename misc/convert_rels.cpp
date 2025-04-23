@@ -34,6 +34,7 @@ command line is faster than the current code:
 
 #include <vector>
 
+#include <pthread.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
