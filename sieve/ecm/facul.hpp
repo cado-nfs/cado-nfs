@@ -1,5 +1,5 @@
-#ifndef FACUL_HPP_
-#define FACUL_HPP_
+#ifndef CADO_FACUL_HPP
+#define CADO_FACUL_HPP
 
 #include <vector>
 

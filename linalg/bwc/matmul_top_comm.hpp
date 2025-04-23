@@ -1,5 +1,5 @@
-#ifndef MATMUL_TOP_COMM_HPP_
-#define MATMUL_TOP_COMM_HPP_
+#ifndef CADO_MATMUL_TOP_COMM_HPP
+#define CADO_MATMUL_TOP_COMM_HPP
 
 #include "matmul_top_vec.hpp"
 

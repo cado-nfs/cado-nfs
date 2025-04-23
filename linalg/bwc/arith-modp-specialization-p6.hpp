@@ -1,5 +1,5 @@
-#ifndef ARITH_MODP_SPECIALIZATION_P6_HPP_
-#define ARITH_MODP_SPECIALIZATION_P6_HPP_
+#ifndef CADO_ARITH_MODP_SPECIALIZATION_P6_HPP
+#define CADO_ARITH_MODP_SPECIALIZATION_P6_HPP
 
 #include "arith-modp-main.hpp"
 #include "arith-modp-specializations.hpp"

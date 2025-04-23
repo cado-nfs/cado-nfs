@@ -1,5 +1,5 @@
-#ifndef UTILS_ARITHXX_ARITHXX_BATCH_Q_TO_FP_HPP_
-#define UTILS_ARITHXX_ARITHXX_BATCH_Q_TO_FP_HPP_
+#ifndef CADO_UTILS_ARITHXX_BATCH_Q_TO_FP_HPP
+#define CADO_UTILS_ARITHXX_BATCH_Q_TO_FP_HPP
 
 #include <cstdint>
 
@@ -20,4 +20,4 @@ struct batch_Q_to_Fp_context {
 }
 
 
-#endif	/* UTILS_ARITHXX_ARITHXX_BATCH_Q_TO_FP_HPP_ */
+#endif	/* UTILS_ARITHXX_BATCH_Q_TO_FP_HPP_ */

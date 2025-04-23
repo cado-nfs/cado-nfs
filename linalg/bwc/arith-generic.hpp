@@ -1,5 +1,5 @@
-#ifndef ARITH_GENERIC_HPP_
-#define ARITH_GENERIC_HPP_
+#ifndef CADO_ARITH_GENERIC_HPP
+#define CADO_ARITH_GENERIC_HPP
 
 #include <cstddef>
 #include <string>

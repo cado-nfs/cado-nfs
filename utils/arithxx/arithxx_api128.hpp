@@ -1,5 +1,5 @@
-#ifndef UTILS_ARITHXX_ARITHXX_API128_HPP_
-#define UTILS_ARITHXX_ARITHXX_API128_HPP_
+#ifndef CADO_UTILS_ARITHXX_API128_HPP
+#define CADO_UTILS_ARITHXX_API128_HPP
 
 
 #include <type_traits>
@@ -28,4 +28,4 @@ struct api_bysize<layer, Integer128>
 
 }
 
-#endif	/* UTILS_ARITHXX_ARITHXX_API128_HPP_ */
+#endif	/* UTILS_ARITHXX_API128_HPP_ */

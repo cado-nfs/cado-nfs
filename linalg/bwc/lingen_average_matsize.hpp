@@ -1,5 +1,5 @@
-#ifndef LINGEN_AVERAGE_MATSIZE_HPP_
-#define LINGEN_AVERAGE_MATSIZE_HPP_
+#ifndef CADO_LINGEN_AVERAGE_MATSIZE_HPP
+#define CADO_LINGEN_AVERAGE_MATSIZE_HPP
 
 #include "lingen_matpoly_select.hpp"
 

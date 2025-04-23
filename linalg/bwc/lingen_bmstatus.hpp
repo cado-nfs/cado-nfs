@@ -1,5 +1,5 @@
-#ifndef LINGEN_BMSTATUS_HPP_
-#define LINGEN_BMSTATUS_HPP_
+#ifndef CADO_LINGEN_BMSTATUS_HPP
+#define CADO_LINGEN_BMSTATUS_HPP
 // IWYU pragma: no_include <algorithm>
 #include <cstring>
 #include <vector>

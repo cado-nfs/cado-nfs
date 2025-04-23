@@ -1,5 +1,5 @@
-#ifndef PARALLELIZING_INFO_HPP_
-#define PARALLELIZING_INFO_HPP_
+#ifndef CADO_PARALLELIZING_INFO_HPP
+#define CADO_PARALLELIZING_INFO_HPP
 
 /* don't enable this. Clutters output a lot */
 #define xxxCONCURRENCY_DEBUG

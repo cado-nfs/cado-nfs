@@ -1,5 +1,5 @@
-#ifndef UTILS_ARITHXX_ARITHXX_REDC64_HPP_
-#define UTILS_ARITHXX_ARITHXX_REDC64_HPP_
+#ifndef CADO_UTILS_ARITHXX_REDC64_HPP
+#define CADO_UTILS_ARITHXX_REDC64_HPP
 
 #include <cstdint>
 
@@ -94,4 +94,4 @@ struct arithxx_details::redc64
 };
 
 
-#endif	/* UTILS_ARITHXX_ARITHXX_REDC64_HPP_ */
+#endif	/* UTILS_ARITHXX_REDC64_HPP_ */

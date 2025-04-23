@@ -1,5 +1,5 @@
-#ifndef MODSET_HPP_
-#define MODSET_HPP_
+#ifndef CADO_MODSET_HPP
+#define CADO_MODSET_HPP
 
 #include <memory>
 #include <vector>

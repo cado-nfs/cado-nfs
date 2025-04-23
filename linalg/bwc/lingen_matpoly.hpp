@@ -1,5 +1,5 @@
-#ifndef LINGEN_MATPOLY_HPP_
-#define LINGEN_MATPOLY_HPP_
+#ifndef CADO_LINGEN_MATPOLY_HPP
+#define CADO_LINGEN_MATPOLY_HPP
 
 #include <cstddef>                   // for size_t, NULL
 

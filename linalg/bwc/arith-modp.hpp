@@ -1,5 +1,5 @@
-#ifndef ARITH_MODP_HPP_
-#define ARITH_MODP_HPP_
+#ifndef CADO_ARITH_MODP_HPP
+#define CADO_ARITH_MODP_HPP
 
 /* arith-modp-main.hpp contains the base implementation. Faster code goes
  * in the specializations for critical functions.

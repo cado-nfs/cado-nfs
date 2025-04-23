@@ -469,4 +469,4 @@ mpz_poly_bivariate_is_irreducible(mpz_poly_bivariate_srcptr f, mpz_srcptr p);
 
 */
 
-#endif /* MPZ_POLY_BIVARIATE_H_ */
+#endif /* CADO_MPZ_POLY_BIVARIATE_HPP */

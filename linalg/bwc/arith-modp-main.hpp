@@ -1,5 +1,5 @@
-#ifndef ARITH_MODP_MAIN_HPP_
-#define ARITH_MODP_MAIN_HPP_
+#ifndef CADO_ARITH_MODP_MAIN_HPP
+#define CADO_ARITH_MODP_MAIN_HPP
 
 #include <cstddef>
 #include <cstdio>

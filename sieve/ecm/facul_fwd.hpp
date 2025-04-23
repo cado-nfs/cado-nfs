@@ -1,5 +1,5 @@
-#ifndef FACUL_FWD_HPP_
-#define FACUL_FWD_HPP_
+#ifndef CADO_FACUL_FWD_HPP
+#define CADO_FACUL_FWD_HPP
 
 class FaculModulusBase;
 

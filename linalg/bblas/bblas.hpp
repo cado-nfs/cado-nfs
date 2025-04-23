@@ -1,5 +1,5 @@
-#ifndef BBLAS_HPP_
-#define BBLAS_HPP_
+#ifndef CADO_BBLAS_HPP
+#define CADO_BBLAS_HPP
 
 #include "macros.h"
 

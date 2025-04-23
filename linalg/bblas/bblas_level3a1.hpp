@@ -1,5 +1,5 @@
-#ifndef BBLAS_LEVEL3A1_HPP_
-#define BBLAS_LEVEL3A1_HPP_
+#ifndef CADO_BBLAS_LEVEL3A1_HPP
+#define CADO_BBLAS_LEVEL3A1_HPP
 
 // IWYU pragma: private, include "bblas.hpp"
 // IWYU pragma: friend ".*/bblas.*"

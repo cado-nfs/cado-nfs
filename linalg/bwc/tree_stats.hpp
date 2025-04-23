@@ -1,5 +1,5 @@
-#ifndef TREE_STATS_HPP_
-#define TREE_STATS_HPP_
+#ifndef CADO_TREE_STATS_HPP
+#define CADO_TREE_STATS_HPP
 // IWYU pragma: no_include <ext/alloc_traits.h>
 #include <cstdlib>                       // for abs
 #include <utility>   // for pair

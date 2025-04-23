@@ -1,5 +1,5 @@
-#ifndef MATMUL_TOP_VEC_HPP_
-#define MATMUL_TOP_VEC_HPP_
+#ifndef CADO_MATMUL_TOP_VEC_HPP
+#define CADO_MATMUL_TOP_VEC_HPP
 
 #include <cstdint>
 

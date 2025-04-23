@@ -1,5 +1,5 @@
-#ifndef CADO_SIGHANDLERS_H_
-#define CADO_SIGHANDLERS_H_
+#ifndef CADO_SIGHANDLERS_H
+#define CADO_SIGHANDLERS_H
 
 #ifdef __cplusplus
 extern "C" {

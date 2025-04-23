@@ -1,5 +1,5 @@
-#ifndef FACUL_STRATEGIES_HPP_
-#define FACUL_STRATEGIES_HPP_
+#ifndef CADO_FACUL_STRATEGIES_HPP
+#define CADO_FACUL_STRATEGIES_HPP
 
 #include <cstdio>      // for FILE
 #include <array>

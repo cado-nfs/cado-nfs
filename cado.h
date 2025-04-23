@@ -20,8 +20,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 */
 
-#ifndef CADO_H
-#define CADO_H
+#ifndef CADO_CADO_H
+#define CADO_CADO_H
 
 // scan-headers: skip
 

@@ -1,5 +1,5 @@
-#ifndef MATMUL_TOP_HPP_
-#define MATMUL_TOP_HPP_
+#ifndef CADO_MATMUL_TOP_HPP
+#define CADO_MATMUL_TOP_HPP
 
 #include <cstddef>
 #include <cstdint>
