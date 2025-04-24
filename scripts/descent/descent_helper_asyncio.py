@@ -31,18 +31,23 @@ class important_files_async_loop():
             else:
                 outfile_tmp = outfile + ".tmp"
 
+            errfile = open(outfile + ".stderr", "wb")
+            errfile.write((' '.join(args) + "\n").encode())
+            errfile.flush()
+
             print(f"running program, saving output to {outfile}")
-            print(f"calling {args}", file=sys.stderr)
+            print(f"calling:", *args, file=sys.stderr)
 
             with open(outfile_tmp, 'w') as save:
                 proc = await asyncio.create_subprocess_exec(
                     *args,
+                    stderr=errfile,
                     stdout=asyncio.subprocess.PIPE)
                 while True:
                     line = await proc.stdout.readline()
                     if not line:
                         break
-                    line = line.decode('utf-8').strip()
+                    line = line.decode().strip()
                     async with self.lk:
                         if self.consumer_done.is_set():
                             proc.kill()

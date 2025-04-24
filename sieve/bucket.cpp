@@ -106,9 +106,13 @@ void bucket_array_t<LEVEL, HINT>::allocate_memory(
 {
     used_accessor = &memory;
     /* Don't try to allocate anything, nor print a message, for sieving levels
-       where the corresponding factor base part is empty. */
-    if (fill_ratio == 0.)
+     * where the corresponding factor base part is empty. We do want to
+     * reset the pointers, though!!
+     */
+    if (fill_ratio == 0.) {
+        reset_pointers();
         return;
+    }
 
     /* We'll allocate bucket regions of size 2^LOG_BUCKET_REGIONS[LEVEL],
      * and those will be used to cover lines of size 2^logI.
