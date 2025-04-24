@@ -1,5 +1,5 @@
-#ifndef LAS_REDUCE_PLATTICE_REFERENCE_HPP_
-#define LAS_REDUCE_PLATTICE_REFERENCE_HPP_
+#ifndef CADO_LAS_REDUCE_PLATTICE_REFERENCE_HPP
+#define CADO_LAS_REDUCE_PLATTICE_REFERENCE_HPP
 
 #include "las-plattice.hpp"
 #include "reduce-plattice/plattice-proxy.hpp"

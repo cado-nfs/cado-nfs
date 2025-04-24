@@ -1,5 +1,5 @@
-#ifndef LINGEN_SUBSTEP_SCHEDULE_HPP_
-#define LINGEN_SUBSTEP_SCHEDULE_HPP_
+#ifndef CADO_LINGEN_SUBSTEP_SCHEDULE_HPP
+#define CADO_LINGEN_SUBSTEP_SCHEDULE_HPP
 
 #include <array>
 #include <istream>

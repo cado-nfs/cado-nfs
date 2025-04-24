@@ -3,9 +3,6 @@
 /* Define to 1 if using 'alloca.c'. */
 #undef C_ALLOCA
 
-/* This is defined if gf2x was configured with --enable-fft-interface */
-#undef GF2X_HAS_FFT_INTERFACE_SUPPORT
-
 /* Define if pclmul code as present in the source tree is supported by the
    compiler */
 #undef GF2X_HAVE_PCLMUL_SUPPORT
@@ -98,7 +95,7 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
-/* The size of `unsigned long', as computed by sizeof. */
+/* The size of 'unsigned long', as computed by sizeof. */
 #undef SIZEOF_UNSIGNED_LONG
 
 /* If using the C implementation of alloca, define if you know the
@@ -109,7 +106,7 @@
 	STACK_DIRECTION = 0 => direction of growth unknown */
 #undef STACK_DIRECTION
 
-/* Define to 1 if all of the C90 standard headers exist (not just the ones
+/* Define to 1 if all of the C89 standard headers exist (not just the ones
    required in a freestanding environment). This macro is provided for
    backward compatibility; new code need not use it. */
 #undef STDC_HEADERS
@@ -117,5 +114,5 @@
 /* Version number of package */
 #undef VERSION
 
-/* Define to `unsigned int' if <sys/types.h> does not define. */
+/* Define as 'unsigned int' if <stddef.h> doesn't define. */
 #undef size_t

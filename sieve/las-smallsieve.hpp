@@ -1,5 +1,5 @@
-#ifndef LAS_SMALLSIEVE_HPP_
-#define LAS_SMALLSIEVE_HPP_
+#ifndef CADO_LAS_SMALLSIEVE_HPP
+#define CADO_LAS_SMALLSIEVE_HPP
 
 #include <cstdarg>
 #include <cstdio>
@@ -63,4 +63,4 @@ extern void resieve_small_bucket_region (bucket_primes_t *BP,
         int logI, sublat_t const & sl,
         where_am_I & w MAYBE_UNUSED);
 
-#endif	/* LAS_SMALLSIEVE_HPP_ */
+#endif	/* CADO_LAS_SMALLSIEVE_HPP */

@@ -1,5 +1,5 @@
-#ifndef LAS_COFACTOR_HPP_
-#define LAS_COFACTOR_HPP_
+#ifndef CADO_LAS_COFACTOR_HPP
+#define CADO_LAS_COFACTOR_HPP
 
 // IWYU pragma: no_include <ext/alloc_traits.h>
 

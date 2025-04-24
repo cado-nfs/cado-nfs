@@ -1,5 +1,5 @@
-#ifndef RANDOM_MATRIX_HPP_
-#define RANDOM_MATRIX_HPP_
+#ifndef CADO_RANDOM_MATRIX_HPP
+#define CADO_RANDOM_MATRIX_HPP
 
 #include "parallelizing_info.hpp"
 #include "matrix_u32.hpp"

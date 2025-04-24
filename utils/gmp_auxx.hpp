@@ -1,5 +1,5 @@
-#ifndef GMP_AUXX_HPP_
-#define GMP_AUXX_HPP_
+#ifndef CADO_GMP_AUXX_HPP
+#define CADO_GMP_AUXX_HPP
 
 #include <type_traits>
 #include <gmp.h>
@@ -39,7 +39,7 @@ mpz_set (mpz_ptr a, const T b) {
 }
 
 inline void mpz_set (mpz_ptr a, const int64_t b) {
-    return mpz_set_int64(a, b);
+    mpz_set_int64(a, b);
 }
 
 inline void mpz_set (mpz_ptr a, const uint64_t b) {

@@ -1,5 +1,5 @@
-#ifndef TEST_SMALLSIEVE_MOCK_HPP_
-#define TEST_SMALLSIEVE_MOCK_HPP_
+#ifndef CADO_TEST_SMALLSIEVE_MOCK_HPP
+#define CADO_TEST_SMALLSIEVE_MOCK_HPP
 
 #include <stdint.h>
 #include "macros.h"

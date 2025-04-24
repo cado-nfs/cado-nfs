@@ -1,5 +1,5 @@
-#ifndef MATRIX_FILE_HPP_
-#define MATRIX_FILE_HPP_
+#ifndef CADO_MATRIX_FILE_HPP
+#define CADO_MATRIX_FILE_HPP
 
 #include <stdint.h>
 #include <stddef.h>

@@ -1,5 +1,5 @@
-#ifndef RELATION_HPP_
-#define RELATION_HPP_
+#ifndef CADO_RELATION_HPP
+#define CADO_RELATION_HPP
 
 #include <cstdint>
 #include <cstdio>
@@ -114,4 +114,4 @@ struct relation : public relation_ab {
 extern std::istream& operator>>(std::istream&, relation&);
 extern std::ostream& operator<<(std::ostream&, relation const &);
 
-#endif	/* RELATION_HPP_ */
+#endif	/* CADO_RELATION_HPP */

@@ -1,5 +1,5 @@
-#ifndef ARITH_HARD_HPP_
-#define ARITH_HARD_HPP_
+#ifndef CADO_ARITH_HARD_HPP
+#define CADO_ARITH_HARD_HPP
 
 /* This provides a hard-coded interface to the underlying arithmetic.
  * This include file depends on compilation flags!

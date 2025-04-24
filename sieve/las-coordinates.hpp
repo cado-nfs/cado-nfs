@@ -1,5 +1,5 @@
-#ifndef LAS_COORDINATES_HPP_
-#define LAS_COORDINATES_HPP_
+#ifndef CADO_LAS_COORDINATES_HPP
+#define CADO_LAS_COORDINATES_HPP
 
 #include <gmp.h>             // for mpz_mul_si, mpz_ptr, mpz_clear, mpz_t
 #include <cstdint>       // for uint64_t, int64_t
@@ -82,4 +82,4 @@ static inline void convert_Nx_to_abmpz(mpz_ptr a, mpz_ptr b,
 }
 // #endif
 
-#endif	/* LAS_COORDINATES_HPP_ */
+#endif	/* CADO_LAS_COORDINATES_HPP */

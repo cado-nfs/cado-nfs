@@ -1,5 +1,5 @@
-#ifndef BUCKET_PUSH_UPDATE_HPP_
-#define BUCKET_PUSH_UPDATE_HPP_
+#ifndef CADO_BUCKET_PUSH_UPDATE_HPP
+#define CADO_BUCKET_PUSH_UPDATE_HPP
 
 #ifdef SAFE_BUCKET_ARRAYS
 #include <cstdio>
@@ -63,4 +63,4 @@ inline void bucket_array_t<LEVEL, HINT>::push_update(
     push_update(bucket_number, update);
 }
 
-#endif /* BUCKET_PUSH_UPDATE_HPP_ */
+#endif /* CADO_BUCKET_PUSH_UPDATE_HPP */

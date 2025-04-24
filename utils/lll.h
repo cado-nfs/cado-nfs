@@ -1,5 +1,5 @@
-#ifndef CADO_UTILS_LLL_H_
-#define CADO_UTILS_LLL_H_
+#ifndef CADO_UTILS_LLL_H
+#define CADO_UTILS_LLL_H
 
 #include <gmp.h>
 
@@ -23,4 +23,4 @@ int LLL(mpz_t det, mat_Z B, mat_Z * U, mpz_srcptr a, mpz_srcptr b);
 }
 #endif
 
-#endif /* CADO_UTILS_LLL_H_ */
+#endif /* CADO_UTILS_LLL_H */

@@ -1,5 +1,5 @@
-#ifndef LAS_CONFIG_H_
-#define LAS_CONFIG_H_
+#ifndef CADO_LAS_CONFIG_H
+#define CADO_LAS_CONFIG_H
 
 #include "cado_config.h" // HAVE_SSE2
 
@@ -103,4 +103,4 @@ void las_display_config_flags();
 }
 #endif
 
-#endif /* LAS_CONFIG_H_ */
+#endif /* CADO_LAS_CONFIG_H */

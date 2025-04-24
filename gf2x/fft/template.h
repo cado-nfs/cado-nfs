@@ -1,3 +1,29 @@
+/* This file is part of the gf2x library.
+
+   Copyright 2019, 2023
+   Richard Brent, Pierrick Gaudry, Emmanuel Thome', Paul Zimmermann
+
+   This program is free software; you can redistribute it and/or modify it
+   under the terms of either:
+    - If the archive contains a file named toom-gpl.c (not a trivial
+    placeholder), the GNU General Public License as published by the Free
+    Software Foundation; either version 3 of the License, or (at your
+    option) any later version.
+    - If the archive contains a file named toom-gpl.c which is a trivial
+    placeholder, the GNU Lesser General Public License as published by
+    the Free Software Foundation; either version 2.1 of the License, or
+    (at your option) any later version.
+   
+   This program is distributed in the hope that it will be useful, but WITHOUT
+   ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+   FITNESS FOR A PARTICULAR PURPOSE.  See the license text for more details.
+   
+   You should have received a copy of the GNU General Public License as
+   well as the GNU Lesser General Public License along with this program;
+   see the files COPYING and COPYING.LIB.  If not, write to the Free
+   Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+   02110-1301, USA.
+*/
 #include <stdlib.h>
 
 /* This file is not a C header file. It is used to query-replace the FFT
@@ -6,8 +32,8 @@
 
 /* BEGIN SECTION 1: the typical interface for XXX_info */
 
-#ifndef GF2X_FFT_EXPORTED
-#define GF2X_FFT_EXPORTED
+#ifndef GF2X_EXPORTED
+#define GF2X_EXPORTED
 #endif
 
 struct XXX_info;
@@ -21,7 +47,7 @@ typedef const struct XXX_info * XXX_info_srcptr;
  * or may not consist of plain-old datatypes only, so that it only
  * possible to copy it with care (see below).  
  * 
- * C code should use XXX_info_t preferrably, as it provides transparent
+ * C code should use XXX_info_t preferably, as it provides transparent
  * conversion to a pointer, and yet defines storage as well (à la GMP).
  *
  * C++ code should use XXX_info.  When the header is included from C++

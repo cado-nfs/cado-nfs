@@ -1,5 +1,5 @@
-#ifndef EC_ARITH_COMMON_H_
-#define EC_ARITH_COMMON_H_
+#ifndef CADO_EC_ARITH_COMMON_H
+#define CADO_EC_ARITH_COMMON_H
 
 #ifndef mod_init
 #error "One of the mod*_default.h headers must be included before this file"
@@ -151,4 +151,4 @@ ec_point_fprintf (FILE *out, const ec_point_t P,
 }
 #endif
 
-#endif /* EC_ARITH_COMMON_H_ */
+#endif /* CADO_EC_ARITH_COMMON_H */

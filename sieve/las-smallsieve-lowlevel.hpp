@@ -1,5 +1,5 @@
-#ifndef LAS_SMALLSIEVE_LOWLEVEL_HPP_
-#define LAS_SMALLSIEVE_LOWLEVEL_HPP_
+#ifndef CADO_LAS_SMALLSIEVE_LOWLEVEL_HPP
+#define CADO_LAS_SMALLSIEVE_LOWLEVEL_HPP
 
 #include <cstddef>
 
@@ -611,4 +611,4 @@ typedef manual_oldloop default_smallsieve_inner_loop;
 /* }}} */
 
 
-#endif	/* LAS_SMALLSIEVE_LOWLEVEL_HPP_ */
+#endif	/* CADO_LAS_SMALLSIEVE_LOWLEVEL_HPP */

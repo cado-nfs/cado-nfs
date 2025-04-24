@@ -1,5 +1,5 @@
-#ifndef STAGE2_H
-#define STAGE2_H
+#ifndef CADO_STAGE2_H
+#define CADO_STAGE2_H
 
 #include <limits.h>
 
@@ -53,4 +53,4 @@ void stage2_clear_plan (stage2_plan_t *);
 }
 #endif
 
-#endif  /* STAGE2_H */
+#endif  /* CADO_STAGE2_H */

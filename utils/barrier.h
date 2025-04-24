@@ -1,5 +1,5 @@
-#ifndef BARRIER_H_
-#define BARRIER_H_
+#ifndef CADO_BARRIER_H
+#define CADO_BARRIER_H
 
 /* This is the interface to barrier synchronization waits.
  *
@@ -133,4 +133,4 @@ static inline int my_pthread_barrier_destroy(barrier_t * b)
 #define my_pthread_barrier_destroy         pthread_barrier_destroy
 #endif
 
-#endif	/* BARRIER_H_ */
+#endif	/* CADO_BARRIER_H */

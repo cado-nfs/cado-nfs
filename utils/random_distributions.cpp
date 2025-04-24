@@ -19,7 +19,7 @@
 #endif
 
 /* random picking */
-double random_uniform(cxx_gmp_randstate & rstate)
+double random_uniform(gmp_randstate_t rstate)
 {
     /* the constant is 2^-53 */
     // return gmp_urandomm_ui(rstate, 1UL<<53) * 1.11022302462515654042363166809E-16;

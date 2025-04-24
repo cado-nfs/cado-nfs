@@ -1,5 +1,5 @@
-#ifndef LAS_COFAC_STANDALONE_HPP_
-#define LAS_COFAC_STANDALONE_HPP_
+#ifndef CADO_LAS_COFAC_STANDALONE_HPP
+#define CADO_LAS_COFAC_STANDALONE_HPP
 
 #include <cstdio>                // for FILE, size_t
 #include <cstdint>                // for uint8_t, int64_t, uint64_t
@@ -49,4 +49,4 @@ struct cofac_standalone {
 };
 
 
-#endif	/* LAS_COFAC_STANDALONE_HPP_ */
+#endif	/* CADO_LAS_COFAC_STANDALONE_HPP */

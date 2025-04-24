@@ -1,5 +1,5 @@
-#ifndef LUCAS_V_MOD_H_
-#define LUCAS_V_MOD_H_
+#ifndef CADO_LUCAS_V_MOD_H
+#define CADO_LUCAS_V_MOD_H
 
 #ifndef mod_init
 #error "One of the mod*_default.h headers must be included before this file"
@@ -162,4 +162,4 @@ mod_V_eval_ul (residue_t r, residue_t rp1, const residue_t b,
 #endif
 
 
-#endif /* LUCAS_V_MOD_H_ */
+#endif /* CADO_LUCAS_V_MOD_H */

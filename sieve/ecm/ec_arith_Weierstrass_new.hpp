@@ -19,13 +19,14 @@
  * Curve coefficient needed in computation: a
  */
 
-template <typename MODULUS>
-class ECWeierstrass
+template <typename layer>
+class ECWeierstrass : public layer
 {
 public:
-    typedef MODULUS Modulus;
-    typedef typename Modulus::Residue Residue;
-    typedef typename Modulus::Integer Integer;
+    using typename layer::Modulus;
+    using typename layer::Residue;
+    using typename layer::Integer;
+
     const Modulus &m;
 protected:
     Residue a;
@@ -34,19 +35,18 @@ public:
 
     void print (std::ostream &os, const char *prefix) const
     {
-        const char *pre = (prefix == NULL) ? "" : prefix;
-        Integer A, M;
-        m.get (A, a);
-        m.getmod(M);
+        const char *pre = prefix ? prefix : "";
+        const Integer A = m.get(a);
+        const Integer M = m.getmod();
         os << pre << "Weierstrass curve: y^2 = x^3 + a*x + b" << "\n"
            << pre << "a = " << A << " over Z/mZ, m = " << M << "\n";
     }
-    friend std::ostream & operator<<(std::ostream &os, const ECWeierstrass<MODULUS> &c) {
+    friend std::ostream & operator<<(std::ostream &os, const ECWeierstrass<layer> &c) {
         c.print(os, NULL);
         return os;
     }
 
-    bool is_same(const ECWeierstrass<MODULUS> &other) const {
+    bool is_same(const ECWeierstrass<layer> &other) const {
         return &m == &other.m && m.equal(a, other.a);
     }
 
@@ -66,8 +66,11 @@ public:
     public:
         AffinePoint(const ECurve &c) : curve(c), x(curve.m), y(curve.m), finite(true) {}
         AffinePoint(const ECurve &c, const Residue &_x, const Residue &_y)
-            : curve(c), x(curve.m, _x), y(curve.m, _y) {
-            finite = true;
+            : curve(c)
+            , x(curve.m, _x)
+            , y(curve.m, _y)
+            , finite(true)
+        {
         }
         AffinePoint(const AffinePoint &s)
             : curve(s.curve), x(curve.m, s.x), y(curve.m, s.y), finite(s.finite) {}
@@ -161,19 +164,17 @@ public:
             return y;
         }
 
-        void swap(AffinePoint &other) {
+        void swap(AffinePoint &other) noexcept {
             ASSERT_EXPENSIVE(&curve == &other.curve);
-            curve.m.swap (x, other.x);
-            curve.m.swap (y, other.y);
+            std::swap (x, other.x);
+            std::swap (y, other.y);
             std::swap(finite, other.finite);
         }
 
         void print(std::ostream &os) const {
             if (finite) {
-                Integer X, Y;
-
-                curve.m.get (X, x);
-                curve.m.get (Y, y);
+                const Integer X = curve.m.get (x);
+                const Integer Y = curve.m.get (y);
                 os << "(" << X << " : " << Y << ")";
             } else {
                 os << "(point at infinity)";
@@ -182,7 +183,7 @@ public:
 
         void dbl (AffinePoint &R) const;
         void add (AffinePoint &R, const AffinePoint &Q) const;
-        void smul (AffinePoint &R, const uint64_t e) const;
+        void smul (AffinePoint &R, uint64_t e) const;
         uint64_t point_order (uint64_t known_m, uint64_t known_r, int verbose) const;
 
         friend std::ostream & operator<<(std::ostream &os, const AffinePoint &p) {
@@ -195,10 +196,7 @@ public:
     {
     public:
         friend class AffinePoint;
-        typedef MODULUS Modulus;
-        typedef ECWeierstrass<MODULUS> ECurve;
-        typedef typename Modulus::Residue Residue;
-        typedef typename Modulus::Integer Integer;
+        typedef ECWeierstrass<layer> ECurve;
         const ECurve &curve;
     protected:
         Residue x, y, z;
@@ -216,7 +214,7 @@ public:
             curve.m.set1(z);
         }
         ProjectivePoint(ProjectivePoint &&) = default;
-        ~ProjectivePoint() {}
+        ~ProjectivePoint() = default;
 
         ProjectivePoint &operator=(const ProjectivePoint &other) {
             ASSERT_EXPENSIVE(&curve == &other.curve);
@@ -238,9 +236,7 @@ public:
                 return false;
             curve.m.mul(t1, y, other.z);
             curve.m.mul(t2, z, other.y);
-            if (!curve.m.equal(t1, t2))
-                return false;
-            return true;
+            return curve.m.equal(t1, t2);
         }
 
         bool operator!=(const ProjectivePoint &other) const {
@@ -294,19 +290,17 @@ public:
             return z;
         }
 
-        void swap(ProjectivePoint &other) {
+        void swap(ProjectivePoint &other) noexcept {
             ASSERT_EXPENSIVE(&curve == &other.curve);
-            curve.m.swap (x, other.x);
-            curve.m.swap (y, other.y);
-            curve.m.swap (z, other.z);
+            std::swap(x, other.x);
+            std::swap(y, other.y);
+            std::swap(z, other.z);
         }
 
         void print(std::ostream &os) const {
-            Integer X, Y, Z;
-
-            curve.m.get (X, x);
-            curve.m.get (Y, y);
-            curve.m.get (Z, z);
+            const Integer X = curve.m.get (x);
+            const Integer Y = curve.m.get (y);
+            const Integer Z = curve.m.get (z);
             os << "(" << X << " : " << Y << " : " << Z << ")";
         }
 
@@ -361,7 +355,7 @@ public:
 
         void dbl (ProjectivePoint &R) const;
         void add (ProjectivePoint &R, const ProjectivePoint &Q) const;
-        void smul (ProjectivePoint &R, const uint64_t e) const;
+        void smul (ProjectivePoint &R, uint64_t e) const;
         uint64_t point_order (uint64_t known_m MAYBE_UNUSED, uint64_t known_r MAYBE_UNUSED, int verbose MAYBE_UNUSED) const {return 0;};
     };
 };

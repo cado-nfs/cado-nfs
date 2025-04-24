@@ -1,5 +1,5 @@
-#ifndef POLYSELECT_ARITH_H
-#define POLYSELECT_ARITH_H
+#ifndef CADO_POLYSELECT_ARITH_H
+#define CADO_POLYSELECT_ARITH_H
 
 #include <gmp.h>
 #include <stdint.h> // uint64_t

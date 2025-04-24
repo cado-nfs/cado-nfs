@@ -1,5 +1,5 @@
-#ifndef LAS_INFO_HPP_
-#define LAS_INFO_HPP_
+#ifndef CADO_LAS_INFO_HPP
+#define CADO_LAS_INFO_HPP
 
 #include "cado_config.h"               // for HAVE_HWLOC
 
@@ -240,4 +240,4 @@ struct las_info : public las_parallel_desc, private NonCopyable {
     static void configure_aliases(cxx_param_list & pl);
 };
 
-#endif	/* LAS_INFO_HPP_ */
+#endif	/* CADO_LAS_INFO_HPP */

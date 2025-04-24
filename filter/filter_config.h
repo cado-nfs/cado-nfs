@@ -1,5 +1,5 @@
-#ifndef FILTER_CONFIG_H_
-#define FILTER_CONFIG_H_
+#ifndef CADO_FILTER_CONFIG_H
+#define CADO_FILTER_CONFIG_H
 
 #include "typedefs.h"
 
@@ -141,4 +141,4 @@ static inline int cmp_typerow_t(const void * a, const void * b) {
 }
 #endif
 
-#endif /* FILTER_CONFIG_H_ */
+#endif /* CADO_FILTER_CONFIG_H */

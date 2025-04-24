@@ -1,5 +1,5 @@
-#ifndef TRANSFORM_INTERFACE_H_
-#define TRANSFORM_INTERFACE_H_
+#ifndef CADO_TRANSFORM_INTERFACE_H
+#define CADO_TRANSFORM_INTERFACE_H
 
 #include <string.h>
 
@@ -325,4 +325,4 @@ static inline mp_size_t fft_get_mulmod_output_minlimbs(const struct fft_transfor
 }
 #endif
 
-#endif	/* TRANSFORM_INTERFACE_H_ */
+#endif	/* CADO_TRANSFORM_INTERFACE_H */

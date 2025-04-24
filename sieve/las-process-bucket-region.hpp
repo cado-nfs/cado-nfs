@@ -1,5 +1,5 @@
-#ifndef LAS_PROCESS_BUCKET_REGION_HPP_
-#define LAS_PROCESS_BUCKET_REGION_HPP_
+#ifndef CADO_LAS_PROCESS_BUCKET_REGION_HPP
+#define CADO_LAS_PROCESS_BUCKET_REGION_HPP
 
 #include <memory>
 #include "las-where-am-i-proxy.hpp"         // for where_am_I
@@ -53,4 +53,4 @@ struct process_bucket_region_spawn {
 
 extern void process_many_bucket_regions(nfs_work & ws, std::shared_ptr<nfs_work_cofac> wc_p, std::shared_ptr<nfs_aux> aux_p, thread_pool & pool, int first_region0_index, where_am_I & w);
 
-#endif	/* LAS_PROCESS_BUCKET_REGION_HPP_ */
+#endif	/* CADO_LAS_PROCESS_BUCKET_REGION_HPP */

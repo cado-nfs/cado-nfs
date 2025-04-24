@@ -1,5 +1,5 @@
-#ifndef MST_H_
-#define MST_H_
+#ifndef CADO_MST_H
+#define CADO_MST_H
 
 #include "filter_config.h"
 #include "sparse.h"
@@ -17,4 +17,4 @@ int minCostUsingMST(filter_matrix_t *mat, int m, index_t *ind, index_t j);
 }
 #endif
 
-#endif	/* MST_H_ */
+#endif	/* CADO_MST_H */

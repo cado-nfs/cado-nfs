@@ -1,5 +1,5 @@
-#ifndef LINGEN_BIGMATPOLY_FT_HPP_
-#define LINGEN_BIGMATPOLY_FT_HPP_
+#ifndef CADO_LINGEN_BIGMATPOLY_FT_HPP
+#define CADO_LINGEN_BIGMATPOLY_FT_HPP
 
 #include "lingen_matpoly_ft.hpp"
 #include "lingen_bigmatpoly.hpp"

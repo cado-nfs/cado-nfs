@@ -150,14 +150,6 @@ static void test_mpz_poly_bivariate_trivialities()
     }
 }
 
-/* a shorthand so that we can use user-defined literals */
-static cxx_mpz operator"" _mpz(char const * str, size_t)
-{
-    cxx_mpz res;
-    mpz_set_str(res, str, 0);
-    return res;
-}
-
 static void test_mpz_poly_bivariate_resultant(unsigned long iter)
 {
     for (unsigned long i = 0; i < iter; i++) {

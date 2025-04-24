@@ -1,5 +1,5 @@
-#ifndef LINGEN_TUNING_CACHE_HPP_
-#define LINGEN_TUNING_CACHE_HPP_
+#ifndef CADO_LINGEN_TUNING_CACHE_HPP
+#define CADO_LINGEN_TUNING_CACHE_HPP
 
 #include <cstddef>
 #include <iosfwd>                         // for istream, ostream

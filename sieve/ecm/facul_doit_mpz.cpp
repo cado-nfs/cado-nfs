@@ -5,7 +5,7 @@
 // IWYU pragma: no_include "mpqs.h"       // for mpqs_mpz
 // IWYU pragma: no_include "pm1.h"        // for pm1_mpz
 // IWYU pragma: no_include "pp1.h"        // for pp1_27_mpz, pp1_65_mpz
-#include "mod_mpz_default.h" // IWYU pragma: keep
+#include "arith/mod_mpz_default.h" // IWYU pragma: keep
 #define pm1 pm1_mpz
 #define pp1_27 pp1_27_mpz
 #define pp1_65 pp1_65_mpz

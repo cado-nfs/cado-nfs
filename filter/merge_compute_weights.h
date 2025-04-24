@@ -1,5 +1,5 @@
-#ifndef MERGE_COMPUTE_WEIGHTS_H_
-#define MERGE_COMPUTE_WEIGHTS_H_
+#ifndef CADO_MERGE_COMPUTE_WEIGHTS_H
+#define CADO_MERGE_COMPUTE_WEIGHTS_H
 
 #include "merge_replay_matrix.h"
 #include "typedefs.h"
@@ -14,4 +14,4 @@ void compute_weights_backend (filter_matrix_t *mat, index_t j0);
 }
 #endif
 
-#endif	/* MERGE_COMPUTE_WEIGHTS_H_ */
+#endif	/* CADO_MERGE_COMPUTE_WEIGHTS_H */

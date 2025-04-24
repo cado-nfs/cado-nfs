@@ -1,5 +1,5 @@
-#ifndef BBLAS_PERM_MATRIX_HPP_
-#define BBLAS_PERM_MATRIX_HPP_
+#ifndef CADO_BBLAS_PERM_MATRIX_HPP
+#define CADO_BBLAS_PERM_MATRIX_HPP
 
 // IWYU pragma: private, include "bblas.hpp"
 // IWYU pragma: friend ".*/bblas.*"

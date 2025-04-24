@@ -1,5 +1,5 @@
-#ifndef SHA1_H_
-#define SHA1_H_
+#ifndef CADO_SHA1_H
+#define CADO_SHA1_H
 
 /*
    SHA-1 in C
@@ -93,5 +93,5 @@ public:
 #endif
 
 
-#endif	/* SHA1_H_ */
+#endif	/* CADO_SHA1_H */
 

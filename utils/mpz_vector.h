@@ -1,5 +1,5 @@
-#ifndef MPZ_VECTOR_H_
-#define MPZ_VECTOR_H_
+#ifndef CADO_MPZ_VECTOR_H
+#define CADO_MPZ_VECTOR_H
 
 #include <stdio.h> // FILE
 #include <stdint.h>
@@ -62,4 +62,4 @@ void mpz_vector_reduce_with_max_skew (mpz_vector_ptr, mpz_vector_ptr, mpz_ptr,
 }
 #endif
 
-#endif	/* MPZ_VECTOR_H_ */
+#endif	/* CADO_MPZ_VECTOR_H */

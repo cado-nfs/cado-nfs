@@ -1,5 +1,5 @@
-#ifndef LAS_CHOOSE_SIEVE_AREA_HPP_
-#define LAS_CHOOSE_SIEVE_AREA_HPP_
+#ifndef CADO_LAS_CHOOSE_SIEVE_AREA_HPP
+#define CADO_LAS_CHOOSE_SIEVE_AREA_HPP
 
 #include <cstdint>       // for uint32_t
 #include <memory>        // for shared_ptr
@@ -23,4 +23,4 @@ bool choose_sieve_area(las_info const & las,
         las_todo_entry const & doing,
         siever_config & conf, qlattice_basis & Q, uint32_t & J);
 
-#endif	/* LAS_CHOOSE_SIEVE_AREA_HPP_ */
+#endif	/* CADO_LAS_CHOOSE_SIEVE_AREA_HPP */

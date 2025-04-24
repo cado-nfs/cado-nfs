@@ -1,5 +1,5 @@
-#ifndef LINGEN_MEMORY_POOL_HPP_
-#define LINGEN_MEMORY_POOL_HPP_
+#ifndef CADO_LINGEN_MEMORY_POOL_HPP
+#define CADO_LINGEN_MEMORY_POOL_HPP
 // IWYU pragma: no_include <bits/exception.h>
 #include <cstdint>          // for SIZE_MAX
 #include <new>               // for bad_alloc

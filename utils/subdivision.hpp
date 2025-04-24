@@ -1,5 +1,5 @@
-#ifndef SUBDIVISION_HPP_
-#define SUBDIVISION_HPP_
+#ifndef CADO_SUBDIVISION_HPP
+#define CADO_SUBDIVISION_HPP
 
 #include <tuple>
 #include "macros.h"
@@ -51,4 +51,4 @@ class subdivision {
 };
 
 
-#endif	/* SUBDIVISION_HPP_ */
+#endif	/* CADO_SUBDIVISION_HPP */

@@ -1,5 +1,5 @@
-#ifndef MATMUL_FACADE_HPP_
-#define MATMUL_FACADE_HPP_
+#ifndef CADO_MATMUL_FACADE_HPP
+#define CADO_MATMUL_FACADE_HPP
 
 /* This file is included by all matmul implementations so as to enable
  * the macro MY_MATMUL_INTERFACE

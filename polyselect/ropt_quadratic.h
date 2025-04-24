@@ -1,5 +1,5 @@
-#ifndef ROPT_QUADRATIC_H
-#define ROPT_QUADRATIC_H
+#ifndef CADO_ROPT_QUADRATIC_H
+#define CADO_ROPT_QUADRATIC_H
 
 #include "ropt_str.h"   // ropt_bestpoly_t ropt_poly_t ropt_param_t ropt_info_t
 #include "gmp_aux.h"           // for gmp_randstate_ptr
@@ -21,4 +21,4 @@ void ropt_quadratic ( ropt_poly_ptr rs,
 
 
 
-#endif /* ROPT_QUADRATIC_H */
+#endif /* CADO_ROPT_QUADRATIC_H */

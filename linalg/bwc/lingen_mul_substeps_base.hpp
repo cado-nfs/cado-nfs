@@ -1,5 +1,5 @@
-#ifndef LINGEN_MUL_SUBSTEPS_BASE_HPP_
-#define LINGEN_MUL_SUBSTEPS_BASE_HPP_
+#ifndef CADO_LINGEN_MUL_SUBSTEPS_BASE_HPP
+#define CADO_LINGEN_MUL_SUBSTEPS_BASE_HPP
 
 #include <array>
 #include <string>

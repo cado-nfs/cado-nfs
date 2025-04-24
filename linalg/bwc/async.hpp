@@ -1,5 +1,5 @@
 #ifndef ASYNC_HPP_ // IWYU pragma: keep
-#define ASYNC_HPP_
+#define CADO_ASYNC_HPP
 
 #include <cstddef>              // for size_t
 #include "macros.h"              // for ATTR_PRINTF

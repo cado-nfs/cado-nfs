@@ -1,5 +1,5 @@
-#ifndef MATRIX_U32_HPP_
-#define MATRIX_U32_HPP_
+#ifndef CADO_MATRIX_U32_HPP
+#define CADO_MATRIX_U32_HPP
 
 #include "params.h"
 #include "parallelizing_info.hpp"

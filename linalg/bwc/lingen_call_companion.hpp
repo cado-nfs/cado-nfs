@@ -1,5 +1,5 @@
-#ifndef LINGEN_CALL_COMPANION_HPP_
-#define LINGEN_CALL_COMPANION_HPP_
+#ifndef CADO_LINGEN_CALL_COMPANION_HPP
+#define CADO_LINGEN_CALL_COMPANION_HPP
 
 #include <cstddef>                       // for size_t
 #include <stdexcept>                      // for runtime_error

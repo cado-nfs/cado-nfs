@@ -1,5 +1,5 @@
-#ifndef CADO_UTILS_ROOTFINDER_H_
-#define CADO_UTILS_ROOTFINDER_H_
+#ifndef CADO_UTILS_ROOTFINDER_H
+#define CADO_UTILS_ROOTFINDER_H
 
 #include <stdint.h>
 
@@ -47,4 +47,4 @@ std::vector<T> mpz_poly_roots(cxx_mpz_poly const & f, T const & q, std::vector<F
 
 #endif  /* __cplusplus */
 
-#endif	/* CADO_UTILS_ROOTFINDER_H_ */
+#endif	/* CADO_UTILS_ROOTFINDER_H */

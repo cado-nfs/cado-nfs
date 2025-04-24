@@ -1,5 +1,5 @@
-#ifndef FACUL_STRATEGIES_HPP_
-#define FACUL_STRATEGIES_HPP_
+#ifndef CADO_FACUL_STRATEGIES_HPP
+#define CADO_FACUL_STRATEGIES_HPP
 
 #include <cstdio>      // for FILE
 #include <array>
@@ -21,18 +21,18 @@ extern int nb_curves (const unsigned int lpb, const unsigned int mfb);
  * well.
  */
 struct facul_strategy_oneside {
-  unsigned long B;
-  unsigned int lpb;  /* Large prime bound 2^lpb */
-  double BB;         /* The factor base bound squared.
-                      * We assume that primes <= fbb have already been
-                      * removed, thus any factor <= BB is assumed prime
-                      * without further test.
-                      * Note that BB is _only_ used for that, and that
-                      * setting BB=0 is an effective way to consider all
-                      * numbers as potential composites.
-                      */
-  double BBB;        /* The factor base bound cubed. */
-  unsigned int mfb;
+  unsigned long B = 0;
+  unsigned int lpb = 0;  /* Large prime bound 2^lpb */
+  double BB = 0;         /* The factor base bound squared.
+                          * We assume that primes <= fbb have already been
+                          * removed, thus any factor <= BB is assumed prime
+                          * without further test.
+                          * Note that BB is _only_ used for that, and that
+                          * setting BB=0 is an effective way to consider all
+                          * numbers as potential composites.
+                          */
+  double BBB = 0;        /* The factor base bound cubed. */
+  unsigned int mfb = 0;
   std::vector<facul_method> methods;  /* List of methods to try */
 
   /* B lpb mfb ncurves verbose */

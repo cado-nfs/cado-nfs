@@ -1,12 +1,13 @@
-#ifndef LINGEN_POLYMAT_HPP_
-#define LINGEN_POLYMAT_HPP_
+#ifndef CADO_LINGEN_POLYMAT_HPP
+#define CADO_LINGEN_POLYMAT_HPP
 
 #ifdef LINGEN_BINARY
 #error                                                                         \
     "lingen_polymat does not work with binary (maybe use bblas instead -- could end up being the same interface, IDK)"
 #endif
 
-#include <cstddef> // for size_t, NULL
+#include <cstddef>
+#include <climits>
 
 #include <vector>
 
@@ -133,6 +134,11 @@ struct polymat_cutoff_info {
     size_t cut = SIZE_MAX;
     size_t subdivide = 0;
     std::vector<std::pair<size_t, int>> table;
+    polymat_cutoff_info() = default;
+    polymat_cutoff_info(size_t cut, size_t subdivide)
+        : cut(cut)
+        , subdivide(subdivide)
+    {}
 };
 void polymat_cutoff_add_step(struct polymat_cutoff_info * c, size_t size,
                              int alg);

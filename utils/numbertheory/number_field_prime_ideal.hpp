@@ -1,5 +1,5 @@
-#ifndef UTILS_NUMBERTHEORY_NUMBER_FIELD_PRIME_IDEAL_HPP_
-#define UTILS_NUMBERTHEORY_NUMBER_FIELD_PRIME_IDEAL_HPP_
+#ifndef CADO_UTILS_NUMBERTHEORY_NUMBER_FIELD_PRIME_IDEAL_HPP
+#define CADO_UTILS_NUMBERTHEORY_NUMBER_FIELD_PRIME_IDEAL_HPP
 
 #include "numbertheory/numbertheory_fwd_types.hpp"
 #include "numbertheory/number_field_fractional_ideal.hpp"

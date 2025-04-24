@@ -1,5 +1,5 @@
-#ifndef LAS_MULTIOBJ_GLOBALS_HPP_
-#define LAS_MULTIOBJ_GLOBALS_HPP_
+#ifndef CADO_LAS_MULTIOBJ_GLOBALS_HPP
+#define CADO_LAS_MULTIOBJ_GLOBALS_HPP
 
 /* This interface provides link time resolution of what would otherwise
  * be compile-time constants. The goal is to avoid recompilation in cases
@@ -9,4 +9,4 @@
 extern const int support_large_q;
 extern const int dlp_descent;
 
-#endif	/* LAS_MULTIOBJ_GLOBALS_HPP_ */
+#endif	/* CADO_LAS_MULTIOBJ_GLOBALS_HPP */

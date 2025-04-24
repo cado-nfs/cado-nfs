@@ -1,5 +1,5 @@
-#ifndef MF_BAL_HPP_
-#define MF_BAL_HPP_
+#ifndef CADO_MF_BAL_HPP
+#define CADO_MF_BAL_HPP
 
 #include <string>
 

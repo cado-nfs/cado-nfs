@@ -1,5 +1,5 @@
-#ifndef LINGEN_MUL_SUBSTEPS_HPP_
-#define LINGEN_MUL_SUBSTEPS_HPP_
+#ifndef CADO_LINGEN_MUL_SUBSTEPS_HPP
+#define CADO_LINGEN_MUL_SUBSTEPS_HPP
 
 /* Use matpoly as imported from lingen_matpoly_ft.hpp */
 #include "lingen_matpoly_ft.hpp"

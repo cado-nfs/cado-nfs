@@ -9,13 +9,13 @@
 #include <vector>
 #include <iostream>
 
-#include "macros.h"        // for ASSERT
-// #include "modint.hpp"      // for operator<<
+#include "macros.h"
+// #include "modint.hpp"
 
-#include "mod64.hpp"    // IWYU pragma: keep
-#include "modredc64.hpp"        // IWYU pragma: keep
-#include "modredc126.hpp"       // IWYU pragma: keep
-#include "mod_mpz_new.hpp"      // IWYU pragma: keep
+#include "arithxx/mod64.hpp"
+#include "arithxx/modredc64.hpp"
+#include "arithxx/modredc126.hpp"
+#include "arithxx/mod_mpz_new.hpp"
 #include "ec_arith_Weierstrass_new.hpp"
 
 /* Computes R=2P, with 1 inv, 4 muls (2 muls and 2 squares) and 8 add/sub.
@@ -24,8 +24,8 @@
  *
  * It is permissible to let *this and R use the same memory.
  */
-template <typename MODULUS>
-void ECWeierstrass<MODULUS>::AffinePoint::dbl (AffinePoint &R) const {
+template <typename layer>
+void ECWeierstrass<layer>::AffinePoint::dbl (AffinePoint &R) const {
     ASSERT_EXPENSIVE(curve.is_same(R.curve));
     Residue lambda(curve.m), u(curve.m), v(curve.m);
 
@@ -64,8 +64,8 @@ void ECWeierstrass<MODULUS>::AffinePoint::dbl (AffinePoint &R) const {
  *
  * It is permissible to let R and P (or R and Q) use the same memory.
  */
-template <typename MODULUS>
-void ECWeierstrass<MODULUS>::AffinePoint::add (AffinePoint &R, const AffinePoint &Q) const {
+template <typename layer>
+void ECWeierstrass<layer>::AffinePoint::add (AffinePoint &R, const AffinePoint &Q) const {
     ASSERT_EXPENSIVE(curve.is_same(Q.curve));
     ASSERT_EXPENSIVE(curve.is_same(R.curve));
     Residue lambda(curve.m), u(curve.m), v(curve.m);
@@ -106,8 +106,8 @@ void ECWeierstrass<MODULUS>::AffinePoint::add (AffinePoint &R, const AffinePoint
  * If the point at infinity is due to a failed inversion, the non-invertible
  * value is returned in R.x.
  */
-template <typename MODULUS>
-void ECWeierstrass<MODULUS>::AffinePoint::smul (AffinePoint &R, const uint64_t e) const
+template <typename layer>
+void ECWeierstrass<layer>::AffinePoint::smul (AffinePoint &R, const uint64_t e) const
 {
     if (e == 0) {
         R.set0();
@@ -141,22 +141,21 @@ void ECWeierstrass<MODULUS>::AffinePoint::smul (AffinePoint &R, const uint64_t e
  * XXX For now, this function only works for 64-bit arithmetic, so only the
  * 64-bit version is defined.
  */
-template <typename MODULUS>
-uint64_t ECWeierstrass<MODULUS>::AffinePoint::point_order (const uint64_t known_m,
+template <typename layer>
+uint64_t ECWeierstrass<layer>::AffinePoint::point_order (const uint64_t known_m,
     const uint64_t known_r, const int verbose) const
 {
   AffinePoint Pi(curve), Pg(curve), Q(curve);
   Residue x(curve.m), d(curve.m);
   uint64_t min, max, i, j, order, cof, p;
   uint64_t giant_step, giant_min, baby_len;
-  Integer tm;
 
   ASSERT (known_r < known_m);
 
   if (is0())
       return 1;
   
-  curve.m.getmod (tm);
+  Integer tm = curve.m.getmod ();
 
   if (verbose >= 2)
   {
@@ -275,9 +274,8 @@ found_inf:
   smul (Pi, i);
   if (!Pi.is0())
     {
-      Integer tx1, ty1;
-      curve.m.get (tx1, x);
-      curve.m.get (ty1, y);
+      const Integer tx1 = curve.m.get (x);
+      const Integer ty1 = curve.m.get (y);
 #ifndef MODMPZ_MAXBITS
       fprintf (stderr, "ec_order: Error, %" PRIu64 "*(%" PRIu64 ", %" PRIu64 ") (mod %" PRIu64 ") is "
                "not the point at infinity\n",
@@ -326,11 +324,7 @@ found_inf:
   smul (Pi, order);
   if (!Pi.is0())
     {
-      Integer tx1, ty1;
-      curve.m.get (tx1, x);
-      curve.m.get (ty1, y);
-      fprintf (stderr, "ec_order: Error, final order %" PRIu64 " is wrong\n",
-               order);
+      fprintf (stderr, "ec_order: Error, final order %" PRIu64 " is wrong\n", order);
       abort ();
     }
 
@@ -341,8 +335,8 @@ found_inf:
  *
  * It is permissible to let P and Q use the same memory.
  */
-template <typename MODULUS>
-void ECWeierstrass<MODULUS>::ProjectivePoint::dbl (ProjectivePoint &R) const
+template <typename layer>
+void ECWeierstrass<layer>::ProjectivePoint::dbl (ProjectivePoint &R) const
 {
     ASSERT_EXPENSIVE(curve.is_same(R.curve));
 
@@ -393,8 +387,8 @@ void ECWeierstrass<MODULUS>::ProjectivePoint::dbl (ProjectivePoint &R) const
  *
  * It is permissible to let R and P (or R and Q) use the same memory.
  */
-template <typename MODULUS>
-void ECWeierstrass<MODULUS>::ProjectivePoint::add (ProjectivePoint &R, const ProjectivePoint &Q) const
+template <typename layer>
+void ECWeierstrass<layer>::ProjectivePoint::add (ProjectivePoint &R, const ProjectivePoint &Q) const
 {
     ASSERT_EXPENSIVE(curve.is_same(R.curve));
     ASSERT_EXPENSIVE(curve.is_same(Q.curve));
@@ -456,8 +450,8 @@ void ECWeierstrass<MODULUS>::ProjectivePoint::add (ProjectivePoint &R, const Pro
  *    - m : modulus
  *    - a : curve coefficient
  */
-template <typename MODULUS>
-void ECWeierstrass<MODULUS>::ProjectivePoint::smul (ProjectivePoint &R, const uint64_t e) const
+template <typename layer>
+void ECWeierstrass<layer>::ProjectivePoint::smul (ProjectivePoint &R, const uint64_t e) const
 {
     if (e == 0) {
         R.set0();
@@ -483,7 +477,7 @@ void ECWeierstrass<MODULUS>::ProjectivePoint::smul (ProjectivePoint &R, const ui
     }
 }
 
-template class ECWeierstrass<Modulus64>;
-template class ECWeierstrass<ModulusREDC64>;
-template class ECWeierstrass<ModulusREDC126>;
-template class ECWeierstrass<ModulusMPZ>;
+template class ECWeierstrass<arithxx_mod64>;
+template class ECWeierstrass<arithxx_modredc64>;
+template class ECWeierstrass<arithxx_modredc126>;
+template class ECWeierstrass<arithxx_mod_mpz_new>;

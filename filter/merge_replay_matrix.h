@@ -1,5 +1,5 @@
-#ifndef MERGE_REPLAY_MATRIX_H
-#define MERGE_REPLAY_MATRIX_H
+#ifndef CADO_MERGE_REPLAY_MATRIX_H
+#define CADO_MERGE_REPLAY_MATRIX_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -70,4 +70,4 @@ int weightSum(filter_matrix_t *mat, index_t i1, index_t i2, index_t j);
 }
 #endif
 
-#endif	/* MERGE_REPLAY_MATRIX_H */
+#endif	/* CADO_MERGE_REPLAY_MATRIX_H */

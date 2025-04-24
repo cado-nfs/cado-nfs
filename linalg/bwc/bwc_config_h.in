@@ -1,5 +1,5 @@
-#ifndef BWC_CONFIG_H_
-#define BWC_CONFIG_H_
+#ifndef CADO_BWC_CONFIG_H
+#define CADO_BWC_CONFIG_H
 
 #include "cado_config.h"
 #include "cado_mpi_config.h"

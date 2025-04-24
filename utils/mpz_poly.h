@@ -1,5 +1,5 @@
-#ifndef MPZ_POLY_H_
-#define MPZ_POLY_H_
+#ifndef CADO_MPZ_POLY_H
+#define CADO_MPZ_POLY_H
 
 // IWYU pragma: no_include "double_poly.h"
 // (only the fwd-decl is needed)
@@ -34,7 +34,7 @@
 #define xxxMPZ_POLY_TIMINGS
 // for timings of roots mod p (beware, this is not thread-safe)
 
-#ifndef DOUBLE_POLY_H_
+#ifndef CADO_DOUBLE_POLY_H
 typedef struct double_poly_s * double_poly_ptr;
 typedef const struct double_poly_s * double_poly_srcptr;
 #endif
@@ -55,7 +55,7 @@ struct mpz_poly_s {
   int deg;
   mpz_t *_coeff;
 };
-#ifndef DOUBLE_POLY_H_
+#ifndef CADO_DOUBLE_POLY_H
 /* double_poly.h forward-declares these. Don't do it twice */
 typedef struct mpz_poly_s * mpz_poly_ptr;
 typedef const struct mpz_poly_s * mpz_poly_srcptr;
@@ -550,4 +550,4 @@ inline int mpz_poly_set_from_expression(mpz_poly_ptr f, std::string const & valu
 }
 #endif
 
-#endif	/* MPZ_POLY_H_ */
+#endif	/* CADO_MPZ_POLY_H */

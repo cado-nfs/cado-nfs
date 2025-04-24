@@ -1,5 +1,5 @@
-#ifndef MPZ_MAT_H_
-#define MPZ_MAT_H_
+#ifndef CADO_MPZ_MAT_H
+#define CADO_MPZ_MAT_H
 
 #include <stdio.h>
 #ifdef __cplusplus
@@ -347,4 +347,4 @@ extern void mpq_mat_clear(cxx_mpq_mat & pl) __attribute__((error("mpq_mat_clear 
 #endif
 #endif
 
-#endif	/* MPZ_MAT_H_ */
+#endif	/* CADO_MPZ_MAT_H */

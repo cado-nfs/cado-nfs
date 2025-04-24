@@ -1,5 +1,5 @@
-#ifndef LAS_DESCENT_TREES_HPP_
-#define LAS_DESCENT_TREES_HPP_
+#ifndef CADO_LAS_DESCENT_TREES_HPP
+#define CADO_LAS_DESCENT_TREES_HPP
 
 #include <cstdio>             // for FILE
 #include <cstdlib>            // for free
@@ -298,4 +298,4 @@ struct descent_tree {
 
     void display_all_trees(FILE * o);
 };
-#endif	/* LAS_DESCENT_TREES_HPP_ */
+#endif	/* CADO_LAS_DESCENT_TREES_HPP */

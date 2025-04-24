@@ -1,5 +1,5 @@
-#ifndef TIME_BBLAS_COMMON_HPP_
-#define TIME_BBLAS_COMMON_HPP_
+#ifndef CADO_TIME_BBLAS_COMMON_HPP
+#define CADO_TIME_BBLAS_COMMON_HPP
 
 #include <ctime>
 #include <cstdio>

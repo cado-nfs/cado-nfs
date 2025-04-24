@@ -1,6 +1,8 @@
 #include "cado.h" // IWYU pragma: keep
-#include "mod_ul_default.h"
 #include <gmp.h>
+
+#include "arith/mod_ul_default.h"
+
 #include "mpqs.h"
 #include "mpqs_doit.h"
 

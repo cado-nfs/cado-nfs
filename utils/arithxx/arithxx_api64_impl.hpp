@@ -1,0 +1,6 @@
+#ifndef CADO_UTILS_ARITHXX_API64_IMPL_HPP
+#define CADO_UTILS_ARITHXX_API64_IMPL_HPP
+
+/* nothing here! */
+
+#endif	/* UTILS_ARITHXX_API64_IMPL_HPP_ */

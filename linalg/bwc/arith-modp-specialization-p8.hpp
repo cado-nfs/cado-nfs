@@ -1,11 +1,10 @@
-#ifndef ARITH_MODP_SPECIALIZATION_P8_HPP_
-#define ARITH_MODP_SPECIALIZATION_P8_HPP_
+#ifndef CADO_ARITH_MODP_SPECIALIZATION_P8_HPP
+#define CADO_ARITH_MODP_SPECIALIZATION_P8_HPP
 
 #include "arith-modp-main.hpp"
 #include "arith-modp-specializations.hpp"
 
-namespace arith_modp {
-namespace details {
+namespace arith_modp::details {
 
 /*  code for gfp<8, 1> */
 #define ADDSUBMUL_CODE8(op, opc)                                               \
@@ -54,7 +53,6 @@ namespace details {
 
 EXPOSE_SPECIALIZATION(8);
 
-}
 }
 
 #endif /* ARITH_MODP_SPECIALIZATION_P8_HPP_ */

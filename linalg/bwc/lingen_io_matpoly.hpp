@@ -1,5 +1,5 @@
-#ifndef LINGEN_IO_MATPOLY_HPP_
-#define LINGEN_IO_MATPOLY_HPP_
+#ifndef CADO_LINGEN_IO_MATPOLY_HPP
+#define CADO_LINGEN_IO_MATPOLY_HPP
 // The selection is done within lingen_matpoly_select.hpp only
 // IWYU pragma: no_include "mpfq_layer.h"
 // IWYU pragma: no_include "mpfq_fake.hpp"

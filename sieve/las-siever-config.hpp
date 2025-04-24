@@ -1,5 +1,5 @@
-#ifndef LAS_SIEVER_CONFIG_HPP_
-#define LAS_SIEVER_CONFIG_HPP_
+#ifndef CADO_LAS_SIEVER_CONFIG_HPP
+#define CADO_LAS_SIEVER_CONFIG_HPP
 
 #include <cstring>
 
@@ -251,4 +251,4 @@ struct siever_config_pool {
     static void declare_usage(cxx_param_list & pl);
 };
 
-#endif	/* LAS_SIEVER_CONFIG_HPP_ */
+#endif	/* CADO_LAS_SIEVER_CONFIG_HPP */

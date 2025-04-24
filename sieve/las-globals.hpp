@@ -1,5 +1,5 @@
-#ifndef LAS_GLOBALS_HPP_
-#define LAS_GLOBALS_HPP_
+#ifndef CADO_LAS_GLOBALS_HPP
+#define CADO_LAS_GLOBALS_HPP
 
 #include <cstddef>
 #include <mutex>
@@ -27,4 +27,4 @@ extern double tt_qstart;
 extern std::unique_ptr<las_output> main_output;
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
-#endif	/* LAS_GLOBALS_HPP_ */
+#endif	/* CADO_LAS_GLOBALS_HPP */

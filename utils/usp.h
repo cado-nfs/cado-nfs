@@ -1,5 +1,5 @@
-#ifndef USP_H_
-#define USP_H_
+#ifndef CADO_USP_H
+#define CADO_USP_H
 
 #include "mpz_poly.h"
 #include <gmp.h> /* for mpz_t */
@@ -40,4 +40,4 @@ void usp_root_interval_set_ui (usp_root_interval_ptr R, unsigned long a, int ka,
 }
 #endif
 
-#endif  /* USP_H_ */
+#endif  /* CADO_USP_H */

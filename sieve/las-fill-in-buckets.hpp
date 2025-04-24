@@ -1,5 +1,5 @@
-#ifndef LAS_FILL_IN_BUCKETS_HPP_
-#define LAS_FILL_IN_BUCKETS_HPP_
+#ifndef CADO_LAS_FILL_IN_BUCKETS_HPP
+#define CADO_LAS_FILL_IN_BUCKETS_HPP
 
 #include <cstdint>
 #include <vector>

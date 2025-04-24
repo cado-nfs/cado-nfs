@@ -1,5 +1,5 @@
-#ifndef GZIP_H_
-#define GZIP_H_
+#ifndef CADO_GZIP_H
+#define CADO_GZIP_H
 
 #include "cado_config.h"  // for HAVE_GETRUSAGE
 #include <stdio.h>
@@ -168,4 +168,4 @@ typedef basic_ofstream_maybe_compressed<char> ofstream_maybe_compressed;
 
 #endif
 
-#endif	/* GZIP_H_ */
+#endif	/* CADO_GZIP_H */

@@ -1,5 +1,5 @@
-#ifndef ARITH_MODP_CARRY_SAVE_HPP_
-#define ARITH_MODP_CARRY_SAVE_HPP_
+#ifndef CADO_ARITH_MODP_CARRY_SAVE_HPP
+#define CADO_ARITH_MODP_CARRY_SAVE_HPP
 
 #include "arith-modp-main.hpp"
 
@@ -7,8 +7,7 @@
 #include <x86intrin.h>
 #endif
 
-namespace arith_modp {
-namespace details {
+namespace arith_modp::details {
 #if 0
     /* This is old AVX/SSE carry-save code. It hasn't been tested in a
      * long while, and it has never been put in production as far as I
@@ -540,7 +539,6 @@ namespace details {
 #endif /* defined(HAVE_AVX2) || defined(HAVE_SSSE3) */
 #endif
 #endif
-}
 }
 
 #endif /* ARITH_MODP_CARRY_SAVE_HPP_ */

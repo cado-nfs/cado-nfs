@@ -1,5 +1,5 @@
-#ifndef GMPXX_HPP_
-#define GMPXX_HPP_
+#ifndef CADO_GMPXX_HPP
+#define CADO_GMPXX_HPP
 
 #include <gmp.h>
 #include <istream>    // std::istream // IWYU pragma: keep
@@ -18,4 +18,4 @@ extern std::istream& operator>>(std::istream& is, mpz_ptr x);
 extern std::istream& operator>>(std::istream& is, mpq_ptr x);
 // #endif
 
-#endif	/* GMPXX_HPP_ */
+#endif	/* CADO_GMPXX_HPP */

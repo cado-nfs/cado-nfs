@@ -1,5 +1,5 @@
-#ifndef LAS_DUMPFILE_HPP_
-#define LAS_DUMPFILE_HPP_
+#ifndef CADO_LAS_DUMPFILE_HPP
+#define CADO_LAS_DUMPFILE_HPP
 
 #include <cstdio>  // for size_t, FILE, NULL
 struct las_todo_entry;
@@ -17,4 +17,4 @@ public:
 };
 
 
-#endif	/* LAS_DUMPFILE_HPP_ */
+#endif	/* CADO_LAS_DUMPFILE_HPP */

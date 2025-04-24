@@ -1,5 +1,5 @@
-#ifndef IQSORT_H_
-#define IQSORT_H_
+#ifndef CADO_IQSORT_H
+#define CADO_IQSORT_H
 
 /* $Id: qsort.h,v 1.5 2008-01-28 18:16:49 mjt Exp $
  * Adopted from GNU glibc by Mjt.
@@ -293,4 +293,4 @@ typedef struct {
   }									\
 }
 
-#endif	/* IQSORT_H_ */
+#endif	/* CADO_IQSORT_H */

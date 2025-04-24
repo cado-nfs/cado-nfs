@@ -1,5 +1,5 @@
-#ifndef ROPT_SUBLATTICE_PRIORITY_QUEUE_H_
-#define ROPT_SUBLATTICE_PRIORITY_QUEUE_H_
+#ifndef CADO_ROPT_SUBLATTICE_PRIORITY_QUEUE_H
+#define CADO_ROPT_SUBLATTICE_PRIORITY_QUEUE_H
 
 #include <stddef.h>
 #include "gmp.h"
@@ -40,4 +40,4 @@ void sublattice_priority_queue_do(sublattice_priority_queue_srcptr q, void (*f)(
 }
 #endif
 
-#endif	/* ROPT_SUBLATTICE_PRIORITY_QUEUE_H_ */
+#endif	/* CADO_ROPT_SUBLATTICE_PRIORITY_QUEUE_H */

@@ -1,5 +1,5 @@
-#ifndef BUCKET_HPP_
-#define BUCKET_HPP_
+#ifndef CADO_BUCKET_HPP
+#define CADO_BUCKET_HPP
 
 /*
  * Bucket sieving: radix-sort sieve updates as they are created.
@@ -677,4 +677,4 @@ extern template class bucket_array_t<3, emptyhint_t>;
 extern template class bucket_array_t<1, logphint_t>;
 extern template class bucket_array_t<2, logphint_t>;
 
-#endif /* BUCKET_HPP_ */
+#endif /* CADO_BUCKET_HPP */

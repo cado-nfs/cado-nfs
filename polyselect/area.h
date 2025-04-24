@@ -1,5 +1,5 @@
-#ifndef AREA_H_
-#define AREA_H_
+#ifndef CADO_AREA_H
+#define CADO_AREA_H
 
 /* default parameters for Murphy's E-value */
 #define BOUND_F 1e7
@@ -20,4 +20,4 @@ extern double area, bound_f, bound_g;
 /* default rootsieve effort */
 #define DEFAULT_ROPTEFFORT 5.0
 
-#endif	/* AREA_H_ */
+#endif	/* CADO_AREA_H */

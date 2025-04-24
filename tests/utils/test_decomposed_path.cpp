@@ -16,7 +16,7 @@ int main()
             })
     {
         const decomposed_path D(s);
-        auto quote = [](auto s) {
+        auto quote = [](std::string const & s) {
             return fmt::format("\"{}\"", s);
         };
         fmt::print("path: \"{}\" -> {}, components: {}\n",

@@ -1,5 +1,5 @@
-#ifndef POWERS_OF_P_H_
-#define POWERS_OF_P_H_
+#ifndef CADO_POWERS_OF_P_H
+#define CADO_POWERS_OF_P_H
 
 #include <gmp.h>
 
@@ -17,4 +17,4 @@ mpz_srcptr power_lookup_const(const void * t, int i);
 }
 #endif
 
-#endif	/* POWERS_OF_P_H_ */
+#endif	/* CADO_POWERS_OF_P_H */

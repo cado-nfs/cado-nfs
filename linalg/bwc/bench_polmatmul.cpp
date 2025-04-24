@@ -9,7 +9,6 @@
 #include <ctime>
 
 #include <algorithm>
-#include <functional>
 #include <memory>
 #include <vector>
 #include <string>
@@ -72,15 +71,16 @@ void bench_polmul(unsigned int d1, unsigned int d2)
 #define NREPS_MAX 1000
 #define REPEAT_TIME_MAX 0.1
 
-template <typename F, typename... Args>
-static double one_bench(F const & f, Args &&... args)
+template <typename F>
+static double one_bench(F const & f)
 {
     clock_t const tt = clock();
     unsigned int r;
     clock_t const clocklim = tt + lround(REPEAT_TIME_MAX * CLOCKS_PER_SEC);
     for (r = 0; r < NREPS_MAX && clock() < clocklim; r++) {
-        f(std::forward<Args>(args)...);
+        f();
     }
+    if (!r) return 0;
     return double(clock() - tt) / r / CLOCKS_PER_SEC;
 }
 
@@ -232,7 +232,7 @@ struct my_strassen_selector {
         fmt::print("#else   /*  STRASSEN_THRESHOLDS_AS_CPP_CONSTANTS */\n");
         auto s = name;
         std::transform(s.begin(), s.end(), s.begin(),
-                       [](auto c) { return std::tolower(c); });
+                       [](char c) { return std::tolower(c); });
         fmt::print(
             "template<> unsigned int foo<{}>::default_selector_data[] = {{\n",
             s);
@@ -372,33 +372,23 @@ static void fft_times(double & dft1, double & dft2, double & compose,
     std::unique_ptr<elt[]> const temp1((elt *)new char[o.size1_bytes()]);
     std::unique_ptr<elt[]> const temp2((elt *)new char[o.size2_bytes()]);
 
-    using namespace std::placeholders;
-
     {
-        // NOLINTNEXTLINE(modernize-avoid-bind)
-        auto F = std::bind(&T::dft, &o, _1, _2, _3, _4);
         auto data1 = random_bitstring(n1, state);
-        dft1 = one_bench(F, f, data1.data(), n1, temp1.get());
+        dft1 = one_bench([&](){o.dft(f, data1.data(), n1, temp1.get());});
         fmt::print(" {:.2f}", dft1 * 1.0e6);
     }
     {
-        // NOLINTNEXTLINE(modernize-avoid-bind)
-        auto F = std::bind(&T::dft, &o, _1, _2, _3, _4);
         auto data2 = random_bitstring(n2, state);
-        dft2 = one_bench(F, g, data2.data(), n2, temp1.get());
+        dft2 = one_bench([&](){o.dft(g, data2.data(), n2, temp1.get());});
         fmt::print(" {:.2f}", dft2 * 1.0e6);
     }
     {
-        // NOLINTNEXTLINE(modernize-avoid-bind)
-        auto F = std::bind(&T::compose, &o, _1, _2, _3, _4);
-        compose = one_bench(F, g, g, f, temp2.get());
+        compose = one_bench([&](){o.compose(g, g, f, temp2.get());});
         fmt::print(" {:.2f}", compose * 1.0e6);
     }
     {
-        // NOLINTNEXTLINE(modernize-avoid-bind)
-        auto F = std::bind(&T::ift, &o, _1, _2, _3, _4);
         auto data3 = random_bitstring(n3, state);
-        ift = one_bench(F, data3.data(), n3, g, temp1.get());
+        ift = one_bench([&](){o.ift(data3.data(), n3, g, temp1.get());});
         fmt::print(" {:.2f}", ift * 1.0e6);
     }
 
@@ -532,15 +522,13 @@ static void tune_strassen1(fft_type const &, unsigned int d1, unsigned int d2,
             // force cubic
             s.threshold(dd1, dd2, dd3) = UINT_MAX;
 
-            using namespace std::placeholders;
             {
-                // NOLINTNEXTLINE(modernize-avoid-bind)
-                auto F = std::bind(&compose_inner<fft_type, my_strassen_selector>, _1, _2, _3, _4, _5);
-                t_cubic = one_bench(F, th, tf, tg, o, s);
+                auto F = [&](){compose_inner(th, tf, tg, o, s);};
+                t_cubic = one_bench(F);
                 fmt::print(" {:.2g}", t_cubic);
                 // force strassen
                 s.threshold(dd1, dd2, dd3) = 0;
-                t_strassen = one_bench(F, th, tf, tg, o, s);
+                t_strassen = one_bench(F);
                 fmt::print(" {:.2g}", t_strassen);
             }
             if (t_cubic <= t_strassen) {
@@ -626,7 +614,7 @@ static void plot_compose(char const * name MAYBE_UNUSED, unsigned int n1,
         typename fft_type::ptr pf = o.alloc(1);
         typename fft_type::ptr pg = o.alloc(1);
         typename fft_type::ptr ph = o.alloc(1);
-        single_compose = one_bench(std::bind(&fft_type::compose, o), ph, pf, pg);
+        single_compose = one_bench([&](){o.compose(ph, pf, pg);});
         o.clear(pf, 1);
         o.clear(pg, 1);
         o.clear(ph, 1);
@@ -682,6 +670,7 @@ bench_one_polmm_projected_sub(fft_type & o, unsigned long d1, unsigned long d2,
     res.dft = dft1 * double(d1 * d2) + dft2 * double(d2 * d3);
     res.ift = ift * double(d1 * d3);
     res.compose = total_compose_time;
+    res.engine = fft_type::name;
 
     fmt::print(" --> dft: {:.2f} ; mul(d{}): {:.2f} ; ift: {:.2f}\n",
                (dft1 * double(d1 * d2) + dft2 * double(d2 * d3)), d, total_compose_time,
@@ -741,23 +730,18 @@ bench_one_polmm_complete_sub(fft_type & o, unsigned long d1, unsigned long d2,
 
     level_info res;
 
-    using namespace std::placeholders;
+    res.engine = fft_type::name;
+
     {
-        // NOLINTNEXTLINE(modernize-avoid-bind)
-        auto F = std::bind(&transform<fft_type>, _1, _2, _3, _4);
-        l.t1 = one_bench(F, tf, f, o, n1);
+        l.t1 = one_bench([&](){transform(tf, f, o, n1);});
         fmt::print(" dft1: {:.2f}", l.t1 * 1);
     }
     {
-        // NOLINTNEXTLINE(modernize-avoid-bind)
-        auto F = std::bind(&transform<fft_type>, _1, _2, _3, _4);
-        l.t2 = one_bench(F, tg, g, o, n2);
+        l.t2 = one_bench([&](){transform(tg, g, o, n2);});
         fmt::print(" dft2: {:.2f}", l.t2 * 1);
     }
     {
-        // NOLINTNEXTLINE(modernize-avoid-bind)
-        auto F = std::bind(&compose_inner<fft_type, my_strassen_selector>, _1, _2, _3, _4, _5);
-        l.c = one_bench(F, th, tf, tg, o, s);
+        l.c = one_bench([&](){compose_inner(th, tf, tg, o, s);});
         fmt::print(" compose: {:.2f}", l.c * 1);
     }
 
@@ -781,9 +765,7 @@ bench_one_polmm_complete_sub(fft_type & o, unsigned long d1, unsigned long d2,
 #endif
 
     {
-        // NOLINTNEXTLINE(modernize-avoid-bind)
-        auto F = std::bind(&itransform<fft_type>, _1, _2, _3, _4);
-        l.i = one_bench(F, h, th, o, n1 + n2 - 1);
+        l.i = one_bench([&](){itransform(h, th, o, n1 + n2 - 1);});
         fmt::print(" ift: {:.2f}", l.i * 1);
     }
     fmt::print("\n");
@@ -1031,7 +1013,7 @@ int main(int argc, char const * argv[])
         }
         usage();
     }
-    // if (N == 0 || n == 0) usage();
+    if (!N || !m || !n) usage();
 
     unsigned long const b = m + n;
 

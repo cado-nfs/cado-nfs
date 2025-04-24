@@ -1,5 +1,5 @@
-#ifndef POLYSELECT_PRIORITY_QUEUE_H_
-#define POLYSELECT_PRIORITY_QUEUE_H_
+#ifndef CADO_POLYSELECT_PRIORITY_QUEUE_H
+#define CADO_POLYSELECT_PRIORITY_QUEUE_H
 
 #include <stddef.h>
 
@@ -28,4 +28,4 @@ extern void polyselect_priority_queue_snprintf(polyselect_priority_queue_srcptr 
 }
 #endif
 
-#endif	/* POLYSELECT_PRIORITY_QUEUE_H_ */
+#endif	/* CADO_POLYSELECT_PRIORITY_QUEUE_H */

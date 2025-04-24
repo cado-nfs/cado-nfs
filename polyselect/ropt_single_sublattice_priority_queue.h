@@ -1,5 +1,5 @@
-#ifndef ROPT_SINGLE_SUBLATTICE_PRIORITY_QUEUE_H_
-#define ROPT_SINGLE_SUBLATTICE_PRIORITY_QUEUE_H_
+#ifndef CADO_ROPT_SINGLE_SUBLATTICE_PRIORITY_QUEUE_H
+#define CADO_ROPT_SINGLE_SUBLATTICE_PRIORITY_QUEUE_H
 
 #include <stddef.h>
 #include "gmp.h"
@@ -66,4 +66,4 @@ void single_sublattice_priority_queue_pop_all(single_sublattice_priority_queue_s
 }
 #endif
 
-#endif	/* ROPT_SINGLE_SUBLATTICE_PRIORITY_QUEUE_H_ */
+#endif	/* CADO_ROPT_SINGLE_SUBLATTICE_PRIORITY_QUEUE_H */

@@ -1,9 +1,12 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdlib.h>
+
+#include <cstdlib>
+
 #include <gmp.h>
+
 #include "generate_factoring_method.hpp"
-#include "fm.h"                           // for fm_create, fm_free, fm_set_...
-#include "tab_fm.h"                       // for tabular_fm_add_fm, tabular_...
+#include "fm.hpp"
+#include "tab_fm.hpp"
 
 // coverity[root_function]
 int main ()
@@ -24,6 +27,13 @@ int main ()
     tabular_fm_add_fm (tab, fm);
     bench_proba(state, tab, 20, 20, 5);
     bench_time(state, tab, 100);
+    for(unsigned int i = 0 ; i < tab->size ; i++) {
+        printf("method %u:", i);
+        for(unsigned int j = 0 ; j < tab->tab[i]->len_time ; j++) {
+            printf(" %3.2f", tab->tab[i]->time[j]);
+        }
+        printf("\n");
+    }
 
     fm_free (fm);
     tabular_fm_free (tab);

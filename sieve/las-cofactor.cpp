@@ -1,21 +1,19 @@
 #include "cado.h" // IWYU pragma: keep
 
 #include <cinttypes>
-#include <cstdlib>
-#include <algorithm>
 #include <cstdint>
+#include <cstdlib>
+
+#include <algorithm>
 #include <vector>
 
-#include "las-cofactor.hpp"
-
-#include "macros.h"
-
+#include "arith/modredc_15ul.h"
+#include "arith/modredc_2ul2.h"
+#include "arith/modredc_ul.h"
 #include "ecm/facul.hpp"
 #include "ecm/facul_strategies.hpp"
-#include "las-siever-config.hpp"  // for siever_config::side_config, siever_...
-#include "modredc_15ul.h"  // for modredc15ul_clearmod, modredc15ul_initmod_int
-#include "modredc_2ul2.h"  // for modredc2ul2_clearmod, modredc2ul2_initmod_int
-#include "modredc_ul.h"    // for modredcul_clearmod, modredcul_initmod_ul
+#include "las-cofactor.hpp"
+#include "macros.h"
 #include "params.h"
 
 void cofactorization_statistics::declare_usage(cxx_param_list & pl)
@@ -28,11 +26,11 @@ cofactorization_statistics::cofactorization_statistics(param_list_ptr pl)
 {
     const char * statsfilename = param_list_lookup_string (pl, "stats-cofact");
     if (!statsfilename) {
-        file = NULL;
+        file = nullptr;
         return;
     }
     file = fopen (statsfilename, "w");
-    if (file == NULL) {
+    if (file == nullptr) {
         fprintf (stderr, "Error, cannot create file %s\n", statsfilename);
         exit (EXIT_FAILURE);
     }

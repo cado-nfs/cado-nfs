@@ -1,10 +1,10 @@
-#ifndef FACUL_ECM_H
-#define FACUL_ECM_H
+#ifndef CADO_FACUL_ECM_H
+#define CADO_FACUL_ECM_H
 
-#include "modredc_ul.h"
-#include "modredc_15ul.h"
-#include "modredc_2ul2.h"
-#include "mod_mpz.h"
+#include "arith/modredc_ul.h"
+#include "arith/modredc_15ul.h"
+#include "arith/modredc_2ul2.h"
+#include "arith/mod_mpz.h"
 #include "bytecode.h"
 #include "stage2.h"
 
@@ -66,4 +66,4 @@ ec_valid_parameter_from_sequence (ec_parameterization_t parameterization,
 }
 #endif
 
-#endif	/* FACUL_ECM_H */
+#endif	/* CADO_FACUL_ECM_H */

@@ -1,5 +1,5 @@
-#ifndef SUBMATRIX_RANGE_HPP_
-#define SUBMATRIX_RANGE_HPP_
+#ifndef CADO_SUBMATRIX_RANGE_HPP
+#define CADO_SUBMATRIX_RANGE_HPP
 
 /* This is only an abstract description of a submatrix range. It can be
  * used on any matrix type that has methods .nrows() and .ncols()
@@ -29,4 +29,4 @@ struct submatrix_range {
 };
 
 
-#endif	/* SUBMATRIX_RANGE_HPP_ */
+#endif	/* CADO_SUBMATRIX_RANGE_HPP */

@@ -15,7 +15,7 @@
 #include "facul_method.hpp" // EC_METHOD ...
 #include "generate_factoring_method.hpp"
 #include "macros.h"
-#include "tab_fm.h"
+#include "tab_fm.hpp"
 
 static void declare_usage(param_list pl)
 {

@@ -1,5 +1,5 @@
-#ifndef RUNTIME_NUMERIC_CAST_HPP_
-#define RUNTIME_NUMERIC_CAST_HPP_
+#ifndef CADO_RUNTIME_NUMERIC_CAST_HPP
+#define CADO_RUNTIME_NUMERIC_CAST_HPP
 
 #include <type_traits>
 #include <limits>
@@ -126,4 +126,4 @@ struct runtime_numeric_cast {
 
 
 
-#endif	/* RUNTIME_NUMERIC_CAST_HPP_ */
+#endif	/* CADO_RUNTIME_NUMERIC_CAST_HPP */

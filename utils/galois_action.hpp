@@ -1,5 +1,5 @@
-#ifndef UTILS_GALOIS_ACTION_HPP_
-#define UTILS_GALOIS_ACTION_HPP_
+#ifndef CADO_UTILS_GALOIS_ACTION_HPP
+#define CADO_UTILS_GALOIS_ACTION_HPP
 
 #include <iostream>
 #include <string>
@@ -99,4 +99,4 @@ namespace fmt {
 
 }
 
-#endif  /* UTILS_GALOIS_ACTION_HPP_ */
+#endif  /* CADO_UTILS_GALOIS_ACTION_HPP */

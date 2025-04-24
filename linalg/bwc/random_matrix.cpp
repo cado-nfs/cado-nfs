@@ -261,7 +261,7 @@ random_matrix_process_data::random_matrix_process_data(
     /* }}} */
 
     param_list_parse(pl, "seed", seed);
-    if (!seed) seed = time(nullptr);
+    if (!seed) seed = static_cast<unsigned long>(time(nullptr));
     param_list_parse(pl, "c", maxcoeff);
 
     bool const binary = param_list_parse_switch(pl, "binary");
@@ -693,7 +693,7 @@ matrix_u32 random_matrix_ddata::get_byrows(cxx_gmp_randstate & rstate)
             char buf2[16];
             fmt::print("{}, {} rows in {} s ; {}/s  \n",
                     size_disp(ret.p.size() * sizeof(uint32_t), buf),
-                    i, (int) dt,
+                    i, int(dt),
                     size_disp(dt > 0 ? (size_t) (ret.p.size() * sizeof(uint32_t) / dt) : 0, buf2));
             fflush(stdout);
         }
@@ -783,7 +783,7 @@ matrix_u32 random_matrix_ddata::get_bycolumns(cxx_gmp_randstate & rstate)
             fmt::print("{}, {} cols in {} s ; {}/s (last weight: {}) \n",
                     size_disp(ret.p.size() * sizeof(uint32_t)),
                     j,
-                    (int) dt,
+                    int(dt),
                     size_disp(dt > 0 ? (size_t) (ret.p.size() * sizeof(uint32_t) / dt) : 0), weight);
         }
     }

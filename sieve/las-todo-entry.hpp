@@ -1,5 +1,5 @@
-#ifndef LAS_TODO_ENTRY_HPP_
-#define LAS_TODO_ENTRY_HPP_
+#ifndef CADO_LAS_TODO_ENTRY_HPP
+#define CADO_LAS_TODO_ENTRY_HPP
 
 #include <cstdint>      // for uint64_t
 #include <iosfwd>       // for ostream
@@ -103,4 +103,4 @@ namespace fmt {
     template <> struct formatter<las_todo_entry>: ostream_formatter {};
 }
 
-#endif	/* LAS_TODO_ENTRY_HPP_ */
+#endif	/* CADO_LAS_TODO_ENTRY_HPP */

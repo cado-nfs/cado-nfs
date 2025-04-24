@@ -38,8 +38,8 @@ cp flint2/doc/source/fft.rst flint-fft/doc/
 # This is a custom trimmed-down copy.
 
 cat > flint-fft/mpn_extras.h <<EOF
-#ifndef MPN_EXTRAS_H_
-#define MPN_EXTRAS_H_
+#ifndef CADO_MPN_EXTRAS_H
+#define CADO_MPN_EXTRAS_H
 
 #include "gmp.h"
 #include "flint.h"

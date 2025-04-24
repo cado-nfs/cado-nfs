@@ -21,8 +21,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 */
 
-#ifndef CADO_MACROS_H_
-#define CADO_MACROS_H_
+#ifndef CADO_MACROS_H
+#define CADO_MACROS_H
 // pragma no prototypes
 
 /**********************************************************************/
@@ -553,4 +553,4 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,(X),(
 #endif
 #endif
 
-#endif	/* CADO_MACROS_H_ */
+#endif	/* CADO_MACROS_H */

@@ -48,5 +48,14 @@ ideal_merge_t * ideal_merge_my_malloc(size_t n)
 
 size_t get_my_malloc_bytes()
 {
-    return index_pool.total_allocated_bytes + ideal_merge_pool.total_allocated_bytes;
+    size_t s = 0;
+    {
+        const std::lock_guard<std::mutex> dummy(index_pool.m);
+        s += index_pool.total_allocated_bytes;
+    }
+    {
+        const std::lock_guard<std::mutex> dummy(ideal_merge_pool.m);
+        s += ideal_merge_pool.total_allocated_bytes;
+    }
+    return s;
 }

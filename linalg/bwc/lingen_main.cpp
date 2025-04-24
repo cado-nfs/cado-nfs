@@ -362,7 +362,7 @@ static int wrapped_main(int argc, char const *argv[])
     }
 
 
-#if defined(FAKEMPI_H_)
+#if defined(CADO_FAKEMPI_H)
     bm.lingen_mpi_threshold = UINT_MAX;
 #endif
 #endif
@@ -410,7 +410,7 @@ static int wrapped_main(int argc, char const *argv[])
         }
 #endif
 
-#ifdef  FAKEMPI_H_
+#ifdef  CADO_FAKEMPI_H
         if (mpi[0]*mpi[1] > 1) {
             fmt::print(stderr, "non-trivial option mpi= can't be used with fakempi. Please do an MPI-enabled build (MPI=1)\n");
             exit(EXIT_FAILURE);

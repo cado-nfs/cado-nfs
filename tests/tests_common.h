@@ -1,5 +1,5 @@
-#ifndef TESTS_COMMON_H
-#define TESTS_COMMON_H
+#ifndef CADO_TESTS_COMMON_H
+#define CADO_TESTS_COMMON_H
 
 #include <stdint.h>
 #include <gmp.h>

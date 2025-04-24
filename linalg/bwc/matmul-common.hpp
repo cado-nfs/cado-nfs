@@ -1,5 +1,5 @@
-#ifndef MATMUL_COMMON_HPP_
-#define MATMUL_COMMON_HPP_
+#ifndef CADO_MATMUL_COMMON_HPP
+#define CADO_MATMUL_COMMON_HPP
 
 #include <cstdio>
 #include <cstdint>

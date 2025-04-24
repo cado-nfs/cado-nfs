@@ -7,7 +7,7 @@ include_directories(bblas)
 
 # the bitlinalg library will almost surely go away at some point, or
 # possibly be incorporated in bblas
-add_library(bitlinalg blockmatrix.cpp)
+add_library(bitlinalg OBJECT blockmatrix.cpp)
 target_link_libraries(bitlinalg bblas)
 
 if(NOT HAVE_GF2X)

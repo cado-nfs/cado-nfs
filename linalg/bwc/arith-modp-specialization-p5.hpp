@@ -1,11 +1,10 @@
-#ifndef ARITH_MODP_SPECIALIZATION_P5_HPP_
-#define ARITH_MODP_SPECIALIZATION_P5_HPP_
+#ifndef CADO_ARITH_MODP_SPECIALIZATION_P5_HPP
+#define CADO_ARITH_MODP_SPECIALIZATION_P5_HPP
 
 #include "arith-modp-main.hpp"
 #include "arith-modp-specializations.hpp"
 
-namespace arith_modp {
-namespace details {
+namespace arith_modp::details {
 
 /*  code for gfp<5, 1> */
 
@@ -46,7 +45,6 @@ namespace details {
 
 EXPOSE_SPECIALIZATION(5);
 
-}
 }
 
 #endif /* ARITH_MODP_SPECIALIZATION_P5_HPP_ */

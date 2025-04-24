@@ -56,8 +56,8 @@ To test the mpz arithmetic on a 64-bit processor:
 #include "facul_strategies.hpp"
 #include "facul_strategies_stats.hpp"
 #include "macros.h"
-#include "modredc_ul.h"
-#include "modredc_ul_default.h"
+#include "arith/modredc_ul.h"
+#include "arith/modredc_ul_default.h"
 #include "timing.h"
 #include "utils_cxx.hpp"
 

@@ -53,7 +53,7 @@
 #include "timing.h"
 #include <ctime>
 #else
-#ifndef MPZ_POLY_H_
+#ifndef CADO_MPZ_POLY_H
 #error "please include mpz_poly.h first"
 #endif
 #endif

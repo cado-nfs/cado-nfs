@@ -1,5 +1,5 @@
-#ifndef GCD_H_
-#define GCD_H_
+#ifndef CADO_GCD_H
+#define CADO_GCD_H
 
 #include <stdint.h>
 
@@ -19,4 +19,4 @@ uint64_t bin_gcd_int64_safe (int64_t a, int64_t b);
 }
 #endif
 
-#endif	/* GCD_H_ */
+#endif	/* CADO_GCD_H */

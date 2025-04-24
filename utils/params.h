@@ -1,5 +1,5 @@
-#ifndef PARAMS_H_
-#define PARAMS_H_
+#ifndef CADO_PARAMS_H
+#define CADO_PARAMS_H
 
 #include <stdio.h>
 #include <stdint.h>
@@ -334,4 +334,4 @@ struct parameter_error : public std::runtime_error {
 #endif
 
 
-#endif	/* PARAMS_H_ */
+#endif	/* CADO_PARAMS_H */

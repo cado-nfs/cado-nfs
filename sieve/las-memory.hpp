@@ -1,5 +1,5 @@
-#ifndef LAS_MEMORY_HPP_
-#define LAS_MEMORY_HPP_
+#ifndef CADO_LAS_MEMORY_HPP
+#define CADO_LAS_MEMORY_HPP
 
 #include <stddef.h>                    // for size_t
 #include <list>                        // for list
@@ -65,4 +65,4 @@ class las_memory_accessor {
     ~las_memory_accessor();
 };
 
-#endif	/* LAS_MEMORY_HPP_ */
+#endif	/* CADO_LAS_MEMORY_HPP */

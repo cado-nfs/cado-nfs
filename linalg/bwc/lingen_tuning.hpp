@@ -1,5 +1,5 @@
-#ifndef LINGEN_TUNING_HPP_
-#define LINGEN_TUNING_HPP_
+#ifndef CADO_LINGEN_TUNING_HPP
+#define CADO_LINGEN_TUNING_HPP
 
 #include <stddef.h>          // for size_t
 #include "lingen_hints.hpp"  // for lingen_hints

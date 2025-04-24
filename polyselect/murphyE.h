@@ -1,5 +1,5 @@
-#ifndef MURPHYE_H_
-#define MURPHYE_H_
+#ifndef CADO_MURPHYE_H
+#define CADO_MURPHYE_H
 
 /* Header file for murphyE.c.
 
@@ -38,4 +38,4 @@ double MurphyE (cado_poly_srcptr cpoly, double Bf, double Bg, double area, int K
 }
 #endif
 
-#endif	/* MURPHYE_H_ */
+#endif	/* CADO_MURPHYE_H */

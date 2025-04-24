@@ -1,5 +1,5 @@
-#ifndef XVECTORS_HPP_
-#define XVECTORS_HPP_
+#ifndef CADO_XVECTORS_HPP
+#define CADO_XVECTORS_HPP
 
 #include <cstdint>
 #include <vector>

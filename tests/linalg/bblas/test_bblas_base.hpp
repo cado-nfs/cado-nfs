@@ -1,5 +1,5 @@
-#ifndef TEST_BBLAS_BASE_HPP_
-#define TEST_BBLAS_BASE_HPP_
+#ifndef CADO_TEST_BBLAS_BASE_HPP
+#define CADO_TEST_BBLAS_BASE_HPP
 
 #include "bblas_mat64.hpp"
 #include <gmp.h>

@@ -1,5 +1,5 @@
-#ifndef LAS_WHERE_AM_I_PROD_HPP_
-#define LAS_WHERE_AM_I_PROD_HPP_
+#ifndef CADO_LAS_WHERE_AM_I_PROD_HPP
+#define CADO_LAS_WHERE_AM_I_PROD_HPP
 
 // IWYU pragma: private, include "las-where-am-i.hpp"
 
@@ -26,4 +26,4 @@ static inline void sieve_increase(unsigned char *S, const unsigned char logp, wh
 }
 
 
-#endif	/* LAS_WHERE_AM_I_PROD_HPP_ */
+#endif	/* CADO_LAS_WHERE_AM_I_PROD_HPP */

@@ -1,5 +1,5 @@
-#ifndef LINGEN_MAT_TYPES_HPP_
-#define LINGEN_MAT_TYPES_HPP_
+#ifndef CADO_LINGEN_MAT_TYPES_HPP
+#define CADO_LINGEN_MAT_TYPES_HPP
 
 #include <cstdint>
 #include <cstdlib>

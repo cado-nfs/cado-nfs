@@ -1,5 +1,5 @@
-#ifndef KNAPSACK_H_
-#define KNAPSACK_H_
+#ifndef CADO_KNAPSACK_H
+#define CADO_KNAPSACK_H
 
 #include <stdint.h>
 
@@ -48,4 +48,4 @@ void knapsack_object_clear(knapsack_object_ptr);
 }
 #endif
 
-#endif	/* KNAPSACK_H_ */
+#endif	/* CADO_KNAPSACK_H */

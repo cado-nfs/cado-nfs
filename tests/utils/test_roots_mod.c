@@ -1,14 +1,17 @@
 #include "cado.h" // IWYU pragma: keep
-#include "getprime.h"
-#include "gmp_aux.h"
-#include "mpz_poly.h"
-#include "rootfinder.h"
-#include <gmp.h>
+
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <gmp.h>
+
+#include "getprime.h"
+#include "gmp_aux.h"
+#include "mpz_poly.h"
+#include "rootfinder.h"
 
 int roots_mod_uint64(uint64_t * r, uint64_t a, int d, uint64_t p,
                      gmp_randstate_ptr rstate);
