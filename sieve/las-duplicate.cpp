@@ -327,8 +327,14 @@ sq_finds_relation(las_info const & las,
   }
 
   std::vector<std::vector<cxx_mpz>> f(nsides);
-  facul_status const pass = factor_both_leftover_norms(cof, f,
-          siever_side_config::collect_lim(conf.sides),
+  auto Bs = siever_side_config::collect_lim(conf.sides);
+  for(int i = nsides ; i < 2 ; i++) {
+      f.emplace_back();
+      cof.emplace_back(1);
+      Bs.emplace_back(0);
+  }
+
+  facul_status const pass = factor_both_leftover_norms(cof, f, Bs,
           *las.get_strategies(conf));
 
   if (pass != FACUL_SMOOTH) {
