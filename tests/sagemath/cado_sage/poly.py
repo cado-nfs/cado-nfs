@@ -1,9 +1,10 @@
 import os
 import re
 import sys
+import math
 
-from sage.rings.integer_ring import ZZ
-from sage.rings.finite_rings.integer_mod_ring import Integers
+# from sage.rings.integer_ring import ZZ
+# from sage.rings.finite_rings.integer_mod_ring import Integers
 from sage.rings.real_mpfr import RR
 from sage.rings.number_field.number_field import NumberField
 from .tools import get_verbose
@@ -67,9 +68,14 @@ class CadoPolyFile(object):
     def _check_mapping(self):
         # we only know how to do it when we have a polynomial of degree 1
         # somewhere.
-        rat = [ i for i,f in enumerate(self.f) if f.degree() == 1 ]
+        rat = [i for i, f in enumerate(self.f) if f.degree() == 1]
         assert len(rat)
-        m, = self.f[rat[0]].roots(Integers(self.N), multiplicities=False)
+        u, v = list(self.f[rat[0]])
+        m, = -u/v
+        from sage.rings.finite_rings.integer_mod_ring import Integers
+        from sage.rings.integer_ring import ZZ
+        m = Integers(self.N)(m)
+        assert all([f(m) == 0 for f in self.f])
         return ZZ(m)
 
     def read(self):
@@ -86,6 +92,8 @@ class CadoPolyFile(object):
             print(f"Exception while reading {self.filename} {NOK}",
                   file=sys.stderr)
             raise e
+
+        return self
 
     def __parseline(self, line):
         """
@@ -104,6 +112,7 @@ class CadoPolyFile(object):
 
         """
 
+        from sage.rings.integer_ring import ZZ
         ZP = ZZ['x']
         x = ZP.gen()
 
@@ -147,8 +156,13 @@ class CadoPolyFile(object):
             raise ValueError(f"Cannot parse line in poly file: {line}")
 
     def __create_fields(self):
-        # avoid fully factoring the discriminant, just do trial division up to 10**7
-        self.K = [NumberField(f, maximize_at_primes=[p for p,e in f.discriminant().factor(limit=10**7) if e>1], names=f"alpha{i}")
+        # avoid fully factoring the discriminant, just do trial division
+        # up to 10**7
+        fdisc = [f.discriminant().factor(limit=10**7) for f in self.f]
+        round2_primes = [[p for p, e in dd if e > 1] for dd in fdisc]
+        self.K = [NumberField(f,
+                              maximize_at_primes=round2_primes[i],
+                              names=f"alpha{i}")
                   for i, f in enumerate(self.f)]
 
     def __check_resultant(self):
@@ -166,7 +180,8 @@ class CadoPolyFile(object):
                 raise ValueError("resultant of polynomials 0 and {i}" +
                                  " is not zero modulo N")
             if f(self.m) % self.N != 0:
-                raise ValueError(f"polynomial {i} does not vanish mod {self.N}: {f(self.m)}")
+                raise ValueError(f"polynomial {i} does not"
+                                 f" vanish mod {self.N}: {f(self.m)}")
 
     def __read(self, contents):
         self.__clear_fields_for_read()
@@ -196,3 +211,136 @@ class CadoPolyFile(object):
             for i, K in enumerate(self.K):
                 rep += f"  K{i}: {K}\n"
         return rep
+
+    def _normalized_polynomial_for_graphics(self):
+        pi = RR.pi()
+
+        f1 = self.f[1]
+        x = f1.parent().gen()
+        d = f1.degree()
+        f1s = f1(self.skewness*x)/self.skewness**(d/2)
+
+        # find max on a circle.
+        S = 100
+        B = 0
+        for i in range(1, S):
+            t = i * pi / S
+            c = math.cos(t)
+            s = math.sin(t)
+            B = max(B, abs(f1s.homogenize()(c, s)))
+
+        # normalized f
+        fn = f1s / B
+
+        return fn.homogenize()
+
+    def create_2d_valley_plot(self, output_filename,
+                              style='heatmap',
+                              heatmap_plot_points=500
+                              ):
+        """
+        This creates the frequently seen "spider web" graphics for this
+        polynomial. It's normalized with respect to the skewness that is
+        stored in the polynomial, and to the max value that the
+        polynomial takes on the unit circle.
+
+        style can be 'heatmap' or 'contour'.
+
+        For style=='heatmap', the 'heatmap_plot_points' gives the size of
+        the sampling grid.
+        """
+
+        if not re.match(r'.*\.png', output_filename):
+            raise RuntimeError("output_filename must be a .png file")
+
+        F = self._normalized_polynomial_for_graphics()
+        z1 = 0
+        z0 = -10
+
+        def G(u, v):
+            return max(math.log(abs(F(u, v))), z0)
+
+        from sage.symbolic.ring import SR
+        x, y = SR.var('x y')
+
+        if style == 'contour':
+            ni = 10
+            dz = (z1 - z0) / ni
+            levels = [z0 + i * dz for i in range(ni+1)]
+            from sage.plot.contour_plot import contour_plot
+            figure = contour_plot(G,
+                                  (x, -1, 1), (y, -1, 1),
+                                  contours=levels,
+                                  cmap="jet", colorbar=True)
+        elif style == 'heatmap':
+            from sage.plot.density_plot import density_plot
+            figure = density_plot(G,
+                                  (x, -1, 1), (y, -1, 1),
+                                  cmap="jet",
+                                  plot_points=heatmap_plot_points)
+        else:
+            raise RuntimeError("The 'style' parameter must be"
+                               " either 'contour' or 'heatmap'")
+
+        pm = figure.matplotlib(axes=False, axes_pad=0)
+        pm.subplots_adjust(left=0, right=1, top=1, bottom=0)
+        import matplotlib.pyplot
+        from matplotlib.backends.backend_agg import FigureCanvasAgg
+        pm.set_canvas(FigureCanvasAgg(pm))
+        pm.set_size_inches(5, 5)
+        ax = matplotlib.pyplot.Axes(pm, [0., 0., 5., 5.])
+        ax.set_axis_off()
+        pm.add_axes(ax)
+        pm.savefig(output_filename, bbox_inches=0)
+
+    def create_3d_valley_plot(self, output_filename,
+                              resolution=300):
+        """
+        This creates a threejs animated graphics object (about 20MB in
+        size for 300 points) that can show the valleys of log(|F(a,b)|).
+        """
+
+        if not re.match(r'.*\.html', output_filename):
+            raise RuntimeError("output_filename must be a .html file")
+
+        F = self._normalized_polynomial_for_graphics()
+        z1 = 0
+        z0 = -10
+
+        def G(u, v):
+            return max(math.log(abs(F(u, v))), z0)
+
+        def G0(u, v):
+            return math.log(abs(F(u, v)))
+
+        from sage.plot.colors import colormaps
+
+        def col2(x, y):
+            z = G0(x, y)
+            return float((z - z0) / (z1 - z0))
+
+        from sage.symbolic.ring import SR
+        x, y = SR.var('x y')
+
+        from sage.plot.plot3d.plot3d import plot3d
+
+        surf = plot3d(G,
+                      (x, -1, 1), (y, -1, 1),
+                      color=(col2, colormaps.jet),
+                      plot_points=resolution)
+
+        bottom = plot3d(z0-1,
+                        (x, -1, 1), (y, -1, 1),
+                        color=(col2, colormaps.jet),
+                        plot_points=resolution,
+                        opacity=0.5)
+
+        Gr = (surf + bottom)
+
+        Gr.save(output_filename,
+                online=True,
+                aspect_ratio=[1, 1, 2/(z1-z0+1)])
+
+        # os.system(rf'sed -e "s/<script src=\".*three.min.js\">'
+        #           rf'<\/script>/<script src=\"three.js\"><\/script>/"'
+        #           rf' -i {base}-valleys.html')
