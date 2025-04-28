@@ -1,5 +1,5 @@
-#ifndef ARITH_CROSS_HPP_
-#define ARITH_CROSS_HPP_
+#ifndef CADO_ARITH_CROSS_HPP
+#define CADO_ARITH_CROSS_HPP
 
 #include "arith-generic.hpp"
 

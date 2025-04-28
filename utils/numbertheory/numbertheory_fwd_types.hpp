@@ -1,5 +1,5 @@
-#ifndef UTILS_NUMBERTHEORY_NUMBERTHEORY_FWD_TYPES_HPP_
-#define UTILS_NUMBERTHEORY_NUMBERTHEORY_FWD_TYPES_HPP_
+#ifndef CADO_UTILS_NUMBERTHEORY_FWD_TYPES_HPP
+#define CADO_UTILS_NUMBERTHEORY_FWD_TYPES_HPP
 
 #include <exception>
 
@@ -13,4 +13,4 @@ class number_field_prime_ideal;
 struct element_not_integral : public std::exception {};
 struct number_field_inconsistency : public std::exception {};
 
-#endif	/* UTILS_NUMBERTHEORY_NUMBERTHEORY_FWD_TYPES_HPP_ */
+#endif	/* UTILS_NUMBERTHEORY_FWD_TYPES_HPP_ */

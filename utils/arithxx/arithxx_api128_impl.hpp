@@ -1,5 +1,5 @@
-#ifndef UTILS_ARITHXX_ARITHXX_API128_IMPL_HPP_
-#define UTILS_ARITHXX_ARITHXX_API128_IMPL_HPP_
+#ifndef CADO_UTILS_ARITHXX_API128_IMPL_HPP
+#define CADO_UTILS_ARITHXX_API128_IMPL_HPP
 
 #include <cstdint>
 
@@ -146,4 +146,4 @@ bool arithxx_details::api_bysize<layer, Integer128>::inv(Residue & r, Residue co
     return true;
 }
 
-#endif	/* UTILS_ARITHXX_ARITHXX_API128_IMPL_HPP_ */
+#endif	/* UTILS_ARITHXX_API128_IMPL_HPP_ */

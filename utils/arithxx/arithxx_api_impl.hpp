@@ -1,5 +1,5 @@
-#ifndef UTILS_ARITHXX_API_IMPL_HPP_
-#define UTILS_ARITHXX_API_IMPL_HPP_
+#ifndef CADO_UTILS_ARITHXX_API_IMPL_HPP
+#define CADO_UTILS_ARITHXX_API_IMPL_HPP
 
 #include <cstdint>
 #include <cstddef>

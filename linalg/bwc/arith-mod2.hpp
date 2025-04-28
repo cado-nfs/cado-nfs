@@ -1,5 +1,5 @@
-#ifndef ARITH_MOD2_HPP_
-#define ARITH_MOD2_HPP_
+#ifndef CADO_ARITH_MOD2_HPP
+#define CADO_ARITH_MOD2_HPP
 
 #include "cado_config.h"
 

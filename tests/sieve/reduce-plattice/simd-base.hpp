@@ -1,5 +1,5 @@
-#ifndef SIMD_BASE_HPP_
-#define SIMD_BASE_HPP_
+#ifndef CADO_SIMD_BASE_HPP
+#define CADO_SIMD_BASE_HPP
 
 #include <cstdint>
 #include <array>

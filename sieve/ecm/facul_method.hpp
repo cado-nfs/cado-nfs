@@ -1,5 +1,5 @@
-#ifndef FACUL_METHOD_HPP_
-#define FACUL_METHOD_HPP_
+#ifndef CADO_FACUL_METHOD_HPP
+#define CADO_FACUL_METHOD_HPP
 
 #include <algorithm>
 #include <tuple>

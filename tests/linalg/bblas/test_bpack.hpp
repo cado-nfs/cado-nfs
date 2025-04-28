@@ -1,5 +1,5 @@
-#ifndef TEST_BPACK_HPP_
-#define TEST_BPACK_HPP_
+#ifndef CADO_TEST_BPACK_HPP
+#define CADO_TEST_BPACK_HPP
 
 #include <stdio.h>              // for printf
 #include <set>                  // for set

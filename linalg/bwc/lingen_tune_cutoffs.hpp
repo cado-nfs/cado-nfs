@@ -1,5 +1,5 @@
-#ifndef LINGEN_TUNE_CUTOFFS_HPP_
-#define LINGEN_TUNE_CUTOFFS_HPP_
+#ifndef CADO_LINGEN_TUNE_CUTOFFS_HPP
+#define CADO_LINGEN_TUNE_CUTOFFS_HPP
 
 #include "select_mpi.h"
 struct bw_dimensions;

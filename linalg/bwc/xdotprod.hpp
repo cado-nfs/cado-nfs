@@ -1,5 +1,5 @@
-#ifndef XDOTPROD_HPP_
-#define XDOTPROD_HPP_
+#ifndef CADO_XDOTPROD_HPP
+#define CADO_XDOTPROD_HPP
 
 #include <cstdint>              // for uint32_t
 

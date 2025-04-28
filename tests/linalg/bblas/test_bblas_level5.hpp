@@ -1,5 +1,5 @@
-#ifndef TEST_BBLAS_LEVEL5_HPP_
-#define TEST_BBLAS_LEVEL5_HPP_
+#ifndef CADO_TEST_BBLAS_LEVEL5_HPP
+#define CADO_TEST_BBLAS_LEVEL5_HPP
 
 #include <stdio.h>              // for printf
 #include <set>                  // for set

@@ -125,7 +125,7 @@ memory_pool_exception::memory_pool_exception(std::string message)
 
             /* Get rid of the type signature, it rather useless */
             yy = get_parenthesized_arg(caller, xx, zz);
-            caller = xx;
+            caller = std::move(xx);
 
             /* could it be that we have the return type in the name
              * as well ? */

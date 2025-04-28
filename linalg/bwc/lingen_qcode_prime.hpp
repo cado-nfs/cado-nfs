@@ -1,5 +1,5 @@
-#ifndef LINGEN_QCODE_PRIME_HPP_
-#define LINGEN_QCODE_PRIME_HPP_
+#ifndef CADO_LINGEN_QCODE_PRIME_HPP
+#define CADO_LINGEN_QCODE_PRIME_HPP
 
 #include <cstddef>      // size_t
 

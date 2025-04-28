@@ -1,5 +1,5 @@
-#ifndef LINALG_BWC_ABASE_PROXY_HPP_
-#define LINALG_BWC_ABASE_PROXY_HPP_
+#ifndef CADO_LINALG_BWC_ABASE_PROXY_HPP
+#define CADO_LINALG_BWC_ABASE_PROXY_HPP
 
 #include <map>
 #include <memory>

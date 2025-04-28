@@ -1,5 +1,5 @@
-#ifndef ARITH_MODP_CARRY_SAVE_HPP_
-#define ARITH_MODP_CARRY_SAVE_HPP_
+#ifndef CADO_ARITH_MODP_CARRY_SAVE_HPP
+#define CADO_ARITH_MODP_CARRY_SAVE_HPP
 
 #include "arith-modp-main.hpp"
 

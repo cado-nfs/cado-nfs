@@ -1,5 +1,5 @@
-#ifndef PLATTICE_PROXY_HPP_
-#define PLATTICE_PROXY_HPP_
+#ifndef CADO_PLATTICE_PROXY_HPP
+#define CADO_PLATTICE_PROXY_HPP
 
 #include <map>
 #include "las-plattice.hpp"

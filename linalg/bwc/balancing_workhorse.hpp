@@ -1,5 +1,5 @@
-#ifndef BALANCING_WORKHORSE_HPP_
-#define BALANCING_WORKHORSE_HPP_
+#ifndef CADO_BALANCING_WORKHORSE_HPP
+#define CADO_BALANCING_WORKHORSE_HPP
 
 #include "params.h"
 #include "parallelizing_info.hpp"

@@ -1,5 +1,5 @@
-#ifndef BBLAS_BITMAT_HPP_
-#define BBLAS_BITMAT_HPP_
+#ifndef CADO_BBLAS_BITMAT_HPP
+#define CADO_BBLAS_BITMAT_HPP
 
 // IWYU pragma: private, include "bblas.hpp"
 // IWYU pragma: friend ".*/bblas.*"

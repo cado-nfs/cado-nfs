@@ -1,5 +1,5 @@
-#ifndef UTILS_ARITHXX_ARITHXX_REDC128_HPP_
-#define UTILS_ARITHXX_ARITHXX_REDC128_HPP_
+#ifndef CADO_UTILS_ARITHXX_REDC128_HPP
+#define CADO_UTILS_ARITHXX_REDC128_HPP
 
 #include <cstdint>
 
@@ -90,4 +90,4 @@ struct arithxx_details::redc128
     std::vector<Integer> batchinv_redc(std::vector<uint64_t> const & a, Integer const & c) const;
     friend struct arithxx_details::batch_Q_to_Fp_context<layer>;
 };
-#endif	/* UTILS_ARITHXX_ARITHXX_REDC128_HPP_ */
+#endif	/* UTILS_ARITHXX_REDC128_HPP_ */

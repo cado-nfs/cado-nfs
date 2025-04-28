@@ -80,6 +80,7 @@ static double one_bench(F const & f)
     for (r = 0; r < NREPS_MAX && clock() < clocklim; r++) {
         f();
     }
+    if (!r) return 0;
     return double(clock() - tt) / r / CLOCKS_PER_SEC;
 }
 
@@ -1012,7 +1013,7 @@ int main(int argc, char const * argv[])
         }
         usage();
     }
-    // if (N == 0 || n == 0) usage();
+    if (!N || !m || !n) usage();
 
     unsigned long const b = m + n;
 

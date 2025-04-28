@@ -1,5 +1,5 @@
-#ifndef LINGEN_CHECKPOINTS_HPP_
-#define LINGEN_CHECKPOINTS_HPP_
+#ifndef CADO_LINGEN_CHECKPOINTS_HPP
+#define CADO_LINGEN_CHECKPOINTS_HPP
 
 #include <cstddef>               // for size_t
 #include <stdexcept>              // for runtime_error

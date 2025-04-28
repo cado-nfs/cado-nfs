@@ -915,6 +915,7 @@ scripts/gdb/cado_nfs_gdb/polynomials.py
 scripts/hintfile-helper.py
 scripts/install-cmake.sh
 scripts/list_modified_files.sh
+scripts/normalize-include-guards.sh
 scripts/oar_start_clients.sh
 scripts/realpath.sh
 scripts/refresh-fmtlib.sh

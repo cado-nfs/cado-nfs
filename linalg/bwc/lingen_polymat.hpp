@@ -1,5 +1,5 @@
-#ifndef LINGEN_POLYMAT_HPP_
-#define LINGEN_POLYMAT_HPP_
+#ifndef CADO_LINGEN_POLYMAT_HPP
+#define CADO_LINGEN_POLYMAT_HPP
 
 #ifdef LINGEN_BINARY
 #error                                                                         \

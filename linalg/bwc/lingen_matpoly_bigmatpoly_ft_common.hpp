@@ -1,5 +1,5 @@
-#ifndef LINGEN_MATPOLY_BIGMATPOLY_FT_COMMON_HPP_
-#define LINGEN_MATPOLY_BIGMATPOLY_FT_COMMON_HPP_
+#ifndef CADO_LINGEN_MATPOLY_BIGMATPOLY_FT_COMMON_HPP
+#define CADO_LINGEN_MATPOLY_BIGMATPOLY_FT_COMMON_HPP
 
 /* The code here is inserted by the compiler inside lingen_matpoly_ft.cpp
  * and lingen_bigmatpoly_ft.cpp, as a template function. The class

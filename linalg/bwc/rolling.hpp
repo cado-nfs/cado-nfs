@@ -1,5 +1,5 @@
-#ifndef ROLLING_HPP_
-#define ROLLING_HPP_
+#ifndef CADO_ROLLING_HPP
+#define CADO_ROLLING_HPP
 
 #include <string>
 

@@ -22,8 +22,8 @@
  * purpose.  It is provided "as is" without express or implied warranty.
  */
 
-#ifndef CADO_ENDIAN_H_
-#define CADO_ENDIAN_H_
+#ifndef CADO_ENDIAN_H
+#define CADO_ENDIAN_H
 
 // pragma no prototypes
 

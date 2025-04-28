@@ -1,5 +1,5 @@
-#ifndef SIMD_AVX512_HPP_
-#define SIMD_AVX512_HPP_
+#ifndef CADO_SIMD_AVX512_HPP
+#define CADO_SIMD_AVX512_HPP
 
 #include <cstdint>
 #include <array>

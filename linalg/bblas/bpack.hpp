@@ -1,5 +1,5 @@
-#ifndef BPACK_HPP_
-#define BPACK_HPP_
+#ifndef CADO_BPACK_HPP
+#define CADO_BPACK_HPP
 
 #include <cstdint>                       // for uint64_t, uint8_t
 

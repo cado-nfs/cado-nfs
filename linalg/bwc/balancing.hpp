@@ -1,5 +1,5 @@
-#ifndef BALANCING_HPP_
-#define BALANCING_HPP_
+#ifndef CADO_BALANCING_HPP
+#define CADO_BALANCING_HPP
 
 #include <cstdint>
 

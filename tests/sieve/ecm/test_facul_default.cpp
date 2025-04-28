@@ -16,9 +16,9 @@ int main()
     const std::vector<unsigned long> lim { 1 << 23, 1 << 21 };
     const std::vector<unsigned int> lpb { 33, 35 };
     const std::vector<unsigned int> mfb { 66, 105 };
-    const std::vector<int> ncurves { -1, -1 };
 
-    const facul_strategies strat(lim, lpb, mfb, ncurves, true, false);
+    const facul_strategies strat(lim, lpb, mfb,
+            {-1, -1}, true, false);
 
     std::vector<cxx_mpz> n {
         "266630219"_mpz, "8435925448634188287568341721097"_mpz

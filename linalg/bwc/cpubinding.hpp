@@ -1,5 +1,5 @@
-#ifndef CPUBINDING_HPP_
-#define CPUBINDING_HPP_
+#ifndef CADO_CPUBINDING_HPP
+#define CADO_CPUBINDING_HPP
 
 #include "params.h"     // param_list
 

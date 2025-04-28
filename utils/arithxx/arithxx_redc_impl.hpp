@@ -1,5 +1,5 @@
-#ifndef UTILS_ARITHXX_ARITHXX_REDC_IMPL_HPP_
-#define UTILS_ARITHXX_ARITHXX_REDC_IMPL_HPP_
+#ifndef CADO_UTILS_ARITHXX_REDC_IMPL_HPP
+#define CADO_UTILS_ARITHXX_REDC_IMPL_HPP
 
 #include <cstdint>
 
@@ -18,4 +18,4 @@ arithxx_details::redc<layer>::batch_Q_to_Fp(Integer const & num,
 }
 
 
-#endif	/* UTILS_ARITHXX_ARITHXX_REDC_IMPL_HPP_ */
+#endif	/* UTILS_ARITHXX_REDC_IMPL_HPP_ */

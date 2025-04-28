@@ -1,5 +1,5 @@
-#ifndef LINGEN_IO_WRAPPERS_HPP_
-#define LINGEN_IO_WRAPPERS_HPP_
+#ifndef CADO_LINGEN_IO_WRAPPERS_HPP
+#define CADO_LINGEN_IO_WRAPPERS_HPP
 
 // IWYU pragma: no_include <algorithm>
 

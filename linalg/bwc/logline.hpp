@@ -1,5 +1,5 @@
-#ifndef LOGLINE_HPP_
-#define LOGLINE_HPP_
+#ifndef CADO_LOGLINE_HPP
+#define CADO_LOGLINE_HPP
 
 #include <cstdarg>  // for va_list
 #include <cstdio>   // for FILE, size_t

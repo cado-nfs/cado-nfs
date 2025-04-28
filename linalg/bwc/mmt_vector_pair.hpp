@@ -1,5 +1,5 @@
-#ifndef MMT_VECTOR_PAIR_HPP_
-#define MMT_VECTOR_PAIR_HPP_
+#ifndef CADO_MMT_VECTOR_PAIR_HPP
+#define CADO_MMT_VECTOR_PAIR_HPP
 
 #include <vector>
 

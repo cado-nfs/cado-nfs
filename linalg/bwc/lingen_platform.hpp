@@ -1,5 +1,5 @@
-#ifndef LINGEN_PLATFORM_HPP_
-#define LINGEN_PLATFORM_HPP_
+#ifndef CADO_LINGEN_PLATFORM_HPP
+#define CADO_LINGEN_PLATFORM_HPP
 
 #include <cstddef>      // for size_t
 #include "select_mpi.h"

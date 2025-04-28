@@ -1,5 +1,5 @@
-#ifndef LINGEN_BW_DIMENSIONS_HPP_
-#define LINGEN_BW_DIMENSIONS_HPP_
+#ifndef CADO_LINGEN_BW_DIMENSIONS_HPP
+#define CADO_LINGEN_BW_DIMENSIONS_HPP
 
 #include "arith-hard.hpp"       // IWYU pragma: keep
 #include "cxx_mpz.hpp"

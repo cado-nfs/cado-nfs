@@ -1,5 +1,5 @@
-#ifndef LINGEN_BIGMATPOLY_HPP_
-#define LINGEN_BIGMATPOLY_HPP_
+#ifndef CADO_LINGEN_BIGMATPOLY_HPP
+#define CADO_LINGEN_BIGMATPOLY_HPP
 
 #include <vector>
 #include <cstring>     // memcmp

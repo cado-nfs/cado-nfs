@@ -1,5 +1,5 @@
-#ifndef MATMUL_HPP_
-#define MATMUL_HPP_
+#ifndef CADO_MATMUL_HPP
+#define CADO_MATMUL_HPP
 
 #include <cstddef>
 #include <cstdarg>

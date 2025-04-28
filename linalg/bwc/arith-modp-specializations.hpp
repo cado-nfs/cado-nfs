@@ -1,5 +1,5 @@
-#ifndef ARITH_MODP_SPECIALIZATIONS_HPP_
-#define ARITH_MODP_SPECIALIZATIONS_HPP_
+#ifndef CADO_ARITH_MODP_SPECIALIZATIONS_HPP
+#define CADO_ARITH_MODP_SPECIALIZATIONS_HPP
 
 /* This header only defines a few macros that are used in various
  * arith-modp-specialization-pXXX.hpp headers

@@ -1,5 +1,5 @@
-#ifndef LINGEN_QCODE_BINARY_HPP_
-#define LINGEN_QCODE_BINARY_HPP_
+#ifndef CADO_LINGEN_QCODE_BINARY_HPP
+#define CADO_LINGEN_QCODE_BINARY_HPP
 
 #include <cstddef>
 

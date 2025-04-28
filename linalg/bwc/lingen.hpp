@@ -1,5 +1,5 @@
-#ifndef LINALG_BWC_LINGEN_HPP_
-#define LINALG_BWC_LINGEN_HPP_
+#ifndef CADO_LINALG_BWC_LINGEN_HPP
+#define CADO_LINALG_BWC_LINGEN_HPP
 
 #include "lingen_bigmatpoly.hpp"          // for bigmatpoly, bigmatpoly_model
 #include "lingen_bmstatus.hpp"            // for bmstatus

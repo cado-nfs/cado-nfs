@@ -1,5 +1,5 @@
-#ifndef LINGEN_FFT_SELECT_HPP_
-#define LINGEN_FFT_SELECT_HPP_
+#ifndef CADO_LINGEN_FFT_SELECT_HPP
+#define CADO_LINGEN_FFT_SELECT_HPP
 
 #ifdef LINGEN_BINARY
 #include "gf2x-fft.h"   // IWYU pragma: export

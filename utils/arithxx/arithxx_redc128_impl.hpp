@@ -1,5 +1,5 @@
-#ifndef UTILS_ARITHXX_ARITHXX_REDC128_IMPL_HPP_
-#define UTILS_ARITHXX_ARITHXX_REDC128_IMPL_HPP_
+#ifndef CADO_UTILS_ARITHXX_REDC128_IMPL_HPP
+#define CADO_UTILS_ARITHXX_REDC128_IMPL_HPP
 
 #include <cstdint>
 
@@ -214,4 +214,4 @@ arithxx_details::redc128<layer>::batchinv_redc(std::vector<uint64_t> const & a, 
     return r;
 }
 
-#endif	/* UTILS_ARITHXX_ARITHXX_REDC128_IMPL_HPP_ */
+#endif	/* UTILS_ARITHXX_REDC128_IMPL_HPP_ */
