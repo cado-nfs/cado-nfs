@@ -966,17 +966,13 @@ double sieve_range_adjust::estimate_yield_in_sieve_area(mat<int> const& shuffle,
             if (j == 0 || j == ny/2) weight /= 2;
             verbose_output_print(0, 4, "# %d %d (%.2f) %.1f %.1f", i, j, weight, xys[0], xys[1]);
 
-            double sprod = 0;
-            double p0 = 1;
+            double sprod = 1;
             for(int side = 0 ; side < nsides ; side++) {
                 double const z = fijd[side].eval(xys[0], xys[1]);
                 double const a = log2(fabs(z));
                 double const d = dickman_rho_local(a/conf.sides[side].lpb, fabs(z));
                 verbose_output_print(0, 4, " %d %e %e", side, z, d);
-                if (side == 0)
-                    p0 = d;
-                else
-                    sprod += p0 * d;
+                sprod *= d;
             }
             verbose_output_print(0, 4, " %e\n", sprod);
 
