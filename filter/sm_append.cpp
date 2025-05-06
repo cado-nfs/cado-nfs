@@ -562,8 +562,12 @@ static void sm_append_master(FILE * in, FILE * out,
             if (peer.id == 0)
                 continue;
 
-            if (eof && peer.batch.empty())
-                /* Our last send was a 0-send, so we have nothing to do */
+            if (eof && (turn && peer.batch.empty()))
+                /* Our last send was a 0-send, so we have nothing to do.
+                 * If turn == 0, we haven't yed had a chance to send a
+                 * batch of size 0, so we still need to do something,
+                 * though.
+                 */
                 continue;
 
             if (turn) {
@@ -642,12 +646,14 @@ static void sm_append_sync(FILE * in, FILE * out,
         mpz_poly_set_ab(pol, a * sign, b);
 
         fputs(buf, out);
-        char sep = ':';
+        fputc(':', out);
+        bool has_sep = true;
         for (auto const & S: sm_info) {
             S.compute_piecewise(smpol, pol);
-            fputc(sep, out);
+            if (!has_sep)
+                fputc(',', out);
             print_sm2(out, S, smpol, ",");
-            sep = ',';
+            has_sep = S.nsm == 0;
         }
         fputc('\n', out);
     }
