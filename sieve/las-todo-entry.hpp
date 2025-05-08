@@ -33,6 +33,11 @@ struct las_todo_entry {
         return false;
     }
 
+    las_todo_entry() = default;
+
+    explicit operator bool() const { return p != 0; }
+    bool operator!() const { return p == 0; }
+
     /********************************************************************/
     /* what comes below is only contextual information -- really, a
      * todo entry must be thought of as (p,r,side)
@@ -47,8 +52,6 @@ struct las_todo_entry {
     /* some fields which are specific to the descent */
     int depth = 0;
     int iteration = 0;      /* number of times we failed on this prime */
-
-    las_todo_entry() = default;
 
     private:
     las_todo_entry(const int side, const int depth)

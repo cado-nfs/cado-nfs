@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <climits>
 
+#include <condition_variable>
 #include <fstream>
 #include <algorithm>
 #include <list>
@@ -22,14 +23,30 @@ struct cxx_param_list;
 
 class las_todo_list : private std::stack<las_todo_entry> {
     std::mutex mm;
+    std::condition_variable work_to_do;
+
+    /* We use these flags to decide whether some extra work may appear or
+     * not. (in the descent case)
+     */
+    public:
+    size_t created = 0;
+    size_t pulled = 0;
+    size_t done = 0;
+    size_t nq_max = SIZE_MAX;
+
+    bool print_todo_list_flag = false;
+    private:
+
+
     cxx_cado_poly cpoly;
+    cxx_gmp_randstate rstate;
+
     typedef std::stack<las_todo_entry> super;
 
     /* "history" is append-only: everything we pop from the stack goes
      * here, and lives until the destruction */
     std::list<las_todo_entry> history;
 
-    unsigned int nq_max = UINT_MAX;
     int random_sampling = 0;
     cxx_mpz q0;
     cxx_mpz q1;
@@ -41,10 +58,12 @@ class las_todo_list : private std::stack<las_todo_entry> {
     void push_withdepth_unlocked(cxx_mpz const & p, cxx_mpz const & r, int side, int depth, int iteration = 0)
     {
         super::emplace(p, r, side, depth, iteration);
+        created++;
     }
     void push_unlocked(cxx_mpz const & p, cxx_mpz const & r, int side)
     {
         super::emplace(p, r, side);
+        created++;
     }
 
     /* for the most part, the sqside shouldn't be considered relevant,
@@ -55,14 +74,12 @@ class las_todo_list : private std::stack<las_todo_entry> {
     /* For composite special-q: note present both in las_info and
      * las_todo_list */
     bool allow_composite_q = false;
-    bool print_todo_list_flag = false;
     uint64_t qfac_min = 1024;
     uint64_t qfac_max = UINT64_MAX;
 
-    unsigned int nq_pushed = 0;
-
+    public:
     /*{{{*/
-    size_t size() const { return super::size(); }
+    using super::size;
     void push_withdepth(cxx_mpz const & p, cxx_mpz const & r, int side, int depth, int iteration = 0)
     {
         const std::lock_guard<std::mutex> foo(mm);
@@ -74,23 +91,19 @@ class las_todo_list : private std::stack<las_todo_entry> {
     }
     void push_closing_brace(int depth)
     {
+        /* it's very much unclear that we want to keep this.
+         */
         const std::lock_guard<std::mutex> foo(mm);
         super::push(las_todo_entry::closing_brace(depth));
     }
-    las_todo_entry pop()
-    {
-        const std::lock_guard<std::mutex> foo(mm);
-        las_todo_entry r = super::top();
-        super::pop();
-        return r;
-    }
+    private:
+    std::vector<uint64_t> next_legitimate_specialq(cxx_mpz & r, cxx_mpz const & s, unsigned long diff) const;
+    public:
 
     /* }}} */
 
-    bool is_random() const { return random_sampling != 0; }
+    las_todo_entry * feed_and_pop();
 
-    bool feed(gmp_randstate_t rstate);
-    las_todo_entry * feed_and_pop(gmp_randstate_t rstate);
     las_todo_list(las_todo_list const &) = delete;
     las_todo_list(las_todo_list &&) = delete;
     las_todo_list& operator=(las_todo_list const &) = delete;
@@ -99,19 +112,39 @@ class las_todo_list : private std::stack<las_todo_entry> {
 
     las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl);
 
-    super save() {
-        const std::lock_guard<std::mutex> foo(mm);
-        return *this; /* NOLINT(cppcoreguidelines-slicing) */
-    }
-    void restore(super && x) {
-        const std::lock_guard<std::mutex> foo(mm);
-        std::swap((super&)*this, x);
-    }
-
+    public:
     static void configure_switches(cxx_param_list & pl);
     static void declare_usage(cxx_param_list & pl);
 
-    void print_todo_list(cxx_param_list & pl, gmp_randstate_ptr, int nthreads = 1) const;
+    void print_todo_list(cxx_param_list & pl, int nthreads = 1) const;
+
+    public:
+    struct pulled_todo_entry : public las_todo_entry {
+            las_todo_list * L = nullptr;
+        explicit pulled_todo_entry(las_todo_list * L)
+            : las_todo_entry(*L->feed_and_pop())
+            , L(L)
+        { }
+        ~pulled_todo_entry() {
+            if (L) L->done++;
+        }
+        pulled_todo_entry() = delete;
+        pulled_todo_entry(pulled_todo_entry const & E) = delete;
+        pulled_todo_entry& operator=(pulled_todo_entry const & E) = delete;
+        pulled_todo_entry(pulled_todo_entry && E) noexcept
+            : las_todo_entry((las_todo_entry &&) E)
+            , L(E.L)
+        {
+            E.L = nullptr;
+        }
+        pulled_todo_entry& operator=(pulled_todo_entry && E) noexcept
+        {
+            (las_todo_entry &) *this = (las_todo_entry const &) E;
+            L = E.L;
+            E.L = nullptr;
+            return *this;
+        }
+    };
 };
 
 

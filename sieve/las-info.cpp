@@ -47,8 +47,6 @@ void las_info::declare_usage(cxx_param_list & pl)
     batch_side_config::declare_usage(pl);
 
 
-    param_list_decl_usage(pl, "seed", "Use this seed for random state seeding (currently used only by --random-sample)");
-
     param_list_decl_usage(pl, "galois", "depending on the specified galois automorphism, sieve only part of the q's");
 
     /* Note: also declared by las_todo_list ! */
@@ -127,9 +125,6 @@ las_info::las_info(cxx_param_list & pl)
     /* We strive to initialize things in the exact order they're written
      * in the struct */
     // ----- general operational flags {{{
-    unsigned long seed = 0;
-    if (param_list_parse_ulong(pl, "seed", &seed))
-        gmp_randseed_ui(rstate, seed);
 
     galois = param_list_lookup_string(pl, "galois");
     suppress_duplicates = param_list_parse_switch(pl, "-dup");

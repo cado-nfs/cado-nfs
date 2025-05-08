@@ -65,7 +65,6 @@ struct las_info : public las_parallel_desc, private NonCopyable {
 
     /* It's not ``general operational'', but global enough to be here */
     cxx_cado_poly cpoly;
-    cxx_gmp_randstate rstate;
 
     // ----- default config and adaptive configs
     siever_config_pool config_pool;

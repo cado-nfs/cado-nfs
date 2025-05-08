@@ -1064,7 +1064,7 @@ static void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_
                     break;
             }
             main_output->fflush();
-            las_todo_entry * doing_p = todo.feed_and_pop(las.rstate);
+            las_todo_entry * doing_p = todo.feed_and_pop();
             if (!doing_p) break;
             las_todo_entry& doing(*doing_p);
 
@@ -1382,24 +1382,20 @@ static void quick_subjob_loop_using_cache(las_info & las, las_todo_list & todo)/
 
     for(;; nq++) {
         main_output->fflush();
-        las_todo_entry * doing_p = todo.feed_and_pop(las.rstate);
+        las_todo_entry * doing_p = todo.feed_and_pop();
         if (!doing_p) break;
+        las_todo_entry & doing(*doing_p);
 
         nq++;
-
-        // auto rel_hash_p = std::make_shared<nfs_aux::rel_hash_t>();
-        // nfs_aux aux(las, *doing_p, rel_hash_p, 1);
-        struct { las_todo_entry doing; } aux;
-        aux.doing = *doing_p;
 
         siever_config conf;
         qlattice_basis Q;
         uint32_t J;
 
-        check_whether_special_q_is_root(las.cpoly, aux.doing);
-        per_special_q_banner(aux.doing);
-        if (!choose_sieve_area(las, aux.doing, conf, Q, J)) continue;
-        check_whether_q_above_lare_prime_bound(conf, aux.doing);
+        check_whether_special_q_is_root(las.cpoly, doing);
+        per_special_q_banner(doing);
+        if (!choose_sieve_area(las, doing, conf, Q, J)) continue;
+        check_whether_q_above_lare_prime_bound(conf, doing);
 
         {
             std::ostringstream os;
@@ -1411,7 +1407,7 @@ static void quick_subjob_loop_using_cache(las_info & las, las_todo_list & todo)/
                     1U << conf.logI, J);
         }
 
-        std::string const filepath = relation_cache_find_filepath(las.relation_cache, splits, aux.doing.p);
+        std::string const filepath = relation_cache_find_filepath(las.relation_cache, splits, doing.p);
 
         std::ifstream rf(filepath);
         DIE_ERRNO_DIAG(!rf, "open(%s)", filepath.c_str());
@@ -1424,14 +1420,14 @@ static void quick_subjob_loop_using_cache(las_info & las, las_todo_list & todo)/
                 fmt::print(stderr, "# parse error in relation\n");
                 exit(EXIT_FAILURE);
             }
-            if (!sq_finds_relation(las, aux.doing, conf, Q, J, rel))
+            if (!sq_finds_relation(las, doing, conf, Q, J, rel))
                 continue;
             std::ostringstream os;
 
             nreports++;
 
             if (las.suppress_duplicates) {
-                if (relation_is_duplicate(rel, aux.doing, las)) {
+                if (relation_is_duplicate(rel, doing, las)) {
                     os << "# DUPE ";
                     nreports--;
                 }
@@ -1527,7 +1523,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
          * the number of threads that were requested on command line)
          */
         las.set_parallel(pl, double(base_memory) / (1U << 30U));
-        todo.print_todo_list(pl, las.rstate, las.number_of_threads_total());
+        todo.print_todo_list(pl, las.number_of_threads_total());
         return EXIT_SUCCESS;
 
     }
@@ -1640,7 +1636,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
          * course, but how we should proceed with the todo list, our brace
          * mechanism, and the descent tree thing is altogether not obvious
          */
-        const int nsubjobs = dlp_descent ? 1 : las.number_of_subjobs_total();
+        const int nsubjobs = /* dlp_descent ? 1 : */ las.number_of_subjobs_total();
         subjobs.reserve(nsubjobs);
         for(int subjob = 0 ; subjob < nsubjobs ; ++subjob) {
             /* when references are passed through variadic template arguments
@@ -1788,8 +1784,8 @@ int main (int argc0, char const * argv0[])/*{{{*/
         verbose_output_print (2, 1, "# Average logI=%1.1f for %lu special-q's, max bucket fill -bkmult %s\n",
                 global_rt.rep.total_logI / (double) global_rt.rep.nr_sq_processed, global_rt.rep.nr_sq_processed, las.get_bk_multiplier().print_all().c_str());
     }
-    verbose_output_print (2, 1, "# Discarded %lu special-q's out of %u pushed\n",
-            global_rt.rep.nr_sq_discarded, todo.nq_pushed);
+    verbose_output_print (2, 1, "# Discarded %lu special-q's out of %zu pushed\n",
+            global_rt.rep.nr_sq_discarded, todo.created);
 
     auto D = global_rt.timer.filter_by_category();
     timetree_t::timer_data_type const tcpu = global_rt.timer.total_counted_time();
