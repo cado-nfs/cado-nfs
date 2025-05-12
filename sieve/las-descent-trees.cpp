@@ -15,7 +15,7 @@
 
 using namespace std;
 
-int descent_tree::display_tree(FILE* o, tree * t, string const& prefix) {
+int descent_tree::display_tree(FILE* o, tree const * t, string const& prefix) {
     int res = 1;
     char comment[10] = {'\0'};
     if (!t->contender) {
@@ -32,7 +32,7 @@ int descent_tree::display_tree(FILE* o, tree * t, string const& prefix) {
             t->label.fullname().c_str());
     string const new_prefix = prefix + "  ";
     for(auto const & c : t->children) {
-        if (!display_tree(o, c, new_prefix))
+        if (!display_tree(o, c.get(), new_prefix))
             res = 0;
     }
     if (!t->contender)
@@ -41,8 +41,8 @@ int descent_tree::display_tree(FILE* o, tree * t, string const& prefix) {
 }
 
 void descent_tree::display_last_tree(FILE * o) {
-    bool const xs = is_successful(forest.back());
-    display_tree(o, forest.back(), xs ? "# ": "# FAILED ");
+    bool const xs = forest.back()->is_successful();
+    display_tree(o, forest.back().get(), xs ? "# ": "# FAILED ");
 }
 
 struct collected_stats {
@@ -58,8 +58,8 @@ void descent_tree::display_all_trees(FILE * o)
 {
     int total = 0, good = 0;
     for(auto const & f : forest) {
-        bool const xs = is_successful(f);
-        good += display_tree(o, f, xs ? "# ": "# FAILED ");
+        bool const xs = f->is_successful();
+        good += display_tree(o, f.get(), xs ? "# ": "# FAILED ");
         total++;
     }
     fprintf(o, "# Success %d/%d (%1.2f%%)\n", good, total,
@@ -69,10 +69,10 @@ void descent_tree::display_all_trees(FILE * o)
     stats_t stats;
     for(auto const & f : forest) {
         stats[f->label].emplace_back(
-                is_successful(f),
+                f->is_successful(),
                 f->spent,
-                tree_depth(f),
-                tree_weight(f)
+                f->depth(),
+                f->weight()
                 );
         total++;
     }

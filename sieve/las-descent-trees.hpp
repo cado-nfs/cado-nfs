@@ -1,27 +1,27 @@
 #ifndef CADO_LAS_DESCENT_TREES_HPP
 #define CADO_LAS_DESCENT_TREES_HPP
 
-#include <cstdio>             // for FILE
-#include <cstdlib>            // for free
+#include <cstdio>
+#include <cstdlib>
 #include <cmath>
 
-#include <algorithm>           // for max
-#include <list>                // for list, operator!=, _List_iterator, list...
-#include <mutex>               // for mutex, lock_guard
-#include <set>                 // for operator!=, set, set<>::const_iterator
-#include <sstream>             // for basic_ostream::operator<<, operator<<
-#include <string>              // for string, allocator
-#include <utility>             // for pair
-#include <vector>              // for vector
+#include <algorithm>
+#include <list>
+#include <mutex>
+#include <set>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
-#include <gmp.h>               // for mpz_srcptr, gmp_asprintf, mpz_sizeinbase
+#include <gmp.h>
 #include "fmt/format.h"
 
-#include "las-todo-entry.hpp"  // for las_todo_entry
-#include "macros.h"            // for ASSERT_ALWAYS
-#include "relation.hpp"        // for relation_ab, relation, relation::pr
-#include "timing.h"             // for seconds
-#include "verbose.h"            // for verbose_output_print
+#include "las-todo-entry.hpp"
+#include "macros.h"
+#include "relation.hpp"
+#include "timing.h"
+#include "verbose.h"
 
 #ifdef isfinite
 /* isfinite is c99 and std::isfinite is c++11 ; it's not totally clear
@@ -109,7 +109,7 @@ struct descent_tree {
             if (std::isfinite(time_left)) { return time_left < b.time_left; }
             return outstanding.size() < b.outstanding.size();
         }
-        operator bool() const { return (bool) rel; }
+        explicit operator bool() const { return (bool) rel; }
         bool wins_the_game() const {
             return (bool) rel && (outstanding.empty() || seconds() >= deadline);
         }
@@ -126,20 +126,11 @@ struct descent_tree {
         tree_label label;
         double spent = 0;
         candidate_relation contender;
-        std::list<tree *> children;
+        std::list<std::unique_ptr<tree>> children;
         bool try_again = false;
         explicit tree(tree_label label)
             : label(std::move(label))
         {}
-        ~tree() {
-            for(auto const & c : children)
-                delete c;
-            children.clear();
-        }
-        tree(tree const &) = delete;
-        tree(tree &&) = delete;
-        tree& operator=(tree const &) = delete;
-        tree& operator=(tree &&) = delete;
         bool is_successful() const {
             if (!contender.rel && !try_again)
                 return false;
@@ -148,6 +139,18 @@ struct descent_tree {
                     return false;
             }
             return true;
+        }
+        int depth() const {
+            int d = 0;
+            for(auto const & c : children)
+                d = std::max(d, 1 + c->depth());
+            return d;
+        }
+        int weight() const {
+            int w = 1;
+            for(auto const & c :children)
+                w += c->weight();
+            return w;
         }
     };
 
@@ -163,9 +166,11 @@ struct descent_tree {
      * (*----current.end())->label is the one whose consideration led us
      * to consider it, and so on.
      *
-     * It's admittedly dangerous to have pointers around, here.
+     * forest (and its children) owns the pointers. current does not.
+     *
+     * pointers in current are all within forest.back()
      */
-    std::list<tree *> forest;
+    std::list<std::unique_ptr<tree>> forest;
     std::list<tree *> current;       /* stack of trees */
 
     /* This is an ugly temporary hack */
@@ -173,11 +178,7 @@ struct descent_tree {
     visited_t visited;
 
 
-    ~descent_tree() {
-        for(auto const & f : forest)
-            delete f;
-        forest.clear();
-    }
+    ~descent_tree() = default;
 
     /* designing a copy ctor for this structure would be tedious */
     descent_tree() = default;
@@ -190,14 +191,15 @@ struct descent_tree {
         const std::lock_guard<std::mutex> lock(tree_lock);
         const int level = doing.depth;
         ASSERT_ALWAYS(level == (int) current.size());
-        tree * kid = new tree(tree_label(doing.side, doing.p, doing.r));
+        std::unique_ptr<tree> kid(new tree(tree_label(doing.side, doing.p, doing.r)));
         kid->spent = -seconds();
         if (current.empty()) {
-            forest.push_back(kid);
-            current.push_back(kid);
+            current.push_back(kid.get());
+            forest.push_back(std::move(kid));
         } else {
-            current.back()->children.push_back(kid);
-            current.push_back(kid);
+            auto & tail = *current.back();
+            current.push_back(kid.get());
+            tail.children.push_back(std::move(kid));
         }
     }
 
@@ -205,13 +207,14 @@ struct descent_tree {
         tree * kid = current.back();
         current.pop_back();
         if (!current.empty()) {
-            ASSERT_ALWAYS(current.back()->children.back() == kid);
+            ASSERT_ALWAYS(current.back()->children.back().get() == kid);
             current.back()->children.pop_back();
         } else {
-            ASSERT_ALWAYS(forest.back() == kid);
+            ASSERT_ALWAYS(forest.back().get() == kid);
             forest.pop_back();
         }
-        delete kid;
+        /* no deletion is necessary. It's taken care of by the two
+         * pop_back() operations above */
     }
     void done_node() {
         current.back()->spent += seconds();
@@ -278,22 +281,7 @@ struct descent_tree {
     int depth() const {
         return (int) current.size();
     }
-    bool is_successful(tree * t) {
-        return t->is_successful();
-    }
-    int tree_depth(tree * t) {
-        int d = 0;
-        for(auto const & c : t->children)
-            d = std::max(d, 1 + tree_depth(c));
-        return d;
-    }
-    int tree_weight(tree * t) {
-        int w = 1;
-        for(auto const & c : t->children)
-            w += tree_weight(c);
-        return w;
-    }
-    int display_tree(FILE* o, tree * t, std::string const& prefix);
+    int display_tree(FILE* o, tree const * t, std::string const& prefix);
     void display_last_tree(FILE * o);
 
     void display_all_trees(FILE * o);
