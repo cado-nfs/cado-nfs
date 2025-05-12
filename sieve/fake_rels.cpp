@@ -124,13 +124,6 @@ struct indexrange {
         return std::lower_bound(prime.begin(), prime.end(), p) - prime.begin();
     }
 
-    /* XXX unused ! */
-    std::vector<index_t>::const_iterator iterator_from_index(index_t z) const {
-        std::vector<index_t>::const_iterator it;
-        it = std::lower_bound(ind.begin(), ind.end(), z);
-        return it;
-    }
-
     std::vector<index_t> all_composites(
             uint64_t q0,
             uint64_t q1,
@@ -171,10 +164,8 @@ static std::vector<indexrange> prepare_indexrange(renumber_t const & ren_tab,
 
 static void remove_special_q(relation & rel, las_todo_entry const & Q)
 {
-    typedef std::vector<relation::pr> V_t;
-    V_t & V = rel.sides[Q.side];
-    typedef V_t::iterator it_t;
-    it_t nn = V.begin();
+    auto & V = rel.sides[Q.side];
+    auto nn = V.begin();
     for(auto const & pr : V) {
         if (!Q.is_coprime_to(mpz_get_ui(pr.p)))
             continue;
@@ -230,8 +221,7 @@ read_sample_file(int sqside, const char *filename, renumber_t & ren_tab)
             if (current.insert(Q).second) {
                 /* When we start over, there's a "second" beginning. */
                 nbegin++;
-                if (nbegin - nend > maxdepth) 
-                    maxdepth = nbegin - nend;
+                maxdepth = std::max(maxdepth, nbegin - nend);
             }
         } else if (line.rfind("# Time for side-", 0) != std::string::npos) {
             nend++;
@@ -247,18 +237,16 @@ read_sample_file(int sqside, const char *filename, renumber_t & ren_tab)
         } else {
             relation rel;
             std::istringstream(line) >> rel;
-            if (current.size() == 1) {
-                las_todo_entry const & Q = *current.begin();
-                remove_special_q(rel, Q);
-                sample[Q].emplace_back(rel, ren_tab);
-            } else {
-                /* Then it's more difficult, as have to look up which Q
-                 * is the good one. There may even be more than one, but
-                 * we consider this unlikely here, since we don't expect
-                 * more than a few "active" special-Qs to choose from
-                 */
-                for(las_todo_entry const & Q : current) {
-                    /* do we have a-br = 0 mod p, with the usual
+            for(auto const & Q : current) {
+                if (current.size() > 1) {
+                    /* If current.size() > 1 it's more difficult, as have to
+                     * look up which Q is the good one. There may even be
+                     * more than one, but we consider this unlikely here,
+                     * since we don't expect more than a few "active"
+                     * special-Qs to choose from
+                     */
+
+                    /* So do we have a-br = 0 mod p, with the usual
                      * conventions ? Those are actually quite annoying
                      * conventions in general. r represents a point in
                      * P1(Z/p), and we want to check if a:b matches r.
@@ -279,10 +267,10 @@ read_sample_file(int sqside, const char *filename, renumber_t & ren_tab)
                     mpz_mod(z, z, Q.p);
                     if (mpz_sgn(z) != 0)
                         continue;
-                    remove_special_q(rel, Q);
-                    sample[Q].emplace_back(rel, ren_tab);
-                    break;
                 }
+                remove_special_q(rel, Q);
+                sample[Q].emplace_back(rel, ren_tab);
+                break;
             }
         }
     }
@@ -350,7 +338,7 @@ static unsigned long print_fake_rel_manyq(
         if (shrink_factor == 1) {
             nr = model_nrels;
         } else {
-            double const nr_dble = double(model_nrels) / double(shrink_factor);
+            double const nr_dble = double(model_nrels) / shrink_factor;
             // Do probabilistic rounding, in case nr_dble is small (maybe < 1)
             double const trunc_part = trunc(nr_dble);
             double const frac_part = nr_dble - trunc_part;
