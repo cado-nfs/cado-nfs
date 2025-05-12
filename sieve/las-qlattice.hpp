@@ -54,8 +54,7 @@ struct qlattice_basis {
 
     /* This is handy sometimes */
     qlattice_basis(int64_t a0, int64_t b0, int64_t a1, int64_t b1)
-        : doing(0,0,0)
-        , a0(a0)
+        : a0(a0)
         , b0(b0)
         , a1(a1)
         , b1(b1)

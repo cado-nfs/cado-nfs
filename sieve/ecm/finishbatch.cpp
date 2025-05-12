@@ -129,32 +129,28 @@ main (int argc, char const *argv[])
 
 #define MAX_SIZE 2048
   char str[MAX_SIZE];
-  cxx_mpz q;
-  mpz_set_ui(q, 1);
-  // Create a fake special-q
-  std::vector<uint64_t> empty;
-  las_todo_entry const fake_q(q, q, 0, empty);
 
   // If the special-q info is present, we will use it. Otherwise, the
   // fake sq will be used everywhere. This list keeps in memory all the
   // special q encountered.
   std::list<las_todo_entry> list_q;
-  list_q.push_back(fake_q);
+
+  // Create a fake special-q
+  list_q.emplace_back(1, 1, 0);
 
   long a;
   unsigned long b;
   for(int lnum = 0; fgets(str, MAX_SIZE, inp) ; lnum++) {
+      cxx_mpz q;
       if (str[0] == '#') {
           cxx_mpz r;
           int side;
           int const ret = gmp_sscanf(str, "# q = (%Zd, %Zd, %d)",
                   &q, &r, &side);
           if (ret == 3) {
-              std::vector<uint64_t> primes;
-              uint64_t const qq = mpz_get_uint64(q);
-              primes.push_back(qq);
-              las_todo_entry const this_q(q, r, side, primes);
-              list_q.push_back(this_q);
+              /* make sure we don't try to factor q */
+              const std::vector<uint64_t> primes { uint64_t(q) };
+              list_q.emplace_back(q, r, side, primes);
           }
           continue;
       }
@@ -189,9 +185,9 @@ main (int argc, char const *argv[])
       }
   }
 
-    const long peakmem = PeakMemusage();
+    const size_t peakmem = PeakMemusage();
     if (peakmem > 0)
-        printf ("# PeakMemusage (MB) = %ld \n",
+        printf ("# PeakMemusage (MB) = %zu \n",
                 peakmem >> 10);
 
   return EXIT_SUCCESS;

@@ -50,13 +50,29 @@ struct las_todo_entry {
 
     las_todo_entry() = default;
 
-    /* Empty p, r is used for "closing brace" */
+    private:
     las_todo_entry(const int side, const int depth)
         : side(side)
         , depth(depth)
     { }
+    public:
 
-    las_todo_entry(cxx_mpz p, cxx_mpz r, const int side, const int depth = 0, const int iteration = 0)
+    static las_todo_entry closing_brace(int depth)
+    {
+        return { -1, depth };
+    }
+    bool is_closing_brace() const { return side < 0; }
+
+    las_todo_entry(cxx_mpz p, cxx_mpz r, const int side)
+        : p(std::move(p))
+        , r(std::move(r))
+        , side(side)
+    {
+        find_prime_factors();
+    }
+
+    las_todo_entry(cxx_mpz p, cxx_mpz r, const int side,
+            const int depth, const int iteration)
         : p(std::move(p))
         , r(std::move(r))
         , side(side)
@@ -66,13 +82,13 @@ struct las_todo_entry {
         find_prime_factors();
     }
 
-    las_todo_entry(cxx_mpz p, cxx_mpz r, const int side, std::vector<uint64_t> & prime_factors, const int depth = 0, const int iteration = 0)
+    /* it's only used in finishbatch */
+    las_todo_entry(cxx_mpz p, cxx_mpz r, const int side,
+            std::vector<uint64_t> const & prime_factors)
         : p(std::move(p))
         , r(std::move(r))
         , side(side)
         , prime_factors(prime_factors)
-        , depth(depth)
-        , iteration(iteration)
     {
         /* make sure that the factorization provided is correct */
         cxx_mpz t = 1;

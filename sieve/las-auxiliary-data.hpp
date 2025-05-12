@@ -83,6 +83,14 @@ class nfs_aux {/*{{{*/
     las_info const & las;
     public:
     las_todo_entry const & doing;
+    
+    /* in the recursive descent (and only in this context), this is the
+     * list of special-q's that have led to considering this q. The root
+     * is the first in the history list, and history[i+1] is always a
+     * child of history[i]. If the current entry was part of the input
+     * request, then history is empty.
+     */
+    std::vector<las_todo_entry> history;
 
     /* we rarely have ownership, if ever, of course. In the typical case,
      * there just one output file and that's it.

@@ -694,7 +694,7 @@ static void per_special_q_banner(las_todo_entry const & doing)
  * downsort, apply-buckets, lognorm computation, small sieve computation,
  * and survivor search and detection, all from here.
  */
-static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofac> wc_p, std::shared_ptr<nfs_aux> aux_p, thread_pool & pool)/*{{{*/
+static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofac> const & wc_p, std::shared_ptr<nfs_aux> const & aux_p, thread_pool & pool)/*{{{*/
 {
     int const nsides = ws.sides.size();
 
@@ -835,7 +835,7 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
 }/*}}}*/
 
 /* This returns false if the special-q was discarded */
-static bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_aux> aux_p, thread_pool & pool)/*{{{*/
+static bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_aux> const & aux_p, thread_pool & pool)/*{{{*/
 {
     nfs_aux & aux(*aux_p);
     ws.Q.doing = aux.doing;     /* will be set by choose_sieve_area anyway */
@@ -960,12 +960,16 @@ static void prepare_timer_layout_for_multithreaded_tasks(timetree_t & timer,
 struct ps_params {
     std::shared_ptr<cofac_list> M;
     las_info & las;
-    ps_params(std::shared_ptr<cofac_list> M, las_info & las) : M(M), las(las) {}
+    ps_params(std::shared_ptr<cofac_list> M, las_info & las)
+        : M(std::move(M))
+        , las(las)
+    { }
 };
 
 void las_info::batch_print_survivors_t::doit()
 {
-    for(std::unique_lock<std::mutex> foo(mm);!todo_cofac_lists.empty() || !done;) {
+    std::unique_lock<std::mutex> foo(mm);
+    for( ; !todo_cofac_lists.empty() || !done; ) {
         cv.wait(foo);
 
         /* This is both for spurious wakeups and for the finish condition */
@@ -973,33 +977,34 @@ void las_info::batch_print_survivors_t::doit()
 
             /* We have the lock held at this point */
 
-            std::string const f = std::string(filename) + "." + std::to_string(counter++);
-            std::string const f_part = f + ".part";
+            auto const f = fmt::format("{}.{}", filename, counter++);
+            auto const f_part = f + ".part";
 
-            cofac_list const M = std::move(todo_cofac_lists.front());
+            auto const M = std::move(todo_cofac_lists.front());
 
             todo_cofac_lists.pop_front();
 
             /* Now we temporarily unlock foo. */
             foo.unlock();
 
-            FILE * out = fopen(f_part.c_str(), "w");
-            las_todo_entry const * curr_sq = NULL;
-            for (auto const &s : M) {
-                if (s.doing_p != curr_sq) {
-                    curr_sq = s.doing_p;
-                    fmt::print(out,
-                            "# q = ({}, {}, {})\n",
-                            s.doing_p->p,
-                            s.doing_p->r,
-                            s.doing_p->side);
+            {
+                auto out = fopen_helper(f_part, "w");
+                las_todo_entry const * curr_sq = nullptr;
+                for (auto const &s : M) {
+                    if (s.doing_p != curr_sq) {
+                        curr_sq = s.doing_p;
+                        fmt::print(out.get(),
+                                "# q = ({}, {}, {})\n",
+                                s.doing_p->p,
+                                s.doing_p->r,
+                                s.doing_p->side);
+                    }
+                    fmt::print(out.get(),
+                            "{} {} {} {}\n", s.a, s.b,
+                            s.cofactor[0],
+                            s.cofactor[1]);
                 }
-                fmt::print(out,
-                        "{} {} {} {}\n", s.a, s.b,
-                        s.cofactor[0],
-                        s.cofactor[1]);
             }
-            fclose(out);
             int const rc = rename(f_part.c_str(), f.c_str());
             WARN_ERRNO_DIAG(rc != 0, "rename(%s, %s)", f_part.c_str(), f.c_str());
 
@@ -1068,10 +1073,10 @@ static void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_
                  * that we're done with a special-q we started before, including
                  * all its spawned sub-special-q's. Indeed, each time we start a
                  * special-q from the todo list, we replace it by a special
-                 * marker. But newer special-q's may enver the todo list in turn
+                 * marker. But newer special-q's may enter the todo list in turn
                  * (pushed with las_todo_push_withdepth).
                  */
-                if (todo.is_closing_brace(doing)) {
+                if (doing.is_closing_brace()) {
                     las.tree.done_node();
                     if (las.tree.depth() == 0) {
                         if (recursive_descent) {
@@ -1293,8 +1298,8 @@ static std::string relation_cache_find_filepath_inner(std::string const & d, uns
 {
     std::string filepath;
     DIR * dir = opendir(d.c_str());
-    DIE_ERRNO_DIAG(dir == NULL, "opendir(%s)", d.c_str());
-    for(struct dirent * ent ; (ent = readdir(dir)) != NULL ; ) {
+    DIE_ERRNO_DIAG(dir == nullptr, "opendir(%s)", d.c_str());
+    for(struct dirent * ent ; (ent = readdir(dir)) != nullptr ; ) {
         unsigned long q0, q1;
         if (sscanf(ent->d_name, "%lu-%lu", &q0, &q1) != 2) continue;
         if (qq < q0 || qq >= q1) continue;
@@ -1511,15 +1516,6 @@ int main (int argc0, char const * argv0[])/*{{{*/
 #endif
 
     las_todo_list todo(las.cpoly, pl);
-
-    /* If qmin is not given, use lim on the special-q side by default.
-     * This makes sense only if the relevant fields have been filled from
-     * the command line.
-     *
-     * This is a kludge, really.
-     */
-    if (todo.sqside >= 0 && las.dupqmin[todo.sqside] == ULONG_MAX)
-        las.dupqmin[todo.sqside] = las.config_pool.base.sides[todo.sqside].lim;
 
     where_am_I::interpret_parameters(pl);
 

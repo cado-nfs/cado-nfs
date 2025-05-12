@@ -37,16 +37,21 @@ class las_todo_list : private std::stack<las_todo_entry> {
     std::unique_ptr<std::ifstream> todo_list_fd;
     bool feed_qrange(gmp_randstate_t);
     bool feed_qlist();
+
     void push_withdepth_unlocked(cxx_mpz const & p, cxx_mpz const & r, int side, int depth, int iteration = 0)
     {
-        super::push(las_todo_entry(p, r, side, depth, iteration));
+        super::emplace(p, r, side, depth, iteration);
     }
     void push_unlocked(cxx_mpz const & p, cxx_mpz const & r, int side)
     {
-        push_withdepth_unlocked(p, r, side, 0);
+        super::emplace(p, r, side);
     }
-    public:
+
+    /* for the most part, the sqside shouldn't be considered relevant,
+     * since the todo list can provide special-q's on either side.
+     */
     int sqside = -1;
+    public:
     /* For composite special-q: note present both in las_info and
      * las_todo_list */
     bool allow_composite_q = false;
@@ -70,7 +75,7 @@ class las_todo_list : private std::stack<las_todo_entry> {
     void push_closing_brace(int depth)
     {
         const std::lock_guard<std::mutex> foo(mm);
-        super::push(las_todo_entry(-1, depth));
+        super::push(las_todo_entry::closing_brace(depth));
     }
     las_todo_entry pop()
     {
@@ -80,10 +85,6 @@ class las_todo_list : private std::stack<las_todo_entry> {
         return r;
     }
 
-    static int is_closing_brace(las_todo_entry const & doing)
-    {
-        return doing.side < 0;
-    }
     /* }}} */
 
     bool is_random() const { return random_sampling != 0; }
