@@ -104,7 +104,7 @@ class nfs_aux {/*{{{*/
     typedef std::pair< int64_t, uint64_t> abpair_t;
 
     struct abpair_hash_t {
-        inline unsigned long operator()(abpair_t const& o) const {
+        unsigned long operator()(abpair_t const& o) const {
             return 314159265358979323UL * o.first + 271828182845904523UL + o.second;
         }
     };

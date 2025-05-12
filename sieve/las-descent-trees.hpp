@@ -124,12 +124,14 @@ struct descent_tree {
     };
     struct tree {
         tree_label label;
+        int root_depth = 0;
         double spent = 0;
         candidate_relation contender;
         std::list<std::unique_ptr<tree>> children;
         bool try_again = false;
-        explicit tree(tree_label label)
+        explicit tree(tree_label label, int root_depth = 0)
             : label(std::move(label))
+            , root_depth(root_depth)
         {}
         bool is_successful() const {
             if (!contender.rel && !try_again)
@@ -140,12 +142,16 @@ struct descent_tree {
             }
             return true;
         }
+        /* this returns the tree depth _below this level_ only. Add
+         * this->root_depth to get the overall depth (that this subtree
+         * contributes to) */
         int depth() const {
             int d = 0;
             for(auto const & c : children)
                 d = std::max(d, 1 + c->depth());
             return d;
         }
+        /* this returns the tree weight _below this level_ only. */
         int weight() const {
             int w = 1;
             for(auto const & c :children)

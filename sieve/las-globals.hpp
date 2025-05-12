@@ -2,8 +2,9 @@
 #define CADO_LAS_GLOBALS_HPP
 
 #include <cstddef>
-#include <mutex>
+
 #include <memory>
+#include <atomic>
 
 #include "las-output.hpp"
 
@@ -17,8 +18,9 @@ extern size_t base_memory;
 extern int recursive_descent;
 extern int prepend_relation_time;
 extern int exit_after_rel_found;
-extern std::mutex protect_global_exit_semaphore;
-extern int global_exit_semaphore;
+
+extern std::atomic<bool> global_exit_semaphore;
+
 extern int allow_largesq;
 extern int sync_at_special_q;
 extern int trialdiv_first_side;

@@ -1,33 +1,34 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cinttypes>                 // for PRId64, PRIu64
-#include <cstdint>                    // for uint8_t
-#include <cstdio>                     // for NULL
-#include <mutex>                      // for lock_guard, mutex
-#include <ostream>                    // for operator<<, ostringstream, basi...
-#include <string>                     // for char_traits, basic_string
-#include <utility>                    // for pair
-#include <vector>                     // for vector
-#include <cstdarg>             // IWYU pragma: keep
+#include <cinttypes>
+#include <cstdio>
+#include <memory>
+#include <mutex>
+#include <ostream>
+#include <string>
+#include <utility>
+#include <vector>
+#include <cstdarg>
 
-#include <gmp.h>                      // for mpz_srcptr, gmp_vfprintf
+#include <gmp.h>
 
-#include "cxx_mpz.hpp"
 #include "las-detached-cofac.hpp"
-#include "las-auxiliary-data.hpp"     // for nfs_aux, nfs_aux::rel_hash_t
-#include "las-cofactor.hpp"           // for cofactorization_statistics
-#include "las-duplicate.hpp"          // for relation_is_duplicate
-#include "las-galois.hpp"             // for add_relations_with_galois
-#include "las-globals.hpp"            // for prepend_relation_time, tt_qstart
-#include "las-info.hpp"               // for las_info
-#include "las-multiobj-globals.hpp"     // for dlp_descent
-#include "las-output.hpp"             // for TRACE_CHANNEL
-#include "las-report-stats.hpp"       // for las_report, TIMER_CATEGORY, las...
-#include "las-threads-work-data.hpp"  // for nfs_work_cofac
-#include "relation.hpp"               // for relation, operator<<
-#include "tdict.hpp"                  // for timetree_t, SIBLING_TIMER
-#include "timing.h"                 // for seconds
-#include "utils_cxx.hpp"        // call_dtor
+#include "las-auxiliary-data.hpp"
+#include "las-cofactor.hpp"
+#include "las-cofac-standalone.hpp"
+#include "las-duplicate.hpp"
+#include "las-galois.hpp"
+#include "las-globals.hpp"
+#include "las-info.hpp"
+#include "las-multiobj-globals.hpp"
+#include "las-output.hpp"
+#include "las-report-stats.hpp"
+#include "las-threads-work-data.hpp"
+#include "relation.hpp"
+#include "tdict.hpp"
+#include "timing.h"
+#include "utils_cxx.hpp"
+#include "threadpool.hpp"
 #include "verbose.h"
 
 /* asynchronous cofactorization */
@@ -35,7 +36,7 @@
 static detached_cofac_result * detached_cofac_inner(worker_thread * worker, detached_cofac_parameters * param)
 {
     /* Import some contextual stuff. */
-    int const id = worker->rank();
+    int const id = int(worker->rank());
     nfs_work_cofac & wc(*param->wc_p);
     nfs_aux & aux(*param->aux_p);
     nfs_aux::thread_data & taux(aux.th[id]);
@@ -168,7 +169,7 @@ task_result * detached_cofac(worker_thread * worker, task_parameters * _param, i
     detached_cofac_parameters *param = static_cast<detached_cofac_parameters *>(_param);
 
     /* Import some contextual stuff. */
-    int const id = worker->rank();
+    int const id = int(worker->rank());
     nfs_aux & aux(*param->aux_p);
     nfs_aux::thread_data & taux(aux.th[id]);
     las_report & rep(taux.rep);

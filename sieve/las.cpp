@@ -1058,13 +1058,12 @@ static void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_
          * only if the todo list is empty. }}} */
 
         for(;;) {
-            {
-                std::lock_guard<std::mutex> const foo(protect_global_exit_semaphore);
-                if (global_exit_semaphore)
-                    break;
-            }
+            if (global_exit_semaphore)
+                break;
+
             main_output->fflush();
-            las_todo_entry doing = todo.feed_and_pop();
+
+            auto doing = todo.pull();
 
             if (dlp_descent && doing.is_closing_brace()) {
                 /* If the next special-q to try is a special marker, it means
@@ -1091,7 +1090,6 @@ static void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_
 
             if (dlp_descent) {
                 todo.push_closing_brace(doing.depth);
-
                 las.tree.new_node(doing);
             }
 
@@ -1381,7 +1379,7 @@ static void quick_subjob_loop_using_cache(las_info & las, las_todo_list & todo)/
 
     for(;; nq++) {
         main_output->fflush();
-        las_todo_entry doing = todo.feed_and_pop();
+        auto doing = todo.pull();
         if (!doing) break;
 
         nq++;

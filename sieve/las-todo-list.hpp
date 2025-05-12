@@ -12,10 +12,12 @@
 #include <memory>
 #include <mutex>
 #include <stack>
+#include <utility>
 
 #include <gmp.h>
 
 #include "cxx_mpz.hpp"
+#include "gmp_aux.h"
 #include "cado_poly.h"
 #include "las-todo-entry.hpp"
 
@@ -51,14 +53,9 @@ class las_todo_list : private std::stack<las_todo_entry> {
     bool feed_qrange(gmp_randstate_t);
     bool feed_qlist();
 
-    void push_withdepth_unlocked(cxx_mpz const & p, cxx_mpz const & r, int side, int depth, int iteration = 0)
+    void push_unlocked(las_todo_entry const & q, las_todo_entry const & = {})
     {
-        super::emplace(p, r, side, depth, iteration);
-        created++;
-    }
-    void push_unlocked(cxx_mpz const & p, cxx_mpz const & r, int side)
-    {
-        super::emplace(p, r, side);
+        super::emplace(q);
         created++;
     }
 
@@ -76,21 +73,21 @@ class las_todo_list : private std::stack<las_todo_entry> {
     public:
     /*{{{*/
     using super::size;
-    void push_withdepth(cxx_mpz const & p, cxx_mpz const & r, int side, int depth, int iteration = 0)
+    void push(las_todo_entry const & q, las_todo_entry const & parent = {})
     {
         const std::lock_guard<std::mutex> foo(mm);
-        push_withdepth_unlocked(p, r, side, depth, iteration);
-    }
-    void push(cxx_mpz const & p, cxx_mpz const & r, int side)
-    {
-        push_withdepth(p, r, side, 0);
+        push_unlocked(q, parent);
     }
     void push_closing_brace(int depth)
     {
         /* it's very much unclear that we want to keep this.
          */
         const std::lock_guard<std::mutex> foo(mm);
-        super::push(las_todo_entry::closing_brace(depth));
+        super::emplace(las_todo_entry::closing_brace(depth));
+    }
+    bool empty() {
+        const std::lock_guard<std::mutex> foo(mm);
+        return super::empty();
     }
     private:
     std::vector<uint64_t> next_legitimate_specialq(cxx_mpz & r, cxx_mpz const & s, unsigned long diff) const;
@@ -98,7 +95,13 @@ class las_todo_list : private std::stack<las_todo_entry> {
 
     /* }}} */
 
+    private:
+    /* use the pulled_todo_entry ctor instead
+     */
     las_todo_entry feed_and_pop();
+    friend struct pulled_todo_entry;
+
+    public:
 
     las_todo_list(las_todo_list const &) = delete;
     las_todo_list(las_todo_list &&) = delete;
@@ -116,14 +119,32 @@ class las_todo_list : private std::stack<las_todo_entry> {
 
     public:
     struct pulled_todo_entry : public las_todo_entry {
-            las_todo_list * L = nullptr;
-        explicit pulled_todo_entry(las_todo_list * L)
-            : las_todo_entry(L->feed_and_pop())
+        las_todo_entry parent;
+        las_todo_list * L = nullptr;
+        private:
+        pulled_todo_entry(las_todo_entry const & qp, las_todo_list * L)
+            : las_todo_entry(qp)
             , L(L)
-        { }
-        ~pulled_todo_entry() {
-            if (L) L->done++;
+        {
+            /* an empty returned special-q, or a special marker, won't
+             * count
+             */
+            if (!*this)
+                this->L = nullptr;
         }
+        public:
+        explicit pulled_todo_entry(las_todo_list & L)
+            : pulled_todo_entry(L.feed_and_pop(), &L)
+        {
+        }
+        ~pulled_todo_entry() {
+            if (L) {
+                const std::lock_guard<std::mutex> dummy(L->mm);
+                L->done++;
+            }
+        }
+        explicit operator bool() const { return bool((las_todo_entry const&)*this); }
+        bool operator !() const { return !((las_todo_entry const&)*this); }
         pulled_todo_entry() = delete;
         pulled_todo_entry(pulled_todo_entry const & E) = delete;
         pulled_todo_entry& operator=(pulled_todo_entry const & E) = delete;
@@ -135,12 +156,13 @@ class las_todo_list : private std::stack<las_todo_entry> {
         }
         pulled_todo_entry& operator=(pulled_todo_entry && E) noexcept
         {
-            (las_todo_entry &) *this = (las_todo_entry const &) E;
-            L = E.L;
-            E.L = nullptr;
+            std::swap(L, E.L);
+            std::swap((las_todo_entry &) *this, (las_todo_entry &) E);
             return *this;
         }
     };
+
+    pulled_todo_entry pull() { return pulled_todo_entry(*this); }
 };
 
 

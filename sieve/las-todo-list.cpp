@@ -167,7 +167,7 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
                 fprintf(stderr, "Error: rho is not a root modulo q0\n");
                 exit(EXIT_FAILURE);
             }
-            push_unlocked(q0, rho, sqside);
+            push_unlocked(las_todo_entry(q0, rho, sqside));
             /* Set empty interval [q0 + 1, q0] as special-q interval */
             mpz_set(q1, q0);
             mpz_add_ui (q0, q0, 1);
@@ -233,6 +233,10 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
  */
 bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
 {
+    /* XXX this is called with a lock held on this->mm, so care must be
+     * taken to call this->push_unlocked() and not this->push() !!
+     */
+
     /* If we still have entries in the stack, don't add more now */
     if (!super::empty())
         return true;
@@ -249,16 +253,7 @@ bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
         cxx_mpz & q = q0;
         auto fac_q = next_legitimate_specialq(q, q, 0);
 
-        struct q_r_pair {
-            cxx_mpz q;
-            cxx_mpz r;
-            q_r_pair(const mpz_t _q, const mpz_t _r) {
-                mpz_set(q, _q);
-                mpz_set(r, _r);
-            }
-        };
-
-        std::vector<q_r_pair> my_list;
+        std::vector<las_todo_entry> my_list;
 
         int nb_no_roots = 0;
         int nb_rootfinding = 0;
@@ -278,7 +273,7 @@ bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
             }
 
             for (auto const & r : roots)
-                my_list.emplace_back(q, r);
+                my_list.emplace_back(q, r, sqside);
 
             fac_q = next_legitimate_specialq(q, q, 1);
         }
@@ -295,7 +290,7 @@ bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
             push_here = std::min(push_here, nq_max - created);
         for(size_t i = 0 ; i < push_here ; i++) {
             size_t const ind = push_here-i-1;
-            push_unlocked(my_list[ind].q, my_list[ind].r, sqside);
+            push_unlocked(my_list[ind]);
         }
     } else { /* random sampling case */
         /* we care about being uniform here */
@@ -336,7 +331,9 @@ bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
                 size_t const nroots = skip_galois_roots(roots.size(), q, (mpz_t*)roots.data(), galois);
                 roots.erase(roots.begin() + nroots, roots.end());
             }
-            push_unlocked(q, roots[gmp_urandomm_ui(rstate, roots.size())], sqside);
+            push_unlocked(las_todo_entry(q,
+                        roots[gmp_urandomm_ui(rstate, roots.size())],
+                        sqside));
         }
     }
 
@@ -352,6 +349,9 @@ bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
  */
 bool las_todo_list::feed_qlist()
 {
+    /* XXX this is called with a lock held on this->mm, so care must be
+     * taken to call this->push_unlocked() and not this->push() !!
+     */
     if (!super::empty())
         return true;
 
@@ -400,7 +400,7 @@ bool las_todo_list::feed_qlist()
     ASSERT_ALWAYS(p > 0);
     ASSERT_ALWAYS(r >= 0);
 
-    push_unlocked(p, r, side);
+    push_unlocked(las_todo_entry(p, r, side));
     return true;
 }
 
@@ -410,6 +410,7 @@ bool las_todo_list::feed_qlist()
 las_todo_entry las_todo_list::feed_and_pop()
 {
     const std::lock_guard<std::mutex> foo(mm);
+
     if (super::empty()) {
         if (todo_list_fd)
             feed_qlist();
@@ -418,11 +419,11 @@ las_todo_entry las_todo_list::feed_and_pop()
     }
     if (super::empty())
         return {};
-    las_todo_entry const doing = super::top();
-    if (!doing.is_closing_brace() && bool(doing))
+    auto ret = super::top();
+    if (!ret.is_closing_brace() && bool(ret))
         pulled++;
     super::pop();
-    return doing;
+    return ret;
 }
 /* }}} */
 
@@ -465,7 +466,7 @@ void las_todo_list::print_todo_list(cxx_param_list & pl, int nthreads) const
 
         las_todo_list todo2(cpoly, pl2);
         for(;;) {
-            las_todo_entry doing = todo2.feed_and_pop();
+            auto doing = todo2.pull();
             if (!doing) break;
             if (nthreads == 1) {
                 verbose_output_vfprint(0, 1, gmp_vfprintf,

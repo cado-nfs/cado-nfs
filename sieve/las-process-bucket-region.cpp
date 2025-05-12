@@ -796,8 +796,7 @@ void process_bucket_region_run::operator()() {/*{{{*/
     } else if (exit_after_rel_found) {
         if (rep.reports) {
             if (exit_after_rel_found > 1) {
-                std::lock_guard<std::mutex> const foo(protect_global_exit_semaphore);
-                global_exit_semaphore=1;
+                global_exit_semaphore = true;
             }
             return;
         }

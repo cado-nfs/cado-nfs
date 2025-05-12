@@ -11,6 +11,7 @@
 #include "fmt/base.h"
 
 #include "macros.h"     // for ASSERT_ALWAYS
+#include "relation.hpp"
 
 #include "cxx_mpz.hpp"  // for cxx_mpz
 
@@ -87,6 +88,14 @@ struct las_todo_entry {
         , side(side)
         , depth(depth)
         , iteration(iteration)
+    {
+        find_prime_factors();
+    }
+
+    explicit las_todo_entry(std::pair<int, relation::pr> const & side_pr)
+        : p(side_pr.second.p)
+        , r(side_pr.second.r)
+        , side(side_pr.first)
     {
         find_prime_factors();
     }

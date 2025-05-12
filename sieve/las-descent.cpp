@@ -120,12 +120,20 @@ void postprocess_specialq_descent(las_info & las, las_todo_list & todo, las_todo
         if (recursive_descent) {
             /* reschedule the possibly still missing large primes in the
              * todo list */
-            for(unsigned int i = 0 ; i < winner.outstanding.size() ; i++) {
-                int const side = winner.outstanding[i].first;
-                relation::pr const & v(winner.outstanding[i].second);
-                unsigned int const n = mpz_sizeinbase(v.p, 2);
-                verbose_output_vfprint(0, 1, gmp_vfprintf, "# [descent] " HILIGHT_START "pushing side-%d (%Zd,%Zd) [%d@%d]" HILIGHT_END " to todo list (now size %zu)\n", side, (mpz_srcptr) v.p, (mpz_srcptr) v.r, n, side, todo.size() + 1);
-                todo.push_withdepth(v.p, v.r, side, doing.depth + 1);
+            for(auto const & q : winner.outstanding) {
+                las_todo_entry child(q);
+                unsigned int const n = mpz_sizeinbase(child.p, 2);
+                verbose_output_vfprint(0, 1, gmp_vfprintf,
+                        "# [descent] "
+                        HILIGHT_START
+                        "pushing side-%d (%Zd,%Zd) [%d@%d]"
+                        HILIGHT_END
+                        " to todo list (now size %zu)\n",
+                        child.side, (mpz_srcptr) child.p, (mpz_srcptr) child.r,
+                        n, child.side,
+                        todo.size() + 1);
+                child.depth = doing.depth + 1;
+                todo.push(child, doing);
             }
         }
     } else {
@@ -138,6 +146,9 @@ void postprocess_specialq_descent(las_info & las, las_todo_list & todo, las_todo
         verbose_output_vfprint(0, 1, gmp_vfprintf, "# [descent] Failed to find a relation for " HILIGHT_START "side-%d (%Zd,%Zd) [%d@%d]" HILIGHT_END " (iteration %d). Putting back to todo list.\n", doing.side,
                 (mpz_srcptr) doing.p,
                 (mpz_srcptr) doing.r, n, doing.side, doing.iteration);
-        todo.push_withdepth(doing.p, doing.r, doing.side, doing.depth + 1, doing.iteration + 1);
+        las_todo_entry child = doing;
+        child.depth++;
+        child.iteration++;
+        todo.push(child, doing);
     }
 }/*}}}*/
