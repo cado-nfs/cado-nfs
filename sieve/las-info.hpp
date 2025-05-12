@@ -197,7 +197,7 @@ struct las_info : public las_parallel_desc, private NonCopyable {
         mutable std::mutex mm;
         mutable std::condition_variable cv;
         bool done = false;
-        std::list<cofac_list> todo;
+        std::list<cofac_list> todo_cofac_lists;
 
         const char *filename; // basename for the files
         uint64_t    filesize; // number of survivors per file

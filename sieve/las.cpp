@@ -1,7 +1,3 @@
-/* the macro above is for #include <cmath> -- however it must happen
- * first, because it may well be that one of the intermediary headers
- * pull stuff that is dependent on this flag.
- */
 #include "cado.h" // IWYU pragma: keep
 
 /* This compilation units reacts to TRACK_CODE_PATH and uses macros
@@ -11,87 +7,89 @@
  * The WHERE_AM_I_UPDATE macro itself is defined in las-where-am-i.hpp
  */
 
-#include <algorithm>                      // for min, max, max_element
-#include <array>                          // for array, array<>::value_type
-#include <climits>                        // for ULONG_MAX
-#include <cmath>                          // for log, pow, sqrt
-#include <condition_variable>             // for condition_variable
-#include <cstdarg>             // IWYU pragma: keep
-#include <cstdint>     /* AIX wants it first (it's a bug) */
-#include <cstdio>                         // for size_t, fprintf, stderr
-#include <cstdlib>                        // for exit, EXIT_FAILURE, EXIT_SU...
-#include <fstream>                        // for ifstream
-#include <functional>                     // for ref
-#include <iomanip>                        // for operator<<, setprecision
-#include <istream>                        // for operator>>
-#include <list>                           // for list, _List_iterator
-#include <map>                            // for map
-#include <memory>                         // for allocator, shared_ptr, make...
-#include <mutex>                          // for mutex, lock_guard, unique_lock
-#include <ostream>                        // for operator<<, ostringstream
-#include <string>                         // for string, basic_string, opera...
-#include <thread>                         // for thread
-#include <utility>                        // for move, pair
-#include <vector>                         // for vector<>::iterator, vector
+#include <climits>
+#include <cmath>
+#include <cstdarg>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+
+#include <algorithm>
+#include <array>
+#include <condition_variable>
+#include <fstream>
+#include <functional>
+#include <iomanip>
+#include <istream>
+#include <list>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <ostream>
+#include <sstream>
+#include <string>
+#include <thread>
+#include <utility>
+#include <vector>
 
 #include <dirent.h>
 
-#include <gmp.h>                          // for mpz_srcptr, gmp_vfprintf
+#include <gmp.h>
 #include "fmt/base.h"
+#include "fmt/format.h"
 
-#include "bucket.hpp"                     // for bucket_slice_alloc_defaults
+#include "bucket.hpp"
 #include "cado-sighandlers.h"
 #include "cado_poly.h"
 #include "cxx_mpz.hpp"
-#include "ecm/batch.hpp"                      // for cofac_list, cofac_candidate
-#include "ecm/facul.hpp"                      // for facul_print_stats
+#include "ecm/batch.hpp"
 #include "ecm/facul_strategies_stats.hpp"
 #include "fb-types.hpp"
-#include "fb.hpp"                         // for fb_factorbase::key_type
+#include "fb.hpp"
 #include "json.hpp"
-#include "las-auxiliary-data.hpp"         // for report_and_timer, nfs_aux
-#include "las-bkmult.hpp"                 // for buckets_are_full, bkmult_sp...
-#include "las-choose-sieve-area.hpp"      // for choose_sieve_area, never_di...
-#include "las-cofactor.hpp"               // for cofactorization_statistics
-#include "las-config.h"                   // for LOG_BUCKET_REGIONS, BUCKET_...
-#include "las-descent-trees.hpp"          // descent_tree
-#include "las-descent.hpp"                // for postprocess_specialq_descent
-#include "las-divide-primes.hpp"          // for display_bucket_prime_stats
-#include "las-dlog-base.hpp"              // IWYU pragma: keep
+#include "las-auxiliary-data.hpp"
+#include "las-bkmult.hpp"
+#include "las-choose-sieve-area.hpp"
+#include "las-cofactor.hpp"
+#include "las-config.h"
+#include "las-descent-trees.hpp"
+#include "las-descent.hpp"
+#include "las-divide-primes.hpp"
+#include "las-dlog-base.hpp"
 #include "las-duplicate.hpp"
-#include "las-fill-in-buckets.hpp"        // for downsort_tree, fill_in_buck...
-#include "las-globals.hpp"                // for main_output, base_memory
-#include "las-info.hpp"                   // for las_info, las_info::batch_p...
-#include "las-multiobj-globals.hpp"       // for dlp_descent
-#include "las-norms.hpp"                  // for lognorm_smart, ADJUST_STRAT...
-#include "las-output.hpp"                 // for las_output
-#include "las-parallel.hpp"               // for las_parallel_desc, las_para...
-#include "las-plattice.hpp"               // for plattice_enumerator
-#include "las-process-bucket-region.hpp"  // for process_bucket_region_spawn
-#include "las-qlattice.hpp"               // for qlattice_basis, operator<<
-#include "las-report-stats.hpp"           // for las_report, coarse_las_timers
-#include "las-siever-config.hpp"          // for siever_config::side_config
-#include "las-smallsieve.hpp"             // for small_sieve_activate_many_s...
-#include "las-threads-work-data.hpp"      // for nfs_work, nfs_work::side_data
-#include "las-todo-entry.hpp"             // for las_todo_entry
-#include "las-todo-list.hpp"              // for las_todo_list
-#include "las-where-am-i-proxy.hpp"            // for where_am_I
-#include "las-where-am-i.hpp"             // for where_am_I, WHERE_AM_I_UPDATE
-#include "lock_guarded_container.hpp"     // for lock_guarded_container
-#include "macros.h"                       // for ASSERT_ALWAYS, MAX, iceildiv
-#include "memusage.h"   // PeakMemusage
-#include "misc.h"          // size_disp
+#include "las-fill-in-buckets.hpp"
+#include "las-globals.hpp"
+#include "las-info.hpp"
+#include "las-multiobj-globals.hpp"
+#include "las-norms.hpp"
+#include "las-output.hpp"
+#include "las-parallel.hpp"
+#include "las-plattice.hpp"
+#include "las-process-bucket-region.hpp"
+#include "las-qlattice.hpp"
+#include "las-report-stats.hpp"
+#include "las-side-config.hpp"
+#include "las-siever-config.hpp"
+#include "las-sieve-shared-data.hpp"
+#include "las-smallsieve.hpp"
+#include "las-threads-work-data.hpp"
+#include "las-todo-entry.hpp"
+#include "las-todo-list.hpp"
+#include "las-where-am-i-proxy.hpp"
+#include "las-where-am-i.hpp"
+#include "lock_guarded_container.hpp"
+#include "macros.h"
+#include "memusage.h"
+#include "misc.h"
 #include "mpz_poly.h"
-#include "multityped_array.hpp"           // for multityped_array
+#include "multityped_array.hpp"
 #include "params.h"
-#include "relation.hpp"                   // for relation, operator<<
-#include "tdict.hpp"                      // for timetree_t, slot, SIBLING_T...
-#include "threadpool.hpp"                 // for thread_pool, thread_pool::s...
-#include "timing.h"             // for seconds
+#include "relation.hpp"
+#include "tdict.hpp"
+#include "threadpool.hpp"
+#include "timing.h"
 #include "utils_cxx.hpp"
 #include "verbose.h"
-
-
 
 /*************************** main program ************************************/
 
@@ -902,7 +900,7 @@ static bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_
                 "# "
                 "Sieving %s; I=%u; J=%u;%s\n",
                 os.str().c_str(),
-                1u << ws.conf.logI, ws.J, extra.str().c_str());
+                1U << ws.conf.logI, ws.J, extra.str().c_str());
 
         if (!las.allow_composite_q && !ws.Q.doing.is_prime()) {
             verbose_output_vfprint(0, 1, gmp_vfprintf,
@@ -967,20 +965,20 @@ struct ps_params {
 
 void las_info::batch_print_survivors_t::doit()
 {
-    for(std::unique_lock<std::mutex> foo(mm);!todo.empty() || !done;) {
+    for(std::unique_lock<std::mutex> foo(mm);!todo_cofac_lists.empty() || !done;) {
         cv.wait(foo);
 
         /* This is both for spurious wakeups and for the finish condition */
-        for( ; !todo.empty() ; ) {
+        for( ; !todo_cofac_lists.empty() ; ) {
 
             /* We have the lock held at this point */
 
             std::string const f = std::string(filename) + "." + std::to_string(counter++);
             std::string const f_part = f + ".part";
 
-            cofac_list const M = std::move(todo.front());
+            cofac_list const M = std::move(todo_cofac_lists.front());
 
-            todo.pop_front();
+            todo_cofac_lists.pop_front();
 
             /* Now we temporarily unlock foo. */
             foo.unlock();
@@ -1185,7 +1183,7 @@ static void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_
                                     M.splice(M.end(), las.L, las.L.begin(), it);
                                     {
                                     std::lock_guard<std::mutex> const dummy(las.batch_print_survivors.mm);
-                                    las.batch_print_survivors.todo.push_back(std::move(M));
+                                    las.batch_print_survivors.todo_cofac_lists.push_back(std::move(M));
                                     }
                                     las.batch_print_survivors.cv.notify_one();
 
@@ -1405,7 +1403,7 @@ static void quick_subjob_loop_using_cache(las_info & las, las_todo_list & todo)/
                     "# "
                     "Sieving %s; I=%u; J=%u;\n",
                     os.str().c_str(),
-                    1u << conf.logI, J);
+                    1U << conf.logI, J);
         }
 
         std::string const filepath = relation_cache_find_filepath(las.relation_cache, splits, aux.doing.p);
@@ -1465,8 +1463,8 @@ int main (int argc0, char const * argv0[])/*{{{*/
     int argc = argc0;
     char const **argv = argv0;
 
-    setbuf(stdout, nullptr);
-    setbuf(stderr, nullptr);
+    setvbuf(stdout, nullptr, _IONBF, 0);
+    setvbuf(stderr, nullptr, _IONBF, 0);
 
     cxx_param_list pl;
     cado_sighandlers_install();
@@ -1673,7 +1671,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
         if (las.batch_print_survivors.filename) {
             las.batch_print_survivors.mm.lock();
             las.batch_print_survivors.done = true;
-            las.batch_print_survivors.todo.push_back(std::move(las.L));
+            las.batch_print_survivors.todo_cofac_lists.push_back(std::move(las.L));
             las.batch_print_survivors.mm.unlock();
             las.batch_print_survivors.cv.notify_all();
             for(auto & x : las.batch_print_survivors.printer_threads)
@@ -1869,9 +1867,9 @@ int main (int argc0, char const * argv0[])/*{{{*/
     if (main_output->verbose >= 1 && las.config_pool.default_config_ptr) {
         expected_memory_usage(las.config_pool.base, las, true, base_memory);
     }
-    const long peakmem = PeakMemusage();
+    const size_t peakmem = PeakMemusage();
     if (peakmem > 0)
-        verbose_output_print (2, 1, "# PeakMemusage (MB) = %ld \n",
+        verbose_output_print (2, 1, "# PeakMemusage (MB) = %zu \n",
                 peakmem >> 10);
     if (las.suppress_duplicates) {
         verbose_output_print(2, 1, "# Total number of eliminated duplicates: %lu\n", global_rt.rep.duplicates);

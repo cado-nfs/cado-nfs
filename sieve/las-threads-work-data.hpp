@@ -1,25 +1,26 @@
 #ifndef CADO_LAS_THREADS_WORK_DATA_HPP
 #define CADO_LAS_THREADS_WORK_DATA_HPP
 
-#include <cstddef>                     // for NULL
-#include <cstdint>                     // for uint32_t
-#include <array>                       // for array
-#include <vector>                      // for vector
-#include "ecm/batch.hpp"                   // for cofac_list
-#include "ecm/facul.hpp"                   // for facul_strategies_t
-#include "fb.hpp"                      // for fb_factorbase, fb_factorbase::...
-#include "las-bkmult.hpp"              // for bkmult_specifier
-#include "las-config.h"                // for FB_MAX_PARTS
-#include "las-dumpfile.hpp"            // for dumpfile_t
-#include "las-norms.hpp"               // for lognorm_smart
-#include "las-plattice.hpp"            // for precomp_plattice_dense_t
-#include "las-qlattice.hpp"            // for qlattice_basis
-#include "las-siever-config.hpp"       // for siever_config
-#include "las-smallsieve-types.hpp"    // for small_sieve_data_t
-#include "las-threads.hpp"             // for reservation_group
-#include "las-todo-entry.hpp"          // for las_todo_entry
-#include "lock_guarded_container.hpp"  // for lock_guarded_container
-#include "multityped_array.hpp"        // for multityped_array
+#include <cstddef>
+#include <cstdint>
+
+#include <array>
+#include <vector>
+
+#include "ecm/batch.hpp"
+#include "fb.hpp"
+#include "las-bkmult.hpp"
+#include "las-config.h"
+#include "las-dumpfile.hpp"
+#include "las-norms.hpp"
+#include "las-plattice.hpp"
+#include "las-qlattice.hpp"
+#include "las-siever-config.hpp"
+#include "las-smallsieve-types.hpp"
+#include "las-threads.hpp"
+#include "las-todo-entry.hpp"
+#include "lock_guarded_container.hpp"
+#include "multityped_array.hpp"
 
 class las_memory_accessor; // IWYU pragma: keep
 class nfs_aux; // IWYU pragma: keep
@@ -120,9 +121,9 @@ class nfs_work {
          *
          * It is set by prepare_for_new_q().
          */
-        fb_factorbase::slicing const * fbs = NULL;
+        fb_factorbase::slicing const * fbs = nullptr;
 
-        bool no_fb() const { return fbs == NULL; }
+        bool no_fb() const { return fbs == nullptr; }
 
         trialdiv_data const * td;
 
@@ -198,13 +199,13 @@ class nfs_work {
             /* The real array where we apply the sieve.
              * This has size BUCKET_REGION_0 and should be close to L1
              * cache size. */
-            unsigned char *bucket_region = NULL;
+            unsigned char *bucket_region = nullptr;
         };
 
         nfs_work &ws;  /* a pointer to the parent structure, really */
         std::vector<side_data> sides;
         /* SS is used only in process_bucket region */
-        unsigned char *SS = NULL;
+        unsigned char *SS = nullptr;
 
         /* A note on SS versus sides[side].bucket_region.
          *

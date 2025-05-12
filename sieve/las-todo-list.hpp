@@ -1,21 +1,22 @@
 #ifndef CADO_LAS_TODO_LIST_HPP
 #define CADO_LAS_TODO_LIST_HPP
 
-#include <cstdint>            // for uint64_t, UINT64_MAX
-#include <cstdio>             // for FILE, NULL, size_t
+#include <cstdint>
+#include <cstdio>
 #include <climits>
 
+#include <fstream>
 #include <algorithm>
-#include <list>                // for list
+#include <list>
 #include <memory>
-#include <mutex>               // for mutex, lock_guard
-#include <stack>               // for swap, stack
+#include <mutex>
+#include <stack>
 
-#include <gmp.h>               // for gmp_randstate_t
+#include <gmp.h>
 
 #include "cxx_mpz.hpp"
 #include "cado_poly.h"
-#include "las-todo-entry.hpp"  // for las_todo_entry
+#include "las-todo-entry.hpp"
 
 struct cxx_param_list;
 
@@ -23,9 +24,11 @@ class las_todo_list : private std::stack<las_todo_entry> {
     std::mutex mm;
     cxx_cado_poly cpoly;
     typedef std::stack<las_todo_entry> super;
+
     /* "history" is append-only: everything we pop from the stack goes
      * here, and lives until the destruction */
     std::list<las_todo_entry> history;
+
     unsigned int nq_max = UINT_MAX;
     int random_sampling = 0;
     cxx_mpz q0;

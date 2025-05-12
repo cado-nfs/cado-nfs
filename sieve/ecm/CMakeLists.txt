@@ -76,6 +76,7 @@ target_link_libraries(testbench facul utils m)
 
 add_executable(finishbatch finishbatch.cpp
     $<TARGET_OBJECTS:las_core_0>
+    $<TARGET_OBJECTS:las_core_a>
     )
 target_link_libraries(finishbatch facul utils m)
 mark_targets_as_openmp(finishbatch)

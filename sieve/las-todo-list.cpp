@@ -1,37 +1,37 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cctype>          // for isspace, isdigit
-#include <cerrno>          // for errno
-#include <climits>         // for UINT_MAX
-#include <cstdarg>         // IWYU pragma: keep
+#include <cctype>
+#include <cerrno>
+#include <climits>
+#include <cstdarg>
 #include <cstdint>
 #include <cstdio>
-#include <cstdlib>         // for exit, EXIT_FAILURE, strtoul
-#include <cstring>         // for strerror
+#include <cstdlib>
+#include <cstring>
 
-#include <algorithm>       // for find, min
+#include <algorithm>
 #include <fstream>
 #include <sstream>
-#include <thread>                         // for thread
-#include <vector>          // for vector, vector<>::iterator
+#include <thread>
+#include <vector>
 #include <mutex>
 #include <string>
 #include <stdexcept>
 
-#include <gmp.h>           // for mpz_set, mpz_cmp_ui, mpz_t, mpz_cmp, gmp_r...
+#include <gmp.h>
 #include "fmt/format.h"
 
 #include "cado_poly.h"
 #include "cxx_mpz.hpp"
 #include "gmp_aux.h"
-#include "las-galois.hpp"  // for skip_galois_roots
+#include "las-galois.hpp"
 #include "las-todo-entry.hpp"
 #include "las-todo-list.hpp"
-#include "macros.h"        // for ASSERT_ALWAYS
+#include "macros.h"
 #include "mpz_poly.h"
 #include "params.h"
-#include "rootfinder.h" // mpz_poly_roots_ulong
-#include "verbose.h"    // verbose_output_print
+#include "rootfinder.h"
+#include "verbose.h"
 
 /* Put in r the smallest legitimate special-q value that it at least
  * s + diff (note that if s+diff is already legitimate, then r = s+diff

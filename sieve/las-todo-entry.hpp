@@ -16,14 +16,28 @@
 
 
 struct las_todo_entry {
-    cxx_mpz p; /* this is the 'special-q', despite the 'p' name... */
+    cxx_mpz p = 0; /* this is the 'special-q', despite the 'p' name... */
     /* even for a rational side, the field below is used, since
      * it is needed for the initialization of the q-lattice. All callers
      * of las_todo_push must therefore make sure that a proper argument
      * is provided.
      */
-    cxx_mpz r;
-    int side;
+    cxx_mpz r = 0;
+    int side = 0;
+
+    bool operator<(las_todo_entry const & o) const {
+        int c;
+        c = mpz_cmp(p, o.p); if (c) return c < 0;
+        c = side - o.side;   if (c) return c < 0;
+        c = mpz_cmp(r, o.r); if (c) return c < 0;
+        return false;
+    }
+
+    /********************************************************************/
+    /* what comes below is only contextual information -- really, a
+     * todo entry must be thought of as (p,r,side)
+     */
+
     /* The array of prime_factors is valid unless p is a prime above 64
      * bits.
      */
@@ -31,21 +45,16 @@ struct las_todo_entry {
     bool is_prime() const { return prime_factors.size() == 1; }
 
     /* some fields which are specific to the descent */
-    int depth;
-    int iteration;      /* number of times we failed on this prime */
+    int depth = 0;
+    int iteration = 0;      /* number of times we failed on this prime */
 
-    las_todo_entry() : side(0), depth(0), iteration(0) {}
-
-    bool operator<(las_todo_entry const & o) const {
-        int c = mpz_cmp(p, o.p);
-        if (c) return c < 0;
-        c = mpz_cmp(r, o.r);
-        if (c) return c < 0;
-        return false;
-    }
+    las_todo_entry() = default;
 
     /* Empty p, r is used for "closing brace" */
-    las_todo_entry(const int side, const int depth) : side(side), depth(depth), iteration(0) { }
+    las_todo_entry(const int side, const int depth)
+        : side(side)
+        , depth(depth)
+    { }
 
     las_todo_entry(cxx_mpz p, cxx_mpz r, const int side, const int depth = 0, const int iteration = 0)
         : p(std::move(p))
