@@ -407,7 +407,7 @@ bool las_todo_list::feed_qlist()
 
 /* This exists because of the race condition between feed() and pop()
  */
-las_todo_entry * las_todo_list::feed_and_pop()
+las_todo_entry las_todo_list::feed_and_pop()
 {
     const std::lock_guard<std::mutex> foo(mm);
     if (super::empty()) {
@@ -422,8 +422,7 @@ las_todo_entry * las_todo_list::feed_and_pop()
     if (!doing.is_closing_brace() && bool(doing))
         pulled++;
     super::pop();
-    history.push_back(doing);
-    return &history.back();
+    return doing;
 }
 /* }}} */
 
@@ -466,9 +465,8 @@ void las_todo_list::print_todo_list(cxx_param_list & pl, int nthreads) const
 
         las_todo_list todo2(cpoly, pl2);
         for(;;) {
-            las_todo_entry * doing_p = todo2.feed_and_pop();
-            if (!doing_p) break;
-            las_todo_entry& doing(*doing_p);
+            las_todo_entry doing = todo2.feed_and_pop();
+            if (!doing) break;
             if (nthreads == 1) {
                 verbose_output_vfprint(0, 1, gmp_vfprintf,
                         "%d %Zd %Zd\n",

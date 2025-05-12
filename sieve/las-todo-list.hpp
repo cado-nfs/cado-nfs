@@ -43,10 +43,6 @@ class las_todo_list : private std::stack<las_todo_entry> {
 
     typedef std::stack<las_todo_entry> super;
 
-    /* "history" is append-only: everything we pop from the stack goes
-     * here, and lives until the destruction */
-    std::list<las_todo_entry> history;
-
     int random_sampling = 0;
     cxx_mpz q0;
     cxx_mpz q1;
@@ -102,7 +98,7 @@ class las_todo_list : private std::stack<las_todo_entry> {
 
     /* }}} */
 
-    las_todo_entry * feed_and_pop();
+    las_todo_entry feed_and_pop();
 
     las_todo_list(las_todo_list const &) = delete;
     las_todo_list(las_todo_list &&) = delete;
@@ -122,7 +118,7 @@ class las_todo_list : private std::stack<las_todo_entry> {
     struct pulled_todo_entry : public las_todo_entry {
             las_todo_list * L = nullptr;
         explicit pulled_todo_entry(las_todo_list * L)
-            : las_todo_entry(*L->feed_and_pop())
+            : las_todo_entry(L->feed_and_pop())
             , L(L)
         { }
         ~pulled_todo_entry() {

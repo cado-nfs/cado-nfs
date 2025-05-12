@@ -32,6 +32,12 @@ struct las_todo_entry {
         c = mpz_cmp(r, o.r); if (c) return c < 0;
         return false;
     }
+    bool operator!=(las_todo_entry const & o) const {
+        return (*this) < o || o < (*this);
+    }
+    bool operator==(las_todo_entry const & o) const {
+        return !((*this) != o);
+    }
 
     las_todo_entry() = default;
 

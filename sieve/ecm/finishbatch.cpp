@@ -163,7 +163,7 @@ main (int argc, char const *argv[])
           fprintf(stderr, "parse error at line %d in cofactor input file\n", lnum);
           exit(EXIT_FAILURE);
       }
-      List.emplace_back(a, b, norms, &list_q.back());
+      List.emplace_back(a, b, norms, list_q.back());
   }
   fclose_maybe_compressed(inp, infilename);
 

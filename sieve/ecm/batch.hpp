@@ -1,18 +1,18 @@
 #ifndef SIEVE_ECM_BATCH_HPP
 #define SIEVE_ECM_BATCH_HPP
 
-#include <cstdint>     // for int64_t, uint64_t
-#include <cstdio>      // for FILE
-#include <array>        // for array
-#include <list>         // for list
-#include <utility>      // for move
-#include <gmp.h>        // for mpz_t
-#include "macros.h"  // for MAYBE_UNUSED
-#include "cado_poly.h"   // cxx_cado_poly
-#include "mpz_poly.h"
-#include "cxx_mpz.hpp"   // for cxx_mpz
+#include <cstdint>
+#include <cstdio>
+#include <list>
+#include <utility>
+#include <gmp.h>
 
-struct las_todo_entry; // IWYU pragma: keep
+#include "macros.h"
+#include "cado_poly.h"
+#include "mpz_poly.h"
+#include "cxx_mpz.hpp"
+#include "las-todo-entry.hpp"
+
 struct relation; // IWYU pragma: keep
 
 /* structure to compute on-line a product tree, avoiding to first compute a
@@ -31,10 +31,10 @@ struct cofac_candidate {
   int64_t a;
   uint64_t b;
   std::vector<cxx_mpz> cofactor;
-  las_todo_entry const * doing_p;
+  las_todo_entry doing;
   cofac_candidate() = default;
-  cofac_candidate(int64_t a, uint64_t b, std::vector<cxx_mpz> & cofactor, las_todo_entry const * doing_p)
-      : a(a), b(b), cofactor(std::move(cofactor)), doing_p(doing_p)
+  cofac_candidate(int64_t a, uint64_t b, std::vector<cxx_mpz> & cofactor, las_todo_entry const & doing)
+      : a(a), b(b), cofactor(std::move(cofactor)), doing(doing)
       {}
 };
 

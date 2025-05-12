@@ -904,8 +904,8 @@ factor_one (
             mpz_poly_homogeneous_eval_siui (norm, cpoly->pols[side], a, b);
             mpz_abs(norm, norm);
         } else {
-            if (C.doing_p->side == side) {
-                mpz_mul(norm, cofac, C.doing_p->p);
+            if (C.doing.side == side) {
+                mpz_mul(norm, cofac, C.doing.p);
             } else {
                 mpz_set(norm, cofac);
             }
@@ -914,7 +914,7 @@ factor_one (
         bool const smooth = factor_simple_minded (factors[side], norm, methods,
                 lpb[side], (double) lim[side], SP[side],
                 cofac,
-                (C.doing_p->side == side) ? C.doing_p->prime_factors : empty);
+                (C.doing.side == side) ? C.doing.prime_factors : empty);
         if (!smooth) {
             /* when we've knowingly decided to _do_ some cofactoring
              * after the product-tree on that side, then it's normal to

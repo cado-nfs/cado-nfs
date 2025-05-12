@@ -82,7 +82,7 @@ class nfs_aux {/*{{{*/
      */
     las_info const & las;
     public:
-    las_todo_entry const & doing;
+    las_todo_entry doing;
     
     /* in the recursive descent (and only in this context), this is the
      * list of special-q's that have led to considering this q. The root
@@ -164,19 +164,18 @@ class nfs_aux {/*{{{*/
     double wct_qt0;
 
     nfs_aux(las_info const & las,
-            las_todo_entry const & doing,
+            las_todo_entry doing,
             std::shared_ptr<rel_hash_t> & rel_hash_p,
             int nthreads)
         : las(las)   /* shame... */
-        , doing(doing)
+        , doing(std::move(doing))
         , rel_hash_p(rel_hash_p)
-        , dest_rt(nullptr)
         , checksum_post_sieve(las.cpoly->nb_polys)
         , th(nthreads)
           //, thread_data(*this))
+        , qt0(seconds())
+        , wct_qt0(wct_seconds())
     {
-        wct_qt0 = wct_seconds();
-        qt0 = seconds();
     }
 
 

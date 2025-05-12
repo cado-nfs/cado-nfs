@@ -144,7 +144,7 @@ void cofac_standalone::transfer_to_cofac_list(lock_guarded_container<cofac_list>
     /* "doing" must be an object that lives in the main todo list,
      * and will stay alive until the end of the program. Yes, it's a
      * bit dangerous. */
-    L.emplace_back(a, b, norm, &doing);
+    L.emplace_back(a, b, norm, doing);
 #if 0
     /* make sure threads don't write the cofactor list at the
      * same time !!! */

@@ -989,15 +989,15 @@ void las_info::batch_print_survivors_t::doit()
 
             {
                 auto out = fopen_helper(f_part, "w");
-                las_todo_entry const * curr_sq = nullptr;
+                las_todo_entry curr_sq;
                 for (auto const &s : M) {
-                    if (s.doing_p != curr_sq) {
-                        curr_sq = s.doing_p;
+                    if (s.doing != curr_sq) {
+                        curr_sq = s.doing;
                         fmt::print(out.get(),
                                 "# q = ({}, {}, {})\n",
-                                s.doing_p->p,
-                                s.doing_p->r,
-                                s.doing_p->side);
+                                s.doing.p,
+                                s.doing.r,
+                                s.doing.side);
                     }
                     fmt::print(out.get(),
                             "{} {} {} {}\n", s.a, s.b,
@@ -1064,11 +1064,9 @@ static void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_
                     break;
             }
             main_output->fflush();
-            las_todo_entry * doing_p = todo.feed_and_pop();
-            if (!doing_p) break;
-            las_todo_entry& doing(*doing_p);
+            las_todo_entry doing = todo.feed_and_pop();
 
-            if (dlp_descent) {
+            if (dlp_descent && doing.is_closing_brace()) {
                 /* If the next special-q to try is a special marker, it means
                  * that we're done with a special-q we started before, including
                  * all its spawned sub-special-q's. Indeed, each time we start a
@@ -1076,21 +1074,22 @@ static void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_
                  * marker. But newer special-q's may enter the todo list in turn
                  * (pushed with las_todo_push_withdepth).
                  */
-                if (doing.is_closing_brace()) {
-                    las.tree.done_node();
-                    if (las.tree.depth() == 0) {
-                        if (recursive_descent) {
-                            /* BEGIN TREE / END TREE are for the python script */
-                            fmt::print(main_output->output, "# BEGIN TREE\n");
-                            las.tree.display_last_tree(main_output->output);
-                            fmt::print(main_output->output, "# END TREE\n");
-                        }
-                        las.tree.visited.clear();
+                las.tree.done_node();
+                if (las.tree.depth() == 0) {
+                    if (recursive_descent) {
+                        /* BEGIN TREE / END TREE are for the python script */
+                        fmt::print(main_output->output, "# BEGIN TREE\n");
+                        las.tree.display_last_tree(main_output->output);
+                        fmt::print(main_output->output, "# END TREE\n");
                     }
-                    continue;
+                    las.tree.visited.clear();
                 }
+                continue;
+            }
 
-                /* pick a new entry from the stack, and do a few sanity checks */
+            if (!doing) break;
+
+            if (dlp_descent) {
                 todo.push_closing_brace(doing.depth);
 
                 las.tree.new_node(doing);
@@ -1382,9 +1381,8 @@ static void quick_subjob_loop_using_cache(las_info & las, las_todo_list & todo)/
 
     for(;; nq++) {
         main_output->fflush();
-        las_todo_entry * doing_p = todo.feed_and_pop();
-        if (!doing_p) break;
-        las_todo_entry & doing(*doing_p);
+        las_todo_entry doing = todo.feed_and_pop();
+        if (!doing) break;
 
         nq++;
 
@@ -1636,7 +1634,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
          * course, but how we should proceed with the todo list, our brace
          * mechanism, and the descent tree thing is altogether not obvious
          */
-        const int nsubjobs = /* dlp_descent ? 1 : */ las.number_of_subjobs_total();
+        const int nsubjobs = dlp_descent ? 1 : las.number_of_subjobs_total();
         subjobs.reserve(nsubjobs);
         for(int subjob = 0 ; subjob < nsubjobs ; ++subjob) {
             /* when references are passed through variadic template arguments
