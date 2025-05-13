@@ -957,67 +957,105 @@ static void prepare_timer_layout_for_multithreaded_tasks(timetree_t & timer,
 #endif
 }
 
-struct ps_params {
-    std::shared_ptr<cofac_list> M;
-    las_info & las;
-    ps_params(std::shared_ptr<cofac_list> M, las_info & las)
-        : M(std::move(M))
-        , las(las)
-    { }
-};
-
-void las_info::batch_print_survivors_t::doit()
+static void print_survivors_job(las_info & las)
 {
-    std::unique_lock<std::mutex> foo(mm);
-    for( ; !todo_cofac_lists.empty() || !done; ) {
-        cv.wait(foo);
+    las_info::batch_print_survivors_t & B(las.batch_print_survivors);
+    std::unique_lock<std::mutex> foo(B.mm);
+    for (;;) {
+        decltype(las.survivors.L) Lloc;
 
-        /* This is both for spurious wakeups and for the finish condition */
-        for( ; !todo_cofac_lists.empty() ; ) {
+        for( ; las.survivors.get_size() < B.filesize ; )
+            B.cv.wait(foo);
 
-            /* We have the lock held at this point */
-
-            auto const f = fmt::format("{}.{}", filename, counter++);
-            auto const f_part = f + ".part";
-
-            auto const M = std::move(todo_cofac_lists.front());
-
-            todo_cofac_lists.pop_front();
-
-            /* Now we temporarily unlock foo. */
-            foo.unlock();
-
-            {
-                auto out = fopen_helper(f_part, "w");
-                las_todo_entry curr_sq;
-                for (auto const &s : M) {
-                    if (s.doing != curr_sq) {
-                        curr_sq = s.doing;
-                        fmt::print(out.get(),
-                                "# q = ({}, {}, {})\n",
-                                s.doing.p,
-                                s.doing.r,
-                                s.doing.side);
-                    }
-                    fmt::print(out.get(),
-                            "{} {} {} {}\n", s.a, s.b,
-                            s.cofactor[0],
-                            s.cofactor[1]);
-                }
+        {
+            /* we want to pull as much as we can from las.survivors, and
+             * store it for local processing. We need the lock on
+             * las.survivors to do this. We don't technically need to
+             * keep the lock on B.mm, but it won't be of any use while we
+             * work, so we might as well keep it.
+             */
+            size_t locsize = 0;
+            const std::lock_guard<std::mutex> dummy(las.survivors.mm);
+            for( ; !las.survivors.L.empty() && locsize <= B.filesize ; ) {
+                /* See how many survivors I have in the front list, and
+                 * pull only as much as we need. Possibly all, but not
+                 * necessarily.
+                 */
+                auto & F = las.survivors.L.front();
+                auto it = F.second.begin();
+                for( ; locsize <= B.filesize && it != F.second.end() ; ++it)
+                    ++locsize;
+                decltype(F.second) M;
+                M.splice(M.end(), F.second, F.second.begin(), it);
+                Lloc.emplace_back(F.first, std::move(M));
+                if (F.second.empty())
+                    las.survivors.L.pop_front();
             }
-            int const rc = rename(f_part.c_str(), f.c_str());
-            WARN_ERRNO_DIAG(rc != 0, "rename(%s, %s)", f_part.c_str(), f.c_str());
+            if (locsize == 0)
+                return;
 
-            foo.lock();
+            /* if las.survivors.size is SIZE_MAX, we're in drain mode and
+             * all printers are either waiting, or will check
+             * las.survivors.get_size() before going to wait. In the
+             * other (normal) case, it might make sense to wake up
+             * another printer thread while we're busy printing here.
+             */
+            if (las.survivors.size != SIZE_MAX) {
+                las.survivors.size -= locsize;
+                if (las.survivors.size)
+                    B.cv.notify_one();
+            }
         }
+
+        auto const f = fmt::format("{}.{}", B.filename, B.counter++);
+
+        /* Now we temporarily unlock foo. */
+        foo.unlock();
+        auto const f_part = f + ".part";
+        auto out = fopen_helper(f_part, "w");
+        for(auto const & m : Lloc) {
+            las_todo_entry const & doing(m.first);
+            fmt::print(out.get(), "# q = ({}, {}, {})\n",
+                    doing.p, doing.r, doing.side);
+            for(auto const & s : m.second) {
+                fmt::print(out.get(),
+                        "{} {} {} {}\n", s.a, s.b,
+                        s.cofactor[0],
+                        s.cofactor[1]);
+            }
+        }
+        int const rc = rename(f_part.c_str(), f.c_str());
+        WARN_ERRNO_DIAG(rc != 0, "rename(%s, %s)", f_part.c_str(), f.c_str());
+        foo.lock();
     }
 }
 
-static void print_survivors_job(las_info & las)
-{
-    las.batch_print_survivors.doit();
-}
 
+/* This is only used for batch, and also batch-print-survivors. We just
+ * collected some survivors in ws.cofac_candidates. We're going to move
+ * them to las.L, with the final outcome being either:
+ *  - batch cofactoring at the end of las
+ *  - printing, via one of the printing threads.
+ *
+ * So we're going to handle a pair (special q, list of (a,b)'s).
+ *
+ * ws.cofac_candidates is empty after this function.
+ */
+static void transfer_local_cofac_candidates_to_global(las_info & las, nfs_work & ws)
+{
+    if (ws.cofac_candidates.empty())
+        return;
+
+    las.survivors.append(ws.Q.doing, std::move(ws.cofac_candidates));
+
+    if (!las.batch_print_survivors.filename)
+        return;
+
+    if (las.survivors.size >= las.batch_print_survivors.filesize) {
+        /* We need to print. Wake a thread to do it */
+        las.batch_print_survivors.cv.notify_one();
+    }
+}
 
 
 static void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_and_timer & global_rt)/*{{{*/
@@ -1040,7 +1078,7 @@ static void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_
          * multithreaded nevertheless: alloc buckets, ...
          */
         thread_pool pool(las.number_of_threads_per_subjob(), cumulated_wait_time, 3);
-        nfs_work workspaces(las);
+        nfs_work ws(las);
 
         /* {{{ Doc on todo list handling
          * The function las_todo_feed behaves in different
@@ -1139,7 +1177,7 @@ static void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_
 
                     prepare_timer_layout_for_multithreaded_tasks(timer_special_q, las.cpoly->nb_polys);
 
-                    bool const done = do_one_special_q(las, workspaces, aux_p, pool);
+                    bool const done = do_one_special_q(las, ws, aux_p, pool);
 
                     if (!done) {
                         /* Then we don't even keep track of the time, it's
@@ -1155,60 +1193,8 @@ static void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_
                     if (dlp_descent)
                         postprocess_specialq_descent(las, todo, doing, timer_special_q);
 
-                    if (!workspaces.cofac_candidates.empty()) {
-                        {
-                            std::lock_guard<std::mutex> const foo(las.L.mutex());
-#if 0
-                            las.L.reserve(las.L.size() +
-                                    workspaces.cofac_candidates.size());
-                            /* do we fear that this move could be
-                             * expensive ?  We're single-threaded at this
-                             * point, so many threads could be waiting
-                             * idly while we're moving pointers around.
-                             * Worse, we have a mutex on las.L, so other
-                             * subjobs might be waiting too. */
-                            for(auto & x : workspaces.cofac_candidates)
-                                las.L.emplace_back(std::move(x));
-                            /* we can release the mutex now */
-#else
-                            las.L.splice(las.L.end(), workspaces.cofac_candidates);
-                            if (las.batch_print_survivors.filename) {
-                                while (las.L.size() >= las.batch_print_survivors.filesize) {
-                                    // M is another list containing the
-                                    // elements that are going to be printed
-                                    // by another thread.
-                                    cofac_list M;
-                                    auto it = las.L.begin();
-                                    for (uint64_t i = 0; i < las.batch_print_survivors.filesize; ++i) {
-                                        ++it;
-                                    }
-                                    M.splice(M.end(), las.L, las.L.begin(), it);
-                                    {
-                                    std::lock_guard<std::mutex> const dummy(las.batch_print_survivors.mm);
-                                    las.batch_print_survivors.todo_cofac_lists.push_back(std::move(M));
-                                    }
-                                    las.batch_print_survivors.cv.notify_one();
+                    transfer_local_cofac_candidates_to_global(las, ws);
 
-#if 0
-                                    /* temporarily release the lock while
-                                     * we're doing print_survivors, and
-                                     * especially while we're waiting for
-                                     * the previous print_survivors to
-                                     * complete. */
-                                    struct bar {
-                                        std::mutex& m;
-                                        bar(std::mutex & m) : m(m) { m.unlock(); }
-                                        ~bar() { m.lock(); }
-                                    };
-                                    bar dummy2(las.L.mutex());
-                                    print_survivors(M, las);
-#endif
-                                }
-                            }
-#endif
-                        }
-                        workspaces.cofac_candidates.clear();
-                    }
 
                     aux.complete = true;
                     aux.dest_rt = &global_rt;
@@ -1230,7 +1216,7 @@ static void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_
                      * did the allocation ! It is set by
                      * prepare_for_new_q, called from do_one_special_q.
                      */
-                    double const old_value = workspaces.bk_multiplier.get(e.key);
+                    double const old_value = ws.bk_multiplier.get(e.key);
                     double ratio = (double) e.reached_size / e.theoretical_max_size * 1.05;
                     double new_value = old_value * ratio;
                     double las_value;
@@ -1263,7 +1249,7 @@ static void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_
 
         } // end of loop over special q ideals.
 
-        /* we delete the "pool" and "workspaces" variables at this point. */
+        /* we delete the "pool" and "ws" variables at this point. */
         /* The dtor for "pool" is a synchronization point */
     }
 
@@ -1657,10 +1643,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
         las.set_loose_binding();
 
         if (las.batch_print_survivors.filename) {
-            las.batch_print_survivors.mm.lock();
-            las.batch_print_survivors.done = true;
-            las.batch_print_survivors.todo_cofac_lists.push_back(std::move(las.L));
-            las.batch_print_survivors.mm.unlock();
+            las.survivors.mark_drain();
             las.batch_print_survivors.cv.notify_all();
             for(auto & x : las.batch_print_survivors.printer_threads)
                 x.join();
@@ -1706,7 +1689,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
              * cpu binding. At least I presume that it does nothing before
              * the first pragma omp statement.)
              */
-            find_smooth (las.L,
+            find_smooth (las.survivors.L,
                     batchP, batchlpb, lpb, batchmfb,
                     main_output->output,
                     las.number_of_threads_loose(),
@@ -1729,35 +1712,46 @@ int main (int argc0, char const * argv0[])/*{{{*/
             if (ncurves <= 0)
                 ncurves = 50; // use the same default as finishbatch
 
-            std::list<relation> const rels = factor (las.L,
+            std::list<std::pair<las_todo_entry, std::list<relation>>> rels;
+
+            for(auto const & x : las.survivors.L) {
+                rels.emplace_back(x.first, factor (x.second,
                     las.cpoly,
+                    x.first,
                     batchlpb,
                     lpb,
                     ncurves,
                     main_output->output,
                     las.number_of_threads_loose(),
                     extra_time,
-                    1);
+                    1));
+            }
             verbose_output_print (0, 1, "# batch reported time for additional threads: %.2f\n", extra_time);
             batch_timer.add_foreign_time(extra_time);
 
             verbose_output_start_batch();
             nfs_aux::rel_hash_t rel_hash;
             size_t nondup = 0;
-            for(auto const & rel : rels) {
-                std::ostringstream os;
-                nfs_aux::abpair_t const ab(rel.a, rel.b);
-                bool const is_new_rel = rel_hash.insert(ab).second;
-                if (!is_new_rel) {
-                    /* we had this (a,b) pair twice, probably because of a
-                     * failed attempt, that was aborted because of an
-                     * exception. (occurs only with 2-level sieving) */
-                    os << "# DUP ";
-                } else {
-                    nondup++;
+            for(auto const & rq : rels) {
+                auto qq = fmt::format("{} relations for {}",
+                        rq.second.size(),
+                        rq.first);
+                verbose_output_print(0, 1, "# %s\n", qq.c_str());
+                for(auto const & rel : rq.second) {
+                    nfs_aux::abpair_t const ab(rel.a, rel.b);
+                    std::string rr;
+                    bool const is_new_rel = rel_hash.insert(ab).second;
+                    if (!is_new_rel) {
+                        rr = "# DUP ";
+                        /* we had this (a,b) pair twice, probably because of a
+                         * failed attempt, that was aborted because of an
+                         * exception. (occurs only with 2-level sieving) */
+                    } else {
+                        nondup++;
+                    }
+                    rr += fmt::format("{}", rel);
+                    verbose_output_print(0, 1, "%s\n", rr.c_str());
                 }
-                os << rel;
-                verbose_output_print(0, 1, "%s\n", os.str().c_str());
             }
             verbose_output_end_batch();
             global_rt.rep.reports = nondup;

@@ -3,8 +3,13 @@
 
 #include <cstdint>
 #include <cstdio>
+
 #include <list>
+#include <memory>
+#include <string>
 #include <utility>
+#include <vector>
+
 #include <gmp.h>
 
 #include "macros.h"
@@ -15,38 +20,28 @@
 
 struct relation; // IWYU pragma: keep
 
-/* structure to compute on-line a product tree, avoiding to first compute a
-   list of mpz_t (which might take too much memory) */
-typedef struct {
-  mpz_t *l;     /* the value stored is l[0] * l[1] * ... * l[size-1],
-                   where l[0] is the product of n[0] elements, l[1] is
-                   the product of n[1] elements, ..., with n[0]=0 or 1,
-                   n[1]=0 or 2, ..., n[k]=0 or 2^k */
-  unsigned long *n;
-  size_t size;
-} mpz_product_tree_t;
-typedef mpz_product_tree_t mpz_product_tree[1];
 
 struct cofac_candidate {
-  int64_t a;
-  uint64_t b;
-  std::vector<cxx_mpz> cofactor;
-  las_todo_entry doing;
-  cofac_candidate() = default;
-  cofac_candidate(int64_t a, uint64_t b, std::vector<cxx_mpz> & cofactor, las_todo_entry const & doing)
-      : a(a), b(b), cofactor(std::move(cofactor)), doing(doing)
-      {}
+    int64_t a = 0;
+    uint64_t b = 0;
+    std::vector<cxx_mpz> cofactor;
+    cofac_candidate() = default;
+    cofac_candidate(
+            int64_t a, uint64_t b,
+            std::vector<cxx_mpz> & cofactor)
+        : a(a)
+        , b(b)
+        , cofactor(std::move(cofactor))
+    { }
 };
 
-typedef std::list<cofac_candidate> cofac_list;
-
 /*
- * These three functions add to to the double& extra_time argument the
+ * These functions add to to the double& extra_time argument the
  * cpu time (RUSAGE_THREAD, seconds_thread()) spent in openmp helper
  * threads, NOT counting the time spent in the main thread.
  */
 size_t find_smooth (
-        cofac_list & l,
+        std::list<cofac_candidate> & l,
         std::vector<cxx_mpz> const & batchP,
         std::vector<unsigned int> const & batchlpb,
         std::vector<unsigned int> const & lpb,
@@ -54,9 +49,19 @@ size_t find_smooth (
         FILE *out,
         int nthreads MAYBE_UNUSED, double &);
 
+size_t
+find_smooth (std::list<std::pair<las_todo_entry, std::list<cofac_candidate>>> & l,
+        std::vector<cxx_mpz> const & batchP,
+        std::vector<unsigned int> const & batchlpb,
+        std::vector<unsigned int> const & lpb,
+        std::vector<unsigned int> const & batchmfb,
+        FILE *out,
+        int nthreads MAYBE_UNUSED, double & extra_time);
+
 std::list<relation> factor (
-        cofac_list const &,
+        std::list<cofac_candidate> const &,
         cxx_cado_poly const&,
+        las_todo_entry const &,
         std::vector<unsigned int> const & batchlpb,
         std::vector<unsigned int> const & lpb,
         int max_ncurves,

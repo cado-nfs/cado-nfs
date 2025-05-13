@@ -89,7 +89,7 @@ class nfs_work {
     /* This is used only in batch mode. The list of cofactorization
      * candidates will be transfered to the main list when we're done
      * with this special-q */
-    lock_guarded_container<cofac_list> cofac_candidates;
+    lock_guarded_container<std::list<cofac_candidate>> cofac_candidates;
 
     struct side_data {
         reservation_group group;

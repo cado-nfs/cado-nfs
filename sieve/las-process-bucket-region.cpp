@@ -752,11 +752,15 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
             if (ws.conf.sublat_bound && !cur.ab_coprime()) continue;
             /* make sure threads don't write the cofactor list at the
              * same time !!! */
-            cur.transfer_to_cofac_list(ws.cofac_candidates, aux_p->doing);
+            cur.transfer_to_cofac_list(ws.cofac_candidates);
             continue; /* we deal with all cofactors at the end of subjob */
         }
 
         auto * D = new detached_cofac_parameters(wc_p, aux_p, std::move(cur));
+
+        /* It is probably not a very good idea to make one task out of
+         * _each_ (a,b) pair that is to be cofactored...
+         */
 
         if (!dlp_descent && !exit_after_rel_found) {
             /* We must make sure that we join the async threads at some

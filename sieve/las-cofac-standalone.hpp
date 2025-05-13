@@ -1,14 +1,17 @@
 #ifndef CADO_LAS_COFAC_STANDALONE_HPP
 #define CADO_LAS_COFAC_STANDALONE_HPP
 
-#include <cstdio>                // for FILE, size_t
-#include <cstdint>                // for uint8_t, int64_t, uint64_t
-#include <vector>                 // for vector
+#include <cstdio>
+#include <cstdint>
+
+#include <memory>
+#include <vector>
 
 #include "cxx_mpz.hpp"
-#include "ecm/batch.hpp"              // for cofac_list
-#include "las-divide-primes.hpp"  // for factor_list_t
-#include "relation.hpp"           // for relation
+#include "ecm/batch.hpp"
+#include "las-divide-primes.hpp"
+#include "relation.hpp"
+
 class nfs_work_cofac; // IWYU pragma: keep
 struct las_todo_entry; // IWYU pragma: keep
 struct qlattice_basis; // IWYU pragma: keep
@@ -33,7 +36,7 @@ struct cofac_standalone {
     bool trace_on_spot() const;
     /* TODO. Hmmm. How important is this ? We don't want to expose
      * dependence on a compile flag in a header */
-    inline bool both_even() const {/*{{{*/
+    bool both_even() const {/*{{{*/
 #ifndef SUPPORT_LARGE_Q
         return ((((a | b) & 1) == 0));
 #else
@@ -44,7 +47,7 @@ struct cofac_standalone {
     bool ab_coprime() const;
     void print_as_survivor(FILE * f);
     relation get_relation(las_todo_entry const & doing) const;
-    void transfer_to_cofac_list(lock_guarded_container<cofac_list> & L, las_todo_entry const & doing);
+    void transfer_to_cofac_list(lock_guarded_container<std::list<cofac_candidate>> & L);
     int factor_both_leftover_norms(nfs_work_cofac & wc);
 };
 

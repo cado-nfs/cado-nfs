@@ -1,28 +1,30 @@
 #include "cado.h" // IWYU pragma: keep
-#include <cinttypes>          // for PRIi64, PRIu64
-#include <climits>            // for ULONG_MAX
-#include <cstdio>             // for fprintf, stderr, printf, stdout, NULL
-#include <cstdlib>            // for exit, EXIT_FAILURE, EXIT_SUCCESS
-#include <array>               // for array, array<>::value_type
-#include <cstdint>             // for uint64_t
-#include <list>                // for list
-#include <sstream>             // for operator<<, ostringstream, ostream
-#include <string>              // for basic_string
-#include <vector>              // for vector
-#include <gmp.h>               // for gmp_sscanf, mpz_ptr, mpz_srcptr, gmp_p...
-#include "batch.hpp"           // for cofac_candidate, cofac_list, create_ba...
+
+#include <climits>
+#include <cstdio>
+#include <cstdlib>
+#include <cstdint>
+
+#include <list>
+#include <sstream>
+#include <utility>
+#include <vector>
+
+#include <gmp.h>
+#include "fmt/base.h"
+
+#include "batch.hpp"
 #include "cado_poly.h"
 #include "cxx_mpz.hpp"
-#include "gmp_aux.h"
-#include "gzip.h"       // fopen_maybe_compressed
-#include "las-todo-entry.hpp"  // for las_todo_entry
-#include "macros.h"            // for ASSERT_ALWAYS
-#include "memusage.h"   // PeakMemusage
-#include "mpz_poly.h"
-#include "relation.hpp"        // for operator<<, relation
-#include "verbose.h"    // verbose_decl_usage
-#include "params.h"
+#include "gzip.h"
 #include "las-side-config.hpp"
+#include "las-todo-entry.hpp"
+#include "macros.h"
+#include "memusage.h"
+#include "mpz_poly.h"
+#include "params.h"
+#include "relation.hpp"
+#include "verbose.h"
 
 static void declare_usage(cxx_param_list & pl)
 {
@@ -123,7 +125,7 @@ main (int argc, char const *argv[])
   }
 
   // Read list from the input file.
-  cofac_list List;
+  std::list<std::pair<las_todo_entry, std::list<cofac_candidate>>> List;
   FILE * inp = fopen_maybe_compressed(infilename, "r");
   ASSERT_ALWAYS(inp);
 
@@ -133,13 +135,13 @@ main (int argc, char const *argv[])
   // If the special-q info is present, we will use it. Otherwise, the
   // fake sq will be used everywhere. This list keeps in memory all the
   // special q encountered.
-  std::list<las_todo_entry> list_q;
-
   // Create a fake special-q
-  list_q.emplace_back(1, 1, 0);
+  las_todo_entry sq(1, 1, 0);
 
   long a;
   unsigned long b;
+  std::list<cofac_candidate> for_this_q;
+
   for(int lnum = 0; fgets(str, MAX_SIZE, inp) ; lnum++) {
       cxx_mpz q;
       if (str[0] == '#') {
@@ -148,9 +150,12 @@ main (int argc, char const *argv[])
           int const ret = gmp_sscanf(str, "# q = (%Zd, %Zd, %d)",
                   &q, &r, &side);
           if (ret == 3) {
+              if (!for_this_q.empty())
+                  List.emplace_back(sq, std::move(for_this_q));
+              for_this_q.clear();
               /* make sure we don't try to factor q */
               const std::vector<uint64_t> primes { uint64_t(q) };
-              list_q.emplace_back(q, r, side, primes);
+              sq = las_todo_entry(q, r, side, primes);
           }
           continue;
       }
@@ -163,25 +168,29 @@ main (int argc, char const *argv[])
           fprintf(stderr, "parse error at line %d in cofactor input file\n", lnum);
           exit(EXIT_FAILURE);
       }
-      List.emplace_back(a, b, norms, list_q.back());
+      for_this_q.emplace_back(a, b, norms);
   }
+  if (!for_this_q.empty())
+      List.emplace_back(sq, std::move(for_this_q));
   fclose_maybe_compressed(inp, infilename);
 
   find_smooth(List, batchP, batchlpb, lpb, batchmfb, stdout, nb_threads, extra_time);
   
   if (doecm) {
-      std::list<relation> const smooth = factor(List, cpoly, batchlpb, lpb, ncurves, stdout, nb_threads, extra_time, !no_recomp_norm);
-      for(auto const & rel : smooth) {
-          std::ostringstream os;
-          os << rel << "\n";
-          printf("%s", os.str().c_str());
+      for(auto const & lq : List) {
+          fmt::print("# {}\n", lq.first);
+          std::list<relation> const smooth = factor(lq.second, cpoly, lq.first, batchlpb, lpb, ncurves, stdout, nb_threads, extra_time, !no_recomp_norm);
+          for(auto const & rel : smooth)
+              fmt::print("{}\n", rel);
       }
   } else {
-      for (auto const & x : List) {
-          gmp_printf("%" PRIi64 " %" PRIu64 " %Zd %Zd\n",
-                  x.a, x.b,
-                  (mpz_srcptr) x.cofactor[0],
-                  (mpz_srcptr) x.cofactor[1]);
+      for (auto const & lq : List) {
+          for (auto const & x : lq.second) {
+              fmt::print("{} {} {} {}\n",
+                      x.a, x.b,
+                      x.cofactor[0],
+                      x.cofactor[1]);
+          }
       }
   }
 

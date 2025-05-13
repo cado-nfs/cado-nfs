@@ -12,6 +12,8 @@
 #include <vector>
 
 #include <gmp.h>      // mpz_srcptr
+#include "fmt/base.h"
+#include "fmt/ostream.h"
 
 #include "gmp_aux.h"
 #include "cxx_mpz.hpp"
@@ -113,5 +115,9 @@ struct relation : public relation_ab {
 
 extern std::istream& operator>>(std::istream&, relation&);
 extern std::ostream& operator<<(std::ostream&, relation const &);
+
+namespace fmt {
+    template <> struct formatter<relation>: ostream_formatter {};
+}
 
 #endif	/* CADO_RELATION_HPP */
