@@ -728,6 +728,29 @@ cado_define_test(test-inline-polynomials-and-expressions
         makefb
 )
 
+# test for las with only one side
+set(d20_poly ${CMAKE_CURRENT_SOURCE_DIR}/d20.poly)
+set(d20_roots ${CMAKE_CURRENT_SOURCE_DIR}/d20.roots.gz)
+
+cado_define_test(d20_one_sided_las_sieve
+        ENVIRONMENT
+            las_I=14 poly=${d20_poly}
+            lim0=800 lpb0=10 mfb0=25 ncurves0=2 fb0=${d20_roots}
+            q0=900 nq=5 galois=_y
+            lim1=800 lpb1=10 mfb1=25
+            # Note: the last 3 args (lim1, lpb1 and mfb1) are not needed but
+            # sievetest.sh complains if they are not present
+            LAS_BINARY=${las_path}
+        REL_COUNT=29
+        REFERENCE_SHA1=d30c636a8cf76377441e6f1573f053fd7aa900ee
+        REFERENCE_REVISION=xxxxxxxxxxxxxxxxxxxxxxxxxx
+        PROVIDE_TEMPORARY_WDIR
+        SCRIPT
+            ${CMAKE_CURRENT_SOURCE_DIR}/sievetest.sh
+            -v -v
+        TARGET_DEPENDENCIES las
+        )
+
 add_subdirectory (ecm)
 add_subdirectory (strategies)
 if(strategies_variant STREQUAL "strategies_old")
