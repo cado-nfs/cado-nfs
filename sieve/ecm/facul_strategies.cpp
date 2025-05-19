@@ -216,7 +216,7 @@ static const char * parameterization_name(ec_parameterization_t p)
 }
 
 struct strategy_file_parser {/*{{{*/
-    typedef std::array<unsigned int, 2> key_type;;
+    typedef std::array<unsigned int, 2> key_type;; // FIXME HARDCODED 2
     typedef std::vector<facul_method::parameters_with_side> value_type;
 private:
     class regexp_define_t {/*{{{*/
