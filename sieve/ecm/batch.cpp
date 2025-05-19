@@ -34,7 +34,7 @@
 #include "facul_strategies.hpp"
 #include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
 #include "gmp_aux.h"       // mpz_set_uint64
-#include "las-todo-entry.hpp"  // for las_todo_entry
+#include "las-special-q.hpp"  // for special_q
 #include "macros.h"
 #include "modset.hpp"          // for FaculModulusBase
 #include "mpz_poly.h"
@@ -714,7 +714,7 @@ find_smooth (std::list<cofac_candidate> & l,
 }
 
 size_t
-find_smooth (std::list<std::pair<las_todo_entry, std::list<cofac_candidate>>> & L,
+find_smooth (std::list<std::pair<special_q, std::list<cofac_candidate>>> & L,
         std::vector<cxx_mpz> const & batchP,
         std::vector<unsigned int> const & batchlpb,
         std::vector<unsigned int> const & lpb,
@@ -723,7 +723,7 @@ find_smooth (std::list<std::pair<las_todo_entry, std::list<cofac_candidate>>> & 
         int nthreads MAYBE_UNUSED, double & extra_time)
 {
     size_t n = 0;
-    std::list<std::pair<las_todo_entry, std::list<cofac_candidate>>> R;
+    std::list<std::pair<special_q, std::list<cofac_candidate>>> R;
     for( ; !L.empty() ; ) {
         auto M = std::move(L.front());
         L.pop_front();
@@ -917,7 +917,7 @@ factor_one (
         std::list<relation> & smooth,
         cofac_candidate const & C,
         cxx_cado_poly const & cpoly,
-        las_todo_entry const & doing,
+        special_q const & doing,
         std::vector<unsigned long> const & lim,
         std::vector<unsigned int> const & batchlpb,
         std::vector<unsigned int> const & lpb,
@@ -997,7 +997,7 @@ factor_one (
 std::list<relation>
 factor (std::list<cofac_candidate> const & L,
         cxx_cado_poly const & cpoly,
-        las_todo_entry const & doing,
+        special_q const & doing,
         std::vector<unsigned int> const & batchlpb,
         std::vector<unsigned int> const & lpb,
         int ncurves,

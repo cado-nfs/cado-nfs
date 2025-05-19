@@ -11,10 +11,10 @@
 #include "cxx_mpz.hpp"
 #include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
 #include "gmp_aux.h"
-#include "las-todo-entry.hpp"
+#include "las-special-q.hpp"
 #include "macros.h"
 
-void las_todo_entry::find_prime_factors()
+void special_q::find_prime_factors()
 {
     prime_factors.clear();
 
@@ -68,7 +68,7 @@ void las_todo_entry::find_prime_factors()
 }
 
 /* This format is also parsed by read_sq_comment in dupsup.cpp ! */
-std::ostream& operator<<(std::ostream& os, las_todo_entry const & doing)
+std::ostream& operator<<(std::ostream& os, special_q const & doing)
 {
     os << "side-" << doing.side << " q=" << doing.p;
     if (!doing.is_prime()) {
@@ -102,9 +102,9 @@ static std::istream& operator>>(std::istream& is, expect_s<N> const & e)
     return is;
 }
 
-std::istream& operator>>(std::istream& is, las_todo_entry & doing)
+std::istream& operator>>(std::istream& is, special_q & doing)
 {
-    doing = las_todo_entry();
+    doing = special_q();
     is >> std::ws >> expect("side-") >> doing.side;
     is >> std::ws >> expect("q=");
     std::string token;

@@ -11,10 +11,10 @@
 #include "fmt/ostream.h"
 
 #include "fb-types.hpp"
-#include "las-todo-entry.hpp"  // for las_todo_entry
+#include "las-special-q.hpp"  // for special_q
 
 struct qlattice_basis {
-    las_todo_entry doing;
+    special_q doing;
 
     int64_t a0=0, b0=0, a1=0, b1=0;
     unsigned long q_ulong=0;
@@ -50,7 +50,7 @@ struct qlattice_basis {
 
     struct too_skewed : public std::exception { };
 
-    qlattice_basis(las_todo_entry const & doing, double skew);
+    qlattice_basis(special_q const & doing, double skew);
 
     /* This is handy sometimes */
     qlattice_basis(int64_t a0, int64_t b0, int64_t a1, int64_t b1)

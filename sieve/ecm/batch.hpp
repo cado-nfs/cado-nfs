@@ -16,7 +16,7 @@
 #include "cado_poly.h"
 #include "mpz_poly.h"
 #include "cxx_mpz.hpp"
-#include "las-todo-entry.hpp"
+#include "las-special-q.hpp"
 
 struct relation; // IWYU pragma: keep
 
@@ -50,7 +50,7 @@ size_t find_smooth (
         int nthreads MAYBE_UNUSED, double &);
 
 size_t
-find_smooth (std::list<std::pair<las_todo_entry, std::list<cofac_candidate>>> & l,
+find_smooth (std::list<std::pair<special_q, std::list<cofac_candidate>>> & l,
         std::vector<cxx_mpz> const & batchP,
         std::vector<unsigned int> const & batchlpb,
         std::vector<unsigned int> const & lpb,
@@ -61,7 +61,7 @@ find_smooth (std::list<std::pair<las_todo_entry, std::list<cofac_candidate>>> & 
 std::list<relation> factor (
         std::list<cofac_candidate> const &,
         cxx_cado_poly const&,
-        las_todo_entry const &,
+        special_q const &,
         std::vector<unsigned int> const & batchlpb,
         std::vector<unsigned int> const & lpb,
         int max_ncurves,

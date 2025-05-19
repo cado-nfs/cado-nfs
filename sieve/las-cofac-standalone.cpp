@@ -23,7 +23,7 @@
 #include "las-coordinates.hpp"
 #include "las-siever-config.hpp"
 #include "las-threads-work-data.hpp"
-#include "las-todo-entry.hpp"
+#include "las-special-q.hpp"
 #include "las-where-am-i-proxy.hpp"
 #include "lock_guarded_container.hpp"
 #include "relation.hpp"
@@ -57,7 +57,7 @@ cofac_standalone::cofac_standalone(int nsides, int N, size_t x, int logI, qlatti
 bool cofac_standalone::trace_on_spot() const {/*{{{*/
     return extern_trace_on_spot_ab(a, b);
 }/*}}}*/
-bool cofac_standalone::gcd_coprime_with_q(las_todo_entry const & E) const {/*{{{*/
+bool cofac_standalone::gcd_coprime_with_q(special_q const & E) const {/*{{{*/
     /* Since the q-lattice is exactly those (a, b) with
        a == rho*b (mod q), q|b  ==>  q|a  ==>  q | gcd(a,b) */
     /* In case of composite sq, have to check all factors... */
@@ -114,7 +114,7 @@ void cofac_standalone::print_as_survivor(FILE * f) {/*{{{*/
             (mpz_srcptr) norm[1]);
 #endif
 }/*}}}*/
-relation cofac_standalone::get_relation(las_todo_entry const & doing) const {/*{{{*/
+relation cofac_standalone::get_relation(special_q const & doing) const {/*{{{*/
 #ifndef SUPPORT_LARGE_Q
     relation rel(a, b);
 #else

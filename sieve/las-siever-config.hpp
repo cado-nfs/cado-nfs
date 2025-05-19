@@ -13,8 +13,10 @@
 #include "params.h"
 #include "las-side-config.hpp"
 
-struct las_todo_entry; // IWYU pragma: keep
+#include "las-special-q-task-tree.hpp"
+#include "las-special-q-task-simple.hpp"
 
+struct special_q; // IWYU pragma: keep
 
 /* siever_config */
  
@@ -31,6 +33,8 @@ struct siever_config {
 
     int logA;
     int logI;   /* see below. logI is initialized late in the game */
+
+    int adjust_strategy = 0;
 
     /* This does not really belong here. I'd rather have it at the
      * las_info level. However for obscure reasons,
@@ -229,7 +233,8 @@ struct siever_config_pool {
     siever_config const * default_config_ptr = nullptr;
     siever_config base;
 
-    siever_config get_config_for_q(las_todo_entry const& doing) const;
+    template<typename T>
+    siever_config get_config_for_q(T const& doing) const;
 
     siever_config_pool(cxx_param_list& pl, int nb_polys);
 
@@ -250,5 +255,18 @@ struct siever_config_pool {
 
     static void declare_usage(cxx_param_list & pl);
 };
+
+template<>
+siever_config siever_config_pool::get_config_for_q<special_q>(special_q const & doing) const;
+
+template<>
+siever_config siever_config_pool::get_config_for_q<special_q_task_tree>(special_q_task_tree const & doing) const;
+
+template<>
+inline siever_config siever_config_pool::get_config_for_q<special_q_task_simple>(special_q_task_simple const & doing) const
+{
+    return get_config_for_q(doing.sq());
+}
+
 
 #endif	/* CADO_LAS_SIEVER_CONFIG_HPP */

@@ -52,8 +52,7 @@
 #include "las-choose-sieve-area.hpp"
 #include "las-cofactor.hpp"
 #include "las-config.h"
-#include "las-descent-trees.hpp"
-#include "las-descent.hpp"
+#include "las-special-q-task-collection.hpp"
 #include "las-divide-primes.hpp"
 #include "las-dlog-base.hpp"
 #include "las-duplicate.hpp"
@@ -73,7 +72,7 @@
 #include "las-sieve-shared-data.hpp"
 #include "las-smallsieve.hpp"
 #include "las-threads-work-data.hpp"
-#include "las-todo-entry.hpp"
+#include "las-special-q.hpp"
 #include "las-todo-list.hpp"
 #include "las-where-am-i-proxy.hpp"
 #include "las-where-am-i.hpp"
@@ -404,7 +403,13 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
                 std::ostringstream os;
                 size_t const waste = (nslices_alloc - nslices_estim) * nba * nreg * sizeof(void*);
                 if (waste > (100<<20))
-                    os << " [note: using coarse-grain value of " << nslices_alloc << " slices instead; " << 100.0*(nslices_alloc-nslices_estim)/nslices_alloc << "% waste ("<<(waste>>20)<<" MB) !]";
+                    os << " [note: using coarse-grain value of "
+                        << nslices_alloc
+                        << " slices instead; "
+                        << 100.0*double_ratio(nslices_alloc-nslices_estim, nslices_alloc)
+                        << "% waste ("
+                        << (waste>>20)
+                        <<" MB) !]";
                 verbose_output_print(0, 3 + hush,
                         "# level 2, side %d:"
                         " expect %zu slices per array,"
@@ -577,7 +582,7 @@ static size_t expected_memory_usage_per_subjob_worst_logI(siever_config const & 
     siever_config sc = sc0;
     /* See for which I we'll have the most expensive setting */
     int logImin, logImax;
-    if (las.adjust_strategy == 2) {
+    if (sc0.adjust_strategy == 2) {
         logImin = (1+sc.logA)/2 - ADJUST_STRATEGY2_MAX_SQUEEZE;
         logImax = (1+sc.logA)/2 - ADJUST_STRATEGY2_MIN_SQUEEZE;
     } else {
@@ -648,7 +653,7 @@ static size_t expected_memory_usage(siever_config const & sc,/*{{{*/
 
 }/*}}}*/
 
-static void check_whether_q_above_lare_prime_bound(siever_config const & conf, las_todo_entry const & doing)/*{{{*/
+static void check_whether_q_above_lare_prime_bound(siever_config const & conf, special_q const & doing)/*{{{*/
 {
     /* Check whether q is larger than the large prime bound.
      * This can create some problems, for instance in characters.
@@ -673,21 +678,19 @@ static void check_whether_q_above_lare_prime_bound(siever_config const & conf, l
 }
 /*}}}*/
 
-static void check_whether_special_q_is_root(cado_poly_srcptr cpoly, las_todo_entry const & doing)/*{{{*/
+static void check_whether_special_q_is_root(cado_poly_srcptr cpoly, special_q const & doing)/*{{{*/
 {
     cxx_mpz const & p(doing.p);
     cxx_mpz const & r(doing.r);
     ASSERT_ALWAYS(mpz_poly_is_root(cpoly->pols[doing.side], r, p));
 }
 /*}}}*/
-static void per_special_q_banner(las_todo_entry const & doing)
+static void per_special_q_banner(special_q const & doing)
 {
     // arrange so that we don't have the same header line as the one
     // which prints the q-lattice basis
     verbose_output_print(0, 2, "#\n");
-    std::ostringstream os;
-    os << doing;
-    verbose_output_print(0, 1, "# Now sieving %s\n", os.str().c_str());
+    verbose_fmt_print(0, 1, "# Now sieving {}\n", doing);
 }
 
 /* This is the core of the sieving routine. We do fill-in-buckets,
@@ -835,10 +838,9 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
 }/*}}}*/
 
 /* This returns false if the special-q was discarded */
-static bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_aux> const & aux_p, thread_pool & pool)/*{{{*/
+static bool do_one_special_q(las_info & las, nfs_work & ws, special_q_task * task, std::shared_ptr<nfs_aux> const & aux_p, thread_pool & pool)/*{{{*/
 {
     nfs_aux & aux(*aux_p);
-    ws.Q.doing = aux.doing;     /* will be set by choose_sieve_area anyway */
 
     check_whether_special_q_is_root(las.cpoly, aux.doing);
 
@@ -860,7 +862,7 @@ static bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_
 
     BOOKKEEPING_TIMER(timer_special_q);
 
-    ws.prepare_for_new_q(las);
+    ws.prepare_for_new_q(las, task);
 
     /* the where_am_I structure is store in nfs_aux. We have a few
      * adjustments to make, and we want to make sure that the threads,
@@ -888,24 +890,21 @@ static bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_
         rep.total_logI += ws.conf.logI;
         rep.total_J += ws.J;
 
-        std::ostringstream extra;
-        if (ws.Q.doing.depth)
-            extra << " # within descent, currently at depth " << ws.Q.doing.depth;
+        std::string extra;
+        if (ws.task->depth())
+            extra = fmt::format(" # within descent, currently at depth ", ws.task->depth());
 
         /* should stay consistent with DUPECHECK line printed in
          * sq_finds_relation() */
-        std::ostringstream os;
-        os << ws.Q;
-        verbose_output_vfprint(0, 2, gmp_vfprintf,
-                "# "
-                "Sieving %s; I=%u; J=%u;%s\n",
-                os.str().c_str(),
-                1U << ws.conf.logI, ws.J, extra.str().c_str());
+        verbose_fmt_print(0, 2,
+                "# Sieving {}; I={}; J={};{}\n",
+                ws.Q,
+                1U << ws.conf.logI, ws.J, extra);
 
         if (!las.allow_composite_q && !ws.Q.doing.is_prime()) {
-            verbose_output_vfprint(0, 1, gmp_vfprintf,
-                    "# Warning, q=%Zd is not prime\n",
-                    (mpz_srcptr) ws.Q.doing.p);
+            verbose_fmt_print(0, 1,
+                    "# Warning, q={} is not prime\n",
+                    ws.Q.doing.p);
         }
     }
 
@@ -920,7 +919,8 @@ static bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_
                     continue;
                 ws.Q.sublat.i0 = i_cong;
                 ws.Q.sublat.j0 = j_cong;
-                verbose_output_print(0, 1, "# Sublattice (i,j) == (%u, %u) mod %u\n",
+                verbose_fmt_print(0, 1,
+                        "# Sublattice (i,j) == ({}, {}) mod {}\n",
                         ws.Q.sublat.i0, ws.Q.sublat.j0, ws.Q.sublat.m);
             }
             do_one_special_q_sublat(ws, wc_p, aux_p, pool);
@@ -1014,7 +1014,7 @@ static void print_survivors_job(las_info & las)
         auto const f_part = f + ".part";
         auto out = fopen_helper(f_part, "w");
         for(auto const & m : Lloc) {
-            las_todo_entry const & doing(m.first);
+            special_q const & doing(m.first);
             fmt::print(out.get(), "# q = ({}, {}, {})\n",
                     doing.p, doing.r, doing.side);
             for(auto const & s : m.second) {
@@ -1058,7 +1058,7 @@ static void transfer_local_cofac_candidates_to_global(las_info & las, nfs_work &
 }
 
 
-static void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_and_timer & global_rt)/*{{{*/
+static void las_subjob(las_info & las, int subjob, report_and_timer & global_rt)/*{{{*/
 {
     where_am_I w MAYBE_UNUSED;
     WHERE_AM_I_UPDATE(w, plas, &las);
@@ -1101,35 +1101,9 @@ static void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_
 
             main_output->fflush();
 
-            auto doing = todo.pull();
+            auto * task = las.tree->pull();
 
-            if (dlp_descent && doing.is_closing_brace()) {
-                /* If the next special-q to try is a special marker, it means
-                 * that we're done with a special-q we started before, including
-                 * all its spawned sub-special-q's. Indeed, each time we start a
-                 * special-q from the todo list, we replace it by a special
-                 * marker. But newer special-q's may enter the todo list in turn
-                 * (pushed with las_todo_push_withdepth).
-                 */
-                las.tree.done_node();
-                if (las.tree.depth() == 0) {
-                    if (recursive_descent) {
-                        /* BEGIN TREE / END TREE are for the python script */
-                        fmt::print(main_output->output, "# BEGIN TREE\n");
-                        las.tree.display_last_tree(main_output->output);
-                        fmt::print(main_output->output, "# END TREE\n");
-                    }
-                    las.tree.visited.clear();
-                }
-                continue;
-            }
-
-            if (!doing) break;
-
-            if (dlp_descent) {
-                todo.push_closing_brace(doing.depth);
-                las.tree.new_node(doing);
-            }
+            if (!task) break;
 
             /* maybe examine what we have here in the todo list, and
              * decide on the relevance of creating a new output object */
@@ -1166,7 +1140,7 @@ static void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_
                      * since it is an essential property ot the timer trees
                      * that the root of the trees must not have a nontrivial
                      * category */
-                    auto aux_p = std::make_shared<nfs_aux>(las, doing, rel_hash_p, las.number_of_threads_per_subjob());
+                    auto aux_p = std::make_shared<nfs_aux>(las, task->sq(), rel_hash_p, las.number_of_threads_per_subjob());
                     nfs_aux & aux(*aux_p);
                     las_report & rep(aux.rt.rep);
                     timetree_t & timer_special_q(aux.rt.timer);
@@ -1177,7 +1151,7 @@ static void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_
 
                     prepare_timer_layout_for_multithreaded_tasks(timer_special_q, las.cpoly->nb_polys);
 
-                    bool const done = do_one_special_q(las, ws, aux_p, pool);
+                    bool const done = do_one_special_q(las, ws, task, aux_p, pool);
 
                     if (!done) {
                         /* Then we don't even keep track of the time, it's
@@ -1190,11 +1164,9 @@ static void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_
                     /* At this point we no longer risk an exception,
                      * therefore it is safe to tinker with the todo list
                      */
-                    if (dlp_descent)
-                        postprocess_specialq_descent(las, todo, doing, timer_special_q);
+                    las.tree->postprocess(task, timer_special_q);
 
                     transfer_local_cofac_candidates_to_global(las, ws);
-
 
                     aux.complete = true;
                     aux.dest_rt = &global_rt;
@@ -1205,11 +1177,11 @@ static void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_
                     break;
                 } catch (buckets_are_full const & e) {
                     nwaste++;
-                    verbose_output_vfprint (2, 1, gmp_vfprintf,
-                            "# redoing q=%Zd, rho=%Zd because %s buckets are full\n"
-                            "# %s\n",
-                            (mpz_srcptr) doing.p, (mpz_srcptr) doing.r,
-                            bkmult_specifier::printkey(e.key).c_str(),
+                    verbose_fmt_print (2, 1,
+                            "# redoing {} because {} buckets are full\n"
+                            "# {}\n",
+                            task->sq(),
+                            bkmult_specifier::printkey(e.key),
                             e.what());
 
                     /* reason on the bk_multiplier that we used when we
@@ -1217,7 +1189,7 @@ static void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_
                      * prepare_for_new_q, called from do_one_special_q.
                      */
                     double const old_value = ws.bk_multiplier.get(e.key);
-                    double ratio = (double) e.reached_size / e.theoretical_max_size * 1.05;
+                    auto ratio = double_ratio(e.reached_size, e.theoretical_max_size) * 1.05;
                     double new_value = old_value * ratio;
                     double las_value;
                     if (!las.grow_bk_multiplier(e.key, ratio, new_value, las_value)) {
@@ -1335,7 +1307,7 @@ static std::string relation_cache_find_filepath(std::string const & cache_path, 
 }
 /*}}}*/
 
-static void quick_subjob_loop_using_cache(las_info & las, las_todo_list & todo)/*{{{*/
+static void quick_subjob_loop_using_cache(las_info & las)/*{{{*/
 {
     std::vector<unsigned long> splits;
 
@@ -1365,8 +1337,10 @@ static void quick_subjob_loop_using_cache(las_info & las, las_todo_list & todo)/
 
     for(;; nq++) {
         main_output->fflush();
-        auto doing = todo.pull();
-        if (!doing) break;
+        auto * task = las.tree->pull();
+        if (!task) break;
+
+        auto const & doing(task->sq());
 
         nq++;
 
@@ -1432,8 +1406,8 @@ static void quick_subjob_loop_using_cache(las_info & las, las_todo_list & todo)/
     wt0 = wct_seconds() - wt0;
     verbose_output_print (2, 1, "# Total %lu reports [%1.3gs/r, %1.1fr/sq] in %1.3g elapsed s [%.1f%% CPU]\n",
             nreports,
-            nreports ? ct0 / nreports : -1,
-            (double) (nq ? nreports / nq: -1),
+            nreports ? double_ratio(ct0, nreports) : -1,
+            nq ? double_ratio(nreports, nq): -1,
             wt0,
             100.0 * ct0/wt0);
 
@@ -1504,7 +1478,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
          * In all likelihood, nsubjobs will be total number of cores (or
          * the number of threads that were requested on command line)
          */
-        las.set_parallel(pl, double(base_memory) / (1U << 30U));
+        las.set_parallel(pl, double_ratio(base_memory, 1U << 30U));
         todo.print_todo_list(pl, las.number_of_threads_total());
         return EXIT_SUCCESS;
 
@@ -1545,7 +1519,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
                     << " " << (double) jobram / (1 << 30);
                 fmt::print(stderr, "{}\n", os.str());
                 */
-                las.set_parallel(pl, (double) jobram / (1U << 30U));
+                las.set_parallel(pl, double_ratio(jobram, 1U << 30U));
                 const int nz = las.number_of_memory_binding_zones();
                 const int ns = las.number_of_subjobs_per_memory_binding_zone();
                 const int nn = las.number_of_threads_per_subjob();
@@ -1582,7 +1556,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
      * factor in cached relations processing.
      */
     if (!las.relation_cache.empty()) {
-        quick_subjob_loop_using_cache(las, todo);
+        quick_subjob_loop_using_cache(las);
         return EXIT_SUCCESS;
     }
 
@@ -1618,7 +1592,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
          * course, but how we should proceed with the todo list, our brace
          * mechanism, and the descent tree thing is altogether not obvious
          */
-        const int nsubjobs = dlp_descent ? 1 : las.number_of_subjobs_total();
+        const int nsubjobs = /* dlp_descent ? 1 : */ las.number_of_subjobs_total();
         subjobs.reserve(nsubjobs);
         for(int subjob = 0 ; subjob < nsubjobs ; ++subjob) {
             /* when references are passed through variadic template arguments
@@ -1629,16 +1603,10 @@ int main (int argc0, char const * argv0[])/*{{{*/
                     las_subjob,
                         std::ref(las),
                         subjob,
-                        std::ref(todo),
                         std::ref(global_rt)
                     );
         }
         for(auto & t : subjobs) t.join();
-
-        if (dlp_descent && recursive_descent) {
-            verbose_output_print(0, 1, "# Now displaying again the results of all descents\n");
-            las.tree.display_all_trees(main_output->output);
-        }
 
         las.set_loose_binding();
 
@@ -1712,7 +1680,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
             if (ncurves <= 0)
                 ncurves = 50; // use the same default as finishbatch
 
-            std::list<std::pair<las_todo_entry, std::list<relation>>> rels;
+            std::list<std::pair<special_q, std::list<relation>>> rels;
 
             for(auto const & x : las.survivors.L) {
                 rels.emplace_back(x.first, factor (x.second,
@@ -1733,24 +1701,20 @@ int main (int argc0, char const * argv0[])/*{{{*/
             nfs_aux::rel_hash_t rel_hash;
             size_t nondup = 0;
             for(auto const & rq : rels) {
-                auto qq = fmt::format("{} relations for {}",
+                verbose_fmt_print(0, 1, "# {} relations for {}\n",
                         rq.second.size(),
                         rq.first);
-                verbose_output_print(0, 1, "# %s\n", qq.c_str());
                 for(auto const & rel : rq.second) {
                     nfs_aux::abpair_t const ab(rel.a, rel.b);
-                    std::string rr;
                     bool const is_new_rel = rel_hash.insert(ab).second;
-                    if (!is_new_rel) {
-                        rr = "# DUP ";
-                        /* we had this (a,b) pair twice, probably because of a
-                         * failed attempt, that was aborted because of an
-                         * exception. (occurs only with 2-level sieving) */
-                    } else {
-                        nondup++;
-                    }
-                    rr += fmt::format("{}", rel);
-                    verbose_output_print(0, 1, "%s\n", rr.c_str());
+                    /* if !is_new_rel, it means that we had this (a,b)
+                     * pair twice, probably because of a failed attempt,
+                     * that was aborted because of an exception. (occurs
+                     * only with 2-level sieving)
+                     */
+                    nondup += is_new_rel;
+                    verbose_fmt_print(0, 1, "{}{}\n",
+                            is_new_rel ? "" : "# DUP ", rel);
                 }
             }
             verbose_output_end_batch();
@@ -1767,12 +1731,18 @@ int main (int argc0, char const * argv0[])/*{{{*/
     t0 = seconds () - t0;
     wct = wct_seconds() - wct;
 
-    if (las.adjust_strategy < 2) {
-        verbose_output_print (2, 1, "# Average J=%1.0f for %lu special-q's, max bucket fill -bkmult %s\n",
-                global_rt.rep.total_J / (double) global_rt.rep.nr_sq_processed, global_rt.rep.nr_sq_processed, las.get_bk_multiplier().print_all().c_str());
+    if (las.config_pool.base.adjust_strategy < 2) {
+        verbose_fmt_print (2, 1,
+                "# Average J={:1.0f} for {} special-q's, max bucket fill -bkmult {}\n",
+                double_ratio(global_rt.rep.total_J, global_rt.rep.nr_sq_processed),
+                global_rt.rep.nr_sq_processed,
+                las.get_bk_multiplier().print_all());
     } else {
-        verbose_output_print (2, 1, "# Average logI=%1.1f for %lu special-q's, max bucket fill -bkmult %s\n",
-                global_rt.rep.total_logI / (double) global_rt.rep.nr_sq_processed, global_rt.rep.nr_sq_processed, las.get_bk_multiplier().print_all().c_str());
+        verbose_fmt_print (2, 1,
+                "# Average logI={:1.1f} for {} special-q's, max bucket fill -bkmult {}\n",
+                double_ratio(global_rt.rep.total_logI, global_rt.rep.nr_sq_processed),
+                global_rt.rep.nr_sq_processed,
+                las.get_bk_multiplier().print_all());
     }
     verbose_output_print (2, 1, "# Discarded %lu special-q's out of %zu pushed\n",
             global_rt.rep.nr_sq_discarded, todo.created);
@@ -1781,19 +1751,15 @@ int main (int argc0, char const * argv0[])/*{{{*/
     timetree_t::timer_data_type const tcpu = global_rt.timer.total_counted_time();
 
     if (tdict::global_enable >= 2) {
-        verbose_output_print (0, 1, "#\n# Hierarchical timings:\n%s", global_rt.timer.display().c_str());
+        verbose_fmt_print (0, 1, "#\n# Hierarchical timings:\n{}",
+                global_rt.timer.display());
 
-        std::ostringstream os;
-        os << std::fixed << std::setprecision(2) << tcpu;
-        verbose_output_print (0, 1, "#\n# Categorized timings (total counted time %s):\n", os.str().c_str());
+        verbose_fmt_print (0, 1, "#\n# Categorized timings (total counted time {:.2f}):\n", tcpu);
         for(auto const &c : D) {
-            std::ostringstream xos;
-            xos << std::fixed << std::setprecision(2) << c.second;
-            verbose_output_print (0, 1, "# %s: %s\n", 
-                    coarse_las_timers::explain(c.first).c_str(),
-                    xos.str().c_str());
+            verbose_fmt_print (0, 1, "# {}: {:.2f}\n", 
+                    coarse_las_timers::explain(c.first), c.second);
         }
-        verbose_output_print (0, 1, "# total counted time: %s\n#\n", os.str().c_str());
+        verbose_fmt_print (0, 1, "# total counted time: {:.2f}\n#\n", tcpu);
     }
     global_rt.rep.display_survivor_counters();
 
@@ -1843,7 +1809,9 @@ int main (int argc0, char const * argv0[])/*{{{*/
     }
 
     verbose_output_print (2, 1, "# Total elapsed time %1.2fs, per special-q %gs, per relation %gs\n",
-                 wct, wct / (double) global_rt.rep.nr_sq_processed, wct / (double) global_rt.rep.reports);
+                 wct,
+                 double_ratio(wct, global_rt.rep.nr_sq_processed),
+                 double_ratio(wct, global_rt.rep.reports));
 
     /* memory usage */
     if (main_output->verbose >= 1 && las.config_pool.default_config_ptr) {
@@ -1857,10 +1825,10 @@ int main (int argc0, char const * argv0[])/*{{{*/
         verbose_output_print(2, 1, "# Total number of eliminated duplicates: %lu\n", global_rt.rep.duplicates);
     }
     verbose_output_print (2, 1, "# Total %lu reports [%1.3gs/r, %1.1fr/sq] in %1.3g elapsed s [%.1f%% CPU]\n",
-            global_rt.rep.reports, t0 / (double) global_rt.rep.reports,
-            (double) global_rt.rep.reports / (double) global_rt.rep.nr_sq_processed,
-            wct,
-            100*t0/wct);
+            global_rt.rep.reports,
+            double_ratio(t0, global_rt.rep.reports),
+            double_ratio(global_rt.rep.reports, global_rt.rep.nr_sq_processed),
+            wct, 100*t0/wct);
 
 
     /*}}}*/

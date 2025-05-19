@@ -30,7 +30,7 @@
 #include "cxx_mpz.hpp"
 #include "gzip.h"
 #include "indexed_relation.hpp"
-#include "las-todo-entry.hpp"
+#include "las-special-q.hpp"
 #include "macros.h"
 #include "misc.h"
 #include "params.h"
@@ -162,7 +162,7 @@ static std::vector<indexrange> prepare_indexrange(renumber_t const & ren_tab,
     return Ind;
 }
 
-static void remove_special_q(relation & rel, las_todo_entry const & Q)
+static void remove_special_q(relation & rel, special_q const & Q)
 {
     auto & V = rel.sides[Q.side];
     auto nn = V.begin();
@@ -196,7 +196,7 @@ struct model_relation : public indexed_relation_byside {
     }
 };
 
-// static std::map<las_todo_entry, std::vector<model_relation> >
+// static std::map<special_q, std::vector<model_relation> >
 static std::pair<std::vector<size_t>, std::vector<model_relation>>
 read_sample_file(int sqside, const char *filename, renumber_t & ren_tab)
 {
@@ -204,15 +204,15 @@ read_sample_file(int sqside, const char *filename, renumber_t & ren_tab)
 
     ASSERT_ALWAYS (in);
 
-    std::set<las_todo_entry> current;
-    std::map<las_todo_entry, std::vector<model_relation> > sample;
+    std::set<special_q> current;
+    std::map<special_q, std::vector<model_relation> > sample;
 
     int nbegin = 0, nend = 0, maxdepth = 0;
 
     for(std::string line ; std::getline(in, line) ; ) {
         if (line.rfind("# Now sieving side-", 0) != std::string::npos) {
             std::istringstream is(line.c_str() + 14);
-            las_todo_entry Q;
+            special_q Q;
             is >> Q;
             if (!is)
                 throw std::runtime_error(fmt::format("parse error at line: {}", line));
@@ -227,7 +227,7 @@ read_sample_file(int sqside, const char *filename, renumber_t & ren_tab)
             nend++;
             for(auto & x : line) if (x == ':') x = ' ';
             std::istringstream is(line.c_str() + 11);
-            las_todo_entry Q;
+            special_q Q;
             is >> Q;
             if (!is)
                 throw std::runtime_error(fmt::format("parse error at line: {}", line));
@@ -307,7 +307,7 @@ static unsigned long print_fake_rel_manyq(
         std::vector<index_t>::const_iterator qbegin,
         std::vector<index_t>::const_iterator qend,
         int nq,
-        // std::vector<std::pair<las_todo_entry, std::vector<model_relation> > > const & sample,
+        // std::vector<std::pair<special_q, std::vector<model_relation> > > const & sample,
         std::pair<std::vector<size_t>, std::vector<model_relation>> const & sample,
         std::vector<indexrange> const & Ind,
         int dl, double shrink_factor,
@@ -331,7 +331,7 @@ static unsigned long print_fake_rel_manyq(
             qpart.push_back(*it++);
 
         auto const & model_nrels = sample.first[R(sample.first.size())];
-        // las_todo_entry const & model_q = model.first;
+        // special_q const & model_q = model.first;
         // auto const & model_nrels = model.second.size();
 
         int nr;
@@ -450,7 +450,7 @@ std::vector<std::vector<index_t>> indexrange::all_composites(uint64_t q0, uint64
 
 static void worker(int tnum, int nt,
         std::vector<indexrange> const & Ind,
-        // std::vector<std::pair<las_todo_entry, std::vector<model_relation>>> const & sample,
+        // std::vector<std::pair<special_q, std::vector<model_relation>>> const & sample,
         std::pair<std::vector<size_t>, std::vector<model_relation>> const & sample,
         std::vector<std::vector<index_t>> const & qs,
         double shrink_factor, int dl, unsigned long seed)
@@ -635,7 +635,7 @@ int main(int argc, char const * argv[])
   std::pair<std::vector<size_t>, std::vector<model_relation>> const sample = read_sample_file(sqside, samplefile, ren_table);
 
   /*
-  std::vector<std::pair<las_todo_entry, std::vector<model_relation>>>
+  std::vector<std::pair<special_q, std::vector<model_relation>>>
       sample;
   for(auto& x : read_sample_file(sqside, samplefile, ren_table))
       sample.emplace_back(std::move(x));

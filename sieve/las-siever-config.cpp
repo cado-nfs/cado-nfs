@@ -20,7 +20,7 @@
 #include "las-multiobj-globals.hpp"
 #include "las-siever-config.hpp"
 #include "las-side-config.hpp"
-#include "las-todo-entry.hpp"
+#include "las-special-q.hpp"
 #include "macros.h"
 #include "params.h"
 #include "verbose.h"
@@ -40,6 +40,7 @@ void siever_config::declare_usage(cxx_param_list & pl)
     param_list_decl_usage(pl, "bkthresh1", "2-level bucket-sieve primes in [bkthresh1,lim] (default=lim, meaning inactive)");
     param_list_decl_usage(pl, "bkmult", "multiplier to use for taking margin in the bucket allocation\n");
     param_list_decl_usage(pl, "unsievethresh", "Unsieve all p > unsievethresh where p|gcd(a,b)");
+    param_list_decl_usage(pl, "adjust-strategy", "strategy used to adapt the sieving range to the q-lattice basis (0 = logI constant, J so that boundary is capped; 1 = logI constant, (a,b) plane norm capped; 2 = logI dynamic, skewed basis; 3 = combine 2 and then 0) ; default=0");
 }
 
 void siever_config::display(int side, unsigned int bitsize) const /*{{{*/
@@ -164,6 +165,7 @@ bool siever_config::parse_default(siever_config & sc, cxx_param_list & pl, int n
                */
         }
     }
+    param_list_parse_int(pl, "adjust-strategy", &sc.adjust_strategy);
 
     return complete;
 }
@@ -209,7 +211,9 @@ fb_factorbase::key_type siever_config::instantiate_thresholds(int side) const
             0
     };
 }
-siever_config siever_config_pool::get_config_for_q(las_todo_entry const & doing) const /*{{{*/
+
+template<>
+siever_config siever_config_pool::get_config_for_q<special_q>(special_q const & doing) const /*{{{*/
 {
     siever_config config = base;
     unsigned int const bitsize = mpz_sizeinbase(doing.p, 2);
@@ -223,27 +227,38 @@ siever_config siever_config_pool::get_config_for_q(las_todo_entry const & doing)
         verbose_output_print(0, 1, "# Using parameters from hint list for q~2^%d on side %d [%d@%d]\n", bitsize, side, bitsize, side);
     }
 
-    if (doing.iteration) {
+    return config;
+}
+/* }}} */
+
+
+template<>
+siever_config siever_config_pool::get_config_for_q<special_q_task_tree>(special_q_task_tree const & doing) const /*{{{*/
+{
+    siever_config config = get_config_for_q(doing.sq());
+
+    if (doing.try_again) {
         verbose_output_print(0, 1, "#\n# NOTE:"
                 " we are re-playing this special-q because of"
-                " %d previous failed attempt(s)\n", doing.iteration);
+                " %d previous failed attempt(s)\n", doing.try_again);
 
         std::string parameters_info;
 
-        if (doing.iteration <= 2) {
+        if (doing.try_again <= 2) {
             /* The first two retries simply sieve more, but with the
              * exact same bounds. This is being overly cautious, but we
              * don't like the idea of letting the lpb grow too eagerly in
              * these situations, as this has the potential to introduce
              * loops in the descent.
              */
-            config.logA += doing.iteration;
+            config.logA += doing.try_again;
+            config.adjust_strategy = 2;
             parameters_info += fmt::format(" A={}", config.logA);
         } else {
             for(size_t side = 0 ; side < config.sides.size() ; side++) {
                 auto & s = config.sides[side];
                 const double lambda = double(s.mfb) / double(s.lpb);
-                s.lpb += doing.iteration-2;
+                s.lpb += doing.try_again-2;
                 s.mfb = lround(lambda * double(s.lpb));
                 parameters_info += fmt::format(" lpb{}={} mfb{}={}",
                         side, s.lpb, side, s.mfb);

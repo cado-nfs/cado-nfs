@@ -19,7 +19,7 @@
 #include "timing.h"                 // for seconds, wct_seconds
 
 struct las_output; // IWYU pragma: keep
-struct las_todo_entry; // IWYU pragma: keep
+struct special_q; // IWYU pragma: keep
 
 
 /* Compute a checksum over the bucket region.
@@ -82,7 +82,7 @@ class nfs_aux {/*{{{*/
      */
     las_info const & las;
     public:
-    las_todo_entry doing;
+    special_q doing;
     
     /* in the recursive descent (and only in this context), this is the
      * list of special-q's that have led to considering this q. The root
@@ -90,7 +90,7 @@ class nfs_aux {/*{{{*/
      * child of history[i]. If the current entry was part of the input
      * request, then history is empty.
      */
-    std::vector<las_todo_entry> history;
+    std::vector<special_q> history;
 
     /* we rarely have ownership, if ever, of course. In the typical case,
      * there just one output file and that's it.
@@ -164,7 +164,7 @@ class nfs_aux {/*{{{*/
     double wct_qt0;
 
     nfs_aux(las_info const & las,
-            las_todo_entry doing,
+            special_q doing,
             std::shared_ptr<rel_hash_t> & rel_hash_p,
             int nthreads)
         : las(las)   /* shame... */

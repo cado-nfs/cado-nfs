@@ -27,7 +27,7 @@
 #include "las-norms.hpp"
 #include "las-qlattice.hpp"       // for qlattice_basis
 #include "las-siever-config.hpp"  // for siever_config
-#include "las-todo-entry.hpp"     // for las_todo_entry
+#include "las-special-q.hpp"     // for special_q
 #include "macros.h"
 #include "mpz_poly.h"             // for mpz_poly, mpz_poly_srcptr
 #include "params.h"
@@ -285,7 +285,7 @@ int main(int argc0, char const * argv0[])
         } else {
             q = q0;
         }
-        las_todo_entry doing(q, rho, sqside);
+        special_q doing(q, rho, sqside);
 
         sieve_range_adjust Adj(doing, cpoly, config_base);
 

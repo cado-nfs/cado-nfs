@@ -13,7 +13,7 @@
 #include "relation.hpp"
 
 class nfs_work_cofac; // IWYU pragma: keep
-struct las_todo_entry; // IWYU pragma: keep
+struct special_q; // IWYU pragma: keep
 struct qlattice_basis; // IWYU pragma: keep
 template <typename T> struct lock_guarded_container; // IWYU pragma: keep
 
@@ -43,10 +43,10 @@ struct cofac_standalone {
         return ((mpz_even_p(az) && mpz_even_p(bz)));
 #endif
     }/*}}}*/
-    bool gcd_coprime_with_q(las_todo_entry const & E) const;
+    bool gcd_coprime_with_q(special_q const & E) const;
     bool ab_coprime() const;
     void print_as_survivor(FILE * f);
-    relation get_relation(las_todo_entry const & doing) const;
+    relation get_relation(special_q const & doing) const;
     void transfer_to_cofac_list(lock_guarded_container<std::list<cofac_candidate>> & L);
     int factor_both_leftover_norms(nfs_work_cofac & wc);
 };

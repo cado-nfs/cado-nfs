@@ -30,10 +30,16 @@
 #include "portability.h"
 #include "timing.h"
 
-using namespace std;
-
-/* we'd like to get rid of this! */
-using namespace numbertheory_internals;
+using numbertheory_internals::p_maximal_order;
+using numbertheory_internals::write_element_as_polynomial;
+using numbertheory_internals::valuation_of_ideal_at_prime_ideal;
+using numbertheory_internals::ideal_comparator;
+using numbertheory_internals::generate_ideal;
+using numbertheory_internals::multiplication_table_of_order;
+using numbertheory_internals::factorization_of_prime;
+using numbertheory_internals::valuation_helper_for_ideal;
+using numbertheory_internals::prime_ideal_inertia_degree;
+using numbertheory_internals::prime_ideal_two_element;
 
 static const char ** original_argv;
 
@@ -41,7 +47,7 @@ static void decl_usage(cxx_param_list & pl)/*{{{*/
 {
     param_list_decl_usage(pl, "test", "which test to run");
     param_list_decl_usage(pl, "prime", "prime");
-    param_list_decl_usage(pl, "poly", "polynomial (string)");
+    param_list_decl_usage(pl, "poly", "polynomial (std::string)");
     param_list_decl_usage(pl, "out", "output file");
     param_list_decl_usage(pl, "batch", "batch input file with test vectors and expected results");
     param_list_decl_usage(pl, "seed", "seed used for random picks");
@@ -116,55 +122,55 @@ bool sl_equivalent_matrices(cxx_mpq_mat const& M, cxx_mpq_mat const& A)/*{{{*/
 }/*}}}*/
 #endif
 
-static cxx_mpq_mat batch_read_order_basis(istream & in, unsigned int n)/*{{{*/
+static cxx_mpq_mat batch_read_order_basis(std::istream & in, unsigned int n)/*{{{*/
 {
     cxx_mpq_mat O;
-    string keyword;
+    std::string keyword;
     if (!(in >> keyword) || keyword != "order")
-        throw invalid_argument("Parse error");
+        throw std::invalid_argument("Parse error");
     cxx_mpz_mat A(n, n);
     cxx_mpz d;
     if (!(in >> d))
-        throw invalid_argument("Parse error");
+        throw std::invalid_argument("Parse error");
     for(unsigned int i = 0 ; i < A->m ; i++) {
         for(unsigned int j = 0 ; j < A->n ; j++) {
             if (!(in >> mpz_mat_entry(A, i, j)))
-                throw invalid_argument("Parse error");
+                throw std::invalid_argument("Parse error");
         }
     }
     mpq_mat_set_mpz_mat_denom(O, A, d);
     return O;
 }/*}}}*/
 
-static vector<pair<cxx_mpz_mat, int> > batch_read_prime_factorization(istream & in, unsigned int n, cxx_mpz const& p, cxx_mpq_mat const& O, cxx_mpz_mat const& M)/*{{{*/
+static std::vector<std::pair<cxx_mpz_mat, int> > batch_read_prime_factorization(std::istream & in, unsigned int n, cxx_mpz const& p, cxx_mpq_mat const& O, cxx_mpz_mat const& M)/*{{{*/
 {
-    vector<pair<cxx_mpz_mat, int> > ideals;
-    string keyword;
+    std::vector<std::pair<cxx_mpz_mat, int> > ideals;
+    std::string keyword;
     if (!(in >> keyword) || keyword != "ideals")
-        throw invalid_argument("Parse error");
+        throw std::invalid_argument("Parse error");
     unsigned int nideals;
     // coverity[tainted_argument]
     if (!(in >> nideals))
-        throw invalid_argument("Parse error");
+        throw std::invalid_argument("Parse error");
     for(unsigned int k = 0 ; k < nideals ; k++) {
         cxx_mpq_mat A(2, n);
         cxx_mpz den;
         int e;
         mpq_set_z(mpq_mat_entry(A,0,0),p);
         if (!(in >> den))
-            throw invalid_argument("Parse error");
+            throw std::invalid_argument("Parse error");
         for(unsigned int j = 0 ; j < A->n ; j++) {
             cxx_mpz num;
             if (!(in >> num))
-                throw invalid_argument("Parse error");
+                throw std::invalid_argument("Parse error");
             mpq_ptr aa = mpq_mat_entry(A, 1, j);
             mpz_set(mpq_numref(aa), num);
             mpz_set(mpq_denref(aa), den);
             mpq_canonicalize(aa);
         }
         if (!(in >> e))
-            throw invalid_argument("Parse error");
-        pair<cxx_mpz_mat, cxx_mpz> Id = generate_ideal(O,M,A);
+            throw std::invalid_argument("Parse error");
+        std::pair<cxx_mpz_mat, cxx_mpz> Id = generate_ideal(O,M,A);
         ASSERT_ALWAYS(mpz_cmp_ui(Id.second, 1) == 0);
         ideals.emplace_back(Id.first,e);
     }
@@ -179,15 +185,15 @@ static int do_p_maximal_order_batch(cxx_param_list & pl) /*{{{*/
     if ((tmp = param_list_lookup_string(pl, "batch")) == nullptr)
         usage(pl, original_argv, "missing batch argument");
 
-    ifstream is(tmp);
-    string s;
+    std::ifstream is(tmp);
+    std::string s;
     int nok = 0;
     int nfail = 0;
 
     for(int test = 0; getline(is, s, '\n') ; ) {
         if (s.empty()) continue;
         if (s[0] == '#') continue;
-        const string exc = string("Parse error on input ") + s;
+        const auto exc = std::string("Parse error on input ") + s;
 
         cxx_mpz_poly f;
         if (!mpz_poly_set_from_expression(f, s))
@@ -195,29 +201,29 @@ static int do_p_maximal_order_batch(cxx_param_list & pl) /*{{{*/
 
 
         if (!(getline(is, s, '\n')))
-            throw invalid_argument(exc);
+            throw std::invalid_argument(exc);
         cxx_mpz const d;
         cxx_mpz_mat const A(f->deg, f->deg);
-        istringstream is1(s);
+        std::istringstream is1(s);
         cxx_mpz p;
         if (!(is1 >> p))
-            throw invalid_argument(exc);
+            throw std::invalid_argument(exc);
 
         cxx_mpq_mat const O = batch_read_order_basis(is1, f->deg);
         cxx_mpq_mat const my_O = p_maximal_order(f, p);
 
         bool const ok = sl_equivalent_matrices(O, my_O, p);
 
-        cout << ok_NOK(ok) << " test " << test
+        std::cout << ok_NOK(ok) << " test " << test
             << " (degree " << f->deg << ", p=" << p << ")"
             << "\n";
         test++;
         nok += ok;
         nfail += !ok;
     }
-    cout << nok << " tests passed";
-    if (nfail) cout << ", " << nfail << " TESTS FAILED";
-    cout << "\n";
+    std::cout << nok << " tests passed";
+    if (nfail) std::cout << ", " << nfail << " TESTS FAILED";
+    std::cout << "\n";
     return nfail == 0;
 }
 /*}}}*/
@@ -266,32 +272,32 @@ static int do_factorization_of_prime_batch(cxx_param_list & pl) /*{{{*/
     if ((tmp = param_list_lookup_string(pl, "batch")) == nullptr)
         usage(pl, original_argv, "missing batch argument");
 
-    ifstream is(tmp);
-    string s;
+    std::ifstream is(tmp);
+    std::string s;
     int nok = 0;
     int nfail = 0;
     for(int test = 0; getline(is, s, '\n') ; ) {
         if (s.empty()) continue;
         if (s[0] == '#') continue;
 
-        const string exc = string("Parse error on input ") + s;
+        const auto exc = std::string("Parse error on input ") + s;
 
         cxx_mpz_poly f;
         if (!mpz_poly_set_from_expression(f, s))
             usage(pl, original_argv, "cannot parse polynomial");
 
         if (!(getline(is, s, '\n')))
-            throw invalid_argument(exc);
+            throw std::invalid_argument(exc);
 
-        istringstream is1(s);
+        std::istringstream is1(s);
 
         cxx_mpz p;
-        if (!(is1 >> p)) throw invalid_argument(exc);
+        if (!(is1 >> p)) throw std::invalid_argument(exc);
 
         cxx_mpq_mat const O = batch_read_order_basis(is1, f->deg);
         cxx_mpz_mat const M = multiplication_table_of_order(O, f);
 
-        vector<pair<cxx_mpz_mat, int> > ideals = batch_read_prime_factorization(is1, f->deg, p, O, M);
+        std::vector<std::pair<cxx_mpz_mat, int> > ideals = batch_read_prime_factorization(is1, f->deg, p, O, M);
 
         cxx_mpq_mat const my_O = p_maximal_order(f, p);
 
@@ -307,7 +313,7 @@ static int do_factorization_of_prime_batch(cxx_param_list & pl) /*{{{*/
         /* What if we simply ask our code to compute the factorization of
          * p with respect to the order basis which was chosen by magma ?
          * */
-        vector<pair<cxx_mpz_mat, int> > my_ideals = factorization_of_prime(O, f, p, state);
+        std::vector<std::pair<cxx_mpz_mat, int> > my_ideals = factorization_of_prime(O, f, p, state);
         gmp_randclear(state);
 
         // sort magma ideals. Ours are sorted already.
@@ -316,16 +322,16 @@ static int do_factorization_of_prime_batch(cxx_param_list & pl) /*{{{*/
         for(unsigned int k = 0 ; ok && k < ideals.size() ; k++) {
             ok = (ideals[k] == my_ideals[k]);
         }
-        cout << ok_NOK(ok) << " test " << test
+        std::cout << ok_NOK(ok) << " test " << test
             << " (degree " << f->deg << ", p=" << p << ")"
             << "\n";
         test++;
         nok += ok;
         nfail += !ok;
     }
-    cout << nok << " tests passed";
-    if (nfail) cout << ", " << nfail << " TESTS FAILED";
-    cout << "\n";
+    std::cout << nok << " tests passed";
+    if (nfail) std::cout << ", " << nfail << " TESTS FAILED";
+    std::cout << "\n";
     return nfail == 0;
 }
 /*}}}*/
@@ -341,7 +347,7 @@ static int do_valuations_of_ideal(cxx_param_list & pl) /*{{{*/
 
 
     /* Now read the element description */
-    vector<cxx_mpz_poly> elements; 
+    std::vector<cxx_mpz_poly> elements; 
     {
         std::string tmp;
         if (!param_list_parse(pl, "elements", tmp))
@@ -355,7 +361,7 @@ static int do_valuations_of_ideal(cxx_param_list & pl) /*{{{*/
             } else {
                 tmp.clear();
             }
-            istringstream is(desc);
+            std::istringstream is(desc);
             cxx_mpz_poly x;
             if (!(is >> x)) usage(pl, original_argv, "cannot parse ideal generators");
             elements.push_back(x);
@@ -375,7 +381,7 @@ static int do_valuations_of_ideal(cxx_param_list & pl) /*{{{*/
      * the basis [alpha_hat^i]. We reduce modulo f_hat, which is monic.
      * And then we rewrite that back to the basis [alpha^i].
      */
-    pair<cxx_mpz_mat, cxx_mpz> Id;
+    std::pair<cxx_mpz_mat, cxx_mpz> Id;
     {
         cxx_mpq_mat generators(elements.size(), f->deg);
         cxx_mpz_poly fh;
@@ -417,25 +423,25 @@ static int do_valuations_of_ideal(cxx_param_list & pl) /*{{{*/
     if (param_list_parse_ulong(pl, "seed", &seed)) {
         gmp_randseed_ui(state, seed);
     }
-    vector<pair<cxx_mpz_mat, int> > F = factorization_of_prime(O, f, p, state);
+    std::vector<std::pair<cxx_mpz_mat, int> > F = factorization_of_prime(O, f, p, state);
     gmp_randclear(state);
 
     for(unsigned int k = 0 ; k < F.size() ; k++) {
         cxx_mpz_mat const& fkp(F[k].first);
         cxx_mpz_mat const a = valuation_helper_for_ideal(M, fkp, p);
-        pair<cxx_mpz, cxx_mpz_mat> two = prime_ideal_two_element(O, f, M, fkp);
+        std::pair<cxx_mpz, cxx_mpz_mat> two = prime_ideal_two_element(O, f, M, fkp);
 
         cxx_mpq_mat theta_q;
         {
             mpq_mat_set_mpz_mat(theta_q, two.second);
             mpq_mat_mul(theta_q, theta_q, O);
         }
-        string const uniformizer = write_element_as_polynomial(theta_q, "alpha");
+        std::string const uniformizer = write_element_as_polynomial(theta_q, "alpha");
 
         int const e = F[k].second;
         int const v = valuation_of_ideal_at_prime_ideal(M, Id, a, e, p);
 
-        cout << "# (p=" << p
+        std::cout << "# (p=" << p
             << ", k=" << k
             << ", f="<< prime_ideal_inertia_degree(fkp)
             << ", e="<< e
@@ -456,8 +462,8 @@ static int do_valuations_of_ideal_batch(cxx_param_list & pl) /*{{{*/
     if ((tmp = param_list_lookup_string(pl, "batch")) == nullptr)
         usage(pl, original_argv, "missing batch argument");
 
-    ifstream is(tmp);
-    string s;
+    std::ifstream is(tmp);
+    std::string s;
     int nok = 0;
     int nfail = 0;
 
@@ -465,24 +471,24 @@ static int do_valuations_of_ideal_batch(cxx_param_list & pl) /*{{{*/
         if (s.empty()) continue;
         if (s[0] == '#') continue;
 
-        const string exc = string("Parse error on input ") + s;
+        const std::string exc = std::string("Parse error on input ") + s;
 
         cxx_mpz_poly f;
         if (!mpz_poly_set_from_expression(f, s))
             usage(pl, original_argv, "cannot parse polynomial");
 
         if (!(getline(is, s, '\n')))
-            throw invalid_argument(exc);
+            throw std::invalid_argument(exc);
 
-        istringstream is1(s);
+        std::istringstream is1(s);
 
         cxx_mpz p;
-        if (!(is1 >> p)) throw invalid_argument(exc);
+        if (!(is1 >> p)) throw std::invalid_argument(exc);
 
         cxx_mpq_mat const O = batch_read_order_basis(is1, f->deg);
         cxx_mpz_mat const M = multiplication_table_of_order(O, f);
 
-        vector<pair<cxx_mpz_mat, int> > ideals = batch_read_prime_factorization(is1, f->deg, p, O, M);
+        std::vector<std::pair<cxx_mpz_mat, int> > ideals = batch_read_prime_factorization(is1, f->deg, p, O, M);
 
         cxx_mpq_mat const my_O = p_maximal_order(f, p);
 
@@ -498,13 +504,13 @@ static int do_valuations_of_ideal_batch(cxx_param_list & pl) /*{{{*/
         /* What if we simply ask our code to compute the factorization of
          * p with respect to the order basis which was chosen by magma ?
          * */
-        vector<pair<cxx_mpz_mat, int> > my_ideals = factorization_of_prime(O, f, p, state);
+        std::vector<std::pair<cxx_mpz_mat, int> > my_ideals = factorization_of_prime(O, f, p, state);
         gmp_randclear(state);
 
         /* compute matching table */
         ok = ok && (ideals.size() == my_ideals.size());
-        vector<unsigned int> magma_to_mine(ideals.size());
-        vector<unsigned int> mine_to_magma(my_ideals.size());
+        std::vector<unsigned int> magma_to_mine(ideals.size());
+        std::vector<unsigned int> mine_to_magma(my_ideals.size());
         for(unsigned int k = 0 ; ok && k < ideals.size() ; k++) {
             bool found = false;
             for(unsigned int ell = 0 ; ell < my_ideals.size() ; ell++) {
@@ -520,22 +526,22 @@ static int do_valuations_of_ideal_batch(cxx_param_list & pl) /*{{{*/
 
         /* now read the list of composites */
         for( ; ok ; ) {
-            string keyword;
-            if (!(is1 >> keyword) || keyword != "composite") throw invalid_argument(exc);
+            std::string keyword;
+            if (!(is1 >> keyword) || keyword != "composite") throw std::invalid_argument(exc);
             int ngens;
             // coverity[-taint_source]
-            if (!(is1 >> ngens)) throw invalid_argument(exc);
-            if (ngens < 0) throw invalid_argument(exc);
+            if (!(is1 >> ngens)) throw std::invalid_argument(exc);
+            if (ngens < 0) throw std::invalid_argument(exc);
             if (ngens == 0) break;
             cxx_mpz_mat gens(ngens, f->deg);
             for(unsigned int i = 0 ; i < gens->m ; i++) {
                 for(unsigned int j = 0 ; j < gens->n ; j++) {
                     if (!(is1 >> mpz_mat_entry(gens, i, j)))
-                        throw invalid_argument(exc);
+                        throw std::invalid_argument(exc);
                 }
             }
-            pair<cxx_mpz_mat, cxx_mpz> const Id = generate_ideal(O, M, cxx_mpq_mat(gens));
-            vector<int> my_vals;
+            std::pair<cxx_mpz_mat, cxx_mpz> const Id = generate_ideal(O, M, cxx_mpq_mat(gens));
+            std::vector<int> my_vals;
             for(auto const & Ie : my_ideals) {
                 cxx_mpz_mat const& fkp(Ie.first);
                 int const e = Ie.second;
@@ -543,7 +549,7 @@ static int do_valuations_of_ideal_batch(cxx_param_list & pl) /*{{{*/
                 int const v = valuation_of_ideal_at_prime_ideal(M, Id, a, e, p);
                 my_vals.push_back(v);
             }
-            if (!(is1 >> keyword) || keyword != "valuations") throw invalid_argument(exc);
+            if (!(is1 >> keyword) || keyword != "valuations") throw std::invalid_argument(exc);
             for(unsigned int k = 0 ; ok && k < ideals.size() ; k++) {
                 std::string s;
                 is1 >> s;
@@ -552,23 +558,23 @@ static int do_valuations_of_ideal_batch(cxx_param_list & pl) /*{{{*/
                     v = INT_MAX;
                 } else {
                     std::istringstream is2(s);
-                    if (!(is2 >> v)) throw invalid_argument(exc);
+                    if (!(is2 >> v)) throw std::invalid_argument(exc);
                 }
                 ok = (v == my_vals[magma_to_mine[k]]);
             }
         }
 
 
-        cout << ok_NOK(ok) << " test " << test
+        std::cout << ok_NOK(ok) << " test " << test
             << " (degree " << f->deg << ", p=" << p << ")"
             << "\n";
         test++;
         nok += ok;
         nfail += !ok;
     }
-    cout << nok << " tests passed";
-    if (nfail) cout << ", " << nfail << " TESTS FAILED";
-    cout << "\n";
+    std::cout << nok << " tests passed";
+    if (nfail) std::cout << ", " << nfail << " TESTS FAILED";
+    std::cout << "\n";
     return nfail == 0;
 }
 /*}}}*/

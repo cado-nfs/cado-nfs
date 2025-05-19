@@ -8,59 +8,57 @@
  */
 
 #ifdef HAVE_SSE2
-#include <emmintrin.h>                    // for __m128i, _mm_setzero_si128
+#include <emmintrin.h>
 #endif
-#include <algorithm>    // for min
-#include <cinttypes>                      // for PRId64, PRIu64
-#include <cmath>                          // for log2
-#include <cstdarg>             // IWYU pragma: keep
-#include <cstring>                        // for size_t, NULL, memset
-#include <sys/types.h>                    // for ssize_t
-#include <array>                          // for array, array<>::value_type
-#include <cstdint>                        // for uint32_t, uint8_t
-#include <iterator>                       // for begin, end
-#include <memory>                         // for allocator, __shared_ptr_access
-#include <mutex>                          // for lock_guard, mutex
-#include <utility>                        // for move
-#include <vector>                         // for vector
+#include <algorithm>
+#include <cinttypes>
+#include <cmath>
+#include <cstdarg>
+#include <cstring>
+#include <sys/types.h>
+#include <array>
+#include <cstdint>
+#include <iterator>
+#include <memory>
+#include <utility>
+#include <vector>
 
-#include <gmp.h>                          // for gmp_vfprintf, mpz_srcptr
+#include <gmp.h>
 #include "fmt/format.h"
 
 #include "gmp_aux.h"
-#include "las-process-bucket-region.hpp"  // for process_bucket_region_spawn
-#include "bucket.hpp"                     // for bare_bucket_update_t<>::br_...
-#include "fb.hpp"                         // for fb_factorbase::slicing, fb_...
-#include "las-apply-buckets.hpp"          // for apply_one_bucket
-#include "las-auxiliary-data.hpp"         // for nfs_aux, nfs_aux::thread_data
-#include "las-cofac-standalone.hpp"       // for cofac_standalone
-#include "las-cofactor.hpp"               // for check_leftover_norm
-#include "las-config.h"                   // for LOG_BUCKET_REGION, BUCKET_R...
-#include "las-coordinates.hpp"            // for convert_Nx_to_ij, adjustIJsublat
-#include "las-descent-trees.hpp"          // for descent_tree
-#include "las-descent.hpp"                // for register_contending_relation
-#include "las-detached-cofac.hpp"         // for cofac_standalone, detached_...
-#include "las-divide-primes.hpp"          // for divide_known_primes, factor...
-#include "las-dumpfile.hpp"               // for dumpfile_t
-#include "las-globals.hpp"                // for exit_after_rel_found, globa...
-#include "las-info.hpp"                   // for las_info, las_info::batch_p...
-#include "las-multiobj-globals.hpp"       // for dlp_descent
-#include "las-norms.hpp"                  // for lognorm_smart
-#include "las-output.hpp"                 // for TRACE_CHANNEL, las_output
-#include "las-qlattice.hpp"               // for qlattice_basis
-#include "las-report-stats.hpp"           // for TIMER_CATEGORY, las_report
-#include "las-siever-config.hpp"          // for siever_config, siever_confi...
-#include "las-smallsieve-types.hpp"       // for small_sieve_data_t
-#include "las-smallsieve.hpp"             // for resieve_small_bucket_region
-#include "las-threads-work-data.hpp"      // for nfs_work, nfs_work::side_data
-#include "las-todo-entry.hpp"             // for las_todo_entry
-#include "las-unsieve.hpp"                // for search_survivors_in_line
-#include "las-where-am-i-proxy.hpp"            // for where_am_I
-#include "las-where-am-i.hpp"             // for where_am_I, WHERE_AM_I_UPDATE
-#include "macros.h"                       // for ASSERT_ALWAYS, ASSERT, MAX
+#include "las-process-bucket-region.hpp"
+#include "bucket.hpp"
+#include "fb.hpp"
+#include "las-apply-buckets.hpp"
+#include "las-auxiliary-data.hpp"
+#include "las-cofac-standalone.hpp"
+#include "las-cofactor.hpp"
+#include "las-config.h"
+#include "las-coordinates.hpp"
+#include "las-special-q-task-collection.hpp"
+#include "las-detached-cofac.hpp"
+#include "las-divide-primes.hpp"
+#include "las-dumpfile.hpp"
+#include "las-globals.hpp"
+#include "las-info.hpp"
+#include "las-multiobj-globals.hpp"
+#include "las-norms.hpp"
+#include "las-output.hpp"
+#include "las-qlattice.hpp"
+#include "las-report-stats.hpp"
+#include "las-siever-config.hpp"
+#include "las-smallsieve-types.hpp"
+#include "las-smallsieve.hpp"
+#include "las-threads-work-data.hpp"
+#include "las-special-q.hpp"
+#include "las-unsieve.hpp"
+#include "las-where-am-i-proxy.hpp"
+#include "las-where-am-i.hpp"
+#include "macros.h"
 #include "relation.hpp"
-#include "tdict.hpp"                      // for slot, timetree_t, CHILD_TIMER
-#include "threadpool.hpp"                 // for worker_thread, thread_pool
+#include "tdict.hpp"
+#include "threadpool.hpp"
 #include "verbose.h"
 
 MAYBE_UNUSED static inline void subusb(unsigned char *S1, unsigned char *S2, ssize_t offset)
@@ -228,7 +226,7 @@ process_bucket_region_run::process_bucket_region_run(process_bucket_region_spawn
     for(int side = 0 ; side < nsides ; side++) {
         nfs_work::side_data  const& wss(ws.sides[side]);
         if (wss.no_fb()) {
-            S[side] = NULL;
+            S[side] = nullptr;
         } else {
             S[side] = tws.sides[side].bucket_region;
             ASSERT_ALWAYS(S[side]);
@@ -520,7 +518,7 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
 
 
     for(const size_t x : survivors) {
-        if (dlp_descent && ws.las.tree.must_take_decision())
+        if (ws.task->must_take_decision())
             break;
         ASSERT_ALWAYS (Sx[x] != 255);
         ASSERT(x < ((size_t) 1 << LOG_BUCKET_REGION));
@@ -578,10 +576,12 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
 
         auto rab = relation_ab(cur);
 
-        if (dlp_descent && ws.las.tree.must_avoid(rab)) {
+        if (dlp_descent && ws.las.tree->must_avoid(rab)) {
             /* This is important if we want to avoid loops! */
-            auto msg = fmt::format("ignoring relation {},{} which already appears in the descent tree", rab.az, rab.bz);
-            verbose_output_print(0, 1, "# %s\n", msg.c_str());
+            verbose_fmt_print(0, 1, 
+                    "# ignoring relation {},{} which"
+                    " already appears in the descent tree\n",
+                    rab.az, rab.bz);
             /* it's a hack, only because
              * las_report::display_survivor_counters chains
              * rep.survivors.not_both_multiples_of_p with
@@ -775,8 +775,11 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
                     detached_cofac(worker, D, N)));
 
             if (res->rel_p) {
-                if (dlp_descent)
-                    register_contending_relation(ws.las, ws.Q.doing, *res->rel_p);
+                /* XXX
+                 * task should/could be special_q_task_tree, how do we do
+                 * that?
+                 */
+                ws.task->new_candidate_relation(ws.las, *res->rel_p);
                 break;
             }
         }
@@ -795,7 +798,7 @@ void process_bucket_region_run::operator()() {/*{{{*/
          * need to do so in a multithread-compatible way, though.
          * Therefore the following access is mutex-protected within
          * las.tree. */
-        if (ws.las.tree.must_take_decision())
+        if (ws.task->must_take_decision())
             return;
     } else if (exit_after_rel_found) {
         if (rep.reports) {
@@ -810,7 +813,7 @@ void process_bucket_region_run::operator()() {/*{{{*/
         WHERE_AM_I_UPDATE(w, side, side);
         nfs_work::side_data  const& wss(ws.sides[side]);
         if (wss.no_fb()) {
-            ASSERT_ALWAYS(S[side] == NULL);
+            ASSERT_ALWAYS(S[side] == nullptr);
             continue;
         }
 

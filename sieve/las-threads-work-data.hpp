@@ -1,13 +1,14 @@
 #ifndef CADO_LAS_THREADS_WORK_DATA_HPP
 #define CADO_LAS_THREADS_WORK_DATA_HPP
 
-#include <cstddef>
 #include <cstdint>
 
 #include <array>
 #include <vector>
+#include <list>
 
 #include "ecm/batch.hpp"
+#include "ecm/facul_strategies.hpp"
 #include "fb.hpp"
 #include "las-bkmult.hpp"
 #include "las-config.h"
@@ -18,7 +19,8 @@
 #include "las-siever-config.hpp"
 #include "las-smallsieve-types.hpp"
 #include "las-threads.hpp"
-#include "las-todo-entry.hpp"
+#include "las-special-q.hpp"
+#include "las-special-q-task.hpp"
 #include "lock_guarded_container.hpp"
 #include "multityped_array.hpp"
 
@@ -80,10 +82,20 @@ class nfs_work {
 
     qlattice_basis Q;
 
+    /* This lives inside the special_q_task_collection, and is in effect
+     * either a special_q_task_simple, or a special_q_task_tree.
+     *
+     * Since the nfs_work structure is reused for several special_q's, we
+     * can't have a reference here. The pointer is changed at the
+     * las_subjob level, while all threads that work on this structure
+     * are joined, or are busy in asynchronous cofactorization.
+     */
+    special_q_task * task = nullptr;
+
     /* These are fetched from the sieve_shared_data structure, which
      * caches them */
-    j_divisibility_helper const * jd = NULL;
-    unsieve_data const * us = NULL;
+    j_divisibility_helper const * jd = nullptr;
+    unsieve_data const * us = nullptr;
     uint32_t J = 0;
 
     /* This is used only in batch mode. The list of cofactorization
@@ -250,7 +262,7 @@ class nfs_work {
     public:
     /* This uses the same reference as this->las, except that we want it
      * non-const */
-    void prepare_for_new_q(las_info &);
+    void prepare_for_new_q(las_info &, special_q_task *);
 
     void allocate_buckets(nfs_aux&, thread_pool&);
     private:
@@ -273,7 +285,7 @@ class nfs_work_cofac {
     public:
     las_info const & las;
     siever_config sc;
-    las_todo_entry doing;
+    special_q doing;
 
     facul_strategies const * strategies;
 

@@ -25,7 +25,7 @@
 #include "cxx_mpz.hpp"
 #include "gmp_aux.h"
 #include "las-galois.hpp"
-#include "las-todo-entry.hpp"
+#include "las-special-q.hpp"
 #include "las-todo-list.hpp"
 #include "macros.h"
 #include "mpz_poly.h"
@@ -167,7 +167,7 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
                 fprintf(stderr, "Error: rho is not a root modulo q0\n");
                 exit(EXIT_FAILURE);
             }
-            push_unlocked(las_todo_entry(q0, rho, sqside));
+            push_unlocked(special_q(q0, rho, sqside));
             /* Set empty interval [q0 + 1, q0] as special-q interval */
             mpz_set(q1, q0);
             mpz_add_ui (q0, q0, 1);
@@ -253,7 +253,7 @@ bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
         cxx_mpz & q = q0;
         auto fac_q = next_legitimate_specialq(q, q, 0);
 
-        std::vector<las_todo_entry> my_list;
+        std::vector<special_q> my_list;
 
         int nb_no_roots = 0;
         int nb_rootfinding = 0;
@@ -298,18 +298,17 @@ bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
         cxx_mpz diff;
         mpz_sub(diff, q1, q0);
         ASSERT_ALWAYS(created == 0 || created == nq_max);
-	size_t const n = nq_max;
         unsigned int spin = 0;
-        for ( ; created < n ; ) {
+        for ( ; created < nq_max ; ) {
             /* try in [q0 + k * (q1-q0) / n, q0 + (k+1) * (q1-q0) / n[ */
             cxx_mpz q0l, q1l;
 	    /* we use k = n-1-created instead of k=created so that
 	       special-q's are sieved in increasing order */
-	    size_t const k = n - 1 - created;
+	    size_t const k = nq_max - 1 - created;
             mpz_mul_ui(q0l, diff, k);
             mpz_mul_ui(q1l, diff, k + 1);
-            mpz_fdiv_q_ui(q0l, q0l, n);
-            mpz_fdiv_q_ui(q1l, q1l, n);
+            mpz_fdiv_q_ui(q0l, q0l, nq_max);
+            mpz_fdiv_q_ui(q1l, q1l, nq_max);
             mpz_add(q0l, q0, q0l);
             mpz_add(q1l, q0, q1l);
 
@@ -331,7 +330,7 @@ bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
                 size_t const nroots = skip_galois_roots(roots.size(), q, (mpz_t*)roots.data(), galois);
                 roots.erase(roots.begin() + nroots, roots.end());
             }
-            push_unlocked(las_todo_entry(q,
+            push_unlocked(special_q(q,
                         roots[gmp_urandomm_ui(rstate, roots.size())],
                         sqside));
         }
@@ -354,6 +353,9 @@ bool las_todo_list::feed_qlist()
      */
     if (!super::empty())
         return true;
+
+    if (created == nq_max)
+        return false;
 
     std::string line;
     auto is_comment = [](std::string const & s) {
@@ -380,9 +382,7 @@ bool las_todo_list::feed_qlist()
     }
     if (!is || (!is.eof() && (is >> tail, !is_comment(tail))))
         throw std::runtime_error(
-                fmt::format(
-                    "parse error in todo file"
-                    " while reading {}", line));
+                fmt::format("parse error in todo file while reading {}", line));
     auto const & f = cpoly->pols[side];
     /* specifying the rational root as <0
      * means that it must be recomputed. Putting 0 does not have this
@@ -400,14 +400,14 @@ bool las_todo_list::feed_qlist()
     ASSERT_ALWAYS(p > 0);
     ASSERT_ALWAYS(r >= 0);
 
-    push_unlocked(las_todo_entry(p, r, side));
+    push_unlocked(special_q(p, r, side));
     return true;
 }
 
 
 /* This exists because of the race condition between feed() and pop()
  */
-las_todo_entry las_todo_list::feed_and_pop()
+special_q las_todo_list::feed_and_pop()
 {
     const std::lock_guard<std::mutex> foo(mm);
 
@@ -420,8 +420,7 @@ las_todo_entry las_todo_list::feed_and_pop()
     if (super::empty())
         return {};
     auto ret = super::top();
-    if (!ret.is_closing_brace() && bool(ret))
-        pulled++;
+    // if (bool(ret)) pulled++;
     super::pop();
     return ret;
 }
@@ -439,7 +438,7 @@ void las_todo_list::print_todo_list(cxx_param_list & pl, int nthreads) const
         nthreads = 1;
     }
 
-    std::vector<std::vector<las_todo_entry>> lists(nthreads);
+    std::vector<std::vector<special_q>> lists(nthreads);
 
     auto segment = [&, this](unsigned int i) {
         cxx_param_list pl2 = pl;
@@ -466,14 +465,11 @@ void las_todo_list::print_todo_list(cxx_param_list & pl, int nthreads) const
 
         las_todo_list todo2(cpoly, pl2);
         for(;;) {
-            auto doing = todo2.pull();
+            auto doing = todo2.feed_and_pop();
             if (!doing) break;
             if (nthreads == 1) {
-                verbose_output_vfprint(0, 1, gmp_vfprintf,
-                        "%d %Zd %Zd\n",
-                        doing.side,
-                        (mpz_srcptr) doing.p,
-                        (mpz_srcptr) doing.r);
+                verbose_fmt_print(0, 1, "{} {} {}\n",
+                        doing.side, doing.p, doing.r);
             } else {
                 lists[i].push_back(doing);
             }
@@ -481,9 +477,10 @@ void las_todo_list::print_todo_list(cxx_param_list & pl, int nthreads) const
     };
 
     if (nthreads > 1) {
-        verbose_output_vfprint(0, 1, gmp_vfprintf,
-                "# Collecting the todo list in memory from q0=%Zd to q1=%Zd using %d threads\n",
-                (mpz_srcptr) q0, (mpz_srcptr) q1, nthreads);
+        verbose_fmt_print(0, 1,
+                "# Collecting the todo list in memory"
+                " from q0={} to q1={} using {} threads\n",
+                q0, q1, nthreads);
     }
 
     std::vector<std::thread> subjobs;
@@ -493,11 +490,8 @@ void las_todo_list::print_todo_list(cxx_param_list & pl, int nthreads) const
     for(auto & t : subjobs) t.join();
     for(auto const & v : lists) {
         for(auto const & doing : v) {
-            verbose_output_vfprint(0, 1, gmp_vfprintf,
-                    "%d %Zd %Zd\n",
-                    doing.side,
-                    (mpz_srcptr) doing.p,
-                    (mpz_srcptr) doing.r);
+            verbose_fmt_print(0, 1, "{} {} {}\n",
+                    doing.side, doing.p, doing.r);
         }
     }
 }

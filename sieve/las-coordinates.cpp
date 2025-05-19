@@ -10,7 +10,7 @@
 #include "las-coordinates.hpp"
 #include "las-config.h"        // for LOG_BUCKET_REGION
 #include "las-qlattice.hpp"    // for qlattice_basis
-#include "las-todo-entry.hpp"  // for las_todo_entry
+#include "las-special-q.hpp"  // for special_q
 #include "macros.h"
 
 

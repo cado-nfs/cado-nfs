@@ -86,7 +86,7 @@ Thus the function to check for duplicates needs the following information:
 #include "las-qlattice.hpp"
 #include "las-side-config.hpp"
 #include "las-siever-config.hpp"
-#include "las-todo-entry.hpp"
+#include "las-special-q.hpp"
 #include "macros.h"
 #include "mpz_poly.h"
 #include "relation.hpp"
@@ -114,7 +114,7 @@ struct sq_with_fac {
 // down the line, we stumble on the fact that just a plain integer isn't
 // appropriate to represent elements of P1(Z/qZ) when q is composite.
 //
-static las_todo_entry special_q_from_ab(const int64_t a, const uint64_t b, sq_with_fac const & sq, int side)
+static special_q special_q_from_ab(const int64_t a, const uint64_t b, sq_with_fac const & sq, int side)
 {
     cxx_mpz p, r;
 
@@ -165,7 +165,7 @@ subtract_fb_log(const unsigned char lognorm,
         unsigned long lim, unsigned long powlim,
         relation const& rel,
         int side,
-        las_todo_entry const & doing)
+        special_q const & doing)
 {
   unsigned char new_lognorm = lognorm;
 
@@ -205,7 +205,7 @@ subtract_fb_log(const unsigned char lognorm,
  * Return false if it is probably not a duplicate */
 static bool
 sq_finds_relation(las_info const & las,
-        las_todo_entry const & doing,
+        special_q const & doing,
         siever_config const & conf,
         qlattice_basis const & Q,
         uint32_t J,
@@ -349,7 +349,7 @@ sq_finds_relation(las_info const & las,
 
 bool
 sq_finds_relation(las_info const & las,
-        las_todo_entry const & doing,
+        special_q const & doing,
         siever_config const & conf,
         qlattice_basis const & Q,
         uint32_t J,
@@ -360,7 +360,7 @@ sq_finds_relation(las_info const & las,
 
 static bool
 sq_finds_relation(las_info const & las,
-        las_todo_entry const & doing,
+        special_q const & doing,
         relation const& rel,
         bool must,
         bool talk)
@@ -382,7 +382,7 @@ sq_finds_relation(las_info const & las,
  * doing.side is irrelevant here.
  */
 static int
-sq_was_previously_sieved (las_info const & las, const uint64_t sq, int side, las_todo_entry const & doing)
+sq_was_previously_sieved (las_info const & las, const uint64_t sq, int side, special_q const & doing)
 {
     /* we use <= and not < since this function is also called with the
      * current special-q */
@@ -446,7 +446,7 @@ all_multiples(std::vector<uint64_t> & prime_list) {
  */
 int
 relation_is_duplicate(relation const& rel,
-        las_todo_entry const & doing,
+        special_q const & doing,
         las_info const& las)
 {
     int const nsides = las.cpoly->nb_polys;
@@ -512,7 +512,7 @@ relation_is_duplicate(relation const& rel,
 
             // emulate sieving for the valid sq, and check if it finds our
             // relation.
-            las_todo_entry const other = special_q_from_ab(rel.a, rel.b, sq, side);
+            special_q const other = special_q_from_ab(rel.a, rel.b, sq, side);
 
             bool const is_dupe = sq_finds_relation(las, other, rel, true, true);
             verbose_output_print(0, VERBOSE_LEVEL,

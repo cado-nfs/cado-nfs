@@ -7,33 +7,34 @@
 
 #include <condition_variable>
 #include <fstream>
-#include <algorithm>
-#include <list>
+#include <vector>
 #include <memory>
 #include <mutex>
 #include <stack>
-#include <utility>
 
 #include <gmp.h>
 
 #include "cxx_mpz.hpp"
 #include "gmp_aux.h"
 #include "cado_poly.h"
-#include "las-todo-entry.hpp"
+#include "las-special-q.hpp"
 
 struct cxx_param_list;
 
-class las_todo_list : private std::stack<las_todo_entry> {
+class las_todo_list : private std::stack<special_q> {
     std::mutex mm;
-    std::condition_variable work_to_do;
 
     /* We use these flags to decide whether some extra work may appear or
      * not. (in the descent case)
      */
     public:
+    /* the "created" data member is (almost) only used internally in
+     * push_unlocked, and checked in feed_qrange and feed_qlist (to
+     * compare against nq_max).
+     */
     size_t created = 0;
-    size_t pulled = 0;
-    size_t done = 0;
+    // size_t pulled = 0;
+    // size_t done = 0;
     size_t nq_max = SIZE_MAX;
 
     bool print_todo_list_flag = false;
@@ -43,7 +44,7 @@ class las_todo_list : private std::stack<las_todo_entry> {
     cxx_cado_poly cpoly;
     cxx_gmp_randstate rstate;
 
-    typedef std::stack<las_todo_entry> super;
+    typedef std::stack<special_q> super;
 
     int random_sampling = 0;
     cxx_mpz q0;
@@ -53,7 +54,7 @@ class las_todo_list : private std::stack<las_todo_entry> {
     bool feed_qrange(gmp_randstate_t);
     bool feed_qlist();
 
-    void push_unlocked(las_todo_entry const & q, las_todo_entry const & = {})
+    void push_unlocked(special_q const & q, special_q const & = {})
     {
         super::emplace(q);
         created++;
@@ -73,17 +74,10 @@ class las_todo_list : private std::stack<las_todo_entry> {
     public:
     /*{{{*/
     using super::size;
-    void push(las_todo_entry const & q, las_todo_entry const & parent = {})
+    void push(special_q const & q, special_q const & parent = {})
     {
         const std::lock_guard<std::mutex> foo(mm);
         push_unlocked(q, parent);
-    }
-    void push_closing_brace(int depth)
-    {
-        /* it's very much unclear that we want to keep this.
-         */
-        const std::lock_guard<std::mutex> foo(mm);
-        super::emplace(las_todo_entry::closing_brace(depth));
     }
     bool empty() {
         const std::lock_guard<std::mutex> foo(mm);
@@ -95,11 +89,7 @@ class las_todo_list : private std::stack<las_todo_entry> {
 
     /* }}} */
 
-    private:
-    /* use the pulled_todo_entry ctor instead
-     */
-    las_todo_entry feed_and_pop();
-    friend struct pulled_todo_entry;
+    special_q feed_and_pop();
 
     public:
 
@@ -116,53 +106,6 @@ class las_todo_list : private std::stack<las_todo_entry> {
     static void declare_usage(cxx_param_list & pl);
 
     void print_todo_list(cxx_param_list & pl, int nthreads = 1) const;
-
-    public:
-    struct pulled_todo_entry : public las_todo_entry {
-        las_todo_entry parent;
-        las_todo_list * L = nullptr;
-        private:
-        pulled_todo_entry(las_todo_entry const & qp, las_todo_list * L)
-            : las_todo_entry(qp)
-            , L(L)
-        {
-            /* an empty returned special-q, or a special marker, won't
-             * count
-             */
-            if (!*this)
-                this->L = nullptr;
-        }
-        public:
-        explicit pulled_todo_entry(las_todo_list & L)
-            : pulled_todo_entry(L.feed_and_pop(), &L)
-        {
-        }
-        ~pulled_todo_entry() {
-            if (L) {
-                const std::lock_guard<std::mutex> dummy(L->mm);
-                L->done++;
-            }
-        }
-        explicit operator bool() const { return bool((las_todo_entry const&)*this); }
-        bool operator !() const { return !((las_todo_entry const&)*this); }
-        pulled_todo_entry() = delete;
-        pulled_todo_entry(pulled_todo_entry const & E) = delete;
-        pulled_todo_entry& operator=(pulled_todo_entry const & E) = delete;
-        pulled_todo_entry(pulled_todo_entry && E) noexcept
-            : las_todo_entry((las_todo_entry &&) E)
-            , L(E.L)
-        {
-            E.L = nullptr;
-        }
-        pulled_todo_entry& operator=(pulled_todo_entry && E) noexcept
-        {
-            std::swap(L, E.L);
-            std::swap((las_todo_entry &) *this, (las_todo_entry &) E);
-            return *this;
-        }
-    };
-
-    pulled_todo_entry pull() { return pulled_todo_entry(*this); }
 };
 
 

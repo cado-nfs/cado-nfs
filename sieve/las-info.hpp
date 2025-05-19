@@ -9,6 +9,7 @@
 #include <condition_variable>
 #include <list>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -42,7 +43,7 @@
 #include "las-unsieve.hpp"      // IWYU pragma: keep
 
 /* This one wants to have siever_config defined */
-#include "las-descent-trees.hpp"
+#include "las-special-q-task-collection.hpp"
 
 // #define HILIGHT_START   "\e[01;31m"
 // #define HILIGHT_END   "\e[00m"
@@ -61,7 +62,6 @@ struct las_info : public las_parallel_desc, private NonCopyable {
     // ----- general operational flags
     const char * galois; /* a string to indicate which galois to use in las */
     int suppress_duplicates;
-    int adjust_strategy = 0;
 
     /* It's not ``general operational'', but global enough to be here */
     cxx_cado_poly cpoly;
@@ -169,7 +169,7 @@ struct las_info : public las_parallel_desc, private NonCopyable {
     /* This is an opaque pointer to C++ code. */
     void * descent_helper;
     las_dlog_base dlog_base;
-    mutable descent_tree tree;
+    std::unique_ptr<special_q_task_collection_base> tree;
     void init_hint_table(param_list_ptr);
     void clear_hint_table();
 
@@ -177,7 +177,7 @@ struct las_info : public las_parallel_desc, private NonCopyable {
     // from a relation cache instead.
 
     std::string relation_cache;
-    void reproduce_relations_from_cache(las_todo_entry const & doing);
+    void reproduce_relations_from_cache(special_q const & doing);
     
     // ----- batch mode
     int batch; /* batch mode for cofactorization */
@@ -219,9 +219,9 @@ struct las_info : public las_parallel_desc, private NonCopyable {
     struct survivors_list {
         mutable std::mutex mm;
         size_t size = 0;
-        std::list<std::pair<las_todo_entry, std::list<cofac_candidate>>> L;
+        std::list<std::pair<special_q, std::list<cofac_candidate>>> L;
 
-        void append(las_todo_entry const & doing,
+        void append(special_q const & doing,
                 std::list<cofac_candidate> && loc)
         {
             const size_t n = loc.size();

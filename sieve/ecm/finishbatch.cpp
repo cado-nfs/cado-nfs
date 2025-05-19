@@ -18,7 +18,7 @@
 #include "cxx_mpz.hpp"
 #include "gzip.h"
 #include "las-side-config.hpp"
-#include "las-todo-entry.hpp"
+#include "las-special-q.hpp"
 #include "macros.h"
 #include "memusage.h"
 #include "mpz_poly.h"
@@ -125,7 +125,7 @@ main (int argc, char const *argv[])
   }
 
   // Read list from the input file.
-  std::list<std::pair<las_todo_entry, std::list<cofac_candidate>>> List;
+  std::list<std::pair<special_q, std::list<cofac_candidate>>> List;
   FILE * inp = fopen_maybe_compressed(infilename, "r");
   ASSERT_ALWAYS(inp);
 
@@ -136,7 +136,7 @@ main (int argc, char const *argv[])
   // fake sq will be used everywhere. This list keeps in memory all the
   // special q encountered.
   // Create a fake special-q
-  las_todo_entry sq(1, 1, 0);
+  special_q sq(1, 1, 0);
 
   long a;
   unsigned long b;
@@ -155,7 +155,7 @@ main (int argc, char const *argv[])
               for_this_q.clear();
               /* make sure we don't try to factor q */
               const std::vector<uint64_t> primes { uint64_t(q) };
-              sq = las_todo_entry(q, r, side, primes);
+              sq = special_q(q, r, side, primes);
           }
           continue;
       }

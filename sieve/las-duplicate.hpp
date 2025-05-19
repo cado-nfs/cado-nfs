@@ -2,7 +2,7 @@
 #define CADO_LAS_DUPLICATE_HPP
 
 #include "las-info.hpp"  // for las_info
-struct las_todo_entry;
+struct special_q;
 struct relation;
 struct siever_config;
 struct qlattice_basis;
@@ -12,7 +12,7 @@ struct qlattice_basis;
  */
 bool
 sq_finds_relation(las_info const & las,
-        las_todo_entry const & doing,
+        special_q const & doing,
         siever_config const & conf,
         qlattice_basis const & Q,
         uint32_t J,
@@ -20,7 +20,7 @@ sq_finds_relation(las_info const & las,
 
 int
 relation_is_duplicate(relation const& rel,
-        las_todo_entry const & doing,
+        special_q const & doing,
         las_info const& las);
 
 #endif
