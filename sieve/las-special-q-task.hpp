@@ -4,6 +4,7 @@
 #include <utility>
 
 #include "las-special-q.hpp"
+#include "relation.hpp"
 
 struct las_info;
 
@@ -38,8 +39,6 @@ struct special_q_task : public special_q {
 
     // NOLINTBEGIN(readability-convert-member-functions-to-static)
     int depth() const { return 0; }
-    int depth_below() const { return 0; }
-    int weight() const { return 1; }
     // NOLINTEND(readability-convert-member-functions-to-static)
 
     virtual void update_status(status_code, status_code) = 0;

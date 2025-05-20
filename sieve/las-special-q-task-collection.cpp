@@ -229,11 +229,11 @@ special_q_task_tree * special_q_task_collection_tree::pull_internal()
         return nullptr;
     } else {
         pulled++;
+        new_node_unlocked(q, nullptr);
         verbose_fmt_print(0, 1,
                 "# {} gets fresh {} [created={} pulled={} done={} abandoned={}]\n",
                 std::this_thread::get_id(), q,
                 created, pulled, done, abandoned);
-        new_node_unlocked(q, nullptr);
         special_q_task_tree * item = all_pending.front();
         all_pending.pop_front();
         ASSERT_ALWAYS(item->sq() == q);

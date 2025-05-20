@@ -1,18 +1,15 @@
 #ifndef SIEVE_LAS_DESCENT_TREE_NODE_HPP_
 #define SIEVE_LAS_DESCENT_TREE_NODE_HPP_
 
-#include <algorithm>
 #include <list>
 #include <map>
 #include <memory>
 #include <ostream>
 #include <set>
-#include <stdexcept>
 #include <string>
 #include <utility>
 
 #include "fmt/base.h"
-#include "fmt/format.h"
 #include "fmt/ostream.h"
 
 #include "las-descent-candidate-relation.hpp"
@@ -84,39 +81,6 @@ struct special_q_task_tree : public special_q_task {
         for(auto const * p = parent ; p ; p = p->parent, d++);
         return d;
     }
-    /* this returns the tree depth _below this level_ only.
-     * Add this->root_depth to get the overall depth (that this
-     * subtree contributes to)
-     */
-    int depth_below() const {
-        ASSERT_ALWAYS(children_by_status.at(IN_RECURSION).empty());
-        ASSERT_ALWAYS(children_by_status.at(IN_PROGRESS).empty());
-        ASSERT_ALWAYS(children_by_status.at(PENDING).empty());
-        int d = 0;
-        for(auto const * c : children_by_status.at(DONE))
-            d = std::max(d, 1 + c->depth_below());
-        return d;
-    }
-    /* this returns the tree weight _below this level_ only. */
-    int weight() const {
-        ASSERT_ALWAYS(children_by_status.at(IN_RECURSION).empty());
-        ASSERT_ALWAYS(children_by_status.at(IN_PROGRESS).empty());
-        ASSERT_ALWAYS(children_by_status.at(PENDING).empty());
-        int w = 1;
-        for(auto const & c : children_by_status.at(DONE))
-            w += c->weight();
-        return w;
-    }
-    special_q_task_tree * parent_at_depth(int depth) {
-        special_q_task_tree * t;
-        for(t = this ; t && t->root_depth != depth ; t = t->parent);
-        if (!t)
-            throw std::runtime_error(fmt::format(
-                        "Cannot find a depth-{} parent of {} (depth {})",
-                        depth, sq(), root_depth));
-        return t;
-    }
-
     void update_child_status(special_q_task_tree *, status_code, status_code);
     void update_status(status_code before, status_code after) override {
         if (parent) {

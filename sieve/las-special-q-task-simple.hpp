@@ -6,6 +6,7 @@
 #include "las-special-q.hpp"
 #include "las-special-q-task.hpp"
 #include "macros.h"
+#include "relation.hpp"
 
 struct las_info;
 
@@ -39,8 +40,6 @@ struct special_q_task_simple : public special_q_task {
     public:
 
     // NOLINTBEGIN(readability-convert-member-functions-to-static)
-    int depth_below() const { return 0; }
-    int weight() const { return 1; }
     bool must_take_decision() const override { return false; }
     bool new_candidate_relation(las_info const &, relation &) override { return false; }
     // NOLINTEND(readability-convert-member-functions-to-static)

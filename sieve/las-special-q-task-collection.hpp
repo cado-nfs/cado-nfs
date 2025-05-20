@@ -24,6 +24,49 @@
 #include "las-special-q-task-tree.hpp"
 #include "las-special-q-task-simple.hpp"
 
+/* A "task collection" designates the set of special-q's that a single
+ * las process handles over its lifetime.
+ *
+ * If we're doing a special-q descent, we use the complicated
+ * special_q_task_collection_tree object. Otherwise (normal case) we use
+ * the much simpler special_q_task_collection_simple.
+ *
+ * In most cases, special q tasks are created as unique_ptr's, and used
+ * via the base interface special_q_task * (which can point to an
+ * instance of either special_q_task_simple or special_q_task_tree).
+ *
+ * Within the special_q_task_collection, a special q can exist in several
+ * different states, which are encoded by special_q_task::status_code.
+ *
+ *  - PENDING: this task has been created, but no las thread currently
+ *    works on this special-q. Either it was very recently allocated, or
+ *    it is sitting in a storage area, waiting to be picked up (pulled)
+ *    by a thread willing to do work.
+ *  - IN_PROGRESS: this task was pulled by a thread, which is currently
+ *    actively collecting relation for this special-q
+ *  - IN_RECURSION (for the descent only): relation collection for this
+ *    task is done, but some children tasks were created out of it. These
+ *    tasks are not done yet, so the final state of this task depends on
+ *    them.
+ *  - ABANDONED (for the descent only): we could not find any useful
+ *    relation for this task, or all the relations that we found have
+ *    failed.  Some extra attempts are allowed, but once this is over,
+ *    the task is marked as failed (and the parent task has to try
+ *    another relation). 
+ *  - DONE: everything is good.
+ *
+ * The state machine is as follows. Most of what is here only applies to
+ * the recursive descent case. The "normal", non-descent case is simple
+ * enough and does not need much further detail.
+ *
+ * Creation of a task is done either from the las_todo_list object, or
+ * antonomously from the recursion (in the descent case). When a task is
+ * created, the counter `created` is increased by one.
+ *
+ * Pulling a task (via the `pull()` method) either picks a task from the
+ * `all_pending` structure/
+ */
+
 struct special_q_task_collection_base {
 
     /* this is the source from which we pull the work to be done */
