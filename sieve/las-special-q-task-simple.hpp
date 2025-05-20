@@ -41,7 +41,6 @@ struct special_q_task_simple : public special_q_task {
 
     // NOLINTBEGIN(readability-convert-member-functions-to-static)
     bool must_take_decision() const override { return false; }
-    bool new_candidate_relation(las_info const &, relation &) override { return false; }
     // NOLINTEND(readability-convert-member-functions-to-static)
 
     void update_status(status_code before, status_code after) override {

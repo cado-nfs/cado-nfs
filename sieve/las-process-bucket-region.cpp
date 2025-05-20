@@ -775,11 +775,7 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
                     detached_cofac(worker, D, N)));
 
             if (res->rel_p) {
-                /* XXX
-                 * task should/could be special_q_task_tree, how do we do
-                 * that?
-                 */
-                ws.task->new_candidate_relation(ws.las, *res->rel_p);
+                ws.las.tree->new_candidate_relation(ws.las, ws.task, *res->rel_p);
                 break;
             }
         }

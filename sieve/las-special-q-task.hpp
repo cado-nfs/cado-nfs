@@ -43,7 +43,6 @@ struct special_q_task : public special_q {
 
     virtual void update_status(status_code, status_code) = 0;
     virtual bool must_take_decision() const = 0;
-    virtual bool new_candidate_relation(las_info const &, relation &) = 0;
     virtual ~special_q_task() = default;
 };
 

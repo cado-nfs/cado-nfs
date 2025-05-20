@@ -4,6 +4,7 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <ostream>
 #include <set>
 #include <string>
@@ -101,7 +102,7 @@ struct special_q_task_tree : public special_q_task {
     bool must_take_decision() const override {
         return contender.wins_the_game();
     }
-    bool new_candidate_relation(las_info const & las, relation & rel) override;
+    bool new_candidate_relation(las_info const & las, relation & rel, std::mutex & mm);
 };
 
 std::ostream& operator<<(std::ostream&, special_q_task_tree::prefixed const &);

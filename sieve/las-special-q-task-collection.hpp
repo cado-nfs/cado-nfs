@@ -94,6 +94,8 @@ struct special_q_task_collection_base {
     virtual void postprocess(special_q_task * task, timetree_t & timer_special_q) = 0;
     virtual bool must_avoid(relation_ab const& ab) const = 0;
 
+    virtual void new_candidate_relation(las_info const &, special_q_task *, relation &) = 0;
+
     static std::unique_ptr<special_q_task_collection_base> create(cxx_cado_poly const & cpoly, cxx_param_list & pl);
 };
 
@@ -112,6 +114,8 @@ struct special_q_task_collection_simple : public special_q_task_collection_base 
     bool must_avoid(relation_ab const&) const override { return false; }
 
     void postprocess(special_q_task *, timetree_t &) override {};
+
+    void new_candidate_relation(las_info const &, special_q_task *, relation &) override {}
 };
 
 struct special_q_task_collection_tree : public special_q_task_collection_base {
@@ -185,6 +189,9 @@ struct special_q_task_collection_tree : public special_q_task_collection_base {
     }
 
     void postprocess(special_q_task *, timetree_t &) override;
+    void new_candidate_relation(las_info const & las, special_q_task * task, relation & rel) override {
+        dynamic_cast<special_q_task_tree *>(task)->new_candidate_relation(las, rel, tree_lock);
+    }
 };
 
 

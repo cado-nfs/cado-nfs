@@ -67,7 +67,7 @@ std::ostream& operator<<(std::ostream& os, special_q_task_tree::status_code cons
     return os;
 }
 
-bool special_q_task_tree::new_candidate_relation(las_info const & las, relation & rel)
+bool special_q_task_tree::new_candidate_relation(las_info const & las, relation & rel, std::mutex & mm)
 {
     /* This returns true only if this descent node is now done, either based
      * on the new relation we have registered, or because the previous
@@ -124,22 +124,25 @@ bool special_q_task_tree::new_candidate_relation(las_info const & las, relation 
      * failure, there's absolutely no reason to hurry up on a relation */
     newcomer.set_time_left(time_left, try_again ? INFINITY : general_grace_time_ratio);
 
-    if (newcomer < contender) {
-        if (newcomer.outstanding.empty()) {
-            verbose_output_print(0, 1, "# [descent] Yiippee, splitting done\n");
-        } else if (std::isfinite(contender.deadline)) {
-            // This implies that newcomer.deadline is also finite 
-            const double delta = contender.time_left-newcomer.time_left;
-            verbose_output_print(0, 1, "# [descent] Improved ETA by %.2f\n", delta);
-        } else if (contender) {
-            // This implies that we have fewer outstanding special-q's
-            verbose_output_print(0, 1, "# [descent] Improved number of children to split from %zu to %zu\n",
-                    contender.outstanding.size(),
-                    newcomer.outstanding.size());
-        }
-        contender = newcomer;
-        if (!contender.outstanding.empty()) {
-            verbose_output_print(0, 1, "# [descent] still searching for %.2f\n", contender.deadline - seconds());
+    {
+        const std::lock_guard<std::mutex> lock(mm);
+        if (newcomer < contender) {
+            if (newcomer.outstanding.empty()) {
+                verbose_output_print(0, 1, "# [descent] Yiippee, splitting done\n");
+            } else if (std::isfinite(contender.deadline)) {
+                // This implies that newcomer.deadline is also finite 
+                const double delta = contender.time_left-newcomer.time_left;
+                verbose_output_print(0, 1, "# [descent] Improved ETA by %.2f\n", delta);
+            } else if (contender) {
+                // This implies that we have fewer outstanding special-q's
+                verbose_output_print(0, 1, "# [descent] Improved number of children to split from %zu to %zu\n",
+                        contender.outstanding.size(),
+                        newcomer.outstanding.size());
+            }
+            contender = newcomer;
+            if (!contender.outstanding.empty()) {
+                verbose_output_print(0, 1, "# [descent] still searching for %.2f\n", contender.deadline - seconds());
+            }
         }
     }
     return must_take_decision();
