@@ -82,16 +82,15 @@ class nfs_aux {/*{{{*/
      */
     las_info const & las;
     public:
-    special_q doing;
-    
-    /* in the recursive descent (and only in this context), this is the
-     * list of special-q's that have led to considering this q. The root
-     * is the first in the history list, and history[i+1] is always a
-     * child of history[i]. If the current entry was part of the input
-     * request, then history is empty.
-     */
-    std::vector<special_q> history;
 
+    /* This lives somewhere in special_q_task_collection. We don't have
+     * ownership, as the special_q_task_collection is persistent anyway.
+     * Note that &doing might be dynamic_cast-able to
+     * special_q_task_simple or special_q_task_tree, and we do make use
+     * of this.
+     */
+    special_q_task & doing;
+    
     /* we rarely have ownership, if ever, of course. In the typical case,
      * there just one output file and that's it.
      * However in client-server file we may want several output files. In
@@ -164,11 +163,11 @@ class nfs_aux {/*{{{*/
     double wct_qt0;
 
     nfs_aux(las_info const & las,
-            special_q doing,
+            special_q_task & doing,
             std::shared_ptr<rel_hash_t> & rel_hash_p,
             int nthreads)
         : las(las)   /* shame... */
-        , doing(std::move(doing))
+        , doing(doing)
         , rel_hash_p(rel_hash_p)
         , checksum_post_sieve(las.cpoly->nb_polys)
         , th(nthreads)

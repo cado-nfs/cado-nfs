@@ -209,6 +209,16 @@ struct siever_config_pool {
     typedef std::map<key_type, descent_hint> hint_table_t;
     hint_table_t hints;
 
+    static constexpr int max_increase_lpb_default = 0;
+    static constexpr int max_increase_logA_default = 4;
+
+    int max_increase_lpb = max_increase_lpb_default;
+    int max_increase_logA = max_increase_logA_default;
+
+    int max_descent_attempts_allowed() const {
+        return (base.adjust_strategy != 2) + max_increase_logA + max_increase_lpb;
+    }
+
     descent_hint const * get_hint(int side, unsigned int bitsize) const {
         auto it = hints.find(key_type(side, bitsize));
         if (it == hints.end())
@@ -233,8 +243,7 @@ struct siever_config_pool {
     siever_config const * default_config_ptr = nullptr;
     siever_config base;
 
-    template<typename T>
-    siever_config get_config_for_q(T const& doing) const;
+    siever_config get_config_for_q(special_q_task const & doing) const;
 
     siever_config_pool(cxx_param_list& pl, int nb_polys);
 
@@ -255,18 +264,5 @@ struct siever_config_pool {
 
     static void declare_usage(cxx_param_list & pl);
 };
-
-template<>
-siever_config siever_config_pool::get_config_for_q<special_q>(special_q const & doing) const;
-
-template<>
-siever_config siever_config_pool::get_config_for_q<special_q_task_tree>(special_q_task_tree const & doing) const;
-
-template<>
-inline siever_config siever_config_pool::get_config_for_q<special_q_task_simple>(special_q_task_simple const & doing) const
-{
-    return get_config_for_q(doing.sq());
-}
-
 
 #endif	/* CADO_LAS_SIEVER_CONFIG_HPP */

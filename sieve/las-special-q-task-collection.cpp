@@ -150,6 +150,16 @@ void special_q_task_collection_tree::new_node_unlocked(special_q const & doing, 
      */
 }
 
+void special_q_task_collection_tree::display_summary(int channel, int verbose)
+{
+    verbose_fmt_print(channel, verbose, "# BEGIN SUMMARY TREE"
+            " [npending={}, created={} pulled={} done={} abandoned={}]\n",
+            all_pending.size(), created, pulled, done, abandoned);
+    verbose_fmt_print(channel, verbose, "{}", special_q_task_tree::prefixed { &forest, "# " });
+    verbose_fmt_print(channel, verbose, "# END SUMMARY TREE\n");
+}
+
+
 void special_q_task_collection_tree::done_node_unlocked(special_q_task_tree * item)
 {
     constexpr auto PENDING = special_q_task::status_code::PENDING;
@@ -180,13 +190,7 @@ void special_q_task_collection_tree::done_node_unlocked(special_q_task_tree * it
         // we might want to do something. See also the question in
         // abandon_node.
     } else if (item == &forest) {
-        verbose_fmt_print(0, 0, "# BEGIN SUMMARY TREE\n");
-        for(auto const * c : item->children_by_status[DONE]) {
-            verbose_fmt_print(0, 0, "# BEGIN TREE\n");
-            verbose_fmt_print(0, 0, "{}", special_q_task_tree::prefixed { c, "# " });
-            verbose_fmt_print(0, 0, "# END TREE\n");
-        }
-        verbose_fmt_print(0, 0, "# END SUMMARY TREE\n");
+        display_summary(0, 2);
     }
 
     /* We need to mark the parent as DONE if it has reached this status */
@@ -221,7 +225,7 @@ special_q_task_tree * special_q_task_collection_tree::pull_internal()
     }
     auto q = todo.feed_and_pop();
     if (!q) {
-        verbose_fmt_print(0, 1,
+        verbose_fmt_print(0, 3,
                 "# {} gets NULL [npending={}, created={} pulled={} done={} abandoned={}]\n",
                 std::this_thread::get_id(),
                 all_pending.size(),
@@ -230,7 +234,7 @@ special_q_task_tree * special_q_task_collection_tree::pull_internal()
     } else {
         pulled++;
         new_node_unlocked(q, nullptr);
-        verbose_fmt_print(0, 1,
+        verbose_fmt_print(0, 3,
                 "# {} gets fresh {} [created={} pulled={} done={} abandoned={}]\n",
                 std::this_thread::get_id(), q,
                 created, pulled, done, abandoned);
@@ -327,7 +331,7 @@ void special_q_task_collection_tree::take_decision(special_q_task_tree * item)
         done_node_unlocked(item);
     }
 
-    verbose_fmt_print(0, 0,
+    verbose_fmt_print(0, 2,
             "# CURRENT STATUS (after decision on {} {})"
             " [npending={}, created={} pulled={} done={} abandoned={}]\n"
             "{}"
@@ -338,7 +342,7 @@ void special_q_task_collection_tree::take_decision(special_q_task_tree * item)
             special_q_task_tree::prefixed {&forest, "# "});
 }
 
-void special_q_task_collection_tree::abandon_node(special_q_task_tree * item)
+void special_q_task_collection_tree::abandon_node(special_q_task_tree * item, int max_descent_attempts_allowed)
 {
     constexpr auto IN_RECURSION = special_q_task::status_code::IN_RECURSION;
     constexpr auto IN_PROGRESS = special_q_task::status_code::IN_PROGRESS;
@@ -365,9 +369,9 @@ void special_q_task_collection_tree::abandon_node(special_q_task_tree * item)
         item->children_by_status[IN_RECURSION].size(),
         item->children_by_status[DONE].size());
 
-    abandon_node_unlocked(item);
+    abandon_node_unlocked(item, max_descent_attempts_allowed);
 
-    verbose_fmt_print(0, 0,
+    verbose_fmt_print(0, 2,
             "# CURRENT STATUS (after abort of {} {})"
             " [npending={}, created={} pulled={} done={} abandoned={}]\n"
             "{}"
@@ -393,7 +397,7 @@ void special_q_task_collection_tree::abandon_node(special_q_task_tree * item)
  * abandoning is a difficult operation in the multithreaded context,
  * because some children or grandchildren might still be in progress.
  */
-void special_q_task_collection_tree::abandon_node_unlocked(special_q_task_tree * item, bool recursive_failure)
+void special_q_task_collection_tree::abandon_node_unlocked(special_q_task_tree * item, int max_descent_attempts_allowed, bool recursive_failure)
 {
     constexpr auto IN_RECURSION = special_q_task::status_code::IN_RECURSION;
     constexpr auto IN_PROGRESS = special_q_task::status_code::IN_PROGRESS;
@@ -423,24 +427,42 @@ void special_q_task_collection_tree::abandon_node_unlocked(special_q_task_tree *
          * children nodes will modify the list! */
         auto & L = item->children_by_status[s];
         for( ; !L.empty() ; ) 
-            abandon_node_unlocked(*L.begin(), true);
+            abandon_node_unlocked(*L.begin(), max_descent_attempts_allowed, true);
     }
 
     if (recursive_failure) {
-        abandoned += item != &forest && item->status != DONE;
-        item->update_status(item->status, ABANDONED);
+        /* Here we don't update the timings.
+         *  - if the task is IN_PROGRESS, the spent time will be tallied
+         *    later.
+         *  - if it's IN_RECURSION or DONE, it's already correctly
+         *    counted.
+         *  - if it's PENDING, there's no spent time to update.
+         *  - it probably cannot be ABANDONED in significant cases (the
+         *    only case I see is that when this failure ripples to upper
+         *    layers, which then see abandoned children, but that is an
+         *    implementation detail.
+         */
+        if (item->status != DONE) {
+            /* Do not change DONE nodes to ABANDONED status
+             */
+            abandoned += item != &forest;
+            item->update_status(item->status, ABANDONED);
+        }
     } else {
         ASSERT_ALWAYS(item->status == IN_PROGRESS || item->status == IN_RECURSION);
         if (!item->sq()) {
-            abandoned += item != &forest && item->status != DONE;
+            abandoned += item != &forest;
             item->update_status(item->status, ABANDONED);
             verbose_fmt_print (0, 1, "# The root node fails. This is sad.\n");
-        } else if (item->try_again < 3) {
+        } else if (item->try_again < max_descent_attempts_allowed) {
+            item->spent += seconds();
             item->try_again++;
             all_pending.push_back(item);
             item->update_status(item->status, PENDING);
         } else {
-            abandoned += item != &forest && item->status != DONE;
+            ASSERT_ALWAYS(item != &forest);
+            item->spent += seconds();
+            abandoned++;
             item->update_status(item->status, ABANDONED);
             verbose_fmt_print (0, 1, 
                     "# {} [{}] -> failed {} times,"
@@ -449,12 +471,12 @@ void special_q_task_collection_tree::abandon_node_unlocked(special_q_task_tree *
                     item->sq(),
                     item->try_again,
                     item->parent->sq());
-            abandon_node_unlocked(item->parent);
+            abandon_node_unlocked(item->parent, max_descent_attempts_allowed);
         }
     }
 }
 
-void special_q_task_collection_tree::postprocess(special_q_task * task, timetree_t & timer_special_q)/*{{{*/
+void special_q_task_collection_tree::postprocess(special_q_task * task, int max_descent_attempts_allowed, timetree_t & timer_special_q)/*{{{*/
 {
     auto * tt = dynamic_cast<special_q_task_tree *>(task);
 
@@ -470,7 +492,7 @@ void special_q_task_collection_tree::postprocess(special_q_task * task, timetree
          */
         take_decision(tt);
     } else {
-        abandon_node(tt);
+        abandon_node(tt, max_descent_attempts_allowed);
     }
 }/*}}}*/
 

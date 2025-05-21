@@ -665,7 +665,7 @@ static void check_whether_q_above_lare_prime_bound(siever_config const & conf, s
     if (mpz_sizeinbase(doing.p, 2) > conf.sides[doing.side].lpb) {
         fmt::print(stderr, "ERROR: The special q ({} bits) is larger than the "
                 "large prime bound on side {} ({} bits).\n",
-                (int) mpz_sizeinbase(doing.p, 2),
+                mpz_sizeinbase(doing.p, 2),
                 doing.side,
                 conf.sides[doing.side].lpb);
         fmt::print(stderr, "       You can disable this check with "
@@ -853,7 +853,9 @@ static bool do_one_special_q(las_info & las, nfs_work & ws, special_q_task * tas
     TIMER_CATEGORY(timer_special_q, bookkeeping());
 
     /* By choosing the sieve area, we trigger the setup of most of the
-     * per-special-q fields.
+     * per-special-q fields: In particular, this sets ws.conf, ws.Q, and
+     * ws.J.
+     *
      */
     if (!choose_sieve_area(las, aux_p, aux.doing, ws.conf, ws.Q, ws.J))
         return false;
@@ -1140,7 +1142,7 @@ static void las_subjob(las_info & las, int subjob, report_and_timer & global_rt)
                      * since it is an essential property ot the timer trees
                      * that the root of the trees must not have a nontrivial
                      * category */
-                    auto aux_p = std::make_shared<nfs_aux>(las, task->sq(), rel_hash_p, las.number_of_threads_per_subjob());
+                    auto aux_p = std::make_shared<nfs_aux>(las, *task, rel_hash_p, las.number_of_threads_per_subjob());
                     nfs_aux & aux(*aux_p);
                     las_report & rep(aux.rt.rep);
                     timetree_t & timer_special_q(aux.rt.timer);
@@ -1164,7 +1166,7 @@ static void las_subjob(las_info & las, int subjob, report_and_timer & global_rt)
                     /* At this point we no longer risk an exception,
                      * therefore it is safe to tinker with the todo list
                      */
-                    las.tree->postprocess(task, timer_special_q);
+                    las.tree->postprocess(task, las.config_pool.max_descent_attempts_allowed(), timer_special_q);
 
                     transfer_local_cofac_candidates_to_global(las, ws);
 
@@ -1350,7 +1352,7 @@ static void quick_subjob_loop_using_cache(las_info & las)/*{{{*/
 
         check_whether_special_q_is_root(las.cpoly, doing);
         per_special_q_banner(doing);
-        if (!choose_sieve_area(las, doing, conf, Q, J)) continue;
+        if (!choose_sieve_area(las, *task, conf, Q, J)) continue;
         check_whether_q_above_lare_prime_bound(conf, doing);
 
         {
@@ -1607,6 +1609,8 @@ int main (int argc0, char const * argv0[])/*{{{*/
                     );
         }
         for(auto & t : subjobs) t.join();
+
+        las.tree->display_summary(0, 0);
 
         las.set_loose_binding();
 

@@ -28,7 +28,7 @@ int never_discard = 0;      /* only enabled for las_descent */
 
 static bool choose_sieve_area(las_info const & las,
         timetree_t * ptimer MAYBE_UNUSED,
-        special_q const & doing,
+        special_q_task const & doing,
         siever_config & conf,
         qlattice_basis & Q,
         uint32_t & J)
@@ -58,7 +58,7 @@ static bool choose_sieve_area(las_info const & las,
     } catch (qlattice_basis::too_skewed const & x) {
         verbose_fmt_print(0, 1,
                 "# Discarding {} (q-lattice basis does not fit)\n",
-                doing);
+                doing.sq());
         return false;
     }
 
@@ -157,7 +157,7 @@ static bool choose_sieve_area(las_info const & las,
 
 bool choose_sieve_area(las_info const & las,
         std::shared_ptr<nfs_aux> const & aux_p,
-        special_q const & doing,
+        special_q_task const & doing,
         siever_config & conf,
         qlattice_basis & Q,
         uint32_t & J)
@@ -167,7 +167,7 @@ bool choose_sieve_area(las_info const & las,
 }
 
 bool choose_sieve_area(las_info const & las,
-        special_q const & doing,
+        special_q_task const & doing,
         siever_config & conf,
         qlattice_basis & Q,
         uint32_t & J)

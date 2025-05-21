@@ -19,6 +19,7 @@
 #include <stdexcept>
 
 #include <gmp.h>
+#include "fmt/base.h"
 #include "fmt/format.h"
 
 #include "cado_poly.h"
@@ -88,13 +89,16 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
 
     if (param_list_parse(pl, "random-sample", nq_max)) {
         random_sampling = 1;
+        if (param_list_parse(pl, "nq", nq_max)) {
+            fmt::print(stderr, "# Warning: both options -nq and -random-sample found. Limiting the number of generated primes to {}\n", nq_max);
+        }
     } else if (param_list_parse(pl, "nq", nq_max)) {
         if (param_list_lookup_string(pl, "rho")) {
             fprintf(stderr, "Error: argument -nq is incompatible with -rho\n");
             exit(EXIT_FAILURE);
         }
         if (param_list_lookup_string(pl, "q1"))
-            verbose_output_print(0, 1, "# Warning: argument -nq takes priority over -q1 ; -q1 ignored\n");
+            verbose_output_print(0, 1, "# Warning: arguments nq and q1 will both limit the q range\n");
     }
 
     sqside = cpoly->nb_polys == 1 ? 0 : 1;
@@ -213,9 +217,10 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
          * really.
          */
         if (mpz_cmp(q0, q1) > 0) {
-            gmp_fprintf(stderr, "Error: range [%Zd,%Zd[ contains no prime with roots mod f\n",
-                    (mpz_srcptr) q0,
-                    (mpz_srcptr) q1_orig);
+            fmt::print(stderr, 
+                    "Error: range [{},{}[ contains no prime with roots mod f\n",
+                    q0,
+                    q1_orig);
             exit(EXIT_FAILURE);
         }
     }
@@ -279,7 +284,7 @@ bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
         }
 
         if (nb_no_roots) {
-            verbose_output_vfprint(0, 1, gmp_vfprintf, "# polynomial has no roots for %d of the %d primes that were tried\n", nb_no_roots, nb_rootfinding);
+            verbose_fmt_print(0, 1, "# polynomial has no roots for {} of the {} primes that were tried\n", nb_no_roots, nb_rootfinding);
         }
 
         // Truncate to nq_max if necessary and push the sq in reverse

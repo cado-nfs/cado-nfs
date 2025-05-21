@@ -368,7 +368,7 @@ sq_finds_relation(las_info const & las,
   siever_config conf;
   qlattice_basis Q;
   uint32_t J;
-  if (!choose_sieve_area(las, doing, conf, Q, J)) {
+  if (!choose_sieve_area(las, special_q_task_simple(doing), conf, Q, J)) {
     if (talk) verbose_output_print(0, VERBOSE_LEVEL, "# DUPECHECK q-lattice discarded\n");
     return false;
   }

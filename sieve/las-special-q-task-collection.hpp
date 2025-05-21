@@ -91,10 +91,12 @@ struct special_q_task_collection_base {
     virtual ~special_q_task_collection_base() = default;
 
     virtual special_q_task * pull() = 0;
-    virtual void postprocess(special_q_task * task, timetree_t & timer_special_q) = 0;
+    virtual void postprocess(special_q_task * task, int, timetree_t & timer_special_q) = 0;
     virtual bool must_avoid(relation_ab const& ab) const = 0;
 
     virtual void new_candidate_relation(las_info const &, special_q_task *, relation &) = 0;
+
+    virtual void display_summary(int, int) {}
 
     static std::unique_ptr<special_q_task_collection_base> create(cxx_cado_poly const & cpoly, cxx_param_list & pl);
 };
@@ -113,7 +115,7 @@ struct special_q_task_collection_simple : public special_q_task_collection_base 
 
     bool must_avoid(relation_ab const&) const override { return false; }
 
-    void postprocess(special_q_task *, timetree_t &) override {};
+    void postprocess(special_q_task *, int, timetree_t &) override {};
 
     void new_candidate_relation(las_info const &, special_q_task *, relation &) override {}
 };
@@ -173,9 +175,9 @@ struct special_q_task_collection_tree : public special_q_task_collection_base {
 
     void take_decision(special_q_task_tree * t);
 
-    void abandon_node_unlocked(special_q_task_tree *, bool only_down = false);
+    void abandon_node_unlocked(special_q_task_tree *, int, bool only_down = false);
 
-    void abandon_node(special_q_task_tree * item);
+    void abandon_node(special_q_task_tree * item, int);
 
     special_q_task_tree * pull_internal();
 
@@ -188,10 +190,11 @@ struct special_q_task_collection_tree : public special_q_task_collection_base {
         return visited.find(ab) != visited.end();
     }
 
-    void postprocess(special_q_task *, timetree_t &) override;
+    void postprocess(special_q_task *, int, timetree_t &) override;
     void new_candidate_relation(las_info const & las, special_q_task * task, relation & rel) override {
         dynamic_cast<special_q_task_tree *>(task)->new_candidate_relation(las, rel, tree_lock);
     }
+    void display_summary(int, int) override;
 };
 
 

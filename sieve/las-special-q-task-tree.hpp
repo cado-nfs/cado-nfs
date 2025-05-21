@@ -51,6 +51,7 @@ struct special_q_task_tree : public special_q_task {
     special_q_task_tree * parent = nullptr;
 
     int try_again = 0;
+
     private:
     friend struct special_q_task_collection_tree;
 

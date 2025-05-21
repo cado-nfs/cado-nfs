@@ -34,9 +34,10 @@ static std::string shortcode(special_q_task_tree::status_code const & s)
 std::ostream& operator<<(std::ostream& os, special_q_task_tree::prefixed const & T)
 {
     special_q_task_tree const * t = T.t;
-    std::string pre = T.prefix + shortcode(t->status);
+    std::string pre = T.prefix;
 
     if (t->sq()) {
+        pre += shortcode(t->status);
         std::string comment;
         if (t->try_again)
             comment += fmt::format(" try{}", t->try_again);
@@ -44,7 +45,7 @@ std::ostream& operator<<(std::ostream& os, special_q_task_tree::prefixed const &
                 pre,
                 t->shortname(), t->spent, comment, t->sq());
     } else {
-        os << pre << " [ROOT NODE]\n";
+        os << pre << "[ROOT NODE]\n";
     }
 
     for(auto const & c : t->children_by_status) {
