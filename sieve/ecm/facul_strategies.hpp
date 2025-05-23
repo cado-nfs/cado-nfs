@@ -2,7 +2,7 @@
 #define CADO_FACUL_STRATEGIES_HPP
 
 #include <cstdio>      // for FILE
-#include <array>
+#include <vector>
 #include <vector>
 #include <map>
 
@@ -99,7 +99,7 @@ private:
 public:
 
     typedef std::map<
-        std::array<unsigned int, 2>, // FIXME HARDCODED 2
+        std::vector<unsigned int>,
         std::vector<facul_method::parameters_with_side>> strategy_file;
 
     facul_strategies(

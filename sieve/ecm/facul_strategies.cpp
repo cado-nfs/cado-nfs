@@ -7,8 +7,11 @@
 #include <cstdlib>
 #include <cstring>
 
+#include <algorithm>
 #include <array>
 #include <map>
+#include <regex>        // for std::basic_regex, std::regex_iterator
+#include <sstream>      // for std::ostringstream
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -17,6 +20,7 @@
 #include <regex.h>      // for regmatch_t, regcomp, regexec, regfree, REG_EX...
 
 #include "fmt/format.h"
+#include "fmt/ranges.h"
 
 #include "facul_strategies.hpp"
 #include "facul_ecm.h"
@@ -216,7 +220,7 @@ static const char * parameterization_name(ec_parameterization_t p)
 }
 
 struct strategy_file_parser {/*{{{*/
-    typedef std::array<unsigned int, 2> key_type;; // FIXME HARDCODED 2
+    typedef std::vector<unsigned int> key_type;
     typedef std::vector<facul_method::parameters_with_side> value_type;
 private:
     class regexp_define_t {/*{{{*/
@@ -274,34 +278,36 @@ private:
     regexp_use_t regexp_use;
 
     class regexp_index_t {/*{{{*/
-        regex_t re;
+        std::regex re;
+
+        static std::regex build_regex(size_t n) {
+            std::ostringstream s;
+            for (unsigned int i = 0; i < n; ++i) {
+                s << (i == 0 ? "^\\[?" : ",")
+                  << "[[:space:]]*r" << i << "=([[:digit:]]+)[[:space:]]*";
+            }
+            s << "]?[[:space:]]*";
+            return std::regex{s.str(), std::regex::extended|std::regex::icase};
+        }
+
         public:
-        typedef key_type T;
-        regexp_index_t() {
-            const char * re_txt =
-                "^\\[?[[:space:]]*"
-                "r0=([[:digit:]]+)"
-                ",[[:space:]]*"
-                "r1=([[:digit:]]+)"
-                "\\]?[[:space:]]*";
-            regcomp (&re, re_txt, REG_ICASE|REG_EXTENDED);
+        typedef std::vector<unsigned int> T;
+        regexp_index_t(size_t n) : re{build_regex(n)} {
         }
-        ~regexp_index_t() {
-            regfree(&re);
-        }
-        bool operator()(T & index, const char * & str) const
-        {
-            constexpr const int nmatch = 3;
-            regmatch_t p[nmatch];
-            if (regexec (&re, str, nmatch, p, 0) == REG_NOMATCH)
+        bool operator()(T & index, const char * & str) const {
+            std::cmatch m;
+            if (!regex_search(str, m, re)) {
                 return false;
-            index[0] = std::stoi(std::string(str + p[1].rm_so, str + p[1].rm_eo));
-            index[1] = std::stoi(std::string(str + p[2].rm_so, str + p[2].rm_eo));
-            str += p[0].rm_eo;
-            return true;
+            } else {
+                for (size_t i = 1; i < m.size(); ++i) {
+                    index[i-1] = std::stoi(m[i].str());
+                }
+                str += m.length();
+                return true;
+            }
         }
+
     };/*}}}*/
-    regexp_index_t regexp_index;
 
     class regexp_timing_comment_t {/*{{{*/
         regex_t re;
@@ -488,6 +494,8 @@ strategy_file_parser::operator()(std::vector<unsigned int> const & mfb, FILE * f
     std::vector<std::pair<key_type, value_type>> pre_parse;
     std::map<std::string, value_type> macros;
 
+    regexp_index_t regexp_index{mfb.size()};
+
     value_type * current = nullptr;
 
     fseek (file, 0, SEEK_SET);
@@ -503,7 +511,7 @@ strategy_file_parser::operator()(std::vector<unsigned int> const & mfb, FILE * f
                 // This removes comments.
                 if (*str == '#') break;
 
-                key_type index_st;
+                key_type index_st(mfb.size());
                 value_type::value_type fm;
                 std::string macro;
 
@@ -551,10 +559,12 @@ strategy_file_parser::operator()(std::vector<unsigned int> const & mfb, FILE * f
     for(auto & c : pre_parse) {
         key_type index_st = c.first;
 
-        if (index_st[0] > mfb[0])
-            continue;
-        if (index_st[1] > mfb[1])
-            continue;
+        /* std::equal use the std:less_equal for comparisons so what it is
+         * really doing is checking if index_st[i] <= mfb[i] for all i
+         */
+        if(!std::equal(index_st.begin(), index_st.end(), mfb.begin(),
+                       std::less_equal<unsigned int>{}))
+            continue; /* it exists i such that index_st[i] > mfb[i] */
         if (c.second.empty())
             continue;
 
@@ -567,8 +577,8 @@ strategy_file_parser::operator()(std::vector<unsigned int> const & mfb, FILE * f
             parameter_sequence_tracker::fill_default_parameters(c.second);
         } catch(error const & e) {
             throw std::runtime_error(fmt::format(
-                        "Parse error in strategies file while setting parameters for r0={},r1={}: {}",
-                        index_st[0], index_st[1], e.what()));
+                        "Parse error in strategies file while setting parameters for r={}: {}",
+                        index_st, e.what()));
         }
         parsed_file.insert(c);
     }
