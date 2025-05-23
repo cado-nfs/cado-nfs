@@ -633,6 +633,26 @@ static void fprint_one_chain(FILE * file, std::vector<facul_method_side> const &
     }
 }
 
+template<class UnaryOp>
+void facul_strategies::for_each_sizes_combination(UnaryOp f) const
+{
+    std::vector<unsigned int> v(mfb.size());
+    for_each_sizes_combination_inner(0, v, f);
+}
+
+template<class UnaryOp>
+void facul_strategies::for_each_sizes_combination_inner(unsigned int i, std::vector<unsigned int> & v, UnaryOp f) const
+{
+    if (i >= mfb.size()) {
+        f(v);
+    } else {
+        for(size_t j = 0; j < mfb[i]; ++j) {
+            v[i] = j;
+            for_each_sizes_combination_inner(i+1, v, f);
+        }
+    }
+}
+
 void facul_strategies::print(FILE * file) const/*{{{*/
 {
     /* There isn't such a thing as a strategy for more than 2 sides.
@@ -642,12 +662,8 @@ void facul_strategies::print(FILE * file) const/*{{{*/
     if (file == nullptr)
         return;
     // print info lpb ...
-    fprintf (file,
-            "# (lpb = [%u,%u], as...=[%lf, %lf], BBB = [%lf, %lf])\n",
-            lpb[0], lpb[1],
-            BB[0], BB[1],
-            BBB[0], BBB[1]);
-    fprintf (file, "# mfb = [%d, %d]\n", mfb[0], mfb[1]);
+    fmt::print(file, "# (lpb = {}, as...={}, BBB = {::.0Lf})\n", lpb, BB, BBB);
+    fmt::print(file, "# mfb = {}\n", mfb);
 
     // operator() always returns a reference to things that are either in
     // the structure's precomputed_strategies, uniform_strategies, or
@@ -656,39 +672,38 @@ void facul_strategies::print(FILE * file) const/*{{{*/
 
     std::map<std::vector<facul_method_side> const *, unsigned int> popularity;
 
-    for (unsigned int r = 0; r <= mfb[0]; r++) {
-        for (unsigned int a = 0; a <= mfb[1]; a++) {
-            popularity[&(*this)(r, a)]++;
-        }
-    }
+    for_each_sizes_combination(
+        [this, &popularity] (std::vector<unsigned int> & sizes) {
+            popularity[&(*this)(sizes)]++;
+        });
 
-    for (unsigned int r = 0; r <= mfb[0]; r++) {
-        for (unsigned int a = 0; a <= mfb[1]; a++) {
-            std::vector<facul_method_side> const & v = (*this)(r, a);
+    for_each_sizes_combination(
+        [this, &popularity, &file] (std::vector<unsigned int> & sizes) {
+            std::vector<facul_method_side> const & v = (*this)(sizes);
             unsigned int const p = popularity[&v];
             ASSERT_ALWAYS(p > 0);       // see above.
             if (p >= 2 && v.size() >= 2) {
-                fprintf(file, "define same_as_%u_%u\n", r, a);
+                fmt::print(file, "define same_as_{}\n", fmt::join(sizes, "_"));
                 fprint_one_chain(file, v);
             }
-        }
-    }
+        });
 
-
-    for (unsigned int r = 0; r <= mfb[0]; r++) {
-        for (unsigned int a = 0; a <= mfb[1]; a++) {
-            std::vector<facul_method_side> const & v = (*this)(r, a);
-            if (v.empty()) continue;
-            fprintf (file, "r0=%u,r1=%u\n", r, a);
+    for_each_sizes_combination(
+        [this, &popularity, &file] (std::vector<unsigned int> & sizes) {
+            std::vector<facul_method_side> const & v = (*this)(sizes);
+            if (v.empty()) return;
+            for(size_t i = 0; i < sizes.size(); ++i) {
+                fmt::print(file, "r{}={}{}", i, sizes[i],
+                                             i+1 < sizes.size() ? ',' : '\n');
+            }
             unsigned int const p = popularity[&v];
             ASSERT_ALWAYS(p > 0);       // see above.
             if (p >= 2 && v.size() >= 2) {
-                fprintf(file, "  use same_as_%u_%u\n", r, a);
+                fmt::print(file, "  use same_as_{}\n", fmt::join(sizes, "_"));
             } else {
                 fprint_one_chain(file, v);
             }
-        }
-    }
+        });
 }/*}}}*/
 
 facul_strategies_base::facul_strategies_base (
@@ -772,17 +787,17 @@ facul_strategies::facul_strategies(
         auto const & i = v.first;
         auto const & chain_parameters = v.second;
         auto const * w = &precomputed_strategies.at(chain_parameters);
-        direct_access_get(i[0], i[1]) = w;
+        direct_access_get(i) = w;
     }
 }
 
-std::vector<facul_method_side> const & facul_strategies::operator()(unsigned int r, unsigned int a) const
+std::vector<facul_method_side> const & facul_strategies::operator()(std::vector<unsigned int> const & v) const
 {
     if (direct_access.empty()) {
-        return uniform_strategy[r < a];
+        return uniform_strategy[v[0] < v[1]]; // FIXME HARDCODED 2
     } else {
         static std::vector<facul_method_side> const placeholder;
-        auto it = direct_access_get(r, a);
+        auto it = direct_access_get(v);
         if (it != nullptr)
             return *it;
         else
@@ -790,18 +805,26 @@ std::vector<facul_method_side> const & facul_strategies::operator()(unsigned int
     }
 }
 
-std::vector<facul_method_side> const * & facul_strategies::direct_access_get(unsigned int r, unsigned int a)
+std::vector<facul_method_side> const * & facul_strategies::direct_access_get(std::vector<unsigned int> const & v)
 {
-    ASSERT_ALWAYS(r <= mfb[0]);
-    ASSERT_ALWAYS(a <= mfb[1]);
-    return direct_access[r + a * (1 + mfb[0])];
+    ASSERT_ALWAYS(v.size() == mfb.size());
+    unsigned int b = 1, idx = 0;
+    for (size_t i = 0; i < v.size(); ++i) {
+        idx += v[i]*b;
+        b *= mfb[i]+1;
+    }
+    return direct_access[idx];
 }
 
-std::vector<facul_method_side> const * const & facul_strategies::direct_access_get(unsigned int r, unsigned int a) const
+std::vector<facul_method_side> const * const & facul_strategies::direct_access_get(std::vector<unsigned int> const &v) const
 {
-    ASSERT_ALWAYS(r <= mfb[0]);
-    ASSERT_ALWAYS(a <= mfb[1]);
-    return direct_access[r + a * (1 + mfb[0])];
+    ASSERT_ALWAYS(v.size() == mfb.size());
+    unsigned int b = 1, idx = 0;
+    for (size_t i = 0; i < v.size(); ++i) {
+        idx += v[i]*b;
+        b *= mfb[i]+1;
+    }
+    return direct_access[idx];
 }
 
 /*

@@ -78,7 +78,7 @@ struct facul_strategies_base {
 };
 
 struct facul_strategies : public facul_strategies_base {
-    std::vector<facul_method_side> const & operator()(unsigned int r, unsigned int a) const;
+    std::vector<facul_method_side> const & operator()(std::vector<unsigned int> const & v) const;
 
 private:
     /* Optimization for facul_make_strategies () */
@@ -132,10 +132,15 @@ public:
     void precompute_method(facul_method::parameters const & mp, int verbose);
 
 private:
+    template<class UnaryOp>
+    void for_each_sizes_combination(UnaryOp f) const;
+    template<class UnaryOp>
+    void for_each_sizes_combination_inner(unsigned int i, std::vector<unsigned int> & v, UnaryOp f) const;
+
     /* This is the backing store of operator() */
     std::vector<const std::vector<facul_method_side> *> direct_access;
-    std::vector<facul_method_side> const * & direct_access_get(unsigned int r, unsigned int a);
-    std::vector<facul_method_side> const * const & direct_access_get(unsigned int r, unsigned int a) const;
+    std::vector<facul_method_side> const * & direct_access_get(std::vector<unsigned int> const & v);
+    std::vector<facul_method_side> const * const & direct_access_get(std::vector<unsigned int> const &v) const;
 };
 
 

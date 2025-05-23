@@ -237,7 +237,7 @@ facul_status factor_both_leftover_norms(
         if (f.status == FACUL_NOT_SMOOTH)
             return FACUL_NOT_SMOOTH;
     }
-    for(int side = 0 ; side < 2 ; side++) {
+    for(size_t side = 0 ; side < fac.size() ; side++) {
         auto & f = fac[side];
         if (f.status == FACUL_MAYBE) {
             /* We couldn't factor this number. So we don't know. It

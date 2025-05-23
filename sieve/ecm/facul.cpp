@@ -84,10 +84,11 @@ facul_both(std::vector<cxx_mpz> const & N, facul_strategies const & strategies)
 {
     auto const nsides = int(N.size());
 
-    ASSERT_ALWAYS(nsides == 2);
-    auto const & methods = strategies(
-            mpz_sizeinbase(N[0], 2),
-            mpz_sizeinbase(N[1], 2));
+    std::vector<unsigned int> sizes(N.size());
+    std::transform(N.cbegin(), N.cend(), sizes.begin(),
+                   [] (cxx_mpz const & n) { return n.bits(); });
+
+    auto const & methods = strategies(sizes);
 
     std::vector<facul_result> res(nsides, FACUL_NOT_SMOOTH);
 
