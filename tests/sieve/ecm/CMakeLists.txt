@@ -79,6 +79,10 @@ cado_define_test(test_strategy_file_parser.cpp
 
 cado_divert_test(test_strategy_file_parser 1
     ARGUMENTS 2 ${CMAKE_CURRENT_SOURCE_DIR}/example1.st)
+cado_divert_test(test_strategy_file_parser 2
+    ARGUMENTS 3 ${CMAKE_CURRENT_SOURCE_DIR}/example2.st)
+cado_divert_test(test_strategy_file_parser 3
+    ARGUMENTS 1 ${CMAKE_CURRENT_SOURCE_DIR}/example3.st)
 
 # Something like parsing the output of the strategy file parser to itself
 # as standard input should work. But the way to do this with cmake is
@@ -110,3 +114,7 @@ cado_divert_test(test_strategy_file_parser_buggy 6
     ARGUMENTS 2 ${CMAKE_CURRENT_SOURCE_DIR}/buggy6.st)
 cado_divert_test(test_strategy_file_parser_buggy 7
     ARGUMENTS 2 ${CMAKE_CURRENT_SOURCE_DIR}/buggy7.st)
+cado_divert_test(test_strategy_file_parser_buggy 8
+    ARGUMENTS 2 ${CMAKE_CURRENT_SOURCE_DIR}/buggy8.st)
+cado_divert_test(test_strategy_file_parser_buggy 9
+    ARGUMENTS 2 ${CMAKE_CURRENT_SOURCE_DIR}/buggy9.st)

@@ -1354,7 +1354,11 @@ tests/sieve/ecm/buggy4.st
 tests/sieve/ecm/buggy5.st
 tests/sieve/ecm/buggy6.st
 tests/sieve/ecm/buggy7.st
+tests/sieve/ecm/buggy8.st
+tests/sieve/ecm/buggy9.st
 tests/sieve/ecm/example1.st
+tests/sieve/ecm/example2.st
+tests/sieve/ecm/example3.st
 tests/sieve/ecm/generate_test_files.sage
 tests/sieve/ecm/test_Weierstrass.cpp
 tests/sieve/ecm/test_Weierstrass.input
