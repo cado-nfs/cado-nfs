@@ -224,12 +224,8 @@ facul_status factor_both_leftover_norms(
         std::vector<unsigned long> const & Bs,
         facul_strategies const & strat)
 {
-    ASSERT_ALWAYS(n.size() == 2);
-    ASSERT_ALWAYS(factors.size() == 2);
-    ASSERT_ALWAYS(Bs.size() == 2);
-    for (int side = 0; side < 2 && side < (int) strat.B.size() ; side++) {
-        ASSERT_ALWAYS(Bs[side] == strat.B[side]);
-    }
+    ASSERT_ALWAYS(Bs.size() == strat.B.size());
+    ASSERT_ALWAYS(std::equal(Bs.begin(), Bs.end(), strat.B.begin()));
 
     /* call the facul library */
     auto fac = facul_both(n, strat);

@@ -656,10 +656,6 @@ void facul_strategies::for_each_sizes_combination_inner(unsigned int i, std::vec
 
 void facul_strategies::print(FILE * file) const/*{{{*/
 {
-    /* There isn't such a thing as a strategy for more than 2 sides.
-     */
-    ASSERT_ALWAYS(B.size() == 2);
-
     if (file == nullptr)
         return;
     // print info lpb ...
