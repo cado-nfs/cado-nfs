@@ -78,7 +78,7 @@ cado_define_test(test_strategy_file_parser.cpp
     NO_DEFAULT_RUN)
 
 cado_divert_test(test_strategy_file_parser 1
-    ARGUMENTS ${CMAKE_CURRENT_SOURCE_DIR}/example1.st)
+    ARGUMENTS 2 ${CMAKE_CURRENT_SOURCE_DIR}/example1.st)
 
 # Something like parsing the output of the strategy file parser to itself
 # as standard input should work. But the way to do this with cmake is
@@ -86,10 +86,10 @@ cado_divert_test(test_strategy_file_parser 1
 # newlines if you ever want to indent this nicely.)
 cado_define_test(test_strategy_file_parser_pipe_1
      SCRIPT bash -c
-     "${CMAKE_CURRENT_BINARY_DIR}/test_strategy_file_parser ${CMAKE_CURRENT_SOURCE_DIR}/example1.st | ${CMAKE_CURRENT_BINARY_DIR}/test_strategy_file_parser"
+     "${CMAKE_CURRENT_BINARY_DIR}/test_strategy_file_parser 2 ${CMAKE_CURRENT_SOURCE_DIR}/example1.st | ${CMAKE_CURRENT_BINARY_DIR}/test_strategy_file_parser 2"
      TARGET_DEPENDENCIES test_strategy_file_parser)
  cado_define_test(test_strategy_file_parser_pipe_F9
-     SCRIPT bash -c "${CMAKE_CURRENT_BINARY_DIR}/test_strategy_file_parser ${CMAKE_CURRENT_SOURCE_DIR}/../F9.st | ${CMAKE_CURRENT_BINARY_DIR}/test_strategy_file_parser"
+     SCRIPT bash -c "${CMAKE_CURRENT_BINARY_DIR}/test_strategy_file_parser 2 ${CMAKE_CURRENT_SOURCE_DIR}/../F9.st | ${CMAKE_CURRENT_BINARY_DIR}/test_strategy_file_parser 2"
      TARGET_DEPENDENCIES test_strategy_file_parser)
  
 cado_divert_test(test_strategy_file_parser buggy
@@ -97,16 +97,16 @@ cado_divert_test(test_strategy_file_parser buggy
     NO_DEFAULT_RUN)
 
 cado_divert_test(test_strategy_file_parser_buggy 1
-    ARGUMENTS ${CMAKE_CURRENT_SOURCE_DIR}/buggy1.st)
+    ARGUMENTS 2 ${CMAKE_CURRENT_SOURCE_DIR}/buggy1.st)
 cado_divert_test(test_strategy_file_parser_buggy 2
-    ARGUMENTS ${CMAKE_CURRENT_SOURCE_DIR}/buggy2.st)
+    ARGUMENTS 2 ${CMAKE_CURRENT_SOURCE_DIR}/buggy2.st)
 cado_divert_test(test_strategy_file_parser_buggy 3
-    ARGUMENTS ${CMAKE_CURRENT_SOURCE_DIR}/buggy3.st)
+    ARGUMENTS 2 ${CMAKE_CURRENT_SOURCE_DIR}/buggy3.st)
 cado_divert_test(test_strategy_file_parser_buggy 4
-    ARGUMENTS ${CMAKE_CURRENT_SOURCE_DIR}/buggy4.st)
+    ARGUMENTS 2 ${CMAKE_CURRENT_SOURCE_DIR}/buggy4.st)
 cado_divert_test(test_strategy_file_parser_buggy 5
-    ARGUMENTS ${CMAKE_CURRENT_SOURCE_DIR}/buggy5.st)
+    ARGUMENTS 2 ${CMAKE_CURRENT_SOURCE_DIR}/buggy5.st)
 cado_divert_test(test_strategy_file_parser_buggy 6
-    ARGUMENTS ${CMAKE_CURRENT_SOURCE_DIR}/buggy6.st)
+    ARGUMENTS 2 ${CMAKE_CURRENT_SOURCE_DIR}/buggy6.st)
 cado_divert_test(test_strategy_file_parser_buggy 7
-    ARGUMENTS ${CMAKE_CURRENT_SOURCE_DIR}/buggy7.st)
+    ARGUMENTS 2 ${CMAKE_CURRENT_SOURCE_DIR}/buggy7.st)
