@@ -210,12 +210,15 @@ check_leftover_norm (cxx_mpz const & n, siever_side_config const & scs)
 */
 
 /* This is the same function as factor_leftover_norm() but it works
-   with both norms! It is used when we want to factor these norms
+   with all norms! It is used when we want to factor these norms
    simultaneously and not one after the other.
    Return values:
    -1  one of the cofactors is not smooth
    0   unable to fully factor one of the cofactors
-   1   both cofactors are smooth
+   1   all cofactors are smooth
+
+  Note: for more than two sides, we may still get a relation even if not all
+  cofactors were smooth. Currently, it is not taken into account by this method.
 */
 
 facul_status factor_leftover_norms(

@@ -23,6 +23,7 @@
 #include <fstream>                        // for ifstream
 #include <functional>                     // for ref
 #include <iomanip>                        // for operator<<, setprecision
+#include <iostream>                       // for std::cerr
 #include <istream>                        // for operator>>
 #include <list>                           // for list, _List_iterator
 #include <map>                            // for map
@@ -1511,6 +1512,11 @@ int main (int argc0, char const * argv0[])/*{{{*/
 #ifdef SAFE_BUCKETS_SINGLE
       verbose_output_print(0, 0, "# WARNING: SAFE_BUCKETS_SINGLE is on !\n");
 #endif
+
+    if (las.cpoly->nb_polys > 2) {
+        std::cerr << "las is only working with poly files with 1 or 2 sides\n";
+        return EXIT_FAILURE;
+    }
 
     las_todo_list todo(las.cpoly, pl);
 
