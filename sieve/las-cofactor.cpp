@@ -218,7 +218,7 @@ check_leftover_norm (cxx_mpz const & n, siever_side_config const & scs)
    1   both cofactors are smooth
 */
 
-facul_status factor_both_leftover_norms(
+facul_status factor_leftover_norms(
         std::vector<cxx_mpz> const & n,
         std::vector<std::vector<cxx_mpz>> & factors,
         std::vector<unsigned long> const & Bs,

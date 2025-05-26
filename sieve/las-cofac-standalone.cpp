@@ -19,7 +19,7 @@
 #include "cxx_mpz.hpp"
 #endif
 #include "las-cofac-standalone.hpp"    // for cofac_standalone
-#include "las-cofactor.hpp"            // for factor_both_leftover_norms
+#include "las-cofactor.hpp"            // for factor_leftover_norms
 #include "las-coordinates.hpp"         // for convert_Nx_to_ab
 #include "las-siever-config.hpp"       // for siever_config::side_config
 #include "las-threads-work-data.hpp"   // for nfs_work_cofac
@@ -153,13 +153,13 @@ void cofac_standalone::transfer_to_cofac_list(lock_guarded_container<cofac_list>
     pthread_mutex_unlock(&lock);
 #endif
 }/*}}}*/
-int cofac_standalone::factor_both_leftover_norms(nfs_work_cofac & wc) {/*{{{*/
+int cofac_standalone::factor_leftover_norms(nfs_work_cofac & wc) {/*{{{*/
     /* This proxies to las-cofactor.cpp */
     std::vector<unsigned long> Bs;
     Bs.reserve(wc.sc.sides.size());
     for (auto const & s: wc.sc.sides)
         Bs.push_back(s.lim);
-    return ::factor_both_leftover_norms(norm,
+    return ::factor_leftover_norms(norm,
             lps,
             Bs,
             *wc.strategies);

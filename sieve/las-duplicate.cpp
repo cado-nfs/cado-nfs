@@ -334,7 +334,7 @@ sq_finds_relation(las_info const & las,
       Bs.emplace_back(0);
   }
 
-  facul_status const pass = factor_both_leftover_norms(cof, f, Bs,
+  facul_status const pass = factor_leftover_norms(cof, f, Bs,
           *las.get_strategies(conf));
 
   if (pass != FACUL_SMOOTH) {

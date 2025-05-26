@@ -45,7 +45,7 @@ struct cofac_standalone {
     void print_as_survivor(FILE * f);
     relation get_relation(las_todo_entry const & doing) const;
     void transfer_to_cofac_list(lock_guarded_container<cofac_list> & L, las_todo_entry const & doing);
-    int factor_both_leftover_norms(nfs_work_cofac & wc);
+    int factor_leftover_norms(nfs_work_cofac & wc);
 };
 
 

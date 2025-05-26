@@ -54,7 +54,7 @@ public:
 
 int check_leftover_norm (cxx_mpz const & n, siever_side_config const & sc);
 
-facul_status factor_both_leftover_norms(
+facul_status factor_leftover_norms(
         std::vector<cxx_mpz> const & norms,
         std::vector<std::vector<cxx_mpz>> &,
         std::vector<unsigned long> const &,
