@@ -1070,7 +1070,7 @@ bench_proba_time_st_both(gmp_randstate_t state, strategy_t * t,
              * function. Therefore, if a non trivial split was found,
              * then the status can not be FACUL_MAYBE.  */
             time -= microseconds();
-            auto const res = facul_both(N, facul_st);
+            auto const res = facul_all(N, facul_st);
             nb_success +=
                 res[0].status == FACUL_SMOOTH && res[1].status == FACUL_SMOOTH;
             time += microseconds();

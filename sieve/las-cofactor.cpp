@@ -228,7 +228,7 @@ facul_status factor_leftover_norms(
     ASSERT_ALWAYS(std::equal(Bs.begin(), Bs.end(), strat.B.begin()));
 
     /* call the facul library */
-    auto fac = facul_both(n, strat);
+    auto fac = facul_all(n, strat);
     for(auto const & f : fac) {
         if (f.status == FACUL_NOT_SMOOTH)
             return FACUL_NOT_SMOOTH;

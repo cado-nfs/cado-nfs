@@ -29,6 +29,6 @@ struct facul_result {
 facul_result facul (cxx_mpz const &, facul_strategy_oneside const &);
 
 std::vector<facul_result>
-facul_both (std::vector<cxx_mpz> const & , facul_strategies const &);
+facul_all (std::vector<cxx_mpz> const & , facul_strategies const &);
 
 #endif /* FACUL_HPP_ */

@@ -25,7 +25,7 @@ int main()
     };
 
     // int res = factor_leftover_norms(n, factors, lim, strat);
-    auto ret = facul_both(n, strat);
+    auto ret = facul_all(n, strat);
 
     /* This replicates what we have in factor_leftover_norms */
     for(int i = 0 ; i < 2 ; i++) {

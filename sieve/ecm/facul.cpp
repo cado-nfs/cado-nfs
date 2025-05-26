@@ -71,18 +71,18 @@ static facul_status facul_aux(
     return todo.empty() ? FACUL_SMOOTH : FACUL_MAYBE;
 }
 
-/* This function tries to factor a pair of cofactors (N[0], N[1]) with
- * strategies. The returned facul_result objects (one for each input
- * number) will have the prime factors.
+/* This function tries to factor all the cofactors in the vector N with
+ * strategies. The returned facul_result objects (one for each input number)
+ * will have the prime factors.
  *
  * If we find composites, but not to the point of obtaining a complete
  * factorization, then they're not returned.
  */
 
 std::vector<facul_result>
-facul_both(std::vector<cxx_mpz> const & N, facul_strategies const & strategies)
+facul_all(std::vector<cxx_mpz> const & N, facul_strategies const & strategies)
 {
-    auto const nsides = int(N.size());
+    const size_t nsides = N.size();
 
     std::vector<unsigned int> sizes(N.size());
     std::transform(N.cbegin(), N.cend(), sizes.begin(),
@@ -98,19 +98,15 @@ facul_both(std::vector<cxx_mpz> const & N, facul_strategies const & strategies)
     fmt::print(stderr, join(N, " "));
 #endif
 
-    for(int side = 0 ; side < nsides ; side++) {
+    ASSERT_ALWAYS(nsides == strategies.B.size());
+    ASSERT_ALWAYS(nsides == strategies.BB.size());
+
+    for(size_t side = 0 ; side < nsides ; side++) {
         ASSERT_ALWAYS(mpz_sgn(N[side]) >= 0);
         if (N[side] == 1) {
             res[side].status = FACUL_SMOOTH;
             continue;
         }
-
-        /* if strategies.B is only a 1-element vector, then
-         * conf.sides.size()==1 and the N[1] that we got is just a
-         * placeholder 1. So these asserts should hold
-         */
-        ASSERT_ALWAYS(side < (int) strategies.B.size());
-        ASSERT_ALWAYS(side < (int) strategies.BB.size());
 
         if (mpz_get_d(N[side]) < strategies.BB[side]) {
             res[side].status = FACUL_SMOOTH;
@@ -236,7 +232,7 @@ facul_both(std::vector<cxx_mpz> const & N, facul_strategies const & strategies)
         }
     }
 
-    for(int side = 0 ; side < nsides ; side++) {
+    for(size_t side = 0 ; side < nsides ; side++) {
         if (res[side].status != FACUL_MAYBE)
             continue;
 
@@ -247,7 +243,7 @@ facul_both(std::vector<cxx_mpz> const & N, facul_strategies const & strategies)
             return res;
     }
 
-    for (int side = 0; side < nsides; side++) {
+    for (size_t side = 0; side < nsides; side++) {
         std::sort(res[side].primes.begin(), res[side].primes.end());
     }
 
