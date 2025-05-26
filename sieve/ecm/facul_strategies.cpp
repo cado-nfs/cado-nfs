@@ -800,7 +800,26 @@ std::vector<facul_method_side> const & facul_strategies::operator()(std::vector<
         else if (v.size() == 2) /* two sides */
             return uniform_strategy[v[0] < v[1]];
         else { /* more than two sides */
-            return uniform_strategy[0]; // TODO
+            std::vector<unsigned int> index(v.size());
+            std::iota(index.begin(), index.end(), 0);
+            std::sort(index.begin(), index.end(),
+                      [&](const unsigned int& i, const unsigned int& j) {
+                          return (v[i] < v[j]);
+                      });
+            /* index[0] contains the id of the largest side, index[1] the id of
+             * the second largest, ...
+             * We now need the lexicographic index of this permutation.
+             * Note: cost is quadratic in the number of sides.
+             * Found the formula at https://stackoverflow.com/questions/12146910/finding-the-lexicographic-index-of-a-permutation-of-a-given-array
+             * Adapted it "Horner-style" to avoid the factorials.
+             */
+            size_t idx = 0;
+            for(size_t i = 0; i < index.size()-1; ++i) {
+                for(size_t j = i+1; j < index.size(); ++j)
+                    idx += (index[j] < index[i] ? 1 : 0);
+                idx *= (index.size()-i-1);
+            }
+            return uniform_strategy[idx];
         }
     } else {
         static std::vector<facul_method_side> const placeholder;
@@ -992,7 +1011,7 @@ facul_strategies::facul_strategies (
     std::vector<std::vector<facul_method::parameters_with_side>> w;
 
     std::vector<unsigned int> p(nsides);
-    std::iota(std::begin(p), std::end(p), 0);
+    std::iota(p.begin(), p.end(), 0);
     do
     {
         /* We iterate over all permutations of [0..nsides-1] in lexicographic
