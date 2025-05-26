@@ -7,9 +7,10 @@
 #include <cstdlib>
 #include <cstring>
 
-#include <algorithm>
+#include <algorithm>    // for std::next_permutation
 #include <array>
 #include <map>
+#include <numeric>      // for std::iota
 #include <regex>        // for std::basic_regex, std::regex_iterator
 #include <sstream>      // for std::ostringstream
 #include <stdexcept>
@@ -794,7 +795,13 @@ facul_strategies::facul_strategies(
 std::vector<facul_method_side> const & facul_strategies::operator()(std::vector<unsigned int> const & v) const
 {
     if (direct_access.empty()) {
-        return uniform_strategy[v[0] < v[1]]; // FIXME HARDCODED 2
+        if (v.size() == 1) /* one side */
+            return uniform_strategy[0];
+        else if (v.size() == 2) /* two sides */
+            return uniform_strategy[v[0] < v[1]];
+        else { /* more than two sides */
+            return uniform_strategy[0]; // TODO
+        }
     } else {
         static std::vector<facul_method_side> const placeholder;
         auto it = direct_access_get(v);
@@ -977,33 +984,42 @@ facul_strategies::facul_strategies (
     auto chain_parameters = facul_strategy_oneside::default_strategy(max_ncurves);
 
     /* We now need to truncate the list of strategies according to
-     * ncurves[0] and ncurves[1]
+     * ncurves[i] for 0 <= i < nsides
      *
      * NOTE: This is incompatible with USE_MPQS
      */
-    std::vector<std::vector<facul_method::parameters_with_side>> w(nsides);
-    for(int first = 0 ; first < nsides ; first++) {
-        /* first == 0 means that r >= a: the rational side is largest.
-         * Try to factor it first.
+
+    std::vector<std::vector<facul_method::parameters_with_side>> w;
+
+    std::vector<unsigned int> p(nsides);
+    std::iota(std::begin(p), std::end(p), 0);
+    do
+    {
+        /* We iterate over all permutations of [0..nsides-1] in lexicographic
+         * order starting from (0,1,...,nsides-1) and using
+         * std::next_permutation.
+         * Each permutation p corresponds to the case where side p[0] is the
+         * largest, side p[1] the second largest, etc..., i.e.,
+         *   side p[0] >= side p[1] >= ... >= side p[nsides-1]
          *
-         * Note that facul_strategies::operator() returns
-         * uniform_strategy[r < a]
+         * See the implementation of facul_strategies::operator() to see how the
+         * permutation is computed from the sizes of the sides.
          */
-        for (int z = 0; z < nsides; z++) {
-            int const side = first ^ z;
+        w.emplace_back();
+        for(unsigned int side: p) {
             int n = ncurves[side] + (chain_parameters.size() - max_ncurves);
             for(facul_method::parameters const & mp: chain_parameters) {
                 if (!n--)
                     break;
-                w[first].emplace_back(side, mp);
+                w.back().emplace_back(side, mp);
             }
         }
 
         /* facul_strategy_oneside::default_strategy is allowed to use
          * default parameters, of course. And it has to abide by the same
          * rules as the strategy files. */
-        parameter_sequence_tracker::fill_default_parameters(w[first]);
-    }
+        parameter_sequence_tracker::fill_default_parameters(w.back());
+    } while (std::next_permutation(p.begin(), p.end()));
 
     /* Add all methods to the cache.
      *
@@ -1013,17 +1029,15 @@ facul_strategies::facul_strategies (
      * happens that the same B1 is used with two different parameters, or
      * two different EC parameterizations. That is slightly annoying.
      */
-    for(int first = 0 ; first < nsides ; first++) {
-        for(facul_method::parameters const & mp: w[first])
+    for(auto const & wi: w) {
+        for(auto const & mp: wi)
             precompute_method(mp, verbose);
     }
 
-    uniform_strategy.assign(nsides, {});
-
-    for(int first = 0 ; first < nsides ; first++) {
-        std::vector<facul_method_side> & u(uniform_strategy[first]);
-        for(auto const & mps: w[first]) {
-            u.emplace_back(&precomputed_methods[mps], mps.side);
-        }
+    for(auto const & wi: w) {
+        uniform_strategy.emplace_back();
+        std::vector<facul_method_side> & cur = uniform_strategy.back();
+        for(auto const & mp: wi)
+            cur.emplace_back(&precomputed_methods[mp], mp.side);
     }
 }
