@@ -938,7 +938,7 @@ factor_one (
     }
 
     relation rel(a,b);
-    for (int side = 0; side < 2; side++) {
+    for (size_t side = 0; side < std::min(rel.sides.size(), factors.size()); side++) { // FIXME workaround for HARDCODED 2 in relation class
         for (auto const& z : factors[side])
             rel.add(side, z, 0);
     }

@@ -751,6 +751,15 @@ cado_define_test(d20_one_sided_las_sieve
         TARGET_DEPENDENCIES las
         )
 
+cado_divert_test(d20_one_sided_las_sieve batch
+        APPEND_ARGUMENTS
+            -batch
+        APPEND_ENVIRONMENT
+            REL_COUNT=20
+            REFERENCE_SHA1=0124eff1f091882573748c94f505e9f906b8c9f7
+            REFERENCE_REVISION=xxxxxxxxxxxxxxxxxxxxxxxxxx
+        )
+
 add_subdirectory (ecm)
 add_subdirectory (strategies)
 if(strategies_variant STREQUAL "strategies_old")
