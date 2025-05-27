@@ -101,16 +101,13 @@ bool cofac_standalone::ab_coprime() const {/*{{{*/
 }/*}}}*/
 void cofac_standalone::print_as_survivor(FILE * f) {/*{{{*/
 #ifndef SUPPORT_LARGE_Q
-    gmp_fprintf(f, "%" PRId64 " %" PRIu64 " %Zd %Zd\n", a, b,
-            (mpz_srcptr) norm[0],
-            (mpz_srcptr) norm[1]);
+    gmp_fprintf(f, "%" PRId64 " %" PRIu64, a, b);
 #else
-    gmp_fprintf(f, "%Zd %Zd %Zd %Zd\n",
-            (mpz_srcptr) az,
-            (mpz_srcptr) bz,
-            (mpz_srcptr) norm[0],
-            (mpz_srcptr) norm[1]);
+    gmp_fprintf(f, "%Zd %Zd", (mpz_srcptr) az, (mpz_srcptr) bz);
 #endif
+    for (auto const & n: norm)
+        gmp_fprintf(f, " %Zd", (mpz_srcptr) n);
+    fprintf(f, "\n");
 }/*}}}*/
 relation cofac_standalone::get_relation(las_todo_entry const & doing) const {/*{{{*/
 #ifndef SUPPORT_LARGE_Q

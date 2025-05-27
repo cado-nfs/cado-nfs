@@ -62,11 +62,11 @@ static detached_cofac_result * detached_cofac_inner(worker_thread * worker, deta
 
     if (cur.trace_on_spot() && pass == 0) {
         verbose_output_print(TRACE_CHANNEL, 0,
-                "# factor_leftover_norm failed for (%" PRId64 ",%" PRIu64 "), ", cur.a, cur.b);
-        verbose_output_vfprint(TRACE_CHANNEL, 0, gmp_vfprintf,
-                "remains %Zd, %Zd unfactored\n",
-                (mpz_srcptr) cur.norm[0],
-                (mpz_srcptr) cur.norm[1]);
+                "# factor_leftover_norm failed for (%" PRId64 ",%" PRIu64 "), remains", cur.a, cur.b);
+        for(size_t s = 0; s < cur.norm.size(); ++s)
+            verbose_output_vfprint(TRACE_CHANNEL, 0, gmp_vfprintf,
+                "%s%Zd", (s == 0 ? " " : ", "), (mpz_srcptr) cur.norm[s]);
+        verbose_output_print(TRACE_CHANNEL, 0, " unfactored\n");
     }
     if (pass <= 0) {
         /* a factor was > 2^lpb, or some
