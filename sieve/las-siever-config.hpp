@@ -78,8 +78,6 @@ struct siever_config {
 
     std::vector<siever_side_config> sides;
 
-    void display(int side, unsigned int bitsize) const;
-
     static void declare_usage(cxx_param_list & pl);
     static bool parse_default(siever_config & sc, cxx_param_list & pl, int);
 
