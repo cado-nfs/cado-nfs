@@ -760,6 +760,15 @@ cado_divert_test(d20_one_sided_las_sieve batch
             REFERENCE_REVISION=xxxxxxxxxxxxxxxxxxxxxxxxxx
         )
 
+cado_divert_test(d20_one_sided_las_sieve dup
+        APPEND_ARGUMENTS
+            -dup -dup-qmin 800
+        APPEND_ENVIRONMENT
+            REL_COUNT=27
+            REFERENCE_SHA1=f9d0c3b58bdfcb51d598180cb01895b2c35931f7
+            REFERENCE_REVISION=xxxxxxxxxxxxxxxxxxxxxxxxxx
+        )
+
 add_subdirectory (ecm)
 add_subdirectory (strategies)
 if(strategies_variant STREQUAL "strategies_old")

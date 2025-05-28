@@ -220,10 +220,11 @@ sq_finds_relation(las_info const & las,
       verbose_output_vfprint(0, VERBOSE_LEVEL, gmp_vfprintf,
               "# DUPECHECK Checking if relation"
               " (a,b) = (%" PRId64 ",%" PRIu64 ")"
-              " is a dupe of sieving special-q -q0 %Zd -rho %Zd\n",
+              " is a dupe of sieving special-q -q0 %Zd -rho %Zd -sqside %d\n",
               rel.a, rel.b,
               (mpz_srcptr) doing.p,
-              (mpz_srcptr) doing.r);
+              (mpz_srcptr) doing.r,
+              doing.side);
       // should stay consistent with "Sieving side" line printed in
       // do_one_special_q()
       std::ostringstream os;
@@ -328,20 +329,23 @@ sq_finds_relation(las_info const & las,
 
   std::vector<std::vector<cxx_mpz>> f(nsides);
   auto Bs = siever_side_config::collect_lim(conf.sides);
-  for(int i = nsides ; i < 2 ; i++) {
-      f.emplace_back();
-      cof.emplace_back(1);
-      Bs.emplace_back(0);
-  }
 
   facul_status const pass = factor_leftover_norms(cof, f, Bs,
           *las.get_strategies(conf));
 
   if (pass != FACUL_SMOOTH) {
-    if (talk) verbose_output_vfprint(0, VERBOSE_LEVEL, gmp_vfprintf,
-        "# DUPECHECK norms not both smooth, left over factors: %Zd, %Zd\n",
-        (mpz_srcptr) cof[0], (mpz_srcptr) cof[1]);
-    return false;
+      if (talk) {
+          verbose_output_start_batch();
+          verbose_output_print(0, VERBOSE_LEVEL,
+                        "# DUPECHECK norms not both smooth, left over factors");
+          for(size_t i = 0; i < cof.size(); ++i) {
+              verbose_output_vfprint(0, VERBOSE_LEVEL, gmp_vfprintf, "%c %Zd",
+                                     (i == 0 ? ':' : ','), (mpz_srcptr) cof[i]);
+          }
+          verbose_output_print(0, VERBOSE_LEVEL, "\n");
+          verbose_output_end_batch();
+      }
+      return false;
   }
 
   return true;
