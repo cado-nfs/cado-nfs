@@ -182,10 +182,10 @@ main (int argc, char const *argv[])
       }
   } else {
       for (auto const & x : List) {
-          gmp_printf("%" PRIi64 " %" PRIu64 " %Zd %Zd\n",
-                  x.a, x.b,
-                  (mpz_srcptr) x.cofactor[0],
-                  (mpz_srcptr) x.cofactor[1]);
+          gmp_printf("%" PRIi64 " %" PRIu64, x.a, x.b);
+          for (auto const & c : x.cofactor)
+              gmp_printf(" %Zd", c);
+          printf("\n");
       }
   }
 

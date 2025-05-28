@@ -181,14 +181,18 @@ facul_all(std::vector<cxx_mpz> const & N, facul_strategies const & strategies)
             continue;
         }
 
-        /* If both sides are smooth, we can exit the loop,
+        /* If all sides are smooth, we can exit the loop,
            otherwise we must continue with the next methods,
            since methods might be interleaved between side 0 and 1,
            thus we don't have an easy way to skip all methods for this side.
            We could do this with another representation, say methods[0][i]
            for side 0, 0 <= i < m, methods[1][j] for side 1, 0 <= j < n,
            and which_method[k] = {0, 1} for 0 <= k < m+n. */
-        if (res[0].status == FACUL_SMOOTH && res[1].status == FACUL_SMOOTH)
+        bool all_smooth = std::all_of(res.cbegin(), res.cend(),
+                                      [](facul_result const & r) {
+                                          return r.status == FACUL_SMOOTH;
+                                      });
+        if (all_smooth)
             return res;
 
         if (res[side].status == FACUL_SMOOTH)
