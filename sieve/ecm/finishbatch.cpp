@@ -184,7 +184,7 @@ main (int argc, char const *argv[])
       for (auto const & x : List) {
           gmp_printf("%" PRIi64 " %" PRIu64, x.a, x.b);
           for (auto const & c : x.cofactor)
-              gmp_printf(" %Zd", c);
+              gmp_printf(" %Zd", (mpz_srcptr) c);
           printf("\n");
       }
   }
