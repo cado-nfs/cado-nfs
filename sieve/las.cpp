@@ -997,10 +997,10 @@ void las_info::batch_print_survivors_t::doit()
                             s.doing_p->r,
                             s.doing_p->side);
                 }
-                fmt::print(out,
-                        "{} {} {} {}\n", s.a, s.b,
-                        s.cofactor[0],
-                        s.cofactor[1]);
+                fmt::print(out, "{} {}", s.a, s.b);
+                for(auto const &c: s.cofactor)
+                    fmt::print(out, " {}", c);
+                fmt::print(out, "\n");
             }
             fclose(out);
             int const rc = rename(f_part.c_str(), f.c_str());
