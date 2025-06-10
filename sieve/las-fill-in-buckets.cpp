@@ -1169,11 +1169,7 @@ void fill_in_buckets_toplevel(nfs_work & ws, nfs_aux & aux, thread_pool & pool,
     // per se, we're not doing anything here.
     // CHILD_TIMER(timer, __func__);
 
-    bool const do_resieve =
-        std::all_of(ws.conf.sides.cbegin(), ws.conf.sides.cend(),
-                    [](siever_side_config const & s) { return s.lim; });
-
-    if (do_resieve) {
+    if (ws.conf.needs_resieving()) {
         switch (ws.toplevel) {
         case 1:
             fill_in_buckets_one_side<1, shorthint_t>(ws, aux, pool, side, w);
@@ -1428,8 +1424,7 @@ void downsort_tree(
     multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS> & precomp_plattice,
     where_am_I & w)
 {
-    bool const do_resieve = ws.conf.sides[0].lim && ws.conf.sides[1].lim;
-    if (do_resieve) {
+    if (ws.conf.needs_resieving()) {
         downsort_tree_inner<LEVEL, true>(ws, wc_p, aux_p, pool, bucket_index,
                                          first_region0_index, precomp_plattice,
                                          w);
