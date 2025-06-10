@@ -266,7 +266,7 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
     int nonzero_sieve_sides = 0;
     for(int side = 0 ; side < (int) sc.sides.size() ; side++) {
         K.emplace_back(sc.instantiate_thresholds(side));
-        nonzero_sieve_sides += sc.sides[0].lim != 0;
+        nonzero_sieve_sides += sc.sides[side].lim != 0;
     }
     const bool do_resieve = nonzero_sieve_sides > 1;
 
