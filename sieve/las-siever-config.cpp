@@ -49,27 +49,6 @@ void siever_config::declare_usage(cxx_param_list & pl)
     param_list_decl_usage(pl, "adjust-strategy", "strategy used to adapt the sieving range to the q-lattice basis (0 = logI constant, J so that boundary is capped; 1 = logI constant, (a,b) plane norm capped; 2 = logI dynamic, skewed basis; 3 = combine 2 and then 0) ; default=0");
 }
 
-void siever_config::display(int side, unsigned int bitsize) const /*{{{*/
-{
-    if (bitsize == 0) return;
-
-    verbose_output_print(0, 2, "# Sieving parameters for q~2^%d on side %d\n",
-            bitsize, side);
-    /* Strive to keep these output lines untouched */
-    verbose_output_print(0, 2,
-	    "# Sieving parameters: lim0=%lu lim1=%lu lpb0=%d lpb1=%d\n",
-	    sides[0].lim, sides[1].lim,
-            sides[0].lpb, sides[1].lpb);
-    verbose_output_print(0, 2,
-	    "#                     mfb0=%d mfb1=%d\n",
-	    sides[0].mfb, sides[1].mfb);
-    if (sides[0].lambda != 0 || sides[1].lambda != 0) {
-        verbose_output_print(0, 2,
-                "#                     lambda0=%1.1f lambda1=%1.1f\n",
-            sides[0].lambda, sides[1].lambda);
-    }
-}/*}}}*/
-
 /* {{{ Parse default siever config (fill all possible fields). Return
  * true if the parsed siever config is complete and can be used without
  * per-special-q info. */

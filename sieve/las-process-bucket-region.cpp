@@ -217,13 +217,11 @@ process_bucket_region_run::process_bucket_region_run(process_bucket_region_spawn
     w(taux.w),
     sides(ws.las.cpoly->nb_polys)
 {
-    int const nsides = sides.size();
-
     w = w_saved;
     WHERE_AM_I_UPDATE(w, N, first_region0_index + already_done + bucket_relative_index);
 
     /* This is local to this thread */
-    for(int side = 0 ; side < nsides ; side++) {
+    for(int side = 0 ; side < (int) sides.size() ; side++) {
         nfs_work::side_data  const& wss(ws.sides[side]);
         if (wss.no_fb()) {
             S[side] = nullptr;
@@ -237,7 +235,7 @@ process_bucket_region_run::process_bucket_region_run(process_bucket_region_spawn
     memset(SS, 0, BUCKET_REGION);
 
     /* see comment in process_bucket_region_run::operator()() */
-    do_resieve = ws.conf.sides[0].lim && (nsides == 1 || ws.conf.sides[1].lim);
+    do_resieve = ws.conf.needs_resieving();
 
     /* we're ready to go ! processing is in the operator() method.
     */
@@ -303,7 +301,7 @@ void process_bucket_region_run::apply_buckets(int side)/*{{{*/
 
 static void update_checksums(nfs_work::thread_data & tws, nfs_aux::thread_data & taux)
 {
-    for(unsigned int side = 0 ; side < tws.sides.size() ; side++)
+    for(int side = 0 ; side < (int) tws.sides.size() ; side++)
         taux.update_checksums(side, tws.sides[side].bucket_region, BUCKET_REGION);
 }
 
@@ -667,59 +665,51 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
                 }
                 rep.survivors.check_leftover_norm_on_side[side] += pass;
             }
-        } else {
-            ASSERT_ALWAYS(ws.las.batch || ws.las.batch_print_survivors.filename);
-
+        } else if (ws.las.batch || ws.las.batch_print_survivors.filename) {
             /* no resieve, so no list of prime factors to divide. No
              * point in doing trial division anyway either.
              */
-            for(int side = 0 ; side < nsides ; side++) {
-                CHILD_TIMER_PARAMETRIC(timer, "side ", side, " pre-cofactoring checks");
-                TIMER_CATEGORY(timer, cofactoring(side));
 
-                SIBLING_TIMER(timer, "recompute complete norm");
-
-                nfs_work::side_data  const& wss(ws.sides[side]);
-
-                /* factor() in batch.cpp recomputes the complete norm, so
-                 * there's no need to compute the norm right now for the
-                 * side we've sieved with.
+            /* outside this loop, cur will only go to the cofac_list,
+             * and will be processed asynchronously with the call to
+             * factor() (from batch.cpp) ; check the recomp_norm flag
+             * there. In fact, *both* norms are recomputed there, so we
+             * don't have to compute them at all here.
+             */
+            for (int side = 0 ; side < nsides ; side++)
+                /* 0 is a special value that is recognized later on in
+                 * batch.cpp
                  */
-                if (wss.no_fb()) {
-                    wss.lognorms.norm(cur.norm[side], i, j);
-                } else {
-                    /* This is recognized specially in the
-                     * factor_simple_minded() code in batch.cpp
-                     */
-                    mpz_set_ui(cur.norm[side], 0);
-                }
+                cur.norm[side] = 0;
 
-                /* We don't even bother with q and its prime factors.
-                 * We're expecting to recover just everything after the
-                 * game anyway */
+            /* We don't even bother with q and its prime factors.
+             * We're expecting to recover just everything after the
+             * game anyway */
 
-                /* Note that we're *NOT* doing the equivalent of
-                 * check_leftover_norm here. This is explained by two
-                 * things:
-                 *
-                 *  - while the "red zone" of post-sieve values that we
-                 *  know can't yield relations is quite wide (from L to
-                 *  B^2), it's only a marginal fraction of the total
-                 *  number of reports. Even more so if we take into
-                 *  account the necessary tolerance near the boundaries
-                 *  of the red zone.
-                 *
-                 *  - we don't have the complete norm (with factors taken
-                 *  out) at this point, so there's no way we can do a
-                 *  primality check -- which is, in fact, the most
-                 *  stringent check because it applies to the bulk of the
-                 *  candidates.
-                 *
-                 * Bottom line: we just hand over *everything* to the
-                 * batch cofactorization.
-                 */
-            }
+            /* Note that we're *NOT* doing the equivalent of
+             * check_leftover_norm here. This is explained by two
+             * things:
+             *
+             *  - while the "red zone" of post-sieve values that we
+             *  know can't yield relations is quite wide (from L to
+             *  B^2), it's only a marginal fraction of the total
+             *  number of reports. Even more so if we take into
+             *  account the necessary tolerance near the boundaries
+             *  of the red zone.
+             *
+             *  - we don't have the complete norm (with factors taken
+             *  out) at this point, so there's no way we can do a
+             *  primality check -- which is, in fact, the most
+             *  stringent check because it applies to the bulk of the
+             *  candidates.
+             *
+             * Bottom line: we just hand over *everything* to the
+             * batch cofactorization.
+             */
+        } else {
+            ASSERT_ALWAYS(0);
         }
+
 
         if (!pass) continue;
 

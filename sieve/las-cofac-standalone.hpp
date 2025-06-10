@@ -4,7 +4,7 @@
 #include <cstdio>
 #include <cstdint>
 
-#include <memory>
+#include <list>
 #include <vector>
 
 #include "cxx_mpz.hpp"
@@ -48,7 +48,7 @@ struct cofac_standalone {
     void print_as_survivor(FILE * f);
     relation get_relation(special_q const & doing) const;
     void transfer_to_cofac_list(lock_guarded_container<std::list<cofac_candidate>> & L);
-    int factor_both_leftover_norms(nfs_work_cofac & wc);
+    int factor_leftover_norms(nfs_work_cofac & wc);
 };
 
 

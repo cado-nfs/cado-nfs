@@ -153,7 +153,7 @@ void nfs_work::allocate_buckets(nfs_aux & aux, thread_pool & pool)
     verbose_output_print(0, 2, "# Reserving buckets with a multiplier of %s\n",
             bk_multiplier.print_all().c_str());
 
-    bool const do_resieve = conf.sides[0].lim && (las.cpoly->nb_polys == 1 || conf.sides[1].lim);
+    bool const do_resieve = conf.needs_resieving();
 
     for (auto & wss : sides) {
         if (wss.no_fb()) continue;

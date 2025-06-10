@@ -660,7 +660,9 @@ find_smooth (std::list<cofac_candidate> & l,
             /* If we read a zero cofactor in the input set, then it did
              * not enter the product tree. Therefore, we must skip it.
              */
-            for( ; it->cofactor[side] == 0 ; ++it);
+            for( ; it != end(l) && it->cofactor[side] == 0 ; ++it);
+            if (it == end(l))
+              break;
             /* check if the cofactor on the side we've just tested is
              * smooth. If it isn't, we put it at the end of the array,
              * and we free it.
@@ -976,7 +978,7 @@ factor_one (
     }
 
     relation rel(a,b);
-    for (int side = 0; side < 2; side++) {
+    for (size_t side = 0; side < std::min(rel.sides.size(), factors.size()); side++) { // FIXME workaround for HARDCODED 2 in relation class
         for (auto const& z : factors[side])
             rel.add(side, z, 0);
     }

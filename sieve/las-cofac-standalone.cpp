@@ -42,17 +42,15 @@ cofac_standalone::cofac_standalone() : a(0), b(0) {/*{{{*/
 #endif
 }/*}}}*/
 cofac_standalone::cofac_standalone(int nsides, int N, size_t x, int logI, qlattice_basis const & Q)
-    : S(std::max(nsides, 2), 0)
-    , norm(std::max(nsides, 2), 0)
-    , factors(std::max(nsides, 2))
-    , lps(std::max(nsides, 2))
+    : S(nsides, 0)
+    , norm(nsides, 0)
+    , factors(nsides)
+    , lps(nsides)
 {/*{{{*/
     convert_Nx_to_ab (a, b, N, x, logI, Q);
 #ifdef SUPPORT_LARGE_Q
     convert_Nx_to_abmpz (az, bz, N, x, logI, Q);
 #endif
-    if (nsides == 1)
-        norm[1] = 1UL;
 }/*}}}*/
 bool cofac_standalone::trace_on_spot() const {/*{{{*/
     return extern_trace_on_spot_ab(a, b);
@@ -103,16 +101,13 @@ bool cofac_standalone::ab_coprime() const {/*{{{*/
 }/*}}}*/
 void cofac_standalone::print_as_survivor(FILE * f) {/*{{{*/
 #ifndef SUPPORT_LARGE_Q
-    gmp_fprintf(f, "%" PRId64 " %" PRIu64 " %Zd %Zd\n", a, b,
-            (mpz_srcptr) norm[0],
-            (mpz_srcptr) norm[1]);
+    gmp_fprintf(f, "%" PRId64 " %" PRIu64, a, b);
 #else
-    gmp_fprintf(f, "%Zd %Zd %Zd %Zd\n",
-            (mpz_srcptr) az,
-            (mpz_srcptr) bz,
-            (mpz_srcptr) norm[0],
-            (mpz_srcptr) norm[1]);
+    gmp_fprintf(f, "%Zd %Zd", (mpz_srcptr) az, (mpz_srcptr) bz);
 #endif
+    for (auto const & n: norm)
+        gmp_fprintf(f, " %Zd", (mpz_srcptr) n);
+    fprintf(f, "\n");
 }/*}}}*/
 relation cofac_standalone::get_relation(special_q const & doing) const {/*{{{*/
 #ifndef SUPPORT_LARGE_Q
@@ -123,7 +118,7 @@ relation cofac_standalone::get_relation(special_q const & doing) const {/*{{{*/
 
     /* Note that we explicitly do not bother about storing r in
      * the relations below */
-    for (unsigned int side = 0; side < rel.sides.size(); side++) {
+    for (unsigned int side = 0; side < std::min(rel.sides.size(), factors.size()); side++) { // FIXME workaround for HARDCODED 2
         for (auto const& z : factors[side])
             rel.add(side, z, 0);
         for (auto const& z : lps[side])
@@ -152,11 +147,15 @@ void cofac_standalone::transfer_to_cofac_list(lock_guarded_container<std::list<c
     pthread_mutex_unlock(&lock);
 #endif
 }/*}}}*/
-int cofac_standalone::factor_both_leftover_norms(nfs_work_cofac & wc) {/*{{{*/
+int cofac_standalone::factor_leftover_norms(nfs_work_cofac & wc) {/*{{{*/
     /* This proxies to las-cofactor.cpp */
-    return ::factor_both_leftover_norms(norm,
+    std::vector<unsigned long> Bs;
+    Bs.reserve(wc.sc.sides.size());
+    for (auto const & s: wc.sc.sides)
+        Bs.push_back(s.lim);
+    return ::factor_leftover_norms(norm,
             lps,
-            {{ wc.sc.sides[0].lim, wc.sc.sides.size() == 1 ? 0 : wc.sc.sides[1].lim }},
+            Bs,
             *wc.strategies);
 }/*}}}*/
 

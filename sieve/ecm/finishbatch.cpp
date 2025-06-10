@@ -186,10 +186,9 @@ main (int argc, char const *argv[])
   } else {
       for (auto const & lq : List) {
           for (auto const & x : lq.second) {
-              fmt::print("{} {} {} {}\n",
+              fmt::print("{} {} {}\n",
                       x.a, x.b,
-                      x.cofactor[0],
-                      x.cofactor[1]);
+                      join(x.cofactor, " "));
           }
       }
   }
