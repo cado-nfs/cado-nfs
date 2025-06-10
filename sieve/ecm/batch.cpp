@@ -647,7 +647,9 @@ find_smooth (cofac_list & l,
             /* If we read a zero cofactor in the input set, then it did
              * not enter the product tree. Therefore, we must skip it.
              */
-            for( ; it->cofactor[side] == 0 ; ++it);
+            for( ; it != end(l) && it->cofactor[side] == 0 ; ++it);
+            if (it == end(l))
+              break;
             /* check if the cofactor on the side we've just tested is
              * smooth. If it isn't, we put it at the end of the array,
              * and we free it.
