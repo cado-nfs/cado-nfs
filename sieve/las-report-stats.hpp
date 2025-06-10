@@ -1,14 +1,15 @@
 #ifndef CADO_LAS_REPORT_STATS_HPP
 #define CADO_LAS_REPORT_STATS_HPP
 
-#include <cstring> // for memset, size_t
-#include <exception>
-#include <memory>   // for shared_ptr, allocator, make_shared, __shared...
-#include <sstream>  // for basic_ostream::operator<<, operator<<, ostri...
-#include <stdint.h> // for uint8_t
-#include <string>   // for string, operator<<
+#include <cstring>
+#include <cstdint>
 
-#include "macros.h" // for ASSERT_ALWAYS
+#include <vector>
+#include <memory>
+#include <sstream>
+#include <string>
+
+#include "macros.h"
 
 /* las_report: Structure for gathering reports and stats on sieving */
 
@@ -59,8 +60,8 @@ struct las_report
     void accumulate_and_clear(las_report&& q)
     {
         {
-            unsigned long* ps = (unsigned long*)&survivors;
-            unsigned long* qs = (unsigned long*)&q.survivors;
+            auto * ps = (unsigned long*)&survivors;
+            auto const * qs = (const unsigned long*)&q.survivors;
             for (size_t i = 0; i < sizeof(survivors) / sizeof(unsigned long);
                  i++) {
                 ps[i] += qs[i];
@@ -94,15 +95,16 @@ struct las_report
         /* This *must* be called on a *private* las_report structure, so
          * that taking the mutex is not necessary */
         if (survivor_counts) {
-            (*survivor_counts.get())[S0][S1]++;
+            (*survivor_counts)[S0][S1]++;
         }
     }
-    void mark_report(uint8_t S0, uint8_t S1)
+    void mark_report(std::vector<uint8_t> const & S)
     {
         /* This *must* be called on a *private* las_report structure, so
          * that taking the mutex is not necessary */
         if (survivor_counts) {
-            (*report_counts.get())[S0][S1]++;
+            ASSERT_ALWAYS(S.size() == 2);
+            (*report_counts)[S[0]][S[1]]++;
         }
     }
     /* Well, at this point it's never used... */

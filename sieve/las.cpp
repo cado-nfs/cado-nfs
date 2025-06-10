@@ -263,12 +263,10 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
     /* sc.instantiate_thresholds() depends on sc.logI */
     std::vector<fb_factorbase::key_type> K;
 
-    int nonzero_sieve_sides = 0;
-    for(int side = 0 ; side < (int) sc.sides.size() ; side++) {
+    const bool do_resieve = sc.needs_resieving();
+    K.reserve(sc.sides.size());
+    for(int side = 0 ; side < (int) sc.sides.size() ; side++)
         K.emplace_back(sc.instantiate_thresholds(side));
-        nonzero_sieve_sides += sc.sides[side].lim != 0;
-    }
-    const bool do_resieve = nonzero_sieve_sides > 1;
 
     size_t memory = 0;
     size_t more;

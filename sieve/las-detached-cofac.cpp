@@ -189,7 +189,7 @@ task_result * detached_cofac(worker_thread * worker, task_parameters * _param, i
     }
 
     /* Build histogram of lucky S[x] values. Not sure it still works... */
-    rep.mark_report(cur.S[0], cur.S[1]);
+    rep.mark_report(cur.S);
 
     return (task_result*) res;
 }
