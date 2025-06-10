@@ -34,7 +34,7 @@ facul_doit_onefm (std::vector<cxx_mpz> &, const modulusmpz_t,
 		  unsigned long, double, double);
 
 /* int* */
-/* facul_both (unsigned long**, mpz_t* , */
+/* facul_all (unsigned long**, mpz_t* , */
 /* 	    const facul_strategies_t *); */
 
 #endif /* FACUL_DOIT_HPP */

@@ -52,21 +52,21 @@ static detached_cofac_result * detached_cofac_inner(worker_thread * worker, deta
     std::vector<int> cof_bitsize(nsides, 0);
     las.cofac_stats.call(cur.norm, cof_bitsize);
 
-    SIBLING_TIMER(timer, "cofactoring"); // aka factor_both_leftover_norms
+    SIBLING_TIMER(timer, "cofactoring"); // aka factor_leftover_norms
     TIMER_CATEGORY(timer, cofactoring_mixed());
 
-    int const pass = cur.factor_both_leftover_norms(wc);
+    int const pass = cur.factor_leftover_norms(wc);
     rep.survivors.cofactored += (pass != 0);
 
     auto * res = new detached_cofac_result;
 
     if (cur.trace_on_spot() && pass == 0) {
         verbose_output_print(TRACE_CHANNEL, 0,
-                "# factor_both_leftover_norm failed for (%" PRId64 ",%" PRIu64 "), ", cur.a, cur.b);
-        verbose_output_vfprint(TRACE_CHANNEL, 0, gmp_vfprintf,
-                "remains %Zd, %Zd unfactored\n",
-                (mpz_srcptr) cur.norm[0],
-                (mpz_srcptr) cur.norm[1]);
+                "# factor_leftover_norm failed for (%" PRId64 ",%" PRIu64 "), remains", cur.a, cur.b);
+        for(size_t s = 0; s < cur.norm.size(); ++s)
+            verbose_output_vfprint(TRACE_CHANNEL, 0, gmp_vfprintf,
+                "%s%Zd", (s == 0 ? " " : ", "), (mpz_srcptr) cur.norm[s]);
+        verbose_output_print(TRACE_CHANNEL, 0, " unfactored\n");
     }
     if (pass <= 0) {
         /* a factor was > 2^lpb, or some
@@ -189,7 +189,7 @@ task_result * detached_cofac(worker_thread * worker, task_parameters * _param, i
     }
 
     /* Build histogram of lucky S[x] values. Not sure it still works... */
-    rep.mark_report(cur.S[0], cur.S[1]);
+    rep.mark_report(cur.S);
 
     return (task_result*) res;
 }

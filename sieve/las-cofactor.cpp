@@ -210,34 +210,33 @@ check_leftover_norm (cxx_mpz const & n, siever_side_config const & scs)
 */
 
 /* This is the same function as factor_leftover_norm() but it works
-   with both norms! It is used when we want to factor these norms
+   with all norms! It is used when we want to factor these norms
    simultaneously and not one after the other.
    Return values:
    -1  one of the cofactors is not smooth
    0   unable to fully factor one of the cofactors
-   1   both cofactors are smooth
+   1   all cofactors are smooth
+
+  Note: for more than two sides, we may still get a relation even if not all
+  cofactors were smooth. Currently, it is not taken into account by this method.
 */
 
-facul_status factor_both_leftover_norms(
+facul_status factor_leftover_norms(
         std::vector<cxx_mpz> const & n,
         std::vector<std::vector<cxx_mpz>> & factors,
         std::vector<unsigned long> const & Bs,
         facul_strategies const & strat)
 {
-    ASSERT_ALWAYS(n.size() == 2);
-    ASSERT_ALWAYS(factors.size() == 2);
-    ASSERT_ALWAYS(Bs.size() == 2);
-    for (int side = 0; side < 2 && side < (int) strat.B.size() ; side++) {
-        ASSERT_ALWAYS(Bs[side] == strat.B[side]);
-    }
+    ASSERT_ALWAYS(Bs.size() == strat.B.size());
+    ASSERT_ALWAYS(std::equal(Bs.begin(), Bs.end(), strat.B.begin()));
 
     /* call the facul library */
-    auto fac = facul_both(n, strat);
+    auto fac = facul_all(n, strat);
     for(auto const & f : fac) {
         if (f.status == FACUL_NOT_SMOOTH)
             return FACUL_NOT_SMOOTH;
     }
-    for(int side = 0 ; side < 2 ; side++) {
+    for(size_t side = 0 ; side < fac.size() ; side++) {
         auto & f = fac[side];
         if (f.status == FACUL_MAYBE) {
             /* We couldn't factor this number. So we don't know. It

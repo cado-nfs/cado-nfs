@@ -24,10 +24,10 @@ int main()
         "266630219"_mpz, "8435925448634188287568341721097"_mpz
     };
 
-    // int res = factor_both_leftover_norms(n, factors, lim, strat);
-    auto ret = facul_both(n, strat);
+    // int res = factor_leftover_norms(n, factors, lim, strat);
+    auto ret = facul_all(n, strat);
 
-    /* This replicates what we have in factor_both_leftover_norms */
+    /* This replicates what we have in factor_leftover_norms */
     for(int i = 0 ; i < 2 ; i++) {
         fmt::print("n={} --> {}\n", n[i], int(ret[i].status));
         cxx_mpz z = 1;
@@ -36,7 +36,7 @@ int main()
             fmt::print("\t{}\n", p);
             z *= p;
             mpz_divexact(N, N, p);
-            /* factor_both_leftover_norms claims that repeated factors
+            /* factor_leftover_norms claims that repeated factors
              * shouldn't be a problem, but very clearly they _are_ going
              * to be a problem if p only divides once here and yet
              * appears twice in the list! */

@@ -78,7 +78,34 @@ struct siever_config {
 
     std::vector<siever_side_config> sides;
 
-    void display(int side, unsigned int bitsize) const;
+    /*
+     * The logic behind skipping the resieving is as follows. Briefly
+     * put, it should be a two-sides thing only.
+     *
+     * When there are two sides, and only side s is sieved (lim>0), then
+     * side 1-s is handled by cofactorization only (probably batch). For
+     * this to make the slightest bit of sense, it has to be that only a
+     * tiny fraction of the (a,b) pairs survive sieving on side
+     * s. So once we've identified these survivors on side s, we move on
+     * to cofactoring on side 1-s (which will keep a fraction of its
+     * input), and a priori later on finish with cofactoring on side s if
+     * there are cofactors to be found. However when we reach the latter
+     * step, we're speaking of a fraction of a tiny fraction, and sieving
+     * or resieving are not worth the trouble (we'll compute norms that
+     * have numerous factors below lim, but we'll find them the hard way,
+     * it's not that hard).
+     *
+     * When we have only one side, we no longer have this cumulative
+     * "fraction of a tiny fraction" effect. BUT we still have some
+     * interest in removing known primes from the norms, as we do in the
+     * "normal" (= nowhere batch) case.
+     */
+    bool needs_resieving() const {
+        for(auto const & s : sides)
+            if (s.lim == 0)
+                return false;
+        return true;
+    }
 
     static void declare_usage(cxx_param_list & pl);
     static bool parse_default(siever_config & sc, cxx_param_list & pl, int);

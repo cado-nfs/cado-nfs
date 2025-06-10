@@ -23,6 +23,7 @@
 #include <fstream>                        // for ifstream
 #include <functional>                     // for ref
 #include <iomanip>                        // for operator<<, setprecision
+#include <iostream>                       // for std::cerr
 #include <istream>                        // for operator>>
 #include <list>                           // for list, _List_iterator
 #include <map>                            // for map
@@ -262,12 +263,10 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
     /* sc.instantiate_thresholds() depends on sc.logI */
     std::vector<fb_factorbase::key_type> K;
 
-    int nonzero_sieve_sides = 0;
-    for(int side = 0 ; side < (int) sc.sides.size() ; side++) {
+    const bool do_resieve = sc.needs_resieving();
+    K.reserve(sc.sides.size());
+    for(int side = 0 ; side < (int) sc.sides.size() ; side++)
         K.emplace_back(sc.instantiate_thresholds(side));
-        nonzero_sieve_sides += sc.sides[0].lim != 0;
-    }
-    const bool do_resieve = nonzero_sieve_sides > 1;
 
     size_t memory = 0;
     size_t more;
@@ -707,10 +706,10 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
     /* essentially update the fij polynomials and the max log bounds */
     if (main_output->verbose >= 2) {
         verbose_output_start_batch();
-        verbose_output_print (0, 1, "# f_0'(x) = ");
-        mpz_poly_fprintf(main_output->output, ws.sides[0].lognorms.fij);
-        verbose_output_print (0, 1, "# f_1'(x) = ");
-        mpz_poly_fprintf(main_output->output, ws.sides[1].lognorms.fij);
+        for (int side = 0; side < nsides; ++side) {
+            verbose_output_print (0, 1, "# f_%d'(x) = ", side);
+            mpz_poly_fprintf(main_output->output, ws.sides[side].lognorms.fij);
+        }
         verbose_output_end_batch();
     }
 
@@ -880,7 +879,7 @@ static bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_
     /* Currently we assume that we're doing sieving + resieving on
      * both sides, or we're not. In the latter case, we expect to
      * complete the factoring work with batch cofactorization */
-    ASSERT_ALWAYS(las.batch || las.batch_print_survivors.filename || las.cpoly->nb_polys == 1 || (ws.conf.sides[0].lim && ws.conf.sides[1].lim));
+    ASSERT_ALWAYS(las.batch || las.batch_print_survivors.filename || ws.conf.needs_resieving());
 
     std::shared_ptr<nfs_work_cofac> wc_p;
 
@@ -996,10 +995,10 @@ void las_info::batch_print_survivors_t::doit()
                             s.doing_p->r,
                             s.doing_p->side);
                 }
-                fmt::print(out,
-                        "{} {} {} {}\n", s.a, s.b,
-                        s.cofactor[0],
-                        s.cofactor[1]);
+                fmt::print(out, "{} {}", s.a, s.b);
+                for(auto const &c: s.cofactor)
+                    fmt::print(out, " {}", c);
+                fmt::print(out, "\n");
             }
             fclose(out);
             int const rc = rename(f_part.c_str(), f.c_str());
@@ -1511,6 +1510,11 @@ int main (int argc0, char const * argv0[])/*{{{*/
 #ifdef SAFE_BUCKETS_SINGLE
       verbose_output_print(0, 0, "# WARNING: SAFE_BUCKETS_SINGLE is on !\n");
 #endif
+
+    if (las.cpoly->nb_polys > 2) {
+        std::cerr << "las is only working with poly files with 1 or 2 sides\n";
+        return EXIT_FAILURE;
+    }
 
     las_todo_list todo(las.cpoly, pl);
 

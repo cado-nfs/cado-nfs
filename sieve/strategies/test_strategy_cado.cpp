@@ -951,7 +951,7 @@ static facul_strategies convert_strategy_to_facul_strategies(
     std::vector<unsigned long> B(2);
     std::vector<unsigned int> lpb_(2);
     std::vector<unsigned int> mfb_(2);
-    std::array<unsigned int, 2> r_;
+    std::vector<unsigned int> r_(2);
     auto pB = B.begin();
     auto plpb = lpb_.begin();
     auto pmfb = mfb_.begin();
@@ -1070,7 +1070,7 @@ bench_proba_time_st_both(gmp_randstate_t state, strategy_t * t,
              * function. Therefore, if a non trivial split was found,
              * then the status can not be FACUL_MAYBE.  */
             time -= microseconds();
-            auto const res = facul_both(N, facul_st);
+            auto const res = facul_all(N, facul_st);
             nb_success +=
                 res[0].status == FACUL_SMOOTH && res[1].status == FACUL_SMOOTH;
             time += microseconds();

@@ -190,7 +190,7 @@ class nfs_work {
         dumpfile_t dumpfile;
     };
 
-    std::array<side_data, 2> sides; /* XXX HARDCODED 2 */
+    std::array<side_data, 2> sides; /* FIXME HARDCODED 2 */
 
     /* All of this exists _for each thread_ */
     struct thread_data {
