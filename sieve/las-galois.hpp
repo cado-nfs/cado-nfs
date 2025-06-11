@@ -2,13 +2,16 @@
 #define CADO_LAS_GALOIS_HPP
 
 #include <ostream>
+#include <vector>
 
-#include <gmp.h>    // for mpz_t
+#include <gmp.h>
 
-struct relation;
+#include "cxx_mpz.hpp"
+#include "galois_action.hpp"
+#include "relation.hpp"
 
-int skip_galois_roots(const int orig_nroots, const mpz_t q, mpz_t *roots,
-		  const char *galois_autom);
+void skip_galois_roots(const mpz_t q, std::vector<cxx_mpz> & roots,
+                       galois_action const & gal_action);
 
 void add_relations_with_galois(const char *galois, std::ostream& os,
 				      const char *comment, unsigned long *cpt,

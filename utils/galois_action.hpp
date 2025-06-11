@@ -54,10 +54,24 @@ public:
     /* Init the class using a predefined name ("none", "id", "_y", "1/y",
      * "autom3.1g", ...).
      */
-    galois_action(const std::string &action);
+    explicit galois_action(const std::string &action);
+
+    /* Same as above but with const char *. Passing nullptr is okay and
+     * corresponds to the galois action "none".
+     */
+    explicit galois_action(char const * action)
+        : galois_action(std::string(action == nullptr ? "none" : action)) {
+    }
+
+    /* Default constructor corresponds the galois action "none" */
+    galois_action() : galois_action("none") {
+    }
 
     /* Return the order of the automorphism */
     unsigned int get_order() const;
+
+    /* Return true for actual galois action (i.e., with order > 1) */
+    explicit operator bool() const { return get_order() > 1; }
 
     /* Assume 0 <= r <= p
      * Return (alpha*r+beta)/(gamma*r+delta) modulo p       if r != p

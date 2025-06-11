@@ -4,14 +4,16 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
-#include <gmp.h>
 
+#include <vector>
 #include <ostream>
+
+#include <gmp.h>
 
 #include "runtime_numeric_cast.hpp"
 #include "galois_action.hpp"
+#include "cxx_mpz.hpp"
 #include "las-galois.hpp"
-#include "arith/mod_ul.h"
 #include "relation.hpp"
 #include "macros.h"
 #include "verbose.h"
@@ -181,86 +183,85 @@ void add_relations_with_galois(const char *galois, std::ostream& os,
     }
 }
 
-int
-skip_galois_roots(const int orig_nroots, const mpz_t q, mpz_t *roots,
-		  const char *galois_autom)
+void
+skip_galois_roots(const mpz_t q, std::vector<cxx_mpz> &roots,
+                  galois_action const &gal_action)
 {
-    int nroots = orig_nroots;
-
-    if(nroots == 0)
-	return 0;
-    galois_action const gal_action(galois_autom);
     unsigned int const ord = gal_action.get_order();
-    modulusul_t mm;
     unsigned long const qq = mpz_get_ui(q);
-    modul_initmod_ul(mm, qq);
+    size_t const nroots = roots.size();
 
     verbose_output_vfprint(0, 2, gmp_vfprintf,
                            "# galois: got %d root(s) modulo q=%Zd\n",
                            nroots, q);
 
-    if (nroots % ord) {
-        verbose_output_vfprint(0, 1, gmp_vfprintf,
-                               "# galois: got %d root(s) modulo q=%Zd: the "
-                               "number of roots is not divisible by %d, so "
-                               "all roots will be kept.\n",
-                               nroots, q, ord);
-        return nroots;
-    }
-    // Keep only one root among sigma-orbits.
-    residueul_t r2, r3;
-    modul_init(r2, mm);
-    modul_init(r3, mm);
-    residueul_t conj[ord]; // where to put conjugates
-    for(unsigned int k = 0; k < ord; k++)
-	modul_init(conj[k], mm);
-    char used[nroots];     // used roots: non-principal conjugates
-    memset(used, 0, nroots);
-    for(int k = 0; k < nroots; k++){
-	if(used[k]) continue;
-	unsigned long rr0 = mpz_get_ui(roots[k]), rr;
-	rr = rr0;
-	// build ord-1 conjugates for roots[k]
-	for(unsigned int l = 0; l < ord; l++){
-        rr = gal_action.apply(rr, qq);
-	    modul_set_ul(conj[l], rr, mm);
-	}
-#if 0 // debug. 
-	printf("orbit for %lu: %lu", qq, rr);
-	for(int l = 0; l < ord-1; l++)
-	    printf(" -> %lu", conj[l][0]);
-	printf("\n");
-#endif
-	// check: sigma^ord(rr0) should be rr0
-	ASSERT_ALWAYS(rr == rr0);
-	// look at roots
-	for(int l = k+1; l < nroots; l++){
-	    unsigned long const ss = mpz_get_ui(roots[l]);
-	    modul_set_ul(r2, ss, mm);
-	    for(unsigned int i = 0; i < ord-1; i++)
-		if(modul_equal(r2, conj[i], mm)){
-		    ASSERT_ALWAYS(used[l] == 0);
-		    // l is some conjugate, we erase it
-		    used[l] = (char)1;
-		    break;
-		}
-	}
-    }
-    // now, compact roots
-    int kk = 0;
-    for(int k = 0; k < nroots; k++)
-	if(used[k] == 0){
-	    if(k > kk)
-		mpz_set(roots[kk], roots[k]);
-	    kk++;
-	}
-    ASSERT_ALWAYS((unsigned int) kk == (nroots/ord));
-    nroots = kk;
-    for(unsigned int k = 0; k < ord; k++)
-	modul_clear(conj[k], mm);
-    modul_clear(r2, mm);
-    modul_clear(r3, mm);
-    modul_clearmod(mm);
-    return nroots;
-}
+    /* Keep only one root among sigma-orbits. */
+    unsigned long conj[ord]; // where to put conjugates
 
+    char used[nroots]; // used roots: non-principal conjugates
+    memset(used, 0, nroots);
+
+    unsigned int n_solo_orbit = 0;
+    for (size_t k = 0; k < nroots; k++) {
+        if (used[k]) /* already visited during an orbit computation, skip it */
+            continue;
+        unsigned long rk = mpz_get_ui(roots[k]);
+        unsigned long r = rk;
+
+        /* Compute the orbit of roots[k] */
+        size_t orbit_length = 0;
+        do {
+            conj[orbit_length] = r;
+            verbose_output_vfprint(0, 3, gmp_vfprintf,
+                                   "# galois: orbit of root %Zd modulo q=%Zd "
+                                   "contains %lu\n", roots[k], q, r);
+            r = gal_action.apply(r, qq);
+            orbit_length++;
+        } while (r != rk && orbit_length < ord);
+
+        verbose_output_vfprint(0, 2, gmp_vfprintf,
+                               "# galois: orbit of root %Zd modulo q=%Zd has "
+                               "length %zu\n", roots[k], q, orbit_length);
+
+        /* Checks:
+         *  - sigma^ord(rk) == rk
+         *  - length of orbit is 1 or ord
+         */
+        ASSERT_ALWAYS(r == rk);
+        ASSERT_ALWAYS(orbit_length == 1 || orbit_length == ord);
+
+        n_solo_orbit += orbit_length == 1;
+
+        /* Mark all roots of the orbit as visited */
+        for (size_t l = k+1; l < nroots; l++) {
+            unsigned long const rl = mpz_get_ui(roots[l]);
+            for (unsigned int i = 1; i < orbit_length; i++) {
+                if (rl == conj[i]) {
+                    /* l is the index of an element of the orbit of rk */
+                    ASSERT_ALWAYS(used[l] == 0);
+                    used[l] = (char)1;
+                    break;
+                }
+            }
+        }
+    }
+
+    ASSERT_ALWAYS((nroots-n_solo_orbit) % ord == 0);
+
+    /* All orbits are computed, we can compact roots now */
+    size_t new_nroots = 0;
+    for (size_t k = 0; k < nroots; k++) {
+        if (used[k] == 0) { /* roots[k] is the representative of an orbit */
+            if(k > new_nroots)
+                mpz_swap(roots[new_nroots], roots[k]);
+            new_nroots++;
+        }
+    }
+    ASSERT_ALWAYS(new_nroots == n_solo_orbit + (nroots-n_solo_orbit)/ord);
+    roots.erase(roots.begin() + new_nroots, roots.end());
+
+    verbose_output_vfprint(0, 2, gmp_vfprintf,
+                           "# galois: computed %zu orbits for roots modulo "
+                           "q=%Zd (of which %zu have length 1).\n",
+                           roots.size(), q, n_solo_orbit);
+}

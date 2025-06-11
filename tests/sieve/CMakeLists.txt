@@ -728,6 +728,27 @@ cado_define_test(test-inline-polynomials-and-expressions
         makefb
 )
 
+# test for las with galois
+set(galois_poly ${CMAKE_CURRENT_SOURCE_DIR}/galois.poly)
+set(galois_roots ${CMAKE_CURRENT_SOURCE_DIR}/galois.roots.gz)
+
+cado_define_test(galois_sieve_abnormal_orbits
+        ENVIRONMENT
+            las_I=10 poly=${galois_poly}
+            lim0=200 lpb0=9 mfb0=10 fb0=${galois_roots}
+            q0=101 q1=102 galois=_y
+            lim1=200 lpb1=9 mfb1=10
+            # Note: the last 3 args (lim1, lpb1 and mfb1) are not needed but
+            # sievetest.sh complains if they are not present
+            LAS_BINARY=${las_path}
+        REL_COUNT=61
+        PROVIDE_TEMPORARY_WDIR
+        SCRIPT
+            ${CMAKE_CURRENT_SOURCE_DIR}/sievetest.sh
+            -v -v
+        TARGET_DEPENDENCIES las
+        )
+
 # test for las with only one side
 set(d20_poly ${CMAKE_CURRENT_SOURCE_DIR}/d20.poly)
 set(d20_roots ${CMAKE_CURRENT_SOURCE_DIR}/d20.roots.gz)

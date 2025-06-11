@@ -81,7 +81,7 @@ void las_todo_list::declare_usage(cxx_param_list & pl)
 }
 
 las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
-    : cpoly(cpoly)
+    : cpoly(cpoly), galois(param_list_lookup_string(pl, "galois"))
 {
     unsigned long seed = 0;
     if (param_list_parse_ulong(pl, "seed", &seed))
@@ -129,8 +129,6 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
         param_list_parse_uint64(pl, "qfac-min", &qfac_min);
         param_list_parse_uint64(pl, "qfac-max", &qfac_max);
     }
-
-    galois = param_list_lookup_string(pl, "galois");
 
     if (allow_composite_q && galois) {
         fprintf(stderr, "-galois and -allow-compsq are incompatible options at the moment");
@@ -273,8 +271,7 @@ bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
             if (roots.empty()) nb_no_roots++;
 
             if (galois) {
-                size_t const nroots = skip_galois_roots(roots.size(), q, (mpz_t*)roots.data(), galois);
-                roots.erase(roots.begin() + nroots, roots.end());
+                skip_galois_roots(q, roots, galois);
             }
 
             for (auto const & r : roots)
@@ -332,8 +329,7 @@ bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
             }
             spin = 0;
             if (galois) {
-                size_t const nroots = skip_galois_roots(roots.size(), q, (mpz_t*)roots.data(), galois);
-                roots.erase(roots.begin() + nroots, roots.end());
+                skip_galois_roots(q, roots, galois);
             }
             push_unlocked(special_q(q,
                         roots[gmp_urandomm_ui(rstate, roots.size())],
