@@ -1,19 +1,20 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cstdint>       // for int64_t, uint64_t
-#include <cstdio>        // for fprintf, stderr
-#include <cstring>       // for strcmp, memset
+#include <cstdarg>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <gmp.h>
 
 #include <ostream>
 
-#include <gmp.h>
-
 #include "runtime_numeric_cast.hpp"
-#include "galois_action.hpp" // galois_action
+#include "galois_action.hpp"
 #include "las-galois.hpp"
 #include "arith/mod_ul.h"
 #include "relation.hpp"
 #include "macros.h"
+#include "verbose.h"
 
 static void adwg(std::ostream& os, const char *comment, unsigned long *cpt,
 		 relation &rel, int64_t a, int64_t b)
@@ -193,9 +194,18 @@ skip_galois_roots(const int orig_nroots, const mpz_t q, mpz_t *roots,
     modulusul_t mm;
     unsigned long const qq = mpz_get_ui(q);
     modul_initmod_ul(mm, qq);
+
+    verbose_output_vfprint(0, 2, gmp_vfprintf,
+                           "# galois: got %d root(s) modulo q=%Zd\n",
+                           nroots, q);
+
     if (nroots % ord) {
-        fprintf(stderr, "Number of roots modulo q is not divisible by %d. Don't know how to interpret -galois.\n", ord);
-        ASSERT_ALWAYS(0);
+        verbose_output_vfprint(0, 1, gmp_vfprintf,
+                               "# galois: got %d root(s) modulo q=%Zd: the "
+                               "number of roots is not divisible by %d, so "
+                               "all roots will be kept.\n",
+                               nroots, q, ord);
+        return nroots;
     }
     // Keep only one root among sigma-orbits.
     residueul_t r2, r3;
