@@ -649,7 +649,7 @@ static size_t expected_memory_usage(siever_config const & sc,/*{{{*/
 
 }/*}}}*/
 
-static void check_whether_q_above_lare_prime_bound(siever_config const & conf, las_todo_entry const & doing)/*{{{*/
+static void check_whether_q_above_large_prime_bound(siever_config const & conf, las_todo_entry const & doing)/*{{{*/
 {
     /* Check whether q is larger than the large prime bound.
      * This can create some problems, for instance in characters.
@@ -857,7 +857,7 @@ static bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_
     if (!choose_sieve_area(las, aux_p, aux.doing, ws.conf, ws.Q, ws.J))
         return false;
 
-    check_whether_q_above_lare_prime_bound(ws.conf, aux.doing);
+    check_whether_q_above_large_prime_bound(ws.conf, aux.doing);
 
     BOOKKEEPING_TIMER(timer_special_q);
 
@@ -1395,7 +1395,7 @@ static void quick_subjob_loop_using_cache(las_info & las, las_todo_list & todo)/
         check_whether_special_q_is_root(las.cpoly, aux.doing);
         per_special_q_banner(aux.doing);
         if (!choose_sieve_area(las, aux.doing, conf, Q, J)) continue;
-        check_whether_q_above_lare_prime_bound(conf, aux.doing);
+        check_whether_q_above_large_prime_bound(conf, aux.doing);
 
         {
             std::ostringstream os;
