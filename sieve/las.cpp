@@ -651,25 +651,29 @@ static size_t expected_memory_usage(siever_config const & sc,/*{{{*/
 
 static void check_whether_q_above_large_prime_bound(siever_config const & conf, las_todo_entry const & doing)/*{{{*/
 {
-    /* Check whether q is larger than the large prime bound.
+    /* Check whether q has a factor larger than the large prime bound.
      * This can create some problems, for instance in characters.
      * By default, this is not allowed, but the parameter
      * -allow-largesq is a by-pass to this test.
      */
     if (allow_largesq) return;
 
-    if (mpz_sizeinbase(doing.p, 2) > conf.sides[doing.side].lpb) {
-        fmt::print(stderr, "ERROR: The special q ({} bits) is larger than the "
-                "large prime bound on side {} ({} bits).\n",
-                (int) mpz_sizeinbase(doing.p, 2),
-                doing.side,
-                conf.sides[doing.side].lpb);
-        fmt::print(stderr, "       You can disable this check with "
-                "the -allow-largesq argument,\n");
-        fmt::print(stderr, "       It is for instance useful for the "
-                "descent.\n");
-        fmt::print(stderr, "       Use tasks.sieve.allow_largesq=true.\n");
-        exit(EXIT_FAILURE);
+    for (auto const & f: doing.prime_factors) {
+        if ((unsigned int) nbits(f) > conf.sides[doing.side].lpb) {
+            fmt::print(stderr, "ERROR: The special q ({} bits) has a factor {} "
+                    "({} bits) larger than the large prime bound on side {} "
+                    "({} bits).\n",
+                    (int) mpz_sizeinbase(doing.p, 2),
+                    f, nbits(f),
+                    doing.side,
+                    conf.sides[doing.side].lpb);
+            fmt::print(stderr, "       You can disable this check with "
+                    "the -allow-largesq argument,\n");
+            fmt::print(stderr, "       It is for instance useful for the "
+                    "descent.\n");
+            fmt::print(stderr, "       Use tasks.sieve.allow_largesq=true.\n");
+            exit(EXIT_FAILURE);
+        }
     }
 }
 /*}}}*/
