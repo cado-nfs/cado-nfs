@@ -659,7 +659,8 @@ static void check_whether_q_above_large_prime_bound(siever_config const & conf, 
     if (allow_largesq) return;
 
     for (auto const & f: doing.prime_factors) {
-        if ((unsigned int) nbits(f) > conf.sides[doing.side].lpb) {
+        /* f=0 means f does not fit in a uint64_t, so is larger than lpb */
+        if (f == 0 || (unsigned int) nbits(f) > conf.sides[doing.side].lpb) {
             fmt::print(stderr, "ERROR: The special q ({} bits) has a factor {} "
                     "({} bits) larger than the large prime bound on side {} "
                     "({} bits).\n",
