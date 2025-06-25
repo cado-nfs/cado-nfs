@@ -62,12 +62,11 @@ static detached_cofac_result * detached_cofac_inner(worker_thread * worker, deta
     auto * res = new detached_cofac_result;
 
     if (cur.trace_on_spot() && pass == 0) {
-        verbose_output_print(TRACE_CHANNEL, 0,
-                "# factor_leftover_norm failed for (%" PRId64 ",%" PRIu64 "), remains", cur.a, cur.b);
-        for(size_t s = 0; s < cur.norm.size(); ++s)
-            verbose_output_vfprint(TRACE_CHANNEL, 0, gmp_vfprintf,
-                "%s%Zd", (s == 0 ? " " : ", "), (mpz_srcptr) cur.norm[s]);
-        verbose_output_print(TRACE_CHANNEL, 0, " unfactored\n");
+        verbose_fmt_print(TRACE_CHANNEL, 0,
+                "# factor_leftover_norm failed for ({},{}),"
+                " remains {} unfactored\n",
+                cur.a, cur.b,
+                join(cur.norm, " "));
     }
     if (pass <= 0) {
         /* a factor was > 2^lpb, or some
@@ -86,8 +85,8 @@ static detached_cofac_result * detached_cofac_inner(worker_thread * worker, deta
     relation rel = cur.get_relation(aux.doing);
 
     if (cur.trace_on_spot()) {
-        verbose_output_print(TRACE_CHANNEL, 0, "# Relation for (%"
-                PRId64 ",%" PRIu64 ") printed\n", cur.a, cur.b);
+        verbose_fmt_print(TRACE_CHANNEL, 0, "# Relation for ({},{}) printed\n",
+                cur.a, cur.b);
     }
 
     {

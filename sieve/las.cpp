@@ -1371,15 +1371,8 @@ static void quick_subjob_loop_using_cache(las_info & las)/*{{{*/
         if (!choose_sieve_area(las, *task, conf, Q, J)) continue;
         check_whether_q_above_large_prime_bound(conf, doing);
 
-        {
-            std::ostringstream os;
-            os << Q;
-            verbose_output_vfprint(0, 2, gmp_vfprintf,
-                    "# "
-                    "Sieving %s; I=%u; J=%u;\n",
-                    os.str().c_str(),
-                    1U << conf.logI, J);
-        }
+        verbose_fmt_print(0, 2, "# Sieving {}; I={}; J={};\n",
+                Q, 1U << conf.logI, J);
 
         std::string const filepath = relation_cache_find_filepath(las.relation_cache, splits, doing.p);
 

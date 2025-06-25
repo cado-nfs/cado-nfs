@@ -1,28 +1,26 @@
 #include "cado.h" // IWYU pragma: keep
 
 #include <cstdint>
-#include <cinttypes>               // for PRId64
-#include <cstdio>              // IWYU pragma: keep
-#include <cstdarg>             // IWYU pragma: keep
+#include <cstdio>
+#include <cstdarg>
 
 #include <memory>
 
-#include <gmp.h>                   // for mpz_srcptr, gmp_vfprintf
+#include <gmp.h>
 
-#include "cado_poly.h"   // cxx_cado_poly
+#include "cado_poly.h"
 #include "fb-types.hpp"
-#include "las-auxiliary-data.hpp"  // for nfs_aux, report_and_timer
+#include "las-auxiliary-data.hpp"
 #include "las-choose-sieve-area.hpp"
-#include "las-info.hpp"            // for las_info, HILIGHT_END, HILIGHT_START
+#include "las-info.hpp"
 #include "las-multiobj-globals.hpp"
-#include "las-norms.hpp"           // for sieve_range_adjust
-#include "las-qlattice.hpp"        // for qlattice_basis, qlattice_basis::to...
-#include "las-siever-config.hpp"   // for siever_config, siever_config_pool
-#include "las-special-q.hpp"      // for special_q
-#include "macros.h"                // for MAYBE_UNUSED
+#include "las-norms.hpp"
+#include "las-qlattice.hpp"
+#include "las-siever-config.hpp"
+#include "macros.h"
 #include "mpz_poly.h"
-#include "tdict.hpp"               // for timetree_t
-#include "verbose.h"    // verbose_output_vfprint
+#include "tdict.hpp"
+#include "verbose.h"
 
 int never_discard = 0;      /* only enabled for las_descent */
 

@@ -97,11 +97,8 @@ nfs_aux::~nfs_aux()
     }
     verbose_output_print(0, 2, "\n");
 
-    verbose_output_vfprint(0, 1, gmp_vfprintf,
-            "# %lu %s\n",
-            rt.rep.reports,
-            las.batch ? "survivor(s) saved" : "relation(s)"
-            );
+    verbose_fmt_print(0, 1, "# {} {}\n",
+            rt.rep.reports, las.batch ? "survivor(s) saved" : "relation(s)");
 
     if (las.suppress_duplicates)
         verbose_output_print(0, 1, "# number of eliminated duplicates: %lu\n", rt.rep.duplicates);
