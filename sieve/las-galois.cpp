@@ -193,7 +193,7 @@ skip_galois_roots(const mpz_t q, std::vector<cxx_mpz> &roots,
 
     verbose_output_vfprint(0, 2, gmp_vfprintf,
                            "# galois: got %d root(s) modulo q=%Zd\n",
-                           nroots, q);
+                           nroots, (mpz_srcptr) q);
 
     /* Keep only one root among sigma-orbits. */
     unsigned long conj[ord]; // where to put conjugates
@@ -214,14 +214,16 @@ skip_galois_roots(const mpz_t q, std::vector<cxx_mpz> &roots,
             conj[orbit_length] = r;
             verbose_output_vfprint(0, 3, gmp_vfprintf,
                                    "# galois: orbit of root %Zd modulo q=%Zd "
-                                   "contains %lu\n", roots[k], q, r);
+                                   "contains %lu\n", (mpz_srcptr) roots[k],
+                                   (mpz_srcptr) q, r);
             r = gal_action.apply(r, qq);
             orbit_length++;
         } while (r != rk && orbit_length < ord);
 
         verbose_output_vfprint(0, 2, gmp_vfprintf,
                                "# galois: orbit of root %Zd modulo q=%Zd has "
-                               "length %zu\n", roots[k], q, orbit_length);
+                               "length %zu\n", (mpz_srcptr) roots[k],
+                               (mpz_srcptr) q, orbit_length);
 
         /* Checks:
          *  - sigma^ord(rk) == rk
@@ -263,5 +265,5 @@ skip_galois_roots(const mpz_t q, std::vector<cxx_mpz> &roots,
     verbose_output_vfprint(0, 2, gmp_vfprintf,
                            "# galois: computed %zu orbits for roots modulo "
                            "q=%Zd (of which %zu have length 1).\n",
-                           roots.size(), q, n_solo_orbit);
+                           roots.size(), (mpz_srcptr) q, n_solo_orbit);
 }
