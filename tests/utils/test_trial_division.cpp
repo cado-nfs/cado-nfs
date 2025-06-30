@@ -22,12 +22,12 @@ test_one_with_ref(cxx_mpz const & N, unsigned long B,
     bool bc = cf == cf_ref;
 
     if (!bf) {
-        fmt::print("ERROR: for trial_division({}, {}), expected factors {}, "
-                   "got {}\n", N, B, factors_ref, factors);
+        fmt::print(stderr, "ERROR: for trial_division({}, {}), expected "
+                           "factors {}, got {}\n", N, B, factors_ref, factors);
     }
     if (!bc) {
-        fmt::print("ERROR: for trial_division({}, {}), expected cofactor {}, "
-                   "got {}\n", N, B, cf_ref, cf);
+        fmt::print(stderr, "ERROR: for trial_division({}, {}), expected "
+                           "cofactor {}, got {}\n", N, B, cf_ref, cf);
     }
 
     return bf & bc;
@@ -42,13 +42,18 @@ tests_static()
     ok &= test_one_with_ref(42U, 10, {{2, 1}, {3, 1}, {7, 1}}, 1U);
     ok &= test_one_with_ref(-42, 10, {{2, 1}, {3, 1}, {7, 1}}, -1);
 
+    ok &= test_one_with_ref(294U, 10, {{2, 1}, {3, 1}, {7, 2}}, 1U);
+    ok &= test_one_with_ref(-294, 10, {{2, 1}, {3, 1}, {7, 2}}, -1);
+
     return ok;
 }
 
 static bool
 test_one_without_ref(cxx_mpz const & N, unsigned long B, cxx_mpz const & prod)
 {
-    fmt::print("# trial_division({}, {})\n", N, B);
+    if (!tests_common_get_quiet()) {
+        fmt::print("# trial_division({}, {})\n", N, B);
+    }
 
     cxx_mpz cf, n, g;
     auto factors = trial_division(N, B, cf);
@@ -67,29 +72,29 @@ test_one_without_ref(cxx_mpz const & N, unsigned long B, cxx_mpz const & prod)
     bool bg = g == 1U;
 
     if (!be) {
-        fmt::print("ERROR: for trial_division({}, {}), product of factors and "
-                   "cofactor is {}\n", N, B, n);
+        fmt::print(stderr, "ERROR: for trial_division({}, {}), product of "
+                           "factors and cofactor is {}\n", N, B, n);
     }
     if (!bs) {
-        fmt::print("ERROR: for trial_division({}, {}), cofactor is not the "
-                   "same as sign of input integer ({} instead of {})\n", N, B,
-                   mpz_sgn(cf), mpz_sgn(N));
+        fmt::print(stderr, "ERROR: for trial_division({}, {}), cofactor is "
+                           "not the same as sign of input integer ({} instead "
+                           "of {})\n", N, B, mpz_sgn(cf), mpz_sgn(N));
     }
     if (!be) {
-        fmt::print("ERROR: for trial_division({}, {}), cofactor is still "
-                   "divisible by prime(s) below the bound: "
-                   "gcd(cf, prod(pi, pi prime < B)={}\n", N, B, g);
+        fmt::print(stderr, "ERROR: for trial_division({}, {}), cofactor is "
+                           "still divisible by prime(s) below the bound: "
+                           "gcd(cf, prod(pi, pi prime < B)={}\n", N, B, g);
     }
 
     bool ba = true;
     for (auto const & f: factors) {
         if (mpz_sgn(f.first) <= 0) {
-            fmt::print("ERROR: for trial_division({}, {}), factor {} is <= 0\n",
-                       N, B, f.first);
+            fmt::print(stderr, "ERROR: for trial_division({}, {}), factor {} "
+                               "is <= 0\n", N, B, f.first);
             ba = false;
         } else if (f.first >= B) {
-            fmt::print("ERROR: for trial_division({}, {}), factor {} is >= B\n",
-                       N, B, f.first);
+            fmt::print(stderr, "ERROR: for trial_division({}, {}), factor {} "
+                               "is >= B\n", N, B, f.first);
             ba = false;
         }
     }
@@ -136,7 +141,7 @@ tests_dynamic()
 
 int main(int argc, char const * argv[])
 {
-    tests_common_cmdline(&argc, &argv, PARSE_SEED | PARSE_ITER);
+    tests_common_cmdline(&argc, &argv, PARSE_SEED | PARSE_ITER | PARSE_QUIET);
     bool ok = tests_static();
     ok &= tests_dynamic();
 
