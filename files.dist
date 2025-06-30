@@ -1548,6 +1548,7 @@ tests/utils/test_strlcpy.c
 tests/utils/test_subdivide_primes_interval.cpp
 tests/utils/test_threadpool.cpp
 tests/utils/test_timing.c
+tests/utils/test_trial_division.cpp
 tests/utils/test_u64arith.cpp
 tests/utils/test_usp.c
 tests/utils/test_verbose.c
