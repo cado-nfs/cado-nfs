@@ -3,6 +3,11 @@
 
 #include <cstdio>
 #include <cstdlib>
+
+#include <algorithm>
+#include <ios>
+#include <istream>
+#include <iterator>
 #include <limits>
 #include <memory>
 #include <string>
@@ -152,8 +157,10 @@ struct convert_bool {
 
 #if __cplusplus < 201402L
 namespace std {
+    /* NOLINTBEGIN(cert-dcl58-cpp) */
 template <bool B, typename T = void>
 using enable_if_t = typename std::enable_if<B, T>::type;
+    /* NOLINTEND(cert-dcl58-cpp) */
 }
 #endif
 
@@ -378,7 +385,7 @@ void checked_realloc(T * & var, size_t N)
         free(var);
         (var) = nullptr;
     } else {
-        T * p = (T *) realloc((var), (N) * sizeof(T));
+        auto * p = static_cast<T *>(realloc((var), (N) * sizeof(T)));
         if (!p && (var) != nullptr)
             free((var));
         ASSERT_ALWAYS(p != nullptr);
@@ -410,6 +417,42 @@ double double_ratio(T const & t, U const & u)
 {
     return static_cast<double>(t) / static_cast<double>(u);
 }
+
+template<int N>
+struct expect_s
+{
+    const char * s;
+    explicit expect_s(const char s0[N]) : s(s0) {}
+};
+
+template<int N>
+static expect_s<N> expect(char const (&s0)[N]) { return expect_s<N> { s0 }; }
+
+template<int N>
+static std::istream& operator>>(std::istream& is, expect_s<N> const & e)
+{
+    char t[N];
+    is.get(t, N);  // side-
+    if (strcmp(t, e.s) != 0)
+        is.setstate(std::ios::failbit);
+    return is;
+}
+
+struct expect_string {
+    std::string s;
+};
+
+static inline expect_string expect(std::string const & s) { return { s }; }
+
+
+static inline std::istream& operator>>(std::istream & is, expect_string const & e)
+{
+    if(!std::equal(std::begin(e.s), std::end(e.s), std::istreambuf_iterator<char>{is})) {
+        is.setstate(is.rdstate() | std::ios::failbit);
+    }
+    return is;
+}
+
 
 
 #endif	/* CADO_UTILS_CXX_HPP */

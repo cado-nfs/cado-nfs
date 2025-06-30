@@ -577,9 +577,9 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
         if (dlp_descent && ws.las.tree->must_avoid(rab)) {
             /* This is important if we want to avoid loops! */
             verbose_fmt_print(0, 1, 
-                    "# ignoring relation {},{} which"
+                    "# ignoring relation {} which"
                     " already appears in the descent tree\n",
-                    rab.az, rab.bz);
+                    rab);
             /* it's a hack, only because
              * las_report::display_survivor_counters chains
              * rep.survivors.not_both_multiples_of_p with

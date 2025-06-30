@@ -20,13 +20,23 @@
 #include "relation.hpp"
 #include "relation-tools.h"
 #include "misc.h"
-#include "istream_matcher.hpp"
+#include "utils_cxx.hpp"
 /*
  * Convention for I/O of rels:
  *   a and b are printed in decimal
  *   primes are printed in hexadecimal.
  *
  */
+
+std::istream& operator>>(std::istream& is, relation_ab& rel)
+{
+    /* Note that this assumes that the istream is in the proper shape */
+    if (is >> rel.az >> expect(",") >> rel.bz) {
+        rel.a = mpz_get_int64(rel.az);
+        rel.b = mpz_get_uint64(rel.bz);
+    }
+    return is;
+}
 
 int
 relation::parse(const char *line)
@@ -57,23 +67,18 @@ relation::parse(const char *line)
     const std::string S(line);
     std::istringstream is(S);
     is.imbue(std::locale(std::locale(), new relation_locale()));
-    istream_matcher ism(is);
 
-    ism >> az >> "," >> bz;
-
-    if (!is)
+    if (!(is >> static_cast<relation_ab &>(*this)))
         return 0;
-    a = mpz_get_int64(az);
-    b = mpz_get_uint64(bz);
 
-    if (ism.peek() == '@') {
-        ism >> "@" >> active_sides[0] >> "," >> active_sides[1];
+    if (is.peek() == '@') {
+        is >> expect("@") >> active_sides[0] >> expect(",") >> active_sides[1];
     } else {
         active_sides[0] = 0;
         active_sides[1] = 1;
     }
 
-    ism >> ":";
+    is >> expect(":");
 
     sides[0].clear();
     sides[1].clear();
@@ -81,12 +86,12 @@ relation::parse(const char *line)
     bool comma_allowed = false;
     unsigned int side_index = 0;
 
-    ism >> std::hex;
+    is >> std::hex;
 
-    for( ; !ism.eof() ; ) {
-        char c = ism.peek();
+    for( ; !is.eof() ; ) {
+        const char c = is.peek();
         if (c == ':') {
-            ism.get();
+            is.get();
             side_index++;
             /* We do not support specifying sides in a relation by typing
              * in zillions of colons.  That is not well-defined, since we
@@ -97,14 +102,14 @@ relation::parse(const char *line)
             comma_allowed = false;
             continue;
         } else if (comma_allowed && c == ',') {
-            ism.get();
+            is.get();
         } else if (c == '\n') {
             break;
         }
 
         unsigned long p;
-        ism >> p;
-        if (!ism)
+        is >> p;
+        if (!is)
             return 0;
         add(side_index, p);
         comma_allowed = true;
@@ -136,11 +141,20 @@ void relation::print (FILE *file, const char *prefix) const
     }
 }
 
+std::ostream& operator<<(std::ostream& os, relation_ab const &rel)
+{
+    IoStreamFlagsRestorer const dummy(os);
+    os << std::dec << rel.az << ',' << rel.bz;
+    if (rel.active_sides[0] != 0 || rel.active_sides[1] != 1)
+        os << "@" << rel.active_sides[0] << "," << rel.active_sides[1];
+    return os;
+}
+
 std::ostream& operator<<(std::ostream& os, relation const &rel)
 {
     IoStreamFlagsRestorer const dummy(os);
     {
-        os << rel.az << ',' << rel.bz;
+        os << static_cast<relation_ab const &>(rel);
         os << std::hex;
         for(auto const & s : rel.sides) {
             os << ':';

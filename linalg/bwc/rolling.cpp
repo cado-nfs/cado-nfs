@@ -1,24 +1,28 @@
 #include "cado.h" // IWYU pragma: keep
-#include <errno.h>      // for errno, ENOENT
-#include <stdio.h>      // for printf, asprintf, size_t, NULL, perror, sscanf
-#include <stdlib.h>     // for free, realloc, qsort
-#include <string.h>     // for strerror
-#include <time.h>       // for time
 
-#include <unistd.h>     // for unlink
-#include <sys/stat.h>   // for stat, st_mtime
-#include <sys/types.h>  // for time_t
-#include <dirent.h>     // for closedir, opendir, readdir, DIR, dirent
+#include <cerrno>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
 
 #include <sstream>
 #include <algorithm>
+#include <string>
+#include <vector>
+
+#include <dirent.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+#include "fmt/base.h"
 #include "fmt/format.h"
 
 #include "rolling.hpp"
-#include "bw-common.h"  // for bw
-#include "macros.h"     // for ASSERT_ALWAYS
-#include "portability.h" // asprintf // IWYU pragma: keep
-#include "istream_matcher.hpp"
+#include "bw-common.h"
+#include "macros.h"
+#include "portability.h"
+#include "utils_cxx.hpp"
 
 
 void keep_rolling_checkpoints(std::string const & stem, unsigned int v)
@@ -32,8 +36,7 @@ void keep_rolling_checkpoints(std::string const & stem, unsigned int v)
     for(struct dirent * de; (de = readdir(d)) != NULL ; ) {
         unsigned int k;
         std::istringstream is(de->d_name);
-        istream_matcher m(is);
-        if (!(m >> stem >> "." >> k))
+        if (!(is >> expect(stem) >> expect(".") >> k))
             continue;
         if (v && k > v)
             continue;
@@ -62,7 +65,7 @@ void keep_rolling_checkpoints(std::string const & stem, unsigned int v)
             }
         } else {
             ASSERT_ALWAYS(rc == 0);
-            time_t const now = time(NULL);
+            time_t const now = time(nullptr);
             int age = now - sbuf->st_mtime;
             if (age < bw->keep_checkpoints_younger_than) {
                 fmt::print("Not discarding old checkpoint {}, too recent ({} s < {})\n", v, age, bw->keep_checkpoints_younger_than);

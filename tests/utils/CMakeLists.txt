@@ -62,7 +62,6 @@ cado_define_test(test-sort.cpp ARGUMENTS --log-bigsize 14 --max-span 128
     LIBRARIES utils)
 cado_define_test(test_u64arith.cpp LIBRARIES utils tests)
 cado_define_test(test_multityped_array.cpp LIBRARIES utils)
-cado_define_test(test_istream_matcher.cpp LIBRARIES utils tests)
 cado_define_test(test_mmappable_vector.cpp LIBRARIES utils
     PROVIDE_TEMPORARY_WDIR
     TIMEOUT 60

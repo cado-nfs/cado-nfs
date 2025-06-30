@@ -15,7 +15,6 @@
 #include "fmt/ostream.h"
 
 #include "utils_cxx.hpp"
-#include "istream_matcher.hpp"
 #include "macros.h"
 
 /* still missing files:
@@ -144,7 +143,7 @@ struct bwc_V_file // {{{
     {}
     private:
     friend struct bwc_file_base;
-    istream_matcher & match_fields(istream_matcher &);
+    std::istream & match_fields(std::istream &);
 
     public:// }}}
     unsigned int n = 0;
@@ -177,7 +176,7 @@ struct bwc_K_file // {{{
     {}
     private:
     friend struct bwc_file_base;
-    istream_matcher & match_fields(istream_matcher &);
+    std::istream & match_fields(std::istream &);
 
     public:// }}}
     unsigned int n = 0;
@@ -219,7 +218,7 @@ struct bwc_S_file // {{{
     {}
     private:
     friend struct bwc_file_base;
-    istream_matcher & match_fields(istream_matcher &);
+    std::istream & match_fields(std::istream &);
 
     public:// }}}
 
@@ -251,7 +250,7 @@ struct bwc_Cv_file : public bwc_file_base {// {{{
     {}
     private:
     friend struct bwc_file_base;
-    istream_matcher & match_fields(istream_matcher &);
+    std::istream & match_fields(std::istream &);
 
     public:// }}}
     unsigned int j0 = 0;
@@ -286,7 +285,7 @@ struct bwc_Cd_file : public bwc_file_base {// {{{
     {}
     private:
     friend struct bwc_file_base;
-    istream_matcher & match_fields(istream_matcher &);
+    std::istream & match_fields(std::istream &);
 
     public:// }}}
     unsigned int j0 = 0;
@@ -321,7 +320,7 @@ struct bwc_Cr_file : public bwc_file_base {// {{{
     {}
     private:
     friend struct bwc_file_base;
-    istream_matcher & match_fields(istream_matcher &);
+    std::istream & match_fields(std::istream &);
 
     public:// }}}
     unsigned int nchecks = 0;
@@ -346,7 +345,7 @@ struct bwc_Ct_file : public bwc_file_base {// {{{
     {}
     private:
     friend struct bwc_file_base;
-    istream_matcher & match_fields(istream_matcher &);
+    std::istream & match_fields(std::istream &);
 
     public:// }}}
     unsigned int nchecks = 0;
@@ -373,7 +372,7 @@ struct bwc_A_file : public bwc_file_base {// {{{
     {}
     private:
     friend struct bwc_file_base;
-    istream_matcher & match_fields(istream_matcher &);
+    std::istream & match_fields(std::istream &);
 
     public:// }}}
     unsigned int j0 = 0;
@@ -414,7 +413,7 @@ struct bwc_F_file : public bwc_file_base {// {{{
     {}
     private:
     friend struct bwc_file_base;
-    istream_matcher & match_fields(istream_matcher &);
+    std::istream & match_fields(std::istream &);
 
     public:// }}}
     unsigned int j0 = 0;

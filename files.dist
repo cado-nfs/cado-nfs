@@ -1522,7 +1522,6 @@ tests/utils/test_gmp_aux.c
 tests/utils/test_gpf.c
 tests/utils/test_integer_partitions.cpp
 tests/utils/test_intinv.c
-tests/utils/test_istream_matcher.cpp
 tests/utils/test_json_parsing.cpp
 tests/utils/test_memusage.c
 tests/utils/test_min_max_heap.cpp
@@ -1702,7 +1701,6 @@ utils/integer_partitions.hpp
 utils/intrinsics.hpp
 utils/iqsort.h
 utils/is_non_narrowing_conversion.hpp
-utils/istream_matcher.hpp
 utils/json.cpp
 utils/json.hpp
 utils/lll.c

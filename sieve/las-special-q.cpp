@@ -82,26 +82,6 @@ std::ostream& operator<<(std::ostream& os, special_q const & doing)
     return os;
 }
 
-template<int N>
-struct expect_s
-{
-    const char * s;
-    expect_s(const char s0[N]) : s(s0) {}
-};
-
-template<int N>
-static expect_s<N> expect(char const (&s0)[N]) { return expect_s<N>(s0); }
-
-template<int N>
-static std::istream& operator>>(std::istream& is, expect_s<N> const & e)
-{
-    char t[N];
-    is.get(t, N);  // side-
-    if (strcmp(t, e.s) != 0)
-        is.setstate(std::ios::failbit);
-    return is;
-}
-
 std::istream& operator>>(std::istream& is, special_q & doing)
 {
     doing = special_q();

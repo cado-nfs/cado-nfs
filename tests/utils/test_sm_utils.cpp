@@ -13,17 +13,17 @@
 #include "fmt/base.h"
 
 #include "cxx_mpz.hpp"
-#include "istream_matcher.hpp"
 #include "macros.h"
-#include "mpz_poly.h"   // mpz_poly_srcptr
-#include "sm_utils.hpp" // sm_relset_t
+#include "mpz_poly.h"
+#include "sm_utils.hpp"
+#include "utils_cxx.hpp"
 
 #define FREQ 2 // when possible one time out of FREQ we try sm_single_rel
 
 /* Return number of errors */
-static int test_sm(std::istream&& datafile)
+static int test_sm(std::string const & datafile)
 {
-    istream_matcher is(datafile);
+    std::ifstream is(datafile);
 
     int err = 0;
     do {
@@ -35,7 +35,7 @@ static int test_sm(std::istream&& datafile)
         uint64_t b, len_relset, r[MAX_LEN_RELSET];
         std::vector<pair_and_sides> ab_polys;
         sm_relset relset;
-        is >> "in" >> degF;
+        is >> expect("in") >> degF;
         if (is.eof())
             break;
 
@@ -62,10 +62,10 @@ static int test_sm(std::istream&& datafile)
         }
 
         /* make sure that all input was parsed correctly */
-        is.ws();
+        is >> std::ws;
         ASSERT_ALWAYS(is);
 
-        is >> "out" >> degN;
+        is >> expect("out") >> degN;
         ASSERT_ALWAYS(degN >= -1);
 #ifdef __COVERITY__
         __coverity_mark_pointee_as_sanitized(&degN, GENERIC);
@@ -92,7 +92,7 @@ static int test_sm(std::istream&& datafile)
             mpz_poly_setcoeff(SM, i, tmp);
         }
 
-        is.ws();
+        is >> std::ws;
 
         //     /* Real tests begin here */
         //     /* artificially duplicate data, to test both sides */
@@ -171,7 +171,7 @@ int main(int argc, char const * argv[])
     ASSERT_ALWAYS(argc == 2);
     char const * datafilename = argv[1];
 
-    int const err = test_sm(std::ifstream(datafilename));
+    int const err = test_sm(datafilename);
 
     if (err)
         fprintf(stderr, "# %d erro%s found\n", err, (err == 1) ? "r" : "rs");
