@@ -205,8 +205,7 @@ std::vector<std::pair<cxx_mpz, int> > trial_division(cxx_mpz const& n0, unsigned
     prime_info pinf;
 
     prime_info_init (pinf);
-    cofactor = n0;
-    cxx_mpz & n = cofactor; /* shorter alias */
+    cxx_mpz n = n0;
 
     /* if n takes k bits it means that n < 2^k. If p^2>=2^k, then we
      * can break. A sufficient condition for this is
@@ -234,6 +233,7 @@ std::vector<std::pair<cxx_mpz, int> > trial_division(cxx_mpz const& n0, unsigned
         bound_shift = (mpz_sizeinbase(n, 2) + 1) / 2;
         res.emplace_back(p, k);
     }
+    cofactor = n;
 
     prime_info_clear (pinf); /* free the tables */
     return res;
