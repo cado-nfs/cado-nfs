@@ -445,9 +445,12 @@ void mpq_mat_transpose(mpq_mat_ptr D, mpq_mat_srcptr M) /*{{{*/
 /*{{{ miscellaneous */
 
 /* convert to integer matrix divided by lcm of denominator.
- * return 1
- * if den==NULL, return 0 if denominator happens to not be 1 (in which
- * case the matrix returned is undefined).
+ *
+ * returns 1 if the denominator is 1, 0 otherwise.
+ *
+ * if num==NULL, only the denominator is returned.
+ *
+ * if den==NULL, only the return value is meaningful (num is not changed)
  */
 
 int mpq_mat_numden(mpz_mat_ptr num, mpz_ptr den, mpq_mat_srcptr M) /*{{{*/
@@ -465,7 +468,7 @@ int mpq_mat_numden(mpz_mat_ptr num, mpz_ptr den, mpq_mat_srcptr M) /*{{{*/
             }
         }
     }
-    if (!ret)
+    if (!ret || !num)
         return ret;
     mpz_mat_realloc(num, M->m, M->n);
     for (unsigned int i = 0; i < M->m; i++) {

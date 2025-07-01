@@ -966,9 +966,7 @@ size_optimization_aux (mpz_poly_ptr f_opt, mpz_poly_ptr g_opt,
       L2_skew_lognorm ((mpz_poly_ptr) f_raw, SKEWNESS_DEFAULT_PREC);
   gmp_randstate_t rstate;
   gmp_randinit_default(rstate);
-  best_lognorm += expected_rotation_gain ((mpz_poly_ptr) f_raw,
-					  (mpz_poly_ptr) g_raw);
-
+  best_lognorm += expected_rotation_gain (f_raw, g_raw);
 
   if (verbose > 1)
   {

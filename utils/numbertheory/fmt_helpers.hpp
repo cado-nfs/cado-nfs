@@ -2,7 +2,6 @@
 #define CADO_UTILS_NUMBERTHEORY_FMT_HELPERS_HPP
 
 #include "fmt/base.h"
-#include "fmt/format.h"
 
 namespace fmt {
     template<typename T>
@@ -32,5 +31,5 @@ namespace fmt {
                 return begin;
             }
     };
-}
+}       /* nameespace fmt */
 #endif	/* UTILS_NUMBERTHEORY_FMT_HELPERS_HPP_ */
