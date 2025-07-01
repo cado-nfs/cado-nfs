@@ -19,11 +19,17 @@ class number_field {
     cxx_mpz_poly f_hat;
     mutable std::unique_ptr<number_field_order> cached_maximal_order;
     mutable std::unique_ptr<cxx_mpq_mat> cached_trace_matrix;
+    mutable std::unique_ptr<std::pair<unsigned int, unsigned int>> cached_signature;
     public:
     std::string name, varname;
     explicit number_field(cxx_mpz_poly const& f);
     cxx_mpz_poly const& defining_polynomial() const { return f; }
     int degree() const { return defining_polynomial().degree(); }
+    std::pair<unsigned int, unsigned int> signature() const;
+    unsigned int unit_rank() const {
+        auto rs = signature();
+        return rs.first + rs.second - 1;
+    }
     number_field_element gen() const;
     number_field_element operator()(cxx_mpz_poly const &, cxx_mpz const & =1) const;
     number_field_element operator()(cxx_mpz_mat const &, cxx_mpz const & =1) const;

@@ -179,3 +179,14 @@ auto fmt::formatter<number_field>::format(number_field const & K, format_context
     }
     return ctx.out();
 }
+
+std::pair<unsigned int, unsigned int> number_field::signature() const
+{
+    if (!cached_signature) {
+        int const r1 = mpz_poly_number_of_real_roots(defining_polynomial());
+        ASSERT_ALWAYS((degree() - r1) % 2 == 0);
+        int const r2 = (degree() - r1) / 2;
+        cached_signature.reset(new std::pair<unsigned int, unsigned int>(r1, r2));
+    }
+    return *cached_signature;
+}
