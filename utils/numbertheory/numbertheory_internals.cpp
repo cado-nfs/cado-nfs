@@ -23,8 +23,6 @@
 #include "numbertheory_fwd_types.hpp"
 
 
-using namespace std;
-
 /*{{{ commonly used wrappers around HNF functions */
 
 static cxx_mpz_mat join_HNF(cxx_mpz_mat const& K, cxx_mpz const& p)//{{{
@@ -397,7 +395,7 @@ static cxx_mpz_mat matrix_of_multmap(
 /*}}}*/
 
 /*{{{ template <typename T> void append_move(vector<T> &a, vector<T> &b) */
-template <typename T> static void append_move(vector<T> &a, vector<T> &b)
+template <typename T> static void append_move(std::vector<T> &a, std::vector<T> &b)
 {
     a.reserve(a.size() + b.size());
     size_t const na = a.size();
@@ -415,8 +413,17 @@ template <typename T> static void append_move(vector<T> &a, vector<T> &b)
 }
 /*}}}*/
 
+struct ideal_comparator {
+    typedef std::pair<cxx_mpz_mat,int> Im_t;
+    bool operator()(Im_t const& a, Im_t const& b) const {
+        int r = mpz_mat_cmp(a.first, b.first);
+        if (r) return r < 0;
+        return a.second < b.second;     /* should never happen */
+    }
+};
+
 // {{{ factorization_of_prime
-static vector<pair<cxx_mpz_mat, int> > factorization_of_prime_inner(
+static std::vector<std::pair<cxx_mpz_mat, int> > factorization_of_prime_inner(
         cxx_mpq_mat const & B,
         cxx_mpz_mat const & M,
         cxx_mpz const& p,
@@ -446,11 +453,11 @@ static vector<pair<cxx_mpz_mat, int> > factorization_of_prime_inner(
      */
     cxx_mpz_poly Pc = mpz_mat_minpoly_mod_mpz(Mc, p);
 
-    vector<pair<cxx_mpz_poly, int> > facP = mpz_poly_factor(Pc, p, state);
+    std::vector<std::pair<cxx_mpz_poly, int> > facP = mpz_poly_factor(Pc, p, state);
 
-    vector<pair<cxx_mpz_mat, int> > ideals;
+    std::vector<std::pair<cxx_mpz_mat, int> > ideals;
 
-    vector<cxx_mpz_mat> characteristic_subspaces;
+    std::vector<cxx_mpz_mat> characteristic_subspaces;
 
     for(unsigned int i = 0 ; i < facP.size() ; i++) {
         cxx_mpz_poly const& f(facP[i].first);
@@ -493,12 +500,12 @@ static vector<pair<cxx_mpz_mat, int> > factorization_of_prime_inner(
         } else {
             mpz_mat_hermite_form_rev(Ix, nullptr);
             mpz_mat_submat_swap(Ihead,0,0,Ix,0,0,n,n);
-            vector<pair<cxx_mpz_mat, int> > more_ideals;
+            std::vector<std::pair<cxx_mpz_mat, int> > more_ideals;
             more_ideals = factorization_of_prime_inner(B,M,p,Ip,Ihead,Ci,state);
             append_move(ideals, more_ideals);
         }
     }
-    sort(ideals.begin(), ideals.end(), numbertheory_internals::ideal_comparator());
+    std::sort(ideals.begin(), ideals.end(), ideal_comparator());
     return ideals;
 }
 
@@ -516,7 +523,7 @@ static vector<pair<cxx_mpz_mat, int> > factorization_of_prime_inner(
  *
  * the correct interface is number_field_order::factor
  */
-vector<pair<cxx_mpz_mat, int> > numbertheory_internals::factorization_of_prime(
+std::vector<std::pair<cxx_mpz_mat, int> > numbertheory_internals::factorization_of_prime(
         cxx_mpq_mat const & B, cxx_mpz_poly const& g,
         cxx_mpz const& p,
         gmp_randstate_ptr state)
@@ -580,7 +587,7 @@ cxx_mpz_mat numbertheory_internals::valuation_helper_for_ideal(cxx_mpz_mat const
 // elements of the order. In case the ideal is fractional, its
 // denominator is also returned. For an integral ideal, the denominator
 // is always 1.
-pair<cxx_mpz_mat, cxx_mpz> numbertheory_internals::generate_ideal(cxx_mpq_mat const& O, cxx_mpz_mat const& M, cxx_mpq_mat const& gens)
+std::pair<cxx_mpz_mat, cxx_mpz> numbertheory_internals::generate_ideal(cxx_mpq_mat const& O, cxx_mpz_mat const& M, cxx_mpq_mat const& gens)
 {
     unsigned int const n = M->m;
     ASSERT_ALWAYS(M->n == n * n);
@@ -654,7 +661,7 @@ int numbertheory_internals::valuation_of_ideal_at_prime_ideal(cxx_mpz_mat const&
     }
 }
 /*}}}*/
-int numbertheory_internals::valuation_of_ideal_at_prime_ideal(cxx_mpz_mat const& M, pair<cxx_mpz_mat,cxx_mpz> const& Id, cxx_mpz_mat const& a, int e, cxx_mpz const& p)/*{{{*/
+int numbertheory_internals::valuation_of_ideal_at_prime_ideal(cxx_mpz_mat const& M, std::pair<cxx_mpz_mat,cxx_mpz> const& Id, cxx_mpz_mat const& a, int e, cxx_mpz const& p)/*{{{*/
 {
     /* M is the multiplication table of the order. Id is a pair (ideal,
      * denominator of ideal). We want to compute the fkp-valuation of I,
@@ -676,24 +683,24 @@ int numbertheory_internals::valuation_of_ideal_at_prime_ideal(cxx_mpz_mat const&
 struct hypercube_walk {/*{{{*/
     struct iterator {
         int B;
-        vector<int> v;
-        vector<int> speed;
-        pair<int, int> last;
+        std::vector<int> v;
+        std::vector<int> speed;
+        std::pair<int, int> last;
         iterator& operator++() {
             for(unsigned int j = 0 ; j < v.size() ; j++) {
                 int const s = v[j] + speed[j]; 
                 if (s >= 0 && s <= B) {
                     v[j] = s; 
-                    last = make_pair(j, speed[j]);
+                    last = std::make_pair(j, speed[j]);
                     return *this;
                 }
                 speed[j]=-speed[j];
             }
-            last = make_pair(-1, -1);
+            last = std::make_pair(-1, -1);
             return *this;
         }
         bool operator!=(iterator const& x) const { return last != x.last; }
-        vector<int> & operator*() { return v; }
+        std::vector<int> & operator*() { return v; }
     };
     int n,B;
     hypercube_walk(int n, int B) : n(n), B(B) {}
@@ -704,7 +711,7 @@ struct hypercube_walk {/*{{{*/
         z.speed.assign(n, 1);
         return z;
     }
-    iterator middle(vector<int> const& x) const {
+    iterator middle(std::vector<int> const& x) const {
         ASSERT_ALWAYS(x.size() == (unsigned int) n);
         iterator z;
         z.B = B; 
@@ -717,14 +724,14 @@ struct hypercube_walk {/*{{{*/
         z.B = B; 
         z.v.assign(n,0);
         z.speed.assign(n, 1);
-        z.last = make_pair(-1,-1);
+        z.last = std::make_pair(-1,-1);
         return z;
     }
 };/*}}}*/
  
 /* {{{ prime_ideal_two_element */
 /* I must be in HNF */
-pair<cxx_mpz, cxx_mpz_mat> numbertheory_internals::prime_ideal_two_element(cxx_mpq_mat const& O, cxx_mpz_poly const& f, cxx_mpz_mat const& M, cxx_mpz_mat const& I)
+std::pair<cxx_mpz, cxx_mpz_mat> numbertheory_internals::prime_ideal_two_element(cxx_mpq_mat const& O, cxx_mpz_poly const& f, cxx_mpz_mat const& M, cxx_mpz_mat const& I)
 {
     cxx_mpz p;
     unsigned int const n = M->m;
@@ -776,7 +783,7 @@ pair<cxx_mpz, cxx_mpz_mat> numbertheory_internals::prime_ideal_two_element(cxx_m
     mpq_mat_mul(OIOq, cxx_mpq_mat(OI), O); 
     for(int B = 1 ; ; B++) {
         hypercube_walk const H(m, B);
-        vector<int> const H0(m,0);
+        std::vector<int> const H0(m,0);
         cxx_mpq_mat gen(1, n);
         // H0[n]=1;
         // mpq_mat_submat_set(gen, 0, 0, OIOq, n, 0, 1, n);
@@ -808,40 +815,40 @@ pair<cxx_mpz, cxx_mpz_mat> numbertheory_internals::prime_ideal_two_element(cxx_m
             ASSERT_ALWAYS(v >= inertia);
             if (v == inertia) {
                 cxx_mpz_mat lambda(1, m);
-                vector<int> & v(*it);
+                std::vector<int> & v(*it);
                 for(unsigned int i = 0 ; i < m ; i++) {
                     mpz_set_si(mpz_mat_entry(lambda,0,i),v[i]);
                 }
                 mpz_mat_mul(lambda, lambda, OI);
-                return make_pair(p, lambda);
+                return std::make_pair(p, lambda);
             }
         }
     }
 }
 // }}}
 
-string numbertheory_internals::write_element_as_polynomial(cxx_mpq_mat const& theta_q, string const& var)
+std::string numbertheory_internals::write_element_as_polynomial(cxx_mpq_mat const& theta_q, std::string const& var)
 {
     ASSERT_ALWAYS(theta_q->m == 1);
     cxx_mpz theta_denom;
     cxx_mpz_poly theta;
     mpq_mat_row_to_poly(theta, theta_denom, theta_q, 0);
 
-    string num = theta.print_poly(var);
     /* first write the numerator as a string */
+    std::string num = theta.print_poly(var);
     if (mpz_cmp_ui(theta_denom, 1) == 0) {
         return num;
     } else {
-        ostringstream os2;
+        std::ostringstream os2;
         os2 << "(" << num << ")/" << theta_denom;
         return os2.str();
     }
 }
 
-string numbertheory_internals::write_order_element_as_vector(cxx_mpz_mat const& z)
+std::string numbertheory_internals::write_order_element_as_vector(cxx_mpz_mat const& z)
 {
     ASSERT_ALWAYS(z->m == 1);
-    ostringstream s;
+    std::ostringstream s;
     s << "[";
     for(unsigned int i = 0 ; i < z->n ; i++) {
         if (i) s << ", ";
