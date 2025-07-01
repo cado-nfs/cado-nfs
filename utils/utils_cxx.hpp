@@ -5,6 +5,7 @@
 #include <cstdlib>
 
 #include <algorithm>
+#include <cctype>
 #include <ios>
 #include <istream>
 #include <iterator>
@@ -349,6 +350,79 @@ static inline std::string join(std::vector<ItemType> const & items,
 {
     return join(items.begin(), items.end(), delimiter, lambda);
 }
+
+namespace strip_details {
+    struct isspace {
+        bool operator()(char c) const {
+            return std::isspace(c);
+        }
+    };
+}
+
+template<typename T>
+inline std::string& lstrip(std::string &s, T f)
+{
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [f](int ch) {
+        return !f(ch);
+    }));
+    return s;
+}
+
+template<typename T>
+inline std::string & rstrip(std::string &s, T f)
+{
+    s.erase(std::find_if(s.rbegin(), s.rend(), [f](int ch) {
+        return !f(ch);
+    }).base(), s.end());
+    return s;
+}
+
+template<typename T>
+inline std::string & strip(std::string & s, T f)
+{
+    return lstrip(rstrip(s, f), f);
+}
+
+template<typename T>
+inline std::string lstrip(std::string const & s, T f)
+{
+    std::string t = s;
+    return lstrip(t, f);
+}
+
+template<typename T>
+inline std::string rstrip(std::string const & s, T f)
+{
+    std::string t = s;
+    return rstrip(t, f);
+}
+
+template<typename T>
+inline std::string strip(std::string const & s, T f)
+{
+    std::string t = s;
+    return strip(t, f);
+}
+
+inline std::string& lstrip(std::string & s) {
+    return lstrip(s, strip_details::isspace());
+}
+inline std::string& rstrip(std::string & s) {
+    return rstrip(s, strip_details::isspace());
+}
+inline std::string& strip(std::string & s) {
+    return strip(s, strip_details::isspace());
+}
+inline std::string lstrip(std::string const & s) {
+    return lstrip(s, strip_details::isspace());
+}
+inline std::string rstrip(std::string const & s) {
+    return rstrip(s, strip_details::isspace());
+}
+inline std::string strip(std::string const & s) {
+    return strip(s, strip_details::isspace());
+}
+
 
 /* use this as: input_stream >> read_container(container, maximum_size)
  * or possibly: input_stream >> read_container(container)
