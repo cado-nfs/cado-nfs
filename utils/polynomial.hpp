@@ -3,7 +3,7 @@
 
 /* This defines polynomial over arbitrary types, provided that these have
  * standard operator overloads defined. A priori we want to instantiate
- * these with float, double, and long double. But in principle it shoud
+ * these with float, double, and long double. But in principle it should
  * be possible to use this type more generically
  */
 
@@ -53,7 +53,7 @@ namespace polynomial_details {
                 requires(std::is_same_v<W, nc>)
         : c(c.c), x(c.x) {}
     };
-}
+} /* namespace polynomial_details */
 
 template<typename T>
 struct polynomial;
@@ -238,7 +238,7 @@ struct polynomial {
             s = (a + b) * 0.5;
             cado_math_aux::do_not_outsmart_me(s);
             if (s == a || s == b) return s;
-            using namespace cado_math_aux;
+            using cado_math_aux::sgn;
             if (sgn(eval(s)) * sgn(sa) > 0)
                 a = s;
             else
@@ -474,7 +474,6 @@ struct polynomial {
         if (a == b)
             return a;
 
-        using namespace cado_math_aux;
         int sigma = cado_math_aux::sgn(b-a);
 
         ASSERT_ALWAYS(sigma*a < sigma*b);
@@ -505,7 +504,7 @@ struct polynomial {
                 s = middle;
             if (s == a || s == b) return s;
             T ps = eval(s);
-            using namespace cado_math_aux;
+            using cado_math_aux::sgn;
             if (sgn(ps) * sgn(pa) > 0) {
                 a = s; pa = ps;
                 if (side==1) pb /= 2;
@@ -561,6 +560,7 @@ struct polynomial {
             /* if coeffs[0] == 0, we have a root at zero which doesn't
              * count as positive
              */
+            using cado_math_aux::sgn;
             T c01 = sgn(coeffs[0]) * sgn(coeffs[1] ? coeffs[1] : (sgn(bound) * coeffs[2]));
             bool no_chance = c01 * sgn(bound) > 0 || coeffs[0] == 0;
             for(size_t i = 0 ; i < v.size() ; i++) {
@@ -876,7 +876,7 @@ struct polynomial {
         }
 
         while (b.degree() > 0) {
-            //TODO: verify if it is necessary.
+            // TODO: verify if it is necessary.
             d = a.degree() - b.degree();
 
             if ((a.degree() % 2) == 1 && (b.degree() % 2) == 1)
@@ -896,8 +896,8 @@ struct polynomial {
 
             ASSERT(d != 0 || h == 1);
 
-            h = std::pow(h, (T) (d - 1));
-            h = std::pow(g, (T) d) / h;
+            h = std::pow(h, static_cast<T>(d - 1));
+            h = std::pow(g, static_cast<T>(d)) / h;
         }
 
         if (pseudo_div) {
