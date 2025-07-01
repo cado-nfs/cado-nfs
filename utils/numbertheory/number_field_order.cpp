@@ -121,6 +121,27 @@ namespace fmt {
     }
 }
 
+number_field_order number_field_order::p_maximal_order(cxx_mpz const& p) const
+{
+    cxx_mpz_poly g;
+    mpz_poly_to_monic(g, K.defining_polynomial());
+    
+    cxx_mpq_mat B = K.basis_matrix_from_f_to_monic(basis_matrix);
+
+    cxx_mpq_mat D = numbertheory_internals::p_maximal_order(B, g, p);
+
+    D = K.basis_matrix_from_monic_to_f(D);
+
+    // Put D into HNF.
+    cxx_mpz_mat Dz;
+    cxx_mpz den;
+    mpq_mat_numden(Dz, den, D);
+    mpz_mat_hermite_form_rev(Dz, nullptr);
+    mpq_mat_set_mpz_mat_denom(D, Dz, den);
+
+    return { K, D };
+}
+
 static bool sl_equivalent_matrices(cxx_mpq_mat const& M, cxx_mpq_mat const& A, cxx_mpz const& p)/*{{{*/
 {
     /* This is over SL_n(Z_p) */

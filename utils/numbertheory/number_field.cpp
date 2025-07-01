@@ -12,6 +12,8 @@
 #include "misc.h"
 #include "mpz_mat.h"
 #include "mpz_poly.h"
+#include "mpz_mat_accessors.h"
+
 #include "numbertheory/fmt_helpers.hpp"
 #include "numbertheory/number_field.hpp"
 #include "numbertheory/number_field_element.hpp"
@@ -71,21 +73,14 @@ number_field_order number_field::order(number_field_element const & a) const
 
 number_field_order number_field::equation_order() const
 {
-    cxx_mpz x;
-    int const n = degree();
-    mpz_set_ui(x, 1);
-    cxx_mpq_mat B(n, n);
+    cxx_mpq_mat B(degree(), degree());
     mpq_mat_set_ui(B, 1);
-    for(int i = 0; i < n; i++) {
-        mpq_set_z(B(i,i), x);
-        mpz_mul(x, x, mpz_poly_lc(f));
-    }
-    return { *this, std::move(B) };
+    return { *this, basis_matrix_from_monic_to_f(B) };
 }
 
 number_field_order number_field::p_maximal_order(cxx_mpz const & p) const
 {
-    return { *this, numbertheory_internals::p_maximal_order(defining_polynomial(), p) };
+    return equation_order().p_maximal_order(p);
 }
 
 static cxx_mpq_mat companion_matrix(cxx_mpz_poly const & f)
@@ -166,6 +161,59 @@ number_field_element number_field::operator()(number_field_order_element const &
     cxx_mpq_mat c = e.coefficients;
     mpq_mat_mul(c, c, e.order().basis_matrix);
     return { *this, c };
+}
+
+cxx_mpq_mat number_field::basis_matrix_from_f_to_monic(cxx_mpq_mat const & B) const
+{
+    /* given the basis of some Z-lattice in K that is expressed with
+     * respect to the polynomial basis defined by f, return a basis of
+     * the same Z-lattice, but with respect to the polynomial basis
+     * defined by make_monic(f)
+     *
+     * For example, if K=Q(alpha) with alpha a root of f = ell*x^2-1, and
+     * B is [a,b,c,d] representing the Z-lattice with generating elements
+     * a+b*alpha and c+d*alpha, then since g = x^2-ell has the root
+     * alpha_hat = ell*alpha, we return the matrix [a, b/ell, c, d/ell]
+     */
+    if (mpz_poly_is_monic(defining_polynomial()))
+        return B;
+
+    unsigned int const n = degree();
+
+    cxx_mpq_mat C = B;
+    cxx_mpz x;
+    mpz_set_ui(x, 1);
+    for(unsigned int j = 0 ; j < n ; j++) {
+        for(unsigned int i = 0; i < n; i++) {
+            mpq_ptr dij = mpq_mat_entry(C, i, j);
+            mpz_mul(mpq_denref(dij), mpq_denref(dij), x);
+            mpq_canonicalize(dij);
+        }
+        mpz_mul(x, x, mpz_poly_lc(defining_polynomial()));
+    }
+    return C;
+}
+
+cxx_mpq_mat number_field::basis_matrix_from_monic_to_f(cxx_mpq_mat const & B) const
+{
+    /* does the converse of basis_matrix_from_f_to_monic */
+    if (mpz_poly_is_monic(defining_polynomial()))
+        return B;
+
+    unsigned int const n = degree();
+
+    cxx_mpq_mat C = B;
+    cxx_mpz x;
+    mpz_set_ui(x, 1);
+    for(unsigned int j = 0 ; j < n ; j++) {
+        for(unsigned int i = 0; i < n; i++) {
+            mpq_ptr dij = mpq_mat_entry(C, i, j);
+            mpz_mul(mpq_numref(dij), mpq_numref(dij), x);
+            mpq_canonicalize(dij);
+        }
+        mpz_mul(x, x, mpz_poly_lc(defining_polynomial()));
+    }
+    return C;
 }
 
 

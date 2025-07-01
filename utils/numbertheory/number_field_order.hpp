@@ -38,6 +38,8 @@ class number_field_order {
 
     number_field_order_element operator()(cxx_mpz_mat const &) const;
 
+    number_field_order p_maximal_order(cxx_mpz const & p) const;
+
     /* return the i-th basis element */
     number_field_element operator[](int i) const;
 

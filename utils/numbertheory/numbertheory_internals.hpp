@@ -12,14 +12,7 @@
 #include "cxx_mpz.hpp"
 
 namespace numbertheory_internals {
-/* Return a basis for a p-maximal order of the number field defined by
- * the polynomial f.
- *
- * The basis of the order is written in lower triangular positive row hnf
- * (magma returns lower triangular centered row hnf, with sometimes negative
- * coefficients).
- */
-cxx_mpq_mat p_maximal_order(cxx_mpz_poly const& f, cxx_mpz const& p);
+cxx_mpq_mat p_maximal_order(cxx_mpq_mat const & B, cxx_mpz_poly const& g, cxx_mpz const& p);
 
 cxx_mpz_mat p_radical_of_order(cxx_mpz_mat const& M, cxx_mpz const& p);
 

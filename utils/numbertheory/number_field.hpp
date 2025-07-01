@@ -49,6 +49,9 @@ class number_field {
     /* convert an element of an order to the equivalent element as an
      * element of the number field */
     number_field_element operator()(number_field_order_element const &) const;
+
+    cxx_mpq_mat basis_matrix_from_f_to_monic(cxx_mpq_mat const & B) const;
+    cxx_mpq_mat basis_matrix_from_monic_to_f(cxx_mpq_mat const & B) const;
 };
 
 namespace fmt {
