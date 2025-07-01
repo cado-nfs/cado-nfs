@@ -18,14 +18,36 @@ class number_field_prime_ideal : private number_field_fractional_ideal {
     int inertia_degree() const;
     inline int ramification_index() const { return e; };
 
-    private:
-    /* This ctor computes the helper. The tricky thing is that we may not
-     * want to expose it, except to friends...
+    
+    /* Compute the valuation of I at the prime ideal *this */
+    int valuation(number_field_fractional_ideal const & I) const;
+
+    /* This ctor computes the helper.
+     *
+     * We expose it because otherwise we have no way to create a prime
+     * ideal from external data. Wheher it's a good idea to offer this
+     * possiblity isn't totally clear.
+     *
+     * We could also explore alternatives that include some checks that
+     * we don't do at the moment (starting with the determinant of I
+     * being some power of p)
      */
     number_field_prime_ideal(number_field_fractional_ideal const & I, cxx_mpz const & p, int e);
-    int valuation(number_field_fractional_ideal const & I) const;
+
     friend class number_field_order;
     friend class number_field_fractional_ideal;
+
+    int cmp(number_field_prime_ideal const & I) const {
+        int r;
+        r = mpz_cmp(p, I.p);
+        if (r) return r;
+        r = e - I.e;
+        if (r) return r;
+        r = number_field_fractional_ideal::cmp(I);
+        return r;
+    }
+    bool operator<(number_field_prime_ideal const & I) const { return cmp(I) < 0; }
+    bool operator==(number_field_prime_ideal const & I) const { return cmp(I) == 0; }
 };
 
 namespace fmt {

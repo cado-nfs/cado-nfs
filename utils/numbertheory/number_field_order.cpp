@@ -42,6 +42,7 @@ std::vector<std::pair<number_field_prime_ideal, int>>
         number_field_prime_ideal const fkp(I, p, bd.second);
         ret.emplace_back(fkp, bd.second);
     }
+    std::sort(ret.begin(), ret.end());
     return ret;
 }
 
@@ -119,3 +120,50 @@ namespace fmt {
         }
     }
 }
+
+static bool sl_equivalent_matrices(cxx_mpq_mat const& M, cxx_mpq_mat const& A, cxx_mpz const& p)/*{{{*/
+{
+    /* This is over SL_n(Z_p) */
+    if (M->m != A->m) return false;
+    if (M->n != A->n) return false;
+    cxx_mpq_mat Mi;
+    mpq_mat_inv(Mi, M);
+    cxx_mpq_mat AMi;
+    mpq_mat_mul(AMi, A, Mi);
+    /* check that the p-valuation is zero */
+    for(unsigned int i = 0 ; i < AMi->m ; i++) {
+        for(unsigned int j = 0 ; j < AMi->n ; j++) {
+            mpq_srcptr mij = mpq_mat_entry_const(AMi, i, j);
+            if (mpz_divisible_p(mpq_denref(mij), p)) return false;
+        }
+    }
+    return true;
+}/*}}}*/
+
+bool number_field_order::equal_mod(number_field_order const & O, cxx_mpz const & p) const
+{
+    return sl_equivalent_matrices(basis_matrix, O.basis_matrix, p);
+}
+
+
+#if 0
+bool sl_equivalent_matrices(cxx_mpq_mat const& M, cxx_mpq_mat const& A)/*{{{*/
+{
+    /* unimplemented for the moment, since unneeded.  We would compute
+     * A*M^-1, and see whether we have a denominator. */
+    if (M->m != A->m) return false;
+    if (M->n != A->n) return false;
+    cxx_mpq_mat Mi;
+    mpq_mat_inv(Mi, M);
+    cxx_mpq_mat AMi;
+    mpq_mat_mul(AMi, A, Mi);
+    for(unsigned int i = 0 ; i < AMi->m ; i++) {
+        for(unsigned int j = 0 ; j < AMi->n ; j++) {
+            mpq_srcptr mij = mpq_mat_entry_const(AMi, i, j);
+            if (mpz_cmp_ui(mpq_denref(mij), 1) != 0) return false;
+        }
+    }
+    return true;
+}/*}}}*/
+#endif
+

@@ -26,11 +26,12 @@ class number_field_order {
     cxx_mpq_mat inv_basis_matrix;
     cxx_mpz_mat multiplication_table;
 
+    public:
     /* return the order given by this basis (n*n matrix with respect to
      * the number field polynomial basis in alpha)
      */
     number_field_order(class number_field const &, cxx_mpq_mat);
-    public:
+
     class number_field const & number_field() const { return K; }
 
     number_field_order_element operator()(cxx_mpz_mat const &) const;
@@ -64,6 +65,9 @@ class number_field_order {
         , inv_basis_matrix(std::move(a.inv_basis_matrix))
         , multiplication_table(std::move(a.multiplication_table))
     {}
+
+    /* True if the transformation matrix is in SLn(Zp) */
+    bool equal_mod(number_field_order const & O, cxx_mpz const & p) const;
 };
 
 namespace fmt {
@@ -77,7 +81,9 @@ namespace fmt {
         auto format(number_field_order const & O, format_context& ctx) const
             -> format_context::iterator;
     };
-}
+}       /* namespace fmt */
+
+
 inline std::ostream& operator<<(std::ostream& os, number_field_order const & K) { return os << fmt::format("{}", K); }
 
 

@@ -43,6 +43,7 @@ class number_field_fractional_ideal {
 
     /* return the parent number field */
     inline class number_field const & number_field() const { return O.number_field(); }
+    bool is_integral() const { return denominator == 1; }
 
     // unimplemented (for now)
     // operator two_element() const;
@@ -80,6 +81,15 @@ class number_field_fractional_ideal {
         ideal_basis_matrix = std::move(a.ideal_basis_matrix);
         denominator = std::move(a.denominator);
         return *this;
+    }
+
+    int cmp(number_field_fractional_ideal const & I) const {
+        int const r = mpz_cmp(denominator, I.denominator);
+        if (r) return r;
+        return mpz_mat_cmp(ideal_basis_matrix, I.ideal_basis_matrix);
+    }
+    bool operator<(number_field_fractional_ideal const & I) const {
+        return cmp(I) < 0;
     }
 };
 

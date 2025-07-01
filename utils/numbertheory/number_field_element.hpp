@@ -16,7 +16,7 @@ class number_field_element {
     class number_field const & K;
     cxx_mpq_mat coefficients;
     public:
-    inline class number_field const & number_field() const { return K; }
+    class number_field const & number_field() const { return K; }
     /* construct the element a(alpha), where alpha is the root of
      * K.defining_polynomial()
      */
@@ -53,6 +53,9 @@ class number_field_element {
     cxx_mpq trace() const;
 
     number_field_element operator*(number_field_element const &) const;
+
+    number_field_element operator*(cxx_mpz const &) const;
+    number_field_element operator/(cxx_mpz const &) const;
 
     /* copy and move ctors and assignment operators are straightforward.
      * Note that there is no such thing as assigning an element to become
