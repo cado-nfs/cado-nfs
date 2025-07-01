@@ -56,6 +56,9 @@ class number_field_order {
     std::vector<number_field_prime_ideal> factor_radical(cxx_mpz const &, cxx_gmp_randstate &) const;
     std::vector<number_field_prime_ideal> factor_radical(cxx_mpz const & p) const;
 
+    /* returns the smallest positive integer z such that z*a is in the
+     * order */
+    cxx_mpz index(number_field_element const & a) const;
 
     /*
     number_field_order(number_field_order const & a) = default;

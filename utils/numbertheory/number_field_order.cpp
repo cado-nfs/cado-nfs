@@ -142,6 +142,15 @@ number_field_order number_field_order::p_maximal_order(cxx_mpz const& p) const
     return { K, D };
 }
 
+cxx_mpz number_field_order::index(number_field_element const & a) const
+{
+    cxx_mpq_mat c;
+    mpq_mat_mul(c, a.coefficients, inv_basis_matrix);
+    cxx_mpz denom;
+    mpq_mat_numden(nullptr, denom, c);
+    return denom;
+}
+
 static bool sl_equivalent_matrices(cxx_mpq_mat const& M, cxx_mpq_mat const& A, cxx_mpz const& p)/*{{{*/
 {
     /* This is over SL_n(Z_p) */
