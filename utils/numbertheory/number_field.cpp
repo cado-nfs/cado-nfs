@@ -1,6 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
 
 #include <memory>
+#include <utility>
 
 #include <gmp.h>
 #include "fmt/base.h"

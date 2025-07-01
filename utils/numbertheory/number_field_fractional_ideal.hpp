@@ -1,11 +1,17 @@
 #ifndef CADO_UTILS_NUMBERTHEORY_NUMBER_FIELD_FRACTIONAL_IDEAL_HPP
 #define CADO_UTILS_NUMBERTHEORY_NUMBER_FIELD_FRACTIONAL_IDEAL_HPP
 
+#include <memory>
 #include <utility>
+#include <vector>
+
+#include <gmp.h>
 #include "fmt/format.h"
+
 #include "numbertheory/numbertheory_fwd_types.hpp"
 #include "numbertheory/number_field_order.hpp"
 #include "cxx_mpz.hpp"
+#include "macros.h"
 #include "mpz_mat.h"
 
 
@@ -27,11 +33,11 @@ class number_field_fractional_ideal {
     private:
     mutable std::unique_ptr<two_element> cached_two_element;
     number_field_fractional_ideal(number_field_order const & O,
-            cxx_mpz_mat const& I,
-            cxx_mpz const & d = 1)
+            cxx_mpz_mat I,
+            cxx_mpz d = 1)
         : O(O)
-        , ideal_basis_matrix(I)
-        , denominator(d)
+        , ideal_basis_matrix(std::move(I))
+        , denominator(std::move(d))
     {}
     public:
 
@@ -39,10 +45,11 @@ class number_field_fractional_ideal {
      * of. Note that the actual endomorphism ring of the ideal may of
      * course be bigger!
      */
-    inline number_field_order const & order() const { return O; }
+    number_field_order const & order() const { return O; }
 
     /* return the parent number field */
-    inline class number_field const & number_field() const { return O.number_field(); }
+    class number_field const & number_field() const { return O.number_field(); }
+
     bool is_integral() const { return denominator == 1; }
 
     // unimplemented (for now)

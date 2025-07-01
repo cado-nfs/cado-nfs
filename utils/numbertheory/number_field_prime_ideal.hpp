@@ -4,6 +4,7 @@
 #include "numbertheory/numbertheory_fwd_types.hpp"
 #include "numbertheory/number_field_fractional_ideal.hpp"
 #include "numbertheory/number_field_order_element.hpp"
+#include "numbertheory/fmt_helpers.hpp"
 
 class number_field_prime_ideal : private number_field_fractional_ideal {
     number_field_order_element valuation_helper;
@@ -14,9 +15,9 @@ class number_field_prime_ideal : private number_field_fractional_ideal {
         using number_field_fractional_ideal::order;
         using number_field_fractional_ideal::number_field;
 
-    operator two_element() const;
+    explicit operator two_element() const;
     int inertia_degree() const;
-    inline int ramification_index() const { return e; };
+    int ramification_index() const { return e; };
 
     
     /* Compute the valuation of I at the prime ideal *this */

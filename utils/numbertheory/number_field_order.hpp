@@ -3,6 +3,8 @@
 
 #include <string>
 #include <vector>
+#include <ostream>
+#include <utility>
 
 #include "fmt/format.h"
 
@@ -52,19 +54,14 @@ class number_field_order {
     std::vector<number_field_prime_ideal> factor_radical(cxx_mpz const &, cxx_gmp_randstate &) const;
     std::vector<number_field_prime_ideal> factor_radical(cxx_mpz const & p) const;
 
-    number_field_order(number_field_order const & a)
-        : K(a.K)
-        , basis_matrix(a.basis_matrix)
-        , inv_basis_matrix(a.inv_basis_matrix)
-        , multiplication_table(a.multiplication_table)
-    {}
 
-    number_field_order(number_field_order && a) noexcept
-        : K(a.K)
-        , basis_matrix(std::move(a.basis_matrix))
-        , inv_basis_matrix(std::move(a.inv_basis_matrix))
-        , multiplication_table(std::move(a.multiplication_table))
-    {}
+    /*
+    number_field_order(number_field_order const & a) = default;
+    number_field_order(number_field_order && a) noexcept = default;
+    number_field_order& operator=(number_field_order const & a) = delete;
+    number_field_order& operator=(number_field_order && a) = delete;
+    ~number_field_order() = default;
+    */
 
     /* True if the transformation matrix is in SLn(Zp) */
     bool equal_mod(number_field_order const & O, cxx_mpz const & p) const;

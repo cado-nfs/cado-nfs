@@ -62,15 +62,8 @@ class number_field_element {
      * an element of a different number field, since we can't reseat the
      * reference.
      */
-    number_field_element(number_field_element const & a)
-        : K(a.K)
-        , coefficients(a.coefficients)
-    {}
-
-    number_field_element(number_field_element && a)
-        : K(a.K)
-        , coefficients(a.coefficients)
-    {}
+    number_field_element(number_field_element const & a) = default;
+    number_field_element(number_field_element && a) noexcept = default;
 
     number_field_element& operator=(number_field_element const & a)
     {
