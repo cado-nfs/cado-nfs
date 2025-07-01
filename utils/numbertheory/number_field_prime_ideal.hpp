@@ -19,6 +19,13 @@ class number_field_prime_ideal : private number_field_fractional_ideal {
     int inertia_degree() const;
     int ramification_index() const { return e; };
 
+    // The valuation helper a of I is such that (a/p)*I is in O, yet a is
+    // not in p*O.
+    // For an element u whose I-valuation is v, we thus have that u*(a/p)^v
+    // maps to a non-zero element in O/pO.
+    number_field_order_element const & get_valuation_helper() const {
+        return valuation_helper;
+    }
     
     /* Compute the valuation of I at the prime ideal *this */
     int valuation(number_field_fractional_ideal const & I) const;
