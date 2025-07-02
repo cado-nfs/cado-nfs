@@ -64,7 +64,7 @@ include(CheckCSourceCompiles)
 set(CMAKE_REQUIRED_FLAGS "-L${GMPECM_LIBDIR}")
 set(CMAKE_REQUIRED_DEFINITIONS)
 set(CMAKE_REQUIRED_INCLUDES ${GMPECM_INCDIR})
-set(CMAKE_REQUIRED_LIBRARIES ecm ${gmp_libname} m)
+set(CMAKE_REQUIRED_LIBRARIES ecm ${gmp_libname} m ${pthread_libs})
 CHECK_C_SOURCE_COMPILES("
     #include <ecm.h>
     #include <stdlib.h>
