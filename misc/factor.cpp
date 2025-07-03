@@ -239,14 +239,20 @@ fully_factor::ecmlib_wrapper(std::list<cxx_mpz>::iterator it, unsigned int B1,
 {
     cxx_mpz f;
 
-    ecm_reset(params);
+    /* copy code from ecm_reset here, as it is not available in older versions
+     * of gmp-ecm and ECM_VERSION is only available as a string, so it is not
+     * easy to do some compile-time comparisons.
+     */
+    mpz_set_ui (params->sigma, 0U);
+    params->B1done = ECM_DEFAULT_B1_DONE;
+    mpz_set_ui (params->x, 0U);
+
     params->method = method;
     params->verbose = std::max(0, ecmlib_verbose);
 
     if (randgen != nullptr) {
         unsigned long r = gmp_urandomb_ui(randgen, 32U);
         mpz_set_ui(method == ECM_ECM ? params->sigma : params->x, r);
-        fmt::print("# r = {}\n", r);
     }
 
     char const * s = method == ECM_ECM ? "ECM"
