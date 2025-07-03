@@ -20,4 +20,9 @@ target_link_libraries(indexed_relations_to_density utils_with_io)
 
 mark_targets_as_openmp(indexed_relations_to_density)
 
+if(HAVE_GMPECM)
+    add_executable(factor factor.cpp)
+    target_link_libraries(factor facul utils ecm)
+endif()
+
 include(CMakeLists-nodist.txt OPTIONAL)
