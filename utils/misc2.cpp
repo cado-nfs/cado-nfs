@@ -216,16 +216,25 @@ std::vector<std::pair<cxx_mpz, int> > trial_division(cxx_mpz const& n0, unsigned
      */
     unsigned long bound_shift = (mpz_sizeinbase(n, 2) + 1) / 2;
     for (unsigned long p = 2; p < B; p = getprime_mt (pinf)) {
-        if (bound_shift < ULONG_BITS && p >> bound_shift)
+        if (bound_shift < ULONG_BITS && p >> bound_shift) {
+            if (mpz_cmpabs_ui(n, 1U) > 0 && mpz_cmpabs_ui(n, B) < 0) {
+                res.emplace_back(n, 1);
+                n = 1U;
+                if (mpz_sgn(n0) < 0) {
+                    mpz_neg(res.back().first, res.back().first);
+                    mpz_neg(n, n);
+                }
+            }
             break;
+        }
         if (!mpz_divisible_ui_p(n, p)) continue;
         int k = 0;
         for( ; mpz_divisible_ui_p(n, p) ; mpz_fdiv_q_ui(n, n, p), k++);
         bound_shift = (mpz_sizeinbase(n, 2) + 1) / 2;
         res.emplace_back(p, k);
     }
-    // cout << "remaining discriminant " << n << "\n";
     cofactor = n;
+
     prime_info_clear (pinf); /* free the tables */
     return res;
 }

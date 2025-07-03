@@ -20,6 +20,7 @@ cado_define_test(test_memusage.c LIBRARIES utils)
 cado_define_test(test_roots_mod.c LIBRARIES utils ARGUMENTS 100 1050)
 cado_define_test(test_omega.c LIBRARIES utils)
 cado_define_test(test_timing.c LIBRARIES utils)
+cado_define_test(test_trial_division.cpp LIBRARIES utils tests ARGUMENTS -q)
 cado_define_test(test_rootfinder.c LIBRARIES utils tests)
 
 add_subdirectory(arith)
