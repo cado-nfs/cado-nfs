@@ -64,7 +64,7 @@ static inline void mpfr_init_set_uint64(mpfr_ptr z, uint64_t x, mpfr_rnd_t rnd)
     mpfr_set_uint64(z, x, rnd);
 }
 
-static inline void mpfr_init_set_int64(mpfr_ptr z, int64_t x)
+static inline void mpfr_init_set_int64(mpfr_ptr z, int64_t x, mpc_rnd_t rnd)
 {
     mpfr_init2(z, mpfr_get_default_prec());
     mpfr_set_int64(z, x, rnd);
@@ -85,7 +85,7 @@ static inline void mpfr_init_set_int64(mpfr_ptr a, int64_t const b,
 // }}}
 
 #if ULONG_BITS < 64
-#define MPFR_AUX_DEFINE_COMPARISON(OP)                                       \
+#define MPFR_AUX_DEFINE_COMPARISON(OP)                                         \
     static inline int mpfr_##OP##_uint64(mpfr_srcptr a, uint64_t c)            \
     {                                                                          \
         if (c <= ULONG_MAX)                                                    \
@@ -108,7 +108,7 @@ static inline void mpfr_init_set_int64(mpfr_ptr a, int64_t const b,
         mpfr_clear(cc);                                                        \
         return r;                                                              \
     }
-#define MPFR_AUX_DEFINE_FUNC3(OP)                                            \
+#define MPFR_AUX_DEFINE_FUNC3(OP)                                              \
     static inline int mpfr_##OP##_uint64(mpfr_ptr a, mpfr_srcptr b,            \
                                          uint64_t c, mpfr_rnd_t rnd)           \
     {                                                                          \
@@ -120,7 +120,7 @@ static inline void mpfr_init_set_int64(mpfr_ptr a, int64_t const b,
         int const r = mpfr_##OP(a, b, cc, rnd);                                \
         mpfr_clear(cc);                                                        \
         return r;                                                              \
-    }   \
+    }                                                                          \
     static inline int mpfr_##OP##_int64(mpfr_ptr a, mpfr_srcptr b, int64_t c,  \
                                         mpfr_rnd_t rnd)                        \
     {                                                                          \
@@ -134,29 +134,27 @@ static inline void mpfr_init_set_int64(mpfr_ptr a, int64_t const b,
         return r;                                                              \
     }
 #else
-#define MPFR_AUX_DEFINE_COMPARISON(OP)                                       \
+#define MPFR_AUX_DEFINE_COMPARISON(OP)                                         \
     static inline int mpfr_##OP##_uint64(mpfr_srcptr a, uint64_t c)            \
     {                                                                          \
         return mpfr_##OP##_ui(a, c);                                           \
-    }   \
+    }                                                                          \
     static inline int mpfr_##OP##_int64(mpfr_srcptr a, int64_t c)              \
     {                                                                          \
         return mpfr_##OP##_si(a, c);                                           \
     }
-#define MPFR_AUX_DEFINE_FUNC3(OP)                                            \
+#define MPFR_AUX_DEFINE_FUNC3(OP)                                              \
     static inline int mpfr_##OP##_uint64(mpfr_ptr a, mpfr_srcptr b,            \
                                          uint64_t c, mpfr_rnd_t rnd)           \
     {                                                                          \
         return mpfr_##OP##_ui(a, b, c, rnd);                                   \
-    } \
+    }                                                                          \
     static inline int mpfr_##OP##_int64(mpfr_ptr a, mpfr_srcptr b, int64_t c,  \
                                         mpfr_rnd_t rnd)                        \
     {                                                                          \
         return mpfr_##OP##_si(a, b, c, rnd);                                   \
     }
 #endif
-
-
 
 /* {{{ mpfr_{add,sub}mul_{ui,si} */
 
@@ -220,7 +218,6 @@ static inline int mpfr_submul_si(mpfr_ptr a, mpfr_srcptr b, long const c,
     return r;
 }
 
-
 /* }}} */
 
 /* {{{ mpfr_{div,remainder}_{ui,si} */
@@ -247,7 +244,6 @@ static inline int mpfr_remainder_si(mpfr_ptr a, mpfr_srcptr b, long const c,
     return r;
 }
 /* }}} */
-
 
 /*  mpfr_{set,cmp,add,sub,mul,addmul,submul,div,remainder}_{int64,uin64} */
 MPFR_AUX_DEFINE_COMPARISON(cmp)
