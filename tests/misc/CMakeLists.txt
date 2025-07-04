@@ -80,3 +80,24 @@ cado_divert_test(test_renumber_file c105_30003
     ${AVOID_CONCURRENT_UNDER_COVERAGE}
     )
 endif()
+
+if (HAVE_GMPECM)
+    set(C50 66045451192627703404231139322032983287173736630736)
+    cado_define_test(misc_factor_complete
+        SCRIPT
+        ${CADO_NFS_BINARY_DIR}/misc/factor -N ${C50} -v
+        EXPECT_SHA1 f03dea0ac1a2de340cafc423885ddcbd94bc55df
+        SHA1_ON_REGEXP_LINES "^factorization: "
+        TARGET_DEPENDENCIES factor)
+
+    set(C77 84884147409828091725676728670213067387206838101828807864190286991865870575397)
+    # C77 contains two large factors, by using -effort 0 we ensure that they
+    # will not be find and the binary will return 1
+    cado_define_test(misc_factor_incomplete
+        SCRIPT
+        ${CADO_NFS_BINARY_DIR}/misc/factor -N ${C77} -v -effort 0
+        EXPECT_FAIL
+        #EXPECT_SHA1 37940eea98eeafdfa62a6f6b92fe0bd8ad63dc34
+        #SHA1_ON_REGEXP_LINES "^factorization: "
+        TARGET_DEPENDENCIES factor)
+endif()
