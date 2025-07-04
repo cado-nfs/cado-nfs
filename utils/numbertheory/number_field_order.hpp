@@ -62,9 +62,9 @@ class number_field_order {
 
     /*
     number_field_order(number_field_order const & a) = default;
-    number_field_order(number_field_order && a) noexcept = default;
     number_field_order& operator=(number_field_order const & a) = delete;
-    number_field_order& operator=(number_field_order && a) = delete;
+    number_field_order(number_field_order && a) noexcept = default;
+    number_field_order& operator=(number_field_order && a) = default;
     ~number_field_order() = default;
     */
 

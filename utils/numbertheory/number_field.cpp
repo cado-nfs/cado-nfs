@@ -118,25 +118,45 @@ cxx_mpq_mat number_field::trace_matrix() const
     return *cached_trace_matrix;
 }
 
+template<typename iterator>
+static number_field_order maximize_recursively(number_field_order && O, cxx_mpz const & disc, iterator begin, iterator end)
+{
+    if (begin == end)
+        return std::move(O);
+    else if (mpz_p_valuation(disc, begin->first) == 1)
+        return maximize_recursively(std::move(O), disc, ++begin, end);
+    else
+        return maximize_recursively(O.p_maximal_order(begin->first), disc, ++begin, end);
+}
 
+/* the maximal order in itself isn't necessarily something very useful.
+ * And anyway we only compute an approximation of it, given that we don't
+ * expect that we'll factor the discriminant completely.
+ *
+ * on top of that, we have an implementation difficulty caused by the
+ * fact that assigning to a number_field_order object isn't supported.
+ * Beyond the recursive kludge above, alternatives include changing
+ * references to shared_ptr's after all, or make p_maximal_order an
+ * in-place operation.
+ */
 number_field_order const& number_field::maximal_order(unsigned long prime_limit) const
 {
     if (cached_maximal_order == nullptr) {
-
-        number_field_order O = equation_order();
 
         cxx_mpz disc;
         mpz_poly_discriminant(disc, f);
         mpz_mul(disc, disc, mpz_poly_lc(f));
 
         /* We're not urged to use ecm here */
-        for(auto const & pe : trial_division(disc, prime_limit, disc)) {
-            fmt::print("{} {}\n", pe.first, O);
-        }
+        auto d_fac = trial_division(disc, prime_limit, disc);
 
-        ASSERT_ALWAYS(0);
+        cached_maximal_order = std::unique_ptr<number_field_order>(
+                new number_field_order(
+                    maximize_recursively(equation_order(),
+                        disc,
+                        d_fac.begin(),
+                        d_fac.end())));
 
-        cached_maximal_order = std::unique_ptr<number_field_order>(new number_field_order(O));
     }
 
     return *cached_maximal_order;
