@@ -6,9 +6,15 @@ needs_bc=1
 needs_python=1
 needs_perl=1
 needs_optional_hwloc=1
-needs_optional_ecm=1
+needs_optional_ecm=
 needs_optional_fmt=1
 needs_gmp=1
+
+if is_debian || is_ubuntu || is_fedora ; then
+    # it's easy when we have a package.
+    needs_optional_ecm=1
+    # see also special case for "merge coverage tests" further down
+fi
 
 case "$JOB_NAME" in
     *"under valgrind"*)
@@ -46,6 +52,8 @@ case "$JOB_NAME" in
 
         debian_packages="$debian_packages     lcov"
         alpine_packages="$alpine_packages     lcov"
+        needs_optional_ecm=1
+        # see also special case for "merge coverage tests" further down
         if ! is_debian && ! is_alpine ; then
             echo "lcov: only on debian|alpine" >&2
             # because I'm lazy, and also I'm not sure there would be a point
@@ -59,6 +67,14 @@ case "$JOB_NAME" in
     *"mysql specific"*)
         export mysql=1
         ;;
+esac
+
+case "$JOB_NAME" in
+    *"merge coverage tests"*)
+        # here we're not even tied to a compiler in particular, so let's
+        # avoid requesting software that requires recompilation.
+        needs_optional_ecm=
+    ;;
 esac
 
 project_package_selection() {
@@ -117,6 +133,18 @@ project_package_selection() {
         freebsd_packages="$freebsd_packages   py311-sqlite3 py311-flask py311-requests"
     fi
 
+    if [ "$needs_optional_ecm" ] ; then
+        # ecm is heasy when we have a distro package, which is the case
+        # with debian/ubuntu/fedora. We also want to make sure that we
+        # have it even with alpine linux, which requires some
+        # recompiling.  (see the function after_package_install() down
+        # below). Building gmp-ecm requires m4.
+        echo " + needs_optional_ecm is set"
+        debian_packages="$debian_packages     libecm-dev"
+        fedora_packages="$fedora_packages     gmp-ecm-devel"
+        alpine_packages="$alpine_packages     curl m4"
+    fi
+
     # add this so that we get the gdb tests as well (at least with the
     # shared libs on debian-testing case)
     debian_packages="$debian_packages     gdb"
@@ -133,6 +161,28 @@ after_package_install() {
     fi
     mkdir -p /etc/gdb
     echo "set auto-load safe-path /" > /etc/gdb/gdbinit
+
+    if [ "$needs_optional_ecm" ] && ! (is_debian || is_ubuntu || is_fedora) ; then
+        url=https://gitlab.inria.fr/-/project/24244/uploads/ad3e5019fef98819ceae58b78f4cce93/ecm-7.0.6.tar.gz
+        (
+            NCPUS=`"${CI_PATH:-$(dirname $0)}/utilities/ncpus.sh"`
+            # we don't _really_ need to cd. But OTOH coverage tends to
+            # aggressively index code under $PWD, so it's better to keep
+            # this one out.
+            cd /tmp/
+            # $needs_optional_ecm pulls m4 under alpine. As for other
+            # systems, I don't know... For now this piece of code is not
+            # triggered on other systems, I think.
+            # apk update
+            # apk add gcc m4 gmp-dev musl-dev make
+            curl -O "$url"
+            tar xf $(basename "$url")
+            cd ecm-7.0.6
+            ./configure
+            make -j$NCPUS
+            make install
+        )
+    fi
 }
 
 # Note: most of the interesting stuff is in ci.bash
