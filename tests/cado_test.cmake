@@ -154,9 +154,9 @@ macro(cado_nfs_test_process_EXPECT_SHA1)
 endmacro()
 
 macro(cado_nfs_test_process_SHA1_ON_REGEXP_LINES)
-    if(NOT EXPECT_SHA1)
-        message(FATAL_ERROR "SHA1_ON_REGEXP_LINES ignored if EXPECT_SHA1 is not set")
-    endif()
+    # if(NOT EXPECT_SHA1)
+    #     message(FATAL_ERROR "SHA1_ON_REGEXP_LINES ignored if EXPECT_SHA1 is not set")
+    # endif()
     list(APPEND wrapper_args --filter-output "${SHA1_ON_REGEXP_LINES}")
 endmacro()
 

@@ -79,7 +79,7 @@ for ref in "${reftab[@]}" ; do
 done
 
 if ! [ "$match" ] ; then
-    echo "Got sha1 checksum=$got_sha1, different from expected $expect_sha1" >&2
+    echo "Got sha1 checksum $got_sha1 different from expected $expect_sha1" >&2
     exit 1
 fi
 

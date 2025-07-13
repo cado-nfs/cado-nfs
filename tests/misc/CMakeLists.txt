@@ -82,32 +82,51 @@ cado_divert_test(test_renumber_file c105_30003
 endif()
 
 if (HAVE_GMPECM)
-    set(C50 66045451192627703404231139322032983287173736630736)
-    cado_define_test(misc_factor_complete
+    cado_define_test(misc_factor
         SCRIPT
-        ${CADO_NFS_BINARY_DIR}/misc/factor -N ${C50} -v
-        EXPECT_SHA1 f03dea0ac1a2de340cafc423885ddcbd94bc55df
+        ${CADO_NFS_BINARY_DIR}/misc/factor -v -v -N
         SHA1_ON_REGEXP_LINES "^factorization: "
-        TARGET_DEPENDENCIES factor)
+        TARGET_DEPENDENCIES factor
+        NO_DEFAULT_RUN
+    )
 
-    set(C77 84884147409828091725676728670213067387206838101828807864190286991865870575397)
+    # p is easily found, and the remaining cofactor happens to be a
+    # square
+    cado_divert_test(misc_factor pq2r2 APPEND_ARGUMENTS
+        9448184470610043110564621588359899555130833989152313
+        EXPECT_SHA1 8c21546928dc23c5eb0b51a2f176499cd7ab334c
+    )
+
+    cado_divert_test(misc_factor complete APPEND_ARGUMENTS
+        66045451192627703404231139322032983287173736630736
+        EXPECT_SHA1 f03dea0ac1a2de340cafc423885ddcbd94bc55df
+    )
+
     # C77 contains two large factors, by using -effort 0 we ensure that they
-    # will not be find and the binary will return 1
-    cado_define_test(misc_factor_incomplete
-        SCRIPT
-        ${CADO_NFS_BINARY_DIR}/misc/factor -N ${C77} -v -effort 0
+    # will not be found and the binary will return 1
+    cado_divert_test(misc_factor incomplete APPEND_ARGUMENTS
+        84884147409828091725676728670213067387206838101828807864190286991865870575397
+        -effort 0
         EXPECT_FAIL
-        #EXPECT_SHA1 37940eea98eeafdfa62a6f6b92fe0bd8ad63dc34
-        #SHA1_ON_REGEXP_LINES "^factorization: "
-        TARGET_DEPENDENCIES factor)
+    )
 
+    cado_divert_test(misc_factor error1 EXPECT_FAIL APPEND_ARGUMENTS 0)
+    cado_divert_test(misc_factor error2 EXPECT_FAIL APPEND_ARGUMENTS
+        65537 trialdiv_bound=1
+    )
+    cado_divert_test(misc_factor error3 EXPECT_FAIL APPEND_ARGUMENTS
+        65537 --isprime-niter 0
+    )
+    cado_divert_test(misc_factor error4 EXPECT_FAIL ARGUMENTS)
+    cado_divert_test(misc_factor error5 EXPECT_FAIL ARGUMENTS squabble=42)
 
     set(C214 1491853389933411857714186950405505504385922663380730145523965911837516584504855532767352946927077785080156547980196625376697559081935835336314328338395762630753432863463017078387556027886346533171763392847320002862)
-    set(HINTS_C214 2103814835105734276966733904285860990868274236590576967285421378423293661987882101115537118852349489076143360401417774069682013332768445918577301453043,121,544478094571057)
-    cado_define_test(misc_factor_complete_with_hints
-        SCRIPT
-        ${CADO_NFS_BINARY_DIR}/misc/factor -N ${C214} -v -hints ${HINTS_C214}
+    # 65537 is a bogus hint, but the code should happily discard it
+    set(HINTS_C214
+        2103814835105734276966733904285860990868274236590576967285421378423293661987882101115537118852349489076143360401417774069682013332768445918577301453043,121,544478094571057,65537)
+    cado_divert_test(misc_factor complete_with_hints
+        APPEND_ARGUMENTS
+        ${C214} -hints ${HINTS_C214}
         EXPECT_SHA1 4fce16df8636756a244aa4928c25d01878fff6e2
-        SHA1_ON_REGEXP_LINES "^factorization: "
-        TARGET_DEPENDENCIES factor)
+    )
 endif()
