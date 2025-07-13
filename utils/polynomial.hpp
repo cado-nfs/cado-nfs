@@ -144,21 +144,7 @@ template<typename T, typename POLY,
 struct traits;
 
 template<typename T>
-struct polynomial;
-
-template<typename T, typename POLY>
-struct traits_base {
-    private:
-        traits_base() = default;
-        friend struct traits<T, POLY>;
-    public:
-
-    /* We put here traits functions that can be overridden in the middle
-     * layer if we decide so
-     */
-
-    POLY & downcast() { return static_cast<POLY&>(*this); }
-    POLY const & downcast() const { return static_cast<POLY const &>(*this); }
+struct polynomial {
 
     /* {{{ evaluation at a point */
     template<typename U, typename E>
@@ -168,14 +154,14 @@ struct traits_base {
         using cado_math_aux::similar_set;
         using cado_math_aux::fma;
 
-        if (downcast().degree() < 0) return similar_zero(e);
+        if (degree() < 0) return similar_zero(e);
 
-        T const * f = downcast().coeffs.data();
+        T const * f = coeffs.data();
 
-        E s = similar_set(e, f[downcast().degree()]);
+        E s = similar_set(e, f[degree()]);
         E xx = similar_set(e, x);
 
-        int k = downcast().degree();
+        int k = degree();
         using cado_math_aux::fma;
         switch(k-1) {
             case 8: s = fma(s, xx, similar_set(e, f[8])); no_break();
@@ -204,10 +190,10 @@ struct traits_base {
     T eval(U const & x) const {
         /* We need to use the precision of the coefficients of the
          * polynomial, and not the default precision! */
-        if (downcast().degree() < 0)
+        if (degree() < 0)
             return T(0);
         else
-            return eval_with_reference(downcast().coeffs.front(), x);
+            return eval_with_reference(coeffs.front(), x);
     }
 
     template<typename U, cado_math_aux::is_coercible_t<T, U> = {}>
@@ -228,14 +214,14 @@ struct traits_base {
         using cado_math_aux::similar_set;
         using cado_math_aux::addmul;
 
-        if (downcast().degree() < 0) return similar_zero(e);
+        if (degree() < 0) return similar_zero(e);
 
-        T const * f = downcast().coeffs.data();
+        T const * f = coeffs.data();
 
-        E s = similar_set(e, f[downcast().degree()]);
+        E s = similar_set(e, f[degree()]);
         E py = similar_set(e, y);
 
-        int k = downcast().degree();
+        int k = degree();
         switch(k-1) {
             case 2: s *= x; addmul(s, py, similar_set(e, f[2])); py *= y;
                     no_break();
@@ -289,8 +275,8 @@ struct traits_base {
             , bool>::type = {}>
     eval_type<T, U> eval_safe(U const & x) const
     {
-        T const * f = downcast().coeffs.data();
-        const int deg = downcast().degree();
+        T const * f = coeffs.data();
+        const int deg = degree();
         cxx_mpz xm; int xe; exact_form(xm, xe, x);
         /* We want to evaluate at xz * 2^xe */
         cxx_mpz vm; int ve; exact_form(vm, ve, f[deg]);
@@ -316,41 +302,14 @@ struct traits_base {
         return std::ldexp(r, ve);
     }
     /* }}} */
-};
 
 
-template<typename T, typename POLY, bool is_integral, bool is_real, bool is_complex>
-struct traits : public traits_base<T, POLY> {
-    private:
-        traits() = default;
-        friend struct polynomial<T>;
-    public:
-};
-
-template<typename T, typename POLY>
-struct traits<T, POLY, false, true, false> : public traits_base<T, POLY>
-{
-    private:
-        traits() = default;
-        friend struct polynomial<T>;
-    public:
-        using traits_base<T, POLY>::downcast;
-        using traits_base<T, POLY>::eval;
-
-};
-
-
-template<typename T>
-struct polynomial : public traits<T, polynomial<T>> {
     private:
     std::vector<T> coeffs;
     friend struct traits<T, polynomial<T>>;
     friend struct traits_base<T, polynomial<T>>;
 
     public:
-
-    using traits<T, polynomial<T>>::eval;
-    using traits<T, polynomial<T>>::operator();
 
     typedef T coefficient_type;
 
@@ -1130,7 +1089,7 @@ struct polynomial : public traits<T, polynomial<T>> {
 
         ASSERT(e >= 0);
 
-        d = cado_math_aux::pow(d, (T) e);
+        d = cado_math_aux::pow(d, static_cast<T>(e));
         if (q) *q *= d;
         r *= d;
 
