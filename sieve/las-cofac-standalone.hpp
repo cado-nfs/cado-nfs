@@ -24,10 +24,15 @@ struct cofac_standalone {
 
 #ifdef SUPPORT_LARGE_Q
     cxx_mpz az, bz;
-    explicit operator relation_ab() const { return { az, bz }; }
-#else
-    explicit operator relation_ab() const { return { a, b }; }
 #endif
+    explicit operator relation_ab() const
+    { 
+#ifdef SUPPORT_LARGE_Q
+        return { az, bz };
+#else
+        return { a, b };
+#endif
+    }
     cofac_standalone();
     cofac_standalone(int nsides, int N, size_t x, int logI, qlattice_basis const & Q);
     bool trace_on_spot() const;

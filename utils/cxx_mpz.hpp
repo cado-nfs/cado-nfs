@@ -96,7 +96,6 @@ public:
     }
     // NOLINTEND(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
 
-#if __cplusplus >= 201103L
     cxx_mpz(cxx_mpz && o) noexcept
         : cxx_mpz()
     {
@@ -107,7 +106,6 @@ public:
             mpz_swap(x, o.x);
         return *this;
     }
-#endif
     // NOLINTBEGIN(hicpp-explicit-conversions)
     operator mpz_ptr() { return x; }
     operator mpz_srcptr() const { return x; }

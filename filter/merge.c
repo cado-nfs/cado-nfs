@@ -714,59 +714,10 @@ increase_weight (filter_matrix_t *mat, index_t j)
 /* doit == 0: return the weight of row i1 + row i2
    doit <> 0: add row i2 to row i1.
    New memory is allocated and the old space is freed */
-#ifndef FOR_DL
-/* special code for factorization */
-static void
-add_row (filter_matrix_t *mat, index_t i1, index_t i2, MAYBE_UNUSED index_t j)
-{
-	index_t k1 = matLengthRow(mat, i1);
-	index_t k2 = matLengthRow(mat, i2);
-	index_t t1 = 1, t2 = 1;
-	index_t t = 0;
-
-#ifdef CANCEL
-	#pragma omp atomic update
-	cancel_rows ++;
-#endif
-
-	/* fast-track : don't precompute the size */
-	typerow_t *sum = heap_alloc_row(i1, k1 + k2);
-
-	while (t1 <= k1 && t2 <= k2) {
-		if (mat->rows[i1][t1] == mat->rows[i2][t2]) {
-			decrease_weight(mat, mat->rows[i1][t1]);
-			t1 ++, t2 ++;
-		} else if (mat->rows[i1][t1] < mat->rows[i2][t2]) {
-			sum[++t] = mat->rows[i1][t1++];
-		} else {
-			increase_weight(mat, mat->rows[i2][t2]);
-			sum[++t] = mat->rows[i2][t2++];
-		}
-	}
-	while (t1 <= k1)
-	      sum[++t] = mat->rows[i1][t1++];
-	while (t2 <= k2) {
-	    increase_weight(mat, mat->rows[i2][t2]);
-	    sum[++t] = mat->rows[i2][t2++];
-	}
-	ASSERT(t <= k1 + k2 - 1);
-
-#ifdef CANCEL
-	int cancel = (t1 - 1) + (t2 - 1) - (t - 1);
-	ASSERT_ALWAYS(cancel < CANCEL_MAX);
-	#pragma omp atomic update
-	cancel_cols[cancel] ++;
-#endif
-
-	heap_resize_last_row(sum, t);
-	heap_destroy_row(mat->rows[i1]);
-	mat->rows[i1] = sum;
-	return;
-}
-#else /* FOR_DL: j is the ideal to be merged */
 #define INT32_MIN_64 (int64_t) INT32_MIN
 #define INT32_MAX_64 (int64_t) INT32_MAX
 
+#ifdef FOR_DL
 static inline void
 check_exponent (int64_t e)
 {
@@ -776,111 +727,157 @@ check_exponent (int64_t e)
       exit (1);
     }
 }
+#endif
 
 static void
-add_row (filter_matrix_t *mat, index_t i1, index_t i2, index_t j)
+add_row (filter_matrix_t *mat, index_t i1, index_t i2, index_t j MAYBE_UNUSED)
 {
-#ifdef CANCEL
-	#pragma omp atomic update
-	cancel_rows ++;
-#endif
-
-  /* first look for the exponents of j in i1 and i2 */
-  uint32_t k1 = matLengthRow (mat, i1);
-  uint32_t k2 = matLengthRow (mat, i2);
-  typerow_t *r1 = mat->rows[i1];
-  typerow_t *r2 = mat->rows[i2];
-  int32_t e1 = 0, e2 = 0;
-
-  /* search by decreasing ideals as the ideal to be merged is likely large */
-  for (int l = k1; l >= 1; l--)
-    if (r1[l].id == j) {
-	e1 = r1[l].e;
-	break;
-      }
-  for (int l = k2; l >= 1; l--)
-    if (r2[l].id == j) {
-	e2 = r2[l].e;
-	break;
-      }
-
-  /* we always check e1 and e2 are not zero, in order to prevent from zero
-     exponents that would come from exponent overflows in previous merges */
-  ASSERT_ALWAYS (e1 != 0 && e2 != 0);
-
-  int d = (int) gcd_int64 ((int64_t) e1, (int64_t) e2);
-  e1 /= -d;
-  e2 /= d;
-  /* we will multiply row i1 by e2, and row i2 by e1 */
-
-  index_t t1 = 1, t2 = 1, t = 0;
-
-  /* now perform the real merge */
-  typerow_t *sum;
-  sum = heap_alloc_row(i1, k1 + k2 - 1);
-
-  int64_t e;
-  while (t1 <= k1 && t2 <= k2) {
-      if (r1[t1].id == r2[t2].id) {
-	  /* as above, the exponent e below cannot overflow */
-	  e = (int64_t) e2 * (int64_t) r1[t1].e + (int64_t) e1 * (int64_t) r2[t2].e;
-	  if (e != 0) { /* exponents do not cancel */
-	      check_exponent (e);
-	      t++;
-	      setCell(sum, t, r1[t1].id, e);
-	    }
-	  else
-	    decrease_weight (mat, r1[t1].id);
-	  t1 ++, t2 ++;
-	}
-      else if (r1[t1].id < r2[t2].id)
-	{
-	  e = (int64_t) e2 * (int64_t) r1[t1].e;
-	  check_exponent (e);
-	  t++;
-	  setCell(sum, t, r1[t1].id, e);
-	  t1 ++;
-	}
-      else
-	{
-	  e = (int64_t) e1 * (int64_t) r2[t2].e;
-	  check_exponent (e);
-	  t++;
-	  setCell(sum, t, r2[t2].id, e);
-	  increase_weight (mat, r2[t2].id);
-	  t2 ++;
-	}
-    }
-  while (t1 <= k1) {
-      e = (int64_t) e2 * (int64_t) r1[t1].e;
-      check_exponent (e);
-      t++;
-      setCell(sum, t, r1[t1].id, e);
-      t1 ++;
-    }
-  while (t2 <= k2) {
-      e = (int64_t) e1 * (int64_t) r2[t2].e;
-      ASSERT_ALWAYS(INT32_MIN_64 <= e && e <= INT32_MAX_64);
-      t++;
-      setCell(sum, t, r2[t2].id, e);
-      increase_weight (mat, r2[t2].id);
-      t2 ++;
-    }
-  ASSERT(t <= k1 + k2 - 1);
-
+#ifndef FOR_DL
+    /* special code for factorization */
+    index_t k1 = matLengthRow(mat, i1);
+    index_t k2 = matLengthRow(mat, i2);
+    index_t t1 = 1, t2 = 1;
+    index_t t = 0;
 
 #ifdef CANCEL
-	int cancel = (t1 - 1) + (t2 - 1) - (t - 1);
-	ASSERT_ALWAYS(cancel < CANCEL_MAX);
-	#pragma omp atomic update
-	cancel_cols[cancel] ++;
+#pragma omp atomic update
+    cancel_rows ++;
 #endif
 
-  heap_resize_last_row(sum, t);
-  heap_destroy_row(mat->rows[i1]);
-  mat->rows[i1] = sum;
+    /* fast-track : don't precompute the size */
+    typerow_t *sum = heap_alloc_row(i1, k1 + k2);
+
+    while (t1 <= k1 && t2 <= k2) {
+        if (mat->rows[i1][t1] == mat->rows[i2][t2]) {
+            decrease_weight(mat, mat->rows[i1][t1]);
+            t1 ++, t2 ++;
+        } else if (mat->rows[i1][t1] < mat->rows[i2][t2]) {
+            sum[++t] = mat->rows[i1][t1++];
+        } else {
+            increase_weight(mat, mat->rows[i2][t2]);
+            sum[++t] = mat->rows[i2][t2++];
+        }
+    }
+    while (t1 <= k1)
+        sum[++t] = mat->rows[i1][t1++];
+    while (t2 <= k2) {
+        increase_weight(mat, mat->rows[i2][t2]);
+        sum[++t] = mat->rows[i2][t2++];
+    }
+    ASSERT(t <= k1 + k2 - 1);
+
+#ifdef CANCEL
+    int cancel = (t1 - 1) + (t2 - 1) - (t - 1);
+    ASSERT_ALWAYS(cancel < CANCEL_MAX);
+#pragma omp atomic update
+    cancel_cols[cancel] ++;
+#endif
+
+    heap_resize_last_row(sum, t);
+    heap_destroy_row(mat->rows[i1]);
+    mat->rows[i1] = sum;
+#else
+#ifdef CANCEL
+#pragma omp atomic update
+    cancel_rows ++;
+#endif
+
+    /* first look for the exponents of j in i1 and i2 */
+    uint32_t k1 = matLengthRow (mat, i1);
+    uint32_t k2 = matLengthRow (mat, i2);
+    typerow_t *r1 = mat->rows[i1];
+    typerow_t *r2 = mat->rows[i2];
+    int32_t e1 = 0, e2 = 0;
+
+    /* search by decreasing ideals as the ideal to be merged is likely large */
+    for (int l = k1; l >= 1; l--)
+        if (r1[l].id == j) {
+            e1 = r1[l].e;
+            break;
+        }
+    for (int l = k2; l >= 1; l--)
+        if (r2[l].id == j) {
+            e2 = r2[l].e;
+            break;
+        }
+
+    /* we always check e1 and e2 are not zero, in order to prevent from zero
+       exponents that would come from exponent overflows in previous merges */
+    ASSERT_ALWAYS (e1 != 0 && e2 != 0);
+
+    int d = (int) gcd_int64 ((int64_t) e1, (int64_t) e2);
+    e1 /= -d;
+    e2 /= d;
+    /* we will multiply row i1 by e2, and row i2 by e1 */
+
+    index_t t1 = 1, t2 = 1, t = 0;
+
+    /* now perform the real merge */
+    typerow_t *sum;
+    sum = heap_alloc_row(i1, k1 + k2 - 1);
+
+    int64_t e;
+    while (t1 <= k1 && t2 <= k2) {
+        if (r1[t1].id == r2[t2].id) {
+            /* as above, the exponent e below cannot overflow */
+            e = (int64_t) e2 * (int64_t) r1[t1].e + (int64_t) e1 * (int64_t) r2[t2].e;
+            if (e != 0) { /* exponents do not cancel */
+                check_exponent (e);
+                t++;
+                setCell(sum, t, r1[t1].id, e);
+            }
+            else
+                decrease_weight (mat, r1[t1].id);
+            t1 ++, t2 ++;
+        }
+        else if (r1[t1].id < r2[t2].id)
+        {
+            e = (int64_t) e2 * (int64_t) r1[t1].e;
+            check_exponent (e);
+            t++;
+            setCell(sum, t, r1[t1].id, e);
+            t1 ++;
+        }
+        else
+        {
+            e = (int64_t) e1 * (int64_t) r2[t2].e;
+            check_exponent (e);
+            t++;
+            setCell(sum, t, r2[t2].id, e);
+            increase_weight (mat, r2[t2].id);
+            t2 ++;
+        }
+    }
+    while (t1 <= k1) {
+        e = (int64_t) e2 * (int64_t) r1[t1].e;
+        check_exponent (e);
+        t++;
+        setCell(sum, t, r1[t1].id, e);
+        t1 ++;
+    }
+    while (t2 <= k2) {
+        e = (int64_t) e1 * (int64_t) r2[t2].e;
+        ASSERT_ALWAYS(INT32_MIN_64 <= e && e <= INT32_MAX_64);
+        t++;
+        setCell(sum, t, r2[t2].id, e);
+        increase_weight (mat, r2[t2].id);
+        t2 ++;
+    }
+    ASSERT(t <= k1 + k2 - 1);
+
+
+#ifdef CANCEL
+    int cancel = (t1 - 1) + (t2 - 1) - (t - 1);
+    ASSERT_ALWAYS(cancel < CANCEL_MAX);
+#pragma omp atomic update
+    cancel_cols[cancel] ++;
+#endif
+
+    heap_resize_last_row(sum, t);
+    heap_destroy_row(mat->rows[i1]);
+    mat->rows[i1] = sum;
+#endif
 }
-#endif
 
 
 static void
@@ -955,11 +952,7 @@ merge_cost (filter_matrix_t *mat, index_t id)
    Return the number of characters written, except the final \0
    (or that would have been written if that number >= size) */
 static int
-#ifndef FOR_DL
-sreportn (char *str, size_t size, index_signed_t *ind, int n)
-#else
-sreportn (char *str, size_t size, index_signed_t *ind, int n, index_t j)
-#endif
+sreportn (char *str, size_t size, index_signed_t *ind, int n, index_t j MAYBE_UNUSED)
 {
   size_t m = 0; /* number of characters written */
 
@@ -1026,7 +1019,7 @@ merge_do (filter_matrix_t *mat, index_t id, buffer_struct_t *buf)
       int n MAYBE_UNUSED;
       index_signed_t i = mat->Ri[t]; /* only row containing j */
 #ifndef FOR_DL
-      n = sreportn (s, MERGE_CHAR_MAX, &i, 1);
+      n = sreportn (s, MERGE_CHAR_MAX, &i, 1, 0 /* unused */);
 #else
       n = sreportn (s, MERGE_CHAR_MAX, &i, 1, mat->p[j]);
 #endif
@@ -1055,7 +1048,8 @@ merge_do (filter_matrix_t *mat, index_t id, buffer_struct_t *buf)
     {
 #ifndef FOR_DL
       n += sreportn (s + n, MERGE_CHAR_MAX - n,
-		     (index_signed_t*) (history[i]+1), history[i][0]);
+		     (index_signed_t*) (history[i]+1), history[i][0],
+                     0 /* unused */);
 #else
       n += sreportn (s + n, MERGE_CHAR_MAX - n,
 		     (index_signed_t*) (history[i]+1), history[i][0],
