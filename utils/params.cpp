@@ -654,6 +654,7 @@ template int param_list_parse<std::vector<std::string>>(param_list_ptr pl, std::
 
 template int param_list_parse<std::string>(param_list_ptr pl, std::string const & key, std::string & r);
 template int param_list_parse<cxx_mpz>(param_list_ptr pl, std::string const & key, cxx_mpz & r);
+template int param_list_parse<std::vector<cxx_mpz>>(param_list_ptr pl, std::string const & key, std::vector<cxx_mpz> & r);
 template int param_list_parse<cxx_mpz_poly>(param_list_ptr pl, std::string const & key, cxx_mpz_poly & r);
 
 int param_list_parse_long(param_list_ptr pl, const char * key, long * r)

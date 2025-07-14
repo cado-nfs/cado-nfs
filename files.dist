@@ -661,6 +661,8 @@ misc/check_rels.c
 misc/debug_renumber.cpp
 misc/descent_init_Fp.cpp
 misc/explain_indexed_relation.cpp
+misc/factor.cpp
+misc/factor.hpp
 misc/indexed_relations_to_density.cpp
 misc/smooth_detect.cpp
 misc/smooth_detect.hpp
