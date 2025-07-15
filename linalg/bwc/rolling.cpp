@@ -54,25 +54,25 @@ void keep_rolling_checkpoints(std::string const & stem, unsigned int v)
             continue;
         if (k == 0)
             continue;
-        std::string v = fmt::format("{}.{}", stem, v);
+        std::string oldcp = fmt::format("{}.{}", stem, k);
         struct stat sbuf[1];
-        int rc = stat(v.c_str(), sbuf);
+        int rc = stat(oldcp.c_str(), sbuf);
         if (rc < 0) {
             if (errno == ENOENT) {
-                fmt::print("Old checkpoint {} is gone already\n", v);
+                fmt::print("Old checkpoint {} is gone already\n", oldcp);
             } else {
-                fmt::print("Old checkpoint {}: {}\n", v, strerror(errno));
+                fmt::print("Old checkpoint {}: {}\n", oldcp, strerror(errno));
             }
         } else {
             ASSERT_ALWAYS(rc == 0);
             time_t const now = time(nullptr);
             int age = now - sbuf->st_mtime;
             if (age < bw->keep_checkpoints_younger_than) {
-                fmt::print("Not discarding old checkpoint {}, too recent ({} s < {})\n", v, age, bw->keep_checkpoints_younger_than);
+                fmt::print("Not discarding old checkpoint {}, too recent ({} s < {})\n", oldcp, age, bw->keep_checkpoints_younger_than);
             } else {
-                fmt::print("Discarding old checkpoint {}\n", v);
-                rc = unlink(v.c_str());
-                if (rc < 0) perror(v.c_str());
+                fmt::print("Discarding old checkpoint {}\n", oldcp);
+                rc = unlink(oldcp.c_str());
+                if (rc < 0) perror(oldcp.c_str());
             }
         }
     }
