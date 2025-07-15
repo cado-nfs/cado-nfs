@@ -17,6 +17,7 @@
 #include "las-side-config.hpp"
 #include "las-siever-config.hpp"
 #include "las-sieve-shared-data.hpp"
+#include "las-special-q-task-collection.hpp"
 #include "las-todo-list.hpp"
 #include "macros.h"
 #include "params.h"
@@ -47,8 +48,6 @@ void las_info::declare_usage(cxx_param_list & pl)
     batch_side_config::declare_usage(pl);
 
 
-    param_list_decl_usage(pl, "seed", "Use this seed for random state seeding (currently used only by --random-sample)");
-
     param_list_decl_usage(pl, "galois", "depending on the specified galois automorphism, sieve only part of the q's");
 
     /* Note: also declared by las_todo_list ! */
@@ -62,7 +61,6 @@ void las_info::declare_usage(cxx_param_list & pl)
     param_list_decl_usage(pl, "dup", "suppress duplicate relations");
     param_list_decl_usage(pl, "dup-qmin", "lower limit of global q-range for 2-sided duplicate removal");
     param_list_decl_usage(pl, "dup-qmax", "upper limit of global q-range for 2-sided duplicate removal");
-    param_list_decl_usage(pl, "adjust-strategy", "strategy used to adapt the sieving range to the q-lattice basis (0 = logI constant, J so that boundary is capped; 1 = logI constant, (a,b) plane norm capped; 2 = logI dynamic, skewed basis; 3 = combine 2 and then 0) ; default=0");
 
 
     param_list_decl_usage(pl, "batch", "use batch cofactorization");
@@ -119,6 +117,7 @@ las_info::las_info(cxx_param_list & pl)
     , shared_structure_private(cpoly, pl)
 #endif
     , dlog_base(cpoly, pl)
+    , tree(special_q_task_collection_base::create(cpoly, pl))
     , cofac_stats(pl)
       /*{{{*/
 {
@@ -127,9 +126,6 @@ las_info::las_info(cxx_param_list & pl)
     /* We strive to initialize things in the exact order they're written
      * in the struct */
     // ----- general operational flags {{{
-    unsigned long seed = 0;
-    if (param_list_parse_ulong(pl, "seed", &seed))
-        gmp_randseed_ui(rstate, seed);
 
     galois = param_list_lookup_string(pl, "galois");
     suppress_duplicates = param_list_parse_switch(pl, "-dup");
@@ -138,7 +134,6 @@ las_info::las_info(cxx_param_list & pl)
         bk_multiplier = bkmult_specifier(tmp);
     }
 
-    param_list_parse_int(pl, "adjust-strategy", &adjust_strategy);
 
     // }}}
 

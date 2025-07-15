@@ -13,7 +13,8 @@ target_link_libraries (makefb utils)
 
 add_library (trialdiv OBJECT trialdiv.cpp)
 
-add_library(las_core_0 OBJECT las-side-config.cpp)
+add_library(las_core_0 OBJECT
+        las-side-config.cpp)
 
 add_executable(freerel freerel.cpp $<TARGET_OBJECTS:las_core_0>)
 target_link_libraries(freerel utils)
@@ -21,7 +22,7 @@ target_link_libraries(freerel utils)
 # las_core_a has just very very basic types and code that can be used
 # (and are actually used) by some unit tests.
 add_library(las_core_a OBJECT
-        las-todo-entry.cpp
+        las-special-q.cpp
         las-qlattice.cpp
         )
 
@@ -41,6 +42,8 @@ add_library(las_core_b0 OBJECT
 
 add_library(las_core_b OBJECT
         las-info.cpp
+        las-special-q-task-collection.cpp
+        las-special-q-task-tree.cpp
         las-memory.cpp
         las-parallel.cpp
         las-sieve-shared-data.cpp
@@ -59,14 +62,12 @@ add_library(las_core_b OBJECT
         las-dumpfile.cpp
         las-duplicate.cpp
         las-plattice.cpp
-        las-descent.cpp
         las-divide-primes.cpp
         las-sieve2357.cpp
 )
 
 add_library(las_core_c OBJECT
         las-arith.cpp
-        las-descent-trees.cpp
         las-plattice.cpp
 )
 
@@ -153,7 +154,7 @@ target_link_libraries(dupsup facul utils)
 add_executable(fake_rels EXCLUDE_FROM_ALL fake_rels.cpp
     # I don't like this situation where there's a single object file that
     # I want to pull from a greater compound.
-    las-todo-entry.cpp)
+    las-special-q.cpp)
 target_link_libraries(fake_rels utils_with_io)
 
 install(TARGETS makefb las las_descent freerel RUNTIME DESTINATION ${LIBSUFFIX}/sieve) 

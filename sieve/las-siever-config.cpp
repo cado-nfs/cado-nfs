@@ -20,10 +20,16 @@
 #include "las-multiobj-globals.hpp"
 #include "las-siever-config.hpp"
 #include "las-side-config.hpp"
-#include "las-todo-entry.hpp"
+#include "las-special-q.hpp"
+#include "las-special-q-task.hpp"
+#include "las-special-q-task-tree.hpp"
 #include "macros.h"
 #include "params.h"
 #include "verbose.h"
+#include "utils_cxx.hpp"
+
+constexpr int siever_config_pool::max_increase_lpb_default;     // c++11
+constexpr int siever_config_pool::max_increase_logA_default;    // c++11
 
 /* siever_config stuff */
 
@@ -40,6 +46,7 @@ void siever_config::declare_usage(cxx_param_list & pl)
     param_list_decl_usage(pl, "bkthresh1", "2-level bucket-sieve primes in [bkthresh1,lim] (default=lim, meaning inactive)");
     param_list_decl_usage(pl, "bkmult", "multiplier to use for taking margin in the bucket allocation\n");
     param_list_decl_usage(pl, "unsievethresh", "Unsieve all p > unsievethresh where p|gcd(a,b)");
+    param_list_decl_usage(pl, "adjust-strategy", "strategy used to adapt the sieving range to the q-lattice basis (0 = logI constant, J so that boundary is capped; 1 = logI constant, (a,b) plane norm capped; 2 = logI dynamic, skewed basis; 3 = combine 2 and then 0) ; default=0");
 }
 
 /* {{{ Parse default siever config (fill all possible fields). Return
@@ -143,6 +150,7 @@ bool siever_config::parse_default(siever_config & sc, cxx_param_list & pl, int n
                */
         }
     }
+    param_list_parse_int(pl, "adjust-strategy", &sc.adjust_strategy);
 
     return complete;
 }
@@ -168,10 +176,10 @@ fb_factorbase::key_type siever_config::instantiate_thresholds(int side) const
     if (bucket_thresh == 0)
         bucket_thresh = 1UL << logI;
     if (bucket_thresh < (1UL << logI)) {
-        verbose_output_print(0, 1, "# Warning: with logI = %d,"
-                " we can't have %lu as the bucket threshold. Using %lu\n",
+        verbose_fmt_print(0, 1, "# Warning: with logI = {},"
+                " we can't have {} as the bucket threshold. Using {}\n",
                 logI,
-                (unsigned long) bucket_thresh,
+                bucket_thresh,
                 1UL << logI);
         bucket_thresh = 1UL << logI;
     }
@@ -188,7 +196,8 @@ fb_factorbase::key_type siever_config::instantiate_thresholds(int side) const
             0
     };
 }
-siever_config siever_config_pool::get_config_for_q(las_todo_entry const & doing) const /*{{{*/
+
+siever_config siever_config_pool::get_config_for_q(special_q_task const & doing) const /*{{{*/
 {
     siever_config config = base;
     unsigned int const bitsize = mpz_sizeinbase(doing.p, 2);
@@ -202,40 +211,56 @@ siever_config siever_config_pool::get_config_for_q(las_todo_entry const & doing)
         verbose_output_print(0, 1, "# Using parameters from hint list for q~2^%d on side %d [%d@%d]\n", bitsize, side, bitsize, side);
     }
 
-    if (doing.iteration) {
-        verbose_output_print(0, 1, "#\n# NOTE:"
+    auto const * tt = dynamic_cast<special_q_task_tree const *>(&doing);
+
+    if (tt != nullptr && tt->try_again) {
+        verbose_fmt_print(0, 1, "#\n# NOTE:"
                 " we are re-playing this special-q because of"
-                " %d previous failed attempt(s)\n", doing.iteration);
+                " {} previous failed attempt(s)\n", tt->try_again);
 
         std::string parameters_info;
 
-        if (doing.iteration <= 2) {
-            /* The first two retries simply sieve more, but with the
-             * exact same bounds. This is being overly cautious, but we
-             * don't like the idea of letting the lpb grow too eagerly in
-             * these situations, as this has the potential to introduce
-             * loops in the descent.
-             */
-            config.logA += doing.iteration;
+        int c = tt->try_again;
+
+        if (base.adjust_strategy != 2) {
+            config.adjust_strategy = 2;
+            parameters_info += fmt::format(" adjust_strategy={}", config.adjust_strategy);
+            c--;
+        }
+
+        const int dA = std::min(c, max_increase_logA);
+        if (dA) {
+            config.logA += dA;
             parameters_info += fmt::format(" A={}", config.logA);
-        } else {
+            c -= dA;
+        }
+
+        const int dlpb = std::min(c, max_increase_lpb);
+        if (dlpb) {
             for(size_t side = 0 ; side < config.sides.size() ; side++) {
                 auto & s = config.sides[side];
-                const double lambda = double(s.mfb) / double(s.lpb);
-                s.lpb += doing.iteration-2;
-                s.mfb = lround(lambda * double(s.lpb));
+                const double lambda = double_ratio(s.mfb, s.lpb);
+                s.lpb += dlpb;
+                s.mfb = lround(lambda * s.lpb);
                 parameters_info += fmt::format(" lpb{}={} mfb{}={}",
                         side, s.lpb, side, s.mfb);
             }
+            c -= dlpb;
+
+            /* Now if at this point c is still >0, we want to abort. How
+             * do we do this and let the task collection know that we
+             * want to abort?
+             */
         }
 
-        verbose_output_print(0, 1,
-                "# NOTE: modified parameters are: %s\n#\n", 
-                parameters_info.c_str());
+        verbose_fmt_print(0, 1,
+                "# NOTE: modified parameters are: {}\n#\n", 
+                parameters_info);
     }
 
     return config;
-}/*}}}*/
+}
+/* }}} */
 
 void 
 siever_config_pool::declare_usage(cxx_param_list & pl)/*{{{*/
@@ -243,6 +268,9 @@ siever_config_pool::declare_usage(cxx_param_list & pl)/*{{{*/
     param_list_decl_usage(pl, "hint-table", "filename with per-special q sieving data");
     if (dlp_descent)
         param_list_decl_usage(pl, "descent-hint-table", "Alias to hint-table");
+    param_list_decl_usage(pl, "fuzzy-descent", "Allow descent steps to start over with fuzzier and fuzzier parameters, with no limit");
+    param_list_decl_usage(pl, "descent-max-increase-A", "When retrying steps in the descent, limit the increase of A to this value"); //  (default %d)", max_increase_logA_default);
+    param_list_decl_usage(pl, "descent-max-increase-lpb", "When retrying steps in the descent, limit the increase of lpb to this value"); //  (default %d)", max_increase_lpb_default);
 }
 /*}}}*/
 
@@ -384,6 +412,15 @@ siever_config_pool::siever_config_pool(cxx_param_list & pl, int nb_polys)/*{{{*/
             return;
         }
     }
+    param_list_parse(pl, "descent-max-increase-A", max_increase_logA);
+    param_list_parse(pl, "descent-max-increase-lpb", max_increase_lpb);
+
+    if (param_list_lookup_string(pl, "fuzzy-descent")) {
+        /* well, we do set limits, still */
+        max_increase_logA = 16;
+        max_increase_lpb = 64;
+    }
+
 
     parse_hints_file(filename);
 

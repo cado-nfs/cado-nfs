@@ -1,41 +1,42 @@
 #include "cado.h" // IWYU pragma: keep
 
 #include <cstdint>
-#include <cinttypes>               // for PRId64
-#include <cstdio>              // IWYU pragma: keep
-#include <cstdarg>             // IWYU pragma: keep
+#include <cstdio>
+#include <cstdarg>
 
 #include <memory>
 
-#include <gmp.h>                   // for mpz_srcptr, gmp_vfprintf
+#include <gmp.h>
 
-#include "cado_poly.h"   // cxx_cado_poly
+#include "cado_poly.h"
 #include "fb-types.hpp"
-#include "las-auxiliary-data.hpp"  // for nfs_aux, report_and_timer
+#include "las-auxiliary-data.hpp"
 #include "las-choose-sieve-area.hpp"
-#include "las-info.hpp"            // for las_info, HILIGHT_END, HILIGHT_START
+#include "las-info.hpp"
 #include "las-multiobj-globals.hpp"
-#include "las-norms.hpp"           // for sieve_range_adjust
-#include "las-qlattice.hpp"        // for qlattice_basis, qlattice_basis::to...
-#include "las-siever-config.hpp"   // for siever_config, siever_config_pool
-#include "las-todo-entry.hpp"      // for las_todo_entry
-#include "macros.h"                // for MAYBE_UNUSED
+#include "las-norms.hpp"
+#include "las-qlattice.hpp"
+#include "las-siever-config.hpp"
+#include "macros.h"
 #include "mpz_poly.h"
-#include "tdict.hpp"               // for timetree_t
-#include "verbose.h"    // verbose_output_vfprint
+#include "tdict.hpp"
+#include "verbose.h"
 
 int never_discard = 0;      /* only enabled for las_descent */
 
 static bool choose_sieve_area(las_info const & las,
         timetree_t * ptimer MAYBE_UNUSED,
-        las_todo_entry const & doing,
+        special_q_task const & doing,
         siever_config & conf,
         qlattice_basis & Q,
         uint32_t & J)
 {
+    /* Q is output-only, it's overwritten by the result of the
+     * sieve_range_adjust ctor */
+
     std::unique_ptr<sieve_range_adjust> Adj;
 
-    int const adjust_strategy = las.adjust_strategy;
+    int const adjust_strategy = conf.adjust_strategy;
     {
 
     /* Our business: find an appropriate siever_config, that is
@@ -53,14 +54,9 @@ static bool choose_sieve_area(las_info const & las,
     try {
         Adj.reset(new sieve_range_adjust(doing, las.cpoly, conf));
     } catch (qlattice_basis::too_skewed const & x) {
-        verbose_output_vfprint(0, 1, gmp_vfprintf,
-                "# "
-                HILIGHT_START
-                "Discarding side-%d q=%Zd; rho=%Zd (q-lattice basis does not fit)\n"
-                HILIGHT_END,
-                doing.side,
-                (mpz_srcptr) doing.p,
-                (mpz_srcptr) doing.r);
+        verbose_fmt_print(0, 1,
+                "# Discarding {} (q-lattice basis does not fit)\n",
+                doing.sq());
         return false;
     }
 
@@ -91,20 +87,8 @@ static bool choose_sieve_area(las_info const & las,
         if (never_discard) {
             Adj->set_minimum_J_anyway();
         } else {
-            verbose_output_vfprint(0, 1, gmp_vfprintf,
-                    "# "
-                    HILIGHT_START
-                    "Discarding side-%d q=%Zd; rho=%Zd;"
-                    HILIGHT_END
-                    " a0=%" PRId64
-                    "; b0=%" PRId64
-                    "; a1=%" PRId64
-                    "; b1=%" PRId64
-                    "; raw_J=%u;\n", 
-                    doing.side,
-                    (mpz_srcptr) doing.p,
-                    (mpz_srcptr) doing.r,
-                    Adj->Q.a0, Adj->Q.b0, Adj->Q.a1, Adj->Q.b1, Adj->J);
+            verbose_fmt_print(0, 1,
+                    "# Discarding {}; raw_J=%u;\n", Adj->Q, Adj->J);
             return false;
         }
     }
@@ -130,21 +114,8 @@ static bool choose_sieve_area(las_info const & las,
         if (never_discard) {
             Adj->set_minimum_J_anyway();
         } else {
-            verbose_output_vfprint(0, 1, gmp_vfprintf,
-                    "# "
-                    HILIGHT_START
-                    "Discarding side-%d q=%Zd; rho=%Zd;"
-                    HILIGHT_END,
-                    doing.side,
-                    (mpz_srcptr) doing.p,
-                    (mpz_srcptr) doing.r);
-            verbose_output_print(0, 1,
-                    " a0=%" PRId64
-                    "; b0=%" PRId64
-                    "; a1=%" PRId64
-                    "; b1=%" PRId64
-                    "; raw_J=%u;\n",
-                    Adj->Q.a0, Adj->Q.b0, Adj->Q.a1, Adj->Q.b1, Adj->J);
+            verbose_fmt_print(0, 1,
+                    "# Discarding {}; raw_J={};\n", Adj->Q, Adj->J);
             return false;
         }
     }
@@ -162,21 +133,10 @@ static bool choose_sieve_area(las_info const & las,
                 { Adj->Q.a0, Adj->Q.b0, Adj->Q.a1, Adj->Q.b1 });
 
         if (fij->deg < las.cpoly->pols[doing.side]->deg) {
-            verbose_output_vfprint(0, 1, gmp_vfprintf,
-                    "# "
-                    HILIGHT_START
-                    "Discarding side-%d q=%Zd; rho=%Zd;"
-                    HILIGHT_END,
-                    doing.side,
-                    (mpz_srcptr) doing.p,
-                    (mpz_srcptr) doing.r);
-            verbose_output_print(0, 1,
-                    " a0=%" PRId64
-                    "; b0=%" PRId64
-                    "; a1=%" PRId64
-                    "; b1=%" PRId64
-                    "; raw_J=%u; // explanation: tripped over rational root.\n",
-                    Adj->Q.a0, Adj->Q.b0, Adj->Q.a1, Adj->Q.b1, Adj->J);
+            verbose_fmt_print(0, 1,
+                    "# Discarding {}; raw_J={};"
+                    " // explanation: tripped over rational root."
+                    "\n", Adj->Q, Adj->J);
             return false;
         }
     }
@@ -194,8 +154,8 @@ static bool choose_sieve_area(las_info const & las,
 }
 
 bool choose_sieve_area(las_info const & las,
-        std::shared_ptr<nfs_aux> aux_p,
-        las_todo_entry const & doing,
+        std::shared_ptr<nfs_aux> const & aux_p,
+        special_q_task const & doing,
         siever_config & conf,
         qlattice_basis & Q,
         uint32_t & J)
@@ -205,7 +165,7 @@ bool choose_sieve_area(las_info const & las,
 }
 
 bool choose_sieve_area(las_info const & las,
-        las_todo_entry const & doing,
+        special_q_task const & doing,
         siever_config & conf,
         qlattice_basis & Q,
         uint32_t & J)
