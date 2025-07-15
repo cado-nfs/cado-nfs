@@ -154,11 +154,11 @@ struct polynomial {
     }
 
 
-    template<typename U, cado_math_aux::is_coercible_t<T, U> = {}>
+    template<typename U, typename = cado_math_aux::is_coercible_t<T, U>>
     U eval(U const & x) const {
         return eval_with_reference(U(x), x);
     }
-    template<typename U, cado_math_aux::is_strictly_coercible_t<U, T> = {}>
+    template<typename U, typename = cado_math_aux::is_strictly_coercible_t<U, T>>
     T eval(U const & x) const {
         /* We need to use the precision of the coefficients of the
          * polynomial, and not the default precision! */
@@ -168,10 +168,10 @@ struct polynomial {
             return eval_with_reference(coeffs.front(), x);
     }
 
-    template<typename U, cado_math_aux::is_coercible_t<T, U> = {}>
+    template<typename U, typename = cado_math_aux::is_coercible_t<T, U>>
     U operator()(U const & x) const { return eval(x); }
 
-    template<typename U, cado_math_aux::is_strictly_coercible_t<U, T> = {}>
+    template<typename U, typename = cado_math_aux::is_strictly_coercible_t<U, T>>
     T operator()(U const & x) const { return eval(x); }
     /* }}} */
 
@@ -214,7 +214,7 @@ struct polynomial {
         return s;
     }
 
-    template<typename U, cado_math_aux::is_coercible_t<T, U> = {}>
+    template<typename U, typename = cado_math_aux::is_coercible_t<T, U>>
     U eval(U const & x, U const & y) const
     {
         /* We have to assume that x and y have the same precision.
@@ -224,12 +224,12 @@ struct polynomial {
         return eval_with_reference(U(x), x, y);
     }
 
-    template<typename U, cado_math_aux::is_strictly_coercible_t<U, T> = {}>
+    template<typename U, typename = cado_math_aux::is_strictly_coercible_t<U, T>>
     T eval(U const & x, U const & y) const { return eval(T(x), T(y)); }
 
-    template<typename U, cado_math_aux::is_coercible_t<T, U> = {}>
+    template<typename U, typename = cado_math_aux::is_coercible_t<T, U>>
     U operator()(U const & x, U const & y) const { return eval(x, y); }
-    template<typename U, cado_math_aux::is_strictly_coercible_t<U, T> = {}>
+    template<typename U, typename = cado_math_aux::is_strictly_coercible_t<U, T>>
     T operator()(U const & x, U const & y) const { return eval(x, y); }
     /* }}} */
 
@@ -237,14 +237,13 @@ struct polynomial {
      * ultimately to the target type T
      */
     template<typename U, 
-        typename std::enable_if<
+        typename = std::enable_if_t<
             // cado_math_aux::is_real<eval_type<T, U>>::value &&
             // XXX it's a bug: currently this _only_ works if T==U and T
             // is a floating point type in the stdc++ library sense.
             // cado_math_aux::is_real<U>::value &&
             std::is_floating_point<U>::value &&
-            std::is_same<T, U>::value
-            , bool>::type = {}>
+            std::is_same<T, U>::value>>
     eval_type<T, U> eval_safe(U const & x) const
     {
         T const * f = coeffs.data();
@@ -368,8 +367,8 @@ struct polynomial {
 
     /* uses arbitrary precision */
     template<typename U,
-        cado_math_aux::is_real_t<U> = {},
-        cado_math_aux::is_coercible_t<T, U> = {}>
+        typename = cado_math_aux::is_real_t<U>,
+        typename = cado_math_aux::is_coercible_t<T, U>>
     U eval_safe(U const & x) const
     {
         T const * f = coeffs.data();
@@ -399,8 +398,8 @@ struct polynomial {
         return std::ldexp(r, ve);
     }
     template<typename U,
-        cado_math_aux::is_real_t<eval_type_t<T, U>> = {},
-        cado_math_aux::is_strictly_coercible_t<U, T> = {}>
+        typename = cado_math_aux::is_real_t<eval_type_t<T, U>>,
+        typename = cado_math_aux::is_strictly_coercible_t<U, T>>
     T eval_safe(U const & x) const { return eval_safe(T(x)); }
 
 
@@ -495,15 +494,15 @@ struct polynomial {
     }
 
     template<typename U = T,
-        cado_math_aux::is_real_t<eval_type_t<T, U>> = {},
-        cado_math_aux::is_coercible_t<T, U> = {}>
+        typename = cado_math_aux::is_real_t<eval_type_t<T, U>>,
+        typename = cado_math_aux::is_coercible_t<T, U>>
     std::vector<U> positive_roots() const
     {
         return positive_roots(U(bound_positive_roots()));
     }
     template<typename U = T,
-        cado_math_aux::is_real_t<eval_type_t<T, U>> = {},
-        cado_math_aux::is_coercible_t<T, U> = {}>
+        typename = cado_math_aux::is_real_t<eval_type_t<T, U>>,
+        typename = cado_math_aux::is_coercible_t<T, U>>
     std::vector<T> negative_roots() const {
         return positive_roots(U(bound_positive_roots(true)));
     }
@@ -585,8 +584,8 @@ struct polynomial {
      * v the positive roots of *this.  v is clobbered.
      */
     template<typename U,
-        cado_math_aux::is_real_t<eval_type_t<T, U>> = {},
-        cado_math_aux::is_coercible_t<T, U> = {}>
+        typename = cado_math_aux::is_real_t<eval_type_t<T, U>>,
+        typename = cado_math_aux::is_coercible_t<T, U>>
     void positive_roots_from_derivative_sign_changes(std::vector<U> & v, U bound)
     {
         static_assert(std::is_same<eval_type_t<T, U>, U>::value);
@@ -848,7 +847,7 @@ struct polynomial {
 
     /* divide by x-r, return the quotient if the polynomial is of
      * integral type.  */
-    template<typename U, cado_math_aux::is_coercible_t<T, U> = {}>
+    template<typename U, typename = cado_math_aux::is_coercible_t<T, U>>
     polynomial<U> div_linear(U const & r) const
     {
         T const * f = coeffs.data();
