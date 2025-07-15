@@ -16,7 +16,7 @@ struct las_info;
 struct where_am_I;;
 // struct siever_config;;
 // struct las_dlog_base;
-struct descent_tree;
+struct special_q_task_collection;
 class nfs_work;
 class nfs_work_cofac;
 class nfs_aux;

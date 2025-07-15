@@ -1,8 +1,9 @@
-#ifndef ASYNC_HPP_ // IWYU pragma: keep
+#ifndef CADO_ASYNC_HPP
 #define CADO_ASYNC_HPP
 
-#include <cstddef>              // for size_t
-#include "macros.h"              // for ATTR_PRINTF
+#include <cstddef>
+
+#include "macros.h"
 #include "parallelizing_info.hpp"
 
 /* How long do we typically accept to wait for asynchronous output (=
@@ -51,4 +52,4 @@ void timing_update_ticks(struct timing_data * t, int iter);
 void timing_disp_collective_oneline(parallelizing_info pi, struct timing_data * timing, int iter, int print, const char * stage);
 void timing_final_tally(parallelizing_info pi, struct timing_data * timing, int print, const char * stage);
 
-#endif	/* ASYNC_HPP_ */
+#endif	/* CADO_ASYNC_HPP */

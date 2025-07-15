@@ -17,7 +17,7 @@ struct arithxx_details::redc
     using api<layer>::downcast;
     using api_bysize<layer>::api_bysize;
 
-    static_assert(!layer::even_moduli_allowed::value);
+    static_assert(!layer::even_moduli_allowed::value, "redc wants odd moduli");
 
     /* Do a one-word REDC, i.e., r == s / w (mod m), w = 2^64.
        If m > w, r < 2m. If s < m, then r < m */

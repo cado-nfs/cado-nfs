@@ -1,32 +1,32 @@
 #include "cado.h" // IWYU pragma: keep
 
 #ifndef SUPPORT_LARGE_Q
-#include <cinttypes> // for PRId64, PRIu64 // IWYU pragma: keep
+#include <cinttypes>
 #endif
 #include <cstddef>
 
-#include <array>                       // for array, array<>::value_type
-#include <mutex>                       // for lock_guard, mutex
-#include <vector>                      // for vector
+#include <array>
+#include <mutex>
+#include <vector>
 
-#include <gmp.h>                       // for mpz_srcptr, gmp_fprintf, mpz_c...
+#include <gmp.h>
 
-#include "ecm/batch.hpp"                   // for cofac_list
+#include "ecm/batch.hpp"
 #ifndef SUPPORT_LARGE_Q
 #include "gcd.h"
 #endif
 #ifdef SUPPORT_LARGE_Q
 #include "cxx_mpz.hpp"
 #endif
-#include "las-cofac-standalone.hpp"    // for cofac_standalone
-#include "las-cofactor.hpp"            // for factor_leftover_norms
-#include "las-coordinates.hpp"         // for convert_Nx_to_ab
-#include "las-siever-config.hpp"       // for siever_config::side_config
-#include "las-threads-work-data.hpp"   // for nfs_work_cofac
-#include "las-todo-entry.hpp"          // for las_todo_entry
-#include "las-where-am-i-proxy.hpp"    // for extern_trace_on_spot_ab
-#include "lock_guarded_container.hpp"  // for lock_guarded_container
-#include "relation.hpp"                // for relation
+#include "las-cofac-standalone.hpp"
+#include "las-cofactor.hpp"
+#include "las-coordinates.hpp"
+#include "las-siever-config.hpp"
+#include "las-threads-work-data.hpp"
+#include "las-special-q.hpp"
+#include "las-where-am-i-proxy.hpp"
+#include "lock_guarded_container.hpp"
+#include "relation.hpp"
 
 struct qlattice_basis; // IWYU pragma: keep
 
@@ -55,7 +55,7 @@ cofac_standalone::cofac_standalone(int nsides, int N, size_t x, int logI, qlatti
 bool cofac_standalone::trace_on_spot() const {/*{{{*/
     return extern_trace_on_spot_ab(a, b);
 }/*}}}*/
-bool cofac_standalone::gcd_coprime_with_q(las_todo_entry const & E) const {/*{{{*/
+bool cofac_standalone::gcd_coprime_with_q(special_q const & E) const {/*{{{*/
     /* Since the q-lattice is exactly those (a, b) with
        a == rho*b (mod q), q|b  ==>  q|a  ==>  q | gcd(a,b) */
     /* In case of composite sq, have to check all factors... */
@@ -109,7 +109,7 @@ void cofac_standalone::print_as_survivor(FILE * f) {/*{{{*/
         gmp_fprintf(f, " %Zd", (mpz_srcptr) n);
     fprintf(f, "\n");
 }/*}}}*/
-relation cofac_standalone::get_relation(las_todo_entry const & doing) const {/*{{{*/
+relation cofac_standalone::get_relation(special_q const & doing) const {/*{{{*/
 #ifndef SUPPORT_LARGE_Q
     relation rel(a, b);
 #else
@@ -134,12 +134,9 @@ relation cofac_standalone::get_relation(las_todo_entry const & doing) const {/*{
     rel.compress();
     return rel;
 }/*}}}*/
-void cofac_standalone::transfer_to_cofac_list(lock_guarded_container<cofac_list> & L, las_todo_entry const & doing) {/*{{{*/
+void cofac_standalone::transfer_to_cofac_list(lock_guarded_container<std::list<cofac_candidate>> & L) {/*{{{*/
     std::lock_guard<std::mutex> const foo(L.mutex());
-    /* "doing" must be an object that lives in the main todo list,
-     * and will stay alive until the end of the program. Yes, it's a
-     * bit dangerous. */
-    L.emplace_back(a, b, norm, &doing);
+    L.emplace_back(a, b, norm);
 #if 0
     /* make sure threads don't write the cofactor list at the
      * same time !!! */

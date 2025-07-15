@@ -1,23 +1,26 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <iomanip>             // for operator<<, setprecision, fixed
-#include <map>                 // for map
-#include <ostream>             // for ostringstream, basic_ostream, basic_os...
-#include <string>              // for allocator, basic_string, string
-#include <cstdio>              // IWYU pragma: keep
-#include <cstdarg>             // IWYU pragma: keep
+#include <cstdio>
+#include <cstdarg>
 
-#include <gmp.h>               // for gmp_vfprintf, mpz_srcptr, mpz_import
+#include <iomanip>
+#include <map>
+#include <ostream>
+#include <string>
+#include <mutex>
+#include <utility>
+
+#include <gmp.h>
 
 #include "cxx_mpz.hpp"
 #include "las-auxiliary-data.hpp"
 
-#include "macros.h"            // for ASSERT_ALWAYS_NOTHROW
+#include "macros.h"
 
-#include "las-info.hpp"        // for las_info
-#include "las-todo-entry.hpp"  // for las_todo_entry
-#include "tdict.hpp"           // for timetree_t, slot, global_enable, slot_...
-#include "arith/ularith.h"           // for ularith_addmod_ul_ul
+#include "las-info.hpp"
+#include "las-special-q.hpp"
+#include "tdict.hpp"
+#include "arith/ularith.h"
 #include "verbose.h"
 
 void
@@ -94,11 +97,8 @@ nfs_aux::~nfs_aux()
     }
     verbose_output_print(0, 2, "\n");
 
-    verbose_output_vfprint(0, 1, gmp_vfprintf,
-            "# %lu %s\n",
-            rt.rep.reports,
-            las.batch ? "survivor(s) saved" : "relation(s)"
-            );
+    verbose_fmt_print(0, 1, "# {} {}\n",
+            rt.rep.reports, las.batch ? "survivor(s) saved" : "relation(s)");
 
     if (las.suppress_duplicates)
         verbose_output_print(0, 1, "# number of eliminated duplicates: %lu\n", rt.rep.duplicates);

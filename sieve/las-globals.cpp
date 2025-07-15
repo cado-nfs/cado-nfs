@@ -3,7 +3,7 @@
 #include <cstddef>
 
 #include <memory>
-#include <mutex>
+#include <atomic>
 
 #include "las-globals.hpp"
 
@@ -15,8 +15,8 @@ size_t base_memory = 0;
 int recursive_descent = 0;
 int prepend_relation_time = 0;
 int exit_after_rel_found = 0;
-std::mutex protect_global_exit_semaphore;
-int global_exit_semaphore = 0;
+
+std::atomic<bool> global_exit_semaphore;
 
 int allow_largesq = 0;
 int sync_at_special_q = 0;

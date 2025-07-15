@@ -34,7 +34,7 @@
 #include "facul_strategies.hpp"
 #include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
 #include "gmp_aux.h"       // mpz_set_uint64
-#include "las-todo-entry.hpp"  // for las_todo_entry
+#include "las-special-q.hpp"  // for special_q
 #include "macros.h"
 #include "modset.hpp"          // for FaculModulusBase
 #include "mpz_poly.h"
@@ -96,6 +96,19 @@ static void add_openmp_subtimings(double & extra_time MAYBE_UNUSED)
   }
 #endif
 }
+
+/* structure to compute on-line a product tree, avoiding to first compute a
+   list of mpz_t (which might take too much memory) */
+typedef struct {
+  mpz_t *l;     /* the value stored is l[0] * l[1] * ... * l[size-1],
+                   where l[0] is the product of n[0] elements, l[1] is
+                   the product of n[1] elements, ..., with n[0]=0 or 1,
+                   n[1]=0 or 2, ..., n[k]=0 or 2^k */
+  unsigned long *n;
+  size_t size;
+} mpz_product_tree_t;
+typedef mpz_product_tree_t mpz_product_tree[1];
+
 
 static void
 mpz_product_tree_init (mpz_product_tree t)
@@ -570,7 +583,7 @@ smoothness_test (std::vector<cxx_mpz> & R, mpz_srcptr P, FILE *out, double& extr
 
 /* return the number n of smooth relations in l (same as l.size()) */
 size_t
-find_smooth (cofac_list & l,
+find_smooth (std::list<cofac_candidate> & l,
         std::vector<cxx_mpz> const & batchP,
         std::vector<unsigned int> const & batchlpb,
         std::vector<unsigned int> const & lpb,
@@ -701,6 +714,30 @@ find_smooth (cofac_list & l,
 
     return l.size();
 }
+
+size_t
+find_smooth (std::list<std::pair<special_q, std::list<cofac_candidate>>> & L,
+        std::vector<cxx_mpz> const & batchP,
+        std::vector<unsigned int> const & batchlpb,
+        std::vector<unsigned int> const & lpb,
+        std::vector<unsigned int> const & batchmfb,
+        FILE *out,
+        int nthreads MAYBE_UNUSED, double & extra_time)
+{
+    size_t n = 0;
+    std::list<std::pair<special_q, std::list<cofac_candidate>>> R;
+    for( ; !L.empty() ; ) {
+        auto M = std::move(L.front());
+        L.pop_front();
+        const size_t m = find_smooth(M.second, batchP, batchlpb, lpb, batchmfb, out, nthreads, extra_time);
+        n += m;
+        if (m)
+            R.emplace_back(std::move(M));
+    }
+    std::swap(L, R);
+    return n;
+}
+
 
 static void
 trial_divide (std::vector<cxx_mpz>& factors, cxx_mpz & n, std::vector<unsigned long> const& SP)
@@ -882,6 +919,7 @@ factor_one (
         std::list<relation> & smooth,
         cofac_candidate const & C,
         cxx_cado_poly const & cpoly,
+        special_q const & doing,
         std::vector<unsigned long> const & lim,
         std::vector<unsigned int> const & batchlpb,
         std::vector<unsigned int> const & lpb,
@@ -906,8 +944,8 @@ factor_one (
             mpz_poly_homogeneous_eval_siui (norm, cpoly->pols[side], a, b);
             mpz_abs(norm, norm);
         } else {
-            if (C.doing_p->side == side) {
-                mpz_mul(norm, cofac, C.doing_p->p);
+            if (doing.side == side) {
+                mpz_mul(norm, cofac, doing.p);
             } else {
                 mpz_set(norm, cofac);
             }
@@ -916,7 +954,7 @@ factor_one (
         bool const smooth = factor_simple_minded (factors[side], norm, methods,
                 lpb[side], (double) lim[side], SP[side],
                 cofac,
-                (C.doing_p->side == side) ? C.doing_p->prime_factors : empty);
+                (doing.side == side) ? doing.prime_factors : empty);
         if (!smooth) {
             /* when we've knowingly decided to _do_ some cofactoring
              * after the product-tree on that side, then it's normal to
@@ -959,8 +997,9 @@ factor_one (
  * main thread.
  */
 std::list<relation>
-factor (cofac_list const & L,
+factor (std::list<cofac_candidate> const & L,
         cxx_cado_poly const & cpoly,
+        special_q const & doing,
         std::vector<unsigned int> const & batchlpb,
         std::vector<unsigned int> const & lpb,
         int ncurves,
@@ -1001,7 +1040,7 @@ factor (cofac_list const & L,
       methods.emplace_back(mp);
 
   std::list<relation> smooth;
-  cofac_list::const_iterator it;
+  std::list<cofac_candidate>::const_iterator it;
   
 #ifdef HAVE_OPENMP
   omp_set_num_threads (nthreads);
@@ -1020,7 +1059,8 @@ factor (cofac_list const & L,
 #ifdef HAVE_OPENMP
 #pragma omp single nowait
 #endif
-          factor_one (smooth_local, *it, cpoly, B, batchlpb, lpb, out, methods,
+          factor_one (smooth_local, *it, cpoly, doing,
+                  B, batchlpb, lpb, out, methods,
                   SP, recomp_norm);
       }
 #ifdef HAVE_OPENMP

@@ -19,7 +19,7 @@
 #include "timing.h"                 // for seconds, wct_seconds
 
 struct las_output; // IWYU pragma: keep
-struct las_todo_entry; // IWYU pragma: keep
+struct special_q; // IWYU pragma: keep
 
 
 /* Compute a checksum over the bucket region.
@@ -82,8 +82,15 @@ class nfs_aux {/*{{{*/
      */
     las_info const & las;
     public:
-    las_todo_entry const & doing;
 
+    /* This lives somewhere in special_q_task_collection. We don't have
+     * ownership, as the special_q_task_collection is persistent anyway.
+     * Note that &doing might be dynamic_cast-able to
+     * special_q_task_simple or special_q_task_tree, and we do make use
+     * of this.
+     */
+    special_q_task & doing;
+    
     /* we rarely have ownership, if ever, of course. In the typical case,
      * there just one output file and that's it.
      * However in client-server file we may want several output files. In
@@ -96,7 +103,7 @@ class nfs_aux {/*{{{*/
     typedef std::pair< int64_t, uint64_t> abpair_t;
 
     struct abpair_hash_t {
-        inline unsigned long operator()(abpair_t const& o) const {
+        unsigned long operator()(abpair_t const& o) const {
             return 314159265358979323UL * o.first + 271828182845904523UL + o.second;
         }
     };
@@ -156,19 +163,18 @@ class nfs_aux {/*{{{*/
     double wct_qt0;
 
     nfs_aux(las_info const & las,
-            las_todo_entry const & doing,
+            special_q_task & doing,
             std::shared_ptr<rel_hash_t> & rel_hash_p,
             int nthreads)
         : las(las)   /* shame... */
         , doing(doing)
         , rel_hash_p(rel_hash_p)
-        , dest_rt(nullptr)
         , checksum_post_sieve(las.cpoly->nb_polys)
         , th(nthreads)
           //, thread_data(*this))
+        , qt0(seconds())
+        , wct_qt0(wct_seconds())
     {
-        wct_qt0 = wct_seconds();
-        qt0 = seconds();
     }
 
 

@@ -18,7 +18,7 @@
 #include "macros.h"               // for MAYBE_UNUSED
 #include "mpz_poly.h"
 
-struct las_todo_entry; // IWYU pragma: keep
+struct special_q; // IWYU pragma: keep
 
 /* Only relevant with --adjust-strategy 2 */
 #define ADJUST_STRATEGY2_MIN_SQUEEZE 0
@@ -137,7 +137,7 @@ public:
     uint32_t J = 0;
 
 #if 0
-    sieve_range_adjust(las_todo_entry const & doing, las_info const & las)
+    sieve_range_adjust(special_q const & doing, las_info const & las)
         : doing(doing), cpoly(las.cpoly), nb_threads(las.nb_threads)
     {
         /* See whether for this size of special-q, we have predefined
@@ -155,7 +155,7 @@ public:
      *
      * Note that the ctor for qlattice_basis calls SkewGauss
      */
-    sieve_range_adjust(las_todo_entry const & doing, cxx_cado_poly const & cpoly, siever_config const & conf)
+    sieve_range_adjust(special_q const & doing, cxx_cado_poly const & cpoly, siever_config const & conf)
         : Q(doing, cpoly->skew)
         , conf(conf)
         , cpoly(cpoly)

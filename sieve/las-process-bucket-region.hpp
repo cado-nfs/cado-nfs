@@ -2,8 +2,10 @@
 #define CADO_LAS_PROCESS_BUCKET_REGION_HPP
 
 #include <memory>
-#include "las-where-am-i-proxy.hpp"         // for where_am_I
-class nfs_aux;
+
+#include "las-where-am-i-proxy.hpp"
+#include "las-auxiliary-data.hpp"
+
 class nfs_work;
 class nfs_work_cofac;
 class thread_pool;
@@ -18,6 +20,7 @@ struct process_bucket_region_spawn {
     nfs_work & ws;
     std::shared_ptr<nfs_work_cofac> wc_p;
     std::shared_ptr<nfs_aux> aux_p;
+
     where_am_I w_saved;
     
     /* These two indices are set from within process_many_bucket_regions,
@@ -44,7 +47,11 @@ struct process_bucket_region_spawn {
             std::shared_ptr<nfs_work_cofac> wc_p,
             std::shared_ptr<nfs_aux> aux_p,
             where_am_I const & w)
-    : ws(ws), wc_p(wc_p), aux_p(aux_p), w_saved(w) {}
+    : ws(ws)
+    , wc_p(std::move(wc_p))
+    , aux_p(std::move(aux_p))
+    , w_saved(w)
+    {}
 
     void operator()(worker_thread * worker, int id);
 };
