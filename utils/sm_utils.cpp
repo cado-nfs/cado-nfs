@@ -365,7 +365,11 @@ sm_side_info::sm_side_info(mpz_poly_srcptr f0, mpz_srcptr ell,
         auto fac = mpz_poly_factor_and_lift_padically(
             f, ell, 2 + handle_small_ell, rstate);
         for (auto const & fm: fac) {
-            pieces_pre.emplace_back(fm.first, fm.second, false, 1);
+            /* g++-13 prefers this, and does not grok direct
+             * parenthesized initialization of the aggregate via
+             * emplace_back
+             */
+            pieces_pre.emplace_back(factor_mod_ell2 { fm.first, fm.second, false, 1 });
         }
     }
 
