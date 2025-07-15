@@ -242,7 +242,7 @@ endmacro()
 
 
 add_library(bwc_arith ${CADO_SHARED} arith-generic.cpp)
-target_link_libraries(bwc_arith ${gmp_libname} utils)
+target_link_libraries(bwc_arith utils)
 mark_targets_as_mpi(bwc_arith)
 
 
@@ -576,7 +576,7 @@ foreach(v ${internal_arithmetic_backends_gfp} b64)
     mark_targets_as_openmp(lingen_verify_checkpoints_${v})
     set_property(TARGET lingen_verify_checkpoints_${v}
         APPEND PROPERTY COMPILE_OPTIONS ${our_compile_flags})
-    target_link_libraries(lingen_verify_checkpoints_${v} utils ${gmp_libname})
+    target_link_libraries(lingen_verify_checkpoints_${v} utils)
 
     # lingen_bz could make sense for testing, but we certainly do not
     # want to  use it.
@@ -596,7 +596,7 @@ foreach(v ${internal_arithmetic_backends_gfp} b64)
     target_link_libraries(lingen_${v}_core lingen_${v}_support)
 
     target_link_libraries(lingen_${v}_support 
-        lingen_common_support ${gmp_libname} utils)
+        lingen_common_support utils)
 
     if (v STREQUAL "b64")
         if(NOT HAVE_GF2X)
