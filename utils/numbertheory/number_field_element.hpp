@@ -11,6 +11,7 @@ class number_field_element {
     friend struct fmt::formatter<number_field_element>;
     friend class number_field_fractional_ideal;
     friend class number_field_order_element;
+    friend class number_field_order;
     friend class number_field;
     friend struct fmt::formatter<number_field_element>;
     class number_field const & K;
