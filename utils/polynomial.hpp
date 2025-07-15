@@ -112,7 +112,7 @@ struct eval_type {
 
 
 template<typename CoefficientType, typename PointType>
-using eval_type_t = eval_type<CoefficientType, PointType>::type;
+using eval_type_t = typename eval_type<CoefficientType, PointType>::type;
 
 
 template<typename T>
