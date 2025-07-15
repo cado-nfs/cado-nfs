@@ -1,24 +1,26 @@
 #include "cado.h" // IWYU pragma: keep
-// IWYU pragma: no_include <sys/param.h>
-#include <algorithm>                  // for min, max
-#include <utility>                    // for move, swap
+
+#include <algorithm>
+#include <utility>
 
 #include <gmp.h>
 
 #include "gmp_aux.h"
-#include "lingen_matpoly_select.hpp"  // for matpoly, matpoly::const_view_t
+#include "lingen_matpoly_select.hpp"
 #include "arith-hard.hpp"
+#ifdef HAVE_OPENMP
 #include "omp_proxy.h"
+#endif
 #include "macros.h"
 #include "lingen_matpoly.hpp"
 #include "lingen_polymat.hpp"
 
-matpoly::memory_pool_type matpoly::memory;
+matpoly<false>::memory_pool_type matpoly<false>::memory;
 
 /* with the exception of matpoly_realloc, all functions here are exactly
  * identical to those in lingen-polymat.c */
 /* {{{ init/zero/clear interface for matpoly */
-matpoly::matpoly(arith_hard * ab, unsigned int m, unsigned int n, size_t len) : ab(ab), m(m), n(n), alloc(len) {
+matpoly<false>::matpoly(arith_hard * ab, unsigned int m, unsigned int n, size_t len) : ab(ab), m(m), n(n), alloc(len) {
     /* As a special case, we allow a pre-init state with m==n==len==0 */
     /* Note that because we want to handle homogenous and non-homogenous
      * cases the same way, we support matrices of size 0*n, so that is
@@ -37,13 +39,13 @@ matpoly::matpoly(arith_hard * ab, unsigned int m, unsigned int n, size_t len) : 
     }
 }
 
-matpoly::~matpoly() {
+matpoly<false>::~matpoly() {
     if (x) {
         memory.free(x, data_alloc_size_in_bytes());
         // ab->vec_clear(&(x), m*n*alloc);
     }
 }
-matpoly::matpoly(matpoly && a) noexcept
+matpoly<false>::matpoly(matpoly && a) noexcept
     : ab(a.ab)
     , m(a.m)
     , n(a.n)
@@ -55,7 +57,8 @@ matpoly::matpoly(matpoly && a) noexcept
     a.m = a.n = a.size = a.alloc = 0;
     a.ab = nullptr;
 }
-matpoly& matpoly::operator=(matpoly&& a) noexcept
+
+matpoly<false>& matpoly<false>::operator=(matpoly&& a) noexcept
 {
     if (x) {
         memory.free(x, data_alloc_size_in_bytes());
@@ -72,7 +75,8 @@ matpoly& matpoly::operator=(matpoly&& a) noexcept
     a.ab = nullptr;
     return *this;
 }
-matpoly& matpoly::set(matpoly const& a)
+
+matpoly<false>& matpoly<false>::set(matpoly const& a)
 {
     if (x) {
         memory.free(x, data_alloc_size_in_bytes());
@@ -99,7 +103,8 @@ matpoly& matpoly::set(matpoly const& a)
  *
  * The contents of the data area above 'size' on return is unspecified.
  */
-void matpoly::realloc(size_t newalloc) {
+
+void matpoly<false>::realloc(size_t newalloc) {
     ASSERT_ALWAYS(size <= alloc);
     size_t const oldmem = data_alloc_size_in_bytes();
     size_t const newmem = data_alloc_size_in_bytes(newalloc);
@@ -144,7 +149,7 @@ void matpoly::realloc(size_t newalloc) {
     alloc = newalloc;
 }
 
-size_t matpoly::get_true_nonzero_size() const
+size_t matpoly<false>::get_true_nonzero_size() const
 {
     size_t lb = 0;
     size_t const ub = get_size();
@@ -162,12 +167,12 @@ size_t matpoly::get_true_nonzero_size() const
     return lb;
 }
 
-void matpoly::zero() {
+void matpoly<false>::zero() {
     size = 0;
     ab->vec_set_zero(x, m*n*alloc);
 }
 
-void matpoly::set_constant_ui(unsigned long e) {
+void matpoly<false>::set_constant_ui(unsigned long e) {
     ASSERT_ALWAYS(m == n);
     size = 0;
     if (alloc == 0 && e)
@@ -178,7 +183,8 @@ void matpoly::set_constant_ui(unsigned long e) {
     for(unsigned int i = 0 ; i < m ; ++i)
         ab->set(coeff(i, i, 0), e);
 }
-void matpoly::set_constant(arith_hard::elt const & e) {
+
+void matpoly<false>::set_constant(arith_hard::elt const & e) {
     ASSERT_ALWAYS(m == n);
     size = 0;
     if (alloc == 0 && !ab->is_zero(e))
@@ -191,7 +197,7 @@ void matpoly::set_constant(arith_hard::elt const & e) {
 }
 /* }}} */
 
-void matpoly::fill_random(size_t k0, size_t k1, cxx_gmp_randstate & rstate)
+void matpoly<false>::fill_random(size_t k0, size_t k1, cxx_gmp_randstate & rstate)
 {
     ASSERT_ALWAYS(k1 <= alloc);
     if (k0 == 0 && k1 == alloc) {
@@ -205,7 +211,7 @@ void matpoly::fill_random(size_t k0, size_t k1, cxx_gmp_randstate & rstate)
     }
 }
 
-int matpoly::cmp(matpoly const& b) const
+int matpoly<false>::cmp(matpoly const& b) const
 {
     ASSERT_ALWAYS(n == b.n);
     ASSERT_ALWAYS(m == b.m);
@@ -237,7 +243,7 @@ int matpoly::cmp(matpoly const& b) const
  * It is often relevant to "colsize++" right after this call, since the
  * coefficient of degree colsize is well-defined on output
  */
-void matpoly::multiply_column_by_x(unsigned int j, size_t colsize)/*{{{*/
+void matpoly<false>::multiply_column_by_x(unsigned int j, size_t colsize)/*{{{*/
 {
     ASSERT_ALWAYS((colsize + 1) <= alloc);
     for(unsigned int i = 0 ; i < m ; i++) {
@@ -252,7 +258,7 @@ void matpoly::multiply_column_by_x(unsigned int j, size_t colsize)/*{{{*/
  *
  * It is often relevant to "colsize--" right after this call.
  */
-void matpoly::divide_column_by_x(unsigned int j, size_t colsize)/*{{{*/
+void matpoly<false>::divide_column_by_x(unsigned int j, size_t colsize)/*{{{*/
 {
     if (!colsize) return;
     ASSERT_ALWAYS(colsize <= alloc);
@@ -262,7 +268,7 @@ void matpoly::divide_column_by_x(unsigned int j, size_t colsize)/*{{{*/
     }
 }/*}}}*/
 
-void matpoly::truncate(matpoly const & src, size_t nsize)/*{{{*/
+void matpoly<false>::truncate(matpoly const & src, size_t nsize)/*{{{*/
 {
     ASSERT_ALWAYS(nsize <= src.alloc);
     if (check_pre_init()) {
@@ -282,7 +288,8 @@ void matpoly::truncate(matpoly const & src, size_t nsize)/*{{{*/
         }
     }
 }/*}}}*/
-int matpoly::tail_is_zero(size_t size0)/*{{{*/
+
+int matpoly<false>::tail_is_zero(size_t size0)/*{{{*/
 {
     ASSERT_ALWAYS(size0 <= size);
     for(unsigned int i = 0 ; i < m ; i++) {
@@ -293,7 +300,8 @@ int matpoly::tail_is_zero(size_t size0)/*{{{*/
     }
     return 1;
 }/*}}}*/
-void matpoly::zero_pad(size_t nsize)/*{{{*/
+
+void matpoly<false>::zero_pad(size_t nsize)/*{{{*/
 {
     ASSERT_ALWAYS(nsize >= size);
     if (check_pre_init() || nsize > alloc)
@@ -312,7 +320,8 @@ void matpoly::zero_pad(size_t nsize)/*{{{*/
  */
 /* XXX compared to polymat, our diffferent stride has a consequence,
  * clearly ! */
-void matpoly::extract_column( /*{{{*/
+
+void matpoly<false>::extract_column( /*{{{*/
         unsigned int jdst, size_t kdst,
         matpoly const & src, unsigned int jsrc, size_t ksrc)
 {
@@ -322,7 +331,7 @@ void matpoly::extract_column( /*{{{*/
 }/*}}}*/
 
 #if 0
-void matpoly::transpose_dumb(matpoly const & src) /*{{{*/
+void matpoly<false>::transpose_dumb(matpoly const & src) /*{{{*/
 {
     if (this == &src) {
         matpoly tmp;
@@ -346,14 +355,14 @@ void matpoly::transpose_dumb(matpoly const & src) /*{{{*/
 }/*}}}*/
 #endif
 
-void matpoly::zero_column(unsigned int jdst, size_t kdst) /*{{{*/
+void matpoly<false>::zero_column(unsigned int jdst, size_t kdst) /*{{{*/
 {
     for(unsigned int i = 0 ; i < m ; i++)
         ab->set_zero(coeff(i, jdst, kdst));
 }/*}}}*/
 
 #if 0
-void matpoly::extract_row_fragment(/*{{{*/
+void matpoly<false>::extract_row_fragment(/*{{{*/
         unsigned int i1, unsigned int j1,
         matpoly const & src, unsigned int i0, unsigned int j0,
         size_t n)
@@ -365,7 +374,7 @@ void matpoly::extract_row_fragment(/*{{{*/
 }/*}}}*/
 #endif
 
-void matpoly::view_t::zero() { /*{{{*/
+void matpoly<false>::view_t::zero() { /*{{{*/
     unsigned int const nrows = this->nrows();
     unsigned int const ncols = this->ncols();
 #ifdef HAVE_OPENMP
@@ -378,7 +387,7 @@ void matpoly::view_t::zero() { /*{{{*/
     }
 }/*}}}*/
 
-void matpoly::rshift(matpoly const & src, size_t k)/*{{{*/
+void matpoly<false>::rshift(matpoly const & src, size_t k)/*{{{*/
 {
     ASSERT_ALWAYS(k <= src.size);
     size_t const newsize = src.size - k;
@@ -395,7 +404,8 @@ void matpoly::rshift(matpoly const & src, size_t k)/*{{{*/
         }
     }
 }/*}}}*/
-void matpoly::rshift(size_t k)/*{{{*/
+
+void matpoly<false>::rshift(size_t k)/*{{{*/
 {
     ASSERT_ALWAYS(k <= size);
     size_t const newsize = size - k;
@@ -411,7 +421,7 @@ void matpoly::rshift(size_t k)/*{{{*/
     }
 }/*}}}*/
 
-void matpoly::add(matpoly const & a, matpoly const & b)/*{{{*/
+void matpoly<false>::add(matpoly const & a, matpoly const & b)/*{{{*/
 {
     size_t const csize = std::max(a.size, b.size);
     ASSERT_ALWAYS(a.m == b.m);
@@ -435,7 +445,8 @@ void matpoly::add(matpoly const & a, matpoly const & b)/*{{{*/
     }
     size = csize;
 }/*}}}*/
-void matpoly::sub(matpoly const & a, matpoly const & b)/*{{{*/
+
+void matpoly<false>::sub(matpoly const & a, matpoly const & b)/*{{{*/
 {
     size_t const csize = std::max(a.size, b.size);
     ASSERT_ALWAYS(a.m == b.m);
@@ -459,7 +470,8 @@ void matpoly::sub(matpoly const & a, matpoly const & b)/*{{{*/
     }
     size = csize;
 }/*}}}*/
-void matpoly::addmul(matpoly const & a, matpoly const & b)/*{{{*/
+
+void matpoly<false>::addmul(matpoly const & a, matpoly const & b)/*{{{*/
 {
     size_t csize = a.size + b.size; csize -= (csize > 0);
     if (this == &a || this == &b) {
@@ -488,12 +500,12 @@ void matpoly::addmul(matpoly const & a, matpoly const & b)/*{{{*/
     if (csize >= size)
         zero_pad(csize);
 
-    matpoly::addmul(*this, a, b);
+    matpoly<false>::addmul(*this, a, b);
 
     size = csize;
 }/*}}}*/
 
-void matpoly::copy(matpoly::view_t t, matpoly::const_view_t a)/*{{{*/
+void matpoly<false>::copy(matpoly<false>::view_t t, matpoly<false>::const_view_t a)/*{{{*/
 {
     unsigned int const nrows = a.nrows();
     unsigned int const ncols = a.ncols();
@@ -517,7 +529,7 @@ void matpoly::copy(matpoly::view_t t, matpoly::const_view_t a)/*{{{*/
     }
 }/*}}}*/
 
-void matpoly::addmul(matpoly::view_t t, matpoly::const_view_t t0, matpoly::const_view_t t1)/*{{{*/
+void matpoly<false>::addmul(matpoly<false>::view_t t, matpoly<false>::const_view_t t0, matpoly<false>::const_view_t t1)/*{{{*/
 {
     unsigned int const nrows = t.nrows();
     unsigned int const ncols = t.ncols();
@@ -564,7 +576,8 @@ void matpoly::addmul(matpoly::view_t t, matpoly::const_view_t t0, matpoly::const
         ab->free(tmp1);
     }
 }/*}}}*/
-void matpoly::addmp(matpoly::view_t t, matpoly::const_view_t t0, matpoly::const_view_t t1)/*{{{*/
+
+void matpoly<false>::addmp(matpoly<false>::view_t t, matpoly<false>::const_view_t t0, matpoly<false>::const_view_t t1)/*{{{*/
 {
     unsigned int const nrows = t.nrows();
     unsigned int const ncols = t.ncols();
@@ -619,8 +632,7 @@ void matpoly::addmp(matpoly::view_t t, matpoly::const_view_t t0, matpoly::const_
     }
 }/*}}}*/
 
-
-matpoly matpoly::mul(matpoly const & a, matpoly const & b)/*{{{*/
+matpoly<false> matpoly<false>::mul(matpoly const & a, matpoly const & b)/*{{{*/
 {
     size_t csize = a.size + b.size; csize -= (csize > 0);
 
@@ -633,7 +645,7 @@ matpoly matpoly::mul(matpoly const & a, matpoly const & b)/*{{{*/
     return tc;
 }/*}}}*/
 
-void matpoly::addmp(matpoly const & a, matpoly const & c)/*{{{*/
+void matpoly<false>::addmp(matpoly const & a, matpoly const & c)/*{{{*/
 {
     // size_t fullsize = a.size + c.size; fullsize -= (fullsize > 0);
     size_t const nb = std::max(a.size, c.size) - std::min(a.size, c.size) + 1;
@@ -651,10 +663,10 @@ void matpoly::addmp(matpoly const & a, matpoly const & c)/*{{{*/
     if (nb >= size)
         zero_pad(nb);
 
-    matpoly::addmp(*this, a, c);
+    matpoly<false>::addmp(*this, a, c);
 }/*}}}*/
 
-matpoly matpoly::mp(matpoly const & a, matpoly const & c)/*{{{*/
+matpoly<false> matpoly<false>::mp(matpoly const & a, matpoly const & c)/*{{{*/
 {
     size_t const nb = std::max(a.size, c.size) - std::min(a.size, c.size) + 1;
     ASSERT_ALWAYS(a.n == c.m);
@@ -666,7 +678,7 @@ matpoly matpoly::mp(matpoly const & a, matpoly const & c)/*{{{*/
 }/*}}}*/
 
 
-void matpoly::set_polymat(polymat const & src)
+void matpoly<false>::set_polymat(polymat const & src)
 {
     *this = matpoly(src.ab, src.m, src.n, src.get_size());
     set_size(src.get_size());
@@ -680,7 +692,7 @@ void matpoly::set_polymat(polymat const & src)
     }
 }
 
-int matpoly::coeff_is_zero(size_t k) const
+int matpoly<false>::coeff_is_zero(size_t k) const
 {
     for(unsigned int j = 0; j < ncols(); j++)
         for(unsigned int i = 0 ; i < nrows() ; i++)
@@ -688,14 +700,15 @@ int matpoly::coeff_is_zero(size_t k) const
                 return 0;
     return 1;
 }
-void matpoly::coeff_set_zero(size_t k)
+
+void matpoly<false>::coeff_set_zero(size_t k)
 {
     for(unsigned int j = 0; j < ncols(); j++)
         for(unsigned int i = 0 ; i < nrows() ; i++)
             ab->set_zero(coeff(i, j, k));
 }
 
-matpoly matpoly::truncate_and_rshift(size_t truncated_size, size_t shiftcount)
+matpoly<false> matpoly<false>::truncate_and_rshift(size_t truncated_size, size_t shiftcount)
 {
     matpoly other(ab, m, n, size - shiftcount);
     other.rshift(*this, shiftcount);

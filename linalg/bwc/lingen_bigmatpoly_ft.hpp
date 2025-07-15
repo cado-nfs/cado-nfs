@@ -3,18 +3,8 @@
 
 #include "lingen_matpoly_ft.hpp"
 #include "lingen_bigmatpoly.hpp"
-#include "lingen_fft_select.hpp" // IWYU pragma: keep
+#include "lingen_fft_select.hpp"
 #include "lingen_call_companion.hpp"
-
-/*
-#ifdef LINGEN_BINARY
-struct gf2x_fake_fft_info;
-struct gf2x_cantor_fft_info;
-struct gf2x_ternary_fft_info;
-#else
-struct fft_transform_info;
-#endif
-*/
 
 class tree_stats;
 
@@ -22,8 +12,16 @@ class tree_stats;
 template<typename fft_type>
 class bigmatpoly_ft : public matpoly_ft<fft_type> {
 public:
-    static bigmatpoly mp_caching(tree_stats & stats, bigmatpoly const & a, bigmatpoly const & b, lingen_call_companion::mul_or_mp_times * M);
-    static bigmatpoly mul_caching(tree_stats & stats, bigmatpoly const & a, bigmatpoly const & b, lingen_call_companion::mul_or_mp_times * M);
+    static constexpr bool is_binary = is_binary_fft<fft_type>::value;
+    static 
+        auto
+        mp_caching(tree_stats & stats, bigmatpoly<is_binary> const & a, bigmatpoly<is_binary> const & b, lingen_call_companion::mul_or_mp_times * M)
+        -> bigmatpoly<is_binary>;
+    static
+    auto
+    mul_caching(tree_stats & stats, bigmatpoly<is_binary> const & a, bigmatpoly<is_binary> const & b, lingen_call_companion::mul_or_mp_times * M)
+    ->
+    bigmatpoly<is_binary>;
 };
 
 #ifdef LINGEN_BINARY

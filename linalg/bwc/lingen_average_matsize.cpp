@@ -1,22 +1,28 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdint.h>                   // for uint64_t
+
+#include <cstdint>
 #ifndef LINGEN_BINARY
 #include <cmath>
-#include <gmp.h>                      // for mpz_get_d, mpz_fdiv_q_ui, mpz_s...
-#include <stddef.h>                   // for size_t
+#endif
+
+#ifndef LINGEN_BINARY
+#include <gmp.h>
+#endif
+
+#ifndef LINGEN_BINARY
 #include "cxx_mpz.hpp"
 #endif
-#include "macros.h"                   // for ASSERT_ALWAYS
 #include "lingen_average_matsize.hpp"
 #include "lingen_matpoly_select.hpp"
+#ifdef LINGEN_BINARY
+#include "macros.h"
+#endif
 
-/*{{{ avg_matsize */
-template<bool over_gf2>
-static double avg_matsize(matpoly::arith_hard *, unsigned int m, unsigned int n, int ascii);
+/*{{{ average_matsize */
 
 #ifdef LINGEN_BINARY
 template<>
-double avg_matsize<true>(matpoly::arith_hard *, unsigned int m, unsigned int n, int ascii)
+double average_matsize<true>(matpoly<true>::arith_hard *, unsigned int m, unsigned int n, int ascii)
 {
     ASSERT_ALWAYS(!ascii);
     ASSERT_ALWAYS((m*n) % 64 == 0);
@@ -25,7 +31,7 @@ double avg_matsize<true>(matpoly::arith_hard *, unsigned int m, unsigned int n, 
 }
 #else
 template<>
-double avg_matsize<false>(matpoly::arith_hard * ab, unsigned int m, unsigned int n, int ascii)
+double average_matsize<false>(matpoly<false>::arith_hard * ab, unsigned int m, unsigned int n, int ascii)
 {
     if (!ascii) {
         /* Easy case first. If we have binary input, then we know a priori
@@ -61,9 +67,5 @@ double avg_matsize<false>(matpoly::arith_hard * ab, unsigned int m, unsigned int
 }
 #endif
 
-double average_matsize(matpoly::arith_hard * ab, unsigned int m, unsigned int n, int ascii)
-{
-    return avg_matsize<matpoly::over_gf2>(ab, m, n, ascii);
-}
 /*}}}*/
 

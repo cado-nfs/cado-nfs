@@ -91,6 +91,7 @@ template<unsigned int k, unsigned int ell> struct alignment_divisor<k,ell,1> : p
 template<size_t NN, typename T>
 struct gfp_base : public arith_concrete_base
 {
+    static constexpr bool is_binary = false;
     static constexpr const size_t constant_width = NN;
     static constexpr const bool is_constant_width = NN > 0;
     static constexpr const bool is_variable_width = NN == 0;

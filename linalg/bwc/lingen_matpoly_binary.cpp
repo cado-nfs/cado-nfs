@@ -1,32 +1,33 @@
 #include "cado.h" // IWYU pragma: keep
-#include <climits>                   // for UINT_MAX
+
+#include <climits>
 #include <cstdlib>
 #include <cstring>
 
-#include <algorithm>                  // for min, max
-#include <type_traits>                // for integral_constant<>::value, is_...
+#include <algorithm>
+#include <type_traits>
 #include <memory>
-#include <utility>                    // for move, swap
+#include <utility>
 
 #include <gmp.h>
 
-#include "gmp_aux.h"                  // for mpn_randomb
-#include "lingen_matpoly_binary.hpp"  // for matpoly, matpoly::const_view_t
-#include "omp_proxy.h"  // IWYU pragma: keep
+#include "gmp_aux.h"
+#include "lingen_matpoly_binary.hpp"
+#include "omp_proxy.h"
 #include "macros.h"
-#include "arith-hard.hpp" // IWYU pragma: keep
-#include "misc.h"       // cado_ctzl
+#include "arith-hard.hpp"
+#include "misc.h"
 #include "gf2x.h"
 #include "runtime_numeric_cast.hpp"
 
 // NOLINTBEGIN(readability-static-accessed-through-instance)
 
-matpoly::memory_pool_type matpoly::memory;
+matpoly<true>::memory_pool_type matpoly<true>::memory;
 
 static_assert(std::is_same<unsigned long, mp_limb_t>::value, "need fix for mp_limb_t != unsigned long");
 
 /* {{{ init/zero/clear interface for matpoly */
-matpoly::matpoly(matpoly::arith_hard *, unsigned int m, unsigned int n, size_t len) : m(m), n(n), alloc_words(b2w_x(len)) {
+matpoly<true>::matpoly(matpoly<true>::arith_hard *, unsigned int m, unsigned int n, size_t len) : m(m), n(n), alloc_words(b2w_x(len)) {
     /* As a special case, we allow a pre-init state with m==n==len==0 */
     /* Note that because we want to handle homogenous and non-homogenous
      * cases the same way, we support matrices of size 0*n, so that is
@@ -44,11 +45,11 @@ matpoly::matpoly(matpoly::arith_hard *, unsigned int m, unsigned int n, size_t l
         }
     }
 }
-matpoly::~matpoly() {
+matpoly<true>::~matpoly() {
     if (x)
         memory.free(x, data_alloc_size_in_bytes());
 }
-matpoly::matpoly(matpoly && a) noexcept
+matpoly<true>::matpoly(matpoly && a) noexcept
     : m(a.m)
     , n(a.n)
     , size(a.size)
@@ -59,7 +60,7 @@ matpoly::matpoly(matpoly && a) noexcept
     a.m=a.n=a.size=a.alloc_words=0;
     // a.ab=NULL;
 }
-matpoly& matpoly::operator=(matpoly&& a) noexcept
+matpoly<true>& matpoly<true>::operator=(matpoly&& a) noexcept
 {
     if (x)
         memory.free(x, data_alloc_size_in_bytes());
@@ -74,7 +75,7 @@ matpoly& matpoly::operator=(matpoly&& a) noexcept
     // a.ab=NULL;
     return *this;
 }
-matpoly& matpoly::set(matpoly const& a)
+matpoly<true>& matpoly<true>::set(matpoly const& a)
 {
     if (x)
         memory.free(x, data_alloc_size_in_bytes());
@@ -99,7 +100,7 @@ matpoly& matpoly::set(matpoly const& a)
  *
  * The contents of the data area above 'size' on return is unspecified.
  */
-void matpoly::realloc(size_t new_ncoeffs) {
+void matpoly<true>::realloc(size_t new_ncoeffs) {
     size_t newalloc_words = b2w_x(new_ncoeffs);
     ASSERT_ALWAYS(b2w(size) <= alloc_words);
     size_t const oldmem = m * n * alloc_words * sizeof(unsigned long);
@@ -145,11 +146,11 @@ void matpoly::realloc(size_t new_ncoeffs) {
     }
     alloc_words = newalloc_words;
 }
-void matpoly::zero() {
+void matpoly<true>::zero() {
     size = 0;
     memset(x, 0, data_alloc_size_in_bytes());
 }
-size_t matpoly::get_true_nonzero_size() const
+size_t matpoly<true>::get_true_nonzero_size() const
 {
     size_t lb = 0;
     size_t const ub = get_size();
@@ -168,7 +169,7 @@ size_t matpoly::get_true_nonzero_size() const
     return lb;
 }
 
-void matpoly::set_constant_ui(unsigned long e) {
+void matpoly<true>::set_constant_ui(unsigned long e) {
     ASSERT_ALWAYS(m == n);
     size = 0;
     if (alloc_words == 0 && e)
@@ -181,7 +182,7 @@ void matpoly::set_constant_ui(unsigned long e) {
 }
 /* }}} */
 
-void matpoly::fill_random(size_t k0, size_t k1, cxx_gmp_randstate & rstate)
+void matpoly<true>::fill_random(size_t k0, size_t k1, cxx_gmp_randstate & rstate)
 {
     ASSERT_ALWAYS(b2w(k1) <= alloc_words);
     size_t const nw0 = b2w(k0);
@@ -232,7 +233,7 @@ void matpoly::fill_random(size_t k0, size_t k1, cxx_gmp_randstate & rstate)
     }
 }
 
-int matpoly::cmp(matpoly const& b) const
+int matpoly<true>::cmp(matpoly const& b) const
 {
     ASSERT_ALWAYS(n == b.n);
     ASSERT_ALWAYS(m == b.m);
@@ -266,7 +267,7 @@ int matpoly::cmp(matpoly const& b) const
     }
 }
 
-void matpoly::addpoly(unsigned int i, unsigned int j, matpoly const& y, unsigned int iy, unsigned int jy) {/*{{{*/
+void matpoly<true>::addpoly(unsigned int i, unsigned int j, matpoly const& y, unsigned int iy, unsigned int jy) {/*{{{*/
     ASSERT(i < nrows());
     ASSERT(j < ncols());
     ASSERT(iy < y.nrows());
@@ -277,7 +278,7 @@ void matpoly::addpoly(unsigned int i, unsigned int j, matpoly const& y, unsigned
     mpn_xor_n(dst, dst, src, std::min(alloc_words, y.alloc_words));
     clear_high_word();
 }/*}}}*/
-void matpoly::xmul_poly(unsigned int i, unsigned int j, unsigned long s)/*{{{*/
+void matpoly<true>::xmul_poly(unsigned int i, unsigned int j, unsigned long s)/*{{{*/
 {
     unsigned long * dst = part(i, j);
     ASSERT(1 <= s && s <= GMP_LIMB_BITS-1);
@@ -294,7 +295,7 @@ void matpoly::xmul_poly(unsigned int i, unsigned int j, unsigned long s)/*{{{*/
  *
  * Other columns are unaffected.
  */
-void matpoly::multiply_column_by_x(unsigned int j, size_t colsize)/*{{{*/
+void matpoly<true>::multiply_column_by_x(unsigned int j, size_t colsize)/*{{{*/
 {
     size_t const k = colsize + 1;
     size_t const kw = b2w(k);
@@ -311,7 +312,7 @@ void matpoly::multiply_column_by_x(unsigned int j, size_t colsize)/*{{{*/
  *
  * It is often relevant to "colsize--" right after this call.
  */
-void matpoly::divide_column_by_x(unsigned int j, size_t colsize)/*{{{*/
+void matpoly<true>::divide_column_by_x(unsigned int j, size_t colsize)/*{{{*/
 {
     size_t const nw = b2w(colsize);
     ASSERT_ALWAYS(nw <= alloc_words);
@@ -327,7 +328,7 @@ void matpoly::divide_column_by_x(unsigned int j, size_t colsize)/*{{{*/
     }
 }/*}}}*/
 
-void matpoly::truncate(matpoly const & src, size_t new_ncoeffs)/*{{{*/
+void matpoly<true>::truncate(matpoly const & src, size_t new_ncoeffs)/*{{{*/
 {
     ASSERT_ALWAYS(b2w(new_ncoeffs) <= src.alloc_words);
     if (check_pre_init()) {
@@ -348,7 +349,7 @@ void matpoly::truncate(matpoly const & src, size_t new_ncoeffs)/*{{{*/
     }
     clear_high_word();
 }/*}}}*/
-int matpoly::tail_is_zero(size_t k) const /*{{{*/
+int matpoly<true>::tail_is_zero(size_t k) const /*{{{*/
 {
     if (k == size) return 1;
     ASSERT_ALWAYS(k < size);
@@ -378,7 +379,7 @@ int matpoly::tail_is_zero(size_t k) const /*{{{*/
     }
     return 1;
 }/*}}}*/
-void matpoly::clear_high_word_common(size_t length)/*{{{*/
+void matpoly<true>::clear_high_word_common(size_t length)/*{{{*/
 {
     ASSERT_ALWAYS(length <= capacity());
     size_t const nw = b2w(length);
@@ -391,7 +392,7 @@ void matpoly::clear_high_word_common(size_t length)/*{{{*/
         }
     }
 }/*}}}*/
-bool matpoly::high_word_is_clear() const/*{{{*/
+bool matpoly<true>::high_word_is_clear() const/*{{{*/
 {
     size_t const nw = b2w(size);
     unsigned long const nmask = ((1UL << (size % ULONG_BITS)) - 1);
@@ -404,7 +405,7 @@ bool matpoly::high_word_is_clear() const/*{{{*/
     }
     return true;
 }/*}}}*/
-void matpoly::zero_pad(size_t k)/*{{{*/
+void matpoly<true>::zero_pad(size_t k)/*{{{*/
 {
     ASSERT_ALWAYS(k >= size);
     if (check_pre_init() || b2w(k) > alloc_words)
@@ -425,7 +426,7 @@ void matpoly::zero_pad(size_t k)/*{{{*/
 /* This takes coefficient ksrc of column jsrc, and copies it to
  * coefficient kdst of column jdst
  */
-void matpoly::extract_column( /*{{{*/
+void matpoly<true>::extract_column( /*{{{*/
         unsigned int jdst, size_t kdst,
         matpoly const & src, unsigned int jsrc, size_t ksrc)
 {
@@ -444,7 +445,7 @@ void matpoly::extract_column( /*{{{*/
     }
 }/*}}}*/
 
-void matpoly::zero_column(unsigned int jdst, size_t kdst) /*{{{*/
+void matpoly<true>::zero_column(unsigned int jdst, size_t kdst) /*{{{*/
 {
     size_t const dw = kdst / ULONG_BITS;
     unsigned long const dbit = 1UL << (kdst % ULONG_BITS);
@@ -479,7 +480,7 @@ static inline void CopyBitsRsh(unsigned long * c, const unsigned long * c1, size
         c[bits_c / ULONG_BITS] &= (1UL << (bits_c % ULONG_BITS)) - 1;
 }
 
-void matpoly::rshift(matpoly const & src, size_t k)/*{{{*/
+void matpoly<true>::rshift(matpoly const & src, size_t k)/*{{{*/
 {
     ASSERT_ALWAYS(k <= src.size);
     size_t const newsize = src.size - k;
@@ -497,7 +498,7 @@ void matpoly::rshift(matpoly const & src, size_t k)/*{{{*/
     }
     size = newsize;
 }/*}}}*/
-void matpoly::rshift(size_t k)/*{{{*/
+void matpoly<true>::rshift(size_t k)/*{{{*/
 {
     ASSERT_ALWAYS(k <= size);
     size_t const newsize = size - k;
@@ -512,7 +513,7 @@ void matpoly::rshift(size_t k)/*{{{*/
     }
     size = newsize;
 }/*}}}*/
-size_t matpoly::valuation() const /*{{{*/
+size_t matpoly<true>::valuation() const /*{{{*/
 {
     auto isnz = [this](size_t k) {
         for(unsigned int i = 0 ; i < m ; ++i) {
@@ -540,7 +541,7 @@ size_t matpoly::valuation() const /*{{{*/
     return k;
 }/*}}}*/
 
-void matpoly::view_t::zero() { /*{{{*/
+void matpoly<true>::view_t::zero() { /*{{{*/
     unsigned int const nrows = this->nrows();
     unsigned int const ncols = this->ncols();
 #ifdef HAVE_OPENMP
@@ -553,7 +554,7 @@ void matpoly::view_t::zero() { /*{{{*/
     }
 }/*}}}*/
 
-void matpoly::add(matpoly const & a, matpoly const & b)/*{{{*/
+void matpoly<true>::add(matpoly const & a, matpoly const & b)/*{{{*/
 {
     size_t const new_ncoeffs = std::max(a.size, b.size);
     ASSERT_ALWAYS(a.m == b.m);
@@ -594,12 +595,12 @@ void matpoly::add(matpoly const & a, matpoly const & b)/*{{{*/
     }
     size = new_ncoeffs;
 }/*}}}*/
-void matpoly::sub(matpoly const & a, matpoly const & b)/*{{{*/
+void matpoly<true>::sub(matpoly const & a, matpoly const & b)/*{{{*/
 {
     add(a, b);
 }/*}}}*/
 
-void matpoly::addmul(matpoly const & a, matpoly const & b)/*{{{*/
+void matpoly<true>::addmul(matpoly const & a, matpoly const & b)/*{{{*/
 {
     size_t csize = a.size + b.size; csize -= (csize > 0);
     if (this == &a || this == &b) {
@@ -624,12 +625,12 @@ void matpoly::addmul(matpoly const & a, matpoly const & b)/*{{{*/
     ASSERT_ALWAYS(a.high_word_is_clear());
     ASSERT_ALWAYS(b.high_word_is_clear());
 
-    matpoly::addmul(*this, a, b);
+    matpoly<true>::addmul(*this, a, b);
 
     size = std::max(size, csize);
 }/*}}}*/
 
-void matpoly::copy(matpoly::view_t t, matpoly::const_view_t a)
+void matpoly<true>::copy(matpoly<true>::view_t t, matpoly<true>::const_view_t a)
 {
     unsigned int const nrows = a.nrows();
     unsigned int const ncols = a.ncols();
@@ -653,7 +654,7 @@ void matpoly::copy(matpoly::view_t t, matpoly::const_view_t a)
     }
 }
 
-void matpoly::addmul(matpoly::view_t t, matpoly::const_view_t t0, matpoly::const_view_t t1)/*{{{*/
+void matpoly<true>::addmul(matpoly<true>::view_t t, matpoly<true>::const_view_t t0, matpoly<true>::const_view_t t1)/*{{{*/
 {
     unsigned int const nrows = t0.nrows();
     unsigned int const ncols = t1.ncols();
@@ -690,7 +691,7 @@ void matpoly::addmul(matpoly::view_t t, matpoly::const_view_t t0, matpoly::const
     }
 }/*}}}*/
 
-matpoly matpoly::mul(matpoly const & a, matpoly const & b)/*{{{*/
+matpoly<true> matpoly<true>::mul(matpoly const & a, matpoly const & b)/*{{{*/
 {
     size_t csize = a.size + b.size; csize -= (csize > 0);
     matpoly c(a.ab, a.m, b.n, csize);
@@ -700,7 +701,7 @@ matpoly matpoly::mul(matpoly const & a, matpoly const & b)/*{{{*/
     return c;
 }/*}}}*/
 
-void matpoly::addmp(matpoly const & a, matpoly const & c)/*{{{*/
+void matpoly<true>::addmp(matpoly const & a, matpoly const & c)/*{{{*/
 {
     // size_t fullsize = a.size + c.size; fullsize -= (fullsize > 0);
     size_t const nb = MAX(a.size, c.size) - MIN(a.size, c.size) + 1;
@@ -717,12 +718,12 @@ void matpoly::addmp(matpoly const & a, matpoly const & c)/*{{{*/
 
     if (nb >= size) zero_pad(nb);
 
-    matpoly::addmp(*this, a, c);
+    matpoly<true>::addmp(*this, a, c);
 
     size = std::max(size, nb);
 }/*}}}*/
 
-void matpoly::addmp(matpoly::view_t t, matpoly::const_view_t t0, matpoly::const_view_t t1)/*{{{*/
+void matpoly<true>::addmp(matpoly<true>::view_t t, matpoly<true>::const_view_t t0, matpoly<true>::const_view_t t1)/*{{{*/
 {
     unsigned int const nrows = t0.nrows();
     unsigned int const ncols = t1.ncols();
@@ -763,7 +764,7 @@ void matpoly::addmp(matpoly::view_t t, matpoly::const_view_t t0, matpoly::const_
     }
 }/*}}}*/
 
-matpoly matpoly::mp(matpoly const & a, matpoly const & c)/*{{{*/
+matpoly<true> matpoly<true>::mp(matpoly const & a, matpoly const & c)/*{{{*/
 {
     size_t const nb = std::max(a.size, c.size) - std::min(a.size, c.size) + 1;
     ASSERT_ALWAYS(a.n == c.m);
@@ -773,7 +774,7 @@ matpoly matpoly::mp(matpoly const & a, matpoly const & c)/*{{{*/
     return b;
 }/*}}}*/
 
-int matpoly::coeff_is_zero(size_t k) const
+int matpoly<true>::coeff_is_zero(size_t k) const
 {
     size_t const kq = k / ULONG_BITS;
     size_t const kbit = 1UL << (k % ULONG_BITS);
@@ -783,7 +784,7 @@ int matpoly::coeff_is_zero(size_t k) const
                 return 0;
     return 1;
 }
-void matpoly::coeff_set_zero(size_t k)
+void matpoly<true>::coeff_set_zero(size_t k)
 {
     size_t const kq = k / ULONG_BITS;
     size_t const kbit = 1UL << (k % ULONG_BITS);
@@ -792,7 +793,7 @@ void matpoly::coeff_set_zero(size_t k)
             part(i, j)[kq] &= ~kbit;
 }
 
-matpoly matpoly::truncate_and_rshift(size_t truncated_size, size_t shiftcount)
+matpoly<true> matpoly<true>::truncate_and_rshift(size_t truncated_size, size_t shiftcount)
 {
     matpoly other(ab, m, n, size - shiftcount);
     other.rshift(*this, shiftcount);

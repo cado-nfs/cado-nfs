@@ -2,14 +2,15 @@
 #define CADO_LINGEN_TUNING_CACHE_HPP
 
 #include <cstddef>
-#include <iosfwd>                         // for istream, ostream
+
+#include <iosfwd>
 #include <map>
 #include <array>
 #include <list>
 #include <utility>
-#include "lingen_mul_substeps_base.hpp"   // for op_mul_or_mp_base, op_mul_o...
-#include "lingen_substep_schedule.hpp"    // for lingen_substep_schedule
 
+#include "lingen_mul_substeps_base.hpp"
+#include "lingen_substep_schedule.hpp"
 #include "lingen_round_operand_size.hpp"
 
 struct lingen_tuning_cache {

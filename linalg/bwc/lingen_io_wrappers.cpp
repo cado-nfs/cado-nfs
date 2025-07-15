@@ -1,27 +1,40 @@
 #include "cado.h" // IWYU pragma: keep
-// IWYU pragma: no_include <ext/alloc_traits.h>
-// IWYU pragma: no_include <sys/param.h>
-#include <limits.h>                    // for UINT_MAX
-#include <stdlib.h>                    // for exit, EXIT_FAILURE
-#include <algorithm>                   // for max, sort
-#include <stdexcept>                   // for runtime_error
-#include <type_traits>                 // for integral_constant<>::value
-#include <sstream>
-#include <utility>                     // for move
-#include <sys/types.h>  // ssize_t
-#include <sys/stat.h>   // stat fstat
+
+#include <climits>
+#include <cstdlib>
 #ifdef LINGEN_BINARY
-#include <cstring>        // memset
-#include <gmp.h>        // mpn_lshift
-#include "misc.h"       // bit_reverse
+#include <cstring>
+#endif
+
+#include <algorithm>
+#include <stdexcept>
+#include <type_traits>
+#include <sstream>
+#include <utility>
+#include <vector>
+#include <ios>
+
+
+#include <sys/types.h>
+#include <sys/stat.h>
+
+#ifdef LINGEN_BINARY
+#include <gmp.h>
 #endif
 #include "fmt/base.h"
 #include "fmt/format.h"
+
+#ifdef LINGEN_BINARY
+#include "misc.h"
+#endif
+
 #include "lingen_average_matsize.hpp"
 #include "lingen_bmstatus.hpp"
+#include "lingen_matpoly_select.hpp"
+#include "lingen_bigmatpoly.hpp"
 #include "lingen_io_matpoly.hpp"
 #include "lingen_io_wrappers.hpp"
-#include "macros.h"     // MIN
+#include "macros.h"
 #include "omp_proxy.h"
 #include "timing.h"
 
@@ -30,8 +43,6 @@
 /* This one is currently in lingen_io_matpoly.cpp, but that file will go
  * away eventually */
 
-constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
-constexpr const unsigned int splitwidth = matpoly::over_gf2 ? 64 : 1;
 
 static int mpi_rank()
 {
@@ -64,26 +75,36 @@ static int mpi_rank()
 
 /* XXX It seems likely that lingen_average_matsize.?pp will go away
  */
-double lingen_io_wrapper_base::average_matsize() const
+template<bool is_binary>
+double lingen_io_wrapper_base<is_binary>::average_matsize() const
 {
-    return ::average_matsize(ab, nrows, ncols, false);
+    return ::average_matsize<is_binary>(ab, nrows, ncols, false);
 }
 
-unsigned int lingen_io_wrapper_base::preferred_window() const
+template<bool is_binary>
+unsigned int lingen_io_wrapper_base<is_binary>::preferred_window() const
 {
-    unsigned int const nmats = iceildiv(io_matpoly_block_size, average_matsize());
+    constexpr const unsigned int simd = is_binary ? ULONG_BITS : 1;
+    unsigned int const nmats = iceildiv(lingen_io_matpoly<is_binary>::block_size, average_matsize());
     unsigned int const nmats_pad = simd * iceildiv(nmats, simd);
     return nmats_pad;
 }
 
-double lingen_file_input::average_matsize() const
+template<bool is_binary>
+double lingen_file_input<is_binary>::average_matsize() const
 {
-    return ::average_matsize(ab, nrows, ncols, ascii);
+    return ::average_matsize<is_binary>(
+            lingen_io_wrapper_base<is_binary>::ab,
+            lingen_io_wrapper_base<is_binary>::nrows,
+            lingen_io_wrapper_base<is_binary>::ncols,
+            ascii);
 }
 
-unsigned int lingen_file_input::preferred_window() const
+template<bool is_binary>
+unsigned int lingen_file_input<is_binary>::preferred_window() const
 {
-    unsigned int const nmats = iceildiv(io_matpoly_block_size, average_matsize());
+    constexpr const unsigned int simd = is_binary ? ULONG_BITS : 1;
+    unsigned int const nmats = iceildiv(lingen_io_matpoly<is_binary>::block_size, average_matsize());
     unsigned int nmats_pad = simd * iceildiv(nmats, simd);
 #ifdef HAVE_OPENMP
     /* This might be a bit large */
@@ -99,20 +120,23 @@ unsigned int lingen_file_input::preferred_window() const
     return nmats_pad;
 }
 
-void lingen_file_input::open_file()
+template<bool is_binary>
+void lingen_file_input<is_binary>::open_file()
 {
     if (mpi_rank()) return;
     f = fopen(filename.c_str(), ascii ? "r" : "rb");
     DIE_ERRNO_DIAG(!f, "open(%s)", filename.c_str());
 }
 
-void lingen_file_input::close_file()
+template<bool is_binary>
+void lingen_file_input<is_binary>::close_file()
 {
     if (mpi_rank()) return;
     fclose(f);
 }
 
-size_t lingen_file_input::guessed_length() const
+template<bool is_binary>
+size_t lingen_file_input<is_binary>::guessed_length() const
 {
     unsigned long guess;
 
@@ -152,17 +176,19 @@ size_t lingen_file_input::guessed_length() const
     return guess;
 }
 
-ssize_t lingen_file_input::read_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1)
+template<bool is_binary>
+ssize_t lingen_file_input<is_binary>::read_to_matpoly(matpoly<is_binary> & dst, unsigned int k0, unsigned int k1)
 {
     /* This reads k1-k0 fresh coefficients from f into dst */
     size_t ll;
     if (!mpi_rank())
-        ll = matpoly_read(ab, f, dst, k0, k1, ascii, 0);
+        ll = lingen_io_matpoly<is_binary>::read(lingen_io_wrapper_base<is_binary>::ab, f, dst, k0, k1, ascii, 0);
     MPI_Bcast(&ll, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
     return ll;
 }
 
-ssize_t lingen_random_input::read_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1)
+template<bool is_binary>
+ssize_t lingen_random_input<is_binary>::read_to_matpoly(matpoly<is_binary> & dst, unsigned int k0, unsigned int k1)
 {
     ssize_t const nk = MIN(length, next_src_k + k1 - k0) - next_src_k;
     if (!mpi_rank())
@@ -170,9 +196,14 @@ ssize_t lingen_random_input::read_to_matpoly(matpoly & dst, unsigned int k0, uns
     next_src_k += nk;
     return nk;
 }
-unsigned int lingen_random_input::preferred_window() const
+
+template<bool is_binary>
+unsigned int lingen_random_input<is_binary>::preferred_window() const
 {
-    unsigned int const nmats = iceildiv(io_matpoly_block_size, average_matsize());
+    constexpr const unsigned int simd = is_binary ? ULONG_BITS : 1;
+    unsigned int const nmats = iceildiv(
+            lingen_io_matpoly<is_binary>::block_size,
+            average_matsize());
     unsigned int nmats_pad = simd * iceildiv(nmats, simd);
 #ifdef HAVE_OPENMP
     /* This might be a bit large */
@@ -198,8 +229,9 @@ unsigned int lingen_random_input::preferred_window() const
  *
  * Only the coefficient of degree 0 is considered.
  */
+template<bool is_binary>
 static bool
-reduce_column_mod_previous(matpoly& M, std::vector<unsigned int>& pivots)
+reduce_column_mod_previous(matpoly<is_binary>& M, std::vector<unsigned int>& pivots)
 {
     unsigned int const r = pivots.size();
     for (unsigned int v = 0; v < r; v++) {
@@ -210,26 +242,25 @@ reduce_column_mod_previous(matpoly& M, std::vector<unsigned int>& pivots)
          * referenced in the pivots[0] to pivots[v-1] indices).
          */
         /* add M[u,r]*column v of M to column r of M */
-#ifdef LINGEN_BINARY
-        if (M.ab->is_zero(M.coeff(u, r, 0)))
-            continue;
-#endif
-        for (unsigned int i = 0; i < M.m; i++) {
-#ifndef LINGEN_BINARY
-            M.ab->addmul(M.coeff(i, r, 0), M.coeff(i, v, 0), M.coeff(u, r, 0));
-            /* don't touch coeff u,r right now, since we're still using
-             * it !
-             */
-            if (i == u)
+        if constexpr (is_binary) {
+            if (M.ab->is_zero(M.coeff(u, r, 0)))
                 continue;
-#else
-            /* here, we know that coeff (u,r) is one */
-            M.coeff(i, r, 0) += M.coeff(i, v, 0);
-#endif
         }
-#ifndef LINGEN_BINARY
-        M.ab->set_zero(M.coeff(u, r, 0));
-#endif
+        for (unsigned int i = 0; i < M.m; i++) {
+            if constexpr (!is_binary) {
+                M.ab->addmul(M.coeff(i, r, 0), M.coeff(i, v, 0), M.coeff(u, r, 0));
+                /* don't touch coeff u,r right now, since we're still using
+                 * it !
+                 */
+                if (i == u)
+                    continue;
+            } else {
+                /* here, we know that coeff (u,r) is one */
+                M.coeff(i, r, 0) += M.coeff(i, v, 0);
+            }
+        }
+        if constexpr (!is_binary)
+            M.ab->set_zero(M.coeff(u, r, 0));
     }
     unsigned int u = 0;
     for (; u < M.m; u++) {
@@ -246,8 +277,10 @@ reduce_column_mod_previous(matpoly& M, std::vector<unsigned int>& pivots)
 
 #ifndef LINGEN_BINARY
 static void
-normalize_column(matpoly& M, std::vector<unsigned int> const& pivots)
+normalize_column(matpoly<false>& M, std::vector<unsigned int> const& pivots)
 {
+    if (mpi_rank()) return;
+
     auto * tmp = M.ab->alloc();
     unsigned int const r = pivots.size() - 1;
     unsigned int const u = pivots.back();
@@ -266,10 +299,16 @@ normalize_column(matpoly& M, std::vector<unsigned int> const& pivots)
     }
     M.ab->free(tmp);
 }
+#else
+static void
+normalize_column(matpoly<true>& M, std::vector<unsigned int> const&)
+{
+}
 #endif
 
+template<bool is_binary>
 void
-lingen_F0::share(int root, MPI_Comm comm)
+lingen_F0<is_binary>::share(int root, MPI_Comm comm)
 {
     /* share the bw_dimensions structure, but I don't think it's even
      * remotely possible that nodes disagree on it.
@@ -292,7 +331,8 @@ lingen_F0::share(int root, MPI_Comm comm)
 /* It's a bit tricky. F0 is the _reversal_ of what we get here. (with
  * respect to t0).
  */
-std::tuple<unsigned int, unsigned int> lingen_F0::column_data_from_Aprime(unsigned int jE) const
+template<bool is_binary>
+std::tuple<unsigned int, unsigned int> lingen_F0<is_binary>::column_data_from_Aprime(unsigned int jE) const
 {
     unsigned int kA, jA;
     if (jE < n) {
@@ -308,7 +348,8 @@ std::tuple<unsigned int, unsigned int> lingen_F0::column_data_from_Aprime(unsign
     std::tuple<unsigned int, unsigned int> res { kA, jA };
     return res;
 }
-std::tuple<unsigned int, unsigned int> lingen_F0::column_data_from_A(unsigned int jE) const
+template<bool is_binary>
+std::tuple<unsigned int, unsigned int> lingen_F0<is_binary>::column_data_from_A(unsigned int jE) const
 {
     unsigned int kA, jA;
     std::tie(kA, jA) = column_data_from_Aprime(jE);
@@ -320,8 +361,10 @@ std::tuple<unsigned int, unsigned int> lingen_F0::column_data_from_A(unsigned in
     return res;
 }
 
-void lingen_E_from_A::refresh_cache_upto(unsigned int k)
+template<bool is_binary>
+void lingen_E_from_A<is_binary>::refresh_cache_upto(unsigned int k)
 {
+    constexpr const unsigned int simd = is_binary ? ULONG_BITS : 1;
     unsigned int const next_k1 = simd * iceildiv(k, simd);
 
     ASSERT_ALWAYS(next_k1 >= cache_k1);
@@ -341,8 +384,9 @@ void lingen_E_from_A::refresh_cache_upto(unsigned int k)
     }
 }
 
+template<bool is_binary>
 void
-lingen_E_from_A::initial_read()
+lingen_E_from_A<is_binary>::initial_read()
 {
     /* This is called collectively, because _all_
      * {read_to,write_from}_matpoly call are collective calls. */
@@ -379,7 +423,7 @@ lingen_E_from_A::initial_read()
     /* We want to create a full rank m*m matrix M, by extracting columns
      * from the first coefficients of A */
 
-    matpoly M(&this->bw_dimensions::ab, m, m, 1);
+    matpoly<is_binary> M(&this->bw_dimensions<is_binary>::ab, m, m, 1);
     M.zero_pad(1);
 
     /* For each integer i between 0 and m-1, we have a column, picked
@@ -445,11 +489,9 @@ lingen_E_from_A::initial_read()
 
             /* Bingo, it's a new independent col. */
 
-            fdesc.push_back( {{ t0 - 1, j }} );
-#ifndef LINGEN_BINARY
-            if (!mpi_rank())
-                normalize_column(M, pivots);
-#endif
+            lingen_F0<is_binary>::fdesc.push_back( {{ t0 - 1, j }} );
+
+            normalize_column(M, pivots);
 
             /*
             if (!mpi_rank())
@@ -473,60 +515,65 @@ lingen_E_from_A::initial_read()
     share(0, MPI_COMM_WORLD);
 }
 
-void lingen_E_from_A::share(int root, MPI_Comm comm)
+template<bool is_binary>
+void lingen_E_from_A<is_binary>::share(int root, MPI_Comm comm)
 {
-    lingen_F0::share(root, comm);
+    lingen_F0<is_binary>::share(root, comm);
     MPI_Bcast(&cache_k0, 1, MPI_UNSIGNED, root, comm);
     MPI_Bcast(&cache_k1, 1, MPI_UNSIGNED, root, comm);
     if (!mpi_rank())
         cache.zero_pad(cache_k1 - cache_k0);
 }
 
-/* read k1-k0 new coefficients from src, starting at coefficient k0,
- * write them to the destination (which is embedded in the struct as a
- * reference), starting at coefficient next_dst_k
- */
-template<>
-ssize_t lingen_scatter<matpoly>::write_from_matpoly(matpoly const & src, unsigned int k0, unsigned int k1)
+template<typename matpoly_type>
+ssize_t lingen_scatter<matpoly_type>::write_from_matpoly(matpoly<is_binary> const & src, unsigned int k0, unsigned int k1)
 {
+    constexpr const unsigned int simd = is_binary ? ULONG_BITS : 1;
     long long nk;
-    ASSERT_ALWAYS(k0 % simd == 0);
-    ASSERT_ALWAYS(next_dst_k % simd == 0);
-    if (!mpi_rank()) {
-        nk = MIN(k1, src.get_size()) - k0;
-        ASSERT_ALWAYS(k1 <= src.get_size());
+    if constexpr (std::is_same<matpoly_type, matpoly<is_binary>>::value) {
+        /* read k1-k0 new coefficients from src, starting at coefficient k0,
+         * write them to the destination (which is embedded in the struct as a
+         * reference), starting at coefficient next_dst_k
+         */
+        ASSERT_ALWAYS(k0 % simd == 0);
+        ASSERT_ALWAYS(next_dst_k % simd == 0);
+        if (!mpi_rank()) {
+            nk = MIN(k1, src.get_size()) - k0;
+            ASSERT_ALWAYS(k1 <= src.get_size());
+            E.zero_pad(next_dst_k + nk);
+            for(unsigned int i = 0 ; i < nrows ; i++) {
+                for(unsigned int j = 0; j < ncols ; j++) {
+                    typename matpoly<is_binary>::ptr to = E.part_head(i, j, next_dst_k);
+                    typename matpoly<is_binary>::srcptr from = src.part_head(i, j, k0);
+                    ab->vec_set(to, from, simd * iceildiv(nk, simd));
+                }
+            }
+        }
+        MPI_Bcast(&nk, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+    } else if constexpr (std::is_same<matpoly_type, bigmatpoly<is_binary>>::value) {
+        /* read k1-k0 new coefficients from src, starting at coefficient k0,
+         * write them to the destination (which is embedded in the struct as a
+         * reference), starting at coefficient next_dst_k
+         */
+        /* This one ***IS*** a collective call */
+        ASSERT_ALWAYS(k0 % simd == 0);
+        ASSERT_ALWAYS(next_dst_k % simd == 0);
+        if (!mpi_rank()) {
+            nk = MIN(k1, src.get_size()) - k0;
+            ASSERT_ALWAYS(k1 <= src.get_size());
+        }
+        MPI_Bcast(&nk, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
         E.zero_pad(next_dst_k + nk);
-        for(unsigned int i = 0 ; i < nrows ; i++) {
-            for(unsigned int j = 0; j < ncols ; j++) {
-                matpoly::ptr to = E.part_head(i, j, next_dst_k);
-                matpoly::srcptr from = src.part_head(i, j, k0);
-                ab->vec_set(to, from, simd * iceildiv(nk, simd));
-            }
-        }
+        E.scatter_mat_partial(src, k0, next_dst_k, nk);
+    } else {
+#if GNUC_VERSION_ATMOST(12,9,9)
+        /* I think it's a g++ bug (at least as of 12.2).
+         * A static assert should work here */
+        ASSERT_ALWAYS(0);
+#else
+        static_assert(false);
+#endif
     }
-    MPI_Bcast(&nk, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
-    next_dst_k += nk;
-    return nk;
-}
-
-/* read k1-k0 new coefficients from src, starting at coefficient k0,
- * write them to the destination (which is embedded in the struct as a
- * reference), starting at coefficient next_dst_k
- */
-template<>
-ssize_t lingen_scatter<bigmatpoly>::write_from_matpoly(matpoly const & src, unsigned int k0, unsigned int k1)
-{
-    /* This one ***IS*** a collective call */
-    long long nk;
-    ASSERT_ALWAYS(k0 % simd == 0);
-    ASSERT_ALWAYS(next_dst_k % simd == 0);
-    if (!mpi_rank()) {
-        nk = MIN(k1, src.get_size()) - k0;
-        ASSERT_ALWAYS(k1 <= src.get_size());
-    }
-    MPI_Bcast(&nk, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
-    E.zero_pad(next_dst_k + nk);
-    E.scatter_mat_partial(src, k0, next_dst_k, nk);
     next_dst_k += nk;
     return nk;
 }
@@ -535,49 +582,50 @@ ssize_t lingen_scatter<bigmatpoly>::write_from_matpoly(matpoly const & src, unsi
  * struct as a reference), starting at coefficient next_src_k, and write
  * them to the destination, starting at coefficient k0.
  */
-template<>
-ssize_t lingen_gather<matpoly>::read_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1)
+template<typename matpoly_type>
+ssize_t lingen_gather<matpoly_type>::read_to_matpoly(matpoly<is_binary> & dst, unsigned int k0, unsigned int k1)
 {
+    constexpr const unsigned int simd = is_binary ? ULONG_BITS : 1;
     long long nk;
-    ASSERT_ALWAYS(k0 % simd == 0);
-    ASSERT_ALWAYS(k1 % simd == 0);
-    ASSERT_ALWAYS(next_src_k % simd == 0);
-    if (!mpi_rank()) {
-        nk = MIN(k1, dst.get_size()) - k0;
-        nk = MIN(nk, (ssize_t) (pi.get_size() - next_src_k));
-        ASSERT_ALWAYS(k1 <= dst.get_size());
-        for(unsigned int i = 0 ; i < nrows ; i++) {
-            for(unsigned int j = 0; j < ncols ; j++) {
-                matpoly::ptr to = dst.part_head(i, j, k0);
-                matpoly::srcptr from = pi.part_head(i, j, next_src_k);
-                ab->vec_set(to, from, nk);
+
+    if constexpr (std::is_same<matpoly_type, matpoly<is_binary>>::value) {
+        ASSERT_ALWAYS(k0 % simd == 0);
+        ASSERT_ALWAYS(k1 % simd == 0);
+        ASSERT_ALWAYS(next_src_k % simd == 0);
+        if (!mpi_rank()) {
+            nk = MIN(k1, dst.get_size()) - k0;
+            nk = MIN(nk, (ssize_t) (pi.get_size() - next_src_k));
+            ASSERT_ALWAYS(k1 <= dst.get_size());
+            for(unsigned int i = 0 ; i < nrows ; i++) {
+                for(unsigned int j = 0; j < ncols ; j++) {
+                    auto to = dst.part_head(i, j, k0);
+                    auto from = pi.part_head(i, j, next_src_k);
+                    ab->vec_set(to, from, nk);
+                }
             }
         }
+        MPI_Bcast(&nk, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+    } else if constexpr (std::is_same<matpoly_type, bigmatpoly<is_binary>>::value) {
+        /* This one ***IS*** a collective call */
+        ASSERT_ALWAYS(k0 % simd == 0);
+        ASSERT_ALWAYS(next_src_k % simd == 0);
+        ASSERT_ALWAYS(k1 % simd == 0);
+        if (!mpi_rank()) {
+            nk = MIN(k1, dst.get_size()) - k0;
+            nk = MIN(nk, (ssize_t) (pi.get_size() - next_src_k));
+            ASSERT_ALWAYS(k1 <= dst.get_size());
+        }
+        MPI_Bcast(&nk, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+        pi.gather_mat_partial(dst, k0, next_src_k, nk);
+    } else {
+#if GNUC_VERSION_ATMOST(12,9,9)
+        /* I think it's a g++ bug (at least as of 12.2).
+         * A static assert should work here */
+        ASSERT_ALWAYS(0);
+#else
+        static_assert(false);
+#endif
     }
-    MPI_Bcast(&nk, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
-    next_src_k += nk;
-    return nk;
-}
-
-/* read k1-k0 new coefficients from the source (which is embedded in the
- * struct as a reference), starting at coefficient next_src_k, and write
- * them to the destination, starting at coefficient k0.
- */
-template<>
-ssize_t lingen_gather<bigmatpoly>::read_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1)
-{
-    /* This one ***IS*** a collective call */
-    long long nk;
-    ASSERT_ALWAYS(k0 % simd == 0);
-    ASSERT_ALWAYS(next_src_k % simd == 0);
-    ASSERT_ALWAYS(k1 % simd == 0);
-    if (!mpi_rank()) {
-        nk = MIN(k1, dst.get_size()) - k0;
-        nk = MIN(nk, (ssize_t) (pi.get_size() - next_src_k));
-        ASSERT_ALWAYS(k1 <= dst.get_size());
-    }
-    MPI_Bcast(&nk, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
-    pi.gather_mat_partial(dst, k0, next_src_k, nk);
     next_src_k += nk;
     return nk;
 }
@@ -586,8 +634,11 @@ ssize_t lingen_gather<bigmatpoly>::read_to_matpoly(matpoly & dst, unsigned int k
  * next_src_k, and write them to the destination, starting at coefficient
  * k0.
  */
-static ssize_t reverse_matpoly_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1, matpoly const & pi, unsigned int & next_src_k)
+template<typename matpoly_type>
+static ssize_t reverse_matpoly_to_matpoly(matpoly_type & dst, unsigned int k0, unsigned int k1, matpoly_type const & pi, unsigned int & next_src_k)
 {
+    constexpr bool is_binary = matpoly_type::is_binary;
+    constexpr const unsigned int simd = is_binary ? ULONG_BITS : 1;
     ASSERT_ALWAYS(!mpi_rank());
     ssize_t nk;
     nk = MIN(k1, dst.get_size()) - k0;
@@ -596,55 +647,56 @@ static ssize_t reverse_matpoly_to_matpoly(matpoly & dst, unsigned int k0, unsign
     ASSERT_ALWAYS(k1 % simd == 0);
     ASSERT_ALWAYS(next_src_k % simd == 0);
     unsigned int const d = pi.get_size();
-    matpoly::arith_hard * ab = pi.ab;
-#ifndef LINGEN_BINARY
-    for(unsigned int i = 0 ; i < pi.nrows() ; i++) {
-        for(unsigned int j = 0; j < pi.ncols() ; j++) {
-            /* We'll read coefficients of degrees [d-k1, d-k0[, and
-             * it might well be that d-k1<0
-             */
-            for(unsigned int k = k0 ; k < k0 + nk ; k++) {
-                if (next_src_k + k < d + k0)
-                    ab->set(
-                            dst.coeff(i, j, k),
-                            pi.coeff(i, j, d-1-next_src_k-(k-k0)));
-                else
-                    ab->set_zero(dst.coeff(i, j, k));
-            }
-        }
-    }
-#else
-    size_t const ntemp = (k1-k0) / simd + 2;
-    unsigned int rk0, rk1;
-    rk1 = next_src_k;
-    rk1 = d >= rk1 ? d - rk1 : 0;
-    rk0 = rk1 >= (unsigned int) nk ? rk1 - nk : 0;
-    unsigned int const n_rk = rk1 - rk0;
-    unsigned int const q_rk = rk0 / simd;
-    unsigned int const r_rk = rk0 % simd;
-    unsigned int const nq = iceildiv(n_rk + r_rk, simd);
-    if (nq) {
-        unsigned long * temp = new unsigned long[ntemp];
+    auto * ab = pi.ab;
+
+    if constexpr (!is_binary) {
         for(unsigned int i = 0 ; i < pi.nrows() ; i++) {
             for(unsigned int j = 0; j < pi.ncols() ; j++) {
-                /* We'll read coefficients of degrees [rk0, rk1[, and
-                 * it might well be that rk0<0
+                /* We'll read coefficients of degrees [d-k1, d-k0[, and
+                 * it might well be that d-k1<0
                  */
-                memset(temp, 0, ntemp * sizeof(unsigned long));
-
-                ASSERT_ALWAYS(nq <= ntemp);
-#define R(x, b) ((b)*iceildiv((x),(b)))
-                ab->vec_set(temp, pi.part(i, j) + q_rk, R(n_rk + r_rk, simd));
-                if (rk1 % simd) mpn_lshift(temp, temp, nq, simd - (rk1 % simd));
-                /* Now we only have to bit-reverse temp */
-                bit_reverse(temp, temp, nq);
-                ab->vec_set(dst.part_head(i, j, k0), temp, R(nk, simd));
-#undef R
+                for(unsigned int k = k0 ; k < k0 + nk ; k++) {
+                    if (next_src_k + k < d + k0)
+                        ab->set(
+                                dst.coeff(i, j, k),
+                                pi.coeff(i, j, d-1-next_src_k-(k-k0)));
+                    else
+                        ab->set_zero(dst.coeff(i, j, k));
+                }
             }
         }
-        delete[] temp;
+    } else {
+        size_t const ntemp = (k1-k0) / simd + 2;
+        unsigned int rk0, rk1;
+        rk1 = next_src_k;
+        rk1 = d >= rk1 ? d - rk1 : 0;
+        rk0 = rk1 >= (unsigned int) nk ? rk1 - nk : 0;
+        unsigned int const n_rk = rk1 - rk0;
+        unsigned int const q_rk = rk0 / simd;
+        unsigned int const r_rk = rk0 % simd;
+        unsigned int const nq = iceildiv(n_rk + r_rk, simd);
+        if (nq) {
+            unsigned long * temp = new unsigned long[ntemp];
+            for(unsigned int i = 0 ; i < pi.nrows() ; i++) {
+                for(unsigned int j = 0; j < pi.ncols() ; j++) {
+                    /* We'll read coefficients of degrees [rk0, rk1[, and
+                     * it might well be that rk0<0
+                     */
+                    memset(temp, 0, ntemp * sizeof(unsigned long));
+
+                    ASSERT_ALWAYS(nq <= ntemp);
+#define R(x, b) ((b)*iceildiv((x),(b)))
+                    ab->vec_set(temp, pi.part(i, j) + q_rk, R(n_rk + r_rk, simd));
+                    if (rk1 % simd) mpn_lshift(temp, temp, nq, simd - (rk1 % simd));
+                    /* Now we only have to bit-reverse temp */
+                    bit_reverse(temp, temp, nq);
+                    ab->vec_set(dst.part_head(i, j, k0), temp, R(nk, simd));
+#undef R
+                }
+            }
+            delete[] temp;
+        }
     }
-#endif
     next_src_k += nk;
     return nk;
 }
@@ -662,67 +714,69 @@ shared_or_common_size<matpoly>::shared_or_common_size(matpoly const & pi)
  * struct as a reference), starting at coefficient next_src_k, and write
  * them to the destination, starting at coefficient k0.
  */
-template<>
-ssize_t lingen_gather_reverse<matpoly>::read_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1)
+template<typename matpoly_type>
+ssize_t lingen_gather_reverse<matpoly_type>::read_to_matpoly(matpoly<is_binary> & dst, unsigned int k0, unsigned int k1)
 {
-    long long ll;
-    if (!mpi_rank())
-        ll = reverse_matpoly_to_matpoly(dst, k0, k1, pi, next_src_k);
-    MPI_Bcast(&ll, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
-    return ll;
-}
-
-/* read k1-k0 new coefficients from the source (which is embedded in the
- * struct as a reference), starting at coefficient next_src_k, and write
- * them to the destination, starting at coefficient k0.
- */
-template<>
-ssize_t lingen_gather_reverse<bigmatpoly>::read_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1)
-{
-    /* This one ***IS*** a collective call */
+    constexpr const unsigned int simd = is_binary ? ULONG_BITS : 1;
     long long nk;
-    unsigned int nq;
-    unsigned int offset;
-    long long dk;
+    if constexpr (std::is_same<matpoly_type, matpoly<is_binary>>::value) {
+        if (!mpi_rank())
+            nk = reverse_matpoly_to_matpoly(dst, k0, k1, pi, next_src_k);
+        MPI_Bcast(&nk, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+    } else if constexpr (std::is_same<matpoly_type, bigmatpoly<is_binary>>::value) {
+        /* This one ***IS*** a collective call */
+        unsigned int nq;
+        unsigned int offset;
+        long long dk;
 
-    ASSERT_ALWAYS(k0 % simd == 0);
-    ASSERT_ALWAYS(k1 % simd == 0);
+        ASSERT_ALWAYS(k0 % simd == 0);
+        ASSERT_ALWAYS(k1 % simd == 0);
 
-    if (!mpi_rank()) {
-        nk = MIN(k1, dst.get_size()) - k0;
-        nk = MIN(nk, (ssize_t) (pi.get_size() - next_src_k));
-        ASSERT_ALWAYS(k1 <= dst.get_size());
-        unsigned int const d = pi.get_size();
-        unsigned int rk1 = next_src_k;
-        rk1 = d >= rk1 ? d - rk1 : 0;
-        unsigned int const rk0 = rk1 >= (unsigned int) nk ? rk1 - nk : 0;
-        unsigned int const n_rk = rk1 - rk0;
-        unsigned int const q_rk = rk0 / simd;
-        unsigned int const r_rk = rk0 % simd;
-        nq = iceildiv(n_rk + r_rk, simd);
-        offset = q_rk * simd;
+        if (!mpi_rank()) {
+            nk = MIN(k1, dst.get_size()) - k0;
+            nk = MIN(nk, (ssize_t) (pi.get_size() - next_src_k));
+            ASSERT_ALWAYS(k1 <= dst.get_size());
+            unsigned int const d = pi.get_size();
+            unsigned int rk1 = next_src_k;
+            rk1 = d >= rk1 ? d - rk1 : 0;
+            unsigned int const rk0 = rk1 >= (unsigned int) nk ? rk1 - nk : 0;
+            unsigned int const n_rk = rk1 - rk0;
+            unsigned int const q_rk = rk0 / simd;
+            unsigned int const r_rk = rk0 % simd;
+            nq = iceildiv(n_rk + r_rk, simd);
+            offset = q_rk * simd;
+        }
+        MPI_Bcast(&nk, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+        MPI_Bcast(&nq, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+        MPI_Bcast(&offset, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+
+        matpoly<is_binary> tpi(pi.ab, pi.nrows(), pi.ncols(), nq * simd);
+        tpi.zero_pad(nq * simd);
+        unsigned int zero = 0;
+        pi.gather_mat_partial(tpi, zero, offset, nk);
+
+        if (!mpi_rank())
+            dk = reverse_matpoly_to_matpoly<matpoly<is_binary>>(dst, k0, k0 + nk, tpi, zero);
+
+        MPI_Bcast(&dk, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+        ASSERT_ALWAYS(dk == nk);
+        next_src_k += dk;
+    } else {
+#if GNUC_VERSION_ATMOST(12,9,9)
+        /* I think it's a g++ bug (at least as of 12.2).
+         * A static assert should work here */
+        ASSERT_ALWAYS(0);
+#else
+        static_assert(false);
+#endif
     }
-    MPI_Bcast(&nk, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&nq, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&offset, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
-
-    matpoly tpi(pi.ab, pi.nrows(), pi.ncols(), nq * simd);
-    tpi.zero_pad(nq * simd);
-    unsigned int zero = 0;
-    pi.gather_mat_partial(tpi, zero, offset, nk);
-
-    if (!mpi_rank())
-        dk = reverse_matpoly_to_matpoly(dst, k0, k0 + nk, tpi, zero);
-
-    MPI_Bcast(&dk, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
-    ASSERT_ALWAYS(dk == nk);
-    next_src_k += dk;
     return nk;
 }
 
-matpoly lingen_F_from_PI::recompute_rhs()
+template<bool is_binary>
+matpoly<is_binary> lingen_F_from_PI<is_binary>::recompute_rhs()
 {
-    matpoly::arith_hard * ab = &this->bw_dimensions::ab;
+    auto * ab = &this->bw_dimensions<is_binary>::ab;
     /*
      * first compute the rhscontribs. Use that to decide on a renumbering
      * of the columns, because we'd like to get the "primary" solutions
@@ -736,7 +790,7 @@ matpoly lingen_F_from_PI::recompute_rhs()
      * we give it to mksol ??
      */
 
-    matpoly rhs(ab, nrhs, n, 1);
+    matpoly<is_binary> rhs(ab, nrhs, n, 1);
     rhs.zero_pad(1);
 
     /* adding the contributions to the rhs matrix. This is formed of the
@@ -796,19 +850,20 @@ matpoly lingen_F_from_PI::recompute_rhs()
 
             /* add coefficient (ipi, jpi, s) of the reversed pi to
              * coefficient (iF, jF, 0) of rhs */
-#ifndef LINGEN_BINARY
-            ab->add_and_reduce(rhs.coeff(iF, jF, 0), cache.coeff(ipi, jpi, s));
-#else
-            rhs.part(iF,jF)[0] ^= cache.coeff(ipi, jpi, s) != 0;
-#endif
+            if constexpr (!is_binary)
+                ab->add_and_reduce(rhs.coeff(iF, jF, 0), cache.coeff(ipi, jpi, s));
+            else
+                rhs.part(iF,jF)[0] ^= cache.coeff(ipi, jpi, s) != 0;
         }
     }
     return rhs;
 }
 
-void lingen_F_from_PI::reorder_solutions()
+template<bool is_binary>
+void lingen_F_from_PI<is_binary>::reorder_solutions()
 {
-    matpoly::arith_hard * ab = &this->bw_dimensions::ab;
+    auto * ab = &this->bw_dimensions<is_binary>::ab;
+
     /* compute the score per solution */
     std::vector<std::array<unsigned int, 2>> sol_score;
     for (unsigned int jF = 0; jF < n; jF++) {
@@ -837,12 +892,13 @@ void lingen_F_from_PI::reorder_solutions()
     }
 }
 
-std::tuple<unsigned int, unsigned int> lingen_F_from_PI::get_shift_ij(unsigned int ipi, unsigned int jF) const
+template<bool is_binary>
+std::tuple<unsigned int, unsigned int> lingen_F_from_PI<is_binary>::get_shift_ij(unsigned int ipi, unsigned int jF) const
 {
     // unsigned int jpi = sols[jF].j;
     unsigned int const shift = sols[jF].shift;
     unsigned int iF, kF;
-    std::tie(kF, iF) = column_data_from_Aprime(ipi);
+    std::tie(kF, iF) = lingen_F0<is_binary>::column_data_from_Aprime(ipi);
     kF = t0 - kF;
     unsigned int const s0 = shift + kF + (iF < nrhs);
 
@@ -853,10 +909,12 @@ std::tuple<unsigned int, unsigned int> lingen_F_from_PI::get_shift_ij(unsigned i
     return res;
 }
 
-lingen_F_from_PI::lingen_F_from_PI(bmstatus const & bm,
-        lingen_input_wrapper_base& pi, lingen_F0 const& F0)
-    : lingen_F0(F0)
-    , lingen_input_wrapper_base(pi.ab, n, n)
+template<bool is_binary>
+lingen_F_from_PI<is_binary>::lingen_F_from_PI(bmstatus<is_binary> const & bm,
+        lingen_input_wrapper_base<is_binary>& pi,
+        lingen_F0<is_binary> const& F0)
+    : lingen_F0<is_binary>(F0)
+    , lingen_input_wrapper_base<is_binary>(pi.ab, n, n)
     , pi(pi)
     , cache(pi.ab, pi.nrows, pi.ncols, 0)
     , tail(pi.ab, nrows, ncols, 0)
@@ -911,7 +969,7 @@ lingen_F_from_PI::lingen_F_from_PI(bmstatus const & bm,
         /* Really any large enough G should do. We must strive to change
          * in relevant places:
          * - here
-         * - the comment in lingen_F_from_PI::recompute_rhs
+         * - the comment in lingen_F_from_PI<is_binary>::recompute_rhs
          * - in reverse_matpoly_to_matpoly
          */
         size_t const G = pi.guessed_length();
@@ -946,7 +1004,8 @@ lingen_F_from_PI::lingen_F_from_PI(bmstatus const & bm,
         rhs = recompute_rhs();
 }
 
-void lingen_F_from_PI::write_rhs(lingen_output_wrapper_base & Srhs)
+template<bool is_binary>
+void lingen_F_from_PI<is_binary>::write_rhs(lingen_output_wrapper_base<is_binary> & Srhs)
 {
     if (nrhs)
         Srhs.write_from_matpoly(rhs, 0, 1);
@@ -958,9 +1017,10 @@ void lingen_F_from_PI::write_rhs(lingen_output_wrapper_base & Srhs)
  * struct as a reference), starting at coefficient next_src_k, and write
  * them to the destination, starting at coefficient k0.
  */
-ssize_t lingen_E_from_A::read_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1)
+template<bool is_binary>
+ssize_t lingen_E_from_A<is_binary>::read_to_matpoly(matpoly<is_binary> & dst, unsigned int k0, unsigned int k1)
 {
-    matpoly::arith_hard * ab = &this->bw_dimensions::ab;
+    auto * ab = &this->bw_dimensions<is_binary>::ab;
 
     /* The first n columns of F0 are the identity matrix, so that
      * for (0 <= j < n),
@@ -1018,23 +1078,23 @@ ssize_t lingen_E_from_A::read_to_matpoly(matpoly & dst, unsigned int k0, unsigne
                 for(unsigned int j = 0; j < m + n; j++) {
                     unsigned int jA;
                     unsigned int kA;
-                    std::tie(kA, jA) = column_data_from_A(j);
+                    std::tie(kA, jA) = lingen_F0<is_binary>::column_data_from_A(j);
                     /* column j of E is actually X^{-kA}*column jA of A. */
                     for(unsigned int i = 0 ; i < m ; i++) {
-                        matpoly::ptr to = dst.part_head(i, j, k0);
-                        matpoly::srcptr from = cache.part_head(i, jA, kA);
-#ifndef LINGEN_BINARY
-                        ab->vec_set(to, from, nread);
-#else
-                        unsigned int const sr = kA % simd;
-                        unsigned int const nq = nread / simd;
-                        if (sr) {
-                            mpn_rshift(to, from, nq, sr);
-                            to[nq-1] ^= from[nq] << (simd - sr);
-                        } else {
+                        auto to = dst.part_head(i, j, k0);
+                        auto from = cache.part_head(i, jA, kA);
+                        if constexpr (!is_binary) {
                             ab->vec_set(to, from, nread);
+                        } else {
+                            unsigned int const sr = kA % simd;
+                            unsigned int const nq = nread / simd;
+                            if (sr) {
+                                mpn_rshift(to, from, nq, sr);
+                                to[nq-1] ^= from[nq] << (simd - sr);
+                            } else {
+                                ab->vec_set(to, from, nread);
+                            }
                         }
-#endif
                     }
                 }
             }
@@ -1069,24 +1129,24 @@ ssize_t lingen_E_from_A::read_to_matpoly(matpoly & dst, unsigned int k0, unsigne
                     for(unsigned int j = 0; j < m + n; j++) {
                         unsigned int jA;
                         unsigned int kA;
-                        std::tie(kA, jA) = column_data_from_A(j);
+                        std::tie(kA, jA) = lingen_F0<is_binary>::column_data_from_A(j);
                         /* column j of E is actually X^{-kA}*column jA of A. */
                         if (k + kA >= cache_avail) continue;
                         for(unsigned int i = 0 ; i < m ; i++) {
-                            matpoly::ptr to = tail.part_head(i, j, k - nread);
-                            matpoly::srcptr from = cache.part_head(i, jA, kA + k);
-#ifndef LINGEN_BINARY
-                            ab->vec_set(to, from, 1);
-#else
-                            unsigned int const sr = kA % simd;
-                            if (sr) {
-                                *to = *from >> sr;
-                                if (((kA + k) / simd+1) * simd < cache_avail)
-                                    *to ^= from[1] << (simd - sr);
+                            auto to = tail.part_head(i, j, k - nread);
+                            auto from = cache.part_head(i, jA, kA + k);
+                            if constexpr (!is_binary) {
+                                ab->vec_set(to, from, 1);
                             } else {
-                                *to = *from;
+                                unsigned int const sr = kA % simd;
+                                if (sr) {
+                                    *to = *from >> sr;
+                                    if (((kA + k) / simd+1) * simd < cache_avail)
+                                        *to ^= from[1] << (simd - sr);
+                                } else {
+                                    *to = *from;
+                                }
                             }
-#endif
                         }
                     }
                 }
@@ -1105,8 +1165,8 @@ ssize_t lingen_E_from_A::read_to_matpoly(matpoly & dst, unsigned int k0, unsigne
         for(extra = 0 ; extra < tail.get_size() ; ) {
             for(unsigned int j = 0; j < ncols ; j++) {
                 for(unsigned int i = 0 ; i < nrows ; i++) {
-                    matpoly::ptr to = dst.part_head(i, j, k0 + produced + extra);
-                    matpoly::srcptr from = tail.part_head(i, j, extra);
+                    auto to = dst.part_head(i, j, k0 + produced + extra);
+                    auto from = tail.part_head(i, j, extra);
                     ab->vec_set(to, from, simd);
                 }
             }
@@ -1127,9 +1187,10 @@ ssize_t lingen_E_from_A::read_to_matpoly(matpoly & dst, unsigned int k0, unsigne
  * struct as a reference), starting at coefficient next_src_k, and write
  * them to the destination, starting at coefficient k0.
  */
-ssize_t lingen_F_from_PI::read_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1)
+template<bool is_binary>
+ssize_t lingen_F_from_PI<is_binary>::read_to_matpoly(matpoly<is_binary> & dst, unsigned int k0, unsigned int k1)
 {
-    matpoly::arith_hard * ab = &this->bw_dimensions::ab;
+    auto * ab = &this->bw_dimensions<is_binary>::ab;
 
     ASSERT_ALWAYS(k0 % simd == 0);
     ASSERT_ALWAYS(k1 % simd == 0);
@@ -1180,24 +1241,24 @@ ssize_t lingen_F_from_PI::read_to_matpoly(matpoly & dst, unsigned int k0, unsign
                         /* The reversal of pi_{ipi, jpi} contributes to entry (iF,
                          * jF), once shifted right by s.  */
 
-                        matpoly::ptr to = dst.part_head(iF, jF, k0);
-                        matpoly::srcptr from = cache.part_head(ipi, jpi, s);
-#ifndef LINGEN_BINARY
-                        ab->vec_add_and_reduce(to, from, nread);
-#else
-                        /* Add must at the same time do a right shift by sr */
-                        unsigned int const sr = s % simd;
-                        if (sr) {
-                            unsigned long cy = from[nread / simd] << (simd - sr);
-                            for(unsigned int i = nread / simd ; i-- ; ) {
-                                unsigned long const t = (from[i] >> sr) ^ cy;
-                                cy = from[i] << (simd - sr);
-                                to[i] ^= t;
-                            }
+                        auto to = dst.part_head(iF, jF, k0);
+                        auto from = cache.part_head(ipi, jpi, s);
+                        if constexpr (!is_binary) {
+                            ab->vec_add_and_reduce(to, from, nread);
                         } else {
-                            ab->vec_add(to, from, nread);
+                            /* Add must at the same time do a right shift by sr */
+                            unsigned int const sr = s % simd;
+                            if (sr) {
+                                unsigned long cy = from[nread / simd] << (simd - sr);
+                                for(unsigned int i = nread / simd ; i-- ; ) {
+                                    unsigned long const t = (from[i] >> sr) ^ cy;
+                                    cy = from[i] << (simd - sr);
+                                    to[i] ^= t;
+                                }
+                            } else {
+                                ab->vec_add(to, from, nread);
+                            }
                         }
-#endif
                     }
                 }
             }
@@ -1221,8 +1282,7 @@ ssize_t lingen_F_from_PI::read_to_matpoly(matpoly & dst, unsigned int k0, unsign
                     std::tie(iF, s) = get_shift_ij(ipi, jF);
                     if (nread + s < cache_avail) {
                         unsigned int const pr = cache_avail - (nread + s);
-                        if (pr >= max_tail)
-                            max_tail = pr;
+                        max_tail = std::max(max_tail, pr);
                     }
                 }
             }
@@ -1237,21 +1297,21 @@ ssize_t lingen_F_from_PI::read_to_matpoly(matpoly & dst, unsigned int k0, unsign
                             unsigned int s;
                             unsigned int iF;
                             std::tie(iF, s) = get_shift_ij(ipi, jF);
-                            matpoly::ptr to = tail.part_head(iF, jF, k - nread);
-                            matpoly::srcptr from = cache.part_head(ipi, jpi, k + s);
-#ifndef LINGEN_BINARY
-                            ab->add_and_reduce(*to, *from);
-#else
-                            /* Add must at the same time do a right shift by sr */
-                            unsigned int const sr = s % simd;
-                            if (sr) {
-                                to[0] ^= from[0] >> sr;
-                                if (((s + produced) / simd+1) * simd < (cache_k1 - cache_k0))
-                                    to[0] ^= from[1] << (simd - sr);
+                            auto to = tail.part_head(iF, jF, k - nread);
+                            auto from = cache.part_head(ipi, jpi, k + s);
+                            if constexpr (!is_binary) {
+                                ab->add_and_reduce(*to, *from);
                             } else {
-                                to[0] ^= from[0];
+                                /* Add must at the same time do a right shift by sr */
+                                unsigned int const sr = s % simd;
+                                if (sr) {
+                                    to[0] ^= from[0] >> sr;
+                                    if (((s + produced) / simd+1) * simd < (cache_k1 - cache_k0))
+                                        to[0] ^= from[1] << (simd - sr);
+                                } else {
+                                    to[0] ^= from[0];
+                                }
                             }
-#endif
                         }
                     }
                 }
@@ -1270,8 +1330,8 @@ ssize_t lingen_F_from_PI::read_to_matpoly(matpoly & dst, unsigned int k0, unsign
         for(extra = 0 ; extra < tail.get_size() ; ) {
             for(unsigned int j = 0; j < ncols ; j++) {
                 for(unsigned int i = 0 ; i < nrows ; i++) {
-                    matpoly::ptr to = dst.part_head(i, j, k0 + produced + extra);
-                    matpoly::srcptr from = tail.part_head(i, j, extra);
+                    auto to = dst.part_head(i, j, k0 + produced + extra);
+                    auto from = tail.part_head(i, j, extra);
                     ab->vec_set(to, from, simd);
                 }
             }
@@ -1288,7 +1348,8 @@ ssize_t lingen_F_from_PI::read_to_matpoly(matpoly & dst, unsigned int k0, unsign
     return produced;
 }
 
-void lingen_output_to_singlefile::open_file()
+template<bool is_binary>
+void lingen_output_to_singlefile<is_binary>::open_file()
 {
     if (!mpi_rank()) {
         std::ios_base::openmode mode = std::ios_base::out;
@@ -1298,7 +1359,8 @@ void lingen_output_to_singlefile::open_file()
     done_open = true;
 }
 
-ssize_t lingen_output_to_singlefile::write_from_matpoly(matpoly const & src, unsigned int k0, unsigned int k1)
+template<bool is_binary>
+ssize_t lingen_output_to_singlefile<is_binary>::write_from_matpoly(matpoly<is_binary> const & src, unsigned int k0, unsigned int k1)
 {
     /* This should be fixed. We seem to be used to writing this
      * transposed. That's slightly weird.
@@ -1307,12 +1369,13 @@ ssize_t lingen_output_to_singlefile::write_from_matpoly(matpoly const & src, uns
         open_file();
     ssize_t ll;
     if (!mpi_rank())
-        ll = matpoly_write(ab, *os, src, k0, k1, ascii, 1);
+        ll = lingen_io_matpoly<is_binary>::write(lingen_io_wrapper_base<is_binary>::ab, *os, src, k0, k1, ascii, 1);
     MPI_Bcast(&ll, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
     return ll;
 }
 
-ssize_t lingen_output_to_splitfile::write_from_matpoly(matpoly const & src, unsigned int k0, unsigned int k1)
+template<bool is_binary>
+ssize_t lingen_output_to_splitfile<is_binary>::write_from_matpoly(matpoly<is_binary> const & src, unsigned int k0, unsigned int k1)
 {
     /* This should be fixed. We seem to be used to writing this
      * transposed. That's slightly weird.
@@ -1321,13 +1384,16 @@ ssize_t lingen_output_to_splitfile::write_from_matpoly(matpoly const & src, unsi
         open_file();
     ssize_t ll;
     if (!mpi_rank())
-        ll = matpoly_write_split(ab, fw, src, k0, k1, ascii);
+        ll = lingen_io_matpoly<is_binary>::write_split(lingen_io_wrapper_base<is_binary>::ab, fw, src, k0, k1, ascii);
     MPI_Bcast(&ll, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
     return ll;
 }
 
-void lingen_output_to_splitfile::open_file()
+template<bool is_binary>
+void lingen_output_to_splitfile<is_binary>::open_file()
 {
+    constexpr const unsigned int splitwidth = is_binary ? 64 : 1;
+
     if (!mpi_rank()) {
         ASSERT_ALWAYS(!done_open);
         std::ios_base::openmode mode = std::ios_base::out;
@@ -1337,7 +1403,7 @@ void lingen_output_to_splitfile::open_file()
                 std::string const s = fmt::format(fmt::runtime(this->pattern),
                         i, i+splitwidth,
                         j, j+splitwidth);
-                fw.emplace_back(std::ofstream { s, mode });
+                fw.emplace_back(s, mode);
                 DIE_ERRNO_DIAG(!fw.back(), "open(%s)", s.c_str());
             }
         }
@@ -1345,14 +1411,16 @@ void lingen_output_to_splitfile::open_file()
     done_open = true;
 }
 
-lingen_output_to_splitfile::lingen_output_to_splitfile(matpoly::arith_hard * ab, unsigned int m, unsigned int n, std::string const & pattern, bool ascii)
-    : lingen_output_wrapper_base(ab, m, n)
-    , pattern(pattern)
+template<bool is_binary>
+lingen_output_to_splitfile<is_binary>::lingen_output_to_splitfile(typename matpoly<is_binary>::arith_hard * ab, unsigned int m, unsigned int n, std::string pattern, bool ascii)
+    : lingen_output_wrapper_base<is_binary>(ab, m, n)
+    , pattern(std::move(pattern))
     , ascii(ascii)
 {
 }
 
-lingen_output_to_sha1sum::~lingen_output_to_sha1sum()
+template<bool is_binary>
+lingen_output_to_sha1sum<is_binary>::~lingen_output_to_sha1sum()
 {
     if (!written || mpi_rank()) return;
     char out[41];
@@ -1360,18 +1428,21 @@ lingen_output_to_sha1sum::~lingen_output_to_sha1sum()
     printf("checksum(%s): %s\n", who.c_str(), out);
 }
 
+template<bool is_binary>
 ssize_t
-lingen_output_to_sha1sum::write_from_matpoly(matpoly const& src,
+lingen_output_to_sha1sum<is_binary>::write_from_matpoly(matpoly<is_binary> const& src,
                                unsigned int k0,
                                unsigned int k1)
 {
+    constexpr const unsigned int simd = is_binary ? ULONG_BITS : 1;
     ASSERT_ALWAYS(k0 % simd == 0);
-#ifdef LINGEN_BINARY
-    ASSERT_ALWAYS(src.high_word_is_clear());
-    size_t const nbytes = iceildiv(k1 - k0, ULONG_BITS) * sizeof(unsigned long);
-#else
-    size_t const nbytes = src.ab->vec_elt_stride(k1-k0);
-#endif
+    size_t nbytes;
+    if constexpr (is_binary) {
+        ASSERT_ALWAYS(src.high_word_is_clear());
+        nbytes = iceildiv(k1 - k0, ULONG_BITS) * sizeof(unsigned long);
+    } else {
+        nbytes = src.ab->vec_elt_stride(k1-k0);
+    }
     written += src.nrows() * src.ncols() * nbytes;
     if (!mpi_rank()) {
         for(unsigned int i = 0 ; i < src.nrows() ; i++)
@@ -1381,14 +1452,15 @@ lingen_output_to_sha1sum::write_from_matpoly(matpoly const& src,
     return k1 - k0;
 }
 
-void pipe(lingen_input_wrapper_base & in, lingen_output_wrapper_base & out, const char * action, bool skip_trailing_zeros)
+template<bool is_binary>
+void pipe(lingen_input_wrapper_base<is_binary> & in, lingen_output_wrapper_base<is_binary> & out, const char * action, bool skip_trailing_zeros)
 {
     unsigned int window = std::max(in.preferred_window(), out.preferred_window());
     if (window == UINT_MAX) {
         window=4096;
     }
-    matpoly F(in.ab, in.nrows, in.ncols, 0);
-    matpoly Z(in.ab, in.nrows, in.ncols, 0);
+    matpoly<is_binary> F(in.ab, in.nrows, in.ncols, 0);
+    matpoly<is_binary> Z(in.ab, in.nrows, in.ncols, 0);
     if (!mpi_rank()) {
         F.zero_pad(window);
         Z.zero_pad(window);
@@ -1455,10 +1527,43 @@ void pipe(lingen_input_wrapper_base & in, lingen_output_wrapper_base & out, cons
     }
 }
 
-template class lingen_scatter<matpoly>;
-template class lingen_scatter<bigmatpoly>;
-template class lingen_gather<matpoly>;
-template class lingen_gather<bigmatpoly>;
-template class lingen_gather_reverse<matpoly>;
-template class lingen_gather_reverse<bigmatpoly>;
+#ifdef LINGEN_BINARY
+template class lingen_E_from_A<true>;
+template class lingen_output_to_splitfile<true>;
+template class lingen_output_to_sha1sum<true>;
+template class lingen_output_to_singlefile<true>;
+template class lingen_F_from_PI<true>;
+template class lingen_file_input<true>;
+template struct lingen_random_input<true>;
+template class lingen_scatter<matpoly<true>>;
+template class lingen_scatter<bigmatpoly<true>>;
+template class lingen_gather<matpoly<true>>;
+template class lingen_gather<bigmatpoly<true>>;
+template class lingen_gather_reverse<matpoly<true>>;
+template class lingen_gather_reverse<bigmatpoly<true>>;
+template
+void
+pipe<true>(lingen_input_wrapper_base<true> & in,
+     lingen_output_wrapper_base<true> & out,
+     const char * action, bool skip_trailing_zeros);
+#else
+template class lingen_E_from_A<false>;
+template class lingen_output_to_splitfile<false>;
+template class lingen_output_to_sha1sum<false>;
+template class lingen_output_to_singlefile<false>;
+template class lingen_F_from_PI<false>;
+template class lingen_file_input<false>;
+template struct lingen_random_input<false>;
+template class lingen_scatter<matpoly<false>>;
+template class lingen_scatter<bigmatpoly<false>>;
+template class lingen_gather<matpoly<false>>;
+template class lingen_gather<bigmatpoly<false>>;
+template class lingen_gather_reverse<matpoly<false>>;
+template class lingen_gather_reverse<bigmatpoly<false>>;
+template
+void
+pipe<false>(lingen_input_wrapper_base<false> & in,
+     lingen_output_wrapper_base<false> & out,
+     const char * action, bool skip_trailing_zeros);
+#endif  /* LINGEN_BINARY */
 

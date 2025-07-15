@@ -23,17 +23,22 @@
 #include "macros.h"
 #include "lingen_memory_pool.hpp"
 #include "submatrix_range.hpp"
-// #include "arith-hard.hpp"
+
 #include "tree_stats.hpp"
 #include "lingen_call_companion.hpp"
 #include "cxx_mpz.hpp"
 
-class matpoly {
-    friend class bigmatpoly;
+template<bool is_binary> class matpoly;
+template<bool is_binary> class bigmatpoly;
+
+template<>
+class matpoly<true> {
+    friend class bigmatpoly<true>;
 
     // static_assert(arith_hard::elt::compatible_with<unsigned long>::value, "This file requires that the arithmetic layer be based on unsigned long");
 
 public:
+    static constexpr bool is_binary = true;
     /*
     typedef arith_hard::elt elt;
     typedef arith_hard::elt * ptr;
@@ -44,6 +49,7 @@ public:
     typedef unsigned long const * srcptr;
 
     struct arith_hard {
+        static constexpr bool is_binary = true;
         static size_t elt_stride() { return sizeof(elt); }
         static mpz_srcptr characteristic() {
             static mp_limb_t limbs[1] = {2};
@@ -86,7 +92,6 @@ public:
         ~memory_guard() { memory_pool_type::guard_base::pre_dtor(memory); }
     };
 
-    static constexpr bool over_gf2 = true;
     // static void add_to_main_memory_pool(size_t s);
     // arith_hard * ab = nullptr;
     /* Note that in a sense, we're perverting the b64 layer anyway, since
@@ -329,5 +334,7 @@ public:
 
     matpoly truncate_and_rshift(size_t truncated_size, size_t rshift);
 };
+
+extern template class matpoly<true>;
 
 #endif	/* LINGEN_MATPOLY_BINARY_HPP_ */

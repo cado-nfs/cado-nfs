@@ -1,31 +1,33 @@
 #ifndef CADO_LINGEN_MATPOLY_FT_HPP
 #define CADO_LINGEN_MATPOLY_FT_HPP
 
-#include "cado_config.h"              // for HAVE_OPENMP
+#include "cado_config.h"
 
-#include <climits>                   // for UINT_MAX
-#include <cstring>                   // for NULL, memset, size_t
+#include <climits>
+#include <cstring>
 
-#include <algorithm>                  // for min
-#include <array>                      // for array
+#include <algorithm>
+#include <array>
 
-#include <gmp.h>                      // for mp_limb_t
+#include <gmp.h>
 
 #include "gmp_aux.h"
-#include "arith-hard.hpp"        // for abdst_field
+#include "arith-hard.hpp"
 #include "lingen_call_companion.hpp"
-#include "lingen_fft_select.hpp" // IWYU pragma: keep
+#include "lingen_fft_select.hpp"
 #include "lingen_matpoly_select.hpp"
-#include "lingen_memory_pool.hpp"     // for memory_pool_wrapper
-#include "macros.h"                   // for ASSERT_ALWAYS, ASSERT
+#include "lingen_memory_pool.hpp"
+#include "macros.h"
 #include "misc.h"
 #include "omp_proxy.h"
-#include "submatrix_range.hpp"        // for submatrix_range
+#include "submatrix_range.hpp"
 
 class tree_stats;
 
+
 template<typename fft_type>
 class matpoly_ft {
+    static constexpr bool is_binary = is_binary_fft<fft_type>::value;
     typedef typename fft_type::ptr ptr;
     typedef typename fft_type::srcptr srcptr;
     typedef memory_pool_wrapper<ptr, true> memory_pool_type;
@@ -214,7 +216,7 @@ public:
     int check(submatrix_range const & R) const { return view(R).check(); }
     int check() const { return view().check(); }
 
-    static void dft(view_t t, matpoly::const_view_t a)/*{{{*/
+    static void dft(view_t t, typename matpoly<is_binary>::const_view_t a)/*{{{*/
     {
         unsigned int nrows = a.nrows();
         unsigned int ncols = a.ncols();
@@ -232,7 +234,7 @@ public:
             for(unsigned int i = 0 ; i < nrows ; i++) {
                 for(unsigned int j = 0 ; j < ncols ; j++) {
                     ptr tij = t.part(i, j);
-                    matpoly::srcptr aij = a.part(i, j);
+                    typename matpoly<is_binary>::srcptr aij = a.part(i, j);
                     /* ok, casting like this is a crude hack ! */
                     t.M.fti.dft(tij, (const mp_limb_t *) aij, a.M.get_size(), tt);
                 }
@@ -240,7 +242,7 @@ public:
             memory.free(tt, t.M.fft_alloc_sizes[1]);
         }
     }/*}}}*/
-    static void ift(matpoly::view_t a, view_t t)/*{{{*/
+    static void ift(typename matpoly<is_binary>::view_t a, view_t t)/*{{{*/
     {
         unsigned int nrows = a.nrows();
         unsigned int ncols = a.ncols();
@@ -258,7 +260,7 @@ public:
             for(unsigned int i = 0 ; i < nrows ; i++) {
                 for(unsigned int j = 0 ; j < ncols ; j++) {
                     ptr tij = t.part(i,j);
-                    matpoly::ptr aij = a.part(i, j);
+                    typename matpoly<is_binary>::ptr aij = a.part(i, j);
                     /* ok, casting like this is a crude hack ! */
                     t.M.fti.ift((mp_limb_t *) aij, a.M.get_size(), tij, tt);
                 }
@@ -333,36 +335,23 @@ void add(matpoly_ft::view_t t, matpoly_ft::const_view_t t0, matpoly_ft::const_vi
 
     /* In a way, this is the only real API exported by this module */
 
-    static matpoly mp_caching_adj(tree_stats & stats, matpoly const & a, matpoly const & b, unsigned int adj, lingen_call_companion::mul_or_mp_times * M);
-    static matpoly mul_caching_adj(tree_stats & stats, matpoly const & a, matpoly const & b, unsigned int adj, lingen_call_companion::mul_or_mp_times * M);
-    static matpoly mp_caching(tree_stats & stats, matpoly const & a, matpoly const & b, lingen_call_companion::mul_or_mp_times * M) {
+    static auto mp_caching_adj(tree_stats & stats, matpoly<is_binary> const & a, matpoly<is_binary> const & b, unsigned int adj, lingen_call_companion::mul_or_mp_times * M) -> matpoly<is_binary>;
+    static auto mul_caching_adj(tree_stats & stats, matpoly<is_binary> const & a, matpoly<is_binary> const & b, unsigned int adj, lingen_call_companion::mul_or_mp_times * M) -> matpoly<is_binary>;
+    static matpoly<is_binary> mp_caching(tree_stats & stats, matpoly<is_binary> const & a, matpoly<is_binary> const & b, lingen_call_companion::mul_or_mp_times * M) {
         return mp_caching_adj(stats, a, b, UINT_MAX, M);
     }
-    static matpoly mul_caching(tree_stats & stats, matpoly const & a, matpoly const & b, lingen_call_companion::mul_or_mp_times * M) {
+    static matpoly<is_binary> mul_caching(tree_stats & stats, matpoly<is_binary> const & a, matpoly<is_binary> const & b, lingen_call_companion::mul_or_mp_times * M) {
         return mul_caching_adj(stats, a, b, UINT_MAX, M);
     }
 };
-
-template<typename T> struct is_binary;
 
 #ifdef LINGEN_BINARY
 extern template class matpoly_ft<gf2x_fake_fft_info>;
 extern template class matpoly_ft<gf2x_cantor_fft_info>;
 extern template class matpoly_ft<gf2x_ternary_fft_info>;
-template<> struct is_binary<gf2x_fake_fft_info> {
-    static constexpr const bool value = true;
-};
-template<> struct is_binary<gf2x_cantor_fft_info> {
-    static constexpr const bool value = true;
-};
-template<> struct is_binary<gf2x_ternary_fft_info> {
-    static constexpr const bool value = true;
-};
 #else
 extern template class matpoly_ft<fft_transform_info>;
-template<> struct is_binary<fft_transform_info> {
-    static constexpr const bool value = false;
-};
 #endif
+
 
 #endif	/* LINGEN_MATPOLY_FT_HPP_ */

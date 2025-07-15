@@ -1,10 +1,11 @@
 #include "cado.h" // IWYU pragma: keep
-#include <cctype>      // for isspace
-#include <cerrno>      // for ENOENT, errno
+
+#include <cctype>
+#include <cerrno>
 #include <cstdio>
 
-#include <string>       // for operator==, string, operator>>, basic_string
-#include <sstream> // istringstream // IWYU pragma: keep
+#include <string>
+#include <sstream>
 #include <tuple>
 #include <type_traits>
 

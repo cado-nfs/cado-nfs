@@ -1,19 +1,19 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <climits>   // for UINT_MAX, INT_MAX
-#include <cstdio>    // for printf, fprintf, stderr
-#include <cstdlib>   // for exit, EXIT_FAILURE
+#include <climits>
+#include <cstdio>
+#include <cstdlib>
 
-#include <algorithm>  // for find_if
-#include <map>        // for _Rb_tree_iterator, operator!=, operator==, map
-#include <utility>    // for pair
+#include <algorithm>
+#include <map>
 #include <tuple>
 
-#include "macros.h"   // for ASSERT_ALWAYS
+#include "macros.h"
 #include "lingen_bmstatus.hpp"
 
 /* Attention: reloading a checkpoint invalidates this reference !! */
-lingen_call_companion & bmstatus::companion(int depth, size_t L)/*{{{*/
+template<bool is_binary>
+lingen_call_companion & bmstatus<is_binary>::companion(int depth, size_t L)/*{{{*/
 {
     lingen_hints::key_type const K { depth, L };
 
@@ -55,7 +55,8 @@ lingen_call_companion & bmstatus::companion(int depth, size_t L)/*{{{*/
 }/*}}}*/
 
 
-void bmstatus::display_deltas() const /*{{{*/
+template<bool is_binary>
+void bmstatus<is_binary>::display_deltas() const /*{{{*/
 {
     unsigned int const m = d.m;
     unsigned int const n = d.n;
@@ -106,7 +107,8 @@ void bmstatus::display_deltas() const /*{{{*/
     }
 }/*}}}*/
 
-std::tuple<unsigned int, unsigned int> bmstatus::get_minmax_delta_on_solutions() const /*{{{*/
+template<bool is_binary>
+std::tuple<unsigned int, unsigned int> bmstatus<is_binary>::get_minmax_delta_on_solutions() const /*{{{*/
 {
     unsigned int maxdelta = 0;
     unsigned int mindelta = UINT_MAX;
@@ -117,10 +119,16 @@ std::tuple<unsigned int, unsigned int> bmstatus::get_minmax_delta_on_solutions()
     }
     return std::make_tuple(mindelta, maxdelta);
 }/*}}}*/
-unsigned int bmstatus::get_max_delta_on_solutions() const/*{{{*/
+template<bool is_binary>
+unsigned int bmstatus<is_binary>::get_max_delta_on_solutions() const/*{{{*/
 {
     unsigned int mindelta, maxdelta;
     std::tie(mindelta, maxdelta) = get_minmax_delta_on_solutions();
     return maxdelta;
 }/*}}}*/
 
+#ifdef LINGEN_BINARY
+template struct bmstatus<true>;
+#else
+template struct bmstatus<false>;
+#endif
