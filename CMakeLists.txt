@@ -189,28 +189,22 @@ set (CMAKE_CXX_FLAGS    "${CMAKE_CXX_FLAGS} ${CMAKE_FLAGS_SIZE}")
 message(STATUS "C++ compiler: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set (CMAKE_CXX_FLAGS "-W -Wall ${CMAKE_CXX_FLAGS}")
-    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.0)
-        message(FATAL_ERROR "cado-nfs requires g++ version 5 or greater")
-    endif()
-    if(MINGW)
-        set (CMAKE_CXX_FLAGS "-std=gnu++11 ${CMAKE_CXX_FLAGS}")
-    else()
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10.0)
         # according to https://gcc.gnu.org/projects/cxx-status.html
-        # we're pushing the min gcc version from 12 to 14, in order to
-        # avoid a false positive with libfmt. I observe
-        # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=109717 with g++13
-        # and not g++14
-        if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 14.0 AND NOT DEFINED ENV{NO_CXX20})
-            set (CMAKE_CXX_FLAGS "-std=c++20 -Wno-c++11-compat ${CMAKE_CXX_FLAGS}")
-            message(STATUS "Enabling C++20 support")
-            set(HAVE_CXX20 1)
-            set(HAVE_CXX11 1)
-        else()
-            set (CMAKE_CXX_FLAGS "-std=c++11 -Wno-c++11-compat ${CMAKE_CXX_FLAGS}")
-            message(STATUS "Enabling C++11 support")
-            set(HAVE_CXX11 1)
-        endif()
+        # most of the support is in g++-10. Some important things that we
+        # probably want to use, such as using enum, are in g++-11.
+        message(FATAL_ERROR "cado-nfs requires g++ version 10 or greater")
     endif()
+    # I observe
+    # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=109717 with g++13
+    # and not g++14 ; it's a false positive with libfmt.
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 14.0 AND
+            CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 13.0)
+        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-stringop-overflow")
+    endif()
+
+    set (CMAKE_CXX_FLAGS "-std=c++20 -Wno-c++11-compat ${CMAKE_CXX_FLAGS}")
+    message(STATUS "Enabling C++20 support")
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-literal-suffix")
     if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0 AND
             CMAKE_SYSTEM_PROCESSOR MATCHES "^arm")
@@ -220,48 +214,22 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set (CMAKE_CXX_FLAGS "-export-dynamic ${CMAKE_CXX_FLAGS}")
 elseif(CMAKE_C_COMPILER_ID MATCHES "IntelLLVM")
     message(STATUS "Applying flags for icc (icx)")
-    if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "2025" AND NOT DEFINED ENV{NO_CXX20})
-        set (CMAKE_CXX_FLAGS "-fp-model=precise -std=c++20 ${CMAKE_CXX_FLAGS}")
-        message(STATUS "Enabling C++20 support")
-        set(HAVE_CXX20 1)
-        set(HAVE_CXX11 1)
-    else()
-        message(STATUS "Enabling C++11 support")
-        set (CMAKE_CXX_FLAGS "-fp-model=precise -std=c++11 ${CMAKE_CXX_FLAGS}")
-        set(HAVE_CXX11 1)
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "2023")
+        message(FATAL_ERROR "cado-nfs requires icx version 2023 or greater")
     endif()
+    set (CMAKE_CXX_FLAGS "-fp-model=precise -std=c++20 ${CMAKE_CXX_FLAGS}")
+    message(STATUS "Enabling C++20 support")
 elseif(CMAKE_C_COMPILER_ID MATCHES "Intel")
-    message(STATUS "Applying flags for icc")
-    set (CMAKE_CXX_FLAGS "-W -Wall -wd13200,13203,3058 ${CMAKE_CXX_FLAGS}")
-    # only icc>=15 is full c++11 compliant, it seems. But 14 will do.
-    if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 15)
-        set (CMAKE_CXX_FLAGS   "-std=c++11 ${CMAKE_CXX_FLAGS}")
-        set(HAVE_CXX11 1)
-        message(STATUS "Enabling C++11 support")
-    else()
-        # See bug #21416
-        message(FATAL_ERROR "cado-nfs requires icc version 15 or greater")
-    endif()
+    message(FATAL_ERROR "cado-nfs requires icx and does not work with older icc")
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "AppleClang" OR CMAKE_HOST_SYSTEM_NAME
         STREQUAL "Darwin" AND CMAKE_CXX_COMPILER_ID MATCHES "Clang" )
-    # Not the slightest idea when apple's clang became c++11-compliant.
-    # c++20 is for apple clang 16.0.0
-    if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "16.0.0" AND NOT DEFINED ENV{NO_CXX20})
-        set (CMAKE_CXX_FLAGS   "-std=c++20 ${CMAKE_CXX_FLAGS}")
-        set(HAVE_CXX11 1)
-        set(HAVE_CXX20 1)
-        message(STATUS "Enabling C++20 support")
-    elseif (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "15.0.0")
-        # vector::emplace_back + aggregate initialization fail with apple
-        # clang 15, even though it's legitimate c++20
-        set (CMAKE_CXX_FLAGS   "-std=c++11 ${CMAKE_CXX_FLAGS}")
-        set(HAVE_CXX11 1)
-        message(STATUS "Enabling C++11 support")
-    elseif (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "6.0.0")
-        set (CMAKE_CXX_FLAGS   "-std=c++11 ${CMAKE_CXX_FLAGS}")
-        set (HAVE_CXX11 1)
-        message(STATUS "Enabling C++11 support")
+    # 16 is probably a bit excessive. Vanilla clang-14 works, so it might
+    # be that apple clang 14 also works. But I have no way to test.
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "16.0.0")
+        message(FATAL_ERROR "cado-nfs requires Apple Clang version 16 or greater")
     endif()
+    set (CMAKE_CXX_FLAGS   "-std=c++20 ${CMAKE_CXX_FLAGS}")
+    message(STATUS "Enabling C++20 support")
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "^Clang")
     set (CMAKE_CXX_FLAGS "-W -Wall ${CMAKE_CXX_FLAGS}")
     # According to http://clang.llvm.org/cxx_status.html
@@ -271,24 +239,17 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "^Clang")
     # Caveat: Apple's clang identifies itself as plain Clang on some
     # occasions... I don't exactly know when and how, but there's some
     # potential for misconfiguration.
-    if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "16" AND NOT DEFINED ENV{NO_CXX20})
-        set (CMAKE_CXX_FLAGS   "-std=c++20 ${CMAKE_CXX_FLAGS}")
-        set(HAVE_CXX11 1)
-        set(HAVE_CXX20 1)
-        message(STATUS "Enabling C++20 support")
-    elseif (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "3.3")
-        set (CMAKE_CXX_FLAGS   "-std=c++11 ${CMAKE_CXX_FLAGS}")
-        set (HAVE_CXX11 1)
-        message(STATUS "Enabling C++11 support")
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "12")
+        message(FATAL_ERROR "cado-nfs requires Clang version 12 or greater")
     endif()
+    set (CMAKE_CXX_FLAGS   "-std=c++20 ${CMAKE_CXX_FLAGS}")
+    message(STATUS "Enabling C++20 support")
 else()
-    message(WARNING "C++ compiler not recognized. Setting -std=c++11 as a wild guess")
-    set (HAVE_CXX11 1)
+    message(WARNING "C++ compiler not recognized. Setting -std=c++20 as a wild guess")
+    set (CMAKE_CXX_FLAGS   "-std=c++20 ${CMAKE_CXX_FLAGS}")
 endif()
+
 message(STATUS "CXXFLAGS=${CMAKE_CXX_FLAGS} (synthetized)")
-if(NOT HAVE_CXX11)
-    message(FATAL_ERROR "C++11 is now required to build cado-nfs")
-endif()
 
 
 

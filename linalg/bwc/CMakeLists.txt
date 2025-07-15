@@ -30,11 +30,7 @@ set(BWC_GF2_MATMUL_BACKENDS bucket basic sliced
 set(BWC_GFP_ARITHMETIC_BACKENDS p1 p2 p3 p4 p5 p6 p7 p8 p9 p10 p11 p12 p13 p14 p15 pz
     CACHE STRING
     "which GF(p) backends to compile for DLOG mode")
-if(HAVE_CXX11)
-    set(bmb basicp zone)
-else()
-    set(bmb basicp)
-endif()
+set(bmb basicp zone)
 set(BWC_GFP_MATMUL_BACKENDS ${bmb}
     CACHE STRING
     "which low-level matrix multiplication backends to use for GF(2) linear algebra")
@@ -65,7 +61,7 @@ endmacro()
 set(bwc_parallelization_sources
     parallelizing_info.cpp
     )
-if(HAVE_CXX11 AND HAVE_HWLOC)
+if(HAVE_HWLOC)
     list(APPEND bwc_parallelization_sources
     cpubinding.cpp
     )
@@ -120,7 +116,7 @@ endif()
 
 target_link_libraries(bwc_base bblas)
 
-if(HAVE_CXX11 AND HAVE_HWLOC)
+if(HAVE_HWLOC)
 target_link_libraries(bwc_base hwloc)
 endif()
 

@@ -61,7 +61,7 @@ struct lingen_io_wrapper_base
      */
     virtual unsigned int preferred_window() const;
 
-    lingen_io_wrapper_base(matpoly<is_binary>::arith_hard * ab, unsigned int nrows, unsigned int ncols)
+    lingen_io_wrapper_base(typename matpoly<is_binary>::arith_hard * ab, unsigned int nrows, unsigned int ncols)
       : ab(ab)
       , nrows(nrows)
       , ncols(ncols)
@@ -139,7 +139,7 @@ class lingen_file_input : public lingen_input_wrapper_base<is_binary>
     void close_file();
 
     public:
-    lingen_file_input(matpoly<is_binary>::arith_hard * ab,
+    lingen_file_input(typename matpoly<is_binary>::arith_hard * ab,
                       unsigned int nrows,
                       unsigned int ncols,
                       std::string filename,

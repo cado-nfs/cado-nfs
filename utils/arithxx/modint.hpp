@@ -149,7 +149,8 @@ public:
     explicit operator uint32_t() const {return (uint32_t) (*this)[0];}
     explicit operator uint64_t() const {return (*this)[0];}
 
-#if __cplusplus >= 202002L
+    /* three-way comparison isn't complete in g++-9 */
+#if __cplusplus >= 202002L && !GNUC_VERSION_ATMOST(9,9,9)
     int operator<=>(const Integer_base & a) const { return std::lexicographical_compare_three_way(rbegin(), rend(), a.rbegin(), a.rend()); }
     int operator<=>(const uint64_t a) const {return (*this > a) - (*this < a); }
     int cmp(const Integer_base & a) const { return *this <=> a; }

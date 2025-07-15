@@ -16,9 +16,8 @@ namespace arith_modp::details {
     /* AVX/SSE code is a choice which is mostly unrelated to the C++
      * dialect we use, except for a fine point below. We use a union to
      * protect an off-bounds write. And pre-C++11 does not really like
-     * unions with contructors for members. Given that anyway we have
-     * little use for this code at the moment, since it is suboptimal,
-     * let's protect it with HAVE_CXX11
+     * unions with contructors for members. we have
+     * little use for this code at the moment since it is suboptimal.
      */
 #if __cplusplus >= 201103L
 #if defined(HAVE_AVX2) || defined(HAVE_SSSE3)
