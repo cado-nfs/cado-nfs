@@ -228,7 +228,7 @@ template<> struct bucket_update_size_per_level<3> { typedef uint64_t type; };
  * of hint be stored in the buckets, because we do no resieving at all.
  */
 template <int LEVEL> struct bare_bucket_update_t {
-    typedef typename bucket_update_size_per_level<LEVEL>::type br_index_t;
+    using br_index_t = typename bucket_update_size_per_level<LEVEL>::type;
     br_index_t x;
     bare_bucket_update_t() = default;
     bare_bucket_update_t(uint64_t const x)
@@ -507,9 +507,8 @@ template <int LEVEL, typename HINT> class bucket_array_t : private NonCopyable
                             slice_index_t slice_index, where_am_I & w);
 
     template <typename hh = HINT>
-    typename std::enable_if<std::is_same<hh, emptyhint_t>::value,
-                                   void>::type
-    push_update(uint64_t offset, where_am_I & w MAYBE_UNUSED)
+    void push_update(uint64_t offset, where_am_I & w MAYBE_UNUSED)
+    requires std::is_same_v<hh, emptyhint_t>
     {
         int logB = LOG_BUCKET_REGIONS[LEVEL];
         uint64_t const bucket_number = offset >> logB;
@@ -518,10 +517,9 @@ template <int LEVEL, typename HINT> class bucket_array_t : private NonCopyable
         push_update(bucket_number, update);
     }
     template <typename hh = HINT>
-    
-        typename std::enable_if<std::is_same<hh, logphint_t>::value, void>::type
-        push_update(uint64_t offset, logphint_t const & logp,
+    void push_update(uint64_t offset, logphint_t const & logp,
                     where_am_I & w MAYBE_UNUSED)
+        requires std::is_same_v<hh, logphint_t>
     {
         int logB = LOG_BUCKET_REGIONS[LEVEL];
         uint64_t const bucket_number = offset >> logB;

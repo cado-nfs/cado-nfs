@@ -134,24 +134,20 @@ struct cxx_double_poly {
 
     template<typename T>
     class named_proxy {
-        static_assert(std::is_reference<T>::value, "T must be a reference");
-        typedef typename std::remove_reference<T>::type V;
-        typedef typename std::remove_const<V>::type Vnc;
-        typedef named_proxy<Vnc &> nc;
-        static constexpr const bool is_c = std::is_const<V>::value;
+        static_assert(std::is_reference_v<T>, "T must be a reference");
+        using V = std::remove_reference_t<T>;
+        using nc = named_proxy<std::remove_const_t<V> &>;
+        static constexpr const bool is_c = std::is_const_v<V>;
         public:
         T c;
         std::string x;
         named_proxy(T c, std::string x)
             : c(c), x(std::move(x))
         {}
-        template<
-                typename U = T,
-                typename = typename std::enable_if<
-                    std::is_same<U, nc>::value
-                >::type
-            >
-        explicit named_proxy(U const & c) : c(c.c), x(c.x) {}
+        template<typename U = T>
+        explicit named_proxy(U const & c)
+        requires std::is_same_v<U, nc>
+        : c(c.c), x(c.x) {}
     };
 
     named_proxy<cxx_double_poly &> named(std::string const & x) {

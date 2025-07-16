@@ -73,7 +73,7 @@ std::string sha1sum(matpoly<is_binary> const & X)
         }
     char checksum[41];
     S.checksum(checksum);
-    return std::string(checksum);
+    return { checksum };
 }
 
 template<typename matpoly_type>
@@ -86,22 +86,21 @@ struct matpoly_diverter<matpoly<is_binary>> {
         return bw_lingen_single(bm, E);
     }
 };
-template<bool is_binary>
-constexpr const char * matpoly_diverter<matpoly<is_binary>>::prefix;
 
 template<typename matpoly_type, typename fft_type>
 struct matching_ft_type {};
 
 template<typename fft_type>
-struct matching_ft_type<matpoly<is_binary_fft<fft_type>::value>, fft_type> {
-    typedef matpoly_ft<fft_type> type;
+struct matching_ft_type<matpoly<is_binary_fft_v<fft_type>>, fft_type> {
+    using type = matpoly_ft<fft_type>;
 };
-
 
 template<typename fft_type>
-struct matching_ft_type<bigmatpoly<is_binary_fft<fft_type>::value>, fft_type> {
-    typedef bigmatpoly_ft<fft_type> type;
+struct matching_ft_type<bigmatpoly<is_binary_fft_v<fft_type>>, fft_type> {
+    using type = bigmatpoly_ft<fft_type>;
 };
+template<typename T, typename fft_type>
+using matching_ft_type_t = typename matching_ft_type<T, fft_type>::type;
 
 template<bool is_binary> struct matpoly_diverter<bigmatpoly<is_binary>> {
     static constexpr const char * prefix = "MPI-";
@@ -109,14 +108,12 @@ template<bool is_binary> struct matpoly_diverter<bigmatpoly<is_binary>> {
         return bw_biglingen_collective<is_binary>(bm, E);
     }
 };
-template<bool is_binary>
-constexpr const char * matpoly_diverter<bigmatpoly<is_binary>>::prefix;
 
 #ifdef LINGEN_BINARY
 template<typename matpoly_type>
-static 
-typename std::enable_if<matpoly_type::is_binary, matpoly_type>::type
+static matpoly_type
 generic_mp(matpoly_type & E, matpoly_type & pi_left, bmstatus<matpoly_type::is_binary> & bm, lingen_call_companion & C)
+    requires matpoly_type::is_binary
 {
     switch (C.mp.S.fft_type) {
         case lingen_substep_schedule::FFT_NONE:
@@ -138,9 +135,9 @@ generic_mp(matpoly_type & E, matpoly_type & pi_left, bmstatus<matpoly_type::is_b
 
 #ifndef LINGEN_BINARY
 template<typename matpoly_type>
-static 
-typename std::enable_if<!matpoly_type::is_binary, matpoly_type>::type
+static matpoly_type
 generic_mp(matpoly_type & E, matpoly_type & pi_left, bmstatus<matpoly_type::is_binary> & bm, lingen_call_companion & C)
+requires (!matpoly_type::is_binary)
 {
     switch (C.mp.S.fft_type) {
         case lingen_substep_schedule::FFT_NONE:
@@ -161,9 +158,9 @@ generic_mp(matpoly_type & E, matpoly_type & pi_left, bmstatus<matpoly_type::is_b
 
 #ifdef LINGEN_BINARY
 template<typename matpoly_type>
-static 
-typename std::enable_if<matpoly_type::is_binary, matpoly_type>::type
+static matpoly_type
 generic_mul(matpoly_type & pi_left, matpoly_type & pi_right, bmstatus<matpoly_type::is_binary> & bm, lingen_call_companion & C)
+    requires matpoly_type::is_binary
 {
     switch (C.mul.S.fft_type) {
         case lingen_substep_schedule::FFT_NONE:
@@ -185,9 +182,9 @@ generic_mul(matpoly_type & pi_left, matpoly_type & pi_right, bmstatus<matpoly_ty
 
 #ifndef LINGEN_BINARY
 template<typename matpoly_type>
-static 
-typename std::enable_if<!matpoly_type::is_binary, matpoly_type>::type
+    static matpoly_type
 generic_mul(matpoly_type & pi_left, matpoly_type & pi_right, bmstatus<matpoly_type::is_binary> & bm, lingen_call_companion & C)
+requires (!matpoly_type::is_binary)
 {
     switch (C.mul.S.fft_type) {
         case lingen_substep_schedule::FFT_NONE:
@@ -257,7 +254,7 @@ static matpoly_type bw_lingen_recursive(bmstatus<matpoly_type::is_binary> & bm, 
     lingen_call_companion const C0 = bm.companion(depth, z);
 
     tree_stats::sentinel const dummy(bm.stats, fmt::format("{}recursive", matpoly_diverter<matpoly_type>::prefix), z, C0.total_ncalls);
-    typename bmstatus<matpoly_type::is_binary>::depth_sentinel ddummy(bm);
+    const typename bmstatus<matpoly_type::is_binary>::depth_sentinel ddummy(bm);
 
     bm.stats.plan_smallstep(C0.mp.step_name(), C0.mp.tt);
     bm.stats.plan_smallstep(C0.mul.step_name(), C0.mul.tt);

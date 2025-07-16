@@ -24,15 +24,19 @@ struct is_fixed_width<cxx_mpz> : public std::integral_constant<bool, false> {};
 
 template <typename INTEGER>
 class Tests {
-    typedef INTEGER Integer;
+    using Integer = INTEGER;
 
     template<typename T = INTEGER>
-    static size_t test_bits(typename std::enable_if<std::is_same<T, cxx_mpz>::value, int>::type = 0) {
+    static size_t test_bits()
+    requires std::is_same_v<T, cxx_mpz>
+    {
         return 16 + gmp_urandomm_ui(state, 1024);
     }
 
     template<typename T = INTEGER>
-    static size_t test_bits(typename std::enable_if<!std::is_same<T, cxx_mpz>::value, int>::type = 0) {
+    static size_t test_bits()
+    requires(!std::is_same_v<T, cxx_mpz>)
+    {
         return T::max_bits;
     }
 

@@ -26,6 +26,8 @@ template<> struct is_binary_fft<fft_transform_info> {
     static constexpr const bool value = false;
 };
 #endif
+template<typename T>
+inline constexpr bool is_binary_fft_v = is_binary_fft<T>::value;
 
 
 #endif	/* LINGEN_FFT_SELECT_HPP_ */

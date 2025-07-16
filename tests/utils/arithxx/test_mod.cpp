@@ -837,37 +837,39 @@ template <class layer> class Tests
     }
 
     template <typename T, typename = void>
-    struct has_batch_Q_to_Fp : std::false_type {
-    };
+    struct has_batch_Q_to_Fp : std::false_type { };
 
-    template <typename...> struct detect {
-        typedef void type;
-    };
     template <typename T>
     struct has_batch_Q_to_Fp<
-        T, typename detect<decltype(&T::Modulus::batch_Q_to_Fp)>::type>
+        T, std::void_t<decltype(&T::Modulus::batch_Q_to_Fp)>>
         : std::true_type {
     };
+    template <typename T>
+    static constexpr bool has_batch_Q_to_Fp_v = has_batch_Q_to_Fp<T>::value;
 
 #if 0
     template<typename L>
-        typename std::enable_if<!std::is_same<L, arithxx_modredc64>::value, bool>::type
-        test_batch_Q_to_Fp(const unsigned long) const { return true; }
+        bool
+        test_batch_Q_to_Fp(const unsigned long) const
+        requires(!std::is_same_v<L, arithxx_modredc64>
+        { return true; }
 
     template<typename L>
         typename std::enable_if<std::is_same<L, arithxx_modredc64>::value, bool>::type
 #else
     template <typename L>
-    typename std::enable_if<!has_batch_Q_to_Fp<L>::value, bool>::type
+    bool
     test_batch_Q_to_Fp(const unsigned long) const
+    requires(!has_batch_Q_to_Fp_v<L>)
     {
         return true;
     }
 
     template <typename L>
-    typename std::enable_if<has_batch_Q_to_Fp<L>::value, bool>::type
+        bool
 #endif
     test_batch_Q_to_Fp(const unsigned long iter) const
+    requires has_batch_Q_to_Fp_v<L>
     {
         bool ok = true;
         ok &= test_one_batch_Q_to_Fp(Integer(42), Integer(1009), 0);

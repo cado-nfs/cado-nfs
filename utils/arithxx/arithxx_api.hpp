@@ -98,28 +98,22 @@ namespace arithxx_details {
                 downcast().set(r, a);
                 return r;
             }
-            template <typename T, typename std::enable_if<
-                std::is_integral<T>::value &&
-                !std::is_signed<T>::value &&
-                cado_math_aux::is_non_narrowing_conversion<T, uint64_t>::value,
-                int>::type = 0 >
-                    Residue operator()(T const a) const
-                    {
-                        Residue r(downcast());
-                        downcast().set(r, uint64_t(a));
-                        return r;
-                    }
-            template <typename T, typename std::enable_if<
-                std::is_integral<T>::value &&
-                std::is_signed<T>::value &&
-                cado_math_aux::is_non_narrowing_conversion<T, int64_t>::value,
-                int>::type = 0 >
-                    Residue operator()(T const a) const
-                    {
-                        Residue r(downcast());
-                        downcast().set(r, int64_t(a));
-                        return r;
-                    }
+            template <typename T>
+                Residue operator()(T const a) const
+                requires(std::is_integral_v<T> && !std::is_signed_v<T> && cado_math_aux::is_non_narrowing_conversion_v<T, uint64_t>)
+                {
+                    Residue r(downcast());
+                    downcast().set(r, uint64_t(a));
+                    return r;
+                }
+            template <typename T>
+                Residue operator()(T const a) const
+                requires(std::is_integral_v<T> && std::is_signed_v<T> && cado_math_aux::is_non_narrowing_conversion_v<T, int64_t>)
+                {
+                    Residue r(downcast());
+                    downcast().set(r, int64_t(a));
+                    return r;
+                }
 
             bool is_strong_pseudoprime_base2() const;
             bool is_strong_lucas_pseudoprime() const;

@@ -530,7 +530,7 @@ ssize_t lingen_scatter<matpoly_type>::write_from_matpoly(matpoly<is_binary> cons
 {
     constexpr const unsigned int simd = is_binary ? ULONG_BITS : 1;
     long long nk;
-    if constexpr (std::is_same<matpoly_type, matpoly<is_binary>>::value) {
+    if constexpr (std::is_same_v<matpoly_type, matpoly<is_binary>>) {
         /* read k1-k0 new coefficients from src, starting at coefficient k0,
          * write them to the destination (which is embedded in the struct as a
          * reference), starting at coefficient next_dst_k
@@ -550,7 +550,7 @@ ssize_t lingen_scatter<matpoly_type>::write_from_matpoly(matpoly<is_binary> cons
             }
         }
         MPI_Bcast(&nk, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
-    } else if constexpr (std::is_same<matpoly_type, bigmatpoly<is_binary>>::value) {
+    } else if constexpr (std::is_same_v<matpoly_type, bigmatpoly<is_binary>>) {
         /* read k1-k0 new coefficients from src, starting at coefficient k0,
          * write them to the destination (which is embedded in the struct as a
          * reference), starting at coefficient next_dst_k
@@ -588,7 +588,7 @@ ssize_t lingen_gather<matpoly_type>::read_to_matpoly(matpoly<is_binary> & dst, u
     constexpr const unsigned int simd = is_binary ? ULONG_BITS : 1;
     long long nk;
 
-    if constexpr (std::is_same<matpoly_type, matpoly<is_binary>>::value) {
+    if constexpr (std::is_same_v<matpoly_type, matpoly<is_binary>>) {
         ASSERT_ALWAYS(k0 % simd == 0);
         ASSERT_ALWAYS(k1 % simd == 0);
         ASSERT_ALWAYS(next_src_k % simd == 0);
@@ -605,7 +605,7 @@ ssize_t lingen_gather<matpoly_type>::read_to_matpoly(matpoly<is_binary> & dst, u
             }
         }
         MPI_Bcast(&nk, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
-    } else if constexpr (std::is_same<matpoly_type, bigmatpoly<is_binary>>::value) {
+    } else if constexpr (std::is_same_v<matpoly_type, bigmatpoly<is_binary>>) {
         /* This one ***IS*** a collective call */
         ASSERT_ALWAYS(k0 % simd == 0);
         ASSERT_ALWAYS(next_src_k % simd == 0);
@@ -719,11 +719,11 @@ ssize_t lingen_gather_reverse<matpoly_type>::read_to_matpoly(matpoly<is_binary> 
 {
     constexpr const unsigned int simd = is_binary ? ULONG_BITS : 1;
     long long nk;
-    if constexpr (std::is_same<matpoly_type, matpoly<is_binary>>::value) {
+    if constexpr (std::is_same_v<matpoly_type, matpoly<is_binary>>) {
         if (!mpi_rank())
             nk = reverse_matpoly_to_matpoly(dst, k0, k1, pi, next_src_k);
         MPI_Bcast(&nk, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
-    } else if constexpr (std::is_same<matpoly_type, bigmatpoly<is_binary>>::value) {
+    } else if constexpr (std::is_same_v<matpoly_type, bigmatpoly<is_binary>>) {
         /* This one ***IS*** a collective call */
         unsigned int nq;
         unsigned int offset;

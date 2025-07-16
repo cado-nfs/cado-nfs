@@ -27,8 +27,8 @@
 #include "lingen_expected_pi_length.hpp"
 #include "bblas.hpp"
 
-static_assert(std::is_same<matpoly<true>::elt, unsigned long>::value, "wrong flags");
-static_assert(std::is_same<matpoly<true>::ptr, unsigned long *>::value, "wrong flags");
+static_assert(std::is_same_v<matpoly<true>::elt, unsigned long>, "wrong flags");
+static_assert(std::is_same_v<matpoly<true>::ptr, unsigned long *>, "wrong flags");
 
 /* We have two interfaces here. The first one is the one that is common
  * with qcode_prime. This goes through bw_lingen_basecase.
@@ -194,24 +194,27 @@ struct variable_width {
 
 template<typename width_type, typename pointer_type>
 class bitarray : private width_type {
-    static_assert(std::is_same<pointer_type, unsigned long *>::value ||
-            std::is_same<pointer_type, const unsigned long *>::value,
+    static_assert(std::is_same_v<pointer_type, unsigned long *> ||
+            std::is_same_v<pointer_type, const unsigned long *>,
             "works only for ulong* or const ulong*");
     using width_type::width;
     pointer_type x;
 public:
     bitarray(width_type w, pointer_type x) : width_type(w), x(x) {}
-    typename std::enable_if<std::is_same<pointer_type, unsigned long *>::value, bitarray>::type
-    operator^=(bitarray const & a) {
+    bitarray operator^=(bitarray const & a)
+    requires std::is_same_v<pointer_type, unsigned long *>
+    {
         mpn_xor_n (x, x, a.x, width);
         return *this;
     }
-    typename std::enable_if<std::is_same<pointer_type, unsigned long *>::value, void>::type
-    lshift1() {
+    void lshift1()
+    requires std::is_same_v<pointer_type, unsigned long *>
+    {
         mpn_lshift(x, x, width, 1);
     }
-    typename std::enable_if<std::is_same<pointer_type, unsigned long *>::value, void>::type
-    copy_from(const unsigned long * a) {
+    void copy_from(const unsigned long * a)
+    requires std::is_same_v<pointer_type, unsigned long *>
+    {
         memcpy(x, a, width * sizeof(unsigned long));
     }
     void copy_to(unsigned long * a) const {
@@ -220,14 +223,15 @@ public:
     bool operator[](size_t k) const {
         return x[k / ULONG_BITS] & (1UL << (k % ULONG_BITS));
     }
-    typename std::enable_if<std::is_same<pointer_type, unsigned long *>::value, void>::type
-    set1() { *x = 1; }
+    void set1()
+    requires std::is_same_v<pointer_type, unsigned long *>
+    { *x = 1; }
 };
 
 template<>
 class bitarray<constant_width<1>, unsigned long *> : private constant_width<1> {
-    typedef constant_width<1> width_type;
-    typedef unsigned long * pointer_type;
+    using width_type = constant_width<1>;
+    using pointer_type = unsigned long *;
     using width_type::width;
     pointer_type x;
 public:
@@ -244,8 +248,8 @@ public:
 
 template<>
 class bitarray<constant_width<1>, const unsigned long *> : private constant_width<1> {
-    typedef constant_width<1> width_type;
-    typedef const unsigned long * pointer_type;
+    using width_type = constant_width<1>;
+    using pointer_type = unsigned long *;
     using width_type::width;
     pointer_type x;
 public:

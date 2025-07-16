@@ -233,8 +233,9 @@ namespace cado_math_aux
     }
 
     template<typename T>
-    typename std::enable_if<std::is_floating_point<T>::value, T>::type
-    ulp(T r) {
+        T ulp(T r)
+        requires(std::is_floating_point_v<T>)
+        {
         /*
          * Let next(r) be the smallest floating point
          * number strictly larger than r.
@@ -253,8 +254,9 @@ namespace cado_math_aux
      * correct if we are to use it with quad precision floating points.
      */
     template<typename T>
-    typename std::enable_if<std::is_floating_point<T>::value, T>::type
+        T
     mpz_get (mpz_srcptr z)
+        requires(std::is_floating_point_v<T>)
     {
         T ld = 0;
         cxx_mpz zr = z;
@@ -297,34 +299,40 @@ namespace cado_math_aux
             static constexpr T sqrt(T a, T b, T x)
             { return sqrt(a, b, mid(a, b), x); }
             public:
-            static constexpr typename std::enable_if<std::is_integral<T>::value, T>::type sqrt(T x)
+            static constexpr T
+                sqrt(T x)
+                requires std::is_integral_v<T>
             { return sqrt(T(0), (T(1) << (std::numeric_limits<T>::digits/2)), x); }
         };
 
     template<typename T>
-        static constexpr typename std::enable_if<std::is_integral<T>::value, T>::type constant_sqrt(T x) {
+        static constexpr T
+        constant_sqrt(T x)
+        requires std::is_integral_v<T>
+        {
             return constant_time_square_root<T>::sqrt(x);
         }
 
     /* some fun with compile time code */
     /* {{{ compile time evaluation of 2^k mod n */
     template<int k, int n> struct pow2_mod {
+        template<int x> struct sq_mod {
+            static constexpr int value = (x * x) % n;
+        };
+        template<int x> struct dbl_mod {
+            static constexpr int value = (x + x) % n;
+        };
         struct even {
-            static constexpr int value() {
-                typedef pow2_mod<k/2, n> T;
-                return (T::value() * T::value()) % n;
-            }
+            static constexpr int value = sq_mod<pow2_mod<k/2, n>::value>::value;
         };
         struct odd {
-            static constexpr int value() { return (even::value() + even::value()) % n; }
+            static constexpr int value = dbl_mod<even::value>::value;
         };
-        static constexpr int value() {
-            return (k % 2) ? odd::value() : even::value();
-        };
+        static constexpr int value = (k % 2) ? odd::value : even::value;
     };
     template<int n> struct pow2_mod<0, n>
     {
-        static constexpr int value() { return 1; }
+        static constexpr int value = 1;
     };
     /* }}} */
     /* {{{ compile time bezout relation */
@@ -379,11 +387,11 @@ namespace cado_math_aux
         : public invmod<k, T, current * (2 - current * k), c*2>
         {
             static_assert(k & 1, "k must be odd");
-            static_assert(!std::is_signed<T>::value, "T must be an unsigned type");
+            static_assert(!std::is_signed_v<T>, "T must be an unsigned type");
         };
     template<int k, typename T, T current, int c>
         struct invmod<k, T, current, c, true> {
-            static constexpr T value() { return current; }
+            static constexpr T value = current;
         };
     /* }}} */
 
