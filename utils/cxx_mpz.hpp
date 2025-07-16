@@ -208,9 +208,7 @@ CXX_MPZ_DEFINE_CMP(>)
 CXX_MPZ_DEFINE_CMP(<=)
 CXX_MPZ_DEFINE_CMP(>=)
 
-#if __cplusplus >= 202002L
-inline bool operator<=>(cxx_mpz const & a, cxx_mpz const & b) { return gmp_auxx::mpz_cmp(b, a); }
-#endif
+inline bool operator<=>(cxx_mpz const & a, cxx_mpz const & b) { return gmp_auxx::mpz_cmp(a, b); }
 
 inline cxx_mpz operator+(cxx_mpz const & a, cxx_mpz const & b) { cxx_mpz r; mpz_add(r, a, b); return r; }
 template <typename T>
