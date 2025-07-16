@@ -159,7 +159,7 @@ void bigmatpoly<is_binary>::provision_row()
 {
     for(unsigned int j = 0 ; j < n1 ; j++) {
         if (j == (unsigned int) jrank()) continue;
-        matpoly<is_binary> & them = cell(irank(), j);
+        auto & them = cell(irank(), j);
         if (them.check_pre_init())
             them = matpoly<is_binary>(ab, m0, n0, my_cell().capacity());
     }
@@ -175,7 +175,7 @@ void bigmatpoly<is_binary>::unprovision_row()
 {
     for(unsigned int j = 0 ; j < p->n1 ; j++) {
         if (j == (unsigned int) jrank()) continue;
-        matpoly<is_binary> & them = cell(irank(), j);
+        auto & them = cell(irank(), j);
         if (!them.check_pre_init())
             them = matpoly();
     }
@@ -189,7 +189,7 @@ void bigmatpoly<is_binary>::provision_col() // bigmatpoly<is_binary> & p(*this)
 {
     for(unsigned int i = 0 ; i < m1 ; i++) {
         if (i == (unsigned int) irank()) continue;
-        matpoly<is_binary> & them = cell(i, jrank());
+        auto & them = cell(i, jrank());
         if (them.check_pre_init())
             them = matpoly<is_binary>(ab, m0, n0, my_cell().capacity());
     }
@@ -202,20 +202,20 @@ void bigmatpoly<is_binary>::provision_col() // bigmatpoly<is_binary> & p(*this)
 template<bool is_binary>
 void bigmatpoly<is_binary>::set_size(size_t nsize)
 {
-    matpoly<is_binary> & me = my_cell();
+    auto & me = my_cell();
     ASSERT_ALWAYS(nsize <= me.capacity());
     size = nsize;
     me.set_size(nsize);
     for(unsigned int j = 0 ; j < n1 ; j++) {
         if (j == (unsigned int) jrank()) continue;
-        matpoly<is_binary> & them = cell(irank(), j);
+        auto & them = cell(irank(), j);
         if (them.check_pre_init()) continue;
         them.set_size(nsize);
         ASSERT_ALWAYS(nsize <= them.capacity());
     }
     for(unsigned int i = 0 ; i < m1 ; i++) {
         if (i == (unsigned int) irank()) continue;
-        matpoly<is_binary> & them = cell(i, jrank());
+        auto & them = cell(i, jrank());
         if (them.check_pre_init()) continue;
         them.set_size(nsize);
         ASSERT_ALWAYS(nsize <= them.capacity());
@@ -224,18 +224,18 @@ void bigmatpoly<is_binary>::set_size(size_t nsize)
 template<bool is_binary>
 void bigmatpoly<is_binary>::zero_pad(size_t nsize)/*{{{*/
 {
-    matpoly<is_binary> & me = my_cell();
+    auto & me = my_cell();
     size = nsize;
     me.zero_pad(nsize);
     for(unsigned int j = 0 ; j < n1 ; j++) {
         if (j == (unsigned int) jrank()) continue;
-        matpoly<is_binary> & them = cell(irank(), j);
+        auto & them = cell(irank(), j);
         if (them.check_pre_init()) continue;
         them.zero_pad(nsize);
     }
     for(unsigned int i = 0 ; i < m1 ; i++) {
         if (i == (unsigned int) irank()) continue;
-        matpoly<is_binary> & them = cell(i, jrank());
+        auto & them = cell(i, jrank());
         if (them.check_pre_init()) continue;
         them.zero_pad(nsize);
     }
@@ -298,8 +298,8 @@ void bigmatpoly<is_binary>::truncate(bigmatpoly const & src, unsigned int nsize)
     size = my_cell().get_size();
     for(unsigned int j = 0 ; j < n1 ; j++) {
         if (j == (unsigned int) jrank()) continue;
-        matpoly<is_binary> const & sthem = src.cell(irank(), j);
-        matpoly<is_binary> & dthem = cell(irank(), j);
+        auto const & sthem = src.cell(irank(), j);
+        auto & dthem = cell(irank(), j);
         if (sthem.check_pre_init()) {
             dthem.clear();
         } else if (dthem.check_pre_init()) {
@@ -310,8 +310,8 @@ void bigmatpoly<is_binary>::truncate(bigmatpoly const & src, unsigned int nsize)
     }
     for(unsigned int i = 0 ; i < m1 ; i++) {
         if (i == (unsigned int) irank()) continue;
-        matpoly<is_binary> const & sthem = src.cell(i, jrank());
-        matpoly<is_binary> & dthem = cell(i, jrank());
+        auto const & sthem = src.cell(i, jrank());
+        auto & dthem = cell(i, jrank());
         if (sthem.check_pre_init()) {
             dthem.clear();
         } else if (dthem.check_pre_init()) {
@@ -326,7 +326,7 @@ void bigmatpoly<is_binary>::truncate(bigmatpoly const & src, unsigned int nsize)
 template<bool is_binary>
 bool bigmatpoly<is_binary>::high_word_is_clear() const
 {
-    matpoly<is_binary> const & me = my_cell();
+    auto const & me = my_cell();
     if (!me.high_word_is_clear()) return false;
     for(unsigned int j = 0 ; j < n1 ; j++) {
         if (j == (unsigned int) jrank()) continue;
@@ -342,17 +342,17 @@ bool bigmatpoly<is_binary>::high_word_is_clear() const
 template<bool is_binary>
 void bigmatpoly<is_binary>::clear_high_word()
 {
-    matpoly<is_binary> & me = my_cell();
+    auto & me = my_cell();
     me.clear_high_word();
     for(unsigned int j = 0 ; j < n1 ; j++) {
         if (j == (unsigned int) jrank()) continue;
-        matpoly<is_binary> & them = cell(irank(), j);
+        auto & them = cell(irank(), j);
         if (them.check_pre_init()) continue;
         them.clear_high_word();
     }
     for(unsigned int i = 0 ; i < m1 ; i++) {
         if (i == (unsigned int) irank()) continue;
-        matpoly<is_binary> & them = cell(i, jrank());
+        auto & them = cell(i, jrank());
         if (them.check_pre_init()) continue;
         them.clear_high_word();
     }
@@ -376,7 +376,7 @@ int bigmatpoly<is_binary>::coeff_is_zero(unsigned int k) const
 template<bool is_binary>
 void bigmatpoly<is_binary>::rshift(bigmatpoly & src, unsigned int k) /*{{{*/
 {
-    matpoly<is_binary> & me = my_cell();
+    auto & me = my_cell();
     if (check_pre_init())
         finish_init(src.ab, src.m, src.n, src.size - k);
     // ASSERT_ALWAYS(provisioned() == 0);
@@ -409,7 +409,7 @@ void bigmatpoly<is_binary>::allgather_row()
 {
     provision_row();
     for(unsigned int k = 0 ; k < n1 ; k++) {
-        matpoly<is_binary> & data = cell(irank(), k);
+        auto & data = cell(irank(), k);
         /* XXX: Should we ensure earlier that we agree on the size ? */
         unsigned long dsize = data.get_size();
         MPI_Bcast(&dsize, 1, MPI_UNSIGNED_LONG, k, com[1]);
@@ -428,7 +428,7 @@ void bigmatpoly<is_binary>::allgather_col()
 {
     provision_col();
     for(unsigned int k = 0 ; k < m1 ; k++) {
-        matpoly<is_binary> & data = cell(k, jrank());
+        auto & data = cell(k, jrank());
         /* XXX: Should we ensure earlier that we agree on the size ? */
         unsigned long dsize = data.get_size();
         MPI_Bcast(&dsize, 1, MPI_UNSIGNED_LONG, k, com[2]);
@@ -454,7 +454,7 @@ bigmatpoly<is_binary> bigmatpoly<is_binary>::mul(bigmatpoly & a, bigmatpoly & b)
     a.allgather_row();
     a.allgather_col();
     c.set_size(csize);
-    matpoly<is_binary> & lc = c.my_cell();
+    auto & lc = c.my_cell();
     lc.zero();
     c.set_size(csize);
     ASSERT_ALWAYS(a.n == b.m);
@@ -477,7 +477,7 @@ bigmatpoly<is_binary> bigmatpoly<is_binary>::mp(bigmatpoly & a, bigmatpoly & c) 
     a.allgather_row();
     c.allgather_col();
 
-    matpoly<is_binary> & lb = b.my_cell();
+    auto & lb = b.my_cell();
     lb.zero();
     b.set_size(bsize);
     ASSERT_ALWAYS(lb.get_size() == bsize);
