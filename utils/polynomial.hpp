@@ -103,11 +103,7 @@ template<typename CoefficientType, typename PointType>
 struct eval_type {
     static constexpr bool up = cado_math_aux::is_coercible<CoefficientType, PointType>::value;
     static constexpr bool down = cado_math_aux::is_strictly_coercible<PointType, CoefficientType>::value;
-    typedef typename
-        std::conditional<
-        up,
-            PointType,
-            typename std::enable_if<down, CoefficientType>>::type type;
+    using type = std::conditional_t<up, PointType, std::enable_if<down, CoefficientType>>;
 };
 
 
@@ -236,15 +232,11 @@ struct polynomial {
     /* {{{ for real types: evaluate using full precision, and convert
      * ultimately to the target type T
      */
-    template<typename U, 
-        typename = std::enable_if_t<
-            // cado_math_aux::is_real<eval_type<T, U>>::value &&
-            // XXX it's a bug: currently this _only_ works if T==U and T
-            // is a floating point type in the stdc++ library sense.
-            // cado_math_aux::is_real<U>::value &&
-            std::is_floating_point<U>::value &&
-            std::is_same<T, U>::value>>
+    template<typename U>
     eval_type<T, U> eval_safe(U const & x) const
+        requires(
+            std::is_floating_point_v<U> &&
+            std::is_same_v<T, U>)
     {
         T const * f = coeffs.data();
         const int deg = degree();
@@ -404,13 +396,10 @@ struct polynomial {
 
 
     template<typename U>
-    typename std::enable_if<
-                cado_math_aux::is_real<
-                    eval_type_t<T, U>
-                >::value,
-                eval_type_t<T, U>
-            >::type
-    findroot_dichotomy(U const & a, U const & b) const {
+        eval_type_t<T, U>
+    findroot_dichotomy(U const & a, U const & b) const
+    requires cado_math_aux::is_real_v<eval_type_t<T, U>>
+    {
         using cado_math_aux::sgn;
         return findroot_dichotomy(a, b, sgn(eval(a)));
     }
@@ -418,13 +407,9 @@ struct polynomial {
 
 
     template<typename U>
-    typename std::enable_if<
-                cado_math_aux::is_real<
-                    eval_type_t<T, U>
-                >::value,
-                eval_type_t<T, U>
-            >::type
+        eval_type_t<T, U>
     findroot_dichotomy(U a, U b, int sa) const
+    requires cado_math_aux::is_real_v<eval_type_t<T, U>>
     {
         eval_type_t<T, U> s;
         for(;;) {
@@ -519,13 +504,9 @@ struct polynomial {
      */
 
     template<typename U>
-    typename std::enable_if<
-                cado_math_aux::is_real<
-                    eval_type_t<T, U>
-                >::value,
-                eval_type_t<T, U>
-            >::type
+        eval_type_t<T, U>
     findroot_falseposition(U const & a0, U const & b0, U const & pa0) const
+    requires cado_math_aux::is_real_v<eval_type_t<T, U>>
     {
         int side=0;
         eval_type_t<T, U> a=a0, b=b0, pa=pa0, pb;
@@ -642,13 +623,9 @@ struct polynomial {
     public:
 
     template<typename U>
-    typename std::enable_if<
-                cado_math_aux::is_real<
-                    eval_type_t<T, U>
-                >::value,
-                std::vector<eval_type_t<T, U>>
-            >::type
+        std::vector<eval_type_t<T, U>>
     positive_roots(U bound) const
+    requires cado_math_aux::is_real_v<eval_type_t<T, U>>
     {
         const int d = degree();
 
@@ -674,13 +651,9 @@ struct polynomial {
     }
 
     template<typename U>
-    typename std::enable_if<
-                cado_math_aux::is_real<
-                    eval_type_t<T, U>
-                >::value,
-                std::vector<eval_type_t<T, U>>
-            >::type
+        std::vector<eval_type_t<T, U>>
     roots() const
+    requires cado_math_aux::is_real_v<eval_type_t<T, U>>
     {
         if (degree() == -1) return {};
 
@@ -979,8 +952,10 @@ struct polynomial {
     template<typename U>
     bool operator!=(U v) const { return !operator==(v); }
     template<typename U>
-        typename std::enable_if<std::is_convertible<U, T>::value, bool>::type
-    operator==(U v) const {
+        bool
+    operator==(U v) const
+    requires std::is_convertible_v<U, T>
+    {
         return (degree() < 0 && v == 0) || (degree() == 0 && coeffs[0] == v);
     }
 
@@ -1069,11 +1044,9 @@ struct polynomial {
     public:
 
     template<typename U>
-    typename std::enable_if<
-        std::is_same<U, T>::value
-        && cado_math_aux::is_real<U>::value,
-        T>::type
+        T
     resultant(polynomial<U> const & q) const
+    requires(std::is_same_v<U, T> && cado_math_aux::is_real_v<U>)
     {
         polynomial const & p = *this;
         if (p.degree() < 0 || q.degree() < 0)
@@ -1154,11 +1127,9 @@ struct polynomial {
         return h;
     }
     template<typename U>
-    typename std::enable_if<
-        std::is_same<U, T>::value
-        && std::is_same<U, cxx_mpz>::value
-        , T>::type
+        T
     resultant(polynomial<U> const & q) const
+    requires(std::is_same_v<U, T> && std::is_same_v<U, cxx_mpz>)
     {
         cxx_mpz val_z;
         cxx_mpz_poly pz(*this);
@@ -1170,11 +1141,11 @@ struct polynomial {
 };
 
 
-static_assert(std::is_same<decltype(polynomial<int>{}(double())), double>::value);
-static_assert(std::is_same<decltype(polynomial<double>{}(int())), double>::value);
-static_assert(std::is_same<decltype(polynomial<int>{}(int())), int>::value);
-static_assert(std::is_same<decltype(polynomial<cxx_mpz>{}(int())), cxx_mpz>::value);
-static_assert(std::is_same<decltype(polynomial<cxx_mpz>{}(double())), double>::value);
+static_assert(std::is_same_v<decltype(polynomial<int>{}(double())), double>);
+static_assert(std::is_same_v<decltype(polynomial<double>{}(int())), double>);
+static_assert(std::is_same_v<decltype(polynomial<int>{}(int())), int>);
+static_assert(std::is_same_v<decltype(polynomial<cxx_mpz>{}(int())), cxx_mpz>);
+static_assert(std::is_same_v<decltype(polynomial<cxx_mpz>{}(double())), double>);
 
 // same idea. not a reason to pull cxx_mpfr.hpp or cxx_mpc.hpp though.
 // static_assert(std::is_same<decltype(polynomial<cxx_mpz>{}(cxx_mpfr())), cxx_mpfr>::value);

@@ -81,6 +81,8 @@ using is_strictly_coercible_t = std::enable_if_t<is_strictly_coercible<From, To>
 template<typename T> struct is_integral : public std::is_integral<T> {};
 
 template<> struct is_integral<cxx_mpz> : public std::true_type {};
+template<typename X>
+inline constexpr bool is_integral_v = is_integral<X>::value;
 
 /* A type is real if it makes sense to do Newton iterations and it's
  * totally ordered.
@@ -93,7 +95,9 @@ template<> struct is_real<long double> : public std::true_type {};
 template<> struct is_real<cxx_mpfr> : public std::true_type {};
 #endif
 template<typename X>
-using is_real_t = std::enable_if_t<is_real<X>::value, bool>;
+inline constexpr bool is_real_v = is_real<X>::value;
+template<typename X>
+using is_real_t = std::enable_if_t<is_real_v<X>, bool>;
 
 /* A complex type requires algorithms such as Jenkins-Traub for
  * rootfinding.
@@ -106,7 +110,9 @@ template<> struct is_complex<_Complex long double> : public std::true_type {};
 template<> struct is_complex<cxx_mpc> : public std::true_type {};
 #endif
 template<typename X>
-using is_complex_t = std::enable_if_t<is_complex<X>::value, bool>;
+inline constexpr bool is_complex_v = is_complex<X>::value;
+template<typename X>
+using is_complex_t = std::enable_if_t<is_complex_v<X>, bool>;
 
 static_assert(is_coercible<int, long>::value);
 static_assert(!is_coercible<double, long>::value);
