@@ -41,7 +41,8 @@ static void decl_usage(cxx_param_list & pl)/*{{{*/
     param_list_decl_usage(pl, "out", "output file");
     param_list_decl_usage(pl, "batch", "batch input file with test vectors and expected results");
     param_list_decl_usage(pl, "seed", "seed used for random picks");
-    param_list_decl_usage(pl, "elements", "ideal generators (separated by ;)");
+    param_list_decl_usage(pl, "elements", "(valuations-of-ideal) ideal generators (comma-separated list of polynomials in x)");
+    param_list_decl_usage(pl, "bound", "(maximal-order) prime limit");
 }/*}}}*/
 
 static void usage(cxx_param_list & pl, char const ** argv, const char * msg = nullptr)/*{{{*/
@@ -62,10 +63,15 @@ static int do_p_maximal_order(cxx_param_list & pl) /*{{{*/
     if (!param_list_parse(pl, "poly", polystr)) usage(pl, original_argv, "missing poly argument");
 
     cxx_mpz_poly const f(polystr);
-    number_field const K(f);
+    number_field K(f);
     number_field_order O = K.p_maximal_order(p);
+    K.bless("K", "alpha");
+    O.bless(fmt::format("O{}", p));
 
-    fmt::print("{}\n", O);
+    fmt::print("ZP.<x> = ZZ[]\n");
+    fmt::print("{}.<{}>={:S}\n", K.name, K.varname, K);
+    fmt::print("{} = {:S}\n", O.name, O);
+    fmt::print("assert {}.is_maximal({})\n", O.name, p);
 
     return 1;
 }
@@ -191,6 +197,7 @@ static int do_factorization_of_prime(cxx_param_list & pl) /*{{{*/
     cxx_mpz_poly const f(polystr);
 
     number_field K(f);
+    fmt::print("ZP.<x> = ZZ[]\n");
     K.bless("K", "alpha");
     number_field_order O = K.p_maximal_order(p);
     O.bless(fmt::format("O{}", p));
@@ -200,7 +207,7 @@ static int do_factorization_of_prime(cxx_param_list & pl) /*{{{*/
     if (param_list_parse_ulong(pl, "seed", &seed)) {
         gmp_randseed_ui(state, seed);
     }
-    fmt::print("{}.<{}lpha>={:S}\n", K.name, K.varname, K);
+    fmt::print("{}.<{}>={:S}\n", K.name, K.varname, K);
     fmt::print("{}={:S}\n", O.name, O);
     auto F = O.factor(p, state);
 
@@ -301,29 +308,21 @@ static int do_valuations_of_ideal(cxx_param_list & pl) /*{{{*/
     /* Now read the element description */
     std::vector<cxx_mpz_poly> elements; 
     {
-        std::string tmp;
-        if (!param_list_parse(pl, "elements", tmp))
-            usage(pl, original_argv, "missing ideal generators");
-        for( ; !tmp.empty() ; ) {
-            auto nq = tmp.find(';');
-            auto desc = tmp;
-            if (nq != std::string::npos) {
-                desc = tmp.substr(0, nq);
-                tmp = tmp.substr(nq + 1);
-            } else {
-                tmp.clear();
-            }
-            std::istringstream is(desc);
-            cxx_mpz_poly x;
-            if (!(is >> x)) usage(pl, original_argv, "cannot parse ideal generators");
-            elements.push_back(x);
-        }
+        auto tmp = param_list_parse_mandatory<std::string>(pl, "elements");
+
+        for(auto const & desc : split(tmp, ","))
+            elements.emplace_back(desc);
     }
 
     number_field K(f);
     number_field_order O = K.p_maximal_order(p);
 
-    K.bless("alpha");
+    K.bless("K", "alpha");
+    O.bless(fmt::format("O{}", p));
+
+    fmt::print("ZP.<x> = ZZ[]\n");
+    fmt::print("{}.<{}>={:S}\n", K.name, K.varname, K);
+    fmt::print("{}={:S}\n", O.name, O);
 
     std::vector<number_field_element> gens;
     gens.reserve(elements.size());
@@ -331,6 +330,8 @@ static int do_valuations_of_ideal(cxx_param_list & pl) /*{{{*/
         gens.emplace_back(K(e));
 
     auto I = O.fractional_ideal(gens);
+
+    fmt::print("I = {}.fractional_ideal([{}])\n", O.name, join(gens, ", "));
 
     cxx_gmp_randstate state;
     unsigned long seed = 0;
@@ -346,6 +347,9 @@ static int do_valuations_of_ideal(cxx_param_list & pl) /*{{{*/
 
         fmt::print("# (p={}, k={}, f={}. e={}; ideal<O|{},{}>)^{};\n",
                 p, k, fkp.inertia_degree(), e, two.first, K(two.second), v);
+
+        fmt::print("assert I.valuation({}) == {}\n",
+                fkp, I.valuation(fkp));
     }
     return 1;
 }
@@ -503,13 +507,15 @@ static int do_maximal_order(cxx_param_list & pl)
     K.bless("K", "alpha");
     fmt::print("print(\"working with {}\")\n", K);
 
-    const number_field_order OK = K.maximal_order(bound);
-    // OK.bless("OK");
+    number_field_order OK = K.maximal_order(bound);
+    OK.bless("OK");
 
-    for(auto const & e : OK.basis())
-        fmt::print("{}\n", e);
+    fmt::print("ZP.<x> = ZZ[]\n");
+    fmt::print("{}.<{}>={:S}\n", K.name, K.varname, K);
+    fmt::print("{}={:S}\n", OK.name, OK);
+    fmt::print("assert {} == K.maximal_order()\n", OK.name, OK);
 
-    return 0;
+    return 1;
 }
 
 struct test_number_theory_object_interface {
@@ -760,71 +766,6 @@ static int do_number_theory_object_interface(cxx_param_list & pl)
     return 1;
 }
 
-static int do_linear_algebra_timings(cxx_param_list & pl)/*{{{*/
-{
-    unsigned int m = 8;
-    unsigned int n = 5;
-    param_list_parse_uint(pl, "m", &m);
-    param_list_parse_uint(pl, "n", &n);
-
-    gmp_randstate_t state;
-    gmp_randinit_default(state);
-    unsigned long seed = 0;
-    if (param_list_parse_ulong(pl, "seed", &seed)) {
-        gmp_randseed_ui(state, seed);
-    }
-
-    cxx_mpq_mat M(m,n);
-    cxx_mpq_mat T(m,m);
-    cxx_mpz_mat Mz(m,n);
-    cxx_mpz_mat Tz(m,m);
-    cxx_mpz p;
-
-    mpz_set_ui(p, 19);
-    param_list_parse_mpz(pl, "prime", p);
-
-    {
-        printf("\n\nCase 0.1\n\n");
-        mpq_mat_urandomm(M, state, p);
-        mpq_mat_fprint(stdout, M);
-        printf("\n");
-        mpq_mat_gauss_backend(M, T);
-        mpq_mat_fprint(stdout, M);
-        printf("\n");
-        mpq_mat_fprint(stdout, T);
-        printf("\n");
-    }
-
-    {
-        printf("\n\nCase 0.2\n\n");
-        mpz_mat_urandomm(Mz, state, p);
-        mpz_mat_fprint(stdout, Mz);
-        printf("\n");
-        mpz_mat_gauss_backend_mod_mpz(Mz, Tz, p);
-        mpz_mat_fprint(stdout, Mz);
-        printf("\n");
-        mpz_mat_fprint(stdout, Tz);
-        printf("\n");
-    }
-
-    {
-        printf("\n\nCase 1\n\n");
-        mpz_mat_realloc(Mz, m, n);
-        mpz_mat_urandomm(Mz, state, p);
-        mpz_mat_fprint(stdout, Mz); printf("\n");
-        double t = seconds();
-        mpz_mat_hermite_form(Mz, Tz);
-        t = seconds()-t;
-        mpz_mat_fprint(stdout, Mz); printf("\n");
-        mpz_mat_fprint(stdout, Tz); printf("\n");
-
-        printf("%1.4f\n", t);
-    }
-
-    gmp_randclear(state);
-    return 1;
-}/*}}}*/
-
 // coverity[root_function]
 int main(int argc, char const * argv[])
     /*{{{ */
@@ -863,8 +804,6 @@ int main(int argc, char const * argv[])
         rc = do_valuations_of_ideal(pl);
     } else if (tmp == "valuations-of-ideal-batch") {
         rc = do_valuations_of_ideal_batch(pl);
-    } else if (tmp == "linear-algebra-timings") {
-        rc = do_linear_algebra_timings(pl);
     } else if (tmp == "nt-object-interface") {
         rc = do_number_theory_object_interface(pl);
     } else if (tmp == "maximal-order") {

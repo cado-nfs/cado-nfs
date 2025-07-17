@@ -21,7 +21,7 @@ commit_ref="https://gitlab.inria.fr/cado-nfs/cado-nfs/-/commit/$commit"
 export src_tree=$PWD
 
 run() {
-    make check ARGS="$*"
+    OMP_DYNAMIC=true make check ARGS="$*"
     # COV=1 ./cado-nfs.py 90377629292003121684002147101760858109247336549001090677693
 }
 

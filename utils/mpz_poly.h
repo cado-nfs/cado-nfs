@@ -14,6 +14,7 @@
 #include <utility>
 #include <istream>      // std::istream // IWYU pragma: keep
 #include <ostream>      // std::ostream // IWYU pragma: keep
+#include <stdexcept>
 #include <type_traits>
 #endif
 
@@ -379,7 +380,8 @@ struct cxx_mpz_poly {
     }
     // NOLINTNEXTLINE(hicpp-explicit-conversions)
     cxx_mpz_poly(std::string const & e) : cxx_mpz_poly() {
-        mpz_poly_set_from_expression(x, e.c_str());
+        if (!mpz_poly_set_from_expression(x, e.c_str()))
+            throw std::invalid_argument(e);
     }
     cxx_mpz_poly& operator=(std::string const & e) {
         mpz_poly_set_from_expression(x, e.c_str());
