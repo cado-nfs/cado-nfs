@@ -1,24 +1,30 @@
 #include "cado.h" // IWYU pragma: keep
-#include <cctype>      // for isspace
-#include <cerrno>      // for ENOENT, errno
+
+#include <cctype>
+#include <cerrno>
 #include <cstdio>
 
-#include <string>       // for operator==, string, operator>>, basic_string
-#include <sstream> // istringstream // IWYU pragma: keep
+#include <array>
+#include <ios>
+#include <istream>
+#include <list>
+#include <ostream>
+#include <sstream>
+#include <string>
 #include <tuple>
-#include <type_traits>
+#include <utility>
 
 #include "lingen_tuning_cache.hpp"
 #include "macros.h"
 
 template <size_t n, typename... T>
-static typename std::enable_if<(n >= sizeof...(T)), std::ostream&>::type
-    print_tuple(std::ostream& os, const std::tuple<T...>&)
+static std::ostream& print_tuple(std::ostream& os, const std::tuple<T...>&)
+    requires (n >= sizeof...(T))
 { return os; }
 
 template <size_t n, typename... T>
-static typename std::enable_if<(n < sizeof...(T)), std::ostream&>::type
-    print_tuple(std::ostream& os, const std::tuple<T...>& tup)
+static std::ostream& print_tuple(std::ostream& os, const std::tuple<T...>& tup)
+    requires (n < sizeof...(T))
 {
     if (n)
         os << ";";
@@ -32,13 +38,13 @@ static std::ostream& operator<<(std::ostream& os, const std::tuple<T...>& tup)
 }
 
 template <size_t n, typename... T>
-static typename std::enable_if<(n >= sizeof...(T)), std::istream&>::type
-    parse_tuple(std::istream& is, std::tuple<T...>&)
+static std::istream& parse_tuple(std::istream& is, std::tuple<T...>&)
+    requires (n >= sizeof...(T))
 { return is; }
 
 template <size_t n, typename... T>
-static typename std::enable_if<(n < sizeof...(T)), std::istream&>::type
-    parse_tuple(std::istream& is, std::tuple<T...>& tup)
+static std::istream& parse_tuple(std::istream& is, std::tuple<T...>& tup)
+    requires (n < sizeof...(T))
 {
     if (!is) return is;
     if (n) {
@@ -142,11 +148,11 @@ static std::istream& operator>>(std::istream& is, std::array<T, n>& arr)
 
 void lingen_tuning_cache::load(const char * timing_cache_filename)/*{{{*/
 {
-    if (timing_cache_filename == NULL) return;
+    if (timing_cache_filename == nullptr) return;
 
     FILE * f = fopen(timing_cache_filename, "r");
 
-    if (f == NULL && errno == ENOENT) {
+    if (f == nullptr && errno == ENOENT) {
         printf("# %s: no cache file found\n", timing_cache_filename);
         return;
     }
@@ -207,7 +213,7 @@ void lingen_tuning_cache::load(const char * timing_cache_filename)/*{{{*/
 
 void lingen_tuning_cache::save(const char * timing_cache_filename)/*{{{*/
 {
-    if (timing_cache_filename == NULL) return;
+    if (timing_cache_filename == nullptr) return;
 
     FILE * f = fopen(timing_cache_filename, "w");
     ASSERT_ALWAYS(f);

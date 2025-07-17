@@ -1,9 +1,9 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <climits>                       // for UINT_MAX
-#include <cstdio>                        // for printf
-#include <cstdlib>                       // for free, malloc
-#include <cstring>                       // for memset, memcpy
+#include <climits>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <cstdint>
 
 #include <algorithm>
@@ -16,19 +16,19 @@
 
 #include "gmp_aux.h"
 #include "lingen_qcode_binary.hpp"
-#include "bpack.hpp"                      // for bpack_view, bpack_view_base...
-#include "lingen_bmstatus.hpp"            // for bmstatus
-#include "lingen_bw_dimensions.hpp"       // for bw_dimensions
-#include "lingen_call_companion.hpp"      // for lingen_call_companion
+#include "bpack.hpp"
+#include "lingen_bmstatus.hpp"
+#include "lingen_bw_dimensions.hpp"
+#include "lingen_call_companion.hpp"
 #include "lingen_matpoly_select.hpp"
-#include "macros.h"                       // for ASSERT_ALWAYS, iceildiv
-#include "timing.h"                       // for wct_seconds
-#include "tree_stats.hpp"                 // for tree_stats, tree_stats::sen...
+#include "macros.h"
+#include "timing.h"
+#include "tree_stats.hpp"
 #include "lingen_expected_pi_length.hpp"
 #include "bblas.hpp"
 
-static_assert(std::is_same<matpoly::elt, unsigned long>::value, "wrong flags");
-static_assert(std::is_same<matpoly::ptr, unsigned long *>::value, "wrong flags");
+static_assert(std::is_same_v<matpoly<true>::elt, unsigned long>, "wrong flags");
+static_assert(std::is_same_v<matpoly<true>::ptr, unsigned long *>, "wrong flags");
 
 /* We have two interfaces here. The first one is the one that is common
  * with qcode_prime. This goes through bw_lingen_basecase.
@@ -194,24 +194,27 @@ struct variable_width {
 
 template<typename width_type, typename pointer_type>
 class bitarray : private width_type {
-    static_assert(std::is_same<pointer_type, unsigned long *>::value ||
-            std::is_same<pointer_type, const unsigned long *>::value,
+    static_assert(std::is_same_v<pointer_type, unsigned long *> ||
+            std::is_same_v<pointer_type, const unsigned long *>,
             "works only for ulong* or const ulong*");
     using width_type::width;
     pointer_type x;
 public:
     bitarray(width_type w, pointer_type x) : width_type(w), x(x) {}
-    typename std::enable_if<std::is_same<pointer_type, unsigned long *>::value, bitarray>::type
-    operator^=(bitarray const & a) {
+    bitarray operator^=(bitarray const & a)
+    requires std::is_same_v<pointer_type, unsigned long *>
+    {
         mpn_xor_n (x, x, a.x, width);
         return *this;
     }
-    typename std::enable_if<std::is_same<pointer_type, unsigned long *>::value, void>::type
-    lshift1() {
+    void lshift1()
+    requires std::is_same_v<pointer_type, unsigned long *>
+    {
         mpn_lshift(x, x, width, 1);
     }
-    typename std::enable_if<std::is_same<pointer_type, unsigned long *>::value, void>::type
-    copy_from(const unsigned long * a) {
+    void copy_from(const unsigned long * a)
+    requires std::is_same_v<pointer_type, unsigned long *>
+    {
         memcpy(x, a, width * sizeof(unsigned long));
     }
     void copy_to(unsigned long * a) const {
@@ -220,14 +223,15 @@ public:
     bool operator[](size_t k) const {
         return x[k / ULONG_BITS] & (1UL << (k % ULONG_BITS));
     }
-    typename std::enable_if<std::is_same<pointer_type, unsigned long *>::value, void>::type
-    set1() { *x = 1; }
+    void set1()
+    requires std::is_same_v<pointer_type, unsigned long *>
+    { *x = 1; }
 };
 
 template<>
 class bitarray<constant_width<1>, unsigned long *> : private constant_width<1> {
-    typedef constant_width<1> width_type;
-    typedef unsigned long * pointer_type;
+    using width_type = constant_width<1>;
+    using pointer_type = unsigned long *;
     using width_type::width;
     pointer_type x;
 public:
@@ -244,8 +248,8 @@ public:
 
 template<>
 class bitarray<constant_width<1>, const unsigned long *> : private constant_width<1> {
-    typedef constant_width<1> width_type;
-    typedef const unsigned long * pointer_type;
+    using width_type = constant_width<1>;
+    using pointer_type = unsigned long *;
     using width_type::width;
     pointer_type x;
 public:
@@ -542,7 +546,7 @@ unsigned int lingen_qcode_do(lingen_qcode_data_ptr qq)/*{{{*/
     return 0;
 }/*}}}*/
 
-static matpoly bw_lingen_basecase_raw_old [[maybe_unused]] (bmstatus & bm, matpoly & E)/*{{{*/
+static matpoly<true> bw_lingen_basecase_raw_old [[maybe_unused]] (bmstatus<true> & bm, matpoly<true> & E)/*{{{*/
 {
     /* There's a nasty bug. Revealed by 32-bits, but can occur on larger
      * sizes too. Let W be the word size. When E has length W + epsilon,
@@ -561,7 +565,7 @@ static matpoly bw_lingen_basecase_raw_old [[maybe_unused]] (bmstatus & bm, matpo
      */
     size_t const exp_maxlen = 1 + E.get_size();
 
-    matpoly pi(&bm.d.ab, E.ncols(), E.ncols(), exp_maxlen);
+    matpoly<true> pi(&bm.d.ab, E.ncols(), E.ncols(), exp_maxlen);
     pi.zero_pad(exp_maxlen);
 
     bool finished = false;
@@ -689,9 +693,9 @@ static bool generator_found(unsigned int t, bpack_view<uint64_t> E_t, std::vecto
     return happy;
 }
 
-static matpoly bw_lingen_basecase_raw_fast(bmstatus & bm, matpoly const & mp_E)/*{{{*/
+static matpoly<true> bw_lingen_basecase_raw_fast(bmstatus<true> & bm, matpoly<true> const & mp_E)/*{{{*/
 {
-    bw_dimensions & d = bm.d;
+    bw_dimensions<true> & d = bm.d;
     unsigned int const m = d.m;
     unsigned int const n = d.n;
     unsigned int const b = m + n;
@@ -702,7 +706,7 @@ static matpoly bw_lingen_basecase_raw_fast(bmstatus & bm, matpoly const & mp_E)/
      */
     size_t const D = 1 + mp_E.get_size();
 
-    matpoly::arith_hard * ab = &d.ab;
+    matpoly<true>::arith_hard * ab = &d.ab;
     constexpr const unsigned int B = mat64::width;
     unsigned int bb = iceildiv(b, B);
     unsigned int const bX = bb * B;
@@ -827,7 +831,7 @@ static matpoly bw_lingen_basecase_raw_fast(bmstatus & bm, matpoly const & mp_E)/
     }
 
 
-    matpoly mp_pi(ab, m+n, m+n, DX);
+    matpoly<true> mp_pi(ab, m+n, m+n, DX);
     binary_polmat_to_matpoly_transpose(
             (unsigned long *) mp_pi.data_area(),
             &pi[0],
@@ -837,7 +841,7 @@ static matpoly bw_lingen_basecase_raw_fast(bmstatus & bm, matpoly const & mp_E)/
     bm.done = t < L;
 
     if (0) {
-        matpoly const mp_Epi = matpoly::mul(mp_E, mp_pi);
+        matpoly<true> const mp_Epi = matpoly<true>::mul(mp_E, mp_pi);
         unsigned int const v = mp_Epi.valuation();
         printf("valuation check: %u\n", v);
         ASSERT_ALWAYS(v >= t);
@@ -845,52 +849,52 @@ static matpoly bw_lingen_basecase_raw_fast(bmstatus & bm, matpoly const & mp_E)/
     return mp_pi;
 }/*}}}*/
 
-static matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly & E)/*{{{*/
+static matpoly<true> bw_lingen_basecase_raw(bmstatus<true> & bm, matpoly<true> & E)/*{{{*/
 {
     return bw_lingen_basecase_raw_fast(bm, E);
 }/*}}}*/
 
-matpoly bw_lingen_basecase(bmstatus & bm, matpoly & E)/*{{{*/
+matpoly<true> bw_lingen_basecase(bmstatus<true> & bm, matpoly<true> & E)/*{{{*/
 {
     lingen_call_companion const & C = bm.companion(bm.depth, E.get_size());
     tree_stats::sentinel const dummy(bm.stats, "basecase", E.get_size(), C.total_ncalls, true);
-    bmstatus::depth_sentinel ddummy(bm);
+    bmstatus<true>::depth_sentinel ddummy(bm);
     bm.stats.plan_smallstep("basecase", C.ttb);
     bm.stats.begin_smallstep("basecase");
-    matpoly pi = bw_lingen_basecase_raw(bm, E);
+    matpoly<true> pi = bw_lingen_basecase_raw(bm, E);
     bm.stats.end_smallstep();
-    E = matpoly();
+    E = matpoly<true>();
     ASSERT_ALWAYS(pi.high_word_is_clear());
     return pi;
 }/*}}}*/
 
-void test_basecase(matpoly::arith_hard * ab, unsigned int m, unsigned int n, size_t L, cxx_gmp_randstate & rstate)/*{{{*/
+void test_basecase(matpoly<true>::arith_hard * ab, unsigned int m, unsigned int n, size_t L, cxx_gmp_randstate & rstate)/*{{{*/
 {
     /* used by testing code */
     cxx_mpz const p=2;
-    bmstatus bm(m,n,p);
+    bmstatus<true> bm(m,n,p);
     unsigned int const t0 = iceildiv(m,n);
     bm.set_t0(t0);
-    matpoly E(ab, m, m+n, L);
+    matpoly<true> E(ab, m, m+n, L);
     E.zero_pad(L);
     E.fill_random(0, L, rstate);
     bw_lingen_basecase_raw(bm, E);
 }/*}}}*/
 
-void test_basecase_bblas(matpoly::arith_hard * ab, unsigned int m, unsigned int n, size_t L, cxx_gmp_randstate & rstate)/*{{{*/
+void test_basecase_bblas(matpoly<true>::arith_hard * ab, unsigned int m, unsigned int n, size_t L, cxx_gmp_randstate & rstate)/*{{{*/
 {
     // constexpr const unsigned int B = mat64::width;
 
     /* used by testing code */
     cxx_mpz const p = 2;
-    bmstatus bm(m,n,p);
+    bmstatus<true> bm(m,n,p);
     unsigned int const t0 = iceildiv(m,n);
     bm.set_t0(t0);
 
     // ASSERT_ALWAYS(m % B == 0);
     // ASSERT_ALWAYS(n % B == 0);
 
-    matpoly mp_E(ab, m, m+n, L);
+    matpoly<true> mp_E(ab, m, m+n, L);
     mp_E.zero_pad(L);
     mp_E.fill_random(0, L, rstate);
 
@@ -898,13 +902,13 @@ void test_basecase_bblas(matpoly::arith_hard * ab, unsigned int m, unsigned int 
 
     tt = wct_seconds();
 
-    matpoly const mp_pi = bw_lingen_basecase_raw_fast(bm, mp_E);
+    matpoly<true> const mp_pi = bw_lingen_basecase_raw_fast(bm, mp_E);
 
     tt = wct_seconds() - tt;
     printf("%.3f\n", tt);
 
     {
-        matpoly const mp_Epi = matpoly::mul(mp_E, mp_pi);
+        auto const mp_Epi = matpoly<true>::mul(mp_E, mp_pi);
         printf("valuation check: %zu\n", mp_Epi.valuation());
     }
 }/*}}}*/

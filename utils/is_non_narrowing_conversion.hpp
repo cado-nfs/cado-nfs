@@ -8,23 +8,26 @@ namespace cado_math_aux {
      */
     namespace is_narrowing_conversion_detail
     {
-        template<typename...> struct void_type { typedef void type; };
-
         template<typename From, typename To, typename = void>
             struct is_narrowing_conversion_impl : std::true_type {};
         template<typename From, typename To, typename = void>
             struct is_non_narrowing_conversion_impl : std::false_type {};
 
         template<typename From, typename To>
-            struct is_narrowing_conversion_impl<From, To, typename void_type<decltype(To{std::declval<From>()})>::type> : std::false_type {};
+            struct is_narrowing_conversion_impl<From, To, std::void_t<decltype(To{std::declval<From>()})>> : std::false_type {};
         template<typename From, typename To>
-            struct is_non_narrowing_conversion_impl<From, To, typename void_type<decltype(To{std::declval<From>()})>::type> : std::true_type {};
+            struct is_non_narrowing_conversion_impl<From, To, std::void_t<decltype(To{std::declval<From>()})>> : std::true_type {};
     }  // namespace detail
 
     template<typename From, typename To>
         struct is_narrowing_conversion : is_narrowing_conversion_detail::is_narrowing_conversion_impl<From, To> {};
     template<typename From, typename To>
         struct is_non_narrowing_conversion : is_narrowing_conversion_detail::is_non_narrowing_conversion_impl<From, To> {};
+
+    template<typename From, typename To>
+    inline constexpr bool is_narrowing_conversion_v = is_narrowing_conversion<From, To>::value;
+    template<typename From, typename To>
+    inline constexpr bool is_non_narrowing_conversion_v = is_non_narrowing_conversion<From, To>::value;
 }
 
 #endif	/* CADO_UTILS_IS_NON_NARROWING_INTEGRAL_CONVERSION_HPP_ */

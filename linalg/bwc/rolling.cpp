@@ -11,9 +11,10 @@
 #include <string>
 #include <vector>
 
-#include <dirent.h>
-#include <sys/stat.h>
 #include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <dirent.h>
 
 #include "fmt/base.h"
 #include "fmt/format.h"
@@ -23,7 +24,6 @@
 #include "macros.h"
 #include "portability.h"
 #include "utils_cxx.hpp"
-
 
 void keep_rolling_checkpoints(std::string const & stem, unsigned int v)
 {

@@ -1,17 +1,17 @@
 #ifndef CADO_LINGEN_BW_DIMENSIONS_HPP
 #define CADO_LINGEN_BW_DIMENSIONS_HPP
 
-#include "arith-hard.hpp"       // IWYU pragma: keep
 #include "cxx_mpz.hpp"
-#include "lingen_matpoly_select.hpp"   // for matpoly
+#include "lingen_matpoly_select.hpp"
 
+template<bool is_binary>
 struct bw_dimensions {
     unsigned int m, n, nrhs = 0;
-    matpoly::arith_hard ab;
+    typename matpoly<is_binary>::arith_hard ab;
     bw_dimensions(unsigned int m, unsigned int n, cxx_mpz const & p)
         : m(m)
         , n(n)
-        , ab { p,1U }
+        , ab { p, 1U }
     {}
 };
 

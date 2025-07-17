@@ -1,18 +1,21 @@
 #ifndef CADO_LINGEN_BMSTATUS_HPP
 #define CADO_LINGEN_BMSTATUS_HPP
-// IWYU pragma: no_include <algorithm>
+
 #include <cstring>
-#include <vector>
+
 #include <tuple>
+#include <vector>
+
 #include "lingen_bw_dimensions.hpp"
 #include "lingen_hints.hpp"
 #include "lingen_call_companion.hpp"
 #include "tree_stats.hpp"
-#include "select_mpi.h"               // for MPI_Comm
+#include "select_mpi.h"
 #include "cxx_mpz.hpp"
 
+template<bool is_binary>
 struct bmstatus {
-    bw_dimensions d;
+    bw_dimensions<is_binary> d;
     unsigned int t = 0;
     std::vector<int> lucky;
     std::vector<unsigned int> delta;

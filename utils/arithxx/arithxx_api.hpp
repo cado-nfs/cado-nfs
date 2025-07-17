@@ -9,9 +9,7 @@
 #include <new>
 #include <type_traits>
 
-#if __cplusplus >= 201402L
 #include <utility>
-#endif
 
 #include "is_non_narrowing_conversion.hpp"
 #include "arithxx_residue_std_op.hpp"
@@ -19,21 +17,8 @@
 #include "misc.h"
 
 namespace arithxx_details {
-
-#if __cplusplus < 201402L
-    /* we need to import equivalents of c++14's std::index_sequence and
-     * std::make_index_sequence with only c++11. It's just clutter,
-     * really.
-     */
-    template<std::size_t... Is> struct index_sequence{};
-    template<std::size_t N, std::size_t... Is>
-        struct make_index_sequence : make_index_sequence<N-1, N-1, Is...>{};
-    template<std::size_t... Is>
-        struct make_index_sequence<0, Is...> : index_sequence<Is...>{};
-#else
     using std::index_sequence;
     using std::make_index_sequence;
-#endif
 
     /* The functions here are defined for every instantiation of the api.
      * This type is always a base class of the Modulus class, so that
@@ -42,9 +27,9 @@ namespace arithxx_details {
      */
     template <typename layer>
         struct api {
-            typedef typename layer::Modulus Modulus;
-            typedef typename layer::Residue Residue;
-            typedef typename layer::Integer Integer;
+            using Modulus = typename layer::Modulus;
+            using Residue = typename layer::Residue;
+            using Integer = typename layer::Integer;
             
             /* Data members */
             Integer m;
@@ -98,28 +83,22 @@ namespace arithxx_details {
                 downcast().set(r, a);
                 return r;
             }
-            template <typename T, typename std::enable_if<
-                std::is_integral<T>::value &&
-                !std::is_signed<T>::value &&
-                cado_math_aux::is_non_narrowing_conversion<T, uint64_t>::value,
-                int>::type = 0 >
-                    Residue operator()(T const a) const
-                    {
-                        Residue r(downcast());
-                        downcast().set(r, uint64_t(a));
-                        return r;
-                    }
-            template <typename T, typename std::enable_if<
-                std::is_integral<T>::value &&
-                std::is_signed<T>::value &&
-                cado_math_aux::is_non_narrowing_conversion<T, int64_t>::value,
-                int>::type = 0 >
-                    Residue operator()(T const a) const
-                    {
-                        Residue r(downcast());
-                        downcast().set(r, int64_t(a));
-                        return r;
-                    }
+            template <typename T>
+                Residue operator()(T const a) const
+                requires(std::is_integral_v<T> && !std::is_signed_v<T> && cado_math_aux::is_non_narrowing_conversion_v<T, uint64_t>)
+                {
+                    Residue r(downcast());
+                    downcast().set(r, uint64_t(a));
+                    return r;
+                }
+            template <typename T>
+                Residue operator()(T const a) const
+                requires(std::is_integral_v<T> && std::is_signed_v<T> && cado_math_aux::is_non_narrowing_conversion_v<T, int64_t>)
+                {
+                    Residue r(downcast());
+                    downcast().set(r, int64_t(a));
+                    return r;
+                }
 
             bool is_strong_pseudoprime_base2() const;
             bool is_strong_lucas_pseudoprime() const;

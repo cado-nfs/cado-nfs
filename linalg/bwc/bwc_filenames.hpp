@@ -37,10 +37,8 @@ struct bwc_file_base : public decomposed_path {// {{{
         }
 
     template<typename T>
-        static typename
-        std::enable_if<
-        std::is_base_of<bwc_file_base, T>::value, bool>::type
-        match(T & v, std::string const & filename)
+        static bool match(T & v, std::string const & filename)
+        requires std::is_base_of_v<bwc_file_base, T>
         {
             return helper<T>::match(v, filename);
         }
@@ -50,11 +48,8 @@ struct bwc_file_base : public decomposed_path {// {{{
      * has happened
      */
     template<typename Ctr>
-        static typename
-        std::enable_if<
-        std::is_base_of<bwc_file_base, typename Ctr::value_type>::value,
-        bool>::type
-        match(Ctr & c, std::string const & filename)
+        static bool match(Ctr & c, std::string const & filename)
+        requires std::is_base_of_v<bwc_file_base, typename Ctr::value_type>
         {
             typename Ctr::value_type v;
             if (!match<typename Ctr::value_type>(v, filename))

@@ -1,22 +1,24 @@
 #include "cado.h" // IWYU pragma: keep
-// IWYU pragma: no_include <sys/param.h>
-#include <cstddef>
-#include <climits>                     // for INT_MAX, UINT_MAX
-#include <algorithm>                    // for min, max
-#include <array>                        // for array
-#include <tuple>                        // for tie
-#include <utility>                      // for swap
 
-#include "runtime_numeric_cast.hpp"
+#include <cstddef>
+#include <climits>
+
+#include <algorithm>
+#include <array>
+#include <memory>
+#include <tuple>
+#include <utility>
+
 #include "lingen_bigmatpoly.hpp"
 #include "lingen_matpoly_select.hpp"
 #include "lingen_mul_substeps.hpp"
-#include "lingen_substep_schedule.hpp"  // for lingen_substep_schedule
+#include "lingen_substep_schedule.hpp"
 #include "logline.hpp"
 #include "macros.h"
-#include "submatrix_range.hpp"          // for submatrix_range
-#include "tree_stats.hpp"               // for tree_stats
+#include "runtime_numeric_cast.hpp"
 #include "select_mpi.h"
+#include "submatrix_range.hpp"
+#include "tree_stats.hpp"
 
 int bigmatpoly_model::rank() const
 {
@@ -40,7 +42,7 @@ int bigmatpoly_model::jrank() const
 }
 
 
-/* {{{  init/zero/clear interface for bigmatpoly */
+/* {{{  init/zero/clear interface for bigmatpoly<is_binary> */
 
 bigmatpoly_model::bigmatpoly_model(MPI_Comm * comm, unsigned int m, unsigned int n)
     : m1(m)
@@ -51,7 +53,8 @@ bigmatpoly_model::bigmatpoly_model(MPI_Comm * comm, unsigned int m, unsigned int
 
 /* This completes the initialization process. This is _not_ a collective
  * operation */
-void bigmatpoly::finish_init(matpoly::arith_hard * ab, unsigned int m, unsigned int n, int len)
+template<bool is_binary>
+void bigmatpoly<is_binary>::finish_init(typename matpoly<is_binary>::arith_hard * ab, unsigned int m, unsigned int n, int len)
 {
     this->ab = ab;
     ASSERT_ALWAYS(check_pre_init());
@@ -62,20 +65,22 @@ void bigmatpoly::finish_init(matpoly::arith_hard * ab, unsigned int m, unsigned 
     m0 = subdivision(m, m1).block_size_upper_bound();
     n0 = subdivision(n, n1).block_size_upper_bound();
     size = runtime_numeric_cast<size_t>(len);
-    my_cell() = matpoly(ab, m0, n0, len);
+    my_cell() = matpoly<is_binary>(ab, m0, n0, len);
 }
 
 /* If m,n,len are zero, then this is exactly equivalent to duplicating
  * the mpi_model. In which case the initialization may be completed later
  * on with bigmatpoly_finish_init
  */
-bigmatpoly::bigmatpoly(bigmatpoly_model const & model)
+template<bool is_binary>
+bigmatpoly<is_binary>::bigmatpoly(bigmatpoly_model const & model)
     : bigmatpoly_model(model)
     , cells(m1 * n1)
 {
 }
 
-bigmatpoly::bigmatpoly(matpoly::arith_hard * ab, bigmatpoly_model const & model, unsigned int m, unsigned int n, int len)
+template<bool is_binary>
+bigmatpoly<is_binary>::bigmatpoly(typename matpoly<is_binary>::arith_hard * ab, bigmatpoly_model const & model, unsigned int m, unsigned int n, int len)
     : bigmatpoly_model(model)
     , ab(ab)
     , m(m)
@@ -98,7 +103,8 @@ bigmatpoly::bigmatpoly(matpoly::arith_hard * ab, bigmatpoly_model const & model,
     finish_init(ab, m, n, len);
 }
 
-bigmatpoly::bigmatpoly(bigmatpoly && a) noexcept
+template<bool is_binary>
+bigmatpoly<is_binary>::bigmatpoly(bigmatpoly && a) noexcept
     : bigmatpoly_model(a.get_model())
     , ab(a.ab)
     , m(a.m), n(a.n)
@@ -108,7 +114,8 @@ bigmatpoly::bigmatpoly(bigmatpoly && a) noexcept
 {
     a.m0=a.n0=a.m=a.n=a.size=0;
 }
-bigmatpoly& bigmatpoly::operator=(bigmatpoly&& a) noexcept
+template<bool is_binary>
+bigmatpoly<is_binary>& bigmatpoly<is_binary>::operator=(bigmatpoly&& a) noexcept
 {
     get_model() = a.get_model();
     ab = a.ab;
@@ -129,7 +136,8 @@ bigmatpoly& bigmatpoly::operator=(bigmatpoly&& a) noexcept
  * If the returned value is zero, then we really have only the local part
  * of this matrix for the moment.
  */
-int bigmatpoly::provisioned() const
+template<bool is_binary>
+int bigmatpoly<is_binary>::provisioned() const
 {
     if (check_pre_init()) return 0;
     unsigned int np_row = 0;
@@ -146,13 +154,14 @@ int bigmatpoly::provisioned() const
 
 /* We are a left multiplicand. This is a no-op if space for our row has
  * already been allocated */
-void bigmatpoly::provision_row()
+template<bool is_binary>
+void bigmatpoly<is_binary>::provision_row()
 {
     for(unsigned int j = 0 ; j < n1 ; j++) {
         if (j == (unsigned int) jrank()) continue;
-        matpoly & them = cell(irank(), j);
+        auto & them = cell(irank(), j);
         if (them.check_pre_init())
-            them = matpoly(ab, m0, n0, my_cell().capacity());
+            them = matpoly<is_binary>(ab, m0, n0, my_cell().capacity());
     }
 }
 
@@ -161,11 +170,12 @@ void bigmatpoly::provision_row()
  * implementation of scatter_mat, which calls for provisioning on all
  * rows.
  */
-void bigmatpoly::unprovision_row()
+template<bool is_binary>
+void bigmatpoly<is_binary>::unprovision_row()
 {
     for(unsigned int j = 0 ; j < p->n1 ; j++) {
         if (j == (unsigned int) jrank()) continue;
-        matpoly & them = cell(irank(), j);
+        auto & them = cell(irank(), j);
         if (!them.check_pre_init())
             them = matpoly();
     }
@@ -174,13 +184,14 @@ void bigmatpoly::unprovision_row()
 
 /* We are a right multiplicand. This is a no-op if space for our col has
  * already been allocated */
-void bigmatpoly::provision_col() // bigmatpoly & p(*this)
+template<bool is_binary>
+void bigmatpoly<is_binary>::provision_col() // bigmatpoly<is_binary> & p(*this)
 {
     for(unsigned int i = 0 ; i < m1 ; i++) {
         if (i == (unsigned int) irank()) continue;
-        matpoly & them = cell(i, jrank());
+        auto & them = cell(i, jrank());
         if (them.check_pre_init())
-            them = matpoly(ab, m0, n0, my_cell().capacity());
+            them = matpoly<is_binary>(ab, m0, n0, my_cell().capacity());
     }
 }
 
@@ -188,41 +199,43 @@ void bigmatpoly::provision_col() // bigmatpoly & p(*this)
  * coefficients. If space is provisioned for other cells in row or
  * column, allocation is triggered for them as well.
  */
-void bigmatpoly::set_size(size_t nsize)
+template<bool is_binary>
+void bigmatpoly<is_binary>::set_size(size_t nsize)
 {
-    matpoly & me = my_cell();
+    auto & me = my_cell();
     ASSERT_ALWAYS(nsize <= me.capacity());
     size = nsize;
     me.set_size(nsize);
     for(unsigned int j = 0 ; j < n1 ; j++) {
         if (j == (unsigned int) jrank()) continue;
-        matpoly & them = cell(irank(), j);
+        auto & them = cell(irank(), j);
         if (them.check_pre_init()) continue;
         them.set_size(nsize);
         ASSERT_ALWAYS(nsize <= them.capacity());
     }
     for(unsigned int i = 0 ; i < m1 ; i++) {
         if (i == (unsigned int) irank()) continue;
-        matpoly & them = cell(i, jrank());
+        auto & them = cell(i, jrank());
         if (them.check_pre_init()) continue;
         them.set_size(nsize);
         ASSERT_ALWAYS(nsize <= them.capacity());
     }
 }
-void bigmatpoly::zero_pad(size_t nsize)/*{{{*/
+template<bool is_binary>
+void bigmatpoly<is_binary>::zero_pad(size_t nsize)/*{{{*/
 {
-    matpoly & me = my_cell();
+    auto & me = my_cell();
     size = nsize;
     me.zero_pad(nsize);
     for(unsigned int j = 0 ; j < n1 ; j++) {
         if (j == (unsigned int) jrank()) continue;
-        matpoly & them = cell(irank(), j);
+        auto & them = cell(irank(), j);
         if (them.check_pre_init()) continue;
         them.zero_pad(nsize);
     }
     for(unsigned int i = 0 ; i < m1 ; i++) {
         if (i == (unsigned int) irank()) continue;
-        matpoly & them = cell(i, jrank());
+        auto & them = cell(i, jrank());
         if (them.check_pre_init()) continue;
         them.zero_pad(nsize);
     }
@@ -231,7 +244,7 @@ void bigmatpoly::zero_pad(size_t nsize)/*{{{*/
 /* If our row or col cells have already been allocated, then reallocate
  * them as well (XXX is it clear or not ?) */
 #if 0 /* This function has never been used or needed */
-void bigmatpoly_realloc(bigmatpoly & p, int newalloc)
+void bigmatpoly_realloc(bigmatpoly<is_binary> & p, int newalloc)
 {
     int irank;
     int jrank;
@@ -255,14 +268,16 @@ void bigmatpoly_realloc(bigmatpoly & p, int newalloc)
 #endif
 
 /* This zeroes out _our_ cell */
-void bigmatpoly::zero()
+template<bool is_binary>
+void bigmatpoly<is_binary>::zero()
 {
     my_cell().zero();
 }
 
 /* okay, it's ugly */
 #if 0
-void bigmatpoly::swap(bigmatpoly & a)
+template<bool is_binary>
+void bigmatpoly<is_binary>::swap(bigmatpoly<is_binary> & a)
 {
     bigmatpoly x = std::move(*this);
     *this = std::move(a);
@@ -271,7 +286,8 @@ void bigmatpoly::swap(bigmatpoly & a)
 #endif
 /* }}} */
 
-void bigmatpoly::truncate(bigmatpoly const & src, unsigned int nsize)/*{{{*/
+template<bool is_binary>
+void bigmatpoly<is_binary>::truncate(bigmatpoly const & src, unsigned int nsize)/*{{{*/
 {
     // ASSERT_ALWAYS(src.provisioned());
     // ASSERT_ALWAYS(provisioned());
@@ -282,8 +298,8 @@ void bigmatpoly::truncate(bigmatpoly const & src, unsigned int nsize)/*{{{*/
     size = my_cell().get_size();
     for(unsigned int j = 0 ; j < n1 ; j++) {
         if (j == (unsigned int) jrank()) continue;
-        matpoly const & sthem = src.cell(irank(), j);
-        matpoly & dthem = cell(irank(), j);
+        auto const & sthem = src.cell(irank(), j);
+        auto & dthem = cell(irank(), j);
         if (sthem.check_pre_init()) {
             dthem.clear();
         } else if (dthem.check_pre_init()) {
@@ -294,8 +310,8 @@ void bigmatpoly::truncate(bigmatpoly const & src, unsigned int nsize)/*{{{*/
     }
     for(unsigned int i = 0 ; i < m1 ; i++) {
         if (i == (unsigned int) irank()) continue;
-        matpoly const & sthem = src.cell(i, jrank());
-        matpoly & dthem = cell(i, jrank());
+        auto const & sthem = src.cell(i, jrank());
+        auto & dthem = cell(i, jrank());
         if (sthem.check_pre_init()) {
             dthem.clear();
         } else if (dthem.check_pre_init()) {
@@ -307,9 +323,10 @@ void bigmatpoly::truncate(bigmatpoly const & src, unsigned int nsize)/*{{{*/
 }
 /*}}}*/
 
-bool bigmatpoly::high_word_is_clear() const
+template<bool is_binary>
+bool bigmatpoly<is_binary>::high_word_is_clear() const
 {
-    matpoly const & me = my_cell();
+    auto const & me = my_cell();
     if (!me.high_word_is_clear()) return false;
     for(unsigned int j = 0 ; j < n1 ; j++) {
         if (j == (unsigned int) jrank()) continue;
@@ -322,30 +339,33 @@ bool bigmatpoly::high_word_is_clear() const
     return true;
 }
 
-void bigmatpoly::clear_high_word()
+template<bool is_binary>
+void bigmatpoly<is_binary>::clear_high_word()
 {
-    matpoly & me = my_cell();
+    auto & me = my_cell();
     me.clear_high_word();
     for(unsigned int j = 0 ; j < n1 ; j++) {
         if (j == (unsigned int) jrank()) continue;
-        matpoly & them = cell(irank(), j);
+        auto & them = cell(irank(), j);
         if (them.check_pre_init()) continue;
         them.clear_high_word();
     }
     for(unsigned int i = 0 ; i < m1 ; i++) {
         if (i == (unsigned int) irank()) continue;
-        matpoly & them = cell(i, jrank());
+        auto & them = cell(i, jrank());
         if (them.check_pre_init()) continue;
         them.clear_high_word();
     }
 }
 
-void bigmatpoly::coeff_set_zero_loc(unsigned int k)
+template<bool is_binary>
+void bigmatpoly<is_binary>::coeff_set_zero_loc(unsigned int k)
 {
     my_cell().coeff_set_zero(k);
 }
 
-int bigmatpoly::coeff_is_zero(unsigned int k) const
+template<bool is_binary>
+int bigmatpoly<is_binary>::coeff_is_zero(unsigned int k) const
 {
     int t = my_cell().coeff_is_zero(k);
     MPI_Allreduce(MPI_IN_PLACE, &t, 1, MPI_INT, MPI_MIN, com[0]);
@@ -353,9 +373,10 @@ int bigmatpoly::coeff_is_zero(unsigned int k) const
 }
 
 
-void bigmatpoly::rshift(bigmatpoly & src, unsigned int k) /*{{{*/
+template<bool is_binary>
+void bigmatpoly<is_binary>::rshift(bigmatpoly & src, unsigned int k) /*{{{*/
 {
-    matpoly & me = my_cell();
+    auto & me = my_cell();
     if (check_pre_init())
         finish_init(src.ab, src.m, src.n, src.size - k);
     // ASSERT_ALWAYS(provisioned() == 0);
@@ -383,11 +404,12 @@ void bigmatpoly::rshift(bigmatpoly & src, unsigned int k) /*{{{*/
 } while (0)
 
 /* {{{ allgather operations */
-void bigmatpoly::allgather_row()
+template<bool is_binary>
+void bigmatpoly<is_binary>::allgather_row()
 {
     provision_row();
     for(unsigned int k = 0 ; k < n1 ; k++) {
-        matpoly & data = cell(irank(), k);
+        auto & data = cell(irank(), k);
         /* XXX: Should we ensure earlier that we agree on the size ? */
         unsigned long dsize = data.get_size();
         MPI_Bcast(&dsize, 1, MPI_UNSIGNED_LONG, k, com[1]);
@@ -401,11 +423,12 @@ void bigmatpoly::allgather_row()
         );
     }
 }
-void bigmatpoly::allgather_col()
+template<bool is_binary>
+void bigmatpoly<is_binary>::allgather_col()
 {
     provision_col();
     for(unsigned int k = 0 ; k < m1 ; k++) {
-        matpoly & data = cell(k, jrank());
+        auto & data = cell(k, jrank());
         /* XXX: Should we ensure earlier that we agree on the size ? */
         unsigned long dsize = data.get_size();
         MPI_Bcast(&dsize, 1, MPI_UNSIGNED_LONG, k, com[2]);
@@ -421,7 +444,8 @@ void bigmatpoly::allgather_col()
 }
 /* }}} */
 
-bigmatpoly bigmatpoly::mul(bigmatpoly & a, bigmatpoly & b)/*{{{*/
+template<bool is_binary>
+bigmatpoly<is_binary> bigmatpoly<is_binary>::mul(bigmatpoly & a, bigmatpoly & b)/*{{{*/
 {
     size_t csize = a.size + b.size; csize -= (csize > 0);
     ASSERT_ALWAYS(a.n == b.m);
@@ -430,7 +454,7 @@ bigmatpoly bigmatpoly::mul(bigmatpoly & a, bigmatpoly & b)/*{{{*/
     a.allgather_row();
     a.allgather_col();
     c.set_size(csize);
-    matpoly & lc = c.my_cell();
+    auto & lc = c.my_cell();
     lc.zero();
     c.set_size(csize);
     ASSERT_ALWAYS(a.n == b.m);
@@ -442,7 +466,8 @@ bigmatpoly bigmatpoly::mul(bigmatpoly & a, bigmatpoly & b)/*{{{*/
     return c;
 }/*}}}*/
 
-bigmatpoly bigmatpoly::mp(bigmatpoly & a, bigmatpoly & c) /*{{{*/
+template<bool is_binary>
+bigmatpoly<is_binary> bigmatpoly<is_binary>::mp(bigmatpoly & a, bigmatpoly & c) /*{{{*/
 {
     unsigned const bsize = MAX(a.size, c.size) - MIN(a.size, c.size) + 1;
     ASSERT_ALWAYS(a.n == c.m);
@@ -452,7 +477,7 @@ bigmatpoly bigmatpoly::mp(bigmatpoly & a, bigmatpoly & c) /*{{{*/
     a.allgather_row();
     c.allgather_col();
 
-    matpoly & lb = b.my_cell();
+    auto & lb = b.my_cell();
     lb.zero();
     b.set_size(bsize);
     ASSERT_ALWAYS(lb.get_size() == bsize);
@@ -465,14 +490,15 @@ bigmatpoly bigmatpoly::mp(bigmatpoly & a, bigmatpoly & c) /*{{{*/
     return b;
 }/*}}}*/
 
-struct OP_CTX {
-    bigmatpoly & c;
-    bigmatpoly const & a;
-    bigmatpoly const & b;
+template<bool is_binary>
+struct OP_CTX2 {
+    bigmatpoly<is_binary> & c;
+    bigmatpoly<is_binary> const & a;
+    bigmatpoly<is_binary> const & b;
     MPI_Datatype mpi_entry_a;
     MPI_Datatype mpi_entry_b;
     tree_stats & stats;
-    OP_CTX(tree_stats & stats, bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b)
+    OP_CTX2(tree_stats & stats, bigmatpoly<is_binary> & c, bigmatpoly<is_binary> const & a, bigmatpoly<is_binary> const & b)
         : c(c), a(a), b(b), stats(stats)
     {
         MPI_Type_contiguous(a.my_cell().data_entry_alloc_size_in_bytes(), MPI_BYTE, &mpi_entry_a);
@@ -480,8 +506,8 @@ struct OP_CTX {
         MPI_Type_commit(&mpi_entry_a);
         MPI_Type_commit(&mpi_entry_b);
     }
-    OP_CTX(OP_CTX const&) = delete;
-    ~OP_CTX() {
+    OP_CTX2(OP_CTX2 const&) = delete;
+    ~OP_CTX2() {
         MPI_Type_free(&mpi_entry_a);
         MPI_Type_free(&mpi_entry_b);
     }
@@ -499,11 +525,11 @@ struct OP_CTX {
     }
     void alloc_c_if_needed(size_t size) const {
         if (c.m != a.m || c.n != a.n || runtime_numeric_cast<size_t>(c.get_size()) != size)
-            c = bigmatpoly(a.ab, a.get_model(), a.m, b.n, size);
+            c = bigmatpoly<is_binary>(a.ab, a.get_model(), a.m, b.n, size);
     }
-    matpoly const & a_local() { return a.my_cell(); }
-    matpoly const & b_local() { return b.my_cell(); }
-    matpoly & c_local() { return c.my_cell(); }
+    matpoly<is_binary> const & a_local() { return a.my_cell(); }
+    matpoly<is_binary> const & b_local() { return b.my_cell(); }
+    matpoly<is_binary> & c_local() { return c.my_cell(); }
     void a_allgather(void * p, int n) {
         MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
                p, n, mpi_entry_a, a.get_model().com[1]);
@@ -513,7 +539,10 @@ struct OP_CTX {
                p, n, mpi_entry_b, b.get_model().com[2]);
     }
 };
-template<typename OP_T> struct mp_or_mul : public OP_CTX { 
+template<typename OP_T>
+struct mp_or_mul : public OP_CTX2<OP_T::is_binary>
+{ 
+    static constexpr bool is_binary = OP_T::is_binary;
     OP_T & OP;
     const lingen_call_companion::mul_or_mp_times * M;
     subdivision mpi_split0;
@@ -521,12 +550,28 @@ template<typename OP_T> struct mp_or_mul : public OP_CTX {
     subdivision mpi_split2;
     unsigned int nrs0, nrs2;
     unsigned int b0, b1, b2;
-    matpoly a_peers;
-    matpoly b_peers;
+    matpoly<is_binary> a_peers;
+    matpoly<is_binary> b_peers;
+    using OP_CTX2<is_binary>::mesh_inner_size;
+    using OP_CTX2<is_binary>::mesh_checks;
+    using OP_CTX2<is_binary>::stats;
+    using OP_CTX2<is_binary>::a_jrank;
+    using OP_CTX2<is_binary>::b_irank;
+    using OP_CTX2<is_binary>::b_jrank;
+    using OP_CTX2<is_binary>::a;
+    using OP_CTX2<is_binary>::b;
+    using OP_CTX2<is_binary>::c;
+    using OP_CTX2<is_binary>::a_local;
+    using OP_CTX2<is_binary>::b_local;
+    using OP_CTX2<is_binary>::c_local;
+    using OP_CTX2<is_binary>::alloc_c_if_needed;
+    using OP_CTX2<is_binary>::a_allgather;
+    using OP_CTX2<is_binary>::b_allgather;
+
     /* Declare ta, tb, tc early on so that we don't malloc/free n times.  */
-    mp_or_mul(tree_stats & stats, bigmatpoly & c, bigmatpoly const & a, bigmatpoly const & b, OP_T & OP,
+    mp_or_mul(tree_stats & stats, bigmatpoly<is_binary> & c, bigmatpoly<is_binary> const & a, bigmatpoly<is_binary> const & b, OP_T & OP,
             const lingen_call_companion::mul_or_mp_times * M)
-        : OP_CTX(stats, c, a, b)
+        : OP_CTX2<is_binary>(stats, c, a, b)
         , OP(OP)
         , M(M)
         , mpi_split0(a.m, mesh_inner_size())
@@ -649,7 +694,7 @@ template<typename OP_T> struct mp_or_mul : public OP_CTX {
          * case.
          */
         a_peers.zero_with_size(a.get_size());  // for safety because of rounding.
-        matpoly::copy(a_peers.view(Rat), a_local().view(Ra));
+        matpoly<is_binary>::copy(a_peers.view(Rat), a_local().view(Ra));
 
         // allgather ta among r nodes. No serialization needed here.
         /* The data isn't contiguous, so we have to do
@@ -683,14 +728,14 @@ template<typename OP_T> struct mp_or_mul : public OP_CTX {
         submatrix_range const Rbt  (bi * b1,      0,      bk1-bk0, jj1 - jj0);
 
         b_peers.zero_with_size(b.get_size());
-        matpoly::copy(b_peers.view(Rbt), b_local().view(Rb));
+        matpoly<is_binary>::copy(b_peers.view(Rbt), b_local().view(Rb));
 
         // allgather tb among r nodes
         b_allgather(b_peers.part(0, 0), b1 * b2);
         end_smallstep();
     }/*}}}*/
 
-    void addmul_for_block(matpoly::view_t & cdst, unsigned int iloop0, unsigned int iloop2)/*{{{*/
+    void addmul_for_block(typename matpoly<is_binary>::view_t & cdst, unsigned int iloop0, unsigned int iloop2)/*{{{*/
     {
         const unsigned int r = mesh_inner_size();
         unsigned int ii0, ii1;
@@ -705,9 +750,9 @@ template<typename OP_T> struct mp_or_mul : public OP_CTX {
         submatrix_range const Rbtxx(0,   0,   r*b1,      jj1 - jj0);
         submatrix_range const Rct  (cdst.i0 + ii0, cdst.j0 + jj0, ii1 - ii0, jj1 - jj0);
 
-        matpoly::view_t const c_loc(cdst.M, Rct);
-        matpoly::view_t const a_loc = a_peers.view(Ratxx);
-        matpoly::view_t const b_loc = b_peers.view(Rbtxx);
+        typename matpoly<is_binary>::view_t const c_loc(cdst.M, Rct);
+        typename matpoly<is_binary>::view_t const a_loc = a_peers.view(Ratxx);
+        typename matpoly<is_binary>::view_t const b_loc = b_peers.view(Rbtxx);
 
         OP_T::addcompose(c_loc, a_loc, b_loc);
 
@@ -766,7 +811,7 @@ template<typename OP_T> struct mp_or_mul : public OP_CTX {
 
         /* Now do a subblock */
         submatrix_range const Rc(i0, j0, i1-i0, j1-j0);
-        matpoly::view_t cdst = c_local().view(Rc);
+        typename matpoly<is_binary>::view_t cdst = c_local().view(Rc);
         cdst.zero();
 
         for(unsigned int iloop1 = 0 ; iloop1 < loop1.nblocks() ; iloop1++) {
@@ -817,19 +862,21 @@ template<typename OP_T> struct mp_or_mul : public OP_CTX {
     }
 };
 
-bigmatpoly bigmatpoly::mp(tree_stats & stats, bigmatpoly const & a, bigmatpoly const & b, lingen_call_companion::mul_or_mp_times * M)
+template<bool is_binary>
+bigmatpoly<is_binary> bigmatpoly<is_binary>::mp(tree_stats & stats, bigmatpoly const & a, bigmatpoly const & b, lingen_call_companion::mul_or_mp_times * M)
 {
-    op_mp<void> op(a, b, UINT_MAX);
+    op_mp<is_binary, void> op(a, b, UINT_MAX);
     bigmatpoly c(a.get_model());
-    mp_or_mul<op_mp<void>>(stats, c, a, b, op, M)();
+    mp_or_mul<op_mp<is_binary, void>>(stats, c, a, b, op, M)();
     return c;
 }
 
-bigmatpoly bigmatpoly::mul(tree_stats & stats, bigmatpoly const & a, bigmatpoly const & b, lingen_call_companion::mul_or_mp_times * M)
+template<bool is_binary>
+bigmatpoly<is_binary> bigmatpoly<is_binary>::mul(tree_stats & stats, bigmatpoly const & a, bigmatpoly const & b, lingen_call_companion::mul_or_mp_times * M)
 {
-    op_mul<void> op(a, b, UINT_MAX);
+    op_mul<is_binary, void> op(a, b, UINT_MAX);
     bigmatpoly c(a.get_model());
-    mp_or_mul<op_mul<void>>(stats, c, a, b, op, M)();
+    mp_or_mul<op_mul<is_binary, void>>(stats, c, a, b, op, M)();
     return c;
 }
 
@@ -847,11 +894,15 @@ bigmatpoly bigmatpoly::mul(tree_stats & stats, bigmatpoly const & a, bigmatpoly 
  * and that dst has indeed room for length elements (we set the size, but
  * don't realloc dst).
  */
-void bigmatpoly::gather_mat_partial(matpoly & dst,
+template<bool is_binary>
+void bigmatpoly<is_binary>::gather_mat_partial(matpoly<is_binary> & dst,
         size_t dst_k,
         size_t offset, size_t length_raw) const
 {
-    constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
+    constexpr const unsigned int simd = typename matpoly<is_binary>::over_gf2 ? ULONG_BITS : 1;
+
+    choke me;
+    /* the compilation must not vary based on LINGEN_BINARY */
 #ifdef LINGEN_BINARY
     static_assert(std::is_same<absrc_vec, const unsigned long *>::value, "uh ?");
 #endif
@@ -951,21 +1002,18 @@ void bigmatpoly::gather_mat_partial(matpoly & dst,
 
 
 /* Collect everything into node 0 */
-void bigmatpoly::gather_mat(matpoly & dst) const
+template<bool is_binary>
+void bigmatpoly<is_binary>::gather_mat(matpoly & dst) const
 {
-    constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
-    matpoly dst_partial;
-#ifndef LINGEN_BINARY
-    size_t length = 100;
-#else
-    size_t length = 1024;
-#endif
+    constexpr const unsigned int simd = is_binary ? ULONG_BITS : 1;
+    matpoly<is_binary> dst_partial;
+    size_t length = is_binary ? 1024 : 100;
     length = simd * iceildiv(length, simd);
 
     if (!rank()) {
         // Leader should initialize the result matrix
         if (dst.check_pre_init()) {
-            dst = matpoly(ab, m, n, size);
+            dst = matpoly<is_binary>(ab, m, n, size);
         }
         dst.set_size(size);
     }
@@ -978,11 +1026,12 @@ void bigmatpoly::gather_mat(matpoly & dst) const
 }
 #endif
 
+template<bool is_binary>
 struct scatter_gather_base {/*{{{*/
     protected:
     /* These are just immediately derived from dst.get_model() and src,
      * but we keep copies because they're handy to have */
-        matpoly::arith_hard * ab;
+        typename matpoly<is_binary>::arith_hard * ab;
 
     size_t batch_length;
 
@@ -1009,7 +1058,7 @@ struct scatter_gather_base {/*{{{*/
 
     MPI_Datatype mt;
 
-    MPI_Request * reqs;
+    std::unique_ptr<MPI_Request[]> reqs;
 
     bigmatpoly_model const & get_model() const { return _model; }
     int rank() const { return get_model().rank(); }
@@ -1019,48 +1068,45 @@ struct scatter_gather_base {/*{{{*/
      * we have to put the initialization very early on in the base class.
      * In truth, it is only important for scatter_mat.
      */
-    scatter_gather_base(matpoly::arith_hard * ab, bigmatpoly_model const & model, unsigned int m, unsigned int n, size_t size)/*{{{*/
-          : ab(ab)
-          , _model(model)
-          , m1(model.m1)
-          , n1(model.n1)
-          , shell(m, n, size, model)
-          , R(shell.m, m1)
-          , C(shell.n, n1)
-          , m0(R.block_size_upper_bound())
-          , n0(C.block_size_upper_bound())
+    scatter_gather_base(
+            typename matpoly<is_binary>::arith_hard * ab,
+            bigmatpoly_model const & model,
+            unsigned int m, unsigned int n, size_t size)
+        /*{{{*/
+        : ab(ab)
+        , batch_length(roundup_simd(std::min(size_t(is_binary ? 1024 : 100), size)))
+        , _model(model)
+        , m1(model.m1)
+        , n1(model.n1)
+        , shell(m, n, size, model)
+        , R(shell.m, m1)
+        , C(shell.n, n1)
+        , m0(R.block_size_upper_bound())
+        , n0(C.block_size_upper_bound())
+        , reqs(new MPI_Request[rank() ? 1 : (m1 * n1)])
     {
         /* The batch length should normally not be an issue, as we expect
          * that the call thresholds will be such that only smaller sizes will
          * be used.
          */
-#ifndef LINGEN_BINARY
-        batch_length = 100;
-#else
-        batch_length = 1024;
-#endif
-        batch_length = roundup_simd(MIN(batch_length, size));
-
         MPI_Bcast(&batch_length, sizeof(batch_length), MPI_BYTE, 0, _model.com[0]);
 
         define_mpi_type();
 
-        reqs = new MPI_Request[rank() ? 1 : (m1 * n1)];
     }/*}}}*/
 
     static size_t roundup_simd(size_t x) {
-        constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
+        constexpr const unsigned int simd = is_binary ? ULONG_BITS : 1;
         return simd * iceildiv(x, simd);
     }
 
     void define_mpi_type()/*{{{*/
     {
-#ifndef LINGEN_BINARY
-        MPI_Type_contiguous(batch_length * ab->elt_stride(), MPI_BYTE, &mt);
-#else
-        constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
-        MPI_Type_contiguous(batch_length / simd, MPI_UNSIGNED_LONG, &mt);
-#endif
+        constexpr const unsigned int simd = is_binary ? ULONG_BITS : 1;
+        if constexpr (is_binary)
+            MPI_Type_contiguous(batch_length / simd, MPI_UNSIGNED_LONG, &mt);
+        else
+            MPI_Type_contiguous(batch_length * ab->elt_stride(), MPI_BYTE, &mt);
         MPI_Type_commit(&mt);
     }/*}}}*/
 
@@ -1071,7 +1117,6 @@ struct scatter_gather_base {/*{{{*/
 
     ~scatter_gather_base()/*{{{*/
     {
-        delete[] reqs;
         undefine_mpi_type();
     }/*}}}*/
 
@@ -1095,9 +1140,12 @@ struct scatter_gather_base {/*{{{*/
     static constexpr const bool use_nonblocking = false;
 };/*}}}*/
 
-class gather_mat : public scatter_gather_base {/*{{{*/
-    bigmatpoly const & src;
-    matpoly & dst;
+template<bool is_binary>
+class gather_mat : public scatter_gather_base<is_binary> {/*{{{*/
+    typedef matpoly<is_binary> matpoly_type;
+    typedef bigmatpoly<is_binary> bigmatpoly_type;
+    bigmatpoly_type const & src;
+    matpoly_type & dst;
 
     /* When use_intermediary_tight = trye, we want to communicate *full*
      * cells from the gathered source matrix to the scattered one.
@@ -1110,12 +1158,30 @@ class gather_mat : public scatter_gather_base {/*{{{*/
      * destination, both filled at each loop iteration.
      *
      */
-    bigmatpoly src_partial;
-    matpoly dst_partial;
+    bigmatpoly_type src_partial;
+    matpoly_type dst_partial;
+
+    using scatter_gather_base<is_binary>::get_model;
+    using scatter_gather_base<is_binary>::ab;
+    using scatter_gather_base<is_binary>::shell;
+    using scatter_gather_base<is_binary>::use_intermediary_tight;
+    using scatter_gather_base<is_binary>::rank;
+    using scatter_gather_base<is_binary>::batch_length;
+    using scatter_gather_base<is_binary>::use_nonblocking;
+    using scatter_gather_base<is_binary>::mt;
+    using scatter_gather_base<is_binary>::reqs;
+    using scatter_gather_base<is_binary>::R;
+    using scatter_gather_base<is_binary>::C;
+    using scatter_gather_base<is_binary>::undefine_mpi_type;
+    using scatter_gather_base<is_binary>::define_mpi_type;
+    using scatter_gather_base<is_binary>::n0;
+    using scatter_gather_base<is_binary>::n1;
+    using scatter_gather_base<is_binary>::m1;
+    using scatter_gather_base<is_binary>::roundup_simd;
 
     public:
-    gather_mat(matpoly & dst, bigmatpoly const & src)/*{{{*/
-        : scatter_gather_base(src.ab, src.get_model(), src.m, src.n, src.get_size())
+    gather_mat(matpoly_type & dst, bigmatpoly_type const & src)/*{{{*/
+        : scatter_gather_base<is_binary>(src.ab, src.get_model(), src.m, src.n, src.get_size())
        , src(src)
        , dst(dst)
        , src_partial(get_model())
@@ -1123,11 +1189,11 @@ class gather_mat : public scatter_gather_base {/*{{{*/
         if (use_intermediary_tight) {
             /* the temporary source and destination */
             if (!rank()) {
-                dst_partial = matpoly(ab, shell.m, shell.n, batch_length);
+                dst_partial = matpoly_type(ab, shell.m, shell.n, batch_length);
                 dst_partial.zero_with_size(batch_length);
                 ASSERT_ALWAYS(dst_partial.is_tight());
             }
-            src_partial = bigmatpoly(ab, src, shell.m, shell.n, batch_length);
+            src_partial = bigmatpoly_type(ab, src, shell.m, shell.n, batch_length);
             src_partial.zero_with_size(batch_length);
             ASSERT_ALWAYS(src_partial.my_cell().is_tight());
         }
@@ -1139,6 +1205,7 @@ class gather_mat : public scatter_gather_base {/*{{{*/
      * polynomial at a time, avoiding some copies */
     void mini_recv(size_t src_offset, size_t dst_offset, unsigned int i0, unsigned int i1, unsigned int j0, unsigned int j1, MPI_Request * & req)/*{{{*/
     {
+
         ASSERT_ALWAYS(!use_intermediary_tight);
         unsigned int const ii = R.flatten(i1, i0);
         unsigned int const jj = C.flatten(j1, j0);
@@ -1166,7 +1233,7 @@ class gather_mat : public scatter_gather_base {/*{{{*/
     }/*}}}*/
     void post_mini_recvs(size_t src_offset, size_t dst_offset) {/*{{{*/
         ASSERT_ALWAYS(!use_intermediary_tight);
-        MPI_Request * req = reqs;
+        MPI_Request * req = reqs.get();
         /* the master sends data to everyone */
         for(unsigned int i1 = 0 ; i1 < R.nblocks() ; i1++) {
             for(unsigned int i0 = 0 ; i0 < R.nth_block_size(i1) ; i0++) {
@@ -1182,7 +1249,7 @@ class gather_mat : public scatter_gather_base {/*{{{*/
     {
         ASSERT_ALWAYS(!use_intermediary_tight);
         if (!use_nonblocking) return;
-        MPI_Request * req = reqs;
+        MPI_Request * req = reqs.get();
         for(unsigned int i1 = 0 ; i1 < R.nblocks() ; i1++) {
             for(unsigned int i0 = 0 ; i0 < R.nth_block_size(i1) ; i0++) {
                 for(unsigned int j1 = 0 ; j1 < C.nblocks() ; j1++) {
@@ -1200,7 +1267,7 @@ class gather_mat : public scatter_gather_base {/*{{{*/
     {
         ASSERT_ALWAYS(!use_intermediary_tight);
         ASSERT_ALWAYS(rank());
-        MPI_Request * req = reqs;
+        MPI_Request * req = reqs.get();
         for(unsigned int i0 = 0 ; i0 < src.m0r() ; i0++) {
             for(unsigned int j0 = 0 ; j0 < src.n0r() ; j0++) {
                 unsigned int const ii = R.flatten(src.irank(), i0);
@@ -1221,7 +1288,7 @@ class gather_mat : public scatter_gather_base {/*{{{*/
     {
         ASSERT_ALWAYS(!use_intermediary_tight);
         if (!use_nonblocking) return;
-        MPI_Request * req = reqs;
+        MPI_Request * req = reqs.get();
         for(unsigned int i0 = 0 ; i0 < src.m0r() ; i0++) {
             for(unsigned int j0 = 0 ; j0 < src.n0r() ; j0++) {
                 MPI_Wait(req, MPI_STATUS_IGNORE);
@@ -1264,7 +1331,7 @@ class gather_mat : public scatter_gather_base {/*{{{*/
     void post_block_recv(unsigned int i1, unsigned int j1, MPI_Request * & req)
     {
         unsigned int const peer = i1 * n1 + j1;
-        matpoly::ptr rank0_to;
+        typename matpoly_type::ptr rank0_to;
 
         {
             unsigned int v = 0;
@@ -1280,7 +1347,7 @@ class gather_mat : public scatter_gather_base {/*{{{*/
 
         unsigned int const tag = peer;
 
-        constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
+        constexpr const unsigned int simd = is_binary ? ULONG_BITS : 1;
         ASSERT_ALWAYS(batch_length % simd == 0);
         if (peer == 0) {
             /* talk to ourself */
@@ -1299,7 +1366,7 @@ class gather_mat : public scatter_gather_base {/*{{{*/
     void post_recvs()/*{{{*/
     {
         ASSERT_ALWAYS(use_intermediary_tight);
-        MPI_Request * req = reqs;
+        MPI_Request * req = reqs.get();
         for(unsigned int i1 = 0 ; i1 < m1 ; i1++) {
             for(unsigned int j1 = 0 ; j1 < n1 ; j1++) {
                 post_block_recv(i1, j1, req);
@@ -1309,7 +1376,7 @@ class gather_mat : public scatter_gather_base {/*{{{*/
     void wait_recvs_and_copy_tight_to_dst(size_t dst_offset, size_t len)/*{{{*/
     {
         ASSERT_ALWAYS(use_intermediary_tight);
-        MPI_Request * req = reqs;
+        MPI_Request * req = reqs.get();
         for(unsigned int i1 = 0 ; i1 < m1 ; i1++) {
             for(unsigned int j1 = 0 ; j1 < n1 ; j1++) {
                 unsigned int const peer = i1 * n1 + j1;
@@ -1418,7 +1485,7 @@ class gather_mat : public scatter_gather_base {/*{{{*/
     void main_loop()/*{{{*/
     {
         if (!rank()) {
-            dst = matpoly(ab, shell.m, shell.n, shell.size);
+            dst = matpoly_type(ab, shell.m, shell.n, shell.size);
             dst.zero_with_size(shell.size);
         }
 
@@ -1435,44 +1502,64 @@ class gather_mat : public scatter_gather_base {/*{{{*/
     }/*}}}*/
     /* }}} */
 };/*}}}*/
-class scatter_mat : public scatter_gather_base {/*{{{*/
-    matpoly const & src;
-    bigmatpoly & dst;
+
+template<bool is_binary>
+class scatter_mat : public scatter_gather_base<is_binary> {/*{{{*/
+    typedef matpoly<is_binary> matpoly_type;
+    typedef bigmatpoly<is_binary> bigmatpoly_type;
+    matpoly_type const & src;
+    bigmatpoly_type & dst;
 
     /* When use_intermediary_tight = trye, we want to communicate *full*
      * cells from the gathered source matrix to the scattered one.
      * Unfortunately we cannot guarantee that either has tight
      * allocation. Furthermore, the layout in the source matrix does not
-     * have contiguous block mathcing the peer sub-blocks. For these two
+     * have contiguous block matching the peer sub-blocks. For these two
      * reasons (stride and layout), we need copies at both ends.
      *
      * We have therefore an intermediary source and an intermediary
      * destination, both filled at each loop iteration.
      *
      */
-    matpoly src_partial;
-    bigmatpoly dst_partial;
+    matpoly_type src_partial;
+    bigmatpoly_type dst_partial;
+
+    using scatter_gather_base<is_binary>::get_model;
+    using scatter_gather_base<is_binary>::ab;
+    using scatter_gather_base<is_binary>::shell;
+    using scatter_gather_base<is_binary>::use_intermediary_tight;
+    using scatter_gather_base<is_binary>::rank;
+    using scatter_gather_base<is_binary>::batch_length;
+    using scatter_gather_base<is_binary>::use_nonblocking;
+    using scatter_gather_base<is_binary>::mt;
+    using scatter_gather_base<is_binary>::reqs;
+    using scatter_gather_base<is_binary>::R;
+    using scatter_gather_base<is_binary>::C;
+    using scatter_gather_base<is_binary>::undefine_mpi_type;
+    using scatter_gather_base<is_binary>::define_mpi_type;
+    using scatter_gather_base<is_binary>::n0;
+    using scatter_gather_base<is_binary>::n1;
+    using scatter_gather_base<is_binary>::m1;
+    using scatter_gather_base<is_binary>::roundup_simd;
 
     public:
-    scatter_mat(bigmatpoly & dst, matpoly const & src)/*{{{*/
+    scatter_mat(bigmatpoly_type & dst, matpoly_type const & src)/*{{{*/
         /* NOTE that src.ab is not relevant everywhere. We must rely on
          * dst.ab, whence we must be sure that dst.ab != NULL */
-        : scatter_gather_base(dst.ab, dst.get_model(), src.m, src.n, src.get_size())
+        : scatter_gather_base<is_binary>(dst.ab, dst.get_model(), src.m, src.n, src.get_size())
        , src(src)
        , dst(dst)
        , dst_partial(get_model())
     {
-#ifndef LINGEN_BINARY
-        ASSERT_ALWAYS(dst.ab != NULL);
-#endif
+        ASSERT_ALWAYS(is_binary || dst.ab != nullptr);
         if (use_intermediary_tight) {
             /* the temporary source and destination */
             if (!rank()) {
-                src_partial = matpoly(ab, shell.m, shell.n, batch_length);
+                src_partial = matpoly_type(ab, shell.m, shell.n, batch_length);
                 src_partial.zero_with_size(batch_length);
                 ASSERT_ALWAYS(src_partial.is_tight());
             }
-            dst_partial = bigmatpoly(ab, dst, shell.m, shell.n, batch_length);
+            dst_partial = bigmatpoly_type(ab, dst, shell.m, shell.n, batch_length);
             dst_partial.zero_with_size(batch_length);
             ASSERT_ALWAYS(dst_partial.my_cell().is_tight());
         }
@@ -1513,7 +1600,7 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
     }/*}}}*/
     void post_mini_sends(size_t src_offset, size_t dst_offset) {/*{{{*/
         ASSERT_ALWAYS(!use_intermediary_tight);
-        MPI_Request * req = reqs;
+        MPI_Request * req = reqs.get();
         /* the master sends data to everyone */
         for(unsigned int i1 = 0 ; i1 < R.nblocks() ; i1++) {
             for(unsigned int i0 = 0 ; i0 < R.nth_block_size(i1) ; i0++) {
@@ -1529,7 +1616,7 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
     {
         ASSERT_ALWAYS(!use_intermediary_tight);
         if (!use_nonblocking) return;
-        MPI_Request * req = reqs;
+        MPI_Request * req = reqs.get();
         for(unsigned int i1 = 0 ; i1 < R.nblocks() ; i1++) {
             for(unsigned int i0 = 0 ; i0 < R.nth_block_size(i1) ; i0++) {
                 for(unsigned int j1 = 0 ; j1 < C.nblocks() ; j1++) {
@@ -1547,7 +1634,7 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
     {
         ASSERT_ALWAYS(!use_intermediary_tight);
         ASSERT_ALWAYS(rank());
-        MPI_Request * req = reqs;
+        MPI_Request * req = reqs.get();
         for(unsigned int i0 = 0 ; i0 < dst.m0r() ; i0++) {
             for(unsigned int j0 = 0 ; j0 < dst.n0r() ; j0++) {
                 unsigned int const ii = R.flatten(dst.irank(), i0);
@@ -1567,7 +1654,7 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
     {
         ASSERT_ALWAYS(!use_intermediary_tight);
         if (!use_nonblocking) return;
-        MPI_Request * req = reqs;
+        MPI_Request * req = reqs.get();
         for(unsigned int i0 = 0 ; i0 < dst.m0r() ; i0++) {
             for(unsigned int j0 = 0 ; j0 < dst.n0r() ; j0++) {
                 MPI_Wait(req, MPI_STATUS_IGNORE);
@@ -1610,7 +1697,7 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
     void post_block_send(unsigned int i1, unsigned int j1, MPI_Request * & req)
     {
         unsigned int const peer = i1 * n1 + j1;
-        matpoly::srcptr rank0_from;
+        typename matpoly_type::srcptr rank0_from;
 
         {
             unsigned int v = 0;
@@ -1627,7 +1714,7 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
         /* We can send the data now */
         unsigned int const tag = peer;
 
-        constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
+        constexpr const unsigned int simd = is_binary ? ULONG_BITS : 1;
         ASSERT_ALWAYS(batch_length % simd == 0);
         if (peer == 0) {
             /* talk to ourself */
@@ -1646,7 +1733,7 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
     void copy_src_to_tight_and_send(size_t src_offset, size_t len)/*{{{*/
     {
         ASSERT_ALWAYS(use_intermediary_tight);
-        MPI_Request * req = reqs;
+        MPI_Request * req = reqs.get();
         for(unsigned int i1 = 0 ; i1 < m1 ; i1++) {
             for(unsigned int j1 = 0 ; j1 < n1 ; j1++) {
                 copy_src_to_tight(src_offset, len, i1, j1);
@@ -1658,7 +1745,7 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
     {
         ASSERT_ALWAYS(use_intermediary_tight);
         if (!use_nonblocking) return;
-        MPI_Request * req = reqs;
+        MPI_Request * req = reqs.get();
         for(unsigned int i1 = 0 ; i1 < m1 ; i1++) {
             for(unsigned int j1 = 0 ; j1 < n1 ; j1++) {
                 unsigned int const peer = i1 * n1 + j1;
@@ -1793,35 +1880,36 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
     /* }}} */
 };/*}}}*/
 
-void bigmatpoly::scatter_mat_partial(matpoly const & src, size_t src_offset, size_t dst_offset, size_t length)
+template<bool is_binary>
+void bigmatpoly<is_binary>::scatter_mat_partial(matpoly<is_binary> const & src, size_t src_offset, size_t dst_offset, size_t length)
 {
-    class scatter_mat OBJ(*this, src);
-    OBJ.main_loop_shifted(src_offset, dst_offset, length);
+    ::scatter_mat<is_binary>(*this, src).main_loop_shifted(src_offset, dst_offset, length);
 }
 
 
 /* Exactly the converse of the previous function. */
-void bigmatpoly::scatter_mat(matpoly const & src)
+template<bool is_binary>
+void bigmatpoly<is_binary>::scatter_mat(matpoly<is_binary> const & src)
 {
-    class scatter_mat OBJ(*this, src);
-    OBJ.main_loop();
+    ::scatter_mat<is_binary>(*this, src).main_loop();
 }
 
-void bigmatpoly::gather_mat_partial(matpoly & dst, size_t dst_offset, size_t src_offset, size_t length) const
+template<bool is_binary>
+void bigmatpoly<is_binary>::gather_mat_partial(matpoly<is_binary> & dst, size_t dst_offset, size_t src_offset, size_t length) const
 {
-    class gather_mat OBJ(dst, *this);
-    OBJ.main_loop_shifted(src_offset, dst_offset, length);
+    ::gather_mat<is_binary>(dst, *this).main_loop_shifted(src_offset, dst_offset, length);
 }
 
 
 /* Exactly the converse of the previous function. */
-void bigmatpoly::gather_mat(matpoly & dst) const
+template<bool is_binary>
+void bigmatpoly<is_binary>::gather_mat(matpoly<is_binary> & dst) const
 {
-    class gather_mat OBJ(dst, *this);
-    OBJ.main_loop();
+    ::gather_mat<is_binary>(dst, *this).main_loop();
 }
 
-bigmatpoly bigmatpoly::truncate_and_rshift(unsigned int truncated_size, unsigned int shiftcount)
+template<bool is_binary>
+bigmatpoly<is_binary> bigmatpoly<is_binary>::truncate_and_rshift(unsigned int truncated_size, unsigned int shiftcount)
 {
     bigmatpoly other(ab, get_model(), m, n, size - shiftcount);
     other.rshift(*this, shiftcount);
@@ -1830,3 +1918,9 @@ bigmatpoly bigmatpoly::truncate_and_rshift(unsigned int truncated_size, unsigned
     std::swap(*this, other);
     return other;
 }
+
+#ifdef LINGEN_BINARY
+template class bigmatpoly<true>;
+#else
+template class bigmatpoly<false>;
+#endif

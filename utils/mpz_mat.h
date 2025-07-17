@@ -256,7 +256,6 @@ struct cxx_mpz_mat {
         mpz_mat_set(x, o.x);
         return *this;
     }
-#if __cplusplus >= 201103L
     cxx_mpz_mat(cxx_mpz_mat && o) {
         mpz_mat_init(x, 0, 0);
         mpz_mat_swap(x, o.x);
@@ -265,7 +264,6 @@ struct cxx_mpz_mat {
         mpz_mat_swap(x, o.x);
         return *this;
     }
-#endif
     bool operator==(cxx_mpz_mat const & o) const {
         return mpz_mat_cmp(x, o.x) == 0;
     }
@@ -302,7 +300,6 @@ struct cxx_mpq_mat {
         mpq_mat_set(x, o.x);
         return *this;
     }
-#if __cplusplus >= 201103L
     cxx_mpq_mat(cxx_mpq_mat && o) {
         mpq_mat_init(x, 0, 0);
         mpq_mat_swap(x, o.x);
@@ -311,7 +308,6 @@ struct cxx_mpq_mat {
         mpq_mat_swap(x, o.x);
         return *this;
     }
-#endif
     /* As a bonus, allow conversion and assignment from mpz matrices,
      * too. Move ctor and move assignment do not make sense in that case,
      * of course. */

@@ -1,43 +1,56 @@
 #include "cado.h" // IWYU pragma: keep
-// IWYU pragma: no_include <ext/alloc_traits.h>
-#include <fstream> // IWYU pragma: keep
+
 #ifdef LINGEN_BINARY
-#include <limits.h>                   // for UINT_MAX
-#include <stdlib.h>                   // for abort
-#else
-#include <gmp.h>               // for mp_limb_t, __gmpn_cmp, __gmpn_copyi
+#include <climits>
+#include <cstdlib>
 #endif
-#include <unistd.h>     // pread // IWYU pragma: keep
+#include <cstdio>
+
+#include <fstream>
+#include <ostream>
+
+#ifndef LINGEN_BINARY
+#include <gmp.h>
+#endif
+#ifdef LINGEN_BINARY
+#include <sys/types.h>
+#include <unistd.h>     // pread
+#endif
+
 #include "lingen_io_matpoly.hpp"
 #include "lingen_matpoly_select.hpp"
-#include "macros.h"            // for ASSERT_ALWAYS
-#include "params.h"            // for cxx_param_list, param_list_decl_usage
-#include "omp_proxy.h" // IWYU pragma: keep
+#include "macros.h"
+#include "params.h"
+#ifdef HAVE_OPENMP
+#include "omp_proxy.h"
+#endif
 
 
-// constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
-constexpr const unsigned int splitwidth = matpoly::over_gf2 ? 64 : 1;
 
 /* {{{ I/O helpers */
 
 /* This is an indication of the number of bytes we read at a time for A
  * (input) and F (output) */
-unsigned int io_matpoly_block_size = 1 << 20;
+template<bool is_binary>
+unsigned int lingen_io_matpoly<is_binary>::block_size = 1 << 20;
 
-void lingen_io_matpoly_decl_usage(cxx_param_list & pl)
+template<bool is_binary>
+void lingen_io_matpoly<is_binary>::decl_usage(cxx_param_list & pl)
 {
     param_list_decl_usage(pl, "io-block-size",
             "chunk size for reading the input or writing the output");
 }
 
-void lingen_io_matpoly_lookup_parameters(cxx_param_list & pl)
+template<bool is_binary>
+void lingen_io_matpoly<is_binary>::lookup_parameters(cxx_param_list & pl)
 {
     param_list_lookup_string(pl, "io-block-size");
 }
 
-void lingen_io_matpoly_interpret_parameters(cxx_param_list & pl)
+template<bool is_binary>
+void lingen_io_matpoly<is_binary>::interpret_parameters(cxx_param_list & pl)
 {
-    param_list_parse_uint(pl, "io-block-size", &(io_matpoly_block_size));
+    param_list_parse_uint(pl, "io-block-size", &block_size);
 }
 
 /* {{{ matpoly_write
@@ -49,7 +62,8 @@ void lingen_io_matpoly_interpret_parameters(cxx_param_list & pl)
  */
 
 #ifndef LINGEN_BINARY
-int matpoly_write(matpoly::arith_hard * ab, std::ostream& os, matpoly const & M, unsigned int k0, unsigned int k1, int ascii, int transpose)
+template<>
+int lingen_io_matpoly<false>::write(matpoly<false>::arith_hard * ab, std::ostream& os, matpoly<false> const & M, unsigned int k0, unsigned int k1, int ascii, int transpose)
 {
     unsigned int const m = transpose ? M.n : M.m;
     unsigned int const n = transpose ? M.m : M.n;
@@ -59,7 +73,7 @@ int matpoly_write(matpoly::arith_hard * ab, std::ostream& os, matpoly const & M,
         int matnb = 0;
         for(unsigned int i = 0 ; !err && i < m ; i++) {
             for(unsigned int j = 0 ; !err && j < n ; j++) {
-                matpoly::arith_hard::elt const & x = M.coeff(transpose?j:i,transpose?i:j,k);
+                matpoly<false>::arith_hard::elt const & x = M.coeff(transpose?j:i,transpose?i:j,k);
                 if (ascii) {
                     if (j) err = !(os << " ");
                     if (!err) err = !(ab->cxx_out(os, x));
@@ -78,7 +92,8 @@ int matpoly_write(matpoly::arith_hard * ab, std::ostream& os, matpoly const & M,
     return k1 - k0;
 }
 #else
-int matpoly_write(matpoly::arith_hard *, std::ostream& os, matpoly const & M, unsigned int k0, unsigned int k1, int ascii, int transpose)
+template<>
+int lingen_io_matpoly<true>::write(matpoly<true>::arith_hard *, std::ostream& os, matpoly<true> const & M, unsigned int k0, unsigned int k1, int ascii, int transpose)
 {
     unsigned int const m = M.m;
     unsigned int const n = M.n;
@@ -133,33 +148,24 @@ int matpoly_write(matpoly::arith_hard *, std::ostream& os, matpoly const & M, un
 #endif
 /* }}} */
 
-#define VOID_POINTER_ADD(x, k) (((char*)(x))+(k))
-
 /* fw must be an array of ofstreams of exactly the same size as the
  * matrix to be written.
  */
-int matpoly_write_split(matpoly::arith_hard * ab MAYBE_UNUSED, std::vector<std::ofstream> & fw, matpoly const & M, unsigned int k0, unsigned int k1, int ascii)
-{
-    ASSERT_ALWAYS(k0 == k1 || (k0 < M.get_size() && k1 <= M.get_size()));
+
 #ifdef LINGEN_BINARY
+template<>
+int lingen_io_matpoly<true>::write_split(matpoly<true>::arith_hard * ab MAYBE_UNUSED, std::vector<std::ofstream> & fw, matpoly<true> const & M, unsigned int k0, unsigned int k1, int ascii)
+{
+    constexpr const unsigned int splitwidth = 64;
+    ASSERT_ALWAYS(k0 == k1 || (k0 < M.get_size() && k1 <= M.get_size()));
     size_t const ulongs_per_mat = splitwidth * splitwidth / ULONG_BITS;
     std::vector<unsigned long> buf(ulongs_per_mat);
-#endif
     for(unsigned int k = k0 ; k < k1 ; k++) {
         int err = 0;
         int matnb = 0;
         for(unsigned int i = 0 ; !err && i < M.m ; i += splitwidth) {
             for(unsigned int j = 0 ; !err && j < M.n ; j += splitwidth) {
                 std::ostream& os = fw[i/splitwidth*M.n/splitwidth+j/splitwidth];
-#ifndef LINGEN_BINARY
-                arith_hard::elt const & x = M.coeff(i, j, k);
-                if (ascii) {
-                    err = !(ab->cxx_out(os, x));
-                    if (!err) err = !(os << "\n");
-                } else {
-                    err = !ab->write(os, x);
-                }
-#else
                 /* In fact, we _do_ have code that we might want to use
                  * in the b64 layer.
                  */
@@ -181,7 +187,6 @@ int matpoly_write_split(matpoly::arith_hard * ab MAYBE_UNUSED, std::vector<std::
                     }
                 }
                 err = !(os.write((const char *) buf.data(), ulongs_per_mat * sizeof(unsigned long)));
-#endif
                 if (!err) matnb++;
             }
         }
@@ -191,6 +196,38 @@ int matpoly_write_split(matpoly::arith_hard * ab MAYBE_UNUSED, std::vector<std::
     }
     return k1 - k0;
 }
+#endif
+
+#ifndef LINGEN_BINARY
+template<>
+int lingen_io_matpoly<false>::write_split(matpoly<false>::arith_hard * ab MAYBE_UNUSED, std::vector<std::ofstream> & fw, matpoly<false> const & M, unsigned int k0, unsigned int k1, int ascii)
+{
+    constexpr const unsigned int splitwidth = 1;
+    ASSERT_ALWAYS(k0 == k1 || (k0 < M.get_size() && k1 <= M.get_size()));
+    for(unsigned int k = k0 ; k < k1 ; k++) {
+        int err = 0;
+        int matnb = 0;
+        for(unsigned int i = 0 ; !err && i < M.m ; i += splitwidth) {
+            for(unsigned int j = 0 ; !err && j < M.n ; j += splitwidth) {
+                std::ostream& os = fw[i/splitwidth*M.n/splitwidth+j/splitwidth];
+                auto const & x = M.coeff(i, j, k);
+                if (ascii) {
+                    err = !(ab->cxx_out(os, x));
+                    if (!err) err = !(os << "\n");
+                } else {
+                    err = !ab->write(os, x);
+                }
+                if (!err) matnb++;
+            }
+        }
+        if (err) {
+            return (matnb == 0) ? (int) (k - k0) : -1;
+        }
+    }
+    return k1 - k0;
+}
+#endif
+
 /* }}} */
 
 /* {{{ matpoly_read
@@ -205,7 +242,8 @@ int matpoly_write_split(matpoly::arith_hard * ab MAYBE_UNUSED, std::vector<std::
  */
 
 #ifndef LINGEN_BINARY
-int matpoly_read(matpoly::arith_hard * ab, FILE * f, matpoly & M, unsigned int k0, unsigned int k1, int ascii, int transpose)
+template<>
+int lingen_io_matpoly<false>::read(matpoly<false>::arith_hard * ab, FILE * f, matpoly<false> & M, unsigned int k0, unsigned int k1, int ascii, int transpose)
 {
     ASSERT_ALWAYS(!M.check_pre_init());
     unsigned int const m = transpose ? M.n : M.m;
@@ -216,7 +254,7 @@ int matpoly_read(matpoly::arith_hard * ab, FILE * f, matpoly & M, unsigned int k
         int matnb = 0;
         for(unsigned int i = 0 ; !err && i < m ; i++) {
             for(unsigned int j = 0 ; !err && j < n ; j++) {
-                matpoly::arith_hard::elt & x = M.coeff(transpose?j:i,transpose?i:j,k);
+                auto & x = M.coeff(transpose?j:i,transpose?i:j,k);
                 if (ascii) {
                     err = ab->fscan(f, x) == 0;
                 } else {
@@ -236,7 +274,7 @@ int matpoly_read(matpoly::arith_hard * ab, FILE * f, matpoly & M, unsigned int k
     return k1 - k0;
 }
 #else
-static int matpoly_read_inner(matpoly::arith_hard *, FILE * f, matpoly & M, unsigned int k0, unsigned int k1, int ascii, int transpose, off_t base, unsigned int batch = 1)
+static int matpoly_read_inner(matpoly<true>::arith_hard *, FILE * f, matpoly<true> & M, unsigned int k0, unsigned int k1, int ascii, int transpose, off_t base, unsigned int batch = 1)
 {
     /* Internally, the dimension of the matrix that are most packed
      * (i.e., rows when in row-major order) are padded to multiples of
@@ -310,7 +348,8 @@ static int matpoly_read_inner(matpoly::arith_hard *, FILE * f, matpoly & M, unsi
     }
     return k1 - k0;
 }
-int matpoly_read(matpoly::arith_hard * ab, FILE * f, matpoly & M, unsigned int k0, unsigned int k1, int ascii, int transpose)
+template<>
+int lingen_io_matpoly<true>::read(matpoly<true>::arith_hard * ab, FILE * f, matpoly<true> & M, unsigned int k0, unsigned int k1, int ascii, int transpose)
 {
     int rc = 0;
     if (k0 % ULONG_BITS) {
@@ -318,14 +357,14 @@ int matpoly_read(matpoly::arith_hard * ab, FILE * f, matpoly & M, unsigned int k
         rc += matpoly_read_inner(ab, f, M, k0, fk0, ascii, transpose, -1);
         if (rc < (int) (fk0 - k0) || fk0 == k1)
             return rc;
-        return rc + matpoly_read(ab, f, M, fk0, k1, ascii, transpose);
+        return rc + read(ab, f, M, fk0, k1, ascii, transpose);
     }
     if (k1 % ULONG_BITS) {
         unsigned int const fk1 = MAX(k0, k1 - (k1 % ULONG_BITS));
         if (k0 < fk1) {
             /* recurse and to the bulk of the processing on aligned
              * values */
-            rc += matpoly_read(ab, f, M, k0, fk1, ascii, transpose);
+            rc += read(ab, f, M, k0, fk1, ascii, transpose);
             if (rc < (int) (fk1 - k0))
                 return rc;
         }
@@ -377,3 +416,8 @@ int matpoly_read(matpoly::arith_hard * ab, FILE * f, matpoly & M, unsigned int k
 #endif
 /* }}} */
 
+#ifdef LINGEN_BINARY
+template struct lingen_io_matpoly<true>;
+#else
+template struct lingen_io_matpoly<false>;
+#endif

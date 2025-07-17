@@ -1,46 +1,43 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <climits>                            // for UINT_MAX
-#include <cstdint>                            // for SIZE_MAX
-#include <cfloat>                              // for DBL_MAX
-#include <cstdio>                              // for fputs, stderr
-#include <cmath>                              // for log2
+#include <climits>
+#include <cstdint>
+#include <cfloat>
+#include <cstdio>
+#include <cmath>
 
-#include <algorithm>                           // for max, sort, find, unique
-#include <array>                               // for array
-#include <iostream>                            // for operator<<, basic_ostream
-#include <fstream> // ofstream // IWYU pragma: keep
-#include <map>                                 // for map, operator!=, map<>...
-#include <memory>                              // for allocator_traits<>::va...
-#include <stdexcept>                           // for invalid_argument, over...
-#include <string>                              // for string, operator<<
-#include <tuple>                               // for tie, get, tuple
-#include <utility>                             // for pair, make_pair
-#include <vector>                              // for vector
+#include <algorithm>
+#include <array>
+#include <iostream>
+#include <fstream>
+#include <map>
+#include <stdexcept>
+#include <string>
+#include <tuple>
+#include <utility>
+#include <vector>
 
-#include <gmp.h>                               // for mp_limb_t, mpz_size
-#include "fmt/base.h"                          // for check_format_string
-#include "fmt/format.h"                        // for basic_buffer::append
-#include "fmt/ostream.h"                       // for formatbuf<>::int_type
+#include <gmp.h>
+#include "fmt/base.h"
+#include "fmt/format.h"
 
+#include "arith-hard.hpp"
 #include "gmp_aux.h"
 #include "lingen_tuning.hpp"
-#include "cxx_mpz.hpp"                         // for cxx_mpz
-#include "arith-hard.hpp"                  // for abdst_field
-#include "lingen_bw_dimensions.hpp"            // for bw_dimensions
-#include "lingen_call_companion.hpp"           // for lingen_call_companion
-#include "lingen_matpoly_select.hpp"           // for matpoly, matpoly::over...
-#include "lingen_mul_substeps_base.hpp"        // for op_mul_or_mp_base, op_...
-#include "lingen_platform.hpp"                 // for lingen_platform
-#include "lingen_qcode_select.hpp"             // for test_basecase
-#include "lingen_substep_characteristics.hpp"  // for lingen_substep_charact...
-#include "lingen_substep_schedule.hpp"         // for lingen_substep_schedule
-#include "lingen_tuning_cache.hpp"             // for lingen_tuning_cache::c...
-#include "macros.h"                            // for iceildiv, ASSERT_ALWAYS
-#include "misc.h"                              // for size_disp
-#include "params.h"                            // for cxx_param_list, param_...
-#include "subdivision.hpp"                     // for subdivision
-#include "timing.h"                            // for wct_seconds, weighted_...
+#include "cxx_mpz.hpp"
+#include "lingen_bw_dimensions.hpp"
+#include "lingen_call_companion.hpp"
+#include "lingen_matpoly_select.hpp"
+#include "lingen_mul_substeps_base.hpp"
+#include "lingen_platform.hpp"
+#include "lingen_qcode_select.hpp"
+#include "lingen_substep_characteristics.hpp"
+#include "lingen_substep_schedule.hpp"
+#include "lingen_tuning_cache.hpp"
+#include "macros.h"
+#include "misc.h"
+#include "params.h"
+#include "timing.h"
 
 /* {{{ all_splits_of
  * Given n>=1 return the list of all integers k (1<=k<=n) such
@@ -56,11 +53,10 @@
  * the obtained splits are different. Hence it suffices to iterate over
  * all these k's
  */
+template<bool is_binary>
 static std::vector<unsigned int> all_splits_of(unsigned int n)
 {
-#ifdef LINGEN_BINARY
-    n /= 8;
-#endif
+    n /= is_binary ? 8 : 1;
     std::vector<unsigned int> res;
     for(unsigned int k = 1 ; k * k <= n ; k++) res.push_back(k);
     unsigned int j = res.size();
@@ -70,9 +66,10 @@ static std::vector<unsigned int> all_splits_of(unsigned int n)
 }
 /* }}} */
 
+template<bool is_binary>
 static std::vector<lingen_substep_schedule> optimize(
         std::ostream& os,
-        lingen_substep_characteristics const & U,
+        lingen_substep_characteristics<is_binary> const & U,
         lingen_platform const & P,
         unsigned int mesh,
         std::vector<lingen_substep_schedule::fft_type_t> const & allowed_ffts,
@@ -99,8 +96,8 @@ static std::vector<lingen_substep_schedule> optimize(
 
     for(lingen_substep_schedule::fft_type_t const fft : allowed_ffts) {
         if (!U.fft_type_valid(fft)) continue;
-        for(unsigned int const shrink0 : all_splits_of(nr0)) {
-            for(unsigned int const shrink2 : all_splits_of(nr2)) {
+        for(unsigned int const shrink0 : all_splits_of<is_binary>(nr0)) {
+            for(unsigned int const shrink2 : all_splits_of<is_binary>(nr2)) {
                 if (fft == lingen_substep_schedule::FFT_NONE)
                     if (shrink0 > 1 || shrink2 > 1) continue;
                 unsigned int const nrs0 = U.shrink_split0(mesh, shrink0).block_size_upper_bound();
@@ -108,8 +105,8 @@ static std::vector<lingen_substep_schedule> optimize(
                 /* first the splits with b0 == nrs0 */
                 {
                     unsigned int b0 = nrs0;
-                    for(unsigned int b1 : all_splits_of(nr1)) {
-                        for(unsigned int b2 : all_splits_of(nrs2)) {
+                    for(unsigned int b1 : all_splits_of<is_binary>(nr1)) {
+                        for(unsigned int b2 : all_splits_of<is_binary>(nrs2)) {
                             lingen_substep_schedule S;
                             S.fft_type = fft;
                             S.shrink0 = shrink0;
@@ -129,8 +126,8 @@ static std::vector<lingen_substep_schedule> optimize(
                 /* then the splits with b2 == nrs2 */
                 {
                     unsigned int b2 = nrs2;
-                    for(unsigned int b1 : all_splits_of(nr1)) {
-                        for(unsigned int b0 : all_splits_of(nrs0)) {
+                    for(unsigned int b1 : all_splits_of<is_binary>(nr1)) {
+                        for(unsigned int b0 : all_splits_of<is_binary>(nrs0)) {
                             lingen_substep_schedule S;
                             S.fft_type = fft;
                             S.shrink0 = shrink0;
@@ -202,19 +199,71 @@ static std::vector<lingen_substep_schedule> optimize(
 }
 /* }}} */
 
-struct lingen_tuner {
+template<typename arith_hard_type, bool is_binary = arith_hard_type::is_binary>
+static size_t K_elts_to_bytes(arith_hard_type const & ab, size_t x)
+{
+    if constexpr (is_binary)
+        return iceildiv((x),ULONG_BITS) * sizeof(unsigned long);
+    else
+        return ab.vec_elt_stride(x);
+}
+
+struct lingen_tuner_base {
+    struct output_info {/*{{{*/
+        int quiet = 0;
+        const char * tuning_log_filename = nullptr;
+        static void declare_usage(cxx_param_list & pl) {/*{{{*/
+            param_list_decl_usage(pl, "tuning_log_filename",
+                    "Output tuning log to this file\n");
+            param_list_decl_usage(pl, "tuning_quiet",
+                    "Silence tuning log\n");
+        }/*}}}*/
+        static void lookup_parameters(cxx_param_list & pl) {/*{{{*/
+            lingen_platform::lookup_parameters(pl);
+            param_list_lookup_string(pl, "tuning_quiet");
+            param_list_lookup_string(pl, "tuning_log_filename");
+        }/*}}}*/
+        output_info(cxx_param_list & pl) {
+            tuning_log_filename = param_list_lookup_string(pl, "tuning_log_filename");
+            param_list_parse_int(pl, "tuning_quiet", &quiet);
+        }
+    };/*}}}*/
+    static void declare_usage(cxx_param_list & pl) {/*{{{*/
+        lingen_platform::declare_usage(pl);
+        output_info::declare_usage(pl);
+        param_list_decl_usage(pl, "tuning_schedule_filename",
+                "Save (and re-load if it exists) tuning schedule from this file");
+        param_list_decl_usage(pl, "tuning_timing_cache_filename",
+                "Save (and re-load) timings for individual transforms in this file\n");
+        param_list_decl_usage(pl, "basecase-keep-until",
+                "When tuning, stop measuring basecase timing when it exceeds the time of the recursive algorithm (counting its leaf calls) by this factor\n");
+        param_list_decl_usage(pl, "tuning_thresholds",
+                "comma-separated list of threshols, given in the form <algorithm>:<threshold> value. Recognized values for <algorithm> are a subset of recursive,gfp_plain,flint,cantor,gf2x_plain. Thresholds are integers corresponding to the input size of E\n");
+    }/*}}}*/
+    static void lookup_parameters(cxx_param_list & pl) {/*{{{*/
+        lingen_platform::lookup_parameters(pl);
+        output_info::lookup_parameters(pl);
+        param_list_lookup_string(pl, "tuning_schedule_filename");
+        param_list_lookup_string(pl, "tuning_timing_cache_filename");
+        param_list_lookup_string(pl, "basecase-keep-until");
+        param_list_lookup_string(pl, "tuning_thresholds");
+    }/*}}}*/
+};
+
+template<bool is_binary>
+struct lingen_tuner : public lingen_tuner_base {
     typedef lingen_platform pc_t;
     typedef lingen_substep_schedule sc_t;
 
-    matpoly::arith_hard * ab; /* imported from the dims struct */
+    typename matpoly<is_binary>::arith_hard * ab; /* imported from the dims struct */
     cxx_mpz p;
     unsigned int m,n;
     size_t L;
     lingen_platform P;
     lingen_tuning_cache C;
     cxx_gmp_randstate rstate;
-    const char * timing_cache_filename = NULL;
-    const char * schedule_filename = NULL;
+    const char * timing_cache_filename = nullptr;
+    const char * schedule_filename = nullptr;
 
     /* stop measuring the time taken by the basecase when it is
      * more than this number times the time taken by the other
@@ -308,47 +357,7 @@ struct lingen_tuner {
     std::map<unsigned int, std::string> strat_name;
 
 
-    struct output_info {/*{{{*/
-        int quiet = 0;
-        const char * tuning_log_filename = NULL;
-        static void declare_usage(cxx_param_list & pl) {/*{{{*/
-            param_list_decl_usage(pl, "tuning_log_filename",
-                    "Output tuning log to this file\n");
-            param_list_decl_usage(pl, "tuning_quiet",
-                    "Silence tuning log\n");
-        }/*}}}*/
-        static void lookup_parameters(cxx_param_list & pl) {/*{{{*/
-            lingen_platform::lookup_parameters(pl);
-            param_list_lookup_string(pl, "tuning_quiet");
-            param_list_lookup_string(pl, "tuning_log_filename");
-        }/*}}}*/
-        output_info(cxx_param_list & pl) {
-            tuning_log_filename = param_list_lookup_string(pl, "tuning_log_filename");
-            param_list_parse_int(pl, "tuning_quiet", &quiet);
-        }
-    };/*}}}*/
-    static void declare_usage(cxx_param_list & pl) {/*{{{*/
-        lingen_platform::declare_usage(pl);
-        output_info::declare_usage(pl);
-        param_list_decl_usage(pl, "tuning_schedule_filename",
-                "Save (and re-load if it exists) tuning schedule from this file");
-        param_list_decl_usage(pl, "tuning_timing_cache_filename",
-                "Save (and re-load) timings for individual transforms in this file\n");
-        param_list_decl_usage(pl, "basecase-keep-until",
-                "When tuning, stop measuring basecase timing when it exceeds the time of the recursive algorithm (counting its leaf calls) by this factor\n");
-        param_list_decl_usage(pl, "tuning_thresholds",
-                "comma-separated list of threshols, given in the form <algorithm>:<threshold> value. Recognized values for <algorithm> are a subset of recursive,gfp_plain,flint,cantor,gf2x_plain. Thresholds are integers corresponding to the input size of E\n");
-    }/*}}}*/
-    static void lookup_parameters(cxx_param_list & pl) {/*{{{*/
-        lingen_platform::lookup_parameters(pl);
-        output_info::lookup_parameters(pl);
-        param_list_lookup_string(pl, "tuning_schedule_filename");
-        param_list_lookup_string(pl, "tuning_timing_cache_filename");
-        param_list_lookup_string(pl, "basecase-keep-until");
-        param_list_lookup_string(pl, "tuning_thresholds");
-    }/*}}}*/
-
-    lingen_tuner(std::ostream& os, bw_dimensions & d, size_t L, MPI_Comm comm, cxx_param_list & pl) :/*{{{*/
+    lingen_tuner(std::ostream& os, bw_dimensions<is_binary> & d, size_t L, MPI_Comm comm, cxx_param_list & pl) :/*{{{*/
         ab(&d.ab), 
         m(d.m), n(d.n), L(L), P(comm, pl),
         tuning_thresholds(pl, os, P)
@@ -380,13 +389,7 @@ struct lingen_tuner {
          * threshold point. This total time is independent of the
          * threshold itself, in fact.
          */
-        size_t data0 = m*(m+n)*(P.r*P.r-1);
-        data0 = data0 * L;
-#ifdef LINGEN_BINARY
-        data0 = iceildiv(data0, ULONG_BITS) * sizeof(unsigned long);
-#else
-        data0 = ab->vec_elt_stride(data0);
-#endif
+        size_t data0 = K_elts_to_bytes(*ab, m*(m+n)*(P.r*P.r-1)*L);
 
         // We must **NOT** divide by r*r, because the problem is
         // precisely caused by the fact that gather() and scatter() all
@@ -486,7 +489,7 @@ struct lingen_tuner {
             return res;
         }
     }/*}}}*/
-    lingen_substep_characteristics substep(weighted_call_t const & cw, op_mul_or_mp_base::op_type_t op) { /* {{{ */
+    lingen_substep_characteristics<is_binary> substep(weighted_call_t const & cw, op_mul_or_mp_base::op_type_t op) { /* {{{ */
         size_t length_E;
         size_t length_E_left;
         size_t length_E_right;
@@ -515,12 +518,12 @@ struct lingen_tuner {
         ASSERT_ALWAYS(asize);
         ASSERT_ALWAYS(bsize);
 
-        return lingen_substep_characteristics(
+        return {
                 ab, rstate, length_E,
                 op,
                 op == op_mul_or_mp_base::OP_MP ? m : (m+n),
                 m+n, m+n,
-                asize, bsize, csize);
+                asize, bsize, csize };
     } /* }}} */
     bool recursion_makes_sense(size_t L) const {/*{{{*/
         return L >= 2;
@@ -586,7 +589,7 @@ struct lingen_tuner {
          */
         size_t const base_E  = iceildiv(m,P.r)*iceildiv(m+n,P.r)*mpz_size(p)*sizeof(mp_limb_t);
         size_t const base_pi = iceildiv(m+n,P.r)*iceildiv(m+n,P.r)*mpz_size(p)*sizeof(mp_limb_t);
-        constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
+        constexpr const unsigned int simd = is_binary ? ULONG_BITS : 1;
         size_t const reserved_base = base_E * iceildiv(L - (L >> depth), simd);
         size_t reserved_mp  = base_pi * iceildiv(iceildiv(m * iceildiv(L, 1<<depth), m+n), simd);
         size_t reserved_mul = base_pi * iceildiv(iceildiv(m * iceildiv(2*L, 1<<depth), m+n), simd);
@@ -676,12 +679,12 @@ struct lingen_tuner {
         bool do_timings = true;
         configurations_to_test() {
             ffts = { lingen_substep_schedule::FFT_NONE };
-#ifndef LINGEN_BINARY
-            ffts.push_back(lingen_substep_schedule::FFT_FLINT);
-#else
-            ffts.push_back(lingen_substep_schedule::FFT_TERNARY);
-            ffts.push_back(lingen_substep_schedule::FFT_CANTOR);
-#endif
+            if constexpr (!is_binary) {
+                ffts.push_back(lingen_substep_schedule::FFT_FLINT);
+            } else {
+                ffts.push_back(lingen_substep_schedule::FFT_TERNARY);
+                ffts.push_back(lingen_substep_schedule::FFT_CANTOR);
+            }
         }
         bool from_stored_hints(std::ostream& os, lingen_tuner & tuner, tuner_persistent_data & persist, lingen_call_companion::key const & K) {/*{{{*/
             lingen_hints const & stored_hints(persist.stored_hints);
@@ -818,85 +821,85 @@ struct lingen_tuner {
              * loop would not be easier to understand.
              */
             std::ostringstream explanation;
-#ifdef LINGEN_BINARY
-            bool const hc = T.has(T_t::cantor);
-            bool const ht = T.has(T_t::ternary);
-            unsigned int const tc = T[T_t::cantor];
-            unsigned int const tt = T[T_t::ternary];
-            if (hc && ht) {
-                if (tc >= tt) {
+            if constexpr (is_binary) {
+                bool const hc = T.has(T_t::cantor);
+                bool const ht = T.has(T_t::ternary);
+                unsigned int const tc = T[T_t::cantor];
+                unsigned int const tt = T[T_t::ternary];
+                if (hc && ht) {
+                    if (tc >= tt) {
+                        if (L >= tc) {
+                            ffts.push_back(lingen_substep_schedule::FFT_CANTOR);
+                            explanation << explain(T, T_t::cantor);
+                        } else if (L >= tt) {
+                            ffts.push_back(lingen_substep_schedule::FFT_TERNARY);
+                            explanation << explain(T, T_t::ternary);
+                            explanation << explain(T, T_t::cantor);
+                        } else {
+                            ffts.push_back(lingen_substep_schedule::FFT_NONE);
+                            explanation << explain(T, T_t::recursive);
+                            explanation << explain(T, T_t::ternary);
+                        }
+                    } else if (tt >= tc) {
+                        /* quite unlikely except for ridiculously small
+                         * matrices perhaps */
+                        if (L >= tt) {
+                            ffts.push_back(lingen_substep_schedule::FFT_TERNARY);
+                            explanation << explain(T, T_t::ternary);
+                        } else if (L >= tc) {
+                            ffts.push_back(lingen_substep_schedule::FFT_CANTOR);
+                            explanation << explain(T, T_t::cantor);
+                            explanation << explain(T, T_t::ternary);
+                        } else {
+                            ffts.push_back(lingen_substep_schedule::FFT_NONE);
+                            explanation << explain(T, T_t::recursive);
+                            explanation << explain(T, T_t::cantor);
+                        }
+                    }
+                } else if (hc) {
                     if (L >= tc) {
                         ffts.push_back(lingen_substep_schedule::FFT_CANTOR);
                         explanation << explain(T, T_t::cantor);
-                    } else if (L >= tt) {
-                        ffts.push_back(lingen_substep_schedule::FFT_TERNARY);
-                        explanation << explain(T, T_t::ternary);
-                        explanation << explain(T, T_t::cantor);
                     } else {
                         ffts.push_back(lingen_substep_schedule::FFT_NONE);
+                        ffts.push_back(lingen_substep_schedule::FFT_TERNARY);
                         explanation << explain(T, T_t::recursive);
-                        explanation << explain(T, T_t::ternary);
+                        explanation << explain(T, T_t::cantor);
                     }
-                } else if (tt >= tc) {
-                    /* quite unlikely except for ridiculously small
-                     * matrices perhaps */
+                } else if (ht) {
                     if (L >= tt) {
                         ffts.push_back(lingen_substep_schedule::FFT_TERNARY);
-                        explanation << explain(T, T_t::ternary);
-                    } else if (L >= tc) {
                         ffts.push_back(lingen_substep_schedule::FFT_CANTOR);
-                        explanation << explain(T, T_t::cantor);
                         explanation << explain(T, T_t::ternary);
                     } else {
                         ffts.push_back(lingen_substep_schedule::FFT_NONE);
                         explanation << explain(T, T_t::recursive);
-                        explanation << explain(T, T_t::cantor);
+                        explanation << explain(T, T_t::ternary);
                     }
-                }
-            } else if (hc) {
-                if (L >= tc) {
-                    ffts.push_back(lingen_substep_schedule::FFT_CANTOR);
-                    explanation << explain(T, T_t::cantor);
                 } else {
                     ffts.push_back(lingen_substep_schedule::FFT_NONE);
                     ffts.push_back(lingen_substep_schedule::FFT_TERNARY);
-                    explanation << explain(T, T_t::recursive);
-                    explanation << explain(T, T_t::cantor);
-                }
-            } else if (ht) {
-                if (L >= tt) {
-                    ffts.push_back(lingen_substep_schedule::FFT_TERNARY);
                     ffts.push_back(lingen_substep_schedule::FFT_CANTOR);
-                    explanation << explain(T, T_t::ternary);
-                } else {
-                    ffts.push_back(lingen_substep_schedule::FFT_NONE);
                     explanation << explain(T, T_t::recursive);
-                    explanation << explain(T, T_t::ternary);
                 }
             } else {
-                ffts.push_back(lingen_substep_schedule::FFT_NONE);
-                ffts.push_back(lingen_substep_schedule::FFT_TERNARY);
-                ffts.push_back(lingen_substep_schedule::FFT_CANTOR);
-                explanation << explain(T, T_t::recursive);
-            }
-#else
-            bool const hf = T.has(T_t::flint);
-            bool const tf = T[T_t::flint];
-            if (hf) {
-                if (L >= tf) {
+                bool const hf = T.has(T_t::flint);
+                bool const tf = T[T_t::flint];
+                if (hf) {
+                    if (L >= tf) {
+                        ffts.push_back(lingen_substep_schedule::FFT_FLINT);
+                        explanation << explain(T, T_t::flint);
+                    } else {
+                        ffts.push_back(lingen_substep_schedule::FFT_NONE);
+                        explanation << explain(T, T_t::recursive);
+                        explanation << explain(T, T_t::flint);
+                    }
+                } else {
+                    ffts.push_back(lingen_substep_schedule::FFT_NONE);
                     ffts.push_back(lingen_substep_schedule::FFT_FLINT);
-                    explanation << explain(T, T_t::flint);
-                } else {
-                    ffts.push_back(lingen_substep_schedule::FFT_NONE);
                     explanation << explain(T, T_t::recursive);
-                    explanation << explain(T, T_t::flint);
                 }
-            } else {
-                ffts.push_back(lingen_substep_schedule::FFT_NONE);
-                ffts.push_back(lingen_substep_schedule::FFT_FLINT);
-                explanation << explain(T, T_t::recursive);
             }
-#endif
             os << "# Testing only";
             for(auto fft : ffts)
                 os << " " << lingen_substep_schedule::fft_name(fft);
@@ -948,7 +951,7 @@ struct lingen_tuner {
 
     bool tune_local_at_depth(std::ostream& os, tuner_persistent_data & persist, int depth)/*{{{*/
     {
-        tuner_persistent_data::level_strategy_map & best(persist.best);
+        typename tuner_persistent_data::level_strategy_map & best(persist.best);
         unsigned int & minimum_mesh(persist.minimum_mesh);
         lingen_hints & hints(persist.hints);
 
@@ -1256,7 +1259,7 @@ struct lingen_tuner {
             }
         }
 
-        tuner_persistent_data::level_strategy_map & best(persist.best);
+        typename tuner_persistent_data::level_strategy_map & best(persist.best);
         lingen_hints & hints(persist.hints);
         size_t const peak(persist.peak);
         int const ipeak(persist.ipeak);
@@ -1351,8 +1354,10 @@ struct lingen_tuner {
     }/*}}}*/
 };
 
+#ifdef LINGEN_BINARY
+template<>
 const std::vector<const char *>
-lingen_tuner::tuning_thresholds_t::thresholds_verbs
+lingen_tuner<true>::tuning_thresholds_t::thresholds_verbs
 {
     recursive,
     collective,
@@ -1360,23 +1365,42 @@ lingen_tuner::tuning_thresholds_t::thresholds_verbs
     // multiple mesh sizes.
     // "plain" makes no sense per se, as it's the base thing
     // to use as soon as we go recursive
-#ifdef LINGEN_BINARY
     ternary,
     cantor,
-#else
-    flint,
-#endif
     notiming,
 };
+#endif
 
-const std::vector<std::pair<lingen_substep_schedule::fft_type_t, const char *>> lingen_tuner::tuning_thresholds_t::code_to_key
+#ifndef LINGEN_BINARY
+template<>
+const std::vector<const char *>
+lingen_tuner<false>::tuning_thresholds_t::thresholds_verbs
+{
+    recursive,
+    collective,
+    // "collective" should allow finer grain, so as to allow
+    // multiple mesh sizes.
+    // "plain" makes no sense per se, as it's the base thing
+    // to use as soon as we go recursive
+    flint,
+    notiming,
+};
+#endif
+
+
 #ifdef LINGEN_BINARY
+template<bool is_binary>
+const std::vector<std::pair<lingen_substep_schedule::fft_type_t, const char *>> lingen_tuner<is_binary>::tuning_thresholds_t::code_to_key
 {
     { lingen_substep_schedule::FFT_NONE, recursive, },
     { lingen_substep_schedule::FFT_TERNARY, ternary, },
     { lingen_substep_schedule::FFT_CANTOR, cantor },
 };
-#else
+#endif
+
+#ifndef LINGEN_BINARY
+template<bool is_binary>
+const std::vector<std::pair<lingen_substep_schedule::fft_type_t, const char *>> lingen_tuner<is_binary>::tuning_thresholds_t::code_to_key
 {
     { lingen_substep_schedule::FFT_NONE, recursive, },
     { lingen_substep_schedule::FFT_FLINT, flint, },
@@ -1384,35 +1408,48 @@ const std::vector<std::pair<lingen_substep_schedule::fft_type_t, const char *>> 
 #endif
 
 /* Need this for conformance */
-constexpr const char * lingen_tuner::tuning_thresholds_t::recursive;
-constexpr const char * lingen_tuner::tuning_thresholds_t::collective;
-constexpr const char * lingen_tuner::tuning_thresholds_t::ternary;
-constexpr const char * lingen_tuner::tuning_thresholds_t::cantor;
-constexpr const char * lingen_tuner::tuning_thresholds_t::flint;
-constexpr const char * lingen_tuner::tuning_thresholds_t::notiming;
+template<bool is_binary>
+constexpr const char * lingen_tuner<is_binary>::tuning_thresholds_t::recursive;
+template<bool is_binary>
+constexpr const char * lingen_tuner<is_binary>::tuning_thresholds_t::collective;
+template<bool is_binary>
+constexpr const char * lingen_tuner<is_binary>::tuning_thresholds_t::ternary;
+template<bool is_binary>
+constexpr const char * lingen_tuner<is_binary>::tuning_thresholds_t::cantor;
+template<bool is_binary>
+constexpr const char * lingen_tuner<is_binary>::tuning_thresholds_t::flint;
+template<bool is_binary>
+constexpr const char * lingen_tuner<is_binary>::tuning_thresholds_t::notiming;
 
 
-lingen_hints lingen_tuning(bw_dimensions & d, size_t L, MPI_Comm comm, cxx_param_list & pl)
+template<bool is_binary>
+lingen_hints lingen_tuning(bw_dimensions<is_binary> & d, size_t L, MPI_Comm comm, cxx_param_list & pl)
 {
-    lingen_tuner::output_info const O(pl);
+    typename lingen_tuner<is_binary>::output_info const O(pl);
     if (O.quiet) {
         std::ostringstream os;
-        return lingen_tuner(os, d, L, comm, pl).tune(os);
+        return lingen_tuner<is_binary>(os, d, L, comm, pl).tune(os);
     } else if (O.tuning_log_filename) {
         std::ofstream os(O.tuning_log_filename, std::ios_base::out);
-        return lingen_tuner(os, d, L, comm, pl).tune(os);
+        return lingen_tuner<is_binary>(os, d, L, comm, pl).tune(os);
     } else {
-        return lingen_tuner(std::cout, d, L, comm, pl).tune(std::cout);
+        return lingen_tuner<is_binary>(std::cout, d, L, comm, pl).tune(std::cout);
     }
 }
+#ifdef LINGEN_BINARY
+template struct lingen_tuner<true>;
+template lingen_hints lingen_tuning<true>(bw_dimensions<true> & d, size_t L, MPI_Comm comm, cxx_param_list & pl);
+#else
+template struct lingen_tuner<false>;
+template lingen_hints lingen_tuning<false>(bw_dimensions<false> & d, size_t L, MPI_Comm comm, cxx_param_list & pl);
+#endif
 
 void lingen_tuning_decl_usage(cxx_param_list & pl)
 {
-    lingen_tuner::declare_usage(pl);
+    lingen_tuner_base::declare_usage(pl);
 }
 
 void lingen_tuning_lookup_parameters(cxx_param_list & pl)
 {
-    lingen_tuner::lookup_parameters(pl);
+    lingen_tuner_base::lookup_parameters(pl);
 }
-

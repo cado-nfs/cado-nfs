@@ -1,14 +1,14 @@
 #ifndef CADO_LINGEN_MATPOLY_HPP
 #define CADO_LINGEN_MATPOLY_HPP
 
-#include <cstddef>                   // for size_t, NULL
+#include <cstddef>
 
-#include <gmp.h>                      // for gmp_randstate_t
+#include <gmp.h>
 
 #include "gmp_aux.h"
 #include "lingen_call_companion.hpp"
 #include "lingen_memory_pool.hpp"
-#include "macros.h"                   // for ASSERT_ALWAYS, ATTRIBUTE_WARN_U...
+#include "macros.h"
 #include "arith-hard.hpp"
 #include "submatrix_range.hpp"
 #include "tree_stats.hpp"
@@ -24,14 +24,19 @@ struct polymat;
  * The difference here is that the stride is not the same.
  */
 
-class matpoly {
+template<bool is_binary> class matpoly;
+template<bool is_binary> class bigmatpoly;
+
+template<>
+class matpoly<false> {
     /* It's only exposed when we compile the mpi-enabled code, of course.
      * But on the other hand it's harmless to keep the friend declaration
      * in all cases.
      */
-    friend class bigmatpoly;
+    friend class bigmatpoly<false>;
 
 public:
+    static constexpr bool is_binary = false;
     typedef ::arith_hard arith_hard;
     typedef arith_hard::elt elt;
     typedef elt * ptr;
@@ -68,7 +73,6 @@ public:
         ~memory_guard() { memory_pool_type::guard_base::pre_dtor(memory); }
     };
 
-    static constexpr bool over_gf2 = false;
     /* if we ever want the check binary to make sure that the
      * specification works correctly also wrt. pre-init state. Not sure
      * it's terribly useful.
@@ -270,5 +274,7 @@ public:
 
     matpoly truncate_and_rshift(size_t truncated_size, size_t rshift);
 };
+
+extern template class matpoly<false>;
 
 #endif	/* LINGEN_MATPOLY_HPP_ */

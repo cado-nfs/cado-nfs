@@ -1,24 +1,29 @@
 #ifndef CADO_LINGEN_IO_WRAPPERS_HPP
 #define CADO_LINGEN_IO_WRAPPERS_HPP
 
-// IWYU pragma: no_include <algorithm>
+#include "cado_config.h"
 
-#include <stdio.h>                    // for size_t, FILE
+#include <cstdio>
+
 #include <fstream>
 #include <vector>
 #include <memory>
-#include <array>                      // for array
-#include <string>                     // for string
-#include <tuple>                      // for tuple
-#include <sys/types.h>                // for ssize_t
+#include <array>
+#include <string>
+#include <tuple>
+
+#include <sys/types.h>
+
 #include "gmp_aux.h"
-#include "arith-hard.hpp"         // for abdst_field, mpfq_p_1_dst_field
+#include "arith-hard.hpp"
 #include "lingen_bigmatpoly.hpp"
-#include "lingen_bw_dimensions.hpp"   // for bw_dimensions
+#include "lingen_bw_dimensions.hpp"
 #include "lingen_matpoly_select.hpp"
-#include "macros.h"                   // for ASSERT_ALWAYS
-#include "select_mpi.h"               // for MPI_Comm
+#include "macros.h"
+#include "select_mpi.h"
 #include "sha1.h"
+
+template<bool is_binary>
 struct bmstatus;
 
 /* This layer intends to absorb some 1400 lines of lingen.cpp, in a
@@ -28,9 +33,10 @@ struct bmstatus;
  * (those will also bring the benefit of maximizing the performance for
  * the binary case, and might even do good in the prime field case either).
  */
+template<bool is_binary>
 struct lingen_io_wrapper_base
 {
-    matpoly::arith_hard * ab;
+    typename matpoly<is_binary>::arith_hard * ab;
     unsigned int nrows;
     unsigned int ncols;
 
@@ -55,7 +61,7 @@ struct lingen_io_wrapper_base
      */
     virtual unsigned int preferred_window() const;
 
-    lingen_io_wrapper_base(matpoly::arith_hard * ab, unsigned int nrows, unsigned int ncols)
+    lingen_io_wrapper_base(typename matpoly<is_binary>::arith_hard * ab, unsigned int nrows, unsigned int ncols)
       : ab(ab)
       , nrows(nrows)
       , ncols(ncols)
@@ -65,12 +71,17 @@ struct lingen_io_wrapper_base
     ~lingen_io_wrapper_base() {}
 };
 
-struct lingen_input_wrapper_base : public lingen_io_wrapper_base
+template<bool is_binary>
+struct lingen_input_wrapper_base : public lingen_io_wrapper_base<is_binary>
 {
-    lingen_input_wrapper_base(matpoly::arith_hard * ab,
+    using lingen_io_wrapper_base<is_binary>::nrows;
+    using lingen_io_wrapper_base<is_binary>::ncols;
+    using lingen_io_wrapper_base<is_binary>::ab;
+    using lingen_io_wrapper_base<is_binary>::average_matsize;
+    lingen_input_wrapper_base(typename matpoly<is_binary>::arith_hard * ab,
                               unsigned int nrows,
                               unsigned int ncols)
-      : lingen_io_wrapper_base(ab, nrows, ncols)
+      : lingen_io_wrapper_base<is_binary>(ab, nrows, ncols)
     {}
     /* The input source is regarded as a stream, with no possibility of
      * random access. Here, k0 and k1 refer to positions within the
@@ -81,7 +92,7 @@ struct lingen_input_wrapper_base : public lingen_io_wrapper_base
      * position with respect to the concrete source, but that bit of
      * information is not exposed in the interface.
      */
-    virtual ssize_t read_to_matpoly(matpoly& dst,
+    virtual ssize_t read_to_matpoly(matpoly<is_binary>& dst,
                                     unsigned int k0,
                                     unsigned int k1) = 0;
     virtual size_t guessed_length() const = 0;
@@ -89,12 +100,17 @@ struct lingen_input_wrapper_base : public lingen_io_wrapper_base
     virtual ~lingen_input_wrapper_base() {}
 };
 
-struct lingen_output_wrapper_base : public lingen_io_wrapper_base
+template<bool is_binary>
+struct lingen_output_wrapper_base : public lingen_io_wrapper_base<is_binary>
 {
-    lingen_output_wrapper_base(matpoly::arith_hard * ab,
+    using lingen_io_wrapper_base<is_binary>::nrows;
+    using lingen_io_wrapper_base<is_binary>::ncols;
+    using lingen_io_wrapper_base<is_binary>::ab;
+
+    lingen_output_wrapper_base(typename matpoly<is_binary>::arith_hard * ab,
                                unsigned int nrows,
                                unsigned int ncols)
-      : lingen_io_wrapper_base(ab, nrows, ncols)
+      : lingen_io_wrapper_base<is_binary>(ab, nrows, ncols)
     {}
     /* The output source is regarded as a stream, with no possibility of
      * random access. Here, k0 and k1 refer to positions within the
@@ -105,14 +121,15 @@ struct lingen_output_wrapper_base : public lingen_io_wrapper_base
      * position with respect to the concrete destination, but that bit of
      * information is not exposed in the interface.
      */
-    virtual ssize_t write_from_matpoly(matpoly const& src,
+    virtual ssize_t write_from_matpoly(matpoly<is_binary> const& src,
                                        unsigned int k0,
                                        unsigned int k1) = 0;
 
     virtual ~lingen_output_wrapper_base() {}
 };
 
-class lingen_file_input : public lingen_input_wrapper_base
+template<bool is_binary>
+class lingen_file_input : public lingen_input_wrapper_base<is_binary>
 {
     FILE* f;
     std::string filename;
@@ -122,14 +139,14 @@ class lingen_file_input : public lingen_input_wrapper_base
     void close_file();
 
     public:
-    lingen_file_input(matpoly::arith_hard * ab,
+    lingen_file_input(typename matpoly<is_binary>::arith_hard * ab,
                       unsigned int nrows,
                       unsigned int ncols,
-                      std::string const& filename,
+                      std::string filename,
                       bool ascii,
                       unsigned int length_hint)
-      : lingen_input_wrapper_base(ab, nrows, ncols)
-      , filename(filename)
+      : lingen_input_wrapper_base<is_binary>(ab, nrows, ncols)
+      , filename(std::move(filename))
       , ascii(ascii)
       , length_hint(length_hint)
     {
@@ -140,37 +157,44 @@ class lingen_file_input : public lingen_input_wrapper_base
     lingen_file_input(lingen_file_input const&) = delete;
     double average_matsize() const override;
     size_t guessed_length() const override;
-    ssize_t read_to_matpoly(matpoly& dst,
+    ssize_t read_to_matpoly(matpoly<is_binary>& dst,
                             unsigned int k0,
                             unsigned int k1) override;
 };
 
-struct lingen_random_input : public lingen_input_wrapper_base
+template<bool is_binary>
+struct lingen_random_input : public lingen_input_wrapper_base<is_binary>
 {
+    using lingen_input_wrapper_base<is_binary>::average_matsize;
     cxx_gmp_randstate & rstate;
     size_t next_src_k = 0;
     size_t length;
-    lingen_random_input(matpoly::arith_hard * ab,
+    lingen_random_input(typename matpoly<is_binary>::arith_hard * ab,
                         unsigned int nrows,
                         unsigned int ncols,
                         cxx_gmp_randstate & rstate,
                         size_t length)
-      : lingen_input_wrapper_base(ab, nrows, ncols)
+      : lingen_input_wrapper_base<is_binary>(ab, nrows, ncols)
       , rstate(rstate)
       , length(length)
     {}
 
     unsigned int preferred_window() const override;
-    inline size_t guessed_length() const override { return length; }
+    size_t guessed_length() const override { return length; }
 
-    ssize_t read_to_matpoly(matpoly& dst,
+    ssize_t read_to_matpoly(matpoly<is_binary>& dst,
                             unsigned int k0,
                             unsigned int k1) override;
 };
 
-struct lingen_F0 : protected bw_dimensions
+template<bool is_binary>
+struct lingen_F0 : protected bw_dimensions<is_binary>
 {
     public:
+        using bw_dimensions<is_binary>::m;
+        using bw_dimensions<is_binary>::n;
+        using bw_dimensions<is_binary>::nrhs;
+
     // pairs are (exponent, column number)
     std::vector<std::array<unsigned int, 2>> fdesc;
     /* This is initialized by lingen_E_from_A::initial_read
@@ -179,8 +203,8 @@ struct lingen_F0 : protected bw_dimensions
      */
     unsigned int t0 = UINT_MAX;
     void share(int root, MPI_Comm comm);
-    lingen_F0(bw_dimensions const & d)
-        : bw_dimensions(d)
+    lingen_F0(bw_dimensions<is_binary> const & d)
+        : bw_dimensions<is_binary>(d)
     {}
     /* This method is valid only once F0 is completely filled
      *
@@ -194,29 +218,43 @@ struct lingen_F0 : protected bw_dimensions
     std::tuple<unsigned int, unsigned int> column_data_from_Aprime(unsigned int jE) const;
 };
 
+template<bool is_binary>
 class lingen_E_from_A
-  : public lingen_F0
-  , public lingen_input_wrapper_base
+  : public lingen_F0<is_binary>
+  , public lingen_input_wrapper_base<is_binary>
 {
     void initial_read();
-    lingen_input_wrapper_base& A;
+    lingen_input_wrapper_base<is_binary>& A;
 
     /* cache contains degrees [cache_k0..cache_k1[ of A.
      * the span cache_k1 - cache_k0 is not fixed a priori.
      */
-    matpoly cache;
-    matpoly tail;
+    matpoly<is_binary> cache;
+    matpoly<is_binary> tail;
     unsigned int cache_k0 = 0;
     unsigned int cache_k1 = 0;
     // unsigned int next_src_k = 0; // same as cache_k1, in fact !
 
+
     void share(int root, MPI_Comm comm);
     void refresh_cache_upto(unsigned int k);
 
+    static constexpr unsigned int simd = is_binary ? ULONG_BITS : 1;
+
     public:
-    lingen_E_from_A(bw_dimensions const & d, lingen_input_wrapper_base& A)
-      : lingen_F0(d)
-      , lingen_input_wrapper_base(A.ab, d.m, d.m + d.n)
+
+    using lingen_io_wrapper_base<is_binary>::nrows;
+    using lingen_io_wrapper_base<is_binary>::ncols;
+    using lingen_F0<is_binary>::t0;
+    using lingen_F0<is_binary>::m;
+    using lingen_F0<is_binary>::n;
+    using lingen_F0<is_binary>::nrhs;
+    using lingen_F0<is_binary>::fdesc;
+
+    lingen_E_from_A(bw_dimensions<is_binary> const & d,
+            lingen_input_wrapper_base<is_binary> & A)
+      : lingen_F0<is_binary>(d)
+      , lingen_input_wrapper_base<is_binary>(A.ab, d.m, d.m + d.n)
       , A(A)
       , cache(A.ab, A.nrows, A.ncols, 0)
       , tail(A.ab, nrows, ncols, 0)
@@ -228,41 +266,46 @@ class lingen_E_from_A
     unsigned int preferred_window() const override {
         return A.preferred_window();
     }
-    inline size_t guessed_length() const override {
+    size_t guessed_length() const override {
         return A.guessed_length() - t0;
     }
-    ssize_t read_to_matpoly(matpoly& dst,
+    ssize_t read_to_matpoly(matpoly<is_binary>& dst,
                             unsigned int k0,
                             unsigned int k1) override;
 };
 
 template<typename matpoly_type>
-class lingen_scatter : public lingen_output_wrapper_base
+class lingen_scatter : public lingen_output_wrapper_base<matpoly_type::is_binary>
 {
+    static constexpr bool is_binary = matpoly_type::is_binary;
     matpoly_type& E;
     unsigned int next_dst_k = 0;
 
     public:
-    lingen_scatter(matpoly_type& E)
-      : lingen_output_wrapper_base(E.ab, E.m, E.n)
+    using lingen_output_wrapper_base<is_binary>::nrows;
+    using lingen_output_wrapper_base<is_binary>::ncols;
+    using lingen_output_wrapper_base<is_binary>::ab;
+    explicit lingen_scatter(matpoly_type& E)
+      : lingen_output_wrapper_base<is_binary>(E.ab, E.m, E.n)
       , E(E)
     {}
-    ssize_t write_from_matpoly(matpoly const& src,
+    ssize_t write_from_matpoly(matpoly<is_binary> const& src,
                                unsigned int k0,
                                unsigned int k1) override;
 };
 
-/* warn the compiler that we have some specializations */
-template<>
-ssize_t lingen_scatter<matpoly>::write_from_matpoly(matpoly const & src, unsigned int k0, unsigned int k1);
-template<>
-ssize_t lingen_scatter<bigmatpoly>::write_from_matpoly(matpoly const & src, unsigned int k0, unsigned int k1);
-
+#if 0
 /* yes, we must insist on extern template.
  * https://github.com/OpenKinect/libfreenect2/issues/157
  */
-extern template class lingen_scatter<matpoly>;
-extern template class lingen_scatter<bigmatpoly>;
+#ifdef LINGEN_BINARY
+extern template class lingen_scatter<matpoly<true>>;
+extern template class lingen_scatter<bigmatpoly<true>>;
+#else
+extern template class lingen_scatter<matpoly<false>>;
+extern template class lingen_scatter<bigmatpoly<false>>;
+#endif
+#endif
 
 #if 0
 template<typename matpoly_type>
@@ -283,40 +326,38 @@ class shared_or_common_size<bigmatpoly> {
 #endif
 
 template<typename matpoly_type>
-class lingen_gather : public lingen_input_wrapper_base
+class lingen_gather : public lingen_input_wrapper_base<matpoly_type::is_binary>
                       // , private shared_or_common_size<matpoly_type>
 {
     // typedef shared_or_common_size<matpoly_type> size_accessor;
+    static constexpr bool is_binary = matpoly_type::is_binary;
     matpoly_type& pi;
     unsigned int next_src_k = 0;
 
     public:
+    using lingen_input_wrapper_base<is_binary>::nrows;
+    using lingen_input_wrapper_base<is_binary>::ncols;
+    using lingen_input_wrapper_base<is_binary>::ab;
+
     lingen_gather(matpoly_type& pi)
-      : lingen_input_wrapper_base(pi.ab, pi.m, pi.n)
+      : lingen_input_wrapper_base<is_binary>(pi.ab, pi.m, pi.n)
       // , size_accessor(pi)
       , pi(pi)
     {}
-    inline size_t guessed_length() const override {
+    size_t guessed_length() const override {
         // return size_accessor::get_size(pi);
         return pi.get_size();
     }
-    ssize_t read_to_matpoly(matpoly& dst,
+    ssize_t read_to_matpoly(matpoly<is_binary>& dst,
                             unsigned int k0,
                             unsigned int k1) override;
 };
 
-/* warn the compiler that we have some specializations */
-template<>
-ssize_t lingen_gather<matpoly>::read_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1);
-template<>
-ssize_t lingen_gather<bigmatpoly>::read_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1);
-extern template class lingen_gather<matpoly>;
-extern template class lingen_gather<bigmatpoly>;
-
 template<typename matpoly_type>
-class lingen_gather_reverse : public lingen_input_wrapper_base
+class lingen_gather_reverse : public lingen_input_wrapper_base<matpoly_type::is_binary>
                               // , private shared_or_common_size<matpoly_type>
 {
+    static constexpr bool is_binary = matpoly_type::is_binary;
     // typedef shared_or_common_size<matpoly_type> size_accessor;
     matpoly_type& pi;
     /* Since the source is written in reverse order, it's a bit of a
@@ -327,7 +368,7 @@ class lingen_gather_reverse : public lingen_input_wrapper_base
 
     public:
     lingen_gather_reverse(matpoly_type& pi)
-      : lingen_input_wrapper_base(pi.ab, pi.m, pi.n)
+      : lingen_input_wrapper_base<is_binary>(pi.ab, pi.m, pi.n)
       // , size_accessor(pi)
       , pi(pi)
     {}
@@ -335,55 +376,59 @@ class lingen_gather_reverse : public lingen_input_wrapper_base
         // return size_accessor::get_size(pi);
         return pi.get_size();
     }
-    ssize_t read_to_matpoly(matpoly& dst,
+    ssize_t read_to_matpoly(matpoly<is_binary>& dst,
                             unsigned int k0,
                             unsigned int k1) override;
 };
 
-/* warn the compiler that we have some specializations */
-template<>
-ssize_t lingen_gather_reverse<matpoly>::read_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1);
-template<>
-ssize_t lingen_gather_reverse<bigmatpoly>::read_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1);
-extern template class lingen_gather_reverse<matpoly>;
-extern template class lingen_gather_reverse<bigmatpoly>;
-
+template<bool is_binary>
 class lingen_F_from_PI
-  : public lingen_F0
-  , public lingen_input_wrapper_base
+  : public lingen_F0<is_binary>
+  , public lingen_input_wrapper_base<is_binary>
 {
-    lingen_input_wrapper_base& pi;
-    matpoly cache;
-    matpoly tail;
+    public:
+    using lingen_F0<is_binary>::nrhs;
+    using lingen_F0<is_binary>::m;
+    using lingen_F0<is_binary>::n;
+    using lingen_io_wrapper_base<is_binary>::nrows;
+    using lingen_io_wrapper_base<is_binary>::ncols;
+
+    private:
+    static constexpr unsigned int simd = is_binary ? ULONG_BITS : 1;
+    lingen_input_wrapper_base<is_binary> & pi;
+    matpoly<is_binary> cache;
+    matpoly<is_binary> tail;
     unsigned int cache_k0 = 0;
     unsigned int cache_k1 = 0;
     // unsigned int next_src_k = 0; // same as cache_k1, in fact !
 
-    matpoly rhs;
+    matpoly<is_binary> rhs;
     struct sol_desc
     {
         unsigned int j;
         unsigned int shift;
     };
     std::vector<sol_desc> sols;
-    matpoly recompute_rhs();
+    matpoly<is_binary> recompute_rhs();
     void reorder_solutions();
     /* This returns (iF, s), such that the reversal of pi_{ipi, jpi}
      * contributes to entry (iF, jF), once shifted right by s.
      */
     std::tuple<unsigned int, unsigned int> get_shift_ij(unsigned int ipi, unsigned jF) const;
     public:
-    lingen_F_from_PI(bmstatus const &, lingen_input_wrapper_base& pi, lingen_F0 const& F0);
-    inline size_t guessed_length() const override {
+    lingen_F_from_PI(bmstatus<is_binary> const &, lingen_input_wrapper_base<is_binary>& pi, lingen_F0<is_binary> const& F0);
+    using lingen_F0<is_binary>::t0;
+    size_t guessed_length() const override {
         return pi.guessed_length() + t0;
     }
-    ssize_t read_to_matpoly(matpoly& dst,
+    ssize_t read_to_matpoly(matpoly<is_binary>& dst,
                             unsigned int k0,
                             unsigned int k1) override;
-    void write_rhs(lingen_output_wrapper_base & Srhs);
+    void write_rhs(lingen_output_wrapper_base<is_binary> & Srhs);
 };
 
-class lingen_output_to_singlefile : public lingen_output_wrapper_base
+template<bool is_binary>
+class lingen_output_to_singlefile : public lingen_output_wrapper_base<is_binary>
 {
     std::string filename;
     std::unique_ptr<std::ofstream> os;
@@ -392,25 +437,26 @@ class lingen_output_to_singlefile : public lingen_output_wrapper_base
     bool done_open = false;
 
     public:
-    lingen_output_to_singlefile(matpoly::arith_hard * ab,
+    lingen_output_to_singlefile(typename matpoly<is_binary>::arith_hard * ab,
                                 unsigned int nrows,
                                 unsigned int ncols,
-                                std::string const& filename,
+                                std::string filename,
                                 bool ascii = false)
-      : lingen_output_wrapper_base(ab, nrows, ncols)
-      , filename(filename)
+      : lingen_output_wrapper_base<is_binary>(ab, nrows, ncols)
+      , filename(std::move(filename))
       , ascii(ascii)
     {
     }
 
     lingen_output_to_singlefile(lingen_output_to_singlefile const&) = delete;
 
-    ssize_t write_from_matpoly(matpoly const& src,
+    ssize_t write_from_matpoly(matpoly<is_binary> const& src,
                                unsigned int k0,
                                unsigned int k1) override;
 };
 
-class lingen_output_to_splitfile : public lingen_output_wrapper_base
+template<bool is_binary>
+class lingen_output_to_splitfile : public lingen_output_wrapper_base<is_binary>
 {
     std::string pattern;
     std::vector<std::ofstream> fw;
@@ -419,41 +465,47 @@ class lingen_output_to_splitfile : public lingen_output_wrapper_base
     bool done_open = false;
 
     public:
-    lingen_output_to_splitfile(matpoly::arith_hard * ab,
+    using lingen_output_wrapper_base<is_binary>::nrows;
+    using lingen_output_wrapper_base<is_binary>::ncols;
+
+    lingen_output_to_splitfile(typename matpoly<is_binary>::arith_hard * ab,
                                unsigned int nrows,
                                unsigned int ncols,
-                               std::string const& pattern,
+                               std::string pattern,
                                bool ascii = false);
 
-    ssize_t write_from_matpoly(matpoly const& src,
+    ssize_t write_from_matpoly(matpoly<is_binary> const& src,
                                unsigned int k0,
                                unsigned int k1) override;
 };
 
 /* This just prints the checksum to stdout on the dtor */
-class lingen_output_to_sha1sum : public lingen_output_wrapper_base
+template<bool is_binary>
+class lingen_output_to_sha1sum : public lingen_output_wrapper_base<is_binary>
 {
     sha1_checksumming_stream f;
     std::string who;
     size_t written = 0;
 
     public:
-    lingen_output_to_sha1sum(matpoly::arith_hard * ab,
+    lingen_output_to_sha1sum(typename matpoly<is_binary>::arith_hard * ab,
                              unsigned int nrows,
                              unsigned int ncols,
-                             std::string const& who)
-      : lingen_output_wrapper_base(ab, nrows, ncols)
-      , who(who)
+                             std::string who)
+      : lingen_output_wrapper_base<is_binary>(ab, nrows, ncols)
+      , who(std::move(who))
     {}
     ~lingen_output_to_sha1sum() override;
-    ssize_t write_from_matpoly(matpoly const& src,
+    ssize_t write_from_matpoly(matpoly<is_binary> const& src,
                                unsigned int k0,
                                unsigned int k1) override;
 };
 
+template<bool is_binary>
 void
-pipe(lingen_input_wrapper_base& in,
-     lingen_output_wrapper_base& out,
+pipe(lingen_input_wrapper_base<is_binary> & in,
+     lingen_output_wrapper_base<is_binary> & out,
      const char * action, bool skip_trailing_zeros = false);
+
 
 #endif /* LINGEN_IO_WRAPPERS_HPP_ */

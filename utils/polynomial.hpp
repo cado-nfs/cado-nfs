@@ -36,11 +36,11 @@
 namespace polynomial_details {
     template<typename U>
     class named_proxy {
-        static_assert(std::is_reference<U>::value, "U must be a reference");
-        typedef typename std::remove_reference<U>::type V;
-        typedef typename std::remove_const<V>::type Vnc;
-        typedef named_proxy<Vnc &> nc;
-        static constexpr const bool is_c = std::is_const<V>::value;
+        static_assert(std::is_reference_v<U>, "U must be a reference");
+        using V = std::remove_reference_t<U>;
+        using Vnc = std::remove_const_t<V>;
+        using nc = named_proxy<Vnc &>;
+        static constexpr const bool is_c = std::is_const_v<V>;
         public:
         U c;
         std::string x;
@@ -48,10 +48,10 @@ namespace polynomial_details {
             : c(c), x(std::move(x))
         {}
 
-        TEMPLATE_ENABLED_ON_TEMPLATE_ARG(
-                typename W = U,
-                (std::is_same<W, nc>::value))
-        explicit named_proxy(W const & c) : c(c.c), x(c.x) {}
+        template<typename W = U>
+        explicit named_proxy(W const & c)
+                requires(std::is_same_v<W, nc>)
+        : c(c.c), x(c.x) {}
     };
 }
 
@@ -86,11 +86,11 @@ struct polynomial {
 
     /* all instantations love each other */
     template<typename U> friend struct polynomial;
-    TEMPLATE_ENABLED_ON_TEMPLATE_ARG(
-            typename U,
-            (!std::is_same<U, T>::value))
+    template<typename U>
         polynomial(polynomial<U> const & a)
-        : coeffs { a.coeffs.begin(), a.coeffs.end() } {}
+        requires (!std::is_same_v<U, T>)
+        : coeffs { a.coeffs.begin(), a.coeffs.end() }
+    {}
 
     void set_zero() { coeffs.clear(); }
     void set_xi(unsigned int i) {
@@ -744,9 +744,7 @@ struct polynomial {
         return 0;
     }
     public:
-#if __cplusplus >= 202002L
     int operator<=>(polynomial const & f) const { return spaceship(f); }
-#endif
     bool operator==(polynomial const & f) const { return spaceship(f) == 0; }
     bool operator!=(polynomial const & f) const { return !operator==(f); }
     bool operator<(polynomial const & f) const { return spaceship(f) < 0; }

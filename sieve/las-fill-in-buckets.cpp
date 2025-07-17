@@ -840,7 +840,6 @@ template <int LEVEL> class fill_in_buckets_parameters : public task_parameters
     }
 };
 
-#if __cplusplus >= 201103L
 /* short of a better solution. I know some exist, but it seems way
  * overkill to me.
  *
@@ -875,9 +874,6 @@ PREPARE_TEMPLATE_INST_NAMES(downsort, "");
 PREPARE_TEMPLATE_INST_NAMES(downsort_tree, " (dispatcher only)");
 
 #define TEMPLATE_INST_NAME(x, y) CADO_CONCATENATE(x, _name)<y>::value
-#else
-#define TEMPLATE_INST_NAME(x, y) #x " (template)"
-#endif
 
 // For internal levels, the fill-in is not exactly the same as for
 // top-level, since the plattices have already been precomputed.

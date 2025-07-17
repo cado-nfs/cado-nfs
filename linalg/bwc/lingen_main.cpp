@@ -2,26 +2,27 @@
 
 #include <cstddef>
 
-#include <sys/utsname.h>                  // for uname, utsname
+#include <sys/utsname.h>
 
 #include "fmt/base.h"
 
 #include "gmp_aux.h"
-#include "bw-common.h"                    // for bw, bw_common_clear, bw_com...
+#include "bw-common.h"
+#include "arith-hard.hpp"
 #include "lingen.hpp"
-#include "lingen_bmstatus.hpp"            // for bmstatus
-#include "lingen_bw_dimensions.hpp"       // for bw_dimensions
-#include "lingen_checkpoints.hpp"         // for save_checkpoint_file, load_...
-#include "lingen_expected_pi_length.hpp"  // for expected_pi_length, expecte...
-#include "lingen_io_matpoly.hpp"          // for lingen_io_matpoly_decl_usage
-#include "lingen_io_wrappers.hpp"         // for lingen_output_wrapper_base
-#include "lingen_matpoly_ft.hpp"          // for matpoly_ft, matpoly_ft<>::m...
-#include "lingen_tuning.hpp"              // for lingen_tuning, lingen_tunin...
-#include "logline.hpp"                    // for logline_end, logline_init_t...
-#include "memusage.h"                     // for PeakMemusage
-#include "misc.h"                         // for size_disp
-#include "params.h"                       // for cxx_param_list, param_list_...
-#include "portability.h" // strdup // IWYU pragma: keep
+#include "lingen_bmstatus.hpp"
+#include "lingen_bw_dimensions.hpp"
+#include "lingen_checkpoints.hpp"
+#include "lingen_expected_pi_length.hpp"
+#include "lingen_io_matpoly.hpp"
+#include "lingen_io_wrappers.hpp"
+#include "lingen_matpoly_ft.hpp"
+#include "lingen_tuning.hpp"
+#include "logline.hpp"
+#include "memusage.h"
+#include "misc.h"
+#include "params.h"
+#include "portability.h"
 
 /* If non-zero, then reading from A is actually replaced by reading from
  * a random generator */
@@ -87,10 +88,10 @@ static void lingen_decl_usage(cxx_param_list & pl)/*{{{*/
 
 }/*}}}*/
 
-
-static unsigned int count_lucky_columns(bmstatus & bm)/*{{{*/
+template<bool is_binary>
+static unsigned int count_lucky_columns(bmstatus<is_binary> & bm)/*{{{*/
 {
-    bw_dimensions & d = bm.d;
+    auto & d = bm.d;
     unsigned int const m = d.m;
     unsigned int const n = d.n;
     unsigned int const b = m + n;
@@ -101,9 +102,10 @@ static unsigned int count_lucky_columns(bmstatus & bm)/*{{{*/
     return nlucky;
 }/*}}}*/
 
-static int check_luck_condition(bmstatus & bm)/*{{{*/
+    template<bool is_binary>
+static int check_luck_condition(bmstatus<is_binary> & bm)/*{{{*/
 {
-    bw_dimensions & d = bm.d;
+    auto & d = bm.d;
     unsigned int const m = d.m;
     unsigned int const n = d.n;
     unsigned int const nlucky = count_lucky_columns(bm);
@@ -279,6 +281,33 @@ static void print_node_assignment(MPI_Comm comm)/*{{{*/
 /* We don't have a header file for this one */
 extern "C" void check_for_mpi_problems();
 
+template<typename arith_hard_type, bool is_binary = arith_hard_type::is_binary>
+static size_t K_elts_to_bytes(arith_hard_type const & ab, size_t x)
+{
+    if constexpr (is_binary)
+        return iceildiv((x),ULONG_BITS) * sizeof(unsigned long);
+    else
+        return ab.vec_elt_stride(x);
+}
+
+
+
+template<bool is_binary>
+struct blanket_allowances;
+#ifndef LINGEN_BINARY
+template<>
+struct blanket_allowances<false> {
+    matpoly_ft<fft_transform_info>::memory_guard blanket_ft { SIZE_MAX };
+};
+#else
+template<>
+struct blanket_allowances<true> {
+    matpoly_ft<gf2x_cantor_fft_info>::memory_guard blanket_ft { SIZE_MAX };
+    matpoly_ft<gf2x_ternary_fft_info>::memory_guard blanket_ft2 { SIZE_MAX };
+};
+#endif
+
+template<bool is_binary>
 static int wrapped_main(int argc, char const *argv[])
 {
     cxx_param_list pl;
@@ -287,8 +316,8 @@ static int wrapped_main(int argc, char const *argv[])
     lingen_decl_usage(pl);
     logline_decl_usage(pl);
     lingen_tuning_decl_usage(pl);
-    lingen_checkpoint::decl_usage(pl);
-    lingen_io_matpoly_decl_usage(pl);
+    lingen_checkpoint<is_binary>::decl_usage(pl);
+    lingen_io_matpoly<is_binary>::decl_usage(pl);
     tree_stats::declare_usage(pl);
 
     bw_common_parse_cmdline(bw, pl, &argc, &argv);
@@ -328,7 +357,7 @@ static int wrapped_main(int argc, char const *argv[])
         ffile = afile + ".gen";
     ASSERT_ALWAYS(afile.empty() == ffile.empty());
 
-    bmstatus bm(bw->m, bw->n, bw->p);
+    bmstatus<is_binary> bm(bw->m, bw->n, bw->p);
 
     const char * rhs_name = param_list_lookup_string(pl, "rhs");
     if (!global_flag_tune && !random_input_length) {
@@ -442,7 +471,7 @@ static int wrapped_main(int argc, char const *argv[])
 
         print_node_assignment(bm.com[0]);
 
-        constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
+        constexpr const unsigned int simd = is_binary ? ULONG_BITS : 1;
         if ((bm.d.m + bm.d.n) / simd < (unsigned int) mpi[0]) {
             fmt::print("########################################################\n");
             fmt::print("# Warning: this run will leave some resources idle:\n"
@@ -466,8 +495,8 @@ static int wrapped_main(int argc, char const *argv[])
     
     tree_stats::interpret_parameters(pl);
     logline_interpret_parameters(pl);
-    lingen_checkpoint::interpret_parameters(pl);
-    lingen_io_matpoly_interpret_parameters(pl);
+    lingen_checkpoint<is_binary>::interpret_parameters(pl);
+    lingen_io_matpoly<is_binary>::interpret_parameters(pl);
 
     if (param_list_warn_unused(pl)) {
         int rank;
@@ -479,45 +508,34 @@ static int wrapped_main(int argc, char const *argv[])
     /* TODO: read the a files in scattered mode */
 
     /* Don't police memory right now, we don't care */
-    matpoly::memory_guard const main_memory(SIZE_MAX);
+    typename matpoly<is_binary>::memory_guard const main_memory(SIZE_MAX);
 
-    std::unique_ptr<lingen_input_wrapper_base> A_series;
+    std::unique_ptr<lingen_input_wrapper_base<is_binary>> A_series;
 
     if (random_input_length) {
-        A_series = std::unique_ptr<lingen_input_wrapper_base>(new lingen_random_input(&bm.d.ab, bm.d.m, bm.d.n, rstate, random_input_length));
+        A_series.reset(new lingen_random_input<is_binary>(&bm.d.ab, bm.d.m, bm.d.n, rstate, random_input_length));
     } else {
-        A_series = std::unique_ptr<lingen_input_wrapper_base>(new lingen_file_input(&bm.d.ab, bm.d.m, bm.d.n, afile, global_flag_ascii, input_length));
+        A_series.reset(new lingen_file_input<is_binary>(&bm.d.ab, bm.d.m, bm.d.n, afile, global_flag_ascii, input_length));
     }
-
-#ifdef LINGEN_BINARY
-#define K_elts_to_bytes(x)      (iceildiv((x),ULONG_BITS) * sizeof(unsigned long))
-#else
-#define K_elts_to_bytes(x)      (bm.d.ab.vec_elt_stride((x)))
-#endif
 
     /* run the mpi problem detection only if we're certain that we're at
      * least close to the ballpark where this sort of checks make sense.
      */
-    if (K_elts_to_bytes((size_t) A_series->guessed_length() * (size_t) (bm.d.m + bm.d.n)) >= (1 << 28)) {
+    if (K_elts_to_bytes(bm.d.ab, (size_t) A_series->guessed_length() * (size_t) (bm.d.m + bm.d.n)) >= (1 << 28)) {
         check_for_mpi_problems();
     }
     MPI_Barrier(MPI_COMM_WORLD);
 
     /* This will cause the initial read */
-    std::unique_ptr<lingen_E_from_A> E_series = std::unique_ptr<lingen_E_from_A>(new lingen_E_from_A(bm.d, *A_series));
+    std::unique_ptr<lingen_E_from_A<is_binary>> E_series(new lingen_E_from_A<is_binary>(bm.d, *A_series));
 
     bm.t = E_series->t0;
 
     size_t const L = E_series->guessed_length();
 
     {
-        matpoly::memory_guard const blanket(SIZE_MAX);
-#ifndef LINGEN_BINARY
-        typename matpoly_ft<fft_transform_info>::memory_guard const blanket_ft(SIZE_MAX);
-#else
-        typename matpoly_ft<gf2x_cantor_fft_info>::memory_guard const blanket_ft(SIZE_MAX);
-        typename matpoly_ft<gf2x_ternary_fft_info>::memory_guard const blanket_ft2(SIZE_MAX);
-#endif
+        typename matpoly<is_binary>::memory_guard const blanket(SIZE_MAX);
+        blanket_allowances<is_binary> const dummy;
         try {
             bm.hints = lingen_tuning(bm.d, L - bm.t, bm.com[0], pl);
         } catch (std::overflow_error const & e) {
@@ -534,11 +552,11 @@ static int wrapped_main(int argc, char const *argv[])
     size_t const safe_guess = global_flag_ascii ? ceil(1.05 * L) : L;
 
     /* c0 is (1+m/n) times the input size */
-    size_t const c0 = K_elts_to_bytes(
+    size_t const c0 = K_elts_to_bytes(bm.d.ab,
                 iceildiv(bm.d.m + bm.d.n, bm.mpi_dims[0]) *
                 iceildiv(bm.d.m + bm.d.n, bm.mpi_dims[1]) *
                 iceildiv(bm.d.m*safe_guess, bm.d.m+bm.d.n));
-    matpoly::memory_guard const main(2*c0);
+    typename matpoly<is_binary>::memory_guard const main(2*c0);
 
     if (!rank) {
         char buf[20];
@@ -566,37 +584,37 @@ static int wrapped_main(int argc, char const *argv[])
         MPI_Barrier(bm.com[0]);
     }
 
-    std::unique_ptr<lingen_output_wrapper_base> Fdst;
-    std::unique_ptr<lingen_output_wrapper_base> Fdst_rhs;
+    std::unique_ptr<lingen_output_wrapper_base<is_binary>> Fdst;
+    std::unique_ptr<lingen_output_wrapper_base<is_binary>> Fdst_rhs;
     
     if (random_input_length) {
-        Fdst = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_sha1sum(& bm.d.ab, bm.d.n, bm.d.n, "F"));
-        Fdst_rhs = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_sha1sum(& bm.d.ab, bm.d.nrhs, bm.d.n, "Frhs"));
+        Fdst.reset(new lingen_output_to_sha1sum<is_binary>(& bm.d.ab, bm.d.n, bm.d.n, "F"));
+        Fdst_rhs.reset(new lingen_output_to_sha1sum<is_binary>(& bm.d.ab, bm.d.nrhs, bm.d.n, "Frhs"));
     } else if (split_output_file) {
         std::string const & pattern = ffile;
-        Fdst = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_splitfile(& bm.d.ab, bm.d.n, bm.d.n, pattern + ".sols{2}-{3}.{0}-{1}", global_flag_ascii));
-        Fdst_rhs = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_splitfile(& bm.d.ab, bm.d.nrhs, bm.d.n, pattern + ".sols{2}-{3}.{0}-{1}.rhs", global_flag_ascii));
+        Fdst.reset(new lingen_output_to_splitfile<is_binary>(& bm.d.ab, bm.d.n, bm.d.n, pattern + ".sols{2}-{3}.{0}-{1}", global_flag_ascii));
+        Fdst_rhs.reset(new lingen_output_to_splitfile<is_binary>(& bm.d.ab, bm.d.nrhs, bm.d.n, pattern + ".sols{2}-{3}.{0}-{1}.rhs", global_flag_ascii));
     } else {
-        Fdst = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_singlefile(& bm.d.ab, bm.d.n, bm.d.n, ffile, global_flag_ascii));
-        Fdst_rhs = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_singlefile(& bm.d.ab, bm.d.nrhs, bm.d.n, ffile + ".rhs", global_flag_ascii));
+        Fdst.reset(new lingen_output_to_singlefile<is_binary>(& bm.d.ab, bm.d.n, bm.d.n, ffile, global_flag_ascii));
+        Fdst_rhs.reset(new lingen_output_to_singlefile<is_binary>(& bm.d.ab, bm.d.nrhs, bm.d.n, ffile + ".rhs", global_flag_ascii));
     }
 
     if (go_mpi && size > 1) {
         bigmatpoly_model const model(bm.com, bm.mpi_dims[0], bm.mpi_dims[1]);
-        bigmatpoly E(& bm.d.ab, model, bm.d.m, bm.d.m + bm.d.n, safe_guess);
-        lingen_scatter<bigmatpoly> fill_E(E);
-        lingen_F0 const & F0 = *E_series;
+        bigmatpoly<is_binary> E(& bm.d.ab, model, bm.d.m, bm.d.m + bm.d.n, safe_guess);
+        lingen_scatter<bigmatpoly<is_binary>> fill_E(E);
+        lingen_F0<is_binary> const & F0 = *E_series;
         pipe(*E_series, fill_E, "Read");
         bm.delta.assign(bm.d.m + bm.d.n, F0.t0);
         logline_init_timer();
-        bigmatpoly pi = bw_biglingen_collective(bm, E);
+        auto pi = bw_biglingen_collective(bm, E);
         bm.stats.final_print();
         bm.display_deltas();
         if (!rank) fmt::print("(pi.alloc = {})\n", pi.my_cell().capacity());
-        constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
+        constexpr const unsigned int simd = is_binary ? ULONG_BITS : 1;
         pi.zero_pad(simd * iceildiv(pi.get_size(), simd));
         if (check_luck_condition(bm)) {
-            lingen_gather_reverse<bigmatpoly> read_PI(pi);
+            lingen_gather_reverse<bigmatpoly<is_binary>> read_PI(pi);
             lingen_F_from_PI Fsrc(bm, read_PI, F0);
             pipe(Fsrc, *Fdst, "Written", true);
             Fsrc.write_rhs(*Fdst_rhs);
@@ -611,27 +629,22 @@ static int wrapped_main(int argc, char const *argv[])
          * per-transform ram was computed in the perspective of an MPI
          * run, and not for a plain run.
          */
-#ifndef LINGEN_BINARY
-        typename matpoly_ft<fft_transform_info>::memory_guard const blanket_ft(SIZE_MAX);
-#else
-        typename matpoly_ft<gf2x_cantor_fft_info>::memory_guard const blanket_ft(SIZE_MAX);
-        typename matpoly_ft<gf2x_ternary_fft_info>::memory_guard const blanket_ft2(SIZE_MAX);
-#endif
-        matpoly E(& bm.d.ab, bm.d.m, bm.d.m + bm.d.n, safe_guess);
-        lingen_scatter<matpoly> fill_E(E);
-        lingen_F0 const & F0 = *E_series;
+        blanket_allowances<is_binary> const dummy;
+        matpoly<is_binary> E(& bm.d.ab, bm.d.m, bm.d.m + bm.d.n, safe_guess);
+        lingen_scatter<matpoly<is_binary>> fill_E(E);
+        lingen_F0<is_binary> const & F0 = *E_series;
         pipe(*E_series, fill_E, "Read");
         bm.delta.assign(bm.d.m + bm.d.n, F0.t0);
         logline_init_timer();
-        matpoly pi = bw_lingen_single(bm, E);
+        auto pi = bw_lingen_single(bm, E);
         bm.stats.final_print();
         bm.display_deltas();
         if (!rank) fmt::print("(pi.alloc = {})\n", pi.capacity());
-        constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
+        constexpr const unsigned int simd = is_binary ? ULONG_BITS : 1;
         pi.zero_pad(simd * iceildiv(pi.get_size(), simd));
         if (check_luck_condition(bm)) {
-            lingen_gather_reverse<matpoly> read_PI(pi);
-            lingen_F_from_PI Fsrc(bm, read_PI, F0);
+            lingen_gather_reverse<matpoly<is_binary>> read_PI(pi);
+            lingen_F_from_PI<is_binary> Fsrc(bm, read_PI, F0);
             pipe(Fsrc, *Fdst, "Written", true);
             Fsrc.write_rhs(*Fdst_rhs);
         }
@@ -668,7 +681,14 @@ int main(int argc, char const * argv[])
 #endif
 
     bw_common_init(bw, &argc, &argv);
-    wrapped_main(argc, argv);
+
+#ifdef LINGEN_BINARY
+    constexpr bool is_binary = true;
+#else
+    constexpr bool is_binary = false;
+#endif
+    wrapped_main<is_binary>(argc, argv);
+
     bw_common_clear(bw);
     return rank0_exit_code;
 }

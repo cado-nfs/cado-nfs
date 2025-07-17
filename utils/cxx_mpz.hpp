@@ -25,61 +25,39 @@ public:
     // NOLINTBEGIN(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
     cxx_mpz() { mpz_init(x); }
 
-    template <typename T, typename std::enable_if<
-        std::is_integral<T>::value &&
-        std::is_signed<T>::value &&
-        cado_math_aux::is_non_narrowing_conversion<T, int64_t>::value,
-        int>::type = 0 >
-    // NOLINTNEXTLINE(hicpp-explicit-conversions)
-    cxx_mpz (const T & rhs) {
-        gmp_auxx::mpz_init_set(x, int64_t(rhs));
-    }
-    template <typename T, typename std::enable_if<
-        std::is_integral<T>::value &&
-        std::is_signed<T>::value &&
-        cado_math_aux::is_non_narrowing_conversion<T, int64_t>::value,
-        /*
-        std::is_integral<T>::value &&
-        std::is_signed<T>::value &&
-        std::is_convertible<T, int64_t>::value &&
-        std::numeric_limits<T>::min() >= std::numeric_limits<int64_t>::min() &&
-        std::numeric_limits<T>::max() <= std::numeric_limits<int64_t>::max(),
-        */
-        int>::type = 0 >
-    cxx_mpz & operator=(const T a) {
-        gmp_auxx::mpz_set(x, int64_t(a));
-        return *this;
-    }
-    template <typename T, typename std::enable_if<
-        std::is_integral<T>::value &&
-        !std::is_signed<T>::value &&
-        cado_math_aux::is_non_narrowing_conversion<T, uint64_t>::value,
-        /*
-        std::is_integral<T>::value &&
-        !std::is_signed<T>::value &&
-        std::is_convertible<T, uint64_t>::value &&
-        std::numeric_limits<T>::max() <= std::numeric_limits<uint64_t>::max(),
-        */
-        int>::type = 0 >
-    // NOLINTNEXTLINE(hicpp-explicit-conversions)
-    cxx_mpz (const T & rhs) {
-        gmp_auxx::mpz_init_set(x, uint64_t(rhs));
-    }
-    template <typename T, typename std::enable_if<
-        std::is_integral<T>::value &&
-        !std::is_signed<T>::value &&
-        cado_math_aux::is_non_narrowing_conversion<T, uint64_t>::value,
-        /*
-        std::is_integral<T>::value &&
-        !std::is_signed<T>::value &&
-        std::is_convertible<T, uint64_t>::value &&
-        std::numeric_limits<T>::max() <= std::numeric_limits<uint64_t>::max(),
-        */
-        int>::type = 0 >
-    cxx_mpz & operator=(const T a) {
-        gmp_auxx::mpz_set(x, uint64_t(a));
-        return *this;
-    }
+    template<typename T, typename U>
+    static constexpr bool converts_via =
+        integral_fits_v<T, U> &&
+        cado_math_aux::is_non_narrowing_conversion_v<T, U>;
+
+    template <typename T>
+        // NOLINTNEXTLINE(hicpp-explicit-conversions)
+        cxx_mpz (const T & rhs)
+        requires converts_via<T, int64_t>
+        {
+            gmp_auxx::mpz_init_set(x, int64_t(rhs));
+        }
+    template <typename T>
+        cxx_mpz & operator=(const T a)
+        requires converts_via<T, int64_t>
+        {
+            gmp_auxx::mpz_set(x, int64_t(a));
+            return *this;
+        }
+    template <typename T>
+        // NOLINTNEXTLINE(hicpp-explicit-conversions)
+        cxx_mpz (const T & rhs)
+        requires converts_via<T, uint64_t>
+        {
+            gmp_auxx::mpz_init_set(x, uint64_t(rhs));
+        }
+    template <typename T>
+        cxx_mpz & operator=(const T a)
+        requires converts_via<T, uint64_t>
+        {
+            gmp_auxx::mpz_set(x, uint64_t(a));
+            return *this;
+        }
 
     ~cxx_mpz() { mpz_clear(x); }
     cxx_mpz(cxx_mpz const & o) {
@@ -96,7 +74,6 @@ public:
     }
     // NOLINTEND(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
 
-#if __cplusplus >= 201103L
     cxx_mpz(cxx_mpz && o) noexcept
         : cxx_mpz()
     {
@@ -107,7 +84,6 @@ public:
             mpz_swap(x, o.x);
         return *this;
     }
-#endif
     // NOLINTBEGIN(hicpp-explicit-conversions)
     operator mpz_ptr() { return x; }
     operator mpz_srcptr() const { return x; }
@@ -198,7 +174,6 @@ struct cxx_mpq{
         mpq_set(x, o.x);
         return *this;
     }
-#if __cplusplus >= 201103L
     cxx_mpq(cxx_mpq && o) {
         mpq_init(x);
         mpq_swap(x, o.x);
@@ -207,7 +182,6 @@ struct cxx_mpq{
         mpq_swap(x, o.x);
         return *this;
     }
-#endif
     operator mpq_ptr() { return x; }
     operator mpq_srcptr() const { return x; }
     mpq_ptr operator->() { return x; }
@@ -222,10 +196,8 @@ extern void mpq_clear(cxx_mpq & pl) __attribute__((error("mpq_clear must not be 
 inline bool operator OP(cxx_mpz const & a, cxx_mpz const & b) { return mpz_cmp(a, b) OP 0; } \
 inline bool operator OP(mpz_srcptr a, cxx_mpz const & b) { return mpz_cmp(a, b) OP 0; } \
 inline bool operator OP(cxx_mpz const & a, mpz_srcptr b) { return mpz_cmp(a, b) OP 0; } \
-template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >   \
-inline bool operator OP(cxx_mpz const & a, const T b) { return gmp_auxx::mpz_cmp(a, b) OP 0; } \
-template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >   \
-inline bool operator OP(const T a, cxx_mpz const & b) { return 0 OP gmp_auxx::mpz_cmp(b, a); }
+template <typename T> inline bool operator OP(cxx_mpz const & a, const T b) requires std::is_integral_v<T> { return gmp_auxx::mpz_cmp(a, b) OP 0; } \
+template <typename T> inline bool operator OP(const T a, cxx_mpz const & b) requires std::is_integral_v<T> { return 0 OP gmp_auxx::mpz_cmp(b, a); }
 
 CXX_MPZ_DEFINE_CMP(==)
 CXX_MPZ_DEFINE_CMP(!=)
@@ -234,56 +206,69 @@ CXX_MPZ_DEFINE_CMP(>)
 CXX_MPZ_DEFINE_CMP(<=)
 CXX_MPZ_DEFINE_CMP(>=)
 
-#if __cplusplus >= 202002L
-inline bool operator<=>(cxx_mpz const & a, cxx_mpz const & b) { return gmp_auxx::mpz_cmp(b, a); }
-#endif
+inline bool operator<=>(cxx_mpz const & a, cxx_mpz const & b) { return gmp_auxx::mpz_cmp(a, b); }
 
 inline cxx_mpz operator+(cxx_mpz const & a, cxx_mpz const & b) { cxx_mpz r; mpz_add(r, a, b); return r; }
-template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
-inline cxx_mpz operator+(cxx_mpz const & a, const T b) { cxx_mpz r; gmp_auxx::mpz_add(r, a, b); return r; }
-template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
-inline cxx_mpz operator+(const T a, cxx_mpz const & b) { cxx_mpz r; gmp_auxx::mpz_add(r, b, a); return r; }
+template <typename T>
+inline cxx_mpz operator+(cxx_mpz const & a, const T b)
+    requires std::is_integral_v<T>
+{ cxx_mpz r; gmp_auxx::mpz_add(r, a, b); return r; }
+
+template <typename T> inline cxx_mpz operator+(const T a, cxx_mpz const & b)
+requires std::is_integral_v<T>
+ { cxx_mpz r; gmp_auxx::mpz_add(r, b, a); return r; }
 
 inline cxx_mpz & operator+=(cxx_mpz & a, cxx_mpz const & b) { mpz_add(a, a, b); return a; }
-template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
-inline cxx_mpz & operator+=(cxx_mpz & a, const T b) { gmp_auxx::mpz_add(a, a, b); return a; }
+template <typename T> inline cxx_mpz & operator+=(cxx_mpz & a, const T b)
+requires std::is_integral_v<T>
+ { gmp_auxx::mpz_add(a, a, b); return a; }
 
 inline cxx_mpz operator-(cxx_mpz const & a) { cxx_mpz r; mpz_neg(r, a); return r; }
 inline cxx_mpz operator-(cxx_mpz const & a, cxx_mpz const & b) { cxx_mpz r; mpz_sub(r, a, b); return r; }
-template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
-inline cxx_mpz operator-(cxx_mpz const & a, const T b) { cxx_mpz r; gmp_auxx::mpz_sub(r, a, b); return r; }
-template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
-inline cxx_mpz operator-(const T a, cxx_mpz const & b) { cxx_mpz r; gmp_auxx::mpz_sub(r, a, b); return r; }
+template <typename T> inline cxx_mpz operator-(cxx_mpz const & a, const T b)
+requires std::is_integral_v<T>
+ { cxx_mpz r; gmp_auxx::mpz_sub(r, a, b); return r; }
+template <typename T> inline cxx_mpz operator-(const T a, cxx_mpz const & b)
+requires std::is_integral_v<T>
+ { cxx_mpz r; gmp_auxx::mpz_sub(r, a, b); return r; }
 
 inline cxx_mpz & operator-=(cxx_mpz & a, cxx_mpz const & b) { mpz_sub(a, a, b); return a; }
-template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
-inline cxx_mpz & operator-=(cxx_mpz & a, const T b)  { gmp_auxx::mpz_sub(a, a, b); return a; }
+template <typename T> inline cxx_mpz & operator-=(cxx_mpz & a, const T b) 
+requires std::is_integral_v<T>
+ { gmp_auxx::mpz_sub(a, a, b); return a; }
 
 inline cxx_mpz operator*(cxx_mpz const & a, cxx_mpz const & b) { cxx_mpz r; mpz_mul(r, a, b); return r; }
-template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
-inline cxx_mpz operator*(cxx_mpz const & a, const T b)  { cxx_mpz r; gmp_auxx::mpz_mul(r, a, b); return r; }
-template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
-inline cxx_mpz operator*(const T a, cxx_mpz const & b)  { cxx_mpz r; gmp_auxx::mpz_mul(r, b, a); return r; }
+template <typename T> inline cxx_mpz operator*(cxx_mpz const & a, const T b) 
+requires std::is_integral_v<T>
+ { cxx_mpz r; gmp_auxx::mpz_mul(r, a, b); return r; }
+template <typename T> inline cxx_mpz operator*(const T a, cxx_mpz const & b) 
+requires std::is_integral_v<T>
+ { cxx_mpz r; gmp_auxx::mpz_mul(r, b, a); return r; }
 
 inline cxx_mpz & operator*=(cxx_mpz & a, cxx_mpz const & b) { mpz_mul(a, a, b); return a; }
-template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
-inline cxx_mpz & operator*=(cxx_mpz & a, const T b)  { gmp_auxx::mpz_mul(a, a, b); return a; }
+template <typename T> inline cxx_mpz & operator*=(cxx_mpz & a, const T b) 
+requires std::is_integral_v<T>
+ { gmp_auxx::mpz_mul(a, a, b); return a; }
 
 inline cxx_mpz operator/(cxx_mpz const & a, cxx_mpz const & b) { cxx_mpz r; mpz_tdiv_q(r, a, b); return r; }
-template <typename T, std::enable_if_t<std::is_integral<T>::value && std::is_unsigned<T>::value, int> = 0 >
-inline cxx_mpz operator/(cxx_mpz const & a, const T b)  { cxx_mpz r; mpz_tdiv_q_uint64(r, a, b); return r; }
+template <typename T> inline cxx_mpz operator/(cxx_mpz const & a, const T b) 
+requires(std::is_integral_v<T> && std::is_unsigned_v<T>)
+ { cxx_mpz r; mpz_tdiv_q_uint64(r, a, b); return r; }
 
 inline cxx_mpz & operator/=(cxx_mpz & a, cxx_mpz const & b) { mpz_tdiv_q(a, a, b); return a; }
-template <typename T, std::enable_if_t<std::is_integral<T>::value && std::is_unsigned<T>::value, int> = 0 >
-inline cxx_mpz & operator/=(cxx_mpz & a, const T b)  { mpz_tdiv_q_uint64(a, a, b); return a; }
+template <typename T> inline cxx_mpz & operator/=(cxx_mpz & a, const T b) 
+requires(std::is_integral_v<T> && std::is_unsigned_v<T>)
+ { mpz_tdiv_q_uint64(a, a, b); return a; }
 
 inline cxx_mpz operator%(cxx_mpz const & a, cxx_mpz const & b)  { cxx_mpz r; mpz_tdiv_r(r, a, b); return r; }
-template <typename T, std::enable_if_t<std::is_integral<T>::value && std::is_unsigned<T>::value, int> = 0 >
-inline cxx_mpz operator%(cxx_mpz const & a, const T b)  { cxx_mpz r; mpz_tdiv_r_uint64(r, a, b); return r; }
+template <typename T> inline cxx_mpz operator%(cxx_mpz const & a, const T b) 
+requires(std::is_integral_v<T> && std::is_unsigned_v<T>)
+ { cxx_mpz r; mpz_tdiv_r_uint64(r, a, b); return r; }
 
 inline cxx_mpz & operator%=(cxx_mpz & a, cxx_mpz const & b)  { mpz_tdiv_r(a, a, b); return a; }
-template <typename T, std::enable_if_t<std::is_integral<T>::value && std::is_unsigned<T>::value, int> = 0 >
-inline cxx_mpz & operator%=(cxx_mpz & a, const T b)   { mpz_tdiv_r_uint64(a, a, b); return a; }
+template <typename T> inline cxx_mpz & operator%=(cxx_mpz & a, const T b)  
+requires(std::is_integral_v<T> && std::is_unsigned_v<T>)
+ { mpz_tdiv_r_uint64(a, a, b); return a; }
 
 inline cxx_mpz & operator<<=(cxx_mpz & a, const mp_bitcnt_t s)  { mpz_mul_2exp(a, a, s); return a; }
 inline cxx_mpz operator<<(cxx_mpz const & a, const mp_bitcnt_t s)  { cxx_mpz r{a}; mpz_mul_2exp(r, r, s); return r; }

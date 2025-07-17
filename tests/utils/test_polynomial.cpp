@@ -271,16 +271,12 @@ static void test_resultant()
 
     struct test_case {
         std::string f, g;
-#ifdef HAVE_CXX20
         int ulps = 0;
-#else
         /* default member initializers prevent the struct from being an
          * aggregate until c++14. Oddly enough, it seems to still cause
          * trouble with icpx with c++20.
          * https://stackoverflow.com/questions/39344444/brace-aggregate-initialization-for-structs-with-default-values
          */
-        int ulps;
-#endif
     };
 
     const int valgrind_penalty2 = (std::is_same<T, long double>::value && tests_run_under_valgrind()) ? 8 : 0;
