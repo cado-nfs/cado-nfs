@@ -8,13 +8,16 @@
 
 #include <cstddef>
 #include <climits>
+#include <cstdint>
 
+#include <utility>
 #include <vector>
 
 #include "arith-hard.hpp"
 #include "gmp_aux.h"
 #include "macros.h"
 
+template<bool is_binary>
 class matpoly;
 
 /* This is used only for lingen. */
@@ -101,7 +104,7 @@ struct polymat {
     void mp(polymat const & a, polymat const & b);
     void addmp(polymat const & a, polymat const & b);
 
-    void set_matpoly(matpoly const &);
+    void set_matpoly(matpoly<false> const &);
     void rshift(polymat const & src, size_t k);
 };
 

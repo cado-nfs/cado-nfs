@@ -35,7 +35,7 @@ struct runtime_numeric_cast_impl {
         explicit cast_overflow(FROM_TYPE x)
         : runtime_numeric_cast_overflow(fmt::format("overflow while casting {} of type {} to type {}", x, typeid(FROM_TYPE).name(), typeid(TO_TYPE).name())) {}
     };
-    static_assert(std::is_integral<TO_TYPE>::value
+    static_assert(std::is_integral_v<TO_TYPE>
             /* we can probably get along with floating point destination
              * types, too. However it's not totally trivial, given that
              * we rely on the max() valued of a narrowed-to type target
@@ -45,10 +45,10 @@ struct runtime_numeric_cast_impl {
             // || std::is_floating_point<TO_TYPE>::value
             , "destination type TO_TYPE must be integral");
     template<typename FROM_TYPE> struct traits {
-    static_assert(std::is_integral<FROM_TYPE>::value,
+    static_assert(std::is_integral_v<FROM_TYPE>,
             "source type FROM_TYPE must be integral");
-    static constexpr bool T_signed = std::is_signed<FROM_TYPE>::value;
-    static constexpr bool U_signed = std::is_signed<TO_TYPE>::value;
+    static constexpr bool T_signed = std::is_signed_v<FROM_TYPE>;
+    static constexpr bool U_signed = std::is_signed_v<TO_TYPE>;
     static constexpr int T_digits = std::numeric_limits<FROM_TYPE>::digits;
     static constexpr int U_digits = std::numeric_limits<TO_TYPE>::digits;
     static constexpr bool same_sign = T_signed == U_signed;
@@ -66,11 +66,19 @@ struct runtime_numeric_cast_impl {
     static_assert(!(same_sign && widening) || (std::numeric_limits<FROM_TYPE>::min() >= std::numeric_limits<TO_TYPE>::min()), "same-sign, widening cast expects compatible min values");
     };
     template<typename FROM_TYPE>
-    TO_TYPE operator()(FROM_TYPE x, typename std::enable_if<traits<FROM_TYPE>::same_sign && traits<FROM_TYPE>::widening>::type * = nullptr) { return FROM_TYPE(x); }
+    TO_TYPE operator()(FROM_TYPE x)
+    requires(traits<FROM_TYPE>::same_sign && traits<FROM_TYPE>::widening)
+    { return FROM_TYPE(x); }
+
     template<typename FROM_TYPE>
-    TO_TYPE operator()(FROM_TYPE x, typename std::enable_if<traits<FROM_TYPE>::to_signed && traits<FROM_TYPE>::strict_widening>::type * = nullptr) { return FROM_TYPE(x); }
+    TO_TYPE operator()(FROM_TYPE x)
+    requires(traits<FROM_TYPE>::to_signed && traits<FROM_TYPE>::strict_widening)
+    { return FROM_TYPE(x); }
+
     template<typename FROM_TYPE>
-    TO_TYPE operator()(FROM_TYPE x, typename std::enable_if<traits<FROM_TYPE>::both_signed && traits<FROM_TYPE>::narrowing>::type * = nullptr) {
+    TO_TYPE operator()(FROM_TYPE x)
+    requires(traits<FROM_TYPE>::both_signed && traits<FROM_TYPE>::narrowing)
+    {
         if (x < FROM_TYPE(std::numeric_limits<TO_TYPE>::min()))
             throw cast_underflow(x);
         if (x > FROM_TYPE(std::numeric_limits<TO_TYPE>::max()))
@@ -78,25 +86,33 @@ struct runtime_numeric_cast_impl {
         return FROM_TYPE(x);
     }
     template<typename FROM_TYPE>
-    TO_TYPE operator()(FROM_TYPE x, typename std::enable_if<traits<FROM_TYPE>::both_unsigned && traits<FROM_TYPE>::narrowing>::type * = nullptr) {
+    TO_TYPE operator()(FROM_TYPE x)
+    requires(traits<FROM_TYPE>::both_unsigned && traits<FROM_TYPE>::narrowing)
+    {
         if (x > FROM_TYPE { std::numeric_limits<TO_TYPE>::max() })
             throw cast_overflow(x);
         return FROM_TYPE(x);
     }
     template<typename FROM_TYPE>
-    TO_TYPE operator()(FROM_TYPE x, typename std::enable_if<traits<FROM_TYPE>::to_signed && traits<FROM_TYPE>::narrowing>::type * = nullptr) {
+    TO_TYPE operator()(FROM_TYPE x)
+    requires(traits<FROM_TYPE>::to_signed && traits<FROM_TYPE>::narrowing)
+    {
         if (x > FROM_TYPE { std::numeric_limits<TO_TYPE>::max() })
             throw cast_overflow(x);
         return FROM_TYPE(x);
     }
     template<typename FROM_TYPE>
-    TO_TYPE operator()(FROM_TYPE x, typename std::enable_if<traits<FROM_TYPE>::to_signed && traits<FROM_TYPE>::same_size>::type * = nullptr) {
+    TO_TYPE operator()(FROM_TYPE x)
+    requires(traits<FROM_TYPE>::to_signed && traits<FROM_TYPE>::same_size)
+    {
         if (x > FROM_TYPE { std::numeric_limits<TO_TYPE>::max() })
             throw cast_overflow(x);
         return FROM_TYPE(x);
     }
     template<typename FROM_TYPE>
-    TO_TYPE operator()(FROM_TYPE x, typename std::enable_if<traits<FROM_TYPE>::to_unsigned && traits<FROM_TYPE>::narrowing>::type * = nullptr) {
+    TO_TYPE operator()(FROM_TYPE x)
+    requires(traits<FROM_TYPE>::to_unsigned && traits<FROM_TYPE>::narrowing)
+    {
         if (x < FROM_TYPE { 0 })
             throw cast_underflow(x);
         if (x > FROM_TYPE { std::numeric_limits<TO_TYPE>::max() })
@@ -104,7 +120,9 @@ struct runtime_numeric_cast_impl {
         return FROM_TYPE(x);
     }
     template<typename FROM_TYPE>
-    TO_TYPE operator()(FROM_TYPE x, typename std::enable_if<traits<FROM_TYPE>::to_unsigned && traits<FROM_TYPE>::widening>::type * = nullptr) {
+    TO_TYPE operator()(FROM_TYPE x)
+    requires(traits<FROM_TYPE>::to_unsigned && traits<FROM_TYPE>::widening)
+    {
         if (x < FROM_TYPE { 0 })
             throw cast_underflow(x);
         return FROM_TYPE(x);

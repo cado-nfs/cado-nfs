@@ -124,14 +124,12 @@ struct fb_general_root {
     void transform(fb_general_root & result, fbprime_t q,
                    redc_invp_t invq, qlattice_basis const & basis) const;
 };
-#if __cplusplus >= 201703L
 /* std::has_unique_object_representations should be almost what we want,
  * but unfortunately it does not seem to work as it should (tested on
  * g++13 and clang-{14,15,16})
  */
-static_assert(std::has_unique_object_representations<fb_general_root>::value,
+static_assert(std::has_unique_object_representations_v<fb_general_root>,
               "fb_general_root must have no padding");
-#endif
 static_assert(sizeof(fb_general_root) == 8,
               "fb_general_root must have no padding");
 
@@ -192,14 +190,12 @@ class fb_entry_general
         };
     };
 };
-#if __cplusplus >= 201703L
 /* std::has_unique_object_representations should be almost what we want,
  * but unfortunately it does not seem to work as it should (tested on
  * g++13 and clang-{14,15,16})
  */
-static_assert(std::has_unique_object_representations<fb_entry_general>::value,
+static_assert(std::has_unique_object_representations_v<fb_entry_general>,
               "fb_entry_general must have no padding");
-#endif
 static_assert(sizeof(fb_entry_general) == 4 * 4 + MAX_DEGREE * 8,
               "fb_entry_general must have no padding");
 
@@ -270,14 +266,12 @@ template <int Nr_roots> class fb_entry_x_roots
     void transform_roots(transformed_entry_t &, qlattice_basis const &) const;
 };
 
-#if __cplusplus >= 201703L
 static_assert(
-    std::has_unique_object_representations<fb_entry_x_roots<1>>::value,
+    std::has_unique_object_representations_v<fb_entry_x_roots<1>>,
     "fb_entry_x_roots<1> must not have padding");
 static_assert(
-    std::has_unique_object_representations<fb_entry_x_roots<2>>::value,
+    std::has_unique_object_representations_v<fb_entry_x_roots<2>>,
     "fb_entry_x_roots<2> must not have padding");
-#endif
 
 /* }}} */
 
@@ -416,6 +410,8 @@ template <typename T> struct entries_and_cdf {
         }
     };
 };
+template <typename T>
+using entries_and_cdf_t = typename entries_and_cdf<T>::type;
 
 template <int n>
 struct works_with_mmappable_vector<fb_entry_x_roots<n>>
@@ -426,16 +422,16 @@ struct works_with_mmappable_vector<fb_entry_general> : public std::true_type {
 };
 
 template <int n> struct fb_entries_factory {
-    typedef typename entries_and_cdf<fb_entry_x_roots<n>>::type type;
+    using type = entries_and_cdf_t<fb_entry_x_roots<n>>;
 };
 template <> struct fb_entries_factory<-1> {
-    typedef typename entries_and_cdf<fb_entry_general>::type type;
+    using type = entries_and_cdf_t<fb_entry_general>;
 };
 template <int n> struct fb_slices_factory {
-    typedef std::vector<fb_slice<fb_entry_x_roots<n>>> type;
+    using type = std::vector<fb_slice<fb_entry_x_roots<n>>>;
 };
 template <> struct fb_slices_factory<-1> {
-    typedef std::vector<fb_slice<fb_entry_general>> type;
+    using type = std::vector<fb_slice<fb_entry_general>>;
 };
 
 class fb_factorbase

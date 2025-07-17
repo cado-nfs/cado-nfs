@@ -8,10 +8,7 @@ target_link_libraries(sqrt utils_with_io ${pthread_libs})
 mark_targets_as_openmp(sqrt)
 
 add_executable(mgmsqrt mgmsqrt.cpp)
-target_link_libraries(sqrt utils_with_io ${pthread_libs})
-set_target_properties(sqrt PROPERTIES
-    COMPILE_FLAGS "${OpenMP_CXX_FLAGS}"
-    LINK_FLAGS "${OpenMP_CXX_FLAGS}")
+target_link_libraries(mgmsqrt utils_with_io ${pthread_libs})
 
 install(TARGETS sqrt RUNTIME DESTINATION ${LIBSUFFIX}/sqrt)
 

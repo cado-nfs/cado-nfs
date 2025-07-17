@@ -7,8 +7,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <climits>                         // for UINT_MAX
-#include <cstdint>                         // for uint64_t
+#include <climits>
+#include <cstdint>
 #ifdef  HAVE_SIGHUP
 #include <csignal>
 #endif
@@ -22,9 +22,9 @@
 #include <utility>
 #include <vector>
 
-#include <gmp.h>                            // for mp_limb_t, gmp_randclear
+#include <gmp.h>
 
-#include "arith-hard.hpp" // IWYU pragma: keep
+#include "arith-hard.hpp"
 #include "cxx_mpz.hpp"
 #include "gmp_aux.h"
 #include "lingen_bw_dimensions.hpp"
@@ -39,8 +39,8 @@
 #include "params.h"
 #include "runtime_numeric_cast.hpp"
 #include "select_mpi.h"
-#include "timing.h"                         // for seconds, wct_seconds, cpu...
-#include "tree_stats.hpp"                   // for tree_stats
+#include "timing.h"
+#include "tree_stats.hpp"
 #include "utils_cxx.hpp"
 
 using namespace std;
@@ -405,7 +405,8 @@ static void catch_control_signals()
  */
 
 // It's buggy and this must be investigated. We want to keep it compiled.
-static void lingen_tune_mul_fti_depth [[maybe_unused]] (matpoly::arith_hard * ab, unsigned int m, unsigned int n, cutoff_list *cl_out)/*{{{*/
+template<bool is_binary>
+static void lingen_tune_mul_fti_depth [[maybe_unused]] (typename matpoly<is_binary>::arith_hard * ab, unsigned int m, unsigned int n, cutoff_list *cl_out)/*{{{*/
 {
     cxx_gmp_randstate rstate;
 
@@ -586,7 +587,8 @@ static void lingen_tune_mul_fti_depth [[maybe_unused]] (matpoly::arith_hard * ab
 }/*}}}*/
 
 // It's buggy and this must be investigated. We want to keep it compiled.
-static void lingen_tune_mp_fti_depth [[maybe_unused]] (matpoly::arith_hard * ab, unsigned int m, unsigned int n, cutoff_list * cl_out) /*{{{*/
+template<bool is_binary>
+static void lingen_tune_mp_fti_depth [[maybe_unused]] (typename matpoly<is_binary>::arith_hard * ab, unsigned int m, unsigned int n, cutoff_list * cl_out) /*{{{*/
 {
     cxx_gmp_randstate rstate;
     gmp_randseed_ui(rstate, 1);
@@ -764,7 +766,8 @@ static void lingen_tune_mp_fti_depth [[maybe_unused]] (matpoly::arith_hard * ab,
 }/*}}}*/
 
 
-static void lingen_tune_mul(matpoly::arith_hard * ab, unsigned int m, unsigned int n, cutoff_list cl MAYBE_UNUSED)/*{{{*/
+template<bool is_binary>
+static void lingen_tune_mul(typename matpoly<is_binary>::arith_hard * ab, unsigned int m, unsigned int n, cutoff_list cl MAYBE_UNUSED)/*{{{*/
 {
     typedef fft_transform_info fft_type;
     cxx_gmp_randstate rstate;
@@ -854,15 +857,15 @@ static void lingen_tune_mul(matpoly::arith_hard * ab, unsigned int m, unsigned i
         }
 
         /* don't exaggerate our memory requirements */
-        matpoly xpiL;
+        matpoly<is_binary> xpiL;
         xpiL.set_polymat(piL);
         piL = polymat();
 
-        matpoly xpiR;
+        matpoly<is_binary> xpiR;
         xpiR.set_polymat(piR);
         piR = polymat();
 
-        matpoly xpiref;
+        matpoly<is_binary> xpiref;
         if (piref.get_size()) {
             xpiref.set_polymat(piref);
             piref = polymat();
@@ -872,11 +875,11 @@ static void lingen_tune_mul(matpoly::arith_hard * ab, unsigned int m, unsigned i
          * right ? */
 
         if (finder.still_meaningful_to_test(2)) {
-            matpoly xpi;
+            matpoly<is_binary> xpi;
             /* The matpoly layer is just completetly different -- and gets
              * faster quite early on... */
             for(small_bench<timer_t> x = finder.micro_bench(2); !x.done(); ++x) {
-                xpi = matpoly::mul(xpiL, xpiR);
+                xpi = matpoly<is_binary>::mul(xpiL, xpiR);
                 x.set_since_last();
             }
             if (xpiref.get_size() == 0) {
@@ -888,7 +891,7 @@ static void lingen_tune_mul(matpoly::arith_hard * ab, unsigned int m, unsigned i
         }
 
         if (finder.still_meaningful_to_test(3)) {
-            matpoly xpi;
+            matpoly<is_binary> xpi;
             int const adj = cutoff_list_get(cl, k);
             {
                 ostringstream o;
@@ -967,7 +970,8 @@ static void lingen_tune_mul(matpoly::arith_hard * ab, unsigned int m, unsigned i
         << " " << finder.print_result(table) << "\n";
 }/*}}}*/
 
-static void lingen_tune_mp(matpoly::arith_hard * ab, unsigned int m, unsigned int n, cutoff_list cl MAYBE_UNUSED)/*{{{*/
+template<bool is_binary>
+static void lingen_tune_mp(typename matpoly<is_binary>::arith_hard * ab, unsigned int m, unsigned int n, cutoff_list cl MAYBE_UNUSED)/*{{{*/
 {
     typedef fft_transform_info fft_type;
     cxx_gmp_randstate rstate;
@@ -1074,15 +1078,15 @@ static void lingen_tune_mp(matpoly::arith_hard * ab, unsigned int m, unsigned in
         }
 
         /* don't exaggerate our memory requirements */
-        matpoly xpiL(ab, m+n, m+n, k);
+        matpoly<is_binary> xpiL(ab, m+n, m+n, k);
         xpiL.set_polymat(piL);
         piL = polymat();
 
-        matpoly xE(ab, m, m+n, E_length);
+        matpoly<is_binary> xE(ab, m, m+n, E_length);
         xE.set_polymat(E);
         E = polymat();
 
-        matpoly xERref;
+        matpoly<is_binary> xERref;
         if (ERref.get_size()) {
             xERref.set_polymat(ERref);
         }
@@ -1092,11 +1096,11 @@ static void lingen_tune_mp(matpoly::arith_hard * ab, unsigned int m, unsigned in
          * right ? */
 
         if (finder.still_meaningful_to_test(2)) {
-            matpoly xER;
+            matpoly<is_binary> xER;
             /* The matpoly layer is just completetly different -- and gets
              * faster quite early on... */
             for(small_bench<timer_t> x = finder.micro_bench(2); !x.done(); ++x) {
-                xER = matpoly::mp(xE, xpiL);
+                xER = matpoly<is_binary>::mp(xE, xpiL);
                 x.set_since_last();
             }
             if (xERref.get_size() == 0) {
@@ -1108,7 +1112,7 @@ static void lingen_tune_mp(matpoly::arith_hard * ab, unsigned int m, unsigned in
         }
 
         if (finder.still_meaningful_to_test(3)) {
-            matpoly xER;
+            matpoly<is_binary> xER;
             int adj = UINT_MAX;
             if (cl) {
                 adj = cutoff_list_get(cl, k);
@@ -1254,7 +1258,8 @@ void lingen_tune_bigmul(abdst_field ab, unsigned int m, unsigned int n, unsigned
 }/*}}}*/
 #endif
 
-void lingen_tune_cutoffs(bw_dimensions & d, MPI_Comm comm MAYBE_UNUSED, cxx_param_list & pl)
+template<bool is_binary>
+void lingen_tune_cutoffs(bw_dimensions<is_binary> & d, MPI_Comm comm MAYBE_UNUSED, cxx_param_list & pl)
 {
     cxx_gmp_randstate rstate;
 
@@ -1266,7 +1271,7 @@ void lingen_tune_cutoffs(bw_dimensions & d, MPI_Comm comm MAYBE_UNUSED, cxx_para
     param_list_parse(pl, "B", bench_atleast_uptothis);
     param_list_parse(pl, "catchsig", catchsig);
 
-    matpoly::arith_hard * ab = & d.ab;
+    typename matpoly<is_binary>::arith_hard * ab = & d.ab;
     unsigned int const m = d.m;
     unsigned int const n = d.n;
     cxx_mpz p(ab->characteristic());
@@ -1289,11 +1294,11 @@ void lingen_tune_cutoffs(bw_dimensions & d, MPI_Comm comm MAYBE_UNUSED, cxx_para
 
     cutoff_list cl_mp = nullptr;
     // lingen_tune_mp_fti_depth(ab, m, n, &cl_mp);
-    lingen_tune_mp(ab, m, n, cl_mp);
+    lingen_tune_mp<is_binary>(ab, m, n, cl_mp);
 
     cutoff_list cl_mul = nullptr;
     // lingen_tune_mul_fti_depth(ab, m, n, &cl_mul);
-    lingen_tune_mul(ab, m, n, cl_mul);
+    lingen_tune_mul<is_binary>(ab, m, n, cl_mul);
 
     // int tune_bm_basecase = 1;
     int const tune_mp = 1;
@@ -1391,3 +1396,5 @@ void lingen_tune_cutoffs(bw_dimensions & d, MPI_Comm comm MAYBE_UNUSED, cxx_para
     lingen_tune_bigmul(ab, m, n, mpi[0]*thr[0], mpi[1]*thr[1], comm);
 #endif
 }
+
+template void lingen_tune_cutoffs<false>(bw_dimensions<false> & d, MPI_Comm comm, cxx_param_list & pl);

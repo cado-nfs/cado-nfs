@@ -2,42 +2,38 @@
 
 #include <cstdio>
 #include <cstdlib>
-#include <climits>                         // for ULONG_MAX
-#include <cstdint>                         // for SIZE_MAX
+#include <climits>
+#include <cstdint>
 
-#include <algorithm>                        // for min
-#include <utility>                          // for move
-#include <vector>                           // for vector
+#include <algorithm>
+#include <utility>
+#include <vector>
 
-#include <gmp.h>                // for gmp_randstate_t, gmp_randclear, gmp_r...
+#include <gmp.h>
 
 #include "gmp_aux.h"
-#ifdef LINGEN_BINARY
-#include "gf2x-fft.h"
-#include "gf2x-fake-fft.h"
-#include "gf2x-cantor-fft.h"
-#include "gf2x-ternary-fft.h"             // for gf2x_ternary_fft_info
-#else
-#include "flint-fft/transform_interface.h"  // for fft_transform_info
-#endif
-#include "arith-hard.hpp"  // IWYU pragma: keep
-#include "lingen_matpoly_select.hpp"        // for matpoly, matpoly::memory_...
-#include "select_mpi.h"                     // for MPI_Finalize, MPI_Init
-#include "timing.h"                         // for wct_seconds
-#include "tree_stats.hpp"                   // for tree_stats, tree_stats::s...
+#include "lingen_matpoly_select.hpp"
+#include "lingen_fft_select.hpp"
+#include "select_mpi.h"
+#include "timing.h"
+#include "tree_stats.hpp"
 #include "lingen_matpoly_ft.hpp"
 #include "lingen_qcode_select.hpp"
 #include "cxx_mpz.hpp"
 #include "macros.h"
 #include "params.h"
 
+template<bool is_binary_arg>
 struct matpoly_checker_base {
-    matpoly::arith_hard ab;
+    static constexpr bool is_binary = is_binary_arg;
+    typedef matpoly<is_binary> matpoly_type;
+    typedef typename matpoly_type::arith_hard arith_hard_t;
+    arith_hard_t ab;
     unsigned int m;
     unsigned int n;
     unsigned int len1;
     unsigned int len2;
-    matpoly::memory_guard dummy;
+    typename matpoly_type::memory_guard dummy;
 
     cxx_gmp_randstate rstate;
     /* tests are free to seed and re-seed the checker's private rstate, a
@@ -82,10 +78,10 @@ struct matpoly_checker_base {
 #endif
 
     int ctor_and_pre_init() {
-        matpoly const A(&ab, 0, 0, 0);
+        matpoly_type const A(&ab, 0, 0, 0);
         if (!A.check_pre_init()) return 0;
-        matpoly const P;
-        matpoly Q(&ab, m, m+n, len1);
+        matpoly_type const P;
+        matpoly_type Q(&ab, m, m+n, len1);
         Q.clear_and_set_random(len1, rstate);
         return P.check_pre_init() && !Q.check_pre_init();
     }
@@ -99,27 +95,27 @@ struct matpoly_checker_base {
          *
          * 202411221: clang-tidy reports use-after-move, it's better.
          */
-        matpoly P(&ab, m, m+n, len1);
+        matpoly_type P(&ab, m, m+n, len1);
         P.clear_and_set_random(len1, rstate);
-        matpoly const Q(std::move(P));
-        matpoly R(&ab, m, n, len1);
+        matpoly_type const Q(std::move(P));
+        matpoly_type R(&ab, m, n, len1);
         R.clear_and_set_random(len1, rstate);
-        R = matpoly();
+        R = matpoly_type();
         return /* P.check_pre_init() && */ 
             !Q.check_pre_init() && R.check_pre_init();
     }
 
     int copy_ctor() {
-        matpoly P(&ab, m, n, len1);
+        matpoly_type P(&ab, m, n, len1);
         P.clear_and_set_random(len1, rstate);
-        matpoly Q;
+        matpoly_type Q;
         Q.set(P);
         return P.cmp(Q) == 0;
     }
 
     int fill_random_is_deterministic() {
-        matpoly P0(&ab, n, n, len1);
-        matpoly P1(&ab, n, n, len1 + len2);
+        matpoly_type P0(&ab, n, n, len1);
+        matpoly_type P1(&ab, n, n, len1 + len2);
         gmp_randseed_ui(rstate, seed); P0.clear_and_set_random(len1, rstate);
         gmp_randseed_ui(rstate, seed); P1.clear_and_set_random(len1, rstate);
         int const ok = P0.capacity() >= len1 && P1.capacity() >= len1+len2 && P0.cmp(P1) == 0;
@@ -128,8 +124,8 @@ struct matpoly_checker_base {
 
     int realloc_does_what_it_says() {
         /* begin like the previous test. In particular, we  */
-        matpoly P0(&ab, n, n, len1);
-        matpoly P1(&ab, n, n, len1 + len2);
+        matpoly_type P0(&ab, n, n, len1);
+        matpoly_type P1(&ab, n, n, len1 + len2);
         gmp_randseed_ui(rstate, seed); P0.clear_and_set_random(len1, rstate);
         gmp_randseed_ui(rstate, seed); P1.clear_and_set_random(len1, rstate);
         int ok;
@@ -153,9 +149,9 @@ struct matpoly_checker_base {
     }
 
     int mulx_then_divx() {
-        matpoly P(&ab, m,   n, len1 + n);
+        matpoly_type P(&ab, m,   n, len1 + n);
         P.clear_and_set_random(len1, rstate);
-        matpoly Q;
+        matpoly_type Q;
         Q.set(P);
         /* take some columns, do multiplies */
         std::vector<int> jlen(n, len1);
@@ -176,11 +172,11 @@ struct matpoly_checker_base {
     }
 
     int truncate_is_like_mulx_then_divx_everywhere() {
-        matpoly P(&ab, m,   n, len1);
+        matpoly_type P(&ab, m,   n, len1);
         unsigned int const trmax = std::min(128u, len1 / 2);
         unsigned int const tr = gmp_urandomm_ui(rstate, trmax + 1);
         P.clear_and_set_random(len1, rstate);
-        matpoly Q;
+        matpoly_type Q;
         Q.set(P);
         for(unsigned int s = 0 ; s < tr ; s++) {
             for(unsigned int k = 0 ; k < n ; k++) {
@@ -196,7 +192,7 @@ struct matpoly_checker_base {
          * high degrees ? */
         if (!P.tail_is_zero(len1 - tr)) return false;
         P.truncate(len1 - tr);
-        matpoly R;
+        matpoly_type R;
         /* check truncate-self as well as truncate-foreign */
         R.truncate(Q, len1 - tr);
         Q.truncate(Q, len1 - tr);
@@ -206,11 +202,11 @@ struct matpoly_checker_base {
     }
 
     int rshift_is_like_divx_everywhere() {
-        matpoly P(&ab, m,   n, len1);
+        matpoly_type P(&ab, m,   n, len1);
         unsigned int const trmax = std::min(128u, len1 / 2);
         unsigned int const tr = gmp_urandomm_ui(rstate, trmax + 1);
         P.clear_and_set_random(len1, rstate);
-        matpoly Q;
+        matpoly_type Q;
         Q.set(P);
         for(unsigned int s = 0 ; s < tr ; s++) {
             for(unsigned int k = 0 ; k < n ; k++) {
@@ -221,7 +217,7 @@ struct matpoly_checker_base {
          * high degrees ? */
         if (!P.tail_is_zero(len1 - tr)) return false;
         P.truncate(len1 - tr);
-        matpoly R;
+        matpoly_type R;
         /* check rshift-self as well as rshift-foreign */
         R.rshift(Q, tr);
         Q.rshift(Q, tr);
@@ -232,7 +228,7 @@ struct matpoly_checker_base {
 
     int test_extract_column() {
         unsigned int const s = n;
-        matpoly P(&ab, m,   n, s+1);
+        matpoly_type P(&ab, m,   n, s+1);
         P.clear_and_set_random(1, rstate);
         for(unsigned int k = 0 ; k < s ; k++)
             for(unsigned int j = 0 ; j < s ; j++)
@@ -240,7 +236,7 @@ struct matpoly_checker_base {
         /* We've cycled the columns exactly s times, so the head matrix
          * should be equal to the very first one.
          */
-        matpoly Q;
+        matpoly_type Q;
         Q.set(P);
         for(unsigned int k = 0 ; k < s ; k++)
             for(unsigned int j = 0 ; j < s ; j++)
@@ -253,9 +249,9 @@ struct matpoly_checker_base {
     int divx_then_mulx_is_like_zero_column() {
         /* This is a bit like doing the mulx_then_divx test, but in
          * reverse order */
-        matpoly P(&ab, m,   n, len1 + n);
+        matpoly_type P(&ab, m,   n, len1 + n);
         P.clear_and_set_random(len1, rstate);
-        matpoly Q;
+        matpoly_type Q;
         Q.set(P);
         /* take some columns, divide */
         std::vector<int> jlen(n, len1);
@@ -275,11 +271,11 @@ struct matpoly_checker_base {
     }
 
     int add_and_sub() {
-        matpoly P(&ab, m,   n, len1);
-        matpoly Q(&ab, m,   n, len2);
+        matpoly_type P(&ab, m,   n, len1);
+        matpoly_type Q(&ab, m,   n, len2);
         P.clear_and_set_random(len1, rstate);
         Q.clear_and_set_random(len2, rstate);
-        matpoly R;
+        matpoly_type R;
         R.add(P, Q); P.add(Q);
         if (R.cmp(P) != 0) return 0;
 
@@ -328,20 +324,20 @@ struct matpoly_checker_base {
             mlen1 /= 2;
             mlen2 /= 2;
         }
-        matpoly P(&ab, m, n, mlen1);
-        matpoly Q(&ab, m, n, mlen2);
-        matpoly R(&ab, n, n, mlen2);
-        matpoly PQ, PR, QR, PQ_R, PR_QR;
+        matpoly_type P(&ab, m, n, mlen1);
+        matpoly_type Q(&ab, m, n, mlen2);
+        matpoly_type R(&ab, n, n, mlen2);
+        matpoly_type PQ, PR, QR, PQ_R, PR_QR;
         P.clear_and_set_random(mlen1, rstate);
         Q.clear_and_set_random(mlen2, rstate);
         R.clear_and_set_random(mlen2, rstate);
         PQ.add(P, Q);
-        PR = matpoly::mul(P, R);
-        QR = matpoly::mul(Q, R);
-        PQ_R = matpoly::mul(PQ, R);
+        PR = matpoly_type::mul(P, R);
+        QR = matpoly_type::mul(Q, R);
+        PQ_R = matpoly_type::mul(PQ, R);
         PR_QR.add(PR, QR);
         if (PQ_R.cmp(PR_QR) != 0) return 0;
-        matpoly testz(&ab, m, n, 0);
+        matpoly_type testz(&ab, m, n, 0);
         testz.sub(PR_QR);
         testz.addmul(PQ, R);
         if (!testz.tail_is_zero(0)) return 0;
@@ -358,19 +354,19 @@ struct matpoly_checker_base {
             mlen1 /= 2;
             mlen2 /= 2;
         }
-        matpoly P(&ab, m, n, mlen1);
-        matpoly Q(&ab, m, n, mlen2);
-        matpoly const R(&ab, n, n, mlen2);
-        matpoly PQ, PR, QR, PQ_R, PR_QR;
+        matpoly_type P(&ab, m, n, mlen1);
+        matpoly_type Q(&ab, m, n, mlen2);
+        matpoly_type const R(&ab, n, n, mlen2);
+        matpoly_type PQ, PR, QR, PQ_R, PR_QR;
         P.clear_and_set_random(mlen1, rstate);
         Q.clear_and_set_random(mlen2, rstate);
         PQ.add(P, Q);
-        PR = matpoly::mp(P, R);
-        QR = matpoly::mp(Q, R);
-        PQ_R = matpoly::mp(PQ, R);
+        PR = matpoly_type::mp(P, R);
+        QR = matpoly_type::mp(Q, R);
+        PQ_R = matpoly_type::mp(PQ, R);
         PR_QR.add(PR, QR);
         if (PQ_R.cmp(PR_QR) != 0) return 0;
-        matpoly testz(&ab, m, n, 0);
+        matpoly_type testz(&ab, m, n, 0);
         testz.sub(PR_QR);
         testz.addmp(PQ, R);
         if (!testz.tail_is_zero(0)) return 0;
@@ -378,7 +374,7 @@ struct matpoly_checker_base {
     }
     int coeff_is_zero_and_zero_column_agree()
     {
-        matpoly P(&ab, m,   n, len1 + 2);
+        matpoly_type P(&ab, m,   n, len1 + 2);
         P.clear_and_set_random(len1, rstate);
         unsigned int const k = P.get_size() / 2;
         for(unsigned int j = 0 ; j < n ; j++)
@@ -386,72 +382,89 @@ struct matpoly_checker_base {
         return P.coeff_is_zero(k);
     }
 
-    int test_basecase()
-    {
-        double tt;
-#ifdef LINGEN_BINARY
-        tt = wct_seconds();
-        test_basecase_bblas(&ab, m, n, len1, rstate);
-        printf("%.3f\n", wct_seconds()-tt);
-#endif
-        tt = wct_seconds();
-        ::test_basecase(&ab, m, n, len1, rstate);
-        printf("%.3f\n", wct_seconds()-tt);
-        return 1;
-    }
+    int test_basecase();
 };
 
+#ifdef LINGEN_BINARY
+template<>
+inline int matpoly_checker_base<true>::test_basecase()
+{
+    const double tt = wct_seconds();
+    test_basecase_bblas(&ab, m, n, len1, rstate);
+    printf("%.3f\n", wct_seconds()-tt);
+    return 1;
+}
+#else
+template<>
+inline int matpoly_checker_base<false>::test_basecase()
+{
+    const double tt = wct_seconds();
+    ::test_basecase(&ab, m, n, len1, rstate);
+    printf("%.3f\n", wct_seconds()-tt);
+    return 1;
+}
+#endif
+
 template<typename fft_type>
-struct matpoly_checker_ft : public matpoly_checker_base {
+struct matpoly_checker_ft : public matpoly_checker_base<is_binary_fft<fft_type>::value> {
+    static constexpr bool is_binary = is_binary_fft<fft_type>::value;
+    typedef matpoly<is_binary> matpoly_type;
     tree_stats stats;
     tree_stats::sentinel stats_sentinel;
     typename matpoly_ft<fft_type>::memory_guard dummy_ft;
+    using matpoly_checker_base<is_binary>::ab;
+    using matpoly_checker_base<is_binary>::len1;
+    using matpoly_checker_base<is_binary>::len2;
+    using matpoly_checker_base<is_binary>::m;
+    using matpoly_checker_base<is_binary>::n;
+    using matpoly_checker_base<is_binary>::rstate;
 
-    matpoly_checker_ft(matpoly_checker_base const & base)
-        : matpoly_checker_base(base)
+
+    matpoly_checker_ft(matpoly_checker_base<is_binary> const & base)
+        : matpoly_checker_base<is_binary>(base)
         , stats_sentinel(stats, "test", 0, 1)
         , dummy_ft(SIZE_MAX)
     {}
     matpoly_checker_ft(cxx_mpz const & p, unsigned int m, unsigned int n, unsigned int len1, unsigned int len2, cxx_gmp_randstate & rstate0)
-        : matpoly_checker_base(p, m, n, len1, len2, rstate0)
+        : matpoly_checker_base<is_binary>(p, m, n, len1, len2, rstate0)
         , stats_sentinel(stats, "test", 0, 1)
         , dummy_ft(SIZE_MAX)
     {}
     int mul_and_mul_caching_are_consistent() {
-        matpoly P(&ab, n, n, len1);
-        matpoly Q(&ab, n, n, len2);
+        matpoly_type P(&ab, n, n, len1);
+        matpoly_type Q(&ab, n, n, len2);
 
         P.clear_and_set_random(len1, rstate);
         Q.clear_and_set_random(len2, rstate);
 
-        matpoly const R0 = matpoly::mul(P, Q);
-        matpoly const R1 = matpoly_ft<fft_type>::mul_caching(stats, P, Q, nullptr);
+        matpoly_type const R0 = matpoly_type::mul(P, Q);
+        matpoly_type const R1 = matpoly_ft<fft_type>::mul_caching(stats, P, Q, nullptr);
 
         return (R0.cmp(R1) == 0);
     }
 
     int mp_and_mp_caching_are_consistent() {
-        matpoly P(&ab, m,   n, len1);
-        matpoly Q(&ab, n, n, len2);
+        matpoly_type P(&ab, m, n, len1);
+        matpoly_type Q(&ab, n, n, len2);
 
         P.clear_and_set_random(len1, rstate);
         Q.clear_and_set_random(len2, rstate);
 
-        matpoly const M0 = matpoly::mp(P, Q);
-        matpoly const M1 = matpoly_ft<fft_type>::mp_caching(stats, P, Q, nullptr);
+        matpoly_type const M0 = matpoly_type::mp(P, Q);
+        matpoly_type const M1 = matpoly_ft<fft_type>::mp_caching(stats, P, Q, nullptr);
 
         return M0.cmp(M1) == 0;
     }
 
 };
 
+template<bool is_binary>
 static void declare_usage(cxx_param_list & pl)
 {
-#ifndef LINGEN_BINARY
-    param_list_decl_usage(pl, "prime", "(mandatory) prime defining the base field");
-#else
-    param_list_decl_usage(pl, "prime", "(unused) prime defining the base field -- we only use 2");
-#endif
+    if constexpr(!is_binary)
+        param_list_decl_usage(pl, "prime", "(mandatory) prime defining the base field");
+    else
+        param_list_decl_usage(pl, "prime", "(unused) prime defining the base field -- we only use 2");
     param_list_decl_usage(pl, "m", "dimension m");
     param_list_decl_usage(pl, "n", "dimension n");
     param_list_decl_usage(pl, "len1", "length 1");
@@ -460,9 +473,49 @@ static void declare_usage(cxx_param_list & pl)
     param_list_decl_usage(pl, "test-basecase", "test (and bench) the lingen basecase operation");
 }
 
+template<bool is_binary>
+static void check_transforms(matpoly_checker_base<is_binary> & checker);
+#ifdef LINGEN_BINARY
+template<>
+void check_transforms<true>(matpoly_checker_base<true> & checker)
+{
+    {
+        matpoly_checker_ft<gf2x_fake_fft_info> checker_ft(checker);
+        ASSERT_ALWAYS(checker_ft.mul_and_mul_caching_are_consistent());
+        ASSERT_ALWAYS(checker_ft.mp_and_mp_caching_are_consistent());
+    }
+    {
+        matpoly_checker_ft<gf2x_cantor_fft_info> checker_ft(checker);
+        ASSERT_ALWAYS(checker_ft.mul_and_mul_caching_are_consistent());
+        ASSERT_ALWAYS(checker_ft.mp_and_mp_caching_are_consistent());
+    }
+    {
+        matpoly_checker_ft<gf2x_ternary_fft_info> checker_ft(checker);
+        ASSERT_ALWAYS(checker_ft.mul_and_mul_caching_are_consistent());
+        ASSERT_ALWAYS(checker_ft.mp_and_mp_caching_are_consistent());
+    }
+}
+#else
+template<>
+void check_transforms<false>(matpoly_checker_base<false> & checker)
+{
+    {
+        matpoly_checker_ft<fft_transform_info> checker_ft(checker);
+        ASSERT_ALWAYS(checker_ft.mul_and_mul_caching_are_consistent());
+        ASSERT_ALWAYS(checker_ft.mp_and_mp_caching_are_consistent());
+    }
+}
+#endif
+
 // coverity[root_function]
 int main(int argc, char const * argv[])
 {
+#ifdef LINGEN_BINARY
+    constexpr bool is_binary = true;
+#else
+    constexpr bool is_binary = false;
+#endif
+
     MPI_Init(&argc, (char ***) &argv);
 
     cxx_mpz p;
@@ -480,7 +533,7 @@ int main(int argc, char const * argv[])
     setvbuf(stdout, nullptr, _IONBF, 0);
     setvbuf(stderr, nullptr, _IONBF, 0);
 
-    declare_usage(pl);
+    declare_usage<is_binary>(pl);
 
     param_list_configure_switch(pl, "--test-basecase", &test_basecase);
 
@@ -495,16 +548,16 @@ int main(int argc, char const * argv[])
         param_list_print_usage(pl, argv0, stderr);
         exit(EXIT_FAILURE);
     }
-#ifndef LINGEN_BINARY
-    if (!param_list_parse_mpz(pl, "prime", (mpz_ptr) p)) {
-        fprintf(stderr, "--prime is mandatory\n");
-        param_list_print_command_line (stdout, pl);
-        exit(EXIT_FAILURE);
+    if constexpr(!is_binary) {
+        if (!param_list_parse_mpz(pl, "prime", (mpz_ptr) p)) {
+            fprintf(stderr, "--prime is mandatory\n");
+            param_list_print_command_line (stdout, pl);
+            exit(EXIT_FAILURE);
+        }
+    } else {
+        mpz_set_ui(p, 2);   /* unused anyway */
+        param_list_parse_mpz(pl, "prime", (mpz_ptr) p);
     }
-#else
-    mpz_set_ui(p, 2);   /* unused anyway */
-    param_list_parse_mpz(pl, "prime", (mpz_ptr) p);
-#endif
     param_list_parse_uint(pl, "m", &m);
     param_list_parse_uint(pl, "n", &n);
     param_list_parse_uint(pl, "len1", &len1);
@@ -512,22 +565,22 @@ int main(int argc, char const * argv[])
     param_list_parse_ulong(pl, "seed", &seed);
     if (param_list_warn_unused(pl))
         exit(EXIT_FAILURE);
-#ifdef LINGEN_BINARY
-    if (m & 63) {
-        unsigned int const nm = 64 * iceildiv(m, 64);
-        printf("Round m=%u to m=%u\n", m, nm);
-        m = nm;
+    if constexpr (is_binary) {
+        if (m & 63) {
+            unsigned int const nm = 64 * iceildiv(m, 64);
+            printf("Round m=%u to m=%u\n", m, nm);
+            m = nm;
+        }
+        if (n & 63) {
+            unsigned int const nn = 64 * iceildiv(n, 64);
+            printf("Round n=%u to n=%u\n", n, nn);
+            n = nn;
+        }
     }
-    if (n & 63) {
-        unsigned int const nn = 64 * iceildiv(n, 64);
-        printf("Round n=%u to n=%u\n", n, nn);
-        n = nn;
-    }
-#endif
 
     gmp_randseed_ui(rstate, seed);
 
-    matpoly_checker_base checker(p, m, n, len1, len2, rstate);
+    matpoly_checker_base<is_binary> checker(p, m, n, len1, len2, rstate);
 
     if (!test_basecase) {
         ASSERT_ALWAYS(checker.ctor_and_pre_init());
@@ -545,29 +598,8 @@ int main(int argc, char const * argv[])
         ASSERT_ALWAYS(checker.mp_is_distributive());
         ASSERT_ALWAYS(checker.coeff_is_zero_and_zero_column_agree());
 
-#ifdef LINGEN_BINARY
-        {
-            matpoly_checker_ft<gf2x_fake_fft_info> checker_ft(checker);
-            ASSERT_ALWAYS(checker_ft.mul_and_mul_caching_are_consistent());
-            ASSERT_ALWAYS(checker_ft.mp_and_mp_caching_are_consistent());
-        }
-        {
-            matpoly_checker_ft<gf2x_cantor_fft_info> checker_ft(checker);
-            ASSERT_ALWAYS(checker_ft.mul_and_mul_caching_are_consistent());
-            ASSERT_ALWAYS(checker_ft.mp_and_mp_caching_are_consistent());
-        }
-        {
-            matpoly_checker_ft<gf2x_ternary_fft_info> checker_ft(checker);
-            ASSERT_ALWAYS(checker_ft.mul_and_mul_caching_are_consistent());
-            ASSERT_ALWAYS(checker_ft.mp_and_mp_caching_are_consistent());
-        }
-#else
-        {
-            matpoly_checker_ft<fft_transform_info> checker_ft(checker);
-            ASSERT_ALWAYS(checker_ft.mul_and_mul_caching_are_consistent());
-            ASSERT_ALWAYS(checker_ft.mp_and_mp_caching_are_consistent());
-        }
-#endif
+        check_transforms<is_binary>(checker);
+
     } else {
         printf("test basecase m=%u n=%u len1=%u\n", m, n, len1);
         checker.test_basecase();

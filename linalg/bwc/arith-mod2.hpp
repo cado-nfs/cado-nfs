@@ -704,6 +704,7 @@ struct gf2_middle : public gf2_override<G, T>
 template<unsigned int G>
 struct gf2 : public gf2_middle<G, gf2<G>>
 {
+    static constexpr bool is_binary = true;
     typedef gf2_middle<G, gf2<G>> super;
     // we have nothing specific to do with the ctor.
     // template<typename... Args> gf2(Args&&... args) :

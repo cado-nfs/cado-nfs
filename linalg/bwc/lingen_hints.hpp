@@ -1,9 +1,10 @@
 #ifndef CADO_LINGEN_HINTS_HPP
 #define CADO_LINGEN_HINTS_HPP
 
-#include <cstddef>                   // for size_t
+#include <cstddef>
 #include <map>
-#include <iosfwd>       // istream, ostream
+#include <iosfwd>
+
 #include "select_mpi.h"
 #include "lingen_call_companion.hpp"
 

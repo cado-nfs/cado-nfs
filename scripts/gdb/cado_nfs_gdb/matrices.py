@@ -81,7 +81,7 @@ class cxx_mpq_mat_printer(mpq_mat_printer):
         self.match = match
 
 
-class matpoly_printer(generic_matrix):
+class matpoly_binary_printer(generic_matrix):
     def __init__(self, match, val):
         self.val = val
         self.match = match
@@ -90,23 +90,32 @@ class matpoly_printer(generic_matrix):
     def __getitem__(self, ij):
         i, j = ij
         n = self.n
-        if bool(self.val['over_gf2']):
-            W = int(self.val['alloc_words'])
-            xij = self.val['x'] + (i * n + j) * W
-            s = int(self.val['size'])   # in bits
-            # read just one integer, and interpret it as a polynomial
-            z = integers.limbs_printer(self.match, xij, W)
-            return f"0x{z.to_int():x}"
-        else:
-            a = int(self.val['alloc'])
-            K = self.val['ab'].dereference()
-            W = polynomials.nlimbs(K, self.val['x'])
-            raw_ptr_type = gdb.lookup_type('unsigned long').pointer()
-            x0 = self.val['x'].cast(raw_ptr_type)
-            xij = x0 + (i * n + j) * a * W
-            # return f"{x0}+({i*n+j}*{a}) == {xij}"
-            s = int(self.val['size'])
-            return polynomials.flat_poly_printer(self.match, xij, K, W, s)
+        W = int(self.val['alloc_words'])
+        xij = self.val['x'] + (i * n + j) * W
+        s = int(self.val['size'])   # in bits
+        # read just one integer, and interpret it as a polynomial
+        z = integers.limbs_printer(self.match, xij, W)
+        return f"0x{z.to_int():x}"
+
+
+class matpoly_nonbinary_printer(generic_matrix):
+    def __init__(self, match, val):
+        self.val = val
+        self.match = match
+        super().__init__(int(val['m']), int(val['n']), 'KP')
+
+    def __getitem__(self, ij):
+        i, j = ij
+        n = self.n
+        a = int(self.val['alloc'])
+        K = self.val['ab'].dereference()
+        W = polynomials.nlimbs(K, self.val['x'])
+        raw_ptr_type = gdb.lookup_type('unsigned long').pointer()
+        x0 = self.val['x'].cast(raw_ptr_type)
+        xij = x0 + (i * n + j) * a * W
+        # return f"{x0}+({i*n+j}*{a}) == {xij}"
+        s = int(self.val['size'])
+        return polynomials.flat_poly_printer(self.match, xij, K, W, s)
 
 
 base.cado_nfs_printer.add('mpz_mat_s', mpz_mat_printer)
@@ -119,4 +128,5 @@ base.cado_nfs_printer.add('mpq_mat', mpq_mat_printer)
 base.cado_nfs_printer.add('mpq_mat_ptr', mpq_mat_printer)
 base.cado_nfs_printer.add('mpq_mat_srcptr', mpq_mat_printer)
 base.cado_nfs_printer.add('cxx_mpq_mat', cxx_mpq_mat_printer)
-base.cado_nfs_printer.add('matpoly', matpoly_printer)
+base.cado_nfs_printer.add('matpoly<true>', matpoly_binary_printer)
+base.cado_nfs_printer.add('matpoly<false>', matpoly_nonbinary_printer)

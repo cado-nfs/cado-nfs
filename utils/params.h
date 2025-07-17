@@ -304,7 +304,6 @@ struct cxx_param_list {
         param_list_set(x, o.x);
         return *this;
     }
-#if __cplusplus >= 201103L
     cxx_param_list(cxx_param_list && o) noexcept {
         param_list_init(x);
         param_list_swap(x, o.x);
@@ -313,7 +312,6 @@ struct cxx_param_list {
         param_list_swap(x, o.x);
         return *this;
     }
-#endif
     operator param_list_ptr() { return x; }
     operator param_list_srcptr() const { return x; }
     param_list_ptr operator->() { return x; }

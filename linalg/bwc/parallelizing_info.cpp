@@ -30,10 +30,10 @@
 #include "timing.h"
 #include "portability.h"
 
-#if defined(HAVE_HWLOC) && __cplusplus >= 201103L
+#if defined(HAVE_HWLOC)
 #include "cpubinding.hpp"
 #include "params.h"
-#endif  /* defined(HAVE_HWLOC) && __cplusplus >= 201103L */
+#endif  /* defined(HAVE_HWLOC) */
 
 static inline void pi_comm_init_pthread_things(pi_comm_ptr w, const char * desc)
 {
@@ -87,11 +87,11 @@ static void * pi_go_call_thread(
         Args&&... args)
 {
     pi_interleaving_enter(p);
-#if defined(HAVE_HWLOC) && __cplusplus >= 201103L
+#if defined(HAVE_HWLOC)
     cpubinding_do_pinning(p->cpubinding_info,
             int(p->wr[1]->trank),
             int(p->wr[0]->trank));
-#endif /* defined(HAVE_HWLOC) && __cplusplus >= 201103L */
+#endif /* defined(HAVE_HWLOC) */
     int debug = 0;
     param_list_parse(pl, "debug-parallel-bwc", debug);
 
@@ -430,7 +430,7 @@ static void pi_init_mpilevel(parallelizing_info_ptr pi, cxx_param_list & pl)
     get_node_number_and_prefix(pi);
     display_process_grid(pi);
 
-#if defined(HAVE_HWLOC) && __cplusplus >= 201103L
+#if defined(HAVE_HWLOC)
     /* prepare the cpu binding messages, and print the unique messages we
      * receive */
     if (!verbose_enabled(CADO_VERBOSE_PRINT_BWC_CPUBINDING)) {
@@ -480,16 +480,10 @@ static void pi_init_mpilevel(parallelizing_info_ptr pi, cxx_param_list & pl)
 #else
     if (param_list_lookup_string(pl, "cpubinding")) {
         if (pi->m->jrank == 0) {
-#ifdef HAVE_HWLOC
-                    printf("cpubinding: parameter ignored (no C++11)\n");
-#elif __cplusplus >= 201103L
                     printf("cpubinding: parameter ignored (no hwloc)\n");
-#else
-                    printf("cpubinding: parameter ignored (no hwloc, no C++11)\n");
-#endif
         }
     }
-#endif /* defined(HAVE_HWLOC) && __cplusplus >= 201103L */
+#endif /* defined(HAVE_HWLOC) */
 }
 
 /* How do we build a rank in pi->m from two rank in pi->wr[inner] and
@@ -709,9 +703,9 @@ static void pi_grid_clear(parallelizing_info_ptr pi, parallelizing_info * grid)
 
 static void pi_clear_mpilevel(parallelizing_info_ptr pi)
 {
-#if defined(HAVE_HWLOC) && __cplusplus >= 201103L
+#if defined(HAVE_HWLOC)
     cpubinding_free_info(pi->cpubinding_info, pi->wr[0]->ncores, pi->wr[1]->ncores);
-#endif /* defined(HAVE_HWLOC) && __cplusplus >= 201103L */
+#endif /* defined(HAVE_HWLOC) */
 
     pi_comm_destroy_pthread_things(pi->m);
 
@@ -822,7 +816,7 @@ void parallelizing_info_decl_usage(cxx_param_list & pl)/*{{{*/
     param_list_decl_usage(pl, "only_mpi", "replace threads by distinct MPI jobs");
     param_list_decl_usage(pl, "debug-parallel-bwc", "enable heavy debugging messages for desperate cases");
 
-#if defined(HAVE_HWLOC) && __cplusplus >= 201103L
+#if defined(HAVE_HWLOC)
     cpubinding_decl_usage(pl);
 #else
     param_list_decl_usage(pl, "cpubinding", "(ignored, no sufficient sotftware support)");
@@ -840,7 +834,7 @@ void parallelizing_info_lookup_parameters(cxx_param_list & pl)/*{{{*/
     param_list_lookup_string(pl, "only_mpi");
     param_list_lookup_string(pl, "debug-parallel-bwc");
 
-#if defined(HAVE_HWLOC) && __cplusplus >= 201103L
+#if defined(HAVE_HWLOC)
     cpubinding_lookup_parameters(pl);
 #else
     param_list_lookup_string(pl, "cpubinding");

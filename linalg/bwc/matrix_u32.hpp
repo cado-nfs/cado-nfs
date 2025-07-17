@@ -29,23 +29,11 @@ struct matrix_u32 {
 
     struct transpose_option {
         bool value = false;
-#if __cplusplus < 202002L
-	/* I'm not sure why. It seems to me that this ctor should not
-	 * be needed, but icpx insists on wanting it.
-	 */
-	transpose_option(bool v) : value(v) {}
-#endif
         explicit operator bool() const { return value; }
     };
 
     struct withcoeffs_option {
         bool value = false;
-#if __cplusplus < 202002L
-	/* I'm not sure why. It seems to me that this ctor should not
-	 * be needed, but icpx insists on wanting it.
-	 */
-	withcoeffs_option(bool v) : value(v) {}
-#endif
         explicit operator bool() const { return value; }
     };
 

@@ -1,24 +1,24 @@
 #include "cado.h" // IWYU pragma: keep
-// IWYU pragma: no_include <sys/param.h>
-#include <cstdio>                        // for printf, fprintf, stderr
-#include <cstdlib>                       // for exit, qsort, EXIT_FAILURE
+
+#include <cstdio>
+#include <cstdlib>
 
 #include <utility>
 #include <sstream>
-#include <tuple>                          // for tie, tuple
-#include <vector>                         // for vector
+#include <tuple>
+#include <vector>
 #include <algorithm>
 
 #include "gmp_aux.h"
 #include "cxx_mpz.hpp"
-#include "arith-hard.hpp" // IWYU pragma: keep
-#include "lingen_bmstatus.hpp"            // for bmstatus
+#include "arith-hard.hpp"
+#include "lingen_bmstatus.hpp"
 #include "lingen_bw_dimensions.hpp"
-#include "lingen_call_companion.hpp"      // for lingen_call_companion
+#include "lingen_call_companion.hpp"
 #include "lingen_expected_pi_length.hpp"
 #include "lingen_qcode_prime.hpp"
-#include "macros.h"                       // for ASSERT_ALWAYS, ASSERT, icei...
-#include "tree_stats.hpp"                 // for tree_stats, tree_stats::sen...
+#include "macros.h"
+#include "tree_stats.hpp"
 
 /* This destructively cancels the first len coefficients of E, and
  * computes the appropriate matrix pi which achieves this. The
@@ -45,16 +45,15 @@
 
 /*}}}*/
 
-
 struct bw_lingen_basecase_raw_object {
-    bmstatus & bm;
-    matpoly const & E;
+    bmstatus<false> & bm;
+    matpoly<false> const & E;
     bool generator_found = false;
-    bw_dimensions & d;
+    bw_dimensions<false> & d;
     unsigned int const m;
     unsigned int const n;
     unsigned int const b;
-    matpoly::arith_hard * ab;
+    matpoly<false>::arith_hard * ab;
     unsigned int const pi_room_base;
     /* This keeps tracks of the weights of the columns of pi, both
      * globally and locally */
@@ -64,7 +63,7 @@ struct bw_lingen_basecase_raw_object {
      * previous iteration */
     std::vector<bool> is_pivot;
 
-    bw_lingen_basecase_raw_object(bmstatus & bm, matpoly const & E)
+    bw_lingen_basecase_raw_object(bmstatus<false> & bm, matpoly<false> const & E)
         : bm(bm)
         , E(E)
         , d(bm.d)
@@ -115,8 +114,8 @@ struct bw_lingen_basecase_raw_object {
      */
     void recompute_columns(     /* {{{ */
             unsigned int t,
-            matpoly & e,
-            matpoly const & pi,
+            matpoly<false> & e,
+            matpoly<false> const & pi,
             std::vector<unsigned int> const & todo)
     {
         /* icc openmp doesn't grok todo.size() as being a constant
@@ -154,7 +153,7 @@ struct bw_lingen_basecase_raw_object {
 
 
     unsigned int check_cancellations( /* {{{ */
-            matpoly const & e,
+            matpoly<false> const & e,
             std::vector<unsigned int> const & todo)
     {
 
@@ -179,7 +178,7 @@ struct bw_lingen_basecase_raw_object {
              * like this to be impossible by mere chance. Thus we want n*k >
              * luck_mini, which can easily be checked */
 
-            int const luck_mini = expected_pi_length(d);
+            int const luck_mini = expected_pi_length<false>(d);
             unsigned int luck_sure = 0;
 
             printf("t=%d, canceled columns:", bm.t);
@@ -221,8 +220,8 @@ struct bw_lingen_basecase_raw_object {
         return ctable;
     } /* }}} */
 
-    std::pair<matpoly, std::vector<unsigned int>> compute_transvections(
-            matpoly & e,
+    std::pair<matpoly<false>, std::vector<unsigned int>> compute_transvections(
+            matpoly<false> & e,
             std::vector<unsigned int> const & ctable)
     /* {{{ */
     {
@@ -236,7 +235,7 @@ struct bw_lingen_basecase_raw_object {
          * (abiding by the ordering of pivots), so that we get a better
          * opportunity to do lazy reductions.
          */
-        matpoly T(ab, b, b, 1);
+        matpoly<false> T(ab, b, b, 1);
 
         T.set_constant_ui(1);
 
@@ -305,7 +304,7 @@ struct bw_lingen_basecase_raw_object {
     }    /* }}} */
 
 
-    void apply_transvections(matpoly & pi, matpoly const & T,
+    void apply_transvections(matpoly<false> & pi, matpoly<false> const & T,
             std::vector<unsigned int> const & columns)
     {
         /* {{{ apply the transformations, using the transvection
@@ -416,7 +415,7 @@ struct bw_lingen_basecase_raw_object {
         return all;
     }
 
-    void shift_pivot_columns_in_pi(matpoly & pi)
+    void shift_pivot_columns_in_pi(matpoly<false> & pi)
     {
         /* {{{ Now for all pivots, multiply column in pi by x */
         for (unsigned int j = 0; j < b ; j++) {
@@ -451,15 +450,15 @@ struct bw_lingen_basecase_raw_object {
     }
     /* }}} */
 
-    matpoly get_pi()// {{{
+    matpoly<false> get_pi()// {{{
     {
-        matpoly pi(ab, b, b, int(pi_room_base));
+        matpoly<false> pi(ab, b, b, int(pi_room_base));
         pi.set_size(pi_room_base);
 
         /* NOTE that this sets pi.size=1 */
         pi.set_constant_ui(1);
 
-        matpoly e(ab, m, b, 1);
+        matpoly<false> e(ab, m, b, 1);
         e.set_size(1);
 
         for (unsigned int t = 0; t < E.get_size() ; t++, bm.t++) {
@@ -477,7 +476,7 @@ struct bw_lingen_basecase_raw_object {
 
             auto ctable = get_column_order();
 
-            matpoly T;
+            matpoly<false> T;
             std::vector<unsigned int> pivot_columns;
 
             std::tie(T, pivot_columns) = compute_transvections(e, ctable);
@@ -515,34 +514,34 @@ struct bw_lingen_basecase_raw_object {
     }// }}}
 };
 
-matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E)
+matpoly<false> bw_lingen_basecase_raw(bmstatus<false> & bm, matpoly<false> const & E)
 {
     return bw_lingen_basecase_raw_object(bm, E).get_pi();
 }
 /* }}} */
 
 /* wrap this up */
-matpoly
-bw_lingen_basecase(bmstatus & bm, matpoly & E)
+matpoly<false>
+bw_lingen_basecase(bmstatus<false> & bm, matpoly<false> & E)
 {
     lingen_call_companion const & C = bm.companion(bm.depth, E.get_size());
     tree_stats::sentinel const dummy(bm.stats, "basecase", E.get_size(), C.total_ncalls, true);
-    bmstatus::depth_sentinel ddummy(bm);
+    bmstatus<false>::depth_sentinel ddummy(bm);
     bm.stats.plan_smallstep("basecase", C.ttb);
     bm.stats.begin_smallstep("basecase");
-    matpoly pi = bw_lingen_basecase_raw(bm, E);
+    matpoly<false> pi = bw_lingen_basecase_raw(bm, E);
     bm.stats.end_smallstep();
-    E = matpoly();
+    E = matpoly<false>();
     return pi;
 }
 
-void test_basecase(matpoly::arith_hard * ab, unsigned int m, unsigned int n, size_t L, cxx_gmp_randstate & rstate)/*{{{*/
+void test_basecase(matpoly<false>::arith_hard * ab, unsigned int m, unsigned int n, size_t L, cxx_gmp_randstate & rstate)/*{{{*/
 {
     /* used by testing code */
-    bmstatus bm(m,n,ab->characteristic());
+    bmstatus<false> bm(m,n,ab->characteristic());
     unsigned int const t0 = iceildiv(m,n);
     bm.set_t0(t0);
-    matpoly E(ab, m, m+n, L);
+    matpoly<false> E(ab, m, m+n, L);
     E.zero_pad(L);
     E.fill_random(0, L, rstate);
     bw_lingen_basecase_raw(bm, E);

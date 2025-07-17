@@ -16,12 +16,6 @@
 #include "parallelizing_info.hpp"
 #include "subdivision.hpp"
 
-#if __cplusplus < 201703L
-/* https://stackoverflow.com/questions/8016780/undefined-reference-to-static-constexpr-char
- */
-constexpr const char * matrix_file::rowcol[2];
-#endif
-
 int matrix_file::lookup()/*{{{*/
 {
     size_t rowcol_sizes[2] = { 0, 0 };

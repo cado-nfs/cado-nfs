@@ -12,13 +12,13 @@
 #include "select_mpi.h"
 
 template <typename T>
-static typename std::enable_if<
-    std::is_trivially_copyable<typename T::mapped_type>::value, void>::type
+static void
 share(T & m, int root, MPI_Comm comm)
+    requires std::is_trivially_copyable_v<typename T::mapped_type>
 {
-    typedef typename T::key_type K;
-    typedef typename T::mapped_type M;
-    typedef std::pair<K, M> V;
+    using K = typename T::key_type;
+    using M = typename T::mapped_type;
+    using V = std::pair<K, M>;
 
     int rank;
     MPI_Comm_rank(comm, &rank);
@@ -57,7 +57,7 @@ std::istream & lingen_hints::unserialize(std::istream & is)
             mapped_type M;
             is >> M;
             M.complete = false;
-            (*this)[K] = std::move(M);
+            (*this)[K] = M;
         }
     }
     return is;

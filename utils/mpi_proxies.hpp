@@ -1,10 +1,14 @@
 #ifndef CADO_MPI_PROXIES_HPP
 #define CADO_MPI_PROXIES_HPP
 
-#include "select_mpi.h"
+#include <cstddef>
+#include <cstdint>
+
 #include <vector>
 #include <array>
 #include <type_traits>
+
+#include "select_mpi.h"
 
 /* here we have stuff that should ease mpi-sending and receiving of some
  * standard containers. We only do fairly easy stuff at the moment.
@@ -16,31 +20,31 @@
 namespace cado_mpi {
 
 template<typename T> struct type_tag {};
-template<> struct type_tag<unsigned int> { static const int value = MPI_UNSIGNED; };
+template<> struct type_tag<unsigned int> { static constexpr int value = MPI_UNSIGNED; };
 #ifndef    UNSIGNED_LONG_IS_EXACTLY_UNSIGNED
-template<> struct type_tag<unsigned long> { static const int value = MPI_UNSIGNED_LONG; };
+template<> struct type_tag<unsigned long> { static constexpr int value = MPI_UNSIGNED_LONG; };
 #endif
 #ifndef    UNSIGNED_LONG_LONG_IS_EXACTLY_UNSIGNED_LONG
-template<> struct type_tag<unsigned long long> { static const int value = MPI_UNSIGNED_LONG_LONG; };
+template<> struct type_tag<unsigned long long> { static constexpr int value = MPI_UNSIGNED_LONG_LONG; };
 #endif
 #if !defined(UINT32_T_IS_EXACTLY_UNSIGNED) && !defined(UINT32_T_IS_EXACTLY_UNSIGNED_LONG)
-template<> struct type_tag<uint32_t> { static const int value = UINT32_T; };
+template<> struct type_tag<uint32_t> { static constexpr int value = UINT32_T; };
 #endif
 #if !defined(UINT64_T_IS_EXACTLY_UNSIGNED_LONG) && !defined(UINT64_T_IS_EXACTLY_UNSIGNED_LONG_LONG)
-template<> struct type_tag<uint64_t> { static const int value = UINT64_T; };
+template<> struct type_tag<uint64_t> { static constexpr int value = UINT64_T; };
 #endif
-template<> struct type_tag<int> { static const int value = MPI_INT; };
+template<> struct type_tag<int> { static constexpr int value = MPI_INT; };
 #ifndef    LONG_IS_EXACTLY_INT
-template<> struct type_tag<long> { static const int value = MPI_LONG; };
+template<> struct type_tag<long> { static constexpr int value = MPI_LONG; };
 #endif
 #ifndef    LONG_LONG_IS_EXACTLY_LONG
-template<> struct type_tag<long long> { static const int value = MPI_LONG_LONG; };
+template<> struct type_tag<long long> { static constexpr int value = MPI_LONG_LONG; };
 #endif
 #if !defined(INT32_T_IS_EXACTLY_INT) && !defined(INT32_T_IS_EXACTLY_LONG)
-template<> struct type_tag<int32_t> { static const int value = INT32_T; };
+template<> struct type_tag<int32_t> { static constexpr int value = INT32_T; };
 #endif
 #if !defined(INT64_T_IS_EXACTLY_LONG) && !defined(INT64_T_IS_EXACTLY_LONG_LONG)
-template<> struct type_tag<int64_t> { static const int value = INT64_T; };
+template<> struct type_tag<int64_t> { static constexpr int value = INT64_T; };
 #endif
 /* we might want to add more aliases, but pay attention to the fact that
  * we must have unambiguous resolution of the template structs. See also
@@ -55,12 +59,10 @@ void send(T const & ps, int mpi_root, int tag, MPI_Comm comm);
 */
 
 template<typename T>
-typename std::enable_if<std::is_scalar<T>::value, void>::type
-recv(std::vector<T> & ps,
-        int mpi_peer,
-        int tag, MPI_Comm comm)
+void recv(std::vector<T> & ps, int mpi_peer, int tag, MPI_Comm comm)
+requires std::is_scalar_v<T>
 {
-    int mpi_type_tag = type_tag<T>::value;
+    constexpr int mpi_type_tag = type_tag<T>::value;
     MPI_Status status;
     MPI_Probe(mpi_peer, tag, comm, &status);
     int count;
@@ -73,10 +75,11 @@ recv(std::vector<T> & ps,
 }
 
 template<typename T, std::size_t N>
-typename std::enable_if<std::is_scalar<T>::value, void>::type
+void
 recv(std::vector<std::array<T, N>> & ps, int mpi_peer, int tag, MPI_Comm comm)
+requires std::is_scalar_v<T>
 {
-    int mpi_type_tag = type_tag<T>::value;
+    constexpr int mpi_type_tag = type_tag<T>::value;
     MPI_Status status;
     MPI_Probe(mpi_peer, tag, comm, &status);
     int count;
@@ -89,8 +92,9 @@ recv(std::vector<std::array<T, N>> & ps, int mpi_peer, int tag, MPI_Comm comm)
 }
 
 template<typename T>
-typename std::enable_if<std::is_scalar<T>::value, void>::type
+void
 send(std::vector<T> const & ps, int mpi_root, int tag, MPI_Comm comm)
+    requires std::is_scalar_v<T>
 {
     MPI_Send(ps.data(),
             ps.size(),
@@ -99,8 +103,9 @@ send(std::vector<T> const & ps, int mpi_root, int tag, MPI_Comm comm)
 }
 
 template<typename T, std::size_t N>
-typename std::enable_if<std::is_scalar<T>::value, void>::type
+void
 send(std::vector<std::array<T, N>> const & ps, int mpi_root, int tag, MPI_Comm comm)
+    requires std::is_scalar_v<T>
 {
     MPI_Send(ps.data(),
             N * ps.size(),
@@ -109,8 +114,9 @@ send(std::vector<std::array<T, N>> const & ps, int mpi_root, int tag, MPI_Comm c
 }
 
 template<typename T>
-typename std::enable_if<std::is_scalar<T>::value, void>::type
+void
 allgather(std::vector<T> const & in, std::vector<T> & out, MPI_Comm comm)
+    requires std::is_scalar_v<T>
 {
     int size;
     MPI_Comm_size(comm, &size);

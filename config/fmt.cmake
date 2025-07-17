@@ -116,7 +116,7 @@ int main(void)
 " HAVE_FMT)
 if(NOT HAVE_FMT)
     set(fmt_error "too old: want 9+, and 11+ for c++20")
-elseif(HAVE_CXX20)
+else()
     # We're being a bit excessive here. On debian at least, version
     # 10.1.1+ds1-1 works ok with c++20. The problem is that c++20 is
     # broken in some of the later released versions, so it's actually
@@ -141,33 +141,6 @@ if(NOT HAVE_FMT_GOOD_FOR_CXX20)
     set(fmt_error "too old: version>11.0.2 is required for c++20")
     set(HAVE_FMT "" CACHE INTERNAL "Test fmt library")
 endif()
-else()
-    # oldish fmt, no cxx20 -> we might need to create base.h by ourselves
-    find_path   (FMT_INCDIR2 fmt/base.h
-        HINTS ${FMT_INCDIR_HINTS} DOC "fmt base.h"
-        NO_DEFAULT_PATH
-        NO_SYSTEM_ENVIRONMENT_PATH
-        NO_CMAKE_PATH
-        NO_CMAKE_ENVIRONMENT_PATH
-        NO_CMAKE_SYSTEM_PATH
-        NO_CMAKE_FIND_ROOT_PATH
-    )
-    if(NOT FMT_INCDIR2)
-        find_path   (FMT_INCDIR2 fmt/base.h
-            HINTS ${FMT_INCDIR_HINTS} DOC "fmt base.h header"
-            NO_DEFAULT_PATH
-        )
-    endif()
-    if(NOT FMT_INCDIR2)
-        find_path   (FMT_INCDIR2 fmt/base.h
-            HINTS ${FMT_INCDIR_HINTS} DOC "fmt base.h header"
-        )
-    endif()
-    if(NOT FMT_INCDIR2)
-        message(STATUS "Providing fmt/base.h as a convenience to include fmt/core.h")
-        configure_file(${PROJECT_SOURCE_DIR}/config/fmtbase.h.in
-            ${PROJECT_BINARY_DIR}/fmt/base.h)
-    endif()
 endif()
 if(HAVE_FMT)
     message(STATUS "Using the fmt library found on the system")

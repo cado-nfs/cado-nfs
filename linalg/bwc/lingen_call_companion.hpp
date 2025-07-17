@@ -1,18 +1,19 @@
 #ifndef CADO_LINGEN_CALL_COMPANION_HPP
 #define CADO_LINGEN_CALL_COMPANION_HPP
 
-#include <cstddef>                       // for size_t
-#include <stdexcept>                      // for runtime_error
-#include <string>                         // for string
+#include <cstddef>
+
+#include <stdexcept>
+#include <string>
 #include <iosfwd>
 #include <istream>
 #include <array>
+
 #include "lingen_substep_schedule.hpp"
-#include "timing.h"     /* weighted_double */
+#include "timing.h"
 #include "lingen_round_operand_size.hpp"
 #include "lingen_mul_substeps_base.hpp"
 #include "fmt/ostream.h"
-#include "fmt/format.h"
 
 /* This object is passed as a companion info to a call of
  * bw_biglingen_recursive ; it is computed by the code in

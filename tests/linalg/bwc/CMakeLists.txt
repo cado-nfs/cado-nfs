@@ -622,7 +622,7 @@ add_bwc_test(mod2_m_neq_n bwc-ptrace.sh prime=2 nullspace=left random_matrix_siz
     AVOID_CONCURRENT 6
     TARGET_DEPENDENCIES mf_scan2)
 
-if(HAVE_CXX11 AND HAVE_HWLOC)
+if(HAVE_HWLOC)
     cado_define_test(test_cpubinding.cpp
         ARGUMENTS
         --cpubinding ${CMAKE_CURRENT_SOURCE_DIR}/cpubind_config_file_for_tests.conf

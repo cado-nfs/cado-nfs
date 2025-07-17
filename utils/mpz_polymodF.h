@@ -64,7 +64,6 @@ struct cxx_mpz_polymodF {
         mpz_polymodF_set(x, o.x);
         return *this;
     }
-#if __cplusplus >= 201103L
     cxx_mpz_polymodF(cxx_mpz_polymodF && o) {
         mpz_polymodF_init(x, -1);
         mpz_polymodF_swap(x, o.x);
@@ -73,7 +72,6 @@ struct cxx_mpz_polymodF {
         mpz_polymodF_swap(x, o.x);
         return *this;
     }
-#endif
     operator mpz_polymodF_ptr() { return x; }
     operator mpz_polymodF_srcptr() const { return x; }
     mpz_polymodF_ptr operator->() { return x; }

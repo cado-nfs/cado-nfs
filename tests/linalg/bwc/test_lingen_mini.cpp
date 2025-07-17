@@ -38,14 +38,15 @@ static void declare_usage(cxx_param_list & pl)
     param_list_decl_usage(pl, "v", "be verbose");
 }
 
+template<bool is_binary>
 static void do_one_lingen(std::string const & filename, cxx_param_list &pl)
 {
-    lingen_checkpoint::header_info h;
+    typename lingen_checkpoint<is_binary>::header_info h;
     if (!(std::ifstream(filename) >> h))
         throw std::runtime_error(
                 fmt::format("bad aux file for {}", filename));
 
-    bmstatus bm(h.m, h.n, h.p);
+    bmstatus<is_binary> bm(h.m, h.n, h.p);
     bm.set_t0(h.t0);
     bm.delta = h.delta;
     bm.lucky = h.lucky;
@@ -61,9 +62,9 @@ static void do_one_lingen(std::string const & filename, cxx_param_list &pl)
     bm.depth = 0;
     bm.hints = lingen_tuning(bm.d, h.ncoeffs, bm.com[0], pl);
 
-    lingen_checkpoint cp(bm, h.t0, h.t1, 0, filename);
+    lingen_checkpoint<is_binary> cp(bm, h.t0, h.t1, 0, filename);
 
-    matpoly E(&bm.d.ab, bm.d.m, bm.d.m + bm.d.n, (int) h.ncoeffs);
+    matpoly<is_binary> E(&bm.d.ab, bm.d.m, bm.d.m + bm.d.n, (int) h.ncoeffs);
     E.set_size(h.ncoeffs);
 
     // lingen checkpoints are definitely a mess, because they include
@@ -81,7 +82,7 @@ static void do_one_lingen(std::string const & filename, cxx_param_list &pl)
         fmt::print(stderr, "Warning: cannot open {}\n", cp.datafile);
         return;
     }
-    int rc = matpoly_read(&bm.d.ab, data.get(), E, 0, E.get_size(), 0, 0);
+    int rc = lingen_io_matpoly<is_binary>::read(&bm.d.ab, data.get(), E, 0, E.get_size(), 0, 0);
     if (rc != (int) E.get_size()) {
         throw std::runtime_error(fmt::format("{}: short read", filename));
         return;
@@ -91,8 +92,8 @@ static void do_one_lingen(std::string const & filename, cxx_param_list &pl)
     // do one debug print
     // matpoly_write(&bm.d.ab, std::cout, E, 0, E.get_size(), 1, 0);
 
-    if (!lingen_checkpoint::default_directory.empty()) {
-        lingen_checkpoint::threshold = 0;
+    if (!lingen_checkpoint<is_binary>::default_directory.empty()) {
+        lingen_checkpoint<is_binary>::threshold = 0;
         save_checkpoint_file(bm, LINGEN_CHECKPOINT_E, E, h.t0, h.t1);
     }
 
@@ -102,10 +103,10 @@ static void do_one_lingen(std::string const & filename, cxx_param_list &pl)
     // matpoly_write(&bm.d.ab, std::cout, pi, 0, pi.get_size(), 1, 0);
     std::ofstream fpi(filename + ".pi");
     // matpoly_write(&bm.d.ab, std::cout, pi, 0, pi.get_size(), 1, 0);
-    matpoly_write(&bm.d.ab, fpi, pi, 0, pi.get_size(), 0, 0);
+    lingen_io_matpoly<is_binary>::write(&bm.d.ab, fpi, pi, 0, pi.get_size(), 0, 0);
 
-    if (!lingen_checkpoint::default_directory.empty()) {
-        lingen_checkpoint::threshold = 0;
+    if (!lingen_checkpoint<is_binary>::default_directory.empty()) {
+        lingen_checkpoint<is_binary>::threshold = 0;
         save_checkpoint_file(bm, LINGEN_CHECKPOINT_PI, pi, h.t0, h.t1);
     }
 }
@@ -113,6 +114,13 @@ static void do_one_lingen(std::string const & filename, cxx_param_list &pl)
 
 int main(int argc, char const * argv[])
 {
+#ifdef LINGEN_BINARY
+    /* well, we don't compile lingen_mini in the binary case, it seems */
+    constexpr bool is_binary = true;
+#else
+    constexpr bool is_binary = false;
+#endif
+
     bw_common_init(bw, &argc, &argv);
 
     cxx_param_list pl;
@@ -122,7 +130,7 @@ int main(int argc, char const * argv[])
 
     declare_usage(pl);
     lingen_tuning_decl_usage(pl);
-    lingen_checkpoint::decl_usage(pl);
+    lingen_checkpoint<is_binary>::decl_usage(pl);
 
     param_list_configure_switch(pl, "-v", &verbose);
 
@@ -144,7 +152,7 @@ int main(int argc, char const * argv[])
     }
 
     lingen_tuning_lookup_parameters(pl);
-    lingen_checkpoint::interpret_parameters(pl);
+    lingen_checkpoint<is_binary>::interpret_parameters(pl);
 
     if (param_list_warn_unused(pl)) {
         param_list_print_usage(pl, argv0, stderr);
@@ -152,7 +160,7 @@ int main(int argc, char const * argv[])
     }
 
     for(auto const & E : E_files) {
-        do_one_lingen(E, pl);
+        do_one_lingen<is_binary>(E, pl);
     }
 
     bw_common_clear(bw);

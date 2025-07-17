@@ -8,23 +8,19 @@
 
 #include "cado.h" // IWYU pragma: keep
 
-// IWYU pragma: no_include <sys/param.h>
-// IWYU pragma: no_include <ext/alloc_traits.h>
-// IWYU pragma: no_include <memory>
-
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <climits>                  // for UINT_MAX
+#include <climits>
 
 
-#include <iostream>     // std::cout // IWYU pragma: keep
-#include <fstream>      // std::ifstream // IWYU pragma: keep
+#include <iostream>
+#include <fstream>
 #include <vector>
-#include <stdexcept>                 // for runtime_error
-#include <string>                    // for string, operator+, basic_string
-#include <tuple>                     // for tie, tuple
-#include <utility>                   // for pair, move
+#include <stdexcept>
+#include <string>
+#include <tuple>
+#include <utility>
 
 #include <unistd.h>
 #include <gmp.h>
@@ -33,12 +29,11 @@
 #include "gmp_aux.h"
 #include "cxx_mpz.hpp"
 #include "gmp-hacks.h"
-#include "arith-hard.hpp"        // for mpfq_p_1_field_specify, MPFQ_PRI...
 #include "lingen_bmstatus.hpp"
 #include "lingen_checkpoints.hpp"
-#include "lingen_hints.hpp"  // for lingen_hints
+#include "lingen_hints.hpp"
 #include "macros.h"
-#include "omp_proxy.h" // IWYU pragma: keep
+#include "omp_proxy.h"
 #include "params.h"
 #include "select_mpi.h"
 #include "subdivision.hpp"
@@ -309,12 +304,13 @@ fill_random(std::vector<cxx_mpz>& u)
         mpz_urandomm_nz(a, state, prime);
 }
 
-lingen_checkpoint::header_info read_cp_aux(std::string const& prefix)
+template<bool is_binary>
+typename lingen_checkpoint<is_binary>::header_info read_cp_aux(std::string const& prefix)
 {
     auto filename = prefix + ".aux";
-    lingen_checkpoint::header_info h;
+    typename lingen_checkpoint<is_binary>::header_info h;
     if (!(std::ifstream(filename) >> h))
-        throw lingen_checkpoint::invalid_aux_file(fmt::format(
+        throw typename lingen_checkpoint<is_binary>::invalid_aux_file(fmt::format(
                     "Reading header from {} failed", filename));
     return h;
 }
@@ -322,13 +318,14 @@ lingen_checkpoint::header_info read_cp_aux(std::string const& prefix)
 /* read a matrix of dimension n, divided into kxk submatrices.
  * return the evaluation of the matrix polynomial at x.
  * */
+template<bool is_binary>
 static matrix
 read_matrix(std::string const & s,
             unsigned long nrows,
             unsigned long ncols,
             cxx_mpz const& x)
 {
-    auto const cp = read_cp_aux(s);
+    auto const cp = read_cp_aux<is_binary>(s);
     unsigned long const deg = cp.ncoeffs - 1;
     matrix M(nrows, ncols);
     matrix_reader R(nrows, ncols, deg, s, false);
@@ -443,6 +440,7 @@ declare_usage(cxx_param_list& pl)
                 "load checkpoints from this directory");
 }
 
+template<bool is_binary>
 static int
 do_check_pi(std::string const & pi_left_filename,
             std::string const & pi_right_filename,
@@ -464,7 +462,7 @@ do_check_pi(std::string const & pi_left_filename,
     if (verbose)
         fmt::print("x={}\n", x);
 
-    auto const cp = read_cp_aux(pi_filename);
+    auto const cp = read_cp_aux<is_binary>(pi_filename);
 
     std::string const check_name =
       fmt::format("check (seed={}, depth {}, t={}, pi_left*pi_right=pi)",
@@ -479,17 +477,17 @@ do_check_pi(std::string const & pi_left_filename,
     /* we used to have omp sections here. It feels wrong.  */
     {
         {
-            matrix const Mab = read_matrix(pi_left_filename, nrows, ncols, x);
+            matrix const Mab = read_matrix<is_binary>(pi_left_filename, nrows, ncols, x);
             mul_left(u_times_piab, u, Mab);
         }
 
         {
-            matrix const Mbc = read_matrix(pi_right_filename, nrows, ncols, x);
+            matrix const Mbc = read_matrix<is_binary>(pi_right_filename, nrows, ncols, x);
             mul_right(pibc_times_v, Mbc, v);
         }
 
         {
-            matrix const Mac = read_matrix(pi_filename, nrows, ncols, x);
+            matrix const Mac = read_matrix<is_binary>(pi_filename, nrows, ncols, x);
             mul_right(piac_times_v, Mac, v);
         }
     }
@@ -511,6 +509,7 @@ do_check_pi(std::string const & pi_left_filename,
 }
 
 /* check that E*pi = O(x^length(E)) at a given level. */
+template<bool is_binary>
 static int
 do_check_E_short(std::string const& E_filename, std::string const& pi_filename)
 {
@@ -531,7 +530,7 @@ do_check_E_short(std::string const& E_filename, std::string const& pi_filename)
     /* Note that all the useful info is in the aux file for pi, really.
      * The one for E is stored at t0, and is not really useful.
      */
-    auto const cp = read_cp_aux(pi_filename);
+    auto const cp = read_cp_aux<is_binary>(pi_filename);
 
     unsigned long const deg_pi = cp.ncoeffs - 1;
     unsigned long const t = cp.t;
@@ -613,13 +612,14 @@ do_check_E_short(std::string const& E_filename, std::string const& pi_filename)
     return ret;
 }
 
+template<bool is_binary>
 static int sanity_check(std::string const & filename)
 {
-    auto const cp = read_cp_aux(filename);
-    bmstatus bm(bw_parameters.m,bw_parameters.n, prime);
+    auto const cp = read_cp_aux<is_binary>(filename);
+    bmstatus<is_binary> bm(bw_parameters.m,bw_parameters.n, prime);
     bm.set_t0(cp.t0);
     bm.hints= hints;
-    lingen_checkpoint lcp(bm, cp.t0, cp.t1, mpi_k > 1, filename);
+    lingen_checkpoint<is_binary> lcp(bm, cp.t0, cp.t1, mpi_k > 1, filename);
     size_t Xsize;
     try {
         if (!lcp.load_aux_file(Xsize)) {
@@ -631,12 +631,50 @@ static int sanity_check(std::string const & filename)
         fmt::print(stderr, "scattered datafile {}: {}\n", lcp.sdatafile, sdata_ok ? "ok" : "not found");
         fmt::print(stderr, "gathered datafile {}: {}\n", lcp.gdatafile, gdata_ok ? "ok" : "not found");
         return sdata_ok || gdata_ok;
-    } catch (lingen_checkpoint::invalid_aux_file const & inv) {
+    } catch (typename lingen_checkpoint<is_binary>::invalid_aux_file const & inv) {
         fmt::print(stderr, "Invalid checkpoint aux file {} [{}]\n",
                 lcp.auxfile, inv.what());
         return false;
     }
 }
+
+template<bool is_binary>
+static int all_tests(cxx_param_list & pl,
+        std::vector<std::pair<const char **, int> > const & todo,
+        std::string const & cpdir)
+{
+    const char * tmp;
+    int ret = 0;
+    /* it doesn't seem to make sense to compare
+     *      MP(E_{level,t0}, pi_{level+1,t0,t}) and E_{level+1,t}
+     * ? This is covered by the test of the short product
+     *      E_{level,t0} * pi_{level,t0}
+     * since we can validate the fact that pi_{level,t0} is the
+     * product of the two pi matrices at the level below, and that
+     * the short product E_{level+1,t0}*pi_{level+1,t0} is also zero.
+     */
+    if ((tmp = param_list_lookup_string(pl, "sanity-check")) != NULL) {
+        ret = sanity_check<is_binary>(tmp);
+    } else {
+        for(auto const & x : todo) {
+            const char ** argv = x.first;
+            int argc = x.second;
+            if (argc == 3) {
+                ret = do_check_pi<is_binary>(
+                        cpdir + argv[0],
+                        cpdir + argv[1],
+                        cpdir + argv[2]);
+            } else if (argc == 2) {
+                ret = do_check_E_short<is_binary>(
+                        cpdir + argv[0],
+                        cpdir + argv[1]);
+            }
+            if (!ret) break;
+        }
+    }
+    return ret;
+}
+
 
 // coverity[root_function]
 int main(int argc, char const * argv[])
@@ -735,35 +773,13 @@ int main(int argc, char const * argv[])
 
     lingen_p = mpz_size(prime);
 
-    int ret = 0;
+#ifdef LINGEN_BINARY
+    constexpr bool is_binary = true;
+#else
+    constexpr bool is_binary = false;
+#endif
 
-    /* it doesn't seem to make sense to compare
-     *      MP(E_{level,t0}, pi_{level+1,t0,t}) and E_{level+1,t}
-     * ? This is covered by the test of the short product
-     *      E_{level,t0} * pi_{level,t0}
-     * since we can validate the fact that pi_{level,t0} is the
-     * product of the two pi matrices at the level below, and that
-     * the short product E_{level+1,t0}*pi_{level+1,t0} is also zero.
-     */
-    if ((tmp = param_list_lookup_string(pl, "sanity-check")) != NULL) {
-        ret = sanity_check(tmp);
-    } else {
-        for(auto const & x : todo) {
-            argv = x.first;
-            argc = x.second;
-            if (argc == 3) {
-                ret = do_check_pi(
-                        cpdir + argv[0],
-                        cpdir + argv[1],
-                        cpdir + argv[2]);
-            } else if (argc == 2) {
-                ret = do_check_E_short(
-                        cpdir + argv[0],
-                        cpdir + argv[1]);
-            }
-            if (!ret) break;
-        }
-    }
+    int ret = all_tests<is_binary>(pl, todo, cpdir);
 
     MPI_Finalize();
 

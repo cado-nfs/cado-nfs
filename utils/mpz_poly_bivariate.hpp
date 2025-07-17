@@ -37,8 +37,8 @@
 
 class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
 {
-    typedef std::vector<cxx_mpz_poly> super;
-    typedef cxx_mpz_poly_bivariate self;
+    using super = std::vector<cxx_mpz_poly>;
+    using self = cxx_mpz_poly_bivariate;
 
   public:
     cxx_mpz_poly_bivariate() {}
@@ -75,10 +75,8 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
     self & operator=(self const & o) = default;
     cxx_mpz_poly_bivariate(self const &) = default;
     ~cxx_mpz_poly_bivariate() = default;
-#if __cplusplus >= 201103L
     cxx_mpz_poly_bivariate(self && o) = default;
     cxx_mpz_poly_bivariate & operator=(self && o) = default;
-#endif
 #if 0
     private:
     /* non-const accesses have the potential to ruin the consistency. So
@@ -109,8 +107,9 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
   public:
     /* setcoeffs from an array ? Do we need that ? */
 
-    template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0>
+    template <typename T>
     self & operator=(T c)
+    requires std::is_integral_v<T>
     {
         assign(1, cxx_mpz_poly(c));
         cleandeg(0);
@@ -167,37 +166,38 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
      */
     self & operator=(mpz_poly_srcptr c) { return *this = lifted_x(c); }
 
-    template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0>
-    inline cxx_mpz_poly_bivariate(T c)
+    template <typename T>
+    cxx_mpz_poly_bivariate(T c)
+    requires std::is_integral_v<T>
     {
         *this = c;
     }
-    inline cxx_mpz_poly_bivariate(mpz_srcptr c) { *this = c; }
-    inline cxx_mpz_poly_bivariate(lifted_x const & c) { *this = c; }
-    inline cxx_mpz_poly_bivariate(lifted_y const & c) { *this = c; }
-    inline cxx_mpz_poly_bivariate(mpz_poly_srcptr c) { *this = c; }
+    cxx_mpz_poly_bivariate(mpz_srcptr c) { *this = c; }
+    cxx_mpz_poly_bivariate(lifted_x const & c) { *this = c; }
+    cxx_mpz_poly_bivariate(lifted_y const & c) { *this = c; }
+    cxx_mpz_poly_bivariate(mpz_poly_srcptr c) { *this = c; }
 
     template <typename T> class named_proxy
     {
-        static_assert(std::is_reference<T>::value, "T must be a reference");
-        typedef typename std::remove_reference<T>::type V;
-        typedef typename std::remove_const<V>::type Vnc;
-        typedef named_proxy<Vnc &> nc;
-        static constexpr bool const is_c = std::is_const<V>::value;
+        static_assert(std::is_reference_v<T>, "T must be a reference");
+        using V = std::remove_reference_t<T>;
+        using Vnc = std::remove_const_t<V>;
+        using nc = named_proxy<Vnc &>;
+        static constexpr bool const is_c = std::is_const_v<V>;
 
       public:
         T c;
         std::string x;
         std::string y;
-        named_proxy(T c, std::string const & x, std::string const & y)
+        named_proxy(T c, std::string x, std::string y)
             : c(c)
-            , x(x)
-            , y(y)
+            , x(std::move(x))
+            , y(std::move(y))
         {
         }
-        template <typename U = T, typename = typename std::enable_if<
-                                      std::is_same<U, nc>::value>::type>
+        template <typename U = T>
         named_proxy(U const & c)
+        requires std::is_same_v<U, nc>
             : c(c.c)
             , x(c.x)
             , y(c.y)
@@ -207,12 +207,12 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
 
     named_proxy<self &> named(std::string const & x, std::string const & y)
     {
-        return named_proxy<self &>(*this, x, y);
+        return { *this, x, y };
     }
     named_proxy<self const &> named(std::string const & x,
                                     std::string const & y) const
     {
-        return named_proxy<self const &>(*this, x, y);
+        return { *this, x, y };
     }
 
     static self yi(unsigned int i)
@@ -223,8 +223,7 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
 
     self & set_yi(unsigned int i)
     {
-        cxx_mpz_poly a;
-        super::assign(i + 1, a);
+        super::assign(i + 1, {});
         mpz_poly_set_xi(back(), 0);
         return *this;
     }
@@ -237,8 +236,7 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
 
     self & set_xi(unsigned int i)
     {
-        cxx_mpz_poly a;
-        super::assign(1, a);
+        super::assign(1, {});
         mpz_poly_set_xi(back(), i);
         return *this;
     }
@@ -281,8 +279,8 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
         return 0;
     }
 
-    inline bool operator<(self const & o) const { return cmp(o) < 0; }
-    inline bool operator==(self const & o) const { return cmp(o) == 0; }
+    bool operator<(self const & o) const { return cmp(o) < 0; }
+    bool operator==(self const & o) const { return cmp(o) == 0; }
 
     /* We don't have any operator overloads, on purpose. No reason to
      * have this one specifically
