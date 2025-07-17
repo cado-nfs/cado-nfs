@@ -92,7 +92,6 @@ class matpoly_binary_printer(generic_matrix):
         n = self.n
         W = int(self.val['alloc_words'])
         xij = self.val['x'] + (i * n + j) * W
-        s = int(self.val['size'])   # in bits
         # read just one integer, and interpret it as a polynomial
         z = integers.limbs_printer(self.match, xij, W)
         return f"0x{z.to_int():x}"

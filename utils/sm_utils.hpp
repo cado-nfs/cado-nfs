@@ -58,10 +58,13 @@
 #include <vector>
 #include <array>
 
+#include <gmp.h>
+
 #include "mpz_poly.h"
 #include "mpz_mat.h"
 #include "cxx_mpz.hpp"
 #include "runtime_numeric_cast.hpp"
+#include "numbertheory.hpp"
 
 enum sm_mode {
     SM_MODE_LEGACY_PRE2018 = 1,
@@ -71,9 +74,6 @@ enum sm_mode {
 };
 
 struct sm_side_info {
-    int unit_rank;
-    int nsm; /* number of SMs that are going to be computed. By default, is
-                equal to unitrank but can be modified by the user. */
     cxx_mpz ell, ell2, ell3;
     cxx_mpz_poly f0;
     cxx_mpz_poly f;       /* monic */
@@ -97,28 +97,44 @@ struct sm_side_info {
     std::vector<one_ideal> ideals;
 #endif
 
+    number_field K;
+
     /* ell-maximal order O, and O-ideals above ell. M is the
      * multiplication table of O. We don't accept the case where ell
      * ramifies, so we don't need to store the ramification index. On the
      * other hand, a uniformizing element is stored for each ideal, with
      * respect to the polynomial basis.
      */
-    cxx_mpq_mat O;
-    cxx_mpz_mat M;
 
+    number_field_order O;
+
+    int unit_rank;
+    int nsm; /* number of SMs that are going to be computed. By default, is
+                equal to unitrank but can be modified by the user. */
     struct piece {
         cxx_mpz_poly g;
         int m;
         bool is_used;
         cxx_mpz exponent;
-        cxx_mpz_mat a;  /* valuation helper with respect to the order */
-        cxx_mpq_mat uniformizer;        /* as a polynomial in alpha */
-        piece(cxx_mpz_poly const & g, const int & m, bool is_used, int exponent)
-            : g(g)
+        number_field_prime_ideal fkp;   /* prime ideal (stores a valuation helper) */
+        piece(cxx_mpz_poly g,
+                int m,
+                bool is_used,
+                cxx_mpz exponent,
+                number_field_prime_ideal fkp)
+            : g(std::move(g))
             , m(m)
             , is_used(is_used)
-            , exponent(exponent)
+            , exponent(std::move(exponent))
+            , fkp(std::move(fkp))
         {}
+
+        private:
+        cxx_mpz_poly sm0(number_field_element const &, sm_side_info const &) const;
+        mutable std::unique_ptr<cxx_mpz_poly> cached_sm_of_valuation_helper;   // SM(a)
+        cxx_mpz_poly const & sm_of_valuation_helper(sm_side_info const &) const;
+        public:
+        cxx_mpz_poly sm(number_field_element, sm_side_info const &) const;
     };
 
     std::vector<piece> pieces;

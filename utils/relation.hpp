@@ -50,6 +50,8 @@ struct relation_ab {
         T const them { o.az, o.bz, o.active_sides[0], o.active_sides[1] };
         return me < them;
     }
+    friend std::istream& operator>>(std::istream&, relation_ab&);
+    friend std::ostream& operator<<(std::ostream&, relation_ab const &);
 };
 
 struct relation : public relation_ab {
@@ -116,8 +118,12 @@ struct relation : public relation_ab {
 extern std::istream& operator>>(std::istream&, relation&);
 extern std::ostream& operator<<(std::ostream&, relation const &);
 
+extern std::istream& operator>>(std::istream&, relation_ab&);
+extern std::ostream& operator<<(std::ostream&, relation_ab const &);
+
 namespace fmt {
     template <> struct formatter<relation>: ostream_formatter {};
+    template <> struct formatter<relation_ab>: ostream_formatter {};
 }
 
 #endif	/* CADO_RELATION_HPP */

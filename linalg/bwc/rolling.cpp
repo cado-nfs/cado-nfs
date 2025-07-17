@@ -9,6 +9,7 @@
 #include <sstream>
 #include <algorithm>
 #include <string>
+#include <vector>
 
 #include <unistd.h>
 #include <sys/stat.h>
@@ -22,7 +23,7 @@
 #include "bw-common.h"
 #include "macros.h"
 #include "portability.h"
-#include "istream_matcher.hpp"
+#include "utils_cxx.hpp"
 
 void keep_rolling_checkpoints(std::string const & stem, unsigned int v)
 {
@@ -35,8 +36,7 @@ void keep_rolling_checkpoints(std::string const & stem, unsigned int v)
     for(struct dirent * de; (de = readdir(d)) != NULL ; ) {
         unsigned int k;
         std::istringstream is(de->d_name);
-        istream_matcher m(is);
-        if (!(m >> stem >> "." >> k))
+        if (!(is >> expect(stem) >> expect(".") >> k))
             continue;
         if (v && k > v)
             continue;
@@ -65,7 +65,7 @@ void keep_rolling_checkpoints(std::string const & stem, unsigned int v)
             }
         } else {
             ASSERT_ALWAYS(rc == 0);
-            time_t const now = time(NULL);
+            time_t const now = time(nullptr);
             int age = now - sbuf->st_mtime;
             if (age < bw->keep_checkpoints_younger_than) {
                 fmt::print("Not discarding old checkpoint {}, too recent ({} s < {})\n", oldcp, age, bw->keep_checkpoints_younger_than);

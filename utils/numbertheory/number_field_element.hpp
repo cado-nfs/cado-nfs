@@ -11,12 +11,13 @@ class number_field_element {
     friend struct fmt::formatter<number_field_element>;
     friend class number_field_fractional_ideal;
     friend class number_field_order_element;
+    friend class number_field_order;
     friend class number_field;
     friend struct fmt::formatter<number_field_element>;
     class number_field const & K;
     cxx_mpq_mat coefficients;
     public:
-    inline class number_field const & number_field() const { return K; }
+    class number_field const & number_field() const { return K; }
     /* construct the element a(alpha), where alpha is the root of
      * K.defining_polynomial()
      */
@@ -54,20 +55,16 @@ class number_field_element {
 
     number_field_element operator*(number_field_element const &) const;
 
+    number_field_element operator*(cxx_mpz const &) const;
+    number_field_element operator/(cxx_mpz const &) const;
+
     /* copy and move ctors and assignment operators are straightforward.
      * Note that there is no such thing as assigning an element to become
      * an element of a different number field, since we can't reseat the
      * reference.
      */
-    number_field_element(number_field_element const & a)
-        : K(a.K)
-        , coefficients(a.coefficients)
-    {}
-
-    number_field_element(number_field_element && a)
-        : K(a.K)
-        , coefficients(a.coefficients)
-    {}
+    number_field_element(number_field_element const & a) = default;
+    number_field_element(number_field_element && a) noexcept = default;
 
     number_field_element& operator=(number_field_element const & a)
     {

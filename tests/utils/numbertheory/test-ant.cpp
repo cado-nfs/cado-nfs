@@ -29,17 +29,7 @@
 #include "params.h"
 #include "portability.h"
 #include "timing.h"
-
-using numbertheory_internals::p_maximal_order;
-using numbertheory_internals::write_element_as_polynomial;
-using numbertheory_internals::valuation_of_ideal_at_prime_ideal;
-using numbertheory_internals::ideal_comparator;
-using numbertheory_internals::generate_ideal;
-using numbertheory_internals::multiplication_table_of_order;
-using numbertheory_internals::factorization_of_prime;
-using numbertheory_internals::valuation_helper_for_ideal;
-using numbertheory_internals::prime_ideal_inertia_degree;
-using numbertheory_internals::prime_ideal_two_element;
+#include "utils_cxx.hpp"
 
 static const char ** original_argv;
 
@@ -51,7 +41,8 @@ static void decl_usage(cxx_param_list & pl)/*{{{*/
     param_list_decl_usage(pl, "out", "output file");
     param_list_decl_usage(pl, "batch", "batch input file with test vectors and expected results");
     param_list_decl_usage(pl, "seed", "seed used for random picks");
-    param_list_decl_usage(pl, "elements", "ideal generators (separated by ;)");
+    param_list_decl_usage(pl, "elements", "(valuations-of-ideal) ideal generators (comma-separated list of polynomials in x)");
+    param_list_decl_usage(pl, "bound", "(maximal-order) prime limit");
 }/*}}}*/
 
 static void usage(cxx_param_list & pl, char const ** argv, const char * msg = nullptr)/*{{{*/
@@ -70,57 +61,21 @@ static int do_p_maximal_order(cxx_param_list & pl) /*{{{*/
 
     std::string polystr;
     if (!param_list_parse(pl, "poly", polystr)) usage(pl, original_argv, "missing poly argument");
-    cxx_mpz_poly const f(polystr);
 
-    cxx_mpq_mat M = p_maximal_order(f, p);
-    cxx_mpz D;
-    cxx_mpz_mat A;
-    mpq_mat_numden(A, D, M);
-    std::cout << "1/" << D << "*\n" << A << "\n";
+    cxx_mpz_poly const f(polystr);
+    number_field K(f);
+    number_field_order O = K.p_maximal_order(p);
+    K.bless("K", "alpha");
+    O.bless(fmt::format("O{}", p));
+
+    fmt::print("ZP.<x> = ZZ[]\n");
+    fmt::print("{}.<{}>={:S}\n", K.name, K.varname, K);
+    fmt::print("{} = {:S}\n", O.name, O);
+    fmt::print("assert {}.is_maximal({})\n", O.name, p);
 
     return 1;
 }
 /*}}}*/
-
-static bool sl_equivalent_matrices(cxx_mpq_mat const& M, cxx_mpq_mat const& A, cxx_mpz const& p)/*{{{*/
-{
-    /* This is over SL_n(Z_p) */
-    if (M->m != A->m) return false;
-    if (M->n != A->n) return false;
-    cxx_mpq_mat Mi;
-    mpq_mat_inv(Mi, M);
-    cxx_mpq_mat AMi;
-    mpq_mat_mul(AMi, A, Mi);
-    /* check that the p-valuation is zero */
-    for(unsigned int i = 0 ; i < AMi->m ; i++) {
-        for(unsigned int j = 0 ; j < AMi->n ; j++) {
-            mpq_srcptr mij = mpq_mat_entry_const(AMi, i, j);
-            if (mpz_divisible_p(mpq_denref(mij), p)) return false;
-        }
-    }
-    return true;
-}/*}}}*/
-
-#if 0
-bool sl_equivalent_matrices(cxx_mpq_mat const& M, cxx_mpq_mat const& A)/*{{{*/
-{
-    /* unimplemented for the moment, since unneeded.  We would compute
-     * A*M^-1, and see whether we have a denominator. */
-    if (M->m != A->m) return false;
-    if (M->n != A->n) return false;
-    cxx_mpq_mat Mi;
-    mpq_mat_inv(Mi, M);
-    cxx_mpq_mat AMi;
-    mpq_mat_mul(AMi, A, Mi);
-    for(unsigned int i = 0 ; i < AMi->m ; i++) {
-        for(unsigned int j = 0 ; j < AMi->n ; j++) {
-            mpq_srcptr mij = mpq_mat_entry_const(AMi, i, j);
-            if (mpz_cmp_ui(mpq_denref(mij), 1) != 0) return false;
-        }
-    }
-    return true;
-}/*}}}*/
-#endif
 
 static cxx_mpq_mat batch_read_order_basis(std::istream & in, unsigned int n)/*{{{*/
 {
@@ -142,9 +97,11 @@ static cxx_mpq_mat batch_read_order_basis(std::istream & in, unsigned int n)/*{{
     return O;
 }/*}}}*/
 
-static std::vector<std::pair<cxx_mpz_mat, int> > batch_read_prime_factorization(std::istream & in, unsigned int n, cxx_mpz const& p, cxx_mpq_mat const& O, cxx_mpz_mat const& M)/*{{{*/
+static std::vector<number_field_prime_ideal> batch_read_prime_factorization(std::istream & in, number_field_order const & O, cxx_mpz const & p) /*{{{*/
 {
-    std::vector<std::pair<cxx_mpz_mat, int> > ideals;
+    number_field const & K(O.number_field());
+
+    std::vector<number_field_prime_ideal> ideals;
     std::string keyword;
     if (!(in >> keyword) || keyword != "ideals")
         throw std::invalid_argument("Parse error");
@@ -153,26 +110,28 @@ static std::vector<std::pair<cxx_mpz_mat, int> > batch_read_prime_factorization(
     if (!(in >> nideals))
         throw std::invalid_argument("Parse error");
     for(unsigned int k = 0 ; k < nideals ; k++) {
-        cxx_mpq_mat A(2, n);
+        std::vector<number_field_element> gens;
+        gens.push_back(K(p));
         cxx_mpz den;
         int e;
-        mpq_set_z(mpq_mat_entry(A,0,0),p);
         if (!(in >> den))
             throw std::invalid_argument("Parse error");
+        cxx_mpq_mat A(1, K.degree());
         for(unsigned int j = 0 ; j < A->n ; j++) {
             cxx_mpz num;
             if (!(in >> num))
                 throw std::invalid_argument("Parse error");
-            mpq_ptr aa = mpq_mat_entry(A, 1, j);
+            mpq_ptr aa = mpq_mat_entry(A, 0, j);
             mpz_set(mpq_numref(aa), num);
             mpz_set(mpq_denref(aa), den);
             mpq_canonicalize(aa);
         }
+        gens.push_back(K(A));
         if (!(in >> e))
             throw std::invalid_argument("Parse error");
-        std::pair<cxx_mpz_mat, cxx_mpz> Id = generate_ideal(O,M,A);
-        ASSERT_ALWAYS(mpz_cmp_ui(Id.second, 1) == 0);
-        ideals.emplace_back(Id.first,e);
+        auto I = O.fractional_ideal(gens);
+        ASSERT_ALWAYS(I.is_integral());
+        ideals.emplace_back(I, p, e);
     }
     return ideals;
 }/*}}}*/
@@ -209,10 +168,10 @@ static int do_p_maximal_order_batch(cxx_param_list & pl) /*{{{*/
         if (!(is1 >> p))
             throw std::invalid_argument(exc);
 
-        cxx_mpq_mat const O = batch_read_order_basis(is1, f->deg);
-        cxx_mpq_mat const my_O = p_maximal_order(f, p);
-
-        bool const ok = sl_equivalent_matrices(O, my_O, p);
+        number_field const K(f);
+        number_field_order const O(K, batch_read_order_basis(is1, f->deg));
+        number_field_order const my_O = K.p_maximal_order(p);
+        bool const ok = O.equal_mod(my_O, p);
 
         std::cout << ok_NOK(ok) << " test " << test
             << " (degree " << f->deg << ", p=" << p << ")"
@@ -238,6 +197,7 @@ static int do_factorization_of_prime(cxx_param_list & pl) /*{{{*/
     cxx_mpz_poly const f(polystr);
 
     number_field K(f);
+    fmt::print("ZP.<x> = ZZ[]\n");
     K.bless("K", "alpha");
     number_field_order O = K.p_maximal_order(p);
     O.bless(fmt::format("O{}", p));
@@ -247,17 +207,17 @@ static int do_factorization_of_prime(cxx_param_list & pl) /*{{{*/
     if (param_list_parse_ulong(pl, "seed", &seed)) {
         gmp_randseed_ui(state, seed);
     }
-    fmt::print("{}.<{}lpha>={:S}\n", K.name, K.varname, K);
+    fmt::print("{}.<{}>={:S}\n", K.name, K.varname, K);
     fmt::print("{}={:S}\n", O.name, O);
     auto F = O.factor(p, state);
 
     // number_field_fractional_ideal I = O.fractional_ideal({K(11)});
 
     fmt::print("assert {}.fractional_ideal({}) == prod([\n", O.name, p);
-    for(auto const & fe : F) {
-        fmt::print("\t{}", fe.first);
-        if (fe.second > 1)
-            fmt::print("^{}", fe.second);
+    for(auto const & [f, e] : F) {
+        fmt::print("\t{}", f);
+        if (e > 1)
+            fmt::print("^{}", e);
         fmt::print(",\n");
     }
     fmt::print("])\n");
@@ -294,17 +254,17 @@ static int do_factorization_of_prime_batch(cxx_param_list & pl) /*{{{*/
         cxx_mpz p;
         if (!(is1 >> p)) throw std::invalid_argument(exc);
 
-        cxx_mpq_mat const O = batch_read_order_basis(is1, f->deg);
-        cxx_mpz_mat const M = multiplication_table_of_order(O, f);
+        number_field const K(f);
 
-        std::vector<std::pair<cxx_mpz_mat, int> > ideals = batch_read_prime_factorization(is1, f->deg, p, O, M);
+        number_field_order const O(K, batch_read_order_basis(is1, f->deg));
 
-        cxx_mpq_mat const my_O = p_maximal_order(f, p);
+        std::vector<number_field_prime_ideal> ideals = batch_read_prime_factorization(is1, O, p);
 
-        bool ok = sl_equivalent_matrices(O, my_O, p);
+        number_field_order const my_O = K.p_maximal_order(p);
 
-        gmp_randstate_t state;
-        gmp_randinit_default(state);
+        bool ok = O.equal_mod(my_O, p);
+
+        cxx_gmp_randstate state;
         unsigned long seed = 0;
         if (param_list_parse_ulong(pl, "seed", &seed)) {
             gmp_randseed_ui(state, seed);
@@ -313,14 +273,13 @@ static int do_factorization_of_prime_batch(cxx_param_list & pl) /*{{{*/
         /* What if we simply ask our code to compute the factorization of
          * p with respect to the order basis which was chosen by magma ?
          * */
-        std::vector<std::pair<cxx_mpz_mat, int> > my_ideals = factorization_of_prime(O, f, p, state);
-        gmp_randclear(state);
+        auto my_ideals = O.factor(p, state);
 
         // sort magma ideals. Ours are sorted already.
-        sort(ideals.begin(), ideals.end(), ideal_comparator());
+        std::sort(ideals.begin(), ideals.end());
         ok = ok && (ideals.size() == my_ideals.size());
         for(unsigned int k = 0 ; ok && k < ideals.size() ; k++) {
-            ok = (ideals[k] == my_ideals[k]);
+            ok = (ideals[k] == my_ideals[k].first);
         }
         std::cout << ok_NOK(ok) << " test " << test
             << " (degree " << f->deg << ", p=" << p << ")"
@@ -349,107 +308,48 @@ static int do_valuations_of_ideal(cxx_param_list & pl) /*{{{*/
     /* Now read the element description */
     std::vector<cxx_mpz_poly> elements; 
     {
-        std::string tmp;
-        if (!param_list_parse(pl, "elements", tmp))
-            usage(pl, original_argv, "missing ideal generators");
-        for( ; !tmp.empty() ; ) {
-            auto nq = tmp.find(';');
-            auto desc = tmp;
-            if (nq != std::string::npos) {
-                desc = tmp.substr(0, nq);
-                tmp = tmp.substr(nq + 1);
-            } else {
-                tmp.clear();
-            }
-            std::istringstream is(desc);
-            cxx_mpz_poly x;
-            if (!(is >> x)) usage(pl, original_argv, "cannot parse ideal generators");
-            elements.push_back(x);
-        }
+        auto tmp = param_list_parse_mandatory<std::string>(pl, "elements");
+
+        for(auto const & desc : split(tmp, ","))
+            elements.emplace_back(desc);
     }
 
+    number_field K(f);
+    number_field_order O = K.p_maximal_order(p);
 
-    cxx_mpq_mat O = p_maximal_order(f, p);
-    cxx_mpz_mat const M = multiplication_table_of_order(O, f);
+    K.bless("K", "alpha");
+    O.bless(fmt::format("O{}", p));
 
-    /* We need to reduce our generating elements modulo f, at the expense
-     * of creating denominators all over the place.
-     *
-     * Note that we are *not* changing conventions at all.
-     *
-     * We start with something in the basis [alpha^i]. We rewrite it in
-     * the basis [alpha_hat^i]. We reduce modulo f_hat, which is monic.
-     * And then we rewrite that back to the basis [alpha^i].
-     */
-    std::pair<cxx_mpz_mat, cxx_mpz> Id;
-    {
-        cxx_mpq_mat generators(elements.size(), f->deg);
-        cxx_mpz_poly fh;
-        mpz_poly_to_monic(fh, f);
-        for(unsigned int i = 0 ; i < elements.size() ; i++) {
-            cxx_mpz_poly& e(elements[i]);
-            /* e is e0+e1*x+e2*x^2+...
-             * f(alpha) is zero.
-             * let y = lc(f)*alpha
-             * g is monic, and g(y) = 0.
-             * e(alpha) is also e'(lc*alpha), with
-             * lc(f)^deg(e)*e'(y) = e0*lc^deg_e + e1*lc^(deg_e-1)*x + ...
-             * e' can be reduced mod fh.
-             * now we need to compute ([y^i]e')*lc^i / lc^deg_e.
-             */
-            cxx_mpz denom, c;
-            mpz_set_ui(denom, 1);
-            mpz_set_ui(c, 1);
-            for(int k = e->deg ; k-- ; ) {
-                mpz_mul(denom, denom, mpz_poly_lc(f));
-                mpz_mul(mpz_poly_coeff(e, k), mpz_poly_coeff_const(e, k), denom);
-            }
-            mpz_poly_div_r(e, e, fh);
-            for(int k = 0 ; k <= e->deg ; k++) {
-                mpz_mul(mpz_poly_coeff(e, k), mpz_poly_coeff_const(e, k), c);
-                mpz_mul(c, c, mpz_poly_lc(f));
-                mpq_ptr gik = mpq_mat_entry(generators, i, k);
-                mpz_set(mpq_numref(gik), mpz_poly_coeff_const(e, k));
-                mpz_set(mpq_denref(gik), denom);
-                mpq_canonicalize(gik);
-            }
-        }
-        Id = generate_ideal(O, M, generators);
-    }
+    fmt::print("ZP.<x> = ZZ[]\n");
+    fmt::print("{}.<{}>={:S}\n", K.name, K.varname, K);
+    fmt::print("{}={:S}\n", O.name, O);
 
-    gmp_randstate_t state;
-    gmp_randinit_default(state);
+    std::vector<number_field_element> gens;
+    gens.reserve(elements.size());
+    for(auto const & e : elements)
+        gens.emplace_back(K(e));
+
+    auto I = O.fractional_ideal(gens);
+
+    fmt::print("I = {}.fractional_ideal([{}])\n", O.name, join(gens, ", "));
+
+    cxx_gmp_randstate state;
     unsigned long seed = 0;
     if (param_list_parse_ulong(pl, "seed", &seed)) {
         gmp_randseed_ui(state, seed);
     }
-    std::vector<std::pair<cxx_mpz_mat, int> > F = factorization_of_prime(O, f, p, state);
-    gmp_randclear(state);
+    std::vector<std::pair<number_field_prime_ideal, int> > F = O.factor(p, state);
 
     for(unsigned int k = 0 ; k < F.size() ; k++) {
-        cxx_mpz_mat const& fkp(F[k].first);
-        cxx_mpz_mat const a = valuation_helper_for_ideal(M, fkp, p);
-        std::pair<cxx_mpz, cxx_mpz_mat> two = prime_ideal_two_element(O, f, M, fkp);
+        auto const & [fkp, e] = F[k];
+        number_field_prime_ideal::two_element two(fkp);
+        int const v = fkp.valuation(I);
 
-        cxx_mpq_mat theta_q;
-        {
-            mpq_mat_set_mpz_mat(theta_q, two.second);
-            mpq_mat_mul(theta_q, theta_q, O);
-        }
-        std::string const uniformizer = write_element_as_polynomial(theta_q, "alpha");
+        fmt::print("# (p={}, k={}, f={}. e={}; ideal<O|{},{}>)^{};\n",
+                p, k, fkp.inertia_degree(), e, two.first, K(two.second), v);
 
-        int const e = F[k].second;
-        int const v = valuation_of_ideal_at_prime_ideal(M, Id, a, e, p);
-
-        std::cout << "# (p=" << p
-            << ", k=" << k
-            << ", f="<< prime_ideal_inertia_degree(fkp)
-            << ", e="<< e
-            << "; "
-            << "ideal<O|" << two.first << "," << uniformizer << ">"
-            << ")"
-            << "^" << v
-            << ";" << "\n";
+        fmt::print("assert I.valuation({}) == {}\n",
+                fkp, I.valuation(fkp));
     }
     return 1;
 }
@@ -485,17 +385,17 @@ static int do_valuations_of_ideal_batch(cxx_param_list & pl) /*{{{*/
         cxx_mpz p;
         if (!(is1 >> p)) throw std::invalid_argument(exc);
 
-        cxx_mpq_mat const O = batch_read_order_basis(is1, f->deg);
-        cxx_mpz_mat const M = multiplication_table_of_order(O, f);
+        number_field const K(f);
 
-        std::vector<std::pair<cxx_mpz_mat, int> > ideals = batch_read_prime_factorization(is1, f->deg, p, O, M);
+        number_field_order const O(K, batch_read_order_basis(is1, f->deg));
 
-        cxx_mpq_mat const my_O = p_maximal_order(f, p);
+        auto ideals = batch_read_prime_factorization(is1, O, p);
 
-        bool ok = sl_equivalent_matrices(O, my_O, p);
+        number_field_order const my_O = K.p_maximal_order(p);
 
-        gmp_randstate_t state;
-        gmp_randinit_default(state);
+        bool ok = O.equal_mod(my_O, p);
+
+        cxx_gmp_randstate state;
         unsigned long seed = 0;
         if (param_list_parse_ulong(pl, "seed", &seed)) {
             gmp_randseed_ui(state, seed);
@@ -504,8 +404,7 @@ static int do_valuations_of_ideal_batch(cxx_param_list & pl) /*{{{*/
         /* What if we simply ask our code to compute the factorization of
          * p with respect to the order basis which was chosen by magma ?
          * */
-        std::vector<std::pair<cxx_mpz_mat, int> > my_ideals = factorization_of_prime(O, f, p, state);
-        gmp_randclear(state);
+        auto my_ideals = O.factor(p, state);
 
         /* compute matching table */
         ok = ok && (ideals.size() == my_ideals.size());
@@ -514,7 +413,7 @@ static int do_valuations_of_ideal_batch(cxx_param_list & pl) /*{{{*/
         for(unsigned int k = 0 ; ok && k < ideals.size() ; k++) {
             bool found = false;
             for(unsigned int ell = 0 ; ell < my_ideals.size() ; ell++) {
-                if (ideals[k] == my_ideals[ell]) {
+                if (ideals[k] == my_ideals[ell].first) {
                     magma_to_mine[k] = ell;
                     mine_to_magma[ell] = k;
                     found = true;
@@ -527,29 +426,37 @@ static int do_valuations_of_ideal_batch(cxx_param_list & pl) /*{{{*/
         /* now read the list of composites */
         for( ; ok ; ) {
             std::string keyword;
-            if (!(is1 >> keyword) || keyword != "composite") throw std::invalid_argument(exc);
+            if (!(is1 >> keyword) || keyword != "composite")
+                throw std::invalid_argument(exc);
             int ngens;
             // coverity[-taint_source]
             if (!(is1 >> ngens)) throw std::invalid_argument(exc);
             if (ngens < 0) throw std::invalid_argument(exc);
             if (ngens == 0) break;
-            cxx_mpz_mat gens(ngens, f->deg);
-            for(unsigned int i = 0 ; i < gens->m ; i++) {
-                for(unsigned int j = 0 ; j < gens->n ; j++) {
-                    if (!(is1 >> mpz_mat_entry(gens, i, j)))
+
+            std::vector<number_field_element> gens;
+            for(int i = 0 ; i < ngens ; i++) {
+                /* read n integers */
+                cxx_mpq_mat A(1, K.degree());
+                for(unsigned int j = 0 ; j < A->n ; j++) {
+                    cxx_mpz num;
+                    if (!(is1 >> num))
                         throw std::invalid_argument(exc);
+                    mpq_ptr aa = mpq_mat_entry(A, 0, j);
+                    mpz_set(mpq_numref(aa), num);
+                    mpz_set_ui(mpq_denref(aa), 1);
+                    // mpz_set(mpq_denref(aa), den);
+                    mpq_canonicalize(aa);
                 }
+                gens.push_back(K(A));
             }
-            std::pair<cxx_mpz_mat, cxx_mpz> const Id = generate_ideal(O, M, cxx_mpq_mat(gens));
+            auto I = O.fractional_ideal(gens);
             std::vector<int> my_vals;
-            for(auto const & Ie : my_ideals) {
-                cxx_mpz_mat const& fkp(Ie.first);
-                int const e = Ie.second;
-                cxx_mpz_mat const a = valuation_helper_for_ideal(M, fkp, p);
-                int const v = valuation_of_ideal_at_prime_ideal(M, Id, a, e, p);
-                my_vals.push_back(v);
-            }
-            if (!(is1 >> keyword) || keyword != "valuations") throw std::invalid_argument(exc);
+            my_vals.reserve(my_ideals.size());
+            for(auto const & [fkp, e] : my_ideals)
+                my_vals.emplace_back(fkp.valuation(I));
+            if (!(is1 >> keyword) || keyword != "valuations")
+                throw std::invalid_argument(exc);
             for(unsigned int k = 0 ; ok && k < ideals.size() ; k++) {
                 std::string s;
                 is1 >> s;
@@ -600,72 +507,207 @@ static int do_maximal_order(cxx_param_list & pl)
     K.bless("K", "alpha");
     fmt::print("print(\"working with {}\")\n", K);
 
-    const number_field_order OK = K.maximal_order(bound);
-    // OK.bless("OK");
+    number_field_order OK = K.maximal_order(bound);
+    OK.bless("OK");
 
-    for(auto const & e : OK.basis())
-        fmt::print("{}\n", e);
+    fmt::print("ZP.<x> = ZZ[]\n");
+    fmt::print("{}.<{}>={:S}\n", K.name, K.varname, K);
+    fmt::print("{}={:S}\n", OK.name, OK);
+    fmt::print("assert {} == K.maximal_order()\n", OK.name, OK);
 
-    return 0;
+    return 1;
 }
 
-static int do_number_theory_object_interface(cxx_param_list & pl)
-{
-    cxx_gmp_randstate state;
+struct test_number_theory_object_interface {
     unsigned long seed = 0;
-    if (param_list_parse_ulong(pl, "seed", &seed)) {
-        gmp_randseed_ui(state, seed);
-    }
-
     std::string polystr;
-    if (!param_list_parse(pl, "poly", polystr)) usage(pl, original_argv, "missing poly argument");
-    cxx_mpz_poly f(polystr);
+    cxx_mpz_poly f;
+    number_field K;
+    unsigned int n;
 
-
-    number_field K(f);
-
-    K.bless("K", "alpha");
-
-    fmt::print("print(\"working with {}\")\n", K);
-    fmt::print("ZP.<x> = ZZ[]\n");
-    fmt::print("{}.<{}> = NumberField({})\n", K.name, K.varname, f);
-
-    auto alpha = K.gen();
-    auto x = K(1);
-
-    const int N = 2 * f.degree();
-
-    for(int i = 0 ; i < N ; i++) {
-        fmt::print("assert alpha^{} == {}\n", i, x);
-        x = x * alpha;
+    explicit test_number_theory_object_interface(cxx_param_list & pl)
+        : polystr(param_list_parse_mandatory<std::string>(pl, "poly"))
+        , f(polystr)
+        , K(f)
+        , n(static_cast<unsigned int>(K.degree()))
+    {
+        param_list_parse_ulong(pl, "seed", &seed);
+        K.bless("K", "alpha");
     }
 
-    fmt::print("assert (alpha^{}).trace() == {}\n", N, x.trace());
+    void banner() const
+    {
+        fmt::print("print(\"working with {}\")\n", K);
+        fmt::print("ZP.<x> = ZZ[]\n");
+        fmt::print("{}.<{}> = NumberField({})\n", K.name, K.varname, f);
+    }
 
-    prime_info pi;
-    prime_info_init(pi);
-    for(unsigned long pp ; (pp = getprime_mt(pi)) < 12 ; pp++) {
-        fmt::print("print(\"tests mod p={}\")\n", pp);
-        cxx_mpz p = pp;
+    void trivial_element_tests() const
+    {
+        {
+            auto alpha = K.gen();
+            auto x = K(1);
+            const int N = 2 * f.degree();
+            for(int i = 0 ; i < N ; i++) {
+                fmt::print("assert alpha^{} == {}\n", i, x);
+                x = x * alpha;
+            }
+            fmt::print("assert (alpha^{}).trace() == {}\n", N, x.trace());
+        }
+
+        /* a small element*/
+        {
+            cxx_mpz_mat cc(1, f.degree());
+            mpz_set_ui(mpz_mat_entry(cc, 0, 0), 1);
+            mpz_set_ui(mpz_mat_entry(cc, 0, 1), 1);
+            fmt::print("assert {} == (1+alpha)/43\n", K(cc, 43));
+        }
+
+        /* an element that triggers reduction */
+        {
+            const int N = 2 * f.degree();
+            cxx_mpz_poly cc;
+            for(int i = 0 ; i < N ; i++)
+                mpz_poly_setcoeff_ui(cc, i, 1);
+
+            auto y = K(cc, 2);
+            fmt::print("assert {} == (alpha^{}-1)/(alpha-1)/2\n", y, N);
+
+            y = y * 2 * K.gen() / 17;
+            fmt::print("y = {}\n", y);
+            fmt::print("assert y == (alpha^{}-1)/(alpha-1)*alpha/17\n", N);
+
+            /* check the multiplication matrix in K */
+            auto My = y.multiplication_matrix();
+            cxx_mpq_mat a(1, n);
+            for(int i = 0 ; i < K.degree() ; i++) {
+                mpq_mat_submat_set(a,0,0,My,i,0,1,n);
+                fmt::print("assert {} == y * alpha^{}\n", K(a), i);
+            }
+        }
+    }
+
+    // assumes that theta is already defined in sage with variable name
+    // s_theta
+    void tests_order_elements(number_field_order const & O,
+           number_field_order_element const & theta,
+           std::string const & s_theta) const
+    {
+        /* This tests the multiplication of elements in an order */
+        fmt::print("assert {} == {}^2\n", theta * theta, s_theta);
+
+        /* check the multiplication matrix */
+        auto Mtheta = theta.multiplication_matrix();
+        cxx_mpz_mat a(1, n);
+        for(int i = 0 ; i < K.degree() ; i++) {
+            mpz_mat_submat_set(a,0,0,Mtheta,i,0,1,n);
+            fmt::print("assert {} == {} * {}\n", O(a), s_theta, O[i]);
+        }
+
+        /* conversion to the number field and back.
+         * Sadly enough, we don't have comparisons of elements in our
+         * interface. It would be easy to add, of course.
+         */
+        fmt::print("assert {} == {}\n",
+                theta, number_field_order_element(O, K(theta)));
+    }
+
+    // assumes that fkp is already defined in sage with variable name
+    // s_fkp
+    void tests_prime_ideal(number_field_order const & Op,
+            cxx_mpz const & p,
+            number_field_prime_ideal const & fkp,
+            std::string const & s_fkp
+            ) const
+    {
+            /* Also check the valuation helper */
+            auto theta = fkp.get_valuation_helper();
+            // check that (theta/p)*fkp is in O, yet theta is not in p*O.
+            auto s_theta = fmt::format("theta_{}", p, s_fkp);
+            fmt::print("{} = {}\n", s_theta, theta);
+            fmt::print("assert (({})/{}*{}).denominator() == 1\n",
+                    s_theta, p, s_fkp);
+            fmt::print("assert (({})/{}) not in {}\n",
+                    s_theta, p, Op.name);
+
+            /* This is also part of the definition of the helper, and
+             * fortunately enough we can test it easily */
+            ASSERT_ALWAYS(Op.index(K(theta)/p) > 1);
+
+            /* also a few tests that relate only to elements in number
+             * field orders in general. No reason to use theta for that,
+             * but since we have it around, it's easy enough
+             */
+
+            tests_order_elements(Op, theta, s_theta);
+    }
+
+    void tests_mod_p(cxx_mpz const & p) const
+    {
         number_field_order Op = K.p_maximal_order(p);
         Op.bless(fmt::format("O{}", p));
         fmt::print("print(\"computed {}\")\n", Op);
         fmt::print("{} = {:S}\n", Op.name, Op);
         fmt::print("assert {}.is_maximal({})\n", Op.name, p);
 
-        auto fac_p = Op.factor(p);
-        fmt::print("assert {}.fractional_ideal({}) == prod([\n", Op.name, p);
-        for(auto const & Ie : fac_p) {
-            number_field_prime_ideal const & I(Ie.first);
-            int e = Ie.second;
-            if (e == 1) {
-                fmt::print(" {},\n", I);
-            } else {
-                fmt::print(" ({})^{},\n", I, e);
-            }
-        }
-        fmt::print("])\n");
+        fmt::print("assert {}.order([{}]) == {}\n",
+                K.name, join(Op.basis(), ", "), Op.name);
 
+        auto fac_p = Op.factor(p);
+        size_t c = 0;
+        std::vector<std::pair<number_field_prime_ideal, std::string>> fkps;
+
+        int sum_ef = 0;
+
+        for(auto const & [ fkp, e ] : fac_p) {
+            ++c;
+            ASSERT_ALWAYS(e == fkp.ramification_index());
+            sum_ef += e * fkp.inertia_degree();
+            auto s_fkp = fmt::format("fkp_{}_{}", p, c);
+            fmt::print("{} = {}\n", s_fkp, fkp);
+            fmt::print("assert {}.is_prime()\n", s_fkp);
+            fmt::print("assert {}.ramification_index() == {}\n", s_fkp, e);
+
+            fkps.emplace_back(fkp, s_fkp);
+
+            tests_prime_ideal(Op, p, fkp, s_fkp);
+        }
+
+        ASSERT_ALWAYS(sum_ef == K.degree());
+
+        fmt::print("assert {}.fractional_ideal({}) == prod([{}])\n",
+                Op.name, p,
+                join(fkps, ", ",
+                    [&](auto const & Is) {
+                        auto const & [ I, s ] = Is;
+                        int e = I.ramification_index();
+                        return e == 1 ? s : fmt::format("{}^{}", s, e);
+                    })
+                );
+
+
+        /* Sagemath doesn't expose anything about the computation of the
+         * radical. In full generality, we're not testing our code
+         * correctly since p_radical should also be correct for orders
+         * that are not p-maximal. But the _underlying code is anyway
+         * being used in the p-maximal order computation, so here we're
+         * testing the interface layer, which is probably good enough
+         */
+        auto s_rad = fmt::format("rad_{}", p);
+        fmt::print("{} = {}\n", s_rad, Op.p_radical(p));
+        fmt::print("assert {} == prod([{}])\n",
+                s_rad,
+                join(fkps, ", ", [&](auto const & Is) { return Is.second; })
+                );
+
+        // factor_radical is really a proxy to Op.factor()
+        fmt::print("assert {} == prod([{}])\n",
+                s_rad, join(Op.factor_radical(p), ", "));
+
+
+        cxx_gmp_randstate state;
+        if (seed)
+            gmp_randseed_ui(state, seed);
         for(int i = 0 ; i < 4 ; i++) {
             cxx_mpz_poly phi;
             int64_t a = gmp_urandomm_ui(state, 1000);
@@ -678,83 +720,51 @@ static int do_number_theory_object_interface(cxx_param_list & pl)
             fmt::print("I_{0}_{1} = {2}.fractional_ideal([{0}-{1}*{3}])\n",
                     a, b, Op.name, K.varname);
             fmt::print("assert I_{}_{} == {}\n", a, b, I);
-            for(auto const & Ie : fac_p) {
+            for(auto const & [ fkp, s ] : fkps) {
                 fmt::print("assert I_{}_{}.valuation({}) == {}\n",
-                        a, b, Ie.first, 
-                        I.valuation(Ie.first));
-                fmt::print("print(\"{}\")\n", I.valuation(Ie.first));
+                        a, b, s,
+                        I.valuation(fkp));
+                fmt::print("print(\"{}\")\n", I.valuation(fkp));
             }
         }
     }
-    prime_info_clear(pi);
 
+    void test_maximal_order() const
+    {
+        number_field_order OK = K.maximal_order(1000000);
+        OK.bless("OK");
+        fmt::print("print(\"computed {}\")\n", OK);
+        fmt::print("{} = {:S}\n", OK.name, OK);
+        fmt::print("assert {} == {}.maximal_order()\n", OK.name, K.name);
+    }
+
+    void test_signature() const
+    {
+        auto [r, s] = K.signature();
+        fmt::print("assert {}.signature() == ({}, {})\n", K.name, r, s);
+        fmt::print("assert {}.unit_group().rank() == {}\n",
+                K.name, K.unit_rank());
+    }
+
+    void all_tests() const
+    {
+        banner();
+        trivial_element_tests();
+        prime_info pi;
+        prime_info_init(pi);
+        for(unsigned long pp ; (pp = getprime_mt(pi)) < 12 ; pp++)
+            tests_mod_p(pp);
+        prime_info_clear(pi);
+        test_maximal_order();
+        test_signature();
+    }
+};
+
+static int do_number_theory_object_interface(cxx_param_list & pl)
+{
+    test_number_theory_object_interface(pl).all_tests();
     return 1;
 }
-
-static int do_linear_algebra_timings(cxx_param_list & pl)/*{{{*/
-{
-    unsigned int m = 8;
-    unsigned int n = 5;
-    param_list_parse_uint(pl, "m", &m);
-    param_list_parse_uint(pl, "n", &n);
-
-    gmp_randstate_t state;
-    gmp_randinit_default(state);
-    unsigned long seed = 0;
-    if (param_list_parse_ulong(pl, "seed", &seed)) {
-        gmp_randseed_ui(state, seed);
-    }
-
-    cxx_mpq_mat M(m,n);
-    cxx_mpq_mat T(m,m);
-    cxx_mpz_mat Mz(m,n);
-    cxx_mpz_mat Tz(m,m);
-    cxx_mpz p;
-
-    mpz_set_ui(p, 19);
-    param_list_parse_mpz(pl, "prime", p);
-
-    {
-        printf("\n\nCase 0.1\n\n");
-        mpq_mat_urandomm(M, state, p);
-        mpq_mat_fprint(stdout, M);
-        printf("\n");
-        mpq_mat_gauss_backend(M, T);
-        mpq_mat_fprint(stdout, M);
-        printf("\n");
-        mpq_mat_fprint(stdout, T);
-        printf("\n");
-    }
-
-    {
-        printf("\n\nCase 0.2\n\n");
-        mpz_mat_urandomm(Mz, state, p);
-        mpz_mat_fprint(stdout, Mz);
-        printf("\n");
-        mpz_mat_gauss_backend_mod_mpz(Mz, Tz, p);
-        mpz_mat_fprint(stdout, Mz);
-        printf("\n");
-        mpz_mat_fprint(stdout, Tz);
-        printf("\n");
-    }
-
-    {
-        printf("\n\nCase 1\n\n");
-        mpz_mat_realloc(Mz, m, n);
-        mpz_mat_urandomm(Mz, state, p);
-        mpz_mat_fprint(stdout, Mz); printf("\n");
-        double t = seconds();
-        mpz_mat_hermite_form(Mz, Tz);
-        t = seconds()-t;
-        mpz_mat_fprint(stdout, Mz); printf("\n");
-        mpz_mat_fprint(stdout, Tz); printf("\n");
-
-        printf("%1.4f\n", t);
-    }
-
-    gmp_randclear(state);
-    return 1;
-}/*}}}*/
 
 // coverity[root_function]
 int main(int argc, char const * argv[])
@@ -794,8 +804,6 @@ int main(int argc, char const * argv[])
         rc = do_valuations_of_ideal(pl);
     } else if (tmp == "valuations-of-ideal-batch") {
         rc = do_valuations_of_ideal_batch(pl);
-    } else if (tmp == "linear-algebra-timings") {
-        rc = do_linear_algebra_timings(pl);
     } else if (tmp == "nt-object-interface") {
         rc = do_number_theory_object_interface(pl);
     } else if (tmp == "maximal-order") {

@@ -3,7 +3,13 @@
 
 #include <cstdio>
 #include <cstdlib>
+
+#include <algorithm>
+#include <cctype>
+#include <ios>
 #include <istream>
+#include <iterator>
+
 #include <limits>
 #include <memory>
 #include <string>
@@ -307,6 +313,79 @@ static inline std::string join(std::vector<ItemType> const & items,
     return join(items.begin(), items.end(), delimiter, lambda);
 }
 
+namespace strip_details {
+    struct isspace {
+        bool operator()(char c) const {
+            return std::isspace(c);
+        }
+    };
+}
+
+template<typename T>
+inline std::string& lstrip(std::string &s, T f)
+{
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [f](int ch) {
+        return !f(ch);
+    }));
+    return s;
+}
+
+template<typename T>
+inline std::string & rstrip(std::string &s, T f)
+{
+    s.erase(std::find_if(s.rbegin(), s.rend(), [f](int ch) {
+        return !f(ch);
+    }).base(), s.end());
+    return s;
+}
+
+template<typename T>
+inline std::string & strip(std::string & s, T f)
+{
+    return lstrip(rstrip(s, f), f);
+}
+
+template<typename T>
+inline std::string lstrip(std::string const & s, T f)
+{
+    std::string t = s;
+    return lstrip(t, f);
+}
+
+template<typename T>
+inline std::string rstrip(std::string const & s, T f)
+{
+    std::string t = s;
+    return rstrip(t, f);
+}
+
+template<typename T>
+inline std::string strip(std::string const & s, T f)
+{
+    std::string t = s;
+    return strip(t, f);
+}
+
+inline std::string& lstrip(std::string & s) {
+    return lstrip(s, strip_details::isspace());
+}
+inline std::string& rstrip(std::string & s) {
+    return rstrip(s, strip_details::isspace());
+}
+inline std::string& strip(std::string & s) {
+    return strip(s, strip_details::isspace());
+}
+inline std::string lstrip(std::string const & s) {
+    return lstrip(s, strip_details::isspace());
+}
+inline std::string rstrip(std::string const & s) {
+    return rstrip(s, strip_details::isspace());
+}
+inline std::string strip(std::string const & s) {
+    return strip(s, strip_details::isspace());
+}
+
+
 /* use this as: input_stream >> read_container(container, maximum_size)
  * or possibly: input_stream >> read_container(container)
  */
@@ -342,7 +421,7 @@ void checked_realloc(T * & var, size_t N)
         free(var);
         (var) = nullptr;
     } else {
-        T * p = (T *) realloc((var), (N) * sizeof(T));
+        auto * p = static_cast<T *>(realloc((var), (N) * sizeof(T)));
         if (!p && (var) != nullptr)
             free((var));
         ASSERT_ALWAYS(p != nullptr);
@@ -374,6 +453,42 @@ double double_ratio(T const & t, U const & u)
 {
     return static_cast<double>(t) / static_cast<double>(u);
 }
+
+template<int N>
+struct expect_s
+{
+    const char * s;
+    explicit expect_s(const char s0[N]) : s(s0) {}
+};
+
+template<int N>
+static expect_s<N> expect(char const (&s0)[N]) { return expect_s<N> { s0 }; }
+
+template<int N>
+static std::istream& operator>>(std::istream& is, expect_s<N> const & e)
+{
+    char t[N];
+    is.get(t, N);  // side-
+    if (strcmp(t, e.s) != 0)
+        is.setstate(std::ios::failbit);
+    return is;
+}
+
+struct expect_string {
+    std::string s;
+};
+
+static inline expect_string expect(std::string const & s) { return { s }; }
+
+
+static inline std::istream& operator>>(std::istream & is, expect_string const & e)
+{
+    if(!std::equal(std::begin(e.s), std::end(e.s), std::istreambuf_iterator<char>{is})) {
+        is.setstate(is.rdstate() | std::ios::failbit);
+    }
+    return is;
+}
+
 
 
 #endif	/* CADO_UTILS_CXX_HPP */

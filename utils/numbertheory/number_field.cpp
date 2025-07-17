@@ -1,6 +1,8 @@
 #include "cado.h" // IWYU pragma: keep
 
 #include <memory>
+#include <utility>
+#include <stdexcept>
 
 #include <gmp.h>
 #include "fmt/base.h"
@@ -11,12 +13,12 @@
 #include "misc.h"
 #include "mpz_mat.h"
 #include "mpz_poly.h"
+
 #include "numbertheory/fmt_helpers.hpp"
 #include "numbertheory/number_field.hpp"
 #include "numbertheory/number_field_element.hpp"
 #include "numbertheory/number_field_order.hpp"
 #include "numbertheory/number_field_order_element.hpp"
-#include "numbertheory/numbertheory_internals.hpp"
 
 number_field::number_field(cxx_mpz_poly const & f)
     : f(f)
@@ -34,17 +36,12 @@ void number_field::bless(std::string const & name, std::string const & varname)
 
 void number_field::bless(std::string const & name)
 {
-    this->name = name;
-    this->varname = fmt::format("{}.1", name);
+    bless(name, fmt::format("{}.1", name));
 }
 
 void number_field::bless(const char * name, const char * varname)
 {
-    this->name = name;
-    if (varname)
-        this->varname = varname;
-    else
-        this->varname = fmt::format("{}.1", name);
+    bless(std::string(name), varname ? std::string(varname) : fmt::format("{}.1", name));
 }
 
 number_field_element number_field::gen() const {
@@ -70,21 +67,14 @@ number_field_order number_field::order(number_field_element const & a) const
 
 number_field_order number_field::equation_order() const
 {
-    cxx_mpz x;
-    int const n = degree();
-    mpz_set_ui(x, 1);
-    cxx_mpq_mat B(n, n);
+    cxx_mpq_mat B(degree(), degree());
     mpq_mat_set_ui(B, 1);
-    for(int i = 0; i < n; i++) {
-        mpq_set_z(B(i,i), x);
-        mpz_mul(x, x, mpz_poly_lc(f));
-    }
-    return { *this, std::move(B) };
+    return { *this, basis_matrix_from_monic_to_f(B) };
 }
 
 number_field_order number_field::p_maximal_order(cxx_mpz const & p) const
 {
-    return { *this, numbertheory_internals::p_maximal_order(defining_polynomial(), p) };
+    return equation_order().p_maximal_order(p);
 }
 
 static cxx_mpq_mat companion_matrix(cxx_mpz_poly const & f)
@@ -117,30 +107,51 @@ cxx_mpq_mat number_field::trace_matrix() const
             mpq_mat_mul(M, M, C);
             mpq_mat_trace(T(0, i), M);
         }
-        cached_trace_matrix = std::unique_ptr<cxx_mpq_mat>(new cxx_mpq_mat(T));
+        cached_trace_matrix = std::make_unique<cxx_mpq_mat>(T);
     }
     return *cached_trace_matrix;
 }
 
+template<typename iterator>
+static number_field_order maximize_recursively(number_field_order && O, cxx_mpz const & disc, iterator begin, iterator end)
+{
+    if (begin == end)
+        return std::move(O);
 
+    auto p = begin->first;
+
+    if (mpz_p_valuation(disc, p) == 1)
+        return maximize_recursively(std::move(O), disc, ++begin, end);
+    else
+        return maximize_recursively(O.p_maximal_order(p), disc, ++begin, end);
+}
+
+/* the maximal order in itself isn't necessarily something very useful.
+ * And anyway we only compute an approximation of it, given that we don't
+ * expect that we'll factor the discriminant completely.
+ *
+ * on top of that, we have an implementation difficulty caused by the
+ * fact that assigning to a number_field_order object isn't supported.
+ * Beyond the recursive kludge above, alternatives include changing
+ * references to shared_ptr's after all, or make p_maximal_order an
+ * in-place operation.
+ */
 number_field_order const& number_field::maximal_order(unsigned long prime_limit) const
 {
     if (cached_maximal_order == nullptr) {
-
-        number_field_order O = equation_order();
-
-        cxx_mpz disc;
+        cxx_mpz disc, cofac;
         mpz_poly_discriminant(disc, f);
         mpz_mul(disc, disc, mpz_poly_lc(f));
 
         /* We're not urged to use ecm here */
-        for(auto const & pe : trial_division(disc, prime_limit, disc)) {
-            fmt::print("{} {}\n", pe.first, O);
-        }
+        auto d_fac = trial_division(disc, prime_limit, cofac);
 
-        ASSERT_ALWAYS(0);
+        cached_maximal_order = std::make_unique<number_field_order>(
+                    maximize_recursively(equation_order(),
+                        disc,
+                        d_fac.begin(),
+                        d_fac.end()));
 
-        cached_maximal_order = std::unique_ptr<number_field_order>(new number_field_order(O));
     }
 
     return *cached_maximal_order;
@@ -152,10 +163,14 @@ number_field_element number_field::operator()(cxx_mpz_poly const & a, cxx_mpz co
 }
 number_field_element number_field::operator()(cxx_mpq_mat const & a) const
 {
+    if (a.ncols() != static_cast<unsigned int>(degree()))
+        throw std::out_of_range("wrong number of coefficients");
     return { *this, a };
 }
 number_field_element number_field::operator()(cxx_mpz_mat const & a, cxx_mpz const & d) const
 {
+    if (a.ncols() != static_cast<unsigned int>(degree()))
+        throw std::out_of_range("wrong number of coefficients");
     return { *this, a, d };
 }
 
@@ -165,6 +180,59 @@ number_field_element number_field::operator()(number_field_order_element const &
     cxx_mpq_mat c = e.coefficients;
     mpq_mat_mul(c, c, e.order().basis_matrix);
     return { *this, c };
+}
+
+cxx_mpq_mat number_field::basis_matrix_from_f_to_monic(cxx_mpq_mat const & B) const
+{
+    /* given the basis of some Z-lattice in K that is expressed with
+     * respect to the polynomial basis defined by f, return a basis of
+     * the same Z-lattice, but with respect to the polynomial basis
+     * defined by make_monic(f)
+     *
+     * For example, if K=Q(alpha) with alpha a root of f = ell*x^2-1, and
+     * B is [a,b,c,d] representing the Z-lattice with generating elements
+     * a+b*alpha and c+d*alpha, then since g = x^2-ell has the root
+     * alpha_hat = ell*alpha, we return the matrix [a, b/ell, c, d/ell]
+     */
+    if (mpz_poly_is_monic(defining_polynomial()))
+        return B;
+
+    unsigned int const n = degree();
+
+    cxx_mpq_mat C = B;
+    cxx_mpz x;
+    mpz_set_ui(x, 1);
+    for(unsigned int j = 0 ; j < n ; j++) {
+        for(unsigned int i = 0; i < n; i++) {
+            mpq_ptr dij = mpq_mat_entry(C, i, j);
+            mpz_mul(mpq_denref(dij), mpq_denref(dij), x);
+            mpq_canonicalize(dij);
+        }
+        mpz_mul(x, x, mpz_poly_lc(defining_polynomial()));
+    }
+    return C;
+}
+
+cxx_mpq_mat number_field::basis_matrix_from_monic_to_f(cxx_mpq_mat const & B) const
+{
+    /* does the converse of basis_matrix_from_f_to_monic */
+    if (mpz_poly_is_monic(defining_polynomial()))
+        return B;
+
+    unsigned int const n = degree();
+
+    cxx_mpq_mat C = B;
+    cxx_mpz x;
+    mpz_set_ui(x, 1);
+    for(unsigned int j = 0 ; j < n ; j++) {
+        for(unsigned int i = 0; i < n; i++) {
+            mpq_ptr dij = mpq_mat_entry(C, i, j);
+            mpz_mul(mpq_numref(dij), mpq_numref(dij), x);
+            mpq_canonicalize(dij);
+        }
+        mpz_mul(x, x, mpz_poly_lc(defining_polynomial()));
+    }
+    return C;
 }
 
 
@@ -178,4 +246,15 @@ auto fmt::formatter<number_field>::format(number_field const & K, format_context
         fmt::format_to(ctx.out(), "{}", K.defining_polynomial());
     }
     return ctx.out();
+}
+
+std::pair<unsigned int, unsigned int> number_field::signature() const
+{
+    if (!cached_signature) {
+        int const r1 = mpz_poly_number_of_real_roots(defining_polynomial());
+        ASSERT_ALWAYS((degree() - r1) % 2 == 0);
+        int const r2 = (degree() - r1) / 2;
+        cached_signature.reset(new std::pair<unsigned int, unsigned int>(r1, r2));
+    }
+    return *cached_signature;
 }
