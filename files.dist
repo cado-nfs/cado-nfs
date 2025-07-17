@@ -890,6 +890,7 @@ scripts/check_main_constness.sh
 scripts/check_python_lint.sh
 scripts/check_python_pathdetection_stub.sh
 scripts/check_repo_policies.sh
+scripts/cov.sh
 scripts/descent.py
 scripts/descent/README.md
 scripts/descent/__init__.py

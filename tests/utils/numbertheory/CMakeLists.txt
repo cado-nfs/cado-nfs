@@ -38,10 +38,13 @@ cado_define_test(
     PROGRAM
     ${CMAKE_CURRENT_BINARY_DIR}/test-ant
     -test nt-object-interface
-    -poly "10*x^3-x-2"
     TARGET_DEPENDENCIES
     test-ant
+    NO_DEFAULT_RUN
     )
+
+cado_divert_test(numbertheory-object-interface test1 APPEND_ARGUMENTS -poly "10*x^3-x-2")
+cado_divert_test(numbertheory-object-interface test2 APPEND_ARGUMENTS -poly "8*x^3 + 5*x + 7")
 
 if (SAGE)
     cado_define_test(
@@ -51,11 +54,14 @@ if (SAGE)
         ${CADO_NFS_SOURCE_DIR}/tests/pipe_to_sage.sh
         ${CMAKE_CURRENT_BINARY_DIR}/test-ant
         -test nt-object-interface
-        -poly "10*x^3-x-2"
         TARGET_DEPENDENCIES
         test-ant
         TIMEOUT 60
+        NO_DEFAULT_RUN
         )
+    cado_divert_test(numbertheory-object-interface_with_sagemath test1 APPEND_ARGUMENTS -poly "10*x^3-x-2")
+    cado_divert_test(numbertheory-object-interface_with_sagemath test2 APPEND_ARGUMENTS -poly "8*x^3 + 5*x + 7")
+
     add_dependencies(all_sagemath_test_dependencies
         numbertheory-object-interface_with_sagemath_dependencies)
 endif()

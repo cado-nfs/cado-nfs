@@ -29,6 +29,7 @@
 #include "params.h"
 #include "portability.h"
 #include "timing.h"
+#include "utils_cxx.hpp"
 
 static const char ** original_argv;
 
@@ -206,10 +207,10 @@ static int do_factorization_of_prime(cxx_param_list & pl) /*{{{*/
     // number_field_fractional_ideal I = O.fractional_ideal({K(11)});
 
     fmt::print("assert {}.fractional_ideal({}) == prod([\n", O.name, p);
-    for(auto const & fe : F) {
-        fmt::print("\t{}", fe.first);
-        if (fe.second > 1)
-            fmt::print("^{}", fe.second);
+    for(auto const & [f, e] : F) {
+        fmt::print("\t{}", f);
+        if (e > 1)
+            fmt::print("^{}", e);
         fmt::print(",\n");
     }
     fmt::print("])\n");
@@ -339,9 +340,8 @@ static int do_valuations_of_ideal(cxx_param_list & pl) /*{{{*/
     std::vector<std::pair<number_field_prime_ideal, int> > F = O.factor(p, state);
 
     for(unsigned int k = 0 ; k < F.size() ; k++) {
-        auto const& fkp(F[k].first);
+        auto const & [fkp, e] = F[k];
         number_field_prime_ideal::two_element two(fkp);
-        int const e = F[k].second;
         int const v = fkp.valuation(I);
 
         fmt::print("# (p={}, k={}, f={}. e={}; ideal<O|{},{}>)^{};\n",
@@ -449,8 +449,8 @@ static int do_valuations_of_ideal_batch(cxx_param_list & pl) /*{{{*/
             auto I = O.fractional_ideal(gens);
             std::vector<int> my_vals;
             my_vals.reserve(my_ideals.size());
-            for(auto const & Ie : my_ideals)
-                my_vals.emplace_back(Ie.first.valuation(I));
+            for(auto const & [fkp, e] : my_ideals)
+                my_vals.emplace_back(fkp.valuation(I));
             if (!(is1 >> keyword) || keyword != "valuations")
                 throw std::invalid_argument(exc);
             for(unsigned int k = 0 ; ok && k < ideals.size() ; k++) {
@@ -512,63 +512,196 @@ static int do_maximal_order(cxx_param_list & pl)
     return 0;
 }
 
-static int do_number_theory_object_interface(cxx_param_list & pl)
-{
-    cxx_gmp_randstate state;
+struct test_number_theory_object_interface {
     unsigned long seed = 0;
-    if (param_list_parse_ulong(pl, "seed", &seed)) {
-        gmp_randseed_ui(state, seed);
-    }
-
     std::string polystr;
-    if (!param_list_parse(pl, "poly", polystr)) usage(pl, original_argv, "missing poly argument");
-    cxx_mpz_poly f(polystr);
+    cxx_mpz_poly f;
+    number_field K;
+    unsigned int n;
 
-
-    number_field K(f);
-
-    K.bless("K", "alpha");
-
-    fmt::print("print(\"working with {}\")\n", K);
-    fmt::print("ZP.<x> = ZZ[]\n");
-    fmt::print("{}.<{}> = NumberField({})\n", K.name, K.varname, f);
-
-    auto alpha = K.gen();
-    auto x = K(1);
-
-    const int N = 2 * f.degree();
-
-    for(int i = 0 ; i < N ; i++) {
-        fmt::print("assert alpha^{} == {}\n", i, x);
-        x = x * alpha;
+    explicit test_number_theory_object_interface(cxx_param_list & pl)
+        : polystr(param_list_parse_mandatory<std::string>(pl, "poly"))
+        , f(polystr)
+        , K(f)
+        , n(static_cast<unsigned int>(K.degree()))
+    {
+        param_list_parse_ulong(pl, "seed", &seed);
+        K.bless("K", "alpha");
     }
 
-    fmt::print("assert (alpha^{}).trace() == {}\n", N, x.trace());
+    void banner() const
+    {
+        fmt::print("print(\"working with {}\")\n", K);
+        fmt::print("ZP.<x> = ZZ[]\n");
+        fmt::print("{}.<{}> = NumberField({})\n", K.name, K.varname, f);
+    }
 
-    prime_info pi;
-    prime_info_init(pi);
-    for(unsigned long pp ; (pp = getprime_mt(pi)) < 12 ; pp++) {
-        fmt::print("print(\"tests mod p={}\")\n", pp);
-        cxx_mpz p = pp;
+    void trivial_element_tests() const
+    {
+        {
+            auto alpha = K.gen();
+            auto x = K(1);
+            const int N = 2 * f.degree();
+            for(int i = 0 ; i < N ; i++) {
+                fmt::print("assert alpha^{} == {}\n", i, x);
+                x = x * alpha;
+            }
+            fmt::print("assert (alpha^{}).trace() == {}\n", N, x.trace());
+        }
+
+        /* a small element*/
+        {
+            cxx_mpz_mat cc(1, f.degree());
+            mpz_set_ui(mpz_mat_entry(cc, 0, 0), 1);
+            mpz_set_ui(mpz_mat_entry(cc, 0, 1), 1);
+            fmt::print("assert {} == (1+alpha)/43\n", K(cc, 43));
+        }
+
+        /* an element that triggers reduction */
+        {
+            const int N = 2 * f.degree();
+            cxx_mpz_poly cc;
+            for(int i = 0 ; i < N ; i++)
+                mpz_poly_setcoeff_ui(cc, i, 1);
+
+            auto y = K(cc, 2);
+            fmt::print("assert {} == (alpha^{}-1)/(alpha-1)/2\n", y, N);
+
+            y = y * 2 * K.gen() / 17;
+            fmt::print("y = {}\n", y);
+            fmt::print("assert y == (alpha^{}-1)/(alpha-1)*alpha/17\n", N);
+
+            /* check the multiplication matrix in K */
+            auto My = y.multiplication_matrix();
+            cxx_mpq_mat a(1, n);
+            for(int i = 0 ; i < K.degree() ; i++) {
+                mpq_mat_submat_set(a,0,0,My,i,0,1,n);
+                fmt::print("assert {} == y * alpha^{}\n", K(a), i);
+            }
+        }
+    }
+
+    // assumes that theta is already defined in sage with variable name
+    // s_theta
+    void tests_order_elements(number_field_order const & O,
+           number_field_order_element const & theta,
+           std::string const & s_theta) const
+    {
+        /* This tests the multiplication of elements in an order */
+        fmt::print("assert {} == {}^2\n", theta * theta, s_theta);
+
+        /* check the multiplication matrix */
+        auto Mtheta = theta.multiplication_matrix();
+        cxx_mpz_mat a(1, n);
+        for(int i = 0 ; i < K.degree() ; i++) {
+            mpz_mat_submat_set(a,0,0,Mtheta,i,0,1,n);
+            fmt::print("assert {} == {} * {}\n", O(a), s_theta, O[i]);
+        }
+
+        /* conversion to the number field and back.
+         * Sadly enough, we don't have comparisons of elements in our
+         * interface. It would be easy to add, of course.
+         */
+        fmt::print("assert {} == {}\n",
+                theta, number_field_order_element(O, K(theta)));
+    }
+
+    // assumes that fkp is already defined in sage with variable name
+    // s_fkp
+    void tests_prime_ideal(number_field_order const & Op,
+            cxx_mpz const & p,
+            number_field_prime_ideal const & fkp,
+            std::string const & s_fkp
+            ) const
+    {
+            /* Also check the valuation helper */
+            auto theta = fkp.get_valuation_helper();
+            // check that (theta/p)*fkp is in O, yet theta is not in p*O.
+            auto s_theta = fmt::format("theta_{}", p, s_fkp);
+            fmt::print("{} = {}\n", s_theta, theta);
+            fmt::print("assert (({})/{}*{}).denominator() == 1\n",
+                    s_theta, p, s_fkp);
+            fmt::print("assert (({})/{}) not in {}\n",
+                    s_theta, p, Op.name);
+
+            /* This is also part of the definition of the helper, and
+             * fortunately enough we can test it easily */
+            ASSERT_ALWAYS(Op.index(K(theta)/p) > 1);
+
+            /* also a few tests that relate only to elements in number
+             * field orders in general. No reason to use theta for that,
+             * but since we have it around, it's easy enough
+             */
+
+            tests_order_elements(Op, theta, s_theta);
+    }
+
+    void tests_mod_p(cxx_mpz const & p) const
+    {
         number_field_order Op = K.p_maximal_order(p);
         Op.bless(fmt::format("O{}", p));
         fmt::print("print(\"computed {}\")\n", Op);
         fmt::print("{} = {:S}\n", Op.name, Op);
         fmt::print("assert {}.is_maximal({})\n", Op.name, p);
 
-        auto fac_p = Op.factor(p);
-        fmt::print("assert {}.fractional_ideal({}) == prod([\n", Op.name, p);
-        for(auto const & Ie : fac_p) {
-            number_field_prime_ideal const & I(Ie.first);
-            int e = Ie.second;
-            if (e == 1) {
-                fmt::print(" {},\n", I);
-            } else {
-                fmt::print(" ({})^{},\n", I, e);
-            }
-        }
-        fmt::print("])\n");
+        fmt::print("assert {}.order([{}]) == {}\n",
+                K.name, join(Op.basis(), ", "), Op.name);
 
+        auto fac_p = Op.factor(p);
+        size_t c = 0;
+        std::vector<std::pair<number_field_prime_ideal, std::string>> fkps;
+
+        int sum_ef = 0;
+
+        for(auto const & [ fkp, e ] : fac_p) {
+            ++c;
+            ASSERT_ALWAYS(e == fkp.ramification_index());
+            sum_ef += e * fkp.inertia_degree();
+            auto s_fkp = fmt::format("fkp_{}_{}", p, c);
+            fmt::print("{} = {}\n", s_fkp, fkp);
+            fmt::print("assert {}.is_prime()\n", s_fkp);
+            fmt::print("assert {}.ramification_index() == {}\n", s_fkp, e);
+
+            fkps.emplace_back(fkp, s_fkp);
+
+            tests_prime_ideal(Op, p, fkp, s_fkp);
+        }
+
+        ASSERT_ALWAYS(sum_ef == K.degree());
+
+        fmt::print("assert {}.fractional_ideal({}) == prod([{}])\n",
+                Op.name, p,
+                join(fkps, ", ",
+                    [&](auto const & Is) {
+                        auto const & [ I, s ] = Is;
+                        int e = I.ramification_index();
+                        return e == 1 ? s : fmt::format("{}^{}", s, e);
+                    })
+                );
+
+
+        /* Sagemath doesn't expose anything about the computation of the
+         * radical. In full generality, we're not testing our code
+         * correctly since p_radical should also be correct for orders
+         * that are not p-maximal. But the _underlying code is anyway
+         * being used in the p-maximal order computation, so here we're
+         * testing the interface layer, which is probably good enough
+         */
+        auto s_rad = fmt::format("rad_{}", p);
+        fmt::print("{} = {}\n", s_rad, Op.p_radical(p));
+        fmt::print("assert {} == prod([{}])\n",
+                s_rad,
+                join(fkps, ", ", [&](auto const & Is) { return Is.second; })
+                );
+
+        // factor_radical is really a proxy to Op.factor()
+        fmt::print("assert {} == prod([{}])\n",
+                s_rad, join(Op.factor_radical(p), ", "));
+
+
+        cxx_gmp_randstate state;
+        if (seed)
+            gmp_randseed_ui(state, seed);
         for(int i = 0 ; i < 4 ; i++) {
             cxx_mpz_poly phi;
             int64_t a = gmp_urandomm_ui(state, 1000);
@@ -581,16 +714,49 @@ static int do_number_theory_object_interface(cxx_param_list & pl)
             fmt::print("I_{0}_{1} = {2}.fractional_ideal([{0}-{1}*{3}])\n",
                     a, b, Op.name, K.varname);
             fmt::print("assert I_{}_{} == {}\n", a, b, I);
-            for(auto const & Ie : fac_p) {
+            for(auto const & [ fkp, s ] : fkps) {
                 fmt::print("assert I_{}_{}.valuation({}) == {}\n",
-                        a, b, Ie.first, 
-                        I.valuation(Ie.first));
-                fmt::print("print(\"{}\")\n", I.valuation(Ie.first));
+                        a, b, s,
+                        I.valuation(fkp));
+                fmt::print("print(\"{}\")\n", I.valuation(fkp));
             }
         }
     }
-    prime_info_clear(pi);
 
+    void test_maximal_order() const
+    {
+        number_field_order OK = K.maximal_order(1000000);
+        OK.bless("OK");
+        fmt::print("print(\"computed {}\")\n", OK);
+        fmt::print("{} = {:S}\n", OK.name, OK);
+        fmt::print("assert {} == {}.maximal_order()\n", OK.name, K.name);
+    }
+
+    void test_signature() const
+    {
+        auto [r, s] = K.signature();
+        fmt::print("assert {}.signature() == ({}, {})\n", K.name, r, s);
+        fmt::print("assert {}.unit_group().rank() == {}\n",
+                K.name, K.unit_rank());
+    }
+
+    void all_tests() const
+    {
+        banner();
+        trivial_element_tests();
+        prime_info pi;
+        prime_info_init(pi);
+        for(unsigned long pp ; (pp = getprime_mt(pi)) < 12 ; pp++)
+            tests_mod_p(pp);
+        prime_info_clear(pi);
+        test_maximal_order();
+        test_signature();
+    }
+};
+
+static int do_number_theory_object_interface(cxx_param_list & pl)
+{
+    test_number_theory_object_interface(pl).all_tests();
     return 1;
 }
 

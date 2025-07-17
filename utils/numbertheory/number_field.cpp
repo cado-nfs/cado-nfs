@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <utility>
+#include <stdexcept>
 
 #include <gmp.h>
 #include "fmt/base.h"
@@ -12,14 +13,12 @@
 #include "misc.h"
 #include "mpz_mat.h"
 #include "mpz_poly.h"
-#include "mpz_mat_accessors.h"
 
 #include "numbertheory/fmt_helpers.hpp"
 #include "numbertheory/number_field.hpp"
 #include "numbertheory/number_field_element.hpp"
 #include "numbertheory/number_field_order.hpp"
 #include "numbertheory/number_field_order_element.hpp"
-#include "numbertheory/numbertheory_internals.hpp"
 
 number_field::number_field(cxx_mpz_poly const & f)
     : f(f)
@@ -37,17 +36,12 @@ void number_field::bless(std::string const & name, std::string const & varname)
 
 void number_field::bless(std::string const & name)
 {
-    this->name = name;
-    this->varname = fmt::format("{}.1", name);
+    bless(name, fmt::format("{}.1", name));
 }
 
 void number_field::bless(const char * name, const char * varname)
 {
-    this->name = name;
-    if (varname)
-        this->varname = varname;
-    else
-        this->varname = fmt::format("{}.1", name);
+    bless(std::string(name), varname ? std::string(varname) : fmt::format("{}.1", name));
 }
 
 number_field_element number_field::gen() const {
@@ -113,7 +107,7 @@ cxx_mpq_mat number_field::trace_matrix() const
             mpq_mat_mul(M, M, C);
             mpq_mat_trace(T(0, i), M);
         }
-        cached_trace_matrix = std::unique_ptr<cxx_mpq_mat>(new cxx_mpq_mat(T));
+        cached_trace_matrix = std::make_unique<cxx_mpq_mat>(T);
     }
     return *cached_trace_matrix;
 }
@@ -123,10 +117,13 @@ static number_field_order maximize_recursively(number_field_order && O, cxx_mpz 
 {
     if (begin == end)
         return std::move(O);
-    else if (mpz_p_valuation(disc, begin->first) == 1)
+
+    auto p = begin->first;
+
+    if (mpz_p_valuation(disc, p) == 1)
         return maximize_recursively(std::move(O), disc, ++begin, end);
     else
-        return maximize_recursively(O.p_maximal_order(begin->first), disc, ++begin, end);
+        return maximize_recursively(O.p_maximal_order(p), disc, ++begin, end);
 }
 
 /* the maximal order in itself isn't necessarily something very useful.
@@ -142,20 +139,18 @@ static number_field_order maximize_recursively(number_field_order && O, cxx_mpz 
 number_field_order const& number_field::maximal_order(unsigned long prime_limit) const
 {
     if (cached_maximal_order == nullptr) {
-
-        cxx_mpz disc;
+        cxx_mpz disc, cofac;
         mpz_poly_discriminant(disc, f);
         mpz_mul(disc, disc, mpz_poly_lc(f));
 
         /* We're not urged to use ecm here */
-        auto d_fac = trial_division(disc, prime_limit, disc);
+        auto d_fac = trial_division(disc, prime_limit, cofac);
 
-        cached_maximal_order = std::unique_ptr<number_field_order>(
-                new number_field_order(
+        cached_maximal_order = std::make_unique<number_field_order>(
                     maximize_recursively(equation_order(),
                         disc,
                         d_fac.begin(),
-                        d_fac.end())));
+                        d_fac.end()));
 
     }
 
@@ -168,10 +163,14 @@ number_field_element number_field::operator()(cxx_mpz_poly const & a, cxx_mpz co
 }
 number_field_element number_field::operator()(cxx_mpq_mat const & a) const
 {
+    if (a.ncols() != static_cast<unsigned int>(degree()))
+        throw std::out_of_range("wrong number of coefficients");
     return { *this, a };
 }
 number_field_element number_field::operator()(cxx_mpz_mat const & a, cxx_mpz const & d) const
 {
+    if (a.ncols() != static_cast<unsigned int>(degree()))
+        throw std::out_of_range("wrong number of coefficients");
     return { *this, a, d };
 }
 
