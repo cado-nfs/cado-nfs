@@ -16,9 +16,7 @@ endif()
 cado_define_test(test_dup2${sage_opt}
    NO_DEFAULT_RUN
    SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/test_dup2.sh
-   PRECOMMAND
-   "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh"
-   --env WORKDIR
+   PROVIDE_TEMPORARY_WDIR
    TARGET_DEPENDENCIES freerel debug_renumber dup2 ${deps}
    )
 

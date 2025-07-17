@@ -346,8 +346,8 @@ macro(cado_epilogue_create_test)
                 # --build-target ${TEST_NAME}_dependencies
                 # --test-command
                 env ${test_env}
-                ${PRECOMMAND}
                 ${provide_wdir}
+                ${PRECOMMAND}
                 ${CADO_NFS_SOURCE_DIR}/tests/test.sh
                 ${wrapper_args}
                 --
