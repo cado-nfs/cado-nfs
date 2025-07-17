@@ -3,12 +3,22 @@
 set -e
 set -x
 
-# Usage:
+# Usage: (see also dev_docs/README.coverage.md)
 #
 # COV=1 make -j8 all all_test_dependencies && COV=1 scripts/cov.sh -R numbertheory
 #
 # (it's not absolutely necessary to compile everything)
-
+#
+# The COV=1 magic assumes that you have this code inside `local.sh`:
+#
+# if [ "$COV" ] ; then
+#     build_tree="${build_tree}.cov"
+#     DEBUG=1
+#     CFLAGS="-O0 -g --coverage -fprofile-update=atomic"
+#     CXXFLAGS="-O0 -g --coverage -fprofile-update=atomic"
+#     LDFLAGS="--coverage"
+# fi
+ 
 export COV=1
 eval $(make show)
 
@@ -42,9 +52,9 @@ if [ "$gcovr" ] ; then
         fi
     }
 
-    # does this even work ? It is identical to after_run, so we're very
-    # probably _not_ collecting very different stuff, here.
     before_run() {
+        # remove coverage results of the previous run
+        (cd $build_tree ; find . -name '*.gcda' | xargs rm)
         (cd $build_tree ; time gcovr --merge-mode-functions=separate -r $src_tree --json ${C}-base.json)
     }
 
@@ -87,6 +97,8 @@ else
         lcov -a $cap1 --substitute "s#^$src_tree/##" -o $cap
     }
     before_run() {
+        # remove coverage results of the previous run
+        (cd $build_tree ; find . -name '*.gcda' | xargs rm)
         capture ${C}-pre0.info -i
         postprocess_capture ${C}-pre0.info ${C}-pre1.info ${C}-base.info
     }
