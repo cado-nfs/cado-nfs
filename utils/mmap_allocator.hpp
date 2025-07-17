@@ -109,7 +109,7 @@ namespace mmap_allocator_details
             };
         public:
             segment get_segment(offset_type offset, size_type length) {
-                return segment { m, offset, length };
+                return { m, offset, length };
             }
             explicit mmapped_file(const char * fname, access_mode mode = READ_ONLY, offset_type offset = 0, size_type length = std::numeric_limits<size_type>::max()) : m(std::make_shared<mapping>(fname, mode, offset, length)) {}
             explicit mmapped_file(std::string const & fname, access_mode mode = READ_ONLY, offset_type offset = 0, size_type length = std::numeric_limits<size_type>::max()) : mmapped_file(fname.c_str(), mode, offset, length) {}
@@ -118,50 +118,26 @@ namespace mmap_allocator_details
     template <typename T> class mmap_allocator: public std::allocator<T>
     {
         public:
-            // using typename std::allocator<T>::size_type;
-            // using typename std::allocator<T>::pointer;
-            // using typename std::allocator<T>::const_pointer;
-            // The types above seem to have always been the same as the
-            // simpler ones below, and c++17 forces us to remove these
-            // middle men.
-            typedef size_t size_type;
-            typedef T * pointer;
-            typedef T const * const_pointer;
-#if __cplusplus < 201703L
-            // still, I want to error out if for some reason these checks
-            // happen to fail...
-            static_assert(std::is_same<pointer, typename std::allocator<T>::pointer>::value, "std::allocator<T> subtypes do not behave as expected");
-            static_assert(std::is_same<const_pointer, typename std::allocator<T>::const_pointer>::value, "std::allocator<T> subtypes do not behave as expected");
-            static_assert(std::is_same<size_type, typename std::allocator<T>::size_type>::value, "std::allocator<T> subtypes do not behave as expected");
-#endif
-            typedef mmap_allocator_details::offset_type offset_type;
+            using offset_type = typename mmap_allocator_details::offset_type;
         private:
             mmapped_file::segment s;
         public:
             bool has_defined_mapping() const { return bool(s); }
             template<typename Tp1>
-            struct rebind { typedef mmap_allocator<Tp1> other; };
+            struct rebind { using other = mmap_allocator<Tp1>; };
 
-#if __cplusplus < 201703L
-            pointer allocate(size_type n, const void *hint=0)
-#else
-            pointer allocate(size_type n)
-#endif
+            T * allocate(size_t n)
             {
                 if (!s) {
-#if __cplusplus < 201703L
-                    return std::allocator<T>::allocate(n, hint);
-#else
                     return std::allocator<T>::allocate(n);
-#endif
                 }
 
                 if (n == 0) return nullptr;
 
-                return (pointer) s.get(n*sizeof(T));
+                return (T *) s.get(n*sizeof(T));
             }
 
-            void deallocate(pointer p, size_type n)
+            void deallocate(T * p, size_t n)
             {
                 if (!s) {
                     std::allocator<T>::deallocate(p, n);
@@ -181,8 +157,8 @@ namespace mmap_allocator_details
             explicit mmap_allocator(mmapped_file::segment s)
                 : s(std::move(s))
             {}
-            mmap_allocator(mmapped_file m, offset_type offset, size_type length) : s(m.get_segment(offset, length * sizeof(T))) {}
-            mmap_allocator(const char * f, access_mode mode, offset_type offset, size_type length) : mmap_allocator(mmapped_file(f, mode, offset, length*sizeof(T)), offset, length) {}
+            mmap_allocator(mmapped_file m, offset_type offset, size_t length) : s(m.get_segment(offset, length * sizeof(T))) {}
+            mmap_allocator(const char * f, access_mode mode, offset_type offset, size_t length) : mmap_allocator(mmapped_file(f, mode, offset, length*sizeof(T)), offset, length) {}
 
     };
 }

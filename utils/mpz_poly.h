@@ -369,7 +369,6 @@ struct cxx_mpz_poly {
         mpz_poly_set_mpz(x, a);
         return *this;
     }
-#if __cplusplus >= 201103L
     cxx_mpz_poly(cxx_mpz_poly && o) noexcept {
         mpz_poly_init(x, -1);
         mpz_poly_swap(x, o.x);
@@ -378,7 +377,6 @@ struct cxx_mpz_poly {
         mpz_poly_swap(x, o.x);
         return *this;
     }
-#endif
     // NOLINTNEXTLINE(hicpp-explicit-conversions)
     cxx_mpz_poly(std::string const & e) : cxx_mpz_poly() {
         mpz_poly_set_from_expression(x, e.c_str());

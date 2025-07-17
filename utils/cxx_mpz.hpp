@@ -174,7 +174,6 @@ struct cxx_mpq{
         mpq_set(x, o.x);
         return *this;
     }
-#if __cplusplus >= 201103L
     cxx_mpq(cxx_mpq && o) {
         mpq_init(x);
         mpq_swap(x, o.x);
@@ -183,7 +182,6 @@ struct cxx_mpq{
         mpq_swap(x, o.x);
         return *this;
     }
-#endif
     operator mpq_ptr() { return x; }
     operator mpq_srcptr() const { return x; }
     mpq_ptr operator->() { return x; }

@@ -9,9 +9,7 @@
 #include <new>
 #include <type_traits>
 
-#if __cplusplus >= 201402L
 #include <utility>
-#endif
 
 #include "is_non_narrowing_conversion.hpp"
 #include "arithxx_residue_std_op.hpp"
@@ -19,21 +17,8 @@
 #include "misc.h"
 
 namespace arithxx_details {
-
-#if __cplusplus < 201402L
-    /* we need to import equivalents of c++14's std::index_sequence and
-     * std::make_index_sequence with only c++11. It's just clutter,
-     * really.
-     */
-    template<std::size_t... Is> struct index_sequence{};
-    template<std::size_t N, std::size_t... Is>
-        struct make_index_sequence : make_index_sequence<N-1, N-1, Is...>{};
-    template<std::size_t... Is>
-        struct make_index_sequence<0, Is...> : index_sequence<Is...>{};
-#else
     using std::index_sequence;
     using std::make_index_sequence;
-#endif
 
     /* The functions here are defined for every instantiation of the api.
      * This type is always a base class of the Modulus class, so that
@@ -42,9 +27,9 @@ namespace arithxx_details {
      */
     template <typename layer>
         struct api {
-            typedef typename layer::Modulus Modulus;
-            typedef typename layer::Residue Residue;
-            typedef typename layer::Integer Integer;
+            using Modulus = typename layer::Modulus;
+            using Residue = typename layer::Residue;
+            using Integer = typename layer::Integer;
             
             /* Data members */
             Integer m;

@@ -116,7 +116,6 @@ struct cxx_double_poly {
         double_poly_set(x, o.x);
         return *this;
     }
-#if __cplusplus >= 201103L
     cxx_double_poly(cxx_double_poly && o) {
         double_poly_init(x, -1);
         double_poly_swap(x, o.x);
@@ -125,7 +124,6 @@ struct cxx_double_poly {
         double_poly_swap(x, o.x);
         return *this;
     }
-#endif
     operator double_poly_ptr() { return x; }
     operator double_poly_srcptr() const { return x; }
     double_poly_ptr operator->() { return x; }

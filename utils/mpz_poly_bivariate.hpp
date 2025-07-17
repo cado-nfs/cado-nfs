@@ -75,10 +75,8 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
     self & operator=(self const & o) = default;
     cxx_mpz_poly_bivariate(self const &) = default;
     ~cxx_mpz_poly_bivariate() = default;
-#if __cplusplus >= 201103L
     cxx_mpz_poly_bivariate(self && o) = default;
     cxx_mpz_poly_bivariate & operator=(self && o) = default;
-#endif
 #if 0
     private:
     /* non-const accesses have the potential to ruin the consistency. So

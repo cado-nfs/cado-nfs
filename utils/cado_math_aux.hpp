@@ -53,10 +53,9 @@ namespace cado_math_aux
         }
 
 
-    TEMPLATE_ENABLED_ON_TEMPLATE_ARG(
-            typename T,
-            !std::numeric_limits<T>::is_integer)
+    template<typename T>
         static bool equal_within_ulps(T x, T y, std::size_t n)
+        requires(!std::numeric_limits<T>::is_integer)
         {
             const T m = std::min(std::fabs(x), std::fabs(y));
             const int exp = m < std::numeric_limits<T>::min()
@@ -65,10 +64,9 @@ namespace cado_math_aux
             return std::fabs(x - y) <= n * std::ldexp(std::numeric_limits<T>::epsilon(), exp);
         }
 
-    TEMPLATE_ENABLED_ON_TEMPLATE_ARG(
-            typename T,
-            !std::numeric_limits<T>::is_integer)
+    template<typename T>
         static int accurate_bits(T reference, T computed)
+        requires(!std::numeric_limits<T>::is_integer)
         {
             ASSERT_ALWAYS(reference != 0);
             T c = std::fabs((computed-reference)/reference);

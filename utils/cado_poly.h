@@ -120,7 +120,6 @@ struct cxx_cado_poly {
         cado_poly_set(x, o.x);
         return *this;
     }
-#if __cplusplus >= 201103L
     cxx_cado_poly(cxx_cado_poly && o) {
         cado_poly_init(x);
         cado_poly_swap(x, o.x);
@@ -129,7 +128,6 @@ struct cxx_cado_poly {
         cado_poly_swap(x, o.x);
         return *this;
     }
-#endif
     operator cado_poly_ptr() { return x; }
     operator cado_poly_srcptr() const { return x; }
     cado_poly_ptr operator->() { return x; }

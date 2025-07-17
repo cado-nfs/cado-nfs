@@ -13,13 +13,10 @@ namespace arith_modp::details {
      * long while, and it has never been put in production as far as I
      * can tell.
      */
-    /* AVX/SSE code is a choice which is mostly unrelated to the C++
-     * dialect we use, except for a fine point below. We use a union to
-     * protect an off-bounds write. And pre-C++11 does not really like
-     * unions with contructors for members. we have
+    /* 
+     * We have
      * little use for this code at the moment since it is suboptimal.
      */
-#if __cplusplus >= 201103L
 #if defined(HAVE_AVX2) || defined(HAVE_SSSE3)
     template<> struct fast_type<gfp<3, 1> > {
         typedef gfp<3, 1> super;
@@ -536,7 +533,6 @@ namespace arith_modp::details {
         }
     };
 #endif /* defined(HAVE_AVX2) || defined(HAVE_SSSE3) */
-#endif
 #endif
 }
 
