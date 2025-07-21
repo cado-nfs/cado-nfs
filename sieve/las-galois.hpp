@@ -10,7 +10,7 @@
 #include "galois_action.hpp"
 #include "relation.hpp"
 
-void skip_galois_roots(const mpz_t q, std::vector<cxx_mpz> & roots,
+void skip_galois_roots(cxx_mpz const & q, std::vector<cxx_mpz> & roots,
                        galois_action const & gal_action);
 
 void add_relations_with_galois(const char *galois, std::ostream& os,

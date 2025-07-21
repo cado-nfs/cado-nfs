@@ -184,16 +184,15 @@ void add_relations_with_galois(const char *galois, std::ostream& os,
 }
 
 void
-skip_galois_roots(const mpz_t q, std::vector<cxx_mpz> &roots,
+skip_galois_roots(cxx_mpz const & q, std::vector<cxx_mpz> &roots,
                   galois_action const &gal_action)
 {
     unsigned int const ord = gal_action.get_order();
     unsigned long const qq = mpz_get_ui(q);
     size_t const nroots = roots.size();
 
-    verbose_output_vfprint(0, 2, gmp_vfprintf,
-                           "# galois: got %d root(s) modulo q=%Zd\n",
-                           nroots, (mpz_srcptr) q);
+    verbose_fmt_print(0, 2, "# galois: got {} root(s) modulo q={}\n", nroots,
+                                                                      q);
 
     /* Keep only one root among sigma-orbits. */
     unsigned long conj[ord]; // where to put conjugates
@@ -212,18 +211,14 @@ skip_galois_roots(const mpz_t q, std::vector<cxx_mpz> &roots,
         size_t orbit_length = 0;
         do {
             conj[orbit_length] = r;
-            verbose_output_vfprint(0, 3, gmp_vfprintf,
-                                   "# galois: orbit of root %Zd modulo q=%Zd "
-                                   "contains %lu\n", (mpz_srcptr) roots[k],
-                                   (mpz_srcptr) q, r);
+            verbose_fmt_print(0, 3, "# galois: orbit of root {} modulo q={} "
+                                   "contains {}\n", roots[k], q, r);
             r = gal_action.apply(r, qq);
             orbit_length++;
         } while (r != rk && orbit_length < ord);
 
-        verbose_output_vfprint(0, 2, gmp_vfprintf,
-                               "# galois: orbit of root %Zd modulo q=%Zd has "
-                               "length %zu\n", (mpz_srcptr) roots[k],
-                               (mpz_srcptr) q, orbit_length);
+        verbose_fmt_print(0, 2, "# galois: orbit of root {} modulo q={} has "
+                               "length {}\n", roots[k], q, orbit_length);
 
         /* Checks:
          *  - sigma^ord(rk) == rk
@@ -262,8 +257,7 @@ skip_galois_roots(const mpz_t q, std::vector<cxx_mpz> &roots,
     ASSERT_ALWAYS(new_nroots == n_solo_orbit + (nroots-n_solo_orbit)/ord);
     roots.erase(roots.begin() + new_nroots, roots.end());
 
-    verbose_output_vfprint(0, 2, gmp_vfprintf,
-                           "# galois: computed %zu orbits for roots modulo "
-                           "q=%Zd (of which %zu have length 1).\n",
-                           roots.size(), (mpz_srcptr) q, n_solo_orbit);
+    verbose_fmt_print(0, 2, "# galois: computed {} orbits for roots modulo "
+                           "q={} (of which {} have length 1).\n", roots.size(),
+                           q, n_solo_orbit);
 }
