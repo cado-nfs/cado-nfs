@@ -54,6 +54,7 @@ set (sources
         cado-sighandlers.cpp
         mmap_allocator.cpp
         random_distributions.cpp
+        imaginary_quadratic_class_groups.cpp
         ${fmt_sources}
 )
 

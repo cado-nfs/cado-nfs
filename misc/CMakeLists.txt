@@ -25,4 +25,7 @@ if(HAVE_GMPECM)
     target_link_libraries(factor utils ecm)
 endif()
 
+add_executable(cl_structure_from_group_order cl_structure_from_group_order.cpp)
+target_link_libraries(cl_structure_from_group_order utils)
+
 include(CMakeLists-nodist.txt OPTIONAL)
