@@ -1,3 +1,5 @@
+#include "cado.h"       // IWYU pragma: keep
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -265,7 +267,7 @@ int main(int argc, char * argv[])  // not 'char const' because of strtok
   uint64_t x, y, z, result = 0, sum = 0;
   int print = 0;
   char k_default[4] = {'0',',','1',0}; /* Need this non-const, thus no literal string */
-  const char * k_values = k_default;
+  char * k_values = k_default;
 
   while (argc > 1) {
     if (strcmp(argv[1], "-k") == 0) {
@@ -314,7 +316,9 @@ int main(int argc, char * argv[])  // not 'char const' because of strtok
   build_LUT();
   check_LUT();
 
-  for (char *k_str = strtok(k_values, ","); k_str != NULL; k_str = strtok(NULL, ",")) {
+  char * saveptr = NULL;
+
+  for (char * k_str = strtok_r(k_values, ",", &saveptr); k_str != NULL; k_str = strtok_r(NULL, ",", &saveptr)) {
     uint64_t k = strtoul(k_str, NULL, 10);
     if (print) {
       result = Psi_k_print(x, y, z, k, 0);

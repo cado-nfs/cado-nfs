@@ -3,9 +3,9 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include "modredc_ul.h"
-#include "modredc_15ul.h"
-#include "modredc_2ul2.h"
+#include "arith/modredc_ul.h"
+#include "arith/modredc_15ul.h"
+#include "arith/modredc_2ul2.h"
 #include "timing.h"
 
 #define NBMUL_1UL  1000000000

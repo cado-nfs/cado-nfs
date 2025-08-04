@@ -133,10 +133,6 @@ add_executable(las_descent
 target_link_libraries (las_descent facul utils)
 set_property(TARGET las_descent PROPERTY COMPILE_DEFINITIONS DLP_DESCENT SUPPORT_LARGE_Q)
 
-add_executable (fb_test EXCLUDE_FROM_ALL fb.cpp)
-set_property(TARGET fb_test PROPERTY COMPILE_DEFINITIONS TESTDRIVE=1)
-target_link_libraries (fb_test utils)
-
 add_subdirectory(ecm)
 add_subdirectory(strategies)
 
