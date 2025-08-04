@@ -2,7 +2,10 @@
 The main page of the Cado-NFS source code is
 [https://gitlab.inria.fr/cado-nfs/cado-nfs](https://gitlab.inria.fr/cado-nfs/cado-nfs).
 If you're accessing the cado-nfs source from a different link, it may be
-an outdated fork.
+an outdated fork. (This being said, all commits to the
+`master` branch are automatically mirrored to the [cado-nfs project on
+GitHub](https://github.com/cado-nfs/cado-nfs), so the latter should be
+up-to-date as well.)
 
 [![pipeline status](https://gitlab.inria.fr/cado-nfs/cado-nfs/badges/master/pipeline.svg)](https://gitlab.inria.fr/cado-nfs/cado-nfs/-/pipelines?ref=master)
 [![coverage report](https://gitlab.inria.fr/cado-nfs/cado-nfs/badges/master/coverage.svg)](https://gitlab.inria.fr/cado-nfs/cado-nfs/-/jobs/artifacts/master/file/coverage/lcov/index.html?job=merge+coverage+tests)
