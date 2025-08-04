@@ -895,8 +895,7 @@ class Cado_NFS_toplevel(object):
         2
 
         Number of threads of the sqrt step should be capped to
-        8, but not set explicitly at this level if that would
-        be a mere repetition of tasks.threads
+        1 by default
         >>> t = Cado_NFS_toplevel(args=['12345', '-p', os.path.os.devnull])
         >>> t.filter_out_N_paramfile_workdir()
         >>> t.parameters = cadoparams.Parameters()
@@ -904,10 +903,10 @@ class Cado_NFS_toplevel(object):
         >>> t.parameters.readparams(t.args.options)
         >>> t.set_threads_and_client_threads()
         >>> t.parameters.get_or_set_default("tasks.sqrt.threads",0)
-        3
+        1
 
         >>> t.parameters.locate("tasks.sqrt.threads")
-        'tasks.threads'
+        'tasks.sqrt.threads'
 
         Finish the test above (verify that capping works as
         intended), and also make sure that
@@ -922,7 +921,7 @@ class Cado_NFS_toplevel(object):
         >>> t.parameters.readparams(t.args.options)
         >>> t.set_threads_and_client_threads()
         >>> t.parameters.get_or_set_default("tasks.sqrt.threads",0)
-        8
+        1
 
         >>> t.parameters.locate("tasks.sqrt.threads")
         'tasks.sqrt.threads'
@@ -1292,6 +1291,7 @@ class Cado_NFS_toplevel(object):
         tasks.linalg.bwc.threads = 4
         tasks.polyselect.threads = 2
         tasks.sieve.las.threads = 2
+        tasks.sqrt.threads = 1
 
         >>> del os.environ["NCPUS_FAKE"]
         '''
