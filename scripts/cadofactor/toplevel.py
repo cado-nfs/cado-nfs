@@ -953,14 +953,14 @@ class Cado_NFS_toplevel(object):
                 p = "tasks.linalg.bwc.threads"
                 if not pa.is_set_explicitly(p):
                     c = self.number_of_physical_cores()
-                    self.logger.info("Set %s=%d"
+                    self.logger.info("Setting %s=%d"
                                      " based on detected physical cores"
                                      % (p, c))
                     pa.set_simple(p, c)
             t = int(self.args.server_threads)
             p = "tasks.threads"
             if not pa.is_set_explicitly(p):
-                self.logger.info("Set %s=%d based on %s"
+                self.logger.info("Setting %s=%d based on %s"
                                  % (p, t, t_wherefrom))
                 pa.set_simple(p, t)
             else:
@@ -985,14 +985,17 @@ class Cado_NFS_toplevel(object):
                     pa.set_simple(p, min(t, 2))
 
         # last thing. For sqrt, more than 8 threads is slightly overkill.
-        # So unless explicitly stated otherwise, we set it to min(8,
-        # server.threads).
+        # So unless explicitly stated otherwise, we set it to 1. It might
+        # seem very very low, but it's our easiest way to avoid reports
+        # from users who run out of RAM.
         # Note: for a c180, 8 threads is still too large for 64Gb (we need
         # about 16Gb per thread).
         p = "tasks.sqrt.threads"
-        t = pa.get_or_set_default(p, 0)
-        if t > 8 and not pa.is_set_explicitly(p):
-            pa.set_simple(p, 8)
+        if not pa.is_set_explicitly(p):
+            self.logger.info(f"Setting {p}=1 in order to avoid RAM issues."
+                             f" You might want to set {p}=<something else>"
+                             " according to what your computer can do.")
+            pa.set_simple(p, 1)
 
         for p in ["tasks.threads",
                   "tasks.polyselect.threads",
