@@ -1415,8 +1415,8 @@ static void* write_rels(void* _args) {
     FILE* fp MAYBE_UNUSED = args->fp;
 
     if (verbose) fprintf(stderr, "# write_rels() started\n");
-    char* buf;
-    int bufsize;
+    char* buf = NULL;
+    int bufsize = 0;
     int ret = READ_EOF;
 
     for (;;) {

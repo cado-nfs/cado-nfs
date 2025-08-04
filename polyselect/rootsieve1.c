@@ -111,10 +111,10 @@ initPrimes (unsigned long B)
   for (p = 2; p < B; p += 1 + (p > 2))
     if (ulong_isprime (p))
       Primes[nprimes++] = p;
-  CHECKED_REALLOC(Primes, primes, unsigned long);
+  CHECKED_REALLOC(Primes, nprimes, long);
 
   /* compute prime powers */
-  Q = malloc (nprimes * sizeof (unsigned long));
+  Q = malloc (nprimes * sizeof (long));
   ASSERT_ALWAYS(Q != NULL);
   for (l = 0; l < nprimes; l++)
     {

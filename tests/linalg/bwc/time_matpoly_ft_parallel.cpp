@@ -6,6 +6,7 @@
 #include "gmp_aux.h"
 #include "lingen_substep_characteristics.hpp"
 #include "lingen_mul_substeps.hpp"
+#include "lingen_substep_schedule.hpp"
 #include "lingen_fft_select.hpp"
 #include "timing.h" // seconds
 #include "params.h"
@@ -13,9 +14,8 @@
 template<typename fft_type>
 struct matpoly_checker_ft {
     static constexpr bool is_binary = is_binary_fft<fft_type>::value;
-    typedef matpoly<is_binary> matpoly_type;
-    typedef typename matpoly_type::arith_hard arith_hard_t;
-    arith_hard_t ab;
+    using matpoly_type = matpoly<is_binary>;
+    matpoly_type::arith_hard ab;
     unsigned int m;
     unsigned int n;
     unsigned int L;
@@ -27,7 +27,7 @@ struct matpoly_checker_ft {
     typename matpoly_ft<fft_type>::memory_guard dummy_ft;
 
     matpoly_checker_ft(cxx_mpz const & p, unsigned int m, unsigned int n, unsigned int L, cxx_gmp_randstate & rstate0)
-        : ab(p, 1)
+        : ab(p, 1U)
         , m(m)
         , n(n)
         , L(L)
@@ -48,33 +48,43 @@ struct matpoly_checker_ft {
     public:
 
     void doit_mul(lingen_platform const & P, std::ostream& os) {
-        typedef lingen_substep_characteristics<op_mul<is_binary, fft_type>> X_t;
+        using X_t = lingen_substep_characteristics<is_binary>;
+        using op_t = op_mul<is_binary, fft_type>;
         size_t LE = L / 2;
         size_t Lpi = m * LE / (m + n);
-        X_t X(ab, rstate,
+        X_t X(&ab, rstate,
                 0,      /* not used -- this field should probably go away
                            anyway */
+                op_mul_or_mp_base::OP_MUL,
                 m+n, m+n, m+n,
                 Lpi, Lpi, Lpi+Lpi-1);
-        X.report_size_stats_human(os);
-        X.fill_tvec(os, typename X_t::microbench_dft(P, X));
-        X.fill_tvec(os, typename X_t::microbench_ift(P, X));
-        X.fill_tvec(os, typename X_t::microbench_conv(P, X));
+        auto op_generic = X.instantiate(encode_fft_type<fft_type>);
+        auto const & op = dynamic_cast<op_t const &>(*op_generic);
+        X.report_size_stats_human(os, op);
+        constexpr unsigned int mesh = 1;
+        X.fill_tvec(os, microbench_dft<op_t>(op, P, mesh, X));
+        X.fill_tvec(os, microbench_ift<op_t>(op, P, mesh, X));
+        X.fill_tvec(os, microbench_conv<op_t>(op, P, mesh, X));
     }
 
     void doit_mp(lingen_platform const & P, std::ostream& os) {
-        typedef lingen_substep_characteristics<op_mp<is_binary, fft_type>> X_t;
+        using X_t = lingen_substep_characteristics<is_binary>;
+        using op_t = op_mul<is_binary, fft_type>;
         size_t LE = L / 2;
         size_t Lpi = m * LE / (m + n);
-        X_t X(ab, rstate,
+        X_t X(&ab, rstate,
                 0,      /* not used -- this field should probably go away
                            anyway */
+                op_mul_or_mp_base::OP_MP,
                 m, m+n, m+n,
                 LE + Lpi, Lpi, LE + 1);
-        X.report_size_stats_human(os);
-        X.fill_tvec(os, typename X_t::microbench_dft(P, X));
-        X.fill_tvec(os, typename X_t::microbench_ift(P, X));
-        X.fill_tvec(os, typename X_t::microbench_conv(P, X));
+        auto op_generic = X.instantiate(encode_fft_type<fft_type>);
+        auto const & op = dynamic_cast<op_t const &>(*op_generic);
+        X.report_size_stats_human(os, op);
+        constexpr unsigned int mesh = 1;
+        X.fill_tvec(os, microbench_dft<op_t>(op, P, mesh, X));
+        X.fill_tvec(os, microbench_ift<op_t>(op, P, mesh, X));
+        X.fill_tvec(os, microbench_conv<op_t>(op, P, mesh, X));
     }
 
     void doit(lingen_platform const & P, std::ostream& os) {
@@ -162,25 +172,25 @@ int main(int argc, char const * argv[])
 
     gmp_randseed_ui(rstate, seed);
 
-    if constexpr (is_binary) {
-        {
-            matpoly_checker_ft<gf2x_fake_fft_info> checker_ft(p, m, n, L, rstate);
-            checker_ft.doit(P, std::cout);
-        }
-        {
-            matpoly_checker_ft<gf2x_cantor_fft_info> checker_ft(p, m, n, L, rstate);
-            checker_ft.doit(P, std::cout);
-        }
-        {
-            matpoly_checker_ft<gf2x_ternary_fft_info> checker_ft(p, m, n, L, rstate);
-            checker_ft.doit(P, std::cout);
-        }
-    } else {
-        {
-            matpoly_checker_ft<fft_transform_info> checker_ft(p, m, n, L, rstate);
-            checker_ft.doit(P, std::cout);
-        }
+#ifdef LINGEN_BINARY
+    {
+        matpoly_checker_ft<gf2x_fake_fft_info> checker_ft(p, m, n, L, rstate);
+        checker_ft.doit(P, std::cout);
     }
+    {
+        matpoly_checker_ft<gf2x_cantor_fft_info> checker_ft(p, m, n, L, rstate);
+        checker_ft.doit(P, std::cout);
+    }
+    {
+        matpoly_checker_ft<gf2x_ternary_fft_info> checker_ft(p, m, n, L, rstate);
+        checker_ft.doit(P, std::cout);
+    }
+#else
+    {
+        matpoly_checker_ft<fft_transform_info> checker_ft(p, m, n, L, rstate);
+        checker_ft.doit(P, std::cout);
+    }
+#endif
 
     MPI_Finalize();
 }
