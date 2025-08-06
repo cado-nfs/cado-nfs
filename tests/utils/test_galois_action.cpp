@@ -3,11 +3,17 @@
 #include <cstdlib>
 #include <cstdint>
 
-#include <iostream>         // for std::cout
 #include <vector>
 
-#include "tests_common.h"   // for tests_common_cmdline, tests_common_clear, ...
-#include "utils/galois_action.hpp"
+#include "fmt/base.h"
+
+#include "gmp_aux.h"
+#include "tests_common.h"
+#include "misc.h"
+#include "galois_action.hpp"
+#include "special-q.hpp"
+#include "arithxx/mod64.hpp"
+#include "gcd.h"
 
 static bool
 test_galois_apply_one(galois_action const & G,
@@ -25,33 +31,46 @@ test_galois_apply_one(galois_action const & G,
             continue;
         for (unsigned long r = 0; r <= p; r++) {
             unsigned long sigma_r = G.apply(r, p);
-            bool b;
+            special_q q0 { p, r, 1 };
+            special_q q1 = G.apply(q0);
+            if (q1.r != sigma_r) {
+                ret = false;
+                fmt::print("error in {}:"
+                        " G.apply({})={} while G.apply({},{})=({},{})\n",
+                        __func__, q0, q1, r, p, sigma_r, p);
+            }
             if (is_fixed_point(r, p)) {
-                b = sigma_r == r;
-                if (!b) {
-                    std::cout << "error in " << __func__ << ": with " << G
-                              << ": G.apply(" << r << ", " << p << ") should "
-                              << "be a fixed point but got " << sigma_r
-                              << "\n";
+                if (sigma_r != r) {
+                    ret = false;
+                    fmt::print("error in {}:"
+                            " G.apply({},{}) should be a fixed point"
+                            " but we got {}\n",
+                            __func__, r, p, sigma_r);
+                }
+                if (q1.r != q0.r) {
+                    ret = false;
+                    fmt::print("error in {}:"
+                            " G.apply({}) should be a fixed point"
+                            " but we got {}\n",
+                            __func__, q0, q1);
                 }
             } else {
                 /* Upper bound the nb of iter by 1000 to avoid endless loop that
                  * could occurs with some errors.
                  */
                 unsigned int n = 1;
-                while (sigma_r != r && n < 1000) {
+                while (sigma_r != r && q1.r != q0.r && n < 1000) {
                     sigma_r = G.apply(sigma_r, p);
+                    q1 = G.apply(q1);
                     n++;
                 }
-                b = n == G.get_order();
-                if (!b) {
-                    std::cout << "error in " << __func__ << ": with " << G
-                              << ": orbit of (" << r << ", " << p << ") should "
-                              << "of length " << G.get_order() << " but has "
-                              << "length " << n << "\n";
+                if (n != G.get_order()) {
+                    ret = false;
+                    fmt::print("error in {}:"
+                            " orbit of {} should have length {}, not {}\n",
+                            __func__, q0, G.get_order(), n);
                 }
             }
-            ret &= b;
         }
     }
 
@@ -118,171 +137,281 @@ test_galois_apply()
     return ret;
 }
 
-static bool
-test_galois_hash()
+static bool test_hash(galois_action const & g,
+        int64_t a0, uint64_t b0,
+        int64_t a1, uint64_t b1,
+        bool eq = true)
 {
     const uint64_t CA = UINT64_C(314159265358979323);
     const uint64_t CB = UINT64_C(271828182845904523);
 
-    bool ret = true;
+    const uint64_t h0 = g.hash_ab(a0, b0, CA, CB);
+    const uint64_t h1 = g.hash_ab(a1, b1, CA, CB);
+    if ((h0 == h1) != eq) {
+        fmt::print("error in test_hash with {}: hash({},{}) {} hash({},{})\n",
+                g, a0, b0, eq ? "!=" : "==", a1, b1);
+        return false;
+    }
+    return true;
+}
 
-#define TEST_HASH_INNER(g, a0, b0, a1, b1, op, inv_op_str) do {               \
-            const uint64_t h0 = g.hash_ab(INT64_C(a0), UINT64_C(b0), CA, CB);       \
-            const uint64_t h1 = g.hash_ab(INT64_C(a1), UINT64_C(b1), CA, CB);       \
-            if (!(h0 op h1)) {                                                \
-                std::cout << "error in " << __func__ << ": with " << g << ":" \
-                          << " hash(" #a0 ", " #b0 ") " inv_op_str            \
-                          << " hash(" #a1 ", " #b1 ")" << "\n";          \
-                ret = false;                                                  \
-            }                                                                 \
-        }while(0)
-#define TEST_HASH_EQ(g, a0, b0, a1, b1) \
-        TEST_HASH_INNER(g, a0, b0, a1, b1, ==, "!=")
-#define TEST_HASH_NEQ(g, a0, b0, a1, b1) \
-        TEST_HASH_INNER(g, a0, b0, a1, b1, !=, "==")
+/* form a random set of orbits,  make sure that hashes are consistent
+ * along the way
+ */
+static bool test_orbits(galois_action const & g)
+{
+    const uint64_t CA = UINT64_C(314159265358979323);
+    const uint64_t CB = UINT64_C(271828182845904523);
+
+    for(int i = 0 ; i < 10 ; i++) {
+        auto const n = g.get_order();
+
+        int64_t a0;
+        uint64_t b0;
+        uint64_t p;
+
+        for( ;; ) {
+            a0 = i64_random(state);
+            b0 = u64_random(state) >> 1;
+            if (n == 3 || n == 4) {
+                /* make sure we can't overflow. Note that each iteration
+                 * may double (a,b), but we have several in a cyle! */
+                a0 /= 4;
+                b0 /= 4;
+            } else if (n == 6) {
+                /* make sure we can't overflow. Note that each iteration
+                 * may trible (a,b), but we have several in a cyle! */
+                a0 /= 27;
+                b0 /= 27;
+            }
+
+            /* create a random evaluation point */
+            p = u64_random(state);
+
+#if ULONG_BITS == 32
+            /* since galois_action::apply takes and returns unsigned
+             * longs, we're bound to use unsigned longs. We could just as
+             * well let p and r actually *be* of unsigned long type, but
+             * then we would run into the problem that arithxx only has
+             * fixed-width types.
+             */
+            p >>= 32;
+#endif
+
+#if 0
+            /* for easier gdb debugging at first */
+            p = p % 1000;
+            a0 >>= 52;
+            b0 >>= 52;
+#endif
+
+            if (-p < 60) continue;
+
+            if (gcd_uint64(safe_abs64(a0), b0) != 1) continue;
+
+            break;
+        }
+        p = uint64_nextprime(p);
+        const uint64_t r = u64_random(state) % p;
+        const uint64_t s = g.apply(r, p);
+        /* TODO: also check what happens for a projective root ? */
+        const arithxx_mod64::Modulus pp(p);
+        arithxx_mod64::Residue rr(pp);
+        arithxx_mod64::Residue ss(pp);
+        pp.set(rr, r);
+        pp.set(ss, s);
+
+        auto h0 = g.hash_ab(a0, b0, CA, CB);
+        auto a = a0;
+        auto b = b0;
+        /* the Galois identity, after (a,b) -> (a',b'), should be
+         * (a-b*r') * c = m * (a' - b' * r)
+         *
+         * (which should also be ok if c == 0)
+         */
+        arithxx_mod64::Residue cc(pp);
+        pp.set(cc, static_cast<uint64_t>(g.apply_ab_cofactor(r, p)));
+
+        for(unsigned int i = 0 ; i < n ; i++) {
+            arithxx_mod64::Residue prev(pp);
+            arithxx_mod64::Residue aa(pp);
+            arithxx_mod64::Residue bb(pp);
+            pp.set(aa, a);
+            pp.set(bb, b);
+            pp.mul(prev, bb, ss);
+            pp.sub(prev, aa, prev);
+            pp.mul(prev, prev, cc);
+            int64_t m = g.apply_ab(a, b);
+            auto h = g.hash_ab(a, b, CA, CB);
+            arithxx_mod64::Residue rhs(pp);
+            arithxx_mod64::Residue mm(pp);
+            pp.set(mm, m);
+            pp.set(aa, a);
+            pp.set(bb, b);
+            pp.mul(rhs, bb, rr);
+            pp.sub(rhs, aa, rhs);
+            pp.mul(rhs, rhs, mm);
+            ASSERT_ALWAYS(pp.equal(prev, rhs));
+            ASSERT_ALWAYS(h == h0);
+        }
+        ASSERT_ALWAYS(a == a0);
+        ASSERT_ALWAYS(b == b0);
+    }
+    return true;
+}
+
+static bool
+test_galois_hash()
+{
+    bool ret = true;
 
     /*
      * galois action identity
      */
     galois_action const Gnone("none");
-    TEST_HASH_NEQ(Gnone, -42, 17, -17, 42); /* h(a, b) != h(-b, a) */
-    TEST_HASH_NEQ(Gnone, 42, 17, 17, 42);   /* h(a, b) != h(b, a) */
-    TEST_HASH_NEQ(Gnone, -42, 17, 42, 17);  /* h(a, b) != h(-a, b) */
+    ret &= test_hash(Gnone, -42, 17, -17, 42, false); /* h(a, b) != h(-b, a) */
+    ret &= test_hash(Gnone, 42, 17, 17, 42, false);   /* h(a, b) != h(b, a) */
+    ret &= test_hash(Gnone, -42, 17, 42, 17, false);  /* h(a, b) != h(-a, b) */
 
     /*
      * galois action x->-x
      */
     galois_action const Gneg("_y");
-    TEST_HASH_NEQ(Gneg, -42, 17, -17, 42);  /* h(a, b) != h(-b, a) */
-    TEST_HASH_NEQ(Gneg, 42, 17, 17, 42);    /* h(a, b) != h(b, a) */
-    TEST_HASH_EQ(Gneg, -42, 17, 42, 17);    /* h(a, b) == h(-a, b) */
+    ret &= test_hash(Gneg, -42, 17, -17, 42, false);  /* h(a, b) != h(-b, a) */
+    ret &= test_hash(Gneg, 42, 17, 17, 42, false);    /* h(a, b) != h(b, a) */
+    ret &= test_hash(Gneg, -42, 17, 42, 17);    /* h(a, b) == h(-a, b) */
 
     /*
      * galois action x->1/x
      */
     galois_action const Ginv("1/y");
-    TEST_HASH_EQ(Ginv, -42, 17, -17, 42);   /* h(a, b) == h(-b, a) */
-    TEST_HASH_EQ(Ginv, 42, 17, 17, 42);     /* h(a, b) == h(b, a) */
-    TEST_HASH_EQ(Ginv, -42, 17, -17, 42);   /* h(a, b) == h(-b, -a) */
-    TEST_HASH_NEQ(Ginv, -42, 17, 42, 17);   /* h(a, b) != h(-a, b) */
+    ret &= test_hash(Ginv, -42, 17, -17, 42);   /* h(a, b) == h(-b, a) */
+    ret &= test_hash(Ginv, 42, 17, 17, 42);     /* h(a, b) == h(b, a) */
+    ret &= test_hash(Ginv, -42, 17, -17, 42);   /* h(a, b) == h(-b, -a) */
+    ret &= test_hash(Ginv, -42, 17, 42, 17, false);   /* h(a, b) != h(-a, b) */
 
     /*
      * galois action x->1-1/x
      */
     galois_action const G31("autom3.1");
     /* test case: a < 0 < b */
-    TEST_HASH_EQ(G31, -17, 42, 42, 59);     /* h(a, b) == h(b, b-a) */
-    TEST_HASH_EQ(G31, -17, 42, 59, 17);     /* h(a, b) == h(b-a, -a) */
-    TEST_HASH_EQ(G31, -42, 17, 17, 59);     /* h(a, b) == h(b, b-a) */
-    TEST_HASH_EQ(G31, -42, 17, 59, 42);     /* h(a, b) == h(b-a, -a) */
-    TEST_HASH_EQ(G31, -1, 1, 1, 2);         /* h(a, b) == h(b, b-a) */
-    TEST_HASH_EQ(G31, -1, 1, 2, 1);         /* h(a, b) == h(b-a, -a) */
+    ret &= test_hash(G31, -17, 42, 42, 59);     /* h(a, b) == h(b, b-a) */
+    ret &= test_hash(G31, -17, 42, 59, 17);     /* h(a, b) == h(b-a, -a) */
+    ret &= test_hash(G31, -42, 17, 17, 59);     /* h(a, b) == h(b, b-a) */
+    ret &= test_hash(G31, -42, 17, 59, 42);     /* h(a, b) == h(b-a, -a) */
+    ret &= test_hash(G31, -1, 1, 1, 2);         /* h(a, b) == h(b, b-a) */
+    ret &= test_hash(G31, -1, 1, 2, 1);         /* h(a, b) == h(b-a, -a) */
     /* test case: 0 < a < b */
-    TEST_HASH_EQ(G31, 17, 42, 42, 25);      /* h(a, b) == h(b, b-a) */
-    TEST_HASH_EQ(G31, 17, 42, -25, 17);     /* h(a, b) == h(a-b, a) */
+    ret &= test_hash(G31, 17, 42, 42, 25);      /* h(a, b) == h(b, b-a) */
+    ret &= test_hash(G31, 17, 42, -25, 17);     /* h(a, b) == h(a-b, a) */
     /* test case: 0 < b < a */
-    TEST_HASH_EQ(G31, 42, 17, -17, 25);     /* h(a, b) == h(-b, a-b) */
-    TEST_HASH_EQ(G31, 42, 17, 25, 42);      /* h(a, b) == h(a-b, a) */
+    ret &= test_hash(G31, 42, 17, -17, 25);     /* h(a, b) == h(-b, a-b) */
+    ret &= test_hash(G31, 42, 17, 25, 42);      /* h(a, b) == h(a-b, a) */
 
-    TEST_HASH_NEQ(G31, -42, 17, 42, 17);    /* h(a, b) != h(-a, b) */
-    TEST_HASH_NEQ(G31, 42, 17, 17, 42);     /* h(a, b) != h(b, a) */
-    TEST_HASH_NEQ(G31, -42, 17, -17, 42);   /* h(a, b) != h(-b, -a) */
+    ret &= test_hash(G31, -42, 17, 42, 17, false);    /* h(a, b) != h(-a, b) */
+    ret &= test_hash(G31, 42, 17, 17, 42, false);     /* h(a, b) != h(b, a) */
+    ret &= test_hash(G31, -42, 17, -17, 42, false);   /* h(a, b) != h(-b, -a) */
 
     /*
      * galois action x->-1-1/x
      */
     galois_action const G32("autom3.2");
     /* test case: 0 < a */
-    TEST_HASH_EQ(G32, 17, 42, -42, 59);     /* h(a, b) == h(-b, a+b) */
-    TEST_HASH_EQ(G32, 17, 42, -59, 17);     /* h(a, b) == h(-a-b, a) */
-    TEST_HASH_EQ(G32, 42, 17, -17, 59);     /* h(a, b) == h(-b, a+b) */
-    TEST_HASH_EQ(G32, 42, 17, -59, 42);     /* h(a, b) == h(-a-b, a) */
-    TEST_HASH_EQ(G32, 1, 1, -1, 2);         /* h(a, b) == h(-b, a+b) */
-    TEST_HASH_EQ(G32, 1, 1, -2, 1);         /* h(a, b) == h(-a-b, a) */
+    ret &= test_hash(G32, 17, 42, -42, 59);     /* h(a, b) == h(-b, a+b) */
+    ret &= test_hash(G32, 17, 42, -59, 17);     /* h(a, b) == h(-a-b, a) */
+    ret &= test_hash(G32, 42, 17, -17, 59);     /* h(a, b) == h(-b, a+b) */
+    ret &= test_hash(G32, 42, 17, -59, 42);     /* h(a, b) == h(-a-b, a) */
+    ret &= test_hash(G32, 1, 1, -1, 2);         /* h(a, b) == h(-b, a+b) */
+    ret &= test_hash(G32, 1, 1, -2, 1);         /* h(a, b) == h(-a-b, a) */
     /* test case -b < a < 0 */
-    TEST_HASH_EQ(G32, -17, 42, -42, 25);    /* h(a, b) == h(-b, a+b) */
-    TEST_HASH_EQ(G32, -17, 42, 25, 17);     /* h(a, b) == h(a+b, -a) */
+    ret &= test_hash(G32, -17, 42, -42, 25);    /* h(a, b) == h(-b, a+b) */
+    ret &= test_hash(G32, -17, 42, 25, 17);     /* h(a, b) == h(a+b, -a) */
     /* test case: a < -b < 0 */
-    TEST_HASH_EQ(G32, -42, 17, 17, 25);     /* h(a, b) == h(b, -a-b) */
-    TEST_HASH_EQ(G32, -42, 17, -25, 42);    /* h(a, b) == h(a+b, -a) */
+    ret &= test_hash(G32, -42, 17, 17, 25);     /* h(a, b) == h(b, -a-b) */
+    ret &= test_hash(G32, -42, 17, -25, 42);    /* h(a, b) == h(a+b, -a) */
 
-    TEST_HASH_NEQ(G32, -42, 17, 42, 17);    /* h(a, b) != h(-a, b) */
-    TEST_HASH_NEQ(G32, 42, 17, 17, 42);     /* h(a, b) != h(b, a) */
-    TEST_HASH_NEQ(G32, -42, 17, -17, 42);   /* h(a, b) != h(-b, -a) */
+    ret &= test_hash(G32, -42, 17, 42, 17, false);    /* h(a, b) != h(-a, b) */
+    ret &= test_hash(G32, 42, 17, 17, 42, false);     /* h(a, b) != h(b, a) */
+    ret &= test_hash(G32, -42, 17, -17, 42, false);   /* h(a, b) != h(-b, -a) */
 
     /*
      * galois action x->-(x+1)/(x-1)
      */
     galois_action const G41("autom4.1");
     /* test case: a < -b < 0 */
-    TEST_HASH_EQ(G41, -42, 17, 59, 25);     /* h(a, b) == h(b-a, -(a+b)) */
-    TEST_HASH_EQ(G41, -42, 17, 17, 42);     /* h(a, b) == h(b, -a) */
-    TEST_HASH_EQ(G41, -42, 17, -25, 59);    /* h(a, b) == h(a+b, b-a) */
+    ret &= test_hash(G41, -42, 17, 59, 25);     /* h(a, b) == h(b-a, -(a+b)) */
+    ret &= test_hash(G41, -42, 17, 17, 42);     /* h(a, b) == h(b, -a) */
+    ret &= test_hash(G41, -42, 17, -25, 59);    /* h(a, b) == h(a+b, b-a) */
     /* test case: -b < a < 0 */
-    TEST_HASH_EQ(G41, -17, 42, -59, 25);    /* h(a, b) == h(a-b, a+b) */
-    TEST_HASH_EQ(G41, -17, 42, 42, 17);     /* h(a, b) == h(b, -a) */
-    TEST_HASH_EQ(G41, -17, 42, 25, 59);     /* h(a, b) == h(a+b, b-a) */
+    ret &= test_hash(G41, -17, 42, -59, 25);    /* h(a, b) == h(a-b, a+b) */
+    ret &= test_hash(G41, -17, 42, 42, 17);     /* h(a, b) == h(b, -a) */
+    ret &= test_hash(G41, -17, 42, 25, 59);     /* h(a, b) == h(a+b, b-a) */
     /* test case: 0 < a < b */
-    TEST_HASH_EQ(G41, 17, 42, -25, 59);     /* h(a, b) == h(a-b, a+b) */
-    TEST_HASH_EQ(G41, 17, 42, -42, 17);     /* h(a, b) == h(-b, a) */
-    TEST_HASH_EQ(G41, 17, 42, 59, 25);      /* h(a, b) == h(a+b, b-a) */
+    ret &= test_hash(G41, 17, 42, -25, 59);     /* h(a, b) == h(a-b, a+b) */
+    ret &= test_hash(G41, 17, 42, -42, 17);     /* h(a, b) == h(-b, a) */
+    ret &= test_hash(G41, 17, 42, 59, 25);      /* h(a, b) == h(a+b, b-a) */
     /* test case: 0 < b < a */
-    TEST_HASH_EQ(G41, 42, 17, 25, 59);      /* h(a, b) == h(a-b, a+b) */
-    TEST_HASH_EQ(G41, 42, 17, -17, 42);     /* h(a, b) == h(-b, a) */
-    TEST_HASH_EQ(G41, 42, 17, -59, 25);     /* h(a, b) == h(-(a+b), a-b) */
+    ret &= test_hash(G41, 42, 17, 25, 59);      /* h(a, b) == h(a-b, a+b) */
+    ret &= test_hash(G41, 42, 17, -17, 42);     /* h(a, b) == h(-b, a) */
+    ret &= test_hash(G41, 42, 17, -59, 25);     /* h(a, b) == h(-(a+b), a-b) */
 
-    TEST_HASH_NEQ(G41, -42, 17, 42, 17);    /* h(a, b) != h(-a, b) */
-    TEST_HASH_NEQ(G41, 42, 17, 17, 42);     /* h(a, b) != h(b, a) */
-    TEST_HASH_NEQ(G41, -42, 17, -17, 42);   /* h(a, b) != h(-b, -a) */
+    ret &= test_hash(G41, -42, 17, 42, 17, false);    /* h(a, b) != h(-a, b) */
+    ret &= test_hash(G41, 42, 17, 17, 42, false);     /* h(a, b) != h(b, a) */
+    ret &= test_hash(G41, -42, 17, -17, 42, false);   /* h(a, b) != h(-b, -a) */
 
     /*
      * galois action x->-(2*x+1)/(x-1)
      */
     galois_action const G61("autom6.1");
     /* test case: 0 < b < a */
-    TEST_HASH_EQ(G61, 42, 17, 25, 76);    /* h(a, b) == h(a-b, a+2*b) */
-    TEST_HASH_EQ(G61, 42, 17, -17, 59);   /* h(a, b) == h(-b, a+b) */
-    TEST_HASH_EQ(G61, 42, 17, -76, 101);  /* h(a, b) == h(-a-2*b, 2*a+b) */
-    TEST_HASH_EQ(G61, 42, 17, -59, 42);   /* h(a, b) == h(-a-b, a) */
-    TEST_HASH_EQ(G61, 42, 17, -101, 25);  /* h(a, b) == h(-2*a-b, a-b) */
+    ret &= test_hash(G61, 42, 17, 25, 76);    /* h(a, b) == h(a-b, a+2*b) */
+    ret &= test_hash(G61, 42, 17, -17, 59);   /* h(a, b) == h(-b, a+b) */
+    ret &= test_hash(G61, 42, 17, -76, 101);  /* h(a, b) == h(-a-2*b, 2*a+b) */
+    ret &= test_hash(G61, 42, 17, -59, 42);   /* h(a, b) == h(-a-b, a) */
+    ret &= test_hash(G61, 42, 17, -101, 25);  /* h(a, b) == h(-2*a-b, a-b) */
     /* test case: 0 < a < b */
-    TEST_HASH_EQ(G61, 17, 42, -25, 101);  /* h(a, b) == h(a-b, a+2*b) */
-    TEST_HASH_EQ(G61, 17, 42, -42, 59);   /* h(a, b) == h(-b, a+b) */
-    TEST_HASH_EQ(G61, 17, 42, -101, 76);  /* h(a, b) == h(-a-2*b, 2*a+b) */
-    TEST_HASH_EQ(G61, 17, 42, -59, 17);   /* h(a, b) == h(-a-b, a) */
-    TEST_HASH_EQ(G61, 17, 42, 76, 25);    /* h(a, b) == h(2*a+b, -a+b) */
+    ret &= test_hash(G61, 17, 42, -25, 101);  /* h(a, b) == h(a-b, a+2*b) */
+    ret &= test_hash(G61, 17, 42, -42, 59);   /* h(a, b) == h(-b, a+b) */
+    ret &= test_hash(G61, 17, 42, -101, 76);  /* h(a, b) == h(-a-2*b, 2*a+b) */
+    ret &= test_hash(G61, 17, 42, -59, 17);   /* h(a, b) == h(-a-b, a) */
+    ret &= test_hash(G61, 17, 42, 76, 25);    /* h(a, b) == h(2*a+b, -a+b) */
     /* test case: -b/2 < a < 0 */
-    TEST_HASH_EQ(G61, -17, 42, -59, 67);  /* h(a, b) == h(a-b, a+2*b) */
-    TEST_HASH_EQ(G61, -17, 42, -42, 25);  /* h(a, b) == h(-b, a+b) */
-    TEST_HASH_EQ(G61, -17, 42, -67, 8);   /* h(a, b) == h(-a-2*b, 2*a+b) */
-    TEST_HASH_EQ(G61, -17, 42, 25, 17);   /* h(a, b) == h(a+b, -a) */
-    TEST_HASH_EQ(G61, -17, 42, 8, 59);    /* h(a, b) == h(2*a+b, -a+b) */
+    ret &= test_hash(G61, -17, 42, -59, 67);  /* h(a, b) == h(a-b, a+2*b) */
+    ret &= test_hash(G61, -17, 42, -42, 25);  /* h(a, b) == h(-b, a+b) */
+    ret &= test_hash(G61, -17, 42, -67, 8);   /* h(a, b) == h(-a-2*b, 2*a+b) */
+    ret &= test_hash(G61, -17, 42, 25, 17);   /* h(a, b) == h(a+b, -a) */
+    ret &= test_hash(G61, -17, 42, 8, 59);    /* h(a, b) == h(2*a+b, -a+b) */
     /* test case: -b < a < -b/2 < 0 */
-    TEST_HASH_EQ(G61, -25, 42, -67, 59);  /* h(a, b) == h(a-b, a+2*b) */
-    TEST_HASH_EQ(G61, -25, 42, -42, 17);  /* h(a, b) == h(-b, a+b) */
-    TEST_HASH_EQ(G61, -25, 42, 59, 8);    /* h(a, b) == h(a+2*b, -2*a-b) */
-    TEST_HASH_EQ(G61, -25, 42, 17, 25);   /* h(a, b) == h(a+b, -a) */
-    TEST_HASH_EQ(G61, -25, 42, -8, 67);   /* h(a, b) == h(2*a+b, -a+b) */
+    ret &= test_hash(G61, -25, 42, -67, 59);  /* h(a, b) == h(a-b, a+2*b) */
+    ret &= test_hash(G61, -25, 42, -42, 17);  /* h(a, b) == h(-b, a+b) */
+    ret &= test_hash(G61, -25, 42, 59, 8);    /* h(a, b) == h(a+2*b, -2*a-b) */
+    ret &= test_hash(G61, -25, 42, 17, 25);   /* h(a, b) == h(a+b, -a) */
+    ret &= test_hash(G61, -25, 42, -8, 67);   /* h(a, b) == h(2*a+b, -a+b) */
     /* test case: -2b < a < -b < 0 */
-    TEST_HASH_EQ(G61, -25, 17, -42, 9);   /* h(a, b) == h(a-b, a+2*b) */
-    TEST_HASH_EQ(G61, -25, 17, 17, 8);    /* h(a, b) == h(b, -a-b) */
-    TEST_HASH_EQ(G61, -25, 17, 9, 33);    /* h(a, b) == h(a+2*b, -2*a-b) */
-    TEST_HASH_EQ(G61, -25, 17, -8, 25);   /* h(a, b) == h(a+b, -a) */
-    TEST_HASH_EQ(G61, -25, 17, -33, 42);  /* h(a, b) == h(2*a+b, -a+b) */
+    ret &= test_hash(G61, -25, 17, -42, 9);   /* h(a, b) == h(a-b, a+2*b) */
+    ret &= test_hash(G61, -25, 17, 17, 8);    /* h(a, b) == h(b, -a-b) */
+    ret &= test_hash(G61, -25, 17, 9, 33);    /* h(a, b) == h(a+2*b, -2*a-b) */
+    ret &= test_hash(G61, -25, 17, -8, 25);   /* h(a, b) == h(a+b, -a) */
+    ret &= test_hash(G61, -25, 17, -33, 42);  /* h(a, b) == h(2*a+b, -a+b) */
     /* test case: a < -2b < 0 */
-    TEST_HASH_EQ(G61, -42, 17, 59, 8);    /* h(a, b) == h(-a+b, -a-2*b) */
-    TEST_HASH_EQ(G61, -42, 17, 17, 25);   /* h(a, b) == h(b, -a-b) */
-    TEST_HASH_EQ(G61, -42, 17, -8, 67);   /* h(a, b) == h(a+2*b, -2*a-b) */
-    TEST_HASH_EQ(G61, -42, 17, -25, 42);  /* h(a, b) == h(a+b, -a) */
-    TEST_HASH_EQ(G61, -42, 17, -67, 59);  /* h(a, b) == h(2*a+b, -a+b) */
+    ret &= test_hash(G61, -42, 17, 59, 8);    /* h(a, b) == h(-a+b, -a-2*b) */
+    ret &= test_hash(G61, -42, 17, 17, 25);   /* h(a, b) == h(b, -a-b) */
+    ret &= test_hash(G61, -42, 17, -8, 67);   /* h(a, b) == h(a+2*b, -2*a-b) */
+    ret &= test_hash(G61, -42, 17, -25, 42);  /* h(a, b) == h(a+b, -a) */
+    ret &= test_hash(G61, -42, 17, -67, 59);  /* h(a, b) == h(2*a+b, -a+b) */
 
-    TEST_HASH_NEQ(G61, -42, 17, 42, 17);    /* h(a, b) != h(-a, b) */
-    TEST_HASH_NEQ(G61, 42, 17, 17, 42);     /* h(a, b) != h(b, a) */
-    TEST_HASH_NEQ(G61, -42, 17, -17, 42);   /* h(a, b) != h(-b, -a) */
+    ret &= test_hash(G61, -42, 17, 42, 17, false);    /* h(a, b) != h(-a, b) */
+    ret &= test_hash(G61, 42, 17, 17, 42, false);     /* h(a, b) != h(b, a) */
+    ret &= test_hash(G61, -42, 17, -17, 42, false);   /* h(a, b) != h(-b, -a) */
 
-#undef TEST_HASH_INNER
-#undef TEST_HASH_EQ
-#undef TEST_HASH_NEQ
+    test_orbits(Gnone);
+    test_orbits(Gneg);
+    test_orbits(Ginv);
+    test_orbits(G31);
+    test_orbits(G32);
+    test_orbits(G41);
+    test_orbits(G61);
+
     return ret;
 }
 
