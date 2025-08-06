@@ -19,9 +19,9 @@ namespace arithxx_details {
 template <typename layer>
 class ResidueStdOp : public layer::Residue
 {
-    typedef typename layer::Residue Residue;
-    typedef typename layer::Modulus Modulus;
-    typedef typename layer::Integer Integer;
+    using Residue = layer::Residue;
+    using Modulus = layer::Modulus;
+    using Integer = layer::Integer;
 
   private:
     Modulus const & m;
@@ -421,6 +421,6 @@ class ResidueStdOp : public layer::Residue
     int jacobi() const { return m.jacobi(*this); }
 };
 
-}
+} /* namespace arithxx_details */
 
 #endif	/* UTILS_ARITHXX_RESIDUE_STD_OP_HPP_ */

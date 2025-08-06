@@ -89,7 +89,7 @@ unsigned char fb_log_delta(fbprime_t const p, unsigned long const newexp,
 }
 /* }}} */
 
-static fb_root_p1 fb_linear_root(cxx_mpz_poly const & poly, fbprime_t const q);
+static fb_root_p1 fb_linear_root(cxx_mpz_poly const & poly, fbprime_t q);
 
 static inline redc_invp_t compute_invq(fbprime_t q)
 {

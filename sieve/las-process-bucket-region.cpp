@@ -61,10 +61,13 @@
 #include "threadpool.hpp"
 #include "verbose.h"
 
-MAYBE_UNUSED static inline void subusb(unsigned char *S1, unsigned char *S2, ssize_t offset)
+MAYBE_UNUSED static inline void subusb(unsigned char *S1, const unsigned char *S2, ssize_t offset)
 {
-    int const ex = (unsigned int) S1[offset] - (unsigned int) S2[offset];
-    if (UNLIKELY(ex < 0)) S1[offset] = 0; else S1[offset] = ex;	     
+    int const ex = S1[offset] - S2[offset];
+    if (UNLIKELY(ex < 0))
+        S1[offset] = 0;
+    else
+        S1[offset] = ex;	     
 }
 
 /* S1 = S1 - S2, with "-" in saturated arithmetic,
@@ -459,7 +462,7 @@ void process_bucket_region_run::purge_buckets(int side)/*{{{*/
 
     unsigned char * Sx = S[0] ? S[0] : S[1];
 
-    for (auto & BA : wss.bucket_arrays<1, shorthint_t>()) {
+    for (auto const & BA : wss.bucket_arrays<1, shorthint_t>()) {
 #if defined(HAVE_SSE2) && defined(SMALLSET_PURGE)
         sides[side].purged.purge(BA, already_done + bucket_relative_index, Sx, survivors);
 #else

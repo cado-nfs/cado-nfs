@@ -101,11 +101,11 @@ class plattice_info
     uint32_t j1;
 
   public:
-    inline bool operator==(plattice_info const & o)
+    bool operator==(plattice_info const & o)
     {
         return mi0 == o.mi0 && i1 == o.i1 && j0 == o.j0 && j1 == o.j1;
     }
-    inline bool operator!=(plattice_info const & o) { return !operator==(o); }
+    bool operator!=(plattice_info const & o) { return !operator==(o); }
 
   public:
     int32_t get_i0() const { return -(int32_t)mi0; }
@@ -222,9 +222,9 @@ class plattice_info
         /* At this point, (mi0,j0) represents itself, i.e. a vector with
          * two positive coordinates.
          */
-        uint32_t a = (I - 1) % mi0;
+        const uint32_t a = (I - 1) % mi0;
         uint32_t mi2 = (I - 1) - a - i1;
-        uint32_t j2 = j1;
+        const uint32_t j2 = j1;
         if (mi0 + mi2 < I)
             mi2 += mi0;
         i1 = mi0;
@@ -241,9 +241,9 @@ class plattice_info
             i1 = r;
             j1 = 1;
         } else {
-            unsigned long gs = r;
+            const unsigned long gs = r;
             unsigned long t; // , h;
-            unsigned long g = xgcd_ul(&t, gs, q);
+            const unsigned long g = xgcd_ul(&t, gs, q);
             mi0 = q / g;
             j0 = 0;
             i1 = t;
@@ -269,7 +269,7 @@ class plattice_info
 #include "las-reduce-plattice-simplistic.hpp"
 #endif /* HAVE_GCC_STYLE_AMD64_INLINE_ASM */
 
-    inline void reduce(uint32_t I)
+    void reduce(uint32_t I)
     {
         /* We tried many different versions. See
          * https://gitlab.inria.fr/cado-nfs/cado-nfs/-/merge_requests/43
@@ -466,27 +466,26 @@ class plattice_enumerator : public plattice_enumerator_base
         plattice_x_t even_mask;
         plattice_x_t end;
         fence(int const logI, int J)
+            : maskI((1U << logI) - 1U)
+            , even_mask((plattice_x_t(1) << logI) | plattice_x_t(1))
+            , end(plattice_x_t(J) << logI)
         {
-            maskI = (1U << logI) - 1U;
-            even_mask = (plattice_x_t(1) << logI) | plattice_x_t(1);
-            end = plattice_x_t(J) << logI;
         }
         fence(int const logI, int J, plattice_x_t cap)
             : fence(logI, J)
         {
-            if (end >= cap)
-                end = cap;
+            end = std::min(end, cap);
         }
     };
 
     plattice_enumerator(plattice_info const & basis, slice_offset_t const hint,
                         int const logI, sublat_t const & sublat)
-        : hint(hint)
+        : inc_warp(basis.get_inc_warp(logI))
+        , inc_step(basis.get_inc_step(logI))
+        , bound_step(basis.get_bound_step(logI))
+        , bound_warp(basis.get_bound_warp(logI))
+        , hint(hint)
     {
-        inc_warp = basis.get_inc_warp(logI);
-        inc_step = basis.get_inc_step(logI);
-        bound_step = basis.get_bound_step(logI);
-        bound_warp = basis.get_bound_warp(logI);
         if (!sublat.m)
             x = plattice_x_t(1) << (logI - 1);
         else {
@@ -496,13 +495,13 @@ class plattice_enumerator : public plattice_enumerator_base
 
     plattice_enumerator(plattice_info const & basis, slice_offset_t const hint,
                         int const logI)
-        : hint(hint)
+        : inc_warp(basis.get_inc_warp(logI))
+        , inc_step(basis.get_inc_step(logI))
+        , bound_step(basis.get_bound_step(logI))
+        , bound_warp(basis.get_bound_warp(logI))
+        , hint(hint)
+        , x(plattice_x_t(1) << (logI - 1))
     {
-        inc_warp = basis.get_inc_warp(logI);
-        inc_step = basis.get_inc_step(logI);
-        bound_step = basis.get_bound_step(logI);
-        bound_warp = basis.get_bound_warp(logI);
-        x = plattice_x_t(1) << (logI - 1);
     }
 
     // plattice_enumerator(const plattice_enumerator&) = default;
@@ -510,7 +509,7 @@ class plattice_enumerator : public plattice_enumerator_base
     /* This function is quite critical */
     void next(fence const & F)
     {
-        uint32_t i = x & F.maskI;
+        const uint32_t i = x & F.maskI;
         if (i >= bound_warp)
             x += inc_warp;
         if (i < bound_step)
@@ -523,7 +522,7 @@ class plattice_enumerator : public plattice_enumerator_base
         return (x & F.even_mask) != 0;
     }
 
-    inline bool done(fence const & F) { return x >= F.end; }
+    bool done(fence const & F) const { return x >= F.end; }
 
     void advance_to_next_area(fence const & F)
     {
@@ -531,7 +530,7 @@ class plattice_enumerator : public plattice_enumerator_base
             x -= F.end;
     }
 
-    inline void advance_to_end_of_projective_first_line(fence const & F)
+    void advance_to_end_of_projective_first_line(fence const & F)
     {
         /* This function shouldn't be critical. We want the last
          * matching position on the line (i,0). This depends on the
@@ -667,15 +666,13 @@ struct plattice_info_dense_t {
             i1 = pli.i1;
             j1 = pli.j1;
         }
-        uint32_t mask8 = (1 << 8) - 1;
-        uint32_t mask16 = (1 << 16) - 1;
-        uint32_t mask20 = (1 << 20) - 1;
+        constexpr uint32_t mask8 = (1 << 8) - 1;
+        constexpr uint32_t mask16 = (1 << 16) - 1;
+        constexpr uint32_t mask20 = (1 << 20) - 1;
 
         // Saturate skewed lattices, for later detection and skipping.
-        if (j0 > mask20)
-            j0 = mask20;
-        if (j1 > mask20)
-            j1 = mask20;
+        j0 = std::min(j0, mask20);
+        j1 = std::min(j1, mask20);
 
         pack[0] = (mi0 & mask20) | (i1 << 20);
         pack[1] = ((i1 >> 12) & mask8) | ((j0 & mask20) << 8) | (j1 << 28);
@@ -685,9 +682,9 @@ struct plattice_info_dense_t {
     plattice_info unpack(int const logI) const
     {
         plattice_info pli;
-        uint32_t mask8 = (1 << 8) - 1;
-        uint32_t mask16 = (1 << 16) - 1;
-        uint32_t mask20 = (1 << 20) - 1;
+        constexpr uint32_t mask8 = (1 << 8) - 1;
+        constexpr uint32_t mask16 = (1 << 16) - 1;
+        constexpr uint32_t mask20 = (1 << 20) - 1;
         pli.mi0 = pack[0] & mask20;
         pli.i1 = (pack[0] >> 20) | ((pack[1] & mask8) << 12);
         pli.j0 = (pack[1] >> 8) & mask20;

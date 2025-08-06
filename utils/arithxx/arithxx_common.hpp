@@ -46,8 +46,6 @@ namespace arithxx_details {
 
     template<typename layer>
         struct batch_Q_to_Fp_context;
-}
-
-
+} /* namespace arithxx_details */
 
 #endif /* UTILS_ARITHXX_COMMON_HPP_ */

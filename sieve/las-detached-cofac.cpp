@@ -84,8 +84,8 @@ static detached_cofac_result * detached_cofac_inner(worker_thread * worker, deta
     relation rel = cur.get_relation(aux.doing);
 
     if (cur.trace_on_spot()) {
-        verbose_fmt_print(TRACE_CHANNEL, 0, "# Relation for ({},{}) printed\n",
-                cur.a, cur.b);
+        verbose_fmt_print(TRACE_CHANNEL, 0, "# Relation for ({}) printed\n",
+                rel.ab());
     }
 
     {
@@ -97,13 +97,9 @@ static detached_cofac_result * detached_cofac_inner(worker_thread * worker, deta
          */
 
         nfs_aux::abpair_t const ab(cur.a, cur.b);
-        bool is_new_rel;
-        {
-            std::lock_guard<std::mutex> const foo(rel_hash.mutex());
-            is_new_rel = rel_hash.insert(ab).second;
-        }
+        const bool is_new_rel = rel_hash.locked()->insert(ab).second;
 
-        const char * dup_comment = NULL;
+        const char * dup_comment = nullptr;
 
         if (do_check && relation_is_duplicate(rel, wc.doing, wc.las)) {
             dup_comment = "# DUPE ";
@@ -135,7 +131,7 @@ static detached_cofac_result * detached_cofac_inner(worker_thread * worker, deta
 
         os << dup_comment << rel << "\n";
 
-        if(las.galois != NULL) {
+        if (las.galois != nullptr) {
             // adding relations on the fly in Galois cases
             // once filtering is ok for all Galois cases, 
             // this entire block would have to disappear

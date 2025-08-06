@@ -335,9 +335,10 @@ void small_sieve_init(small_sieve_data_t & ssd,
                 /* If this root is somehow interesting (projective in (a,b) or
                    in (i,j) plane), print a message */
                 if (verbose && (Rab.is_projective() || is_proj_in_ij))
-                    verbose_output_print(0, 1, "# small_sieve_init: side %d, prime %"
-                            FBPRIME_FORMAT " root %s%" FBROOT_FORMAT " (logp %hhu) "
-                            " -> %s%" FBROOT_FORMAT "\n", side, p,
+                    verbose_fmt_print(0, 1,
+                            "# small_sieve_init: side {}, prime {}"
+                            " root {}{} (logp {}) -> {}{}\n",
+                            side, p,
                             Rab.is_projective() ? "1/" : "", Rab.r % p, logp,
                             is_proj_in_ij ? "1/" : "", r_q);
 

@@ -149,6 +149,18 @@ public:
         return gmp_auxx::mpz_fits<T>(x);
     }
     size_t bits() const { return mpz_sizeinbase(x, 2); }
+
+    /* Honestly I don't know. Having a few helper functions for
+     * convenience is nice, but it's not clear at all where we should
+     * stop, so there's a point in not starting at all. On the other
+     * hand, we do have some operator overloads already, so adding helper
+     * functions in the class doesn't look like an heresy to me.
+     */
+    cxx_mpz invmod(cxx_mpz const & p) const {
+        cxx_mpz ri;
+        mpz_invert (ri, x, p);
+        return ri;
+    }
 };
 
 template <>

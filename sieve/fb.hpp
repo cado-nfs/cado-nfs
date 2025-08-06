@@ -48,7 +48,7 @@ struct cxx_param_list;
 /* Forward declaration so fb_entry_general can use it in constructors */
 template <int Nr_roots> class fb_entry_x_roots;
 
-/* A root modulo a prime power q. q is specified externally */
+/* A root modulo a prime power q=p^k. q is specified externally */
 struct fb_general_root {
     /* exp and oldexp are maximal such that:
        If not projective and a == br (mod p^k), then p^exp | F(a,b)
@@ -113,8 +113,8 @@ struct fb_general_root {
     void fprint(FILE * out, fbprime_t const q) const
     {
         fprintf(out, "%llu", to_old_format(q));
-        if (oldexp != 0 || this->exp != 1)
-            fprintf(out, ":%hhu:%hhu", oldexp, this->exp);
+        if (oldexp != 0 || exp != 1)
+            fprintf(out, ":%hhu:%hhu", oldexp, exp);
     }
 
     void transform(fb_general_root & result, fbprime_t q,
@@ -232,8 +232,7 @@ template <int Nr_roots> class fb_entry_x_roots
         : p(p)
         , invq(invq)
     {
-        for (int i = 0; i < Nr_roots; i++)
-            this->roots[i] = roots[i];
+        std::copy_n(roots, Nr_roots, this->roots.begin());
     }
     /* Allow assignment-construction from general entries */
     explicit fb_entry_x_roots(fb_entry_general const & e)

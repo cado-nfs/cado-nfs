@@ -218,14 +218,11 @@ sq_finds_relation(las_info const & las,
   int const nsides = las.cpoly->nb_polys;
 
   if (talk) {   // Print some info
-      verbose_output_vfprint(0, VERBOSE_LEVEL, gmp_vfprintf,
+      verbose_fmt_print(0, VERBOSE_LEVEL,
               "# DUPECHECK Checking if relation"
-              " (a,b) = (%" PRId64 ",%" PRIu64 ")"
-              " is a dupe of sieving special-q -q0 %Zd -rho %Zd -sqside %d\n",
-              rel.a, rel.b,
-              (mpz_srcptr) doing.p,
-              (mpz_srcptr) doing.r,
-              doing.side);
+              " (a,b) = ({})"
+              " is a dupe of sieving special-q {}\n",
+              rel.ab(), doing);
       // should stay consistent with "Sieving side" line printed in
       // do_one_special_q()
       std::ostringstream os;
@@ -233,7 +230,7 @@ sq_finds_relation(las_info const & las,
       verbose_output_print(0, VERBOSE_LEVEL,
               "# DUPECHECK Trying %s; I=%u; J=%d;\n",
               os.str().c_str(),
-              1u << conf.logI, J);
+              1U << conf.logI, J);
   }
 
   /* Compute i,j-coordinates of this relation in the special-q lattice when
@@ -321,9 +318,9 @@ sq_finds_relation(las_info const & las,
   /* Check that the cofactors are within the mfb bound */
   for (int side = 0; side < nsides; ++side) {
     if (!check_leftover_norm (cof[side], conf.sides[side])) {
-      verbose_output_vfprint(0, VERBOSE_LEVEL, gmp_vfprintf,
-          "# DUPECHECK cofactor %Zd is outside bounds\n",
-          (__mpz_struct*) cof[side]);
+      verbose_fmt_print(0, VERBOSE_LEVEL,
+          "# DUPECHECK cofactor {} is outside bounds\n",
+          cof[side]);
       return false;
     }
   }
@@ -340,8 +337,8 @@ sq_finds_relation(las_info const & las,
           verbose_output_print(0, VERBOSE_LEVEL,
                         "# DUPECHECK norms not both smooth, left over factors");
           for(size_t i = 0; i < cof.size(); ++i) {
-              verbose_output_vfprint(0, VERBOSE_LEVEL, gmp_vfprintf, "%c %Zd",
-                                     (i == 0 ? ':' : ','), (mpz_srcptr) cof[i]);
+              verbose_fmt_print(0, VERBOSE_LEVEL, "{} {}",
+                                     (i == 0 ? ':' : ','), cof[i]);
           }
           verbose_output_print(0, VERBOSE_LEVEL, "\n");
           verbose_output_end_batch();
@@ -363,21 +360,21 @@ sq_finds_relation(las_info const & las,
     return sq_finds_relation(las, doing, conf, Q, J, rel, false, false);
 }
 
-static bool
+    static bool
 sq_finds_relation(las_info const & las,
         special_q const & doing,
         relation const& rel,
         bool must,
         bool talk)
 {
-  siever_config conf;
-  qlattice_basis Q;
-  uint32_t J;
-  if (!choose_sieve_area(las, special_q_task_simple(doing), conf, Q, J)) {
-    if (talk) verbose_output_print(0, VERBOSE_LEVEL, "# DUPECHECK q-lattice discarded\n");
-    return false;
-  }
-  return sq_finds_relation(las, doing, conf, Q, J, rel, must, talk);
+    siever_config conf;
+    qlattice_basis Q;
+    uint32_t J;
+    if (!choose_sieve_area(las, special_q_task_simple(doing), conf, Q, J)) {
+        if (talk) verbose_output_print(0, VERBOSE_LEVEL, "# DUPECHECK q-lattice discarded\n");
+        return false;
+    }
+    return sq_finds_relation(las, doing, conf, Q, J, rel, must, talk);
 }
 
 
@@ -400,44 +397,36 @@ sq_was_previously_sieved (las_info const & las, const uint64_t sq, int side, spe
 // Warning: this function works with side effects:
 //   - it is recursive
 //   - it destroys its argument along the way
-//   - it allocates the result it returns; the caller must free it.
 // Keep only products that fit in 64 bits.
 static std::vector<sq_with_fac>
 all_multiples(std::vector<uint64_t> & prime_list) {
-  if (prime_list.empty()) {
-    std::vector<sq_with_fac> res;
-    return res;
-  }
+    if (prime_list.empty())
+        return { { .q=1, .facq={} } };
 
-  uint64_t const p = prime_list.back();
-  prime_list.pop_back();
+    uint64_t const p = prime_list.back();
+    prime_list.pop_back();
 
-  if (prime_list.empty()) {
-    std::vector<sq_with_fac> res;
-    res.push_back(sq_with_fac { 1, std::vector<uint64_t> () });
-    res.push_back(sq_with_fac { p, std::vector<uint64_t> (1, p) });
-    return res;
-  }
+    /* this if block is useless, I think */
+    if (prime_list.empty())
+        return {
+            { .q=1, .facq={} },
+            { .q=p, .facq={p} },
+        };
 
-  std::vector<sq_with_fac> res = all_multiples(prime_list);
+    std::vector<sq_with_fac> res = all_multiples(prime_list);
 
-  size_t const L = res.size();
-  cxx_mpz pp;
-  mpz_set_uint64(pp, p);
-  for (size_t i = 0; i < L; ++i) {
-    std::vector<uint64_t> facq;
-    facq = res[i].facq;
-    facq.push_back(p);
+    size_t const L = res.size();
+    const cxx_mpz pp = p;
+    for (size_t i = 0; i < L; ++i) {
+        /* create a new multiple, and check if it fits */
+        std::vector<uint64_t> facq = res[i].facq;
+        facq.push_back(p);
+        const cxx_mpz prod = pp * res[i].q;
 
-    cxx_mpz prod;
-    mpz_mul_uint64(prod, pp, res[i].q);
-    if (mpz_fits_uint64_p(prod)) {
-      uint64_t const q = mpz_get_uint64(prod);
-      struct sq_with_fac const entry = {q, facq};
-      res.push_back(entry);
+        if (mpz_fits_uint64_p(prod))
+            res.emplace_back(mpz_get_uint64(prod), facq);
     }
-  }
-  return res;
+    return res;
 }
 
 /* Return 1 if the relation, obtained from sieving [doing], is probably a
