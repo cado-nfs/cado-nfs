@@ -1,5 +1,5 @@
-#ifndef CADO_LAS_TODO_ENTRY_HPP
-#define CADO_LAS_TODO_ENTRY_HPP
+#ifndef CADO_UTILS_SPECIAL_Q_HPP
+#define CADO_UTILS_SPECIAL_Q_HPP
 
 #include <cstdint>
 
@@ -134,4 +134,4 @@ private:
     void find_prime_factors();
 };
 
-#endif	/* CADO_LAS_TODO_ENTRY_HPP */
+#endif	/* CADO_UTILS_SPECIAL_Q_HPP */

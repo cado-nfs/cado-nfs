@@ -15,7 +15,7 @@
 
 #include "las-descent-candidate-relation.hpp"
 #include "las-special-q-task.hpp"
-#include "las-special-q.hpp"
+#include "special-q.hpp"
 #include "macros.h"
 #include "relation.hpp"
 

@@ -23,7 +23,7 @@
 #include "las-coordinates.hpp"
 #include "las-siever-config.hpp"
 #include "las-threads-work-data.hpp"
-#include "las-special-q.hpp"
+#include "special-q.hpp"
 #include "las-where-am-i-proxy.hpp"
 #include "lock_guarded_container.hpp"
 #include "relation.hpp"

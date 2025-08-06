@@ -86,7 +86,7 @@ Thus the function to check for duplicates needs the following information:
 #include "las-qlattice.hpp"
 #include "las-side-config.hpp"
 #include "las-siever-config.hpp"
-#include "las-special-q.hpp"
+#include "special-q.hpp"
 #include "macros.h"
 #include "mpz_poly.h"
 #include "relation.hpp"

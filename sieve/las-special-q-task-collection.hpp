@@ -14,7 +14,7 @@
 
 #include "cado_poly.h"
 #include "params.h"
-#include "las-special-q.hpp"
+#include "special-q.hpp"
 #include "relation.hpp"
 #include "las-todo-list.hpp"
 #include "tdict.hpp"

@@ -22,7 +22,6 @@ target_link_libraries(freerel utils)
 # las_core_a has just very very basic types and code that can be used
 # (and are actually used) by some unit tests.
 add_library(las_core_a OBJECT
-        las-special-q.cpp
         las-qlattice.cpp
         )
 
@@ -147,10 +146,7 @@ add_executable(dupsup dupsup.cpp
     )
 target_link_libraries(dupsup facul utils)
 
-add_executable(fake_rels EXCLUDE_FROM_ALL fake_rels.cpp
-    # I don't like this situation where there's a single object file that
-    # I want to pull from a greater compound.
-    las-special-q.cpp)
+add_executable(fake_rels EXCLUDE_FROM_ALL fake_rels.cpp)
 target_link_libraries(fake_rels utils_with_io)
 
 install(TARGETS makefb las las_descent freerel RUNTIME DESTINATION ${LIBSUFFIX}/sieve) 

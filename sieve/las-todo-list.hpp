@@ -5,7 +5,6 @@
 #include <cstdio>
 #include <climits>
 
-#include <condition_variable>
 #include <fstream>
 #include <vector>
 #include <memory>
@@ -17,7 +16,7 @@
 #include "cxx_mpz.hpp"
 #include "gmp_aux.h"
 #include "cado_poly.h"
-#include "las-special-q.hpp"
+#include "special-q.hpp"
 
 struct cxx_param_list;
 

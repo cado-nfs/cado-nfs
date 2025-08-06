@@ -7,7 +7,7 @@
 #include <vector>
 #include <utility>
 
-#include "las-special-q.hpp"
+#include "special-q.hpp"
 #include "relation.hpp"
 #include "timing.h"
 

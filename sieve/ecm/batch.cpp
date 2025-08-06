@@ -34,7 +34,7 @@
 #include "facul_strategies.hpp"
 #include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
 #include "gmp_aux.h"       // mpz_set_uint64
-#include "las-special-q.hpp"  // for special_q
+#include "special-q.hpp"
 #include "macros.h"
 #include "modset.hpp"          // for FaculModulusBase
 #include "mpz_poly.h"

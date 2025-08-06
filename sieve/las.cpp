@@ -71,7 +71,7 @@
 #include "las-sieve-shared-data.hpp"
 #include "las-smallsieve.hpp"
 #include "las-threads-work-data.hpp"
-#include "las-special-q.hpp"
+#include "special-q.hpp"
 #include "las-todo-list.hpp"
 #include "las-where-am-i-proxy.hpp"
 #include "las-where-am-i.hpp"

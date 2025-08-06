@@ -38,9 +38,9 @@
 #include "las-smallsieve-glue.hpp"      // for small_sieve, small_sieve::super
 #include "las-smallsieve-lowlevel.hpp"  // for SMALLSIEVE_COMMON_DEFS
 #include "las-smallsieve-types.hpp"     // for ssp_t, small_sieve_data_t
-#include "las-special-q.hpp"           // for special_q
 #include "las-where-am-i-proxy.hpp"          // for where_am_I
 #include "portability.h"  // asprintf // IWYU pragma: keep
+#include "special-q.hpp"
 #include "verbose.h"
 
 

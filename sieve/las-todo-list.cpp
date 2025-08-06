@@ -26,7 +26,7 @@
 #include "cxx_mpz.hpp"
 #include "gmp_aux.h"
 #include "las-galois.hpp"
-#include "las-special-q.hpp"
+#include "special-q.hpp"
 #include "las-todo-list.hpp"
 #include "macros.h"
 #include "mpz_poly.h"

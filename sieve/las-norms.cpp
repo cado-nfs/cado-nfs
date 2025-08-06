@@ -26,7 +26,7 @@
 #include "las-norms.hpp"
 #include "las-qlattice.hpp"       // for qlattice_basis
 #include "las-siever-config.hpp"  // for siever_config::side_config, siever_...
-#include "las-special-q.hpp"     // for special_q
+#include "special-q.hpp"
 #include "logapprox.hpp"
 #include "macros.h"
 #include "mpz_poly.h"

@@ -6,7 +6,7 @@
 #include <gmp.h>               // for mpz_srcptr, gmp_asprintf
 
 #include "las-dumpfile.hpp"
-#include "las-special-q.hpp"  // for special_q
+#include "special-q.hpp"
 #include "macros.h"
 
 dumpfile_t::~dumpfile_t() {

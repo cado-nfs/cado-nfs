@@ -16,7 +16,7 @@
 #include "cado_poly.h"
 #include "mpz_poly.h"
 #include "cxx_mpz.hpp"
-#include "las-special-q.hpp"
+#include "special-q.hpp"
 
 struct relation; // IWYU pragma: keep
 

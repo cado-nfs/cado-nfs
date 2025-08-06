@@ -51,7 +51,7 @@
 #include "las-smallsieve-types.hpp"
 #include "las-smallsieve.hpp"
 #include "las-threads-work-data.hpp"
-#include "las-special-q.hpp"
+#include "special-q.hpp"
 #include "las-unsieve.hpp"
 #include "las-where-am-i-proxy.hpp"
 #include "las-where-am-i.hpp"

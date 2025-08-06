@@ -10,8 +10,8 @@
 #include "fmt/base.h"
 #include "fmt/ostream.h"
 
+#include "special-q.hpp"
 #include "fb-types.hpp"
-#include "las-special-q.hpp"  // for special_q
 
 struct qlattice_basis {
     special_q doing;
