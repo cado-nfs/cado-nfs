@@ -1,15 +1,15 @@
 #ifndef CADO_LAS_FBROOT_QLATTICE_HPP
 #define CADO_LAS_FBROOT_QLATTICE_HPP
 
-#include <cstdio>             // for fprintf, stderr
-#include <cstdint>             // for int64_t, uint64_t, INT64_C, uint32_t
+#include <cstdio>
+#include <cstdint>
 
 #include <gmp.h>
 
 #include "fb-types.hpp"
-#include "las-arith.hpp"       // for redc_32, invmod_redc_32, invmod_po2
+#include "las-arith.hpp"
 #include "las-qlattice.hpp"
-#include "macros.h"            // for LIKELY, UNLIKELY, ASSERT_ALWAYS, ASSERT
+#include "macros.h"
 
 /* CARRYCHECK is a ternary value here: 0 means no carry check, 1 means carry
    check, and 2 means that the function should choose the value of CARRYCHECK

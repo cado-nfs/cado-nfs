@@ -1,8 +1,7 @@
 #ifndef CADO_UTILS_ARITHXX_COMMON_HPP
 #define CADO_UTILS_ARITHXX_COMMON_HPP
 
-#include <climits>
-
+#include <limits>
 #include <type_traits>
 
 #include "arithxx_api.hpp"       // IWYU pragma: export

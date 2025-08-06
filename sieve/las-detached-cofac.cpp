@@ -1,16 +1,15 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cinttypes>
 #include <cstdio>
+#include <cstdarg>
+
 #include <memory>
 #include <mutex>
 #include <ostream>
 #include <string>
 #include <utility>
 #include <vector>
-#include <cstdarg>
-
-#include <gmp.h>
+#include <sstream>
 
 #include "las-detached-cofac.hpp"
 #include "las-auxiliary-data.hpp"

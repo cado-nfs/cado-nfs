@@ -1,9 +1,9 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cstdlib>             // for free
+#include <cstdlib>
 #include <cstdio>
 
-#include <gmp.h>               // for mpz_srcptr, gmp_asprintf
+#include <gmp.h>
 
 #include "las-dumpfile.hpp"
 #include "special-q.hpp"

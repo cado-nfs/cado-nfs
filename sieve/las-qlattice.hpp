@@ -1,17 +1,16 @@
 #ifndef CADO_LAS_QLATTICE_HPP
 #define CADO_LAS_QLATTICE_HPP
 
-// IWYU pragma: no_include <bits/exception.h>
-
-#include <exception>    // IWYU pragma: keep   // for exception
-#include <cstdint>             // for int64_t, uint64_t, INT64_C, uint32_t
-#include <iosfwd>              // for ostream
+#include <exception>
+#include <cstdint>
+#include <iosfwd>
 
 #include "fmt/base.h"
 #include "fmt/ostream.h"
 
 #include "special-q.hpp"
 #include "fb-types.hpp"
+
 
 struct qlattice_basis {
     special_q doing;

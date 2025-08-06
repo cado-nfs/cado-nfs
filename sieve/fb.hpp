@@ -1,34 +1,30 @@
-/*****************************************************************
- *                Functions for the factor base                  *
- *****************************************************************/
-
 #ifndef CADO_FB_HPP
 #define CADO_FB_HPP
 
-#include <cstddef> // for size_t
-#include <cstdio>  // for fprintf, FILE
+#include <cstddef>
+#include <cstdio>
 
-#include <algorithm>   // for sort, max
-#include <array>       // for array
-#include <iosfwd>      // for ostream
-#include <limits>      // for numeric_limits
-#include <list>        // for list
-#include <map>         // for map, operator!=, _Rb_tree_iter...
-#include <mutex>       // for lock_guard, mutex
-#include <type_traits> // for vector
-#include <utility>     // for pair
-#include <vector>      // for vector
+#include <algorithm>
+#include <array>
+#include <iosfwd>
+#include <limits>
+#include <list>
+#include <map>
+#include <mutex>
+#include <type_traits>
+#include <utility>
+#include <vector>
 
-#include "cado_poly.h" // for MAX_DEGREE
-#include "macros.h"    // for ASSERT_ALWAYS, ASSERT, MAYBE_U...
-#include "mpz_poly.h"  // for cxx_mpz, cxx_mpz_poly
+#include "cado_poly.h"
+#include "macros.h"
+#include "mpz_poly.h"
 
 #include "fb-types.hpp"
-#include "las-config.h"               // for FB_MAX_PARTS
-#include "lock_guarded_container.hpp" // for lock_guarded_container
-#include "mmap_allocator.hpp"         // for mmap_allocator
+#include "las-config.h"
+#include "lock_guarded_container.hpp"
 #include "mmappable_vector.hpp"
-#include "multityped_array.hpp" // for multityped_array_foreach, mult...
+#include "multityped_array.hpp"
+
 struct qlattice_basis;
 struct cxx_param_list;
 

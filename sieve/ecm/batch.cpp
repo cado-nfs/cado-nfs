@@ -9,9 +9,9 @@
 
 #include "cado.h" // IWYU pragma: keep
 
-#include <cmath>               // for ceil, pow, log2
-#include <cstdio>              // for fprintf, snprintf, fflush, stderr, FILE
-#include <cstdlib>             // for free, malloc, exit, abort, realloc
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
 #include <cstdint>
 
 #include <iterator>
@@ -26,22 +26,22 @@
 #include <gmp.h>
 #include "fmt/format.h"
 
-#include "batch.hpp"           // for facul_clear_methods, facul_make_defaul...
+#include "batch.hpp"
 #include "cado_poly.h"
-#include "facul.hpp"           // for facul_clear_methods, facul_make_defaul...
-#include "facul_doit.hpp"      // for facul_doit_onefm
-#include "facul_method.hpp"       // for facul_method
+#include "facul.hpp"
+#include "facul_doit.hpp"
+#include "facul_method.hpp"
 #include "facul_strategies.hpp"
-#include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
-#include "gmp_aux.h"       // mpz_set_uint64
+#include "getprime.h"
+#include "gmp_aux.h"
 #include "special-q.hpp"
 #include "macros.h"
-#include "modset.hpp"          // for FaculModulusBase
+#include "modset.hpp"
 #include "mpz_poly.h"
-#include "omp_proxy.h" // IWYU pragma: keep
-#include "relation.hpp"        // for relation
-#include "rootfinder.h" // mpz_poly_roots_ulong
-#include "timing.h"             // for seconds
+#include "omp_proxy.h"
+#include "relation.hpp"
+#include "rootfinder.h"
+#include "timing.h"
 #include "utils_cxx.hpp"
 
 /* This function is useful in the openmp context. This segment goes

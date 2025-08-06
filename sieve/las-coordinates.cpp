@@ -1,15 +1,15 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cstdio>             // for fprintf, stderr
-#include <cstdint>            // for fprintf, stderr
+#include <cstdio>
+#include <cstdint>
 
-#include <gmp.h>              // for mpz_clear, mpz_init, mpz_t, mpz_sgn
+#include <gmp.h>
 
 #include "fb-types.hpp"
 #include "gmp_aux.h"
 #include "las-coordinates.hpp"
-#include "las-config.h"        // for LOG_BUCKET_REGION
-#include "las-qlattice.hpp"    // for qlattice_basis
+#include "las-config.h"
+#include "las-qlattice.hpp"
 #include "special-q.hpp"
 #include "macros.h"
 

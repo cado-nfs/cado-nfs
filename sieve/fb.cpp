@@ -1,47 +1,46 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <algorithm> // for max, lower_bound, sort, is_sorted
-#include <cctype>    // for isspace
-#include <cerrno>    // for errno
-#include <climits>   // for ULONG_MAX
-#include <cmath>     // for fabs, floor, log2, pow, trunc
-#include <cstdint>   // for uint32_t, uint64_t, UINT64_C, UINT64_MAX
-#include <cstdlib>   // for exit, EXIT_FAILURE
-#include <cstring>   // for strchr, strerror, strlen
+#include <algorithm>
+#include <cctype>
+#include <cerrno>
+#include <climits>
+#include <cmath>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
 
-#include <iomanip>     // for operator<<, setprecision
-#include <istream>     // std::istream // IWYU pragma: keep
-#include <memory>      // for allocator_traits<>::value_type
-#include <ostream>     // std::ostream // IWYU pragma: keep
-#include <queue>       // for priority_queue
-#include <sstream>     // std::ostringstream // IWYU pragma: keep
-#include <stdexcept>   // for runtime_error
-#include <string>      // for basic_string, string
-#include <type_traits> // for is_same
+#include <iomanip>
+#include <istream>
+#include <ostream>
+#include <queue>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <type_traits>
 
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include <gmp.h> // for mpz_t, mpz_fdiv_ui, mpz_gcd_ui
+#include <gmp.h>
 
 #include "fb.hpp"
-#include "getprime.h" // for getprime_mt, prime_info_clear
+#include "getprime.h"
 #ifndef NDEBUG
-#include "gmp_aux.h" // for ulong_isprime // IWYU pragma: keep
+#include "gmp_aux.h"
 #endif
-#include "gzip.h"                  // fopen_maybe_compressed
-#include "las-fbroot-qlattice.hpp" // for fb_root_in_qlattice
+#include "gzip.h"
+#include "las-fbroot-qlattice.hpp"
 #include "las-side-config.hpp"
-#include "macros.h"       // ASSERT // IWYU pragma: keep
-#include "misc.h"         // for strtoul_const, strtoull_const
-#include "arith/mod_ul.h"       // for modul_set_ul_reduced, modul_clear
-#include "params.h"       // for cxx_param_list, param_list_parse_...
-#include "threadpool.hpp" // for thread_pool, task_result, task_parameters
-#include "timing.h"       // for seconds, wct_seconds
-#include "arithxx/u64arith.h"     // for u64arith_invmod
-#include "arith/ularith.h"      // for ularith_invmod
-#include "verbose.h"      // verbose_output_print
+#include "macros.h"
+#include "misc.h"
+#include "arith/mod_ul.h"
+#include "params.h"
+#include "threadpool.hpp"
+#include "timing.h"
+#include "arithxx/u64arith.h"
+#include "arith/ularith.h"
+#include "verbose.h"
 
 struct qlattice_basis; // IWYU pragma: keep
 
