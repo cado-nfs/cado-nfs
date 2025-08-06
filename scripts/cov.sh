@@ -31,7 +31,7 @@ commit_ref="https://gitlab.inria.fr/cado-nfs/cado-nfs/-/commit/$commit"
 export src_tree=$PWD
 
 run() {
-    OMP_DYNAMIC=true make check ARGS="$*"
+    OMP_DYNAMIC=true make check ARGS="-E builddep $*"
     # COV=1 ./cado-nfs.py 90377629292003121684002147101760858109247336549001090677693
 }
 
@@ -54,7 +54,7 @@ if [ "$gcovr" ] ; then
 
     before_run() {
         # remove coverage results of the previous run
-        (cd $build_tree ; find . -name '*.gcda' | xargs rm)
+        (cd $build_tree ; find . -name '*.gcda' | xargs -r rm -f)
         (cd $build_tree ; time gcovr --merge-mode-functions=separate -r $src_tree --json ${C}-base.json)
     }
 
@@ -75,7 +75,7 @@ else
     capture() {
         cap="$1"
         shift
-        find $build_tree -name '*conftest*' | xargs rm -f
+        find $build_tree -name '*conftest*' | xargs -r rm -f
         lcov -q -c      \
             --directory $build_tree     \
             --exclude $build_tree       \
@@ -98,7 +98,7 @@ else
     }
     before_run() {
         # remove coverage results of the previous run
-        (cd $build_tree ; find . -name '*.gcda' | xargs rm)
+        (cd $build_tree ; find . -name '*.gcda' | xargs -r rm -f)
         capture ${C}-pre0.info -i
         postprocess_capture ${C}-pre0.info ${C}-pre1.info ${C}-base.info
     }
