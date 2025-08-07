@@ -39,20 +39,6 @@
 #include "coeff_proxy.hpp"
 #include "cado_type_traits.hpp"
 
-#ifdef HAVE_MPFR
-#include <mpfr.h>
-#include "cxx_mpfr.hpp"
-#include "mpfr_aux.h"
-#include "mpfr_auxx.hpp"
-#endif
-
-#ifdef HAVE_MPC
-#include <mpc.h>
-#include "cxx_mpc.hpp"
-#include "mpc_aux.h"
-#include "mpc_auxx.hpp"
-#endif
-
 namespace polynomial_details {
     template<typename U>
     class named_proxy {
@@ -76,11 +62,6 @@ namespace polynomial_details {
 
 template<typename T>
 struct polynomial;
-
-} /* namespace polynomial_details */
-
-
-namespace polynomial_details {
 
 /* forward-declare the template. We need it in order to be able to
  * declare it as a friend of the polynomial<>struct
@@ -117,8 +98,6 @@ template<typename T> std::ostream& operator<<(std::ostream& o, polynomial_detail
  * - I don't understand the mpz_poly_base thing...
  *
  */
-template<typename T, typename POLY>
-struct traits_base;
 
 template<typename CoefficientType, typename PointType>
 struct eval_type {
@@ -135,13 +114,6 @@ struct eval_type {
 template<typename CoefficientType, typename PointType>
 using eval_type_t = eval_type<CoefficientType, PointType>::type;
 
-
-template<typename T, typename POLY,
-    bool is_integral = cado_math_aux::is_integral<T>::value,
-    bool is_real = cado_math_aux::is_real<T>::value,
-    bool is_complex = cado_math_aux::is_complex<T>::value
-    >
-struct traits;
 
 template<typename T>
 struct polynomial {
@@ -306,8 +278,6 @@ struct polynomial {
 
     private:
     std::vector<T> coeffs;
-    friend struct traits<T, polynomial<T>>;
-    friend struct traits_base<T, polynomial<T>>;
 
     public:
 
@@ -1016,17 +986,13 @@ struct polynomial {
     }
 
     bool has_nan() const {
-        for(auto c: coeffs)
-            if (cado_math_aux::isnan(c))
-                return true;
-        return false;
+        auto p = [](T const & x) { return cado_math_aux::isnan(x); };
+        return std::any_of(coeffs.begin(), coeffs.end(), p);
     }
 
     bool has_inf() const {
-        for(auto c: coeffs)
-            if (cado_math_aux::isinf(c))
-                return true;
-        return false;
+        auto p = [](T const & x) { return cado_math_aux::isinf(x); };
+        return std::any_of(coeffs.begin(), coeffs.end(), p);
     }
 
     private:
@@ -1265,37 +1231,6 @@ inline std::ostream& operator<<(std::ostream& o, polynomial<T> const & f)
 
 template<typename T>
 using polynomial = polynomial_details::polynomial<T>;
-
-using polynomial_details::operator>>;
-using polynomial_details::operator<<;
-
-
-
-/*
-template<typename T>
-std::istream& operator>>(std::istream& in, polynomial_details::named_proxy<polynomial<T> &> const & F)
-{
-    return polynomial_details::operator>>(in, F);
-}
-
-template<typename T>
-std::istream& operator>>(std::istream& in, polynomial<T> & F)
-{
-    return polynomial_details::operator>>(in, F);
-}
-
-template<typename T>
-inline std::ostream& operator<<(std::ostream& o, polynomial_details::named_proxy<polynomial<T> const &> const & f)
-{
-    return polynomial_details::operator<<(o, f);
-}
-
-template<typename T>
-inline std::ostream& operator<<(std::ostream& o, polynomial<T> const & f)
-{
-    return polynomial_details::operator<<(o, f.named("x"));
-}
-*/
 
 
 namespace fmt {
