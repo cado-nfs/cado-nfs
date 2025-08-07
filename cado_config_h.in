@@ -126,6 +126,7 @@
 #cmakedefine    HAVE_GMPECM
 
 #cmakedefine    HAVE_MPFR
+#cmakedefine    HAVE_MPC
 
 #cmakedefine    HAVE_CXXABI_H
 

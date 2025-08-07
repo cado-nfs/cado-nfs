@@ -11,7 +11,6 @@
 
 #include "fmt/base.h"
 
-
 #include "cado_math_aux.hpp"
 #include "cxx_mpz.hpp"
 #include "macros.h"
@@ -63,7 +62,7 @@ test_positive_roots(std::string const & poly_str,
         abort();
     }
     for(size_t i = 0 ; i < pos.size() ; i++) {
-        using namespace cado_math_aux;
+        using cado_math_aux::accurate_bits;
         int a = accurate_bits(pos[i], reference[i]);
         fmt::print("{} vs ref {} : accurate bits: {}\n", pos[i], reference[i], a);
         if (a < accuracy) {

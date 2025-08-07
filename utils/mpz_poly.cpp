@@ -2361,6 +2361,9 @@ reduce_R:
 /* Stores in g the polynomial linked to f by:
  *  - alpha is a root of f if and only if lc(f)*alpha is a root of g
  *  - g is monic
+ *
+ * This has nothing to do with makemonic_mpz! The operation here
+ * works in Z[x]
  */
 void mpz_poly_to_monic(mpz_poly_ptr g, mpz_poly_srcptr f)
 {

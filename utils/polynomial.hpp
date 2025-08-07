@@ -5,6 +5,9 @@
  * standard operator overloads defined. A priori we want to instantiate
  * these with float, double, and long double. But in principle it should
  * be possible to use this type more generically
+ *
+ * (note that because of the mpfr conventions, the cxx_mpfr type cannot
+ * be used for this)
  */
 
 #include <algorithm>
@@ -32,6 +35,7 @@
 #include "cado_math_aux.hpp"
 #include "cado_expression_parser.hpp"
 #include "coeff_proxy.hpp"
+#include "cado_type_traits.hpp"
 
 namespace polynomial_details {
     template<typename U>
@@ -63,8 +67,49 @@ struct polynomial;
  */
 template<typename T> std::istream& operator>>(std::istream& in, polynomial_details::named_proxy<polynomial<T> &> const & F);
 
+
+/* Things that we could add (all are in the mpz_poly interface):
+ *
+ * - {mul,div}_xi
+ * - more advanced operator*
+ * - evaluation on polynomials (either with extra code or with an OR in
+ *   the enable_if, that might work too).
+ * - valuation
+ * - is_monomial_multiple / is_monomial
+ * - is_monic / makemonic
+ * - translation, rotation
+ * - infinity norm
+ * - homography
+ * - discriminant
+ * - coproduct_tree / prod / polyfromroots / multievaluate / interpolate
+ * - pow (via an external operator?)
+ *
+ * and for integral coefficients:
+ * - modular interface, including mod_f_mod_mpz, etc.
+ * - divexact
+ * - to_monic
+ * - pseudodiv, pseudo_division, pseudo_remainder
+ * - gcd, xgcd, content
+ * - is_square_free
+ * - polynomial factorization mod p ; factor_and_lift
+ * - I don't understand the mpz_poly_base thing...
+ *
+ */
 template<typename T>
 struct polynomial {
+    template<typename From, typename To>
+    using is_coercible = cado_math_aux::is_coercible<From, To>;
+    template<typename From, typename To>
+    using is_coercible_t = cado_math_aux::is_coercible_t<From, To>;
+    template<typename From, typename To>
+    using is_strictly_coercible = cado_math_aux::is_strictly_coercible<From, To>;
+    template<typename From, typename To>
+    using is_strictly_coercible_t = cado_math_aux::is_strictly_coercible_t<From, To>;
+    template<typename X>
+    using is_real = cado_math_aux::is_real<X>;
+    template<typename X>
+    using is_real_t = cado_math_aux::is_real_t<X>;
+
     typedef T coefficient_type;
     private:
     std::vector<T> coeffs;
@@ -152,35 +197,54 @@ struct polynomial {
     cado_details::const_coeff_proxy<polynomial> operator[](unsigned int i) const
     { return { *this, i }; }
 
-
-    T eval(T x) const {
+    template<typename U, is_coercible_t<T, U> = {}>
+    U eval(U const & x) const {
         T const * f = coeffs.data();
         const int deg = degree();
         switch(deg) {
             case -1: return 0;
+                     /*
+                        def p(n):
+                            s = f"f[{n}]"
+                            for k in range(n):
+                                s = f"x*({s})+f[{n-1-k}]"
+                            return s
+                        for i in range(10):
+                            print(f"case {i}: return {p(i)};")
+                      */
             case 0: return f[0];
-            case 1: return f[0]+x*f[1];
-            case 2: return f[0]+x*(f[1]+x*f[2]);
-            case 3: return f[0]+x*(f[1]+x*(f[2]+x*f[3]));
-            case 4: return f[0]+x*(f[1]+x*(f[2]+x*(f[3]+x*f[4])));
-            case 5: return f[0]+x*(f[1]+x*(f[2]+x*(f[3]+x*(f[4]+x*f[5]))));
-            case 6: return f[0]+x*(f[1]+x*(f[2]+x*(f[3]+x*(f[4]+x*(f[5]+x*f[6])))));
-            case 7: return f[0]+x*(f[1]+x*(f[2]+x*(f[3]+x*(f[4]+x*(f[5]+x*(f[6]+x*f[7]))))));
-            case 8: return f[0]+x*(f[1]+x*(f[2]+x*(f[3]+x*(f[4]+x*(f[5]+x*(f[6]+x*(f[7]+x*f[8])))))));
-            case 9: return f[0]+x*(f[1]+x*(f[2]+x*(f[3]+x*(f[4]+x*(f[5]+x*(f[6]+x*(f[7]+x*(f[8]+x*f[9]))))))));
+            case 1: return x*f[1]+f[0];
+            case 2: return x*(x*f[2]+f[1])+f[0];
+            case 3: return x*(x*(x*f[3]+f[2])+f[1])+f[0];
+            case 4: return x*(x*(x*(x*f[4]+f[3])+f[2])+f[1])+f[0];
+            case 5: return x*(x*(x*(x*(x*f[5]+f[4])+f[3])+f[2])+f[1])+f[0];
+            case 6: return x*(x*(x*(x*(x*(x*f[6]+f[5])+f[4])+f[3])+f[2])+f[1])+f[0];
+            case 7: return x*(x*(x*(x*(x*(x*(x*f[7]+f[6])+f[5])+f[4])+f[3])+f[2])+f[1])+f[0];
+            case 8: return x*(x*(x*(x*(x*(x*(x*(x*f[8]+f[7])+f[6])+f[5])+f[4])+f[3])+f[2])+f[1])+f[0];
+            case 9: return x*(x*(x*(x*(x*(x*(x*(x*(x*f[9]+f[8])+f[7])+f[6])+f[5])+f[4])+f[3])+f[2])+f[1])+f[0];
             default:
                     T r = f[deg];
                     for (int k = deg; k-- ; r = r * x + f[k]);
                     return r;
         }
     }
-    T operator()(T x) const { return eval(x); }
+    template<typename U, is_strictly_coercible_t<U, T> = {}>
+    T eval(U const & x) const {
+        return eval(T(x));
+    }
+
+    template<typename U, is_coercible_t<T, U> = {}>
+    U operator()(U const & x) const { return eval(x); }
+
+    template<typename U, is_strictly_coercible_t<U, T> = {}>
+    T operator()(U const & x) const { return eval(x); }
 
     /* Evaluate the homogenous polynomial induced by f at the pair
      * (x,y). That is, compute the sum f[i]*x^i*y^(n-i), where n is
      * degree(f)
      */
-    T eval(T x, T y) const
+    template<typename U, is_coercible_t<T, U> = {}>
+    U eval(U const & x, U const & y) const
     {
         T const * f = coeffs.data();
 
@@ -199,10 +263,18 @@ struct polynomial {
                     return s;
         }
     }
-    T operator()(T x, T y) const { return eval(x, y); }
+
+    template<typename U, is_strictly_coercible_t<U, T> = {}>
+    T eval(U const & x, U const & y) const { return eval(T(x), T(y)); }
+
+    template<typename U, is_coercible_t<T, U> = {}>
+    U operator()(U const & x, U const & y) const { return eval(x, y); }
+    template<typename U, is_strictly_coercible_t<U, T> = {}>
+    T operator()(U const & x, U const & y) const { return eval(x, y); }
 
     /* uses arbitrary precision */
-    T eval_safe(T x) const
+    template<typename U, is_real_t<U> = {}, is_coercible_t<T, U> = {}>
+    U eval_safe(U const & x) const
     {
         T const * f = coeffs.data();
         const int deg = degree();
@@ -224,14 +296,23 @@ struct polynomial {
             mpz_add (vm, vm, fm);
         }
         T r = cado_math_aux::mpz_get<T> (vm);
-        return ldexp(r, ve);
+
+        /* This calls std::ldexp, and thereby implicitly assumes that U
+         * is float, double, or long double
+         */
+        return std::ldexp(r, ve);
+    }
+    template<typename U, is_strictly_coercible_t<U, T> = {}>
+    T eval_safe(U const & x) const { return eval_safe(T(x)); }
+
+    template<typename U, is_coercible_t<T, U> = {}>
+    U findroot_dichotomy(U const & a, U const & b) const {
+        using cado_math_aux::sgn;
+        return findroot_dichotomy(a, b, sgn(eval(a)));
     }
 
-    T findroot_dichotomy(T a, T b) const {
-        return findroot_dichotomy(a, b, eval(a));
-    }
-
-    T findroot_dichotomy(T a, T b, T sa) const
+    template<typename U, is_coercible_t<T, U> = {}>
+    U findroot_dichotomy(U a, U b, int sa) const
     {
         T s;
         for(;;) {
@@ -239,7 +320,7 @@ struct polynomial {
             cado_math_aux::do_not_outsmart_me(s);
             if (s == a || s == b) return s;
             using cado_math_aux::sgn;
-            if (sgn(eval(s)) * sgn(sa) > 0)
+            if (sgn(eval(s)) * sa > 0)
                 a = s;
             else
                 b = s;
@@ -257,7 +338,7 @@ struct polynomial {
         return df;
     }
 
-    polynomial operator*(T a) const
+    polynomial operator*(T const & a) const
     {
         polynomial h;
         h.coeffs.reserve(coeffs.size());
@@ -266,7 +347,7 @@ struct polynomial {
         return h;
     }
 
-    polynomial operator/(T a) const
+    polynomial operator/(T const & a) const
     {
         polynomial h;
         h.coeffs.reserve(coeffs.size());
@@ -330,11 +411,11 @@ struct polynomial {
     }
 
     /* all compound operators are done lazily, at least for now */
-    polynomial& operator*=(T a) {
+    polynomial& operator*=(T const & a) {
         return (*this) = (*this) * a;
     }
 
-    polynomial& operator/=(T a) {
+    polynomial& operator/=(T const & a) {
         return (*this) = (*this) / a;
     }
 
@@ -360,12 +441,12 @@ struct polynomial {
         return (*this) -= a*b;
     }
 
-    polynomial& addmul(polynomial const & a, T v)
+    polynomial& addmul(polynomial const & a, T const & v)
     {
         return (*this) += a*v;
     }
 
-    polynomial& submul(polynomial const & a, T v)
+    polynomial& submul(polynomial const & a, T const & v)
     {
         return (*this) -= a*v;
     }
@@ -383,7 +464,7 @@ struct polynomial {
      * not the same as double_poly_scale, deleted in commit
      * c480fe82174a9de96e1cd35b2317fdf0de3678ab
      */
-    polynomial reverse_scale(double scale) const
+    polynomial reverse_scale(T const & scale) const
     {
         unsigned int sz = size();
         if (!sz)
@@ -448,11 +529,13 @@ struct polynomial {
         return negative ? -b : b;
     }
 
-    std::vector<T> positive_roots() const {
-        return positive_roots(bound_positive_roots());
+    template<typename U = T, is_coercible_t<T, U> = {}>
+    std::vector<U> positive_roots() const {
+        return positive_roots(U(bound_positive_roots()));
     }
+    template<typename U = T, is_coercible_t<T, U> = {}>
     std::vector<T> negative_roots() const {
-        return positive_roots(bound_positive_roots(true));
+        return positive_roots(U(bound_positive_roots(true)));
     }
 
     private:
@@ -465,11 +548,11 @@ struct polynomial {
      * called with b<a, in which case we need to adapt a few little
      * things.
      */
-    T findroot_falseposition(T a, T b, T pa) const
+    template<typename U, is_coercible_t<T, U> = {}>
+    U findroot_falseposition(U const & a0, U const & b0, U const & pa0) const
     {
-        T pb;
         int side=0;
-        T a0=a, b0=b, pa0=pa;
+        U a=a0, b=b0, pa=pa0, pb;
 
         if (a == b)
             return a;
@@ -481,7 +564,7 @@ struct polynomial {
         pb = eval(b);
 
         for(;;) {
-            T s, middle;
+            U s, middle;
 
             s = (a*pb-b*pa)/(pb-pa);
             middle = (a + b) * 0.5;
@@ -503,7 +586,7 @@ struct polynomial {
             if (escapes_range || (hits_bounds && middle_cut_is_nice))
                 s = middle;
             if (s == a || s == b) return s;
-            T ps = eval(s);
+            U ps = eval(s);
             using cado_math_aux::sgn;
             if (sgn(ps) * sgn(pa) > 0) {
                 a = s; pa = ps;
@@ -524,7 +607,8 @@ struct polynomial {
      * in v , as well as a bound on the positive roots of *this, store in
      * v the positive roots of *this.  v is clobbered.
      */
-    void positive_roots_from_derivative_sign_changes(std::vector<T> & v, T bound)
+    template<typename U, is_coercible_t<T, U> = {}>
+    void positive_roots_from_derivative_sign_changes(std::vector<U> & v, U bound)
     {
         using namespace cado_math_aux;
         if (degree() <= 0) {
@@ -541,8 +625,8 @@ struct polynomial {
             if (s && s * eval(bound) <= 0)
                 v.assign(1, - coeffs[0] / coeffs[1]);
         } else {
-            T a = 0;
-            T va = coeffs[0];
+            U a = 0;
+            U va = coeffs[0];
             v.push_back(bound);
             size_t m = 0;
             /* If f(a)*f'(a+epsilon) > 0, we won't find a
@@ -561,11 +645,11 @@ struct polynomial {
              * count as positive
              */
             using cado_math_aux::sgn;
-            T c01 = sgn(coeffs[0]) * sgn(coeffs[1] ? coeffs[1] : (sgn(bound) * coeffs[2]));
+            U c01 = sgn(coeffs[0]) * sgn(coeffs[1] ? coeffs[1] : (sgn(bound) * coeffs[2]));
             bool no_chance = c01 * sgn(bound) > 0 || coeffs[0] == 0;
             for(size_t i = 0 ; i < v.size() ; i++) {
-                T b = v[i];
-                T vb = eval(b);
+                U b = v[i];
+                U vb = eval(b);
                 if (no_chance) {
                     no_chance = false;
                 } else if (sgn(va) * sgn(vb) < 0) {
@@ -575,7 +659,7 @@ struct polynomial {
                      * promising, and yet had no root. The next one
                      * certainly won't work.
                      */
-                    no_chance = true;
+                    no_chance = {};
                 }
                 a = b;
                 va = vb;
@@ -585,7 +669,8 @@ struct polynomial {
     }
     public:
 
-    std::vector<T> positive_roots(T bound) const
+    template<typename U, is_coercible_t<T, U> = {}>
+    std::vector<U> positive_roots(U bound) const
     {
         const int d = degree();
 
@@ -603,23 +688,24 @@ struct polynomial {
             dg.push_back(dg.back().derivative());
 
         /* work from the most derived polynomial, down to f */
-        std::vector<T> res;
+        std::vector<U> res;
         for (int k = d; k-- ; )
             dg[k].positive_roots_from_derivative_sign_changes(res, bound);
 
         return res;
     }
 
-    std::vector<T> roots() const
+    template<typename U = T, is_coercible_t<T, U> = {}>
+    std::vector<U> roots() const
     {
         if (degree() == -1) return {};
 
-        auto w = negative_roots();
+        auto w = negative_roots<U>();
 
         if (coeffs[0] == 0)
             w.push_back(0);
 
-        const auto positive = positive_roots();
+        const auto positive = positive_roots<U>();
 
         w.insert(w.end(), positive.begin(), positive.end());
         std::sort(w.begin(), w.end());
@@ -627,16 +713,17 @@ struct polynomial {
         return w;
     }
 
-
-    /* divide by x-r */
-    polynomial div_linear(T r) const
+    /* divide by x-r, return the quotient if the polynomial is of
+     * integral type.  */
+    template<typename U, is_coercible_t<T, U> = {}>
+    polynomial<U> div_linear(U const & r) const
     {
         T const * f = coeffs.data();
         const int deg = degree();
         if (deg < 0)
             return {};
         T u = f[deg];
-        polynomial q;
+        polynomial<U> q;
         q.coeffs.reserve(coeffs.size() - 1);
         for (int k = deg ; k-- ; ) {
             T const c = f[k];
@@ -927,6 +1014,15 @@ struct polynomial {
     }
 };
 
+static_assert(std::is_same<decltype(polynomial<int>{}(double())), double>::value);
+static_assert(std::is_same<decltype(polynomial<double>{}(int())), double>::value);
+static_assert(std::is_same<decltype(polynomial<int>{}(int())), int>::value);
+static_assert(std::is_same<decltype(polynomial<cxx_mpz>{}(int())), cxx_mpz>::value);
+static_assert(std::is_same<decltype(polynomial<cxx_mpz>{}(double())), double>::value);
+
+// same idea. not a reason to pull cxx_mpfr.hpp or cxx_mpc.hpp though.
+// static_assert(std::is_same<decltype(polynomial<cxx_mpz>{}(cxx_mpfr())), cxx_mpfr>::value);
+// static_assert(std::is_same<decltype(polynomial<double>{}(cxx_mpc())), cxx_mpc>::value);
 
 template<typename T>
 std::istream& operator>>(std::istream& in, polynomial_details::named_proxy<polynomial<T> &> const & F)

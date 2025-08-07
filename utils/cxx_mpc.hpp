@@ -169,7 +169,7 @@ template <> struct formatter<cxx_mpc> : ostream_formatter {
 /* Now here's a layer we're not particularly happy with */
 
 /* NOLINTBEGIN(bugprone-macro-parentheses) */
-#define CXX_MPFR_DEFINE_CMP(OP)                                                \
+#define CXX_MPC_DEFINE_CMP(OP)                                                \
     inline bool operator OP(cxx_mpc const & a, cxx_mpc const & b)            \
     {                                                                          \
         return mpc_cmp(a, b) OP 0;                                            \
@@ -196,12 +196,12 @@ template <> struct formatter<cxx_mpc> : ostream_formatter {
     }
 /* NOLINTEND(bugprone-macro-parentheses) */
 
-CXX_MPFR_DEFINE_CMP(==)
-CXX_MPFR_DEFINE_CMP(!=)
-CXX_MPFR_DEFINE_CMP(<)
-CXX_MPFR_DEFINE_CMP(>)
-CXX_MPFR_DEFINE_CMP(<=)
-CXX_MPFR_DEFINE_CMP(>=)
+CXX_MPC_DEFINE_CMP(==)
+CXX_MPC_DEFINE_CMP(!=)
+CXX_MPC_DEFINE_CMP(<)
+CXX_MPC_DEFINE_CMP(>)
+CXX_MPC_DEFINE_CMP(<=)
+CXX_MPC_DEFINE_CMP(>=)
 
 #if __cplusplus >= 202002L
 inline bool operator<=>(cxx_mpc const & a, cxx_mpc const & b)
@@ -210,7 +210,7 @@ inline bool operator<=>(cxx_mpc const & a, cxx_mpc const & b)
 }
 #endif
 
-#define CXX_MPFR_DEFINE_TERNARY(OP, TEXTOP)                                    \
+#define CXX_MPC_DEFINE_TERNARY(OP, TEXTOP)                                    \
     inline cxx_mpc operator OP(cxx_mpc const & a, cxx_mpc const & b)        \
     {                                                                          \
         cxx_mpc r;                                                            \
@@ -248,11 +248,11 @@ inline bool operator<=>(cxx_mpc const & a, cxx_mpc const & b)
         return a;							\
     }
 
-CXX_MPFR_DEFINE_TERNARY(+, add)
-CXX_MPFR_DEFINE_TERNARY(-, sub)
-CXX_MPFR_DEFINE_TERNARY(*, mul)
-CXX_MPFR_DEFINE_TERNARY(/, div)
-CXX_MPFR_DEFINE_TERNARY(%, remainder)
+CXX_MPC_DEFINE_TERNARY(+, add)
+CXX_MPC_DEFINE_TERNARY(-, sub)
+CXX_MPC_DEFINE_TERNARY(*, mul)
+CXX_MPC_DEFINE_TERNARY(/, div)
+CXX_MPC_DEFINE_TERNARY(%, remainder)
 
 inline cxx_mpc operator-(cxx_mpc const & a)
 {
@@ -286,7 +286,5 @@ inline cxx_mpc operator>>(cxx_mpc const & a, unsigned long const s)
     cxx_mpc r {a};
     return r >>= s;
 }
-
-
 
 #endif	/* UTILS_CXX_MPC_HPP_ */
