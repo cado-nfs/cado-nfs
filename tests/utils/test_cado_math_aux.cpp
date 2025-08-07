@@ -107,6 +107,7 @@ namespace details {
             }
         };
 
+#ifdef HAVE_MPFR
     template<typename U>
         struct set_with_precision_impl<cxx_mpfr, U> {
             cxx_mpfr operator()(U const & u, int prec) const {
@@ -115,6 +116,7 @@ namespace details {
                 return cado_math_aux::similar_set(x, u);
             }
         };
+#endif
 } /* namespace details */
 
 template<typename T, typename U>
@@ -125,8 +127,11 @@ static inline T set_with_precision(U const & u, int prec)
 
 template<typename T>
 struct working_precision : public std::integral_constant<int, std::numeric_limits<T>::digits> {};
+
+#ifdef HAVE_MPFR
 template<>
 struct working_precision<cxx_mpfr> : public std::integral_constant<int, 200> {};
+#endif
 
 
 template<typename T>
