@@ -1512,6 +1512,7 @@ tests/utils/test-sort.cpp
 tests/utils/test_bit_vector.c
 tests/utils/test_cache.c
 tests/utils/test_cado_expression_parser.cpp
+tests/utils/test_cado_math_aux.cpp
 tests/utils/test_cado_poly.cpp
 tests/utils/test_cxx_mpc.cpp
 tests/utils/test_cxx_mpfr.cpp
@@ -1651,6 +1652,7 @@ utils/coeff_proxy.hpp
 utils/crc.c
 utils/crc.h
 utils/cxx_mpc.hpp
+utils/cxx_mpfr.cpp
 utils/cxx_mpfr.hpp
 utils/cxx_mpz.hpp
 utils/dllist.h

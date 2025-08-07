@@ -22,6 +22,7 @@
 #include <cstdlib>
 
 #include <limits>
+#include <istream>
 #include <ostream>
 #include <type_traits>
 
@@ -197,6 +198,10 @@ struct cxx_mpfr {
     /* tricky one. we'd like to live without it.
     explicit operator uint64_t() const {return mpfr_get_uint64(x);}
     */
+    struct input_with_precision {
+        cxx_mpfr & x;
+        mpfr_prec_t p;
+    };
 };
 
 #if GNUC_VERSION_ATLEAST(4, 3, 0)
@@ -219,21 +224,68 @@ inline std::ostream & operator<<(std::ostream & os, cxx_mpfr const & x)
     free(s);
     return os;
 }
-/*
-inline std::istream& operator>>(std::istream& is, cxx_mpfr & x) {
-    std::string s;
-    if (!(is >> s))
-        return s;
-    choke me;
-    can use neither mpfr_set_str nor mpfr_strtofr here...
-    return is >> (mpfr_ptr) x;
+
+extern std::istream & operator>>(std::istream & is, cxx_mpfr::input_with_precision xp);
+
+inline std::istream& operator>>(std::istream& is, cxx_mpfr & x)
+{
+    return is >> cxx_mpfr::input_with_precision { .x = x, .p = mpfr_get_default_prec() };
 }
-*/
+
+
+namespace fmt {
+    /* It's totally primitive, and should be expanded if we want to allow
+     * more proper formatting. It seems desirable of course, but for the
+     * moment my focus is on debugging
+     */
+    template<typename T>
+    struct fmt_helper_cxx_mpfr {
+        protected:
+            enum { NORMAL, HEX } custom_format = formatter<T>::custom_format_default;
+            /* this can be overridden */
+            static constexpr const decltype(custom_format) custom_format_default = NORMAL;
+        public:
+            FMT_CONSTEXPR auto parse(basic_format_parse_context<char>& ctx)
+                -> decltype(ctx.begin())
+            {
+                auto begin = ctx.begin(), end = ctx.end();
+                if (begin != end && *begin == 'R') {
+                    ++begin;
+                    custom_format = NORMAL;
+                } else if (begin != end && *begin == 'a') {
+                    ++begin;
+                    custom_format = HEX;
+                }
+                return begin;
+            }
+    };
+} /* namespace fmt */
 
 namespace fmt
 {
-template <> struct formatter<cxx_mpfr> : ostream_formatter {
-};
+    // template <> struct formatter<cxx_mpfr> : ostream_formatter { };
+    template <>
+        struct formatter<cxx_mpfr>
+        : formatter<string_view>
+        , fmt_helper_cxx_mpfr<cxx_mpfr>
+        {
+            static constexpr const decltype(custom_format) custom_format_default = NORMAL;
+            using fmt_helper_cxx_mpfr::parse;
+            auto format(cxx_mpfr const & x, format_context& ctx) const
+                -> format_context::iterator {
+                    char * s = nullptr;
+                    if (custom_format == NORMAL) {
+                        mpfr_asprintf(&s, "%Rg", x.x);
+                        fmt::format_to(ctx.out(), "{}", s);
+                        free(s);
+                    } else if (custom_format == HEX) {
+                        mpfr_asprintf(&s, "%Ra", x.x);
+                        fmt::format_to(ctx.out(), "{}", s);
+                        free(s);
+                    }
+                    return ctx.out();
+                }
+        };
 } // namespace fmt
 
 inline int operator<=>(cxx_mpfr const & a, cxx_mpfr const & b)
@@ -250,13 +302,13 @@ inline int operator<=>(cxx_mpfr const & a, mpfr_srcptr b)
 }
 template <typename T>
 static inline int operator<=>(cxx_mpfr const & a, const T b)
-    requires std::is_integral_v<T>
+    requires(std::is_integral_v<T> || std::is_floating_point_v<T>)
 {
     return mpfr_auxx::cado_mpfr_cmp(a, b);
 }
 template <typename T>
 static inline int operator<=>(const T a, cxx_mpfr const & b)
-    requires std::is_integral_v<T>
+    requires(std::is_integral_v<T> || std::is_floating_point_v<T>)
 {
     return -mpfr_auxx::cado_mpfr_cmp(b, a);
 }
@@ -277,13 +329,13 @@ static inline int operator<=>(const T a, cxx_mpfr const & b)
     }                                                                   \
     template <typename T>                                               \
     inline bool operator OP(cxx_mpfr const & a, const T b)              \
-    requires std::is_integral_v<T>                                      \
+    requires(std::is_integral_v<T> || std::is_floating_point_v<T>)      \
     {                                                                   \
         return ((a) <=> (b)) OP 0;                                      \
     }                                                                   \
     template <typename T>                                               \
     inline bool operator OP(const T a, cxx_mpfr const & b)              \
-    requires std::is_integral_v<T>                                      \
+    requires(std::is_integral_v<T> || std::is_floating_point_v<T>)      \
     {                                                                   \
         return 0 OP ((b) <=> (a));                                      \
     }

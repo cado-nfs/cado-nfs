@@ -9,6 +9,7 @@
 #include <cctype>
 #include <exception>
 #include <istream>
+#include <ios>
 #include <string>
 #include <vector>
 #include <utility>
@@ -72,10 +73,10 @@ namespace cado_expression_parser_details {
         }
 
         bool swallow_hits_end(int & c, std::istream & is) {
-                full += static_cast<char>(c);
-                is.get();
-                c=is.peek();
-                return is.eof();
+            full += static_cast<char>(c);
+            is.get();
+            c = is.peek();
+            return is.eof();
         }
         public:
         static bool recognize(number_literal & N, std::istream& is)// {{{
@@ -127,6 +128,12 @@ namespace cado_expression_parser_details {
             return true;
         }// }}}
     };
+    inline std::istream& operator>>(std::istream& is, number_literal & N)
+    {
+        if (!number_literal::recognize(N, is))
+            is.setstate(std::ios::failbit);
+        return is;
+    }
 
     template<typename T> struct number_traits { };
 
@@ -189,13 +196,14 @@ namespace cado_expression_parser_details {
 #ifdef HAVE_MPFR
     template<>
     struct number_traits<cxx_mpfr> {
-        static cxx_mpfr from_number_literal(number_literal const & N) {
+        static cxx_mpfr from_number_literal(number_literal const & N, mpfr_prec_t prec = mpfr_get_default_prec()) {
             /*
             if (!N.has_point && !N.has_exponent)
                 return cado_math_aux::mpz_get<long double>(number_traits<cxx_mpz>::from_number_literal(N));
                 */
             cxx_mpfr res;
-            int r = mpfr_set_str(res,   N.full.c_str(), 0, MPFR_RNDN);
+            mpfr_set_prec(res, prec);
+            const int r = mpfr_set_str(res, N.full.c_str(), 0, MPFR_RNDN);
             if (r != 0)
                 throw parse_error();
             return res;

@@ -6,10 +6,13 @@
 #include <cmath>
 
 #include <utility>
+#include <sstream>
+#include <string>
 #include <map>
 
 #include <gmp.h>
 #include "fmt/base.h"
+#include "fmt/format.h"
 
 #include "gmp_aux.h"
 #include "cxx_mpfr.hpp"

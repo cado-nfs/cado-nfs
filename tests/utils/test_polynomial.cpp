@@ -8,6 +8,7 @@
 #include <string>
 #include <limits>
 #include <type_traits>
+#include <regex>
 
 #include "fmt/base.h"
 
@@ -217,21 +218,65 @@ test_compute_roots<cxx_mpz>(bool)
 template<typename T>
 static void test_eval()
 {
-    polynomial<T> f;
 
-    T w = 0;
-    for(int deg = 0 ; deg < std::numeric_limits<T>::digits ; deg++) {
-        f[deg] = 1;
-        T v = f(2);
-        w = 2 * w + f[deg];
-        ASSERT_ALWAYS(v == w);
+    ASSERT_ALWAYS(polynomial<T>()(T()) == T());
+
+    {
+        polynomial<T> f;
+        T w = 0;
+        T two_n = 1;
+        constexpr int D = std::numeric_limits<T>::digits;
+        for(int n = 0 ; n < D ; n++) {
+            /* f is 1 + 2 * x + ... + (n+1)*x^n */
+            /* f(2) is g'(2) with g = 1 + x + ... + x^(n+1) =
+             * (x^(n+2)-1)/(x-1), so g'(2) = (n+2)2^(n+1)-2^(n+2)+1 =
+             * n * 2^(n+1) + 1. So we must have n*2^(n+1) < 2^digits in
+             * order to avoid overflow, iow n >> (digits - (n+1)) == 0.
+             * We must make sure that this right shift is less than the
+             * type width, though. */
+
+            const int shift = D - (n+1);
+            if (shift <= std::numeric_limits<int>::digits)
+                if (n >> (D - (n + 1)))
+                    break;
+            f[n] = n + 1;
+            T v = f(2);
+            w += two_n * f[n];
+            two_n *= 2;
+            ASSERT_ALWAYS(v == w);
+        }
+    }
+
+    /* also test homogeneous evaluation at (2,3) */
+    {
+        polynomial<T> f;
+        T w = 0;
+        T two_n = 1;
+        constexpr int D = std::numeric_limits<T>::digits;
+        for(int n = 0 ; n + 2 < D / 1.58497 ; n++) {
+            /* following the same reasoning as above, f(2,3) is
+             * g'(2/3)*3^n ==
+             * ((n+2)(2/3)^(n+1)*(-1/3)-(2/3)^(n+2)+1)*9*3^n
+             * == 3^(n+2)-(n+4)*2^(n+1)
+             *
+             * Since this value is odd, we only need to make sure that it
+             * doesn't exceed 2^D, which boils down to forcing 3^(n+2) <
+             * 2^D, so n+2 < D / (log(3)/log(2)), so for example n + 2 <
+             * D/1.58497 should suffice.
+             */
+            f[n] = n + 1;
+            T v = f(2, 3);
+            w = 3 * w + two_n * f[n];
+            two_n *= 2;
+            ASSERT_ALWAYS(v == w);
+        }
     }
 }
 
 template<typename T>
 static void test_derivative()
 {
-    typedef polynomial<T> RX;
+    using RX = polynomial<T>;
     ASSERT_ALWAYS(RX("17+42*x").derivative() == RX("42"));
     ASSERT_ALWAYS(RX("17+42*x+1728*x^2").derivative() == RX("42+3456*x"));
     ASSERT_ALWAYS(RX("17").derivative() == 0);
@@ -240,7 +285,7 @@ static void test_derivative()
 template<typename T>
 static void test_reciprocal()
 {
-    typedef polynomial<T> RX;
+    using RX = polynomial<T>;
 
     ASSERT_ALWAYS(RX("1+2*x+3*x^2").reciprocal() == RX("3+2*x+x^2"));
     ASSERT_ALWAYS(RX("1+2*x").reciprocal() == RX("2+x"));
@@ -249,29 +294,34 @@ static void test_reciprocal()
 template<typename T>
 static void test_print()
 {
-    typedef polynomial<T> RX;
+    using RX = polynomial<T>;
 
     const std::vector<std::array<const char *, 2>> tests {
         { "17", nullptr },
         { "x * 42 + 17", "17+42*x" },
         { "17+42*x+53*x^2", nullptr },
-        { "1.7001e+09+53*x^2", nullptr },
+        { "1.7001e+12+53*x^2", nullptr },
         { "17-53.2*x^2+99*x^3", nullptr },
         { "1-x^2+99*x^3", nullptr },
         { "-x+x^2", nullptr },
         { "1-1", "0" },
     };
 
+    const std::regex zeroes("\\.0+\\b");
     for(auto const & t : tests) {
-        fmt::print("{}\n", RX(t[0]));
-        ASSERT_ALWAYS(RX(t[0]).print() == std::string(t[t[1] != nullptr]));
+        RX f(t[0]);
+        fmt::print("{}\n", f);
+        auto printed = f.print();
+        printed = std::regex_replace(printed, zeroes, "");
+        const std::string ref(t[t[1] != nullptr]);
+        ASSERT_ALWAYS(printed == ref);
     }
 }
 
 template<>
 void test_print<cxx_mpz>()
 {
-    typedef polynomial<cxx_mpz> RX;
+    using RX = polynomial<cxx_mpz>;
 
     const std::vector<std::array<const char *, 2>> tests {
         { "17", nullptr },
@@ -282,8 +332,11 @@ void test_print<cxx_mpz>()
         { "1-1", "0" },
     };
 
-    for(auto const & t : tests)
-        ASSERT_ALWAYS(RX(t[0]).print() == std::string(t[t[1] != nullptr]));
+    for(auto const & t : tests) {
+        const auto printed = RX(t[0]).print();
+        const std::string ref(t[t[1] != nullptr]);
+        ASSERT_ALWAYS(printed == ref);
+    }
 }
 
 #if 0
@@ -313,14 +366,14 @@ void test_print<cxx_mpfr>()
 template<typename T>
 static void test_ctor_mpz_poly()
 {
-    typedef polynomial<T> RX;
+    using RX = polynomial<T>;
     ASSERT_ALWAYS(RX(cxx_mpz_poly("17*x^2-42-3")) == RX("17*x^2-42-3"));
 }
 
 template<typename T>
 static void test_resultant()
 {
-    typedef polynomial<T> RX;
+    using RX = polynomial<T>;
     using cado_math_aux::accurate_bits;
 
     struct test_case {
@@ -333,7 +386,7 @@ static void test_resultant()
          */
     };
 
-    const int valgrind_penalty2 = (std::is_same<T, long double>::value && tests_run_under_valgrind()) ? 8 : 0;
+    const int valgrind_penalty2 = (std::is_same_v<T, long double> && tests_run_under_valgrind()) ? 8 : 0;
 
     const std::vector<test_case> test_cases {
         {

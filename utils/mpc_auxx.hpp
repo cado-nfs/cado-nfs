@@ -109,6 +109,26 @@ cado_mpc_cmp(mpc_srcptr a, T const b)
 {
     return mpc_cmp_uint64(a, b);
 }
+
+static inline int
+cado_mpc_cmp(mpc_srcptr a, float b)
+{
+    /* no mpc_cmp_* for float */
+    return mpc_cmp_d(a, b);
+}
+
+static inline int
+cado_mpc_cmp(mpc_srcptr a, double b)
+{
+    return mpc_cmp_d(a, b);
+}
+
+static inline int
+cado_mpc_cmp(mpc_srcptr a, long double b)
+{
+    return mpc_cmp_ld(a, b);
+}
+
 /*****************************************************************/
 
 #define MPC_AUXX_DEFINE_FUNC3(OP)                                       \

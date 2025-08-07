@@ -67,14 +67,31 @@ static inline void mpc_init_set_ui(mpc_ptr z, unsigned long x, mpc_rnd_t rnd)
     mpc_init2(z, mpfr_get_default_prec());
     mpc_set_ui(z, x, rnd);
 }
+
+/* comparison functions must follow the same convention as mpc_cmp ! */
 static inline int mpc_cmp_ui(mpc_srcptr a, unsigned long c)
 {
     if (c <= LONG_MAX) {
         return mpc_cmp_si_si(a, long(c), 0);
     } else {
-        return mpfr_cmp_ui(mpc_realref(a), c) == 0 && mpfr_cmp_ui(mpc_imagref(a), 0) == 0;
+        int const rr = mpfr_cmp_ui(mpc_realref(a), c);
+        int const ri = mpfr_cmp_ui(mpc_imagref(a), 0);
+        return MPC_INEX(rr, ri);
     }
 }
+static inline int mpc_cmp_d(mpc_srcptr a, double c)
+{
+    int const rr = mpfr_cmp_d(mpc_realref(a), c);
+    int const ri = mpfr_cmp_ui(mpc_imagref(a), 0);
+    return MPC_INEX(rr, ri);
+}
+static inline int mpc_cmp_ld(mpc_srcptr a, long double c)
+{
+    int const rr = mpfr_cmp_ld(mpc_realref(a), c);
+    int const ri = mpfr_cmp_ui(mpc_imagref(a), 0);
+    return MPC_INEX(rr, ri);
+}
+
 static inline int mpc_sub_si(mpc_ptr a, mpc_srcptr b, long c, mpc_rnd_t rnd)
 {
     int const rr = mpfr_set(mpc_imagref(a), mpc_imagref(b), MPC_RND_IM(rnd));

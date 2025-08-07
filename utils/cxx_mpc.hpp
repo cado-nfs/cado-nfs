@@ -238,14 +238,14 @@ static inline int operator<=>(cxx_mpc const & a, mpc_srcptr b)
 }
 template <typename T>
 static inline int operator<=>(cxx_mpc const & a, const T b)
-    requires std::is_integral_v<T>
+    requires(std::is_integral_v<T> || std::is_floating_point_v<T>)
 {
     int const c = mpc_auxx::cado_mpc_cmp(a, b);
     return (MPC_INEX_IM(c) << 1) + MPC_INEX_RE(c);
 }
 template <typename T>
 static inline int operator<=>(const T a, cxx_mpc const & b)
-    requires std::is_integral_v<T>
+    requires(std::is_integral_v<T> || std::is_floating_point_v<T>)
 {
     int const c = mpc_auxx::cado_mpc_cmp(b, a);
     return -((MPC_INEX_IM(c) << 1) + MPC_INEX_RE(c));
@@ -267,13 +267,13 @@ static inline int operator<=>(const T a, cxx_mpc const & b)
     }                                                                   \
     template <typename T>                                               \
     inline bool operator OP(cxx_mpc const & a, const T b)               \
-    requires std::is_integral_v<T>                                      \
+    requires(std::is_integral_v<T> || std::is_floating_point_v<T>)      \
     {                                                                   \
         return ((a) <=> (b)) OP 0;                                      \
     }                                                                   \
     template <typename T>                                               \
     inline bool operator OP(const T a, cxx_mpc const & b)               \
-    requires std::is_integral_v<T>                                      \
+    requires(std::is_integral_v<T> || std::is_floating_point_v<T>)      \
     {                                                                   \
         return 0 OP ((b) <=> (a));                                      \
     }

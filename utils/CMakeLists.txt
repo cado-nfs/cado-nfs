@@ -64,10 +64,11 @@ endif()
 if(HAVE_HWLOC)
     list(APPEND sources hwloc-aux.c)
 endif()
+if(HAVE_MPFR)
+    list(APPEND sources cxx_mpfr.cpp)
+endif()
 
-set (sources_io
-        filter_io.cpp
-)
+set (sources_io filter_io.cpp)
 
 ############################################################
 # Get a list of modified files in the working directory,

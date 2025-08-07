@@ -102,6 +102,26 @@ cado_mpfr_cmp(mpfr_srcptr a, T const b)
 {
     return mpfr_cmp_uint64(a, b);
 }
+
+static inline int
+cado_mpfr_cmp(mpfr_srcptr a, float b)
+{
+    /* no mpfr_cmp_* for float */
+    return mpfr_cmp_d(a, b);
+}
+
+static inline int
+cado_mpfr_cmp(mpfr_srcptr a, double b)
+{
+    return mpfr_cmp_d(a, b);
+}
+
+static inline int
+cado_mpfr_cmp(mpfr_srcptr a, long double b)
+{
+    return mpfr_cmp_ld(a, b);
+}
+
 /*****************************************************************/
 
 #define MPFR_AUXX_DEFINE_FUNC3(OP)                                      \
@@ -195,6 +215,7 @@ MPFR_AUXX_DEFINE_FUNC3(remainder)
 
 /* Add these for convenience only */
 MPFR_AUXX_DEFINE_FUNC3_REFLEX(sub, mpfr_neg(a, a, rnd); r = -r)
+MPFR_AUXX_DEFINE_FUNC3_REFLEX(div, mpfr_pow_si(a, a, -1, rnd); r = -r)
 MPFR_AUXX_DEFINE_FUNC3_REFLEX(add, /* no fixup for commutative op */)
 MPFR_AUXX_DEFINE_FUNC3_REFLEX(mul, /* no fixup for commutative op */)
 

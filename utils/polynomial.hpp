@@ -1,7 +1,7 @@
 #ifndef CADO_UTILS_POLYNOMIAL_HPP
 #define CADO_UTILS_POLYNOMIAL_HPP
 
-#include "cado_config.h"
+#include "cado_config.h"        // IWYU pragma: keep
 
 /* This defines polynomial over arbitrary types, provided that these have
  * standard operator overloads defined. A priori we want to instantiate
@@ -403,8 +403,6 @@ struct polynomial {
         using cado_math_aux::sgn;
         return findroot_dichotomy(a, b, sgn(eval(a)));
     }
-
-
 
     template<typename U>
         eval_type_t<T, U>
@@ -888,8 +886,8 @@ struct polynomial {
             }
         };
         static constexpr const int accept_literals = 1;
-        typedef polynomial type;
-        typedef T number_type;
+        using type = polynomial;
+        using number_type = T;
         void add(polynomial & c, polynomial const & a, polynomial const & b) {
             c = a + b;
         }
@@ -1162,9 +1160,8 @@ std::istream& operator>>(std::istream& in, polynomial_details::named_proxy<polyn
     if (!getline(in, line)) return in;
     std::istringstream is(line);
 
-    typedef typename polynomial<T>::parser_traits traits_type;
-    typedef cado_expression_parser<traits_type> poly_parser;
-    poly_parser P(F.x);
+    using traits_type = typename polynomial<T>::parser_traits;
+    cado_expression_parser<traits_type> P(F.x);
     P.tokenize(is);
 
     try {
