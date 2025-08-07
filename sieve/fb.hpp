@@ -1,34 +1,30 @@
-/*****************************************************************
- *                Functions for the factor base                  *
- *****************************************************************/
-
 #ifndef CADO_FB_HPP
 #define CADO_FB_HPP
 
-#include <cstddef> // for size_t
-#include <cstdio>  // for fprintf, FILE
+#include <cstddef>
+#include <cstdio>
 
-#include <algorithm>   // for sort, max
-#include <array>       // for array
-#include <iosfwd>      // for ostream
-#include <limits>      // for numeric_limits
-#include <list>        // for list
-#include <map>         // for map, operator!=, _Rb_tree_iter...
-#include <mutex>       // for lock_guard, mutex
-#include <type_traits> // for vector
-#include <utility>     // for pair
-#include <vector>      // for vector
+#include <algorithm>
+#include <array>
+#include <iosfwd>
+#include <limits>
+#include <list>
+#include <map>
+#include <mutex>
+#include <type_traits>
+#include <utility>
+#include <vector>
 
-#include "cado_poly.h" // for MAX_DEGREE
-#include "macros.h"    // for ASSERT_ALWAYS, ASSERT, MAYBE_U...
-#include "mpz_poly.h"  // for cxx_mpz, cxx_mpz_poly
+#include "cado_poly.h"
+#include "macros.h"
+#include "mpz_poly.h"
 
 #include "fb-types.hpp"
-#include "las-config.h"               // for FB_MAX_PARTS
-#include "lock_guarded_container.hpp" // for lock_guarded_container
-#include "mmap_allocator.hpp"         // for mmap_allocator
+#include "las-config.h"
+#include "lock_guarded_container.hpp"
 #include "mmappable_vector.hpp"
-#include "multityped_array.hpp" // for multityped_array_foreach, mult...
+#include "multityped_array.hpp"
+
 struct qlattice_basis;
 struct cxx_param_list;
 
@@ -52,9 +48,7 @@ struct cxx_param_list;
 /* Forward declaration so fb_entry_general can use it in constructors */
 template <int Nr_roots> class fb_entry_x_roots;
 
-class fb_entry_general;
-
-/* A root modulo a prime power q. q is specified externally */
+/* A root modulo a prime power q=p^k. q is specified externally */
 struct fb_general_root {
     /* exp and oldexp are maximal such that:
        If not projective and a == br (mod p^k), then p^exp | F(a,b)
@@ -121,21 +115,19 @@ struct fb_general_root {
     void fprint(FILE * out, fbprime_t const q) const
     {
         fprintf(out, "%llu", to_old_format(q));
-        if (oldexp != 0 || this->exp != 1)
-            fprintf(out, ":%hhu:%hhu", oldexp, this->exp);
+        if (oldexp != 0 || exp != 1)
+            fprintf(out, ":%hhu:%hhu", oldexp, exp);
     }
 
     void transform(fb_general_root & result, fbprime_t q,
                    redc_invp_t invq, qlattice_basis const & basis) const;
 };
-#if __cplusplus >= 201703L
 /* std::has_unique_object_representations should be almost what we want,
  * but unfortunately it does not seem to work as it should (tested on
  * g++13 and clang-{14,15,16})
  */
-static_assert(std::has_unique_object_representations<fb_general_root>::value,
+static_assert(std::has_unique_object_representations_v<fb_general_root>,
               "fb_general_root must have no padding");
-#endif
 static_assert(sizeof(fb_general_root) == 8,
               "fb_general_root must have no padding");
 
@@ -197,14 +189,12 @@ class fb_entry_general
         };
     };
 };
-#if __cplusplus >= 201703L
 /* std::has_unique_object_representations should be almost what we want,
  * but unfortunately it does not seem to work as it should (tested on
  * g++13 and clang-{14,15,16})
  */
-static_assert(std::has_unique_object_representations<fb_entry_general>::value,
+static_assert(std::has_unique_object_representations_v<fb_entry_general>,
               "fb_entry_general must have no padding");
-#endif
 static_assert(sizeof(fb_entry_general) == 4 * 4 + MAX_DEGREE * 8,
               "fb_entry_general must have no padding");
 
@@ -245,8 +235,7 @@ template <int Nr_roots> class fb_entry_x_roots
         : p(p)
         , invq(invq)
     {
-        for (int i = 0; i < Nr_roots; i++)
-            this->roots[i] = roots[i];
+        std::copy_n(roots, Nr_roots, this->roots.begin());
     }
     /* Allow assignment-construction from general entries */
     explicit fb_entry_x_roots(fb_entry_general const & e)
@@ -275,14 +264,12 @@ template <int Nr_roots> class fb_entry_x_roots
     void transform_roots(transformed_entry_t &, qlattice_basis const &) const;
 };
 
-#if __cplusplus >= 201703L
 static_assert(
-    std::has_unique_object_representations<fb_entry_x_roots<1>>::value,
+    std::has_unique_object_representations_v<fb_entry_x_roots<1>>,
     "fb_entry_x_roots<1> must not have padding");
 static_assert(
-    std::has_unique_object_representations<fb_entry_x_roots<2>>::value,
+    std::has_unique_object_representations_v<fb_entry_x_roots<2>>,
     "fb_entry_x_roots<2> must not have padding");
-#endif
 
 /* }}} */
 
@@ -421,6 +408,8 @@ template <typename T> struct entries_and_cdf {
         }
     };
 };
+template <typename T>
+using entries_and_cdf_t = typename entries_and_cdf<T>::type;
 
 template <int n>
 struct works_with_mmappable_vector<fb_entry_x_roots<n>>
@@ -431,16 +420,16 @@ struct works_with_mmappable_vector<fb_entry_general> : public std::true_type {
 };
 
 template <int n> struct fb_entries_factory {
-    typedef typename entries_and_cdf<fb_entry_x_roots<n>>::type type;
+    using type = entries_and_cdf_t<fb_entry_x_roots<n>>;
 };
 template <> struct fb_entries_factory<-1> {
-    typedef typename entries_and_cdf<fb_entry_general>::type type;
+    using type = entries_and_cdf_t<fb_entry_general>;
 };
 template <int n> struct fb_slices_factory {
-    typedef std::vector<fb_slice<fb_entry_x_roots<n>>> type;
+    using type = std::vector<fb_slice<fb_entry_x_roots<n>>>;
 };
 template <> struct fb_slices_factory<-1> {
-    typedef std::vector<fb_slice<fb_entry_general>> type;
+    using type = std::vector<fb_slice<fb_entry_general>>;
 };
 
 class fb_factorbase

@@ -7,8 +7,12 @@
 #include <cstdlib>
 #include <cstring>
 
+#include <algorithm>    // for std::next_permutation
 #include <array>
 #include <map>
+#include <numeric>      // for std::iota
+#include <regex>        // for std::basic_regex, std::regex_iterator
+#include <sstream>      // for std::ostringstream
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -17,6 +21,7 @@
 #include <regex.h>      // for regmatch_t, regcomp, regexec, regfree, REG_EX...
 
 #include "fmt/format.h"
+#include "fmt/ranges.h"
 
 #include "facul_strategies.hpp"
 #include "facul_ecm.h"
@@ -216,7 +221,7 @@ static const char * parameterization_name(ec_parameterization_t p)
 }
 
 struct strategy_file_parser {/*{{{*/
-    typedef std::array<unsigned int, 2> key_type;;
+    typedef std::vector<unsigned int> key_type;
     typedef std::vector<facul_method::parameters_with_side> value_type;
 private:
     class regexp_define_t {/*{{{*/
@@ -274,34 +279,36 @@ private:
     regexp_use_t regexp_use;
 
     class regexp_index_t {/*{{{*/
-        regex_t re;
+        std::regex re;
+
+        static std::regex build_regex(size_t n) {
+            std::ostringstream s;
+            for (unsigned int i = 0; i < n; ++i) {
+                s << (i == 0 ? "^\\[?" : ",")
+                  << "[[:space:]]*r" << i << "=([[:digit:]]+)[[:space:]]*";
+            }
+            s << "]?[[:space:]]*";
+            return std::regex{s.str(), std::regex::extended|std::regex::icase};
+        }
+
         public:
-        typedef key_type T;
-        regexp_index_t() {
-            const char * re_txt =
-                "^\\[?[[:space:]]*"
-                "r0=([[:digit:]]+)"
-                ",[[:space:]]*"
-                "r1=([[:digit:]]+)"
-                "\\]?[[:space:]]*";
-            regcomp (&re, re_txt, REG_ICASE|REG_EXTENDED);
+        typedef std::vector<unsigned int> T;
+        regexp_index_t(size_t n) : re{build_regex(n)} {
         }
-        ~regexp_index_t() {
-            regfree(&re);
-        }
-        bool operator()(T & index, const char * & str) const
-        {
-            constexpr const int nmatch = 3;
-            regmatch_t p[nmatch];
-            if (regexec (&re, str, nmatch, p, 0) == REG_NOMATCH)
+        bool operator()(T & index, const char * & str) const {
+            std::cmatch m;
+            if (!regex_search(str, m, re)) {
                 return false;
-            index[0] = std::stoi(std::string(str + p[1].rm_so, str + p[1].rm_eo));
-            index[1] = std::stoi(std::string(str + p[2].rm_so, str + p[2].rm_eo));
-            str += p[0].rm_eo;
-            return true;
+            } else {
+                for (size_t i = 1; i < m.size(); ++i) {
+                    index[i-1] = std::stoi(m[i].str());
+                }
+                str += m.length();
+                return true;
+            }
         }
+
     };/*}}}*/
-    regexp_index_t regexp_index;
 
     class regexp_timing_comment_t {/*{{{*/
         regex_t re;
@@ -488,6 +495,8 @@ strategy_file_parser::operator()(std::vector<unsigned int> const & mfb, FILE * f
     std::vector<std::pair<key_type, value_type>> pre_parse;
     std::map<std::string, value_type> macros;
 
+    regexp_index_t regexp_index{mfb.size()};
+
     value_type * current = nullptr;
 
     fseek (file, 0, SEEK_SET);
@@ -503,7 +512,7 @@ strategy_file_parser::operator()(std::vector<unsigned int> const & mfb, FILE * f
                 // This removes comments.
                 if (*str == '#') break;
 
-                key_type index_st;
+                key_type index_st(mfb.size());
                 value_type::value_type fm;
                 std::string macro;
 
@@ -551,10 +560,12 @@ strategy_file_parser::operator()(std::vector<unsigned int> const & mfb, FILE * f
     for(auto & c : pre_parse) {
         key_type index_st = c.first;
 
-        if (index_st[0] > mfb[0])
-            continue;
-        if (index_st[1] > mfb[1])
-            continue;
+        /* std::equal use the std:less_equal for comparisons so what it is
+         * really doing is checking if index_st[i] <= mfb[i] for all i
+         */
+        if(!std::equal(index_st.begin(), index_st.end(), mfb.begin(),
+                       std::less_equal<unsigned int>{}))
+            continue; /* it exists i such that index_st[i] > mfb[i] */
         if (c.second.empty())
             continue;
 
@@ -567,8 +578,8 @@ strategy_file_parser::operator()(std::vector<unsigned int> const & mfb, FILE * f
             parameter_sequence_tracker::fill_default_parameters(c.second);
         } catch(error const & e) {
             throw std::runtime_error(fmt::format(
-                        "Parse error in strategies file while setting parameters for r0={},r1={}: {}",
-                        index_st[0], index_st[1], e.what()));
+                        "Parse error in strategies file while setting parameters for r={}: {}",
+                        index_st, e.what()));
         }
         parsed_file.insert(c);
     }
@@ -623,21 +634,33 @@ static void fprint_one_chain(FILE * file, std::vector<facul_method_side> const &
     }
 }
 
+template<class UnaryOp>
+void facul_strategies::for_each_sizes_combination(UnaryOp f) const
+{
+    std::vector<unsigned int> v(mfb.size());
+    for_each_sizes_combination_inner(0, v, f);
+}
+
+template<class UnaryOp>
+void facul_strategies::for_each_sizes_combination_inner(unsigned int i, std::vector<unsigned int> & v, UnaryOp f) const
+{
+    if (i >= mfb.size()) {
+        f(v);
+    } else {
+        for(size_t j = 0; j < mfb[i]; ++j) {
+            v[i] = j;
+            for_each_sizes_combination_inner(i+1, v, f);
+        }
+    }
+}
+
 void facul_strategies::print(FILE * file) const/*{{{*/
 {
-    /* There isn't such a thing as a strategy for more than 2 sides.
-     */
-    ASSERT_ALWAYS(B.size() == 2);
-
     if (file == nullptr)
         return;
     // print info lpb ...
-    fprintf (file,
-            "# (lpb = [%u,%u], as...=[%lf, %lf], BBB = [%lf, %lf])\n",
-            lpb[0], lpb[1],
-            BB[0], BB[1],
-            BBB[0], BBB[1]);
-    fprintf (file, "# mfb = [%d, %d]\n", mfb[0], mfb[1]);
+    fmt::print(file, "# (lpb = {}, as...={}, BBB = {::.0Lf})\n", lpb, BB, BBB);
+    fmt::print(file, "# mfb = {}\n", mfb);
 
     // operator() always returns a reference to things that are either in
     // the structure's precomputed_strategies, uniform_strategies, or
@@ -646,39 +669,38 @@ void facul_strategies::print(FILE * file) const/*{{{*/
 
     std::map<std::vector<facul_method_side> const *, unsigned int> popularity;
 
-    for (unsigned int r = 0; r <= mfb[0]; r++) {
-        for (unsigned int a = 0; a <= mfb[1]; a++) {
-            popularity[&(*this)(r, a)]++;
-        }
-    }
+    for_each_sizes_combination(
+        [this, &popularity] (std::vector<unsigned int> & sizes) {
+            popularity[&(*this)(sizes)]++;
+        });
 
-    for (unsigned int r = 0; r <= mfb[0]; r++) {
-        for (unsigned int a = 0; a <= mfb[1]; a++) {
-            std::vector<facul_method_side> const & v = (*this)(r, a);
+    for_each_sizes_combination(
+        [this, &popularity, &file] (std::vector<unsigned int> & sizes) {
+            std::vector<facul_method_side> const & v = (*this)(sizes);
             unsigned int const p = popularity[&v];
             ASSERT_ALWAYS(p > 0);       // see above.
             if (p >= 2 && v.size() >= 2) {
-                fprintf(file, "define same_as_%u_%u\n", r, a);
+                fmt::print(file, "define same_as_{}\n", fmt::join(sizes, "_"));
                 fprint_one_chain(file, v);
             }
-        }
-    }
+        });
 
-
-    for (unsigned int r = 0; r <= mfb[0]; r++) {
-        for (unsigned int a = 0; a <= mfb[1]; a++) {
-            std::vector<facul_method_side> const & v = (*this)(r, a);
-            if (v.empty()) continue;
-            fprintf (file, "r0=%u,r1=%u\n", r, a);
+    for_each_sizes_combination(
+        [this, &popularity, &file] (std::vector<unsigned int> & sizes) {
+            std::vector<facul_method_side> const & v = (*this)(sizes);
+            if (v.empty()) return;
+            for(size_t i = 0; i < sizes.size(); ++i) {
+                fmt::print(file, "r{}={}{}", i, sizes[i],
+                                             i+1 < sizes.size() ? ',' : '\n');
+            }
             unsigned int const p = popularity[&v];
             ASSERT_ALWAYS(p > 0);       // see above.
             if (p >= 2 && v.size() >= 2) {
-                fprintf(file, "  use same_as_%u_%u\n", r, a);
+                fmt::print(file, "  use same_as_{}\n", fmt::join(sizes, "_"));
             } else {
                 fprint_one_chain(file, v);
             }
-        }
-    }
+        });
 }/*}}}*/
 
 facul_strategies_base::facul_strategies_base (
@@ -762,17 +784,42 @@ facul_strategies::facul_strategies(
         auto const & i = v.first;
         auto const & chain_parameters = v.second;
         auto const * w = &precomputed_strategies.at(chain_parameters);
-        direct_access_get(i[0], i[1]) = w;
+        direct_access_get(i) = w;
     }
 }
 
-std::vector<facul_method_side> const & facul_strategies::operator()(unsigned int r, unsigned int a) const
+std::vector<facul_method_side> const & facul_strategies::operator()(std::vector<unsigned int> const & v) const
 {
     if (direct_access.empty()) {
-        return uniform_strategy[r < a];
+        if (v.size() == 1) /* one side */
+            return uniform_strategy[0];
+        else if (v.size() == 2) /* two sides */
+            return uniform_strategy[v[0] < v[1]];
+        else { /* more than two sides */
+            std::vector<unsigned int> index(v.size());
+            std::iota(index.begin(), index.end(), 0);
+            std::sort(index.begin(), index.end(),
+                      [&](const unsigned int& i, const unsigned int& j) {
+                          return (v[i] < v[j]);
+                      });
+            /* index[0] contains the id of the largest side, index[1] the id of
+             * the second largest, ...
+             * We now need the lexicographic index of this permutation.
+             * Note: cost is quadratic in the number of sides.
+             * Found the formula at https://stackoverflow.com/questions/12146910/finding-the-lexicographic-index-of-a-permutation-of-a-given-array
+             * Adapted it "Horner-style" to avoid the factorials.
+             */
+            size_t idx = 0;
+            for(size_t i = 0; i < index.size()-1; ++i) {
+                for(size_t j = i+1; j < index.size(); ++j)
+                    idx += (index[j] < index[i] ? 1 : 0);
+                idx *= (index.size()-i-1);
+            }
+            return uniform_strategy[idx];
+        }
     } else {
         static std::vector<facul_method_side> const placeholder;
-        auto it = direct_access_get(r, a);
+        auto it = direct_access_get(v);
         if (it != nullptr)
             return *it;
         else
@@ -780,18 +827,26 @@ std::vector<facul_method_side> const & facul_strategies::operator()(unsigned int
     }
 }
 
-std::vector<facul_method_side> const * & facul_strategies::direct_access_get(unsigned int r, unsigned int a)
+std::vector<facul_method_side> const * & facul_strategies::direct_access_get(std::vector<unsigned int> const & v)
 {
-    ASSERT_ALWAYS(r <= mfb[0]);
-    ASSERT_ALWAYS(a <= mfb[1]);
-    return direct_access[r + a * (1 + mfb[0])];
+    ASSERT_ALWAYS(v.size() == mfb.size());
+    unsigned int b = 1, idx = 0;
+    for (size_t i = 0; i < v.size(); ++i) {
+        idx += v[i]*b;
+        b *= mfb[i]+1;
+    }
+    return direct_access[idx];
 }
 
-std::vector<facul_method_side> const * const & facul_strategies::direct_access_get(unsigned int r, unsigned int a) const
+std::vector<facul_method_side> const * const & facul_strategies::direct_access_get(std::vector<unsigned int> const &v) const
 {
-    ASSERT_ALWAYS(r <= mfb[0]);
-    ASSERT_ALWAYS(a <= mfb[1]);
-    return direct_access[r + a * (1 + mfb[0])];
+    ASSERT_ALWAYS(v.size() == mfb.size());
+    unsigned int b = 1, idx = 0;
+    for (size_t i = 0; i < v.size(); ++i) {
+        idx += v[i]*b;
+        b *= mfb[i]+1;
+    }
+    return direct_access[idx];
 }
 
 /*
@@ -944,33 +999,42 @@ facul_strategies::facul_strategies (
     auto chain_parameters = facul_strategy_oneside::default_strategy(max_ncurves);
 
     /* We now need to truncate the list of strategies according to
-     * ncurves[0] and ncurves[1]
+     * ncurves[i] for 0 <= i < nsides
      *
      * NOTE: This is incompatible with USE_MPQS
      */
-    std::vector<std::vector<facul_method::parameters_with_side>> w(nsides);
-    for(int first = 0 ; first < nsides ; first++) {
-        /* first == 0 means that r >= a: the rational side is largest.
-         * Try to factor it first.
+
+    std::vector<std::vector<facul_method::parameters_with_side>> w;
+
+    std::vector<unsigned int> p(nsides);
+    std::iota(p.begin(), p.end(), 0);
+    do
+    {
+        /* We iterate over all permutations of [0..nsides-1] in lexicographic
+         * order starting from (0,1,...,nsides-1) and using
+         * std::next_permutation.
+         * Each permutation p corresponds to the case where side p[0] is the
+         * largest, side p[1] the second largest, etc..., i.e.,
+         *   side p[0] >= side p[1] >= ... >= side p[nsides-1]
          *
-         * Note that facul_strategies::operator() returns
-         * uniform_strategy[r < a]
+         * See the implementation of facul_strategies::operator() to see how the
+         * permutation is computed from the sizes of the sides.
          */
-        for (int z = 0; z < nsides; z++) {
-            int const side = first ^ z;
+        w.emplace_back();
+        for(unsigned int side: p) {
             int n = ncurves[side] + (chain_parameters.size() - max_ncurves);
             for(facul_method::parameters const & mp: chain_parameters) {
                 if (!n--)
                     break;
-                w[first].emplace_back(side, mp);
+                w.back().emplace_back(side, mp);
             }
         }
 
         /* facul_strategy_oneside::default_strategy is allowed to use
          * default parameters, of course. And it has to abide by the same
          * rules as the strategy files. */
-        parameter_sequence_tracker::fill_default_parameters(w[first]);
-    }
+        parameter_sequence_tracker::fill_default_parameters(w.back());
+    } while (std::next_permutation(p.begin(), p.end()));
 
     /* Add all methods to the cache.
      *
@@ -980,17 +1044,15 @@ facul_strategies::facul_strategies (
      * happens that the same B1 is used with two different parameters, or
      * two different EC parameterizations. That is slightly annoying.
      */
-    for(int first = 0 ; first < nsides ; first++) {
-        for(facul_method::parameters const & mp: w[first])
+    for(auto const & wi: w) {
+        for(auto const & mp: wi)
             precompute_method(mp, verbose);
     }
 
-    uniform_strategy.assign(nsides, {});
-
-    for(int first = 0 ; first < nsides ; first++) {
-        std::vector<facul_method_side> & u(uniform_strategy[first]);
-        for(auto const & mps: w[first]) {
-            u.emplace_back(&precomputed_methods[mps], mps.side);
-        }
+    for(auto const & wi: w) {
+        uniform_strategy.emplace_back();
+        std::vector<facul_method_side> & cur = uniform_strategy.back();
+        for(auto const & mp: wi)
+            cur.emplace_back(&precomputed_methods[mp], mp.side);
     }
 }

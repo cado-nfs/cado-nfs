@@ -13,8 +13,10 @@
 #include "params.h"
 #include "las-side-config.hpp"
 
-struct las_todo_entry; // IWYU pragma: keep
+#include "las-special-q-task-tree.hpp"
+#include "las-special-q-task-simple.hpp"
 
+struct special_q; // IWYU pragma: keep
 
 /* siever_config */
  
@@ -31,6 +33,8 @@ struct siever_config {
 
     int logA;
     int logI;   /* see below. logI is initialized late in the game */
+
+    int adjust_strategy = 0;
 
     /* This does not really belong here. I'd rather have it at the
      * las_info level. However for obscure reasons,
@@ -78,7 +82,34 @@ struct siever_config {
 
     std::vector<siever_side_config> sides;
 
-    void display(int side, unsigned int bitsize) const;
+    /*
+     * The logic behind skipping the resieving is as follows. Briefly
+     * put, it should be a two-sides thing only.
+     *
+     * When there are two sides, and only side s is sieved (lim>0), then
+     * side 1-s is handled by cofactorization only (probably batch). For
+     * this to make the slightest bit of sense, it has to be that only a
+     * tiny fraction of the (a,b) pairs survive sieving on side
+     * s. So once we've identified these survivors on side s, we move on
+     * to cofactoring on side 1-s (which will keep a fraction of its
+     * input), and a priori later on finish with cofactoring on side s if
+     * there are cofactors to be found. However when we reach the latter
+     * step, we're speaking of a fraction of a tiny fraction, and sieving
+     * or resieving are not worth the trouble (we'll compute norms that
+     * have numerous factors below lim, but we'll find them the hard way,
+     * it's not that hard).
+     *
+     * When we have only one side, we no longer have this cumulative
+     * "fraction of a tiny fraction" effect. BUT we still have some
+     * interest in removing known primes from the norms, as we do in the
+     * "normal" (= nowhere batch) case.
+     */
+    bool needs_resieving() const {
+        for(auto const & s : sides)
+            if (s.lim == 0)
+                return false;
+        return true;
+    }
 
     static void declare_usage(cxx_param_list & pl);
     static bool parse_default(siever_config & sc, cxx_param_list & pl, int);
@@ -205,6 +236,16 @@ struct siever_config_pool {
     typedef std::map<key_type, descent_hint> hint_table_t;
     hint_table_t hints;
 
+    static constexpr int max_increase_lpb_default = 0;
+    static constexpr int max_increase_logA_default = 4;
+
+    int max_increase_lpb = max_increase_lpb_default;
+    int max_increase_logA = max_increase_logA_default;
+
+    int max_descent_attempts_allowed() const {
+        return (base.adjust_strategy != 2) + max_increase_logA + max_increase_lpb;
+    }
+
     descent_hint const * get_hint(int side, unsigned int bitsize) const {
         auto it = hints.find(key_type(side, bitsize));
         if (it == hints.end())
@@ -229,7 +270,7 @@ struct siever_config_pool {
     siever_config const * default_config_ptr = nullptr;
     siever_config base;
 
-    siever_config get_config_for_q(las_todo_entry const& doing) const;
+    siever_config get_config_for_q(special_q_task const & doing) const;
 
     siever_config_pool(cxx_param_list& pl, int nb_polys);
 

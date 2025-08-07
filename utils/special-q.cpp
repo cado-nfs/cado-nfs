@@ -11,10 +11,10 @@
 #include "cxx_mpz.hpp"
 #include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
 #include "gmp_aux.h"
-#include "las-todo-entry.hpp"
+#include "special-q.hpp"
 #include "macros.h"
 
-void las_todo_entry::find_prime_factors()
+void special_q::find_prime_factors()
 {
     prime_factors.clear();
 
@@ -68,7 +68,7 @@ void las_todo_entry::find_prime_factors()
 }
 
 /* This format is also parsed by read_sq_comment in dupsup.cpp ! */
-std::ostream& operator<<(std::ostream& os, las_todo_entry const & doing)
+std::ostream& operator<<(std::ostream& os, special_q const & doing)
 {
     os << "side-" << doing.side << " q=" << doing.p;
     if (!doing.is_prime()) {
@@ -82,29 +82,9 @@ std::ostream& operator<<(std::ostream& os, las_todo_entry const & doing)
     return os;
 }
 
-template<int N>
-struct expect_s
+std::istream& operator>>(std::istream& is, special_q & doing)
 {
-    const char * s;
-    expect_s(const char s0[N]) : s(s0) {}
-};
-
-template<int N>
-static expect_s<N> expect(char const (&s0)[N]) { return expect_s<N>(s0); }
-
-template<int N>
-static std::istream& operator>>(std::istream& is, expect_s<N> const & e)
-{
-    char t[N];
-    is.get(t, N);  // side-
-    if (strcmp(t, e.s) != 0)
-        is.setstate(std::ios::failbit);
-    return is;
-}
-
-std::istream& operator>>(std::istream& is, las_todo_entry & doing)
-{
-    doing = las_todo_entry();
+    doing = special_q();
     is >> std::ws >> expect("side-") >> doing.side;
     is >> std::ws >> expect("q=");
     std::string token;

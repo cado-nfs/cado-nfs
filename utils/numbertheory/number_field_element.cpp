@@ -125,6 +125,20 @@ number_field_element number_field_element::operator*(number_field_element const 
     return ret;
 }
 
+number_field_element number_field_element::operator*(cxx_mpz const & m) const
+{
+    cxx_mpq_mat cm;
+    mpq_mat_mul_mpz(cm, coefficients, m);
+    return { K, cm };
+}
+
+number_field_element number_field_element::operator/(cxx_mpz const & m) const
+{
+    cxx_mpq_mat cm;
+    mpq_mat_div_mpz(cm, coefficients, m);
+    return { K, cm };
+}
+
 auto fmt::formatter<number_field_element>::format(number_field_element const & e, format_context& ctx) const -> format_context::iterator
 {
     auto y = e.as_polynomial();

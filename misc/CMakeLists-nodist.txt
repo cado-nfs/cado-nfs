@@ -9,6 +9,6 @@ add_executable(convert_rels EXCLUDE_FROM_ALL convert_rels.cpp)
 target_link_libraries(convert_rels utils)
 
 add_executable(svsm EXCLUDE_FROM_ALL svsm.c)
-target_link_libraries(svsm utils m)
+target_link_libraries(svsm utils)
 
 # vim: set ft=cmake:

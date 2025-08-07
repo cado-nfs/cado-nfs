@@ -1,15 +1,15 @@
 #ifndef CADO_LAS_FBROOT_QLATTICE_HPP
 #define CADO_LAS_FBROOT_QLATTICE_HPP
 
-#include <cstdio>             // for fprintf, stderr
-#include <cstdint>             // for int64_t, uint64_t, INT64_C, uint32_t
+#include <cstdio>
+#include <cstdint>
 
 #include <gmp.h>
 
 #include "fb-types.hpp"
-#include "las-arith.hpp"       // for redc_32, invmod_redc_32, invmod_po2
+#include "las-arith.hpp"
 #include "las-qlattice.hpp"
-#include "macros.h"            // for LIKELY, UNLIKELY, ASSERT_ALWAYS, ASSERT
+#include "macros.h"
 
 /* CARRYCHECK is a ternary value here: 0 means no carry check, 1 means carry
    check, and 2 means that the function should choose the value of CARRYCHECK
@@ -87,25 +87,31 @@ fb_root_in_qlattice_127bits_batch<2> (fbroot_t *r_ij, const fbprime_t p,
 #endif
 
 /* fb_root_in_qlattice returns (R*b1-a1)/(a0-R*b0) mod p */
-#if defined(SUPPORT_LARGE_Q)
-/* Here, we only assume that the q-lattice basis entries are int64_t's.
- * This means that redc_32 is a bit sub-optimal.
- */
-static inline fb_root_p1
-fb_root_in_qlattice(fbprime_t p, fb_root_p1 R,
-        redc_invp_t invp, const qlattice_basis &basis);
 static inline fb_root_p1
 fb_root_in_qlattice(const fbprime_t p, const fb_root_p1 R,
         const redc_invp_t invp, const qlattice_basis &basis)
 {
+#if defined(SUPPORT_LARGE_Q)
+/* Here, we only assume that the q-lattice basis entries are int64_t's.
+ * This means that redc_32 is a bit sub-optimal.
+ */
     return fb_root_in_qlattice_127bits(p, R, invp, basis);
+#else
+/* We want the q-lattice entries to fit within 31 bits */
+    return fb_root_in_qlattice_31bits(p, R, invp, basis);
+#endif
 }
+
+
 static inline bool
 fb_root_in_qlattice_batch (fbroot_t *r_ij MAYBE_UNUSED,
         const fbprime_t p MAYBE_UNUSED,
-        const fbroot_t *r_ab MAYBE_UNUSED, const redc_invp_t invp MAYBE_UNUSED, const qlattice_basis &basis MAYBE_UNUSED,
+        const fbroot_t *r_ab MAYBE_UNUSED,
+        const redc_invp_t invp MAYBE_UNUSED,
+        const qlattice_basis &basis MAYBE_UNUSED,
         size_t n_roots MAYBE_UNUSED)
 {
+#if defined(SUPPORT_LARGE_Q)
     /* See #30012 and merge request !198 -- !196 was not complete! */
     /* By returning false, we force all roots to be processed one by one.
      */
@@ -114,27 +120,11 @@ fb_root_in_qlattice_batch (fbroot_t *r_ij MAYBE_UNUSED,
     return fb_root_in_qlattice_127bits_batch (r_ij, p, r_ab, invp, basis,
                                               n_roots);
                                               */
-}
 #else
-/* We want the q-lattice entries to fit within 31 bits */
-static inline fb_root_p1
-fb_root_in_qlattice(fbprime_t p, fb_root_p1 R,
-        redc_invp_t invp, const qlattice_basis &basis);
-static inline fb_root_p1
-fb_root_in_qlattice(const fbprime_t p, const fb_root_p1 R,
-        const redc_invp_t invp, const qlattice_basis &basis)
-{
-    return fb_root_in_qlattice_31bits(p, R, invp, basis);
-}
-static inline bool
-fb_root_in_qlattice_batch (fbroot_t *r_ij, const fbprime_t p,
-        const fbroot_t *r_ab, const redc_invp_t invp, const qlattice_basis &basis,
-        const size_t n_roots)
-{
     return fb_root_in_qlattice_31bits_batch (r_ij, p, r_ab, invp, basis,
                                              n_roots);
-}
 #endif
+}
 
 /* This helper function is used for powers of 2. See below */
 static inline fb_root_p1

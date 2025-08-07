@@ -1,20 +1,19 @@
 #ifndef CADO_LAS_QLATTICE_HPP
 #define CADO_LAS_QLATTICE_HPP
 
-// IWYU pragma: no_include <bits/exception.h>
-
-#include <exception>    // IWYU pragma: keep   // for exception
-#include <cstdint>             // for int64_t, uint64_t, INT64_C, uint32_t
-#include <iosfwd>              // for ostream
+#include <exception>
+#include <cstdint>
+#include <iosfwd>
 
 #include "fmt/base.h"
 #include "fmt/ostream.h"
 
+#include "special-q.hpp"
 #include "fb-types.hpp"
-#include "las-todo-entry.hpp"  // for las_todo_entry
+
 
 struct qlattice_basis {
-    las_todo_entry doing;
+    special_q doing;
 
     int64_t a0=0, b0=0, a1=0, b1=0;
     unsigned long q_ulong=0;
@@ -50,12 +49,11 @@ struct qlattice_basis {
 
     struct too_skewed : public std::exception { };
 
-    qlattice_basis(las_todo_entry const & doing, double skew);
+    qlattice_basis(special_q const & doing, double skew);
 
     /* This is handy sometimes */
     qlattice_basis(int64_t a0, int64_t b0, int64_t a1, int64_t b1)
-        : doing(0,0,0)
-        , a0(a0)
+        : a0(a0)
         , b0(b0)
         , a1(a1)
         , b1(b1)

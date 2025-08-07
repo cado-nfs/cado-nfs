@@ -20,6 +20,7 @@ cado_define_test(test_memusage.c LIBRARIES utils)
 cado_define_test(test_roots_mod.c LIBRARIES utils ARGUMENTS 100 1050)
 cado_define_test(test_omega.c LIBRARIES utils)
 cado_define_test(test_timing.c LIBRARIES utils)
+cado_define_test(test_trial_division.cpp LIBRARIES utils tests ARGUMENTS -q)
 cado_define_test(test_rootfinder.c LIBRARIES utils tests)
 
 add_subdirectory(arith)
@@ -61,7 +62,6 @@ cado_define_test(test-sort.cpp ARGUMENTS --log-bigsize 14 --max-span 128
     LIBRARIES utils)
 cado_define_test(test_u64arith.cpp LIBRARIES utils tests)
 cado_define_test(test_multityped_array.cpp LIBRARIES utils)
-cado_define_test(test_istream_matcher.cpp LIBRARIES utils tests)
 cado_define_test(test_mmappable_vector.cpp LIBRARIES utils
     PROVIDE_TEMPORARY_WDIR
     TIMEOUT 60

@@ -1,12 +1,17 @@
 #ifndef CADO_LINGEN_SUBSTEP_CHARACTERISTICS_HPP
 #define CADO_LINGEN_SUBSTEP_CHARACTERISTICS_HPP
 
+#include <cstddef>
+
+#include <algorithm>
 #include <iostream>
 #include <memory>
 #include <tuple>
+#include <vector>
+#include <stdexcept>
 
 #include "fmt/format.h"
-#include "fmt/printf.h"
+#include <gmp.h>
 
 #include "gmp_aux.h"
 #include "cxx_mpz.hpp"
@@ -14,9 +19,14 @@
 #include "lingen_platform.hpp"
 #include "lingen_substep_schedule.hpp"
 #include "lingen_tuning_cache.hpp"
+#include "lingen_fft_select.hpp"
+#include "lingen_matpoly_select.hpp"
 #include "lingen_matpoly_ft.hpp"
+#include "lingen_mul_substeps_base.hpp"
 #include "lingen_mul_substeps.hpp"
 #include "lingen_call_companion.hpp"
+#include "macros.h"
+#include "timing.h"
 
 
 /* This file is an offspring from lingen_tuning.cpp - some of it is not
@@ -25,17 +35,21 @@
  * time_matpoly_ft_parallel_${gfp_layer}
  */
 
-template<typename OP> struct microbench_dft;
-template<typename OP> struct microbench_ift;
-template<typename OP> struct microbench_conv;
+template<typename OP, bool = !std::is_same<typename OP::FFT, void>::value>
+struct microbench_dft;
+template<typename OP, bool = !std::is_same<typename OP::FFT, void>::value>
+struct microbench_ift;
+template<typename OP, bool = !std::is_same<typename OP::FFT, void>::value>
+struct microbench_conv;
 
+template<bool is_binary>
 struct lingen_substep_characteristics {
     typedef lingen_substep_characteristics ch_t;
     typedef lingen_platform pc_t;
     typedef lingen_substep_schedule sc_t;
     typedef lingen_tuning_cache tc_t;
 
-    matpoly::arith_hard * ab;
+    typename matpoly<is_binary>::arith_hard * ab;
     cxx_mpz p;
     cxx_gmp_randstate & rstate;
 
@@ -66,36 +80,36 @@ struct lingen_substep_characteristics {
 
     bool is_valid_schedule(lingen_platform, unsigned int mesh, lingen_substep_schedule const & S) const
     {
-        unsigned int shrink0 = S.shrink0;
-        unsigned int shrink2 = S.shrink2;
-        unsigned int r = mesh;
-        subdivision mpi_split0(n0, r);
-        subdivision mpi_split1(n1, r);
-        subdivision mpi_split2(n2, r);
-        subdivision shrink_split0(mpi_split0.block_size_upper_bound(), shrink0);
-        subdivision shrink_split2(mpi_split2.block_size_upper_bound(), shrink2);
-        unsigned int nrs0(shrink_split0.block_size_upper_bound());
-        unsigned int nrs2(shrink_split2.block_size_upper_bound());
+        const unsigned int shrink0 = S.shrink0;
+        const unsigned int shrink2 = S.shrink2;
+        const unsigned int r = mesh;
+        const subdivision mpi_split0(n0, r);
+        const subdivision mpi_split1(n1, r);
+        const subdivision mpi_split2(n2, r);
+        const subdivision shrink_split0(mpi_split0.block_size_upper_bound(), shrink0);
+        const subdivision shrink_split2(mpi_split2.block_size_upper_bound(), shrink2);
+        const unsigned int nrs0(shrink_split0.block_size_upper_bound());
+        const unsigned int nrs2(shrink_split2.block_size_upper_bound());
         const unsigned int nr1 = mpi_split1.block_size_upper_bound();
-        unsigned int b0 = S.batch[0];
-        unsigned int b1 = S.batch[1];
-        unsigned int b2 = S.batch[2];
-        subdivision loop1 = subdivision::by_block_size(nr1, b1);
+        const unsigned int b0 = S.batch[0];
+        const unsigned int b1 = S.batch[1];
+        const unsigned int b2 = S.batch[2];
+        const subdivision loop1 = subdivision::by_block_size(nr1, b1);
         for(unsigned int round = 0 ; round < shrink0 * shrink2 ; round++) {
-            unsigned round0 = round % shrink0;
-            unsigned round2 = round / shrink0;
+            const unsigned round0 = round % shrink0;
+            const unsigned round2 = round / shrink0;
             unsigned int i0, i1;
             unsigned int j0, j1;
             std::tie(i0, i1) = shrink_split0.nth_block(round0);
             std::tie(j0, j1) = shrink_split2.nth_block(round2);
             ASSERT_ALWAYS((i1 - i0) <= nrs0);
             ASSERT_ALWAYS((j1 - j0) <= nrs2);
-            subdivision loop0 = subdivision::by_block_size(i1 - i0, b0);
-            subdivision loop2 = subdivision::by_block_size(j1 - j0, b2);
+            const subdivision loop0 = subdivision::by_block_size(i1 - i0, b0);
+            const subdivision loop2 = subdivision::by_block_size(j1 - j0, b2);
 
             if (loop0.nblocks() != 1 && loop2.nblocks() != 1)
                 return false;
-            bool process_blocks_row_major = b0 == nrs0;
+            const bool process_blocks_row_major = b0 == nrs0;
 
             for(unsigned int iloop1 = 0 ; iloop1 < loop1.nblocks() ; iloop1++) {
                 if (process_blocks_row_major) {
@@ -110,7 +124,7 @@ struct lingen_substep_characteristics {
         return true;
     }
 
-    lingen_substep_characteristics(matpoly::arith_hard * ab, cxx_gmp_randstate & rstate, size_t input_length, op_mul_or_mp_base::op_type_t op_type, unsigned int n0, unsigned int n1, unsigned int n2, size_t asize, size_t bsize, size_t csize) :/*{{{*/
+    lingen_substep_characteristics(typename matpoly<is_binary>::arith_hard * ab, cxx_gmp_randstate & rstate, size_t input_length, op_mul_or_mp_base::op_type_t op_type, unsigned int n0, unsigned int n1, unsigned int n2, size_t asize, size_t bsize, size_t csize) :/*{{{*/
         ab(ab),
         rstate(rstate),
         input_length(input_length),
@@ -124,7 +138,7 @@ struct lingen_substep_characteristics {
         // fft_alloc_sizes = op.fti.get_alloc_sizes();
     }/*}}}*/
 
-    static inline int max_threads() {
+    static int max_threads() {
 #ifdef HAVE_OPENMP
         return omp_get_max_threads();
 #else
@@ -291,15 +305,15 @@ struct lingen_substep_characteristics {
          * curve.
          */
         if (kh <= kl + 1) return;
-        double tl = tvec[kl];
-        double th = tvec[kh];
+        const double tl = tvec[kl];
+        const double th = tvec[kh];
         if (th - tl <= 0.1 * tl) return;
         unsigned int k = (kl + kh) / 2;
         double tk = F(k);
         os << fmt::format(" {}:{:.2g}", k, tk);
         os.flush();
         tvec[k] = tk;
-        double linfit_tk = tl + (th-tl)*(k-kl)/(kh-kl);
+        const double linfit_tk = tl + (th-tl)*(k-kl)/(kh-kl);
         if ((tk - linfit_tk) <= 0.1*linfit_tk) return;
         complete_tvec(os, tvec, F, kl, k);
         complete_tvec(os, tvec, F, k, kh);
@@ -326,7 +340,7 @@ struct lingen_substep_characteristics {
         os << fmt::format("# {}{};{} (@{}) wct for {} by nthreads:",
                 F.mesh > 1 ? "MPI-" : "",
                 F.op.op_name(),
-                lingen_substep_schedule::fft_name(encode_fft_type<typename T::OP::FFT>()),
+                lingen_substep_schedule::fft_name(encode_fft_type<typename T::OP::FFT>),
                 input_length,
                 Fname
                 );
@@ -367,10 +381,9 @@ struct lingen_substep_characteristics {
              * was made.
              */
             unsigned int th_cache = 0;
-            for(auto const & x : store) {
-                if (x.first > th_cache)
-                    th_cache = x.first;
-            }
+            for(auto const & x : store)
+                th_cache = std::max(th_cache, x.first);
+
             /* How many threads do we support max on the current platform ?
              * This is not necessarily equal.
              */
@@ -389,7 +402,7 @@ struct lingen_substep_characteristics {
 
         std::vector<double> tvec = fill_tvec(os, F);
         for(unsigned int i = 1 ; i < tvec.size() ; i++) {
-            if (tvec[i] >= 0) store.push_back( { i, tvec[i] } );
+            if (tvec[i] >= 0) store.emplace_back(i, tvec[i]);
         }
         return parallelizable_timing(tvec);
     }
@@ -445,21 +458,21 @@ struct lingen_substep_characteristics {
     }/*}}}*/
 #endif
     subdivision mpi_split0(unsigned int mesh) const {/*{{{*/
-        return subdivision(n0, mesh);
+        return { n0, mesh };
     }/*}}}*/
     subdivision mpi_split1(unsigned int mesh) const {/*{{{*/
-        return subdivision(n1, mesh);
+        return { n1, mesh };
     }/*}}}*/
     subdivision mpi_split2(unsigned int mesh) const {/*{{{*/
-        return subdivision(n2, mesh);
+        return { n2, mesh };
     }/*}}}*/
     subdivision shrink_split0(unsigned int mesh, unsigned int shrink0) const {/*{{{*/
         unsigned int nr0 = mpi_split0(mesh).block_size_upper_bound();
-        return subdivision(nr0, shrink0);
+        return { nr0, shrink0 };
     }/*}}}*/
     subdivision shrink_split2(unsigned int mesh, unsigned int shrink2) const {/*{{{*/
         unsigned int nr2 = mpi_split2(mesh).block_size_upper_bound();
-        return subdivision(nr2, shrink2);
+        return { nr2, shrink2 };
     }/*}}}*/
     subdivision shrink_split0(unsigned int mesh, sc_t const & S) const {/*{{{*/
         return shrink_split0(mesh, S.shrink0);
@@ -471,9 +484,9 @@ struct lingen_substep_characteristics {
         unsigned int nrs0 = shrink_split0(mesh, S).block_size_upper_bound();
         unsigned int nrs2 = shrink_split2(mesh, S).block_size_upper_bound();
 
-        unsigned int b0 = S.batch[0];
-        unsigned int b1 = S.batch[1];
-        unsigned int b2 = S.batch[2];
+        const unsigned int b0 = S.batch[0];
+        const unsigned int b1 = S.batch[1];
+        const unsigned int b2 = S.batch[2];
         unsigned int mul0 = 0;
         mul0 += b1 * mesh * b0;
         mul0 += b1 * mesh * b2;
@@ -515,7 +528,7 @@ struct lingen_substep_characteristics {
             size_t r = 0;
             for(unsigned int i = 0 ; i < 3 ; i++)
                 r += M[i] * op.get_alloc_sizes()[i];
-            if (r > rpeak) rpeak = r;
+            rpeak = std::max(rpeak, r);
         }
         return rpeak;
     }
@@ -526,26 +539,7 @@ struct lingen_substep_characteristics {
     }
     /*}}}*/
 
-    bool fft_type_valid(lingen_substep_schedule::fft_type_t fft_type) const {
-        try {
-            std::shared_ptr<op_mul_or_mp_base> op = instantiate(fft_type);
-#ifdef LINGEN_BINARY
-            if (op_type == op_mul_or_mp_base::OP_MUL) {
-                auto x = dynamic_cast<op_mul<gf2x_ternary_fft_info> const *>(op.get());
-                if (x)
-                    return x->fti.K != 0;
-            }
-            if (op_type == op_mul_or_mp_base::OP_MP) {
-                auto x = dynamic_cast<op_mp<gf2x_ternary_fft_info> const *>(op.get());
-                if (x)
-                    return x->fti.K != 0;
-            }
-#endif
-        } catch (std::exception const &) {
-            return false;
-        }
-        return true;
-    }
+    bool fft_type_valid(lingen_substep_schedule::fft_type_t fft_type) const;
 
 
     private:
@@ -663,87 +657,11 @@ struct lingen_substep_characteristics {
         return ret;
     }/*}}}*/
 
-    std::shared_ptr<op_mul_or_mp_base> instantiate(lingen_substep_schedule::fft_type_t fft_type) const
-    {
-        /* must create the op type from the lingen_substep_schedule
-         * (a.k.a. sc_t) type */ 
-        switch(op_type) {
-            case op_mul_or_mp_base::OP_MP:
-                switch(fft_type) {
-                    case lingen_substep_schedule::FFT_NONE:
-                        return std::make_shared<op_mp<void>>(p, asize, bsize, n1);
-#ifndef LINGEN_BINARY
-                    case lingen_substep_schedule::FFT_FLINT:
-                        return std::make_shared<op_mp<fft_transform_info>>(p, asize, bsize, n1);
-#else
-                    case lingen_substep_schedule::FFT_CANTOR:
-                        return std::make_shared<op_mp<gf2x_cantor_fft_info>>(p, asize, bsize, n1);
-                    case lingen_substep_schedule::FFT_TERNARY:
-                        return std::make_shared<op_mp<gf2x_ternary_fft_info>>(p, asize, bsize, n1);
-#endif
-                    default:
-                        throw std::runtime_error("invalid data (fft_type)");
-                }
-            case op_mul_or_mp_base::OP_MUL:
-                switch(fft_type) {
-                    case lingen_substep_schedule::FFT_NONE:
-                        return std::make_shared<op_mul<void>>(p, asize, bsize, n1);
-#ifndef LINGEN_BINARY
-                    case lingen_substep_schedule::FFT_FLINT:
-                        return std::make_shared<op_mul<fft_transform_info>>(p, asize, bsize, n1);
-#else
-                    case lingen_substep_schedule::FFT_CANTOR:
-                        return std::make_shared<op_mul<gf2x_cantor_fft_info>>(p, asize, bsize, n1);
-                    case lingen_substep_schedule::FFT_TERNARY:
-                        return std::make_shared<op_mul<gf2x_ternary_fft_info>>(p, asize, bsize, n1);
-#endif
-                    default:
-                        throw std::runtime_error("invalid data (fft_type)");
-                }
-            default:
-                throw std::runtime_error("invalid data (op)");
-        }
-    }
+    template<typename fft_type> friend struct matpoly_checker_ft;
 
-    call_time_digest get_call_time_backend(std::ostream& os, pc_t const & P, unsigned int mesh, sc_t const & S, tc_t & C, bool do_timings) const { /* {{{ */
-        switch(op_type) {
-            case op_mul_or_mp_base::OP_MP:
-                switch(S.fft_type) {
-                    case lingen_substep_schedule::FFT_NONE:
-                        return get_call_time_backend(os, op_mp<void>(p, asize, bsize, n1), P, mesh, S, C, do_timings);
-#ifndef LINGEN_BINARY
-                    case lingen_substep_schedule::FFT_FLINT:
-                        return get_call_time_backend(os, op_mp<fft_transform_info>(p, asize, bsize, n1), P, mesh, S, C, do_timings);
-#else
-                    case lingen_substep_schedule::FFT_CANTOR:
-                        return get_call_time_backend(os, op_mp<gf2x_cantor_fft_info>(p, asize, bsize, n1), P, mesh, S, C, do_timings);
-                    case lingen_substep_schedule::FFT_TERNARY:
-                        return get_call_time_backend(os, op_mp<gf2x_ternary_fft_info>(p, asize, bsize, n1), P, mesh, S, C, do_timings);
-#endif
-                    default:
-                        throw std::runtime_error("invalid data (fft_type)");
-                }
-            case op_mul_or_mp_base::OP_MUL:
-                switch(S.fft_type) {
-                    case lingen_substep_schedule::FFT_NONE:
-                        return get_call_time_backend(os, op_mul<void>(p, asize, bsize, n1), P, mesh, S, C, do_timings);
-#ifndef LINGEN_BINARY
-                    case lingen_substep_schedule::FFT_FLINT:
-                        return get_call_time_backend(os, op_mul<fft_transform_info>(p, asize, bsize, n1), P, mesh, S, C, do_timings);
-#else
-                    case lingen_substep_schedule::FFT_CANTOR:
-                        return get_call_time_backend(os, op_mul<gf2x_cantor_fft_info>(p, asize, bsize, n1), P, mesh, S, C, do_timings);
-                    case lingen_substep_schedule::FFT_TERNARY:
-                        return get_call_time_backend(os, op_mul<gf2x_ternary_fft_info>(p, asize, bsize, n1), P, mesh, S, C, do_timings);
-#endif
-                    default:
-                        throw std::runtime_error("invalid data (fft_type)");
-                }
-            default:
-                throw std::runtime_error("invalid data (op)");
-        }
+    std::shared_ptr<op_mul_or_mp_base> instantiate(lingen_substep_schedule::fft_type_t fft_type) const;
 
-    }/*}}}*/
+    call_time_digest get_call_time_backend(std::ostream& os, pc_t const & P, unsigned int mesh, sc_t const & S, tc_t & C, bool do_timings) const;
 
     public:
 
@@ -796,12 +714,12 @@ struct lingen_substep_characteristics {
             /* This may print timing info to the output stream */
             double t = do_timings ? get_call_time(os, P, mesh, S, C, do_timings) : 0;
             unsigned int B = S.batch[1] * std::min(S.batch[0], S.batch[2]);
-            precomp.emplace_back(t, B, std::move(S));
+            precomp.emplace_back(t, B, S);
         }
         sort(precomp.begin(), precomp.end(), sortop());
         schedules.clear();
         for(auto & P : precomp) {
-            schedules.emplace_back(std::move(std::get<2>(P)));
+            schedules.emplace_back(std::get<2>(P));
         }
     }/*}}}*/
 
@@ -841,23 +759,177 @@ struct lingen_substep_characteristics {
                 op->explain());
     }
 
-#if 0
-    void report_size_stats_human(std::ostream& os, sc_t const & S) const {/*{{{*/
-        std::shared_ptr<op_mul_or_mp_base> op = instantiate(S.fft_type);
+    void report_size_stats_human(std::ostream& os, op_mul_or_mp_base const & op) const {/*{{{*/
         os << fmt::format("# {} (per op): {}+{}+{}, transforms 3*{}\n",
-                step_name(),
+                op_mul_or_mp_base::op_name(op_type),
                 size_disp(asize*mpz_size(p)*sizeof(mp_limb_t)),
                 size_disp(bsize*mpz_size(p)*sizeof(mp_limb_t)),
                 size_disp(csize*mpz_size(p)*sizeof(mp_limb_t)),
-                size_disp(op->get_alloc_sizes()[0]));
+                size_disp(op.get_alloc_sizes()[0]));
         os << fmt::format("# {} (total for {}*{} * {}*{}): {}, transforms {}\n",
-                step_name(),
+                op_mul_or_mp_base::op_name(op_type),
                 n0,n1,n1,n2,
                 size_disp((n0*n1*asize+n1*n2*bsize+n0*n2*csize)*mpz_size(p)*sizeof(mp_limb_t)),
-                size_disp((n0*n1+n1*n2+n0*n2)*op->get_alloc_sizes()[0]));
+                size_disp((n0*n1+n1*n2+n0*n2)*op.get_alloc_sizes()[0]));
     }/*}}}*/
-#endif
 };
+
+#ifdef LINGEN_BINARY
+template<>
+inline std::shared_ptr<op_mul_or_mp_base>
+lingen_substep_characteristics<true>::instantiate(lingen_substep_schedule::fft_type_t fft_type) const
+{
+    /* must create the op type from the lingen_substep_schedule
+     * (a.k.a. sc_t) type */ 
+    switch(op_type) {
+        case op_mul_or_mp_base::OP_MP:
+            switch(fft_type) {
+                case lingen_substep_schedule::FFT_NONE:
+                    return std::make_shared<op_mp<true, void>>(p, asize, bsize, n1);
+                case lingen_substep_schedule::FFT_CANTOR:
+                    return std::make_shared<op_mp<true, gf2x_cantor_fft_info>>(p, asize, bsize, n1);
+                case lingen_substep_schedule::FFT_TERNARY:
+                    return std::make_shared<op_mp<true, gf2x_ternary_fft_info>>(p, asize, bsize, n1);
+                default:
+                    throw std::runtime_error("invalid data (fft_type)");
+            }
+        case op_mul_or_mp_base::OP_MUL:
+            switch(fft_type) {
+                case lingen_substep_schedule::FFT_NONE:
+                    return std::make_shared<op_mul<true, void>>(p, asize, bsize, n1);
+                case lingen_substep_schedule::FFT_CANTOR:
+                    return std::make_shared<op_mul<true, gf2x_cantor_fft_info>>(p, asize, bsize, n1);
+                case lingen_substep_schedule::FFT_TERNARY:
+                    return std::make_shared<op_mul<true, gf2x_ternary_fft_info>>(p, asize, bsize, n1);
+                default:
+                    throw std::runtime_error("invalid data (fft_type)");
+            }
+        default:
+            throw std::runtime_error("invalid data (op)");
+    }
+}
+template<>
+inline auto lingen_substep_characteristics<true>::get_call_time_backend(std::ostream& os, pc_t const & P, unsigned int mesh, sc_t const & S, tc_t & C, bool do_timings) const -> call_time_digest { /* {{{ */
+    switch(op_type) {
+        case op_mul_or_mp_base::OP_MP:
+            switch(S.fft_type) {
+                case lingen_substep_schedule::FFT_NONE:
+                    return get_call_time_backend(os, op_mp<true, void>(p, asize, bsize, n1), P, mesh, S, C, do_timings);
+                case lingen_substep_schedule::FFT_CANTOR:
+                    return get_call_time_backend(os, op_mp<true, gf2x_cantor_fft_info>(p, asize, bsize, n1), P, mesh, S, C, do_timings);
+                case lingen_substep_schedule::FFT_TERNARY:
+                    return get_call_time_backend(os, op_mp<true, gf2x_ternary_fft_info>(p, asize, bsize, n1), P, mesh, S, C, do_timings);
+                default:
+                    throw std::runtime_error("invalid data (fft_type)");
+            }
+        case op_mul_or_mp_base::OP_MUL:
+            switch(S.fft_type) {
+                case lingen_substep_schedule::FFT_NONE:
+                    return get_call_time_backend(os, op_mul<true, void>(p, asize, bsize, n1), P, mesh, S, C, do_timings);
+                case lingen_substep_schedule::FFT_CANTOR:
+                    return get_call_time_backend(os, op_mul<true, gf2x_cantor_fft_info>(p, asize, bsize, n1), P, mesh, S, C, do_timings);
+                case lingen_substep_schedule::FFT_TERNARY:
+                    return get_call_time_backend(os, op_mul<true, gf2x_ternary_fft_info>(p, asize, bsize, n1), P, mesh, S, C, do_timings);
+                default:
+                    throw std::runtime_error("invalid data (fft_type)");
+            }
+        default:
+            throw std::runtime_error("invalid data (op)");
+    }
+}/*}}}*/
+
+template<>
+inline bool lingen_substep_characteristics<true>::fft_type_valid(lingen_substep_schedule::fft_type_t fft_type) const {
+    try {
+        std::shared_ptr<op_mul_or_mp_base> op = instantiate(fft_type);
+        if (op_type == op_mul_or_mp_base::OP_MUL) {
+            auto x = dynamic_cast<op_mul<true, gf2x_ternary_fft_info> const *>(op.get());
+            if (x)
+                return x->fti.K != 0;
+        }
+        if (op_type == op_mul_or_mp_base::OP_MP) {
+            auto x = dynamic_cast<op_mp<true, gf2x_ternary_fft_info> const *>(op.get());
+            if (x)
+                return x->fti.K != 0;
+        }
+    } catch (std::exception const &) {
+        return false;
+    }
+    return true;
+}
+
+#endif
+
+#ifndef LINGEN_BINARY
+template<>
+inline std::shared_ptr<op_mul_or_mp_base>
+lingen_substep_characteristics<false>::instantiate(lingen_substep_schedule::fft_type_t fft_type) const
+{
+    /* must create the op type from the lingen_substep_schedule
+     * (a.k.a. sc_t) type */ 
+    switch(op_type) {
+        case op_mul_or_mp_base::OP_MP:
+            switch(fft_type) {
+                case lingen_substep_schedule::FFT_NONE:
+                    return std::make_shared<op_mp<false, void>>(p, asize, bsize, n1);
+                case lingen_substep_schedule::FFT_FLINT:
+                    return std::make_shared<op_mp<false, fft_transform_info>>(p, asize, bsize, n1);
+                default:
+                    throw std::runtime_error("invalid data (fft_type)");
+            }
+        case op_mul_or_mp_base::OP_MUL:
+            switch(fft_type) {
+                case lingen_substep_schedule::FFT_NONE:
+                    return std::make_shared<op_mul<false, void>>(p, asize, bsize, n1);
+                case lingen_substep_schedule::FFT_FLINT:
+                    return std::make_shared<op_mul<false, fft_transform_info>>(p, asize, bsize, n1);
+                default:
+                    throw std::runtime_error("invalid data (fft_type)");
+            }
+        default:
+            throw std::runtime_error("invalid data (op)");
+    }
+}
+
+template<>
+inline auto lingen_substep_characteristics<false>::get_call_time_backend(std::ostream& os, pc_t const & P, unsigned int mesh, sc_t const & S, tc_t & C, bool do_timings) const -> call_time_digest { /* {{{ */
+    switch(op_type) {
+        case op_mul_or_mp_base::OP_MP:
+            switch(S.fft_type) {
+                case lingen_substep_schedule::FFT_NONE:
+                    return get_call_time_backend(os, op_mp<false, void>(p, asize, bsize, n1), P, mesh, S, C, do_timings);
+                case lingen_substep_schedule::FFT_FLINT:
+                    return get_call_time_backend(os, op_mp<false, fft_transform_info>(p, asize, bsize, n1), P, mesh, S, C, do_timings);
+                default:
+                    throw std::runtime_error("invalid data (fft_type)");
+            }
+        case op_mul_or_mp_base::OP_MUL:
+            switch(S.fft_type) {
+                case lingen_substep_schedule::FFT_NONE:
+                    return get_call_time_backend(os, op_mul<false, void>(p, asize, bsize, n1), P, mesh, S, C, do_timings);
+                case lingen_substep_schedule::FFT_FLINT:
+                    return get_call_time_backend(os, op_mul<false, fft_transform_info>(p, asize, bsize, n1), P, mesh, S, C, do_timings);
+                default:
+                    throw std::runtime_error("invalid data (fft_type)");
+            }
+        default:
+            throw std::runtime_error("invalid data (op)");
+    }
+}/*}}}*/
+
+template<>
+inline bool lingen_substep_characteristics<false>::fft_type_valid(lingen_substep_schedule::fft_type_t fft_type) const {
+    try {
+        std::shared_ptr<op_mul_or_mp_base> op = instantiate(fft_type);
+        /* eh ? Don't we need to have some testing here ? XXX */
+    } catch (std::exception const &) {
+        return false;
+    }
+    return true;
+}
+
+#endif
+
 
 /* the three structs below return the WCT needed to do the
  * operation named (name) doing it with (nparallel) threads working
@@ -869,8 +941,9 @@ struct lingen_substep_characteristics {
  */
 
 template<typename OP_T>
-struct microbench_dft { /*{{{*/
-    typedef lingen_substep_characteristics ch_t;
+struct microbench_dft<OP_T, true> { /*{{{*/
+    static constexpr bool is_binary = OP_T::is_binary;
+    typedef lingen_substep_characteristics<is_binary> ch_t;
     typedef lingen_platform pc_t;
     typedef OP_T OP;
     OP op;
@@ -878,11 +951,16 @@ struct microbench_dft { /*{{{*/
     unsigned int mesh;
     ch_t const & U;
     static constexpr const char * name = "dft";
-    microbench_dft(OP const & op, pc_t const& P, unsigned int mesh, ch_t const & U) : op(op), P(P), mesh(mesh), U(U) {}
+    microbench_dft(OP op, pc_t const& P, unsigned int mesh, ch_t const & U)
+        : op(std::move(op))
+        , P(P)
+        , mesh(mesh)
+        , U(U)
+    {}
     unsigned int max_parallel() const {
         size_t R = 0;
         /* storage for one input coeff and one output transform */
-        constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
+        constexpr const unsigned int simd = is_binary ? ULONG_BITS : 1;
         R += iceildiv(U.asize, simd) * mpz_size(U.p) * sizeof(mp_limb_t);
         R += op.get_alloc_sizes()[0];
         /* plus the temp memory for the dft operation */
@@ -900,7 +978,7 @@ struct microbench_dft { /*{{{*/
     }
     double operator()(unsigned int nparallel) const
     {
-        matpoly a(U.ab, nparallel, 1, U.asize);
+        matpoly<is_binary> a(U.ab, nparallel, 1, U.asize);
         a.zero_pad(U.asize);
         a.fill_random(0, U.asize, U.rstate);
         matpoly_ft<typename OP::FFT> ta(a.m, a.n, op.fti);
@@ -910,8 +988,9 @@ struct microbench_dft { /*{{{*/
     }
 };/*}}}*/
 template<typename OP_T>
-struct microbench_ift { /*{{{*/
-    typedef lingen_substep_characteristics ch_t;
+struct microbench_ift<OP_T, true> { /*{{{*/
+    static constexpr bool is_binary = OP_T::is_binary;
+    typedef lingen_substep_characteristics<is_binary> ch_t;
     typedef lingen_platform pc_t;
     typedef OP_T OP;
     OP op;
@@ -919,11 +998,15 @@ struct microbench_ift { /*{{{*/
     unsigned int mesh;
     ch_t const & U;
     static constexpr const char * name = "ift";
-    microbench_ift(OP const & op, pc_t const& P, unsigned int mesh, ch_t const & U) : op(op), P(P), mesh(mesh), U(U) {}
+    microbench_ift(OP op, pc_t const& P, unsigned int mesh, ch_t const & U)
+        : op(std::move(op))
+        , P(P)
+        , mesh(mesh), U(U)
+    {}
     unsigned int max_parallel() const {
         size_t R = 0;
         /* storage for one input transform and one output coeff */
-        constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
+        constexpr const unsigned int simd = is_binary ? ULONG_BITS : 1;
         R += iceildiv(U.csize, simd) * mpz_size(U.p) * sizeof(mp_limb_t);
         R += op.get_alloc_sizes()[0];
         /* plus the temp memory for the ift operation */
@@ -940,20 +1023,21 @@ struct microbench_ift { /*{{{*/
         return n;
     }
     double operator()(unsigned int nparallel) const {
-        matpoly c(U.ab, nparallel, 1, U.csize);
+        matpoly<is_binary> c(U.ab, nparallel, 1, U.csize);
         matpoly_ft<typename OP::FFT> tc(c.m, c.n, op.fti);
         /* This is important, since otherwise the inverse transform won't
          * work */
         c.set_size(U.csize);
         tc.zero(); /* would be .fill_random(rstate) if we had it */
-        double tt = -wct_seconds();
+        const double tt = -wct_seconds();
         matpoly_ft<typename OP::FFT>::ift(c, tc);
         return tt + wct_seconds();
     }
 };/*}}}*/
 template<typename OP_T>
-struct microbench_conv { /*{{{*/
-    typedef lingen_substep_characteristics ch_t;
+struct microbench_conv<OP_T, true> { /*{{{*/
+    static constexpr bool is_binary = OP_T::is_binary;
+    typedef lingen_substep_characteristics<is_binary> ch_t;
     typedef lingen_platform pc_t;
     typedef OP_T OP;
     OP op;
@@ -961,7 +1045,12 @@ struct microbench_conv { /*{{{*/
     unsigned int mesh;
     ch_t const & U;
     static constexpr const char * name = "conv";
-    microbench_conv(OP const & op, pc_t const& P, unsigned int mesh, ch_t const & U) : op(op), P(P), mesh(mesh), U(U) {}
+    microbench_conv(OP op, pc_t const& P, unsigned int mesh, ch_t const & U)
+        : op(std::move(op))
+        , P(P)
+        , mesh(mesh)
+        , U(U)
+    {}
     unsigned int max_parallel() const {
         /* for k = nparallel, we need 2k+1 transforms in ram */
         size_t R = 0;
@@ -994,57 +1083,76 @@ struct microbench_conv { /*{{{*/
         return tt + wct_seconds();
     }
 };/*}}}*/
-template<template<typename> class META_OP>
-struct microbench_dft<META_OP<void>> { /*{{{*/
-    typedef lingen_substep_characteristics ch_t;
+
+template<typename OP_T>
+struct microbench_dft<OP_T, false> { /*{{{*/
+    static constexpr bool is_binary = OP_T::is_binary;
+    typedef lingen_substep_characteristics<is_binary> ch_t;
     typedef lingen_platform pc_t;
-    typedef META_OP<void> OP;
+    typedef OP_T OP;
     OP op;
     pc_t P;
     unsigned int mesh;
     ch_t const & U;
-    static constexpr const char * name = NULL;
-    microbench_dft(OP const & op, pc_t const& P, unsigned int mesh, ch_t const & U) : op(op), P(P), mesh(mesh), U(U) {}
+    static constexpr const char * name = nullptr;
+    microbench_dft(OP op, pc_t const& P, unsigned int mesh, ch_t const & U)
+        : op(std::move(op))
+        , P(P)
+        , mesh(mesh)
+        , U(U)
+    {}
     unsigned int max_parallel() const { return U.max_threads(); }
     double operator()(unsigned int) const { return 0; }
 };/*}}}*/
-template<template<typename> class META_OP>
-struct microbench_ift<META_OP<void>> { /*{{{*/
-    typedef lingen_substep_characteristics ch_t;
+template<typename OP_T>
+struct microbench_ift<OP_T, false> { /*{{{*/
+    static constexpr bool is_binary = OP_T::is_binary;
+    typedef lingen_substep_characteristics<is_binary> ch_t;
     typedef lingen_platform pc_t;
-    typedef META_OP<void> OP;
+    typedef OP_T OP;
     OP op;
     pc_t P;
     unsigned int mesh;
     ch_t const & U;
-    static constexpr const char * name = NULL;
-    microbench_ift(OP const & op, pc_t const& P, unsigned int mesh, ch_t const & U) : op(op), P(P), mesh(mesh), U(U) {}
+    static constexpr const char * name = nullptr;
+    microbench_ift(OP op, pc_t const& P, unsigned int mesh, ch_t const & U)
+        : op(std::move(op))
+        , P(P)
+        , mesh(mesh)
+        , U(U)
+    {}
     unsigned int max_parallel() const { return U.max_threads(); }
     double operator()(unsigned int) const { return 0; }
 };/*}}}*/
-template<template<typename> class META_OP>
-struct microbench_conv<META_OP<void>> { /*{{{*/
-    typedef lingen_substep_characteristics ch_t;
+template<typename OP_T>
+struct microbench_conv<OP_T, false> { /*{{{*/
+    static constexpr bool is_binary = OP_T::is_binary;
+    typedef lingen_substep_characteristics<is_binary> ch_t;
     typedef lingen_platform pc_t;
-    typedef META_OP<void> OP;
+    typedef OP_T OP;
     OP op;
     pc_t P;
     unsigned int mesh;
     ch_t const & U;
     static constexpr const char * name = "product";
-    microbench_conv(OP const & op, pc_t const& P, unsigned int mesh, ch_t const & U) : op(op), P(P), mesh(mesh), U(U) {}
+    microbench_conv(OP op, pc_t const& P, unsigned int mesh, ch_t const & U)
+        : op(std::move(op))
+        , P(P)
+        , mesh(mesh)
+        , U(U)
+    {}
     unsigned int max_parallel() const { return U.max_threads(); }
     double operator()(unsigned int nparallel) const {
-        constexpr const unsigned int splitwidth = matpoly::over_gf2 ? 64 : 1;
-        matpoly a(U.ab, nparallel, splitwidth, U.asize);
-        matpoly b(U.ab, splitwidth, 1, U.asize);
+        constexpr const unsigned int splitwidth = is_binary ? 64 : 1;
+        matpoly<is_binary> a(U.ab, nparallel, splitwidth, U.asize);
+        matpoly<is_binary> b(U.ab, splitwidth, 1, U.asize);
         a.zero_pad(U.asize);
         a.fill_random(0, U.asize, U.rstate);
         b.zero_pad(U.bsize);
         b.fill_random(0, U.bsize, U.rstate);
-        matpoly c(U.ab, nparallel, 1, U.csize);
+        matpoly<is_binary> c(U.ab, nparallel, 1, U.csize);
         c.zero_pad(U.csize);
-        double tt = -wct_seconds();
+        const double tt = -wct_seconds();
         OP::addcompose(c, a, b);
         return (tt + wct_seconds()) / splitwidth;
     }

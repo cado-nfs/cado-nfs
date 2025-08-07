@@ -9,7 +9,7 @@
 
 #include "gmp_aux.h"
 #include "las-qlattice.hpp"
-#include "las-todo-entry.hpp"
+#include "special-q.hpp"
 #include "macros.h"
 
 /* check that the double x fits into an int32_t */
@@ -141,7 +141,7 @@ SkewGauss (qlattice_basis &basis,  mpz_srcptr p, mpz_srcptr r,
     return fits ? 1 : 0;
 }
 
-qlattice_basis::qlattice_basis(las_todo_entry const & doing, double skew) :
+qlattice_basis::qlattice_basis(special_q const & doing, double skew) :
     doing(doing)
 {
     /* Currently requires prime or composite square-free special-q

@@ -100,6 +100,8 @@ if ! [ "$fb0" ] && ! [ "$fb1" ] ; then
     echo "neither fb nor fb0/fb1 provided" >&2 ; exit 1
 fi
 
+if [ "$galois" ] ; then args+=(-galois "$galois") ; fi
+
 for var in fbc batchfile{0,1} ; do
     # Those are optional too. Being filenames, we allow that they be
     # passed as just ".", which means that we expect to have them in the

@@ -13,14 +13,14 @@
 #include "las-duplicate.hpp"
 #include "las-info.hpp"
 #include "las-siever-config.hpp"
-#include "las-todo-entry.hpp"
+#include "special-q.hpp"
 #include "params.h"
 #include "relation.hpp"
 #include "verbose.h"
 
 
 static void *
-dupsup (FILE *output, relation & rel, las_todo_entry const& doing, const int is_dupe)
+dupsup (FILE *output, relation & rel, special_q const& doing, const int is_dupe)
 {
   if (0)
     gmp_fprintf (output, "# sq = %Zd, rho = %Zd, side = %d\n",
@@ -33,7 +33,7 @@ dupsup (FILE *output, relation & rel, las_todo_entry const& doing, const int is_
 /* If the line is a special-q comment, sets sq and rho and returns 1.
    Otherwise returns 0. */
 static int
-read_sq_comment(las_todo_entry & doing, const char *line)
+read_sq_comment(special_q & doing, const char *line)
 {
     int side;
     cxx_mpz p,r;
@@ -43,7 +43,7 @@ read_sq_comment(las_todo_entry & doing, const char *line)
               (mpz_ptr) r) == 3) {
       /* this is the way to go if we want proper initialization of all
        * fields */
-      doing = las_todo_entry(p, r, side);
+      doing = special_q(p, r, side);
     return 1;
   }
   return 0;
@@ -131,8 +131,6 @@ main (int argc, char const * argv[])
     param_list_lookup_string(pl, "nq");
     const char * outputname = param_list_lookup_string(pl, "out");
 
-    cxx_mpz sq, rho;
-
     las_info las(pl);
 
     las.prepare_sieve_shared_data(pl);
@@ -153,7 +151,7 @@ main (int argc, char const * argv[])
 
     setvbuf(output, NULL, _IOLBF, 0);      /* mingw has no setlinebuf */
 
-    las_todo_entry doing;
+    special_q doing;
 
     for (int argi = 0; argi < argc; argi++) {
       FILE *f = fopen_maybe_compressed(argv[argi], "rb");

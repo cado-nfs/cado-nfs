@@ -125,6 +125,10 @@ nfs_work::nfs_work(las_info & _las, int nr_workspaces)
     for(int x = _las.number_of_threads_per_subjob() ; x-- ; )
         th.emplace_back(*this);
     for (size_t i = 0; i < sides.size(); ++i) {
+      ASSERT_ALWAYS(!las.dump_filename);
+      /* Well, I don't think that Q.doing is set to anything non-default
+       * at this point: Q is only initialized by choose_sieve_area.
+       */
       sides[i].dumpfile.open(las.dump_filename, Q.doing, i);
     }
 }
@@ -149,7 +153,7 @@ void nfs_work::allocate_buckets(nfs_aux & aux, thread_pool & pool)
     verbose_output_print(0, 2, "# Reserving buckets with a multiplier of %s\n",
             bk_multiplier.print_all().c_str());
 
-    bool const do_resieve = conf.sides[0].lim && (las.cpoly->nb_polys == 1 || conf.sides[1].lim);
+    bool const do_resieve = conf.needs_resieving();
 
     for (auto & wss : sides) {
         if (wss.no_fb()) continue;
@@ -305,7 +309,7 @@ void nfs_work::compute_toplevel_and_buckets()
     /* update number of buckets at toplevel */
     size_t  const(&BRS)[FB_MAX_PARTS] = BUCKET_REGIONS;
 
-    for(int i = 0 ; i < FB_MAX_PARTS ; ++i) nb_buckets[i] = 0;
+    std::fill_n(nb_buckets, FB_MAX_PARTS, 0);
 
     nb_buckets[toplevel] = iceildiv(1UL << conf.logA, BRS[toplevel]);
 
@@ -322,8 +326,10 @@ void nfs_work::compute_toplevel_and_buckets()
     }
 }
 
-void nfs_work::prepare_for_new_q(las_info & las0) {
+void nfs_work::prepare_for_new_q(las_info & las0, special_q_task * task) {
     ASSERT_ALWAYS(&las == &las0);
+    this->task = task;
+
     /* The config on which we're running is now decided. In order to
      * select the factor base to use, we also need the log scale */
     for(int side = 0 ; side < las.cpoly->nb_polys ; side++) {

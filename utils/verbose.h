@@ -42,7 +42,6 @@ extern int verbose_printf(int flag, const char * fmt, ...);
 extern void verbose_output_flush(size_t channel, int verbose);
 extern void verbose_decl_usage(param_list pl);
 
-
 /*
   The program can initialise zero or more "channels".
   To each "channel", zero or more "outputs" (FILE handles) can be attached,
@@ -117,4 +116,16 @@ int verbose_output_vfprint(size_t channel, int verbose, vfprintf_func_t func,
 }
 #endif
 
+#ifdef __cplusplus
+/* this is actually quite handy */
+#include "fmt/format.h"
+template<typename... Args>
+void verbose_fmt_print(size_t channel, int verbose, fmt::format_string<Args...> s, Args&& ...args)
+{
+    verbose_output_print (channel, verbose, "%s",
+                        fmt::format(s, std::forward<Args>(args)...).c_str());
+    // fmt::print("a\n");
+}
+
+#endif
 #endif	/* CADO_VERBOSE_H */

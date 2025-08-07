@@ -30,11 +30,7 @@ set(BWC_GF2_MATMUL_BACKENDS bucket basic sliced
 set(BWC_GFP_ARITHMETIC_BACKENDS p1 p2 p3 p4 p5 p6 p7 p8 p9 p10 p11 p12 p13 p14 p15 pz
     CACHE STRING
     "which GF(p) backends to compile for DLOG mode")
-if(HAVE_CXX11)
-    set(bmb basicp zone)
-else()
-    set(bmb basicp)
-endif()
+set(bmb basicp zone)
 set(BWC_GFP_MATMUL_BACKENDS ${bmb}
     CACHE STRING
     "which low-level matrix multiplication backends to use for GF(2) linear algebra")
@@ -65,7 +61,7 @@ endmacro()
 set(bwc_parallelization_sources
     parallelizing_info.cpp
     )
-if(HAVE_CXX11 AND HAVE_HWLOC)
+if(HAVE_HWLOC)
     list(APPEND bwc_parallelization_sources
     cpubinding.cpp
     )
@@ -120,7 +116,7 @@ endif()
 
 target_link_libraries(bwc_base bblas)
 
-if(HAVE_CXX11 AND HAVE_HWLOC)
+if(HAVE_HWLOC)
 target_link_libraries(bwc_base hwloc)
 endif()
 
@@ -242,7 +238,7 @@ endmacro()
 
 
 add_library(bwc_arith ${CADO_SHARED} arith-generic.cpp)
-target_link_libraries(bwc_arith ${gmp_libname} utils)
+target_link_libraries(bwc_arith utils)
 mark_targets_as_mpi(bwc_arith)
 
 
@@ -576,7 +572,7 @@ foreach(v ${internal_arithmetic_backends_gfp} b64)
     mark_targets_as_openmp(lingen_verify_checkpoints_${v})
     set_property(TARGET lingen_verify_checkpoints_${v}
         APPEND PROPERTY COMPILE_OPTIONS ${our_compile_flags})
-    target_link_libraries(lingen_verify_checkpoints_${v} utils ${gmp_libname})
+    target_link_libraries(lingen_verify_checkpoints_${v} utils)
 
     # lingen_bz could make sense for testing, but we certainly do not
     # want to  use it.
@@ -596,7 +592,7 @@ foreach(v ${internal_arithmetic_backends_gfp} b64)
     target_link_libraries(lingen_${v}_core lingen_${v}_support)
 
     target_link_libraries(lingen_${v}_support 
-        lingen_common_support ${gmp_libname} utils)
+        lingen_common_support utils)
 
     if (v STREQUAL "b64")
         if(NOT HAVE_GF2X)

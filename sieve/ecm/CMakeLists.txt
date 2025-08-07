@@ -71,22 +71,23 @@ mark_targets_as_openmp(facul)
 target_link_libraries(facul utils ${gmp_libname})
 
 add_executable(testbench testbench.cpp)
-target_link_libraries(testbench facul utils m)
+target_link_libraries(testbench facul utils)
 
 
 add_executable(finishbatch finishbatch.cpp
     $<TARGET_OBJECTS:las_core_0>
+    $<TARGET_OBJECTS:las_core_a>
     )
-target_link_libraries(finishbatch facul utils m)
+target_link_libraries(finishbatch facul utils)
 mark_targets_as_openmp(finishbatch)
 
 add_executable(finishecm finishecm.cpp)
-target_link_libraries(finishecm facul utils m)
+target_link_libraries(finishecm facul utils)
 
 add_executable(precompbatch precompbatch.cpp
     $<TARGET_OBJECTS:las_core_0>
     )
-target_link_libraries(precompbatch facul utils m)
+target_link_libraries(precompbatch facul utils)
 mark_targets_as_openmp(precompbatch)
 
 

@@ -6,12 +6,16 @@
 #include "gmp_aux.h"
 #include "lingen_substep_characteristics.hpp"
 #include "lingen_mul_substeps.hpp"
+#include "lingen_substep_schedule.hpp"
+#include "lingen_fft_select.hpp"
 #include "timing.h" // seconds
 #include "params.h"
 
 template<typename fft_type>
 struct matpoly_checker_ft {
-    matpoly::arith_hard ab;
+    static constexpr bool is_binary = is_binary_fft<fft_type>::value;
+    using matpoly_type = matpoly<is_binary>;
+    matpoly_type::arith_hard ab;
     unsigned int m;
     unsigned int n;
     unsigned int L;
@@ -19,11 +23,11 @@ struct matpoly_checker_ft {
     cxx_gmp_randstate rstate;
     unsigned long seed;
 
-    matpoly::memory_guard dummy;
+    matpoly_type::memory_guard dummy;
     typename matpoly_ft<fft_type>::memory_guard dummy_ft;
 
     matpoly_checker_ft(cxx_mpz const & p, unsigned int m, unsigned int n, unsigned int L, cxx_gmp_randstate & rstate0)
-        : ab(p, 1)
+        : ab(p, 1U)
         , m(m)
         , n(n)
         , L(L)
@@ -44,33 +48,43 @@ struct matpoly_checker_ft {
     public:
 
     void doit_mul(lingen_platform const & P, std::ostream& os) {
-        typedef lingen_substep_characteristics<op_mul<fft_type>> X_t;
+        using X_t = lingen_substep_characteristics<is_binary>;
+        using op_t = op_mul<is_binary, fft_type>;
         size_t LE = L / 2;
         size_t Lpi = m * LE / (m + n);
-        X_t X(ab, rstate,
+        X_t X(&ab, rstate,
                 0,      /* not used -- this field should probably go away
                            anyway */
+                op_mul_or_mp_base::OP_MUL,
                 m+n, m+n, m+n,
                 Lpi, Lpi, Lpi+Lpi-1);
-        X.report_size_stats_human(os);
-        X.fill_tvec(os, typename X_t::microbench_dft(P, X));
-        X.fill_tvec(os, typename X_t::microbench_ift(P, X));
-        X.fill_tvec(os, typename X_t::microbench_conv(P, X));
+        auto op_generic = X.instantiate(encode_fft_type<fft_type>);
+        auto const & op = dynamic_cast<op_t const &>(*op_generic);
+        X.report_size_stats_human(os, op);
+        constexpr unsigned int mesh = 1;
+        X.fill_tvec(os, microbench_dft<op_t>(op, P, mesh, X));
+        X.fill_tvec(os, microbench_ift<op_t>(op, P, mesh, X));
+        X.fill_tvec(os, microbench_conv<op_t>(op, P, mesh, X));
     }
 
     void doit_mp(lingen_platform const & P, std::ostream& os) {
-        typedef lingen_substep_characteristics<op_mp<fft_type>> X_t;
+        using X_t = lingen_substep_characteristics<is_binary>;
+        using op_t = op_mul<is_binary, fft_type>;
         size_t LE = L / 2;
         size_t Lpi = m * LE / (m + n);
-        X_t X(ab, rstate,
+        X_t X(&ab, rstate,
                 0,      /* not used -- this field should probably go away
                            anyway */
+                op_mul_or_mp_base::OP_MP,
                 m, m+n, m+n,
                 LE + Lpi, Lpi, LE + 1);
-        X.report_size_stats_human(os);
-        X.fill_tvec(os, typename X_t::microbench_dft(P, X));
-        X.fill_tvec(os, typename X_t::microbench_ift(P, X));
-        X.fill_tvec(os, typename X_t::microbench_conv(P, X));
+        auto op_generic = X.instantiate(encode_fft_type<fft_type>);
+        auto const & op = dynamic_cast<op_t const &>(*op_generic);
+        X.report_size_stats_human(os, op);
+        constexpr unsigned int mesh = 1;
+        X.fill_tvec(os, microbench_dft<op_t>(op, P, mesh, X));
+        X.fill_tvec(os, microbench_ift<op_t>(op, P, mesh, X));
+        X.fill_tvec(os, microbench_conv<op_t>(op, P, mesh, X));
     }
 
     void doit(lingen_platform const & P, std::ostream& os) {
@@ -79,13 +93,13 @@ struct matpoly_checker_ft {
     }
 };
 
-void declare_usage(cxx_param_list & pl)
+template<bool is_binary>
+static void declare_usage(cxx_param_list & pl)
 {
-#ifndef LINGEN_BINARY
-    param_list_decl_usage(pl, "prime", "(mandatory) prime defining the base field");
-#else
-    param_list_decl_usage(pl, "prime", "(unused) prime defining the base field -- we only use 2");
-#endif
+    if constexpr (!is_binary)
+        param_list_decl_usage(pl, "prime", "(mandatory) prime defining the base field");
+    else
+        param_list_decl_usage(pl, "prime", "(unused) prime defining the base field -- we only use 2");
     param_list_decl_usage(pl, "m", "dimension m");
     param_list_decl_usage(pl, "n", "dimension n");
     param_list_decl_usage(pl, "L", "length (step length in recursive algorithm)");
@@ -95,6 +109,11 @@ void declare_usage(cxx_param_list & pl)
 
 int main(int argc, char const * argv[])
 {
+#ifdef LINGEN_BINARY
+    constexpr bool is_binary = true;
+#else
+    constexpr bool is_binary = false;
+#endif
     MPI_Init(&argc, (char ***) &argv);
 
     cxx_mpz p;
@@ -107,7 +126,7 @@ int main(int argc, char const * argv[])
 
     cxx_param_list pl;
 
-    declare_usage(pl);
+    declare_usage<is_binary>(pl);
     const char * argv0 = argv[0];
     argv++,argc--;
     /* read all command-line parameters */
@@ -119,16 +138,16 @@ int main(int argc, char const * argv[])
         param_list_print_usage(pl, argv0, stderr);
         exit(EXIT_FAILURE);
     }
-#ifndef LINGEN_BINARY
-    if (!param_list_parse_mpz(pl, "prime", (mpz_ptr) p)) {
-        fprintf(stderr, "--prime is mandatory\n");
-        param_list_print_command_line (stdout, pl);
-        exit(EXIT_FAILURE);
+    if constexpr (!is_binary) {
+        if (!param_list_parse_mpz(pl, "prime", (mpz_ptr) p)) {
+            fprintf(stderr, "--prime is mandatory\n");
+            param_list_print_command_line (stdout, pl);
+            exit(EXIT_FAILURE);
+        }
+    } else {
+        mpz_set_ui(p, 2);   /* unused anyway */
+        param_list_parse_mpz(pl, "prime", (mpz_ptr) p);
     }
-#else
-    mpz_set_ui(p, 2);   /* unused anyway */
-    param_list_parse_mpz(pl, "prime", (mpz_ptr) p);
-#endif
     param_list_parse_uint(pl, "m", &m);
     param_list_parse_uint(pl, "n", &n);
     param_list_parse_uint(pl, "L", &L);
@@ -138,18 +157,18 @@ int main(int argc, char const * argv[])
 
     if (param_list_warn_unused(pl))
         exit(EXIT_FAILURE);
-#ifdef LINGEN_BINARY
-    if (m & 63) {
-        unsigned int const nm = 64 * iceildiv(m, 64);
-        printf("Round m=%u to m=%u\n", m, nm);
-        m = nm;
+    if constexpr (is_binary) {
+        if (m & 63) {
+            unsigned int const nm = 64 * iceildiv(m, 64);
+            printf("Round m=%u to m=%u\n", m, nm);
+            m = nm;
+        }
+        if (n & 63) {
+            unsigned int const nn = 64 * iceildiv(n, 64);
+            printf("Round n=%u to n=%u\n", n, nn);
+            n = nn;
+        }
     }
-    if (n & 63) {
-        unsigned int const nn = 64 * iceildiv(n, 64);
-        printf("Round n=%u to n=%u\n", n, nn);
-        n = nn;
-    }
-#endif
 
     gmp_randseed_ui(rstate, seed);
 

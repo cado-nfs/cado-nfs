@@ -3,10 +3,13 @@
 
 #include "cado_config.h"               // for HAVE_HWLOC
 
-#include <condition_variable>
 #include <cstdint>
+#include <cstddef>
+
+#include <condition_variable>
 #include <list>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -16,7 +19,6 @@
 #include "cado_poly.h"
 #include "ecm/batch.hpp"
 #include "fb.hpp"
-#include "gmp_aux.h"
 #ifdef HAVE_HWLOC
 #include "hwloc-aux.h"
 #endif
@@ -39,10 +41,9 @@
  * sufficient.
  */
 #include "las-unsieve.hpp"      // IWYU pragma: keep
-#include "lock_guarded_container.hpp"  // for lock_guarded_container
 
 /* This one wants to have siever_config defined */
-#include "las-descent-trees.hpp"
+#include "las-special-q-task-collection.hpp"
 
 // #define HILIGHT_START   "\e[01;31m"
 // #define HILIGHT_END   "\e[00m"
@@ -61,11 +62,9 @@ struct las_info : public las_parallel_desc, private NonCopyable {
     // ----- general operational flags
     const char * galois; /* a string to indicate which galois to use in las */
     int suppress_duplicates;
-    int adjust_strategy = 0;
 
     /* It's not ``general operational'', but global enough to be here */
     cxx_cado_poly cpoly;
-    cxx_gmp_randstate rstate;
 
     // ----- default config and adaptive configs
     siever_config_pool config_pool;
@@ -170,7 +169,7 @@ struct las_info : public las_parallel_desc, private NonCopyable {
     /* This is an opaque pointer to C++ code. */
     void * descent_helper;
     las_dlog_base dlog_base;
-    mutable descent_tree tree;
+    std::unique_ptr<special_q_task_collection_base> tree;
     void init_hint_table(param_list_ptr);
     void clear_hint_table();
 
@@ -178,7 +177,7 @@ struct las_info : public las_parallel_desc, private NonCopyable {
     // from a relation cache instead.
 
     std::string relation_cache;
-    void reproduce_relations_from_cache(las_todo_entry const & doing);
+    void reproduce_relations_from_cache(special_q const & doing);
     
     // ----- batch mode
     int batch; /* batch mode for cofactorization */
@@ -196,21 +195,20 @@ struct las_info : public las_parallel_desc, private NonCopyable {
     struct batch_print_survivors_t {
         mutable std::mutex mm;
         mutable std::condition_variable cv;
-        bool done = false;
-        std::list<cofac_list> todo;
 
-        const char *filename; // basename for the files
-        uint64_t    filesize; // number of survivors per file
-        int         counter;  // current index of filename
-        int number_of_printers;
+        const char *filename = nullptr; // basename for the files
+        uint64_t    filesize = 0; // number of survivors per file
+        int         counter = 0;  // current index of filename
+        int number_of_printers = 0;
         std::vector<std::thread>  printer_threads;     // id of the thread doing writing (if any)
-        operator bool() const { return filename != nullptr; }
+        explicit operator bool() const { return filename != nullptr; }
 
         void doit();
     } batch_print_survivors;
 
     std::vector<batch_side_config> bsides;
 
+    /* store (a,b) and corresponding cofactors in batch mode */
     /* Would this rather go somewhere else ? In a global (not per-sq)
      * version of nfs_work_cofac perhaps ?
      * 
@@ -218,7 +216,32 @@ struct las_info : public las_parallel_desc, private NonCopyable {
      * annoying me, and more than a hint at the fact that we should think
      * the design a bit differently.
      */
-    mutable lock_guarded_container<cofac_list> L; /* store (a,b) and corresponding cofactors in batch mode */
+    struct survivors_list {
+        mutable std::mutex mm;
+        size_t size = 0;
+        std::list<std::pair<special_q, std::list<cofac_candidate>>> L;
+
+        void append(special_q const & doing,
+                std::list<cofac_candidate> && loc)
+        {
+            const size_t n = loc.size();
+            auto local = std::make_pair(doing, std::move(loc));
+            std::lock_guard<std::mutex> const foo(mm);
+            L.emplace_back(std::move(local));
+            size += n;
+        }
+
+        size_t get_size() const {
+            std::lock_guard<std::mutex> const foo(mm);
+            return size;
+        }
+
+        void mark_drain() {
+            std::lock_guard<std::mutex> const foo(mm);
+            size = SIZE_MAX;
+        }
+    };
+    survivors_list survivors;
 
     /* ----- cofactorization statistics for the default config */
     mutable cofactorization_statistics cofac_stats;

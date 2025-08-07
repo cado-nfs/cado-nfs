@@ -661,6 +661,8 @@ misc/check_rels.c
 misc/debug_renumber.cpp
 misc/descent_init_Fp.cpp
 misc/explain_indexed_relation.cpp
+misc/factor.cpp
+misc/factor.hpp
 misc/indexed_relations_to_density.cpp
 misc/smooth_detect.cpp
 misc/smooth_detect.hpp
@@ -888,6 +890,7 @@ scripts/check_main_constness.sh
 scripts/check_python_lint.sh
 scripts/check_python_pathdetection_stub.sh
 scripts/check_repo_policies.sh
+scripts/cov.sh
 scripts/descent.py
 scripts/descent/README.md
 scripts/descent/__init__.py
@@ -1026,10 +1029,7 @@ sieve/las-config.c
 sieve/las-config.h
 sieve/las-coordinates.cpp
 sieve/las-coordinates.hpp
-sieve/las-descent-trees.cpp
-sieve/las-descent-trees.hpp
-sieve/las-descent.cpp
-sieve/las-descent.hpp
+sieve/las-descent-candidate-relation.hpp
 sieve/las-detached-cofac.cpp
 sieve/las-detached-cofac.hpp
 sieve/las-divide-primes.cpp
@@ -1083,12 +1083,16 @@ sieve/las-smallsieve-lowlevel.hpp
 sieve/las-smallsieve-types.hpp
 sieve/las-smallsieve.cpp
 sieve/las-smallsieve.hpp
+sieve/las-special-q-task-collection.cpp
+sieve/las-special-q-task-collection.hpp
+sieve/las-special-q-task-simple.hpp
+sieve/las-special-q-task-tree.cpp
+sieve/las-special-q-task-tree.hpp
+sieve/las-special-q-task.hpp
 sieve/las-threads-work-data.cpp
 sieve/las-threads-work-data.hpp
 sieve/las-threads.cpp
 sieve/las-threads.hpp
-sieve/las-todo-entry.cpp
-sieve/las-todo-entry.hpp
 sieve/las-todo-list.cpp
 sieve/las-todo-list.hpp
 sieve/las-trialdiv.cpp
@@ -1344,6 +1348,8 @@ tests/sieve/c90_21505.poly
 tests/sieve/c90_21553.poly
 tests/sieve/c95_21684.poly
 tests/sieve/c97_30107.poly
+tests/sieve/d20.poly
+tests/sieve/d20.roots.gz
 tests/sieve/ecm/CMakeLists.txt
 tests/sieve/ecm/buggy1.st
 tests/sieve/ecm/buggy2.st
@@ -1352,7 +1358,11 @@ tests/sieve/ecm/buggy4.st
 tests/sieve/ecm/buggy5.st
 tests/sieve/ecm/buggy6.st
 tests/sieve/ecm/buggy7.st
+tests/sieve/ecm/buggy8.st
+tests/sieve/ecm/buggy9.st
 tests/sieve/ecm/example1.st
+tests/sieve/ecm/example2.st
+tests/sieve/ecm/example3.st
 tests/sieve/ecm/generate_test_files.sage
 tests/sieve/ecm/test_Weierstrass.cpp
 tests/sieve/ecm/test_Weierstrass.input
@@ -1400,6 +1410,8 @@ tests/sieve/ecm/test_order_ecmm16_1_1000000_1001000.inp
 tests/sieve/ecm/test_order_ecmm16_1_1000_2000.inp
 tests/sieve/ecm/test_strategy_file_parser.cpp
 tests/sieve/ecm/test_testbench.sh
+tests/sieve/galois.poly
+tests/sieve/galois.roots.gz
 tests/sieve/reduce-plattice/las-reduce-plattice-mimick-production-noasm.hpp
 tests/sieve/reduce-plattice/las-reduce-plattice-reference.hpp
 tests/sieve/reduce-plattice/las-reduce-plattice-reference2.hpp
@@ -1511,7 +1523,6 @@ tests/utils/test_gmp_aux.c
 tests/utils/test_gpf.c
 tests/utils/test_integer_partitions.cpp
 tests/utils/test_intinv.c
-tests/utils/test_istream_matcher.cpp
 tests/utils/test_json_parsing.cpp
 tests/utils/test_memusage.c
 tests/utils/test_min_max_heap.cpp
@@ -1542,6 +1553,7 @@ tests/utils/test_strlcpy.c
 tests/utils/test_subdivide_primes_interval.cpp
 tests/utils/test_threadpool.cpp
 tests/utils/test_timing.c
+tests/utils/test_trial_division.cpp
 tests/utils/test_u64arith.cpp
 tests/utils/test_usp.c
 tests/utils/test_verbose.c
@@ -1690,7 +1702,6 @@ utils/integer_partitions.hpp
 utils/intrinsics.hpp
 utils/iqsort.h
 utils/is_non_narrowing_conversion.hpp
-utils/istream_matcher.hpp
 utils/json.cpp
 utils/json.hpp
 utils/lll.c
@@ -1780,6 +1791,8 @@ utils/sha1.h
 utils/sm_utils.cpp
 utils/sm_utils.hpp
 utils/smallset.hpp
+utils/special-q.cpp
+utils/special-q.hpp
 utils/stats.c
 utils/stats.h
 utils/subdivision.hpp

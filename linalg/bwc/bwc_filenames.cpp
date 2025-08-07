@@ -13,7 +13,6 @@
 #include "fmt/format.h"
 
 #include "bwc_filenames.hpp"
-#include "istream_matcher.hpp"
 #include "utils_cxx.hpp"
 #include "macros.h"
 
@@ -61,9 +60,8 @@ bwc_file_base::helper<T>::match(T & v, std::string const & name)
     std::istringstream is(v.basename());
     is.imbue(std::locale(std::locale(), new digits_locale()));
     is >> std::noskipws;
-    istream_matcher ism(is);
-    v.match_fields(ism);
-    return ism.eof() && !ism.fail();
+    v.match_fields(is);
+    return is.eof() && !is.fail();
 }
 
 template<typename T>
@@ -89,9 +87,9 @@ bwc_V_file::operator std::string() const// {{{
     return fmt::format("V{}-{}.{}", j0, j1, n);
 }
 
-istream_matcher & bwc_V_file::match_fields(istream_matcher & ism)
+std::istream & bwc_V_file::match_fields(std::istream & is)
 {
-    return ism >> "V" >> j0 >> "-" >> j1 >> "." >> n;
+    return is >> expect("V") >> j0 >> expect("-") >> j1 >> expect(".") >> n;
 }
 
 std::string bwc_V_file::pattern(unsigned int n)
@@ -106,9 +104,11 @@ bwc_K_file::operator std::string() const// {{{
     return fmt::format("K.sols{}-{}.{}", s0, s1, n);
 }
 
-istream_matcher & bwc_K_file::match_fields(istream_matcher & ism)
+std::istream & bwc_K_file::match_fields(std::istream & is)
 {
-    return ism >> "K.sols" >> s0 >> "-" >> s1 >> "." >> n;
+    return is
+        >> expect("K.sols") >> s0 >> expect("-") >> s1
+        >> expect(".") >> n;
 }
 
 std::string bwc_K_file::pattern(unsigned int n)
@@ -123,9 +123,11 @@ bwc_S_file::operator std::string() const// {{{
     return fmt::format("S.sols{}-{}.{}-{}", s0, s1, n0, n1);
 }
 
-istream_matcher & bwc_S_file::match_fields(istream_matcher & ism)
+std::istream & bwc_S_file::match_fields(std::istream & is)
 {
-    return ism >> "S.sols" >> s0 >> "-" >> s1 >> "." >> n0 >> "-" >> n1;
+    return is
+        >> expect("S.sols") >> s0 >> expect("-") >> s1
+        >> expect(".") >> n0 >> expect("-") >> n1;
 }
 
 /*
@@ -146,9 +148,11 @@ bwc_Cv_file::operator std::string() const// {{{
     return fmt::format("Cv{}-{}.{}", j0, j1, stretch);
 }
 
-istream_matcher & bwc_Cv_file::match_fields(istream_matcher & ism)
+std::istream & bwc_Cv_file::match_fields(std::istream & is)
 {
-    return ism >> "Cv" >> j0 >> "-" >> j1 >> "." >> stretch;
+    return is
+        >> expect("Cv") >> j0 >> expect("-") >> j1
+        >> expect(".") >> stretch;
 }
 
 std::string bwc_Cv_file::pattern(unsigned int stretch)
@@ -162,9 +166,11 @@ bwc_Cd_file::operator std::string() const// {{{
     return fmt::format("Cd{}-{}.{}", j0, j1, stretch);
 }
 
-istream_matcher & bwc_Cd_file::match_fields(istream_matcher & ism)
+std::istream & bwc_Cd_file::match_fields(std::istream & is)
 {
-    return ism >> "Cd" >> j0 >> "-" >> j1 >> "." >> stretch;
+    return is
+        >> expect("Cd") >> j0 >> expect("-") >> j1
+        >> expect(".") >> stretch;
 }
 
 std::string bwc_Cd_file::pattern(unsigned int stretch)
@@ -178,14 +184,14 @@ bwc_Cr_file::operator std::string() const// {{{
     return fmt::format("Cr0-{0}.0-{0}",  nchecks);
 }
 
-istream_matcher & bwc_Cr_file::match_fields(istream_matcher & ism)
+std::istream & bwc_Cr_file::match_fields(std::istream & is)
 {
     unsigned int nc2;
-    ism >> "Cr0-" >> nchecks >> ".0-" >> nc2;
-    if (!ism) return ism;
+    is >> expect("Cr0-") >> nchecks >> expect(".0-") >> nc2;
+    if (!is) return is;
     if (nc2 != nchecks)
-        ism.setstate(std::ios_base::failbit);
-    return ism;
+        is.setstate(std::ios_base::failbit);
+    return is;
 }
 
 template struct bwc_file_base::helper<bwc_Cr_file>;
@@ -195,9 +201,9 @@ bwc_Ct_file::operator std::string() const// {{{
     return fmt::format("Ct0-{}.0-{}",  nchecks, m);
 }
 
-istream_matcher & bwc_Ct_file::match_fields(istream_matcher & ism)
+std::istream & bwc_Ct_file::match_fields(std::istream & is)
 {
-    return ism >> "Ct0-" >> nchecks >> ".0-" >> m;
+    return is >> expect("Ct0-") >> nchecks >> expect(".0-") >> m;
 }
 
 template struct bwc_file_base::helper<bwc_Ct_file>;
@@ -207,9 +213,11 @@ bwc_A_file::operator std::string() const// {{{
     return fmt::format("A{}-{}.{}-{}", j0, j1, n0, n1);
 }
 
-istream_matcher & bwc_A_file::match_fields(istream_matcher & ism)
+std::istream & bwc_A_file::match_fields(std::istream & is)
 {
-    return ism >> "A" >> j0 >> "-" >> j1 >> "." >> n0 >> "-" >> n1;
+    return is
+        >> expect("A") >> j0 >> expect("-") >> j1
+        >> expect(".") >> n0 >> expect("-") >> n1;
 }
 
 template struct bwc_file_base::helper<bwc_A_file>;
@@ -219,9 +227,11 @@ bwc_F_file::operator std::string() const// {{{
     return fmt::format("F.sols{}-{}.{}-{}", s0, s1, j0, j1);
 }
 
-istream_matcher & bwc_F_file::match_fields(istream_matcher & ism)
+std::istream & bwc_F_file::match_fields(std::istream & is)
 {
-    return ism >> "F.sols" >> s0 >> "-" >> s1 >> "." >> j0 >> "-" >> j1;
+    return is
+        >> expect("F.sols") >> s0 >> expect("-") >> s1
+        >> expect(".") >> j0 >> expect("-") >> j1;
 }
 
 template struct bwc_file_base::helper<bwc_F_file>;

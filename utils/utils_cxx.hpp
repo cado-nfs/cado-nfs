@@ -3,6 +3,13 @@
 
 #include <cstdio>
 #include <cstdlib>
+
+#include <algorithm>
+#include <cctype>
+#include <ios>
+#include <istream>
+#include <iterator>
+
 #include <limits>
 #include <memory>
 #include <string>
@@ -150,13 +157,6 @@ struct convert_bool {
     bool operator()(T const & x) const { return bool(x); }
 };
 
-#if __cplusplus < 201402L
-namespace std {
-template <bool B, typename T = void>
-using enable_if_t = typename std::enable_if<B, T>::type;
-}
-#endif
-
 /* A type trait that checks whether an integral type T can be cast losslessly
    to an integral type U.
 
@@ -164,53 +164,23 @@ using enable_if_t = typename std::enable_if<B, T>::type;
    signedness, and the maximal permissible value of type T must be no greater
    than that of U. (We assume value ranges of signed types to be essentially
    symmetric around 0).
-
-   Example use:
-
-   template <typename T, integral_fits_t<T, long> = 0 >
-   void print(T v) {printf("%ld\n", (long) v);}
-   template <typename T, integral_fits_t<T, unsigned long> = 0 >
-   void print(T v) {printf("%lu\n", (unsigned long) v);}
 */
 
-/* Note: with gcc 9.2.1, a debug build can't instantiate the full check
- * "both integral + same sign + compatible maxval" lazily, and therefore
- * we get a warning. So we have to resort to an ugly workaround.
+/* Note: the full check
+ * "both integral + same sign + compatible maxval" cannot be evaluated lazily, so we need an ugly workaround.
  */
 
-template <typename T, typename U>
-struct integral_fits_pre_ {
-    static constexpr bool value = std::is_integral<T>::value && std::is_integral<U>::value &&
-                                  std::is_signed<T>::value == std::is_signed<U>::value;
-};
-
-template<bool pre_flag, typename T, typename U>
-struct integral_fits_post;
-
-template<typename T, typename U>
-struct integral_fits_post<true, T, U> {
+template <typename T, typename U, bool =
+                std::is_integral_v<T> && // E: Template argument for template t…
+                std::is_integral_v<U> && 
+                std::is_signed_v<T> == std::is_signed_v<U>>
+struct integral_fits_aux {
     static constexpr bool value = std::numeric_limits<T>::max() <= std::numeric_limits<U>::max();
 };
-template<typename T, typename U>
-struct integral_fits_post<false, T, U> {
-    static constexpr bool value = false;
-};
-
 template <typename T, typename U>
-struct integral_fits_ {
-    static constexpr bool value_pre = integral_fits_pre_<T, U>::value;
-    static constexpr bool value = integral_fits_post<value_pre, T, U>::value;
-};
-
-
-template<bool> struct integral_fits_final : std::false_type {};
-template<> struct integral_fits_final<true> : std::true_type { typedef bool type; };
-
+struct integral_fits_aux<T, U, false> : public std::false_type {};
 template <typename T, typename U>
-struct integral_fits : integral_fits_final<integral_fits_<T, U>::value> {};
-
-template <typename T, typename U >
-using integral_fits_t = typename integral_fits<T, U>::type;
+inline constexpr bool integral_fits_v = integral_fits_aux<T, U>::value;
 
 /* Use this for unique_ptr's of objects allocated with malloc() */
 template<typename T>
@@ -236,7 +206,7 @@ struct std::default_delete<FILE>
     void operator()(FILE* x) { fclose(x); }
 };
 
-typedef std::default_delete<FILE> delete_FILE;
+using delete_FILE = std::default_delete<FILE>;
 
 // these macros are not very useful. The added benefit to having all the
 // stuff expanded is minor, or even nonexistent.
@@ -343,6 +313,79 @@ static inline std::string join(std::vector<ItemType> const & items,
     return join(items.begin(), items.end(), delimiter, lambda);
 }
 
+namespace strip_details {
+    struct isspace {
+        bool operator()(char c) const {
+            return std::isspace(c);
+        }
+    };
+}
+
+template<typename T>
+inline std::string& lstrip(std::string &s, T f)
+{
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [f](int ch) {
+        return !f(ch);
+    }));
+    return s;
+}
+
+template<typename T>
+inline std::string & rstrip(std::string &s, T f)
+{
+    s.erase(std::find_if(s.rbegin(), s.rend(), [f](int ch) {
+        return !f(ch);
+    }).base(), s.end());
+    return s;
+}
+
+template<typename T>
+inline std::string & strip(std::string & s, T f)
+{
+    return lstrip(rstrip(s, f), f);
+}
+
+template<typename T>
+inline std::string lstrip(std::string const & s, T f)
+{
+    std::string t = s;
+    return lstrip(t, f);
+}
+
+template<typename T>
+inline std::string rstrip(std::string const & s, T f)
+{
+    std::string t = s;
+    return rstrip(t, f);
+}
+
+template<typename T>
+inline std::string strip(std::string const & s, T f)
+{
+    std::string t = s;
+    return strip(t, f);
+}
+
+inline std::string& lstrip(std::string & s) {
+    return lstrip(s, strip_details::isspace());
+}
+inline std::string& rstrip(std::string & s) {
+    return rstrip(s, strip_details::isspace());
+}
+inline std::string& strip(std::string & s) {
+    return strip(s, strip_details::isspace());
+}
+inline std::string lstrip(std::string const & s) {
+    return lstrip(s, strip_details::isspace());
+}
+inline std::string rstrip(std::string const & s) {
+    return rstrip(s, strip_details::isspace());
+}
+inline std::string strip(std::string const & s) {
+    return strip(s, strip_details::isspace());
+}
+
+
 /* use this as: input_stream >> read_container(container, maximum_size)
  * or possibly: input_stream >> read_container(container)
  */
@@ -378,7 +421,7 @@ void checked_realloc(T * & var, size_t N)
         free(var);
         (var) = nullptr;
     } else {
-        T * p = (T *) realloc((var), (N) * sizeof(T));
+        auto * p = static_cast<T *>(realloc((var), (N) * sizeof(T)));
         if (!p && (var) != nullptr)
             free((var));
         ASSERT_ALWAYS(p != nullptr);
@@ -404,5 +447,48 @@ struct decomposed_path : public std::vector<std::string> {
     bool is_absolute() const { return !is_relative(); }
     std::string extension() const;
 };
+
+template<typename T, typename U>
+double double_ratio(T const & t, U const & u)
+{
+    return static_cast<double>(t) / static_cast<double>(u);
+}
+
+template<int N>
+struct expect_s
+{
+    const char * s;
+    explicit expect_s(const char s0[N]) : s(s0) {}
+};
+
+template<int N>
+static expect_s<N> expect(char const (&s0)[N]) { return expect_s<N> { s0 }; }
+
+template<int N>
+static std::istream& operator>>(std::istream& is, expect_s<N> const & e)
+{
+    char t[N];
+    is.get(t, N);  // side-
+    if (strcmp(t, e.s) != 0)
+        is.setstate(std::ios::failbit);
+    return is;
+}
+
+struct expect_string {
+    std::string s;
+};
+
+static inline expect_string expect(std::string const & s) { return { s }; }
+
+
+static inline std::istream& operator>>(std::istream & is, expect_string const & e)
+{
+    if(!std::equal(std::begin(e.s), std::end(e.s), std::istreambuf_iterator<char>{is})) {
+        is.setstate(is.rdstate() | std::ios::failbit);
+    }
+    return is;
+}
+
+
 
 #endif	/* CADO_UTILS_CXX_HPP */

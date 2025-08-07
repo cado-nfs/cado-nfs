@@ -25,21 +25,15 @@ And then the following commands produce an html report in $PWD/coverage,
 provided gcovr is installed.
 
 ```
-    COV=1 make cmake
-    COV=1 make -j8
-    eval $(COV=1 make show)
-    C=coverage-report
-    commit=$(git rev-parse --short=8 HEAD)
-    commit_ref="https://gitlab.inria.fr/cado-nfs/cado-nfs/-/commit/$commit"
-    (cd $build_tree ; time gcovr --merge-mode-functions=separate -r $src_tree --json $src_tree/${C}-base.json)
-    COV=1 ./cado-nfs.py 90377629292003121684002147101760858109247336549001090677693
-    (cd $build_tree ; time gcovr --merge-mode-functions=separate -r $src_tree --json $src_tree/${C}-app.json)
-    rm -rf coverage 2>/dev/null || : ; mkdir coverage
-    gcovr --merge-mode-functions=separate -a ${C}-base.json -a ${C}-app.json --html-title "Coverage for commit <a href=\"$commit_ref\">$commit</a>" --html-nested coverage/coverage.html --print-summary
-    xdg-open coverage/coverage.html
+    COV=1 make -j8 all all_test_dependencies && COV=1 scripts/cov.sh -R numbertheory
 ```
+
+In the line above, `-R numbertheory` can be replaced by anything you see
+fit and that restricts the test breadth in order to focus on what you're
+working on exactly. You can also run `cov.sh` alone, or perhaps `cov.sh
+-j8`, in order to run all tests.
 
 How to visualize the automatic coverage reports
 -----------------------------------------------
 
-Simple: follow this link: [![coverage report](https://gitlab.inria.fr/cado-nfs/cado-nfs/badges/master/coverage.svg)](https://gitlab.inria.fr/cado-nfs/cado-nfs/-/jobs/artifacts/master/file/coverage/index.html?job=merge+coverage+tests) (for the master branch).
+Simple: follow this link: [![coverage report](https://gitlab.inria.fr/cado-nfs/cado-nfs/badges/master/coverage.svg)](https://gitlab.inria.fr/cado-nfs/cado-nfs/-/jobs/artifacts/master/file/coverage/lcov/index.html?job=merge+coverage+tests) (for the master branch).

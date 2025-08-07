@@ -367,7 +367,7 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,(X),(
 #endif
 
 #ifndef ATTRIBUTE_NODISCARD
-#if defined(__cplusplus) && __cplusplus >= 202002L
+#if defined(__cplusplus)
 #define ATTRIBUTE_NODISCARD [[nodiscard]]
 #else
 #define ATTRIBUTE_NODISCARD
@@ -541,16 +541,6 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,(X),(
 #ifndef CADO_STRINGIZE
 #define CADO_STRINGIZE_(x) #x
 #define CADO_STRINGIZE(x) CADO_STRINGIZE_(x)
-#endif
-
-#ifdef __cplusplus
-#if __cplusplus < 202002L
-#define TEMPLATE_ENABLED_ON_TEMPLATE_ARG(decl, cond)    \
-    template<decl, typename = typename std::enable_if< cond >::type >
-#else
-#define TEMPLATE_ENABLED_ON_TEMPLATE_ARG(decl, cond)    \
-    template<decl> requires (cond)
-#endif
 #endif
 
 #endif	/* CADO_MACROS_H */

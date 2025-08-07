@@ -1,92 +1,98 @@
 #ifndef CADO_LAS_TODO_LIST_HPP
 #define CADO_LAS_TODO_LIST_HPP
 
-#include <cstdint>            // for uint64_t, UINT64_MAX
-#include <cstdio>             // for FILE, NULL, size_t
+#include <cstdint>
+#include <cstdio>
 #include <climits>
 
-#include <algorithm>
-#include <list>                // for list
+#include <fstream>
+#include <vector>
 #include <memory>
-#include <mutex>               // for mutex, lock_guard
-#include <stack>               // for swap, stack
+#include <mutex>
+#include <stack>
 
-#include <gmp.h>               // for gmp_randstate_t
+#include <gmp.h>
 
 #include "cxx_mpz.hpp"
+#include "gmp_aux.h"
 #include "cado_poly.h"
-#include "las-todo-entry.hpp"  // for las_todo_entry
+#include "special-q.hpp"
+#include "galois_action.hpp"
 
 struct cxx_param_list;
 
-class las_todo_list : private std::stack<las_todo_entry> {
+class las_todo_list : private std::stack<special_q> {
     std::mutex mm;
+
+    /* We use these flags to decide whether some extra work may appear or
+     * not. (in the descent case)
+     */
+    public:
+    /* the "created" data member is (almost) only used internally in
+     * push_unlocked, and checked in feed_qrange and feed_qlist (to
+     * compare against nq_max).
+     */
+    size_t created = 0;
+    // size_t pulled = 0;
+    // size_t done = 0;
+    size_t nq_max = SIZE_MAX;
+
+    bool print_todo_list_flag = false;
+    private:
+
+
     cxx_cado_poly cpoly;
-    typedef std::stack<las_todo_entry> super;
-    /* "history" is append-only: everything we pop from the stack goes
-     * here, and lives until the destruction */
-    std::list<las_todo_entry> history;
-    unsigned int nq_max = UINT_MAX;
+    cxx_gmp_randstate rstate;
+
+    typedef std::stack<special_q> super;
+
     int random_sampling = 0;
     cxx_mpz q0;
     cxx_mpz q1;
-    const char * galois = nullptr;        /* Used to skip some primes */
+    galois_action galois;        /* Used to skip some primes */
     std::unique_ptr<std::ifstream> todo_list_fd;
     bool feed_qrange(gmp_randstate_t);
     bool feed_qlist();
-    void push_withdepth_unlocked(cxx_mpz const & p, cxx_mpz const & r, int side, int depth, int iteration = 0)
+
+    void push_unlocked(special_q const & q, special_q const & = {})
     {
-        super::push(las_todo_entry(p, r, side, depth, iteration));
+        super::emplace(q);
+        created++;
     }
-    void push_unlocked(cxx_mpz const & p, cxx_mpz const & r, int side)
-    {
-        push_withdepth_unlocked(p, r, side, 0);
-    }
-    public:
+
+    /* for the most part, the sqside shouldn't be considered relevant,
+     * since the todo list can provide special-q's on either side.
+     */
     int sqside = -1;
+    public:
     /* For composite special-q: note present both in las_info and
      * las_todo_list */
     bool allow_composite_q = false;
-    bool print_todo_list_flag = false;
     uint64_t qfac_min = 1024;
     uint64_t qfac_max = UINT64_MAX;
 
-    unsigned int nq_pushed = 0;
-
+    public:
     /*{{{*/
-    size_t size() const { return super::size(); }
-    void push_withdepth(cxx_mpz const & p, cxx_mpz const & r, int side, int depth, int iteration = 0)
+    using super::size;
+    void push(special_q const & q, special_q const & parent = {})
     {
         const std::lock_guard<std::mutex> foo(mm);
-        push_withdepth_unlocked(p, r, side, depth, iteration);
+        push_unlocked(q, parent);
     }
-    void push(cxx_mpz const & p, cxx_mpz const & r, int side)
-    {
-        push_withdepth(p, r, side, 0);
-    }
-    void push_closing_brace(int depth)
-    {
+    bool empty() {
         const std::lock_guard<std::mutex> foo(mm);
-        super::push(las_todo_entry(-1, depth));
+        return super::empty();
     }
-    las_todo_entry pop()
-    {
-        const std::lock_guard<std::mutex> foo(mm);
-        las_todo_entry r = super::top();
-        super::pop();
-        return r;
-    }
+    private:
+    std::vector<uint64_t> next_legitimate_specialq(cxx_mpz & r, cxx_mpz const & s, unsigned long diff) const;
+    public:
 
-    static int is_closing_brace(las_todo_entry const & doing)
-    {
-        return doing.side < 0;
-    }
     /* }}} */
 
-    bool is_random() const { return random_sampling != 0; }
+    special_q feed_and_pop();
 
-    bool feed(gmp_randstate_t rstate);
-    las_todo_entry * feed_and_pop(gmp_randstate_t rstate);
+    public:
+
     las_todo_list(las_todo_list const &) = delete;
     las_todo_list(las_todo_list &&) = delete;
     las_todo_list& operator=(las_todo_list const &) = delete;
@@ -95,19 +101,11 @@ class las_todo_list : private std::stack<las_todo_entry> {
 
     las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl);
 
-    super save() {
-        const std::lock_guard<std::mutex> foo(mm);
-        return *this; /* NOLINT(cppcoreguidelines-slicing) */
-    }
-    void restore(super && x) {
-        const std::lock_guard<std::mutex> foo(mm);
-        std::swap((super&)*this, x);
-    }
-
+    public:
     static void configure_switches(cxx_param_list & pl);
     static void declare_usage(cxx_param_list & pl);
 
-    void print_todo_list(cxx_param_list & pl, gmp_randstate_ptr, int nthreads = 1) const;
+    void print_todo_list(cxx_param_list & pl, int nthreads = 1) const;
 };
 
 

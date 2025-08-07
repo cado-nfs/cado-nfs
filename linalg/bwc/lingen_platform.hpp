@@ -1,7 +1,7 @@
 #ifndef CADO_LINGEN_PLATFORM_HPP
 #define CADO_LINGEN_PLATFORM_HPP
 
-#include <cstddef>      // for size_t
+#include <cstddef>
 #include "select_mpi.h"
 struct cxx_param_list;
 

@@ -1,14 +1,22 @@
 #include "cado.h" // IWYU pragma: keep
-#include <cstdint>                                 // for SIZE_MAX
-#include <cstdio>                                  // for fprintf, stderr
+
+#include <cstdint>
+#include <cstdio>
+
+#include "lingen_fft_select.hpp"
 #include "lingen_mul_substeps.hpp"
 #include "lingen_matpoly_ft.hpp"
 #include "lingen_matpoly_bigmatpoly_ft_common.hpp"
+
 template <typename T, typename fft_type> struct OP_CTX;
 
-template<typename fft_type> struct OP_CTX<matpoly, fft_type> : public OP_CTX_base<matpoly> {
+template<typename fft_type>
+struct OP_CTX<matpoly<is_binary_fft<fft_type>::value>, fft_type>
+    : public OP_CTX_base<matpoly<is_binary_fft<fft_type>::value>>
+{
     tree_stats & stats;
-    typedef matpoly T;
+    static constexpr bool is_binary = is_binary_fft<fft_type>::value;
+    typedef matpoly<is_binary> T;
     typedef fft_type FFT;
     template<typename... Args>
     OP_CTX(tree_stats & stats, Args&&... args) : OP_CTX_base<T>(args...), stats(stats) {}
@@ -19,13 +27,16 @@ template<typename fft_type> struct OP_CTX<matpoly, fft_type> : public OP_CTX_bas
     int mesh_inner_size() const { return 1; }
     static const bool uses_mpi = false;
     void mesh_checks() const { }
+    using OP_CTX_base<matpoly<is_binary>>::a;
+    using OP_CTX_base<matpoly<is_binary>>::b;
+    using OP_CTX_base<matpoly<is_binary>>::c;
     void alloc_c_if_needed(size_t size) {
         if (c.m != a.m || c.n != a.n || c.capacity() != size)
             c = T(a.ab, a.m, b.n, size);
     }
-    matpoly const & a_local()const  { return a; }
-    matpoly const & b_local() const { return b; }
-    matpoly & c_local() { return c; }
+    T const & a_local()const  { return a; }
+    T const & b_local() const { return b; }
+    T & c_local() { return c; }
     void a_allgather(void *, int) const {}
     void b_allgather(void *, int) const {}
     template<typename OP> void doit(OP & op, lingen_call_companion::mul_or_mp_times * M) {
@@ -56,11 +67,11 @@ template<typename fft_type> struct OP_CTX<matpoly, fft_type> : public OP_CTX_bas
         }
         try {
             typename matpoly_ft<fft_type>::memory_guard const dummy(ram);
-            mp_or_mul<OP_CTX<matpoly, fft_type>, OP>(*this, op, M)();
+            mp_or_mul<OP_CTX<T, fft_type>, OP>(*this, op, M)();
         } catch (memory_pool_exception const & e) {
             fprintf(stderr, "Memory pool exception: %s\n", e.what());
             typename matpoly_ft<fft_type>::memory_guard const dummy(SIZE_MAX);
-            mp_or_mul<OP_CTX<matpoly, fft_type>, OP>(*this, op, M)();
+            mp_or_mul<OP_CTX<T, fft_type>, OP>(*this, op, M)();
         }
     }
 };
@@ -68,20 +79,21 @@ template<typename fft_type> struct OP_CTX<matpoly, fft_type> : public OP_CTX_bas
 template<typename fft_type> typename matpoly_ft<fft_type>::memory_pool_type matpoly_ft<fft_type>::memory;
 
 template<typename fft_type>
-matpoly matpoly_ft<fft_type>::mp_caching_adj(tree_stats & stats, matpoly const & a, matpoly const & b, unsigned int adj, lingen_call_companion::mul_or_mp_times * M)/*{{{*/
+auto matpoly_ft<fft_type>::mp_caching_adj(tree_stats & stats, matpoly<is_binary> const & a, matpoly<is_binary> const & b, unsigned int adj, lingen_call_companion::mul_or_mp_times * M) -> matpoly<is_binary>
+    /*{{{*/
 {
-    op_mp<fft_type> op(a, b, adj);
-    matpoly c;
-    OP_CTX<matpoly, fft_type>(stats, c, a, b).doit(op, M);
+    op_mp<is_binary, fft_type> op(a, b, adj);
+    matpoly<is_binary> c;
+    OP_CTX<matpoly<is_binary>, fft_type>(stats, c, a, b).doit(op, M);
     return c;
 } /* }}} */
 
 template<typename fft_type>
-matpoly matpoly_ft<fft_type>::mul_caching_adj(tree_stats & stats, matpoly const & a, matpoly const & b, unsigned int adj, lingen_call_companion::mul_or_mp_times * M)/*{{{*/
+auto matpoly_ft<fft_type>::mul_caching_adj(tree_stats & stats, matpoly<is_binary> const & a, matpoly<is_binary> const & b, unsigned int adj, lingen_call_companion::mul_or_mp_times * M) -> matpoly<is_binary>/*{{{*/
 {
-    op_mul<fft_type> op(a, b, adj);
-    matpoly c;
-    OP_CTX<matpoly, fft_type>(stats, c, a, b).doit(op, M);
+    op_mul<is_binary, fft_type> op(a, b, adj);
+    matpoly<is_binary> c;
+    OP_CTX<matpoly<is_binary>, fft_type>(stats, c, a, b).doit(op, M);
     return c;
 } /* }}} */
 

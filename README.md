@@ -2,7 +2,10 @@
 The main page of the Cado-NFS source code is
 [https://gitlab.inria.fr/cado-nfs/cado-nfs](https://gitlab.inria.fr/cado-nfs/cado-nfs).
 If you're accessing the cado-nfs source from a different link, it may be
-an outdated fork.
+an outdated fork. (This being said, all commits to the
+`master` branch are automatically mirrored to the [cado-nfs project on
+GitHub](https://github.com/cado-nfs/cado-nfs), so the latter should be
+up-to-date as well.)
 
 [![pipeline status](https://gitlab.inria.fr/cado-nfs/cado-nfs/badges/master/pipeline.svg)](https://gitlab.inria.fr/cado-nfs/cado-nfs/-/pipelines?ref=master)
 [![coverage report](https://gitlab.inria.fr/cado-nfs/cado-nfs/badges/master/coverage.svg)](https://gitlab.inria.fr/cado-nfs/cado-nfs/-/jobs/artifacts/master/file/coverage/lcov/index.html?job=merge+coverage+tests)
@@ -63,20 +66,18 @@ perhaps does not.
 
  * Current FreeBSD is also routinely tested.
 
- * `x86_64` with icc 14, 15, 16, 17, and 18 did work once, but are not checked
-   regularly (cado-nfs uses C++11, which is not available with icc <=
-   14). Compilation with icc 19 has undergone more testing. Routine
-   checks use the ICC version that is provided by Intel's
+ * `x86_64` with icc used to work, but we switched to icx later on. Now
+   that cado-nfs requires C++20, icx 2023 or later is required.  Routine
+   checks use the icx version that is provided by Intel's
    [`intel/oneapi-hpckit:latest` docker
-   image](https://hub.docker.com/r/intel/oneapi-hpckit). As icc has
-   become icx, we now test with all icx versions.
+   image](https://hub.docker.com/r/intel/oneapi-hpckit).
 
  * Mac OS X is used for CI routine compilation checks, using the
    default compiler from XCode. All version from 10.5 onwards were part
    of the CI routine checks at some point in time, and worked
-   successfully. However we do not commit to continued support for old
-   versions. As of cado-nfs 2.3.0, Mac OS X 10.8+ should work. As of
-   cado-nfs 3.0.0, we expect that Mac OS X 10.12+ should work.
+   successfully. However we obviously do not commit to continued support
+   for old versions. Since C++20 is required, you need a fairly recent
+   XCode installation to compile cado-nfs.
 
  * Windows used to be partly supported, but this has been abandoned for
    some time now (see a longer note
@@ -99,21 +100,13 @@ Required software tools
    installed (`libgmp.so` under Linux) otherwise CADO-NFS might not
    compile.
  * As of `cado-nfs-3.0.0`, a C/C++ compiler and C/C++ standard library that
-   conform to the C99 and C++11 standards are required. (cado-nfs-2.3.0
-   only needed C99 and C++98).  The dependency on C++11 is now
-   substantial enough that an "almost conformant" compiler is not
-   guaranteed to work.  The minimal required versions for various
-   compilers are as follows.  Not all old compiler versions are part of
-   our routine checks, so that a break for an old compiler is possible.
-   The only thing that we're quite certain of is that versions _older_
-   than below are a no-go.
-   * GCC: the minimal required version is >= 5
-   * LLVM Clang: the minimal required version is >= 4.0.0
-   * Apple Clang: the minimal required version is >= 6.0.0
-   * Intel ICC: the minimal required version is >= 15
+   conform to the C99 and C++20 standards are required.
+   * GCC: the minimal required version is >= 10
+   * LLVM Clang: the minimal required version is >= 12.0.0
+   * Apple Clang: the minimal required version is >= 16.0.0
+   * Intel ICX: the minimal required version is >= 2023
  * GNU make and CMake (`cmake 3.18` or later) for building.
- * Support for POSIX threads.
- * Python 3.6 or later is required, as well as a few fairly common
+ * Python 3.8 or later is required, as well as a few fairly common
    packages such as python3-requests and python3-flask. These are
    packaged with most software distributions, or alternatively you can
    install them via pip.  As a convenience means, we also provide the script

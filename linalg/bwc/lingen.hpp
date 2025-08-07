@@ -1,12 +1,14 @@
 #ifndef CADO_LINALG_BWC_LINGEN_HPP
 #define CADO_LINALG_BWC_LINGEN_HPP
 
-#include "lingen_bigmatpoly.hpp"          // for bigmatpoly, bigmatpoly_model
-#include "lingen_bmstatus.hpp"            // for bmstatus
-#include "lingen_matpoly_select.hpp"      // for matpoly, matpoly::memory_guard
+#include "lingen_bigmatpoly.hpp"
+#include "lingen_bmstatus.hpp"
+#include "lingen_matpoly_select.hpp"
 
-matpoly bw_lingen_single(bmstatus & bm, matpoly & E);
-bigmatpoly bw_biglingen_collective(bmstatus & bm, bigmatpoly & E);
+template<bool is_binary>
+matpoly<is_binary> bw_lingen_single(bmstatus<is_binary> & bm, matpoly<is_binary> & E);
 
+template<bool is_binary>
+bigmatpoly<is_binary> bw_biglingen_collective(bmstatus<is_binary> & bm, bigmatpoly<is_binary> & E);
 
 #endif	/* LINALG_BWC_LINGEN_HPP_ */

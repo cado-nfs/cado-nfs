@@ -8,6 +8,7 @@
 #include <limits>
 #include <memory>
 #include <stdexcept>
+#include <string>
 #include <type_traits>
 
 #include "mmap_allocator.hpp"
@@ -23,26 +24,24 @@ struct works_with_mmappable_vector : public std::is_trivially_constructible<T>
 template<typename T, typename A = mmap_allocator_details::mmap_allocator<T>>
 class mmappable_vector : public A
 {
-    typedef mmappable_vector<T, A> self;
+    using self = mmappable_vector<T, A>;
     static_assert(
       works_with_mmappable_vector<T>::value,
       "mmap_allocator only works with types that are explicitly allowed");
 
     public:
-    typedef T value_type;
-    typedef A allocator_type;
-    typedef value_type& reference;
-    typedef const value_type& const_reference;
-    typedef typename std::allocator_traits<allocator_type>::pointer pointer;
-    typedef typename std::allocator_traits<allocator_type>::const_pointer
-      const_pointer;
-    typedef T* iterator;
-    typedef const T* const_iterator;
-    typedef std::reverse_iterator<iterator> reverse_iterator;
-    typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
-    typedef
-      typename std::iterator_traits<iterator>::difference_type difference_type;
-    typedef typename std::make_unsigned<difference_type>::type size_type;
+    using value_type = T;
+    using allocator_type = A;
+    using reference = value_type&;
+    using const_reference = const value_type&;
+    using pointer = typename std::allocator_traits<allocator_type>::pointer;
+    using const_pointer = typename std::allocator_traits<allocator_type>::const_pointer;
+    using iterator = T*;
+    using const_iterator = const T*;
+    using reverse_iterator = std::reverse_iterator<iterator>;
+    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+    using difference_type = typename std::iterator_traits<iterator>::difference_type;
+    using size_type = std::make_unsigned_t<difference_type>;
 
     private:
     pointer _start;
@@ -104,11 +103,9 @@ class mmappable_vector : public A
         return *this;
     }
 
-    template<typename Iter,
-             typename = typename std::is_convertible<
-               typename std::iterator_traits<Iter>::value_type,
-               value_type>::type>
+    template<typename Iter>
     mmappable_vector(Iter first, Iter last, A const& a = A())
+    requires std::is_convertible_v<typename std::iterator_traits<Iter>::value_type, value_type>
       : A(a)
     {
         range_initialize(
@@ -284,12 +281,12 @@ class mmappable_vector : public A
 
     /* Adding enable_if because really that only makes sense
      * with our allocator, no other */
-    typename std::enable_if<
-      std::is_same<mmap_allocator_details::mmap_allocator<T>, A>::value>::type
+    void
     mmap_file(const char* filename,
               mmap_allocator_details::access_mode mode,
               mmap_allocator_details::offset_type offset,
               mmap_allocator_details::size_type length)
+    requires std::is_same_v<mmap_allocator_details::mmap_allocator<T>, A>
     {
         if (get_allocator_ref().has_defined_mapping())
             throw mmap_allocator_details::mmap_allocator_exception(
@@ -298,19 +295,19 @@ class mmappable_vector : public A
         mmap(length);
     }
 
-    typename std::enable_if<
-      std::is_same<mmap_allocator_details::mmap_allocator<T>, A>::value>::type
+    void
     mmap_file(std::string const & filename,
               mmap_allocator_details::access_mode mode,
               mmap_allocator_details::offset_type offset,
               mmap_allocator_details::size_type length)
+    requires std::is_same_v<mmap_allocator_details::mmap_allocator<T>, A>
     {
         return mmap_file(filename.c_str(), mode, offset, length);
     }
 
-    typename std::enable_if<
-      std::is_same<mmap_allocator_details::mmap_allocator<T>, A>::value>::type
+    void
     munmap_file()
+    requires std::is_same_v<mmap_allocator_details::mmap_allocator<T>, A>
     {
         if (!get_allocator_ref().has_defined_mapping())
             throw mmap_allocator_details::mmap_allocator_exception(

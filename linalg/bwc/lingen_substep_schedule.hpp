@@ -152,25 +152,23 @@ struct lingen_substep_schedule {
     }
 };
 
-template<typename T> lingen_substep_schedule::fft_type_t encode_fft_type();
-template<> inline lingen_substep_schedule::fft_type_t encode_fft_type<void>()
-{
-    return lingen_substep_schedule::FFT_NONE;
-}
+template<typename T> struct encode_fft_type_details {
+    static constexpr lingen_substep_schedule::fft_type_t value = lingen_substep_schedule::FFT_NONE;
+};
 #ifndef LINGEN_BINARY
-template<> inline lingen_substep_schedule::fft_type_t encode_fft_type<fft_transform_info>()
-{
-    return lingen_substep_schedule::FFT_FLINT;
-}
+template<> struct encode_fft_type_details<fft_transform_info> {
+    static constexpr lingen_substep_schedule::fft_type_t value = lingen_substep_schedule::FFT_FLINT;
+};
 #else
-template<> inline lingen_substep_schedule::fft_type_t encode_fft_type<gf2x_cantor_fft_info>()
-{
-    return lingen_substep_schedule::FFT_CANTOR;
-}
-template<> inline lingen_substep_schedule::fft_type_t encode_fft_type<gf2x_ternary_fft_info>()
-{
-    return lingen_substep_schedule::FFT_TERNARY;
-}
+template<> struct encode_fft_type_details<gf2x_cantor_fft_info> {
+    static constexpr lingen_substep_schedule::fft_type_t value = lingen_substep_schedule::FFT_CANTOR;
+};
+template<> struct encode_fft_type_details<gf2x_ternary_fft_info> {
+    static constexpr lingen_substep_schedule::fft_type_t value = lingen_substep_schedule::FFT_TERNARY;
+};
 #endif
+template<typename T>
+inline constexpr lingen_substep_schedule::fft_type_t encode_fft_type = encode_fft_type_details<T>::value;
+
 
 #endif	/* LINGEN_SUBSTEP_SCHEDULE_HPP_ */

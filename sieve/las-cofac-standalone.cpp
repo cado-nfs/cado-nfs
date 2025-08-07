@@ -1,32 +1,32 @@
 #include "cado.h" // IWYU pragma: keep
 
 #ifndef SUPPORT_LARGE_Q
-#include <cinttypes> // for PRId64, PRIu64 // IWYU pragma: keep
+#include <cinttypes>
 #endif
 #include <cstddef>
 
-#include <array>                       // for array, array<>::value_type
-#include <mutex>                       // for lock_guard, mutex
-#include <vector>                      // for vector
+#include <array>
+#include <mutex>
+#include <vector>
 
-#include <gmp.h>                       // for mpz_srcptr, gmp_fprintf, mpz_c...
+#include <gmp.h>
 
-#include "ecm/batch.hpp"                   // for cofac_list
+#include "ecm/batch.hpp"
 #ifndef SUPPORT_LARGE_Q
 #include "gcd.h"
 #endif
 #ifdef SUPPORT_LARGE_Q
 #include "cxx_mpz.hpp"
 #endif
-#include "las-cofac-standalone.hpp"    // for cofac_standalone
-#include "las-cofactor.hpp"            // for factor_both_leftover_norms
-#include "las-coordinates.hpp"         // for convert_Nx_to_ab
-#include "las-siever-config.hpp"       // for siever_config::side_config
-#include "las-threads-work-data.hpp"   // for nfs_work_cofac
-#include "las-todo-entry.hpp"          // for las_todo_entry
-#include "las-where-am-i-proxy.hpp"    // for extern_trace_on_spot_ab
-#include "lock_guarded_container.hpp"  // for lock_guarded_container
-#include "relation.hpp"                // for relation
+#include "las-cofac-standalone.hpp"
+#include "las-cofactor.hpp"
+#include "las-coordinates.hpp"
+#include "las-siever-config.hpp"
+#include "las-threads-work-data.hpp"
+#include "special-q.hpp"
+#include "las-where-am-i-proxy.hpp"
+#include "lock_guarded_container.hpp"
+#include "relation.hpp"
 
 struct qlattice_basis; // IWYU pragma: keep
 
@@ -42,22 +42,20 @@ cofac_standalone::cofac_standalone() : a(0), b(0) {/*{{{*/
 #endif
 }/*}}}*/
 cofac_standalone::cofac_standalone(int nsides, int N, size_t x, int logI, qlattice_basis const & Q)
-    : S(std::max(nsides, 2), 0)
-    , norm(std::max(nsides, 2), 0)
-    , factors(std::max(nsides, 2))
-    , lps(std::max(nsides, 2))
+    : S(nsides, 0)
+    , norm(nsides, 0)
+    , factors(nsides)
+    , lps(nsides)
 {/*{{{*/
     convert_Nx_to_ab (a, b, N, x, logI, Q);
 #ifdef SUPPORT_LARGE_Q
     convert_Nx_to_abmpz (az, bz, N, x, logI, Q);
 #endif
-    if (nsides == 1)
-        norm[1] = 1UL;
 }/*}}}*/
 bool cofac_standalone::trace_on_spot() const {/*{{{*/
     return extern_trace_on_spot_ab(a, b);
 }/*}}}*/
-bool cofac_standalone::gcd_coprime_with_q(las_todo_entry const & E) const {/*{{{*/
+bool cofac_standalone::gcd_coprime_with_q(special_q const & E) const {/*{{{*/
     /* Since the q-lattice is exactly those (a, b) with
        a == rho*b (mod q), q|b  ==>  q|a  ==>  q | gcd(a,b) */
     /* In case of composite sq, have to check all factors... */
@@ -103,18 +101,15 @@ bool cofac_standalone::ab_coprime() const {/*{{{*/
 }/*}}}*/
 void cofac_standalone::print_as_survivor(FILE * f) {/*{{{*/
 #ifndef SUPPORT_LARGE_Q
-    gmp_fprintf(f, "%" PRId64 " %" PRIu64 " %Zd %Zd\n", a, b,
-            (mpz_srcptr) norm[0],
-            (mpz_srcptr) norm[1]);
+    gmp_fprintf(f, "%" PRId64 " %" PRIu64, a, b);
 #else
-    gmp_fprintf(f, "%Zd %Zd %Zd %Zd\n",
-            (mpz_srcptr) az,
-            (mpz_srcptr) bz,
-            (mpz_srcptr) norm[0],
-            (mpz_srcptr) norm[1]);
+    gmp_fprintf(f, "%Zd %Zd", (mpz_srcptr) az, (mpz_srcptr) bz);
 #endif
+    for (auto const & n: norm)
+        gmp_fprintf(f, " %Zd", (mpz_srcptr) n);
+    fprintf(f, "\n");
 }/*}}}*/
-relation cofac_standalone::get_relation(las_todo_entry const & doing) const {/*{{{*/
+relation cofac_standalone::get_relation(special_q const & doing) const {/*{{{*/
 #ifndef SUPPORT_LARGE_Q
     relation rel(a, b);
 #else
@@ -123,7 +118,7 @@ relation cofac_standalone::get_relation(las_todo_entry const & doing) const {/*{
 
     /* Note that we explicitly do not bother about storing r in
      * the relations below */
-    for (unsigned int side = 0; side < rel.sides.size(); side++) {
+    for (unsigned int side = 0; side < std::min(rel.sides.size(), factors.size()); side++) { // FIXME workaround for HARDCODED 2
         for (auto const& z : factors[side])
             rel.add(side, z, 0);
         for (auto const& z : lps[side])
@@ -139,12 +134,9 @@ relation cofac_standalone::get_relation(las_todo_entry const & doing) const {/*{
     rel.compress();
     return rel;
 }/*}}}*/
-void cofac_standalone::transfer_to_cofac_list(lock_guarded_container<cofac_list> & L, las_todo_entry const & doing) {/*{{{*/
+void cofac_standalone::transfer_to_cofac_list(lock_guarded_container<std::list<cofac_candidate>> & L) {/*{{{*/
     std::lock_guard<std::mutex> const foo(L.mutex());
-    /* "doing" must be an object that lives in the main todo list,
-     * and will stay alive until the end of the program. Yes, it's a
-     * bit dangerous. */
-    L.emplace_back(a, b, norm, &doing);
+    L.emplace_back(a, b, norm);
 #if 0
     /* make sure threads don't write the cofactor list at the
      * same time !!! */
@@ -155,11 +147,15 @@ void cofac_standalone::transfer_to_cofac_list(lock_guarded_container<cofac_list>
     pthread_mutex_unlock(&lock);
 #endif
 }/*}}}*/
-int cofac_standalone::factor_both_leftover_norms(nfs_work_cofac & wc) {/*{{{*/
+int cofac_standalone::factor_leftover_norms(nfs_work_cofac & wc) {/*{{{*/
     /* This proxies to las-cofactor.cpp */
-    return ::factor_both_leftover_norms(norm,
+    std::vector<unsigned long> Bs;
+    Bs.reserve(wc.sc.sides.size());
+    for (auto const & s: wc.sc.sides)
+        Bs.push_back(s.lim);
+    return ::factor_leftover_norms(norm,
             lps,
-            {{ wc.sc.sides[0].lim, wc.sc.sides.size() == 1 ? 0 : wc.sc.sides[1].lim }},
+            Bs,
             *wc.strategies);
 }/*}}}*/
 

@@ -71,23 +71,24 @@ static facul_status facul_aux(
     return todo.empty() ? FACUL_SMOOTH : FACUL_MAYBE;
 }
 
-/* This function tries to factor a pair of cofactors (N[0], N[1]) with
- * strategies. The returned facul_result objects (one for each input
- * number) will have the prime factors.
+/* This function tries to factor all the cofactors in the vector N with
+ * strategies. The returned facul_result objects (one for each input number)
+ * will have the prime factors.
  *
  * If we find composites, but not to the point of obtaining a complete
  * factorization, then they're not returned.
  */
 
 std::vector<facul_result>
-facul_both(std::vector<cxx_mpz> const & N, facul_strategies const & strategies)
+facul_all(std::vector<cxx_mpz> const & N, facul_strategies const & strategies)
 {
-    auto const nsides = int(N.size());
+    const size_t nsides = N.size();
 
-    ASSERT_ALWAYS(nsides == 2);
-    auto const & methods = strategies(
-            mpz_sizeinbase(N[0], 2),
-            mpz_sizeinbase(N[1], 2));
+    std::vector<unsigned int> sizes(N.size());
+    std::transform(N.cbegin(), N.cend(), sizes.begin(),
+                   [] (cxx_mpz const & n) { return n.bits(); });
+
+    auto const & methods = strategies(sizes);
 
     std::vector<facul_result> res(nsides, FACUL_NOT_SMOOTH);
 
@@ -97,19 +98,15 @@ facul_both(std::vector<cxx_mpz> const & N, facul_strategies const & strategies)
     fmt::print(stderr, join(N, " "));
 #endif
 
-    for(int side = 0 ; side < nsides ; side++) {
+    ASSERT_ALWAYS(nsides == strategies.B.size());
+    ASSERT_ALWAYS(nsides == strategies.BB.size());
+
+    for(size_t side = 0 ; side < nsides ; side++) {
         ASSERT_ALWAYS(mpz_sgn(N[side]) >= 0);
         if (N[side] == 1) {
             res[side].status = FACUL_SMOOTH;
             continue;
         }
-
-        /* if strategies.B is only a 1-element vector, then
-         * conf.sides.size()==1 and the N[1] that we got is just a
-         * placeholder 1. So these asserts should hold
-         */
-        ASSERT_ALWAYS(side < (int) strategies.B.size());
-        ASSERT_ALWAYS(side < (int) strategies.BB.size());
 
         if (mpz_get_d(N[side]) < strategies.BB[side]) {
             res[side].status = FACUL_SMOOTH;
@@ -184,14 +181,18 @@ facul_both(std::vector<cxx_mpz> const & N, facul_strategies const & strategies)
             continue;
         }
 
-        /* If both sides are smooth, we can exit the loop,
+        /* If all sides are smooth, we can exit the loop,
            otherwise we must continue with the next methods,
            since methods might be interleaved between side 0 and 1,
            thus we don't have an easy way to skip all methods for this side.
            We could do this with another representation, say methods[0][i]
            for side 0, 0 <= i < m, methods[1][j] for side 1, 0 <= j < n,
            and which_method[k] = {0, 1} for 0 <= k < m+n. */
-        if (res[0].status == FACUL_SMOOTH && res[1].status == FACUL_SMOOTH)
+        bool all_smooth = std::all_of(res.cbegin(), res.cend(),
+                                      [](facul_result const & r) {
+                                          return r.status == FACUL_SMOOTH;
+                                      });
+        if (all_smooth)
             return res;
 
         if (res[side].status == FACUL_SMOOTH)
@@ -235,7 +236,7 @@ facul_both(std::vector<cxx_mpz> const & N, facul_strategies const & strategies)
         }
     }
 
-    for(int side = 0 ; side < nsides ; side++) {
+    for(size_t side = 0 ; side < nsides ; side++) {
         if (res[side].status != FACUL_MAYBE)
             continue;
 
@@ -246,7 +247,7 @@ facul_both(std::vector<cxx_mpz> const & N, facul_strategies const & strategies)
             return res;
     }
 
-    for (int side = 0; side < nsides; side++) {
+    for (size_t side = 0; side < nsides; side++) {
         std::sort(res[side].primes.begin(), res[side].primes.end());
     }
 

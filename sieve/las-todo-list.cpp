@@ -1,51 +1,53 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cctype>          // for isspace, isdigit
-#include <cerrno>          // for errno
-#include <climits>         // for UINT_MAX
-#include <cstdarg>         // IWYU pragma: keep
+#include <cctype>
+#include <cerrno>
+#include <climits>
+#include <cstdarg>
 #include <cstdint>
 #include <cstdio>
-#include <cstdlib>         // for exit, EXIT_FAILURE, strtoul
-#include <cstring>         // for strerror
+#include <cstdlib>
+#include <cstring>
 
-#include <algorithm>       // for find, min
+#include <algorithm>
 #include <fstream>
 #include <sstream>
-#include <thread>                         // for thread
-#include <vector>          // for vector, vector<>::iterator
+#include <thread>
+#include <vector>
 #include <mutex>
 #include <string>
 #include <stdexcept>
 
-#include <gmp.h>           // for mpz_set, mpz_cmp_ui, mpz_t, mpz_cmp, gmp_r...
+#include <gmp.h>
+#include "fmt/base.h"
 #include "fmt/format.h"
 
 #include "cado_poly.h"
 #include "cxx_mpz.hpp"
 #include "gmp_aux.h"
-#include "las-galois.hpp"  // for skip_galois_roots
-#include "las-todo-entry.hpp"
+#include "las-galois.hpp"
+#include "special-q.hpp"
 #include "las-todo-list.hpp"
-#include "macros.h"        // for ASSERT_ALWAYS
+#include "macros.h"
 #include "mpz_poly.h"
 #include "params.h"
-#include "rootfinder.h" // mpz_poly_roots_ulong
-#include "verbose.h"    // verbose_output_print
+#include "rootfinder.h"
+#include "verbose.h"
 
 /* Put in r the smallest legitimate special-q value that it at least
  * s + diff (note that if s+diff is already legitimate, then r = s+diff
  * will result.
- * In case of composite sq, also store the factorization of r in fac_r
+ * In case of composite sq, also returns the factorization of r
  */
 
-static void next_legitimate_specialq(cxx_mpz & r, std::vector<uint64_t> & fac_r, cxx_mpz const & s, const unsigned long diff, las_todo_list const & L)
+std::vector<uint64_t> las_todo_list::next_legitimate_specialq(cxx_mpz & r, cxx_mpz const & s, const unsigned long diff) const
 {
-    if (L.allow_composite_q) {
+    std::vector<uint64_t> fac;
+    if (allow_composite_q) {
         unsigned long tfac[64];
         int const nf = next_mpz_with_factor_constraints(r, tfac,
-                s, diff, L.qfac_min, L.qfac_max);
-        fac_r.assign(tfac, tfac + nf);
+                s, diff, qfac_min, qfac_max);
+        fac.assign(tfac, tfac + nf);
     } else {
         mpz_add_ui(r, s, diff);
         /* mpz_nextprime() returns a prime *greater than* its input argument,
@@ -53,12 +55,7 @@ static void next_legitimate_specialq(cxx_mpz & r, std::vector<uint64_t> & fac_r,
         mpz_sub_ui(r, r, 1);
         mpz_nextprime(r, r);
     }
-}
-
-static void next_legitimate_specialq(cxx_mpz & r, cxx_mpz const & s, const unsigned long diff, las_todo_list const & L)
-{
-    std::vector<uint64_t> t;
-    next_legitimate_specialq(r, t, s, diff, L);
+    return fac;
 }
 
 void las_todo_list::configure_switches(cxx_param_list & pl)
@@ -73,6 +70,7 @@ void las_todo_list::declare_usage(cxx_param_list & pl)
     param_list_decl_usage(pl, "q0",   "left bound of special-q range");
     param_list_decl_usage(pl, "q1",   "right bound of special-q range");
     param_list_decl_usage(pl, "rho",  "sieve only root r mod q0");
+    param_list_decl_usage(pl, "seed", "Use this seed for random state seeding (currently used only by --random-sample)");
     param_list_decl_usage(pl, "random-sample", "Sample this number of special-q's at random, within the range [q0,q1]");
     param_list_decl_usage(pl, "nq", "Process this number of special-q's and stop");
     param_list_decl_usage(pl, "todo", "provide file with a list of special-q to sieve instead of qrange");
@@ -83,17 +81,24 @@ void las_todo_list::declare_usage(cxx_param_list & pl)
 }
 
 las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
-    : cpoly(cpoly)
+    : cpoly(cpoly), galois(param_list_lookup_string(pl, "galois"))
 {
-    if (param_list_parse_uint(pl, "random-sample", &nq_max)) {
+    unsigned long seed = 0;
+    if (param_list_parse_ulong(pl, "seed", &seed))
+        gmp_randseed_ui(rstate, seed);
+
+    if (param_list_parse(pl, "random-sample", nq_max)) {
         random_sampling = 1;
-    } else if (param_list_parse_uint(pl, "nq", &nq_max)) {
+        if (param_list_parse(pl, "nq", nq_max)) {
+            fmt::print(stderr, "# Warning: both options -nq and -random-sample found. Limiting the number of generated primes to {}\n", nq_max);
+        }
+    } else if (param_list_parse(pl, "nq", nq_max)) {
         if (param_list_lookup_string(pl, "rho")) {
             fprintf(stderr, "Error: argument -nq is incompatible with -rho\n");
             exit(EXIT_FAILURE);
         }
         if (param_list_lookup_string(pl, "q1"))
-            verbose_output_print(0, 1, "# Warning: argument -nq takes priority over -q1 ; -q1 ignored\n");
+            verbose_output_print(0, 1, "# Warning: arguments nq and q1 will both limit the q range\n");
     }
 
     sqside = cpoly->nb_polys == 1 ? 0 : 1;
@@ -125,8 +130,6 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
         param_list_parse_uint64(pl, "qfac-max", &qfac_max);
     }
 
-    galois = param_list_lookup_string(pl, "galois");
-
     if (allow_composite_q && galois) {
         fprintf(stderr, "-galois and -allow-compsq are incompatible options at the moment");
         exit(EXIT_FAILURE);
@@ -149,25 +152,24 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
     cxx_gmp_randstate rstate;
 
     if (mpz_cmp_ui(q1, 0) != 0) {
-        next_legitimate_specialq(q0, q0, 0, *this);
+        next_legitimate_specialq(q0, q0, 0);
     } else {
         /* We don't have -q1. If we have -rho, we sieve only <q0,
          * rho>. */
-        cxx_mpz t;
-        if (param_list_parse_mpz(pl, "rho", (mpz_ptr) t)) {
+        cxx_mpz rho;
+        if (param_list_parse(pl, "rho", rho)) {
             cxx_mpz q0_cmdline = q0;
-            std::vector<uint64_t> fac_q;
-            next_legitimate_specialq(q0, fac_q, q0, 0, *this);
+            auto fac_q = next_legitimate_specialq(q0, q0, 0);
             if (mpz_cmp(q0, q0_cmdline) != 0) {
                 fprintf(stderr, "Error: q0 is not a legitimate special-q\n");
                 exit(EXIT_FAILURE);
             }
             std::vector<cxx_mpz> roots = mpz_poly_roots(cpoly->pols[sqside], q0, fac_q, rstate);
-            if (std::find(roots.begin(), roots.end(), t) == roots.end()) {
+            if (std::find(roots.begin(), roots.end(), rho) == roots.end()) {
                 fprintf(stderr, "Error: rho is not a root modulo q0\n");
                 exit(EXIT_FAILURE);
             }
-            push_unlocked(q0, t, sqside);
+            push_unlocked(special_q(q0, rho, sqside));
             /* Set empty interval [q0 + 1, q0] as special-q interval */
             mpz_set(q1, q0);
             mpz_add_ui (q0, q0, 1);
@@ -175,8 +177,8 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
             /* If we don't have -rho, we sieve only q0, but all roots of it.
                If -q0 does not give a legitimate special-q value, advance to the
                next legitimate one. */
-            mpz_set(t, q0);
-            next_legitimate_specialq(q0, q0, 0, *this);
+            mpz_set(rho, q0);
+            next_legitimate_specialq(q0, q0, 0);
             mpz_set(q1, q0);
         }
     }
@@ -195,8 +197,7 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
         /* we need to know the limit of the q range */
         for(unsigned long i = 1 ; ; i++) {
             mpz_sub_ui(q, q1, i);
-            std::vector<uint64_t> fac_q;
-            next_legitimate_specialq(q, fac_q, q, 0, *this);
+            const std::vector<uint64_t> fac_q = next_legitimate_specialq(q, q, 0);
             if (mpz_cmp(q, q1) >= 0)
                 continue;
             if (!mpz_poly_roots(cpoly->pols[sqside], q, fac_q, rstate).empty())
@@ -214,9 +215,10 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
          * really.
          */
         if (mpz_cmp(q0, q1) > 0) {
-            gmp_fprintf(stderr, "Error: range [%Zd,%Zd[ contains no prime with roots mod f\n",
-                    (mpz_srcptr) q0,
-                    (mpz_srcptr) q1_orig);
+            fmt::print(stderr, 
+                    "Error: range [{},{}[ contains no prime with roots mod f\n",
+                    q0,
+                    q1_orig);
             exit(EXIT_FAILURE);
         }
     }
@@ -234,13 +236,15 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
  */
 bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
 {
+    /* XXX this is called with a lock held on this->mm, so care must be
+     * taken to call this->push_unlocked() and not this->push() !!
+     */
+
     /* If we still have entries in the stack, don't add more now */
     if (!super::empty())
         return true;
 
     mpz_poly_ptr f = cpoly->pols[sqside];
-
-    std::vector<uint64_t> fac_q;
 
     if (!random_sampling) {
         /* We're going to process the sq's and put them into the list
@@ -250,25 +254,16 @@ bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
 
         /* handy aliases */
         cxx_mpz & q = q0;
-        next_legitimate_specialq(q, fac_q, q, 0, *this);
+        auto fac_q = next_legitimate_specialq(q, q, 0);
 
-        struct q_r_pair {
-            cxx_mpz q;
-            cxx_mpz r;
-            q_r_pair(const mpz_t _q, const mpz_t _r) {
-                mpz_set(q, _q);
-                mpz_set(r, _r);
-            }
-        };
-
-        std::vector<q_r_pair> my_list;
+        std::vector<special_q> my_list;
 
         int nb_no_roots = 0;
         int nb_rootfinding = 0;
         /* If nq_max is specified, then q1 has no effect, even though it
          * has been set equal to q */
-        for ( ; (nq_max < UINT_MAX || mpz_cmp(q, q1) < 0) &&
-                nq_pushed + my_list.size() < nq_max ; )
+        for ( ; (nq_max < SIZE_MAX || mpz_cmp(q, q1) < 0) &&
+                created + my_list.size() < nq_max ; )
         {
             std::vector<cxx_mpz> roots = mpz_poly_roots(f, q, fac_q, rstate);
 
@@ -276,56 +271,53 @@ bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
             if (roots.empty()) nb_no_roots++;
 
             if (galois) {
-                size_t const nroots = skip_galois_roots(roots.size(), q, (mpz_t*)roots.data(), galois);
-                roots.erase(roots.begin() + nroots, roots.end());
+                skip_galois_roots(q, roots, galois);
             }
 
             for (auto const & r : roots)
-                my_list.emplace_back(q, r);
+                my_list.emplace_back(q, r, sqside);
 
-            next_legitimate_specialq(q, fac_q, q, 1, *this);
+            fac_q = next_legitimate_specialq(q, q, 1);
         }
 
         if (nb_no_roots) {
-            verbose_output_vfprint(0, 1, gmp_vfprintf, "# polynomial has no roots for %d of the %d primes that were tried\n", nb_no_roots, nb_rootfinding);
+            verbose_fmt_print(0, 1, "# polynomial has no roots for {} of the {} primes that were tried\n", nb_no_roots, nb_rootfinding);
         }
 
         // Truncate to nq_max if necessary and push the sq in reverse
         // order, because they are processed via a stack (required for
         // the descent).
-        int push_here = my_list.size();
-        if (nq_max < UINT_MAX)
-            push_here = std::min(push_here, int(nq_max - nq_pushed));
-        for(int i = 0 ; i < push_here ; i++) {
-            nq_pushed++;
-            int const ind = push_here-i-1;
-            push_unlocked(my_list[ind].q, my_list[ind].r, sqside);
+        size_t push_here = my_list.size();
+        if (nq_max < SIZE_MAX)
+            push_here = std::min(push_here, nq_max - created);
+        for(size_t i = 0 ; i < push_here ; i++) {
+            size_t const ind = push_here-i-1;
+            push_unlocked(my_list[ind]);
         }
     } else { /* random sampling case */
         /* we care about being uniform here */
         cxx_mpz q;
         cxx_mpz diff;
         mpz_sub(diff, q1, q0);
-        ASSERT_ALWAYS(nq_pushed == 0 || nq_pushed == nq_max);
-	unsigned long const n = nq_max;
+        ASSERT_ALWAYS(created == 0 || created == nq_max);
         unsigned int spin = 0;
-        for ( ; nq_pushed < n ; ) {
+        for ( ; created < nq_max ; ) {
             /* try in [q0 + k * (q1-q0) / n, q0 + (k+1) * (q1-q0) / n[ */
             cxx_mpz q0l, q1l;
-	    /* we use k = n-1-nq_pushed instead of k=nq_pushed so that
+	    /* we use k = n-1-created instead of k=created so that
 	       special-q's are sieved in increasing order */
-	    unsigned long const k = n - 1 - nq_pushed;
+	    size_t const k = nq_max - 1 - created;
             mpz_mul_ui(q0l, diff, k);
             mpz_mul_ui(q1l, diff, k + 1);
-            mpz_fdiv_q_ui(q0l, q0l, n);
-            mpz_fdiv_q_ui(q1l, q1l, n);
+            mpz_fdiv_q_ui(q0l, q0l, nq_max);
+            mpz_fdiv_q_ui(q1l, q1l, nq_max);
             mpz_add(q0l, q0, q0l);
             mpz_add(q1l, q0, q1l);
 
             mpz_sub(q, q1l, q0l);
             mpz_urandomm(q, rstate, q);
             mpz_add(q, q, q0l);
-            next_legitimate_specialq(q, fac_q, q, 0, *this);
+            auto const fac_q = next_legitimate_specialq(q, q, 0);
             std::vector<cxx_mpz> roots = mpz_poly_roots(f, q, fac_q, rstate);
             if (roots.empty()) {
                 spin++;
@@ -337,11 +329,11 @@ bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
             }
             spin = 0;
             if (galois) {
-                size_t const nroots = skip_galois_roots(roots.size(), q, (mpz_t*)roots.data(), galois);
-                roots.erase(roots.begin() + nroots, roots.end());
+                skip_galois_roots(q, roots, galois);
             }
-            nq_pushed++;
-            push_unlocked(q, roots[gmp_urandomm_ui(rstate, roots.size())], sqside);
+            push_unlocked(special_q(q,
+                        roots[gmp_urandomm_ui(rstate, roots.size())],
+                        sqside));
         }
     }
 
@@ -357,8 +349,14 @@ bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
  */
 bool las_todo_list::feed_qlist()
 {
+    /* XXX this is called with a lock held on this->mm, so care must be
+     * taken to call this->push_unlocked() and not this->push() !!
+     */
     if (!super::empty())
         return true;
+
+    if (created == nq_max)
+        return false;
 
     std::string line;
     auto is_comment = [](std::string const & s) {
@@ -385,9 +383,7 @@ bool las_todo_list::feed_qlist()
     }
     if (!is || (!is.eof() && (is >> tail, !is_comment(tail))))
         throw std::runtime_error(
-                fmt::format(
-                    "parse error in todo file"
-                    " while reading {}", line));
+                fmt::format("parse error in todo file while reading {}", line));
     auto const & f = cpoly->pols[side];
     /* specifying the rational root as <0
      * means that it must be recomputed. Putting 0 does not have this
@@ -405,27 +401,17 @@ bool las_todo_list::feed_qlist()
     ASSERT_ALWAYS(p > 0);
     ASSERT_ALWAYS(r >= 0);
 
-    push_unlocked(p, r, side);
+    push_unlocked(special_q(p, r, side));
     return true;
 }
 
 
-bool las_todo_list::feed(gmp_randstate_t rstate)
-{
-    const std::lock_guard<std::mutex> foo(mm);
-    if (!super::empty())
-        return true;
-    if (todo_list_fd)
-        return feed_qlist();
-    else
-        return feed_qrange(rstate);
-}
-
 /* This exists because of the race condition between feed() and pop()
  */
-las_todo_entry * las_todo_list::feed_and_pop(gmp_randstate_t rstate)
+special_q las_todo_list::feed_and_pop()
 {
     const std::lock_guard<std::mutex> foo(mm);
+
     if (super::empty()) {
         if (todo_list_fd)
             feed_qlist();
@@ -433,15 +419,15 @@ las_todo_entry * las_todo_list::feed_and_pop(gmp_randstate_t rstate)
             feed_qrange(rstate);
     }
     if (super::empty())
-        return nullptr;
-    las_todo_entry const doing = super::top();
+        return {};
+    auto ret = super::top();
+    // if (bool(ret)) pulled++;
     super::pop();
-    history.push_back(doing);
-    return &history.back();
+    return ret;
 }
 /* }}} */
 
-void las_todo_list::print_todo_list(cxx_param_list & pl, gmp_randstate_ptr rstate, int nthreads) const
+void las_todo_list::print_todo_list(cxx_param_list & pl, int nthreads) const
 {
 
     if (random_sampling) {
@@ -453,7 +439,7 @@ void las_todo_list::print_todo_list(cxx_param_list & pl, gmp_randstate_ptr rstat
         nthreads = 1;
     }
 
-    std::vector<std::vector<las_todo_entry>> lists(nthreads);
+    std::vector<std::vector<special_q>> lists(nthreads);
 
     auto segment = [&, this](unsigned int i) {
         cxx_param_list pl2 = pl;
@@ -477,17 +463,14 @@ void las_todo_list::print_todo_list(cxx_param_list & pl, gmp_randstate_ptr rstat
             os << tmp;
             param_list_add_key(pl2, "q1", os.str().c_str(), PARAMETER_FROM_CMDLINE);
         }
+
         las_todo_list todo2(cpoly, pl2);
         for(;;) {
-            las_todo_entry * doing_p = todo2.feed_and_pop(rstate);
-            if (!doing_p) break;
-            las_todo_entry& doing(*doing_p);
+            auto doing = todo2.feed_and_pop();
+            if (!doing) break;
             if (nthreads == 1) {
-                verbose_output_vfprint(0, 1, gmp_vfprintf,
-                        "%d %Zd %Zd\n",
-                        doing.side,
-                        (mpz_srcptr) doing.p,
-                        (mpz_srcptr) doing.r);
+                verbose_fmt_print(0, 1, "{} {} {}\n",
+                        doing.side, doing.p, doing.r);
             } else {
                 lists[i].push_back(doing);
             }
@@ -495,9 +478,10 @@ void las_todo_list::print_todo_list(cxx_param_list & pl, gmp_randstate_ptr rstat
     };
 
     if (nthreads > 1) {
-        verbose_output_vfprint(0, 1, gmp_vfprintf,
-                "# Collecting the todo list in memory from q0=%Zd to q1=%Zd using %d threads\n",
-                (mpz_srcptr) q0, (mpz_srcptr) q1, nthreads);
+        verbose_fmt_print(0, 1,
+                "# Collecting the todo list in memory"
+                " from q0={} to q1={} using {} threads\n",
+                q0, q1, nthreads);
     }
 
     std::vector<std::thread> subjobs;
@@ -507,11 +491,8 @@ void las_todo_list::print_todo_list(cxx_param_list & pl, gmp_randstate_ptr rstat
     for(auto & t : subjobs) t.join();
     for(auto const & v : lists) {
         for(auto const & doing : v) {
-            verbose_output_vfprint(0, 1, gmp_vfprintf,
-                    "%d %Zd %Zd\n",
-                    doing.side,
-                    (mpz_srcptr) doing.p,
-                    (mpz_srcptr) doing.r);
+            verbose_fmt_print(0, 1, "{} {} {}\n",
+                    doing.side, doing.p, doing.r);
         }
     }
 }

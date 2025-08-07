@@ -1,12 +1,12 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cstdlib>             // for free
+#include <cstdlib>
 #include <cstdio>
 
-#include <gmp.h>               // for mpz_srcptr, gmp_asprintf
+#include <gmp.h>
 
 #include "las-dumpfile.hpp"
-#include "las-todo-entry.hpp"  // for las_todo_entry
+#include "special-q.hpp"
 #include "macros.h"
 
 dumpfile_t::~dumpfile_t() {
@@ -17,7 +17,7 @@ void dumpfile_t::close() {
     if (f) fclose(f);
 }
 
-void dumpfile_t::open(const char *filename_stem, las_todo_entry const & doing, int side)
+void dumpfile_t::open(const char *filename_stem, special_q const & doing, int side)
 {
     ASSERT_ALWAYS(!f);
     if (filename_stem != NULL) {

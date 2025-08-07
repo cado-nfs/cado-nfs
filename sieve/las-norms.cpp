@@ -1,38 +1,38 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cinttypes>              // for PRId64, PRIu32
+#include <cinttypes>
 #include <cstdint>
-#include <climits>                // for UCHAR_MAX
-#include <cstdlib>                // for free, malloc, abs
-#include <cstring>                // for memset, size_t, NULL
-#include <cmath>                  // for fabs, log2, sqrt, pow, trunc, ceil
-#include <cstdarg>             // IWYU pragma: keep
+#include <climits>
+#include <cstdlib>
+#include <cstring>
+#include <cmath>
+#include <cstdarg>
 
-#include <algorithm>              // for min, max
+#include <algorithm>
 #include <array>
-#include <iomanip>                // for operator<<, setprecision
+#include <iomanip>
 #include <ios>
-#include <sstream>                // IWYU pragma: keep
+#include <sstream>
 #include <string>
-#include <utility>                // for swap, pair
+#include <utility>
 
-#include <gmp.h> // IWYU pragma: keep // for gmp_vfprintf, mpz_srcptr, ...
+#include <gmp.h>
 #include "fmt/base.h"
 
 #include "cado_poly.h"
 #include "cxx_mpz.hpp"
 #include "fb-types.hpp"
-#include "las-config.h"           // for LOG_BUCKET_REGION, LOGNORM_GUARD_BITS
+#include "las-config.h"
 #include "las-norms.hpp"
-#include "las-qlattice.hpp"       // for qlattice_basis
-#include "las-siever-config.hpp"  // for siever_config::side_config, siever_...
-#include "las-todo-entry.hpp"     // for las_todo_entry
+#include "las-qlattice.hpp"
+#include "las-siever-config.hpp"
+#include "special-q.hpp"
 #include "logapprox.hpp"
 #include "macros.h"
 #include "mpz_poly.h"
 #include "polynomial.hpp"
-#include "rho.h"        // dickman_rho_local
-#include "verbose.h"    // verbose_output_print
+#include "rho.h"
+#include "verbose.h"
 
 using namespace std;
 
@@ -966,17 +966,13 @@ double sieve_range_adjust::estimate_yield_in_sieve_area(mat<int> const& shuffle,
             if (j == 0 || j == ny/2) weight /= 2;
             verbose_output_print(0, 4, "# %d %d (%.2f) %.1f %.1f", i, j, weight, xys[0], xys[1]);
 
-            double sprod = 0;
-            double p0 = 1;
+            double sprod = 1;
             for(int side = 0 ; side < nsides ; side++) {
                 double const z = fijd[side].eval(xys[0], xys[1]);
                 double const a = log2(fabs(z));
                 double const d = dickman_rho_local(a/conf.sides[side].lpb, fabs(z));
                 verbose_output_print(0, 4, " %d %e %e", side, z, d);
-                if (side == 0)
-                    p0 = d;
-                else
-                    sprod += p0 * d;
+                sprod *= d;
             }
             verbose_output_print(0, 4, " %e\n", sprod);
 

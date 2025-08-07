@@ -682,7 +682,7 @@ void mpz_poly_realloc(mpz_poly_ptr f, unsigned int nc)
     if (f->alloc < nc) {
         checked_realloc(f->_coeff, nc);
         for (unsigned int i = f->alloc; i < nc; i++)
-            mpz_init(f->_coeff[i]);
+            mpz_init_set_ui(f->_coeff[i], 0);
         f->alloc = nc;
     }
 }
@@ -1598,88 +1598,106 @@ void mpz_poly_translation(mpz_poly_ptr ft, mpz_poly_srcptr f, mpz_srcptr k)
             mpz_addmul(ft->_coeff[j], ft->_coeff[j + 1], k);
 }
 
-/* Set fr = f + k * x^t * g such that t+deg(g) <= deg(f) and t >= 0 (those two
- * assumptions are not checked). fr and f can be the same poly */
+/* Set fr = f + k * x^t * g, with t >= 0
+ * fr and f can be the same poly */
 void mpz_poly_rotation(mpz_poly_ptr fr, mpz_poly_srcptr f, mpz_poly_srcptr g,
                        mpz_srcptr k, int t)
 {
     mpz_poly_set(fr, f);
+    mpz_poly_realloc(fr, t + g->deg + 1);
     for (int i = 0; i <= g->deg; i++)
         mpz_addmul(fr->_coeff[i + t], g->_coeff[i], k);
+    mpz_poly_cleandeg(fr, std::max(fr->deg, t + g->deg));
 }
 
 void mpz_poly_reverse_rotation(mpz_poly_ptr fr, mpz_poly_srcptr f,
                                mpz_poly_srcptr g, mpz_srcptr k, int t)
 {
     mpz_poly_set(fr, f);
+    mpz_poly_realloc(fr, t + g->deg + 1);
     for (int i = 0; i <= g->deg; i++)
         mpz_submul(fr->_coeff[i + t], g->_coeff[i], k);
+    mpz_poly_cleandeg(fr, std::max(fr->deg, t + g->deg));
 }
 
 void mpz_poly_rotation_si(mpz_poly_ptr fr, mpz_poly_srcptr f, mpz_poly_srcptr g,
                           long int k, int t)
 {
     mpz_poly_set(fr, f);
+    mpz_poly_realloc(fr, t + g->deg + 1);
     for (int i = 0; i <= g->deg; i++)
         mpz_addmul_si(fr->_coeff[i + t], g->_coeff[i], k);
+    mpz_poly_cleandeg(fr, std::max(fr->deg, t + g->deg));
 }
 
 void mpz_poly_reverse_rotation_si(mpz_poly_ptr fr, mpz_poly_srcptr f,
                                   mpz_poly_srcptr g, long int k, int t)
 {
     mpz_poly_set(fr, f);
+    mpz_poly_realloc(fr, t + g->deg + 1);
     for (int i = 0; i <= g->deg; i++)
         mpz_submul_si(fr->_coeff[i + t], g->_coeff[i], k);
+    mpz_poly_cleandeg(fr, std::max(fr->deg, t + g->deg));
 }
 
 void mpz_poly_rotation_ui(mpz_poly_ptr fr, mpz_poly_srcptr f, mpz_poly_srcptr g,
                           unsigned long int k, int t)
 {
     mpz_poly_set(fr, f);
+    mpz_poly_realloc(fr, t + g->deg + 1);
     for (int i = 0; i <= g->deg; i++)
         mpz_addmul_ui(fr->_coeff[i + t], g->_coeff[i], k);
+    mpz_poly_cleandeg(fr, std::max(fr->deg, t + g->deg));
 }
 
 void mpz_poly_reverse_rotation_ui(mpz_poly_ptr fr, mpz_poly_srcptr f,
                                   mpz_poly_srcptr g, unsigned long int k, int t)
 {
     mpz_poly_set(fr, f);
+    mpz_poly_realloc(fr, t + g->deg + 1);
     for (int i = 0; i <= g->deg; i++)
         mpz_submul_ui(fr->_coeff[i + t], g->_coeff[i], k);
+    mpz_poly_cleandeg(fr, std::max(fr->deg, t + g->deg));
 }
 
-/* Set h = fr + k * x^t * g such that t+deg(g) <= deg(f) and t >= 0 (those two
- * assumptions are not checked). fr and f can be the same poly */
+/* Set h = fr + k * x^t * g with t >= 0 */
 void mpz_poly_rotation_int64(mpz_poly_ptr fr, mpz_poly_srcptr f,
                              mpz_poly_srcptr g, int64_t const k, int t)
 {
     mpz_poly_set(fr, f);
+    mpz_poly_realloc(fr, t + g->deg + 1);
     for (int i = 0; i <= g->deg; i++)
         mpz_addmul_int64(fr->_coeff[i + t], g->_coeff[i], k);
+    mpz_poly_cleandeg(fr, std::max(fr->deg, t + g->deg));
 }
 
-/* Set f = f + k * g such that deg(g) <= deg(f) (this assumption is not
-   checked). */
+/* Set f = f + k * g */
 void mpz_poly_addmul_si(mpz_poly_ptr f, mpz_poly_srcptr g, long k)
 {
+    mpz_poly_realloc(f, g->deg + 1);
     for (int i = 0; i <= g->deg; i++)
         mpz_addmul_si(f->_coeff[i], g->_coeff[i], k);
+    mpz_poly_cleandeg(f, std::max(f->deg, g->deg));
 }
 
 /* Set f = k * g such that deg(g) <= deg(f) (this assumption is not
    checked). */
 void mpz_poly_mul_si(mpz_poly_ptr f, mpz_poly_srcptr g, long k)
 {
+    mpz_poly_realloc(f, g->deg + 1);
     for (int i = 0; i <= g->deg; i++)
         mpz_mul_si(f->_coeff[i], g->_coeff[i], k);
+    mpz_poly_cleandeg(f, g->deg);
 }
 
-/* Set f = g / k such that deg(g) <= deg(f) and k divides g
-   (those assumptions are not checked). */
+/* Set f = g / k such that k divides g
+   (this assumption is not checked). */
 void mpz_poly_divexact_ui(mpz_poly_ptr f, mpz_poly_srcptr g, unsigned long k)
 {
+    mpz_poly_realloc(f, g->deg + 1);
     for (int i = 0; i <= g->deg; i++)
         mpz_divexact_ui(f->_coeff[i], g->_coeff[i], k);
+    mpz_poly_cleandeg(f, g->deg);
 }
 
 /* h=rem(h, f) mod N, f not necessarily monic, N not necessarily prime */
@@ -1693,7 +1711,8 @@ void mpz_poly_divexact_ui(mpz_poly_ptr f, mpz_poly_srcptr g, unsigned long k)
 static int mpz_poly_pseudodiv_r(mpz_poly_ptr h, mpz_poly_srcptr f, mpz_srcptr N,
                                 mpz_ptr factor)
 {
-    int i, d = f->deg, dh = h->deg;
+    int const d = f->deg;
+    int dh = h->deg;
     mpz_t tmp, inv;
 
     mpz_init_set_ui(inv, 1);
@@ -1718,7 +1737,7 @@ static int mpz_poly_pseudodiv_r(mpz_poly_ptr h, mpz_poly_srcptr f, mpz_srcptr N,
             mpz_ndiv_r(h->_coeff[dh], h->_coeff[dh], N);
         }
 
-        for (i = 0; i < d; i++) {
+        for (int i = 0; i < d; i++) {
             mpz_mul(tmp, h->_coeff[dh], f->_coeff[i]);
             mpz_mod(tmp, tmp, N);
             mpz_sub(h->_coeff[dh - d + i], h->_coeff[dh - d + i], tmp);

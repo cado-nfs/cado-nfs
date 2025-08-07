@@ -1,12 +1,13 @@
 #ifndef CADO_LINGEN_MEMORY_POOL_HPP
 #define CADO_LINGEN_MEMORY_POOL_HPP
-// IWYU pragma: no_include <bits/exception.h>
-#include <cstdint>          // for SIZE_MAX
-#include <new>               // for bad_alloc
-#include <mutex>
+
+#include <cstdint>
 #include <cstdlib>
 #include <cstdio>
-#include <exception> // std::exception // IWYU pragma: keep
+
+#include <new>
+#include <mutex>
+#include <exception>
 #include <string>
 
 /* A memory pool is an object from which heap storage may be allocated.

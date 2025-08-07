@@ -79,18 +79,19 @@ template<unsigned int k, unsigned int ell> struct alignment_divisor<k,ell,1> : p
 
 #ifdef HAVE_ALLOCA
 #define ARITH_MODP_TEMPORARY_ALLOC(parent, type__, var) \
-    mp_limb_t * CPP_PAD(var, _allocation) = alloca((parent)->stride<typename std::remove_pointer<decltype(parent)>::type::type__>()); \
-    typename std::remove_pointer<decltype(parent)>::type::type__ & var(*reinterpret_cast<typename std::remove_pointer<decltype(parent)>::type::type__ *>(CPP_PAD(var, _allocation)))
+    mp_limb_t * CPP_PAD(var, _allocation) = alloca((parent)->stride<typename std::remove_pointer_t<decltype(parent)>::type__>()); \
+    auto & var(*reinterpret_cast<typename std::remove_pointer_t<decltype(parent)>::type__ *>(CPP_PAD(var, _allocation)))
 #else
 #define ARITH_MODP_TEMPORARY_ALLOC(parent, type__, var) \
-    auto CPP_PAD(var, _allocation) = std::unique_ptr<mp_limb_t[]>(new mp_limb_t[(parent)->template nlimbs<typename std::remove_pointer<decltype(parent)>::type::type__>()]);                                                               \
-    typename std::remove_pointer<decltype(parent)>::type::type__ & var(*reinterpret_cast<typename std::remove_pointer<decltype(parent)>::type::type__ *>(CPP_PAD(var, _allocation).get()))
+    auto CPP_PAD(var, _allocation) = typename std::unique_ptr<mp_limb_t[]>(new mp_limb_t[(parent)->template nlimbs<typename std::remove_pointer_t<decltype(parent)>::type__>()]);                                                               \
+    auto & var(*reinterpret_cast<typename std::remove_pointer_t<decltype(parent)>::type__ *>(CPP_PAD(var, _allocation).get()))
 #endif
 
 
 template<size_t NN, typename T>
 struct gfp_base : public arith_concrete_base
 {
+    static constexpr bool is_binary = false;
     static constexpr const size_t constant_width = NN;
     static constexpr const bool is_constant_width = NN > 0;
     static constexpr const bool is_variable_width = NN == 0;
@@ -113,8 +114,8 @@ struct gfp_base : public arith_concrete_base
      *
      */
     struct elt : public arith_concrete_base::elt, public mp_limb_array<NN> {
-        typedef std::integral_constant<int, 0> classifier;
-        static const int alignment = std::conditional<is_constant_width, alignment_divisor<NN>, std::integral_constant<unsigned int, 1>>::type::value * sizeof(mp_limb_t);
+        static constexpr int classifier = 0;
+        static constexpr int alignment = (is_constant_width ? alignment_divisor<NN>::value : 1) * sizeof(mp_limb_t);
         elt() = delete;
         elt& operator=(elt const &) = delete;
         elt(elt const &) = delete;
@@ -123,8 +124,8 @@ struct gfp_base : public arith_concrete_base
         ~elt() = default;
     };
     struct elt_ur_for_add : public mp_limb_array<NN + (NN > 0)> {
-        typedef std::integral_constant<int, 1> classifier;
-        static const int alignment = std::conditional<is_constant_width, alignment_divisor<(NN + 1)>, std::integral_constant<unsigned int, 1>>::type::value * sizeof(mp_limb_t);
+        static constexpr int classifier = 1;
+        static constexpr int alignment = (is_constant_width ? alignment_divisor<(NN + 1)>::value : 1) * sizeof(mp_limb_t);
         elt_ur_for_add() = delete;
         elt_ur_for_add& operator=(elt_ur_for_add const &) = delete;
         elt_ur_for_add(elt_ur_for_add const &) = delete;
@@ -133,8 +134,8 @@ struct gfp_base : public arith_concrete_base
         ~elt_ur_for_add() = default;
     };
     struct elt_ur_for_addmul : public mp_limb_array<2 * NN + (NN > 0)> {
-        typedef std::integral_constant<int, 2> classifier;
-        static const int alignment = sizeof(mp_limb_t);
+        static constexpr int classifier = 2;
+        static constexpr int alignment = sizeof(mp_limb_t);
         elt_ur_for_addmul() = delete;
         elt_ur_for_addmul& operator=(elt_ur_for_addmul const &) = delete;
         elt_ur_for_addmul(elt_ur_for_addmul const &) = delete;
@@ -152,35 +153,45 @@ struct gfp_base : public arith_concrete_base
      *
      */
     template<typename X>
-        std::integral_constant<size_t, 0> overhead_limbs(typename std::enable_if<std::is_same<X, elt>::value, void *>::type = 0) const
+        std::integral_constant<size_t, 0> overhead_limbs() const
+        requires std::is_same_v<X, elt>
         { return {}; }
     template<typename X>
-        static std::integral_constant<size_t, 1> overhead_limbs(typename std::enable_if<std::is_same<X, elt_ur_for_add>::value, void *>::type = 0)
+        static std::integral_constant<size_t, 1> overhead_limbs()
+        requires std::is_same_v<X, elt_ur_for_add>
         { return {}; }
     template<typename X>
-        std::integral_constant<size_t, NN+1> overhead_limbs(typename std::enable_if<is_constant_width && std::is_same<X, elt_ur_for_addmul>::value, void *>::type = 0) const
+        std::integral_constant<size_t, NN+1> overhead_limbs() const
+        requires is_constant_width && std::is_same_v<X, elt_ur_for_addmul>
         { return std::integral_constant<size_t, NN+1>(); }
     template<typename X>
-        size_t overhead_limbs(typename std::enable_if<is_variable_width && std::is_same<X, elt_ur_for_addmul>::value, void *>::type = 0) const
+        size_t overhead_limbs() const
+        requires is_variable_width && std::is_same_v<X, elt_ur_for_addmul>
         { return nlimbs<elt>() + 1; }
 
     template<typename X>
-        std::integral_constant<size_t, NN> nlimbs(typename std::enable_if<is_constant_width && std::is_same<X, elt>::value, void *>::type = 0) const
+        std::integral_constant<size_t, NN> nlimbs() const
+        requires is_constant_width && std::is_same_v<X, elt>
         { return std::integral_constant<size_t, NN>(); }
     template<typename X>
-        size_t nlimbs(typename std::enable_if<is_variable_width && std::is_same<X, elt>::value, void *>::type = 0) const
+        size_t nlimbs() const 
+        requires is_variable_width && std::is_same_v<X, elt>
         { return mpz_size(p); }
     template<typename X>
-        std::integral_constant<size_t, NN+1> nlimbs(typename std::enable_if<is_constant_width && std::is_same<X, elt_ur_for_add>::value, void *>::type = 0) const
+        std::integral_constant<size_t, NN+1> nlimbs() const
+        requires is_constant_width && std::is_same_v<X, elt_ur_for_add>
         { return std::integral_constant<size_t, NN+1>(); }
     template<typename X>
-        std::integral_constant<size_t, 2 * NN+1> nlimbs(typename std::enable_if<is_constant_width && std::is_same<X, elt_ur_for_addmul>::value, void *>::type = 0) const
+        std::integral_constant<size_t, 2 * NN+1> nlimbs() const
+        requires is_constant_width && std::is_same_v<X, elt_ur_for_addmul>
         { return std::integral_constant<size_t, 2 * NN+1>(); }
     template<typename X>
-        size_t nlimbs(typename std::enable_if<is_variable_width && std::is_same<X, elt_ur_for_add>::value, void *>::type = 0) const
+        size_t nlimbs() const
+        requires is_variable_width && std::is_same_v<X, elt_ur_for_add>
         { return nlimbs<elt>() + 1; }
     template<typename X>
-        size_t nlimbs(typename std::enable_if<is_variable_width && std::is_same<X, elt_ur_for_addmul>::value, void *>::type = 0) const
+        size_t nlimbs() const
+        requires is_variable_width && std::is_same_v<X, elt_ur_for_addmul>
         { return 2*nlimbs<elt>() + 1; }
 
     template<typename X>
@@ -252,104 +263,108 @@ struct gfp_base : public arith_concrete_base
      * anyway.
      */
 
-    /* This macro leverages enable_if and exposes a
-     * specialization that knows about a type X (which should
-     * probably appear in the arguments), and which could be
-     * anything that is _wider_ than mpn<N> = elt. Note that the
-     * default type of X is elt
-     */
-#define gfp_polymorphic_with_default(ret_type)                        \
-    template<typename X = elt>                                                 \
-    typename std::enable_if<std::is_base_of<mp_limb_array_base, X>::value, ret_type>::type
-
-    /*
-#define gfp_polymorphic(above, ret_type)                              \
-    template<typename X>                                                       \
-    storage typename std::enable_if<(X::nlimbs >= N + (above)), ret_type>::type
-    */
-
-#define gfp_polymorphic(above, ret_type)                              \
-    template<typename X>                                                       \
-    typename std::enable_if<(X::classifier::value >= (above)), ret_type>::type
-
-    gfp_polymorphic_with_default(X*) alloc(size_t k = 1, size_t al = X::alignment) const
-    {
-        return reinterpret_cast<X *>(::malloc_aligned(k * stride<X>(), al));
-    }
-    gfp_polymorphic_with_default(void) free(X* u) const {
-        ::free_aligned(reinterpret_cast<void *>(u));
-    }
-    gfp_polymorphic_with_default(X*)
-      realloc(X* u, size_t k0, size_t k, size_t al = X::alignment) const
-    {
-        return reinterpret_cast<X *>(::realloc_aligned(u->pointer(), k0 * stride<X>(), k * stride<X>(), al));
-        /*
-        X* v = alloc<X>(k);
-        std::copy_n(u, k0, v);
-        free<X>(u);
-        return v;
-        */
-    }
+    template<typename X = elt>
+        X* alloc(size_t k = 1, size_t al = X::alignment) const
+        requires std::is_base_of_v<mp_limb_array_base, X>
+        {
+            return reinterpret_cast<X *>(::malloc_aligned(k * stride<X>(), al));
+        }
+    template<typename X = elt>
+        void free(X* u) const
+        requires std::is_base_of_v<mp_limb_array_base, X>
+        {
+            ::free_aligned(reinterpret_cast<void *>(u));
+        }
+    template<typename X = elt>
+        X* realloc(X* u, size_t k0, size_t k, size_t al = X::alignment) const
+        requires std::is_base_of_v<mp_limb_array_base, X>
+        {
+            return reinterpret_cast<X *>(::realloc_aligned(u->pointer(), k0 * stride<X>(), k * stride<X>(), al));
+            /*
+               X* v = alloc<X>(k);
+               std::copy_n(u, k0, v);
+               free<X>(u);
+               return v;
+               */
+        }
 
     /*}}}*/
     /*{{{ predicates */
-    gfp_polymorphic(0, bool) is_zero(X const& x) const
-    {
-        return mpn_compile_time::mpn_zero_p(x, nlimbs<X>());
-    }
+    template<typename X>
+        bool is_zero(X const& x) const
+        requires (X::classifier >= 0)
+        {
+            return mpn_compile_time::mpn_zero_p(x, nlimbs<X>());
+        }
 
-    gfp_polymorphic(0, int) cmp(X const& x, unsigned long a) const
-    {
-        return mpn_compile_time::mpn_cmp_ui(x, a, nlimbs<X>());
-    }
+    template<typename X>
+        int cmp(X const& x, unsigned long a) const
+        requires (X::classifier >= 0)
+        {
+            return mpn_compile_time::mpn_cmp_ui(x, a, nlimbs<X>());
+        }
 
-    gfp_polymorphic(0, int) cmp(X const& x, X const& y) const
-    {
-        return mpn_compile_time::mpn_cmp(x, y, nlimbs<X>());
-    }
+    template<typename X>
+        int cmp(X const& x, X const& y) const
+        requires (X::classifier >= 0)
+        {
+            return mpn_compile_time::mpn_cmp(x, y, nlimbs<X>());
+        }
 
     /*}}}*/
     /* {{{ assignments */
-    gfp_polymorphic(0, X&) set(X& x, unsigned long a) const
-    {
-        mpn_compile_time::mpn_set_ui(x, a, nlimbs<X>());
-        return x;
-    }
+    template<typename X>
+        X& set(X& x, unsigned long a) const
+        requires (X::classifier >= 0)
+        {
+            mpn_compile_time::mpn_set_ui(x, a, nlimbs<X>());
+            return x;
+        }
 
-    gfp_polymorphic(0, X&) set(X& x, X const& a) const
-    {
-        mpn_compile_time::mpn_copyi(x, a, nlimbs<X>());
-        return x;
-    }
+    template<typename X>
+        X& set(X& x, X const& a) const
+        requires (X::classifier >= 0)
+        {
+            mpn_compile_time::mpn_copyi(x, a, nlimbs<X>());
+            return x;
+        }
 
-    gfp_polymorphic(1, X&) set(X& a, elt const& x) const
-    {
-        auto N = nlimbs<elt>();
-        mp_limb_t * ax = a.pointer() + N;
-        auto nx = overhead_limbs<X>();
-        mpn_compile_time::mpn_copyi(a, x, N);
-        mpn_compile_time::mpn_zero(ax, nx);
-        return a;
-    }
+    template<typename X>
+        X& set(X& a, elt const& x) const
+        requires (X::classifier >= 1)
+        {
+            auto N = nlimbs<elt>();
+            mp_limb_t * ax = a.pointer() + N;
+            auto nx = overhead_limbs<X>();
+            mpn_compile_time::mpn_copyi(a, x, N);
+            mpn_compile_time::mpn_zero(ax, nx);
+            return a;
+        }
 
-    gfp_polymorphic(0, X&) set(X& x, cxx_mpz const& a) const
-    {
-        mpn_compile_time::MPN_SET_MPZ(x.pointer(), nlimbs<X>(), a);
-        return x;
-    }
+    template<typename X>
+        X& set(X& x, cxx_mpz const& a) const
+        requires (X::classifier >= 0)
+        {
+            mpn_compile_time::MPN_SET_MPZ(x.pointer(), nlimbs<X>(), a);
+            return x;
+        }
 
-    gfp_polymorphic(0, void) set_zero(X& x) const {
-        mpn_compile_time::mpn_zero(x, nlimbs<X>());
-    }
+    template<typename X>
+        void set_zero(X& x) const
+        requires (X::classifier >= 0)
+        {
+            mpn_compile_time::mpn_zero(x, nlimbs<X>());
+        }
 
-    gfp_polymorphic(0, void)
-      set_random(X& x, cxx_gmp_randstate & rstate) const
-    {
-        T const* tx = static_cast<T const*>(this);
-        cxx_mpz xz;
-        mpz_urandomm(xz, rstate, p);
-        tx->set(x, xz);
-    }
+    template<typename X>
+        void set_random(X& x, cxx_gmp_randstate & rstate) const
+        requires (X::classifier >= 0)
+        {
+            T const* tx = static_cast<T const*>(this);
+            cxx_mpz xz;
+            mpz_urandomm(xz, rstate, p);
+            tx->set(x, xz);
+        }
 
     bool upperlimbs_are_zero(elt_ur_for_add const & a) const
     {
@@ -384,47 +399,56 @@ struct gfp_base : public arith_concrete_base
         a[N] += cy;
     }
 
-    gfp_polymorphic(1, void) add(X& dst, elt const& a, elt const& b) const
-    {
-        T const* tx = static_cast<T const*>(this);
-        auto N = nlimbs<elt>();
-        mp_limb_t cy = mpn_add_n(dst, a, b, N);
-        mp_limb_t * dx = dst.pointer() + N;
-        auto nx = overhead_limbs<X>();
-        mpn_compile_time::mpn_zero(dx, nx);
-        tx->propagate_carry(dst, cy);
-    }
-    gfp_polymorphic(1, void) add(X& dst, elt const& src) const
-    {
-        T const* tx = static_cast<T const*>(this);
-        auto N = nlimbs<elt>();
-        mp_limb_t cy = mpn_add_n(dst, dst, src, N);
-        tx->propagate_carry(dst, cy);
-    }
+    template<typename X>
+        void add(X& dst, elt const& a, elt const& b) const
+        requires (X::classifier >= 1)
+        {
+            T const* tx = static_cast<T const*>(this);
+            auto N = nlimbs<elt>();
+            mp_limb_t cy = mpn_add_n(dst, a, b, N);
+            mp_limb_t * dx = dst.pointer() + N;
+            auto nx = overhead_limbs<X>();
+            mpn_compile_time::mpn_zero(dx, nx);
+            tx->propagate_carry(dst, cy);
+        }
+    template<typename X>
+        void add(X& dst, elt const& src) const
+        requires (X::classifier >= 1)
+        {
+            T const* tx = static_cast<T const*>(this);
+            auto N = nlimbs<elt>();
+            mp_limb_t cy = mpn_add_n(dst, dst, src, N);
+            tx->propagate_carry(dst, cy);
+        }
     /* This addition is only for unreduced types. These types are
      * always considered wide enough so that overflows work.
      */
-    gfp_polymorphic(1, void) add_ur(X& dst, X const& src) const
-    {
-        T const* tx = static_cast<T const*>(this);
-        tx->add(dst, src);
-    }
-    gfp_polymorphic(1, void) add(X& dst, X const& src) const
-    {
-        mpn_add_n(dst, dst, src, nlimbs<X>());
-    }
+    template<typename X>
+        void add_ur(X& dst, X const& src) const
+        requires (X::classifier >= 1)
+        {
+            T const* tx = static_cast<T const*>(this);
+            tx->add(dst, src);
+        }
+    template<typename X>
+        void add(X& dst, X const& src) const
+        requires (X::classifier >= 1)
+        {
+            mpn_add_n(dst, dst, src, nlimbs<X>());
+        }
 
     /* an addmul is ok for to go for an unreduced type which is
      * still somewhat narrow (only one extra limb).
      */
-    gfp_polymorphic(1, void)
-      addmul_ui(X& dst, elt const& src, mp_limb_t x) const
-    {
-        T const* tx = static_cast<T const*>(this);
-        auto N = nlimbs<elt>();
-        mp_limb_t cy = mpn_addmul_1(dst, src, N, x);
-        tx->propagate_carry(dst, cy);
-    }
+    template<typename X>
+        void addmul_ui(X& dst, elt const& src, mp_limb_t x) const
+        requires (X::classifier >= 1)
+        {
+            T const* tx = static_cast<T const*>(this);
+            auto N = nlimbs<elt>();
+            mp_limb_t cy = mpn_addmul_1(dst, src, N, x);
+            tx->propagate_carry(dst, cy);
+        }
     /*}}}*/
 
     /*{{{ subtraction, at the element level (elt or wider) */
@@ -441,47 +465,56 @@ struct gfp_base : public arith_concrete_base
         a[N] -= cy;
     }
 
-    gfp_polymorphic(1, void) sub(X& dst, elt const& a, elt const& b) const
-    {
-        T const* tx = static_cast<T const*>(this);
-        auto N = nlimbs<elt>();
-        mp_limb_t cy = mpn_sub_n(dst, a, b, N);
-        mp_limb_t * dx = dst.pointer() + N;
-        auto nx = overhead_limbs<X>();
-        mpn_compile_time::mpn_zero(dx, nx);
-        tx->propagate_borrow(dst, cy);
-    }
-    gfp_polymorphic(1, void) sub(X& dst, elt const& src) const
-    {
-        T const* tx = static_cast<T const*>(this);
-        auto N = nlimbs<elt>();
-        mp_limb_t cy = mpn_sub_n(dst, dst, src, N);
-        tx->propagate_borrow(dst, cy);
-    }
+    template<typename X>
+        void sub(X& dst, elt const& a, elt const& b) const
+        requires (X::classifier >= 1)
+        {
+            T const* tx = static_cast<T const*>(this);
+            auto N = nlimbs<elt>();
+            mp_limb_t cy = mpn_sub_n(dst, a, b, N);
+            mp_limb_t * dx = dst.pointer() + N;
+            auto nx = overhead_limbs<X>();
+            mpn_compile_time::mpn_zero(dx, nx);
+            tx->propagate_borrow(dst, cy);
+        }
+    template<typename X>
+        void sub(X& dst, elt const& src) const
+        requires (X::classifier >= 1)
+        {
+            T const* tx = static_cast<T const*>(this);
+            auto N = nlimbs<elt>();
+            mp_limb_t cy = mpn_sub_n(dst, dst, src, N);
+            tx->propagate_borrow(dst, cy);
+        }
     /* This subtraction is only for unreduced types. These types are
      * always considered wide enough so that overflows work.
      */
-    gfp_polymorphic(1, void) sub_ur(X& dst, X const& src) const
-    {
-        T const* tx = static_cast<T const*>(this);
-        tx->sub(dst, src);
-    }
-    gfp_polymorphic(1, void) sub(X& dst, X const& src) const
-    {
-        mpn_sub_n(dst, dst, src, nlimbs<X>());
-    }
+    template<typename X>
+        void sub_ur(X& dst, X const& src) const
+        requires (X::classifier >= 1)
+        {
+            T const* tx = static_cast<T const*>(this);
+            tx->sub(dst, src);
+        }
+    template<typename X>
+        void sub(X& dst, X const& src) const
+        requires (X::classifier >= 1)
+        {
+            mpn_sub_n(dst, dst, src, nlimbs<X>());
+        }
 
     /* a submul is ok for to go for an unreduced type which is
      * still somewhat narrow (only one extra limb).
      */
-    gfp_polymorphic(1, void)
-      submul_ui(X& dst, elt const& src, mp_limb_t x) const
-    {
-        T const* tx = static_cast<T const*>(this);
-        auto N = nlimbs<elt>();
-        mp_limb_t cy = mpn_submul_1(dst, src, N, x);
-        tx->propagate_borrow(dst, cy);
-    }
+    template<typename X>
+        void submul_ui(X& dst, elt const& src, mp_limb_t x) const
+        requires (X::classifier >= 1)
+        {
+            T const* tx = static_cast<T const*>(this);
+            auto N = nlimbs<elt>();
+            mp_limb_t cy = mpn_submul_1(dst, src, N, x);
+            tx->propagate_borrow(dst, cy);
+        }
     /*}}}*/
 
     /*{{{ neg (for elt and anything larger) */
@@ -504,10 +537,12 @@ struct gfp_base : public arith_concrete_base
             mpn_add_n(dst, dst, tx->prime_limbs(), N);
     }
 
-    gfp_polymorphic(1, void) neg(X& dst, X const& src) const
-    {
-        mpn_neg(dst, src, nlimbs<X>());
-    }
+    template<typename X>
+        void neg(X& dst, X const& src) const
+        requires (X::classifier >= 1)
+        {
+            mpn_neg(dst, src, nlimbs<X>());
+        }
     /*}}}*/
     /*{{{ signed barrett reduction */
 
@@ -601,21 +636,18 @@ struct gfp_base : public arith_concrete_base
     /* this reduces a in place, and copies the result to r */
     private:
     template<typename X>
-    typename std::enable_if<std::is_same<X, elt_ur_for_add>::value,
-                                   mp_limb_t const *>::type
-    preinv() const
-    {
-        return prime_preinv_for_add;
-    }
+        mp_limb_t const * preinv() const
+        requires std::is_same_v<X, elt_ur_for_add>
+        {
+            return prime_preinv_for_add;
+        }
 
     template<typename X>
-    
-      typename std::enable_if<std::is_same<X, elt_ur_for_addmul>::value,
-                                   mp_limb_t const *>::type
-                                       preinv() const
-    {
-        return prime_preinv_for_addmul.data();
-    }
+        mp_limb_t const * preinv() const
+        requires std::is_same_v<X, elt_ur_for_addmul>
+        {
+            return prime_preinv_for_addmul.data();
+        }
 
     public:
     /* We're only going to emit a reduce function for our
@@ -633,96 +665,95 @@ struct gfp_base : public arith_concrete_base
      * N+1 though.
      */
     template<typename X>
-    typename std::enable_if<(X::classifier::value >= 2)>::type
-    reduce(elt& r, X& a) const
-    {
-        T const* tx = static_cast<T const*>(this);
-        auto j = preinv<X>();
-        auto N = nlimbs<elt>();
-        auto nx = overhead_limbs<X>();
-        mp_limb_t tmp[nx + 1];
-        if (preinv_shift) {
-            mpn_lshift(tmp, a + N - 1, nx + 1, preinv_shift);
-        } else {
-            mpn_copyi(tmp + 1, a + N, nx);
-        }
-        mp_limb_t a1I[2 * nx];
-        mpn_mul_n(a1I, tmp + 1, j, nx);
-        mpn_add_n(a1I + nx, a1I + nx, tmp + 1, nx);
-        mp_limb_t* q0 = a1I + nx;
-        typename std::make_signed<mp_limb_t>::type sa1 = (tmp + 1)[nx - 1];
-        if (sa1 < 0) {
-            mpn_sub_n(q0, q0, j, nx);
-            mpn_sub_1(q0, q0, nx, 1);
-            mpn_add_n(a + nx, a + nx, prime_limbs(), N);
-        }
-        /* emulate a submul_n ; need to do mul first, then sub... */
-        mp_limb_t scratch[N + nx];
-        /* nx is N+1, so it's larger than N. However, if we use
-         * X = elt_ur_for_add, then nx can be less than N (this is under
-         * multiple ifs, since presently we've constrained elt_ur_for_add
-         * to be N+1 and thus not use this code.
-         */
-        // mpn_mul_caller<N, nx>()(scratch, prime_limbs(), q0);
-        mpn_mul(scratch, q0, nx, prime_limbs(), N);
+        void reduce(elt& r, X& a) const
+        requires (X::classifier >= 2)
+        {
+            T const* tx = static_cast<T const*>(this);
+            auto j = preinv<X>();
+            auto N = nlimbs<elt>();
+            auto nx = overhead_limbs<X>();
+            mp_limb_t tmp[nx + 1];
+            if (preinv_shift) {
+                mpn_lshift(tmp, a + N - 1, nx + 1, preinv_shift);
+            } else {
+                mpn_copyi(tmp + 1, a + N, nx);
+            }
+            mp_limb_t a1I[2 * nx];
+            mpn_mul_n(a1I, tmp + 1, j, nx);
+            mpn_add_n(a1I + nx, a1I + nx, tmp + 1, nx);
+            mp_limb_t* q0 = a1I + nx;
+            std::make_signed_t<mp_limb_t> sa1 = (tmp + 1)[nx - 1];
+            if (sa1 < 0) {
+                mpn_sub_n(q0, q0, j, nx);
+                mpn_sub_1(q0, q0, nx, 1);
+                mpn_add_n(a + nx, a + nx, prime_limbs(), N);
+            }
+            /* emulate a submul_n ; need to do mul first, then sub... */
+            mp_limb_t scratch[N + nx];
+            /* nx is N+1, so it's larger than N. However, if we use
+             * X = elt_ur_for_add, then nx can be less than N (this is under
+             * multiple ifs, since presently we've constrained elt_ur_for_add
+             * to be N+1 and thus not use this code.
+             */
+            // mpn_mul_caller<N, nx>()(scratch, prime_limbs(), q0);
+            mpn_mul(scratch, q0, nx, prime_limbs(), N);
 
-        mpn_sub_n(a, a, scratch, N + nx);
+            mpn_sub_n(a, a, scratch, N + nx);
 #if !defined(NDEBUG) && !defined(DEBUG_INFINITE_LOOPS)
-        int spin = 0;
+            int spin = 0;
 #endif
-        while (!upperlimbs_are_zero(a) || mpn_cmp(a, prime_limbs(), N) >= 0) {
-            mp_limb_t cy = mpn_sub_n(a, a, prime_limbs(), N);
-            tx->propagate_borrow(a, cy);
+            while (!upperlimbs_are_zero(a) || mpn_cmp(a, prime_limbs(), N) >= 0) {
+                mp_limb_t cy = mpn_sub_n(a, a, prime_limbs(), N);
+                tx->propagate_borrow(a, cy);
 #if !defined(NDEBUG) && !defined(DEBUG_INFINITE_LOOPS)
-            spin++;
-            ASSERT_ALWAYS(spin < 4);
+                spin++;
+                ASSERT_ALWAYS(spin < 4);
 #endif
+            }
+            mpn_copyi(r, a, N);
         }
-        mpn_copyi(r, a, N);
-    }
     template<typename X>
-    typename std::enable_if<X::classifier::value == 1>::type
-    reduce(elt& r, X& a) const
-    {
-        T const* tx = static_cast<T const*>(this);
-        auto N = nlimbs<elt>();
-        auto j = preinv<X>();
-        mp_limb_t a1 = a[N] << preinv_shift;
-        if (preinv_shift) {
-            a1 |= a[N - 1] >> (mp_bits_per_limb - preinv_shift);
-        }
-        typedef std::make_signed<mp_limb_t>::type signed_mp_limb_t;
-        signed_mp_limb_t sa1 = a1;
-        mp_limb_t tmp[2];
+        void reduce(elt& r, X& a) const
+        requires (X::classifier == 1)
+        {
+            T const* tx = static_cast<T const*>(this);
+            auto N = nlimbs<elt>();
+            auto j = preinv<X>();
+            mp_limb_t a1 = a[N] << preinv_shift;
+            if (preinv_shift) {
+                a1 |= a[N - 1] >> (mp_bits_per_limb - preinv_shift);
+            }
+            const std::make_signed_t<mp_limb_t> sa1 = a1;
+            mp_limb_t tmp[2];
 #ifdef umul_ppmm
-        umul_ppmm(tmp[1], tmp[0], a1, j[0]);
+            umul_ppmm(tmp[1], tmp[0], a1, j[0]);
 #elif defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
-        __asm__("mulq %3" : "=a"(tmp[0]), "=d"(tmp[1]) : "0"(a1), "rm"(j[0]));
+            __asm__("mulq %3" : "=a"(tmp[0]), "=d"(tmp[1]) : "0"(a1), "rm"(j[0]));
 #else
-        mpn_mul_n(tmp, &a1, j, 1);
+            mpn_mul_n(tmp, &a1, j, 1);
 #endif
-        mp_limb_t q0 = tmp[1] + a1;
-        if (sa1 < 0) {
-            /* see above for the specificities of the negative case */
-            q0 -= j[0] + 1;
-            mpn_add_n(a + 1, a + 1, prime_limbs(), N);
-        }
-        mp_limb_t cy;
-        cy = mpn_submul_1(a, prime_limbs(), N, q0);
-        tx->propagate_borrow(a, cy);
-#if !defined(NDEBUG) && !defined(DEBUG_INFINITE_LOOPS)
-        int spin = 0;
-#endif
-        while (a[N] || mpn_cmp(a, prime_limbs(), N) >= 0) {
-            cy = mpn_sub_n(a, a, prime_limbs(), N);
+            mp_limb_t q0 = tmp[1] + a1;
+            if (sa1 < 0) {
+                /* see above for the specificities of the negative case */
+                q0 -= j[0] + 1;
+                mpn_add_n(a + 1, a + 1, prime_limbs(), N);
+            }
+            mp_limb_t cy;
+            cy = mpn_submul_1(a, prime_limbs(), N, q0);
             tx->propagate_borrow(a, cy);
 #if !defined(NDEBUG) && !defined(DEBUG_INFINITE_LOOPS)
-            spin++;
-            ASSERT_ALWAYS(spin < 4);
+            int spin = 0;
 #endif
+            while (a[N] || mpn_cmp(a, prime_limbs(), N) >= 0) {
+                cy = mpn_sub_n(a, a, prime_limbs(), N);
+                tx->propagate_borrow(a, cy);
+#if !defined(NDEBUG) && !defined(DEBUG_INFINITE_LOOPS)
+                spin++;
+                ASSERT_ALWAYS(spin < 4);
+#endif
+            }
+            mpn_copyi(r, a, N);
         }
-        mpn_copyi(r, a, N);
-    }
     /* We do need something that normalizes in place. This is
      * used every now and then (random generation is an example).
      *
@@ -814,13 +845,13 @@ struct gfp_base : public arith_concrete_base
     /*}}}*/
 
     void
-      mul_ur(elt_ur_for_addmul& w, elt const& u, elt const& v) const
-    {
-        auto N = nlimbs<elt>();
-        mpn_mul_n(w, u, v, N);
-        /* elt_ur_for_addmul should be exactly 2N+1 limbs */
-        w[2 * N] = 0;
-    }
+        mul_ur(elt_ur_for_addmul& w, elt const& u, elt const& v) const
+        {
+            auto N = nlimbs<elt>();
+            mpn_mul_n(w, u, v, N);
+            /* elt_ur_for_addmul should be exactly 2N+1 limbs */
+            w[2 * N] = 0;
+        }
 
     void mul(elt& w, elt const& u, elt const& v) const
     {
@@ -834,14 +865,14 @@ struct gfp_base : public arith_concrete_base
     }
 
     void
-      addmul_ur(elt_ur_for_addmul & w, elt const& u, elt const& v) const
-    {
-        T const* tx = static_cast<T const*>(this);
-        /* We don't have a convenient default at the mpn level */
-        ARITH_MODP_TEMPORARY_ALLOC(this, elt_ur_for_addmul, t);
-        tx->mul_ur(t, u, v);
-        tx->add(w, t);
-    }
+        addmul_ur(elt_ur_for_addmul & w, elt const& u, elt const& v) const
+        {
+            T const* tx = static_cast<T const*>(this);
+            /* We don't have a convenient default at the mpn level */
+            ARITH_MODP_TEMPORARY_ALLOC(this, elt_ur_for_addmul, t);
+            tx->mul_ur(t, u, v);
+            tx->add(w, t);
+        }
     void addmul(elt& w, elt const& u, elt const& v) const
     {
         T const* tx = static_cast<T const*>(this);
@@ -860,78 +891,95 @@ struct gfp_base : public arith_concrete_base
     }
 
     /*{{{ accessors inside vectors */
-    gfp_polymorphic(0, X*) vec_subvec(X* p, size_t k) const
-    {
-        return reinterpret_cast<X*>(p->pointer() + k * nlimbs<X>());
-    }
+    template<typename X>
+        X* vec_subvec(X* p, size_t k) const
+        requires (X::classifier >= 0)
+        {
+            return reinterpret_cast<X*>(p->pointer() + k * nlimbs<X>());
+        }
 
-    gfp_polymorphic(0, X&) vec_item(X* p, size_t k) const
-    {
-        return *vec_subvec(p, k);
-    }
+    template<typename X>
+        X& vec_item(X* p, size_t k) const
+        requires (X::classifier >= 0)
+        {
+            return *vec_subvec(p, k);
+        }
 
-    gfp_polymorphic(0, X const*) vec_subvec(X const* p, size_t k) const
-    {
-        return reinterpret_cast<X const*>(p->pointer() + k * nlimbs<X>());
-    }
+    template<typename X>
+        X const* vec_subvec(X const* p, size_t k) const
+        requires (X::classifier >= 0)
+        {
+            return reinterpret_cast<X const*>(p->pointer() + k * nlimbs<X>());
+        }
 
-    gfp_polymorphic(0, X const&) vec_item(X const* p, size_t k) const
-    {
-        return *vec_subvec(p, k);
-    }
+    template<typename X>
+        X const& vec_item(X const* p, size_t k) const
+        requires (X::classifier >= 0)
+        {
+            return *vec_subvec(p, k);
+        }
     /*}}}*/
     /* {{{ predicates on vectors */
-    gfp_polymorphic(0, int)
-      vec_cmp(X const* a, X const* b, size_t k) const
-    {
-        T const* tx = static_cast<T const*>(this);
-        for (size_t i = 0; i < k; i++) {
-            int r = tx->cmp(vec_item(a, i), vec_item(b, i));
-            if (r)
-                return r;
+    template<typename X>
+        int vec_cmp(X const* a, X const* b, size_t k) const
+        requires (X::classifier >= 0)
+        {
+            T const* tx = static_cast<T const*>(this);
+            for (size_t i = 0; i < k; i++) {
+                int r = tx->cmp(vec_item(a, i), vec_item(b, i));
+                if (r)
+                    return r;
+            }
+            return 0;
         }
-        return 0;
-    }
-    gfp_polymorphic(0, bool) vec_is_zero(X const* p, size_t n) const
-    {
-        T const* tx = static_cast<T const*>(this);
-        for (size_t i = 0; i < n; i++)
-            if (!tx->is_zero(vec_item(p, i)))
-                return false;
-        return true;
-    }
+    template<typename X>
+        bool vec_is_zero(X const* p, size_t n) const
+        requires (X::classifier >= 0)
+        {
+            T const* tx = static_cast<T const*>(this);
+            for (size_t i = 0; i < n; i++)
+                if (!tx->is_zero(vec_item(p, i)))
+                    return false;
+            return true;
+        }
     /* }}} */
     /* {{{ assignments on vectors */
-    gfp_polymorphic(0, void) vec_set_zero(X* p, size_t n) const
-    {
-        std::fill_n(p->pointer(), n * nlimbs<X>(), 0);
-    }
+    template<typename X>
+        void vec_set_zero(X* p, size_t n) const
+        requires (X::classifier >= 0)
+        {
+            std::fill_n(p->pointer(), n * nlimbs<X>(), 0);
+        }
 
-    gfp_polymorphic(0, void) vec_set(X* q, X const* p, size_t n) const
-    {
-        size_t nn = n * nlimbs<X>();
-        if (q < p)
-            std::copy_n(p->pointer(), nn, q->pointer());
-        else
-            std::copy_backward(p->pointer(), p->pointer() + nn, q->pointer() + nn);
-    }
+    template<typename X>
+        void vec_set(X* q, X const* p, size_t n) const
+        requires (X::classifier >= 0)
+        {
+            size_t nn = n * nlimbs<X>();
+            if (q < p)
+                std::copy_n(p->pointer(), nn, q->pointer());
+            else
+                std::copy_backward(p->pointer(), p->pointer() + nn, q->pointer() + nn);
+        }
 
     /* extension */
-    gfp_polymorphic(1, void)
-      vec_set(X* q, elt const* p, size_t n) const
-    {
-        T const* tx = static_cast<T const*>(this);
-        for (size_t i = 0; i < n; i++)
-            tx->set(vec_item(q, i), vec_item(p, i));
-    }
+    template<typename X>
+        void vec_set(X* q, elt const* p, size_t n) const
+        requires (X::classifier >= 1)
+        {
+            T const* tx = static_cast<T const*>(this);
+            for (size_t i = 0; i < n; i++)
+                tx->set(vec_item(q, i), vec_item(p, i));
+        }
 
-    gfp_polymorphic(0, void)
-      vec_set_random(X* p, size_t k, cxx_gmp_randstate & rstate) const
-    {
-        T const* tx = static_cast<T const*>(this);
-        for (size_t i = 0; i < k; ++i)
-            tx->set_random(vec_item(p, i), rstate);
-    }
+    template<typename X>
+        void vec_set_random(X* p, size_t k, cxx_gmp_randstate & rstate) const
+        requires (X::classifier >= 0)
+        {
+            T const* tx = static_cast<T const*>(this);
+            for (size_t i = 0; i < k; ++i)
+                tx->set_random(vec_item(p, i), rstate);
+        }
     /* }}} */
     /*{{{ simd*/
     void simd_set_ui_at(elt& p, size_t, int v) const
@@ -993,28 +1041,31 @@ struct gfp_base : public arith_concrete_base
     }
 
     /*{{{ vec addition */
-    gfp_polymorphic(1, void)
-      vec_add(X* q, elt const* p, size_t n) const
-    {
-        T const* tx = static_cast<T const*>(this);
-        for (size_t i = 0; i < n; i++)
-            tx->add(vec_item(q, i), vec_item(p, i));
-    }
-    gfp_polymorphic(1, void) vec_add(X* q, X* p, size_t n) const
-    {
-        T const* tx = static_cast<T const*>(this);
-        for (size_t i = 0; i < n; i++)
-            tx->add(vec_item(q, i), vec_item(p, i));
-    }
+    template<typename X>
+        void vec_add(X* q, elt const* p, size_t n) const
+        requires (X::classifier >= 1)
+        {
+            T const* tx = static_cast<T const*>(this);
+            for (size_t i = 0; i < n; i++)
+                tx->add(vec_item(q, i), vec_item(p, i));
+        }
+    template<typename X>
+        void vec_add(X* q, X* p, size_t n) const
+        requires (X::classifier >= 1)
+        {
+            T const* tx = static_cast<T const*>(this);
+            for (size_t i = 0; i < n; i++)
+                tx->add(vec_item(q, i), vec_item(p, i));
+        }
     void vec_add_and_reduce(elt* q,
-                                   elt const* a,
-                                   elt const* b,
-                                   size_t n) const
+            elt const* a,
+            elt const* b,
+            size_t n) const
     {
         T const* tx = static_cast<T const*>(this);
         for (size_t i = 0; i < n; i++)
             tx->add_and_reduce(
-              vec_item(q, i), vec_item(a, i), vec_item(b, i));
+                    vec_item(q, i), vec_item(a, i), vec_item(b, i));
     }
     void vec_add_and_reduce(elt* q, elt const* a, size_t n) const
     {
@@ -1022,23 +1073,26 @@ struct gfp_base : public arith_concrete_base
     }
     /*}}}*/
     /*{{{ vec subtraction */
-    gfp_polymorphic(1, void)
-      vec_sub(X* q, elt const* p, size_t n) const
-    {
-        T const* tx = static_cast<T const*>(this);
-        for (size_t i = 0; i < n; i++)
-            tx->sub(vec_item(q, i), vec_item(p, i));
-    }
-    gfp_polymorphic(1, void) vec_sub(X* q, X* p, size_t n) const
-    {
-        T const* tx = static_cast<T const*>(this);
-        for (size_t i = 0; i < n; i++)
-            tx->sub(vec_item(q, i), vec_item(p, i));
-    }
+    template<typename X>
+        void vec_sub(X* q, elt const* p, size_t n) const
+        requires (X::classifier >= 1)
+        {
+            T const* tx = static_cast<T const*>(this);
+            for (size_t i = 0; i < n; i++)
+                tx->sub(vec_item(q, i), vec_item(p, i));
+        }
+    template<typename X>
+        void vec_sub(X* q, X* p, size_t n) const
+        requires (X::classifier >= 1)
+        {
+            T const* tx = static_cast<T const*>(this);
+            for (size_t i = 0; i < n; i++)
+                tx->sub(vec_item(q, i), vec_item(p, i));
+        }
     void vec_sub_and_reduce(elt* q,
-                                   elt const* a,
-                                   elt const* b,
-                                   size_t n) const
+            elt const* a,
+            elt const* b,
+            size_t n) const
     {
         T const* tx = static_cast<T const*>(this);
         for (size_t i = 0; i < n; i++)
@@ -1063,29 +1117,35 @@ struct gfp_base : public arith_concrete_base
         for (size_t i = 0; i < n; i++)
             tx->neg(vec_item(q, i), vec_item(p, i));
     }
-    gfp_polymorphic(1, void) vec_neg(X* q, size_t n) const
-    {
-        T const* tx = static_cast<T const*>(this);
-        for (size_t i = 0; i < n; i++)
-            tx->neg(vec_item(q, i), vec_item(q, i));
-    }
-    gfp_polymorphic(1, void) vec_neg(X* q, X const* p, size_t n) const
-    {
-        T const* tx = static_cast<T const*>(this);
-        /* used in matpoly_sub */
-        for (size_t i = 0; i < n; i++)
-            tx->neg(vec_item(q, i), vec_item(p, i));
-    }
+    template<typename X>
+        void vec_neg(X* q, size_t n) const
+        requires (X::classifier >= 1)
+        {
+            T const* tx = static_cast<T const*>(this);
+            for (size_t i = 0; i < n; i++)
+                tx->neg(vec_item(q, i), vec_item(q, i));
+        }
+    template<typename X>
+        void vec_neg(X* q, X const* p, size_t n) const
+        requires (X::classifier >= 1)
+        {
+            T const* tx = static_cast<T const*>(this);
+            /* used in matpoly_sub */
+            for (size_t i = 0; i < n; i++)
+                tx->neg(vec_item(q, i), vec_item(p, i));
+        }
     /*}}}*/
 
     /*{{{ vec reduction */
     /* Note that we depend on reduce() being available */
-    gfp_polymorphic(0, void) vec_reduce(elt* q, X* p, size_t n) const
-    {
-        T const* tx = static_cast<T const*>(this);
-        for (size_t i = 0; i < n; i++)
-            tx->reduce(vec_item(q, i), vec_item(p, i));
-    }
+    template<typename X>
+        void vec_reduce(elt* q, X* p, size_t n) const
+        requires (X::classifier >= 0)
+        {
+            T const* tx = static_cast<T const*>(this);
+            for (size_t i = 0; i < n; i++)
+                tx->reduce(vec_item(q, i), vec_item(p, i));
+        }
     /*}}}*/
 
     /*{{{ vec simd operations*/
@@ -1123,10 +1183,10 @@ struct gfp_base : public arith_concrete_base
 
     private:
     void vec_conv_ur_ks(elt_ur_for_addmul* w,
-                        elt const* u,
-                        size_t n,
-                        elt const* v,
-                        size_t m) const /*{{{*/
+            elt const* u,
+            size_t n,
+            elt const* v,
+            size_t m) const /*{{{*/
     {
         T const* tx = static_cast<T const*>(this);
         auto N = nlimbs<elt>();
@@ -1186,9 +1246,9 @@ struct gfp_base : public arith_concrete_base
             mpn_copyi(vec_item(w, i), pW + i * nwords, nwords);
     }                                                   /*}}}*/
     void vec_conv_ur_n(elt_ur_for_addmul* w,
-                              elt const* u,
-                              elt const* v,
-                              size_t n) const /*{{{*/
+            elt const* u,
+            elt const* v,
+            size_t n) const /*{{{*/
     {
         T const* tx = static_cast<T const*>(this);
         if (n == 0)
@@ -1280,10 +1340,10 @@ struct gfp_base : public arith_concrete_base
 
     public:
     void vec_conv(elt* w,
-                         elt const* u,
-                         size_t n,
-                         elt const* v,
-                         size_t m) const /*{{{*/
+            elt const* u,
+            size_t n,
+            elt const* v,
+            size_t m) const /*{{{*/
     {
         // This should be good for pz
         T const* tx = static_cast<T const*>(this);
@@ -1293,10 +1353,10 @@ struct gfp_base : public arith_concrete_base
         tx->template free<elt_ur_for_addmul>(tmp);
     } /*}}}*/
     void vec_conv_ur(elt_ur_for_addmul* w,
-                            elt const* u,
-                            size_t n,
-                            elt const* v,
-                            size_t m) const
+            elt const* u,
+            size_t n,
+            elt const* v,
+            size_t m) const
     { /*{{{*/
         T const* tx = static_cast<T const*>(this);
         if ((n > 1) && (m > 1) && (n + m > 15)) {
@@ -1343,9 +1403,9 @@ struct gfp_base : public arith_concrete_base
     }
 
     void vec_addmul_and_reduce(elt* w,
-                               elt const* u,
-                               elt const& v,
-                               size_t n) const
+            elt const* u,
+            elt const& v,
+            size_t n) const
     {
         T const* tx = static_cast<T const*>(this);
         for (size_t i = 0; i < n; ++i)
@@ -1356,10 +1416,10 @@ struct gfp_base : public arith_concrete_base
 template<int n>
 struct gfp : public gfp_base<n, gfp<n>>
 {
-    typedef gfp_base<n, gfp<n>> super;
+    using super = gfp_base<n, gfp<n>>;
     template<typename... Args>
-    gfp(Args&&... args)
-      : super { std::forward<Args>(args)... }
+        gfp(Args&&... args)
+        : super { std::forward<Args>(args)... }
     {}
 };
 

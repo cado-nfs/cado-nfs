@@ -2,7 +2,7 @@
 #define CADO_LAS_DUMPFILE_HPP
 
 #include <cstdio>  // for size_t, FILE, NULL
-struct las_todo_entry;
+struct special_q;
 
 /* If -dumpregion is given, dump sieve region to a file to be able to
    compare new sieving code with a known good reference. Beware of
@@ -12,7 +12,7 @@ class dumpfile_t {
 public:
     ~dumpfile_t();
     void close();
-    void open(const char *filename_stem, las_todo_entry const & doing, int side);
+    void open(const char *filename_stem, special_q const & doing, int side);
     size_t write(const unsigned char *, size_t) const;
 };
 

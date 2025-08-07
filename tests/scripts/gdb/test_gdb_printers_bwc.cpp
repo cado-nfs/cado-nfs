@@ -15,6 +15,11 @@ static void foo()
 
 int main(int argc, char const * argv[])
 {
+#ifdef LINGEN_BINARY
+    constexpr bool is_binary = true;
+#else
+    constexpr bool is_binary = false;
+#endif
     cxx_mpz p;
     cxx_param_list pl;
 
@@ -31,27 +36,25 @@ int main(int argc, char const * argv[])
         param_list_print_usage(pl, argv0, stderr);
         exit(EXIT_FAILURE);
     }
-#ifndef LINGEN_BINARY
-    if (!param_list_parse(pl, "prime", p)) {
-        fprintf(stderr, "--prime is mandatory\n");
-        param_list_print_command_line (stdout, pl);
-        exit(EXIT_FAILURE);
+    if constexpr (!is_binary) {
+        if (!param_list_parse(pl, "prime", p)) {
+            fprintf(stderr, "--prime is mandatory\n");
+            param_list_print_command_line (stdout, pl);
+            exit(EXIT_FAILURE);
+        }
+    } else {
+        p = 2;
     }
-    unsigned int m = 3;
-    unsigned int n = 5;
-#else
-    p = 2;
-    unsigned int m = 64;
-    unsigned int n = 128;
-#endif
+    unsigned int m = is_binary ? 64 : 3;
+    unsigned int n = is_binary ? 128 : 5;
 
     param_list_parse(pl, "m", m);
     param_list_parse(pl, "n", n);
     if (param_list_warn_unused(pl))
         exit(EXIT_FAILURE);
 
-    matpoly::arith_hard K(p, 1U);
-    matpoly M(&K, m, n, 0);
+    matpoly<is_binary>::arith_hard K(p, 1U);
+    matpoly<is_binary> M(&K, m, n, 0);
 
     M.realloc(3);
     M.zero();

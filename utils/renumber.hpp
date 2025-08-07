@@ -163,6 +163,13 @@ public:
     /*}}}*/
 
     explicit renumber_t(cxx_cado_poly const & cpoly) : cpoly(cpoly), lpb(cpoly->nb_polys, 0) {}
+    renumber_t(cxx_cado_poly const & cpoly,
+            std::string const & filename,
+            bool for_dl)
+        : renumber_t(cpoly)
+    {
+        read_from_file(filename.c_str(), for_dl);
+    }
 
     /*{{{ configuration when creating the table */
     void set_lpb(std::vector<unsigned int> const & x) {

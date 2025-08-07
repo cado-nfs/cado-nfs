@@ -18,7 +18,7 @@
 #include "alloc_proxy.h"
 #include "gf2x-fft.h"
 #include "misc.h"
-#include "crc.h"        // cado_crc_lfsr
+#include "crc.h"
 #include "macros.h"
 #include "gmp_aux.h"
 

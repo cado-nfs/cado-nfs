@@ -1,13 +1,15 @@
 #include "cado.h" // IWYU pragma: keep
-#include <climits>                  // for UINT_MAX
+#include <climits>
+
+#include <algorithm>
+
 #ifndef LINGEN_BINARY
 #include <gmp.h>
-#include "cxx_mpz.hpp"
 #endif
-#include "arith-hard.hpp" // IWYU pragma: keep
-#include "lingen_bw_dimensions.hpp"  // for bw_dimensions
+#include "lingen_bw_dimensions.hpp"
 #include "lingen_expected_pi_length.hpp"
-#include "macros.h"                  // for iceildiv, MAYBE_UNUSED
+#include "lingen_matpoly_select.hpp"
+#include "macros.h"
 
 
 std::tuple<unsigned int, unsigned int> get_minmax_delta(std::vector<unsigned int> const & delta)/*{{{*/
@@ -15,8 +17,8 @@ std::tuple<unsigned int, unsigned int> get_minmax_delta(std::vector<unsigned int
     unsigned int maxdelta = 0;
     unsigned int mindelta = UINT_MAX;
     for(auto x : delta) {
-        if (x > maxdelta) maxdelta = x;
-        if (x < mindelta) mindelta = x;
+        x = std::max(x, maxdelta);
+        x = std::min(x, maxdelta);
     }
     return std::make_tuple(mindelta, maxdelta);
 }/*}}}*/
@@ -36,7 +38,37 @@ static unsigned int get_max_delta(std::vector<unsigned int> const & delta)/*{{{*
 }/*}}}*/
 #endif
 
-unsigned int expected_pi_length(bw_dimensions & d, unsigned int len)/*{{{*/
+template<bool is_binary>
+static unsigned int
+sizeinbase(typename matpoly<is_binary>::arith_hard * ab);
+
+#ifndef LINGEN_BINARY
+template<>
+unsigned int
+sizeinbase<false>(matpoly<false>::arith_hard * ab)
+{
+    mpz_srcptr p = ab->characteristic();
+    if (mpz_cmp_ui(p, 1024) >= 0) {
+        return mpz_sizeinbase(p, 2);
+        // l *= ab->degree();    /* roughly log_2(#K) */
+    } else {
+        // mpz_pow_ui(p, p, ab->degree());
+        return mpz_sizeinbase(p, 2);
+    }
+}
+#endif
+
+#ifdef LINGEN_BINARY
+template<>
+unsigned int
+sizeinbase<true>(matpoly<true>::arith_hard *) {
+    // K is GF(2), period.
+    return 1;
+}
+#endif
+
+template<bool is_binary>
+unsigned int expected_pi_length(bw_dimensions<is_binary> & d, unsigned int len)/*{{{*/
 {
     /* The idea is that we want something which may account for something
      * exceptional, bounded by probability 2^-64. This corresponds to a
@@ -60,22 +92,9 @@ unsigned int expected_pi_length(bw_dimensions & d, unsigned int len)/*{{{*/
     unsigned int const m = d.m;
     unsigned int const n = d.n;
     unsigned int const b = m + n;
-    matpoly::arith_hard * ab MAYBE_UNUSED = & d.ab;
+    auto * ab MAYBE_UNUSED = & d.ab;
     unsigned int const res = 1 + iceildiv(len * m, b);
-#ifndef LINGEN_BINARY
-    mpz_srcptr p = ab->characteristic();
-    unsigned int l;
-    if (mpz_cmp_ui(p, 1024) >= 0) {
-        l = mpz_sizeinbase(p, 2);
-        // l *= ab->degree();    /* roughly log_2(#K) */
-    } else {
-        // mpz_pow_ui(p, p, ab->degree());
-        l = mpz_sizeinbase(p, 2);
-    }
-#else
-    // K is GF(2), period.
-    unsigned int const l = 1;
-#endif
+    unsigned int const l = sizeinbase<is_binary>(ab);
     // unsigned int safety = iceildiv(abgroupsize(ab), m * sizeof(abelt));
     unsigned int safety = iceildiv(64, m * l);
     // this +1 is here because I've sometimes seen the c30 fail in the
@@ -86,7 +105,8 @@ unsigned int expected_pi_length(bw_dimensions & d, unsigned int len)/*{{{*/
     return res + safety;
 }/*}}}*/
 
-unsigned int expected_pi_length(bw_dimensions & d, std::vector<unsigned int> const & delta, unsigned int len)/*{{{*/
+template<bool is_binary>
+unsigned int expected_pi_length(bw_dimensions<is_binary> & d, std::vector<unsigned int> const & delta, unsigned int len)/*{{{*/
 {
     // see comment above.
 
@@ -96,7 +116,8 @@ unsigned int expected_pi_length(bw_dimensions & d, std::vector<unsigned int> con
     return expected_pi_length(d, len) + ma - mi;
 }/*}}}*/
 
-unsigned int expected_pi_length_lowerbound(bw_dimensions & d, unsigned int len)/*{{{*/
+template<bool is_binary>
+unsigned int expected_pi_length_lowerbound(bw_dimensions<is_binary> & d, unsigned int len)/*{{{*/
 {
     /* generically we expect that len*m % (m+n) columns have length
      * 1+\lfloor(len*m/(m+n))\rfloor, and the others have length one more.
@@ -109,22 +130,25 @@ unsigned int expected_pi_length_lowerbound(bw_dimensions & d, unsigned int len)/
     unsigned int const m = d.m;
     unsigned int const n = d.n;
     unsigned int const b = m + n;
-    matpoly::arith_hard * ab MAYBE_UNUSED = & d.ab;
+    auto * ab MAYBE_UNUSED = & d.ab;
     unsigned int const res = 1 + (len * m) / b;
-#ifndef LINGEN_BINARY
-    cxx_mpz p(ab->characteristic());
-    unsigned int l;
-    if (mpz_cmp_ui(p, 1024) >= 0) {
-        l = mpz_sizeinbase(p, 2);
-        // l *= abfield_degree(ab);    /* roughly log_2(#K) */
-    } else {
-        // mpz_pow_ui(p, p, abfield_degree(ab));
-        l = mpz_sizeinbase(p, 2);
-    }
-#else
-    unsigned int const l = 1;
-#endif
+    unsigned int const l = sizeinbase<is_binary>(ab);
     unsigned int const safety = iceildiv(64, m * l);
     return safety < res ? res - safety : 0;
 }/*}}}*/
 
+#ifdef LINGEN_BINARY
+template
+unsigned int expected_pi_length(bw_dimensions<true> & d, unsigned int len);
+template
+unsigned int expected_pi_length(bw_dimensions<true> & d, std::vector<unsigned int> const & delta, unsigned int len);
+template
+unsigned int expected_pi_length_lowerbound<true>(bw_dimensions<true> & d, unsigned int len);
+#else
+template
+unsigned int expected_pi_length(bw_dimensions<false> & d, unsigned int len);
+template
+unsigned int expected_pi_length(bw_dimensions<false> & d, std::vector<unsigned int> const & delta, unsigned int len);
+template
+unsigned int expected_pi_length_lowerbound<false>(bw_dimensions<false> & d, unsigned int len);
+#endif /* LINGEN_BINARY */

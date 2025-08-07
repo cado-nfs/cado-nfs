@@ -14,12 +14,12 @@
 #include <utility>
 #include <istream>      // std::istream // IWYU pragma: keep
 #include <ostream>      // std::ostream // IWYU pragma: keep
+#include <stdexcept>
 #include <type_traits>
 #endif
 
 #ifdef __cplusplus
 #include "fmt/ostream.h"
-#include "fmt/format.h"
 #endif
 
 #ifdef __cplusplus
@@ -345,13 +345,17 @@ struct cxx_mpz_poly {
         mpz_poly_init(x, -1);
         mpz_poly_set(x, o.x);
     }
-    template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
-    cxx_mpz_poly (const T & rhs) {      // NOLINT(hicpp-explicit-conversions)
+    template <typename T>
+    cxx_mpz_poly (const T & rhs)      // NOLINT(hicpp-explicit-conversions)
+        requires std::is_integral_v<T>
+    {
         mpz_poly_init(x, -1);
         *this = rhs;
     }
-    template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
-    cxx_mpz_poly & operator=(const T a) {
+    template <typename T>
+    cxx_mpz_poly & operator=(const T a)
+    requires std::is_integral_v<T>
+    {
         cxx_mpz b;
         gmp_auxx::mpz_set(b, a);
         mpz_poly_set_mpz(x, b);
@@ -366,7 +370,6 @@ struct cxx_mpz_poly {
         mpz_poly_set_mpz(x, a);
         return *this;
     }
-#if __cplusplus >= 201103L
     cxx_mpz_poly(cxx_mpz_poly && o) noexcept {
         mpz_poly_init(x, -1);
         mpz_poly_swap(x, o.x);
@@ -375,10 +378,10 @@ struct cxx_mpz_poly {
         mpz_poly_swap(x, o.x);
         return *this;
     }
-#endif
     // NOLINTNEXTLINE(hicpp-explicit-conversions)
     cxx_mpz_poly(std::string const & e) : cxx_mpz_poly() {
-        mpz_poly_set_from_expression(x, e.c_str());
+        if (!mpz_poly_set_from_expression(x, e.c_str()))
+            throw std::invalid_argument(e);
     }
     cxx_mpz_poly& operator=(std::string const & e) {
         mpz_poly_set_from_expression(x, e.c_str());
@@ -411,11 +414,11 @@ struct cxx_mpz_poly {
 
     template<typename T>
     class named_proxy {
-        static_assert(std::is_reference<T>::value, "T must be a reference");
-        typedef typename std::remove_reference<T>::type V;
-        typedef typename std::remove_const<V>::type Vnc;
-        typedef named_proxy<Vnc &> nc;
-        static constexpr const bool is_c = std::is_const<V>::value;
+        static_assert(std::is_reference_v<T>, "T must be a reference");
+        using V = std::remove_reference_t<T>;
+        using Vnc = std::remove_const_t<V>;
+        using nc = named_proxy<Vnc &>;
+        static constexpr const bool is_c = std::is_const_v<V>;
         public:
         T c;
         std::string x;
@@ -423,13 +426,10 @@ struct cxx_mpz_poly {
             : c(c), x(std::move(x))
         {}
         /*
-        template<
-                typename U = T,
-                typename = typename std::enable_if<
-                    std::is_same<U, nc>::value
-                >::type
-            >
-        named_proxy(U const & c) : c(c.c), x(c.x) {}
+        template<typename U = T>
+        named_proxy(U const & c)
+        requires std::is_same_v<U, nc>
+        : c(c.c), x(c.x) {}
         */
     };
 
@@ -463,13 +463,17 @@ struct cxx_mpz_poly {
     bool operator<(cxx_mpz_poly const & a) const { return mpz_poly_cmp(x, a) < 0; }
 
 
-    template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
-    bool operator==(T a) const {
+    template <typename T>
+    bool operator==(T a) const
+    requires std::is_integral_v<T>
+    {
         if (a == 0) return x->deg == -1;
         return x->deg == 0 && gmp_auxx::mpz_cmp(mpz_poly_coeff_const(x, 0), a) == 0;
     }
-    template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
-    bool operator!=(T a) const { return !((*this) == a); }
+    template <typename T>
+    bool operator!=(T a) const
+    requires std::is_integral_v<T>
+    { return !((*this) == a); }
 
     // mpz_ptr operator[](unsigned int i) { return mpz_poly_coeff_const(x, i); }
     mpz_srcptr

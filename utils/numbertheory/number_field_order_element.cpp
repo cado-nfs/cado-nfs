@@ -1,5 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
 
+#include "mpz_mat.h"
+#include "cxx_mpz.hpp"
 #include "numbertheory/number_field_order_element.hpp"
 #include "numbertheory/number_field_element.hpp"
 #include "numbertheory/number_field_order.hpp"
@@ -23,10 +25,10 @@ number_field_order_element number_field_order_element::operator*(number_field_or
     if (&order() != &a.order())
         throw number_field_inconsistency();
 
-    return number_field_order_element(order(),
+    return { order(),
             numbertheory_internals::multiply_elements_in_order(order().multiplication_table,
                 coefficients,
-                a.coefficients));
+                a.coefficients) };
 }
 
 cxx_mpz_mat number_field_order_element::multiplication_matrix() const

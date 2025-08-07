@@ -4,41 +4,41 @@
 
 #include <cstddef>
 
-#include <stdexcept>                      // for runtime_error, overflow_error
-#include <string>                         // for operator+, string
-#include <vector>                         // for vector
+#include <stdexcept>
+#include <string>
+#include <vector>
 
-#include <sys/utsname.h>                  // for uname, utsname
+#include <sys/utsname.h>
 #include <gmp.h>
 
-#include "fmt/format.h"                   // for basic_buffer::append, basic...
+#include "fmt/format.h"
 
 #ifdef LINGEN_BINARY
-#include "gf2x-fft.h"                     // for gf2x_cantor_fft_info
-#include "gf2x-ternary-fft.h"             // for gf2x_ternary_fft_info
+#include "gf2x-fft.h"
+#include "gf2x-ternary-fft.h"
 #else
-#include "flint-fft/transform_interface.h"          // fft_transform_info
+#include "flint-fft/transform_interface.h"
 #endif
-#include "lingen_bigmatpoly.hpp"          // for bigmatpoly, bigmatpoly_model
-#include "lingen_bigmatpoly_ft.hpp"       // for bigmatpoly_ft
-#include "lingen_bmstatus.hpp"            // for bmstatus
-#include "lingen_bw_dimensions.hpp"       // for bw_dimensions
-#include "lingen_call_companion.hpp"      // for lingen_call_companion, ling...
-#include "lingen_checkpoints.hpp"         // for save_checkpoint_file, load_...
-#include "lingen_expected_pi_length.hpp"  // for expected_pi_length, expecte...
-#include "lingen_hints.hpp"               // for lingen_hints
-#include "lingen_io_wrappers.hpp"         // for lingen_output_wrapper_base
-#include "lingen_matpoly_ft.hpp"          // for matpoly_ft, matpoly_ft<>::m...
-#include "lingen_matpoly_select.hpp"      // for matpoly, matpoly::memory_guard
-#include "lingen_qcode_select.hpp"           // for bw_lingen_basecase
-#include "lingen_substep_schedule.hpp"    // for lingen_substep_schedule
-#include "lingen_tuning.hpp"              // for lingen_tuning, lingen_tunin...
-#include "logline.hpp"                      // for logline_end, logline_init_t...
-#include "macros.h"                       // for ASSERT_ALWAYS, iceildiv, MIN
-#include "select_mpi.h"                   // for MPI_Comm, MPI_Comm_rank
-#include "sha1.h"                         // for sha1_checksumming_stream
-#include "timing.h"                       // for seconds
-#include "tree_stats.hpp"                 // for tree_stats, tree_stats::tra...
+#include "lingen_bigmatpoly.hpp"
+#include "lingen_bigmatpoly_ft.hpp"
+#include "lingen_bmstatus.hpp"
+#include "lingen_bw_dimensions.hpp"
+#include "lingen_call_companion.hpp"
+#include "lingen_checkpoints.hpp"
+#include "lingen_expected_pi_length.hpp"
+#include "lingen_fft_select.hpp"
+#include "lingen_hints.hpp"
+#include "lingen_io_wrappers.hpp"
+#include "lingen_matpoly_ft.hpp"
+#include "lingen_matpoly_select.hpp"
+#include "lingen_qcode_select.hpp"
+#include "lingen_substep_schedule.hpp"
+#include "logline.hpp"
+#include "macros.h"
+#include "select_mpi.h"
+#include "sha1.h"
+#include "timing.h"
+#include "tree_stats.hpp"
 
 // some of our entry points are exported for tests
 #include "lingen.hpp"
@@ -49,8 +49,8 @@
 /* Main entry points and recursive algorithm (with and without MPI) */
 
 // used for debugging
-// NOLINTNEXTLINE(misc-use-internal-linkage)
-std::string sha1sum(matpoly const & X)
+template<bool is_binary>
+std::string sha1sum(matpoly<is_binary> const & X)
 {
     sha1_checksumming_stream S;
     /*
@@ -73,55 +73,53 @@ std::string sha1sum(matpoly const & X)
         }
     char checksum[41];
     S.checksum(checksum);
-    return std::string(checksum);
+    return { checksum };
 }
+
+template<typename matpoly_type>
+struct matpoly_diverter;
+
+template<bool is_binary>
+struct matpoly_diverter<matpoly<is_binary>> {
+    static constexpr const char * prefix = "";
+    static matpoly<is_binary> callback(bmstatus<is_binary> & bm, matpoly<is_binary> & E) {
+        return bw_lingen_single(bm, E);
+    }
+};
 
 template<typename matpoly_type, typename fft_type>
 struct matching_ft_type {};
 
-template<typename matpoly_type>
-struct matpoly_diverter {};
+template<typename fft_type>
+struct matching_ft_type<matpoly<is_binary_fft_v<fft_type>>, fft_type> {
+    using type = matpoly_ft<fft_type>;
+};
 
 template<typename fft_type>
-struct matching_ft_type<matpoly, fft_type> {
-    typedef matpoly_ft<fft_type> type;
+struct matching_ft_type<bigmatpoly<is_binary_fft_v<fft_type>>, fft_type> {
+    using type = bigmatpoly_ft<fft_type>;
 };
-template<> struct matpoly_diverter<matpoly> {
-    static constexpr const char * prefix = "";
-    static matpoly callback(bmstatus & bm, matpoly & E) {
-        return bw_lingen_single(bm, E);
-    }
-};
-constexpr const char * matpoly_diverter<matpoly>::prefix;
+template<typename T, typename fft_type>
+using matching_ft_type_t = typename matching_ft_type<T, fft_type>::type;
 
-template<typename fft_type>
-struct matching_ft_type<bigmatpoly, fft_type> {
-    typedef bigmatpoly_ft<fft_type> type;
-};
-template<> struct matpoly_diverter<bigmatpoly> {
+template<bool is_binary> struct matpoly_diverter<bigmatpoly<is_binary>> {
     static constexpr const char * prefix = "MPI-";
-    static bigmatpoly callback(bmstatus & bm, bigmatpoly & E) {
-        return bw_biglingen_collective(bm, E);
+    static bigmatpoly<is_binary> callback(bmstatus<is_binary> & bm, bigmatpoly<is_binary> & E) {
+        return bw_biglingen_collective<is_binary>(bm, E);
     }
 };
-constexpr const char * matpoly_diverter<bigmatpoly>::prefix;
 
-
+#ifdef LINGEN_BINARY
 template<typename matpoly_type>
-static matpoly_type generic_mp(matpoly_type & E, matpoly_type & pi_left, bmstatus & bm, lingen_call_companion & C)
+static matpoly_type
+generic_mp(matpoly_type & E, matpoly_type & pi_left, bmstatus<matpoly_type::is_binary> & bm, lingen_call_companion & C)
+    requires matpoly_type::is_binary
 {
     switch (C.mp.S.fft_type) {
         case lingen_substep_schedule::FFT_NONE:
             return matpoly_type::mp(bm.stats, E, pi_left, &C.mp);
         case lingen_substep_schedule::FFT_FLINT:
-#ifndef LINGEN_BINARY
-            return matching_ft_type<matpoly_type,
-                    fft_transform_info>::type::mp_caching(
-                            bm.stats, E, pi_left, & C.mp);
-#else
             throw std::runtime_error("fft type \"flint\" does not make sense here");
-#endif
-#ifdef LINGEN_BINARY
         case lingen_substep_schedule::FFT_CANTOR:
             return matching_ft_type<matpoly_type,
                     gf2x_cantor_fft_info>::type::mp_caching(
@@ -130,30 +128,45 @@ static matpoly_type generic_mp(matpoly_type & E, matpoly_type & pi_left, bmstatu
             return matching_ft_type<matpoly_type,
                     gf2x_ternary_fft_info>::type::mp_caching(
                             bm.stats, E, pi_left, & C.mp);
-#else
-        case lingen_substep_schedule::FFT_TERNARY:
-        case lingen_substep_schedule::FFT_CANTOR:
-            throw std::runtime_error("fft types over GF(2)[x] do not make sense here");
-#endif
     }
     throw std::runtime_error("invalid fft_type");
 }
+#endif
 
+#ifndef LINGEN_BINARY
 template<typename matpoly_type>
-static matpoly_type generic_mul(matpoly_type & pi_left, matpoly_type & pi_right, bmstatus & bm, lingen_call_companion & C)
+static matpoly_type
+generic_mp(matpoly_type & E, matpoly_type & pi_left, bmstatus<matpoly_type::is_binary> & bm, lingen_call_companion & C)
+requires (!matpoly_type::is_binary)
+{
+    switch (C.mp.S.fft_type) {
+        case lingen_substep_schedule::FFT_NONE:
+            return matpoly_type::mp(bm.stats, E, pi_left, &C.mp);
+        case lingen_substep_schedule::FFT_FLINT:
+            return matching_ft_type<matpoly_type,
+                    fft_transform_info>::type::mp_caching(
+                            bm.stats, E, pi_left, & C.mp);
+        case lingen_substep_schedule::FFT_TERNARY:
+        case lingen_substep_schedule::FFT_CANTOR:
+            throw std::runtime_error("fft types over GF(2)[x] do not make sense here");
+    }
+    throw std::runtime_error("invalid fft_type");
+}
+#endif
+
+
+
+#ifdef LINGEN_BINARY
+template<typename matpoly_type>
+static matpoly_type
+generic_mul(matpoly_type & pi_left, matpoly_type & pi_right, bmstatus<matpoly_type::is_binary> & bm, lingen_call_companion & C)
+    requires matpoly_type::is_binary
 {
     switch (C.mul.S.fft_type) {
         case lingen_substep_schedule::FFT_NONE:
             return matpoly_type::mul(bm.stats, pi_left, pi_right, & C.mul);
         case lingen_substep_schedule::FFT_FLINT:
-#ifndef LINGEN_BINARY
-            return matching_ft_type<matpoly_type,
-                    fft_transform_info>::type::mul_caching(
-                            bm.stats, pi_left, pi_right, & C.mul);
-#else
             throw std::runtime_error("fft type \"flint\" does not make sense here");
-#endif
-#ifdef LINGEN_BINARY
         case lingen_substep_schedule::FFT_CANTOR:
             return matching_ft_type<matpoly_type,
                     gf2x_cantor_fft_info>::type::mul_caching(
@@ -162,17 +175,34 @@ static matpoly_type generic_mul(matpoly_type & pi_left, matpoly_type & pi_right,
             return matching_ft_type<matpoly_type,
                     gf2x_ternary_fft_info>::type::mul_caching(
                             bm.stats, pi_left, pi_right, & C.mul);
-#else
-        case lingen_substep_schedule::FFT_TERNARY:
-        case lingen_substep_schedule::FFT_CANTOR:
-            throw std::runtime_error("fft types over GF(2)[x] do not make sense here");
-#endif
     }
     throw std::runtime_error("invalid fft_type");
 }
+#endif
+
+#ifndef LINGEN_BINARY
+template<typename matpoly_type>
+    static matpoly_type
+generic_mul(matpoly_type & pi_left, matpoly_type & pi_right, bmstatus<matpoly_type::is_binary> & bm, lingen_call_companion & C)
+requires (!matpoly_type::is_binary)
+{
+    switch (C.mul.S.fft_type) {
+        case lingen_substep_schedule::FFT_NONE:
+            return matpoly_type::mul(bm.stats, pi_left, pi_right, & C.mul);
+        case lingen_substep_schedule::FFT_FLINT:
+            return matching_ft_type<matpoly_type,
+                    fft_transform_info>::type::mul_caching(
+                            bm.stats, pi_left, pi_right, & C.mul);
+        case lingen_substep_schedule::FFT_TERNARY:
+        case lingen_substep_schedule::FFT_CANTOR:
+            throw std::runtime_error("fft types over GF(2)[x] do not make sense here");
+    }
+    throw std::runtime_error("invalid fft_type");
+}
+#endif
 
 template<typename matpoly_type>
-static void truncate_overflow(bmstatus & bm, matpoly_type & pi, unsigned int pi_expect)
+static void truncate_overflow(bmstatus<matpoly_type::is_binary> & bm, matpoly_type & pi, unsigned int pi_expect)
 {
     if (pi.get_size() > pi_expect) {
         unsigned int nluck = 0;
@@ -214,7 +244,7 @@ static void truncate_overflow(bmstatus & bm, matpoly_type & pi, unsigned int pi_
 
 
 template<typename matpoly_type>
-static matpoly_type bw_lingen_recursive(bmstatus & bm, matpoly_type & E) /*{{{*/
+static matpoly_type bw_lingen_recursive(bmstatus<matpoly_type::is_binary> & bm, matpoly_type & E) /*{{{*/
 {
     int const depth = bm.depth;
     size_t const z = E.get_size();
@@ -224,12 +254,12 @@ static matpoly_type bw_lingen_recursive(bmstatus & bm, matpoly_type & E) /*{{{*/
     lingen_call_companion const C0 = bm.companion(depth, z);
 
     tree_stats::sentinel const dummy(bm.stats, fmt::format("{}recursive", matpoly_diverter<matpoly_type>::prefix), z, C0.total_ncalls);
-    bmstatus::depth_sentinel ddummy(bm);
+    const typename bmstatus<matpoly_type::is_binary>::depth_sentinel ddummy(bm);
 
     bm.stats.plan_smallstep(C0.mp.step_name(), C0.mp.tt);
     bm.stats.plan_smallstep(C0.mul.step_name(), C0.mul.tt);
 
-    bw_dimensions & d = bm.d;
+    auto & d = bm.d;
 
     /* we have to start with something large enough to get all
      * coefficients of E_right correct */
@@ -337,12 +367,13 @@ static matpoly_type bw_lingen_recursive(bmstatus & bm, matpoly_type & E) /*{{{*/
 }/*}}}*/
 
 
-static matpoly bw_lingen_single_nocp(bmstatus & bm, matpoly & E) /*{{{*/
+template<bool is_binary>
+static matpoly<is_binary> bw_lingen_single_nocp(bmstatus<is_binary> & bm, matpoly<is_binary> & E) /*{{{*/
 {
     int rank;
     MPI_Comm_rank(bm.com[0], &rank);
     ASSERT_ALWAYS(!rank);
-    matpoly pi;
+    matpoly<is_binary> pi;
 
     lingen_call_companion const C = bm.companion(bm.depth, E.get_size());
 
@@ -362,14 +393,16 @@ static matpoly bw_lingen_single_nocp(bmstatus & bm, matpoly & E) /*{{{*/
 
     return pi;
 }/*}}}*/
-matpoly bw_lingen_single(bmstatus & bm, matpoly & E) /*{{{*/
+
+template<bool is_binary>
+matpoly<is_binary> bw_lingen_single(bmstatus<is_binary> & bm, matpoly<is_binary> & E) /*{{{*/
 {
     int rank;
     MPI_Comm_rank(bm.com[0], &rank);
     ASSERT_ALWAYS(!rank);
     unsigned int const t0 = bm.t;
     unsigned int const t1 = bm.t + E.get_size();
-    matpoly pi;
+    matpoly<is_binary> pi;
 
     save_checkpoint_file(bm, LINGEN_CHECKPOINT_E, E, t0, t1);
 
@@ -384,7 +417,8 @@ matpoly bw_lingen_single(bmstatus & bm, matpoly & E) /*{{{*/
     return pi;
 }/*}}}*/
 
-bigmatpoly bw_biglingen_collective(bmstatus & bm, bigmatpoly & E)/*{{{*/
+template<bool is_binary>
+bigmatpoly<is_binary> bw_biglingen_collective(bmstatus<is_binary> & bm, bigmatpoly<is_binary> & E)/*{{{*/
 {
     /* as for bw_lingen_single, we're tempted to say that we're just a
      * trampoline. In fact, it's not really satisfactory: we're really
@@ -392,8 +426,8 @@ bigmatpoly bw_biglingen_collective(bmstatus & bm, bigmatpoly & E)/*{{{*/
      * trouble, because the mpi threshold will be low enough that doing
      * our full job here is not too much of a problem.
      */
-    bw_dimensions & d = bm.d;
-    matpoly::arith_hard * ab = & d.ab;
+    auto & d = bm.d;
+    auto * ab = & d.ab;
     unsigned int const m = d.m;
     unsigned int const n = d.n;
     unsigned int const b = m + n;
@@ -411,7 +445,7 @@ bigmatpoly bw_biglingen_collective(bmstatus & bm, bigmatpoly & E)/*{{{*/
     bool const go_mpi = C.go_mpi();
     // bool go_mpi = E.get_size() >= bm.lingen_mpi_threshold;
 
-    bigmatpoly pi(model);
+    bigmatpoly<is_binary> pi(model);
 
     save_checkpoint_file(bm, LINGEN_CHECKPOINT_E, E, t0, t1);
 
@@ -428,14 +462,14 @@ bigmatpoly bw_biglingen_collective(bmstatus & bm, bigmatpoly & E)/*{{{*/
 
         tree_stats::transition_sentinel const dummy(bm.stats, "mpi_threshold", E.get_size(), C.total_ncalls);
 
-        matpoly sE(ab, m, b, E.get_size());
-        matpoly spi;
+        matpoly<is_binary> sE(ab, m, b, E.get_size());
+        matpoly<is_binary> spi;
 
         double const expect0 = bm.hints.tt_gather_per_unit * E.get_size();
         bm.stats.plan_smallstep("gather(L+R)", expect0);
         bm.stats.begin_smallstep("gather(L+R)");
         E.gather_mat(sE);
-        E = bigmatpoly(model);
+        E = bigmatpoly<is_binary>(model);
         bm.stats.end_smallstep();
 
         /* Only the master node does the local computation */
@@ -445,7 +479,7 @@ bigmatpoly bw_biglingen_collective(bmstatus & bm, bigmatpoly & E)/*{{{*/
         double const expect1 = bm.hints.tt_scatter_per_unit * z;
         bm.stats.plan_smallstep("scatter(L+R)", expect1);
         bm.stats.begin_smallstep("scatter(L+R)");
-        pi = bigmatpoly(ab, model, b, b, 0);
+        pi = bigmatpoly<is_binary>(ab, model, b, b, 0);
         pi.scatter_mat(spi);
         MPI_Bcast(&bm.done, 1, MPI_INT, 0, bm.com[0]);
         MPI_Bcast(bm.delta.data(), b, MPI_UNSIGNED, 0, bm.com[0]);
@@ -464,6 +498,19 @@ bigmatpoly bw_biglingen_collective(bmstatus & bm, bigmatpoly & E)/*{{{*/
 }/*}}}*/
 
 /**/
+
+#ifdef LINGEN_BINARY
+template
+matpoly<true> bw_lingen_single<true>(bmstatus<true> & bm, matpoly<true> & E);
+template
+bigmatpoly<true> bw_biglingen_collective<true>(bmstatus<true> & bm, bigmatpoly<true> & E);
+#else
+template
+matpoly<false> bw_lingen_single<false>(bmstatus<false> & bm, matpoly<false> & E);
+template
+bigmatpoly<false> bw_biglingen_collective<false>(bmstatus<false> & bm, bigmatpoly<false> & E);
+#endif	/* LINGEN_BINARY */
+
 
 /**********************************************************************/
 /* vim:set sw=4 sta et: */
