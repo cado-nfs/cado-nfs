@@ -1,6 +1,8 @@
 #ifndef CADO_EXPRESSION_PARSER_HPP
 #define CADO_EXPRESSION_PARSER_HPP
 
+#include "cado_config.h"
+
 #include <cstddef>
 
 #include <algorithm>
@@ -15,6 +17,11 @@
 
 #include "cxx_mpz.hpp"
 // #include "cado_math_aux.hpp"
+
+#ifdef HAVE_MPFR
+#include <mpfr.h>
+#include "cxx_mpfr.hpp"
+#endif
 
 /* This structure has only two public functions: tokenize and parse */
 
@@ -65,7 +72,7 @@ namespace cado_expression_parser_details {
         }
 
         bool swallow_hits_end(int & c, std::istream & is) {
-                full += (char) c;
+                full += static_cast<char>(c);
                 is.get();
                 c=is.peek();
                 return is.eof();
@@ -178,6 +185,23 @@ namespace cado_expression_parser_details {
             return res;
         }
     };
+
+#ifdef HAVE_MPFR
+    template<>
+    struct number_traits<cxx_mpfr> {
+        static cxx_mpfr from_number_literal(number_literal const & N) {
+            /*
+            if (!N.has_point && !N.has_exponent)
+                return cado_math_aux::mpz_get<long double>(number_traits<cxx_mpz>::from_number_literal(N));
+                */
+            cxx_mpfr res;
+            int r = mpfr_set_str(res,   N.full.c_str(), 0, MPFR_RNDN);
+            if (r != 0)
+                throw parse_error();
+            return res;
+        }
+    };
+#endif
 
     struct cado_expression_parser_base {
         // typedef cado_expression_parser_details::token_error token_error;

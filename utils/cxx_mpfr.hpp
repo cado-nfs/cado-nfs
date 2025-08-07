@@ -107,6 +107,32 @@ struct cxx_mpfr {
     template <
         typename T,
         typename std::enable_if<
+            std::is_integral<T>::value && !std::is_signed<T>::value &&
+                cado_math_aux::is_non_narrowing_conversion<T, uint64_t>::value,
+            int>::type = 0>
+    // NOLINTNEXTLINE(hicpp-explicit-conversions,google-explicit-constructor)
+    cxx_mpfr(T const & rhs)
+    {
+        mpfr_init2(x, std::numeric_limits<T>::digits);
+        mpfr_auxx::cado_mpfr_set(x, uint64_t(rhs), MPFR_RNDN);
+    }
+
+    explicit cxx_mpfr(double rhs)
+    {
+        mpfr_init2(x, std::numeric_limits<decltype(rhs)>::digits);
+        mpfr_set_d(x, rhs, MPFR_RNDN);
+    }
+
+    explicit cxx_mpfr(long double rhs)
+    {
+        mpfr_init2(x, std::numeric_limits<decltype(rhs)>::digits);
+        mpfr_set_ld(x, rhs, MPFR_RNDN);
+    }
+
+
+    template <
+        typename T,
+        typename std::enable_if<
             std::is_integral<T>::value && std::is_signed<T>::value &&
                 cado_math_aux::is_non_narrowing_conversion<T, int64_t>::value,
             int>::type = 0>
@@ -122,22 +148,22 @@ struct cxx_mpfr {
             std::is_integral<T>::value && !std::is_signed<T>::value &&
                 cado_math_aux::is_non_narrowing_conversion<T, uint64_t>::value,
             int>::type = 0>
-    // NOLINTNEXTLINE(hicpp-explicit-conversions,google-explicit-constructor)
-    cxx_mpfr(T const & rhs)
-    {
-        mpfr_init2(x, std::numeric_limits<T>::digits);
-        mpfr_auxx::cado_mpfr_set(x, uint64_t(rhs), MPFR_RNDN);
-    }
-    template <
-        typename T,
-        typename std::enable_if<
-            std::is_integral<T>::value && !std::is_signed<T>::value &&
-                cado_math_aux::is_non_narrowing_conversion<T, uint64_t>::value,
-            int>::type = 0>
     cxx_mpfr & operator=(T const a)
     {
         mpfr_set_prec(x, std::numeric_limits<T>::digits);
         mpfr_auxx::cado_mpfr_set(x, uint64_t(a), MPFR_RNDN);
+        return *this;
+    }
+    cxx_mpfr & operator=(double a)
+    {
+        mpfr_set_prec(x, std::numeric_limits<decltype(a)>::digits);
+        mpfr_set_d(x, a, MPFR_RNDN);
+        return *this;
+    }
+    cxx_mpfr & operator=(long double a)
+    {
+        mpfr_set_prec(x, std::numeric_limits<decltype(a)>::digits);
+        mpfr_set_ld(x, a, MPFR_RNDN);
         return *this;
     }
 

@@ -10,6 +10,8 @@
 #include "mpfr_aux.h"
 #include "utils_cxx.hpp"
 
+#include "is_non_narrowing_conversion.hpp"
+
 /* A C++ wrapper around functions in mpfr_aux.h. The functions here delegate
  * to the proper C function depending on the argument type. We keep them
  * out of global name space to avoid obscuring errors.
@@ -131,8 +133,13 @@ inline int cado_mpfr_cmp(mpfr_srcptr a, uint64_t const b)
     {                                                                          \
         return mpfr_##OP##_ui(a, b, c, rnd);                                   \
     }                                                                          \
+    template <typename T, typename std::enable_if<			\
+        std::is_integral<T>::value &&					\
+        !std::is_signed<T>::value &&					\
+        cado_math_aux::is_non_narrowing_conversion<T, uint64_t>::value,	\
+        int>::type = 0 >						\
     static inline int cado_mpfr_##OP(mpfr_ptr a, mpfr_srcptr b,                \
-                                     const uint64_t c, mpfr_rnd_t rnd)         \
+                                     T c, mpfr_rnd_t rnd)         \
     {                                                                          \
         return mpfr_##OP##_uint64(a, b, c, rnd);                               \
     }                                                                          \
@@ -141,8 +148,13 @@ inline int cado_mpfr_cmp(mpfr_srcptr a, uint64_t const b)
     {                                                                          \
         return mpfr_##OP##_si(a, b, c, rnd);                                   \
     }                                                                          \
+    template <typename T, typename std::enable_if<			\
+        std::is_integral<T>::value &&					\
+        std::is_signed<T>::value &&					\
+        cado_math_aux::is_non_narrowing_conversion<T, int64_t>::value,	\
+        int>::type = 0 >						\
     static inline int cado_mpfr_##OP(mpfr_ptr a, mpfr_srcptr b,                \
-                                     const int64_t c, mpfr_rnd_t rnd)          \
+                                     T c, mpfr_rnd_t rnd)          \
     {                                                                          \
         return mpfr_##OP##_int64(a, b, c, rnd);                                \
     }

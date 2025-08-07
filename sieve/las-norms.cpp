@@ -787,7 +787,7 @@ get_maxnorm_circular (polynomial<double> const & src_poly, const double X,
       poly[i + 1] -= (double) d * Y * t;
     }
 
-  auto roots = poly.roots();
+  auto roots = poly.roots<double>();
 
   /* evaluate at y=0 */
   max_norm = fabs (src_poly[d] * pow (X, (double) d));

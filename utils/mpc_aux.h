@@ -201,6 +201,19 @@ static inline int mpc_addmul(mpc_ptr a, mpc_srcptr b, mpc_srcptr c,
     return mpc_fma(a, b, c, a, rnd);
 }
 
+static inline int mpc_fms(mpc_ptr res, mpc_srcptr x, mpc_srcptr y, mpc_srcptr z,
+                             mpc_rnd_t rnd)
+{
+    mpc_t mz;
+    mpfr_prec_t pr, pi;
+    mpc_get_prec2(&pr, &pi, z);
+    mpc_init3(mz, pr, pi);
+    int const r = mpc_fma(res, x, y, mz, rnd);
+    mpc_neg(res, res, rnd);
+    mpc_clear(mz);
+    return r;
+}
+
 static inline int mpc_submul(mpc_ptr a, mpc_srcptr b, mpc_srcptr c,
                              mpc_rnd_t rnd)
 {

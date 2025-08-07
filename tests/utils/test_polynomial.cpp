@@ -18,6 +18,10 @@
 #include "polynomial.hpp"
 #include "tests_common.h"
 
+#ifdef HAVE_MPFR
+#include "cxx_mpfr.hpp"
+#endif
+
 /* This verifies that the provided roots are correct to the given
  * accuracy in bits (if positive) or have an accuracy loss wrt the given
  * type that is at most the (negative) given accuracy
@@ -36,7 +40,7 @@ test_positive_roots(std::string const & poly_str,
         accuracy += std::numeric_limits<T>::digits;
 
     if (verbose)
-        fmt::print("Testng polynomial {}\n", f);
+        fmt::print("Testing polynomial {}\n", f);
 
     if (!reference.empty()) {
         if (bound > 0) {
@@ -84,10 +88,10 @@ test_compute_roots(bool verbose)
 
     /* A few roots of 2 */
     test_positive_roots<T>("x-2", 3, verbose,   {2}, -5 - valgrind_penalty);
-    test_positive_roots<T>("x^2-2", 3, verbose, {1.4142135623730950488016887242096980786L}, -5 - valgrind_penalty);
-    test_positive_roots<T>("x^3-2", 3, verbose, {1.2599210498948731647672106072782283506L}, -5 - valgrind_penalty);
-    test_positive_roots<T>("x^4-2", 3, verbose, {1.1892071150027210667174999705604759153L}, -5 - valgrind_penalty);
-    test_positive_roots<T>("x^5-2", 3, verbose, {1.1486983549970350067986269467779275894L}, -5 - valgrind_penalty);
+    test_positive_roots<T>("x^2-2", 3, verbose, {T(1.4142135623730950488016887242096980786L)}, -5 - valgrind_penalty);
+    test_positive_roots<T>("x^3-2", 3, verbose, {T(1.2599210498948731647672106072782283506L)}, -5 - valgrind_penalty);
+    test_positive_roots<T>("x^4-2", 3, verbose, {T(1.1892071150027210667174999705604759153L)}, -5 - valgrind_penalty);
+    test_positive_roots<T>("x^5-2", 3, verbose, {T(1.1486983549970350067986269467779275894L)}, -5 - valgrind_penalty);
 
     test_positive_roots<T>("(x-1)*(x-2)", 3, verbose, {1, 2}, -8 - valgrind_penalty);
     test_positive_roots<T>("(x-1)*(x-2)*(x-3)", 4, verbose, {1, 2, 3}, -8 - valgrind_penalty);
@@ -98,26 +102,26 @@ test_compute_roots(bool verbose)
      * negative roots (for negative roots we give a negative bound) */
     test_positive_roots<T>("x^6 + x^5 - 5*x^4 - 4*x^3 + 6*x^2 + 3*x - 1",
             2, verbose, {
-            0.24107336051064610669813537490508716455L,
-            1.1361294934623116050236151182550332491L,
-            1.7709120513064197918007510440301977572L},
+            T(0.24107336051064610669813537490508716455L),
+            T(1.1361294934623116050236151182550332491L),
+            T(1.7709120513064197918007510440301977572L)},
             -4 - valgrind_penalty);
     test_positive_roots<T>("x^6 + x^5 - 5*x^4 - 4*x^3 + 6*x^2 + 3*x - 1",
             -2, verbose, {
-            -0.70920977408507125193927578520003694863L,
-            -1.4970214963422021972692611994027027677L,
-            -1.9418836348521040543139645525875784545L,
+            T(-0.70920977408507125193927578520003694863L),
+            T(-1.4970214963422021972692611994027027677L),
+            T(-1.9418836348521040543139645525875784545L),
             },
             -6 - valgrind_penalty);
     /* this is f(x-2). 6 real roots, 0 rational */
     test_positive_roots<T>("x^6 - 11*x^5 + 45*x^4 - 84*x^3 + 70*x^2 - 21*x + 1",
             4, verbose,
-            {0.058116365147895945686035447412421545500L,
-            0.50297850365779780273073880059729723231L,
-            1.2907902259149287480607242147999630514L,
-            2.2410733605106461066981353749050871645L,
-            3.1361294934623116050236151182550332491L,
-            3.7709120513064197918007510440301977572L},
+            {T(0.058116365147895945686035447412421545500L),
+            T(0.50297850365779780273073880059729723231L),
+            T(1.2907902259149287480607242147999630514L),
+            T(2.2410733605106461066981353749050871645L),
+            T(3.1361294934623116050236151182550332491L),
+            T(3.7709120513064197918007510440301977572L)},
             -8 - valgrind_penalty);
 
     /* examples below can't be dealt with by the float code because of
@@ -136,7 +140,7 @@ test_compute_roots(bool verbose)
             " - x^5 * 1.8078625258002374e+40"
             " - x^6 * 1.6114410711830154e+39",
             1, verbose,
-            {0.46942663386512425278156827138724507L},
+            {T(0.46942663386512425278156827138724507L)},
             -4 - valgrind_penalty);
 
     /* false position produces b=NaN */
@@ -146,7 +150,7 @@ test_compute_roots(bool verbose)
             " - x^2 * 7.5683722678735590e+228"
             " - x^3 * 1.8935837380523070e+224"
             " - x^4 * 3.4853123818766583e+152",
-            1e72, verbose,
+            T(1e72), verbose,
             {}, -4 - valgrind_penalty);
 
     /* dichotomy with too few iterations fails */
@@ -157,13 +161,13 @@ test_compute_roots(bool verbose)
             " + 4974019329969663881845375223408004510305936664806589566321472066027520*x^2"
             " - 58290863912589135997939905826055669574526326226812326870330700385351723122688*x"
             " + 37718991555021708231785218373859670336563892134301066596876783017325698882362933248",
-            9007199254740992.0,
+            T(9007199254740992.0),
             verbose,
             {
-            687391.34048893181184293089912300885635L,
-            1.1967277023040306827792365694733244330e7L,
-            4.2033871205208627596333114764587438114e7L,
-            1.4878252292723770602822450969598401002e8L
+            T(687391.34048893181184293089912300885635L),
+            T(1.1967277023040306827792365694733244330e7L),
+            T(4.2033871205208627596333114764587438114e7L),
+            T(1.4878252292723770602822450969598401002e8L)
             },
             -4 - valgrind_penalty);
 
@@ -175,8 +179,8 @@ test_compute_roots(bool verbose)
             " + x^4 * 552084484207525010843995104449133201610495729247299431552778240"
             " + x^5 * 386336020186016733435543279553138102808608768"
             " + x^6 * 38629366113825858026209280",
-            2199023255552, verbose,
-            {400274.63069456928417728406075344817128L},
+            T(2199023255552), verbose,
+            {T(400274.63069456928417728406075344817128L)},
             -4 - valgrind_penalty);
 
     /* false position needs many iterations */
@@ -186,10 +190,10 @@ test_compute_roots(bool verbose)
             " - x^3 * 2677221347026437285957968988912544408687885411868999680"
             " + x^4 * 21555240319368651153052935288520704"
             " + x^5 * 5123362746908340224",
-            1e20, verbose,
+            T(1e20), verbose,
             {
-            8694859813.2710983618783204718642424277L,
-            720776737597677797.82617434751880429252L },
+            T(8694859813.2710983618783204718642424277L),
+            T(720776737597677797.82617434751880429252L) },
             -4 - valgrind_penalty);
 }
 
@@ -203,6 +207,13 @@ static void test_ctor_and_coeff_access()
     ASSERT_ALWAYS(f[2] == 42);
 }
 
+template<>
+void
+test_compute_roots<cxx_mpz>(bool)
+{
+    /* this one is skipped */
+}
+
 template<typename T>
 static void test_eval()
 {
@@ -211,7 +222,7 @@ static void test_eval()
     T w = 0;
     for(int deg = 0 ; deg < std::numeric_limits<T>::digits ; deg++) {
         f[deg] = 1;
-        T v = f.eval(2);
+        T v = f(2);
         w = 2 * w + f[deg];
         ASSERT_ALWAYS(v == w);
     }
@@ -251,9 +262,53 @@ static void test_print()
         { "1-1", "0" },
     };
 
+    for(auto const & t : tests) {
+        fmt::print("{}\n", RX(t[0]));
+        ASSERT_ALWAYS(RX(t[0]).print() == std::string(t[t[1] != nullptr]));
+    }
+}
+
+template<>
+void test_print<cxx_mpz>()
+{
+    typedef polynomial<cxx_mpz> RX;
+
+    const std::vector<std::array<const char *, 2>> tests {
+        { "17", nullptr },
+        { "x * 42 + 17", "17+42*x" },
+        { "17+42*x+53*x^2", nullptr },
+        { "1-x^2+99*x^3", nullptr },
+        { "-x+x^2", nullptr },
+        { "1-1", "0" },
+    };
+
     for(auto const & t : tests)
         ASSERT_ALWAYS(RX(t[0]).print() == std::string(t[t[1] != nullptr]));
 }
+
+#if 0
+template<>
+void test_print<cxx_mpfr>()
+{
+    typedef polynomial<cxx_mpfr> RX;
+
+    const std::vector<const char *> tests {
+        "17",
+        "x * 42 + 17",
+        "17+42*x+53*x^2",
+        "1.7001e+09+53*x^2",
+        "17-53.2*x^2+99*x^3",
+        "1-x^2+99*x^3",
+        "-x+x^2",
+        "1-1",
+    };
+
+    /* just print */
+    for(auto const & t : tests) {
+        fmt::print("{}\n", RX(t));
+    }
+}
+#endif
 
 template<typename T>
 static void test_ctor_mpz_poly()
@@ -266,7 +321,7 @@ template<typename T>
 static void test_resultant()
 {
     typedef polynomial<T> RX;
-    using namespace cado_math_aux;
+    using cado_math_aux::accurate_bits;
 
     struct test_case {
         std::string f, g;
@@ -318,6 +373,8 @@ static void test_resultant()
         }};
 
     for(auto const & t : test_cases) {
+        /* XXX We can't make it work with cxx_mpfr without changing the
+         * interface */
         T res = RX(t.f).resultant(RX(t.g));
         cxx_mpz val_z;
         cxx_mpz_poly fz(t.f);
@@ -331,6 +388,12 @@ static void test_resultant()
         fmt::print("{} vs ref {} : accurate bits: {}\n", res, val, a);
         ASSERT_ALWAYS(a >= accuracy);
     }
+}
+
+template<>
+void test_resultant<cxx_mpz>()
+{
+    /* this one is skipped */
 }
 
 template<typename T>
@@ -352,5 +415,9 @@ int main()
     all_tests<double>();
     all_tests<long double>();
     all_tests<float>();
+    all_tests<cxx_mpz>();
+#ifdef HAVE_MPFR
+    // all_tests<cxx_mpfr>();
+#endif
     return EXIT_SUCCESS;
 }

@@ -2,6 +2,9 @@ cado_define_test(test_strlcat.c LIBRARIES utils)
 cado_define_test(test_strlcpy.c LIBRARIES utils)
 cado_define_test(test_double_poly.c LIBRARIES utils tests)
 cado_define_test(test_polynomial.cpp LIBRARIES utils tests)
+if(HAVE_MPFR)
+    target_link_libraries(test_polynomial mpfr)
+endif()
 cado_define_test(test_cado_expression_parser.cpp LIBRARIES utils tests)
 cado_define_test(test_polyroots.c LIBRARIES utils
     ARGUMENTS 1 2 3 4 5 6 7 8
