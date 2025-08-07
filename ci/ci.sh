@@ -50,8 +50,8 @@ case "$JOB_NAME" in
         # # normal tests.
         # export CHECKS_EXPENSIVE=1
 
-        debian_packages="$debian_packages     lcov"
-        alpine_packages="$alpine_packages     lcov"
+        debian_packages="$debian_packages     lcov libmpc-dev libmpfr-dev"
+        alpine_packages="$alpine_packages     lcov mpc1-dev mpfr-dev"
         needs_optional_ecm=1
         # see also special case for "merge coverage tests" further down
         if ! is_debian && ! is_alpine ; then
