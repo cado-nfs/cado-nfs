@@ -1410,6 +1410,8 @@ tests/sieve/ecm/test_order_ecmm16_1_1000000_1001000.inp
 tests/sieve/ecm/test_order_ecmm16_1_1000_2000.inp
 tests/sieve/ecm/test_strategy_file_parser.cpp
 tests/sieve/ecm/test_testbench.sh
+tests/sieve/galois.poly
+tests/sieve/galois.roots.gz
 tests/sieve/reduce-plattice/las-reduce-plattice-mimick-production-noasm.hpp
 tests/sieve/reduce-plattice/las-reduce-plattice-reference.hpp
 tests/sieve/reduce-plattice/las-reduce-plattice-reference2.hpp
