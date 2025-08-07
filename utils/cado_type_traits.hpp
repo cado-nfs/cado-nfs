@@ -88,6 +88,7 @@ template<> struct is_integral<cxx_mpz> : public std::true_type {};
 template<typename T> struct is_real : public std::false_type {};
 template<> struct is_real<float> : public std::true_type {};
 template<> struct is_real<double> : public std::true_type {};
+template<> struct is_real<long double> : public std::true_type {};
 #ifdef HAVE_MPFR
 template<> struct is_real<cxx_mpfr> : public std::true_type {};
 #endif
@@ -100,6 +101,7 @@ using is_real_t = std::enable_if_t<is_real<X>::value, bool>;
 template<typename T> struct is_complex : public std::false_type {};
 template<> struct is_complex<_Complex float> : public std::true_type {};
 template<> struct is_complex<_Complex double> : public std::true_type {};
+template<> struct is_complex<_Complex long double> : public std::true_type {};
 #ifdef HAVE_MPC
 template<> struct is_complex<cxx_mpc> : public std::true_type {};
 #endif

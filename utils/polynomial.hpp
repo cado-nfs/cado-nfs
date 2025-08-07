@@ -95,26 +95,129 @@ template<typename T> std::istream& operator>>(std::istream& in, polynomial_detai
  * - I don't understand the mpz_poly_base thing...
  *
  */
+template<typename T, typename POLY>
+struct polynomial_traits_base;
+template<typename T, typename POLY, bool is_real = cado_math_aux::is_real<T>::value>
+struct polynomial_traits;
 template<typename T>
-struct polynomial {
-    template<typename From, typename To>
-    using is_coercible = cado_math_aux::is_coercible<From, To>;
-    template<typename From, typename To>
-    using is_coercible_t = cado_math_aux::is_coercible_t<From, To>;
-    template<typename From, typename To>
-    using is_strictly_coercible = cado_math_aux::is_strictly_coercible<From, To>;
-    template<typename From, typename To>
-    using is_strictly_coercible_t = cado_math_aux::is_strictly_coercible_t<From, To>;
-    template<typename X>
-    using is_real = cado_math_aux::is_real<X>;
-    template<typename X>
-    using is_real_t = cado_math_aux::is_real_t<X>;
+struct polynomial;
 
-    typedef T coefficient_type;
+template<typename T, typename POLY>
+struct polynomial_traits_base {
+
+    private:
+        polynomial_traits_base() = default;
+        friend struct polynomial_traits<T, POLY>;
+    public:
+
+    /* We put here traits functions that can be overridden in the middle
+     * layer if we decide so
+     */
+
+    POLY & downcast() { return static_cast<POLY&>(*this); }
+    POLY const & downcast() const { return static_cast<POLY const &>(*this); }
+
+    template<typename U, cado_math_aux::is_coercible_t<T, U> = {}>
+    U eval(U const & x) const {
+        T const * f = downcast().coeffs.data();
+        const int deg = downcast().degree();
+        switch(deg) {
+            case -1: return 0;
+                     /*
+                        def p(n):
+                            s = f"f[{n}]"
+                            for k in range(n):
+                                s = f"x*({s})+f[{n-1-k}]"
+                            return s
+                        for i in range(10):
+                            print(f"case {i}: return {p(i)};")
+                      */
+            case 0: return f[0];
+            case 1: return x*f[1]+f[0];
+            case 2: return x*(x*f[2]+f[1])+f[0];
+            case 3: return x*(x*(x*f[3]+f[2])+f[1])+f[0];
+            case 4: return x*(x*(x*(x*f[4]+f[3])+f[2])+f[1])+f[0];
+            case 5: return x*(x*(x*(x*(x*f[5]+f[4])+f[3])+f[2])+f[1])+f[0];
+            case 6: return x*(x*(x*(x*(x*(x*f[6]+f[5])+f[4])+f[3])+f[2])+f[1])+f[0];
+            case 7: return x*(x*(x*(x*(x*(x*(x*f[7]+f[6])+f[5])+f[4])+f[3])+f[2])+f[1])+f[0];
+            case 8: return x*(x*(x*(x*(x*(x*(x*(x*f[8]+f[7])+f[6])+f[5])+f[4])+f[3])+f[2])+f[1])+f[0];
+            case 9: return x*(x*(x*(x*(x*(x*(x*(x*(x*f[9]+f[8])+f[7])+f[6])+f[5])+f[4])+f[3])+f[2])+f[1])+f[0];
+            default:
+                    T r = f[deg];
+                    for (int k = deg; k-- ; r = r * x + f[k]);
+                    return r;
+        }
+    }
+    template<typename U, cado_math_aux::is_strictly_coercible_t<U, T> = {}>
+    T eval(U const & x) const {
+        return eval(T(x));
+    }
+
+    template<typename U, cado_math_aux::is_coercible_t<T, U> = {}>
+    U operator()(U const & x) const { return eval(x); }
+
+    template<typename U, cado_math_aux::is_strictly_coercible_t<U, T> = {}>
+    T operator()(U const & x) const { return eval(x); }
+
+    /* Evaluate the homogenous polynomial induced by f at the pair
+     * (x,y). That is, compute the sum f[i]*x^i*y^(n-i), where n is
+     * degree(f)
+     */
+    template<typename U, cado_math_aux::is_coercible_t<T, U> = {}>
+    U eval(U const & x, U const & y) const
+    {
+        T const * f = downcast().coeffs.data();
+
+        switch (downcast().size()) {
+            case 0: return 0;
+            case 1: return f[0];
+            case 2: return y*f[0]+x*f[1];
+            case 3: return y*y*f[0]+x*(y*f[1]+x*f[2]);
+            default:
+                    T s = downcast().coeffs.front();
+                    T px = x;
+                    for(unsigned int k = 1 ; k < downcast().size() - 1 ; k++) {
+                        s = y * s + px * downcast().coeffs[k];
+                        px = px * x;
+                    }
+                    s = y * s + px * downcast().coeffs.back();
+                    return s;
+        }
+    }
+
+    template<typename U, cado_math_aux::is_strictly_coercible_t<U, T> = {}>
+    T eval(U const & x, U const & y) const { return eval(T(x), T(y)); }
+
+    template<typename U, cado_math_aux::is_coercible_t<T, U> = {}>
+    U operator()(U const & x, U const & y) const { return eval(x, y); }
+    template<typename U, cado_math_aux::is_strictly_coercible_t<U, T> = {}>
+    T operator()(U const & x, U const & y) const { return eval(x, y); }
+
+};
+
+template<typename T, typename POLY, bool is_real>
+struct polynomial_traits : public polynomial_traits_base<T, POLY> {
+    private:
+        polynomial_traits() = default;
+        friend struct polynomial<T>;
+    public:
+};
+
+
+template<typename T>
+struct polynomial : public polynomial_traits<T, polynomial<T>> {
     private:
     std::vector<T> coeffs;
+    friend struct polynomial_traits<T, polynomial<T>>;
+    friend struct polynomial_traits_base<T, polynomial<T>>;
 
     public:
+
+    using polynomial_traits<T, polynomial<T>>::eval;
+    using polynomial_traits<T, polynomial<T>>::operator();
+
+    typedef T coefficient_type;
+
     int degree() const {
         return runtime_numeric_cast<int>(coeffs.size())-1;
     }
@@ -196,137 +299,6 @@ struct polynomial {
     { return { *this, i }; }
     cado_details::const_coeff_proxy<polynomial> operator[](unsigned int i) const
     { return { *this, i }; }
-
-    template<typename U, is_coercible_t<T, U> = {}>
-    U eval(U const & x) const {
-        T const * f = coeffs.data();
-        const int deg = degree();
-        switch(deg) {
-            case -1: return 0;
-                     /*
-                        def p(n):
-                            s = f"f[{n}]"
-                            for k in range(n):
-                                s = f"x*({s})+f[{n-1-k}]"
-                            return s
-                        for i in range(10):
-                            print(f"case {i}: return {p(i)};")
-                      */
-            case 0: return f[0];
-            case 1: return x*f[1]+f[0];
-            case 2: return x*(x*f[2]+f[1])+f[0];
-            case 3: return x*(x*(x*f[3]+f[2])+f[1])+f[0];
-            case 4: return x*(x*(x*(x*f[4]+f[3])+f[2])+f[1])+f[0];
-            case 5: return x*(x*(x*(x*(x*f[5]+f[4])+f[3])+f[2])+f[1])+f[0];
-            case 6: return x*(x*(x*(x*(x*(x*f[6]+f[5])+f[4])+f[3])+f[2])+f[1])+f[0];
-            case 7: return x*(x*(x*(x*(x*(x*(x*f[7]+f[6])+f[5])+f[4])+f[3])+f[2])+f[1])+f[0];
-            case 8: return x*(x*(x*(x*(x*(x*(x*(x*f[8]+f[7])+f[6])+f[5])+f[4])+f[3])+f[2])+f[1])+f[0];
-            case 9: return x*(x*(x*(x*(x*(x*(x*(x*(x*f[9]+f[8])+f[7])+f[6])+f[5])+f[4])+f[3])+f[2])+f[1])+f[0];
-            default:
-                    T r = f[deg];
-                    for (int k = deg; k-- ; r = r * x + f[k]);
-                    return r;
-        }
-    }
-    template<typename U, is_strictly_coercible_t<U, T> = {}>
-    T eval(U const & x) const {
-        return eval(T(x));
-    }
-
-    template<typename U, is_coercible_t<T, U> = {}>
-    U operator()(U const & x) const { return eval(x); }
-
-    template<typename U, is_strictly_coercible_t<U, T> = {}>
-    T operator()(U const & x) const { return eval(x); }
-
-    /* Evaluate the homogenous polynomial induced by f at the pair
-     * (x,y). That is, compute the sum f[i]*x^i*y^(n-i), where n is
-     * degree(f)
-     */
-    template<typename U, is_coercible_t<T, U> = {}>
-    U eval(U const & x, U const & y) const
-    {
-        T const * f = coeffs.data();
-
-        switch (size()) {
-            case 0: return 0;
-            case 1: return f[0];
-            case 2: return y*f[0]+x*f[1];
-            case 3: return y*y*f[0]+x*(y*f[1]+x*f[2]);
-            default:
-                    T s = 0;
-                    T px = 1;
-                    for(unsigned int k = 0 ; k < size() ; k++) {
-                        s = s * y + f[k] * px;
-                        px = px * x;
-                    }
-                    return s;
-        }
-    }
-
-    template<typename U, is_strictly_coercible_t<U, T> = {}>
-    T eval(U const & x, U const & y) const { return eval(T(x), T(y)); }
-
-    template<typename U, is_coercible_t<T, U> = {}>
-    U operator()(U const & x, U const & y) const { return eval(x, y); }
-    template<typename U, is_strictly_coercible_t<U, T> = {}>
-    T operator()(U const & x, U const & y) const { return eval(x, y); }
-
-    /* uses arbitrary precision */
-    template<typename U, is_real_t<U> = {}, is_coercible_t<T, U> = {}>
-    U eval_safe(U const & x) const
-    {
-        T const * f = coeffs.data();
-        const int deg = degree();
-        cxx_mpz xm; int xe; exact_form(xm, xe, x);
-        /* We want to evaluate at xz * 2^xe */
-        cxx_mpz vm; int ve; exact_form(vm, ve, f[deg]);
-        for(int k = deg ; k-- ; ) {
-            /* multiply by x = xm*2^xe */
-            mpz_mul (vm, vm, xm);
-            ve += xe;
-            /* add f[k] = fm*2^fe */
-            cxx_mpz fm; int fe; exact_form(fm, fe, f[k]);
-            if (fe < ve) {
-                mpz_mul_2exp (vm, vm, ve - fe);
-                ve = fe;
-            } else {
-                mpz_mul_2exp (fm, fm, fe - ve);
-            }
-            mpz_add (vm, vm, fm);
-        }
-        T r = cado_math_aux::mpz_get<T> (vm);
-
-        /* This calls std::ldexp, and thereby implicitly assumes that U
-         * is float, double, or long double
-         */
-        return std::ldexp(r, ve);
-    }
-    template<typename U, is_strictly_coercible_t<U, T> = {}>
-    T eval_safe(U const & x) const { return eval_safe(T(x)); }
-
-    template<typename U, is_coercible_t<T, U> = {}>
-    U findroot_dichotomy(U const & a, U const & b) const {
-        using cado_math_aux::sgn;
-        return findroot_dichotomy(a, b, sgn(eval(a)));
-    }
-
-    template<typename U, is_coercible_t<T, U> = {}>
-    U findroot_dichotomy(U a, U b, int sa) const
-    {
-        T s;
-        for(;;) {
-            s = (a + b) * 0.5;
-            cado_math_aux::do_not_outsmart_me(s);
-            if (s == a || s == b) return s;
-            using cado_math_aux::sgn;
-            if (sgn(eval(s)) * sa > 0)
-                a = s;
-            else
-                b = s;
-        }
-        return s;
-    }
 
     polynomial derivative() const
     {
@@ -476,246 +448,9 @@ struct polynomial {
         return h;
     }
 
-    /* Return a bound on the positive roots of p.
-     * Assume the leading coefficient of p is positive, then for a
-     * positive root r we have
-     * p[d]*r^d + ... + p[1]*r + p[0] = 0 thus
-     * p[d]*r^d <= -p[d-1]*r^(d-1) - ... - p[1]*r - p[0]
-     * <= max(-p[d-1],0)*r^(d-1) + ... + max(-p[1],0)*r + max(-p[0],0)
-     * thus q(r) <= 0 where q is the degree-d polynomial formed from p as follows:
-     * q[d] = p[d]
-     * q[i] = p[i] if p[i] < 0, and 0 otherwise for 0 <= i < d.
-     * Since q has a unique positive root, say r0, and q(r) < 0 iff r < r0,
-     * then positive roots of p are bounded by r0.
-     *
-     * More generally, if s in {-1,+1} is such that s*p[d] > 0, and we're
-     * looking for a bound on roots of sign t in {-1,+1} (thus a bound on
-     * the positive roots of p(tx), we have:
-     *
-     * s*p[d]*(tr)^d <= -s*p[d-1]*t*(tr)^(d-1) ... - s*p[1]*t^(d-1)*(tr) - s*p[0]*t^d
-     * So if we let q[d] = s*p[d]
-     * and q[i] = -min(s*p[i]*t^(d-i), 0)
-     * We then have q(tr) > 0 for the bound r we're after.
-     *
-     * The question of what to store in q[i] then opens the question of
-     * deciding whether
-     *  -s * p[i] * t^(d-i) < 0
-     *  (-1) * s * t^(d-i) * sgn(p[i]) < 0
-     *
-     * We can ignore the case p[i] == 0 since no matter what we do, we'll
-     * end up setting q[i] = 0. So this simplifies as
-     *
-     *  1 + (lc() < 0) + (d-i) & (b < 0) + (p[i] < 0) is odd
-     *  (lc() < 0) ^ (d-i) & (b < 0) ^ (p[i] < 0) == 0
-     *  (lc() < 0) ^ (p[i] < 0) == (d-i) & (b < 0)
-     *
-     */
-
-    T bound_positive_roots(bool negative = false) const
-    {
-        const int d = degree();
-        const int s = lc() < 0;
-        polynomial q;
-        q.coeffs.assign(coeffs.size(), 0);
-        for(int i = 0 ; i < d ; i++) {
-            T v = (s ^ (negative & (d-i))) ? -coeffs[i] : coeffs[i];
-            /* simplifies to v==(-1)^s*coeffs[i] < 0 if negative == 0 */
-            if (v < 0)
-                q[i] = v;
-        }
-        q[degree()] = abs(lc());
-        T b = 1;
-        for( ; q.eval(b) < 0 ; b = b + b) ;
-        return negative ? -b : b;
-    }
-
-    template<typename U = T, is_coercible_t<T, U> = {}>
-    std::vector<U> positive_roots() const {
-        return positive_roots(U(bound_positive_roots()));
-    }
-    template<typename U = T, is_coercible_t<T, U> = {}>
-    std::vector<T> negative_roots() const {
-        return positive_roots(U(bound_positive_roots(true)));
-    }
-
-    private:
-
-    /* assuming g(a)*g(b) < 0, and g has a single root in [a, b],
-     * refines that root by the weighted false position method
-     * Assumes sa is of same sign as g(a).
-     *
-     * The code is written with the case a<b in mind, but it may also be
-     * called with b<a, in which case we need to adapt a few little
-     * things.
-     */
-    template<typename U, is_coercible_t<T, U> = {}>
-    U findroot_falseposition(U const & a0, U const & b0, U const & pa0) const
-    {
-        int side=0;
-        U a=a0, b=b0, pa=pa0, pb;
-
-        if (a == b)
-            return a;
-
-        int sigma = cado_math_aux::sgn(b-a);
-
-        ASSERT_ALWAYS(sigma*a < sigma*b);
-
-        pb = eval(b);
-
-        for(;;) {
-            U s, middle;
-
-            s = (a*pb-b*pa)/(pb-pa);
-            middle = (a + b) * 0.5;
-
-            cado_math_aux::do_not_outsmart_me(s);
-            cado_math_aux::do_not_outsmart_me(middle);
-
-            /* It may happen that because of overflow, (a*pb-b*pa)/(pb-pa)
-             * reaches s==a or s==b too early. If it so happens that we're
-             * doing this, while the middle cut doesn't behave this way, use
-             * the middle cut instead.
-             *
-             * Note that almost by design, this countermeasure also cancels
-             * some of the benefit of the false position method.
-             */
-            const bool escapes_range = sigma*s < sigma*a || sigma*s > sigma*b;
-            const bool hits_bounds = s == a || s == b;
-            const bool middle_cut_is_nice = !(middle == a || middle == b);
-            if (escapes_range || (hits_bounds && middle_cut_is_nice))
-                s = middle;
-            if (s == a || s == b) return s;
-            U ps = eval(s);
-            using cado_math_aux::sgn;
-            if (sgn(ps) * sgn(pa) > 0) {
-                a = s; pa = ps;
-                if (side==1) pb /= 2;
-                side=1;
-            } else {
-                b = s; pb = ps;
-                if (side==-1) pa /= 2;
-                side=-1;
-            }
-            if (std::isnan(b)) {
-                return findroot_dichotomy(a0, b0, pa0);
-            }
-        }
-    }
-
-    /* knowing the positive sign changes of the derivative of *this given
-     * in v , as well as a bound on the positive roots of *this, store in
-     * v the positive roots of *this.  v is clobbered.
-     */
-    template<typename U, is_coercible_t<T, U> = {}>
-    void positive_roots_from_derivative_sign_changes(std::vector<U> & v, U bound)
-    {
-        using namespace cado_math_aux;
-        if (degree() <= 0) {
-            /* A constant polynomial has no sign changes */
-            v.clear();
-        } else if (degree() == 1) {
-            /* A linear polynomial has at most one root.
-             *
-             * We want strictly positive roots here, so we must not
-             * consider the case coeffs[0] == 0. On the other hand, the
-             * bound counts.
-             */
-            const int s = sgn(coeffs[0]);
-            if (s && s * eval(bound) <= 0)
-                v.assign(1, - coeffs[0] / coeffs[1]);
-        } else {
-            U a = 0;
-            U va = coeffs[0];
-            v.push_back(bound);
-            size_t m = 0;
-            /* If f(a)*f'(a+epsilon) > 0, we won't find a
-             * root in the interval [a,b) (that is, until the sign of f'
-             * changes).
-             *
-             * If f(a)*f'(a+epsilon) < 0, we may.
-             *  - If we do, then f(b)*f'(b-epsilon) > 0, and
-             *    f(b)*f'(b+epsilon) < 0.
-             *  - If we don't, then f(b)*f'(b-epsilon) is still < 0,
-             *    and then f(b)*f'(b+epsilon) > 0, so we can skip the
-             *    next interval.
-             */
-            /* if coeffs[1] == 0, we may replace by coeffs[2] */
-            /* if coeffs[0] == 0, we have a root at zero which doesn't
-             * count as positive
-             */
-            using cado_math_aux::sgn;
-            U c01 = sgn(coeffs[0]) * sgn(coeffs[1] ? coeffs[1] : (sgn(bound) * coeffs[2]));
-            bool no_chance = c01 * sgn(bound) > 0 || coeffs[0] == 0;
-            for(size_t i = 0 ; i < v.size() ; i++) {
-                U b = v[i];
-                U vb = eval(b);
-                if (no_chance) {
-                    no_chance = false;
-                } else if (sgn(va) * sgn(vb) < 0) {
-                    v[m++] = findroot_falseposition(a, b, va);
-                } else {
-                    /* we're in the case where this interval _looked_
-                     * promising, and yet had no root. The next one
-                     * certainly won't work.
-                     */
-                    no_chance = {};
-                }
-                a = b;
-                va = vb;
-            }
-            v.erase(v.begin() + m, v.end());
-        }
-    }
-    public:
-
-    template<typename U, is_coercible_t<T, U> = {}>
-    std::vector<U> positive_roots(U bound) const
-    {
-        const int d = degree();
-
-        /* The roots of the zero polynomial are ill-defined. Bomb out */
-        ASSERT_ALWAYS(d>=0);
-
-        /* Handle constant polynomials separately */
-        if (d == 0)
-            return {}; /* Constant non-zero poly -> no roots */
-
-        std::vector<polynomial> dg;     /* derivatives of *this */
-        dg.reserve(d);
-        dg.push_back(*this);
-        for(int k = 1 ; k < d ; k++)
-            dg.push_back(dg.back().derivative());
-
-        /* work from the most derived polynomial, down to f */
-        std::vector<U> res;
-        for (int k = d; k-- ; )
-            dg[k].positive_roots_from_derivative_sign_changes(res, bound);
-
-        return res;
-    }
-
-    template<typename U = T, is_coercible_t<T, U> = {}>
-    std::vector<U> roots() const
-    {
-        if (degree() == -1) return {};
-
-        auto w = negative_roots<U>();
-
-        if (coeffs[0] == 0)
-            w.push_back(0);
-
-        const auto positive = positive_roots<U>();
-
-        w.insert(w.end(), positive.begin(), positive.end());
-        std::sort(w.begin(), w.end());
-
-        return w;
-    }
-
     /* divide by x-r, return the quotient if the polynomial is of
      * integral type.  */
-    template<typename U, is_coercible_t<T, U> = {}>
+    template<typename U, cado_math_aux::is_coercible_t<T, U> = {}>
     polynomial<U> div_linear(U const & r) const
     {
         T const * f = coeffs.data();
@@ -1013,6 +748,312 @@ struct polynomial {
         return h;
     }
 };
+
+template<typename T, typename POLY>
+struct polynomial_traits<T, POLY, true> : public polynomial_traits_base<T, POLY>
+{
+    private:
+        polynomial_traits() = default;
+        friend struct polynomial<T>;
+    public:
+        using polynomial_traits_base<T, POLY>::downcast;
+        using polynomial_traits_base<T, POLY>::eval;
+
+    /* uses arbitrary precision */
+    template<typename U, cado_math_aux::is_real_t<U> = {}, cado_math_aux::is_coercible_t<T, U> = {}>
+    U eval_safe(U const & x) const
+    {
+        T const * f = downcast().coeffs.data();
+        const int deg = downcast().degree();
+        cxx_mpz xm; int xe; exact_form(xm, xe, x);
+        /* We want to evaluate at xz * 2^xe */
+        cxx_mpz vm; int ve; exact_form(vm, ve, f[deg]);
+        for(int k = deg ; k-- ; ) {
+            /* multiply by x = xm*2^xe */
+            mpz_mul (vm, vm, xm);
+            ve += xe;
+            /* add f[k] = fm*2^fe */
+            cxx_mpz fm; int fe; exact_form(fm, fe, f[k]);
+            if (fe < ve) {
+                mpz_mul_2exp (vm, vm, ve - fe);
+                ve = fe;
+            } else {
+                mpz_mul_2exp (fm, fm, fe - ve);
+            }
+            mpz_add (vm, vm, fm);
+        }
+        T r = cado_math_aux::mpz_get<T> (vm);
+
+        /* This calls std::ldexp, and thereby implicitly assumes that U
+         * is float, double, or long double
+         */
+        return std::ldexp(r, ve);
+    }
+    template<typename U, cado_math_aux::is_strictly_coercible_t<U, T> = {}>
+    T eval_safe(U const & x) const { return eval_safe(T(x)); }
+
+    template<typename U, cado_math_aux::is_coercible_t<T, U> = {}>
+    U findroot_dichotomy(U const & a, U const & b) const {
+        using cado_math_aux::sgn;
+        return findroot_dichotomy(a, b, sgn(eval(a)));
+    }
+
+    template<typename U, cado_math_aux::is_coercible_t<T, U> = {}>
+    U findroot_dichotomy(U a, U b, int sa) const
+    {
+        T s;
+        for(;;) {
+            s = (a + b) * 0.5;
+            cado_math_aux::do_not_outsmart_me(s);
+            if (s == a || s == b) return s;
+            using cado_math_aux::sgn;
+            if (sgn(eval(s)) * sa > 0)
+                a = s;
+            else
+                b = s;
+        }
+        return s;
+    }
+
+    /* Return a bound on the positive roots of p.
+     * Assume the leading coefficient of p is positive, then for a
+     * positive root r we have
+     * p[d]*r^d + ... + p[1]*r + p[0] = 0 thus
+     * p[d]*r^d <= -p[d-1]*r^(d-1) - ... - p[1]*r - p[0]
+     * <= max(-p[d-1],0)*r^(d-1) + ... + max(-p[1],0)*r + max(-p[0],0)
+     * thus q(r) <= 0 where q is the degree-d polynomial formed from p as follows:
+     * q[d] = p[d]
+     * q[i] = p[i] if p[i] < 0, and 0 otherwise for 0 <= i < d.
+     * Since q has a unique positive root, say r0, and q(r) < 0 iff r < r0,
+     * then positive roots of p are bounded by r0.
+     *
+     * More generally, if s in {-1,+1} is such that s*p[d] > 0, and we're
+     * looking for a bound on roots of sign t in {-1,+1} (thus a bound on
+     * the positive roots of p(tx), we have:
+     *
+     * s*p[d]*(tr)^d <= -s*p[d-1]*t*(tr)^(d-1) ... - s*p[1]*t^(d-1)*(tr) - s*p[0]*t^d
+     * So if we let q[d] = s*p[d]
+     * and q[i] = -min(s*p[i]*t^(d-i), 0)
+     * We then have q(tr) > 0 for the bound r we're after.
+     *
+     * The question of what to store in q[i] then opens the question of
+     * deciding whether
+     *  -s * p[i] * t^(d-i) < 0
+     *  (-1) * s * t^(d-i) * sgn(p[i]) < 0
+     *
+     * We can ignore the case p[i] == 0 since no matter what we do, we'll
+     * end up setting q[i] = 0. So this simplifies as
+     *
+     *  1 + (lc() < 0) + (d-i) & (b < 0) + (p[i] < 0) is odd
+     *  (lc() < 0) ^ (d-i) & (b < 0) ^ (p[i] < 0) == 0
+     *  (lc() < 0) ^ (p[i] < 0) == (d-i) & (b < 0)
+     *
+     */
+
+    T bound_positive_roots(bool negative = false) const
+    {
+        const int d = downcast().degree();
+        const int s = downcast().lc() < 0;
+        POLY q;
+        q.coeffs.assign(downcast().coeffs.size(), 0);
+        for(int i = 0 ; i < d ; i++) {
+            T v = (s ^ (negative & (d-i))) ? -downcast().coeffs[i] : downcast().coeffs[i];
+            /* simplifies to v==(-1)^s*coeffs[i] < 0 if negative == 0 */
+            if (v < 0)
+                q[i] = v;
+        }
+        q[downcast().degree()] = abs(downcast().lc());
+        T b = 1;
+        for( ; q.eval(b) < 0 ; b = b + b) ;
+        return negative ? -b : b;
+    }
+
+    template<typename U = T, cado_math_aux::is_coercible_t<T, U> = {}>
+    std::vector<U> positive_roots() const {
+        return positive_roots(U(bound_positive_roots()));
+    }
+    template<typename U = T, cado_math_aux::is_coercible_t<T, U> = {}>
+    std::vector<T> negative_roots() const {
+        return positive_roots(U(bound_positive_roots(true)));
+    }
+
+    private:
+
+    /* assuming g(a)*g(b) < 0, and g has a single root in [a, b],
+     * refines that root by the weighted false position method
+     * Assumes sa is of same sign as g(a).
+     *
+     * The code is written with the case a<b in mind, but it may also be
+     * called with b<a, in which case we need to adapt a few little
+     * things.
+     */
+    template<typename U, cado_math_aux::is_coercible_t<T, U> = {}>
+    U findroot_falseposition(U const & a0, U const & b0, U const & pa0) const
+    {
+        int side=0;
+        U a=a0, b=b0, pa=pa0, pb;
+
+        if (a == b)
+            return a;
+
+        int sigma = cado_math_aux::sgn(b-a);
+
+        ASSERT_ALWAYS(sigma*a < sigma*b);
+
+        pb = eval(b);
+
+        for(;;) {
+            U s, middle;
+
+            s = (a*pb-b*pa)/(pb-pa);
+            middle = (a + b) * 0.5;
+
+            cado_math_aux::do_not_outsmart_me(s);
+            cado_math_aux::do_not_outsmart_me(middle);
+
+            /* It may happen that because of overflow, (a*pb-b*pa)/(pb-pa)
+             * reaches s==a or s==b too early. If it so happens that we're
+             * doing this, while the middle cut doesn't behave this way, use
+             * the middle cut instead.
+             *
+             * Note that almost by design, this countermeasure also cancels
+             * some of the benefit of the false position method.
+             */
+            const bool escapes_range = sigma*s < sigma*a || sigma*s > sigma*b;
+            const bool hits_bounds = s == a || s == b;
+            const bool middle_cut_is_nice = !(middle == a || middle == b);
+            if (escapes_range || (hits_bounds && middle_cut_is_nice))
+                s = middle;
+            if (s == a || s == b) return s;
+            U ps = eval(s);
+            using cado_math_aux::sgn;
+            if (sgn(ps) * sgn(pa) > 0) {
+                a = s; pa = ps;
+                if (side==1) pb /= 2;
+                side=1;
+            } else {
+                b = s; pb = ps;
+                if (side==-1) pa /= 2;
+                side=-1;
+            }
+            if (std::isnan(b)) {
+                return findroot_dichotomy(a0, b0, pa0);
+            }
+        }
+    }
+
+    /* knowing the positive sign changes of the derivative of *this given
+     * in v , as well as a bound on the positive roots of *this, store in
+     * v the positive roots of *this.  v is clobbered.
+     */
+    template<typename U, cado_math_aux::is_coercible_t<T, U> = {}>
+    void positive_roots_from_derivative_sign_changes(std::vector<U> & v, U bound)
+    {
+        auto const & coeffs = downcast().coeffs;
+        if (downcast().degree() <= 0) {
+            /* A constant polynomial has no sign changes */
+            v.clear();
+        } else if (downcast().degree() == 1) {
+            /* A linear polynomial has at most one root.
+             * We want strictly positive roots here, so we must not
+             * consider the case coeffs[0] == 0. On the other hand, the
+             * bound counts.
+             */
+            using cado_math_aux::sgn;
+            const int s = sgn(coeffs[0]);
+            if (s && s * eval(bound) <= 0)
+                v.assign(1, - coeffs[0] / coeffs[1]);
+        } else {
+            U a = 0;
+            U va = coeffs[0];
+            v.push_back(bound);
+            size_t m = 0;
+            /* If f(a)*f'(a+epsilon) > 0, we won't find a
+             * root in the interval [a,b) (that is, until the sign of f'
+             * changes).
+             *
+             * If f(a)*f'(a+epsilon) < 0, we may.
+             *  - If we do, then f(b)*f'(b-epsilon) > 0, and
+             *    f(b)*f'(b+epsilon) < 0.
+             *  - If we don't, then f(b)*f'(b-epsilon) is still < 0,
+             *    and then f(b)*f'(b+epsilon) > 0, so we can skip the
+             *    next interval.
+             */
+            /* if coeffs[1] == 0, we may replace by coeffs[2] */
+            /* if coeffs[0] == 0, we have a root at zero which doesn't
+             * count as positive
+             */
+            using cado_math_aux::sgn;
+            U c01 = sgn(coeffs[0]) * sgn(coeffs[1] ? coeffs[1] : (sgn(bound) * coeffs[2]));
+            bool no_chance = c01 * sgn(bound) > 0 || coeffs[0] == 0;
+            for(size_t i = 0 ; i < v.size() ; i++) {
+                U b = v[i];
+                U vb = eval(b);
+                if (no_chance) {
+                    no_chance = false;
+                } else if (sgn(va) * sgn(vb) < 0) {
+                    v[m++] = findroot_falseposition(a, b, va);
+                } else {
+                    /* we're in the case where this interval _looked_
+                     * promising, and yet had no root. The next one
+                     * certainly won't work.
+                     */
+                    no_chance = {};
+                }
+                a = b;
+                va = vb;
+            }
+            v.erase(v.begin() + m, v.end());
+        }
+    }
+    public:
+
+    template<typename U, cado_math_aux::is_coercible_t<T, U> = {}>
+    std::vector<U> positive_roots(U bound) const
+    {
+        const int d = downcast().degree();
+
+        /* The roots of the zero polynomial are ill-defined. Bomb out */
+        ASSERT_ALWAYS(d>=0);
+
+        /* Handle constant polynomials separately */
+        if (d == 0)
+            return {}; /* Constant non-zero poly -> no roots */
+
+        std::vector<POLY> dg;     /* derivatives of *this */
+        dg.reserve(d);
+        dg.push_back(downcast());
+        for(int k = 1 ; k < d ; k++)
+            dg.push_back(dg.back().derivative());
+
+        /* work from the most derived polynomial, down to f */
+        std::vector<U> res;
+        for (int k = d; k-- ; )
+            dg[k].positive_roots_from_derivative_sign_changes(res, bound);
+
+        return res;
+    }
+
+    template<typename U = T, cado_math_aux::is_coercible_t<T, U> = {}>
+    std::vector<U> roots() const
+    {
+        if (downcast().degree() == -1) return {};
+
+        auto w = negative_roots<U>();
+
+        if (downcast().coeffs[0] == 0)
+            w.push_back(0);
+
+        const auto positive = positive_roots<U>();
+
+        w.insert(w.end(), positive.begin(), positive.end());
+        std::sort(w.begin(), w.end());
+
+        return w;
+    }
+
+};
+
 
 static_assert(std::is_same<decltype(polynomial<int>{}(double())), double>::value);
 static_assert(std::is_same<decltype(polynomial<double>{}(int())), double>::value);
