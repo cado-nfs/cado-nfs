@@ -3,8 +3,6 @@
 
 #include <cstdint>
 
-#include <type_traits>
-
 #include <mpc.h>
 
 #include "mpc_aux.h"
@@ -20,77 +18,57 @@
 
 namespace mpc_auxx
 {
+#define MPC_AUXX_DEFINE_FUNC2(DTYPE, OP)                                \
+    static inline void cado_mpc_##OP(DTYPE a, mpc_srcptr b,             \
+                                      mpc_rnd_t rnd)                    \
+    {                                                                   \
+        mpc_##OP(a, b, rnd);                                            \
+    }                                                                   \
+                                                                        \
+    template <typename T>                                               \
+    static inline void                                                  \
+    cado_mpc_##OP(DTYPE a, T const b, mpc_rnd_t rnd)                    \
+    requires cado::converts_via<T, long>                                \
+    {                                                                   \
+        mpc_##OP##_si(a, b, rnd);                                       \
+    }                                                                   \
+                                                                        \
+    template <typename T>                                               \
+    static inline void                                                  \
+    cado_mpc_##OP(DTYPE a, T const b, mpc_rnd_t rnd)                    \
+    requires cado::converts_via<T, unsigned long>                       \
+    {                                                                   \
+        mpc_##OP##_ui(a, b, rnd);                                       \
+    }                                                                   \
+                                                                        \
+    template <typename T>                                               \
+    static inline void                                                  \
+    cado_mpc_##OP(DTYPE a, T const b, mpc_rnd_t rnd)                    \
+        requires(!cado::converts_via<T, long> &&                        \
+                  cado::converts_via<T, int64_t>)                       \
+    {                                                                   \
+        mpc_##OP##_int64(a, b, rnd);                                    \
+    }                                                                   \
+                                                                        \
+    template <typename T>                                               \
+    static inline void                                                  \
+    cado_mpc_##OP(DTYPE a, T const b, mpc_rnd_t rnd)                    \
+        requires(!cado::converts_via<T, unsigned long> &&               \
+                  cado::converts_via<T, uint64_t>)                      \
+    {                                                                   \
+        mpc_##OP##_uint64(a, b, rnd);                                   \
+    }
 
-/* NOLINTBEGIN(bugprone-macro-parentheses) */
-#define MPC_AUXXX_EXPOSE_TEMPLATE_T_RETTYPE_IF_T_FITS(T, ret, fit)            \
-    template <typename T>                                                      \
-    static inline                                                              \
-        typename std::enable_if<integral_fits_v<T, fit>, ret>::type
-
-/* This is not accepted by gcc-9.2.0, however it seems correct as far as
- * I can tell. See bug #21817
- *
- */
-#define ALT_MPC_AUXXX_EXPOSE_TEMPLATE_T_RETTYPE_IF_T_FITS(T, ret, fit)        \
-    template <typename T, integral_fits_t<T, fit> = false> static inline ret
-/* NOLINTEND(bugprone-macro-parentheses) */
-
-/*****************************************************************/
-static inline int cado_mpc_set(mpc_ptr a, mpc_srcptr b, mpc_rnd_t rnd)
-{
-    return mpc_set(a, b, rnd);
-}
-
-MPC_AUXXX_EXPOSE_TEMPLATE_T_RETTYPE_IF_T_FITS(T, int, long)
-cado_mpc_set(mpc_ptr a, T const b, mpc_rnd_t rnd)
-{
-    return mpc_set_si(a, b, rnd);
-}
-
-MPC_AUXXX_EXPOSE_TEMPLATE_T_RETTYPE_IF_T_FITS(T, int, unsigned long)
-cado_mpc_set(mpc_ptr a, T const b, mpc_rnd_t rnd)
-{
-    return mpc_set_ui(a, b, rnd);
-}
-
-inline int cado_mpc_set(mpc_ptr a, int64_t const b, mpc_rnd_t rnd)
-{
-    return mpc_set_int64(a, b, rnd);
-}
-
-inline int cado_mpc_set(mpc_ptr a, uint64_t const b, mpc_rnd_t rnd)
-{
-    return mpc_set_uint64(a, b, rnd);
-}
-
-/*****************************************************************/
-static inline void cado_mpc_init_set(mpc_ptr a, mpc_srcptr b, mpc_rnd_t rnd)
+/* This is missing in mpc.h */
+static inline void mpc_init_set(mpc_ptr a, mpc_srcptr b, mpc_rnd_t rnd)
 {
     mpc_init2(a, mpfr_get_default_prec());
     mpc_set(a, b, rnd);
 }
 
-MPC_AUXXX_EXPOSE_TEMPLATE_T_RETTYPE_IF_T_FITS(T, void, long)
-cado_mpc_init_set(mpc_ptr a, T const b, mpc_rnd_t rnd)
-{
-    mpc_init_set_si(a, b, rnd);
-}
+MPC_AUXX_DEFINE_FUNC2(mpc_ptr, init_set)
+MPC_AUXX_DEFINE_FUNC2(mpc_ptr, set)
 
-MPC_AUXXX_EXPOSE_TEMPLATE_T_RETTYPE_IF_T_FITS(T, void, unsigned long)
-cado_mpc_init_set(mpc_ptr a, T const b, mpc_rnd_t rnd)
-{
-    mpc_init_set_ui(a, b, rnd);
-}
-
-inline void cado_mpc_init_set(mpc_ptr a, int64_t const b, mpc_rnd_t rnd)
-{
-    mpc_init_set_int64(a, b, rnd);
-}
-
-inline void cado_mpc_init_set(mpc_ptr a, uint64_t const b, mpc_rnd_t rnd)
-{
-    mpc_init_set_uint64(a, b, rnd);
-}
 
 /*****************************************************************/
 static inline int cado_mpc_cmp(mpc_srcptr a, mpc_srcptr b)
@@ -98,54 +76,119 @@ static inline int cado_mpc_cmp(mpc_srcptr a, mpc_srcptr b)
     return mpc_cmp(a, b);
 }
 
-MPC_AUXXX_EXPOSE_TEMPLATE_T_RETTYPE_IF_T_FITS(T, int, long)
+template <typename T>
+static inline int
 cado_mpc_cmp(mpc_srcptr a, T const b)
+    requires cado::converts_via<T, long>
 {
     return mpc_cmp_si(a, b);
 }
 
-MPC_AUXXX_EXPOSE_TEMPLATE_T_RETTYPE_IF_T_FITS(T, int, unsigned long)
+template <typename T>
+static inline int
 cado_mpc_cmp(mpc_srcptr a, T const b)
+    requires cado::converts_via<T, unsigned long>
 {
     return mpc_cmp_ui(a, b);
 }
 
-inline int cado_mpc_cmp(mpc_srcptr a, int64_t const b)
+template <typename T>
+static inline int
+cado_mpc_cmp(mpc_srcptr a, T const b)
+    requires(!cado::converts_via<T, long> &&
+              cado::converts_via<T, int64_t>)
 {
     return mpc_cmp_int64(a, b);
 }
 
-inline int cado_mpc_cmp(mpc_srcptr a, uint64_t const b)
+template <typename T>
+static inline int
+cado_mpc_cmp(mpc_srcptr a, T const b)
+    requires(!cado::converts_via<T, unsigned long> &&
+              cado::converts_via<T, uint64_t>)
 {
     return mpc_cmp_uint64(a, b);
 }
 /*****************************************************************/
 
-#define MPC_AUXX_DEFINE_FUNC3(OP)                                             \
-    static inline int cado_mpc_##OP(mpc_ptr a, mpc_srcptr b, mpc_srcptr c, \
-                                     mpc_rnd_t rnd)                           \
-    {                                                                          \
-        return ::mpc_##OP(a, b, c, rnd);                                      \
-    }                                                                          \
-    MPC_AUXXX_EXPOSE_TEMPLATE_T_RETTYPE_IF_T_FITS(T, int, unsigned long)      \
-    mpc_##OP(mpc_ptr a, mpc_srcptr b, const T c, mpc_rnd_t rnd)            \
-    {                                                                          \
-        return mpc_##OP##_ui(a, b, c, rnd);                                   \
-    }                                                                          \
-    static inline int cado_mpc_##OP(mpc_ptr a, mpc_srcptr b,                \
-                                     const uint64_t c, mpc_rnd_t rnd)         \
-    {                                                                          \
-        return mpc_##OP##_uint64(a, b, c, rnd);                               \
-    }                                                                          \
-    MPC_AUXXX_EXPOSE_TEMPLATE_T_RETTYPE_IF_T_FITS(T, int, long)               \
-    mpc_##OP(mpc_ptr a, mpc_srcptr b, const T c, mpc_rnd_t rnd)            \
-    {                                                                          \
-        return mpc_##OP##_si(a, b, c, rnd);                                   \
-    }                                                                          \
-    static inline int cado_mpc_##OP(mpc_ptr a, mpc_srcptr b,                \
-                                     const int64_t c, mpc_rnd_t rnd)          \
-    {                                                                          \
-        return mpc_##OP##_int64(a, b, c, rnd);                                \
+#define MPC_AUXX_DEFINE_FUNC3(OP)                                       \
+    static inline int cado_mpc_##OP(mpc_ptr a,                          \
+                                    mpc_srcptr b, mpc_srcptr c,         \
+                                    mpc_rnd_t rnd)                      \
+    {                                                                   \
+        return ::mpc_##OP(a, b, c, rnd);                                \
+    }                                                                   \
+    template <typename T>                                               \
+    static inline int                                                   \
+    cado_mpc_##OP(mpc_ptr a, mpc_srcptr b, const T c, mpc_rnd_t rnd)    \
+    requires cado::converts_via<T, unsigned long>                       \
+    {                                                                   \
+        return mpc_##OP##_ui(a, b, c, rnd);                             \
+    }                                                                   \
+    template <typename T>                                               \
+    static inline int cado_mpc_##OP(mpc_ptr a, mpc_srcptr b,            \
+                                    const T c, mpc_rnd_t rnd)           \
+    requires(!cado::converts_via<T, unsigned long> &&                   \
+              cado::converts_via<T, uint64_t>)                          \
+    {                                                                   \
+        return mpc_##OP##_uint64(a, b, c, rnd);                         \
+    }                                                                   \
+    template <typename T>                                               \
+    static inline int                                                   \
+    cado_mpc_##OP(mpc_ptr a, mpc_srcptr b, const T c, mpc_rnd_t rnd)    \
+    requires cado::converts_via<T, long>                                \
+    {                                                                   \
+        return mpc_##OP##_si(a, b, c, rnd);                             \
+    }                                                                   \
+    template <typename T>                                               \
+    static inline int cado_mpc_##OP(mpc_ptr a, mpc_srcptr b,            \
+                                     const T c, mpc_rnd_t rnd)          \
+    requires(!cado::converts_via<T, long> &&                            \
+              cado::converts_via<T, int64_t>)                           \
+    {                                                                   \
+        return mpc_##OP##_int64(a, b, c, rnd);                          \
+    }
+
+#define MPC_AUXX_DEFINE_FUNC3_REFLEX(OP, FIXUP)                         \
+    template <typename T>                                               \
+    static inline int                                                   \
+    cado_mpc_##OP(mpc_ptr a, const T b, mpc_srcptr c,                   \
+                   mpc_rnd_t rnd)                                       \
+    requires cado::converts_via<T, unsigned long>                       \
+    {                                                                   \
+        int r = mpc_##OP##_ui(a, c, b, rnd);                            \
+        FIXUP;                                                          \
+        return r;                                                       \
+    }                                                                   \
+    template <typename T>                                               \
+    static inline int cado_mpc_##OP(mpc_ptr a, const T b,               \
+                                     mpc_srcptr c, mpc_rnd_t rnd)       \
+    requires(!cado::converts_via<T, unsigned long> &&                   \
+              cado::converts_via<T, uint64_t>)                          \
+    {                                                                   \
+        int r = mpc_##OP##_uint64(a, c, b, rnd);                        \
+        FIXUP;                                                          \
+        return r;                                                       \
+    }                                                                   \
+    template <typename T>                                               \
+    static inline int                                                   \
+    cado_mpc_##OP(mpc_ptr a, const T b, mpc_srcptr c,                   \
+                   mpc_rnd_t rnd)                                       \
+    requires cado::integral_fits_v<T, long>                             \
+    {                                                                   \
+        int r = mpc_##OP##_si(a, c, b, rnd);                            \
+        FIXUP;                                                          \
+        return r;                                                       \
+    }                                                                   \
+    template <typename T>                                               \
+    static inline int cado_mpc_##OP(mpc_ptr a, const T b,               \
+                                     mpc_srcptr c, mpc_rnd_t rnd)       \
+    requires(!cado::converts_via<T, long> &&                            \
+              cado::converts_via<T, int64_t>)                           \
+    {                                                                   \
+        int r = mpc_##OP##_int64(a, c, b, rnd);                         \
+        FIXUP;                                                          \
+        return r;                                                       \
     }
 
 MPC_AUXX_DEFINE_FUNC3(add)
@@ -157,31 +200,9 @@ MPC_AUXX_DEFINE_FUNC3(div)
 MPC_AUXX_DEFINE_FUNC3(remainder)
 
 /* Add these for convenience only */
-MPC_AUXXX_EXPOSE_TEMPLATE_T_RETTYPE_IF_T_FITS(T, void, unsigned long)
-cado_mpc_sub(mpc_ptr a, T b, mpc_srcptr c, mpc_rnd_t rnd)
-{
-    mpc_sub_ui(a, c, b, rnd);
-    mpc_neg(a, a, rnd);
-}
-
-static inline void cado_mpc_sub(mpc_ptr a, uint64_t b, mpc_srcptr c,
-                                 mpc_rnd_t rnd)
-{
-    mpc_sub_uint64(a, c, b, rnd);
-    mpc_neg(a, a, rnd);
-}
-
-MPC_AUXXX_EXPOSE_TEMPLATE_T_RETTYPE_IF_T_FITS(T, void, unsigned long)
-cado_mpc_add(mpc_ptr a, T b, mpc_srcptr c, mpc_rnd_t rnd)
-{
-    mpc_add_ui(a, c, b, rnd);
-}
-
-static inline void cado_mpc_add(mpc_ptr a, uint64_t b, mpc_srcptr c,
-                                 mpc_rnd_t rnd)
-{
-    mpc_add_uint64(a, c, b, rnd);
-}
+MPC_AUXX_DEFINE_FUNC3_REFLEX(sub, mpc_neg(a, a, rnd); r = -r)
+MPC_AUXX_DEFINE_FUNC3_REFLEX(add, /* no fixup for commutative op */)
+MPC_AUXX_DEFINE_FUNC3_REFLEX(mul, /* no fixup for commutative op */)
 
 } /* namespace mpc_auxx */
 

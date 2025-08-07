@@ -1715,7 +1715,6 @@ utils/indexed_relation.hpp
 utils/integer_partitions.hpp
 utils/intrinsics.hpp
 utils/iqsort.h
-utils/is_non_narrowing_conversion.hpp
 utils/json.cpp
 utils/json.hpp
 utils/lll.c

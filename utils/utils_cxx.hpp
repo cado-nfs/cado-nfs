@@ -157,31 +157,6 @@ struct convert_bool {
     bool operator()(T const & x) const { return bool(x); }
 };
 
-/* A type trait that checks whether an integral type T can be cast losslessly
-   to an integral type U.
-
-   In particular, both T and U must be integral types, must have the same
-   signedness, and the maximal permissible value of type T must be no greater
-   than that of U. (We assume value ranges of signed types to be essentially
-   symmetric around 0).
-*/
-
-/* Note: the full check
- * "both integral + same sign + compatible maxval" cannot be evaluated lazily, so we need an ugly workaround.
- */
-
-template <typename T, typename U, bool =
-                std::is_integral_v<T> && // E: Template argument for template t…
-                std::is_integral_v<U> && 
-                std::is_signed_v<T> == std::is_signed_v<U>>
-struct integral_fits_aux {
-    static constexpr bool value = std::numeric_limits<T>::max() <= std::numeric_limits<U>::max();
-};
-template <typename T, typename U>
-struct integral_fits_aux<T, U, false> : public std::false_type {};
-template <typename T, typename U>
-inline constexpr bool integral_fits_v = integral_fits_aux<T, U>::value;
-
 /* Use this for unique_ptr's of objects allocated with malloc() */
 template<typename T>
 struct free_delete
@@ -489,6 +464,68 @@ static inline std::istream& operator>>(std::istream & is, expect_string const & 
     return is;
 }
 
+
+namespace cado {
+    /* A type trait that checks whether an integral type T can be cast
+     * losslessly to an integral type U.
+     *
+     * In particular, both T and U must be integral types, must have the
+     * same signedness, and the maximal permissible value of type T must
+     * be no greater than that of U. (We assume value ranges of signed
+     * types to be essentially symmetric around 0).
+     */
+
+    /* Note: the full check
+     * "both integral + same sign + compatible maxval" cannot be
+     * evaluated lazily, so we need an ugly workaround.
+     */
+
+    template <typename T, typename U, bool =
+        std::is_integral_v<T> && // E: Template argument for template t…
+        std::is_integral_v<U> && 
+        std::is_signed_v<T> == std::is_signed_v<U>>
+        struct integral_fits_aux {
+            static constexpr bool value = std::numeric_limits<T>::max() <= std::numeric_limits<U>::max();
+        };
+    template <typename T, typename U>
+        struct integral_fits_aux<T, U, false> : public std::false_type {};
+    template <typename T, typename U>
+        inline constexpr bool integral_fits_v = integral_fits_aux<T, U>::value;
+
+    /* This is an alternative implementation which uses a different
+     * mechanism.
+     */
+    namespace is_narrowing_conversion_detail
+    {
+        template<typename From, typename To, typename = void>
+            struct is_narrowing_conversion_impl : std::true_type {};
+        template<typename From, typename To, typename = void>
+            struct is_non_narrowing_conversion_impl : std::false_type {};
+
+        template<typename From, typename To>
+            struct is_narrowing_conversion_impl<From, To, std::void_t<decltype(To{std::declval<From>()})>> : std::false_type {};
+        template<typename From, typename To>
+            struct is_non_narrowing_conversion_impl<From, To, std::void_t<decltype(To{std::declval<From>()})>> : std::true_type {};
+    }  /* namespace is_narrowing_conversion_detail */
+
+    template<typename From, typename To>
+        struct is_narrowing_conversion : is_narrowing_conversion_detail::is_narrowing_conversion_impl<From, To> {};
+    template<typename From, typename To>
+        struct is_non_narrowing_conversion : is_narrowing_conversion_detail::is_non_narrowing_conversion_impl<From, To> {};
+
+    template<typename From, typename To>
+    inline constexpr bool is_narrowing_conversion_v = is_narrowing_conversion<From, To>::value;
+    template<typename From, typename To>
+    inline constexpr bool is_non_narrowing_conversion_v = is_non_narrowing_conversion<From, To>::value;
+
+    /* this trait can be used in ctors and assignment operators, for
+     * instance */
+    template<typename T, typename U>
+    static constexpr bool converts_via =
+        integral_fits_v<T, U> &&
+        is_non_narrowing_conversion_v<T, U>;
+
+} /* namespace cado */
 
 
 #endif	/* CADO_UTILS_CXX_HPP */

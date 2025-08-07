@@ -29,9 +29,8 @@
 #include "fmt/ostream.h"
 #include <mpfr.h>
 
-#include "is_non_narrowing_conversion.hpp"
+#include "utils_cxx.hpp"
 #include "macros.h"
-
 #include "mpfr_auxx.hpp"
 
 struct cxx_mpfr {
@@ -92,29 +91,38 @@ struct cxx_mpfr {
      * preferred.
      */
 
-    template <
-        typename T,
-        typename std::enable_if<
-            std::is_integral<T>::value && std::is_signed<T>::value &&
-                cado_math_aux::is_non_narrowing_conversion<T, int64_t>::value,
-            int>::type = 0>
+    template <typename T>
     // NOLINTNEXTLINE(hicpp-explicit-conversions,google-explicit-constructor)
     cxx_mpfr(T const & rhs)
+    requires cado::converts_via<T, int64_t>
     {
         mpfr_init2(x, std::numeric_limits<T>::digits);
         mpfr_auxx::cado_mpfr_set(x, int64_t(rhs), MPFR_RNDN);
     }
-    template <
-        typename T,
-        typename std::enable_if<
-            std::is_integral<T>::value && !std::is_signed<T>::value &&
-                cado_math_aux::is_non_narrowing_conversion<T, uint64_t>::value,
-            int>::type = 0>
+    template <typename T>
     // NOLINTNEXTLINE(hicpp-explicit-conversions,google-explicit-constructor)
     cxx_mpfr(T const & rhs)
+    requires cado::converts_via<T, uint64_t>
     {
         mpfr_init2(x, std::numeric_limits<T>::digits);
         mpfr_auxx::cado_mpfr_set(x, uint64_t(rhs), MPFR_RNDN);
+    }
+
+    template <typename T>
+    cxx_mpfr & operator=(T const a)
+    requires cado::converts_via<T, int64_t>
+    {
+        mpfr_set_prec(x, std::numeric_limits<T>::digits);
+        mpfr_auxx::cado_mpfr_set(x, int64_t(a), MPFR_RNDN);
+        return *this;
+    }
+    template <typename T>
+    cxx_mpfr & operator=(T const a)
+    requires cado::converts_via<T, uint64_t>
+    {
+        mpfr_set_prec(x, std::numeric_limits<T>::digits);
+        mpfr_auxx::cado_mpfr_set(x, uint64_t(a), MPFR_RNDN);
+        return *this;
     }
 
     explicit cxx_mpfr(double rhs)
@@ -129,31 +137,6 @@ struct cxx_mpfr {
         mpfr_set_ld(x, rhs, MPFR_RNDN);
     }
 
-
-    template <
-        typename T,
-        typename std::enable_if<
-            std::is_integral<T>::value && std::is_signed<T>::value &&
-                cado_math_aux::is_non_narrowing_conversion<T, int64_t>::value,
-            int>::type = 0>
-    cxx_mpfr & operator=(T const a)
-    {
-        mpfr_set_prec(x, std::numeric_limits<T>::digits);
-        mpfr_auxx::cado_mpfr_set(x, int64_t(a), MPFR_RNDN);
-        return *this;
-    }
-    template <
-        typename T,
-        typename std::enable_if<
-            std::is_integral<T>::value && !std::is_signed<T>::value &&
-                cado_math_aux::is_non_narrowing_conversion<T, uint64_t>::value,
-            int>::type = 0>
-    cxx_mpfr & operator=(T const a)
-    {
-        mpfr_set_prec(x, std::numeric_limits<T>::digits);
-        mpfr_auxx::cado_mpfr_set(x, uint64_t(a), MPFR_RNDN);
-        return *this;
-    }
     cxx_mpfr & operator=(double a)
     {
         mpfr_set_prec(x, std::numeric_limits<decltype(a)>::digits);
@@ -188,7 +171,6 @@ struct cxx_mpfr {
     }
     // NOLINTEND(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
 
-#if __cplusplus >= 201103L
     cxx_mpfr(cxx_mpfr && o) noexcept
         : cxx_mpfr()
     {
@@ -200,7 +182,6 @@ struct cxx_mpfr {
             mpfr_swap(x, o.x);
         return *this;
     }
-#endif
     // NOLINTBEGIN(hicpp-explicit-conversions,google-explicit-constructor)
     operator mpfr_ptr() { return x; }
     operator mpfr_srcptr() const { return x; }
@@ -255,33 +236,56 @@ template <> struct formatter<cxx_mpfr> : ostream_formatter {
 };
 } // namespace fmt
 
-/* Now here's a layer we're not particularly happy with */
+inline int operator<=>(cxx_mpfr const & a, cxx_mpfr const & b)
+{
+    return mpfr_auxx::cado_mpfr_cmp(a, b);
+}
+inline int operator<=>(mpfr_srcptr a, cxx_mpfr const & b)
+{
+    return mpfr_auxx::cado_mpfr_cmp(a, b);
+}
+inline int operator<=>(cxx_mpfr const & a, mpfr_srcptr b)
+{
+    return mpfr_auxx::cado_mpfr_cmp(a, b);
+}
+template <typename T>
+static inline int operator<=>(cxx_mpfr const & a, const T b)
+    requires std::is_integral_v<T>
+{
+    return mpfr_auxx::cado_mpfr_cmp(a, b);
+}
+template <typename T>
+static inline int operator<=>(const T a, cxx_mpfr const & b)
+    requires std::is_integral_v<T>
+{
+    return -mpfr_auxx::cado_mpfr_cmp(b, a);
+}
 
 /* NOLINTBEGIN(bugprone-macro-parentheses) */
-#define CXX_MPFR_DEFINE_CMP(OP)                                                \
-    inline bool operator OP(cxx_mpfr const & a, cxx_mpfr const & b)            \
-    {                                                                          \
-        return mpfr_cmp(a, b) OP 0;                                            \
-    }                                                                          \
-    inline bool operator OP(mpfr_srcptr a, cxx_mpfr const & b)                 \
-    {                                                                          \
-        return mpfr_cmp(a, b) OP 0;                                            \
-    }                                                                          \
-    inline bool operator OP(cxx_mpfr const & a, mpfr_srcptr b)                 \
-    {                                                                          \
-        return mpfr_cmp(a, b) OP 0;                                            \
-    }                                                                          \
-    template <typename T,                                                      \
-              std::enable_if_t<std::is_integral<T>::value, int> = 0>           \
-    inline bool operator OP(cxx_mpfr const & a, const T b)                     \
-    {                                                                          \
-        return mpfr_auxx::cado_mpfr_cmp(a, b) OP 0;                            \
-    }                                                                          \
-    template <typename T,                                                      \
-              std::enable_if_t<std::is_integral<T>::value, int> = 0>           \
-    inline bool operator OP(const T a, cxx_mpfr const & b)                     \
-    {                                                                          \
-        return 0 OP mpfr_auxx::cado_mpfr_cmp(b, a);                            \
+#define CXX_MPFR_DEFINE_CMP(OP)                                         \
+    inline bool operator OP(cxx_mpfr const & a, cxx_mpfr const & b)     \
+    {                                                                   \
+        return ((a) <=> (b)) OP 0;                                      \
+    }                                                                   \
+    inline bool operator OP(mpfr_srcptr a, cxx_mpfr const & b)          \
+    {                                                                   \
+        return ((a) <=> (b)) OP 0;                                      \
+    }                                                                   \
+    inline bool operator OP(cxx_mpfr const & a, mpfr_srcptr b)          \
+    {                                                                   \
+        return ((a) <=> (b)) OP 0;                                      \
+    }                                                                   \
+    template <typename T>                                               \
+    inline bool operator OP(cxx_mpfr const & a, const T b)              \
+    requires std::is_integral_v<T>                                      \
+    {                                                                   \
+        return ((a) <=> (b)) OP 0;                                      \
+    }                                                                   \
+    template <typename T>                                               \
+    inline bool operator OP(const T a, cxx_mpfr const & b)              \
+    requires std::is_integral_v<T>                                      \
+    {                                                                   \
+        return 0 OP ((b) <=> (a));                                      \
     }
 /* NOLINTEND(bugprone-macro-parentheses) */
 
@@ -292,46 +296,40 @@ CXX_MPFR_DEFINE_CMP(>)
 CXX_MPFR_DEFINE_CMP(<=)
 CXX_MPFR_DEFINE_CMP(>=)
 
-#if __cplusplus >= 202002L
-inline bool operator<=>(cxx_mpfr const & a, cxx_mpfr const & b)
-{
-    return mpfr_auxx::cado_mpfr_cmp(b, a);
-}
-#endif
-
-#define CXX_MPFR_DEFINE_TERNARY(OP, TEXTOP)                                    \
-    inline cxx_mpfr operator OP(cxx_mpfr const & a, cxx_mpfr const & b)        \
-    {                                                                          \
-        cxx_mpfr r;                                                            \
-        mpfr_set_prec(r, mpfr_get_prec(mpfr_srcptr(a)));                       \
-        mpfr_##TEXTOP(r, a, b, MPFR_RNDN);                                     \
-        return r;                                                              \
-    }                                                                          \
-    template <typename T,                                                      \
-              std::enable_if_t<std::is_integral<T>::value, int> = 0>           \
-    inline cxx_mpfr operator OP(cxx_mpfr const & a, T const b)                 \
-    {                                                                          \
-        cxx_mpfr r;                                                            \
-        mpfr_set_prec(r, mpfr_get_prec(mpfr_srcptr(a)));                       \
-        mpfr_auxx::cado_mpfr_##TEXTOP(r, a, b, MPFR_RNDN);                     \
-        return r;                                                              \
-    }                                                                          \
-    template <typename T,                                                      \
-              std::enable_if_t<std::is_integral<T>::value, int> = 0>           \
-    inline cxx_mpfr operator OP(T const a, cxx_mpfr const & b)                 \
-    {                                                                          \
-        cxx_mpfr r;                                                            \
-        mpfr_set_prec(r, mpfr_get_prec(mpfr_srcptr(b)));                       \
-        mpfr_auxx::cado_mpfr_##TEXTOP(r, b, a, MPFR_RNDN);                     \
-        return r;                                                              \
-    }                                                                          \
+#define CXX_MPFR_DEFINE_TERNARY(OP, TEXTOP)				\
+    inline cxx_mpfr operator OP(cxx_mpfr const & a, cxx_mpfr const & b)	\
+    {									\
+        cxx_mpfr r;							\
+        mpfr_set_prec(r, mpfr_get_prec(mpfr_srcptr(a)));		\
+        mpfr_auxx::cado_mpfr_##TEXTOP(r, a, b, MPFR_RNDN);		\
+        return r;							\
+    }									\
+    template <typename T>						\
+    inline cxx_mpfr operator OP(cxx_mpfr const & a, T const b)		\
+    requires std::is_integral_v<T>					\
+    {									\
+        cxx_mpfr r;							\
+        mpfr_set_prec(r, mpfr_get_prec(mpfr_srcptr(a)));		\
+        mpfr_auxx::cado_mpfr_##TEXTOP(r, a, b, MPFR_RNDN);		\
+        return r;							\
+    }									\
+    template <typename T>						\
+    inline cxx_mpfr operator OP(T const a, cxx_mpfr const & b)		\
+    requires std::is_integral_v<T>					\
+    {									\
+        cxx_mpfr r;							\
+        mpfr_set_prec(r, mpfr_get_prec(mpfr_srcptr(b)));		\
+        mpfr_auxx::cado_mpfr_##TEXTOP(r, a, b, MPFR_RNDN);		\
+        return r;							\
+    }									\
     inline cxx_mpfr & operator OP##=(cxx_mpfr & a, cxx_mpfr const & b)	\
     {									\
-        mpfr_##TEXTOP(a, a, b, MPFR_RNDN);				\
+        mpfr_auxx::cado_mpfr_##TEXTOP(a, a, b, MPFR_RNDN);		\
         return a;							\
     }									\
-    template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0>        \
+    template <typename T>						\
     inline cxx_mpfr & operator OP##=(cxx_mpfr & a, T const b)		\
+    requires std::is_integral_v<T>					\
     {									\
         mpfr_auxx::cado_mpfr_##TEXTOP(a, a, b, MPFR_RNDN);		\
         return a;							\

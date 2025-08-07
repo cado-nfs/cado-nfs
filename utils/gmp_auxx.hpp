@@ -22,7 +22,7 @@ static inline void mpz_set (mpz_ptr a, mpz_srcptr b) {
     template<typename T>
     static inline void
 mpz_set (mpz_ptr a, const T b)
-    requires integral_fits_v<T, long>
+    requires cado::integral_fits_v<T, long>
 {
     mpz_set_si(a, b);
 }
@@ -30,7 +30,7 @@ mpz_set (mpz_ptr a, const T b)
     template<typename T>
     static inline void
 mpz_set (mpz_ptr a, const T b)
-    requires integral_fits_v<T, unsigned long>
+    requires cado::integral_fits_v<T, unsigned long>
 {
     mpz_set_ui(a, b);
 }
@@ -50,7 +50,7 @@ static inline void mpz_init_set (mpz_ptr a, mpz_srcptr b) {
     template<typename T>
     static inline void
 mpz_init_set (mpz_ptr a, const T b)
-    requires integral_fits_v<T, long>
+    requires cado::integral_fits_v<T, long>
 {
     mpz_init_set_si(a, b);
 }
@@ -58,7 +58,7 @@ mpz_init_set (mpz_ptr a, const T b)
 template<typename T>
     static inline void
 mpz_init_set (mpz_ptr a, const T b)
-    requires integral_fits_v<T, unsigned long>
+    requires cado::integral_fits_v<T, unsigned long>
 {
     mpz_init_set_ui(a, b);
 }
@@ -109,13 +109,13 @@ inline bool mpz_fits<unsigned long> (mpz_srcptr v) {
  * We can't use overloading to handle this case as uint64_t does not
  * actually appear anywhere in the function signature. */
 template <>
-inline bool mpz_fits<uint64_t, std::enable_if<!integral_fits_v<uint64_t, unsigned long>, bool> > (mpz_srcptr v)
+inline bool mpz_fits<uint64_t, std::enable_if<!cado::integral_fits_v<uint64_t, unsigned long>, bool> > (mpz_srcptr v)
 {
     return mpz_fits_uint64_p(v);
 }
 
 template <>
-inline bool mpz_fits<int64_t, std::enable_if<!integral_fits_v<int64_t, long>, bool> > (mpz_srcptr v) {
+inline bool mpz_fits<int64_t, std::enable_if<!cado::integral_fits_v<int64_t, long>, bool> > (mpz_srcptr v) {
     return mpz_fits_sint64_p(v);
 }
 
@@ -126,7 +126,7 @@ static inline int mpz_cmp (mpz_srcptr a, mpz_srcptr b) {
 template<typename T>
 static inline int
 mpz_cmp (mpz_srcptr a, const T b)
-    requires integral_fits_v<T, long>
+    requires cado::integral_fits_v<T, long>
 {
     return mpz_cmp_si(a, b);
 }
@@ -134,7 +134,7 @@ mpz_cmp (mpz_srcptr a, const T b)
 template<typename T>
 static inline int
 mpz_cmp (mpz_srcptr a, const T b)
-    requires integral_fits_v<T, unsigned long>
+    requires cado::integral_fits_v<T, unsigned long>
 {
     return mpz_cmp_ui(a, b);
 }
@@ -151,13 +151,13 @@ inline int mpz_cmp (mpz_srcptr a, const uint64_t b) {
 static inline void mpz_##OP (mpz_ptr a, mpz_srcptr b, mpz_srcptr c) { ::mpz_##OP(a, b, c); } \
 template<typename T> static inline void \
 mpz_##OP (mpz_ptr a, mpz_srcptr b, const T c) \
-requires integral_fits_v<T, unsigned long> \
+requires cado::integral_fits_v<T, unsigned long> \
 { mpz_##OP##_ui(a, b, c); } \
 inline void mpz_##OP (mpz_ptr a, mpz_srcptr b, const uint64_t c) { mpz_##OP##_uint64(a, b, c); }
 #define GMP_AUXX_DEFINE_FUNC3_S(OP) \
     template<typename T> static inline void \
 mpz_##OP (mpz_ptr a, mpz_srcptr b, const T c) \
-requires integral_fits_v<T, long>       \
+requires cado::integral_fits_v<T, long>       \
 { mpz_##OP##_si(a, b, c); } \
 inline void mpz_##OP (mpz_ptr a, mpz_srcptr b, const int64_t c) { mpz_##OP##_int64(a, b, c); }
 
@@ -175,7 +175,7 @@ GMP_AUXX_DEFINE_FUNC3_U(divexact)
 
     template<typename T> static inline void
 mpz_sub (mpz_ptr a, T b, mpz_srcptr c)
-    requires integral_fits_v<T, unsigned long>
+    requires cado::integral_fits_v<T, unsigned long>
 {
     mpz_ui_sub(a, b, c);
 }
@@ -191,7 +191,7 @@ static inline int mpz_divisible_p (mpz_ptr a, mpz_srcptr c) {
 
 template<typename T> static inline int
 mpz_divisible_p (mpz_ptr a, const T c)
-    requires integral_fits_v<T, unsigned long>
+    requires cado::integral_fits_v<T, unsigned long>
 {
     return mpz_divisible_ui_p(a, c);
 }
@@ -202,7 +202,7 @@ inline int mpz_divisible_p (mpz_ptr a, const uint64_t c) {
 
 template<typename T> static inline T
 mpz_tdiv_qr (mpz_ptr Q, mpz_ptr R, mpz_srcptr N, T d)
-    requires integral_fits_v<T, unsigned long>
+    requires cado::integral_fits_v<T, unsigned long>
 {
     return (T) mpz_tdiv_qr_ui(Q, R, N, d);
 }
@@ -219,7 +219,7 @@ mpz_tdiv_q (mpz_ptr Q, mpz_srcptr N, mpz_srcptr D) {
 
 template<typename T> static inline T
 mpz_tdiv_q (mpz_ptr Q, mpz_srcptr N, T d)
-    requires integral_fits_v<T, unsigned long>
+    requires cado::integral_fits_v<T, unsigned long>
 {
     return (T) mpz_tdiv_q_ui(Q, N, d);
 }
@@ -236,7 +236,7 @@ mpz_tdiv_r (mpz_ptr R, mpz_srcptr N, mpz_srcptr D) {
 
 template<typename T> static inline T
 mpz_tdiv_r (mpz_ptr R, mpz_srcptr N, T d)
-    requires integral_fits_v<T, unsigned long>
+    requires cado::integral_fits_v<T, unsigned long>
 {
     return (T) mpz_tdiv_r_ui(R, N, d);
 }
@@ -248,7 +248,7 @@ mpz_tdiv_r (mpz_ptr R, mpz_srcptr N, uint64_t d) {
 
 template<typename T> static inline T
 mpz_tdiv (mpz_srcptr N, T d)
-    requires integral_fits_v<T, unsigned long>
+    requires cado::integral_fits_v<T, unsigned long>
 {
     return (T) mpz_tdiv_ui(N, d);
 }

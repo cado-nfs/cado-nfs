@@ -77,14 +77,14 @@ static inline int mpc_cmp_ui(mpc_srcptr a, unsigned long c)
 }
 static inline int mpc_sub_si(mpc_ptr a, mpc_srcptr b, long c, mpc_rnd_t rnd)
 {
-    int rr = mpfr_set(mpc_imagref(a), mpc_imagref(b), MPC_RND_IM(rnd));
-    int ri = mpfr_sub_si(mpc_realref(a), mpc_realref(b), c, MPC_RND_RE(rnd));
+    int const rr = mpfr_set(mpc_imagref(a), mpc_imagref(b), MPC_RND_IM(rnd));
+    int const ri = mpfr_sub_si(mpc_realref(a), mpc_realref(b), c, MPC_RND_RE(rnd));
     return MPC_INEX(rr, ri);
 }
 static inline int mpc_div_si(mpc_ptr a, mpc_srcptr b, long c, mpc_rnd_t rnd)
 {
-    int rr = mpfr_div_si(mpc_imagref(a), mpc_imagref(b), c, MPC_RND_IM(rnd));
-    int ri = mpfr_div_si(mpc_realref(a), mpc_realref(b), c, MPC_RND_RE(rnd));
+    int const rr = mpfr_div_si(mpc_imagref(a), mpc_imagref(b), c, MPC_RND_IM(rnd));
+    int const ri = mpfr_div_si(mpc_realref(a), mpc_realref(b), c, MPC_RND_RE(rnd));
     return MPC_INEX(rr, ri);
 }
 
@@ -217,6 +217,8 @@ static inline int mpc_fms(mpc_ptr res, mpc_srcptr x, mpc_srcptr y, mpc_srcptr z,
 static inline int mpc_submul(mpc_ptr a, mpc_srcptr b, mpc_srcptr c,
                              mpc_rnd_t rnd)
 {
+    /* This one isn't copied from mpfr_aux.h, since mpc does not have an
+     * fms operation */
     mpc_neg(a, a, rnd);
     int const r = mpc_fma(a, b, c, a, rnd);
     mpc_neg(a, a, rnd);

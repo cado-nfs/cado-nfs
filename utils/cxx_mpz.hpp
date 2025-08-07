@@ -13,9 +13,9 @@
 #include "fmt/ostream.h"
 #include "fmt/base.h"
 
-#include "is_non_narrowing_conversion.hpp"
 #include "gmp_aux.h"
 #include "gmp_auxx.hpp"
+#include "utils_cxx.hpp"
 #include "macros.h"
 
 struct cxx_mpz {
@@ -25,21 +25,16 @@ public:
     // NOLINTBEGIN(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
     cxx_mpz() { mpz_init(x); }
 
-    template<typename T, typename U>
-    static constexpr bool converts_via =
-        integral_fits_v<T, U> &&
-        cado_math_aux::is_non_narrowing_conversion_v<T, U>;
-
     template <typename T>
         // NOLINTNEXTLINE(hicpp-explicit-conversions)
         cxx_mpz (const T & rhs)
-        requires converts_via<T, int64_t>
+        requires cado::converts_via<T, int64_t>
         {
             gmp_auxx::mpz_init_set(x, int64_t(rhs));
         }
     template <typename T>
         cxx_mpz & operator=(const T a)
-        requires converts_via<T, int64_t>
+        requires cado::converts_via<T, int64_t>
         {
             gmp_auxx::mpz_set(x, int64_t(a));
             return *this;
@@ -47,13 +42,13 @@ public:
     template <typename T>
         // NOLINTNEXTLINE(hicpp-explicit-conversions)
         cxx_mpz (const T & rhs)
-        requires converts_via<T, uint64_t>
+        requires cado::converts_via<T, uint64_t>
         {
             gmp_auxx::mpz_init_set(x, uint64_t(rhs));
         }
     template <typename T>
         cxx_mpz & operator=(const T a)
-        requires converts_via<T, uint64_t>
+        requires cado::converts_via<T, uint64_t>
         {
             gmp_auxx::mpz_set(x, uint64_t(a));
             return *this;
@@ -194,15 +189,11 @@ struct cxx_mpq{
         mpq_swap(x, o.x);
         return *this;
     }
-    template<typename T, typename U>
-    static constexpr bool converts_via =
-        integral_fits_v<T, U> &&
-        cado_math_aux::is_non_narrowing_conversion_v<T, U>;
 
     template <typename T>
         // NOLINTNEXTLINE(hicpp-explicit-conversions)
         cxx_mpq (const T & rhs)
-        requires converts_via<T, int64_t>
+        requires cado::converts_via<T, int64_t>
         {
             mpq_init(x);
             gmp_auxx::mpz_init_set(mpq_numref(x), int64_t(rhs));
@@ -211,7 +202,7 @@ struct cxx_mpq{
         }
     template <typename T>
         cxx_mpq & operator=(const T a)
-        requires converts_via<T, int64_t>
+        requires cado::converts_via<T, int64_t>
         {
             gmp_auxx::mpz_set(mpq_numref(x), int64_t(a));
             mpz_set_ui(mpq_denref(x), 1);
@@ -221,7 +212,7 @@ struct cxx_mpq{
     template <typename T>
         // NOLINTNEXTLINE(hicpp-explicit-conversions)
         cxx_mpq (const T & rhs)
-        requires converts_via<T, uint64_t>
+        requires cado::converts_via<T, uint64_t>
         {
             mpq_init(x);
             gmp_auxx::mpz_set(mpq_numref(x), uint64_t(rhs));
@@ -230,7 +221,7 @@ struct cxx_mpq{
         }
     template <typename T>
         cxx_mpq & operator=(const T a)
-        requires converts_via<T, uint64_t>
+        requires cado::converts_via<T, uint64_t>
         {
             gmp_auxx::mpz_set(mpq_numref(x), uint64_t(a));
             mpz_set_ui(mpq_denref(x), 1);
@@ -266,7 +257,7 @@ CXX_MPZ_DEFINE_CMP(>)
 CXX_MPZ_DEFINE_CMP(<=)
 CXX_MPZ_DEFINE_CMP(>=)
 
-inline bool operator<=>(cxx_mpz const & a, cxx_mpz const & b) { return gmp_auxx::mpz_cmp(a, b); }
+inline int operator<=>(cxx_mpz const & a, cxx_mpz const & b) { return gmp_auxx::mpz_cmp(a, b); }
 
 inline cxx_mpz operator+(cxx_mpz const & a, cxx_mpz const & b) { cxx_mpz r; mpz_add(r, a, b); return r; }
 template <typename T>

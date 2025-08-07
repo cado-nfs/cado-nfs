@@ -18,7 +18,6 @@
 #include "cxx_mpz.hpp"
 #include "macros.h"
 #include "cado_type_traits.hpp"
-#include "gmp_aux.h"
 
 #ifdef HAVE_MPFR
 #include <mpfr.h>
@@ -123,6 +122,22 @@ namespace cado_math_aux
         return res;
     }
 #endif
+#ifdef HAVE_MPC
+    inline cxx_mpc pow(cxx_mpc const & x, cxx_mpc const & e)
+    {
+        cxx_mpc res;
+        mpc_set_prec(res, x.prec());
+        mpc_pow(res, x, e, MPC_RNDNN);
+        return res;
+    }
+    inline cxx_mpc pow(cxx_mpc const & x, int e)
+    {
+        cxx_mpc res;
+        mpc_set_prec(res, x.prec());
+        mpc_pow_si(res, x, e, MPC_RNDNN);
+        return res;
+    }
+#endif
     /* }}} */
             
     /* {{{ simple wrappers around std::isnan, + cxx_mpfr extensions */
@@ -131,6 +146,11 @@ namespace cado_math_aux
     inline bool isnan(long double x) { return std::isnan(x); }
 #ifdef HAVE_MPFR
     inline bool isnan(cxx_mpfr const & x) { return mpfr_nan_p(mpfr_srcptr(x)); }
+#endif
+#ifdef HAVE_MPC
+    inline bool isnan(cxx_mpc const & x) {
+        return mpfr_nan_p(mpc_realref(x)) || mpfr_nan_p(mpc_imagref(x));
+    }
 #endif
     /* }}} */
             
@@ -185,6 +205,14 @@ namespace cado_math_aux
         return res;
     }
 #endif
+#ifdef HAVE_MPC
+    inline cxx_mpfr abs(cxx_mpc const & x) {
+        cxx_mpfr res;
+        mpfr_set_prec(res, x.prec());
+        mpc_abs(res, x, MPFR_RNDN);
+        return res;
+    }
+#endif
     /* }}} */
 
     /* {{{ fma/fms operation -- we have to use a function in order to have a
@@ -218,6 +246,22 @@ namespace cado_math_aux
         cxx_mpfr res;
         mpfr_set_prec(res, x.prec());
         mpfr_fms(res, x, y, z, MPFR_RNDN);
+        return res;
+    }
+#endif
+#ifdef HAVE_MPC
+    /* the working precision is the precision of x */
+    inline cxx_mpc fma(cxx_mpc const & x, cxx_mpc const & y, cxx_mpc const & z) {
+        cxx_mpc res;
+        mpc_set_prec(res, x.prec());
+        mpc_fma(res, x, y, z, MPC_RNDNN);
+        return res;
+    }
+    inline cxx_mpc fms(cxx_mpc const & x, cxx_mpc const & y, cxx_mpc const & z) {
+        cxx_mpc res;
+        mpc_set_prec(res, x.prec());
+        cxx_mpc nz = -z;
+        mpc_fms(res, x, y, nz, MPC_RNDNN);
         return res;
     }
 #endif
@@ -709,8 +753,6 @@ namespace cado_math_aux
         return res;
     }
 #endif
-
-
 
     template<typename T>
         class constant_time_square_root {

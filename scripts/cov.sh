@@ -92,6 +92,7 @@ else
             --exclude "$src_tree/utils/embedded/*" \
             --exclude "$src_tree/linalg/bwc/flint-fft/*" \
             --exclude "$src_tree/gf2x/*" \
+            --exclude "$(realpath $build_tree)"    \
             --ignore-errors unused \
             -o $cap1
         lcov -a $cap1 --substitute "s#^$src_tree/##" -o $cap
