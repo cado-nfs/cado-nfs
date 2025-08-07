@@ -3,7 +3,7 @@
 
 #include <utility>
 
-#include "las-special-q.hpp"
+#include "special-q.hpp"
 #include "las-special-q-task.hpp"
 #include "macros.h"
 #include "relation.hpp"

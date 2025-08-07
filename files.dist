@@ -1089,8 +1089,8 @@ sieve/las-special-q-task-simple.hpp
 sieve/las-special-q-task-tree.cpp
 sieve/las-special-q-task-tree.hpp
 sieve/las-special-q-task.hpp
-sieve/las-special-q.cpp
-sieve/las-special-q.hpp
+utils/special-q.cpp
+utils/special-q.hpp
 sieve/las-threads-work-data.cpp
 sieve/las-threads-work-data.hpp
 sieve/las-threads.cpp

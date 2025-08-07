@@ -18,7 +18,7 @@
 #include "macros.h"
 
 #include "las-info.hpp"
-#include "las-special-q.hpp"
+#include "special-q.hpp"
 #include "tdict.hpp"
 #include "arith/ularith.h"
 #include "verbose.h"

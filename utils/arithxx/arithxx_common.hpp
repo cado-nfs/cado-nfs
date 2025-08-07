@@ -1,8 +1,7 @@
 #ifndef CADO_UTILS_ARITHXX_COMMON_HPP
 #define CADO_UTILS_ARITHXX_COMMON_HPP
 
-#include <climits>
-
+#include <limits>
 #include <type_traits>
 
 #include "arithxx_api.hpp"       // IWYU pragma: export
@@ -47,8 +46,6 @@ namespace arithxx_details {
 
     template<typename layer>
         struct batch_Q_to_Fp_context;
-}
-
-
+} /* namespace arithxx_details */
 
 #endif /* UTILS_ARITHXX_COMMON_HPP_ */

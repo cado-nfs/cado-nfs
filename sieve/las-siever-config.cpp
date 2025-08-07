@@ -20,7 +20,7 @@
 #include "las-multiobj-globals.hpp"
 #include "las-siever-config.hpp"
 #include "las-side-config.hpp"
-#include "las-special-q.hpp"
+#include "special-q.hpp"
 #include "las-special-q-task.hpp"
 #include "las-special-q-task-tree.hpp"
 #include "macros.h"

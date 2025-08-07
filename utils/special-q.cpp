@@ -11,7 +11,7 @@
 #include "cxx_mpz.hpp"
 #include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
 #include "gmp_aux.h"
-#include "las-special-q.hpp"
+#include "special-q.hpp"
 #include "macros.h"
 
 void special_q::find_prime_factors()

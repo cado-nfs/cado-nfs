@@ -3,7 +3,7 @@
 
 #include <utility>
 
-#include "las-special-q.hpp"
+#include "special-q.hpp"
 #include "relation.hpp"
 
 struct las_info;

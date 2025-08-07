@@ -18,7 +18,7 @@
 #include "cxx_mpz.hpp"
 #include "gzip.h"
 #include "las-side-config.hpp"
-#include "las-special-q.hpp"
+#include "special-q.hpp"
 #include "macros.h"
 #include "memusage.h"
 #include "mpz_poly.h"

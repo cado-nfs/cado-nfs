@@ -47,7 +47,7 @@ namespace arithxx_details {
             Modulus & downcast() { return static_cast<Modulus&>(*this); }
             Modulus const & downcast() const { return static_cast<Modulus const &>(*this); }
 
-            typedef arithxx_details::ResidueStdOp<layer> ResidueOp;
+            using ResidueOp = arithxx_details::ResidueStdOp<layer>;
 
             std::unique_ptr<Residue[]>
                 newArray(Modulus const * mm, size_t const len)
@@ -266,7 +266,7 @@ namespace arithxx_details {
 
     template <typename layer, typename Integer = typename layer::Integer>
         struct api_bysize;
-}
+} /* namespace arithxx_details */
 
 
 #endif	/* UTILS_ARITHXX_API_HPP_ */

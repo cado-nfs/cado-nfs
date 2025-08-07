@@ -1,12 +1,12 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cstdlib>             // for free
+#include <cstdlib>
 #include <cstdio>
 
-#include <gmp.h>               // for mpz_srcptr, gmp_asprintf
+#include <gmp.h>
 
 #include "las-dumpfile.hpp"
-#include "las-special-q.hpp"  // for special_q
+#include "special-q.hpp"
 #include "macros.h"
 
 dumpfile_t::~dumpfile_t() {

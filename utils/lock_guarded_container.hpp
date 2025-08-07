@@ -53,6 +53,25 @@ template<typename T> struct lock_guarded_container : public T {
         return *this;
     }
     ~lock_guarded_container() = default;
+    /* The .locked() proxy object provides locked access up to the next
+     * sequence point where the proxy object is destroyed.
+     */
+    struct proxy {
+        std::lock_guard<std::mutex> lk;
+        T * ctr;
+        T * operator->() { return ctr; };
+        T & operator*() { return *ctr; };
+        proxy(std::mutex & mm, T * ctr) : lk(mm), ctr(ctr) {}
+    };
+    proxy locked() { return { mm, this }; }
+    struct const_proxy {
+        std::lock_guard<std::mutex> lk;
+        T const * ctr;
+        T const * operator->() { return ctr; };
+        T const & operator*() { return *ctr; };
+        const_proxy(std::mutex & mm, T const * ctr) : lk(mm), ctr(ctr) {}
+    };
+    const_proxy locked() const { return { mm, this }; }
 };
 
 #endif	/* CADO_LOCK_GUARDED_CONTAINER_HPP */

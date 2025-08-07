@@ -19,7 +19,7 @@
 #include "las-siever-config.hpp"
 #include "las-smallsieve-types.hpp"
 #include "las-threads.hpp"
-#include "las-special-q.hpp"
+#include "special-q.hpp"
 #include "las-special-q-task.hpp"
 #include "lock_guarded_container.hpp"
 #include "multityped_array.hpp"
