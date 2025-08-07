@@ -20,8 +20,6 @@
 #include "macros.h"     // for ASSERT, ASSERT_ALWAYS
 
 #include "double_poly.h"
-#include "double_poly_complex_roots.h"
-#include "polyroots.h"
 #include "utils_cxx.hpp"
 
 // scan-headers: stop here
@@ -1040,15 +1038,4 @@ void double_poly_set_string(double_poly_ptr poly, const char *str)
     }
     double_poly_cleandeg(poly, n-1);
 }
-
-int double_poly_complex_roots(double _Complex *roots, double_poly_srcptr f)
-{
-    return poly_roots_double(f->coeff, f->deg, roots);
-}
-
-int double_poly_complex_roots_long(long double _Complex *roots, double_poly_srcptr f)
-{
-    return poly_roots_longdouble(f->coeff, f->deg, roots);
-}
-
 

@@ -1658,6 +1658,7 @@ utils/cxx_mpz.hpp
 utils/dllist.h
 utils/double_poly.cpp
 utils/double_poly.h
+utils/double_poly_complex_roots.c
 utils/double_poly_complex_roots.h
 utils/electric_alloc.h
 utils/embedded/fmt/ChangeLog.md

@@ -3,8 +3,7 @@
 
 #include "cado_config.h"
 
-#include <ccomplex>
-
+#include <complex>
 #include <type_traits>
 
 #include "cxx_mpz.hpp"
@@ -103,9 +102,9 @@ using is_real_t = std::enable_if_t<is_real_v<X>, bool>;
  * rootfinding.
  */
 template<typename T> struct is_complex : public std::false_type {};
-template<> struct is_complex<_Complex float> : public std::true_type {};
-template<> struct is_complex<_Complex double> : public std::true_type {};
-template<> struct is_complex<_Complex long double> : public std::true_type {};
+template<> struct is_complex<std::complex<float>> : public std::true_type {};
+template<> struct is_complex<std::complex<double>> : public std::true_type {};
+template<> struct is_complex<std::complex<long double>> : public std::true_type {};
 #ifdef HAVE_MPC
 template<> struct is_complex<cxx_mpc> : public std::true_type {};
 #endif
