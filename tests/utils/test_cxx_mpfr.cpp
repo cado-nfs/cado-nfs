@@ -36,8 +36,8 @@ int main(int argc, char const * argv[])
      * average 0.75), place them in a map, and sum all of them
      */
     for(int i = 0 ; i < 2000 ; i++) {
-        mpfr_mul_ui(m, m, 1 + gmp_urandomm_ui(state, 255), MPFR_RNDN);
-        mpfr_div_ui(m, m, 1 + gmp_urandomm_ui(state, 255), MPFR_RNDN);
+        m *= 1 + gmp_urandomm_ui(state, 255);
+        m /= 1 + gmp_urandomm_ui(state, 255);
         mpfr_set_exp(m, 0);
         // fmt::print("{}\n", m);
         unsigned int t = gmp_urandomm_ui(state, 100);
@@ -45,12 +45,12 @@ int main(int argc, char const * argv[])
             mpfr_set_prec(v[t], prec);
             mpfr_set_zero(v[t], 1);
         }
-        mpfr_add(v[t], v[t], m, MPFR_RNDN);
+        v[t] += m;
     }
 
     mpfr_set_zero(m, 1);
     for(auto const & x : v) {
-        mpfr_add(m, m, x.second, MPFR_RNDN);
+        m += x.second;
         fmt::print("[{}] {} {}\n", x.first, x.second, m);
     }
 }

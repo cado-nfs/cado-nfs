@@ -125,6 +125,8 @@
 
 #cmakedefine    HAVE_GMPECM
 
+#cmakedefine    HAVE_MPFR
+
 #cmakedefine    HAVE_CXXABI_H
 
 #cmakedefine    HAVE_REGEX_H

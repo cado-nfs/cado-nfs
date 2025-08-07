@@ -258,6 +258,6 @@ mpz_tdiv (mpz_srcptr N, uint64_t d) {
     return mpz_tdiv_uint64(N, d);
 }
 
-}
+} /* namespace gmp_auxx */
 
 #endif
