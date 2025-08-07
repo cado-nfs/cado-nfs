@@ -38,7 +38,6 @@ static bool choose_sieve_area(las_info const & las,
 
     std::unique_ptr<sieve_range_adjust> Adj;
 
-    int const adjust_strategy = conf.adjust_strategy;
     {
 
     /* Our business: find an appropriate siever_config, that is
@@ -94,6 +93,8 @@ static bool choose_sieve_area(las_info const & las,
             return false;
         }
     }
+
+    int const adjust_strategy = conf.adjust_strategy;
 
     /* With adjust_strategy == 2, we want to display the other
      * values, too. Also, strategy 0 wants strategy 1 to run first.
