@@ -19,7 +19,7 @@
 namespace mpfr_auxx
 {
 
-#define MPFR_AUXX_DEFINE_FUNC2(DTYPE, OP)                               \
+#define MPFR_AUXX_DEFINE_FUNC2a(DTYPE, OP)                              \
     static inline void cado_mpfr_##OP(DTYPE a, mpfr_srcptr b,           \
                                       mpfr_rnd_t rnd)                   \
     {                                                                   \
@@ -60,8 +60,62 @@ namespace mpfr_auxx
         mpfr_##OP##_uint64(a, b, rnd);                                  \
     }
 
-MPFR_AUXX_DEFINE_FUNC2(mpfr_ptr, init_set)
-MPFR_AUXX_DEFINE_FUNC2(mpfr_ptr, set)
+#define MPFR_AUXX_DEFINE_FUNC2b(DTYPE, OP)                              \
+    static inline void                                                  \
+    cado_mpfr_##OP(DTYPE a, float const b, mpfr_rnd_t rnd)              \
+    {                                                                   \
+        /* use the _d version anyway */                                 \
+        mpfr_##OP##_d(a, b, rnd);                                       \
+    }                                                                   \
+                                                                        \
+    static inline void                                                  \
+    cado_mpfr_##OP(DTYPE a, double const b, mpfr_rnd_t rnd)             \
+    {                                                                   \
+        mpfr_##OP##_d(a, b, rnd);                                       \
+    }                                                                   \
+                                                                        \
+    static inline void                                                  \
+    cado_mpfr_##OP(DTYPE a, long double const b, mpfr_rnd_t rnd)        \
+    {                                                                   \
+        mpfr_##OP##_ld(a, b, rnd);                                      \
+    }
+
+    /* same as mpfr, except that we preserve the sign bit of NAN */
+#define MPFR_AUXX_DEFINE_FUNC2bx(DTYPE, OP)                             \
+    static inline void                                                  \
+    cado_mpfr_##OP(DTYPE a, float const b, mpfr_rnd_t rnd)              \
+    {                                                                   \
+        /* use the _d version anyway */                                 \
+        mpfr_##OP##_d(a, b, rnd);                                       \
+        if (std::isnan(b))                                              \
+            mpfr_setsign(a, a, std::signbit(b), MPFR_RNDN);             \
+    }                                                                   \
+                                                                        \
+    static inline void                                                  \
+    cado_mpfr_##OP(DTYPE a, double const b, mpfr_rnd_t rnd)             \
+    {                                                                   \
+        mpfr_##OP##_d(a, b, rnd);                                       \
+        if (std::isnan(b))                                              \
+            mpfr_setsign(a, a, std::signbit(b), MPFR_RNDN);             \
+    }                                                                   \
+                                                                        \
+    static inline void                                                  \
+    cado_mpfr_##OP(DTYPE a, long double const b, mpfr_rnd_t rnd)        \
+    {                                                                   \
+        mpfr_##OP##_ld(a, b, rnd);                                      \
+        if (std::isnan(b))                                              \
+            mpfr_setsign(a, a, std::signbit(b), MPFR_RNDN);             \
+    }
+
+#define MPFR_AUXX_DEFINE_FUNC2(DTYPE, OP)                               \
+        MPFR_AUXX_DEFINE_FUNC2a(DTYPE, OP)                              \
+        MPFR_AUXX_DEFINE_FUNC2b(DTYPE, OP)
+
+MPFR_AUXX_DEFINE_FUNC2a(mpfr_ptr, init_set)
+MPFR_AUXX_DEFINE_FUNC2a(mpfr_ptr, set)
+MPFR_AUXX_DEFINE_FUNC2bx(mpfr_ptr, init_set)
+MPFR_AUXX_DEFINE_FUNC2bx(mpfr_ptr, set)
+
 
 /*****************************************************************/
 static inline int cado_mpfr_cmp(mpfr_srcptr a, mpfr_srcptr b)

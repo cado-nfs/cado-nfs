@@ -470,7 +470,7 @@ int main()
     all_tests<float>();
     all_tests<cxx_mpz>();
 #ifdef HAVE_MPFR
-    // all_tests<cxx_mpfr>();
+    all_tests<cxx_mpfr>();
 #endif
     return EXIT_SUCCESS;
 }

@@ -85,6 +85,36 @@ namespace cado_expression_parser_details {
             int c = is.peek();
             bool no_mantissa = true;
 
+            if (c == '-')
+                if (N.swallow_hits_end(c, is))
+                    throw token_error();
+
+            if (c == 'n' || c == 'N') {
+                if (N.swallow_hits_end(c, is))
+                    throw token_error();
+                if (c != 'a' && c != 'A')
+                    throw token_error();
+                if (N.swallow_hits_end(c, is))
+                    throw token_error();
+                if (c != 'n' && c != 'N') 
+                    throw token_error();
+                N.swallow_hits_end(c, is);
+                return true;
+            }
+
+            if (c == 'i') {
+                if (N.swallow_hits_end(c, is))
+                    throw token_error();
+                if (c != 'n')
+                    throw token_error();
+                if (N.swallow_hits_end(c, is))
+                    throw token_error();
+                if (c != 'f')
+                    throw token_error();
+                N.swallow_hits_end(c, is);
+                return true;
+            }
+
             // std::string * ps = &N.integral;
             if (!std::isdigit(c)) {
                 if (c == '.') {

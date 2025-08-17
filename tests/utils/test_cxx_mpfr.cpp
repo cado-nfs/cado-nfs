@@ -5,10 +5,19 @@
 #include <cstdint>
 #include <cmath>
 
+#include <version>
+
 #include <utility>
 #include <sstream>
 #include <string>
 #include <map>
+#include <iostream>
+#include <iomanip>
+#include <limits>
+#include <vector>
+#ifdef __cpp_lib_bit_cast
+#include <bit>
+#endif
 
 #include <gmp.h>
 #include "fmt/base.h"
@@ -204,6 +213,142 @@ static void test_operators(mpfr_prec_t prec)
     ASSERT_ALWAYS(m == y * y);
 }
 
+static void print1(std::ostream & os, double const d)
+{
+    cxx_mpfr dr;
+    mpfr_set_prec(dr, std::numeric_limits<double>::digits);
+    dr = cado_math_aux::similar_set(dr, d);
+    if (std::isnan(d)) {
+        fmt::print(stderr, "note: nan ({}), sign bit = {}\n", d, std::signbit(d));
+        fmt::print(stderr, "mpfr: nan, sign bit = {}\n", mpfr_signbit(dr.x));
+    }
+
+    std::vector<std::pair<const char *, std::ios_base::fmtflags>>
+        presentations {
+        { "fix", std::ios_base::fixed },
+        { "sci", std::ios_base::scientific },
+        { "hex", std::ios_base::fixed | std::ios_base::scientific },
+        { "dfl", {} },
+    };
+
+    for(auto const & [ name, flags ] : presentations) {
+        for(auto w : { 16, 24 }) {
+            for(auto p : { 2, 6, 10 }) {
+                std::ostringstream sd;
+                sd.setf(flags, std::ios_base::floatfield);
+                sd << std::setw(w) << std::setprecision(p) << d;
+                auto s = sd.str();
+                std::ostringstream sdr;
+                sdr.setf(flags, std::ios_base::floatfield);
+                sdr << std::setw(w) << std::setprecision(p) << dr;
+                auto sr = sdr.str();
+                const bool ok = s == sr;
+                const char * msg = ok ? "ok" : "NOK";
+                const bool tolerate_failure = strcmp(name, "hex") == 0;
+                if (!ok && (tolerate_failure))
+                    msg = "nok (tolerated)";
+                fmt::print(os, "| {} | {:3} | {:24} | {:24} | {} |\n",
+                        d, name, s, sr, msg);
+                ASSERT_ALWAYS(ok || (tolerate_failure));
+            }
+        }
+    }
+
+    /* also compare what printf does vs mpfr_printf */
+#define ONE_C_TEST(libc_fmt, mpfr_pre, tolerate_failure) do {		\
+        char s[32];							\
+        char sr[32];							\
+        mpfr_srcptr drf = dr;						\
+        snprintf(s, sizeof(s), "%" libc_fmt, d);			\
+        mpfr_snprintf(sr, sizeof(sr), "%" mpfr_pre "R" libc_fmt, drf);	\
+        const bool ok = strcmp(s, sr) == 0;                             \
+        const char * msg = ok ? "ok" : "NOK";                           \
+        if (!ok && (tolerate_failure))                                  \
+            msg = "nok (tolerated)";                                    \
+        fmt::print(os, "| {} | C:{} | {:24} | {:24} | {} |\n",	\
+            d, libc_fmt, s, sr, msg);                                \
+        ASSERT_ALWAYS(ok || (tolerate_failure));                        \
+    } while (0)
+
+    ONE_C_TEST("f", "", false);
+    /* forcibly set the precision: we don't want mpfr's (documented)
+     * behaviour of ceil(p times log(2)/log(10)), where p is the
+     * precision of the input variable (see §5.9.2).
+     */
+    ONE_C_TEST("e", ".6", false);
+    /* a/A is a mess, see
+     * https://sympa.inria.fr/sympa/arc/mpfr/2021-05/msg00002.html ;
+     * absolutely no hope here as long as there's no effort made
+     * towards consistency.
+     */
+    ONE_C_TEST("a", "", true);
+    ONE_C_TEST("g", "", false);
+}
+
+static void test_print_one_number(double d, mpfr_prec_t prec)
+{
+    print1(std::cout, d);
+    const auto td = fmt::format("{}", d);
+    cxx_mpfr m;
+    {
+        /* print the double, and then input it as a cxx_mpfr */
+        std::istringstream is(td);
+        is >> cxx_mpfr::input_with_precision { .x=m, .p=prec };
+    }
+    const auto t = fmt::format("{}", m);
+
+    // ASSERT_ALWAYS(t == td);
+    if (t == td) {
+        fmt::print("{} (as double) prints as {} with cxx_mpfr\n",
+                td, t);
+    } else {
+        const auto tx = fmt::format("{:.17}", m);
+        if (tx == td)
+            fmt::print("{} (as double) prints as {} with cxx_mpfr, but inconsistency is repaired when printing as a double\n",
+                    td, t);
+        else
+            ASSERT_ALWAYS(0);
+    }
+
+}
+
+static void test_printing(cxx_gmp_randstate & state, mpfr_prec_t prec, int ntests)
+{
+    double const tests[] = {
+        0.0,
+        0.01,
+        0.00001,
+        17,
+        17e10,
+        17e20,
+        /* fmt's default printing of a floating point type
+         * differs depending on whether the output exponent is in the
+         * [exp_lower, exp_upper) range or not. exp_lower is -4,
+         * exp_upper is 16 for double (see do_write_float). If it is in
+         * range, the fixed notation is used, otherwise it's the
+         * scientific notation
+         */
+        17.0001e11,
+    };
+    for(auto const d : tests)
+        test_print_one_number(d, prec);
+    for(int i = 0 ; i < ntests ; i++) {
+        cxx_mpz z;
+        mpz_rrandomb(z, state, 64);
+        const uint64_t b = mpz_get_uint64(z);
+#ifdef __cpp_lib_bit_cast
+        const auto d = std::bit_cast<double>(b);
+#else
+        const double d = *(double*)&b;  /* yikes */
+#endif
+        /* There isn't so much variety with nan printing, so let's assume
+         * that we have exhausted all of it after a few tests */
+        if (std::isnan(d) && i >= 100)
+            continue;
+        test_print_one_number(d, prec);
+    }
+}
+
 static void test_mpfr_aux(mpfr_prec_t prec)
 {
     /* mpfr_aux.h has several functions that aren't reached by the test
@@ -293,4 +438,5 @@ int main(int argc, char const * argv[])
     test_copies_and_assignment(prec);
     test_operators(prec);
     test_mpfr_aux(prec);
+    test_printing(state, prec, 5000);
 }

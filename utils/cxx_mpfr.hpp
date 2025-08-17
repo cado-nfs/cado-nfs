@@ -27,7 +27,6 @@
 #include <type_traits>
 
 #include "fmt/base.h"
-#include "fmt/ostream.h"
 #include <mpfr.h>
 
 #include "utils_cxx.hpp"
@@ -216,14 +215,7 @@ extern void mpfr_clear(cxx_mpfr & pl)
                          "it is the caller's business (via a dtor)")));
 #endif
 
-inline std::ostream & operator<<(std::ostream & os, cxx_mpfr const & x)
-{
-    char * s = nullptr;
-    mpfr_asprintf(&s, "%Rf", x.x);
-    os << s;
-    free(s);
-    return os;
-}
+std::ostream & operator<<(std::ostream & os, cxx_mpfr const & x);
 
 extern std::istream & operator>>(std::istream & is, cxx_mpfr::input_with_precision xp);
 
@@ -232,59 +224,33 @@ inline std::istream& operator>>(std::istream& is, cxx_mpfr & x)
     return is >> cxx_mpfr::input_with_precision { .x = x, .p = mpfr_get_default_prec() };
 }
 
-
-namespace fmt {
-    /* It's totally primitive, and should be expanded if we want to allow
-     * more proper formatting. It seems desirable of course, but for the
-     * moment my focus is on debugging
-     */
-    template<typename T>
-    struct fmt_helper_cxx_mpfr {
-        protected:
-            enum { NORMAL, HEX } custom_format = formatter<T>::custom_format_default;
-            /* this can be overridden */
-            static constexpr const decltype(custom_format) custom_format_default = NORMAL;
-        public:
-            FMT_CONSTEXPR auto parse(basic_format_parse_context<char>& ctx)
-                -> decltype(ctx.begin())
-            {
-                auto begin = ctx.begin(), end = ctx.end();
-                if (begin != end && *begin == 'R') {
-                    ++begin;
-                    custom_format = NORMAL;
-                } else if (begin != end && *begin == 'a') {
-                    ++begin;
-                    custom_format = HEX;
-                }
-                return begin;
-            }
-    };
-} /* namespace fmt */
-
 namespace fmt
 {
-    // template <> struct formatter<cxx_mpfr> : ostream_formatter { };
+    namespace detail {
+        FMT_TYPE_CONSTANT(cxx_mpfr, double_type);
+    }
+
     template <>
+        /* reimplement native_formatter<double>, from base.h. We can't
+         * inherit since the specs_ field is private there.
+         */
         struct formatter<cxx_mpfr>
-        : formatter<string_view>
-        , fmt_helper_cxx_mpfr<cxx_mpfr>
         {
-            static constexpr const decltype(custom_format) custom_format_default = NORMAL;
-            using fmt_helper_cxx_mpfr::parse;
+            static constexpr fmt::detail::type TYPE = fmt::detail::type::double_type;
+            using Char = char;
+            private:
+            fmt::detail::dynamic_format_specs<Char> specs_;
+            public:
+            // using nonlocking = void;
+            FMT_CONSTEXPR auto parse(parse_context<Char>& ctx) -> const Char*
+            {
+                if (ctx.begin() == ctx.end() || *ctx.begin() == '}') 
+                    return ctx.begin();
+                return parse_format_specs(ctx.begin(), ctx.end(), specs_, ctx, TYPE);
+            }
+
             auto format(cxx_mpfr const & x, format_context& ctx) const
-                -> format_context::iterator {
-                    char * s = nullptr;
-                    if (custom_format == NORMAL) {
-                        mpfr_asprintf(&s, "%Rg", x.x);
-                        fmt::format_to(ctx.out(), "{}", s);
-                        free(s);
-                    } else if (custom_format == HEX) {
-                        mpfr_asprintf(&s, "%Ra", x.x);
-                        fmt::format_to(ctx.out(), "{}", s);
-                        free(s);
-                    }
-                    return ctx.out();
-                }
+                -> format_context::iterator;
         };
 } // namespace fmt
 
