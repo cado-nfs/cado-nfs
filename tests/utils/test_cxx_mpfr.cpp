@@ -3,17 +3,18 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstdint>
+#include <cstring>
 #include <cmath>
 
 #include <version>
 
-#include <utility>
+#include <iomanip>
+#include <iostream>
+#include <limits>
+#include <map>
 #include <sstream>
 #include <string>
-#include <map>
-#include <iostream>
-#include <iomanip>
-#include <limits>
+#include <utility>
 #include <vector>
 #ifdef __cpp_lib_bit_cast
 #include <bit>
@@ -213,17 +214,37 @@ static void test_operators(mpfr_prec_t prec)
     ASSERT_ALWAYS(m == y * y);
 }
 
+static bool representations_agree(double d, std::string const & s, std::string const & sr)
+{
+    /* no guarantee is given by IEEE-754 regarding what happens to the
+     * sign bit of Nan. In particular, whether it is printed as nan or
+     * -nan, we don't really care. In practice, the GNU libc print prints
+     * a Nan with sign bit as -nan, while the libc on OSX doesn't.
+     */
+    if (std::isnan(d)) {
+        auto ts = s;
+        if (s.front() == '-')
+            ts = s.substr(1);
+        auto tsr = s;
+        if (sr.front() == '-')
+            tsr = sr.substr(1);
+        return ts == tsr;
+    } else {
+        return s == sr;
+    }
+}
+
 static void print1(std::ostream & os, double const d)
 {
     cxx_mpfr dr;
     mpfr_set_prec(dr, std::numeric_limits<double>::digits);
     dr = cado_math_aux::similar_set(dr, d);
     if (std::isnan(d)) {
-        fmt::print(stderr, "note: nan ({}), sign bit = {}\n", d, std::signbit(d));
-        fmt::print(stderr, "mpfr: nan, sign bit = {}\n", mpfr_signbit(dr.x));
+        fmt::print("note: nan ({}), sign bit = {}\n", d, std::signbit(d));
+        fmt::print("mpfr: nan, sign bit = {}\n", mpfr_signbit(dr.x));
     }
 
-    std::vector<std::pair<const char *, std::ios_base::fmtflags>>
+    const std::vector<std::pair<const char *, std::ios_base::fmtflags>>
         presentations {
         { "fix", std::ios_base::fixed },
         { "sci", std::ios_base::scientific },
@@ -242,7 +263,7 @@ static void print1(std::ostream & os, double const d)
                 sdr.setf(flags, std::ios_base::floatfield);
                 sdr << std::setw(w) << std::setprecision(p) << dr;
                 auto sr = sdr.str();
-                const bool ok = s == sr;
+                const bool ok = representations_agree(d, s, sr);
                 const char * msg = ok ? "ok" : "NOK";
                 const bool tolerate_failure = strcmp(name, "hex") == 0;
                 if (!ok && (tolerate_failure))
@@ -261,7 +282,7 @@ static void print1(std::ostream & os, double const d)
         mpfr_srcptr drf = dr;						\
         snprintf(s, sizeof(s), "%" libc_fmt, d);			\
         mpfr_snprintf(sr, sizeof(sr), "%" mpfr_pre "R" libc_fmt, drf);	\
-        const bool ok = strcmp(s, sr) == 0;                             \
+        const bool ok = representations_agree(d, s, sr);                \
         const char * msg = ok ? "ok" : "NOK";                           \
         if (!ok && (tolerate_failure))                                  \
             msg = "nok (tolerated)";                                    \

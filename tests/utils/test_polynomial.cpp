@@ -84,7 +84,7 @@ template<typename T>
 static void
 test_compute_roots(bool verbose)
 {
-    const int valgrind_penalty = (std::is_same<T, long double>::value && tests_run_under_valgrind()) ? 16 : 0;
+    const int valgrind_penalty = (std::is_same_v<T, long double> && tests_run_under_valgrind()) ? 16 : 0;
     test_positive_roots<T>("1", 3, verbose, {}, -4);
 
     /* A few roots of 2 */
@@ -128,7 +128,7 @@ test_compute_roots(bool verbose)
     /* examples below can't be dealt with by the float code because of
      * the limited exponent range
      */
-    if (std::is_same<T, float>::value)
+    if (std::is_same_v<T, float>)
         return;
 
     /* false position needs weighting */
@@ -218,6 +218,11 @@ test_compute_roots<cxx_mpz>(bool)
 template<typename T>
 static void test_eval()
 {
+    /* long doubles under valgrind basically don't work. They're just
+     * doubles in disguise
+     */
+    if (std::is_same_v<T, long double> && tests_run_under_valgrind())
+        return;
 
     ASSERT_ALWAYS(polynomial<T>()(T()) == T());
 
@@ -428,12 +433,33 @@ static void test_resultant()
     for(auto const & t : test_cases) {
         /* XXX We can't make it work with cxx_mpfr without changing the
          * interface */
-        T res = RX(t.f).resultant(RX(t.g));
+
+        T val;
+
+        typename polynomial<T>::traits tr;
+#ifdef HAVE_MPFR
+        if constexpr (std::is_same_v<T, cxx_mpfr>) {
+            /* We need a minimum precision for these tests, especially
+             * the last one: we know that 53 bits is way too small, and
+             * 80 bits is barely ok. So let's use 128 bits, it shouldn't
+             * be too bad. */
+            tr = { 128 };
+        }
+#endif
+        T res = RX(t.f, tr).resultant(RX(t.g, tr));
         cxx_mpz val_z;
         cxx_mpz_poly fz(t.f);
         cxx_mpz_poly gz(t.g);
         mpz_poly_resultant(val_z, fz, gz);
-        T val = cado_math_aux::mpz_get<T>(val_z);
+#ifdef HAVE_MPFR
+        if constexpr (std::is_same_v<T, cxx_mpfr>) {
+            mpfr_set_prec(val, tr.prec);
+            mpfr_set_z(val, val_z, MPFR_RNDN);
+        } else
+#endif
+        {
+            val = cado_math_aux::mpz_get<T>(val_z);
+        }
         int accuracy = t.ulps;
         if (accuracy < 0)
             accuracy += std::numeric_limits<T>::digits;

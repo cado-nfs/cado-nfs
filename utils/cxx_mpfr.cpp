@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstring>
 
+#include <algorithm>
 #include <ios>
 #include <istream>
 #include <ostream>
@@ -126,7 +127,10 @@ auto fmt::formatter<cxx_mpfr>::format(cxx_mpfr const & x, format_context& ctx) c
     if (pt == presentation_type::none) {
         if (mpfr_regular_p(x.x)) {
             // p = 6;
-            auto str = std::make_unique<char[]>(mpfr_get_str_ndigits(10, x.prec()));
+            const size_t N = std::max(
+                    2U + mpfr_get_str_ndigits(10, x.prec()),
+                    static_cast<size_t>(7U));
+            auto str = std::make_unique<char[]>(N);
             mpfr_exp_t e;
             mpfr_get_str(str.get(), &e, 10, 0, x.x, MPFR_RNDN);
             /* the implicit decimal point is to the _left_ of the first
@@ -199,17 +203,18 @@ auto fmt::formatter<cxx_mpfr>::format(cxx_mpfr const & x, format_context& ctx) c
 
 std::istream & operator>>(std::istream & is, cxx_mpfr::input_with_precision xp)
 {
+    using cado_expression_parser_details::parse_error;
     using cado_expression_parser_details::number_literal;
-    using traits = cado_expression_parser_details::number_traits<cxx_mpfr>;
     number_literal N;
     if (is >> N) {
-        try {
-            xp.x = traits::from_number_literal(N, xp.p);
-            if (mpfr_nan_p(xp.x.x) && !N.full.empty() && N.full[0] == '-')
-                mpfr_setsign(xp.x, xp.x, 1, MPFR_RNDN);
-        } catch (cado_expression_parser_details::parse_error const &) {
+        mpfr_set_prec(xp.x, xp.p);
+        const int r = mpfr_set_str(xp.x, N.full.c_str(), 0, MPFR_RNDN);
+        if (r != 0) {
             is.setstate(std::ios::failbit);
+            return is;
         }
+        if (mpfr_nan_p(xp.x.x) && !N.full.empty() && N.full[0] == '-')
+            mpfr_setsign(xp.x, xp.x, 1, MPFR_RNDN);
     }
     return is;
 }

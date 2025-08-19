@@ -1,11 +1,13 @@
 #include "cado.h" // IWYU pragma: keep
 
 #include <cstddef>
+
 #include <string>
 #include <vector>
 #include <stdexcept>
 #include <sstream>
 
+#include <gmp.h>
 #include "fmt/base.h"
 
 #include "cado_expression_parser.hpp"
@@ -129,16 +131,16 @@ int main()
             exc += '/';
 
             ASSERT_ALWAYS(b == (s.input.size() > tail.size()));
-            try {
-                d = number_traits<double>::from_number_literal(N);
-            } catch(parse_error const & e) {
+            size_t pos;
+            d = std::stod(N.full, &pos);
+            if (pos != N.full.size()) {
+                d = 0;
                 exc += 'D';
             }
-            try {
-                z = number_traits<cxx_mpz>::from_number_literal(N);
-            } catch(parse_error const & e) {
+            if (N.has_point || N.has_exponent)
                 exc += 'Z';
-            }
+            else
+                mpz_set_str(z, N.integral_part().c_str(), 0);
         } catch (token_error const & e) {
             exc += 't';
         } catch (parse_error const & e) {

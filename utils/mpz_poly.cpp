@@ -4929,6 +4929,15 @@ struct mpz_poly_parser_traits {
     {
         mpz_poly_set_mpz(a, z);
     }
+    static void set(cxx_mpz_poly & a,
+            cado_expression_parser_details::number_literal const & N)
+    {
+        if (N.has_point || N.has_exponent)
+            throw cado_expression_parser_details::parse_error();
+        cxx_mpz z;
+        mpz_set_str(z, N.integral_part().c_str(), 0);
+        a = z;
+    }
     void set_literal_power(cxx_mpz_poly & a, std::string const & v,
                            unsigned long e) const
     {

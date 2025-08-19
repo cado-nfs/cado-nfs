@@ -170,6 +170,11 @@ struct mpz_parser_traits {
     static void set(cxx_mpz & a, cxx_mpz const & z) {
         mpz_set(a, z);
     }
+    static void set(cxx_mpz & a, cado_expression_parser_details::number_literal const & N) {
+        if (N.has_point || N.has_exponent)
+            throw cado_expression_parser_details::parse_error();
+        mpz_set_str(a, N.integral_part().c_str(), 0);
+    }
     static void set_literal_power(cxx_mpz &, std::string const&, unsigned long) {
         // never called. we could do some gymnastics to statically elide
         // this call, but that does not seem to be worth it.

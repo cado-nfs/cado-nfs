@@ -7,15 +7,13 @@
  * standard operator overloads defined. A priori we want to instantiate
  * these with float, double, and long double. But in principle it should
  * be possible to use this type more generically
- *
- * (note that because of the mpfr conventions, the cxx_mpfr type cannot
- * be used for this)
  */
 
-#include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstddef>
+
+#include <algorithm>
 #include <initializer_list>
 #include <ios>
 #include <istream>
@@ -38,6 +36,10 @@
 #include "cado_expression_parser.hpp"
 #include "coeff_proxy.hpp"
 #include "cado_type_traits.hpp"
+
+#ifdef HAVE_MPFR
+#include "cxx_mpfr.hpp"
+#endif
 
 namespace polynomial_details {
     template<typename U>
@@ -110,9 +112,49 @@ struct eval_type {
 template<typename CoefficientType, typename PointType>
 using eval_type_t = typename eval_type<CoefficientType, PointType>::type;
 
+/* each instance of a polynomial object with coefficient type T inherits
+ * from polynomial_instance_traits<T>. In most cases this is a trivial
+ * layer with the identity function as intepret_integral. With cxx_mpfr
+ * however, which has variable precision, we want to attach a precision
+ * to the polynomial, even before it has any coefficient. This will make
+ * it possible to create coefficients such as 0 or 1 in the polynomial
+ * with the correct precision.
+ */
+template<typename T>
+struct polynomial_instance_traits {
+    template<typename U>
+        T interpret_integral(U x) const { return T(x); }
+    void copy_traits(T const &) {}
+    static polynomial_instance_traits traits_from(T const &) { return {}; }
+};
+
+#ifdef HAVE_MPFR
+template<>
+struct polynomial_instance_traits<cxx_mpfr> {
+    mpfr_prec_t prec = mpfr_get_default_prec();
+    operator mpfr_prec_t() const { return prec; }
+    template<typename U>
+        cxx_mpfr interpret_integral(U x) const {
+            cxx_mpfr y;
+            mpfr_set_prec(y, prec);
+            mpfr_auxx::cado_mpfr_set(y, x, MPFR_RNDN);
+            return y;
+        }
+    void copy_traits(cxx_mpfr const & x) {
+        prec = x.prec();
+    }
+    static polynomial_instance_traits traits_from(cxx_mpfr const & x) { return { x.prec() }; }
+};
+#endif
 
 template<typename T>
-struct polynomial {
+struct polynomial : polynomial_instance_traits<T>
+{
+    using traits = polynomial_instance_traits<T>;
+    using traits::interpret_integral;
+    using traits::copy_traits;
+
+    traits extract_traits() const { return *this; }
 
     /* {{{ evaluation at a point */
     template<typename U, typename E>
@@ -159,7 +201,7 @@ struct polynomial {
         /* We need to use the precision of the coefficients of the
          * polynomial, and not the default precision! */
         if (degree() < 0)
-            return T(0);
+            return interpret_integral(0);
         else
             return eval_with_reference(coeffs.front(), x);
     }
@@ -272,7 +314,7 @@ struct polynomial {
 
     public:
 
-    typedef T coefficient_type;
+    using coefficient_type = T;
 
     int degree() const {
         return runtime_numeric_cast<int>(coeffs.size())-1;
@@ -282,6 +324,9 @@ struct polynomial {
     T lc() const { ASSERT_ALWAYS(!coeffs.empty()); return coeffs.back(); }
 
     polynomial() = default;
+    explicit polynomial(traits const & tr)
+        : traits(tr)
+    {}
     ~polynomial() = default;
     polynomial(polynomial const&) = default;
     polynomial(polynomial &&) = default;
@@ -291,15 +336,21 @@ struct polynomial {
     /* all instantations love each other */
     template<typename U> friend struct polynomial;
     template<typename U>
+        explicit polynomial(polynomial<U> const & a, traits const & tr)
+        requires (!std::is_same_v<U, T>)
+        : traits(tr)
+        , coeffs { a.coeffs.begin(), a.coeffs.end() }
+    {}
+    template<typename U>
         explicit polynomial(polynomial<U> const & a)
         requires (!std::is_same_v<U, T>)
-        : coeffs { a.coeffs.begin(), a.coeffs.end() }
+        : polynomial(a, a.extract_traits())
     {}
 
     void set_zero() { coeffs.clear(); }
     void set_xi(unsigned int i) {
-        coeffs.assign((i+1), T(0));
-        coeffs[i] = 1;
+        coeffs.assign((i+1), interpret_integral(0));
+        coeffs[i] = interpret_integral(1);
     }
     /*
      * use P[i] += v instead
@@ -314,11 +365,22 @@ struct polynomial {
 
     polynomial& operator=(T v) {
         coeffs.clear();
+        copy_traits(v);
         (*this)[0] = v;
         return *this;
     }
-    explicit polynomial(T v) : coeffs(1, v) { cleandeg(); }
-    polynomial(std::initializer_list<T> l) : coeffs(l.begin(), l.end()) {}
+    explicit polynomial(T v)
+        : traits(traits::traits_from(v))
+        , coeffs(1, v)
+    {
+        cleandeg();
+    }
+    polynomial(std::initializer_list<T> l) 
+        : coeffs(l.begin(), l.end())
+    {
+        if (l.begin() != l.end())
+            copy_traits(*l.begin());
+    }
 
     explicit operator cxx_mpz_poly() const {
         cxx_mpz_poly res;
@@ -330,13 +392,17 @@ struct polynomial {
     }
 
     // NOLINTNEXTLINE(hicpp-explicit-conversions)
-    explicit polynomial(std::string const & e) : polynomial() {
+    explicit polynomial(std::string const & e, traits const & tr = {})
+        : polynomial(tr)
+    {
         std::istringstream is(e);
         if (!(operator>>(is, *this)))
             throw cado_expression_parser_details::parse_error();
     }
     // NOLINTNEXTLINE(hicpp-explicit-conversions)
-    explicit polynomial(const char * e) : polynomial(std::string(e)) {}
+    explicit polynomial(const char * e, traits const & tr = {})
+        : polynomial(std::string(e), tr)
+        {}
 
     private:
     void cleandeg(int deg) {
@@ -462,8 +528,8 @@ struct polynomial {
     {
         const int d = degree();
         const int s = lc() < 0;
-        polynomial q;
-        q.coeffs.assign(coeffs.size(), 0);
+        polynomial q(extract_traits());
+        q.coeffs.assign(coeffs.size(), interpret_integral(0));
         for(int i = 0 ; i < d ; i++) {
             T v = (s ^ (negative & (d-i))) ? -coeffs[i] : coeffs[i];
             /* simplifies to v==(-1)^s*coeffs[i] < 0 if negative == 0 */
@@ -567,7 +633,7 @@ struct polynomial {
         typename = cado_math_aux::is_coercible_t<T, U>>
     void positive_roots_from_derivative_sign_changes(std::vector<U> & v, U bound)
     {
-        static_assert(std::is_same<eval_type_t<T, U>, U>::value);
+        static_assert(std::is_same_v<eval_type_t<T, U>, U>);
         if (degree() <= 0) {
             /* A constant polynomial has no sign changes */
             v.clear();
@@ -671,7 +737,7 @@ struct polynomial {
     polynomial derivative() const
     {
         if (degree() <= 0) return {};
-        polynomial df;
+        polynomial df(extract_traits());
         df.coeffs.reserve(degree() - 1);
         for(int i = 1 ; i <= degree() ; i++)
             df.coeffs.push_back(coeffs[i] * i);
@@ -680,7 +746,7 @@ struct polynomial {
 
     polynomial operator*(T const & a) const
     {
-        polynomial h;
+        polynomial h(extract_traits());
         h.coeffs.reserve(coeffs.size());
         for(auto const & x : coeffs)
             h.coeffs.push_back(x * a);
@@ -689,7 +755,7 @@ struct polynomial {
 
     polynomial operator/(T const & a) const
     {
-        polynomial h;
+        polynomial h(extract_traits());
         h.coeffs.reserve(coeffs.size());
         for(auto const & x : coeffs)
             h.coeffs.push_back(x / a);
@@ -698,7 +764,7 @@ struct polynomial {
 
     polynomial operator-() const
     {
-        polynomial h;
+        polynomial h(extract_traits());
         h.coeffs.reserve(coeffs.size());
         for(auto const & x : coeffs)
             h.coeffs.push_back(-x);
@@ -710,8 +776,8 @@ struct polynomial {
         polynomial const & f = *this;
         if (f == 0 || g == 0)
             return {};
-        polynomial h;
-        h.coeffs.assign(f.size() + g.size() - 1, 0);
+        polynomial h(extract_traits());
+        h.coeffs.assign(f.size() + g.size() - 1, interpret_integral(0));
         for(unsigned int i = 0 ; i < f.size() ; i++)
             for(unsigned int j = 0 ; j < g.size(); j++)
                 h.coeffs[i+j] += f[i] * g[j];
@@ -721,8 +787,8 @@ struct polynomial {
     polynomial operator+(polynomial const & g) const
     {
         polynomial const & f = *this;
-        polynomial h;
-        h.coeffs.assign(std::max(f.size(), g.size()), 0);
+        polynomial h(extract_traits());
+        h.coeffs.assign(std::max(f.size(), g.size()), interpret_integral(0));
         unsigned int i = 0;
         for( ; i < f.size() && i < g.size() ; i++)
             h.coeffs[i] = f[i] + g[i];
@@ -737,8 +803,8 @@ struct polynomial {
     polynomial operator-(polynomial const & g) const
     {
         polynomial const & f = *this;
-        polynomial h;
-        h.coeffs.assign(std::max(f.degree(), g.degree()) + 1, 0);
+        polynomial h(extract_traits());
+        h.coeffs.assign(std::max(f.degree(), g.degree()) + 1, interpret_integral(0));
         unsigned int i = 0;
         for( ; i < f.size() && i < g.size() ; i++)
             h.coeffs[i] = f[i] - g[i];
@@ -793,7 +859,7 @@ struct polynomial {
 
     polynomial reciprocal() const
     {
-        polynomial h;
+        polynomial h(extract_traits());
         h.coeffs.reserve(coeffs.size());
         for(unsigned int i = 0 ; i < size() ; i++)
             h[size()-1-i] = coeffs[i];
@@ -809,7 +875,7 @@ struct polynomial {
         unsigned int sz = size();
         if (!sz)
             return {};
-        polynomial h;
+        polynomial h(extract_traits());
         h.coeffs.reserve(sz);
         h[--sz] = lc();
         for(T s = scale ; sz-- ; s *= scale) h[sz] = coeffs[sz] * s;
@@ -826,7 +892,12 @@ struct polynomial {
         if (deg < 0)
             return {};
         T u = f[deg];
-        polynomial<U> q;
+        /* XXX: it's always a matter of choice, here. It's not totally
+         * clear that we're happy with having T!=U in the interface, but
+         * at any rate this visibly implies that we take the precision
+         * from r.
+         */
+        polynomial<U> q(traits_from(r));
         q.coeffs.reserve(coeffs.size() - 1);
         for (int k = deg ; k-- ; ) {
             T const c = f[k];
@@ -863,11 +934,16 @@ struct polynomial {
         return os.str();
     }
 
-    explicit polynomial(cxx_mpz_poly const & f)
+    explicit polynomial(cxx_mpz_poly const & f, traits const & tr = {})
+        : traits(tr)
     {
-        coeffs.assign(f.degree() + 1, 0);
-        for(int i = 0 ; i <= f.degree() ; i++)
+        coeffs.assign(f.degree() + 1, interpret_integral(0));
+        for(int i = 0 ; i <= f.degree() ; i++) {
+            /* we must obey the instance traits !
+             * XXX maybe explicitly instantiate the member ?
+             */
             coeffs[i] = cado_math_aux::mpz_get<T>(mpz_poly_coeff_const(f, i));
+        }
     }
 
     private:
@@ -909,6 +985,7 @@ struct polynomial {
         void set(polynomial & c, T const & z) {
             c = z;
         }
+        void set(polynomial &, cado_expression_parser_details::number_literal const &);
         void set_literal_power(polynomial & a, std::string const & v, unsigned long e) {
             if (v == x)
                 a.set_xi(e);
@@ -992,14 +1069,14 @@ struct polynomial {
         int const n = b.degree();
         T d = b.lc();
         int e = m - n + 1;
-        polynomial s;
+        polynomial s(extract_traits());
 
         if (q) *q = 0;
 
         r = a;
 
         while (r.degree() >= n) {
-            s = 0;
+            s = interpret_integral(0);
             s[r.degree() - n] = r.lc();
 
             if (q) {
@@ -1041,6 +1118,10 @@ struct polynomial {
 
     public:
 
+    /* XXX caveat: This is not a proper resultant implementation. It
+     * implicitly relies on the assumption that the inputs are integer
+     * polynomials (but with floating-point representation).
+     */
     template<typename U>
         T
     resultant(polynomial<U> const & q) const
@@ -1052,15 +1133,15 @@ struct polynomial {
 
         polynomial a = p;
         polynomial b = q;
-        polynomial r;
+        polynomial r(extract_traits());
 
         int s = 1;
         int d;
 
         int pseudo_div = 1;
 
-        T g = 1;
-        T h = 1;
+        T g = interpret_integral(1);
+        T h = interpret_integral(1);
 
         if (a.degree() < b.degree()) {
             std::swap(a, b);
@@ -1138,6 +1219,58 @@ struct polynomial {
 
 };
 
+template<>
+inline void polynomial<cxx_mpz>::parser_traits::set(polynomial<cxx_mpz> & c, cado_expression_parser_details::number_literal const & N)
+{
+    if (N.has_point || N.has_exponent)
+        throw cado_expression_parser_details::parse_error();
+    cxx_mpz z;
+    mpz_set_str(z, N.integral_part().c_str(), 0);
+    c = z;
+}
+
+#ifdef HAVE_MPFR
+template<>
+inline void polynomial<cxx_mpfr>::parser_traits::set(polynomial<cxx_mpfr> & c, cado_expression_parser_details::number_literal const & N)
+{
+    cxx_mpfr res;
+    mpfr_set_prec(res, c.prec);
+    const int r = mpfr_set_str(res, N.full.c_str(), 0, MPFR_RNDN);
+    if (r != 0)
+        throw cado_expression_parser_details::parse_error();
+    c = res;
+}
+#endif
+
+template<>
+inline void polynomial<float>::parser_traits::set(polynomial<float> & c, cado_expression_parser_details::number_literal const & N)
+{
+    size_t pos;
+    const float res = std::stof(N.full, &pos);
+    if (pos != N.full.size())
+        throw cado_expression_parser_details::parse_error();
+    c = res;
+}
+
+template<>
+inline void polynomial<double>::parser_traits::set(polynomial<double> & c, cado_expression_parser_details::number_literal const & N)
+{
+    size_t pos;
+    const double res = std::stod(N.full, &pos);
+    if (pos != N.full.size())
+        throw cado_expression_parser_details::parse_error();
+    c = res;
+}
+
+template<>
+inline void polynomial<long double>::parser_traits::set(polynomial<long double> & c, cado_expression_parser_details::number_literal const & N)
+{
+    size_t pos;
+    const long double res = std::stold(N.full, &pos);
+    if (pos != N.full.size())
+        throw cado_expression_parser_details::parse_error();
+    c = res;
+}
 
 static_assert(std::is_same_v<decltype(polynomial<int>{}(double())), double>);
 static_assert(std::is_same_v<decltype(polynomial<double>{}(int())), double>);
@@ -1146,8 +1279,23 @@ static_assert(std::is_same_v<decltype(polynomial<cxx_mpz>{}(int())), cxx_mpz>);
 static_assert(std::is_same_v<decltype(polynomial<cxx_mpz>{}(double())), double>);
 
 // same idea. not a reason to pull cxx_mpfr.hpp or cxx_mpc.hpp though.
-// static_assert(std::is_same<decltype(polynomial<cxx_mpz>{}(cxx_mpfr())), cxx_mpfr>::value);
+#ifdef HAVE_MPFR
+static_assert(std::is_same_v<decltype(polynomial<cxx_mpz>{}(cxx_mpfr())), cxx_mpfr>);
+#endif
 // static_assert(std::is_same<decltype(polynomial<double>{}(cxx_mpc())), cxx_mpc>::value);
+
+
+#ifdef HAVE_MPFR
+/* This has to be a specific instantiation! */
+template<>
+inline polynomial<cxx_mpfr>::polynomial(cxx_mpz_poly const & f, traits const & tr)
+    : traits(tr)
+{
+    coeffs.assign(f.degree() + 1, interpret_integral(0));
+    for(int i = 0 ; i <= f.degree() ; i++)
+        mpfr_set_z(coeffs[i], mpz_poly_coeff_const(f, i), MPFR_RNDN);
+}
+#endif
 
 template<typename T>
 std::istream& operator>>(std::istream& in, polynomial_details::named_proxy<polynomial<T> &> const & F)
@@ -1165,7 +1313,7 @@ std::istream& operator>>(std::istream& in, polynomial_details::named_proxy<polyn
     P.tokenize(is);
 
     try {
-        F.c = P.parse();
+        F.c = P.parse(static_cast<typename polynomial<T>::traits>(F.c));
     } catch (cado_expression_parser_details::parse_error const & p) {
         in.setstate(std::ios_base::failbit);
         return in;

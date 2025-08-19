@@ -192,7 +192,15 @@ struct mpz_poly_bivariate_parser_traits {
     {
         a.swap(b);
     }
-    static void set(cxx_mpz_poly_bivariate & a, cxx_mpz const & z) { a = z; }
+    static void set(cxx_mpz_poly_bivariate & a,
+            cado_expression_parser_details::number_literal const & N)
+    {
+        if (N.has_point || N.has_exponent)
+            throw cado_expression_parser_details::parse_error();
+        cxx_mpz z;
+        mpz_set_str(z, N.integral_part().c_str(), 0);
+        a = z;
+    }
     /* TODO do something for variable names */
     void set_literal_power(cxx_mpz_poly_bivariate & a, std::string const & v,
                            unsigned long e) const

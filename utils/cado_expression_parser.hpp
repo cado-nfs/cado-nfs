@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 #include <utility>
+#include <functional>
 
 #include <gmp.h>
 
@@ -165,82 +166,6 @@ namespace cado_expression_parser_details {
         return is;
     }
 
-    template<typename T> struct number_traits { };
-
-    template<>
-    struct number_traits<cxx_mpz> {
-        static cxx_mpz from_number_literal(number_literal const & N) {
-            if (N.has_point || N.has_exponent)
-                throw parse_error();
-            cxx_mpz z;
-            mpz_set_str(z, N.integral_part().c_str(), 0);
-            return z;
-        }
-    };
-
-    template<>
-    struct number_traits<float> {
-        static float from_number_literal(number_literal const & N) {
-            /*
-            if (!N.has_point && !N.has_exponent)
-                return cado_math_aux::mpz_get<float>(number_traits<cxx_mpz>::from_number_literal(N));
-                */
-            size_t pos;
-            const float res = stof(N.full, &pos);
-            if (pos != N.full.size())
-                throw parse_error();
-            return res;
-        }
-    };
-
-    template<>
-    struct number_traits<double> {
-        static double from_number_literal(number_literal const & N) {
-            /*
-            if (!N.has_point && !N.has_exponent)
-                return cado_math_aux::mpz_get<double>(number_traits<cxx_mpz>::from_number_literal(N));
-                */
-            size_t pos;
-            const double res = stod(N.full, &pos);
-            if (pos != N.full.size())
-                throw parse_error();
-            return res;
-        }
-    };
-
-    template<>
-    struct number_traits<long double> {
-        static long double from_number_literal(number_literal const & N) {
-            /*
-            if (!N.has_point && !N.has_exponent)
-                return cado_math_aux::mpz_get<long double>(number_traits<cxx_mpz>::from_number_literal(N));
-                */
-            size_t pos;
-            const long double res = stold(N.full, &pos);
-            if (pos != N.full.size())
-                throw parse_error();
-            return res;
-        }
-    };
-
-#ifdef HAVE_MPFR
-    template<>
-    struct number_traits<cxx_mpfr> {
-        static cxx_mpfr from_number_literal(number_literal const & N, mpfr_prec_t prec = mpfr_get_default_prec()) {
-            /*
-            if (!N.has_point && !N.has_exponent)
-                return cado_math_aux::mpz_get<long double>(number_traits<cxx_mpz>::from_number_literal(N));
-                */
-            cxx_mpfr res;
-            mpfr_set_prec(res, prec);
-            const int r = mpfr_set_str(res, N.full.c_str(), 0, MPFR_RNDN);
-            if (r != 0)
-                throw parse_error();
-            return res;
-        }
-    };
-#endif
-
     struct cado_expression_parser_base {
         // typedef cado_expression_parser_details::token_error token_error;
         // typedef cado_expression_parser_details::parse_error parse_error;
@@ -370,20 +295,20 @@ struct cado_expression_parser : public T, public cado_expression_parser_details:
     {}
 
 private:
+    template<typename... Args>
+    type parse_factor(Args... args) {
+        using cado_expression_parser_details::parse_error;
+        type p(args...);
 
-    type parse_factor() {
-        using namespace cado_expression_parser_details;
-        type p;
         if (T::accept_literals && accept(LITERAL)) {
             T::set_literal_power(p, *clit++, exponent());
         } else if (accept(MINUS)) {
-            p = parse_factor();
+            p = parse_factor(args...);
             T::neg(p, p);
         } else if (accept(POSITIVE_NUMBER)) {
-            typedef number_traits<number_type> number_traits_type;
-            T::set(p, number_traits_type::from_number_literal(*cnumber++));
+            T::set(p, *cnumber++);
         } else if (accept(LEFT_PAREN)) {
-            p = parse_expression();
+            p = parse_expression(args...);
             expect(RIGHT_PAREN);
         } else {
             throw parse_error();
@@ -400,37 +325,40 @@ private:
         return p;
     }
 
-    type parse_term() {
-        type p = parse_factor();
+    template<typename... Args>
+    type parse_term(Args... args) {
+        type p = parse_factor(args...);
         for( ; accept(TIMES) ; )
-            T::mul(p, p, parse_factor());
+            T::mul(p, p, parse_factor(args...));
         return p;
     }
 
-    type parse_expression() {
-        type p;
+    template<typename... Args>
+    type parse_expression(Args... args) {
+        type p(args...);
         if (test(PLUS)) {
             next();
-            p = parse_term();
+            p = parse_term(args...);
         } else if (!test(MINUS)) {
-            p = parse_term();
+            p = parse_term(args...);
         }
 
         for(;;) {
             if (test(PLUS)) {
                 next();
-                T::add(p, p, parse_term());
+                T::add(p, p, parse_term(args...));
             } else if (test(MINUS)) {
                 next();
-                T::sub(p, p, parse_term());
+                T::sub(p, p, parse_term(args...));
             } else
                 break;
         }
         return p;
     }
 public:
-    type parse() {
-        using namespace cado_expression_parser_details;
+    template<typename... Args>
+    type parse(Args&&... args) {
+        using cado_expression_parser_details::parse_error;
         {
             /* count literals, see if we have the right number (at most) */
             auto lcopy = literals;
@@ -444,7 +372,7 @@ public:
                     throw parse_error();
             }
         }
-        type p = parse_expression();
+        type p = parse_expression(std::forward<Args>(args)...);
         if (ctok != tokens.end())
             throw parse_error();
         return p;
