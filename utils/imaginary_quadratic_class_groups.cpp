@@ -57,7 +57,9 @@ imaginary_quadratic_form::imaginary_quadratic_form(
     , a(a)
     , b(b)
 {
+    throw_if_a_is_nonpositive();
     set_c_from_disc();
+    throw_if_not_primitive();
     reduction();
 }
 
@@ -71,12 +73,9 @@ imaginary_quadratic_form::imaginary_quadratic_form(
     , b(b)
     , c(c)
 {
-    cxx_mpz disc;
-    mpz_mul(disc, a, c);
-    mpz_mul_2exp(disc, disc, 2U);
-    mpz_neg(disc, disc);
-    mpz_addmul(disc, b, b);
-    ASSERT_ALWAYS(disc == cl.discriminant());
+    throw_if_a_is_nonpositive();
+    throw_if_not_primitive();
+    throw_if_wrong_discriminant();
     reduction();
 }
 
@@ -120,6 +119,38 @@ imaginary_quadratic_form::set_c_from_disc()
     mpz_divexact(c, c, a);
     ASSERT_EXPENSIVE(mpz_divisible_ui_p(c, 4U));
     mpz_divexact_ui(c, c, 4U);
+}
+
+void
+imaginary_quadratic_form::throw_if_a_is_nonpositive() const
+{
+  if (mpz_sgn(a) <= 0) {
+    throw std::domain_error("a coefficient is <= 0");
+  }
+}
+
+void
+imaginary_quadratic_form::throw_if_not_primitive() const
+{
+  cxx_mpz g;
+  mpz_gcd(g, a, b);
+  mpz_gcd(g, g, c);
+  if (g != 1U) {
+    throw not_primitive();
+  }
+}
+
+void
+imaginary_quadratic_form::throw_if_wrong_discriminant() const
+{
+    cxx_mpz disc;
+    mpz_mul(disc, a, c);
+    mpz_mul_2exp(disc, disc, 2U);
+    mpz_neg(disc, disc);
+    mpz_addmul(disc, b, b);
+    if (disc != cl.discriminant()) {
+        throw std::domain_error("wrong coefficient");
+    }
 }
 
 void

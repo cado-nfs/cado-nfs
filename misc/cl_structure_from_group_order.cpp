@@ -188,7 +188,7 @@ class imaginary_quadratic_cl_structure
                 return 0U;
             } else if (Dmod8 == 4U) {
                 return 2U;
-            } else { /* D = 0,1 mod 4, here D = 5 mod 8 */
+            } else { /* As D = 0 or 1 mod 4, here D = 5 mod 8 */
                 return ULONG_MAX; /* no roots mod 8 */
             }
         } else {
@@ -420,20 +420,26 @@ class imaginary_quadratic_cl_structure
                 continue; /* skip this prime: no prime form exists for p */
             }
             verbose_fmt_print(0, 2, "# prime ideal (p, r) = ({}, {})\n", p, r);
-            imaginary_quadratic_form fp(cl, p, r);
-            verbose_fmt_print(0, 3, "# corresponding form: {}\n", fp);
+            try {
+                imaginary_quadratic_form fp(cl, p, r);
+                verbose_fmt_print(0, 3, "# corresponding form: {}\n", fp);
 
-            /* check if order of fp divides the exponent => skip it. */
-            auto g = fp^E.exponent.value();
-            if (g.is_one()) {
-                verbose_fmt_print(0, 2, "# skipping it: order divides the "
-                                        "exponent\n");
-                continue;
+                /* check if order of fp divides the exponent => skip it. */
+                auto g = fp^E.exponent.value();
+                if (g.is_one()) {
+                    verbose_fmt_print(0, 2, "# skipping it: order divides the "
+                                            "exponent\n");
+                    continue;
+                }
+
+                compute_order(v, fp);
+                verbose_fmt_print(0, 2, "# element has order {}\n", v);
+                E.update(fp, v);
+            } catch (imaginary_quadratic_form::not_primitive const & e) {
+              /* We skipped primes that divided the conductor: cado-nfs.py
+               * forbids them below the lpb so it should be safe to skip them.
+               */
             }
-
-            compute_order(v, fp);
-            verbose_fmt_print(0, 2, "# element has order {}\n", v);
-            E.update(fp, v);
         }
 
         prime_info_clear(pi);
@@ -487,27 +493,33 @@ class imaginary_quadratic_cl_structure
                 continue; /* skip this prime: no prime form exists for q */
             }
             verbose_fmt_print(0, 2, "# prime ideal (p, r) = ({}, {})\n", q, r);
-            imaginary_quadratic_form fq(cl, q, r);
-            verbose_fmt_print(0, 3, "# corresponding form: {}\n", fq);
+            try {
+                imaginary_quadratic_form fq(cl, q, r);
+                verbose_fmt_print(0, 3, "# corresponding form: {}\n", fq);
 
-            auto g = fq^cofac;
+                auto g = fq^cofac;
 
-            std::unordered_set<imaginary_quadratic_form> H;
-            unsigned long ord = 1U;
-            auto f = g;
-            for (; ord <= p_group_order; ++ord) {
-                if (f.is_one()) {
-                    break;
-                } else if (!G.contains(f)) {
-                    for (auto const & h: G) {
-                        H.emplace(f*h);
+                std::unordered_set<imaginary_quadratic_form> H;
+                unsigned long ord = 1U;
+                auto f = g;
+                for (; ord <= p_group_order; ++ord) {
+                    if (f.is_one()) {
+                        break;
+                    } else if (!G.contains(f)) {
+                        for (auto const & h: G) {
+                            H.emplace(f*h);
+                        }
                     }
+                    f = f*g;
                 }
-                f = f*g;
+                verbose_fmt_print(0, 2, "# order={}\n", ord);
+                G.merge(H);
+                verbose_fmt_print(0, 2, "# G contains {} elements\n", G.size());
+            } catch (imaginary_quadratic_form::not_primitive const & e) {
+              /* We skipped primes that divided the conductor: cado-nfs.py
+               * forbids them below the lpb so it should be safe to skip them.
+               */
             }
-            verbose_fmt_print(0, 2, "# order={}\n", ord);
-            G.merge(H);
-            verbose_fmt_print(0, 2, "# G contains {} elements\n", G.size());
         }
 
         pSylow S(p, {});

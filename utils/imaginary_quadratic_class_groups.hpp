@@ -1,6 +1,7 @@
 #ifndef CADO_IMAGINARY_QUADRATIC_CLASS_GROUPS_HPP
 #define CADO_IMAGINARY_QUADRATIC_CLASS_GROUPS_HPP
 
+#include <exception>
 #include <iostream>
 
 #include "fmt/base.h"
@@ -41,12 +42,21 @@ class imaginary_quadratic_class_group
                                      imaginary_quadratic_class_group const & G);
 };
 
+/*
+ * A form has always a positive coefficient a and is always primitive
+ * (gcd(a,b,c) = 1) and reduced (-a < b <= a and and a < c or a = c and b >= 0).
+ * Its discriminant is equal to cl.discriminant() and thus always negative.
+ */
 class imaginary_quadratic_form
 {
     imaginary_quadratic_class_group const & cl;
     cxx_mpz a, b, c;
 
     void set_c_from_disc();
+
+    void throw_if_a_is_nonpositive() const;
+    void throw_if_not_primitive() const;
+    void throw_if_wrong_discriminant() const;
 
     /* q and r are scratch variables */
     void normalize(cxx_mpz & q, cxx_mpz & r);
@@ -80,6 +90,10 @@ class imaginary_quadratic_form
                             ScratchVars & tmp);
 
     public:
+
+    struct not_primitive: public std::exception {
+        const char * what() const noexcept override { return "not primitive"; }
+    };
 
     imaginary_quadratic_form() = delete;
     imaginary_quadratic_form(imaginary_quadratic_class_group const & cl,
