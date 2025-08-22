@@ -169,6 +169,14 @@ cado_divert_test(misc_cl_structure d20_should_fail
     EXPECT_FAIL
 )
 
+# Test with a prime p < log^2(|D|) dividing the conductor
+set(D20_POLY_3 "inline-poly://n=-24341965603669336362/skew=4933757756.0/poly0=24341965603669336362,0,1")
+cado_divert_test(misc_cl_structure p_div_conductor
+    APPEND_ARGUMENTS
+    -poly "${D20_POLY_3}" -primes 2,3,113,599 -exps 10,4,1,1
+    EXPECT_SHA1 b4f3f5f52b5d382ec2a1799d07ff4cb8c2528276
+)
+
 # Use only prime ideals below 100 (-B 100) to shorten the tests (the results is
 # still correct as it is enough to generate the complete class group)
 cado_divert_test(misc_cl_structure d130_2Sylow
