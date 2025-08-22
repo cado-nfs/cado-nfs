@@ -570,12 +570,25 @@ imaginary_quadratic_cl_structure::pSylow_groups(Exponent const & E,
             } else {
                 verbose_fmt_print(0, 1, "{}-Sylow: too large, skipped\n",
                                         pmpz);
+                continue;
             }
         } else { /* exp_pval == group_order or exp_pval = 0 */
             pSylow psylow {pmpz, {{exp_pval, E.g^cofac}}};
             verbose_fmt_print(0, 1, "{}-Sylow: {}\n", pmpz, psylow);
             S.emplace_back(std::move(psylow));
         }
+
+        unsigned int actual_pval = 0;
+        for (auto const & sg: S.back().groups) {
+            actual_pval += sg.first;
+        }
+        if (actual_pval != group_order_pval) {
+            verbose_fmt_print(0, 1, "# Warning: for p={}, from parameters "
+                                    "expected valuation of p in the group "
+                                    "order to be {} , got {} instead\n", pmpz,
+                                    group_order_pval, actual_pval);
+        }
+
     }
     return S;
 }
