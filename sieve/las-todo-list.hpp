@@ -5,7 +5,6 @@
 #include <cstdio>
 #include <climits>
 
-#include <condition_variable>
 #include <fstream>
 #include <vector>
 #include <memory>
@@ -17,7 +16,8 @@
 #include "cxx_mpz.hpp"
 #include "gmp_aux.h"
 #include "cado_poly.h"
-#include "las-special-q.hpp"
+#include "special-q.hpp"
+#include "galois_action.hpp"
 
 struct cxx_param_list;
 
@@ -49,7 +49,7 @@ class las_todo_list : private std::stack<special_q> {
     int random_sampling = 0;
     cxx_mpz q0;
     cxx_mpz q1;
-    const char * galois = nullptr;        /* Used to skip some primes */
+    galois_action galois;        /* Used to skip some primes */
     std::unique_ptr<std::ifstream> todo_list_fd;
     bool feed_qrange(gmp_randstate_t);
     bool feed_qlist();

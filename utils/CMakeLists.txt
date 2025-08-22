@@ -28,6 +28,7 @@ set (sources
         renumber.cpp
         renumber_proxy.cpp
         ringbuf.c sm_utils.cpp galois_action.cpp memalloc.cpp
+        special-q.cpp
 	mpz_vector.c memory.c stats.c lll.c
         verbose.c 
         polyroots.c 

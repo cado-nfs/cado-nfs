@@ -83,7 +83,8 @@ struct relation : public relation_ab {
     std::array<std::vector<pr>, 2> sides; /* pr's are stored w.r.t. side */
 
     relation() = default;
-    operator bool() const { return (bool) (relation_ab const &) *this; }
+    relation_ab const & ab() const { return *this; }
+    operator bool() const { return bool(ab()); }
     relation(int64_t a, uint64_t b, int rational_side = -1)
         : relation_ab(a,b)
         , rational_side(rational_side)

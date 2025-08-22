@@ -9,7 +9,7 @@
 
 #include "gmp_aux.h"
 #include "las-qlattice.hpp"
-#include "las-special-q.hpp"
+#include "special-q.hpp"
 #include "macros.h"
 
 /* check that the double x fits into an int32_t */

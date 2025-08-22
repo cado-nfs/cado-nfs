@@ -13,7 +13,7 @@
 #include "las-duplicate.hpp"
 #include "las-info.hpp"
 #include "las-siever-config.hpp"
-#include "las-special-q.hpp"
+#include "special-q.hpp"
 #include "params.h"
 #include "relation.hpp"
 #include "verbose.h"

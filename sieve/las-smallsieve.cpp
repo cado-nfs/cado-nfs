@@ -8,39 +8,38 @@
  * The WHERE_AM_I_UPDATE macro itself is defined in las-where-am-i.hpp
  */
 
-#include <cinttypes>                    // for PRIi64
-#include <cstdarg>                      // for va_arg, va_list // IWYU pragma: keep
-#include <cstdint>                      // for uint64_t, uint8_t, int64_t
-#include <cstdio>                       // for fprintf, size_t, FILE, asprintf
-#include <cstdlib>                      // for free
-#include <algorithm>                    // for is_sorted, sort
-#include <array>                        // for array
-#include <initializer_list>             // for initializer_list
-#include <memory>                       // for allocator_traits<>::value_type
-#include <vector>                       // for vector<>::iterator, vector, swap
+#include <cinttypes>
+#include <cstdarg>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <algorithm>
+#include <array>
+#include <initializer_list>
+#include <vector>
 
-#include "las-smallsieve.hpp"           // for resieve_small_bucket_region
+#include "las-smallsieve.hpp"
 
-#include "macros.h"                     // for ASSERT, ASSERT_ALWAYS, MAYBE_...
+#include "macros.h"
 
-#include "bucket-push-update.hpp"       // for bucket_single::push_update
-#include "bucket.hpp"                   // for bucket_update_t, bucket_primes_t
+#include "bucket-push-update.hpp"
+#include "bucket.hpp"
 #include "fb-types.hpp"
-#include "fb.hpp"                       // for fb_entry_general, fb_factorba...
-#include "gcd.h"       // for gcd_ul
-#include "las-arith.hpp"                // for invmod_32
-#include "las-config.h"                 // for LOG_BUCKET_REGION
-#include "las-where-am-i.hpp"           // for where_am_I, WHERE_AM_I_UPDATE
-#include "las-forwardtypes.hpp"         // for spos_t, long_spos_t
-#include "las-fbroot-qlattice.hpp"      // for fb_root_in_qlattice
-#include "las-qlattice.hpp"             // for qlattice...
-#include "las-sieve2357.hpp"            // for sieve2357base::prime_t, sieve...
-#include "las-smallsieve-glue.hpp"      // for small_sieve, small_sieve::super
-#include "las-smallsieve-lowlevel.hpp"  // for SMALLSIEVE_COMMON_DEFS
-#include "las-smallsieve-types.hpp"     // for ssp_t, small_sieve_data_t
-#include "las-special-q.hpp"           // for special_q
-#include "las-where-am-i-proxy.hpp"          // for where_am_I
-#include "portability.h"  // asprintf // IWYU pragma: keep
+#include "fb.hpp"
+#include "gcd.h"
+#include "las-arith.hpp"
+#include "las-config.h"
+#include "las-where-am-i.hpp"
+#include "las-forwardtypes.hpp"
+#include "las-fbroot-qlattice.hpp"
+#include "las-qlattice.hpp"
+#include "las-sieve2357.hpp"
+#include "las-smallsieve-glue.hpp"
+#include "las-smallsieve-lowlevel.hpp"
+#include "las-smallsieve-types.hpp"
+#include "special-q.hpp"
+#include "las-where-am-i-proxy.hpp"
+#include "portability.h"
 #include "verbose.h"
 
 
@@ -336,9 +335,10 @@ void small_sieve_init(small_sieve_data_t & ssd,
                 /* If this root is somehow interesting (projective in (a,b) or
                    in (i,j) plane), print a message */
                 if (verbose && (Rab.is_projective() || is_proj_in_ij))
-                    verbose_output_print(0, 1, "# small_sieve_init: side %d, prime %"
-                            FBPRIME_FORMAT " root %s%" FBROOT_FORMAT " (logp %hhu) "
-                            " -> %s%" FBROOT_FORMAT "\n", side, p,
+                    verbose_fmt_print(0, 1,
+                            "# small_sieve_init: side {}, prime {}"
+                            " root {}{} (logp {}) -> {}{}\n",
+                            side, p,
                             Rab.is_projective() ? "1/" : "", Rab.r % p, logp,
                             is_proj_in_ij ? "1/" : "", r_q);
 

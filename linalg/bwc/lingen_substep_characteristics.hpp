@@ -340,7 +340,7 @@ struct lingen_substep_characteristics {
         os << fmt::format("# {}{};{} (@{}) wct for {} by nthreads:",
                 F.mesh > 1 ? "MPI-" : "",
                 F.op.op_name(),
-                lingen_substep_schedule::fft_name(encode_fft_type<typename T::OP::FFT>()),
+                lingen_substep_schedule::fft_name(encode_fft_type<typename T::OP::FFT>),
                 input_length,
                 Fname
                 );
@@ -657,6 +657,8 @@ struct lingen_substep_characteristics {
         return ret;
     }/*}}}*/
 
+    template<typename fft_type> friend struct matpoly_checker_ft;
+
     std::shared_ptr<op_mul_or_mp_base> instantiate(lingen_substep_schedule::fft_type_t fft_type) const;
 
     call_time_digest get_call_time_backend(std::ostream& os, pc_t const & P, unsigned int mesh, sc_t const & S, tc_t & C, bool do_timings) const;
@@ -757,22 +759,19 @@ struct lingen_substep_characteristics {
                 op->explain());
     }
 
-#if 0
-    void report_size_stats_human(std::ostream& os, sc_t const & S) const {/*{{{*/
-        std::shared_ptr<op_mul_or_mp_base> op = instantiate(S.fft_type);
+    void report_size_stats_human(std::ostream& os, op_mul_or_mp_base const & op) const {/*{{{*/
         os << fmt::format("# {} (per op): {}+{}+{}, transforms 3*{}\n",
-                step_name(),
+                op_mul_or_mp_base::op_name(op_type),
                 size_disp(asize*mpz_size(p)*sizeof(mp_limb_t)),
                 size_disp(bsize*mpz_size(p)*sizeof(mp_limb_t)),
                 size_disp(csize*mpz_size(p)*sizeof(mp_limb_t)),
-                size_disp(op->get_alloc_sizes()[0]));
+                size_disp(op.get_alloc_sizes()[0]));
         os << fmt::format("# {} (total for {}*{} * {}*{}): {}, transforms {}\n",
-                step_name(),
+                op_mul_or_mp_base::op_name(op_type),
                 n0,n1,n1,n2,
                 size_disp((n0*n1*asize+n1*n2*bsize+n0*n2*csize)*mpz_size(p)*sizeof(mp_limb_t)),
-                size_disp((n0*n1+n1*n2+n0*n2)*op->get_alloc_sizes()[0]));
+                size_disp((n0*n1+n1*n2+n0*n2)*op.get_alloc_sizes()[0]));
     }/*}}}*/
-#endif
 };
 
 #ifdef LINGEN_BINARY

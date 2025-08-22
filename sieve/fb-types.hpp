@@ -29,12 +29,11 @@ typedef uint16_t slice_offset_t;
 // FIXME: could probably go somewhere else...
 // Small struct for sublattice info:
 // One sieves only positions congruent to (i0,j0) mod m
-struct sublat_s {
+struct sublat_t {
     uint32_t m=0; // 0 means no sublattices.
     uint32_t i0=0;
     uint32_t j0=0;
 };
-typedef struct sublat_s sublat_t;
 
 #ifdef __cplusplus
 /* This structure encodes an element of P1(Z/p^k) for some p^k (which is

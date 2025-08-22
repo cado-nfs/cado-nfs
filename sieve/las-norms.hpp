@@ -1,21 +1,21 @@
 #ifndef CADO_LAS_NORMS_HPP
 #define CADO_LAS_NORMS_HPP
 
-#include <cstdint>               // for uint32_t
-#include <cstring>               // for memset
-#include <ostream>                // for operator<<, ostream
-#include <string>                 // for string
+#include <cstdint>
+#include <cstring>
+#include <ostream>
+#include <string>
 #include <vector>
 #include <array>
 
-#include <gmp.h>                  // for mpz_ptr
-#include "cado_poly.h"   // cxx_cado_poly
-#include "las-config.h"           // for LOG_BUCKET_REGION
-#include "las-qlattice.hpp"       // for qlattice_basis
-#include "las-siever-config.hpp"  // for siever_config
-#include "logapprox.hpp"          // for piecewise_linear_function
+#include <gmp.h>
+#include "cado_poly.h"
+#include "las-config.h"
+#include "las-qlattice.hpp"
+#include "las-siever-config.hpp"
+#include "logapprox.hpp"
 #include "polynomial.hpp"
-#include "macros.h"               // for MAYBE_UNUSED
+#include "macros.h"
 #include "mpz_poly.h"
 
 struct special_q; // IWYU pragma: keep

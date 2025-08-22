@@ -769,7 +769,7 @@ class Cado_NFS_toplevel(object):
         Additionally, the parameters tasks.sqrt.threads and
         tasks.linalg.bwc.threads are set to defaults that are computed as
         follows.
-            tasks.sqrt.threads is capped to a value of 8
+            tasks.sqrt.threads is capped to a value of 1
             tasks.linalg.bwc.threads, if --server-threads is unspecified
             or set to 'all', is set to the number of *physical* cores on
             the system.
@@ -895,8 +895,7 @@ class Cado_NFS_toplevel(object):
         2
 
         Number of threads of the sqrt step should be capped to
-        8, but not set explicitly at this level if that would
-        be a mere repetition of tasks.threads
+        1 by default
         >>> t = Cado_NFS_toplevel(args=['12345', '-p', os.path.os.devnull])
         >>> t.filter_out_N_paramfile_workdir()
         >>> t.parameters = cadoparams.Parameters()
@@ -904,10 +903,10 @@ class Cado_NFS_toplevel(object):
         >>> t.parameters.readparams(t.args.options)
         >>> t.set_threads_and_client_threads()
         >>> t.parameters.get_or_set_default("tasks.sqrt.threads",0)
-        3
+        1
 
         >>> t.parameters.locate("tasks.sqrt.threads")
-        'tasks.threads'
+        'tasks.sqrt.threads'
 
         Finish the test above (verify that capping works as
         intended), and also make sure that
@@ -922,7 +921,7 @@ class Cado_NFS_toplevel(object):
         >>> t.parameters.readparams(t.args.options)
         >>> t.set_threads_and_client_threads()
         >>> t.parameters.get_or_set_default("tasks.sqrt.threads",0)
-        8
+        1
 
         >>> t.parameters.locate("tasks.sqrt.threads")
         'tasks.sqrt.threads'
@@ -953,14 +952,14 @@ class Cado_NFS_toplevel(object):
                 p = "tasks.linalg.bwc.threads"
                 if not pa.is_set_explicitly(p):
                     c = self.number_of_physical_cores()
-                    self.logger.info("Set %s=%d"
+                    self.logger.info("Setting %s=%d"
                                      " based on detected physical cores"
                                      % (p, c))
                     pa.set_simple(p, c)
             t = int(self.args.server_threads)
             p = "tasks.threads"
             if not pa.is_set_explicitly(p):
-                self.logger.info("Set %s=%d based on %s"
+                self.logger.info("Setting %s=%d based on %s"
                                  % (p, t, t_wherefrom))
                 pa.set_simple(p, t)
             else:
@@ -985,14 +984,17 @@ class Cado_NFS_toplevel(object):
                     pa.set_simple(p, min(t, 2))
 
         # last thing. For sqrt, more than 8 threads is slightly overkill.
-        # So unless explicitly stated otherwise, we set it to min(8,
-        # server.threads).
+        # So unless explicitly stated otherwise, we set it to 1. It might
+        # seem very very low, but it's our easiest way to avoid reports
+        # from users who run out of RAM.
         # Note: for a c180, 8 threads is still too large for 64Gb (we need
         # about 16Gb per thread).
         p = "tasks.sqrt.threads"
-        t = pa.get_or_set_default(p, 0)
-        if t > 8 and not pa.is_set_explicitly(p):
-            pa.set_simple(p, 8)
+        if not pa.is_set_explicitly(p):
+            self.logger.info(f"Setting {p}=1 in order to avoid RAM issues."
+                             f" You might want to set {p}=<something else>"
+                             " according to what your computer can do.")
+            pa.set_simple(p, 1)
 
         for p in ["tasks.threads",
                   "tasks.polyselect.threads",
@@ -1289,6 +1291,7 @@ class Cado_NFS_toplevel(object):
         tasks.linalg.bwc.threads = 4
         tasks.polyselect.threads = 2
         tasks.sieve.las.threads = 2
+        tasks.sqrt.threads = 1
 
         >>> del os.environ["NCPUS_FAKE"]
         '''

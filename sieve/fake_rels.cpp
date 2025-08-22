@@ -30,7 +30,7 @@
 #include "cxx_mpz.hpp"
 #include "gzip.h"
 #include "indexed_relation.hpp"
-#include "las-special-q.hpp"
+#include "special-q.hpp"
 #include "macros.h"
 #include "misc.h"
 #include "params.h"

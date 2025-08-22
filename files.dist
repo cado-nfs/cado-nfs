@@ -1090,8 +1090,6 @@ sieve/las-special-q-task-simple.hpp
 sieve/las-special-q-task-tree.cpp
 sieve/las-special-q-task-tree.hpp
 sieve/las-special-q-task.hpp
-sieve/las-special-q.cpp
-sieve/las-special-q.hpp
 sieve/las-threads-work-data.cpp
 sieve/las-threads-work-data.hpp
 sieve/las-threads.cpp
@@ -1414,6 +1412,8 @@ tests/sieve/ecm/test_order_ecmm16_1_1000000_1001000.inp
 tests/sieve/ecm/test_order_ecmm16_1_1000_2000.inp
 tests/sieve/ecm/test_strategy_file_parser.cpp
 tests/sieve/ecm/test_testbench.sh
+tests/sieve/galois.poly
+tests/sieve/galois.roots.gz
 tests/sieve/reduce-plattice/las-reduce-plattice-mimick-production-noasm.hpp
 tests/sieve/reduce-plattice/las-reduce-plattice-reference.hpp
 tests/sieve/reduce-plattice/las-reduce-plattice-reference2.hpp
@@ -1795,6 +1795,8 @@ utils/sha1.h
 utils/sm_utils.cpp
 utils/sm_utils.hpp
 utils/smallset.hpp
+utils/special-q.cpp
+utils/special-q.hpp
 utils/stats.c
 utils/stats.h
 utils/subdivision.hpp

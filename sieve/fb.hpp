@@ -1,34 +1,30 @@
-/*****************************************************************
- *                Functions for the factor base                  *
- *****************************************************************/
-
 #ifndef CADO_FB_HPP
 #define CADO_FB_HPP
 
-#include <cstddef> // for size_t
-#include <cstdio>  // for fprintf, FILE
+#include <cstddef>
+#include <cstdio>
 
-#include <algorithm>   // for sort, max
-#include <array>       // for array
-#include <iosfwd>      // for ostream
-#include <limits>      // for numeric_limits
-#include <list>        // for list
-#include <map>         // for map, operator!=, _Rb_tree_iter...
-#include <mutex>       // for lock_guard, mutex
-#include <type_traits> // for vector
-#include <utility>     // for pair
-#include <vector>      // for vector
+#include <algorithm>
+#include <array>
+#include <iosfwd>
+#include <limits>
+#include <list>
+#include <map>
+#include <mutex>
+#include <type_traits>
+#include <utility>
+#include <vector>
 
-#include "cado_poly.h" // for MAX_DEGREE
-#include "macros.h"    // for ASSERT_ALWAYS, ASSERT, MAYBE_U...
-#include "mpz_poly.h"  // for cxx_mpz, cxx_mpz_poly
+#include "cado_poly.h"
+#include "macros.h"
+#include "mpz_poly.h"
 
 #include "fb-types.hpp"
-#include "las-config.h"               // for FB_MAX_PARTS
-#include "lock_guarded_container.hpp" // for lock_guarded_container
-#include "mmap_allocator.hpp"         // for mmap_allocator
+#include "las-config.h"
+#include "lock_guarded_container.hpp"
 #include "mmappable_vector.hpp"
-#include "multityped_array.hpp" // for multityped_array_foreach, mult...
+#include "multityped_array.hpp"
+
 struct qlattice_basis;
 struct cxx_param_list;
 
@@ -52,7 +48,7 @@ struct cxx_param_list;
 /* Forward declaration so fb_entry_general can use it in constructors */
 template <int Nr_roots> class fb_entry_x_roots;
 
-/* A root modulo a prime power q. q is specified externally */
+/* A root modulo a prime power q=p^k. q is specified externally */
 struct fb_general_root {
     /* exp and oldexp are maximal such that:
        If not projective and a == br (mod p^k), then p^exp | F(a,b)
@@ -117,8 +113,8 @@ struct fb_general_root {
     void fprint(FILE * out, fbprime_t const q) const
     {
         fprintf(out, "%llu", to_old_format(q));
-        if (oldexp != 0 || this->exp != 1)
-            fprintf(out, ":%hhu:%hhu", oldexp, this->exp);
+        if (oldexp != 0 || exp != 1)
+            fprintf(out, ":%hhu:%hhu", oldexp, exp);
     }
 
     void transform(fb_general_root & result, fbprime_t q,
@@ -236,8 +232,7 @@ template <int Nr_roots> class fb_entry_x_roots
         : p(p)
         , invq(invq)
     {
-        for (int i = 0; i < Nr_roots; i++)
-            this->roots[i] = roots[i];
+        std::copy_n(roots, Nr_roots, this->roots.begin());
     }
     /* Allow assignment-construction from general entries */
     explicit fb_entry_x_roots(fb_entry_general const & e)
