@@ -4940,7 +4940,7 @@ struct mpz_poly_parser_traits {
 };
 
 std::istream & operator>>(std::istream & in,
-                          cxx_mpz_poly::named_proxy<cxx_mpz_poly &> const & F)
+                          cado::named_proxy<cxx_mpz_poly &> const & F)
 {
     std::string line;
     for (;; in.get()) {
@@ -4953,7 +4953,7 @@ std::istream & operator>>(std::istream & in,
     std::istringstream is(line);
 
     typedef cado_expression_parser<mpz_poly_parser_traits> poly_parser;
-    poly_parser P(F.x);
+    poly_parser P(F.x());
     P.tokenize(is);
 
     try {
@@ -4968,9 +4968,9 @@ std::istream & operator>>(std::istream & in,
 
 std::ostream &
 operator<<(std::ostream & o,
-           cxx_mpz_poly::named_proxy<cxx_mpz_poly const &> const & F)
+           cado::named_proxy<cxx_mpz_poly const &> const & F)
 {
-    return o << F.c.print_poly(std::string(F.x));
+    return o << F.c.print_poly(std::string(F.x()));
 }
 
 std::ostream & operator<<(std::ostream & os, mpz_poly_coeff_list const & P)

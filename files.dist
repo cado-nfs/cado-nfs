@@ -1756,6 +1756,7 @@ utils/mpz_polymodF.h
 utils/mpz_vector.c
 utils/mpz_vector.h
 utils/multityped_array.hpp
+utils/named_proxy.hpp
 utils/number_context.hpp
 utils/number_literal.hpp
 utils/numbertheory.hpp

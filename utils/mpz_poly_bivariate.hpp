@@ -33,6 +33,7 @@
 #include <gmp.h>
 
 #include "macros.h"
+#include "named_proxy.hpp"
 #include "runtime_numeric_cast.hpp"
 
 class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
@@ -41,6 +42,7 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
     using self = cxx_mpz_poly_bivariate;
 
   public:
+    static constexpr int number_of_variables = 2;
     cxx_mpz_poly_bivariate() {}
 #if 0
     cxx_mpz_poly_bivariate(int d)
@@ -177,39 +179,11 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
     cxx_mpz_poly_bivariate(lifted_y const & c) { *this = c; }
     cxx_mpz_poly_bivariate(mpz_poly_srcptr c) { *this = c; }
 
-    template <typename T> class named_proxy
-    {
-        static_assert(std::is_reference_v<T>, "T must be a reference");
-        using V = std::remove_reference_t<T>;
-        using Vnc = std::remove_const_t<V>;
-        using nc = named_proxy<Vnc &>;
-        static constexpr bool const is_c = std::is_const_v<V>;
-
-      public:
-        T c;
-        std::string x;
-        std::string y;
-        named_proxy(T c, std::string x, std::string y)
-            : c(c)
-            , x(std::move(x))
-            , y(std::move(y))
-        {
-        }
-        template <typename U = T>
-        named_proxy(U const & c)
-        requires std::is_same_v<U, nc>
-            : c(c.c)
-            , x(c.x)
-            , y(c.y)
-        {
-        }
-    };
-
-    named_proxy<self &> named(std::string const & x, std::string const & y)
+    cado::named_proxy<self &> named(std::string const & x, std::string const & y)
     {
         return { *this, x, y };
     }
-    named_proxy<self const &> named(std::string const & x,
+    cado::named_proxy<self const &> named(std::string const & x,
                                     std::string const & y) const
     {
         return { *this, x, y };
@@ -340,12 +314,15 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
 };
 
 /* printing needs a way to specify the variables... */
+namespace cado {
 std::ostream & operator<<(
     std::ostream & o,
-    cxx_mpz_poly_bivariate::named_proxy<cxx_mpz_poly_bivariate const &> const & f);
+    cado::named_proxy<cxx_mpz_poly_bivariate const &> const & f);
+
 std::istream &
 operator>>(std::istream & in,
-           cxx_mpz_poly_bivariate::named_proxy<cxx_mpz_poly_bivariate &> f);
+           cado::named_proxy<cxx_mpz_poly_bivariate &> f);
+} /* namespace cado */
 
 /* we do have a default behaviour, though */
 inline std::ostream & operator<<(std::ostream & o,

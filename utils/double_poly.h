@@ -15,6 +15,8 @@
 
 #include "fmt/base.h"
 #include "fmt/ostream.h"
+
+#include "named_proxy.hpp"
 #endif
 
 #include "macros.h"    // for GNUC_VERSION_ATLEAST
@@ -105,6 +107,7 @@ void double_poly_set_string(double_poly_ptr poly, const char *str);
  */
 struct cxx_double_poly {
     double_poly x;
+    static constexpr int number_of_variables = 1;
     cxx_double_poly(int deg = -1) { double_poly_init(x, deg); }
     cxx_double_poly(double_poly_srcptr f) { double_poly_init(x, -1); double_poly_set(x, f); }
     ~cxx_double_poly() { double_poly_clear(x); }
@@ -130,37 +133,19 @@ struct cxx_double_poly {
     double_poly_srcptr operator->() const { return x; }
     std::string print_poly(std::string const& var) const;
 
-    template<typename T>
-    class named_proxy {
-        static_assert(std::is_reference_v<T>, "T must be a reference");
-        using V = std::remove_reference_t<T>;
-        using nc = named_proxy<std::remove_const_t<V> &>;
-        static constexpr const bool is_c = std::is_const_v<V>;
-        public:
-        T c;
-        std::string x;
-        named_proxy(T c, std::string x)
-            : c(c), x(std::move(x))
-        {}
-        template<typename U = T>
-        explicit named_proxy(U const & c)
-        requires std::is_same_v<U, nc>
-        : c(c.c), x(c.x) {}
-    };
-
-    named_proxy<cxx_double_poly &> named(std::string const & x) {
+    cado::named_proxy<cxx_double_poly &> named(std::string const & x) {
         return { *this, x };
     }
-    named_proxy<cxx_double_poly const &> named(std::string const & x) const {
+    cado::named_proxy<cxx_double_poly const &> named(std::string const & x) const {
         return { *this, x };
     }
 
 };
 
 /* printing needs a way to specify the variables... */
-inline std::ostream& operator<<(std::ostream& o, cxx_double_poly::named_proxy<cxx_double_poly const &> const & f)
+inline std::ostream& operator<<(std::ostream& o, cado::named_proxy<cxx_double_poly const &> const & f)
 {
-    return o << f.c.print_poly(f.x);
+    return o << f.c.print_poly(f.x());
 }
 
 /* we do have a default behaviour, though */

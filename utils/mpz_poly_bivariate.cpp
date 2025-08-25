@@ -19,6 +19,7 @@
 #include "mpz_poly_bivariate.hpp"
 #include "runtime_numeric_cast.hpp"
 #include "macros.h"
+#include "named_proxy.hpp"
 
 /* Polynomial arithmetic */
 void cxx_mpz_poly_bivariate::neg(cxx_mpz_poly_bivariate & f,
@@ -211,11 +212,11 @@ struct mpz_poly_bivariate_parser_traits {
 };
 
 std::istream &
-operator>>(std::istream & in,
-           cxx_mpz_poly_bivariate::named_proxy<cxx_mpz_poly_bivariate &> F)
+cado::operator>>(std::istream & in,
+           named_proxy<cxx_mpz_poly_bivariate &> F)
 {
-    std::string const & x = F.x;
-    std::string const & y = F.y;
+    std::string const & x = F.x();
+    std::string const & y = F.y();
     cxx_mpz_poly_bivariate & f = F.c;
 
     f = 0;
@@ -246,12 +247,12 @@ operator>>(std::istream & in,
     return in;
 }
 
-std::ostream & operator<<(
+std::ostream & cado::operator<<(
     std::ostream & o,
-    cxx_mpz_poly_bivariate::named_proxy<cxx_mpz_poly_bivariate const &> const & F)
+    named_proxy<cxx_mpz_poly_bivariate const &> const & F)
 {
-    std::string const & x = F.x;
-    std::string const & y = F.y;
+    std::string const & x = F.x();
+    std::string const & y = F.y();
     cxx_mpz_poly_bivariate const & f = F.c;
     if (f.degree() == -1) {
         return o << 0;

@@ -25,6 +25,7 @@
 
 #ifdef __cplusplus
 #include "cxx_mpz.hpp"
+#include "named_proxy.hpp"
 #endif
 #include "macros.h"
 #if !GMP_VERSION_ATLEAST(6,3,0)
@@ -329,6 +330,7 @@ int mpz_poly_factor_and_lift_padically(mpz_poly_factor_list_ptr fac, mpz_poly_sr
  *    things a bit).
  */
 struct cxx_mpz_poly {
+    static constexpr int number_of_variables = 1;
     mpz_poly x;
 
     ATTRIBUTE_NODISCARD
@@ -420,31 +422,10 @@ struct cxx_mpz_poly {
     mpz_poly_srcptr operator->() const { return x; }
     std::string print_poly(std::string const& var) const;
 
-    template<typename T>
-    class named_proxy {
-        static_assert(std::is_reference_v<T>, "T must be a reference");
-        using V = std::remove_reference_t<T>;
-        using Vnc = std::remove_const_t<V>;
-        using nc = named_proxy<Vnc &>;
-        static constexpr const bool is_c = std::is_const_v<V>;
-        public:
-        T c;
-        std::string x;
-        named_proxy(T c, std::string x)
-            : c(c), x(std::move(x))
-        {}
-        /*
-        template<typename U = T>
-        named_proxy(U const & c)
-        requires std::is_same_v<U, nc>
-        : c(c.c), x(c.x) {}
-        */
-    };
-
-    named_proxy<cxx_mpz_poly &> named(std::string const & x) {
+    cado::named_proxy<cxx_mpz_poly &> named(std::string const & x) {
         return { *this, x };
     }
-    named_proxy<cxx_mpz_poly const &> named(std::string const & x) const {
+    cado::named_proxy<cxx_mpz_poly const &> named(std::string const & x) const {
         return { *this, x };
     }
 
@@ -507,8 +488,8 @@ struct cxx_mpz_poly {
 
 
 /* printing needs a way to specify the variables... */
-std::ostream& operator<<(std::ostream& o, cxx_mpz_poly::named_proxy<cxx_mpz_poly const &> const & f);
-std::istream& operator>>(std::istream& in, cxx_mpz_poly::named_proxy<cxx_mpz_poly &> const & f);
+std::ostream& operator<<(std::ostream& o, cado::named_proxy<cxx_mpz_poly const &> const & f);
+std::istream& operator>>(std::istream& in, cado::named_proxy<cxx_mpz_poly &> const & f);
 
 /* we do have a default behaviour, though */
 inline std::ostream& operator<<(std::ostream& o, cxx_mpz_poly const & f)

@@ -37,32 +37,13 @@
 #include "cado_expression_parser.hpp"
 #include "coeff_proxy.hpp"
 #include "cado_type_traits.hpp"
+#include "named_proxy.hpp"
 
 #ifdef HAVE_MPFR
 #include "cxx_mpfr.hpp"
 #endif
 
 namespace polynomial_details {
-    template<typename U>
-    class named_proxy {
-        static_assert(std::is_reference_v<U>, "U must be a reference");
-        using V = std::remove_reference_t<U>;
-        using Vnc = std::remove_const_t<V>;
-        using nc = named_proxy<Vnc &>;
-        static constexpr const bool is_c = std::is_const_v<V>;
-        public:
-        U c;
-        std::string x;
-        named_proxy(U c, std::string x)
-            : c(c), x(std::move(x))
-        {}
-
-        template<typename W = U>
-        explicit named_proxy(W const & c)
-                requires(std::is_same_v<W, nc>)
-        : c(c.c), x(c.x) {}
-    };
-
 template<typename T>
 struct polynomial;
 
@@ -71,8 +52,8 @@ struct polynomial;
  */
 template<typename T> std::istream& operator>>(std::istream& in, polynomial_details::polynomial<T> & F);
 template<typename T> std::ostream& operator<<(std::ostream& o, polynomial_details::polynomial<T> const & f);
-template<typename T> std::istream& operator>>(std::istream& in, polynomial_details::named_proxy<polynomial_details::polynomial<T> &> const & F);
-template<typename T> std::ostream& operator<<(std::ostream& o, polynomial_details::named_proxy<polynomial_details::polynomial<T> const &> const & f);
+template<typename T> std::istream& operator>>(std::istream& in, cado::named_proxy<polynomial_details::polynomial<T> &> const & F);
+template<typename T> std::ostream& operator<<(std::ostream& o, cado::named_proxy<polynomial_details::polynomial<T> const &> const & f);
 
 /* Things that we could add (all are in the mpz_poly interface):
  *
@@ -133,6 +114,7 @@ struct polynomial : number_context<T>
     traits const & extract_traits() const { return *this; }
     traits & extract_traits() { return *this; }
 
+    static constexpr int number_of_variables = 1;
 
     /* {{{ evaluation at a point */
     template<typename U, typename E>
@@ -932,7 +914,7 @@ struct polynomial : number_context<T>
     }
 
     private:
-    friend std::istream& operator>><T>(std::istream& in, named_proxy<polynomial &> const & F);
+    friend std::istream& operator>><T>(std::istream& in, cado::named_proxy<polynomial &> const & F);
 
     struct parser_traits {
         std::string x;
@@ -979,10 +961,10 @@ struct polynomial : number_context<T>
     };
     public:
 
-    named_proxy<polynomial &> named(std::string const & x) {
+    cado::named_proxy<polynomial &> named(std::string const & x) {
         return { *this, x };
     }
-    named_proxy<polynomial const &> named(std::string const & x) const {
+    cado::named_proxy<polynomial const &> named(std::string const & x) const {
         return { *this, x };
     }
 
@@ -1230,7 +1212,7 @@ inline polynomial<cxx_mpfr>::polynomial(cxx_mpz_poly const & f, traits const & t
 #endif
 
 template<typename T>
-std::istream& operator>>(std::istream& in, polynomial_details::named_proxy<polynomial<T> &> const & F)
+std::istream& operator>>(std::istream& in, cado::named_proxy<polynomial<T> &> const & F)
 {
     std::string line;
     for(;;in.get()) {
@@ -1241,7 +1223,7 @@ std::istream& operator>>(std::istream& in, polynomial_details::named_proxy<polyn
     std::istringstream is(line);
 
     using traits_type = typename polynomial<T>::parser_traits;
-    cado_expression_parser<traits_type> P(F.x);
+    cado_expression_parser<traits_type> P(F.x());
     P.tokenize(is);
 
     try {
@@ -1262,9 +1244,9 @@ std::istream& operator>>(std::istream& in, polynomial<T> & F)
 
 /* printing needs a way to specify the variables... */
 template<typename T>
-inline std::ostream& operator<<(std::ostream& o, polynomial_details::named_proxy<polynomial<T> const &> const & f)
+inline std::ostream& operator<<(std::ostream& o, cado::named_proxy<polynomial<T> const &> const & f)
 {
-    return o << f.c.print(f.x);
+    return o << f.c.print(f.x());
 }
 
 /* we do have a default behaviour, though */
