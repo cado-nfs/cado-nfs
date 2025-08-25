@@ -155,7 +155,7 @@ if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
     # prevents the definition of __STRICT_ANSI__
     #
     # Ditto for C++, with the c++98/gnu++98 subtlety.
-    set (CMAKE_C_FLAGS "-W -Wall ${CMAKE_C_FLAGS}")
+    set (CMAKE_C_FLAGS "-Wall -Wextra ${CMAKE_C_FLAGS}")
     if (MINGW)
         set (CMAKE_C_FLAGS "-std=gnu99 ${CMAKE_C_FLAGS}")
     else()
@@ -188,7 +188,7 @@ message(STATUS "CFLAGS=${CMAKE_C_FLAGS} (synthetized)")
 set (CMAKE_CXX_FLAGS    "${CMAKE_CXX_FLAGS} ${CMAKE_FLAGS_SIZE}")
 message(STATUS "C++ compiler: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    set (CMAKE_CXX_FLAGS "-W -Wall ${CMAKE_CXX_FLAGS}")
+    set (CMAKE_CXX_FLAGS "-Wall -Wextra ${CMAKE_CXX_FLAGS}")
     if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10.0)
         # according to https://gcc.gnu.org/projects/cxx-status.html
         # most of the support is in g++-10. Some important things that we
@@ -248,7 +248,6 @@ else()
     message(WARNING "C++ compiler not recognized. Setting -std=c++20 as a wild guess")
     set (CMAKE_CXX_FLAGS   "-std=c++20 ${CMAKE_CXX_FLAGS}")
 endif()
-
 message(STATUS "CXXFLAGS=${CMAKE_CXX_FLAGS} (synthetized)")
 
 
@@ -386,6 +385,12 @@ include("${CADO_NFS_SOURCE_DIR}/config/bswap32.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/compression.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/gdb.cmake")
 
+if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+    set (CMAKE_C_FLAGS "-Werror=all -Werror=extra ${CMAKE_C_FLAGS}")
+endif()
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set (CMAKE_CXX_FLAGS "-Werror=extra -Werror=all ${CMAKE_CXX_FLAGS}")
+endif()
 
 set(CADO_SHARED)
 
@@ -504,6 +509,8 @@ if (NOT "$ENV{IWYU}" MATCHES "^(0|NO|no|OFF|off|)$")
     endif()
 endif()
 
+message(STATUS "CFLAGS=${CMAKE_C_FLAGS} (synthetized, after feature checks)")
+message(STATUS "CXXFLAGS=${CMAKE_CXX_FLAGS} (synthetized, after feature checks)")
 
 #####################################################################
 # now the real stuff.

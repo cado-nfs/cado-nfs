@@ -135,10 +135,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  * note that clang and intel cc both define __GNUC__, so these flags
  * apply to them as well.
  */
-#ifdef  __GNUC__
-#pragma GCC diagnostic error "-Wextra"
-#pragma GCC diagnostic error "-Wall"
-#endif
+// the problem is that for some given diagnostic, setting it as error
+// once will apparently kill any opportunity to selectively disable it
+// later on. So we now rely on the command line settings instead.
+// #ifdef  __GNUC__
+// #pragma GCC diagnostic error "-Wextra"
+// #pragma GCC diagnostic error "-Wall"
+// #endif
 
 #if defined(__clang__)
 #if __clang_major__ >= 17

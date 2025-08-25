@@ -160,6 +160,10 @@ struct polynomial : polynomial_instance_traits<T>
     template<typename U, typename E>
     E eval_with_reference(E const & e, U const & x) const
     {
+#ifdef  __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
         using cado_math_aux::similar_zero;
         using cado_math_aux::similar_set;
         using cado_math_aux::fma;
@@ -189,6 +193,9 @@ struct polynomial : polynomial_instance_traits<T>
                         s = fma(s, xx, similar_set(e, f[k]));
         }
         return s;
+#ifdef  __GNUC__
+#pragma GCC diagnostic pop
+#endif
     }
 
 
