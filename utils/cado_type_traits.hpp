@@ -1,7 +1,7 @@
 #ifndef UTILS_COERCION_HPP_
 #define UTILS_COERCION_HPP_
 
-#include "cado_config.h"
+#include "cado_config.h"        // IWYU pragma: keep
 
 #include <complex>
 #include <type_traits>

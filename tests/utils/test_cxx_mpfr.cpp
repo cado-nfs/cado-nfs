@@ -454,6 +454,7 @@ int main(int argc, char const * argv[])
     }
 
     mpfr_prec_t const prec = 256;
+
     test_basic_arithmetic(state, prec);
     test_auxiliary_functions(prec);
     test_copies_and_assignment(prec);

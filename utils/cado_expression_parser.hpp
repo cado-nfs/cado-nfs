@@ -9,15 +9,15 @@
 #include <cctype>
 #include <exception>
 #include <istream>
-#include <ios>
 #include <string>
 #include <vector>
 #include <utility>
-#include <functional>
 
 #include <gmp.h>
 
 #include "cxx_mpz.hpp"
+#include "number_literal.hpp"
+#include "number_context.hpp"
 // #include "cado_math_aux.hpp"
 
 #ifdef HAVE_MPFR
@@ -30,141 +30,14 @@
 /* A typical use can be found in utils/mpz_poly.cpp */
 
 namespace cado_expression_parser_details {
+    using cado::number_literal;
+
     struct parse_error: public std::exception {
         const char * what() const noexcept override { return "parse error"; }
     };
     struct token_error: public std::exception {
         const char * what() const noexcept override { return "token error"; }
     };
-
-    /*
-     * https://en.cppreference.com/w/cpp/language/floating_literal
-     */
-
-    struct number_literal {
-        std::string full;
-        bool is_hex = false;
-        bool has_point = false;
-        bool has_exponent = false;
-        // long exponent = false;
-        // std::string::size_type begin_integral = 0,
-        // std::string::size_type begin_fractional = 0, end_fractional = 0;
-        // std::string::size_type begin_exponent = 0, end_exponent = 0;
-        private:
-        std::string::size_type begin_exponent = 0;
-        std::string::size_type end_integral = 0;
-        public:
-        std::string integral_part() const {
-            return full.substr(0, end_integral);
-        }
-        std::string exponent_part() const {
-            return full.substr(begin_exponent);
-        }
-        bool isdigit(int c) const {
-            return std::isdigit(c) ||
-                (is_hex && ((c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')));
-        }
-        /* I don't think we want to recognize the f and l suffix, but it
-         * could certainly be done
-         */
-        long as_exponent() const {
-            if (is_hex || has_exponent || has_point)
-                throw token_error();
-            return std::stol(exponent_part());
-        }
-
-        bool swallow_hits_end(int & c, std::istream & is) {
-            full += static_cast<char>(c);
-            is.get();
-            c = is.peek();
-            return is.eof();
-        }
-        public:
-        static bool recognize(number_literal & N, std::istream& is)// {{{
-        {
-            N = number_literal {};
-            int c = is.peek();
-            bool no_mantissa = true;
-
-            if (c == '-')
-                if (N.swallow_hits_end(c, is))
-                    throw token_error();
-
-            if (c == 'n' || c == 'N') {
-                if (N.swallow_hits_end(c, is))
-                    throw token_error();
-                if (c != 'a' && c != 'A')
-                    throw token_error();
-                if (N.swallow_hits_end(c, is))
-                    throw token_error();
-                if (c != 'n' && c != 'N') 
-                    throw token_error();
-                N.swallow_hits_end(c, is);
-                return true;
-            }
-
-            if (c == 'i') {
-                if (N.swallow_hits_end(c, is))
-                    throw token_error();
-                if (c != 'n')
-                    throw token_error();
-                if (N.swallow_hits_end(c, is))
-                    throw token_error();
-                if (c != 'f')
-                    throw token_error();
-                N.swallow_hits_end(c, is);
-                return true;
-            }
-
-            // std::string * ps = &N.integral;
-            if (!std::isdigit(c)) {
-                if (c == '.') {
-                    N.end_integral = N.full.size();
-                    N.has_point = true;
-                    if (N.swallow_hits_end(c, is)) throw token_error();
-                    // *ps = "0";
-                    // ps = &N.fractional;
-                } else {
-                    return false;
-                }
-            } else if (c == '0') {
-                if (N.swallow_hits_end(c, is)) return true;
-                if (std::tolower(c) == 'x') {
-                    N.is_hex = true;
-                    if (N.swallow_hits_end(c, is)) throw token_error();
-                } else {
-                    no_mantissa = false;
-                }
-            }
-
-            for( ; N.isdigit(c) || (!N.has_point && c == '.') ; ) {
-                if (c == '.') N.has_point = true;
-                no_mantissa = false;
-                if (!N.has_point)
-                    N.end_integral = N.full.size() + 1;
-                if (N.swallow_hits_end(c, is)) return true;
-            }
-            if (no_mantissa)
-                throw token_error();
-
-            if (std::tolower(c) == (N.is_hex ? 'p' : 'e')) {
-                N.has_exponent = true;
-                N.begin_exponent = N.full.size() + 1;
-                if (N.swallow_hits_end(c, is)) return true;
-                if (c == '+' || c == '-')
-                    if (N.swallow_hits_end(c, is)) return true;
-                for( ; std::isdigit(c) ; )
-                    if (N.swallow_hits_end(c, is)) return true;
-            }
-            return true;
-        }// }}}
-    };
-    inline std::istream& operator>>(std::istream& is, number_literal & N)
-    {
-        if (!number_literal::recognize(N, is))
-            is.setstate(std::ios::failbit);
-        return is;
-    }
 
     struct cado_expression_parser_base {
         // typedef cado_expression_parser_details::token_error token_error;
@@ -182,11 +55,11 @@ namespace cado_expression_parser_details {
         };
         std::vector<expression_token> tokens;
         std::vector<std::string> literals;
-        std::vector<cado_expression_parser_details::number_literal> numbers;
+        std::vector<number_literal> numbers;
 
         typename std::vector<expression_token>::const_iterator ctok;
         std::vector<std::string>::const_iterator clit;
-        std::vector<cado_expression_parser_details::number_literal>::const_iterator cnumber;
+        std::vector<number_literal>::const_iterator cnumber;
 
         void next() { if (ctok != tokens.end()) ctok++; }
         bool test(expression_token s) { return ctok != tokens.end() && *ctok == s; }
@@ -200,13 +73,12 @@ namespace cado_expression_parser_details {
         int expect(expression_token s) {
             if (accept(s))
                 return 1;
-            throw cado_expression_parser_details::parse_error();
+            throw parse_error();
             return 0;
         }
 
         long exponent() {
             /* a^b^c parenthesizes as a^(b^c)... */
-            using namespace cado_expression_parser_details;
             if (accept(POWER)) {
                 long sign = 1;
                 if (accept(MINUS)) sign = -1;
@@ -233,7 +105,6 @@ namespace cado_expression_parser_details {
         }
 
         bool tokenize(std::istream& is, int accept_literals) {
-            using namespace cado_expression_parser_details;
             tokens.clear();
             literals.clear();
             numbers.clear();
@@ -306,7 +177,7 @@ private:
             p = parse_factor(args...);
             T::neg(p, p);
         } else if (accept(POSITIVE_NUMBER)) {
-            T::set(p, *cnumber++);
+            T::set(p, cado::number_context<number_type>(p)(*cnumber++));
         } else if (accept(LEFT_PAREN)) {
             p = parse_expression(args...);
             expect(RIGHT_PAREN);

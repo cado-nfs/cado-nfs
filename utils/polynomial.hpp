@@ -30,6 +30,7 @@
 
 #include "macros.h"
 #include "runtime_numeric_cast.hpp"
+#include "number_context.hpp"
 #include "mpz_poly.h"
 #include "cxx_mpz.hpp"
 #include "cado_math_aux.hpp"
@@ -120,41 +121,18 @@ using eval_type_t = typename eval_type<CoefficientType, PointType>::type;
  * it possible to create coefficients such as 0 or 1 in the polynomial
  * with the correct precision.
  */
-template<typename T>
-struct polynomial_instance_traits {
-    template<typename U>
-        T interpret_integral(U x) const { return T(x); }
-    void copy_traits(T const &) {}
-    static polynomial_instance_traits traits_from(T const &) { return {}; }
-};
 
-#ifdef HAVE_MPFR
-template<>
-struct polynomial_instance_traits<cxx_mpfr> {
-    mpfr_prec_t prec = mpfr_get_default_prec();
-    operator mpfr_prec_t() const { return prec; }
-    template<typename U>
-        cxx_mpfr interpret_integral(U x) const {
-            cxx_mpfr y;
-            mpfr_set_prec(y, prec);
-            mpfr_auxx::cado_mpfr_set(y, x, MPFR_RNDN);
-            return y;
-        }
-    void copy_traits(cxx_mpfr const & x) {
-        prec = x.prec();
-    }
-    static polynomial_instance_traits traits_from(cxx_mpfr const & x) { return { x.prec() }; }
-};
-#endif
+using cado::number_context;
 
 template<typename T>
-struct polynomial : polynomial_instance_traits<T>
+struct polynomial : number_context<T>
 {
-    using traits = polynomial_instance_traits<T>;
+    using traits = number_context<T>;
     using traits::interpret_integral;
-    using traits::copy_traits;
 
-    traits extract_traits() const { return *this; }
+    traits const & extract_traits() const { return *this; }
+    traits & extract_traits() { return *this; }
+
 
     /* {{{ evaluation at a point */
     template<typename U, typename E>
@@ -372,7 +350,7 @@ struct polynomial : polynomial_instance_traits<T>
 
     polynomial& operator=(T v) {
         coeffs.clear();
-        copy_traits(v);
+        extract_traits() = number_context<T>(v);
         (*this)[0] = v;
         return *this;
     }
@@ -386,7 +364,7 @@ struct polynomial : polynomial_instance_traits<T>
         : coeffs(l.begin(), l.end())
     {
         if (l.begin() != l.end())
-            copy_traits(*l.begin());
+            extract_traits() = number_context<T>(*l.begin());
     }
 
     explicit operator cxx_mpz_poly() const {
@@ -992,7 +970,6 @@ struct polynomial : polynomial_instance_traits<T>
         void set(polynomial & c, T const & z) {
             c = z;
         }
-        void set(polynomial &, cado_expression_parser_details::number_literal const &);
         void set_literal_power(polynomial & a, std::string const & v, unsigned long e) {
             if (v == x)
                 a.set_xi(e);
@@ -1226,58 +1203,6 @@ struct polynomial : polynomial_instance_traits<T>
 
 };
 
-template<>
-inline void polynomial<cxx_mpz>::parser_traits::set(polynomial<cxx_mpz> & c, cado_expression_parser_details::number_literal const & N)
-{
-    if (N.has_point || N.has_exponent)
-        throw cado_expression_parser_details::parse_error();
-    cxx_mpz z;
-    mpz_set_str(z, N.integral_part().c_str(), 0);
-    c = z;
-}
-
-#ifdef HAVE_MPFR
-template<>
-inline void polynomial<cxx_mpfr>::parser_traits::set(polynomial<cxx_mpfr> & c, cado_expression_parser_details::number_literal const & N)
-{
-    cxx_mpfr res;
-    mpfr_set_prec(res, c.prec);
-    const int r = mpfr_set_str(res, N.full.c_str(), 0, MPFR_RNDN);
-    if (r != 0)
-        throw cado_expression_parser_details::parse_error();
-    c = res;
-}
-#endif
-
-template<>
-inline void polynomial<float>::parser_traits::set(polynomial<float> & c, cado_expression_parser_details::number_literal const & N)
-{
-    size_t pos;
-    const float res = std::stof(N.full, &pos);
-    if (pos != N.full.size())
-        throw cado_expression_parser_details::parse_error();
-    c = res;
-}
-
-template<>
-inline void polynomial<double>::parser_traits::set(polynomial<double> & c, cado_expression_parser_details::number_literal const & N)
-{
-    size_t pos;
-    const double res = std::stod(N.full, &pos);
-    if (pos != N.full.size())
-        throw cado_expression_parser_details::parse_error();
-    c = res;
-}
-
-template<>
-inline void polynomial<long double>::parser_traits::set(polynomial<long double> & c, cado_expression_parser_details::number_literal const & N)
-{
-    size_t pos;
-    const long double res = std::stold(N.full, &pos);
-    if (pos != N.full.size())
-        throw cado_expression_parser_details::parse_error();
-    c = res;
-}
 
 static_assert(std::is_same_v<decltype(polynomial<int>{}(double())), double>);
 static_assert(std::is_same_v<decltype(polynomial<double>{}(int())), double>);

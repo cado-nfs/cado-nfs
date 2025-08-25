@@ -13,6 +13,8 @@
 #include "cado_expression_parser.hpp"
 #include "macros.h"
 #include "cxx_mpz.hpp"
+#include "number_literal.hpp"
+#include "number_context.hpp"
 
 using namespace cado_expression_parser_details;
 
@@ -118,6 +120,10 @@ int main()
         double d = 0;
         cxx_mpz z = 0;
         std::string tail;
+
+        using cado::number_literal;
+        using cado::number_context;
+
         try {
             const bool b = number_literal::recognize(N, is);
             is >> tail;
@@ -131,20 +137,22 @@ int main()
             exc += '/';
 
             ASSERT_ALWAYS(b == (s.input.size() > tail.size()));
-            size_t pos;
-            d = std::stod(N.full, &pos);
-            if (pos != N.full.size()) {
-                d = 0;
+            try {
+                d = number_context<double>()(N);
+            } catch (number_literal::parse_error const & e) {
                 exc += 'D';
             }
-            if (N.has_point || N.has_exponent)
+            try {
+                z = number_context<cxx_mpz>()(N);
+            } catch (number_literal::parse_error const & e) {
                 exc += 'Z';
-            else
-                mpz_set_str(z, N.integral_part().c_str(), 0);
+            }
         } catch (token_error const & e) {
             exc += 't';
         } catch (parse_error const & e) {
             exc += 'p';
+        } catch (number_literal::token_error const & e) {
+            exc += 't';
         } catch (std::runtime_error const & e) {
             exc += 'R';
         }

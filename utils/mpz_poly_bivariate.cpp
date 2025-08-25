@@ -192,13 +192,8 @@ struct mpz_poly_bivariate_parser_traits {
     {
         a.swap(b);
     }
-    static void set(cxx_mpz_poly_bivariate & a,
-            cado_expression_parser_details::number_literal const & N)
+    static void set(cxx_mpz_poly_bivariate & a, cxx_mpz const & z)
     {
-        if (N.has_point || N.has_exponent)
-            throw cado_expression_parser_details::parse_error();
-        cxx_mpz z;
-        mpz_set_str(z, N.integral_part().c_str(), 0);
         a = z;
     }
     /* TODO do something for variable names */
@@ -235,8 +230,8 @@ operator>>(std::istream & in,
         return in;
     std::istringstream is(line);
 
-    typedef cado_expression_parser<mpz_poly_bivariate_parser_traits>
-        poly_parser;
+    using poly_parser = cado_expression_parser<mpz_poly_bivariate_parser_traits>
+        ;
     poly_parser P(x, y);
 
     P.tokenize(is);

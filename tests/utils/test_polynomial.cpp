@@ -18,6 +18,7 @@
 #include "mpz_poly.h"
 #include "polynomial.hpp"
 #include "tests_common.h"
+#include "number_context.hpp"
 
 #ifdef HAVE_MPFR
 #include "cxx_mpfr.hpp"
@@ -206,6 +207,10 @@ static void test_ctor_and_coeff_access()
     ASSERT_ALWAYS(f[0] == -1);
     ASSERT_ALWAYS(f[1] == 17);
     ASSERT_ALWAYS(f[2] == 42);
+
+    const polynomial<T> g({1, 2, 3, 4});
+    ASSERT_ALWAYS(g.degree() == 3);
+    ASSERT_ALWAYS(g(1) == 10);
 }
 
 template<>
@@ -275,6 +280,13 @@ static void test_eval()
             two_n *= 2;
             ASSERT_ALWAYS(v == w);
         }
+    }
+
+
+    if constexpr (cado_math_aux::is_real_v<T>) {
+        polynomial<T> A("x^2-2");
+        T z = cado::number_context<T>()("1.4142135623730950488016887242096980786");
+        fmt::print("{}\n", A(z));
     }
 }
 
@@ -443,7 +455,7 @@ static void test_resultant()
              * the last one: we know that 53 bits is way too small, and
              * 80 bits is barely ok. So let's use 128 bits, it shouldn't
              * be too bad. */
-            tr = { 128 };
+            tr = decltype(tr)(128);
         }
 #endif
         T res = RX(t.f, tr).resultant(RX(t.g, tr));

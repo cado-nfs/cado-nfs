@@ -1756,6 +1756,8 @@ utils/mpz_polymodF.h
 utils/mpz_vector.c
 utils/mpz_vector.h
 utils/multityped_array.hpp
+utils/number_context.hpp
+utils/number_literal.hpp
 utils/numbertheory.hpp
 utils/numbertheory/all_valuations_above_p.cpp
 utils/numbertheory/all_valuations_above_p.hpp

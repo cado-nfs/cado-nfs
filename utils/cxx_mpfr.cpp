@@ -19,6 +19,8 @@
 #include "cxx_mpfr.hpp"
 #include "runtime_numeric_cast.hpp"
 #include "macros.h"
+#include "number_literal.hpp"
+#include "number_context.hpp"
 
 /* code here _tries_ to be consistent with libc++ / libfmt in the
  * following way, to the extent that is possible.
@@ -204,17 +206,15 @@ auto fmt::formatter<cxx_mpfr>::format(cxx_mpfr const & x, format_context& ctx) c
 std::istream & operator>>(std::istream & is, cxx_mpfr::input_with_precision xp)
 {
     using cado_expression_parser_details::parse_error;
-    using cado_expression_parser_details::number_literal;
+    using cado::number_literal;
+    using cado::number_context;
     number_literal N;
     if (is >> N) {
-        mpfr_set_prec(xp.x, xp.p);
-        const int r = mpfr_set_str(xp.x, N.full.c_str(), 0, MPFR_RNDN);
-        if (r != 0) {
+        try {
+            xp.x = number_context<cxx_mpfr>(xp.p)(N);
+        } catch (number_literal::parse_error const &) {
             is.setstate(std::ios::failbit);
-            return is;
         }
-        if (mpfr_nan_p(xp.x.x) && !N.full.empty() && N.full[0] == '-')
-            mpfr_setsign(xp.x, xp.x, 1, MPFR_RNDN);
     }
     return is;
 }
