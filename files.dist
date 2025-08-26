@@ -1523,6 +1523,7 @@ tests/utils/test_gcd.c
 tests/utils/test_getprime.c
 tests/utils/test_gmp_aux.c
 tests/utils/test_gpf.c
+tests/utils/test_imaginary_quadratic_class_groups.cpp
 tests/utils/test_integer_partitions.cpp
 tests/utils/test_intinv.c
 tests/utils/test_json_parsing.cpp

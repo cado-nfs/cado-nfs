@@ -187,18 +187,23 @@ cado_divert_test(misc_cl_structure d130_2Sylow
 
 cado_divert_test(misc_cl_structure error1 EXPECT_FAIL ARGUMENTS)
 cado_divert_test(misc_cl_structure error2 EXPECT_FAIL ARGUMENTS squabble=42)
+# fails because discriminant is positive
 cado_divert_test(misc_cl_structure error3 EXPECT_FAIL APPEND_ARGUMENTS
     -poly "inline-poly://n=3/poly0=-3,0,1" -primes 2 -exps 1
 )
+# fails due to missing args
 cado_divert_test(misc_cl_structure error4 EXPECT_FAIL APPEND_ARGUMENTS
     -poly "${D20_POLY_2}"
 )
+# fails because -primes and -exps should have the same length
 cado_divert_test(misc_cl_structure error5 EXPECT_FAIL APPEND_ARGUMENTS
     -poly "${D20_POLY_2}" -primes 2,3 -exps 2
 )
+# fails because values in -exps should be positive
 cado_divert_test(misc_cl_structure error6 EXPECT_FAIL APPEND_ARGUMENTS
     -poly "${D20_POLY_2}" -primes 2,3 -exps 2,0
 )
+# fails because factors are missing from the given group order
 cado_divert_test(misc_cl_structure error7 EXPECT_FAIL APPEND_ARGUMENTS
     -poly "${D20_POLY_2}" -primes 2,3 -exps 2,4
 )
