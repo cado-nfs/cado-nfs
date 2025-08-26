@@ -22,3 +22,14 @@ dir="$(dirname "$me")"
 "$dir/check_python_pathdetection_stub.sh"
 "$dir/check_main_constness.sh"
 "$dir/check_python_lint.sh"
+
+# use the following section in .git/config in order to tweak the
+# behaviour of this check:
+# [policies]
+#         # set to abort (default), warn, or accept
+#         submodule-commits = warn
+case $(git config get --default abort policies.submodule-commits) in
+    accept) : ;;
+    warn)  "$dir/check_accidental_submodule_changes.sh" || : ;;
+    abort) "$dir/check_accidental_submodule_changes.sh" ;;
+esac
