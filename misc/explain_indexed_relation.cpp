@@ -9,6 +9,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <utility>
+#include <memory>
 
 #include "fmt/base.h"
 #include "fmt/format.h"
@@ -391,10 +392,18 @@ int main(int argc, char const * argv[])
         printed = print_all_ideals(tab, cmdline);
 
     if (cmdline.relationsfilename) {
-        std::ifstream cin(cmdline.relationsfilename);
+        std::istream * cin;
+        std::unique_ptr<std::ifstream> real_file;
+        auto const & s = cmdline.relationsfilename;
+        if (s == std::string("-")) {
+            cin = &std::cin;
+        } else {
+            real_file = std::make_unique<std::ifstream>(s);
+            cin = real_file.get();
+        }
 
         int line = 0;
-        for(std::string s ; std::getline(cin, s) ;) {
+        for(std::string s ; std::getline(*cin, s) ;) {
             ++line;
             if (s.empty() || s[0] == '#')
                 continue;
