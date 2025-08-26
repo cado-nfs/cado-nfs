@@ -141,7 +141,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #endif
 
 #if defined(__clang__)
-#if __clang_major__ >= 18
+#if __clang_major__ >= 17
 /* See #30073. Sure, it's a bit of a pity, but I can't find a totally
  * satisfactory replacement for VLAs, which are used in somewhat critical
  * parts of the code.
