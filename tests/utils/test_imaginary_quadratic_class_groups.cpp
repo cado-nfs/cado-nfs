@@ -41,30 +41,30 @@ test_imaginary_quadratic_class_group(unsigned long niter)
     bool ret = true;
 
     /* nonnegative discriminant should throw a exception */
-    for (unsigned long i = 0; i < niter; ++i) {
+    for (unsigned long i = 0U; i < niter; ++i) {
         cxx_mpz Dpos = u64_random(state);
-        fmt::print("Building class group with discriminant {}\n", Dpos);
+        fmt::print(stderr, "Building class group with discriminant {}\n", Dpos);
         try {
             imaginary_quadratic_class_group cl(Dpos);
             ret = false;
         } catch (std::runtime_error &e) {
-            fmt::print("Correctly throw an exception\n");
+            fmt::print(stderr, "Correctly throw an exception\n");
         }
     }
 
     /* discriminant = 2,3 mod 4 should throw a exception */
-    for (unsigned long i = 0; i < niter; ++i) {
+    for (unsigned long i = 0U; i < niter; ++i) {
         cxx_mpz D = 0U;
-        while (mpz_sgn(D) >= 0 || mpz_fdiv_ui(D, 4) == 0
-                               || mpz_fdiv_ui(D, 4) == 1) {
+        while (mpz_sgn(D) >= 0 || mpz_fdiv_ui(D, 4U) == 0U
+                               || mpz_fdiv_ui(D, 4U) == 1U) {
             D = i64_random(state);
         }
-        fmt::print("Building class group with discriminant {}\n", D);
+        fmt::print(stderr, "Building class group with discriminant {}\n", D);
         try {
             imaginary_quadratic_class_group cl(D);
             ret = false;
         } catch (std::runtime_error &e) {
-            fmt::print("Correctly throw an exception\n");
+            fmt::print(stderr, "Correctly throw an exception\n");
         }
     }
 
@@ -83,7 +83,7 @@ static bool
 test_imaginary_quadratic_form_one(imaginary_quadratic_class_group const & cl)
 {
     bool ret = true;
-    fmt::print("Testing quadratic forms with {}\n", cl);
+    fmt::print(stderr, "Testing quadratic forms with {}\n", cl);
     cxx_mpz one = 1U;
     cxx_mpz mone = -1;
     cxx_mpz b = mpz_fdiv_ui(cl.discriminant(), 4U);
@@ -112,21 +112,21 @@ test_imaginary_quadratic_form_one(imaginary_quadratic_class_group const & cl)
     }
     /* should throw if form is not primitive */
     try {
-        unsigned long k = u64_random(state);
+        uint64_t k = u64_random(state);
         cxx_mpz ka = k, kb, kc;
-        mpz_mul_ui(kb, b, k);
-        mpz_mul_ui(kc, c, k);
+        mpz_mul_uint64(kb, b, k);
+        mpz_mul_uint64(kc, c, k);
         cl(ka, kb, kc);
         ret = false;
     } catch (imaginary_quadratic_form::not_primitive const & e) {
     }
 
     /* check that forms are reduced in ctor */
-    unsigned long k = u64_random(state) >> 1;
+    uint64_t k = u64_random(state) >> 1;
     cxx_mpz b2, c2;
-    mpz_add_ui(b2, b, 2*k);
-    mpz_add_ui(c2, b, k);
-    mpz_mul_ui(c2, c2, k);
+    mpz_add_uint64(b2, b, 2*k);
+    mpz_add_uint64(c2, b, k);
+    mpz_mul_uint64(c2, c2, k);
     mpz_add(c2, c, c2);
     imaginary_quadratic_form f = cl(one, b2, c2);
     ret &= f.is_one() && f == id1;
@@ -143,10 +143,10 @@ test_imaginary_quadratic_form(unsigned long niter)
 {
     bool ret = true;
 
-    for (unsigned long i = 0; i < niter; ++i) {
+    for (unsigned long i = 0U; i < niter; ++i) {
         cxx_mpz D = 0U;
-        while (mpz_sgn(D) >= 0 || mpz_fdiv_ui(D, 4) == 2
-                               || mpz_fdiv_ui(D, 4) == 3) {
+        while (mpz_sgn(D) >= 0 || mpz_fdiv_ui(D, 4U) == 2U
+                               || mpz_fdiv_ui(D, 4U) == 3U) {
             D = i64_random(state);
         }
         imaginary_quadratic_class_group cl(D);
@@ -160,7 +160,7 @@ test_imaginary_quadratic_form(unsigned long niter)
 // coverity[root_function]
 int main(int argc, char const * argv[])
 {
-    unsigned long iter = 100;
+    unsigned long iter = 100U;
     tests_common_cmdline(&argc, &argv, PARSE_SEED | PARSE_ITER);
     tests_common_get_iter(&iter);
 

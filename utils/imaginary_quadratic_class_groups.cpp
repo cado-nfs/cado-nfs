@@ -149,7 +149,7 @@ imaginary_quadratic_form::throw_if_wrong_discriminant() const
     mpz_neg(disc, disc);
     mpz_addmul(disc, b, b);
     if (disc != cl.discriminant()) {
-        throw std::domain_error("wrong coefficient");
+        throw std::domain_error("wrong discriminant");
     }
 }
 
