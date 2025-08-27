@@ -825,7 +825,7 @@ static void test_mpz_poly_factor_padic(unsigned long iter)
     for(unsigned long i = 0 ; i < iter ; ) {
         /* pick a prime between 4 and 128 bits */
         unsigned long const pbits = gmp_urandomm_ui(rstate, 124) + 4;
-        for( ; !mpz_probab_prime_p(p, 2) ; mpz_urandomb(p, rstate, pbits));
+        for(p = 1 ; !mpz_probab_prime_p(p, 2) ; mpz_urandomb(p, rstate, pbits));
 
         cxx_mpz disc = 0;
         for( ; mpz_cmp_ui(disc, 0) == 0 ; ) {

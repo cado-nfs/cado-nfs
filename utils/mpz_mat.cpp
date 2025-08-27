@@ -1615,13 +1615,13 @@ struct mpz_mat_hnf_helper_cmp {
     cxx_mpz_mat A;
     std::vector<double> dd;
     mpz_mat_hnf_helper_cmp(mpz_mat_srcptr T, cxx_mpz_mat & a)
-        : n(T->m)
+        : n(a->m)
         , A(n, 1)
         , dd(n, 0)
     {
-        ASSERT_ALWAYS(a->m == n);
         mpz_mat_submat_swap(a, 0, 0, A, 0, 0, n, 1);
-        unsigned int const n = T->m;
+        if (!T) return;
+        ASSERT_ALWAYS(T->m == n);
         for (unsigned int i = 0; i < n; i++) {
             dd[i] = 0;
             for (unsigned int j = 0; j < n; j++) {
@@ -1694,9 +1694,9 @@ static int mpz_mat_hnf_helper(mpz_mat_ptr T, mpz_mat_ptr dT,
             mpz_neg(a(i, 0), a(i, 0));
             signdet = -signdet;
             mpz_set_si(mpz_mat_entry(dT, i, i), -1);
-            for (unsigned int j = 0; j < n; j++) {
-                mpz_neg(mpz_mat_entry(T, i, j), mpz_mat_entry(T, i, j));
-            }
+            if (T)
+                for (unsigned int j = 0; j < n; j++)
+                    mpz_neg(mpz_mat_entry(T, i, j), mpz_mat_entry(T, i, j));
         }
     }
 
@@ -1728,7 +1728,8 @@ static int mpz_mat_hnf_helper(mpz_mat_ptr T, mpz_mat_ptr dT,
                 continue;
             mpz_fdiv_qr(q, r2, mpz_mat_entry(cmp.A, i, 0), r0);
             mpz_swap(r2, mpz_mat_entry(cmp.A, i, 0));
-            mpz_mat_submulrow(T, i, head, q);
+            if (T)
+                mpz_mat_submulrow(T, i, head, q);
             mpz_mat_submulrow(dT, i, head, q);
         }
         if (n0 == n - 1) {
@@ -1746,19 +1747,23 @@ static int mpz_mat_hnf_helper(mpz_mat_ptr T, mpz_mat_ptr dT,
         }
         mpz_fdiv_qr(q, r2, r0, r1);
         mpz_swap(r0, r2);
-        mpz_mat_submulrow(T, head, heap[n0], q);
+        if (T)
+            mpz_mat_submulrow(T, head, heap[n0], q);
         mpz_mat_submulrow(dT, head, heap[n0], q);
         /* adjust the norm of the row in T */
         cmp.dd[head] = 0;
-        for (unsigned int j = 0; j < n; j++) {
-            double const d = mpz_get_d(mpz_mat_entry(T, head, j));
-            cmp.dd[head] += d * d;
+        if (T) {
+            for (unsigned int j = 0; j < n; j++) {
+                double const d = mpz_get_d(mpz_mat_entry(T, head, j));
+                cmp.dd[head] += d * d;
+            }
         }
         std::push_heap(heap.begin() + n0, heap.end(), cmp);
     }
     std::sort_heap(heap.begin() + n0, heap.end(), cmp);
     std::reverse(heap.begin() + n0, heap.end());
-    mpz_mat_permuterows(T, heap.data());
+    if (T)
+        mpz_mat_permuterows(T, heap.data());
     mpz_mat_permuterows(dT, heap.data());
     mpz_mat_permuterows(cmp.A, heap.data());
     signdet *= permutation_signature(heap.data(), n);
@@ -1796,18 +1801,13 @@ void mpz_gcd_many(mpz_mat_ptr dT, std::vector<cxx_mpz> & a)
 int mpz_mat_hermite_form(mpz_mat_ptr M, mpz_mat_ptr T)
 {
     ASSERT_ALWAYS(M != T);
-    if (T == NULL) {
-        mpz_mat xT;
-        mpz_mat_init(xT, 0, 0);
-        int const r = mpz_mat_hermite_form(M, xT);
-        mpz_mat_clear(xT);
-        return r;
-    }
     int signdet = 1;
     unsigned int const m = M->m;
     unsigned int const n = M->n;
-    mpz_mat_realloc(T, m, m);
-    mpz_mat_set_ui(T, 1);
+    if (T) {
+        mpz_mat_realloc(T, m, m);
+        mpz_mat_set_ui(T, 1);
+    }
     unsigned int rank = 0;
     cxx_mpz_mat dT, Mx, My;
     cxx_mpz_mat colm(m, 1);

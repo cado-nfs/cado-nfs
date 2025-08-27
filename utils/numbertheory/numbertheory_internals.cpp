@@ -28,11 +28,10 @@
 static cxx_mpz_mat join_HNF(cxx_mpz_mat const& K, cxx_mpz const& p)//{{{
 {
     cxx_mpz_mat J(K->n, K->n, p);
-    cxx_mpz_mat T0;
     cxx_mpz_mat I;
 
     mpz_mat_vertical_join(I, J, K);
-    mpz_mat_hermite_form(I, T0);
+    mpz_mat_hermite_form(I, nullptr);
     mpz_mat_submat_swap(I, 0, 0, J, 0, 0, K->n, K->n);
     return J;
 }
