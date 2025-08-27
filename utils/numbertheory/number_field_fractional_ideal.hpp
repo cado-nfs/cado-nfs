@@ -6,6 +6,7 @@
 #include <vector>
 
 #include <gmp.h>
+#include "fmt/base.h"
 #include "fmt/format.h"
 
 #include "numbertheory/numbertheory_fwd_types.hpp"
@@ -69,10 +70,10 @@ class number_field_fractional_ideal {
         , denominator(a.denominator)
     {}
 
-    number_field_fractional_ideal(number_field_fractional_ideal && a)
+    number_field_fractional_ideal(number_field_fractional_ideal && a) noexcept
         : O(a.O)
-        , ideal_basis_matrix(a.ideal_basis_matrix)
-        , denominator(a.denominator)
+        , ideal_basis_matrix(std::move(a.ideal_basis_matrix))
+        , denominator(std::move(a.denominator))
     {}
 
     number_field_fractional_ideal& operator=(number_field_fractional_ideal const & a)

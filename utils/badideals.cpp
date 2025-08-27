@@ -158,9 +158,8 @@ static vector<badideal::branch> lift_root(numbertheory_internals::all_valuations
         vector<int> vv = A.multiply_inertia(v);
         int sumvv = 0;
         for(unsigned int j = 0 ; j < vv.size() ; sumvv+=vv[j++]);
-        for(unsigned int j = 0 ; j < live_ideals.size() ; j++) {
-            int const jj = live_ideals[j];
-            vv[jj] = vv[jj] - sumvv;
+        for(int const jj : live_ideals) {
+            vv[jj] -= sumvv;
         }
         badideal::branch br;
         br.k = k0;
@@ -171,9 +170,9 @@ static vector<badideal::branch> lift_root(numbertheory_internals::all_valuations
 
     vector<badideal::branch> res = dead_branches_reports;
 
-    for(unsigned int i = 0 ; i < live_branches.size() ; i++) {
-        cxx_mpz const& nQ(live_branches[i].first);
-        vector<int> const& nv(live_branches[i].second);
+    for(auto const & br : live_branches) {
+        cxx_mpz const& nQ(br.first);
+        vector<int> const& nv(br.second);
 
         vector<badideal::branch> add = lift_root(A, k0 + 1, nQ, nv);
 

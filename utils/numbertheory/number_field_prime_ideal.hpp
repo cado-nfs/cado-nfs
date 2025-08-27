@@ -40,7 +40,7 @@ class number_field_prime_ideal : private number_field_fractional_ideal {
      * we don't do at the moment (starting with the determinant of I
      * being some power of p)
      */
-    number_field_prime_ideal(number_field_fractional_ideal const & I, cxx_mpz const & p, int e);
+    number_field_prime_ideal(number_field_fractional_ideal I, cxx_mpz p, int e);
 
     friend class number_field_order;
     friend class number_field_fractional_ideal;

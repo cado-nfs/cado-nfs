@@ -253,14 +253,15 @@ struct cxx_mpz_mat {
         mpz_mat_set(x, o.x);
     }
     cxx_mpz_mat & operator=(cxx_mpz_mat const & o) {
-        mpz_mat_set(x, o.x);
+        if (this != &o)
+            mpz_mat_set(x, o.x);
         return *this;
     }
     cxx_mpz_mat(cxx_mpz_mat && o) {
         mpz_mat_init(x, 0, 0);
         mpz_mat_swap(x, o.x);
     }
-    cxx_mpz_mat& operator=(cxx_mpz_mat && o) {
+    cxx_mpz_mat& operator=(cxx_mpz_mat && o) noexcept {
         mpz_mat_swap(x, o.x);
         return *this;
     }
