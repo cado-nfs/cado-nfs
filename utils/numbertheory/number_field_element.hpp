@@ -4,7 +4,7 @@
 #include <utility>
 #include "numbertheory/numbertheory_fwd_types.hpp"
 #include "numbertheory/number_field.hpp"
-#include "numbertheory/fmt_helpers.hpp"
+#include "fmt_helper_sagemath.hpp"
 #include "mpz_mat.h"
 
 class number_field_element {
@@ -83,11 +83,9 @@ class number_field_element {
 namespace fmt {
     template <>
     struct formatter<number_field_element>
-        : formatter<string_view>
-        , fmt_helper_sagemath<number_field_element>
+        : fmt_helper_sagemath<number_field_element>
     {
         static constexpr const decltype(custom_format) custom_format_default = SAGEMATH;
-        using fmt_helper_sagemath::parse;
         auto format(number_field_element const & e, format_context& ctx) const
             -> format_context::iterator;
     };

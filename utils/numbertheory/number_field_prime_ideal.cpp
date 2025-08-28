@@ -14,7 +14,7 @@
 #include "numbertheory/number_field_element.hpp"        // IWYU pragma: keep
 #include "numbertheory/number_field_fractional_ideal.hpp"
 #include "numbertheory/number_field_order.hpp"
-#include "numbertheory/fmt_helpers.hpp"
+#include "fmt_helper_sagemath.hpp"
 #include "numbertheory/number_field_prime_ideal.hpp"
 #include "numbertheory/numbertheory_internals.hpp"
 

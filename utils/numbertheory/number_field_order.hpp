@@ -13,7 +13,7 @@
 #include "numbertheory/number_field.hpp"
 #include "cxx_mpz.hpp"
 #include "mpz_mat.h"
-#include "numbertheory/fmt_helpers.hpp"
+#include "fmt_helper_sagemath.hpp"
 
 class number_field_order {
     friend class number_field;
@@ -75,10 +75,8 @@ class number_field_order {
 namespace fmt {
     template <>
     struct formatter<number_field_order>
-        : formatter<string_view>
-        , fmt_helper_sagemath<number_field_order>
+        : fmt_helper_sagemath<number_field_order>
     {
-        using fmt_helper_sagemath::parse;
         static constexpr const decltype(custom_format) custom_format_default = TEXT;
         auto format(number_field_order const & O, format_context& ctx) const
             -> format_context::iterator;

@@ -17,7 +17,7 @@
 #include "numbertheory/number_field_fractional_ideal.hpp"
 #include "numbertheory/number_field_prime_ideal.hpp"
 #include "numbertheory/numbertheory_internals.hpp"
-#include "numbertheory/fmt_helpers.hpp"
+#include "fmt_helper_sagemath.hpp"
 
 number_field_order::number_field_order(class number_field const & K, cxx_mpq_mat mat)
     : K(K)

@@ -7,11 +7,15 @@
 
 #include <ostream>
 #include <vector>
+#include <string>
 
 #include <gmp.h>
+#include "fmt/base.h"
+#include "fmt/format.h"
+#include "fmt/ostream.h"
 
-#include "gmp_aux.h"
 #include "cxx_mpz.hpp"
+#include "fmt_helper_sagemath.hpp"
 #include "lll.h" // mat_Z, LLL
 #include "macros.h"
 #include "mpz_mat.h"
@@ -643,17 +647,6 @@ void mpz_mat_addmulrow(mpz_mat_ptr M, unsigned int i0, unsigned int i1,
     }
 }
 /*}}}*/
-void mpz_mat_addmulrow_mod(mpz_mat_ptr M, unsigned int i0, unsigned int i1,
-                           mpz_srcptr lambda, mpz_srcptr p) /*{{{*/
-{
-    ASSERT_ALWAYS(i0 < M->m);
-    ASSERT_ALWAYS(i1 < M->m);
-    for (unsigned int j = 0; j < M->n; j++) {
-        mpz_addmul(mpz_mat_entry(M, i0, j), lambda, mpz_mat_entry(M, i1, j));
-        mpz_mod(mpz_mat_entry(M, i0, j), mpz_mat_entry(M, i0, j), p);
-    }
-}
-/*}}}*/
 /* add lambda times row i1 to row i0 */
 void mpq_mat_addmulrow(mpq_mat_ptr M, unsigned int i0, unsigned int i1,
                        mpq_srcptr lambda) /*{{{*/
@@ -681,7 +674,7 @@ void mpz_mat_submulrow(mpz_mat_ptr M, unsigned int i0, unsigned int i1,
     }
 }
 /*}}}*/
-void mpz_mat_submulrow_mod(mpz_mat_ptr M, unsigned int i0, unsigned int i1,
+static void mpz_mat_submulrow_mod(mpz_mat_ptr M, unsigned int i0, unsigned int i1,
                            mpz_srcptr lambda, mpz_srcptr p) /*{{{*/
 {
     ASSERT_ALWAYS(i0 < M->m);
@@ -784,42 +777,6 @@ void mpq_mat_mulrow(mpq_mat_ptr M, unsigned int i0, mpq_srcptr lambda) /*{{{*/
 /*}}}*/
 
 /* }}} */
-/*{{{ I/O*/
-void mpz_mat_fprint(FILE * stream, mpz_mat_srcptr M)
-{
-    for (unsigned int i = 0; i < M->m; i++) {
-        for (unsigned int j = 0; j < M->n; j++) {
-            gmp_fprintf(stream, " %Zd", mpz_mat_entry_const(M, i, j));
-        }
-        fprintf(stream, "\n");
-    }
-}
-
-void mpq_mat_fprint(FILE * stream, mpq_mat_srcptr M)
-{
-    for (unsigned int i = 0; i < M->m; i++) {
-        for (unsigned int j = 0; j < M->n; j++) {
-            gmp_fprintf(stream, " %Qd", mpq_mat_entry_const(M, i, j));
-        }
-        fprintf(stream, "\n");
-    }
-}
-
-void mpq_mat_fprint_as_mpz(FILE * f, mpq_mat_srcptr M)
-{
-    cxx_mpz denom;
-    mpz_mat N;
-
-    mpz_mat_init(N, 0, 0);
-
-    mpq_mat_numden(N, denom, M);
-
-    mpz_mat_fprint(f, N);
-    gmp_fprintf(f, "Denominator is : %Zd\n", (mpz_srcptr)denom);
-
-    mpz_mat_clear(N);
-}
-/*}}}*/
 /*{{{ comparison */
 int mpz_mat_cmp(mpz_mat_srcptr M, mpz_mat_srcptr N) /*{{{*/
 {
@@ -1218,6 +1175,7 @@ void mpz_mat_pow_ui(mpz_mat_ptr B, mpz_mat_srcptr A, unsigned long n) /*{{{*/
 {
     ASSERT_ALWAYS(A->n == A->m);
     if (n == 0) {
+        mpz_mat_realloc(B, A->m, A->n);
         mpz_mat_set_ui(B, 1);
         return;
     }
@@ -1251,6 +1209,7 @@ void mpz_mat_pow_ui_mod_ui(mpz_mat_ptr B, mpz_mat_srcptr A, unsigned long n,
 {
     ASSERT_ALWAYS(A->n == A->m);
     if (n == 0) {
+        mpz_mat_realloc(B, A->m, A->n);
         mpz_mat_set_ui(B, 1);
         return;
     }
@@ -1284,6 +1243,7 @@ void mpz_mat_pow_ui_mod_mpz(mpz_mat_ptr B, mpz_mat_srcptr A, unsigned long n,
 {
     ASSERT_ALWAYS(A->n == A->m);
     if (n == 0) {
+        mpz_mat_realloc(B, A->m, A->n);
         mpz_mat_set_ui(B, 1);
         return;
     }
@@ -1792,34 +1752,107 @@ void mpz_mat_LLL(mpz_ptr det, mpz_mat_ptr M, mpz_mat_ptr U, mpz_srcptr a,
     LLL_clear(&M_tmp);
 }
 
-using namespace std;
 
-ostream & operator<<(ostream & os, cxx_mpz_mat const & M) /*{{{*/
+
+namespace fmt {
+
+template<typename matrix_type, fmt_helper_sagemath_types custom_format>
+inline constexpr const char * cado_matrix_ring_name = "";
+
+template<> inline constexpr const char * cado_matrix_ring_name<cxx_mpz_mat, fmt_helper_sagemath_types::SAGEMATH> = "ZZ";
+template<> inline constexpr const char * cado_matrix_ring_name<cxx_mpq_mat, fmt_helper_sagemath_types::SAGEMATH> = "QQ";
+template<> inline constexpr const char * cado_matrix_ring_name<cxx_mpz_mat, fmt_helper_sagemath_types::MAGMA> = "Integers()";
+template<> inline constexpr const char * cado_matrix_ring_name<cxx_mpq_mat, fmt_helper_sagemath_types::MAGMA> = "Rationals()";
+
+
+template<typename matrix_type>
+static auto format_cado_matrix(matrix_type const & M,
+        fmt_helper_sagemath_types custom_format,
+        format_context& ctx) -> format_context::iterator
 {
-    for (unsigned int i = 0; i < M->m; i++) {
-        for (unsigned int j = 0; j < M->n; j++) {
-            if (j)
-                os << " ";
-            os << mpz_mat_entry_const(M, i, j);
-        }
-        if (i < M->m - 1)
-            os << "\n";
+    /* using enum is one of the few bits of c++20 that aren't supported
+     * by g++-10, and we do have a few of these around.
+     */
+    using fmt_helper_sagemath_types::SAGEMATH;
+    using fmt_helper_sagemath_types::TEXT;
+    using fmt_helper_sagemath_types::MACHINE;
+    using fmt_helper_sagemath_types::MAGMA;
+
+    if (custom_format == SAGEMATH) {
+        format_to(ctx.out(), "matrix({}, {}, {}, [\n",
+                cado_matrix_ring_name<matrix_type, SAGEMATH>,
+                M->m, M->n);
+    } else if (custom_format == MAGMA) {
+        format_to(ctx.out(), "Matrix({}, {}, {}, [\n",
+                cado_matrix_ring_name<matrix_type, MAGMA>,
+                M->m, M->n);
+    } else if (custom_format == TEXT) {
+        format_to(ctx.out(), "[");
     }
+    for(unsigned int i = 0 ; i < M->m ; i++) {
+        for(unsigned int j = 0 ; j < M->n ; j++) {
+            std::string after;
+            if (custom_format != MACHINE)
+                if (j < M->n - 1 || i < M->m - 1)
+                    after = ",";
+            if (custom_format == SAGEMATH || custom_format == MAGMA) {
+                if (j < M->n - 1)
+                    after +=  " ";
+                else if (i < M->m - 1)
+                    after += "\n";
+            } else if (custom_format == TEXT || custom_format == MACHINE) {
+                if (j < M->n - 1 || i < M->m - 1)
+                    after +=  " ";
+            }
+            typename matrix_type::cxx_coeff_type Mij = M(i, j);
+            format_to(ctx.out(), "{}", Mij);
+            format_to(ctx.out(), "{}", after);
+        }
+    }
+    if (custom_format == SAGEMATH || custom_format == MAGMA) {
+        format_to(ctx.out(), "])");
+    } else if (custom_format == TEXT) {
+        format_to(ctx.out(), "]");
+    }
+    return ctx.out();
+}
+
+auto formatter<cxx_mpz_mat>::format(cxx_mpz_mat const & M, format_context& ctx) const -> format_context::iterator
+{
+    return format_cado_matrix(M, custom_format, ctx);
+}
+auto formatter<cxx_mpq_mat>::format(cxx_mpq_mat const & M, format_context& ctx) const -> format_context::iterator
+{
+    return format_cado_matrix(M, custom_format, ctx);
+}
+
+} /* namespace fmt */
+
+std::ostream & operator<<(std::ostream & os, cxx_mpz_mat const & M) /*{{{*/
+{
+    fmt::print(os, "{:S}", M);
     return os;
 }
 /*}}}*/
-ostream & operator<<(ostream & os, cxx_mpq_mat const & M) /*{{{*/
+std::ostream & operator<<(std::ostream & os, cxx_mpq_mat const & M) /*{{{*/
 {
-    for (unsigned int i = 0; i < M->m; i++) {
-        for (unsigned int j = 0; j < M->n; j++) {
-            if (j)
-                os << " ";
-            os << mpq_mat_entry_const(M, i, j);
-        }
-        if (i < M->m - 1)
-            os << "\n";
-    }
+    fmt::print(os, "{:S}", M);
     return os;
 }
 /*}}}*/
 
+/*{{{ I/O*/
+void mpz_mat_fprint(FILE * stream, mpz_mat_srcptr M)
+{
+    cxx_mpz_mat tM;
+    mpz_mat_set(tM, M);
+    fmt::print(stream, "{:S}\n", tM);
+}
+
+void mpq_mat_fprint(FILE * stream, mpq_mat_srcptr M)
+{
+    cxx_mpq_mat tM;
+    mpq_mat_set(tM, M);
+    fmt::print(stream, "{:S}\n", tM);
+}
+/*}}}*/

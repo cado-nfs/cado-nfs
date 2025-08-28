@@ -111,7 +111,7 @@ class number_field_fractional_ideal {
 };
 
 namespace fmt {
-    template <> struct formatter<number_field_fractional_ideal> : formatter<string_view>{
+    template <> struct formatter<number_field_fractional_ideal> : formatter<string_view> {
         auto format(number_field_fractional_ideal const & e, format_context& ctx) const -> format_context::iterator;
     };
 }

@@ -14,7 +14,7 @@
 #include "mpz_mat.h"
 #include "mpz_poly.h"
 
-#include "numbertheory/fmt_helpers.hpp"
+#include "fmt_helper_sagemath.hpp"
 #include "numbertheory/number_field.hpp"
 #include "numbertheory/number_field_element.hpp"
 #include "numbertheory/number_field_order.hpp"
@@ -254,7 +254,7 @@ std::pair<unsigned int, unsigned int> number_field::signature() const
         int const r1 = mpz_poly_number_of_real_roots(defining_polynomial());
         ASSERT_ALWAYS((degree() - r1) % 2 == 0);
         int const r2 = (degree() - r1) / 2;
-        cached_signature.reset(new std::pair<unsigned int, unsigned int>(r1, r2));
+        cached_signature = std::make_unique<std::pair<unsigned int, unsigned int>>(r1, r2);
     }
     return *cached_signature;
 }

@@ -194,6 +194,54 @@ struct cxx_mpq{
         mpq_swap(x, o.x);
         return *this;
     }
+    template<typename T, typename U>
+    static constexpr bool converts_via =
+        integral_fits_v<T, U> &&
+        cado_math_aux::is_non_narrowing_conversion_v<T, U>;
+
+    template <typename T>
+        // NOLINTNEXTLINE(hicpp-explicit-conversions)
+        cxx_mpq (const T & rhs)
+        requires converts_via<T, int64_t>
+        {
+            mpq_init(x);
+            gmp_auxx::mpz_init_set(mpq_numref(x), int64_t(rhs));
+            mpz_set_ui(mpq_denref(x), 1);
+            mpq_canonicalize(x);
+        }
+    template <typename T>
+        cxx_mpq & operator=(const T a)
+        requires converts_via<T, int64_t>
+        {
+            gmp_auxx::mpz_set(mpq_numref(x), int64_t(a));
+            mpz_set_ui(mpq_denref(x), 1);
+            mpq_canonicalize(x);
+            return *this;
+        }
+    template <typename T>
+        // NOLINTNEXTLINE(hicpp-explicit-conversions)
+        cxx_mpq (const T & rhs)
+        requires converts_via<T, uint64_t>
+        {
+            mpq_init(x);
+            gmp_auxx::mpz_set(mpq_numref(x), uint64_t(rhs));
+            mpz_set_ui(mpq_denref(x), 1);
+            mpq_canonicalize(x);
+        }
+    template <typename T>
+        cxx_mpq & operator=(const T a)
+        requires converts_via<T, uint64_t>
+        {
+            gmp_auxx::mpz_set(mpq_numref(x), uint64_t(a));
+            mpz_set_ui(mpq_denref(x), 1);
+            mpq_canonicalize(x);
+            return *this;
+        }
+    // NOLINTNEXTLINE(hicpp-explicit-conversions)
+    cxx_mpq(mpq_srcptr a) {
+        mpq_init(x);
+        mpq_set(x, a);
+    }
     operator mpq_ptr() { return x; }
     operator mpq_srcptr() const { return x; }
     mpq_ptr operator->() { return x; }

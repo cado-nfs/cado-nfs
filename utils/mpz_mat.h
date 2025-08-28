@@ -11,6 +11,10 @@
 #include "mpz_poly.h"
 
 #ifdef __cplusplus
+#include "fmt_helper_sagemath.hpp"
+#endif
+
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -123,12 +127,10 @@ void mpz_mat_swaprows(mpz_mat_ptr M, unsigned int i0, unsigned int i1);
 void mpq_mat_swaprows(mpq_mat_ptr M, unsigned int i0, unsigned int i1);
 /* add lambda times row i1 to row i0 */
 void mpz_mat_addmulrow(mpz_mat_ptr M, unsigned int i0, unsigned int i1, mpz_srcptr lambda);
-void mpz_mat_addmulrow_mod(mpz_mat_ptr M, unsigned int i0, unsigned int i1, mpz_srcptr lambda, mpz_srcptr p);
 /* add lambda times row i1 to row i0 */
 void mpq_mat_addmulrow(mpq_mat_ptr M, unsigned int i0, unsigned int i1, mpq_srcptr lambda);
 /* subtract lambda times row i1 to row i0 */
 void mpz_mat_submulrow(mpz_mat_ptr M, unsigned int i0, unsigned int i1, mpz_srcptr lambda);
-void mpz_mat_submulrow_mod(mpz_mat_ptr M, unsigned int i0, unsigned int i1, mpz_srcptr lambda, mpz_srcptr p);
 /* subtract lambda times row i1 to row i0 */
 void mpq_mat_submulrow(mpq_mat_ptr M, unsigned int i0, unsigned int i1, mpq_srcptr lambda);
 /* add row i1 to row i0 */
@@ -141,7 +143,6 @@ void mpz_mat_subrow(mpz_mat_ptr M, unsigned int i0, unsigned int i1);
 void mpq_mat_subrow(mpq_mat_ptr M, unsigned int i0, unsigned int i1);
 /* multiply row i0 by lambda */
 void mpz_mat_mulrow(mpz_mat_ptr M, unsigned int i0, mpz_srcptr lambda);
-void mpz_mat_mulrow_mod(mpz_mat_ptr M, unsigned int i0, mpz_srcptr lambda, mpz_srcptr p);
 /* multiply row i0 by lambda */
 void mpq_mat_mulrow(mpq_mat_ptr M, unsigned int i0, mpq_srcptr lambda);
 
@@ -221,7 +222,6 @@ void mpq_mat_inv(mpq_mat_ptr dst, mpq_mat_srcptr src);
 int mpz_mat_cmp(mpz_mat_srcptr M, mpz_mat_srcptr N);
 int mpz_mat_is_zero(mpz_mat_srcptr M);
 int mpq_mat_cmp(mpq_mat_srcptr M, mpq_mat_srcptr N);
-void mpq_mat_fprint_as_mpz(FILE* f, mpq_mat_srcptr M);
 void mpz_mat_fprint(FILE * stream, mpz_mat_srcptr M);
 void mpq_mat_fprint(FILE * stream, mpq_mat_srcptr M);
 
@@ -234,6 +234,7 @@ void mpz_mat_LLL(mpz_ptr det, mpz_mat_ptr M, mpz_mat_ptr U, mpz_srcptr a,
 #ifdef __cplusplus
 
 struct cxx_mpz_mat {
+    using cxx_coeff_type = cxx_mpz;
     mpz_mat x;
     cxx_mpz_mat() { mpz_mat_init(x, 0, 0); }
     cxx_mpz_mat(unsigned int m, unsigned int n) { mpz_mat_init(x, m, n); }
@@ -283,6 +284,7 @@ extern void mpz_mat_init(cxx_mpz_mat & pl, unsigned int, unsigned int) __attribu
 extern void mpz_mat_clear(cxx_mpz_mat & pl) __attribute__((error("mpz_mat_clear must not be called on a mpz_mat reference -- it is the caller's business (via a dtor)")));
 #endif
 struct cxx_mpq_mat {
+    using cxx_coeff_type = cxx_mpq;
     mpq_mat x;
     cxx_mpq_mat() { mpq_mat_init(x, 0, 0); }
     cxx_mpq_mat(unsigned int m, unsigned int n) { mpq_mat_init(x, m, n); }
@@ -340,6 +342,21 @@ extern std::ostream& operator<<(std::ostream& os, cxx_mpq_mat const& M);
 extern void mpq_mat_init(cxx_mpq_mat & pl, unsigned int, unsigned int) __attribute__((error("mpq_mat_init must not be called on a mpq_mat reference -- it is the caller's business (via a ctor)")));
 extern void mpq_mat_clear(cxx_mpq_mat & pl) __attribute__((error("mpq_mat_clear must not be called on a mpq_mat reference -- it is the caller's business (via a dtor)")));
 #endif
+
+namespace fmt {
+    template <>
+    struct formatter<cxx_mpz_mat> : fmt_helper_sagemath<cxx_mpz_mat>
+    {
+        static constexpr const decltype(custom_format) custom_format_default = SAGEMATH;
+        auto format(cxx_mpz_mat const & e, format_context& ctx) const -> format_context::iterator;
+    };
+    template<>
+    struct formatter<cxx_mpq_mat> : fmt_helper_sagemath<cxx_mpq_mat>
+    {
+        static constexpr const decltype(custom_format) custom_format_default = SAGEMATH;
+        auto format(cxx_mpq_mat const & e, format_context& ctx) const -> format_context::iterator;
+    };
+} /* namespace fmt */
 #endif
 
 #endif	/* CADO_MPZ_MAT_H */
