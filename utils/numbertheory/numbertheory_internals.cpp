@@ -438,7 +438,7 @@ static std::vector<std::pair<cxx_mpz_mat, int> > factorization_of_prime_inner(
         cxx_mpz_poly const& f(facP[i].first);
         /* We need the basis of the kernel of f(Mc) */
         cxx_mpz_mat E;
-        mpz_poly_eval_mpz_mat_mod_mpz(E, Mc, f, p);
+        mpz_poly_eval_mpz_mat_mod_mpz(E, f, Mc, p);
         mpz_mat_pow_ui_mod_mpz(E, E, facP[i].second, p);
         mpz_mat_kernel_mod_mpz(E, E, p);
         /* This line is just to be exactly in line with what magma says

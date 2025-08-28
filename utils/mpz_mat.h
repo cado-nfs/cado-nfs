@@ -175,9 +175,9 @@ void mpz_mat_add(mpz_mat_ptr D, mpz_mat_srcptr A, mpz_mat_srcptr B);
 void mpq_mat_add(mpq_mat_ptr D, mpq_mat_srcptr A, mpq_mat_srcptr B);
 void mpz_mat_sub(mpz_mat_ptr D, mpz_mat_srcptr A, mpz_mat_srcptr B);
 void mpq_mat_sub(mpq_mat_ptr D, mpq_mat_srcptr A, mpq_mat_srcptr B);
-void mpz_poly_eval_mpz_mat(mpz_mat_ptr D, mpz_mat_srcptr M, mpz_poly_srcptr f);
-void mpz_poly_eval_mpz_mat_mod_ui(mpz_mat_ptr D, mpz_mat_srcptr M, mpz_poly_srcptr f, unsigned long p);
-void mpz_poly_eval_mpz_mat_mod_mpz(mpz_mat_ptr D, mpz_mat_srcptr M, mpz_poly_srcptr f, mpz_srcptr p);
+void mpz_poly_eval_mpz_mat(mpz_mat_ptr D, mpz_poly_srcptr f, mpz_mat_srcptr M);
+void mpz_poly_eval_mpz_mat_mod_ui(mpz_mat_ptr D, mpz_poly_srcptr f, mpz_mat_srcptr M, unsigned long p);
+void mpz_poly_eval_mpz_mat_mod_mpz(mpz_mat_ptr D, mpz_poly_srcptr f, mpz_mat_srcptr M, mpz_srcptr p);
 
 /*  gaussian reduction over the rationals
  * this is a backend for row gaussian reduction. T receives the

@@ -1383,8 +1383,8 @@ void mpz_mat_pow_ui_mod_mpz(mpz_mat_ptr B, mpz_mat_srcptr A, unsigned long n,
 /*}}}*/
 /* {{{ polynomial evaluation */
 
-void mpz_poly_eval_mpz_mat(mpz_mat_ptr D, mpz_mat_srcptr M,
-                           mpz_poly_srcptr f) /*{{{*/
+void mpz_poly_eval_mpz_mat(mpz_mat_ptr D, mpz_poly_srcptr f,
+        mpz_mat_srcptr M) /*{{{*/
 {
     ASSERT_ALWAYS(M->m == M->n);
     unsigned int const n = M->n;
@@ -1397,7 +1397,7 @@ void mpz_poly_eval_mpz_mat(mpz_mat_ptr D, mpz_mat_srcptr M,
     if (D == M) {
         mpz_mat X;
         mpz_mat_init(X, 0, 0);
-        mpz_poly_eval_mpz_mat(X, M, f);
+        mpz_poly_eval_mpz_mat(X, f, M);
         mpz_mat_swap(D, X);
         mpz_mat_clear(X);
         return;
@@ -1410,8 +1410,8 @@ void mpz_poly_eval_mpz_mat(mpz_mat_ptr D, mpz_mat_srcptr M,
     }
 }
 /*}}}*/
-void mpz_poly_eval_mpz_mat_mod_ui(mpz_mat_ptr D, mpz_mat_srcptr M,
-                                  mpz_poly_srcptr f, unsigned long p) /*{{{*/
+void mpz_poly_eval_mpz_mat_mod_ui(mpz_mat_ptr D, mpz_poly_srcptr f,
+        mpz_mat_srcptr M, unsigned long p) /*{{{*/
 {
     ASSERT_ALWAYS(M->m == M->n);
     unsigned int const n = M->n;
@@ -1424,7 +1424,7 @@ void mpz_poly_eval_mpz_mat_mod_ui(mpz_mat_ptr D, mpz_mat_srcptr M,
     if (D == M) {
         mpz_mat X;
         mpz_mat_init(X, 0, 0);
-        mpz_poly_eval_mpz_mat_mod_ui(X, M, f, p);
+        mpz_poly_eval_mpz_mat_mod_ui(X, f, M, p);
         mpz_mat_swap(D, X);
         mpz_mat_clear(X);
         return;
@@ -1438,8 +1438,8 @@ void mpz_poly_eval_mpz_mat_mod_ui(mpz_mat_ptr D, mpz_mat_srcptr M,
     }
 }
 /*}}}*/
-void mpz_poly_eval_mpz_mat_mod_mpz(mpz_mat_ptr D, mpz_mat_srcptr M,
-                                   mpz_poly_srcptr f, mpz_srcptr p) /*{{{*/
+void mpz_poly_eval_mpz_mat_mod_mpz(mpz_mat_ptr D, mpz_poly_srcptr f,
+        mpz_mat_srcptr M, mpz_srcptr p) /*{{{*/
 {
     ASSERT_ALWAYS(M->m == M->n);
     unsigned int const n = M->n;
@@ -1452,7 +1452,7 @@ void mpz_poly_eval_mpz_mat_mod_mpz(mpz_mat_ptr D, mpz_mat_srcptr M,
     if (D == M) {
         mpz_mat X;
         mpz_mat_init(X, 0, 0);
-        mpz_poly_eval_mpz_mat_mod_mpz(X, M, f, p);
+        mpz_poly_eval_mpz_mat_mod_mpz(X, f, M, p);
         mpz_mat_swap(D, X);
         mpz_mat_clear(X);
         return;
