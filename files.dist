@@ -1769,6 +1769,7 @@ utils/params.h
 utils/polynomial.hpp
 utils/polyroots.c
 utils/polyroots.h
+utils/prime_power_factorization.hpp
 utils/purgedfile.c
 utils/purgedfile.h
 utils/random_distributions.cpp

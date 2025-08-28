@@ -142,14 +142,14 @@ cado_define_test(misc_cl_structure
 set(D20_POLY_1 "inline-poly://n=-13784472188539234591/skew=3712744562.0/poly0=13784472188539234591,0,1")
 cado_divert_test(misc_cl_structure d20_no_pSylow
     APPEND_ARGUMENTS
-    -poly "${D20_POLY_1}" -primes 2,617,2341309 -exps 1,1,1
+    -poly "${D20_POLY_1}" -order "2*617*2341309"
     EXPECT_SHA1 ad426daf55ed3ffdf96058602abb25c95c364476
 )
 
 set(D20_POLY_2 "inline-poly://n=-31415926535897932387/skew=5604991216.0/poly0=31415926535897932387,0,1")
 cado_divert_test(misc_cl_structure d20_2and3Sylow
     APPEND_ARGUMENTS
-    -poly "${D20_POLY_2}" -primes 2,3,7,13,53,541 -exps 2,4,1,1,1,1
+    -poly "${D20_POLY_2}" -order "2^2*3^4*7*13*53*541"
     EXPECT_SHA1 dd24813b875f503cf03f783f6ed8ac9d5aa6d902
 )
 
@@ -157,7 +157,7 @@ cado_divert_test(misc_cl_structure d20_2and3Sylow
 # The hash should be the same as above
 cado_divert_test(misc_cl_structure d20_unnecessary_factor
     APPEND_ARGUMENTS
-    -poly "${D20_POLY_2}" -primes 2,3,7,13,53,101,541 -exps 2,4,1,1,1,2,1
+    -poly "${D20_POLY_2}" -order "2^2,3^4,7,13,53,101^2,541"
     EXPECT_SHA1 dd24813b875f503cf03f783f6ed8ac9d5aa6d902
     EXPECT_FAIL
 )
@@ -165,7 +165,7 @@ cado_divert_test(misc_cl_structure d20_unnecessary_factor
 # Use -pSylow-bound 10 to disable the computation of the 3-Sylow (3^4 > 10)
 cado_divert_test(misc_cl_structure d20_should_fail
     APPEND_ARGUMENTS
-    -poly "${D20_POLY_2}" -primes 2,3,7,13,53,541 -exps 2,4,1,1,1,1 -pSylow-bound 10
+    -poly "${D20_POLY_2}" -order "2,2,3,3,3,3,7,13,53,541" -pSylow-bound 10
     EXPECT_FAIL
 )
 
@@ -173,7 +173,7 @@ cado_divert_test(misc_cl_structure d20_should_fail
 set(D20_POLY_3 "inline-poly://n=-24341965603669336362/skew=4933757756.0/poly0=24341965603669336362,0,1")
 cado_divert_test(misc_cl_structure p_div_conductor
     APPEND_ARGUMENTS
-    -poly "${D20_POLY_3}" -primes 2,3,113,599 -exps 10,4,1,1
+    -poly "${D20_POLY_3}" -order "2^10,3^4,113,599"
     EXPECT_SHA1 b4f3f5f52b5d382ec2a1799d07ff4cb8c2528276
 )
 
@@ -181,7 +181,7 @@ cado_divert_test(misc_cl_structure p_div_conductor
 # still correct as it is enough to generate the complete class group)
 cado_divert_test(misc_cl_structure d130_2Sylow
     APPEND_ARGUMENTS
-    -poly ${CMAKE_CURRENT_SOURCE_DIR}/d130.poly -primes 2,3,5,26984470254026794913,37322833896097955713,5947362367424588311471 -exps 9,1,1,1,1,1 -B 100
+    -poly ${CMAKE_CURRENT_SOURCE_DIR}/d130.poly -order 2^9,3,5,26984470254026794913,37322833896097955713,5947362367424588311471 -B 100
     EXPECT_SHA1 bf6bbfdda8e54627fe491d7f7c418d856dcdb19c
 )
 
@@ -189,21 +189,21 @@ cado_divert_test(misc_cl_structure error1 EXPECT_FAIL ARGUMENTS)
 cado_divert_test(misc_cl_structure error2 EXPECT_FAIL ARGUMENTS squabble=42)
 # fails because discriminant is positive
 cado_divert_test(misc_cl_structure error3 EXPECT_FAIL APPEND_ARGUMENTS
-    -poly "inline-poly://n=3/poly0=-3,0,1" -primes 2 -exps 1
+    -poly "inline-poly://n=3/poly0=-3,0,1" -order 2
 )
 # fails due to missing args
 cado_divert_test(misc_cl_structure error4 EXPECT_FAIL APPEND_ARGUMENTS
     -poly "${D20_POLY_2}"
 )
-# fails because -primes and -exps should have the same length
+# fails because values in -exps should be positive
 cado_divert_test(misc_cl_structure error5 EXPECT_FAIL APPEND_ARGUMENTS
-    -poly "${D20_POLY_2}" -primes 2,3 -exps 2
+    -poly "${D20_POLY_2}" -order 2,3,3^-1
 )
 # fails because values in -exps should be positive
 cado_divert_test(misc_cl_structure error6 EXPECT_FAIL APPEND_ARGUMENTS
-    -poly "${D20_POLY_2}" -primes 2,3 -exps 2,0
+    -poly "${D20_POLY_2}" -order 2^2,3^0
 )
 # fails because factors are missing from the given group order
 cado_divert_test(misc_cl_structure error7 EXPECT_FAIL APPEND_ARGUMENTS
-    -poly "${D20_POLY_2}" -primes 2,3 -exps 2,4
+    -poly "${D20_POLY_2}" -order 2^2,3^4
 )

@@ -7,16 +7,21 @@
 #include <tuple>
 #include <unordered_set>
 #include <vector>
+#include <stdexcept>
 
-#include "fmt/ranges.h"
+#include <gmp.h>
+
+#include "fmt/ranges.h" // used to print std::vector<> // IWYU pragma: keep
 
 #include "getprime.h"
 #include "imaginary_quadratic_class_groups.hpp"
 #include "params.h"     // param_list
 #include "roots_mod.h"
-#include "stats.h"
-#include "typedefs.h"   // index_t
+#include "cado_poly.h"
 #include "verbose.h"
+#include "prime_power_factorization.hpp"
+#include "cxx_mpz.hpp"
+#include "mpz_poly.h"
 
 #include <functional>
 
@@ -26,18 +31,18 @@
  * file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
  */
 template <class T>
-inline void hash_combine(std::size_t & seed, const T & v)
+static inline void hash_combine(std::size_t & seed, const T & v)
 {
-  std::hash<T> hasher;
+  const std::hash<T> hasher;
   seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 }
 
 template<>
 struct std::hash<cxx_mpz>
 {
-    inline size_t operator()(cxx_mpz const & v) const
+    size_t operator()(cxx_mpz const & v) const
     {
-        size_t n = mpz_size(v);
+        const size_t n = mpz_size(v);
         size_t seed = n;
         hash_combine(seed, mpz_sgn(v));
         for (size_t i = 0; i < n; ++i) {
@@ -50,9 +55,9 @@ struct std::hash<cxx_mpz>
 template<>
 struct std::hash<imaginary_quadratic_form>
 {
-    inline size_t operator()(imaginary_quadratic_form const & f) const
+    size_t operator()(imaginary_quadratic_form const & f) const
     {
-        std::hash<cxx_mpz> hasher;
+        const std::hash<cxx_mpz> hasher;
         size_t seed = hasher(f.a);
         hash_combine(seed, f.b);
         hash_combine(seed, f.c);
@@ -60,6 +65,10 @@ struct std::hash<imaginary_quadratic_form>
     }
 };
 
+/* it's almost an interface that we'd like to port to
+ * cado::prime_power_factorization, but the tricks about zero-exponents
+ * are specific to this code here.
+ */
 class cxx_mpz_factored
 {
     public:
@@ -68,7 +77,7 @@ class cxx_mpz_factored
 
     private:
 
-    std::vector<cxx_mpz> const & P;
+    std::vector<cxx_mpz> P;
     cxx_mpz v;
     valuations vals;
 
@@ -78,18 +87,33 @@ class cxx_mpz_factored
                      valuations const & vals)
         : P(primes), v(1U), vals(vals)
     {
-        ASSERT_ALWAYS(P.size() == vals.size());
         for (size_t i = 0; i < P.size(); ++i) {
-            for (size_t j = 0; j < vals[i]; ++j) {
-                mpz_mul(v, v, P[i]);
-            }
+            auto e = vals[i];
+            cxx_mpz pe;
+            mpz_pow_ui(pe, primes[i], e);
+            mpz_mul(v, v, pe);
         }
     }
 
+
+    explicit cxx_mpz_factored(cado::prime_power_factorization const & F)
+        : v(1U)
+    {
+        for(auto const & [ p, e ] : F) {
+            cxx_mpz pe;
+            P.emplace_back(p);
+            vals.emplace_back(e);
+            mpz_pow_ui(pe, p, e);
+            mpz_mul(v, v, pe);
+        }
+    }
+
+    /* This one looks very special */
     explicit cxx_mpz_factored(std::vector<cxx_mpz> const & primes)
-        : cxx_mpz_factored(primes, valuations(primes.size(), 0U))
+        : P(primes), v(1), vals(primes.size(), 0)
     {
     }
+
 
     bool operator==(cxx_mpz_factored const & o) const
     {
@@ -278,7 +302,7 @@ class imaginary_quadratic_cl_structure
         std::vector<std::pair<unsigned int, imaginary_quadratic_form>> groups;
 
         /* Assumes the p part of the group order fits in a unsigned int. */
-        void compute_groups(std::unordered_set<imaginary_quadratic_form> G,
+        void compute_groups(std::unordered_set<imaginary_quadratic_form> const & G,
                             unsigned int exponent_pval,
                             imaginary_quadratic_form const & ge)
         {
@@ -378,11 +402,11 @@ class imaginary_quadratic_cl_structure
     public:
 
     imaginary_quadratic_cl_structure(cxx_cado_poly const & cpoly,
-                                     cxx_mpz_factored const & group_order,
+                                     cxx_mpz_factored group_order,
                                      unsigned int seed,
                                      uint64_t generators_bound = 0U)
         : cl(disc_from_poly(cpoly->pols[0]))
-        , group_order(group_order)
+        , group_order(std::move(group_order))
         , Dmod8(mpz_fdiv_ui(cl.discriminant(), 8))
         , Dmod2(Dmod8 % 2)
         , B(generators_bound)
@@ -605,8 +629,8 @@ usage (cxx_param_list & pl, const char *argv0)
 struct command_line
 {
     std::string polyfilename;
-    std::vector<cxx_mpz> primes;
-    std::vector<unsigned int> exps;
+    cado::prime_power_factorization factored_order;
+
     uint64_t bound = 0;
     unsigned int seed;
     unsigned int pSylow_bound = 40000U; /* allow naive pSylow computations up
@@ -621,8 +645,7 @@ struct command_line
                                     "computing the order of all elements "
                                     "corresponding to columns of the matrix\n");
         param_list_decl_usage(pl, "poly", "input polynomial file");
-        param_list_decl_usage(pl, "primes", "prime factors of the group order");
-        param_list_decl_usage(pl, "exps", "exponents corresponding to -primes");
+        param_list_decl_usage(pl, "order", "factorization of the group order");
         param_list_decl_usage(pl, "B", "bound to build the generating set "
                                        "(default is 6*log(|D|)^2)");
         param_list_decl_usage(pl, "seed", "seed for random generator");
@@ -642,8 +665,7 @@ struct command_line
     void lookup_parameters(cxx_param_list & pl)
     {
         param_list_parse(pl, "poly", polyfilename);
-        param_list_parse(pl, "primes", primes);
-        param_list_parse(pl, "exps", exps);
+        param_list_parse(pl, "order", factored_order);
         param_list_parse(pl, "pSylow-bound", pSylow_bound);
         param_list_parse(pl, "B", bound);
         if (!param_list_parse(pl, "seed", seed)) {
@@ -657,18 +679,15 @@ struct command_line
             fmt::print(stderr, "Error, missing -poly\n");
             usage(pl, argv0);
         }
-        if (primes.empty()) {
-            fmt::print(stderr, "Error, -primes should not be empty\n");
+        if (factored_order.empty()) {
+            fmt::print(stderr, "Error, -primes must not be empty\n");
             usage(pl, argv0);
         }
-        if (primes.size() != exps.size()) {
-            fmt::print(stderr, "Error, -primes and -exps should be lists "
-                               "of the same length\n");
-            usage(pl, argv0);
-        }
-        if (std::count(exps.begin(), exps.end(), 0U) > 0) {
-            fmt::print(stderr, "Error, -exps should not contain 0\n");
-            usage(pl, argv0);
+        for(auto const & [ p, e ] : factored_order) {
+            if (e <= 0) {
+                fmt::print(stderr, "Error, exponents in the factored order must be positive\n");
+                usage(pl, argv0);
+            }
         }
     }
 };
@@ -726,7 +745,7 @@ int main(int argc, char const * argv[])
     const std::string prefix("structure: ");
 
     /* Set the group order from the parameters */
-    cxx_mpz_factored group_order(cmdline.primes, cmdline.exps);
+    cxx_mpz_factored group_order(cmdline.factored_order);
 
     /* Set the class group */
     imaginary_quadratic_cl_structure cl(cpoly, group_order, cmdline.seed,
