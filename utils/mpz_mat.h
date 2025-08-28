@@ -93,10 +93,14 @@ void mpq_mat_horizontal_join(mpq_mat_ptr N, mpq_mat_srcptr M1, mpq_mat_srcptr M2
 void mpz_mat_trace(mpz_ptr t, mpz_mat_srcptr M);
 // We assume that M is triangular (and square)
 void mpz_mat_determinant_triangular(mpz_ptr d, mpz_mat_srcptr M);
+/* this one does the HNF first */
+void mpz_mat_determinant(mpz_ptr d, mpz_mat_srcptr M);
 // We assume that M is square
 void mpq_mat_trace(mpq_ptr t, mpq_mat_srcptr M);
 // We assume that M is triangular (and square)
 void mpq_mat_determinant_triangular(mpq_ptr d, mpq_mat_srcptr M);
+/* uses HNF first */
+void mpq_mat_determinant(mpq_ptr d, mpq_mat_srcptr M);
 void mpz_mat_transpose(mpz_mat_ptr D, mpz_mat_srcptr M);
 void mpq_mat_transpose(mpq_mat_ptr D, mpq_mat_srcptr M);
 void mpz_mat_reverse_rows(mpz_mat_ptr B, mpz_mat_srcptr A);

@@ -337,6 +337,15 @@ void mpz_mat_determinant_triangular(mpz_ptr d, mpz_mat_srcptr M) /*{{{*/
         mpz_mul(d, d, mpz_mat_entry_const(M, i, i));
 }
 /*}}}*/
+void mpz_mat_determinant(mpz_ptr d, mpz_mat_srcptr A)
+{
+    cxx_mpz_mat H;
+    mpz_mat_set(H, A);
+    int s = mpz_mat_hermite_form(H);
+    mpz_mat_determinant_triangular(d, H);
+    mpz_mul_si(d, d, s);
+}
+
 void mpz_mat_transpose(mpz_mat_ptr D, mpz_mat_srcptr M) /*{{{*/
 {
     if (D != M) {
@@ -410,6 +419,17 @@ void mpq_mat_determinant_triangular(mpq_ptr d, mpq_mat_srcptr M) /*{{{*/
     mpq_set_ui(d, 1, 1);
     for (unsigned int i = 0; i < M->n; i++)
         mpq_mul(d, d, mpq_mat_entry_const(M, i, i));
+}
+/*}}}*/
+void mpq_mat_determinant(mpq_ptr d, mpq_mat_srcptr M) /*{{{*/
+{
+    ASSERT_ALWAYS(M->m == M->n);
+    cxx_mpz_mat num;
+    cxx_mpz den;
+    mpq_mat_numden(num, den, M);
+    mpz_mat_determinant(mpq_numref(d), num);
+    mpz_pow_ui(mpq_denref(d), den, M->n);
+    mpq_canonicalize(d);
 }
 /*}}}*/
 void mpq_mat_transpose(mpq_mat_ptr D, mpq_mat_srcptr M) /*{{{*/
