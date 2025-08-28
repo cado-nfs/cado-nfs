@@ -17,6 +17,7 @@
 #include "macros.h"
 #ifdef __cplusplus
 #include "cxx_mpz.hpp"
+#include "prime_power_factorization.hpp"
 #endif
 #include "mpz_poly.h" // TODO: modify this.
 
@@ -136,6 +137,7 @@ extern template int param_list_parse<std::vector<unsigned int>>(param_list_ptr p
 extern template int param_list_parse<std::vector<std::string>>(param_list_ptr pl, std::string const & key, std::vector<std::string> & r);
 extern template int param_list_parse<cxx_mpz>(param_list_ptr pl, std::string const & key, cxx_mpz & r);
 extern template int param_list_parse<cxx_mpz_poly>(param_list_ptr pl, std::string const & key, cxx_mpz_poly & r);
+extern template int param_list_parse<cado::prime_power_factorization>(param_list_ptr pl, std::string const & key, cado::prime_power_factorization & r);
 #endif
 
 

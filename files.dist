@@ -658,6 +658,7 @@ local.sh.example
 macros.h
 misc/CMakeLists.txt
 misc/check_rels.c
+misc/cl_structure_from_group_order.cpp
 misc/debug_renumber.cpp
 misc/descent_init_Fp.cpp
 misc/explain_indexed_relation.cpp
@@ -1267,6 +1268,7 @@ tests/misc/c59_nonlinear.poly
 tests/misc/c60.poly
 tests/misc/c60.rels1
 tests/misc/c60.rels2
+tests/misc/d130.poly
 tests/misc/p30.poly
 tests/misc/test_renumber.data/c105_30003.poly
 tests/misc/test_renumber.data/mnfs5.poly
@@ -1522,6 +1524,7 @@ tests/utils/test_gcd.c
 tests/utils/test_getprime.c
 tests/utils/test_gmp_aux.c
 tests/utils/test_gpf.c
+tests/utils/test_imaginary_quadratic_class_groups.cpp
 tests/utils/test_integer_partitions.cpp
 tests/utils/test_intinv.c
 tests/utils/test_json_parsing.cpp
@@ -1697,6 +1700,8 @@ utils/gzip.h
 utils/hook_cado_nfs_gdb.py.in
 utils/hwloc-aux.c
 utils/hwloc-aux.h
+utils/imaginary_quadratic_class_groups.cpp
+utils/imaginary_quadratic_class_groups.hpp
 utils/indexed_relation.cpp
 utils/indexed_relation.hpp
 utils/integer_partitions.hpp
@@ -1764,6 +1769,7 @@ utils/params.h
 utils/polynomial.hpp
 utils/polyroots.c
 utils/polyroots.h
+utils/prime_power_factorization.hpp
 utils/purgedfile.c
 utils/purgedfile.h
 utils/random_distributions.cpp

@@ -30,6 +30,7 @@
 #include "version_info.h"
 #include "verbose.h"
 #include "portability.h" // strdup // IWYU pragma: keep
+#include "prime_power_factorization.hpp" // strdup // IWYU pragma: keep
 
 typedef int (*sortfunc_t) (const void *, const void *);
 
@@ -529,7 +530,6 @@ struct parse<std::vector<T>> {
         }
 };
 
-
 template<> struct parse<cxx_mpz_poly> {
     bool operator()(std::string const & s, cxx_mpz_poly & value) const
     {
@@ -570,6 +570,37 @@ template<> struct parse<cxx_mpz> {
 
             throw parameter_exception("incorrect conversion to mpz");
         }
+        return true;
+    }
+};
+
+template<> struct parse<cado::prime_power> {
+    bool operator()(std::string const & s, cado::prime_power & value) const {
+        std::string pstr;
+        const size_t pos = s.find('^');
+        if (pos == std::string::npos) {
+            pstr = s;
+            value.second = 1;
+        } else {
+            pstr = s.substr(0, pos);
+            if (!parse<int>()(s.substr(pos + 1), value.second))
+                return false;
+        }
+        if (!parse<cxx_mpz>()(pstr, value.first))
+            return false;
+        return true;
+    }
+};
+
+template<> struct parse<cado::prime_power_factorization> {
+    bool operator()(std::string const & s, cado::prime_power_factorization & value) const {
+        std::vector<cado::prime_power> tmp;
+        /* also tolerate commas, they're easier to the shell */
+        if (!parse_list<cado::prime_power>(s, tmp, "*") && !parse_list<cado::prime_power>(s, tmp, ","))
+            return false;
+        value.clear();
+        for(auto const & [ p, e ] : tmp)
+            value[p] += e;
         return true;
     }
 };
@@ -656,6 +687,7 @@ template int param_list_parse<std::string>(param_list_ptr pl, std::string const 
 template int param_list_parse<cxx_mpz>(param_list_ptr pl, std::string const & key, cxx_mpz & r);
 template int param_list_parse<std::vector<cxx_mpz>>(param_list_ptr pl, std::string const & key, std::vector<cxx_mpz> & r);
 template int param_list_parse<cxx_mpz_poly>(param_list_ptr pl, std::string const & key, cxx_mpz_poly & r);
+template int param_list_parse<cado::prime_power_factorization>(param_list_ptr pl, std::string const & key, cado::prime_power_factorization & r);
 
 int param_list_parse_long(param_list_ptr pl, const char * key, long * r)
 {

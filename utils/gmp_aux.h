@@ -195,6 +195,8 @@ static inline void mpn_randomb (mp_limb_t *rp, gmp_randstate_t rstate, mp_size_t
 
 void memfill_random(void *p, size_t s, gmp_randstate_t rstate);
 
+/* return an approximation of log(|a|) */
+double mpz_log(mpz_srcptr a);
 
 #if !GMP_VERSION_ATLEAST(6,3,0)
 typedef __gmp_randstate_struct * gmp_randstate_ptr;
