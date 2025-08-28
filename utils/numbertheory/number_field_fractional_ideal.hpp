@@ -4,6 +4,7 @@
 #include <memory>
 #include <utility>
 #include <vector>
+#include <ostream>
 
 #include <gmp.h>
 #include "fmt/base.h"
@@ -79,8 +80,10 @@ class number_field_fractional_ideal {
     number_field_fractional_ideal& operator=(number_field_fractional_ideal const & a)
     {
         ASSERT_ALWAYS(&O == &a.O);
-        ideal_basis_matrix = a.ideal_basis_matrix;
-        denominator = a.denominator;
+        if (this != &a) {
+            ideal_basis_matrix = a.ideal_basis_matrix;
+            denominator = a.denominator;
+        }
         return *this;
     }
     number_field_fractional_ideal& operator=(number_field_fractional_ideal && a)
@@ -94,8 +97,14 @@ class number_field_fractional_ideal {
     int cmp(number_field_fractional_ideal const & I) const {
         int const r = mpz_cmp(denominator, I.denominator);
         if (r) return r;
+
+        /* XXX this is only correct if we assume that both basis matrices
+         * are in HNF. Otherwise we would have to check 
+         * equivalence modulo SL_n !
+         */
         return mpz_mat_cmp(ideal_basis_matrix, I.ideal_basis_matrix);
     }
+
     bool operator<(number_field_fractional_ideal const & I) const {
         return cmp(I) < 0;
     }
