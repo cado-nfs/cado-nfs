@@ -117,12 +117,6 @@ void mpz_mat_mod_mpz(mpz_mat_ptr dst, mpz_mat_srcptr src, mpz_srcptr p);
 int mpz_mat_isnull_row(mpz_mat_srcptr M, unsigned int k);
 void mpz_mat_swaprows(mpz_mat_ptr M, unsigned int i0, unsigned int i1);
 void mpq_mat_swaprows(mpq_mat_ptr M, unsigned int i0, unsigned int i1);
-/* apply a circular shift on rows [i0...i0+k[ */
-void mpz_mat_rotatedownrows(mpz_mat_ptr M, unsigned int i0, unsigned int k);
-void mpq_mat_rotatedownrows(mpq_mat_ptr M, unsigned int i0, unsigned int k);
-/* put row perm[k] in row k */
-void mpz_mat_permuterows(mpz_mat_ptr M, unsigned int * perm);
-void mpq_mat_permuterows(mpq_mat_ptr M, unsigned int * perm);
 /* add lambda times row i1 to row i0 */
 void mpz_mat_addmulrow(mpz_mat_ptr M, unsigned int i0, unsigned int i1, mpz_srcptr lambda);
 void mpz_mat_addmulrow_mod(mpz_mat_ptr M, unsigned int i0, unsigned int i1, mpz_srcptr lambda, mpz_srcptr p);

@@ -610,76 +610,6 @@ void mpq_mat_swaprows(mpq_mat_ptr M, unsigned int i0, unsigned int i1) /*{{{*/
     }
 }
 /*}}}*/
-void mpz_mat_rotatedownrows(mpz_mat_ptr M, unsigned int i0,
-                            unsigned int k) /*{{{*/
-{
-    /* apply a circular shift on rows [i0...i0+k[ */
-    ASSERT_ALWAYS(i0 < M->m);
-    ASSERT_ALWAYS(i0 + k <= M->m);
-    if (k <= 1)
-        return;
-    for (unsigned int j = 0; j < M->n; j++) {
-        for (unsigned int s = k - 1; s--;) {
-            mpz_swap(mpz_mat_entry(M, i0 + s, j),
-                     mpz_mat_entry(M, i0 + s + 1, j));
-        }
-    }
-}
-/*}}}*/
-void mpq_mat_rotatedownrows(mpq_mat_ptr M, unsigned int i0,
-                            unsigned int k) /*{{{*/
-{
-    ASSERT_ALWAYS(i0 < M->m);
-    ASSERT_ALWAYS(i0 + k <= M->m);
-    if (k <= 1)
-        return;
-    for (unsigned int j = 0; j < M->n; j++) {
-        for (unsigned int s = k - 1; s--;) {
-            mpq_swap(mpq_mat_entry(M, i0 + s, j),
-                     mpq_mat_entry(M, i0 + s + 1, j));
-        }
-    }
-}
-/*}}}*/
-void mpz_mat_permuterows(mpz_mat_ptr M, unsigned int * perm) /*{{{*/
-{
-    /* put row perm[k] in row k */
-    mpz_mat Mx;
-    mpz_mat_init(Mx, M->m, M->n);
-    for (unsigned int i = 0; i < M->m; i++) {
-        for (unsigned int j = 0; j < M->n; j++) {
-            ASSERT_ALWAYS(perm[i] < M->m);
-            mpz_swap(mpz_mat_entry(Mx, i, j), mpz_mat_entry(M, perm[i], j));
-        }
-    }
-    mpz_mat_swap(M, Mx);
-    mpz_mat_clear(Mx);
-}
-/*}}}*/
-void mpq_mat_permuterows(mpq_mat_ptr M, unsigned int * perm) /*{{{*/
-{
-    mpq_mat Mx;
-    mpq_mat_init(Mx, M->m, M->n);
-    for (unsigned int i = 0; i < M->m; i++) {
-        for (unsigned int j = 0; j < M->n; j++) {
-            mpq_swap(mpq_mat_entry(Mx, i, j), mpq_mat_entry(M, perm[i], j));
-        }
-    }
-    mpq_mat_swap(M, Mx);
-    mpq_mat_clear(Mx);
-}
-/*}}}*/
-static int permutation_signature(unsigned int const * perm,
-                                 unsigned int n) /*{{{*/
-{
-    /* can this be done in O(n) only ?? */
-    int sign = 1;
-    for (unsigned int i = 0; i < n; i++)
-        for (unsigned int j = i; j < n; j++)
-            if (perm[j] < perm[i])
-                sign *= -1;
-    return sign;
-}
 /*}}}*/
 
 /* add lambda times row i1 to row i0 */
@@ -832,25 +762,6 @@ void mpq_mat_mulrow(mpq_mat_ptr M, unsigned int i0, mpq_srcptr lambda) /*{{{*/
     }
 }
 /*}}}*/
-
-#if 0
-/* XXX never used, untested ! */
-/* this computes an additive combination of n rows into row [didx] of the
- * initial matrix. We require that this destination row be cleared
- * initially.
- */
-void mpz_mat_combinerows(mpz_mat_ptr M, unsigned int didx, unsigned int sidx,/*{{{*/
-        mpz_srcptr * lambda, unsigned int n)
-{
-    for(unsigned int j = 0 ; j < M->n ; j++) {
-        ASSERT_ALWAYS(mpz_cmp_ui(mpz_mat_entry(M, didx, j), 0) == 0);
-    }
-    for(unsigned int i = 0 ; i < n ; i++) {
-        mpz_mat_addmulrow(M, didx, sidx + i, lambda[i]);
-    }
-}
-/*}}}*/
-#endif
 
 /* }}} */
 /*{{{ I/O*/
