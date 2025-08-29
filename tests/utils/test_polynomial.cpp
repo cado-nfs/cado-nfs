@@ -29,10 +29,36 @@
  * type that is at most the (negative) given accuracy
  */
 template<typename T>
+static void
+compare_roots(polynomial<T> const & q, std::vector<T> const & roots, std::vector<T> const & reference, int accuracy)
+{
+    if (roots.size() != reference.size()) {
+        fmt::print(stderr,
+                "compute_roots produced wrong number of roots {},"
+                " reference has {}\n",
+                roots.size(), reference.size());
+        fmt::print(stderr, "f = {}\n", q);
+        abort();
+    }
+    for(size_t i = 0 ; i < roots.size() ; i++) {
+        using cado_math_aux::accurate_bits;
+        int a = accurate_bits(roots[i], reference[i]);
+        fmt::print("{} vs ref {} : accurate bits: {}\n", roots[i], reference[i], a);
+        if (a < accuracy) {
+            fmt::print(stderr,
+                    "compute_roots produced wrong root {},"
+                    " reference has {}\n",
+                    roots[i], reference[i]);
+            abort();
+        }
+    }
+}
+
+template<typename T>
 static void 
 test_positive_roots(std::string const & poly_str,
-        const T bound,
         bool verbose,
+        cado::number_context<T> const & tr,
         std::vector<T> const & reference,
         int accuracy)
 {
@@ -44,40 +70,61 @@ test_positive_roots(std::string const & poly_str,
     if (verbose)
         fmt::print("Testing polynomial {}\n", f);
 
-    if (!reference.empty()) {
-        if (bound > 0) {
-            const T B = f.bound_positive_roots();
-            const T M = *std::max_element(reference.begin(), reference.end());
-            ASSERT_ALWAYS(B >= M);
-        } else {
-            T B = f.bound_positive_roots(true);
-            const T M = *std::min_element(reference.begin(), reference.end());
-            ASSERT_ALWAYS(B <= M);
-        }
+    /* test f as well as a few usual transforms */
+    compare_roots(f, f.positive_roots(tr), reference, accuracy);
+}
+
+template<typename T>
+static void
+test_all_roots(std::string const & poly_str,
+        bool verbose,
+        cado::number_context<T> const & tr,
+        std::vector<T> const & reference,
+        int accuracy)
+{
+    polynomial<T> f(poly_str);
+
+    if (accuracy < 0)
+        accuracy += std::numeric_limits<T>::digits;
+
+    if (verbose)
+        fmt::print("Testing polynomial {}\n", f);
+
+    compare_roots(f, f.roots(tr), reference, accuracy);
+    {
+        auto q = -f;
+        compare_roots(q, q.roots(tr), reference, accuracy);
     }
 
-    auto pos = f.positive_roots(bound);
-
-    if (pos.size() != reference.size()) {
-        fmt::print(stderr,
-                "compute_roots produced wrong number of roots {},"
-                " reference has {}\n",
-                pos.size(), reference.size());
-        fmt::print(stderr, "f = {}\n", f);
-        fmt::print(stderr, "bound = {}\n", bound);
-        abort();
+    {
+        auto q = f.mirror();
+        std::vector<T> roots;
+        roots.reserve(reference.size());
+        for(auto const & x : reference)
+            roots.emplace_back(-x);
+        std::sort(roots.begin(), roots.end());
+        compare_roots(q, q.roots(tr), roots, accuracy);
     }
-    for(size_t i = 0 ; i < pos.size() ; i++) {
-        using cado_math_aux::accurate_bits;
-        int a = accurate_bits(pos[i], reference[i]);
-        fmt::print("{} vs ref {} : accurate bits: {}\n", pos[i], reference[i], a);
-        if (a < accuracy) {
-            fmt::print(stderr,
-                    "compute_roots produced wrong root {},"
-                    " reference has {}\n",
-                    pos[i], reference[i]);
-            abort();
-        }
+
+    {
+        auto q = f.reciprocal();
+        std::vector<T> roots;
+        roots.reserve(reference.size());
+        for(auto const & x : reference)
+            if (x)
+                roots.emplace_back(cado_math_aux::similar_set(x, 1) / x);
+        std::sort(roots.begin(), roots.end());
+        compare_roots(q, q.roots(tr), roots, accuracy);
+    }
+
+    {
+        auto q = f.inverse_scale(3);
+        std::vector<T> roots;
+        roots.reserve(reference.size());
+        for(auto const & x : reference)
+            roots.emplace_back(cado_math_aux::similar_set(x, 3) * x);
+        std::sort(roots.begin(), roots.end());
+        compare_roots(q, q.roots(tr), roots, accuracy);
     }
 }
 
@@ -85,39 +132,46 @@ template<typename T>
 static void
 test_compute_roots(bool verbose)
 {
+    const cado::number_context<T> tr(128); /* 128 only for cxx_mpfr */
     const int valgrind_penalty = (std::is_same_v<T, long double> && tests_run_under_valgrind()) ? 16 : 0;
-    test_positive_roots<T>("1", 3, verbose, {}, -4);
+    test_positive_roots<T>("1", verbose, tr, {}, -4);
 
     /* A few roots of 2 */
-    test_positive_roots<T>("x-2", 3, verbose,   {2}, -5 - valgrind_penalty);
-    test_positive_roots<T>("x^2-2", 3, verbose, {T(1.4142135623730950488016887242096980786L)}, -5 - valgrind_penalty);
-    test_positive_roots<T>("x^3-2", 3, verbose, {T(1.2599210498948731647672106072782283506L)}, -5 - valgrind_penalty);
-    test_positive_roots<T>("x^4-2", 3, verbose, {T(1.1892071150027210667174999705604759153L)}, -5 - valgrind_penalty);
-    test_positive_roots<T>("x^5-2", 3, verbose, {T(1.1486983549970350067986269467779275894L)}, -5 - valgrind_penalty);
+    test_all_roots<T>("x-2", verbose, tr, {2}, -5 - valgrind_penalty);
+    test_positive_roots<T>("x^2-2", verbose, tr, {T(1.4142135623730950488016887242096980786L)}, -5 - valgrind_penalty);
+    test_all_roots<T>("x^3-2", verbose, tr, {T(1.2599210498948731647672106072782283506L)}, -5 - valgrind_penalty);
+    test_positive_roots<T>("x^4-2", verbose, tr, {T(1.1892071150027210667174999705604759153L)}, -5 - valgrind_penalty);
+    test_all_roots<T>("x^5-2", verbose, tr, {T(1.1486983549970350067986269467779275894L)}, -5 - valgrind_penalty);
 
-    test_positive_roots<T>("(x-1)*(x-2)", 3, verbose, {1, 2}, -8 - valgrind_penalty);
-    test_positive_roots<T>("(x-1)*(x-2)*(x-3)", 4, verbose, {1, 2, 3}, -8 - valgrind_penalty);
-    test_positive_roots<T>("(x-1)*(x-2)*(x-3)*(x-4)", 5, verbose, {1, 2, 3, 4}, -8 - valgrind_penalty);
-    test_positive_roots<T>("(x-1)*(x-2)*(x-3)*(x-4)*(x-5)", 6, verbose, {1, 2, 3, 4, 5}, -8 - valgrind_penalty);
+    test_all_roots<T>("(x-1)*(x-2)", verbose, tr, {1, 2}, -8 - valgrind_penalty);
+    test_all_roots<T>("(x-1)*(x-2)*(x-3)", verbose, tr, {1, 2, 3}, -8 - valgrind_penalty);
+    test_all_roots<T>("(x-1)*(x-2)*(x-3)*(x-4)", verbose, tr, {1, 2, 3, 4}, -8 - valgrind_penalty);
+    test_all_roots<T>("(x-1)*(x-2)*(x-3)*(x-4)*(x-5)", verbose, tr, {1, 2, 3, 4, 5}, -8 - valgrind_penalty);
+
+    test_all_roots<T>("(x-1)*(x-2)*(x-3)*(x-4)*(x-5)", verbose, tr, {1, 2, 3, 4, 5}, -8 - valgrind_penalty);
 
     /* Let f(x+1/x) * x^6 == (x^13-1)/(x-1). Test both positive and
-     * negative roots (for negative roots we give a negative bound) */
+     * negative roots */
     test_positive_roots<T>("x^6 + x^5 - 5*x^4 - 4*x^3 + 6*x^2 + 3*x - 1",
-            2, verbose, {
+            verbose, tr, {
             T(0.24107336051064610669813537490508716455L),
             T(1.1361294934623116050236151182550332491L),
-            T(1.7709120513064197918007510440301977572L)},
-            -4 - valgrind_penalty);
-    test_positive_roots<T>("x^6 + x^5 - 5*x^4 - 4*x^3 + 6*x^2 + 3*x - 1",
-            -2, verbose, {
-            T(-0.70920977408507125193927578520003694863L),
-            T(-1.4970214963422021972692611994027027677L),
+            T(1.7709120513064197918007510440301977572L),
+            },
+            -6 - valgrind_penalty);
+    test_all_roots<T>("x^6 + x^5 - 5*x^4 - 4*x^3 + 6*x^2 + 3*x - 1",
+            verbose, tr, {
             T(-1.9418836348521040543139645525875784545L),
+            T(-1.4970214963422021972692611994027027677L),
+            T(-0.70920977408507125193927578520003694863L),
+            T(0.24107336051064610669813537490508716455L),
+            T(1.1361294934623116050236151182550332491L),
+            T(1.7709120513064197918007510440301977572L),
             },
             -6 - valgrind_penalty);
     /* this is f(x-2). 6 real roots, 0 rational */
-    test_positive_roots<T>("x^6 - 11*x^5 + 45*x^4 - 84*x^3 + 70*x^2 - 21*x + 1",
-            4, verbose,
+    test_all_roots<T>("x^6 - 11*x^5 + 45*x^4 - 84*x^3 + 70*x^2 - 21*x + 1",
+            verbose, tr,
             {T(0.058116365147895945686035447412421545500L),
             T(0.50297850365779780273073880059729723231L),
             T(1.2907902259149287480607242147999630514L),
@@ -125,6 +179,12 @@ test_compute_roots(bool verbose)
             T(3.1361294934623116050236151182550332491L),
             T(3.7709120513064197918007510440301977572L)},
             -8 - valgrind_penalty);
+
+    test_all_roots<T>("4*x^3-1818*x", verbose, tr,
+            {tr("-21.319005605327843245456394231442124020"),
+             tr(0),
+             tr("21.319005605327843245456394231442124020")},
+             -8 - valgrind_penalty);
 
     /* examples below can't be dealt with by the float code because of
      * the limited exponent range
@@ -141,7 +201,7 @@ test_compute_roots(bool verbose)
             " + x^4 * 3.5375219923207381e+37"
             " - x^5 * 1.8078625258002374e+40"
             " - x^6 * 1.6114410711830154e+39",
-            1, verbose,
+            verbose, tr,
             {T(0.46942663386512425278156827138724507L)},
             -4 - valgrind_penalty);
 
@@ -152,7 +212,7 @@ test_compute_roots(bool verbose)
             " - x^2 * 7.5683722678735590e+228"
             " - x^3 * 1.8935837380523070e+224"
             " - x^4 * 3.4853123818766583e+152",
-            T(1e72), verbose,
+            verbose, tr,
             {}, -4 - valgrind_penalty);
 
     /* dichotomy with too few iterations fails */
@@ -163,8 +223,8 @@ test_compute_roots(bool verbose)
             " + 4974019329969663881845375223408004510305936664806589566321472066027520*x^2"
             " - 58290863912589135997939905826055669574526326226812326870330700385351723122688*x"
             " + 37718991555021708231785218373859670336563892134301066596876783017325698882362933248",
-            T(9007199254740992.0),
             verbose,
+            tr,
             {
             T(687391.34048893181184293089912300885635L),
             T(1.1967277023040306827792365694733244330e7L),
@@ -181,7 +241,7 @@ test_compute_roots(bool verbose)
             " + x^4 * 552084484207525010843995104449133201610495729247299431552778240"
             " + x^5 * 386336020186016733435543279553138102808608768"
             " + x^6 * 38629366113825858026209280",
-            T(2199023255552), verbose,
+            verbose, tr,
             {T(400274.63069456928417728406075344817128L)},
             -4 - valgrind_penalty);
 
@@ -192,7 +252,7 @@ test_compute_roots(bool verbose)
             " - x^3 * 2677221347026437285957968988912544408687885411868999680"
             " + x^4 * 21555240319368651153052935288520704"
             " + x^5 * 5123362746908340224",
-            T(1e20), verbose,
+            verbose, tr,
             {
             T(8694859813.2710983618783204718642424277L),
             T(720776737597677797.82617434751880429252L) },
@@ -223,6 +283,8 @@ test_compute_roots<cxx_mpz>(bool)
 template<typename T>
 static void test_eval()
 {
+    ASSERT_ALWAYS(polynomial<T>()(0) == 0);
+    ASSERT_ALWAYS(polynomial<int>()(T(0)) == T(0));
     /* long doubles under valgrind basically don't work. They're just
      * doubles in disguise
      */
@@ -234,6 +296,9 @@ static void test_eval()
     {
         polynomial<T> f;
         T w = 0;
+
+        ASSERT_ALWAYS(f(w) == w);
+
         T two_n = 1;
         constexpr int D = std::numeric_limits<T>::digits;
         for(int n = 0 ; n < D ; n++) {
@@ -276,17 +341,47 @@ static void test_eval()
              */
             f[n] = n + 1;
             T v = f(2, 3);
+            T vx = f(T(2), T(3));
             w = 3 * w + two_n * f[n];
             two_n *= 2;
             ASSERT_ALWAYS(v == w);
+            ASSERT_ALWAYS(vx == w);
         }
     }
 
 
     if constexpr (cado_math_aux::is_real_v<T>) {
-        polynomial<T> A("x^2-2");
-        T z = cado::number_context<T>()("1.4142135623730950488016887242096980786");
-        fmt::print("{}\n", A(z));
+        /* the precision 128 here is of course only ever considered by
+         * cxx_mpfr. number_context<double> and friends proudly ignore
+         * it.  */
+        const cado::number_context<T> tr(128);
+        const polynomial<int> A("(-x)^2-2");
+        T z = tr("1.4142135623730950488016887242096980785696718754");
+
+        auto a = A(z);
+        fmt::print("sqrt(2)^2-2 == {:a}\n", a);
+
+        for(auto const & r : A.roots(tr))
+            fmt::print(" -> computed root {}\n", r);
+
+        const polynomial<T> B(A, tr);
+        auto b = B.eval_safe(z);
+        fmt::print("sqrt(2)^2-2 == {:a} (safe eval)\n", b);
+
+        int e;
+        auto x = cado_math_aux::frexp(a-b, &e);
+
+        fmt::print("difference = {} * 2^{}\n", x, e);
+
+        /* not 100% sure this looks right in terms of precision. I have a
+         * feeling that something odd's going on. Note that 0.5 can be
+         * exactly represented by a legit value for x, so something like
+         * an _exact_ 2^-21 can be 0.5 * 2^-20
+         */
+        if constexpr (std::is_same_v<T, cxx_mpfr>)
+            ASSERT_ALWAYS(x == 0 || e <= 3 - tr.prec);
+        else
+            ASSERT_ALWAYS(x == 0 || e <= 3 - std::numeric_limits<T>::digits);
     }
 }
 
@@ -448,16 +543,7 @@ static void test_resultant()
 
         T val;
 
-        typename polynomial<T>::traits tr;
-#ifdef HAVE_MPFR
-        if constexpr (std::is_same_v<T, cxx_mpfr>) {
-            /* We need a minimum precision for these tests, especially
-             * the last one: we know that 53 bits is way too small, and
-             * 80 bits is barely ok. So let's use 128 bits, it shouldn't
-             * be too bad. */
-            tr = decltype(tr)(128);
-        }
-#endif
+        const cado::number_context<T> tr(128); /* 128 only for cxx_mpfr */
         T res = RX(t.f, tr).resultant(RX(t.g, tr));
         cxx_mpz val_z;
         cxx_mpz_poly fz(t.f);
@@ -488,6 +574,52 @@ void test_resultant<cxx_mpz>()
 }
 
 template<typename T>
+static void test_some_arithmetic()
+{
+    const cado::number_context<T> tr(128); /* 128 only for cxx_mpfr */
+    polynomial<T> f("(x-1) * (x-2) * (x-3)", tr);
+    polynomial<T> g("(x-4) * (x-5) * (x-6)", tr);
+    auto fg = f*g;
+    ASSERT_ALWAYS(fg[0] == 720 && fg.degree() == 6);
+    ASSERT_ALWAYS((f * polynomial<T>()) == 0);
+
+    /* we don't divide with integer polynomials, since that would result
+     * in euclidean division, and of course change the evaluation result.
+     */
+    if constexpr (cado_math_aux::is_real_v<T>)
+        fg /= 4;
+
+    for(int i : {1,2,3,4,5,6})
+        ASSERT_ALWAYS(fg(i) == 0);
+
+    fg.addmul(g, polynomial<T>("x-1", tr));
+    for(int i : {1,4,5,6})
+        ASSERT_ALWAYS(fg(i) == 0);
+    fg.submul(g, polynomial<T>("x-37", tr));
+    for(int i : {4,5,6})
+        ASSERT_ALWAYS(fg(i) == 0);
+    fg.addmul(g, tr("1234"));
+    for(int i : {4,5,6})
+        ASSERT_ALWAYS(fg(i) == 0);
+    fg.submul(g, tr("-123"));
+    for(int i : {4,5,6})
+        ASSERT_ALWAYS(fg(i) == 0);
+
+    /* some gymnastics. Decompose a polynomial, and then parse the
+     * decomposition to form a new polynomial.
+     */
+    auto q = f;
+    for( ; q.degree() >= 0 ; ) {
+        const int e = 10;
+        auto [ nq, r ] = q.div_qr_xminusr(e);
+        auto s = fmt::format("({}) * (x-{}) + {}", nq, e, r);
+        fmt::print("{} == {}\n", q, s);
+        ASSERT_ALWAYS(q == polynomial(s, q.ctx()));
+        q = nq;
+    }
+}
+
+template<typename T>
 static void all_tests()
 {
   test_ctor_and_coeff_access<T> ();
@@ -498,16 +630,22 @@ static void all_tests()
   test_ctor_mpz_poly<T> ();
   test_resultant<T>();
   test_compute_roots<T>(false);
+  test_some_arithmetic<T>();
 }
 
 
 int main()
 {
+    fmt::print("===== tests with T = double =====\n");
     all_tests<double>();
+    fmt::print("===== tests with T = long double =====\n");
     all_tests<long double>();
+    fmt::print("===== tests with T = float =====\n");
     all_tests<float>();
+    fmt::print("===== tests with T = cxx_mpz =====\n");
     all_tests<cxx_mpz>();
 #ifdef HAVE_MPFR
+    fmt::print("===== tests with T = cxx_mpfr =====\n");
     all_tests<cxx_mpfr>();
 #endif
     return EXIT_SUCCESS;

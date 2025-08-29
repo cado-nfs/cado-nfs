@@ -70,11 +70,16 @@ template<typename From, typename To>
 using is_strictly_coercible = is_coercible_details::impl_strict<From, To>;
 
 template<typename From, typename To>
-using is_coercible_t = std::enable_if_t<is_coercible<From, To>::value, bool>;
+inline constexpr bool is_coercible_v = is_coercible<From, To>::value;
 
 template<typename From, typename To>
-using is_strictly_coercible_t = std::enable_if_t<is_strictly_coercible<From, To>::value, bool>;
+inline constexpr bool is_strictly_coercible_v = is_strictly_coercible<From, To>::value;
 
+template<typename From, typename To>
+using is_coercible_t = std::enable_if_t<is_coercible_v<From, To>, bool>;
+
+template<typename From, typename To>
+using is_strictly_coercible_t = std::enable_if_t<is_strictly_coercible_v<From, To>, bool>;
 
 
 template<typename T> struct is_integral : public std::is_integral<T> {};
@@ -113,10 +118,10 @@ inline constexpr bool is_complex_v = is_complex<X>::value;
 template<typename X>
 using is_complex_t = std::enable_if_t<is_complex_v<X>, bool>;
 
-static_assert(is_coercible<int, long>::value);
-static_assert(!is_coercible<double, long>::value);
-static_assert(is_strictly_coercible<int, long>::value);
-static_assert(!is_strictly_coercible<int, int>::value);
+static_assert(is_coercible_v<int, long>);
+static_assert(!is_coercible_v<double, long>);
+static_assert(is_strictly_coercible_v<int, long>);
+static_assert(!is_strictly_coercible_v<int, int>);
 
 } /* namespace cado_math_aux */
 

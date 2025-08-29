@@ -2,7 +2,9 @@
 #define UTILS_MPFR_AUXX_HPP_
 
 #include <cstdint>
+#include <cmath>
 
+#include <gmp.h>
 #include <mpfr.h>
 
 #include "mpfr_aux.h"
@@ -58,6 +60,12 @@ namespace mpfr_auxx
                   cado::converts_via<T, uint64_t>)                      \
     {                                                                   \
         mpfr_##OP##_uint64(a, b, rnd);                                  \
+    }                                                                   \
+                                                                        \
+    static inline void                                                  \
+    cado_mpfr_##OP(DTYPE a, mpz_srcptr b, mpfr_rnd_t rnd)               \
+    {                                                                   \
+        mpfr_##OP##_z(a, b, rnd);                                       \
     }
 
 #define MPFR_AUXX_DEFINE_FUNC2b(DTYPE, OP)                              \
@@ -174,6 +182,12 @@ static inline int
 cado_mpfr_cmp(mpfr_srcptr a, long double b)
 {
     return mpfr_cmp_ld(a, b);
+}
+
+static inline int
+cado_mpfr_cmp(mpfr_srcptr a, mpz_srcptr b)
+{
+    return mpfr_cmp_z(a, b);
 }
 
 /*****************************************************************/

@@ -23,6 +23,8 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
+#include <functional>
+
 
 #include <gmp.h>
 #include "fmt/base.h"
@@ -69,13 +71,12 @@ template<typename T> std::ostream& operator<<(std::ostream& o, cado::named_proxy
  * - homography
  * - discriminant
  * - coproduct_tree / prod / polyfromroots / multievaluate / interpolate
- * - pow (via an external operator?)
  *
  * and for integral coefficients:
  * - modular interface, including mod_f_mod_mpz, etc.
  * - divexact
  * - to_monic
- * - pseudodiv, pseudo_division, pseudo_remainder
+ * - pseudodiv
  * - gcd, xgcd, content
  * - is_square_free
  * - polynomial factorization mod p ; factor_and_lift
@@ -87,7 +88,7 @@ template<typename CoefficientType, typename PointType>
 struct eval_type {
     static constexpr bool up = cado_math_aux::is_coercible<CoefficientType, PointType>::value;
     static constexpr bool down = cado_math_aux::is_strictly_coercible<PointType, CoefficientType>::value;
-    using type = std::conditional_t<up, PointType, std::enable_if<down, CoefficientType>>;
+    using type = std::conditional_t<up, PointType, CoefficientType>;
 };
 
 
@@ -95,8 +96,8 @@ template<typename CoefficientType, typename PointType>
 using eval_type_t = typename eval_type<CoefficientType, PointType>::type;
 
 /* each instance of a polynomial object with coefficient type T inherits
- * from polynomial_instance_traits<T>. In most cases this is a trivial
- * layer with the identity function as intepret_integral. With cxx_mpfr
+ * from number_context<T>. In most cases this is a trivial
+ * layer with the identity function as operator(). With cxx_mpfr
  * however, which has variable precision, we want to attach a precision
  * to the polynomial, even before it has any coefficient. This will make
  * it possible to create coefficients such as 0 or 1 in the polynomial
@@ -106,175 +107,12 @@ using eval_type_t = typename eval_type<CoefficientType, PointType>::type;
 using cado::number_context;
 
 template<typename T>
-struct polynomial : number_context<T>
+struct polynomial : public number_context<T>
 {
-    using traits = number_context<T>;
-    using traits::interpret_integral;
-
-    traits const & extract_traits() const { return *this; }
-    traits & extract_traits() { return *this; }
+    number_context<T> const & ctx() const { return *this; }
+    number_context<T> & ctx() { return *this; }
 
     static constexpr int number_of_variables = 1;
-
-    /* {{{ evaluation at a point */
-    template<typename U, typename E>
-    E eval_with_reference(E const & e, U const & x) const
-    {
-#ifdef  __GNUC__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Warray-bounds"
-#endif
-        using cado_math_aux::similar_zero;
-        using cado_math_aux::similar_set;
-        using cado_math_aux::fma;
-
-        if (degree() < 0) return similar_zero(e);
-
-        T const * f = coeffs.data();
-
-        E s = similar_set(e, f[degree()]);
-        E xx = similar_set(e, x);
-
-        int k = degree();
-        using cado_math_aux::fma;
-        switch(k-1) {
-            case 8: s = fma(s, xx, similar_set(e, f[8])); no_break();
-            case 7: s = fma(s, xx, similar_set(e, f[7])); no_break();
-            case 6: s = fma(s, xx, similar_set(e, f[6])); no_break();
-            case 5: s = fma(s, xx, similar_set(e, f[5])); no_break();
-            case 4: s = fma(s, xx, similar_set(e, f[4])); no_break();
-            case 3: s = fma(s, xx, similar_set(e, f[3])); no_break();
-            case 2: s = fma(s, xx, similar_set(e, f[2])); no_break();
-            case 1: s = fma(s, xx, similar_set(e, f[1])); no_break();
-            case 0: s = fma(s, xx, similar_set(e, f[0])); no_break();
-            case -1: break;
-            default:
-                    for ( ; k-- ; )
-                        s = fma(s, xx, similar_set(e, f[k]));
-        }
-        return s;
-#ifdef  __GNUC__
-#pragma GCC diagnostic pop
-#endif
-    }
-
-
-    template<typename U, typename = cado_math_aux::is_coercible_t<T, U>>
-    U eval(U const & x) const {
-        return eval_with_reference(U(x), x);
-    }
-    template<typename U, typename = cado_math_aux::is_strictly_coercible_t<U, T>>
-    T eval(U const & x) const {
-        /* We need to use the precision of the coefficients of the
-         * polynomial, and not the default precision! */
-        if (degree() < 0)
-            return interpret_integral(0);
-        else
-            return eval_with_reference(coeffs.front(), x);
-    }
-
-    template<typename U, typename = cado_math_aux::is_coercible_t<T, U>>
-    U operator()(U const & x) const { return eval(x); }
-
-    template<typename U, typename = cado_math_aux::is_strictly_coercible_t<U, T>>
-    T operator()(U const & x) const { return eval(x); }
-    /* }}} */
-
-    /* {{{ Evaluate the homogenous polynomial induced by f at the pair
-     * (x,y). That is, compute the sum f[i]*x^i*y^(n-i), where n is
-     * degree(f)
-     */
-    template<typename U, typename E>
-    E eval_with_reference(E const & e, U const & x, U const & y) const
-    {
-        using cado_math_aux::similar_zero;
-        using cado_math_aux::similar_set;
-        using cado_math_aux::addmul;
-
-        if (degree() < 0) return similar_zero(e);
-
-        T const * f = coeffs.data();
-
-        E s = similar_set(e, f[degree()]);
-        E py = similar_set(e, y);
-
-        int k = degree();
-        switch(k-1) {
-            case 2: s *= x; addmul(s, py, similar_set(e, f[2])); py *= y;
-                    no_break();
-            case 1: s *= x; addmul(s, py, similar_set(e, f[1])); py *= y;
-                    no_break();
-            case 0: s *= x; addmul(s, py, similar_set(e, f[0])); py *= y;
-                    no_break();
-            case -1: break;
-            default:
-                    for ( ; k-- ; ) {
-                        s *= x;
-                        addmul(s, py, similar_set(e, f[k]));
-                        /* the last multiplication is useless */
-                        if (!k) break;
-                        py *= y;
-                    }
-        }
-        return s;
-    }
-
-    template<typename U, typename = cado_math_aux::is_coercible_t<T, U>>
-    U eval(U const & x, U const & y) const
-    {
-        /* We have to assume that x and y have the same precision.
-         * Otherwise we have no reason to choose instead of the other in
-         * order to determine the working precision
-         */
-        return eval_with_reference(U(x), x, y);
-    }
-
-    template<typename U, typename = cado_math_aux::is_strictly_coercible_t<U, T>>
-    T eval(U const & x, U const & y) const { return eval(T(x), T(y)); }
-
-    template<typename U, typename = cado_math_aux::is_coercible_t<T, U>>
-    U operator()(U const & x, U const & y) const { return eval(x, y); }
-    template<typename U, typename = cado_math_aux::is_strictly_coercible_t<U, T>>
-    T operator()(U const & x, U const & y) const { return eval(x, y); }
-    /* }}} */
-
-    /* {{{ for real types: evaluate using full precision, and convert
-     * ultimately to the target type T
-     */
-    template<typename U>
-    eval_type<T, U> eval_safe(U const & x) const
-        requires(
-            std::is_floating_point_v<U> &&
-            std::is_same_v<T, U>)
-    {
-        T const * f = coeffs.data();
-        const int deg = degree();
-        cxx_mpz xm; int xe; exact_form(xm, xe, x);
-        /* We want to evaluate at xz * 2^xe */
-        cxx_mpz vm; int ve; exact_form(vm, ve, f[deg]);
-        for(int k = deg ; k-- ; ) {
-            /* multiply by x = xm*2^xe */
-            vm *= xm;
-            ve += xe;
-            /* add f[k] = fm*2^fe */
-            cxx_mpz fm; int fe; exact_form(fm, fe, f[k]);
-            if (fe < ve) {
-                mpz_mul_2exp (vm, vm, ve - fe);
-                ve = fe;
-            } else {
-                mpz_mul_2exp (fm, fm, fe - ve);
-            }
-            mpz_add (vm, vm, fm);
-        }
-        T r = cado_math_aux::mpz_get<T> (vm);
-
-        /* XXX This calls std::ldexp, and thereby implicitly assumes that U
-         * is float, double, or long double
-         */
-        return std::ldexp(r, ve);
-    }
-    /* }}} */
-
 
     private:
     std::vector<T> coeffs;
@@ -291,8 +129,8 @@ struct polynomial : number_context<T>
     T lc() const { ASSERT_ALWAYS(!coeffs.empty()); return coeffs.back(); }
 
     polynomial() = default;
-    explicit polynomial(traits const & tr)
-        : traits(tr)
+    explicit polynomial(number_context<T> const & ctx)
+        : number_context<T>(ctx)
     {}
     ~polynomial() = default;
     polynomial(polynomial const&) = default;
@@ -303,41 +141,32 @@ struct polynomial : number_context<T>
     /* all instantations love each other */
     template<typename U> friend struct polynomial;
     template<typename U>
-        explicit polynomial(polynomial<U> const & a, traits const & tr)
+        explicit polynomial(polynomial<U> const & a, number_context<T> const & tr)
         requires (!std::is_same_v<U, T>)
-        : traits(tr)
+        : number_context<T>(tr)
         , coeffs { a.coeffs.begin(), a.coeffs.end() }
     {}
     template<typename U>
         explicit polynomial(polynomial<U> const & a)
         requires (!std::is_same_v<U, T>)
-        : polynomial(a, a.extract_traits())
+        : polynomial(a, a.ctx())
     {}
 
     void set_zero() { coeffs.clear(); }
+
     void set_xi(unsigned int i) {
-        coeffs.assign((i+1), interpret_integral(0));
-        coeffs[i] = interpret_integral(1);
+        coeffs.assign((i+1), ctx()(0));
+        coeffs[i] = ctx()(1);
     }
-    /*
-     * use P[i] += v instead
-    polynomial& add_xi(unsigned int i, T v = 1) {
-        if (coeffs.size() <= i)
-            coeffs.insert(coeffs.end(), i + 1 - coeffs.size(), T(0));
-        coeffs[i] += v;
-        cleandeg();
-        return *this;
-    }
-    */
 
     polynomial& operator=(T v) {
         coeffs.clear();
-        extract_traits() = number_context<T>(v);
+        ctx() = number_context<T>(v);
         (*this)[0] = v;
         return *this;
     }
     explicit polynomial(T v)
-        : traits(traits::traits_from(v))
+        : number_context<T>(v)
         , coeffs(1, v)
     {
         cleandeg();
@@ -346,7 +175,7 @@ struct polynomial : number_context<T>
         : coeffs(l.begin(), l.end())
     {
         if (l.begin() != l.end())
-            extract_traits() = number_context<T>(*l.begin());
+            ctx() = number_context<T>(*l.begin());
     }
 
     explicit operator cxx_mpz_poly() const {
@@ -359,7 +188,7 @@ struct polynomial : number_context<T>
     }
 
     // NOLINTNEXTLINE(hicpp-explicit-conversions)
-    explicit polynomial(std::string const & e, traits const & tr = {})
+    explicit polynomial(std::string const & e, number_context<T> const & tr = {})
         : polynomial(tr)
     {
         std::istringstream is(e);
@@ -367,7 +196,7 @@ struct polynomial : number_context<T>
             throw cado_expression_parser_details::parse_error();
     }
     // NOLINTNEXTLINE(hicpp-explicit-conversions)
-    explicit polynomial(const char * e, traits const & tr = {})
+    explicit polynomial(const char * e, number_context<T> const & tr = {})
         : polynomial(std::string(e), tr)
         {}
 
@@ -390,12 +219,166 @@ struct polynomial : number_context<T>
     cado_details::const_coeff_proxy<polynomial> operator[](unsigned int i) const
     { return { *this, i }; }
 
-    /* uses arbitrary precision */
-    template<typename U,
-        typename = cado_math_aux::is_real_t<U>,
-        typename = cado_math_aux::is_coercible_t<T, U>>
-    U eval_safe(U const & x) const
+    /************** {{{ evaluation **************/
+    /* {{{ evaluation at a point */
+
+    private:
+
+    template<typename U>
+    number_context<U>
+        number_context_for_evaluation(U const & x) const
+        requires cado_math_aux::is_coercible_v<T, U>
     {
+        return number_context<U>(x);
+    }
+    template<typename U>
+    number_context<T> const &
+        number_context_for_evaluation(U const &) const
+        requires cado_math_aux::is_strictly_coercible_v<U, T>
+    {
+        /* We need to use the precision of the coefficients of the
+         * polynomial, and not the default precision!
+         * See also comment above. We call eval_with_reference<U>, but
+         * eval_type_t<T, U> is T */
+        return ctx();
+    }
+
+
+    /* Note that here, we do not ask that U is
+     * eval_type_t<T, U>. This is because if T is larger (say T is
+     * cxx_mpfr and U is int), we have obvious potential for better code
+     * if we don't cast x to type T right away.
+     */
+    template<typename U>
+    eval_type_t<T, U> eval_with_reference(
+            number_context<eval_type_t<T, U>> const & tr,
+            U const & x,
+            std::function<void(eval_type_t<T, U> const &)> const & h
+                = [](auto){}) const
+    {
+        /* h is used as a way to handle to coefficients that are produced
+         * along the computation. They happen to be the coefficients of
+         * the quotient polynomial, so div_linear actually uses them.
+         */
+#ifdef  __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
+        using cado_math_aux::fma;
+
+        if (degree() < 0) return tr(0);
+
+        T const * f = coeffs.data();
+
+        auto s = tr(f[degree()]);
+        auto xx = tr(x);
+
+        int k = degree();
+        using cado_math_aux::fma;
+        switch(k-1) {
+            case 8: h(s); s = fma(s, xx, tr(f[8])); no_break();
+            case 7: h(s); s = fma(s, xx, tr(f[7])); no_break();
+            case 6: h(s); s = fma(s, xx, tr(f[6])); no_break();
+            case 5: h(s); s = fma(s, xx, tr(f[5])); no_break();
+            case 4: h(s); s = fma(s, xx, tr(f[4])); no_break();
+            case 3: h(s); s = fma(s, xx, tr(f[3])); no_break();
+            case 2: h(s); s = fma(s, xx, tr(f[2])); no_break();
+            case 1: h(s); s = fma(s, xx, tr(f[1])); no_break();
+            case 0: h(s); s = fma(s, xx, tr(f[0])); no_break();
+            case -1: break;
+            default:
+                    for ( ; k-- ; ) {
+                        h(s);
+                        s = fma(s, xx, tr(f[k]));
+                    }
+        }
+        return s;
+#ifdef  __GNUC__
+#pragma GCC diagnostic pop
+#endif
+    }
+    public:
+
+    template<typename U> eval_type_t<T, U> eval(U const & x) const
+    {
+        /* Note that when T<U, we need to use the precision of the
+         * coefficients of the polynomial, and not the default precision!
+         * See also comment above. In that case, we call
+         * eval_with_reference<U>, but eval_type_t<T, U> is T */
+        return eval_with_reference(number_context_for_evaluation(x), x);
+    }
+    template<typename U> eval_type_t<T, U> operator()(U const & x) const
+    {
+        return eval(x);
+    }
+
+    /* }}} */
+
+    /* {{{ Evaluate the homogenous polynomial induced by f at the pair
+     * (x,y). That is, compute the sum f[i]*x^i*y^(n-i), where n is
+     * degree(f)
+     */
+    template<typename U>
+    eval_type_t<T, U> eval_with_reference(
+            number_context<eval_type_t<T, U>> const & tr,
+            U const & x,
+            U const & y) const
+    {
+        using cado_math_aux::addmul;
+
+        if (degree() < 0) return tr(0);
+
+        T const * f = coeffs.data();
+
+        auto s = tr(f[degree()]);
+        auto py = tr(y);
+
+        int k = degree();
+        switch(k-1) {
+            case 2: s *= x; addmul(s, py, tr(f[2])); py *= y;
+                    no_break();
+            case 1: s *= x; addmul(s, py, tr(f[1])); py *= y;
+                    no_break();
+            case 0: s *= x; addmul(s, py, tr(f[0])); py *= y;
+                    no_break();
+            case -1: break;
+            default:
+                    for ( ; k-- ; ) {
+                        s *= x;
+                        addmul(s, py, tr(f[k]));
+                        /* the last multiplication is useless */
+                        if (!k) break;
+                        py *= y;
+                    }
+        }
+        return s;
+    }
+
+    template<typename U>
+    eval_type_t<T, U> eval(U const & x, U const & y) const
+    {
+        /* We have to assume that x and y have the same precision.
+         * Otherwise we have no reason to choose instead of the other in
+         * order to determine the working precision
+         */
+        return eval_with_reference(number_context_for_evaluation(x), x, y);
+    }
+
+    template<typename U>
+    eval_type_t<T, U> operator()(U const & x, U const & y) const
+    { return eval(x, y); }
+    /* }}} */
+
+    /* uses arbitrary precision */
+    template<typename U>
+    eval_type_t<T, U> eval_safe(U const & x) const
+        requires cado_math_aux::is_real_v<eval_type_t<T, U>>
+    {
+        using cado_math_aux::exact_form;
+        using cado_math_aux::ldexp;
+
+        auto tr = number_context_for_evaluation(x);
+
         T const * f = coeffs.data();
         const int deg = degree();
         cxx_mpz xm; int xe; exact_form(xm, xe, x);
@@ -403,7 +386,7 @@ struct polynomial : number_context<T>
         cxx_mpz vm; int ve; exact_form(vm, ve, f[deg]);
         for(int k = deg ; k-- ; ) {
             /* multiply by x = xm*2^xe */
-            mpz_mul (vm, vm, xm);
+            vm *= xm;
             ve += xe;
             /* add f[k] = fm*2^fe */
             cxx_mpz fm; int fe; exact_form(fm, fe, f[k]);
@@ -415,48 +398,60 @@ struct polynomial : number_context<T>
             }
             mpz_add (vm, vm, fm);
         }
-        T r = cado_math_aux::mpz_get<T> (vm);
-
-        /* This calls std::ldexp, and thereby implicitly assumes that U
-         * is float, double, or long double
-         */
-        return std::ldexp(r, ve);
+        return ldexp(tr(vm), ve);
     }
-    template<typename U,
-        typename = cado_math_aux::is_real_t<eval_type_t<T, U>>,
-        typename = cado_math_aux::is_strictly_coercible_t<U, T>>
-    T eval_safe(U const & x) const { return eval_safe(T(x)); }
 
-
+    /* return the quotient of the division by x-r */
+    private:
     template<typename U>
-        eval_type_t<T, U>
-    findroot_dichotomy(U const & a, U const & b) const
-    requires cado_math_aux::is_real_v<eval_type_t<T, U>>
+    std::pair<polynomial<eval_type_t<T, U>>, eval_type_t<T, U>>
+    div_qr_xminusr_with_reference(
+            number_context<eval_type_t<T, U>> const & tr,
+            U const & r) const
     {
-        using cado_math_aux::sgn;
-        return findroot_dichotomy(a, b, sgn(eval(a)));
+        /* we really want to set q to zero, however we want to import the
+         * number context from e */
+        using E = eval_type_t<T, U>;
+        polynomial<E> q(tr);
+        if (coeffs.empty())
+            return { q, tr(0) };
+        q.coeffs.assign(coeffs.size() - 1, tr(0));
+        size_t k = coeffs.size()-1;
+        std::function<void(E const &)> reverse_inserter = [&](E const & u) {
+            ASSERT_ALWAYS(k);
+            q[--k] = u;
+        };
+        auto ev = eval_with_reference(tr, r, reverse_inserter);
+        ASSERT_ALWAYS(k == 0);
+        return { q, ev };
     }
-
+    public:
     template<typename U>
-        eval_type_t<T, U>
-    findroot_dichotomy(U a, U b, int sa) const
-    requires cado_math_aux::is_real_v<eval_type_t<T, U>>
+    std::pair<polynomial<eval_type_t<T, U>>, eval_type_t<T, U>>
+    div_qr_xminusr(U const & r) const
     {
-        eval_type_t<T, U> s;
-        for(;;) {
-            s = (a + b) / 2;
-            cado_math_aux::do_not_outsmart_me(s);
-            if (s == a || s == b) return s;
-            using cado_math_aux::sgn;
-            if (sgn(eval(s)) * sa > 0)
-                a = s;
-            else
-                b = s;
-        }
-        return s;
+        return div_qr_xminusr_with_reference(
+                number_context_for_evaluation(r),
+                r);
     }
+    template<typename U>
+    polynomial<eval_type_t<T, U>> div_q_xminusr(U const & r) const
+    {
+        auto const [ q, e ] = div_qr_xminusr(r);
+        return q;
+    }
+    /* }}} */
 
-    /* Return a bound on the positive roots of p.
+
+    /************** {{{ (real) root finding **************/
+
+    /* care is taken to provide the functionality to compute roots in a
+     * domain which is not restricted to the coefficient domain. To this
+     * end, we can pass a number_context object.
+     */
+    private:
+
+    /* {{{ Return a bound on the positive roots of p.
      * Assume the leading coefficient of p is positive, then for a
      * positive root r we have
      * p[d]*r^d + ... + p[1]*r + p[0] = 0 thus
@@ -491,14 +486,14 @@ struct polynomial : number_context<T>
      *
      */
 
-    T bound_positive_roots(bool negative = false) const
+    T bound_positive_roots() const
     {
         const int d = degree();
         const int s = lc() < 0;
-        polynomial q(extract_traits());
-        q.coeffs.assign(coeffs.size(), interpret_integral(0));
+        polynomial q(ctx());
+        q.coeffs.assign(coeffs.size(), ctx()(0));
         for(int i = 0 ; i < d ; i++) {
-            T v = (s ^ (negative & (d-i))) ? -coeffs[i] : coeffs[i];
+            T v = (s /* ^ (negative & (d-i)) */) ? -coeffs[i] : coeffs[i];
             /* simplifies to v==(-1)^s*coeffs[i] < 0 if negative == 0 */
             if (v < 0)
                 q[i] = v;
@@ -506,41 +501,60 @@ struct polynomial : number_context<T>
         q[degree()] = cado_math_aux::abs(lc());
         T b = 1;
         for( ; q.eval(b) < 0 ; b = b + b) ;
-        return negative ? -b : b;
+        return /* negative ? -b : */ b;
     }
+    /* }}} */
 
-    template<typename U = T,
-        typename = cado_math_aux::is_real_t<eval_type_t<T, U>>,
-        typename = cado_math_aux::is_coercible_t<T, U>>
-    std::vector<U> positive_roots() const
+    /* {{{ findroot_dichotomy
+     * fall-back code to find a real root by dichotomy. Since this is an
+     * internal function, both ends a and b are assumed to be within the
+     * same number context (i.e. if they're both cxx_mpfr's, they have
+     * the same precision).
+     */
+    template<typename U>
+    U findroot_dichotomy(U a, U b, int sa) const
     {
-        return positive_roots(U(bound_positive_roots()));
+        /* it would be an error to instantiate this with U distinct from
+         * the real evaluation type */
+        static_assert(std::is_same_v<U, eval_type_t<T, U>>);
+        static_assert(cado_math_aux::is_real_v<U>);
+        U s;
+        for(;;) {
+            /* The number context carries over from a and b to s */
+            s = (a + b) / 2;
+            cado_math_aux::do_not_outsmart_me(s);
+            if (s == a || s == b) return s;
+            using cado_math_aux::sgn;
+            if (sgn(eval(s)) * sa > 0)
+                a = s;
+            else
+                b = s;
+        }
+        return s;
     }
-    template<typename U = T,
-        typename = cado_math_aux::is_real_t<eval_type_t<T, U>>,
-        typename = cado_math_aux::is_coercible_t<T, U>>
-    std::vector<T> negative_roots() const {
-        return positive_roots(U(bound_positive_roots(true)));
-    }
+    /* }}} */
 
-    private:
-
-    /* assuming g(a)*g(b) < 0, and g has a single root in [a, b],
+    /* {{{ findroot_falseposition
+     *
+     * assuming g(a)*g(b) < 0, and g has a single root in [a, b],
      * refines that root by the weighted false position method
      * Assumes sa is of same sign as g(a).
      *
      * The code is written with the case a<b in mind, but it may also be
      * called with b<a, in which case we need to adapt a few little
      * things.
+     *
+     * The appropriate number context is carried by a0 and b0
      */
-
     template<typename U>
-        eval_type_t<T, U>
-    findroot_falseposition(U const & a0, U const & b0, U const & pa0) const
-    requires cado_math_aux::is_real_v<eval_type_t<T, U>>
+    U findroot_falseposition(U const & a0, U const & b0, U const & pa0) const
     {
+        /* it would be an error to instantiate this with U distinct from
+         * the real evaluation type */
+        static_assert(std::is_same_v<U, eval_type_t<T, U>>);
+        static_assert(cado_math_aux::is_real_v<U>);
         int side=0;
-        eval_type_t<T, U> a=a0, b=b0, pa=pa0, pb;
+        U a=a0, b=b0;
 
         if (a == b)
             return a;
@@ -549,13 +563,11 @@ struct polynomial : number_context<T>
 
         ASSERT_ALWAYS(sigma*a < sigma*b);
 
-        pb = eval(b);
+        U pa=pa0, pb = eval(b);
 
         for(;;) {
-            eval_type_t<T, U> s, middle;
-
-            s = (a*pb-b*pa)/(pb-pa);
-            middle = (a + b) / 2;
+            U s = (a*pb-b*pa)/(pb-pa);
+            U middle = (a + b) / 2;
 
             cado_math_aux::do_not_outsmart_me(s);
             cado_math_aux::do_not_outsmart_me(middle);
@@ -574,7 +586,7 @@ struct polynomial : number_context<T>
             if (escapes_range || (hits_bounds && middle_cut_is_nice))
                 s = middle;
             if (s == a || s == b) return s;
-            eval_type_t<T, U> ps = eval(s);
+            U ps = eval(s);
             using cado_math_aux::sgn;
             if (sgn(ps) * sgn(pa) > 0) {
                 a = s; pa = ps;
@@ -590,27 +602,41 @@ struct polynomial : number_context<T>
             }
         }
     }
+    /* }}} */
 
-    /* knowing the positive sign changes of the derivative of *this given
+    /* {{{ Descartes' rule of sign, and the derivative sign changes
+     * knowing the positive sign changes of the derivative of *this given
      * in v , as well as a bound on the positive roots of *this, store in
      * v the positive roots of *this.  v is clobbered.
      */
-    template<typename U,
-        typename = cado_math_aux::is_real_t<eval_type_t<T, U>>,
-        typename = cado_math_aux::is_coercible_t<T, U>>
-    void positive_roots_from_derivative_sign_changes(std::vector<U> & v, U bound)
+    template<typename U>
+    void positive_roots_from_derivative_sign_changes(std::vector<U> & v, U bound) const
     {
-        static_assert(std::is_same_v<eval_type_t<T, U>, U>);
-        if (degree() <= 0) {
-            /* A constant polynomial has no sign changes */
-            v.clear();
-        } else if (degree() == 1) {
-            /* A linear polynomial has at most one root */
-            if (coeffs[0] * eval(bound) < 0)
-                v.assign(1, - coeffs[0] / coeffs[1]);
+        /* U carries the number_context, and it would be an error to
+         * instantiate this with U distinct from the real evaluation type
+         *
+         * all items in v are with respect to the same context.
+         */
+        static_assert(std::is_same_v<U, eval_type_t<T, U>>);
+        static_assert(cado_math_aux::is_real_v<U>);
+        number_context<U> tr(bound);
+
+        using cado_math_aux::sgn;
+
+        ASSERT_ALWAYS(degree() >= 1);
+        if (degree() == 1) {
+            /* A linear polynomial has at most one root.
+             *
+             * We want strictly positive roots here, so we must not
+             * consider the case coeffs[0] == 0. On the other hand, the
+             * bound counts.
+             */
+            const int s = sgn(coeffs[0]);
+            if (s && s * eval(bound) <= 0)
+                v.assign(1, - tr(coeffs[0]) / tr(coeffs[1]));
         } else {
-            U a = 0;
-            U va = coeffs[0];
+            U a = tr(0);
+            U va = tr(coeffs[0]);
             v.push_back(bound);
             size_t m = 0;
             /* If f(a)*f'(a+epsilon) > 0, we won't find a
@@ -629,7 +655,7 @@ struct polynomial : number_context<T>
              * count as positive
              */
             using cado_math_aux::sgn;
-            U c01 = sgn(coeffs[0]) * sgn(coeffs[1] ? coeffs[1] : (sgn(bound) * coeffs[2]));
+            int c01 = sgn(coeffs[0]) * sgn(coeffs[1] ? coeffs[1] : (sgn(bound) * coeffs[2]));
             bool no_chance = c01 * sgn(bound) > 0 || coeffs[0] == 0;
             for(size_t i = 0 ; i < v.size() ; i++) {
                 U b = v[i];
@@ -643,7 +669,7 @@ struct polynomial : number_context<T>
                      * promising, and yet had no root. The next one
                      * certainly won't work.
                      */
-                    no_chance = {};
+                    no_chance = true;
                 }
                 a = b;
                 va = vb;
@@ -651,13 +677,18 @@ struct polynomial : number_context<T>
             v.erase(v.begin() + m, v.end());
         }
     }
-    public:
+    /* }}} */
 
+    /* {{{ Descartes' rule of sign: wrapping it up */
     template<typename U>
-        std::vector<eval_type_t<T, U>>
-    positive_roots(U bound) const
-    requires cado_math_aux::is_real_v<eval_type_t<T, U>>
+    std::vector<U> positive_roots_inner(U bound) const
     {
+        /* U carries the number_context, and it would be an error to
+         * instantiate this with U distinct from the real evaluation type
+         */
+        static_assert(std::is_same_v<U, eval_type_t<T, U>>);
+        static_assert(cado_math_aux::is_real_v<U>);
+
         const int d = degree();
 
         /* The roots of the zero polynomial are ill-defined. Bomb out */
@@ -673,38 +704,116 @@ struct polynomial : number_context<T>
         for(int k = 1 ; k < d ; k++)
             dg.push_back(dg.back().derivative());
 
-        /* work from the most derived polynomial, down to f */
-        std::vector<eval_type_t<T, U>> res;
+        /* work from the most derived polynomial, down to f.
+         *
+         * dg[d-1] is the (d-1)-th derivative, which is a linear
+         * polynomial.
+         */
+        std::vector<U> res;
         for (int k = d; k-- ; )
             dg[k].positive_roots_from_derivative_sign_changes(res, bound);
 
         return res;
     }
+    /* }}} */
 
+    public:
+
+    /* public interfaces for real root finding.
+     *
+     * We posit that there is no point in asking for integral roots of a
+     * floating point polynomials, so we only allow *roots<U> when T is
+     * coercible to U (and U is a real type). An optional number context
+     * can be passed.
+     *
+     * To call these functions on a polynomial f with coefficient type T
+     * in order to compute roots in a (larger) domain U, you have two choices.
+     *  - either call f.template<U> roots(). For example if f is
+     *  polynomial<int>, calling f.template<double> roots() can make
+     *  sense.
+     *  - or call f.roots(tr), where tr is an object of type
+     *  number_context<U>. This is the preferred option when eval_type<U>
+     *  is cxx_mpfr.
+     *
+     */
+    /* {{{ positive_roots */
+    template<typename U = T>
+    std::vector<U> positive_roots(number_context<U> const & tr = {}) const
+        requires (
+        cado_math_aux::is_real_v<U> &&
+        cado_math_aux::is_coercible_v<T, U>)
+    {
+        return positive_roots_inner(tr(bound_positive_roots()));
+    }
+    /* }}} */
+    /* {{{ roots (positive and negative) */
     template<typename U>
-        std::vector<eval_type_t<T, U>>
-    roots() const
-    requires cado_math_aux::is_real_v<eval_type_t<T, U>>
+    std::vector<U> roots(number_context<U> const & tr = {}) const
+        requires (
+        cado_math_aux::is_real_v<U> &&
+        cado_math_aux::is_coercible_v<T, U>)
     {
         if (degree() == -1) return {};
 
-        auto w = negative_roots<U>();
+        auto w = mirror().positive_roots(tr);
+        for(auto & x : w) x = -x;
+
+        std::reverse(w.begin(), w.end());
 
         if (coeffs[0] == 0)
-            w.push_back(0);
+            w.push_back(tr(0));
 
-        const auto positive = positive_roots<U>();
+        const auto positive = positive_roots(tr);
 
         w.insert(w.end(), positive.begin(), positive.end());
-        std::sort(w.begin(), w.end());
 
         return w;
     }
+    /* }}} */
+    /* {{{ positive roots in ]0,s]. We can't use positive_roots_inner
+     * because we want to relax the type requirement on the bound
+     * argument. */
+    template<typename U, typename B>
+    std::vector<U> positive_roots(B const & bound, number_context<U> const & tr = {}) const
+        requires (
+        cado_math_aux::is_real_v<U> &&
+        cado_math_aux::is_coercible_v<T, U>)
+    {
+        return positive_roots_inner(tr(bound));
+    }
+    /* }}} */
+    /* {{{ roots in [-s,s]. */
+    template<typename U, typename B>
+    std::vector<U> roots(B const & bound, number_context<U> const & tr = {}) const
+        requires (
+        cado_math_aux::is_real_v<U> &&
+        cado_math_aux::is_coercible_v<T, U>)
+    {
+        if (degree() == -1) return {};
+
+        auto w = mirror().positive_roots_inner(tr(bound));
+        for(auto & x : w) x = -x;
+
+        std::reverse(w.begin(), w.end());
+
+        if (coeffs[0] == 0)
+            w.push_back(tr(0));
+
+        const auto positive = positive_roots_inner(tr(bound));
+
+        w.insert(w.end(), positive.begin(), positive.end());
+
+        return w;
+    }
+    /* }}} */
+
+    /* }}} */
+
 
     polynomial derivative() const
     {
         if (degree() <= 0) return {};
-        polynomial df(extract_traits());
+        polynomial df(ctx());
         df.coeffs.reserve(degree() - 1);
         for(int i = 1 ; i <= degree() ; i++)
             df.coeffs.push_back(coeffs[i] * i);
@@ -713,16 +822,35 @@ struct polynomial : number_context<T>
 
     polynomial operator*(T const & a) const
     {
-        polynomial h(extract_traits());
+        polynomial h(ctx());
         h.coeffs.reserve(coeffs.size());
         for(auto const & x : coeffs)
             h.coeffs.push_back(x * a);
         return h;
     }
 
+    polynomial pow(unsigned long n) const
+    {
+        if (n == 0)
+            return { ctx()(1) };
+        if (degree() < 0)
+            return {};
+
+        unsigned long k = ((~0UL) >> 1) + 1;
+        for (; k > n; k >>= 1)
+            ;
+        auto B = *this;
+        for (; k >>= 1;) {
+            B *= B;
+            if (n & k)
+                B *= *this;
+        }
+        return B;
+    }
+
     polynomial operator/(T const & a) const
     {
-        polynomial h(extract_traits());
+        polynomial h(ctx());
         h.coeffs.reserve(coeffs.size());
         for(auto const & x : coeffs)
             h.coeffs.push_back(x / a);
@@ -731,7 +859,7 @@ struct polynomial : number_context<T>
 
     polynomial operator-() const
     {
-        polynomial h(extract_traits());
+        polynomial h(ctx());
         h.coeffs.reserve(coeffs.size());
         for(auto const & x : coeffs)
             h.coeffs.push_back(-x);
@@ -743,8 +871,8 @@ struct polynomial : number_context<T>
         polynomial const & f = *this;
         if (f == 0 || g == 0)
             return {};
-        polynomial h(extract_traits());
-        h.coeffs.assign(f.size() + g.size() - 1, interpret_integral(0));
+        polynomial h(ctx());
+        h.coeffs.assign(f.size() + g.size() - 1, ctx()(0));
         for(unsigned int i = 0 ; i < f.size() ; i++)
             for(unsigned int j = 0 ; j < g.size(); j++)
                 h.coeffs[i+j] += f[i] * g[j];
@@ -754,8 +882,8 @@ struct polynomial : number_context<T>
     polynomial operator+(polynomial const & g) const
     {
         polynomial const & f = *this;
-        polynomial h(extract_traits());
-        h.coeffs.assign(std::max(f.size(), g.size()), interpret_integral(0));
+        polynomial h(ctx());
+        h.coeffs.assign(std::max(f.size(), g.size()), ctx()(0));
         unsigned int i = 0;
         for( ; i < f.size() && i < g.size() ; i++)
             h.coeffs[i] = f[i] + g[i];
@@ -770,8 +898,8 @@ struct polynomial : number_context<T>
     polynomial operator-(polynomial const & g) const
     {
         polynomial const & f = *this;
-        polynomial h(extract_traits());
-        h.coeffs.assign(std::max(f.degree(), g.degree()) + 1, interpret_integral(0));
+        polynomial h(ctx());
+        h.coeffs.assign(std::max(f.degree(), g.degree()) + 1, ctx()(0));
         unsigned int i = 0;
         for( ; i < f.size() && i < g.size() ; i++)
             h.coeffs[i] = f[i] - g[i];
@@ -804,12 +932,12 @@ struct polynomial : number_context<T>
         return (*this) = (*this) * g;
     }
 
-    polynomial& addmul(polynomial const & a, polynomial & b)
+    polynomial& addmul(polynomial const & a, polynomial const & b)
     {
         return (*this) += a*b;
     }
 
-    polynomial& submul(polynomial const & a, polynomial & b)
+    polynomial& submul(polynomial const & a, polynomial const & b)
     {
         return (*this) -= a*b;
     }
@@ -826,53 +954,40 @@ struct polynomial : number_context<T>
 
     polynomial reciprocal() const
     {
-        polynomial h(extract_traits());
+        polynomial h(ctx());
         h.coeffs.reserve(coeffs.size());
         for(unsigned int i = 0 ; i < size() ; i++)
             h[size()-1-i] = coeffs[i];
         return h;
     }
 
-    /* This computes u = scale^deg(f) * f(x/scale)
-     * not the same as double_poly_scale, deleted in commit
+    polynomial mirror() const
+    {
+        /* return f(-x) */
+        polynomial m;
+        m.coeffs.reserve(coeffs.size());
+        int s = 1;
+        for(auto const & c : coeffs) {
+            m.coeffs.push_back(c * s);
+            s = -s;
+        }
+        return m;
+    }
+
+    /* This computes u = scale^deg(f) * f(x/scale) (i.e., scale by
+     * 1/scale). It is not the same as double_poly_scale, deleted in commit
      * c480fe82174a9de96e1cd35b2317fdf0de3678ab
      */
-    polynomial reverse_scale(T const & scale) const
+    polynomial inverse_scale(T const & scale) const
     {
         unsigned int sz = size();
         if (!sz)
             return {};
-        polynomial h(extract_traits());
+        polynomial h(ctx());
         h.coeffs.reserve(sz);
         h[--sz] = lc();
         for(T s = scale ; sz-- ; s *= scale) h[sz] = coeffs[sz] * s;
         return h;
-    }
-
-    /* divide by x-r, return the quotient if the polynomial is of
-     * integral type.  */
-    template<typename U, typename = cado_math_aux::is_coercible_t<T, U>>
-    polynomial<U> div_linear(U const & r) const
-    {
-        T const * f = coeffs.data();
-        const int deg = degree();
-        if (deg < 0)
-            return {};
-        T u = f[deg];
-        /* XXX: it's always a matter of choice, here. It's not totally
-         * clear that we're happy with having T!=U in the interface, but
-         * at any rate this visibly implies that we take the precision
-         * from r.
-         */
-        polynomial<U> q(traits_from(r));
-        q.coeffs.reserve(coeffs.size() - 1);
-        for (int k = deg ; k-- ; ) {
-            T const c = f[k];
-            q[k] = u;
-            u = u * r + c;
-        }
-        /* u is f(r), we might as well return it in some way. */
-        return q;
     }
 
     std::string print(std::string const& var = "x") const
@@ -901,15 +1016,12 @@ struct polynomial : number_context<T>
         return os.str();
     }
 
-    explicit polynomial(cxx_mpz_poly const & f, traits const & tr = {})
-        : traits(tr)
+    explicit polynomial(cxx_mpz_poly const & f, number_context<T> const & tr = {})
+        : number_context<T>(tr)
     {
-        coeffs.assign(f.degree() + 1, interpret_integral(0));
+        coeffs.assign(f.degree() + 1, ctx()(0));
         for(int i = 0 ; i <= f.degree() ; i++) {
-            /* we must obey the instance traits !
-             * XXX maybe explicitly instantiate the member ?
-             */
-            coeffs[i] = cado_math_aux::mpz_get<T>(mpz_poly_coeff_const(f, i));
+            coeffs[i] = ctx()(mpz_poly_coeff_const(f, i));
         }
     }
 
@@ -943,8 +1055,8 @@ struct polynomial : number_context<T>
         void mul(polynomial & c, polynomial const & a, polynomial const & b) {
             c = a * b;
         }
-        void pow_ui(polynomial & c, polynomial const & a, T e) {
-            c = a * e;
+        void pow_ui(polynomial & c, polynomial const & a, unsigned int e) {
+            c = a.pow(e);
         }
         void swap(polynomial & a, polynomial & b) {
             std::swap(a, b);
@@ -1025,7 +1137,7 @@ struct polynomial : number_context<T>
      * No overlap allowed.
      */
     bool pseudo_division(polynomial * q, polynomial & r,
-            polynomial const & b)
+            polynomial const & b) const
     {
         polynomial const & a = *this;
         ASSERT(a.degree() >= b.degree());
@@ -1035,14 +1147,14 @@ struct polynomial : number_context<T>
         int const n = b.degree();
         T d = b.lc();
         int e = m - n + 1;
-        polynomial s(extract_traits());
+        polynomial s(ctx());
 
         if (q) *q = 0;
 
         r = a;
 
         while (r.degree() >= n) {
-            s = interpret_integral(0);
+            s = ctx()(0);
             s[r.degree() - n] = r.lc();
 
             if (q) {
@@ -1077,7 +1189,7 @@ struct polynomial : number_context<T>
         return true;
     }
 
-    bool pseudo_remainder(polynomial & r, polynomial const & b)
+    bool pseudo_remainder(polynomial & r, polynomial const & b) const
     {
         return pseudo_division(nullptr, r, b);
     }
@@ -1088,10 +1200,8 @@ struct polynomial : number_context<T>
      * implicitly relies on the assumption that the inputs are integer
      * polynomials (but with floating-point representation).
      */
-    template<typename U>
-        T
-    resultant(polynomial<U> const & q) const
-    requires(std::is_same_v<U, T> && cado_math_aux::is_real_v<U>)
+    T resultant(polynomial<T> const & q) const
+    requires cado_math_aux::is_real_v<T>
     {
         polynomial const & p = *this;
         if (p.degree() < 0 || q.degree() < 0)
@@ -1099,15 +1209,15 @@ struct polynomial : number_context<T>
 
         polynomial a = p;
         polynomial b = q;
-        polynomial r(extract_traits());
+        polynomial r(ctx());
 
         int s = 1;
         int d;
 
         int pseudo_div = 1;
 
-        T g = interpret_integral(1);
-        T h = interpret_integral(1);
+        T g = ctx()(1);
+        T h = ctx()(1);
 
         if (a.degree() < b.degree()) {
             std::swap(a, b);
@@ -1171,10 +1281,9 @@ struct polynomial : number_context<T>
         }
         return h;
     }
-    template<typename U>
-        T
-    resultant(polynomial<U> const & q) const
-    requires(std::is_same_v<U, T> && std::is_same_v<U, cxx_mpz>)
+
+    T resultant(polynomial<T> const & q) const
+    requires std::is_same_v<T, cxx_mpz>
     {
         cxx_mpz val_z;
         cxx_mpz_poly pz(*this);
@@ -1187,7 +1296,6 @@ struct polynomial : number_context<T>
 
 
 static_assert(std::is_same_v<decltype(polynomial<int>{}(double())), double>);
-static_assert(std::is_same_v<decltype(polynomial<double>{}(int())), double>);
 static_assert(std::is_same_v<decltype(polynomial<int>{}(int())), int>);
 static_assert(std::is_same_v<decltype(polynomial<cxx_mpz>{}(int())), cxx_mpz>);
 static_assert(std::is_same_v<decltype(polynomial<cxx_mpz>{}(double())), double>);
@@ -1202,10 +1310,10 @@ static_assert(std::is_same_v<decltype(polynomial<cxx_mpz>{}(cxx_mpfr())), cxx_mp
 #ifdef HAVE_MPFR
 /* This has to be a specific instantiation! */
 template<>
-inline polynomial<cxx_mpfr>::polynomial(cxx_mpz_poly const & f, traits const & tr)
-    : traits(tr)
+inline polynomial<cxx_mpfr>::polynomial(cxx_mpz_poly const & f, number_context<cxx_mpfr> const & tr)
+    : number_context<cxx_mpfr>(tr)
 {
-    coeffs.assign(f.degree() + 1, interpret_integral(0));
+    coeffs.assign(f.degree() + 1, ctx()(0));
     for(int i = 0 ; i <= f.degree() ; i++)
         mpfr_set_z(coeffs[i], mpz_poly_coeff_const(f, i), MPFR_RNDN);
 }
@@ -1227,7 +1335,7 @@ std::istream& operator>>(std::istream& in, cado::named_proxy<polynomial<T> &> co
     P.tokenize(is);
 
     try {
-        F.c = P.parse(static_cast<typename polynomial<T>::traits>(F.c));
+        F.c = P.parse(number_context<T>(F.c));
     } catch (cado_expression_parser_details::parse_error const & p) {
         in.setstate(std::ios_base::failbit);
         return in;

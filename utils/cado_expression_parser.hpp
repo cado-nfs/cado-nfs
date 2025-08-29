@@ -177,6 +177,9 @@ private:
             p = parse_factor(args...);
             T::neg(p, p);
         } else if (accept(POSITIVE_NUMBER)) {
+            /* This assumes that anything we parse implicitly carries a
+             * relation to a number context of the given number type.
+             */
             T::set(p, cado::number_context<number_type>(p)(*cnumber++));
         } else if (accept(LEFT_PAREN)) {
             p = parse_expression(args...);
@@ -192,7 +195,7 @@ private:
         if (e < 0)
             throw parse_error();
         if (e != 1)
-            T::pow_ui(p, p, e);
+            T::pow_ui(p, p, static_cast<unsigned long>(e));
         return p;
     }
 

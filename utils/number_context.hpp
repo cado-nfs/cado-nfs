@@ -3,6 +3,8 @@
 
 #include "cado_config.h"        // IWYU pragma: keep
 
+#include <cstddef>
+
 /* we have many different number types: int, long, double, float, but
  * also cxx_mpz or cxx_mpfr. In most cases, there is no ambiguity as to
  * what "0" means.
@@ -18,6 +20,7 @@
 #include <gmp.h>
 
 #include "number_literal.hpp"
+#include "cado_math_aux.hpp"
 #include "cxx_mpz.hpp"
 #ifdef HAVE_MPFR
 #include "cxx_mpfr.hpp"
@@ -42,7 +45,12 @@ namespace cado {
             return operator()(N.full);
         }
         template<typename U>
-        T interpret_integral(U x) const { return T(x); }
+        T operator()(U x) const
+        requires (std::is_integral_v<U> || std::is_same_v<T, U>)
+        { return x; }
+
+        T operator()(mpz_srcptr x) const { return cado_math_aux::mpz_get<T>(x); }
+        T operator()(cxx_mpz const & x) const { return cado_math_aux::mpz_get<T>(x); }
     };
 
     template<> struct number_context<cxx_mpz> {
@@ -60,7 +68,14 @@ namespace cado {
             return operator()(N.full);
         }
         template<typename U>
-        cxx_mpz interpret_integral(U x) const { return cxx_mpz(x); }
+        cxx_mpz operator()(U x) const
+        requires std::is_integral_v<U>
+        { return x; }
+
+        /* these are just as trivial as the above, but we need overloads
+         * because they're not integral types */
+        cxx_mpz operator()(mpz_srcptr x) const { return x; }
+        cxx_mpz operator()(cxx_mpz const & x) const { return x; }
     };
 #ifdef HAVE_MPFR
     template<> struct number_context<cxx_mpfr> {
@@ -87,7 +102,23 @@ namespace cado {
             return operator()(N.full);
         }
         template<typename U>
-        cxx_mpfr interpret_integral(U x) const {
+        cxx_mpfr operator()(U x) const
+        requires (std::is_integral_v<U> || std::is_same_v<U, cxx_mpfr>)
+        {
+            cxx_mpfr y;
+            mpfr_set_prec(y, prec);
+            mpfr_auxx::cado_mpfr_set(y, x, MPFR_RNDN);
+            return y;
+        }
+        cxx_mpfr operator()(mpz_srcptr x) const
+        {
+            cxx_mpfr y;
+            mpfr_set_prec(y, prec);
+            mpfr_auxx::cado_mpfr_set(y, x, MPFR_RNDN);
+            return y;
+        }
+        cxx_mpfr operator()(cxx_mpz const & x) const
+        {
             cxx_mpfr y;
             mpfr_set_prec(y, prec);
             mpfr_auxx::cado_mpfr_set(y, x, MPFR_RNDN);

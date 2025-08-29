@@ -479,8 +479,12 @@ namespace cado_math_aux
         static int accurate_bits(T reference, T computed)
         requires std::is_floating_point_v<T>
         {
-            ASSERT_ALWAYS(reference != 0);
-            T c = std::fabs((computed-reference)/reference);
+            T c;
+            if (reference == 0)
+                c = computed;
+            else
+                c = (computed-reference)/reference;
+            c = std::fabs(c);
             return c == 0 ? INT_MAX : -std::ilogb(c);
         }
 
@@ -490,8 +494,11 @@ namespace cado_math_aux
         accurate_bits(T reference, T computed)
         requires std::is_same_v<T, cxx_mpfr>
         {
-            ASSERT_ALWAYS(reference != 0);
-            T c = (computed-reference)/reference;
+            T c;
+            if (reference == 0)
+                c = computed;
+            else
+                c = (computed-reference)/reference;
             mpfr_abs(c, c, MPFR_RNDN);
             if (c == 0) return INT_MAX;
             T mantissa;
@@ -669,8 +676,10 @@ namespace cado_math_aux
     static inline void exact_form(cxx_mpz & m, int & e, T x)
     requires cado_math_aux::is_real<T>::value
     {
-        int xe = 0;
-        T mantissa = cado_math_aux::frexp(x, &xe);
+        e = 0;
+        /* frexp returns x in (-1,-0.5] u [0.5,1). We want an integer, so
+         * we want to scale this up */
+        T mantissa = cado_math_aux::frexp(x, &e);
         constexpr int d = std::numeric_limits<T>::digits;
         m = mpz_from<T>(cado_math_aux::ldexp(mantissa, d-1));
         e -= (d-1);
