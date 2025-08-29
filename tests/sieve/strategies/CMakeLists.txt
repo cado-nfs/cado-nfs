@@ -31,7 +31,8 @@ cado_define_test(test_generate_strategies.cpp
   ${SUF_SRC}/generate_factoring_method.cpp
   ${SUF_SRC}/generate_strategies.cpp
   ${SRC_UTILS}
-  LIBRARIES ${LIB_EXEC})
+  LIBRARIES ${LIB_EXEC}
+  TIMEOUT 80)
 
 cado_define_test(test_filtering.cpp
   ${SUF_SRC}/generate_factoring_method.cpp
