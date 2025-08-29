@@ -5,13 +5,17 @@
 #include <cstdlib>
 #include <cstring>
 
-#include <algorithm>
 #include <ostream>
 #include <vector>
+#include <string>
 
 #include <gmp.h>
+#include "fmt/base.h"
+#include "fmt/format.h"
+#include "fmt/ostream.h"
 
 #include "cxx_mpz.hpp"
+#include "fmt_helper_sagemath.hpp"
 #include "lll.h" // mat_Z, LLL
 #include "macros.h"
 #include "mpz_mat.h"
@@ -337,6 +341,15 @@ void mpz_mat_determinant_triangular(mpz_ptr d, mpz_mat_srcptr M) /*{{{*/
         mpz_mul(d, d, mpz_mat_entry_const(M, i, i));
 }
 /*}}}*/
+void mpz_mat_determinant(mpz_ptr d, mpz_mat_srcptr A)
+{
+    cxx_mpz_mat H;
+    mpz_mat_set(H, A);
+    int s = mpz_mat_hermite_form(H);
+    mpz_mat_determinant_triangular(d, H);
+    mpz_mul_si(d, d, s);
+}
+
 void mpz_mat_transpose(mpz_mat_ptr D, mpz_mat_srcptr M) /*{{{*/
 {
     if (D != M) {
@@ -410,6 +423,17 @@ void mpq_mat_determinant_triangular(mpq_ptr d, mpq_mat_srcptr M) /*{{{*/
     mpq_set_ui(d, 1, 1);
     for (unsigned int i = 0; i < M->n; i++)
         mpq_mul(d, d, mpq_mat_entry_const(M, i, i));
+}
+/*}}}*/
+void mpq_mat_determinant(mpq_ptr d, mpq_mat_srcptr M) /*{{{*/
+{
+    ASSERT_ALWAYS(M->m == M->n);
+    cxx_mpz_mat num;
+    cxx_mpz den;
+    mpq_mat_numden(num, den, M);
+    mpz_mat_determinant(mpq_numref(d), num);
+    mpz_pow_ui(mpq_denref(d), den, M->n);
+    mpq_canonicalize(d);
 }
 /*}}}*/
 void mpq_mat_transpose(mpq_mat_ptr D, mpq_mat_srcptr M) /*{{{*/
@@ -610,76 +634,6 @@ void mpq_mat_swaprows(mpq_mat_ptr M, unsigned int i0, unsigned int i1) /*{{{*/
     }
 }
 /*}}}*/
-void mpz_mat_rotatedownrows(mpz_mat_ptr M, unsigned int i0,
-                            unsigned int k) /*{{{*/
-{
-    /* apply a circular shift on rows [i0...i0+k[ */
-    ASSERT_ALWAYS(i0 < M->m);
-    ASSERT_ALWAYS(i0 + k <= M->m);
-    if (k <= 1)
-        return;
-    for (unsigned int j = 0; j < M->n; j++) {
-        for (unsigned int s = k - 1; s--;) {
-            mpz_swap(mpz_mat_entry(M, i0 + s, j),
-                     mpz_mat_entry(M, i0 + s + 1, j));
-        }
-    }
-}
-/*}}}*/
-void mpq_mat_rotatedownrows(mpq_mat_ptr M, unsigned int i0,
-                            unsigned int k) /*{{{*/
-{
-    ASSERT_ALWAYS(i0 < M->m);
-    ASSERT_ALWAYS(i0 + k <= M->m);
-    if (k <= 1)
-        return;
-    for (unsigned int j = 0; j < M->n; j++) {
-        for (unsigned int s = k - 1; s--;) {
-            mpq_swap(mpq_mat_entry(M, i0 + s, j),
-                     mpq_mat_entry(M, i0 + s + 1, j));
-        }
-    }
-}
-/*}}}*/
-void mpz_mat_permuterows(mpz_mat_ptr M, unsigned int * perm) /*{{{*/
-{
-    /* put row perm[k] in row k */
-    mpz_mat Mx;
-    mpz_mat_init(Mx, M->m, M->n);
-    for (unsigned int i = 0; i < M->m; i++) {
-        for (unsigned int j = 0; j < M->n; j++) {
-            ASSERT_ALWAYS(perm[i] < M->m);
-            mpz_swap(mpz_mat_entry(Mx, i, j), mpz_mat_entry(M, perm[i], j));
-        }
-    }
-    mpz_mat_swap(M, Mx);
-    mpz_mat_clear(Mx);
-}
-/*}}}*/
-void mpq_mat_permuterows(mpq_mat_ptr M, unsigned int * perm) /*{{{*/
-{
-    mpq_mat Mx;
-    mpq_mat_init(Mx, M->m, M->n);
-    for (unsigned int i = 0; i < M->m; i++) {
-        for (unsigned int j = 0; j < M->n; j++) {
-            mpq_swap(mpq_mat_entry(Mx, i, j), mpq_mat_entry(M, perm[i], j));
-        }
-    }
-    mpq_mat_swap(M, Mx);
-    mpq_mat_clear(Mx);
-}
-/*}}}*/
-static int permutation_signature(unsigned int const * perm,
-                                 unsigned int n) /*{{{*/
-{
-    /* can this be done in O(n) only ?? */
-    int sign = 1;
-    for (unsigned int i = 0; i < n; i++)
-        for (unsigned int j = i; j < n; j++)
-            if (perm[j] < perm[i])
-                sign *= -1;
-    return sign;
-}
 /*}}}*/
 
 /* add lambda times row i1 to row i0 */
@@ -690,17 +644,6 @@ void mpz_mat_addmulrow(mpz_mat_ptr M, unsigned int i0, unsigned int i1,
     ASSERT_ALWAYS(i1 < M->m);
     for (unsigned int j = 0; j < M->n; j++) {
         mpz_addmul(mpz_mat_entry(M, i0, j), lambda, mpz_mat_entry(M, i1, j));
-    }
-}
-/*}}}*/
-void mpz_mat_addmulrow_mod(mpz_mat_ptr M, unsigned int i0, unsigned int i1,
-                           mpz_srcptr lambda, mpz_srcptr p) /*{{{*/
-{
-    ASSERT_ALWAYS(i0 < M->m);
-    ASSERT_ALWAYS(i1 < M->m);
-    for (unsigned int j = 0; j < M->n; j++) {
-        mpz_addmul(mpz_mat_entry(M, i0, j), lambda, mpz_mat_entry(M, i1, j));
-        mpz_mod(mpz_mat_entry(M, i0, j), mpz_mat_entry(M, i0, j), p);
     }
 }
 /*}}}*/
@@ -731,7 +674,7 @@ void mpz_mat_submulrow(mpz_mat_ptr M, unsigned int i0, unsigned int i1,
     }
 }
 /*}}}*/
-void mpz_mat_submulrow_mod(mpz_mat_ptr M, unsigned int i0, unsigned int i1,
+static void mpz_mat_submulrow_mod(mpz_mat_ptr M, unsigned int i0, unsigned int i1,
                            mpz_srcptr lambda, mpz_srcptr p) /*{{{*/
 {
     ASSERT_ALWAYS(i0 < M->m);
@@ -833,62 +776,7 @@ void mpq_mat_mulrow(mpq_mat_ptr M, unsigned int i0, mpq_srcptr lambda) /*{{{*/
 }
 /*}}}*/
 
-#if 0
-/* XXX never used, untested ! */
-/* this computes an additive combination of n rows into row [didx] of the
- * initial matrix. We require that this destination row be cleared
- * initially.
- */
-void mpz_mat_combinerows(mpz_mat_ptr M, unsigned int didx, unsigned int sidx,/*{{{*/
-        mpz_srcptr * lambda, unsigned int n)
-{
-    for(unsigned int j = 0 ; j < M->n ; j++) {
-        ASSERT_ALWAYS(mpz_cmp_ui(mpz_mat_entry(M, didx, j), 0) == 0);
-    }
-    for(unsigned int i = 0 ; i < n ; i++) {
-        mpz_mat_addmulrow(M, didx, sidx + i, lambda[i]);
-    }
-}
-/*}}}*/
-#endif
-
 /* }}} */
-/*{{{ I/O*/
-void mpz_mat_fprint(FILE * stream, mpz_mat_srcptr M)
-{
-    for (unsigned int i = 0; i < M->m; i++) {
-        for (unsigned int j = 0; j < M->n; j++) {
-            gmp_fprintf(stream, " %Zd", mpz_mat_entry_const(M, i, j));
-        }
-        fprintf(stream, "\n");
-    }
-}
-
-void mpq_mat_fprint(FILE * stream, mpq_mat_srcptr M)
-{
-    for (unsigned int i = 0; i < M->m; i++) {
-        for (unsigned int j = 0; j < M->n; j++) {
-            gmp_fprintf(stream, " %Qd", mpq_mat_entry_const(M, i, j));
-        }
-        fprintf(stream, "\n");
-    }
-}
-
-void mpq_mat_fprint_as_mpz(FILE * f, mpq_mat_srcptr M)
-{
-    cxx_mpz denom;
-    mpz_mat N;
-
-    mpz_mat_init(N, 0, 0);
-
-    mpq_mat_numden(N, denom, M);
-
-    mpz_mat_fprint(f, N);
-    gmp_fprintf(f, "Denominator is : %Zd\n", (mpz_srcptr)denom);
-
-    mpz_mat_clear(N);
-}
-/*}}}*/
 /*{{{ comparison */
 int mpz_mat_cmp(mpz_mat_srcptr M, mpz_mat_srcptr N) /*{{{*/
 {
@@ -1287,6 +1175,7 @@ void mpz_mat_pow_ui(mpz_mat_ptr B, mpz_mat_srcptr A, unsigned long n) /*{{{*/
 {
     ASSERT_ALWAYS(A->n == A->m);
     if (n == 0) {
+        mpz_mat_realloc(B, A->m, A->n);
         mpz_mat_set_ui(B, 1);
         return;
     }
@@ -1320,6 +1209,7 @@ void mpz_mat_pow_ui_mod_ui(mpz_mat_ptr B, mpz_mat_srcptr A, unsigned long n,
 {
     ASSERT_ALWAYS(A->n == A->m);
     if (n == 0) {
+        mpz_mat_realloc(B, A->m, A->n);
         mpz_mat_set_ui(B, 1);
         return;
     }
@@ -1353,6 +1243,7 @@ void mpz_mat_pow_ui_mod_mpz(mpz_mat_ptr B, mpz_mat_srcptr A, unsigned long n,
 {
     ASSERT_ALWAYS(A->n == A->m);
     if (n == 0) {
+        mpz_mat_realloc(B, A->m, A->n);
         mpz_mat_set_ui(B, 1);
         return;
     }
@@ -1383,8 +1274,8 @@ void mpz_mat_pow_ui_mod_mpz(mpz_mat_ptr B, mpz_mat_srcptr A, unsigned long n,
 /*}}}*/
 /* {{{ polynomial evaluation */
 
-void mpz_poly_eval_mpz_mat(mpz_mat_ptr D, mpz_mat_srcptr M,
-                           mpz_poly_srcptr f) /*{{{*/
+void mpz_poly_eval_mpz_mat(mpz_mat_ptr D, mpz_poly_srcptr f,
+        mpz_mat_srcptr M) /*{{{*/
 {
     ASSERT_ALWAYS(M->m == M->n);
     unsigned int const n = M->n;
@@ -1397,7 +1288,7 @@ void mpz_poly_eval_mpz_mat(mpz_mat_ptr D, mpz_mat_srcptr M,
     if (D == M) {
         mpz_mat X;
         mpz_mat_init(X, 0, 0);
-        mpz_poly_eval_mpz_mat(X, M, f);
+        mpz_poly_eval_mpz_mat(X, f, M);
         mpz_mat_swap(D, X);
         mpz_mat_clear(X);
         return;
@@ -1410,8 +1301,8 @@ void mpz_poly_eval_mpz_mat(mpz_mat_ptr D, mpz_mat_srcptr M,
     }
 }
 /*}}}*/
-void mpz_poly_eval_mpz_mat_mod_ui(mpz_mat_ptr D, mpz_mat_srcptr M,
-                                  mpz_poly_srcptr f, unsigned long p) /*{{{*/
+void mpz_poly_eval_mpz_mat_mod_ui(mpz_mat_ptr D, mpz_poly_srcptr f,
+        mpz_mat_srcptr M, unsigned long p) /*{{{*/
 {
     ASSERT_ALWAYS(M->m == M->n);
     unsigned int const n = M->n;
@@ -1424,7 +1315,7 @@ void mpz_poly_eval_mpz_mat_mod_ui(mpz_mat_ptr D, mpz_mat_srcptr M,
     if (D == M) {
         mpz_mat X;
         mpz_mat_init(X, 0, 0);
-        mpz_poly_eval_mpz_mat_mod_ui(X, M, f, p);
+        mpz_poly_eval_mpz_mat_mod_ui(X, f, M, p);
         mpz_mat_swap(D, X);
         mpz_mat_clear(X);
         return;
@@ -1438,8 +1329,8 @@ void mpz_poly_eval_mpz_mat_mod_ui(mpz_mat_ptr D, mpz_mat_srcptr M,
     }
 }
 /*}}}*/
-void mpz_poly_eval_mpz_mat_mod_mpz(mpz_mat_ptr D, mpz_mat_srcptr M,
-                                   mpz_poly_srcptr f, mpz_srcptr p) /*{{{*/
+void mpz_poly_eval_mpz_mat_mod_mpz(mpz_mat_ptr D, mpz_poly_srcptr f,
+        mpz_mat_srcptr M, mpz_srcptr p) /*{{{*/
 {
     ASSERT_ALWAYS(M->m == M->n);
     unsigned int const n = M->n;
@@ -1452,7 +1343,7 @@ void mpz_poly_eval_mpz_mat_mod_mpz(mpz_mat_ptr D, mpz_mat_srcptr M,
     if (D == M) {
         mpz_mat X;
         mpz_mat_init(X, 0, 0);
-        mpz_poly_eval_mpz_mat_mod_mpz(X, M, f, p);
+        mpz_poly_eval_mpz_mat_mod_mpz(X, f, M, p);
         mpz_mat_swap(D, X);
         mpz_mat_clear(X);
         return;
@@ -1599,71 +1490,12 @@ void mpz_mat_gauss_backend_mod_ui(mpz_mat_ptr M, mpz_mat_ptr T, unsigned long p)
 }
 
 /* {{{ Hermite normal form over the integers
- * The algorithm here is randomly cooked from a stupid idea I had. The
- * transformation matrices produced seem to be reasonably good, somewhat
- * better than what magma gives (for overdetermined matrices, of course
- * -- otherwise they're unique). However we do so in an embarrassingly
- * larger amount of time (more than 1000* for 100x100 matrices).
- * Fortunately, our intent is not to run this code on anything larger
- * than 30*30, in which case it's sufficient.
+ * The algorithm here is very naive and straightforward, but at least
+ * it's not embarassingly slow on tiny matrices.  Our intent is not to
+ * run this code on anything larger than 30*30, in which case it's
+ * sufficient.
  */
 /*{{{ hnf helper algorithm (for column matrices) */
-
-struct mpz_mat_hnf_helper_cmp {
-    unsigned int n;
-    cxx_mpz_mat A;
-    std::vector<double> dd;
-    mpz_mat_hnf_helper_cmp(mpz_mat_srcptr T, std::vector<cxx_mpz> & a)
-        : n(T->m)
-        , A(n, 1)
-        , dd(n, 0)
-    {
-        ASSERT_ALWAYS(a.size() == n);
-        mpz_mat_set_ui(A, 0);
-        unsigned int const n = T->m;
-        for (unsigned int i = 0; i < n; i++) {
-            mpz_ptr Ai = mpz_mat_entry(A, i, 0);
-            mpz_swap(Ai, a[i]);
-            dd[i] = 0;
-            for (unsigned int j = 0; j < n; j++) {
-                double const d = mpz_get_d(mpz_mat_entry_const(T, i, j));
-                dd[i] += d * d;
-            }
-        }
-    }
-
-    bool operator()(unsigned int a, unsigned int b) const
-    {
-        /* The heap will have the largest elements on top according to this
-         * measure. Thus the comparison on the ->a field must be as per
-         * mpz_cmp
-         */
-        mpz_srcptr xa = mpz_mat_entry_const(A, a, 0);
-        mpz_srcptr xb = mpz_mat_entry_const(A, b, 0);
-
-        ASSERT(mpz_sgn(xa) >= 0);
-        ASSERT(mpz_sgn(xb) >= 0);
-        int const r = mpz_cmp(xa, xb);
-        if (r)
-            return r < 0;
-        /* among combinations giving the same result, we want the "best" to
-         * be the one with *smallest* norm. So instead of the sign of da-db,
-         * we want the sign of db-da, here.
-         */
-        double const da = dd[a];
-        double const db = dd[b];
-        return (db > da) < (da > db);
-    }
-
-    void result(std::vector<cxx_mpz> & a)
-    {
-        ASSERT_ALWAYS(a.size() == n);
-        for (unsigned int i = 0; i < n; i++) {
-            mpz_ptr Ai = mpz_mat_entry(A, i, 0);
-            mpz_swap(Ai, a[i]);
-        }
-    }
-};
 
 /* this is quite the same as computing the hnf on a column matrix, with
  * the added functionality that entries in a[0..n0[ are reduced with
@@ -1676,12 +1508,11 @@ struct mpz_mat_hnf_helper_cmp {
  *
  * return +1 or -1 which is the determinant of T.
  */
-static int mpz_mat_hnf_helper(mpz_mat_ptr T, mpz_mat_ptr dT,
-                              std::vector<cxx_mpz> & a, unsigned int n0)
+static int mpz_mat_hnf_helper(mpz_mat_ptr dT,
+                              cxx_mpz_mat & a, unsigned int n0)
 {
-    unsigned int const n = a.size();
+    unsigned int const n = a->m;
     int signdet = 1;
-    ASSERT_ALWAYS(dT != T);
     mpz_mat_realloc(dT, n, n);
     mpz_mat_set_ui(dT, 1);
 
@@ -1690,137 +1521,87 @@ static int mpz_mat_hnf_helper(mpz_mat_ptr T, mpz_mat_ptr dT,
     if (n == n0)
         return signdet;
 
-    cxx_mpz q, r2;
+    /* row n0 is always considered active. If it is zero (which might
+     * happen on entry), then this will be fixed on the first round if
+     * there is another non-zero coefficient. Otherwise the column is
+     * reduced and there is nothing to do. */
+    std::vector<unsigned int> active;
+    for(unsigned int i = n0 + 1 ; i < n ; i++)
+        active.push_back(i);
 
-    /* fix signs */
-    for (unsigned int i = n0; i < n; i++) {
-        if (mpz_sgn(a[i]) == -1) {
-            mpz_neg(a[i], a[i]);
-            signdet = -signdet;
-            mpz_set_si(mpz_mat_entry(dT, i, i), -1);
-            for (unsigned int j = 0; j < n; j++) {
-                mpz_neg(mpz_mat_entry(T, i, j), mpz_mat_entry(T, i, j));
+    do {
+        {
+            unsigned int i0 = n0;
+            for(const unsigned int i : active) {
+                if (mpz_sgn(a(i, 0)) == 0)
+                    continue;
+                if (mpz_sgn(a(i0, 0)) == 0 || mpz_cmpabs(a(i, 0), a(i0, 0)) < 0)
+                    i0 = i;
+            }
+            if (i0 != n0) {
+                mpz_mat_swaprows(a, n0, i0);
+                mpz_mat_swaprows(dT, n0, i0);
+                signdet *= -1;
             }
         }
-    }
 
-    mpz_mat_hnf_helper_cmp cmp(T, a);
-    std::vector<unsigned int> heap(n, 0);
+        active.clear();
+        cxx_mpz q, r;
 
-    for (unsigned int i = 0; i < n; i++)
-        heap[i] = i;
+        if (mpz_sgn(a(n0, 0)) == 0)
+            return signdet;
 
-    std::make_heap(heap.begin() + n0, heap.end(), cmp);
-    for (;;) {
-        /* extract the head */
-        std::pop_heap(heap.begin() + n0, heap.end(), cmp);
-        unsigned int const head = heap.back();
-        mpz_ptr r0 = mpz_mat_entry(cmp.A, head, 0);
-        if (mpz_cmp_ui(r0, 0) == 0) {
-            /* we're done ! */
-            std::push_heap(heap.begin() + n0, heap.end(), cmp);
-            break;
+        /* It's not mandatory to do it right here if we do ndiv, but for
+         * fdiv it is important.
+         */
+        if (mpz_sgn(a(n0, 0)) < 0) {
+            signdet *= -1;
+            mpz_neg(a(n0, 0), a(n0, 0));
+            for(unsigned int j = 0 ; j < dT->n ; j++)
+                mpz_neg(mpz_mat_entry(dT, n0, j), mpz_mat_entry(dT, n0, j));
         }
-        /* reduce A[0..n0[ wrt r0 == A[head] */
-        for (unsigned int i = 0; i < n0; i++) {
-            mpz_fdiv_qr(q, r2, mpz_mat_entry(cmp.A, i, 0), r0);
-            mpz_swap(r2, mpz_mat_entry(cmp.A, i, 0));
-            mpz_mat_submulrow(T, i, head, q);
-            mpz_mat_submulrow(dT, i, head, q);
-        }
-        if (n0 == n - 1) {
-            /* we're actually computing the gcd of one single integer.
-             * That makes no sense of course.
-             */
-            std::push_heap(heap.begin() + n0, heap.end(), cmp);
-            break;
-        }
-        mpz_ptr r1 = mpz_mat_entry(cmp.A, heap[n0], 0);
-        if (mpz_cmp_ui(r1, 0) == 0) {
-            /* we're done ! */
-            std::push_heap(heap.begin() + n0, heap.end(), cmp);
-            break;
-        }
-        mpz_fdiv_qr(q, r2, r0, r1);
-        mpz_swap(r0, r2);
-        mpz_mat_submulrow(T, head, heap[n0], q);
-        mpz_mat_submulrow(dT, head, heap[n0], q);
-        /* adjust the norm of the row in T */
-        cmp.dd[head] = 0;
-        for (unsigned int j = 0; j < n; j++) {
-            double const d = mpz_get_d(mpz_mat_entry(T, head, j));
-            cmp.dd[head] += d * d;
-        }
-        std::push_heap(heap.begin() + n0, heap.end(), cmp);
-    }
-    std::sort_heap(heap.begin() + n0, heap.end(), cmp);
-    std::reverse(heap.begin() + n0, heap.end());
-    mpz_mat_permuterows(T, heap.data());
-    mpz_mat_permuterows(dT, heap.data());
-    mpz_mat_permuterows(cmp.A, heap.data());
-    signdet *= permutation_signature(heap.data(), n);
 
-    cmp.result(a);
+        /* reduce A[0..n[ wrt r0 == A[head] */
+        for (unsigned int i = 0; i < n; i++) {
+            if (i == n0 || mpz_cmp_ui(a(i, 0), 0) == 0)
+                continue;
+
+            /* use ndiv_qr to get centered coefficients, otherwise use
+             * fdiv_qr */
+            mpz_fdiv_qr(q, r, a(i, 0), a(n0, 0));
+            if (i > n0 && r != 0)
+                active.push_back(i);
+            mpz_swap(r, a(i, 0));
+            mpz_mat_submulrow(dT, i, n0, q);
+        }
+
+        /* break here so that we always get at least one run of the loop */
+    } while (!active.empty());
 
     return signdet;
 }
 
-#if 0
-/* {{{ this computes the row hnf on a column C.
- * The result is always of the form C'=(gcd(C),0,0,...,0). The transform
- * matrix T such that C'=T*C is most interesting.  a is modified in
- * place.
- */
-void mpz_gcd_many(mpz_mat_ptr dT, std::vector<cxx_mpz> & a)
-{
-    mpz_mat T;
-    unsigned int const n = a.size();
-    mpz_mat_init(T, n, n);
-    mpz_mat_set_ui(T, 1);
-    mpz_mat_hnf_helper(T, dT, a, 0);
-    mpz_mat_clear(T);
-}
-/*}}}*/
-#endif
-
 /*}}}*/
 
 /*
- * T receives the transformation matrix.
  * M is put into HNF form.
  * return +1 or -1, which is the determinant of the transformation matrix
  * T */
-int mpz_mat_hermite_form(mpz_mat_ptr M, mpz_mat_ptr T)
+int mpz_mat_hermite_form(mpz_mat_ptr M) /* , mpz_mat_ptr T) */
 {
-    ASSERT_ALWAYS(M != T);
-    if (T == NULL) {
-        mpz_mat xT;
-        mpz_mat_init(xT, 0, 0);
-        int const r = mpz_mat_hermite_form(M, xT);
-        mpz_mat_clear(xT);
-        return r;
-    }
     int signdet = 1;
     unsigned int const m = M->m;
     unsigned int const n = M->n;
-    mpz_mat_realloc(T, m, m);
-    mpz_mat_set_ui(T, 1);
     unsigned int rank = 0;
-    std::vector<cxx_mpz> colm(m, 0);
-    mpz_mat dT, Mx, My;
-    mpz_mat_init(dT, 0, 0);
-    mpz_mat_init(Mx, 0, 0);
-    mpz_mat_init(My, 0, 0);
+    cxx_mpz_mat dT, Mx, My;
+    cxx_mpz_mat colm(m, 1);
+
     for (unsigned int j = 0; j < n && rank < m; j++) {
-        for (unsigned int i = 0; i < m; i++)
-            mpz_swap(colm[i], mpz_mat_entry(M, i, j));
 
-        signdet *= mpz_mat_hnf_helper(T, dT, colm, rank);
-
-        rank += mpz_cmp_ui(colm[rank], 0) != 0;
-
-        for (unsigned int i = 0; i < m; i++)
-            mpz_swap(colm[i], mpz_mat_entry(M, i, j));
+        mpz_mat_submat_swap(M, 0, j, colm, 0, 0, m, 1);
+        signdet *= mpz_mat_hnf_helper(/* T, */ dT, colm, rank);
+        rank += mpz_cmp_ui(colm(rank, 0), 0) != 0;
+        mpz_mat_submat_swap(M, 0, j, colm, 0, 0, m, 1);
 
         /* apply dT to the right part. By construction, our
          * transformation matrix dT ha already been applied to T itself,
@@ -1833,9 +1614,6 @@ int mpz_mat_hermite_form(mpz_mat_ptr M, mpz_mat_ptr T)
         mpz_mat_mul(My, dT, Mx);
         mpz_mat_submat_swap(M, 0, j + 1, My, 0, 0, m, n - 1 - j);
     }
-    mpz_mat_clear(dT);
-    mpz_mat_clear(Mx);
-    mpz_mat_clear(My);
 
     return signdet;
 }
@@ -1845,20 +1623,15 @@ int mpz_mat_hermite_form(mpz_mat_ptr M, mpz_mat_ptr T)
  * different order, which is more suitable for displaying number
  * field elements in a way which ends up being similar to magma's
  *
- * T receives the transformation matrix.
  * M is put into HNF form.
  */
-int mpz_mat_hermite_form_rev(mpz_mat_ptr M, mpz_mat_ptr T) // {{{
+int mpz_mat_hermite_form_rev(mpz_mat_ptr M) /*, mpz_mat_ptr T */ // {{{
 {
     mpz_mat_reverse_rows(M, M);
     mpz_mat_reverse_columns(M, M);
-    int s = mpz_mat_hermite_form(M, T);
+    int s = mpz_mat_hermite_form(M);
     mpz_mat_reverse_rows(M, M);
     mpz_mat_reverse_columns(M, M);
-    if (T)
-        mpz_mat_reverse_rows(T, T);
-    if (T)
-        mpz_mat_reverse_columns(T, T);
     if (M->m > M->n) {
         /* we need some swaps... */
         mpz_mat sM;
@@ -1867,14 +1640,6 @@ int mpz_mat_hermite_form_rev(mpz_mat_ptr M, mpz_mat_ptr T) // {{{
         mpz_mat_submat_swap(sM, M->n, 0, M, 0, 0, M->m - M->n, M->n);
         mpz_mat_swap(sM, M);
         mpz_mat_clear(sM);
-        if (T) {
-            mpz_mat sT;
-            mpz_mat_init(sT, T->m, T->n);
-            mpz_mat_submat_swap(sT, 0, 0, T, T->m - T->n, 0, T->n, T->n);
-            mpz_mat_submat_swap(sT, T->n, 0, T, 0, 0, T->m - T->n, T->n);
-            mpz_mat_swap(sT, T);
-            mpz_mat_clear(sT);
-        }
         /* While the transformations above had no effect on s (because
          * they compensate), this one has.
          * we have n circular shifts on length m, plus a reversal on m-n.
@@ -1890,6 +1655,7 @@ int mpz_mat_hermite_form_rev(mpz_mat_ptr M, mpz_mat_ptr T) // {{{
     }
     return s;
 } //}}}
+
 /*{{{ kernel*/
 // This is supposed to compute the Kernel of M mod p and to store it in
 // the matrix K. If r is the rank of M, and M is a square matrix n*n, K
@@ -1986,33 +1752,107 @@ void mpz_mat_LLL(mpz_ptr det, mpz_mat_ptr M, mpz_mat_ptr U, mpz_srcptr a,
     LLL_clear(&M_tmp);
 }
 
-using namespace std;
 
-ostream & operator<<(ostream & os, cxx_mpz_mat const & M) /*{{{*/
+
+namespace fmt {
+
+template<typename matrix_type, fmt_helper_sagemath_types custom_format>
+inline constexpr const char * cado_matrix_ring_name = "";
+
+template<> inline constexpr const char * cado_matrix_ring_name<cxx_mpz_mat, fmt_helper_sagemath_types::SAGEMATH> = "ZZ";
+template<> inline constexpr const char * cado_matrix_ring_name<cxx_mpq_mat, fmt_helper_sagemath_types::SAGEMATH> = "QQ";
+template<> inline constexpr const char * cado_matrix_ring_name<cxx_mpz_mat, fmt_helper_sagemath_types::MAGMA> = "Integers()";
+template<> inline constexpr const char * cado_matrix_ring_name<cxx_mpq_mat, fmt_helper_sagemath_types::MAGMA> = "Rationals()";
+
+
+template<typename matrix_type>
+static auto format_cado_matrix(matrix_type const & M,
+        fmt_helper_sagemath_types custom_format,
+        format_context& ctx) -> format_context::iterator
 {
-    for (unsigned int i = 0; i < M->m; i++) {
-        for (unsigned int j = 0; j < M->n; j++) {
-            if (j)
-                os << " ";
-            os << mpz_mat_entry_const(M, i, j);
-        }
-        if (i < M->m - 1)
-            os << "\n";
+    /* using enum is one of the few bits of c++20 that aren't supported
+     * by g++-10, and we do have a few of these around.
+     */
+    using fmt_helper_sagemath_types::SAGEMATH;
+    using fmt_helper_sagemath_types::TEXT;
+    using fmt_helper_sagemath_types::MACHINE;
+    using fmt_helper_sagemath_types::MAGMA;
+
+    if (custom_format == SAGEMATH) {
+        format_to(ctx.out(), "matrix({}, {}, {}, [\n",
+                cado_matrix_ring_name<matrix_type, SAGEMATH>,
+                M->m, M->n);
+    } else if (custom_format == MAGMA) {
+        format_to(ctx.out(), "Matrix({}, {}, {}, [\n",
+                cado_matrix_ring_name<matrix_type, MAGMA>,
+                M->m, M->n);
+    } else if (custom_format == TEXT) {
+        format_to(ctx.out(), "[");
     }
+    for(unsigned int i = 0 ; i < M->m ; i++) {
+        for(unsigned int j = 0 ; j < M->n ; j++) {
+            std::string after;
+            if (custom_format != MACHINE)
+                if (j < M->n - 1 || i < M->m - 1)
+                    after = ",";
+            if (custom_format == SAGEMATH || custom_format == MAGMA) {
+                if (j < M->n - 1)
+                    after +=  " ";
+                else if (i < M->m - 1)
+                    after += "\n";
+            } else if (custom_format == TEXT || custom_format == MACHINE) {
+                if (j < M->n - 1 || i < M->m - 1)
+                    after +=  " ";
+            }
+            typename matrix_type::cxx_coeff_type Mij = M(i, j);
+            format_to(ctx.out(), "{}", Mij);
+            format_to(ctx.out(), "{}", after);
+        }
+    }
+    if (custom_format == SAGEMATH || custom_format == MAGMA) {
+        format_to(ctx.out(), "])");
+    } else if (custom_format == TEXT) {
+        format_to(ctx.out(), "]");
+    }
+    return ctx.out();
+}
+
+auto formatter<cxx_mpz_mat>::format(cxx_mpz_mat const & M, format_context& ctx) const -> format_context::iterator
+{
+    return format_cado_matrix(M, custom_format, ctx);
+}
+auto formatter<cxx_mpq_mat>::format(cxx_mpq_mat const & M, format_context& ctx) const -> format_context::iterator
+{
+    return format_cado_matrix(M, custom_format, ctx);
+}
+
+} /* namespace fmt */
+
+std::ostream & operator<<(std::ostream & os, cxx_mpz_mat const & M) /*{{{*/
+{
+    fmt::print(os, "{:S}", M);
     return os;
 }
 /*}}}*/
-ostream & operator<<(ostream & os, cxx_mpq_mat const & M) /*{{{*/
+std::ostream & operator<<(std::ostream & os, cxx_mpq_mat const & M) /*{{{*/
 {
-    for (unsigned int i = 0; i < M->m; i++) {
-        for (unsigned int j = 0; j < M->n; j++) {
-            if (j)
-                os << " ";
-            os << mpq_mat_entry_const(M, i, j);
-        }
-        if (i < M->m - 1)
-            os << "\n";
-    }
+    fmt::print(os, "{:S}", M);
     return os;
+}
+/*}}}*/
+
+/*{{{ I/O*/
+void mpz_mat_fprint(FILE * stream, mpz_mat_srcptr M)
+{
+    cxx_mpz_mat tM;
+    mpz_mat_set(tM, M);
+    fmt::print(stream, "{:S}\n", tM);
+}
+
+void mpq_mat_fprint(FILE * stream, mpq_mat_srcptr M)
+{
+    cxx_mpq_mat tM;
+    mpq_mat_set(tM, M);
+    fmt::print(stream, "{:S}\n", tM);
 }
 /*}}}*/

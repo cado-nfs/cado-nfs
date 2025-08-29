@@ -1,10 +1,15 @@
 #ifndef CADO_UTILS_NUMBERTHEORY_NUMBER_FIELD_PRIME_IDEAL_HPP
 #define CADO_UTILS_NUMBERTHEORY_NUMBER_FIELD_PRIME_IDEAL_HPP
 
+#include <gmp.h>
+#include "fmt/base.h"
+#include "fmt/format.h"
+
 #include "numbertheory/numbertheory_fwd_types.hpp"
 #include "numbertheory/number_field_fractional_ideal.hpp"
 #include "numbertheory/number_field_order_element.hpp"
-#include "numbertheory/fmt_helpers.hpp"
+#include "fmt_helper_sagemath.hpp"
+#include "cxx_mpz.hpp"
 
 class number_field_prime_ideal : private number_field_fractional_ideal {
     number_field_order_element valuation_helper;
@@ -40,7 +45,7 @@ class number_field_prime_ideal : private number_field_fractional_ideal {
      * we don't do at the moment (starting with the determinant of I
      * being some power of p)
      */
-    number_field_prime_ideal(number_field_fractional_ideal const & I, cxx_mpz const & p, int e);
+    number_field_prime_ideal(number_field_fractional_ideal I, cxx_mpz p, int e);
 
     friend class number_field_order;
     friend class number_field_fractional_ideal;
@@ -61,10 +66,8 @@ class number_field_prime_ideal : private number_field_fractional_ideal {
 namespace fmt {
     template <>
     struct formatter<number_field_prime_ideal>
-        : formatter<string_view>
-        , fmt_helper_sagemath<number_field_prime_ideal>
+        : fmt_helper_sagemath<number_field_prime_ideal>
     {
-        using fmt_helper_sagemath::parse;
         static constexpr const decltype(custom_format) custom_format_default = SAGEMATH;
         auto format(number_field_prime_ideal const & e, format_context& ctx) const -> format_context::iterator;
     };

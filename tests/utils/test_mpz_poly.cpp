@@ -825,7 +825,7 @@ static void test_mpz_poly_factor_padic(unsigned long iter)
     for(unsigned long i = 0 ; i < iter ; ) {
         /* pick a prime between 4 and 128 bits */
         unsigned long const pbits = gmp_urandomm_ui(rstate, 124) + 4;
-        for( ; !mpz_probab_prime_p(p, 2) ; mpz_urandomb(p, rstate, pbits));
+        for(p = 1 ; !mpz_probab_prime_p(p, 2) ; mpz_urandomb(p, rstate, pbits));
 
         cxx_mpz disc = 0;
         for( ; mpz_cmp_ui(disc, 0) == 0 ; ) {
@@ -1123,12 +1123,12 @@ test_mpz_poly_discriminant (unsigned long iter)
 
 static void test_mpz_poly_discriminant2(unsigned long iter)
 {
-    cxx_mpz_poly f, g, h, fk;
+    cxx_mpz_poly h, fk;
     unsigned long k;
     cxx_mpz D, E;
 
-    mpz_poly_set_from_expression(f, "-37200*x^4-301641500*x^3+11679049396284*x^2-7023696347014750305*x+30546672287719745916994");
-    mpz_poly_set_from_expression(g, "8498629835017307*x-2606392756281442341909");
+    cxx_mpz_poly f = "-37200*x^4-301641500*x^3+11679049396284*x^2-7023696347014750305*x+30546672287719745916994";
+    cxx_mpz_poly g = "8498629835017307*x-2606392756281442341909";
     mpz_poly_discriminant_of_linear_combination(h, f, g);
 
     for(unsigned long i = 0 ; i < iter ; i++) {
@@ -1175,8 +1175,7 @@ static void test_mpz_poly_interpolation(unsigned long iter)
     {
         std::vector<cxx_mpz> points;
         std::vector<cxx_mpz> evaluations;
-        cxx_mpz_poly f;
-        std::istringstream("x+x^2-x^17+3") >> f;
+        cxx_mpz_poly f = "x+x^2-x^17+3";
         for(int i = 0 ; i < 24 ; i++) { 
             cxx_mpz t(i), e;
             mpz_poly_eval(e, f, t);

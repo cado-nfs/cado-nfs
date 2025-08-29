@@ -28,11 +28,10 @@
 static cxx_mpz_mat join_HNF(cxx_mpz_mat const& K, cxx_mpz const& p)//{{{
 {
     cxx_mpz_mat J(K->n, K->n, p);
-    cxx_mpz_mat T0;
     cxx_mpz_mat I;
 
     mpz_mat_vertical_join(I, J, K);
-    mpz_mat_hermite_form(I, T0);
+    mpz_mat_hermite_form(I);
     mpz_mat_submat_swap(I, 0, 0, J, 0, 0, K->n, K->n);
     return J;
 }
@@ -439,7 +438,7 @@ static std::vector<std::pair<cxx_mpz_mat, int> > factorization_of_prime_inner(
         cxx_mpz_poly const& f(facP[i].first);
         /* We need the basis of the kernel of f(Mc) */
         cxx_mpz_mat E;
-        mpz_poly_eval_mpz_mat_mod_mpz(E, Mc, f, p);
+        mpz_poly_eval_mpz_mat_mod_mpz(E, f, Mc, p);
         mpz_mat_pow_ui_mod_mpz(E, E, facP[i].second, p);
         mpz_mat_kernel_mod_mpz(E, E, p);
         /* This line is just to be exactly in line with what magma says
@@ -470,11 +469,11 @@ static std::vector<std::pair<cxx_mpz_mat, int> > factorization_of_prime_inner(
         cxx_mpz_mat Ihead(n, n);
         if (Ci->m == e * f->deg) {
             mpz_mat_vertical_join(Ix, Ix, Ip);
-            mpz_mat_hermite_form_rev(Ix, nullptr);
+            mpz_mat_hermite_form_rev(Ix);
             mpz_mat_submat_swap(Ihead,0,0,Ix,0,0,n,n);
             ideals.emplace_back(Ihead, e);
         } else {
-            mpz_mat_hermite_form_rev(Ix, nullptr);
+            mpz_mat_hermite_form_rev(Ix);
             mpz_mat_submat_swap(Ihead,0,0,Ix,0,0,n,n);
             std::vector<std::pair<cxx_mpz_mat, int> > more_ideals;
             more_ideals = factorization_of_prime_inner(B,M,p,Ip,Ihead,Ci,state);
@@ -551,7 +550,7 @@ cxx_mpz_mat numbertheory_internals::valuation_helper_for_ideal(cxx_mpz_mat const
 
     cxx_mpz_mat ker;
     mpz_mat_kernel_mod_mpz(ker, MI, p);
-    mpz_mat_hermite_form(ker, nullptr);
+    mpz_mat_hermite_form(ker);
 
     cxx_mpz_mat res(1, n);
     mpz_mat_submat_swap(res, 0, 0, ker, 0, 0, 1, n);
@@ -589,7 +588,7 @@ std::pair<cxx_mpz_mat, cxx_mpz> numbertheory_internals::generate_ideal(cxx_mpq_m
         }
     }
     /* And put this in HNF */
-    mpz_mat_hermite_form_rev(products, nullptr);
+    mpz_mat_hermite_form_rev(products);
     cxx_mpz_mat I(n,n);
     mpz_mat_submat_swap(I,0,0,products,0,0,n,n);
     return { I, denom };

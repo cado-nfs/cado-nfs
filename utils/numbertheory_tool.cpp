@@ -4,7 +4,6 @@
 #include <cstdlib>
 
 #include <iostream>
-#include <sstream>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -139,6 +138,9 @@ int main(int argc, char const * argv[])
 {
     char const ** original_argv;
 
+    setvbuf(stderr, nullptr, _IONBF, 0);
+    setvbuf(stdout, nullptr, _IONBF, 0);
+
     cxx_param_list pl;
 
     badideals_declare_usage(pl);
@@ -170,10 +172,7 @@ int main(int argc, char const * argv[])
     const char * tmp;
     if ((tmp = param_list_lookup_string(pl, "polystr")) != nullptr) {
         int const side = 0;
-        cxx_mpz_poly f;
-        istringstream is(tmp);
-        if (!(is >> f))
-            usage(pl, original_argv, "cannot parse polynomial");
+        cxx_mpz_poly f(tmp);
 
         vector<badideal> const badideals = badideals_for_polynomial(f, side);
         cout << "--- .badideals data ---\n";
@@ -199,9 +198,9 @@ int main(int argc, char const * argv[])
         std::unique_ptr<std::ofstream> fbi;
 
         if (fbname)
-            fb = std::unique_ptr<std::ofstream>(new std::ofstream(fbname));
+            fb = std::make_unique<std::ofstream>(fbname);
         if (fbname)
-            fbi = std::unique_ptr<std::ofstream>(new std::ofstream(fbiname));
+            fbi = std::make_unique<std::ofstream>(fbiname);
 
         for(int side = 0 ; side < cpoly->nb_polys ; side++) {
             cxx_mpz_poly f(cpoly->pols[side]);

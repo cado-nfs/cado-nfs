@@ -3,11 +3,13 @@
 
 #include <memory>
 #include <string>
+#include <ostream>
 
+#include "fmt/base.h"
 #include "fmt/format.h"
 
 #include "numbertheory/numbertheory_fwd_types.hpp"
-#include "numbertheory/fmt_helpers.hpp"
+#include "fmt_helper_sagemath.hpp"
 #include "cxx_mpz.hpp"
 #include "mpz_poly.h"
 #include "mpz_mat.h"
@@ -57,14 +59,12 @@ class number_field {
 namespace fmt {
     template <>
     struct formatter<number_field>
-        : formatter<string_view>
-        , fmt_helper_sagemath<number_field>
+        : fmt_helper_sagemath<number_field>
     {
-        using fmt_helper_sagemath::parse;
         static constexpr const decltype(custom_format) custom_format_default = TEXT;
         auto format(number_field const & K, format_context& ctx) const -> format_context::iterator;
     };
-}
+} /* namespace fmt */
 inline std::ostream& operator<<(std::ostream& os, number_field const & K) { return os << fmt::format("{}", K); }
 
 

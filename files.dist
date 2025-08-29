@@ -1679,6 +1679,7 @@ utils/filter_io.h
 utils/filter_io.tex
 utils/fix-endianness.c
 utils/fix-endianness.h
+utils/fmt_helper_sagemath.hpp
 utils/galois_action.cpp
 utils/galois_action.hpp
 utils/gcd.c
@@ -1745,7 +1746,6 @@ utils/multityped_array.hpp
 utils/numbertheory.hpp
 utils/numbertheory/all_valuations_above_p.cpp
 utils/numbertheory/all_valuations_above_p.hpp
-utils/numbertheory/fmt_helpers.hpp
 utils/numbertheory/number_field.cpp
 utils/numbertheory/number_field.hpp
 utils/numbertheory/number_field_element.cpp
