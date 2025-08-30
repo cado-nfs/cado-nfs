@@ -257,6 +257,29 @@ test_compute_roots(bool verbose)
             T(8694859813.2710983618783204718642424277L),
             T(720776737597677797.82617434751880429252L) },
             -4 - valgrind_penalty);
+
+    {
+        polynomial<T> f("x^2-4");
+
+        if (verbose)
+            fmt::print("Testing polynomial {}\n", f);
+
+        compare_roots(f, f.roots(1, tr), {}, 10);
+        compare_roots(f, f.roots(3, tr), {-2, 2}, 10);
+        compare_roots(f, f.positive_roots(1, tr), {}, 10);
+        compare_roots(f, f.positive_roots(3, tr), {2}, 10);
+    }
+    {
+        polynomial<T> f("(x^2-4)*x");
+
+        if (verbose)
+            fmt::print("Testing polynomial {}\n", f);
+
+        compare_roots(f, f.roots(1, tr), {0}, 10);
+        compare_roots(f, f.roots(3, tr), {-2,0, 2}, 10);
+        compare_roots(f, f.positive_roots(1, tr), {}, 10);
+        compare_roots(f, f.positive_roots(3, tr), {2}, 10);
+    }
 }
 
 template<typename T>
@@ -378,9 +401,11 @@ static void test_eval()
          * exactly represented by a legit value for x, so something like
          * an _exact_ 2^-21 can be 0.5 * 2^-20
          */
+#ifdef HAVE_MPFR
         if constexpr (std::is_same_v<T, cxx_mpfr>)
             ASSERT_ALWAYS(x == 0 || e <= 3 - tr.prec);
         else
+#endif
             ASSERT_ALWAYS(x == 0 || e <= 3 - std::numeric_limits<T>::digits);
     }
 }
@@ -616,6 +641,12 @@ static void test_some_arithmetic()
         fmt::print("{} == {}\n", q, s);
         ASSERT_ALWAYS(q == polynomial(s, q.ctx()));
         q = nq;
+    }
+
+    {
+        /* some parsing */
+        ASSERT_ALWAYS(polynomial<T>("-(x+1)^0+(x+1)^2-(-x)^2-2*x") == 0);
+
     }
 }
 
