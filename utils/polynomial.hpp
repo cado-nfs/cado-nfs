@@ -59,7 +59,7 @@ template<typename T>
 struct polynomial;
 
 /* forward-declare the template. We need it in order to be able to
- * declare it as a friend of the polynomial<>struct 
+ * declare it as a friend of the polynomial<>struct
  */
 template<typename T> std::istream& operator>>(std::istream& in, polynomial_details::named_proxy<polynomial<T> &> const & F);
 
@@ -527,12 +527,19 @@ struct polynomial {
      */
     void positive_roots_from_derivative_sign_changes(std::vector<T> & v, T bound)
     {
+        using namespace cado_math_aux;
         if (degree() <= 0) {
             /* A constant polynomial has no sign changes */
             v.clear();
         } else if (degree() == 1) {
-            /* A linear polynomial has at most one root */
-            if (coeffs[0] * eval(bound) < 0)
+            /* A linear polynomial has at most one root.
+             *
+             * We want strictly positive roots here, so we must not
+             * consider the case coeffs[0] == 0. On the other hand, the
+             * bound counts.
+             */
+            const int s = sgn(coeffs[0]);
+            if (s && s * eval(bound) <= 0)
                 v.assign(1, - coeffs[0] / coeffs[1]);
         } else {
             T a = 0;
@@ -554,8 +561,7 @@ struct polynomial {
             /* if coeffs[0] == 0, we have a root at zero which doesn't
              * count as positive
              */
-            using namespace cado_math_aux;
-            T c01 = sgn(coeffs[0]) * sgn(coeffs[1] ? coeffs[1] : coeffs[2]);
+            T c01 = sgn(coeffs[0]) * sgn(coeffs[1] ? coeffs[1] : (sgn(bound) * coeffs[2]));
             bool no_chance = c01 * sgn(bound) > 0 || coeffs[0] == 0;
             for(size_t i = 0 ; i < v.size() ; i++) {
                 T b = v[i];
@@ -642,7 +648,7 @@ struct polynomial {
     }
 
     std::string print(std::string const& var = "x") const
-    { 
+    {
         std::ostringstream os;
         if (degree() < 0) os << "0";
         for(int i = 0 ; i <= degree() ; i++) {

@@ -741,7 +741,7 @@ cado_define_test(galois_sieve_abnormal_orbits
             # Note: the last 3 args (lim1, lpb1 and mfb1) are not needed but
             # sievetest.sh complains if they are not present
             LAS_BINARY=${las_path}
-        REL_COUNT=61
+        REL_COUNT=71
         PROVIDE_TEMPORARY_WDIR
         SCRIPT
             ${CMAKE_CURRENT_SOURCE_DIR}/sievetest.sh
