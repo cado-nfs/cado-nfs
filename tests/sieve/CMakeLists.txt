@@ -564,6 +564,7 @@ cado_define_test(test_init_norms.cpp
     $<TARGET_OBJECTS:las_core_0>
     NO_DEFAULT_RUN
     LIBRARIES utils tests
+    TIMEOUT 40
 )
 
 cado_divert_test(test_init_norms c120_basic
