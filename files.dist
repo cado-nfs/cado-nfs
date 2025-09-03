@@ -481,6 +481,7 @@ linalg/bwc/check_mpi_problems.c
 linalg/bwc/cleanup.cpp
 linalg/bwc/cpubinding.cpp
 linalg/bwc/cpubinding.hpp
+linalg/bwc/det_from_lingen.cpp
 linalg/bwc/dispatch.cpp
 linalg/bwc/flint-fft/README
 linalg/bwc/flint-fft/adjust.c
@@ -1229,6 +1230,9 @@ tests/linalg/bwc/bwc-test-secure-continuation.sh
 tests/linalg/bwc/bwc.sage
 tests/linalg/bwc/convert_magma.pl
 tests/linalg/bwc/cpubind_config_file_for_tests.conf
+tests/linalg/bwc/d20.sparse.bin
+tests/linalg/bwc/d20.sparse.cw.bin
+tests/linalg/bwc/d20.sparse.rw.bin
 tests/linalg/bwc/flint-fft/CMakeLists.txt
 tests/linalg/bwc/flint-fft/test-flint-debug-magma.sh
 tests/linalg/bwc/flint-fft/test-flint.c
