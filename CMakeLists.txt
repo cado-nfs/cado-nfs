@@ -109,6 +109,7 @@ enable_testing()
 # dependencies (las for the sieve test, etc.) as well. We also add the
 # "verbose" command line option here to get more meaningful output
 
+if(CMAKE_GENERATOR STREQUAL "Unix Makefiles")
 # Note the $(ARGS) here. It is expanded by make, not by cmake, so that
 # the arguments which are present on the "make check" command line are
 # obeyed. This has the consequence that in order to pass a $, you need to
@@ -118,6 +119,7 @@ add_custom_target(check
     COMMAND ${CMAKE_CTEST_COMMAND} -V $(ARGS)
     # JOB_SERVER_AWARE true
 )
+endif()
 
 if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
 	# sigh...
@@ -542,7 +544,7 @@ add_custom_command(OUTPUT ${CADO_NFS_BINARY_DIR}/gf2x/Makefile
 add_custom_target(gf2x-build ALL
     DEPENDS ${CADO_NFS_BINARY_DIR}/gf2x/Makefile
     WORKING_DIRECTORY gf2x
-    COMMAND "${CMAKE_MAKE_PROGRAM}"
+    COMMAND ${CMAKE_MAKE_PROGRAM}
     COMMENT "Building gf2x"
 )
 

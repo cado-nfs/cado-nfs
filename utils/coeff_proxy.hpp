@@ -12,10 +12,10 @@ namespace cado_details {
     template<typename P>
     struct coeff_proxy {
         P & p;
-        typedef typename P::coefficient_type T;
+        using T = typename P::coefficient_type;
         unsigned int i;
-        // NOLINTNEXTLINE(hicpp-explicit-conversions)
-        operator T() { return (i < p.coeffs.size()) ? p.coeffs[i] : 0; }
+        // NOLINTNEXTLINE(hicpp-explicit-conversions,google-explicit-constructor)
+        operator T() const { return (i < p.coeffs.size()) ? p.coeffs[i] : 0; }
         coeff_proxy& operator=(T x) {
             if (i + 1 < p.coeffs.size()) {
                 p.coeffs[i] = x;
@@ -34,12 +34,12 @@ namespace cado_details {
     template<typename P>
     struct const_coeff_proxy {
         P const & p;
-        typedef typename P::coefficient_type T;
+        using T = typename P::coefficient_type;
         unsigned int i;
-        // NOLINTNEXTLINE(hicpp-explicit-conversions)
-        operator T() { return (i < p.size()) ? p.coeffs[i] : 0; }
+        // NOLINTNEXTLINE(hicpp-explicit-conversions,google-explicit-constructor)
+        operator T() const { return (i < p.size()) ? p.coeffs[i] : 0; }
     };
-}
+} /* namespace cado_details */
 
 
 #endif	/* CADO_UTILS_COEFF_PROXY_HPP */

@@ -11,6 +11,7 @@
 #include <regex>
 
 #include "fmt/base.h"
+#include "fmt/std.h"    // formatter for std::complex
 
 #include "cado_math_aux.hpp"
 #include "cxx_mpz.hpp"
@@ -19,9 +20,13 @@
 #include "polynomial.hpp"
 #include "tests_common.h"
 #include "number_context.hpp"
+#include "extra_complex_overloads.hpp"
 
 #ifdef HAVE_MPFR
 #include "cxx_mpfr.hpp"
+#endif
+#ifdef HAVE_MPC
+#include "cxx_mpc.hpp"
 #endif
 
 /* This verifies that the provided roots are correct to the given
@@ -131,6 +136,7 @@ test_all_roots(std::string const & poly_str,
 template<typename T>
 static void
 test_compute_roots(bool verbose)
+    requires cado_math_aux::is_real_v<T>
 {
     const cado::number_context<T> tr(128); /* 128 only for cxx_mpfr */
     const int valgrind_penalty = (std::is_same_v<T, long double> && tests_run_under_valgrind()) ? 16 : 0;
@@ -283,6 +289,36 @@ test_compute_roots(bool verbose)
 }
 
 template<typename T>
+static void
+test_compute_roots(bool)
+    requires cado_math_aux::is_complex_v<T>
+{
+    polynomial<T> P("x^3-7*x^2+x+1");
+    double B1 = P.cauchy_bound();
+    fmt::print("{} -> cauchy bound = {}\n", P, B1);
+
+#if 0
+    const cado::number_context<T> tr(128); /* 128 only for cxx_mpfr */
+    const int valgrind_penalty = (/*std::is_same_v<T, long double> && */ tests_run_under_valgrind()) ? 16 : 0;
+
+    /* A few roots of 2 */
+    test_all_roots<T>("x^2+1", verbose, tr, {tr("i"), tr("-i")}, -5 - valgrind_penalty);
+#endif
+}
+
+
+
+
+
+template<typename T>
+void
+test_compute_roots(bool)
+    requires std::is_same_v<T, cxx_mpz>
+{
+    /* this one is skipped */
+}
+
+template<typename T>
 static void test_ctor_and_coeff_access()
 {
     polynomial<T> f("42*x^2+17*x-1");
@@ -294,13 +330,6 @@ static void test_ctor_and_coeff_access()
     const polynomial<T> g({1, 2, 3, 4});
     ASSERT_ALWAYS(g.degree() == 3);
     ASSERT_ALWAYS(g(1) == 10);
-}
-
-template<>
-void
-test_compute_roots<cxx_mpz>(bool)
-{
-    /* this one is skipped */
 }
 
 template<typename T>
@@ -339,7 +368,7 @@ static void test_eval()
                     break;
             f[n] = n + 1;
             T v = f(2);
-            w += two_n * f[n];
+            w += two_n * T(f[n]);
             two_n *= 2;
             ASSERT_ALWAYS(v == w);
         }
@@ -433,26 +462,25 @@ static void test_print()
 {
     using RX = polynomial<T>;
 
-    const std::vector<std::array<const char *, 2>> tests {
-        { "17", nullptr },
-        { "x * 42 + 17", "17+42*x" },
-        { "17+42*x+53*x^2", nullptr },
-        { "1.7001e+12+53*x^2", nullptr },
-        { "17-53.2*x^2+99*x^3", nullptr },
-        { "1-x^2+99*x^3", nullptr },
-        { "-x+x^2", nullptr },
-        { "1-1", "0" },
+    /* the printing of these polynomial can vary depending on the
+     * underlying type, so we'll just check that printing+parsing is the
+     * identity map */
+    const std::vector<const char *> tests {
+        "17",
+        "x * 42 + 17",
+        "17+42*x+53*x^2",
+        "1-x^2+99*x^3",
+        "-x+x^2",
+        "1-1",
+        "1.7001e+12+53*x^2",
+        "17-53.2*x^2+99*x^3",
     };
-
-    const std::regex zeroes("\\.0+\\b");
     for(auto const & t : tests) {
-        RX f(t[0]);
-        fmt::print("{}\n", f);
-        auto printed = f.print();
-        printed = std::regex_replace(printed, zeroes, "");
-        const std::string ref(t[t[1] != nullptr]);
-        ASSERT_ALWAYS(printed == ref);
+        const RX f(t);
+        const RX g(fmt::format("{}", f));
+        ASSERT_ALWAYS(f == g);
     }
+
 }
 
 template<>
@@ -598,12 +626,26 @@ void test_resultant<cxx_mpz>()
     /* this one is skipped */
 }
 
+#ifdef HAVE_MPC
+template<>
+void test_resultant<cxx_mpc>()
+{
+    /* this one is skipped */
+}
+#endif
+
+template<>
+void test_resultant<std::complex<double>>()
+{
+    /* this one is skipped */
+}
+
 template<typename T>
 static void test_some_arithmetic()
 {
     const cado::number_context<T> tr(128); /* 128 only for cxx_mpfr */
-    polynomial<T> f("(x-1) * (x-2) * (x-3)", tr);
-    polynomial<T> g("(x-4) * (x-5) * (x-6)", tr);
+    const polynomial<T> f("(x-1) * (x-2) * (x-3)", tr);
+    const polynomial<T> g("(x-4) * (x-5) * (x-6)", tr);
     auto fg = f*g;
     ASSERT_ALWAYS(fg[0] == 720 && fg.degree() == 6);
     ASSERT_ALWAYS((f * polynomial<T>()) == 0);
@@ -637,31 +679,68 @@ static void test_some_arithmetic()
     for( ; q.degree() >= 0 ; ) {
         const int e = 10;
         auto [ nq, r ] = q.div_qr_xminusr(e);
-        auto s = fmt::format("({}) * (x-{}) + {}", nq, e, r);
-        fmt::print("{} == {}\n", q, s);
-        ASSERT_ALWAYS(q == polynomial(s, q.ctx()));
+        {
+            auto s = q.div_q_xminusr(e);
+            ASSERT_ALWAYS(s == nq);
+        }
+        {
+            auto s = fmt::format("({}) * (x-{}) + {}", nq, e, r);
+            fmt::print("{} == {}\n", q, s);
+            ASSERT_ALWAYS(q == polynomial(s, q.ctx()));
+        }
         q = nq;
     }
 
     {
         /* some parsing */
-        ASSERT_ALWAYS(polynomial<T>("-(x+1)^0+(x+1)^2-(-x)^2-2*x") == 0);
+        ASSERT_ALWAYS(polynomial<T>("-(x+1)^0+(x+1)^2-(-x)*-x-2*x") == 0);
+    }
 
+    {
+        const polynomial<int> A { 1, 2 };
+        const polynomial<T> B(A);
+        ASSERT_ALWAYS(B.derivative() == 2);
+        const cado::number_context<T> tr(128); /* 128 only for cxx_mpfr */
+        polynomial<T> C(A, tr);
+        ASSERT_ALWAYS(C.derivative() == 2);
+        C.set_zero();
+        ASSERT_ALWAYS(C == 0);
+        ASSERT_ALWAYS(C.pow(12) == 0);
+        ASSERT_ALWAYS(C.pow(0) == 1);
+
+        const auto A7 = A.pow(7);
+        ASSERT_ALWAYS(A7.degree() == 7);
+        const polynomial<int> K(2187);
+        ASSERT_ALWAYS(K == A7(1));
+
+        auto [ q, r ] = C.div_qr_xminusr(tr(1));
+        ASSERT_ALWAYS(q == 0);
+        ASSERT_ALWAYS(r == 0);
     }
 }
+
+/* things from polynomial.hpp what are not yet covered (I think)
+ *
+ * findroot_dichotomy and the code path that leads to it (corner case in
+ * findroot_falseposition). test_init_norms might trigger this, though.
+ *
+ * corner cases in pseudo_division, resultant, and inverse_scale
+ *
+ * and throwing branches.
+ */
 
 template<typename T>
 static void all_tests()
 {
-  test_ctor_and_coeff_access<T> ();
-  test_eval<T> ();
-  test_derivative<T> ();
-  test_reciprocal<T> ();
-  test_print<T> ();
-  test_ctor_mpz_poly<T> ();
-  test_resultant<T>();
-  test_compute_roots<T>(false);
-  test_some_arithmetic<T>();
+    test_ctor_and_coeff_access<T> ();
+    test_eval<T> ();
+    test_derivative<T> ();
+    test_reciprocal<T> ();
+    test_print<T> ();
+    test_ctor_mpz_poly<T> ();
+    test_resultant<T>();
+    test_compute_roots<T>(false);
+    test_some_arithmetic<T>();
 }
 
 
@@ -678,6 +757,12 @@ int main()
 #ifdef HAVE_MPFR
     fmt::print("===== tests with T = cxx_mpfr =====\n");
     all_tests<cxx_mpfr>();
+#endif
+    fmt::print("===== tests with T = std::complex<double> =====\n");
+    all_tests<std::complex<double>>();
+#ifdef HAVE_MPC
+    fmt::print("===== tests with T = cxx_mpc =====\n");
+    all_tests<cxx_mpc>();
 #endif
     return EXIT_SUCCESS;
 }

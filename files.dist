@@ -1543,6 +1543,7 @@ tests/utils/test_mpz_poly_bivariate.cpp
 tests/utils/test_mpz_poly_parsing.cpp
 tests/utils/test_mpz_vector.c
 tests/utils/test_multityped_array.cpp
+tests/utils/test_number_literal.cpp
 tests/utils/test_omega.c
 tests/utils/test_polynomial.cpp
 tests/utils/test_polyroots.c
@@ -1640,6 +1641,7 @@ utils/cado-sighandlers.cpp
 utils/cado-sighandlers.h
 utils/cado_expression_parser.hpp
 utils/cado_math_aux.hpp
+utils/cado_parsing_base.hpp
 utils/cado_pipe_streambuf.cpp
 utils/cado_pipe_streambuf.hpp
 utils/cado_poly.c
@@ -1651,6 +1653,7 @@ utils/clonable-exception.hpp
 utils/coeff_proxy.hpp
 utils/crc.c
 utils/crc.h
+utils/cxx_mpc.cpp
 utils/cxx_mpc.hpp
 utils/cxx_mpfr.cpp
 utils/cxx_mpfr.hpp
@@ -1681,6 +1684,7 @@ utils/embedded/fmt/printf.h
 utils/embedded/fmt/ranges.h
 utils/embedded/fmt/std.h
 utils/embedded/fmt/xchar.h
+utils/extra_complex_overloads.hpp
 utils/fakempi.h
 utils/fd_streambuf.cpp
 utils/fd_streambuf.hpp
@@ -1757,7 +1761,9 @@ utils/mpz_vector.c
 utils/mpz_vector.h
 utils/multityped_array.hpp
 utils/named_proxy.hpp
+utils/number_context.cpp
 utils/number_context.hpp
+utils/number_literal.cpp
 utils/number_literal.hpp
 utils/numbertheory.hpp
 utils/numbertheory/all_valuations_above_p.cpp

@@ -48,6 +48,11 @@ namespace is_coercible_details {
     template<> struct impl_strict<double, cxx_mpfr> : public std::true_type {};
     template<> struct impl_strict<long double, cxx_mpfr> : public std::true_type {};
 #endif
+    template<typename U> struct impl_strict<int, std::complex<U>> : public std::true_type {};
+    template<typename U> struct impl_strict<long, std::complex<U>> : public std::true_type {};
+    template<typename T, typename U>
+    requires std::is_convertible_v<T, U>
+    struct impl_strict<T, std::complex<U>> : public std::true_type {};
 #ifdef HAVE_MPC
     template<> struct impl_strict<int, cxx_mpc> : public std::true_type {};
     template<> struct impl_strict<long, cxx_mpc> : public std::true_type {};

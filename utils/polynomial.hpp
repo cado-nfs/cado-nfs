@@ -40,9 +40,106 @@
 #include "coeff_proxy.hpp"
 #include "cado_type_traits.hpp"
 #include "named_proxy.hpp"
+#include "extra_complex_overloads.hpp"
 
 #ifdef HAVE_MPFR
 #include "cxx_mpfr.hpp"
+#endif
+
+#ifdef HAVE_MPC
+#include "cxx_mpc.hpp"
+#endif
+
+namespace polynomial_details {
+template<typename T>
+struct polynomial;
+}
+
+/* coeff_proxy is sort of a doomed approach, because it can't be used
+ * transparently when the coefficient type is a template. The root cause
+ * is that template argument deduction ignores implicit conversions in
+ * that case. All we can do is try to provide overloads for some easy
+ * cases that force the coeff_proxy transparent layer, but that's by no
+ * means a definitive solution.
+ */
+#if 0
+#define CADO_COEFF_PROXY_OVERLOAD(OP)					\
+    template<typename T>						\
+    static inline auto OP(					\
+        T const & a,							\
+        cado_details::coeff_proxy<polynomial_details::polynomial<T>> const & b) \
+        -> decltype(OP(a, T(b)))                                        \
+    {									\
+        return OP(a, T(b));						\
+    }									\
+    template<typename T>						\
+    static inline auto OP(					        \
+        cado_details::coeff_proxy<polynomial_details::polynomial<T>> const & a, \
+        T const & b)							\
+        -> decltype(OP(T(a), b))                                        \
+    {									\
+        return OP(T(a), b);						\
+    }									\
+    template<typename T>						\
+    static inline auto OP(					        \
+        cado_details::coeff_proxy<polynomial_details::polynomial<T>> const & a, \
+        cado_details::coeff_proxy<polynomial_details::polynomial<T>> const & b) \
+        -> decltype(OP(T(a), T(b)))                                        \
+    {									\
+        return OP(T(a), T(b));						\
+    }
+
+CADO_COEFF_PROXY_OVERLOAD(operator*)
+CADO_COEFF_PROXY_OVERLOAD(operator+)
+CADO_COEFF_PROXY_OVERLOAD(operator-)
+CADO_COEFF_PROXY_OVERLOAD(operator/)
+CADO_COEFF_PROXY_OVERLOAD(operator==)
+CADO_COEFF_PROXY_OVERLOAD(operator!=)
+CADO_COEFF_PROXY_OVERLOAD(operator<=)
+CADO_COEFF_PROXY_OVERLOAD(operator>=)
+CADO_COEFF_PROXY_OVERLOAD(operator<)
+CADO_COEFF_PROXY_OVERLOAD(operator>)
+#else
+#define CADO_COEFF_PROXY_OVERLOAD_META(CLASS, OP)			\
+    template<typename T, typename U>					\
+    static inline auto OP(					\
+        U const & a,							\
+        cado_details::CLASS<polynomial_details::polynomial<T>> const & b) \
+        -> decltype(OP(a, T(b)))                                        \
+    {									\
+        return OP(a, T(b));						\
+    }									\
+    template<typename T, typename U>					\
+    static inline auto OP(					        \
+        cado_details::CLASS<polynomial_details::polynomial<T>> const & a, \
+        U const & b)							\
+        -> decltype(OP(T(a), b))                                        \
+    {									\
+        return OP(T(a), b);						\
+    }									\
+    template<typename T, typename U>					\
+    static inline auto OP(					        \
+        cado_details::CLASS<polynomial_details::polynomial<T>> const & a, \
+        cado_details::CLASS<polynomial_details::polynomial<U>> const & b) \
+        -> decltype(OP(T(a), U(b)))                                       \
+    {									\
+        return OP(T(a), U(b));						\
+    }
+
+#define CADO_COEFF_PROXY_OVERLOAD(OP)				        \
+        CADO_COEFF_PROXY_OVERLOAD_META(coeff_proxy, OP)                 \
+        CADO_COEFF_PROXY_OVERLOAD_META(const_coeff_proxy, OP)
+
+CADO_COEFF_PROXY_OVERLOAD(operator*)
+CADO_COEFF_PROXY_OVERLOAD(operator+)
+CADO_COEFF_PROXY_OVERLOAD(operator-)
+CADO_COEFF_PROXY_OVERLOAD(operator/)
+CADO_COEFF_PROXY_OVERLOAD(operator==)
+CADO_COEFF_PROXY_OVERLOAD(operator!=)
+CADO_COEFF_PROXY_OVERLOAD(operator<=)
+CADO_COEFF_PROXY_OVERLOAD(operator>=)
+CADO_COEFF_PROXY_OVERLOAD(operator<)
+CADO_COEFF_PROXY_OVERLOAD(operator>)
 #endif
 
 namespace polynomial_details {
@@ -149,7 +246,7 @@ struct polynomial : public number_context<T>
     template<typename U>
         explicit polynomial(polynomial<U> const & a)
         requires (!std::is_same_v<U, T>)
-        : polynomial(a, a.ctx())
+        : polynomial(a, number_context<T>(a.ctx()))
     {}
 
     void set_zero() { coeffs.clear(); }
@@ -193,7 +290,7 @@ struct polynomial : public number_context<T>
     {
         std::istringstream is(e);
         if (!(operator>>(is, *this)))
-            throw cado_expression_parser_details::parse_error();
+            throw cado::parse_error();
     }
     // NOLINTNEXTLINE(hicpp-explicit-conversions)
     explicit polynomial(const char * e, number_context<T> const & tr = {})
@@ -297,6 +394,7 @@ struct polynomial : public number_context<T>
 #pragma GCC diagnostic pop
 #endif
     }
+
     public:
 
     template<typename U> eval_type_t<T, U> eval(U const & x) const
@@ -809,6 +907,67 @@ struct polynomial : public number_context<T>
 
     /* }}} */
 
+    /************** {{{ (complex) root finding **************/
+    public:
+    double cauchy_bound() const
+        requires cado_math_aux::is_complex_v<T>
+    {
+        /* computes a lower bound on the moduli of the zeros of a
+           polynomial p(x). norms(x) is a polynomial whose i_th coefficient
+           is the modulus of the i_th coeffcient of p(x) but
+           whose constant term is negative. The lower bound is the 
+           (unique) positive root x of norms(x) */
+
+        using cado_math_aux::abs;
+        using cado_math_aux::log;
+        using cado_math_aux::exp;
+
+        const auto n = degree();
+
+        polynomial<double> N;
+        N.coeffs.reserve(size());
+        for(auto const & c : coeffs)
+            N.coeffs.emplace_back(double(cado_math_aux::abs(c)));
+        N.coeffs[n] = -N.coeffs[n];
+
+
+        /* compute upper estimate of bound: assume all the
+           middle terms of N are zero */
+
+        double xmax = exp((log(-N[n]) - log(N[0])) / n);
+
+        /* if ignoring the nonlinear terms of N produces
+           a smaller root, use that instead */
+
+        if (N[n - 1] != 0)
+            xmax = std::min(xmax, -N[n] / N[n - 1]);
+
+        /* chop the interval (0, x) until until x is about
+           to make norms(x) change sign */
+
+        double x;
+
+        N = N.reciprocal();
+
+        do {
+            x = xmax;
+            xmax = x / 10;
+        } while (N(xmax) > 0.0);
+
+        /* do Newton iteration until x converges to two decimal places */
+        double dx = x;
+        auto dN = N.derivative();
+
+        while (abs(dx / x) > 0.005) {
+            dx = N(x) / dN(x);
+            x -= dx;
+        }
+
+        return x;
+    }
+    /* }}} */
+
+    public:
 
     polynomial derivative() const
     {
@@ -875,7 +1034,7 @@ struct polynomial : public number_context<T>
         h.coeffs.assign(f.size() + g.size() - 1, ctx()(0));
         for(unsigned int i = 0 ; i < f.size() ; i++)
             for(unsigned int j = 0 ; j < g.size(); j++)
-                h.coeffs[i+j] += f[i] * g[j];
+                h.coeffs[i+j] += f.coeffs[i] * g.coeffs[j];
         return h;
     }
 
@@ -886,11 +1045,11 @@ struct polynomial : public number_context<T>
         h.coeffs.assign(std::max(f.size(), g.size()), ctx()(0));
         unsigned int i = 0;
         for( ; i < f.size() && i < g.size() ; i++)
-            h.coeffs[i] = f[i] + g[i];
+            h.coeffs[i] = f.coeffs[i] + g.coeffs[i];
         for( ; i < f.size() ; i++)
-            h.coeffs[i] = f[i];
+            h.coeffs[i] = f.coeffs[i];
         for( ; i < g.size() ; i++)
-            h.coeffs[i] = g[i];
+            h.coeffs[i] = g.coeffs[i];
         h.cleandeg();
         return h;
     }
@@ -902,11 +1061,11 @@ struct polynomial : public number_context<T>
         h.coeffs.assign(std::max(f.degree(), g.degree()) + 1, ctx()(0));
         unsigned int i = 0;
         for( ; i < f.size() && i < g.size() ; i++)
-            h.coeffs[i] = f[i] - g[i];
+            h.coeffs[i] = f.coeffs[i] - g.coeffs[i];
         for( ; i < f.size() ; i++)
-            h.coeffs[i] = f[i];
+            h.coeffs[i] = f.coeffs[i];
         for( ; i < g.size() ; i++)
-            h.coeffs[i] = -g[i];
+            h.coeffs[i] = -g.coeffs[i];
         h.cleandeg();
         return h;
     }
@@ -998,15 +1157,22 @@ struct polynomial : public number_context<T>
             T const & fi = coeffs[i];
             int const r = (fi > 0) - (fi < 0);
             if (r == 0) continue;
-            if (r > 0 && !os.str().empty())
+            /* We do not want to write "+-" ; in most cases, checking the
+             * sign (r) is enough to know whether the printed
+             * representation will start by - or not. Alas, for complex
+             * types, it's more subtle.
+             */
+            auto s = fmt::format("{}", fi);
+            ASSERT_ALWAYS(!s.empty());
+            if (!os.str().empty() && s.front() != '-')
                 os << "+";
             if (i == 0) {
-                os << fi;
+                os << s;
             } else {
                 if (fi == -1) {
                     os << "-";
                 } else if (fi != 1) {
-                    os << fi << "*";
+                    os << s << "*";
                 }
                 os << var;
                 if (i > 1) os << "^" << i;
@@ -1031,7 +1197,7 @@ struct polynomial : public number_context<T>
     struct parser_traits {
         std::string x;
         explicit parser_traits(std::string x) : x(std::move(x)) {}
-        struct unexpected_literal : public cado_expression_parser_details::parse_error {
+        struct unexpected_literal : public cado::parse_error {
             std::string msg;
             explicit unexpected_literal(std::string const & v)
                 : msg(std::string("unexpected literal " + v))
@@ -1336,7 +1502,7 @@ std::istream& operator>>(std::istream& in, cado::named_proxy<polynomial<T> &> co
 
     try {
         F.c = P.parse(number_context<T>(F.c));
-    } catch (cado_expression_parser_details::parse_error const & p) {
+    } catch (cado::parse_error const & p) {
         in.setstate(std::ios_base::failbit);
         return in;
     }
@@ -1365,6 +1531,9 @@ inline std::ostream& operator<<(std::ostream& o, polynomial<T> const & f)
 }
 
 } /* namespace polynomial_details */
+
+
+
 
 template<typename T>
 using polynomial = polynomial_details::polynomial<T>;

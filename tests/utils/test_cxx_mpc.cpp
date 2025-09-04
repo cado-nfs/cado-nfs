@@ -100,7 +100,7 @@ static void test_copies_and_assignment(mpfr_prec_t prec)
 
     test_simple_copy(m, m);
 
-    y = static_cast<mpc_srcptr>(m);
+    y = cxx_mpc(static_cast<mpc_srcptr>(m));
     ASSERT_ALWAYS(y == m);
 
     {

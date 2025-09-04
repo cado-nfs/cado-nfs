@@ -13,11 +13,14 @@
 #include <array>
 #include <limits>
 #include <type_traits>
+#include <complex>
 
 #include <gmp.h>
+
 #include "cxx_mpz.hpp"
-#include "macros.h"
 #include "cado_type_traits.hpp"
+#include "utils_cxx.hpp"
+#include "gmp_aux.h"
 
 #ifdef HAVE_MPFR
 #include <mpfr.h>
@@ -243,6 +246,34 @@ namespace cado_math_aux
     }
 #endif
     /* }}} */
+    /* {{{ simple wrappers around std::log and std::exp */
+    using std::log;
+    using std::exp;
+#ifdef HAVE_MPFR
+    inline cxx_mpfr log(cxx_mpfr const & x) {
+        cxx_mpfr res = x;
+        mpfr_log(res, res, MPFR_RNDN);
+        return res;
+    }
+    inline cxx_mpfr exp(cxx_mpfr const & x) {
+        cxx_mpfr res = x;
+        mpfr_exp(res, res, MPFR_RNDN);
+        return res;
+    }
+#endif
+#ifdef HAVE_MPC
+    inline cxx_mpc exp(cxx_mpc const & x) {
+        cxx_mpc res;
+        mpc_exp(res, x, MPC_RNDNN);
+        return res;
+    }
+    inline cxx_mpc log(cxx_mpc const & x) {
+        cxx_mpc res;
+        mpc_log(res, x, MPC_RNDNN);
+        return res;
+    }
+#endif
+    /* }}} */
 
     /* {{{ fma/fms operation -- we have to use a function in order to have a
      * unified interface
@@ -297,6 +328,38 @@ namespace cado_math_aux
         return res;
     }
 #endif
+    template<typename T>
+    inline std::complex<T> fma(std::complex<T> const & x, std::complex<T> const & y, std::complex<T> const & z) {
+        /* res = x * y + z
+         * re(res) = re(x) * re(y) - im(x) * im(y) + re(z)
+         * im(res) = re(x) * im(y) + im(x) * re(y) + im(z)
+         */
+        using cado_math_aux::fma;
+        using cado_math_aux::fms;
+        auto const [ xr, xi ] = std::make_pair<T, T>(x.real(), x.imag());
+        auto const [ yr, yi ] = std::make_pair<T, T>(y.real(), y.imag());
+        auto const [ zr, zi ] = std::make_pair<T, T>(z.real(), z.imag());
+        return {
+            fms(xr, yr, fms(xi, yi, zr)),
+            fma(xr, yi, fma(xi, yr, zi))
+        };
+    }
+    template<typename T>
+    inline std::complex<T> fms(std::complex<T> const & x, std::complex<T> const & y, std::complex<T> const & z) {
+        /* res = x * y - z
+         * re(res) = re(x) * re(y) - im(x) * im(y) - re(z)
+         * im(res) = re(x) * im(y) + im(x) * re(y) - im(z)
+         */
+        using cado_math_aux::fma;
+        using cado_math_aux::fms;
+        auto const [ xr, xi ] = std::make_pair<T, T>(x.real(), x.imag());
+        auto const [ yr, yi ] = std::make_pair<T, T>(y.real(), y.imag());
+        auto const [ zr, zi ] = std::make_pair<T, T>(z.real(), z.imag());
+        return {
+            fms(xr, yr, fma(xi, yi, zr)),
+            fma(xr, yi, fms(xi, yr, zi))
+        };
+    }
     /* }}} */
 
     /* {{{ assignment operations that also retain precision, for types that
@@ -710,58 +773,105 @@ namespace cado_math_aux
         return cado_math_aux::ldexp(std::numeric_limits<T>::epsilon(), std::ilogb(r));
     }
 
+    template<typename T>
+        struct converter_from_mpz;
+
     /* This is the same as mpz_get_ld, but should get more mantissa bits
      * correct if we are to use it with quad precision floating points.
      */
     template<typename T>
-        T mpz_get (mpz_srcptr z)
         requires std::is_floating_point_v<T>
-    {
-        T ld = 0;
-        cxx_mpz zr = z;
+        struct converter_from_mpz<T> {
+            T operator()(mpz_srcptr z) const {
+                T ld = 0;
+                cxx_mpz zr = z;
 
-        int b = mpz_sizeinbase(z, 2);
-        int e = b - std::numeric_limits<double>::max_exponent;
-        if (e > 0) {
-            /* First scale the input number down. There are still enough
-             * bits remaining to fill the mantissa, of course.
-             */
-            mpz_tdiv_q_2exp(zr, zr, e);
-        } else {
-            e = 0;
-        }
+                int b = mpz_sizeinbase(z, 2);
+                int e = b - std::numeric_limits<double>::max_exponent;
+                if (e > 0) {
+                    /* First scale the input number down. There are still enough
+                     * bits remaining to fill the mantissa, of course.
+                     */
+                    mpz_tdiv_q_2exp(zr, zr, e);
+                } else {
+                    e = 0;
+                }
 
-        constexpr int M = std::numeric_limits<double>::digits;
-        constexpr int LM = std::numeric_limits<T>::digits;
-        cxx_mpz t;
-        for(int b = 0 ; b + M < LM ; b += M) {
-            double d = mpz_get_d (zr);
-            mpz_set_d (t, d);
-            mpz_sub (zr, zr, t);
-            ld += d;
-        }
-        ld += mpz_get_d (zr);
-        ld = cado_math_aux::ldexp(ld, e);
-        return ld;
-    }
+                constexpr int M = std::numeric_limits<double>::digits;
+                constexpr int LM = std::numeric_limits<T>::digits;
+                cxx_mpz t;
+                for(int b = 0 ; b + M < LM ; b += M) {
+                    double d = mpz_get_d (zr);
+                    mpz_set_d (t, d);
+                    mpz_sub (zr, zr, t);
+                    ld += d;
+                }
+                ld += mpz_get_d (zr);
+                ld = cado_math_aux::ldexp(ld, e);
+                return ld;
+            }
+        };
+
+    template<typename T>
+        requires cado::converts_via<T, int64_t>
+        struct converter_from_mpz<T> {
+            T operator()(mpz_srcptr z) const {
+                return mpz_get_int64(z);
+            }
+        };
+
+    template<typename T>
+        requires cado::converts_via<T, uint64_t>
+        struct converter_from_mpz<T> {
+            T operator()(mpz_srcptr z) const {
+                return mpz_get_uint64(z);
+            }
+        };
+
+    template<typename T>
+        struct converter_from_mpz<std::complex<T>> {
+            std::complex<T> operator()(mpz_srcptr z) const {
+                return { converter_from_mpz<T>()(z), 0 };
+            }
+        };
+
+    template<>
+        struct converter_from_mpz<cxx_mpz> {
+            cxx_mpz operator()(mpz_srcptr z) const {
+                return { z };
+            }
+        };
+
     
-    template<typename T>
-    static inline cxx_mpz mpz_get (T z)
-    requires std::is_same_v<T, cxx_mpz>
-    {
-        return { z };
-    }
-
 #ifdef HAVE_MPFR
-    template<typename T>
-    static inline cxx_mpfr mpz_get (mpz_srcptr z)
-    requires std::is_same_v<T, cxx_mpfr>
-    {
-        cxx_mpfr res;
-        mpfr_set_z(res, z, MPFR_RNDN);
-        return res;
-    }
+    template<>
+        struct converter_from_mpz<cxx_mpfr> {
+            cxx_mpfr operator() (mpz_srcptr z) const
+            {
+                cxx_mpfr res;
+                mpfr_set_z(res, z, MPFR_RNDN);
+                return res;
+            }
+        };
 #endif
+
+#ifdef HAVE_MPC
+    template<>
+        struct converter_from_mpz<cxx_mpc> {
+            cxx_mpc operator() (mpz_srcptr z) const
+            {
+                cxx_mpc res;
+                mpc_set_z(res, z, MPFR_RNDN);
+                return res;
+            }
+        };
+#endif
+
+    template<typename T>
+        static inline T mpz_get(mpz_srcptr z) {
+            return converter_from_mpz<T>()(z);
+        }
+
 
     template<typename T>
         class constant_time_square_root {
@@ -885,7 +995,7 @@ namespace cado_math_aux
 
         template<unsigned int n>
             struct mul_c_impl<n, false> {
-                typedef mul_c_impl<n/2> super;
+                using super = mul_c_impl<n/2>;
                 template<typename T, typename U>
                     static void mul(T & t, U const & a) {
                         super::mul(t, a);
@@ -900,7 +1010,7 @@ namespace cado_math_aux
             };
         template<unsigned int n>
             struct mul_c_impl<n, true> {
-                typedef mul_c_impl<n/2> super;
+                using super = mul_c_impl<n/2>;
                 template<typename T, typename U>
                     static void mul(T & t, U const & a) {
                         super::mul(t, a);

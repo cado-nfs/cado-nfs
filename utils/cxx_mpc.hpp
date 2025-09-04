@@ -13,15 +13,15 @@
 #include "fmt/ostream.h"
 #include <mpc.h>
 
+#include "cxx_mpz.hpp"
+#include "cxx_mpfr.hpp"
 #include "macros.h"
-#include "utils_cxx.hpp"
 #include "mpc_auxx.hpp"
+#include "utils_cxx.hpp"
 
 struct cxx_mpc {
   public:
     mpc_t x;
-    // NOLINTBEGIN(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
-    cxx_mpc() { mpc_init2(x, mpfr_get_default_prec()); }
 
     /* calling the mpc macros on cxx_mpc objects leads to diagnostics
      * errors with clang unless we first cast them to mpc_srcptr, which
@@ -29,13 +29,23 @@ struct cxx_mpc {
      */
     mpfr_prec_t prec() const { return mpc_get_prec(x); }
 
+    // NOLINTBEGIN(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
+    cxx_mpc() { mpc_init2(x, mpfr_get_default_prec()); }
+
+    /* {{{ ctor and operator= for immediate integral types */
     template <typename T>
-    // NOLINTNEXTLINE(hicpp-explicit-conversions,google-explicit-constructor)
     cxx_mpc(T const & rhs)
     requires cado::converts_via<T, int64_t>
     {
         mpc_init2(x, std::numeric_limits<T>::digits);
         mpc_auxx::cado_mpc_set(x, int64_t(rhs), MPC_RNDNN);
+    }
+    template <typename T>
+    cxx_mpc(T const & rhs)
+    requires cado::converts_via<T, uint64_t>
+    {
+        mpc_init2(x, std::numeric_limits<T>::digits);
+        mpc_auxx::cado_mpc_set(x, uint64_t(rhs), MPC_RNDNN);
     }
     template <typename T>
     cxx_mpc & operator=(T const a)
@@ -46,14 +56,6 @@ struct cxx_mpc {
         return *this;
     }
     template <typename T>
-    // NOLINTNEXTLINE(hicpp-explicit-conversions,google-explicit-constructor)
-    cxx_mpc(T const & rhs)
-    requires cado::converts_via<T, uint64_t>
-    {
-        mpc_init2(x, std::numeric_limits<T>::digits);
-        mpc_auxx::cado_mpc_set(x, uint64_t(rhs), MPC_RNDNN);
-    }
-    template <typename T>
     cxx_mpc & operator=(T const a)
     requires cado::converts_via<T, uint64_t>
     {
@@ -61,19 +63,19 @@ struct cxx_mpc {
         mpc_auxx::cado_mpc_set(x, uint64_t(a), MPC_RNDNN);
         return *this;
     }
+    /* }}} */
 
+    /* {{{ ctor and operator= for immediate floating point types */
     explicit cxx_mpc(double rhs)
     {
         mpc_init2(x, std::numeric_limits<decltype(rhs)>::digits);
         mpc_set_d(x, rhs, MPC_RNDNN);
     }
-
     explicit cxx_mpc(long double rhs)
     {
         mpc_init2(x, std::numeric_limits<decltype(rhs)>::digits);
         mpc_set_ld(x, rhs, MPC_RNDNN);
     }
-
     cxx_mpc & operator=(double a)
     {
         mpc_set_prec(x, std::numeric_limits<decltype(a)>::digits);
@@ -86,7 +88,9 @@ struct cxx_mpc {
         mpc_set_ld(x, a, MPC_RNDNN);
         return *this;
     }
+    /* }}} */
 
+    /* {{{ ctor and operator= for immediate complex types */
     /* Note that the C _Complex does not exist in C++, we're forced to
      * use std::complex */
     explicit cxx_mpc(std::complex<double> const & rhs)
@@ -114,10 +118,40 @@ struct cxx_mpc {
         mpc_set_ld_ld(x, rhs.real(), rhs.imag(), MPC_RNDNN);
         return *this;
     }
+    /* }}} */
+
+    /* {{{ ctor and operator= for arbitrary precision types */
+    /* The function below only uses the mpfr default precision, which
+     * will often not be sufficient to hold the source mpz completely. In
+     * order to set to a cxx_mpz with a given precision, use
+     * number_context<cxx_mpfr>::operator() instead.
+     */
+    explicit cxx_mpc(cxx_mpz const & a)
+    {
+        mpc_init2(x, mpfr_get_default_prec());
+        mpc_set_z(x, a, MPC_RNDNN);
+    }
+    explicit cxx_mpc(cxx_mpfr const & a)
+    {
+        mpc_init2(x, a.prec());
+        mpc_set_fr(x, a, MPC_RNDNN);
+    }
+    cxx_mpc & operator=(cxx_mpz const & a)
+    {
+        mpc_set_prec(x, mpfr_get_default_prec());
+        mpc_set_z(x, a, MPC_RNDNN);
+        return *this;
+    }
+    cxx_mpc & operator=(cxx_mpfr const & a)
+    {
+        mpc_set_prec(x, a.prec());
+        mpc_set_fr(x, a, MPC_RNDNN);
+        return *this;
+    }
+    /* }}} */
 
     ~cxx_mpc() { mpc_clear(x); }
-    // NOLINTNEXTLINE(hicpp-explicit-conversions,google-explicit-constructor)
-    cxx_mpc(mpc_srcptr a)
+    explicit cxx_mpc(mpc_srcptr a)
     {
         mpc_init2(x, mpc_get_prec(a));
         mpc_set(x, a, MPC_RNDNN);
@@ -134,7 +168,6 @@ struct cxx_mpc {
         }
         return *this;
     }
-    // NOLINTEND(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
 
 #if __cplusplus >= 201103L
     cxx_mpc(cxx_mpc && o) noexcept
@@ -149,6 +182,8 @@ struct cxx_mpc {
         return *this;
     }
 #endif
+    // NOLINTEND(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
+
     // NOLINTBEGIN(hicpp-explicit-conversions,google-explicit-constructor)
     operator mpc_ptr() { return x; }
     operator mpc_srcptr() const { return x; }
@@ -179,14 +214,7 @@ extern void mpc_clear(cxx_mpc & pl)
                          "it is the caller's business (via a dtor)")));
 #endif
 
-inline std::ostream & operator<<(std::ostream & os, cxx_mpc const & x)
-{
-    char * s = nullptr;
-    mpfr_asprintf(&s, "%Rf+i*%Rf", mpc_realref(x.x), mpc_imagref(x.x));
-    os << s;
-    free(s);
-    return os;
-}
+std::ostream & operator<<(std::ostream & os, cxx_mpc const & x);
 /*
 inline std::istream& operator>>(std::istream& is, cxx_mpc & x) {
     std::string s;
@@ -200,8 +228,12 @@ inline std::istream& operator>>(std::istream& is, cxx_mpc & x) {
 
 namespace fmt
 {
-template <> struct formatter<cxx_mpc> : ostream_formatter {
-};
+    template <>
+        struct formatter<cxx_mpc> : public formatter<cxx_mpfr>
+        {
+            auto format(cxx_mpc const & x, format_context& ctx) const
+                -> format_context::iterator;
+        };
 } // namespace fmt
 
 /* Now here's a layer we're not particularly happy with */

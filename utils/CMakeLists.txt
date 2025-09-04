@@ -55,6 +55,8 @@ set (sources
         indexed_relation.cpp
         cado-sighandlers.cpp
         mmap_allocator.cpp
+        number_literal.cpp
+        number_context.cpp
         random_distributions.cpp
         imaginary_quadratic_class_groups.cpp
         ${fmt_sources}
@@ -67,6 +69,9 @@ if(HAVE_HWLOC)
 endif()
 if(HAVE_MPFR)
     list(APPEND sources cxx_mpfr.cpp)
+endif()
+if(HAVE_MPC)
+    list(APPEND sources cxx_mpc.cpp)
 endif()
 
 set (sources_io filter_io.cpp)

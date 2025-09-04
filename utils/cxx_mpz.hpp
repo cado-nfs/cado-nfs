@@ -172,7 +172,7 @@ struct cxx_mpq{
     mpq_t x;
     cxx_mpq() {mpq_init(x);}
     ~cxx_mpq() {mpq_clear(x);}
-    cxx_mpq(unsigned long a, unsigned long b = 1) { mpq_init(x); mpq_set_ui(x, a,b); }
+
     cxx_mpq(cxx_mpq const & o) {
         mpq_init(x);
         mpq_set(x, o.x);
@@ -190,16 +190,16 @@ struct cxx_mpq{
         return *this;
     }
 
-    template <typename T>
-        // NOLINTNEXTLINE(hicpp-explicit-conversions)
-        cxx_mpq (const T & rhs)
-        requires cado::converts_via<T, int64_t>
-        {
-            mpq_init(x);
-            gmp_auxx::mpz_init_set(mpq_numref(x), int64_t(rhs));
-            mpz_set_ui(mpq_denref(x), 1);
-            mpq_canonicalize(x);
-        }
+    template<typename T>
+    cxx_mpq(T a, unsigned long b = 1)
+        requires cado::converts_via<T, uint64_t>
+    {
+        mpq_init(x);
+        mpz_set_uint64(mpq_numref(x), a);
+        mpz_set_ui(mpq_denref(x), b);
+        mpq_canonicalize(x);
+    }
+
     template <typename T>
         cxx_mpq & operator=(const T a)
         requires cado::converts_via<T, int64_t>
@@ -209,16 +209,16 @@ struct cxx_mpq{
             mpq_canonicalize(x);
             return *this;
         }
-    template <typename T>
-        // NOLINTNEXTLINE(hicpp-explicit-conversions)
-        cxx_mpq (const T & rhs)
-        requires cado::converts_via<T, uint64_t>
-        {
-            mpq_init(x);
-            gmp_auxx::mpz_set(mpq_numref(x), uint64_t(rhs));
-            mpz_set_ui(mpq_denref(x), 1);
-            mpq_canonicalize(x);
-        }
+
+    template<typename T>
+    cxx_mpq(T a, unsigned long b = 1)
+        requires cado::converts_via<T, int64_t>
+    {
+        mpq_init(x);
+        mpz_set_int64(mpq_numref(x), a);
+        mpz_set_ui(mpq_denref(x), b);
+        mpq_canonicalize(x);
+    }
     template <typename T>
         cxx_mpq & operator=(const T a)
         requires cado::converts_via<T, uint64_t>

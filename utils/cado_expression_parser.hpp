@@ -1,13 +1,8 @@
 #ifndef CADO_EXPRESSION_PARSER_HPP
 #define CADO_EXPRESSION_PARSER_HPP
 
-#include "cado_config.h"
-
-#include <cstddef>
-
 #include <algorithm>
 #include <cctype>
-#include <exception>
 #include <istream>
 #include <string>
 #include <vector>
@@ -18,12 +13,7 @@
 #include "cxx_mpz.hpp"
 #include "number_literal.hpp"
 #include "number_context.hpp"
-// #include "cado_math_aux.hpp"
-
-#ifdef HAVE_MPFR
-#include <mpfr.h>
-#include "cxx_mpfr.hpp"
-#endif
+#include "cado_parsing_base.hpp"
 
 /* This structure has only two public functions: tokenize and parse */
 
@@ -31,13 +21,8 @@
 
 namespace cado_expression_parser_details {
     using cado::number_literal;
-
-    struct parse_error: public std::exception {
-        const char * what() const noexcept override { return "parse error"; }
-    };
-    struct token_error: public std::exception {
-        const char * what() const noexcept override { return "token error"; }
-    };
+    using cado::parse_error;
+    using cado::token_error;
 
     struct cado_expression_parser_base {
         // typedef cado_expression_parser_details::token_error token_error;
@@ -128,9 +113,9 @@ namespace cado_expression_parser_details {
                     tokens.push_back(POSITIVE_NUMBER);
                 } else if (accept_literals && isalpha(c)) {
                     is.get();
-                    std::string lit(1, (char) c);
+                    std::string lit(1, static_cast<char>(c));
                     /* we should be able to collect literals such as x0 */
-                    for( ;; lit += (char) c, is.get()) {
+                    for( ;; lit += static_cast<char>(c), is.get()) {
                         c = is.peek();
                         if (is.eof() || !isalnum(c)) break;
                     }
@@ -147,7 +132,7 @@ namespace cado_expression_parser_details {
         }
 
     };
-}
+}  /* namespace cado_expression_parser_details */
 
 /* TODO: I wonder whether this could be expanded to do the parsing of the
  * fantastic galois actions that we have here and there... */
@@ -180,7 +165,7 @@ private:
             /* This assumes that anything we parse implicitly carries a
              * relation to a number context of the given number type.
              */
-            T::set(p, cado::number_context<number_type>(p)(*cnumber++));
+            T::set(p, cado::number_context<number_type>(args...)(*cnumber++));
         } else if (accept(LEFT_PAREN)) {
             p = parse_expression(args...);
             expect(RIGHT_PAREN);

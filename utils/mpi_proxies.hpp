@@ -1,8 +1,9 @@
 #ifndef CADO_MPI_PROXIES_HPP
 #define CADO_MPI_PROXIES_HPP
 
+#include "cado_config.h"
+
 #include <cstddef>
-#include <cstdint>
 
 #include <vector>
 #include <array>

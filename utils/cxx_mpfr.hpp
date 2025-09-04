@@ -29,9 +29,10 @@
 #include "fmt/base.h"
 #include <mpfr.h>
 
-#include "utils_cxx.hpp"
 #include "macros.h"
 #include "mpfr_auxx.hpp"
+#include "utils_cxx.hpp"
+#include "cxx_mpz.hpp"
 
 struct cxx_mpfr {
   public:
@@ -91,6 +92,7 @@ struct cxx_mpfr {
      * preferred.
      */
 
+    /* {{{ ctor and operator= for immediate integral types */
     template <typename T>
     // NOLINTNEXTLINE(hicpp-explicit-conversions,google-explicit-constructor)
     cxx_mpfr(T const & rhs)
@@ -107,7 +109,6 @@ struct cxx_mpfr {
         mpfr_init2(x, std::numeric_limits<T>::digits);
         mpfr_auxx::cado_mpfr_set(x, uint64_t(rhs), MPFR_RNDN);
     }
-
     template <typename T>
     cxx_mpfr & operator=(T const a)
     requires cado::converts_via<T, int64_t>
@@ -124,19 +125,19 @@ struct cxx_mpfr {
         mpfr_auxx::cado_mpfr_set(x, uint64_t(a), MPFR_RNDN);
         return *this;
     }
+    /* }}} */
 
-    explicit cxx_mpfr(double rhs)
+    /* {{{ ctor and operator= for immediate floating point types */
+    cxx_mpfr(double rhs)
     {
         mpfr_init2(x, std::numeric_limits<decltype(rhs)>::digits);
         mpfr_set_d(x, rhs, MPFR_RNDN);
     }
-
-    explicit cxx_mpfr(long double rhs)
+    cxx_mpfr(long double rhs)
     {
         mpfr_init2(x, std::numeric_limits<decltype(rhs)>::digits);
         mpfr_set_ld(x, rhs, MPFR_RNDN);
     }
-
     cxx_mpfr & operator=(double a)
     {
         mpfr_set_prec(x, std::numeric_limits<decltype(a)>::digits);
@@ -149,6 +150,25 @@ struct cxx_mpfr {
         mpfr_set_ld(x, a, MPFR_RNDN);
         return *this;
     }
+    /* }}} */
+
+    explicit operator double() const {
+        return mpfr_get_d(x, MPFR_RNDN);
+    }
+
+    /* {{{ ctor and operator= for arbitrary precision types */
+    /* The function below only uses the mpfr default precision, which
+     * will often not be sufficient to hold the source mpz completely. In
+     * order to set to a cxx_mpz with a given precision, use
+     * number_context<cxx_mpfr>::operator() instead.
+     */
+    cxx_mpfr & operator=(cxx_mpz const a)
+    {
+        mpfr_set_prec(x, mpfr_get_default_prec());
+        mpfr_set_z(x, a, MPFR_RNDN);
+        return *this;
+    }
+    /* }}} */
 
     ~cxx_mpfr() { mpfr_clear(x); }
     // NOLINTNEXTLINE(hicpp-explicit-conversions,google-explicit-constructor)
@@ -324,7 +344,7 @@ CXX_MPFR_DEFINE_CMP(>=)
     }									\
     template <typename T>						\
     inline cxx_mpfr operator OP(cxx_mpfr const & a, T const b)		\
-    requires std::is_integral_v<T>					\
+    requires (std::is_integral_v<T> || std::is_floating_point_v<T>)					\
     {									\
         cxx_mpfr r;							\
         mpfr_set_prec(r, mpfr_get_prec(mpfr_srcptr(a)));		\
@@ -333,7 +353,7 @@ CXX_MPFR_DEFINE_CMP(>=)
     }									\
     template <typename T>						\
     inline cxx_mpfr operator OP(T const a, cxx_mpfr const & b)		\
-    requires std::is_integral_v<T>					\
+    requires (std::is_integral_v<T> || std::is_floating_point_v<T>)					\
     {									\
         cxx_mpfr r;							\
         mpfr_set_prec(r, mpfr_get_prec(mpfr_srcptr(b)));		\
@@ -347,7 +367,7 @@ CXX_MPFR_DEFINE_CMP(>=)
     }									\
     template <typename T>						\
     inline cxx_mpfr & operator OP##=(cxx_mpfr & a, T const b)		\
-    requires std::is_integral_v<T>					\
+    requires (std::is_integral_v<T> || std::is_floating_point_v<T>)					\
     {									\
         mpfr_auxx::cado_mpfr_##TEXTOP(a, a, b, MPFR_RNDN);		\
         return a;							\

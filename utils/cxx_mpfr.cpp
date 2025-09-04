@@ -15,7 +15,7 @@
 #include "fmt/format.h"
 #include <mpfr.h>
 
-#include "cado_expression_parser.hpp"
+#include "cado_parsing_base.hpp"
 #include "cxx_mpfr.hpp"
 #include "runtime_numeric_cast.hpp"
 #include "macros.h"
@@ -205,14 +205,13 @@ auto fmt::formatter<cxx_mpfr>::format(cxx_mpfr const & x, format_context& ctx) c
 
 std::istream & operator>>(std::istream & is, cxx_mpfr::input_with_precision xp)
 {
-    using cado_expression_parser_details::parse_error;
     using cado::number_literal;
     using cado::number_context;
     number_literal N;
     if (is >> N) {
         try {
             xp.x = number_context<cxx_mpfr>(xp.p)(N);
-        } catch (number_literal::parse_error const &) {
+        } catch (cado::parse_error const &) {
             is.setstate(std::ios::failbit);
         }
     }
