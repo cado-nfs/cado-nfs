@@ -160,7 +160,6 @@ template<typename T> std::ostream& operator<<(std::ostream& o, cado::named_proxy
  * - more advanced operator*
  * - evaluation on polynomials (either with extra code or with an OR in
  *   the enable_if, that might work too).
- * - valuation
  * - is_monomial_multiple / is_monomial
  * - is_monic / makemonic
  * - translation, rotation
@@ -221,6 +220,14 @@ struct polynomial : public number_context<T>
     int degree() const {
         return runtime_numeric_cast<int>(coeffs.size())-1;
     }
+
+    int valuation() const {
+        for(int i = 0 ; i <= degree() ; i++)
+            if (coeffs[i] != 0)
+                return i;
+        return INT_MAX;
+    }
+
     unsigned int size() const { return coeffs.size(); }
 
     T lc() const { ASSERT_ALWAYS(!coeffs.empty()); return coeffs.back(); }
@@ -908,16 +915,89 @@ struct polynomial : public number_context<T>
     /* }}} */
 
     /************** {{{ (complex) root finding **************/
-    public:
-    double cauchy_bound() const
+    private:
+    double easy_root_lower_bound() const
         requires cado_math_aux::is_complex_v<T>
     {
-        /* computes a lower bound on the moduli of the zeros of a
-           polynomial p(x). norms(x) is a polynomial whose i_th coefficient
-           is the modulus of the i_th coeffcient of p(x) but
-           whose constant term is negative. The lower bound is the 
-           (unique) positive root x of norms(x) */
+        /* computes a lower bound on the moduli of the non-zero complex
+         * roots of a polynomial p(x). N(x) is a polynomial whose i_th
+         * coefficient is the modulus of the i_th coeffcient of p(x) but
+         * whose constant term is negative. The lower bound is the
+         * (unique) positive root x of N(x)
+         *
+         * Proof: assume x is a root. Then f(x) = fn x^n + ... + f0 = 0,
+         * so |f0| <= \sum_{i=1}^n |f_i| |x|^i
+         *
+         * so N(|x|) >= 0, with N(t) = |f_n| t^n + ... + |f_1| |t| - |f_0|.
+         *
+         * There is only one positive root t0 of N, so we must have |x|
+         * >= t0.
+         */
 
+        using cado_math_aux::abs;
+        ASSERT_ALWAYS(!coeffs.empty());
+        polynomial<double> N;
+        size_t v = valuation();
+        N.coeffs.assign(size() - v, 0);
+        for(size_t i = 1 ; v + i < size() ; i++)
+            N.coeffs[i] = double(abs(coeffs[v + i]));
+        N.coeffs[0] = -double(abs(coeffs[v]));
+        auto p = N.positive_roots();
+        ASSERT_ALWAYS(p.size() == 1);
+        return p[0];
+    }
+
+    double easy_root_upper_bound() const
+        requires cado_math_aux::is_complex_v<T>
+    {
+        return 1 / reciprocal().easy_root_lower_bound();
+    }
+
+    double cauchy_upper_bound() const
+        requires cado_math_aux::is_complex_v<T>
+    {
+        using cado_math_aux::abs;
+        ASSERT_ALWAYS(!coeffs.empty());
+        double vn = double(abs(coeffs.back()));
+        double z = 0;
+        for(size_t i = 0 ; i + 1 < size() ; i++)
+            z = std::max(z, double(abs(coeffs[i])) / vn);
+        z += 1;
+        return z;
+    }
+
+    double cauchy_lower_bound() const
+        requires cado_math_aux::is_complex_v<T>
+    {
+        using cado_math_aux::abs;
+        ASSERT_ALWAYS(!coeffs.empty());
+        return 1 / reciprocal().cauchy_upper_bound();
+    }
+
+    double lagrange_upper_bound() const
+        requires cado_math_aux::is_complex_v<T>
+    {
+        using cado_math_aux::abs;
+        ASSERT_ALWAYS(!coeffs.empty());
+        double vn = double(abs(coeffs.back()));
+        double z = 0;
+        for(size_t i = 0 ; i + 1 < size() ; i++)
+            z += double(abs(coeffs[i])) / vn;
+        z = std::max(1.0, z);
+        return z;
+    }
+
+    double lagrange_lower_bound() const
+        requires cado_math_aux::is_complex_v<T>
+    {
+        using cado_math_aux::abs;
+        ASSERT_ALWAYS(!coeffs.empty());
+        return 1 / reciprocal().lagrange_upper_bound();
+    }
+
+    double weird_lower_bound_probably_wrong() const
+        requires cado_math_aux::is_complex_v<T>
+    {
         using cado_math_aux::abs;
         using cado_math_aux::log;
         using cado_math_aux::exp;
@@ -930,9 +1010,12 @@ struct polynomial : public number_context<T>
             N.coeffs.emplace_back(double(cado_math_aux::abs(c)));
         N.coeffs[n] = -N.coeffs[n];
 
-
         /* compute upper estimate of bound: assume all the
-           middle terms of N are zero */
+         * middle terms of N are zero.
+         *
+         * FIXME: this looks just... wrong. And anyway, it's very
+         * misguided.
+         */
 
         double xmax = exp((log(-N[n]) - log(N[0])) / n);
 
@@ -965,7 +1048,34 @@ struct polynomial : public number_context<T>
 
         return x;
     }
+    public:
+    /* The "easy" bound is best, although its computation is in fact more
+     * expensive than the others. The Cauchy bound is usually second
+     * best, and is trivial to compute.
+     */
+    double lower_bound_complex_roots() const
+        requires cado_math_aux::is_complex_v<T>
+    {
+        return easy_root_lower_bound();
+    }
+    double upper_bound_complex_roots() const
+        requires cado_math_aux::is_complex_v<T>
+    {
+        return easy_root_upper_bound();
+    }
     /* }}} */
+
+    template<typename U>
+    std::vector<U> roots(number_context<U> const & tr = {}) const
+        requires (
+        cado_math_aux::is_complex_v<U> &&
+        cado_math_aux::is_coercible_v<T, U>)
+    {
+        /* Jenkins-Traub solver */
+
+    }
+
+
 
     public:
 

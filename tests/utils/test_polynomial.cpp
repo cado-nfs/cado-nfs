@@ -293,9 +293,21 @@ static void
 test_compute_roots(bool)
     requires cado_math_aux::is_complex_v<T>
 {
-    polynomial<T> P("x^3-7*x^2+x+1");
-    double B1 = P.cauchy_bound();
-    fmt::print("{} -> cauchy bound = {}\n", P, B1);
+    {
+        polynomial<T> P("x^3-7*x^2+x+1");
+        fmt::print("{} -> roots in [{}, {}]\n",
+                P,
+                P.lower_bound_complex_roots(),
+                P.upper_bound_complex_roots());
+    }
+
+    {
+        polynomial<T> P("(-0.335235471146870 - 0.980233680124672i)*x^5 + (-0.363312420177951 - 0.674311068694115i)*x^4 + (0.555635171051534 + 0.422342866615889i)*x^3 + (-0.119795855286804 + 0.223351587171732i)*x^2 + (0.894110547459500 - 0.368334794919981i)*x - 0.0709390404647527 - 0.447457524669756i");
+        fmt::print("{} -> roots in [{}, {}]\n",
+                P,
+                P.lower_bound_complex_roots(),
+                P.upper_bound_complex_roots());
+    }
 
 #if 0
     const cado::number_context<T> tr(128); /* 128 only for cxx_mpfr */
