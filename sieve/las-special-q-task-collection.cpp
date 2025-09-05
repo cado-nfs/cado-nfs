@@ -466,7 +466,7 @@ void special_q_task_collection_tree::abandon_node_unlocked(special_q_task_tree *
             item->update_status(item->status, ABANDONED);
             verbose_fmt_print (0, 1, 
                     "# {} [{}] -> failed {} times,"
-                    " now failing the parent node t{}\n",
+                    " now failing the parent node {}\n",
                     item->shortname(), 
                     item->sq(),
                     item->try_again,
