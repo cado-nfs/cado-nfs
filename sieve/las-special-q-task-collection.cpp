@@ -157,6 +157,7 @@ void special_q_task_collection_tree::display_summary(int channel, int verbose)
             all_pending.size(), created, pulled, done, abandoned);
     verbose_fmt_print(channel, verbose, "{}", special_q_task_tree::prefixed { &forest, "# " });
     verbose_fmt_print(channel, verbose, "# END SUMMARY TREE\n");
+    verbose_fmt_print(channel, verbose, "# The status of the root node is {}\n", forest.status);
 }
 
 
@@ -279,7 +280,6 @@ void special_q_task_collection_tree::take_decision(special_q_task_tree * item)
 
     constexpr auto PENDING = special_q_task::status_code::PENDING;
     constexpr auto IN_PROGRESS = special_q_task::status_code::IN_PROGRESS;
-    constexpr auto DONE = special_q_task::status_code::DONE;
     constexpr auto ABANDONED = special_q_task::status_code::ABANDONED;
 
     if (item->status == ABANDONED) {
@@ -289,9 +289,14 @@ void special_q_task_collection_tree::take_decision(special_q_task_tree * item)
         return;
     }
 
+    /* If this node was tried earlier and reached a recursion that failed
+     * because a child node failed many times, it is absolutely possible
+     * that we already have children in the ABANDONED or maybe in DONE
+     * state. It does not matter.
+     */
     ASSERT_ALWAYS(item->children_by_status[PENDING].empty());
     ASSERT_ALWAYS(item->children_by_status[IN_PROGRESS].empty());
-    ASSERT_ALWAYS(item->children_by_status[DONE].empty());
+
     visited.insert(item->contender.rel);
 
     verbose_fmt_print(0, 0, "Taken: {}\n", item->contender.rel);

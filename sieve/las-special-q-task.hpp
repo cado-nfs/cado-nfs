@@ -4,7 +4,7 @@
 #include <utility>
 
 #include "special-q.hpp"
-#include "relation.hpp"
+// #include "relation.hpp"
 
 struct las_info;
 
@@ -45,8 +45,4 @@ struct special_q_task : public special_q {
     virtual bool must_take_decision() const = 0;
     virtual ~special_q_task() = default;
 };
-
-
-
-
 #endif	/* SIEVE_LAS_SPECIAL_Q_TASK_HPP_ */
