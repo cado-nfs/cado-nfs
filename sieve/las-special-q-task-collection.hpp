@@ -1,5 +1,5 @@
-#ifndef SIEVE_LAS_WORK_LOGBOOK_HPP_
-#define SIEVE_LAS_WORK_LOGBOOK_HPP_
+#ifndef SIEVE_LAS_SPECIAL_Q_TASK_COLLECTION_HPP_
+#define SIEVE_LAS_SPECIAL_Q_TASK_COLLECTION_HPP_
 
 #include <cstdio>
 #include <cstdlib>
@@ -90,11 +90,14 @@ struct special_q_task_collection_base {
     special_q_task_collection_base& operator=(special_q_task_collection_base && t) = delete;
     virtual ~special_q_task_collection_base() = default;
 
-    virtual special_q_task * pull() = 0;
-    virtual void postprocess(special_q_task * task, int, timetree_t & timer_special_q) = 0;
+    public:
     virtual bool must_avoid(relation_ab const& ab) const = 0;
 
     virtual void new_candidate_relation(las_info const &, special_q_task *, relation &) = 0;
+
+    public:
+    virtual special_q_task * pull() = 0;
+    virtual void postprocess(special_q_task * task, int, timetree_t & timer_special_q) = 0;
 
     virtual void display_summary(int, int) {}
 
@@ -111,13 +114,13 @@ struct special_q_task_collection_simple : public special_q_task_collection_base 
         : special_q_task_collection_base(cpoly, pl)
     { }
 
-    special_q_task * pull() override;
-
+    public:
     bool must_avoid(relation_ab const&) const override { return false; }
-
-    void postprocess(special_q_task *, int, timetree_t &) override {};
-
     void new_candidate_relation(las_info const &, special_q_task *, relation &) override {}
+
+    public:
+    special_q_task * pull() override;
+    void postprocess(special_q_task *, int, timetree_t &) override {};
 };
 
 struct special_q_task_collection_tree : public special_q_task_collection_base {
@@ -158,6 +161,10 @@ struct special_q_task_collection_tree : public special_q_task_collection_base {
     void done_node_unlocked(special_q_task_tree * item);
     void recurse_node_unlocked(special_q_task_tree * item);
 
+    void abandon_node_unlocked(special_q_task_tree *, int, bool only_down = false);
+
+    /***/
+
     void new_node(special_q const & doing, special_q_task_tree * parent) {
         const std::lock_guard<std::mutex> lock(tree_lock);
         new_node_unlocked(doing, parent);
@@ -175,29 +182,27 @@ struct special_q_task_collection_tree : public special_q_task_collection_base {
 
     void take_decision(special_q_task_tree * t);
 
-    void abandon_node_unlocked(special_q_task_tree *, int, bool only_down = false);
-
     void abandon_node(special_q_task_tree * item, int);
 
     special_q_task_tree * pull_internal();
 
     public:
-
-    special_q_task * pull() override;
-
     bool must_avoid(relation_ab const& ab) const override {
         const std::lock_guard<std::mutex> lock(tree_lock);
         return visited.find(ab) != visited.end();
     }
 
-    void postprocess(special_q_task *, int, timetree_t &) override;
     void new_candidate_relation(las_info const & las, special_q_task * task, relation & rel) override {
         dynamic_cast<special_q_task_tree *>(task)->new_candidate_relation(las, rel, tree_lock);
     }
+
+    public:
+    special_q_task * pull() override;
+    void postprocess(special_q_task *, int, timetree_t &) override;
     void display_summary(int, int) override;
 };
 
 
 
 
-#endif	/* SIEVE_LAS_WORK_LOGBOOK_HPP_ */
+#endif	/* SIEVE_LAS_SPECIAL_Q_TASK_COLLECTION_HPP_ */
