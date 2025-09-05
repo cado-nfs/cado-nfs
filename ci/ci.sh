@@ -131,6 +131,7 @@ project_package_selection() {
         alpine_packages="$alpine_packages     py3-flask py3-requests"
         # py311-sqlite3 is in the python stdlib, but trimmed on on fbsd
         freebsd_packages="$freebsd_packages   py311-sqlite3 py311-flask py311-requests"
+        freebsd_packages="$freebsd_packages   pkgconf" # added PZ
     fi
 
     if [ "$needs_optional_ecm" ] ; then
