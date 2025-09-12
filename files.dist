@@ -1639,8 +1639,12 @@ utils/cachesize_guess.c
 utils/cado-endian.h
 utils/cado-sighandlers.cpp
 utils/cado-sighandlers.h
+utils/cado_addsubmul.hpp
+utils/cado_compile_time_hacks.hpp
+utils/cado_constants.hpp
 utils/cado_expression_parser.hpp
 utils/cado_math_aux.hpp
+utils/cado_mp_conversions.hpp
 utils/cado_parsing_base.hpp
 utils/cado_pipe_streambuf.cpp
 utils/cado_pipe_streambuf.hpp

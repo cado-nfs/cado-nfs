@@ -5,27 +5,22 @@
 
 #include <cmath>
 #include <cfenv>
-#include <cstddef>
 #include <cstdint>
 #include <climits>
 
-#include <algorithm>
-#include <array>
-#include <limits>
 #include <type_traits>
 #include <complex>
 
 #include <gmp.h>
 
 #include "cxx_mpz.hpp"
-#include "cado_type_traits.hpp"
 #include "utils_cxx.hpp"
 #include "gmp_aux.h"
+#include "macros.h"
 
 #ifdef HAVE_MPFR
 #include <mpfr.h>
 #include "cxx_mpfr.hpp"
-#include "mpfr_aux.h"
 #endif
 
 #ifdef HAVE_MPC
@@ -36,34 +31,6 @@
 
 namespace cado_math_aux
 {
-    /*
-    template<typename T> T abs(T x);
-    template<> inline double abs<double>(double x) { return fabs(x); }
-    template<> inline float abs<float>(float x) { return fabsf(x); }
-    template<> inline long double abs<long double>(long double x) { return fabsl(x); }
-    */
-
-    /* {{{ compile-time left shift */
-    namespace details {
-    template<typename T, int n>
-        struct multiply_by_poweroftwo_impl {
-            constexpr T operator()(T const & x) const {
-                return multiply_by_poweroftwo_impl<T, n-1>()(2*x);
-            }
-        };
-
-    template<typename T>
-        struct multiply_by_poweroftwo_impl<T, 0> {
-            constexpr T operator()(T const & x) const {
-                return x;
-            }
-        };
-    } /* namespace details */
-    template<int n, typename T>
-    static T constexpr multiply_by_poweroftwo(T const & x) {
-        return details::multiply_by_poweroftwo_impl<T, n>()(x);
-    }
-    /* }}} */
 
 #if 0
     /* {{{ POC: wrap around std::pow */
@@ -152,8 +119,21 @@ namespace cado_math_aux
         return res;
     }
 #endif
+    inline cxx_mpz pow(cxx_mpz const & x, int e)
+    {
+        ASSERT_ALWAYS(e >= 0);
+        cxx_mpz res;
+        mpz_pow_ui(res, x, e);
+        return res;
+    }
+    template<typename T>
+    inline cxx_mpz pow(T const & x, int e)
+    requires std::is_integral_v<T>
+    {
+        /* I'm lazy */
+        return converter_from_mpz<T>(pow(cxx_mpz(x), e));
+    }
     /* }}} */
-            
     /* {{{ simple wrappers around std::isnan, + cxx_mpfr extensions */
     /* see comment about ldexpf and friends
     inline bool isnan(float x) { return std::isnan(x); }
@@ -161,6 +141,10 @@ namespace cado_math_aux
     inline bool isnan(long double x) { return std::isnan(x); }
     */
     using std::isnan;
+    template<typename T>
+    inline bool isnan(std::complex<T> const & x) {
+        return std::isnan(x.real()) || std::isnan(x.imag());
+    }
 #ifdef HAVE_MPFR
     inline bool isnan(cxx_mpfr const & x) { return mpfr_nan_p(mpfr_srcptr(x)); }
 #endif
@@ -170,7 +154,6 @@ namespace cado_math_aux
     }
 #endif
     /* }}} */
-            
     /* {{{ simple wrappers around std::isinf, + cxx_mpfr extensions */
     /* see comment about ldexpf and friends
     inline bool isinf(float x) { return std::isinf(x); }
@@ -178,11 +161,19 @@ namespace cado_math_aux
     inline bool isinf(long double x) { return std::isinf(x); }
     */
     using std::isinf;
+    template<typename T>
+    inline bool isinf(std::complex<T> const & x) {
+        return std::isinf(x.real()) || std::isinf(x.imag());
+    }
 #ifdef HAVE_MPFR
     inline bool isinf(cxx_mpfr const & x) { return mpfr_inf_p(mpfr_srcptr(x)); }
 #endif
+#ifdef HAVE_MPC
+    inline bool isinf(cxx_mpc const & x) {
+        return mpfr_inf_p(mpc_realref(x)) || mpfr_inf_p(mpc_imagref(x));
+    }
+#endif
     /* }}} */
-            
     /* {{{ simple wrappers around std::ldexp, + cxx_mpfr extensions */
 
     /* we used to have std::{ldexpf,ldexp,ldexpl} here, but see the drama
@@ -204,7 +195,6 @@ namespace cado_math_aux
     }
 #endif
     /* }}} */
-
     /* {{{ simple wrappers around std::frexp, + cxx_mpfr extensions */
     /* see above
     inline float frexp(float x, int * e) { return std::frexp(x, e); }
@@ -222,7 +212,6 @@ namespace cado_math_aux
     }
 #endif
     /* }}} */
-
     /* {{{ simple wrappers around std::abs, + cxx_mpfr extensions */
     /* see above
     inline float abs(float x) { return std::abs(x); }
@@ -250,31 +239,34 @@ namespace cado_math_aux
     using std::log;
     using std::exp;
 #ifdef HAVE_MPFR
-    inline cxx_mpfr log(cxx_mpfr const & x) {
-        cxx_mpfr res = x;
-        mpfr_log(res, res, MPFR_RNDN);
+    inline cxx_mpfr exp(cxx_mpfr const & x) {
+        cxx_mpfr res;
+        mpfr_set_prec(res, x.prec());
+        mpfr_exp(res, x, MPFR_RNDN);
         return res;
     }
-    inline cxx_mpfr exp(cxx_mpfr const & x) {
-        cxx_mpfr res = x;
-        mpfr_exp(res, res, MPFR_RNDN);
+    inline cxx_mpfr log(cxx_mpfr const & x) {
+        cxx_mpfr res;
+        mpfr_set_prec(res, x.prec());
+        mpfr_log(res, x, MPFR_RNDN);
         return res;
     }
 #endif
 #ifdef HAVE_MPC
     inline cxx_mpc exp(cxx_mpc const & x) {
         cxx_mpc res;
+        mpc_set_prec(res, x.prec());
         mpc_exp(res, x, MPC_RNDNN);
         return res;
     }
     inline cxx_mpc log(cxx_mpc const & x) {
         cxx_mpc res;
+        mpc_set_prec(res, x.prec());
         mpc_log(res, x, MPC_RNDNN);
         return res;
     }
 #endif
     /* }}} */
-
     /* {{{ fma/fms operation -- we have to use a function in order to have a
      * unified interface
      */
@@ -361,215 +353,42 @@ namespace cado_math_aux
         };
     }
     /* }}} */
-
-    /* {{{ assignment operations that also retain precision, for types that
-     * have it. Basically, this is all similar to x=0 or x=a, *but* with
-     * precision taken from an existing (reference) object, e.g. the one
-     * that is assigned to in the x=a case.
-     *
-     * Note that for the x=a case, we're knowingly not using the
-     * operator= overload to expose this interface, because that would be
-     * misleading.
-     */
-    template<typename T> inline T similar_zero(T const &) { return {}; }
-
-    /* This returns something similar to T(a), except that we take some
-     * characteristics from x in order to form the result (think precision),
-     * instead of what the default behavior of the ctor would prescribe. Of
-     * course for most types it's just "return a"
-     */
-    template<typename T, typename U>
-    inline T similar_set(T const & /* x */, U const & a) { return a; }
-#ifdef HAVE_MPFR
-    template<>
-    inline cxx_mpfr similar_zero<cxx_mpfr>(cxx_mpfr const & x)
+    // {{{ divexact
+    template<typename T>
+        T divexact(T a, T b)
+        requires std::is_integral_v<T>
     {
-        cxx_mpfr e = x;
-        mpfr_set_ui(e, 0, MPFR_RNDN);
-        return e;
+        return a / b;
     }
-    template<typename U>
-    inline cxx_mpfr similar_set(cxx_mpfr const & x, U const & a)
+    template<typename T>
+        cxx_mpz divexact(cxx_mpz const & a, T b)
+        requires cado::converts_via<T, uint64_t>
     {
-        cxx_mpfr e = x;
-        mpfr_auxx::cado_mpfr_set(e, a, MPFR_RNDN);
-        return e;
+        return mpz_divexact_uint64(a, b);
     }
-#endif
-#ifdef HAVE_MPC
-    template<>
-    inline cxx_mpc similar_zero<cxx_mpc>(cxx_mpc const & x)
+    template<typename T>
+        cxx_mpz divexact(cxx_mpz const & a, T b)
+        requires cado::converts_via<T, int64_t>
     {
-        cxx_mpc e = x;
-        mpc_set_ui(e, 0, MPC_RNDNN);
-        return e;
-    }
-    template<typename U>
-    inline cxx_mpc similar_set(cxx_mpc const & x, U const & a)
-    {
-        cxx_mpc e = x;
-        mpc_auxx::cado_mpc_set(e, a, MPC_RNDNN);
-        return e;
-    }
-#endif
-    /* }}} */
-
-    /* {{{ addmul/submul. It's similar to fma/fms, but the operand order
-     * differs. Also, addmul/submul are compound operations, while fma is
-     * not. When working with arbitrary precision types, the working
-     * precision is the precision of x.
-     *
-     * TODO ET: do we really need the three-type template?
-     */
-    template<typename T, typename U, typename V>
-    inline T& addmul(T & x, U const & y, V const & z)
-    {
-        /* return x += y*z */
-        return x = fma(similar_set(x, y), z, x);
-    }
-    template<typename T, typename U, typename V>
-    inline T& submul(T & x, U const & y, V const & z)
-    {
-        /* return x -= y*z */
-        return x = -fms(similar_set(x, y), z, x);
-    }
-
-#ifdef HAVE_MPFR
-    inline cxx_mpfr& addmul(cxx_mpfr & x, cxx_mpfr const & y, unsigned long& z)
-    {
-        mpfr_addmul_ui(x, y, z, MPFR_RNDN);
-        return x;
-    }
-    inline cxx_mpfr& addmul(cxx_mpfr & x, cxx_mpfr const & y, long& z)
-    {
-        mpfr_addmul_si(x, y, z, MPFR_RNDN);
-        return x;
-    }
-    inline cxx_mpfr& submul(cxx_mpfr & x, cxx_mpfr const & y, unsigned long& z)
-    {
-        mpfr_submul_ui(x, y, z, MPFR_RNDN);
-        return x;
-    }
-    inline cxx_mpfr& submul(cxx_mpfr & x, cxx_mpfr const & y, long& z)
-    {
-        mpfr_submul_si(x, y, z, MPFR_RNDN);
-        return x;
-    }
-#endif
-
-
-#ifdef HAVE_MPC
-    template<typename U, typename V>
-        inline cxx_mpc& addmul(cxx_mpc & x, U const & y, V const & z)
-        {
-            cxx_mpc yy = similar_set(x, y);
-            yy *= z;
-            x += yy;
-            return x;
+        cxx_mpz res;
+        if (b > 0)
+            mpz_divexact_uint64(res, a, b);
+        else {
+            mpz_divexact_uint64(res, a, -b);
+            mpz_neg(res, res);
         }
-    template<typename U, typename V>
-        inline cxx_mpc& submul(cxx_mpc & x, U const & y, V const & z)
-        {
-            cxx_mpc yy = similar_set(x, y);
-            yy *= z;
-            return x -= yy;
-        }
-    inline cxx_mpc& addmul(cxx_mpc & x, cxx_mpc const & y, cxx_mpc const & z)
-    {
-        mpc_addmul(x, y, z, MPC_RNDNN);
-        return x;
+        return res;
     }
-    inline cxx_mpc& addmul(cxx_mpc & x, cxx_mpc const & y, unsigned long& z)
+    inline cxx_mpz divexact(cxx_mpz const & a, cxx_mpz const & b)
     {
-        mpc_addmul_ui(x, y, z, MPC_RNDNN);
-        return x;
+        cxx_mpz res;
+        mpz_divexact(res, a, b);
+        return res;
     }
-    inline cxx_mpc& addmul(cxx_mpc & x, cxx_mpc const & y, long& z)
-    {
-        mpc_addmul_si(x, y, z, MPC_RNDNN);
-        return x;
-    }
-    inline cxx_mpc& submul(cxx_mpc & x, cxx_mpc const & y, cxx_mpc const & z)
-    {
-        mpc_submul(x, y, z, MPC_RNDNN);
-        return x;
-    }
-    inline cxx_mpc& submul(cxx_mpc & x, cxx_mpc const & y, unsigned long& z)
-    {
-        mpc_submul_ui(x, y, z, MPC_RNDNN);
-        return x;
-    }
-    inline cxx_mpc& submul(cxx_mpc & x, cxx_mpc const & y, long& z)
-    {
-        mpc_submul_si(x, y, z, MPC_RNDNN);
-        return x;
-    }
-#endif
-    /* }}} */
-
+    // }}}
 
     /* This compares two floating point values with a relative error margin
-    */
-    template<typename T>
-        static bool approx_eq_relative(
-                const T d1,
-                const T d2,
-                const T err_margin)
-        {
-            return abs(d1) * (1. - err_margin) <= abs(d2) && abs(d2) <= abs(d1) * (1. + err_margin);
-        }
-
-
-    template<typename T>
-        static bool equal_within_ulps(T x, T y, std::size_t n)
-        requires std::is_floating_point_v<T>
-        {
-            const T m = std::min(std::fabs(x), std::fabs(y));
-            const int exp = m < std::numeric_limits<T>::min()
-                ? std::numeric_limits<T>::min_exponent - 1
-                : std::ilogb(m);
-            return std::fabs(x - y) <= n * cado_math_aux::ldexp(std::numeric_limits<T>::epsilon(), exp);
-        }
-
-    template<typename T>
-        static bool equal_within_ulps(T x, T y, std::size_t n)
-        requires std::is_integral_v<T>
-        {
-            return x < y ? (size_t(y - x) <= n) : (size_t(x-y) <= n);
-        }
-
-    template<typename T>
-        static int accurate_bits(T reference, T computed)
-        requires std::is_floating_point_v<T>
-        {
-            T c;
-            if (reference == 0)
-                c = computed;
-            else
-                c = (computed-reference)/reference;
-            c = std::fabs(c);
-            return c == 0 ? INT_MAX : -std::ilogb(c);
-        }
-
-#ifdef HAVE_MPFR
-    template<typename T>
-        static int
-        accurate_bits(T reference, T computed)
-        requires std::is_same_v<T, cxx_mpfr>
-        {
-            T c;
-            if (reference == 0)
-                c = computed;
-            else
-                c = (computed-reference)/reference;
-            mpfr_abs(c, c, MPFR_RNDN);
-            if (c == 0) return INT_MAX;
-            T mantissa;
-            mpfr_exp_t e;
-            mpfr_frexp(&e, c, c, MPFR_RNDN);
-            return -e;
-        }
-#endif
+     */
 
     template<typename T> static inline void do_not_outsmart_me(T &) {}
 #if defined(__i386)
@@ -628,518 +447,6 @@ namespace cado_math_aux
         return e != 1025;
     }
 
-
-    /* for floating point types, std::numeric_limits<T>::digits counts
-     * the implicit bit as well (when there is one -- IEEE 80-bit
-     * extended precision doesn't have one).
-     *
-     * E.g. on sysv 64-bit abi (meaning standard linux):
-     * static_assert(std::numeric_limits<double>::digits==53, "AA");
-     * static_assert(std::numeric_limits<long double>::digits==64, "AA");
-     */
-
-    template<typename T>
-        static inline cxx_mpz mpz_from(T c)
-        requires std::is_floating_point_v<T>
-        {
-            /* This converts to an mpz integer with unit accuracy (of
-             * course digits below the unit are lost). Rounding is
-             * towards zero.
-             *
-             * It seems that we don't need to fiddle with the rounding
-             * mode here, the default truncation behavior of type casts
-             * (C99 § 6.3.1.4.1) is what we need.
-             */
-            if (c == 0) return 0;
-            int e;
-            T x = cado_math_aux::frexp(c, &e);
-            /* x == c * 2^-e */
-            /* x is in (-1,0.5], [0.5,1) */
-
-            constexpr int mantissa_bits = std::numeric_limits<T>::digits;
-            constexpr int ui_bits = std::numeric_limits<unsigned long>::digits;
-            /* First convert the complete mantissa to a mantissa_bits-bit
-             * signed integer. This is a constant number of conversion
-             * operations, decided at compile time (and in most cases
-             * it's actually just one operation, except for quadruple
-             * precision long doubles on 64-bit platforms, or doubles and
-             * beyond on 32-bit platforms).
-             */
-            cxx_mpz z = 0;
-
-            int sx = sgn(x);
-
-            x *= sx;
-            /* now x is in [0.5, 1) -- we could possibly swallow one
-             * extra bit but that would be ridiculous gains since the
-             * number of iterations below would likely be unchanged */
-
-            for(int b = 0 ; b < mantissa_bits ; b += ui_bits) {
-                /* at this point we have
-                 * sx * c * 2^(-e+b) = z + (x) with:
-                 *
-                 *  - sx in {-1,0,1}
-                 *  - x in [0,1)
-                 *
-                 */
-
-                const int ell = std::min(mantissa_bits - b, ui_bits);
-                const T x_ell = cado_math_aux::ldexp(x, ell);
-                const auto xr = (unsigned long) x_ell;
-                /* x*(2^ell) is in (0, 2^ell). We must
-                 * truncate it (not round to nearest) if we want an
-                 * unsigned long,
-                 * since ell <= ui_bits.
-                 *
-                 * Furthermore, we have
-                 * eps = x*(2^ell)-xr in [0,1)
-                 */
-
-                /* sx*c*2^(-e+b) = z + (xr+eps)/2^ell
-                 * sx*c*2^(-e+b+ell) = z*2^ell + xr + eps
-                 */
-                cxx_mpz zi = xr;
-
-                mpz_mul_2exp(z, z, ell);
-                mpz_add(z, z, zi);
-
-                /* prepare next iteration. I have small fears that there
-                 * could be corner cases that allow the compiler to
-                 * outsmart us. */
-                x = x_ell - T(xr);
-            }
-
-            if (e > mantissa_bits) {
-                mpz_mul_2exp(z, z, e - mantissa_bits);
-            } else {
-                mpz_tdiv_q_2exp(z, z, mantissa_bits - e);
-            }
-            if (sx < 0)
-                mpz_neg(z, z);
-            return z;
-        }
-
-    template<typename T>
-    static inline cxx_mpz mpz_from(T const & c)
-    requires std::is_same_v<T, cxx_mpz>
-    { return c; }
-
-#ifdef HAVE_MPFR
-    template<typename T>
-    static inline cxx_mpz mpz_from(T const & c)
-    requires std::is_same_v<T, cxx_mpfr>
-    {
-        cxx_mpz res;
-        mpfr_get_z(res, c, MPFR_RNDN);
-        return res;
-    }
-#endif
-
-    template<typename T>
-    static inline void exact_form(cxx_mpz & m, int & e, T x)
-    requires cado_math_aux::is_real<T>::value
-    {
-        e = 0;
-        /* frexp returns x in (-1,-0.5] u [0.5,1). We want an integer, so
-         * we want to scale this up */
-        T mantissa = cado_math_aux::frexp(x, &e);
-        constexpr int d = std::numeric_limits<T>::digits;
-        m = mpz_from<T>(cado_math_aux::ldexp(mantissa, d-1));
-        e -= (d-1);
-    }
-
-    template<typename T>
-    static inline void exact_form(cxx_mpz & m, int & e, T const & x)
-    requires cado_math_aux::is_integral<T>::value
-    {
-        m = x;
-        e = 0;
-    }
-    template<typename T>
-        T ulp(T r)
-        requires std::is_floating_point_v<T>
-        {
-        /*
-         * Let next(r) be the smallest floating point
-         * number strictly larger than r.
-         *
-         * ilog(b) computes I such that |r| * 2^-I is in [1,2)
-         *
-         * we want ulp(r) = next(|r|)-|r|
-         * we also have ulp(r)/2^I = next(|r|/2^I)-|r|
-         * because |r| is in the same binade as 1,
-         *  ulp(r)/2^I == next(1)-1 = epsilon().
-         */
-        return cado_math_aux::ldexp(std::numeric_limits<T>::epsilon(), std::ilogb(r));
-    }
-
-    template<typename T>
-        struct converter_from_mpz;
-
-    /* This is the same as mpz_get_ld, but should get more mantissa bits
-     * correct if we are to use it with quad precision floating points.
-     */
-    template<typename T>
-        requires std::is_floating_point_v<T>
-        struct converter_from_mpz<T> {
-            T operator()(mpz_srcptr z) const {
-                T ld = 0;
-                cxx_mpz zr = z;
-
-                int b = mpz_sizeinbase(z, 2);
-                int e = b - std::numeric_limits<double>::max_exponent;
-                if (e > 0) {
-                    /* First scale the input number down. There are still enough
-                     * bits remaining to fill the mantissa, of course.
-                     */
-                    mpz_tdiv_q_2exp(zr, zr, e);
-                } else {
-                    e = 0;
-                }
-
-                constexpr int M = std::numeric_limits<double>::digits;
-                constexpr int LM = std::numeric_limits<T>::digits;
-                cxx_mpz t;
-                for(int b = 0 ; b + M < LM ; b += M) {
-                    double d = mpz_get_d (zr);
-                    mpz_set_d (t, d);
-                    mpz_sub (zr, zr, t);
-                    ld += d;
-                }
-                ld += mpz_get_d (zr);
-                ld = cado_math_aux::ldexp(ld, e);
-                return ld;
-            }
-        };
-
-    template<typename T>
-        requires cado::converts_via<T, int64_t>
-        struct converter_from_mpz<T> {
-            T operator()(mpz_srcptr z) const {
-                return mpz_get_int64(z);
-            }
-        };
-
-    template<typename T>
-        requires cado::converts_via<T, uint64_t>
-        struct converter_from_mpz<T> {
-            T operator()(mpz_srcptr z) const {
-                return mpz_get_uint64(z);
-            }
-        };
-
-    template<typename T>
-        struct converter_from_mpz<std::complex<T>> {
-            std::complex<T> operator()(mpz_srcptr z) const {
-                return { converter_from_mpz<T>()(z), 0 };
-            }
-        };
-
-    template<>
-        struct converter_from_mpz<cxx_mpz> {
-            cxx_mpz operator()(mpz_srcptr z) const {
-                return { z };
-            }
-        };
-
-    
-#ifdef HAVE_MPFR
-    template<>
-        struct converter_from_mpz<cxx_mpfr> {
-            cxx_mpfr operator() (mpz_srcptr z) const
-            {
-                cxx_mpfr res;
-                mpfr_set_z(res, z, MPFR_RNDN);
-                return res;
-            }
-        };
-#endif
-
-#ifdef HAVE_MPC
-    template<>
-        struct converter_from_mpz<cxx_mpc> {
-            cxx_mpc operator() (mpz_srcptr z) const
-            {
-                cxx_mpc res;
-                mpc_set_z(res, z, MPFR_RNDN);
-                return res;
-            }
-        };
-#endif
-
-    template<typename T>
-        static inline T mpz_get(mpz_srcptr z) {
-            return converter_from_mpz<T>()(z);
-        }
-
-
-    template<typename T>
-        class constant_time_square_root {
-            static constexpr T mid(T a, T b) { return (a+b)/2; }
-            static constexpr T above(T m, T x) { return m*m > x; }
-            static constexpr T recurse(T a, T b, T m, T x)
-            { return above(m, x) ? sqrt(a, m, x) : sqrt(m, b, x); }
-            static constexpr T sqrt(T a, T b, T m, T x)
-            { return m == a ? a : recurse(a, b, m, x); }
-            static constexpr T sqrt(T a, T b, T x)
-            { return sqrt(a, b, mid(a, b), x); }
-            public:
-            static constexpr T
-                sqrt(T x)
-                requires std::is_integral_v<T>
-            { return sqrt(T(0), (T(1) << (std::numeric_limits<T>::digits/2)), x); }
-        };
-
-    template<typename T>
-        static constexpr T
-        constant_sqrt(T x)
-        requires std::is_integral_v<T>
-        {
-            return constant_time_square_root<T>::sqrt(x);
-        }
-
-    /* some fun with compile time code */
-    /* {{{ compile time evaluation of 2^k mod n */
-    template<int k, int n> struct pow2_mod {
-        template<int x> struct sq_mod {
-            static constexpr int value = (x * x) % n;
-        };
-        template<int x> struct dbl_mod {
-            static constexpr int value = (x + x) % n;
-        };
-        struct even {
-            static constexpr int value = sq_mod<pow2_mod<k/2, n>::value>::value;
-        };
-        struct odd {
-            static constexpr int value = dbl_mod<even::value>::value;
-        };
-        static constexpr int value = (k % 2) ? odd::value : even::value;
-    };
-    template<int n> struct pow2_mod<0, n>
-    {
-        static constexpr int value = 1;
-    };
-    /* }}} */
-    /* {{{ compile time bezout relation */
-    template<int a, int b,
-        int u0 = 1, int v0 = 0, int g0 = a,
-        int u1 = 0, int v1 = 1, int g1 = b>
-            struct bezout_relation;
-    template<int a, int b,
-        int u0, int v0, int g0,
-        int u1, int v1, int g1>
-            struct bezout_relation : public bezout_relation<
-                                     a, b,
-                                     u1, v1, g1, 
-                                     u0 - (g0/g1) * u1, v0 - (g0 / g1) * v1, g0 % g1>
-    {};
-    template<int a, int b,
-        int u0, int v0, int g0,
-        int u1, int v1>
-            struct bezout_relation<a, b, u0, v0, g0, u1, v1, 0> {
-                static constexpr int gcd() { return g0; }
-                static constexpr int u() { return u0; }
-                static constexpr int v() { return v0; }
-            };
-    /* }}} */
-    /* {{{ compile-time map on an fixed-size array */
-    template<int N, template <int, int> class F, int left=N, int... Rest>
-        struct array_map : public array_map<N, F, left - 1, F<N, left - 1>::value(), Rest...> {
-        };
-
-    template<int N, template <int, int> class F, int... Rest>
-        struct array_map<N, F, 0, Rest...> {
-            static constexpr
-                std::array<int, N>
-                value { Rest... };
-        };
-
-    template<int N, template<int, int> class F, int... Rest>
-        constexpr std::array<int, N> array_map<N, F, 0, Rest...>::value; // c++11
-    /* }}} */
-    /* {{{ compute -1/i mod n at compile time */
-    template<int n, int k> struct minus_inverse_mod_n {
-        typedef bezout_relation<n, n-k> B;
-        static constexpr int value() { return B::gcd() == 1 ? (B::v() < 0 ? n + B::v() : B::v()) : 0; }
-    };
-    /* }}} */
-    /* {{{ inverse modulo powers of two */
-    template<int k, typename T, T current = (3*k)^2, int c = 5, bool done = c >= std::numeric_limits<T>::digits>
-        struct invmod;
-
-    template<int k, typename T, T current, int c>
-        struct invmod<k, T, current, c, false>
-        : public invmod<k, T, current * (2 - current * k), c*2>
-        {
-            static_assert(k & 1, "k must be odd");
-            static_assert(!std::is_signed_v<T>, "T must be an unsigned type");
-        };
-    template<int k, typename T, T current, int c>
-        struct invmod<k, T, current, c, true> {
-            static constexpr T value = current;
-        };
-    /* }}} */
-
-    /* for any type that defines the <<= and += operators, provide code
-     * that computes a constant multiple of a given value (of any
-     * acceptable input type for +=).
-     * Optionally, a chooser template (such as at_most<8>) can be passed
-     * in order to control when to fall back on multiplication at
-     * runtime. If this evaluates to false, then a *= operator on the
-     * destination type is emitted.
-     */
-
-    namespace details {
-        template<unsigned int n, bool is_odd = n & 1>
-            struct mul_c_impl;
-
-        template<unsigned int n>
-            struct mul_c_impl<n, false> {
-                using super = mul_c_impl<n/2>;
-                template<typename T, typename U>
-                    static void mul(T & t, U const & a) {
-                        super::mul(t, a);
-                        t <<= 1;
-                    }
-                static constexpr int number_of_shifts() {
-                    return 1 + super::number_of_shifts();
-                }
-                static constexpr int number_of_additions() {
-                    return super::number_of_shifts();
-                }
-            };
-        template<unsigned int n>
-            struct mul_c_impl<n, true> {
-                using super = mul_c_impl<n/2>;
-                template<typename T, typename U>
-                    static void mul(T & t, U const & a) {
-                        super::mul(t, a);
-                        t <<= 1;
-                        t += a;
-                    }
-                static constexpr int number_of_shifts() {
-                    return 1 + super::number_of_shifts();
-                }
-                static constexpr int number_of_additions() {
-                    return 1 + super::number_of_shifts();
-                }
-            };
-
-        template<>
-            struct mul_c_impl<1> {
-                template<typename T, typename U>
-                    static void mul(T & t, U const & a) {
-                        t = a;
-                    }
-                static constexpr int number_of_shifts() {
-                    return 0;
-                }
-                static constexpr int number_of_additions() {
-                    return 0;
-                }
-            };
-
-        template<>
-            struct mul_c_impl<0> {
-                template<typename T, typename U>
-                    static void mul(T & t, U const &) {
-                        t = 0;
-                    }
-                static constexpr int number_of_shifts() {
-                    return 0;
-                }
-                static constexpr int number_of_additions() {
-                    return 0;
-                }
-            };
-
-        template<unsigned int n, bool is_small>
-            struct mul_c_impl_choice
-            : public mul_c_impl<n> {
-            };
-
-        template<unsigned int n>
-            struct mul_c_impl_choice<n, false> {
-                template<typename T, typename U>
-                    static void mul(T & t, U const & a) {
-                        t = a;
-                        t *= n;
-                    }
-            };
-
-
-        /* addmul is different because it doesn't use double-and-add.
-         * It's not very useful, so I'm commenting it out.
-         */
-#if 0
-        template<unsigned int n>
-            struct addmul_c_impl {
-                template<typename T, typename U>
-                    static void addmul(T & t, U const & a) {
-                        addmul_c_impl<n-1>::addmul(t, a);
-                        t += a;
-                    }
-            };
-        template<>
-            struct addmul_c_impl<0> {
-                template<typename T, typename U>
-                    static void addmul(T &, U const &) {
-                    }
-            };
-
-        template<unsigned int n, bool is_very_small, typename chooser_mul>
-            struct addmul_c_impl_choice
-            : public addmul_c_impl<n> {};
-
-        template<unsigned int n, typename chooser_mul>
-            struct addmul_c_impl_choice<n, false, chooser_mul> {
-                template<typename T, typename U>
-                    static void addmul(T & t, U const & a) {
-                        T t2;
-                        mul_c<n, chooser_mul>(t2, a);
-                        t += t2;
-                    }
-            };
-#endif
-    }   /* namespace details */
-
-    /* Three chooser types. Evaluation to true means "use an addition
-     * chain".
-     */
-    template<unsigned int max>
-        struct at_most {
-            template<unsigned int n> struct choose : public
-                                                     std::integral_constant<bool, (n <= max)> {
-                                                     };
-        };
-
-    struct always {
-        template<unsigned int n> struct choose : public
-                                                 std::true_type {
-                                                 };
-    };
-
-    struct never {
-        template<unsigned int n> struct choose : public
-                                                 std::false_type {
-                                                 };
-    };
-
-    template<unsigned int n, typename chooser = at_most<8>, typename T, typename U>
-        void mul_c(T & t, U const & a, chooser const & = chooser{})
-        {
-            details::mul_c_impl_choice<n, chooser::template choose<n>::value>::mul(t, a);
-        }
-#if 0
-    /* see above. the code is fine, but I'm yet to be convinced that it's
-     * useful
-     */
-    template<unsigned int n, typename chooser = at_most<2>, typename chooser_mul, typename T, typename U>
-        void addmul_c(T & t, U const & a, chooser const & = {}, chooser_mul const & = {})
-        {
-            details::addmul_c_impl_choice<n, chooser::template choose<n>::value, chooser_mul>::addmul(t, a);
-        }
-#endif
 }       /* namespace cado_math_aux */
 
 

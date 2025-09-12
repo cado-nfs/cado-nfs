@@ -15,9 +15,8 @@
 #include <gmp.h>
 
 #include "cado_math_aux.hpp"
+#include "cado_mp_conversions.hpp"
 #include "cxx_mpz.hpp"
-
-using namespace cado_math_aux;
 
 /* This way of forming examples is awkward because we need cooperation
  * from the floating point rounding modes
@@ -29,7 +28,7 @@ template <typename T> struct example_gen_1 {
         cxx_mpz a[3];
         zd = 0;
         mpz_set_si(z, 0);
-        temporary_round_mode dummy(FE_TOWARDZERO);
+        cado_math_aux::temporary_round_mode dummy(FE_TOWARDZERO);
 
         constexpr int M = std::numeric_limits<double>::digits;
 
@@ -54,8 +53,6 @@ template <typename T> struct example_gen_1 {
     }
 };
 
-template <typename T> constexpr char const * example_gen_1<T>::name;    // c++11
-
 /* This one, after all, is more direct. It does rely on mpz_get<> doing
  * the right thing, though.
  */
@@ -69,7 +66,7 @@ template <typename T> struct example_gen_2 {
 
         mpz_rrandomb(z, rstate, std::min(2 * E, ET));
 
-        zd = mpz_get<T>(z);
+        zd =cado_math_aux:: mpz_get<T>(z);
 
         if (gmp_urandomb_ui(rstate, 1)) {
             zd = -zd;
@@ -80,8 +77,6 @@ template <typename T> struct example_gen_2 {
         zd = std::ldexp(zd, -e);
     }
 };
-
-template <typename T> constexpr char const * example_gen_2<T>::name;    // c++11
 
 template <typename T, template <typename> class G>
 static void dotest(cxx_gmp_randstate & rstate)
@@ -113,7 +108,7 @@ static void dotest(cxx_gmp_randstate & rstate)
          * representative as type T. Check that mpz_from confirms this.
          */
 
-        zc = mpz_from(zd);
+        zc = cado_math_aux::mpz_from(zd);
 
         cxx_mpz diff;
         mpz_sub(diff, z, zc);

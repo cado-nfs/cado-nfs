@@ -3273,7 +3273,7 @@ void mpz_poly_pseudo_remainder(mpz_poly_ptr r, mpz_poly_srcptr a,
 }
 
 /*
- * Compute the resultant of p and q and set the resultat in res.
+ * Compute the resultant of p and q and put the result in res.
  *  See Henri Cohen, "A Course in Computational Algebraic Number Theory",
  *  for more information.
  *

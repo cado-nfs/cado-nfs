@@ -22,7 +22,7 @@ number_field_element::number_field_element(class number_field const & K, cxx_mpz
 
     if (a.degree() >= n) {
         cxx_mpz c;
-        mpz_poly_pseudo_remainder(r, a, K.defining_polynomial());
+        mpz_poly_pseudo_remainder(r, a, f);
         mpz_pow_ui(denom, mpz_poly_lc(f), a.degree() - n + 1);
         mpz_poly_content(c, r);
         mpz_gcd(c, c, denom);

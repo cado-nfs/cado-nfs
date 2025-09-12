@@ -8,7 +8,7 @@
 #include <string>
 #include <limits>
 #include <type_traits>
-#include <regex>
+#include <tuple>
 
 #include "fmt/base.h"
 #include "fmt/std.h"    // formatter for std::complex
@@ -28,6 +28,42 @@
 #ifdef HAVE_MPC
 #include "cxx_mpc.hpp"
 #endif
+
+namespace cado_math_aux {
+    template<typename T>
+        static int accurate_bits(T reference, T computed)
+        requires std::is_floating_point_v<T>
+        {
+            T c;
+            if (reference == 0)
+                c = computed;
+            else
+                c = (computed-reference)/reference;
+            c = std::fabs(c);
+            return c == 0 ? INT_MAX : -std::ilogb(c);
+        }
+
+#ifdef HAVE_MPFR
+    template<typename T>
+        static int
+        accurate_bits(T const & reference, T const & computed)
+        requires std::is_same_v<T, cxx_mpfr>
+        {
+            T c;
+            if (reference == 0)
+                c = computed;
+            else
+                c = (computed-reference)/reference;
+            mpfr_abs(c, c, MPFR_RNDN);
+            if (c == 0) return INT_MAX;
+            T mantissa;
+            mpfr_exp_t e;
+            mpfr_frexp(&e, c, c, MPFR_RNDN);
+            return -e;
+        }
+#endif
+} /* namespace cado_math_aux */
+
 
 /* This verifies that the provided roots are correct to the given
  * accuracy in bits (if positive) or have an accuracy loss wrt the given
@@ -117,7 +153,7 @@ test_all_roots(std::string const & poly_str,
         roots.reserve(reference.size());
         for(auto const & x : reference)
             if (x)
-                roots.emplace_back(cado_math_aux::similar_set(x, 1) / x);
+                roots.emplace_back(tr(1) / x);
         std::sort(roots.begin(), roots.end());
         compare_roots(q, q.roots(tr), roots, accuracy);
     }
@@ -127,7 +163,7 @@ test_all_roots(std::string const & poly_str,
         std::vector<T> roots;
         roots.reserve(reference.size());
         for(auto const & x : reference)
-            roots.emplace_back(cado_math_aux::similar_set(x, 3) * x);
+            roots.emplace_back(tr(3) * x);
         std::sort(roots.begin(), roots.end());
         compare_roots(q, q.roots(tr), roots, accuracy);
     }
@@ -293,29 +329,30 @@ static void
 test_compute_roots(bool)
     requires cado_math_aux::is_complex_v<T>
 {
+    for(auto const & s : {"x^3-7*x^2+x+1",
+            "(-0.335235471146870 - 0.980233680124672i)*x^5 + (-0.363312420177951 - 0.674311068694115i)*x^4 + (0.555635171051534 + 0.422342866615889i)*x^3 + (-0.119795855286804 + 0.223351587171732i)*x^2 + (0.894110547459500 - 0.368334794919981i)*x - 0.0709390404647527 - 0.447457524669756i"})
     {
-        polynomial<T> P("x^3-7*x^2+x+1");
-        fmt::print("{} -> roots in [{}, {}]\n",
-                P,
-                P.lower_bound_complex_roots(),
-                P.upper_bound_complex_roots());
+        const cado::number_context<T> tr(512); /* 512 only for cxx_mpfr */
+        polynomial<T> P(s, tr);
+        {
+            auto const lo = P.lower_bound_complex_roots();
+            auto const hi = P.upper_bound_complex_roots();
+            fmt::print("{} -> roots in [{}, {}] (surface={})\n",
+                    P, lo, hi, hi*hi-lo*lo);
+        }
+
+        {
+            auto [ mean, lo, hi ] = P.annulus_complex_roots();
+            fmt::print("{} -> roots in [{}, {}, {}] (surface={})\n", P,
+                    mean, lo, hi, hi*hi-lo*lo);
+        }
+
+        {
+            auto zz = P.roots(P.ctx());
+            for(auto const & z : zz)
+                fmt::print("{}\n", z);
+        }
     }
-
-    {
-        polynomial<T> P("(-0.335235471146870 - 0.980233680124672i)*x^5 + (-0.363312420177951 - 0.674311068694115i)*x^4 + (0.555635171051534 + 0.422342866615889i)*x^3 + (-0.119795855286804 + 0.223351587171732i)*x^2 + (0.894110547459500 - 0.368334794919981i)*x - 0.0709390404647527 - 0.447457524669756i");
-        fmt::print("{} -> roots in [{}, {}]\n",
-                P,
-                P.lower_bound_complex_roots(),
-                P.upper_bound_complex_roots());
-    }
-
-#if 0
-    const cado::number_context<T> tr(128); /* 128 only for cxx_mpfr */
-    const int valgrind_penalty = (/*std::is_same_v<T, long double> && */ tests_run_under_valgrind()) ? 16 : 0;
-
-    /* A few roots of 2 */
-    test_all_roots<T>("x^2+1", verbose, tr, {tr("i"), tr("-i")}, -5 - valgrind_penalty);
-#endif
 }
 
 
@@ -323,7 +360,7 @@ test_compute_roots(bool)
 
 
 template<typename T>
-void
+static void
 test_compute_roots(bool)
     requires std::is_same_v<T, cxx_mpz>
 {
@@ -550,41 +587,36 @@ static void test_ctor_mpz_poly()
 template<typename T>
 static void test_resultant()
 {
+    /* only our integer resultant code makes any sense */
+}
+
+
+template<>
+void test_resultant<cxx_mpz>()
+{
+    using T = cxx_mpz;
     using RX = polynomial<T>;
-    using cado_math_aux::accurate_bits;
 
-    struct test_case {
-        std::string f, g;
-        int ulps = 0;
-        /* default member initializers prevent the struct from being an
-         * aggregate until c++14. Oddly enough, it seems to still cause
-         * trouble with icpx with c++20.
-         * https://stackoverflow.com/questions/39344444/brace-aggregate-initialization-for-structs-with-default-values
-         */
-    };
-
-    const int valgrind_penalty2 = (std::is_same_v<T, long double> && tests_run_under_valgrind()) ? 8 : 0;
-
-    const std::vector<test_case> test_cases {
+    const std::vector<std::tuple<std::string, std::string, T>> test_cases {
         {
             "x^6+13*x^5+13*x^4+9*x^3+7*x+6",
             "128*x^2+128*x+128",
-            -8
+            "162727720910848"_mpz
         },
         {
             "-3-15*x^1-9*x^2+3*x^3-12*x^4-12*x^5-3*x^6-3*x^7-12*x^8-15*x^9+6*x^10",
             "-6-13*x^1+9*x^2+7*x^3-5*x^4-5*x^5+11*x^6+2*x^7",
-            -12 - valgrind_penalty2
+            "-61519394185549843500"_mpz
         },
         {
             "7917871+7917871*x-7916275*x^2-7916275*x^3-7916275*x^4+7917871*x^5+15834944*x^6",
             "128*x^2+128*x+128",
-            -1
+            "1102790158070603587092742144"_mpz
         },
         {
             "1365*x^6 + 1366*x^5+1368*x^4+1368*x^3+1368*x^2+1366*x+1366",
             "8320*x^2-50560*x-896",
-            -12 - valgrind_penalty2
+            "37263864605996575174727132124282880"_mpz
         },
         {
             /* this test case triggers a catastrophic cancellation in the
@@ -599,57 +631,13 @@ static void test_resultant()
              */
             "1365*x^6 + 1366*x^5+1368*x^4+1368*x^3+1368*x^2+1366*x+1366",
             "15*x^2-43368*x-4753",
-            8
+            "11186466747618860118741892404376785"_mpz
         }};
 
-    for(auto const & t : test_cases) {
-        /* XXX We can't make it work with cxx_mpfr without changing the
-         * interface */
-
-        T val;
-
-        const cado::number_context<T> tr(128); /* 128 only for cxx_mpfr */
-        T res = RX(t.f, tr).resultant(RX(t.g, tr));
-        cxx_mpz val_z;
-        cxx_mpz_poly fz(t.f);
-        cxx_mpz_poly gz(t.g);
-        mpz_poly_resultant(val_z, fz, gz);
-#ifdef HAVE_MPFR
-        if constexpr (std::is_same_v<T, cxx_mpfr>) {
-            mpfr_set_prec(val, tr.prec);
-            mpfr_set_z(val, val_z, MPFR_RNDN);
-        } else
-#endif
-        {
-            val = cado_math_aux::mpz_get<T>(val_z);
-        }
-        int accuracy = t.ulps;
-        if (accuracy < 0)
-            accuracy += std::numeric_limits<T>::digits;
-        int a = accurate_bits(res, val);
-        fmt::print("{} vs ref {} : accurate bits: {}\n", res, val, a);
-        ASSERT_ALWAYS(a >= accuracy);
+    for(auto const & [f, g, ref] : test_cases) {
+        T res = RX(f).resultant(RX(g));
+        ASSERT_ALWAYS(res == ref);
     }
-}
-
-template<>
-void test_resultant<cxx_mpz>()
-{
-    /* this one is skipped */
-}
-
-#ifdef HAVE_MPC
-template<>
-void test_resultant<cxx_mpc>()
-{
-    /* this one is skipped */
-}
-#endif
-
-template<>
-void test_resultant<std::complex<double>>()
-{
-    /* this one is skipped */
 }
 
 template<typename T>
@@ -668,20 +656,20 @@ static void test_some_arithmetic()
     if constexpr (cado_math_aux::is_real_v<T>)
         fg /= 4;
 
-    for(int i : {1,2,3,4,5,6})
+    for(const int i : {1,2,3,4,5,6})
         ASSERT_ALWAYS(fg(i) == 0);
 
     fg.addmul(g, polynomial<T>("x-1", tr));
-    for(int i : {1,4,5,6})
+    for(const int i : {1,4,5,6})
         ASSERT_ALWAYS(fg(i) == 0);
     fg.submul(g, polynomial<T>("x-37", tr));
-    for(int i : {4,5,6})
+    for(const int i : {4,5,6})
         ASSERT_ALWAYS(fg(i) == 0);
     fg.addmul(g, tr("1234"));
-    for(int i : {4,5,6})
+    for(const int i : {4,5,6})
         ASSERT_ALWAYS(fg(i) == 0);
     fg.submul(g, tr("-123"));
-    for(int i : {4,5,6})
+    for(const int i : {4,5,6})
         ASSERT_ALWAYS(fg(i) == 0);
 
     /* some gymnastics. Decompose a polynomial, and then parse the
@@ -696,9 +684,31 @@ static void test_some_arithmetic()
             ASSERT_ALWAYS(s == nq);
         }
         {
+            auto [ wq, wr ] = q.div_qr(polynomial<T> {-tr(e), tr(1)});
+            ASSERT_ALWAYS(nq == wq);
+            ASSERT_ALWAYS(wr.degree() <= 0);
+            ASSERT_ALWAYS(r == wr[0]);
+        }
+        {
+            auto wq = q.div_q(polynomial<T> {-tr(e), tr(1)});
+            ASSERT_ALWAYS(nq == wq);
+        }
+        {
+            auto wr = q.div_r(polynomial<T> {-tr(e), tr(1)});
+            ASSERT_ALWAYS(wr.degree() <= 0);
+            ASSERT_ALWAYS(r == wr[0]);
+        }
+        {
             auto s = fmt::format("({}) * (x-{}) + {}", nq, e, r);
             fmt::print("{} == {}\n", q, s);
             ASSERT_ALWAYS(q == polynomial(s, q.ctx()));
+        }
+        {
+            auto fs = q.shift(e);
+            auto var = fmt::format("(x+{})", e);
+            auto s = fmt::format("{}", q.named(var));
+            fmt::print("{} == {}\n", s, fs);
+            ASSERT_ALWAYS(fs == polynomial(s, q.ctx()));
         }
         q = nq;
     }

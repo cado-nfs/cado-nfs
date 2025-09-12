@@ -10,7 +10,6 @@
 #include <type_traits>
 
 #include "fmt/base.h"
-#include "fmt/ostream.h"
 #include <mpc.h>
 
 #include "cxx_mpz.hpp"
@@ -31,6 +30,14 @@ struct cxx_mpc {
 
     // NOLINTBEGIN(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
     cxx_mpc() { mpc_init2(x, mpfr_get_default_prec()); }
+
+    cxx_mpc(cxx_mpfr const & r, cxx_mpfr const & i) {
+        mpc_init3(x, r.prec(), i.prec());
+        mpc_set_fr_fr(x, r, i, MPFR_RNDN);
+    }
+
+    cxx_mpfr real() const { return { mpc_realref(x) }; }
+    cxx_mpfr imag() const { return { mpc_imagref(x) }; }
 
     /* {{{ ctor and operator= for immediate integral types */
     template <typename T>
@@ -344,7 +351,32 @@ CXX_MPC_DEFINE_CMP(>=)
         mpc_auxx::cado_mpc_##TEXTOP(r, a, b, MPC_RNDNN);                \
         return r;                                                       \
     }                                                                   \
+    template <typename T>                                               \
+    inline cxx_mpc operator OP(cxx_mpc const & a, T const b)            \
+    requires std::is_floating_point_v<T>                                \
+    {                                                                   \
+        cxx_mpc r;                                                      \
+        mpc_set_prec(r, mpc_get_prec(mpc_srcptr(a)));                   \
+        mpc_auxx::cado_mpc_##TEXTOP(r, a, b, MPC_RNDNN);                \
+        return r;                                                       \
+    }                                                                   \
+    template <typename T>                                               \
+    inline cxx_mpc operator OP(T const a, cxx_mpc const & b)            \
+    requires std::is_floating_point_v<T>                                \
+    {                                                                   \
+        cxx_mpc r;                                                      \
+        mpc_set_prec(r, mpc_get_prec(mpc_srcptr(b)));                   \
+        mpc_auxx::cado_mpc_##TEXTOP(r, a, b, MPC_RNDNN);                \
+        return r;                                                       \
+    }                                                                   \
     inline cxx_mpc & operator OP##=(cxx_mpc & a, cxx_mpc const & b)     \
+    {                                                                   \
+        mpc_auxx::cado_mpc_##TEXTOP(a, a, b, MPC_RNDNN);                \
+        return a;                                                       \
+    }                                                                   \
+    template <typename T>                                               \
+    inline cxx_mpc & operator OP##=(cxx_mpc & a, T const b)             \
+    requires std::is_floating_point_v<T>                                \
     {                                                                   \
         mpc_auxx::cado_mpc_##TEXTOP(a, a, b, MPC_RNDNN);                \
         return a;                                                       \

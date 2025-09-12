@@ -294,6 +294,7 @@ static void stage1(uint32_t n, double complex p[], double complex h[]) {
 	/* the initial h polynomial is a scaled version of the
 	   derivative of the input polynomial p(x) */
 
+        /* n*h(x) = n*p(x) - xp'(x) */
 	for (i = 0; i < n; i++)
 		h[i] = p[i] * (double) (n - i) / n;
 

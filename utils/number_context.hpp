@@ -29,7 +29,7 @@
 #endif
 
 #include "number_literal.hpp"
-#include "cado_math_aux.hpp"
+#include "cado_mp_conversions.hpp"
 #include "cxx_mpz.hpp"
 #ifdef HAVE_MPFR
 #include "cxx_mpfr.hpp"
@@ -175,6 +175,7 @@ namespace cado {
 
         std::complex<T> operator()(mpz_srcptr x) const { return cado_math_aux::mpz_get<std::complex<T>>(x); }
         std::complex<T> operator()(cxx_mpz const & x) const { return cado_math_aux::mpz_get<std::complex<T>>(x); }
+        number_context<T> real() const { return {}; }
     };
 
 #ifdef HAVE_MPC
@@ -213,6 +214,7 @@ namespace cado {
             mpc_set(res, u, MPC_RNDNN);
             return res;
         }
+        number_context<cxx_mpfr> real() const { return *this; }
     };
 #endif
 

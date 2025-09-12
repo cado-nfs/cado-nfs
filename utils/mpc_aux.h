@@ -6,8 +6,16 @@
 #include <limits.h>
 #include <stdint.h>
 
-#include "macros.h"
 #include <mpc.h>
+
+#include "macros.h"
+#include "mpfr_aux.h"
+
+/* we add here some functions that are, in our opinion, missing from the
+ * mpc interface. In many cases the code is about right, but sometimes we
+ * fall short of providing a correctly rounded implementation, which
+ * would need some extra work
+ */
 
 #ifdef __cplusplus
 extern "C" {
@@ -91,35 +99,47 @@ static inline int mpc_cmp_ld(mpc_srcptr a, long double c)
     int const ri = mpfr_cmp_ui(mpc_imagref(a), 0);
     return MPC_INEX(rr, ri);
 }
+static inline int mpc_cmp_d_d(mpc_srcptr a, double cr, double ci)
+{
+    int const rr = mpfr_cmp_d(mpc_realref(a), cr);
+    int const ri = mpfr_cmp_d(mpc_imagref(a), ci);
+    return MPC_INEX(rr, ri);
+}
+static inline int mpc_cmp_ld_ld(mpc_srcptr a, long double cr, long double ci)
+{
+    int const rr = mpfr_cmp_ld(mpc_realref(a), cr);
+    int const ri = mpfr_cmp_ld(mpc_imagref(a), ci);
+    return MPC_INEX(rr, ri);
+}
 
 static inline int mpc_sub_si(mpc_ptr a, mpc_srcptr b, long c, mpc_rnd_t rnd)
 {
-    int const rr = mpfr_set(mpc_imagref(a), mpc_imagref(b), MPC_RND_IM(rnd));
-    int const ri = mpfr_sub_si(mpc_realref(a), mpc_realref(b), c, MPC_RND_RE(rnd));
+    int const rr = mpfr_set(mpc_imagref(a), mpc_imagref(b), MPC_RND_RE(rnd));
+    int const ri = mpfr_sub_si(mpc_realref(a), mpc_realref(b), c, MPC_RND_IM(rnd));
     return MPC_INEX(rr, ri);
 }
 static inline int mpc_div_si(mpc_ptr a, mpc_srcptr b, long c, mpc_rnd_t rnd)
 {
-    int const rr = mpfr_div_si(mpc_imagref(a), mpc_imagref(b), c, MPC_RND_IM(rnd));
-    int const ri = mpfr_div_si(mpc_realref(a), mpc_realref(b), c, MPC_RND_RE(rnd));
+    int const rr = mpfr_div_si(mpc_imagref(a), mpc_imagref(b), c, MPC_RND_RE(rnd));
+    int const ri = mpfr_div_si(mpc_realref(a), mpc_realref(b), c, MPC_RND_IM(rnd));
     return MPC_INEX(rr, ri);
 }
 
 
 /* mpc_init_set_{int64,uint64} {{{ */
 /* for consistency with the other mpc_init_* ctor functions, the
- * mpc_t is initalized with mpc_get_default_prec()
+ * mpc_t is initalized with mpfr_get_default_prec()
  */
 #if ULONG_BITS < 64
 static inline void mpc_init_set_uint64(mpc_ptr z, uint64_t x, mpc_rnd_t rnd)
 {
-    mpc_init2(z, mpc_get_default_prec());
+    mpc_init2(z, mpfr_get_default_prec());
     mpc_set_uint64(z, x, rnd);
 }
 
 static inline void mpc_init_set_int64(mpc_ptr z, int64_t x, mpc_rnd_t rnd)
 {
-    mpc_init2(z, mpc_get_default_prec());
+    mpc_init2(z, mpfr_get_default_prec());
     mpc_set_int64(z, x, rnd);
 }
 
@@ -135,6 +155,33 @@ static inline void mpc_init_set_int64(mpc_ptr a, int64_t const b, mpc_rnd_t rnd)
 }
 #endif
 // }}}
+
+// {{{ mpc_init_set_{d,ld,d_d,ld_ld}
+static inline void mpc_init_set_d(mpc_ptr z, double x, mpc_rnd_t rnd)
+{
+    mpc_init2(z, mpfr_get_default_prec());
+    mpc_set_d(z, x, rnd);
+}
+
+static inline void mpc_init_set_ld(mpc_ptr z, long double x, mpc_rnd_t rnd)
+{
+    mpc_init2(z, mpfr_get_default_prec());
+    mpc_set_ld(z, x, rnd);
+}
+
+static inline void mpc_init_set_d_d(mpc_ptr z, double x, double y, mpc_rnd_t rnd)
+{
+    mpc_init2(z, mpfr_get_default_prec());
+    mpc_set_d_d(z, x, y, rnd);
+}
+
+static inline void mpc_init_set_ld_ld(mpc_ptr z, long double x, long double y, mpc_rnd_t rnd)
+{
+    mpc_init2(z, mpfr_get_default_prec());
+    mpc_set_ld_ld(z, x, y, rnd);
+}
+// }}}
+
 
 #if ULONG_BITS < 64
 #define MPC_AUX_DEFINE_COMPARISON(OP)                                          \
@@ -207,6 +254,7 @@ static inline void mpc_init_set_int64(mpc_ptr a, int64_t const b, mpc_rnd_t rnd)
         return mpc_##OP##_si(a, b, c, rnd);                                    \
     }
 #endif
+
 
 /* {{{ mpc_{add,sub}mul_{ui,si} */
 
@@ -339,6 +387,108 @@ MPC_AUX_DEFINE_FUNC3(addmul)
 MPC_AUX_DEFINE_FUNC3(submul)
 MPC_AUX_DEFINE_FUNC3(div)
 MPC_AUX_DEFINE_FUNC3(remainder)
+
+#define MPC_AUX_FP_OP1(OP, TYP, SUF)                                         \
+    static inline int mpc_##OP##SUF(mpc_ptr z, mpc_srcptr x,                 \
+                                   TYP a, mpc_rnd_t rnd)                     \
+    {                                                                        \
+        int const rr = mpfr_##OP##SUF(mpc_realref(z), mpc_realref(x),        \
+                                     a, MPC_RND_RE(rnd));                    \
+        int const ri = mpfr_set(mpc_imagref(z), mpc_imagref(x),              \
+                                MPC_RND_IM(rnd));                            \
+        return MPC_INEX(rr, ri);                                             \
+    }                                                                        \
+    static inline int mpc_##OP##SUF##SUF(mpc_ptr z, mpc_srcptr x,            \
+                                   TYP ar, TYP ai, mpc_rnd_t rnd)            \
+    {                                                                        \
+        int const rr = mpfr_##OP##SUF(mpc_realref(z), mpc_realref(x),        \
+                                     ar, MPC_RND_RE(rnd));                   \
+        int const ri = mpfr_##OP##SUF(mpc_imagref(z), mpc_imagref(x),        \
+                                     ai, MPC_RND_IM(rnd));                   \
+        return MPC_INEX(rr, ri);                                             \
+    }
+
+#define MPC_AUX_MUL_OP1(OP, TYP, SUF)                                        \
+    static inline int mpc_##OP##SUF(mpc_ptr z, mpc_srcptr x,                 \
+                                   TYP a, mpc_rnd_t rnd)                     \
+    {                                                                        \
+        int const rr = mpfr_##OP##SUF(mpc_realref(z), mpc_realref(x),        \
+                                     a, MPC_RND_RE(rnd));                    \
+        int const ri = mpfr_##OP##SUF(mpc_imagref(z), mpc_imagref(x),        \
+                                     a, MPC_RND_IM(rnd));                    \
+        return MPC_INEX(rr, ri);                                             \
+    }
+
+#define MPC_AUX_MUL_OP2(OP, TYP, SUF, combiner)                              \
+    static inline int mpc_##OP##SUF##SUF(mpc_ptr z, mpc_srcptr x,            \
+                                   TYP ar, TYP ai, mpc_rnd_t rnd)            \
+    {                                                                        \
+        /* zr = xr*ar - xi*ai                                                \
+         * zi = xr*ai + xi*ar                                                \
+         * we need two temps because of possible overlaps.                   \
+         */                                                                  \
+        mpc_t t;                                                             \
+        mpfr_prec_t pr,pi;                                                   \
+        mpc_get_prec2(&pr, &pi, z);                                          \
+        mpc_init3(t, pr, pi);                                                \
+        mpfr_mul##SUF(mpc_realref(t), mpc_realref(x), ar, MPC_RND_RE(rnd));  \
+        mpfr_mul##SUF(mpc_imagref(t), mpc_realref(x), ai, MPC_RND_IM(rnd));  \
+        int const rr = mpfr_submul##SUF(mpc_realref(t),                      \
+                                        mpc_imagref(x), ai, MPC_RND_RE(rnd));\
+        int const ri = mpfr_addmul##SUF(mpc_imagref(t),                      \
+                                        mpc_imagref(x), ar, MPC_RND_IM(rnd));\
+        combiner;                                                            \
+        mpc_clear(t);                                                        \
+        return MPC_INEX(rr, ri);                                             \
+    }
+#define MPC_AUX_MUL_OP3(OP, TYP, SUF)                                   \
+        MPC_AUX_MUL_OP2(OP, TYP, SUF, mpc_swap(z, t))                   \
+        MPC_AUX_MUL_OP2(add##OP, TYP, SUF, mpc_add(z, z, t, rnd))       \
+        MPC_AUX_MUL_OP2(sub##OP, TYP, SUF, mpc_sub(z, z, t, rnd))
+
+#define MPC_AUX_DIV_OP(OP, TYP, SUF)                                         \
+    static inline int mpc_##OP##SUF##SUF(mpc_ptr z, mpc_srcptr x,            \
+                                        TYP ar, TYP ai, mpc_rnd_t rnd)       \
+    {                                                                        \
+        /* zr = xr*ar - xi*ai                                                \
+         * zi = xr*ai + xi*ar                                                \
+         * we need two temps because of possible overlaps.                   \
+         */                                                                  \
+        mpc_t t;                                                             \
+        mpfr_prec_t pr,pi;                                                   \
+        mpc_get_prec2(&pr, &pi, z);                                          \
+        mpc_init3(t, pr, pi);                                                \
+        mpc_set##SUF##SUF(t, ar, ai, rnd);                                   \
+        int const r = mpc_##OP(z, x, t, rnd);                                \
+        mpc_clear(t);                                                        \
+        return r;                                                            \
+    }
+
+
+MPC_AUX_FP_OP1(add, double, _d)
+MPC_AUX_FP_OP1(add, long double, _ld)
+MPC_AUX_FP_OP1(sub, double, _d)
+MPC_AUX_FP_OP1(sub, long double, _ld)
+/* multiplication by a real number */
+MPC_AUX_MUL_OP1(mul, double, _d)
+MPC_AUX_MUL_OP1(mul, long double, _ld)
+MPC_AUX_MUL_OP1(addmul, double, _d)
+MPC_AUX_MUL_OP1(addmul, long double, _ld)
+MPC_AUX_MUL_OP1(submul, double, _d)
+MPC_AUX_MUL_OP1(submul, long double, _ld)
+/* multiplication by a complex number */
+MPC_AUX_MUL_OP3(mul, double, _d)
+MPC_AUX_MUL_OP3(mul, long double, _ld)
+/* division by a real number */
+MPC_AUX_MUL_OP1(div, double, _d)
+MPC_AUX_MUL_OP1(div, long double, _ld)
+MPC_AUX_MUL_OP1(remainder, double, _d)
+MPC_AUX_MUL_OP1(remainder, long double, _ld)
+/* division by a complex number is much less pretty! */
+MPC_AUX_DIV_OP(div, double, _d)
+MPC_AUX_DIV_OP(div, long double, _ld)
+MPC_AUX_DIV_OP(remainder, double, _d)
+MPC_AUX_DIV_OP(remainder, long double, _ld)
 
 #ifdef __cplusplus
 }

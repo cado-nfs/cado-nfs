@@ -5,7 +5,7 @@
 #include <cstdint>   // for uint64_t, SIZE_MAX
 #include <climits>
 #include <vector>    // for vector
-#include "cado_math_aux.hpp"
+#include "cado_compile_time_hacks.hpp"
 
 struct cxx_mpz;
 

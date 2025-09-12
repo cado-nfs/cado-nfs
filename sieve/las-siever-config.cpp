@@ -20,16 +20,12 @@
 #include "las-multiobj-globals.hpp"
 #include "las-siever-config.hpp"
 #include "las-side-config.hpp"
-#include "special-q.hpp"
 #include "las-special-q-task.hpp"
 #include "las-special-q-task-tree.hpp"
 #include "macros.h"
 #include "params.h"
 #include "verbose.h"
 #include "utils_cxx.hpp"
-
-constexpr int siever_config_pool::max_increase_lpb_default;     // c++11
-constexpr int siever_config_pool::max_increase_logA_default;    // c++11
 
 /* siever_config stuff */
 
@@ -188,12 +184,12 @@ fb_factorbase::key_type siever_config::instantiate_thresholds(int side) const
     if (bucket_thresh1 == 0 || bucket_thresh1 > fbb) bucket_thresh1 = fbb;
     bucket_thresh1 = std::max(bucket_thresh1, bucket_thresh);
 
-    return fb_factorbase::key_type {
-        {{bucket_thresh, bucket_thresh1, fbb, fbb}},
-            td_thresh,
-            skipped,
-            0,
-            0
+    return {
+        .thresholds = {bucket_thresh, bucket_thresh1, fbb, fbb},
+        .td_thresh = td_thresh,
+        .skipped = skipped,
+        .scale = 0,
+        .nb_threads = 0
     };
 }
 

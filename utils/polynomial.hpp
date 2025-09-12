@@ -12,35 +12,44 @@
 #include <cctype>
 #include <cmath>
 #include <cstddef>
+#include <climits>
 
 #include <algorithm>
 #include <initializer_list>
 #include <ios>
+#include <limits>
 #include <istream>
 #include <ostream>
 #include <sstream>
-#include <string>      // for string
+#include <string>
 #include <type_traits>
 #include <utility>
 #include <vector>
 #include <functional>
+#include <tuple>
+#include <array>
+#include <stdexcept>
+#include <memory>
 
 
 #include <gmp.h>
 #include "fmt/base.h"
 #include "fmt/ostream.h"
 
+#include "gmp_aux.h"
 #include "macros.h"
 #include "runtime_numeric_cast.hpp"
 #include "number_context.hpp"
 #include "mpz_poly.h"
 #include "cxx_mpz.hpp"
 #include "cado_math_aux.hpp"
+#include "cado_addsubmul.hpp"
 #include "cado_expression_parser.hpp"
 #include "coeff_proxy.hpp"
 #include "cado_type_traits.hpp"
 #include "named_proxy.hpp"
 #include "extra_complex_overloads.hpp"
+#include "cado_constants.hpp"
 
 #ifdef HAVE_MPFR
 #include "cxx_mpfr.hpp"
@@ -62,44 +71,15 @@ struct polynomial;
  * cases that force the coeff_proxy transparent layer, but that's by no
  * means a definitive solution.
  */
-#if 0
-#define CADO_COEFF_PROXY_OVERLOAD(OP)					\
-    template<typename T>						\
-    static inline auto OP(					\
-        T const & a,							\
-        cado_details::coeff_proxy<polynomial_details::polynomial<T>> const & b) \
-        -> decltype(OP(a, T(b)))                                        \
-    {									\
-        return OP(a, T(b));						\
-    }									\
-    template<typename T>						\
+#define CADO_COEFF_PROXY_OVERLOAD_META_X(CLASS1, CLASS2, OP)	\
+    template<typename T, typename U>					\
     static inline auto OP(					        \
-        cado_details::coeff_proxy<polynomial_details::polynomial<T>> const & a, \
-        T const & b)							\
-        -> decltype(OP(T(a), b))                                        \
+        cado_details::CLASS1<polynomial_details::polynomial<T>> const & a, \
+        cado_details::CLASS2<polynomial_details::polynomial<U>> const & b) \
+        -> decltype(OP(T(a), U(b)))                                       \
     {									\
-        return OP(T(a), b);						\
-    }									\
-    template<typename T>						\
-    static inline auto OP(					        \
-        cado_details::coeff_proxy<polynomial_details::polynomial<T>> const & a, \
-        cado_details::coeff_proxy<polynomial_details::polynomial<T>> const & b) \
-        -> decltype(OP(T(a), T(b)))                                        \
-    {									\
-        return OP(T(a), T(b));						\
+        return OP(T(a), U(b));						\
     }
-
-CADO_COEFF_PROXY_OVERLOAD(operator*)
-CADO_COEFF_PROXY_OVERLOAD(operator+)
-CADO_COEFF_PROXY_OVERLOAD(operator-)
-CADO_COEFF_PROXY_OVERLOAD(operator/)
-CADO_COEFF_PROXY_OVERLOAD(operator==)
-CADO_COEFF_PROXY_OVERLOAD(operator!=)
-CADO_COEFF_PROXY_OVERLOAD(operator<=)
-CADO_COEFF_PROXY_OVERLOAD(operator>=)
-CADO_COEFF_PROXY_OVERLOAD(operator<)
-CADO_COEFF_PROXY_OVERLOAD(operator>)
-#else
 #define CADO_COEFF_PROXY_OVERLOAD_META(CLASS, OP)			\
     template<typename T, typename U>					\
     static inline auto OP(					\
@@ -117,18 +97,13 @@ CADO_COEFF_PROXY_OVERLOAD(operator>)
     {									\
         return OP(T(a), b);						\
     }									\
-    template<typename T, typename U>					\
-    static inline auto OP(					        \
-        cado_details::CLASS<polynomial_details::polynomial<T>> const & a, \
-        cado_details::CLASS<polynomial_details::polynomial<U>> const & b) \
-        -> decltype(OP(T(a), U(b)))                                       \
-    {									\
-        return OP(T(a), U(b));						\
-    }
+    CADO_COEFF_PROXY_OVERLOAD_META_X(CLASS, CLASS, OP)
 
 #define CADO_COEFF_PROXY_OVERLOAD(OP)				        \
         CADO_COEFF_PROXY_OVERLOAD_META(coeff_proxy, OP)                 \
-        CADO_COEFF_PROXY_OVERLOAD_META(const_coeff_proxy, OP)
+        CADO_COEFF_PROXY_OVERLOAD_META(const_coeff_proxy, OP)           \
+        CADO_COEFF_PROXY_OVERLOAD_META_X(coeff_proxy, const_coeff_proxy, OP) \
+        CADO_COEFF_PROXY_OVERLOAD_META_X(const_coeff_proxy, coeff_proxy, OP)
 
 CADO_COEFF_PROXY_OVERLOAD(operator*)
 CADO_COEFF_PROXY_OVERLOAD(operator+)
@@ -140,7 +115,6 @@ CADO_COEFF_PROXY_OVERLOAD(operator<=)
 CADO_COEFF_PROXY_OVERLOAD(operator>=)
 CADO_COEFF_PROXY_OVERLOAD(operator<)
 CADO_COEFF_PROXY_OVERLOAD(operator>)
-#endif
 
 namespace polynomial_details {
 template<typename T>
@@ -245,11 +219,13 @@ struct polynomial : public number_context<T>
     /* all instantations love each other */
     template<typename U> friend struct polynomial;
     template<typename U>
-        explicit polynomial(polynomial<U> const & a, number_context<T> const & tr)
-        requires (!std::is_same_v<U, T>)
+        polynomial(polynomial<U> const & a, number_context<T> const & tr)
         : number_context<T>(tr)
-        , coeffs { a.coeffs.begin(), a.coeffs.end() }
-    {}
+    {
+        coeffs.reserve(a.coeffs.size());
+        for(auto const & c : a.coeffs)
+            coeffs.emplace_back(tr(c));
+    }
     template<typename U>
         explicit polynomial(polynomial<U> const & a)
         requires (!std::is_same_v<U, T>)
@@ -280,6 +256,7 @@ struct polynomial : public number_context<T>
     {
         if (l.begin() != l.end())
             ctx() = number_context<T>(*l.begin());
+        cleandeg();
     }
 
     explicit operator cxx_mpz_poly() const {
@@ -312,6 +289,7 @@ struct polynomial : public number_context<T>
         coeffs.erase(coeffs.begin() + (deg + 1), coeffs.end());
     }
     void cleandeg() { cleandeg(degree()); }
+    void chop() { coeffs.pop_back(); }
 
     public:
 
@@ -330,14 +308,14 @@ struct polynomial : public number_context<T>
 
     template<typename U>
     number_context<U>
-        number_context_for_evaluation(U const & x) const
+        number_context_for_evaluation(number_context<U> const & x) const
         requires cado_math_aux::is_coercible_v<T, U>
     {
-        return number_context<U>(x);
+        return x;
     }
     template<typename U>
     number_context<T> const &
-        number_context_for_evaluation(U const &) const
+        number_context_for_evaluation(number_context<U> const &) const
         requires cado_math_aux::is_strictly_coercible_v<U, T>
     {
         /* We need to use the precision of the coefficients of the
@@ -346,6 +324,12 @@ struct polynomial : public number_context<T>
          * eval_type_t<T, U> is T */
         return ctx();
     }
+    template<typename U>
+    number_context<eval_type_t<T, U>>
+        number_context_for_evaluation(U const & x) const
+        {
+            return number_context_for_evaluation(number_context<U>(x));
+        }
 
 
     /* Note that here, we do not ask that U is
@@ -547,6 +531,130 @@ struct polynomial : public number_context<T>
     }
     /* }}} */
 
+    /************** {{{ shift **************/
+    /* compute the shift f(x+a) of a polynomial in soft-O(M(n))
+     * we need two important auxiliary functions */
+
+    /* Algorithm, broadly.
+     *
+     * Let f be an input polynomial of degree 2h-1. Compute the division
+     * f = q * (x-a)^h + r, so that f(x+a) = q(x+a) * x^h + r(x+a).
+     * By recursion on q and r, the result follows easily. Most of the
+     * fine details are in the handling of the input degree and the
+     * degree of the divisor.
+     *
+     * Let y=x-a. Let us reason on the recursion tree, and what divisors
+     * are needed for the recursion.
+     *
+     * On an n-coefficient input, at depth i>=0, the tree nodes have either
+     * h_i or 1+h_i coefficients, with h_i=floor(n/2^i).
+     * We precompute the divisors y^{h_{i+1}} and y^{h_{i+1}+1}
+     * 
+     * note that two distinct situations may occur:
+     *  - if h_i is even, h_i = 2*h_{i+1} and 1+h_i = h_{i+1} + (1+h_{i+1})
+     *  - if h_i is odd,  h_i = h_{i+1} + (1+h_{i+1}) and 1+h_i = 2*(1+h_{i+1})
+     * 
+     * when we have h_i coefficients and h_i is even, we divide by
+     * y^{h_{i+1}}, leaving us with two results, each having
+     * h_{i+1} coefficients.
+     * 
+     * when we have 1+h_i coeficients and h_i is odd, we divide by
+     * y^{1+h_{i+1}}, leaving us with two results, each
+     * having 1+h_{i+1} coefficients.
+     * 
+     * otherwise we may divide by either divisor, and we'll have one
+     * result with h_{i+1} coefficients, and the other with 1+h_{i+1}
+     * coefficients.
+     *
+     */
+    private:
+    /* our first auxiliary function computes the ladder of divisors from
+     * bottom to top, [ (y^{h_i}, y^{1+h_i}) ]. We compute them for i>0,
+     * since we don't need them at depth 0. In practice, the input n of
+     * this function is one half of the original input length, which
+     * gives the same result.
+     */
+    template<typename Poly>
+        static std::vector<std::array<Poly, 2>>
+        power_ladder(Poly const & y, size_t n)
+        {
+            ASSERT_ALWAYS(n);
+            int const k = nbits(n);
+            std::array<Poly, 2> D { Poly(y.ctx()(1)), y };
+            std::vector<decltype(D)> res;
+            res.reserve(k+1);
+            res.push_back(D);
+            for(size_t m = 1 << (k-1) ; m ; m>>=1) {
+                if (n & m) {
+                    D[0] = D[0] * D[1];
+                    D[1] = D[1] * D[1];
+                } else {
+                    D[1] = D[0] * D[1];
+                    D[0] = D[0] * D[0];
+                }
+                res.push_back(D);
+            }
+            return res;
+        }
+
+    /* our second auxiliary function works down the ladder recursively
+     * (from top to bottom), dealing with inputs with h_i or 1+h_i
+     * coefficients at depth i.
+     */
+    template<typename U>
+        static polynomial<U> shift_recursion(
+                polynomial<U> const & u,
+                size_t n,
+                std::vector<std::array<polynomial<U>, 2>> const & ladder,
+                number_context<U> const & tr,
+                int depth = 0)
+        {
+            /* a polynomial that is constant or zero is easy to shift! */
+            if (n <= 1)
+                return u;
+            ASSERT_ALWAYS(0 <= depth);
+            /* within the recursion, degree drops are possible (in
+             * remainders only)
+             */
+            ASSERT_ALWAYS(u.size() <= n);
+            auto const & [ d0, d1 ] = ladder[ladder.size()-1-depth];
+            size_t m0 = d0.size() - 1;
+            size_t m1 = d1.size() - 1;
+            ASSERT_ALWAYS(n == 2*m0 || n == (m0 + m1) || n == 2*m1);
+            /* if n is 2*m0, we must divide by d0
+             * if n is 2*m1, we must divide by d1
+             * otherwise we can take either.  */
+            auto const & divisor = (n == 2 * m0) ? d0 : d1;
+            auto [ q, r ] = u.div_qr(divisor);
+            size_t m = divisor.size() - 1;
+            q = shift_recursion(q, n - m, ladder, tr, depth+1);
+            r = shift_recursion(r, m, ladder, tr, depth+1);
+            polynomial<U> res(tr);
+            res.coeffs.assign(u.size(), tr(0));
+            ASSERT_ALWAYS(q.size() + m == u.size());
+            std::move(r.coeffs.begin(), r.coeffs.end(), res.coeffs.begin());
+            std::move(q.coeffs.begin(), q.coeffs.end(), res.coeffs.begin() + m);
+            /* composition never changes the degree, so cleandeg() is not
+             * needed */
+            return res;
+        }
+
+    public:
+
+    /* compute f(x+a) */
+    template<typename U>
+        polynomial<eval_type_t<T, U>>
+        shift(U const & a) const
+        {
+            using E = eval_type_t<T, U>;
+            auto tr = number_context_for_evaluation(a);
+            if (degree() <= 0)
+                return { *this, tr };
+            polynomial<E> x_minus_a { -tr(a), tr(1) };
+            auto ladder = power_ladder(x_minus_a, (degree()+1)/2);
+            return shift_recursion(polynomial<E>(*this), degree()+1, ladder, tr);
+        }
+    /* }}} */
 
     /************** {{{ (real) root finding **************/
 
@@ -914,7 +1022,99 @@ struct polynomial : public number_context<T>
 
     /* }}} */
 
-    /************** {{{ (complex) root finding **************/
+    /************** {{{ multievaluation **************/
+
+
+    private:
+    // {{{ product tree on a set of points
+    struct tree {
+        polynomial f;
+        std::unique_ptr<tree> l {};
+        std::unique_ptr<tree> r {};
+        /*
+        explicit tree(polynomial c) : f(std::move(c)) {}
+        tree(polynomial c,
+                std::unique_ptr<tree> && l,
+                std::unique_ptr<tree> && r)
+            : f(std::move(c)), l(std::move(l)), r(std::move(r))
+        {}
+        */
+    };
+    template<typename U>
+    static std::unique_ptr<tree> product_tree(std::vector<U> const & points, number_context<T> const & tr)
+        requires cado_math_aux::is_coercible_v<U, T>
+    {
+        std::vector<std::unique_ptr<tree>> L;
+        L.reserve(points.size());
+        for(auto const & z : points) {
+            polynomial xz { -tr(z), tr(1) };
+            L.emplace_back(std::make_unique<tree>(xz));
+        }
+        for( ; L.size() > 1 ; ) {
+            using std::move;
+            auto it = L.begin();
+            size_t j = 0;
+            for( ; j + 1 < L.size() ; ) {
+                auto & l = L[j++];
+                auto & r = L[j++];
+                *it++ = std::make_unique<tree>(l->f * r->f, move(l), move(r));
+            }
+            if (j < L.size())
+                *it++ = move(L[j]);
+            L.erase(it, L.end());
+        }
+        return std::move(L[0]);
+    }
+    // }}}
+
+    void multieval(std::vector<T> & it, tree const & A) const
+    {
+        ASSERT_ALWAYS(A.f.degree() > 0);
+        auto fmod = div_r(A.f);
+        ASSERT_ALWAYS(bool(A.l) == bool(A.r));
+        if (A.l) {
+            fmod.multieval(it, *A.l);
+            fmod.multieval(it, *A.r);
+        } else {
+            ASSERT_ALWAYS(fmod.degree() <= 0);
+            it.push_back(fmod[0]);
+        }
+    }
+
+    template<typename U>
+    std::vector<U>
+    multieval(typename polynomial<U>::tree const & A, number_context<U> const & tr) const
+    {
+        std::vector<U> res;
+        res.reserve(A.f.degree());
+        polynomial<U>(*this, tr).multieval(res, A);
+        return res;
+    }
+
+    // {{{ multi-evaluation at a set of points (easy case: just f)
+
+    /* Evaluate f at the given points, and return results interpreted by
+     * the number context tr.
+     * The set of points must have size exactly degree(f). 
+     * If f is constant (or zero), an empty vector is returned.
+     */
+    template<typename U>
+        std::vector<eval_type_t<T, U>>
+        multieval(std::vector<U> const & points, number_context<eval_type_t<T, U>> const & tr) const
+        {
+            using E = eval_type_t<T, U>;
+            if (degree() <= 0) {
+                ASSERT_ALWAYS(points.empty());
+                return {};
+            }
+            auto A = polynomial<E>::product_tree(points, tr);
+            return multieval<U>(A, tr);
+        }
+    // }}}
+
+    /* }}} */
+
+    /************** {{{ (complex) root finding: bounds **************/
     private:
     double easy_root_lower_bound() const
         requires cado_math_aux::is_complex_v<T>
@@ -1052,30 +1252,118 @@ struct polynomial : public number_context<T>
     /* The "easy" bound is best, although its computation is in fact more
      * expensive than the others. The Cauchy bound is usually second
      * best, and is trivial to compute.
+     *
+     * Note that this is mostly relevant when the mean of the roots is
+     * zero.
      */
     double lower_bound_complex_roots() const
         requires cado_math_aux::is_complex_v<T>
     {
+        if (degree() < 0)
+            throw std::domain_error("roots() is undefined on zero polynomial");
+        else if (degree() == 0)
+            return 0;
         return easy_root_lower_bound();
     }
     double upper_bound_complex_roots() const
         requires cado_math_aux::is_complex_v<T>
     {
+        if (degree() < 0)
+            throw std::domain_error("roots() is undefined on zero polynomial");
+        else if (degree() == 0)
+            return 0;
         return easy_root_upper_bound();
     }
-    /* }}} */
-
-    template<typename U>
-    std::vector<U> roots(number_context<U> const & tr = {}) const
-        requires (
-        cado_math_aux::is_complex_v<U> &&
-        cado_math_aux::is_coercible_v<T, U>)
+    std::tuple<T, double, double>
+    annulus_complex_roots() const
+        requires cado_math_aux::is_complex_v<T>
     {
-        /* Jenkins-Traub solver */
-
+        if (degree() < 0)
+            throw std::domain_error("roots() is undefined on zero polynomial");
+        else if (degree() == 0)
+            return { 0, 0, 0 };
+        const int n = degree();
+        const T mean = -coeffs[n-1]/coeffs[n]/n;
+        auto g = shift(mean);
+        const double lo = g.lower_bound_complex_roots();
+        const double hi = g.upper_bound_complex_roots();
+        return { mean, lo, hi };
     }
 
+    /* }}} */
 
+    /************** {{{ (complex) root finding: Aberth method **************/
+    template<typename U>
+    std::vector<eval_type_t<T, U>>
+        roots(number_context<U> const & tr = {}) const
+        requires cado_math_aux::is_complex_v<eval_type_t<T, U>>
+    {
+        using E = eval_type_t<T, U>;
+        auto [ mean, lo, hi ] = polynomial<E>(*this, tr).annulus_complex_roots();
+        /* pick n starting points in the annulus */
+        std::vector<E> z;
+        int const n = degree();
+        z.reserve(n);
+        for(int i = 0 ; i < n ; i++) {
+            using cado_math_aux::pi_v;
+            using cado_math_aux::exp;
+            auto Rtr = tr.real();
+            E theta { Rtr(0), 2 * pi_v(Rtr) * i / n + Rtr(0.125) };
+            z.push_back(exp(theta) * (lo + i * (hi - lo) / n));
+        }
+
+        /* now do the iteration (Aberth-Ehrlich method) */
+        for(int iter = 0 ; ; iter++) {
+            auto const A = polynomial<E>::product_tree(z, tr);
+            auto const f_zk = this->multieval(*A, tr);
+            auto const df_zk = derivative().multieval(*A, tr);
+            auto const & P = A->f;
+            auto const dP = P.derivative();
+            auto const ddP = dP.derivative();
+            auto const dP_zk = dP.multieval(*A, tr);
+            auto const ddP_zk = ddP.multieval(*A, tr);
+            int best_bits = INT_MAX;
+            for(int i = 0 ; i < n ; i++) {
+                auto const a = ddP_zk[i] / dP_zk[i] / 2;
+                auto const w = f_zk[i] / (df_zk[i] - f_zk[i] * a);
+                /* Weierstrass-Durand-Kerner just does */
+                // auto const w = f_zk[i] / dP_zk[i];
+                // however we do encounter more frequent convergence
+                // failures with WDK than with A-E
+                auto const aw = double(cado_math_aux::abs(w));
+                auto const az = double(cado_math_aux::abs(z[i]));
+                if (aw != 0)
+                    best_bits = std::min(best_bits, -std::ilogb(std::abs(aw/az)));
+                z[i] -= w;
+            }
+            if constexpr (std::is_floating_point_v<decltype(E().real())>) {
+                if (best_bits >= std::numeric_limits<decltype(E().real())>::digits)
+                    break;
+#ifdef HAVE_MPC
+            } else if constexpr (std::is_same_v<E, cxx_mpc>) {
+                if (best_bits >= tr.prec)
+                    break;
+#endif
+            } else {
+                /* it should be a static_assert, really. But we still
+                 * have a few gcc-10, and those do not correcly elide the
+                 * else branch of winning "if constexpr"
+                 */
+                ASSERT_ALWAYS(false);
+            }
+            if (iter >= 200) {
+                /* I'm basically happy with this code, and it seems to
+                 * behave as it should. However I would not feel
+                 * comfortable asserting that it does so for every input.
+                 * Maybe we want to add some leeway in the low bits. How
+                 * much, I don't know.
+                 */
+                throw std::runtime_error("infinite loop in complex root finding");
+            }
+        }
+        return z;
+    }
+    /* }}} */
 
     public:
 
@@ -1089,6 +1377,7 @@ struct polynomial : public number_context<T>
         return df;
     }
 
+    /* TODO: templatize */
     polynomial operator*(T const & a) const
     {
         polynomial h(ctx());
@@ -1180,7 +1469,8 @@ struct polynomial : public number_context<T>
         return h;
     }
 
-    /* all compound operators are done lazily, at least for now */
+    /* all compound operators are done lazily, at least for now.
+     * There would be place to use fma/fms, though. */
     polynomial& operator*=(T const & a) {
         return (*this) = (*this) * a;
     }
@@ -1302,6 +1592,7 @@ struct polynomial : public number_context<T>
     }
 
     private:
+    /* {{{ parsing */
     friend std::istream& operator>><T>(std::istream& in, cado::named_proxy<polynomial &> const & F);
 
     struct parser_traits {
@@ -1347,6 +1638,8 @@ struct polynomial : public number_context<T>
                 throw unexpected_literal(v);
         }
     };
+
+    /* }}} */
     public:
 
     cado::named_proxy<polynomial &> named(std::string const & x) {
@@ -1358,6 +1651,7 @@ struct polynomial : public number_context<T>
 
     polynomial(std::string const &, std::string const & var);
 
+    /* {{{ comparisons and predicates */
     private:
     int spaceship(polynomial const & f) const
     {
@@ -1398,13 +1692,21 @@ struct polynomial : public number_context<T>
         return std::any_of(coeffs.begin(), coeffs.end(), p);
     }
 
+    bool is_monic() const {
+        return !coeffs.empty() && lc() == 1;
+    }
+
+    /* }}} */
+
     private:
 
-    /*
-     * Compute the pseudo division of a and b such that
+    /* {{{ Compute the pseudo division of a and b such that
      *  lc(b)^(deg(a) - deg(b) + 1) * a = b * q + r with deg(r) < deg(b).
-     *  See Henri Cohen, "A Course in Computational Algebraic Number Theory",
-     *  for more information.
+     * See Algorithm 3.1.2 in Cohen, "A Course in Computational Algebraic
+     * Number Theory". This is only used in the integer resultant
+     * algorithm.
+     *
+     * If b is monic, this is just Euclidean division.
      *
      * Assume that deg(a) >= deg(b) and b is not the zero polynomial.
      *
@@ -1412,162 +1714,284 @@ struct polynomial : public number_context<T>
      *
      * No overlap allowed.
      */
-    bool pseudo_division(polynomial * q, polynomial & r,
-            polynomial const & b) const
+    private:
+    template<typename U>
+    polynomial<eval_type_t<T,U>> pseudo_division(
+            polynomial<eval_type_t<T,U>> * q,
+            polynomial<U> const & b) const
+    requires cado_math_aux::is_integral_v<eval_type_t<T, U>>
     {
-        polynomial const & a = *this;
-        ASSERT(a.degree() >= b.degree());
+        ASSERT_ALWAYS(q != this);
+        ASSERT(degree() >= b.degree());
         ASSERT(b.degree() != -1);
 
-        int const m = a.degree();
+        using E = eval_type_t<T, U>;
+        static_assert(std::is_empty_v<number_context<E>>);
+
+        polynomial<E> r(*this);
+
+        int const m = r.degree();
         int const n = b.degree();
-        T d = b.lc();
+        auto const lb = b.lc();
         int e = m - n + 1;
-        polynomial s(ctx());
 
         if (q) *q = 0;
 
-        r = a;
-
         while (r.degree() >= n) {
-            s = ctx()(0);
-            s[r.degree() - n] = r.lc();
-
-            if (q) {
-                *q *= d;
-                *q += s;
-            }
-            r *= d;
-            s *= b;
-            int const nrdeg = r.degree() - 1;
-            r -= s;
-            /* We enforce this because the subtraction may miss the
-             * cancellation of the leading term due to rounding.
+            /* d^(m-n+1-e)*a = b*q + r */
+            int const j = r.degree()-n;
+            /* we want to subtract lc(r)*x^j*b
              */
-            if (r.degree() > nrdeg)
-                r.cleandeg(nrdeg);
+            // s = tr(0);
+            // s[r.degree() - n] = tr(r.lc());
+
+            /* note that lc(b)*r - lc(r)*b*x^(deg(r)-deg(b)) = lb*r-b*s
+             * has degree at most deg(b)-1, so:
+             *
+             * lb^(m-n+1-(e-1))*a = lb*b*q + lb*r
+             *                    = lb*b*q + b*s + (lb*r - b*s)
+             *                    = b*(lb*q + s) + (lb*r - b*s)
+             */
+
+            if (q)
+                /* replace q by lb*q + s */
+                (*q)[j] += lb * r.lc();
+            
+            /* replace r by lb*r - b*s == lc(b)*r - lc(r)*b*x^(deg(r)-deg(b)) */
+            auto const lr = r.lc();
+            r.chop();
+            r *= lb;
+            for(int i = 0 ; i < n ; i++)
+                r[i+j] -= lr * b[i];
+            r.cleandeg();
             e--;
-
-            /* Cancellations can happen, here. We do have a test case
-             * that triggers r===0, in which case we'll probably need to
-             * resort to exact computations instead
-             */
-            if (r.has_nan() || r.has_inf() || r.degree() < 0)
-                return false;
         }
-
         ASSERT(e >= 0);
 
-        d = cado_math_aux::pow(d, static_cast<T>(e));
-        if (q) *q *= d;
-        r *= d;
+        auto const d_e = cado_math_aux::pow(lb, e);
+        if (q) *q *= d_e;
+        r *= d_e;
 
-        return true;
+        return r;
     }
-
-    bool pseudo_remainder(polynomial & r, polynomial const & b) const
-    {
-        return pseudo_division(nullptr, r, b);
-    }
+    /* }}} */
 
     public:
 
-    /* XXX caveat: This is not a proper resultant implementation. It
-     * implicitly relies on the assumption that the inputs are integer
-     * polynomials (but with floating-point representation).
+    /* {{{ divisions for integral polynomials. We only want divisions
+     * that are exact.  Those are not provided readily by the
+     * pseudo-division algorithm above. Essentially, it means that we're
+     * interested in monic divisors, although it's not a necessity.
+     *
+     * This returns the quotient and remainder IF the division is exact.
+     * Otherwise, {0,0} is returned and the exact flag is set to false.
      */
-    T resultant(polynomial<T> const & q) const
-    requires cado_math_aux::is_real_v<T>
+    template<typename U>
+    std::pair<
+        polynomial<eval_type_t<T, U>>,
+        polynomial<eval_type_t<T, U>>
+        >
+        div_qr(polynomial<U> const & b, bool & exact) const
+        requires cado_math_aux::is_integral_v<eval_type_t<T, U>>
+        {
+            using E = eval_type_t<T, U>;
+            static_assert(std::is_empty_v<number_context<E>>);
+
+            polynomial<E> r = *this;
+            polynomial<E> q;
+
+            auto const & lb = b.lc();
+
+            for ( ; r.degree() >= b.degree() ; ) {
+                int const j = r.degree() - b.degree();
+                if (r.lc() % lb) {
+                    exact = false;
+                    q = 0;
+                    r = 0;
+                    return { q, r };
+                }
+                q[j] = cado_math_aux::divexact(r.lc(), lb);
+                /* do not bother updating r.lc() */
+                r.chop();
+                for (int i = 0 ; i < b.degree() ; i++)
+                    r[i+j] -= q[j] * b[i];
+                r.cleandeg();
+            }
+            exact = true;
+            return { q, r };
+        }
+
+    template<typename U>
+    polynomial<eval_type_t<T, U>>
+        div_q(polynomial<U> const & b, bool & exact) const
+        requires cado_math_aux::is_integral_v<eval_type_t<T, U>>
+        {
+            return div_qr(b, exact).first;
+        }
+
+    template<typename U>
+    polynomial<eval_type_t<T, U>>
+        div_r(polynomial<U> const & b, bool & exact) const
+        requires cado_math_aux::is_integral_v<eval_type_t<T, U>>
+        {
+            return div_qr(b, exact).second;
+        }
+
+    /* it is also possible to just ignore the exact flag. Note that
+     * inexact results will always return (0,0), which is in many cases a
+     * good way to detect. (if a.div_qr = (0,0) and a!=0, it means that
+     * the division was inexact).
+     */
+    template<typename U>
+    std::pair<
+        polynomial<eval_type_t<T, U>>,
+        polynomial<eval_type_t<T, U>>
+        >
+        div_qr(polynomial<U> const & b) const
+        requires cado_math_aux::is_integral_v<eval_type_t<T, U>>
+        {
+            bool e;
+            return div_qr(b, e);
+        }
+    template<typename U>
+        polynomial<eval_type_t<T, U>>
+        div_q(polynomial<U> const & b) const
+        requires cado_math_aux::is_integral_v<eval_type_t<T, U>>
+        {
+            bool e;
+            return div_q(b, e);
+        }
+    template<typename U>
+        polynomial<eval_type_t<T, U>>
+        div_r(polynomial<U> const & b) const
+        requires cado_math_aux::is_integral_v<eval_type_t<T, U>>
+        {
+            bool e;
+            return div_r(b, e);
+        }
+    /* }}} */
+
+    /* {{{ division of non-integral polynomials. */
+    template<typename U>
+    std::pair<
+        polynomial<eval_type_t<T, U>>,
+        polynomial<eval_type_t<T, U>>
+        >
+        div_qr(polynomial<U> const & b) const
+        requires (!cado_math_aux::is_integral_v<eval_type_t<T, U>>)
+        {
+            using E = eval_type_t<T, U>;
+            auto const tr = number_context_for_evaluation(b.ctx());
+
+            polynomial<E> r { *this, tr };
+            polynomial<E> q;
+
+            if (degree() < b.degree())
+                return { q, r };
+
+            auto const ilb = tr(1) / b.lc();
+            using cado_math_aux::submul;
+
+            for (int k = degree() - b.degree(); k >= 0; k--) {
+                q[k] = r[k + b.degree()] * ilb;
+                /* do not bother updating r.lc() */
+                for (int j = b.degree() + k - 1; j >= k; j--)
+                    submul(r.coeffs[j], q.coeffs[k], b.coeffs[j-k]);
+            }
+            r.cleandeg(b.degree()-1);
+            return { q, r };
+        }
+
+    template<typename U>
+    polynomial<eval_type_t<T, U>>
+        div_q(polynomial<U> const & b) const
+        requires (!cado_math_aux::is_integral_v<eval_type_t<T, U>>)
+        {
+            return div_qr(b).first;
+        }
+
+    template<typename U>
+    polynomial<eval_type_t<T, U>>
+        div_r(polynomial<U> const & b) const
+        requires (!cado_math_aux::is_integral_v<eval_type_t<T, U>>)
+        {
+            return div_qr(b).second;
+        }
+    /* }}} */
+
+    public:
+
+    /* {{{ resultant of integral polynomials
+     *
+     * See Algorithm 3.3.7 in Cohen, "A Course in Computational Algebraic
+     * Number Theory".
+     *
+     * Using this algorithm on floating point types would be wrong (see
+     * §3.3.3 in Cohen). If we really want to compute resultants with
+     * floating point types, we should compute the determinant of the
+     * Sylvester matrix.
+     *
+     * Note that while it is definitely possible to compute resultants of
+     * two polynomial<int> values with this code, we're almost certain to
+     * hit overflows (that is, the computation will be modulo whatever
+     * power of two is appropriate)
+     */
+    template<typename U>
+    eval_type_t<T, U> resultant(polynomial<U> const & q) const
+    requires cado_math_aux::is_integral_v<eval_type_t<T, U>>
     {
+        using E = eval_type_t<T, U>;
+        static_assert(std::is_empty_v<number_context<E>>);
         polynomial const & p = *this;
         if (p.degree() < 0 || q.degree() < 0)
             return 0;
 
-        polynomial a = p;
-        polynomial b = q;
-        polynomial r(ctx());
+        polynomial<E> a = p;
+        polynomial<E> b = q;
+        polynomial<E> r;
 
         int s = 1;
-        int d;
 
-        int pseudo_div = 1;
+        using cado_math_aux::pow;
 
-        T g = ctx()(1);
-        T h = ctx()(1);
+        T g = 1;
+        T h = 1;
+
+        /* we might want to divide out by the content if there is one */
 
         if (a.degree() < b.degree()) {
             std::swap(a, b);
 
-            if ((a.degree() % 2) == 1 && (b.degree() % 2) == 1)
+            if (a.degree() & b.degree() & 1)
                 s = -1;
         }
 
         while (b.degree() > 0) {
-            // TODO: verify if it is necessary.
-            d = a.degree() - b.degree();
+            int d = a.degree() - b.degree();
 
-            if ((a.degree() % 2) == 1 && (b.degree() % 2) == 1)
+            if (a.degree() & b.degree() & 1)
                 s = -s;
 
-            pseudo_div = a.pseudo_remainder(r, b);
-            if (!pseudo_div)
-                break;
+            r = a.pseudo_division(nullptr, b);
 
             a = b;
 
-            ASSERT(d >= 0);
-
-            b = r / (g * cado_math_aux::pow(h, d));
+            b = r / (g * pow(h, d));
 
             g = a.lc();
 
             ASSERT(d != 0 || h == 1);
 
-            h = cado_math_aux::pow(h, static_cast<T>(d - 1));
-            h = cado_math_aux::pow(g, static_cast<T>(d)) / h;
+            h = pow(g, d) / pow(h, d - 1);
         }
 
-        if (pseudo_div) {
-            ASSERT(a.degree() > 0);
+        ASSERT(a.degree() > 0);
+        if (b.degree() < 0)
+            return 0;
 
-            //For now, if b.degree() == -1, pseudo_div == 0.
-            if (b.degree() == -1) {
-                ASSERT(0);
-            } else {
-
-                ASSERT(a.degree() >= 0);
-
-                h = cado_math_aux::pow(
-                        static_cast<T>(b[0]), a.degree()) / cado_math_aux::pow(h, (a.degree() - 1));
-                h *= s;
-            }
-        } else {
-            // we encountered cancellations, so we need to resort to
-            // exact arithmetic.
-            // XXX This is only meant to be used for very special cases
-            // of polynomials with integer coefficiens to start with, and
-            // taking integer values. There doesn't seem to be a good
-            // rationale for doing this kind of indiscriminate fallback.
-            // TODO: use last version of a and b in pseudo_division.
-            cxx_mpz val_z;
-            cxx_mpz_poly pz(p);
-            cxx_mpz_poly qz(q);
-            mpz_poly_resultant(val_z, pz, qz);
-            return cado_math_aux::mpz_get<T>(val_z);
-        }
-        return h;
+        return s * pow(b[0], a.degree()) / pow(h, (a.degree() - 1));
     }
-
-    T resultant(polynomial<T> const & q) const
-    requires std::is_same_v<T, cxx_mpz>
-    {
-        cxx_mpz val_z;
-        cxx_mpz_poly pz(*this);
-        cxx_mpz_poly qz(q);
-        mpz_poly_resultant(val_z, pz, qz);
-        return val_z;
-    }
-
+    /* }}} */
 };
 
 
@@ -1633,6 +2057,13 @@ inline std::ostream& operator<<(std::ostream& o, cado::named_proxy<polynomial<T>
     return o << f.c.print(f.x());
 }
 
+/* of course it's also okay to print non-const references */
+template<typename T>
+inline std::ostream& operator<<(std::ostream& o, cado::named_proxy<polynomial<T> &> const & f)
+{
+    return o << f.c.print(f.x());
+}
+
 /* we do have a default behaviour, though */
 template<typename T>
 inline std::ostream& operator<<(std::ostream& o, polynomial<T> const & f)
@@ -1652,6 +2083,10 @@ using polynomial = polynomial_details::polynomial<T>;
 namespace fmt {
     template<typename T>
     struct formatter<polynomial<T>>: ostream_formatter {};
+    template<typename T>
+    struct formatter<cado::named_proxy<polynomial<T>&>>: ostream_formatter {};
+    template<typename T>
+    struct formatter<cado::named_proxy<polynomial<T> const &>>: ostream_formatter {};
 }
 
 

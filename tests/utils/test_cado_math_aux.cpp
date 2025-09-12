@@ -1,6 +1,7 @@
 #include "cado.h"       // IWYU pragma: keep
 
 #include <cstdlib>
+#include <cmath>
 
 #include <limits>
 #include <type_traits>
@@ -8,11 +9,14 @@
 #include <gmp.h>
 #include "fmt/base.h"
 
+#include "number_context.hpp"
 #include "cxx_mpz.hpp"
 #ifdef HAVE_MPFR
 #include "cxx_mpfr.hpp"
 #endif
 #include "cado_math_aux.hpp"
+#include "cado_compile_time_hacks.hpp"
+#include "cado_addsubmul.hpp"
 #include "gmp_aux.h"
 #include "macros.h"
 
@@ -97,34 +101,6 @@ static void test_cado_math_aux_abs()
 #endif
 }
 
-namespace details {
-    template<typename T, typename U>
-        struct set_with_precision_impl {
-            T operator()(U const & u, int prec) const {
-                ASSERT_ALWAYS(prec == std::numeric_limits<T>::digits);
-                T x = u;
-                return x;
-            }
-        };
-
-#ifdef HAVE_MPFR
-    template<typename U>
-        struct set_with_precision_impl<cxx_mpfr, U> {
-            cxx_mpfr operator()(U const & u, int prec) const {
-                cxx_mpfr x;
-                mpfr_set_prec(x, prec);
-                return cado_math_aux::similar_set(x, u);
-            }
-        };
-#endif
-} /* namespace details */
-
-template<typename T, typename U>
-static inline T set_with_precision(U const & u, int prec)
-{
-    return details::set_with_precision_impl<T, U>()(u, prec);
-}
-
 template<typename T>
 struct working_precision : public std::integral_constant<int, std::numeric_limits<T>::digits> {};
 
@@ -142,14 +118,16 @@ static void test_one_fma()
     using cado_math_aux::fms;
     using cado_math_aux::addmul;
     using cado_math_aux::submul;
-    using cado_math_aux::similar_zero;
     constexpr int bits = working_precision<T>::value;
 
     /* It's very important that we use the constant one with the required
      * final precision, because we won't have automatic type promotion
      * for cxx_mpfr's.
      */
-    T const one = set_with_precision<T>(1, bits);
+
+    const cado::number_context<T> tr(bits);
+
+    T const one = tr(1);
 
     constexpr int b = bits - 1;
     T const epsilon = ldexp(one, -b);
@@ -180,7 +158,7 @@ static void test_one_fma()
         addmul(s, rd, ru);
         fmt::print("{} addmul {:a}\n", typeid(T).name(), -s);
         ASSERT_ALWAYS(s == -one);
-        ASSERT_ALWAYS(s + one == similar_zero(one));
+        ASSERT_ALWAYS(s + one == tr(0));
     }
     {
         T s = bigone;

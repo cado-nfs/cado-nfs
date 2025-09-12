@@ -61,8 +61,8 @@ struct bpack_ops {
     /* Keeps only the upper triangular part in U, and copy the lower
      * triangular, together with a unit block, to L */
     static void extract_LU(bpack_view<T> L, bpack_view<T> U);
-    static void extract_uppertriangular(bpack_view<T> a, bpack_const_view<T> const b);
-    static void extract_lowertriangular(bpack_view<T> a, bpack_const_view<T> const b);
+    static void extract_uppertriangular(bpack_view<T>, bpack_const_view<T>);
+    static void extract_lowertriangular(bpack_view<T>, bpack_const_view<T>);
 
     static void extract_LU(bpack<T> & L, bpack<T> & U)
     {
@@ -79,9 +79,9 @@ struct bpack_ops {
 };
 
 template<typename matrix_pointer> struct bpack_view_base {
-    typedef typename std::remove_pointer<matrix_pointer>::type matrix;
+    using matrix = std::remove_pointer_t<matrix_pointer>;
     static constexpr const unsigned int B = matrix::width;
-    typedef typename matrix::datatype U;
+    using U = typename matrix::datatype;
     protected:
     matrix_pointer X;
     public:
@@ -99,16 +99,11 @@ template<typename matrix_pointer> struct bpack_view_base {
     unsigned int ncolblocks() const { return nblocks; }
     bpack_view_base(matrix_pointer X, unsigned int mblocks, unsigned int nblocks) : X(X), mblocks(mblocks), nblocks(nblocks) { }
 };
-/* c++11 understand the static constexpr as a _declaration_, and insists
- * on later seeing a _definition_. This one is. c++20 doesn't have this
- * quirk.
- */
-template<typename T> constexpr const unsigned int bpack_view_base<T>::B;        // c++11
 
 template<typename T>
 struct bpack_const_view : public bpack_view_base<bitmat<T> const *>
 {
-    typedef bpack_view_base<bitmat<T> const *> super;
+    using super = bpack_view_base<bitmat<T> const *>;
     using super::B;
     using super::mblocks;
     using super::nblocks;
@@ -116,8 +111,8 @@ struct bpack_const_view : public bpack_view_base<bitmat<T> const *>
     using super::X;
     public:
     using super::cell;
-    typedef bpack_const_view<T> const_view_t;
-    typedef bpack_view<T> view_t;
+    using const_view_t = bpack_const_view<T>;
+    using view_t = bpack_view<T>;
     bpack_const_view(bitmat<T> const * X, unsigned int mblocks, unsigned int nblocks) : super(X, mblocks, nblocks) {}
     bool is_lowertriangular() const;
     bool is_uppertriangular() const;
@@ -134,7 +129,7 @@ struct bpack_const_view : public bpack_view_base<bitmat<T> const *>
 
 template<typename T>
 struct bpack_view : bpack_view_base<bitmat<T> *> {
-    typedef bpack_view_base<bitmat<T> *> super;
+    using super = bpack_view_base<bitmat<T> *>;
     using super::B;
     using super::mblocks;
     using super::nblocks;
@@ -143,8 +138,8 @@ struct bpack_view : bpack_view_base<bitmat<T> *> {
     public:
     using super::cell;
     bpack_view(bitmat<T> * X, unsigned int mblocks, unsigned int nblocks) : super(X, mblocks, nblocks) {}
-    typedef bpack_const_view<T> const_view_t;
-    typedef bpack_view<T> view_t;
+    using const_view_t = bpack_const_view<T>;
+    using view_t = bpack_view<T>;
     const_view_t const_view() const { return const_view_t(super::X, mblocks, nblocks); }
     const_view_t view() const { return const_view_t(super::X, mblocks, nblocks); }
     view_t view() { return *this; }
@@ -189,8 +184,8 @@ struct bpack_view : bpack_view_base<bitmat<T> *> {
 
 template<typename T>
 struct bpack : public bpack_ops<T> {
-    typedef bpack_ops<T> ops;
-    typedef bitmat<T> matrix;
+    using ops = bpack_ops<T>;
+    using matrix = bitmat<T>;
     static constexpr const unsigned int B = matrix::width;
     typename matrix::vector_type X;
     unsigned int mblocks;
@@ -204,9 +199,9 @@ struct bpack : public bpack_ops<T> {
         ASSERT_ALWAYS(n % B == 0);
         *this = 0;
     }
-    typedef bpack_view<T> view_t;
+    using view_t = bpack_view<T>;
     view_t view() { return view_t(X.data(), mblocks, nblocks); }
-    typedef bpack_const_view<T> const_view_t;
+    using const_view_t = bpack_const_view<T>;
     const_view_t view() const { return const_view_t(X.data(), mblocks, nblocks); }
     const_view_t const_view() const { return const_view_t(X.data(), mblocks, nblocks); }
 
@@ -243,10 +238,6 @@ struct bpack : public bpack_ops<T> {
     bool operator==(view_t v) const { return const_view() == v.const_view(); }
     bool operator==(bpack<T> const & v) const { return const_view() == v.const_view(); }
 };
-
-/* same as above */
-template<typename T> constexpr const unsigned int bpack<T>::B;  // c++11
-
 
 /* The code is in bpack.cpp ; presently there are no specializations, but
  * if the need arises, we may define a few of them.

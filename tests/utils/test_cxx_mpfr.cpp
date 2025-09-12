@@ -30,6 +30,7 @@
 #include "mpfr_auxx.hpp"
 #include "cado_math_aux.hpp"
 #include "macros.h"
+#include "number_context.hpp"
 
 static void test_basic_arithmetic(cxx_gmp_randstate & state, mpfr_prec_t prec)
 {
@@ -89,9 +90,10 @@ static void init_and_compare(T c)
 {
     mpfr_t yr;
     mpfr_auxx::cado_mpfr_init_set(yr, c, MPFR_RNDN);
-    cxx_mpfr y;
-    mpfr_set_prec(y, mpfr_get_default_prec());
-    cado_math_aux::similar_set(y, c);
+
+    cado::number_context<cxx_mpfr> tr; /* use default prec */
+
+    cxx_mpfr y = tr(c);
     ASSERT_ALWAYS(y == cxx_mpfr(yr));
     ASSERT_ALWAYS(mpfr_auxx::cado_mpfr_cmp(yr, c) == 0);
 
@@ -222,13 +224,15 @@ static bool representations_agree(double d, std::string const & s, std::string c
      * a Nan with sign bit as -nan, while the libc on OSX doesn't.
      */
     if (std::isnan(d)) {
-        auto ts = s;
-        if (s.front() == '-')
-            ts = s.substr(1);
-        auto tsr = s;
-        if (sr.front() == '-')
-            tsr = sr.substr(1);
-        return ts == tsr;
+        auto is = s.begin();
+        for( ; is != s.end() && isspace(*is) ; ++is);
+        if (is != s.end() && *is == '-') ++is;
+
+        auto isr = sr.begin();
+        for( ; isr != sr.end() && isspace(*isr) ; ++isr);
+        if (isr != sr.end() && *isr == '-') ++isr;
+
+        return std::string(is, s.end()) == std::string(isr, sr.end());
     } else {
         return s == sr;
     }
@@ -236,9 +240,8 @@ static bool representations_agree(double d, std::string const & s, std::string c
 
 static void print1(std::ostream & os, double const d)
 {
-    cxx_mpfr dr;
-    mpfr_set_prec(dr, std::numeric_limits<double>::digits);
-    dr = cado_math_aux::similar_set(dr, d);
+    const cado::number_context<cxx_mpfr> tr(std::numeric_limits<double>::digits);
+    cxx_mpfr dr = tr(d);
     if (std::isnan(d)) {
         fmt::print("note: nan ({}), sign bit = {}\n", d, std::signbit(d));
         fmt::print("mpfr: nan, sign bit = {}\n", mpfr_signbit(dr.x));

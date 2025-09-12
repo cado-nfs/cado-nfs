@@ -218,6 +218,54 @@ static inline int mpfr_submul_si(mpfr_ptr a, mpfr_srcptr b, long const c,
     return r;
 }
 
+static inline int mpfr_addmul_d(mpfr_ptr a, mpfr_srcptr b, double c,
+                              mpfr_rnd_t rnd)
+{
+    mpfr_t cc;
+    /* TODO: should we just write 53 here ? */
+    mpfr_init2(cc, mpfr_get_prec(a));
+    mpfr_set_d(cc, c, MPFR_RNDN);
+    int const r = mpfr_addmul(a, b, cc, rnd);
+    mpfr_clear(cc);
+    return r;
+}
+
+static inline int mpfr_submul_d(mpfr_ptr a, mpfr_srcptr b, double c,
+                              mpfr_rnd_t rnd)
+{
+    mpfr_t cc;
+    /* TODO: should we just write 53 here ? */
+    mpfr_init2(cc, mpfr_get_prec(a));
+    mpfr_set_d(cc, c, MPFR_RNDN);
+    int const r = mpfr_submul(a, b, cc, rnd);
+    mpfr_clear(cc);
+    return r;
+}
+
+static inline int mpfr_addmul_ld(mpfr_ptr a, mpfr_srcptr b, long double c,
+                              mpfr_rnd_t rnd)
+{
+    mpfr_t cc;
+    /* TODO: should we just write 80 here ? */
+    mpfr_init2(cc, mpfr_get_prec(a));
+    mpfr_set_ld(cc, c, MPFR_RNDN);
+    int const r = mpfr_addmul(a, b, cc, rnd);
+    mpfr_clear(cc);
+    return r;
+}
+
+static inline int mpfr_submul_ld(mpfr_ptr a, mpfr_srcptr b, long double c,
+                              mpfr_rnd_t rnd)
+{
+    mpfr_t cc;
+    /* TODO: should we just write 80 here ? */
+    mpfr_init2(cc, mpfr_get_prec(a));
+    mpfr_set_ld(cc, c, MPFR_RNDN);
+    int const r = mpfr_submul(a, b, cc, rnd);
+    mpfr_clear(cc);
+    return r;
+}
+
 /* }}} */
 
 /* {{{ mpfr_{div,remainder}_{ui,si} */
@@ -254,6 +302,25 @@ MPFR_AUX_DEFINE_FUNC3(addmul)
 MPFR_AUX_DEFINE_FUNC3(submul)
 MPFR_AUX_DEFINE_FUNC3(div)
 MPFR_AUX_DEFINE_FUNC3(remainder)
+
+#define MPFR_AUX_DEFINE_D_LD_FUNCTION(OP, TYP, SUF)			\
+    static inline int mpfr_##OP##SUF(mpfr_ptr a, mpfr_srcptr b,		\
+                                     long double c, mpfr_rnd_t rnd)	\
+    {									\
+        mpfr_t r;							\
+        mpfr_init2(r, mpfr_get_prec(a));				\
+        mpfr_set##SUF(r, c, rnd);					\
+        int const res = mpfr_##OP(a, b, r, rnd);			\
+        mpfr_clear(r);							\
+        return res;							\
+    }
+
+MPFR_AUX_DEFINE_D_LD_FUNCTION(add, long double, _ld)
+MPFR_AUX_DEFINE_D_LD_FUNCTION(sub, long double, _ld)
+MPFR_AUX_DEFINE_D_LD_FUNCTION(mul, long double, _ld)
+MPFR_AUX_DEFINE_D_LD_FUNCTION(div, long double, _ld)
+MPFR_AUX_DEFINE_D_LD_FUNCTION(remainder, double, _d)
+MPFR_AUX_DEFINE_D_LD_FUNCTION(remainder, long double, _ld)
 
 #ifdef __cplusplus
 }

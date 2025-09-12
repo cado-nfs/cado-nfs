@@ -4,7 +4,7 @@
 
 #include "fmt/base.h"
 
-#include "cado_math_aux.hpp"
+#include "cado_mp_conversions.hpp"
 #include "cxx_mpz.hpp"
 #include "misc.h"
 

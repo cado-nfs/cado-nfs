@@ -21,7 +21,7 @@
 #include "gmp_aux.h"
 #include "gmp_auxx.hpp"
 #include "utils_cxx.hpp"
-#include "cado_math_aux.hpp"
+#include "cado_compile_time_hacks.hpp"
 
 /* see also mpn_compile_time.hpp for a similar purpose (but a different
  * interface)
@@ -519,7 +519,7 @@ inline bool mpz_fits<Integer128> (mpz_srcptr v) {
     return mpz_sizeinbase(v, 2) <= 128;
 }
 
-}
+} /* namespace gmp_auxx */
 
 namespace Integer_details {
     /* When we divide by small constants, there's a point where we create an
@@ -540,7 +540,7 @@ namespace Integer_details {
         struct reduce_multiple_impl<Integer128, n, false> {
             template<typename ignore>
                 static Integer128 reduce(Integer128 const & t, ignore const &) {
-                    using namespace cado_math_aux;
+                    using cado_math_aux::invmod;
                     constexpr uint64_t c = invmod<n, uint64_t>::value;
 
                     /* a = a1 * 2^w + a0, n|a
@@ -568,7 +568,7 @@ namespace Integer_details {
         struct reduce_multiple_impl<Integer128, n, true> {
             template<typename chooser_mul>
                 static Integer128 reduce(Integer128 & t, chooser_mul const & cm) {
-                    using namespace cado_math_aux;
+                    using cado_math_aux::invmod;
                     constexpr uint64_t c = invmod<n, uint64_t>::value;
 
                     Integer128 r, t2;
@@ -599,7 +599,7 @@ namespace Integer_details {
         struct reduce_multiple_impl<Integer64, n, b> {
             template<typename ignore>
                 static Integer64 reduce(Integer64 & t, ignore const &) {
-                    using namespace cado_math_aux;
+                    using cado_math_aux::invmod;
                     constexpr uint64_t c = invmod<n, uint64_t>::value;
                     return Integer64 { t[0] * c };
                 }
@@ -610,7 +610,8 @@ namespace Integer_details {
     template<typename Integer, int n, size_t k>
         struct mod_n_impl {
             static uint64_t value(Integer const & r) {
-                constexpr uint64_t w_mod_n = cado_math_aux::pow2_mod<64, n>::value;
+                using cado_math_aux::pow2_mod;
+                constexpr uint64_t w_mod_n = pow2_mod<64, n>::value;
                 return (mod_n_impl<Integer, n, k-1>::value(r) * w_mod_n + r[Integer::max_size_in_words-k] % n) % n;
             }
         };
@@ -629,7 +630,6 @@ namespace Integer_details {
                 return 0;
             }
         };
-
-}
+} /* namespace Integer_details */
 
 #endif
