@@ -1024,21 +1024,12 @@ struct polynomial : public number_context<T>
 
     /************** {{{ multievaluation **************/
 
-
-    private:
+    public:
     // {{{ product tree on a set of points
     struct tree {
         polynomial f;
         std::unique_ptr<tree> l {};
         std::unique_ptr<tree> r {};
-        /*
-        explicit tree(polynomial c) : f(std::move(c)) {}
-        tree(polynomial c,
-                std::unique_ptr<tree> && l,
-                std::unique_ptr<tree> && r)
-            : f(std::move(c)), l(std::move(l)), r(std::move(r))
-        {}
-        */
     };
     template<typename U>
     static std::unique_ptr<tree> product_tree(std::vector<U> const & points, number_context<T> const & tr)
@@ -1051,22 +1042,23 @@ struct polynomial : public number_context<T>
             L.emplace_back(std::make_unique<tree>(xz));
         }
         for( ; L.size() > 1 ; ) {
-            using std::move;
             auto it = L.begin();
             size_t j = 0;
             for( ; j + 1 < L.size() ; ) {
                 auto & l = L[j++];
                 auto & r = L[j++];
-                *it++ = std::make_unique<tree>(l->f * r->f, move(l), move(r));
+                *it++ = std::make_unique<tree>(l->f * r->f,
+                                               std::move(l), std::move(r));
             }
             if (j < L.size())
-                *it++ = move(L[j]);
+                *it++ = std::move(L[j]);
             L.erase(it, L.end());
         }
         return std::move(L[0]);
     }
     // }}}
 
+    private:
     void multieval(std::vector<T> & it, tree const & A) const
     {
         ASSERT_ALWAYS(A.f.degree() > 0);
@@ -1081,6 +1073,7 @@ struct polynomial : public number_context<T>
         }
     }
 
+    public:
     template<typename U>
     std::vector<U>
     multieval(typename polynomial<U>::tree const & A, number_context<U> const & tr) const
@@ -1195,59 +1188,6 @@ struct polynomial : public number_context<T>
         return 1 / reciprocal().lagrange_upper_bound();
     }
 
-    double weird_lower_bound_probably_wrong() const
-        requires cado_math_aux::is_complex_v<T>
-    {
-        using cado_math_aux::abs;
-        using cado_math_aux::log;
-        using cado_math_aux::exp;
-
-        const auto n = degree();
-
-        polynomial<double> N;
-        N.coeffs.reserve(size());
-        for(auto const & c : coeffs)
-            N.coeffs.emplace_back(double(cado_math_aux::abs(c)));
-        N.coeffs[n] = -N.coeffs[n];
-
-        /* compute upper estimate of bound: assume all the
-         * middle terms of N are zero.
-         *
-         * FIXME: this looks just... wrong. And anyway, it's very
-         * misguided.
-         */
-
-        double xmax = exp((log(-N[n]) - log(N[0])) / n);
-
-        /* if ignoring the nonlinear terms of N produces
-           a smaller root, use that instead */
-
-        if (N[n - 1] != 0)
-            xmax = std::min(xmax, -N[n] / N[n - 1]);
-
-        /* chop the interval (0, x) until until x is about
-           to make norms(x) change sign */
-
-        double x;
-
-        N = N.reciprocal();
-
-        do {
-            x = xmax;
-            xmax = x / 10;
-        } while (N(xmax) > 0.0);
-
-        /* do Newton iteration until x converges to two decimal places */
-        double dx = x;
-        auto dN = N.derivative();
-
-        while (abs(dx / x) > 0.005) {
-            dx = N(x) / dN(x);
-            x -= dx;
-        }
-
-        return x;
-    }
     public:
     /* The "easy" bound is best, although its computation is in fact more
      * expensive than the others. The Cauchy bound is usually second
@@ -1289,7 +1229,6 @@ struct polynomial : public number_context<T>
         const double hi = g.upper_bound_complex_roots();
         return { mean, lo, hi };
     }
-
     /* }}} */
 
     /************** {{{ (complex) root finding: Aberth method **************/
@@ -2000,11 +1939,12 @@ static_assert(std::is_same_v<decltype(polynomial<int>{}(int())), int>);
 static_assert(std::is_same_v<decltype(polynomial<cxx_mpz>{}(int())), cxx_mpz>);
 static_assert(std::is_same_v<decltype(polynomial<cxx_mpz>{}(double())), double>);
 
-// same idea. not a reason to pull cxx_mpfr.hpp or cxx_mpc.hpp though.
 #ifdef HAVE_MPFR
 static_assert(std::is_same_v<decltype(polynomial<cxx_mpz>{}(cxx_mpfr())), cxx_mpfr>);
 #endif
-// static_assert(std::is_same<decltype(polynomial<double>{}(cxx_mpc())), cxx_mpc>::value);
+#ifdef HAVE_MPC
+static_assert(std::is_same_v<decltype(polynomial<double>{}(cxx_mpc())), cxx_mpc>);
+#endif
 
 
 #ifdef HAVE_MPFR
@@ -2072,9 +2012,6 @@ inline std::ostream& operator<<(std::ostream& o, polynomial<T> const & f)
 }
 
 } /* namespace polynomial_details */
-
-
-
 
 template<typename T>
 using polynomial = polynomial_details::polynomial<T>;

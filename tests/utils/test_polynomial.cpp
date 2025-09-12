@@ -4,6 +4,7 @@
 #include <cstdlib>
 
 #include <array>
+#include <complex>
 #include <vector>
 #include <string>
 #include <limits>
