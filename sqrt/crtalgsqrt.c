@@ -630,6 +630,18 @@ void ab_source_init(ab_source_ptr ab, const char * fname, int rank, int root, MP
         } else {
             FATAL_ERROR_CHECK(1, "error in parsing filename");
         }
+    } else if ((magic = strstr(fname, ".dep.side1.")) != NULL) {
+        // assume cado format (means only one file, so we don't need to
+        // parse, really.
+        ab->prefix = (char*) malloc(magic - fname + 1);
+        strncpy(ab->prefix, fname, magic-fname);
+        ab->prefix[magic-fname]='\0';
+        magic++;
+        if (sscanf(magic, "dep.side1.%d", &ab->depnum) == 1) {
+            ab->nfiles = 0;
+        } else {
+            FATAL_ERROR_CHECK(1, "error in parsing filename");
+        }
     } else if ((magic = strstr(fname, ".dep.")) != NULL) {
         // assume cado format (means only one file, so we don't need to
         // parse, really.
@@ -719,14 +731,6 @@ void ab_source_init(ab_source_ptr ab, const char * fname, int rank, int root, MP
         }
         ab->totalsize = ab->file_bases[ab->nfiles];
     }
-    /*
-       fprintf(stderr, "# [%2.2lf] %s: roughly %zu rows,"
-       " %zu digits (%zu bits/c)\n",
-       WCT,
-       ab->nfiles ? "kleinjung" : "cado",
-       ab->nab_estim, ab->digitbytes_estim,
-       (size_t) (ab->digitbytes_estim * M_LN10 / M_LN2));
-       */
 }
 
 void ab_source_rewind(ab_source_ptr ab)

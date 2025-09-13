@@ -7,7 +7,9 @@ if (HAVE_CABSL AND HAVE_CLOG)
     #     if (NOT HAVE_MPI)
     #         set(mpiconfs)
     #     endif()
-    set(mpiconfs)
+    set(mpiconfs mpi_rect2)
+    set(crtalgsqrt_ram 3)
+    set(crtalgsqrt_ram_mpi_rect2 0.000004)
     foreach(mpiconf nompi ${mpiconfs})
         set(suffix _${mpiconf})
         if(suffix STREQUAL _nompi)
@@ -20,6 +22,7 @@ if (HAVE_CABSL AND HAVE_CLOG)
             ${CADO_NFS_SOURCE_DIR}/tests/sqrt/c30.dep.000
             ${CADO_NFS_SOURCE_DIR}/tests/sqrt/c30.ratdep.000
             ${CADO_NFS_SOURCE_DIR}/tests/sqrt/c30.poly
+            ram=${crtalgsqrt_ram${suffix}}
             TARGET_DEPENDENCIES crtalgsqrt)
     endforeach()
 endif()

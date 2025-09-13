@@ -6,7 +6,7 @@ POLY=$3
 
 : ${CADO_NFS_BINARY_DIR:?missing}
 
-set -- $DEP $RATDEP $POLY
+# set -- $DEP $RATDEP $POLY
 # inject the variables that were provided by guess_mpi_configs
 if [ "$mpi" ] ; then
     eval "$exporter_mpirun"
