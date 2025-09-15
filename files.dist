@@ -1155,7 +1155,7 @@ sieve/trialdiv.cpp
 sieve/trialdiv.hpp
 sqrt/CMakeLists.txt
 sqrt/Makefile
-sqrt/crtalgsqrt.c
+sqrt/crtalgsqrt.cpp
 sqrt/knapsack.c
 sqrt/knapsack.h
 sqrt/mgmsqrt.cpp

@@ -68,44 +68,49 @@
 
 #include "cado.h" // IWYU pragma: keep
 
-#include <stdint.h>     /* AIX wants it first (it's a bug) */
-#include <inttypes.h>   // SCNu64 PRId64 etc
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-#include <limits.h>
-#include <complex.h>
-#include <stdarg.h>
-#include <ctype.h>
+#include <cstdint>
+#include <cinttypes>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cmath>
+#include <climits>
+#include <cstdarg>
+#include <cctype>
+#include <cerrno>
+
+#include <complex>
+
 #include <unistd.h>
-#include <pthread.h>
 #include <sys/stat.h>
-#include <errno.h>
 #include <gmp.h>
 
 #include "double_poly.h"
-#include "double_poly_complex_roots.h"
+#include "polynomial.hpp"
 
 #include "barrier.h"
-#include "cado_poly.h"  // cado_poly
-#include "gmp-hacks.h"          // TODO: REMOVE ! we're still using MPZ_SET_MPN and friends, but the mpz_write_limbts things could very well be sufficient after all.
-#include "gmp_aux.h"    // ulong_nextprime mpz_set_uint64
+#include "cado_poly.h"
+#include "gmp-hacks.h"
+#include "gmp_aux.h"
 #include "knapsack.h"
 #include "macros.h"
-#include "misc.h"       // size_disp cado_ctzl
+#include "misc.h"
 #include "arith/mod_ul.h"
 #include "arith/modul_poly.h"
 #include "mpz_poly.h"
-#include "params.h"     // param_list_parse_*
+#include "params.h"
 #include "powers_of_p.h"
 #include "select_mpi.h"
-#include "timing.h"     // wct_seconds
-#include "version_info.h" // cado_revision_string
-#include "portability.h" // strdup // IWYU pragma: keep
+#include "timing.h"
+#include "version_info.h"
+#include "portability.h"
+#include "utils_cxx.hpp"
+#include "cxx_mpz.hpp"
+#include "number_context.hpp"
 
 /* {{{ time */
-double program_starttime;
+static double program_starttime;
+
 #define WCT     (wct_seconds() - program_starttime)
 
 #define STOPWATCH_DECL	        					\
@@ -133,8 +138,8 @@ double program_starttime;
 
 static int verbose = 0;
 
-double print_delay = 1;
-double ram_gb = 3.0;    // Number of gigabytes. Note that this is the
+static double print_delay = 1;
+static double ram_gb = 3.0;    // Number of gigabytes. Note that this is the
 // maximum size of product that are obtained.
 // The actual memory footprint can be quite
 // considerably larger due to FFT allocation (by
@@ -147,8 +152,8 @@ static void usage()
 }
 
 /* {{{ logging */
-int max_loglevel=99;
-char prefix[20]={'\0'};
+static int max_loglevel=99;
+static char prefix[20]={'\0'};
 
 int
 #ifndef HAVE_MINGW
@@ -175,7 +180,7 @@ logprint(const char * fmt, ...)
 
     size_t wt = strlen(prefix) + strlen(fmt) + 80;
     if (wt > st) {
-        CHECKED_REALLOC(t, wt, char);
+        checked_realloc(t, wt);
         st = wt;
     }
     snprintf(t, st, "# [%2.2lf] %s%s", WCT, prefix, pfmt);
@@ -605,7 +610,7 @@ void ab_source_init(ab_source_ptr ab, const char * fname, int rank, int root, MP
 {
     memset(ab, 0, sizeof(ab_source));
     ab->fname0 = fname;
-    char * magic;
+    const char * magic;
     if ((magic = strstr(fname, ".prep.")) != NULL) {
         // then assume kleinjung format.
         ab->prefix = (char*) malloc(magic - fname + 1);
@@ -686,7 +691,7 @@ void ab_source_init(ab_source_ptr ab, const char * fname, int rank, int root, MP
         }
         // XXX OK, this requires endianness consistency.
         MPI_Bcast(&ab->nab_estim, 1, CADO_MPI_SIZE_T, root, comm);
-        ab->file_bases = malloc(2 * sizeof(size_t));
+        ab->file_bases = (size_t *) malloc(2 * sizeof(size_t));
         ab->file_bases[0] = 0;
         ab->file_bases[1] = tsize;
         ab->totalsize = tsize;
@@ -706,7 +711,7 @@ void ab_source_init(ab_source_ptr ab, const char * fname, int rank, int root, MP
         MPI_Bcast(&hdrbytes, 1, CADO_MPI_SIZE_T, root, comm);
 
         ab->sname_len = strlen(fname) + 10;
-        ab->sname = malloc(ab->sname_len);
+        ab->sname = (char *) malloc(ab->sname_len);
         for(ab->nfiles = 0 ; ; ab->nfiles++) {
             snprintf(ab->sname, ab->sname_len, "%s.prep.%d.rel.%d",
                     ab->prefix, ab->depnum, ab->nfiles);
@@ -719,7 +724,7 @@ void ab_source_init(ab_source_ptr ab, const char * fname, int rank, int root, MP
         ASSERT_ALWAYS(ab->nfiles > 0);
         ab->nab_estim = ab->nab;
         // ab->digitbytes_estim = tsize - 5 * ab->nab_estim;
-        ab->file_bases = malloc((ab->nfiles+1) * sizeof(size_t));
+        ab->file_bases = (size_t *) malloc((ab->nfiles+1) * sizeof(size_t));
         ab->file_bases[0] = 0;
         for(int i = 0 ; i < ab->nfiles ; i++) {
             snprintf(ab->sname, ab->sname_len, "%s.prep.%d.rel.%d",
@@ -747,8 +752,8 @@ void ab_source_init_set(ab_source_ptr ab, ab_source_ptr ab0)
 {
     memcpy(ab, ab0, sizeof(struct ab_source_s));
     ab->prefix = strdup(ab0->prefix);
-    ab->sname = malloc(ab->sname_len);
-    ab->file_bases = malloc((ab->nfiles+1) * sizeof(size_t));
+    ab->sname = (char *) malloc(ab->sname_len);
+    ab->file_bases = (size_t *) malloc((ab->nfiles+1) * sizeof(size_t));
     memcpy(ab->file_bases, ab0->file_bases, (ab->nfiles+1) * sizeof(size_t));
     ab->f = NULL;
     ab_source_rewind(ab);
@@ -914,7 +919,7 @@ struct work_queue {
 struct wq_task * wq_push(struct work_queue * wq, wq_func_t f, void * arg)
 {
 
-    struct wq_task * t = malloc(sizeof(struct wq_task));
+    struct wq_task * t = (struct wq_task *) malloc(sizeof(struct wq_task));
     t->f = f;
     t->arg = arg;
     t->done = 0;
@@ -989,7 +994,7 @@ void wq_init(struct work_queue * wq, unsigned int n)
     pthread_mutex_init(wq->m, NULL);
     pthread_cond_init(wq->c, NULL);
     wq->head = NULL;
-    wq->clients = malloc(n * sizeof(pthread_t));
+    wq->clients = (pthread_t *) malloc(n * sizeof(pthread_t));
     for(unsigned int i = 0 ; i < n ; i++) {
         pthread_create(wq->clients + i, NULL, &wq_waiter, wq);
     }
@@ -1030,10 +1035,10 @@ struct sqrt_globals {
     cado_poly cpoly;
     mpz_t root_m;
     ab_source ab;
-    int lll_maxdim;
+    int lll_maxdim = 50;
     int rank;
     int nprocs;
-    int ncores;
+    int ncores = 2;
     struct work_queue wq[1];
     MPI_Comm acomm;     // same share of A
     MPI_Comm pcomm;     // same sub-product tree
@@ -1042,7 +1047,7 @@ struct sqrt_globals {
     barrier_t barrier[1];
 };
 
-static struct sqrt_globals glob = { .lll_maxdim=50, .ncores = 2 };
+static struct sqrt_globals glob;
 
 // {{{ TODO: Now that the v field is gone, replace the polymodF layer.
 // Here's the only fragments which need to remain.
@@ -1060,10 +1065,10 @@ mpz_poly_from_ab_monic(mpz_poly tmp, long a, unsigned long b) {
 
 // {{{ floating point stuff
 // {{{ getting the coefficients of the lagrange interpolation matrix.
-long double complex lagrange_polynomial(long double complex * res, double * f, int deg, long double complex r)
+std::complex<long double> lagrange_polynomial(std::complex<long double> * res, double * f, int deg, std::complex<long double> r)
 {
-    long double complex z = f[deg];
-    long double complex y = deg * f[deg];
+    std::complex<long double> z = f[deg];
+    std::complex<long double> y = deg * f[deg];
     res[deg-1] = z;
     for(int i = deg-1 ; i > 0 ; i--) {
         z *= r; z += f[i];
@@ -1076,15 +1081,15 @@ long double complex lagrange_polynomial(long double complex * res, double * f, i
     return z;
 }
 
-double lagrange_polynomial_abs(double * res, double * f, int deg, long double complex r)
+double lagrange_polynomial_abs(double * res, double * f, int deg, std::complex<long double> r)
 {
-    long double complex * cres = malloc(deg * sizeof(long double complex));
-    long double complex z = lagrange_polynomial(cres, f, deg, r);
+    std::complex<long double> * cres = (std::complex<long double> *) malloc(deg * sizeof(std::complex<long double>));
+    std::complex<long double> z = lagrange_polynomial(cres, f, deg, r);
     for(int i = deg-1 ; i >= 0 ; i--) {
-        res[i] = cabsl(cres[i]);
+        res[i] = std::abs(cres[i]);
     }
     free(cres);
-    return cabsl(z);
+    return std::abs(z);
 }
 // }}}
 
@@ -1109,34 +1114,29 @@ void estimate_nbits_sqrt(size_t * sbits, ab_source_ptr ab) // , int guess)
 
     int n = glob.cpoly->pols[1]->deg;
 
-    long double complex * eval_points = malloc(n * sizeof(long double complex));
-    double * evaluations = malloc(n * sizeof(double));
+    std::complex<long double> * eval_points = (std::complex<long double> *) malloc(n * sizeof(std::complex<long double>));
+    double * evaluations = (double *) malloc(n * sizeof(double));
 
     // take the roots of f, and multiply later on to obtain the roots of
     // f_hat. Otherwise we encounter precision issues.
 
     {
-        double_poly fd;
-        double_poly_init(fd, -1);
-        double_poly_set_mpz_poly (fd, glob.cpoly->pols[1]);
-        int rc = double_poly_complex_roots_long(eval_points, fd);
-        if (rc) {
-            logprint("Warning: rootfinder had accuracy problem with %d roots\n", rc);
-        }
-        double_poly_clear(fd);
+        auto roots = polynomial<cxx_mpz>(glob.cpoly->pols[1]).roots(cado::number_context<std::complex<long double>>());
+        for(int i = 0 ; i < n ; i++)
+            eval_points[i] = roots[i];
     }
 
     // {{{ compress the list of roots.
     int nreal = 0, ncomplex = 0, rs = 0;
     for(int i = 0 ; i < n ; i++) {
-        if (cimagl(eval_points[i]) > 0) {
+        if (eval_points[i].imag() > 0) {
             eval_points[rs] = eval_points[i];
             rs++;
             ncomplex++;
-        } else if (cimagl(eval_points[i]) < 0) {
+        } else if (eval_points[i].imag() < 0) {
             continue;
         } else {
-            eval_points[rs] = creall(eval_points[i]);
+            eval_points[rs] = eval_points[i].real();
             // eval_points[rs] = eval_points[i];
             rs++;
             nreal++;
@@ -1145,7 +1145,7 @@ void estimate_nbits_sqrt(size_t * sbits, ab_source_ptr ab) // , int guess)
     // }}}
 
     // {{{ post-scale to roots of f_hat, and store f_hat instead of f
-    double * double_coeffs = malloc((n+1) * sizeof(double));
+    double * double_coeffs = (double *) malloc((n+1) * sizeof(double));
     for(int i = 0 ; i < rs ; i++) {
         eval_points[i] *= mpz_get_d(mpz_poly_coeff_const(glob.cpoly->pols[1], n));
     }
@@ -1159,17 +1159,17 @@ void estimate_nbits_sqrt(size_t * sbits, ab_source_ptr ab) // , int guess)
         fprintf(stderr, "# [%2.2lf]", WCT);
         fprintf(stderr, " real");
         for(int i = 0 ; i < rs ; i++) {
-            double r = cimagl(eval_points[i]);
+            double r = eval_points[i].imag();
             if (r == 0) {
-                fprintf(stderr, " %.4Lg", creall(eval_points[i]));
+                fprintf(stderr, " %.4Lg", eval_points[i].real());
             }
         }
     }
     if (ncomplex) {
         fprintf(stderr, " complex");
         for(int i = 0 ; i < rs ; i++) {
-            if (cimagl(eval_points[i]) > 0) {
-                fprintf(stderr, " %.4Lg+i*%.4Lg", creall(eval_points[i]), cimagl(eval_points[i]));
+            if (eval_points[i].imag() > 0) {
+                fprintf(stderr, " %.4Lg+i*%.4Lg", eval_points[i].real(), eval_points[i].imag());
             }
         }
     }
@@ -1202,10 +1202,10 @@ void estimate_nbits_sqrt(size_t * sbits, ab_source_ptr ab) // , int guess)
     ab_source_rewind(ab);
     for( ; ab_source_next(ab, &a, &b) ; ) {
         for(int i = 0 ; i < rs ; i++) {
-            long double complex y = a * mpz_get_d(mpz_poly_coeff_const(glob.cpoly->pols[1], n));
-            long double complex w = eval_points[i] * b;
+            std::complex<long double> y = a * mpz_get_d(mpz_poly_coeff_const(glob.cpoly->pols[1], n));
+            std::complex<long double> w = eval_points[i] * b;
             y = y - w;
-            evaluations[i] += log(cabsl(y));
+            evaluations[i] += log(std::abs(y));
         }
         wt = WCT;
         if (wt > w1 + print_delay || !(ab->nab % 10000000)) {
@@ -1231,17 +1231,17 @@ void estimate_nbits_sqrt(size_t * sbits, ab_source_ptr ab) // , int guess)
 
     // multiply by the square of f_hat'(f_d\alpha).
     for(int i = 0 ; i < rs ; i++) {
-        long complex double s = n;
+        std::complex<double> s = n;
         for(int j = n - 1 ; j >= 0 ; j--) {
             s *= eval_points[i];
             s += double_coeffs[j] * j;
         }
-        evaluations[i] += 2 * creal(clog(s));
+        evaluations[i] += 2 * std::log(s).real();
     }
     fprintf(stderr, "# [%2.2lf] Log_2(A)", WCT);
     for(int i = 0 ; i < rs ; i++) {
-        fprintf(stderr, " %.4Lg", creall(evaluations[i]) / M_LN2);
-        if (cimagl(eval_points[i]) > 0) {
+        fprintf(stderr, " %.4g", evaluations[i] / M_LN2);
+        if (eval_points[i].imag() > 0) {
             fprintf(stderr, "*2");
         }
     }
@@ -1251,10 +1251,10 @@ void estimate_nbits_sqrt(size_t * sbits, ab_source_ptr ab) // , int guess)
     // {{{ deduce the lognorm. print.
     double lognorm = 0;
     for(int i = 0 ; i < rs ; i++) {
-        if (cimagl(eval_points[i]) > 0) {
-            lognorm += 2*creall(evaluations[i]);
+        if (eval_points[i].imag() > 0) {
+            lognorm += 2*evaluations[i];
         } else {
-            lognorm += creall(evaluations[i]);
+            lognorm += evaluations[i];
         }
     }
     fprintf(stderr, "# [%2.2lf] log_2(norm(A)) %.4g\n",
@@ -1262,22 +1262,22 @@ void estimate_nbits_sqrt(size_t * sbits, ab_source_ptr ab) // , int guess)
     // }}}
 
     // {{{ now multiply this by the Lagrange matrix.
-    double * a_bounds = malloc(n * sizeof(double));
-    double * sqrt_bounds = malloc(n * sizeof(double));
+    double * a_bounds = (double *) malloc(n * sizeof(double));
+    double * sqrt_bounds = (double *) malloc(n * sizeof(double));
 
     for(int j = 0 ; j < n ; j++) {
         a_bounds[j] = 0;
         sqrt_bounds[j] = 0;
     }
     for(int i = 0 ; i < rs ; i++) {
-        double * lmat = malloc(n * sizeof(double ));
+        double * lmat = (double  *) malloc(n * sizeof(double ));
         lagrange_polynomial_abs(lmat, double_coeffs, n, eval_points[i]);
         for(int j = 0 ; j < n ; j++) {
             double za, zs;
             za = zs = log(lmat[j]);
             za += evaluations[i];
             zs += evaluations[i] / 2;
-            if (cimagl(eval_points[i]) > 0) {
+            if (eval_points[i].imag() > 0) {
                 za += log(2);
                 zs += log(2);
             }
@@ -1389,7 +1389,7 @@ alg_ptree_t * alg_ptree_build(struct prime_data * p, int i0, int i1)
 
     mpz_srcptr px = power_lookup(p->powers, glob.prec);
     ASSERT_ALWAYS(i0 < i1);
-    alg_ptree_t * res = malloc(sizeof(alg_ptree_t));
+    alg_ptree_t * res = (alg_ptree_t *) malloc(sizeof(alg_ptree_t));
     memset(res, 0, sizeof(alg_ptree_t));
     mpz_poly_init(res->s, i1-i0);
     if (i1-i0 == 1) {
@@ -1429,14 +1429,14 @@ int modul_cmp_sortfunc(const unsigned long * a, const unsigned long * b)
 struct prime_data * suitable_crt_primes()
 {
     unsigned int m = glob.m;
-    struct prime_data * res = malloc(m * sizeof(struct prime_data));
+    struct prime_data * res = (struct prime_data *) malloc(m * sizeof(struct prime_data));
     unsigned int i = 0;
 
     // Note that p0 has to be well above the factor base bound. Thus on
     // 32-bit machines, it's possibly problematic.
     unsigned long p0 = ((~0UL)>>1)+1;    // 2^31 or 2^63
     unsigned long p = p0;
-    unsigned long * roots = malloc(glob.n * sizeof(unsigned long));
+    unsigned long * roots = (unsigned long *) malloc(glob.n * sizeof(unsigned long));
 
     if (glob.rank == 0)
         fprintf(stderr, "# [%2.2lf] Searching for CRT primes\n", WCT);
@@ -1453,7 +1453,7 @@ struct prime_data * suitable_crt_primes()
         int nr = modul_poly_roots_ulong(roots, glob.cpoly->pols[1], q, rstate);
         if (nr != glob.n) continue;
         memset(&(res[i]), 0, sizeof(struct prime_data));
-        res[i].r = malloc(glob.n * sizeof(unsigned long));
+        res[i].r = (unsigned long *) malloc(glob.n * sizeof(unsigned long));
         memcpy(res[i].r, roots, glob.n * sizeof(unsigned long));
         res[i].p = p;
         // res[i].log2_p = log(p)/M_LN2;
@@ -1762,7 +1762,7 @@ int crtalgsqrt_knapsack_callback(struct crtalgsqrt_knapsack * cks,
     const int64_t * c64 = cks->ks->tab;
     const mp_limb_t * cN = cks->tabN;
     unsigned int s;
-    char * signs = malloc(ks->nelems+1);
+    char * signs = (char *) malloc(ks->nelems+1);
 
     memset(signs, 0, ks->nelems+1);
     for(s = 0 ; s < ks->nelems ; s++) {
@@ -2236,12 +2236,12 @@ size_t a_poly_read_share(mpz_poly P, size_t off0, size_t off1)
     size_t nparts = glob.ncores * glob.t;
 
     struct subtask_info_t * a_tasks;
-    a_tasks = malloc(glob.ncores *sizeof(struct subtask_info_t));
+    a_tasks = (struct subtask_info_t *) malloc(glob.ncores *sizeof(struct subtask_info_t));
 
     int j0 = glob.ncores * glob.arank;
     int j1 = j0 + glob.ncores;
 
-    mpz_poly * pols = malloc((j1-j0) * sizeof(mpz_poly));
+    mpz_poly * pols = (mpz_poly *) malloc((j1-j0) * sizeof(mpz_poly));
     for(int j = j0 ; j < j1 ; j++) mpz_poly_init(pols[j-j0], glob.n);
 
     for(int j = j0 ; j < j1 ; j++) {
@@ -2265,7 +2265,7 @@ size_t a_poly_read_share(mpz_poly P, size_t off0, size_t off1)
     log_step(": sharing among threads");
 
     struct subtask_info_t * a_tasks2;
-    a_tasks2 = malloc(glob.ncores *sizeof(struct subtask_info_t));
+    a_tasks2 = (struct subtask_info_t *) malloc(glob.ncores *sizeof(struct subtask_info_t));
     for(int done = 1 ; done < glob.ncores ; done<<=1) {
         for(int j = 0 ; j < glob.ncores ; j += done << 1) {
             if (j + done >= glob.ncores)
@@ -2355,7 +2355,7 @@ void precompute_powers(struct prime_data * primes, int i0, int i1)
 
     {
         struct subtask_info_t * tasks;
-        tasks = malloc((i1-i0) * sizeof(struct subtask_info_t));
+        tasks = (struct subtask_info_t *) malloc((i1-i0) * sizeof(struct subtask_info_t));
         for(int i = i0 ; i < i1 ; i++) {
             int k = i-i0;
             // if (k % glob.psize != glob.prank) continue;
@@ -2439,7 +2439,7 @@ void lifting_roots(struct prime_data * primes, int i0, int i1)
 
     {
         struct subtask_info_t * lift_tasks;
-        lift_tasks = malloc((i1-i0)*n*sizeof(struct subtask_info_t));
+        lift_tasks = (struct subtask_info_t *) malloc((i1-i0)*n*sizeof(struct subtask_info_t));
         for(int j = 0 ; j < n ; j++) {
             for(int i = i0 ; i < i1 ; i++) {
                 int k = (i-i0) * n + j;
@@ -2515,7 +2515,7 @@ typedef struct rat_ptree_s rat_ptree_t;
 rat_ptree_t * rat_ptree_build_inner(struct prime_data * p, int i0, int i1)
 {
     ASSERT_ALWAYS(i0 < i1);
-    rat_ptree_t * res = malloc(sizeof(rat_ptree_t));
+    rat_ptree_t * res = (rat_ptree_t *) malloc(sizeof(rat_ptree_t));
     memset(res, 0, sizeof(rat_ptree_t));
     if (i1-i0 == 1) {
         res->p = p + i0;
@@ -2699,7 +2699,7 @@ void rational_reduction(struct prime_data * primes, int i0, int i1, mpz_poly_ptr
 
     {
         struct subtask_info_t * tasks;
-        tasks = malloc(glob.ncores*sizeof(struct subtask_info_t));
+        tasks = (struct subtask_info_t *) malloc(glob.ncores*sizeof(struct subtask_info_t));
         for(int k = 0 ; k < glob.ncores ; k++) {
             struct subtask_info_t * task = tasks + k;
             task->p = primes;
@@ -2786,7 +2786,7 @@ void algebraic_reduction(struct prime_data * primes, int i0, int i1, size_t off0
     }
 
     struct subtask_info_t * tasks;
-    tasks = malloc((i1-i0) * glob.n * sizeof(struct subtask_info_t));
+    tasks = (struct subtask_info_t *) malloc((i1-i0) * glob.n * sizeof(struct subtask_info_t));
     for(int j = 0 ; j < glob.n ; j++) {
         for(int i = i0 ; i < i1 ; i++) {
             int k = (i-i0) * glob.n + j;
@@ -2925,7 +2925,7 @@ void local_square_roots(struct prime_data * primes, int i0, int i1, size_t * p_n
     log_begin();
 
     struct subtask_info_t * tasks;
-    tasks = malloc((i1-i0)*glob.n*sizeof(struct subtask_info_t));
+    tasks = (struct subtask_info_t *) malloc((i1-i0)*glob.n*sizeof(struct subtask_info_t));
     for(int j = 0 ; j < glob.n ; j++) {
         for(int i = i0 ; i < i1 ; i++) {
             int k = (i-i0) * glob.n + j;
@@ -3045,7 +3045,7 @@ void prime_inversion_lifts(struct prime_data * primes, int i0, int i1)
 
     {
         struct subtask_info_t * tasks;
-        tasks = malloc((i1-i0)*sizeof(struct subtask_info_t));
+        tasks = (struct subtask_info_t *) malloc((i1-i0)*sizeof(struct subtask_info_t));
         for(int i = i0 ; i < i1 ; i++) {
             int k = i-i0;
             if (k % glob.psize != glob.prank)
@@ -3213,7 +3213,7 @@ void prime_postcomputations(struct prime_data * primes, int i0, int i1, int64_t 
     log_begin();
 
     struct postcomp_subtask_info_t * tasks;
-    tasks = malloc((i1-i0)*n*sizeof(struct postcomp_subtask_info_t));
+    tasks = (struct postcomp_subtask_info_t *) malloc((i1-i0)*n*sizeof(struct postcomp_subtask_info_t));
     mp_size_t sN = mpz_size(glob.cpoly->n);
     for(int j = 0 ; j < n ; j++) {
         for(int i = i0 ; i < i1 ; i++) {
@@ -3420,7 +3420,7 @@ int main(int argc, char const ** argv)
     param_list pl;
     param_list_init(pl);
     int cache=0;
-    param_list_configure_switch(pl, "-v", &verbose);
+    // param_list_configure_switch(pl, "-v", &verbose);
     param_list_configure_switch(pl, "--cache", &cache);
     param_list_configure_switch(pl, "--rcache", &rcache);
     param_list_configure_switch(pl, "--wcache", &wcache);
@@ -3461,6 +3461,8 @@ int main(int argc, char const ** argv)
     param_list_parse_double(pl, "print_delay", &print_delay);
     param_list_parse_double(pl, "ram", &ram_gb);
 
+    param_list_parse_int(pl, "verbose", &verbose);
+    param_list_configure_switch(pl, "--cache", &cache);
     param_list_parse_int(pl, "ncores", &glob.ncores);
     param_list_parse_int(pl, "r", &asked_r);
     param_list_parse_int(pl, "lll_maxdim", &glob.lll_maxdim);
@@ -3680,10 +3682,10 @@ int main(int argc, char const ** argv)
 
     banner(); /*********************************************/
     size_t nc = glob.m * glob.n * glob.n;
-    int64_t * contribs64 = malloc(nc * sizeof(int64_t));
+    int64_t * contribs64 = (int64_t *) malloc(nc * sizeof(int64_t));
     mp_size_t sN = mpz_size(glob.cpoly->n);
     memset(contribs64,0,nc * sizeof(int64_t));
-    mp_limb_t * contribsN = malloc(nc * sN * sizeof(mp_limb_t));
+    mp_limb_t * contribsN = (mp_limb_t *) malloc(nc * sN * sizeof(mp_limb_t));
     memset(contribsN, 0,  nc * sN * sizeof(mp_limb_t));
 #if 1
     prime_postcomputations(primes, i0, i1, contribs64, contribsN);

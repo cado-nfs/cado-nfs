@@ -15,7 +15,7 @@ install(TARGETS mgmsqrt RUNTIME DESTINATION ${LIBSUFFIX}/sqrt)
 
 
 if (HAVE_CABSL AND HAVE_CLOG)
-add_executable(crtalgsqrt ${EXCLUDE_FROM_RELEASE_BUILD} crtalgsqrt.c powers_of_p.cpp knapsack.c)
+add_executable(crtalgsqrt ${EXCLUDE_FROM_RELEASE_BUILD} crtalgsqrt.cpp powers_of_p.cpp knapsack.c)
 target_link_libraries(crtalgsqrt utils)
 
 mark_targets_as_mpi(crtalgsqrt)
