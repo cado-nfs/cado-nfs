@@ -1546,7 +1546,6 @@ tests/utils/test_multityped_array.cpp
 tests/utils/test_number_literal.cpp
 tests/utils/test_omega.c
 tests/utils/test_polynomial.cpp
-tests/utils/test_polyroots.c
 tests/utils/test_prime_count.cpp
 tests/utils/test_random_distributions.cpp
 tests/utils/test_relation.cpp
@@ -1665,8 +1664,6 @@ utils/cxx_mpz.hpp
 utils/dllist.h
 utils/double_poly.cpp
 utils/double_poly.h
-utils/double_poly_complex_roots.c
-utils/double_poly_complex_roots.h
 utils/electric_alloc.h
 utils/embedded/fmt/ChangeLog.md
 utils/embedded/fmt/LICENSE
@@ -1793,8 +1790,6 @@ utils/params-extra.cpp
 utils/params.cpp
 utils/params.h
 utils/polynomial.hpp
-utils/polyroots.c
-utils/polyroots.h
 utils/prime_power_factorization.hpp
 utils/purgedfile.c
 utils/purgedfile.h
