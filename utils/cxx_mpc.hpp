@@ -289,6 +289,16 @@ static inline int operator<=>(const T a, cxx_mpc const & b)
     int const c = mpc_auxx::cado_mpc_cmp(b, a);
     return -((MPC_INEX_IM(c) << 1) + MPC_INEX_RE(c));
 }
+static inline int operator<=>(cxx_mpc const & a, cxx_mpfr const & b)
+{
+    int const c = mpc_auxx::cado_mpc_cmp(a, b);
+    return (MPC_INEX_IM(c) << 1) + MPC_INEX_RE(c);
+}
+static inline int operator<=>(cxx_mpfr const & a, cxx_mpc const & b)
+{
+    int const c = mpc_auxx::cado_mpc_cmp(b, a);
+    return -((MPC_INEX_IM(c) << 1) + MPC_INEX_RE(c));
+}
 
 /* NOLINTBEGIN(bugprone-macro-parentheses) */
 #define CXX_MPC_DEFINE_CMP(OP)                                          \
@@ -367,6 +377,20 @@ CXX_MPC_DEFINE_CMP(>=)
         cxx_mpc r;                                                      \
         mpc_set_prec(r, mpc_get_prec(mpc_srcptr(b)));                   \
         mpc_auxx::cado_mpc_##TEXTOP(r, a, b, MPC_RNDNN);                \
+        return r;                                                       \
+    }                                                                   \
+    inline cxx_mpc operator OP(cxx_mpc const & a, cxx_mpfr const & b)   \
+    {                                                                   \
+        cxx_mpc r;                                                      \
+        mpc_set_prec(r, mpc_get_prec(mpc_srcptr(a)));                   \
+        mpc_auxx::cado_mpc_##TEXTOP(r, a, mpfr_srcptr(b), MPC_RNDNN);   \
+        return r;                                                       \
+    }                                                                   \
+    inline cxx_mpc operator OP(cxx_mpfr const & a, cxx_mpc const & b)   \
+    {                                                                   \
+        cxx_mpc r;                                                      \
+        mpc_set_prec(r, mpc_get_prec(mpc_srcptr(b)));                   \
+        mpc_auxx::cado_mpc_##TEXTOP(r, mpfr_srcptr(a), b, MPC_RNDNN);   \
         return r;                                                       \
     }                                                                   \
     inline cxx_mpc & operator OP##=(cxx_mpc & a, cxx_mpc const & b)     \

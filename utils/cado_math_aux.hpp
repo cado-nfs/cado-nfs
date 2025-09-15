@@ -219,6 +219,7 @@ namespace cado_math_aux
     inline long double abs(long double x) { return std::abs(x); }
     */
     using std::abs;
+    /* abs is also defined on std::complex */
 #ifdef HAVE_MPFR
     inline cxx_mpfr abs(cxx_mpfr const & x) {
         cxx_mpfr res = x;

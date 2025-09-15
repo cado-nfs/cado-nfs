@@ -99,6 +99,12 @@ static inline int mpc_cmp_ld(mpc_srcptr a, long double c)
     int const ri = mpfr_cmp_ui(mpc_imagref(a), 0);
     return MPC_INEX(rr, ri);
 }
+static inline int mpc_cmp_fr(mpc_srcptr a, mpfr_srcptr c)
+{
+    int const rr = mpfr_cmp(mpc_realref(a), c);
+    int const ri = mpfr_cmp_ui(mpc_imagref(a), 0);
+    return MPC_INEX(rr, ri);
+}
 static inline int mpc_cmp_d_d(mpc_srcptr a, double cr, double ci)
 {
     int const rr = mpfr_cmp_d(mpc_realref(a), cr);
@@ -408,13 +414,13 @@ MPC_AUX_DEFINE_FUNC3(remainder)
         return MPC_INEX(rr, ri);                                             \
     }
 
-#define MPC_AUX_MUL_OP1(OP, TYP, SUF)                                        \
-    static inline int mpc_##OP##SUF(mpc_ptr z, mpc_srcptr x,                 \
+#define MPC_AUX_MUL_OP1(OP, TYP, SUF1, SUF2)                                 \
+    static inline int mpc_##OP##SUF1(mpc_ptr z, mpc_srcptr x,                \
                                    TYP a, mpc_rnd_t rnd)                     \
     {                                                                        \
-        int const rr = mpfr_##OP##SUF(mpc_realref(z), mpc_realref(x),        \
+        int const rr = mpfr_##OP##SUF2(mpc_realref(z), mpc_realref(x),       \
                                      a, MPC_RND_RE(rnd));                    \
-        int const ri = mpfr_##OP##SUF(mpc_imagref(z), mpc_imagref(x),        \
+        int const ri = mpfr_##OP##SUF2(mpc_imagref(z), mpc_imagref(x),       \
                                      a, MPC_RND_IM(rnd));                    \
         return MPC_INEX(rr, ri);                                             \
     }
@@ -464,26 +470,28 @@ MPC_AUX_DEFINE_FUNC3(remainder)
         return r;                                                            \
     }
 
-
 MPC_AUX_FP_OP1(add, double, _d)
 MPC_AUX_FP_OP1(add, long double, _ld)
 MPC_AUX_FP_OP1(sub, double, _d)
 MPC_AUX_FP_OP1(sub, long double, _ld)
 /* multiplication by a real number */
-MPC_AUX_MUL_OP1(mul, double, _d)
-MPC_AUX_MUL_OP1(mul, long double, _ld)
-MPC_AUX_MUL_OP1(addmul, double, _d)
-MPC_AUX_MUL_OP1(addmul, long double, _ld)
-MPC_AUX_MUL_OP1(submul, double, _d)
-MPC_AUX_MUL_OP1(submul, long double, _ld)
+MPC_AUX_MUL_OP1(mul, double, _d, _d)
+MPC_AUX_MUL_OP1(mul, long double, _ld, _ld)
+MPC_AUX_MUL_OP1(addmul, double, _d, _d)
+MPC_AUX_MUL_OP1(addmul, long double, _ld, _ld)
+MPC_AUX_MUL_OP1(addmul, mpfr_srcptr, _fr,)
+MPC_AUX_MUL_OP1(submul, double, _d, _d)
+MPC_AUX_MUL_OP1(submul, long double, _ld, _ld)
+MPC_AUX_MUL_OP1(submul, mpfr_srcptr, _fr,)
 /* multiplication by a complex number */
 MPC_AUX_MUL_OP3(mul, double, _d)
 MPC_AUX_MUL_OP3(mul, long double, _ld)
 /* division by a real number */
-MPC_AUX_MUL_OP1(div, double, _d)
-MPC_AUX_MUL_OP1(div, long double, _ld)
-MPC_AUX_MUL_OP1(remainder, double, _d)
-MPC_AUX_MUL_OP1(remainder, long double, _ld)
+MPC_AUX_MUL_OP1(div, double, _d, _d)
+MPC_AUX_MUL_OP1(div, long double, _ld, _ld)
+MPC_AUX_MUL_OP1(remainder, double, _d, _d)
+MPC_AUX_MUL_OP1(remainder, long double, _ld, _ld)
+MPC_AUX_MUL_OP1(remainder, mpfr_srcptr, _fr,)
 /* division by a complex number is much less pretty! */
 MPC_AUX_DIV_OP(div, double, _d)
 MPC_AUX_DIV_OP(div, long double, _ld)

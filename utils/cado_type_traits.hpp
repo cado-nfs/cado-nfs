@@ -17,6 +17,9 @@
 namespace cado_math_aux {
 
 namespace is_coercible_details {
+    template<typename T, typename U> struct impl_strict;
+    template<typename T, typename U> struct impl_loose;
+
     template<typename From, typename To> struct impl_strict : public std::false_type {};
     // { static constexpr bool value = false; };
 
@@ -51,7 +54,7 @@ namespace is_coercible_details {
     template<typename U> struct impl_strict<int, std::complex<U>> : public std::true_type {};
     template<typename U> struct impl_strict<long, std::complex<U>> : public std::true_type {};
     template<typename T, typename U>
-    requires std::is_convertible_v<T, U>
+    requires impl_loose<T, U>::value
     struct impl_strict<T, std::complex<U>> : public std::true_type {};
 #ifdef HAVE_MPC
     template<> struct impl_strict<int, cxx_mpc> : public std::true_type {};
@@ -127,6 +130,9 @@ static_assert(is_coercible_v<int, long>);
 static_assert(!is_coercible_v<double, long>);
 static_assert(is_strictly_coercible_v<int, long>);
 static_assert(!is_strictly_coercible_v<int, int>);
+static_assert(is_strictly_coercible_v<cxx_mpz, double>);
+static_assert(is_strictly_coercible_v<cxx_mpz, std::complex<double>>);
+static_assert(is_strictly_coercible_v<double, std::complex<double>>);
 
 } /* namespace cado_math_aux */
 

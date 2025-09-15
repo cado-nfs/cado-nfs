@@ -60,7 +60,7 @@ namespace cado {
         }
         template<typename U>
         T operator()(U x) const
-        requires (std::is_integral_v<U> || std::is_same_v<T, U>)
+        requires (std::is_integral_v<U> || std::is_same_v<T, U> || (std::is_floating_point_v<T> && std::is_floating_point_v<U>))
         { return x; }
 
         T operator()(mpz_srcptr x) const { return cado_math_aux::mpz_get<T>(x); }
@@ -171,6 +171,8 @@ namespace cado {
         template<typename U>
         std::complex<T> operator()(U x) const
         requires (std::is_integral_v<U> || std::is_same_v<std::complex<T>, U>)
+        { return x; }
+        std::complex<T> operator()(T x) const
         { return x; }
 
         std::complex<T> operator()(mpz_srcptr x) const { return cado_math_aux::mpz_get<std::complex<T>>(x); }

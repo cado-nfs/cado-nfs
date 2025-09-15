@@ -256,6 +256,27 @@ struct polynomial : public number_context<T>
     {
         if (l.begin() != l.end())
             ctx() = number_context<T>(*l.begin());
+        for(auto & c : coeffs)
+            c = ctx()(c);
+        cleandeg();
+    }
+
+    polynomial(std::vector<T> const & l, number_context<T> const & tr)
+        : number_context<T>(tr)
+        , coeffs(l.begin(), l.end())
+    {
+        for(auto & c : coeffs)
+            c = ctx()(c);
+        cleandeg();
+    }
+
+    explicit polynomial(std::vector<T> const & l)
+        : coeffs(l.begin(), l.end())
+    {
+        if (l.begin() != l.end())
+            ctx() = number_context<T>(*l.begin());
+        for(auto & c : coeffs)
+            c = ctx()(c);
         cleandeg();
     }
 
@@ -1232,23 +1253,26 @@ struct polynomial : public number_context<T>
     /* }}} */
 
     /************** {{{ (complex) root finding: Aberth method **************/
+    private:
     template<typename U>
     std::vector<eval_type_t<T, U>>
-        roots(number_context<U> const & tr = {}) const
+        complex_roots_inner_notreal(number_context<U> const & tr = {}) const
         requires cado_math_aux::is_complex_v<eval_type_t<T, U>>
     {
         using E = eval_type_t<T, U>;
-        auto [ mean, lo, hi ] = polynomial<E>(*this, tr).annulus_complex_roots();
-        /* pick n starting points in the annulus */
+        auto Rtr = tr.real();
+
         std::vector<E> z;
         int const n = degree();
         z.reserve(n);
+
+        auto [ mean, lo, hi ] = polynomial<E>(*this, tr).annulus_complex_roots();
+        /* pick n starting points in the annulus */
         for(int i = 0 ; i < n ; i++) {
             using cado_math_aux::pi_v;
             using cado_math_aux::exp;
-            auto Rtr = tr.real();
             E theta { Rtr(0), 2 * pi_v(Rtr) * i / n + Rtr(0.125) };
-            z.push_back(exp(theta) * (lo + i * (hi - lo) / n));
+            z.push_back(exp(theta) * Rtr(lo + i * (hi - lo) / n));
         }
 
         /* now do the iteration (Aberth-Ehrlich method) */
@@ -1300,7 +1324,44 @@ struct polynomial : public number_context<T>
                 throw std::runtime_error("infinite loop in complex root finding");
             }
         }
+
         return z;
+    }
+
+    public:
+    template<typename U>
+    std::vector<eval_type_t<T, U>>
+        roots(number_context<U> const & tr = {}) const
+        requires cado_math_aux::is_complex_v<eval_type_t<T, U>>
+    {
+        using E = eval_type_t<T, U>;
+        using Er = decltype(E().real());
+        auto Rtr = tr.real();
+
+        std::vector<E> z;
+        int const n = degree();
+        z.reserve(n);
+
+        if constexpr (cado_math_aux::is_real_v<T> || cado_math_aux::is_integral_v<T>) {
+            /* If our input polynomial is of real type, we must make sure
+             * that we identify the real roots. It's more painful than it
+             * should. In fact, it seems easier to fire up our real root
+             * finding code first.
+             */
+            auto fr = polynomial<Er>(*this, Rtr);
+            auto real_roots = fr.roots(Rtr);
+            for(auto & r : real_roots)
+                z.emplace_back(tr(r));
+            if (real_roots.size() < (size_t) degree()) {
+                for(auto const & r : real_roots)
+                    fr = fr.div_q_xminusr(r);
+                for(auto const & r : fr.complex_roots_inner_notreal(tr))
+                    z.emplace_back(r);
+            }
+            return z;
+        } else {
+            return complex_roots_inner_notreal(tr);
+        }
     }
     /* }}} */
 
@@ -1938,6 +1999,7 @@ static_assert(std::is_same_v<decltype(polynomial<int>{}(double())), double>);
 static_assert(std::is_same_v<decltype(polynomial<int>{}(int())), int>);
 static_assert(std::is_same_v<decltype(polynomial<cxx_mpz>{}(int())), cxx_mpz>);
 static_assert(std::is_same_v<decltype(polynomial<cxx_mpz>{}(double())), double>);
+static_assert(std::is_same_v<eval_type_t<long double, std::complex<long double> >, std::complex<long double>>);
 
 #ifdef HAVE_MPFR
 static_assert(std::is_same_v<decltype(polynomial<cxx_mpz>{}(cxx_mpfr())), cxx_mpfr>);

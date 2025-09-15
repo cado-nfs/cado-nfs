@@ -6,6 +6,7 @@
 
 #include <mpc.h>
 
+#include "mpfr_auxx.hpp"
 #include "mpc_aux.h"
 #include "utils_cxx.hpp"
 
@@ -187,6 +188,12 @@ cado_mpc_cmp(mpc_srcptr a, std::complex<long double> b)
     return mpc_cmp_ld_ld(a, b.real(), b.imag());
 }
 
+static inline int
+cado_mpc_cmp(mpc_srcptr a, mpfr_srcptr b)
+{
+    return mpc_cmp_fr(a, b);
+}
+
 /*****************************************************************/
 
 #define MPC_AUXX_DEFINE_FUNC3(OP)                                       \
@@ -227,42 +234,48 @@ cado_mpc_cmp(mpc_srcptr a, std::complex<long double> b)
         return mpc_##OP##_int64(a, b, c, rnd);                          \
     }                                                                   \
                                                                         \
-    static inline void                                                  \
+    static inline int                                                   \
     cado_mpc_##OP(mpc_ptr a, mpc_srcptr b, float c, mpc_rnd_t rnd)      \
     {                                                                   \
         /* use _d for floats. mpc's _f functions are for mpf ! */       \
-        mpc_##OP##_d(a, b, c, rnd);                                     \
+        return mpc_##OP##_d(a, b, c, rnd);                                     \
     }                                                                   \
                                                                         \
-    static inline void                                                  \
+    static inline int                                                   \
     cado_mpc_##OP(mpc_ptr a, mpc_srcptr b, double c, mpc_rnd_t rnd)     \
     {                                                                   \
-        mpc_##OP##_d(a, b, c, rnd);                                     \
+        return mpc_##OP##_d(a, b, c, rnd);                                     \
     }                                                                   \
                                                                         \
-    static inline void                                                  \
+    static inline int                                                   \
     cado_mpc_##OP(mpc_ptr a, mpc_srcptr b, long double c, mpc_rnd_t rnd)\
     {                                                                   \
-        mpc_##OP##_ld(a, b, c, rnd);                                    \
+        return mpc_##OP##_ld(a, b, c, rnd);                                    \
     }                                                                   \
                                                                         \
-    static inline void                                                  \
+    static inline int                                                   \
+    cado_mpc_##OP(mpc_ptr a, mpc_srcptr b, mpfr_srcptr c, mpc_rnd_t rnd)\
+    {                                                                   \
+        return mpc_##OP##_fr(a, b, c, rnd);                                    \
+    }                                                                   \
+                                                                        \
+    static inline int                                                   \
     cado_mpc_##OP(mpc_ptr a, mpc_srcptr b, std::complex<float> c, mpc_rnd_t rnd)          \
     {                                                                   \
         /* use _d for floats. mpc's _f functions are for mpf ! */       \
-        mpc_##OP##_d_d(a, b, c.real(), c.imag(), rnd);                  \
+        return mpc_##OP##_d_d(a, b, c.real(), c.imag(), rnd);                  \
     }                                                                   \
                                                                         \
-    static inline void                                                  \
+    static inline int                                                   \
     cado_mpc_##OP(mpc_ptr a, mpc_srcptr b, std::complex<double> c, mpc_rnd_t rnd)          \
     {                                                                   \
-        mpc_##OP##_d_d(a, b, c.real(), c.imag(), rnd);                  \
+        return mpc_##OP##_d_d(a, b, c.real(), c.imag(), rnd);                  \
     }                                                                   \
                                                                         \
-    static inline void                                                  \
+    static inline int                                                   \
     cado_mpc_##OP(mpc_ptr a, mpc_srcptr b, std::complex<long double> c, mpc_rnd_t rnd)          \
     {                                                                   \
-        mpc_##OP##_ld_ld(a, b, c.real(), c.imag(), rnd);                \
+        return mpc_##OP##_ld_ld(a, b, c.real(), c.imag(), rnd);                \
     }
 
 #define MPC_AUXX_DEFINE_FUNC3_REFLEX(OP, FIXUP)                         \
@@ -305,6 +318,14 @@ cado_mpc_cmp(mpc_srcptr a, std::complex<long double> b)
         int r = mpc_##OP##_int64(a, c, b, rnd);                         \
         FIXUP;                                                          \
         return r;                                                       \
+    }                                                                   \
+    static inline int                                                   \
+    cado_mpc_##OP(mpc_ptr a, mpfr_srcptr b, mpc_srcptr c,               \
+                   mpc_rnd_t rnd)                                       \
+    {                                                                   \
+        int r = mpc_##OP##_fr(a, c, b, rnd);                            \
+        FIXUP;                                                          \
+        return r;                                                       \
     }
 
 MPC_AUXX_DEFINE_FUNC3(add)
@@ -317,8 +338,26 @@ MPC_AUXX_DEFINE_FUNC3(remainder)
 
 /* Add these for convenience only */
 MPC_AUXX_DEFINE_FUNC3_REFLEX(sub, mpc_neg(a, a, rnd); r = -r)
+// NOLINTBEGIN(misc-const-correctness)
 MPC_AUXX_DEFINE_FUNC3_REFLEX(add, /* no fixup for commutative op */)
 MPC_AUXX_DEFINE_FUNC3_REFLEX(mul, /* no fixup for commutative op */)
+// NOLINTEND(misc-const-correctness)
+MPC_AUXX_DEFINE_FUNC3_REFLEX(div, mpc_ui_div(a, 1, a, rnd); r = -r)
+
+template <typename T>
+    static inline int
+    cado_mpc_remainder(mpc_ptr a, const T b, mpc_srcptr c, mpc_rnd_t rnd)
+    requires (std::is_integral_v<T> || std::is_floating_point_v<T> || std::is_same_v<T, mpfr_srcptr>)
+{
+    mpfr_t denum;
+    mpfr_init2(denum, mpfr_get_prec(mpc_realref(a)));
+    mpc_norm(denum, c, MPC_RND_RE(rnd));
+    mpfr_auxx::cado_mpfr_div(denum, denum, b, MPC_RND_RE(rnd));
+    int const r = cado_mpc_remainder(a, c, denum, rnd);
+    mpc_conj(a, a, MPC_RNDNN);
+    mpfr_clear(denum);
+    return MPC_INEX(MPC_INEX_RE(r), MPC_INEX_IM(r) ^ 3);
+}
 
 } /* namespace mpc_auxx */
 
