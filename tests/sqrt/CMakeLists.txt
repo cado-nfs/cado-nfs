@@ -1,4 +1,3 @@
-if (HAVE_CABSL AND HAVE_CLOG)
     # While crtalgsqrt works over mpi, actually testing the code base
     # over mpi is tricky, because the programs seems to auto-choose the
     # mpi setting based on the requested max ram.
@@ -7,7 +6,10 @@ if (HAVE_CABSL AND HAVE_CLOG)
     #     if (NOT HAVE_MPI)
     #         set(mpiconfs)
     #     endif()
-    set(mpiconfs mpi_rect2)
+    set(mpiconfs)
+    if(HAVE_MPI)
+        list(APPEND mpiconfs mpi_rect2)
+    endif()
     set(crtalgsqrt_ram 3)
     set(crtalgsqrt_ram_mpi_rect2 0.000004)
     foreach(mpiconf nompi ${mpiconfs})
@@ -25,4 +27,3 @@ if (HAVE_CABSL AND HAVE_CLOG)
             ram=${crtalgsqrt_ram${suffix}}
             TARGET_DEPENDENCIES crtalgsqrt)
     endforeach()
-endif()
