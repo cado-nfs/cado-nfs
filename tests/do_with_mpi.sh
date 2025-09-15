@@ -54,5 +54,5 @@ for mpi_magic in "${mpiconfs[@]}" ; do
             set -- "$@" mpi_extra_args="${mpi_extra_args[*]}"
         fi
     fi
-    "$@"
+    "${mpirun[@]}" "$@"
 done
