@@ -79,11 +79,15 @@
 #include <cctype>
 #include <cerrno>
 
+#include <algorithm>
 #include <complex>
+#include <vector>
 
 #include <unistd.h>
 #include <sys/stat.h>
 #include <gmp.h>
+#include "fmt/base.h"
+#include "fmt/std.h"
 
 #include "double_poly.h"
 #include "polynomial.hpp"
@@ -93,6 +97,7 @@
 #include "gmp-hacks.h"
 #include "gmp_aux.h"
 #include "knapsack.h"
+#include "abfiles.hpp"
 #include "macros.h"
 #include "misc.h"
 #include "arith/mod_ul.h"
@@ -107,6 +112,12 @@
 #include "utils_cxx.hpp"
 #include "cxx_mpz.hpp"
 #include "number_context.hpp"
+#include "mpi_proxies.hpp"
+#include "sqrt_wq.hpp"
+#include "sqrt_cachefiles.hpp"
+#include "cado_math_aux.hpp"
+
+using cado_mpi::mpi_data_agrees;
 
 /* {{{ time */
 static double program_starttime;
@@ -277,98 +288,7 @@ static void WRAP_mpz_mod(mpz_ptr c, mpz_srcptr a, mpz_srcptr p)
 }
 /* }}} */
 
-/* {{{ cache files */
-int rcache = 1;
-int wcache = 1;
-#define CACHEDIR        "/tmp"
-#define CACHEPREFIX        "CRTALGSQRT."
-
-struct cachefile_s {
-    char basename[128];
-    FILE * f;
-    int writing;
-};
-
-typedef struct cachefile_s cachefile[1];
-typedef struct cachefile_s * cachefile_ptr;
-
-void cachefile_vinit(cachefile_ptr c, const char * fmt, va_list ap)
-{
-    memset(c, 0, sizeof(*c));
-    vsnprintf(c->basename, sizeof(c->basename), fmt, ap);
-}
-
-void cachefile_init(cachefile_ptr c, const char * fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-    cachefile_vinit(c, fmt, ap);
-    va_end(ap);
-}
-
-int cachefile_open_w(cachefile_ptr c)
-{
-    char tname[256];
-    snprintf(tname, sizeof(tname), CACHEDIR "/.pre." CACHEPREFIX "%s", c->basename);
-    c->f = fopen(tname, "w");
-    c->writing = 0;
-    if (c->f == NULL) {
-        fprintf(stderr, "%s: %s\n", tname, strerror(errno));
-    }
-    c->writing = 1;
-    return c->f != NULL;
-}
-
-int cachefile_open_r(cachefile_ptr c)
-{
-    char tname[256];
-    snprintf(tname, sizeof(tname), CACHEDIR "/" CACHEPREFIX "%s", c->basename);
-    c->f = fopen(tname, "r");
-    c->writing = 0;
-    return c->f != NULL;
-}
-
-int cachefile_exists(const char * fmt, ...)
-{
-    cachefile c;
-    char tname[256];
-    va_list ap;
-    va_start(ap, fmt);
-    cachefile_vinit(c, fmt, ap);
-    va_end(ap);
-    snprintf(tname, sizeof(tname), CACHEDIR "/" CACHEPREFIX "%s", c->basename);
-    return access(tname, R_OK) == 0;
-}
-
-void cachefile_close(cachefile_ptr c)
-{
-    char tname[256];
-    char fname[256];
-    fclose(c->f);
-    if (c->writing == 0)
-        return;
-    snprintf(tname, sizeof(tname), CACHEDIR "/.pre." CACHEPREFIX "%s", c->basename);
-    snprintf(fname, sizeof(fname), CACHEDIR "/" CACHEPREFIX "%s", c->basename);
-    if (rename(tname, fname) < 0)
-        fprintf(stderr, "Could not rename temporary cache file %s to %s\n", tname, fname);
-}
-/* }}} */
-
 /* {{{ mpi-gmp helpers */
-static int mpi_data_agrees(void *buffer, int count, MPI_Datatype datatype,/*{{{*/
-        MPI_Comm comm)
-{
-    int s;
-    MPI_Type_size(datatype, &s);
-    void * b_and = malloc(count * s);
-    void * b_or = malloc(count * s);
-    MPI_Allreduce(buffer, b_and, count, datatype, MPI_BAND, comm);
-    MPI_Allreduce(buffer, b_or, count, datatype, MPI_BOR, comm);
-    int ok = memcmp(b_and, b_or, count * s) == 0;
-    free(b_and);
-    free(b_or);
-    return ok;
-}/*}}}*/
 static void broadcast_mpz(mpz_ptr z, int root, MPI_Comm comm) /*{{{*/
 {
     // that's much, much uglier than it should.
@@ -569,454 +489,6 @@ void allreduce_mpz_poly_mul_mod_f(mpz_poly P, MPI_Comm comm, mpz_poly F)/*{{{*/
 
 /* }}} */
 
-// {{{ interface for reading the list of (a,b)'s, with sort of a random
-// access (for the starting point only).
-
-#define ABFILE_MAX_LINE_LENGTH  256
-
-struct ab_source_s {
-    const char * fname0;
-    char * sname;
-    size_t sname_len;
-    size_t nab;
-    char * prefix;
-    int depnum;
-    // int cado; // use !numfiles instead.
-
-    /* this relates to rough estimations based on the size(s) of the
-     * file(s). Note however that apparently the guess logic isn't too
-     * good at taking the leading coefficient into account, so it's not
-     * meant to be used before it gets fixed. Doing the accurate
-     * evaluation via complex embeddings is ultra-fast anyway */
-    size_t nab_estim;
-    // size_t digitbytes_estim;
-
-    /* This relates to the different files (if several), their sizes, and
-     * the current position. */
-    size_t * file_bases;
-    int nfiles; // 0 for cado format.
-    size_t totalsize;
-
-    FILE * f;
-    int c;
-    size_t cpos;        // position within current file.
-    size_t tpos;        // position within totality.
-};
-
-typedef struct ab_source_s ab_source[1];
-typedef struct ab_source_s * ab_source_ptr;
-
-void ab_source_init(ab_source_ptr ab, const char * fname, int rank, int root, MPI_Comm comm)
-{
-    memset(ab, 0, sizeof(ab_source));
-    ab->fname0 = fname;
-    const char * magic;
-    if ((magic = strstr(fname, ".prep.")) != NULL) {
-        // then assume kleinjung format.
-        ab->prefix = (char*) malloc(magic - fname + 1);
-        strncpy(ab->prefix, fname, magic-fname);
-        ab->prefix[magic-fname]='\0';
-        magic++;
-        int fnum;
-        if (sscanf(magic, "prep.%d.rel.%d", &ab->depnum, &fnum) == 2) {
-            ab->nfiles = -1;  // to be determined later on.
-        } else {
-            FATAL_ERROR_CHECK(1, "error in parsing filename");
-        }
-    } else if ((magic = strstr(fname, ".dep.alg.")) != NULL) {
-        // assume cado format (means only one file, so we don't need to
-        // parse, really.
-        ab->prefix = (char*) malloc(magic - fname + 1);
-        strncpy(ab->prefix, fname, magic-fname);
-        ab->prefix[magic-fname]='\0';
-        magic++;
-        if (sscanf(magic, "dep.alg.%d", &ab->depnum) == 1) {
-            ab->nfiles = 0;
-        } else {
-            FATAL_ERROR_CHECK(1, "error in parsing filename");
-        }
-    } else if ((magic = strstr(fname, ".dep.side1.")) != NULL) {
-        // assume cado format (means only one file, so we don't need to
-        // parse, really.
-        ab->prefix = (char*) malloc(magic - fname + 1);
-        strncpy(ab->prefix, fname, magic-fname);
-        ab->prefix[magic-fname]='\0';
-        magic++;
-        if (sscanf(magic, "dep.side1.%d", &ab->depnum) == 1) {
-            ab->nfiles = 0;
-        } else {
-            FATAL_ERROR_CHECK(1, "error in parsing filename");
-        }
-    } else if ((magic = strstr(fname, ".dep.")) != NULL) {
-        // assume cado format (means only one file, so we don't need to
-        // parse, really.
-        ab->prefix = (char*) malloc(magic - fname + 1);
-        strncpy(ab->prefix, fname, magic-fname);
-        ab->prefix[magic-fname]='\0';
-        magic++;
-        if (sscanf(magic, "dep.%d", &ab->depnum) == 1) {
-            ab->nfiles = 0;
-        } else {
-            FATAL_ERROR_CHECK(1, "error in parsing filename");
-        }
-    } else {
-        FATAL_ERROR_CHECK(1, "error in parsing filename");
-    }
-
-    // do some size estimations;
-    size_t tsize = 0;
-    struct stat sbuf[1];
-    int rc;
-    if (ab->nfiles == 0) {
-        rc = stat(fname, sbuf);
-        ASSERT_ALWAYS(mpi_data_agrees(&rc, 1, MPI_INT, comm));
-        ASSERT_ALWAYS(rc == 0);
-        tsize=sbuf->st_size;
-        // we have 2.5 non-digit bytes per file line. However we
-        // don't know the line count, so we can't subtract. As a
-        // guess, we read the first 8kb, and count the number of
-        // lines in there.
-        if (rank == root) {
-            char buf[8192];
-            FILE * f = fopen(fname, "r");
-            rc = fread(buf, 1, sizeof(buf), f);
-            ASSERT_ALWAYS(rc == sizeof(buf));
-            fclose(f);
-            int nrows_16k = 0;
-            for(unsigned int i = 0 ; i < sizeof(buf) ; i++) {
-                nrows_16k += buf[i] == '\n';
-            }
-            ab->nab_estim = (double) tsize * nrows_16k / sizeof(buf);
-            // ab->digitbytes_estim = tsize - 2.5 * ab->nab_estim;
-        }
-        // XXX OK, this requires endianness consistency.
-        MPI_Bcast(&ab->nab_estim, 1, CADO_MPI_SIZE_T, root, comm);
-        ab->file_bases = (size_t *) malloc(2 * sizeof(size_t));
-        ab->file_bases[0] = 0;
-        ab->file_bases[1] = tsize;
-        ab->totalsize = tsize;
-    } else {
-        size_t dummy;
-        size_t hdrbytes;
-        char line[ABFILE_MAX_LINE_LENGTH];
-        if (rank == root) {
-            FILE * f = fopen(fname, "r");
-            char * xx = fgets(line, sizeof(line), f);
-            DIE_ERRNO_DIAG(xx == NULL, "fgets(%s)", fname);
-            rc = sscanf(line, "AB %zu %zu", &ab->nab, &dummy);
-            DIE_ERRNO_DIAG(rc != 2, "parse(%s)", fname);
-            hdrbytes = ftell(f);
-            fclose(f);
-        }
-        MPI_Bcast(&hdrbytes, 1, CADO_MPI_SIZE_T, root, comm);
-
-        ab->sname_len = strlen(fname) + 10;
-        ab->sname = (char *) malloc(ab->sname_len);
-        for(ab->nfiles = 0 ; ; ab->nfiles++) {
-            snprintf(ab->sname, ab->sname_len, "%s.prep.%d.rel.%d",
-                    ab->prefix, ab->depnum, ab->nfiles);
-            rc = stat(ab->sname, sbuf);
-            ASSERT_ALWAYS(rc == 0 || errno == ENOENT);
-            ASSERT_ALWAYS(mpi_data_agrees(&rc, 1, MPI_INT, comm));
-            if (rc < 0) break;
-            tsize += sbuf->st_size - hdrbytes;
-        }
-        ASSERT_ALWAYS(ab->nfiles > 0);
-        ab->nab_estim = ab->nab;
-        // ab->digitbytes_estim = tsize - 5 * ab->nab_estim;
-        ab->file_bases = (size_t *) malloc((ab->nfiles+1) * sizeof(size_t));
-        ab->file_bases[0] = 0;
-        for(int i = 0 ; i < ab->nfiles ; i++) {
-            snprintf(ab->sname, ab->sname_len, "%s.prep.%d.rel.%d",
-                    ab->prefix, ab->depnum, i);
-            rc = stat(ab->sname, sbuf);
-            ASSERT_ALWAYS(rc == 0);
-            ASSERT_ALWAYS(mpi_data_agrees(&rc, 1, MPI_INT, comm));
-            ab->file_bases[i+1]=ab->file_bases[i] + sbuf->st_size;
-        }
-        ab->totalsize = ab->file_bases[ab->nfiles];
-    }
-}
-
-void ab_source_rewind(ab_source_ptr ab)
-{
-    if (ab->f) fclose(ab->f);
-    ab->f = NULL;
-    ab->c = 0;
-    ab->nab = 0;
-    ab->cpos = 0;
-    ab->tpos = 0;
-}
-
-void ab_source_init_set(ab_source_ptr ab, ab_source_ptr ab0)
-{
-    memcpy(ab, ab0, sizeof(struct ab_source_s));
-    ab->prefix = strdup(ab0->prefix);
-    ab->sname = (char *) malloc(ab->sname_len);
-    ab->file_bases = (size_t *) malloc((ab->nfiles+1) * sizeof(size_t));
-    memcpy(ab->file_bases, ab0->file_bases, (ab->nfiles+1) * sizeof(size_t));
-    ab->f = NULL;
-    ab_source_rewind(ab);
-}
-
-void ab_source_clear(ab_source_ptr ab)
-{
-    ab_source_rewind(ab);
-    free(ab->prefix);
-    free(ab->sname);
-    free(ab->file_bases);
-    memset(ab, 0, sizeof(ab_source));
-}
-
-int ab_openfile_internal(ab_source_ptr ab)
-{
-    const char * s;
-    if (ab->nfiles == 0) {
-        ab->f = fopen(s=ab->fname0, "r");
-        ab->tpos = 0;
-    } else {
-        snprintf(ab->sname, ab->sname_len, "%s.prep.%d.rel.%d",
-                ab->prefix, ab->depnum, ab->c);
-        ab->f = fopen(s=ab->sname, "r");
-        if (ab->f == NULL && errno == ENOENT)
-            return 0;
-        ab->tpos = ab->file_bases[ab->c];
-        ab->cpos = 0;
-        char header[80];
-        char * rp = fgets(header, sizeof(header), ab->f);
-        ASSERT_ALWAYS(rp);
-    }
-    ab->cpos = ftell(ab->f);
-    ab->tpos += ab->cpos;
-    DIE_ERRNO_DIAG(ab->f == NULL, "fopen(%s)", s);
-    return 1;
-}
-
-int ab_source_next(ab_source_ptr ab, int64_t * a, uint64_t * b)
-{
-    if (ab->f) {
-        int rc MAYBE_UNUSED;
-        char line[ABFILE_MAX_LINE_LENGTH];
-        char * xx = fgets(line, sizeof(line), ab->f);
-        size_t cpos = ftell(ab->f);
-        if (xx) {
-            if (ab->nfiles == 0) {
-                rc = sscanf(line, "%" SCNd64 " %" SCNu64, a, b);
-                ASSERT(rc == 2);
-            } else {
-                int dummy;
-                rc = sscanf(line, "%d %" SCNd64 " %" SCNu64, &dummy, a, b);
-                ASSERT(rc == 3);
-            }
-            ab->tpos += cpos - ab->cpos;
-            ab->cpos = cpos;
-            ab->nab++;
-            return 1;
-        }
-        fclose(ab->f); ab->f = NULL;
-        ab->tpos += cpos - ab->tpos;
-        // don't update cpos, it is not defined in this situation.
-        if (ab->nfiles == 0)
-            return 0;
-        ab->c++;
-    }
-    if (ab_openfile_internal(ab) == 0)
-        return 0;
-    return ab_source_next(ab, a, b);
-}
-
-void ab_source_move_afterpos(ab_source_ptr ab, size_t offset)
-{
-    /* move the file pointer to the earliest non-header line starting at
-     * an offset which is greater than or equal to offset.
-     *
-     * IF the current file position is already >= offset, do nothing.
-     *
-     * IF the current file position is < offset, then the returned offset
-     * is >= offset. This is achieved by seeking to some pre_offset <
-     * offset, and
-     * advancing to the next line starting at >= offset.
-     *
-     * This is used to read a collection of files in chunks whose size is
-     * governed by the file size.
-     */
-
-    /* note that the test below always succeeds for offset == 0 */
-    if (ab->tpos >= offset)
-        return;
-    // otherwise it's really, really a can of worms.
-    ASSERT_ALWAYS(ab->f == NULL);
-
-    // which file ?
-    FATAL_ERROR_CHECK(offset >= ab->totalsize,
-            "attempt to seek beyond end of files");
-
-    size_t pre_offset = MAX(offset, 10) - 10;
-    ASSERT_ALWAYS(pre_offset < offset);
-
-    if (ab->nfiles == 0) {
-        // well, does not really make a lot of sense here, but anyway.
-        ab_openfile_internal(ab);
-        fseek(ab->f, pre_offset, SEEK_SET);
-    } else {
-        for( ; ab->file_bases[ab->c+1] <= pre_offset ; ab->c++) ;
-        ab_openfile_internal(ab);
-        // so we know that
-        // ab->file_bases[ab->c] <= pre_offset < ab->file_bases[ab->c+1]
-        fseek(ab->f, pre_offset - ab->file_bases[ab->c], SEEK_SET);
-        // note that it is possible that tpos, as obtained after
-        // openfile, is >= offset. but we know that we'll be able to seek
-        // to pre_offset, and that one is appropriately < offset, so no
-        // special case.
-    }
-    char line[ABFILE_MAX_LINE_LENGTH];
-    char * xx = fgets(line, sizeof(line), ab->f);
-    DIE_ERRNO_DIAG(xx == NULL, "fgets(%s)", ab->nfiles ? ab->sname : ab->fname0);
-    size_t cpos = ftell(ab->f);
-    ab->tpos += cpos - ab->cpos;
-    ab->cpos = cpos;
-    for(int n_adjust = 0 ; ab->tpos < offset ; n_adjust++) {
-        FATAL_ERROR_CHECK(n_adjust > 10, "adjustment on the runaway");
-        int64_t a;
-        uint64_t b;
-        int r = ab_source_next(ab, &a, &b);
-        FATAL_ERROR_CHECK(r == 0, "adjustment failed");
-    }
-    logprint("(a,b) rewind to %s, pos %zu\n",
-            ab->nfiles ? ab->sname : ab->fname0, ab->cpos);
-}
-// }}}
-
-/* {{{ POSIX threads stuff : work queues */
-
-typedef void * (*wq_func_t)(void *);
-
-struct wq_task {
-    wq_func_t f;
-    void * arg;
-
-    // the remaining fields are reserved. In particular, access to done
-    // must be mutex protected.
-    int done;
-
-    pthread_mutex_t m_[1];
-    pthread_cond_t c_[1];
-
-    struct wq_task * next;
-    // struct wq_task * prev;
-};
-
-struct work_queue {
-    pthread_mutex_t m[1];
-    pthread_cond_t c[1];   // used by waiters.
-    pthread_t * clients;
-    // TODO: Use a single tasklist item for a doubly linked list.
-    struct wq_task * head;
-};
-
-// puts a task on the pending list.
-// returns a handle which might be waited for by a join.
-struct wq_task * wq_push(struct work_queue * wq, wq_func_t f, void * arg)
-{
-
-    struct wq_task * t = (struct wq_task *) malloc(sizeof(struct wq_task));
-    t->f = f;
-    t->arg = arg;
-    t->done = 0;
-    if (t->f) {
-        // t->f == NULL is used as a special marker. In this case the
-        // mutexes are not initialized
-        pthread_mutex_init(t->m_, NULL);
-        pthread_cond_init(t->c_, NULL);
-    }
-
-    pthread_mutex_lock(wq->m);
-    t->next = wq->head;
-    wq->head = t;
-    pthread_cond_signal(wq->c);
-    pthread_mutex_unlock(wq->m);
-    return t;
-}
-
-// grabs a task as soon as one is available.
-struct wq_task * wq_pop_wait(struct work_queue * wq)
-{
-    struct wq_task * t;
-    pthread_mutex_lock(wq->m);
-    for( ; wq->head == NULL ; ) {
-        pthread_cond_wait(wq->c, wq->m);
-    }
-    t = wq->head;
-    wq->head = t->next;
-    t->next = NULL;
-    pthread_mutex_unlock(wq->m);
-    return t;
-}
-
-void * wq_waiter(void * wq)
-{
-    for( ; ; ) {
-        struct wq_task * t = wq_pop_wait((struct work_queue *) wq);
-        if (t->f == NULL) {
-            /* t == NULL is an indication that we're reaching the
-             * end-of-work signal. For this special case, t->m_ and t->c_
-             * have not been initialized.  */
-            free(t);
-            break;
-        }
-        void * res = (*t->f)(t->arg);
-        pthread_mutex_lock(t->m_);
-        t->done = 1;
-        t->arg = res;   /* We reuse the arg field */
-        pthread_cond_signal(t->c_);     // signal waiters.
-        pthread_mutex_unlock(t->m_);
-    }
-    /* we have to obey the pthread_create proto. */
-    return NULL;
-}
-
-void * wq_join(struct wq_task * t)
-{
-    pthread_mutex_lock(t->m_);
-    for( ; t->done == 0 ; ) {
-        pthread_cond_wait(t->c_, t->m_);
-    }
-    void * res = t->arg;
-    pthread_mutex_unlock(t->m_);
-    pthread_cond_destroy(t->c_);
-    pthread_mutex_destroy(t->m_);
-    free(t);
-    return res;
-}
-
-void wq_init(struct work_queue * wq, unsigned int n)
-{
-    pthread_mutex_init(wq->m, NULL);
-    pthread_cond_init(wq->c, NULL);
-    wq->head = NULL;
-    wq->clients = (pthread_t *) malloc(n * sizeof(pthread_t));
-    for(unsigned int i = 0 ; i < n ; i++) {
-        pthread_create(wq->clients + i, NULL, &wq_waiter, wq);
-    }
-}
-
-void wq_clear(struct work_queue * wq, unsigned int n)
-{
-    for(unsigned int i = 0 ; i < n ; i++) {
-        // schedule end-of-work for everybody.
-        wq_push(wq, NULL, NULL);
-    }
-    for(unsigned int i = 0 ; i < n ; i++) {
-        pthread_join(wq->clients[i], NULL);
-    }
-
-    ASSERT_ALWAYS(wq->head == NULL);
-    pthread_mutex_destroy(wq->m);
-    pthread_cond_destroy(wq->c);
-}
-
-/* }}} */
-
 // some global variables (sheeh !)
 
 struct sqrt_globals {
@@ -1114,72 +586,57 @@ void estimate_nbits_sqrt(size_t * sbits, ab_source_ptr ab) // , int guess)
 
     int n = glob.cpoly->pols[1]->deg;
 
-    std::complex<long double> * eval_points = (std::complex<long double> *) malloc(n * sizeof(std::complex<long double>));
-    double * evaluations = (double *) malloc(n * sizeof(double));
+    /* gather roots of f and log|bigproduct(x)| at these roots */
+    std::vector<std::pair<std::complex<long double>, double>>
+        evals;
 
+    evals.reserve(n);
     // take the roots of f, and multiply later on to obtain the roots of
     // f_hat. Otherwise we encounter precision issues.
 
-    {
-        auto roots = polynomial<cxx_mpz>(glob.cpoly->pols[1]).roots(cado::number_context<std::complex<long double>>());
-        for(int i = 0 ; i < n ; i++)
-            eval_points[i] = roots[i];
-    }
-
     // {{{ compress the list of roots.
-    int nreal = 0, ncomplex = 0, rs = 0;
-    for(int i = 0 ; i < n ; i++) {
-        if (eval_points[i].imag() > 0) {
-            eval_points[rs] = eval_points[i];
-            rs++;
+    int nreal = 0, ncomplex = 0;
+    for(auto const & e : polynomial<cxx_mpz>(glob.cpoly->pols[1]).roots(cado::number_context<std::complex<long double>>())) {
+        if (e.imag() > 0) { 
+            evals.emplace_back(e, 0);
             ncomplex++;
-        } else if (eval_points[i].imag() < 0) {
+        } else if (e.imag() < 0) {
             continue;
         } else {
-            eval_points[rs] = eval_points[i].real();
-            // eval_points[rs] = eval_points[i];
-            rs++;
+            evals.emplace_back(e.real(), 0);
             nreal++;
         }
     }
     // }}}
 
-    // {{{ post-scale to roots of f_hat, and store f_hat instead of f
+    // post-scale to roots of f_hat, and store f_hat instead of f
+    for(auto & [ x, logfx ] : evals)
+        x *= mpz_get_d(mpz_poly_coeff_const(glob.cpoly->pols[1], n));
+    
     double * double_coeffs = (double *) malloc((n+1) * sizeof(double));
-    for(int i = 0 ; i < rs ; i++) {
-        eval_points[i] *= mpz_get_d(mpz_poly_coeff_const(glob.cpoly->pols[1], n));
-    }
-    for(int i = 0 ; i <= n ; i++) {
+    for(int i = 0 ; i <= n ; i++)
         double_coeffs[i] = mpz_get_d(mpz_poly_coeff_const(glob.f_hat, i));
-    }
-    // }}}
 
     // {{{ print the roots.
     if (nreal) {
-        printf("# [%2.2lf]", WCT);
-        printf(" real");
-        for(int i = 0 ; i < rs ; i++) {
-            double r = eval_points[i].imag();
-            if (r == 0) {
-                printf(" %.4Lg", eval_points[i].real());
-            }
+        fmt::print("# [{:2.2f}]", WCT);
+        fmt::print(" real");
+        for(auto const & [ x, logfx ] : evals) {
+            if (x.imag() == 0)
+                fmt::print(" {}", x);
         }
     }
     if (ncomplex) {
-        printf(" complex");
-        for(int i = 0 ; i < rs ; i++) {
-            if (eval_points[i].imag() > 0) {
-                printf(" %.4Lg+i*%.4Lg", eval_points[i].real(), eval_points[i].imag());
-            }
+        fmt::print(" complex");
+        for(auto const & [ x, logfx ] : evals) {
+            if (x.imag() > 0)
+                fmt::print(" {}", x);
         }
     }
-    printf("\n");
+    fmt::print("\n");
     // }}}
 
     // {{{ now evaluate the product.
-    for(int i = 0 ; i < n ; i++) {
-        evaluations[i] = 0;
-    }
 
     // Consider the product A of all a-b\alpha's, which is a
     // polynomial in \alpha. This polynomial has _rational_ coefficients,
@@ -1201,17 +658,16 @@ void estimate_nbits_sqrt(size_t * sbits, ab_source_ptr ab) // , int guess)
     w1 = WCT;
     ab_source_rewind(ab);
     for( ; ab_source_next(ab, &a, &b) ; ) {
-        for(int i = 0 ; i < rs ; i++) {
+        for(auto & [ x, logfx ] : evals) {
             std::complex<long double> y = a * mpz_get_d(mpz_poly_coeff_const(glob.cpoly->pols[1], n));
-            std::complex<long double> w = eval_points[i] * b;
+            std::complex<long double> w = x * b;
             y = y - w;
-            evaluations[i] += log(std::abs(y));
+            logfx += cado_math_aux::log(cado_math_aux::abs(y));
         }
         wt = WCT;
         if (wt > w1 + print_delay || !(ab->nab % 10000000)) {
             w1 = wt;
-            fprintf(stderr,
-                    "# [%2.2lf] floating point evaluation: %zu (%.1f%%)\n",
+            printf("# [%2.2lf] floating point evaluation: %zu (%.1f%%)\n",
                     WCT, ab->nab, 100.0*(double)ab->nab/ab->nab_estim);
         }
     }
@@ -1219,72 +675,63 @@ void estimate_nbits_sqrt(size_t * sbits, ab_source_ptr ab) // , int guess)
     // note that now that we've read everything, we know the precise
     // number of (a,b)'s. Thus we can replace the estimation.
     ab->nab_estim = ab->nab;
-
-    // {{{ post-process evaluation: f'(alpha), and even nab. print.
+// {{{ post-process evaluation: f'(alpha), and even nab. print.
 
     if (ab->nab & 1) {
         printf("# [%2.2lf] odd number of pairs !\n", WCT);
-        for(int i = 0 ; i < rs ; i++) {
-            evaluations[i] += log(fabs(mpz_get_d(mpz_poly_coeff_const(glob.cpoly->pols[1], n))));
-        }
+        for(auto & [ x, logfx] : evals)
+            logfx += log(fabs(mpz_get_d(mpz_poly_coeff_const(glob.cpoly->pols[1], n))));
     }
 
     // multiply by the square of f_hat'(f_d\alpha).
-    for(int i = 0 ; i < rs ; i++) {
+    for(auto & [x, logfx] : evals) {
         std::complex<double> s = n;
         for(int j = n - 1 ; j >= 0 ; j--) {
-            s *= eval_points[i];
+            s *= x;
             s += double_coeffs[j] * j;
         }
-        evaluations[i] += 2 * std::log(s).real();
+        logfx += 2 * std::log(s).real();
     }
     printf("# [%2.2lf] Log_2(A)", WCT);
-    for(int i = 0 ; i < rs ; i++) {
-        printf(" %.4g", evaluations[i] / M_LN2);
-        if (eval_points[i].imag() > 0) {
+    for(auto const & [x, logfx] : evals) {
+        printf(" %.4g", logfx / M_LN2);
+        if (x.imag() > 0)
             printf("*2");
-        }
     }
     printf("\n");
     // }}}
 
     // {{{ deduce the lognorm. print.
     double lognorm = 0;
-    for(int i = 0 ; i < rs ; i++) {
-        if (eval_points[i].imag() > 0) {
-            lognorm += 2*evaluations[i];
+    for(auto const & [x, logfx] : evals) {
+        if (x.imag() > 0) {
+            lognorm += 2*logfx;
         } else {
-            lognorm += evaluations[i];
+            lognorm += logfx;
         }
     }
-    printf("# [%2.2lf] log_2(norm(A)) %.4g\n",
-            WCT, lognorm / M_LN2);
+    printf("# [%2.2lf] log_2(norm(A)) %.4g\n", WCT, lognorm / M_LN2);
     // }}}
 
     // {{{ now multiply this by the Lagrange matrix.
-    double * a_bounds = (double *) malloc(n * sizeof(double));
-    double * sqrt_bounds = (double *) malloc(n * sizeof(double));
+    std::vector<double> a_bounds(n, 0);
+    std::vector<double> sqrt_bounds(n, 0);
 
-    for(int j = 0 ; j < n ; j++) {
-        a_bounds[j] = 0;
-        sqrt_bounds[j] = 0;
-    }
-    for(int i = 0 ; i < rs ; i++) {
-        double * lmat = (double  *) malloc(n * sizeof(double ));
-        lagrange_polynomial_abs(lmat, double_coeffs, n, eval_points[i]);
+    for(auto const & [x, logfx] : evals) {
+        std::vector<double> lmat(n, 0);
+        lagrange_polynomial_abs(lmat.data(), double_coeffs, n, x);
         for(int j = 0 ; j < n ; j++) {
             double za, zs;
             za = zs = log(lmat[j]);
-            za += evaluations[i];
-            zs += evaluations[i] / 2;
-            if (eval_points[i].imag() > 0) {
+            za += logfx;
+            zs += logfx / 2;
+            if (x.imag() > 0) {
                 za += log(2);
                 zs += log(2);
             }
-            if (za > a_bounds[j]) a_bounds[j] = za;
-            if (zs > sqrt_bounds[j]) sqrt_bounds[j] = zs;
+            a_bounds[j] = std::max(a_bounds[j], za);
+            sqrt_bounds[j] = std::max(sqrt_bounds[j], zs);
         }
-        free(lmat);
     }
     // }}}
 
@@ -1300,8 +747,8 @@ void estimate_nbits_sqrt(size_t * sbits, ab_source_ptr ab) // , int guess)
         // safety margin for inaccuracies ?
         sqrt_bounds[j] += 100 * M_LN2;
         a_bounds[j] += 100 * M_LN2;
-        if (sqrt_bounds[j] > logbound_sqrt) logbound_sqrt = sqrt_bounds[j];
-        if (a_bounds[j] > logbound_a) logbound_a = a_bounds[j];
+        logbound_sqrt = std::max(logbound_sqrt, sqrt_bounds[j]);
+        logbound_a = std::max(logbound_a, a_bounds[j]);
     }
     // }}}
 
@@ -1331,11 +778,7 @@ void estimate_nbits_sqrt(size_t * sbits, ab_source_ptr ab) // , int guess)
     printf("# [%2.2lf] square root coefficients"
             " have at most %zu bits\n", WCT, *sbits);
 
-    free(a_bounds);
-    free(sqrt_bounds);
-    free(eval_points);
     free(double_coeffs);
-    free(evaluations);
 }
 /* }}} */
 
@@ -1930,7 +1373,7 @@ void crtalgsqrt_knapsack_prepare(struct crtalgsqrt_knapsack * cks, size_t lc_exp
     uint64_t n2 = UINT64_C(1) << k2;
     char buf[16];
 
-    fprintf(stderr,
+    printf(
             "# [%2.2lf] Recombination: dimension %u = %u + %u, %s needed\n",
             WCT,
             nelems, k1, k2,
@@ -2135,6 +1578,8 @@ size_t accumulate_ab_poly(mpz_poly_ptr P, ab_source_ptr ab, size_t off0, size_t 
     mpz_poly_set_ui(P, 1);
     if (off1 - off0 < ABPOLY_OFFSET_THRESHOLD) {
         ab_source_move_afterpos(ab, off0);
+        logprint("(a,b) rewind to %s, pos %zu\n",
+                ab->nfiles ? ab->sname : ab->fname0, ab->cpos);
         for( ; ab->tpos < off1 ; res++) {
             int64_t a;
             uint64_t b;
@@ -2924,18 +2369,17 @@ void local_square_roots(struct prime_data * primes, int i0, int i1, size_t * p_n
 
     log_begin();
 
-    struct subtask_info_t * tasks;
-    tasks = (struct subtask_info_t *) malloc((i1-i0)*glob.n*sizeof(struct subtask_info_t));
+    std::vector<struct subtask_info_t> tasks((i1-i0)*glob.n);
     for(int j = 0 ; j < glob.n ; j++) {
         for(int i = i0 ; i < i1 ; i++) {
             int k = (i-i0) * glob.n + j;
             if (k % glob.psize != glob.prank) continue;
-            struct subtask_info_t * task = tasks + k;
-            task->p = primes + i;
-            task->j = j;
-            task->nab_loc = * p_nab_total;
-            wq_func_t f = (wq_func_t) &local_square_roots_child;
-            task->handle = wq_push(glob.wq, f, task);
+            auto & task = tasks[k];
+            task.p = primes + i;
+            task.j = j;
+            task.nab_loc = * p_nab_total;
+            auto f = (wq_func_t) &local_square_roots_child;
+            task.handle = wq_push(glob.wq, f, &task);
         }
     }
     /* we're doing nothing */
@@ -2947,7 +2391,6 @@ void local_square_roots(struct prime_data * primes, int i0, int i1, size_t * p_n
             * p_nab_total = tasks[k].nab_loc;
         }
     }
-    free(tasks);
 
     STOPWATCH_GET();
     log_step_time(" done locally");
@@ -3390,7 +2833,7 @@ void mpi_set_communicators()/*{{{*/
 }
 /*}}}*/
 
-void banner()
+static void banner()
 {
     MPI_Barrier(MPI_COMM_WORLD);
     if (glob.rank == 0) {
@@ -3551,7 +2994,7 @@ int main(int argc, char const ** argv)
     }
     glob.prec = ceil((glob.nbits_sqrt + 128)/ log2_P);
 
-    ASSERT_ALWAYS(mpi_data_agrees(&glob.prec, 1, MPI_INT, MPI_COMM_WORLD));
+    ASSERT_ALWAYS(mpi_data_agrees(glob.prec, MPI_COMM_WORLD));
 
     if (glob.rank == 0) {
         char sbuf[32];
@@ -3682,20 +3125,18 @@ int main(int argc, char const ** argv)
 
     banner(); /*********************************************/
     size_t nc = glob.m * glob.n * glob.n;
-    int64_t * contribs64 = (int64_t *) malloc(nc * sizeof(int64_t));
+    std::vector<int64_t> contribs64(nc, 0);
     mp_size_t sN = mpz_size(glob.cpoly->n);
-    memset(contribs64,0,nc * sizeof(int64_t));
-    mp_limb_t * contribsN = (mp_limb_t *) malloc(nc * sN * sizeof(mp_limb_t));
-    memset(contribsN, 0,  nc * sN * sizeof(mp_limb_t));
+    std::vector<mp_limb_t> contribsN(nc * sN, 0);
 #if 1
-    prime_postcomputations(primes, i0, i1, contribs64, contribsN);
+    prime_postcomputations(primes, i0, i1, contribs64.data(), contribsN.data());
     // now share the contribs !
     for(int i = 0 ; i < glob.m ; i++) {
         int root = i / r;
         int d64 = glob.n * glob.n;
         int dN = d64 * mpz_size(glob.cpoly->n);
-        MPI_Bcast(contribs64 + i * d64, d64, CADO_MPI_INT64_T, root, glob.acomm);
-        MPI_Bcast(contribsN + i * dN, dN, CADO_MPI_MP_LIMB_T, root, glob.acomm);
+        MPI_Bcast(contribs64.data() + i * d64, d64, CADO_MPI_INT64_T, root, glob.acomm);
+        MPI_Bcast(contribsN.data() + i * dN, dN, CADO_MPI_MP_LIMB_T, root, glob.acomm);
     }
 #else
     if (glob.prank == 0) {
@@ -3732,16 +3173,13 @@ int main(int argc, char const ** argv)
         struct crtalgsqrt_knapsack cks[1];
         crtalgsqrt_knapsack_init(cks);
         crtalgsqrt_knapsack_prepare(cks, (nab+(nab&1)) / 2);
-        cks->ks->tab = contribs64;
-        cks->tabN = contribsN;
+        cks->ks->tab = contribs64.data();
+        cks->tabN = contribsN.data();
         knapsack_solve(cks->ks);
         crtalgsqrt_knapsack_clear(cks);
     }
 
     /****************************************************************/
-
-    free(contribs64);
-    free(contribsN);
 
     mpz_poly_clear(glob.f_hat);
     mpz_poly_clear(glob.f_hat_diff);

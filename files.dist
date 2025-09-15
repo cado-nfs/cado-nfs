@@ -1155,6 +1155,8 @@ sieve/trialdiv.cpp
 sieve/trialdiv.hpp
 sqrt/CMakeLists.txt
 sqrt/Makefile
+sqrt/abfiles.cpp
+sqrt/abfiles.hpp
 sqrt/crtalgsqrt.cpp
 sqrt/knapsack.c
 sqrt/knapsack.h
@@ -1164,6 +1166,10 @@ sqrt/montgomery.sage
 sqrt/powers_of_p.cpp
 sqrt/powers_of_p.h
 sqrt/sqrt.cpp
+sqrt/sqrt_cachefiles.cpp
+sqrt/sqrt_cachefiles.hpp
+sqrt/sqrt_wq.cpp
+sqrt/sqrt_wq.hpp
 tests/.clang-tidy
 tests/CMakeLists.txt
 tests/README
