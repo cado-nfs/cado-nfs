@@ -2542,15 +2542,21 @@ void mpz_poly_parallel_interface<inf>::mpz_poly_sqr_mod_f_mod_mpz(
     mpz_poly_clear(R);
 }
 
-/* Affects the derivative of f to df. Assumes df different from f.
-   Assumes df has been initialized with degree at least f->deg-1. */
+/* Affects the derivative of f to df. */
 void mpz_poly_derivative(mpz_poly_ptr df, mpz_poly_srcptr f)
 {
-    int n;
+    if (f->deg <= 0) {
+        df->deg = -1;
+        return;
+    }
 
-    df->deg = (f->deg <= 0) ? -1 : f->deg - 1;
-    for (n = 0; n <= f->deg - 1; n++)
+    /* This is a no-op if df == f, since f->deg < f->deg + 1 */
+    mpz_poly_realloc(df, f->deg - 1 + 1);
+
+    for (int n = 0; n <= f->deg - 1; n++)
         mpz_mul_si(df->_coeff[n], f->_coeff[n + 1], n + 1);
+
+    df->deg = f->deg - 1;
 }
 
 /* B = A^n */

@@ -81,6 +81,7 @@
 
 #include <algorithm>
 #include <complex>
+#include <utility>
 #include <vector>
 
 #include <unistd.h>
@@ -104,7 +105,8 @@
 #include "arith/modul_poly.h"
 #include "mpz_poly.h"
 #include "params.h"
-#include "powers_of_p.h"
+#include "powers_of_p.hpp"
+#include "rootfinder.h"
 #include "select_mpi.h"
 #include "timing.h"
 #include "version_info.h"
@@ -116,8 +118,11 @@
 #include "sqrt_wq.hpp"
 #include "sqrt_cachefiles.hpp"
 #include "cado_math_aux.hpp"
+#include "cado_mp_conversions.hpp"
 
 using cado_mpi::mpi_data_agrees;
+using cado_mpi::allreduce;
+using cado_mpi::broadcast;
 
 /* {{{ time */
 static double program_starttime;
@@ -289,17 +294,6 @@ static void WRAP_mpz_mod(mpz_ptr c, mpz_srcptr a, mpz_srcptr p)
 /* }}} */
 
 /* {{{ mpi-gmp helpers */
-static void broadcast_mpz(mpz_ptr z, int root, MPI_Comm comm) /*{{{*/
-{
-    // that's much, much uglier than it should.
-    int k;
-    MPI_Comm_rank(comm, &k);
-    mp_size_t nlimbs = mpz_size(z);
-    MPI_Bcast(&nlimbs, 1, CADO_MPI_MP_SIZE_T, root, comm);
-    if (k != root) _mpz_realloc(z, nlimbs);
-    MPI_Bcast(z->_mp_d, nlimbs, CADO_MPI_MP_LIMB_T, root, comm);
-    MPI_Bcast(&z->_mp_size, 1, CADO_MPI_MPZ_INTERNAL_SIZE_T, root, comm);
-}/*}}}*/
 
 /* {{{ share_1mpz -- two nodes communicate with eachother. integer z is
  * present on input for both nodes. Node s sends it to node r, which of
@@ -432,7 +426,7 @@ void allreduce_mulmod_mpz(mpz_ptr z, MPI_Comm comm, mpz_srcptr px)/*{{{*/
 #else
     /* completely stupid, but works */
     reduce_mulmod_mpz(z, 0, comm, px);
-    broadcast_mpz(z, 0, comm);
+    broadcast(z, 0, comm);
 #endif
 }/*}}}*/
 
@@ -476,7 +470,7 @@ static void broadcast_poly(mpz_poly P, int maxdeg, int root, MPI_Comm comm) /*{{
         mpz_ptr z = mpz_poly_coeff(P, j);
         if (j > P->deg)
             mpz_set_ui(z,0);
-        broadcast_mpz(z, root, comm);
+        broadcast(z, root, comm);
     }
     mpz_poly_cleandeg(P, maxdeg);
 }/*}}}*/
@@ -501,8 +495,8 @@ struct sqrt_globals {
     mpz_t P;    // prime product (not to the power prec)
     size_t nbits_sqrt;
     // size_t nbits_a;
-    mpz_poly f_hat;
-    mpz_poly f_hat_diff;
+    cxx_mpz_poly f_hat;
+    cxx_mpz_poly f_hat_diff;
     double f_hat_coeffs;
     cado_poly cpoly;
     mpz_t root_m;
@@ -524,7 +518,7 @@ static struct sqrt_globals glob;
 // {{{ TODO: Now that the v field is gone, replace the polymodF layer.
 // Here's the only fragments which need to remain.
 static void
-mpz_poly_from_ab_monic(mpz_poly tmp, long a, unsigned long b) {
+mpz_poly_from_ab_monic(cxx_mpz_poly & tmp, long a, unsigned long b) {
     tmp->deg = b != 0;
     mpz_set_ui (mpz_poly_coeff(tmp, 1), b);
     mpz_neg (mpz_poly_coeff(tmp, 1), mpz_poly_coeff_const(tmp, 1));
@@ -792,31 +786,41 @@ struct individual_contribution {
 #endif
 
 struct prime_data {
-    unsigned long p;
-    unsigned long * r;
+    unsigned long p = 0;
+    std::vector<unsigned long> r;
     // unsigned long rj;
-    void * powers;      // see .cpp file.
+    power_lookup_table powers;
 
     // computed somewhat late.
-    mpz_t iHx;
+    cxx_mpz iHx;
 
-    struct alg_ptree_s * T;     // always NULL.
+    // struct alg_ptree_s * T = nullptr;     // always NULL.
 
     // after the rational ptree reduction, this contains the share of A
     // with coefficients reduced. Short-lived.
-    mpz_poly A;
+    cxx_mpz_poly A;
 
-    mpz_poly evals;       // set of evaluations.
-    mpz_poly lroots;      // (lifted) roots.
-    mpz_poly sqrts;       // square roots of A(x)     (only in the end !)
+    std::vector<cxx_mpz> evals;       // set of evaluations.
+    std::vector<cxx_mpz> lroots;      // (lifted) roots.
+    std::vector<cxx_mpz> sqrts;       // square roots of A(x)     (only in the end !)
 
+    prime_data(unsigned long p, std::vector<unsigned long> r)
+        : p(p)
+        , r(std::move(r))
+        , powers(p)
+        , evals(glob.n)
+        , lroots(glob.n)
+        , sqrts(glob.n)
+
+    {
+    }
 };/* }}} */
 
 /* {{{ product tree (algebraic) */
 struct alg_ptree_s {
     struct alg_ptree_s * t0;
     struct alg_ptree_s * t1;
-    mpz_poly s;
+    cxx_mpz_poly s;
 };
 typedef struct alg_ptree_s alg_ptree_t;
 
@@ -830,7 +834,7 @@ alg_ptree_t * alg_ptree_build(struct prime_data * p, int i0, int i1)
      */
     return NULL;
 
-    mpz_srcptr px = power_lookup(p->powers, glob.prec);
+    mpz_srcptr px = p->powers(glob.prec);
     ASSERT_ALWAYS(i0 < i1);
     alg_ptree_t * res = (alg_ptree_t *) malloc(sizeof(alg_ptree_t));
     memset(res, 0, sizeof(alg_ptree_t));
@@ -863,69 +867,41 @@ void alg_ptree_clear(alg_ptree_t * T)
 
 /* {{{ finding the CRT primes */
 
-typedef int (*sortfunc_t) (const void *, const void *);
-int modul_cmp_sortfunc(const unsigned long * a, const unsigned long * b)
-{
-    return (*a>*b) - (*b>*a);
-}
-
-struct prime_data * suitable_crt_primes()
+std::vector<prime_data> suitable_crt_primes()
 {
     unsigned int m = glob.m;
-    struct prime_data * res = (struct prime_data *) malloc(m * sizeof(struct prime_data));
-    unsigned int i = 0;
+
+    std::vector<prime_data> res;
+    res.reserve(m);
 
     // Note that p0 has to be well above the factor base bound. Thus on
     // 32-bit machines, it's possibly problematic.
     unsigned long p0 = ((~0UL)>>1)+1;    // 2^31 or 2^63
     unsigned long p = p0;
-    unsigned long * roots = (unsigned long *) malloc(glob.n * sizeof(unsigned long));
 
     if (glob.rank == 0)
         printf("# [%2.2lf] Searching for CRT primes\n", WCT);
     // printf("# [%2.2lf] p0=%lu\n", WCT, p0);
 
-    gmp_randstate_t rstate;
-    gmp_randinit_default(rstate);
+    cxx_gmp_randstate rstate;
 
-    for( ; i < m ; ) {
+    for( ; res.size() < m ; ) {
         p = ulong_nextprime(p);
-        modulusul_t q;
-        modul_initmod_ul(q, p);
-        memset(roots, 0, glob.n * sizeof(unsigned long));
-        int nr = modul_poly_roots_ulong(roots, glob.cpoly->pols[1], q, rstate);
-        if (nr != glob.n) continue;
-        memset(&(res[i]), 0, sizeof(struct prime_data));
-        res[i].r = (unsigned long *) malloc(glob.n * sizeof(unsigned long));
-        memcpy(res[i].r, roots, glob.n * sizeof(unsigned long));
-        res[i].p = p;
-        // res[i].log2_p = log(p)/M_LN2;
-        // printf("# [%2.2lf] p0+%lu", WCT, p-p0);
-        // if (glob.rank == 0) printf("#[%2.2lf] %lu\n", WCT, p);
-        residueul_t fd;
-        modul_init(fd, q);
-        modul_set_ul_reduced(fd, mpz_fdiv_ui(mpz_poly_coeff_const(glob.cpoly->pols[1], glob.n), modul_getmod_ul (q)), q);
-        for(int j = 0 ; j < glob.n ; j++) {
-            residueul_t r;
-            modul_init(r, q);
-            modul_set_ul_reduced(r, res[i].r[j], q);
-            modul_mul(r,r,fd,q);
-            res[i].r[j] = modul_get_ul(r, q);
-            // printf(" %lu", res[i].r[j]);
-            modul_clear(r, q);
+        auto r = mpz_poly_roots(glob.cpoly->pols[1], p, rstate);
+        if (r.size() != (size_t) glob.n) continue;
+        for(auto & e : r) {
+            cxx_mpz fd_e = mpz_poly_coeff_const(glob.cpoly->pols[1], glob.n);
+            fd_e *= e;
+            mpz_fdiv_r_ui(fd_e, fd_e, p);
+            e = cado_math_aux::mpz_get<unsigned long>(fd_e);
         }
-        // sort with respect to the values of the scaled roots.
-        qsort(res[i].r, glob.n, sizeof(unsigned long), (sortfunc_t) &modul_cmp_sortfunc);
-        modul_clear(fd, q);
-        modul_clearmod(q);
+        std::sort(r.begin(), r.end());
+        res.emplace_back(p, r);
         // printf("\n");
-        i++;
     }
-    gmp_randclear(rstate);
 
     if (glob.rank == 0)
         printf("# [%2.2lf] Found all CRT primes\n", WCT);
-    free(roots);
 
     return res;
 }
@@ -1013,6 +989,8 @@ void invsqrt_lift(struct prime_data * p, mpz_ptr A, mpz_ptr sx, int precision)
     ASSERT(precision > 0);
 
     if (precision == 1) {
+        gmp_printf("A is %Zd\n", A);
+        logprint("computing a root of A mod %lu\n", p->p);
         residueul_t z, a;
         modulusul_t q;
         modul_initmod_ul(q, p->p);
@@ -1031,7 +1009,7 @@ void invsqrt_lift(struct prime_data * p, mpz_ptr A, mpz_ptr sx, int precision)
     }
     int lower = precision - precision / 2;
 
-    mpz_srcptr pl = power_lookup_const(p->powers, lower);
+    mpz_srcptr pl = p->powers(lower);
 
     // we're going to recurse ; arrange so that we recurse on something
     // acceptably small.  The problem with this approach is that we store
@@ -1046,7 +1024,7 @@ void invsqrt_lift(struct prime_data * p, mpz_ptr A, mpz_ptr sx, int precision)
     if (WCT > w0 + print_delay)
         logprint("precision %d\n", precision);
 
-    mpz_srcptr pk = power_lookup_const(p->powers, precision);
+    mpz_srcptr pk = p->powers(precision);
 
     mpz_t ta;
     mpz_init(ta);
@@ -1068,8 +1046,8 @@ void sqrt_lift(struct prime_data * p, mpz_ptr A, mpz_ptr sx, int precision)
 {
     double w0 = WCT;
     int lower = precision - precision / 2;
-    mpz_srcptr pk = power_lookup_const(p->powers, precision);
-    mpz_srcptr pl = power_lookup_const(p->powers, lower);
+    mpz_srcptr pk = p->powers(precision);
+    mpz_srcptr pl = p->powers(lower);
     mpz_t A_save;
     mpz_init(A_save);
     WRAP_mpz_mod(A_save, A, pl);
@@ -1111,8 +1089,8 @@ void root_lift(struct prime_data * p, mpz_ptr rx, mpz_ptr irx, int precision)/* 
 
     if (WCT > w0 + print_delay)
         logprint("precision %d\n", precision);
-    mpz_srcptr pk = power_lookup_const(p->powers, precision);
-    mpz_srcptr pl = power_lookup_const(p->powers, lower);
+    mpz_srcptr pk = p->powers(precision);
+    mpz_srcptr pl = p->powers(lower);
 
     mpz_t ta, tb;
     mpz_init(ta);
@@ -1146,35 +1124,6 @@ void root_lift(struct prime_data * p, mpz_ptr rx, mpz_ptr irx, int precision)/* 
     mpz_clear(ta);
     mpz_clear(tb);
 }/* }}} */
-
-void prime_initialization(struct prime_data * p)/* {{{ */
-{
-    // trigger computation of p^glob.prec
-    p->powers = power_lookup_table_init(p->p);
-    mpz_init(p->iHx);
-
-    mpz_poly_init(p->A, glob.n-1);
-    mpz_poly_init(p->evals, glob.n-1);
-    mpz_poly_init(p->lroots, glob.n-1);
-    mpz_poly_init(p->sqrts, glob.n-1);
-}
-/* }}} */
-
-void prime_cleanup(struct prime_data * p)/* {{{ */
-{
-    power_lookup_table_clear(p->powers);
-    mpz_clear(p->iHx);
-    free(p->r);
-    alg_ptree_clear(p->T);
-
-    mpz_poly_clear(p->A);
-    mpz_poly_clear(p->evals);
-    mpz_poly_clear(p->lroots);
-    mpz_poly_clear(p->sqrts);
-
-    memset(p, 0, sizeof(struct prime_data));
-}
-/* }}} */
 
 /* }}} */
 
@@ -1448,16 +1397,16 @@ void mpi_custom_types_check()/*{{{*/
 
 static void get_parameters(int * pr, int * ps, int * pt, int asked_r)
 {
-    int n=0,r=0,s=0,t=0;
     double R = ram_gb * 8UL * (double) (1UL << 30);
-    n = glob.n;
+    int n = glob.n;
     size_t T = glob.nbits_sqrt + 80;    // some margin for knapsack.
     double ramfraction = 2*T*n / R;
-    s = ceil(ramfraction);
-    t = ceil((double)n*T / R);
+    int s = ceil(ramfraction);
+    int t = ceil((double)n*T / R);
     int dmax = glob.lll_maxdim - n;
     double rmax = (double) dmax / n / t;
-    r = rmax;
+    int r = rmax;
+
     if (r == 0) {
         r = 1;
         fprintf(stderr, "Warning: resorting to choosing r=1, which will give a reconstruction effort of dimension %d\n",
@@ -1500,57 +1449,61 @@ static void get_parameters(int * pr, int * ps, int * pt, int asked_r)
 }
 /* }}} */
 
-int rat_red_caches_ok(struct prime_data * primes, int i0, int i1, size_t off0, size_t off1)/*{{{*/
+static int rat_red_caches_ok(std::vector<prime_data> const & primes, int i0, int i1, size_t off0, size_t off1)/*{{{*/
 {
     if (!rcache) return 0;
     int nok = 0;
     for(int i = i0 ; i < i1 ; i++) {
+        ASSERT_ALWAYS(i < (int) primes.size());
         nok += cachefile_exists("a_%zu_%zu_mod_%lu_%lu", off0, off1, primes[i].p, glob.prec);
     }
-    MPI_Allreduce(MPI_IN_PLACE, &nok, 1, CADO_MPI_SIZE_T, MPI_SUM, MPI_COMM_WORLD);
+    allreduce(nok, MPI_SUM, MPI_COMM_WORLD);
     return nok == glob.m * glob.s;
 }/*}}}*/
 
-int alg_red_caches_ok(struct prime_data * primes, int i0, int i1, size_t off0, size_t off1)/*{{{*/
+static int alg_red_caches_ok(std::vector<prime_data> const & primes, int i0, int i1, size_t off0, size_t off1)/*{{{*/
 {
     if (!rcache) return 0;
     int nok = 0;
     for(int i = i0 ; i < i1 ; i++) {
-        struct prime_data * p = &primes[i];
+        ASSERT_ALWAYS(i < (int) primes.size());
+        auto const & p = primes[i];
         for(int j = 0 ; j < glob.n ; j++) {
             nok += cachefile_exists("a_%zu_%zu_mod_%lu_%lu_%lu",
-                    off0, off1, p->p, p->r[j], glob.prec);
+                    off0, off1, p.p, p.r[j], glob.prec);
         }
     }
-    MPI_Allreduce(MPI_IN_PLACE, &nok, 1, CADO_MPI_SIZE_T, MPI_SUM, MPI_COMM_WORLD);
+    allreduce(nok, MPI_SUM, MPI_COMM_WORLD);
     return nok == glob.n * glob.m * glob.s;
 }/*}}}*/
 
-int a_shared_caches_ok(struct prime_data * primes, int i0, int i1)/*{{{*/
+static int a_shared_caches_ok(std::vector<prime_data> const & primes, int i0, int i1)/*{{{*/
 {
     if (!rcache) return 0;
     int nok = 0;
     for(int i = i0 ; i < i1 ; i++) {
-        struct prime_data * p = &primes[i];
+        ASSERT_ALWAYS(i < (int) primes.size());
+        auto const & p = primes[i];
         for(int j = 0 ; j < glob.n ; j++) {
-            nok += cachefile_exists("a_mod_%lu_%lu_%lu", p->p, p->r[j], glob.prec);
+            nok += cachefile_exists("a_mod_%lu_%lu_%lu", p.p, p.r[j], glob.prec);
         }
     }
-    MPI_Allreduce(MPI_IN_PLACE, &nok, 1, CADO_MPI_SIZE_T, MPI_SUM, MPI_COMM_WORLD);
+    allreduce(nok, MPI_SUM, MPI_COMM_WORLD);
     return nok == glob.n * glob.m * glob.s;
 }/*}}}*/
 
-int sqrt_caches_ok(struct prime_data * primes, int i0, int i1)/*{{{*/
+static int sqrt_caches_ok(std::vector<prime_data> const & primes, int i0, int i1)/*{{{*/
 {
     if (!rcache) return 0;
     int nok = 0;
     for(int i = i0 ; i < i1 ; i++) {
-        struct prime_data * p = &primes[i];
+        ASSERT_ALWAYS(i < (int) primes.size());
+        auto const & p = primes[i];
         for(int j = 0 ; j < glob.n ; j++) {
-            nok += cachefile_exists("sqrt_%lu_%lu_%lu", p->p, p->r[j], glob.prec);
+            nok += cachefile_exists("sqrt_%lu_%lu_%lu", p.p, p.r[j], glob.prec);
         }
     }
-    MPI_Allreduce(MPI_IN_PLACE, &nok, 1, CADO_MPI_SIZE_T, MPI_SUM, MPI_COMM_WORLD);
+    allreduce(nok, MPI_SUM, MPI_COMM_WORLD);
     return nok == glob.n * glob.m * glob.s;
 }/*}}}*/
 
@@ -1567,18 +1520,18 @@ struct subtask_info_t {
 };
 
 /*{{{ a_poly_read_share and companion */
-#define ABPOLY_OFFSET_THRESHOLD        16
+#define ABPOLY_OFFSET_THRESHOLD        65536
 // NOTE: This does not depend on p (nor r of course).
 // the accumulation is done for all data between:
 // the first data line starting at offset >= off0 (inclusive)
 // the first data line starting at offset >= off1 (exclusive)
-size_t accumulate_ab_poly(mpz_poly_ptr P, ab_source_ptr ab, size_t off0, size_t off1, mpz_poly tmp)
+size_t accumulate_ab_poly(mpz_poly_ptr P, ab_source_ptr ab, size_t off0, size_t off1, cxx_mpz_poly & tmp)
 {
     size_t res = 0;
     mpz_poly_set_ui(P, 1);
     if (off1 - off0 < ABPOLY_OFFSET_THRESHOLD) {
         ab_source_move_afterpos(ab, off0);
-        logprint("(a,b) rewind to %s, pos %zu\n",
+        logprint("<4> (a,b) rewind to %s, pos %zu\n",
                 ab->nfiles ? ab->sname : ab->fname0, ab->cpos);
         for( ; ab->tpos < off1 ; res++) {
             int64_t a;
@@ -1591,14 +1544,10 @@ size_t accumulate_ab_poly(mpz_poly_ptr P, ab_source_ptr ab, size_t off0, size_t 
         return res;
     }
     size_t d = (off1 - off0) / 2;
-    mpz_poly Pl, Pr;
-    mpz_poly_init(Pl, glob.n);
-    mpz_poly_init(Pr, glob.n);
+    cxx_mpz_poly Pl, Pr;
     res += accumulate_ab_poly(Pl, ab, off0, off0 + d, tmp);
     res += accumulate_ab_poly(Pr, ab, off0 + d, off1, tmp);
     mpz_poly_mul_mod_f(P, Pl, Pr, glob.f_hat);
-    mpz_poly_clear(Pl);
-    mpz_poly_clear(Pr);
     return res;
 }
 
@@ -1628,10 +1577,8 @@ void * a_poly_read_share_child(struct subtask_info_t * info)
 
     ab_source ab;
     ab_source_init_set(ab, glob.ab);
-    mpz_poly tmp;
-    mpz_poly_init(tmp, 1);
+    cxx_mpz_poly tmp;
     info->nab_loc = accumulate_ab_poly(P, ab, off0, off1, tmp);
-    mpz_poly_clear(tmp);
     ab_source_clear(ab);
 
     if (wcache && cachefile_open_w(c)) {
@@ -1652,7 +1599,7 @@ void * a_poly_read_share_child2(struct subtask_info_t * info)
     return NULL;
 }
 
-size_t a_poly_read_share(mpz_poly P, size_t off0, size_t off1)
+size_t a_poly_read_share(mpz_poly_ptr P, size_t off0, size_t off1)
 {
     STOPWATCH_DECL;
     STOPWATCH_GO();
@@ -1680,23 +1627,20 @@ size_t a_poly_read_share(mpz_poly P, size_t off0, size_t off1)
 
     size_t nparts = glob.ncores * glob.t;
 
-    struct subtask_info_t * a_tasks;
-    a_tasks = (struct subtask_info_t *) malloc(glob.ncores *sizeof(struct subtask_info_t));
+    std::vector<subtask_info_t> a_tasks(glob.ncores);
 
     int j0 = glob.ncores * glob.arank;
     int j1 = j0 + glob.ncores;
 
-    mpz_poly * pols = (mpz_poly *) malloc((j1-j0) * sizeof(mpz_poly));
-    for(int j = j0 ; j < j1 ; j++) mpz_poly_init(pols[j-j0], glob.n);
-
+    std::vector<cxx_mpz_poly> pols(j1-j0);
     for(int j = j0 ; j < j1 ; j++) {
-        struct subtask_info_t * task = a_tasks + (j-j0);
-        task->P = pols[j-j0];
-        task->off0 = off0 + (off1 - off0) * j / nparts;
-        task->off1 = off0 + (off1 - off0) * (j+1) / nparts;
-        task->nab_loc = 0;
-        wq_func_t f = (wq_func_t) &a_poly_read_share_child;
-        task->handle = wq_push(glob.wq, f, task);
+        subtask_info_t & task = a_tasks[j-j0];
+        task.P = pols[j-j0];
+        task.off0 = off0 + (off1 - off0) * j / nparts;
+        task.off1 = off0 + (off1 - off0) * (j+1) / nparts;
+        task.nab_loc = 0;
+        auto f = (wq_func_t) &a_poly_read_share_child;
+        task.handle = wq_push(glob.wq, f, &task);
     }
     /* we're doing nothing, only waiting. */
     for(int j = j0 ; j < j1 ; j++) {
@@ -1709,17 +1653,16 @@ size_t a_poly_read_share(mpz_poly P, size_t off0, size_t off1)
     log_step_time(" done on leaf threads");
     log_step(": sharing among threads");
 
-    struct subtask_info_t * a_tasks2;
-    a_tasks2 = (struct subtask_info_t *) malloc(glob.ncores *sizeof(struct subtask_info_t));
+    std::vector<subtask_info_t> a_tasks2(glob.ncores);
     for(int done = 1 ; done < glob.ncores ; done<<=1) {
         for(int j = 0 ; j < glob.ncores ; j += done << 1) {
             if (j + done >= glob.ncores)
                 break;
-            struct subtask_info_t * task = a_tasks2 + j;
-            task->P0 = a_tasks[j].P;
-            task->P1 = a_tasks[j+done].P;
-            wq_func_t f = (wq_func_t) &a_poly_read_share_child2;
-            task->handle = wq_push(glob.wq, f, task);
+            subtask_info_t & task = a_tasks2[j];
+            task.P0 = a_tasks[j].P;
+            task.P1 = a_tasks[j+done].P;
+            auto f = (wq_func_t) &a_poly_read_share_child2;
+            task.handle = wq_push(glob.wq, f, &task);
         }
         /* we're doing nothing, only waiting. */
         for(int j = 0 ; j < glob.ncores ; j += done << 1) {
@@ -1728,13 +1671,9 @@ size_t a_poly_read_share(mpz_poly P, size_t off0, size_t off1)
             wq_join(a_tasks2[j].handle);
         }
     }
-    free(a_tasks2);
 
     mpz_poly_swap(P, a_tasks[0].P);
-    for(int j = j0 ; j < j1 ; j++) mpz_poly_clear(pols[j-j0]);
-    free(pols);
 
-    free(a_tasks);
 
     STOPWATCH_GET();
     log_step_time(" done locally");
@@ -1784,14 +1723,14 @@ void * precompute_powers_child(struct subtask_info_t * info)/* {{{ */
 
     logprint("Precomputing p^%lu, p=%lu\n", glob.prec, p->p);
     // this triggers the whole precomputation.
-    power_lookup(p->powers, glob.prec);
+    p->powers(glob.prec);
 
     return NULL;
 }
 
 /* }}} */
 
-void precompute_powers(struct prime_data * primes, int i0, int i1)
+void precompute_powers(std::vector<prime_data> & primes, int i0, int i1)
 {
     STOPWATCH_DECL;
     STOPWATCH_GO();
@@ -1799,25 +1738,22 @@ void precompute_powers(struct prime_data * primes, int i0, int i1)
     logprint("precompute_powers starts\n");
 
     {
-        struct subtask_info_t * tasks;
-        tasks = (struct subtask_info_t *) malloc((i1-i0) * sizeof(struct subtask_info_t));
+        std::vector<subtask_info_t> tasks(i1-i0);
         for(int i = i0 ; i < i1 ; i++) {
             int k = i-i0;
             // if (k % glob.psize != glob.prank) continue;
-            struct subtask_info_t * task = tasks + k;
-            task->p = primes + i;
-            task->j = 0;
-            wq_func_t f = (wq_func_t) &precompute_powers_child;
-            task->handle = wq_push(glob.wq, f, task);
+            subtask_info_t & task = tasks[k];
+            task.p = &primes[i];
+            task.j = 0;
+            auto f = (wq_func_t) &precompute_powers_child;
+            task.handle = wq_push(glob.wq, f, &task);
         }
         /* we're doing nothing, only waiting. */
         for(int i = i0 ; i < i1 ; i++) {
             int k = i-i0;
             // if (k % glob.psize != glob.prank) continue;
-            struct wq_task * handle = tasks[k].handle;
-            wq_join(handle);
+            wq_join(tasks[k].handle);
         }
-        free(tasks);
     }
 
     STOPWATCH_GET();
@@ -1833,8 +1769,8 @@ void * lifting_roots_child(struct subtask_info_t * info)/* {{{ */
     struct prime_data * p = info->p;
     int j = info->j;
 
-    mpz_srcptr p1 = power_lookup_const(p->powers, 1);
-    mpz_ptr rx = mpz_poly_coeff(p->lroots, j);
+    mpz_srcptr p1 = p->powers(1);
+    mpz_ptr rx = p->lroots[j];
 
     cachefile c;
 
@@ -1872,7 +1808,7 @@ void * lifting_roots_child(struct subtask_info_t * info)/* {{{ */
 
 /* }}} */
 
-void lifting_roots(struct prime_data * primes, int i0, int i1)
+void lifting_roots(std::vector<prime_data> & primes, int i0, int i1)
 {
     int n = glob.n;
 
@@ -1883,18 +1819,17 @@ void lifting_roots(struct prime_data * primes, int i0, int i1)
     log_begin();
 
     {
-        struct subtask_info_t * lift_tasks;
-        lift_tasks = (struct subtask_info_t *) malloc((i1-i0)*n*sizeof(struct subtask_info_t));
+        std::vector<subtask_info_t> lift_tasks((i1 - i0) * n);
         for(int j = 0 ; j < n ; j++) {
             for(int i = i0 ; i < i1 ; i++) {
                 int k = (i-i0) * n + j;
                 if (k % glob.psize != glob.prank)
                     continue;
-                struct subtask_info_t * task = lift_tasks + k;
-                task->p = primes + i;
-                task->j = j;
-                wq_func_t f = (wq_func_t) &lifting_roots_child;
-                task->handle = wq_push(glob.wq, f, task);
+                subtask_info_t & task = lift_tasks[k];
+                task.p = &primes[i];
+                task.j = j;
+                auto f = (wq_func_t) &lifting_roots_child;
+                task.handle = wq_push(glob.wq, f, &task);
             }
         }
         /* we're doing nothing, only waiting. */
@@ -1903,11 +1838,9 @@ void lifting_roots(struct prime_data * primes, int i0, int i1)
                 int k = (i-i0) * n + j;
                 if (k % glob.psize != glob.prank)
                     continue;
-                struct wq_task * handle = lift_tasks[k].handle;
-                wq_join(handle);
+                wq_join(lift_tasks[k].handle);
             }
         }
-        free(lift_tasks);
     }
 
     STOPWATCH_GET();
@@ -1922,20 +1855,16 @@ void lifting_roots(struct prime_data * primes, int i0, int i1)
         for(int j = 0 ; j < n ; j++) {
             for(int i = i0 ; i < i1 ; i++) {
                 int k = (i-i0) * n + j;
-                struct prime_data * p = primes + i;
-                mpz_ptr z = mpz_poly_coeff(p->lroots, j);
-                broadcast_mpz(z, k % glob.psize, glob.pcomm);
+                broadcast(primes[i].lroots[j], k % glob.psize, glob.pcomm);
             }
         }
     }
     STOPWATCH_GET();
     log_end();
 
-    for(int i = i0 ; i < i1 ; i++) {
-        for(int j = 0 ; j < n ; j++) {
-            ASSERT_ALWAYS(mpz_size(mpz_poly_coeff_const(primes[i].lroots, j)));
-        }
-    }
+    for(int i = i0 ; i < i1 ; i++)
+        for(int j = 0 ; j < n ; j++)
+            ASSERT_ALWAYS(mpz_size(primes[i].lroots[j]));
 }/*}}}*/
 
 /* {{{ rational reduction */
@@ -1964,7 +1893,7 @@ rat_ptree_t * rat_ptree_build_inner(struct prime_data * p, int i0, int i1)
     memset(res, 0, sizeof(rat_ptree_t));
     if (i1-i0 == 1) {
         res->p = p + i0;
-        res->zx = power_lookup_const(res->p->powers, glob.prec);
+        res->zx = res->p->powers(glob.prec);
         return res;
     }
     int d = (i1-i0)/2;
@@ -2023,8 +1952,7 @@ void reduce_poly_mod_rat_ptree(mpz_poly_ptr P, rat_ptree_t * T)/*{{{*/
         mpz_poly_swap(T->p->A, P);
         return;
     }
-    mpz_poly temp;
-    mpz_poly_init(temp, glob.n);
+    cxx_mpz_poly temp;
     temp->deg = glob.n - 1;
     for(int i = 0 ; i < glob.n ; i++) {
         WRAP_mpz_mod(mpz_poly_coeff(temp, i), mpz_poly_coeff_const(P, i), T->t0->zx);
@@ -2034,7 +1962,6 @@ void reduce_poly_mod_rat_ptree(mpz_poly_ptr P, rat_ptree_t * T)/*{{{*/
     mpz_poly_cleandeg(P, glob.n - 1);
     reduce_poly_mod_rat_ptree(temp, T->t0);
     reduce_poly_mod_rat_ptree(P, T->t1);
-    mpz_poly_clear(temp);
 }/*}}}*/
 
 void * rational_reduction_child(struct subtask_info_t * info)
@@ -2062,30 +1989,24 @@ void * rational_reduction_child(struct subtask_info_t * info)
             mpz_poly_cleandeg(ptree->p->A, glob.n-1);
         }
         if (barrier_wait(glob.barrier, NULL, NULL, NULL) == BARRIER_SERIAL_THREAD) {
-            mpz_poly foo;
-            mpz_poly_init(foo, glob.n);
+            cxx_mpz_poly foo;
             mpz_poly_swap(info->P, foo);
-            mpz_poly_clear(foo);
         }
     } else {
         ASSERT_ALWAYS(ptree != NULL);
 
-        mpz_poly temp;
-        mpz_poly_init(temp, glob.n);
+        cxx_mpz_poly temp;
         for(int i = 0 ; i < glob.n ; i++) {
             WRAP_mpz_mod(mpz_poly_coeff(temp, i), mpz_poly_coeff_const(info->P, i), ptree->zx);
         }
         mpz_poly_cleandeg(temp, glob.n-1);
         if (barrier_wait(glob.barrier, NULL, NULL, NULL) == BARRIER_SERIAL_THREAD) {
-            mpz_poly foo;
-            mpz_poly_init(foo, glob.n);
+            cxx_mpz_poly foo;
             mpz_poly_swap(info->P, foo);
-            mpz_poly_clear(foo);
         }
         // This computes P mod p_i for all p_i, and stores it into the
         // relevant field at the ptree leaves (->a)
         reduce_poly_mod_rat_ptree(temp, ptree);
-        mpz_poly_clear(temp);
     }
 
     rat_ptree_clear(ptree);
@@ -2113,7 +2034,7 @@ void * rational_reduction_child(struct subtask_info_t * info)
     return NULL;
 }
 
-void rational_reduction(struct prime_data * primes, int i0, int i1, mpz_poly_ptr P, size_t off0, size_t off1, size_t * p_nab_total)
+void rational_reduction(std::vector<prime_data> & primes, int i0, int i1, mpz_poly_ptr P, size_t off0, size_t off1, size_t * p_nab_total)
 {
     STOPWATCH_DECL;
     STOPWATCH_GO();
@@ -2143,23 +2064,21 @@ void rational_reduction(struct prime_data * primes, int i0, int i1, mpz_poly_ptr
     }
 
     {
-        struct subtask_info_t * tasks;
-        tasks = (struct subtask_info_t *) malloc(glob.ncores*sizeof(struct subtask_info_t));
+        std::vector<subtask_info_t> tasks(glob.ncores);
         for(int k = 0 ; k < glob.ncores ; k++) {
-            struct subtask_info_t * task = tasks + k;
-            task->p = primes;
-            task->i0 = i0 + (i1-i0) * k / glob.ncores;
-            task->i1 = i0 + (i1-i0) * (k+1) / glob.ncores;
-            task->off0 = off0;
-            task->off1 = off1;
-            task->P = P;
-            task->nab_loc = *p_nab_total;
-            wq_func_t f = (wq_func_t) &rational_reduction_child;
-            task->handle = wq_push(glob.wq, f, task);
+            subtask_info_t & task = tasks[k];
+            task.p = primes.data();
+            task.i0 = i0 + (i1-i0) * k / glob.ncores;
+            task.i1 = i0 + (i1-i0) * (k+1) / glob.ncores;
+            task.off0 = off0;
+            task.off1 = off1;
+            task.P = P;
+            task.nab_loc = *p_nab_total;
+            auto f = (wq_func_t) &rational_reduction_child;
+            task.handle = wq_push(glob.wq, f, &task);
         }
         /* we're doing nothing, only waiting. */
         for(int k = 0 ; k < glob.ncores ; k++) wq_join(tasks[k].handle);
-        free(tasks);
     }
 
     STOPWATCH_GET();
@@ -2189,7 +2108,7 @@ void * algebraic_reduction_child(struct subtask_info_t * info)
         logprint("reading cache %s\n", c->basename);
         rc = fscanf(c->f, "%zu", &info->nab_loc);
         ASSERT_ALWAYS(rc == 1);
-        rc = gmp_fscanf(c->f, "%Zx", mpz_poly_coeff(p->evals, j));
+        rc = gmp_fscanf(c->f, "%Zx", (mpz_ptr) p->evals[j]);
         ASSERT_ALWAYS(rc == 1);
         cachefile_close(c);
         return NULL;
@@ -2197,28 +2116,28 @@ void * algebraic_reduction_child(struct subtask_info_t * info)
 
     mpz_t ta;
     mpz_init(ta);
-    mpz_srcptr px = power_lookup_const(p->powers, glob.prec);
+    mpz_srcptr px = p->powers(glob.prec);
     mpz_set(ta, mpz_poly_coeff_const(p->A, glob.n - 1));
     for(int k = glob.n - 2 ; k >= 0 ; k--) {
-        WRAP_mpz_mul(ta, ta, mpz_poly_coeff_const(p->lroots, j));
+        WRAP_mpz_mul(ta, ta, p->lroots[j]);
         mpz_add(ta, ta, mpz_poly_coeff_const(p->A, k));
         WRAP_mpz_mod(ta, ta, px);
     }
-    WRAP_mpz_mul(mpz_poly_coeff(p->evals, j), mpz_poly_coeff_const(p->evals, j), ta);
-    if (mpz_size(mpz_poly_coeff_const(p->evals, j)) >= mpz_size(px) * 3/2)
-        WRAP_mpz_mod(mpz_poly_coeff(p->evals, j), mpz_poly_coeff_const(p->evals, j), px);
+    WRAP_mpz_mul(p->evals[j], p->evals[j], ta);
+    if (mpz_size(p->evals[j]) >= mpz_size(px) * 3/2)
+        WRAP_mpz_mod(p->evals[j], p->evals[j], px);
     mpz_clear(ta);
 
     if (wcache && cachefile_open_w(c)) {
         logprint("writing cache %s\n", c->basename);
         fprintf(c->f, "%zu\n", info->nab_loc);
-        gmp_fprintf(c->f, "%Zx\n", mpz_poly_coeff_const(p->evals, j));
+        gmp_fprintf(c->f, "%Zx\n", (mpz_srcptr) p->evals[j]);
         cachefile_close(c);
     }
     return NULL;
 }
 
-void algebraic_reduction(struct prime_data * primes, int i0, int i1, size_t off0, size_t off1, size_t * p_nab_total)
+void algebraic_reduction(std::vector<prime_data> & primes, int i0, int i1, size_t off0, size_t off1, size_t * p_nab_total)
 {
     STOPWATCH_DECL;
     STOPWATCH_GO();
@@ -2230,20 +2149,19 @@ void algebraic_reduction(struct prime_data * primes, int i0, int i1, size_t off0
         }
     }
 
-    struct subtask_info_t * tasks;
-    tasks = (struct subtask_info_t *) malloc((i1-i0) * glob.n * sizeof(struct subtask_info_t));
+    std::vector<subtask_info_t> tasks((i1-i0) * glob.n);
     for(int j = 0 ; j < glob.n ; j++) {
         for(int i = i0 ; i < i1 ; i++) {
             int k = (i-i0) * glob.n + j;
             // if (k % glob.psize != glob.prank) continue;
-            struct subtask_info_t * task = tasks + k;
-            task->off0 = off0;
-            task->off1 = off1;
-            task->p = primes + i;
-            task->j = j;
-            task->nab_loc = *p_nab_total;
-            wq_func_t f = (wq_func_t) &algebraic_reduction_child;
-            task->handle = wq_push(glob.wq, f, task);
+            subtask_info_t & task = tasks[k];
+            task.off0 = off0;
+            task.off1 = off1;
+            task.p = &primes[i];
+            task.j = j;
+            task.nab_loc = *p_nab_total;
+            auto f = (wq_func_t) &algebraic_reduction_child;
+            task.handle = wq_push(glob.wq, f, &task);
         }
     }
     /* we're doing nothing */
@@ -2255,7 +2173,6 @@ void algebraic_reduction(struct prime_data * primes, int i0, int i1, size_t off0
             * p_nab_total = tasks[k].nab_loc;
         }
     }
-    free(tasks);
     for(int i = i0 ; i < i1 ; i++) {
         for(int k = glob.n - 1 ; k >= 0 ; k--) {
             mpz_realloc(mpz_poly_coeff(primes[i].A, k), 0);
@@ -2266,7 +2183,7 @@ void algebraic_reduction(struct prime_data * primes, int i0, int i1, size_t off0
     log_end();
 }/*}}}*/
 
-void multiply_all_shares(struct prime_data * primes, int i0, int i1, size_t * p_nab_total)/*{{{*/
+void multiply_all_shares(std::vector<prime_data> & primes, int i0, int i1, size_t * p_nab_total)/*{{{*/
 {
     STOPWATCH_DECL;
     STOPWATCH_GO();
@@ -2289,7 +2206,7 @@ void multiply_all_shares(struct prime_data * primes, int i0, int i1, size_t * p_
                 logprint("reading cache %s\n", c->basename);
                 rc = fscanf(c->f, "%zu", p_nab_total);
                 ASSERT_ALWAYS(rc == 1);
-                rc = gmp_fscanf(c->f, "%Zx", mpz_poly_coeff(primes[i].evals, j));
+                rc = gmp_fscanf(c->f, "%Zx", (mpz_ptr) primes[i].evals[j]);
                 ASSERT_ALWAYS(rc == 1);
                 cachefile_close(c);
             }
@@ -2300,10 +2217,9 @@ void multiply_all_shares(struct prime_data * primes, int i0, int i1, size_t * p_
     // stupid -- this must be multithreaded
     // XXX
     for(int i = i0 ; i < i1 ; i++) {
-        mpz_srcptr px = power_lookup_const(primes[i].powers, glob.prec);
+        mpz_srcptr px = primes[i].powers(glob.prec);
         for(int j = 0 ; j < glob.n ; j++) {
-            mpz_ptr z = mpz_poly_coeff(primes[i].evals, j);
-            allreduce_mulmod_mpz(z, glob.pcomm, px);
+            allreduce_mulmod_mpz(primes[i].evals[j], glob.pcomm, px);
         }
     }
 
@@ -2311,17 +2227,22 @@ void multiply_all_shares(struct prime_data * primes, int i0, int i1, size_t * p_
     log_end();
 
     if (wcache) {
+        logprint("writing caches %d..%d\n", i0, i1);
         for(int i = i0 ; i < i1 ; i++) {
             struct prime_data * p = &primes[i];
             for(int j = 0 ; j < glob.n ; j++) {
                 cachefile c;
                 cachefile_init(c, "a_mod_%lu_%lu_%lu", p->p, p->r[j], glob.prec);
-                int ok = cachefile_open_w(c);
-                ASSERT_ALWAYS(ok);
-                logprint("writing cache %s\n", c->basename);
-                fprintf(c->f, "%zu\n", * p_nab_total);
-                gmp_fprintf(c->f, "%Zx\n", mpz_poly_coeff_const(primes[i].evals, j));
-                cachefile_close(c);
+                if (cachefile_open_w(c)) {
+                    /* it's ok if we can't write the cache file on every
+                     * rank, since several ranks can very well share the same
+                     * storage.
+                     */
+                    logprint("writing cache %s\n", c->basename);
+                    fprintf(c->f, "%zu\n", * p_nab_total);
+                    gmp_fprintf(c->f, "%Zx\n", (mpz_srcptr) primes[i].evals[j]);
+                    cachefile_close(c);
+                }
             }
         }
     }
@@ -2340,27 +2261,27 @@ void * local_square_roots_child(struct subtask_info_t * info)
         rc = fscanf(c->f, "%zu", &info->nab_loc);
         ASSERT_ALWAYS(rc == 1);
         logprint("reading cache %s\n", c->basename);
-        rc = gmp_fscanf(c->f, "%Zx", mpz_poly_coeff(p->sqrts, j));
+        rc = gmp_fscanf(c->f, "%Zx", (mpz_ptr) p->sqrts[j]);
         ASSERT_ALWAYS(rc == 1);
         cachefile_close(c);
         return NULL;
     }
-    printf("# [%2.2lf] [P%dA%d] lifting sqrt (%lu, x-%lu)\n", WCT, glob.arank, glob.prank, p->p, p->r[j]);
-    sqrt_lift(p, mpz_poly_coeff(p->evals, j), mpz_poly_coeff(p->sqrts, j), glob.prec);
+    printf("# [%2.2lf] [P%dA%d] lifting sqrt (%lu, x-%lu) (p->evals[%d] has size %zu)\n", WCT, glob.arank, glob.prank, p->p, p->r[j], j, mpz_size(p->evals[j]));
+    sqrt_lift(p, p->evals[j], p->sqrts[j], glob.prec);
     // printf("# [%2.2lf] done\n", WCT);
-    mpz_realloc(mpz_poly_coeff(p->evals, j), 0);
+    mpz_realloc(p->evals[j], 0);
 
     if (wcache && cachefile_open_w(c)) {
         logprint("writing cache %s\n", c->basename);
         fprintf(c->f, "%zu\n", info->nab_loc);
-        gmp_fprintf(c->f, "%Zx\n", mpz_poly_coeff_const(p->sqrts, j));
+        gmp_fprintf(c->f, "%Zx\n", (mpz_srcptr) p->sqrts[j]);
         cachefile_close(c);
     }
 
     return NULL;
 }
 
-void local_square_roots(struct prime_data * primes, int i0, int i1, size_t * p_nab_total)
+void local_square_roots(std::vector<prime_data> & primes, int i0, int i1, size_t * p_nab_total)
 {
     int n = glob.n;
 
@@ -2369,13 +2290,13 @@ void local_square_roots(struct prime_data * primes, int i0, int i1, size_t * p_n
 
     log_begin();
 
-    std::vector<struct subtask_info_t> tasks((i1-i0)*glob.n);
+    std::vector<subtask_info_t> tasks((i1-i0)*glob.n);
     for(int j = 0 ; j < glob.n ; j++) {
         for(int i = i0 ; i < i1 ; i++) {
             int k = (i-i0) * glob.n + j;
             if (k % glob.psize != glob.prank) continue;
             auto & task = tasks[k];
-            task.p = primes + i;
+            task.p = &primes[i];
             task.j = j;
             task.nab_loc = * p_nab_total;
             auto f = (wq_func_t) &local_square_roots_child;
@@ -2401,9 +2322,8 @@ void local_square_roots(struct prime_data * primes, int i0, int i1, size_t * p_n
     for(int j = 0 ; j < n ; j++) {
         for(int i = i0 ; i < i1 ; i++) {
             int k = (i-i0) * n + j;
-            struct prime_data * p = primes + i;
-            mpz_ptr z = mpz_poly_coeff(p->sqrts, j);
-            broadcast_mpz(z, k % glob.psize, glob.pcomm);
+            mpz_ptr z = primes[i].sqrts[j];
+            broadcast(z, k % glob.psize, glob.pcomm);
         }
     }
 
@@ -2419,7 +2339,7 @@ void inversion_lift(struct prime_data * p, mpz_ptr iHx, mpz_srcptr Hx, int preci
 {
     double w0 = WCT;
 
-    mpz_srcptr pk = power_lookup_const(p->powers, precision);
+    mpz_srcptr pk = p->powers(precision);
     ASSERT(precision > 0);
 
     if (precision == 1) {
@@ -2428,7 +2348,7 @@ void inversion_lift(struct prime_data * p, mpz_ptr iHx, mpz_srcptr Hx, int preci
     }
     int lower = precision - precision / 2;
 
-    mpz_srcptr pl = power_lookup_const(p->powers, lower);
+    mpz_srcptr pl = p->powers(lower);
 
     // we're going to recurse. change the long Hx_mod value stored by a
     // temporary small one. The problem with this approach is that we
@@ -2461,7 +2381,7 @@ void inversion_lift(struct prime_data * p, mpz_ptr iHx, mpz_srcptr Hx, int preci
 void * prime_inversion_lifts_child(struct subtask_info_t * info)
 {
     struct prime_data * p = info->p;
-    mpz_srcptr px = power_lookup_const(p->powers, glob.prec);
+    mpz_srcptr px = p->powers(glob.prec);
 
     mpz_t Hx;
     mpz_init(Hx);
@@ -2479,7 +2399,7 @@ void * prime_inversion_lifts_child(struct subtask_info_t * info)
     return NULL;
 }
 
-void prime_inversion_lifts(struct prime_data * primes, int i0, int i1)
+void prime_inversion_lifts(std::vector<prime_data> & primes, int i0, int i1)
 {
     STOPWATCH_DECL;
     STOPWATCH_GO();
@@ -2487,17 +2407,16 @@ void prime_inversion_lifts(struct prime_data * primes, int i0, int i1)
     log_begin();
 
     {
-        struct subtask_info_t * tasks;
-        tasks = (struct subtask_info_t *) malloc((i1-i0)*sizeof(struct subtask_info_t));
+        std::vector<subtask_info_t> tasks(i1-i0);
         for(int i = i0 ; i < i1 ; i++) {
             int k = i-i0;
             if (k % glob.psize != glob.prank)
                 continue;
-            struct subtask_info_t * task = tasks + k;
-            task->p = primes + i;
-            task->j = INT_MAX;
-            wq_func_t f = (wq_func_t) &prime_inversion_lifts_child;
-            task->handle = wq_push(glob.wq, f, task);
+            auto & task = tasks[k];
+            task.p = &primes[i];
+            task.j = INT_MAX;
+            auto f = (wq_func_t) &prime_inversion_lifts_child;
+            task.handle = wq_push(glob.wq, f, &task);
         }
         /* we're doing nothing, only waiting. */
         for(int i = i0 ; i < i1 ; i++) {
@@ -2506,7 +2425,6 @@ void prime_inversion_lifts(struct prime_data * primes, int i0, int i1)
                 continue;
             wq_join(tasks[k].handle);
         }
-        free(tasks);
     }
 
     STOPWATCH_GET();
@@ -2518,8 +2436,7 @@ void prime_inversion_lifts(struct prime_data * primes, int i0, int i1)
 
     for(int i = i0 ; i < i1 ; i++) {
         int k = i-i0;
-        struct prime_data * p = primes + i;
-        broadcast_mpz(p->iHx, k % glob.psize, glob.pcomm);
+        broadcast(primes[i].iHx, k % glob.psize, glob.pcomm);
     }
 
     STOPWATCH_GET();
@@ -2544,7 +2461,7 @@ void * prime_postcomputations_child(struct postcomp_subtask_info_t * info)
     int64_t * c64 = info->c64;
     mp_limb_t * cN = info->cN;
 
-    mpz_srcptr px = power_lookup_const(p->powers, glob.prec);
+    mpz_srcptr px = p->powers(glob.prec);
     // printf("# [%2.2lf] done\n", WCT);
 
     // Lagrange reconstruction.
@@ -2585,8 +2502,8 @@ void * prime_postcomputations_child(struct postcomp_subtask_info_t * info)
     mpz_init(tb);
 
     /* work mod one root */
-    mpz_srcptr rx = mpz_poly_coeff_const(p->lroots, j);
-    mpz_ptr sx = mpz_poly_coeff(p->sqrts, j);
+    mpz_srcptr rx = p->lroots[j];
+    mpz_ptr sx = p->sqrts[j];
 
     ASSERT_ALWAYS(mpz_size(rx));
     ASSERT_ALWAYS(mpz_size(sx));
@@ -2646,7 +2563,7 @@ void * prime_postcomputations_child(struct postcomp_subtask_info_t * info)
     return NULL;
 }
 
-void prime_postcomputations(struct prime_data * primes, int i0, int i1, int64_t * contribs64, mp_limb_t * contribsN)
+void prime_postcomputations(std::vector<prime_data> & primes, int i0, int i1, int64_t * contribs64, mp_limb_t * contribsN)
 {
     int n = glob.n;
 
@@ -2655,20 +2572,19 @@ void prime_postcomputations(struct prime_data * primes, int i0, int i1, int64_t 
 
     log_begin();
 
-    struct postcomp_subtask_info_t * tasks;
-    tasks = (struct postcomp_subtask_info_t *) malloc((i1-i0)*n*sizeof(struct postcomp_subtask_info_t));
+    std::vector<postcomp_subtask_info_t> tasks((i1-i0)*n);;
     mp_size_t sN = mpz_size(glob.cpoly->n);
     for(int j = 0 ; j < n ; j++) {
         for(int i = i0 ; i < i1 ; i++) {
             int k = (i-i0) * n + j;
             if (k % glob.psize != glob.prank) continue;
-            struct postcomp_subtask_info_t * task = tasks + k;
-            task->p = primes + i;
-            task->j = j;
-            task->c64 = contribs64 + (i * n + j) * n;
-            task->cN = contribsN + ((i * n + j) * n) * sN;
-            wq_func_t f = (wq_func_t) &prime_postcomputations_child;
-            task->handle = wq_push(glob.wq, f, task);
+            auto & task = tasks[k];
+            task.p = &primes[i];
+            task.j = j;
+            task.c64 = contribs64 + (i * n + j) * n;
+            task.cN = contribsN + ((i * n + j) * n) * sN;
+            auto f = (wq_func_t) &prime_postcomputations_child;
+            task.handle = wq_push(glob.wq, f, &task);
         }
     }
     /* we're doing nothing */
@@ -2679,7 +2595,6 @@ void prime_postcomputations(struct prime_data * primes, int i0, int i1, int64_t 
             wq_join(tasks[k].handle);
         }
     }
-    free(tasks);
 
     STOPWATCH_GET();
     log_step_time(" done locally");
@@ -2703,7 +2618,7 @@ void prime_postcomputations(struct prime_data * primes, int i0, int i1, int64_t 
 }
 void old_prime_postcomputations(int64_t * c64, mp_limb_t * cN, struct prime_data * p)/* {{{ */
 {
-    mpz_srcptr px = power_lookup_const(p->powers, glob.prec);
+    mpz_srcptr px = p->powers(glob.prec);
 
     // Lagrange reconstruction.
     //
@@ -2744,8 +2659,8 @@ void old_prime_postcomputations(int64_t * c64, mp_limb_t * cN, struct prime_data
 
     // XXX Eh ! mpi-me !
     for(int j = 0 ; j < glob.n ; j++) {
-        mpz_srcptr rx = mpz_poly_coeff_const(p->lroots, j);
-        mpz_ptr sx = mpz_poly_coeff(p->sqrts, j);
+        mpz_srcptr rx = p->lroots[j];
+        mpz_ptr sx = p->sqrts[j];
 
         // so we have this nice square root. The first thing we do on our
         // list is to scramble it by multiplying it with the inverse of
@@ -2930,12 +2845,7 @@ int main(int argc, char const ** argv)
     /* {{{ create f_hat, the minimal polynomial of alpha_hat = lc(f) *
      * alpha */
     {
-        mpz_poly_init(glob.f_hat, glob.n);
-        mpz_poly_init(glob.f_hat_diff, glob.n - 1);
-
-
         mpz_poly_to_monic(glob.f_hat, glob.cpoly->pols[1]);
-
         mpz_poly_derivative(glob.f_hat_diff, glob.f_hat);
 
         if (glob.rank == 0)
@@ -2969,9 +2879,9 @@ int main(int argc, char const ** argv)
     if (glob.rank == 0) {
         get_parameters(&glob.r,&glob.s,&glob.t,asked_r);
     }
-    MPI_Bcast(&glob.s, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&glob.t, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&glob.r, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    broadcast(glob.s, 0, MPI_COMM_WORLD);
+    broadcast(glob.t, 0, MPI_COMM_WORLD);
+    broadcast(glob.r, 0, MPI_COMM_WORLD);
     ASSERT_ALWAYS(glob.r >= 1);
     ASSERT_ALWAYS(glob.s >= 1);
     ASSERT_ALWAYS(glob.t >= 1);
@@ -2984,7 +2894,7 @@ int main(int argc, char const ** argv)
 
 
     // this is sufficiently trivial to do.
-    struct prime_data * primes = suitable_crt_primes();
+    auto primes = suitable_crt_primes();
 
     mpz_init_set_ui(glob.P, 1);
     double log2_P = 0;
@@ -3023,12 +2933,9 @@ int main(int argc, char const ** argv)
     size_t off0 = apnum * glob.ab->totalsize / s;
     size_t off1 = (apnum+1) * glob.ab->totalsize / s;
 
-    for(int i = i0 ; i < i1 ; i++) {
-        prime_initialization(&(primes[i]));
-        for(int j = 0 ; j < glob.n ; j++) {
-            mpz_poly_setcoeff_ui(primes[i].evals, j, 1);
-        }
-    }
+    for(int i = i0 ; i < i1 ; i++)
+        for(int j = 0 ; j < glob.n ; j++)
+            primes[i].evals[j] = 1;
 
     // unless we have really nothing to do, we will need these two steps:
 
@@ -3039,9 +2946,13 @@ int main(int argc, char const ** argv)
     lifting_roots(primes, i0, i1);
 
     // find some info on the caches.
+    logprint("Checking sqrt caches\n");
     int sqrt_caches = sqrt_caches_ok(primes, i0, i1);
+    logprint("Checking a caches\n");
     int shared_caches = a_shared_caches_ok(primes, i0, i1);
+    logprint("Checking alg_red caches\n");
     int alg_caches = alg_red_caches_ok(primes, i0, i1, off0, off1);
+    logprint("Checking rat_red caches\n");
     int rat_caches = rat_red_caches_ok(primes, i0, i1, off0, off1);
 
     if (rcache) {
@@ -3054,8 +2965,6 @@ int main(int argc, char const ** argv)
 
     size_t nab = 0;
 
-    mpz_poly P;
-    mpz_poly_init(P, glob.n);
 
     int next = 0;
     if (sqrt_caches) {
@@ -3072,14 +2981,18 @@ int main(int argc, char const ** argv)
 
     logprint("Next step is: %d\n", next);
 
-    if (next < 1) {
-        banner(); /*********************************************/
-        nab = a_poly_read_share(P, off0, off1);
-    }
+    {
+        cxx_mpz_poly P;
+        if (next < 1) {
+            banner(); /*********************************************/
+            nab = a_poly_read_share(P, off0, off1);
+        }
 
-    if (next < 2) {
-        banner(); /*********************************************/
-        rational_reduction(primes, i0, i1, P, off0, off1, &nab);
+        if (next < 2) {
+            banner(); /*********************************************/
+            rational_reduction(primes, i0, i1, P, off0, off1, &nab);
+        }
+        /* we no longer need P, we can free it now */
     }
 
     if (next < 3) {
@@ -3106,7 +3019,7 @@ int main(int argc, char const ** argv)
             logprint("Correcting by one leading term\n");
             for(int i = i0 ; i < i1 ; i++) {
                 for(int j =  0 ; j < glob.n ; j++) {
-                    mpz_ptr x = mpz_poly_coeff(primes[i].evals, j);
+                    mpz_ptr x = primes[i].evals[j];
                     mpz_mul(x, x, mpz_poly_coeff_const(glob.cpoly->pols[1], glob.n));
                 }
             }
@@ -3117,8 +3030,6 @@ int main(int argc, char const ** argv)
     local_square_roots(primes, i0, i1, &nab);
 
     logprint("Number of pairs is %zu\n", nab);
-
-    mpz_poly_clear(P);
 
     banner(); /*********************************************/
     prime_inversion_lifts(primes, i0, i1);
@@ -3164,9 +3075,6 @@ int main(int argc, char const ** argv)
     wq_clear(glob.wq, glob.ncores);
     barrier_destroy(glob.barrier, NULL);
 
-    for(int i = i0 ; i < i1 ; i++) prime_cleanup(&(primes[i]));
-    free(primes);
-
     banner(); /*********************************************/
     // and only the leader does the knapsack.
     if (glob.rank == 0) {
@@ -3180,9 +3088,6 @@ int main(int argc, char const ** argv)
     }
 
     /****************************************************************/
-
-    mpz_poly_clear(glob.f_hat);
-    mpz_poly_clear(glob.f_hat_diff);
 
     mpz_clear(glob.P);
     cado_poly_clear(glob.cpoly);

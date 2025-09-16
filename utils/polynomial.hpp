@@ -1260,6 +1260,8 @@ struct polynomial : public number_context<T>
         requires cado_math_aux::is_complex_v<eval_type_t<T, U>>
     {
         using E = eval_type_t<T, U>;
+        using Er = decltype(E().real());
+
         auto Rtr = tr.real();
 
         std::vector<E> z;
@@ -1299,8 +1301,8 @@ struct polynomial : public number_context<T>
                     best_bits = std::min(best_bits, -std::ilogb(std::abs(aw/az)));
                 z[i] -= w;
             }
-            if constexpr (std::is_floating_point_v<decltype(E().real())>) {
-                if (best_bits >= std::numeric_limits<decltype(E().real())>::digits)
+            if constexpr (std::is_floating_point_v<Er>) {
+                if (best_bits >= std::numeric_limits<Er>::digits)
                     break;
 #ifdef HAVE_MPC
             } else if constexpr (std::is_same_v<E, cxx_mpc>) {
@@ -1321,7 +1323,12 @@ struct polynomial : public number_context<T>
                  * Maybe we want to add some leeway in the low bits. How
                  * much, I don't know.
                  */
-                throw std::runtime_error("infinite loop in complex root finding");
+                if (std::is_same_v<Er, long double> && cado_math_aux::valgrind_long_double_hopeless()) {
+                    fmt::print("# infinite loop in complex root finding ; assuming this is valgrind's fault\n");
+                    break;
+                } else {
+                    throw std::runtime_error("infinite loop in complex root finding");
+                }
             }
         }
 

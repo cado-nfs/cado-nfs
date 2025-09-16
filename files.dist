@@ -1164,7 +1164,7 @@ sqrt/mgmsqrt.cpp
 sqrt/montgomery.md
 sqrt/montgomery.sage
 sqrt/powers_of_p.cpp
-sqrt/powers_of_p.h
+sqrt/powers_of_p.hpp
 sqrt/sqrt.cpp
 sqrt/sqrt_cachefiles.cpp
 sqrt/sqrt_cachefiles.hpp

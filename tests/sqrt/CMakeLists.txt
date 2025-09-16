@@ -19,7 +19,9 @@
         endif()
         cado_define_test(test_crtalgsqrt${suffix}
             SCRIPT
-            ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
+            ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh
+            --handle-mpirun-directly
+            "${mpiconf}"
             ${CADO_NFS_BINARY_DIR}/sqrt/crtalgsqrt
             ${CADO_NFS_SOURCE_DIR}/tests/sqrt/c30.dep.000
             ${CADO_NFS_SOURCE_DIR}/tests/sqrt/c30.ratdep.000

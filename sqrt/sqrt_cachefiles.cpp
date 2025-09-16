@@ -6,6 +6,7 @@
 #include <cstdarg>
 #include <cerrno>
 
+#include <fcntl.h>
 #include <unistd.h>
 
 #include "sqrt_cachefiles.hpp"
@@ -30,7 +31,22 @@ void cachefile_init(cachefile_ptr c, const char * fmt, ...)
 int cachefile_open_w(cachefile_ptr c)
 {
     char tname[256];
+    char fname[256];
+    snprintf(fname, sizeof(fname), CACHEDIR "/" CACHEPREFIX "%s", c->basename);
     snprintf(tname, sizeof(tname), CACHEDIR "/.pre." CACHEPREFIX "%s", c->basename);
+    /* first create the destination file atomically. If it already
+     * exists, we do nothing.
+     */
+    int fd = open(fname, O_WRONLY | O_CREAT | O_EXCL, 0666);
+    if (fd < 0) {
+        if (errno != EEXIST)
+            fprintf(stderr, "open(%s): %s\n", tname, strerror(errno));
+        return 0;
+    }
+    /* close it: it will be replaced by the contents of the temp file
+     * when we're done */
+    close(fd);
+
     c->f = fopen(tname, "w");
     c->writing = 0;
     if (c->f == NULL) {
@@ -71,5 +87,5 @@ void cachefile_close(cachefile_ptr c)
     snprintf(tname, sizeof(tname), CACHEDIR "/.pre." CACHEPREFIX "%s", c->basename);
     snprintf(fname, sizeof(fname), CACHEDIR "/" CACHEPREFIX "%s", c->basename);
     if (rename(tname, fname) < 0)
-        fprintf(stderr, "Could not rename temporary cache file %s to %s\n", tname, fname);
+        fprintf(stderr, "Could not rename temporary cache file %s to %s: %s\n", tname, fname, strerror(errno));
 }
