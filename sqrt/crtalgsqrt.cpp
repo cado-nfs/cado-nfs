@@ -492,13 +492,13 @@ struct sqrt_globals {
     int t;      // number of prime groups
     int r;      // number of primes in each prime group
     unsigned long prec;
-    mpz_t P;    // prime product (not to the power prec)
+    cxx_mpz P;    // prime product (not to the power prec)
     size_t nbits_sqrt;
     // size_t nbits_a;
     cxx_mpz_poly f_hat;
     cxx_mpz_poly f_hat_diff;
     double f_hat_coeffs;
-    cado_poly cpoly;
+    cxx_cado_poly cpoly;
     mpz_t root_m;
     ab_source ab;
     int lll_maxdim = 50;
@@ -531,31 +531,13 @@ mpz_poly_from_ab_monic(cxx_mpz_poly & tmp, long a, unsigned long b) {
 
 // {{{ floating point stuff
 // {{{ getting the coefficients of the lagrange interpolation matrix.
-std::complex<long double> lagrange_polynomial(std::complex<long double> * res, double * f, int deg, std::complex<long double> r)
+polynomial<long double> lagrange_polynomial_abs(polynomial<cxx_mpz> const & f, std::complex<long double> r)
 {
-    std::complex<long double> z = f[deg];
-    std::complex<long double> y = deg * f[deg];
-    res[deg-1] = z;
-    for(int i = deg-1 ; i > 0 ; i--) {
-        z *= r; z += f[i];
-        y *= r; y += i * f[i];
-        res[i-1] = z;
-    }
-    for(int i = deg-1 ; i >= 0 ; i--) {
-        res[i] /= y;
-    }
-    return z;
-}
-
-double lagrange_polynomial_abs(double * res, double * f, int deg, std::complex<long double> r)
-{
-    std::complex<long double> * cres = (std::complex<long double> *) malloc(deg * sizeof(std::complex<long double>));
-    std::complex<long double> z = lagrange_polynomial(cres, f, deg, r);
-    for(int i = deg-1 ; i >= 0 ; i--) {
-        res[i] = std::abs(cres[i]);
-    }
-    free(cres);
-    return std::abs(z);
+    auto q = f.div_q_xminusr(r) / f.derivative()(r);
+    polynomial<long double> qa;
+    for(int i = 0 ; i <= q.degree() ; i++)
+        qa[i] = std::abs(decltype(r)(q[i]));
+    return qa;
 }
 // }}}
 
@@ -679,11 +661,7 @@ void estimate_nbits_sqrt(size_t * sbits, ab_source_ptr ab) // , int guess)
 
     // multiply by the square of f_hat'(f_d\alpha).
     for(auto & [x, logfx] : evals) {
-        std::complex<double> s = n;
-        for(int j = n - 1 ; j >= 0 ; j--) {
-            s *= x;
-            s += double_coeffs[j] * j;
-        }
+        auto s = polynomial<cxx_mpz>(glob.f_hat_diff)(x);
         logfx += 2 * std::log(s).real();
     }
     printf("# [%2.2lf] Log_2(A)", WCT);
@@ -711,12 +689,12 @@ void estimate_nbits_sqrt(size_t * sbits, ab_source_ptr ab) // , int guess)
     std::vector<double> a_bounds(n, 0);
     std::vector<double> sqrt_bounds(n, 0);
 
+    auto fz = polynomial<cxx_mpz>(glob.f_hat);
     for(auto const & [x, logfx] : evals) {
-        std::vector<double> lmat(n, 0);
-        lagrange_polynomial_abs(lmat.data(), double_coeffs, n, x);
+        auto q = lagrange_polynomial_abs(fz, x);
         for(int j = 0 ; j < n ; j++) {
             double za, zs;
-            za = zs = log(lmat[j]);
+            za = zs = log(q[j]);
             za += logfx;
             zs += logfx / 2;
             if (x.imag() > 0) {
@@ -771,8 +749,6 @@ void estimate_nbits_sqrt(size_t * sbits, ab_source_ptr ab) // , int guess)
             " have at most %zu bits\n", WCT, *abits);
     printf("# [%2.2lf] square root coefficients"
             " have at most %zu bits\n", WCT, *sbits);
-
-    free(double_coeffs);
 }
 /* }}} */
 
@@ -1786,16 +1762,13 @@ void * lifting_roots_child(struct subtask_info_t * info)/* {{{ */
 
     mpz_set_ui(rx, p->r[j]);
 
-    mpz_t irx;
-    mpz_init(irx);
+    cxx_mpz irx;
 
     mpz_poly_eval_mod_mpz(irx, glob.f_hat_diff, rx, p1);
     mpz_invert(irx, irx, p1);
 
     logprint("lifting p=%lu, r=%lu\n", p->p, p->r[j]);
     root_lift(p, rx, irx, glob.prec);
-
-    mpz_clear(irx);
 
     if (wcache && cachefile_open_w(c)) {
         logprint("writing cache %s\n", c->basename);
@@ -2114,8 +2087,7 @@ void * algebraic_reduction_child(struct subtask_info_t * info)
         return NULL;
     }
 
-    mpz_t ta;
-    mpz_init(ta);
+    cxx_mpz ta;
     mpz_srcptr px = p->powers(glob.prec);
     mpz_set(ta, mpz_poly_coeff_const(p->A, glob.n - 1));
     for(int k = glob.n - 2 ; k >= 0 ; k--) {
@@ -2126,7 +2098,6 @@ void * algebraic_reduction_child(struct subtask_info_t * info)
     WRAP_mpz_mul(p->evals[j], p->evals[j], ta);
     if (mpz_size(p->evals[j]) >= mpz_size(px) * 3/2)
         WRAP_mpz_mod(p->evals[j], p->evals[j], px);
-    mpz_clear(ta);
 
     if (wcache && cachefile_open_w(c)) {
         logprint("writing cache %s\n", c->basename);
@@ -2335,36 +2306,34 @@ void local_square_roots(std::vector<prime_data> & primes, int i0, int i1, size_t
 
 /* {{{ prime inversion lifts */
 
-void inversion_lift(struct prime_data * p, mpz_ptr iHx, mpz_srcptr Hx, int precision)/* {{{ */
+cxx_mpz inversion_lift(struct prime_data * p, cxx_mpz const & Hx, int precision)/* {{{ */
 {
     double w0 = WCT;
 
-    mpz_srcptr pk = p->powers(precision);
+    auto const & pk = p->powers(precision);
     ASSERT(precision > 0);
 
     if (precision == 1) {
+        cxx_mpz iHx;
         mpz_invert(iHx, Hx, pk);
-        return;
+        return iHx;
     }
     int lower = precision - precision / 2;
 
-    mpz_srcptr pl = p->powers(lower);
+    auto const & pl = p->powers(lower);
 
     // we're going to recurse. change the long Hx_mod value stored by a
     // temporary small one. The problem with this approach is that we
     // store many reductions in memory.
-    mpz_t Hx_save;
-    mpz_init(Hx_save);
+    cxx_mpz Hx_save;
     WRAP_mpz_mod(Hx_save, Hx, pl);
     // recurse.
-    inversion_lift(p, iHx, Hx_save, lower);
-    mpz_clear(Hx_save);
+    auto iHx = inversion_lift(p, Hx_save, lower);
 
     if (WCT > w0 + print_delay)
         logprint("precision %d\n", precision);
 
-    mpz_t ta;
-    mpz_init(ta);
+    cxx_mpz ta;
 
     WRAP_mpz_mul(ta, iHx, Hx);
     WRAP_mpz_mod(ta, ta, pk);
@@ -2374,7 +2343,7 @@ void inversion_lift(struct prime_data * p, mpz_ptr iHx, mpz_srcptr Hx, int preci
     mpz_sub(iHx, iHx, ta);
     WRAP_mpz_mod(iHx, iHx, pk);
 
-    mpz_clear(ta);
+    return iHx;
     // gmp_printf("# [%2.2lf] %Zd\n", WCT, p->iHx_mod);
 }/* }}} */
 
@@ -2383,19 +2352,13 @@ void * prime_inversion_lifts_child(struct subtask_info_t * info)
     struct prime_data * p = info->p;
     mpz_srcptr px = p->powers(glob.prec);
 
-    mpz_t Hx;
-    mpz_init(Hx);
+    cxx_mpz Hx;
     mpz_divexact_ui(Hx, glob.P, p->p);
     mpz_powm_ui(Hx, Hx, glob.prec, px);
-    /*
-       printf("# [%2.2lf] size(H^l) %.1f MB\n",
-       WCT, mpz_sizeinbase(p->Hx, 256) * 1.0e-6);
-       */
     // compute the inverse of H^prec modulo p^prec.
     // need a recursive function for computing the inverse.
     printf("# [%2.2lf] [P%dA%d] lifting H^-l\n", WCT, glob.arank, glob.prank);
-    inversion_lift(p, p->iHx, Hx, glob.prec);
-    mpz_clear(Hx);
+    p->iHx = inversion_lift(p, Hx, glob.prec);
     return NULL;
 }
 
@@ -2481,25 +2444,21 @@ void * prime_postcomputations_child(struct postcomp_subtask_info_t * info)
     // pair (quotient mod p^x, residue mod N).
 
     mpf_t pxf, ratio;
-    mpz_t z;
+    cxx_mpz z;
 
     mpf_init2(pxf, 256);
     mpf_init2(ratio, 256);
-    mpz_init(z);
 
     mpf_set_z(pxf, px);
 
-    mpz_t Hxm;
-    mpz_init(Hxm);
+    cxx_mpz Hxm;
     mpz_set_ui(Hxm, p->p);
     mpz_invert(Hxm, Hxm, glob.cpoly->n);
     mpz_mul(Hxm, Hxm, glob.P);
     mpz_mod(Hxm, Hxm, glob.cpoly->n);
     mpz_powm_ui(Hxm, Hxm, glob.prec, glob.cpoly->n);
 
-    mpz_t ta, tb;
-    mpz_init(ta);
-    mpz_init(tb);
+    cxx_mpz ta, tb;
 
     /* work mod one root */
     mpz_srcptr rx = p->lroots[j];
@@ -2554,10 +2513,6 @@ void * prime_postcomputations_child(struct postcomp_subtask_info_t * info)
         MPN_SET_MPZ(cN + k * sN, sN, tb);
     }
 
-    mpz_clear(ta);
-    mpz_clear(tb);
-    mpz_clear(Hxm);
-    mpz_clear(z);
     mpf_clear(pxf);
     mpf_clear(ratio);
     return NULL;
@@ -2637,25 +2592,21 @@ void old_prime_postcomputations(int64_t * c64, mp_limb_t * cN, struct prime_data
     // pair (quotient mod p^x, residue mod N).
 
     mpf_t pxf, ratio;
-    mpz_t z;
+    cxx_mpz z;
 
     mpf_init2(pxf, 256);
     mpf_init2(ratio, 256);
-    mpz_init(z);
 
     mpf_set_z(pxf, px);
 
-    mpz_t Hxm;
-    mpz_init(Hxm);
+    cxx_mpz Hxm;
     mpz_set_ui(Hxm, p->p);
     mpz_invert(Hxm, Hxm, glob.cpoly->n);
     mpz_mul(Hxm, Hxm, glob.P);
     mpz_mod(Hxm, Hxm, glob.cpoly->n);
     mpz_powm_ui(Hxm, Hxm, glob.prec, glob.cpoly->n);
 
-    mpz_t ta, tb;
-    mpz_init(ta);
-    mpz_init(tb);
+    cxx_mpz ta, tb;
 
     // XXX Eh ! mpi-me !
     for(int j = 0 ; j < glob.n ; j++) {
@@ -2708,10 +2659,6 @@ void old_prime_postcomputations(int64_t * c64, mp_limb_t * cN, struct prime_data
             MPN_SET_MPZ(cN + (j*glob.n+k) * sN, sN, tb);
         }
     }
-    mpz_clear(ta);
-    mpz_clear(tb);
-    mpz_clear(Hxm);
-    mpz_clear(z);
     mpf_clear(pxf);
     mpf_clear(ratio);
 }
@@ -2775,8 +2722,7 @@ int main(int argc, char const ** argv)
         printf(" %s", argv[i]);
     printf("\n");
 
-    param_list pl;
-    param_list_init(pl);
+    cxx_param_list pl;
     int cache=0;
     // param_list_configure_switch(pl, "-v", &verbose);
     param_list_configure_switch(pl, "--cache", &cache);
@@ -2833,7 +2779,6 @@ int main(int argc, char const ** argv)
         usage();
     /* }}} */
 
-    cado_poly_init(glob.cpoly);
     ret = cado_poly_read(glob.cpoly, param_list_lookup_string(pl, "polyfile"));
     /* This assumes that we have a rational side 0 and an algebraic side 1*/
     ASSERT_ALWAYS(cado_poly_get_ratside(glob.cpoly) == 0);
@@ -2896,7 +2841,7 @@ int main(int argc, char const ** argv)
     // this is sufficiently trivial to do.
     auto primes = suitable_crt_primes();
 
-    mpz_init_set_ui(glob.P, 1);
+    glob.P = 1;
     double log2_P = 0;
     for(int i = 0 ; i < glob.m ; i++) {
         log2_P += log(primes[i].p)/M_LN2;
@@ -3089,11 +3034,7 @@ int main(int argc, char const ** argv)
 
     /****************************************************************/
 
-    mpz_clear(glob.P);
-    cado_poly_clear(glob.cpoly);
-
     ab_source_clear(glob.ab);
-    param_list_clear(pl);
 
     MPI_Finalize();
 

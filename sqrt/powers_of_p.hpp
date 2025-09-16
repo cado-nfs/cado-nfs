@@ -28,9 +28,9 @@ struct power_lookup_table {
         : power_lookup_table(std::move(o), std::lock_guard<std::mutex>(mx))
         {}
 
-    mpz_srcptr operator()(int i);
-    mpz_srcptr operator()(int i) const;
-    private: mpz_srcptr inside(int i);
+    cxx_mpz const & operator()(int i);
+    cxx_mpz const & operator()(int i) const;
+    private: cxx_mpz const & inside(int i);
 };
 
 #endif	/* CADO_POWERS_OF_P_HPP */

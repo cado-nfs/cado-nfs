@@ -12,14 +12,13 @@
 #include "powers_of_p.hpp"
 #include "cxx_mpz.hpp"
 
-mpz_srcptr power_lookup_table::operator()(int i)
+cxx_mpz const & power_lookup_table::operator()(int i)
 {
     const std::lock_guard<std::mutex> dummy(mx);
-    mpz_srcptr res = inside(i);
-    return res;
+    return inside(i);
 }
 
-mpz_srcptr power_lookup_table::operator()(int i) const
+cxx_mpz const & power_lookup_table::operator()(int i) const
 {
     const std::lock_guard<std::mutex> dummy(mx);
     auto const px = m.find(i);
@@ -27,17 +26,14 @@ mpz_srcptr power_lookup_table::operator()(int i) const
         fprintf(stderr, "Fatal error: we would have expected p^%d to have been computed already\n", i);
         abort();
     }
-    mpz_srcptr res = z[px->second];
-    return res;
+    return z[px->second];
 }
 
-mpz_srcptr power_lookup_table::inside(int i)
+cxx_mpz const & power_lookup_table::inside(int i)
 {
     auto const px = m.find(i);
-    if (px != m.end()) {
-        mpz_srcptr res = z[px->second];
-        return res;
-    }
+    if (px != m.end())
+        return z[px->second];
     cxx_mpz q;
     // XXX valgrind says that this sometimes leaks. I don't understand
     // why.  Perhaps it's obvious.
