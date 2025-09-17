@@ -782,7 +782,7 @@ polyselect/dlpolyselect.c
 polyselect/gfpkdlpolyselect.c
 polyselect/gfpkdlpolyselect.h
 polyselect/gfpkdlpolyselect_impl.h
-polyselect/murphyE.c
+polyselect/murphyE.cpp
 polyselect/murphyE.h
 polyselect/polyselect.c
 polyselect/polyselect3.c

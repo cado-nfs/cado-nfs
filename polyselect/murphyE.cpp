@@ -42,53 +42,46 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "cado.h" // IWYU pragma: keep
 #define PI 3.14159265358979324
 
-#include <math.h>
+#include <cmath>
 
 #include "auxiliary.h"
 #include "cado_poly.h"
 #include "rho.h"
 #include "murphyE.h"
-#include "double_poly.h"
+#include "polynomial.hpp"
 #include "mpz_poly.h"
+#include "cxx_mpz.hpp"
 
 double
 MurphyE (cado_poly_srcptr cpoly, double Bf, double Bg, double area, int K,
          unsigned long B)
 {
-  double E = 0, x, y, ti;
-  double alpha_f, alpha_g, xi, yi, vf, vg;
-  double one_over_logBf, one_over_logBg;
-  double_poly f, g;
+  double E = 0;
 
-  x = sqrt (area * cpoly->skew);
-  y = sqrt (area / cpoly->skew);
-  double_poly_init (f, cpoly->pols[ALG_SIDE]->deg);
-  double_poly_init (g, cpoly->pols[RAT_SIDE]->deg);
-  double_poly_set_mpz_poly (f, cpoly->pols[ALG_SIDE]);
-  double_poly_set_mpz_poly (g, cpoly->pols[RAT_SIDE]);
-  alpha_f = get_alpha (cpoly->pols[ALG_SIDE], B);
-  alpha_g = get_alpha (cpoly->pols[RAT_SIDE], B);
-  one_over_logBf = 1.0 / log (Bf);
-  one_over_logBg = 1.0 / log (Bg);
+  const double x = sqrt (area * cpoly->skew);
+  const double y = sqrt (area / cpoly->skew);
+
+  const polynomial<cxx_mpz> f(cpoly->pols[ALG_SIDE]);
+  const polynomial<cxx_mpz> g(cpoly->pols[RAT_SIDE]);
+
+  const double alpha_f = get_alpha (cpoly->pols[ALG_SIDE], B);
+  const double alpha_g = get_alpha (cpoly->pols[RAT_SIDE], B);
+  const double one_over_logBf = 1.0 / log (Bf);
+  const double one_over_logBg = 1.0 / log (Bg);
   for (int i = 0; i < K; i++)
     {
-      ti = PI / (double) K * ((double) i + 0.5);
-      xi = x * cos (ti);
-      yi = y * sin (ti);
+      const double ti = PI / (double) K * ((double) i + 0.5);
+      const double xi = x * cos (ti);
+      const double yi = y * sin (ti);
 
-      vf = double_poly_eval (f, xi / yi) * pow (yi, f->deg);
-      vg = double_poly_eval (g, xi / yi) * pow (yi, g->deg);
-
-      vf = log (fabs (vf)) + alpha_f;
-      vg = log (fabs (vg)) + alpha_g;
+      double vf = log (std::abs(f(xi, yi))) + alpha_f;
+      double vg = log (std::abs(g(xi, yi))) + alpha_g;
 
       vf *= one_over_logBf;
       vg *= one_over_logBg;
 
       E += dickman_rho (vf) * dickman_rho (vg);
     }
-  double_poly_clear (f);
-  double_poly_clear (g);
 
   return E / (double) K;
 }
