@@ -47,8 +47,12 @@ if(BWC_GFP_ARITHMETIC_BACKENDS)
     cado_divert_test(test-flint-debug-magma mul0 APPEND_ARGUMENTS mul0 -s 20000)
     cado_divert_test(test-flint-debug-magma mul APPEND_ARGUMENTS mul)
     # cado_divert_test(test-flint-debug-magma mulmod APPEND_ARGUMENTS mulmod)
-    cado_divert_test(test-flint-debug-magma mul_fppol APPEND_ARGUMENTS mul_fppol)
-    cado_divert_test(test-flint-debug-magma mp_fppol APPEND_ARGUMENTS mp_fppol)
+    # randomness really has an impact on the length of these tests, so
+    # let's us seeds.
+    cado_divert_test(test-flint-debug-magma mul_fppol1 APPEND_ARGUMENTS mul_fppol -seed 19365)
+    cado_divert_test(test-flint-debug-magma mul_fppol2 APPEND_ARGUMENTS mul_fppol -seed 17994)
+    cado_divert_test(test-flint-debug-magma mp_fppol1 APPEND_ARGUMENTS mp_fppol -seed 9254)
+    cado_divert_test(test-flint-debug-magma mp_fppol2 APPEND_ARGUMENTS mp_fppol -seed 3939)
     endif()
 
 endif()
