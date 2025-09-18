@@ -61,7 +61,7 @@ snprintf_poly_info(char *buf,
   ASSERT_ALWAYS(np <= size);
   free(str);
 
-  double skew = L2_skewness(f, SKEWNESS_DEFAULT_PREC);
+  double skew = L2_skewness(f);
   unsigned int nroots = mpz_poly_number_of_real_roots(f);
   double logmu = L2_lognorm(f, skew);
   double exp_E = logmu + expected_rotation_gain(f, g);

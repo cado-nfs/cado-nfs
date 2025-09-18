@@ -51,7 +51,7 @@ rotate_bounds_V_mpz ( mpz_poly_srcptr F0,
 
     /* translation-optimize the rotated polynomial and compute exp_E */
     sopt_local_descent (F, G, F, G0, 1, -1, SOPT_DEFAULT_MAX_STEPS, 0); 
-    lognorm = L2_skew_lognorm (F, SKEWNESS_DEFAULT_PREC);
+    lognorm = L2_skew_lognorm (F);
     exp_E = lognorm + expected_rotation_gain (F, G);
     min_exp_E = fmin(min_exp_E, exp_E);
 #if 0
@@ -74,7 +74,7 @@ rotate_bounds_V_mpz ( mpz_poly_srcptr F0,
 
     /* translation-optimize the rotated polynomial */
     sopt_local_descent (F, G, F, G0, 1, -1, SOPT_DEFAULT_MAX_STEPS, 0); 
-    lognorm = L2_skew_lognorm (F, SKEWNESS_DEFAULT_PREC);
+    lognorm = L2_skew_lognorm (F);
     exp_E = lognorm + expected_rotation_gain (F, G);
     min_exp_E = fmin(min_exp_E, exp_E);
 #if 0
@@ -116,7 +116,7 @@ rotate_bounds_U_lu ( mpz_poly_srcptr F0,
 
     /* translation-optimize the rotated polynomial */
     sopt_local_descent (F, G, F, G0, 1, -1, SOPT_DEFAULT_MAX_STEPS, 0); 
-    lognorm = L2_skew_lognorm (F, SKEWNESS_DEFAULT_PREC);
+    lognorm = L2_skew_lognorm (F);
     exp_E = lognorm + expected_rotation_gain (F, G);
     min_exp_E = fmin(min_exp_E, exp_E);    
 #if 0
@@ -139,7 +139,7 @@ rotate_bounds_U_lu ( mpz_poly_srcptr F0,
 
     /* translation-optimize the rotated polynomial */
     sopt_local_descent (F, G, F, G0, 1, -1, SOPT_DEFAULT_MAX_STEPS, 0); 
-    lognorm = L2_skew_lognorm (F, SKEWNESS_DEFAULT_PREC);
+    lognorm = L2_skew_lognorm (F);
     exp_E = lognorm + expected_rotation_gain (F, G);
     min_exp_E = fmin(min_exp_E, exp_E);    
 #if 0
@@ -181,7 +181,7 @@ rotate_bounds_W_lu ( ropt_poly_srcptr poly,
 
     /* translation-optimize the rotated polynomial */
     sopt_local_descent (F, G, F, G0, 1, -1, SOPT_DEFAULT_MAX_STEPS, 0);
-    double lognorm = L2_skew_lognorm (F, SKEWNESS_DEFAULT_PREC);
+    double lognorm = L2_skew_lognorm (F);
 
     if (lognorm > bound->bound_lognorm)
       break;
@@ -195,7 +195,7 @@ rotate_bounds_W_lu ( ropt_poly_srcptr poly,
 
     /* translation-optimize the rotated polynomial */
     sopt_local_descent (F, G, F, G0, 1, -1, SOPT_DEFAULT_MAX_STEPS, 0);
-    double lognorm = L2_skew_lognorm (F, SKEWNESS_DEFAULT_PREC);
+    double lognorm = L2_skew_lognorm (F);
 
     if (lognorm > bound->bound_lognorm)
       break;
@@ -389,9 +389,7 @@ ropt_bound_setup_normbound ( ropt_poly_srcptr poly,
    */
   mpz_poly_srcptr F = poly->cpoly->pols[1];
   mpz_poly_srcptr G = poly->cpoly->pols[0];
-  double skewness;
-  skewness = L2_skewness (F, SKEWNESS_DEFAULT_PREC);
-  bound->init_lognorm = L2_lognorm (F, skewness);
+  bound->init_lognorm = L2_skew_lognorm(F);
   bound->bound_E = (bound->init_lognorm + expected_rotation_gain (F, G)) * incr;
   /* setup lognorm bound, either from input or by default
      By default, we do not use bound_lognorm to bound the 
@@ -415,7 +413,7 @@ ropt_bound_expected_E (mpz_poly F, mpz_poly G)
   ropt_bound_init (bound);
   F->coeff = f;
   F->deg = d;
-  bound->init_lognorm = L2_skew_lognorm (F, SKEWNESS_DEFAULT_PREC);
+  bound->init_lognorm = L2_skew_lognorm (F);
   bound->bound_lognorm = bound->init_lognorm * BOUND_LOGNORM_INCR_MAX;
   exp_E = rotate_bounds_U_lu (f, g, d, bound);
   exp_E = fmin(exp_E, rotate_bounds_V_mpz (f, g, d, bound));
@@ -666,7 +664,7 @@ ropt_s1param_setup_e_sl ( ropt_poly_srcptr poly,
     modbound = bound_by_u / 8;
 
   /* adjust for small skewness but large bound (not sure if this is good) */
-  double skew = L2_skewness (poly->cpoly->pols[1], SKEWNESS_DEFAULT_PREC);
+  double skew = L2_skewness (poly->cpoly->pols[1]);
   if ((double) modbound > skew)
     modbound = (unsigned long) skew;
 

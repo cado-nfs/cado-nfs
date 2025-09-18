@@ -596,7 +596,7 @@ rotate_v (cado_poly_srcptr poly0, long v, long B,
               w = wcur + j; /* local value of w, the global one is mod * w + modw */
               rotate_aux (poly->pols[ALG_SIDE], poly->pols[RAT_SIDE], 0, w, 0);
               double skew = poly->skew; /* save skewness */
-              poly->skew = L2_skewness (poly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
+              poly->skew = L2_skewness (poly->pols[ALG_SIDE]);
               double lognorm = L2_lognorm (poly->pols[ALG_SIDE], poly->skew);
               /* to compute E, we need to divide g by mod */
               mpz_poly_divexact_ui (poly->pols[RAT_SIDE], poly->pols[RAT_SIDE], mod);
@@ -618,7 +618,7 @@ rotate_v (cado_poly_srcptr poly0, long v, long B,
               /* compute E */
               rotate_aux (poly->pols[ALG_SIDE], poly->pols[RAT_SIDE], 0, w, 0);
               double skew = poly->skew; /* save skewness */
-              poly->skew = L2_skewness (poly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
+              poly->skew = L2_skewness (poly->pols[ALG_SIDE]);
               double lognorm = L2_lognorm (poly->pols[ALG_SIDE], poly->skew);
               /* to compute E, we need to divide g by mod */
               mpz_poly_divexact_ui (poly->pols[RAT_SIDE], poly->pols[RAT_SIDE], mod);
@@ -997,7 +997,7 @@ int main(int argc, char const * argv[])
       }
 
     if (cpoly->skew == 0.0)
-      cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
+      cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE]);
 
     /* if -sopt, size-optimize */
     if (sopt)
@@ -1020,7 +1020,7 @@ int main(int argc, char const * argv[])
     nprimes = initPrimes (B);
 
     /* compute the skewness */
-    cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
+    cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE]);
     double lognorm = L2_lognorm (cpoly->pols[ALG_SIDE], cpoly->skew);
     double maxlognorm = lognorm + margin;
     printf ("initial lognorm %.2f, maxlognorm %.2f\n", lognorm, maxlognorm);
@@ -1067,8 +1067,7 @@ int main(int argc, char const * argv[])
     mpz_poly_rotation(cpoly->pols[ALG_SIDE], cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], bestw, 0);
 
     /* recompute the skewness of the best polynomial */
-    cpoly->skew = L2_combined_skewness2 (cpoly->pols[0], cpoly->pols[1],
-                                        SKEWNESS_DEFAULT_PREC);
+    cpoly->skew = L2_combined_skewness2 (cpoly->pols[0], cpoly->pols[1]);
 
     print_cadopoly_extra (stdout, cpoly, argc0, argv0, 0);
 

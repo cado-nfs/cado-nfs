@@ -36,9 +36,9 @@ compute_skewness (const char *input_file, const char *output_file)
       cado_poly_clear (p);
       exit (EXIT_FAILURE);
     }
-  p->skew = L2_skewness (p->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
+  p->skew = L2_combined_skewness2 (p->pols[RAT_SIDE], p->pols[ALG_SIDE]);
   if (output_file == NULL) {
-    printf("%.5g\n", p->skew);
+    printf("%g\n", p->skew);
     cado_poly_clear (p);
   } else {
     FILE *of;

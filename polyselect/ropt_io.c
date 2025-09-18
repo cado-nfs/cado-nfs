@@ -311,7 +311,7 @@ print_poly_info_short ( mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_srcptr N )
   
   /* compute skew, logmu, nroots */
   nroots = mpz_poly_number_of_real_roots(cpoly->pols[ALG_SIDE]);
-  skew = L2_skewness (f, SKEWNESS_DEFAULT_PREC);
+  skew = L2_skewness (f);
   cpoly->skew = skew;
   logmu = L2_lognorm (f, skew);
   alpha = get_alpha (f, get_alpha_bound ());

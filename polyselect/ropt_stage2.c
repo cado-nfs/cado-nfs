@@ -1006,7 +1006,7 @@ rootsieve_one_sublattice ( ropt_poly_srcptr poly,
                          s2param->MOD, MurphyE);
 #else
       /* use E for ranking: takes slightly less time */
-      double skew = L2_skewness (F, SKEWNESS_DEFAULT_PREC);
+      double skew = L2_skewness (F);
       double E = L2_lognorm (F, skew);
       double alpha = get_alpha (F, get_alpha_bound ());
       insert_MurphyE_pq (local_E_pqueue, info->w, tmpu, tmpv, 

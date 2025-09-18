@@ -93,7 +93,7 @@ void cado_poly_extended_print_cado_format(FILE *out, cado_poly_extended poly,
     gmp_fprintf(out, "c%d: %Zd\n", i, f0->_coeff[i]);
   for (int i = 0; i < 3; i++)
     gmp_fprintf(out, "Y%d: %Zd\n", i, f1->_coeff[i]);
-  fprintf(out, "skew: %1.2f\n", L2_combined_skewness2(f0, f1, SKEWNESS_DEFAULT_PREC));
+  fprintf(out, "skew: %1.2f\n", L2_combined_skewness2(f0, f1));
 }
 
 void
@@ -118,8 +118,8 @@ cado_poly_extended_print (FILE *out, cado_poly_extended poly, char *pre)
     fprintf (out, "%sE = %e\n", pre, poly->E);
     fprintf (out, "%salpha_f0 = %.2f\n", pre, get_alpha (f0, get_alpha_bound ()));
     fprintf (out, "%salpha_f1 = %.2f\n", pre, get_alpha (f1, get_alpha_bound ()));
-    fprintf (out, "%sskew_f0 = %.2f\n", pre, L2_skewness (f0, SKEWNESS_DEFAULT_PREC));
-    fprintf (out, "%sskew_f1 = %.2f\n", pre, L2_skewness (f1, SKEWNESS_DEFAULT_PREC));
+    fprintf (out, "%sskew_f0 = %.2f\n", pre, L2_skewness (f0));
+    fprintf (out, "%sskew_f1 = %.2f\n", pre, L2_skewness (f1));
     gmp_fprintf (out, "%sskewness = %Zd\n", pre, poly->skew);
     fprintf (out, "%sL2_skew_norm_f0 = %.2f\n", pre, L2_lognorm (f0, s));
     fprintf (out, "%sL2_skew_norm_f1 = %.2f\n", pre, L2_lognorm (f1, s));

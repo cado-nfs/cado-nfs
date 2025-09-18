@@ -574,8 +574,7 @@ void transfer_to_alpha_priority_queue(mpz_srcptr u, mpz_srcptr v, mpz_srcptr mod
 
 #if RANK_SUBLATTICE_BY_E
     /* use exp_E as benchmark instead of alpha. */
-    double skew = L2_skewness (Fuv, SKEWNESS_DEFAULT_PREC);
-    alpha_lat = L2_lognorm (Fuv, skew);
+    alpha_lat = L2_skew_lognorm (Fuv);
     alpha_lat += get_alpha (Fuv, get_alpha_bound ());
 #else
     //alpha_lat = get_alpha (fuv, poly->d, primes[s1param->tlen_e_sl-1]);
@@ -583,8 +582,7 @@ void transfer_to_alpha_priority_queue(mpz_srcptr u, mpz_srcptr v, mpz_srcptr mod
 #endif
 
 #if DEBUG_ROPT_STAGE1
-    skew = L2_skewness (Fuv, SKEWNESS_DEFAULT_PREC);
-    double logmu = L2_lognorm (Fuv, skew);
+    double logmu = L2_skew_lognorm (Fuv);
     gmp_fprintf ( stderr, "# Info: insert lat #%4d, (w, u, v): "
             "(%d, %Zd, %Zd) (mod %Zd), partial_alpha: %.2f,"
             "lognorm: %.2f\n",
