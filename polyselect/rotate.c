@@ -112,8 +112,7 @@ int main(int argc, char const * argv[])
 
     /* If skewness is not given in file nor in command line, compute it. */
     if (cpoly->skew == 0.0)
-      cpoly->skew = L2_combined_skewness2 (cpoly->pols[0], cpoly->pols[1],
-                                          SKEWNESS_DEFAULT_PREC);
+      cpoly->skew = L2_combined_skewness2 (cpoly->pols[0], cpoly->pols[1]);
 
     /* Well, it's really very simple. */
 

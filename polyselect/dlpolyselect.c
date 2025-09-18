@@ -173,7 +173,7 @@ print_nonlinear_poly_info (mpz_poly_srcptr ff, double alpha_f, mpz_poly_srcptr g
     /* the coefficients of g are O(n^(1/df)) */
 
     /* we use the skewness minimizing the sum of lognorms */
-    skew = L2_combined_skewness2 (ff, gg, SKEWNESS_DEFAULT_PREC);
+    skew = L2_combined_skewness2 (ff, gg);
     logmu[1] = L2_lognorm (gg, skew);
     logmu[0] = L2_lognorm (ff, skew);
     /* first estimate alpha with a small bound */
@@ -619,7 +619,7 @@ polygen_JL2 (mpz_t n,
     /* update the best and worst score for f (FIXME: even if f has no roots?) */
     double skew_f, lognorm_f, score_f;
     alpha_f = get_alpha (f, get_alpha_bound ());
-    skew_f = L2_skewness (f, SKEWNESS_DEFAULT_PREC);
+    skew_f = L2_skewness (f);
     lognorm_f = L2_lognorm (f, skew_f);
     score_f = lognorm_f + alpha_f;
 

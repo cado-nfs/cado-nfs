@@ -293,7 +293,7 @@ polyselect_process_match_async(polyselect_thread_league_srcptr league, polyselec
     stats->tot_found++;
 
     /* _raw lognorm */
-    double skew = L2_skewness(f, SKEWNESS_DEFAULT_PREC);
+    double skew = L2_skewness(f);
     double logmu = L2_lognorm(f, skew);
 
     polyselect_data_series_add(stats->raw_lognorm, logmu);
@@ -330,7 +330,7 @@ polyselect_process_match_async(polyselect_thread_league_srcptr league, polyselec
   {
       stats->collisions_good++;
 
-      double skew = L2_skewness(f, SKEWNESS_DEFAULT_PREC);
+      double skew = L2_skewness(f);
       double logmu = L2_lognorm(f, skew);
       /* expected_rotation_gain() takes into account the
        * projective alpha */

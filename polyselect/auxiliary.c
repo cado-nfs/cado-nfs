@@ -169,7 +169,7 @@ print_poly_fg (mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_srcptr N, int mode)
 void cado_poly_set_skewness_if_undefined(cado_poly_ptr cpoly)
 {
     if (cpoly->skew <= 0.0) /* If skew is undefined, compute it. */
-        cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
+        cpoly->skew = L2_combined_skewness2 (cpoly->pols[RAT_SIDE], cpoly->pols[ALG_SIDE]);
 }
 
 void cado_poly_stats_init(cado_poly_stats_ptr spoly, int nb_polys)
@@ -348,7 +348,7 @@ expected_rotation_gain (mpz_poly_srcptr f, mpz_poly_srcptr g)
   double S = 1.0, s, incr = 0.0;
   rotation_space r;
   double proj_alpha = get_alpha_projective (f, ALPHA_BOUND_SMALL);
-  double skew = L2_skewness (f, SKEWNESS_DEFAULT_PREC);
+  double skew = L2_skewness (f);
   double n = L2_lognorm (f, skew);
 
   for (int i = 0; 2 * i < f->deg; i++)

@@ -919,8 +919,7 @@ void fprintf_gfpn_poly_info(FILE * fp, mpz_poly_srcptr f,
     double const exp_rot[] = {
         0,   0.5, 1.0, 2.0,
         3.0, 4.0, 5.0, 0}; // ??? copy paste from dlpolyselect.c:26
-    skew = L2_skewness(
-        f, SKEWNESS_DEFAULT_PREC); // macro defined in polyselect/auxiliary.h
+    skew = L2_skewness(f);
     logmu = L2_lognorm(f, skew);
     alpha = get_alpha(f, get_alpha_bound());
     fprintf(fp, "# ");

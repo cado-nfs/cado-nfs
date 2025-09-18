@@ -483,8 +483,7 @@ ropt_wrapper (cado_poly_ptr input_poly, unsigned int poly_id,
   /* MurphyE */
   /* use the skewness minimizing the sum of the lognorms */
   ropt_poly->skew = L2_combined_skewness2 (ropt_poly->pols[0],
-                                           ropt_poly->pols[1],
-                                           SKEWNESS_DEFAULT_PREC);
+                                           ropt_poly->pols[1]);
   curr_MurphyE = MurphyE (ropt_poly, bound_f, bound_g, area, MURPHY_K,
                           get_alpha_bound ());
 
