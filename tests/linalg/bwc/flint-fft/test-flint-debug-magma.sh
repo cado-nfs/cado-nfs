@@ -5,7 +5,7 @@
 TMPDIR="${wdir}"
 export TMPDIR
 
-set -ex
+set -e
 
 magma="$1"
 shift
