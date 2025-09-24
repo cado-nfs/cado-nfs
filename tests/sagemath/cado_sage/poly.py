@@ -229,14 +229,14 @@ class CadoPolyFile(object):
             s = math.sin(t)
             B = max(B, abs(f1s.homogenize()(c, s)))
 
-        # normalized f
-        fn = f1s / B
+        # return f together with its max over a circle
 
-        return fn.homogenize()
+        return f1s.homogenize(), B
 
     def create_2d_valley_plot(self, output_filename,
                               style='heatmap',
-                              heatmap_plot_points=500
+                              heatmap_plot_points=500,
+                              scale='auto'
                               ):
         """
         This creates the frequently seen "spider web" graphics for this
@@ -253,7 +253,13 @@ class CadoPolyFile(object):
         if not re.match(r'.*\.png', output_filename):
             raise RuntimeError("output_filename must be a .png file")
 
-        F = self._normalized_polynomial_for_graphics()
+        F, B = self._normalized_polynomial_for_graphics()
+
+        if scale == 'auto':
+            F = F / B
+        else:
+            F = F / scale
+
         z1 = 0
         z0 = -10
 
@@ -271,7 +277,8 @@ class CadoPolyFile(object):
             figure = contour_plot(G,
                                   (x, -1, 1), (y, -1, 1),
                                   contours=levels,
-                                  cmap="jet", colorbar=True)
+                                  fill=False,
+                                  cmap="jet", colorbar=False)
         elif style == 'heatmap':
             from sage.plot.density_plot import density_plot
             figure = density_plot(G,
@@ -294,16 +301,20 @@ class CadoPolyFile(object):
         pm.savefig(output_filename, bbox_inches=0)
 
     def create_3d_valley_plot(self, output_filename,
+                              scale='auto',
                               resolution=300):
         """
         This creates a threejs animated graphics object (about 20MB in
         size for 300 points) that can show the valleys of log(|F(a,b)|).
         """
 
-        if not re.match(r'.*\.html', output_filename):
-            raise RuntimeError("output_filename must be a .html file")
+        F, B = self._normalized_polynomial_for_graphics()
 
-        F = self._normalized_polynomial_for_graphics()
+        if scale == 'auto':
+            F = F / B
+        else:
+            F = F / scale
+
         z1 = 0
         z0 = -10
 
@@ -337,9 +348,14 @@ class CadoPolyFile(object):
 
         Gr = (surf + bottom)
 
-        Gr.save(output_filename,
-                online=True,
-                aspect_ratio=[1, 1, 2/(z1-z0+1)])
+        if re.match(r'.*\.html', output_filename):
+            Gr.save(output_filename,
+                    online=True,
+                    aspect_ratio=[1, 1, 2/(z1-z0+1)])
+        else:
+            Gr.save(output_filename,
+                    online=False,
+                    aspect_ratio=[1, 1, 2/(z1-z0+1)])
 
         # os.system(rf'sed -e "s/<script src=\".*three.min.js\">'
         #           rf'<\/script>/<script src=\"three.js\"><\/script>/"'
