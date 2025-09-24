@@ -63,7 +63,7 @@ cado_define_test(test_ropt_adv
 # Higher precision skewness computation has changed data a bit.
 set(ropt_sha1_c80 abd946d0837e008ca1775f3dc9bebe02b6d9087e)
 set(ropt_sha1_c75 0580622f2b8e6ca129ef63d6f5aacb045586ab47)
-set(ropt_sha1_c70 c59e7eeb346c88b1374df40a89f8a10e54a7a32a,what_do_we_get_on_freebsd_now)
+set(ropt_sha1_c70 c59e7eeb346c88b1374df40a89f8a10e54a7a32a,d335f74d729e599c30d73b81de0a738d89101656)
 set(ropt_sha1_c65 ad7ba67781efa987b32e2d9fb891e64dbdeb1a5e)
 set(ropt_sha1_c60 847a5d86728e33f191ac7e58fa84fc278ef570d6)
 
