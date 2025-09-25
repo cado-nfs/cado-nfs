@@ -1235,7 +1235,7 @@ int main(int argc, char const * argv[])
     test_mpz_poly_base_modp_init (iter / 25);
     test_mpz_poly_is_root(iter);
     test_mpz_poly_factor(2 + iter / 5);
-    test_mpz_poly_factor_padic(2 + iter / 20);
+    test_mpz_poly_factor_padic(2 + iter / 5);
     test_mpz_poly_trivialities ();
     test_mpz_poly_resultant();
     test_mpz_poly_discriminant(iter);
