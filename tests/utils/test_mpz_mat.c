@@ -1,26 +1,11 @@
 #include "cado.h" // IWYU pragma: keep
-#include "macros.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <gmp.h>
-#include "mpz_mat.h"
 
-void mpz_mat_fprintf(FILE * stream, mpz_mat_srcptr M)
-{
-  fprintf(stream, "[");
-  for(unsigned int i = 0 ; i < M->m - 1 ; i++) {
-    gmp_fprintf(stream, "[%Zd", mpz_mat_entry_const(M, i, 0));
-    for(unsigned int j = 1 ; j < M->n ; j++) {
-      gmp_fprintf(stream, ", %Zd", mpz_mat_entry_const(M, i, j));
-    }
-    fprintf(stream, "],\n");
-  }
-  gmp_fprintf(stream, "[%Zd", mpz_mat_entry_const(M, M->m - 1, 0));
-  for(unsigned int j = 1 ; j < M->n ; j++) {
-    gmp_fprintf(stream, ", %Zd", mpz_mat_entry_const(M, M->m - 1, j));
-  }
-  fprintf(stream, "]]\n");
-}
+#include <stdlib.h>
+
+#include <gmp.h>
+
+#include "macros.h"
+#include "mpz_mat.h"
 
 void test_mpz_mat_LLL()
 {

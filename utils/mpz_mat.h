@@ -11,6 +11,10 @@
 #include "mpz_poly.h"
 
 #ifdef __cplusplus
+#include "fmt_helper_sagemath.hpp"
+#endif
+
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -93,10 +97,14 @@ void mpq_mat_horizontal_join(mpq_mat_ptr N, mpq_mat_srcptr M1, mpq_mat_srcptr M2
 void mpz_mat_trace(mpz_ptr t, mpz_mat_srcptr M);
 // We assume that M is triangular (and square)
 void mpz_mat_determinant_triangular(mpz_ptr d, mpz_mat_srcptr M);
+/* this one does the HNF first */
+void mpz_mat_determinant(mpz_ptr d, mpz_mat_srcptr M);
 // We assume that M is square
 void mpq_mat_trace(mpq_ptr t, mpq_mat_srcptr M);
 // We assume that M is triangular (and square)
 void mpq_mat_determinant_triangular(mpq_ptr d, mpq_mat_srcptr M);
+/* uses HNF first */
+void mpq_mat_determinant(mpq_ptr d, mpq_mat_srcptr M);
 void mpz_mat_transpose(mpz_mat_ptr D, mpz_mat_srcptr M);
 void mpq_mat_transpose(mpq_mat_ptr D, mpq_mat_srcptr M);
 void mpz_mat_reverse_rows(mpz_mat_ptr B, mpz_mat_srcptr A);
@@ -117,20 +125,12 @@ void mpz_mat_mod_mpz(mpz_mat_ptr dst, mpz_mat_srcptr src, mpz_srcptr p);
 int mpz_mat_isnull_row(mpz_mat_srcptr M, unsigned int k);
 void mpz_mat_swaprows(mpz_mat_ptr M, unsigned int i0, unsigned int i1);
 void mpq_mat_swaprows(mpq_mat_ptr M, unsigned int i0, unsigned int i1);
-/* apply a circular shift on rows [i0...i0+k[ */
-void mpz_mat_rotatedownrows(mpz_mat_ptr M, unsigned int i0, unsigned int k);
-void mpq_mat_rotatedownrows(mpq_mat_ptr M, unsigned int i0, unsigned int k);
-/* put row perm[k] in row k */
-void mpz_mat_permuterows(mpz_mat_ptr M, unsigned int * perm);
-void mpq_mat_permuterows(mpq_mat_ptr M, unsigned int * perm);
 /* add lambda times row i1 to row i0 */
 void mpz_mat_addmulrow(mpz_mat_ptr M, unsigned int i0, unsigned int i1, mpz_srcptr lambda);
-void mpz_mat_addmulrow_mod(mpz_mat_ptr M, unsigned int i0, unsigned int i1, mpz_srcptr lambda, mpz_srcptr p);
 /* add lambda times row i1 to row i0 */
 void mpq_mat_addmulrow(mpq_mat_ptr M, unsigned int i0, unsigned int i1, mpq_srcptr lambda);
 /* subtract lambda times row i1 to row i0 */
 void mpz_mat_submulrow(mpz_mat_ptr M, unsigned int i0, unsigned int i1, mpz_srcptr lambda);
-void mpz_mat_submulrow_mod(mpz_mat_ptr M, unsigned int i0, unsigned int i1, mpz_srcptr lambda, mpz_srcptr p);
 /* subtract lambda times row i1 to row i0 */
 void mpq_mat_submulrow(mpq_mat_ptr M, unsigned int i0, unsigned int i1, mpq_srcptr lambda);
 /* add row i1 to row i0 */
@@ -143,7 +143,6 @@ void mpz_mat_subrow(mpz_mat_ptr M, unsigned int i0, unsigned int i1);
 void mpq_mat_subrow(mpq_mat_ptr M, unsigned int i0, unsigned int i1);
 /* multiply row i0 by lambda */
 void mpz_mat_mulrow(mpz_mat_ptr M, unsigned int i0, mpz_srcptr lambda);
-void mpz_mat_mulrow_mod(mpz_mat_ptr M, unsigned int i0, mpz_srcptr lambda, mpz_srcptr p);
 /* multiply row i0 by lambda */
 void mpq_mat_mulrow(mpq_mat_ptr M, unsigned int i0, mpq_srcptr lambda);
 
@@ -175,9 +174,9 @@ void mpz_mat_add(mpz_mat_ptr D, mpz_mat_srcptr A, mpz_mat_srcptr B);
 void mpq_mat_add(mpq_mat_ptr D, mpq_mat_srcptr A, mpq_mat_srcptr B);
 void mpz_mat_sub(mpz_mat_ptr D, mpz_mat_srcptr A, mpz_mat_srcptr B);
 void mpq_mat_sub(mpq_mat_ptr D, mpq_mat_srcptr A, mpq_mat_srcptr B);
-void mpz_poly_eval_mpz_mat(mpz_mat_ptr D, mpz_mat_srcptr M, mpz_poly_srcptr f);
-void mpz_poly_eval_mpz_mat_mod_ui(mpz_mat_ptr D, mpz_mat_srcptr M, mpz_poly_srcptr f, unsigned long p);
-void mpz_poly_eval_mpz_mat_mod_mpz(mpz_mat_ptr D, mpz_mat_srcptr M, mpz_poly_srcptr f, mpz_srcptr p);
+void mpz_poly_eval_mpz_mat(mpz_mat_ptr D, mpz_poly_srcptr f, mpz_mat_srcptr M);
+void mpz_poly_eval_mpz_mat_mod_ui(mpz_mat_ptr D, mpz_poly_srcptr f, mpz_mat_srcptr M, unsigned long p);
+void mpz_poly_eval_mpz_mat_mod_mpz(mpz_mat_ptr D, mpz_poly_srcptr f, mpz_mat_srcptr M, mpz_srcptr p);
 
 /*  gaussian reduction over the rationals
  * this is a backend for row gaussian reduction. T receives the
@@ -209,9 +208,9 @@ void mpz_mat_gauss_backend_mod_ui(mpz_mat_ptr M, mpz_mat_ptr T, unsigned long p)
  */
 void mpz_gcd_many(mpz_mat_ptr dT, mpz_ptr * a, unsigned int n);
 
-/* return +1 or -1, which is the determinant of the transformation matrix T */
-int mpz_mat_hermite_form(mpz_mat_ptr M, mpz_mat_ptr T);
-int mpz_mat_hermite_form_rev(mpz_mat_ptr M, mpz_mat_ptr T);
+/* return +1 or -1, which is the determinant of the transformation matrix */
+int mpz_mat_hermite_form(mpz_mat_ptr M);
+int mpz_mat_hermite_form_rev(mpz_mat_ptr M);
 
 /* kernel*/
 // This is supposed to compute the Kernel of M mod p and to store it in the matrix K. If r is the rank of M, and M is a square matrix n*n, K is a n*(n-r) matrix
@@ -223,7 +222,6 @@ void mpq_mat_inv(mpq_mat_ptr dst, mpq_mat_srcptr src);
 int mpz_mat_cmp(mpz_mat_srcptr M, mpz_mat_srcptr N);
 int mpz_mat_is_zero(mpz_mat_srcptr M);
 int mpq_mat_cmp(mpq_mat_srcptr M, mpq_mat_srcptr N);
-void mpq_mat_fprint_as_mpz(FILE* f, mpq_mat_srcptr M);
 void mpz_mat_fprint(FILE * stream, mpz_mat_srcptr M);
 void mpq_mat_fprint(FILE * stream, mpq_mat_srcptr M);
 
@@ -236,6 +234,7 @@ void mpz_mat_LLL(mpz_ptr det, mpz_mat_ptr M, mpz_mat_ptr U, mpz_srcptr a,
 #ifdef __cplusplus
 
 struct cxx_mpz_mat {
+    using cxx_coeff_type = cxx_mpz;
     mpz_mat x;
     cxx_mpz_mat() { mpz_mat_init(x, 0, 0); }
     cxx_mpz_mat(unsigned int m, unsigned int n) { mpz_mat_init(x, m, n); }
@@ -253,14 +252,15 @@ struct cxx_mpz_mat {
         mpz_mat_set(x, o.x);
     }
     cxx_mpz_mat & operator=(cxx_mpz_mat const & o) {
-        mpz_mat_set(x, o.x);
+        if (this != &o)
+            mpz_mat_set(x, o.x);
         return *this;
     }
     cxx_mpz_mat(cxx_mpz_mat && o) {
         mpz_mat_init(x, 0, 0);
         mpz_mat_swap(x, o.x);
     }
-    cxx_mpz_mat& operator=(cxx_mpz_mat && o) {
+    cxx_mpz_mat& operator=(cxx_mpz_mat && o) noexcept {
         mpz_mat_swap(x, o.x);
         return *this;
     }
@@ -284,6 +284,7 @@ extern void mpz_mat_init(cxx_mpz_mat & pl, unsigned int, unsigned int) __attribu
 extern void mpz_mat_clear(cxx_mpz_mat & pl) __attribute__((error("mpz_mat_clear must not be called on a mpz_mat reference -- it is the caller's business (via a dtor)")));
 #endif
 struct cxx_mpq_mat {
+    using cxx_coeff_type = cxx_mpq;
     mpq_mat x;
     cxx_mpq_mat() { mpq_mat_init(x, 0, 0); }
     cxx_mpq_mat(unsigned int m, unsigned int n) { mpq_mat_init(x, m, n); }
@@ -341,6 +342,21 @@ extern std::ostream& operator<<(std::ostream& os, cxx_mpq_mat const& M);
 extern void mpq_mat_init(cxx_mpq_mat & pl, unsigned int, unsigned int) __attribute__((error("mpq_mat_init must not be called on a mpq_mat reference -- it is the caller's business (via a ctor)")));
 extern void mpq_mat_clear(cxx_mpq_mat & pl) __attribute__((error("mpq_mat_clear must not be called on a mpq_mat reference -- it is the caller's business (via a dtor)")));
 #endif
+
+namespace fmt {
+    template <>
+    struct formatter<cxx_mpz_mat> : fmt_helper_sagemath<cxx_mpz_mat>
+    {
+        static constexpr const decltype(custom_format) custom_format_default = SAGEMATH;
+        auto format(cxx_mpz_mat const & e, format_context& ctx) const -> format_context::iterator;
+    };
+    template<>
+    struct formatter<cxx_mpq_mat> : fmt_helper_sagemath<cxx_mpq_mat>
+    {
+        static constexpr const decltype(custom_format) custom_format_default = SAGEMATH;
+        auto format(cxx_mpq_mat const & e, format_context& ctx) const -> format_context::iterator;
+    };
+} /* namespace fmt */
 #endif
 
 #endif	/* CADO_MPZ_MAT_H */

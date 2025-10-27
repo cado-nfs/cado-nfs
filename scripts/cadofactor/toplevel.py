@@ -769,7 +769,7 @@ class Cado_NFS_toplevel(object):
         Additionally, the parameters tasks.sqrt.threads and
         tasks.linalg.bwc.threads are set to defaults that are computed as
         follows.
-            tasks.sqrt.threads is capped to a value of 8
+            tasks.sqrt.threads is capped to a value of 1
             tasks.linalg.bwc.threads, if --server-threads is unspecified
             or set to 'all', is set to the number of *physical* cores on
             the system.

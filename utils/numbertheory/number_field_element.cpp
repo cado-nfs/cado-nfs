@@ -8,7 +8,7 @@
 #include "cxx_mpz.hpp"
 #include "numbertheory/number_field_element.hpp"
 #include "numbertheory/number_field.hpp"
-#include "numbertheory/fmt_helpers.hpp"
+#include "fmt_helper_sagemath.hpp"
 #include "mpz_mat_accessors.h"
 #include "mpz_poly.h"
 

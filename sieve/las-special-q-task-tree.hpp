@@ -1,5 +1,5 @@
-#ifndef SIEVE_LAS_DESCENT_TREE_NODE_HPP_
-#define SIEVE_LAS_DESCENT_TREE_NODE_HPP_
+#ifndef SIEVE_LAS_SPECIAL_Q_TASK_TREE_HPP_
+#define SIEVE_LAS_SPECIAL_Q_TASK_TREE_HPP_
 
 #include <list>
 #include <map>
@@ -20,6 +20,12 @@
 #include "relation.hpp"
 
 struct las_info;
+
+/* a special_q_task_tree is actually one node (and pointers to its
+ * children) in a tree that is considered in the descent process. The
+ * general access interface is special_q_task_collection_tree, which is
+ * an instance of special_q_task_collection
+ */
 
 /* the state machine of a tree node is as follows:
  *
@@ -56,12 +62,12 @@ struct special_q_task_tree : public special_q_task {
     friend struct special_q_task_collection_tree;
 
     void vivify_lists() {
-              /* vivify all lists */
-              children_by_status[PENDING];
-              children_by_status[IN_PROGRESS];
-              children_by_status[IN_RECURSION];
-              children_by_status[DONE];
-              children_by_status[ABANDONED];
+        /* vivify all lists */
+        children_by_status[PENDING];
+        children_by_status[IN_PROGRESS];
+        children_by_status[IN_RECURSION];
+        children_by_status[DONE];
+        children_by_status[ABANDONED];
     }
 
     special_q_task_tree() {
@@ -115,4 +121,4 @@ namespace fmt {
 }
 
 
-#endif	/* SIEVE_LAS_DESCENT_TREE_NODE_HPP_ */
+#endif	/* SIEVE_LAS_SPECIAL_Q_TASK_TREE_HPP_ */

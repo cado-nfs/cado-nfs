@@ -4,8 +4,10 @@
 #include <memory>
 #include <utility>
 #include <vector>
+#include <ostream>
 
 #include <gmp.h>
+#include "fmt/base.h"
 #include "fmt/format.h"
 
 #include "numbertheory/numbertheory_fwd_types.hpp"
@@ -69,17 +71,19 @@ class number_field_fractional_ideal {
         , denominator(a.denominator)
     {}
 
-    number_field_fractional_ideal(number_field_fractional_ideal && a)
+    number_field_fractional_ideal(number_field_fractional_ideal && a) noexcept
         : O(a.O)
-        , ideal_basis_matrix(a.ideal_basis_matrix)
-        , denominator(a.denominator)
+        , ideal_basis_matrix(std::move(a.ideal_basis_matrix))
+        , denominator(std::move(a.denominator))
     {}
 
     number_field_fractional_ideal& operator=(number_field_fractional_ideal const & a)
     {
         ASSERT_ALWAYS(&O == &a.O);
-        ideal_basis_matrix = a.ideal_basis_matrix;
-        denominator = a.denominator;
+        if (this != &a) {
+            ideal_basis_matrix = a.ideal_basis_matrix;
+            denominator = a.denominator;
+        }
         return *this;
     }
     number_field_fractional_ideal& operator=(number_field_fractional_ideal && a)
@@ -93,15 +97,21 @@ class number_field_fractional_ideal {
     int cmp(number_field_fractional_ideal const & I) const {
         int const r = mpz_cmp(denominator, I.denominator);
         if (r) return r;
+
+        /* XXX this is only correct if we assume that both basis matrices
+         * are in HNF. Otherwise we would have to check 
+         * equivalence modulo SL_n !
+         */
         return mpz_mat_cmp(ideal_basis_matrix, I.ideal_basis_matrix);
     }
+
     bool operator<(number_field_fractional_ideal const & I) const {
         return cmp(I) < 0;
     }
 };
 
 namespace fmt {
-    template <> struct formatter<number_field_fractional_ideal> : formatter<string_view>{
+    template <> struct formatter<number_field_fractional_ideal> : formatter<string_view> {
         auto format(number_field_fractional_ideal const & e, format_context& ctx) const -> format_context::iterator;
     };
 }

@@ -411,14 +411,16 @@ sm_side_info::sm_side_info(mpz_poly_srcptr f0, mpz_srcptr ell,
      */
     // we need to be cxx to do that.
     // cxx_mpq_mat p_maximal_order(cxx_mpz_poly const& f, cxx_mpz const& p)
+
+    auto O_ell = O.factor(ell);
     
 
     pieces.reserve(pieces_pre.size());
 
     for (auto & pp: pieces_pre) {
-        std::vector<number_field_element> gens { K(ell), K(pp.g) };
+        std::vector<number_field_element> const gens { K(ell), K(pp.g) };
         auto I = O.fractional_ideal(gens);
-        for (auto const & Ie: O.factor(ell)) {
+        for (auto const & Ie: O_ell) {
             number_field_prime_ideal const & fkp(Ie.first);
             const int v = fkp.valuation(I);
             if (v == 0)

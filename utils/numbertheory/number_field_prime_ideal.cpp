@@ -3,6 +3,7 @@
 #include <climits>
 
 #include <memory>
+#include <utility>
 
 #include "fmt/base.h"
 
@@ -13,7 +14,7 @@
 #include "numbertheory/number_field_element.hpp"        // IWYU pragma: keep
 #include "numbertheory/number_field_fractional_ideal.hpp"
 #include "numbertheory/number_field_order.hpp"
-#include "numbertheory/fmt_helpers.hpp"
+#include "fmt_helper_sagemath.hpp"
 #include "numbertheory/number_field_prime_ideal.hpp"
 #include "numbertheory/numbertheory_internals.hpp"
 
@@ -22,7 +23,7 @@ number_field_prime_ideal::operator two_element() const
     number_field_order const & O = order();
     if (!cached_two_element) {
         auto T = numbertheory_internals::prime_ideal_two_element(O.basis_matrix, O.number_field().defining_polynomial(), O.multiplication_table, ideal_basis_matrix);
-        cached_two_element = std::unique_ptr<two_element>(new two_element(T.first, O(T.second)));
+        cached_two_element = std::make_unique<two_element>(T.first, O(T.second));
     }
     return *cached_two_element;
 }
@@ -44,15 +45,15 @@ int number_field_prime_ideal::valuation(number_field_fractional_ideal const & I)
 
 }
 
-number_field_prime_ideal::number_field_prime_ideal(number_field_fractional_ideal const & I, cxx_mpz const & p, int e)
-    : number_field_fractional_ideal(I)
+number_field_prime_ideal::number_field_prime_ideal(number_field_fractional_ideal I, cxx_mpz p, int e)
+    : number_field_fractional_ideal(std::move(I))
     , valuation_helper(
             order(),
             numbertheory_internals::valuation_helper_for_ideal(
                 order().multiplication_table,
                 ideal_basis_matrix,
                 p))
-    , p(p)
+    , p(std::move(p))
     , e(e)
 {
 }

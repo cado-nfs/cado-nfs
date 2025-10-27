@@ -17,7 +17,7 @@
 #include "numbertheory/number_field_fractional_ideal.hpp"
 #include "numbertheory/number_field_prime_ideal.hpp"
 #include "numbertheory/numbertheory_internals.hpp"
-#include "numbertheory/fmt_helpers.hpp"
+#include "fmt_helper_sagemath.hpp"
 
 number_field_order::number_field_order(class number_field const & K, cxx_mpq_mat mat)
     : K(K)
@@ -136,7 +136,7 @@ number_field_order number_field_order::p_maximal_order(cxx_mpz const& p) const
     cxx_mpz_mat Dz;
     cxx_mpz den;
     mpq_mat_numden(Dz, den, D);
-    mpz_mat_hermite_form_rev(Dz, nullptr);
+    mpz_mat_hermite_form_rev(Dz);
     mpq_mat_set_mpz_mat_denom(D, Dz, den);
 
     return { K, D };

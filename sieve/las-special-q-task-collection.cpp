@@ -157,6 +157,7 @@ void special_q_task_collection_tree::display_summary(int channel, int verbose)
             all_pending.size(), created, pulled, done, abandoned);
     verbose_fmt_print(channel, verbose, "{}", special_q_task_tree::prefixed { &forest, "# " });
     verbose_fmt_print(channel, verbose, "# END SUMMARY TREE\n");
+    verbose_fmt_print(channel, verbose, "# The status of the root node is {}\n", forest.status);
 }
 
 
@@ -279,7 +280,6 @@ void special_q_task_collection_tree::take_decision(special_q_task_tree * item)
 
     constexpr auto PENDING = special_q_task::status_code::PENDING;
     constexpr auto IN_PROGRESS = special_q_task::status_code::IN_PROGRESS;
-    constexpr auto DONE = special_q_task::status_code::DONE;
     constexpr auto ABANDONED = special_q_task::status_code::ABANDONED;
 
     if (item->status == ABANDONED) {
@@ -289,9 +289,14 @@ void special_q_task_collection_tree::take_decision(special_q_task_tree * item)
         return;
     }
 
+    /* If this node was tried earlier and reached a recursion that failed
+     * because a child node failed many times, it is absolutely possible
+     * that we already have children in the ABANDONED or maybe in DONE
+     * state. It does not matter.
+     */
     ASSERT_ALWAYS(item->children_by_status[PENDING].empty());
     ASSERT_ALWAYS(item->children_by_status[IN_PROGRESS].empty());
-    ASSERT_ALWAYS(item->children_by_status[DONE].empty());
+
     visited.insert(item->contender.rel);
 
     verbose_fmt_print(0, 0, "Taken: {}\n", item->contender.rel);
@@ -422,13 +427,20 @@ void special_q_task_collection_tree::abandon_node_unlocked(special_q_task_tree *
      * most extreme one: even though these splittings have proved useful,
      * we just burn them, and forbid their further use.
      */
-    for(const status_code s : { PENDING, IN_PROGRESS, IN_RECURSION, DONE }) {
+    for(const status_code s : { PENDING, IN_PROGRESS, IN_RECURSION }) {
         /* We can't loop on children_by_status since abandoning the
          * children nodes will modify the list! */
         auto & L = item->children_by_status[s];
         for( ; !L.empty() ; ) 
             abandon_node_unlocked(*L.begin(), max_descent_attempts_allowed, true);
     }
+
+    /* special case for DONE nodes. We won't abandon them in the
+     * recursive_failure branch below. By definition, all their children
+     * are also DONE, so we won't update any status there. Bottom line,
+     * the branch below implies that we don't want to touch any DONE node
+     * at all. (the loop above would be an infinite loop, see #30127)
+     */
 
     if (recursive_failure) {
         /* Here we don't update the timings.
@@ -466,7 +478,7 @@ void special_q_task_collection_tree::abandon_node_unlocked(special_q_task_tree *
             item->update_status(item->status, ABANDONED);
             verbose_fmt_print (0, 1, 
                     "# {} [{}] -> failed {} times,"
-                    " now failing the parent node t{}\n",
+                    " now failing the parent node {}\n",
                     item->shortname(), 
                     item->sq(),
                     item->try_again,

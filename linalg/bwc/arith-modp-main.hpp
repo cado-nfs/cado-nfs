@@ -6,6 +6,7 @@
 #include <cstdint>
 
 #include <algorithm>
+#include <limits>
 #include <type_traits>
 #include <utility>
 #include <array>
@@ -892,9 +893,11 @@ struct gfp_base : public arith_concrete_base
 
     /*{{{ accessors inside vectors */
     template<typename X>
-        X* vec_subvec(X* p, size_t k) const
+        X* vec_subvec(X* p, ssize_t k) const
         requires (X::classifier >= 0)
         {
+            ASSERT_ALWAYS(k <= std::numeric_limits<ssize_t>::max() / (ssize_t) nlimbs<X>());
+            ASSERT_ALWAYS(k >= std::numeric_limits<ssize_t>::min() / (ssize_t) nlimbs<X>());
             return reinterpret_cast<X*>(p->pointer() + k * nlimbs<X>());
         }
 
@@ -906,9 +909,11 @@ struct gfp_base : public arith_concrete_base
         }
 
     template<typename X>
-        X const* vec_subvec(X const* p, size_t k) const
+        X const* vec_subvec(X const* p, ssize_t k) const
         requires (X::classifier >= 0)
         {
+            ASSERT_ALWAYS(k <= std::numeric_limits<ssize_t>::max() / (ssize_t) nlimbs<X>());
+            ASSERT_ALWAYS(k >= std::numeric_limits<ssize_t>::min() / (ssize_t) nlimbs<X>());
             return reinterpret_cast<X const*>(p->pointer() + k * nlimbs<X>());
         }
 
@@ -948,6 +953,7 @@ struct gfp_base : public arith_concrete_base
         void vec_set_zero(X* p, size_t n) const
         requires (X::classifier >= 0)
         {
+            ASSERT_ALWAYS(!n || nlimbs<X>() <= SIZE_MAX / n);
             std::fill_n(p->pointer(), n * nlimbs<X>(), 0);
         }
 
@@ -955,7 +961,9 @@ struct gfp_base : public arith_concrete_base
         void vec_set(X* q, X const* p, size_t n) const
         requires (X::classifier >= 0)
         {
+            ASSERT_ALWAYS(!n || nlimbs<X>() <= SIZE_MAX / n);
             size_t nn = n * nlimbs<X>();
+            ASSERT_ALWAYS(nn <= SIZE_MAX / sizeof(X));
             if (q < p)
                 std::copy_n(p->pointer(), nn, q->pointer());
             else

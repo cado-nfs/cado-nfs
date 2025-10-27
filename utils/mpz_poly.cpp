@@ -4340,16 +4340,17 @@ cxx_mpz_poly prod(std::vector<std::pair<cxx_mpz_poly, int>> const & lf,
 
 static int
 mpz_poly_factor_list_lift(std::vector<std::pair<cxx_mpz_poly, int>> & lf,
-                          mpz_poly_srcptr f, mpz_srcptr ell, mpz_srcptr ell2)
+        std::vector<cxx_mpz_poly> & cofactor_inverses,
+        mpz_poly_srcptr f, mpz_srcptr ell, mpz_srcptr ell2)
 {
     {
-        /* do a few sanity checks */
+        /* sanity check */
         cxx_mpz ell_ell;
         mpz_mul(ell_ell, ell, ell);
         ASSERT_ALWAYS(mpz_cmp(ell_ell, ell2) >= 0);
 
-        for (auto const & fm: lf) {
-            if (fm.second != 1) {
+        for (auto const & [ u, e ]: lf) {
+            if (e != 1) {
                 fprintf(stderr, "Ramified ell not supported\n");
                 exit(EXIT_FAILURE);
             }
@@ -4357,49 +4358,87 @@ mpz_poly_factor_list_lift(std::vector<std::pair<cxx_mpz_poly, int>> & lf,
     }
 
     auto coprod = coproduct_tree(lf, ell);
+
+    if (cofactor_inverses.empty()) {
+        /* Initialize the auxiliary data with the inverse of (f/u) mod u,
+         * for each factor */
+        for (size_t i = 0; i < lf.size(); i++) {
+            cxx_mpz_poly d, a, b;
+
+            /* get v = product of other factors */
+            cxx_mpz_poly const & v = coprod[i];
+            cxx_mpz_poly const & u = lf[i].first;
+
+            /* get a*u + b*v = 1 */
+            mpz_poly_xgcd_mpz(d, u, v, a, b, ell);
+
+            cofactor_inverses.push_back(b);
+        }
+    } else {
+        /* cofactor_inverses contains inverses that are not modulo ell
+         * but rather modulo sqrt(ell). It's easy to update.
+         * If u0 = lf[i].first is a factor mod ell and v0 = coprod[i] is
+         * (f/u0) mod ell, then we want to update b_ to the solution b0 of
+         * 1 - b * v0 == 0 mod (u0, ell), which is
+         *
+         * b_ + ell*b__ = b_ + (1/v0) * (1 - b_ * v0) mod (u0, ell)
+         *
+         * so b__ = b_ * (1 - b_ * v0) mod (u0, ell).
+         *
+         * Note that b_ is already such that b_*v0 = 1 mod (u0,
+         * sqrt(ell))
+         */
+        for (size_t i = 0; i < lf.size(); i++) {
+            cxx_mpz_poly const & u = lf[i].first;
+            cxx_mpz_poly const & v = coprod[i];
+            cxx_mpz_poly & b = cofactor_inverses[i];
+            cxx_mpz_poly t;
+            mpz_poly_mul_mod_f_mod_mpz(t, b, v, u, ell, nullptr, nullptr);
+            mpz_poly_sub_ui(t, t, 1);
+            mpz_poly_mul_mod_f_mod_mpz(t, b, t, u, ell, nullptr, nullptr);
+            mpz_poly_sub_mod_mpz(b, b, t, ell);
+        }
+    }
+
+    /* compute f - product(everyone) mod ell^2 */
     cxx_mpz_poly f1 = prod(lf, ell2);
     mpz_poly_sub_mod_mpz(f1, f, f1, ell2);
     mpz_poly_divexact_mpz(f1, f1, ell);
 
-    /* we have f = prod(fi) + ell * f1 mod ell2 */
-
-    /* Lift all factors. Take g0 h0 unitary, g1 h1 of lesser
-     * degree.
-     * want (g0+ell*g1) * (h0 + ell*h1) = f
-     *    g1 * h0 + h1 * g0 = f1 = (f - g0 * h0) / ell
+    /* Lift all factors.
      *
-     * say a*g0 + b*h0 = 1
+     * Let u0 = lf[i].first be a factor mod ell, and b0 = cofactor_inverses[i]
+     * the inverse of (f/u0) mod (u0, ell). We also have v0 = coprod[i] =
+     * (f/u0).
      *
-     *    a*f1 = a*g1*h0+a*h1*g0 = h1 mod h0
-     *    b*f1 = b*g1*h0+b*h1*g0 = g1 mod g0
+     * We need two steps of Newton lifting.
      *
-     * since deg(g1) < deg(g0), we deduce g1 = b * f1 mod g0
+     * First, we want to lift u0 to the solution u of f - (u * v) = 0 mod
+     * ell^2, which is written as u = u0 + ell*u1, with
+     *  u = u0 + 1/v0 * (f - u0 * v0)
+     * u1 = 1/v0 * f1
+     *    = b0 * f1 mod ell
+     *
+     * Furthermore we can reduce u1 mod u0 as well, since adjusting by
+     * ell*k*u0 can be compensated by an adjustment by ell*k*v0 of the
+     * other term.
+     *
+     * In a second step, once we have collected all new factors, we want
+     * to update bi. Note that this requires not only next(ui) but also
+     * next(vi), which we actually get from the next call to
+     * coproduct_tree(). Therefore it's done in the next iteration, after
+     * the call to that function.
      *
      */
 
     for (size_t i = 0; i < lf.size(); i++) {
-        cxx_mpz_poly g1, d, a, b;
+        cxx_mpz_poly & u = lf[i].first;
+        cxx_mpz_poly const & b = cofactor_inverses[i];
 
-        mpz_poly_ptr g = lf[i].first;
-
-        mpz_poly_srcptr g0 = g; /* alias */
-
-        ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_lc(g), 1) == 0);
-
-        /* compute h0 = product of other factors */
-        cxx_mpz_poly h0 = coprod[i];
-
-        /* say a*g0 + b*h0 = 1 */
-        mpz_poly_xgcd_mpz(d, g0, h0, a, b, ell);
-        ASSERT_ALWAYS(d->deg == 0);
-        ASSERT_ALWAYS(mpz_cmp_ui(d->_coeff[0], 1) == 0);
-
-        /* g1 is b*f1 mod g0 */
-        mpz_poly_mul_mod_f_mod_mpz(g1, f1, b, g0, ell, nullptr, nullptr);
-
-        /* now update g */
-        mpz_poly_mul_mpz(g1, g1, ell);
-        mpz_poly_add(g, g, g1);
+        cxx_mpz_poly t;
+        mpz_poly_mul_mod_f_mod_mpz(t, b, f1, u, ell, nullptr, nullptr);
+        mpz_poly_mul_mpz(t, t, ell);
+        mpz_poly_add(u, u, t);
     }
 
     return 1;
@@ -4414,6 +4453,12 @@ mpz_poly_factor_and_lift_padically(mpz_poly_srcptr f, mpz_srcptr ell, int prec,
     ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_lc(f), 1) == 0);
 
     auto xfac = mpz_poly_factor(f, ell, rstate);
+
+    /* For each irreducible divisor u of f, we want to precompute the
+     * inverse of (f/u) modulo u. It will be needed in the lifting
+     * phase.
+     */
+    std::vector<cxx_mpz_poly> cofactor_inverses;
 
     std::vector<int> precs;
     for (int p = prec; p != 1; p -= p / 2)
@@ -4435,7 +4480,7 @@ mpz_poly_factor_and_lift_padically(mpz_poly_srcptr f, mpz_srcptr ell, int prec,
         } else {
             ASSERT_ALWAYS(0);
         }
-        mpz_poly_factor_list_lift(xfac, f, ell_k, ell_next);
+        mpz_poly_factor_list_lift(xfac, cofactor_inverses, f, ell_k, ell_next);
         mpz_swap(ell_next, ell_k);
         k = p;
     }

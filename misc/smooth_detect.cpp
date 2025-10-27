@@ -3,7 +3,6 @@
 #include <cstdlib>
 #include <climits>
 #include <cmath>
-#include <cstdbool>
 #include <cstdio>
 #include <ctime>
 

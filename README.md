@@ -35,7 +35,7 @@ Documented example parameter files are in
 Supported platforms
 ===================
 
-The primary development platform is `x86_64` linux with gcc 5 or newer,
+The primary development platform is `x86_64` linux with gcc 10 or newer,
 the most common processor being Intel core2-like or more recent.
 
 Other architectures are checked regularly, and should work. Please refer

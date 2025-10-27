@@ -12,10 +12,11 @@
 #include <string>
 #include <vector>
 #include <utility>
-#include <istream>      // std::istream // IWYU pragma: keep
-#include <ostream>      // std::ostream // IWYU pragma: keep
+#include <istream>      // std::istream
+#include <ostream>      // std::ostream
 #include <stdexcept>
 #include <type_traits>
+#include <initializer_list>
 #endif
 
 #ifdef __cplusplus
@@ -395,7 +396,14 @@ struct cxx_mpz_poly {
         mpz_poly_set_from_expression(x, e);
         return *this;
     }
+    cxx_mpz_poly(std::initializer_list<cxx_mpz> L) {
+        mpz_poly_init(x, -1);
+        int i = 0;
+        for(auto const & c : L)
+            mpz_poly_setcoeff(x, i++, c);
+    }
     // NOLINTEND(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
+    
 
     ~cxx_mpz_poly() { mpz_poly_clear(x); }
 
