@@ -29,7 +29,10 @@ int main(int argc, char const * argv[])
     for(int i = 0 ; i < 10 ; i++) {
         cxx_mpz_poly x;
         int const jmax = gmp_urandomm_ui(state, 16);
-        mpz_poly_set_signed_rrandomb(x, jmax, state, 16);
+        mpz_poly_set_randomb(x, jmax, state, 16,
+                MPZ_POLY_SIGNED_COEFFICIENTS |
+                MPZ_POLY_RRANDOM |
+                MPZ_POLY_DEGREE_EXACT);
 
         v.push_back(x);
     }

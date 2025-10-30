@@ -73,8 +73,10 @@ test_mpz_poly_mul_tc (unsigned long iter)
     for (r = 0; r <= MAX_TC_DEGREE; r++)
       for (s = 0; r + s <= MAX_TC_DEGREE; s++)
         {
-          mpz_poly_set_signed_rrandomb (g, r, state, 10);
-          mpz_poly_set_signed_rrandomb (h, s, state, 10);
+          mpz_poly_set_randomb (g, r, state, 10,
+                  MPZ_POLY_SIGNED_COEFFICIENTS | MPZ_POLY_RRANDOM | MPZ_POLY_DEGREE_EXACT);
+          mpz_poly_set_randomb (h, s, state, 10,
+                  MPZ_POLY_SIGNED_COEFFICIENTS | MPZ_POLY_RRANDOM | MPZ_POLY_DEGREE_EXACT);
           mpz_poly_mul (f0, g, h);
           mpz_poly_realloc (f1, r + s + 1);
           f1->deg = r + s;
@@ -112,7 +114,8 @@ test_mpz_poly_sqr_tc (unsigned long iter)
   while (iter--)
     for (r = 0; r <= MAX_TC_DEGREE; r++)
       {
-        mpz_poly_set_signed_rrandomb (g, r, state, 10);
+        mpz_poly_set_randomb (g, r, state, 10,
+                MPZ_POLY_SIGNED_COEFFICIENTS | MPZ_POLY_RRANDOM | MPZ_POLY_DEGREE_EXACT);
         mpz_poly_mul(f0, g, g);
         mpz_poly_realloc (f1, r + r + 1);
         f1->deg = r + r;
@@ -150,18 +153,23 @@ test_mpz_polymodF_mul ()
     {
       mpz_poly_init (F, d);
       mpz_poly_init (Q->p, d-1);
-      do mpz_poly_set_signed_rrandomb (F, d, state, k); while (F->deg == -1);
+      do {
+          mpz_poly_set_randomb (F, d, state, k,
+                MPZ_POLY_SIGNED_COEFFICIENTS | MPZ_POLY_RRANDOM | MPZ_POLY_DEGREE_UPPER_BOUND);
+      } while (F->deg == -1);
       for (d1 = 1; d1 <= 10; d1++)
         {
           mpz_poly_init (P1->p, d1);
           mpz_poly_init (P1_saved->p, d1);
-          mpz_poly_set_signed_rrandomb (P1->p, d1, state, k);
+          mpz_poly_set_randomb (P1->p, d1, state, k,
+                  MPZ_POLY_SIGNED_COEFFICIENTS | MPZ_POLY_RRANDOM | MPZ_POLY_DEGREE_EXACT);
           mpz_poly_set (P1_saved->p, P1->p);
           P1->v = 0;
           for (d2 = 1; d2 <= 10; d2++)
             {
               mpz_poly_init (P2->p, d2);
-              mpz_poly_set_signed_rrandomb (P2->p, d2, state, k);
+              mpz_poly_set_randomb (P2->p, d2, state, k,
+                  MPZ_POLY_SIGNED_COEFFICIENTS | MPZ_POLY_RRANDOM | MPZ_POLY_DEGREE_EXACT);
               P2->v = 0;
               if ((++count % 3) == 0)
                 mpz_polymodF_mul (Q, P1, P2, F);
@@ -309,16 +317,16 @@ test_mpz_poly_sqr_mod_f_mod_mpz (unsigned long iter)
       mpz_init (invm);
       while (1)
         {
-          mpz_poly_set_signed_rrandomb (f, d, state, k);
-          if (f->deg < d)
-            continue;
+          mpz_poly_set_randomb (f, d, state, k,
+                  MPZ_POLY_SIGNED_COEFFICIENTS | MPZ_POLY_RRANDOM | MPZ_POLY_DEGREE_EXACT);
           mpz_gcd (invm, m, mpz_poly_lc(f));
           if (mpz_cmp_ui (invm, 1) == 0)
             break;
         }
       mpz_poly_init (P, d - 1);
       if (iter)
-        mpz_poly_set_signed_rrandomb (P, d - 1, state, k);
+        mpz_poly_set_randomb (P, d - 1, state, k,
+                  MPZ_POLY_SIGNED_COEFFICIENTS | MPZ_POLY_RRANDOM | MPZ_POLY_DEGREE_EXACT);
       else
         P->deg = -1; /* P=0 */
       mpz_poly_init (Q, d - 1);
@@ -431,7 +439,7 @@ test_mpz_poly_fprintf()
 }
 
 static void
-test_mpz_poly_div_2_mod_mpz (void)
+test_mpz_poly_div_2_mod_mpz ()
 {
   mpz_poly f;
   mpz_t m;
@@ -452,7 +460,7 @@ test_mpz_poly_div_2_mod_mpz (void)
 }
 
 static void
-test_mpz_poly_derivative (void)
+test_mpz_poly_derivative ()
 {
   mpz_poly f, df;
 
@@ -483,7 +491,7 @@ test_mpz_poly_derivative (void)
 
 /* also exercises mpz_poly_pow_mod_f_mod_mpz */
 static void
-test_mpz_poly_pow_mod_f_mod_ui (void)
+test_mpz_poly_pow_mod_f_mod_ui ()
 {
   mpz_poly Q, P, f;
   mpz_t a, pp;
@@ -609,7 +617,8 @@ test_mpz_poly_base_modp_init (unsigned long iter)
           d = 1;
           m = 833;
         }
-      mpz_poly_set_signed_rrandomb (f, d, state, m);
+      mpz_poly_set_randomb (f, d, state, m,
+              MPZ_POLY_SIGNED_COEFFICIENTS | MPZ_POLY_RRANDOM | MPZ_POLY_DEGREE_EXACT);
       s = mpz_poly_sizeinbase (f, 2);
       for (i = 0; i <= f->deg; i++)
         ASSERT_ALWAYS(mpz_sizeinbase (mpz_poly_coeff_const(f, i), 2) <= s);
@@ -638,7 +647,8 @@ static void test_mpz_poly_is_root(unsigned long iter)
     mpz_poly_init(ell, 1);
 
     for( ; iter--; ) {
-        mpz_poly_set_signed_rrandomb(f, 10, state, 100);
+        mpz_poly_set_randomb(f, 10, state, 100,
+              MPZ_POLY_SIGNED_COEFFICIENTS | MPZ_POLY_RRANDOM | MPZ_POLY_DEGREE_EXACT);
         mpz_urandomb(p, state, 100);
         mpz_rrandomb(r, state, 100);
         mpz_poly_setcoeff_si(ell, 1, 1);
@@ -793,7 +803,8 @@ static void test_mpz_poly_factor(unsigned long iter)
         // fprintf(stderr, "%lu ", iter);
         mpz_rrandomb(p, state, 20);
         mpz_nextprime(p, p);
-        mpz_poly_set_signed_rrandomb(f, 10, state, 10);
+        mpz_poly_set_randomb(f, 10, state, 10,
+              MPZ_POLY_SIGNED_COEFFICIENTS | MPZ_POLY_RRANDOM | MPZ_POLY_DEGREE_EXACT);
         mpz_poly_mod_mpz(f, f, p, nullptr);
         // mpz_poly_fprintf(stderr, f);
         mpz_poly_factor(lf, f, p, state);
@@ -831,8 +842,8 @@ static void test_mpz_poly_factor_padic(unsigned long iter)
         for( ; mpz_cmp_ui(disc, 0) == 0 ; ) {
             /* pick a degree between 2 and 10 */
             int const deg = 2 + (int) gmp_urandomm_ui(rstate, 8);
-            mpz_poly_set_urandomm_ui(f, deg, state, 100);
-            mpz_poly_setcoeff_ui(f, deg, 1);
+            mpz_poly_set_randomm_ui(f, deg, state, 100,
+                    MPZ_POLY_URANDOM | MPZ_POLY_DEGREE_EXACT | MPZ_POLY_MONIC);
             mpz_poly_mod_mpz(f, f, p, nullptr);
 
             mpz_poly_discriminant(disc, f);
@@ -932,7 +943,8 @@ static void test_mpz_poly_trivialities()
     ASSERT_ALWAYS(mpz_poly_cmp(f, g) == 0);
 
     /* multiply by zero */
-    mpz_poly_set_signed_rrandomb(f, 10, state, 10);
+    mpz_poly_set_randomb(f, 10, state, 10,
+            MPZ_POLY_SIGNED_COEFFICIENTS | MPZ_POLY_RRANDOM | MPZ_POLY_DEGREE_EXACT);
     mpz_poly_set_zero(g);
     mpz_poly_mul(f, f, g);
     ASSERT_ALWAYS(mpz_poly_cmp(f, g) == 0);
@@ -964,7 +976,10 @@ static void test_mpz_poly_trivialities()
     ASSERT_ALWAYS(mpz_poly_cmp(g, r) == 0);
 
     /* multiply by p, then reduce mod p */
-    mpz_poly_set_signed_rrandomb(f, 10, state, 10);
+    mpz_poly_set_randomb(f, 10, state, 10,
+            MPZ_POLY_SIGNED_COEFFICIENTS |
+            MPZ_POLY_RRANDOM |
+            MPZ_POLY_DEGREE_EXACT);
     mpz_poly_mul_mpz (f, f, p);
     mpz_poly_makemonic_mod_mpz(f, f, p);
     ASSERT_ALWAYS(f->deg < 0);
@@ -1113,7 +1128,9 @@ test_mpz_poly_discriminant (unsigned long iter)
     {
         const int N = 10;
         int d = 1 + (int) gmp_urandomm_ui(state, N-1);
-        mpz_poly_set_urandomm_ui(f, d, state, 2);
+        mpz_poly_set_randomm_ui(f, d, state, 2,
+            MPZ_POLY_URANDOM | MPZ_POLY_DEGREE_EXACT);
+
         mpz_poly_discriminant (D, f);
     }
 
@@ -1191,7 +1208,10 @@ static void test_mpz_poly_interpolation(unsigned long iter)
     for(unsigned long i = 0 ; i < iter ; i++) {
         const int d = 4 + (int) gmp_urandomm_ui(state, 97);
         cxx_mpz_poly f;
-        mpz_poly_set_rrandomb(f, d, state, 5);
+        mpz_poly_set_randomb(f, d, state, 5,
+                MPZ_POLY_UNSIGNED_COEFFICIENTS |
+                MPZ_POLY_RRANDOM |
+                MPZ_POLY_DEGREE_EXACT);
 
         std::vector<cxx_mpz> points;
         std::vector<cxx_mpz> evaluations;

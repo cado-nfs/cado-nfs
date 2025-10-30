@@ -39,7 +39,10 @@ static void test_mpz_poly_bivariate_trivialities(unsigned long iter)
         cxx_mpz_poly_bivariate Ax, Ay, t;
         int dx = gmp_urandomm_ui(state, 32);
         int nbits = 1 + gmp_urandomm_ui(state, 255);
-        mpz_poly_set_rrandomb(a, dx, state, nbits);
+        mpz_poly_set_randomb(a, dx, state, nbits,
+                MPZ_POLY_UNSIGNED_COEFFICIENTS |
+                MPZ_POLY_RRANDOM |
+                MPZ_POLY_DEGREE_EXACT);
         Ax = T::lifted_x(a);
         Ay = T::lifted_y(a);
         T::transpose(t, Ax);
@@ -232,7 +235,10 @@ static void test_mpz_poly_bivariate_basic_arithmetic(unsigned long iter)
         {
             cxx_mpz_poly x;
             T bx,a_bx,ab_x;
-            mpz_poly_set_rrandomb(x, dx, state, nbits);
+            mpz_poly_set_randomb(x, dx, state, nbits,
+                    MPZ_POLY_UNSIGNED_COEFFICIENTS |
+                    MPZ_POLY_RRANDOM |
+                    MPZ_POLY_DEGREE_EXACT);
             T::mul(bx, b, x);
             T::mul(a_bx, a, bx);
             T::mul(ab_x, ab, x);
@@ -356,8 +362,11 @@ static void test_mpz_poly_bivariate_reduction_functions(unsigned long iter)
         /* size of fx is dfx * nbits (leading 1 does not count) */
         cxx_mpz_poly fx;
         int dfx = 1 + std::min((mp_limb_t) (512 / nbits), gmp_urandomm_ui(state, 15));
-        mpz_poly_set_rrandomb(fx, dfx, state, nbits);
-        mpz_set_ui(fx->_coeff[fx->deg], 1);
+        mpz_poly_set_randomb(fx, dfx, state, nbits,
+                MPZ_POLY_UNSIGNED_COEFFICIENTS |
+                MPZ_POLY_RRANDOM |
+                MPZ_POLY_MONIC |
+                MPZ_POLY_DEGREE_EXACT);
         T::reducer_mod_fx Rfx{fx};
         ASSERT_ALWAYS(test_mpz_poly_bivariate_reduction_operator(Rfx));
 

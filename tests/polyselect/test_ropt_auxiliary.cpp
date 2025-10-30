@@ -244,9 +244,15 @@ static void test_rotate_aux(unsigned long iter)
         cxx_mpz_poly F0, F, G, R, H;
         cxx_mpz m;
         mpz_urandomb(m, state, 200);
-        mpz_poly_set_urandomm(F, 4 + gmp_urandomm_ui(state, 4), state, m);
-        mpz_poly_set_urandomm(G, mpz_poly_degree(F)-3, state, m);
-        mpz_poly_set_urandomm_ui(R, 2, state, 1000);
+        mpz_poly_set_randomm(F, 4 + gmp_urandomm_ui(state, 4), state, m,
+                MPZ_POLY_URANDOM |
+                MPZ_POLY_DEGREE_EXACT);
+        mpz_poly_set_randomm(G, mpz_poly_degree(F)-3, state, m,
+                MPZ_POLY_URANDOM |
+                MPZ_POLY_DEGREE_EXACT);
+        mpz_poly_set_randomm_ui(R, 2, state, 1000,
+                MPZ_POLY_URANDOM |
+                MPZ_POLY_DEGREE_EXACT);
 
         mpz_poly_set(F0, F);
         mpz_poly_mul(H, G, R);

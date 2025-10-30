@@ -843,9 +843,15 @@ struct rrandomb {
 template <typename R>
 void mpz_poly_set_random_internal(mpz_poly_ptr f, int d,
                                   gmp_randstate_ptr state, R const & r,
-                                  bool is_signed)
+                                  int flags)
 {
+    /* Note: this code used to implicitly assume exact as being set to
+     * true */
     cxx_mpz u;
+
+    bool const exact = !(flags & mpz_poly_random_flags::MPZ_POLY_DEGREE_UPPER_BOUND);
+    bool const is_signed = flags & mpz_poly_random_flags::MPZ_POLY_SIGNED_COEFFICIENTS;
+    bool const monic = flags & mpz_poly_random_flags::MPZ_POLY_MONIC;
 
     if (is_signed)
         r.fetch_half(u);
@@ -856,53 +862,40 @@ void mpz_poly_set_random_internal(mpz_poly_ptr f, int d,
             r(fi, state);
             if (is_signed)
                 mpz_sub(fi, fi, u);
-        } while (i == d && mpz_cmp_ui(fi, 0) == 0);
+        } while (i == d && exact && mpz_cmp_ui(fi, 0) == 0);
     }
-
     mpz_poly_cleandeg(f, d);
+    if (monic) {
+        if (f->deg == -1) {
+            mpz_poly_set_xi(f, 0);
+        } else {
+            mpz_set_ui(f->_coeff[f->deg], 1);
+        }
+    }
 }
 } // namespace
 
-void mpz_poly_set_signed_rrandomb(mpz_poly_ptr f, int d,
-                                  gmp_randstate_ptr state, int k)
+void mpz_poly_set_randomb(mpz_poly_ptr f, int d,
+                                  gmp_randstate_ptr state, int k, int flags)
 {
-    mpz_poly_set_random_internal(f, d, state, rrandomb(k), true);
+    if (flags & mpz_poly_random_flags::MPZ_POLY_RRANDOM)
+        mpz_poly_set_random_internal(f, d, state, rrandomb(k), flags);
+    else
+        mpz_poly_set_random_internal(f, d, state, urandomb(k), flags);
 }
 
-void mpz_poly_set_rrandomb(mpz_poly_ptr f, int d, gmp_randstate_ptr state,
-                           int k)
+void mpz_poly_set_randomm(mpz_poly_ptr f, int d,
+                          gmp_randstate_ptr state, mpz_srcptr N, int flags)
 {
-    mpz_poly_set_random_internal(f, d, state, rrandomb(k), false);
+    ASSERT_ALWAYS(!(flags & mpz_poly_random_flags::MPZ_POLY_RRANDOM));
+    mpz_poly_set_random_internal(f, d, state, urandomm(N), flags);
 }
 
-void mpz_poly_set_signed_urandomb(mpz_poly_ptr f, int d,
-                                  gmp_randstate_ptr state, int k)
+void mpz_poly_set_randomm_ui(mpz_poly_ptr f, int d, gmp_randstate_ptr state,
+                              unsigned long m, int flags)
 {
-    mpz_poly_set_random_internal(f, d, state, urandomb(k), true);
-}
-
-void mpz_poly_set_urandomb(mpz_poly_ptr f, int d, gmp_randstate_ptr state,
-                           int k)
-{
-    mpz_poly_set_random_internal(f, d, state, urandomb(k), false);
-}
-
-void mpz_poly_set_signed_urandomm(mpz_poly_ptr f, int d,
-                                  gmp_randstate_ptr state, mpz_srcptr N)
-{
-    mpz_poly_set_random_internal(f, d, state, urandomm(N), true);
-}
-
-void mpz_poly_set_urandomm(mpz_poly_ptr f, int d, gmp_randstate_ptr state,
-                           mpz_srcptr N)
-{
-    mpz_poly_set_random_internal(f, d, state, urandomm(N), false);
-}
-
-void mpz_poly_set_urandomm_ui(mpz_poly_ptr f, int d, gmp_randstate_ptr state,
-                              unsigned long m)
-{
-    mpz_poly_set_random_internal(f, d, state, urandomm_ui(m), false);
+    ASSERT_ALWAYS(!(flags & mpz_poly_random_flags::MPZ_POLY_RRANDOM));
+    mpz_poly_set_random_internal(f, d, state, urandomm_ui(m), flags);
 }
 
 /* removed mpz_poly_set_deg, as for all purposes there is no reason to

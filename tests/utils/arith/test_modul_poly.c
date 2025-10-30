@@ -130,7 +130,8 @@ void test_modul_poly_roots_ulong (unsigned long iter)
   while (iter--)
     {
       d = 1 + (int) gmp_urandomm_ui(state, MAX_DEGREE - 1);
-      mpz_poly_set_urandomb(F, d, state, 64);
+      mpz_poly_set_randomb(F, d, state, 64,
+              MPZ_POLY_URANDOM | MPZ_POLY_DEGREE_EXACT);
 
       modul_initmod_ul (p, ulong_nextprime (gmp_urandomb_ui(state, 31)));
       while (mpz_divisible_ui_p (mpz_poly_lc(F), modul_getmod_ul (p)))

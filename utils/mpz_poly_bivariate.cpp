@@ -143,7 +143,10 @@ void cxx_mpz_poly_bivariate::set_rrandomb(self & f, int dx, int dy, int bits,
 {
     f.assign(dy + 1, 0);
     for (int i = 0; i <= dy; i++) {
-        mpz_poly_set_rrandomb(((super &)f)[i], dx, rstate, bits);
+        mpz_poly_set_randomb(((super &)f)[i], dx, rstate, bits,
+                mpz_poly_random_flags::MPZ_POLY_RRANDOM |
+                mpz_poly_random_flags::MPZ_POLY_DEGREE_EXACT
+                );
     }
     f.cleandeg(dy);
 }

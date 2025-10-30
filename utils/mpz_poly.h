@@ -129,14 +129,42 @@ void mpz_poly_setcoeff_ui(mpz_poly_ptr f, int i, unsigned long z);
 void mpz_poly_setcoeff_int64(mpz_poly_ptr f, int i, int64_t z);
 void mpz_poly_setcoeff_uint64(mpz_poly_ptr f, int i, uint64_t z);
 void mpz_poly_setcoeff_double(mpz_poly_ptr f, int i, double z);
+#ifdef __cplusplus
+}
+#endif
 
-void mpz_poly_set_signed_urandomb (mpz_poly_ptr f, int d, gmp_randstate_ptr state, int k);
-void mpz_poly_set_signed_rrandomb (mpz_poly_ptr f, int d, gmp_randstate_ptr state, int k);
-void mpz_poly_set_signed_urandomm (mpz_poly_ptr f, int d, gmp_randstate_ptr state, mpz_srcptr N);
-void mpz_poly_set_urandomb (mpz_poly_ptr f, int d, gmp_randstate_ptr state, int k);
-void mpz_poly_set_rrandomb (mpz_poly_ptr f, int d, gmp_randstate_ptr state, int k);
-void mpz_poly_set_urandomm (mpz_poly_ptr f, int d, gmp_randstate_ptr state, mpz_srcptr N);
-void mpz_poly_set_urandomm_ui (mpz_poly_ptr f, int d, gmp_randstate_ptr state, unsigned long m);
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+enum mpz_poly_random_flags {
+    /* generate signed coefficients -- default is UNSIGNED */
+    MPZ_POLY_SIGNED_COEFFICIENTS = 1,
+    MPZ_POLY_UNSIGNED_COEFFICIENTS = 0,
+    /* generate polynomial of up to this degree -- default is to use
+     * the passed degree as an exact value */
+    MPZ_POLY_DEGREE_UPPER_BOUND = 2,
+    MPZ_POLY_DEGREE_EXACT = 0,
+    /* generate a monic polynomial */
+    MPZ_POLY_MONIC = 4,
+    /* generate rrandom-like coefficients. This only works for randomb,
+     * not for the randomm variants.
+     */
+    MPZ_POLY_RRANDOM = 8,
+    MPZ_POLY_URANDOM = 0,
+};
+
+void mpz_poly_set_randomb (mpz_poly_ptr f, int d, gmp_randstate_ptr state, int k, int flags);
+void mpz_poly_set_randomm (mpz_poly_ptr f, int d, gmp_randstate_ptr state, mpz_srcptr N, int flags);
+void mpz_poly_set_randomm_ui (mpz_poly_ptr f, int d, gmp_randstate_ptr state, unsigned long m, int flags);
+
+#ifdef __cplusplus
+}
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* functions for Joux-Lercier and generalized Joux-Lercier */
 int mpz_poly_setcoeffs_counter(mpz_poly_ptr f, int* max_abs_coeffs, unsigned long *next_counter, int deg, unsigned long counter, unsigned int bound);
