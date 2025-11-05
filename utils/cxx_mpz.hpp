@@ -8,6 +8,7 @@
 #include <ostream>
 #include <type_traits>
 #include <memory>
+#include <compare>
 
 #include <gmp.h>
 #include "fmt/ostream.h"
@@ -248,21 +249,32 @@ extern void mpq_init(cxx_mpq & pl) __attribute__((error("mpq_init must not be ca
 extern void mpq_clear(cxx_mpq & pl) __attribute__((error("mpq_clear must not be called on a mpq reference -- it is the caller's business (via a dtor)")));
 #endif
 
-#define CXX_MPZ_DEFINE_CMP(OP) \
-inline bool operator OP(cxx_mpz const & a, cxx_mpz const & b) { return mpz_cmp(a, b) OP 0; } \
-inline bool operator OP(mpz_srcptr a, cxx_mpz const & b) { return mpz_cmp(a, b) OP 0; } \
-inline bool operator OP(cxx_mpz const & a, mpz_srcptr b) { return mpz_cmp(a, b) OP 0; } \
-template <typename T> inline bool operator OP(cxx_mpz const & a, const T b) requires std::is_integral_v<T> { return gmp_auxx::mpz_cmp(a, b) OP 0; } \
-template <typename T> inline bool operator OP(const T a, cxx_mpz const & b) requires std::is_integral_v<T> { return 0 OP gmp_auxx::mpz_cmp(b, a); }
+inline std::strong_ordering operator<=>(cxx_mpz const & a, mpz_srcptr b) {
+    return gmp_auxx::mpz_cmp(a, b) <=> 0;
+}
+static inline bool operator==(cxx_mpz const & a, mpz_srcptr b) {
+    return gmp_auxx::mpz_cmp(a, b) == 0;
+}
 
-CXX_MPZ_DEFINE_CMP(==)
-CXX_MPZ_DEFINE_CMP(!=)
-CXX_MPZ_DEFINE_CMP(<)
-CXX_MPZ_DEFINE_CMP(>)
-CXX_MPZ_DEFINE_CMP(<=)
-CXX_MPZ_DEFINE_CMP(>=)
+inline std::strong_ordering operator<=>(cxx_mpz const & a, cxx_mpz const & b) {
+    return gmp_auxx::mpz_cmp(a, b) <=> 0;
+}
+static inline bool operator==(cxx_mpz const & a, cxx_mpz const & b) {
+    return gmp_auxx::mpz_cmp(a, b) == 0;
+}
 
-inline int operator<=>(cxx_mpz const & a, cxx_mpz const & b) { return gmp_auxx::mpz_cmp(a, b); }
+template <typename T>
+inline std::strong_ordering operator<=>(cxx_mpz const & a, T const & b)
+    requires std::is_integral_v<T>
+{
+    return gmp_auxx::mpz_cmp(a, b) <=> 0;
+}
+template <typename T>
+static inline bool operator==(cxx_mpz const & a, T const & b)
+    requires std::is_integral_v<T>
+{
+    return gmp_auxx::mpz_cmp(a, b) == 0;
+}
 
 inline cxx_mpz operator+(cxx_mpz const & a, cxx_mpz const & b) { cxx_mpz r; mpz_add(r, a, b); return r; }
 template <typename T>

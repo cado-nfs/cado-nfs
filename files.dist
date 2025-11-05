@@ -1600,6 +1600,8 @@ utils/arith/modredc_ul_default.h
 utils/arith/modul_poly.c
 utils/arith/modul_poly.h
 utils/arith/ularith.h
+utils/arithmetic_reductions.cpp
+utils/arithmetic_reductions.hpp
 utils/arithxx/README.md
 utils/arithxx/arithxx_api.hpp
 utils/arithxx/arithxx_api128.hpp
@@ -1734,12 +1736,14 @@ utils/lll.c
 utils/lll.h
 utils/lock_guarded_container.hpp
 utils/lucas_V_mod.h
+utils/matrix.hpp
 utils/memalloc.cpp
 utils/memalloc.h
 utils/memory.c
 utils/memory.h
 utils/memusage.cpp
 utils/memusage.h
+utils/meta_pow.hpp
 utils/min_max_heap.hpp
 utils/misc.c
 utils/misc.h

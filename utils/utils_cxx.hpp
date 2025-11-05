@@ -8,6 +8,7 @@
 #include <cctype>
 #include <ios>
 #include <istream>
+#include <compare>
 #include <iterator>
 
 #include <limits>
@@ -464,6 +465,43 @@ static inline std::istream& operator>>(std::istream & is, expect_string const & 
     return is;
 }
 
+namespace cado {
+    /* example:
+     *
+        foo_type compute_foo() const;
+        cado::cached_property<foo_type> cached_foo;
+        foo_type const & foo() const {
+            return cached_foo([this](){compute_foo();});
+        }
+     */
+
+    template<typename T> struct cached_property {
+        mutable std::unique_ptr<T> c;
+        template<typename F>
+        T const & operator()(F f) const
+        {
+            /* TODO: locking.
+             */
+            if (!c)
+                c = std::make_unique<T>(f());
+            return *c;
+        }
+        bool is_cached() const { return c.get(); }
+        cached_property() = default;
+        ~cached_property() = default;
+        /* make these copyable - movable. The cache is not retained when
+         * we copy, but it is kept when we move.
+         */
+        cached_property(cached_property const&) {}
+        cached_property& operator=(cached_property const& o) {
+            if (this != &o)
+                c.reset();
+            return *this;
+        }
+        cached_property(cached_property &&) noexcept = default;
+        cached_property& operator=(cached_property && o) noexcept = default;
+    };
+} /* namespace cado */
 
 namespace cado {
     /* A type trait that checks whether an integral type T can be cast

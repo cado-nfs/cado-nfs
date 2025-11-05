@@ -25,6 +25,7 @@
 #include <istream>
 #include <ostream>
 #include <type_traits>
+#include <compare>
 
 #include "fmt/base.h"
 #include <mpfr.h>
@@ -38,7 +39,11 @@ struct cxx_mpfr {
   public:
     mpfr_t x;
     // NOLINTBEGIN(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
-    cxx_mpfr() { mpfr_init(x); }
+    /* we set to zero because both default-initialization and
+     * value-initialization reach here. It makes better sense to take 0
+     * for the value-initialized case.
+     */
+    cxx_mpfr() { mpfr_init2(x, mpfr_get_default_prec()); mpfr_set_ui(x, 0, MPFR_RNDN); }
 
     /* calling the mpfr macros on cxx_mpfr objects leads to diagnostics
      * errors with clang unless we first cast them to mpfr_srcptr, which
@@ -274,65 +279,44 @@ namespace fmt
         };
 } // namespace fmt
 
-inline int operator<=>(cxx_mpfr const & a, cxx_mpfr const & b)
+inline std::partial_ordering operator<=>(cxx_mpfr const & a, cxx_mpfr const & b)
 {
-    return mpfr_auxx::cado_mpfr_cmp(a, b);
+    if (mpfr_nan_p((mpfr_srcptr) a))
+        return std::partial_ordering::unordered;
+    if (mpfr_nan_p((mpfr_srcptr) b))
+        return std::partial_ordering::unordered;
+    return mpfr_auxx::cado_mpfr_cmp(a, b) <=> 0;
 }
-inline int operator<=>(mpfr_srcptr a, cxx_mpfr const & b)
+inline std::partial_ordering operator<=>(cxx_mpfr const & a, mpfr_srcptr b)
 {
-    return mpfr_auxx::cado_mpfr_cmp(a, b);
-}
-inline int operator<=>(cxx_mpfr const & a, mpfr_srcptr b)
-{
-    return mpfr_auxx::cado_mpfr_cmp(a, b);
-}
-template <typename T>
-static inline int operator<=>(cxx_mpfr const & a, const T b)
-    requires(std::is_integral_v<T> || std::is_floating_point_v<T>)
-{
-    return mpfr_auxx::cado_mpfr_cmp(a, b);
+    if (mpfr_nan_p((mpfr_srcptr) a))
+        return std::partial_ordering::unordered;
+    if (mpfr_nan_p((mpfr_srcptr) b))
+        return std::partial_ordering::unordered;
+    return mpfr_auxx::cado_mpfr_cmp(a, b) <=> 0;
 }
 template <typename T>
-static inline int operator<=>(const T a, cxx_mpfr const & b)
+static inline std::partial_ordering operator<=>(cxx_mpfr const & a, const T b)
     requires(std::is_integral_v<T> || std::is_floating_point_v<T>)
 {
-    return -mpfr_auxx::cado_mpfr_cmp(b, a);
+    if (mpfr_nan_p((mpfr_srcptr) a))
+        return std::partial_ordering::unordered;
+    return mpfr_auxx::cado_mpfr_cmp(a, b) <=> 0;
 }
-
-/* NOLINTBEGIN(bugprone-macro-parentheses) */
-#define CXX_MPFR_DEFINE_CMP(OP)                                         \
-    inline bool operator OP(cxx_mpfr const & a, cxx_mpfr const & b)     \
-    {                                                                   \
-        return ((a) <=> (b)) OP 0;                                      \
-    }                                                                   \
-    inline bool operator OP(mpfr_srcptr a, cxx_mpfr const & b)          \
-    {                                                                   \
-        return ((a) <=> (b)) OP 0;                                      \
-    }                                                                   \
-    inline bool operator OP(cxx_mpfr const & a, mpfr_srcptr b)          \
-    {                                                                   \
-        return ((a) <=> (b)) OP 0;                                      \
-    }                                                                   \
-    template <typename T>                                               \
-    inline bool operator OP(cxx_mpfr const & a, const T b)              \
-    requires(std::is_integral_v<T> || std::is_floating_point_v<T>)      \
-    {                                                                   \
-        return ((a) <=> (b)) OP 0;                                      \
-    }                                                                   \
-    template <typename T>                                               \
-    inline bool operator OP(const T a, cxx_mpfr const & b)              \
-    requires(std::is_integral_v<T> || std::is_floating_point_v<T>)      \
-    {                                                                   \
-        return 0 OP ((b) <=> (a));                                      \
-    }
-/* NOLINTEND(bugprone-macro-parentheses) */
-
-CXX_MPFR_DEFINE_CMP(==)
-CXX_MPFR_DEFINE_CMP(!=)
-CXX_MPFR_DEFINE_CMP(<)
-CXX_MPFR_DEFINE_CMP(>)
-CXX_MPFR_DEFINE_CMP(<=)
-CXX_MPFR_DEFINE_CMP(>=)
+inline bool operator==(cxx_mpfr const & a, cxx_mpfr const & b)
+{
+    return (a <=> b) == 0;
+}
+inline bool operator==(cxx_mpfr const & a, mpfr_srcptr b)
+{
+    return (a <=> b) == 0;
+}
+template <typename T>
+static inline bool operator==(cxx_mpfr const & a, const T b)
+    requires(std::is_integral_v<T> || std::is_floating_point_v<T>)
+{
+    return (a <=> b) == 0;
+}
 
 #define CXX_MPFR_DEFINE_TERNARY(OP, TEXTOP)				\
     inline cxx_mpfr operator OP(cxx_mpfr const & a, cxx_mpfr const & b)	\

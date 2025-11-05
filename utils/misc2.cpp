@@ -161,7 +161,7 @@ struct mpz_parser_traits {
     static void mul(cxx_mpz & c, cxx_mpz const & a, cxx_mpz const & b) {
         mpz_mul(c, a, b);
     }
-    static void pow_ui(cxx_mpz & c, cxx_mpz const & a, unsigned long e) {
+    static void pow(cxx_mpz & c, cxx_mpz const & a, unsigned long e) {
         mpz_pow_ui(c, a, e);
     }
     static void swap(cxx_mpz & a, cxx_mpz & b) {

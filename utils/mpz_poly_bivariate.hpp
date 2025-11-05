@@ -26,23 +26,46 @@
 
 #include <algorithm>
 #include <istream>
-#include <memory>
 #include <ostream>
 #include <string>
 #include <type_traits>
 #include <vector>
+#include <compare>
 
 #include <gmp.h>
+#include "fmt/ostream.h"
 
-#include "mpz_mat.h"
 #include "macros.h"
 #include "named_proxy.hpp"
 #include "runtime_numeric_cast.hpp"
+#include "meta_pow.hpp"
+
+namespace cado::arithmetic_reductions {
+    /* we need these forward declarations */
+    struct mod_mpz;
+    struct mod_p;
+    struct mod_fx_mod_p;
+    struct mod_q;
+    struct mod_fy_mod_q;
+} /* namespace cado::arithmetic_reductions */
 
 class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
 {
     using super = std::vector<cxx_mpz_poly>;
     using self = cxx_mpz_poly_bivariate;
+    super & v() { return *this; }
+    super const & v() const { return *this; }
+    // super::iterator begin() { return super::begin(); }
+    // super::iterator end() { return super::end(); }
+
+    // begin/end/operator[] are only kept for their *const* variants. The
+    // non-const ones are not available, and the internal interface must
+    // use the v() accessor to get to them.
+
+    friend struct cado::arithmetic_reductions::mod_mpz;
+    friend struct cado::arithmetic_reductions::mod_fx_mod_p;
+    friend struct cado::arithmetic_reductions::mod_q;
+    // friend struct cado::arithmetic_reductions::mod_fy_mod_q;
 
   public:
     static constexpr int number_of_variables = 2;
@@ -96,8 +119,6 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
     }
 
   private:
-    super::iterator begin() { return super::begin(); }
-    super::iterator end() { return super::end(); }
 
   public:
     super::const_iterator begin() const { return super::begin(); }
@@ -107,13 +128,14 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
     {
         ASSERT_ALWAYS(i >= 0);
         if ((unsigned int)i >= size())
-            insert(end(), size() + 1 - i, cxx_mpz_poly());
+            insert(end(), i + 1 - size(), cxx_mpz_poly());
         ((super &)*this)[i] = a;
         if ((unsigned int)i + 1 == size())
             cleandeg(i);
     }
 
-    std::string print_poly(std::string const & var) const;
+    std::string print_poly(std::string const& x, std::string const & y) const;
+    std::string print_poly() const;
 
     void swap(self & a) noexcept { ((super &)*this).swap((super &)a); }
 
@@ -219,10 +241,11 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
         return {*this, x, y};
     }
 
-    static self yi(unsigned int i)
+    self & set_xi(unsigned int i)
     {
-        self f;
-        return f.set_xi(i);
+        super::assign(1, {});
+        mpz_poly_set_xi(back(), i);
+        return *this;
     }
 
     self & set_yi(unsigned int i)
@@ -238,11 +261,10 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
         return f.set_xi(i);
     }
 
-    self & set_xi(unsigned int i)
+    static self yi(unsigned int i)
     {
-        super::assign(1, {});
-        mpz_poly_set_xi(back(), i);
-        return *this;
+        self f;
+        return f.set_yi(i);
     }
 
     /* Do we want to keep analogues of the set_ab functions ? */
@@ -270,25 +292,34 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
                            mpz_cmp_ui(mpz_poly_coeff_const(lc(), 0), 1) == 0);
     }
 
-    int cmp(self const & o) const
+    std::strong_ordering operator<=>(self const & o) const
     {
-        int r = (size() > o.size()) - (o.size() > size());
-        if (r)
-            return r;
-        for (int d = size(); --d > 0;) {
-            r = mpz_poly_cmp((*this)[d], o[d]);
-            if (r)
+        for (int i = std::max(degree_y(), o.degree_y()); i >= 0; i--) {
+            /* the leading coefficient is never zero, so we'll bail out
+             * very early if the degrees differ.
+             */
+            if (i > o.degree_y())
+                return (*this)[i] <=> 0;
+            if (i > degree_y())
+                return 0 <=> o[i];
+            if (auto r = (*this)[i] <=> o[i]; r != 0)
                 return r;
         }
-        return 0;
+        return std::strong_ordering::equal;
     }
+    bool operator==(self const & o) const { return (*this <=> o) == 0; }
 
+#if 0
     /* TODO: I guess we no longer need these now that we have the
      * spaceship, right? */
     bool operator<(self const & o) const { return cmp(o) < 0; }
+    bool operator>(self const & o) const { return cmp(o) > 0; }
+    bool operator<=(self const & o) const { return cmp(o) <= 0; }
+    bool operator>=(self const & o) const { return cmp(o) >= 0; }
     bool operator==(self const & o) const { return cmp(o) == 0; }
     bool operator!=(self const & o) const { return cmp(o) != 0; }
     int operator<=>(self const & o) const { return cmp(o); }
+#endif
 
     /* We don't have any operator overloads, on purpose. No reason to
      * have this one specifically
@@ -328,98 +359,6 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
         mod_fy(a, b, FY);
     }
 
-    /* reduction operators */
-    struct reducer_noop { /*{{{*/
-        void operator()(cxx_mpz_poly &, cxx_mpz_poly const &) const {}
-        void operator()(self &, self const &) const {}
-        std::string print() const;
-    }; /*}}}*/
-    struct reducer_mod_mpz { /*{{{*/
-        mpz_srcptr p;
-        std::shared_ptr<cxx_mpz> invp;
-        reducer_mod_mpz(mpz_srcptr p)
-            : p(p)
-        {
-        }
-        // reducer_mod_mpz(reducer_mod_mpz const &) = default;
-        void barrett_precompute_inverse()
-        {
-            invp = std::make_shared<cxx_mpz>();
-            ::barrett_precompute_inverse(*invp, p);
-        }
-        void operator()(cxx_mpz_poly & b, cxx_mpz_poly const & a) const;
-        void operator()(self & b, self const & a) const;
-        std::string print() const;
-    }; /*}}}*/
-    struct reducer_mod_fx { /*{{{*/
-        /* Think arithmetic in a relative number field, for example.
-         */
-        cxx_mpz_poly const & fx;
-        reducer_mod_fx(cxx_mpz_poly const & fx)
-            : fx(fx)
-        {
-        }
-        void operator()(cxx_mpz_poly & B, cxx_mpz_poly const & A) const;
-        void operator()(self & B, self const & A) const;
-        std::string print() const;
-    }; /*}}}*/
-    struct reducer_mod_fx_mod_mpz : public reducer_mod_mpz { /*{{{*/
-        /* In effect, when (p, fx) define a prime ideal, this implements
-         * arithmetic of polynomials with coefficients in a finite field
-         */
-        cxx_mpz_poly const & fx;
-        reducer_mod_fx_mod_mpz(reducer_mod_mpz const & R,
-                               cxx_mpz_poly const & fx)
-            : reducer_mod_mpz(R)
-            , fx(fx)
-        {
-            /* it probably never makes sense to skip it */
-            barrett_precompute_inverse();
-        }
-        reducer_mod_fx_mod_mpz(cxx_mpz_poly const & fx, mpz_srcptr p)
-            : reducer_mod_mpz(p)
-            , fx(fx)
-        {
-            /* it probably never makes sense to skip it */
-            barrett_precompute_inverse();
-        }
-        void operator()(cxx_mpz_poly & B, cxx_mpz_poly const & A) const;
-        void operator()(self & B, self const & A) const;
-        std::string print() const;
-        bool make_monic(self & f) const;
-        private:
-        mutable cxx_mpz_mat frobenius_matrix;
-        mutable cxx_mpz_mat inverse_frobenius_matrix;
-        void compute_frobenius_matrices() const;
-        public:
-        void frobenius(cxx_mpz_poly & B, cxx_mpz_poly const & A, int i) const;
-        void frobenius(self & B, self const & A, int i) const;
-    };/*}}}*/
-    struct reducer_mod_fy_mod_fx_mod_mpz : public reducer_mod_fx_mod_mpz {/*{{{*/
-        /* In effect, when (p, fx) define a prime ideal, this implements
-         * arithmetic of polynomials with coefficients in a finite field
-         */
-        self const & fy;
-        reducer_mod_fy_mod_fx_mod_mpz(reducer_mod_fx_mod_mpz const & R,
-                                      self const & fy)
-            : reducer_mod_fx_mod_mpz(R)
-            , fy(fy)
-        {
-        }
-        reducer_mod_fy_mod_fx_mod_mpz(self const & fy, cxx_mpz_poly const & fx,
-                                      mpz_srcptr p)
-            : reducer_mod_fx_mod_mpz(fx, p)
-            , fy(fy)
-        {
-        }
-        void operator()(self & B, self const & A) const;
-        void operator()(cxx_mpz_poly & B, cxx_mpz_poly const & A) const
-        {
-            ((reducer_mod_fx_mod_mpz const &)(*this))(B, A);
-        }
-        std::string print() const;
-    }; /*}}}*/
-
     /* generic reduction mod a reducer */
     template <typename T> /*{{{*/
     static void mod(self & B, self const & A, T const & reducer)
@@ -458,98 +397,68 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
         div_qr(q, r, f, g, reducer);
         ASSERT_ALWAYS(r == 0);
     }
-    static void div_qr(self & q, self & r, self const & f, self const & g)
-    { /*{{{*/
-        div_qr(q, r, f, g, reducer_noop {});
-    } /*}}}*/
-    static void div_qr_mod_mpz(self & q, self & r, self const & f,
-                               self const & g, mpz_srcptr p)
-    { /*{{{*/
-        div_qr(q, r, f, g, reducer_mod_mpz {p});
-    } /*}}}*/
-    static void div_qr_mod_fx_mod_mpz(self & q, self & r, self const & f,
-                                      self const & g, mpz_poly_srcptr fx,
-                                      mpz_srcptr p)
-    { /*{{{*/
-        div_qr(q, r, f, g, reducer_mod_fx_mod_mpz {fx, p});
-    } /*}}}*/
-    static void div_q(self & q, self const & f, self const & g)
-    { /*{{{*/
-        div_q(q, f, g, reducer_noop {});
-    } /*}}}*/
-    static void div_q_mod_mpz(self & q, self const & f, self const & g,
-                              mpz_srcptr p)
-    { /*{{{*/
-        div_q(q, f, g, reducer_mod_mpz {p});
-    } /*}}}*/
-    static void div_q_mod_fx_mod_mpz(self & q, self const & f, self const & g,
-                                     mpz_poly_srcptr fx, mpz_srcptr p)
-    { /*{{{*/
-        div_q(q, f, g, reducer_mod_fx_mod_mpz {fx, p});
-    } /*}}}*/
-    static void div_r(self & r, self const & f, self const & g)
-    { /*{{{*/
-        div_r(r, f, g, reducer_noop {});
-    } /*}}}*/
-    static void div_r_mod_mpz(self & r, self const & f, self const & g,
-                              mpz_srcptr p)
-    { /*{{{*/
-        div_r(r, f, g, reducer_mod_mpz {p});
-    } /*}}}*/
-    static void div_r_mod_fx_mod_mpz(self & r, self const & f, self const & g,
-                                     mpz_poly_srcptr fx, mpz_srcptr p)
-    { /*{{{*/
-        div_r(r, f, g, reducer_mod_fx_mod_mpz {fx, p});
-    } /*}}}*/
-    static void divexact(self & q, self const & f, self const & g)
-    { /*{{{*/
-        divexact(q, f, g, reducer_noop {});
-    } /*}}}*/
-    static void divexact_mod_mpz(self & q, self const & f, self const & g,
-                                 mpz_srcptr p)
-    { /*{{{*/
-        divexact(q, f, g, reducer_mod_mpz {p});
-    } /*}}}*/
-    static void divexact_mod_fx_mod_mpz(self & q, self const & f,
-                                        self const & g, mpz_poly_srcptr fx,
-                                        mpz_srcptr p)
-    { /*{{{*/
-        divexact(q, f, g, reducer_mod_fx_mod_mpz {fx, p});
-    } /*}}}*/
-
     /* powering. same pattern.  */
+
+    private:
+
+    public:
     template <typename T>
-    static void pow_ui(cxx_mpz_poly_bivariate & B,
-                       cxx_mpz_poly_bivariate const & A, unsigned long n,
-                       T const & reducer);
-
-    static void pow_ui(cxx_mpz_poly_bivariate & B,
-                       cxx_mpz_poly_bivariate const & A,
-                       unsigned long n) /*{{{*/
-    {
-        pow_ui(B, A, n, reducer_noop {});
-    }
+        static void pow(cxx_mpz_poly_bivariate & B,
+                cxx_mpz_poly_bivariate const & A,
+                unsigned long n,
+                T const & reducer) /*{{{*/
+        {
+            cado::meta_pow<cxx_mpz_poly_bivariate, T> {reducer}(B, A, n);
+        }
     /*}}}*/
-    static void pow_ui_mod_mpz(cxx_mpz_poly_bivariate & B,
+
+    template <typename T>
+        static void pow(cxx_mpz_poly_bivariate & B,
+                cxx_mpz_poly_bivariate const & A,
+                mpz_srcptr n,
+                T const & reducer) /*{{{*/
+        {
+            cado::meta_pow<cxx_mpz_poly_bivariate, T> {reducer}(B, A, n);
+        }
+    /*}}}*/
+
+    /* All these functions are actually implemented as instances of the
+     * templates above */
+    static void div_qr(self & q, self & r, self const & f, self const & g);
+    static void div_qr_mod_mpz(self & q, self & r, self const & f,
+                               self const & g, mpz_srcptr p);
+    static void div_qr_mod_fx_mod_p(self & q, self & r, self const & f,
+                                      self const & g, mpz_poly_srcptr fx,
+                                      mpz_srcptr p);
+    static void div_q(self & q, self const & f, self const & g);
+    static void div_q_mod_mpz(self & q, self const & f, self const & g,
+                              mpz_srcptr p);
+    static void div_q_mod_fx_mod_p(self & q, self const & f, self const & g,
+                                     mpz_poly_srcptr fx, mpz_srcptr p);
+    static void div_r(self & r, self const & f, self const & g);
+    static void div_r_mod_mpz(self & r, self const & f, self const & g,
+                              mpz_srcptr p);
+    static void div_r_mod_fx_mod_p(self & r, self const & f, self const & g,
+                                     mpz_poly_srcptr fx, mpz_srcptr p);
+    static void divexact(self & q, self const & f, self const & g);
+    static void divexact_mod_mpz(self & q, self const & f, self const & g,
+                                 mpz_srcptr p);
+    static void divexact_mod_fx_mod_p(self & q, self const & f,
+                                        self const & g, mpz_poly_srcptr fx,
+                                        mpz_srcptr p);
+    static void pow(cxx_mpz_poly_bivariate & B,
+                    cxx_mpz_poly_bivariate const & A,
+                    unsigned long n);
+    static void pow_mod_mpz(cxx_mpz_poly_bivariate & B,
                                cxx_mpz_poly_bivariate const & A,
-                               unsigned long n, mpz_srcptr p) /*{{{*/
-    {
-        pow_ui(B, A, n, reducer_mod_mpz {p});
-    }
-    /*}}}*/
-    static void pow_ui_mod_fx_mod_fy_mod_mpz(self & B, self const & A,
+                               unsigned long n, mpz_srcptr p);
+    static void pow_mod_fy_mod_q(self & B, self const & A,
                                              unsigned long n,
-                                             mpz_poly_srcptr fx,
                                              mpz_poly_srcptr fy,
-                                             mpz_srcptr p) /*{{{*/
-    {
-        pow_ui(B, A, n, reducer_mod_fy_mod_fx_mod_mpz {fy, fx, p});
-    }
-    /*}}}*/
+                                             mpz_poly_srcptr fx,
+                                             mpz_srcptr p);
 
-    static void gcd(self &, self const &, self const &,
-                    reducer_mod_fx_mod_mpz const &);
-    static void mul_mod_fx_mod_fy_mod_mpz(self &, self const &, self const &,
+    static void mul_mod_fy_mod_q(self &, self const &, self const &,
                                           mpz_poly_srcptr, mpz_poly_srcptr,
                                           mpz_srcptr);
 
@@ -581,7 +490,20 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
 
     typedef std::vector<std::pair<self, unsigned int>> factor_list;
 
-    static factor_list factor_sqf(self const & f, reducer_mod_fx_mod_mpz const & R);
+    static void gcd(self &, self const &, self const &,
+                    cado::arithmetic_reductions::mod_q const &);
+
+    static factor_list factor_sqf(self const & f, 
+            cado::arithmetic_reductions::mod_q const & R);
+    static factor_list factor_ddf(self const & f0,
+            cado::arithmetic_reductions::mod_q const & R, bool only_check_irreducible = false);
+    static bool is_irreducible(self const & f0,
+            cado::arithmetic_reductions::mod_q const & R) {
+        /* Note that this also works for non squarefree polynomials --
+         * the factor list returned by mpz_poly_factor_ddf will be
+         * rubbish, but the m == f->deg test will tell the truth. */
+        return factor_ddf(f0, R, true).size() == (size_t) f0.degree() + 1;
+    }
 };
 
 /* printing needs a way to specify the variables... */
@@ -605,6 +527,10 @@ inline std::ostream & operator<<(std::ostream & o,
 inline std::istream & operator>>(std::istream & in, cxx_mpz_poly_bivariate & f)
 {
     return in >> f.named("x", "y");
+}
+
+namespace fmt {
+    template <> struct formatter<cxx_mpz_poly_bivariate>: ostream_formatter {};
 }
 
 /*

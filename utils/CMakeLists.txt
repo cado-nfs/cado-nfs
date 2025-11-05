@@ -34,6 +34,7 @@ set (sources
         tdict.cpp
         version_info.c
 	modified_files.c threadpool.cpp mpz_poly_bivariate.cpp
+        arithmetic_reductions.cpp
         gmpxx.cpp
         rho.c gpf.cpp
         sha1.c

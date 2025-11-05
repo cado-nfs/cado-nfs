@@ -9,7 +9,7 @@
 #include <algorithm>
 #include <array>
 #include <stdexcept>
-#include <type_traits>
+#include <compare>
 
 #include <gmp.h>
 #include "fmt/base.h"
@@ -150,31 +150,20 @@ public:
     explicit operator uint32_t() const {return (uint32_t) (*this)[0];}
     explicit operator uint64_t() const {return (*this)[0];}
 
-    /* three-way comparison isn't complete in g++-9 */
-#if __cplusplus >= 202002L && !GNUC_VERSION_ATMOST(9,9,9)
-    int operator<=>(const Integer_base & a) const { return std::lexicographical_compare_three_way(rbegin(), rend(), a.rbegin(), a.rend()); }
-    int operator<=>(const uint64_t a) const {return (*this > a) - (*this < a); }
-    int cmp(const Integer_base & a) const { return *this <=> a; }
-    int cmp(const uint64_t a) const { return *this <=> a; }
-#else
-    int cmp(const Integer_base & a) const {return (*this > a) - (*this < a);}
-    int cmp(const uint64_t a) const {return (*this > a) - (*this < a); }
-#endif
+    std::strong_ordering operator<=>(const Integer_base & a) const
+    {
+        return std::lexicographical_compare_three_way(rbegin(), rend(), a.rbegin(), a.rend());
+    }
+    std::strong_ordering operator<=>(const uint64_t a) const {
+        if (std::any_of(begin() + 1, end(), convert_bool()))
+            return std::strong_ordering::greater;
+        return (*this)[0] <=> a;
+    }
+    // int cmp(const Integer_base & a) const { return *this <=> a; }
+    // int cmp(const uint64_t a) const { return *this <=> a; }
+
     bool operator==(Integer_base const & a) const { return std::equal(begin(), end(), a.begin()); }
-    bool operator< (Integer_base const & a) const { return std::lexicographical_compare(rbegin(), rend(), a.rbegin(), a.rend()); }
-    bool operator!=(Integer_base const & a) const { return !operator==(a); }
-    bool operator> (Integer_base const & a) const { return a < *this; }
-    bool operator>=(Integer_base const & a) const { return !operator<(a); }
-    bool operator<=(Integer_base const & a) const { return !(a < *this); }
-
     bool operator==(uint64_t const a) const { return (*this)[0] == a && std::none_of(begin() + 1, end(), convert_bool()); }
-    bool operator< (uint64_t const a) const { return (*this)[0] < a && std::none_of(begin() + 1, end(), convert_bool()); }
-    bool operator> (uint64_t const a) const { return std::any_of(begin() + 1, end(), convert_bool()) || (*this)[0] > a; }
-    bool operator!=(uint64_t const a) const { return !operator==(a); }
-    bool operator>=(uint64_t const a) const { return !operator<(a); }
-    bool operator<=(uint64_t const a) const { return !operator>(a); }
-
-
 
     T& operator|=(const T &a) { auto c = a.begin(); for(auto & v: *this) v |= *c++; return downcast(); }
     T& operator&=(const T &a) { auto c = a.begin(); for(auto & v: *this) v &= *c++; return downcast(); }

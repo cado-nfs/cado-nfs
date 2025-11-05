@@ -5,19 +5,22 @@
 // (only the fwd-decl is needed)
 #include <stdio.h>
 #include <stdint.h>
-#include <gmp.h>
 
 #ifdef __cplusplus
 #include <array>
 #include <string>
 #include <vector>
 #include <utility>
-#include <istream>      // std::istream
-#include <ostream>      // std::ostream
+#include <compare>
+#include <istream>
+#include <ostream>
+#include <sstream>
 #include <stdexcept>
 #include <type_traits>
 #include <initializer_list>
 #endif
+
+#include <gmp.h>
 
 #ifdef __cplusplus
 #include "fmt/ostream.h"
@@ -26,7 +29,10 @@
 #ifdef __cplusplus
 #include "cxx_mpz.hpp"
 #include "named_proxy.hpp"
+#include "gmp_auxx.hpp"
+#include "utils_cxx.hpp"
 #endif
+
 #include "macros.h"
 #if !GMP_VERSION_ATLEAST(6,3,0)
 #include "gmp_aux.h"
@@ -201,6 +207,32 @@ void mpz_poly_print_raw(mpz_poly_srcptr f);
 #endif
 /* Tests and comparison functions */
 int mpz_poly_cmp (mpz_poly_srcptr, mpz_poly_srcptr);
+int mpz_poly_cmp_mpz(mpz_poly_srcptr, mpz_srcptr);
+#ifdef __cplusplus
+}
+#endif
+
+#ifdef __cplusplus
+template<typename T>
+static inline int mpz_poly_cmp(mpz_poly_srcptr a, T const & b)
+    requires std::is_integral_v<T>
+{
+    for (int i = a->deg ; i >= 1; i--) {
+        int const r = mpz_sgn(a->_coeff[i]);
+        if (r)
+            return r;
+    }
+    if (a->deg < 0) {
+        return (b < 0) - (b > 0);
+    } else {
+        return gmp_auxx::mpz_cmp(a->_coeff[0], b);
+    }
+}
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 int mpz_poly_normalized_p (mpz_poly_srcptr f);
 int mpz_poly_is_monic (mpz_poly_srcptr f);
 int mpz_poly_is_monomial_multiple(mpz_poly_srcptr f);
@@ -467,30 +499,30 @@ struct cxx_mpz_poly {
     }
     // NOLINTNEXTLINE(hicpp-explicit-conversions)
     cxx_mpz_poly(mpz_srcptr c) : cxx_mpz_poly() { *this = c; }
-    bool operator==(mpz_srcptr a) const {
-        if (mpz_cmp_ui(a, 0) == 0) return x->deg == -1;
-        return x->deg == 0 && mpz_cmp(mpz_poly_coeff_const(x, 0), a) == 0;
+
+    std::strong_ordering operator<=>(cxx_mpz_poly const & a) const {
+        return mpz_poly_cmp(x, a) <=> 0;
     }
-    bool operator==(mpz_poly_srcptr a) const { return mpz_poly_cmp(x, a) == 0; }
-    bool operator!=(mpz_poly_srcptr a) const { return mpz_poly_cmp(x, a) != 0; }
-    bool operator<(mpz_poly_srcptr a) const { return mpz_poly_cmp(x, a) < 0; }
-    /* we need to add these explicitly in order to resolve ambiguities */
-    bool operator==(cxx_mpz_poly const & a) const { return mpz_poly_cmp(x, a) == 0; }
-    bool operator!=(cxx_mpz_poly const & a) const { return mpz_poly_cmp(x, a) != 0; }
-    bool operator<(cxx_mpz_poly const & a) const { return mpz_poly_cmp(x, a) < 0; }
-
-
+    std::strong_ordering operator<=>(cxx_mpz const & a) const {
+        return mpz_poly_cmp_mpz(x, a) <=> 0;
+    }
+    std::strong_ordering operator<=>(mpz_srcptr a) const {
+        return mpz_poly_cmp_mpz(x, a) <=> 0;
+    }
     template <typename T>
-    bool operator==(T a) const
+    std::strong_ordering operator<=>(T const & a) const 
     requires std::is_integral_v<T>
     {
-        if (a == 0) return x->deg == -1;
-        return x->deg == 0 && gmp_auxx::mpz_cmp(mpz_poly_coeff_const(x, 0), a) == 0;
+        return mpz_poly_cmp(x, a) <=> 0;
     }
+
+    bool operator==(cxx_mpz_poly const & a) const { return mpz_poly_cmp(x, a) == 0; }
+    bool operator==(cxx_mpz const & a) const { return mpz_poly_cmp_mpz(x, a) == 0; }
+    bool operator==(mpz_srcptr a) const { return mpz_poly_cmp_mpz(x, a) == 0; }
     template <typename T>
-    bool operator!=(T a) const
+    bool operator==(T const & a) const
     requires std::is_integral_v<T>
-    { return !((*this) == a); }
+    { return mpz_poly_cmp(x, a) == 0; }
 
     // mpz_ptr operator[](unsigned int i) { return mpz_poly_coeff_const(x, i); }
     mpz_srcptr
@@ -511,6 +543,21 @@ struct cxx_mpz_poly {
         mpz_poly_divexact_mpz(Q, *this, a);
         return Q;
     }
+
+#define CADO_CXX_MPZ_POLY_OP(OP, name)					\
+    cxx_mpz_poly operator OP(cxx_mpz_poly const & a) const {		\
+        cxx_mpz_poly res;						\
+        mpz_poly_ ## name(res, *this, a);				\
+        return res;							\
+    }									\
+    cxx_mpz_poly & operator OP ## =(cxx_mpz_poly const & a) {		\
+        mpz_poly_ ## name(*this, *this, a);				\
+        return *this;							\
+    }
+
+    CADO_CXX_MPZ_POLY_OP(*, mul)
+    CADO_CXX_MPZ_POLY_OP(+, add)
+    CADO_CXX_MPZ_POLY_OP(-, sub)
 };
 
 
@@ -529,6 +576,18 @@ inline std::istream& operator>>(std::istream& in, cxx_mpz_poly & f)
 {
     return in >> f.named("x");
 }
+
+namespace fmt {
+    template <> struct /* fmt:: */ formatter<cxx_mpz_poly>: formatter<string_view> {
+    static constexpr auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) { return ctx.begin(); }
+    template <typename FormatContext>
+    auto format(cxx_mpz_poly const & c, FormatContext& ctx) const -> decltype(ctx.out()) {
+            std::ostringstream os;
+            os << c;
+            return formatter<string_view>::format( string_view(os.str()), ctx);
+        }
+};
+} /* namespace fmt */
 
 /* If there is an integer that takes the value evaluations[i] at
  * points[i] for all i, store it to resultant and return 1. Otherwise 0
@@ -554,7 +613,6 @@ struct mpz_poly_coeff_list {
 std::ostream& operator<<(std::ostream& os, mpz_poly_coeff_list const & P);
 
 namespace fmt {
-    template <> struct formatter<cxx_mpz_poly>: ostream_formatter {};
     template <> struct formatter<mpz_poly_coeff_list>: ostream_formatter {};
 }
 

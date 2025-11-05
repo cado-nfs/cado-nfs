@@ -180,7 +180,7 @@ private:
         if (e < 0)
             throw parse_error();
         if (e != 1)
-            T::pow_ui(p, p, static_cast<unsigned long>(e));
+            T::pow(p, p, static_cast<unsigned long>(e));
         return p;
     }
 

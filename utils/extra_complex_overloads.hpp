@@ -15,25 +15,40 @@
  * inifinitesimal alterations of the operands).
  */
 #include <complex>
-
-constexpr int ordering_as_int(std::partial_ordering cmp) noexcept {
-    return (cmp < 0) ? -1 : ((cmp == 0) ? 0 : 1);
-}
+#include <compare>
 
 template<typename T>
-static inline int operator<=>(std::complex<T> const & a, std::complex<T> const & b)
+static inline std::partial_ordering operator<=>(std::complex<T> const & a, std::complex<T> const & b)
 {
-    int const c = ordering_as_int(a.imag() <=> b.imag());
-    int const r = ordering_as_int(a.real() <=> b.real());
-    return (c << 1) + r;
+    std::partial_ordering const c = a.imag() <=> b.imag();
+    if (c == std::partial_ordering::unordered) return c;
+    std::partial_ordering const r = a.real() <=> b.real();
+    if (c != 0) return c;
+    return r;
 }
 template <typename T, typename U>
-static inline int operator<=>(std::complex<T> const & a, const U b)
+static inline std::partial_ordering operator<=>(std::complex<T> const & a, const U b)
     requires(std::is_integral_v<U> || std::is_floating_point_v<U>)
 {
-    int const c = ordering_as_int(a.imag() <=> 0);
-    int const r = ordering_as_int(a.real() <=> b);
-    return (c << 1) + r;
+    std::partial_ordering const c = a.imag() <=> 0;
+    if (c == std::partial_ordering::unordered) return c;
+    std::partial_ordering const r = a.real() <=> b;
+    if (c != 0) return c;
+    return r;
+}
+template <typename T, typename U>
+static inline bool operator==(std::complex<T> const & a, const U b)
+    requires(std::is_integral_v<U> || std::is_floating_point_v<U>)
+{
+    std::partial_ordering const c = a.imag() <=> 0;
+    if (c != 0) return false;
+    std::partial_ordering const r = a.real() <=> b;
+    return r == 0;
+}
+
+#if 0
+constexpr int ordering_as_int(std::partial_ordering cmp) noexcept {
+    return (cmp < 0) ? -1 : ((cmp == 0) ? 0 : 1);
 }
 template <typename T, typename U>
 static inline int operator<=>(const U a, std::complex<T> const & b)
@@ -76,6 +91,7 @@ CADO_STD_COMPLEX_DEFINE_CMP(<)
 CADO_STD_COMPLEX_DEFINE_CMP(>)
 CADO_STD_COMPLEX_DEFINE_CMP(<=)
 CADO_STD_COMPLEX_DEFINE_CMP(>=)
+#endif
 
 #define CADO_STD_COMPLEX_MIXED_OPERATOR_OVERLOAD(OP)			\
     template <typename T, typename U>					\
@@ -99,7 +115,6 @@ CADO_STD_COMPLEX_MIXED_OPERATOR_OVERLOAD(operator+)
 CADO_STD_COMPLEX_MIXED_OPERATOR_OVERLOAD(operator-)
 CADO_STD_COMPLEX_MIXED_OPERATOR_OVERLOAD(operator*)
 CADO_STD_COMPLEX_MIXED_OPERATOR_OVERLOAD(operator/)
-
 
 
 #endif	/* UTILS_EXTRA_COMPLEX_OVERLOADS_HPP_ */

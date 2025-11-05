@@ -96,7 +96,7 @@ class mpz_poly_printer:
                 src = f"({t}_srcptr) {self.val.address}"
             gdb.execute(f"call (void) {t}_set((({tx}*) {F})->x, {src})")
             self.cxx_val = gdb.parse_and_eval(f"* ({tx}*) {F}")
-            self._cxx_temp = F
+            self._cxx_temp = str(F)
         else:
             self.cxx_val = self.val
 

@@ -9,18 +9,21 @@
 #include <ostream>
 #include <sstream>
 #include <string>
-#include <vector>
+#include <utility>
 
 #include <gmp.h>
+#include "fmt/base.h"
 
 #include "cado_expression_parser.hpp"
 #include "cxx_mpz.hpp"
 #include "mpz_poly.h"
+#include "arithmetic_reductions.hpp"
 #include "mpz_poly_bivariate.hpp"
 #include "runtime_numeric_cast.hpp"
 #include "macros.h"
 #include "mpz_mat.h"
 #include "named_proxy.hpp"
+#include "timing.h"
 
 /* Polynomial arithmetic.
  *
@@ -34,7 +37,7 @@ void cxx_mpz_poly_bivariate::neg(cxx_mpz_poly_bivariate & f,
 {
     f = g;
     for (size_t i = 0; i < g.size(); i++) {
-        mpz_poly_neg(((super &)f)[i], ((super &)f)[i]);
+        mpz_poly_neg(f.v()[i], f[i]);
     }
 }
 
@@ -51,11 +54,11 @@ void cxx_mpz_poly_bivariate::add(cxx_mpz_poly_bivariate & f,
         f.clear();
     f.insert(f.end(), sf - f.size(), cxx_mpz_poly()); /* now sf == f.size() */
     for (; i < sg && i < sh; i++)
-        mpz_poly_add(((super &)f)[i], g[i], h[i]);
+        mpz_poly_add(f.v()[i], g[i], h[i]);
     for (; i < sg; i++)
-        mpz_poly_set(((super &)f)[i], g[i]);
+        mpz_poly_set(f.v()[i], g[i]);
     for (; i < sh; i++)
-        mpz_poly_set(((super &)f)[i], h[i]);
+        mpz_poly_set(f.v()[i], h[i]);
     f.cleandeg((int)sf - 1);
 }
 
@@ -72,11 +75,11 @@ void cxx_mpz_poly_bivariate::sub(cxx_mpz_poly_bivariate & f,
         f.clear();
     f.insert(f.end(), sf - f.size(), cxx_mpz_poly()); /* now sf == f.size() */
     for (; i < sg && i < sh; i++)
-        mpz_poly_sub(((super &)f)[i], g[i], h[i]);
+        mpz_poly_sub(f.v()[i], g[i], h[i]);
     for (; i < sg; i++)
-        mpz_poly_set(((super &)f)[i], g[i]);
+        mpz_poly_set(f.v()[i], g[i]);
     for (; i < sh; i++)
-        mpz_poly_neg(((super &)f)[i], h[i]);
+        mpz_poly_neg(f.v()[i], h[i]);
     f.cleandeg((int)sf - 1);
 }
 
@@ -112,7 +115,7 @@ void cxx_mpz_poly_bivariate::mul(cxx_mpz_poly_bivariate & f,
     for (int i = 0; i <= g.degree(); i++) {
         for (int j = 0; j <= h.degree(); j++) {
             mpz_poly_mul(tmp, g[i], h[j]);
-            mpz_poly_add(((super &)f)[i + j], f[i + j], tmp);
+            mpz_poly_add(f.v()[i + j], f[i + j], tmp);
         }
     }
     f.cleandeg(g.degree() + h.degree());
@@ -123,7 +126,7 @@ void cxx_mpz_poly_bivariate::mul(cxx_mpz_poly_bivariate & a,
                                  mpz_poly_srcptr m)
 {
     a = b;
-    for (auto & c: a)
+    for (auto & c: a.v())
         mpz_poly_mul(c.x, c.x, m);
 }
 
@@ -132,7 +135,7 @@ void cxx_mpz_poly_bivariate::mul(cxx_mpz_poly_bivariate & a,
                                  mpz_srcptr m) /*{{{*/
 {
     a = b;
-    for (auto & c: a)
+    for (auto & c: a.v())
         mpz_poly_mul_mpz(c, c, m);
 }
 /*}}}*/
@@ -143,7 +146,7 @@ void cxx_mpz_poly_bivariate::set_rrandomb(self & f, int dx, int dy, int bits,
 {
     f.assign(dy + 1, 0);
     for (int i = 0; i <= dy; i++) {
-        mpz_poly_set_randomb(((super &)f)[i], dx, rstate, bits,
+        mpz_poly_set_randomb(f.v()[i], dx, rstate, bits,
                 mpz_poly_random_flags::MPZ_POLY_RRANDOM |
                 mpz_poly_random_flags::MPZ_POLY_DEGREE_EXACT
                 );
@@ -159,13 +162,13 @@ void cxx_mpz_poly_bivariate::set_rrandomb_cab(self & f, int dx, int dy,
     // as far as the "Cab" notation goes, dy is a and dx is b.
     set_rrandomb(f, dx, dy, bits, rstate);
     // X^i Y^j appears only if i * dy + j * dx < dx * dy
-    ((super &)f)[dy] = 1;
+    f.v()[dy] = 1;
     for (int j = 0; j < dy; j++) {
         // we may have X^i only if i * dy < (dx * dy  - j * dx)
         int const d = (dx * (dy - j) - 1) / dy;
-        mpz_poly_cleandeg(((super &)f)[j], d);
+        mpz_poly_cleandeg(f.v()[j], d);
         if (j == 0)
-            mpz_poly_setcoeff_ui(((super &)f)[j], dx, 1);
+            mpz_poly_setcoeff_ui(f.v()[j], dx, 1);
     }
 }
 
@@ -180,15 +183,14 @@ void cxx_mpz_poly_bivariate::set_urandomm(self & f, int dx, int dy,
                                           bool monic) /*{{{*/
 {
     f.assign(dy + 1, 0);
-    for (int i = 0; i <= dy; i++) {
-        mpz_poly_set_randomm(((super &)f)[i], dx, rstate, p,
+    for(auto & c : f.v()) {
+        mpz_poly_set_randomm(c, dx, rstate, p,
                 MPZ_POLY_URANDOM |
                 (exact ? MPZ_POLY_DEGREE_EXACT : 0)
                 );
     }
-    if (monic) {
-        ((super &)f)[dy] = 1;
-    }
+    if (monic)
+        f.v()[dy] = 1;
     f.cleandeg(dy);
 }
 /*}}}*/
@@ -201,13 +203,13 @@ void cxx_mpz_poly_bivariate::set_urandomm_cab(self & f, int dx, int dy,
     // as far as the "Cab" notation goes, dy is a and dx is b.
     set_urandomm(f, dx, dy, p, rstate, true, true);
     // X^i Y^j appears only if i * dy + j * dx < dx * dy
-    ((super &)f)[dy] = 1;
+    f.v()[dy] = 1;
     for (int j = 0; j < dy; j++) {
         // we may have X^i only if i * dy < (dx * dy  - j * dx)
-        int d = (dx * (dy - j) - 1) / dy;
-        mpz_poly_cleandeg(((super &)f)[j], d);
+        int const d = (dx * (dy - j) - 1) / dy;
+        mpz_poly_cleandeg(f.v()[j], d);
         if (j == 0)
-            mpz_poly_setcoeff_ui(((super &)f)[j], dx, 1);
+            mpz_poly_setcoeff_ui(f.v()[j], dx, 1);
     }
 }
 /*}}}*/
@@ -216,26 +218,25 @@ void cxx_mpz_poly_bivariate::set_urandomm_cab(self & f, int dx, int dy,
 void cxx_mpz_poly_bivariate::transpose(self & a, self && b)
 {
     if (&a == &b) {
-        self bb = b;
-        transpose(a, bb);
+        transpose(a, self(b));
         return;
     }
     int const dx = b.degree_x();
     int const dy = b.degree_y();
     a.assign(dx + 1, 0);
-    for (auto & c: a) {
+    for (auto & c: a.v()) {
         mpz_poly_realloc(c, dy + 1);
         for (int j = 0; j <= dy; j++)
             mpz_poly_setcoeff_ui(c, j, 0);
     }
     for (int j = 0; j <= dy; j++) {
-        for (int i = 0; i <= mpz_poly_degree(((super const &)b)[j]); i++) {
-            mpz_swap(mpz_poly_coeff(((super &)a)[i], j),
-                     mpz_poly_coeff(((super &)b)[j], i));
+        for (int i = 0; i <= mpz_poly_degree(b[j]); i++) {
+            mpz_swap(mpz_poly_coeff(a.v()[i], j),
+                     mpz_poly_coeff(b.v()[j], i));
         }
     }
     for (int i = 0; i <= dx; i++) {
-        mpz_poly_cleandeg(((super &)a)[i], dy);
+        mpz_poly_cleandeg(a.v()[i], dy);
     }
     a.cleandeg(dx);
     b.clear();
@@ -243,8 +244,7 @@ void cxx_mpz_poly_bivariate::transpose(self & a, self && b)
 
 void cxx_mpz_poly_bivariate::transpose(self & a, self const & b)
 {
-    self bb = b;
-    transpose(a, (self &&)bb);
+    transpose(a, self(b));
 }
 
 /* parsing */
@@ -270,8 +270,8 @@ struct mpz_poly_bivariate_parser_traits {
     };
 
     static constexpr int const accept_literals = 2;
-    typedef cxx_mpz_poly_bivariate type;
-    typedef cxx_mpz number_type;
+    using type = cxx_mpz_poly_bivariate;
+    using number_type = cxx_mpz;
 
     static void add(cxx_mpz_poly_bivariate & c,
                     cxx_mpz_poly_bivariate const & a,
@@ -291,10 +291,10 @@ struct mpz_poly_bivariate_parser_traits {
     {
         type::mul(c, a, b);
     }
-    static void pow_ui(cxx_mpz_poly_bivariate & c,
+    static void pow(cxx_mpz_poly_bivariate & c,
                        cxx_mpz_poly_bivariate const & a, unsigned long e)
     {
-        type::pow_ui(c, a, e);
+        type::pow(c, a, e);
     }
     static void neg(cxx_mpz_poly_bivariate & a, cxx_mpz_poly_bivariate & b)
     {
@@ -407,6 +407,19 @@ std::ostream & cado::operator<<(
     return o << os.str();
 }
 
+std::string cxx_mpz_poly_bivariate::print_poly(std::string const& x, std::string const & y) const
+{
+    std::ostringstream os;
+    os << named(x, y);
+    return os.str();
+}
+
+/* this proxy is used for pretty printing in gdb */
+std::string cxx_mpz_poly_bivariate::print_poly() const
+{
+    return print_poly("x", "y");
+}
+
 /* derivative_y. sort of one of a kind, really. We use it for square free
  * factorization. */
 void cxx_mpz_poly_bivariate::derivative_y(self & B, self const & A)
@@ -415,7 +428,7 @@ void cxx_mpz_poly_bivariate::derivative_y(self & B, self const & A)
     B = A;
     /* take coefficients in increasing order, so that B==A is allowed */
     for (int i = 1; i <= A.degree(); i++)
-        mpz_poly_mul_si(((super &)B)[i - 1], B[i], i);
+        mpz_poly_mul_si(B.v()[i - 1], B[i], i);
     B.cleandeg(degree_of_B);
 }
 
@@ -429,8 +442,7 @@ void cxx_mpz_poly_bivariate::eval_fy(cxx_mpz_poly & a, self const & f,
         return;
     }
     if (&a == &e) {
-        cxx_mpz_poly ee = e;
-        eval_fy(a, f, ee);
+        eval_fy(a, f, cxx_mpz_poly(e));
         return;
     }
     a = f.lc();
@@ -542,7 +554,7 @@ void cxx_mpz_poly_bivariate::mod_mpz(cxx_mpz_poly_bivariate & a,
                                      mpz_srcptr p, mpz_srcptr invp) /*{{{*/
 {
     a = b;
-    for (auto & c: a)
+    for (auto & c: a.v())
         mpz_poly_mod_mpz(c, c, p, invp);
 }
 /*}}}*/
@@ -552,7 +564,7 @@ void cxx_mpz_poly_bivariate::mod_fx(cxx_mpz_poly_bivariate & a,
 {
     a = b;
     ASSERT_ALWAYS(mpz_poly_is_monic(fx));
-    for (auto & c: a)
+    for (auto & c: a.v())
         mpz_poly_div_r(c, c, fx);
     a.cleandeg(a.degree());
 }
@@ -567,346 +579,6 @@ void cxx_mpz_poly_bivariate::mod_fy(cxx_mpz_poly_bivariate & a,
 }
 /*}}}*/
 
-/* reduction operator inside function objects */
-void cxx_mpz_poly_bivariate::reducer_mod_mpz::operator()(
-    self & b, self const & a) const /*{{{*/
-{
-    mpz_srcptr inv = invp.get() ? (mpz_srcptr)*invp : nullptr;
-    b = a;
-    for (auto & c: b)
-        mpz_poly_mod_mpz(c, c, p, inv);
-    b.cleandeg(b.degree());
-}
-/*}}}*/
-void cxx_mpz_poly_bivariate::reducer_mod_fx::operator()(
-    self & B, self const & A) const /*{{{*/
-{
-    self::mod_fx(B, A, fx);
-}
-/*}}}*/
-void cxx_mpz_poly_bivariate::reducer_mod_fx_mod_mpz::operator()(
-    self & B, self const & A) const /*{{{*/
-{
-    // assume that we are are in the quadratic range, and that the
-    // following conditions hold:
-    //  - deg(fx)=dx ; fx is monic. Coefficients are reduced mod p
-    //  - p is np words
-    //  - coeffs in y^i of A are polynomials of degree k*dx with l*np words
-    //  - a Barrett preinverse of p is known (so that reducing l*np words
-    //    mod p costs (l-1) mulhi(np,np) + 1 mullo(np,np) -- we don't
-    //    implement mulhi and mullo, so we count (l-1)*2*np^2).
-    //
-    // Furthermore, we assume that dx>=2, k>=1, l>=1
-    //
-    // In this case, the costs and new values for s,k,l are:
-#if 0
-    sage: QP.<k,l,dx,np> = QQ[]
-    sage: def mod_p(k,l):
-    sage:     return (k*dx*(l-1)*2*np^2, k, 1)
-    sage: def mod_fx(k, l):
-    sage:     return ((k-1)*dx^2*l*np^2, 1, l+1)
-#endif
-    // We can compare different strategies.
-#if 0
-    sage: def chain(*functions):
-    sage:     A=(k,l); cost=0
-    sage:     for f in functions:
-    sage:         (c,*A) = f(*A); cost += c
-    sage:     return cost / (dx * np^2)
-    sage: cost0 = chain(mod_fx, mod_p)
-    sage: cost1 = chain(mod_p, mod_fx, mod_p)
-    sage: assert cost1 - cost0 == - (dx - 2) * (l - 1) * (k - 1)
-#endif
-    // So cost1 wins over cost0
-    reducer_mod_mpz::operator()(B, A);
-    self::mod_fx(B, B, fx);
-    reducer_mod_mpz::operator()(B, B);
-}
-/*}}}*/
-void cxx_mpz_poly_bivariate::reducer_mod_mpz::operator()(
-    cxx_mpz_poly & b, cxx_mpz_poly const & a) const /*{{{*/
-{
-    mpz_srcptr inv = invp.get() ? (mpz_srcptr)*invp : nullptr;
-    mpz_poly_mod_mpz(b, a, p, inv);
-}
-/*}}}*/
-void cxx_mpz_poly_bivariate::reducer_mod_fx::operator()(
-    cxx_mpz_poly & B, cxx_mpz_poly const & A) const /*{{{*/
-{
-    mpz_poly_div_r(B, A, fx);
-}
-/*}}}*/
-void cxx_mpz_poly_bivariate::reducer_mod_fx_mod_mpz::operator()(
-    cxx_mpz_poly & B, cxx_mpz_poly const & A) const /*{{{*/
-{
-    reducer_mod_mpz::operator()(B, A);
-    mpz_poly_div_r(B, B, fx);
-    reducer_mod_mpz::operator()(B, B);
-}
-/*}}}*/
-void cxx_mpz_poly_bivariate::reducer_mod_fy_mod_fx_mod_mpz::operator()(
-    self & B, self const & A) const /*{{{*/
-{
-    // assume that we are are in the quadratic range, and that the
-    // following conditions hold:
-    //  - deg_y(fy) = dy ; fy is monic ; coefficients are reduced mod fx
-    //  - deg(fx)=dx ; fx is monic. Coefficients are reduced mod p
-    //  - p is np words
-    //  - deg_y(A) = s*dy
-    //  - coeffs in y^i of A are polynomials of degree k*dx with l*np words
-    //  - a Barrett preinverse of p is known (so that reducing l*np words
-    //    mod p costs (l-1) mulhi(np,np) + 1 mullo(np,np) -- we don't
-    //    implement mulhi and mullo, so we count (l-1)*2*np^2).
-    // Furthermore, we assume that dx>=2, dy>=2, s>=1, k>=1, l>=1
-    //
-    // In this case, the costs and new values for s,k,l are:
-#if 0
-    sage: QP.<s,k,l,dx,dy,np> = QQ[]
-    sage: def mod_p(s,k,l):
-    sage:     return (s*dy*k*dx*(l-1)*2*np^2, s, k, 1)
-    sage: def mod_fx(s, k, l):
-    sage:     return (s*dy*(k-1)*dx^2*l*np^2, s, 1, l+1)
-    sage: def mod_fy(s, k, l):
-    sage:     return ((s-1)*dy^2*k*dx^2*l*np^2, 1, k+1, l+1)
-#endif
-    // We can compare different strategies.
-#if 0
-    sage: def chain(*functions):
-    sage:     A=(s,k,l); cost=0
-    sage:     for f in functions:
-    sage:         (c,*A) = f(*A); cost += c
-    sage:     return cost / (dx * dy * np^2)
-    sage: cost0 = chain(mod_fy, mod_fx, mod_p)
-    sage: cost1 = chain(mod_fy, mod_p, mod_fx, mod_p)
-    sage: cost3 = chain(mod_p, mod_fy, mod_p, mod_fx, mod_p)
-    sage: assert ((cost3-cost1)) == (l-1)*((s-1)*k*(2-dx*dy) - 2)
-#endif
-    // So cost1 wins over cost0 if dx >= 2, and cost3 always wins over cost1
-#if 0
-    sage: cost4 = chain(mod_fx, mod_p, mod_fy, mod_p, mod_fx, mod_p)
-    sage: cost5 = chain(mod_p, mod_fx, mod_p, mod_fy, mod_p, mod_fx, mod_p)
-    sage: assert cost5-cost3 == (k-1)*(s-1)*(dx+2-dx*dy)-(k-2)*2*s
-#endif
-    // if k>=2, cost5 always wins. If k=1 it doesn't
-    reducer_mod_fx_mod_mpz::operator()(B, A);
-    self::mod_fy(B, B, fy);
-    reducer_mod_fx_mod_mpz::operator()(B, B);
-}
-/*}}}*/
-
-std::string cxx_mpz_poly_bivariate::reducer_noop::print() const
-{
-    return "dummy no-reduction";
-}
-
-std::string cxx_mpz_poly_bivariate::reducer_mod_mpz::print() const
-{
-    std::ostringstream os;
-    os << "reduction mod " << p;
-    return os.str();
-}
-
-std::string cxx_mpz_poly_bivariate::reducer_mod_fx::print() const
-{
-    std::ostringstream os;
-    os << "reduction mod " << fx.named("x");
-    return os.str();
-}
-
-std::string cxx_mpz_poly_bivariate::reducer_mod_fx_mod_mpz::print() const
-{
-    std::ostringstream os;
-    os << "reduction mod " << fx.named("x") << ", mod " << p;
-    return os.str();
-}
-
-std::string cxx_mpz_poly_bivariate::reducer_mod_fy_mod_fx_mod_mpz::print() const
-{
-    std::ostringstream os;
-    os << "reduction mod " << fy.named("x", "y") << ", mod " << fx.named("x")
-       << ", mod " << p;
-    return os.str();
-}
-
-void cxx_mpz_poly_bivariate::reducer_mod_fx_mod_mpz::compute_frobenius_matrices() const
-{
-    unsigned int d = fx->deg;
-    ASSERT_ALWAYS(fx->deg > 0);
-    if (frobenius_matrix->m) {
-        ASSERT_ALWAYS(frobenius_matrix->m == d);
-        ASSERT_ALWAYS(frobenius_matrix->n == d);
-        ASSERT_ALWAYS(inverse_frobenius_matrix->m == d);
-        ASSERT_ALWAYS(inverse_frobenius_matrix->n == d);
-        return;
-    }
-    mpz_mat_realloc(frobenius_matrix, d, d);
-    for(unsigned int i = 0 ; i < d ; i++) {
-        cxx_mpz_poly R;
-        mpz_poly_set_xi(R, i);
-        mpz_poly_pow_mod_f_mod_mpz(R, R, fx, p, p);
-        ASSERT_ALWAYS(R->deg >= 0);
-        ASSERT_ALWAYS((unsigned int) R->deg < d);
-        for(unsigned int j = 0 ; j <= (unsigned int) R->deg ; j++)
-            mpz_set(mpz_mat_entry(frobenius_matrix, i, j), R->_coeff[j]);
-    }
-    mpz_mat_inv_mod_mpz(inverse_frobenius_matrix, frobenius_matrix, p);
-}
-
-void cxx_mpz_poly_bivariate::reducer_mod_fx_mod_mpz::frobenius(
-        cxx_mpz_poly & B,
-        cxx_mpz_poly const & A,
-        int order) const
-{
-    if (A == 0) {
-        B = A;
-        return;
-    }
-
-    /* It's just a linear operation, all we care about is gettint the
-     * correct (precomputed) matrix */
-
-    mpz_mat_ptr mat;
-    compute_frobenius_matrices();
-    if (order == 1) {
-        mat = frobenius_matrix;
-    } else if (order == -1) {
-        mat = inverse_frobenius_matrix;
-    } else {
-        /* for the moment the others are unimplemented. Of course we could at
-         * least reduce the order mod the degree of fx (thereby asserting
-         * that fx is irreducible), but we have no strong use case for such
-         * an interface at the moment. */
-        ASSERT_ALWAYS(0);
-    }
-
-    /* there might be situations where the input isn't reduced.
-     */
-    (*this)(B, A);
-
-    cxx_mpz_poly h;
-    /* It's weird, but we don't have row times matrix in mpz_mat...  */
-    for(int j = 0 ; j < fx->deg ; j++) {
-        cxx_mpz s;
-        ASSERT_ALWAYS(B->deg < fx->deg);
-        for(int i = 0 ; i <= B->deg ; i++) {
-            mpz_addmul(s, B->_coeff[i], mpz_mat_entry_const(mat, i, j));
-        }
-        mpz_mod(s, s, p);
-        mpz_poly_setcoeff(h, j, s);
-    }
-    B = h;
-}
-
-void cxx_mpz_poly_bivariate::reducer_mod_fx_mod_mpz::frobenius(
-        cxx_mpz_poly_bivariate & B,
-        cxx_mpz_poly_bivariate const & A,
-        int order) const
-{
-    ASSERT_ALWAYS(mpz_size(p) == 1);
-    mp_limb_t pp = mpz_get_ui(p);
-
-    /* for the moment the others are unimplemented */
-    ASSERT_ALWAYS(order == 1 || order == -1);
-
-    B = A;
-    int n = B.degree_y();
-
-    if (n == -1)
-        return;
-
-    if (order == -1) {
-        /* scale down powers for inverse Frobenius */
-        ASSERT_ALWAYS(n % pp == 0);
-        n = n / pp;
-        for(int k = 0 ; k <= n ; k++) {
-            if (k < n) {
-                for(mp_limb_t l = 1 ; l < pp ; l++)
-                    ASSERT_ALWAYS(B[k * pp + l] == 0);
-            }
-            mpz_poly_swap(((super&)B)[k], ((super&)B)[k*pp]);
-        }
-        B.erase(B.begin() + n + 1, B.end());
-    }
-
-    for(int k = 0 ; k <= n ; k++)
-        frobenius(((super&)B)[k], ((super&)B)[k], order);
-
-    if (order == 1) {
-        /* scale up powers for forward Frobenius */
-
-        B.insert(B.end(), n * (pp - 1), cxx_mpz_poly());
-        for(int k = n ; k >= 0 ; k--)
-            mpz_poly_swap(((super&)B)[k * pp], ((super&)B)[k]);
-        B.cleandeg(n * pp);
-        ASSERT_ALWAYS(B.degree_y() >= 0);
-        ASSERT_ALWAYS((unsigned int) B.degree_y() == n * pp);
-    }
-}
-
-/* powering. Both the generic template, and the instantiations that go
- * through the reduction operator */
-
-template <typename T> struct pow_ui_inner { /*{{{*/
-    T const & reducer;
-    pow_ui_inner(T const & reducer)
-        : reducer(reducer)
-    {
-    }
-
-  private:
-    void wrapped(cxx_mpz_poly_bivariate & B, cxx_mpz_poly_bivariate const & A,
-                 unsigned long n) const
-    {
-        ASSERT_ALWAYS(&B != &A);
-        unsigned long k = ((~0UL) >> 1) + 1;
-        for (; k > n; k >>= 1)
-            ;
-        B = A;
-        for (; k >>= 1;) {
-            cxx_mpz_poly_bivariate::mul(B, B, B);
-            if (n & k)
-                cxx_mpz_poly_bivariate::mul(B, B, A);
-            reducer(B, B);
-        }
-    }
-
-  public:
-    void operator()(cxx_mpz_poly_bivariate & B,
-                    cxx_mpz_poly_bivariate const & A, unsigned long n) const
-    {
-        if (n == 0) {
-            B = 1;
-            return;
-        }
-        if (A.degree() < 0) {
-            B = 0;
-            return;
-        }
-        if (&B == &A) {
-            cxx_mpz_poly_bivariate C;
-            wrapped(C, A, n);
-            B.swap(C);
-        } else {
-            wrapped(B, A, n);
-        }
-    }
-}; /*}}}*/
-
-template <typename T>
-inline void cxx_mpz_poly_bivariate::pow_ui(cxx_mpz_poly_bivariate & B,
-                                           cxx_mpz_poly_bivariate const & A,
-                                           unsigned long n,
-                                           T const & reducer) /*{{{*/
-{
-    pow_ui_inner {reducer}(B, A, n);
-}
-/*}}}*/
-
-template void
-cxx_mpz_poly_bivariate::pow_ui<cxx_mpz_poly_bivariate::reducer_noop>(
-    cxx_mpz_poly_bivariate & B, cxx_mpz_poly_bivariate const &, unsigned long,
-    reducer_noop const &);
-
 /* division */
 template <typename T>
 void cxx_mpz_poly_bivariate::div_qr(cxx_mpz_poly_bivariate & q,
@@ -916,16 +588,18 @@ void cxx_mpz_poly_bivariate::div_qr(cxx_mpz_poly_bivariate & q,
                                     T const & reducer) /*{{{*/
 {
     ASSERT_ALWAYS(g.degree() >= 0 && g.lc() == 1);
-    ASSERT_ALWAYS(&q != &f && &q != &r && &q != &g);
+    ASSERT_ALWAYS(&q != &r && &q != &g);
     ASSERT_ALWAYS(&r != &g);
-    /* r == f is allowed */
+    /* r == f or q == f are both allowed */
 
-    int j, df = f.degree(), dg = g.degree(), dq = df - dg;
+    int const df = f.degree();
+    int const dg = g.degree();
+    int const dq = df - dg;
 
     if (df < dg) /* f is already reduced mod g */
     {
-        q = 0;
         r = f;
+        q = 0;
         return;
     }
 
@@ -936,10 +610,10 @@ void cxx_mpz_poly_bivariate::div_qr(cxx_mpz_poly_bivariate & q,
     cxx_mpz_poly tmp;
 
     for (int k ; (k = r.degree() - dg) >= 0 ; ) {
-        ((super &)q)[k] = r[k + dg];
-        for (j = dg + k - 1; j >= k; j--) {
+        q.v()[k] = r[k + dg];
+        for (int j = dg + k - 1; j >= k; j--) {
             mpz_poly_mul(tmp, q[k], g[j - k]);
-            mpz_poly_sub(((super &)r)[j], r[j], tmp);
+            mpz_poly_sub(r.v()[j], r[j], tmp);
         }
         r.cleandeg(k + dg - 1);
         reducer(r, r);
@@ -947,14 +621,100 @@ void cxx_mpz_poly_bivariate::div_qr(cxx_mpz_poly_bivariate & q,
 }
 /*}}}*/
 
-void cxx_mpz_poly_bivariate::mul_mod_fx_mod_fy_mod_mpz(self & C, self const & A,
+void cxx_mpz_poly_bivariate::div_qr(self & q, self & r, self const & f, self const & g)
+{ /*{{{*/
+    div_qr(q, r, f, g, cado::arithmetic_reductions::noop {});
+} /*}}}*/
+void cxx_mpz_poly_bivariate::div_qr_mod_mpz(self & q, self & r, self const & f,
+        self const & g, mpz_srcptr p)
+{ /*{{{*/
+    div_qr(q, r, f, g, cado::arithmetic_reductions::mod_mpz {p});
+} /*}}}*/
+void cxx_mpz_poly_bivariate::div_qr_mod_fx_mod_p(self & q, self & r, self const & f,
+        self const & g, mpz_poly_srcptr fx,
+        mpz_srcptr p)
+{ /*{{{*/
+    div_qr(q, r, f, g, cado::arithmetic_reductions::mod_fx_mod_p {fx, p});
+} /*}}}*/
+void cxx_mpz_poly_bivariate::div_q(self & q, self const & f, self const & g)
+{ /*{{{*/
+    div_q(q, f, g, cado::arithmetic_reductions::noop {});
+} /*}}}*/
+void cxx_mpz_poly_bivariate::div_q_mod_mpz(self & q, self const & f, self const & g,
+        mpz_srcptr p)
+{ /*{{{*/
+    div_q(q, f, g, cado::arithmetic_reductions::mod_mpz {p});
+} /*}}}*/
+void cxx_mpz_poly_bivariate::div_q_mod_fx_mod_p(self & q, self const & f, self const & g,
+        mpz_poly_srcptr fx, mpz_srcptr p)
+{ /*{{{*/
+    div_q(q, f, g, cado::arithmetic_reductions::mod_fx_mod_p {fx, p});
+} /*}}}*/
+void cxx_mpz_poly_bivariate::div_r(self & r, self const & f, self const & g)
+{ /*{{{*/
+    div_r(r, f, g, cado::arithmetic_reductions::noop {});
+} /*}}}*/
+void cxx_mpz_poly_bivariate::div_r_mod_mpz(self & r, self const & f, self const & g,
+        mpz_srcptr p)
+{ /*{{{*/
+    div_r(r, f, g, cado::arithmetic_reductions::mod_mpz {p});
+} /*}}}*/
+void cxx_mpz_poly_bivariate::div_r_mod_fx_mod_p(self & r, self const & f, self const & g,
+        mpz_poly_srcptr fx, mpz_srcptr p)
+{ /*{{{*/
+    div_r(r, f, g, cado::arithmetic_reductions::mod_fx_mod_p {fx, p});
+} /*}}}*/
+void cxx_mpz_poly_bivariate::divexact(self & q, self const & f, self const & g)
+{ /*{{{*/
+    divexact(q, f, g, cado::arithmetic_reductions::noop {});
+} /*}}}*/
+void cxx_mpz_poly_bivariate::divexact_mod_mpz(self & q, self const & f, self const & g,
+        mpz_srcptr p)
+{ /*{{{*/
+    divexact(q, f, g, cado::arithmetic_reductions::mod_mpz {p});
+} /*}}}*/
+void cxx_mpz_poly_bivariate::divexact_mod_fx_mod_p(self & q, self const & f,
+        self const & g, mpz_poly_srcptr fx,
+        mpz_srcptr p)
+{ /*{{{*/
+    divexact(q, f, g, cado::arithmetic_reductions::mod_fx_mod_p {fx, p});
+} /*}}}*/
+
+/* powering. same pattern.  */
+void cxx_mpz_poly_bivariate::pow(cxx_mpz_poly_bivariate & B,
+        cxx_mpz_poly_bivariate const & A,
+        unsigned long n) /*{{{*/
+{
+    pow(B, A, n, cado::arithmetic_reductions::noop {});
+}
+/*}}}*/
+void cxx_mpz_poly_bivariate::pow_mod_mpz(cxx_mpz_poly_bivariate & B,
+        cxx_mpz_poly_bivariate const & A,
+        unsigned long n, mpz_srcptr p) /*{{{*/
+{
+    pow(B, A, n, cado::arithmetic_reductions::mod_mpz {p});
+}
+/*}}}*/
+void cxx_mpz_poly_bivariate::pow_mod_fy_mod_q(self & B, self const & A,
+        unsigned long n,
+        mpz_poly_srcptr fy,
+        mpz_poly_srcptr fx,
+        mpz_srcptr p) /*{{{*/
+{
+    pow(B, A, n, cado::arithmetic_reductions::mod_fy_mod_q {fy, fx, p});
+}
+/*}}}*/
+
+
+
+void cxx_mpz_poly_bivariate::mul_mod_fy_mod_q(self & C, self const & A,
                                                        self const & B,
-                                                       mpz_poly_srcptr fx,
                                                        mpz_poly_srcptr fy,
+                                                       mpz_poly_srcptr fx,
                                                        mpz_srcptr p)
 {
     mul(C, A, B);
-    reducer_mod_fy_mod_fx_mod_mpz {fy, fx, p}(C, C);
+    cado::arithmetic_reductions::mod_fy_mod_q {fy, fx, p}(C, C);
 }
 
 /* gcd. Well it's only about being able to run the Euclidean algorithm,
@@ -964,14 +724,14 @@ void cxx_mpz_poly_bivariate::mul_mod_fx_mod_fy_mod_mpz(self & C, self const & A,
  * reducers, that would not make much sense.
  */
 void cxx_mpz_poly_bivariate::gcd(self & C, self const & A, self const & B,
-                                 reducer_mod_fx_mod_mpz const & Rx) /*{{{*/
+                                 cado::arithmetic_reductions::mod_q const & Rx) /*{{{*/
 {
     self R0 = A;
     self R1 = B;
     self R2;
     for (; R1.degree_y() >= 0;) {
         Rx.make_monic(R1);
-        mod_fy(R2, R0, R1);
+        div_r(R2, R0, R1, Rx);
         std::swap(R0, R1);
         Rx(R1, R2);
     }
@@ -979,25 +739,11 @@ void cxx_mpz_poly_bivariate::gcd(self & C, self const & A, self const & B,
 }
 /*}}}*/
 
-bool cxx_mpz_poly_bivariate::reducer_mod_fx_mod_mpz::make_monic(cxx_mpz_poly_bivariate & f) const
-{
-    if (f.lc() == 1)
-        return true;
-    cxx_mpz_poly u,v, d;
-    mpz_poly_xgcd_mpz(d, f.lc(), fx, u, v, p);
-    cxx_mpz_poly_bivariate::mul(f, f, u);
-    (*this)(f, f);
-    return d == 1;
-}
-
-int sqf_inner(cxx_mpz_poly_bivariate::factor_list & fl,
-              cxx_mpz_poly_bivariate const & f, int stride,
-              cxx_mpz_poly_bivariate::reducer_mod_fx_mod_mpz const & Rx)
-
+static int sqf_inner(cxx_mpz_poly_bivariate::factor_list & fl, cxx_mpz_poly_bivariate const & f, int stride, cado::arithmetic_reductions::mod_q const & Rx)
 {
     int r = 0;
 
-    typedef cxx_mpz_poly_bivariate self;
+    using self = cxx_mpz_poly_bivariate;
 
     self g, mi, mi1;
     self t0, t1, T, tmp;
@@ -1012,7 +758,7 @@ int sqf_inner(cxx_mpz_poly_bivariate::factor_list & fl,
     T.set_yi(0);
     for (int i = 1; mi.degree_y() > 0; i++) {
         /* note the weird argument ordering */
-        self::pow_ui(t0, mi, i, Rx);
+        self::pow(t0, mi, i, Rx);
         self::divexact(t1, f, t0, Rx);
         /* t1 = all polynomials in mi taken out from f with multiplicity i */
         self::gcd(mi1, t1, mi, Rx);
@@ -1028,12 +774,15 @@ int sqf_inner(cxx_mpz_poly_bivariate::factor_list & fl,
         /* Use tmp so that we don't absurdly keep storage within
          * lf->factors */
         fl[i * stride] = { tmp, 1 }; /* multiplicity field in fact unused */
-        self::pow_ui(t0, fl[i * stride].first, i, Rx);
+        self::pow(t0, fl[i * stride].first, i, Rx);
         self::mul(T, T, t0);
         Rx(T, T);
         mi.swap(mi1);
         r = i * stride;
     }
+
+    if (fl.empty())
+        fl.insert(fl.end(), {1, 1});
 
     self::divexact(fl[0].first, f, T, Rx);
     fl[0].second = 1;
@@ -1045,9 +794,9 @@ int sqf_inner(cxx_mpz_poly_bivariate::factor_list & fl,
  * factor_list, item i has multiplicity i. Note that f0 is made monic
  * before any work, and we do not keep track of the leading coefficient
  */
-cxx_mpz_poly_bivariate::factor_list cxx_mpz_poly_bivariate::factor_sqf(cxx_mpz_poly_bivariate const & f0, cxx_mpz_poly_bivariate::reducer_mod_fx_mod_mpz const & R)
+cxx_mpz_poly_bivariate::factor_list cxx_mpz_poly_bivariate::factor_sqf(cxx_mpz_poly_bivariate const & f0, cado::arithmetic_reductions::mod_q const & R)
 {
-    typedef cxx_mpz_poly_bivariate self;
+    using self = cxx_mpz_poly_bivariate;
 
     /* factoring 0 doesn't make sense, really */
     ASSERT(f0.degree() >= 0);
@@ -1057,7 +806,7 @@ cxx_mpz_poly_bivariate::factor_list cxx_mpz_poly_bivariate::factor_sqf(cxx_mpz_p
      */
     self f = f0;
     R.make_monic(f);
-    ASSERT(f.lc() == 1);
+    ASSERT_ALWAYS(f.lc() == 1);
 
     int m = 0;
     // coverity[zero_return]
@@ -1087,3 +836,92 @@ cxx_mpz_poly_bivariate::factor_list cxx_mpz_poly_bivariate::factor_sqf(cxx_mpz_p
     }
     return lf;
 }
+
+/* This performs distinct degree factorization */
+/* Input polynomial must be squarefree -- otherwise repeated factors
+ * probably won't show up in the factor list, or maybe at the wrong place
+ * as parasites. */
+/* Coefficients of f0 need not be reduced mod p.
+ * Coefficients of all polynomials stored in lf are reduced mod p.
+ */
+cxx_mpz_poly_bivariate::factor_list cxx_mpz_poly_bivariate::factor_ddf(cxx_mpz_poly_bivariate const & f0, cado::arithmetic_reductions::mod_q const & R, bool only_check_irreducible)
+{
+    /* factoring 0 doesn't make sense, really */
+    ASSERT_ALWAYS(f0.degree() >= 0);
+
+    ASSERT_ALWAYS(mpz_size(R.p) == 1);
+
+    // mp_limb_t pp = mpz_get_ui(R.p);
+
+    self f = f0;
+    R.make_monic(f);
+    ASSERT_ALWAYS(f.lc() == 1);
+
+    self::factor_list lf;
+
+    self g, gmy, y, tmp;
+
+    y.set_yi(1);
+    g.set_yi(1);
+
+    double t0 = 0;
+
+    lf.emplace_back(1, 1);
+
+    auto Rf = std::make_unique<cado::arithmetic_reductions::mod_fy_mod_q>(R, f);
+
+    for (int i = 1; i <= f.degree() ; ++i) {
+        ASSERT_ALWAYS(i == (int) lf.size());
+        if (2 * i > f.degree()) {
+            /* Then we know that the remaining f is irreducible.  */
+            /* multiplicity field still unused at this point */
+            lf.insert(lf.end(), f.degree() - i, {1, 1});
+            lf.emplace_back( std::move(f), 1 );
+            break;
+        }
+
+        /* g <- g^(p^(deg(fx))) mod fx, p */
+        t0 -= wct_seconds();
+        Rf->frobenius(g, g, 1);
+        t0 += wct_seconds();
+        fmt::print("g^(pp^{})-g mod (pp, fx, f): {:.3f}\n",
+                R.fx.degree(), t0);
+
+        /* subtract y */
+        self::sub(gmy, g, y);
+
+        R(gmy, gmy);
+
+        /* lf[i] <- gcd (f, y^(p^(deg(fx)*i))-y) */
+
+        self::gcd(tmp, f, gmy, R);
+
+        lf.emplace_back(tmp, 1);
+
+        if (tmp.degree() == 0)
+            continue;
+
+        fmt::print("deg={}: factors degree = {}\n", i, tmp.degree());
+
+        self::divexact(f, f, tmp, R);
+        
+        /* Rf has a _reference_ to f, and no derived data. It's
+         * dangerous, I know, but for the moment it seems fine. So we
+         * don't have to reinitialize it (which wouldn't be possible
+         * anyway because of embedded refs). */
+        // Rf = self::mod_fy_mod_q(R, f);
+        Rf = std::make_unique<cado::arithmetic_reductions::mod_fy_mod_q>(R, f);
+
+        /* Note for a mere irreducibility test: the length of the loop in
+         * the irreducible case would still be deg(f)/2, and the penalty
+         * caused by storing factors can be neglected.
+         */
+        if (only_check_irreducible && lf[i].first.degree() > 0)
+            break;
+
+        if (f.degree() == 0)
+            break;
+    }
+    return lf;
+}
+

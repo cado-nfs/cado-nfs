@@ -8,6 +8,7 @@
 #include <limits>
 #include <ostream>
 #include <type_traits>
+#include <compare>
 
 #include "fmt/base.h"
 #include <mpc.h>
@@ -29,7 +30,12 @@ struct cxx_mpc {
     mpfr_prec_t prec() const { return mpc_get_prec(x); }
 
     // NOLINTBEGIN(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
-    cxx_mpc() { mpc_init2(x, mpfr_get_default_prec()); }
+
+    /* we set to zero because both default-initialization and
+     * value-initialization reach here. It makes better sense to take 0
+     * for the value-initialized case.
+     */
+    cxx_mpc() { mpc_init2(x, mpfr_get_default_prec()); mpc_set_ui(x, 0, MPC_RNDNN); }
 
     cxx_mpc(cxx_mpfr const & r, cxx_mpfr const & i) {
         mpc_init3(x, r.prec(), i.prec());
@@ -260,80 +266,55 @@ namespace fmt
  * NOTE: It's important that operator<=> be defined _before_ the 
  * overloads that use it!
  */
-static inline int operator<=>(cxx_mpc const & a, cxx_mpc const & b)
+static inline std::partial_ordering operator<=>(cxx_mpc const & a, mpc_srcptr b)
 {
+    if (mpfr_nan_p(mpc_realref(a)) || mpfr_nan_p(mpc_imagref(a)))
+        return std::partial_ordering::unordered;
+    if (mpfr_nan_p(mpc_realref(b)) || mpfr_nan_p(mpc_imagref(b)))
+        return std::partial_ordering::unordered;
     int const c = mpc_auxx::cado_mpc_cmp(a, b);
-    return (MPC_INEX_IM(c) << 1) + MPC_INEX_RE(c);
+    return ((MPC_INEX_IM(c) << 1) + MPC_INEX_RE(c)) <=> 0;
 }
-static inline int operator<=>(mpc_srcptr a, cxx_mpc const & b)
+static inline std::partial_ordering operator<=>(cxx_mpc const & a, cxx_mpc const & b)
 {
-    int const c = mpc_auxx::cado_mpc_cmp(a, b);
-    return (MPC_INEX_IM(c) << 1) + MPC_INEX_RE(c);
-}
-static inline int operator<=>(cxx_mpc const & a, mpc_srcptr b)
-{
-    int const c = mpc_auxx::cado_mpc_cmp(a, b);
-    return (MPC_INEX_IM(c) << 1) + MPC_INEX_RE(c);
+    return a <=> static_cast<mpc_srcptr>(b);
 }
 template <typename T>
-static inline int operator<=>(cxx_mpc const & a, const T b)
+static inline std::partial_ordering operator<=>(cxx_mpc const & a, const T b)
     requires(std::is_integral_v<T> || std::is_floating_point_v<T>)
 {
+    if (mpfr_nan_p(mpc_realref(a)) || mpfr_nan_p(mpc_imagref(a)))
+        return std::partial_ordering::unordered;
     int const c = mpc_auxx::cado_mpc_cmp(a, b);
-    return (MPC_INEX_IM(c) << 1) + MPC_INEX_RE(c);
+    return ((MPC_INEX_IM(c) << 1) + MPC_INEX_RE(c)) <=> 0;
+}
+static inline std::partial_ordering operator<=>(cxx_mpc const & a, cxx_mpfr const & b)
+{
+    if (mpfr_nan_p(mpc_realref(a)) || mpfr_nan_p(mpc_imagref(a)))
+        return std::partial_ordering::unordered;
+    if (mpfr_nan_p((mpfr_srcptr) b))
+        return std::partial_ordering::unordered;
+    int const c = mpc_auxx::cado_mpc_cmp(a, b);
+    return ((MPC_INEX_IM(c) << 1) + MPC_INEX_RE(c)) <=> 0;
+}
+static inline bool operator==(cxx_mpc const & a, mpc_srcptr b)
+{
+    return (a <=> b) == 0;
+}
+static inline bool operator==(cxx_mpc const & a, cxx_mpc const & b)
+{
+    return (a <=> b) == 0;
 }
 template <typename T>
-static inline int operator<=>(const T a, cxx_mpc const & b)
+static inline bool operator==(cxx_mpc const & a, const T b)
     requires(std::is_integral_v<T> || std::is_floating_point_v<T>)
 {
-    int const c = mpc_auxx::cado_mpc_cmp(b, a);
-    return -((MPC_INEX_IM(c) << 1) + MPC_INEX_RE(c));
+    return (a <=> b) == 0;
 }
-static inline int operator<=>(cxx_mpc const & a, cxx_mpfr const & b)
+static inline bool operator==(cxx_mpc const & a, cxx_mpfr const & b)
 {
-    int const c = mpc_auxx::cado_mpc_cmp(a, b);
-    return (MPC_INEX_IM(c) << 1) + MPC_INEX_RE(c);
+    return (a <=> b) == 0;
 }
-static inline int operator<=>(cxx_mpfr const & a, cxx_mpc const & b)
-{
-    int const c = mpc_auxx::cado_mpc_cmp(b, a);
-    return -((MPC_INEX_IM(c) << 1) + MPC_INEX_RE(c));
-}
-
-/* NOLINTBEGIN(bugprone-macro-parentheses) */
-#define CXX_MPC_DEFINE_CMP(OP)                                          \
-    inline bool operator OP(cxx_mpc const & a, cxx_mpc const & b)       \
-    {                                                                   \
-        return ((a) <=> (b)) OP 0;                                      \
-    }                                                                   \
-    inline bool operator OP(mpc_srcptr a, cxx_mpc const & b)            \
-    {                                                                   \
-        return ((a) <=> (b)) OP 0;                                      \
-    }                                                                   \
-    inline bool operator OP(cxx_mpc const & a, mpc_srcptr b)            \
-    {                                                                   \
-        return ((a) <=> (b)) OP 0;                                      \
-    }                                                                   \
-    template <typename T>                                               \
-    inline bool operator OP(cxx_mpc const & a, const T b)               \
-    requires(std::is_integral_v<T> || std::is_floating_point_v<T>)      \
-    {                                                                   \
-        return ((a) <=> (b)) OP 0;                                      \
-    }                                                                   \
-    template <typename T>                                               \
-    inline bool operator OP(const T a, cxx_mpc const & b)               \
-    requires(std::is_integral_v<T> || std::is_floating_point_v<T>)      \
-    {                                                                   \
-        return 0 OP ((b) <=> (a));                                      \
-    }
-/* NOLINTEND(bugprone-macro-parentheses) */
-
-CXX_MPC_DEFINE_CMP(==)
-CXX_MPC_DEFINE_CMP(!=)
-CXX_MPC_DEFINE_CMP(<)
-CXX_MPC_DEFINE_CMP(>)
-CXX_MPC_DEFINE_CMP(<=)
-CXX_MPC_DEFINE_CMP(>=)
 
 #define CXX_MPC_DEFINE_TERNARY(OP, TEXTOP)                              \
     inline cxx_mpc operator OP(cxx_mpc const & a, cxx_mpc const & b)    \

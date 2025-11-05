@@ -18,6 +18,7 @@
 #include <cstring>
 
 #include <algorithm>
+#include <memory>
 #include <ios>
 #include <istream>
 #include <ostream>
@@ -1247,31 +1248,49 @@ void mpz_poly_print_raw(mpz_poly_srcptr f)
 
 /* Tests and comparison functions */
 
-/* return 0 if f and g are equal,
- * -1 if f is "smaller" and 1 if f is "bigger", for some arbitrary
- * ordering (lowest degree first, then lex order).
- *
- * Assumes f and g are normalized */
+/* return 0 if a and b are equal,
+ * -1 if a is "smaller" and 1 if b is "bigger", for some arbitrary
+ * ordering, defined as the limit of the evaluation in x as x tends to
+ * +infinity
+ * Assumes a and b are normalized.
+ */
 int mpz_poly_cmp(mpz_poly_srcptr a, mpz_poly_srcptr b)
 {
-    int r = (a->deg > b->deg) - (b->deg > a->deg);
-    if (r)
-        return r;
-    for (int d = a->deg; d >= 0; d--) {
-        r = mpz_cmp(a->_coeff[d], b->_coeff[d]);
+    for (int i = std::max(a->deg, b->deg); i >= 0; i--) {
+        int r;
+        if (i > b->deg)
+            r = mpz_sgn(a->_coeff[i]);
+        else if (i > a->deg)
+            r = -mpz_sgn(b->_coeff[i]);
+        else
+            r = mpz_cmp(a->_coeff[i], b->_coeff[i]);
         if (r)
             return r;
     }
     return 0;
 }
 
+int mpz_poly_cmp_mpz(mpz_poly_srcptr a, mpz_srcptr b)
+{
+    for (int i = a->deg ; i >= 1; i--) {
+        int const r = mpz_sgn(a->_coeff[i]);
+        if (r)
+            return r;
+    }
+    if (a->deg < 0) {
+        return -mpz_sgn(b);
+    } else {
+        return mpz_cmp(a->_coeff[0], b);
+    }
+}
+
 /* return 1 if f is normalized, i.e. f[deg] != 0, or the null polynomial.  */
 int mpz_poly_normalized_p(mpz_poly_srcptr f)
 {
-    return (f->deg == -1) || mpz_cmp_ui(f->_coeff[f->deg], 0) != 0;
+    return (f->deg == -1) || mpz_sgn(f->_coeff[f->deg]) != 0;
 }
 
-/* return 1 if f is nmonic, i.e. f[deg] == 1, return 0 otherwise (null
+/* return 1 if f is monic, i.e. f[deg] == 1, return 0 otherwise (null
  * polynomial is considered monic).
  */
 int mpz_poly_is_monic(mpz_poly_srcptr f)
@@ -1836,7 +1855,7 @@ int mpz_poly_div_r_mod_mpz_clobber(mpz_poly_ptr h, mpz_poly_srcptr f,
    computes q, r such that f = q*g + r mod p, with deg(r) < deg(g)
    and p in mpz_t
    q and r must be allocated!
-   the only aliasing allowed is f==r.
+   f == r or f == q are allowed.
 */
 int mpz_poly_div_qr_mod_mpz(mpz_poly_ptr q, mpz_poly_ptr r, mpz_poly_srcptr f,
                             mpz_poly_srcptr g, mpz_srcptr p)
@@ -1846,8 +1865,8 @@ int mpz_poly_div_qr_mod_mpz(mpz_poly_ptr q, mpz_poly_ptr r, mpz_poly_srcptr f,
 
     if (df < dg) /* f is already reduced mod g */
     {
-        mpz_poly_set_zero(q);
-        mpz_poly_set(r, f);
+        mpz_poly_set (r, f);
+        mpz_poly_set_zero (q);
         return 1;
     }
 
@@ -2368,34 +2387,49 @@ int mpz_poly_parallel_interface<inf>::mpz_poly_mod_f_mod_mpz(
     mpz_poly_ptr R, mpz_poly_srcptr f, mpz_srcptr m, mpz_srcptr invf,
     mpz_srcptr invm) const
 {
-    mpz_t aux, c;
+    cxx_mpz c;
+    std::unique_ptr<cxx_mpz> aux;
+    mpz_srcptr invf_local = nullptr;
     size_t size_f, size_R;
 
-    if (f == nullptr)
+    if (f == nullptr) {
+        /* This is really an obscure feature. We should get rid of it.
+         * It's used, though.
+         */
         goto reduce_R;
+    }
 
-    if (invf == nullptr) {
-        mpz_init(aux);
-        /* aux = 1/m mod lc(f) */
-        mpz_invert(aux, m, f->_coeff[f->deg]);
+    /* The invf parameter is ignored if f is monic */
+    if (!mpz_poly_is_monic(f)) {
+        if (invf) {
+            invf_local = invf;
+        } else {
+            aux = std::make_unique<cxx_mpz>();
+            /* aux = 1/m mod lc(f) */
+            mpz_invert(*aux, m, f->_coeff[f->deg]);
+            invf_local = *aux;
+        }
     }
 
     size_f = mpz_poly_size(f);
     size_R = mpz_poly_size(R);
 
-    mpz_init(c);
     // FIXME: write a subquadratic variant
     while (R->deg >= f->deg) {
         /* Here m is large (thousand to million bits) and lc(f) is small
-         * (typically one word). We first subtract lambda * m * x^(dR-df) ---
-         * which is zero mod m --- to R such that the new coefficient of degree
-         * dR is divisible by lc(f), i.e., lambda = lc(R)/m mod lc(f). Then if
-         * c = (lc(R) - lambda * m) / lc(f), we subtract c * x^(dR-df) * f. */
-        mpz_mod(c, R->_coeff[R->deg], f->_coeff[f->deg]); /* lc(R) mod lc(f) */
-        mpz_mul(c, c, (invf == nullptr) ? aux : invf);
-        mpz_mod(c, c, f->_coeff[f->deg]); /* lc(R)/m mod lc(f) */
-        mpz_submul(R->_coeff[R->deg], m,
-                   c); /* lc(R) - m * (lc(R) / m mod lc(f)) */
+         * (typically one word). We first subtract lambda * m * x^(dR-df)
+         * ---which is zero mod m--- to R such that the new coefficient
+         * of degree dR is divisible by lc(f), i.e., lambda = lc(R)/m
+         * mod lc(f). Then if c = (lc(R) - lambda * m) / lc(f), we
+         * subtract c * x^(dR-df) * f.
+         * Of course, if f is monic, we don't have to do that.
+         */
+        if (invf_local) {
+            mpz_mod(c, R->_coeff[R->deg], f->_coeff[f->deg]); /* lc(R) mod lc(f) */
+            mpz_mul(c, c, invf_local);
+            mpz_mod(c, c, f->_coeff[f->deg]); /* lc(R)/m mod lc(f) */
+            mpz_submul(R->_coeff[R->deg], m, c); /* lc(R) - m * (lc(R) / m mod lc(f)) */
+        }
         ASSERT(mpz_divisible_p(R->_coeff[R->deg], f->_coeff[f->deg]));
         mpz_divexact(c, R->_coeff[R->deg], f->_coeff[f->deg]);
         /* If R[deg] has initially size 2n, and f[deg] = O(1), then c has size
@@ -2415,10 +2449,6 @@ int mpz_poly_parallel_interface<inf>::mpz_poly_mod_f_mod_mpz(
             mpz_submul(R->_coeff[i], c, f->_coeff[f->deg - R->deg + i]);
         R->deg--;
     }
-
-    mpz_clear(c);
-    if (invf == nullptr)
-        mpz_clear(aux);
 
 reduce_R:
     mpz_poly_mod_mpz(R, R, m, invm);
@@ -2696,8 +2726,9 @@ void mpz_poly_pow_ui_mod_f(mpz_poly_ptr B, mpz_poly_srcptr A, unsigned long n,
     mpz_poly_clear(Q);
 } /*}}}*/
 
-/* Q = P^a mod f, mod p (f is the algebraic polynomial, non monic) */
-/* Coefficients of f must be reduced mod m on input
+/* Q = P^a mod f, mod p (f is the algebraic polynomial, non monic)
+ * f may be NULL, in case there is only reduction mod p.
+ * Coefficients of f must be reduced mod m on input
  * Coefficients of P need not be reduced mod p.
  * Coefficients of Q are reduced mod p.
  */
@@ -2718,6 +2749,7 @@ void mpz_poly_parallel_interface<inf>::mpz_poly_pow_mod_f_mod_ui(
 }
 
 /* Coefficients of f must be reduced mod m on input
+ * f may be NULL, in case there is only reduction mod p.
  * Coefficients of P need not be reduced mod p.
  * Coefficients of Q are reduced mod p.
  */
@@ -2738,9 +2770,9 @@ void mpz_poly_parallel_interface<inf>::mpz_poly_pow_ui_mod_f_mod_mpz(
     mpz_clear(az);
 }
 
-/* Q = P^a mod f, mod p. Note, p is mpz_t */
-/* f may be NULL, in case there is only reduction mod p */
-/* Coefficients of f must be reduced mod p on input
+/* Q = P^a mod f, mod p. Note, p is mpz_t
+ * f may be NULL, in case there is only reduction mod p.
+ * Coefficients of f must be reduced mod p on input
  * Coefficients of P need not be reduced mod p.
  * Coefficients of Q are reduced mod p
  */
@@ -4997,7 +5029,7 @@ struct mpz_poly_parser_traits {
     {
         mpz_poly_mul(c, a, b);
     }
-    static void pow_ui(cxx_mpz_poly & c, cxx_mpz_poly const & a,
+    static void pow(cxx_mpz_poly & c, cxx_mpz_poly const & a,
                        unsigned long e)
     {
         mpz_poly_pow_ui(c, a, e);

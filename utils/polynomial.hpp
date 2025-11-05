@@ -15,6 +15,7 @@
 #include <climits>
 
 #include <algorithm>
+#include <compare>
 #include <initializer_list>
 #include <ios>
 #include <limits>
@@ -1629,7 +1630,7 @@ struct polynomial : public number_context<T>
         void mul(polynomial & c, polynomial const & a, polynomial const & b) {
             c = a * b;
         }
-        void pow_ui(polynomial & c, polynomial const & a, unsigned int e) {
+        void pow(polynomial & c, polynomial const & a, unsigned int e) {
             c = a.pow(e);
         }
         void swap(polynomial & a, polynomial & b) {
@@ -1658,34 +1659,43 @@ struct polynomial : public number_context<T>
 
     polynomial(std::string const &, std::string const & var);
 
-    /* {{{ comparisons and predicates */
-    private:
-    int spaceship(polynomial const & f) const
-    {
-        int r = (degree() > f.degree()) - (f.degree() > degree());
-        if (r) return r;
-        for(int i = 0 ; i <= degree() ; i++) {
-            T v = (*this)[i];
-            r = (v > f[i]) - (f[i] > v);
-            if (r) return r;
-        }
-        return 0;
-    }
     public:
-    int operator<=>(polynomial const & f) const { return spaceship(f); }
-    bool operator==(polynomial const & f) const { return spaceship(f) == 0; }
-    // bool operator!=(polynomial const & f) const { return !operator==(f); }
-    bool operator<(polynomial const & f) const { return spaceship(f) < 0; }
-    bool operator<=(polynomial const & f) const { return spaceship(f) <= 0; }
-    bool operator>(polynomial const & f) const { return spaceship(f) > 0; }
-    bool operator>=(polynomial const & f) const { return spaceship(f) >= 0; }
-    template<typename U>
-    bool operator!=(U v) const { return !operator==(v); }
-    template<typename U>
-        bool
-    operator==(U v) const
-    requires std::is_convertible_v<U, T>
+    /* {{{ comparisons and predicates */
+    decltype(T() <=> T()) operator<=>(polynomial const & b) const
     {
+        using cmp_t = decltype(T() <=> T());
+        polynomial<T> const & a(*this);
+        if constexpr (std::is_same_v<cmp_t, std::partial_ordering>) {
+            if (a.has_nan() || b.has_nan())
+                return std::partial_ordering::unordered;
+        }
+        for (int i = std::max(a.degree(), b.degree()); i >= 0; i--) {
+            if (i > b.degree())
+                return a.coeffs[i] <=> 0;
+            if (i > a.degree())
+                return 0 <=> b.coeffs[i];
+            if (auto r = a.coeffs[i] <=> b.coeffs[i]; r != 0)
+                return r;
+        }
+        /* We return std::strong_ordering::equial, but the return type is
+         * cmp_t, which might be std::partial_ordering. Since there's
+         * implicit cast from the former to the latter, we get
+         * std::partial_ordering::equivalent whenever we write
+         * std::strong_ordering::equal
+         */
+        return std::strong_ordering::equal;
+    }
+    bool operator==(polynomial const & f) const {
+        /* the degree() check is only a very mild short-circuit for the
+         * different degree case: it just removes the nan check, and one
+         * coefficient lookup.
+         */
+        if (degree() != f.degree())
+            return false;
+        return (*this <=> f) == 0;
+    }
+
+    bool operator==(T v) const {
         return (degree() < 0 && v == 0) || (degree() == 0 && coeffs[0] == v);
     }
 
