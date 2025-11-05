@@ -135,10 +135,14 @@ class mpz_poly_bivariate_printer:
         return eval(gdb.parse_and_eval(obj).format_string(max_elements=0))
 
 
-# We're not exposing flat_poly_printer directly.
-base.cado_nfs_printer.add('mpz_poly_ptr', mpz_poly_printer)
-base.cado_nfs_printer.add('mpz_poly_srcptr', mpz_poly_printer)
-base.cado_nfs_printer.add('mpz_poly_s', mpz_poly_printer)
-base.cado_nfs_printer.add('mpz_poly', mpz_poly_printer)
-base.cado_nfs_printer.add('cxx_mpz_poly', mpz_poly_printer, cxx=True)
-base.cado_nfs_printer.add('cxx_mpz_poly_bivariate', mpz_poly_bivariate_printer)
+# it's really wreaking havoc with gdb.
+
+if False:
+    # We're not exposing flat_poly_printer directly.
+    base.cado_nfs_printer.add('mpz_poly_ptr', mpz_poly_printer)
+    base.cado_nfs_printer.add('mpz_poly_srcptr', mpz_poly_printer)
+    base.cado_nfs_printer.add('mpz_poly_s', mpz_poly_printer)
+    base.cado_nfs_printer.add('mpz_poly', mpz_poly_printer)
+    base.cado_nfs_printer.add('cxx_mpz_poly', mpz_poly_printer, cxx=True)
+    base.cado_nfs_printer.add('cxx_mpz_poly_bivariate',
+                              mpz_poly_bivariate_printer)
