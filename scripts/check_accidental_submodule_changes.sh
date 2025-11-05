@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-if git diff --cached --name-only --diff-filter=ACM | grep -q ci/ci ; then
+if git diff --cached --name-only --diff-filter=ACM | grep -q 'ci/ci$' ; then
     w() { echo -e "### \e[01;31m$1\e[00m" ; }
     w "Your commit includes changes to ci/ci."
     w "If this is not intentional, please rework your commit before pushing."
