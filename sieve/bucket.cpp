@@ -38,6 +38,9 @@
 #ifdef TRACE_K
 #include "las-output.hpp" // for TRACE_CHANNEL
 #endif
+#ifdef HAVE_SSE2
+#include "smallset.hpp"
+#endif
 
 template <int LEVEL, typename HINT> struct bucket_update_t;
 
@@ -365,6 +368,7 @@ template <int LEVEL, typename HINT> void bucket_single<LEVEL, HINT>::sort()
 #undef islt
 }
 
+/*
 void bucket_primes_t::purge(bucket_array_t<1, shorthint_t> const & BA,
                             int const i, fb_factorbase::slicing const & fb,
                             unsigned char const * S)
@@ -379,6 +383,7 @@ void bucket_primes_t::purge(bucket_array_t<1, shorthint_t> const & BA,
         }
     }
 }
+*/
 
 /*
 template <typename HINT>
@@ -423,7 +428,7 @@ template void bucket_array_complete::purge<longhint_t>(
     bucket_array_t<1, longhint_t> const & BA, int const i,
     unsigned char const * S);
 
-#if defined(HAVE_SSE2) && defined(SMALLSET_PURGE)
+#if defined(HAVE_SSE2)
 
 template <typename HINT, int SIZE>
 void bucket_array_complete::purge_1(

@@ -55,17 +55,17 @@ if [ "$gcovr" ] ; then
     before_run() {
         # remove coverage results of the previous run
         (cd $build_tree ; find . -name '*.gcda' | xargs -r rm -f)
-        (cd $build_tree ; time gcovr --merge-mode-functions=separate -r $src_tree --json ${C}-base.json)
+        (cd $build_tree ; time gcovr -j$(nproc) --exclude-throw-branches --merge-mode-functions=separate -r $src_tree --json ${C}-base.json)
     }
 
     after_run() {
-        (cd $build_tree ; time gcovr --merge-mode-functions=separate -r $src_tree --json ${C}-app.json)
+        (cd $build_tree ; time gcovr -j$(nproc) --exclude-throw-branches --merge-mode-functions=separate -r $src_tree --json ${C}-app.json)
     }
 
     final_processing() {
         rm -rf "$C" || :
         mkdir $C
-        gcovr --merge-mode-functions=separate -a ${C}-base.json -a ${C}-app.json --html-title "Coverage for commit <a href=\"$commit_ref\">$commit</a>" --html-nested $C/coverage.html --print-summary
+        gcovr -j$(nproc) --exclude-throw-branches --merge-mode-functions=separate -a ${C}-base.json -a ${C}-app.json --html-title "Coverage for commit <a href=\"$commit_ref\">$commit</a>" --html-nested $C/coverage.html --print-summary
     }
 
     open_url() { gio open $C/coverage.html ; }

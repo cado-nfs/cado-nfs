@@ -200,7 +200,7 @@ struct process_bucket_region_run : public process_bucket_region_spawn {/*{{{*/
     void SminusS(int side);
     typedef std::vector<bucket_update_t<1, shorthint_t>::br_index_t> survivors_t;
     survivors_t search_survivors();
-    void purge_buckets(int side);
+    void purge_buckets(int side, survivors_t const & survivors);
     void resieve(int side);
     void cofactoring_sync (survivors_t & survivors2);
     void operator()();
@@ -453,7 +453,7 @@ process_bucket_region_run::survivors_t process_bucket_region_run::search_survivo
     /* This used to be called convert_survivors */
     return { begin(temp_sv), end(temp_sv) };
 }/*}}}*/
-void process_bucket_region_run::purge_buckets(int side)/*{{{*/
+void process_bucket_region_run::purge_buckets(int side, survivors_t const & survivors MAYBE_UNUSED)/*{{{*/
 {
     nfs_work::side_data  const& wss(ws.sides[side]);
 
@@ -463,11 +463,12 @@ void process_bucket_region_run::purge_buckets(int side)/*{{{*/
     unsigned char * Sx = S[0] ? S[0] : S[1];
 
     for (auto const & BA : wss.bucket_arrays<1, shorthint_t>()) {
-#if defined(HAVE_SSE2) && defined(SMALLSET_PURGE)
-        sides[side].purged.purge(BA, already_done + bucket_relative_index, Sx, survivors);
-#else
-        sides[side].purged.purge(BA, already_done + bucket_relative_index, Sx);
+#ifdef HAVE_SSE2
+        if (tws.ws.las.use_smallset_purge)
+            sides[side].purged.purge(BA, already_done + bucket_relative_index, Sx, survivors);
+        else
 #endif
+            sides[side].purged.purge(BA, already_done + bucket_relative_index, Sx);
     }
 
     /* Add entries coming from downsorting, if any */
@@ -843,7 +844,7 @@ void process_bucket_region_run::operator()() {/*{{{*/
     for(int side = 0 ; !survivors.empty() && do_resieve && side < nsides ; side++) {
         MARK_TIMER_FOR_SIDE(timer, side);
         sides[side].purged.allocate_memory(ws.local_memory, BUCKET_REGION);
-        purge_buckets(side);
+        purge_buckets(side, survivors);
         size_t const ns = survivors.size();
         double const maxnorm = ws.sides[side].lognorms.get_maxlog2();
         double const logp_lb = log2(ws.sides[side].fbK.td_thresh);

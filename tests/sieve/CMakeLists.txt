@@ -206,6 +206,11 @@ cado_divert_test(F9_sieve reuse_foreign_fbc
         copy_bogus_fbc
 )
 
+if(HAVE_SSE2)
+    cado_divert_test(F9_sieve smallset_purge
+        APPEND_ARGUMENTS -smallset-purge)
+endif()
+
 # override all arguments for this one.
 cado_divert_test(F9 sieve_with_hints
         ENVIRONMENT

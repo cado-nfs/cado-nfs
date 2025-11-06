@@ -6,7 +6,7 @@
 #include "cado_config.h"
 #include "macros.h"
 
-#if defined(HAVE_SSE2) && GNUC_VERSION_ATLEAST(4,7,0)
+#if defined(HAVE_SSE2)
 /* Disclaimer: the comment below is only based on a surface analysis, I
  * might be wrong.
  *
@@ -320,7 +320,7 @@ public:
   }
 
   /* Returns true if "item" is in the set, and false otherwise */
-#if defined(__GNUC__) && !defined(__INTEL_COMPILER)
+#if defined(__GNUC__) && !defined(__INTEL_COMPILER) && !defined(__clang)
   __attribute__((optimize("unroll-all-loops")))
 #endif
   inline bool contains(const storagetype pattern) const {
@@ -380,4 +380,4 @@ public:
 };
 
 #endif /* if defined(HAVE_SSE2) */
-#endif /* ifndef CADO_SMALLSET_HPP */
+#endif /* CADO_SMALLSET_HPP */

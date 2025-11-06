@@ -62,6 +62,7 @@ struct las_info : public las_parallel_desc, private NonCopyable {
     // ----- general operational flags
     const char * galois; /* a string to indicate which galois to use in las */
     int suppress_duplicates;
+    bool use_smallset_purge = false;
 
     /* It's not ``general operational'', but global enough to be here */
     cxx_cado_poly cpoly;

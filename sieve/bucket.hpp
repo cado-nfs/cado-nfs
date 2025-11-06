@@ -632,8 +632,10 @@ class bucket_primes_t : public bucket_single<1, primehint_t>
   public:
     // allocate_memory (las_memory_accessor & memory, const size_t size) {
     // super::allocate_memory(memory, size); }
+    /*
     void purge(bucket_array_t<1, shorthint_t> const & BA, int i,
                fb_factorbase::slicing const & fb, unsigned char const * S);
+               */
 };
 
 /* Stores info containing both slice index and offset instead of only the offset
@@ -648,6 +650,8 @@ class bucket_array_complete : public bucket_single<1, longhint_t>
     template <typename HINT>
     void purge(bucket_array_t<1, HINT> const & BA, int i,
                unsigned char const * S);
+
+#if defined(HAVE_SSE2)
     template <typename HINT>
     void
     purge(bucket_array_t<1, HINT> const & BA, int i, unsigned char const * S,
@@ -655,7 +659,6 @@ class bucket_array_complete : public bucket_single<1, longhint_t>
               survivors);
 
   private:
-#ifdef HAVE_SSE2
     template <typename HINT, int SIZE>
     void
     purge_1(const bucket_array_t<1, HINT> & BA, int i,
