@@ -169,9 +169,12 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
    sign and truncation direction of the quotient with any negative operads was
    undefined in C89. */
 /* iceildiv requires *unsigned* operands in spite of the name suggesting
-   (signed) integer type. For negative operands, the result is wrong. */
+   (signed) integer type. For negative operands, the result is wrong. We
+   don't use the fairly common "(x + y - 1) / y" idiom because of issues
+   with max values. Instead, we do (x-1)/y+1, with special adjustments
+   for the x==0 case, which we want to do branch-less. */
 // NOLINTBEGIN(readability-container-size-empty)
-#define iceildiv(x,y) ((x) == 0 ? 0 : ((x)-1)/(y)+1)
+#define iceildiv(x,y) (((x)-((x)!=0))/(y)+((x)!=0))
 /* siceildiv requires signed operands, or the compiler will throw warnings
    with -Wtype-limits */
 #define siceildiv(x,y) ((x) == 0 ? 0 : ((x)<0) + ((y)<0) == 1 ? (x)/(y) : ((x)-1+2*((y)<0))/(y)+1)
