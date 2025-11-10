@@ -42,9 +42,15 @@ case "$1" in
 esac
 
 if [ "$gcovr" ] ; then
+    gcovr_try_parallel() {
+        gcovr -j$(nproc) "$@" || gcovr -j0 "$@" || gcovr "$@"
+    }
+
+    gcovr_args_common=(--exclude-throw-branches --merge-mode-functions=separate --exclude-lines-by-pattern 'ASSERT_ALWAYS')
+
     software_dependencies() {
         if ! [ -e "cov/bin/activate" ] ; then
-            python3 -m venv cov
+            python3 -m venv --system-site-packages cov
         fi
         . cov/bin/activate
         if ! [ -x "cov/bin/gcovr" ] ; then
@@ -55,17 +61,17 @@ if [ "$gcovr" ] ; then
     before_run() {
         # remove coverage results of the previous run
         (cd $build_tree ; find . -name '*.gcda' | xargs -r rm -f)
-        (cd $build_tree ; time gcovr -j$(nproc) --exclude-throw-branches --merge-mode-functions=separate -r $src_tree --json ${C}-base.json)
+        (cd $build_tree ; time gcovr_try_parallel "${gcovr_args_common[@]}" -r $src_tree --json ${C}-base.json)
     }
 
     after_run() {
-        (cd $build_tree ; time gcovr -j$(nproc) --exclude-throw-branches --merge-mode-functions=separate -r $src_tree --json ${C}-app.json)
+        (cd $build_tree ; time gcovr_try_parallel "${gcovr_args_common[@]}" -r $src_tree --json ${C}-app.json)
     }
 
     final_processing() {
         rm -rf "$C" || :
         mkdir $C
-        gcovr -j$(nproc) --exclude-throw-branches --merge-mode-functions=separate -a ${C}-base.json -a ${C}-app.json --html-title "Coverage for commit <a href=\"$commit_ref\">$commit</a>" --html-nested $C/coverage.html --print-summary
+        gcovr_try_parallel "${gcovr_args_common[@]}" -a ${C}-base.json -a ${C}-app.json --html-title "Coverage for commit <a href=\"$commit_ref\">$commit</a>" --html-nested $C/coverage.html --print-summary
     }
 
     open_url() { gio open $C/coverage.html ; }
