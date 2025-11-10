@@ -404,6 +404,9 @@ set(c30_30012_base_env
         adjust_strategy=2
 )
 
+
+# This series of test was disabled by commit ae34c4dc6
+# The "real" fix is !29, which hasn't been merged yet. See also #30014.
 if(0)
 cado_define_test(c30_30012
     ENVIRONMENT
