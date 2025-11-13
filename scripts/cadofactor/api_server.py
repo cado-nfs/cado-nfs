@@ -137,6 +137,28 @@ class ApiServer(flask.Flask):
         super().__init__(self.name)
         self.logger = logging.getLogger(self.name)
 
+        if True:
+            # check for #30119
+            import importlib
+            import importlib.metadata
+
+            def Version(c):
+                return tuple([int(x) for x in c.split('.')])
+
+            vw = Version(importlib.metadata.version('werkzeug'))
+            v313 = Version("3.1.3")
+            if vw <= v313:
+                message = r"""
+The flask package that is used here is affected by a bug
+in the werkzeug package: See:
+ - https://github.com/pallets/werkzeug/issues/3065
+ - https://gitlab.inria.fr/cado-nfs/cado-nfs/-/issues/30119
+It is expected that a future version of werkzeug (more
+recent than 3.1.3) fixes this.
+                """
+                for m in message.strip().split("\n"):
+                    self.logger.warning(m)
+
         self.address = serveraddress if serveraddress else "0.0.0.0"
         self.port = serverport
 
