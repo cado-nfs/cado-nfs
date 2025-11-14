@@ -11,7 +11,8 @@ all: \
 
 NOW:=$(shell date +%Y%m%d%H%M)
 
-REG=registry.gitlab.inria.fr/cado-nfs/cado-nfs
+# REG=registry.gitlab.inria.fr/cado-nfs/cado-nfs
+REG:=$$CI_REGISTRY_IMAGE
 
 docker-image-%: docker/base docker/%
 	./tests/provide-wdir.sh --env WDIR bash -xc 'git archive --format=tar.gz HEAD > $$WDIR/cado.tar.gz ; cp -p docker/local.sh docker/dispatch-files.sh $$WDIR/ ; cat $^ > $$WDIR/Dockerfile ; docker build -t $(REG)/$* $$WDIR'
