@@ -596,9 +596,9 @@ coverity on debian11 system with gcc:
 
 containers:
   stage: publish
-  image: docker
   tags:
     - docker
+  image: docker
   rules:
     - if: $CI_COMMIT_MESSAGE =~ /skip some ci/
       when: manual
@@ -620,6 +620,8 @@ containers:
 # same, but do not restrict to the master branch
 dry-run containers:
   stage: early
+  tags:
+    - docker
   image: docker
   <<: *common-template
   script:
