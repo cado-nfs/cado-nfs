@@ -23,7 +23,7 @@
 #include "gmp_aux.h"
 #include "cado_poly.h"
 #include "cxx_mpz.hpp"
-#include "las-config.h"
+#include "las-config.hpp"
 #include "las-coordinates.hpp"
 #include "las-norms.hpp"
 #include "las-qlattice.hpp"

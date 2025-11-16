@@ -7,36 +7,37 @@
  * The WHERE_AM_I_UPDATE macro itself is defined in las-where-am-i.hpp
  */
 
-#include <cinttypes> // for PRIu32
-#include <cmath>     // for sqrt
-#include <cstdint>   // for uint32_t, uint64_t, UINT32_C
-#include <cstdlib>   // for size_t, NULL, free, realloc
-#include <cstring>   // for memset
+#include <cinttypes>
+#include <cmath>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
 
-#include <new> // for bad_alloc
+#include <limits>
+#include <new>
 #ifdef TRACE_K
-#include <type_traits> // for is_same
+#include <type_traits>
 #endif
 
 /* bucket.hpp and bucket-push-update.hpp sort of go hand in hand, but as
  * they're written we can't make two standalone files that include
  * eachother */
-#include "bucket-push-update.hpp" // IWYU pragma: keep
+#include "bucket-push-update.hpp"
 
-#include "bucket.hpp" // for bucket_array_t, bucket_update_t
-#include "memory.h"   // free_aligned
-#include "verbose.h"  // verbose_output_print
+#include "bucket.hpp"
+#include "memory.h"
+#include "verbose.h"
 
 #include "fb-types.hpp"
-#include "fb.hpp"                   // for fb_factorbase, fb_factorbase::slicing
-#include "iqsort.h"                 // for QSORT
-#include "las-config.h"             // for BUCKET_REGIONS, LOG_BUCKET_REGIONS
-#include "las-memory.hpp"           // for las_memory_accessor
-#include "las-where-am-i-proxy.hpp" // IWYU pragma: keep    // for where_am_I
-#include "las-where-am-i.hpp"       // for where_am_I, WHERE_AM_I_UPDATE
-#include "macros.h"                 // for MAYBE_UNUSED, ASSERT_ALWAYS, UNLIKELY
+#include "fb.hpp"
+#include "iqsort.h"
+#include "las-config.hpp"
+#include "las-memory.hpp"
+#include "las-where-am-i-proxy.hpp"
+#include "las-where-am-i.hpp"
+#include "macros.h"
 #ifdef TRACE_K
-#include "las-output.hpp" // for TRACE_CHANNEL
+#include "las-output.hpp"
 #endif
 #ifdef HAVE_SSE2
 #include "smallset.hpp"
@@ -107,6 +108,7 @@ void bucket_array_t<LEVEL, HINT>::allocate_memory(
     las_memory_accessor & memory, uint32_t const new_n_bucket,
     double const fill_ratio, int logI, slice_index_t const prealloc_slices)
 {
+    static_assert(LEVEL < FB_MAX_PARTS);
     used_accessor = &memory;
     /* Don't try to allocate anything, nor print a message, for sieving levels
      * where the corresponding factor base part is empty. We do want to
@@ -500,6 +502,8 @@ void downsort(fb_factorbase::slicing const & fbs MAYBE_UNUSED,
               const bucket_array_t<INPUT_LEVEL, shorthint_t> & BA_in,
               uint32_t bucket_number, where_am_I & w)
 {
+    BA_out.add_slice_index(0);
+
     /* Time recording for this function is done by the caller
      * (downsort_wrapper)
      */
@@ -514,6 +518,18 @@ void downsort(fb_factorbase::slicing const & fbs MAYBE_UNUSED,
             BA_out.push_update(it.x, 0, it.hint, slice_index, w);
         }
     }
+    /* It's only for bookkeeping (see the assert in the function below).
+     * longhint_t contains the slice index already: each update contains
+     * its own slice_index, directly used by apply_one_bucket and purge.
+     * So we don't need to write slice indices separately. For some
+     * reason we keep this end marker, but we can certainly do away with
+     * it if we like.
+     *
+     * (in fact, most of the logic beyond here prefers to rely on the
+     * only marker being for slice index zero)
+    BA_out.add_slice_index(
+            std::numeric_limits<slice_index_t>::max());
+     */
 }
 
 template <int INPUT_LEVEL>
@@ -525,6 +541,7 @@ void downsort(fb_factorbase::slicing const & /* unused */,
     /* longhint updates don't write slice end pointers, so there must be
        exactly 1 slice per bucket */
     ASSERT_ALWAYS(BA_in.get_nr_slices() == 1);
+    ASSERT(BA_in.get_slice_index(0) == 0); // std::numeric_limits<slice_index_t>::max());
 
     for (auto const & it: BA_in.slice_range(bucket_number, 0)) {
         BA_out.push_update(it.x, 0, it.hint, it.index, w);
@@ -537,6 +554,8 @@ void downsort(fb_factorbase::slicing const & fbs,
               bucket_array_t<INPUT_LEVEL, emptyhint_t> const & BA_in,
               uint32_t bucket_number, where_am_I & w)
 {
+    BA_out.add_slice_index(0);
+
     /* Time recording for this function is done by the caller
      * (downsort_wrapper)
      */
@@ -550,6 +569,10 @@ void downsort(fb_factorbase::slicing const & fbs,
             BA_out.push_update(it.x, h, w);
         }
     }
+    /*
+    BA_out.add_slice_index(
+            std::numeric_limits<slice_index_t>::max());
+            */
 }
 
 template <int INPUT_LEVEL>
@@ -561,6 +584,8 @@ void downsort(fb_factorbase::slicing const & /* unused */,
     /* longhint updates don't write slice end pointers, so there must be
        exactly 1 slice per bucket */
     ASSERT_ALWAYS(BA_in.get_nr_slices() == 1);
+    ASSERT(BA_in.get_slice_index(0) == 0); // std::numeric_limits<slice_index_t>::max());
+
     for (auto const & it: BA_in.slice_range(bucket_number, 0)) {
         BA_out.push_update(it.x, it, w);
     }
@@ -568,48 +593,65 @@ void downsort(fb_factorbase::slicing const & /* unused */,
 
 /* Explicitly instantiate the versions of downsort() that we'll need:
    downsorting shorthint from level 3 and level 2, and downsorting
-   longhint from level 2. */
+   longhint from level 2.
+   (for the moment we have no way to expose the level-3 case, so unless
+   we find one, let's just drop this code)
+ */
+
+#if MAX_TOPLEVEL >= 2
 template void downsort<2>(fb_factorbase::slicing const &,
                           bucket_array_t<1, longhint_t> & BA_out,
                           bucket_array_t<2, shorthint_t> const & BA_in,
-                          uint32_t bucket_number, where_am_I & w);
-
-template void downsort<3>(fb_factorbase::slicing const &,
-                          bucket_array_t<2, longhint_t> & BA_out,
-                          bucket_array_t<3, shorthint_t> const & BA_in,
-                          uint32_t bucket_number, where_am_I & wr);
-
-template void downsort<2>(fb_factorbase::slicing const &,
-                          bucket_array_t<1, longhint_t> & BA_out,
-                          bucket_array_t<2, longhint_t> const & BA_in,
                           uint32_t bucket_number, where_am_I & w);
 
 template void downsort<2>(fb_factorbase::slicing const &,
                           bucket_array_t<1, logphint_t> & BA_out,
                           bucket_array_t<2, emptyhint_t> const & BA_in,
                           uint32_t bucket_number, where_am_I & w);
+#endif
+
+#if MAX_TOPLEVEL >= 3
+template void downsort<3>(fb_factorbase::slicing const &,
+                          bucket_array_t<2, longhint_t> & BA_out,
+                          bucket_array_t<3, shorthint_t> const & BA_in,
+                          uint32_t bucket_number, where_am_I & wr);
 
 template void downsort<3>(fb_factorbase::slicing const &,
                           bucket_array_t<2, logphint_t> & BA_out,
                           bucket_array_t<3, emptyhint_t> const & BA_in,
                           uint32_t bucket_number, where_am_I & wr);
-
 template void downsort<2>(fb_factorbase::slicing const &,
                           bucket_array_t<1, logphint_t> & BA_out,
                           bucket_array_t<2, logphint_t> const & BA_in,
                           uint32_t bucket_number, where_am_I & w);
 
+template void downsort<2>(fb_factorbase::slicing const &,
+                          bucket_array_t<1, longhint_t> & BA_out,
+                          bucket_array_t<2, longhint_t> const & BA_in,
+                          uint32_t bucket_number, where_am_I & w);
+
+#endif
+static_assert(MAX_TOPLEVEL == 3);
+
 /* Instantiate concrete classes that we need or some methods do not get
    compiled and cause "undefined reference" errors during linking. */
 template class bucket_single<1, primehint_t>;
 template class bucket_single<1, longhint_t>;
+
 template class bucket_array_t<1, shorthint_t>;
-template class bucket_array_t<2, shorthint_t>;
-template class bucket_array_t<3, shorthint_t>;
-template class bucket_array_t<1, longhint_t>;
-template class bucket_array_t<2, longhint_t>;
 template class bucket_array_t<1, emptyhint_t>;
+
+#if MAX_TOPLEVEL >= 2
+template class bucket_array_t<2, shorthint_t>;
 template class bucket_array_t<2, emptyhint_t>;
-template class bucket_array_t<3, emptyhint_t>;
+template class bucket_array_t<1, longhint_t>;
 template class bucket_array_t<1, logphint_t>;
+#endif
+
+#if MAX_TOPLEVEL >= 3
+template class bucket_array_t<3, shorthint_t>;
+template class bucket_array_t<3, emptyhint_t>;
+template class bucket_array_t<2, longhint_t>;
 template class bucket_array_t<2, logphint_t>;
+#endif
+static_assert(MAX_TOPLEVEL == 3);

@@ -130,7 +130,8 @@ public:
   double cumulated_wait_time = 0;
   std::mutex mm_cumulated_wait_time;
 
-  thread_pool(size_t _nr_threads, double & store_wait_time, size_t nr_queues = 1);
+  thread_pool(size_t _nr_threads, double & store_wait_time,
+          size_t nr_queues = 1, bool sync_thread_pool = false);
   ~thread_pool();
   task_result *get_result(size_t queue = 0, bool blocking = true);
   void drain_queue(const size_t queue, void (*f)(task_result*) = NULL);
@@ -188,8 +189,7 @@ private:
       static
       task_result * do_task_parameters_lambda(worker_thread * worker, task_parameters * _param, int id) {
           auto clean_param = call_dtor([_param]() { delete _param; });
-          task_parameters_lambda<T> *param = static_cast<task_parameters_lambda<T>*>(_param);
-          param->f(worker, id);
+          (*static_cast<task_parameters_lambda<T>*>(_param)).f(worker, id);
           return new task_result;
       }
 public:
@@ -214,8 +214,7 @@ private:
   template<typename T>
       static task_result * call_class_operator(worker_thread * worker, task_parameters * _param, int id) {
           auto clean_param = call_dtor([_param]() { delete _param; });
-          T *param = static_cast<T*>(_param);
-          (*param)(worker, id);
+          (*static_cast<T*>(_param))(worker, id);
           return new task_result;
       }
 public:
@@ -252,7 +251,7 @@ public:
 
   template<typename T>
       struct shared_task : public std::shared_ptr<T>, public task_parameters {
-          typedef std::shared_ptr<T> super;
+          using super = std::shared_ptr<T>;
           shared_task(super c) : super(c) {}
           T& operator*() { return *(super&)(*this); }
           T const & operator*() const { return *(super const&)(*this); }
@@ -264,7 +263,7 @@ private:
   template<typename T>
       static task_result * call_shared_task(worker_thread * worker, task_parameters * _param, int id) {
           auto clean_param = call_dtor([_param]() { delete _param; });
-          thread_pool::shared_task<T> *param = static_cast<thread_pool::shared_task<T>*>(_param);
+          auto * param = static_cast<thread_pool::shared_task<T>*>(_param);
           (**param)(worker, id);
           return new task_result;
       }

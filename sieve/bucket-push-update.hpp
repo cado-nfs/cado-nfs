@@ -6,7 +6,8 @@
 #endif
 
 #include "bucket.hpp"
-#include "las-where-am-i.hpp" // WHERE_AM_I_UPDATE
+#include "las-config.hpp"
+#include "las-where-am-i.hpp"
 #include "macros.h"
 
 template <int LEVEL, typename HINT>
@@ -51,6 +52,7 @@ inline void bucket_array_t<LEVEL, HINT>::push_update(
     uint64_t const offset, fbprime_t const p, slice_offset_t const slice_offset,
     slice_index_t const slice_index, where_am_I & w MAYBE_UNUSED)
 {
+    static_assert(LEVEL < FB_MAX_PARTS);
     int logB = LOG_BUCKET_REGIONS[LEVEL];
     uint64_t const bucket_number = offset >> logB;
     ASSERT_EXPENSIVE(bucket_number < n_bucket);

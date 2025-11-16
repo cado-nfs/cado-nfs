@@ -21,8 +21,8 @@
 namespace mmap_allocator_details
 {
     // NOLINTNEXTLINE(misc-include-cleaner)
-    typedef off_t offset_type;
-    typedef size_t size_type;
+    using offset_type = off_t;
+    using size_type = size_t;
 
     enum access_mode {
         DEFAULT_STL_ALLOCATOR, /* Default STL allocator (malloc based). Reason is to have containers that do both and are compatible */
@@ -117,8 +117,6 @@ namespace mmap_allocator_details
 
     template <typename T> class mmap_allocator: public std::allocator<T>
     {
-        public:
-            using offset_type = typename mmap_allocator_details::offset_type;
         private:
             mmapped_file::segment s;
         public:

@@ -12,7 +12,6 @@
 #include <climits>
 #include <cstdio>
 #include <cstdlib>
-#include <cstdarg>  // IWYU pragma: keep // because we want _gmp_vfprintf !
 
 #include <array>
 #include <memory>
@@ -20,13 +19,13 @@
 #include <vector>
 
 #ifdef HAVE_CXXABI_H
-#include <cxxabi.h> // IWYU pragma: keep
+#include <cxxabi.h>
 #endif
 #ifdef HAVE_EXECINFO
-#include <execinfo.h>                    // for backtrace, backtrace_symbols
+#include <execinfo.h>
 #endif
 
-#include <gmp.h>                         // for gmp_vfprintf, mpz_divexact_ui
+#include <gmp.h>
 
 #include "cxx_mpz.hpp"
 #include "fb.hpp"
@@ -34,7 +33,7 @@
 #include "las-where-am-i.hpp"
 #include "las-where-am-i-debug.hpp"
 #include "las-info.hpp"
-#include "las-config.h"
+#include "las-config.hpp"
 #include "las-coordinates.hpp"
 #include "las-norms.hpp"
 #include "las-qlattice.hpp"
@@ -237,9 +236,8 @@ int test_divisible(where_am_I const & w)
     if (rc)
         mpz_divexact_ui (traced_norms[w->side], traced_norms[w->side], (unsigned long) q);
     else
-        verbose_output_vfprint(3 /* TRACE_CHANNEL */, 0, gmp_vfprintf, "# FAILED test_divisible(p=%" FBPRIME_FORMAT
-                ", N=%d, x=%u, side %d): i = %ld, j = %u, norm = %Zd\n",
-                w->p, w->N, w->x, w->side, (long) i, j, (mpz_srcptr) traced_norms[w->side]);
+        verbose_fmt_print(3 /* TRACE_CHANNEL */, 0, "# FAILED test_divisible(p={},N={}, x={}, side {}): i = {}, j = {}, norm = {}\n",
+                w->p, w->N, w->x, w->side, (long) i, j, traced_norms[w->side]);
 
     return rc;
 }

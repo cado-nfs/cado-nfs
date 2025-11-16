@@ -206,6 +206,10 @@ cado_divert_test(F9_sieve reuse_foreign_fbc
         copy_bogus_fbc
 )
 
+cado_divert_test(F9_sieve 2_levels APPEND_ARGUMENTS bkthresh1=600000)
+cado_divert_test(F9_sieve 3_levels APPEND_ARGUMENTS
+    bkthresh1=600000 bkthresh2=1100000 -Bi 5)
+
 if(HAVE_SSE2)
     cado_divert_test(F9_sieve smallset_purge
         APPEND_ARGUMENTS -smallset-purge)
@@ -298,6 +302,10 @@ cado_divert_test(F9 batch
         APPEND_ARGUMENTS -batch
         TIMEOUT 180
         )
+cado_divert_test(F9_batch 2_levels APPEND_ARGUMENTS bkthresh1=600000)
+cado_divert_test(F9_batch 3_levels APPEND_ARGUMENTS
+    bkthresh1=600000 bkthresh2=1100000 -Bi 5)
+
 cado_define_test(bogus_batch_is_consistent
     PROGRAM
     ${CADO_NFS_SOURCE_DIR}/sieve/inspect-batch-file.pl -batch

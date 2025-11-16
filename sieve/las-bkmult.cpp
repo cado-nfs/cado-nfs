@@ -13,10 +13,6 @@ buckets_are_full::buckets_are_full(bkmult_specifier::key_type const& key, int b,
     message = os.str();
 }
 
-/* provide these here in order to avoid emitting this code for all users.
- */
-buckets_are_full::~buckets_are_full() = default;
-buckets_are_full::buckets_are_full(buckets_are_full const &) = default;
 
 bkmult_specifier::bkmult_specifier(const char * specifier)
 {

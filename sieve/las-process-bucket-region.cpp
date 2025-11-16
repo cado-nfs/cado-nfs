@@ -34,7 +34,7 @@
 #include "las-auxiliary-data.hpp"
 #include "las-cofac-standalone.hpp"
 #include "las-cofactor.hpp"
-#include "las-config.h"
+#include "las-config.hpp"
 #include "las-coordinates.hpp"
 #include "las-special-q-task-collection.hpp"
 #include "las-detached-cofac.hpp"
@@ -271,26 +271,42 @@ template<bool with_hints> void process_bucket_region_run::apply_buckets_inner(in
 {
     nfs_work::side_data  const& wss(ws.sides[side]);
 
-    typedef typename hints_proxy<with_hints>::l my_longhint_t;
-    typedef typename hints_proxy<with_hints>::s my_shorthint_t;
+    using my_longhint_t = hints_proxy<with_hints>::l;
+    using my_shorthint_t = hints_proxy<with_hints>::s;
     {
+        auto const & BA_ins = wss.bucket_arrays<1, my_shorthint_t>();
+        verbose_fmt_print(0, 3,
+                "# apply 1s buckets ({} groups of {} buckets, taking bucket {}/{})"
+                " to region {}\n",
+                BA_ins.size(), BA_ins[0].n_bucket,
+                already_done + bucket_relative_index,
+                BA_ins[0].n_bucket,
+                first_region0_index + already_done + bucket_relative_index);
+
         CHILD_TIMER(timer, "apply buckets");
         TIMER_CATEGORY(timer, sieving(side));
-        for (auto const & BA : wss.bucket_arrays<1, my_shorthint_t>())
-            apply_one_bucket(SS, BA, already_done + bucket_relative_index, wss.fbs->get_part(1), w);
+
+        /* The function below, when instantiated with shorthint buckets,
+         * will fetch primes from fb part 1 only */
+        for (auto const & BA_in : BA_ins)
+            apply_one_bucket(SS, BA_in, already_done + bucket_relative_index, *wss.fbs, w);
     }
 
     /* Apply downsorted buckets, if necessary. */
     if (ws.toplevel > 1) {
+        auto const & BA_ins = wss.bucket_arrays<1, my_longhint_t>();
+        verbose_fmt_print(0, 3,
+                "# apply 1l buckets ({} groups of {} buckets)"
+                " to region {}\n",
+                BA_ins.size(), BA_ins[0].n_bucket,
+                already_done + bucket_relative_index);
         CHILD_TIMER(timer, "apply downsorted buckets");
         TIMER_CATEGORY(timer, sieving(side));
 
-        for (auto const & BAd : wss.bucket_arrays<1, my_longhint_t>()) {
-            // FIXME: the updates could come from part 3 as well,
-            // not only part 2.
-            ASSERT_ALWAYS(ws.toplevel <= 2);
-            apply_one_bucket(SS, BAd, already_done + bucket_relative_index, wss.fbs->get_part(2), w);
-        }
+        /* The function below, when instantiated with longhint buckets,
+         * will fetch primes from fb parts 2 and (if applicable) above. */
+        for (auto const & BA_in : BA_ins)
+            apply_one_bucket(SS, BA_in, already_done + bucket_relative_index, *wss.fbs, w);
     }
 }/*}}}*/
 void process_bucket_region_run::apply_buckets(int side)/*{{{*/

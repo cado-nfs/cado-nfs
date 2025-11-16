@@ -111,6 +111,23 @@ template<typename G, template<int> class F> struct multityped_array_foreach_inne
         // g.template operator()<n1-1>(A.x);
         g(A.x);
     }
+    template<int n0>
+    void operator()(G const &, multityped_array<F, n0, n0> &) const {}
+    template<int n0>
+    void operator()(G const &, multityped_array<F, n0, n0> const &) const {}
+
+    template<int n0, int n1>
+    void operator()(G const & g, multityped_array<F, n0, n1> & A) const {
+        operator()(g, (multityped_array<F, n0, n1-1> &) A);
+        // g.template operator()<n1-1>(A.x);
+        g(A.x);
+    }
+    template<int n0, int n1>
+    void operator()(G const & g, multityped_array<F, n0, n1> const & A) const {
+        operator()(g, (multityped_array<F, n0, n1-1> const &) A);
+        // g.template operator()<n1-1>(A.x);
+        g(A.x);
+    }
 };
 
 template<typename G, template<int> class F, int n0, int n1>
@@ -122,15 +139,23 @@ void multityped_array_foreach(G & g, multityped_array<F, n0, n1> const & A) {
     return multityped_array_foreach_inner<G, F>()(g, A);
 }
 template<typename G, template<int> class F, int n0, int n1>
+void multityped_array_foreach(G const & g, multityped_array<F, n0, n1> & A) {
+    return multityped_array_foreach_inner<G, F>()(g, A);
+}
+template<typename G, template<int> class F, int n0, int n1>
+void multityped_array_foreach(G const & g, multityped_array<F, n0, n1> const & A) {
+    return multityped_array_foreach_inner<G, F>()(g, A);
+}
+/*
+template<typename G, template<int> class F, int n0, int n1>
 void multityped_array_foreach(G && g, multityped_array<F, n0, n1> & A) {
-    G gm = std::move(g);
-    return multityped_array_foreach_inner<G, F>()(gm, A);
+    return multityped_array_foreach_inner<G, F>()(std::forward<G>(g), A);
 }
 template<typename G, template<int> class F, int n0, int n1>
 void multityped_array_foreach(G && g, multityped_array<F, n0, n1> const & A) {
-    G gm = std::move(g);
-    return multityped_array_foreach_inner<G, F>()(gm, A);
+    return multityped_array_foreach_inner<G, F>()(std::forward<G>(g), A);
 }
+*/
 /*
  * old g++ seems to have difficulties with this variant, and is puzzled
  * by the apparent ambiguity -- newer g++ groks it correctly, as does
@@ -164,6 +189,23 @@ template<typename G, typename T, template<int> class F> struct multityped_array_
         T t1 = g(t0, A.x);
         return operator()(g, t1, (multityped_array<F, n0, n1-1> &) A);
     }
+    template<int n0>
+    T operator()(G const &, T const & t0, multityped_array<F, n0, n0> &) const { return t0; }
+    template<int n0>
+    T operator()(G const &, T const & t0, multityped_array<F, n0, n0> const &) const { return t0; }
+
+    template<int n0, int n1>
+    T operator()(G const & g, T const & t0, multityped_array<F, n0, n1> & A) const {
+        // T t1 = g.template operator()<n1-1>(t0, A.x);
+        T t1 = g(t0, A.x);
+        return operator()(g, t1, (multityped_array<F, n0, n1-1> &) A);
+    }
+    template<int n0, int n1>
+    T operator()(G const & g, T const & t0, multityped_array<F, n0, n1> const & A) const {
+        // T t1 = g.template operator()<n1-1>(t0, A.x);
+        T t1 = g(t0, A.x);
+        return operator()(g, t1, (multityped_array<F, n0, n1-1> &) A);
+    }
 };
 
 template<typename G, typename T, template<int> class F, int n0, int n1>
@@ -175,15 +217,23 @@ T multityped_array_fold(G & g, T const &t0, multityped_array<F, n0, n1> const & 
     return multityped_array_fold_inner<G, T, F>()(g, t0, A);
 }
 template<typename G, typename T, template<int> class F, int n0, int n1>
+T multityped_array_fold(G const & g, T const &t0, multityped_array<F, n0, n1> & A) {
+    return multityped_array_fold_inner<G, T, F>()(g, t0, A);
+}
+template<typename G, typename T, template<int> class F, int n0, int n1>
+T multityped_array_fold(G const & g, T const &t0, multityped_array<F, n0, n1> const & A) {
+    return multityped_array_fold_inner<G, T, F>()(g, t0, A);
+}
+/*
+template<typename G, typename T, template<int> class F, int n0, int n1>
 T multityped_array_fold(G && g, T const &t0, multityped_array<F, n0, n1> & A) {
-    G gm = std::move(g);
-    return multityped_array_fold_inner<G, T, F>()(gm, t0, A);
+    return multityped_array_fold_inner<G, T, F>()(std::forward(g), t0, A);
 }
 template<typename G, typename T, template<int> class F, int n0, int n1>
 T multityped_array_fold(G && g, T const &t0, multityped_array<F, n0, n1> const & A) {
-    G gm = std::move(g);
-    return multityped_array_fold_inner<G, T, F>()(gm, t0, A);
+    return multityped_array_fold_inner<G, T, F>()(std::forward(g), t0, A);
 }
+*/
 /*
  * old g++ seems to have difficulties with this variant, and is puzzled
  * by the apparent ambiguity -- newer g++ groks it correctly, as does
