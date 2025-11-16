@@ -3,16 +3,16 @@
 
 // #define LAS_ARITH_INVMOD_HISTOGRAM 1
 
-#include "cado_config.h"  // for HAVE_GCC_STYLE_AMD64_INLINE_ASM
-#include "las-config.h"   // for NOPROFILE_INLINE
+#include "cado_config.h"
+#include "las-config.hpp"
 
-#include <cstdint>        // for uint32_t, uint64_t, uint8_t, int64_t
-#include <cinttypes>      // for PRI* macros
+#include <cstdint>
+#include <cinttypes>
 
-#include "macros.h"       // for ASSERT, UNLIKELY, GNUC_VERSION_ATLEAST, MAY...
+#include "macros.h"
 #include "fb-types.hpp"
-#include "misc.h"          // cado_ctz
-#include "arith/mod_ul.h"        // for modul_clear, modul_clearmod, modul_get_ul
+#include "misc.h"
+#include "arith/mod_ul.h"
 #include "verbose.h"
 
 #ifdef LAS_ARITH_INVMOD_HISTOGRAM

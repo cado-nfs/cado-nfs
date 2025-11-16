@@ -28,7 +28,7 @@
 #include "fb.hpp"
 #include "gcd.h"
 #include "las-arith.hpp"
-#include "las-config.h"
+#include "las-config.hpp"
 #include "las-where-am-i.hpp"
 #include "las-forwardtypes.hpp"
 #include "las-fbroot-qlattice.hpp"

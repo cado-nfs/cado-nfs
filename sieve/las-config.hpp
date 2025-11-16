@@ -1,9 +1,9 @@
-#ifndef CADO_LAS_CONFIG_H
-#define CADO_LAS_CONFIG_H
+#ifndef CADO_LAS_CONFIG_HPP
+#define CADO_LAS_CONFIG_HPP
 
 #include "cado_config.h" // HAVE_SSE2
 
-#include <stddef.h>
+#include <cstddef>
 
 /* un-sieving of locations where gcd(i,j)>1 instead of testing gcd for
  * each survivor. Appears slower than default. This code has always been
@@ -11,18 +11,31 @@
  */
 #define xxxUNSIEVE_NOT_COPRIME /* see las-unsieve.c */
 
+/* factor base is split in parts 0, 1, ..., FB_MAX_PARTS-1.
+ *
+ * The toplevel can thus be at most FB_MAX_PARTS-1.
+ *
+ * level-0 is for small-sieved primes.
+ * level-1 is for primes that are bucket sieved in one go, without
+ * downsorting.
+ * level-2 is for primes that are bucket sieved in a first phase, then
+ * downsorted.
+ * for level-3, downsorting is a bit more work, done in downsort_aux
+ */
 #define FB_MAX_PARTS 4
+
+#define MAX_TOPLEVEL ((FB_MAX_PARTS) - 1)
+
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define LOG_NB_BUCKETS_2 8
-#define LOG_NB_BUCKETS_3 8
-
 extern void set_LOG_BUCKET_REGION();
 
 extern int LOG_BUCKET_REGION;
+extern int LOG_BUCKET_REGION_step;
+
 extern int LOG_BUCKET_REGIONS[FB_MAX_PARTS];
 
 extern size_t BUCKET_REGION;
@@ -96,4 +109,4 @@ void las_display_config_flags();
 }
 #endif
 
-#endif /* CADO_LAS_CONFIG_H */
+#endif /* CADO_LAS_CONFIG_HPP */

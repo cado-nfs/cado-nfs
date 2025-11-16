@@ -3,19 +3,20 @@
 
 // IWYU pragma: private, include "las-where-am-i.hpp"
 
-#include <array>                      // for array
-#include <climits>                    // for UINT_MAX
-#include <cstdint>                    // for uint64_t, int64_t
-#include <cstddef>                    // for NULL
-#include <vector>                     // for std::vector
+#include <array>
+#include <climits>
+#include <cstdint>
+#include <cstddef>
+#include <vector>
 
-#include "las-where-am-i-proxy.hpp"        // for where_am_I
+#include "las-where-am-i-proxy.hpp"
 #include "fb-types.hpp"
-#include "fb.hpp"       // for fb_factorbase
-#include "las-config.h" // for LOG_BUCKET_REGION
-struct cxx_mpz;          // IWYU pragma: keep
-struct las_info;         // IWYU pragma: keep
-struct qlattice_basis;   // IWYU pragma: keep
+#include "fb.hpp"
+#include "las-config.hpp"
+
+struct cxx_mpz;
+struct las_info;
+struct qlattice_basis;
 
 /* Define CHECK_UNDERFLOW to check for underflow when subtracting
    the rounded log(p) from sieve array locations */

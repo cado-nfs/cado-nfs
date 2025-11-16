@@ -1,17 +1,19 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <stdio.h>
+#include <cstdio>
 
-#include "las-config.h"
+#include "las-config.hpp"
 #include "macros.h"
 #include "verbose.h" // verbose_output_print
 
 int las_production_mode = 0;
 
 int LOG_BUCKET_REGION = 16;
-int LOG_BUCKET_REGIONS[FB_MAX_PARTS];
+int LOG_BUCKET_REGION_step = 8;
+
+int LOG_BUCKET_REGIONS[MAX_TOPLEVEL + 1];
 size_t BUCKET_REGION;
-size_t BUCKET_REGIONS[FB_MAX_PARTS];
+size_t BUCKET_REGIONS[MAX_TOPLEVEL + 1];
 
 int NB_DEVIATIONS_BUCKET_REGIONS = 3;
 
@@ -25,14 +27,21 @@ void set_LOG_BUCKET_REGION()
     }
 
     BUCKET_REGION = ((size_t)1) << LOG_BUCKET_REGION;
+
     LOG_BUCKET_REGIONS[0] = -1;
-    LOG_BUCKET_REGIONS[1] = LOG_BUCKET_REGION;
-    LOG_BUCKET_REGIONS[2] = LOG_BUCKET_REGIONS[1] + LOG_NB_BUCKETS_2;
-    LOG_BUCKET_REGIONS[3] = LOG_BUCKET_REGIONS[2] + LOG_NB_BUCKETS_3;
     BUCKET_REGIONS[0] = 0;
+
+    LOG_BUCKET_REGIONS[1] = LOG_BUCKET_REGION;
     BUCKET_REGIONS[1] = 1 << LOG_BUCKET_REGIONS[1];
-    BUCKET_REGIONS[2] = 1 << LOG_BUCKET_REGIONS[2];
-    BUCKET_REGIONS[3] = 1 << LOG_BUCKET_REGIONS[3];
+
+#if MAX_TOPLEVEL >= 2
+    LOG_BUCKET_REGIONS[2] = LOG_BUCKET_REGIONS[1] + LOG_BUCKET_REGION_step;
+    BUCKET_REGIONS[2] = BUCKET_REGIONS[1] << LOG_BUCKET_REGION_step;
+#endif
+#if MAX_TOPLEVEL >= 3
+    LOG_BUCKET_REGIONS[3] = LOG_BUCKET_REGIONS[2] + LOG_BUCKET_REGION_step;
+    BUCKET_REGIONS[3] = BUCKET_REGIONS[2] << LOG_BUCKET_REGION_step;
+#endif
 }
 
 void las_display_config_flags()

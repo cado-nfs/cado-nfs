@@ -160,7 +160,7 @@ task_result * detached_cofac(worker_thread * worker, task_parameters * _param, i
      * some stuff to be done at dtor time, so it's important that we
      * clean up the parameters *after* the timer cleans up.
      */
-    detached_cofac_parameters *param = static_cast<detached_cofac_parameters *>(_param);
+    auto * param = dynamic_cast<detached_cofac_parameters *>(_param);
 
     /* Import some contextual stuff. */
     int const id = int(worker->rank());

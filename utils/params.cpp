@@ -43,15 +43,15 @@ void param_list_init(param_list_ptr pl)
 
 void param_list_set(param_list_ptr pl, param_list_srcptr pl0)
 {
-    param_list_impl & pli = *static_cast<param_list_impl *>(pl->pimpl);
-    param_list_impl  const& pli0 = *static_cast<param_list_impl *>(pl0->pimpl);
+    auto & pli = *static_cast<param_list_impl *>(pl->pimpl);
+    auto const& pli0 = *static_cast<param_list_impl *>(pl0->pimpl);
     pli = pli0;
 }
 
 void param_list_swap(param_list_ptr pl, param_list_ptr pl0)
 {
-    param_list_impl & pli = *static_cast<param_list_impl *>(pl->pimpl);
-    param_list_impl & pli0 = *static_cast<param_list_impl *>(pl0->pimpl);
+    auto & pli = *static_cast<param_list_impl *>(pl->pimpl);
+    auto & pli0 = *static_cast<param_list_impl *>(pl0->pimpl);
     std::swap(pli, pli0);
 }
 
@@ -62,19 +62,19 @@ void param_list_clear(param_list_ptr pl)
 
 int param_list_empty(param_list_srcptr pl)
 {
-    param_list_impl const & pli = *static_cast<param_list_impl const *>(pl->pimpl);
+    auto const & pli = *static_cast<param_list_impl const *>(pl->pimpl);
     return pli.p.empty();
 }
 
 void param_list_usage_header(param_list_ptr pl, const char * hdr)
 {
-    param_list_impl & pli = *static_cast<param_list_impl *>(pl->pimpl);
+    auto & pli = *static_cast<param_list_impl *>(pl->pimpl);
     pli.usage_header = hdr;
 }
 
 void param_list_decl_usage(param_list_ptr pl, const char * key, const char * doc)
 {
-    param_list_impl & pli = *static_cast<param_list_impl *>(pl->pimpl);
+    auto & pli = *static_cast<param_list_impl *>(pl->pimpl);
     pli.documentation[key] = doc;
     /* Note that duplicate calls to param_list_decl_usage for the same
      * key will not trigger two distinct prints of the same
@@ -91,7 +91,7 @@ static int is_documented_key(param_list_impl const & pli, std::string const & ke
 
 void param_list_print_usage(param_list_srcptr pl, const char * argv0, FILE *f)
 {
-    param_list_impl const & pli = *static_cast<param_list_impl const *>(pl->pimpl);
+    auto const & pli = *static_cast<param_list_impl const *>(pl->pimpl);
 
     if (argv0 != nullptr)
         fprintf(f, "Usage: %s <parameters>\n", argv0);
@@ -155,7 +155,7 @@ static void param_list_add_key(param_list_impl & pli,
 void param_list_add_key(param_list_ptr pl,
         const char * key, const char * value, enum parameter_origin o)
 {
-    param_list_impl & pli = *static_cast<param_list_impl *>(pl->pimpl);
+    auto & pli = *static_cast<param_list_impl *>(pl->pimpl);
     ASSERT_ALWAYS(key != nullptr);
     param_list_add_key(pli, key, value, o);
 }
@@ -163,7 +163,7 @@ void param_list_add_key(param_list_ptr pl,
 
 void param_list_remove_key(param_list_ptr pl, const char * key)
 {
-    param_list_impl & pli = *static_cast<param_list_impl *>(pl->pimpl);
+    auto & pli = *static_cast<param_list_impl *>(pl->pimpl);
     auto it = pli.p.find(key);
     if (it != pli.p.end())
         pli.p.erase(it);
@@ -176,7 +176,7 @@ void param_list_remove_key(param_list_ptr pl, const char * key)
  */
 int param_list_read_stream(param_list_ptr pl, FILE *f, int stop_on_empty_line)
 {
-    param_list_impl & pli = *static_cast<param_list_impl *>(pl->pimpl);
+    auto & pli = *static_cast<param_list_impl *>(pl->pimpl);
     int all_ok=1;
     const int linelen = 2048;
     char line[linelen];
@@ -270,7 +270,7 @@ int param_list_read_file(param_list_ptr pl, const char * name)
 
 int param_list_configure_alias(param_list_ptr pl, const char * key, const char * alias)
 {
-    param_list_impl & pli = *static_cast<param_list_impl *>(pl->pimpl);
+    auto & pli = *static_cast<param_list_impl *>(pl->pimpl);
     for(int i = 0 ; i < 2 && *key == '-' ; key++, i++) ;
     for(int i = 0 ; i < 2 && *alias == '-' ; alias++, i++) ;
 
@@ -288,7 +288,7 @@ int param_list_configure_alias(param_list_ptr pl, const char * key, const char *
 
 int param_list_configure_switch(param_list_ptr pl, const char * switchname, int * ptr)
 {
-    param_list_impl & pli = *static_cast<param_list_impl *>(pl->pimpl);
+    auto & pli = *static_cast<param_list_impl *>(pl->pimpl);
     for(int i = 0 ; i < 2 && *switchname == '-' ; switchname++, i++) ;
     
     if (pli.use_doc)
@@ -302,7 +302,7 @@ int param_list_configure_switch(param_list_ptr pl, const char * switchname, int 
 int param_list_update_cmdline(param_list_ptr pl,
         int * p_argc, char const *** p_argv)
 {
-    param_list_impl & pli = *static_cast<param_list_impl *>(pl->pimpl);
+    auto & pli = *static_cast<param_list_impl *>(pl->pimpl);
     ASSERT_ALWAYS(*p_argv != nullptr);
     if (!pli.cmdline_argv0) {
         pli.cmdline_argv0 = (*p_argv)-1;
@@ -419,7 +419,7 @@ static const char *
 get_assoc_ptr(param_list_ptr pl, std::string const & key0, bool stealth = false, int * const seen = nullptr)
 {
     auto key = drop_one_or_two_leading_dashes(key0);
-    param_list_impl & pli = *static_cast<param_list_impl *>(pl->pimpl);
+    auto & pli = *static_cast<param_list_impl *>(pl->pimpl);
     std::lock_guard<std::mutex> const dummy(mutex);
     if (pli.use_doc) {
         if (!stealth && !is_documented_key(pli, key)) 
@@ -894,7 +894,7 @@ int param_list_parse_switch(param_list_ptr pl, const char * key)
 
 int param_list_all_consumed(param_list_srcptr pl, const char ** extraneous)
 {
-    param_list_impl const & pli = *static_cast<param_list_impl const *>(pl->pimpl);
+    auto const & pli = *static_cast<param_list_impl const *>(pl->pimpl);
     for(auto const & p : pli.p) {
         if (!p.second.parsed) {
             if (extraneous)
@@ -908,7 +908,7 @@ int param_list_all_consumed(param_list_srcptr pl, const char ** extraneous)
 int param_list_warn_unused(param_list_srcptr pl)
 {
     int u = 0;
-    param_list_impl const & pli = *static_cast<param_list_impl const *>(pl->pimpl);
+    auto const & pli = *static_cast<param_list_impl const *>(pl->pimpl);
     for(auto const & p : pli.p) {
         if (!p.second.parsed && p.second.origin != PARAMETER_FROM_FILE) {
             fprintf(stderr, "Warning: unused command-line parameter %s\n",
@@ -921,7 +921,7 @@ int param_list_warn_unused(param_list_srcptr pl)
 
 void param_list_display(param_list_srcptr pl, FILE *f)
 {
-    param_list_impl const & pli = *static_cast<param_list_impl const *>(pl->pimpl);
+    auto const & pli = *static_cast<param_list_impl const *>(pl->pimpl);
     for(auto const & p : pli.p)
         fprintf(f,"%s=%s\n", p.first.c_str(), p.second.value.c_str());
 }
@@ -959,7 +959,7 @@ int param_list_save_parameter(param_list_ptr pl, enum parameter_origin o,
 
 void param_list_print_command_line(FILE * stream, param_list_srcptr pl)
 {
-    param_list_impl const & pli = *static_cast<param_list_impl const *>(pl->pimpl);
+    auto const & pli = *static_cast<param_list_impl const *>(pl->pimpl);
     if (!pli.cmdline_argv0)
         return;
 
@@ -1020,7 +1020,7 @@ void param_list_print_command_line(FILE * stream, param_list_srcptr pl)
 
 void param_list_generic_failure(param_list_srcptr pl, const char *missing)
 {
-    param_list_impl const & pli = *static_cast<param_list_impl const *>(pl->pimpl);
+    auto const & pli = *static_cast<param_list_impl const *>(pl->pimpl);
     if (missing)
     {
         fprintf(stderr, "\nError: missing or invalid parameter \"-%s\"\n",

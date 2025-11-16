@@ -6,7 +6,8 @@
 #endif
 
 #include "bucket.hpp"
-#include "las-where-am-i.hpp" // WHERE_AM_I_UPDATE
+#include "las-config.hpp"
+#include "las-where-am-i.hpp"
 #include "macros.h"
 
 template <int LEVEL, typename HINT>

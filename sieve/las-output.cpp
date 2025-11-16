@@ -10,14 +10,15 @@
 /* specifically for las-output.cpp ; I'd say it's a bug, we should move
  * it to the independent tier */
 
-#include <cstring>       // strerror (in DIE_ERRNO_DIAG) // IWYU pragma: keep
-#include <cstdio>          // for NULL, stderr, fflush, fopen, fprintf, setvbuf
-#include <cstdlib>         // for exit, EXIT_FAILURE
-#include "gzip.h"       // fopen_maybe_compressed
-#include "las-config.h"    // for las_display_config_flags
-#include "las-output.hpp"  // for las_output, NR_CHANNELS, TRACE_CHANNEL
-#include "macros.h"        // for ASSERT_ALWAYS, DIE_ERRNO_DIAG
-#include "verbose.h"    // verbose_output_print
+#include <cstring>
+#include <cstdio>
+#include <cstdlib>
+
+#include "gzip.h"
+#include "las-config.hpp"
+#include "las-output.hpp"
+#include "macros.h"
+#include "verbose.h"
 #include "params.h"
 
 
