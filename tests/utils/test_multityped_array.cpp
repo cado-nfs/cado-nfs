@@ -14,7 +14,7 @@ template<int n> struct type_factory {
 
 struct print {
     template<typename T>
-    void operator()(T const & x) {
+    void operator()(T const & x) const {
         constexpr size_t n = std::tuple_size<T>::value;
         std::cout << "field has " << n << " elements";
         for(auto a : x) std::cout << " " << a;
@@ -25,7 +25,7 @@ struct print {
 struct print2 {
     int k;
     template<typename T>
-    void operator()(T const & x) {
+    void operator()(T const & x) const {
         constexpr size_t n = std::tuple_size<T>::value;
         std::cout << "field has " << n << " elements";
         for(auto a : x) std::cout << " " << a;
@@ -36,7 +36,7 @@ struct print2 {
 
 struct fill {
     template<typename T>
-    void operator()(T & x) {
+    void operator()(T & x) const {
         for(unsigned int i = 0 ; i < x.size() ; ++i)
             x[i] = i*x.size();
     }

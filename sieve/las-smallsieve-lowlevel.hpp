@@ -3,7 +3,7 @@
 
 #include <cstddef>
 
-#include "las-config.h"
+#include "las-config.hpp"
 #include "macros.h"
 
 /* About row0_is_oddj: in order to check whether a j coordinate is even,

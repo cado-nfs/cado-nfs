@@ -8,7 +8,7 @@
 #include "bucket.hpp"
 #include "las-auxiliary-data.hpp"
 #include "las-bkmult.hpp"
-#include "las-config.h"
+#include "las-config.hpp"
 #include "las-report-stats.hpp"
 #include "las-threads.hpp"
 #include "macros.h"
@@ -130,29 +130,86 @@ void reservation_array<T>::release(T &BA) {
  * downsorting single-threaded.
  */
 reservation_group::reservation_group(int nr_bucket_arrays)
-  : RA1_short(nr_bucket_arrays),
-    RA2_short(nr_bucket_arrays),
-    RA3_short(nr_bucket_arrays),
+  : RA1_short(nr_bucket_arrays)
+  , RA1_empty(nr_bucket_arrays)
+#if MAX_TOPLEVEL >= 2
     /* currently the parallel downsort imposes restrictions on the number
      * of bucket arrays we must have here and there. In particular #2s ==
      * #1l.
      */
-    RA1_long(nr_bucket_arrays),
-    RA2_long(nr_bucket_arrays),
-    RA1_empty(nr_bucket_arrays),
-    RA2_empty(nr_bucket_arrays),
-    RA3_empty(nr_bucket_arrays),
-    RA1_logp(nr_bucket_arrays),
-    RA2_logp(nr_bucket_arrays)
+  , RA2_short(nr_bucket_arrays)
+  , RA2_empty(nr_bucket_arrays)
+  , RA1_long(nr_bucket_arrays)
+  , RA1_logp(nr_bucket_arrays)
+#endif
+#if MAX_TOPLEVEL >= 3
+  , RA3_short(nr_bucket_arrays)
+  , RA3_empty(nr_bucket_arrays)
+  , RA2_long(nr_bucket_arrays)
+  , RA2_logp(nr_bucket_arrays)
+#endif
 {
+    static_assert(MAX_TOPLEVEL == 3);
 }
 
 
-/* TODO: we may expose two distinct runtime functions that trigger
- * allocation either on the bare or non-bare bucket arrays.
- */
+template<bool with_hints>
 void
 reservation_group::allocate_buckets(
+        las_memory_accessor & memory,
+        const int *n_bucket,
+        bkmult_specifier const& mult,
+        std::array<double, FB_MAX_PARTS> const & fill_ratio, int logI,
+        nfs_aux & aux,
+        thread_pool & pool)
+{
+  /* We use the same multiplier definitions for both "with" and "without
+   * hints".
+   */
+
+  /* Short hint updates are generated only by fill_in_buckets(), so each BA
+     gets filled only by its respective FB part */
+  auto & r1s = get<1, typename hints_proxy<with_hints>::s>();
+  using T1s = bucket_update_t<1, typename hints_proxy<with_hints>::s>;
+  r1s.allocate_buckets(memory, n_bucket[1], mult.get<T1s>()*fill_ratio[1], logI, aux, pool);
+
+  /* Long hint bucket arrays get filled by downsorting. The level-2
+   * longhint array gets the shorthint updates from level 3 sieving,
+   * and the level-1 longhint array gets the shorthint updates from
+   * level 2 sieving as well as the previously downsorted longhint
+   * updates from level 3 sieving. */
+
+#if MAX_TOPLEVEL >= 2
+  auto & r2s = get<2, typename hints_proxy<with_hints>::s>();
+  auto & r1l = get<1, typename hints_proxy<with_hints>::l>(); 
+  using T2s = bucket_update_t<2, typename hints_proxy<with_hints>::s>;
+  using T1l = bucket_update_t<1, typename hints_proxy<with_hints>::l>;
+  r2s.allocate_buckets(memory, n_bucket[2], mult.get<T2s>()*fill_ratio[2], logI, aux, pool);
+  {
+      double s = 0;
+      for(int level = 2 ; level <= MAX_TOPLEVEL ; level++)
+          s += fill_ratio[level];
+      r1l.allocate_buckets(memory, n_bucket[1], mult.get<T1l>() * s, logI, aux, pool);
+  }
+#endif
+
+#if MAX_TOPLEVEL >= 3
+  auto & r3s = get<3, typename hints_proxy<with_hints>::s>();
+  auto & r2l = get<2, typename hints_proxy<with_hints>::l>(); 
+  using T3s = bucket_update_t<3, typename hints_proxy<with_hints>::s>;
+  using T2l = bucket_update_t<2, typename hints_proxy<with_hints>::l>;
+  r3s.allocate_buckets(memory, n_bucket[3], mult.get<T3s>()*fill_ratio[3], logI, aux, pool);
+  {
+      double s = 0;
+      for(int level = 3 ; level <= MAX_TOPLEVEL ; level++)
+          s += fill_ratio[level];
+      r2l.allocate_buckets(memory, n_bucket[2], mult.get<T2l>() * s, logI, aux, pool);
+  }
+#endif
+  static_assert(MAX_TOPLEVEL == 3);
+}
+
+void reservation_group::allocate_buckets(
         las_memory_accessor & memory,
         const int *n_bucket,
         bkmult_specifier const& mult,
@@ -161,192 +218,25 @@ reservation_group::allocate_buckets(
         thread_pool & pool,
         bool with_hints)
 {
-  /* Short hint updates are generated only by fill_in_buckets(), so each BA
-     gets filled only by its respective FB part */
-  typedef typename decltype(RA1_short)::update_t T1s;
-  typedef typename decltype(RA2_short)::update_t T2s;
-  typedef typename decltype(RA3_short)::update_t T3s;
-  typedef typename decltype(RA1_long)::update_t T1l;
-  typedef typename decltype(RA2_long)::update_t T2l;
-
-  /* We use the same multiplier definitions for both "with" and "without
-   * hints".
-   */
-  if (with_hints) {
-      RA1_short.allocate_buckets(memory, n_bucket[1], mult.get<T1s>()*fill_ratio[1], logI, aux, pool);
-      RA2_short.allocate_buckets(memory, n_bucket[2], mult.get<T2s>()*fill_ratio[2], logI, aux, pool);
-      RA3_short.allocate_buckets(memory, n_bucket[3], mult.get<T3s>()*fill_ratio[3], logI, aux, pool);
-
-      /* Long hint bucket arrays get filled by downsorting. The level-2 longhint
-         array gets the shorthint updates from level 3 sieving, and the level-1
-         longhint array gets the shorthint updates from level 2 sieving as well
-         as the previously downsorted longhint updates from level 3 sieving. */
-      RA1_long.allocate_buckets(memory, n_bucket[1], mult.get<T1l>()*(fill_ratio[2] + fill_ratio[3]), logI, aux, pool);
-      RA2_long.allocate_buckets(memory, n_bucket[2], mult.get<T2l>()*fill_ratio[3], logI, aux, pool);
-  } else {
-      RA1_empty.allocate_buckets(memory, n_bucket[1], mult.get<T1s>()*fill_ratio[1], logI, aux, pool);
-      RA2_empty.allocate_buckets(memory, n_bucket[2], mult.get<T2s>()*fill_ratio[2], logI, aux, pool);
-      RA3_empty.allocate_buckets(memory, n_bucket[3], mult.get<T3s>()*fill_ratio[3], logI, aux, pool);
-      RA1_logp.allocate_buckets(memory, n_bucket[1], mult.get<T1l>()*(fill_ratio[2] + fill_ratio[3]), logI, aux, pool);
-      RA2_logp.allocate_buckets(memory, n_bucket[2], mult.get<T2l>()*fill_ratio[3], logI, aux, pool);
-  }
-}
-
-
-/* 
-   We want to map the desired bucket_array type to the appropriate
-   reservation_array in reservation_group, which we do by explicit
-   specialization. Endless copy-paste here...  maybe use a virtual
-   base class and an array of base-class-pointers, which then get
-   dynamic_cast to the desired return type?
-*/
-template<>
-reservation_array<bucket_array_t<1, shorthint_t> > &
-reservation_group::get()
-{
-  return RA1_short;
-}
-template<>
-reservation_array<bucket_array_t<2, shorthint_t> > &
-reservation_group::get()
-{
-  return RA2_short;
-}
-template<>
-reservation_array<bucket_array_t<3, shorthint_t> > &
-reservation_group::get() {
-  return RA3_short;
-}
-template<>
-reservation_array<bucket_array_t<1, longhint_t> > &
-reservation_group::get()
-{
-  return RA1_long;
-}
-template<>
-reservation_array<bucket_array_t<2, longhint_t> > &
-reservation_group::get()
-{
-  return RA2_long;
-}
-
-/* mapping types to objects is a tricky business. The code below looks
- * like red tape. But sophisticated means to avoid it would be even
- * longer (the naming difference "get" versus "cget" is not the annoying
- * part here -- it's just here as a decoration. The real issue is that we
- * want the const getter to return a const reference) */
-template<>
-const reservation_array<bucket_array_t<1, shorthint_t> > &
-reservation_group::cget() const
-{
-  return RA1_short;
-}
-template<>
-const reservation_array<bucket_array_t<2, shorthint_t> > &
-reservation_group::cget() const
-{
-  return RA2_short;
-}
-template<>
-const reservation_array<bucket_array_t<3, shorthint_t> > &
-reservation_group::cget() const
-{
-  return RA3_short;
-}
-template<>
-const reservation_array<bucket_array_t<1, longhint_t> > &
-reservation_group::cget() const
-{
-  return RA1_long;
-}
-template<>
-const reservation_array<bucket_array_t<2, longhint_t> > &
-reservation_group::cget() const
-{
-  return RA2_long;
-}
-template <>
-const reservation_array<bucket_array_t<3, longhint_t> > &
-reservation_group::cget<3, longhint_t>() const
-{
-    ASSERT_ALWAYS(0);
-}
-
-
-/* And ditto for empty or near-empty hints */
-template<>
-reservation_array<bucket_array_t<1, emptyhint_t> > &
-reservation_group::get()
-{
-  return RA1_empty;
-}
-template<>
-reservation_array<bucket_array_t<2, emptyhint_t> > &
-reservation_group::get()
-{
-  return RA2_empty;
-}
-template<>
-reservation_array<bucket_array_t<3, emptyhint_t> > &
-reservation_group::get() {
-  return RA3_empty;
-}
-template<>
-reservation_array<bucket_array_t<1, logphint_t> > &
-reservation_group::get()
-{
-  return RA1_logp;
-}
-template<>
-reservation_array<bucket_array_t<2, logphint_t> > &
-reservation_group::get()
-{
-  return RA2_logp;
-}
-template<>
-const reservation_array<bucket_array_t<1, emptyhint_t> > &
-reservation_group::cget() const
-{
-  return RA1_empty;
-}
-template<>
-const reservation_array<bucket_array_t<2, emptyhint_t> > &
-reservation_group::cget() const
-{
-  return RA2_empty;
-}
-template<>
-const reservation_array<bucket_array_t<3, emptyhint_t> > &
-reservation_group::cget() const
-{
-  return RA3_empty;
-}
-template<>
-const reservation_array<bucket_array_t<1, logphint_t> > &
-reservation_group::cget() const
-{
-  return RA1_logp;
-}
-template<>
-const reservation_array<bucket_array_t<2, logphint_t> > &
-reservation_group::cget() const
-{
-  return RA2_logp;
-}
-template <>
-const reservation_array<bucket_array_t<3, logphint_t> > &
-reservation_group::cget<3, logphint_t>() const
-{
-    ASSERT_ALWAYS(0);
+    if (with_hints)
+        allocate_buckets<true>(memory, n_bucket, mult, fill_ratio, logI, aux, pool);
+    else
+        allocate_buckets<false>(memory, n_bucket, mult, fill_ratio, logI, aux, pool);
 }
 
 template class reservation_array<bucket_array_t<1, shorthint_t> >;
-template class reservation_array<bucket_array_t<2, shorthint_t> >;
-template class reservation_array<bucket_array_t<3, shorthint_t> >;
-template class reservation_array<bucket_array_t<1, longhint_t> >;
-template class reservation_array<bucket_array_t<2, longhint_t> >;
 template class reservation_array<bucket_array_t<1, emptyhint_t> >;
+#if MAX_TOPLEVEL >= 2
+template class reservation_array<bucket_array_t<2, shorthint_t> >;
 template class reservation_array<bucket_array_t<2, emptyhint_t> >;
-template class reservation_array<bucket_array_t<3, emptyhint_t> >;
+template class reservation_array<bucket_array_t<1, longhint_t> >;
 template class reservation_array<bucket_array_t<1, logphint_t> >;
+#endif
+
+#if MAX_TOPLEVEL >= 3
+template class reservation_array<bucket_array_t<3, shorthint_t> >;
+template class reservation_array<bucket_array_t<3, emptyhint_t> >;
+template class reservation_array<bucket_array_t<2, longhint_t> >;
 template class reservation_array<bucket_array_t<2, logphint_t> >;
+#endif
+static_assert(MAX_TOPLEVEL == 3);

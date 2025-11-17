@@ -8,7 +8,7 @@
 #include "fb-types.hpp"
 #include "gmp_aux.h"
 #include "las-coordinates.hpp"
-#include "las-config.h"
+#include "las-config.hpp"
 #include "las-qlattice.hpp"
 #include "special-q.hpp"
 #include "macros.h"

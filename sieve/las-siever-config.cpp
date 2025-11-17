@@ -16,7 +16,7 @@
 
 #include "fb.hpp"
 #include "fb-types.hpp"
-#include "las-config.h"
+#include "las-config.hpp"
 #include "las-multiobj-globals.hpp"
 #include "las-siever-config.hpp"
 #include "las-side-config.hpp"
@@ -43,7 +43,13 @@ void siever_config::declare_usage(cxx_param_list & pl)
     param_list_decl_usage(pl, "tdthresh", "trial-divide primes p/r <= ththresh (r=number of roots)");
     param_list_decl_usage(pl, "skipped", "primes below this bound are not sieved at all");
     param_list_decl_usage(pl, "bkthresh", "bucket-sieve primes p >= bkthresh (default 2^I)");
+#if MAX_TOPLEVEL >= 2
     param_list_decl_usage(pl, "bkthresh1", "2-level bucket-sieve primes in [bkthresh1,lim] (default=lim, meaning inactive)");
+#endif
+#if MAX_TOPLEVEL >= 3
+    param_list_decl_usage(pl, "bkthresh2", "3-level bucket-sieve primes in [bkthresh2,lim] (default=lim, meaning inactive)");
+#endif
+    static_assert(MAX_TOPLEVEL == 3);
     param_list_decl_usage(pl, "bkmult", "multiplier to use for taking margin in the bucket allocation\n");
     param_list_decl_usage(pl, "unsievethresh", "Unsieve all p > unsievethresh where p|gcd(a,b)");
     param_list_decl_usage(pl, "adjust-strategy", "strategy used to adapt the sieving range to the q-lattice basis (0 = logI constant, J so that boundary is capped; 1 = logI constant, (a,b) plane norm capped; 2 = logI dynamic, skewed basis; 3 = combine 2 and then 0) ; default=0");
@@ -133,7 +139,13 @@ bool siever_config::parse_default(siever_config & sc, cxx_param_list & pl, int n
     // base.
     /* overrides default only if parameter is given */
     param_list_parse_ulong(pl, "bkthresh", &(sc.bucket_thresh));
+#if MAX_TOPLEVEL >= 2
     param_list_parse_ulong(pl, "bkthresh1", &(sc.bucket_thresh1));
+#endif
+#if MAX_TOPLEVEL >= 3
+    param_list_parse_ulong(pl, "bkthresh2", &(sc.bucket_thresh2));
+#endif
+    static_assert(MAX_TOPLEVEL == 3);
 
     if (sc.bucket_thresh) {
         for (auto & s : sc.sides) {
@@ -169,31 +181,48 @@ bool siever_config::parse_default(siever_config & sc, cxx_param_list & pl, int n
  */
 fb_factorbase::key_type siever_config::instantiate_thresholds(int side) const
 {
-    fbprime_t fbb = sides[side].lim;
-    fbprime_t bucket_thresh = this->bucket_thresh;
-    fbprime_t bucket_thresh1 = this->bucket_thresh1;
+    const fbprime_t fbb = sides[side].lim;
+    decltype(fb_factorbase::key_type::thresholds) ret;
 
-    if (bucket_thresh == 0)
-        bucket_thresh = 1UL << logI;
-    if (bucket_thresh < (1UL << logI)) {
-        verbose_fmt_print(0, 1, "# Warning: with logI = {},"
-                " we can't have {} as the bucket threshold. Using {}\n",
-                logI,
-                bucket_thresh,
-                1UL << logI);
-        bucket_thresh = 1UL << logI;
+    ret.fill(fbb);
+
+    {
+        fbprime_t bucket_thresh = this->bucket_thresh;
+
+        if (bucket_thresh == 0)
+            bucket_thresh = 1UL << logI;
+        if (bucket_thresh < (1UL << logI)) {
+            verbose_fmt_print(0, 1, "# Warning: with logI = {},"
+                    " we can't have {} as the bucket threshold. Using {}\n",
+                    logI,
+                    bucket_thresh,
+                    1UL << logI);
+            bucket_thresh = 1UL << logI;
+        }
+        ret[0] = std::min(bucket_thresh, fbb);
     }
 
-    bucket_thresh = std::min(bucket_thresh, fbb);
-    if (bucket_thresh1 == 0 || bucket_thresh1 > fbb) bucket_thresh1 = fbb;
-    bucket_thresh1 = std::max(bucket_thresh1, bucket_thresh);
+#if MAX_TOPLEVEL >= 2
+    {
+        fbprime_t bucket_thresh1 = this->bucket_thresh1;
+        if (bucket_thresh1 == 0 || bucket_thresh1 > fbb) bucket_thresh1 = fbb;
+        ret[1] = std::max(bucket_thresh1, ret[0]);
+    }
+#endif
 
-    return fb_factorbase::key_type {
-        {{bucket_thresh, bucket_thresh1, fbb, fbb}},
-            td_thresh,
-            skipped,
-            0,
-            0
+#if MAX_TOPLEVEL >= 3
+    {
+        fbprime_t bucket_thresh2 = this->bucket_thresh2;
+        if (bucket_thresh2 == 0 || bucket_thresh2 > fbb) bucket_thresh2 = fbb;
+        ret[2] = std::max(bucket_thresh2, ret[1]);
+    }
+#endif
+    static_assert(MAX_TOPLEVEL == 3);
+
+    return {
+         .thresholds = ret,
+         .td_thresh = td_thresh,
+         .skipped = skipped
     };
 }
 

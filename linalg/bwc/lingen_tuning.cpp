@@ -1052,7 +1052,6 @@ struct lingen_tuner : public lingen_tuner_base {
 
             if (CF.do_timings && !timed_something) {
                 os << os_pre.str();
-                os_pre.str();
                 p_talk = &os;
                 timed_something = true;
             }
@@ -1253,7 +1252,6 @@ struct lingen_tuner : public lingen_tuner_base {
             bool const timed_here = tune_local_at_depth((*p_talk), persist, i);
             if (timed_here && !timed_something) {
                 os << os_pre.str();
-                os_pre.str();
                 p_talk = &os;
                 timed_something = true;
             }
