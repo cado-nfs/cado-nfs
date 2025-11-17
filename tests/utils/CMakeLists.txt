@@ -111,6 +111,18 @@ cado_define_test(test_subdivide_primes_interval.cpp LIBRARIES utils)
 cado_define_test(test_galois_action.cpp LIBRARIES utils tests)
 cado_define_test(test_imaginary_quadratic_class_groups.cpp LIBRARIES utils tests)
 
+cado_define_test(test_cachesize
+    PROGRAM
+    ${CADO_NFS_BINARY_DIR}/utils/cachesize
+    TARGET_DEPENDENCIES cachesize
+    # only make sure that the code reaches the end. This code is
+    # certainly not robust enough to have a requirement on its output.I
+    # wish the situation were a bit better.
+    SHA1_ON_REGEXP_LINES "^#define L1_CACHE_SIZE [0-9]*$"
+    EXPECT_SHA1 835f61ab6ba177ef4091c3231b0f30eaaad021b4
+    SHA1_ON_SED_OUTPUT "s/^\\(#define L1_CACHE_SIZE\\).*/\\1/"
+)
+
 add_subdirectory(numbertheory)
 
 if(SAGE)

@@ -7,38 +7,39 @@
  * The WHERE_AM_I_UPDATE macro itself is defined in las-where-am-i.hpp
  */
 
-#include <cstddef> // for size_t, NULL
-#include <cstdint> // for uint32_t, uint64_t
+#include <cstddef>
+#include <cstdint>
 
-#include <algorithm> // for max_element, min
-#include <array>     // for array
-#include <limits>    // for numeric_limits
-#include <memory>    // for shared_ptr, allocator, __sh...
-#include <utility>   // for move
-#include <vector>    // for vector, vector<>::iterator
+#include <algorithm>
+#include <array>
+#include <limits>
+#include <memory>
+#include <utility>
+#include <vector>
 
-#include "bucket-push-update.hpp"        // for bucket_array_t::push_update
-#include "bucket.hpp"                    // for longhint_t (ptr only), buck...
+#include "bucket-push-update.hpp"
+#include "bucket.hpp"
 #include "fb-types.hpp"
-#include "fb.hpp"                        // for fb_slice, fb_factorbase
-#include "las-auxiliary-data.hpp"        // for nfs_aux, nfs_aux::thread_data
-#include "las-bkmult.hpp"                // for buckets_are_full
-#include "las-config.h"                  // for FB_MAX_PARTS, BUCKET_REGIONS
-#include "las-fill-in-buckets.hpp"       // for precomp_plattice_t, downsor...
-#include "las-plattice.hpp"              // for plattice_info, plattice_e...
-#include "las-process-bucket-region.hpp" // for process_many_bucket_regions
-#include "las-qlattice.hpp"              // for qlattice_basis
-#include "las-report-stats.hpp"          // for TIMER_CATEGORY
-#include "las-siever-config.hpp"         // for siever_config, siever_confi...
-#include "las-smallsieve.hpp"            // for small_sieve_activate_many_s...
-#include "las-threads-work-data.hpp"     // for nfs_work, nfs_work::side_data
-#include "las-where-am-i-proxy.hpp"      // for where_am_I
-#include "las-where-am-i.hpp"            // for where_am_I, WHERE_AM_I_UPDATE
-#include "macros.h"                      // for CADO_CONCATENATE, ASSERT_AL...
-#include "multityped_array.hpp"          // for multityped_array (ptr only)
-#include "tdict.hpp"                     // for slot, timetree_t, CHILD_TIMER
-#include "threadpool.hpp"                // for thread_pool, worker_thread
+#include "fb.hpp"
+#include "las-auxiliary-data.hpp"
+#include "las-bkmult.hpp"
+#include "las-config.hpp"
+#include "las-fill-in-buckets.hpp"
+#include "las-plattice.hpp"
+#include "las-process-bucket-region.hpp"
+#include "las-qlattice.hpp"
+#include "las-report-stats.hpp"
+#include "las-siever-config.hpp"
+#include "las-smallsieve.hpp"
+#include "las-threads-work-data.hpp"
+#include "las-where-am-i-proxy.hpp"
+#include "las-where-am-i.hpp"
+#include "macros.h"
+#include "multityped_array.hpp"
+#include "tdict.hpp"
+#include "threadpool.hpp"
 #include "utils_cxx.hpp"
+#include "verbose.h"
 
 /* is this in the std library or not ? */
 template <typename T> static inline T const & const_ref(T & x)
@@ -319,10 +320,9 @@ template <int LEVEL>
 struct make_lattice_bases_parameters_base : public task_parameters {
     int side;
     nfs_work & ws;
-    typename precomp_plattice_t<LEVEL>::vec_type & V;
-    make_lattice_bases_parameters_base(
-        int side, nfs_work & ws,
-        typename precomp_plattice_t<LEVEL>::vec_type & V)
+    precomp_plattice_t<LEVEL> & V;
+    make_lattice_bases_parameters_base(int side, nfs_work & ws,
+            precomp_plattice_t<LEVEL> & V)
         : side(side)
         , ws(ws)
         , V(V)
@@ -355,10 +355,13 @@ static task_result * make_lattice_bases(worker_thread * worker MAYBE_UNUSED,
     qlattice_basis const & Q(ws.Q);
     int const logI = ws.conf.logI;
     sublat_t const & sublat(ws.Q.sublat);
-    typename precomp_plattice_t<LEVEL>::vec_type & V(param->V);
-    fb_slice<FB_ENTRY_TYPE> const & slice(param->slice);
+    auto & V(param->V);
+    auto const & slice(param->slice);
 
-    slice_index_t const index = slice.get_index();
+    auto const index0 = ws.sides[param->side].fbs->get_part(LEVEL).first_slice_index;
+    auto const index = slice.get_index();
+    auto const relative_index = index - index0;
+    ASSERT_ALWAYS(relative_index < V.size());
 
     typename FB_ENTRY_TYPE::transformed_entry_t transformed;
     /* Create a transformed vector and store the index of the fb_slice we
@@ -394,7 +397,7 @@ static task_result * make_lattice_bases(worker_thread * worker MAYBE_UNUSED,
         }
     }
     /* This is moved, not copied. Note that V is a reference. */
-    V[result.get_index()] = std::move(result);
+    V[relative_index] = std::move(result);
     delete param;
     return new task_result;
 }
@@ -439,16 +442,14 @@ struct helper_functor_prepare_precomp_plattice {
 
         nfs_work::side_data const & wss(ws.sides[side]);
         fb_factorbase::slicing::part const & P = wss.fbs->get_part(T::level);
-        typename precomp_plattice_t<T::level>::vec_type & V =
-            precomp_plattice.v[side];
         /* We pre-assign the result, so that all threads can write to it
          * comfortably.
          *
          * It would be nice to have a way to notify that all threads here are
          * done with their job.
          */
-        V.assign(P.nslices(), plattices_vector_t());
-        make_lattice_bases_parameters_base<T::level> const model {side, ws, V};
+        precomp_plattice.assign(P.nslices(), plattices_vector_t());
+        make_lattice_bases_parameters_base<T::level> const model {side, ws, precomp_plattice};
         push_make_bases_to_task_list<T::level> F {pool, model};
         P.foreach_slice(F);
     }
@@ -456,7 +457,7 @@ struct helper_functor_prepare_precomp_plattice {
 
 void fill_in_buckets_prepare_plattices(
     nfs_work & ws, thread_pool & pool, int side,
-    multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS> & precomp_plattice)
+    multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS-1> & precomp_plattice)
 {
     helper_functor_prepare_precomp_plattice H(ws, pool, side);
 
@@ -730,11 +731,15 @@ fill_in_buckets_lowlevel(bucket_array_t<LEVEL, TARGET_HINT> & orig_BA,
     /* Write new set of pointers for the new slice */
     BA.add_slice_index(slice_index);
 
-    /* top level: the fence we care about is the one defined by the number
-     * of bucket regions at this level, most probably (but J might
-     * conceivably give a lower bound) */
+    /* we used to look up BUCKET_REGIONS[LEVEL + 1] here, which doesn't
+     * really seem to make sense. I expect that ws.J actually yields a
+     * stricter bound in all cases.
+     */
     plattice_enumerator::fence const F(ws.conf.logI, ws.J,
-                                       BUCKET_REGIONS[LEVEL + 1]);
+            (LEVEL + 1 < FB_MAX_PARTS ? BUCKET_REGIONS[LEVEL + 1] : SIZE_MAX));
+    /* just checking... */
+    if (LEVEL == FB_MAX_PARTS - 1)
+        ASSERT_ALWAYS((ws.J << ws.conf.logI) < (BUCKET_REGIONS[LEVEL] << 8));
 
     for (auto & ple_orig: plattices_vector) {
         // Work with a copy, otherwise we don't get all optimizations.
@@ -882,8 +887,7 @@ static task_result *
 fill_in_buckets_one_slice_internal(worker_thread * worker,
                                    task_parameters * _param, int)
 {
-    fill_in_buckets_parameters<LEVEL> * param =
-        static_cast<fill_in_buckets_parameters<LEVEL> *>(_param);
+    auto * param = static_cast<fill_in_buckets_parameters<LEVEL> *>(_param);
 
     /* Import some contextual stuff */
     int const id = worker->rank();
@@ -909,14 +913,12 @@ fill_in_buckets_one_slice_internal(worker_thread * worker,
     WHERE_AM_I_UPDATE(w, N, param->first_region0_index);
 
     try {
-
         /* Get an unused bucket array that we can write to */
         /* clearly, reserve_BA() possibly throws. As it turns out,
          * fill_in_buckets_lowlevel<> does not, at least currently. One
          * could imagine that it could throw, so let's wrap it too.
          */
-        bucket_array_t<LEVEL, TARGET_HINT> & BA =
-            wss.reserve_BA<LEVEL, TARGET_HINT>(-1);
+        auto & BA = wss.reserve_BA<LEVEL, TARGET_HINT>(-1);
 
         /* Fill the buckets */
         try {
@@ -947,8 +949,7 @@ static task_result *
 fill_in_buckets_toplevel_wrapper(worker_thread * worker MAYBE_UNUSED,
                                  task_parameters * _param, int)
 {
-    fill_in_buckets_parameters<LEVEL> * param =
-        static_cast<fill_in_buckets_parameters<LEVEL> *>(_param);
+    auto * param = static_cast<fill_in_buckets_parameters<LEVEL> *>(_param);
 
     /* Import some contextual stuff */
     int const id = worker->rank();
@@ -1134,6 +1135,19 @@ static void fill_in_buckets_one_side(nfs_work & ws, nfs_aux & aux,
     fill_in_buckets_parameters<LEVEL> const model(ws, aux, side, NULL, NULL,
                                                   NULL, 0, w);
 
+    auto const & BA_ins = wss.bucket_arrays<LEVEL, TARGET_HINT>();
+
+    verbose_fmt_print(0, 3,
+            "# Filling the side-{} {}{} buckets ({} groups of {} buckets)\n",
+            side,
+            LEVEL, TARGET_HINT::rtti[0],
+            BA_ins.size(), BA_ins[0].n_bucket);
+
+    /* We'd like to also display info on the slices we're about to run
+     * FIB on, but the multityped_array interface won't let us do this
+     * easily.
+     */
+
     if (!ws.Q.sublat.m) {
         /* This creates a task meant to call
          * fill_in_buckets_toplevel_wrapper */
@@ -1159,40 +1173,42 @@ static void fill_in_buckets_one_side(nfs_work & ws, nfs_aux & aux,
     }
 }
 
-void fill_in_buckets_toplevel(nfs_work & ws, nfs_aux & aux, thread_pool & pool,
-                              int side, where_am_I & w)
+
+/* This is a compile-time loop over the possible values from 1 to level,
+ * and 0 errors out. */
+template<int level, typename hint_t>
+struct fib1s_caller_s : public fib1s_caller_s<level-1, hint_t> {
+    template<typename... Args>
+    void operator()(nfs_work & ws, Args&& ...args) const {
+        if (ws.toplevel == level)
+            fill_in_buckets_one_side<level, hint_t>(ws, std::forward<Args>(args)...);
+        else
+            fib1s_caller_s<level-1, hint_t>::operator()(ws, std::forward<Args>(args)...);
+    }
+};
+template<typename hint_t>
+struct fib1s_caller_s<0, hint_t> {
+    template<typename... Args>
+    void operator()(nfs_work &, Args&& ...) const {
+        ASSERT_ALWAYS(0);
+    }
+};
+
+template<int level, typename hint_t, typename... Args>
+inline void fib_one_side(nfs_work & ws, Args&& ...args)
+{
+    fib1s_caller_s<level, hint_t>()(ws, std::forward<Args>(args)...);
+}
+
+void fill_in_buckets_toplevel_multiplex(nfs_work & ws, nfs_aux & aux,
+        thread_pool & pool, int side, where_am_I & w)
 {
     // per se, we're not doing anything here.
     // CHILD_TIMER(timer, __func__);
-
     if (ws.conf.needs_resieving()) {
-        switch (ws.toplevel) {
-        case 1:
-            fill_in_buckets_one_side<1, shorthint_t>(ws, aux, pool, side, w);
-            break;
-        case 2:
-            fill_in_buckets_one_side<2, shorthint_t>(ws, aux, pool, side, w);
-            break;
-        case 3:
-            fill_in_buckets_one_side<3, shorthint_t>(ws, aux, pool, side, w);
-            break;
-        default:
-            ASSERT_ALWAYS(0);
-        }
+        fib_one_side<MAX_TOPLEVEL, shorthint_t>(ws, aux, pool, side, w);
     } else {
-        switch (ws.toplevel) {
-        case 1:
-            fill_in_buckets_one_side<1, emptyhint_t>(ws, aux, pool, side, w);
-            break;
-        case 2:
-            fill_in_buckets_one_side<2, emptyhint_t>(ws, aux, pool, side, w);
-            break;
-        case 3:
-            fill_in_buckets_one_side<3, emptyhint_t>(ws, aux, pool, side, w);
-            break;
-        default:
-            ASSERT_ALWAYS(0);
-        }
+        fib_one_side<MAX_TOPLEVEL, emptyhint_t>(ws, aux, pool, side, w);
     }
 }
 
@@ -1203,20 +1219,40 @@ void fill_in_buckets_toplevel(nfs_work & ws, nfs_aux & aux, thread_pool & pool,
  *
  */
 
-/* This is auxiliary only. We downsort stuff that wa already downsorted.
+/* This is auxiliary only. We downsort stuff that we already downsorted.
  * So it applies only if LEVEL+1 is itself not the toplevel.
  * For this reason, we must have a specific instantiation that reduces
  * this to a no-op if LEVEL+1>=3, because there's no longhint_t for level
  * 3 presently.
  */
-template <int LEVEL>
+template <int LEVEL, bool WITH_HINTS>
 static void downsort_aux(fb_factorbase::slicing const & fbs, nfs_work & ws,
                          nfs_aux & aux, thread_pool & pool, int side,
                          uint32_t bucket_index, where_am_I & w)
 {
+    static_assert(LEVEL <= MAX_TOPLEVEL - 1);
+
+    using my_longhint_t = hints_proxy<WITH_HINTS>::l;
+
     nfs_work::side_data & wss(ws.sides[side]);
+
+    auto const & BA_ins = wss.bucket_arrays<LEVEL + 1, my_longhint_t>();
+    auto & BA_outs = wss.bucket_arrays<LEVEL, my_longhint_t>();
+
+    verbose_fmt_print(0, 3,
+            "# Downsorting the side-{} {}{} buckets ({} groups of {} buckets"
+            ", taking only bucket {}/{})"
+            " to {}{} buckets ({} groups of {} buckets)\n",
+            side,
+            LEVEL + 1, my_longhint_t::rtti[0],
+            BA_ins.size(), BA_ins[0].n_bucket,
+            bucket_index, BA_ins[0].n_bucket,
+            LEVEL, my_longhint_t::rtti[0],
+            BA_outs.size(), BA_outs[0].n_bucket);
+
+
     // What comes from already downsorted data above:
-    for (auto const & BAin: wss.bucket_arrays<LEVEL + 1, longhint_t>()) {
+    for (auto const & BA_in: BA_ins) {
         pool.add_task_lambda(
             [&, side, w](worker_thread * worker, int bucket_index) {
                 nfs_aux::thread_data & taux(aux.th[worker->rank()]);
@@ -1225,19 +1261,40 @@ static void downsort_aux(fb_factorbase::slicing const & fbs, nfs_work & ws,
                 MARK_TIMER_FOR_SIDE(timer, side);
                 taux.w = w;
                 CHILD_TIMER(timer, TEMPLATE_INST_NAME(downsort, LEVEL));
-                auto & BAout(
-                    wss.reserve_BA<LEVEL, longhint_t>(wss.rank_BA(BAin)));
-                downsort<LEVEL + 1>(fbs, BAout, BAin, bucket_index, taux.w);
-                wss.template release_BA<LEVEL, longhint_t>(BAout);
+                auto & BA_out(
+                    wss.reserve_BA<LEVEL, my_longhint_t>(wss.rank_BA(BA_in)));
+                downsort<LEVEL + 1>(fbs, BA_out, BA_in, bucket_index, taux.w);
+                wss.template release_BA<LEVEL, my_longhint_t>(BA_out);
             },
             bucket_index, 0);
     }
 }
+
+#if MAX_TOPLEVEL == 2
 template <>
-void downsort_aux<2>(fb_factorbase::slicing const &, nfs_work &, nfs_aux &,
+void downsort_aux<1, false>(fb_factorbase::slicing const &, nfs_work &, nfs_aux &,
                      thread_pool &, int, uint32_t, where_am_I &)
 {
 }
+template <>
+void downsort_aux<1, true>(fb_factorbase::slicing const &, nfs_work &, nfs_aux &,
+                     thread_pool &, int, uint32_t, where_am_I &)
+{
+}
+#endif
+#if MAX_TOPLEVEL == 3
+template <>
+void downsort_aux<2, false>(fb_factorbase::slicing const &, nfs_work &, nfs_aux &,
+                     thread_pool &, int, uint32_t, where_am_I &)
+{
+}
+template <>
+void downsort_aux<2, true>(fb_factorbase::slicing const &, nfs_work &, nfs_aux &,
+                     thread_pool &, int, uint32_t, where_am_I &)
+{
+}
+#endif
+static_assert(MAX_TOPLEVEL == 3);
 
 // first_region0_index is a way to remember where we are in the tree.
 // The depth-first is a way to process all the the regions of level 0 in
@@ -1247,19 +1304,24 @@ void downsort_aux<2>(fb_factorbase::slicing const &, nfs_work &, nfs_aux &,
 
 template <int LEVEL, bool WITH_HINTS>
 static void downsort_tree_inner(
-    nfs_work & ws, std::shared_ptr<nfs_work_cofac> wc_p,
-    std::shared_ptr<nfs_aux> aux_p, thread_pool & pool,
+    nfs_work & ws,
+    std::shared_ptr<nfs_work_cofac> wc_p,
+    std::shared_ptr<nfs_aux> aux_p,
+    thread_pool & pool,
     uint32_t bucket_index, /* for the current level ! */
     uint32_t first_region0_index,
-    multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS> & precomp_plattice,
+    std::vector<multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS - 1>> & precomp_plattices,
     where_am_I & w)
 {
-    int nsides = ws.las.cpoly->nb_polys;
+    /* LEVEL is not the toplevel here, so we must have the following: */
+    static_assert(LEVEL <= MAX_TOPLEVEL - 1);
+
+    int const nsides = ws.las.cpoly->nb_polys;
     nfs_aux & aux(*aux_p);
     timetree_t & timer(aux.rt.timer);
 
-    typedef typename hints_proxy<WITH_HINTS>::l my_longhint_t;
-    typedef typename hints_proxy<WITH_HINTS>::s my_shorthint_t;
+    using my_longhint_t = hints_proxy<WITH_HINTS>::l;
+    using my_shorthint_t = hints_proxy<WITH_HINTS>::s;
 
     CHILD_TIMER(timer, TEMPLATE_INST_NAME(downsort_tree, LEVEL));
     TIMER_CATEGORY(timer, sieving_mixed());
@@ -1288,18 +1350,28 @@ static void downsort_tree_inner(
              */
             fb_factorbase::slicing const & fbs(*wss.fbs);
 
-            size_t const n2s =
-                wss.bucket_arrays<LEVEL + 1, my_shorthint_t>().size();
-            size_t const n1l = wss.bucket_arrays<LEVEL, my_longhint_t>().size();
+            auto const & BA_ins = wss.bucket_arrays<LEVEL + 1, my_shorthint_t>();
+            auto & BA_outs = wss.bucket_arrays<LEVEL, my_longhint_t>();
+
+            verbose_fmt_print(0, 3,
+                    "# Downsorting the side-{} {}{} buckets ({} groups of {} buckets"
+                    ", taking only bucket {}/{})"
+                    " to {}{} buckets ({} groups of {} buckets)\n",
+                    side,
+                    LEVEL + 1, my_shorthint_t::rtti[0],
+                    BA_ins.size(), BA_ins[0].n_bucket,
+                    bucket_index, BA_ins[0].n_bucket,
+                    LEVEL, my_longhint_t::rtti[0],
+                    BA_outs.size(), BA_outs[0].n_bucket);
+
             /* otherwise the code here can't work */
-            ASSERT_ALWAYS(n2s == n1l);
+            ASSERT_ALWAYS(BA_ins.size() == BA_outs.size());
 
             /* We create one output array for each input array, and we
              * process them in parallel. There would be various ways to
              * achieve that.
              */
-            for (auto const & BAin:
-                 wss.bucket_arrays<LEVEL + 1, my_shorthint_t>()) {
+            for (auto const & BA_in: BA_ins) {
                 pool.add_task_lambda(
                     [&, side, w](worker_thread * worker, int bucket_index) {
                         nfs_aux::thread_data & taux(aux.th[worker->rank()]);
@@ -1308,48 +1380,82 @@ static void downsort_tree_inner(
                         ENTER_THREAD_TIMER(timer);
                         MARK_TIMER_FOR_SIDE(timer, side);
                         CHILD_TIMER(timer, TEMPLATE_INST_NAME(downsort, LEVEL));
-                        auto & BAout(wss.reserve_BA<LEVEL, my_longhint_t>(
-                            wss.rank_BA(BAin)));
-                        // This is a fake slice_index. For a longhint_t bucket,
-                        // each update contains its own slice_index, directly
-                        // used by apply_one_bucket
-                        // and purge.
-                        BAout.reset_pointers();
-                        BAout.add_slice_index(
-                            std::numeric_limits<slice_index_t>::max());
-                        downsort<LEVEL + 1>(fbs, BAout, BAin, bucket_index,
+                        auto & BA_out(wss.reserve_BA<LEVEL, my_longhint_t>(
+                            wss.rank_BA(BA_in)));
+                        BA_out.reset_pointers();
+                        downsort<LEVEL + 1>(fbs, BA_out, BA_in, bucket_index,
                                             taux.w);
-                        wss.template release_BA<LEVEL, my_longhint_t>(BAout);
+                        //wss.template release_BA<LEVEL, my_longhint_t>(BA_out);
+                        wss.release_BA(BA_out);
                     },
                     bucket_index, 0);
             }
             // What comes from already downsorted data above. We put this in
             // an external function because we need the code to be elided or
             // LEVEL >= 2.
-            if (LEVEL < ws.toplevel - 1)
-                downsort_aux<LEVEL>(fbs, ws, aux, pool, side, bucket_index, w);
+            if (LEVEL < ws.toplevel - 1) {
+                pool.drain_queue(0);
+                downsort_aux<LEVEL, WITH_HINTS>(fbs, ws, aux, pool, side, bucket_index, w);
+            }
         }
 
-        /* SECOND: fill in buckets at this level, for this region. */
-        wss.reset_all_pointers<LEVEL, my_shorthint_t>();
+        /* There might be a performance hit here, and honestly I'm not
+         * 100% sure it's useful. The F9_sieve_3_levels test wants it,
+         * and apparently really wants it here.
+         */
+        pool.drain_queue(0);
 
-        for (auto & it: precomp_plattice.get<LEVEL>()(side)) {
-            pool.add_task(
-                fill_in_buckets_one_slice_internal<LEVEL, my_shorthint_t>,
-                new fill_in_buckets_parameters<LEVEL> {
-                    ws, aux, side, (fb_slice_interface *)NULL, &it, NULL,
-                    first_region0_index, const_ref(w)},
-                0, 0, it.get_weight());
+        {
+            /* SECOND: fill in buckets at this level, for this region. */
+            wss.reset_all_pointers<LEVEL, my_shorthint_t>();
+
+            auto & BA_outs = wss.bucket_arrays<LEVEL, my_shorthint_t>();
+            auto & lattices = precomp_plattices[side].get<LEVEL>();
+
+            verbose_fmt_print(0, 3,
+                    "# Filling the side-{} {}{} buckets ({} groups of {} buckets)"
+                    " using {} precomputed lattices\n",
+                    side,
+                    LEVEL, my_shorthint_t::rtti[0],
+                    BA_outs.size(), BA_outs[0].n_bucket,
+                    lattices.size());
+            if (!lattices.empty()) {
+                verbose_fmt_print(0, 3,
+                        "#   lattices go from slice {} ({} primes) to slice {} ({} primes)\n",
+                        lattices.front().get_index(), lattices.front().size(),
+                        lattices.back().get_index(), lattices.back().size()
+                    );
+            }
+
+            for (auto & it: lattices) {
+                pool.add_task(
+                        fill_in_buckets_one_slice_internal<LEVEL, my_shorthint_t>,
+                        new fill_in_buckets_parameters<LEVEL> {
+                        ws, aux, side, (fb_slice_interface *)NULL, &it, NULL,
+                        first_region0_index, const_ref(w)},
+                        0, 0, it.get_weight());
+            }
         }
     }
 
     /* RECURSE */
     if (LEVEL > 1) {
+        size_t const(&BRS)[FB_MAX_PARTS] = BUCKET_REGIONS;
+        verbose_fmt_print(0, 3,
+                "# recursively downsort level-{} buckets ({} buckets)"
+                " to level {} (+ fill {}{} buckets). Target bucket indices: {}..{}\n",
+                LEVEL, ws.nb_buckets[LEVEL], LEVEL-1,
+                LEVEL - 1, my_shorthint_t::rtti[0],
+                first_region0_index,
+                first_region0_index + ws.nb_buckets[LEVEL] * BRS[LEVEL] / BRS[1]);
+
         for (int i = 0; i < ws.nb_buckets[LEVEL]; ++i) {
-            size_t const(&BRS)[FB_MAX_PARTS] = BUCKET_REGIONS;
+            /* This is quite suspicious. Shouldn't we do BRS[LEVEL] /
+             * BRS[LEVEL - 1] instead?
+             */
             uint32_t const N = first_region0_index + i * (BRS[LEVEL] / BRS[1]);
             downsort_tree<LEVEL - 1>(ws, wc_p, aux_p, pool, i, N,
-                                     precomp_plattice, w);
+                                     precomp_plattices, w);
         }
     } else {
         /* Prepare for PBR: we need to precompute the small sieve positions
@@ -1398,9 +1504,18 @@ static void downsort_tree_inner(
             throw *std::max_element(exc.begin(), exc.end());
         }
 
+        // it seems difficult to compute the max target bucket index, in
+        // fact. Well of course it should be ws.nb_buckets[1], but just
+        // based on the input that we have, it's less obvious.
+        // size_t const(&BRS)[FB_MAX_PARTS] = BUCKET_REGIONS;
+        verbose_fmt_print(0, 3,
+                "# calling process_bucket_region"
+                " on regions of indices {}..\n",
+                first_region0_index);
+        // first_region0_index + ws.nb_buckets[ws.toplevel] * BRS[ws.toplevel] / BRS[1]);
+
         /* PROCESS THE REGIONS AT LEVEL 0 */
-        process_many_bucket_regions(ws, wc_p, aux_p, pool, first_region0_index,
-                                    w);
+        process_many_bucket_regions(ws, wc_p, aux_p, pool, first_region0_index, w);
 
         /* We need that, because the next downsort_tree call in the loop
          * above (for LEVEL>1) will reset the pointers while filling the 1l
@@ -1413,20 +1528,22 @@ static void downsort_tree_inner(
 
 template <int LEVEL>
 void downsort_tree(
-    nfs_work & ws, std::shared_ptr<nfs_work_cofac> wc_p,
-    std::shared_ptr<nfs_aux> aux_p, thread_pool & pool,
+    nfs_work & ws,
+    std::shared_ptr<nfs_work_cofac> wc_p,
+    std::shared_ptr<nfs_aux> aux_p,
+    thread_pool & pool,
     uint32_t bucket_index, /* for the current level ! */
     uint32_t first_region0_index,
-    multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS> & precomp_plattice,
+    std::vector<multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS - 1>> & precomp_plattices,
     where_am_I & w)
 {
     if (ws.conf.needs_resieving()) {
         downsort_tree_inner<LEVEL, true>(ws, wc_p, aux_p, pool, bucket_index,
-                                         first_region0_index, precomp_plattice,
+                                         first_region0_index, precomp_plattices,
                                          w);
     } else {
         downsort_tree_inner<LEVEL, false>(ws, wc_p, aux_p, pool, bucket_index,
-                                          first_region0_index, precomp_plattice,
+                                          first_region0_index, precomp_plattices,
                                           w);
     }
 }
@@ -1434,15 +1551,18 @@ void downsort_tree(
 
 // A fake level 0, to avoid infinite loop during compilation.
 template <>
-void downsort_tree<0>(nfs_work &, std::shared_ptr<nfs_work_cofac>,
-                      std::shared_ptr<nfs_aux>, thread_pool &, uint32_t,
+void downsort_tree<0>(nfs_work &,
+                      std::shared_ptr<nfs_work_cofac>,
+                      std::shared_ptr<nfs_aux>,
+                      thread_pool &, uint32_t,
                       uint32_t,
-                      multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS> &,
+                      std::vector<multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS - 1>> &,
                       where_am_I &)
 {
     ASSERT_ALWAYS(0);
 }
 
+#if 0
 // other fake instances to please level-2 instantiation.
 template <>
 void downsort<3>(fb_factorbase::slicing const &,
@@ -1454,15 +1574,21 @@ void downsort<3>(fb_factorbase::slicing const &,
     /* Note that the const getter for 3l buckets (which don't exist) is
      * instantiated in bucket.cpp as erroring out, too */
 }
+#endif
 
-// Now the two exported instances
+// Now the exported instances
 
 template void downsort_tree<1>(
     nfs_work &, std::shared_ptr<nfs_work_cofac>, std::shared_ptr<nfs_aux> aux_p,
     thread_pool &, uint32_t, uint32_t,
-    multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS> &, where_am_I &);
+    std::vector<multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS - 1>> &, where_am_I &);
+
+
+#if MAX_TOPLEVEL >= 3
 template void
 downsort_tree<2>(nfs_work &, std::shared_ptr<nfs_work_cofac>,
                  std::shared_ptr<nfs_aux>, thread_pool &, uint32_t, uint32_t,
-                 multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS> &,
+                 std::vector<multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS - 1>> &,
                  where_am_I &);
+#endif
+static_assert(MAX_TOPLEVEL == 3);

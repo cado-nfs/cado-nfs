@@ -44,14 +44,14 @@ struct buckets_are_full : public clonable_exception {
     int reached_size;
     int theoretical_max_size;
     std::string message;
-    ~buckets_are_full();
-    buckets_are_full(buckets_are_full const &);
+    ~buckets_are_full() override = default;
+    buckets_are_full(buckets_are_full const &) noexcept = default;
     buckets_are_full(bkmult_specifier::key_type const&, int b, int r, int t);
-    virtual const char * what() const noexcept { return message.c_str(); }
+    const char * what() const noexcept override { return message.c_str(); }
     bool operator<(buckets_are_full const& o) const {
         return (double) reached_size / theoretical_max_size < (double) o.reached_size / o.theoretical_max_size;
     }
-    virtual clonable_exception * clone() const { return new buckets_are_full(*this); }
+    clonable_exception * clone() const override { return new buckets_are_full(*this); }
 };
 
 

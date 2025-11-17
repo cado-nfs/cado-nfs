@@ -11,7 +11,7 @@
 #include "ecm/facul_strategies.hpp"
 #include "fb.hpp"
 #include "las-bkmult.hpp"
-#include "las-config.h"
+#include "las-config.hpp"
 #include "las-dumpfile.hpp"
 #include "las-norms.hpp"
 #include "las-plattice.hpp"
@@ -271,13 +271,20 @@ class nfs_work {
     void buckets_alloc();
     void buckets_free();
 
-
     private:
-    template <int LEVEL, typename HINT> double buckets_max_full();
+    template <int LEVEL, typename HINT> double buckets_max_full() const;
 
     public:
-    double check_buckets_max_full();
-    template <typename HINT> double check_buckets_max_full(int level);
+    double check_buckets_max_full() const;
+    double check_buckets_max_full_toplevel(int level) const;
+
+#if 0
+    private:
+    template <typename HINT> double check_buckets_max_full(int level)
+        requires (HINT::allowed_at_toplevel);
+    template <typename HINT> double check_buckets_max_full(int level)
+        requires (!(HINT::allowed_at_toplevel));
+#endif
 };
 
 /* Should it be made a shared pointer too ? Probably. */

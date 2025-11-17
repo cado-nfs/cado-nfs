@@ -9,7 +9,6 @@
 
 #include <climits>
 #include <cmath>
-#include <cstdarg>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -19,7 +18,6 @@
 #include <condition_variable>
 #include <fstream>
 #include <functional>
-#include <iomanip>
 #include <list>
 #include <map>
 #include <memory>
@@ -50,7 +48,7 @@
 #include "las-bkmult.hpp"
 #include "las-choose-sieve-area.hpp"
 #include "las-cofactor.hpp"
-#include "las-config.h"
+#include "las-config.hpp"
 #include "las-special-q-task-collection.hpp"
 #include "las-divide-primes.hpp"
 #include "las-dlog-base.hpp"
@@ -75,7 +73,6 @@
 #include "las-todo-list.hpp"
 #include "las-where-am-i-proxy.hpp"
 #include "las-where-am-i.hpp"
-#include "lock_guarded_container.hpp"
 #include "macros.h"
 #include "memusage.h"
 #include "misc.h"
@@ -95,6 +92,7 @@ static void configure_aliases(cxx_param_list & pl)
 {
     las_info::configure_aliases(pl);
     param_list_configure_alias(pl, "log-bucket-region", "B");
+    param_list_configure_alias(pl, "log-bucket-region-step", "Bi");
     las_output::configure_aliases(pl);
     tdict::configure_aliases(pl);
 }
@@ -111,6 +109,7 @@ static void configure_switches(cxx_param_list & pl)
 
     param_list_configure_switch(pl, "-prepend-relation-time", &prepend_relation_time);
     param_list_configure_switch(pl, "-sync", &sync_at_special_q);
+    param_list_configure_switch(pl, "-sync-thread-pool", &sync_thread_pool);
     param_list_configure_switch(pl, "-never-discard", &never_discard);
     param_list_configure_switch(pl, "-production", &las_production_mode);
 }
@@ -138,6 +137,7 @@ static void declare_usage(cxx_param_list & pl)/*{{{*/
     param_list_decl_usage(pl, "sublat", "modulus for sublattice sieving");
 
     param_list_decl_usage(pl, "log-bucket-region", "set bucket region to 2^x");
+    param_list_decl_usage(pl, "log-bucket-region-step", "set the number of level-(n-1) buckets inside a level-n bucket to 2^x");
 
     siever_config::declare_usage(pl);
 
@@ -145,6 +145,7 @@ static void declare_usage(cxx_param_list & pl)/*{{{*/
     param_list_decl_usage(pl, "file-cofact", "provide file with strategies for the cofactorization step");
     param_list_decl_usage(pl, "prepend-relation-time", "prefix all relation produced with time offset since beginning of special-q processing");
     param_list_decl_usage(pl, "sync", "synchronize all threads at each special-q");
+    param_list_decl_usage(pl, "sync-thread-pool", "synchronize the thread pool (implies -t 1 !!)");
     where_am_I::decl_usage(pl);
     if (dlp_descent) {
         param_list_decl_usage(pl, "recursive-descent", "descend primes recursively");
@@ -159,6 +160,28 @@ static void declare_usage(cxx_param_list & pl)/*{{{*/
     param_list_decl_usage(pl, "production", "Sort of an opposite to -v. Disable all diagnostics except the cheap or critical ones. See #21688 and #21825.");
     verbose_decl_usage(pl);
 }/*}}}*/
+
+struct round_me {
+    slice_index_t initial = 1;
+    slice_index_t increase = 1;
+    template<typename T>
+    static
+    round_me from(T const &)
+    {
+        return { .initial = T::initial, .increase = T::increase };
+    }
+    /*
+    round_me() = default;
+    round_me(round_me const &) = default;
+    round_me& operator=(round_me const &) = default;
+    round_me(round_me &&) = default;
+    round_me& operator=(round_me &&) = default;
+    ~round_me() = default;
+    */
+    slice_index_t operator()(slice_index_t y) const {
+        return std::max(initial, increase * iceildiv(y, increase));
+    }
+};
 
 /* Our fetching of the siever_config fields is definitely wrong here. We
  * should only use logA, logI, and the siever thresholds.
@@ -249,7 +272,6 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
         int nthreads,
         int print)
 {
-    char buf[20];
     int const hush = print ? 0 : 3;
     bkmult_specifier const bkmult = las.get_bk_multiplier();
 
@@ -282,6 +304,7 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
     }
 #endif
 
+    /*
     // toplevel is computed by fb_factorbase::slicing::slicing, based on
     // thresholds in fbK
     int toplevel = -1;
@@ -293,102 +316,161 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
 
     if (toplevel == 0) toplevel++;
 
-    ASSERT_ALWAYS(toplevel == 1 || toplevel == 2);
-
-    /* the code path is radically different depending on toplevel. */
+    ASSERT_ALWAYS(1 <= toplevel && toplevel <= MAX_TOPLEVEL);
+    */
 
     int const nba = NUMBER_OF_BAS_FOR_THREADS(nthreads);
 
-    double m1s, m1l, m2s;
-    size_t s1s, s1l, s2s;
+    std::array<double, MAX_TOPLEVEL + 1> ms, ss;
+    std::array<round_me, MAX_TOPLEVEL + 1> rs;
+    std::array<double, MAX_TOPLEVEL> ml, sl;
+    std::array<round_me, MAX_TOPLEVEL> rl;
 
-    struct round_me {
-        slice_index_t initial;
-        slice_index_t increase;
-        slice_index_t operator()(slice_index_t y) const {
-            return std::max(initial, increase * iceildiv(y, increase));
-        }
-    };
+#if 0
+    double m1s, s1s;
+    round_me round1s;
 
-    round_me round1s, round2s, round1l;
+#if MAX_TOPLEVEL >= 2
+    double m2s, s2s;
+    double m1l, s1l;
+    round_me round2s, round1l;
+#endif
+#if MAX_TOPLEVEL >= 3
+    double m3s, s3s;
+    double m2l, s2l;
+    round_me round3s, round2l;
+#endif
+    static_assert(MAX_TOPLEVEL == 3);
+#endif
+
+
 
     if (do_resieve) {
-        typedef bucket_update_t<1, shorthint_t> T1s;
-        typedef bucket_update_t<2, shorthint_t> T2s;
-        typedef bucket_update_t<1, longhint_t> T1l;
-        typedef bucket_slice_alloc_defaults<1, shorthint_t> W1s;
-        typedef bucket_slice_alloc_defaults<2, shorthint_t> W2s;
-        typedef bucket_slice_alloc_defaults<1, longhint_t> W1l;
-        s2s=sizeof(T2s); m2s=bkmult.get<T2s>();
-        s1s=sizeof(T1s); m1s=bkmult.get<T1s>();
-        s1l=sizeof(T1l); m1l=bkmult.get<T1l>();
-        round1s = round_me { W1s::initial, W1s::increase };
-        round2s = round_me { W2s::initial, W2s::increase };
-        round1l = round_me { W1l::initial, W1l::increase };
+        using T1s = bucket_update_t<1, shorthint_t>;
+        ss[1] = sizeof(T1s);
+        ms[1] = bkmult.get<T1s>();
+        rs[1] = round_me::from(bucket_slice_alloc_defaults<1, shorthint_t>());
+
+#if MAX_TOPLEVEL >= 2
+        using T2s = bucket_update_t<2, shorthint_t>;
+        using T1l = bucket_update_t<1, longhint_t>;
+        ss[2] = sizeof(T2s);
+        ms[2] = bkmult.get<T2s>();
+        rs[2] = round_me::from(bucket_slice_alloc_defaults<2, shorthint_t>());
+        sl[1] = sizeof(T1l);
+        ml[1] = bkmult.get<T1l>();
+        rl[1] = round_me::from(bucket_slice_alloc_defaults<1, longhint_t>());
+#endif
+#if MAX_TOPLEVEL >= 3
+        using T3s = bucket_update_t<3, shorthint_t>;
+        using T2l = bucket_update_t<2, longhint_t>;
+        ss[3] = sizeof(T3s);
+        ms[3] = bkmult.get<T3s>();
+        rs[3] = round_me::from(bucket_slice_alloc_defaults<3, shorthint_t>());
+        sl[2] = sizeof(T2l);
+        ml[2] = bkmult.get<T2l>();
+        rl[2] = round_me::from(bucket_slice_alloc_defaults<2, longhint_t>());
+#endif
+        static_assert(MAX_TOPLEVEL == 3);
     } else {
-        typedef bucket_update_t<1, emptyhint_t> T1s;
-        typedef bucket_update_t<2, emptyhint_t> T2s;
-        typedef bucket_update_t<1, logphint_t> T1l;
-        typedef bucket_slice_alloc_defaults<1, emptyhint_t> W1s;
-        typedef bucket_slice_alloc_defaults<2, emptyhint_t> W2s;
-        typedef bucket_slice_alloc_defaults<1, logphint_t> W1l;
-        s2s=sizeof(T2s); m2s=bkmult.get<T2s>();
-        s1s=sizeof(T1s); m1s=bkmult.get<T1s>();
-        s1l=sizeof(T1l); m1l=bkmult.get<T1l>();
-        round1s = round_me { W1s::initial, W1s::increase };
-        round2s = round_me { W2s::initial, W2s::increase };
-        round1l = round_me { W1l::initial, W1l::increase };
+        using T1s = bucket_update_t<1, emptyhint_t>;
+        ss[1] = sizeof(T1s);
+        ms[1] = bkmult.get<T1s>();
+        rs[1] = round_me::from(bucket_slice_alloc_defaults<1, emptyhint_t>());
+#if MAX_TOPLEVEL >= 2
+        using T2s = bucket_update_t<2, emptyhint_t>;
+        using T1l = bucket_update_t<1, logphint_t>;
+        ss[2] = sizeof(T2s);
+        ms[2] = bkmult.get<T2s>();
+        rs[2] = round_me::from(bucket_slice_alloc_defaults<2, emptyhint_t>());
+        sl[1] = sizeof(T1l);
+        ml[1] = bkmult.get<T1l>();
+        rl[1] = round_me::from(bucket_slice_alloc_defaults<1, logphint_t>());
+#endif      
+#if MAX_TOPLEVEL >= 3
+        using T3s = bucket_update_t<3, emptyhint_t>;
+        using T2l = bucket_update_t<2, logphint_t>;
+        ss[3] = sizeof(T3s);
+        ms[3] = bkmult.get<T3s>();
+        rs[3] = round_me::from(bucket_slice_alloc_defaults<3, emptyhint_t>());
+        sl[2] = sizeof(T2l);
+        ml[2] = bkmult.get<T2l>();
+        rl[2] = round_me::from(bucket_slice_alloc_defaults<2, logphint_t>());
+#endif
     }
 
-    if (toplevel == 2) {
-        // very large factor base primes, between bkthresh1 and lim = we
-        // compute all bucket updates in one go. --> those updates are
-        // bucket_update_t<2, shorthint_t>, that is, an XSIZE2 position
-        // (should be 24 bits, is actually 32) and a short hint.
-        //
-        // For each big bucket region (level-2), we then transform these
-        // updates into updates for the lower-level buckets. We thus
-        // create bucket_update_t<1, longhint_t>'s with the downsort<>
-        // function. The long hint is because we have the full fb_slice
-        // index. the position in such a bucket update is shorter, only
-        // XSIZE1.
+    // very large factor base primes, between bkthresh1 and lim = we
+    // compute all bucket updates in one go. --> those updates are
+    // bucket_update_t<2, shorthint_t>, that is, an XSIZE2 position
+    // (should be 24 bits, is actually 32) and a short hint.
+    //
+    // For each big bucket region (level-2), we then transform these
+    // updates into updates for the lower-level buckets. We thus
+    // create bucket_update_t<1, longhint_t>'s with the downsort<>
+    // function. The long hint is because we have the full fb_slice
+    // index. the position in such a bucket update is shorter, only
+    // XSIZE1.
 
-        // For moderately large factor base primes (between bkthresh and
-        // bkthresh1), we precompute the FK lattices (at some cost), and we
-        // fill the buckets locally with short hints (and short positions:
-        // bucket_update_t<1, shorthint_t>)
+    // For moderately large factor base primes (between bkthresh and
+    // bkthresh1), we precompute the FK lattices (at some cost), and we
+    // fill the buckets locally with short hints (and short positions:
+    // bucket_update_t<1, shorthint_t>)
 
-        for(int side = 0 ; side < las.cpoly->nb_polys ; side++) {
-            if (!sc.sides[side].lim) continue;
-            /* In truth, I sort of know it isn't valid. We've built most
-             * of the stuff on the idea that there's a global "toplevel"
-             * notion, but that barely applies when one of the factor
-             * bases happens to be much smaller than the other one */
-            ASSERT_ALWAYS(K[side].thresholds[2] == sc.sides[side].lim);
-            double const p1 = K[side].thresholds[2];
-            double p0 = K[side].thresholds[1];
-            p0 = std::min(p1, p0);
+
+    for(int side = 0 ; side < las.cpoly->nb_polys ; side++) {
+        if (!sc.sides[side].lim) continue;
+
+        int toplevel = INT_MAX;
+
+        /* Iterate through the factor base, looking for the level at
+         * which a given set of primes is processed by a fill_in_buckets
+         * call, as opposed to a downsort<> call.
+         */
+        for(int fib_level = MAX_TOPLEVEL ; fib_level >= 1 ; fib_level--) {
+            if (K[side].thresholds[fib_level - 1] >= sc.sides[side].lim)
+                continue;
+
+            bool use_precomputed_lattices = false;
+
+            if (toplevel == INT_MAX) {
+                toplevel = fib_level;
+            } else {
+                use_precomputed_lattices = true;
+            }
+
+            double const p1 = K[side].thresholds[fib_level];
+            double const p0 = K[side].thresholds[fib_level - 1];
+            ASSERT_ALWAYS(p0 <= p1);
+
             size_t const nprimes = nprimes_interval(p0, p1);
             double const w = (std::log(std::log(p1)) - std::log(std::log(p0)));
 
             /* we duplicate code that is found in allocate_memory. TODO:
              * refactor that */
-            size_t const nreg = 1UL << (sc.logA - LOG_BUCKET_REGIONS[2]);
-            size_t nup_per_reg = 0.25 * w * BUCKET_REGIONS[2] / nba;
-            /* assume LOG_BUCKET_REGIONS[2] > logI */
+            size_t const nreg = (fib_level == toplevel) ?
+                (1UL << (sc.logA - LOG_BUCKET_REGIONS[fib_level]))
+                : (1 << (LOG_BUCKET_REGIONS[fib_level + 1] - LOG_BUCKET_REGIONS[fib_level]));
+            size_t nup_per_reg = 0.25 * w * BUCKET_REGIONS[fib_level] / nba;
+            /* assume LOG_BUCKET_REGIONS[fib_level] > logI */
             nup_per_reg *= 3;
             nup_per_reg += NB_DEVIATIONS_BUCKET_REGIONS * sqrt(nup_per_reg);
             size_t const nupdates = nup_per_reg * nreg * nba;
             {
-                verbose_output_print(0, 3 + hush,
-                        "# level 2, side %d:"
-                        " %zu primes,"
-                        " room for %zu 2-updates [2s] in %d arrays:"
-                        " %s\n",
-                        side, nprimes, nupdates,
+                verbose_fmt_print(0, 3 + hush,
+                        "# level {}, side {}:"
+                        " {} primes, room for {} {}-updates [{}s] in {} arrays: {}\n",
+                        fib_level, side, nprimes, nupdates,
+                        fib_level, fib_level,
                         nba,
-                        size_disp(more = m2s * nupdates * s2s, buf));
+                        size_disp(more = ms[fib_level] * nupdates * ss[fib_level]));
                 memory += more;
+            }
+            if (use_precomputed_lattices) {
+                verbose_fmt_print(0, 3 + hush,
+                        "# level {}, side {}: {} primes => precomp_plattices: {}\n",
+                        fib_level,
+                        side, nprimes,
+                        size_disp(more = nprimes * sizeof(plattice_enumerator)));
             }
             {
                 /* Count the slice_start pointers as well. We need to know
@@ -396,169 +478,68 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
                  * array. A rough rule of thumb probably works.
                  */
                 size_t const nslices_estim = iceildiv(nprimes >> 16, nba);
-                size_t const nslices_alloc = round2s(nslices_estim);
-                std::ostringstream os;
+                size_t const nslices_alloc = rs[fib_level](nslices_estim);
+                std::string comment;
                 size_t const waste = (nslices_alloc - nslices_estim) * nba * nreg * sizeof(void*);
                 if (waste > (100<<20))
-                    os << " [note: using coarse-grain value of "
-                        << nslices_alloc
-                        << " slices instead; "
-                        << 100.0*double_ratio(nslices_alloc-nslices_estim, nslices_alloc)
-                        << "% waste ("
-                        << (waste>>20)
-                        <<" MB) !]";
-                verbose_output_print(0, 3 + hush,
-                        "# level 2, side %d:"
-                        " expect %zu slices per array,"
-                        " %zu pointers each, in %d arrays:"
-                        " %s%s\n",
+                    comment = fmt::format(" [note: using coarse-grain value of "
+                            "{} slices instead; {}% waste ({} MB) !]",
+                            nslices_alloc,
+                            100.0*double_ratio(nslices_alloc-nslices_estim, nslices_alloc),
+                            (waste>>20));
+                verbose_fmt_print(0, 3 + hush,
+                        "# level {}, side {}:"
+                        " expect {} slices per array,"
+                        " {} pointers each, in {} arrays:"
+                        " {}{}\n",
+                        fib_level,
                         side,
                         nslices_estim,
                         nreg,
                         nba,
-                        size_disp(more = nba * nreg * MAX(nslices_estim, nslices_alloc) * sizeof(void*), buf),
-                        os.str().c_str());
+                        size_disp(more = nba * nreg * MAX(nslices_estim, nslices_alloc) * sizeof(void*)),
+                        comment);
                 memory += more;
             }
-            {
-                // how many downsorted updates are alive at a given point in
-                // time ?
-                size_t const nupdates_D = nupdates >> 8;
-                verbose_output_print(0, 3 + hush,
-                        "# level 1, side %d:"
-                        " %zu downsorted 1-updates [1l]: %s\n",
-                        side, nupdates_D,
-                        size_disp(more = m1l * nupdates_D * s1l, buf));
-                memory += more;
-            }
-            {
-                size_t const nslices_estim = 1;
-                size_t const nslices_alloc = round1l(nslices_estim);
-                size_t const nreg = 1 << (LOG_BUCKET_REGIONS[2] - LOG_BUCKET_REGIONS[1]);
-                std::ostringstream os;
-                size_t const waste = (nslices_alloc - nslices_estim) * nba * nreg * sizeof(void*);
-                if (waste > (100<<20))
-                    os << " [note: using coarse-grain value of " << nslices_alloc << " slices instead; " << 100.0*(nslices_alloc-nslices_estim)/nslices_alloc << "% waste ("<<(waste>>20)<<" MB) !]";
-                verbose_output_print(0, 3 + hush,
-                        "# level 1, side %d:"
-                        " expect %zu slices per array,"
-                        " %zu pointers each, in %d arrays: %s%s\n",
-                        side,
-                        nslices_estim,
-                        nreg,
-                        nba,
-                        size_disp(more = nba * nreg * MAX(nslices_estim, nslices_alloc) * sizeof(void*), buf),
-                        os.str().c_str());
-                memory += more;
-            }
-        }
-
-        for(int side = 0 ; side < las.cpoly->nb_polys ; side++) {
-            if (!sc.sides[side].lim) continue;
-            double const p1 = K[side].thresholds[1];
-            double const p0 = K[side].thresholds[0];
-            size_t const nprimes = nprimes_interval(p0, p1);
-            double const w = (std::log(std::log(p1)) - std::log(std::log(p0)));
-
-            size_t const nreg = 1 << (LOG_BUCKET_REGIONS[2] - LOG_BUCKET_REGIONS[1]);
-            size_t nup_per_reg = 0.25 * w * BUCKET_REGIONS[1] / nba;
-            /* assume LOG_BUCKET_REGIONS[1] > logI -- if it's not the
-             * case, the count will not be too wrong anyway. */
-            nup_per_reg *= 3;
-            nup_per_reg += NB_DEVIATIONS_BUCKET_REGIONS * sqrt(nup_per_reg);
-            size_t const nupdates = nup_per_reg * nreg * nba;
-            verbose_output_print(0, 3 + hush,
-                    "# level 1, side %d:"
-                    " %zu primes,"
-                    " %zu 1-updates [1s] in %d arrays:"
-                    " %s\n",
-                    side, nprimes, nupdates, nba,
-                    size_disp(more = m1s * nupdates * s1s, buf));
-            memory += more;
-            verbose_output_print(0, 3 + hush,
-                    "# level 1, side %d:"
-                    " %zu primes => precomp_plattices: %s\n",
-                    side, nprimes,
-                    size_disp(more = nprimes * sizeof(plattice_enumerator), buf));
-            memory += more;
-
-            {
-                /* Count the slice_start pointers as well. We need to know
-                 * how many slices will be processed in each bucket
-                 * array. A rough rule of thumb probably works.
-                 */
-                size_t const nslices_estim = iceildiv(nprimes >> 16, nba);
-                size_t const nslices_alloc = round1s(nslices_estim);
-                std::ostringstream os;
-                size_t const waste = (nslices_alloc - nslices_estim) * nba * nreg * sizeof(void*);
-                if (waste > (100<<20))
-                    os << " [note: using coarse-grain value of " << nslices_alloc << " slices instead; " << 100.0*(nslices_alloc-nslices_estim)/nslices_alloc << "% waste ("<<(waste>>20)<<" MB) !]";
-                verbose_output_print(0, 3 + hush,
-                        "# level 1, side %d:"
-                        " expect %zu slices per array,"
-                        " %zu pointers each, in %d arrays:"
-                        " %s%s\n",
-                        side,
-                        nslices_estim,
-                        nreg,
-                        nba,
-                        size_disp(more = nba * nreg * MAX(nslices_estim, nslices_alloc) * sizeof(void*), buf),
-                        os.str().c_str());
-                memory += more;
-            }
-        }
-    } else if (toplevel == 1) {
-        // *ALL* bucket updates are computed in one go as
-        // bucket_update_t<1, shorthint_t>
-        for(int side = 0 ; side < las.cpoly->nb_polys ; side++) {
-            if (!sc.sides[side].lim) continue;
-            ASSERT_ALWAYS(K[side].thresholds[1] == sc.sides[side].lim);
-            double const p1 = K[side].thresholds[1];
-            double const p0 = K[side].thresholds[0];
-            size_t const nprimes = nprimes_interval(p0, p1);
-            double const w = (std::log(std::log(p1)) - std::log(std::log(p0)));
-
-            /* we duplicate code that is found in allocate_memory. TODO:
-             * refactor that */
-            size_t const nreg = 1UL << (sc.logA - LOG_BUCKET_REGIONS[1]);
-            size_t nup_per_reg = 0.25 * w * BUCKET_REGIONS[1] / nba;
-            /* assume LOG_BUCKET_REGIONS[1] > logI -- if it's not the
-             * case, the count will not be too wrong anyway. */
-            nup_per_reg *= 3;
-            nup_per_reg += NB_DEVIATIONS_BUCKET_REGIONS * sqrt(nup_per_reg);
-            size_t nupdates = nup_per_reg * nreg * nba;
-            nupdates += NB_DEVIATIONS_BUCKET_REGIONS * sqrt(nupdates);
-            verbose_output_print(0, 3 + hush,
-                    "# level 1, side %d:"
-                    " %zu primes,"
-                    " %zu 1-updates [1s] in %d arrays:"
-                    " %s\n",
-                    side, nprimes, nupdates, nba,
-                    size_disp(more = m1s * nupdates * s1s, buf));
-            memory += more;
-            {
-                /* Count the slice_start pointers as well. We need to know
-                 * how many slices will be processed in each bucket
-                 * array. A rough rule of thumb probably works.
-                 */
-                size_t const nslices_estim = iceildiv(nprimes >> 16, nba);
-                size_t const nslices_alloc = round1s(nslices_estim);
-                std::ostringstream os;
-                size_t const waste = (nslices_alloc - nslices_estim) * nba * nreg * sizeof(void*);
-                if (waste > (100<<20))
-                    os << " [note: using coarse-grain value of " << nslices_alloc << " slices instead; " << 100.0*(nslices_alloc-nslices_estim)/nslices_alloc << "% waste ("<<(waste>>20)<<" MB) !]";
-                verbose_output_print(0, 3 + hush,
-                        "# level 1, side %d:"
-                        " expect %zu slices per array,"
-                        " %zu pointers each, in %d arrays:"
-                        " %s%s\n",
-                        side,
-                        nslices_estim,
-                        nreg,
-                        nba,
-                        size_disp(more = nba * nreg * MAX(nslices_estim, nslices_alloc) * sizeof(void*), buf),
-                        os.str().c_str());
-                memory += more;
+            for(int level = fib_level - 1 ; level >= 1 ; level--) {
+                {
+                    // how many downsorted updates are alive at a given point in
+                    // time ?
+                    size_t const nupdates_D = nupdates >> 8;
+                    verbose_fmt_print(0, 3 + hush,
+                            "# level {}, side {}:"
+                            " {} downsorted {}-updates [{}l]: {}\n",
+                            level,
+                            side, nupdates_D,
+                            level, level,
+                            size_disp(more = ml[level] * nupdates_D * sl[level]));
+                    memory += more;
+                }
+                {
+                    size_t const nslices_estim = 1;
+                    size_t const nslices_alloc = rl[level](nslices_estim);
+                    size_t const nreg = 1 << (LOG_BUCKET_REGIONS[level + 1] - LOG_BUCKET_REGIONS[level]);
+                    std::string comment;
+                    size_t const waste = (nslices_alloc - nslices_estim) * nba * nreg * sizeof(void*);
+                    if (waste > (100<<20))
+                        comment = fmt::format(" [note: using coarse-grain value of "
+                                "{} slices instead; {}% waste ({} MB) !]",
+                                nslices_alloc,
+                                100.0*double_ratio(nslices_alloc-nslices_estim, nslices_alloc),
+                                (waste>>20));
+                    verbose_fmt_print(0, 3 + hush,
+                            "# level {}, side {}:"
+                            " expect {} slices per array,"
+                            " {} pointers each, in {} arrays: {}{}\n",
+                            level,
+                            side,
+                            nslices_estim,
+                            nreg,
+                            nba,
+                            size_disp(more = nba * nreg * MAX(nslices_estim, nslices_alloc) * sizeof(void*)),
+                            comment);
+                    memory += more;
+                }
             }
         }
     }
@@ -737,7 +718,7 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
 
     /* TODO: is there a way to share this in sublat mode ? */
 
-    multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS> precomp_plattice(nsides);
+    std::vector<multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS - 1>> precomp_plattices(nsides);
 
     {
         {
@@ -751,9 +732,9 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
             nfs_work::side_data  const& wss(ws.sides[side]);
             if (wss.no_fb()) continue;
 
-            fill_in_buckets_toplevel(ws, aux, pool, side, w);
+            fill_in_buckets_toplevel_multiplex(ws, aux, pool, side, w);
 
-            fill_in_buckets_prepare_plattices(ws, pool, side, precomp_plattice);
+            fill_in_buckets_prepare_plattices(ws, pool, side, precomp_plattices[side]);
 
         }
 
@@ -805,8 +786,8 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
 
         pool.drain_queue(0);
 
-        ws.check_buckets_max_full<shorthint_t>(ws.toplevel);
-        ws.check_buckets_max_full<emptyhint_t>(ws.toplevel);
+        ws.check_buckets_max_full_toplevel(ws.toplevel);
+
         auto exc = pool.get_exceptions<buckets_are_full>(0);
         if (!exc.empty())
             throw *std::max_element(exc.begin(), exc.end());
@@ -825,18 +806,30 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
             // If toplevel = 1, then this is just processing all bucket
             // regions.
             size_t  const(&BRS)[FB_MAX_PARTS] = BUCKET_REGIONS;
+            static_assert(MAX_TOPLEVEL == 3);
             for (int i = 0; i < ws.nb_buckets[ws.toplevel]; i++) {
+                /* Dividing by BRS[1] is actually correct if we want to
+                 * fill the first_region0_index parameter. Of course we
+                 * must make sure that for the recursive downsort, this
+                 * doesn't entail an extra multiplication (e.g. by
+                 * BRS[2]/BRS[1]. XXX we must check this!
+                 */
                 switch (ws.toplevel) {
+#if MAX_TOPLEVEL >= 2
                     case 2:
                         downsort_tree<1>(ws, wc_p, aux_p, pool,
                                 i, i*BRS[2]/BRS[1],
-                                precomp_plattice, w);
+                                precomp_plattices, w);
                         break;
+#endif
+
+#if MAX_TOPLEVEL >= 3
                     case 3:
                         downsort_tree<2>(ws, wc_p, aux_p, pool, i,
                                 i*BRS[3]/BRS[1],
-                                precomp_plattice, w);
+                                precomp_plattices, w);
                         break;
+#endif
                     default:
                         ASSERT_ALWAYS(0);
                 }
@@ -1095,7 +1088,7 @@ static void las_subjob(las_info & las, int subjob, report_and_timer & global_rt)
          * queue 2: things that we join almost immediately, but are
          * multithreaded nevertheless: alloc buckets, ...
          */
-        thread_pool pool(las.number_of_threads_per_subjob(), cumulated_wait_time, 3);
+        thread_pool pool(las.number_of_threads_per_subjob(), cumulated_wait_time, 3, sync_thread_pool);
         nfs_work ws(las);
 
         /* {{{ Doc on todo list handling
@@ -1462,6 +1455,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
     if (dlp_descent)
         param_list_parse_double(pl, "grace-time-ratio", &general_grace_time_ratio);
     param_list_parse_int(pl, "log-bucket-region", &LOG_BUCKET_REGION);
+    param_list_parse_int(pl, "log-bucket-region-step", &LOG_BUCKET_REGION_step);
     set_LOG_BUCKET_REGION();
 
     main_output = std::unique_ptr<las_output>(new las_output(pl));

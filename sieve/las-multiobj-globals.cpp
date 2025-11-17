@@ -8,7 +8,7 @@
  */
 
 #include "las-multiobj-globals.hpp"     // IWYU pragma: keep
-#include "las-config.h" // IWYU pragma: keep
+#include "las-config.hpp" // IWYU pragma: keep
 
 #ifndef SUPPORT_LARGE_Q
 const int support_large_q = 0;

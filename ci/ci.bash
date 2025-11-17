@@ -206,6 +206,8 @@ step_coverage() {
         # --json
         #
         gcovr_args=()
+        gcovr_args+=(-j0)
+        gcovr_args+=(--exclude-lines-by-pattern '.*ASSERT_ALWAYS')
         gcovr_args+=(--merge-mode-functions=separate)
         gcovr_args+=(-r "$source_tree")
         gcovr_args+=(--json "$outfile")

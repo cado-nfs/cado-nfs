@@ -6,7 +6,7 @@
 #include "cado_config.h"
 #include "macros.h"
 
-#if defined(HAVE_SSE2) && GNUC_VERSION_ATLEAST(4,7,0)
+#if defined(HAVE_SSE2)
 /* Disclaimer: the comment below is only based on a surface analysis, I
  * might be wrong.
  *
@@ -312,7 +312,7 @@ public:
   }
 
   /* Returns true if "item" is in the set, and false otherwise */
-  inline bool contains(const ELEMENTTYPE &item) const {
+  bool contains(const ELEMENTTYPE &item) const {
     if (SIZE == 0)
       return false;
 
@@ -320,10 +320,10 @@ public:
   }
 
   /* Returns true if "item" is in the set, and false otherwise */
-#if defined(__GNUC__) && !defined(__INTEL_COMPILER)
+#if defined(__GNUC__) && !defined(__INTEL_COMPILER) && !defined(__clang__)
   __attribute__((optimize("unroll-all-loops")))
 #endif
-  inline bool contains(const storagetype pattern) const {
+  bool contains(const storagetype pattern) const {
     if (SIZE == 0) {
       return false;
     } else if (SIZE <= 8) {
@@ -369,15 +369,15 @@ public:
   }
 
   /* Returns true if "item" is in the set, and false otherwise */
-  inline bool contains(const ELEMENTTYPE &) const {
+  bool contains(const ELEMENTTYPE &) const {
     return false;
   }
 
   /* Returns true if "item" is in the set, and false otherwise */
-  inline bool contains(const storagetype) const {
+  bool contains(const storagetype) const {
     return false;
   }
 };
 
 #endif /* if defined(HAVE_SSE2) */
-#endif /* ifndef CADO_SMALLSET_HPP */
+#endif /* CADO_SMALLSET_HPP */

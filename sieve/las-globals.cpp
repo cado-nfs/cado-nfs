@@ -7,7 +7,7 @@
 
 #include "las-globals.hpp"
 
-#include "las-config.h"
+#include "las-config.hpp"
 #include "las-output.hpp"
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
@@ -20,6 +20,7 @@ std::atomic<bool> global_exit_semaphore;
 
 int allow_largesq = 0;
 int sync_at_special_q = 0;
+int sync_thread_pool = 0;
 int trialdiv_first_side = 0;
 
 double general_grace_time_ratio = DESCENT_DEFAULT_GRACE_TIME_RATIO;

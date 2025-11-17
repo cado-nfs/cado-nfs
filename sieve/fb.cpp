@@ -24,6 +24,10 @@
 
 #include <gmp.h>
 
+#include "arith/mod_ul.h"
+#include "arith/ularith.h"
+#include "arithxx/u64arith.h"
+#include "cado_poly.h"
 #include "fb.hpp"
 #include "getprime.h"
 #ifndef NDEBUG
@@ -34,12 +38,11 @@
 #include "las-side-config.hpp"
 #include "macros.h"
 #include "misc.h"
-#include "arith/mod_ul.h"
+#include "mpz_poly.h"
+#include "multityped_array.hpp"
 #include "params.h"
 #include "threadpool.hpp"
 #include "timing.h"
-#include "arithxx/u64arith.h"
-#include "arith/ularith.h"
 #include "verbose.h"
 
 struct qlattice_basis; // IWYU pragma: keep
@@ -157,17 +160,18 @@ void fb_general_root::transform(fb_general_root & result, fbprime_t const q,
 /* Allow assignment-construction of general entries from simple entries */
 template <int Nr_roots>
 fb_entry_general::fb_entry_general(fb_entry_x_roots<Nr_roots> const & e)
+    : q(e.p)
+    , p(e.p)
+    , invq(e.invq)
+    , k(1)
+    , nr_roots(Nr_roots)
 {
-    p = q = e.p;
-    k = 1;
-    invq = e.invq;
     for (int i = 0; i != Nr_roots; i++) {
         /* Use simple constructor for root */
         // with Nr_roots==0, coverity likes to complain
         // coverity[dead_error_line]
         roots[i] = fb_general_root(e.roots[i]);
     }
-    nr_roots = Nr_roots;
 }
 
 /* Return whether this is a simple factor base prime.
@@ -513,15 +517,8 @@ static fb_root_p1 fb_linear_root(cxx_mpz_poly const & poly, fbprime_t const q)
 
 std::ostream & operator<<(std::ostream & o, fb_factorbase::key_type const & k)
 {
-    o << "scale=" << k.scale << ", "
-      << "thresholds={";
-    for (int i = 0; i < FB_MAX_PARTS; i++) {
-        if (i)
-            o << ", ";
-        o << k.thresholds[i];
-    }
-    o << "}";
-    return o;
+    return o << fmt::format("scale={}, thresholds={{{}}}",
+                            k.scale, join(k.thresholds, ", "));
 }
 
 /* {{{ counting primes, prime ideals, and so on in the whole factor base.
@@ -773,9 +770,9 @@ template <int n> struct fb_entries_interval_factory {
  */
 struct helper_functor_count_weight_parts
     : public fb_factorbase::slicing::stats_type {
-    std::array<fb_factorbase::threshold_pos, FB_MAX_PARTS + 1> local_thresholds;
+    std::array<fb_factorbase::threshold_pos, MAX_TOPLEVEL + 2> local_thresholds;
     helper_functor_count_weight_parts(
-        std::array<fb_factorbase::threshold_pos, FB_MAX_PARTS + 1> const & l)
+        std::array<fb_factorbase::threshold_pos, MAX_TOPLEVEL + 2> const & l)
         : local_thresholds(l)
     {
     }
@@ -788,7 +785,7 @@ struct helper_functor_count_weight_parts
         constexpr int n =
             FB_ENTRY_TYPE::is_general_type ? -1 : FB_ENTRY_TYPE::fixed_nr_roots;
 
-        for (int i = 0; i < FB_MAX_PARTS; i++) {
+        for (int i = 0; i <= MAX_TOPLEVEL ; i++) {
             size_t const k0 = local_thresholds[i][1 + n];
             size_t const k1 = local_thresholds[i + 1][1 + n];
             if (k1 != k0 && i > toplevel)
@@ -809,7 +806,7 @@ struct helper_functor_count_weight_parts
 struct helper_functor_dispatch_small_sieved_primes {
     fb_factorbase::slicing & S;
     fb_factorbase::key_type K;
-    std::array<fb_factorbase::threshold_pos, FB_MAX_PARTS + 1> local_thresholds;
+    std::array<fb_factorbase::threshold_pos, MAX_TOPLEVEL + 2> local_thresholds;
     /* TODO: it's a bit unsatisfactory that we do this comparison on
      * it->p for each prime.
      */
@@ -997,7 +994,7 @@ struct helper_functor_subdivide_slices {
     int side; /* for printing */
     int part_index;
     fb_factorbase::key_type K;
-    std::array<fb_factorbase::threshold_pos, FB_MAX_PARTS + 1> local_thresholds;
+    std::array<fb_factorbase::threshold_pos, MAX_TOPLEVEL + 2> local_thresholds;
     double max_slice_weight;
     slice_index_t index;
     // helper_functor_subdivide_slices(fb_factorbase::slicing::part & dst,
@@ -1017,6 +1014,8 @@ struct helper_functor_subdivide_slices {
             FB_ENTRY_TYPE::is_general_type ? -1 : FB_ENTRY_TYPE::fixed_nr_roots;
         size_t const k0 = local_thresholds[part_index][1 + n];
         size_t const k1 = local_thresholds[part_index + 1][1 + n];
+
+        ASSERT_ALWAYS(k0 <= k1);
 
         size_t const interval_width = k1 - k0;
         if (!interval_width)
@@ -1194,9 +1193,9 @@ fb_factorbase::slicing::slicing(fb_factorbase const & fb,
     }
 
     /* This uses our cache of thresholds, we expect it to be quick enough */
-    std::array<threshold_pos, FB_MAX_PARTS + 1> local_thresholds;
+    std::array<threshold_pos, MAX_TOPLEVEL + 2> local_thresholds;
     local_thresholds[0] = fb.get_threshold_pos(0);
-    for (int i = 0; i < FB_MAX_PARTS; ++i)
+    for (int i = 0; i <= MAX_TOPLEVEL ; ++i)
         local_thresholds[i + 1] = fb.get_threshold_pos(K.thresholds[i]);
 
     /* Now we sum the contributions in all ranges, and deduce the

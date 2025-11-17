@@ -376,7 +376,7 @@ namespace fmt {
 }
 
 /* a shorthand so that we can use user-defined literals */
-static inline cxx_mpz operator"" _mpz(char const * str, size_t)
+static inline cxx_mpz operator""_mpz(char const * str, size_t)
 {
     cxx_mpz res;
     mpz_set_str(res, str, 0);
