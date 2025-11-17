@@ -143,7 +143,8 @@ static void divide_hints_from_bucket(factor_list_t & fl, mpz_t norm,
         if (complete_hint.x == x) {
             if (bucket_prime_stats)
                 nr_bucket_longhints++;
-            fb_slice_interface const & fb_slice = fbs[complete_hint.index];
+            fb_slice_interface const & fb_slice =
+                fbs[complete_hint.slice_index];
             unsigned long const p = fb_slice.get_prime(complete_hint.hint);
             if (very_verbose) {
                 unsigned char const k = fb_slice.get_k(complete_hint.hint);
@@ -151,7 +152,7 @@ static void divide_hints_from_bucket(factor_list_t & fl, mpz_t norm,
                     0, 1,
                     "# N = %u, x = %d, dividing out fb_slice hint, "
                     "index = %lu offset = %lu ",
-                    N, x, (unsigned long)complete_hint.index,
+                    N, x, (unsigned long)complete_hint.slice_index,
                     (unsigned long)complete_hint.hint);
                 if (fb_slice.is_general()) {
                     verbose_output_print(0, 1, "(general)");

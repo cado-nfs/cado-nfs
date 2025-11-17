@@ -336,11 +336,31 @@ void fb_entry_general::fprint(FILE * out) const
     fprintf(out, "\n");
 }
 
+bool fb_entry_general::can_merge(fb_entry_general const & other) const
+{
+    ASSERT_ALWAYS(nr_roots);
+    if (p != other.p)
+        return false;
+    if (q != other.q)
+        return false;
+    if (k != other.k)
+        return false;
+#ifdef BUCKET_SIEVE_POWERS
+    for (unsigned char i_root = 0; i_root < other.nr_roots; i_root++) {
+        if (roots[0].exp != other.roots[i_root].exp)
+            return false;
+        if (roots[0].oldexp != other.roots[i_root].oldexp)
+            return false;
+    }
+#endif
+    return true;
+}
+
 void fb_entry_general::merge(fb_entry_general const & other)
 {
-    ASSERT_ALWAYS(p == other.p && q == other.q && k == other.k);
+    ASSERT_ALWAYS(can_merge(other));
+    ASSERT_ALWAYS(nr_roots + other.nr_roots < MAX_DEGREE);
     for (unsigned char i_root = 0; i_root < other.nr_roots; i_root++) {
-        ASSERT_ALWAYS(nr_roots < MAX_DEGREE);
         roots[nr_roots++] = other.roots[i_root];
     }
 }
@@ -486,6 +506,7 @@ static fb_root_p1 fb_linear_root(cxx_mpz_poly const & poly, fbprime_t const q)
     modul_init_noset0(r0, m);
     modul_init_noset0(r1, m);
 
+    /* Set r0 = poly[0] % q, r1 = poly[1] (mod q) */
     modul_set_ul_reduced(r0, mpz_fdiv_ui(mpz_poly_coeff_const(poly, 0), q), m);
     modul_set_ul_reduced(r1, mpz_fdiv_ui(mpz_poly_coeff_const(poly, 1), q), m);
 
@@ -495,11 +516,8 @@ static fb_root_p1 fb_linear_root(cxx_mpz_poly const & poly, fbprime_t const q)
 
     if (R.proj) {
         ASSERT_ALWAYS(mpz_gcd_ui(NULL, mpz_poly_coeff_const(poly, 1), q) > 1);
-        /* Set r1 = poly[0] % q, r0 = poly[1] (mod q) */
-        modul_set(r1, r0, m);
-        modul_set_ul_reduced(r0, mpz_fdiv_ui(mpz_poly_coeff_const(poly, 1), q),
-                             m);
-        int const rc = modul_inv(r1, r1, m);
+        /* invert r0 instead. */
+        int const rc = modul_inv(r0, r0, m);
         ASSERT_ALWAYS(rc != 0);
     }
 
@@ -899,11 +917,12 @@ struct helper_functor_dispatch_small_sieved_primes {
  * fairly simple problem to solve. Given:
  *      a random access iterator type T (here,
  *      mmappable_vector<FB_ENTRY_TYPE>::const_iterator).
- *      a function F that computes an integer from a object of type T (here, x
- * -> fb_log(x->get_q(), K.scale, 0)), a range R of iterators of type T, such
- * that F is monotonic (that is, for a,b two iterators within the range R, a<=b
- * => F(*a) <= F(*b) return a vector of iterators i within R to points where
- * F(*i) changes, that is F(i[-1]) < F(*i).
+ *      a function F that computes something from a object of type T (here, x ->
+ * fb_log(x->get_q(), K.scale, 0)), a range R of iterators of type T, such that
+ * F is monotonic (that is, for a,b two iterators within the range R, a<=b =>
+ * F(*a) <= F(*b), for some ordering relation on the return type of F (or, more
+ * precisely, if F(*a)==F(*b) then F(*c) for any a<=c<=b). return a vector of
+ * iterators i within R to points where F(*i) changes, that is F(i[-1]) < F(*i).
  *
  * begin(R) is always included in the returned vector, except when the
  * range is empty.
@@ -918,9 +937,9 @@ struct find_value_change_points_naive {
             return pool;
         T it = a;
         pool.push_back(it);
-        int last = f(it);
+        auto last = f(it);
         for (; it != b; ++it) {
-            int cur = f(it);
+            auto cur = f(it);
             if (cur == last)
                 continue;
             last = cur;
@@ -938,7 +957,7 @@ struct find_value_change_points_recursive {
         /* pool contains all the positions of the value changes up to
          * (and including) the point that led to the value f(a).
          */
-        if (f(a) == f(b))
+        if (f(*a) == f(*b))
             return;
         if ((b - a) == 1) {
             pool.push_back(b);
@@ -989,6 +1008,51 @@ int main(int argc, char const * argv[])
 }
 #endif
 
+template <typename T> struct slice_classifier {
+    double scale;
+    slice_classifier(double scale)
+        : scale(scale)
+    {
+    }
+    int operator()(T const & it) const { return fb_log(it.get_q(), scale, 0); }
+};
+#ifdef BUCKET_SIEVE_POWERS
+/* general entries include non-trivial powers. If we ever want to
+ * bucket-sieve them, we must keep track of k0 and k1 */
+struct slice_classifier_general_result {
+    int l;
+    /* We need the conversion below because this is what goes in the
+     * slice's logp field */
+    operator int() const { return l; }
+    unsigned char exp, oldexp;
+    bool operator==(slice_classifier_general_result const & o) const
+    {
+        return l == o.l && exp == o.exp && oldexp == o.oldexp;
+    }
+};
+template <> struct slice_classifier<fb_entry_general> {
+    double scale;
+    slice_classifier(double scale)
+        : scale(scale)
+    {
+    }
+    slice_classifier_general_result
+    operator()(fb_entry_general const & it) const
+    {
+        ASSERT_ALWAYS(it.nr_roots >= 1);
+        /* make sure that all roots here have the same pair (oldexp, exp)
+         */
+        for (unsigned char i = 1; i < it.nr_roots; i++) {
+            ASSERT_ALWAYS(it.roots[i].exp == it.roots[0].exp);
+            ASSERT_ALWAYS(it.roots[i].oldexp == it.roots[0].oldexp);
+        }
+        return slice_classifier_general_result {
+            fb_log_delta(it.p, it.roots[0].exp, it.roots[0].oldexp, scale),
+            it.roots[0].exp, it.roots[0].oldexp};
+    }
+};
+#endif
+
 struct helper_functor_subdivide_slices {
     fb_factorbase::slicing::part & dst;
     int side; /* for printing */
@@ -1023,7 +1087,7 @@ struct helper_functor_subdivide_slices {
         typedef typename ventry_t::const_iterator it_t;
 
         /* first scan to separate by values of logp */
-        auto f = [this](it_t it) { return fb_log(it->get_q(), K.scale, 0); };
+        auto f = slice_classifier<FB_ENTRY_TYPE>(K.scale);
         std::vector<it_t> splits = find_value_change_points_recursive()(
             f, x.begin() + k0, x.begin() + k1, false);
         splits.push_back(x.begin() + k1);
@@ -1034,7 +1098,7 @@ struct helper_functor_subdivide_slices {
         typename std::vector<slice_t> pool;
         it_t it = x.begin() + k0;
         for (it_t jt: splits) {
-            slice_t s(it, jt, f(it));
+            slice_t s(it, jt, f(*it));
             s.weight = x.weight_delta(it, jt);
             pool.push_back(s);
             it = jt;
@@ -1696,7 +1760,7 @@ int fb_factorbase::read(char const * const filename)
         if (C.p > maxprime)
             maxprime = C.p;
 
-        if (pool.empty() || C.q != pool.back().q) {
+        if (pool.empty() || !pool.back().can_merge(C)) {
             pool.push_back(std::move(C));
             pool_size++;
         } else {

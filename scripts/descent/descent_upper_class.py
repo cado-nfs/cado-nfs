@@ -189,7 +189,6 @@ class DescentUpperClass(object):
                                 f.write("1 %d %d\n" % (p, r))
         return todofilename, [Num, Den, fnum, fden], descrelfile
 
-    
     def do_descent_for_real(self, z, seed,
                             randomize_multiplicatively=None):
         """

@@ -64,6 +64,8 @@ void bucket_array_t<LEVEL, HINT>::reset_pointers()
     aligned_medium_memcpy(bucket_write, bucket_start, size_b_align);
     aligned_medium_memcpy(bucket_read, bucket_start, size_b_align);
     nr_slices = 0;
+    for (auto & r: row_updates)
+        r.clear();
 }
 
 template <int LEVEL, typename HINT>
@@ -98,6 +100,7 @@ void bucket_array_t<LEVEL, HINT>::move(bucket_array_t<LEVEL, HINT> & other)
     MOVE_ENTRY(nr_slices, 0);
     MOVE_ENTRY(alloc_slices, 0);
 #undef MOVE_ENTRY
+    std::swap(row_updates, other.row_updates);
 }
 
 /* Allocate enough memory to be able to store _n_bucket buckets, each of at
@@ -245,6 +248,9 @@ void bucket_array_t<LEVEL, HINT>::allocate_memory(
     for (uint32_t i = 0; bucket_start[i] = cur, i < n_bucket; i++) {
         cur += ((i & bitmask_line_ordinate) != 0) ? bs_odd : bs_even;
     }
+
+    row_updates.assign(n_bucket, typename decltype(row_updates)::value_type());
+
     reset_pointers();
 #ifdef SAFE_BUCKET_ARRAYS
     verbose_output_print(0, 0, "# WARNING: SAFE_BUCKET_ARRAYS is on !\n");
@@ -308,10 +314,12 @@ double bucket_array_t<LEVEL, HINT>::average_full() const
 }
 
 template <int LEVEL, typename HINT>
-void bucket_array_t<LEVEL, HINT>::log_this_update(
-    update_t const update MAYBE_UNUSED, uint64_t const offset MAYBE_UNUSED,
-    uint64_t const bucket_number MAYBE_UNUSED,
-    where_am_I & w MAYBE_UNUSED) const
+void bucket_array_t<LEVEL, HINT>::log_this_update(update_t const update
+                                                  MAYBE_UNUSED,
+                                                  uint64_t const bucket_number
+                                                  MAYBE_UNUSED,
+                                                  where_am_I & w
+                                                  MAYBE_UNUSED) const
 {
 #if defined(TRACE_K)
     size_t const(&BRS)[FB_MAX_PARTS] = BUCKET_REGIONS;
@@ -384,6 +392,20 @@ void bucket_primes_t::purge(bucket_array_t<1, shorthint_t> const & BA,
             }
         }
     }
+    // read the projective updates, and put the surviving ones to the
+    // main array.
+    for (auto const & ru: BA.row_updates[i]) {
+        fbprime_t p = fb[ru.slice_index].get_prime(ru.hint);
+        // longhint_t h(0, ru.hint, ru.slice_index);
+        // have to walk the updates to see the ones that match
+        bucket_update_t<1, shorthint_t> u = ru;
+        for (int nx = ru.n + 1; nx--;) {
+            if (UNLIKELY(S[u.x] != 255)) {
+                push_update(bucket_update_t<1, primehint_t>(u.x, p, 0, 0));
+            }
+            u.x += ru.inc;
+        }
+    }
 }
 */
 
@@ -417,6 +439,19 @@ void bucket_array_complete::purge(bucket_array_t<1, HINT> const & BA,
         for (auto const & it: BA.slice_range(i, i_slice)) {
             if (UNLIKELY(S[it.x] != 255)) {
                 push_update(to_longhint(it, slice_index));
+            }
+        }
+    }
+    if ((uint32_t)i < BA.n_bucket) {
+        for (auto const & ru: BA.row_updates[i]) {
+            // longhint_t h(0, ru.hint, ru.slice_index);
+            /* have to walk the updates to see the ones that match */
+            bucket_update_t<1, HINT> u = ru;
+            for (int nx = ru.n + 1; nx--;) {
+                if (UNLIKELY(S[u.x] != 255)) {
+                    push_update(to_longhint(u, ru.slice_index));
+                }
+                u.x += ru.inc;
             }
         }
     }
@@ -508,6 +543,12 @@ void downsort(fb_factorbase::slicing const & fbs MAYBE_UNUSED,
      * (downsort_wrapper)
      */
     /* Rather similar to purging, except it doesn't purge */
+    int logB = LOG_BUCKET_REGIONS[INPUT_LEVEL - 1];
+    typedef bucket_array_t<INPUT_LEVEL - 1, longhint_t> BA_out_t;
+    typedef typename BA_out_t::update_t lower_update_t;
+    typedef typename BA_out_t::row_update_t lower_row_update_t;
+    decltype(lower_update_t::x) maskB = (1 << logB) - 1;
+
     for (slice_index_t i_slice = 0; i_slice < BA_in.get_nr_slices();
          i_slice++) {
         slice_index_t const slice_index = BA_in.get_slice_index(i_slice);
@@ -515,25 +556,53 @@ void downsort(fb_factorbase::slicing const & fbs MAYBE_UNUSED,
         for (auto const & it: BA_in.slice_range(bucket_number, i_slice)) {
             WHERE_AM_I_UPDATE(w, p, fbs[slice_index].get_prime(it.hint));
             WHERE_AM_I_UPDATE(w, h, it.hint);
-            BA_out.push_update(it.x, 0, it.hint, slice_index, w);
+            longhint_t h(0, it.hint, slice_index);
+            lower_update_t u_low(it.x & maskB, h);
+            BA_out.push_update(it.x >> logB, u_low, w);
         }
     }
-    /* It's only for bookkeeping (see the assert in the function below).
-     * longhint_t contains the slice index already: each update contains
-     * its own slice_index, directly used by apply_one_bucket and purge.
-     * So we don't need to write slice indices separately. For some
-     * reason we keep this end marker, but we can certainly do away with
-     * it if we like.
-     *
-     * (in fact, most of the logic beyond here prefers to rely on the
-     * only marker being for slice index zero)
-    BA_out.add_slice_index(
-            std::numeric_limits<slice_index_t>::max());
-     */
+
+    for (auto const & ru: BA_in.row_updates[bucket_number]) {
+        WHERE_AM_I_UPDATE(w, i, ru.slice_index);
+        WHERE_AM_I_UPDATE(w, p, fbs[ru.slice_index].get_prime(ru.hint));
+        WHERE_AM_I_UPDATE(w, h, ru.hint);
+        /* XXX
+         * we have a problem here when
+         * logB[INPUT_LEVEL] >= logI > logB[INPUT_LEVEL-1]
+         * ru.n corresponds to a full line, but that doesn't fit in one
+         * region at level INPUT_LEVEL-1.
+         */
+
+        /* This assumes that we push separate row updates for each
+         * lowest-level bucket.
+         */
+        ASSERT(((ru.x + ru.n * ru.inc) >> logB) == (ru.x >> logB));
+        longhint_t h(0, ru.hint, ru.slice_index);
+        lower_update_t u_low(ru.x & maskB, h);
+        lower_row_update_t ru_low(u_low, ru.slice_index, ru.inc, ru.n);
+        BA_out.row_updates[ru.x >> logB].push_back(ru_low);
+
+        /* I think that the approach below would work as well, but it's
+         * not tested. It would also be more costly.
+         */
+#if 0
+        auto x0 = ru.x;
+        for(int nx = ru.n + 1 ; nx ; ) {
+            auto x = x0;
+            int n;
+            for(n = 0 ; (x & maskB) == (x0 & maskB) ; x += ru.inc, nx--, n++);
+            /* we can fit n updates in this sub-bucket */
+            lower_update_t u_low(x0 & maskB, h);
+            lower_row_update_t ru_low(u_low, ru.slice_index, ru.inc, ru.n);
+            BA_out.row_updates[x0 >> logB].push_back(ru_low);
+            x0 = x;
+        }
+#endif
+    }
 }
 
 template <int INPUT_LEVEL>
-void downsort(fb_factorbase::slicing const & /* unused */,
+void downsort(fb_factorbase::slicing const & fbs MAYBE_UNUSED /* unused */,
               bucket_array_t<INPUT_LEVEL - 1, longhint_t> & BA_out,
               bucket_array_t<INPUT_LEVEL, longhint_t> const & BA_in,
               uint32_t bucket_number, where_am_I & w)
@@ -543,8 +612,23 @@ void downsort(fb_factorbase::slicing const & /* unused */,
     ASSERT_ALWAYS(BA_in.get_nr_slices() == 1);
     ASSERT(BA_in.get_slice_index(0) == 0); // std::numeric_limits<slice_index_t>::max());
 
+    int logB = LOG_BUCKET_REGIONS[INPUT_LEVEL - 1];
+    typedef bucket_array_t<INPUT_LEVEL - 1, longhint_t> BA_out_t;
+    typedef typename BA_out_t::update_t lower_update_t;
+    typedef typename BA_out_t::row_update_t lower_row_update_t;
+    decltype(lower_update_t::x) maskB = (1 << logB) - 1;
+
     for (auto const & it: BA_in.slice_range(bucket_number, 0)) {
-        BA_out.push_update(it.x, 0, it.hint, it.index, w);
+        BA_out.push_update(it.x >> logB, lower_update_t(it.x & maskB, it), w);
+    }
+
+    for (auto const & ru: BA_in.row_updates[bucket_number]) {
+        WHERE_AM_I_UPDATE(w, i, ru.slice_index);
+        WHERE_AM_I_UPDATE(w, p, fbs[ru.slice_index].get_prime(ru.hint));
+        WHERE_AM_I_UPDATE(w, h, ru.hint);
+        lower_update_t u_low(ru.x & maskB, ru);
+        lower_row_update_t ru_low(u_low, ru.slice_index, ru.inc, ru.n);
+        BA_out.row_updates[ru.x >> logB].push_back(ru_low);
     }
 }
 
@@ -559,35 +643,64 @@ void downsort(fb_factorbase::slicing const & fbs,
     /* Time recording for this function is done by the caller
      * (downsort_wrapper)
      */
+
+    int logB = LOG_BUCKET_REGIONS[INPUT_LEVEL - 1];
+    typedef bucket_array_t<INPUT_LEVEL - 1, logphint_t> BA_out_t;
+    typedef typename BA_out_t::update_t lower_update_t;
+    typedef typename BA_out_t::row_update_t lower_row_update_t;
+    decltype(lower_update_t::x) maskB = (1 << logB) - 1;
+
     /* Rather similar to purging, except it doesn't purge */
     for (slice_index_t i_slice = 0; i_slice < BA_in.get_nr_slices();
          i_slice++) {
         slice_index_t const slice_index = BA_in.get_slice_index(i_slice);
         // WHERE_AM_I_UPDATE(w, i, slice_index);
         for (auto const & it: BA_in.slice_range(bucket_number, i_slice)) {
-            logphint_t const h = fbs[slice_index].get_logp();
-            BA_out.push_update(it.x, h, w);
+            logphint_t h = fbs[slice_index].get_logp();
+            lower_update_t u_low(it.x & maskB, h);
+            BA_out.push_update(it.x >> logB, u_low, w);
         }
     }
-    /*
-    BA_out.add_slice_index(
-            std::numeric_limits<slice_index_t>::max());
-            */
+    for (auto const & ru: BA_in.row_updates[bucket_number]) {
+        WHERE_AM_I_UPDATE(w, i, ru.slice_index);
+        // we have no slice offset here, so no p.
+        // WHERE_AM_I_UPDATE(w, p, fbs[ru.slice_index].get_prime(ru.hint));
+        // WHERE_AM_I_UPDATE(w, h, ru);
+        logphint_t h = fbs[ru.slice_index].get_logp();
+        lower_update_t u_low(ru.x & maskB, h);
+        lower_row_update_t ru_low(u_low, ru.slice_index, ru.inc, ru.n);
+        BA_out.row_updates[ru.x >> logB].push_back(ru_low);
+    }
 }
 
 template <int INPUT_LEVEL>
-void downsort(fb_factorbase::slicing const & /* unused */,
+void downsort(fb_factorbase::slicing const & fbs MAYBE_UNUSED /* unused */,
               bucket_array_t<INPUT_LEVEL - 1, logphint_t> & BA_out,
               bucket_array_t<INPUT_LEVEL, logphint_t> const & BA_in,
               uint32_t bucket_number, where_am_I & w)
 {
-    /* longhint updates don't write slice end pointers, so there must be
+    int logB = LOG_BUCKET_REGIONS[INPUT_LEVEL - 1];
+    typedef bucket_array_t<INPUT_LEVEL - 1, logphint_t> BA_out_t;
+    typedef typename BA_out_t::update_t lower_update_t;
+    typedef typename BA_out_t::row_update_t lower_row_update_t;
+    decltype(lower_update_t::x) maskB = (1 << logB) - 1;
+
+    /* logphint updates don't write slice end pointers, so there must be
        exactly 1 slice per bucket */
     ASSERT_ALWAYS(BA_in.get_nr_slices() == 1);
     ASSERT(BA_in.get_slice_index(0) == 0); // std::numeric_limits<slice_index_t>::max());
 
     for (auto const & it: BA_in.slice_range(bucket_number, 0)) {
-        BA_out.push_update(it.x, it, w);
+        BA_out.push_update(it.x >> logB, lower_update_t(it.x & maskB, it), w);
+    }
+    for (auto const & ru: BA_in.row_updates[bucket_number]) {
+        WHERE_AM_I_UPDATE(w, i, ru.slice_index);
+        // no slice_offset in logphint either
+        // WHERE_AM_I_UPDATE(w, p, fbs[ru.slice_index].get_prime(ru.hint));
+        // WHERE_AM_I_UPDATE(w, h, ru);
+        lower_update_t u_low(ru.x & maskB, ru);
+        lower_row_update_t ru_low(u_low, ru.slice_index, ru.inc, ru.n);
+        BA_out.row_updates[ru.x >> logB].push_back(ru_low);
     }
 }
 

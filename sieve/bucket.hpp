@@ -119,20 +119,22 @@ class shorthint_t
 class longhint_t
 {
   public:
-    slice_index_t index;
+    /* variable name must be consistent with add_slice_index_if_missing
+     */
+    slice_index_t slice_index;
     slice_offset_t hint;
     slice_offset_t hint_for_where_am_i() const { return hint; }
     longhint_t() {}
     longhint_t(slice_offset_t const slice_offset,
                slice_index_t const slice_index)
-        : index(slice_index)
+        : slice_index(slice_index)
         , hint(slice_offset)
     {
     }
     longhint_t(fbprime_t const p MAYBE_UNUSED,
                slice_offset_t const slice_offset,
                slice_index_t const slice_index)
-        : index(slice_index)
+        : slice_index(slice_index)
         , hint(slice_offset)
     {
     }
@@ -239,6 +241,7 @@ template <int LEVEL> struct bare_bucket_update_t {
         : x(limit_cast<br_index_t>(x))
     {
     }
+    inline void set_x(br_index_t xx) { x = xx; }
 };
 
 template <int LEVEL, typename HINT> struct bucket_update_t; // IWYU pragma: keep
@@ -344,6 +347,46 @@ template <int LEVEL> struct bucket_slice_alloc_defaults<LEVEL, logphint_t> {
     static slice_index_t const increase = 1;
 };
 
+/* {{{ bucket_row_update_t<LEVEL, HINT> is for projective primes */
+template <int LEVEL, typename HINT> struct bucket_row_update_t;
+
+template <typename T> struct add_slice_index_if_missing {
+    slice_index_t slice_index;
+    add_slice_index_if_missing(slice_index_t const slice_index)
+        : slice_index(slice_index)
+    {
+    }
+};
+
+template <> struct add_slice_index_if_missing<longhint_t> {
+    add_slice_index_if_missing(slice_index_t const) {}
+};
+
+template <int LEVEL, typename HINT>
+struct bucket_row_update_t
+    : public bucket_update_t<LEVEL, HINT>
+    , public add_slice_index_if_missing<HINT> {
+    size_t inc;
+    int n;
+    /* update_t::x is the starting point, and slice_index and inc are
+     * used to recover the exact prime that hits there */
+    bucket_row_update_t(bucket_update_t<LEVEL, HINT> const & u,
+                        slice_index_t slice_index, size_t inc, int n)
+        : bucket_update_t<LEVEL, HINT>(u)
+        , add_slice_index_if_missing<HINT>(slice_index)
+        , inc(inc)
+        , n(n)
+    {
+    }
+    /*
+    bucket_row_update_t(bucket_row_update_t<LEVEL+1, longhint_t> const & u)
+        : bucket_update_t<LEVEL, HINT>(u)
+        , add_slice_index_if_missing<HINT>(u.slice_index)
+    {}
+    */
+};
+/* }}} */
+
 template <int LEVEL, typename HINT> class bucket_array_t : private NonCopyable
 {
     /* We want to be able to reseat the reference in the course of the
@@ -354,6 +397,7 @@ template <int LEVEL, typename HINT> class bucket_array_t : private NonCopyable
   public:
     static int const level = LEVEL;
     typedef bucket_update_t<LEVEL, HINT> update_t;
+    typedef bucket_row_update_t<LEVEL, HINT> row_update_t;
 
   private:
     update_t * big_data = 0;
@@ -373,6 +417,12 @@ template <int LEVEL, typename HINT> class bucket_array_t : private NonCopyable
                                      // corresponding bucket the
                                      // updates from that slice start
   public:
+    /* This is for projective primes only. We expect these to be rare, so
+     * that an std::vector is appropriate (TBH, we should use vectors for
+     * some of the fields above as well.
+     */
+    std::vector<std::vector<row_update_t>> row_updates;
+
     uint32_t n_bucket = 0; // Number of buckets
   private:
     size_t size_b_align = 0; // cacheline-aligned room for a
@@ -396,7 +446,7 @@ template <int LEVEL, typename HINT> class bucket_array_t : private NonCopyable
     }
     void free_slice_start();
     void realloc_slice_start(size_t);
-    void log_this_update(update_t update, uint64_t offset,
+    void log_this_update(update_t update,
                          uint64_t bucket_number, where_am_I & w) const;
 
   public:
@@ -503,7 +553,22 @@ template <int LEVEL, typename HINT> class bucket_array_t : private NonCopyable
     double average_full() const;
     /* Push an update to the designated bucket. Also check for overflow, if
        SAFE_BUCKET_ARRAYS is defined. */
-    void push_update(int i, update_t const & update);
+    inline void push_update(int bucket_number, update_t const & update,
+                            where_am_I & w MAYBE_UNUSED);
+
+    void push_row_update(slice_index_t slice_index, size_t increment,
+                                int const bucket_number, int n,
+                                update_t const & u, where_am_I & w MAYBE_UNUSED)
+    {
+#if defined(TRACE_K)
+        update_t ux = u;
+        for (int nx = n + 1; nx--;) {
+            log_this_update(ux, bucket_number, w);
+            ux.x += increment;
+        }
+#endif
+        row_updates[bucket_number].emplace_back(u, slice_index, increment, n);
+    }
 
     /* Create an update for a hit at location offset and push it to the
        coresponding bucket */

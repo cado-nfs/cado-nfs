@@ -461,6 +461,8 @@ class plattice_enumerator : public plattice_enumerator_base
     plattice_x_t x;
 
   public:
+    plattice_x_t get_inc_step() const { return inc_step; }
+
     struct fence {
         uint32_t maskI;
         plattice_x_t even_mask;
@@ -530,26 +532,36 @@ class plattice_enumerator : public plattice_enumerator_base
             x -= F.end;
     }
 
-    void advance_to_end_of_projective_first_line(fence const & F)
+    int advance_to_end_of_row_or_smallest_region(uint32_t mask)
     {
-        /* This function shouldn't be critical. We want the last
-         * matching position on the line (i,0). This depends on the
-         * "step" vector (i1,j1), and works **ONLY** in the projective
-         * case, and **ONLY** while we're on the first line !
+        /* This function shouldn't be critical. We want the last matching
+         * position on the row where x stands, or in the lowest-level
+         * region if that happens to span less than a row.  This depends
+         * on the "step" vector (i1,j1).  Note that we need this only for
+         * projective primes (and powers), so that the corresponding
+         * plattice has i1>0 and j1==0
          *
-         * for projective non-powers, we should have (i1,j1)=(1,0),
-         * inc_step=1, and bound_warp=I-1. However we might have something
-         * different for projective powers.
+         * (for projective non-powers, we should have (i1,j1)=(1,0),
+         * inc_step=1, and bound_warp=I-1. However we might have
+         * something different for projective powers.)
+         *
+         * This returns the number of updates (not counting the current
+         * x) that are skipped over by this update.
          */
-        /* the corresponding plattice has i1>0 and j1==0 */
-        ASSERT(inc_step < F.maskI);
-        if (x <= F.maskI) {
-            /* do nothing if we're not on the first line. After all it
-             * can happen, if inc_step is (I/2,0) : there's no hit point
-             * on the first line in this case. Too bad, but that's life.
-             */
-            x = F.maskI - F.maskI % inc_step;
+#ifdef BUCKET_SIEVE_POWERS
+        if (inc_step > 1) {
+            int n = (mask - (x & mask)) / inc_step;
+            x += n * inc_step;
+            return n;
         }
+#endif
+        /* This should be the dominant case, even when bucket-sieving
+         * powers. Hence the special-case above, so that we don't do a
+         * division by 1 for all projective primes.
+         */
+        int n = (mask - (x & mask));
+        x |= mask;
+        return n;
     }
     plattice_x_t get_x() const { return x; }
     void set_x(plattice_x_t xx) { x = xx; }

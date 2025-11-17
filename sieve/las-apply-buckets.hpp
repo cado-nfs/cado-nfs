@@ -29,6 +29,54 @@ NOPROFILE_STATIC
     sieve_increase(S + u.x, logp, w);
 }
 
+/* 
+ * downsorted buckets might come from several parts (part 2 and
+ * above only, though). Depending on the type of hint we're considering,
+ * the logp lookup might call for a lookup on part 1 only, or possibly on
+ * several parts.
+ */
+template<typename HINT> struct fb_part_lookup {};
+template<typename HINT>
+requires HINT::allowed_at_toplevel
+struct fb_part_lookup<HINT> {
+    static size_t min(fb_factorbase::slicing const &) { return 1; }
+    static size_t max(fb_factorbase::slicing const &) { return 2; }
+};
+template<typename HINT>
+requires (!HINT::allowed_at_toplevel)
+struct fb_part_lookup<HINT> {
+    static size_t min(fb_factorbase::slicing const &) { return 2; }
+    static size_t max(fb_factorbase::slicing const & fbs) { return fbs.nparts(); }
+};
+
+/* TODO: for HINT=shorthint, fb_part_lookup will really be a proxy to
+ * fbs.get_part(1), so having it inside the loop is wasteful
+ */
+template <int LEVEL, typename HINT>
+inline void apply_row_updates_for_one_bucket(
+    unsigned char * S, bucket_array_t<LEVEL, HINT> const & BA, int const i,
+    fb_factorbase::slicing const & fbs, where_am_I & w)
+{
+    if ((uint32_t)i >= BA.n_bucket)
+        return;
+
+    /* p is logged at push_update, not at apply_update */
+    WHERE_AM_I_UPDATE(w, p, 0);
+    for (auto & ru: BA.row_updates[i]) {
+        bucket_update_t<LEVEL, HINT> u = ru;
+        auto const * fb_slice = fbs.get(ru.slice_index,
+                fb_part_lookup<HINT>::min(fbs),
+                fb_part_lookup<HINT>::max(fbs));
+        ASSERT_ALWAYS(fb_slice != nullptr);
+        unsigned char const logp = fb_slice->get_logp();
+        // WHERE_AM_I_UPDATE(w, p, fbp[ru.slice_index].get_prime(u.hint));
+        for (size_t n = ru.n + 1; n--;) {
+            apply_one_update<HINT>(S, u, logp, w);
+            u.x += ru.inc;
+        }
+    }
+}
+
 template <typename HINT>
 #ifndef TRACE_K
 /* backtrace display can't work for static symbols (see backtrace_symbols) */
@@ -137,6 +185,7 @@ NOPROFILE_STATIC
         while (it != it_end)
             apply_one_update<HINT>(S, *it++, logp, w);
     }
+    apply_row_updates_for_one_bucket<1, HINT>(S, BA, i, fbs, w);
 }
 
 // Create the four instances, longhint_t and logphint_t are specialized.
@@ -164,18 +213,20 @@ void apply_one_bucket<longhint_t>(unsigned char * S,
     ASSERT(BA.get_nr_slices() == 1);
     ASSERT(BA.get_slice_index(0) == 0); // std::numeric_limits<slice_index_t>::max());
     for (auto const & it: BA.slice_range(i, 0)) {
-        slice_index_t slice_index = it.index;
+        slice_index_t slice_index = it.slice_index;
         auto const * fb_slice = fbs.get(slice_index, 2);
         ASSERT_ALWAYS(fb_slice != nullptr);
         unsigned char const logp = fb_slice->get_logp();
         apply_one_update<longhint_t>(S, it, logp, w);
     }
+    apply_row_updates_for_one_bucket<1, longhint_t>(S, BA, i, fbs, w);
 }
+
 template <>
 void apply_one_bucket<logphint_t>(unsigned char * S,
                                   bucket_array_t<1, logphint_t> const & BA,
                                   int const i,
-                                  fb_factorbase::slicing const &,
+                                  fb_factorbase::slicing const & fbs,
                                   where_am_I & w)
 {
     WHERE_AM_I_UPDATE(w, p, 0);
@@ -185,6 +236,7 @@ void apply_one_bucket<logphint_t>(unsigned char * S,
     for (auto const & it: BA.slice_range(i, 0)) {
         apply_one_update<logphint_t>(S, it, it.logp, w);
     }
+    apply_row_updates_for_one_bucket<1, logphint_t>(S, BA, i, fbs, w);
 }
 /* }}} */
 

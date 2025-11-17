@@ -11,8 +11,9 @@
 #include "macros.h"
 
 template <int LEVEL, typename HINT>
-inline void bucket_array_t<LEVEL, HINT>::push_update(int const i,
-                                                     update_t const & update)
+inline void
+bucket_array_t<LEVEL, HINT>::push_update(int const i, update_t const & update,
+                                         where_am_I & w MAYBE_UNUSED)
 {
 #ifdef SAFE_BUCKET_ARRAYS
     if (bucket_write[i] >= bucket_start[i + 1]) {
@@ -20,6 +21,9 @@ inline void bucket_array_t<LEVEL, HINT>::push_update(int const i,
         ASSERT_ALWAYS(0);
         return;
     }
+#endif
+#if defined(TRACE_K)
+    log_this_update(update, i, w);
 #endif
     *bucket_write[i]++ = update;
 }
@@ -45,24 +49,6 @@ bucket_single<LEVEL, HINT>::get_next_update()
     ASSERT_ALWAYS(read < write);
 #endif
     return *read++;
-}
-
-template <int LEVEL, typename HINT>
-inline void bucket_array_t<LEVEL, HINT>::push_update(
-    uint64_t const offset, fbprime_t const p, slice_offset_t const slice_offset,
-    slice_index_t const slice_index, where_am_I & w MAYBE_UNUSED)
-{
-    static_assert(LEVEL < FB_MAX_PARTS);
-    int logB = LOG_BUCKET_REGIONS[LEVEL];
-    uint64_t const bucket_number = offset >> logB;
-    ASSERT_EXPENSIVE(bucket_number < n_bucket);
-    update_t update(offset & ((UINT64_C(1) << logB) - 1), p, slice_offset,
-                    slice_index);
-    WHERE_AM_I_UPDATE(w, i, slice_index);
-#if defined(TRACE_K)
-    log_this_update(update, offset, bucket_number, w);
-#endif
-    push_update(bucket_number, update);
 }
 
 #endif /* CADO_BUCKET_PUSH_UPDATE_HPP */

@@ -36,7 +36,7 @@ class important_files_async_loop():
             errfile.flush()
 
             print(f"running program, saving output to {outfile}")
-            print(f"calling:", *args, file=sys.stderr)
+            print("calling:", *args, file=sys.stderr)
 
             with open(outfile_tmp, 'w') as save:
                 proc = await asyncio.create_subprocess_exec(

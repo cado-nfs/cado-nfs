@@ -88,6 +88,8 @@ struct fb_general_root {
                                           unsigned char nexp,
                                           unsigned char oldexp);
 
+  private:
+    friend class fb_entry_general;
     /* Constructor from the old format of storing projective roots, which has q
        added to the root if the root is projective */
     explicit fb_general_root(fb_root_p1 const R, unsigned char const nexp = 1,
@@ -164,6 +166,7 @@ class fb_entry_general
     fbroot_t get_r(size_t const i) const { return roots[i].r; };
     fbroot_t get_proj(size_t const i) const { return roots[i].proj; };
     void parse_line(char const * line, unsigned long linenr);
+    bool can_merge(fb_entry_general const &) const;
     void merge(fb_entry_general const &);
     void fprint(FILE * out) const;
     bool is_simple() const;
@@ -707,6 +710,8 @@ class fb_factorbase
         int toplevel = 0;
 
       public:
+        size_t nparts() const { return parts.size(); }
+
         /* index: global index across all fb parts */
         fb_slice_interface const * get(slice_index_t index, size_t i0, size_t i1) const
         {
