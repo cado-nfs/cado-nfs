@@ -145,9 +145,9 @@ class exceptions_queue
 };
 
 thread_pool::thread_pool(size_t const nr_threads, double & store_wait_time,
-                         size_t const nr_queues)
-    // monitor_or_synchronous(nr_threads == 1),
-    : tasks(nr_queues)
+                         size_t const nr_queues, bool sync_thread_pool)
+    : monitor_or_synchronous(sync_thread_pool)
+    , tasks(nr_queues)
     , results(nr_queues)
     , exceptions(nr_queues)
     , created(nr_queues, 0)
@@ -155,6 +155,7 @@ thread_pool::thread_pool(size_t const nr_threads, double & store_wait_time,
     , kill_threads(false)
     , store_wait_time(store_wait_time)
 {
+    ASSERT_ALWAYS(nr_threads == 1 || !sync_thread_pool);
     /* Threads start accessing the queues as soon as they run */
     threads.reserve(nr_threads);
     for (size_t i = 0; i < nr_threads; i++)

@@ -230,7 +230,7 @@ stage2_one_w (stage2_plan_t *plan, const unsigned int B1, const unsigned int B2,
   unsigned int *U = NULL, *UV = NULL;
   unsigned char *wanted, *nuv_per_p;
   double cost;
-  unsigned int i, j, p; /* loop variables */
+  unsigned int i, j; /* loop variables */
 
   if (verbose)
     printf ("# %s: w=%u\n", __func__, w);
@@ -273,8 +273,11 @@ stage2_one_w (stage2_plan_t *plan, const unsigned int B1, const unsigned int B2,
   }
 
   /* upper bound on V */
-  for (p = B2; primes[p] == 0; p--); /* set p to the largest prime <= B2 */
-  vmax = compute_v (p, w);
+  {
+      unsigned int p;
+      for (p = B2; primes[p] == 0; p--); /* set p to the largest prime <= B2 */
+      vmax = compute_v (p, w);
+  }
 
   if (verbose)
     printf ("# %s: upper bound on V: vmax=%u\n", __func__, vmax);
@@ -307,7 +310,7 @@ stage2_one_w (stage2_plan_t *plan, const unsigned int B1, const unsigned int B2,
 
   /* pass 1: for all primes covered by one (u,v) pair, add this pair */
   vmin = vmax;
-  for (p = B1; p <= B2; p++)
+  for (unsigned int p = B1; p <= B2; p++)
   {
     /* check primes[p] because an (u,v) pair can cover up to 2 primes */
     if (wanted[p] && nuv_per_p[p] == 1)

@@ -33,7 +33,7 @@ add_library(las_core_a OBJECT
 # las_core_b0 is slighlty intermediary.
 add_library(las_core_b0 OBJECT
         las-siever-config.cpp
-        las-config.c
+        las-config.cpp
         las-norms.cpp
         logapprox.cpp
         las-coordinates.cpp

@@ -7,7 +7,7 @@
 
 #include <cstdint>
 #include <cinttypes>
-#include "las-config.h"
+#include "las-config.hpp"
 
 typedef uint32_t fbprime_t; /* 32 bits should be enough for everyone */
 #define FBPRIME_FORMAT PRIu32

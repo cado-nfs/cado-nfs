@@ -34,7 +34,7 @@
 #include "las-auxiliary-data.hpp"
 #include "las-cofac-standalone.hpp"
 #include "las-cofactor.hpp"
-#include "las-config.h"
+#include "las-config.hpp"
 #include "las-coordinates.hpp"
 #include "las-special-q-task-collection.hpp"
 #include "las-detached-cofac.hpp"
@@ -200,7 +200,7 @@ struct process_bucket_region_run : public process_bucket_region_spawn {/*{{{*/
     void SminusS(int side);
     typedef std::vector<bucket_update_t<1, shorthint_t>::br_index_t> survivors_t;
     survivors_t search_survivors();
-    void purge_buckets(int side);
+    void purge_buckets(int side, survivors_t const & survivors);
     void resieve(int side);
     void cofactoring_sync (survivors_t & survivors2);
     void operator()();
@@ -271,26 +271,42 @@ template<bool with_hints> void process_bucket_region_run::apply_buckets_inner(in
 {
     nfs_work::side_data  const& wss(ws.sides[side]);
 
-    typedef typename hints_proxy<with_hints>::l my_longhint_t;
-    typedef typename hints_proxy<with_hints>::s my_shorthint_t;
+    using my_longhint_t = hints_proxy<with_hints>::l;
+    using my_shorthint_t = hints_proxy<with_hints>::s;
     {
+        auto const & BA_ins = wss.bucket_arrays<1, my_shorthint_t>();
+        verbose_fmt_print(0, 3,
+                "# apply 1s buckets ({} groups of {} buckets, taking bucket {}/{})"
+                " to region {}\n",
+                BA_ins.size(), BA_ins[0].n_bucket,
+                already_done + bucket_relative_index,
+                BA_ins[0].n_bucket,
+                first_region0_index + already_done + bucket_relative_index);
+
         CHILD_TIMER(timer, "apply buckets");
         TIMER_CATEGORY(timer, sieving(side));
-        for (auto const & BA : wss.bucket_arrays<1, my_shorthint_t>())
-            apply_one_bucket(SS, BA, already_done + bucket_relative_index, wss.fbs->get_part(1), w);
+
+        /* The function below, when instantiated with shorthint buckets,
+         * will fetch primes from fb part 1 only */
+        for (auto const & BA_in : BA_ins)
+            apply_one_bucket(SS, BA_in, already_done + bucket_relative_index, *wss.fbs, w);
     }
 
     /* Apply downsorted buckets, if necessary. */
     if (ws.toplevel > 1) {
+        auto const & BA_ins = wss.bucket_arrays<1, my_longhint_t>();
+        verbose_fmt_print(0, 3,
+                "# apply 1l buckets ({} groups of {} buckets)"
+                " to region {}\n",
+                BA_ins.size(), BA_ins[0].n_bucket,
+                already_done + bucket_relative_index);
         CHILD_TIMER(timer, "apply downsorted buckets");
         TIMER_CATEGORY(timer, sieving(side));
 
-        for (auto const & BAd : wss.bucket_arrays<1, my_longhint_t>()) {
-            // FIXME: the updates could come from part 3 as well,
-            // not only part 2.
-            ASSERT_ALWAYS(ws.toplevel <= 2);
-            apply_one_bucket(SS, BAd, already_done + bucket_relative_index, wss.fbs->get_part(2), w);
-        }
+        /* The function below, when instantiated with longhint buckets,
+         * will fetch primes from fb parts 2 and (if applicable) above. */
+        for (auto const & BA_in : BA_ins)
+            apply_one_bucket(SS, BA_in, already_done + bucket_relative_index, *wss.fbs, w);
     }
 }/*}}}*/
 void process_bucket_region_run::apply_buckets(int side)/*{{{*/
@@ -453,7 +469,7 @@ process_bucket_region_run::survivors_t process_bucket_region_run::search_survivo
     /* This used to be called convert_survivors */
     return { begin(temp_sv), end(temp_sv) };
 }/*}}}*/
-void process_bucket_region_run::purge_buckets(int side)/*{{{*/
+void process_bucket_region_run::purge_buckets(int side, survivors_t const & survivors MAYBE_UNUSED)/*{{{*/
 {
     nfs_work::side_data  const& wss(ws.sides[side]);
 
@@ -463,11 +479,12 @@ void process_bucket_region_run::purge_buckets(int side)/*{{{*/
     unsigned char * Sx = S[0] ? S[0] : S[1];
 
     for (auto const & BA : wss.bucket_arrays<1, shorthint_t>()) {
-#if defined(HAVE_SSE2) && defined(SMALLSET_PURGE)
-        sides[side].purged.purge(BA, already_done + bucket_relative_index, Sx, survivors);
-#else
-        sides[side].purged.purge(BA, already_done + bucket_relative_index, Sx);
+#ifdef HAVE_SSE2
+        if (tws.ws.las.use_smallset_purge)
+            sides[side].purged.purge(BA, already_done + bucket_relative_index, Sx, survivors);
+        else
 #endif
+            sides[side].purged.purge(BA, already_done + bucket_relative_index, Sx);
     }
 
     /* Add entries coming from downsorting, if any */
@@ -843,7 +860,7 @@ void process_bucket_region_run::operator()() {/*{{{*/
     for(int side = 0 ; !survivors.empty() && do_resieve && side < nsides ; side++) {
         MARK_TIMER_FOR_SIDE(timer, side);
         sides[side].purged.allocate_memory(ws.local_memory, BUCKET_REGION);
-        purge_buckets(side);
+        purge_buckets(side, survivors);
         size_t const ns = survivors.size();
         double const maxnorm = ws.sides[side].lognorms.get_maxlog2();
         double const logp_lb = log2(ws.sides[side].fbK.td_thresh);

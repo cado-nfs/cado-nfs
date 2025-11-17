@@ -5,11 +5,11 @@
 #include <cstdlib>
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <ios>
 #include <istream>
 #include <iterator>
-
 #include <limits>
 #include <memory>
 #include <string>
@@ -282,6 +282,24 @@ static inline std::string join(std::vector<ItemType> const & items,
  */
 template<typename Lambda, typename ItemType>
 static inline std::string join(std::vector<ItemType> const & items,
+        const std::string& delimiter,
+        Lambda lambda)
+{
+    return join(items.begin(), items.end(), delimiter, lambda);
+}
+
+template<typename ItemType, size_t N>
+static inline std::string join(std::array<ItemType, N> const & items,
+        const std::string& delimiter)
+{
+    return join(items.begin(), items.end(), delimiter);
+}
+
+/* not sure it's really needed. after all, we might want to have a
+ * generic map construction
+ */
+template<typename Lambda, typename ItemType, size_t N>
+static inline std::string join(std::array<ItemType, N> const & items,
         const std::string& delimiter,
         Lambda lambda)
 {

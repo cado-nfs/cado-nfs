@@ -67,7 +67,14 @@ struct siever_config {
      * and ws.sides[side].fbK.{td_thresh, skipped}
      */
     unsigned long bucket_thresh = 0;  // bucket sieve primes >= bucket_thresh
+#if MAX_TOPLEVEL >= 2
     unsigned long bucket_thresh1 = 0; // primes above are 2-level bucket-sieved
+#endif
+#if MAX_TOPLEVEL >= 3
+    unsigned long bucket_thresh2 = 0; // primes above are 3-level bucket-sieved
+#endif
+    static_assert(MAX_TOPLEVEL == 3);
+
     unsigned int td_thresh = 1024;
     unsigned int skipped = 1;         // don't sieve below this
 

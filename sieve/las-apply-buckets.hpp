@@ -7,6 +7,7 @@
 #include <emmintrin.h>
 #endif
 
+#include "fb-types.hpp"
 #include "bucket.hpp"
 #include "cado-endian.h"
 #include "las-where-am-i.hpp" // for where_am_I, WHERE_AM_I_UPDATE
@@ -35,19 +36,19 @@ NOPROFILE_STATIC
 #endif
     void
     apply_one_bucket(unsigned char * S, bucket_array_t<1, HINT> const & BA,
-                     const int i, fb_factorbase::slicing::part const & fbp,
+                     const int i, fb_factorbase::slicing const & fbs,
                      where_am_I & w)
 {
     WHERE_AM_I_UPDATE(w, p, 0);
 
-    /* The slice indices are only fake indices in this case. So we must not
-     * instantiate this code ! */
-    static_assert(
-        !std::is_same<HINT, logphint_t>::value,
-        "This code must not be instantiated with hint type logphint_t");
-    static_assert(
-        !std::is_same<HINT, longhint_t>::value,
-        "This code must not be instantiated with hint type longhint_t");
+    /* We only want 1s buckets here. */
+    static_assert(HINT::allowed_at_toplevel);
+
+    /* This code is only used for 1s buckets. We do not have any
+     * downsorted buckets here, so all primes must come from part 1
+     * of the factor base.
+     */
+    auto const & fbp = fbs.get_part(1);
 
     for (slice_index_t i_slice = 0; i_slice < BA.get_nr_slices(); i_slice++) {
         auto sl = BA.slice_range(i, i_slice);
@@ -55,8 +56,6 @@ NOPROFILE_STATIC
         auto it_end = sl.end();
 
         slice_index_t const slice_index = BA.get_slice_index(i_slice);
-
-        ASSERT(slice_index < fbp.nslices());
 
         unsigned char const logp = fbp[slice_index].get_logp();
 
@@ -143,26 +142,32 @@ NOPROFILE_STATIC
 // Create the four instances, longhint_t and logphint_t are specialized.
 template void apply_one_bucket<shorthint_t>(
     unsigned char * S, bucket_array_t<1, shorthint_t> const & BA, int const i,
-    fb_factorbase::slicing::part const & fbp, where_am_I & w);
+    fb_factorbase::slicing const & fbs, where_am_I & w);
 
 template void apply_one_bucket<emptyhint_t>(
     unsigned char * S, bucket_array_t<1, emptyhint_t> const & BA, int const i,
-    fb_factorbase::slicing::part const & fbp, where_am_I & w);
+    fb_factorbase::slicing const & fbs, where_am_I & w);
 
 template <>
 void apply_one_bucket<longhint_t>(unsigned char * S,
                                   bucket_array_t<1, longhint_t> const & BA,
                                   int const i,
-                                  fb_factorbase::slicing::part const & fbp,
+                                  fb_factorbase::slicing const & fbs,
                                   where_am_I & w)
 {
+    /* We need to access the full slicing, not the part, because
+     * downsorted buckets might come from several parts (part 2 and
+     * above only, though).
+     */
     WHERE_AM_I_UPDATE(w, p, 0);
     // There is only one fb_slice. Slice indices are embedded in the hints.
     ASSERT(BA.get_nr_slices() == 1);
-    ASSERT(BA.get_slice_index(0) == std::numeric_limits<slice_index_t>::max());
+    ASSERT(BA.get_slice_index(0) == 0); // std::numeric_limits<slice_index_t>::max());
     for (auto const & it: BA.slice_range(i, 0)) {
-        slice_index_t index = it.index;
-        unsigned char const logp = fbp[index].get_logp();
+        slice_index_t slice_index = it.index;
+        auto const * fb_slice = fbs.get(slice_index, 2);
+        ASSERT_ALWAYS(fb_slice != nullptr);
+        unsigned char const logp = fb_slice->get_logp();
         apply_one_update<longhint_t>(S, it, logp, w);
     }
 }
@@ -170,13 +175,13 @@ template <>
 void apply_one_bucket<logphint_t>(unsigned char * S,
                                   bucket_array_t<1, logphint_t> const & BA,
                                   int const i,
-                                  fb_factorbase::slicing::part const &,
+                                  fb_factorbase::slicing const &,
                                   where_am_I & w)
 {
     WHERE_AM_I_UPDATE(w, p, 0);
     // There is only one fb_slice. logp's are embedded in the hints.
     ASSERT(BA.get_nr_slices() == 1);
-    ASSERT(BA.get_slice_index(0) == std::numeric_limits<slice_index_t>::max());
+    ASSERT(BA.get_slice_index(0) == 0); // std::numeric_limits<slice_index_t>::max());
     for (auto const & it: BA.slice_range(i, 0)) {
         apply_one_update<logphint_t>(S, it, it.logp, w);
     }

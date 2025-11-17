@@ -20,7 +20,7 @@
 #include "mpz_poly.h"
 
 #include "fb-types.hpp"
-#include "las-config.h"
+#include "las-config.hpp"
 #include "lock_guarded_container.hpp"
 #include "mmappable_vector.hpp"
 #include "multityped_array.hpp"
@@ -495,13 +495,13 @@ class fb_factorbase
     struct key_type {
         std::array<fbprime_t, FB_MAX_PARTS> thresholds;
         fbprime_t td_thresh;
-        fbprime_t skipped;
-        double scale;
+        fbprime_t skipped = 0;
+        double scale = 0;
         /* This might seem non obvious, but this parameters controls
          * the size of the slices, because we want to enforce some
          * relatively-even division. It's not entirely clear that we
          * want it here, but we definitely want it somewhere. */
-        unsigned int nb_threads;
+        unsigned int nb_threads = 0;
 
         bool operator<(key_type const & x) const
         {
@@ -547,9 +547,9 @@ class fb_factorbase
                 slices_t;
             friend struct helper_functor_subdivide_slices;
             slices_t slices;
-            slice_index_t first_slice_index = 0;
 
           public:
+            slice_index_t first_slice_index = 0;
             template <int n>
             typename fb_slices_factory<n>::type & get_slices_vector_for_nroots()
             {
@@ -706,17 +706,26 @@ class fb_factorbase
         /* toplevel is set by the ctor */
         int toplevel = 0;
 
+      public:
         /* index: global index across all fb parts */
-        fb_slice_interface const * get(slice_index_t index) const
+        fb_slice_interface const * get(slice_index_t index, size_t i0, size_t i1) const
         {
-            for (auto const & p: parts) {
+            for (size_t i = i0 ; i < i1 ; i++) {
+                auto const & p = parts[i];
                 if (index < p.first_slice_index + p.nslices())
                     return p.get(index);
             }
             return nullptr;
         }
+        fb_slice_interface const * get(slice_index_t index, size_t i0) const
+        {
+            return get(index, i0, parts.size());
+        }
+        fb_slice_interface const * get(slice_index_t index) const
+        {
+            return get(index, 0, parts.size());
+        }
 
-      public:
         part const & get_part(int i) const { return parts[i]; }
 
         int get_toplevel() const { return toplevel; }

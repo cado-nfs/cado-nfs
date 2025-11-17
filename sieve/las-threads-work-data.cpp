@@ -3,22 +3,22 @@
 #include <cstring>
 
 #include <algorithm>
-#include <ostream>         // for operator<<, basic_ostream, ostringstream
-#include <string>          // for char_traits, basic_string, string
-#include <type_traits>     // for is_same
+#include <ostream>
+#include <string>
+#include <type_traits>
 #include <sstream>
 #include <utility>
 
-#include "bucket.hpp"      // for bucket_array_t, emptyhint_t (ptr only)
-#include "ecm/batch.hpp"       // for cofac_list
-#include "las-config.h"
+#include "bucket.hpp"
+#include "ecm/batch.hpp"
+#include "las-config.hpp"
 #include "las-bkmult.hpp"
-#include "las-info.hpp"    // for las_info
-#include "las-memory.hpp"  // for las_memory_accessor
+#include "las-info.hpp"
+#include "las-memory.hpp"
 #include "las-threads-work-data.hpp"
 #include "multityped_array.hpp"
-#include "macros.h"        // for ASSERT_ALWAYS, iceildiv
-#include "threadpool.hpp"  // for thread_pool
+#include "macros.h"
+#include "threadpool.hpp"
 #include "verbose.h"
 
 class nfs_aux; // IWYU pragma: keep
@@ -176,7 +176,7 @@ void nfs_work::allocate_bucket_regions() {
 
 template <int LEVEL, typename HINT>
 double
-nfs_work::buckets_max_full()
+nfs_work::buckets_max_full() const
 {
     /* find the most full bucket across all buckets in the bucket array */
     double maxfull_ratio = 0;
@@ -231,55 +231,128 @@ nfs_work::buckets_max_full()
     }
     return maxfull_ratio;
 }
-double nfs_work::check_buckets_max_full()
+double nfs_work::check_buckets_max_full() const
 {
-    double mf0 = 0, mf;
-    mf = buckets_max_full<3, shorthint_t>(); mf0 = std::max(mf0, mf);
-    mf = buckets_max_full<2, shorthint_t>(); mf0 = std::max(mf0, mf);
-    mf = buckets_max_full<2, longhint_t>();  mf0 = std::max(mf0, mf);
-    mf = buckets_max_full<1, shorthint_t>(); mf0 = std::max(mf0, mf);
-    mf = buckets_max_full<1, longhint_t>();  mf0 = std::max(mf0, mf);
-    mf = buckets_max_full<3, emptyhint_t>(); mf0 = std::max(mf0, mf);
-    mf = buckets_max_full<2, emptyhint_t>(); mf0 = std::max(mf0, mf);
-    mf = buckets_max_full<2, logphint_t>();  mf0 = std::max(mf0, mf);
-    mf = buckets_max_full<1, emptyhint_t>(); mf0 = std::max(mf0, mf);
-    mf = buckets_max_full<1, logphint_t>();  mf0 = std::max(mf0, mf);
-    return mf0;
+    double mf = 0;
+
+    mf = std::max(mf, buckets_max_full<1, shorthint_t>());
+    mf = std::max(mf, buckets_max_full<1, emptyhint_t>());
+
+#if MAX_TOPLEVEL >= 2
+    mf = std::max(mf, buckets_max_full<1, longhint_t>());
+    mf = std::max(mf, buckets_max_full<1, logphint_t>());
+    mf = std::max(mf, buckets_max_full<2, shorthint_t>());
+    mf = std::max(mf, buckets_max_full<2, emptyhint_t>());
+#endif
+
+#if MAX_TOPLEVEL >= 3
+    mf = std::max(mf, buckets_max_full<2, longhint_t>());
+    mf = std::max(mf, buckets_max_full<2, logphint_t>());
+    mf = std::max(mf, buckets_max_full<3, shorthint_t>());
+    mf = std::max(mf, buckets_max_full<3, emptyhint_t>());
+#endif
+
+    static_assert(MAX_TOPLEVEL == 3);
+
+    return mf;
 }
 
+double nfs_work::check_buckets_max_full_toplevel(int level) const
+{
+
+    double mf = 0;
+
+    if (level == 1) {
+        mf = std::max(mf, buckets_max_full<1, shorthint_t>());
+        mf = std::max(mf, buckets_max_full<1, emptyhint_t>());
+        return mf;
+    }
+
+#if MAX_TOPLEVEL >= 2
+    if (level == 2) {
+        mf = std::max(mf, buckets_max_full<2, shorthint_t>());
+        mf = std::max(mf, buckets_max_full<2, emptyhint_t>());
+        return mf;
+    }
+#endif
+
+#if MAX_TOPLEVEL >= 3
+    if (level == 3) {
+        mf = std::max(mf, buckets_max_full<3, shorthint_t>());
+        mf = std::max(mf, buckets_max_full<3, emptyhint_t>());
+        return mf;
+    }
+#endif
+    static_assert(MAX_TOPLEVEL == 3);
+
+    ASSERT_ALWAYS(0);
+
+}
+
+#if 0
 template <typename HINT>
 double nfs_work::check_buckets_max_full(int level)
+    requires (HINT::allowed_at_toplevel)
 {
-    switch(level) {
-        case 3:
-            if (std::is_same<HINT, shorthint_t>::value)
-                return buckets_max_full<3, shorthint_t>();
-            else if (std::is_same<HINT, emptyhint_t>::value)
-                return buckets_max_full<3, emptyhint_t>();
-            else
-                ASSERT_ALWAYS(0);
-            /* shouldn't be needed, but g++-12 likes to complain for nothing */
-            no_break();
-        case 2: return buckets_max_full<2, HINT>();
-        case 1: return buckets_max_full<1, HINT>();
-    }
-    return 0;
-}
+    static_assert(MAX_TOPLEVEL == 3);
 
-template double nfs_work::buckets_max_full<1, shorthint_t>();
-template double nfs_work::buckets_max_full<2, shorthint_t>();
-template double nfs_work::buckets_max_full<3, shorthint_t>();
-template double nfs_work::buckets_max_full<1, longhint_t>();
-template double nfs_work::buckets_max_full<2, longhint_t>();
-template double nfs_work::buckets_max_full<1, emptyhint_t>();
-template double nfs_work::buckets_max_full<2, emptyhint_t>();
-template double nfs_work::buckets_max_full<3, emptyhint_t>();
-template double nfs_work::buckets_max_full<1, logphint_t>();
-template double nfs_work::buckets_max_full<2, logphint_t>();
-template double nfs_work::check_buckets_max_full<shorthint_t>(int);
-template double nfs_work::check_buckets_max_full<longhint_t>(int);
-template double nfs_work::check_buckets_max_full<emptyhint_t>(int);
-template double nfs_work::check_buckets_max_full<logphint_t>(int);
+#if MAX_TOPLEVEL >= 3
+    if (level == 3)
+        return buckets_max_full<3, HINT>();
+#endif
+#if MAX_TOPLEVEL >= 2
+    if (level == 2)
+        return buckets_max_full<2, HINT>();
+#endif
+    if (level == 1)
+        return buckets_max_full<1, HINT>();
+    ASSERT_ALWAYS(0);
+}
+template <typename HINT>
+double nfs_work::check_buckets_max_full(int level)
+    requires (!(HINT::allowed_at_toplevel))
+{
+    static_assert(MAX_TOPLEVEL == 3);
+
+#if MAX_TOPLEVEL >= 3
+    if (level == 2)
+        return buckets_max_full<2, HINT>();
+#endif
+
+#if MAX_TOPLEVEL >= 2
+    if (level == 1)
+        return buckets_max_full<1, HINT>();
+#endif
+
+    ASSERT_ALWAYS(0);
+}
+#endif
+
+template double nfs_work::buckets_max_full<1, shorthint_t>() const;
+template double nfs_work::buckets_max_full<1, emptyhint_t>() const;
+
+#if MAX_TOPLEVEL >= 2
+template double nfs_work::buckets_max_full<2, shorthint_t>() const;
+template double nfs_work::buckets_max_full<2, emptyhint_t>() const;
+template double nfs_work::buckets_max_full<1, longhint_t>() const;
+template double nfs_work::buckets_max_full<1, logphint_t>() const;
+#endif
+
+#if MAX_TOPLEVEL >= 3
+template double nfs_work::buckets_max_full<3, shorthint_t>() const;
+template double nfs_work::buckets_max_full<3, emptyhint_t>() const;
+template double nfs_work::buckets_max_full<2, longhint_t>() const;
+template double nfs_work::buckets_max_full<2, logphint_t>() const;
+#endif
+
+static_assert(MAX_TOPLEVEL == 3);
+
+#if 0
+template double nfs_work::check_buckets_max_full<shorthint_t>(int) const;
+template double nfs_work::check_buckets_max_full<emptyhint_t>(int) const;
+template double nfs_work::check_buckets_max_full<longhint_t>(int) const;
+template double nfs_work::check_buckets_max_full<logphint_t>(int) const;
+#endif
 
 template <int LEVEL, typename HINT>
 void
@@ -288,15 +361,22 @@ nfs_work::side_data::reset_all_pointers() {
 }
 
 template void nfs_work::side_data::reset_all_pointers<1, shorthint_t>();
-template void nfs_work::side_data::reset_all_pointers<2, shorthint_t>();
-template void nfs_work::side_data::reset_all_pointers<3, shorthint_t>();
 template void nfs_work::side_data::reset_all_pointers<1, emptyhint_t>();
+#if MAX_TOPLEVEL >= 2
+template void nfs_work::side_data::reset_all_pointers<2, shorthint_t>();
 template void nfs_work::side_data::reset_all_pointers<2, emptyhint_t>();
+#endif
+#if MAX_TOPLEVEL >= 3
+template void nfs_work::side_data::reset_all_pointers<3, shorthint_t>();
 template void nfs_work::side_data::reset_all_pointers<3, emptyhint_t>();
+#endif
+static_assert(MAX_TOPLEVEL == 3);
 
 void nfs_work::compute_toplevel_and_buckets()
 {
     // Now that fb have been initialized, we can set the toplevel.
+    // XXX TODO: we should decouple the toplevel and the sieving side,
+    // really.
     toplevel = -1;
     for(unsigned int side = 0 ; side < sides.size() ; side++) {
         side_data  const& wss(sides[side]);
@@ -304,29 +384,35 @@ void nfs_work::compute_toplevel_and_buckets()
 
         toplevel = std::max(toplevel, wss.fbs->get_toplevel());
     }
-    ASSERT_ALWAYS(toplevel >= 1);
+    ASSERT_ALWAYS(toplevel >= 1 && toplevel <= MAX_TOPLEVEL);
 
     /* update number of buckets at toplevel */
     size_t  const(&BRS)[FB_MAX_PARTS] = BUCKET_REGIONS;
 
     std::fill_n(nb_buckets, FB_MAX_PARTS, 0);
 
-    nb_buckets[toplevel] = iceildiv(1UL << conf.logA, BRS[toplevel]);
+    size_t above = 1UL << conf.logA;
 
-    // maybe there is only 1 bucket at toplevel and less than 256 at
-    // toplevel-1, due to a tiny J.
-    if (toplevel > 1) {
-        if (nb_buckets[toplevel] == 1) {
-            nb_buckets[toplevel-1] = iceildiv(1UL << conf.logA, BRS[toplevel - 1]);
-            // we forbid skipping two levels.
-            ASSERT_ALWAYS(nb_buckets[toplevel-1] != 1);
-        } else {
-            nb_buckets[toplevel-1] = BRS[toplevel]/BRS[toplevel-1];
-        }
+    for(int level = toplevel ; level >= 1 ; level--) {
+        // For level < toplevel, we typically have BRS[level]/BRS[level-1]
+        // buckets. However we tolerate the case where we have only one
+        // toplevel bucket. It is a waste of resources, however. Using a
+        // less intricate sieving process would be better.
+        nb_buckets[level] = iceildiv(above, BRS[level]);
+        if (nb_buckets[level] > 1)
+            above = BRS[level];
+        else
+            fmt::print(stderr, "# WARNING: only 1 bucket at level {}. Consider dropping bkthresh{} setting.\n", level, level-1);
+
+        /* Having this suboptimal situation for two consecutive levels
+         * really makes no sense.
+         */
+        ASSERT_ALWAYS(level == toplevel || nb_buckets[level] != 1);
     }
 }
 
-void nfs_work::prepare_for_new_q(las_info & las0, special_q_task * task) {
+void nfs_work::prepare_for_new_q(las_info & las0, special_q_task * task)
+{
     ASSERT_ALWAYS(&las == &las0);
     this->task = task;
 

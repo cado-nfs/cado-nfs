@@ -10,7 +10,7 @@
 
 #include <gmp.h>
 #include "cado_poly.h"
-#include "las-config.h"
+#include "las-config.hpp"
 #include "las-qlattice.hpp"
 #include "las-siever-config.hpp"
 #include "logapprox.hpp"

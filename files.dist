@@ -1029,8 +1029,8 @@ sieve/las-cofac-standalone.cpp
 sieve/las-cofac-standalone.hpp
 sieve/las-cofactor.cpp
 sieve/las-cofactor.hpp
-sieve/las-config.c
-sieve/las-config.h
+sieve/las-config.cpp
+sieve/las-config.hpp
 sieve/las-coordinates.cpp
 sieve/las-coordinates.hpp
 sieve/las-descent-candidate-relation.hpp
