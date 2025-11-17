@@ -1600,7 +1600,7 @@ sub task_common_run {
     if ($mpi_needed) {
         if ($program =~ /\/lingen[^\/]*$/) {
             unshift @_, @mpi_precmd_lingen;
-        } elsif ($program =~ /\/(?:split|acollect|lingen|cleanup|bwccheck)$/) {
+        } elsif ($program =~ /\/(?:split|acollect|lingen|cleanup|bwccheck|det_from_lingen)$/) {
             unshift @_, @mpi_precmd_single;
         } elsif ($program =~ /\/(?:prep|secure|krylov|mksol|gather|dispatch)$/) {
             unshift @_, @mpi_precmd;
@@ -2253,6 +2253,24 @@ sub task_mksol {
 }
 # }}}
 
+# {{{ determinant
+sub task_determinant {
+    task_begin_message;
+
+    # input files:
+    #   - F.sols*-*.*-* ; all polynomial entries of the generating
+    #     matrix.
+    #
+
+    my ($nrows, $ncols) = get_nrows_ncols;
+
+    my @args = grep { /^(prime|wdir|n|m)/ } @main_args;
+    push @args, "ffile=F";
+    push @args, "charpoly-degree=${nrows}";
+    task_common_run 'det_from_lingen', @args;
+}
+# }}}
+
 # {{{ gather
 sub task_gather {
     task_begin_message;
@@ -2470,6 +2488,7 @@ my $tasks = {
     dispatch	=> \&task_dispatch,
     lingen	=> \&task_lingen,
     mksol	=> \&task_mksol,
+    determinant	=> \&task_determinant,
     gather	=> \&task_gather,
     cleanup	=> \&task_cleanup,
 };
@@ -2483,10 +2502,26 @@ my @complete = qw(
         cleanup
     );
 
+my @determinant = qw(
+        prep
+        krylov
+        lingen
+        determinant
+    );
+
 my @tasks_todo=();
 
 if ($main eq ':complete') {
     @tasks_todo=@complete;
+} elsif ($main eq ':determinant') {
+    @tasks_todo=@determinant;
+    if ($prime == 2) {
+        die ":determinant is not compatible with prime=2";
+    }
+    my ($nr, $nc) = get_nrows_ncols;
+    if ($nr != $nc) {
+        die ":determinant requires that ncols==nrows; got nrows=$nr, ncols=$nc";
+    }
 } else {
     @tasks_todo=($main);
 }

@@ -994,3 +994,63 @@ cado_define_test(test_bwc_filenames.cpp
     LIBRARIES utils)
 
 add_subdirectory (flint-fft)
+
+#########################################################################
+
+cado_define_test(linalg_determinant
+    PROVIDE_TEMPORARY_WDIR
+    SCRIPT
+    ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg wdir --
+    ${CADO_NFS_BINARY_DIR}/linalg/bwc/bwc.pl
+        :determinant thr=2 nullspace=right
+        matrix=${CMAKE_CURRENT_SOURCE_DIR}/d20.sparse.bin
+    SHA1_ON_REGEXP_LINES "^determinant modulo p: "
+    TARGET_DEPENDENCIES bwc_full_gfp
+    NO_DEFAULT_RUN
+)
+
+cado_divert_test(linalg_determinant p4294967291
+    APPEND_ARGUMENTS prime=4294967291
+    EXPECT_SHA1 68a613f825efc6d86039ed8fbc8d221ce4bab632
+    NO_DEFAULT_RUN
+)
+
+cado_divert_test(linalg_determinant_p4294967291 n1 APPEND_ARGUMENTS n=1 m=2)
+cado_divert_test(linalg_determinant_p4294967291 n3 APPEND_ARGUMENTS n=3 m=3)
+cado_divert_test(linalg_determinant_p4294967291 n5 APPEND_ARGUMENTS n=5 m=10)
+
+cado_divert_test(linalg_determinant p2341309
+    APPEND_ARGUMENTS prime=2341309
+    EXPECT_FAIL
+    EXPECT_SHA1 8db6dd9ba108474d478ddd27daf698847f12cd6f
+    NO_DEFAULT_RUN
+)
+
+cado_divert_test(linalg_determinant_p2341309 n1 APPEND_ARGUMENTS n=1 m=2)
+cado_divert_test(linalg_determinant_p2341309 n3 APPEND_ARGUMENTS n=3 m=6)
+cado_divert_test(linalg_determinant_p2341309 n4 APPEND_ARGUMENTS n=4 m=4)
+
+cado_divert_test(linalg_determinant plarge
+    APPEND_ARGUMENTS prime=340282365653287863235145205935065006031 n=2 m=4
+    EXPECT_SHA1 fdab6722a96703c0463e5e1a407e60988d66a039
+)
+
+cado_define_test(linalg_determinant_nonsquare
+    PROVIDE_TEMPORARY_WDIR
+    SCRIPT
+    ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg wdir --
+    ${CADO_NFS_BINARY_DIR}/linalg/bwc/bwc.pl
+        :determinant n=1 m=2 prime=101 thr=2 nullspace=right random_matrix=50,51
+    EXPECT_FAIL
+    TARGET_DEPENDENCIES bwc_full_gfp
+)
+
+cado_define_test(linalg_determinant_p2
+    PROVIDE_TEMPORARY_WDIR
+    SCRIPT
+    ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg wdir --
+    ${CADO_NFS_BINARY_DIR}/linalg/bwc/bwc.pl
+        :determinant n=64 m=128 prime=2 thr=2 random_matrix=100
+    EXPECT_FAIL
+    TARGET_DEPENDENCIES bwc_full_gfp
+)
