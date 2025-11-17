@@ -35,6 +35,7 @@ void las_info::configure_switches(cxx_param_list & pl)
     las_todo_list::configure_switches(pl);
     param_list_configure_switch(pl, "-allow-compsq", nullptr);
     param_list_configure_switch(pl, "-dup", nullptr);
+    param_list_configure_switch(pl, "-smallset-purge", nullptr);
     param_list_configure_switch(pl, "-batch", nullptr);
 }
 
@@ -62,6 +63,7 @@ void las_info::declare_usage(cxx_param_list & pl)
     param_list_decl_usage(pl, "dup-qmin", "lower limit of global q-range for 2-sided duplicate removal");
     param_list_decl_usage(pl, "dup-qmax", "upper limit of global q-range for 2-sided duplicate removal");
 
+    param_list_decl_usage(pl, "smallset-purge", "use experimental 'smallset' code in purge_buckets");
 
     param_list_decl_usage(pl, "batch", "use batch cofactorization");
     param_list_decl_usage(pl, "batch-print-survivors", "just print survivors to files with the given basename for an external cofactorization");
@@ -111,7 +113,10 @@ void las_info::load_factor_base(cxx_param_list & pl)
 }
 
 las_info::las_info(cxx_param_list & pl)
-    : cpoly(pl)
+    : galois(param_list_lookup_string(pl, "galois"))
+    , suppress_duplicates(param_list_parse_switch(pl, "-dup"))
+    , use_smallset_purge(param_list_parse_switch(pl, "-smallset-purge"))
+    , cpoly(pl)
     , config_pool(pl, cpoly->nb_polys)
 #ifndef HAVE_HWLOC
     , shared_structure_private(cpoly, pl)
@@ -127,8 +132,6 @@ las_info::las_info(cxx_param_list & pl)
      * in the struct */
     // ----- general operational flags {{{
 
-    galois = param_list_lookup_string(pl, "galois");
-    suppress_duplicates = param_list_parse_switch(pl, "-dup");
 
     if (const char * tmp = param_list_lookup_string(pl, "bkmult")) {
         bk_multiplier = bkmult_specifier(tmp);

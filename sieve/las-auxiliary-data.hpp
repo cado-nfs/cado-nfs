@@ -1,22 +1,21 @@
 #ifndef CADO_LAS_AUXILIARY_DATA_HPP
 #define CADO_LAS_AUXILIARY_DATA_HPP
 
-#include <cstddef>                     // for size_t
-#include <array>                       // for array
-#include <cstdint>                     // for int64_t, uint64_t
-#include <memory>                      // for shared_ptr, __shared_ptr_access
-#include <mutex>                       // for mutex
-#include <unordered_set>               // for unordered_set
-#include <utility>                     // for pair
-#include <vector>                      // for vector
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <mutex>
+#include <unordered_set>
+#include <utility>
+#include <vector>
 
-#include "las-info.hpp"                // for las_info
-#include "las-report-stats.hpp"        // for las_report
-#include "las-where-am-i-proxy.hpp"         // for where_am_I
-#include "lock_guarded_container.hpp"  // for lock_guarded_container
-#include "threadpool.hpp"              // for worker_thread
-#include "tdict.hpp"             // for slot, timetree_t, UNIQUE_ID
-#include "timing.h"                 // for seconds, wct_seconds
+#include "las-info.hpp"
+#include "las-report-stats.hpp"
+#include "las-where-am-i-proxy.hpp"
+#include "lock_guarded_container.hpp"
+#include "threadpool.hpp"
+#include "tdict.hpp"
+#include "timing.h"
 
 struct las_output; // IWYU pragma: keep
 struct special_q; // IWYU pragma: keep

@@ -22,7 +22,7 @@
 #include "cado_poly.h"
 #include "cxx_mpz.hpp"
 #include "fb-types.hpp"
-#include "las-config.h"
+#include "las-config.hpp"
 #include "las-norms.hpp"
 #include "las-qlattice.hpp"
 #include "las-siever-config.hpp"
