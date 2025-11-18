@@ -633,7 +633,7 @@ static void fill_in_buckets_toplevel_sublat(
     orig_BA.move(BA);
 }
 
-/* TARGET_HINT is shorthint_t or void */
+/* TARGET_HINT is shorthint_t or emptyhint_t */
 template <int LEVEL, class FB_ENTRY_TYPE, typename TARGET_HINT>
 static void
 fill_in_buckets_toplevel(bucket_array_t<LEVEL, TARGET_HINT> & orig_BA,
@@ -728,8 +728,8 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, TARGET_HINT> & orig_BA,
                     int N = ple.get_x() >> logB;
                     int n =
                         ple.advance_to_end_of_row_or_smallest_region(maskB1I);
-                    BA.push_row_update(slice_index, ple.get_inc_step(), N, n, u,
-                                       w);
+                    BA.push_row_update(slice_index, ple.get_inc_step(),
+                            N, n, u, w);
                     ple.next(F);
                 }
             } else if (UNLIKELY(pli.is_vertical_line(logI))) {
@@ -1039,8 +1039,7 @@ fill_in_buckets_toplevel_wrapper(worker_thread * worker MAYBE_UNUSED,
         bucket_array_t<LEVEL, TARGET_HINT> & BA =
             wss.reserve_BA<LEVEL, TARGET_HINT>(-1);
         ASSERT(param->slice);
-        fb_slice<FB_ENTRY_TYPE> const * sl =
-            dynamic_cast<fb_slice<FB_ENTRY_TYPE> const *>(param->slice);
+        auto const * sl = dynamic_cast<fb_slice<FB_ENTRY_TYPE> const *>(param->slice);
         ASSERT_ALWAYS(sl != NULL);
         fill_in_buckets_toplevel<LEVEL, FB_ENTRY_TYPE, TARGET_HINT>(
             BA, ws, *sl, param->plattices_dense_vector, w);
@@ -1059,8 +1058,7 @@ static task_result *
 fill_in_buckets_toplevel_sublat_wrapper(worker_thread * worker MAYBE_UNUSED,
                                         task_parameters * _param, int)
 {
-    fill_in_buckets_parameters<LEVEL> * param =
-        static_cast<fill_in_buckets_parameters<LEVEL> *>(_param);
+    auto * param = static_cast<fill_in_buckets_parameters<LEVEL> *>(_param);
 
     /* Import some contextual stuff */
     int const id = worker->rank();
@@ -1127,8 +1125,7 @@ template <int LEVEL, typename TARGET_HINT> struct push_slice_to_task_list {
     size_t pushed = 0;
     template <typename T> void operator()(T const & s)
     {
-        fill_in_buckets_parameters<LEVEL> * param =
-            new fill_in_buckets_parameters<LEVEL>(model);
+        auto * param = new fill_in_buckets_parameters<LEVEL>(model);
         param->slice = &s;
         typedef typename T::entry_t entry_t;
         task_function_t f =
@@ -1163,8 +1160,7 @@ struct push_slice_to_task_list_saving_precomp {
 
         plattices_dense_vector_t & pre(Vpre[idx]);
 
-        fill_in_buckets_parameters<LEVEL> * param =
-            new fill_in_buckets_parameters<LEVEL>(model);
+        auto * param = new fill_in_buckets_parameters<LEVEL>(model);
         param->slice = &s;
         param->plattices_dense_vector = &pre;
 

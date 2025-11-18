@@ -1,52 +1,49 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <array>
 #include <cstdlib>
 #include <cstdio>
-#include <climits> /* for CHAR_BIT */
+#include <climits>
+
+#include <sstream>
+
 #ifdef HAVE_MINGW
-#include <fcntl.h>   /* for _O_BINARY */
+#include <fcntl.h>
 #endif
-#include <gmp.h>
-#include "cxx_mpz.hpp"
+
+#include "fmt/base.h"
+
 #include "gzip.h"
 #include "las-duplicate.hpp"
 #include "las-info.hpp"
 #include "las-siever-config.hpp"
+#include "las-side-config.hpp"
 #include "special-q.hpp"
 #include "params.h"
 #include "relation.hpp"
 #include "verbose.h"
+#include "utils_cxx.hpp"
 
+static constexpr bool reprint_special_q_at_each_rel = false;
 
 static void *
 dupsup (FILE *output, relation & rel, special_q const& doing, const int is_dupe)
 {
-  if (0)
-    gmp_fprintf (output, "# sq = %Zd, rho = %Zd, side = %d\n",
-            (mpz_srcptr) doing.p,
-            (mpz_srcptr) doing.r, doing.side);
+  if (reprint_special_q_at_each_rel)
+      fmt::print("# {}\n", doing);
   rel.print(output, is_dupe ? "# DUPE " : "");
-  return NULL;
+  return nullptr;
 }
 
 /* If the line is a special-q comment, sets sq and rho and returns 1.
    Otherwise returns 0. */
-static int
+static bool
 read_sq_comment(special_q & doing, const char *line)
 {
-    int side;
-    cxx_mpz p,r;
-  if (gmp_sscanf(line, "# Sieving side-%d q=%Zd; rho=%Zd;",
-              &side,
-              (mpz_ptr) p,
-              (mpz_ptr) r) == 3) {
-      /* this is the way to go if we want proper initialization of all
-       * fields */
-      doing = special_q(p, r, side);
-    return 1;
-  }
-  return 0;
+    std::istringstream is(line);
+    if (!(is >> expect("# Sieving ")))
+        return false;
+    is >> doing;
+    return is.good();
 }
 
 /* FIXME: we should really have static class functions like
@@ -103,7 +100,7 @@ main (int argc, char const * argv[])
     if (argc == 0)
       usage (pl, argv0);
 
-    param_list_configure_switch(pl, "-v", NULL);
+    param_list_configure_switch(pl, "-v", nullptr);
 
     for( ; argc ; ) {
         if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
@@ -149,19 +146,19 @@ main (int argc, char const * argv[])
 	}
     }
 
-    setvbuf(output, NULL, _IOLBF, 0);      /* mingw has no setlinebuf */
+    setvbuf(output, nullptr, _IOLBF, 0);      /* mingw has no setlinebuf */
 
     special_q doing;
 
     for (int argi = 0; argi < argc; argi++) {
       FILE *f = fopen_maybe_compressed(argv[argi], "rb");
-      if (f == NULL) {
+      if (f == nullptr) {
           perror(argv[argi]);
           abort();
       }
       for (; !feof(f) ;) {
         char line[1024];
-        if (fgets(line, sizeof(line), f) == NULL)
+        if (fgets(line, sizeof(line), f) == nullptr)
           break;
 
         if (read_sq_comment(doing, line)) {

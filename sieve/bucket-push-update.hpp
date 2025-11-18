@@ -1,12 +1,12 @@
 #ifndef CADO_BUCKET_PUSH_UPDATE_HPP
 #define CADO_BUCKET_PUSH_UPDATE_HPP
 
+#include "bucket.hpp"
+
 #ifdef SAFE_BUCKET_ARRAYS
 #include <cstdio>
 #endif
 
-#include "bucket.hpp"
-#include "las-config.hpp"
 #include "las-where-am-i.hpp"
 #include "macros.h"
 

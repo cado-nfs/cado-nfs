@@ -343,6 +343,10 @@ step_check() {
 
     if [ "$specific_checks" = "bwc.sagemath" ] ; then
         ctest_args+=(-R with_sagemath)
+        # it's only for our sage-in-docker script, but we really want
+        # this in order to avoid long pulls from runners.
+        # Note that we'll pull anyway if the image is not there.
+        export DOCKER_SAGEMATH_NO_PULL=1
     elif [ "$specific_checks" = "including_mpi" ] ; then
         # nothing to do
         :

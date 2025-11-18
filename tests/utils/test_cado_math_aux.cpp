@@ -202,6 +202,8 @@ void test_one_fma<cxx_mpz>()
 
 static void test_cado_math_aux_fma()
 {
+    const bool do_ld = !cado_math_aux::valgrind_long_double_hopeless();
+
     using cado_math_aux::fma;
     using cado_math_aux::fms;
     using cado_math_aux::addmul;
@@ -209,7 +211,10 @@ static void test_cado_math_aux_fma()
 
     test_one_fma<float>();
     test_one_fma<double>();
-    test_one_fma<long double>();
+
+    if (do_ld)
+        test_one_fma<long double>();
+
 #ifdef HAVE_MPFR
     test_one_fma<cxx_mpfr>();
 #endif

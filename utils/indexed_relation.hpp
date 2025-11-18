@@ -20,14 +20,19 @@
  * templating so as to refactor some of the code.
  */
 
-#include <vector>
+#include <cstddef>
+
 #include <array>
+#include <istream>
+#include <ostream>
+#include <vector>
+
 #include "typedefs.h"
 #include "relation.hpp"
 #include "renumber.hpp"
 
 struct indexed_relation_storage_base {
-    // typedef void (*action_t)(int side, std::vector<index_t> &);
+    // using &) = void (*action_t)(int side, std::vector<index_t>;
     std::array<int, 2> active_sides;
     protected:
     void set_active_sides(std::array<int, 2> const & aa) {
@@ -47,10 +52,10 @@ struct indexed_relation_normal_storage : public indexed_relation_storage_base {
         ctr begin() { return b; }
         ctr end() { return b+1; }
     };
-    typedef fake_tmpl<std::vector<index_t> *> fake;
-    typedef fake_tmpl<std::vector<index_t> const *> const_fake;
-    fake containers() { return fake(&data); }
-    const_fake containers() const { return const_fake(&data); }
+    using fake = fake_tmpl<std::vector<index_t> *>;
+    using const_fake = fake_tmpl<std::vector<index_t> const *>;
+    fake containers() { return { &data }; }
+    const_fake containers() const { return { &data }; }
     static constexpr const bool separates_sides = false;
     protected:
     /* It doesn't make sense to expose a parsing function for the storage
@@ -63,10 +68,10 @@ struct indexed_relation_normal_storage : public indexed_relation_storage_base {
 };
 
 struct indexed_relation_byside_storage : public indexed_relation_storage_base {
-    typedef std::array<std::vector<index_t>, 2> sides_t;
+    using sides_t = std::array<std::vector<index_t>, 2>;
     sides_t sides;
     protected:
-    std::vector<index_t> & operator[](int side) { return sides[side]; }
+    std::vector<index_t> & operator[](size_t side) { return sides[side]; }
     /* this is just for range-based for loops */
     sides_t & containers() { return sides; }
     sides_t const & containers() const { return sides; }
@@ -79,12 +84,13 @@ struct indexed_relation_tmpl
     , public Storage
 {
     indexed_relation_tmpl() = default;
+    ~indexed_relation_tmpl() = default;
     indexed_relation_tmpl(indexed_relation_tmpl<Storage> const &) = default;
     indexed_relation_tmpl& operator=(indexed_relation_tmpl<Storage> const &) = default;
     indexed_relation_tmpl(indexed_relation_tmpl<Storage> &&) = default;
     indexed_relation_tmpl& operator=(indexed_relation_tmpl<Storage> &&) = default;
 
-    indexed_relation_tmpl(relation_ab const & ab) : relation_ab(ab) {}
+    explicit indexed_relation_tmpl(relation_ab const & ab) : relation_ab(ab) {}
     indexed_relation_tmpl(relation const & rel, renumber_t const & R);
 
     void sort();
@@ -111,7 +117,7 @@ extern template
 std::ostream& operator<<(std::ostream& os, indexed_relation_tmpl<indexed_relation_normal_storage> const & rel);
 extern template
 std::istream& operator>>(std::istream& is, indexed_relation_tmpl<indexed_relation_normal_storage>& rel);
-typedef indexed_relation_tmpl<indexed_relation_normal_storage> indexed_relation;
+using indexed_relation = indexed_relation_tmpl<indexed_relation_normal_storage>;
 
 /* forward-declare the template instantiation and the output
  * function, which are actually defined in the cpp file
@@ -119,6 +125,6 @@ typedef indexed_relation_tmpl<indexed_relation_normal_storage> indexed_relation;
 extern template struct indexed_relation_tmpl<indexed_relation_byside_storage>;
 extern template 
 std::ostream& operator<<(std::ostream& os, indexed_relation_tmpl<indexed_relation_byside_storage> const & rel);
-typedef indexed_relation_tmpl<indexed_relation_byside_storage> indexed_relation_byside;
+using indexed_relation_byside = indexed_relation_tmpl<indexed_relation_byside_storage>;
 
 #endif	/* CADO_INDEXED_RELATION_HPP */
