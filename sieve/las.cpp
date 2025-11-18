@@ -914,7 +914,7 @@ static bool do_one_special_q(las_info & las, nfs_work & ws, special_q_task * tas
                 ws.Q,
                 1U << ws.conf.logI, ws.J, extra);
 
-        if (!las.allow_composite_q && !ws.Q.doing.is_prime()) {
+        if (!las.allow_composite_q() && !ws.Q.doing.is_prime()) {
             verbose_fmt_print(0, 1,
                     "# Warning, q={} is not prime\n",
                     ws.Q.doing.p);

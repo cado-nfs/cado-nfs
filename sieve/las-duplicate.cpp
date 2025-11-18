@@ -475,7 +475,7 @@ relation_is_duplicate(relation const& rel,
             uint64_t const p = mpz_get_uint64(rel.sides[side][i].p);
 
             // can this p be part of valid sq ?
-            if (! las.allow_composite_q) {
+            if (!las.allow_composite_q()) {
                 /* this check is also done in sq_was_previously_sieved,
                  * but it's easy enough to skip the divisibility test
                  * when we know there's no point.

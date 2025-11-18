@@ -154,13 +154,11 @@ struct las_info : public las_parallel_desc, private NonCopyable {
         return bk_multiplier;
     }/*}}}*/
 
-    /* For composite special-q: note present both in las_info and
-     * las_todo_list */
-    bool allow_composite_q = false;
-    uint64_t qfac_min = 1024;
-    uint64_t qfac_max = UINT64_MAX;
     bool is_in_qfac_range(uint64_t p) const {
-        return (p >= qfac_min) && (p <= qfac_max);
+        return (p >= tree->todo.qfac_min) && (p <= tree->todo.qfac_max);
+    }
+    bool allow_composite_q() const {
+        return tree->todo.allow_composite_q;
     }
 
     std::vector<unsigned long> dupqmin;   /* smallest q sieved, for dupsup */

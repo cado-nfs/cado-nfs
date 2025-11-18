@@ -141,14 +141,6 @@ las_info::las_info(cxx_param_list & pl)
     // }}}
 
 
-    /* composite special-q ? Note: this block is present both in
-     * las-todo-list.cpp and las-info.cpp */
-    if ((allow_composite_q = param_list_parse_switch(pl, "-allow-compsq"))) {
-        /* defaults are set in the class description */
-        param_list_parse_uint64(pl, "qfac-min", &qfac_min);
-        param_list_parse_uint64(pl, "qfac-max", &qfac_max);
-    }
-
     param_list_parse(pl, "relation_cache", relation_cache);
 
     // ----- stuff roughly related to the descent {{{
