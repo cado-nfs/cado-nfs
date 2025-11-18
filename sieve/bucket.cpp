@@ -13,7 +13,6 @@
 #include <cstdlib>
 #include <cstring>
 
-#include <limits>
 #include <new>
 #ifdef TRACE_K
 #include <type_traits>
@@ -419,8 +418,7 @@ static inline bucket_update_t<1, longhint_t>
 to_longhint(bucket_update_t<1, shorthint_t> const & update,
             slice_index_t const slice_index)
 {
-    return bucket_update_t<1, longhint_t>(update.x, 0, update.hint,
-                                          slice_index);
+    return { update.x, 0, update.hint, slice_index };
 }
 
 static inline bucket_update_t<1, longhint_t>
@@ -544,9 +542,9 @@ void downsort(fb_factorbase::slicing const & fbs MAYBE_UNUSED,
      */
     /* Rather similar to purging, except it doesn't purge */
     int logB = LOG_BUCKET_REGIONS[INPUT_LEVEL - 1];
-    typedef bucket_array_t<INPUT_LEVEL - 1, longhint_t> BA_out_t;
-    typedef typename BA_out_t::update_t lower_update_t;
-    typedef typename BA_out_t::row_update_t lower_row_update_t;
+    using BA_out_t = bucket_array_t<INPUT_LEVEL - 1, longhint_t>;
+    using lower_update_t = BA_out_t::update_t;
+    using lower_row_update_t = BA_out_t::row_update_t;
     decltype(lower_update_t::x) maskB = (1 << logB) - 1;
 
     for (slice_index_t i_slice = 0; i_slice < BA_in.get_nr_slices();
@@ -610,12 +608,12 @@ void downsort(fb_factorbase::slicing const & fbs MAYBE_UNUSED /* unused */,
     /* longhint updates don't write slice end pointers, so there must be
        exactly 1 slice per bucket */
     ASSERT_ALWAYS(BA_in.get_nr_slices() == 1);
-    ASSERT(BA_in.get_slice_index(0) == 0); // std::numeric_limits<slice_index_t>::max());
+    ASSERT(BA_in.get_slice_index(0) == 0);
 
     int logB = LOG_BUCKET_REGIONS[INPUT_LEVEL - 1];
-    typedef bucket_array_t<INPUT_LEVEL - 1, longhint_t> BA_out_t;
-    typedef typename BA_out_t::update_t lower_update_t;
-    typedef typename BA_out_t::row_update_t lower_row_update_t;
+    using BA_out_t = bucket_array_t<INPUT_LEVEL - 1, longhint_t>;
+    using lower_update_t = BA_out_t::update_t;
+    using lower_row_update_t = BA_out_t::row_update_t;
     decltype(lower_update_t::x) maskB = (1 << logB) - 1;
 
     for (auto const & it: BA_in.slice_range(bucket_number, 0)) {
@@ -645,9 +643,9 @@ void downsort(fb_factorbase::slicing const & fbs,
      */
 
     int logB = LOG_BUCKET_REGIONS[INPUT_LEVEL - 1];
-    typedef bucket_array_t<INPUT_LEVEL - 1, logphint_t> BA_out_t;
-    typedef typename BA_out_t::update_t lower_update_t;
-    typedef typename BA_out_t::row_update_t lower_row_update_t;
+    using BA_out_t = bucket_array_t<INPUT_LEVEL - 1, logphint_t>;
+    using lower_update_t = BA_out_t::update_t;
+    using lower_row_update_t = BA_out_t::row_update_t;
     decltype(lower_update_t::x) maskB = (1 << logB) - 1;
 
     /* Rather similar to purging, except it doesn't purge */
@@ -680,15 +678,15 @@ void downsort(fb_factorbase::slicing const & fbs MAYBE_UNUSED /* unused */,
               uint32_t bucket_number, where_am_I & w)
 {
     int logB = LOG_BUCKET_REGIONS[INPUT_LEVEL - 1];
-    typedef bucket_array_t<INPUT_LEVEL - 1, logphint_t> BA_out_t;
-    typedef typename BA_out_t::update_t lower_update_t;
-    typedef typename BA_out_t::row_update_t lower_row_update_t;
+    using BA_out_t = bucket_array_t<INPUT_LEVEL - 1, logphint_t>;
+    using lower_update_t = BA_out_t::update_t;
+    using lower_row_update_t = BA_out_t::row_update_t;
     decltype(lower_update_t::x) maskB = (1 << logB) - 1;
 
     /* logphint updates don't write slice end pointers, so there must be
        exactly 1 slice per bucket */
     ASSERT_ALWAYS(BA_in.get_nr_slices() == 1);
-    ASSERT(BA_in.get_slice_index(0) == 0); // std::numeric_limits<slice_index_t>::max());
+    ASSERT(BA_in.get_slice_index(0) == 0);
 
     for (auto const & it: BA_in.slice_range(bucket_number, 0)) {
         BA_out.push_update(it.x >> logB, lower_update_t(it.x & maskB, it), w);
