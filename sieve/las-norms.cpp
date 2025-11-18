@@ -130,9 +130,8 @@ static inline void memset_with_writeahead(void *s, int c, size_t n, size_t n0)
  * Presumably it would suffice to parameterize this by tan(t/2), so that
  * we are led to this function again.
  */
-/* {{{ get_maxnorm_aux (for x in (0,s)) */
-/* return max |g(x)| for x in (0, s) where s can be negative,
-   and g(x) = g[d]*x^d + ... + g[1]*x + g[0] */
+/* {{{ get_maxnorm_aux */
+/* return max |poly(x)| for x in (-s, s) */
 static double get_maxnorm_aux (polynomial<double> const & poly, double s)
 {
   const int d = poly.degree();
@@ -142,19 +141,10 @@ static double get_maxnorm_aux (polynomial<double> const & poly, double s)
   if (d == 0)
     return fabs (poly[0]);
 
-  double gmax = std::max(std::fabs (poly[0]), std::fabs(poly(s)));
-  for(auto x : poly.derivative().positive_roots(s))
+  double gmax = std::max(std::fabs(poly(-s)), std::fabs(poly(s)));
+  for(auto x : poly.derivative().template roots<double>(s))
       gmax = std::max(gmax, std::fabs(poly(x)));
   return gmax;
-}
-/* }}} */
-
-/* {{{ get_maxnorm_aux_pm (for x in (-s,s)) */
-/* Like get_maxnorm_aux(), but for interval [-s, s] */
-static double
-get_maxnorm_aux_pm (polynomial<double> const & poly, double s)
-{
-  return std::max(get_maxnorm_aux(poly, s), get_maxnorm_aux(poly, -s));
 }
 /* }}} */
 
@@ -179,10 +169,10 @@ get_maxnorm_rectangular (polynomial<double> const & poly, const double X,
 {
     const double d = poly.degree();
     /* (b) determine the maximum of |f(x)| * Y^d for -X/Y <= x <= X/Y */
-    const double b = get_maxnorm_aux_pm (poly, X/Y) * std::pow(Y, d);
+    const double b = get_maxnorm_aux (poly, X/Y) * std::pow(Y, d);
 
     /* (a) determine the maximum of |g(y)| for -1 <= y <= 1, with g(y) = F(s,y) */
-    const double a = get_maxnorm_aux_pm (poly.reciprocal(), Y/X) * std::pow(X, d);
+    const double a = get_maxnorm_aux (poly.reciprocal(), Y/X) * std::pow(X, d);
     return std::max(a, b);
 }
 /* }}} */
@@ -448,7 +438,7 @@ void lognorm_reference::fill_alg(unsigned char *S, uint32_t N) const
 
     polynomial<double> u;
     for (unsigned int j = j0 ; j < j1 ; j++) {
-        u = fijd.reverse_scale(j);
+        u = fijd.inverse_scale(j);
         for(int i = i0; i < i0 + I; i++) {
             *S++ = lg2(std::fabs(u(i)), offset, modscale);
         }
@@ -787,7 +777,7 @@ get_maxnorm_circular (polynomial<double> const & src_poly, const double X,
       poly[i + 1] -= (double) d * Y * t;
     }
 
-  auto roots = poly.roots();
+  auto roots = poly.roots<double>();
 
   /* evaluate at y=0 */
   max_norm = fabs (src_poly[d] * pow (X, (double) d));

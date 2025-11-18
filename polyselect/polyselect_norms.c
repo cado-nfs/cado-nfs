@@ -1,1054 +1,383 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <float.h>
+#include <stdint.h>
+#include <stdlib.h>
 #include <math.h>
+
 #include "double_poly.h"
-#include "usp.h"
-
+#include "macros.h"
 #include "polyselect_norms.h"
-
-/* define OPTIMIZE_MP to perform computations in multiple-precision */
-//#define OPTIMIZE_MP
-
-//#define DEBUG_OPTIMIZE_AUX
 
 /************************* norm and skewness *********************************/
 
-/* Same as L2_lognorm, but takes 'double' instead of 'mpz_t' as coefficients.
-   Returns 1/2*log(int(int(F(r*cos(t)*s,r*sin(t))^2*r/s^d, r=0..1), t=0..2*Pi))
-   (circular method). Cf Remark 3.2 in Kleinjung paper, Math. of Comp., 2006.
+/* The L2-norm here as defined by Kleinjung is
+ * log(1/2 sqrt(int(int((F(sx,y)/s^(d/2))^2, x=-1..1), y=-1..1))).
+ * Since we only want to compare norms, we don't consider the log(1/2) term,
+ * and compute only 1/2 log(int(int(...))) [here the 1/2 factor is important,
+ * since it is added to the alpha root property term].
+ *
+ * In cado, we compute the circular L2-norm, where we integrate over the
+ * unit circle: the formula is
+ * 1/2*log(int(int(F(r*cos(t)*s,r*sin(t))^2*r/s^d, r=0..1), t=0..2*Pi)).
+ * Cf Remark 3.2 in Kleinjung paper, Math. of Comp., 2006.
+ *
+ * As it happens, the circular L2-norm is (1/2-log-of) a quadratic form
+ * in the coefficients of the input polynomial. We can use it to compute
+ * the L2-lognorm at a very small cost.
+ *
+ * L2_lognorm() takes an mpz_poly_srcptr, while L2_lognorm() takes a
+ * double_poly_srcptr
+ *
+ *
+ * Sagemath code computing the circular L2-norm (up to scaling)
+    var('r,s,t,y')
+    R.<x> = PolynomialRing(ZZ)
+    S.<a> = InfinitePolynomialRing(R)
+    for d in range(7):
+        f = SR(sum(a[i]*x^i for i in range(d+1)))
+        F = expand(f(x=x/y)*y^d)
+        F = F.subs(x=s^(1/2)*r*cos(t),y=r/s^(1/2)*sin(t))
+        v = integrate(integrate(F^2*r,(r,0,1)),(t,0,2*pi))
+        print((s^d*v).expand().collect(pi))
+    
+ * Python code that computes the resulting formula is given below. We
+ * first need an auxiliary table, given by the coeff function below. (The
+ * two sums below do not coincide for the degenerate case d=k=i=0.
+ * Anyway we always have d>0, of course.)
 
-   Maple code for degree 2:
-   f:=x->a2*x^2+a1*x+a0: d:=degree(f(x),x):
-   int(int((f(s*cos(t)/sin(t))*(r*sin(t))^d)^2*r/s^d, r=0..1), t=0..2*Pi);
+    coeff = lambda d,k: sum([binomial(2*(d-i)-1,d-i)*2^(2*i)*binomial(d-k,i)*(-1)^(d-k-i) for i in range(d-k+1)])
+    coeff = lambda d,k: sum([integrate(cos(t)^(2*k+2*i)*binomial(d-k,i)*(-1)^i,(t,0,2*pi)) for i in range(d-k+1)])*2^(2*d-2)/pi
+    coeff2 = lambda d,k: 2*coeff(d,d//2-k) if (d&1) or k else coeff(d,d//2-k)
+
+ * We then have:
+    def sum_d(d, a):
+        sq = lambda k: a[k]^2
+        cross = lambda k: 2*sum([a[k-i]*a[k+i] for i in range(1, min(d-k,k)+1)])
+        ck = lambda k: (sq(k)+cross(k))
+        tt = 0
+        for l in range((d+1)//2):
+            tt += coeff(d, (d-1)//2-l)*(ck((d-1)//2-l)*s^((d&1)-2-2*l)+ck(d-((d-1)//2-l))*s^(2*l+2-(d&1)))
+        if d % 2 == 0:
+            tt += coeff(d, d//2)*ck(d//2)
+        return tt*pi/2^(2*d-1)/(d+1)
+
+ * and the derivative can also be computed with similar code.
+
+    def sum_d_diff(d, a):
+        sq = lambda k: a[k]^2
+        cross = lambda k: 2*sum([a[k-i]*a[k+i] for i in range(1, min(d-k,k)+1)])
+        ck = lambda k: (sq(k)+cross(k))
+        tt = sum([coeff2(d, d//2-k)*(2*k-d)*ck(k)*s^k for k in range(d+1)])
+        return tt
+    [(SR(sum_d(d,a)/(pi/2^(2*d)/(d+1))).diff(s)).expand() - (SR(sum_d_diff(d,a)).subs(s=s^2)*s^(-d-1)).expand() for d in range(10)]
+
+ *
+ * The quadratic form that is defined on the input polynomial, and its
+ * derivative, are obtained with the following code:
+ *
+    def Q(f):
+        # f must be a polynomial
+        return FractionField(QQ['x'])((sum_d(f.degree(),f)/pi).subs(s=x))
+    def dQ(f):
+        # f must be a polynomial
+        d = f.degree()
+        return FractionField(QQ['x'])(SR(sum_d_diff(d,f)).subs(s=x^2)*x^(-d-1)/(d+1)/2^(2*d))
+
  */
+
+#define L2_DMAX 16
+const uint32_t coeffs_integral[L2_DMAX][L2_DMAX/2] = 
+{
+    { }, /* d=0 does not make sense */
+    { 2 },
+    { 1, 6 },
+    { 4, 20 },
+    { 3, 10, 70 },
+    { 12, 28, 252 },
+    { 10, 28, 84, 924 },
+    { 40, 72, 264, 3432 },
+    { 35, 90, 198, 858, 12870 },
+    { 140, 220, 572, 2860, 48620 },
+    { 126, 308, 572, 1716, 9724, 184756 },
+    { 504, 728, 1560, 5304, 33592, 705432 },
+    { 462, 1092, 1820, 4420, 16796, 117572, 2704156 },
+    { 1848, 2520, 4760, 12920, 54264, 416024, 10400600 },
+    { 1716, 3960, 6120, 12920, 38760, 178296, 1485800, 40116600 },
+    { 6864, 8976, 15504, 36176, 118864, 594320, 5348880, 155117520 }
+    /* [[coeff2(d,k) for k in range(d//2+1)] for d in range(16)] */
+};
+
 static double
 L2_lognorm_d (double_poly_srcptr p, double s)
 {
-  double n;
-  double *a = p->coeff;
-  unsigned int d = p->deg;
+    const double * a = p->coeff;
+    const int d = p->deg;
+    ASSERT_ALWAYS(1 <= p->deg);
+    ASSERT_ALWAYS(d <= L2_DMAX);
+    /* a rewritten version of the sum above:
+       def sum_d(d, a):
+           tt = 0
+           invs = 1/s
+           s2 = s * s
+           is2 = invs * invs
+           u0 = 1 if (d % 2 == 0) else invs
+           u1 = 1 if (d % 2 == 0) else s
+           p0 = d//2
+           p1 = d - p0
+           for k in range(d//2+1):
+               t0 = 0
+               t1 = 0
+               for i in range(1, p0-k+1):
+                   t0 += a[p0-k-i] * a[p0-k+i]
+                   t1 += a[p1+k-i] * a[p1+k+i]
+               t0 = (2 * t0 + a[p0-k] * a[p0-k]) * u0
+               t1 = (2 * t1 + a[p1+k] * a[p1+k]) * u1
+               u0 *= is2
+               u1 *= s2
+               tt += coeff2(d, k)*(t0 + t1)
+           return tt*pi/2^(2*d)/(d+1)
+       def check2(sumfunc):
+           var('r,s,t,y')
+           R.<x> = PolynomialRing(ZZ)
+           S.<a> = InfinitePolynomialRing(R)
+           for d in range(2,10):
+               f = SR(sum(a[i]*x^i for i in range(d+1)))
+               F = expand(f(x=x/y)*y^d)
+               F = F.subs(x=s^(1/2)*r*cos(t),y=r/s^(1/2)*sin(t))
+               v = integrate(integrate(F^2*r,(r,0,1)),(t,0,2*pi))
+               print(v - sumfunc(d, a))
+       check2(sum_d)
+     */
 
-  ASSERT_ALWAYS(1 <= d && d <= 7);
-
-  if (d == 1)
-  {
-    double a1, a0;
-    a1 = a[1] * s;
-    a0 = a[0];
-    /* use circular integral (Sage code):
-       var('a1,a0,x,y,r,s,t')
-       f = a1*x+a0
-       F = expand(f(x=x/y)*y)
-       F = F.subs(x=s^(1/2)*r*cos(t),y=r/s^(1/2)*sin(t))
-       v = integrate(integrate(F^2*r,(r,0,1)),(t,0,2*pi))
-       (s*v).expand().collect(pi)
-    */
-    n = a0 * a0 + a1 * a1;
-    n = n * 0.785398163397448310; /* Pi/4 */
-    if (isnan (n) || isinf (n))
-      n = DBL_MAX;
-    return 0.5 * log (n / s);
-  }
-  else if (d == 2)
-  {
-    double a2, a1, a0;
-    a2 = a[2] * s;
-    a1 = a[1];
-    a0 = a[0] / s;
-    /* use circular integral (Sage code):
-       var('a2,a1,a0,x,y,r,s,t')
-       f = a2*x^2+a1*x+a0
-       F = expand(f(x=x/y)*y^2)
-       F = F.subs(x=s^(1/2)*r*cos(t),y=r/s^(1/2)*sin(t))
-       v = integrate(integrate(F^2*r,(r,0,1)),(t,0,2*pi))
-       (s^2*v).expand().collect(pi)
-    */
-    n = 3.0 * (a2 * a2 + a0 * a0) + 2.0 * a0 * a2 + a1 * a1;
-    n = n * 0.130899693899574704; /* Pi/24 */
-    if (isnan (n) || isinf (n))
-      n = DBL_MAX;
-    return 0.5 * log(n);
-  }
-  else if (d == 3)
-    {
-      double a3, a2, a1, a0, invs = 1.0 / s;
-      a3 = a[3] * s * s;
-      a2 = a[2] * s;
-      a1 = a[1];
-      a0 = a[0] * invs;
-      /* use circular integral (Sage code):
-         var('a3,a2,a1,a0,x,y,r,s,t')
-         f = a3*x^3+a2*x^2+a1*x+a0
-         F = expand(f(x=x/y)*y^3)
-         F = F.subs(x=s^(1/2)*r*cos(t),y=r/s^(1/2)*sin(t))
-         v = integrate(integrate(F^2*r,(r,0,1)),(t,0,2*pi))
-         (s^3*v).expand().collect(pi)
-      */
-      n = 5.0 * (a3 * a3 + a0 * a0) + 2.0 * (a3 * a1 + a0 * a2)
-        + a1 * a1 + a2 * a2;
-      n = n * 0.049087385212340519352; /* Pi/64 */
-      if (isnan (n) || isinf (n))
-        n = DBL_MAX;
-      return 0.5 * log(n * invs);
+    const double invs = 1.0 / s;
+    const double s2 = s * s;
+    const double is2 = invs * invs;
+    double tt = 0;
+    double u0 = (d & 1) ? invs : 1;
+    double u1 = (d & 1) ? s : 1;
+    const int p0 = d / 2;
+    const int p1 = d - p0;
+    for(int k = 0 ; k <= d/2 ; k++) {
+        double t0 = 0;
+        double t1 = 0;
+        for(int i = 1 ; i <= d/2 - k ; i++) {
+            t0 += a[p0-k-i] * a[p0-k+i];
+            t1 += a[p1+k-i] * a[p1+k+i];
+        }
+        t0 = (2 * t0 + a[p0-k] * a[p0-k]) * u0;
+        t1 = (2 * t1 + a[p1+k] * a[p1+k]) * u1;
+        u0 *= is2;
+        u1 *= s2;
+        tt += (coeffs_integral[d][k])*(t0 + t1);
     }
-  else if (d == 4)
-    {
-      double a4, a3, a2, a1, a0, invs = 1.0 / s;
-
-      a4 = a[4] * s * s;
-      a3 = a[3] * s;
-      a2 = a[2];
-      a1 = a[1] * invs;
-      a0 = a[0] * invs * invs;
-      /* use circular integral (Sage code):
-         var('a4,a3,a2,a1,a0,x,r,s,t')
-         f = a4*x^4+a3*x^3+a2*x^2+a1*x+a0
-         F = expand(f(x=x/y)*y^4)
-         F = F.subs(x=s^(1/2)*r*cos(t),y=r/s^(1/2)*sin(t))
-         v = integrate(integrate(F^2*r,(r,0,1)),(t,0,2*pi))
-         (s^4*v).expand().collect(pi)
-      */
-      n = 35.0 * (a4 * a4 + a0 * a0) + 10.0 * (a4 * a2 + a2 * a0)
-        + 5.0 * (a3 * a3 + a1 * a1) + 6.0 * (a4 * a0 + a3 * a1)
-        + 3.0 * a2 * a2;
-      n = n * 0.0049087385212340519352; /* Pi/640 */
-      if (isnan (n) || isinf (n))
-        n = DBL_MAX;
-      return 0.5 * log(n);
-    }
-  else if (d == 5)
-    {
-      double a5, a4, a3, a2, a1, a0, invs = 1.0 / s;
-
-      /*
-        f := a5*x^5+a4*x^4+a3*x^3+a2*x^2+a1*x+a0:
-        F := expand(y^5*subs(x=x/y,f));
-        int(int(subs(x=x*s,F)^2/s^5, x=-1..1), y=-1..1);
-       */
-      a0 = a[0] * invs * invs;
-      a1 = a[1] * invs;;
-      a2 = a[2];
-      a3 = a[3] * s;
-      a4 = a[4] * s * s;
-      a5 = a[5] * s * s * s;
-      /* use circular integral (Sage code):
-         var('a5,a4,a3,a2,a1,a0,x,r,s,t')
-         f = a5*x^5+a4*x^4+a3*x^3+a2*x^2+a1*x+a0
-         F = expand(f(x=x/y)*y^5)
-         F = F.subs(x=s^(1/2)*r*cos(t),y=r/s^(1/2)*sin(t))
-         v = integrate(integrate(F^2*r,(r,0,1)),(t,0,2*pi))
-         (s^5*v).expand().collect(pi)
-      */
-      n = 6.0 * (a3 * a1 + a1 * a5 + a4 * a2 + a0 * a4)
-        + 14.0 * (a0 * a2 + a3 * a5) + 63.0 * (a0 * a0 + a5 * a5)
-        + 7.0 * (a4 * a4 + a1 * a1) + 3.0 * (a3 * a3 + a2 * a2);
-      n = n * 0.0020453077171808549730; /* Pi/1536 */
-      if (isnan (n) || isinf (n))
-        n = DBL_MAX;
-      return 0.5 * log(n * invs);
-    }
-  else if (d == 6)
-    {
-      double a6, a5, a4, a3, a2, a1, a0, invs;
-
-      /* use circular integral (Sage code):
-         R.<x> = PolynomialRing(ZZ)
-         S.<a> = InfinitePolynomialRing(R)
-         d=6; f = SR(sum(a[i]*x^i for i in range(d+1)))
-         F = expand(f(x=x/y)*y^d)
-         var('r,s,t')
-         F = F.subs(x=s^(1/2)*r*cos(t),y=r/s^(1/2)*sin(t))
-         v = integrate(integrate(F^2*r,(r,0,1)),(t,0,2*pi))
-         (s^d*v).expand().collect(pi)
-      */
-      invs = 1.0 / s;
-      a6 = a[6] * s * s * s;
-      a5 = a[5] * s * s;
-      a4 = a[4] * s;
-      a3 = a[3];
-      a2 = a[2] * invs;
-      a1 = a[1] * invs * invs;
-      a0 = a[0] * invs * invs * invs;
-      n = 231.0 * (a6 * a6 + a0 * a0) + 42.0 * (a6 * a4 + a2 * a0)
-        + 21.0 * (a5 * a5 + a1 * a1) + 7.0 * (a4 * a4 + a2 * a2)
-        + 14.0 * (a6 * a2 + a5 * a3 + a4 * a0 + a3 * a1)
-        + 10.0 * (a6 * a0 + a5 * a1 + a4 * a2) + 5.0 * a3 * a3;
-      n = n * 0.00043828022511018320850; /* Pi/7168 */
-      if (isnan (n) || isinf (n))
-        n = DBL_MAX;
-      return 0.5 * log(n);
-    }
-  else /* d == 7 */
-    {
-      double a7, a6, a5, a4, a3, a2, a1, a0;
-      double invs = 1.0 / s;
-
-      a7 = a[7] * s * s * s * s;
-      a6 = a[6] * s * s * s;
-      a5 = a[5] * s * s;
-      a4 = a[4] * s;
-      a3 = a[3];
-      a2 = a[2] * invs;
-      a1 = a[1] * invs * invs;
-      a0 = a[0] * invs * invs * invs;
-      /* use circular integral (Sage code):
-         var('r,s,t,y')
-         R.<x> = PolynomialRing(ZZ)
-         S.<a> = InfinitePolynomialRing(R)
-         d=7; f = SR(sum(a[i]*x^i for i in range(d+1)))
-         F = expand(f(x=x/y)*y^d)
-         F = F.subs(x=s^(1/2)*r*cos(t),y=r/s^(1/2)*sin(t))
-         v = integrate(integrate(F^2*r,(r,0,1)),(t,0,2*pi))
-         (s^d*v).expand().collect(pi)
-      */
-      n = 429.0*(a0*a0+a7*a7) + 33.0*(a1*a1+a6*a6) + 66.0*(a0*a2+a5*a7)
-        + 9*(a2*a2+a5*a5) + 18*(a1*a3+a0*a4+a4*a6+a3*a7) + 5*(a3*a3+a4*a4)
-        + 10*(a2*a4+a1*a5+a3*a5+a0*a6+a2*a6+a1*a7);
-      n = n * 0.000191747598485705154; /* Pi/16384 */
-      if (isnan (n) || isinf (n))
-        n = DBL_MAX;
-      return 0.5 * log(n * invs);
-    }
+    tt = ldexp(tt * M_PI / (double) (d+1), -2*d);
+    if (isnan (tt) || isinf (tt))
+        tt = DBL_MAX;
+    return log(tt) / 2;
 }
 
-/* Returns the logarithm of the L2-norm as defined by Kleinjung, i.e.,
-   log(1/2 sqrt(int(int((F(sx,y)/s^(d/2))^2, x=-1..1), y=-1..1))).
-   Since we only want to compare norms, we don't consider the log(1/2) term,
-   and compute only 1/2 log(int(int(...))) [here the 1/2 factor is important,
-   since it is added to the alpha root property term].
-
-   Circular method: integrate over the unit circle.
-*/
 double
 L2_lognorm (mpz_poly_srcptr f, double s)
 {
-  double res;
-  double_poly a;
-  double_poly_init(a, f->deg);
-  double_poly_set_mpz_poly (a, f);
+    /* we used to have code doing this computation over the integers as
+     * well. It's easy to add, given the 20-line code above.
+     */
+    double res;
+    double_poly a;
+    double_poly_init(a, f->deg);
+    double_poly_set_mpz_poly (a, f);
 
-  res = L2_lognorm_d (a, s);
+    res = L2_lognorm_d (a, s);
 
-  double_poly_clear(a);
-  return res;
+    double_poly_clear(a);
+    return res;
 }
 
-#ifdef OPTIMIZE_MP
-/* The name is misleading. It returns the before-log part in
-   1/2 log(int(int(...)))
-*/
-void
-L2_lognorm_mp (mpz_poly_ptr f, mpz_t s, mpz_t norm)
+
+/* The L2 lognorm is (the image by a monotonous function of) a polynomial
+ * in s. We first form this polynomial, and then compute its roots, which
+ * will allow us to compute the best skewness that minimizes the L2
+ * lognorm.
+ *
+ * We thus want to minimize the polynomial given by sum_d above, but
+ * without the pi/2^(2*d-1)/(d+1) factor, which we obviously don't care
+ * about because it's constant. Thus we're after the zeros of
+ * (the numerator of) its derivative.
+ *
+ * sum_d actually a polynomial that is either odd or even depending on
+ * whether d is itself odd or even. Its expression is reasonably simple,
+ * and given by the python code sum_d_diff near the top of this file.
+ *
+ * So if dP is the polynomial of degree d that is computed by sum_d_diff
+ * (and by the C code below), the minima s of the lognorm are such that
+ * s^2 is a zero of dP. We thus want to find the positive zeros of dP.
+ */
+
+static void L2_skewness_derivative_numerator(double_poly_ptr dP, double_poly_srcptr p)
 {
-  mpz_t n, tmp, tmp1, tmpsum;
-  unsigned long i;
-  unsigned int d = f->deg;
-
-  mpz_init_set_ui (n, 1);
-  mpz_init_set_ui (tmp, 1);
-  mpz_init_set_ui (tmp1, 1);
-  mpz_init_set_ui (tmpsum, 1);
-
-  if (d != 6)
-    {
-      fprintf (stderr, "not yet implemented for degree %u\n", d);
-      exit (1);
+    const double * a = p->coeff;
+    const int d = p->deg;
+    ASSERT_ALWAYS(1 <= p->deg);
+    ASSERT_ALWAYS(d <= L2_DMAX);
+    double_poly_realloc(dP, d+1);
+    for(int k = 0 ; k <= d ; k++) {
+        double t0 = 0;
+        for(int i = 1 ; i <= k && i <= d - k ; i++)
+            t0 += a[k-i] * a[k+i];
+        t0 = (2 * t0 + a[k] * a[k]);
+        const int j = (ABS(d-2*k)-(d&1))/2;
+        t0 = t0 * coeffs_integral[d][j]*(2*k-d);
+        dP->coeff[k] = t0; // ldexp(t0/(d+1), -2*d);
     }
-  else {
-    mpz_t a[d+1];
-    mpz_init_set_ui (a[0], 1);
-    for (i=1; i<=d; i++) {
-      mpz_init (a[i]);
-      mpz_mul (a[i], a[i-1], s);
-    }
-    for (i=0; i<=d; i++)
-      mpz_mul (a[i], a[i], f->coeff[i]);
-
-    // n = 231.0 * (a6 * a6 + a0 * a0)
-    mpz_mul (tmp, a[6], a[6]);
-    mpz_mul (tmp1, a[0], a[0]);
-    mpz_add (tmpsum, tmp, tmp1);
-    mpz_mul_ui(n, tmpsum, 231);
-    //   + 42.0 * (a6 * a4 + a2 * a0)
-    mpz_mul (tmp, a[6], a[4]);
-    mpz_mul (tmp1, a[2], a[0]);
-    mpz_add (tmpsum, tmp, tmp1);
-    mpz_addmul_ui (n, tmpsum, 42);
-    //   + 21.0 * (a5 * a5 + a1 * a1)
-    mpz_mul (tmp, a[5], a[5]);
-    mpz_mul (tmp1, a[1], a[1]);
-    mpz_add (tmpsum, tmp, tmp1);
-    mpz_addmul_ui (n, tmpsum, 21);
-    // + 7.0 * (a4 * a4 + a2 * a2)
-    mpz_mul (tmp, a[4], a[4]);
-    mpz_mul (tmp1, a[2], a[2]);
-    mpz_add (tmpsum, tmp, tmp1);
-    mpz_addmul_ui (n, tmpsum, 7);
-    // +  14.0 * (a6 * a2 + a5 * a3 + a4 * a0 + a3 * a1)
-    mpz_mul (tmp, a[6], a[2]);
-    mpz_mul (tmp1, a[5], a[3]);
-    mpz_add (tmpsum, tmp, tmp1);
-    mpz_mul (tmp, a[4], a[0]);
-    mpz_mul (tmp1, a[3], a[1]);
-    mpz_add (tmp, tmp, tmp1);
-    mpz_add (tmpsum, tmp, tmpsum);
-    mpz_addmul_ui (n, tmpsum, 14);
-    // + 10.0 * (a6 * a0 + a5 * a1 + a4 * a2)
-    mpz_mul (tmp, a[6], a[0]);
-    mpz_mul (tmp1, a[5], a[1]);
-    mpz_add (tmpsum, tmp, tmp1);
-    mpz_mul (tmp, a[4], a[2]);
-    mpz_add (tmpsum, tmpsum, tmp);
-    mpz_addmul_ui (n, tmpsum, 10);
-    //  + 5.0 * a3 * a3;
-    mpz_mul (tmp, a[3], a[3]);
-    mpz_addmul_ui (n, tmp, 5);
-
-    for (i=0; i<=d; i++)
-      mpz_clear (a[i]);
-  }
-
-  mpz_set (norm, n);
-  mpz_clear (tmp);
-  mpz_clear (tmp1);
-  mpz_clear (tmpsum);
-  mpz_clear (n);
+    double_poly_cleandeg(dP, d);
 }
-#endif
 
-static double
-L2_skewness_deg6_approx (mpz_poly_srcptr f MAYBE_UNUSED, double_poly_ptr ff,
-                         double_poly_ptr dff, int prec)
+/* Do the same just for the numerator of the L2 skewness. Again, this is
+ * a polynomial in s^2 !!!
+    def sum_xd(d, a):
+        sq = lambda k: a[k]^2
+        cross = lambda k: 2*sum([a[k-i]*a[k+i] for i in range(1, min(d-k,k)+1)])
+        ck = lambda k: (sq(k)+cross(k))
+        tt = 0
+        for l in range(d+1):
+            tt += coeff2(d, d//2-l)*ck(l)*s^(2*l)/(1 if 2*l == d else 2)
+        return tt*pi/2^(2*d-1)/(d+1)
+    check2(lambda d,a:sum_xd(d,a)/s^d)
+ */
+static void L2_skewness_numerator(double_poly_ptr dP, double_poly_srcptr p)
 {
-  double *dfd = dff->coeff;
-  double *fd = ff->coeff;
-  double s, nc, a, b, c, smin, smax;
-  int sign_changes = 0;
-  double q[7], logmu, best_logmu = DBL_MAX, best_s = DBL_MAX;
-
-  dfd[6] = 99.0 * fd[6] * fd[6];
-  dfd[5] = 6.0 * (2.0 * fd[4] * fd[6] + fd[5] * fd[5]);
-  dfd[4] = 2.0 * (fd[2] * fd[6] + fd[3] * fd[5]) + fd[4] * fd[4];
-  dfd[2] = -2.0 * (fd[0] * fd[4] + fd[1] * fd[3]) - fd[2] * fd[2];
-  dfd[1] = -6.0 * (2.0 * fd[0] * fd[2] + fd[1] * fd[1]);
-  dfd[0] = -99.0 * fd[0] * fd[0];
-  if (dfd[1] > 0)
-    sign_changes ++; /* since dfd[0] < 0 */
-  if (dfd[1] * dfd[2] < 0)
-    sign_changes ++;
-  if (dfd[2] * dfd[4] < 0)
-    sign_changes ++; /* since dfd[3] = 0 */
-  if (dfd[4] * dfd[5] < 0)
-    sign_changes ++;
-  if (dfd[5] < 0)
-    sign_changes ++; /* since dfd[6] > 0 */
-  /* since dfd[6] and dfd[0] have opposite signs, we have an odd number of
-     roots on [0,+inf[. Moreover since dfd[3]=0, we can't have 5 positive
-     roots, thus we have either 1 or 3. */
-
-  q[6] = dfd[6];
-  q[5] = (dfd[5] < 0) ? dfd[5] : 0.0;
-  q[4] = (dfd[4] < 0) ? dfd[4] : 0.0;
-  q[2] = (dfd[2] < 0) ? dfd[2] : 0.0;
-  q[1] = (dfd[1] < 0) ? dfd[1] : 0.0;
-  q[0] = dfd[0]; /* always negative */
-  s = 1.0;
-  while ((((((q[6]*s)+q[5])*s+q[4])*s*s+q[2])*s+q[1])*s+q[0] < 0)
-    s = s + s;
-  if (s == 1.0)
-    {
-      while ((((((q[6]*s)+q[5])*s+q[4])*s*s+q[2])*s+q[1])*s+q[0] > 0)
-        s = s * 0.5;
-      s = s + s;
+    const double * a = p->coeff;
+    const int d = p->deg;
+    ASSERT_ALWAYS(1 <= p->deg);
+    ASSERT_ALWAYS(d <= L2_DMAX);
+    double_poly_realloc(dP, d+1);
+    for(int k = 0 ; k <= d ; k++) {
+        double t0 = 0;
+        for(int i = 1 ; i <= k && i <= d - k ; i++)
+            t0 += a[k-i] * a[k+i];
+        t0 = (2 * t0 + a[k] * a[k]);
+        const int j = (ABS(d-2*k)-(d&1))/2;
+        t0 = t0 * coeffs_integral[d][j];
+        if (2*k != d)
+            t0 /= 2;
+        dP->coeff[k] = t0; // ldexp(t0/(d+1), -(2*d-1));
     }
-  smax = s;
+    double_poly_cleandeg(dP, d);
+}
 
-  q[6] = dfd[6]; /* always positive */
-  q[5] = (dfd[5] > 0) ? dfd[5] : 0.0;
-  q[4] = (dfd[4] > 0) ? dfd[4] : 0.0;
-  q[2] = (dfd[2] > 0) ? dfd[2] : 0.0;
-  q[1] = (dfd[1] > 0) ? dfd[1] : 0.0;
-  q[0] = dfd[0];
-  s = smax;
-  while ((((((q[6]*s)+q[5])*s+q[4])*s*s+q[2])*s+q[1])*s+q[0] > 0)
-    s = s * 0.5;
-  smin = s;
+/* return the skewness giving the best lognorm sum for two polynomials.
+ * We do so by computing the formal expression of the quadratic form (up
+ * to a factor that does not vary, see the commented out ldexp calls
+ * above), and then we compute the roots.
+ *
+ * We're interested in log(Q(f))+log(Q(g)) = log(Q(f)Q(g)), so we want to
+ * minimize dQ(f)*Q(g)+Q(f)*dQ(g). Pay attention to the subtleties with
+ * the square roots.
+ */
+double
+L2_combined_skewness2 (mpz_poly_srcptr f, mpz_poly_srcptr g)
+{
+    double_poly dQF, QF, F;
+    double_poly dQG, QG, G;
+    double_poly_init(F, -1);
+    double_poly_init(QF, -1);
+    double_poly_init(dQF, -1);
+    double_poly_init(G, -1);
+    double_poly_init(QG, -1);
+    double_poly_init(dQG, -1);
+    double_poly_set_mpz_poly (F, f);
+    double_poly_set_mpz_poly (G, g);
+    L2_skewness_numerator(QF, F);
+    L2_skewness_derivative_numerator(dQF, F);
+    L2_skewness_numerator(QG, G);
+    L2_skewness_derivative_numerator(dQG, G);
+    double_poly t, S;
+    double_poly_init(t, -1);
+    double_poly_init(S, -1);
+    double_poly_mul(S, dQF, QG);
+    double_poly_mul(t, QF, dQG);
+    double_poly_add(S, S, t);
 
-  /* positive roots are in [smin, smax] */
+    double * roots = (double *) malloc(S->deg * sizeof(double));
 
-  double v = -1.0, oldv;
-  for (double t = 2.0 * smin; t <= smax; t = 2.0 * t)
-    {
-      /* invariant: q(smin) < 0 */
-      oldv = v;
-      v = (((((dfd[6]*t)+dfd[5])*t+dfd[4])*t*t+dfd[2])*t+dfd[1])*t+dfd[0];
-      if (v == 0.0)
-        {
-          best_s = t;
-          break;
-        }
-      if (oldv < 0 && v > 0)
-        {
-          /* the derivative has a root in [smin,b] and is increasing, thus
-             the norm has a minimum in [smin,b], we refine it by dichotomy */
-          a = smin;
-          b = t;
-          for (int i = 0; i < prec; i++)
-            {
-              c = (a + b) * 0.5;
+    const double B = double_poly_bound_roots(S);
+    /* some pathological examples for gfpn have integer roots, and this
+     * wreaks havoc.
+     */
+    const unsigned int nroots = double_poly_compute_roots(roots, S, B + 1);
 
-              nc = ((((dfd[6] * c + dfd[5]) * c + dfd[4]) * c * c + dfd[2]) * c
-                    + dfd[1]) * c + dfd[0];
-              if (nc > 0)
-                b = c;
-              else
-                a = c;
-            }
-          s = sqrt ((a + b) * 0.5);
-          if (sign_changes == 1)
-            {
-              best_s = s;
-              break;
-            }
-          logmu = L2_lognorm_d (ff, s);
-          if (logmu < best_logmu)
-            {
-              best_logmu = logmu;
-              best_s = s;
+    double best_s = sqrt(roots[0]);
+    if (nroots > 1) {
+        double l = L2_lognorm_d(F, best_s) + L2_lognorm_d(G, best_s);
+        for(unsigned int i = 1 ; i < nroots ; i++) {
+            const double s = sqrt(roots[i]);
+            const double li = L2_lognorm_d(F, s) + L2_lognorm_d(G, s);
+            if (li < l) {
+                best_s = s;
+                l = li;
             }
         }
-      smin = t; /* to avoid hitting twice the same root of the derivative */
     }
 
-  return best_s;
+    double_poly_clear(S);
+    double_poly_clear(t);
+    double_poly_clear(F);
+    double_poly_clear(QF);
+    double_poly_clear(dQF);
+    double_poly_clear(G);
+    double_poly_clear(QG);
+    double_poly_clear(dQG);
+
+    return best_s;
 }
 
-double
-L2_skewness_deg6 (mpz_poly_ptr f MAYBE_UNUSED, double_poly_srcptr ff,
-                  double_poly_srcptr dff MAYBE_UNUSED, int prec MAYBE_UNUSED)
+double L2_skewness (mpz_poly_srcptr f)
 {
-  double s, logmu, logmu_min = DBL_MAX, s_min = 1.0;
-  mpz_poly df;
-  usp_root_interval Roots[6];
-  int i, k;
+    const int d = f->deg;
+    double_poly dP, P;
+    double_poly_init(P, -1);
+    double_poly_init(dP, -1);
+    double_poly_set_mpz_poly (P, f);
+    L2_skewness_derivative_numerator(dP, P);
 
-  mpz_poly_init (df, 6);
-  for (i = 0; i < 6; i++)
-    usp_root_interval_init (Roots[i]);
+    double * roots = (double *) malloc(d * sizeof(double));
 
-  /* Sage code:
-     var('r,s,t,y')
-     R.<x> = PolynomialRing(ZZ)
-     S.<a> = InfinitePolynomialRing(R)
-     d=6; f = SR(sum(a[i]*x^i for i in range(d+1)))
-     F = expand(f(x=x/y)*y^d)
-     F = F.subs(x=s^(1/2)*r*cos(t),y=r/s^(1/2)*sin(t))
-     v = integrate(integrate(F^2*r,(r,0,1)),(t,0,2*pi))
-     v = (7168*v/pi).expand()
-     dv = v.diff(s)
-     dv = (dv*s^7/14).expand().collect(s)
-     99*a6^2 * s^12 +
-     6*(2*a4*a6 + a5^2) * s^10 +
-     (2*a2*a6 + 2*a3*a5 + a4^2) * s^8 -
-     (2*a0*a4 + 2*a1*a3 + a2^2) * s^4 -
-     6*(2*a0*a2 + a1^2) * s^2 -
-     99*a0^2
-  */
-#if 1 /* using numberOfRealRoots */
-  mpz_mul (mpz_poly_coeff(df, 6), mpz_poly_coeff_const(f, 6), mpz_poly_coeff_const(f, 6));
-  mpz_mul_ui (mpz_poly_coeff(df, 6), mpz_poly_coeff_const(df, 6), 99); /* 99*a6^2 */
-  mpz_mul (mpz_poly_coeff(df, 5), mpz_poly_coeff_const(f, 4), mpz_poly_coeff_const(f, 6));
-  mpz_mul_2exp (mpz_poly_coeff(df, 5), mpz_poly_coeff_const(df, 5), 1);
-  mpz_addmul (mpz_poly_coeff(df, 5), mpz_poly_coeff_const(f, 5), mpz_poly_coeff_const(f, 5));
-  mpz_mul_ui (mpz_poly_coeff(df, 5), mpz_poly_coeff_const(df, 5), 6); /* 6*(2*a4*a6 + a5^2) */
-  mpz_mul (mpz_poly_coeff(df, 4), mpz_poly_coeff_const(f, 2), mpz_poly_coeff_const(f, 6));
-  mpz_addmul (mpz_poly_coeff(df, 4), mpz_poly_coeff_const(f, 3), mpz_poly_coeff_const(f, 5));
-  mpz_mul_2exp (mpz_poly_coeff(df, 4), mpz_poly_coeff_const(df, 4), 1);
-  mpz_addmul (mpz_poly_coeff(df, 4), mpz_poly_coeff_const(f, 4), mpz_poly_coeff_const(f, 4)); /*2*a2*a6+2*a3*a5+a4^2*/
-  mpz_set_ui (mpz_poly_coeff(df, 3), 0);
-  mpz_mul (mpz_poly_coeff(df, 2), mpz_poly_coeff_const(f, 0), mpz_poly_coeff_const(f, 4));
-  mpz_addmul (mpz_poly_coeff(df, 2), mpz_poly_coeff_const(f, 1), mpz_poly_coeff_const(f, 3));
-  mpz_mul_2exp (mpz_poly_coeff(df, 2), mpz_poly_coeff_const(df, 2), 1);
-  mpz_addmul (mpz_poly_coeff(df, 2), mpz_poly_coeff_const(f, 2), mpz_poly_coeff_const(f, 2));
-  mpz_neg (mpz_poly_coeff(df, 2), mpz_poly_coeff_const(df, 2)); /* -(2*a0*a4+2*a1*a3+a2^2) */
-  mpz_mul (mpz_poly_coeff(df, 1), mpz_poly_coeff_const(f, 0), mpz_poly_coeff_const(f, 2));
-  mpz_mul_2exp (mpz_poly_coeff(df, 1), mpz_poly_coeff_const(df, 1), 1);
-  mpz_addmul (mpz_poly_coeff(df, 1), mpz_poly_coeff_const(f, 1), mpz_poly_coeff_const(f, 1));
-  mpz_mul_si (mpz_poly_coeff(df, 1), mpz_poly_coeff_const(df, 1), -6); /* -6*(2*a0*a2 + a1^2) */
-  mpz_mul (mpz_poly_coeff(df, 0), mpz_poly_coeff_const(f, 0), mpz_poly_coeff_const(f, 0));
-  mpz_mul_si (mpz_poly_coeff(df, 0), mpz_poly_coeff_const(df, 0), -99); /* -99*a0^2 */
+    const double B = double_poly_bound_roots(dP);
+    /* some pathological examples for gfpn have integer roots, and this
+     * wreaks havoc.
+     */
+    const unsigned int nroots = double_poly_compute_roots(roots, dP, B + 1);
+    /* We often have a single zero, but not always. Here's an example
+     * with three. It typically happens when we have pairs of roots that
+     * are almost symmetrical along the axes. I'm not sure I see a
+     * generalization of this phenomenon to more than two extrema, actually.
+     * 3520*x^4 - 14848*x^3 - 26038239232*x^2 + 3120*x + 110
+     */
+    ASSERT_ALWAYS(nroots >= 1);
 
-  df->deg = 6;
-  k = mpz_poly_number_of_real_roots_extra(df, 0, Roots);
-  for (i = 0; i < k; i++)
-    if (mpz_sgn (Roots[i]->b) > 0)
-      {
-        s = usp_root_interval_refine (Roots[i], df, ldexp (1.0, -prec));
-        s = sqrt (s);
-        logmu = L2_lognorm_d (ff, s);
-        if (logmu < logmu_min)
-          {
-            logmu_min = logmu;
-            s_min = s;
-          }
-      }
-#else /* using double_poly_compute_roots */
-  double *dfd = dff->coeff;
-  double *fd = ff->coeff;
-  double roots[6];
-
-  dfd[6] = 99.0 * fd[6] * fd[6];
-  dfd[5] = 6.0 * ( 2.0 * fd[4] * fd[6] + fd[5] * fd[5] );
-  dfd[4] = 2.0 * ( fd[2] * fd[6] + fd[3] * fd[5] ) + fd[4] * fd[4];
-  dfd[3] = 0.0;
-  dfd[2] = -2.0 * ( fd[0] * fd[4] + fd[1] * fd[3] ) - fd[2] * fd[2];
-  dfd[1] = -6.0 * ( 2.0 * fd[0] * fd[2] + fd[1] * fd[1] );
-  dfd[0] = -99.0 * fd[0] * fd[0];
-  double B = double_poly_bound_roots (dff);
-  k = double_poly_compute_roots (roots, dff, B);
-  ASSERT_ALWAYS(k > 0);
-  for (i = 0; i < k; i++)
-    {
-      s = sqrt (roots[i]);
-      logmu = L2_lognorm_d (ff, s);
-      if (logmu < logmu_min)
-        {
-          logmu_min = logmu;
-          s_min = s;
+    double best_s = sqrt(roots[0]);
+    if (nroots > 1) {
+        double l = L2_lognorm_d(P, best_s);
+        for(unsigned int i = 1 ; i < nroots ; i++) {
+            const double s = sqrt(roots[i]);
+            const double li = L2_lognorm_d(P, s);
+            if (li < l) {
+                best_s = s;
+                l = li;
+            }
         }
     }
-#endif
 
-  mpz_poly_clear (df);
-  for (i = 0; i < 6; i++)
-    usp_root_interval_clear (Roots[i]);
 
-  return s_min;
+    free(roots);
+    double_poly_clear(P);
+    double_poly_clear(dP);
+
+    return best_s;
 }
 
-/* return the skewness giving the best lognorm sum for two polynomials,
-   by using trichotomy between the optimal skewness of both polynomials */
-double
-L2_combined_skewness2 (mpz_poly_srcptr f, mpz_poly_srcptr g, int prec)
+double L2_skew_lognorm (mpz_poly_srcptr f)
 {
-  double a, b, c, d, va, vb, vc, vd;
-
-  a = L2_skewness (f, prec);
-  b = L2_skewness (g, prec);
-
-  if (b < a)
-    {
-      c = b;
-      b = a;
-      a = c;
-    }
-
-  ASSERT(a <= b);
-
-  va = L2_lognorm (f, a) + L2_lognorm (g, a);
-  vb = L2_lognorm (f, b) + L2_lognorm (g, b);
-
-  while (b - a > ldexp (a, -prec))
-    {
-      c = (2.0 * a + b) / 3.0;
-      vc = L2_lognorm (f, c) + L2_lognorm (g, c);
-
-      d = (a + 2.0 * b) / 3.0;
-      vd = L2_lognorm (f, d) + L2_lognorm (g, d);
-
-      if (va < vd && va < vb && vc < vd && vc < vb) /* minimum is in a or c */
-        {
-          b = d;
-          vb = vd;
-        }
-      else /* the minimum is in d or b */
-        {
-          a = c;
-          va = vc;
-        }
-    }
-  return (a + b) * 0.5;
+  return L2_lognorm (f, L2_skewness (f));
 }
-
-/* Use derivative test, with ellipse regions */
-double
-L2_skewness (mpz_poly_srcptr f, int prec)
-{
-  double_poly ff, df;
-  double s = 0.0, a = 0.0, b = 0.0, c, nc, *fd, *dfd,
-    s1, s2, s3, s4, s5, s6, s7;
-  unsigned int d = f->deg;
-
-  ASSERT_ALWAYS(1 <= d && d <= 7);
-
-  double_poly_init (ff, d);
-  double_poly_init (df, d);
-
-  /* convert once for all to double's to avoid expensive mpz_get_d() */
-  double_poly_set_mpz_poly (ff, f);
-  fd = ff->coeff;
-  dfd = df->coeff;
-  if (d == 7)
-    {
-      /* Sage code:
-         var('r,s,t,y')
-         R.<x> = PolynomialRing(ZZ)
-         S.<a> = InfinitePolynomialRing(R)
-         d=7; f = SR(sum(a[i]*x^i for i in range(d+1)))
-         F = expand(f(x=x/y)*y^d)
-         F = F.subs(x=s^(1/2)*r*cos(t),y=r/s^(1/2)*sin(t))
-         v = integrate(integrate(F^2*r,(r,0,1)),(t,0,2*pi))
-         v = (16384*v/pi).expand()
-         dv = v.diff(s)
-         dv = (dv*s^8).expand().collect(s)
-         3003*a7^2*s^14 + 165*a6^2*s^12 + 330*a5*a7*s^12 + 27*a5^2*s^10
-         + 54*a4*a6*s^10 + 54*a3*a7*s^10 + 5*a4^2*s^8 + 10*a3*a5*s^8
-         + 10*a2*a6*s^8 + 10*a1*a7*s^8 - 5*a3^2*s^6 - 10*a2*a4*s^6
-         - 10*a1*a5*s^6 - 10*a0*a6*s^6 - 27*a2^2*s^4 - 54*a1*a3*s^4
-         - 54*a0*a4*s^4 - 165*a1^2*s^2 - 330*a0*a2*s^2 - 3003*a0^2
-      */
-      dfd[7] = 3003.0 * fd[7] * fd[7];
-      dfd[6] = 165.0 * (fd[6] * fd[6] + 2.0 * fd[5] * fd[7]);
-      dfd[5] = 27.0 * (fd[5]*fd[5] + 2.0*fd[4]*fd[6] + 2.0*fd[3]*fd[7]);
-      dfd[4] = 5.0*(fd[4]*fd[4]+2.0*fd[3]*fd[5]+2.0*fd[2]*fd[6]+2.0*fd[1]*fd[7]);
-      dfd[3] = 5.0*(fd[3]*fd[3]+2.0*fd[2]*fd[4]+2.0*fd[1]*fd[5]+2.0*fd[0]*fd[6]);
-      dfd[2] = 27.0 * (fd[2]*fd[2] + 2.0*fd[1]*fd[3] + 2.0*fd[0]*fd[4]);
-      dfd[1] = 165.0 * (fd[1]*fd[1] + 2.0*fd[0]*fd[2]);
-      dfd[0] = 3003 * fd[0] * fd[0];
-      s = 1.0;
-      nc = dfd[7] + dfd[6] + dfd[5] + dfd[4] - dfd[3] - dfd[2] - dfd[1]
-        - dfd[0];
-      /* first isolate the minimum in an interval [s, 2s] by dichotomy */
-      while (nc > 0)
-        {
-          s = 0.5 * s;
-          s1 = s * s;   /* s^2 */
-          s2 = s1 * s1; /* s^4 */
-          s3 = s2 * s1; /* s^6 */
-          s4 = s2 * s2; /* s^8 */
-          s5 = s4 * s1; /* s^10 */
-          s6 = s3 * s3; /* s^12 */
-          s7 = s6 * s1; /* s^14 */
-          nc = dfd[7] * s7 + dfd[6] * s6 + dfd[5] * s5 + dfd[4] * s4
-            - dfd[3] * s3 - dfd[2] * s2 - dfd[1] * s1 - dfd[0];
-        }
-      do
-        {
-          s = 2.0 * s;
-          s1 = s * s;   /* s^2 */
-          s2 = s1 * s1; /* s^4 */
-          s3 = s2 * s1; /* s^6 */
-          s4 = s2 * s2; /* s^8 */
-          s5 = s4 * s1; /* s^10 */
-          s6 = s3 * s3; /* s^12 */
-          s7 = s6 * s1; /* s^14 */
-          nc = dfd[7] * s7 + dfd[6] * s6 + dfd[5] * s5 + dfd[4] * s4
-            - dfd[3] * s3 - dfd[2] * s2 - dfd[1] * s1 - dfd[0];
-        }
-      while (nc < 0);
-
-      /* now dv(s/2) < 0 < dv(s) thus the minimum is in [s/2, s] */
-      a = (s == 2.0) ? 1.0 : 0.5 * s;
-      b = s;
-      /* use dichotomy to refine the root */
-      while (prec--)
-        {
-          c = (a + b) * 0.5;
-          s1 = c * c;
-          s2 = s1 * s1;
-          s3 = s2 * s1;
-          s4 = s2 * s2;
-          s5 = s4 * s1;
-          s6 = s3 * s3;
-          s7 = s6 * s1;
-
-          nc = dfd[7] * s7 + dfd[6] * s6 + dfd[5] * s5 + dfd[4] * s4
-            - dfd[3] * s3 - dfd[2] * s2 - dfd[1] * s1 - dfd[0];
-          if (nc > 0)
-            b = c;
-          else
-            a = c;
-        }
-    }
-  else if (d == 6)
-    {
-      s = L2_skewness_deg6_approx (f, ff, df, prec);
-      goto end;
-    }
-  else if (d == 5)
-    {
-      /* Sage code:
-         R.<x> = PolynomialRing(ZZ)
-         S.<a> = InfinitePolynomialRing(R)
-         d=5; f = SR(sum(a[i]*x^i for i in range(d+1)))
-         F = expand(f(x=x/y)*y^d)
-         var('r,s,t')
-         F = F.subs(x=s^(1/2)*r*cos(t),y=r/s^(1/2)*sin(t))
-         v = integrate(integrate(F^2*r,(r,0,1)),(t,0,2*pi))
-         v = (1536*v/pi).expand()
-         dv = v.diff(s)
-         dv = (dv*s^6/3).expand().collect(s)
-      */
-      dfd[5] = 105.0 * fd[5] * fd[5];
-      dfd[4] = 7.0 * (2.0 * fd[3] * fd[5] + fd[4] * fd[4]);
-      dfd[3] = 2.0 * (fd[1] * fd[5] + fd[2] * fd[4]) + fd[3] * fd[3];
-      dfd[2] = 2.0 * (fd[0] * fd[4] + fd[1] * fd[3]) + fd[2] * fd[2];
-      dfd[1] = 7.0 * (2.0 * fd[0] * fd[2] + fd[1] * fd[1]);
-      dfd[0] = 105.0 * fd[0] * fd[0];
-      s = 1.0;
-      nc = dfd[5] + dfd[4] + dfd[3] - dfd[2] - dfd[1] - dfd[0];
-      /* first isolate the minimum in an interval [s, 2s] by dichotomy */
-      while (nc > 0)
-        {
-          s = 0.5 * s;
-          s1 = s * s;   /* s^2 */
-          s2 = s1 * s1; /* s^4 */
-          s3 = s2 * s1; /* s^6 */
-          s4 = s2 * s2; /* s^8 */
-          s5 = s4 * s1; /* s^10 */
-          nc = dfd[5] * s5 + dfd[4] * s4 + dfd[3] * s3
-            - dfd[2] * s2 - dfd[1] * s1 - dfd[0];
-        }
-      do
-        {
-          s = 2.0 * s;
-          s1 = s * s;   /* s^2 */
-          s2 = s1 * s1; /* s^4 */
-          s3 = s2 * s1; /* s^6 */
-          s4 = s2 * s2; /* s^8 */
-          s5 = s4 * s1; /* s^10 */
-          nc = dfd[5] * s5 + dfd[4] * s4 + dfd[3] * s3
-            - dfd[2] * s2 - dfd[1] * s1 - dfd[0];
-        }
-      while (nc < 0);
-
-      /* now dv(s/2) < 0 < dv(s) thus the minimum is in [s/2, s] */
-      a = (s == 2.0) ? 1.0 : 0.5 * s;
-      b = s;
-      /* use dichotomy to refine the root */
-      while (prec--)
-        {
-          c = (a + b) * 0.5;
-          s1 = c * c;   /* s^2 */
-          s2 = s1 * s1; /* s^4 */
-          s3 = s2 * s1; /* s^6 */
-          s4 = s2 * s2; /* s^8 */
-          s5 = s4 * s1; /* s^10 */
-          nc = dfd[5] * s5 + dfd[4] * s4 + dfd[3] * s3
-            - dfd[2] * s2 - dfd[1] * s1 - dfd[0];
-          if (nc > 0)
-            b = c;
-          else
-            a = c;
-        }
-    }
-  else if (d == 4)
-    {
-      /* Sage code:
-         R.<x> = PolynomialRing(ZZ)
-         S.<a> = InfinitePolynomialRing(R)
-         d=4; f = SR(sum(a[i]*x^i for i in range(d+1)))
-         var('r,s,t,y')
-         F = expand(f(x=x/y)*y^d)
-         F = F.subs(x=s^(1/2)*r*cos(t),y=r/s^(1/2)*sin(t))
-         v = integrate(integrate(F^2*r,(r,0,1)),(t,0,2*pi))
-         v = (640*v/pi).expand()
-         dv = v.diff(s)
-         dv = (dv*s^5/10).expand().collect(s)
-      */
-      dfd[4] = 14.0 * fd[4] * fd[4];
-      dfd[3] = 2.0 * fd[2] * fd[4] + fd[3] * fd[3];
-      dfd[1] = 2.0 * fd[0] * fd[2] + fd[1] * fd[1];
-      dfd[0] = 14.0 * fd[0] * fd[0];
-      s = 1.0;
-      nc = dfd[4] + dfd[3] - dfd[1] - dfd[0];
-      /* first isolate the minimum in an interval [s, 2s] by dichotomy */
-      while (nc > 0)
-        {
-          s = 0.5 * s;
-          s1 = s * s;   /* s^2 */
-          s2 = s1 * s1; /* s^4 */
-          s3 = s2 * s1; /* s^6 */
-          s4 = s2 * s2; /* s^8 */
-          nc = dfd[4] * s4 + dfd[3] * s3 - dfd[1] * s1 - dfd[0];
-        }
-      do
-        {
-          s = 2.0 * s;
-          s1 = s * s;   /* s^2 */
-          s2 = s1 * s1; /* s^4 */
-          s3 = s2 * s1; /* s^6 */
-          s4 = s2 * s2; /* s^8 */
-          nc = dfd[4] * s4 + dfd[3] * s3 - dfd[1] * s1 - dfd[0];
-        }
-      while (nc < 0);
-
-      /* now dv(s/2) < 0 < dv(s) thus the minimum is in [s/2, s] */
-      a = (s == 2.0) ? 1.0 : 0.5 * s;
-      b = s;
-      /* use dichotomy to refine the root */
-      while (prec--)
-        {
-          c = (a + b) * 0.5;
-          s1 = c * c;   /* s^2 */
-          s2 = s1 * s1; /* s^4 */
-          s3 = s2 * s1; /* s^6 */
-          s4 = s2 * s2; /* s^8 */
-          nc = dfd[4] * s4 + dfd[3] * s3 - dfd[1] * s1 - dfd[0];
-          if (nc > 0)
-            b = c;
-          else
-            a = c;
-        }
-    }
-  else if (d == 3)
-    {
-      /* Sage code:
-         R.<x> = PolynomialRing(ZZ)
-         S.<a> = InfinitePolynomialRing(R)
-         d=3; f = SR(sum(a[i]*x^i for i in range(d+1)))
-         var('r,s,t,y')
-         F = expand(f(x=x/y)*y^d)
-         F = F.subs(x=s^(1/2)*r*cos(t),y=r/s^(1/2)*sin(t))
-         v = integrate(integrate(F^2*r,(r,0,1)),(t,0,2*pi))
-         v = (64*v/pi).expand()
-         dv = v.diff(s)
-         dv = (dv*s^4).expand().collect(s)
-      */
-      dfd[3] = 15.0 * fd[3] * fd[3];
-      dfd[2] = 2.0 * fd[1] * fd[3] + fd[2] * fd[2];
-      dfd[1] = 2.0 * fd[0] * fd[2] + fd[1] * fd[1];
-      dfd[0] = 15.0 * fd[0] * fd[0];
-      s = 1.0;
-      nc = dfd[3] + dfd[2] - dfd[1] - dfd[0];
-      /* first isolate the minimum in an interval [s, 2s] by dichotomy */
-      while (nc > 0)
-        {
-          s = 0.5 * s;
-          s1 = s * s;   /* s^2 */
-          s2 = s1 * s1; /* s^4 */
-          s3 = s2 * s1; /* s^6 */
-          nc = dfd[3] * s3 + dfd[2] * s2 - dfd[1] * s1 - dfd[0];
-        }
-      do
-        {
-          s = 2.0 * s;
-          s1 = s * s;   /* s^2 */
-          s2 = s1 * s1; /* s^4 */
-          s3 = s2 * s1; /* s^6 */
-          nc = dfd[3] * s3 + dfd[2] * s2 - dfd[1] * s1 - dfd[0];
-        }
-      while (nc < 0);
-
-      /* now dv(s/2) < 0 < dv(s) thus the minimum is in [s/2, s] */
-      a = (s == 2.0) ? 1.0 : 0.5 * s;
-      b = s;
-      /* use dichotomy to refine the root */
-      while (prec--)
-        {
-          c = (a + b) * 0.5;
-          s1 = c * c;   /* s^2 */
-          s2 = s1 * s1; /* s^4 */
-          s3 = s2 * s1; /* s^6 */
-          nc = dfd[3] * s3 + dfd[2] * s2 - dfd[1] * s1 - dfd[0];
-          if (nc > 0)
-            b = c;
-          else
-            a = c;
-        }
-    }
-  else if (d == 2)
-    {
-      /* Sage code:
-         var('r,s,t,y')
-         R.<x> = PolynomialRing(ZZ)
-         S.<a> = InfinitePolynomialRing(R)
-         d=2; f = SR(sum(a[i]*x^i for i in range(d+1)))
-         F = expand(f(x=x/y)*y^d)
-         F = F.subs(x=s^(1/2)*r*cos(t),y=r/s^(1/2)*sin(t))
-         v = integrate(integrate(F^2*r,(r,0,1)),(t,0,2*pi))
-         v = (24*v/pi).expand()
-         dv = v.diff(s)
-         dv = (dv*s^3).expand().collect(s)
-         We get dv = 6*a_2^2*s^4 - 6*a_0^2
-         thus the optimal skewness is sqrt(|a0|/|a2|).
-      */
-      a = b = sqrt (fabs (fd[0] / fd[2]));
-    }
-  else /* d == 1 */
-    a = b = fabs (fd[0] / fd[1]);
-
-  s = (a + b) * 0.5;
-
- end:
-  double_poly_clear (ff);
-  double_poly_clear (df);
-
-  return s;
-}
-
-double L2_skew_lognorm (mpz_poly_srcptr f, int prec)
-{
-  return L2_lognorm (f, L2_skewness (f, prec));
-}
-
-#ifdef OPTIMIZE_MP
-
-/* Use derivative test, with ellipse regions */
-void
-L2_skewness_derivative_mp (mpz_poly_ptr F, int prec, mpz_t skewness)
-{
-  mpz_t s, s1, s2, s3, s4, s5, s6, a, b, c, nc;
-  mpz_init (s);
-  mpz_init (s1);
-  mpz_init (s2);
-  mpz_init (s3);
-  mpz_init (s4);
-  mpz_init (s5);
-  mpz_init (s6);
-  mpz_init (a);
-  mpz_init (b);
-  mpz_init (c);
-  mpz_init (nc);
-
-  int i, d = F->deg;
-  mpz_t *f = F->coeff;
-
-  if (d == 6) {
-    mpz_t df[d+1];
-    mpz_t tmp;
-    mpz_init_set_ui (tmp, 1);
-    for (i=0; i<=d; i++)
-      mpz_init (df[i]);
-
-    // dfd[6] = 99.0 * fd[6] * fd[6];
-    mpz_mul (df[6], f[6], f[6]);
-    mpz_mul_ui(df[6], df[6], 99);
-    // dfd[5] = 6.0 * ( 2.0 * fd[4] * fd[6] + fd[5] * fd[5] );
-    mpz_mul (df[5], f[5], f[5]);
-    mpz_mul (tmp, f[4], f[6]);
-    mpz_add (df[5], df[5], tmp);
-    mpz_add (df[5], df[5], tmp);
-    mpz_mul_ui (df[5], df[5], 6);
-    // dfd[4] = 2.0 * ( fd[2] * fd[6] + fd[3] * fd[5] ) + fd[4] * fd[4];
-    mpz_mul (df[4], f[4], f[4]);
-    mpz_mul (tmp, f[3], f[5]);
-    mpz_add (df[4], df[4], tmp);
-    mpz_add (df[4], df[4], tmp);
-    mpz_mul (tmp, f[2], f[6]);
-    mpz_add (df[4], df[4], tmp);
-    mpz_add (df[4], df[4], tmp);
-    //  dfd[2] = 2.0 * ( fd[0] * fd[4] + fd[1] * fd[3] ) + fd[2] * fd[2];
-    mpz_mul (df[2], f[2], f[2]);
-    mpz_mul (tmp, f[1], f[3]);
-    mpz_add (df[2], df[2], tmp);
-    mpz_add (df[2], df[2], tmp);
-    mpz_mul (tmp, f[0], f[4]);
-    mpz_add (df[2], df[2], tmp);
-    mpz_add (df[2], df[2], tmp);
-    // dfd[1] = 6.0 * ( 2.0 * fd[0] * fd[2] + fd[1] * fd[1] );
-    mpz_mul (df[1], f[1], f[1]);
-    mpz_mul (tmp, f[0], f[2]);
-    mpz_add (df[1], df[1], tmp);
-    mpz_add (df[1], df[1], tmp);
-    mpz_mul_ui (df[1], df[1], 6);
-    // dfd[0] = 99.0 * fd[0] * fd[0] ;
-    mpz_mul (df[0], f[0], f[0]);
-    mpz_mul_ui(df[0], df[0], 99);
-    /*
-    gmp_fprintf (stderr, "df[6]: %Zd\n", df[6]);
-    gmp_fprintf (stderr, "df[5]: %Zd\n", df[5]);
-    gmp_fprintf (stderr, "df[4]: %Zd\n", df[4]);
-    gmp_fprintf (stderr, "df[2]: %Zd\n", df[2]);
-    gmp_fprintf (stderr, "df[1]: %Zd\n", df[1]);
-    gmp_fprintf (stderr, "df[0]: %Zd\n", df[0]);
-    */
-
-    mpz_set_si (nc, -1);
-    mpz_set_ui (s, 1);
-
-    /* first isolate the minimum in an interval [s, 2s] by dichotomy */
-    while ( mpz_cmp_ui(nc, 0) < 0 ) {
-
-      mpz_add (s, s, s); /* s = 2.0 * s */
-      mpz_mul (s1, s, s); /* s^2 */
-      mpz_mul (s2, s1, s1); /* s^4 */
-      mpz_mul (s4, s2, s2); /* s^8 */
-      mpz_mul (s5, s4, s1); /* s^10 */
-      mpz_mul (s6, s5, s1); /* s^12 */
-
-      /* nc = dfd[6] * s6 + dfd[5] * s5 + dfd[4] * s4
-         - dfd[2] * s2 - dfd[1] * s1 - dfd[0];         */
-      mpz_mul (s6, s6, df[6]);
-      mpz_mul (s5, s5, df[5]);
-      mpz_mul (s4, s4, df[4]);
-      mpz_mul (s2, s2, df[2]);
-      mpz_mul (s1, s1, df[1]);
-      mpz_add (nc, s6, s5);
-      mpz_add (nc, nc, s4);
-      mpz_sub (nc, nc, s2);
-      mpz_sub (nc, nc, s1);
-      mpz_sub (nc, nc, df[0]);
-
-    }
-
-    /* now dv(s/2) < 0 < dv(s) thus the minimum is in [s/2, s] */
-    mpz_cdiv_q_2exp (a, s, 1);
-    mpz_set (b, s);
-    /* use dichotomy to refine the root */
-    while (prec--)
-    {
-      mpz_add (tmp, a, b);
-      mpz_cdiv_q_2exp (c, tmp, 1);
-      mpz_mul (s1, c, c); //s1 = c * c;
-      mpz_mul (s2, s1, s1); //s2 = s1 * s1;
-      mpz_mul (s4, s2, s2); //s4 = s2 * s2;
-      mpz_mul (s5, s4, s1); //s5 = s4 * s1;
-      mpz_mul (s6, s5, s1); //s6 = s5 * s1;
-
-      /* nc = dfd[6] * s6 + dfd[5] * s5 + dfd[4] * s4
-         - dfd[2] * s2 - dfd[1] * s1 - dfd[0]; */
-      mpz_mul (s6, s6, df[6]);
-      mpz_mul (s5, s5, df[5]);
-      mpz_mul (s4, s4, df[4]);
-      mpz_mul (s2, s2, df[2]);
-      mpz_mul (s1, s1, df[1]);
-      mpz_add (nc, s6, s5);
-      mpz_add (nc, nc, s4);
-      mpz_sub (nc, nc, s2);
-      mpz_sub (nc, nc, s1);
-      mpz_sub (nc, nc, df[0]);
-
-      if (mpz_cmp_ui (nc, 0) > 0)
-        mpz_set (b, c);
-      else
-        mpz_set (a, c);
-    }
-
-    mpz_clear (tmp);
-    for (i=0; i<=d; i++)
-      mpz_clear (df[i]);
-
-  } // end
-  else  {
-    fprintf (stderr, "L2_skewness_derivative_mp not yet implemented for degree %d\n", d);
-    exit (1);
-  }
-
-  mpz_add (s, a, b);
-  mpz_cdiv_q_2exp (skewness, s, 1);
-
-  mpz_clear (s);
-  mpz_clear (s1);
-  mpz_clear (s2);
-  mpz_clear (s3);
-  mpz_clear (s4);
-  mpz_clear (s5);
-  mpz_clear (s6);
-  mpz_clear (a);
-  mpz_clear (b);
-  mpz_clear (c);
-  mpz_clear (nc);
-}
-#endif
-

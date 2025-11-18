@@ -331,7 +331,7 @@ twocubics_match (unsigned long p1, unsigned long p2, const int64_t i,
 
   double skewness, logmu[2], alpha[2], E;
 
-  skewness = L2_combined_skewness2 (f, g, SKEWNESS_DEFAULT_PREC);
+  skewness = L2_combined_skewness2 (f, g);
   logmu[0] = L2_lognorm (g, skewness);
   logmu[1] = L2_lognorm (f, skewness);
   alpha[0] = get_alpha (g, ALPHA_BOUND_SMALL);

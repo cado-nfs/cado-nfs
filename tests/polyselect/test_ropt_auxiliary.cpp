@@ -129,7 +129,7 @@ test_L2_skewness (int t)
           while (mpz_cmp_ui (mpz_poly_coeff_const(p, d), 0) == 0);
         }
       p->deg = d;
-      s = L2_skewness (p, prec);
+      s = L2_skewness (p /* , prec */);
       n = L2_lognorm (p, s);
       eps = ldexp (fabs (n), -prec);
       /* check that skewness to the left and to the right is worse */
@@ -168,7 +168,7 @@ test_L2_skewness (int t)
   mpz_poly_setcoeff_si(p, 5, 1);
   mpz_poly_setcoeff_si(p, 6, 1);
 
-  s = L2_skewness (p, prec);
+  s = L2_skewness (p);
   ASSERT_ALWAYS (s == 1.0);
 
   /* test of degree 2 */
@@ -177,7 +177,7 @@ test_L2_skewness (int t)
   mpz_poly_setcoeff_si(p, 1, 0);
   mpz_poly_setcoeff_si(p, 2, 17);
 
-  s = L2_skewness (p, prec);
+  s = L2_skewness (p);
   ASSERT_ALWAYS (1.571 <= s && s <= 1.572);
 
   /* test of degree 1 */
@@ -185,7 +185,7 @@ test_L2_skewness (int t)
   mpz_poly_setcoeff_si(p, 0, 42);
   mpz_poly_setcoeff_si(p, 1, 17);
 
-  s = L2_skewness (p, prec);
+  s = L2_skewness (p);
   ASSERT_ALWAYS (2.470 <= s && s <= 2.471);
 
   mpz_poly_clear (p);
@@ -218,15 +218,15 @@ test_size_optimization ()
   mpz_set_str (mpz_poly_coeff(f, 0),
                "-690339709954574842053460672118938320489859967550", 10);
   f->deg = 6;
-  n = L2_skew_lognorm (f, SKEWNESS_DEFAULT_PREC);
+  n = L2_skew_lognorm (f);
   ASSERT_ALWAYS(106.895 <= n && n <= 106.905);
 
   size_optimization (f_opt, g_opt, f, g, SOPT_DEFAULT_EFFORT, 0);
-  n = L2_skew_lognorm (f_opt, SKEWNESS_DEFAULT_PREC);
+  n = L2_skew_lognorm (f_opt);
   ASSERT_ALWAYS(n <= 87.415);
 
   size_optimization (f_opt, g_opt, f, g, 3, 0);
-  n = L2_skew_lognorm (f_opt, SKEWNESS_DEFAULT_PREC);
+  n = L2_skew_lognorm (f_opt);
   /* note: now size_optimization optimizes the sum of the lognorm and of the
      expected alpha value, thus on this particular example we do no longer get
      a better lognorm with sopt_effort=3 */
@@ -244,9 +244,15 @@ static void test_rotate_aux(unsigned long iter)
         cxx_mpz_poly F0, F, G, R, H;
         cxx_mpz m;
         mpz_urandomb(m, state, 200);
-        mpz_poly_set_urandomm(F, 4 + gmp_urandomm_ui(state, 4), state, m);
-        mpz_poly_set_urandomm(G, mpz_poly_degree(F)-3, state, m);
-        mpz_poly_set_urandomm_ui(R, 2, state, 1000);
+        mpz_poly_set_randomm(F, 4 + gmp_urandomm_ui(state, 4), state, m,
+                MPZ_POLY_URANDOM |
+                MPZ_POLY_DEGREE_EXACT);
+        mpz_poly_set_randomm(G, mpz_poly_degree(F)-3, state, m,
+                MPZ_POLY_URANDOM |
+                MPZ_POLY_DEGREE_EXACT);
+        mpz_poly_set_randomm_ui(R, 2, state, 1000,
+                MPZ_POLY_URANDOM |
+                MPZ_POLY_DEGREE_EXACT);
 
         mpz_poly_set(F0, F);
         mpz_poly_mul(H, G, R);

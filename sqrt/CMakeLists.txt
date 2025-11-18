@@ -14,11 +14,11 @@ mark_targets_as_openmp(mgmsqrt)
 install(TARGETS mgmsqrt RUNTIME DESTINATION ${LIBSUFFIX}/sqrt)
 
 
-if (HAVE_CABSL AND HAVE_CLOG)
-add_executable(crtalgsqrt ${EXCLUDE_FROM_RELEASE_BUILD} crtalgsqrt.c powers_of_p.cpp knapsack.c)
+add_executable(crtalgsqrt ${EXCLUDE_FROM_RELEASE_BUILD} crtalgsqrt.cpp
+    powers_of_p.cpp abfiles.cpp knapsack.c sqrt_wq.cpp
+    sqrt_cachefiles.cpp)
 target_link_libraries(crtalgsqrt utils)
 
 mark_targets_as_mpi(crtalgsqrt)
-endif()
 
 include(CMakeLists-nodist.txt OPTIONAL)

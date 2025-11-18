@@ -4,6 +4,13 @@ if [ "$CADO_DEBUG" ] ; then
     set -x
 fi
 
+set -x
+
+if [ "$1" = --handle-mpirun-directly ] ; then
+    handle_mpirun=1
+    shift
+fi
+
 mpiconfs="$1"
 shift
 
@@ -54,5 +61,9 @@ for mpi_magic in "${mpiconfs[@]}" ; do
             set -- "$@" mpi_extra_args="${mpi_extra_args[*]}"
         fi
     fi
-    "$@"
+    if [ "$handle_mpirun" ] ; then
+        "${mpirun[@]}" "$@"
+    else
+        "$@"
+    fi
 done

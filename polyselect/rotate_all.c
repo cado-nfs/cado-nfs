@@ -218,7 +218,7 @@ rotate_bounds (mpz_poly_ptr f, mpz_poly_srcptr g,
   int i;
   long k0 = 0, j0 = 0;
   double lognorm, alpha, E0, E, best_E;
-  double skewness = L2_skewness (f, SKEWNESS_DEFAULT_PREC);
+  double skewness = L2_skewness (f);
   long jmax = (long) ((double) (1L << MAX_k) / skewness);
   unsigned long max_area = 1UL << MAX_k;
 
@@ -236,7 +236,7 @@ rotate_bounds (mpz_poly_ptr f, mpz_poly_srcptr g,
   for (i = 1; rotate_area (*K0, -*K0, *J0, *J1) < max_area; i++, *K0 *= 2)
     {
       k0 = rotate_aux (f, g, k0, *K0, 0);
-      lognorm = L2_skew_lognorm (f, SKEWNESS_DEFAULT_PREC);
+      lognorm = L2_skew_lognorm (f);
       alpha = exp_alpha[i];
       E = lognorm + alpha;
       if (E < best_E + MARGIN)
@@ -255,7 +255,7 @@ rotate_bounds (mpz_poly_ptr f, mpz_poly_srcptr g,
   for (i++; exp_alpha[i] != DBL_MAX && rotate_area (*K0, *K1, *J0, -*J0) < max_area; i++, *J0 = 2 * *J0 - 1)
     {
       j0 = rotate_aux (f, g, j0, *J0, 1);
-      lognorm = L2_skew_lognorm (f, SKEWNESS_DEFAULT_PREC);
+      lognorm = L2_skew_lognorm (f);
       alpha = exp_alpha[i];
       E = lognorm + alpha;
       if (E < best_E + MARGIN)
@@ -419,7 +419,7 @@ rotate (mpz_poly_ptr f, unsigned long alim,
 
                 /* translate from k0 to k */
                 k0 = rotate_aux (f, g, k0, k, 0);
-                lognorm = L2_skew_lognorm (f, SKEWNESS_DEFAULT_PREC);
+                lognorm = L2_skew_lognorm (f);
                 if (multi <= 1) {
                     if (lognorm + alpha < best_lognorm + best_alpha) {
                         best_lognorm = lognorm;
@@ -542,7 +542,7 @@ int main(int argc, char const * argv[])
     kmax = strtol(argv[2], NULL, 10);
     MAX_k = kmax;
 
-    cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
+    cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE]);
 
     printf ("Initial polynomial:\n");
     if (verbose)
@@ -552,7 +552,7 @@ int main(int argc, char const * argv[])
               get_alpha (cpoly->pols[ALG_SIDE], get_alpha_bound ()));
     size_optimization (cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE],
                        SOPT_DEFAULT_EFFORT, verbose - 1);
-    cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
+    cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE]);
     
     printf ("After norm optimization:\n");
     if (verbose)
@@ -567,7 +567,7 @@ int main(int argc, char const * argv[])
     mpz_poly_fprintf (stdout, cpoly->pols[RAT_SIDE]);
     sopt_local_descent (cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], 1, -1,
                                           SOPT_DEFAULT_MAX_STEPS, verbose - 1);
-    cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
+    cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE]);
 
     print_cadopoly_extra (stdout, cpoly, argc0, argv0, 0);
     cado_poly_clear(cpoly);

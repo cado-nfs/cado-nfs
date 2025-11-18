@@ -1,18 +1,23 @@
 #include "cado.h" // IWYU pragma: keep
 
 #include <cstddef>
+
 #include <string>
 #include <vector>
 #include <stdexcept>
 #include <sstream>
 
+#include <gmp.h>
 #include "fmt/base.h"
 
-#include "cado_expression_parser.hpp"
 #include "macros.h"
 #include "cxx_mpz.hpp"
+#include "number_literal.hpp"
+#include "number_context.hpp"
+#include "cado_parsing_base.hpp"
 
-using namespace cado_expression_parser_details;
+using cado::token_error;
+using cado::parse_error;
 
 /* this only tests our number (floating point and integer) literal parser
  *
@@ -21,6 +26,7 @@ using namespace cado_expression_parser_details;
  */
 int main()
 {
+    // NOLINTBEGIN(modernize-use-designated-initializers)
     struct test_case {
         std::string input;
         size_t tail_size;
@@ -108,14 +114,19 @@ int main()
         { "0x",         0, "t",   0,                    0 },
         { "0xp2",       0, "t",   0,                    0 },
     };
+    // NOLINTEND(modernize-use-designated-initializers)
 
     for(auto s : test_cases) {
         std::istringstream is(s.input);
-        number_literal N;
+        cado::number_literal N;
         std::string exc;
         double d = 0;
         cxx_mpz z = 0;
         std::string tail;
+
+        using cado::number_literal;
+        using cado::number_context;
+
         try {
             const bool b = number_literal::recognize(N, is);
             is >> tail;
@@ -130,13 +141,13 @@ int main()
 
             ASSERT_ALWAYS(b == (s.input.size() > tail.size()));
             try {
-                d = number_traits<double>::from_number_literal(N);
-            } catch(parse_error const & e) {
+                d = number_context<double>()(N);
+            } catch (parse_error const & e) {
                 exc += 'D';
             }
             try {
-                z = number_traits<cxx_mpz>::from_number_literal(N);
-            } catch(parse_error const & e) {
+                z = number_context<cxx_mpz>()(N);
+            } catch (parse_error const & e) {
                 exc += 'Z';
             }
         } catch (token_error const & e) {

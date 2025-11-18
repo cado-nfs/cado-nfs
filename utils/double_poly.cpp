@@ -20,8 +20,6 @@
 #include "macros.h"     // for ASSERT, ASSERT_ALWAYS
 
 #include "double_poly.h"
-#include "double_poly_complex_roots.h"
-#include "polyroots.h"
 #include "utils_cxx.hpp"
 
 // scan-headers: stop here
@@ -791,215 +789,13 @@ static double double_poly_content(double_poly_srcptr f)
  * Return the leading coefficient of f, even with f not normalized.
  * Returns 0 for the null polynomial.
  */
-static double double_poly_lc(double_poly_srcptr f)
+double double_poly_lc(double_poly_srcptr f)
 {
     for(int deg = f->deg ; deg >= 0 ; deg--) {
         if (f->coeff[deg] != 0)
             return f->coeff[deg];
     }
     return 0;
-}
-
-/*
- * Return 0 if the polynomial does not contain inf or nan, 1 otherwise.
- */
-static int double_poly_isnan_or_isinf(double_poly_srcptr f)
-{
-    for (int i = 0; i <= f->deg; i++) {
-        if (isnan(f->coeff[i]) || isinf(f->coeff[i])) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
-/*
- * Compute the pseudo division of a and b such that
- *  lc(b)^(deg(a) - deg(b) + 1) * a = b * q + r with deg(r) < deg(b).
- *  See Henri Cohen, "A Course in Computational Algebraic Number Theory",
- *  for more information.
- *
- * Assume that deg(a) >= deg(b) and b is not the zero polynomial.
- *
- * Return 0 on failure, 1 otherwise.
- *
- * No overlap allowed.
- */
-static int double_poly_pseudo_division(double_poly_ptr q, double_poly_ptr r,
-    double_poly_srcptr a, double_poly_srcptr b)
-{
-    ASSERT(a->deg >= b->deg);
-    ASSERT(b->deg != -1);
-
-    if (q) double_poly_realloc(q, a->deg - b->deg + 1);
-
-    int const m = a->deg;
-    int const n = b->deg;
-    double d = double_poly_lc(b);
-    int e = m - n + 1;
-    double_poly s;
-    double_poly_init(s, m-n);
-
-    if (q) double_poly_set_zero(q);
-
-    double_poly_set(r, a);
-
-    while (r->deg >= n) {
-        double_poly_cleandeg(r, r->deg);
-        double_poly_set_xi(s, r->deg - n);
-        s->coeff[r->deg - n] = double_poly_lc(r);
-
-        if (q) {
-            double_poly_mul_double(q, q, d);
-            double_poly_add(q, s, q);
-        }
-        double_poly_mul_double(r, r, d);
-
-        double_poly_mul(s, b, s);
-        int const nrdeg = r->deg - 1;
-        double_poly_sub(r, r, s);
-        /* We'd like to enforce this because the subtraction may miss the
-         * cancellation of the leading term due to rounding.
-         */
-        double_poly_cleandeg(r, nrdeg);
-        e--;
-        //TODO: is it necessary?
-        if (double_poly_isnan_or_isinf(r) || r->deg == -1) {
-            double_poly_clear(s);
-            return 0;
-        }
-    }
-    double_poly_clear(s);
-
-    ASSERT(e >= 0);
-
-    d = pow(d, (double) e);
-    if (q) double_poly_mul_double(q, q, d);
-    double_poly_mul_double(r, r, d);
-
-    return 1;
-}
-
-static int double_poly_pseudo_remainder(double_poly_ptr r,
-    double_poly_srcptr a, double_poly_srcptr b)
-{
-    return double_poly_pseudo_division(nullptr, r, a, b);
-}
-
-//TODO: follow the modification of mpz_poly_resultant.
-double double_poly_resultant(double_poly_srcptr p, double_poly_srcptr q)
-{
-    if (p->deg == -1 || q->deg == -1) {
-        return 0;
-    }
-
-    ASSERT(p->coeff[p->deg] != 0);
-
-    ASSERT(q->coeff[q->deg] != 0);
-
-    double_poly a;
-    double_poly b;
-    double_poly r;
-    double_poly_init(a, p->deg);
-    double_poly_init(b, q->deg);
-    double_poly_init(r, MAX(p->deg, q->deg));
-    double_poly_set(a, p);
-    double_poly_set(b, q);
-
-    int s = 1;
-    int d;
-
-    /* This does not really make sense on double_poly, does it ?
-     *
-    double g = double_poly_content(a);
-    double h = double_poly_content(b);
-    double_poly_mul_double(a, a, 1 / g);
-    double_poly_mul_double(b, b, 1 / h);
-    double t = pow(g, (double) b->deg) * pow(h, (double) a->deg);
-    */
-
-    int pseudo_div = 1;
-
-    double g = 1;
-    double h = 1;
-
-    if (a->deg < b->deg) {
-        double_poly_swap(a, b);
-
-        if ((a->deg % 2) == 1 && (b->deg % 2) == 1) {
-            s = -1;
-        }
-    }
-
-    while (b->deg > 0) {
-        //TODO: verify if it is necessary.
-        d = a->deg - b->deg;;
-
-        if ((a->deg % 2) == 1 && (b->deg % 2) == 1) {
-            s = -s;
-        }
-        pseudo_div = double_poly_pseudo_remainder(r, a, b);
-        if (!pseudo_div)
-            break;
-        /*double_poly_degree(r);*/
-        double_poly_set(a, b);
-
-        ASSERT(d >= 0);
-
-        double_poly_mul_double(b, r, 1 / (g * pow(h, (double) d)));
-        //TODO: a is normalized, so g = a->coeff[a->deg].
-        g = double_poly_lc(a);
-
-#ifdef NDEBUG
-        if (d == 0) {
-            ASSERT(h == 1);
-        }
-#endif // NDEBUG
-
-        h = pow(h, (double) (d - 1));
-        h = pow(g, (double) d) / h;
-    }
-
-    if (pseudo_div) {
-        ASSERT(a->deg > 0);
-
-        //For now, if b->deg == -1, pseudo_div == 0.
-        if (b->deg == -1) {
-            ASSERT(0);
-        } else {
-
-            ASSERT(a->deg >= 0);
-
-            h = pow(b->coeff[0], (double) a->deg) / pow(h, (double) (a->deg - 1));
-
-            // h = (double)s * t * h;
-            // see further above: got rid of t.
-            h *= s;
-        }
-    } else {
-        // fall back. Why is it needed ? Is it covered by tests or not ?
-        //
-        //TODO: use last version of a and b in pseudo_division.
-        mpz_t res;
-        mpz_init(res);
-        mpz_poly f, g;
-        mpz_poly_init(f, p->deg);
-        mpz_poly_init(g, q->deg);
-        mpz_poly_set_double_poly(f, p);
-        mpz_poly_set_double_poly(g, q);
-
-        mpz_poly_resultant(res, f, g);
-        h = mpz_get_d(res);
-
-        mpz_poly_clear(f);
-        mpz_poly_clear(g);
-        mpz_clear(res);
-    }
-    double_poly_clear(a);
-    double_poly_clear(b);
-    double_poly_clear(r);
-
-    return h;
 }
 
 /* swap f and g */
@@ -1040,15 +836,4 @@ void double_poly_set_string(double_poly_ptr poly, const char *str)
     }
     double_poly_cleandeg(poly, n-1);
 }
-
-int double_poly_complex_roots(double _Complex *roots, double_poly_srcptr f)
-{
-    return poly_roots_double(f->coeff, f->deg, roots);
-}
-
-int double_poly_complex_roots_long(long double _Complex *roots, double_poly_srcptr f)
-{
-    return poly_roots_longdouble(f->coeff, f->deg, roots);
-}
-
 

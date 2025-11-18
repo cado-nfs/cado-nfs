@@ -84,14 +84,20 @@ test_usp ()
 
     for (int d = 1; d < MAX_DEGREE; d++)
     {
-        mpz_poly_set_signed_urandomb(p, d, state, 128);
+        mpz_poly_set_randomb(p, d, state, 128,
+                MPZ_POLY_SIGNED_COEFFICIENTS |
+                MPZ_POLY_RRANDOM |
+                MPZ_POLY_DEGREE_EXACT);
         int n = mpz_poly_number_of_real_roots(p);
         ASSERT_ALWAYS (0 <= n && n <= d);
     }
 
     {
         /* check with large coefficients */
-        mpz_poly_set_rrandomb(p, 3, state, 2048);
+        mpz_poly_set_randomb(p, 3, state, 2048,
+                MPZ_POLY_UNSIGNED_COEFFICIENTS |
+                MPZ_POLY_RRANDOM |
+                MPZ_POLY_DEGREE_EXACT);
         int n = mpz_poly_number_of_real_roots(p);
         ASSERT_ALWAYS (0 <= n && n <= 3);
     }

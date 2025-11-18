@@ -51,8 +51,8 @@ piecewise_linear_approximator<T>::piecewise_linear_approximator(polynomial<T> co
     : f(f)
     , f1(f.derivative())
     , f2(f1.derivative())
-    , f_roots(f.roots())
-    , f1_roots(f1.roots())
+    , f_roots(f.template roots<T>())
+    , f1_roots(f1.template roots<T>())
     , scale(scale)
 { }
 
@@ -63,7 +63,7 @@ std::vector<T> piecewise_linear_approximator<T>::roots_off_course(polynomial<T> 
     for(T const m : { std::exp(scale), std::exp(-scale) }) {
         polynomial<T> d = f;
         d.submul(uv, m);
-        auto roots = d.roots();
+        auto roots = d.template roots<T>();
         res.insert(res.end(), roots.begin(), roots.end());
     }
     return res;
@@ -162,7 +162,7 @@ piecewise_linear_function::precursor piecewise_linear_approximator<T>::expand_at
          * much as we can (it doesn't have to be one ulp:
          * SMALLEST_MEANINGFUL_LOGAPPROX_INTERVAL can be used for that).
          */
-        for(T const x : (f - approx).roots()) {
+        for(T const x : (f - approx).template roots<T>()) {
             const bool best_below = x < r && x > r0;
             const bool best_above = x > r && x < r1;
             if (!(best_above || best_below))

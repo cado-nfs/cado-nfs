@@ -67,7 +67,6 @@ struct custom_insert {
         }
     }
 };
-constexpr const char * custom_insert::name;  // c++11
 
 struct custom_mergesort {
     static constexpr const char * name = "custom-merge";
@@ -106,7 +105,6 @@ struct custom_mergesort {
         }
     }
 };
-constexpr const char * custom_mergesort::name;  // c++11
 
 static double get_speed(clock_t d, size_t nitems)
 {
@@ -123,7 +121,6 @@ struct iqsort {
 #undef islt  
     }
 };
-constexpr const char * iqsort::name;    // c++11
 
 struct c_qsort {
     static constexpr const char * name = "qsort";
@@ -138,7 +135,6 @@ struct c_qsort {
         qsort(data, v, sizeof(unsigned long), gcmp);
     }
 };
-constexpr const char * c_qsort::name;   // c++11
 
 struct stdsort {
     static constexpr const char * name = "std::sort";
@@ -147,7 +143,6 @@ struct stdsort {
         std::sort(data, data + v, std::greater<unsigned long>());
     }
 };
-constexpr const char * stdsort::name;   // c++11
 
 template<typename T>
 static void test_one(T const & F, test_env & E, size_t v, bool verbose)

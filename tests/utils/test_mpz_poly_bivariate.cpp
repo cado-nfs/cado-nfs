@@ -1,20 +1,70 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <cstdlib>
+#include <cmath>
 
 #include <iostream>
 #include <sstream>
+#include <algorithm>
+#include <map>
+#include <vector>
 
 #include <gmp.h>
+#include "fmt/base.h"
 
 #include "cxx_mpz.hpp"
+#include "tests_common.h"
 #include "macros.h"
 #include "mpz_poly.h"
 #include "mpz_poly_bivariate.hpp"
-#include "tests_common.h"
+#include "arithmetic_reductions.hpp"
+#include "timing.h"
 
-static void test_mpz_poly_bivariate_trivialities()
+static void test_mpz_poly_bivariate_trivialities(unsigned long iter)
 {
-    typedef cxx_mpz_poly_bivariate T;
+    using T = cxx_mpz_poly_bivariate;
+
+    for(unsigned long i = 0 ; i < iter ; i++) {
+        T a, ta, t;
+        int const d = gmp_urandomm_ui(state, 256);
+        a.set_yi(d);
+        T::transpose(ta, a);
+        t.set_xi(d);
+        ASSERT_ALWAYS(a.degree_x() == 0);
+        ASSERT_ALWAYS(a.degree_y() == d);
+        ASSERT_ALWAYS(ta.degree_x() == d);
+        ASSERT_ALWAYS(ta.degree_y() == 0);
+        ASSERT_ALWAYS(t == ta);
+
+        T u, ua;
+        u.swap(t);
+        ta.swap(ua);
+        ASSERT_ALWAYS(u == ua);
+    }
+
+    for(unsigned long i = 0 ; i < iter ; i++) {
+        cxx_mpz_poly a;
+        cxx_mpz_poly_bivariate Ax, Ay, t;
+        int const dx = gmp_urandomm_ui(state, 32);
+        int const nbits = 1 + gmp_urandomm_ui(state, 255);
+        mpz_poly_set_randomb(a, dx, state, nbits,
+                MPZ_POLY_UNSIGNED_COEFFICIENTS |
+                MPZ_POLY_RRANDOM |
+                MPZ_POLY_DEGREE_EXACT);
+        Ax = T::lifted_x(a);
+        Ay = T::lifted_y(a);
+        T::transpose(t, Ax);
+        ASSERT_ALWAYS(t == Ay);
+
+        /* default behaviour is to lift x in Z[x] to x in Z[x,y] */
+        t = a;
+        ASSERT_ALWAYS(t == Ax);
+    }
+}
+
+static void test_mpz_poly_bivariate_parsing()
+{
+    using T = cxx_mpz_poly_bivariate;
 
     char const * example1 = "(11+17*x+42*x^2)+(12+18*x+43*x^2)*y^2";
     char const * example2 =
@@ -98,7 +148,7 @@ static void test_mpz_poly_bivariate_trivialities()
         T f, g;
         std::istringstream(example3) >> f.named("x", "y");
 
-        T::pow_ui(f, f, 3);
+        T::pow(f, f, 3);
         std::ostringstream os;
         os << f.named("x", "y") << "\n";
         std::istringstream(os.str()) >> g;
@@ -150,6 +200,210 @@ static void test_mpz_poly_bivariate_trivialities()
     }
 }
 
+static void test_mpz_poly_bivariate_basic_arithmetic(unsigned long iter)
+{
+    fmt::print("{}\n", __func__);
+    using T = cxx_mpz_poly_bivariate;
+    for(unsigned long i = 0 ; i < iter ; i++) {
+        T a, b, a_minus_b, b_minus_a, t;
+        /* make sure we don't build anything larger than 2048 bits */
+        int const nbits = 1 + gmp_urandomm_ui(state, 255);
+        int const dx = gmp_urandomm_ui(state, (mp_limb_t) sqrt(2048./nbits));
+        int const dy = gmp_urandomm_ui(state, (mp_limb_t) sqrt(2048./nbits));
+        T::set_rrandomb(a, dx, dy, nbits, state);
+        T::set_rrandomb(b, dx, dy, nbits, state);
+        T::sub(a_minus_b, a, b);
+        T::sub(b_minus_a, b, a);
+        T::neg(t, a_minus_b);
+        ASSERT_ALWAYS(t == b_minus_a);
+
+        T::add(t, a_minus_b, b_minus_a);
+        ASSERT_ALWAYS(t == 0);
+    }
+    for(unsigned long i = 0 ; i < iter ; i++) {
+        T a, b, ab;
+        /* make sure we don't build anything larger than 1024 bits */
+        int const nbits = 1 + gmp_urandomm_ui(state, 63);
+        int const dx = gmp_urandomm_ui(state, (mp_limb_t) sqrt(1024./nbits));
+        int const dy = gmp_urandomm_ui(state, (mp_limb_t) sqrt(1024./nbits));
+        T::set_rrandomb(a, dx, dy, nbits, state);
+        T::set_rrandomb(b, dx, dy, nbits, state);
+        T::mul(ab, a, b);
+
+        {
+            T x;
+            T bx,a_bx,ab_x;
+            T::set_rrandomb(x, dx, dy, nbits, state);
+            T::mul(bx, b, x);
+            T::mul(a_bx, a, bx);
+            T::mul(ab_x, ab, x);
+            ASSERT_ALWAYS(ab_x == a_bx);
+        }
+
+        {
+            cxx_mpz_poly x;
+            T bx,a_bx,ab_x;
+            mpz_poly_set_randomb(x, dx, state, nbits,
+                    MPZ_POLY_UNSIGNED_COEFFICIENTS |
+                    MPZ_POLY_RRANDOM |
+                    MPZ_POLY_DEGREE_EXACT);
+            T::mul(bx, b, x);
+            T::mul(a_bx, a, bx);
+            T::mul(ab_x, ab, x);
+            ASSERT_ALWAYS(ab_x == a_bx);
+        }
+
+        {
+            cxx_mpz x;
+            T bx,a_bx,ab_x;
+            mpz_rrandomb(x, state, nbits);
+            T::mul(bx, b, x);
+            T::mul(a_bx, a, bx);
+            T::mul(ab_x, ab, x);
+            ASSERT_ALWAYS(ab_x == a_bx);
+        }
+    }
+
+    /* test consistency of derivative with the coefficient-wise derivative
+     * of the transpose */
+    for(unsigned long i = 0 ; i < iter ; i++) {
+        T a, dya, ta, dxta, tdxta;
+        /* make sure we don't build anything larger than 1024 bits */
+        int const nbits = 1 + gmp_urandomm_ui(state, 63);
+        int const dx = gmp_urandomm_ui(state, (mp_limb_t) sqrt(1024./nbits));
+        int const dy = gmp_urandomm_ui(state, (mp_limb_t) sqrt(1024./nbits));
+        T::set_rrandomb(a, dx, dy, nbits, state);
+        T::derivative_y(dya, a);
+        T::transpose(ta, a);
+        dxta = 0;
+        T y;
+        y.set_yi(1);
+        for(int i = ta.degree_y() ; i >= 0 ; i--) {
+            cxx_mpz_poly c;
+            mpz_poly_derivative(c, ta[i]);
+            T::mul(dxta, dxta, y);
+            T::add(dxta, dxta, T::lifted_x(c));
+        }
+        T::transpose(tdxta, dxta);
+        ASSERT_ALWAYS(tdxta == dya);
+    }
+}
+
+template<typename T> using void_t = void;
+template <class T, class = void>
+struct reduction_is_coefficient_wise {
+    static const bool value = true;
+};
+template<class T>
+struct reduction_is_coefficient_wise<T,void_t<decltype(T::fy)>> {
+    static const bool value = false;
+};
+
+template<typename reducer>
+int test_mpz_poly_bivariate_reduction_operator(reducer const & R)
+{
+    typedef cxx_mpz_poly_bivariate T;
+    /* just test commutativity of multiplication and reduction */
+    T a, b;
+    /* make sure we don't build anything larger than 2048 bits */
+    int const nbits = 1 + gmp_urandomm_ui(state, 255);
+    int const dx = gmp_urandomm_ui(state, (mp_limb_t) sqrt(2048./nbits));
+    int const dy = gmp_urandomm_ui(state, (mp_limb_t) sqrt(2048./nbits));
+    T::set_rrandomb(a, dx, dy, nbits, state);
+    T::set_rrandomb(b, dx, dy, nbits, state);
+
+    if (reduction_is_coefficient_wise<reducer>::value) {
+        /* we test that (a-(a mod R)) is in the ideal R. However, we do
+         * so by testing this on evey coefficient in y^i, which won't be
+         * the correct thing to do if we're also reducing modulo a
+         * polynomial in y
+         */
+        T r, t;
+        R(r, a);
+        T::sub(t, a, r);
+        for(auto const & c : (T const &) t) {
+            cxx_mpz_poly h;
+            R(h, c);
+            ASSERT_ALWAYS(h == 0);
+        }
+
+    }
+    {
+        T c, t;
+
+        T::mul(c, a, b);
+        R(b, b);
+        R(a, a);
+        T::mul(t, a, b);
+        R(t, t);
+        R(c, c);
+        if (t != c) {
+            fmt::print(std::cerr, "a = {}\n", a);
+            fmt::print(std::cerr, "b = {}\n", b);
+            fmt::print(std::cerr, "t = {}\n", t);
+            fmt::print(std::cerr, "c = {}\n", c);
+            std::cerr << R.print() << std::endl;
+            return 0;
+        }
+        ASSERT_ALWAYS(t == c);
+    }
+    return 1;
+}
+
+static void test_mpz_poly_bivariate_reduction_functions(unsigned long iter)
+{
+    using cado::arithmetic_reductions::noop;
+    using cado::arithmetic_reductions::mod_p;
+    using cado::arithmetic_reductions::mod_fx;
+    using cado::arithmetic_reductions::mod_q;
+    using cado::arithmetic_reductions::mod_fy_mod_q;
+
+    fmt::print("{}\n", __func__);
+    using T = cxx_mpz_poly_bivariate;
+    for(unsigned long i = 0 ; i < iter ; i++) {
+        test_mpz_poly_bivariate_reduction_operator(noop{});
+    }
+    /* goal: never reduce mod something larger than 512 bits.
+     */
+    for(unsigned long i = 0 ; i < iter ; i++) {
+        cxx_mpz p;
+        int nbits = 2 + gmp_urandomm_ui(state, 254);
+        for( ; p == 0 || !mpz_probab_prime_p(p, 10) ; ) {
+            mpz_urandomb(p, state, 4 + nbits / 2);
+        }
+        mod_p Rp {p};
+        ASSERT_ALWAYS(test_mpz_poly_bivariate_reduction_operator(Rp));
+
+        /* size of fx is dfx * nbits (leading 1 does not count) */
+        cxx_mpz_poly fx;
+        int dfx = 1 + std::min((mp_limb_t) (512 / nbits), gmp_urandomm_ui(state, 15));
+        mpz_poly_set_randomb(fx, dfx, state, nbits,
+                MPZ_POLY_UNSIGNED_COEFFICIENTS |
+                MPZ_POLY_RRANDOM |
+                MPZ_POLY_MONIC |
+                MPZ_POLY_DEGREE_EXACT);
+        mod_fx Rfx{fx};
+        ASSERT_ALWAYS(test_mpz_poly_bivariate_reduction_operator(Rfx));
+
+        mod_q Rpfx {Rp, fx};
+        ASSERT_ALWAYS(test_mpz_poly_bivariate_reduction_operator(Rpfx));
+
+        /* size of fy is dy * (dx + 1) * nbits */
+        {
+            T F;
+            int const nbits = 4 + gmp_urandomm_ui(state, 32);
+            int const dx = 1 + gmp_urandomm_ui(state, (mp_limb_t) sqrt(512.0/nbits));
+            int const dy = 2 + gmp_urandomm_ui(state, (mp_limb_t) sqrt(512.0/nbits));
+            T::set_rrandomb(F, dx, dy, nbits, state);
+            F.setcoeff(dy, 1);
+            mod_fy_mod_q Rpfxfy{Rpfx, F};
+            ASSERT_ALWAYS(test_mpz_poly_bivariate_reduction_operator(Rpfxfy));
+        }
+    }
+}
+
+/* resultant is also a good test of evaluation, so we'll leave it to that
+ * test */
 static void test_mpz_poly_bivariate_resultant(unsigned long iter)
 {
     for (unsigned long i = 0; i < iter; i++) {
@@ -308,13 +562,233 @@ static void test_mpz_poly_bivariate_resultant(unsigned long iter)
     }
 }
 
+/* in reality, most of the complex stuff here should go in a reduction
+ * object for the univariate mpz_poly type instead
+ */
+void test_mpz_poly_bivariate_frobenius(unsigned long iter)
+{
+    using cado::arithmetic_reductions::mod_q;
+
+    fmt::print("{}\n", __func__);
+    for(unsigned long i = 0 ; i < iter ; i++) {
+        cxx_mpz p;
+        for( ; p == 0 || !mpz_probab_prime_p(p, 10) ; ) {
+            mpz_urandomb(p, state, 2 + gmp_urandomm_ui(state, 8));
+        }
+        int const d = 1 + gmp_urandomm_ui(state, 5);
+        cxx_mpz_poly f;
+        for( ; f == 0 || !mpz_poly_is_irreducible(f, p) ; ) {
+            mpz_poly_set_randomm(f, d, state, p,
+                    MPZ_POLY_DEGREE_EXACT |
+                    MPZ_POLY_MONIC |
+                    MPZ_POLY_URANDOM);
+        }
+
+        mod_q R { f, p };
+
+        /* Tests on simple mpz_poly's -- this should probably go
+         * elsewhere, really. */
+
+        /* make sure that Frobenius and inverse Frobenius are linear */
+        for(auto order: { 1, -1 }) {
+            cxx_mpz_poly a, b, c, t;
+            mpz_poly_set_randomm(a, d, state, p,
+                    MPZ_POLY_DEGREE_UPPER_BOUND |
+                    MPZ_POLY_URANDOM);
+            mpz_poly_set_randomm(b, d, state, p,
+                    MPZ_POLY_DEGREE_UPPER_BOUND |
+                    MPZ_POLY_URANDOM);
+            mpz_poly_add(c, a, b);
+            R.frobenius(c, c, order);
+            R.frobenius(a, a, order);
+            R.frobenius(b, b, order);
+            mpz_poly_add(t, a, b);
+            R(t, t);
+            if (t != c) {
+                fmt::print(std::cerr, "a = {}\n", a);
+                fmt::print(std::cerr, "b = {}\n", b);
+                fmt::print(std::cerr, "t = {}\n", t);
+                fmt::print(std::cerr, "c = {}\n", c);
+                std::cerr << R.print() << std::endl;
+            }
+            ASSERT_ALWAYS(c == t);
+        }
+
+        /* compatibility with scalar multiplication */
+        for(auto order: { 1, -1 }) {
+            cxx_mpz_poly a, c, t;
+            cxx_mpz lambda;
+            mpz_poly_set_randomm(a, d-1, state, p,
+                    MPZ_POLY_DEGREE_UPPER_BOUND |
+                    MPZ_POLY_URANDOM);
+            mpz_urandomm(lambda, state, p);
+            mpz_poly_mul_mpz(c, a, lambda);
+            mpz_poly_mod_mpz(c, c, p, NULL);
+            R.frobenius(c, c, order);
+            R.frobenius(a, a, order);
+            mpz_poly_mul_mpz(t, a, lambda);
+            R(t, t);
+            ASSERT_ALWAYS(c == t);
+        }
+
+        /* make sure that both operators have order d */
+        for(auto order: { 1, -1 }) {
+            cxx_mpz_poly a, t;
+            mpz_poly_set_randomm(a, d-1, state, p,
+                    MPZ_POLY_DEGREE_UPPER_BOUND |
+                    MPZ_POLY_URANDOM);
+            R(t, a);
+            for(int i = 0 ; i < d ; i++) {
+                R.frobenius(a, a, order);
+            }
+            if (t != a) {
+                fmt::print(std::cerr, "a = {}\n", a);
+                fmt::print(std::cerr, "t = {}\n", t);
+                std::cerr << R.print() << std::endl;
+            }
+            ASSERT_ALWAYS(a == t);
+        }
+
+        /* Also do some tests on bivariate polynomials. There's not much
+         * interesting to test, really. */
+        {
+            cxx_mpz_poly_bivariate a, b, t;
+            cxx_mpz_poly_bivariate::set_urandomm (a, d-1, d, p, state, false, false);
+            R.frobenius(b, a, 1);
+            R.frobenius(t, b, -1);
+            ASSERT_ALWAYS(a == t);
+            R.frobenius(t, t, 1);
+            ASSERT_ALWAYS(b == t);
+        }
+    }
+}
+
+void test_mpz_poly_bivariate_factoring(unsigned long iter)
+{
+    using cado::arithmetic_reductions::mod_q;
+
+    fmt::print("{}\n", __func__);
+    for(unsigned long i = 0 ; i < iter ; i++) {
+        double t0;
+
+        t0 = -wct_seconds();
+        cxx_mpz p;
+        for( ; p == 0 || !mpz_probab_prime_p(p, 2) ; ) {
+            mpz_urandomb(p, state, 2 + gmp_urandomm_ui(state, 6));
+        }
+        int d = 2 + gmp_urandomm_ui(state, 4);
+        cxx_mpz_poly f;
+        for( ; f == 0 || !mpz_poly_is_irreducible(f, p) ; ) {
+            mpz_poly_set_randomm(f, d, state, p,
+                    MPZ_POLY_URANDOM |
+                    MPZ_POLY_DEGREE_EXACT |
+                    MPZ_POLY_MONIC);
+        }
+
+        mod_q R { f, p };
+
+        t0 += wct_seconds();
+
+        fmt::print("{} {} {}\n", i, p, f.degree());
+        fmt::print("  setup {:.3f}\n", t0);
+
+        t0 = -wct_seconds();
+        /* test square free factorization */
+        {
+            cxx_mpz_poly_bivariate a, b, t;
+            
+            /* a is chosen monic */
+            cxx_mpz_poly_bivariate::set_urandomm (a, d-1, 10 + gmp_urandomm_ui(state, 32), p, state, false, true);
+
+            auto fl = cxx_mpz_poly_bivariate::factor_sqf(a, R);
+
+            /* all factors must be coprime */
+            for(unsigned int i = 0 ; i < fl.size() ; i++) {
+                for(unsigned int j = i + 1 ; j < fl.size() ; j++) {
+                    cxx_mpz_poly_bivariate::gcd(t, fl[i].first, fl[j].first, R);
+                    ASSERT_ALWAYS(t == 1);
+                }
+            }
+            
+            /* their product must match a */
+            b = 1;
+            for(unsigned int i = 0 ; i < fl.size() ; i++) {
+                cxx_mpz_poly_bivariate::pow(t, fl[i].first, i);
+                cxx_mpz_poly_bivariate::mul(b, b, t);
+                cxx_mpz_poly_bivariate::mod(b, b, R);
+            }
+            ASSERT_ALWAYS(a == b);
+        }
+        t0 += wct_seconds();
+        fmt::print("  sqf {:.3f}\n", t0);
+
+        /* test DDF
+         * We'll fabricate irreducible polynomials of degrees between 1
+         * and 5, multiply them, and see what comes out of it.
+         */
+        {
+            t0 = -wct_seconds();
+            int nfac = 1 + gmp_urandomm_ui(state, 4);
+            std::vector<cxx_mpz_poly_bivariate> known;
+            std::map<int, int> expected;
+            cxx_mpz_poly_bivariate A = 1;
+            int tests = 0;
+            for(int i = 0 ; i < nfac ; i++) {
+                int const dg = 1 + gmp_urandomm_ui(state, 6);
+                cxx_mpz_poly_bivariate g;
+                do {
+                    /* do not impose exactly degree d-1 in x */
+                    cxx_mpz_poly_bivariate::set_urandomm (g, d-1, dg, p, state, false, true);
+                    tests++;
+                } while (!cxx_mpz_poly_bivariate::is_irreducible(g, R));
+                known.push_back(g);
+                expected[dg]++;
+                cxx_mpz_poly_bivariate::mul(A, A, g);
+                R(A, A);
+            }
+            /* sort the known polynomials, while we're at it. */
+            std::sort(known.begin(), known.end());
+            t0 += wct_seconds();
+            fmt::print("  ddf setup({}, {}): {:.3f}\n", nfac, tests, t0);
+
+            {
+            t0 = -wct_seconds();
+            std::map<int, int> got;
+            auto fl0 = cxx_mpz_poly_bivariate::factor_sqf(A, R);
+            t0 += wct_seconds();
+            fmt::print("  ddf compute({}): {:.3f}\n", A.degree(), t0);
+            t0 = -wct_seconds();
+            for(size_t i = 1 ; i < fl0.size() ; i++) {
+                auto fl1 = cxx_mpz_poly_bivariate::factor_ddf(fl0[i].first, R);
+                for(size_t j = 1 ; j < fl1.size() ; j++) {
+                    /* fl1[j].first is a product of irreducible factors
+                     * of degree exactly j, which we're getting i times
+                     */
+                    if (fl1[j].first.degree() == 0)
+                        continue;
+                    got[j] += (fl1[j].first.degree() / j) * i;
+                }
+            }
+            ASSERT_ALWAYS(expected == got);
+            t0 += wct_seconds();
+            fmt::print("  ddf compute({}): {:.3f}\n", A.degree(), t0);
+            }
+        }
+    }
+}
+
 int main(int argc, char const * argv[])
 {
     unsigned long iter = 500;
     tests_common_cmdline(&argc, &argv, PARSE_SEED | PARSE_ITER);
     tests_common_get_iter(&iter);
-    test_mpz_poly_bivariate_trivialities();
+    test_mpz_poly_bivariate_trivialities(iter);
+    test_mpz_poly_bivariate_parsing();
+    test_mpz_poly_bivariate_basic_arithmetic(iter);
+    test_mpz_poly_bivariate_reduction_functions(iter);
     test_mpz_poly_bivariate_resultant(iter);
-    tests_common_clear();
-    return EXIT_SUCCESS;
+    test_mpz_poly_bivariate_frobenius(iter);
+    test_mpz_poly_bivariate_factoring(iter);
+    tests_common_clear ();
+    exit (EXIT_SUCCESS);
 }

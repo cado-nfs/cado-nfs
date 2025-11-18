@@ -45,8 +45,6 @@ template<bool is_binary>
 unsigned int lingen_checkpoint<is_binary>::threshold = UINT_MAX;
 template<bool is_binary>
 int lingen_checkpoint<is_binary>::save_gathered = 0;
-template<bool is_binary>
-constexpr unsigned long lingen_checkpoint<is_binary>::format; // c++11
 
 /* There's much copy-paste here */
 

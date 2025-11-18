@@ -1709,6 +1709,20 @@ void mpq_mat_inv(mpq_mat_ptr dst, mpq_mat_srcptr src)
 
     mpq_mat_clear(aux);
 }
+
+void mpz_mat_inv_mod_mpz(mpz_mat_ptr dst, mpz_mat_srcptr src, mpz_srcptr p)
+{
+    ASSERT_ALWAYS(src->m == src->n);
+
+    mpz_mat aux;
+    mpz_mat_init(aux,src->m,src->n);
+    mpz_mat_set(aux,src);
+
+    mpz_mat_gauss_backend_mod_mpz(aux, dst, p);
+
+    mpz_mat_clear(aux);
+}
+
 /* }}} */
 
 /*

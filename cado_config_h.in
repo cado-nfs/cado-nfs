@@ -71,9 +71,7 @@
 
 #cmakedefine    HAVE_CURL
 
-#cmakedefine    HAVE_CABSL
 #cmakedefine    HAVE_LOG2
-#cmakedefine    HAVE_CLOG
 #cmakedefine    HAVE_EXP2
 
 #cmakedefine    HAVE_STDCPP_MATH_SPEC_FUNCS
@@ -124,6 +122,9 @@
 #cmakedefine    HAVE_HWLOC
 
 #cmakedefine    HAVE_GMPECM
+
+#cmakedefine    HAVE_MPFR
+#cmakedefine    HAVE_MPC
 
 #cmakedefine    HAVE_CXXABI_H
 

@@ -7,8 +7,8 @@ target_link_libraries(test-ant utils)
 if (SAGE)
     macro(numbertheory_sagemath_test name)
         cado_divert_test(${name} with_sagemath
+            PROVIDE_TEMPORARY_WDIR
             PREPEND_PRECOMMAND
-            ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh  --env wdir
             ${CADO_NFS_SOURCE_DIR}/tests/pipe_to_sage.sh
         )
 

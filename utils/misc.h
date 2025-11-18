@@ -324,6 +324,21 @@ static inline T next_power_of_2(T x)
     return x;
 }
 
+template<typename T>
+static inline T log2_of_next_power_of_2(T x)
+{
+    static_assert(
+            std::is_same<T, unsigned long>::value ||
+            std::is_same<T, unsigned int>::value ||
+            std::is_same<T, size_t>::value,
+            "not supported for this type");
+    T m = 1;
+    int i = 0;
+    for( ; m && x > m ; i++, m<<=1);
+    return i;
+}
+
+
 std::vector<unsigned long> subdivide_primes_interval(unsigned long p0, unsigned long p1, size_t n);
 #endif
 

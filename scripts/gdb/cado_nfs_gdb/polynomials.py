@@ -79,6 +79,70 @@ class flat_poly_printer:
         return display.truncate_output(S)
 
 
-# We're not exposing this printer directly.
-# base.cado_nfs_printer.add('__mpz_struct', mpz_printer)
-# base.cado_nfs_printer.add('mpz_t', mpz_printer)
+class mpz_poly_printer:
+    def __init__(self, match, val, cxx=False):
+        self.match = match
+        self.val = val
+        self.cxx = cxx
+        if not self.cxx:
+            t = "mpz_poly"
+            tx = "cxx_" + t
+            F = gdb.parse_and_eval(f"({tx}*) malloc(sizeof({tx}))")
+            bt = val.type.strip_typedefs()
+            gdb.execute(f"call (({tx}*){F})->{tx}()")
+            if bt.code == gdb.TYPE_CODE_PTR:
+                src = f"({t}_srcptr) {self.val.dereference().address}"
+            else:
+                src = f"({t}_srcptr) {self.val.address}"
+            gdb.execute(f"call (void) {t}_set((({tx}*) {F})->x, {src})")
+            self.cxx_val = gdb.parse_and_eval(f"* ({tx}*) {F}")
+            self._cxx_temp = str(F)
+        else:
+            self.cxx_val = self.val
+
+    def __del__(self):
+        if not self.cxx:
+            F = self._cxx_temp
+            gdb.execute(f"call ((cxx_mpz_poly*) {F})->~cxx_mpz_poly()")
+            gdb.execute(f"call free({F})")
+
+    def to_string(self):
+        """
+        This implementation is just a test. We know that we can do it in
+        a way that would be similar to the other pretty-printers, but
+        this time we're going to try to trampoline via the code's own
+        functions.
+        """
+        obj = f"(('cxx_mpz_poly' const *){self.cxx_val.address})"
+        obj = f"{obj}->print_poly()"
+        return eval(gdb.parse_and_eval(obj).format_string(max_elements=0))
+
+
+class mpz_poly_bivariate_printer:
+    def __init__(self, match, val):
+        self.match = match
+        self.val = val
+
+    def to_string(self):
+        """
+        This implementation is just a test. We know that we can do it in
+        a way that would be similar to the other pretty-printers, but
+        this time we're going to try to trampoline via the code's own
+        functions.
+        """
+        obj = f"(('cxx_mpz_poly_bivariate::self' const *){self.val.address})"
+        obj = f"{obj}->print_poly()"
+        return eval(gdb.parse_and_eval(obj).format_string(max_elements=0))
+
+
+# it's really wreaking havoc with gdb.
+
+if False:
+    # We're not exposing flat_poly_printer directly.
+    base.cado_nfs_printer.add('mpz_poly_ptr', mpz_poly_printer)
+    base.cado_nfs_printer.add('mpz_poly_srcptr', mpz_poly_printer)
+    base.cado_nfs_printer.add('mpz_poly_s', mpz_poly_printer)
+    base.cado_nfs_printer.add('mpz_poly', mpz_poly_printer)
+    base.cado_nfs_printer.add('cxx_mpz_poly', mpz_poly_printer, cxx=True)
+    base.cado_nfs_printer.add('cxx_mpz_poly_bivariate',
+                              mpz_poly_bivariate_printer)

@@ -562,7 +562,12 @@ next_mpz_with_factor_constraints(mpz_ptr r,
     ASSERT_ALWAYS(0); // Should never get there.
 }
 
-/* return the number of bits of p, counting from the least significant end */
+/* return the number of bits of p, counting from the least significant end.
+ * 0 has 0 bit
+ * 1 has 1 bit
+ * 2 and 3 have 2 bits,
+ * 4 to 7 have 3 bits, etc
+ */
 int nbits (uintmax_t p)
 {
   int k;

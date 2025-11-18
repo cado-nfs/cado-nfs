@@ -19,15 +19,16 @@ for c in ("PTR ARRAY STRUCT UNION ENUM FLAGS FUNC INT FLT VOID"
 
 
 class CadoNFSSubPrinter(object):
-    def __init__(self, name, function):
+    def __init__(self, name, function, **kwargs):
         self.name = name
         self._function = function
+        self.kwargs = kwargs
 
     def invoke(self, value):
         if value.type.code == gdb.TYPE_CODE_REF:
             value = value.referenced_value()
 
-        return self._function(self.name, value)
+        return self._function(self.name, value, **self.kwargs)
 
 
 class CadoNFSPrinter(object):
@@ -37,10 +38,10 @@ class CadoNFSPrinter(object):
         self._lookup = {}
         self.enabled = True
 
-    def add(self, name, function):
+    def add(self, name, function, **kwargs):
         if debug:
             print(f"# registered pretty printer for {name}")
-        self._lookup[name] = CadoNFSSubPrinter(name, function)
+        self._lookup[name] = CadoNFSSubPrinter(name, function, **kwargs)
 
     @staticmethod
     def get_basic_type(type):

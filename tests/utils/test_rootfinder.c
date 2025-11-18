@@ -96,7 +96,10 @@ void test_random_p_and_poly(int d, int max_bits, gmp_randstate_t state)
     for(;;) {
         mpz_urandomb (p, state, max_bits);
         if (mpz_even_p(p)) continue;
-        mpz_poly_set_urandomb(F, d, state, max_bits);
+        mpz_poly_set_randomb(F, d, state, max_bits,
+                MPZ_POLY_URANDOM |
+                MPZ_POLY_DEGREE_EXACT
+                );
         if (F->deg == -1) continue;
         if (mpz_divisible_p(mpz_poly_lc(F), p)) continue;
         break;

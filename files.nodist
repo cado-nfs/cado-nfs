@@ -139,8 +139,6 @@ sieve/strategies/script_mg.sh
 sieve/strategies/script_str.sh
 sieve/strategies/script_str_r.sh
 sieve/strategies/test_strategy_cado.cpp
-sqrt/CMakeLists-nodist.txt
-sqrt/lift.c
 tests/polyselect/CMakeLists-nodist.txt
 tests/utils/build-testcases-rootfinder.m
 utils/CMakeLists-nodist.txt

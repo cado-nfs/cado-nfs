@@ -5,7 +5,7 @@
 
 set -e
 
-: ${WORKDIR:?missing}
+: ${wdir:?missing}
 
 DL=()
 
@@ -51,8 +51,8 @@ done
 : ${LPBS:?missing}
 : ${RELS:?missing}
 
-RENUMBER="${WORKDIR}/renumber.gz"
-WORK_RELS="${WORKDIR}/rels.gz"
+RENUMBER="${wdir}/renumber.gz"
+WORK_RELS="${wdir}/rels.gz"
 
 cp "$RELS" "$WORK_RELS"
 
@@ -106,7 +106,7 @@ EOF
         REFMSG=", as created by Git revision ${REFERENCE_REVISION}"
       fi
       if [ "$CADO_DEBUG" ] ; then
-          REFMSG=". Files remain in ${WORKDIR}"
+          REFMSG=". Files remain in ${wdir}"
       else
           REFMSG=". Set CADO_DEBUG=1 to examine log output"
       fi
@@ -117,7 +117,7 @@ EOF
 fi
 
 if [ "$SAGE" ] ; then
-    gzip -dc "$WORK_RELS" | "${CADO_NFS_BINARY_DIR}/misc/explain_indexed_relation" -renumber  "$RENUMBER" -poly "$POLY" "${DL[@]}" -relations - > "$WORKDIR/check.sage"
-    "$SAGE" "$WORKDIR/check.sage"
+    gzip -dc "$WORK_RELS" | "${CADO_NFS_BINARY_DIR}/misc/explain_indexed_relation" -renumber  "$RENUMBER" -poly "$POLY" "${DL[@]}" -relations - > "$wdir/check.sage"
+    "$SAGE" "$wdir/check.sage"
     pgrep -f sage-cleaner | xargs -r kill
 fi

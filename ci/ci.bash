@@ -212,6 +212,7 @@ step_coverage() {
         gcovr_args+=(-r "$source_tree")
         gcovr_args+=(--json "$outfile")
         gcovr_args+=(--gcov-ignore-parse-errors=suspicious_hits.warn_once_per_file)
+        gcovr_args+=(--exclude-throw-branches)
         (set -x ; cd "$build_tree" ; time gcovr "${gcovr_args[@]}")
     fi
 

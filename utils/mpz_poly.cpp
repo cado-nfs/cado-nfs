@@ -18,6 +18,7 @@
 #include <cstring>
 
 #include <algorithm>
+#include <memory>
 #include <ios>
 #include <istream>
 #include <ostream>
@@ -771,6 +772,7 @@ struct urandomm {
     explicit urandomm(argtype k)
         : k(k)
     {
+        ASSERT_ALWAYS(mpz_sgn(k) > 0);
     }
     void fetch_half(cxx_mpz & h) const { mpz_div_2exp(h, k, 1); }
     void operator()(mpz_ptr x, gmp_randstate_t state) const
@@ -784,6 +786,7 @@ struct urandomm_ui {
     explicit urandomm_ui(argtype k)
         : k(k)
     {
+        ASSERT_ALWAYS(k > 0);
     }
     void fetch_half(cxx_mpz & h) const { h = k / 2; }
     void operator()(mpz_ptr x, gmp_randstate_t state) const
@@ -811,11 +814,15 @@ struct urandomb {
     }
 };
 struct rrandomb {
+    /* note that mpz_rrandomb(..., ..., k) only gives k bits of entropy
+     * (return value between 2^(k-1) and 2^k-1).
+     */
     typedef int argtype;
     argtype k;
     explicit rrandomb(argtype k)
         : k(k)
     {
+        ASSERT_ALWAYS(k > 0);
     }
     void fetch_half(cxx_mpz & h) const
     {
@@ -824,7 +831,11 @@ struct rrandomb {
     }
     void operator()(mpz_ptr x, gmp_randstate_t state) const
     {
-        mpz_rrandomb(x, state, k);
+        /* get 2^k <= x < 2^(k+1) */
+        mpz_rrandomb(x, state, k + 1);
+        /* subtract 2^k, i.e.  clear the k-th bit */
+        mpz_clrbit(x, k);
+        /* we now have 0 <= x < 2^k */
     }
 };
 /* Put random coefficients of k bits in a polynomial
@@ -833,9 +844,15 @@ struct rrandomb {
 template <typename R>
 void mpz_poly_set_random_internal(mpz_poly_ptr f, int d,
                                   gmp_randstate_ptr state, R const & r,
-                                  bool is_signed)
+                                  int flags)
 {
+    /* Note: this code used to implicitly assume exact as being set to
+     * true */
     cxx_mpz u;
+
+    bool const exact = !(flags & mpz_poly_random_flags::MPZ_POLY_DEGREE_UPPER_BOUND);
+    bool const is_signed = flags & mpz_poly_random_flags::MPZ_POLY_SIGNED_COEFFICIENTS;
+    bool const monic = flags & mpz_poly_random_flags::MPZ_POLY_MONIC;
 
     if (is_signed)
         r.fetch_half(u);
@@ -846,53 +863,40 @@ void mpz_poly_set_random_internal(mpz_poly_ptr f, int d,
             r(fi, state);
             if (is_signed)
                 mpz_sub(fi, fi, u);
-        } while (i == d && mpz_cmp_ui(fi, 0) == 0);
+        } while (i == d && exact && mpz_cmp_ui(fi, 0) == 0);
     }
-
     mpz_poly_cleandeg(f, d);
+    if (monic) {
+        if (f->deg == -1) {
+            mpz_poly_set_xi(f, 0);
+        } else {
+            mpz_set_ui(f->_coeff[f->deg], 1);
+        }
+    }
 }
 } // namespace
 
-void mpz_poly_set_signed_rrandomb(mpz_poly_ptr f, int d,
-                                  gmp_randstate_ptr state, int k)
+void mpz_poly_set_randomb(mpz_poly_ptr f, int d,
+                                  gmp_randstate_ptr state, int k, int flags)
 {
-    mpz_poly_set_random_internal(f, d, state, rrandomb(k), true);
+    if (flags & mpz_poly_random_flags::MPZ_POLY_RRANDOM)
+        mpz_poly_set_random_internal(f, d, state, rrandomb(k), flags);
+    else
+        mpz_poly_set_random_internal(f, d, state, urandomb(k), flags);
 }
 
-void mpz_poly_set_rrandomb(mpz_poly_ptr f, int d, gmp_randstate_ptr state,
-                           int k)
+void mpz_poly_set_randomm(mpz_poly_ptr f, int d,
+                          gmp_randstate_ptr state, mpz_srcptr N, int flags)
 {
-    mpz_poly_set_random_internal(f, d, state, rrandomb(k), false);
+    ASSERT_ALWAYS(!(flags & mpz_poly_random_flags::MPZ_POLY_RRANDOM));
+    mpz_poly_set_random_internal(f, d, state, urandomm(N), flags);
 }
 
-void mpz_poly_set_signed_urandomb(mpz_poly_ptr f, int d,
-                                  gmp_randstate_ptr state, int k)
+void mpz_poly_set_randomm_ui(mpz_poly_ptr f, int d, gmp_randstate_ptr state,
+                              unsigned long m, int flags)
 {
-    mpz_poly_set_random_internal(f, d, state, urandomb(k), true);
-}
-
-void mpz_poly_set_urandomb(mpz_poly_ptr f, int d, gmp_randstate_ptr state,
-                           int k)
-{
-    mpz_poly_set_random_internal(f, d, state, urandomb(k), false);
-}
-
-void mpz_poly_set_signed_urandomm(mpz_poly_ptr f, int d,
-                                  gmp_randstate_ptr state, mpz_srcptr N)
-{
-    mpz_poly_set_random_internal(f, d, state, urandomm(N), true);
-}
-
-void mpz_poly_set_urandomm(mpz_poly_ptr f, int d, gmp_randstate_ptr state,
-                           mpz_srcptr N)
-{
-    mpz_poly_set_random_internal(f, d, state, urandomm(N), false);
-}
-
-void mpz_poly_set_urandomm_ui(mpz_poly_ptr f, int d, gmp_randstate_ptr state,
-                              unsigned long m)
-{
-    mpz_poly_set_random_internal(f, d, state, urandomm_ui(m), false);
+    ASSERT_ALWAYS(!(flags & mpz_poly_random_flags::MPZ_POLY_RRANDOM));
+    mpz_poly_set_random_internal(f, d, state, urandomm_ui(m), flags);
 }
 
 /* removed mpz_poly_set_deg, as for all purposes there is no reason to
@@ -944,6 +948,9 @@ void mpz_poly_set_zero(mpz_poly_ptr f)
 void mpz_poly_setcoeff(mpz_poly_ptr f, int i, mpz_srcptr z)
 {
     mpz_poly_realloc(f, i + 1);
+    /* ensure consistency of inserted coefficients */
+    for (int j = f->deg + 1; j < i; j++)
+        mpz_set_ui(f->_coeff[j], 0);
     mpz_set(f->_coeff[i], z);
     if (i >= f->deg)
         mpz_poly_cleandeg(f, i);
@@ -953,6 +960,9 @@ void mpz_poly_setcoeff(mpz_poly_ptr f, int i, mpz_srcptr z)
 void mpz_poly_setcoeff_si(mpz_poly_ptr f, int i, long z)
 {
     mpz_poly_realloc(f, i + 1);
+    /* ensure consistency of inserted coefficients */
+    for (int j = f->deg + 1; j < i; j++)
+        mpz_set_ui(f->_coeff[j], 0);
     mpz_set_si(f->_coeff[i], z);
     if (i >= f->deg)
         mpz_poly_cleandeg(f, i);
@@ -962,6 +972,9 @@ void mpz_poly_setcoeff_si(mpz_poly_ptr f, int i, long z)
 void mpz_poly_setcoeff_ui(mpz_poly_ptr f, int i, unsigned long z)
 {
     mpz_poly_realloc(f, i + 1);
+    /* ensure consistency of inserted coefficients */
+    for (int j = f->deg + 1; j < i; j++)
+        mpz_set_ui(f->_coeff[j], 0);
     mpz_set_ui(f->_coeff[i], z);
     if (i >= f->deg)
         mpz_poly_cleandeg(f, i);
@@ -971,6 +984,9 @@ void mpz_poly_setcoeff_ui(mpz_poly_ptr f, int i, unsigned long z)
 void mpz_poly_setcoeff_int64(mpz_poly_ptr f, int i, int64_t z)
 {
     mpz_poly_realloc(f, i + 1);
+    /* ensure consistency of inserted coefficients */
+    for (int j = f->deg + 1; j < i; j++)
+        mpz_set_ui(f->_coeff[j], 0);
     mpz_set_int64(f->_coeff[i], z);
     if (i >= f->deg)
         mpz_poly_cleandeg(f, i);
@@ -980,6 +996,9 @@ void mpz_poly_setcoeff_int64(mpz_poly_ptr f, int i, int64_t z)
 void mpz_poly_setcoeff_uint64(mpz_poly_ptr f, int i, uint64_t z)
 {
     mpz_poly_realloc(f, i + 1);
+    /* ensure consistency of inserted coefficients */
+    for (int j = f->deg + 1; j < i; j++)
+        mpz_set_ui(f->_coeff[j], 0);
     mpz_set_uint64(f->_coeff[i], z);
     if (i >= f->deg)
         mpz_poly_cleandeg(f, i);
@@ -989,6 +1008,9 @@ void mpz_poly_setcoeff_uint64(mpz_poly_ptr f, int i, uint64_t z)
 void mpz_poly_setcoeff_double(mpz_poly_ptr f, int i, double z)
 {
     mpz_poly_realloc(f, i + 1);
+    /* ensure consistency of inserted coefficients */
+    for (int j = f->deg + 1; j < i; j++)
+        mpz_set_ui(f->_coeff[j], 0);
     mpz_set_d(f->_coeff[i], z);
     if (i >= f->deg)
         mpz_poly_cleandeg(f, i);
@@ -1226,31 +1248,49 @@ void mpz_poly_print_raw(mpz_poly_srcptr f)
 
 /* Tests and comparison functions */
 
-/* return 0 if f and g are equal,
- * -1 if f is "smaller" and 1 if f is "bigger", for some arbitrary
- * ordering (lowest degree first, then lex order).
- *
- * Assumes f and g are normalized */
+/* return 0 if a and b are equal,
+ * -1 if a is "smaller" and 1 if b is "bigger", for some arbitrary
+ * ordering, defined as the limit of the evaluation in x as x tends to
+ * +infinity
+ * Assumes a and b are normalized.
+ */
 int mpz_poly_cmp(mpz_poly_srcptr a, mpz_poly_srcptr b)
 {
-    int r = (a->deg > b->deg) - (b->deg > a->deg);
-    if (r)
-        return r;
-    for (int d = a->deg; d >= 0; d--) {
-        r = mpz_cmp(a->_coeff[d], b->_coeff[d]);
+    for (int i = std::max(a->deg, b->deg); i >= 0; i--) {
+        int r;
+        if (i > b->deg)
+            r = mpz_sgn(a->_coeff[i]);
+        else if (i > a->deg)
+            r = -mpz_sgn(b->_coeff[i]);
+        else
+            r = mpz_cmp(a->_coeff[i], b->_coeff[i]);
         if (r)
             return r;
     }
     return 0;
 }
 
+int mpz_poly_cmp_mpz(mpz_poly_srcptr a, mpz_srcptr b)
+{
+    for (int i = a->deg ; i >= 1; i--) {
+        int const r = mpz_sgn(a->_coeff[i]);
+        if (r)
+            return r;
+    }
+    if (a->deg < 0) {
+        return -mpz_sgn(b);
+    } else {
+        return mpz_cmp(a->_coeff[0], b);
+    }
+}
+
 /* return 1 if f is normalized, i.e. f[deg] != 0, or the null polynomial.  */
 int mpz_poly_normalized_p(mpz_poly_srcptr f)
 {
-    return (f->deg == -1) || mpz_cmp_ui(f->_coeff[f->deg], 0) != 0;
+    return (f->deg == -1) || mpz_sgn(f->_coeff[f->deg]) != 0;
 }
 
-/* return 1 if f is nmonic, i.e. f[deg] == 1, return 0 otherwise (null
+/* return 1 if f is monic, i.e. f[deg] == 1, return 0 otherwise (null
  * polynomial is considered monic).
  */
 int mpz_poly_is_monic(mpz_poly_srcptr f)
@@ -1604,17 +1644,32 @@ void mpz_poly_rotation(mpz_poly_ptr fr, mpz_poly_srcptr f, mpz_poly_srcptr g,
                        mpz_srcptr k, int t)
 {
     mpz_poly_set(fr, f);
+    ASSERT_ALWAYS(t >= 0);
     mpz_poly_realloc(fr, t + g->deg + 1);
+    /* If f is not yet such that t+deg(g) <= deg(f), it is important that
+     * all newly added coefficients are set to zero. realloc does not do
+     * this (well, maybe it's a bug, really) */
+    for (int i = fr->deg + 1; i <= t + g->deg; i++) {
+        mpz_set_ui(fr->_coeff[i], 0);
+    }
     for (int i = 0; i <= g->deg; i++)
         mpz_addmul(fr->_coeff[i + t], g->_coeff[i], k);
     mpz_poly_cleandeg(fr, std::max(fr->deg, t + g->deg));
 }
+
+
 
 void mpz_poly_reverse_rotation(mpz_poly_ptr fr, mpz_poly_srcptr f,
                                mpz_poly_srcptr g, mpz_srcptr k, int t)
 {
     mpz_poly_set(fr, f);
     mpz_poly_realloc(fr, t + g->deg + 1);
+    /* If f is not yet such that t+deg(g) <= deg(f), it is important that
+     * all newly added coefficients are set to zero. realloc does not do
+     * this (well, maybe it's a bug, really) */
+    for (int i = fr->deg + 1; i <= t + g->deg; i++) {
+        mpz_set_ui(fr->_coeff[i], 0);
+    }
     for (int i = 0; i <= g->deg; i++)
         mpz_submul(fr->_coeff[i + t], g->_coeff[i], k);
     mpz_poly_cleandeg(fr, std::max(fr->deg, t + g->deg));
@@ -1625,6 +1680,12 @@ void mpz_poly_rotation_si(mpz_poly_ptr fr, mpz_poly_srcptr f, mpz_poly_srcptr g,
 {
     mpz_poly_set(fr, f);
     mpz_poly_realloc(fr, t + g->deg + 1);
+    /* If f is not yet such that t+deg(g) <= deg(f), it is important that
+     * all newly added coefficients are set to zero. realloc does not do
+     * this (well, maybe it's a bug, really) */
+    for (int i = fr->deg + 1; i <= t + g->deg; i++) {
+        mpz_set_ui(fr->_coeff[i], 0);
+    }
     for (int i = 0; i <= g->deg; i++)
         mpz_addmul_si(fr->_coeff[i + t], g->_coeff[i], k);
     mpz_poly_cleandeg(fr, std::max(fr->deg, t + g->deg));
@@ -1635,6 +1696,12 @@ void mpz_poly_reverse_rotation_si(mpz_poly_ptr fr, mpz_poly_srcptr f,
 {
     mpz_poly_set(fr, f);
     mpz_poly_realloc(fr, t + g->deg + 1);
+    /* If f is not yet such that t+deg(g) <= deg(f), it is important that
+     * all newly added coefficients are set to zero. realloc does not do
+     * this (well, maybe it's a bug, really) */
+    for (int i = fr->deg + 1; i <= t + g->deg; i++) {
+        mpz_set_ui(fr->_coeff[i], 0);
+    }
     for (int i = 0; i <= g->deg; i++)
         mpz_submul_si(fr->_coeff[i + t], g->_coeff[i], k);
     mpz_poly_cleandeg(fr, std::max(fr->deg, t + g->deg));
@@ -1645,6 +1712,12 @@ void mpz_poly_rotation_ui(mpz_poly_ptr fr, mpz_poly_srcptr f, mpz_poly_srcptr g,
 {
     mpz_poly_set(fr, f);
     mpz_poly_realloc(fr, t + g->deg + 1);
+    /* If f is not yet such that t+deg(g) <= deg(f), it is important that
+     * all newly added coefficients are set to zero. realloc does not do
+     * this (well, maybe it's a bug, really) */
+    for (int i = fr->deg + 1; i <= t + g->deg; i++) {
+        mpz_set_ui(fr->_coeff[i], 0);
+    }
     for (int i = 0; i <= g->deg; i++)
         mpz_addmul_ui(fr->_coeff[i + t], g->_coeff[i], k);
     mpz_poly_cleandeg(fr, std::max(fr->deg, t + g->deg));
@@ -1655,6 +1728,12 @@ void mpz_poly_reverse_rotation_ui(mpz_poly_ptr fr, mpz_poly_srcptr f,
 {
     mpz_poly_set(fr, f);
     mpz_poly_realloc(fr, t + g->deg + 1);
+    /* If f is not yet such that t+deg(g) <= deg(f), it is important that
+     * all newly added coefficients are set to zero. realloc does not do
+     * this (well, maybe it's a bug, really) */
+    for (int i = fr->deg + 1; i <= t + g->deg; i++) {
+        mpz_set_ui(fr->_coeff[i], 0);
+    }
     for (int i = 0; i <= g->deg; i++)
         mpz_submul_ui(fr->_coeff[i + t], g->_coeff[i], k);
     mpz_poly_cleandeg(fr, std::max(fr->deg, t + g->deg));
@@ -1666,6 +1745,12 @@ void mpz_poly_rotation_int64(mpz_poly_ptr fr, mpz_poly_srcptr f,
 {
     mpz_poly_set(fr, f);
     mpz_poly_realloc(fr, t + g->deg + 1);
+    /* If f is not yet such that t+deg(g) <= deg(f), it is important that
+     * all newly added coefficients are set to zero. realloc does not do
+     * this (well, maybe it's a bug, really) */
+    for (int i = fr->deg + 1; i <= t + g->deg; i++) {
+        mpz_set_ui(fr->_coeff[i], 0);
+    }
     for (int i = 0; i <= g->deg; i++)
         mpz_addmul_int64(fr->_coeff[i + t], g->_coeff[i], k);
     mpz_poly_cleandeg(fr, std::max(fr->deg, t + g->deg));
@@ -1675,6 +1760,8 @@ void mpz_poly_rotation_int64(mpz_poly_ptr fr, mpz_poly_srcptr f,
 void mpz_poly_addmul_si(mpz_poly_ptr f, mpz_poly_srcptr g, long k)
 {
     mpz_poly_realloc(f, g->deg + 1);
+    for (int i = f->deg + 1; i <= g->deg; i++)
+        mpz_set_ui(f->_coeff[i], 0);
     for (int i = 0; i <= g->deg; i++)
         mpz_addmul_si(f->_coeff[i], g->_coeff[i], k);
     mpz_poly_cleandeg(f, std::max(f->deg, g->deg));
@@ -1768,7 +1855,7 @@ int mpz_poly_div_r_mod_mpz_clobber(mpz_poly_ptr h, mpz_poly_srcptr f,
    computes q, r such that f = q*g + r mod p, with deg(r) < deg(g)
    and p in mpz_t
    q and r must be allocated!
-   the only aliasing allowed is f==r.
+   f == r or f == q are allowed.
 */
 int mpz_poly_div_qr_mod_mpz(mpz_poly_ptr q, mpz_poly_ptr r, mpz_poly_srcptr f,
                             mpz_poly_srcptr g, mpz_srcptr p)
@@ -1778,8 +1865,8 @@ int mpz_poly_div_qr_mod_mpz(mpz_poly_ptr q, mpz_poly_ptr r, mpz_poly_srcptr f,
 
     if (df < dg) /* f is already reduced mod g */
     {
-        mpz_poly_set_zero(q);
-        mpz_poly_set(r, f);
+        mpz_poly_set (r, f);
+        mpz_poly_set_zero (q);
         return 1;
     }
 
@@ -2300,34 +2387,49 @@ int mpz_poly_parallel_interface<inf>::mpz_poly_mod_f_mod_mpz(
     mpz_poly_ptr R, mpz_poly_srcptr f, mpz_srcptr m, mpz_srcptr invf,
     mpz_srcptr invm) const
 {
-    mpz_t aux, c;
+    cxx_mpz c;
+    std::unique_ptr<cxx_mpz> aux;
+    mpz_srcptr invf_local = nullptr;
     size_t size_f, size_R;
 
-    if (f == nullptr)
+    if (f == nullptr) {
+        /* This is really an obscure feature. We should get rid of it.
+         * It's used, though.
+         */
         goto reduce_R;
+    }
 
-    if (invf == nullptr) {
-        mpz_init(aux);
-        /* aux = 1/m mod lc(f) */
-        mpz_invert(aux, m, f->_coeff[f->deg]);
+    /* The invf parameter is ignored if f is monic */
+    if (!mpz_poly_is_monic(f)) {
+        if (invf) {
+            invf_local = invf;
+        } else {
+            aux = std::make_unique<cxx_mpz>();
+            /* aux = 1/m mod lc(f) */
+            mpz_invert(*aux, m, f->_coeff[f->deg]);
+            invf_local = *aux;
+        }
     }
 
     size_f = mpz_poly_size(f);
     size_R = mpz_poly_size(R);
 
-    mpz_init(c);
     // FIXME: write a subquadratic variant
     while (R->deg >= f->deg) {
         /* Here m is large (thousand to million bits) and lc(f) is small
-         * (typically one word). We first subtract lambda * m * x^(dR-df) ---
-         * which is zero mod m --- to R such that the new coefficient of degree
-         * dR is divisible by lc(f), i.e., lambda = lc(R)/m mod lc(f). Then if
-         * c = (lc(R) - lambda * m) / lc(f), we subtract c * x^(dR-df) * f. */
-        mpz_mod(c, R->_coeff[R->deg], f->_coeff[f->deg]); /* lc(R) mod lc(f) */
-        mpz_mul(c, c, (invf == nullptr) ? aux : invf);
-        mpz_mod(c, c, f->_coeff[f->deg]); /* lc(R)/m mod lc(f) */
-        mpz_submul(R->_coeff[R->deg], m,
-                   c); /* lc(R) - m * (lc(R) / m mod lc(f)) */
+         * (typically one word). We first subtract lambda * m * x^(dR-df)
+         * ---which is zero mod m--- to R such that the new coefficient
+         * of degree dR is divisible by lc(f), i.e., lambda = lc(R)/m
+         * mod lc(f). Then if c = (lc(R) - lambda * m) / lc(f), we
+         * subtract c * x^(dR-df) * f.
+         * Of course, if f is monic, we don't have to do that.
+         */
+        if (invf_local) {
+            mpz_mod(c, R->_coeff[R->deg], f->_coeff[f->deg]); /* lc(R) mod lc(f) */
+            mpz_mul(c, c, invf_local);
+            mpz_mod(c, c, f->_coeff[f->deg]); /* lc(R)/m mod lc(f) */
+            mpz_submul(R->_coeff[R->deg], m, c); /* lc(R) - m * (lc(R) / m mod lc(f)) */
+        }
         ASSERT(mpz_divisible_p(R->_coeff[R->deg], f->_coeff[f->deg]));
         mpz_divexact(c, R->_coeff[R->deg], f->_coeff[f->deg]);
         /* If R[deg] has initially size 2n, and f[deg] = O(1), then c has size
@@ -2348,10 +2450,6 @@ int mpz_poly_parallel_interface<inf>::mpz_poly_mod_f_mod_mpz(
         R->deg--;
     }
 
-    mpz_clear(c);
-    if (invf == nullptr)
-        mpz_clear(aux);
-
 reduce_R:
     mpz_poly_mod_mpz(R, R, m, invm);
 
@@ -2361,6 +2459,9 @@ reduce_R:
 /* Stores in g the polynomial linked to f by:
  *  - alpha is a root of f if and only if lc(f)*alpha is a root of g
  *  - g is monic
+ *
+ * This has nothing to do with makemonic_mpz! The operation here
+ * works in Z[x]
  */
 void mpz_poly_to_monic(mpz_poly_ptr g, mpz_poly_srcptr f)
 {
@@ -2539,15 +2640,21 @@ void mpz_poly_parallel_interface<inf>::mpz_poly_sqr_mod_f_mod_mpz(
     mpz_poly_clear(R);
 }
 
-/* Affects the derivative of f to df. Assumes df different from f.
-   Assumes df has been initialized with degree at least f->deg-1. */
+/* Affects the derivative of f to df. */
 void mpz_poly_derivative(mpz_poly_ptr df, mpz_poly_srcptr f)
 {
-    int n;
+    if (f->deg <= 0) {
+        df->deg = -1;
+        return;
+    }
 
-    df->deg = (f->deg <= 0) ? -1 : f->deg - 1;
-    for (n = 0; n <= f->deg - 1; n++)
+    /* This is a no-op if df == f, since f->deg < f->deg + 1 */
+    mpz_poly_realloc(df, f->deg - 1 + 1);
+
+    for (int n = 0; n <= f->deg - 1; n++)
         mpz_mul_si(df->_coeff[n], f->_coeff[n + 1], n + 1);
+
+    df->deg = f->deg - 1;
 }
 
 /* B = A^n */
@@ -2619,8 +2726,9 @@ void mpz_poly_pow_ui_mod_f(mpz_poly_ptr B, mpz_poly_srcptr A, unsigned long n,
     mpz_poly_clear(Q);
 } /*}}}*/
 
-/* Q = P^a mod f, mod p (f is the algebraic polynomial, non monic) */
-/* Coefficients of f must be reduced mod m on input
+/* Q = P^a mod f, mod p (f is the algebraic polynomial, non monic)
+ * f may be NULL, in case there is only reduction mod p.
+ * Coefficients of f must be reduced mod m on input
  * Coefficients of P need not be reduced mod p.
  * Coefficients of Q are reduced mod p.
  */
@@ -2641,6 +2749,7 @@ void mpz_poly_parallel_interface<inf>::mpz_poly_pow_mod_f_mod_ui(
 }
 
 /* Coefficients of f must be reduced mod m on input
+ * f may be NULL, in case there is only reduction mod p.
  * Coefficients of P need not be reduced mod p.
  * Coefficients of Q are reduced mod p.
  */
@@ -2661,9 +2770,9 @@ void mpz_poly_parallel_interface<inf>::mpz_poly_pow_ui_mod_f_mod_mpz(
     mpz_clear(az);
 }
 
-/* Q = P^a mod f, mod p. Note, p is mpz_t */
-/* f may be NULL, in case there is only reduction mod p */
-/* Coefficients of f must be reduced mod p on input
+/* Q = P^a mod f, mod p. Note, p is mpz_t
+ * f may be NULL, in case there is only reduction mod p.
+ * Coefficients of f must be reduced mod p on input
  * Coefficients of P need not be reduced mod p.
  * Coefficients of Q are reduced mod p
  */
@@ -3270,7 +3379,7 @@ void mpz_poly_pseudo_remainder(mpz_poly_ptr r, mpz_poly_srcptr a,
 }
 
 /*
- * Compute the resultant of p and q and set the resultat in res.
+ * Compute the resultant of p and q and put the result in res.
  *  See Henri Cohen, "A Course in Computational Algebraic Number Theory",
  *  for more information.
  *
@@ -4525,6 +4634,13 @@ std::string cxx_mpz_poly::print_poly(std::string const & var) const
     return os.str();
 }
 
+/* this proxy is used for pretty printing in gdb */
+std::string cxx_mpz_poly::print_poly() const
+{
+    return print_poly("x");
+}
+
+
 /* functions for Joux--Lercier and Generalized Joux--Lercier */
 /**
  * \brief set the (mpz_t) coefficients of f from ::counter
@@ -4913,7 +5029,7 @@ struct mpz_poly_parser_traits {
     {
         mpz_poly_mul(c, a, b);
     }
-    static void pow_ui(cxx_mpz_poly & c, cxx_mpz_poly const & a,
+    static void pow(cxx_mpz_poly & c, cxx_mpz_poly const & a,
                        unsigned long e)
     {
         mpz_poly_pow_ui(c, a, e);
@@ -4937,7 +5053,7 @@ struct mpz_poly_parser_traits {
 };
 
 std::istream & operator>>(std::istream & in,
-                          cxx_mpz_poly::named_proxy<cxx_mpz_poly &> const & F)
+                          cado::named_proxy<cxx_mpz_poly &> const & F)
 {
     std::string line;
     for (;; in.get()) {
@@ -4950,7 +5066,7 @@ std::istream & operator>>(std::istream & in,
     std::istringstream is(line);
 
     typedef cado_expression_parser<mpz_poly_parser_traits> poly_parser;
-    poly_parser P(F.x);
+    poly_parser P(F.x());
     P.tokenize(is);
 
     try {
@@ -4965,9 +5081,9 @@ std::istream & operator>>(std::istream & in,
 
 std::ostream &
 operator<<(std::ostream & o,
-           cxx_mpz_poly::named_proxy<cxx_mpz_poly const &> const & F)
+           cado::named_proxy<cxx_mpz_poly const &> const & F)
 {
-    return o << F.c.print_poly(std::string(F.x));
+    return o << F.c.print_poly(std::string(F.x()));
 }
 
 std::ostream & operator<<(std::ostream & os, mpz_poly_coeff_list const & P)

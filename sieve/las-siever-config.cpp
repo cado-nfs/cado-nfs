@@ -20,16 +20,12 @@
 #include "las-multiobj-globals.hpp"
 #include "las-siever-config.hpp"
 #include "las-side-config.hpp"
-#include "special-q.hpp"
 #include "las-special-q-task.hpp"
 #include "las-special-q-task-tree.hpp"
 #include "macros.h"
 #include "params.h"
 #include "verbose.h"
 #include "utils_cxx.hpp"
-
-constexpr int siever_config_pool::max_increase_lpb_default;     // c++11
-constexpr int siever_config_pool::max_increase_logA_default;    // c++11
 
 /* siever_config stuff */
 

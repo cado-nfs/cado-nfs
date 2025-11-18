@@ -53,12 +53,21 @@ cado_define_test(test_ropt_adv
     SHA1_ON_REGEXP_LINES "^[^#]"
     )
 
-set(ropt_sha1_c80 68c14f886966071c2b79983f94f34cfd218d123b)
-set(ropt_sha1_c75 8d08dd3fd67e358e291c0aeb7cc5935682b91758)
-# 38deff1c0c2d303cc87960e4f98d0fbb3a58ef24 is on freebsd. See #30098
-set(ropt_sha1_c70 3164916d4b4bc5512e9ae283d6bb604fe6ad3930,38deff1c0c2d303cc87960e4f98d0fbb3a58ef24)
-set(ropt_sha1_c65 5c7adf825238c1a75fcb33567b2460e2e3b11486)
-set(ropt_sha1_c60 d945f8b4b1f51b07d5efdbcc8f32d74d185f7f76)
+# set(ropt_sha1_c80 68c14f886966071c2b79983f94f34cfd218d123b)
+# set(ropt_sha1_c75 8d08dd3fd67e358e291c0aeb7cc5935682b91758)
+# # 38deff1c0c2d303cc87960e4f98d0fbb3a58ef24 is on freebsd. See #30098
+# set(ropt_sha1_c70 3164916d4b4bc5512e9ae283d6bb604fe6ad3930,38deff1c0c2d303cc87960e4f98d0fbb3a58ef24)
+# set(ropt_sha1_c65 5c7adf825238c1a75fcb33567b2460e2e3b11486)
+# set(ropt_sha1_c60 d945f8b4b1f51b07d5efdbcc8f32d74d185f7f76)
+
+# Higher precision skewness computation has changed data a bit.
+set(ropt_sha1_c80 abd946d0837e008ca1775f3dc9bebe02b6d9087e)
+set(ropt_sha1_c75 0580622f2b8e6ca129ef63d6f5aacb045586ab47)
+set(ropt_sha1_c70 c59e7eeb346c88b1374df40a89f8a10e54a7a32a,d335f74d729e599c30d73b81de0a738d89101656)
+set(ropt_sha1_c65 ad7ba67781efa987b32e2d9fb891e64dbdeb1a5e)
+set(ropt_sha1_c60 847a5d86728e33f191ac7e58fa84fc278ef570d6)
+
+
 foreach(example c60 c65 c70 c75 c80)
     cado_divert_test(test_ropt_adv ${example}
         APPEND_ARGUMENTS
@@ -73,7 +82,8 @@ cado_divert_test(test_ropt_adv c80msieve
     -d 4
     -n 12022203778835263712651529862414424087010841660557141141978630366614660861225497
     -v -v -amin -16 -amax 16 -e 2 2 1 -bmax 10 -cmax 10000
-    EXPECT_SHA1 cf2da7482ab71b79b298204a66fcccdb4593c633
+    # EXPECT_SHA1 cf2da7482ab71b79b298204a66fcccdb4593c633
+    EXPECT_SHA1 a22b68bd09a10122ea57d996650598e24f5a2501
 )
 
 # This should take only a few seconds. Under certain circumstances, it
@@ -83,7 +93,8 @@ cado_divert_test(test_ropt_adv deg6
     -f ${CADO_NFS_SOURCE_DIR}/parameters/polynomials/rsa768.poly
     -v -v -d 6   -amin -4 -amax 4 -e 1 1 -bmax 6 -cmax 12
     TIMEOUT 240
-    EXPECT_SHA1 d451c895d0fbc5cf1a58253235d05151f15c159b
+    # EXPECT_SHA1 d451c895d0fbc5cf1a58253235d05151f15c159b
+    EXPECT_SHA1 8f8e34ff85a9369b52bdc961514bfa9da52a6209
     ${AVOID_CONCURRENT_UNDER_COVERAGE}
     )
 
@@ -106,9 +117,11 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
         -v -v
         -amin -16 -amax 16 -bmax 10 -cmax 10000
         -e 3 5 2 1
-        EXPECT_SHA1 e592a8f38c898163fe0e5995580df6dc2694fcd3
+        # EXPECT_SHA1 e592a8f38c898163fe0e5995580df6dc2694fcd3
+        EXPECT_SHA1 59f634b37e478cf4e57780728c746ef6333ac483
         # this one is for rsa768.poly (degree 6)
         # EXPECT_SHA1 d451c895d0fbc5cf1a58253235d05151f15c159b
+
         TIMEOUT 360
     )
 
@@ -121,7 +134,8 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
         -inputpolys ${CADO_NFS_SOURCE_DIR}/tests/polyselect/ropt.rsa250.txt
         -Bf 2.100e+09 -Bg 1.800e+09 -area 2.400e+19
         -ropteffort 0.05
-        EXPECT_SHA1 fa313790a88f19182f4c4f7d1dc7739d05adda34
+        # EXPECT_SHA1 fa313790a88f19182f4c4f7d1dc7739d05adda34
+        EXPECT_SHA1 8264a5eb5f2788d68ab87bcdde84c32e306edb44
         SHA1_ON_REGEXP_LINES "^[^#]"
         TARGET_DEPENDENCIES polyselect_ropt
         TIMEOUT 360
@@ -169,12 +183,18 @@ cado_define_test(test_sopt PROGRAM
 cado_divert_test(test_sopt 1
     APPEND_ARGUMENTS
     -inputpolys ${CMAKE_CURRENT_SOURCE_DIR}/sopt.input1.txt
-    EXPECT_SHA1 465209edaa2c8bbad4e7254a7d6fcf2f121a71b8
+    # EXPECT_SHA1 465209edaa2c8bbad4e7254a7d6fcf2f121a71b8
+    # the sha1 above is when skewness is limited to 10 bits of precision.
+    # There is little point in placing this restriction now, so we get
+    # this instead.
+    EXPECT_SHA1 f30ec6c6f2d6d2c90a6e8e96d5b822ae5821fab5
 )
 cado_divert_test(test_sopt 2
     APPEND_ARGUMENTS
     -inputpolys ${CMAKE_CURRENT_SOURCE_DIR}/sopt.input2.txt
-    EXPECT_SHA1 a3aadd110944689565adb70ae7456b69d8d97dbc
+    # EXPECT_SHA1 a3aadd110944689565adb70ae7456b69d8d97dbc
+    # same as above
+    EXPECT_SHA1 83a512c121fec35711d03a91901e04f1aeee21b6
 )
 
 
@@ -190,5 +210,5 @@ cado_define_test(polyselect_add_skewness
     PROGRAM
         ${CADO_NFS_BINARY_DIR}/polyselect/skewness
         ${CADO_NFS_SOURCE_DIR}/tests/misc/c60.poly
-    EXPECT_SHA1 0694420c819d125950c304e205c0593cefa889db
+    EXPECT_SHA1 70639bbafd1b6d4ac3bbcb4a47f621fa446c267f
     TARGET_DEPENDENCIES skewness)

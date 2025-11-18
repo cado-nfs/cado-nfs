@@ -109,6 +109,7 @@ enable_testing()
 # dependencies (las for the sieve test, etc.) as well. We also add the
 # "verbose" command line option here to get more meaningful output
 
+if(CMAKE_GENERATOR STREQUAL "Unix Makefiles")
 # Note the $(ARGS) here. It is expanded by make, not by cmake, so that
 # the arguments which are present on the "make check" command line are
 # obeyed. This has the consequence that in order to pass a $, you need to
@@ -118,6 +119,7 @@ add_custom_target(check
     COMMAND ${CMAKE_CTEST_COMMAND} -V $(ARGS)
     # JOB_SERVER_AWARE true
 )
+endif()
 
 if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
 	# sigh...
@@ -155,7 +157,7 @@ if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
     # prevents the definition of __STRICT_ANSI__
     #
     # Ditto for C++, with the c++98/gnu++98 subtlety.
-    set (CMAKE_C_FLAGS "-W -Wall ${CMAKE_C_FLAGS}")
+    set (CMAKE_C_FLAGS "-Wall -Wextra ${CMAKE_C_FLAGS}")
     if (MINGW)
         set (CMAKE_C_FLAGS "-std=gnu99 ${CMAKE_C_FLAGS}")
     else()
@@ -188,7 +190,7 @@ message(STATUS "CFLAGS=${CMAKE_C_FLAGS} (synthetized)")
 set (CMAKE_CXX_FLAGS    "${CMAKE_CXX_FLAGS} ${CMAKE_FLAGS_SIZE}")
 message(STATUS "C++ compiler: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    set (CMAKE_CXX_FLAGS "-W -Wall ${CMAKE_CXX_FLAGS}")
+    set (CMAKE_CXX_FLAGS "-Wall -Wextra ${CMAKE_CXX_FLAGS}")
     if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10.0)
         # according to https://gcc.gnu.org/projects/cxx-status.html
         # most of the support is in g++-10. Some important things that we
@@ -248,7 +250,6 @@ else()
     message(WARNING "C++ compiler not recognized. Setting -std=c++20 as a wild guess")
     set (CMAKE_CXX_FLAGS   "-std=c++20 ${CMAKE_CXX_FLAGS}")
 endif()
-
 message(STATUS "CXXFLAGS=${CMAKE_CXX_FLAGS} (synthetized)")
 
 
@@ -362,6 +363,11 @@ include("${CADO_NFS_SOURCE_DIR}/config/linux.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/hwloc.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/fmt.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/gf2x.cmake")
+include("${CADO_NFS_SOURCE_DIR}/config/gmpecm.cmake")
+include("${CADO_NFS_SOURCE_DIR}/config/mpfr.cmake")
+if(HAVE_MPFR)
+include("${CADO_NFS_SOURCE_DIR}/config/mpc.cmake")
+endif()
 IF (NOT DEFINED ENV{NO_PYTHON_CHECK})
   include("${CADO_NFS_SOURCE_DIR}/config/python.cmake")
 endif()
@@ -381,6 +387,12 @@ include("${CADO_NFS_SOURCE_DIR}/config/bswap32.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/compression.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/gdb.cmake")
 
+if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+    set (CMAKE_C_FLAGS "-Werror=all -Werror=extra ${CMAKE_C_FLAGS}")
+endif()
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set (CMAKE_CXX_FLAGS "-Werror=extra -Werror=all ${CMAKE_CXX_FLAGS}")
+endif()
 
 set(CADO_SHARED)
 
@@ -499,6 +511,8 @@ if (NOT "$ENV{IWYU}" MATCHES "^(0|NO|no|OFF|off|)$")
     endif()
 endif()
 
+message(STATUS "CFLAGS=${CMAKE_C_FLAGS} (synthetized, after feature checks)")
+message(STATUS "CXXFLAGS=${CMAKE_CXX_FLAGS} (synthetized, after feature checks)")
 
 #####################################################################
 # now the real stuff.
@@ -530,7 +544,7 @@ add_custom_command(OUTPUT ${CADO_NFS_BINARY_DIR}/gf2x/Makefile
 add_custom_target(gf2x-build ALL
     DEPENDS ${CADO_NFS_BINARY_DIR}/gf2x/Makefile
     WORKING_DIRECTORY gf2x
-    COMMAND "${CMAKE_MAKE_PROGRAM}"
+    COMMAND ${CMAKE_MAKE_PROGRAM}
     COMMENT "Building gf2x"
 )
 

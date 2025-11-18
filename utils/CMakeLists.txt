@@ -24,17 +24,17 @@ set (sources
         gzip.cpp misc.c misc2.cpp utils_cxx.cpp
         mpz_mat.cpp mpz_poly.cpp crc.c purgedfile.c bit_vector.c
         barrier.c usp.c fix-endianness.c memusage.cpp
-        cachesize_cpuid.c cachesize_guess.c roots_mod.c
+        cachesize_cpuid.c cachesize_guess.cpp roots_mod.c
         renumber.cpp
         renumber_proxy.cpp
         ringbuf.c sm_utils.cpp galois_action.cpp memalloc.cpp
         special-q.cpp
 	mpz_vector.c memory.c stats.c lll.c
         verbose.c 
-        polyroots.c 
         tdict.cpp
         version_info.c
 	modified_files.c threadpool.cpp mpz_poly_bivariate.cpp
+        arithmetic_reductions.cpp
         gmpxx.cpp
         rho.c gpf.cpp
         sha1.c
@@ -54,21 +54,26 @@ set (sources
         indexed_relation.cpp
         cado-sighandlers.cpp
         mmap_allocator.cpp
+        number_literal.cpp
+        number_context.cpp
         random_distributions.cpp
         imaginary_quadratic_class_groups.cpp
         ${fmt_sources}
 )
-
 if (NOT MINGW)
-    set (sources ${sources} cado_popen.c)
+    list(APPEND sources cado_popen.c)
 endif()
 if(HAVE_HWLOC)
-    set (sources ${sources} hwloc-aux.c)
+    list(APPEND sources hwloc-aux.c)
+endif()
+if(HAVE_MPFR)
+    list(APPEND sources cxx_mpfr.cpp)
+endif()
+if(HAVE_MPC)
+    list(APPEND sources cxx_mpc.cpp)
 endif()
 
-set (sources_io
-        filter_io.cpp
-)
+set (sources_io filter_io.cpp)
 
 ############################################################
 # Get a list of modified files in the working directory,
@@ -100,6 +105,12 @@ target_link_libraries(utils hwloc)
 endif()
 if(HAVE_FMT)
 target_link_libraries(utils fmt)
+endif()
+if(HAVE_MPC)
+target_link_libraries(utils mpc)
+endif()
+if(HAVE_MPFR)
+target_link_libraries(utils mpfr)
 endif()
 
 add_library (utils_with_io ${CADO_SHARED} ${sources_io})

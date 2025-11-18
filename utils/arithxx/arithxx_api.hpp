@@ -7,11 +7,10 @@
 #include <array>
 #include <memory>
 #include <new>
-#include <type_traits>
 
 #include <utility>
 
-#include "is_non_narrowing_conversion.hpp"
+#include "utils_cxx.hpp"
 #include "arithxx_residue_std_op.hpp"
 #include "macros.h"
 #include "misc.h"
@@ -85,7 +84,7 @@ namespace arithxx_details {
             }
             template <typename T>
                 Residue operator()(T const a) const
-                requires(std::is_integral_v<T> && !std::is_signed_v<T> && cado_math_aux::is_non_narrowing_conversion_v<T, uint64_t>)
+                requires cado::converts_via<T, uint64_t>
                 {
                     Residue r(downcast());
                     downcast().set(r, uint64_t(a));
@@ -93,7 +92,7 @@ namespace arithxx_details {
                 }
             template <typename T>
                 Residue operator()(T const a) const
-                requires(std::is_integral_v<T> && std::is_signed_v<T> && cado_math_aux::is_non_narrowing_conversion_v<T, int64_t>)
+                requires cado::converts_via<T, int64_t>
                 {
                     Residue r(downcast());
                     downcast().set(r, int64_t(a));

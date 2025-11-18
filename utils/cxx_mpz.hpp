@@ -8,14 +8,15 @@
 #include <ostream>
 #include <type_traits>
 #include <memory>
+#include <compare>
 
 #include <gmp.h>
 #include "fmt/ostream.h"
 #include "fmt/base.h"
 
-#include "is_non_narrowing_conversion.hpp"
 #include "gmp_aux.h"
 #include "gmp_auxx.hpp"
+#include "utils_cxx.hpp"
 #include "macros.h"
 
 struct cxx_mpz {
@@ -23,23 +24,23 @@ public:
     typedef mp_limb_t WordType;
     mpz_t x;
     // NOLINTBEGIN(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
-    cxx_mpz() { mpz_init(x); }
-
-    template<typename T, typename U>
-    static constexpr bool converts_via =
-        integral_fits_v<T, U> &&
-        cado_math_aux::is_non_narrowing_conversion_v<T, U>;
+    
+    /* we set to zero because both default-initialization and
+     * value-initialization reach here. It makes better sense to take 0
+     * for the value-initialized case.
+     */
+    cxx_mpz() { mpz_init_set_ui(x, 0); }
 
     template <typename T>
         // NOLINTNEXTLINE(hicpp-explicit-conversions)
         cxx_mpz (const T & rhs)
-        requires converts_via<T, int64_t>
+        requires cado::converts_via<T, int64_t>
         {
             gmp_auxx::mpz_init_set(x, int64_t(rhs));
         }
     template <typename T>
         cxx_mpz & operator=(const T a)
-        requires converts_via<T, int64_t>
+        requires cado::converts_via<T, int64_t>
         {
             gmp_auxx::mpz_set(x, int64_t(a));
             return *this;
@@ -47,13 +48,13 @@ public:
     template <typename T>
         // NOLINTNEXTLINE(hicpp-explicit-conversions)
         cxx_mpz (const T & rhs)
-        requires converts_via<T, uint64_t>
+        requires cado::converts_via<T, uint64_t>
         {
             gmp_auxx::mpz_init_set(x, uint64_t(rhs));
         }
     template <typename T>
         cxx_mpz & operator=(const T a)
-        requires converts_via<T, uint64_t>
+        requires cado::converts_via<T, uint64_t>
         {
             gmp_auxx::mpz_set(x, uint64_t(a));
             return *this;
@@ -177,7 +178,7 @@ struct cxx_mpq{
     mpq_t x;
     cxx_mpq() {mpq_init(x);}
     ~cxx_mpq() {mpq_clear(x);}
-    cxx_mpq(unsigned long a, unsigned long b = 1) { mpq_init(x); mpq_set_ui(x, a,b); }
+
     cxx_mpq(cxx_mpq const & o) {
         mpq_init(x);
         mpq_set(x, o.x);
@@ -194,43 +195,39 @@ struct cxx_mpq{
         mpq_swap(x, o.x);
         return *this;
     }
-    template<typename T, typename U>
-    static constexpr bool converts_via =
-        integral_fits_v<T, U> &&
-        cado_math_aux::is_non_narrowing_conversion_v<T, U>;
+
+    template<typename T>
+    cxx_mpq(T a, unsigned long b = 1)
+        requires cado::converts_via<T, uint64_t>
+    {
+        mpq_init(x);
+        mpz_set_uint64(mpq_numref(x), a);
+        mpz_set_ui(mpq_denref(x), b);
+        mpq_canonicalize(x);
+    }
 
     template <typename T>
-        // NOLINTNEXTLINE(hicpp-explicit-conversions)
-        cxx_mpq (const T & rhs)
-        requires converts_via<T, int64_t>
-        {
-            mpq_init(x);
-            gmp_auxx::mpz_init_set(mpq_numref(x), int64_t(rhs));
-            mpz_set_ui(mpq_denref(x), 1);
-            mpq_canonicalize(x);
-        }
-    template <typename T>
         cxx_mpq & operator=(const T a)
-        requires converts_via<T, int64_t>
+        requires cado::converts_via<T, int64_t>
         {
             gmp_auxx::mpz_set(mpq_numref(x), int64_t(a));
             mpz_set_ui(mpq_denref(x), 1);
             mpq_canonicalize(x);
             return *this;
         }
-    template <typename T>
-        // NOLINTNEXTLINE(hicpp-explicit-conversions)
-        cxx_mpq (const T & rhs)
-        requires converts_via<T, uint64_t>
-        {
-            mpq_init(x);
-            gmp_auxx::mpz_set(mpq_numref(x), uint64_t(rhs));
-            mpz_set_ui(mpq_denref(x), 1);
-            mpq_canonicalize(x);
-        }
+
+    template<typename T>
+    cxx_mpq(T a, unsigned long b = 1)
+        requires cado::converts_via<T, int64_t>
+    {
+        mpq_init(x);
+        mpz_set_int64(mpq_numref(x), a);
+        mpz_set_ui(mpq_denref(x), b);
+        mpq_canonicalize(x);
+    }
     template <typename T>
         cxx_mpq & operator=(const T a)
-        requires converts_via<T, uint64_t>
+        requires cado::converts_via<T, uint64_t>
         {
             gmp_auxx::mpz_set(mpq_numref(x), uint64_t(a));
             mpz_set_ui(mpq_denref(x), 1);
@@ -252,21 +249,32 @@ extern void mpq_init(cxx_mpq & pl) __attribute__((error("mpq_init must not be ca
 extern void mpq_clear(cxx_mpq & pl) __attribute__((error("mpq_clear must not be called on a mpq reference -- it is the caller's business (via a dtor)")));
 #endif
 
-#define CXX_MPZ_DEFINE_CMP(OP) \
-inline bool operator OP(cxx_mpz const & a, cxx_mpz const & b) { return mpz_cmp(a, b) OP 0; } \
-inline bool operator OP(mpz_srcptr a, cxx_mpz const & b) { return mpz_cmp(a, b) OP 0; } \
-inline bool operator OP(cxx_mpz const & a, mpz_srcptr b) { return mpz_cmp(a, b) OP 0; } \
-template <typename T> inline bool operator OP(cxx_mpz const & a, const T b) requires std::is_integral_v<T> { return gmp_auxx::mpz_cmp(a, b) OP 0; } \
-template <typename T> inline bool operator OP(const T a, cxx_mpz const & b) requires std::is_integral_v<T> { return 0 OP gmp_auxx::mpz_cmp(b, a); }
+inline std::strong_ordering operator<=>(cxx_mpz const & a, mpz_srcptr b) {
+    return gmp_auxx::mpz_cmp(a, b) <=> 0;
+}
+static inline bool operator==(cxx_mpz const & a, mpz_srcptr b) {
+    return gmp_auxx::mpz_cmp(a, b) == 0;
+}
 
-CXX_MPZ_DEFINE_CMP(==)
-CXX_MPZ_DEFINE_CMP(!=)
-CXX_MPZ_DEFINE_CMP(<)
-CXX_MPZ_DEFINE_CMP(>)
-CXX_MPZ_DEFINE_CMP(<=)
-CXX_MPZ_DEFINE_CMP(>=)
+inline std::strong_ordering operator<=>(cxx_mpz const & a, cxx_mpz const & b) {
+    return gmp_auxx::mpz_cmp(a, b) <=> 0;
+}
+static inline bool operator==(cxx_mpz const & a, cxx_mpz const & b) {
+    return gmp_auxx::mpz_cmp(a, b) == 0;
+}
 
-inline bool operator<=>(cxx_mpz const & a, cxx_mpz const & b) { return gmp_auxx::mpz_cmp(a, b); }
+template <typename T>
+inline std::strong_ordering operator<=>(cxx_mpz const & a, T const & b)
+    requires std::is_integral_v<T>
+{
+    return gmp_auxx::mpz_cmp(a, b) <=> 0;
+}
+template <typename T>
+static inline bool operator==(cxx_mpz const & a, T const & b)
+    requires std::is_integral_v<T>
+{
+    return gmp_auxx::mpz_cmp(a, b) == 0;
+}
 
 inline cxx_mpz operator+(cxx_mpz const & a, cxx_mpz const & b) { cxx_mpz r; mpz_add(r, a, b); return r; }
 template <typename T>

@@ -69,6 +69,7 @@ set(CADO_NFS_TEST_KEYWORDS_USUAL
     # tests.
     EXPECT_SHA1
     SHA1_ON_REGEXP_LINES
+    SHA1_ON_SED_OUTPUT
     STDIN
     TIMEOUT
     WORKING_DIRECTORY
@@ -158,6 +159,10 @@ macro(cado_nfs_test_process_SHA1_ON_REGEXP_LINES)
     #     message(FATAL_ERROR "SHA1_ON_REGEXP_LINES ignored if EXPECT_SHA1 is not set")
     # endif()
     list(APPEND wrapper_args --filter-output "${SHA1_ON_REGEXP_LINES}")
+endmacro()
+
+macro(cado_nfs_test_process_SHA1_ON_SED_OUTPUT)
+    list(APPEND wrapper_args --sed-output "${SHA1_ON_SED_OUTPUT}")
 endmacro()
 
 macro(cado_nfs_test_process_STDIN)
@@ -331,6 +336,7 @@ macro(cado_epilogue_create_test)
 
         cado_nfs_test_process_keyword(EXPECT_SHA1)
         cado_nfs_test_process_keyword(SHA1_ON_REGEXP_LINES)
+        cado_nfs_test_process_keyword(SHA1_ON_SED_OUTPUT)
         cado_nfs_test_process_keyword(STDIN)
         cado_nfs_test_process_keyword(EXPECT_FAIL)
         cado_nfs_test_process_keyword(PROVIDE_TEMPORARY_WDIR)
@@ -346,8 +352,8 @@ macro(cado_epilogue_create_test)
                 # --build-target ${TEST_NAME}_dependencies
                 # --test-command
                 env ${test_env}
-                ${PRECOMMAND}
                 ${provide_wdir}
+                ${PRECOMMAND}
                 ${CADO_NFS_SOURCE_DIR}/tests/test.sh
                 ${wrapper_args}
                 --
