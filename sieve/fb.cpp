@@ -35,6 +35,7 @@
 #endif
 #include "gzip.h"
 #include "las-fbroot-qlattice.hpp"
+#include "las-config.hpp"       // BUCKET_SIEVE_POWERS
 #include "las-side-config.hpp"
 #include "macros.h"
 #include "misc.h"
@@ -100,10 +101,10 @@ static inline redc_invp_t compute_invq(fbprime_t q)
      * ever do redc_32, at least as long as p does not grow above 2^32 */
     if (q % 2 != 0) {
         if (sizeof(unsigned long) >= sizeof(redc_invp_t)) {
-            return (redc_invp_t)(-ularith_invmod(q));
+            return static_cast<redc_invp_t>(-ularith_invmod(q));
         } else {
             ASSERT(sizeof(redc_invp_t) == 8);
-            return (redc_invp_t)(-u64arith_invmod(q));
+            return static_cast<redc_invp_t>(-u64arith_invmod(q));
         }
     } else {
         return 0;
@@ -672,7 +673,7 @@ struct fb_factorbase::helper_functor_append {
     template <typename T> void operator()(T & x)
     {
         ASSERT_ALWAYS(x.weight_cdf.size() == x.size() + 1);
-        typedef typename T::value_type FB_ENTRY_TYPE;
+        using FB_ENTRY_TYPE = T::value_type;
         constexpr bool isG = FB_ENTRY_TYPE::is_general_type;
         constexpr unsigned char N = FB_ENTRY_TYPE::fixed_nr_roots;
         if (positive != !isG)
@@ -740,7 +741,7 @@ struct helper_functor_find_threshold_pos {
     template <typename T> void operator()(T const & x)
     {
         /* T is fb_entries_factory<n>::type for some n */
-        typedef typename T::value_type FB_ENTRY_TYPE;
+        using FB_ENTRY_TYPE = T::value_type;
         constexpr int n =
             FB_ENTRY_TYPE::is_general_type ? -1 : FB_ENTRY_TYPE::fixed_nr_roots;
         size_t & target(res[n + 1]);
@@ -775,10 +776,9 @@ fb_factorbase::get_threshold_pos(fbprime_t thr) const
 
 template <int n> struct fb_entries_interval_factory {
     struct type {
-        typedef typename fb_entries_factory<n>::type container_type;
+        using container_type = fb_entries_factory<n>::type;
         typename container_type::const_iterator begin, end;
-        typedef typename container_type::weight_container_type
-            weight_container_type;
+        using weight_container_type = container_type::weight_container_type;
         typename weight_container_type::const_iterator weight_begin, weight_end;
     };
 };
@@ -798,7 +798,7 @@ struct helper_functor_count_weight_parts
     template <typename T> int operator()(int toplevel, T const & x)
     {
         /* T is fb_entries_factory<n>::type for some n */
-        typedef typename T::value_type FB_ENTRY_TYPE;
+        using FB_ENTRY_TYPE = T::value_type;
 
         constexpr int n =
             FB_ENTRY_TYPE::is_general_type ? -1 : FB_ENTRY_TYPE::fixed_nr_roots;
@@ -831,7 +831,7 @@ struct helper_functor_dispatch_small_sieved_primes {
     template <typename T> void operator()(T const & x)
     {
         /* T is fb_entries_factory<n>::type for some n */
-        typedef typename T::value_type FB_ENTRY_TYPE;
+        using FB_ENTRY_TYPE = T::value_type;
         constexpr int n =
             FB_ENTRY_TYPE::is_general_type ? -1 : FB_ENTRY_TYPE::fixed_nr_roots;
         /* entries between x[local_thresholds[0][1+n]] and
@@ -996,7 +996,7 @@ int main(int argc, char const * argv[])
     std::vector<int> X;
     for(int i = 10 ; i < 10000000 ; ++i) X.push_back(i);
 
-    typedef std::vector<int>::const_iterator it_t;
+    using it_t = std::vector<int>::const_iterator;
     auto f = [scale](auto x) { return (int) (scale*log(*x)); };
 
     // std::vector<it_t> pool = find_value_change_points()(f, X.cbegin(), X.cend());
@@ -1010,10 +1010,12 @@ int main(int argc, char const * argv[])
 
 template <typename T> struct slice_classifier {
     double scale;
-    slice_classifier(double scale)
+    /*
+    explicit slice_classifier(double scale)
         : scale(scale)
     {
     }
+    */
     int operator()(T const & it) const { return fb_log(it.get_q(), scale, 0); }
 };
 #ifdef BUCKET_SIEVE_POWERS
@@ -1032,10 +1034,12 @@ struct slice_classifier_general_result {
 };
 template <> struct slice_classifier<fb_entry_general> {
     double scale;
-    slice_classifier(double scale)
+    /*
+    explicit slice_classifier(double scale)
         : scale(scale)
     {
     }
+    */
     slice_classifier_general_result
     operator()(fb_entry_general const & it) const
     {
@@ -1046,9 +1050,10 @@ template <> struct slice_classifier<fb_entry_general> {
             ASSERT_ALWAYS(it.roots[i].exp == it.roots[0].exp);
             ASSERT_ALWAYS(it.roots[i].oldexp == it.roots[0].oldexp);
         }
-        return slice_classifier_general_result {
-            fb_log_delta(it.p, it.roots[0].exp, it.roots[0].oldexp, scale),
-            it.roots[0].exp, it.roots[0].oldexp};
+        return {
+            .l = fb_log_delta(it.p, it.roots[0].exp, it.roots[0].oldexp, scale),
+            .exp = it.roots[0].exp,
+            .oldexp = it.roots[0].oldexp };
     }
 };
 #endif
@@ -1066,13 +1071,13 @@ struct helper_functor_subdivide_slices {
     template <typename T> void operator()(T const & x)
     {
         /* T is fb_entries_factory<n>::type for some n */
-        typedef typename T::container_type ventry_t;
-        typedef typename ventry_t::value_type FB_ENTRY_TYPE;
-        typedef fb_slice<FB_ENTRY_TYPE> slice_t;
+        using ventry_t = T::container_type;
+        using FB_ENTRY_TYPE = ventry_t::value_type;
+        using slice_t = fb_slice<FB_ENTRY_TYPE>;
         static_assert(
-            std::is_same<typename slice_t::fb_entry_vector, ventry_t>::value,
+            std::is_same_v<typename slice_t::fb_entry_vector, ventry_t>,
             "template helper_functor_subdivide_slices is misused");
-        typedef std::vector<slice_t> vslice_t;
+        using vslice_t = std::vector<slice_t>;
 
         constexpr int n =
             FB_ENTRY_TYPE::is_general_type ? -1 : FB_ENTRY_TYPE::fixed_nr_roots;
@@ -1084,7 +1089,7 @@ struct helper_functor_subdivide_slices {
         size_t const interval_width = k1 - k0;
         if (!interval_width)
             return;
-        typedef typename ventry_t::const_iterator it_t;
+        using it_t = ventry_t::const_iterator;
 
         /* first scan to separate by values of logp */
         auto f = slice_classifier<FB_ENTRY_TYPE>(K.scale);
@@ -1288,7 +1293,8 @@ fb_factorbase::slicing::slicing(fb_factorbase const & fb,
      * resieved, which are trial-divided, and so on).
      */
 
-    helper_functor_dispatch_small_sieved_primes SS {*this, K, local_thresholds};
+    helper_functor_dispatch_small_sieved_primes SS {
+        .S = *this, .K = K, .local_thresholds = local_thresholds};
     multityped_array_foreach(SS, fb.entries);
     auto by_q = fb_entry_general::sort_byq();
 
@@ -1319,7 +1325,13 @@ fb_factorbase::slicing::slicing(fb_factorbase const & fb,
         parts[i].first_slice_index = s;
         double const max_slice_weight = D.weight[i] / 4 / K.nb_threads;
         helper_functor_subdivide_slices SUB {
-            parts[i], fb.side, i, K, local_thresholds, max_slice_weight, s};
+            .dst = parts[i],
+            .side = fb.side,
+            .part_index = i,
+            .K = K,
+            .local_thresholds = local_thresholds,
+            .max_slice_weight = max_slice_weight, 
+            .index = s };
         multityped_array_foreach(SUB, fb.entries);
         s += parts[i].nslices();
     }
@@ -1364,7 +1376,7 @@ static std::vector<fb_power_t> fb_powers(fbprime_t powlim)
         unsigned char k = 2;
         for (fbprime_t q = p; (q <= powlim / p); k++) {
             q *= p;
-            powers.push_back(fb_power_t {p, q, k});
+            powers.emplace_back(p, q, k);
         }
     }
     prime_info_clear(pi);
@@ -1485,8 +1497,7 @@ class make_linear_thread_result : public task_result
 static task_result * process_one_task(worker_thread *, task_parameters * _param,
                                       int)
 {
-    make_linear_thread_param * param =
-        static_cast<make_linear_thread_param *>(_param);
+    auto * param = static_cast<make_linear_thread_param *>(_param);
     task_info_t * T = param->T;
     for (unsigned int i = 0; i < T->n; ++i) {
         auto R = fb_linear_root(T->poly, T->q[i]);
@@ -1521,7 +1532,7 @@ static int get_new_task(task_info_t & T, uint64_t & next_prime, prime_info & pi,
     return i;
 }
 
-typedef std::pair<unsigned int, task_info_t *> pending_result_t;
+using pending_result_t = std::pair<unsigned int, task_info_t *>;
 /* priority queue is for lowest index first, here */
 static bool operator<(pending_result_t const & a, pending_result_t const & b)
 {
@@ -1567,8 +1578,8 @@ void fb_factorbase::make_linear_threadpool(unsigned int nb_threads)
 #define MARGIN 3
     // Prepare more tasks, so that threads keep being busy.
     unsigned int const nb_tab = nb_threads + MARGIN;
-    task_info_t * T = new task_info_t[nb_tab];
-    make_linear_thread_param * params = new make_linear_thread_param[nb_tab];
+    auto * T = new task_info_t[nb_tab];
+    auto * params = new make_linear_thread_param[nb_tab];
     for (unsigned int i = 0; i < nb_tab; ++i) {
         T[i].poly = poly;
         params[i].T = &T[i];
@@ -1609,8 +1620,7 @@ void fb_factorbase::make_linear_threadpool(unsigned int nb_threads)
     // schedule a new task.
     for (; active_task;) {
         task_result * result = pool.get_result();
-        make_linear_thread_result * res =
-            static_cast<make_linear_thread_result *>(result);
+        auto * res = static_cast<make_linear_thread_result *>(result);
         active_task--;
         task_info_t * curr_T = res->T;
 
@@ -1623,8 +1633,7 @@ void fb_factorbase::make_linear_threadpool(unsigned int nb_threads)
             // priority queue can sometimes be a trivial object that
             // doesn't really require initialization...
             // coverity[uninit_use_in_call]
-            pending.push(
-                std::make_pair(just_finished, new task_info_t(*curr_T)));
+            pending.emplace(just_finished, new task_info_t(*curr_T));
         }
         delete result;
 
@@ -1645,8 +1654,7 @@ void fb_factorbase::make_linear_threadpool(unsigned int nb_threads)
     // Stage 2: purge last tasks
     for (unsigned int i = 0; i < active_task; ++i) {
         task_result * result = pool.get_result();
-        make_linear_thread_result * res =
-            static_cast<make_linear_thread_result *>(result);
+        auto * res = static_cast<make_linear_thread_result *>(result);
         task_info_t * curr_T = res->T;
 
         unsigned int const just_finished = curr_T->index;
@@ -1654,8 +1662,7 @@ void fb_factorbase::make_linear_threadpool(unsigned int nb_threads)
             store_task_result(*this, *curr_T);
             completed_tasks++;
         } else {
-            pending.push(
-                std::make_pair(just_finished, new task_info_t(*curr_T)));
+            pending.emplace(just_finished, new task_info_t(*curr_T));
         }
         delete result;
 
@@ -1761,7 +1768,7 @@ int fb_factorbase::read(char const * const filename)
             maxprime = C.p;
 
         if (pool.empty() || !pool.back().can_merge(C)) {
-            pool.push_back(std::move(C));
+            pool.emplace_back(C);
             pool_size++;
         } else {
             pool.back().merge(C);
@@ -1845,7 +1852,7 @@ int fb_factorbase::read(char const * const filename)
 struct fbc_header {
     static int const current_version = 1;
     static size_t const header_block_size = 4096;
-    int version;
+    int version = -1;
     size_t base_offset = 0; /* offset to beginning of file of the
                                corresponding header block (add 4096 to
                                get the offset to the data block) */
@@ -1985,21 +1992,21 @@ static fbc_header find_fbc_header_block_for_poly(char const * fbc_filename,
      * can tell).
      */
     if (!fbc_filename)
-        return fbc_header();
+        return {};
     int const fbc = open(fbc_filename, O_RDONLY);
     if (fbc < 0)
-        return fbc_header();
+        return {};
     struct stat sbuf[1];
     if (fstat(fbc, sbuf) < 0) {
         close(fbc);
-        return fbc_header();
+        return {};
     }
     if ((sbuf->st_mode & S_IFMT) == S_IFDIR) {
         fprintf(stderr,
                 "reading factor base cache from %s failed: is a directory\n",
                 fbc_filename);
         close(fbc);
-        return fbc_header();
+        return {};
     }
 
     size_t const fbc_size = lseek(fbc, 0, SEEK_END);
@@ -2050,7 +2057,7 @@ static fbc_header find_fbc_header_block_for_poly(char const * fbc_filename,
                          "%s (will recreate)\n",
                          side, fbc_filename);
     close(fbc);
-    return fbc_header();
+    return {};
 }
 
 struct helper_functor_reseat_mmapped_chunks {
@@ -2059,12 +2066,12 @@ struct helper_functor_reseat_mmapped_chunks {
     mmap_allocator_details::mmapped_file & source;
     template <typename T> void operator()(T & x)
     {
-        typedef typename T::value_type FB_ENTRY_TYPE;
+        using FB_ENTRY_TYPE = T::value_type;
         if (next == chunks.end())
             return;
         ASSERT_ALWAYS(sizeof(FB_ENTRY_TYPE) == next->entry_size);
 
-        using namespace mmap_allocator_details;
+        using mmap_allocator_details::mmap_allocator;
         mmappable_vector<FB_ENTRY_TYPE> y(mmap_allocator<FB_ENTRY_TYPE>(
             source, next->offset, next->nentries));
         y.mmap(next->nentries);
@@ -2083,7 +2090,7 @@ struct helper_functor_recreate_fbc_header {
     size_t & current_offset;
     template <typename T> void operator()(T & x)
     {
-        typedef typename T::value_type FB_ENTRY_TYPE;
+        using FB_ENTRY_TYPE = T::value_type;
         /* We do *NOT* push anything beyond that limit.
          *
          * degree + 2 is for [-1, 0, ..., degree ]
@@ -2117,7 +2124,7 @@ struct helper_functor_recreate_fbc_header_weight_part {
     size_t & current_offset;
     template <typename T> void operator()(T & x)
     {
-        typedef typename T::value_type FB_ENTRY_TYPE;
+        using FB_ENTRY_TYPE = T::value_type;
         constexpr int n =
             FB_ENTRY_TYPE::is_general_type ? -1 : FB_ENTRY_TYPE::fixed_nr_roots;
         if (n > block.degree) {
@@ -2143,7 +2150,7 @@ struct helper_functor_write_to_fbc_file {
     std::vector<fbc_header::entryvec>::const_iterator next;
     template <typename T> void operator()(T & x)
     {
-        typedef typename T::value_type FB_ENTRY_TYPE;
+        using FB_ENTRY_TYPE = T::value_type;
         if (next == chunks.end())
             return;
         ASSERT_ALWAYS(sizeof(FB_ENTRY_TYPE) == next->entry_size);
@@ -2242,11 +2249,13 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side,
                              " for polynomial f%d(x) = %s\n",
                              side, fbc_filename, side, polystring.c_str());
         /* Now do the mmapping ! */
-        using namespace mmap_allocator_details;
+        using mmap_allocator_details::mmapped_file;
         mmapped_file source(fbc_filename, mmap_allocator_details::READ_ONLY,
                             hdr.base_offset, hdr.size);
-        helper_functor_reseat_mmapped_chunks MM {hdr.entries,
-                                                 hdr.entries.begin(), source};
+        helper_functor_reseat_mmapped_chunks MM {
+            .chunks = hdr.entries,
+            .next = hdr.entries.begin(),
+            .source = source};
         multityped_array_foreach(MM, entries);
 
         tfb = seconds() - tfb;
@@ -2309,9 +2318,11 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side,
 
         /* current_offset is passed by reference below */
         size_t current_offset = fbc_header::header_block_size;
-        helper_functor_recreate_fbc_header HH {S, current_offset};
+        helper_functor_recreate_fbc_header HH
+            { .block = S, .current_offset = current_offset };
         multityped_array_foreach(HH, entries);
-        helper_functor_recreate_fbc_header_weight_part HW {S, current_offset};
+        helper_functor_recreate_fbc_header_weight_part HW
+            { .block = S, .current_offset = current_offset };
         multityped_array_foreach(HW, entries);
         /* This must be aligned to a page size */
         S.size = ((current_offset - 1) | (sysconf(_SC_PAGE_SIZE) - 1)) + 1;
@@ -2351,11 +2362,19 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side,
             ASSERT_ALWAYS(m >= 0);
             ASSERT_ALWAYS((size_t) m == n);
 
-            helper_functor_write_to_fbc_file W1 {fbc, fbc_size, S.entries,
-                                                 S.entries.begin()};
+            helper_functor_write_to_fbc_file W1
+                { .fbc = fbc,
+                  .header_block_offset = fbc_size,
+                  .chunks = S.entries,
+                  .next = S.entries.begin()
+                };
             multityped_array_foreach(W1, entries);
-            helper_functor_write_to_fbc_file_weight_part W2 {
-                fbc, fbc_size, S.entries, S.entries.begin()};
+            helper_functor_write_to_fbc_file_weight_part W2
+                { .fbc = fbc,
+                  .header_block_offset = fbc_size,
+                  .chunks = S.entries,
+                  .next = S.entries.begin()
+                };
             multityped_array_foreach(W2, entries);
             ASSERT_ALWAYS((size_t)lseek(fbc, 0, SEEK_END) <= fbc_size + S.size);
             int const ret = ftruncate(fbc, fbc_size + S.size);

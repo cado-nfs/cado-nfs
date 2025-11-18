@@ -24,28 +24,28 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 
 #include "cado.h" // IWYU pragma: keep
 
-#include <cstdio>       // fprintf
-#include <cstdlib>       // exit
-#include <climits>       // CHAR_BIT
+#include <cstdio>
+#include <cstdlib>
+#include <climits>
 
 #include <algorithm>
 #include <vector>
-#include <memory>        // for unique_ptr, allocator_traits<>::value_type
-#include <utility>       // for pair
+#include <memory>
+#include <utility>
 #include <ios>
 
 #include "fmt/base.h"
 #include "fmt/format.h"
 
-#include "cado_poly.h"   // for cxx_cado_poly, cado_poly_s, cado_poly_read
-#include "gzip.h"       // ofstream_maybe_compressed
-#include "macros.h"      // for ASSERT_ALWAYS
-#include "mpz_poly.h"   // mpz_poly_srcptr
+#include "cado_poly.h"
+#include "gzip.h"
+#include "macros.h"
+#include "mpz_poly.h"
 #include "omp_proxy.h"
-#include "params.h"      // for cxx_param_list, param_list_decl_usage, param...
-#include "renumber.hpp" // renumber_t
-#include "typedefs.h"    // for index_t, p_r_values_t, PRid, SIZEOF_INDEX, PRpr
-#include "verbose.h"    // verbose_interpret_parameters
+#include "params.h"
+#include "renumber.hpp"
+#include "typedefs.h"
+#include "verbose.h"
 
 static char const * argv0;
 
@@ -243,7 +243,7 @@ main(int argc, char const * argv[])
     std::unique_ptr<freerel_data_t> F;
 
     if (param_list_lookup_string(pl, "out")) {
-        F.reset(new freerel_data_t(pl, cpoly, lpb));
+        F = std::make_unique<freerel_data_t>(pl, cpoly, lpb);
 
         fmt::print("Considering freerels for {} <= p <= {}\n", 
                 F->pmin,
@@ -254,8 +254,8 @@ main(int argc, char const * argv[])
     renumber_t renumber_table(cpoly);
     renumber_table.set_lpb(lpb);
 
-    int const max_lpb = renumber_table.get_max_lpb();
-    if (max_lpb >= (int) sizeof(unsigned long) * CHAR_BIT) {
+    auto const max_lpb = renumber_table.get_max_lpb();
+    if (max_lpb >= sizeof(unsigned long) * CHAR_BIT) {
       fmt::print (stderr, "Error, cannot handle lpb >= {} (max(lpbs) is {})\n",
                        sizeof(unsigned long) * CHAR_BIT, max_lpb);
       abort();

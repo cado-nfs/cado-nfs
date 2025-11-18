@@ -1,7 +1,6 @@
 #include "cado.h" // IWYU pragma: keep
 
 #include <cstdio>
-#include <cstdarg>
 
 #include <iomanip>
 #include <map>

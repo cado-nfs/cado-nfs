@@ -8,10 +8,10 @@
 
 class bkmult_specifier {
     double base = 1.0;
-    typedef std::map<std::pair<int, char>, double> dict_t;
+    using dict_t = std::map<std::pair<int, char>, double>;
     dict_t dict;
     public:
-    typedef dict_t::key_type key_type;
+    using key_type = dict_t::key_type;
     static std::string printkey(dict_t::key_type const& key) {
         char c[3] = { (char) ('0' + key.first), key.second, '\0' };
         return std::string(c);
