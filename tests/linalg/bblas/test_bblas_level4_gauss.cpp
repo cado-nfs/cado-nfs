@@ -55,9 +55,15 @@ void test_bblas_level4::gauss() {
         perm_matrix_clear(q);
     }
     int n=2;
-    TIME1N(2, memfill_random, m4, n*sizeof(mat64), rstate);
+    {
+        cxx_gmp_randstate rstate2;
+        TIME1N(2, memfill_random, m4, n*sizeof(mat64), rstate2);
+    }
     TIME1N_SPINS(, 2, PLUQ64_n, phi, l, u4, m4, 64*n);
-    TIME1N_SPINS(memfill_random(m4, n*sizeof(mat64), rstate), 2, PLUQ64_n, phi, l, u4, m4, 64*n);
+    {
+        cxx_gmp_randstate rstate2 = rstate;
+        TIME1N_SPINS(memfill_random(m4, n*sizeof(mat64), rstate2), 2, PLUQ64_n, phi, l, u4, m4, 64*n);
+    }
     TIME1(2, LUP64_imm, l, u, p, m);
     TIME1(2, full_echelon_6464_imm, mm, e, m);
     TIME1(2, gauss_128128_C, m4);
