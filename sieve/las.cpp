@@ -1477,19 +1477,17 @@ int main (int argc0, char const * argv0[])/*{{{*/
         return EXIT_FAILURE;
     }
 
-    las_todo_list todo(las.cpoly, pl);
-
     where_am_I::interpret_parameters(pl);
 
     base_memory = Memusage() << 10U;
 
-    if (todo.print_todo_list_flag) {
+    if (las.tree->todo.print_todo_list_flag) {
         /* printing the todo list takes only a very small amount of ram.
          * In all likelihood, nsubjobs will be total number of cores (or
          * the number of threads that were requested on command line)
          */
         las.set_parallel(pl, double_ratio(base_memory, 1U << 30U));
-        todo.print_todo_list(pl, las.number_of_threads_total());
+        las.tree->todo.print_todo_list(pl, las.number_of_threads_total());
         return EXIT_SUCCESS;
 
     }
@@ -1757,7 +1755,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
                 las.get_bk_multiplier().print_all());
     }
     verbose_output_print (2, 1, "# Discarded %lu special-q's out of %zu pushed\n",
-            global_rt.rep.nr_sq_discarded, todo.created);
+            global_rt.rep.nr_sq_discarded, las.tree->todo.created);
 
     auto D = global_rt.timer.filter_by_category();
     timetree_t::timer_data_type const tcpu = global_rt.timer.total_counted_time();
