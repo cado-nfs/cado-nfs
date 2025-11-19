@@ -90,7 +90,7 @@ bool siever_config::parse_default(siever_config & sc, cxx_param_list & pl, int n
         int I;
         complete &= param_list_parse_int  (pl, "I", &I);
         sc.logA = 2 * I - 1;
-        verbose_fmt_print(0, 1, "# Interpreting -I {} as meaning -A {}",
+        verbose_fmt_print(0, 1, "# Interpreting -I {} as meaning -A {}\n",
                 I, sc.logA);
     } else {
         complete = false;

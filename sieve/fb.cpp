@@ -2231,7 +2231,6 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side,
 
     double tfb = seconds();
     double tfb_wct = wct_seconds();
-    std::string const polystring = f.print_poly("x");
 
     fbc_header hdr;
     /* First use standard I/O to read the cached file header. */
@@ -2239,8 +2238,8 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side,
     if (hdr) {
         verbose_fmt_print(0, 1,
                              "# Reading side-{} factor base from cache {}"
-                             " for polynomial f{}(x) = {}",
-                             side, fbc_filename, side, polystring.c_str());
+                             " for polynomial f{}(x) = {}\n",
+                             side, fbc_filename, side, f);
         /* Now do the mmapping ! */
         using mmap_allocator_details::mmapped_file;
         mmapped_file source(fbc_filename, mmap_allocator_details::READ_ONLY,
@@ -2264,8 +2263,8 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side,
         if (f->deg > 1) {
             verbose_fmt_print(0, 2,
                                  "# Reading side-{} factor base from disk"
-                                 " for polynomial f{}(x) = {}",
-                                 side, side, polystring);
+                                 " for polynomial f{}(x) = {}\n",
+                                 side, side, f);
             std::string const & s = all_sides[side].fbfilename;
             char const * fbfilename = s.empty() ? NULL : s.c_str();
             if (!fbfilename) {
@@ -2289,7 +2288,7 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side,
             verbose_fmt_print(0, 2,
                     "# Creating side-{} rational factor base"
                     " for polynomial f{}(x) = {}",
-                    side, side, polystring);
+                    side, side, f);
 
             make_linear_threadpool(nthreads);
             tfb = seconds() - tfb;

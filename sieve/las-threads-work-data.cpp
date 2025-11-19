@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <ostream>
 #include <string>
-#include <type_traits>
 #include <sstream>
 #include <utility>
 
@@ -150,8 +149,9 @@ void nfs_work::allocate_buckets(nfs_aux & aux, thread_pool & pool)
      * using the max value for J), even if we use a smaller J due to a
      * poor q-lattice basis */ 
 
-    verbose_output_print(0, 2, "# Reserving buckets with a multiplier of %s\n",
-            bk_multiplier.print_all().c_str());
+    verbose_fmt_print(0, 2,
+            "# Reserving buckets with a multiplier of {}\n",
+            bk_multiplier.print_all());
 
     bool const do_resieve = conf.needs_resieving();
 
@@ -218,10 +218,10 @@ nfs_work::buckets_max_full() const
         os << " /" << BAs[0].room_allocated_for_updates(maxfull_index);
 
         auto k = bkmult_specifier::getkey<typename BA_t::update_t>();
-        verbose_output_print(0, 1, "# Error: %s buckets are full, worst is %s\n",
-
-                bkmult_specifier::printkey(k).c_str(),
-                os.str().c_str());
+        verbose_fmt_print(0, 1,
+                "# Error: {} buckets are full, worst is {}\n",
+                bkmult_specifier::printkey(k),
+                os.str());
 
         throw buckets_are_full(
                 k,
