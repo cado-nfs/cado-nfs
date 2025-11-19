@@ -88,65 +88,42 @@
 
 /* {{{ Some code for information purposes only */
 
-void ssp_simple_t::print(FILE *f) const
+auto fmt::formatter<ssp_simple_t>::format(ssp_simple_t const & a, format_context & ctx) const
+-> format_context::iterator
 {
-    fprintf(f, "# p = %" FBPRIME_FORMAT
-            ", r = %" FBROOT_FORMAT
-            ", logp = %hhu",
-            p,
-            r,
-            logp);
+    format_to(ctx.out(), "# p = {}, r = {}, logp = {}",
+            a.p, a.r, a.logp);
+    return ctx.out();
 }
-
-void ssp_t::print(FILE *f) const
+auto fmt::formatter<ssp_t>::format(ssp_t const & a, format_context & ctx) const
+            -> fmt::format_context::iterator
 {
-    if (!is_proj()) {
-        fprintf(f, "# p = %" FBPRIME_FORMAT
-                ", r = %" FBROOT_FORMAT
-                ", logp = %hhu",
-                get_p(),
-                get_r(),
-                logp);
-        if (is_pow2()) fprintf(f, " (power of 2)");
-        if (is_pattern_sieved()) fprintf(f, " (pattern-sieved)");
-        if (is_discarded_proj()) fprintf(f, "(discarded because of projective root)");
-        if (is_discarded_sublat()) fprintf(f, "(discarded because not compatible with sub lattices)");
+    if (!a.is_proj()) {
+        format_to(ctx.out(), "# p = {}, r = {}, logp = {}",
+                a.get_p(), a.get_r(), a.logp);
     } else {
-        fprintf(f, "# q = %" FBPRIME_FORMAT ", g = %" FBROOT_FORMAT ", U = %" FBPRIME_FORMAT ", logp = %hhu",
-            get_q(), get_g(), get_U(), logp);
-        if (is_pow2()) fprintf(f, " (power of 2)");
-        if (is_pattern_sieved()) fprintf(f, " (pattern-sieved)");
-        fprintf(f, " (projective root)");
-        if (is_discarded_proj()) fprintf(f, "(discarded because of projective root)");
-        if (is_discarded_sublat()) fprintf(f, "(discarded because not compatible with sub lattices)");
+        format_to(ctx.out(), "# q = {}, g = {}, U = {}, logp = {}",
+                a.get_q(), a.get_g(), a.get_U(), a.logp);
+        format_to(ctx.out(), " (projective root)");
     }
-}
-
-/* Uses va_list argument for use with verbose_output_vfprint() */
-int
-small_sieve_dump(FILE *f, const char *header, va_list va)
-{
-    const small_sieve_data_t * p_ssd = va_arg(va, const small_sieve_data_t *);
-
-    fprintf(f, "%s", header);
-    for(auto const & x : p_ssd->ssps) {
-        x.print(f);
-        fprintf(f, "\n");
-    }
-    for (auto const & x : p_ssd->ssp) {
-        x.print(f);
-        fprintf(f, "\n");
-    }
-    return 1;
+    if (a.is_pow2())
+        format_to(ctx.out(), " (power of 2)");
+    if (a.is_pattern_sieved())
+        format_to(ctx.out(), " (pattern-sieved)");
+    if (a.is_discarded_proj())
+        format_to(ctx.out(), "(discarded because of projective root)");
+    if (a.is_discarded_sublat())
+        format_to(ctx.out(), "(discarded because not compatible with sub lattices)");
+    return ctx.out();
 }
 
 static void small_sieve_print_contents(const char * prefix, small_sieve_data_t const & ssd)
 {
-    int nnice=ssd.ssps.size();
-    int nproj=0;
-    int npow2=0;
-    int npattern=0;
-    int ndiscard=0;
+    int nnice = ssd.ssps.size();
+    int nproj = 0;
+    int npow2 = 0;
+    int npattern = 0;
+    int ndiscard = 0;
     for(auto const & ssp : ssd.ssp) {
         nproj += ssp.is_proj();
         npow2 += ssp.is_pow2();
@@ -156,16 +133,18 @@ static void small_sieve_print_contents(const char * prefix, small_sieve_data_t c
     }
 
     verbose_output_start_batch();
-    verbose_output_print(0, 3, "# %s: %d nice primes", prefix, nnice);
+    verbose_fmt_print(0, 3, "# {}: {} nice primes", prefix, nnice);
     /* Primes may be both even and projective... */
-    if (npow2) verbose_output_print(0, 3, ", %d powers of 2", npow2);
-    if (npattern) verbose_output_print(0, 3, ", %d pattern-sieved", npattern);
-    if (nproj) verbose_output_print(0, 3, ", and %d projective primes", nproj);
-    verbose_output_print(0, 3, ".");
-    if (ndiscard) verbose_output_print(0, 3, " %d discarded.", ndiscard);
-    verbose_output_print(0, 3, "\n");
+    if (npow2) verbose_fmt_print(0, 3, ", {} powers of 2", npow2);
+    if (npattern) verbose_fmt_print(0, 3, ", {} pattern-sieved", npattern);
+    if (nproj) verbose_fmt_print(0, 3, ", and {} projective primes", nproj);
+    verbose_fmt_print(0, 3, ".");
+    if (ndiscard) verbose_fmt_print(0, 3, " {} discarded.", ndiscard);
+    verbose_fmt_print(0, 3, "\n");
     /* With -v -v -v, dump all the small sieve data */
-    verbose_output_vfprint (0, 4, small_sieve_dump, "# Dump of small sieve data:\n", &ssd);
+    verbose_fmt_print (0, 4, "# Dump of small sieve data:\n{}\n{}\n",
+            join(ssd.ssp, "\n"),
+            join(ssd.ssps, "\n"));
     verbose_output_end_batch();
 }
 
@@ -195,13 +174,13 @@ void small_sieve_clear(small_sieve_data_t & ssd)
 
 /* {{{ Sieve initialization: now the real stuff */
 
-typedef sieve2357base::preferred_simd_type preferred_simd_type;
+using preferred_simd_type = sieve2357base::preferred_simd_type;
 #if GNUC_VERSION_ATLEAST(6,1,0)
 /* https://gcc.gnu.org/bugzilla/show_bug.cgi?id=69884 */
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wignored-attributes"
 #endif
-typedef sieve2357<preferred_simd_type, uint8_t> preferred_sieve2357;
+using preferred_sieve2357 = sieve2357<preferred_simd_type, uint8_t>;
 #if GNUC_VERSION_ATLEAST(6,1,0)
 #pragma GCC diagnostic pop
 #endif
@@ -827,8 +806,7 @@ void small_sieve::do_pattern_sieve(where_am_I & w MAYBE_UNUSED)
                    ii = 1 is a projective root with q = 1. */
                 if (ssp.is_proj() && ssp.get_q() == 1) {
                     if (verbose) {
-                        ssp.print(stdout);
-                        printf(" hits at ii=1, jj=0\n");
+                        fmt::print("{} hits at ii=1, jj=0\n", ssp);
                     }
                     WHERE_AM_I_UPDATE(w, p, ssp.get_g());
                     WHERE_AM_I_UPDATE(w, r, 0);
@@ -893,10 +871,10 @@ void small_sieve::do_pattern_sieve(where_am_I & w MAYBE_UNUSED)
                 const fbprime_t q = psp[i - 1].q, pos = psp[i - 1].idx;
                 const unsigned char logp = psp[i - 1].logp;
                 if (0) {
-                    printf("# Pattern sieve side %i, line %u (N=%d, x0=%zu, trace_Nx.x=%u): Adding psp[%zu] = {%" FBPRIME_FORMAT", %" FBPRIME_FORMAT", %hhu}, from  ",
-                        w->side, jj, super::N, x0, trace_Nx.x, i - 1, q, pos, logp);
-                    ssp.print(stdout);
-                    printf("\n");
+                    fmt::print("# Pattern sieve side {}, line {}"
+                            " (N={}, x0={}, trace_Nx.x={}):"
+                            " Adding psp[{}] = {{{}, {}, {}}}, from  {}\n",
+                        w->side, jj, super::N, x0, trace_Nx.x, i - 1, q, pos, logp, ssp);
                 }
                 if ((trace_Nx.x - x0) % q == pos &&
                     (skip_mod_2 == 0 || trace_Nx.x % 2 == (unsigned) skip_mod_2 % 2)) {
@@ -1025,9 +1003,8 @@ resieve_small_bucket_region (bucket_primes_t *BP,
                 bucket_update_t<1, primehint_t> prime;
                 unsigned int const x = ((size_t) (j-j0) << logI) + i;
                 if (resieve_very_verbose) {
-                    verbose_output_print(0, 1, "resieve_small_bucket_region: root %"
-                            FBROOT_FORMAT ",%" FBPRIME_FORMAT" divides at x = "
-                            "%d = %u * %u + %d\n",
+                    verbose_fmt_print(0, 1, "resieve_small_bucket_region:"
+                            " root {},{} divides at x = " "{} = {} * {} + {}",
                             p, r, x, j, I, i);
                 }
                 prime.p = p;
@@ -1089,8 +1066,8 @@ resieve_small_bucket_region (bucket_primes_t *BP,
             ASSERT(q > 1 || !(pos % (1 << MIN(logI, LOG_BUCKET_REGION))));
 
             if (resieve_very_verbose) {
-                verbose_output_print(0, 1, "# resieving projective prime %" FBPRIME_FORMAT
-                        ", i0 = %" PRIi64 "\n", q, i0 + pos);
+                verbose_fmt_print(0, 1, "# resieving projective prime {},"
+                        " i0 = {}\n", q, i0 + pos);
             }
             if (pos >> LOG_BUCKET_REGION)
                 continue;
@@ -1105,8 +1082,9 @@ resieve_small_bucket_region (bucket_primes_t *BP,
                         bucket_update_t<1, primehint_t> prime;
                         const unsigned int x = pos + ii;
                         if (resieve_very_verbose) {
-                            verbose_output_print(0, 1, "# resieve_small_bucket_region even j: root %"
-                                    FBROOT_FORMAT ",inf divides at x = %u\n",
+                            verbose_fmt_print(0, 1,
+                                    "# resieve_small_bucket_region even j:"
+                                    " root {},inf divides at x = {}",
                                     g, x);
                         }
                         prime.p = g;
@@ -1120,8 +1098,9 @@ resieve_small_bucket_region (bucket_primes_t *BP,
                         bucket_update_t<1, primehint_t> prime;
                         const unsigned int x = pos + ii;
                         if (resieve_very_verbose) {
-                            verbose_output_print(0, 1, "# resieve_small_bucket_region odd j: root %"
-                                    FBROOT_FORMAT ",inf divides at x = %u\n",
+                            verbose_fmt_print(0, 1,
+                                    "# resieve_small_bucket_region odd j:"
+                                    " root {},inf divides at x = {}",
                                     g, x);
                         }
                         prime.p = g;

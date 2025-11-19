@@ -1,7 +1,13 @@
 #ifndef CADO_LAS_SMALLSIEVE_TYPES_HPP
 #define CADO_LAS_SMALLSIEVE_TYPES_HPP
 
+#include <cstdint>
+#include <cstddef>
+
 #include <vector>
+
+#include "fmt/base.h"
+
 #include "las-forwardtypes.hpp"
 #include "fb-types.hpp"
 #include "fb.hpp"
@@ -41,18 +47,25 @@ public:
     void set_p(const fbprime_t _p) {p = _p;}
     void set_r(const fbprime_t _r) {r = _r;}
     bool is_nice() const {return true;}
-    void print(FILE *) const;
     bool operator<(ssp_simple_t const& x) const {
         return p < x.p;
     }
+    friend struct fmt::formatter<ssp_simple_t>;
 };
+namespace fmt {
+    template<>
+    struct formatter<ssp_simple_t> : public formatter<string_view> {
+        auto format(ssp_simple_t const & a, format_context & ctx) const
+            -> format_context::iterator;
+    };
+} /* namespace fmt */
 
 class ssp_t : public ssp_simple_t {
-    fbprime_t offset;   /* we used to have that in ssp_simple_t. Now it's
-                           no longer here, so that ssp_t and ssp_simple_t
-                           no longer have the same size. This used to be
-                           a requirement that they do, but I think it's
-                           not the case anymore.  */
+    fbprime_t offset = 0;  /* we used to have that in ssp_simple_t. Now it's
+                              no longer here, so that ssp_t and
+                              ssp_simple_t no longer have the same size.
+                              This used to be a requirement that they do,
+                              but I think it's not the case anymore.  */
     /* use the remaining empty space in the struct so that we still have
      * the same size */
     uint8_t flags = 0;
@@ -64,7 +77,7 @@ public:
 
     /* Initialization procedures for the ssp data */
     /* Constructor for affine case */
-    ssp_t() : ssp_simple_t(), flags(0) {}
+    ssp_t() = default;
     ssp_t(fbprime_t _p, fbprime_t _r, unsigned char _logp)
     : ssp_simple_t(_p, _r, _logp)
     {}
@@ -99,11 +112,18 @@ public:
     void set_discarded() {flags |= SSP_DISCARD_PROJ;}
     void set_pattern_sieved() {flags |= SSP_PATTERN_SIEVED;}
     
-    void print(FILE *) const;
 private:
     void init_proj(fbprime_t p, fbprime_t r, unsigned char _logp,
                    unsigned int skip MAYBE_UNUSED);
+    friend struct fmt::formatter<ssp_t>;
 };
+namespace fmt {
+    template<>
+    struct formatter<ssp_t> : public formatter<string_view> {
+        auto format(ssp_t const & a, format_context & ctx) const
+            -> format_context::iterator;
+    };
+} /* namespace fmt */
 
 // static_assert(sizeof(ssp_simple_t) == sizeof(ssp_t), "struct padding has been tampered with");
 
