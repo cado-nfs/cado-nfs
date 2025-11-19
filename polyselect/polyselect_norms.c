@@ -320,6 +320,8 @@ L2_combined_skewness2 (mpz_poly_srcptr f, mpz_poly_srcptr g)
         }
     }
 
+    free(roots);
+
     double_poly_clear(S);
     double_poly_clear(t);
     double_poly_clear(F);
