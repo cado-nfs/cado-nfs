@@ -127,7 +127,7 @@ static detached_cofac_result * detached_cofac_inner(worker_thread * worker, deta
         if (prepend_relation_time)
             os << "(" << seconds() - tt_qstart << ") ";
 
-        // verbose_fmt_print(0, 3, "# i={}, j={}, lognorms = {}, {}", i, j, cur.S[0], cur.S[1]);
+        // verbose_fmt_print(0, 3, "# i={}, j={}, lognorms = {}, {}\n", i, j, cur.S[0], cur.S[1]);
 
         os << dup_comment << rel << "\n";
 

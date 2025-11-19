@@ -70,7 +70,7 @@ nfs_aux::~nfs_aux()
 
         timetree_t::timer_data_type t = 0;
         for(auto const &c : rt.timer.filter_by_category()) {
-            verbose_fmt_print (0, 1, "# {}: {:.2f}",
+            verbose_fmt_print (0, 1, "# {}: {:.2f}\n",
                     coarse_las_timers::explain(c.first), c.second);
             t += c.second;
         }
@@ -91,7 +91,7 @@ nfs_aux::~nfs_aux()
             rt.rep.reports, las.batch ? "survivor(s) saved" : "relation(s)");
 
     if (las.suppress_duplicates)
-        verbose_fmt_print(0, 1, "# number of eliminated duplicates: {}", rt.rep.duplicates);
+        verbose_fmt_print(0, 1, "# number of eliminated duplicates: {}\n", rt.rep.duplicates);
 
     wct_qt0 = wct_seconds() - wct_qt0;
 

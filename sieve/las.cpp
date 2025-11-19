@@ -254,7 +254,7 @@ static size_t expected_memory_usage_per_binding_zone(siever_config const & sc,/*
 
         verbose_fmt_print(0, 3 + hush,
                 "# side {}, lim={}, {} fb primes"
-                " (d={}, {} roots per p if G=S_d): {}",
+                " (d={}, {} roots per p if G=S_d): {}\n",
                 side,
                 sc.sides[side].lim,
                 nideals,
@@ -297,7 +297,7 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
      * 64MB is actually transiently 128MB, then 64MB.
      */
     if (0) {
-        verbose_fmt_print(0, 3 + hush, "# {} threads: {}",
+        verbose_fmt_print(0, 3 + hush, "# {} threads: {}\n",
                 nthreads,
                 (more = nthreads * 0x4801000) >> 20);
         memory += more;
@@ -577,7 +577,7 @@ static size_t expected_memory_usage_per_subjob_worst_logI(siever_config const & 
         size_t const memory = expected_memory_usage_per_subjob(sc, las, nthreads, print);
 
         verbose_fmt_print(0, 2 + hush,
-                "# Expected memory usage per subjob for logI={}: {}",
+                "# Expected memory usage per subjob for logI={}: {}\n",
                 sc.logI, size_disp(memory, buf));
 
         if (memory > max_memory) {
@@ -588,7 +588,7 @@ static size_t expected_memory_usage_per_subjob_worst_logI(siever_config const & 
     if (logImin != logImax || main_output->verbose < 2 + hush)
         verbose_fmt_print(0, 0 + hush,
                 "# Expected memory use per subjob (max reached for logI={}):"
-                " {}",
+                " {}\n",
                 logI_max_memory, size_disp(max_memory, buf));
     return max_memory;
 }/*}}}*/
@@ -606,7 +606,7 @@ static size_t expected_memory_usage(siever_config const & sc,/*{{{*/
 
     size_t const fb_memory = expected_memory_usage_per_binding_zone(sc, las, print);
     verbose_fmt_print(0, 0 + hush,
-            "# Expected memory usage per binding zone for the factor base: {}",
+            "# Expected memory usage per binding zone for the factor base: {}\n",
             size_disp(fb_memory));
 
     size_t const subjob_memory = expected_memory_usage_per_subjob_worst_logI(sc, las, las.number_of_threads_per_subjob(), print);
@@ -619,7 +619,7 @@ static size_t expected_memory_usage(siever_config const & sc,/*{{{*/
     memory += base_memory;
 
     verbose_fmt_print(0, 0 + hush,
-            "# Expected memory use for {} binding zone(s) and {} {}-threaded jobs per zone, counting {} MB of base footprint: {}",
+            "# Expected memory use for {} binding zone(s) and {} {}-threaded jobs per zone, counting {} MB of base footprint: {}\n",
             las.number_of_memory_binding_zones(),
             las.number_of_subjobs_per_memory_binding_zone(),
             las.number_of_threads_per_subjob(),     /* per subjob, always */
@@ -1381,21 +1381,17 @@ static void quick_subjob_loop_using_cache(las_info & las)/*{{{*/
             }
             if (!sq_finds_relation(las, doing, conf, Q, J, rel))
                 continue;
-            std::ostringstream os;
 
+            std::string prefix;
             nreports++;
 
             if (las.suppress_duplicates) {
                 if (relation_is_duplicate(rel, doing, las)) {
-                    os << "# DUPE ";
+                    prefix = "# DUPE ";
                     nreports--;
                 }
             }
-            os << rel << "\n";
-
-            verbose_output_start_batch();     /* unlock I/O */
-            verbose_fmt_print(0, 1, "{}", os.str());
-            verbose_output_end_batch();     /* unlock I/O */
+            verbose_fmt_print(0, 1, "{}{}\n", prefix, rel);
         }
         
         verbose_fmt_print (0, 1, "# Time for {}: [not reported in relation-cache mode]\n", Q.doing);
@@ -1537,7 +1533,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
             exit(EXIT_FAILURE);
         }
     } catch (las_parallel_desc::bad_specification & e) {
-        verbose_fmt_print(0, 0, "# Error reported by the cpu binding layer: {}", e.what());
+        verbose_fmt_print(0, 0, "# Error reported by the cpu binding layer: {}\n", e.what());
         verbose_fmt_print(0, 0, "# The parallelism specification for this job and/or the specifics of the hardware make it difficult for us to decide on what to do on an automatic basis with respect to CPU binding. Please stick to simple \"-t <number of threads>\". More advanced specifications like \"-t auto\" cannot be supported for this hardware.\n");
         exit(EXIT_FAILURE);
     }
@@ -1730,8 +1726,8 @@ int main (int argc0, char const * argv0[])/*{{{*/
             tcof_batch = seconds () - tcof_batch;
           }
     } catch (std::exception const & e) {
-        verbose_fmt_print(0, 0, "\n\n# Program aborted on fatal error\n{}", e.what());
-        verbose_fmt_print(1, 0, "\n\n# Program aborted on fatal error\n{}", e.what());
+        verbose_fmt_print(0, 0, "\n\n# Program aborted on fatal error\n{}\n", e.what());
+        verbose_fmt_print(1, 0, "\n\n# Program aborted on fatal error\n{}\n", e.what());
         return EXIT_FAILURE;
     }
 
@@ -1815,7 +1811,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
             );
     }
 
-    verbose_fmt_print (2, 1, "# Total elapsed time {:1.2f}s, per special-q {:g}, per relation {:g}",
+    verbose_fmt_print (2, 1, "# Total elapsed time {:1.2f}s, per special-q {:g}, per relation {:g}\n",
                  wct,
                  double_ratio(wct, global_rt.rep.nr_sq_processed),
                  double_ratio(wct, global_rt.rep.reports));
@@ -1826,10 +1822,10 @@ int main (int argc0, char const * argv0[])/*{{{*/
     }
     const size_t peakmem = PeakMemusage();
     if (peakmem > 0)
-        verbose_fmt_print (2, 1, "# PeakMemusage (MB) = {} \n",
+        verbose_fmt_print (2, 1, "# PeakMemusage (MB) = {}\n",
                 peakmem >> 10);
     if (las.suppress_duplicates) {
-        verbose_fmt_print(2, 1, "# Total number of eliminated duplicates: {}", global_rt.rep.duplicates);
+        verbose_fmt_print(2, 1, "# Total number of eliminated duplicates: {}\n", global_rt.rep.duplicates);
     }
     verbose_fmt_print (2, 1, "# Total {} reports [{:1.3g}s/r, {:1.1f}r/sq] in {:1.3g} elapsed s [{:.1f}%% CPU]\n",
             global_rt.rep.reports,

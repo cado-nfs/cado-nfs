@@ -376,7 +376,7 @@ void sieve_increase_underflow_trap(unsigned char *S, const unsigned char logp, w
         maxdiff = logp - *S;
         verbose_fmt_print(3 /* TRACE_CHANNEL */, 0, "# Error, underflow at (N,x)=({}, {}), "
                 "(i,j)=({}, {}), (a,b)=({}, {}), S[x] = {}, log(%"
-                FBPRIME_FORMAT ") = {}",
+                FBPRIME_FORMAT ") = {}\n",
                 w->N, w->x, i, j, a, b, *S, w->p, logp);
       }
     /* arrange so that the unconditional increase which comes next

@@ -155,7 +155,7 @@ void las_dlog_base::read()
         known_logs[z] = true;
     }
     fclose(f);
-    verbose_fmt_print(0, 1, "# Got {} known logs from {}", nlogs, logfilename);
+    verbose_fmt_print(0, 1, "# Got {} known logs from {}\n", nlogs, logfilename);
 }
 
 

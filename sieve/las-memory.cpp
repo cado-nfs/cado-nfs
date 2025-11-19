@@ -39,12 +39,15 @@ void * las_memory_accessor::alloc_frequent_size(size_t size)
          * ultra weird cases like #30058, this does happen. Well, in such
          * a case let's use plain malloc...
          */
-        verbose_fmt_print(1, 1, "# Extraordinarily large (but temporary) allocation for an area of size {}", rsize);
+        verbose_fmt_print(1, 1, "# Extraordinarily large (but temporary) allocation"
+                " for an area of size {}\n", rsize);
         return malloc_aligned(rsize, LARGE_PAGE_SIZE);
     }
     if (pool.empty()) {
         /* allocate some more */
-        verbose_fmt_print(1, 2, "# Allocating new large page dedicated to returning memory areas of size {}", rsize);
+        verbose_fmt_print(1, 2,
+                "# Allocating new large page dedicated to returning"
+                " memory areas of size {}\n", rsize);
         auto w = make_unique_aligned_array<char>(LARGE_PAGE_SIZE, LARGE_PAGE_SIZE);
         ASSERT_ALWAYS(w);
         for(size_t s = 0 ; s + rsize <= LARGE_PAGE_SIZE ; s += rsize)

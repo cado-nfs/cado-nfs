@@ -278,7 +278,7 @@ sq_finds_relation(las_info const & las,
   if (talk) {
       verbose_fmt_print(0, VERBOSE_LEVEL,
               "# DUPECHECK relation had i={}, j={},"
-              " remaining lognorms {}",
+              " remaining lognorms {}\n",
               i, j, join(remaining_lognorm, " "));
   }
 

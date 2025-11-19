@@ -352,7 +352,7 @@ void small_sieve_init(small_sieve_data_t & ssd,
                             verbose_fmt_print(0, 1,
                                     "# small_sieve_init: not adding projective prime"
                                     " (1:{}) mod {})"
-                                    " to small sieve  because g={} >= J = {}",
+                                    " to small sieve because g={} >= J = {}\n",
                                     r_q-p, p, new_ssp.get_g(), J);
                         }
                         continue;

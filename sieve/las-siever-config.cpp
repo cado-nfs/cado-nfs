@@ -120,7 +120,7 @@ bool siever_config::parse_default(siever_config & sc, cxx_param_list & pl, int n
     param_list_parse_uint(pl, "skipped", &(sc.skipped));
 
     if (param_list_parse_uint(pl, "unsievethresh", &(sc.unsieve_thresh))) {
-        verbose_fmt_print(0, 1, "# Un-sieving primes > {}",
+        verbose_fmt_print(0, 1, "# Un-sieving primes > {}\n",
                 sc.unsieve_thresh);
     }
 
@@ -154,7 +154,7 @@ bool siever_config::parse_default(siever_config & sc, cxx_param_list & pl, int n
              */
             /*
                verbose_fmt_print(0, 2,
-               "# Using default value of {} for -{}",
+               "# Using default value of {} for -{}\n",
                sc.sides[side].powlim, powlim_params[side]);
                */
         }
