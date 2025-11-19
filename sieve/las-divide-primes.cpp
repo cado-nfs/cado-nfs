@@ -1,7 +1,6 @@
 #include "cado.h" // IWYU pragma: keep
 
 #include <cinttypes>
-#include <cstdarg>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -25,6 +24,7 @@
 #include "macros.h"
 #include "trialdiv.hpp"
 #include "verbose.h"
+#include "utils_cxx.hpp"
 
 /*  Trial division */
 
@@ -62,17 +62,17 @@ static long nr_wrap_was_composite = 0;
 void display_bucket_prime_stats()
 {
     if (bucket_prime_stats) {
-        verbose_output_print(
+        verbose_fmt_print(
             2, 1,
-            "# nr_bucket_primes = %lu, nr_div_tests = %lu, nr_composite_tests "
-            "= %lu, nr_wrap_was_composite = %lu\n",
+            "# nr_bucket_primes = {}, nr_div_tests = {}, nr_composite_tests "
+            "= {}, nr_wrap_was_composite = {}\n",
             nr_bucket_primes, nr_div_tests, nr_composite_tests,
             nr_wrap_was_composite);
     }
 }
 
 /* The entries in BP must be sorted in order of increasing x */
-static void divide_primes_from_bucket(factor_list_t & fl, mpz_t norm,
+static void divide_primes_from_bucket(factor_list_t & fl, cxx_mpz & norm,
                                       unsigned int const N,
                                       unsigned int const x,
                                       bucket_primes_t * BP,
@@ -89,9 +89,9 @@ static void divide_primes_from_bucket(factor_list_t & fl, mpz_t norm,
                 nr_bucket_primes++;
             unsigned long const p = prime.p;
             if (very_verbose) {
-                verbose_output_vfprint(0, 1, gmp_vfprintf,
-                                       "# N = %u, x = %d, dividing out prime "
-                                       "hint p = %lu, norm = %Zd\n",
+                verbose_fmt_print(0, 1,
+                                       "# N = {}, x = {}, dividing out prime "
+                                       "hint p = {}, norm = {}\n",
                                        N, x, p, norm);
             }
             /* If powers of a prime p get bucket-sieved and more than one such
@@ -102,16 +102,17 @@ static void divide_primes_from_bucket(factor_list_t & fl, mpz_t norm,
                 is in the factors list) */
             if (UNLIKELY(!mpz_divisible_ui_p(norm, p))) {
                 if (!factor_list_contains(fl, p)) {
-                    verbose_output_print(
+                    verbose_fmt_print(
                         1, 0,
-                        "# Error, p = %lu does not divide at (N,x) = (%u,%d)\n",
+                        "# Error, p = {} does not divide at (N,x) = ({},{})\n",
                         p, N, x);
                     abort();
                 } else {
-                    verbose_output_print(
-                        0, 2,
-                        "# Note (harmless): p = %lu does not divide at (N,x) = "
-                        "(%u,%d), was divided out before\n",
+                    /* it's really a fairly normal condition */
+                    verbose_fmt_print(
+                        0, 3,
+                        "# Note (harmless): p = {} does not divide at (N,x) = "
+                        "({},{}), was divided out before\n",
                         p, N, x);
                 }
             } else
@@ -127,7 +128,7 @@ static void divide_primes_from_bucket(factor_list_t & fl, mpz_t norm,
 }
 
 /* The entries in BP must be sorted in order of increasing x */
-static void divide_hints_from_bucket(factor_list_t & fl, mpz_t norm,
+static void divide_hints_from_bucket(factor_list_t & fl, cxx_mpz & norm,
                                      unsigned int const N, unsigned int const x,
                                      bucket_array_complete * purged,
                                      fb_factorbase::slicing const & fbs,
@@ -148,34 +149,35 @@ static void divide_hints_from_bucket(factor_list_t & fl, mpz_t norm,
             unsigned long const p = fb_slice.get_prime(complete_hint.hint);
             if (very_verbose) {
                 unsigned char const k = fb_slice.get_k(complete_hint.hint);
-                verbose_output_print(
+                verbose_fmt_print(
                     0, 1,
-                    "# N = %u, x = %d, dividing out fb_slice hint, "
-                    "index = %lu offset = %lu ",
-                    N, x, (unsigned long)complete_hint.slice_index,
-                    (unsigned long)complete_hint.hint);
+                    "# N = {}, x = {}, dividing out fb_slice hint, "
+                    "index = {} offset = {} ",
+                    N, x, complete_hint.slice_index,
+                    complete_hint.hint);
                 if (fb_slice.is_general()) {
-                    verbose_output_print(0, 1, "(general)");
+                    verbose_fmt_print(0, 1, "(general)");
                 } else {
-                    verbose_output_print(0, 1, "(%d roots)",
+                    verbose_fmt_print(0, 1, "({} roots)",
                                          fb_slice.get_nr_roots());
                 }
-                verbose_output_vfprint(0, 1, gmp_vfprintf,
-                                       ", q = %lu^%hhu, norm = %Zd\n", p, k,
+                verbose_fmt_print(0, 1,
+                                       ", q = {}^{}, norm = {}\n", p, k,
                                        norm);
             }
             if (UNLIKELY(!mpz_divisible_ui_p(norm, p))) {
                 if (!factor_list_contains(fl, p)) {
-                    verbose_output_print(
+                    verbose_fmt_print(
                         1, 0,
-                        "# Error, p = %lu does not divide at (N,x) = (%u,%d)\n",
+                        "# Error, p = {} does not divide at (N,x) = ({},{})\n",
                         p, N, x);
                     abort();
                 } else {
-                    verbose_output_print(
-                        0, 2,
-                        "# Note (harmless): p = %lu (from hint) does not "
-                        "divide at (N,x) = (%u,%d), was divided out before\n",
+                    /* it's really a fairly normal condition */
+                    verbose_fmt_print(
+                        0, 3,
+                        "# Note (harmless): p = {} (from hint) does not "
+                        "divide at (N,x) = ({},{}), was divided out before\n",
                         p, N, x);
                 }
             } else
@@ -205,13 +207,12 @@ void divide_known_primes(std::vector<uint64_t> & fl, cxx_mpz & norm,
 
     if (trial_div_very_verbose) {
         verbose_output_start_batch();
-        verbose_output_print(
+        verbose_fmt_print(
             TRACE_CHANNEL, 0,
-            "# divide_known_primes() entry, N = %u, x = %d, a = %" PRId64
-            ", b = %" PRIu64 ", norm = ",
+            "# divide_known_primes() entry, N = {}, x = {}, a = {}" PRId64
+            ", b = {}" PRIu64 ", norm = ",
             N, x, a, b);
-        verbose_output_vfprint(TRACE_CHANNEL, 0, gmp_vfprintf, "%Zd\n",
-                               (mpz_srcptr)norm);
+        verbose_fmt_print(TRACE_CHANNEL, 0, "{}\n", norm);
     }
 
     // handle 2 separately, if it is in fb
@@ -220,9 +221,9 @@ void divide_known_primes(std::vector<uint64_t> & fl, cxx_mpz & norm,
         for (int i = 0; i < bit; ++i)
             fl.push_back(2);
         if (trial_div_very_verbose)
-            verbose_output_vfprint(TRACE_CHANNEL, 0, gmp_vfprintf,
-                                   "# x = %d, dividing out 2^%d, norm = %Zd\n",
-                                   x, bit, (mpz_srcptr)norm);
+            verbose_fmt_print(TRACE_CHANNEL, 0,
+                                   "# x = {}, dividing out 2^{}, norm = {}\n",
+                                   x, bit, norm);
         mpz_tdiv_q_2exp(norm, norm, bit);
     }
 
@@ -237,19 +238,16 @@ void divide_known_primes(std::vector<uint64_t> & fl, cxx_mpz & norm,
     size_t const nf_divide_hints = fl.size();
 
     if (trial_div_very_verbose)
-        verbose_output_vfprint(
-            TRACE_CHANNEL, 0, gmp_vfprintf,
-            "# x = %d, after dividing out bucket/resieved norm = %Zd\n", x,
-            (mpz_srcptr)norm);
+        verbose_fmt_print(
+            TRACE_CHANNEL, 0,
+            "# x = {}, after dividing out bucket/resieved norm = {}\n", x,
+            norm);
 
     /* Trial divide primes with precomputed tables */
 
     if (trial_div_very_verbose) {
-        std::ostringstream os;
-        for (auto p: td)
-            os << " " << p.p;
-        verbose_output_print(TRACE_CHANNEL, 0, "# Trial division by%s\n",
-                             os.str().c_str());
+        verbose_fmt_print(TRACE_CHANNEL, 0, "# Trial division by{}\n",
+                join(td, " ", [](auto const & p) { return p.p; }));
     }
 
     td.trial_divide(fl, norm);
@@ -276,14 +274,13 @@ void divide_known_primes(std::vector<uint64_t> & fl, cxx_mpz & norm,
                 os << " " << fl[i];
             os << "]";
         }
-        verbose_output_print(TRACE_CHANNEL, 0, "# %zu factors found:%s\n",
+        verbose_fmt_print(TRACE_CHANNEL, 0, "# {} factors found:{}\n",
                              fl.size(), os.str().c_str());
-        verbose_output_vfprint(TRACE_CHANNEL, 0, gmp_vfprintf,
-                               "# After trialdiv(): norm = %Zd\n",
-                               (mpz_srcptr)norm);
+        verbose_fmt_print(TRACE_CHANNEL, 0,
+                               "# After trialdiv(): norm = {}\n",
+                               norm);
     }
 
     if (trial_div_very_verbose)
         verbose_output_end_batch();
 }
-/*  */

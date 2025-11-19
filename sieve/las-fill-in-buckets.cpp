@@ -503,9 +503,8 @@ static void fill_in_buckets_toplevel_sublat(
 
     ASSERT_ALWAYS(Q.sublat.m);
     bool const first_sublat = Q.sublat.i0 == 0 && Q.sublat.j0 == 1;
-    bucket_array_t<LEVEL, TARGET_HINT>
-        BA; /* local copy. Gain a register + use stack */
-    BA.move(orig_BA);
+    /* local copy. Gain a register + use stack */
+    bucket_array_t<LEVEL, TARGET_HINT> BA = std::move(orig_BA);
 
     slice_index_t const slice_index = slice.get_index();
 
@@ -630,7 +629,7 @@ static void fill_in_buckets_toplevel_sublat(
         }
     }
     // printf("%.3f\n", BA.max_full());
-    orig_BA.move(BA);
+    orig_BA = std::move(BA);
 }
 
 /* TARGET_HINT is shorthint_t or emptyhint_t */
@@ -646,9 +645,8 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, TARGET_HINT> & orig_BA,
 
     ASSERT_ALWAYS(!Q.sublat.m);
 
-    bucket_array_t<LEVEL, TARGET_HINT>
-        BA; /* local copy. Gain a register + use stack */
-    BA.move(orig_BA);
+    /* local copy. Gain a register + use stack */
+    bucket_array_t<LEVEL, TARGET_HINT> BA = std::move(orig_BA);
 
     slice_index_t const slice_index = slice.get_index();
 
@@ -751,7 +749,7 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, TARGET_HINT> & orig_BA,
         }
     }
     // printf("%.3f\n", BA.max_full());
-    orig_BA.move(BA);
+    orig_BA = std::move(BA);
 }
 
 /* {{{ */
@@ -767,9 +765,9 @@ fill_in_buckets_lowlevel(bucket_array_t<LEVEL, TARGET_HINT> & orig_BA,
 
     /* The timer stuff is dealt with by the caller */
     slice_index_t const slice_index = plattices_vector.get_index();
-    bucket_array_t<LEVEL, TARGET_HINT>
-        BA; /* local copy. Gain a register + use stack */
-    BA.move(orig_BA);
+
+    /* local copy. Gain a register + use stack */
+    bucket_array_t<LEVEL, TARGET_HINT> BA = std::move(orig_BA);
 
     /* Write new set of pointers for the new slice */
     BA.add_slice_index(slice_index);
@@ -869,7 +867,7 @@ fill_in_buckets_lowlevel(bucket_array_t<LEVEL, TARGET_HINT> & orig_BA,
         ple_orig.advance_to_next_area(F);
     }
     // printf("%.3f\n", BA.max_full());
-    orig_BA.move(BA);
+    orig_BA = std::move(BA);
 }
 
 template <int LEVEL> class fill_in_buckets_parameters : public task_parameters
