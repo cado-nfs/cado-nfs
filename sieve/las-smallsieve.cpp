@@ -8,8 +8,6 @@
  * The WHERE_AM_I_UPDATE macro itself is defined in las-where-am-i.hpp
  */
 
-#include <cinttypes>
-#include <cstdarg>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
