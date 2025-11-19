@@ -11,23 +11,23 @@
 #error "This file assumes SSE-2 support!"
 #endif /* HAVE_SSE2 */
 
-#include <cstdint>          // for uint32_t
-#include <cstdlib>          // for size_t, abs
+#include <cstdint>
+#include <cstdlib>
 
-#include <vector>           // for vector
+#include <vector>
 
-#include <emmintrin.h>      // for __m128i, _mm_xor_si128, _mm_set1_epi8
+#include <emmintrin.h>
 
 #ifdef TRACE_K
-#include "las-where-am-i.hpp"           // for where_am_I, WHERE_AM_I_UPDATE
-#include "las-output.hpp"   // IWYU pragma: keep
-#include "verbose.h"    // verbose_output_print
+#include "las-where-am-i.hpp"
+#include "las-output.hpp"
+#include "verbose.h"
 #endif
 
-#include "las-unsieve.hpp"  // for extract_j_div, j_divisibility_helper, sea...
-#include "macros.h"         // for ASSERT_ALWAYS, MAYBE_UNUSED, no_break
-#include "arith/ularith.h"        // for ularith_ctz
-#include "gcd.h"       // for bin_gcd_int64_safe
+#include "las-unsieve.hpp"
+#include "macros.h"
+#include "arith/ularith.h"
+#include "gcd.h"
 
 static const int verify_gcd = 0; /* Enable slow but thorough test */
 static const __m128i sign_conversion = _mm_set1_epi8(-128);
@@ -135,7 +135,7 @@ search_single_survivors_mask(unsigned char * const SS,
               ASSERT_ALWAYS(bin_gcd_int64_safe (i, j) != 1);
 #ifdef TRACE_K
           if (trace_on_spot_Nx(N, x)) {
-              verbose_output_print(TRACE_CHANNEL, 0, "# Slot [%u] in bucket %u has non coprime (i,j)=(%d,%u)\n",
+              verbose_fmt_print(TRACE_CHANNEL, 0, "# Slot [{}] in bucket {} has non coprime (i,j)=({},{})\n",
                       x, N, i, j);
           }
 #endif
@@ -146,7 +146,7 @@ search_single_survivors_mask(unsigned char * const SS,
               ASSERT_ALWAYS(bin_gcd_int64_safe (i, j) == 1);
 #ifdef TRACE_K
           if (trace_on_spot_Nx(N, x)) {
-              verbose_output_print(TRACE_CHANNEL, 0, "# Slot [%u] in bucket %u is survivor with coprime (i,j)\n",
+              verbose_fmt_print(TRACE_CHANNEL, 0, "# Slot [{}] in bucket {} is survivor with coprime (i,j)\n",
                       x, N);
           }
 #endif
