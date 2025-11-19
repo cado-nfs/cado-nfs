@@ -4,6 +4,8 @@
 #include "cado_config.h"  // for HAVE_GCC_STYLE_AMD64_INLINE_ASM, ULONGLONG_...
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
+
 #ifdef __cplusplus
 #include <type_traits>
 #include <string>
@@ -287,7 +289,12 @@ static inline const char * ok_NOKNOK(int t)
 static inline std::string size_disp(size_t s) {
     char buf[16];
     size_disp(s, buf);
-    return std::string(buf);
+    return { buf };
+}
+static inline std::string size_disp_fine(size_t s, double cutoff) {
+    char buf[16];
+    size_disp_fine(s, buf, cutoff);
+    return { buf };
 }
 
 static inline bool ends_with(std::string const & name, std::string const & suffix)
@@ -312,9 +319,9 @@ static inline T next_power_of_2(T x)
      * next_power_of_2(x) { return previous_power_of_two(x-1)<<1U; }
      */
     static_assert(
-            std::is_same<T, unsigned long>::value ||
-            std::is_same<T, unsigned int>::value ||
-            std::is_same<T, size_t>::value,
+            std::is_same_v<T, unsigned long> ||
+            std::is_same_v<T, unsigned int> ||
+            std::is_same_v<T, size_t>,
             "not supported for this type");
     /* round x to the next power of two */
     for( ; x & (x - 1) ; ) {
@@ -328,9 +335,9 @@ template<typename T>
 static inline T log2_of_next_power_of_2(T x)
 {
     static_assert(
-            std::is_same<T, unsigned long>::value ||
-            std::is_same<T, unsigned int>::value ||
-            std::is_same<T, size_t>::value,
+            std::is_same_v<T, unsigned long> ||
+            std::is_same_v<T, unsigned int> ||
+            std::is_same_v<T, size_t>,
             "not supported for this type");
     T m = 1;
     int i = 0;
