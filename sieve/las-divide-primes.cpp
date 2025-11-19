@@ -108,8 +108,9 @@ static void divide_primes_from_bucket(factor_list_t & fl, mpz_t norm,
                         p, N, x);
                     abort();
                 } else {
+                    /* it's really a fairly normal condition */
                     verbose_output_print(
-                        0, 2,
+                        0, 3,
                         "# Note (harmless): p = %lu does not divide at (N,x) = "
                         "(%u,%d), was divided out before\n",
                         p, N, x);
@@ -172,8 +173,9 @@ static void divide_hints_from_bucket(factor_list_t & fl, mpz_t norm,
                         p, N, x);
                     abort();
                 } else {
+                    /* it's really a fairly normal condition */
                     verbose_output_print(
-                        0, 2,
+                        0, 3,
                         "# Note (harmless): p = %lu (from hint) does not "
                         "divide at (N,x) = (%u,%d), was divided out before\n",
                         p, N, x);
