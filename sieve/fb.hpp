@@ -894,6 +894,10 @@ class fb_factorbase
 
 std::ostream & operator<<(std::ostream & o, fb_factorbase::key_type const &);
 
+namespace fmt {
+    template<> struct formatter<fb_factorbase::key_type> : ostream_formatter {};
+} /* namespace fmt */
+
 unsigned char fb_log(double x, double y, double z);
 unsigned char fb_log_delta(fbprime_t, unsigned long, unsigned long, double);
 fbprime_t fb_is_power(fbprime_t, unsigned long *);

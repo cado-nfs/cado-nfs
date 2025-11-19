@@ -200,10 +200,10 @@ void fb_entry_general::read_roots(char const * lineptr,
     nr_roots = 0;
     while (*lineptr != '\0') {
         if (nr_roots == MAX_DEGREE) {
-            verbose_output_print(
+            verbose_fmt_print(
                 1, 0,
-                "# Error, too many roots for prime (power) %" FBPRIME_FORMAT
-                " in factor base line %lu\n",
+                "# Error, too many roots for prime (power) {}"
+                " in factor base line {}",
                 q, linenr);
             exit(EXIT_FAILURE);
         }
@@ -212,9 +212,9 @@ void fb_entry_general::read_roots(char const * lineptr,
            root as a 64-bit integer first and subtract q if necessary. */
         unsigned long long const t = strtoull_const(lineptr, &lineptr, 10);
         if (nr_roots > 0 && t <= last_t) {
-            verbose_output_print(
+            verbose_fmt_print(
                 1, 0,
-                "# Error, roots must be sorted in the fb file, line %lu\n",
+                "# Error, roots must be sorted in the fb file, line {}",
                 linenr);
             exit(EXIT_FAILURE);
         }
@@ -224,8 +224,8 @@ void fb_entry_general::read_roots(char const * lineptr,
 
         roots[nr_roots++] = fb_general_root(R, nexp, oldexp);
         if (*lineptr != '\0' && *lineptr != ',') {
-            verbose_output_print(
-                1, 0, "# Incorrect format in factor base file line %lu\n",
+            verbose_fmt_print(
+                1, 0, "# Incorrect format in factor base file line {}",
                 linenr);
             exit(EXIT_FAILURE);
         }
@@ -234,10 +234,9 @@ void fb_entry_general::read_roots(char const * lineptr,
     }
 
     if (nr_roots == 0) {
-        verbose_output_print(
+        verbose_fmt_print(
             1, 0,
-            "# Error, no root for prime (power) %" FBPRIME_FORMAT
-            " in factor base line %lu\n",
+            "# Error, no root for prime (power) {} in factor base line {}",
             q, linenr - 1);
         exit(EXIT_FAILURE);
     }
@@ -253,12 +252,12 @@ void fb_entry_general::parse_line(char const * lineptr,
 {
     q = strtoul_const(lineptr, &lineptr, 10);
     if (q == 0) {
-        verbose_output_print(
-            1, 0, "# fb_read: prime is not an integer on line %lu\n", linenr);
+        verbose_fmt_print(
+            1, 0, "# fb_read: prime is not an integer on line {}", linenr);
         exit(EXIT_FAILURE);
     } else if (*lineptr != ':') {
-        verbose_output_print(
-            1, 0, "# fb_read: prime is not followed by colon on line %lu",
+        verbose_fmt_print(
+            1, 0, "# fb_read: prime is not followed by colon on line {}",
             linenr);
         exit(EXIT_FAILURE);
     }
@@ -288,24 +287,24 @@ void fb_entry_general::parse_line(char const * lineptr,
         nexp = strtoul_const(lineptr, &lineptr, 10);
 
         if (nexp == 0) {
-            verbose_output_print(
+            verbose_fmt_print(
                 1, 0,
                 "# Error in fb_read: could not parse "
-                "the integer after the colon of prime %" FBPRIME_FORMAT "\n",
+                "the integer after the colon of prime {}\n",
                 q);
             exit(EXIT_FAILURE);
         }
         if (*lineptr != ',') {
-            verbose_output_print(
-                1, 0, "# fb_read: exp is not followed by comma on line %lu",
+            verbose_fmt_print(
+                1, 0, "# fb_read: exp is not followed by comma on line {}",
                 linenr);
             exit(EXIT_FAILURE);
         }
         lineptr++; /* skip comma */
         oldexp = strtoul_const(lineptr, &lineptr, 10);
         if (*lineptr != ':') {
-            verbose_output_print(
-                1, 0, "# fb_read: oldlogp is not followed by colon on line %lu",
+            verbose_fmt_print(
+                1, 0, "# fb_read: oldlogp is not followed by colon on line {}",
                 linenr);
             exit(EXIT_FAILURE);
         }
@@ -400,18 +399,16 @@ void fb_entry_x_roots<Nr_roots>::transform_roots(
             unsigned long long const t =
                 fb_root_in_qlattice(p, roots[i_root], invq, basis);
             if (t >= p || t != result.roots[i_root]) {
-                verbose_output_print(
+                verbose_fmt_print(
                     1, 0,
-                    "%hhu-th batch transformed root modulo %" FBPRIME_FORMAT
-                    " is wrong: %" FBROOT_FORMAT ", correct: %llu\n",
+                    "{}-th batch transformed root modulo {} is wrong:"
+                    " {}, correct: {}",
                     i_root, p, result.roots[i_root], t);
-                verbose_output_print(
+                verbose_fmt_print(
                     1, 0,
-                    "Root in a,b-plane: %" FBROOT_FORMAT
-                    " modulo %" FBPRIME_FORMAT "\n"
-                    "Lattice basis: a0=%" PRId64 ", b0=%" PRId64 ", a1=%" PRId64
-                    ", b1=%" PRId64 "\n",
-                    roots[i_root], p, basis.a0, basis.b0, basis.a1, basis.b1);
+                    "Root in a,b-plane: {} modulo {}\n"
+                    "Lattice basis: {}\n",
+                    roots[i_root], p, basis);
                 ASSERT(0);
             }
         }
@@ -1114,10 +1111,10 @@ struct helper_functor_subdivide_slices {
             n_eq << "*";
         else
             n_eq << n;
-        verbose_output_print(0, 4,
-                             "# slices for side-%d part %d, %s roots: %zu "
-                             "entries, %zu logp values\n",
-                             side, part_index, n_eq.str().c_str(),
+        verbose_fmt_print(0, 4,
+                             "# slices for side-{} part {}, {} roots: {} "
+                             "entries, {} logp values\n",
+                             side, part_index, n_eq.str(),
                              interval_width, pool.size());
 
         /* We now divide into several slices of roughly equal weight.
@@ -1137,12 +1134,12 @@ struct helper_functor_subdivide_slices {
                 ceil(s.weight / max_slice_weight);
             if (npieces_for_no_bulky_slice > 1 ||
                 npieces_for_addressable_slices > 1)
-                verbose_output_print(
+                verbose_fmt_print(
                     0, 4,
-                    "# [side-%d part %d %s logp=%d; %zu entries, weight=%f]: "
-                    "min %zu slices to be addressable, min %zu to make sure "
-                    "weight does not exceed cap %f\n",
-                    side, part_index, n_eq.str().c_str(), (int)s.get_logp(),
+                    "# [side-{} part {} {} logp={}; {} entries, weight={}]: "
+                    "min {} slices to be addressable, min {} to make sure "
+                    "weight does not exceed cap {}",
+                    side, part_index, n_eq.str(), (int)s.get_logp(),
                     s.size(), s.weight, npieces_for_addressable_slices,
                     npieces_for_no_bulky_slice, max_slice_weight);
             for (size_t npieces = std::max(npieces_for_no_bulky_slice,
@@ -1181,11 +1178,11 @@ struct helper_functor_subdivide_slices {
                                   std::numeric_limits<slice_offset_t>::max());
                         if (new_npieces == npieces)
                             new_npieces++;
-                        verbose_output_print(
+                        verbose_fmt_print(
                             0, 4,
-                            "# [side-%d part %d %s logp=%d; %zu entries, "
-                            "weight=%f]: slice %zu/%zu overflows (%zu/%zu "
-                            "entries). Trying %zu slices\n",
+                            "# [side-{} part {} {} logp={}; {} entries, "
+                            "weight={}]: slice {}/{} overflows ({}/{} "
+                            "entries). Trying {} slices\n",
                             side, part_index, n_eq.str().c_str(),
                             (int)s.get_logp(), s.size(), s.get_weight(),
                             npieces - k, npieces, (size_t)(jt - it),
@@ -1225,9 +1222,9 @@ struct helper_functor_subdivide_slices {
             s.index = index++;
 
         for (auto const & s: sdst) {
-            verbose_output_print(
-                0, 4, "# [side-%d %lu] %s logp=%d: %zu entries, weight=%f\n",
-                side, (unsigned long)s.get_index(), n_eq.str().c_str(),
+            verbose_fmt_print(
+                0, 4, "# [side-{} {}] {} logp={}: {} entries, weight={}",
+                side, (unsigned long)s.get_index(), n_eq.str(),
                 (int)s.get_logp(), s.size(), s.get_weight());
         }
     }
@@ -1254,12 +1251,8 @@ fb_factorbase::slicing::slicing(fb_factorbase const & fb,
      * stuff using the helper_functor_dispatch_weight_parts structure above.
      */
 
-    {
-        std::ostringstream os;
-        os << K;
-        verbose_output_print(0, 2, "# Creating new slicing on side %d for %s\n",
-                             fb.side, os.str().c_str());
-    }
+    verbose_fmt_print(0, 2, "# Creating new slicing on side {} for {}\n",
+            fb.side, K);
 
     /* This uses our cache of thresholds, we expect it to be quick enough */
     std::array<threshold_pos, MAX_TOPLEVEL + 2> local_thresholds;
@@ -1353,7 +1346,7 @@ fb_factorbase::slicing::slicing(fb_factorbase const & fb,
         if (i)
             os << " [" << parts[i].nslices() << " slices]";
 
-        verbose_output_print(0, 2, "# %s\n", os.str().c_str());
+        verbose_fmt_print(0, 2, "# {}\n", os.str());
     }
 }
 
@@ -1398,8 +1391,8 @@ void fb_factorbase::make_linear()
     std::vector<fb_power_t> powers(fb_powers(powlim));
     size_t next_pow = 0;
 
-    verbose_output_print(
-        0, 1, "# including primes up to %lu and prime powers up to %lu.\n", lim,
+    verbose_fmt_print(
+        0, 1, "# including primes up to {} and prime powers up to {}", lim,
         powlim);
 
     prime_info pi;
@@ -1569,10 +1562,10 @@ void fb_factorbase::make_linear_threadpool(unsigned int nb_threads)
     std::vector<fb_power_t> const powers(fb_powers(plim));
     size_t next_pow = 0;
 
-    verbose_output_print(
+    verbose_fmt_print(
         0, 1,
-        "# including primes up to %lu and prime powers up to %lu"
-        " using threadpool of %u threads.\n",
+        "# including primes up to {} and prime powers up to {}"
+        " using threadpool of {} threads.\n",
         lim, powlim, nb_threads);
 
 #define MARGIN 3
@@ -1739,7 +1732,7 @@ int fb_factorbase::read(char const * const filename)
 
     fbfile = fopen_maybe_compressed(filename, "r");
     if (fbfile == NULL) {
-        verbose_output_print(1, 0, "# Could not open file %s for reading\n",
+        verbose_fmt_print(1, 0, "# Could not open file {} for reading\n",
                              filename);
         return 0;
     }
@@ -1787,14 +1780,14 @@ int fb_factorbase::read(char const * const filename)
 
     append(pool);
 
-    verbose_output_print(0, 2,
-                         "# Factor base successfully read, %lu primes, "
-                         "largest was %" FBPRIME_FORMAT "\n",
+    verbose_fmt_print(0, 2,
+                         "# Factor base successfully read, {} primes, "
+                         "largest was {}\n",
                          nr_primes, maxprime);
     if (overflow) {
-        verbose_output_print(0, 2,
-                             "# Note: %zu primes above limits (lim=%lu, "
-                             "powlim=%lu) were discarded\n",
+        verbose_fmt_print(0, 2,
+                             "# Note: {} primes above limits (lim={}, "
+                             "powlim={}) were discarded\n",
                              overflow, lim, powlim);
     }
 
@@ -2028,33 +2021,33 @@ static fbc_header find_fbc_header_block_for_poly(char const * fbc_filename,
         if (mpz_poly_cmp(hdr.f, f) != 0)
             continue;
         if (hdr.lim != lim) {
-            verbose_output_print(
+            verbose_fmt_print(
                 0, 1,
-                "# Note: cached factor base number %zu in file %s skipped "
-                "because not consistent with lim%d=%lu\n",
+                "# Note: cached factor base number {} in file {} skipped "
+                "because not consistent with lim{}={}",
                 index, fbc_filename, side, lim);
             continue;
         }
         if (hdr.powlim != powlim) {
-            verbose_output_print(
+            verbose_fmt_print(
                 0, 1,
-                "# Note: cached factor base number %zu in file %s skipped "
-                "because not consistent with powlim%d=%lu\n",
+                "# Note: cached factor base number {} in file {} skipped "
+                "because not consistent with powlim{}={}",
                 index, fbc_filename, side, lim);
             continue;
         }
 
-        verbose_output_print(0, 1,
-                             "# Reading side-%d factor base via mmap() from "
-                             "block %zu in %s, (offset %zu, size %zu)\n",
+        verbose_fmt_print(0, 1,
+                             "# Reading side-{} factor base via mmap() from "
+                             "block {} in {}, (offset {}, size {})\n",
                              side, index, fbc_filename, hdr.base_offset,
                              hdr.size);
         close(fbc);
         return hdr;
     }
-    verbose_output_print(0, 1,
-                         "# cannot find cached factor base for side %d in file "
-                         "%s (will recreate)\n",
+    verbose_fmt_print(0, 1,
+                         "# cannot find cached factor base for side {} in file "
+                         "{} (will recreate)\n",
                          side, fbc_filename);
     close(fbc);
     return {};
@@ -2223,7 +2216,7 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side,
     lim = all_sides[side].lim;
     powlim = all_sides[side].powlim;
     if (powlim == ULONG_MAX) {
-        verbose_output_print(0, 2, "# Using default value powlim%d=ULONG_MAX\n",
+        verbose_fmt_print(0, 2, "# Using default value powlim{}=ULONG_MAX\n",
                              side);
     }
 
@@ -2244,9 +2237,9 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side,
     /* First use standard I/O to read the cached file header. */
     hdr = find_fbc_header_block_for_poly(fbc_filename, f, lim, powlim, side);
     if (hdr) {
-        verbose_output_print(0, 1,
-                             "# Reading side-%d factor base from cache %s"
-                             " for polynomial f%d(x) = %s\n",
+        verbose_fmt_print(0, 1,
+                             "# Reading side-{} factor base from cache {}"
+                             " for polynomial f{}(x) = {}",
                              side, fbc_filename, side, polystring.c_str());
         /* Now do the mmapping ! */
         using mmap_allocator_details::mmapped_file;
@@ -2260,8 +2253,8 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side,
 
         tfb = seconds() - tfb;
         tfb_wct = wct_seconds() - tfb_wct;
-        verbose_output_print(
-            0, 1, "# Reading side-%d factor base took %1.1fs (%1.1fs real)\n",
+        verbose_fmt_print(
+            0, 1, "# Reading side-{} factor base took {:.1f} ({:.1f} real)\n",
             side, tfb, tfb_wct);
         return;
     }
@@ -2269,10 +2262,10 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side,
     /* compute, or maybe read the factor base from the ascii file */
     {
         if (f->deg > 1) {
-            verbose_output_print(0, 2,
-                                 "# Reading side-%d factor base from disk"
-                                 " for polynomial f%d(x) = %s\n",
-                                 side, side, polystring.c_str());
+            verbose_fmt_print(0, 2,
+                                 "# Reading side-{} factor base from disk"
+                                 " for polynomial f{}(x) = {}",
+                                 side, side, polystring);
             std::string const & s = all_sides[side].fbfilename;
             char const * fbfilename = s.empty() ? NULL : s.c_str();
             if (!fbfilename) {
@@ -2281,30 +2274,30 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side,
                         side);
                 exit(EXIT_FAILURE);
             }
-            verbose_output_print(0, 1,
-                                 "# Reading side-%d factor base from %s\n",
+            verbose_fmt_print(0, 1,
+                                 "# Reading side-{} factor base from {}",
                                  side, fbfilename);
             if (!read(fbfilename))
                 exit(EXIT_FAILURE);
             tfb = seconds() - tfb;
             tfb_wct = wct_seconds() - tfb_wct;
-            verbose_output_print(
+            verbose_fmt_print(
                 0, 1,
-                "# Reading side-%d factor base took %1.1fs (%1.1fs real)\n",
+                "# Reading side-{} factor base took {:.1f} ({:.1f} real)\n",
                 side, tfb, tfb_wct);
         } else {
-            verbose_output_print(0, 2,
-                                 "# Creating side-%d rational factor base"
-                                 " for polynomial f%d(x) = %s\n",
-                                 side, side, polystring.c_str());
+            verbose_fmt_print(0, 2,
+                    "# Creating side-{} rational factor base"
+                    " for polynomial f{}(x) = {}",
+                    side, side, polystring);
 
             make_linear_threadpool(nthreads);
             tfb = seconds() - tfb;
             tfb_wct = wct_seconds() - tfb_wct;
-            verbose_output_print(0, 1,
-                                 "# Creating side-%d rational factor base took "
-                                 "%1.1fs (%1.1fs real)\n",
-                                 side, tfb, tfb_wct);
+            verbose_fmt_print(0, 1,
+                    "# Creating side-{} rational factor base took "
+                    "{:.1f} ({:.1f} real)\n",
+                    side, tfb, tfb_wct);
         }
     }
 
@@ -2382,13 +2375,13 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side,
             close(fbc);
             tfb = seconds() - tfb;
             tfb_wct = wct_seconds() - tfb_wct;
-            verbose_output_print(0, 1,
-                                 "# Saving side-%d factor base to cache %s "
-                                 "took %1.1fs (%1.1fs real)\n",
-                                 side, fbc_filename, tfb, tfb_wct);
+            verbose_fmt_print(0, 1,
+                    "# Saving side-{} factor base to cache {} "
+                    "took {:.1f} ({:.1f} real)\n",
+                    side, fbc_filename, tfb, tfb_wct);
         } else {
-            verbose_output_print(
-                0, 1, "# Cannot save side-%d factor base to cache %s : %s\n",
+            verbose_fmt_print(
+                0, 1, "# Cannot save side-{} factor base to cache {} : {}",
                 side, fbc_filename, strerror(errno));
         }
     }
