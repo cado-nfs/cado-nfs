@@ -74,7 +74,7 @@ T &reservation_array<T>::reserve(int wish)
      * used. We'll prefer the least full bucket arrays anyway.
      */
     if (verbose)
-      verbose_output_print(0, 3, "# Looking for least full bucket array\n");
+      verbose_fmt_print(0, 3, "# Looking for least full bucket array\n");
     double least_full = 1000; /* any large value */
     size_t least_full_index = SIZE_MAX;
     for (i = 0; i < n; i++) {
@@ -88,7 +88,7 @@ T &reservation_array<T>::reserve(int wish)
     }
     if (least_full_index != SIZE_MAX) {
         if (verbose)
-            verbose_output_print(0, 3, "# Bucket %zu is %.0f%% full\n",
+            verbose_fmt_print(0, 3, "# Bucket {} is {:.0f}%% full\n",
                     least_full_index, least_full * 100.);
         i = least_full_index;
         return use_(i);
@@ -103,8 +103,8 @@ T &reservation_array<T>::reserve(int wish)
      */
 
     auto k = bkmult_specifier::getkey<typename T::update_t>();
-    verbose_output_print(0, 1, "# Error: %s buckets are full (least avg %f), throwing exception\n",
-            bkmult_specifier::printkey(k).c_str(),
+    verbose_fmt_print(0, 1, "# Error: {} buckets are full (least avg {}), throwing exception\n",
+            bkmult_specifier::printkey(k),
             least_full);
     throw buckets_are_full(k, -1, least_full * 1e6, 1 * 1e6); 
   }
