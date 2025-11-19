@@ -413,8 +413,9 @@ batchinvredc_u32 (uint32_t *r, const uint32_t *a, const size_t n,
   for (size_t i = 0; i < n; i++) {
     uint32_t product = mulmodredc_u32<CARRYCHECK>(r[i], a[i], p, invp);
     if (product != 1) {
-      verbose_output_print(1, 0, "batchinv_u32: 1/%" PRIu32 " (mod %" PRIu32
-        ") wrong: %" PRIu32 "\n", a[i], p, r[i]);
+      verbose_fmt_print(1, 0,
+              "batchinv_u32: 1/{} (mod {}) wrong: {}\n",
+              a[i], p, r[i]);
       ASSERT(0);
     }
   }
