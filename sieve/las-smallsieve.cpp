@@ -349,10 +349,10 @@ void small_sieve_init(small_sieve_data_t & ssd,
                          * point of the code)
                          */
                         if (verbose) {
-                            verbose_output_print(0, 1,
+                            verbose_fmt_print(0, 1,
                                     "# small_sieve_init: not adding projective prime"
-                                    " (1:%" FBROOT_FORMAT ") mod %" FBPRIME_FORMAT ")"
-                                    " to small sieve  because g=%d >= J = %d\n",
+                                    " (1:{}) mod {})"
+                                    " to small sieve  because g={} >= J = {}",
                                     r_q-p, p, new_ssp.get_g(), J);
                         }
                         continue;
@@ -1111,9 +1111,9 @@ resieve_small_bucket_region (bucket_primes_t *BP,
 #if 0
             ssdpos[index] = pos - bucket_region;
             if (resieve_very_verbose) {
-                verbose_output_print(0, 1, "# resieving: new pos = %" PRIu64
-                        ", bucket_region = %d, "
-                        "new ssdpos = %" PRIu64 "\n",
+                verbose_fmt_print(0, 1, "# resieving: new pos = %" PRIu64
+                        ", bucket_region = {}, "
+                        "new ssdpos = {}\n",
                         pos, bucket_region, ssdpos[index]);
             }
 #endif

@@ -129,7 +129,7 @@ bool special_q_task_tree::new_candidate_relation(las_info const & las, relation 
         const std::lock_guard<std::mutex> lock(mm);
         if (newcomer < contender) {
             if (newcomer.outstanding.empty()) {
-                verbose_output_print(0, 1, "# [descent] Yiippee, splitting done\n");
+                verbose_fmt_print(0, 1, "# [descent] Yiippee, splitting done\n");
             } else if (std::isfinite(contender.deadline)) {
                 // This implies that newcomer.deadline is also finite 
                 const double delta = contender.time_left-newcomer.time_left;
