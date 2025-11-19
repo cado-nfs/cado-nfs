@@ -59,6 +59,6 @@ std::string bkmult_specifier::print_all() const
                 [](auto const& item) {
                     auto const & [ key, mult ] = item;
                     auto const & [ lev, hint ] = key;
-                    return fmt::format("{}{}:{}", lev, hint, mult);
+                    return fmt::format("{}{}:{:.3f}", lev, hint, mult);
                 }));
 }

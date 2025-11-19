@@ -533,7 +533,7 @@ static fb_root_p1 fb_linear_root(cxx_mpz_poly const & poly, fbprime_t const q)
 
 std::ostream & operator<<(std::ostream & o, fb_factorbase::key_type const & k)
 {
-    return o << fmt::format("scale={}, thresholds={{{}}}",
+    return o << fmt::format("scale={:1.2f}, thresholds={{{}}}",
                             k.scale, join(k.thresholds, ", "));
 }
 

@@ -553,7 +553,6 @@ static size_t expected_memory_usage_per_subjob_worst_logI(siever_config const & 
      * the las_info structure is set.
      */
     int const hush = print ? 0 : 3;
-    char buf[20];
     /* do the estimate based on the typical config stuff provided.
      * This is most often going to give a reasonable rough idea anyway.
      */
@@ -578,7 +577,7 @@ static size_t expected_memory_usage_per_subjob_worst_logI(siever_config const & 
 
         verbose_fmt_print(0, 2 + hush,
                 "# Expected memory usage per subjob for logI={}: {}\n",
-                sc.logI, size_disp(memory, buf));
+                sc.logI, size_disp(memory));
 
         if (memory > max_memory) {
             logI_max_memory = sc.logI;
@@ -589,7 +588,7 @@ static size_t expected_memory_usage_per_subjob_worst_logI(siever_config const & 
         verbose_fmt_print(0, 0 + hush,
                 "# Expected memory use per subjob (max reached for logI={}):"
                 " {}\n",
-                logI_max_memory, size_disp(max_memory, buf));
+                logI_max_memory, size_disp(max_memory));
     return max_memory;
 }/*}}}*/
 
