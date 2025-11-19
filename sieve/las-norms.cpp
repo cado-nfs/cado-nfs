@@ -1,12 +1,10 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cinttypes>
 #include <cstdint>
 #include <climits>
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
-#include <cstdarg>
 
 #include <algorithm>
 #include <array>
@@ -254,8 +252,8 @@ lognorm_base::lognorm_base(siever_config const & sc, cxx_cado_poly const & cpoly
     scale = (int)(scale * 40) * 0.025;
 
     verbose_output_start_batch();
-    verbose_output_print (0, 2,
-            "# Side %d: log2(maxnorm)=%1.2f scale=%1.2f, logbase=%1.6f",
+    verbose_fmt_print (0, 2,
+            "# Side {}: log2(maxnorm)={:1.2f} scale={:1.2f}, logbase={:1.6f}",
             side, maxlog2, scale, exp2 (1. / scale));
 
     /* we want to select relations with a cofactor of less than r bits */
@@ -280,9 +278,9 @@ lognorm_base::lognorm_base(siever_config const & sc, cxx_cado_poly const & cpoly
 
     bound = (unsigned char) (r * scale + LOGNORM_GUARD_BITS);
 
-    verbose_output_print (0, 2, " bound=%u\n", bound);
+    verbose_fmt_print (0, 2, " bound={}\n", bound);
     if (lambda > max_lambda)
-        verbose_output_print (0, 2, "# Warning, lambda>%.1f on side %d does "
+        verbose_fmt_print (0, 2, "# Warning, lambda>{:.1f} on side {} does "
                 "not make sense (capped to limit)\n", max_lambda, side);
 
     verbose_output_end_batch();
@@ -954,17 +952,17 @@ double sieve_range_adjust::estimate_yield_in_sieve_area(mat<int> const& shuffle,
             double weight = 1;
             if (i == -nx/2 || i == nx/2) weight /= 2;
             if (j == 0 || j == ny/2) weight /= 2;
-            verbose_output_print(0, 4, "# %d %d (%.2f) %.1f %.1f", i, j, weight, xys[0], xys[1]);
+            verbose_fmt_print(0, 4, "# {} {} ({:.2f}) {:.1f} {:.1f}", i, j, weight, xys[0], xys[1]);
 
             double sprod = 1;
             for(int side = 0 ; side < nsides ; side++) {
                 double const z = fijd[side].eval(xys[0], xys[1]);
                 double const a = log2(fabs(z));
                 double const d = dickman_rho_local(a/conf.sides[side].lpb, fabs(z));
-                verbose_output_print(0, 4, " %d %e %e", side, z, d);
+                verbose_fmt_print(0, 4, " {} {:e} {:e}", side, z, d);
                 sprod *= d;
             }
-            verbose_output_print(0, 4, " %e\n", sprod);
+            verbose_fmt_print(0, 4, " {:e}", sprod);
 
             weightsum += weight;
             sum += weight*sprod;
@@ -1072,7 +1070,7 @@ B:=[bestrep(a):a in {{a*b*c*x:a in {1,-1},b in {1,d},c in {1,s}}:x in MM}];
                 best_squeeze = squeeze;
                 best_sum = sum;
             }
-            verbose_output_print(0, 4, "# estimated yield for rectangle #%d,%d: %e\n", r, squeeze, sum);
+            verbose_fmt_print(0, 4, "# estimated yield for rectangle #{},{}: {}", r, squeeze, sum);
         }
     }
 
@@ -1152,11 +1150,9 @@ int sieve_range_adjust::sieve_info_adjust_IJ()/*{{{*/
      */
     const double skew = cpoly->skew;
     const double rt_skew = sqrt(skew);
-    verbose_output_vfprint(0, 3, gmp_vfprintf,
-            "# Called sieve_info_adjust_IJ((a0=%" PRId64 "; b0=%" PRId64
-            "; a1=%" PRId64 "; b1=%" PRId64 "), p=%Zd, skew=%f)\n",
-            Q.a0, Q.b0, Q.a1, Q.b1,
-            (mpz_srcptr) Q.doing.p, skew);
+    verbose_fmt_print(0, 3,
+            "# Called sieve_info_adjust_IJ(p={}, skew={})\n",
+            Q, skew);
     if (Q.skewed_norm0(skew) > Q.skewed_norm1(skew)) {
         /* exchange u0 and u1, thus I and J */
         swap(Q.a0, Q.a1);
@@ -1188,9 +1184,9 @@ int sieve_range_adjust::round_to_full_bucket_regions(const char * origin, std::s
     uint32_t const nJ = (J / i) * i; /* Round down to multiple of i */
 
     if (message.empty()) {
-        verbose_output_print(0, 3, "# %s(): logI=%d J=%" PRIu32 "\n", origin, logI, nJ);
+        verbose_fmt_print(0, 3, "# {}(): logI={} J={}\n", origin, logI, nJ);
     } else {
-        verbose_output_print(0, 3, "# %s(): logI=%d J=%" PRIu32 " [%s]\n", origin, logI, nJ, message.c_str());
+        verbose_fmt_print(0, 3, "# {}(): logI={} J={} [{}]\n", origin, logI, nJ, message.c_str());
     }
     /* XXX No rounding if we intend to abort */
     if (nJ > 0) J = nJ;
