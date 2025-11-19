@@ -3,21 +3,21 @@
 // IWYU pragma: no_include <hwloc/bitmap.h>
 // IWYU pragma: no_include "hwloc/bitmap.h"
 
-#include <cerrno>             // for EXDEV, errno
-#include <cinttypes>          // for PRIu64
-#include <cstdint>            // for uint64_t
-#include <cstdio>             // for fprintf, stderr, size_t, fputs
-#include <cstdlib>            // for free, exit, EXIT_FAILURE, EXIT_SUCCESS
+#include <cerrno>
+#include <cinttypes>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 
-// #include <mutex>               // for mutex, lock_guard
-#include <string>              // for string, operator<<, char_traits, opera...
-#include <tuple>               // for tie, get, make_tuple, tuple
-#include <vector>              // for vector, vector<>::iterator
+// #include <mutex>
+#include <string>
+#include <tuple>
+#include <vector>
 #include <memory>
-#include <sstream>      // IWYU pragma: keep
+#include <sstream>
 
-#include <strings.h>           // for strcasecmp
-#include <regex.h>             // for regmatch_t, regcomp, regexec, regfree
+#include <strings.h>
+#include <regex.h>
 
 #ifdef HAVE_HWLOC
 #include <hwloc.h>
@@ -25,9 +25,9 @@
 #endif
 #include "las-parallel.hpp"
 
-#include "misc.h"       // size_disp
-#include "utils_cxx.hpp"        // call_dtor
-#include "verbose.h"             // verbose_output_print
+#include "misc.h"
+#include "utils_cxx.hpp"
+#include "verbose.h"
 #include "macros.h"
 #include "params.h"
 
@@ -991,26 +991,26 @@ las_parallel_desc::las_parallel_desc(cxx_param_list & pl, double jobram_arg)
 void las_parallel_desc::display_binding_info() const /*{{{*/
 {
     verbose_output_start_batch();
-    verbose_output_print(0, 1, "%s", help->banner.c_str());
-    verbose_output_print(0, 2, "%s", help->full_diagnostics.c_str());
+    verbose_fmt_print(0, 1, "{}", help->banner);
+    verbose_fmt_print(0, 2, "{}", help->full_diagnostics);
 #ifdef HAVE_HWLOC
-    verbose_output_print(0, 1, "# %d memory binding zones\n", nmemory_binding_zones);
-    verbose_output_print(0, 1, "# %d cpu binding zones within each memory binding\n", ncpu_binding_zones_per_memory_binding_zone);
-    verbose_output_print(0, 1, "# %d jobs within each binding context (hence %d in total)\n",
+    verbose_fmt_print(0, 1, "# {} memory binding zones\n", nmemory_binding_zones);
+    verbose_fmt_print(0, 1, "# {} cpu binding zones within each memory binding\n", ncpu_binding_zones_per_memory_binding_zone);
+    verbose_fmt_print(0, 1, "# {} jobs within each binding context (hence {} in total)\n",
             number_of_subjobs_per_cpu_binding_zone(),
             number_of_subjobs_total());
-    verbose_output_print(0, 1, "# %d threads per job\n", nthreads_per_subjob);
+    verbose_fmt_print(0, 1, "# {} threads per job\n", nthreads_per_subjob);
     if (jobram >= 0) {
         double const all = jobram * number_of_subjobs_total();
         int const physical = help->total_ram() >> 30;
         double const ratio = 100 * all / physical;
 
-        verbose_output_print(0, 1, "# Based on an estimate of %.2f GB per job, we use %.2f GB in total, i.e. %.1f%% of %d GB\n",
+        verbose_fmt_print(0, 1, "# Based on an estimate of {:.2f} GB per job, we use {:.2f} GB in total, i.e. {:.1f}%% of {} GB\n",
                 jobram, all, ratio, physical);
     }
 #else
-    verbose_output_print(0, 1, "# %d jobs in parallel\n", number_of_subjobs_total());
-    verbose_output_print(0, 1, "# %d threads per job\n", nthreads_per_subjob);
+    verbose_fmt_print(0, 1, "# {} jobs in parallel\n", number_of_subjobs_total());
+    verbose_fmt_print(0, 1, "# {} threads per job\n", nthreads_per_subjob);
 #endif
 
 
@@ -1023,12 +1023,20 @@ void las_parallel_desc::display_binding_info() const /*{{{*/
         {
             std::ostringstream pu_app;
             pu_app << "[" << memory_binding_size << " PUs]";
-            for(auto & x : tm) { x += " "; x += pu_app.str(); if (x.size() > m) m = x.size(); }
+            for(auto & x : tm) {
+                x += " ";
+                x += pu_app.str();
+                if (x.size() > m) m = x.size();
+            }
         }
         {
             std::ostringstream pu_app;
             pu_app << "[" << cpu_binding_size << " PUs]";
-            for(auto & x : tc) { x += " "; x += pu_app.str(); if (x.size() > c) c = x.size(); }
+            for(auto & x : tc) {
+                x += " ";
+                x += pu_app.str();
+                if (x.size() > c) c = x.size();
+            }
         }
         size_t const qc = number_of_subjobs_per_cpu_binding_zone();
         size_t const qm = qc * ncpu_binding_zones_per_memory_binding_zone;
@@ -1041,9 +1049,9 @@ void las_parallel_desc::display_binding_info() const /*{{{*/
             char * sm;
             hwloc_bitmap_asprintf(&sm, help->memory_binding_nodesets[i/qm]);
 
-            verbose_output_print(0, 2, "# %-*s %-*s %s [%d thread(s)] [ m:%s c:%s ]\n",
-                    (int) m, (i % qm) ? "" : tm[i / qm].c_str(),
-                    (int) c, (i % qc) ? "" : tc[i / qc].c_str(),
+            verbose_fmt_print(0, 2, "# {:<{}} {:<{}} {} [{} thread(s)] [ m:{} c:{} ]\n",
+                    (i % qm) ? "" : tm[i / qm], m,
+                    (i % qc) ? "" : tc[i / qc], c,
                     "job", // tj[i].c_str(),
                     nthreads_per_subjob,
                     sm, sc
