@@ -35,12 +35,10 @@ cxx_mpz const & power_lookup_table::inside(int i)
     if (px != m.end())
         return z[px->second];
     cxx_mpz q;
-    // XXX valgrind says that this sometimes leaks. I don't understand
-    // why.  Perhaps it's obvious.
     if (i == 0) {
         mpz_set_ui(q, 1);
     } else if (i == 1) {
-        mpz_init_set_ui(q, p);
+        mpz_set_ui(q, p);
     } else if (i & 1) {
         /* we do it in such a way that the newton lift encounters exactly
          * this sequence of primes -- and we apologize for the division
