@@ -11,9 +11,7 @@
 #include <emmintrin.h>
 #endif
 #include <algorithm>
-#include <cinttypes>
 #include <cmath>
-#include <cstdarg>
 #include <cstring>
 #include <sys/types.h>
 #include <array>
@@ -24,7 +22,7 @@
 #include <vector>
 
 #include <gmp.h>
-#include "fmt/format.h"
+#include "fmt/base.h"
 
 #include "gmp_aux.h"
 #include "las-process-bucket-region.hpp"
@@ -198,7 +196,7 @@ struct process_bucket_region_run : public process_bucket_region_spawn {/*{{{*/
     void apply_buckets(int side);
     void small_sieve(int side);
     void SminusS(int side);
-    typedef std::vector<bucket_update_t<1, shorthint_t>::br_index_t> survivors_t;
+    using survivors_t = std::vector<bucket_update_t<1, shorthint_t>::br_index_t>;
     survivors_t search_survivors();
     void purge_buckets(int side, survivors_t const & survivors);
     void resieve(int side);
@@ -262,7 +260,7 @@ void process_bucket_region_run::init_norms(int side)/*{{{*/
 
 #if defined(TRACE_K) 
     if (trace_on_spot_N(w->N))
-        verbose_output_print(TRACE_CHANNEL, 0, "# After side %d init_norms_bucket_region, N=%u S[%u]=%u\n",
+        verbose_fmt_print(TRACE_CHANNEL, 0, "# After side {} init_norms_bucket_region, N={} S[{}]={}",
                 side, w->N, trace_Nx.x, S[side][trace_Nx.x]);
 #endif
 }/*}}}*/
@@ -348,14 +346,14 @@ void process_bucket_region_run::SminusS(int side)/*{{{*/
     ::SminusS(S[side], S[side] + BUCKET_REGION, SS);
 #if defined(TRACE_K) 
     if (trace_on_spot_N(w->N))
-        verbose_output_print(TRACE_CHANNEL, 0,
-                "# Final value on side %d, N=%u S[%u]=%u\n",
+        verbose_fmt_print(TRACE_CHANNEL, 0,
+                "# Final value on side {}, N={} S[{}]={}",
                 side, w->N, trace_Nx.x, S[side][trace_Nx.x]);
 #endif
 }/*}}}*/
 process_bucket_region_run::survivors_t process_bucket_region_run::search_survivors() /*{{{*/
 {
-    typedef std::vector<uint32_t> surv1_t;
+    using surv1_t = std::vector<uint32_t>;
 
     surv1_t temp_sv;
 
@@ -383,18 +381,13 @@ process_bucket_region_run::survivors_t process_bucket_region_run::search_survivo
 
 #ifdef TRACE_K /* {{{ */
     if (trace_on_spot_Nx(N, trace_Nx.x)) {
-        verbose_output_print(TRACE_CHANNEL, 0,
-                "# When entering factor_survivors for bucket %u", trace_Nx.N);
+        verbose_fmt_print(TRACE_CHANNEL, 0,
+                "# When entering factor_survivors for bucket {}", trace_Nx.N);
         for (size_t i = 0; i < S.size(); ++i) {
-            verbose_output_print(TRACE_CHANNEL, 0, ", S[%zu][%u]=%u", i,
+            verbose_fmt_print(TRACE_CHANNEL, 0, ", S[{}][{}]={}", i,
                                  trace_Nx.x, S[i] ? S[0][trace_Nx.x] : ~0u);
         }
-        verbose_output_print(TRACE_CHANNEL, 0, "\n# Remaining norms which have not been accounted for in sieving: (");
-        for (size_t i = 0; i < traced_norms.size(); ++i) {
-            verbose_output_vfprint(TRACE_CHANNEL, 0, gmp_vfprintf, "%s%Zd",
-                i ? ", " : "", (mpz_srcptr) traced_norms[i]);
-        }
-        verbose_output_print(TRACE_CHANNEL, 0, ")\n");
+        verbose_fmt_print(TRACE_CHANNEL, 0, "\n# Remaining norms which have not been accounted for in sieving: ({})\n", join(traced_norms, ", "));
     }
 #endif  /* }}} */
 
@@ -403,12 +396,12 @@ process_bucket_region_run::survivors_t process_bucket_region_run::search_survivo
         if (trace_on_spot_Nx(N, x)) {
             for (size_t i = 0; i < S.size(); ++i) {
                 auto &bound = ws.sides[i].lognorms.bound;
-                verbose_output_print(TRACE_CHANNEL, 0,
-                                  "%c side%zu.Bound[%u]=%u", i ? ',' : '#', i,
+                verbose_fmt_print(TRACE_CHANNEL, 0,
+                                  "{} side{}[{}]={}", i ? ',' : '#', i,
                                   S[i] ? S[i][trace_Nx.x] : ~0u,
                                   S[i] ? (S[i][x] <= bound ? 0 : bound) : ~0u);
             }
-            verbose_output_print(TRACE_CHANNEL, 0, "\n");
+            verbose_fmt_print(TRACE_CHANNEL, 0, "\n");
         }
     }
 #endif /* }}} */
@@ -564,8 +557,7 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
         }
 
         if (cur.trace_on_spot())
-            verbose_output_print(TRACE_CHANNEL, 0, "# about to start cofactorization for (%"
-                    PRId64 ",%" PRIu64 ")  %zu %u\n", cur.a, cur.b, x, Sx[x]);
+            verbose_fmt_print(TRACE_CHANNEL, 0, "# about to start cofactorization for ({},{})  {} {}", cur.a, cur.b, x, Sx[x]);
 
         /* since a,b both even were not sieved, either a or b should
          * be odd. However, exceptionally small norms, even without
@@ -629,10 +621,11 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
                 wss.lognorms.norm(cur.norm[side], i, j);
 
                 if (cur.trace_on_spot()) {
-                    verbose_output_vfprint(TRACE_CHANNEL, 0,
-                            gmp_vfprintf, "# start trial division for norm=%Zd ", (mpz_srcptr) cur.norm[side]);
-                    verbose_output_print(TRACE_CHANNEL, 0,
-                            "on side %d for (%" PRId64 ",%" PRIu64 ")\n", side, cur.a, cur.b);
+                    verbose_fmt_print(TRACE_CHANNEL, 0,
+                            "# start trial division for norm={} ",
+                            cur.norm[side]);
+                    verbose_fmt_print(TRACE_CHANNEL, 0,
+                            "on side {} for ({},{})\n", side, cur.a, cur.b);
                 }
 
                 if (wss.no_fb()) {
@@ -646,7 +639,7 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
 
                 SIBLING_TIMER(timer, "trial division");
 
-                verbose_output_print(1, 2, "FIXME %s, line %d\n", __FILE__, __LINE__);
+                verbose_fmt_print(1, 2, "FIXME {}, line {}", __FILE__, __LINE__);
                 const bool handle_2 = true; /* FIXME */
                 rep.survivors.trial_divided_on_side[side]++;
 
@@ -677,10 +670,10 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
 
                 pass = check_leftover_norm (cur.norm[side], ws.conf.sides[side]);
                 if (cur.trace_on_spot()) {
-                    verbose_output_vfprint(TRACE_CHANNEL, 0, gmp_vfprintf,
-                            "# checked leftover norm=%Zd", (mpz_srcptr) cur.norm[side]);
-                    verbose_output_print(TRACE_CHANNEL, 0,
-                            " on side %d for (%" PRId64 ",%" PRIu64 "): %d\n",
+                    verbose_fmt_print(TRACE_CHANNEL, 0,
+                            "# checked leftover norm={}", cur.norm[side]);
+                    verbose_fmt_print(TRACE_CHANNEL, 0,
+                            " on side {} for ({},{}): {}",
                             side, cur.a, cur.b, pass);
                 }
                 rep.survivors.check_leftover_norm_on_side[side] += pass;
@@ -874,7 +867,8 @@ void process_bucket_region_run::operator()() {/*{{{*/
     /* FIXME FIXME FIXME MNFS -- what do we want to do here? */
     if (trace_on_spot_Nx(N, trace_Nx.x)) {
         unsigned char * Sx = S[0] ? S[0] : S[1];
-        verbose_output_print(TRACE_CHANNEL, 0, "# Slot [%u] in bucket %u has value %u\n",
+        verbose_fmt_print(TRACE_CHANNEL, 0,
+                "# Slot [{}] in bucket {} has value {}",
                 trace_Nx.x, trace_Nx.N, Sx[trace_Nx.x]);
     }
 #endif
