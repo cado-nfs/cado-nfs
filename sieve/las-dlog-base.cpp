@@ -1,17 +1,19 @@
 #include "cado.h" // IWYU pragma: keep
-#include <cerrno>      // for errno
-#include <cstdlib>     // for exit, free, strtoul, EXIT_FAILURE
-#include <cstring>     // for strdup
-#include <cctype>      // for isspace
-#include <cstdint>     // for uint64_t
-#include <cstdio>      // for fprintf, NULL, stderr, fclose, fgets, fopen, FILE
+
+#include <cerrno>
+#include <cstdlib>
+#include <cstring>
+#include <cctype>
+#include <cstdint>
+#include <cstdio>
+
 #include "las-dlog-base.hpp"
 #include "las-multiobj-globals.hpp"
-#include "macros.h"    // for ASSERT_ALWAYS
-#include "typedefs.h"  // for index_t
-#include "params.h"     // param_list_parse_*
-#include "portability.h" // strdup // IWYU pragma: keep
-#include "verbose.h"    // verbose_output_print
+#include "macros.h"
+#include "typedefs.h"
+#include "params.h"
+#include "portability.h"
+#include "verbose.h"
 
 void las_dlog_base::declare_usage(cxx_param_list & pl)
 {
@@ -90,18 +92,18 @@ void las_dlog_base::read()
 {
     ASSERT_ALWAYS(dlp_descent);
     if (!renumberfilename) {
-        verbose_output_print(0, 1, "# Descent: no access to renumber table given, using lpb(%lu/%lu) to decide what are the supposedly known logs\n",
+        verbose_fmt_print(0, 1, "# Descent: no access to renumber table given, using lpb({}/{}) to decide what are the supposedly known logs\n",
                 lpb[0], lpb[1]);
         return;
     }
 
-    verbose_output_print(0, 1, "# Descent: will get list of known logs from %s, using also %s for mapping\n", logfilename, renumberfilename);
+    verbose_fmt_print(0, 1, "# Descent: will get list of known logs from {}, using also {} for mapping\n", logfilename, renumberfilename);
 
     renumber_table.read_from_file(renumberfilename, 1);
 
     for(int side = 0 ; side < renumber_table.get_nb_polys() ; side++) {
         if (lpb[side] != renumber_table.get_lpb(side)) {
-            fprintf(stderr, "lpb%d=%lu different from lpb%d=%u stored in renumber table, probably a bug\n", side, lpb[side], side, renumber_table.get_lpb(side));
+            fmt::print(stderr, "lpb{}={} different from lpb{}={} stored in renumber table, probably a bug\n", side, lpb[side], side, renumber_table.get_lpb(side));
             exit(EXIT_FAILURE);
         }
     }
@@ -153,7 +155,7 @@ void las_dlog_base::read()
         known_logs[z] = true;
     }
     fclose(f);
-    verbose_output_print(0, 1, "# Got %zu known logs from %s\n", nlogs, logfilename);
+    verbose_fmt_print(0, 1, "# Got {} known logs from {}", nlogs, logfilename);
 }
 
 

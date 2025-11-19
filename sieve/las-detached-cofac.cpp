@@ -140,9 +140,7 @@ static detached_cofac_result * detached_cofac_inner(worker_thread * worker, deta
         }
 
         /* print all in one go */
-        verbose_output_start_batch();     /* unlock I/O */
-        verbose_output_print(0, 1, "%s", os.str().c_str());
-        verbose_output_end_batch();     /* unlock I/O */
+        verbose_fmt_print(0, 1, "{}", os.str());
         if (dlp_descent)
             res->rel_p = std::make_shared<relation>(std::move(rel));
     }

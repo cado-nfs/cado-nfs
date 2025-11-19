@@ -68,9 +68,7 @@ Thus the function to check for duplicates needs the following information:
 #include <cstdio>
 #include <array>
 #include <cstdint>
-#include <iosfwd>
 #include <vector>
-#include <cstdarg>
 #include <gmp.h>
 
 #include "cado_poly.h"
@@ -92,6 +90,7 @@ Thus the function to check for duplicates needs the following information:
 #include "mpz_poly.h"
 #include "relation.hpp"
 #include "verbose.h"
+#include "utils_cxx.hpp"
 
 
 /* default verbose level of # DUPECHECK lines */
@@ -225,12 +224,9 @@ sq_finds_relation(las_info const & las,
               rel.ab(), doing);
       // should stay consistent with "Sieving side" line printed in
       // do_one_special_q()
-      std::ostringstream os;
-      os << Q;
-      verbose_output_print(0, VERBOSE_LEVEL,
-              "# DUPECHECK Trying %s; I=%u; J=%d;\n",
-              os.str().c_str(),
-              1U << conf.logI, J);
+      verbose_fmt_print(0, VERBOSE_LEVEL,
+              "# DUPECHECK Trying {}; I={}; J={};\n",
+              Q, 1U << conf.logI, J);
   }
 
   /* Compute i,j-coordinates of this relation in the special-q lattice when
@@ -248,8 +244,8 @@ sq_finds_relation(las_info const & las,
      the special-q described in [doing], then it's not a duplicate */
   if (j >= J || (i < -(1L << (logI-1))) || (i >= (1L << (logI-1))))
   {
-    if (talk) verbose_output_print(0, VERBOSE_LEVEL,
-        "# DUPECHECK (i,j) = (%d, %u) is outside sieve region\n", i, j);
+    if (talk) verbose_fmt_print(0, VERBOSE_LEVEL,
+        "# DUPECHECK (i,j) = ({}, {}) is outside sieve region\n", i, j);
     return false;
   }
 
@@ -271,17 +267,19 @@ sq_finds_relation(las_info const & las,
             doing);
 
     if (remaining_lognorm[side] > L.bound) {
-      if (talk) verbose_output_print(0, VERBOSE_LEVEL, "# DUPECHECK On side %d, remaining lognorm = %" PRId8 " > bound = %" PRId8 "\n",
-          side, remaining_lognorm[side], L.bound);
+      if (talk)
+          verbose_fmt_print(0, VERBOSE_LEVEL,
+                  "# DUPECHECK On side {},"
+                  " remaining lognorm = {} > bound = {}\n",
+                  side, remaining_lognorm[side], L.bound);
       is_dupe = false;
     }
   }
   if (talk) {
-      std::ostringstream os;
-      for(auto r : remaining_lognorm) os << " " << (int) r;
-      verbose_output_print(0, VERBOSE_LEVEL,
-      "# DUPECHECK relation had i=%d, j=%u, remaining lognorms%s\n",
-      i, j, os.str().c_str());
+      verbose_fmt_print(0, VERBOSE_LEVEL,
+              "# DUPECHECK relation had i={}, j={},"
+              " remaining lognorms {}",
+              i, j, join(remaining_lognorm, " "));
   }
 
   if (!is_dupe) {
@@ -333,15 +331,10 @@ sq_finds_relation(las_info const & las,
 
   if (pass != FACUL_SMOOTH) {
       if (talk) {
-          verbose_output_start_batch();
-          verbose_output_print(0, VERBOSE_LEVEL,
-                        "# DUPECHECK norms not both smooth, left over factors");
-          for(size_t i = 0; i < cof.size(); ++i) {
-              verbose_fmt_print(0, VERBOSE_LEVEL, "{} {}",
-                                     (i == 0 ? ':' : ','), cof[i]);
-          }
-          verbose_output_print(0, VERBOSE_LEVEL, "\n");
-          verbose_output_end_batch();
+          verbose_fmt_print(0, VERBOSE_LEVEL,
+                        "# DUPECHECK norms not both smooth,"
+                        " leftover factors: {}\n",
+                        join(cof, ", "));
       }
       return false;
   }
@@ -371,7 +364,7 @@ sq_finds_relation(las_info const & las,
     qlattice_basis Q;
     uint32_t J;
     if (!choose_sieve_area(las, special_q_task_simple(doing), conf, Q, J)) {
-        if (talk) verbose_output_print(0, VERBOSE_LEVEL, "# DUPECHECK q-lattice discarded\n");
+        if (talk) verbose_fmt_print(0, VERBOSE_LEVEL, "# DUPECHECK q-lattice discarded\n");
         return false;
     }
     return sq_finds_relation(las, doing, conf, Q, J, rel, must, talk);
@@ -509,8 +502,8 @@ relation_is_duplicate(relation const& rel,
             special_q const other = special_q_from_ab(rel.a, rel.b, sq, side);
 
             bool const is_dupe = sq_finds_relation(las, other, rel, true, true);
-            verbose_output_print(0, VERBOSE_LEVEL,
-                    "# DUPECHECK relation is probably%s a dupe\n",
+            verbose_fmt_print(0, VERBOSE_LEVEL,
+                    "# DUPECHECK relation is probably{} a dupe\n",
                     is_dupe ? "" : " not");
             if (is_dupe) return true;
         }
