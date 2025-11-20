@@ -27,47 +27,45 @@ Output
 
 #include "cado.h" // IWYU pragma: keep
 
-#include "cado_poly.h" // for NB_POLYS_MAX, cado_poly_clear, cado_poly_init
-#include "filter_io.h" // earlyparsed_relation_ptr
-#include "gmp_aux.h"   // nbits
-#include "gzip.h"      // fopen_maybe_compressed
+#include "cado_poly.h"
+#include "filter_io.h"
+#include "gmp_aux.h"
+#include "gzip.h"
 #include "macros.h"
-#include "mpz_poly.h"  // mpz_poly_ptr
-#include "omp_proxy.h" // IWYU pragma: keep
+#include "mpz_poly.h"
+#include "omp_proxy.h"
 #include "params.h"
 
-#include <cinttypes> // for PRIu64, SCNu64, SCNd64, SCNx64
-#include <cstdint>   // for uint64_t, int64_t
+#include <cinttypes>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
 #include <gmp.h>
 
-#include "purgedfile.h" // purgedfile_read_firstline
+#include "purgedfile.h"
 #include "select_mpi.h"
 #include "sm_utils.hpp"
-#include "stats.h"      // stats_data_t
-#include "timing.h"     // for seconds
-#include "verbose.h"    // verbose_output_print
+#include "stats.h"
+#include "timing.h"
+#include "verbose.h"
 
 static stats_data_t stats; /* struct for printing progress */
 
 static void * thread_sm(void * context_data, earlyparsed_relation_ptr rel)
 {
-    std::vector<pair_and_sides> & ps =
-        *(std::vector<pair_and_sides> *)context_data;
+    auto & ps = *static_cast<std::vector<pair_and_sides>*>(context_data);
     ps[rel->num] = pair_and_sides(rel->a, rel->b, rel->active_sides[0],
                                   rel->active_sides[1]);
 
     return nullptr;
 }
 
-static std::vector<sm_relset> build_rel_sets(char const * purgedname,
-                                    char const * indexname,
-                                    uint64_t * small_nrows,
-                                    std::vector<mpz_poly_srcptr> const & F,
-                                    cxx_mpz const & ell2)
+static std::vector<sm_relset>
+build_rel_sets(char const * purgedname, char const * indexname,
+               uint64_t * small_nrows, std::vector<mpz_poly_srcptr> const & F,
+               cxx_mpz const & ell2)
 {
     uint64_t nrows, ncols, len_relset;
     uint64_t r[MAX_LEN_RELSET];
@@ -84,7 +82,7 @@ static std::vector<sm_relset> build_rel_sets(char const * purgedname,
      */
     fprintf(stdout, "\n# Reading %" PRIu64 " (a,b) pairs\n", nrows);
     fflush(stdout);
-    char const * fic[2] = {(char const *)purgedname, nullptr};
+    char const * fic[2] = {purgedname, nullptr};
     filter_rels(fic, (filter_rels_callback_t)thread_sm, &pairs,
                 EARLYPARSE_NEED_AB_HEXA, nullptr, nullptr);
 
@@ -98,7 +96,6 @@ static std::vector<sm_relset> build_rel_sets(char const * purgedname,
 
     std::vector<sm_relset> rels;
     rels.reserve(*small_nrows);
-
 
     fprintf(stdout, "\n# Building %" PRIu64 " relation-sets\n", *small_nrows);
     fflush(stdout);
@@ -114,7 +111,8 @@ static std::vector<sm_relset> build_rel_sets(char const * purgedname,
             ASSERT_ALWAYS(ret == 2);
         }
 
-        rels.emplace_back(sm_build_one_relset(r, e, len_relset, pairs, F, ell2));
+        rels.emplace_back(
+            sm_build_one_relset(r, e, len_relset, pairs, F, ell2));
 
         if (stats_test_progress(stats))
             stats_print_progress(stats, i, 0, 0, 0);
@@ -128,8 +126,8 @@ static std::vector<sm_relset> build_rel_sets(char const * purgedname,
 static void print_all_sm(FILE * out, std::vector<sm_side_info> const & sm_info,
                          int nb_polys, std::vector<cxx_mpz_poly> const & sm)
 {
-    ASSERT_ALWAYS(sm_info.size() == (size_t) nb_polys);
-    ASSERT_ALWAYS(sm.size() == (size_t) nb_polys);
+    ASSERT_ALWAYS(sm_info.size() == (size_t)nb_polys);
+    ASSERT_ALWAYS(sm.size() == (size_t)nb_polys);
     for (int side = 0, c = 0; side < nb_polys; side++) {
         if (sm_info[side].nsm == 0)
             continue;
@@ -203,8 +201,8 @@ static void MPI_Send_res(std::vector<cxx_mpz_poly> const & res, int dst,
                          std::vector<sm_side_info> const & sm_info,
                          int nb_polys)
 {
-    ASSERT_ALWAYS(sm_info.size() == (size_t) nb_polys);
-    ASSERT_ALWAYS(res.size() == (size_t) nb_polys);
+    ASSERT_ALWAYS(sm_info.size() == (size_t)nb_polys);
+    ASSERT_ALWAYS(res.size() == (size_t)nb_polys);
     for (int side = 0; side < nb_polys; side++) {
         if (sm_info[side].nsm == 0)
             continue;
@@ -348,7 +346,8 @@ int main(int argc, char const ** argv)
      * computed later by sm_side_info_init */
     std::vector<int> nsm_arg(cpoly->nb_polys, -1);
     /* Read number of sm to be printed from command line */
-    param_list_parse_int_args_per_side(pl, "nsm", nsm_arg.data(), cpoly->nb_polys,
+    param_list_parse_int_args_per_side(pl, "nsm", nsm_arg.data(),
+                                       cpoly->nb_polys,
                                        ARGS_PER_SIDE_DEFAULT_AS_IS);
 
     std::vector<mpz_poly_srcptr> F(cpoly->nb_polys);
@@ -378,10 +377,9 @@ int main(int argc, char const ** argv)
     /* Print ell and ell^2 */
     mpz_mul(ell2, ell, ell);
     if (idoio)
-        fmt::print(
-                    "# Sub-group order:\nell = {}\n# Computation is done "
-                    "modulo ell2 = ell^2:\nell2 = {}\n",
-                    ell, ell2);
+        fmt::print("# Sub-group order:\nell = {}\n# Computation is done "
+                   "modulo ell2 = ell^2:\nell2 = {}\n",
+                   ell, ell2);
 
     std::vector<sm_side_info> sm_info;
 
@@ -477,7 +475,8 @@ int main(int argc, char const ** argv)
 
     // nb_parts vectors of nb_polys polynomials
     std::vector<std::vector<cxx_mpz_poly>> dst;
-    dst.assign(nb_parts, std::vector<cxx_mpz_poly>(cpoly->nb_polys, cxx_mpz_poly()));
+    dst.assign(nb_parts,
+               std::vector<cxx_mpz_poly>(cpoly->nb_polys, cxx_mpz_poly()));
 
     /* updated only by thread 0 */
     uint64_t count_processed_sm = 0;
@@ -552,7 +551,6 @@ int main(int argc, char const ** argv)
         if (outfile)
             fclose(out);
     }
-
 
     MPI_Finalize();
 

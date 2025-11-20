@@ -2,9 +2,12 @@
 
 #include <cstdio>
 
+#include "fmt/format.h"
+
 #include "las-config.hpp"
 #include "macros.h"
-#include "verbose.h" // verbose_output_print
+#include "verbose.h"
+#include "utils_cxx.hpp"
 
 int las_production_mode = 0;
 
@@ -46,35 +49,38 @@ void set_LOG_BUCKET_REGION()
 
 void las_display_config_flags()
 {
-    verbose_output_print(0, 1, "# las flags:");
+    std::vector<std::string> flags {
 #ifdef SAFE_BUCKETS
-    verbose_output_print(0, 1, " SAFE_BUCKETS");
+        "SAFE_BUCKETS",
 #endif
 #ifdef BUCKET_SIEVE_POWERS
-    verbose_output_print(0, 1, " BUCKET_SIEVE_POWERS");
+        "BUCKET_SIEVE_POWERS",
 #endif
 #ifdef PROFILE
-    verbose_output_print(0, 1, " PROFILE");
+        "PROFILE",
 #endif
 #ifdef UNSIEVE_NOT_COPRIME
-    verbose_output_print(0, 1, " UNSIEVE_NOT_COPRIME");
+        "UNSIEVE_NOT_COPRIME",
 #endif
 #ifdef WANT_ASSERT_EXPENSIVE
-    verbose_output_print(0, 1, " WANT_ASSERT_EXPENSIVE");
+        "WANT_ASSERT_EXPENSIVE",
 #endif
 #ifdef TRACE_K
-    verbose_output_print(0, 1, " TRACE_K");
+        "TRACE_K",
 #endif
 #ifdef TRACK_CODE_PATH
-    verbose_output_print(0, 1, " TRACK_CODE_PATH");
+        "TRACK_CODE_PATH",
 #endif
 #ifdef SUPPORT_LARGE_Q
-    verbose_output_print(0, 1, " SUPPORT_LARGE_Q");
+        "SUPPORT_LARGE_Q",
 #endif
 #ifdef SKIP_GCD3
-    verbose_output_print(0, 1, " SKIP_GCD3");
+        "SKIP_GCD3",
 #endif
-    verbose_output_print(0, 1, " LOGNORM_GUARD_BITS=%1.2f",
-                         (double)LOGNORM_GUARD_BITS);
-    verbose_output_print(0, 1, "\n");
+        fmt::format("LOGNORM_GUARD_BITS={:1.2f}",
+                (double) LOGNORM_GUARD_BITS)
+    };
+
+
+    verbose_fmt_print(0, 1, "# las flags: {}\n", join(flags, " "));
 } /* }}} */

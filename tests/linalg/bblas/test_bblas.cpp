@@ -77,6 +77,8 @@ int main(int argc, char const * argv[])
     if (!param_list_parse(pl, "tests", tests))
         tests.emplace_back("all");
 
+    param_list_parse(pl, "seed", seed);
+
     if (!seed)
         seed = time(nullptr);
 

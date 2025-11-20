@@ -98,12 +98,12 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
             exit(EXIT_FAILURE);
         }
         if (param_list_lookup_string(pl, "q1"))
-            verbose_output_print(0, 1, "# Warning: arguments nq and q1 will both limit the q range\n");
+            verbose_fmt_print(0, 1, "# Warning: arguments nq and q1 will both limit the q range\n");
     }
 
     sqside = cpoly->nb_polys == 1 ? 0 : 1;
     if (!param_list_parse_int(pl, "sqside", &sqside) && cpoly->nb_polys > 1) {
-        verbose_output_print(0, 1, "# Warning: sqside not given, "
+        verbose_fmt_print(0, 1, "# Warning: sqside not given, "
                 "assuming side 1 for backward compatibility.\n");
     }
     ASSERT_ALWAYS(sqside >= 0 && sqside < cpoly->nb_polys);

@@ -451,13 +451,20 @@ cado_divert_test(c30_30012 2b
 # This is for the 2-level sieving case.
 # Normally, we should sieve the given prime within
 # fill_in_buckets_lowlevel (this works because we've restricted to very
-# small sieving regions with B=10
+# small sieving regions with B=10)
+#
+# About the timeout: TIMEOUT 20 is fine, but it seems that for this test
+# the valgrind penalty is slightly larger than usual. The typical
+# TIMEOUT_SCALE=10 that is used under valgrind leads to repeated timeouts
+# at 200 seconds for c30_30012_3. A bump of the timeout for this test
+# sounds fairly reasonable.
 cado_divert_test(c30_30012 3
     APPEND_ENVIRONMENT
         LAS_BINARY=${las_tracek_path}
         q0=50707 rho=50345
         las_A=23 las_I= las_B=10 bkthresh1=2048     # kill I explicitly
         traceij=1,1153 "TRACE_REGEX=Pushed.hit.*p=1153"
+    TIMEOUT 40
     TARGET_DEPENDENCIES las_tracek
 )
 

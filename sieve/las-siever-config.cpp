@@ -90,7 +90,8 @@ bool siever_config::parse_default(siever_config & sc, cxx_param_list & pl, int n
         int I;
         complete &= param_list_parse_int  (pl, "I", &I);
         sc.logA = 2 * I - 1;
-        verbose_output_print(0, 1, "# Interpreting -I %d as meaning -A %d\n", I, sc.logA);
+        verbose_fmt_print(0, 1, "# Interpreting -I {} as meaning -A {}\n",
+                I, sc.logA);
     } else {
         complete = false;
     }
@@ -106,7 +107,7 @@ bool siever_config::parse_default(siever_config & sc, cxx_param_list & pl, int n
 #endif
 
     if (!complete) {
-        verbose_output_print(0, 1, "# default siever configuration is incomplete ; required parameters are I, lim[01], lpb[01], mfb[01]\n");
+        verbose_fmt_print(0, 1, "# default siever configuration is incomplete ; required parameters are I, lim[01], lpb[01], mfb[01]\n");
 
     }
 
@@ -119,7 +120,7 @@ bool siever_config::parse_default(siever_config & sc, cxx_param_list & pl, int n
     param_list_parse_uint(pl, "skipped", &(sc.skipped));
 
     if (param_list_parse_uint(pl, "unsievethresh", &(sc.unsieve_thresh))) {
-        verbose_output_print(0, 1, "# Un-sieving primes > %u\n",
+        verbose_fmt_print(0, 1, "# Un-sieving primes > {}\n",
                 sc.unsieve_thresh);
     }
 
@@ -152,8 +153,8 @@ bool siever_config::parse_default(siever_config & sc, cxx_param_list & pl, int n
              * fb_factorbase::fb_factorbase
              */
             /*
-               verbose_output_print(0, 2,
-               "# Using default value of %lu for -%s\n",
+               verbose_fmt_print(0, 2,
+               "# Using default value of {} for -{}\n",
                sc.sides[side].powlim, powlim_params[side]);
                */
         }
@@ -233,7 +234,7 @@ siever_config siever_config_pool::get_config_for_q(special_q_task const & doing)
     siever_config const * adapted = get_hint(side, bitsize);
     if (adapted) {
         config = *adapted;
-        verbose_output_print(0, 1, "# Using parameters from hint list for q~2^%d on side %d [%d@%d]\n", bitsize, side, bitsize, side);
+        verbose_fmt_print(0, 1, "# Using parameters from hint list for q~2^{} on side {} [{}]\n", bitsize, side, doing.shortname());
     }
 
     auto const * tt = dynamic_cast<special_q_task_tree const *>(&doing);

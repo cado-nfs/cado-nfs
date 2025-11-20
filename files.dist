@@ -938,7 +938,6 @@ sieve/CMakeLists.txt
 sieve/Makefile
 sieve/README.descent
 sieve/README.fb_format
-sieve/basicnt.h
 sieve/bucket-push-update.hpp
 sieve/bucket.cpp
 sieve/bucket.hpp

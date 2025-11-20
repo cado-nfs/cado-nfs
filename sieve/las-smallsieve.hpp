@@ -1,8 +1,6 @@
 #ifndef CADO_LAS_SMALLSIEVE_HPP
 #define CADO_LAS_SMALLSIEVE_HPP
 
-#include <cstdarg>
-#include <cstdio>
 #include <vector>
 #include "fb-types.hpp"
 #include "fb.hpp"
@@ -23,7 +21,6 @@ struct where_am_I;
 #define SMALL_SIEVE_START_POSITIONS_MAX_ADVANCE 1024
 
 extern void small_sieve_info(const char * what, int side, small_sieve_data_t const & r);
-extern int small_sieve_dump(FILE *, const char *, va_list);
 extern void small_sieve_clear(small_sieve_data_t & ssd);
 
 extern void small_sieve_init(small_sieve_data_t & ssd,

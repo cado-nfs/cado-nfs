@@ -40,13 +40,12 @@ struct report_and_timer {
 };
 
 class sieve_checksum {
-  static const unsigned int checksum_prime = 4294967291u; /* < 2^32 */
-  unsigned int checksum;
-  void update(const unsigned int);
+  static const unsigned int checksum_prime = 4294967291U; /* < 2^32 */
+  unsigned int checksum = 0;
+  void update(unsigned int);
 
   public:
-  sieve_checksum() : checksum(0) {}
-  unsigned int get_checksum() {return checksum;}
+  unsigned int get_checksum() const { return checksum; }
 
   /* Combine two checksums */ 
   void update(sieve_checksum const & other) {
@@ -99,7 +98,7 @@ class nfs_aux {/*{{{*/
      */
     std::shared_ptr<las_output> output_p;
 
-    typedef std::pair< int64_t, uint64_t> abpair_t;
+    using abpair_t = std::pair< int64_t, uint64_t>;
 
     struct abpair_hash_t {
         unsigned long operator()(abpair_t const& o) const {
@@ -107,7 +106,7 @@ class nfs_aux {/*{{{*/
         }
     };
 
-    typedef lock_guarded_container<std::unordered_set<abpair_t, abpair_hash_t>> rel_hash_t;
+    using rel_hash_t = lock_guarded_container<std::unordered_set<abpair_t, abpair_hash_t>>;
 
     std::shared_ptr<rel_hash_t> rel_hash_p;
     rel_hash_t & get_rel_hash() { return * rel_hash_p ; }

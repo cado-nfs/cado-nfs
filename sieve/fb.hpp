@@ -141,11 +141,11 @@ class fb_entry_general
     void read_roots(char const *, unsigned char, unsigned char, unsigned long);
 
   public:
-    typedef fb_entry_general transformed_entry_t;
-    fbprime_t q, p;   /* q = p^k */
-    redc_invp_t invq; /* invq = -1/q (mod 2^32), or (mod 2^64), depending on
+    using transformed_entry_t = fb_entry_general;
+    fbprime_t q = 0, p = 0;   /* q = p^k */
+    redc_invp_t invq = 0; /* invq = -1/q (mod 2^32), or (mod 2^64), depending on
                          the size of redc_invp_t */
-    unsigned char k, nr_roots;
+    unsigned char k = 0, nr_roots = 0;
 
   private:
     unsigned char dummy_padding_byte1 MAYBE_UNUSED_PRIVATE_DATA_MEMBER = 0;
@@ -219,7 +219,7 @@ template <int Nr_roots> class fb_transformed_entry_x_roots
 template <int Nr_roots> class fb_entry_x_roots
 {
   public:
-    typedef fb_transformed_entry_x_roots<Nr_roots> transformed_entry_t;
+    using transformed_entry_t = fb_transformed_entry_x_roots<Nr_roots>;
     fbprime_t p;
     redc_invp_t invq; /* invq = -1/q (mod 2^32), or (mod 2^64), depending on
                          the size of redc_invp_t */
@@ -295,7 +295,7 @@ template <typename FB_ENTRY_TYPE> class fb_slice_weight_estimator;
 template <typename FB_ENTRY_TYPE> class fb_slice : public fb_slice_interface
 {
     friend class fb_slice_weight_estimator<FB_ENTRY_TYPE>;
-    typedef mmappable_vector<FB_ENTRY_TYPE> fb_entry_vector;
+    using fb_entry_vector = mmappable_vector<FB_ENTRY_TYPE>;
     typename fb_entry_vector::const_iterator _begin, _end;
     unsigned char logp;
     slice_index_t index; /* global index across all fb parts */
@@ -320,7 +320,7 @@ template <typename FB_ENTRY_TYPE> class fb_slice : public fb_slice_interface
     }
 
   public:
-    typedef FB_ENTRY_TYPE entry_t;
+    using entry_t = FB_ENTRY_TYPE;
     typename fb_entry_vector::const_iterator begin() const
     {
         return _begin;
@@ -362,12 +362,11 @@ template <typename FB_ENTRY_TYPE> class fb_slice : public fb_slice_interface
  * */
 
 template <typename T> struct entries_and_cdf {
-    typedef mmappable_vector<T> container_type;
-    typedef mmappable_vector<double> weight_container_type;
+    using container_type = mmappable_vector<T>;
+    using weight_container_type = mmappable_vector<double>;
     struct type : public container_type {
-        typedef typename entries_and_cdf<T>::container_type container_type;
-        typedef typename entries_and_cdf<T>::weight_container_type
-            weight_container_type;
+        using container_type = entries_and_cdf<T>::container_type;
+        using weight_container_type = entries_and_cdf<T>::weight_container_type;
         /* cumulative distribution function. This is set up by
          * helper_functor_append. We use it to split into slices.
          * weight_cdf[i] is \sum_{j < i} super[j].weight
@@ -440,19 +439,19 @@ class fb_factorbase
 
   private:
     cxx_mpz_poly f;
-    int side;
-    unsigned long lim;
-    unsigned long powlim;
+    int side = -1;
+    unsigned long lim = 0;
+    unsigned long powlim = 0;
 
   public:
     bool empty() const { return lim == 0; }
 
   private:
-    typedef multityped_array<fb_entries_factory, -1, MAX_ROOTS + 1> entries_t;
+    using entries_t = multityped_array<fb_entries_factory, -1, MAX_ROOTS + 1>;
     entries_t entries;
 
   public:
-    typedef std::array<size_t, MAX_ROOTS + 2> threshold_pos;
+    using threshold_pos = std::array<size_t, MAX_ROOTS + 2>;
     threshold_pos get_threshold_pos(fbprime_t) const;
 
   private:
@@ -546,8 +545,7 @@ class fb_factorbase
              * of fb_slice objects) for all numbers of roots between 1 and
              * MAX_ROOTS.
              */
-            typedef multityped_array<fb_slices_factory, -1, MAX_ROOTS + 1>
-                slices_t;
+            using slices_t = multityped_array<fb_slices_factory, -1, MAX_ROOTS + 1>;
             friend struct helper_functor_subdivide_slices;
             slices_t slices;
 
@@ -582,8 +580,8 @@ class fb_factorbase
              * --> return &(slices1[i-slicesG.size()-slices0.size()]) and so on.
              */
             struct helper_functor_get {
-                typedef fb_slice_interface const * type;
-                typedef slice_index_t key_type;
+                using type = fb_slice_interface const *;
+                using key_type = slice_index_t;
                 template <typename T>
                 type operator()(T const & x, slice_index_t & k)
                 {
@@ -859,8 +857,10 @@ class fb_factorbase
     fb_factorbase(cxx_cado_poly const & cpoly, int side, cxx_param_list & pl,
                   char const * fbc_filename, int nthreads = 1);
     fb_factorbase() = default;
+    /*
     fb_factorbase(fb_factorbase &&) = default;
     fb_factorbase & operator=(fb_factorbase &&) = default;
+    */
 
   private:
     struct sorter {
@@ -868,7 +868,7 @@ class fb_factorbase
         {
             /* not entirely clear to me. Shall we sort by q or by p ?
              */
-            typedef typename T::value_type X;
+            using X = typename T::value_type;
             auto by_q = [](X const & a, X const & b) {
                 return a.get_q() < b.get_q();
             };
@@ -893,6 +893,10 @@ class fb_factorbase
 };
 
 std::ostream & operator<<(std::ostream & o, fb_factorbase::key_type const &);
+
+namespace fmt {
+    template<> struct formatter<fb_factorbase::key_type> : ostream_formatter {};
+} /* namespace fmt */
 
 unsigned char fb_log(double x, double y, double z);
 unsigned char fb_log_delta(fbprime_t, unsigned long, unsigned long, double);

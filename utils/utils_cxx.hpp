@@ -445,7 +445,7 @@ struct decomposed_path : public std::vector<std::string> {
 template<typename T, typename U>
 double double_ratio(T const & t, U const & u)
 {
-    return static_cast<double>(t) / static_cast<double>(u);
+    return u ? static_cast<double>(t) / static_cast<double>(u) : 0;
 }
 
 template<int N>

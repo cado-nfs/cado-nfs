@@ -75,7 +75,7 @@ bool special_q_task_tree::new_candidate_relation(las_info const & las, relation 
      * relation is better anyway */
 
     if (las.tree->must_avoid(rel)) {
-        verbose_output_print(0, 1, "# [descent] Warning: we have already used this relation, avoiding\n");
+        verbose_fmt_print(0, 1, "# [descent] Warning: we have already used this relation, avoiding\n");
         return true;
     }
 
@@ -118,7 +118,7 @@ bool special_q_task_tree::new_candidate_relation(las_info const & las, relation 
             newcomer.outstanding.emplace_back(v);
         }
     }
-    verbose_output_print(0, 1, "# [descent] This relation entails an additional time of %.2f for the smoothing process (%zu children)\n",
+    verbose_fmt_print(0, 1, "# [descent] This relation entails an additional time of {:.2f} for the smoothing process ({} children)\n",
             time_left, newcomer.outstanding.size());
 
     /* when we're re-examining this special-q because of a previous
@@ -129,20 +129,20 @@ bool special_q_task_tree::new_candidate_relation(las_info const & las, relation 
         const std::lock_guard<std::mutex> lock(mm);
         if (newcomer < contender) {
             if (newcomer.outstanding.empty()) {
-                verbose_output_print(0, 1, "# [descent] Yiippee, splitting done\n");
+                verbose_fmt_print(0, 1, "# [descent] Yiippee, splitting done\n");
             } else if (std::isfinite(contender.deadline)) {
                 // This implies that newcomer.deadline is also finite 
                 const double delta = contender.time_left-newcomer.time_left;
-                verbose_output_print(0, 1, "# [descent] Improved ETA by %.2f\n", delta);
+                verbose_fmt_print(0, 1, "# [descent] Improved ETA by {:.2f}\n", delta);
             } else if (contender) {
                 // This implies that we have fewer outstanding special-q's
-                verbose_output_print(0, 1, "# [descent] Improved number of children to split from %zu to %zu\n",
+                verbose_fmt_print(0, 1, "# [descent] Improved number of children to split from {} to {}\n",
                         contender.outstanding.size(),
                         newcomer.outstanding.size());
             }
             contender = newcomer;
             if (!contender.outstanding.empty()) {
-                verbose_output_print(0, 1, "# [descent] still searching for %.2f\n", contender.deadline - seconds());
+                verbose_fmt_print(0, 1, "# [descent] still searching for {:.2f}\n", contender.deadline - seconds());
             }
         }
     }

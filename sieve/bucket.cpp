@@ -7,13 +7,11 @@
  * The WHERE_AM_I_UPDATE macro itself is defined in las-where-am-i.hpp
  */
 
-#include <cinttypes>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
 
-#include <limits>
 #include <new>
 #ifdef TRACE_K
 #include <type_traits>
@@ -42,6 +40,7 @@
 #ifdef HAVE_SSE2
 #include "smallset.hpp"
 #endif
+#include "portability.h"
 
 template <int LEVEL, typename HINT> struct bucket_update_t;
 
@@ -61,46 +60,12 @@ static size_t bucket_misalignment(size_t const sz, size_t const sr MAYBE_UNUSED)
 template <int LEVEL, typename HINT>
 void bucket_array_t<LEVEL, HINT>::reset_pointers()
 {
-    aligned_medium_memcpy(bucket_write, bucket_start, size_b_align);
-    aligned_medium_memcpy(bucket_read, bucket_start, size_b_align);
-    nr_slices = 0;
+    std::copy_n(bucket_start.get(), pointer_pack, bucket_write.get());
+    std::copy_n(bucket_start.get(), pointer_pack, bucket_read.get());
+    slice_start.clear();
+    slice_index.clear();
     for (auto & r: row_updates)
         r.clear();
-}
-
-template <int LEVEL, typename HINT>
-bucket_array_t<LEVEL, HINT>::~bucket_array_t()
-{
-    if (used_accessor)
-        used_accessor->physical_free(big_data, big_size);
-    free(slice_index);
-    free_aligned(slice_start);
-    free_aligned(bucket_read);
-    free_aligned(bucket_start);
-    free_pagealigned(bucket_write);
-}
-
-template <int LEVEL, typename HINT>
-void bucket_array_t<LEVEL, HINT>::move(bucket_array_t<LEVEL, HINT> & other)
-{
-#define MOVE_ENTRY(x, zero)                                                    \
-    do {                                                                       \
-        x = other.x;                                                           \
-        other.x = zero;                                                        \
-    } while (0)
-    MOVE_ENTRY(big_data, nullptr);
-    MOVE_ENTRY(big_size, 0);
-    MOVE_ENTRY(bucket_write, nullptr);
-    MOVE_ENTRY(bucket_start, nullptr);
-    MOVE_ENTRY(bucket_read, nullptr);
-    MOVE_ENTRY(slice_index, nullptr);
-    MOVE_ENTRY(slice_start, nullptr);
-    MOVE_ENTRY(n_bucket, 0);
-    MOVE_ENTRY(size_b_align, 0);
-    MOVE_ENTRY(nr_slices, 0);
-    MOVE_ENTRY(alloc_slices, 0);
-#undef MOVE_ENTRY
-    std::swap(row_updates, other.row_updates);
 }
 
 /* Allocate enough memory to be able to store _n_bucket buckets, each of at
@@ -112,7 +77,6 @@ void bucket_array_t<LEVEL, HINT>::allocate_memory(
     double const fill_ratio, int logI, slice_index_t const prealloc_slices)
 {
     static_assert(LEVEL < FB_MAX_PARTS);
-    used_accessor = &memory;
     /* Don't try to allocate anything, nor print a message, for sieving levels
      * where the corresponding factor base part is empty. We do want to
      * reset the pointers, though!!
@@ -162,42 +126,39 @@ void bucket_array_t<LEVEL, HINT>::allocate_memory(
         bs_even = bucket_misalignment(bs_even, sizeof(update_t));
         bs_odd = bucket_misalignment(bs_odd, sizeof(update_t));
         new_big_size =
-            (bs_even + bs_odd) * (new_n_bucket / 2) * sizeof(update_t);
+            (bs_even + bs_odd) * (new_n_bucket / 2);
     } else {
         bs_even = bs_odd = 3 * Q + ndev * sqrt(3 * Q);
         bs_even = bucket_misalignment(bs_even, sizeof(update_t));
         bs_odd = bucket_misalignment(bs_odd, sizeof(update_t));
-        new_big_size = bs_odd * new_n_bucket * sizeof(update_t);
+        new_big_size = bs_odd * new_n_bucket;
     }
 
     /* add 1 megabyte to each bucket array, so as to deal with overflowing
      * buckets */
-    new_big_size += 1 << 20;
+    new_big_size += (1 << 20) / sizeof(update_t);
 
     size_t const new_size_b_align =
         ((sizeof(void *) * new_n_bucket + 0x3F) & ~((size_t)0x3F));
+    size_t const new_pointer_pack = new_size_b_align / sizeof(update_t *);
 
-    if (new_big_size > big_size) {
-        if (big_data != nullptr)
-            memory.physical_free(big_data, big_size);
+    if (new_big_size > big_data.get_deleter().size) {
         if (bitmask_line_ordinate) {
-            verbose_output_print(
+            verbose_fmt_print(
                 0, 3,
-                "# [%d%c] Allocating %zu bytes for %" PRIu32
-                " buckets of %zu to %zu update entries of %zu bytes each\n",
-                LEVEL, HINT::rtti[0], new_big_size, new_n_bucket, bs_even,
-                bs_odd, sizeof(update_t));
+                "# [{}{}] Allocating {} bytes for {} buckets"
+                " of {} to {} update entries of {} bytes each\n",
+                LEVEL, HINT::rtti[0], new_big_size * sizeof(update_t),
+                new_n_bucket, bs_even, bs_odd, sizeof(update_t));
         } else {
-            verbose_output_print(
+            verbose_fmt_print(
                 0, 3,
-                "# [%d%c] Allocating %zu bytes for %" PRIu32
-                " buckets of %zu update entries of %zu bytes each\n",
-                LEVEL, HINT::rtti[0], new_big_size, new_n_bucket, bs_even,
-                sizeof(update_t));
+                "# [{}{}] Allocating {} bytes for {} buckets"
+                " of {} update entries of {} bytes each\n",
+                LEVEL, HINT::rtti[0], new_big_size * sizeof(update_t),
+                new_n_bucket, bs_even, sizeof(update_t));
         }
-        big_size = new_big_size;
-        big_data = (update_t *)memory.physical_alloc(big_size, 1);
-        void * internet_of_things MAYBE_UNUSED = nullptr;
+        big_data = memory.make_unique_physical_array<update_t>(new_big_size, true);
     }
 
     if (!big_data)
@@ -206,44 +167,42 @@ void bucket_array_t<LEVEL, HINT>::allocate_memory(
     // bucket_size = new_bucket_size;
     n_bucket = new_n_bucket;
 
-    if (new_size_b_align > size_b_align) {
-        int const all_null = (bucket_write == nullptr) &&
-                             (bucket_start == nullptr) &&
-                             (bucket_read == nullptr);
-        int const none_null = bucket_write && bucket_start && bucket_read;
-        ASSERT_ALWAYS(all_null || none_null);
-        if (none_null) {
-            verbose_output_print(0, 1,
-                                 "# [%d%c] Changing bucket allocation from %zu "
-                                 "bytes to %zu bytes\n",
-                                 LEVEL, HINT::rtti[0], size_b_align,
-                                 new_size_b_align);
-            free_pagealigned(bucket_write);
-            free_aligned(bucket_start);
-            free_aligned(bucket_read);
+    if (new_pointer_pack > pointer_pack) {
+        if (pointer_pack) {
+            verbose_fmt_print(0, 1,
+                    "# [{}{}] Changing bucket allocation"
+                    " from {} to {} pointers\n",
+                    LEVEL, HINT::rtti[0], pointer_pack,
+                    new_pointer_pack);
         }
-        size_b_align = new_size_b_align;
-        bucket_write = (update_t **)malloc_pagealigned(size_b_align);
+        pointer_pack = new_pointer_pack;
+
         /* bucket_start is allocated as an array of n_bucket+1 pointers */
-        size_t const alloc_bstart =
-            MAX(size_b_align, (n_bucket + 1) * sizeof(void *));
-        bucket_start = (update_t **)malloc_aligned(alloc_bstart, 0x40);
-        bucket_read = (update_t **)malloc_aligned(size_b_align, 0x40);
-        memset(bucket_write, 0, size_b_align);
-        memset(bucket_start, 0, alloc_bstart);
-        memset(bucket_read, 0, size_b_align);
-        if (none_null) {
-            /* must refresh this pointer too */
-            free_slice_start();
-        }
+        size_t const alloc_bstart = std::max(pointer_pack, n_bucket + 1);
+        bucket_start = make_unique_aligned_array<update_t *>(alloc_bstart, 0x40);
+        std::fill_n(bucket_start.get(), alloc_bstart, nullptr);
+
+        bucket_read = make_unique_aligned_array<update_t *>(pointer_pack, 0x40);
+        std::fill_n(bucket_read.get(), pointer_pack, nullptr);
+
+        /* there is probably _some_ sense in making bucket_write
+         * page-aligned, but the exact rationale was never spelled out in
+         * clear, I believe. Probably because the set of pointers at
+         * bucket_write[] is the one that is constantly accessed during
+         * fill-in-buckets, and it would be embarrassing if it had to
+         * span several pages.
+         */
+        bucket_write = make_unique_aligned_array<update_t *>(pointer_pack, pagesize());
+        std::fill_n(bucket_write.get(), pointer_pack, nullptr);
     }
 
-    /* This requires size_b_align to have been set to the new value */
-    if (prealloc_slices > alloc_slices)
-        realloc_slice_start(prealloc_slices - alloc_slices);
+    if (prealloc_slices) {
+        slice_start.reserve(prealloc_slices);
+        slice_index.reserve(prealloc_slices);
+    }
 
     /* Spread bucket_start pointers equidistantly over the big_data array */
-    update_t * cur = big_data;
+    update_t * cur = big_data.get();
     bucket_start[0] = cur;
     for (uint32_t i = 0; bucket_start[i] = cur, i < n_bucket; i++) {
         cur += ((i & bitmask_line_ordinate) != 0) ? bs_odd : bs_even;
@@ -253,39 +212,8 @@ void bucket_array_t<LEVEL, HINT>::allocate_memory(
 
     reset_pointers();
 #ifdef SAFE_BUCKET_ARRAYS
-    verbose_output_print(0, 0, "# WARNING: SAFE_BUCKET_ARRAYS is on !\n");
+    verbose_fmt_print(0, 0, "# WARNING: SAFE_BUCKET_ARRAYS is on !\n");
 #endif
-}
-
-template <int LEVEL, typename HINT>
-void bucket_array_t<LEVEL, HINT>::free_slice_start()
-{
-    free_aligned(slice_start);
-    slice_start = nullptr;
-    free(slice_index);
-    slice_index = nullptr;
-    alloc_slices = 0;
-}
-
-template <int LEVEL, typename HINT>
-void bucket_array_t<LEVEL, HINT>::realloc_slice_start(size_t const extra_space)
-{
-    size_t const new_alloc_slices = alloc_slices + extra_space;
-    if (alloc_slices)
-        verbose_output_print(0, 3,
-                             "# [%d%c] Reallocating BA->slice_start from %zu "
-                             "entries to %zu entries\n",
-                             LEVEL, HINT::rtti[0], alloc_slices,
-                             new_alloc_slices);
-
-    size_t const old_size = size_b_align * alloc_slices;
-    size_t const new_size = size_b_align * new_alloc_slices;
-    slice_start =
-        (update_t **)realloc_aligned(slice_start, old_size, new_size, 0x40);
-    ASSERT_ALWAYS(slice_start != nullptr);
-    checked_realloc(slice_index, new_alloc_slices);
-    memset(slice_index + alloc_slices, 0, extra_space * sizeof(slice_index_t));
-    alloc_slices = new_alloc_slices;
 }
 
 /* Returns how full the fullest bucket is, as a fraction of its size */
@@ -334,18 +262,18 @@ void bucket_array_t<LEVEL, HINT>::log_this_update(update_t const update
     WHERE_AM_I_UPDATE(w, N, N);
 
     if (trace_on_spot_Nx(w->N, w->x)) {
-        verbose_output_print(
+        verbose_fmt_print(
             TRACE_CHANNEL, 0,
-            "# Pushed hit at location (x=%u, side %d), from factor base entry "
-            "(slice_index=%u, slice_offset=%u, p=%" FBPRIME_FORMAT "), "
-            "to BA<%d>[%u]\n",
+            "# Pushed hit at location (x={}, side {}), from factor base entry "
+            "(slice_index={}, slice_offset={}, p={}), "
+            "to BA<{}>[{}]\n",
             (unsigned int)w->x, w->side, (unsigned int)w->i, (unsigned int)w->h,
             w->p, LEVEL, (unsigned int)w->N);
         if (std::is_same<HINT, longhint_t>::value) {
-            verbose_output_print(TRACE_CHANNEL, 0,
-                                 "# Warning: did not check divisibility during "
-                                 "downsorting p=%" FBPRIME_FORMAT "\n",
-                                 w->p);
+            verbose_fmt_print(TRACE_CHANNEL, 0,
+                              "# Warning: did not check divisibility"
+                              " during downsorting p={}\n",
+                              w->p);
         } else {
             ASSERT_ALWAYS(test_divisible(w));
         }
@@ -374,7 +302,7 @@ template <int LEVEL, typename HINT> void bucket_single<LEVEL, HINT>::sort()
 //  qsort (start, write - start, sizeof (bucket_update_t<1, longhint_t> ),
 //	 (int(*)(const void *, const void *)) &bucket_cmp_x);
 #define islt(a, b) ((a)->x < (b)->x)
-    QSORT(update_t, start, write - start, islt);
+    QSORT(update_t, start.get(), size(), islt);
 #undef islt
 }
 
@@ -419,8 +347,7 @@ static inline bucket_update_t<1, longhint_t>
 to_longhint(bucket_update_t<1, shorthint_t> const & update,
             slice_index_t const slice_index)
 {
-    return bucket_update_t<1, longhint_t>(update.x, 0, update.hint,
-                                          slice_index);
+    return { update.x, 0, update.hint, slice_index };
 }
 
 static inline bucket_update_t<1, longhint_t>
@@ -544,9 +471,9 @@ void downsort(fb_factorbase::slicing const & fbs MAYBE_UNUSED,
      */
     /* Rather similar to purging, except it doesn't purge */
     int logB = LOG_BUCKET_REGIONS[INPUT_LEVEL - 1];
-    typedef bucket_array_t<INPUT_LEVEL - 1, longhint_t> BA_out_t;
-    typedef typename BA_out_t::update_t lower_update_t;
-    typedef typename BA_out_t::row_update_t lower_row_update_t;
+    using BA_out_t = bucket_array_t<INPUT_LEVEL - 1, longhint_t>;
+    using lower_update_t = BA_out_t::update_t;
+    using lower_row_update_t = BA_out_t::row_update_t;
     decltype(lower_update_t::x) maskB = (1 << logB) - 1;
 
     for (slice_index_t i_slice = 0; i_slice < BA_in.get_nr_slices();
@@ -610,12 +537,12 @@ void downsort(fb_factorbase::slicing const & fbs MAYBE_UNUSED /* unused */,
     /* longhint updates don't write slice end pointers, so there must be
        exactly 1 slice per bucket */
     ASSERT_ALWAYS(BA_in.get_nr_slices() == 1);
-    ASSERT(BA_in.get_slice_index(0) == 0); // std::numeric_limits<slice_index_t>::max());
+    ASSERT(BA_in.get_slice_index(0) == 0);
 
     int logB = LOG_BUCKET_REGIONS[INPUT_LEVEL - 1];
-    typedef bucket_array_t<INPUT_LEVEL - 1, longhint_t> BA_out_t;
-    typedef typename BA_out_t::update_t lower_update_t;
-    typedef typename BA_out_t::row_update_t lower_row_update_t;
+    using BA_out_t = bucket_array_t<INPUT_LEVEL - 1, longhint_t>;
+    using lower_update_t = BA_out_t::update_t;
+    using lower_row_update_t = BA_out_t::row_update_t;
     decltype(lower_update_t::x) maskB = (1 << logB) - 1;
 
     for (auto const & it: BA_in.slice_range(bucket_number, 0)) {
@@ -645,9 +572,9 @@ void downsort(fb_factorbase::slicing const & fbs,
      */
 
     int logB = LOG_BUCKET_REGIONS[INPUT_LEVEL - 1];
-    typedef bucket_array_t<INPUT_LEVEL - 1, logphint_t> BA_out_t;
-    typedef typename BA_out_t::update_t lower_update_t;
-    typedef typename BA_out_t::row_update_t lower_row_update_t;
+    using BA_out_t = bucket_array_t<INPUT_LEVEL - 1, logphint_t>;
+    using lower_update_t = BA_out_t::update_t;
+    using lower_row_update_t = BA_out_t::row_update_t;
     decltype(lower_update_t::x) maskB = (1 << logB) - 1;
 
     /* Rather similar to purging, except it doesn't purge */
@@ -680,15 +607,15 @@ void downsort(fb_factorbase::slicing const & fbs MAYBE_UNUSED /* unused */,
               uint32_t bucket_number, where_am_I & w)
 {
     int logB = LOG_BUCKET_REGIONS[INPUT_LEVEL - 1];
-    typedef bucket_array_t<INPUT_LEVEL - 1, logphint_t> BA_out_t;
-    typedef typename BA_out_t::update_t lower_update_t;
-    typedef typename BA_out_t::row_update_t lower_row_update_t;
+    using BA_out_t = bucket_array_t<INPUT_LEVEL - 1, logphint_t>;
+    using lower_update_t = BA_out_t::update_t;
+    using lower_row_update_t = BA_out_t::row_update_t;
     decltype(lower_update_t::x) maskB = (1 << logB) - 1;
 
     /* logphint updates don't write slice end pointers, so there must be
        exactly 1 slice per bucket */
     ASSERT_ALWAYS(BA_in.get_nr_slices() == 1);
-    ASSERT(BA_in.get_slice_index(0) == 0); // std::numeric_limits<slice_index_t>::max());
+    ASSERT(BA_in.get_slice_index(0) == 0);
 
     for (auto const & it: BA_in.slice_range(bucket_number, 0)) {
         BA_out.push_update(it.x >> logB, lower_update_t(it.x & maskB, it), w);

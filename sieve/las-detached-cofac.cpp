@@ -127,7 +127,7 @@ static detached_cofac_result * detached_cofac_inner(worker_thread * worker, deta
         if (prepend_relation_time)
             os << "(" << seconds() - tt_qstart << ") ";
 
-        // verbose_output_print(0, 3, "# i=%d, j=%u, lognorms = %hhu, %hhu\n", i, j, cur.S[0], cur.S[1]);
+        // verbose_fmt_print(0, 3, "# i={}, j={}, lognorms = {}, {}\n", i, j, cur.S[0], cur.S[1]);
 
         os << dup_comment << rel << "\n";
 
@@ -140,9 +140,7 @@ static detached_cofac_result * detached_cofac_inner(worker_thread * worker, deta
         }
 
         /* print all in one go */
-        verbose_output_start_batch();     /* unlock I/O */
-        verbose_output_print(0, 1, "%s", os.str().c_str());
-        verbose_output_end_batch();     /* unlock I/O */
+        verbose_fmt_print(0, 1, "{}", os.str());
         if (dlp_descent)
             res->rel_p = std::make_shared<relation>(std::move(rel));
     }

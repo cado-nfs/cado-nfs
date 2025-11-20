@@ -24,10 +24,10 @@ struct special_q;
 
 std::ostream& operator<<(std::ostream&, special_q const &);
 
-/* this parsing routine is used exclusively in fake_rels.cpp, and it goes
- * to some level of complication in order to parse what operator<<
- * prints. At least we have symmetry, sure. But overall, I don't think we
- * should expose this kind of parsing globally
+/* this parsing routine is used exclusively in fake_rels.cpp and
+ * dupsup.cpp, and it goes to some level of complication in order to
+ * parse what operator<< prints. At least we have symmetry, sure. But
+ * overall, I don't think we should expose this kind of parsing globally
  */
 std::istream& operator>>(std::istream&, special_q &);
 

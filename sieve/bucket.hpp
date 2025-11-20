@@ -13,7 +13,6 @@
 #include <cstddef>
 #include <cstdint>
 
-#include <type_traits>
 #include <vector>
 
 #if defined(SAFE_BUCKETS_SINGLE) || defined(SAFE_BUCKET_ARRAYS)
@@ -24,13 +23,12 @@
 #include <string>
 #endif
 
+#include "memory.h"
 #include "fb-types.hpp"
 #include "fb.hpp"
 #include "las-config.hpp"
 #include "las-memory.hpp"
 #include "macros.h"
-#include "misc.h"
-#include "utils_cxx.hpp" // NonCopyable
 
 struct las_output;
 struct where_am_I;
@@ -79,13 +77,9 @@ class emptyhint_t
 {
   public:
     slice_offset_t hint_for_where_am_i() const { return 0; }
-    emptyhint_t() {}
-    emptyhint_t(slice_offset_t const slice_offset MAYBE_UNUSED) {}
-    emptyhint_t(fbprime_t const p MAYBE_UNUSED,
-                slice_offset_t const slice_offset MAYBE_UNUSED,
-                slice_index_t const slice_index MAYBE_UNUSED)
-    {
-    }
+    emptyhint_t() = default;
+    emptyhint_t(slice_offset_t) {}
+    emptyhint_t(fbprime_t, slice_offset_t, slice_index_t) { }
     static constexpr char const * rtti = "s";
     static constexpr bool allowed_at_toplevel = true;
 };
@@ -94,19 +88,15 @@ class emptyhint_t
 class shorthint_t
 {
   public:
-    slice_offset_t hint;
+    slice_offset_t hint = 0;
     slice_offset_t hint_for_where_am_i() const { return hint; }
-    shorthint_t() {}
-    shorthint_t(slice_offset_t const slice_offset)
+    shorthint_t() = default;
+    shorthint_t(slice_offset_t slice_offset)
         : hint(slice_offset)
-    {
-    }
-    shorthint_t(fbprime_t const p MAYBE_UNUSED,
-                slice_offset_t const slice_offset,
-                slice_index_t const slice_index MAYBE_UNUSED)
+    { }
+    shorthint_t(fbprime_t, slice_offset_t slice_offset, slice_index_t)
         : hint(slice_offset)
-    {
-    }
+    { }
     static constexpr char const * rtti = "shorthint_t";
     static constexpr bool allowed_at_toplevel = true;
 };
@@ -121,19 +111,19 @@ class longhint_t
   public:
     /* variable name must be consistent with add_slice_index_if_missing
      */
-    slice_index_t slice_index;
-    slice_offset_t hint;
+    slice_index_t slice_index = 0;
+    slice_offset_t hint = 0;
     slice_offset_t hint_for_where_am_i() const { return hint; }
-    longhint_t() {}
-    longhint_t(slice_offset_t const slice_offset,
-               slice_index_t const slice_index)
+    longhint_t() = default;
+    longhint_t(slice_offset_t slice_offset,
+               slice_index_t slice_index)
         : slice_index(slice_index)
         , hint(slice_offset)
     {
     }
-    longhint_t(fbprime_t const p MAYBE_UNUSED,
-               slice_offset_t const slice_offset,
-               slice_index_t const slice_index)
+    longhint_t(fbprime_t,
+               slice_offset_t slice_offset,
+               slice_index_t slice_index)
         : slice_index(slice_index)
         , hint(slice_offset)
     {
@@ -148,18 +138,16 @@ class longhint_t
 class logphint_t
 {
   public:
-    char logp;
+    char logp = 0;
     slice_offset_t hint_for_where_am_i() const { return 0; }
-    logphint_t() {}
-    logphint_t(fbprime_t const p MAYBE_UNUSED,
-               slice_offset_t const slice_offset MAYBE_UNUSED,
-               slice_index_t const slice_index MAYBE_UNUSED)
-    {
-    }
+    logphint_t() = default;
+    logphint_t(fbprime_t,
+               slice_offset_t,
+               slice_index_t)
+    { }
     logphint_t(char logp)
         : logp(logp)
-    {
-    }
+    { }
     static constexpr char const * rtti = "l";
     static constexpr bool allowed_at_toplevel = false;
 };
@@ -177,18 +165,14 @@ template <> struct hints_proxy<false> {
 class primehint_t
 {
   public:
-    fbprime_t p;
-    primehint_t() {}
-    primehint_t(fbprime_t const p)
+    fbprime_t p = 0;
+    primehint_t() = default;
+    primehint_t(fbprime_t p)
         : p(p)
-    {
-    }
-    primehint_t(fbprime_t const p,
-                slice_offset_t const slice_offset MAYBE_UNUSED,
-                slice_index_t const slice_index MAYBE_UNUSED)
+    { }
+    primehint_t(fbprime_t p, slice_offset_t, slice_index_t)
         : p(p)
-    {
-    }
+    { }
 };
 
 /* A bucket update type has two template parameters: the level of the bucket
@@ -210,21 +194,21 @@ template <int LEVEL> struct bucket_update_size_per_level; // IWYU pragma: keep
  * here.
  */
 template <> struct bucket_update_size_per_level<1> {
-    typedef uint16_t type;
+    using type = uint16_t;
 };
 /* TODO: create a fake 24-bit type as uint8_t[3]. */
 template <> struct bucket_update_size_per_level<2> {
-    typedef uint32_t type;
+    using type = uint32_t;
 };
 template <> struct bucket_update_size_per_level<3> {
-    typedef uint32_t type;
+    using type = uint32_t;
 };
 
 #if 0
 /* here are types that would fit larger bucket regions */
-template<> struct bucket_update_size_per_level<1> { typedef uint32_t type; };
-template<> struct bucket_update_size_per_level<2> { typedef uint32_t type; };
-template<> struct bucket_update_size_per_level<3> { typedef uint64_t type; };
+template<> struct bucket_update_size_per_level<1> { using } = uint32_t type;;
+template<> struct bucket_update_size_per_level<2> { using } = uint32_t type;;
+template<> struct bucket_update_size_per_level<3> { using } = uint64_t type;;
 #endif
 
 /* "bare" bucket updates only have the info for locating the update
@@ -241,7 +225,7 @@ template <int LEVEL> struct bare_bucket_update_t {
         : x(limit_cast<br_index_t>(x))
     {
     }
-    inline void set_x(br_index_t xx) { x = xx; }
+    void set_x(br_index_t xx) { x = xx; }
 };
 
 template <int LEVEL, typename HINT> struct bucket_update_t; // IWYU pragma: keep
@@ -276,7 +260,7 @@ template <int LEVEL>
 struct bucket_update_t<LEVEL, void> :
 public bare_bucket_update_t<LEVEL>
 {
-    typedef bare_bucket_update_t<LEVEL> bare_t;
+    using bare_t = bare_bucket_update_t<LEVEL>;
     static inline int level() { return LEVEL; }
     bucket_update_t(){};
     bucket_update_t(const uint64_t x,
@@ -387,7 +371,7 @@ struct bucket_row_update_t
 };
 /* }}} */
 
-template <int LEVEL, typename HINT> class bucket_array_t : private NonCopyable
+template <int LEVEL, typename HINT> class bucket_array_t
 {
     /* We want to be able to reseat the reference in the course of the
      * computation.
@@ -396,56 +380,54 @@ template <int LEVEL, typename HINT> class bucket_array_t : private NonCopyable
 
   public:
     static int const level = LEVEL;
-    typedef bucket_update_t<LEVEL, HINT> update_t;
-    typedef bucket_row_update_t<LEVEL, HINT> row_update_t;
+    using update_t = bucket_update_t<LEVEL, HINT>;
+    using row_update_t = bucket_row_update_t<LEVEL, HINT>;
 
   private:
-    update_t * big_data = 0;
-    size_t big_size = 0; // size of bucket update memory
+    las_memory_accessor::unique_physical_array<update_t> big_data;
 
-    update_t ** bucket_write = 0;    // Contains pointers to first empty
-                                     // location in each bucket
-    update_t ** bucket_start = 0;    // Contains pointers to beginning of
-                                     // buckets
-    update_t ** bucket_read = 0;     // Contains pointers to first unread
-                                     // location in each bucket
-    slice_index_t * slice_index = 0; // For each slice that gets sieved,
-                                     // new index is added here
-    update_t ** slice_start = 0;     // For each slice there are
-                                     // n_bucket pointers, each
-                                     // pointer tells where in the
-                                     // corresponding bucket the
-                                     // updates from that slice start
+    // Contains pointers to first empty location in each bucket
+    unique_aligned_array<update_t *> bucket_write;
+
+    // Contains pointers to beginning of buckets
+    unique_aligned_array<update_t *> bucket_start;
+
+    // Contains pointers to first unread location in each bucket
+    unique_aligned_array<update_t *> bucket_read;
+
+    // For each slice that gets sieved, new index is added here
+    std::vector<slice_index_t> slice_index;
+
+    // For each slice there are n_bucket pointers, each pointer tells
+    // where in the corresponding bucket the updates from that slice
+    // start
+    std::vector<update_t *> slice_start;
+
   public:
+    slice_index_t get_nr_slices() const { return slice_index.size(); }
+
     /* This is for projective primes only. We expect these to be rare, so
      * that an std::vector is appropriate (TBH, we should use vectors for
      * some of the fields above as well.
      */
     std::vector<std::vector<row_update_t>> row_updates;
 
-    uint32_t n_bucket = 0; // Number of buckets
+    size_t n_bucket = 0; // Number of buckets
   private:
-    size_t size_b_align = 0; // cacheline-aligned room for a
-                             // set of n_bucket pointers
-
-    size_t nr_slices = 0;    // Number of different slices
-    size_t alloc_slices = 0; // number of checkpoints (each of size
-                             // size_b_align) we have allocated
+    // smallest number >= n_bucket such that pointer_pack
+    // pointers form a cacheline-aligned area.
+    size_t pointer_pack = 0;
 
     static constexpr slice_index_t initial_slice_alloc =
         bucket_slice_alloc_defaults<LEVEL, HINT>::initial;
     static constexpr slice_index_t increase_slice_alloc =
         bucket_slice_alloc_defaults<LEVEL, HINT>::increase;
 
-    /* Get a pointer to the pointer-set for the i_slice-th slice */
-    update_t ** get_slice_pointers(slice_index_t const i_slice) const
+    /* Get a pointer to the pointer-set for the i-th slice */
+    update_t const * const * get_slice_pointers(slice_index_t const i) const
     {
-        ASSERT_ALWAYS(i_slice < nr_slices);
-        ASSERT_ALWAYS(size_b_align % sizeof(update_t *) == 0);
-        return (slice_start + i_slice * size_b_align / sizeof(update_t *));
+        return slice_start.data() + i * pointer_pack;
     }
-    void free_slice_start();
-    void realloc_slice_start(size_t);
     void log_this_update(update_t update,
                          uint64_t bucket_number, where_am_I & w) const;
 
@@ -460,22 +442,8 @@ template <int LEVEL, typename HINT> class bucket_array_t : private NonCopyable
         ASSERT((uint32_t)i < n_bucket);
         return bucket_start[i + 1] - bucket_start[i];
     }
-    /* Constructor sets everything to zero, and does not allocate memory.
-       allocate_memory() does all the allocation. */
-    bucket_array_t() = default;
-    /* Destructor frees memory, if memory was allocated. If it wasn't, it's
-       basically a no-op, except for destroying the bucket_array_t itself. */
-    ~bucket_array_t();
 
     void reseat_output(las_output & o) { output_p = &o; }
-
-    /* Lacking a move constructor before C++11, we make a fake one. We use this
-       to store the bucket_array_t on the stack in fill_in_buckets(), to remove
-       one level of pointer dereferencing.
-       This method copies all the fields of other, then sets them to 0 in other.
-       Deconstructing the other bucket_array_t after move() is a no-op, as if
-       other had been constructed, but never run allocate_memory(). */
-    void move(bucket_array_t & other);
 
     /* Allocate enough memory to be able to store at least _n_bucket buckets,
        each of at least _bucket_size entries. If at least as much memory had
@@ -486,12 +454,11 @@ template <int LEVEL, typename HINT> class bucket_array_t : private NonCopyable
                     slice_index_t prealloc_slices = initial_slice_alloc);
 
   private:
-    las_memory_accessor * used_accessor = nullptr;
     /* Return a begin iterator over the update_t entries in i_bucket-th
        bucket, generated by the i_slice-th slice */
     update_t const * begin(size_t i_bucket, slice_index_t i_slice) const
     {
-        ASSERT_ALWAYS(i_slice < nr_slices);
+        ASSERT_ALWAYS(i_slice < get_nr_slices());
         update_t const * const p = get_slice_pointers(i_slice)[i_bucket];
         /* The first slice we wrote must start at the bucket start */
         ASSERT_ALWAYS(i_slice != 0 || p == bucket_start[i_bucket]);
@@ -501,8 +468,8 @@ template <int LEVEL, typename HINT> class bucket_array_t : private NonCopyable
        bucket, generated by the i_slice-th slice */
     update_t const * end(size_t i_bucket, slice_index_t i_slice) const
     {
-        ASSERT_ALWAYS(i_slice < nr_slices);
-        return (i_slice + 1 < nr_slices)
+        ASSERT_ALWAYS(i_slice < get_nr_slices());
+        return (i_slice + 1 < get_nr_slices())
                    ? get_slice_pointers(i_slice + 1)[i_bucket]
                    : bucket_write[i_bucket];
     }
@@ -529,25 +496,16 @@ template <int LEVEL, typename HINT> class bucket_array_t : private NonCopyable
     }
 
     void reset_pointers();
-    slice_index_t get_nr_slices() const { return nr_slices; }
     slice_index_t get_slice_index(slice_index_t const i_slice) const
     {
-        ASSERT_ALWAYS(i_slice < nr_slices);
+        ASSERT_ALWAYS(i_slice < slice_index.size());
         return slice_index[i_slice];
     }
     void add_slice_index(slice_index_t new_slice_index)
     {
-        /* Write new set of pointers for the new factor base slice */
-        ASSERT_ALWAYS(nr_slices <= alloc_slices);
-        if (nr_slices == alloc_slices) {
-            /* We're out of allocated space for the checkpoints. Realloc to
-               bigger size. We add space for increase_slice_alloc additional
-               entries. */
-            realloc_slice_start(increase_slice_alloc);
-        }
-        aligned_medium_memcpy((uint8_t *)slice_start + size_b_align * nr_slices,
-                              bucket_write, size_b_align);
-        slice_index[nr_slices++] = new_slice_index;
+        slice_start.insert(slice_start.end(),
+                bucket_write.get(), bucket_write.get() + pointer_pack);
+        slice_index.push_back(new_slice_index);
     }
     double max_full(unsigned int * fullest_index = nullptr) const;
     double average_full() const;
@@ -576,20 +534,19 @@ template <int LEVEL, typename HINT> class bucket_array_t : private NonCopyable
                             slice_offset_t slice_offset,
                             slice_index_t slice_index, where_am_I & w);
 
-    template <typename hh = HINT>
+    /*
     void push_update(uint64_t offset, where_am_I & w MAYBE_UNUSED)
-    requires std::is_same_v<hh, emptyhint_t>
+    requires std::is_same_v<HINT, emptyhint_t>
     {
         int logB = LOG_BUCKET_REGIONS[LEVEL];
         uint64_t const bucket_number = offset >> logB;
         ASSERT_EXPENSIVE(bucket_number < n_bucket);
-        update_t update(offset & ((UINT64_C(1) << logB) - 1));
+        update_t update(offset & ((UINT64_C(1) << logB) - 1), {});
         push_update(bucket_number, update);
     }
-    template <typename hh = HINT>
     void push_update(uint64_t offset, logphint_t const & logp,
                     where_am_I & w MAYBE_UNUSED)
-        requires std::is_same_v<hh, logphint_t>
+        requires std::is_same_v<HINT, logphint_t>
     {
         int logB = LOG_BUCKET_REGIONS[LEVEL];
         uint64_t const bucket_number = offset >> logB;
@@ -597,6 +554,7 @@ template <int LEVEL, typename HINT> class bucket_array_t : private NonCopyable
         update_t update(offset & ((UINT64_C(1) << logB) - 1), logp);
         push_update(bucket_number, update);
     }
+    */
 };
 
 /* Downsort sorts the updates in the bucket_index-th bucket of a level-n
@@ -636,46 +594,25 @@ void downsort(fb_factorbase::slicing const &,
    a persistent read and write pointer. */
 template <int LEVEL, typename HINT> class bucket_single
 {
-    typedef bucket_update_t<LEVEL, HINT> update_t;
-    update_t * start; /* start is a "strong" reference */
-    update_t * read;  /* read and write are "weak" references into the allocated
-                         memory */
-    update_t * write;
-    size_t _size;
-    las_memory_accessor * used_accessor = nullptr;
+    using update_t = bucket_update_t<LEVEL, HINT>;
+
+    las_memory_accessor::unique_frequent_array<update_t> start;
+    update_t * read = nullptr;  /* non-owning references into start[] */
+    update_t * write = nullptr;
 
   public:
-    bucket_single()
-    {
-        start = nullptr;
-        read = start;
-        write = start;
-        _size = 0;
-    }
 
     void allocate_memory(las_memory_accessor & memory, size_t size)
     {
-        used_accessor = &memory;
-        _size = size;
-        start = (update_t *)used_accessor->alloc_frequent_size(
-            _size * sizeof(update_t));
-        read = start;
-        write = start;
-    }
-
-    ~bucket_single()
-    {
-        if (start)
-            used_accessor->free_frequent_size((update_t *)start,
-                                              _size * sizeof(update_t));
-        start = read = write = NULL;
-        _size = 0;
+        start = memory.make_unique_frequent_array<update_t>(size);
+        read = start.get();
+        write = start.get();
     }
 
     /* A few of the standard container methods */
-    update_t const * begin() const { return start; }
+    update_t const * begin() const { return start.get(); }
     update_t const * end() const { return write; }
-    size_t size() const { return write - start; }
+    size_t size() const { return end() - begin(); }
 
     /* Main writing function: appends update to bucket number i.
      * If SAFE_BUCKETS_SINGLE is not #defined, then there is no checking that
@@ -686,7 +623,7 @@ template <int LEVEL, typename HINT> class bucket_single
     inline update_t const & get_next_update();
     void rewind_by_1()
     {
-        if (read > start)
+        if (read > start.get())
             read--;
     }
     bool is_end() const { return read == write; }
@@ -697,7 +634,7 @@ template <int LEVEL, typename HINT> class bucket_single
 /* Stores info containing the complete prime instead of only the low 16 bits */
 class bucket_primes_t : public bucket_single<1, primehint_t>
 {
-    typedef bucket_single<1, primehint_t> super;
+    using super = bucket_single<1, primehint_t>;
 
   public:
     // allocate_memory (las_memory_accessor & memory, const size_t size) {
@@ -712,7 +649,7 @@ class bucket_primes_t : public bucket_single<1, primehint_t>
  */
 class bucket_array_complete : public bucket_single<1, longhint_t>
 {
-    typedef bucket_single<1, longhint_t> super;
+    using super = bucket_single<1, longhint_t>;
 
   public:
     // allocate_memory (las_memory_accessor & memory, const size_t size) {

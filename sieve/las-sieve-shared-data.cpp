@@ -1,23 +1,23 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cstdio>            // for fclose, fopen, fprintf, NULL, FILE, stderr
-#include <cstdlib>           // for abort
+#include <cstdio>
+#include <cstdlib>
 
-#include <mutex>             // for lock_guard, mutex
+#include <mutex>
 #include <memory>
 #include <utility>
 
 #include "cado_poly.h"
-#include "ecm/facul_strategies.hpp"         // for facul_clear_strategies, facul_strategies_t
-#include "gmp_aux.h"    // nbits
-#include "las-cofactor.hpp"  // for facul_make_strategies
+#include "ecm/facul_strategies.hpp"
+#include "gmp_aux.h"
+#include "las-cofactor.hpp"
 #include "las-sieve-shared-data.hpp"
-#include "las-unsieve.hpp"   // for j_divisibility_helper, unsieve_data
-#include "macros.h"          // for ASSERT, ASSERT_ALWAYS
-#include "memusage.h"   // Memusage2
-#include "misc.h"          // size_disp_fine
-#include "timing.h"             // for seconds
-#include "verbose.h"             // verbose_output_print
+#include "las-unsieve.hpp"
+#include "macros.h"
+#include "memusage.h"
+#include "misc.h"
+#include "timing.h"
+#include "verbose.h"
 #include "params.h"
 #include "las-siever-config.hpp"
 #include "las-side-config.hpp"
@@ -60,9 +60,10 @@ sieve_shared_data::side_data::side_data(int side,
 sieve_shared_data::sieve_shared_data( /*{{{*/
         cxx_cado_poly const & cpoly,
         cxx_param_list & pl)
-    : cpoly(cpoly), sides{(size_t) cpoly->nb_polys}
+    : cpoly(cpoly)
+    , sides{(size_t) cpoly->nb_polys}
+    , cofactfilename { param_list_lookup_string (pl, "file-cofact") }
 {
-    cofactfilename = param_list_lookup_string (pl, "file-cofact");
 }
 void sieve_shared_data::load_factor_base(cxx_param_list & pl, int nthreads) /*{{{*/
 {
@@ -107,19 +108,17 @@ facul_strategies const * sieve_shared_data::get_strategies(siever_config const &
 
     double const time_strat = seconds();
 
-    FILE* file = NULL;
-    if (cofactfilename != NULL) /* a file was given */
-        file = fopen (cofactfilename, "r");
+    std::unique_ptr<FILE, delete_FILE> file;
+
+    if (cofactfilename)
+        file.reset(fopen (cofactfilename, "r"));
 
     auto itb = facul_strategies_cache.insert(std::make_pair(conf,
             std::shared_ptr<facul_strategies>(
-                facul_make_strategies (conf, file, 0))));
-
-    if (file)
-        fclose (file);
+                facul_make_strategies (conf, file.get(), 0))));
 
     ASSERT_ALWAYS(itb.second);
-    verbose_output_print(0, 1, "# Building/reading strategies took %1.1fs\n",
+    verbose_fmt_print(0, 1, "# Building/reading strategies took {:1.1f}s\n",
             seconds() - time_strat);
 
     if (!(*itb.first).second.get()) {
@@ -132,7 +131,7 @@ facul_strategies const * sieve_shared_data::get_strategies(siever_config const &
 
 sieve_shared_data::~sieve_shared_data()
 {
-    char buf1[16];
-    verbose_output_print(0, 2, "# Getting rid of sieve_shared_data structure [rss=%s]\n",
-            size_disp_fine(1024UL * Memusage2(), buf1, 10000.0));
+    verbose_fmt_print(0, 2,
+            "# Getting rid of sieve_shared_data structure [rss={}]\n",
+            size_disp_fine(1024UL * Memusage2(), 10000.0));
 }

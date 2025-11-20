@@ -9,6 +9,8 @@
 
 // pragma no prototypes
 
+#include "las-where-am-i-proxy.hpp"     // IWYU pragma: export
+
 #ifdef TRACE_K
 #include "las-where-am-i-debug.hpp" // IWYU pragma: keep
 #else
