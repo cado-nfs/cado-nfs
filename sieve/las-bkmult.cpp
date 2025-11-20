@@ -3,6 +3,9 @@
 #include <ios>
 #include <sstream>
 
+#include "fmt/format.h"
+
+#include "utils_cxx.hpp"
 #include "las-bkmult.hpp"
 
 #include "macros.h"
@@ -51,11 +54,11 @@ bkmult_specifier::bkmult_specifier(char const * specifier)
 
 std::string bkmult_specifier::print_all() const
 {
-    std::ostringstream os;
-    os << base;
-    for (auto const & x: dict) {
-        key_type const & key(x.first);
-        os << "," << key.first << key.second << ":" << x.second;
-    }
-    return os.str();
+    return fmt::format("{},{}",
+            base, join(dict.begin(), dict.end(), " ",
+                [](auto const& item) {
+                    auto const & [ key, mult ] = item;
+                    auto const & [ lev, hint ] = key;
+                    return fmt::format("{}{}:{:.3f}", lev, hint, mult);
+                }));
 }

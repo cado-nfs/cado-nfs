@@ -7,22 +7,22 @@
  * The WHERE_AM_I_UPDATE macro itself is defined in las-where-am-i.hpp
  */
 
-#include <algorithm>        // for max
-#include <climits>          // for UINT_MAX
-#include <cstdint>          // for uint32_t
-#include <cstdlib>          // for abs, abort, size_t, NULL
-#include <cstring>          // for memcpy, memset
-#include <vector>           // for vector
+#include <algorithm>
+#include <climits>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <vector>
 #include "fb-types.hpp"
-#include "gcd.h"       // for bin_gcd_int64_safe
-#include "gpf.h"        // gpf_init
-#include "las-unsieve.hpp"  // for unsieve_data, unsieve_data::pattern_t
-#include "macros.h"         // for ASSERT_ALWAYS, no_break, MAYBE_UNUSED
-#include "arith/ularith.h"        // for ularith_invmod
+#include "gcd.h"
+#include "gpf.h"
+#include "las-unsieve.hpp"
+#include "macros.h"
+#include "arith/ularith.h"
 #ifdef TRACE_K
-#include "las-where-am-i.hpp"             // for where_am_I, WHERE_AM_I_UPDATE
-#include "las-output.hpp"   // IWYU pragma: keep
-#include "verbose.h"    // verbose_output_print
+#include "las-where-am-i.hpp"
+#include "las-output.hpp"
+#include "verbose.h"
 #endif
 
 static const int verify_gcd = 0; /* Enable slow but thorough test */
@@ -411,7 +411,7 @@ search_survivors_in_line1(unsigned char * const SS[2],
                 ASSERT_ALWAYS(bin_gcd_int64_safe (i, j) != 1);
   #ifdef TRACE_K
             if (trace_on_spot_Nx(N, x)) {
-                verbose_output_print(TRACE_CHANNEL, 0, "# Slot [%u] in bucket %u has non coprime (i,j)=(%d,%u)\n",
+                verbose_fmt_print(TRACE_CHANNEL, 0, "# Slot [{}] in bucket {} has non coprime (i,j)=({},{})\n",
                         x, N, i, j);
             }
   #endif
@@ -422,7 +422,7 @@ search_survivors_in_line1(unsigned char * const SS[2],
                 ASSERT_ALWAYS(bin_gcd_int64_safe (i, j) == 1);
   #ifdef TRACE_K
             if (trace_on_spot_Nx(N, x)) {
-                verbose_output_print(TRACE_CHANNEL, 0, "# Slot [%u] in bucket %u is survivor with coprime (i,j)\n",
+                verbose_fmt_print(TRACE_CHANNEL, 0, "# Slot [{}] in bucket {} is survivor with coprime (i,j)\n",
                         x, N);
             }
   #endif
@@ -477,7 +477,7 @@ search_survivors_in_line1_oneside(unsigned char * Sf,
                 ASSERT_ALWAYS(bin_gcd_int64_safe (i, j) != 1);
   #ifdef TRACE_K
             if (trace_on_spot_Nx(N, x)) {
-                verbose_output_print(TRACE_CHANNEL, 0, "# Slot [%u] in bucket %u has non coprime (i,j)=(%d,%u)\n",
+                verbose_fmt_print(TRACE_CHANNEL, 0, "# Slot [{}] in bucket {} has non coprime (i,j)=({},{})\n",
                         x, N, i, j);
             }
   #endif
@@ -488,7 +488,7 @@ search_survivors_in_line1_oneside(unsigned char * Sf,
                 ASSERT_ALWAYS(bin_gcd_int64_safe (i, j) == 1);
   #ifdef TRACE_K
             if (trace_on_spot_Nx(N, x)) {
-                verbose_output_print(TRACE_CHANNEL, 0, "# Slot [%u] in bucket %u is survivor with coprime (i,j)\n",
+                verbose_fmt_print(TRACE_CHANNEL, 0, "# Slot [{}] in bucket {} is survivor with coprime (i,j)\n",
                         x, N);
             }
   #endif

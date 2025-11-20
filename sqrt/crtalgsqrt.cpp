@@ -589,10 +589,6 @@ void estimate_nbits_sqrt(size_t * sbits, ab_source_ptr ab) // , int guess)
     for(auto & [ x, logfx ] : evals)
         x *= mpz_get_d(mpz_poly_coeff_const(glob.cpoly->pols[1], n));
     
-    double * double_coeffs = (double *) malloc((n+1) * sizeof(double));
-    for(int i = 0 ; i <= n ; i++)
-        double_coeffs[i] = mpz_get_d(mpz_poly_coeff_const(glob.f_hat, i));
-
     // {{{ print the roots.
     if (nreal) {
         fmt::print("# [{:2.2f}]", WCT);

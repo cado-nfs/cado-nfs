@@ -12,6 +12,7 @@
 #include "macros.h"
 #include "las-config.hpp"
 #include "lock_guarded_container.hpp"
+#include "memory.h"
 
 
 /* This structure is shared by threads that have the same memory binding.
@@ -23,7 +24,7 @@
 
 class las_memory_accessor {
     lock_guarded_container<std::map<size_t, std::stack<void *>>> frequent_regions_pool;
-    std::list<void*> large_pages_for_pool;
+    std::list<unique_aligned_array<char>> large_pages_for_pool;
 
     /* large memory chunks follow the same logic as in utils/memory.c,
      * but we reimplement it here so as to stick to one memory binding
@@ -104,7 +105,7 @@ class las_memory_accessor {
     las_memory_accessor(las_memory_accessor&&) = default;
     las_memory_accessor& operator=(las_memory_accessor const &) = delete;
     las_memory_accessor& operator=(las_memory_accessor&&) = default;
-    ~las_memory_accessor();
+    ~las_memory_accessor() = default;
 };
 
 #endif	/* CADO_LAS_MEMORY_HPP */

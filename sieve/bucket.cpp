@@ -7,7 +7,6 @@
  * The WHERE_AM_I_UPDATE macro itself is defined in las-where-am-i.hpp
  */
 
-#include <cinttypes>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -145,17 +144,17 @@ void bucket_array_t<LEVEL, HINT>::allocate_memory(
 
     if (new_big_size > big_data.get_deleter().size) {
         if (bitmask_line_ordinate) {
-            verbose_output_print(
+            verbose_fmt_print(
                 0, 3,
-                "# [%d%c] Allocating %zu bytes for %" PRIu32
-                " buckets of %zu to %zu update entries of %zu bytes each\n",
+                "# [{}{}] Allocating {} bytes for {} buckets"
+                " of {} to {} update entries of {} bytes each\n",
                 LEVEL, HINT::rtti[0], new_big_size * sizeof(update_t),
                 new_n_bucket, bs_even, bs_odd, sizeof(update_t));
         } else {
-            verbose_output_print(
+            verbose_fmt_print(
                 0, 3,
-                "# [%d%c] Allocating %zu bytes for %" PRIu32
-                " buckets of %zu update entries of %zu bytes each\n",
+                "# [{}{}] Allocating {} bytes for {} buckets"
+                " of {} update entries of {} bytes each\n",
                 LEVEL, HINT::rtti[0], new_big_size * sizeof(update_t),
                 new_n_bucket, bs_even, sizeof(update_t));
         }
@@ -170,11 +169,11 @@ void bucket_array_t<LEVEL, HINT>::allocate_memory(
 
     if (new_pointer_pack > pointer_pack) {
         if (pointer_pack) {
-            verbose_output_print(0, 1,
-                                 "# [%d%c] Changing bucket allocation"
-                                 " from %zu to %zu pointers\n",
-                                 LEVEL, HINT::rtti[0], pointer_pack,
-                                 new_pointer_pack);
+            verbose_fmt_print(0, 1,
+                    "# [{}{}] Changing bucket allocation"
+                    " from {} to {} pointers\n",
+                    LEVEL, HINT::rtti[0], pointer_pack,
+                    new_pointer_pack);
         }
         pointer_pack = new_pointer_pack;
 
@@ -213,7 +212,7 @@ void bucket_array_t<LEVEL, HINT>::allocate_memory(
 
     reset_pointers();
 #ifdef SAFE_BUCKET_ARRAYS
-    verbose_output_print(0, 0, "# WARNING: SAFE_BUCKET_ARRAYS is on !\n");
+    verbose_fmt_print(0, 0, "# WARNING: SAFE_BUCKET_ARRAYS is on !\n");
 #endif
 }
 
@@ -263,18 +262,18 @@ void bucket_array_t<LEVEL, HINT>::log_this_update(update_t const update
     WHERE_AM_I_UPDATE(w, N, N);
 
     if (trace_on_spot_Nx(w->N, w->x)) {
-        verbose_output_print(
+        verbose_fmt_print(
             TRACE_CHANNEL, 0,
-            "# Pushed hit at location (x=%u, side %d), from factor base entry "
-            "(slice_index=%u, slice_offset=%u, p=%" FBPRIME_FORMAT "), "
-            "to BA<%d>[%u]\n",
+            "# Pushed hit at location (x={}, side {}), from factor base entry "
+            "(slice_index={}, slice_offset={}, p={}), "
+            "to BA<{}>[{}]\n",
             (unsigned int)w->x, w->side, (unsigned int)w->i, (unsigned int)w->h,
             w->p, LEVEL, (unsigned int)w->N);
         if (std::is_same<HINT, longhint_t>::value) {
-            verbose_output_print(TRACE_CHANNEL, 0,
-                                 "# Warning: did not check divisibility during "
-                                 "downsorting p=%" FBPRIME_FORMAT "\n",
-                                 w->p);
+            verbose_fmt_print(TRACE_CHANNEL, 0,
+                              "# Warning: did not check divisibility"
+                              " during downsorting p={}\n",
+                              w->p);
         } else {
             ASSERT_ALWAYS(test_divisible(w));
         }

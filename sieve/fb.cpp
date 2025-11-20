@@ -402,7 +402,7 @@ void fb_entry_x_roots<Nr_roots>::transform_roots(
                 verbose_fmt_print(
                     1, 0,
                     "{}-th batch transformed root modulo {} is wrong:"
-                    " {}, correct: {}",
+                    " {}, correct: {}\n",
                     i_root, p, result.roots[i_root], t);
                 verbose_fmt_print(
                     1, 0,
@@ -533,7 +533,7 @@ static fb_root_p1 fb_linear_root(cxx_mpz_poly const & poly, fbprime_t const q)
 
 std::ostream & operator<<(std::ostream & o, fb_factorbase::key_type const & k)
 {
-    return o << fmt::format("scale={}, thresholds={{{}}}",
+    return o << fmt::format("scale={:1.2f}, thresholds={{{}}}",
                             k.scale, join(k.thresholds, ", "));
 }
 
@@ -1138,7 +1138,7 @@ struct helper_functor_subdivide_slices {
                     0, 4,
                     "# [side-{} part {} {} logp={}; {} entries, weight={}]: "
                     "min {} slices to be addressable, min {} to make sure "
-                    "weight does not exceed cap {}",
+                    "weight does not exceed cap {}\n",
                     side, part_index, n_eq.str(), (int)s.get_logp(),
                     s.size(), s.weight, npieces_for_addressable_slices,
                     npieces_for_no_bulky_slice, max_slice_weight);
@@ -1223,7 +1223,7 @@ struct helper_functor_subdivide_slices {
 
         for (auto const & s: sdst) {
             verbose_fmt_print(
-                0, 4, "# [side-{} {}] {} logp={}: {} entries, weight={}",
+                0, 4, "# [side-{} {}] {} logp={}: {} entries, weight={}\n",
                 side, (unsigned long)s.get_index(), n_eq.str(),
                 (int)s.get_logp(), s.size(), s.get_weight());
         }
@@ -1392,7 +1392,7 @@ void fb_factorbase::make_linear()
     size_t next_pow = 0;
 
     verbose_fmt_print(
-        0, 1, "# including primes up to {} and prime powers up to {}", lim,
+        0, 1, "# including primes up to {} and prime powers up to {}\n", lim,
         powlim);
 
     prime_info pi;
@@ -2024,7 +2024,7 @@ static fbc_header find_fbc_header_block_for_poly(char const * fbc_filename,
             verbose_fmt_print(
                 0, 1,
                 "# Note: cached factor base number {} in file {} skipped "
-                "because not consistent with lim{}={}",
+                "because not consistent with lim{}={}\n",
                 index, fbc_filename, side, lim);
             continue;
         }
@@ -2032,7 +2032,7 @@ static fbc_header find_fbc_header_block_for_poly(char const * fbc_filename,
             verbose_fmt_print(
                 0, 1,
                 "# Note: cached factor base number {} in file {} skipped "
-                "because not consistent with powlim{}={}",
+                "because not consistent with powlim{}={}\n",
                 index, fbc_filename, side, lim);
             continue;
         }
@@ -2231,7 +2231,6 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side,
 
     double tfb = seconds();
     double tfb_wct = wct_seconds();
-    std::string const polystring = f.print_poly("x");
 
     fbc_header hdr;
     /* First use standard I/O to read the cached file header. */
@@ -2239,8 +2238,8 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side,
     if (hdr) {
         verbose_fmt_print(0, 1,
                              "# Reading side-{} factor base from cache {}"
-                             " for polynomial f{}(x) = {}",
-                             side, fbc_filename, side, polystring.c_str());
+                             " for polynomial f{}(x) = {}\n",
+                             side, fbc_filename, side, f);
         /* Now do the mmapping ! */
         using mmap_allocator_details::mmapped_file;
         mmapped_file source(fbc_filename, mmap_allocator_details::READ_ONLY,
@@ -2264,8 +2263,8 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side,
         if (f->deg > 1) {
             verbose_fmt_print(0, 2,
                                  "# Reading side-{} factor base from disk"
-                                 " for polynomial f{}(x) = {}",
-                                 side, side, polystring);
+                                 " for polynomial f{}(x) = {}\n",
+                                 side, side, f);
             std::string const & s = all_sides[side].fbfilename;
             char const * fbfilename = s.empty() ? NULL : s.c_str();
             if (!fbfilename) {
@@ -2275,7 +2274,7 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side,
                 exit(EXIT_FAILURE);
             }
             verbose_fmt_print(0, 1,
-                                 "# Reading side-{} factor base from {}",
+                                 "# Reading side-{} factor base from {}\n",
                                  side, fbfilename);
             if (!read(fbfilename))
                 exit(EXIT_FAILURE);
@@ -2288,8 +2287,8 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side,
         } else {
             verbose_fmt_print(0, 2,
                     "# Creating side-{} rational factor base"
-                    " for polynomial f{}(x) = {}",
-                    side, side, polystring);
+                    " for polynomial f{}(x) = {}\n",
+                    side, side, f);
 
             make_linear_threadpool(nthreads);
             tfb = seconds() - tfb;
@@ -2381,7 +2380,7 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side,
                     side, fbc_filename, tfb, tfb_wct);
         } else {
             verbose_fmt_print(
-                0, 1, "# Cannot save side-{} factor base to cache {} : {}",
+                0, 1, "# Cannot save side-{} factor base to cache {} : {}\n",
                 side, fbc_filename, strerror(errno));
         }
     }

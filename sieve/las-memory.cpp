@@ -3,18 +3,19 @@
 #ifdef HAVE_SSE2
 #include <emmintrin.h>
 #endif
-#include <cerrno>                        // for EAGAIN
-#include <cstdio>                        // for perror
+#include <cerrno>
+#include <cstdio>
 #ifdef HAVE_SYS_MMAN_H
 // IWYU pragma: no_include <bits/mman-map-flags-generic.h>
 #include <sys/mman.h>
 #endif
-#include <mutex>                          // for lock_guard, mutex
+#include <mutex>
+#include <utility>
 
 #include "las-memory.hpp"
-#include "memory.h"             // free_aligned
-#include "misc.h"             // next_power_of_2
-#include "verbose.h"             // verbose_output_print
+#include "memory.h"
+#include "misc.h"
+#include "verbose.h"
 #include "portability.h"
 #include "macros.h"
 
@@ -23,14 +24,6 @@
 #endif
 
 const size_t small_size_cutoff = 4096;
-
-las_memory_accessor::~las_memory_accessor()
-{
-    // std::lock_guard<std::mutex> dummy(frequent_regions_pool.mutex());
-    // ASSERT_ALWAYS(bucket_regions_pool.empty());
-    for(auto * x : large_pages_for_pool) free_aligned(x);
-    large_pages_for_pool.clear();
-}
 
 void * las_memory_accessor::alloc_frequent_size(size_t size)
 {
@@ -46,17 +39,20 @@ void * las_memory_accessor::alloc_frequent_size(size_t size)
          * ultra weird cases like #30058, this does happen. Well, in such
          * a case let's use plain malloc...
          */
-        verbose_output_print(1, 1, "# Extraordinarily large (but temporary) allocation for an area of size %zu\n", rsize);
+        verbose_fmt_print(1, 1, "# Extraordinarily large (but temporary) allocation"
+                " for an area of size {}\n", rsize);
         return malloc_aligned(rsize, LARGE_PAGE_SIZE);
     }
     if (pool.empty()) {
         /* allocate some more */
-        verbose_output_print(1, 2, "# Allocating new large page dedicated to returning memory areas of size %zu\n", rsize);
-        unsigned char * w = static_cast<unsigned char*>(malloc_aligned(LARGE_PAGE_SIZE, LARGE_PAGE_SIZE));
-        ASSERT_ALWAYS(w != 0);
+        verbose_fmt_print(1, 2,
+                "# Allocating new large page dedicated to returning"
+                " memory areas of size {}\n", rsize);
+        auto w = make_unique_aligned_array<char>(LARGE_PAGE_SIZE, LARGE_PAGE_SIZE);
+        ASSERT_ALWAYS(w);
         for(size_t s = 0 ; s + rsize <= LARGE_PAGE_SIZE ; s += rsize)
-            pool.push((void *) (w + s));
-        large_pages_for_pool.push_back((void *) w);
+            pool.push(static_cast<void *>(w.get() + s));
+        large_pages_for_pool.push_back(std::move(w));
     }
     void * v = pool.top();
     pool.pop();

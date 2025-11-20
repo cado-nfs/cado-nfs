@@ -8,7 +8,6 @@
 #include <cstring>
 
 #include <algorithm>    // for std::next_permutation
-#include <array>
 #include <map>
 #include <numeric>      // for std::iota
 #include <regex>        // for std::basic_regex, std::regex_iterator
@@ -490,7 +489,7 @@ class parameter_sequence_tracker {/*{{{*/
 facul_strategies::strategy_file
 strategy_file_parser::operator()(std::vector<unsigned int> const & mfb, FILE * file)
 {
-    verbose_output_print(0, 2, "# Read the cofactorization strategy file\n");
+    verbose_fmt_print(0, 2, "# Read the cofactorization strategy file\n");
     // first, read linearly.
     std::vector<std::pair<key_type, value_type>> pre_parse;
     std::map<std::string, value_type> macros;
@@ -983,15 +982,14 @@ facul_strategies::facul_strategies (
     for(int side = 0 ; side < nsides ; side++) {
         if (ncurves[side] < 0)
             ncurves[side] = nb_curves_with_fbb (B[side], lpb[side], mfb[side]);
-        if (ncurves[side] > max_ncurves)
-            max_ncurves = ncurves[side];
+        max_ncurves = std::max(max_ncurves, ncurves[side]);
     }
 
-    verbose_output_print(0, 2, "# Using default strategy for the cofactorization:");
+    verbose_fmt_print(0, 2, "# Using default strategy for the cofactorization:");
     for (unsigned int i = 0; i < ncurves.size(); i++) {
-        verbose_output_print(0, 2, " ncurves%u=%d", i, ncurves[i]);
+        verbose_fmt_print(0, 2, " ncurves{}={}", i, ncurves[i]);
     }
-    verbose_output_print(0, 2, "\n");
+    verbose_fmt_print(0, 2, "\n");
 
     /* prepare the chain of methods that we want to use in order to
      * factor a number, irrespective of its side.

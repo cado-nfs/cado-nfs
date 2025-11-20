@@ -252,9 +252,9 @@ static size_t expected_memory_usage_per_binding_zone(siever_config const & sc,/*
          */
         more += sizeof(fbroot_t) * nideals;
 
-        verbose_output_print(0, 3 + hush,
-                "# side %d, lim=%lu, %zu fb primes"
-                " (d=%d, %f roots per p if G=S_d): %zuMB\n",
+        verbose_fmt_print(0, 3 + hush,
+                "# side {}, lim={}, {} fb primes"
+                " (d={}, {} roots per p if G=S_d): {}\n",
                 side,
                 sc.sides[side].lim,
                 nideals,
@@ -297,7 +297,7 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
      * 64MB is actually transiently 128MB, then 64MB.
      */
     if (0) {
-        verbose_output_print(0, 3 + hush, "# %d threads: %zuMB\n",
+        verbose_fmt_print(0, 3 + hush, "# {} threads: {}\n",
                 nthreads,
                 (more = nthreads * 0x4801000) >> 20);
         memory += more;
@@ -553,7 +553,6 @@ static size_t expected_memory_usage_per_subjob_worst_logI(siever_config const & 
      * the las_info structure is set.
      */
     int const hush = print ? 0 : 3;
-    char buf[20];
     /* do the estimate based on the typical config stuff provided.
      * This is most often going to give a reasonable rough idea anyway.
      */
@@ -570,15 +569,15 @@ static size_t expected_memory_usage_per_subjob_worst_logI(siever_config const & 
     int logI_max_memory = 0;
     for(int logI = logImin ; logI <= logImax ; logI++) {
         sc.logI = logI;
-        verbose_output_print(0, 3 + hush,
-                "# Expected memory usage per subjob for logI=%d [%d threads]:\n",
+        verbose_fmt_print(0, 3 + hush,
+                "# Expected memory usage per subjob for logI={} [{} threads]:\n",
                 sc.logI, nthreads);
 
         size_t const memory = expected_memory_usage_per_subjob(sc, las, nthreads, print);
 
-        verbose_output_print(0, 2 + hush,
-                "# Expected memory usage per subjob for logI=%d: %s\n",
-                sc.logI, size_disp(memory, buf));
+        verbose_fmt_print(0, 2 + hush,
+                "# Expected memory usage per subjob for logI={}: {}\n",
+                sc.logI, size_disp(memory));
 
         if (memory > max_memory) {
             logI_max_memory = sc.logI;
@@ -586,10 +585,10 @@ static size_t expected_memory_usage_per_subjob_worst_logI(siever_config const & 
         }
     }
     if (logImin != logImax || main_output->verbose < 2 + hush)
-        verbose_output_print(0, 0 + hush,
-                "# Expected memory use per subjob (max reached for logI=%d):"
-                " %s\n",
-                logI_max_memory, size_disp(max_memory, buf));
+        verbose_fmt_print(0, 0 + hush,
+                "# Expected memory use per subjob (max reached for logI={}):"
+                " {}\n",
+                logI_max_memory, size_disp(max_memory));
     return max_memory;
 }/*}}}*/
 
@@ -603,12 +602,11 @@ static size_t expected_memory_usage(siever_config const & sc,/*{{{*/
      * assume that this parallel setting is now complete.
      */
     int const hush = print ? 0 : 3;
-    char buf[20];
 
     size_t const fb_memory = expected_memory_usage_per_binding_zone(sc, las, print);
-    verbose_output_print(0, 0 + hush,
-            "# Expected memory usage per binding zone for the factor base: %s\n",
-            size_disp(fb_memory, buf));
+    verbose_fmt_print(0, 0 + hush,
+            "# Expected memory usage per binding zone for the factor base: {}\n",
+            size_disp(fb_memory));
 
     size_t const subjob_memory = expected_memory_usage_per_subjob_worst_logI(sc, las, las.number_of_threads_per_subjob(), print);
 
@@ -619,13 +617,13 @@ static size_t expected_memory_usage(siever_config const & sc,/*{{{*/
     memory *= las.number_of_memory_binding_zones();
     memory += base_memory;
 
-    verbose_output_print(0, 0 + hush,
-            "# Expected memory use for %d binding zone(s) and %d %d-threaded jobs per zone, counting %zu MB of base footprint: %s\n",
+    verbose_fmt_print(0, 0 + hush,
+            "# Expected memory use for {} binding zone(s) and {} {}-threaded jobs per zone, counting {} MB of base footprint: {}\n",
             las.number_of_memory_binding_zones(),
             las.number_of_subjobs_per_memory_binding_zone(),
             las.number_of_threads_per_subjob(),     /* per subjob, always */
             base_memory >> 20,
-            size_disp(memory, buf));
+            size_disp(memory));
 
     return memory;
 
@@ -688,7 +686,7 @@ static void per_special_q_banner(special_q const & doing)
 {
     // arrange so that we don't have the same header line as the one
     // which prints the q-lattice basis
-    verbose_output_print(0, 2, "#\n");
+    verbose_fmt_print(0, 2, "#\n");
     verbose_fmt_print(0, 1, "# Now sieving {}\n", doing);
 }
 
@@ -708,7 +706,7 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
     if (main_output->verbose >= 2) {
         verbose_output_start_batch();
         for (int side = 0; side < nsides; ++side) {
-            verbose_output_print (0, 1, "# f_%d'(x) = ", side);
+            verbose_fmt_print (0, 1, "# f_{}'(x) = ", side);
             mpz_poly_fprintf(main_output->output, ws.sides[side].lognorms.fij);
         }
         verbose_output_end_batch();
@@ -1205,8 +1203,8 @@ static void las_subjob(las_info & las, int subjob, report_and_timer & global_rt)
                     double las_value;
                     if (!las.grow_bk_multiplier(e.key, ratio, new_value, las_value)) {
 
-                        verbose_output_print(0, 1, "# Global %s bucket multiplier has already grown to %.3f. Not updating, since this will cover %.3f*%d/%d*1.05=%.3f\n",
-                                bkmult_specifier::printkey(e.key).c_str(),
+                        verbose_fmt_print(0, 1, "# Global {} bucket multiplier has already grown to {:.3f}. Not updating, since this will cover {:.3f}*{}/{}*1.05={:.3f}\n",
+                                bkmult_specifier::printkey(e.key),
                                 las_value,
                                 old_value,
                                 e.reached_size,
@@ -1214,8 +1212,8 @@ static void las_subjob(las_info & las, int subjob, report_and_timer & global_rt)
                                 new_value
                                 );
                     } else {
-                        verbose_output_print(0, 1, "# Updating %s bucket multiplier to %.3f*%d/%d*1.05, =%.3f\n",
-                                bkmult_specifier::printkey(e.key).c_str(),
+                        verbose_fmt_print(0, 1, "# Updating {} bucket multiplier to {:.3f}*{}/{}*1.05, ={:.3f}\n",
+                                bkmult_specifier::printkey(e.key),
                                 old_value,
                                 e.reached_size,
                                 e.theoretical_max_size,
@@ -1245,7 +1243,7 @@ static void las_subjob(las_info & las, int subjob, report_and_timer & global_rt)
         global_rt.rep.waste += botched.timer.total_counted_time();
     }
 
-    verbose_output_print(0, 1, "# subjob %d done (%d special-q's), now waiting for other jobs\n", subjob, nq);
+    verbose_fmt_print(0, 1, "# subjob {} done ({} special-q's), now waiting for other jobs\n", subjob, nq);
 }/*}}}*/
 
 static std::string relation_cache_subdir_name(std::vector<unsigned long> const & splits, std::vector<unsigned long> const & split_q)/*{{{*/
@@ -1382,33 +1380,25 @@ static void quick_subjob_loop_using_cache(las_info & las)/*{{{*/
             }
             if (!sq_finds_relation(las, doing, conf, Q, J, rel))
                 continue;
-            std::ostringstream os;
 
+            std::string prefix;
             nreports++;
 
             if (las.suppress_duplicates) {
                 if (relation_is_duplicate(rel, doing, las)) {
-                    os << "# DUPE ";
+                    prefix = "# DUPE ";
                     nreports--;
                 }
             }
-            os << rel << "\n";
-
-            verbose_output_start_batch();     /* unlock I/O */
-            verbose_output_print(0, 1, "%s", os.str().c_str());
-            verbose_output_end_batch();     /* unlock I/O */
+            verbose_fmt_print(0, 1, "{}{}\n", prefix, rel);
         }
         
-        {
-            std::ostringstream os;
-            os << Q.doing;
-            verbose_output_print (0, 1, "# Time for %s: [not reported in relation-cache mode]\n", os.str().c_str());
-        }
+        verbose_fmt_print (0, 1, "# Time for {}: [not reported in relation-cache mode]\n", Q.doing);
     }
 
     ct0 = seconds() - ct0;
     wt0 = wct_seconds() - wt0;
-    verbose_output_print (2, 1, "# Total %lu reports [%1.3gs/r, %1.1fr/sq] in %1.3g elapsed s [%.1f%% CPU]\n",
+    verbose_fmt_print (2, 1, "# Total {} reports [{:1.3g}s/r, {:1.1f}r/sq] in {:1.3g} elapsed s [{:.1f}%% CPU]\n",
             nreports,
             nreports ? double_ratio(ct0, nreports) : -1,
             nq ? double_ratio(nreports, nq): -1,
@@ -1466,10 +1456,10 @@ int main (int argc0, char const * argv0[])/*{{{*/
 
     las_info las(pl);    /* side effects: prints cmdline and flags */
 #ifdef SAFE_BUCKET_ARRAYS
-      verbose_output_print(0, 0, "# WARNING: SAFE_BUCKET_ARRAYS is on !\n");
+      verbose_fmt_print(0, 0, "# WARNING: SAFE_BUCKET_ARRAYS is on !\n");
 #endif
 #ifdef SAFE_BUCKETS_SINGLE
-      verbose_output_print(0, 0, "# WARNING: SAFE_BUCKETS_SINGLE is on !\n");
+      verbose_fmt_print(0, 0, "# WARNING: SAFE_BUCKETS_SINGLE is on !\n");
 #endif
 
     if (las.cpoly->nb_polys > 2) {
@@ -1511,7 +1501,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
         las.set_parallel(pl);
     } catch (las_parallel_desc::needs_job_ram & e) {
         if (las.config_pool.default_config_ptr) {
-            verbose_output_print(0, 2, "# No --job-memory option given, relying on automatic memory estimate\n");
+            verbose_fmt_print(0, 2, "# No --job-memory option given, relying on automatic memory estimate\n");
             siever_config const & sc0(las.config_pool.base);
             const size_t ram0 = expected_memory_usage_per_binding_zone(sc0, las, false);
             for(int z = 1, s = 1 << 30, n = 1, spin=0 ; ; spin++) {
@@ -1538,12 +1528,12 @@ int main (int argc0, char const * argv0[])/*{{{*/
                 z = nz; s = ns; n = nn;
             }
         } else {
-            verbose_output_print(0, 0, "# No --job-memory option given. Job placement needs either an explicit placement with -t, a complete siever config with a factor base to allow automatic ram estimates, or a --job-memory option\n");
+            verbose_fmt_print(0, 0, "# No --job-memory option given. Job placement needs either an explicit placement with -t, a complete siever config with a factor base to allow automatic ram estimates, or a --job-memory option\n");
             exit(EXIT_FAILURE);
         }
     } catch (las_parallel_desc::bad_specification & e) {
-        verbose_output_print(0, 0, "# Error reported by the cpu binding layer: %s\n", e.what());
-        verbose_output_print(0, 0, "# The parallelism specification for this job and/or the specifics of the hardware make it difficult for us to decide on what to do on an automatic basis with respect to CPU binding. Please stick to simple \"-t <number of threads>\". More advanced specifications like \"-t auto\" cannot be supported for this hardware.\n");
+        verbose_fmt_print(0, 0, "# Error reported by the cpu binding layer: {}\n", e.what());
+        verbose_fmt_print(0, 0, "# The parallelism specification for this job and/or the specifics of the hardware make it difficult for us to decide on what to do on an automatic basis with respect to CPU binding. Please stick to simple \"-t <number of threads>\". More advanced specifications like \"-t auto\" cannot be supported for this hardware.\n");
         exit(EXIT_FAILURE);
     }
 
@@ -1706,7 +1696,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
                     extra_time,
                     1));
             }
-            verbose_output_print (0, 1, "# batch reported time for additional threads: %.2f\n", extra_time);
+            verbose_fmt_print (0, 1, "# batch reported time for additional threads: {:.2f}\n", extra_time);
             batch_timer.add_foreign_time(extra_time);
 
             verbose_output_start_batch();
@@ -1735,8 +1725,8 @@ int main (int argc0, char const * argv0[])/*{{{*/
             tcof_batch = seconds () - tcof_batch;
           }
     } catch (std::exception const & e) {
-        verbose_output_print(0, 0, "\n\n# Program aborted on fatal error\n%s\n", e.what());
-        verbose_output_print(1, 0, "\n\n# Program aborted on fatal error\n%s\n", e.what());
+        verbose_fmt_print(0, 0, "\n\n# Program aborted on fatal error\n{}\n", e.what());
+        verbose_fmt_print(1, 0, "\n\n# Program aborted on fatal error\n{}\n", e.what());
         return EXIT_FAILURE;
     }
 
@@ -1756,7 +1746,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
                 global_rt.rep.nr_sq_processed,
                 las.get_bk_multiplier().print_all());
     }
-    verbose_output_print (2, 1, "# Discarded %lu special-q's out of %zu pushed\n",
+    verbose_fmt_print (2, 1, "# Discarded {} special-q's out of {} pushed\n",
             global_rt.rep.nr_sq_discarded, todo.created);
 
     auto D = global_rt.timer.filter_by_category();
@@ -1783,14 +1773,14 @@ int main (int argc0, char const * argv0[])/*{{{*/
     display_bucket_prime_stats();
 
     if (las_production_mode) {
-        verbose_output_print (2, 1, "# Total cpu time %1.2fs [remove -production flag for timings]\n", t0);
+        verbose_fmt_print (2, 1, "# Total cpu time {:1.2f}s [remove -production flag for timings]\n", t0);
     } else {
-        verbose_output_print (2, 1, "# Wasted cpu time due to %d bkmult adjustments: %1.2f\n", global_rt.rep.nwaste, global_rt.rep.waste);
-        verbose_output_print(0, 1, "# Cumulated wait time over all threads %.2f\n", global_rt.rep.cumulated_wait_time);
-        verbose_output_print (2, 1, "# Total cpu time %1.2fs, useful %1.2fs [norm %1.2f+%1.1f, sieving %1.1f"
-            " (%1.1f+%1.1f + %1.1f),"
-            " factor %1.1f (%1.1f+%1.1f + %1.1f),"
-            " rest %1.1f], wasted+waited %1.2fs, rest %1.2fs\n",
+        verbose_fmt_print (2, 1, "# Wasted cpu time due to {} bkmult adjustments: {:1.2f}\n", global_rt.rep.nwaste, global_rt.rep.waste);
+        verbose_fmt_print(0, 1, "# Cumulated wait time over all threads {:.2f}\n", global_rt.rep.cumulated_wait_time);
+        verbose_fmt_print (2, 1, "# Total cpu time {:1.2f}s, useful {:1.2f}s [norm {:1.2f}+{:1.1f}, sieving {:1.1f}"
+            " ({:1.1f}+{:1.1f} + {:1.1f}),"
+            " factor {:1.1f} ({:1.1f}+{:1.1f} + {:1.1f}),"
+            " rest {:1.1f}], wasted+waited {:1.2f}s, rest {:1.2f}s\n",
             t0,
             tcpu,
             D[coarse_las_timers::norms(0)],
@@ -1820,7 +1810,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
             );
     }
 
-    verbose_output_print (2, 1, "# Total elapsed time %1.2fs, per special-q %gs, per relation %gs\n",
+    verbose_fmt_print (2, 1, "# Total elapsed time {:1.2f}s, per special-q {:g}, per relation {:g}\n",
                  wct,
                  double_ratio(wct, global_rt.rep.nr_sq_processed),
                  double_ratio(wct, global_rt.rep.reports));
@@ -1831,12 +1821,12 @@ int main (int argc0, char const * argv0[])/*{{{*/
     }
     const size_t peakmem = PeakMemusage();
     if (peakmem > 0)
-        verbose_output_print (2, 1, "# PeakMemusage (MB) = %zu \n",
+        verbose_fmt_print (2, 1, "# PeakMemusage (MB) = {}\n",
                 peakmem >> 10);
     if (las.suppress_duplicates) {
-        verbose_output_print(2, 1, "# Total number of eliminated duplicates: %lu\n", global_rt.rep.duplicates);
+        verbose_fmt_print(2, 1, "# Total number of eliminated duplicates: {}\n", global_rt.rep.duplicates);
     }
-    verbose_output_print (2, 1, "# Total %lu reports [%1.3gs/r, %1.1fr/sq] in %1.3g elapsed s [%.1f%% CPU]\n",
+    verbose_fmt_print (2, 1, "# Total {} reports [{:1.3g}s/r, {:1.1f}r/sq] in {:1.3g} elapsed s [{:.1f}%% CPU]\n",
             global_rt.rep.reports,
             double_ratio(t0, global_rt.rep.reports),
             double_ratio(global_rt.rep.reports, global_rt.rep.nr_sq_processed),
