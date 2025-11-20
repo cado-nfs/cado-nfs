@@ -334,7 +334,7 @@ struct make_lattice_bases_parameters_base : public task_parameters {
 template <int LEVEL, class FB_ENTRY_TYPE>
 struct make_lattice_bases_parameters
     : public make_lattice_bases_parameters_base<LEVEL> {
-    typedef make_lattice_bases_parameters_base<LEVEL> super;
+    using super = make_lattice_bases_parameters_base<LEVEL>;
     fb_slice<FB_ENTRY_TYPE> const & slice;
     make_lattice_bases_parameters(super const & model,
                                   fb_slice<FB_ENTRY_TYPE> const & slice)
@@ -348,7 +348,7 @@ template <int LEVEL, class FB_ENTRY_TYPE>
 static task_result * make_lattice_bases(worker_thread * worker MAYBE_UNUSED,
                                         task_parameters * _param, int)
 {
-    make_lattice_bases_parameters<LEVEL, FB_ENTRY_TYPE> const * param =
+    auto const * param =
         static_cast<
             make_lattice_bases_parameters<LEVEL, FB_ENTRY_TYPE> const *>(
             _param);
@@ -416,7 +416,7 @@ template <int LEVEL> struct push_make_bases_to_task_list {
     }
     template <typename T> void operator()(T const & s)
     {
-        typedef typename T::entry_t E;
+        using E = typename T::entry_t;
         auto param = new make_lattice_bases_parameters<LEVEL, E>(model, s);
         task_function_t f = make_lattice_bases<LEVEL, E>;
         pool.add_task(f, param, 0);
@@ -1053,7 +1053,7 @@ fill_in_buckets_toplevel_wrapper(worker_thread * worker MAYBE_UNUSED,
 /* same for sublat */
 template <int LEVEL, class FB_ENTRY_TYPE, typename TARGET_HINT>
 static task_result *
-fill_in_buckets_toplevel_sublat_wrapper(worker_thread * worker MAYBE_UNUSED,
+fill_in_buckets_toplevel_sublat_wrapper(worker_thread * worker,
                                         task_parameters * _param, int)
 {
     auto * param = static_cast<fill_in_buckets_parameters<LEVEL> *>(_param);
@@ -1125,7 +1125,7 @@ template <int LEVEL, typename TARGET_HINT> struct push_slice_to_task_list {
     {
         auto * param = new fill_in_buckets_parameters<LEVEL>(model);
         param->slice = &s;
-        typedef typename T::entry_t entry_t;
+        using entry_t = typename T::entry_t;
         task_function_t f =
             fill_in_buckets_toplevel_wrapper<LEVEL, entry_t, TARGET_HINT>;
         pool.add_task(f, param, 0, 0, s.get_weight());
@@ -1162,7 +1162,7 @@ struct push_slice_to_task_list_saving_precomp {
         param->slice = &s;
         param->plattices_dense_vector = &pre;
 
-        typedef typename T::entry_t entry_t;
+        using entry_t = typename T::entry_t;
         task_function_t f =
             fill_in_buckets_toplevel_sublat_wrapper<LEVEL, entry_t,
                                                     TARGET_HINT>;
