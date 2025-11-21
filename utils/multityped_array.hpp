@@ -1,9 +1,13 @@
 #ifndef CADO_MULTITYPED_ARRAY_HPP
 #define CADO_MULTITYPED_ARRAY_HPP
 
+#include <cstddef>
+
+#include <tuple>
+#include <type_traits>
 #include <utility>
 
-/* A multityped_array<F, 1, 4> is equivalent to
+/* A cado::multityped_array<F, 1, 5> is equivalent to
  *   struct foo {
  *      F<1>::type x1;
  *      F<2>::type x2;
@@ -12,289 +16,272 @@
  *   };
  * where the xi's are expository only.
  *
- * To get variable x2, from an object X of type multityped_array<F, n> (for
- * any n>=2), do X.get<2>(), and store that in a value of type
- * F<2>::type (or reference, or const reference).
- */
-
-template<template<int> class F, int n0, int n1> struct multityped_array;
-
-namespace multityped_array_details {
-
-    template<typename T, int depth> struct dig : public dig<typename T::super, depth-1> {};
-    template<typename T> struct dig<T,0> {
-        typedef typename T::type type;
-        static type & get(T & A) { return A.x; }
-        static type const & get(T const & A) { return A.x; }
-    };
-}
-
-template<template<int> class F, int n0, int n1> struct multityped_array : public multityped_array<F, n0, n1-1> {
-    typedef multityped_array<F, n0, n1> self;
-    typedef multityped_array<F, n0, n1-1> super;
-    typedef typename F<n1-1>::type type;
-    typename F<n1-1>::type x;
-    /* We could use multityped_array_details::dig<self, n1-1-k>::type instead of
-     * F<k>::type, but that would ruin the nice diagnostic that
-     * static_assert offers here
-     */
-    template<int k> typename F<k>::type& get() {
-        static_assert(n0 <= k && k < n1, "attempt to get member of multityped_array out of bounds");
-        return multityped_array_details::dig<self, n1-1-k>::get(*this);
-    }
-    template<int k> typename F<k>::type const & get() const {
-        static_assert(n0 <= k && k < n1, "attempt to get member of multityped_array out of bounds");
-        return multityped_array_details::dig<self, n1-1-k>::get(*this);
-    }
-    template<typename... Args> multityped_array(Args&&... args)
-        : super { std::forward<Args>(args)... }
-        , x { std::forward<Args>(args)... }
-    {}
-};
-template<template<int> class F, int n0> struct multityped_array<F, n0, n0> {
-    template<typename... Args> multityped_array(Args&&...) {}
-};
-
-/* Here's an example of how we can do a for-loop on this sort of things
+ * To get variable x2, from an object X of type cado::multityped_array<F,
+ * n0, n1> (assuming n0, n1 are such that n0 <= 2 < n1), do X.get<2>(),
+ * and store that in a value of type F<2>::type (or reference, or const
+ * reference).
  *
- * multityped_array_foreach<G> on a multityped_array calls G<i> on the
- * data member of index i (which has type F<i>::type, where F is the one
- * that occurs in the definition of the multityped_array).
+ * To iterate a function f on all the xis, do cado::foreach(X, f)
+ *
+ * To get a pointer to one of the xis such that a predicate f(xi) is
+ * true, do cado::find(X, f), and store the result in a value of type
+ * std::common_type<F<n0>::type, ...,  F<n1>::type>::type (which is also
+ * decltype(X)::common_type). This requires that
+ * proper overloads be defined, such as for example
+ * template<size_t m, size_t n> struct std::common_type<F<m>, F<n>> {
+ * using type = F_base; }; (assuming F<m>::type is F<m> -- otherwise this
+ * construct must be adapted)
  */
+
+namespace cado
+{
+
+/* as an exercise, here is the multityped_array construction,
+ * implemented in a simpler way with this proxy
+ */
+namespace multityped_array_details
+{
+
+/* the multityped_array_impl retains information on the starting
+ * index n0, and has info on the differences relative to n0. Its
+ * default implementation is nil.
+ * TODO: isn't it odd that we don't even define it? Sounds like an
+ * incomplete type, right?
+ */
+template <template <int> class F, int n0,
+          typename T = std::integer_sequence<int>>
+struct multityped_array_impl;
+
+template<typename T, typename = void>
+struct has_type_member : std::false_type {};
+
+template<typename T>
+struct has_type_member<T, std::void_t<typename T::type>>
+: std::true_type {};
+/*
+*/
+
+template <template <int> class F, int n0, int... i>
+struct multityped_array_impl<F, n0, std::integer_sequence<int, i...>> {
+    /* The type expands to a full tuple with all types created by the
+     * type functor F
+     */
+    using type = std::tuple<typename F<n0 + i>::type...>;
+
+    using common_type = std::common_type<typename F<n0 + i>::type...>;
+
+    template<typename Callable>
+    using merged_type_on_ref = std::common_type<std::invoke_result_t<Callable, typename F<n0 + i>::type &>...>;
+    template<typename Callable>
+    using merged_type_on_cref = std::common_type<std::invoke_result_t<Callable, typename F<n0 + i>::type const &>...>;
+};
+
+template <template <int> class F, int n0, int n1>
+using multityped_array_helper =
+    multityped_array_impl<F, n0, std::make_integer_sequence<int, n1 - n0>>;
+
+template <typename Search, typename S = std::integer_sequence<int>>
+struct find_helper;
+
+
+
+template <template <int> class F, int n0, int n1>
+struct multityped_array : multityped_array_helper<F, n0, n1>::type {
 
 #if 0
-template<template<int> class G> class multityped_array_foreach {
-    template<template<int> class F, typename... Args> struct inner {
-        template<int n0>
-        void operator()(multityped_array<F, n0, n0> &, Args...) const {}
-        template<int n0>
-        void operator()(multityped_array<F, n0, n0> const &, Args...) const {}
-
-        template<int n0, int n1>
-        void operator()(multityped_array<F, n0, n1> & A, Args... args) const {
-            operator()((multityped_array<F, n0, n1-1> &) A, args...);
-            G<n1-1>()(A.x, args...);
-        }
-        template<int n0, int n1>
-        void operator()(multityped_array<F, n0, n1> const & A, Args... args) const {
-            operator()((multityped_array<F, n0, n1-1> const &) A, args...);
-            G<n1-1>()(A.x, args...);
-        }
-    };
-    public:
-    template<template<int> class F, int n0, int n1, typename... Args>
-        void operator()(multityped_array<F, n0, n1> & A, Args... args) const {
-            return inner<F, Args...>()(A, args...);
-        }
-    template<template<int> class F, int n0, int n1, typename... Args>
-        void operator()(multityped_array<F, n0, n1> const & A, Args... args) const {
-            return inner<F, Args...>()(A, args...);
-        }
-};
+    using multityped_array_helper<F, n0, n1>::merged_type_on_cref;
+    using multityped_array_helper<F, n0, n1>::merged_type_on_ref;
+#else
+    template<typename Callable>
+        using merged_type_on_cref = multityped_array_helper<F, n0, n1>::template merged_type_on_cref<Callable>;
+    template<typename Callable>
+        using merged_type_on_ref = multityped_array_helper<F, n0, n1>::template merged_type_on_ref<Callable>;
 #endif
 
-template<typename G, template<int> class F> struct multityped_array_foreach_inner {
-    template<int n0>
-    void operator()(G &, multityped_array<F, n0, n0> &) const {}
-    template<int n0>
-    void operator()(G &, multityped_array<F, n0, n0> const &) const {}
-
-    template<int n0, int n1>
-    void operator()(G & g, multityped_array<F, n0, n1> & A) const {
-        operator()(g, (multityped_array<F, n0, n1-1> &) A);
-        // g.template operator()<n1-1>(A.x);
-        g(A.x);
-    }
-    template<int n0, int n1>
-    void operator()(G & g, multityped_array<F, n0, n1> const & A) const {
-        operator()(g, (multityped_array<F, n0, n1-1> const &) A);
-        // g.template operator()<n1-1>(A.x);
-        g(A.x);
-    }
-    template<int n0>
-    void operator()(G const &, multityped_array<F, n0, n0> &) const {}
-    template<int n0>
-    void operator()(G const &, multityped_array<F, n0, n0> const &) const {}
-
-    template<int n0, int n1>
-    void operator()(G const & g, multityped_array<F, n0, n1> & A) const {
-        operator()(g, (multityped_array<F, n0, n1-1> &) A);
-        // g.template operator()<n1-1>(A.x);
-        g(A.x);
-    }
-    template<int n0, int n1>
-    void operator()(G const & g, multityped_array<F, n0, n1> const & A) const {
-        operator()(g, (multityped_array<F, n0, n1-1> const &) A);
-        // g.template operator()<n1-1>(A.x);
-        g(A.x);
-    }
-};
-
-template<typename G, template<int> class F, int n0, int n1>
-void multityped_array_foreach(G & g, multityped_array<F, n0, n1> & A) {
-    return multityped_array_foreach_inner<G, F>()(g, A);
-}
-template<typename G, template<int> class F, int n0, int n1>
-void multityped_array_foreach(G & g, multityped_array<F, n0, n1> const & A) {
-    return multityped_array_foreach_inner<G, F>()(g, A);
-}
-template<typename G, template<int> class F, int n0, int n1>
-void multityped_array_foreach(G const & g, multityped_array<F, n0, n1> & A) {
-    return multityped_array_foreach_inner<G, F>()(g, A);
-}
-template<typename G, template<int> class F, int n0, int n1>
-void multityped_array_foreach(G const & g, multityped_array<F, n0, n1> const & A) {
-    return multityped_array_foreach_inner<G, F>()(g, A);
-}
-/*
-template<typename G, template<int> class F, int n0, int n1>
-void multityped_array_foreach(G && g, multityped_array<F, n0, n1> & A) {
-    return multityped_array_foreach_inner<G, F>()(std::forward<G>(g), A);
-}
-template<typename G, template<int> class F, int n0, int n1>
-void multityped_array_foreach(G && g, multityped_array<F, n0, n1> const & A) {
-    return multityped_array_foreach_inner<G, F>()(std::forward<G>(g), A);
-}
-*/
-/*
- * old g++ seems to have difficulties with this variant, and is puzzled
- * by the apparent ambiguity -- newer g++ groks it correctly, as does
- * clang
-template<typename G, template<int> class F, int n0, int n1>
-void multityped_array_foreach(G && g, multityped_array<F, n0, n1> & A) {
-    return multityped_array_foreach_inner<G, F>()(g, A);
-}
-template<typename G, template<int> class F, int n0, int n1>
-void multityped_array_foreach(G && g, multityped_array<F, n0, n1> const & A) {
-    return multityped_array_foreach_inner<G, F>()(g, A);
-}
-*/
-
-
-template<typename G, typename T, template<int> class F> struct multityped_array_fold_inner {
-    template<int n0>
-    T operator()(G &, T const & t0, multityped_array<F, n0, n0> &) const { return t0; }
-    template<int n0>
-    T operator()(G &, T const & t0, multityped_array<F, n0, n0> const &) const { return t0; }
-
-    template<int n0, int n1>
-    T operator()(G & g, T const & t0, multityped_array<F, n0, n1> & A) const {
-        // T t1 = g.template operator()<n1-1>(t0, A.x);
-        T t1 = g(t0, A.x);
-        return operator()(g, t1, (multityped_array<F, n0, n1-1> &) A);
-    }
-    template<int n0, int n1>
-    T operator()(G & g, T const & t0, multityped_array<F, n0, n1> const & A) const {
-        // T t1 = g.template operator()<n1-1>(t0, A.x);
-        T t1 = g(t0, A.x);
-        return operator()(g, t1, (multityped_array<F, n0, n1-1> &) A);
-    }
-    template<int n0>
-    T operator()(G const &, T const & t0, multityped_array<F, n0, n0> &) const { return t0; }
-    template<int n0>
-    T operator()(G const &, T const & t0, multityped_array<F, n0, n0> const &) const { return t0; }
-
-    template<int n0, int n1>
-    T operator()(G const & g, T const & t0, multityped_array<F, n0, n1> & A) const {
-        // T t1 = g.template operator()<n1-1>(t0, A.x);
-        T t1 = g(t0, A.x);
-        return operator()(g, t1, (multityped_array<F, n0, n1-1> &) A);
-    }
-    template<int n0, int n1>
-    T operator()(G const & g, T const & t0, multityped_array<F, n0, n1> const & A) const {
-        // T t1 = g.template operator()<n1-1>(t0, A.x);
-        T t1 = g(t0, A.x);
-        return operator()(g, t1, (multityped_array<F, n0, n1-1> &) A);
-    }
-};
-
-template<typename G, typename T, template<int> class F, int n0, int n1>
-T multityped_array_fold(G & g, T const &t0, multityped_array<F, n0, n1> & A) {
-    return multityped_array_fold_inner<G, T, F>()(g, t0, A);
-}
-template<typename G, typename T, template<int> class F, int n0, int n1>
-T multityped_array_fold(G & g, T const &t0, multityped_array<F, n0, n1> const & A) {
-    return multityped_array_fold_inner<G, T, F>()(g, t0, A);
-}
-template<typename G, typename T, template<int> class F, int n0, int n1>
-T multityped_array_fold(G const & g, T const &t0, multityped_array<F, n0, n1> & A) {
-    return multityped_array_fold_inner<G, T, F>()(g, t0, A);
-}
-template<typename G, typename T, template<int> class F, int n0, int n1>
-T multityped_array_fold(G const & g, T const &t0, multityped_array<F, n0, n1> const & A) {
-    return multityped_array_fold_inner<G, T, F>()(g, t0, A);
-}
-/*
-template<typename G, typename T, template<int> class F, int n0, int n1>
-T multityped_array_fold(G && g, T const &t0, multityped_array<F, n0, n1> & A) {
-    return multityped_array_fold_inner<G, T, F>()(std::forward(g), t0, A);
-}
-template<typename G, typename T, template<int> class F, int n0, int n1>
-T multityped_array_fold(G && g, T const &t0, multityped_array<F, n0, n1> const & A) {
-    return multityped_array_fold_inner<G, T, F>()(std::forward(g), t0, A);
-}
-*/
-/*
- * old g++ seems to have difficulties with this variant, and is puzzled
- * by the apparent ambiguity -- newer g++ groks it correctly, as does
- * clang
-template<typename G, typename T, template<int> class F, int n0, int n1>
-T multityped_array_fold(G && g, T const &t0, multityped_array<F, n0, n1> & A) {
-    return multityped_array_fold_inner<G, T, F>()(g, t0, A);
-}
-template<typename G, typename T, template<int> class F, int n0, int n1>
-T multityped_array_fold(G && g, T const &t0, multityped_array<F, n0, n1> const & A) {
-    return multityped_array_fold_inner<G, T, F>()(g, t0, A);
-}
-*/
-
-
-/* This one is overly complicated */
-template<typename G> class multityped_array_locate {
-    template<template<int> class F> struct inner {
-        template<int n0>
-        typename G::type operator()(multityped_array<F, n0, n0> &, typename G::key_type &) const { return typename G::type(); }
-        template<int n0>
-        typename G::type operator()(multityped_array<F, n0, n0> const &, typename G::key_type &) const { return typename G::type(); }
-
-        template<int n0, int n1>
-        typename G::type operator()(multityped_array<F, n0, n1> & A, typename G::key_type & k) const {
-            typename G::type res = (*this)((multityped_array<F, n0, n1-1> &) A, k);
-            if (res != typename G::type())
-                return res;
-            // return G().template operator()<n1-1>(A.x, k);
-            return G()(A.x, k);
-        }
-        template<int n0, int n1>
-        typename G::type operator()(multityped_array<F, n0, n1> const & A, typename G::key_type & k) const {
-            typename G::type res = (*this)((multityped_array<F, n0, n1-1> &) A, k);
-            if (res != typename G::type())
-                return res;
-            // return G().template operator()<n1-1>(A.x, k);
-            return G()(A.x, k);
-        }
-    };
-    public:
-    /* The key is mutable through the process for the inner functions.
-     * However we do not wish to expose that to the caller.
+    using common_type = multityped_array_helper<F, n0, n1>::common_type;
+    /* We provide member function helpers for get. However, it makes
+     * sense to prefer cado::get<> helpers, which do not need the
+     * extra .template syntax!
+     *
+     * A very important difference with std::get (that works on a
+     * tuple) is that here our indices range from n0 to n1, instead
+     * of from 0 to n1 - n0.
+     *
+     * Likewise, we define tuple_element member types that are
+     * indexed from n0 to n1
      */
-    template<template<int> class F, int n0, int n1>
-        typename G::type operator()(multityped_array<F, n0, n1> & A, typename G::key_type k) const {
-            return inner<F>()(A, k);
-        }
-    template<template<int> class F, int n0, int n1>
-        typename G::type operator()(multityped_array<F, n0, n1> const & A, typename G::key_type k) const {
-            return inner<F>()(A, k);
-        }
-    /*
-    template<template<int> class F, int n0, int n1>
-        typename G::type operator()(multityped_array<F, n0, n1> & A, typename G::key_type & k) const {
-            return inner<F>()(A, k);
-        }
-    template<template<int> class F, int n0, int n1>
-        typename G::type operator()(multityped_array<F, n0, n1> const & A, typename G::key_type & k) const {
-            return inner<F>()(A, k);
-        }
-        */
+    template <int n> typename F<n>::type & get()
+    {
+        static_assert(n0 <= n && n < n1,
+                      "Cannot call n for a member index out of range");
+        return std::get<n - n0>(*this);
+    }
+    template <int n> typename F<n>::type const & get() const
+    {
+        static_assert(n0 <= n && n <= n1,
+                      "Cannot call n for a member index out of range");
+        return std::get<n - n0>(*this);
+    }
+
+    template <int n> using tuple_element = F<n>::type;
+
+    template<typename Callable> inline void foreach(Callable&&);
+    template<typename Callable> inline void foreach(Callable&&) const;
+
+    template<typename Callable>
+    auto
+    find(Callable && f)
+    requires has_type_member<merged_type_on_ref<Callable>>::value
+    {
+        return multityped_array_details::find_helper<
+            Callable, typename std::make_integer_sequence<int, n1 - n0>>()(
+                    std::forward<Callable>(f), *this);
+    }
+
+    template<typename Callable>
+    auto
+    find(Callable && f) const
+    requires has_type_member<merged_type_on_cref<Callable>>::value
+    {
+        return multityped_array_details::find_helper<
+            Callable, typename std::make_integer_sequence<int, n1 - n0>>()(
+                    std::forward<Callable>(f), *this);
+    }
+
 };
-#endif	/* CADO_MULTITYPED_ARRAY_HPP */
+
+/* foreach().
+ * f must be callable with all elements of x in turn.
+ *
+ * We create a function object which recursively calls its lower-order
+ * siblings until it reaches the bottom.
+ */
+template <typename Callable, typename S = std::integer_sequence<int>>
+struct foreach_helper {
+    template <typename T> void operator()(Callable &&, T &) {}
+    template <typename T> void operator()(Callable &&, T const &) {}
+};
+template <typename Callable, int n0, int... indices>
+struct foreach_helper<Callable, std::integer_sequence<int, n0, indices...>> {
+    template <typename T> void operator()(Callable && f, T & x) const
+    {
+        f(std::get<n0>(x));
+        foreach_helper<Callable, std::integer_sequence<int, indices...>>()(
+            std::forward<Callable>(f), x);
+    }
+    template <typename T> void operator()(Callable && f, T const & x) const
+    {
+        f(std::get<n0>(x));
+        foreach_helper<Callable, std::integer_sequence<int, indices...>>()(
+            std::forward<Callable>(f), x);
+    }
+};
+template<template <int> class F, int n0, int n1>
+template <typename Callable>
+inline void
+multityped_array<F, n0, n1>::foreach(Callable && f)
+{
+    multityped_array_details::foreach_helper<
+        Callable, typename std::make_integer_sequence<int, n1 - n0>>()(
+                std::forward<Callable>(f), *this);
+}
+template<template <int> class F, int n0, int n1>
+template <typename Callable>
+inline void
+multityped_array<F, n0, n1>::foreach(Callable && f) const
+{
+    multityped_array_details::foreach_helper<
+        Callable, typename std::make_integer_sequence<int, n1 - n0>>()(
+                std::forward<Callable>(f), *this);
+}
+
+/* find0().
+ * f must be a predicate that can be evaluated on all elements of
+ * x.
+ * We return a pointer to the first
+ * member that matches the predicate, or nullptr if there is none.
+ */
+template <typename Predicate, typename S>
+struct find0_helper {
+    template <typename T> std::nullptr_t operator()(Predicate &&, T const &)
+    {
+        return nullptr;
+    }
+};
+template <typename Predicate, int n0, int... indices>
+struct find0_helper<Predicate, std::integer_sequence<int, n0, indices...>> {
+    template <typename T>
+    typename T::common_type::type * operator()(Predicate && f, T & x) const
+    {
+        if (f(std::get<n0>(x)))
+            return &std::get<n0>(x);
+        else
+            return find0_helper<Predicate,
+                               std::integer_sequence<int, indices...>>()(
+                std::forward<Predicate>(f), x);
+    }
+    template <typename T>
+    typename T::common_type::type * operator()(Predicate && f, T const & x) const
+    {
+        if (f(std::get<n0>(x)))
+            return &std::get<n0>(x);
+        else
+            return find0_helper<Predicate,
+                               std::integer_sequence<int, indices...>>()(
+                std::forward<Predicate>(f), x);
+    }
+};
+
+
+/* find().
+ */
+template <typename Caller, int n0>
+struct find_helper<Caller, std::integer_sequence<int, n0>> {
+    template <typename T>
+        auto operator()(Caller && f, T const & x)
+    {
+        return f(std::get<n0>(x));
+    }
+};
+template <typename Caller, int n0, int... indices>
+struct find_helper<Caller, std::integer_sequence<int, n0, indices...>> {
+    template <typename T>
+    typename T::template merged_type_on_ref<Caller>::type operator()(Caller && f, T & x) const
+    {
+        auto c = f(std::get<n0>(x));
+        if (c)
+            return c;
+        return find_helper<Caller,
+                               std::integer_sequence<int, indices...>>()(
+                std::forward<Caller>(f), x);
+    }
+    template <typename T>
+    typename T::template merged_type_on_cref<Caller>::type operator()(Caller && f, T const & x) const
+    {
+        auto c = f(std::get<n0>(x));
+        if (c)
+            return c;
+        return find_helper<Caller,
+                               std::integer_sequence<int, indices...>>()(
+                std::forward<Caller>(f), x);
+    }
+};
+} /* namespace multityped_array_details */
+
+using multityped_array_details::multityped_array;
+
+/* get() accessors */
+template <int n, template <int> class F, int n0, int n1>
+typename F<n>::type & get(multityped_array<F, n0, n1> & x)
+{
+    return x.template get<n>();
+}
+template <int n, template <int> class F, int n0, int n1>
+typename F<n>::type const & get(multityped_array<F, n0, n1> const & x)
+{
+    return x.template get<n>();
+}
+
+
+} /* namespace cado */
+#endif /* CADO_MULTITYPED_ARRAY_HPP */

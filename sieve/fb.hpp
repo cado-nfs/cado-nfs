@@ -408,7 +408,7 @@ template <typename T> struct entries_and_cdf {
     };
 };
 template <typename T>
-using entries_and_cdf_t = typename entries_and_cdf<T>::type;
+using entries_and_cdf_t = entries_and_cdf<T>::type;
 
 template <int n>
 struct works_with_mmappable_vector<fb_entry_x_roots<n>>
@@ -430,6 +430,9 @@ template <int n> struct fb_slices_factory {
 template <> struct fb_slices_factory<-1> {
     using type = std::vector<fb_slice<fb_entry_general>>;
 };
+template <typename T, typename U> struct std::common_type<fb_slice<T>, fb_slice<U>> {
+    using type = fb_slice_interface;
+};
 
 class fb_factorbase
 {
@@ -447,7 +450,7 @@ class fb_factorbase
     bool empty() const { return lim == 0; }
 
   private:
-    using entries_t = multityped_array<fb_entries_factory, -1, MAX_ROOTS + 1>;
+    using entries_t = cado::multityped_array<fb_entries_factory, -1, MAX_ROOTS + 1>;
     entries_t entries;
 
   public:
@@ -476,9 +479,6 @@ class fb_factorbase
      * ("weight") of entries in the whole factor base, or in subranges
      */
   private:
-    struct helper_functor_count_primes;
-    struct helper_functor_count_prime_ideals;
-    struct helper_functor_count_weight;
     struct helper_functor_count_combined;
     struct helper_functor_count_primes_interval;
     struct helper_functor_count_prime_ideals_interval;
@@ -545,11 +545,12 @@ class fb_factorbase
              * of fb_slice objects) for all numbers of roots between 1 and
              * MAX_ROOTS.
              */
-            using slices_t = multityped_array<fb_slices_factory, -1, MAX_ROOTS + 1>;
+            using slices_t = cado::multityped_array<fb_slices_factory, -1, MAX_ROOTS + 1>;
             friend struct helper_functor_subdivide_slices;
-            slices_t slices;
 
           public:
+            slices_t slices;
+
             slice_index_t first_slice_index = 0;
             template <int n>
             typename fb_slices_factory<n>::type & get_slices_vector_for_nroots()
@@ -605,15 +606,30 @@ class fb_factorbase
                  * TODO: dichotomy, perhaps ? Can we do the dichotomy
                  * elegantly ?
                  */
+
+
                 if (index < first_slice_index)
                     return nullptr;
+
+                /*
                 const slice_index_t idx = index - first_slice_index;
                 if (idx >= nslices()) {
                     // index = idx - nslices();
                     return nullptr;
                 }
-                fb_slice_interface const * res =
-                    multityped_array_locate<helper_functor_get>()(slices, idx);
+                */
+
+                auto nth = [](auto const & B, size_t v) {
+                    auto locate = [&](auto const & x) -> fb_slice_interface const * {
+                        if (v < x.size())
+                            return &(x[v]);
+                        v -= x.size();
+                        return nullptr;
+                    };
+                    return B.find(locate);
+                };
+
+                auto const * res = nth(slices, index - first_slice_index);
                 ASSERT_ALWAYS(res);
                 ASSERT_ALWAYS(res->get_index() == index);
                 return res;
@@ -623,49 +639,35 @@ class fb_factorbase
              * thing to query */
             mutable slice_index_t _nslices =
                 std::numeric_limits<slice_index_t>::max();
-            struct helper_functor_nslices {
-                template <typename T>
-                slice_index_t operator()(slice_index_t t, T const & x) const
-                {
-                    return t + x.size();
-                }
-            };
 
           public:
             slice_index_t nslices() const
             {
                 if (_nslices != std::numeric_limits<slice_index_t>::max())
                     return _nslices;
-                helper_functor_nslices N;
-                return _nslices = multityped_array_fold(N, 0, slices);
+                auto totalsize = [](auto const & B) {
+                    size_t s = 0;
+                    B.foreach([&](auto const & x) { s += x.size(); });
+                    return s;
+                };
+                return _nslices = totalsize(slices);
             }
             /* }}} */
 
-          private:
-            template <typename F> struct foreach_slice_s {
-                F & f;
-                template <typename T> void operator()(T & x)
-                {
-                    for (auto & a: x)
-                        f(a);
-                }
-                template <typename T> void operator()(T const & x)
-                {
-                    for (auto const & a: x)
-                        f(a);
-                }
-            };
-
           public:
-            template <typename F> void foreach_slice(F & f)
+            template <typename F> void foreach_slice(F && f)
             {
-                foreach_slice_s<F> FF {f};
-                multityped_array_foreach(FF, slices);
+                slices.foreach([&](auto & x) {
+                    for (auto & a: x)
+                        std::forward<F>(f)(a);
+                });
             }
-            template <typename F> void foreach_slice(F & f) const
+            template <typename F> void foreach_slice(F && f) const
             {
-                foreach_slice_s<F> FF {f};
-                multityped_array_foreach(FF, slices);
+                slices.foreach([&](auto const & x) {
+                    for (auto const & a: x)
+                        std::forward<F>(f)(a);
+                });
             }
             /*
              * old g++ seems to have difficulties with this variant, and
@@ -862,13 +864,13 @@ class fb_factorbase
     fb_factorbase & operator=(fb_factorbase &&) = default;
     */
 
-  private:
-    struct sorter {
-        template <typename T> void operator()(T & x)
-        {
+  public:
+    void finalize()
+    {
+        entries.foreach([](auto & x) {
             /* not entirely clear to me. Shall we sort by q or by p ?
              */
-            using X = typename T::value_type;
+            using X = std::remove_reference_t<decltype(x)>::value_type;
             auto by_q = [](X const & a, X const & b) {
                 return a.get_q() < b.get_q();
             };
@@ -881,14 +883,7 @@ class fb_factorbase
             };
             */
             std::sort(x.begin(), x.end(), by_q);
-        }
-    };
-
-  public:
-    void finalize()
-    {
-        sorter S;
-        multityped_array_foreach(S, entries);
+            });
     }
 };
 
