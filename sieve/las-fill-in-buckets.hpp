@@ -8,6 +8,7 @@
 
 #include "las-config.hpp"
 #include "las-plattice.hpp"
+#include "multityped_array.hpp"
 
 class nfs_aux; // IWYU pragma: keep
 class nfs_work;
@@ -15,7 +16,6 @@ class nfs_work_cofac;
 class thread_pool;
 struct where_am_I;
 class plattices_vector_t;
-template <template <int> class F, int n0, int n1> struct multityped_array;
 
 // This one is used for keeping information of middle primes.
 template<int LEVEL>
@@ -36,7 +36,7 @@ downsort_tree(
         thread_pool &pool,
         uint32_t bucket_index,
         uint32_t first_region0_index,
-        std::vector<multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS - 1>> & precomp_plattice,
+        std::vector<cado::multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS - 1>> & precomp_plattice,
         where_am_I & w);
 
 void fill_in_buckets_toplevel_multiplex(
@@ -56,5 +56,5 @@ void fill_in_buckets_prepare_plattices(
         nfs_work & ws,
         thread_pool &pool,
         int side,
-        multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS - 1> & precomp_plattice);
+        cado::multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS - 1> & precomp_plattice);
 #endif

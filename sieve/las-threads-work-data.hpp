@@ -148,7 +148,7 @@ class nfs_work {
          * the storage to remain allocated, adnd avoid constant
          * malloc/free.
          */
-        multityped_array<precomp_plattice_dense_t, 1, FB_MAX_PARTS> precomp_plattice_dense;
+        cado::multityped_array<precomp_plattice_dense_t, 1, FB_MAX_PARTS> precomp_plattice_dense;
         void precomp_plattice_dense_clear();
 
         /* This is updated by applying the special-q lattice transform to

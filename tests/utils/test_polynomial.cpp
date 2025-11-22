@@ -704,14 +704,14 @@ static void test_some_arithmetic()
         {
             auto s = fmt::format("({}) * (x-{}) + {}", nq, e, r);
             fmt::print("{} == {}\n", q, s);
-            ASSERT_ALWAYS(q == polynomial(s, q.ctx()));
+            ASSERT_ALWAYS(q == polynomial<T>(s, q.ctx()));
         }
         {
             auto fs = q.shift(e);
             auto var = fmt::format("(x+{})", e);
             auto s = fmt::format("{}", q.named(var));
             fmt::print("{} == {}\n", s, fs);
-            ASSERT_ALWAYS(fs == polynomial(s, q.ctx()));
+            ASSERT_ALWAYS(fs == polynomial<T>(s, q.ctx()));
         }
         q = nq;
     }
