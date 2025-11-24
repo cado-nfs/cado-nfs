@@ -97,17 +97,34 @@ class reservation_group {
 #endif
   static_assert(MAX_TOPLEVEL == 3);
 protected:
-  template<int LEVEL, typename HINT>
-  reservation_array<bucket_array_t<LEVEL, HINT> > &
-  get()
-  requires (LEVEL < FB_MAX_PARTS && ((LEVEL < FB_MAX_PARTS - 1)
-              || HINT::allowed_at_toplevel));
+#define RA_NAME(LEVEL, HINTTYPE) RA ## LEVEL ## _ ## HINTTYPE
+#define RA_ACCESSOR(LEVEL, HINTTYPE)					\
+  template<int LEV, typename HINT>					\
+  reservation_array<bucket_array_t<LEV, HINT> > &			\
+  get()									\
+  requires (LEV == (LEVEL) && std::is_same_v<HINT, CPP_PAD(HINTTYPE, hint_t)>)\
+  { return RA_NAME(LEVEL,HINTTYPE); }                                   \
+  template<int LEV, typename HINT>					\
+  reservation_array<bucket_array_t<LEV, HINT> > const &			\
+  cget() const								\
+  requires (LEV == (LEVEL) && std::is_same_v<HINT, CPP_PAD(HINTTYPE, hint_t)>)\
+  { return RA_NAME(LEVEL,HINTTYPE); }
 
-  template <int LEVEL, typename HINT>
-  const reservation_array<bucket_array_t<LEVEL, HINT> > &
-  cget() const
-  requires (LEVEL < FB_MAX_PARTS && ((LEVEL < FB_MAX_PARTS - 1)
-              || HINT::allowed_at_toplevel));
+  RA_ACCESSOR(1, short)
+  RA_ACCESSOR(1, empty)
+#if MAX_TOPLEVEL >= 2
+  RA_ACCESSOR(1, long)
+  RA_ACCESSOR(1, logp)
+  RA_ACCESSOR(2, short)
+  RA_ACCESSOR(2, empty)
+#endif
+#if MAX_TOPLEVEL >= 3
+  RA_ACCESSOR(2, long)
+  RA_ACCESSOR(2, logp)
+  RA_ACCESSOR(3, short)
+  RA_ACCESSOR(3, empty)
+#endif
+  static_assert(MAX_TOPLEVEL == 3);
 public:
   reservation_group(int nr_bucket_arrays);
   void allocate_buckets(
@@ -145,49 +162,6 @@ extern template class reservation_array<bucket_array_t<2, longhint_t> >;
 extern template class reservation_array<bucket_array_t<2, logphint_t> >;
 #endif
 
-static_assert(MAX_TOPLEVEL == 3);
-
-/* This batch _could_ be in the cpp file but debian11's g++-10 won't deal
- * with it.
- */
-/* 
-   We want to map the desired bucket_array type to the appropriate
-   reservation_array in reservation_group, which we do by explicit
-   specialization. Endless copy-paste here...  maybe use a virtual
-   base class and an array of base-class-pointers, which then get
-   dynamic_cast to the desired return type?
-*/
-/* mapping types to objects is a tricky business. The code below looks
- * like red tape. But sophisticated means to avoid it would be even
- * longer (the naming difference "get" versus "cget" is not the annoying
- * part here -- it's just here as a decoration. The real issue is that we
- * want the const getter to return a const reference) */
-template<> inline auto reservation_group::get() -> decltype(RA1_short) & { return RA1_short; }
-template<> inline auto reservation_group::get() -> decltype(RA1_empty) & { return RA1_empty; }
-template<> inline auto reservation_group::cget() const -> decltype(RA1_short) const & { return RA1_short; }
-template<> inline auto reservation_group::cget() const -> decltype(RA1_empty) const & { return RA1_empty; }
-
-#if MAX_TOPLEVEL >= 2
-template<> inline auto reservation_group::get() -> decltype(RA2_short) & { return RA2_short; }
-template<> inline auto reservation_group::get() -> decltype(RA2_empty) & { return RA2_empty; }
-template<> inline auto reservation_group::get() -> decltype(RA1_long) & { return RA1_long; }
-template<> inline auto reservation_group::get() -> decltype(RA1_logp) & { return RA1_logp; }
-template<> inline auto reservation_group::cget() const -> decltype(RA2_short) const & { return RA2_short; }
-template<> inline auto reservation_group::cget() const -> decltype(RA2_empty) const & { return RA2_empty; }
-template<> inline auto reservation_group::cget() const -> decltype(RA1_long) const & { return RA1_long; }
-template<> inline auto reservation_group::cget() const -> decltype(RA1_logp) const & { return RA1_logp; }
-#endif
-
-#if MAX_TOPLEVEL >= 3
-template<> inline auto reservation_group::get() -> decltype(RA3_short) & { return RA3_short; }
-template<> inline auto reservation_group::get() -> decltype(RA3_empty) & { return RA3_empty; }
-template<> inline auto reservation_group::get() -> decltype(RA2_long) & { return RA2_long; }
-template<> inline auto reservation_group::get() -> decltype(RA2_logp) & { return RA2_logp; }
-template<> inline auto reservation_group::cget() const -> decltype(RA3_short) const & { return RA3_short; }
-template<> inline auto reservation_group::cget() const -> decltype(RA3_empty) const & { return RA3_empty; }
-template<> inline auto reservation_group::cget() const -> decltype(RA2_long) const & { return RA2_long; }
-template<> inline auto reservation_group::cget() const -> decltype(RA2_logp) const & { return RA2_logp; }
-#endif
 static_assert(MAX_TOPLEVEL == 3);
 
 #endif

@@ -176,7 +176,7 @@ public:
    * E.g. this is not safe:
    *    {
    *            int foo;
-   *            pool.add_task_lambda([&foo](worker_thread*) { frob(foo); *            });
+   *            pool.add_task_lambda([&foo](worker_thread*) { frob(foo); });
    *    }
    */
 private:
@@ -189,7 +189,7 @@ private:
       static
       task_result * do_task_parameters_lambda(worker_thread * worker, task_parameters * _param, int id) {
           auto clean_param = call_dtor([_param]() { delete _param; });
-          (*static_cast<task_parameters_lambda<T>*>(_param)).f(worker, id);
+          static_cast<task_parameters_lambda<T>*>(_param)->f(worker, id);
           return new task_result;
       }
 public:
@@ -221,7 +221,7 @@ public:
   template<typename T>
       void add_task_class(T const & f, const int id, const size_t queue = 0, double cost = 0.0)
       {
-          static_assert(std::is_base_of<task_parameters, T>::value, "type must inherit from task_parameters");
+          static_assert(std::is_base_of_v<task_parameters, T>, "type must inherit from task_parameters");
           add_task(thread_pool::call_class_operator<T>, new T(f), id, queue, cost);
       }
   /* }}} */

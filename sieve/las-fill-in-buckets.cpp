@@ -12,10 +12,10 @@
 
 #include <algorithm>
 #include <array>
-#include <limits>
 #include <memory>
 #include <utility>
 #include <vector>
+#include <type_traits>
 
 #include "bucket-push-update.hpp"
 #include "bucket.hpp"
@@ -334,7 +334,7 @@ struct make_lattice_bases_parameters_base : public task_parameters {
 template <int LEVEL, class FB_ENTRY_TYPE>
 struct make_lattice_bases_parameters
     : public make_lattice_bases_parameters_base<LEVEL> {
-    typedef make_lattice_bases_parameters_base<LEVEL> super;
+    using super = make_lattice_bases_parameters_base<LEVEL>;
     fb_slice<FB_ENTRY_TYPE> const & slice;
     make_lattice_bases_parameters(super const & model,
                                   fb_slice<FB_ENTRY_TYPE> const & slice)
@@ -348,7 +348,7 @@ template <int LEVEL, class FB_ENTRY_TYPE>
 static task_result * make_lattice_bases(worker_thread * worker MAYBE_UNUSED,
                                         task_parameters * _param, int)
 {
-    make_lattice_bases_parameters<LEVEL, FB_ENTRY_TYPE> const * param =
+    auto const * param =
         static_cast<
             make_lattice_bases_parameters<LEVEL, FB_ENTRY_TYPE> const *>(
             _param);
@@ -404,41 +404,14 @@ static task_result * make_lattice_bases(worker_thread * worker MAYBE_UNUSED,
     return new task_result;
 }
 
-template <int LEVEL> struct push_make_bases_to_task_list {
-    thread_pool & pool;
-    make_lattice_bases_parameters_base<LEVEL> model;
-    size_t pushed = 0;
-    push_make_bases_to_task_list(
-        thread_pool & pool, make_lattice_bases_parameters_base<LEVEL> const & m)
-        : pool(pool)
-        , model(m)
-    {
-    }
-    template <typename T> void operator()(T const & s)
-    {
-        typedef typename T::entry_t E;
-        auto param = new make_lattice_bases_parameters<LEVEL, E>(model, s);
-        task_function_t f = make_lattice_bases<LEVEL, E>;
-        pool.add_task(f, param, 0);
-        pushed++;
-    }
-};
-
-struct helper_functor_prepare_precomp_plattice {
-    nfs_work & ws;
-    thread_pool & pool;
-    int side;
-    helper_functor_prepare_precomp_plattice(nfs_work & ws, thread_pool & pool,
-                                            int side)
-        : ws(ws)
-        , pool(pool)
-        , side(side)
-    {
-    }
-
-    template <typename T> /* T is precomp_plattice_t<n> for some level n */
-    void operator()(T & precomp_plattice)
-    {
+void fill_in_buckets_prepare_plattices(
+    nfs_work & ws, thread_pool & pool, int side,
+    cado::multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS-1> & precomp_plattice)
+{
+    /* this will *not* do anything for level==ws.toplevel, by design */
+    precomp_plattice.foreach([&](auto & precomp_plattice) {
+        /* T is precomp_plattice_t<n> for some level n */
+        using T = std::remove_reference_t<decltype(precomp_plattice)>;
         if (T::level >= ws.toplevel)
             return;
 
@@ -452,19 +425,15 @@ struct helper_functor_prepare_precomp_plattice {
          */
         precomp_plattice.assign(P.nslices(), plattices_vector_t());
         make_lattice_bases_parameters_base<T::level> const model {side, ws, precomp_plattice};
-        push_make_bases_to_task_list<T::level> F {pool, model};
-        P.foreach_slice(F);
-    }
-};
-
-void fill_in_buckets_prepare_plattices(
-    nfs_work & ws, thread_pool & pool, int side,
-    multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS-1> & precomp_plattice)
-{
-    helper_functor_prepare_precomp_plattice H(ws, pool, side);
-
-    /* this will *not* do anything for level==ws.toplevel, by design */
-    multityped_array_foreach(H, precomp_plattice);
+        P.slices.foreach([&](auto const & sl) {
+                for(auto const & s : sl) {
+                    using E = std::remove_reference_t<decltype(s)>::entry_t;
+                    auto param = new make_lattice_bases_parameters<T::level, E>(model, s);
+                    task_function_t f = make_lattice_bases<T::level, E>;
+                    pool.add_task(f, param, 0);
+                }
+        });
+    });
 }
 
 /***********************************************************************/
@@ -1053,7 +1022,7 @@ fill_in_buckets_toplevel_wrapper(worker_thread * worker MAYBE_UNUSED,
 /* same for sublat */
 template <int LEVEL, class FB_ENTRY_TYPE, typename TARGET_HINT>
 static task_result *
-fill_in_buckets_toplevel_sublat_wrapper(worker_thread * worker MAYBE_UNUSED,
+fill_in_buckets_toplevel_sublat_wrapper(worker_thread * worker,
                                         task_parameters * _param, int)
 {
     auto * param = static_cast<fill_in_buckets_parameters<LEVEL> *>(_param);
@@ -1125,7 +1094,7 @@ template <int LEVEL, typename TARGET_HINT> struct push_slice_to_task_list {
     {
         auto * param = new fill_in_buckets_parameters<LEVEL>(model);
         param->slice = &s;
-        typedef typename T::entry_t entry_t;
+        using entry_t = typename T::entry_t;
         task_function_t f =
             fill_in_buckets_toplevel_wrapper<LEVEL, entry_t, TARGET_HINT>;
         pool.add_task(f, param, 0, 0, s.get_weight());
@@ -1162,7 +1131,7 @@ struct push_slice_to_task_list_saving_precomp {
         param->slice = &s;
         param->plattices_dense_vector = &pre;
 
-        typedef typename T::entry_t entry_t;
+        using entry_t = typename T::entry_t;
         task_function_t f =
             fill_in_buckets_toplevel_sublat_wrapper<LEVEL, entry_t,
                                                     TARGET_HINT>;
@@ -1360,7 +1329,7 @@ static void downsort_tree_inner(
     thread_pool & pool,
     uint32_t bucket_index, /* for the current level ! */
     uint32_t first_region0_index,
-    std::vector<multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS - 1>> & precomp_plattices,
+    std::vector<cado::multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS - 1>> & precomp_plattices,
     where_am_I & w)
 {
     /* LEVEL is not the toplevel here, so we must have the following: */
@@ -1584,7 +1553,7 @@ void downsort_tree(
     thread_pool & pool,
     uint32_t bucket_index, /* for the current level ! */
     uint32_t first_region0_index,
-    std::vector<multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS - 1>> & precomp_plattices,
+    std::vector<cado::multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS - 1>> & precomp_plattices,
     where_am_I & w)
 {
     if (ws.conf.needs_resieving()) {
@@ -1606,7 +1575,7 @@ void downsort_tree<0>(nfs_work &,
                       std::shared_ptr<nfs_aux>,
                       thread_pool &, uint32_t,
                       uint32_t,
-                      std::vector<multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS - 1>> &,
+                      std::vector<cado::multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS - 1>> &,
                       where_am_I &)
 {
     ASSERT_ALWAYS(0);
@@ -1631,14 +1600,14 @@ void downsort<3>(fb_factorbase::slicing const &,
 template void downsort_tree<1>(
     nfs_work &, std::shared_ptr<nfs_work_cofac>, std::shared_ptr<nfs_aux> aux_p,
     thread_pool &, uint32_t, uint32_t,
-    std::vector<multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS - 1>> &, where_am_I &);
+    std::vector<cado::multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS - 1>> &, where_am_I &);
 
 
 #if MAX_TOPLEVEL >= 3
 template void
 downsort_tree<2>(nfs_work &, std::shared_ptr<nfs_work_cofac>,
                  std::shared_ptr<nfs_aux>, thread_pool &, uint32_t, uint32_t,
-                 std::vector<multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS - 1>> &,
+                 std::vector<cado::multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS - 1>> &,
                  where_am_I &);
 #endif
 static_assert(MAX_TOPLEVEL == 3);

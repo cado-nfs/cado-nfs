@@ -16,10 +16,10 @@
 #include <initializer_list>
 #include <vector>
 
+#include "fmt/base.h"
+
 #include "las-smallsieve.hpp"
-
 #include "macros.h"
-
 #include "bucket-push-update.hpp"
 #include "bucket.hpp"
 #include "fb-types.hpp"
@@ -39,6 +39,7 @@
 #include "las-where-am-i-proxy.hpp"
 #include "portability.h"
 #include "verbose.h"
+#include "utils_cxx.hpp"
 
 
 /* small sieve and resieving */

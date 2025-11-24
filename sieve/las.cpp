@@ -716,7 +716,7 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
 
     /* TODO: is there a way to share this in sublat mode ? */
 
-    std::vector<multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS - 1>> precomp_plattices(nsides);
+    std::vector<cado::multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS - 1>> precomp_plattices(nsides);
 
     {
         {
