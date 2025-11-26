@@ -53,7 +53,7 @@ struct lognorm_base {/*{{{*/
     lognorm_base(siever_config const & sc, cxx_cado_poly const & cpoly, int side, qlattice_basis const & Q, int logI, uint32_t J);
     virtual ~lognorm_base() = default;
 
-    void norm(mpz_ptr x, int i, unsigned int j) const;
+    void norm(cxx_mpz & x, int i, unsigned int j) const;
     unsigned char lognorm(int i, unsigned int j) const;
 
     virtual void fill(unsigned char * S, unsigned int N MAYBE_UNUSED) const {

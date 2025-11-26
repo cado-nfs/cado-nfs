@@ -286,7 +286,7 @@ lognorm_base::lognorm_base(siever_config const & sc, cxx_cado_poly const & cpoly
     verbose_output_end_batch();
 }/*}}}*/
 
-void lognorm_base::norm(mpz_ptr x, int i, unsigned int j) const {
+void lognorm_base::norm(cxx_mpz & x, int i, unsigned int j) const {
     mpz_poly_homogeneous_eval_siui(x, fij, i, j);
     mpz_abs(x, x);
 }
