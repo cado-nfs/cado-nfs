@@ -331,17 +331,6 @@ class plattice_info
     }
 };
 
-/* Like plattice_info, but remembers the offset of the factor base entry
-   that generated each lattice basis. This offset becomes the "prime hint"
-   in the bucket updates. */
-struct plattice_sieve_entry : public plattice_info {
-    slice_offset_t hint;
-    plattice_sieve_entry(fbprime_t const p, fbroot_t const r, bool proj,
-                         int const logI, slice_offset_t const hint)
-        : plattice_info(p, r, proj, logI)
-        , hint(hint) {};
-};
-
 // Compute 1/x mod m
 // For m=2,3,6, this is trivial. Otherwise, has to be implemented
 static inline uint32_t invmod(uint32_t x, uint32_t m)

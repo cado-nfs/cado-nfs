@@ -44,7 +44,7 @@ static inline void convert_Nx_to_ab(int64_t & a, uint64_t & b, const unsigned in
 // doesn't hurt
 // #ifdef SUPPORT_LARGE_Q
 /* Warning: b might be negative, in which case we return (-a,-b) */
-static inline void convert_X_to_abmpz(mpz_ptr a, mpz_ptr b,
+static inline void convert_X_to_abmpz(cxx_mpz & a, cxx_mpz & b,
         const uint64_t x,
         int logI, qlattice_basis const & Q)
 {
@@ -76,7 +76,7 @@ static inline void convert_X_to_abmpz(mpz_ptr a, mpz_ptr b,
     mpz_clear(aux_j);
 }
 
-static inline void convert_Nx_to_abmpz(mpz_ptr a, mpz_ptr b,
+static inline void convert_Nx_to_abmpz(cxx_mpz & a, cxx_mpz & b,
         const unsigned int N, const unsigned int x,
         int logI, qlattice_basis const & Q)
 {
