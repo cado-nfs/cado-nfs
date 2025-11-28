@@ -755,7 +755,7 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
                     nfs_work::side_data & wss(ws.sides[side]);
                     // if (wss.no_fb()) return;
 
-                    wss.ssd.small_sieve_init(
+                    wss.ssd->small_sieve_init(
                             wss.fbs->small_sieve_entries.resieved,
                             wss.fbs->small_sieve_entries.rest,
                             ws.conf.logI,
@@ -764,18 +764,18 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
                             ws.Q,
                             wss.lognorms.scale);
 
-                    wss.ssd.small_sieve_info("small sieve", side);
+                    wss.ssd->small_sieve_info("small sieve", side);
 
                     if (ws.toplevel == 1) {
                         /* when ws.toplevel > 1, this start_many call is done
                          * several times.
                          */
                         SIBLING_TIMER(timer, "small sieve start positions ");
-                        wss.ssd.small_sieve_prepare_many_start_positions(
+                        wss.ssd->small_sieve_prepare_many_start_positions(
                                 0,
                                 std::min(SMALL_SIEVE_START_POSITIONS_MAX_ADVANCE, ws.nb_buckets[1]),
                                 ws.conf.logI, ws.Q.sublat);
-                        wss.ssd.small_sieve_activate_many_start_positions();
+                        wss.ssd->small_sieve_activate_many_start_positions();
                     }
             },0);
         }
@@ -943,7 +943,7 @@ static bool do_one_special_q(las_info & las, nfs_work & ws, special_q_task * tas
      */
     for(auto & wss : ws.sides) {
         wss.precomp_plattice_dense_clear();
-        wss.ssd.small_sieve_clear();
+        wss.ssd->small_sieve_clear();
     }
 
     return true;

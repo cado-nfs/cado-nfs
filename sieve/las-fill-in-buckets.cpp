@@ -1502,12 +1502,12 @@ static void downsort_tree_inner(
                      * no real point in doing ssdpos initialization in
                      * several passes.
                      */
-                    wss.ssd.small_sieve_prepare_many_start_positions(
+                    wss.ssd->small_sieve_prepare_many_start_positions(
                         first_region0_index,
                         std::min(SMALL_SIEVE_START_POSITIONS_MAX_ADVANCE,
                                  ws.nb_buckets[1]),
                         ws.conf.logI, ws.Q.sublat);
-                    wss.ssd.small_sieve_activate_many_start_positions();
+                    wss.ssd->small_sieve_activate_many_start_positions();
                 },
                 0);
         }

@@ -126,7 +126,50 @@ namespace fmt {
 
 // static_assert(sizeof(ssp_simple_t) == sizeof(ssp_t), "struct padding has been tampered with");
 
-class small_sieve_data_t {
+class small_sieve_data {
+public:
+    virtual void small_sieve_init(
+            std::vector<fb_entry_general> const & resieved,
+            std::vector<fb_entry_general> const & rest,
+            int logI,
+            int side,
+            fb_factorbase::key_type const & factorbaseK,
+            qlattice_basis const & Q,
+            double scale) = 0;
+
+    virtual void small_sieve_clear() = 0;
+
+    virtual void small_sieve_info(const char * what, int side) const = 0;
+
+    virtual void small_sieve_prepare_many_start_positions(
+            unsigned int first_region_index,
+            int nregions,
+            int logI,
+            sublat_t const & sl) = 0;
+
+    virtual void small_sieve_activate_many_start_positions() = 0;
+
+    virtual void sieve_small_bucket_region(
+            unsigned char *S,
+            unsigned int N,
+            int bucket_relative_index,
+            int logI,
+            sublat_t const & sl,
+            where_am_I & w) const = 0;
+
+    virtual void resieve_small_bucket_region(
+            bucket_primes_t *BP,
+            unsigned char *S,
+            unsigned int N,
+            int bucket_relative_index,
+            int logI,
+            sublat_t const & sl,
+            where_am_I & w MAYBE_UNUSED) = 0;
+
+    virtual ~small_sieve_data() = default;
+};
+
+class las_small_sieve_data : public small_sieve_data {
 public:
     void small_sieve_init(
             std::vector<fb_entry_general> const & resieved,
@@ -135,19 +178,19 @@ public:
             int side,
             fb_factorbase::key_type const & factorbaseK,
             qlattice_basis const & Q,
-            double scale);
+            double scale) final;
 
-    void small_sieve_clear();
+    void small_sieve_clear() final;
 
-    void small_sieve_info(const char * what, int side) const;
+    void small_sieve_info(const char * what, int side) const final;
 
     void small_sieve_prepare_many_start_positions(
             unsigned int first_region_index,
             int nregions,
             int logI,
-            sublat_t const & sl);
+            sublat_t const & sl) final;
 
-    void small_sieve_activate_many_start_positions();
+    void small_sieve_activate_many_start_positions() final;
 
     void sieve_small_bucket_region(
             unsigned char *S,
@@ -155,7 +198,7 @@ public:
             int bucket_relative_index,
             int logI,
             sublat_t const & sl,
-            where_am_I & w) const;
+            where_am_I & w) const final;
 
     void resieve_small_bucket_region(
             bucket_primes_t *BP,
@@ -164,7 +207,7 @@ public:
             int bucket_relative_index,
             int logI,
             sublat_t const & sl,
-            where_am_I & w MAYBE_UNUSED);
+            where_am_I & w MAYBE_UNUSED) final;
 
 protected:
     void small_sieve_start(

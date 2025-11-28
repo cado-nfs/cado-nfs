@@ -328,7 +328,7 @@ void process_bucket_region_run::small_sieve(int side)/*{{{*/
 
     nfs_work::side_data & wss(ws.sides[side]);
 
-    wss.ssd.sieve_small_bucket_region(SS,
+    wss.ssd->sieve_small_bucket_region(SS,
             first_region0_index + already_done + bucket_relative_index,
             bucket_relative_index,
             ws.conf.logI, ws.Q.sublat,
@@ -497,7 +497,7 @@ void process_bucket_region_run::resieve(int side)/*{{{*/
 
     /* Resieve small primes for this bucket region and store them 
        together with the primes recovered from the bucket updates */
-    wss.ssd.resieve_small_bucket_region (&sides[side].primes,
+    wss.ssd->resieve_small_bucket_region (&sides[side].primes,
             Sx,
             first_region0_index + already_done + bucket_relative_index,
             bucket_relative_index,
@@ -932,7 +932,7 @@ void process_many_bucket_regions(nfs_work & ws, std::shared_ptr<nfs_work_cofac> 
                          * no real point in doing ssdpos initialization in
                          * several passes.
                          */
-                        wss.ssd.small_sieve_prepare_many_start_positions(
+                        wss.ssd->small_sieve_prepare_many_start_positions(
                                 first_region0_index + done,
                                 more,
                                 ws.conf.logI, ws.Q.sublat);
@@ -947,7 +947,7 @@ void process_many_bucket_regions(nfs_work & ws, std::shared_ptr<nfs_work_cofac> 
             for(unsigned int side = 0 ; side < ws.sides.size() ; side++) {
                 nfs_work::side_data & wss(ws.sides[side]);
                 if (wss.no_fb()) continue;
-                wss.ssd.small_sieve_activate_many_start_positions();
+                wss.ssd->small_sieve_activate_many_start_positions();
             }
         }
     }

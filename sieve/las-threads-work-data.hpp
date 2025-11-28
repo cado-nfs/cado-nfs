@@ -6,6 +6,7 @@
 #include <array>
 #include <vector>
 #include <list>
+#include <memory>
 
 #include "ecm/batch.hpp"
 #include "ecm/facul_strategies.hpp"
@@ -158,13 +159,14 @@ class nfs_work {
          * Again, this is recomputed for each special-q, and is only put
          * here as an allocation optimization.
          */
-        small_sieve_data_t ssd;
+        std::unique_ptr<small_sieve_data> ssd;
 
         /* the "group" member is not default-constructible,
          * unfortunately.
          */
         side_data(int nr_arrays)
             : group(nr_arrays)
+            , ssd(new las_small_sieve_data())
         {
         }
 

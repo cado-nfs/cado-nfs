@@ -118,7 +118,7 @@ fmt::formatter<ssp_t>::format(ssp_t const & a, format_context & ctx) const
 }
 
 void
-small_sieve_data_t::small_sieve_print_contents(
+las_small_sieve_data::small_sieve_print_contents(
         const char * prefix) const
 {
     int nnice = ssps.size();
@@ -152,7 +152,7 @@ small_sieve_data_t::small_sieve_print_contents(
 
 
 void
-small_sieve_data_t::small_sieve_info(const char * what, int side) const
+las_small_sieve_data::small_sieve_info(const char * what, int side) const
 {
     char * tmp;
     int const rc = asprintf(&tmp, "%s(side %d)", what, side);
@@ -165,7 +165,7 @@ small_sieve_data_t::small_sieve_info(const char * what, int side) const
 
 /* {{{ Sieve initialization / clearing : first the easy ones */
 void
-small_sieve_data_t::small_sieve_clear()
+las_small_sieve_data::small_sieve_clear()
 {
     ssps.clear();
     ssp.clear();
@@ -227,7 +227,7 @@ ssp_t::ssp_t(
     }
 }/*}}}*/
 
-// Prepare sieving of small primes: initialize a small_sieve_data_t
+// Prepare sieving of small primes: initialize a las_small_sieve_data
 // structure to be used thereafter during sieving each region.
 // ssdpos points at the next position that will be hit by sieving,
 // relative to the start of the next bucket region to sieve. It may exceed I 
@@ -245,7 +245,7 @@ struct order_ssp_t {
 static order_ssp_t order_ssp;
 
 void
-small_sieve_data_t::small_sieve_init(
+las_small_sieve_data::small_sieve_init(
         std::vector<fb_entry_general> const & resieved,
         std::vector<fb_entry_general> const & rest,
         int logI,
@@ -520,7 +520,7 @@ small_sieve_data_t::small_sieve_init(
 
 /* Only compute the initial ssdpos fields. */
 void
-small_sieve_data_t::small_sieve_start(
+las_small_sieve_data::small_sieve_start(
         std::vector<spos_t> & ssdpos,
         unsigned int first_region_index,
         int logI,
@@ -552,13 +552,13 @@ small_sieve_data_t::small_sieve_start(
 }
 
 void
-small_sieve_data_t::small_sieve_activate_many_start_positions()
+las_small_sieve_data::small_sieve_activate_many_start_positions()
 {
     std::swap(ssdpos_many, ssdpos_many_next);
 }
 
 void
-small_sieve_data_t::small_sieve_prepare_many_start_positions(
+las_small_sieve_data::small_sieve_prepare_many_start_positions(
         unsigned int first_region_index,
         int nregions,
         int logI,
@@ -923,7 +923,7 @@ void small_sieve::do_pattern_sieve(where_am_I & w MAYBE_UNUSED)
 // Sieve small primes (up to p < bucket_thresh) of the factor base fb in the
 // next sieve region S.
 void
-small_sieve_data_t::sieve_small_bucket_region(
+las_small_sieve_data::sieve_small_bucket_region(
         unsigned char *S,
         unsigned int N,
         int bucket_relative_index,
@@ -953,7 +953,7 @@ small_sieve_data_t::sieve_small_bucket_region(
    than subtracting the log norm from S, as during sieving).
  */
 void
-small_sieve_data_t::resieve_small_bucket_region(
+las_small_sieve_data::resieve_small_bucket_region(
         bucket_primes_t *BP,
         unsigned char *S,
         unsigned int N,
