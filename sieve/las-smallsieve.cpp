@@ -254,10 +254,7 @@ void small_sieve_init(small_sieve_data_t & ssd,
     small_sieve_clear(ssd);
 
     ssd.ssps.reserve(resieved.size() + rest.size());
-    if (logI < LOG_BUCKET_REGION)
-        ssd.offsets.reserve(resieved.size() + rest.size());
-    if (logI > LOG_BUCKET_REGION)
-        ssd.offsets.reserve(resieved.size() + rest.size());
+    ssd.offsets.reserve(resieved.size() + rest.size());
 
     // Do a pass on fb and projective primes, to fill in the data
     // while we have any regular primes or projective primes < thresh left
