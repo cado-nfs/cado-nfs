@@ -21,7 +21,7 @@
 #include <gmp.h>
 
 #include "fb-types.hpp"
-#include "las-smallsieve-types.hpp"           // for ssp_simple_t, ssp_t
+#include "las-smallsieve.hpp"           // for ssp_simple_t, ssp_t
 #include "las-where-am-i-proxy.hpp"           // for where_am_I
 #include "las-where-am-i.hpp"
 #include "macros.h"

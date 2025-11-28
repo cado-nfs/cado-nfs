@@ -17,7 +17,7 @@
 #include "las-plattice.hpp"
 #include "las-qlattice.hpp"
 #include "las-siever-config.hpp"
-#include "las-smallsieve-types.hpp"
+#include "las-smallsieve.hpp"
 #include "las-threads.hpp"
 #include "special-q.hpp"
 #include "las-special-q-task.hpp"
