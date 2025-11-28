@@ -1398,7 +1398,7 @@ static void quick_subjob_loop_using_cache(las_info & las)/*{{{*/
 
     ct0 = seconds() - ct0;
     wt0 = wct_seconds() - wt0;
-    verbose_fmt_print (2, 1, "# Total {} reports [{:1.3g}s/r, {:1.1f}r/sq] in {:1.3g} elapsed s [{:.1f}%% CPU]\n",
+    verbose_fmt_print (2, 1, "# Total {} reports [{:1.3g}s/r, {:1.1f}r/sq] in {:1.3g} elapsed s [{:.1f}% CPU]\n",
             nreports,
             nreports ? double_ratio(ct0, nreports) : -1,
             nq ? double_ratio(nreports, nq): -1,
@@ -1824,7 +1824,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
     if (las.suppress_duplicates) {
         verbose_fmt_print(2, 1, "# Total number of eliminated duplicates: {}\n", global_rt.rep.duplicates);
     }
-    verbose_fmt_print (2, 1, "# Total {} reports [{:1.3g}s/r, {:1.1f}r/sq] in {:1.3g} elapsed s [{:.1f}%% CPU]\n",
+    verbose_fmt_print (2, 1, "# Total {} reports [{:1.3g}s/r, {:1.1f}r/sq] in {:1.3g} elapsed s [{:.1f}% CPU]\n",
             global_rt.rep.reports,
             double_ratio(t0, global_rt.rep.reports),
             double_ratio(global_rt.rep.reports, global_rt.rep.nr_sq_processed),

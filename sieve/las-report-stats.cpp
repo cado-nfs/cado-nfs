@@ -26,14 +26,14 @@ void las_report::display_survivor_counters() const
             ASSERT_ALWAYS(s == sx);
             sx = S.check_leftover_norm_on_side[side];
             verbose_fmt_print(0, 2, "# survivors trial_divided_on_side[{}]: {}\n", side, sx);
-            verbose_fmt_print(0, 2, "# survivors check_leftover_norm_on_side[{}]: {} ({:.1f}%%)\n", side, sx, 100 * double_ratio(sx, s));
+            verbose_fmt_print(0, 2, "# survivors check_leftover_norm_on_side[{}]: {} ({:.1f}%)\n", side, sx, 100 * double_ratio(sx, s));
             s = sx;
         }
     }
     ASSERT_ALWAYS(S.enter_cofactoring == s);
 
     verbose_fmt_print(0, 2, "# survivors enter_cofactoring: {}\n", S.enter_cofactoring);
-    verbose_fmt_print(0, 2, "# survivors cofactored: {} ({:.1f}%%)\n", S.cofactored, 100.0 * double_ratio(S.cofactored, S.enter_cofactoring));
+    verbose_fmt_print(0, 2, "# survivors cofactored: {} ({:.1f}%)\n", S.cofactored, 100.0 * double_ratio(S.cofactored, S.enter_cofactoring));
     verbose_fmt_print(0, 2, "# survivors smooth: {}\n", S.smooth);
 }
 

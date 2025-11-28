@@ -1005,7 +1005,7 @@ void las_parallel_desc::display_binding_info() const /*{{{*/
         int const physical = help->total_ram() >> 30;
         double const ratio = 100 * all / physical;
 
-        verbose_fmt_print(0, 1, "# Based on an estimate of {:.2f} GB per job, we use {:.2f} GB in total, i.e. {:.1f}%% of {} GB\n",
+        verbose_fmt_print(0, 1, "# Based on an estimate of {:.2f} GB per job, we use {:.2f} GB in total, i.e. {:.1f}% of {} GB\n",
                 jobram, all, ratio, physical);
     }
 #else

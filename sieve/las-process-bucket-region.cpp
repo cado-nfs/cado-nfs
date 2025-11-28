@@ -259,7 +259,7 @@ void process_bucket_region_run::init_norms(int side)/*{{{*/
 
 #if defined(TRACE_K) 
     if (trace_on_spot_N(w->N))
-        verbose_fmt_print(TRACE_CHANNEL, 0, "# After side {} init_norms_bucket_region, N={} S[{}]={}",
+        verbose_fmt_print(TRACE_CHANNEL, 0, "# After side {} init_norms_bucket_region, N={} S[{}]={}\n",
                 side, w->N, trace_Nx.x, S[side][trace_Nx.x]);
 #endif
 }/*}}}*/
@@ -345,7 +345,7 @@ void process_bucket_region_run::SminusS(int side)/*{{{*/
 #if defined(TRACE_K) 
     if (trace_on_spot_N(w->N))
         verbose_fmt_print(TRACE_CHANNEL, 0,
-                "# Final value on side {}, N={} S[{}]={}",
+                "# Final value on side {}, N={} S[{}]={}\n",
                 side, w->N, trace_Nx.x, S[side][trace_Nx.x]);
 #endif
 }/*}}}*/
@@ -865,7 +865,7 @@ void process_bucket_region_run::operator()() {/*{{{*/
     if (trace_on_spot_Nx(N, trace_Nx.x)) {
         unsigned char * Sx = S[0] ? S[0] : S[1];
         verbose_fmt_print(TRACE_CHANNEL, 0,
-                "# Slot [{}] in bucket {} has value {}",
+                "# Slot [{}] in bucket {} has value {}\n",
                 trace_Nx.x, trace_Nx.N, Sx[trace_Nx.x]);
     }
 #endif
