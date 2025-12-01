@@ -288,9 +288,6 @@ las_small_sieve_data::small_sieve_init(
             WHERE_AM_I_UPDATE(w, p, p);
 
             ASSERT_ALWAYS(p <= thresh);
-            if (p > thresh) {
-                continue;
-            }
 
             for (int nr = 0; nr < e.nr_roots; nr++) {
                 const fb_general_root &root = e.roots[nr];
