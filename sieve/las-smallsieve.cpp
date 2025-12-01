@@ -264,7 +264,13 @@ las_small_sieve_data::small_sieve_init(
     small_sieve_clear();
 
     ssps.reserve(resieved.size() + rest.size());
-    offsets.reserve(resieved.size() + rest.size());
+
+    /* If logI == LOG_BUCKET_REGION, no offsets are needed as the sieve
+     * region consists of the whole line.
+     */
+    if (logI != LOG_BUCKET_REGION) {
+        offsets.reserve(resieved.size() + rest.size());
+    }
 
     // Do a pass on fb and projective primes, to fill in the data
     // while we have any regular primes or projective primes < thresh left
