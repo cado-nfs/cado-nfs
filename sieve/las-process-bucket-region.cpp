@@ -46,7 +46,6 @@
 #include "las-qlattice.hpp"
 #include "las-report-stats.hpp"
 #include "las-siever-config.hpp"
-#include "las-smallsieve-types.hpp"
 #include "las-smallsieve.hpp"
 #include "las-threads-work-data.hpp"
 #include "special-q.hpp"
@@ -260,7 +259,7 @@ void process_bucket_region_run::init_norms(int side)/*{{{*/
 
 #if defined(TRACE_K) 
     if (trace_on_spot_N(w->N))
-        verbose_fmt_print(TRACE_CHANNEL, 0, "# After side {} init_norms_bucket_region, N={} S[{}]={}",
+        verbose_fmt_print(TRACE_CHANNEL, 0, "# After side {} init_norms_bucket_region, N={} S[{}]={}\n",
                 side, w->N, trace_Nx.x, S[side][trace_Nx.x]);
 #endif
 }/*}}}*/
@@ -329,10 +328,9 @@ void process_bucket_region_run::small_sieve(int side)/*{{{*/
 
     nfs_work::side_data & wss(ws.sides[side]);
 
-    sieve_small_bucket_region(SS,
+    wss.ssd->sieve_small_bucket_region(SS,
             first_region0_index + already_done + bucket_relative_index,
-            wss.ssd,
-            wss.ssd.ssdpos_many[bucket_relative_index],
+            bucket_relative_index,
             ws.conf.logI, ws.Q.sublat,
             w);
 }/*}}}*/
@@ -347,7 +345,7 @@ void process_bucket_region_run::SminusS(int side)/*{{{*/
 #if defined(TRACE_K) 
     if (trace_on_spot_N(w->N))
         verbose_fmt_print(TRACE_CHANNEL, 0,
-                "# Final value on side {}, N={} S[{}]={}",
+                "# Final value on side {}, N={} S[{}]={}\n",
                 side, w->N, trace_Nx.x, S[side][trace_Nx.x]);
 #endif
 }/*}}}*/
@@ -499,11 +497,10 @@ void process_bucket_region_run::resieve(int side)/*{{{*/
 
     /* Resieve small primes for this bucket region and store them 
        together with the primes recovered from the bucket updates */
-    resieve_small_bucket_region (&sides[side].primes,
+    wss.ssd->resieve_small_bucket_region (&sides[side].primes,
             Sx,
             first_region0_index + already_done + bucket_relative_index,
-            wss.ssd,
-            wss.ssd.ssdpos_many[bucket_relative_index],
+            bucket_relative_index,
             ws.conf.logI, ws.Q.sublat,
             w);
 
@@ -868,7 +865,7 @@ void process_bucket_region_run::operator()() {/*{{{*/
     if (trace_on_spot_Nx(N, trace_Nx.x)) {
         unsigned char * Sx = S[0] ? S[0] : S[1];
         verbose_fmt_print(TRACE_CHANNEL, 0,
-                "# Slot [{}] in bucket {} has value {}",
+                "# Slot [{}] in bucket {} has value {}\n",
                 trace_Nx.x, trace_Nx.N, Sx[trace_Nx.x]);
     }
 #endif
@@ -935,8 +932,7 @@ void process_many_bucket_regions(nfs_work & ws, std::shared_ptr<nfs_work_cofac> 
                          * no real point in doing ssdpos initialization in
                          * several passes.
                          */
-                        small_sieve_prepare_many_start_positions(
-                                wss.ssd,
+                        wss.ssd->small_sieve_prepare_many_start_positions(
                                 first_region0_index + done,
                                 more,
                                 ws.conf.logI, ws.Q.sublat);
@@ -951,7 +947,7 @@ void process_many_bucket_regions(nfs_work & ws, std::shared_ptr<nfs_work_cofac> 
             for(unsigned int side = 0 ; side < ws.sides.size() ; side++) {
                 nfs_work::side_data & wss(ws.sides[side]);
                 if (wss.no_fb()) continue;
-                small_sieve_activate_many_start_positions(wss.ssd);
+                wss.ssd->small_sieve_activate_many_start_positions();
             }
         }
     }
