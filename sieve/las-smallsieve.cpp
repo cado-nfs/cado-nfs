@@ -110,10 +110,6 @@ fmt::formatter<ssp_t>::format(ssp_t const & a, format_context & ctx) const
         format_to(ctx.out(), " (power of 2)");
     if (a.is_pattern_sieved())
         format_to(ctx.out(), " (pattern-sieved)");
-    if (a.is_discarded_proj())
-        format_to(ctx.out(), "(discarded because of projective root)");
-    if (a.is_discarded_sublat())
-        format_to(ctx.out(), "(discarded because not compatible with sub lattices)");
     return ctx.out();
 }
 
@@ -125,12 +121,10 @@ las_small_sieve_data::small_sieve_print_contents(
     int nproj = 0;
     int npow2 = 0;
     int npattern = 0;
-    int ndiscard = 0;
     for(auto const & sp : ssp) {
         nproj += sp.is_proj();
         npow2 += sp.is_pow2();
         npattern += sp.is_pattern_sieved();
-        ndiscard += sp.is_discarded();
         nnice += sp.is_nice();
     }
 
@@ -141,7 +135,6 @@ las_small_sieve_data::small_sieve_print_contents(
     if (npattern) verbose_fmt_print(0, 3, ", {} pattern-sieved", npattern);
     if (nproj) verbose_fmt_print(0, 3, ", and {} projective primes", nproj);
     verbose_fmt_print(0, 3, ".");
-    if (ndiscard) verbose_fmt_print(0, 3, " {} discarded.", ndiscard);
     verbose_fmt_print(0, 3, "\n");
     /* With -v -v -v, dump all the small sieve data */
     verbose_fmt_print (0, 4, "# Dump of small sieve data:\n{}\n{}\n",
@@ -712,13 +705,6 @@ small_sieve::handle_projective_prime(
 #endif
             S[1 - i0] += logp;
         }
-        // The event SSP_DISCARD might have occurred due to
-        // the first row to sieve being larger than J. The row
-        // number 0 must still be sieved in that case, but once
-        // it's done, we can indeed skip the next part of
-        // sieving.
-        if (ssp.is_discarded_proj())
-            return;
         ASSERT (ssp.get_U() == 0);
         ASSERT (pos % F() == 0);
         ASSERT (F() % (4 * sizeof (unsigned long)) == 0);
@@ -1080,9 +1066,6 @@ las_small_sieve_data::resieve_small_bucket_region(
                 ASSERT(prime.p >= fbK.td_thresh);
                 BP->push_update(prime);
             }
-            // Same as in sieving: we discard after checking for row 0.
-            if (sp.is_discarded_proj())
-                continue;
 
             /* make sure ssdpos points at start of line or region when
              * we're sieving whole lines. */

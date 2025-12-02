@@ -16,9 +16,7 @@
 
 #define SSP_POW2        (1u<<0)
 #define SSP_PROJ        (1u<<1)
-#define SSP_DISCARD_SUBLAT     (1u<<2)
-#define SSP_DISCARD_PROJ     (1u<<3)
-#define SSP_PATTERN_SIEVED   (1u<<4)
+#define SSP_PATTERN_SIEVED   (1u<<2)
 
 /* spos_t is in las-forwardtypes.hpp */
 
@@ -97,18 +95,13 @@ public:
 
     bool is_pow2() const {return (flags & SSP_POW2) != 0;}
     bool is_proj() const {return (flags & SSP_PROJ) != 0;}
-    bool is_discarded_sublat() const {return (flags & SSP_DISCARD_SUBLAT) != 0;}
-    bool is_discarded_proj() const {return (flags & SSP_DISCARD_PROJ) != 0;}
-    bool is_discarded() const {return is_discarded_proj() || is_discarded_sublat();}
-    bool is_nice() const {return !is_pow2() && !is_proj() && !is_discarded();}
+    bool is_nice() const {return !is_pow2() && !is_proj();}
     bool is_pow() const { return rootp != 0; }
     bool is_pattern_sieved() const {return (flags & SSP_PATTERN_SIEVED) != 0;}
 
     void set_pow(unsigned int p) { rootp = p; }
     void set_pow2() {flags |= SSP_POW2; rootp=2;}
     void set_proj() {flags |= SSP_PROJ;}
-    void set_discarded_sublat() {flags |= SSP_DISCARD_SUBLAT;}
-    void set_discarded() {flags |= SSP_DISCARD_PROJ;}
     void set_pattern_sieved() {flags |= SSP_PATTERN_SIEVED;}
 
 private:
