@@ -232,7 +232,6 @@ private:
      */
     std::vector<std::vector<spos_t>> ssdpos_many;
     std::vector<std::vector<spos_t>> ssdpos_many_next;
-    size_t ssdpos_many_offset;
 
     /* This vectors are computed at the same time as ssd is
      * intialized, in small_sieve_start.  We use it to compute the
