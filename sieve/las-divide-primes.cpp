@@ -26,6 +26,8 @@
 #include "verbose.h"
 #include "utils_cxx.hpp"
 
+#include "fmt/ranges.h"
+
 /*  Trial division */
 
 static void factor_list_add(factor_list_t & fl, uint64_t const p)
@@ -246,8 +248,9 @@ void divide_known_primes(std::vector<uint64_t> & fl, cxx_mpz & norm,
     /* Trial divide primes with precomputed tables */
 
     if (trial_div_very_verbose) {
-        verbose_fmt_print(TRACE_CHANNEL, 0, "# Trial division by{}\n",
-                join(td, " ", [](auto const & p) { return p.p; }));
+        auto p = [](auto const & e) { return e.p; };
+        verbose_fmt_print(TRACE_CHANNEL, 0, "# Trial division by {}\n",
+               fmt::join(td | std::views::transform(p), " "));
     }
 
     td.trial_divide(fl, norm);
