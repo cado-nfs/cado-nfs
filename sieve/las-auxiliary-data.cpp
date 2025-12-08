@@ -5,6 +5,7 @@
 #include <map>
 #include <string>
 #include <mutex>
+#include <ranges>
 #include <utility>
 
 #include <gmp.h>

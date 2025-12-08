@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <ostream>
+#include <ranges>
 #include <sstream>
 #include <vector>
 
