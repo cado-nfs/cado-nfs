@@ -347,7 +347,7 @@ void process_bucket_region_run::SminusS(int side)/*{{{*/
 #if defined(TRACE_K) 
     if (trace_on_spot_N(w->N))
         verbose_fmt_print(TRACE_CHANNEL, 0,
-                "# Final value on side {}, N={} S[{}]={}",
+                "# Final value on side {}, N={} S[{}]={}\n",
                 side, w->N, trace_Nx.x, S[side][trace_Nx.x]);
 #endif
 }/*}}}*/
@@ -555,7 +555,7 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
         }
 
         if (cur.trace_on_spot())
-            verbose_fmt_print(TRACE_CHANNEL, 0, "# about to start cofactorization for ({},{})  {} {}", cur.a, cur.b, x, Sx[x]);
+            verbose_fmt_print(TRACE_CHANNEL, 0, "# about to start cofactorization for ({},{})  {} {}\n", cur.a, cur.b, x, Sx[x]);
 
         /* since a,b both even were not sieved, either a or b should
          * be odd. However, exceptionally small norms, even without
@@ -669,10 +669,9 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
                 pass = check_leftover_norm (cur.norm[side], ws.conf.sides[side]);
                 if (cur.trace_on_spot()) {
                     verbose_fmt_print(TRACE_CHANNEL, 0,
-                            "# checked leftover norm={}", cur.norm[side]);
-                    verbose_fmt_print(TRACE_CHANNEL, 0,
-                            " on side {} for ({},{}): {}",
-                            side, cur.a, cur.b, pass);
+                            "# checked leftover norm={} on side {} for "
+                            "({},{}): {}\n",
+                            cur.norm[side], side, cur.a, cur.b, pass);
                 }
                 rep.survivors.check_leftover_norm_on_side[side] += pass;
             }
