@@ -146,7 +146,7 @@ struct small_sieve_base {/*{{{*/
         };
     }
 
-    spos_t first_position_ordinary_prime(ssp_simple_t const & ssp, unsigned int dj = 0) const/*{{{*/
+    spos_t first_position_ordinary_prime(ssp_simple_t const & ssp) const/*{{{*/
     {
         /* equation here: i-r*j = 0 mod p */
 
@@ -176,8 +176,8 @@ struct small_sieve_base {/*{{{*/
          */
         /* Ouch. That can't work if we have largeish small-sieved primes!
          */
-        // spos_t x = (spos_t)(j0 + dj) * (spos_t)ssp.get_r() - i0;
-        int64_t x = (int64_t)(j0 + dj) * (int64_t)ssp.get_r() - i0;
+        // spos_t x = (spos_t)(j0) * (spos_t)ssp.get_r() - i0;
+        int64_t x = (int64_t)(j0) * (int64_t)ssp.get_r() - i0;
         if (sublatm > 1) {
             ASSERT(ssp.get_p() % sublatm);
             /* alternative code. not clear it's better.
@@ -290,7 +290,7 @@ struct small_sieve_base {/*{{{*/
         return x;
     }/*}}}*/
 
-    spos_t first_position_power_of_two(ssp_t const & ssp, unsigned int dj = 0) const/*{{{*/
+    spos_t first_position_power_of_two(ssp_t const & ssp) const/*{{{*/
     {
         /* equation here: i-r*j = 0 mod p, p a power of 2. */
         /* only difference with ordinary case is that we want to
@@ -303,7 +303,7 @@ struct small_sieve_base {/*{{{*/
          * power for i-j*r multiple of our power of 2, which means
          * i even too. Thus a useless report.
          */
-        unsigned int j = j0 + dj;
+        unsigned int j = j0;
         uint64_t jj = j*sublatm + sublatj0;
         // uint64_t ii = i0*sublatm + sublati0;
         /* next odd line */
