@@ -18,7 +18,6 @@
 /* generated code for small sieve critical routine. */
 
 struct list_nil {};
-template<typename T, typename U> struct list_car {};
 
 template<typename T, typename U, int b, typename F> struct choice_list_car {};
 
@@ -68,33 +67,6 @@ struct small_sieve_best_code_choices {
 };
 
 /*{{{ small sieve classes */
-/*{{{ tristate booleans */
-/* The tribool classes offer a test(y, n, m) function: if the value of the
-   tribool is true, the first parameter (y) is returned, if it is false,
-   the second is returned, if it is maybe, the third is returned. */
-struct tribool_maybe {
-    template<typename T> static inline T test(T const &, T const &, T const & maybe) {
-        return maybe;
-    }
-};
-
-template<bool b>
-struct tribool_const {};
-template<>
-struct tribool_const<true>
-{
-    template<typename T> static inline T test(T const & yes, T const &, T const &) {
-        return yes;
-    }
-};
-template<>
-struct tribool_const<false>
-{
-    template<typename T> static inline T test(T const &, T const & no, T const &) {
-        return no;
-    }
-};
-/*}}}*/
 /* So many things are used in common for many small sieve routines that
  * it makes sense to gather them in a common object */
 struct small_sieve_base {/*{{{*/

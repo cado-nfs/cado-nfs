@@ -45,6 +45,8 @@ static sublat_t sl;
 /******************************************************************/
 /* now provides routines for testing */
 
+template<typename T, typename U> struct list_car {};
+
 /* we create lists of functions, because from all these tidbits we need
  * to generate the more complete sieving functions below.
  */
