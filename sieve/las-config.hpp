@@ -5,12 +5,6 @@
 
 #include <cstddef>
 
-/* un-sieving of locations where gcd(i,j)>1 instead of testing gcd for
- * each survivor. Appears slower than default. This code has always been
- * #ifdef'd out, but maybe can be improved enough to make it worthwhile
- */
-#define xxxUNSIEVE_NOT_COPRIME /* see las-unsieve.c */
-
 /* factor base is split in parts 0, 1, ..., FB_MAX_PARTS-1.
  *
  * The toplevel can thus be at most FB_MAX_PARTS-1.
@@ -71,12 +65,6 @@ extern int las_production_mode;
 #ifndef BUCKET_SIEVE_POWERS
 #define BUCKET_SIEVE_POWERS
 #endif
-
-/* Define SKIP_GCD3 to skip updates where 3 divides gcd(i,j) in the
-   bucket sieving phase. Slightly slower than not skipping them
-   in single-thread mode, but might be useful for multi-threading,
-   or when memory is tight */
-// #define SKIP_GCD3
 
 /* Guard for the logarithms of norms, so that the value does not wrap around
    zero due to roundoff errors. */
