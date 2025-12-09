@@ -60,7 +60,6 @@ add_library(las_core_b OBJECT
         las-threads-work-data.cpp
         las-dumpfile.cpp
         las-duplicate.cpp
-        las-plattice.cpp
         las-divide-primes.cpp
         las-sieve2357.cpp
 )
