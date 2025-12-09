@@ -387,7 +387,7 @@ process_bucket_region_run::survivors_t process_bucket_region_run::search_survivo
                                                S[i] ? S[i][trace_Nx.x] : ~0u);
         };
         auto p2 = [&, this](size_t i) {
-            auto &bound = ws.sides[i]->lognorms.bound;
+            auto &bound = ws.sides[i].lognorms.bound;
             return fmt::format("side{}[{}]={}", i,
                 S[i] ? S[i][trace_Nx.x] : ~0u,
                 S[i] ? (S[i][trace_Nx.x] <= bound ? 0 : bound) : ~0u);
