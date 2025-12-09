@@ -32,10 +32,14 @@ public:
     void print();
     void call(std::vector<cxx_mpz> const & norm, std::vector<int> & cof_bitsize) {
         if (!active()) return;
-        ASSERT_ALWAYS(norm.size() == 2);
+        ASSERT_ALWAYS(norm.size() == 1 || norm.size() == 2);
         cof_bitsize.assign(norm.size(), 0);
         cof_bitsize[0] = mpz_sizeinbase(norm[0], 2);
-        cof_bitsize[1] = mpz_sizeinbase(norm[1], 2);
+        if (norm.size() == 2) {
+            cof_bitsize[1] = mpz_sizeinbase(norm[1], 2);
+        } else {
+            cof_bitsize.push_back(0);
+        }
         call(cof_bitsize[0], cof_bitsize[1]);
     }
     void success(std::vector<int> const & cof_bitsize) {
