@@ -46,13 +46,16 @@
 */
 
 #include "cado.h"     // IWYU pragma: keep
-#include <errno.h>    // for errno
-#include <inttypes.h> // for PRIu64, PRId64, PRIx64, PRIu32
-#include <stddef.h>   // for ptrdiff_t
-#include <stdint.h>   // for uint64_t, uint32_t, int64_t
-#include <stdio.h>    // for fprintf, stderr, NULL, asprintf, feof, FILE
-#include <stdlib.h>   // for exit, free, malloc, abort, EXIT_FAILURE
-#include <string.h>   // for strlen, strdup, memset, memcpy, strerror
+#include <cerrno>    // for errno
+#include <cinttypes> // for PRIu64, PRId64, PRIx64, PRIu32
+#include <cstddef>   // for ptrdiff_t
+#include <cstdint>   // for uint64_t, uint32_t, int64_t
+#include <cstdio>    // for fprintf, stderr, NULL, asprintf, feof, FILE
+#include <cstdlib>   // for exit, free, malloc, abort, EXIT_FAILURE
+#include <cstring>   // for strlen, strdup, memset, memcpy, strerror
+
+#include <memory>
+
 #ifdef HAVE_MINGW
 #include <fcntl.h> /* for _O_BINARY */
 #endif
@@ -198,8 +201,8 @@ static inline void print_relation(FILE * file, earlyparsed_relation_srcptr rel)
             p = u64toa16(p, (uint64_t)0);
             *p++ = ',';
         } else {
-            int * sides = (int *)malloc(n * sizeof(int));
-            renumber_table_get_sides_of_additional_columns(renumber_tab, sides,
+            auto sides = std::make_unique<int[]>(n);
+            renumber_table_get_sides_of_additional_columns(renumber_tab, sides.get(),
                                                            &n);
             for (index_t idx = 0; idx < n; idx++) {
                 int side = sides[idx];
@@ -208,7 +211,6 @@ static inline void print_relation(FILE * file, earlyparsed_relation_srcptr rel)
                     *p++ = ',';
                 }
             }
-            free(sides);
         }
     }
 
@@ -333,9 +335,9 @@ static inline void compute_index_rel(earlyparsed_relation_ptr rel)
                                                side)) {
                 index_t first_index;
                 size_t nexps = renumber_table_get_poly_deg(renumber_tab, side);
-                int * exps = (int *)malloc(nexps * sizeof(int));
+                auto exps = std::make_unique<int[]>(nexps);
                 renumber_table_indices_from_p_a_b(renumber_tab, &first_index,
-                                                  exps, &nexps, p, r, side,
+                                                  exps.get(), &nexps, p, r, side,
                                                   pr[i].e, rel->a, rel->b);
 
                 /* allocate room for (nb) more valuations */
@@ -358,11 +360,10 @@ static inline void compute_index_rel(earlyparsed_relation_ptr rel)
                     }
                     rel->nb++;
                 }
-                free(exps);
             } else {
                 pr[i].h = renumber_table_index_from_p_r(renumber_tab, pr[i].p,
                                                         r, pr[i].side);
-                int f = renumber_table_p_r_side_get_inertia(renumber_tab, p, r,
+                int const f = renumber_table_p_r_side_get_inertia(renumber_tab, p, r,
                                                             side);
                 if (f > 1) {
                     /* XXX there's a catch here. A non-bad ideal can still have
