@@ -142,7 +142,7 @@ filter/README.fileformat
 filter/clique_removal.cpp
 filter/clique_removal.h
 filter/dup1.c
-filter/dup2.c
+filter/dup2.cpp
 filter/filter_config.h
 filter/filter_galois.cpp
 filter/merge.c

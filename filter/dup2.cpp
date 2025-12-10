@@ -205,7 +205,7 @@ print_relation (FILE * file, earlyparsed_relation_srcptr rel)
           p = u64toa16(p, (uint64_t) 0);
           *p++ = ',';
       } else {
-          int * sides = malloc(n * sizeof(int));
+          int * sides = (int *) malloc(n * sizeof(int));
           renumber_table_get_sides_of_additional_columns(renumber_tab, sides, &n);
           for(index_t idx = 0; idx < n ; idx++) {
               int side = sides[idx];
@@ -342,7 +342,7 @@ compute_index_rel (earlyparsed_relation_ptr rel)
       if (renumber_table_p_r_side_is_bad(renumber_tab, NULL, p, r, side)) {
         index_t first_index;
         size_t nexps = renumber_table_get_poly_deg(renumber_tab, side);
-        int * exps = malloc(nexps * sizeof(int));
+        int * exps = (int *) malloc(nexps * sizeof(int));
         renumber_table_indices_from_p_a_b(renumber_tab, &first_index, exps, &nexps, p, r, side, pr[i].e, rel->a, rel->b);
 
         /* allocate room for (nb) more valuations */
