@@ -33,7 +33,6 @@ add_library(las_core_a OBJECT
 # las_core_b0 is slighlty intermediary.
 add_library(las_core_b0 OBJECT
         las-siever-config.cpp
-        las-config.cpp
         las-norms.cpp
         logapprox.cpp
         las-coordinates.cpp
@@ -72,6 +71,7 @@ add_library(las_core_c OBJECT
 set(las_multi_a_sources
         fb.cpp
 	bucket.cpp
+        las-config.cpp
 	las-fill-in-buckets.cpp
 	las-smallsieve.cpp
         las-cofac-standalone.cpp

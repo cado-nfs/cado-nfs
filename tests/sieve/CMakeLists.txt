@@ -578,6 +578,7 @@ cado_define_test(test_logapprox.cpp
 # sure with the current code... */
 cado_define_test(test_init_norms.cpp
     ${PROJECT_SOURCE_DIR}/sieve/las-multiobj-globals.cpp
+    ${PROJECT_SOURCE_DIR}/sieve/las-config.cpp
     $<TARGET_OBJECTS:las_core_b0>
     $<TARGET_OBJECTS:las_core_a>
     $<TARGET_OBJECTS:las_core_0>
