@@ -34,7 +34,6 @@
 #include "las-sieve2357.hpp"
 #include "las-smallsieve-glue.hpp"
 #include "las-smallsieve-lowlevel.hpp"
-#include "las-smallsieve-types.hpp"
 #include "special-q.hpp"
 #include "las-where-am-i-proxy.hpp"
 #include "portability.h"
@@ -87,14 +86,16 @@
 
 /* {{{ Some code for information purposes only */
 
-auto fmt::formatter<ssp_simple_t>::format(ssp_simple_t const & a, format_context & ctx) const
+auto
+fmt::formatter<ssp_simple_t>::format(ssp_simple_t const & a, format_context & ctx) const
 -> format_context::iterator
 {
     format_to(ctx.out(), "# p = {}, r = {}, logp = {}",
             a.p, a.r, a.logp);
     return ctx.out();
 }
-auto fmt::formatter<ssp_t>::format(ssp_t const & a, format_context & ctx) const
+auto
+fmt::formatter<ssp_t>::format(ssp_t const & a, format_context & ctx) const
             -> fmt::format_context::iterator
 {
     if (!a.is_proj()) {
@@ -109,26 +110,22 @@ auto fmt::formatter<ssp_t>::format(ssp_t const & a, format_context & ctx) const
         format_to(ctx.out(), " (power of 2)");
     if (a.is_pattern_sieved())
         format_to(ctx.out(), " (pattern-sieved)");
-    if (a.is_discarded_proj())
-        format_to(ctx.out(), "(discarded because of projective root)");
-    if (a.is_discarded_sublat())
-        format_to(ctx.out(), "(discarded because not compatible with sub lattices)");
     return ctx.out();
 }
 
-static void small_sieve_print_contents(const char * prefix, small_sieve_data_t const & ssd)
+void
+las_small_sieve_data::small_sieve_print_contents(
+        const char * prefix) const
 {
-    int nnice = ssd.ssps.size();
+    int nnice = ssps.size();
     int nproj = 0;
     int npow2 = 0;
     int npattern = 0;
-    int ndiscard = 0;
-    for(auto const & ssp : ssd.ssp) {
-        nproj += ssp.is_proj();
-        npow2 += ssp.is_pow2();
-        npattern += ssp.is_pattern_sieved();
-        ndiscard += ssp.is_discarded();
-        nnice += ssp.is_nice();
+    for(auto const & sp : ssp) {
+        nproj += sp.is_proj();
+        npow2 += sp.is_pow2();
+        npattern += sp.is_pattern_sieved();
+        nnice += sp.is_nice();
     }
 
     verbose_output_start_batch();
@@ -138,35 +135,36 @@ static void small_sieve_print_contents(const char * prefix, small_sieve_data_t c
     if (npattern) verbose_fmt_print(0, 3, ", {} pattern-sieved", npattern);
     if (nproj) verbose_fmt_print(0, 3, ", and {} projective primes", nproj);
     verbose_fmt_print(0, 3, ".");
-    if (ndiscard) verbose_fmt_print(0, 3, " {} discarded.", ndiscard);
     verbose_fmt_print(0, 3, "\n");
     /* With -v -v -v, dump all the small sieve data */
     verbose_fmt_print (0, 4, "# Dump of small sieve data:\n{}\n{}\n",
-            join(ssd.ssp, "\n"),
-            join(ssd.ssps, "\n"));
+            join(ssp, "\n"),
+            join(ssps, "\n"));
     verbose_output_end_batch();
 }
 
 
-void small_sieve_info(const char * what, int side, small_sieve_data_t const & r)
+void
+las_small_sieve_data::small_sieve_info(const char * what, int side) const
 {
     char * tmp;
     int const rc = asprintf(&tmp, "%s(side %d)", what, side);
     ASSERT_ALWAYS(rc >= 0);
-    small_sieve_print_contents(tmp, r);
+    small_sieve_print_contents(tmp);
     free(tmp);
 }
 
 /* }}} */
 
 /* {{{ Sieve initialization / clearing : first the easy ones */
-void small_sieve_clear(small_sieve_data_t & ssd)
+void
+las_small_sieve_data::small_sieve_clear()
 {
-    ssd.ssps.clear();
-    ssd.ssp.clear();
-    ssd.ssdpos_many.clear();
-    ssd.ssdpos_many_next.clear();
-    ssd.offsets.clear();
+    ssps.clear();
+    ssp.clear();
+    ssdpos_many.clear();
+    ssdpos_many_next.clear();
+    offsets.clear();
 }
 
 /* }}} */
@@ -184,8 +182,12 @@ using preferred_sieve2357 = sieve2357<preferred_simd_type, uint8_t>;
 #pragma GCC diagnostic pop
 #endif
 
-ssp_t::ssp_t(fbprime_t _p, fbprime_t _r, unsigned char _logp, bool proj) /*{{{*/
-: ssp_t(_p, _r, _logp) /* First, initialize everything as if proj=false */
+ssp_t::ssp_t(
+        fbprime_t _p,
+        fbprime_t _r,
+        unsigned char _logp,
+        bool proj) /*{{{*/
+    : ssp_t(_p, _r, _logp) /* First, initialize everything as if proj=false */
 {
     if (_p % 2 == 0) {
         set_pow2();
@@ -218,7 +220,7 @@ ssp_t::ssp_t(fbprime_t _p, fbprime_t _r, unsigned char _logp, bool proj) /*{{{*/
     }
 }/*}}}*/
 
-// Prepare sieving of small primes: initialize a small_sieve_data_t
+// Prepare sieving of small primes: initialize a las_small_sieve_data
 // structure to be used thereafter during sieving each region.
 // ssdpos points at the next position that will be hit by sieving,
 // relative to the start of the next bucket region to sieve. It may exceed I 
@@ -235,55 +237,56 @@ struct order_ssp_t {
 };
 static order_ssp_t order_ssp;
 
-void small_sieve_init(small_sieve_data_t & ssd,
-                      std::vector<fb_entry_general> const & resieved,
-                      std::vector<fb_entry_general> const & rest,
-                      int logI,
-                      int side,
-                      fb_factorbase::key_type const & fbK,
-                      qlattice_basis const & Q,
-                      double scale)
+void
+las_small_sieve_data::small_sieve_init(
+        std::vector<fb_entry_general> const & resieved,
+        std::vector<fb_entry_general> const & rest,
+        int logI,
+        int side,
+        fb_factorbase::key_type const & factorbaseK,
+        qlattice_basis const & Q,
+        double scale)
 {
-    const unsigned int thresh = fbK.thresholds[0];
+    const unsigned int thresh = factorbaseK.thresholds[0];
     const int verbose = 0;
     where_am_I w MAYBE_UNUSED;
 
-    ssd.fbK = fbK;
+    fbK = factorbaseK;
 
     // This zeroes out all vectors, but keeps storage around nevertheless
-    small_sieve_clear(ssd);
+    small_sieve_clear();
 
-    ssd.ssps.reserve(resieved.size() + rest.size());
-    if (logI < LOG_BUCKET_REGION)
-        ssd.offsets.reserve(resieved.size() + rest.size());
-    if (logI > LOG_BUCKET_REGION)
-        ssd.offsets.reserve(resieved.size() + rest.size());
+    ssps.reserve(resieved.size() + rest.size());
+
+    /* If logI == LOG_BUCKET_REGION, no offsets are needed as the sieve
+     * region consists of the whole line.
+     */
+    if (logI != LOG_BUCKET_REGION) {
+        offsets.reserve(resieved.size() + rest.size());
+    }
 
     // Do a pass on fb and projective primes, to fill in the data
     // while we have any regular primes or projective primes < thresh left
-    
+
     // The processing of bucket region by nb_threads is interleaved.
     // It means that the positions for the small sieve must jump
     // over the (nb_threads - 1) regions after each region.
     // For typical primes, this jump is easily precomputed and goes into
     // the ssp struct.
-    
+
     // If we are doing sublattices modulo m, then we jump virtually m
     // times faster.
     unsigned int const sublatm = Q.sublat.m;
 
     for (auto const & c : { &resieved, &rest }) {
         if (c == &rest)
-            ssd.resieve_end_offset = ssd.ssps.size();
+            resieve_end_offset = ssps.size();
         for (auto const & e : *c) {
             /* p=pp^k, the prime or prime power in this entry, and pp is prime */
             const fbprime_t p = e.q, pp = e.p;
             WHERE_AM_I_UPDATE(w, p, p);
 
             ASSERT_ALWAYS(p <= thresh);
-            if (p > thresh) {
-                continue;
-            }
 
             for (int nr = 0; nr < e.nr_roots; nr++) {
                 const fb_general_root &root = e.roots[nr];
@@ -360,11 +363,11 @@ void small_sieve_init(small_sieve_data_t & ssd,
                     }
 #endif
                     /* projective primes of all sorts go to ssp anyway */
-                    ssd.ssp.push_back(new_ssp);
+                    ssp.push_back(new_ssp);
                 } else if (new_ssp.is_pow2() || new_ssp.is_pattern_sieved()) {
-                    ssd.ssp.push_back(new_ssp);
+                    ssp.push_back(new_ssp);
                 } else if (new_ssp.is_nice()) {
-                    ssd.ssps.push_back(new_ssp);
+                    ssps.push_back(new_ssp);
                     /* We're only pushing the offsets for the ssps anyway.  */
                     if (logI < LOG_BUCKET_REGION) {
                         /* The "up" offset is equal to r whenever logI >=
@@ -381,7 +384,7 @@ void small_sieve_init(small_sieve_data_t & ssd,
                             if (offset > p) offset -= p;
                         }
                         ASSERT(offset == (r_q << v) % p);
-                        ssd.offsets.push_back(offset);
+                        offsets.push_back(offset);
                     }
                     if (logI > LOG_BUCKET_REGION) {
                         /* The "right" offset is needed only in this case.
@@ -394,7 +397,7 @@ void small_sieve_init(small_sieve_data_t & ssd,
                          * must pay attention to overflows.
                          */
                         unsigned long offset = ((int64_t) (p - 1) << LOG_BUCKET_REGION) % p;
-                        ssd.offsets.push_back(offset);
+                        offsets.push_back(offset);
                     }
                 } else {
                     ASSERT_ALWAYS(0);
@@ -406,15 +409,15 @@ void small_sieve_init(small_sieve_data_t & ssd,
     /* arrange so that the small_sieve() ctor is happy */
     /* I _think_ that normally, if the new code does its job correctly,
      * then this should be already sorted */
-    ASSERT(std::is_sorted(ssd.ssps.begin(), ssd.ssps.begin() + ssd.resieve_end_offset));
-    ASSERT(std::is_sorted(ssd.ssps.begin() + ssd.resieve_end_offset, ssd.ssps.end()));
-    // std::sort(ssd.ssps.begin(), ssd.ssps.begin() + ssd.resieve_end_offset);
-    // std::sort(ssd.ssps.begin() + ssd.resieve_end_offset, ssd.ssps.end());
+    ASSERT(std::is_sorted(ssps.begin(), ssps.begin() + resieve_end_offset));
+    ASSERT(std::is_sorted(ssps.begin() + resieve_end_offset, ssps.end()));
+    // std::sort(ssps.begin(), ssps.begin() + resieve_end_offset);
+    // std::sort(ssps.begin() + resieve_end_offset, ssps.end());
 
     /* Sort general ssp vector in the order in which sieve2357::sieve expects
        them. small_sieve::do_pattern_sieve may drop some of these entries but
        preserves the ordering. */
-    std::sort(ssd.ssp.begin(), ssd.ssp.end(), order_ssp);
+    std::sort(ssp.begin(), ssp.end(), order_ssp);
 }
 /* }}} */
 
@@ -512,10 +515,12 @@ void small_sieve_init(small_sieve_data_t & ssd,
 /*}}}*/
 
 /* Only compute the initial ssdpos fields. */
-void small_sieve_start(std::vector<spos_t> & ssdpos,
-        small_sieve_data_t & ssd,
+void
+las_small_sieve_data::small_sieve_start(
+        std::vector<spos_t> & ssdpos,
         unsigned int first_region_index,
-        int logI, sublat_t const & sl)
+        int logI,
+        sublat_t const & sl)
 {
     /* We want to compute the index of the "next" hit, counted from the
      * starting offset of the "current" bucket region at (i0,j0). The
@@ -536,22 +541,24 @@ void small_sieve_start(std::vector<spos_t> & ssdpos,
      */
     small_sieve_base const C(logI, first_region_index, sl);
     ssdpos.clear();
-    ssdpos.reserve(ssd.ssps.size());
-    for (ssp_simple_t const & ssp : ssd.ssps) {
+    ssdpos.reserve(ssps.size());
+    for (ssp_simple_t const & ssp : ssps) {
         ssdpos.push_back(C.first_position_ordinary_prime(ssp));
     }
 }
 
-void small_sieve_activate_many_start_positions(small_sieve_data_t & ssd)
+void
+las_small_sieve_data::small_sieve_activate_many_start_positions()
 {
-    std::swap(ssd.ssdpos_many, ssd.ssdpos_many_next);
+    std::swap(ssdpos_many, ssdpos_many_next);
 }
 
-void small_sieve_prepare_many_start_positions(
-        small_sieve_data_t & ssd,
+void
+las_small_sieve_data::small_sieve_prepare_many_start_positions(
         unsigned int first_region_index,
         int nregions,
-        int logI, sublat_t const & sl)
+        int logI,
+        sublat_t const & sl)
 {
     /* We're going to stage the next batch of init values in
      * ssdpos_many_next, while the init values in ssdpos_many are
@@ -565,62 +572,62 @@ void small_sieve_prepare_many_start_positions(
      * constructed exactly for us !
      */
 
-    auto & res(ssd.ssdpos_many_next);
+    auto & res(ssdpos_many_next);
     res.clear();
 
     int const logB = LOG_BUCKET_REGION;
     int const v = logI - logB;
     int const w = (v > 0) ? (1 << v) : 1;
 
-    res.assign(nregions + w, std::vector<spos_t>(ssd.ssps.size(), 0));
+    res.assign(nregions + w, std::vector<spos_t>(ssps.size(), 0));
 
     int k;
 
-    if (ssd.ssdpos_many.empty()) {
-        small_sieve_start(res.front(), ssd, first_region_index, logI, sl);
+    if (ssdpos_many.empty()) {
+        small_sieve_start(res.front(), first_region_index, logI, sl);
         k = 0;
         /* must complete the first row */
         for(int i = 1 ; i < w ; i++) {
-            for(size_t s = 0 ; s < ssd.ssps.size(); ++s) {
+            for(size_t s = 0 ; s < ssps.size(); ++s) {
                 fbprime_t x = res[k+i-1][s];
-                x = x + ssd.offsets[s];
-                if (x >= ssd.ssps[s].get_p()) x -= ssd.ssps[s].get_p();
+                x = x + offsets[s];
+                if (x >= ssps[s].get_p()) x -= ssps[s].get_p();
                 res[k+i][s] = x;
             }
         }
         k = w;
     } else {
-        ASSERT_ALWAYS(ssd.ssdpos_many.size() >= (size_t) w);
+        ASSERT_ALWAYS(ssdpos_many.size() >= (size_t) w);
         for(int i = 0 ; i < w ; ++i)
-            std::swap(ssd.ssdpos_many[ssd.ssdpos_many.size()-w+i], res[i]);
+            std::swap(ssdpos_many[ssdpos_many.size()-w+i], res[i]);
     }
-    ASSERT(res.front().size() == ssd.ssps.size());
+    ASSERT(res.front().size() == ssps.size());
 
     if (logI >= logB) {
         ASSERT(nregions % w == 0);
         for(int k = w; k < nregions + w ; k += w) {
-            ASSERT(res[k].size() == ssd.ssps.size());
+            ASSERT(res[k].size() == ssps.size());
             /* Would it be possible to do all this with SIMD
              * instructions? It seems fairly likely, in fact.
              */
 
             /* infer from previous row of bucket regions.  */
-            for(size_t s = 0 ; s < ssd.ssps.size(); ++s) {
+            for(size_t s = 0 ; s < ssps.size(); ++s) {
                 fbprime_t x = res[k-w][s];
-                x = x + ssd.ssps[s].get_r();
-                if (x >= ssd.ssps[s].get_p()) x -= ssd.ssps[s].get_p();
+                x = x + ssps[s].get_r();
+                if (x >= ssps[s].get_p()) x -= ssps[s].get_p();
                 res[k][s] = x;
             }
 
-            /* Note that when logI == logB, we have w==1, so that ssd.offsets
+            /* Note that when logI == logB, we have w==1, so that offsets
              * is not needed at all.
              */
             for(int i = 1 ; i < w ; i++) {
                 /* complete this row */
-                for(size_t s = 0 ; s < ssd.ssps.size(); ++s) {
+                for(size_t s = 0 ; s < ssps.size(); ++s) {
                     fbprime_t x = res[k+i-1][s];
-                    x = x + ssd.offsets[s];
-                    if (x >= ssd.ssps[s].get_p()) x -= ssd.ssps[s].get_p();
+                    x = x + offsets[s];
+                    if (x >= ssps[s].get_p()) x -= ssps[s].get_p();
                     res[k+i][s] = x;
                 }
             }
@@ -628,23 +635,23 @@ void small_sieve_prepare_many_start_positions(
     } else {
         for(int k = w; k < nregions + w ; k+= w) {
             /* infer from previous bucket region  */
-            ASSERT(res[k].size() == ssd.ssps.size());
-            for(size_t s = 0 ; s < ssd.ssps.size(); ++s) {
+            ASSERT(res[k].size() == ssps.size());
+            for(size_t s = 0 ; s < ssps.size(); ++s) {
                 fbprime_t x = res[k-w][s];
-                /* ssd.offsets, not just ssd.ssps[s].get_r() */
-                x = x + ssd.offsets[s];
-                if (x >= ssd.ssps[s].get_p()) x -= ssd.ssps[s].get_p();
+                /* offsets, not just ssps[s].get_r() */
+                x = x + offsets[s];
+                if (x >= ssps[s].get_p()) x -= ssps[s].get_p();
                 res[k][s] = x;
             }
         }
     }
 #ifndef NDEBUG
     for(int k = 0; k < nregions + w ; k++) {
-        ASSERT(res[k].size() == ssd.ssps.size());
+        ASSERT(res[k].size() == ssps.size());
         int N = first_region_index + k;
         small_sieve_base C(logI, N, sl);
-        for(size_t s = 0 ; s < ssd.ssps.size(); ++s) {
-            ASSERT(res[k][s] == C.first_position_ordinary_prime(ssd.ssps[s]));
+        for(size_t s = 0 ; s < ssps.size(); ++s) {
+            ASSERT(res[k][s] == C.first_position_ordinary_prime(ssps[s]));
         }
     }
 #endif
@@ -652,7 +659,11 @@ void small_sieve_prepare_many_start_positions(
 
 /* }}} */
 
-void small_sieve::handle_projective_prime(ssp_t const & ssp, where_am_I & w MAYBE_UNUSED) {/*{{{*/
+void
+small_sieve::handle_projective_prime(
+        ssp_t const & ssp,
+        where_am_I & w MAYBE_UNUSED)
+{/*{{{*/
     /* This code also covers projective powers of 2 */
     const fbprime_t q = ssp.get_q();
     const fbprime_t g = ssp.get_g();
@@ -694,13 +705,6 @@ void small_sieve::handle_projective_prime(ssp_t const & ssp, where_am_I & w MAYB
 #endif
             S[1 - i0] += logp;
         }
-        // The event SSP_DISCARD might have occurred due to
-        // the first row to sieve being larger than J. The row
-        // number 0 must still be sieved in that case, but once
-        // it's done, we can indeed skip the next part of
-        // sieving.
-        if (ssp.is_discarded_proj())
-            return;
         ASSERT (ssp.get_U() == 0);
         ASSERT (pos % F() == 0);
         ASSERT (F() % (4 * sizeof (unsigned long)) == 0);
@@ -907,14 +911,17 @@ void small_sieve::do_pattern_sieve(where_am_I & w MAYBE_UNUSED)
 /* {{{ Normal small sieve */
 // Sieve small primes (up to p < bucket_thresh) of the factor base fb in the
 // next sieve region S.
-// Information about where we are is in ssd.
-void sieve_small_bucket_region(unsigned char *S, unsigned int N,
-                               small_sieve_data_t const & ssd,
-                               std::vector<spos_t> const & ssdpos,
-                               int logI, sublat_t const & sl,
-                               where_am_I & w)
+void
+las_small_sieve_data::sieve_small_bucket_region(
+        unsigned char *S,
+        unsigned int N,
+        int bucket_relative_index,
+        int logI,
+        sublat_t const & sl,
+        where_am_I & w) const
 {
-    small_sieve SS(ssdpos, ssd.ssps, ssd.ssp, S, logI, N, sl);
+    std::vector<spos_t> const & ssdpos = ssdpos_many[bucket_relative_index];
+    small_sieve SS(ssdpos, ssps, ssp, S, logI, N, sl);
     SS.do_pattern_sieve(w);
     SS.exceptional_sieve(w);
     SS.normal_sieve(w);
@@ -933,15 +940,18 @@ void sieve_small_bucket_region(unsigned char *S, unsigned int N,
    base fb in the next sieve region S, and add primes and the x position
    where they divide and where there's a sieve report to a bucket (rather
    than subtracting the log norm from S, as during sieving).
-   Information about where we are is in ssd. */
+ */
 void
-resieve_small_bucket_region (bucket_primes_t *BP,
-        unsigned char *S, unsigned int N,
-        small_sieve_data_t & ssd,
-        std::vector<spos_t> const & ssdpos,
-        int logI, sublat_t const & sl,
+las_small_sieve_data::resieve_small_bucket_region(
+        bucket_primes_t *BP,
+        unsigned char *S,
+        unsigned int N,
+        int bucket_relative_index,
+        int logI,
+        sublat_t const & sl,
         where_am_I & w MAYBE_UNUSED)
 {
+    std::vector<spos_t> const & ssdpos = ssdpos_many[bucket_relative_index];
     SMALLSIEVE_COMMON_DEFS();
     small_sieve_base const C(logI, N, sl);
 
@@ -955,11 +965,11 @@ resieve_small_bucket_region (bucket_primes_t *BP,
     // now. Same for i.
     ASSERT_ALWAYS(!sublatm || ((sublatm & 1) == 1));
 
-    for(size_t index = 0 ; index < ssd.resieve_end_offset ; index++) {
-        auto const & ssps(ssd.ssps[index]);
+    for(size_t index = 0 ; index < resieve_end_offset ; index++) {
+        auto const & ssps_cur(ssps[index]);
 
-        const fbprime_t p = ssps.get_p();
-        fbprime_t const r = ssps.get_r();
+        const fbprime_t p = ssps_cur.get_p();
+        fbprime_t const r = ssps_cur.get_r();
         WHERE_AM_I_UPDATE(w, p, p);
         int pos = ssdpos[index];
         S_ptr = S;
@@ -1008,7 +1018,7 @@ resieve_small_bucket_region (bucket_primes_t *BP,
                 }
                 prime.p = p;
                 prime.x = x;
-                ASSERT(prime.p >= ssd.fbK.td_thresh);
+                ASSERT(prime.p >= fbK.td_thresh);
                 BP->push_update(prime);
             }
             pos += r;
@@ -1019,46 +1029,43 @@ resieve_small_bucket_region (bucket_primes_t *BP,
         }
     }
 
-    for(auto const & ssp : ssd.ssp) {
+    for(auto const & sp : ssp) {
         /* "not nice" cases are either projective or power of two. we
          * obviously won't resieve powers of two, so we're bound to deal
          * with only projective primes here.
          */
-        ASSERT(ssp.is_pow2() || ssp.is_proj() || ssp.is_pattern_sieved());
+        ASSERT(sp.is_pow2() || sp.is_proj() || sp.is_pattern_sieved());
 
         /* FIXME: I should not have to do this test */
-        if (ssp.is_pow() || ssp.is_pow2())
+        if (sp.is_pow() || sp.is_pow2())
             continue;
 
         /* TODO: it doesn't seem very smart to resieve projective primes
          */
-        if (ssp.is_proj()) {
-            const fbprime_t g = ssp.get_g();
-            const fbprime_t q = ssp.get_q();
+        if (sp.is_proj()) {
+            const fbprime_t g = sp.get_g();
+            const fbprime_t q = sp.get_q();
             const fbprime_t p = g * q;
 
             /* the code below definitely does not deal with projective
              * primes that do not sieve full lines.  */
             if (q > 1) continue;
-            if (p < ssd.fbK.td_thresh) continue;
+            if (p < fbK.td_thresh) continue;
 
             WHERE_AM_I_UPDATE(w, p, p);
 
             const uint64_t gI = (uint64_t)g << logI;
 
             /* Test every p-th line, starting at S[ssdpos] */
-            long_spos_t pos = C.first_position_projective_prime(ssp);
+            long_spos_t pos = C.first_position_projective_prime(sp);
             // This block is for the case where p divides at (1,0).
             if (UNLIKELY(has_origin && pos == (long_spos_t) gI)) {
                 bucket_update_t<1, primehint_t> prime;
                 prime.p = p;
                 prime.x = 1 - i0;
-                ASSERT(prime.p >= ssd.fbK.td_thresh);
+                ASSERT(prime.p >= fbK.td_thresh);
                 BP->push_update(prime);
             }
-            // Same as in sieving: we discard after checking for row 0.
-            if (ssp.is_discarded_proj())
-                continue;
 
             /* make sure ssdpos points at start of line or region when
              * we're sieving whole lines. */

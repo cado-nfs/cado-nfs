@@ -88,7 +88,7 @@ T &reservation_array<T>::reserve(int wish)
     }
     if (least_full_index != SIZE_MAX) {
         if (verbose)
-            verbose_fmt_print(0, 3, "# Bucket {} is {:.0f}%% full\n",
+            verbose_fmt_print(0, 3, "# Bucket {} is {:.0f}% full\n",
                     least_full_index, least_full * 100.);
         i = least_full_index;
         return use_(i);

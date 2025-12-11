@@ -11,7 +11,6 @@
 #include "las-forwardtypes.hpp"         // spos_t
 #include "fb-types.hpp"
 #include "las-smallsieve-lowlevel.hpp"
-#include "las-smallsieve-types.hpp"
 
 #include "macros.h"
 

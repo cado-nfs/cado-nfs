@@ -1084,7 +1084,6 @@ sieve/las-siever-config.cpp
 sieve/las-siever-config.hpp
 sieve/las-smallsieve-glue.hpp
 sieve/las-smallsieve-lowlevel.hpp
-sieve/las-smallsieve-types.hpp
 sieve/las-smallsieve.cpp
 sieve/las-smallsieve.hpp
 sieve/las-special-q-task-collection.cpp
