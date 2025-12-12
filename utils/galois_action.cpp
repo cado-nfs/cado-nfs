@@ -994,9 +994,9 @@ size_t galois_action::compute_action_on_index(std::vector<index_t> &sigma,
     /* Map of all r corresponding to the current (p, side) to its index. */
     std::unordered_map<p_r_values_t, index_t> index_of_r;
 
-    sigma.resize(tab.get_size());
+    sigma.resize(tab.size());
 
-    for (index_t i = 0; i < tab.get_size(); ) {
+    for (index_t i = 0; i < tab.size(); ) {
         if (tab.is_additional_column(i)) {
             sigma[i] = i; /* extra columns are unchanged by galois action */
             i++;
@@ -1040,7 +1040,7 @@ size_t galois_action::compute_action_on_index(std::vector<index_t> &sigma,
             {
                 index_of_r.emplace(idc.r, i);
                 i++;
-                if (i == tab.get_size())
+                if (i == tab.size())
                     break;
                 idc = tab.p_r_from_index(i);
             } while (idc.same_p(id0));

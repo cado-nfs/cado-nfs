@@ -278,7 +278,7 @@ main(int argc, char const * argv[])
 
 
     /* produce an error when index_t is too small to represent all ideals */
-    if ((SIZEOF_INDEX < 8) && renumber_table.get_size() >> (8 * SIZEOF_INDEX)) {
+    if ((SIZEOF_INDEX < 8) && renumber_table.size() >> (8 * SIZEOF_INDEX)) {
         fmt::print(stderr, "Error, please increase SIZEOF_INDEX\n");
         fmt::print(stderr, "(see local.sh.example)\n");
         exit(1);

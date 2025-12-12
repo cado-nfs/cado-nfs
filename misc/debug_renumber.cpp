@@ -62,7 +62,7 @@ static void bench_traversal(renumber_t const & tab)
     tt = seconds() - tt;
     printf("# full table traversal (%" PRIu64 " entries):"
             " %.3g (time per 1000000 steps: %.3g)\n",
-            tab.get_size(), tt, tt * 1.0e6 / (double) tab.get_size());
+            tab.size(), tt, tt * 1.0e6 / (double) tab.size());
     printf("# ideals per side:");
     for (auto x: counts)
         printf(" %zu", x);
@@ -70,7 +70,7 @@ static void bench_traversal(renumber_t const & tab)
 }
 
 static void dump_debug_data(renumber_t const & tab) {
-    for (index_t i = 0; i < tab.get_size(); i++) {
+    for (index_t i = 0; i < tab.size(); i++) {
         std::string const s = tab.debug_data(i);
         printf("%s\n", s.c_str());
     }
@@ -79,7 +79,7 @@ static void dump_debug_data(renumber_t const & tab) {
 static int check_indices_mapping(renumber_t const & tab, int quiet)
 {
     uint64_t nerrors = 0;
-    for (index_t i = 0; i < tab.get_size(); i++) {
+    for (index_t i = 0; i < tab.size(); i++) {
         if (tab.is_additional_column(i) || tab.is_bad(i))
             continue;
         renumber_t::p_r_side x = tab.p_r_from_index(i);
@@ -122,7 +122,7 @@ static void bench_random_lookups(renumber_t const & tab)
 
     tt = seconds();
     for (int i = 0; i < nlookups; i++) {
-        index_t const h = gmp_urandomm_ui(rstate, tab.get_size());
+        index_t const h = gmp_urandomm_ui(rstate, tab.size());
         renumber_t::p_r_side const x = tab.p_r_from_index(h);
         if (!tab.is_additional_column(h))
             sample.push_back(x);

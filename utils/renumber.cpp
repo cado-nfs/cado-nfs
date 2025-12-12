@@ -92,7 +92,7 @@ inline bool __check_partitioned_lower<std::vector<std::array<p_r_values_t, 2>>::
  *      sieve/las-dlog-base.cpp  -- not yet, but maybe at some point.
  * 
  * p_r_from_index but as a forward iterator only
- *      filter/filter_galois.cpp
+ *      utils/galois_action.cpp
  *      filter/reconstructlog.cpp
  *      sieve/fake_rels.cpp
  *      filter/reconstructlog.cpp
@@ -122,7 +122,6 @@ inline bool __check_partitioned_lower<std::vector<std::array<p_r_values_t, 2>>::
  * structure that makes these lookups possible.
  */
 
-constexpr const int renumber_t::format_flat; /*{{{*/
 /* My personal preference would be to bite the bullet and allow for two
  * integers per ideal, always storing both p and r explicitly:
  *  - The _from_index lookups would be trivial (we could keep the encoding
@@ -137,22 +136,6 @@ constexpr const int renumber_t::format_flat; /*{{{*/
 renumber_t::corrupted_table::corrupted_table(std::string const & x)
     : std::runtime_error(std::string("Renumber table is corrupt: ") + x)
 {}
-
-#if 0
-static renumber_t::corrupted_table cannot_find_p(p_r_values_t p) {/*{{{*/
-    std::ostringstream os;
-    os << std::hex;
-    os << "cannot find data for prime 0x" << p;
-    os << " ; note: isprime(p)==" << ulong_isprime(p);
-#if SIZEOF_INDEX != 8
-    os << "\n"
-        << "Note: above 2^32 ideals or relations,"
-        << " add FLAGS_SIZE=\"-DSIZEOF_P_R_VALUES=8 -DSIZEOF_INDEX=8\""
-        << " to local.sh\n";
-#endif
-    return renumber_t::corrupted_table(os.str());
-}/*}}}*/
-#endif
 
 static renumber_t::corrupted_table wrong_entry(p_r_values_t p, p_r_values_t vr) {/*{{{*/
     auto msg = fmt::format("above p=0x{:x}, the index 0x{:x} makes no sense",
@@ -231,7 +214,9 @@ static inline T vp_from_p(T p, int n, int c, int format MAYBE_UNUSED)
     return (n - c) * (p + 1) + d;
 }
 
-/* only used for format == format_{traditional,variant} */
+/* in the "usual" case, we have vp==p+1, but that is no longer true when
+ * we have two algebraic sides, or when we have multiple sides.
+ */
 p_r_values_t renumber_t::compute_vp_from_p (p_r_values_t p) const/*{{{*/
 {
     int const n = get_nb_polys();
@@ -240,7 +225,6 @@ p_r_values_t renumber_t::compute_vp_from_p (p_r_values_t p) const/*{{{*/
 }/*}}}*/
 
 
-/* only used for format == format_{traditional,variant} */
 p_r_values_t renumber_t::compute_vr_from_p_r_side (renumber_t::p_r_side x) const/*{{{*/
 {
     if (x.side == get_rational_side()) {
@@ -256,12 +240,11 @@ p_r_values_t renumber_t::compute_vr_from_p_r_side (renumber_t::p_r_side x) const
     return vr;
 }/*}}}*/
 
-/* only used for format == format_{traditional,variant} */
 renumber_t::p_r_side renumber_t::compute_p_r_side_from_p_vr (p_r_values_t p, p_r_values_t vr) const/*{{{*/
 {
     /* Note that vr is only used for the encoding of non-rational ideals.
      */
-    p_r_side res { p, 0, 0 };
+    p_r_side res { .p=p, .r=0, .side=0 };
 
     res.r = vr;
     for(res.side = 0 ; res.side < get_nb_polys() ; res.side++) {
@@ -368,7 +351,7 @@ int renumber_t::is_bad (index_t & first, index_t i) const
  * if p is a non-prime, we return a lower bound for the first entry that
  * is >= p.
  */
-index_t renumber_t::get_first_index_from_p(p_r_values_t p) const
+auto renumber_t::get_first_iterator_from_p(p_r_values_t p) const -> const_iterator
 {
     // p_r_values_t side = x.side;
     if (p < index_from_p_cache.size()) {
@@ -378,16 +361,19 @@ index_t renumber_t::get_first_index_from_p(p_r_values_t p) const
          */
         for( ; ; p++) {
             if (p >= index_from_p_cache.size())
-                return get_first_index_from_p(p);
+                return get_first_iterator_from_p(p);
             i = index_from_p_cache[p];
             if (i != std::numeric_limits<index_t>::max())
                 break;
         }
-        if (UNLIKELY(i >= flat_data.size()))
+        if (UNLIKELY((above_bad + i) >= size()))
             throw prime_maps_to_garbage(format, p, i);
-        if (UNLIKELY(flat_data[i][0] != p))
-            throw prime_maps_to_garbage(format, p, i, flat_data[i][0]);
-        return i;
+        if (format == format_flat) {
+            if (UNLIKELY(flat_data[i][0] != p))
+                throw prime_maps_to_garbage(format, p, i, flat_data[i][0]);
+        }
+        index_t const outer_idx = i + above_bad;
+        return { *this, outer_idx };
     }
 
     /* Note that if lpbmax is > the width of the type, then
@@ -403,24 +389,26 @@ index_t renumber_t::get_first_index_from_p(p_r_values_t p) const
         throw prime_is_too_large(p);
 
     std::array<p_r_values_t, 2> const p0 {{ p, 0 }};
-    auto it = std::lower_bound(flat_data.begin(), flat_data.end(), p0);
-    if (it == flat_data.end())
-        throw prime_is_too_large(p);
-    if ((*it)[0] != p) {
-        /* we can reach here if p is not prime and we simply want a
-         * good lower bound on the entries that are >= p. For this,
-         * std::lower_bound really is the thing that we want.
-         *
-         * Here, (*it)[0] is a prime larger than p. But by the
-         * definition of lower_bound, (*--it)[0] is a prime that
-         * is less than p, and we definitely don't want to return
-         * that. So the good answer is really the thing that is
-         * pointed to by the iterator it.
-         */
-        //throw prime_maps_to_garbage(format, p, i, (*it)[0]);
+    {
+        auto it = std::lower_bound(flat_data.begin(), flat_data.end(), p0);
+        if (it == flat_data.end())
+            throw prime_is_too_large(p);
+        if ((*it)[0] != p) {
+            /* we can reach here if p is not prime and we simply want a
+             * good lower bound on the entries that are >= p. For this,
+             * std::lower_bound really is the thing that we want.
+             *
+             * Here, (*it)[0] is a prime larger than p. But by the
+             * definition of lower_bound, (*--it)[0] is a prime that
+             * is less than p, and we definitely don't want to return
+             * that. So the good answer is really the thing that is
+             * pointed to by the iterator it.
+             */
+            //throw prime_maps_to_garbage(format, p, i, (*it)[0]);
+        }
+        index_t const outer_idx = it - flat_data.begin() + above_bad;
+        return { *this, outer_idx };
     }
-    index_t const i = it - flat_data.begin();
-    return i;
 }
 
 index_t renumber_t::index_from_p_r (p_r_side x) const
@@ -446,15 +434,13 @@ index_t renumber_t::index_from_p_r (p_r_side x) const
         }
         throw cannot_find_pr(x);
     }
-    i = get_first_index_from_p(x.p);
     p_r_values_t const vr = compute_vr_from_p_r_side(x);
 
-        /* The "flat" format has really simple lookups */
-        for( ; flat_data[i][0] == x.p ; i++) {
-            if (flat_data[i][1] == vr)
-                return above_bad + i;
-        }
-        throw cannot_find_pr(x);
+    for(auto it = get_first_iterator_from_p(x.p) ; it.raw()[0] == x.p ; ++it) {
+        if (it.raw()[1] == vr)
+            return it.i;
+    }
+    throw cannot_find_pr(x);
 }
 
 /* This returns the smallest outer index i0 that stores a prime ideal above a
@@ -464,21 +450,11 @@ index_t renumber_t::index_from_p_r (p_r_side x) const
  */
 index_t renumber_t::index_from_p(p_r_values_t p0) const
 {
-    if (p0 >> get_max_lpb())
-        return get_max_index();
-    index_t i;
-    if (p0 < bad_ideals_max_p)
-        i = 0;
-    else
-        i = above_bad + get_first_index_from_p(p0);
-    for(const_iterator it(*this, i) ; it != end() && (*it).p < p0 ; ++it, ++i);
-    return i;
+    return iterator_from_p(p0).i;
 }
 index_t renumber_t::index_from_p(p_r_values_t p0, int side) const
 {
-    index_t i = index_from_p(p0);
-    for(const_iterator it(*this, i) ; it != end() && (*it).side != side ; ++it, ++i);
-    return i;
+    return iterator_from_p(p0, side).i;
 }
     
 renumber_t::const_iterator renumber_t::iterator_from_p(p_r_values_t p0) const
@@ -487,7 +463,7 @@ renumber_t::const_iterator renumber_t::iterator_from_p(p_r_values_t p0) const
         return end();
     const_iterator it = begin();
     if (p0 >= bad_ideals_max_p)
-        it.i = (above_bad + get_first_index_from_p(p0));
+        it = get_first_iterator_from_p(p0);
     for( ; it != end() && (*it).p < p0 ; ++it);
     return it;
 }
@@ -1159,7 +1135,7 @@ void renumber_t::more_info(std::ostream & os) const
 {
     const char * P = "# INFO: ";
     os << "# Extra information on renumber table:\n";
-    os << P << "size = " << get_size() << "\n";
+    os << P << "size = " << size() << "\n";
 }
 
 void renumber_t::builder_declare_usage(cxx_param_list & pl)
@@ -1419,38 +1395,43 @@ renumber_t::const_iterator renumber_t::end() const
 }
 
 renumber_t::p_r_side renumber_t::const_iterator::operator*() const {
-    if (i < table.above_add) {
+    if (i < table->above_add) {
         /* See comment in p_r from index about the special case with 2
          * non-monic sides: we return {0,0,0} in that case, since
          * above_add == 1 */
         index_t j = 0;
-        for(auto side : table.get_sides_of_additional_columns()) {
+        for(auto side : table->get_sides_of_additional_columns()) {
             if (j++ == i)
                 return { 0, 0, side };
         }
     }
-    if (i < table.above_bad) {
+    if (i < table->above_bad) {
         /* annoying. we don't exactly have the pointer to the bad
          * ideal, we have to recover it. */
         index_t ii0 = i;
-        for(auto const & I : table.bad_ideals) {
+        for(auto const & I : table->bad_ideals) {
             if (ii0 < (index_t) I.second.nbad)
                 return I.first;
             ii0 -= I.second.nbad;
         }
     }
-    if (i == table.get_max_index()) {
+    if (i == table->get_max_index()) {
         return p_r_side {
             std::numeric_limits<p_r_values_t>::max(),
             std::numeric_limits<p_r_values_t>::max(),
             0 };
     }
-    {
-        p_r_values_t const p = table.flat_data[i-table.above_bad][0];
-        p_r_values_t const vr = table.flat_data[i-table.above_bad][1];
-        return table.compute_p_r_side_from_p_vr(p, vr);
-    }
+    auto const & [ p, vr ] = raw();
+    return table->compute_p_r_side_from_p_vr(p, vr);
 }
+
+std::array<p_r_values_t, 2> renumber_t::const_iterator::raw() const
+{
+    ASSERT_ALWAYS(i >= table->above_bad);
+    ASSERT_ALWAYS(i < table->get_max_index());
+        return table->flat_data[i - table->above_bad];
+}
+
 renumber_t::const_iterator renumber_t::const_iterator::operator++(int)
 {
     const_iterator ret = *this;

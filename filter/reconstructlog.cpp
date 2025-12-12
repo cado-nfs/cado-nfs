@@ -897,7 +897,7 @@ static void read_log_format_reconstruct(logtab & log,
     FATAL_ERROR_CHECK(f == NULL, "Cannot open file for reading");
 
     mpz_init(tmp_log);
-    stats_init(stats, stdout, &nread, nbits(renumb.get_size()) - 5, "Read",
+    stats_init(stats, stdout, &nread, nbits(renumb.size()) - 5, "Read",
                "logarithms", "", "logs");
     for (index_t i = 0; i < renumb.number_of_additional_columns(); i++) {
         ret = gmp_fscanf(f, "%" SCNid " added column %Zd\n", &h, tmp_log);
@@ -985,7 +985,7 @@ static void write_log(char const * filename, logtab & log,
     }
 
     uint64_t nknown = 0;
-    stats_init(stats, stdout, &nknown, nbits(tab.get_size()) - 5, "Wrote",
+    stats_init(stats, stdout, &nknown, nbits(tab.size()) - 5, "Wrote",
                "known logarithms", "ideals", "logs");
     i = 0;
     for (; tab.is_additional_column(i); i++) {
@@ -1002,7 +1002,7 @@ static void write_log(char const * filename, logtab & log,
         gmp_fprintf(f, "%" PRid " bad ideals %Zd\n", (index_t)i,
                     (mpz_srcptr)log[i]);
     }
-    for (; i < tab.get_size(); i++) {
+    for (; i < tab.size(); i++) {
         if (!log.is_known(i))
             continue;
         nknown++;
@@ -1017,8 +1017,8 @@ static void write_log(char const * filename, logtab & log,
         if (stats_test_progress(stats))
             stats_print_progress(stats, nknown, i + 1, 0, 0);
     }
-    stats_print_progress(stats, nknown, tab.get_size(), 0, 1);
-    for (int nsm = 0, i = tab.get_size(); nsm < log.nbsm; nsm++) {
+    stats_print_progress(stats, nknown, tab.size(), 0, 1);
+    for (int nsm = 0, i = tab.size(); nsm < log.nbsm; nsm++) {
         // compute side
         int side, nsm_tot = sm_info[0].nsm, jnsm = nsm;
         for (side = 0; ((int)nsm) >= nsm_tot; side++) {
@@ -1036,12 +1036,12 @@ static void write_log(char const * filename, logtab & log,
                     jnsm, (mpz_srcptr)log[i + nsm]);
     }
 
-    uint64_t const missing = tab.get_size() - nknown;
+    uint64_t const missing = tab.size() - nknown;
     printf("# factor base contains %" PRIu64 " elements\n"
            "# logarithms of %" PRIu64 " elements are known (%.1f%%)\n"
            "# logarithms of %" PRIu64 " elements are missing (%.1f%%)\n",
-           tab.get_size(), nknown, 100.0 * nknown / (double)tab.get_size(),
-           missing, 100.0 * missing / (double)tab.get_size());
+           tab.size(), nknown, 100.0 * nknown / (double)tab.size(),
+           missing, 100.0 * missing / (double)tab.size());
     fclose_maybe_compressed(f, filename);
     ASSERT_ALWAYS(log.nknown == nknown);
 }
@@ -1473,7 +1473,7 @@ int main(int argc, char const * argv[])
     printf("\n###### Reading renumber file ######\n");
     renumber_t renumber_table(cpoly);
     renumber_table.read_from_file(renumberfilename, 1);
-    nprimes = renumber_table.get_size();
+    nprimes = renumber_table.size();
 
     /* Read number of rows and cols on first line of purged file */
     {

@@ -16,6 +16,9 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <type_traits>
+
+#include <sys/types.h>
 
 #include "badideals.hpp"
 #include "cado_poly.h"
@@ -70,15 +73,15 @@ struct renumber_t {
         }
     };/*}}}*/
 
-    /* As of 20220311, I'm killing the old and transitional formats. Only
-     * the "flat" format is being used now.
+    /* As of 20220311, I'm killing the old and transitional formats.
      *
      * 20220411 is the same as 20200515, but with some hex/bin mess
      * cleaned up
+     *
      */
     static constexpr const int format_flat = 20220411;
 
-private:/*{{{ internal data fields*/
+private: /*{{{ internal data fields*/
 
     int format = format_flat;
 
@@ -89,11 +92,9 @@ private:/*{{{ internal data fields*/
 
     cxx_cado_poly cpoly;
 
-    /* What actually goes in the data[] table is implementation
-     * dependent. Currently we have several (3) choices. See in
-     * renumber.cpp
-     */
+    /* Only for format_flat. */
     std::vector<std::array<p_r_values_t, 2>> flat_data;
+
     std::vector<unsigned int> lpb;
     std::vector<index_t> index_from_p_cache;
 
@@ -116,7 +117,7 @@ private:/*{{{ internal data fields*/
      * These are the outer indices only. The internal table size depends
      * on the renumber format that is is use (see renumber.cpp).
      *
-     * flat: flat_data.size() == above_all - above_bad
+     * format_flat: flat_data.size() == above_all - above_bad
      */
     index_t above_add = 0;
     index_t above_bad = 0;
@@ -130,7 +131,7 @@ public:
     unsigned int get_lpb(int i) const { return lpb[i]; }
     unsigned int get_max_lpb() const { return *std::max_element(lpb.begin(), lpb.end()); }
     unsigned int get_min_lpb() const { return *std::min_element(lpb.begin(), lpb.end()); }
-    uint64_t get_size() const { return above_all; }
+    size_t size() const { return above_all; }
     int get_nb_polys() const { return cpoly->nb_polys; }
     mpz_poly_srcptr get_poly(int side) const { return cpoly->pols[side]; }
     int get_poly_deg(int side) const { return get_poly(side)->deg; }
@@ -299,7 +300,7 @@ private:/*{{{ more implementation-level stuff. */
     /* this returns an index i such that data[i - above_bad] points to
      * the beginning of data for p.
      */
-    index_t get_first_index_from_p(p_r_values_t p) const;
+    const_iterator get_first_iterator_from_p(p_r_values_t p) const;
 
     p_r_values_t compute_vr_from_p_r_side (p_r_side x) const;
     p_r_side compute_p_r_side_from_p_vr (p_r_values_t p, p_r_values_t vr) const;
@@ -331,7 +332,7 @@ public:
     {
         friend struct renumber_t;
         private:
-            renumber_t const & table;
+            renumber_t const * table;
             /* these are outer indices when below above_bad, and then we have
              * above_bad + the inner index.  Subtract table.above_bad to get
              * inner table indices.
@@ -344,12 +345,14 @@ public:
             typedef p_r_side const &        const_reference;
             typedef std::input_iterator_tag iterator_category;
 
-            explicit const_iterator(renumber_t const & table, index_t i)
-                : table(table)
+            const_iterator(renumber_t const & table,
+                    index_t i)
+                : table(&table)
                 , i(i)
             {}
 
             p_r_side operator*() const;
+            std::array<p_r_values_t, 2> raw() const;
             bool operator==(const const_iterator& other) const { return i == other.i; }
             bool operator!=(const const_iterator& other) const { return !(*this == other); }
             const_iterator operator++(int);
