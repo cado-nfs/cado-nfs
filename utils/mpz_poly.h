@@ -538,6 +538,7 @@ struct cxx_mpz_poly {
     mpz_srcptr
     operator[](unsigned int i) const ATTRIBUTE_DEPRECATED { return this->coeff(i); }
     cxx_mpz_poly homography (std::array<int64_t, 4> const & H) const;
+    cxx_mpz_poly linear_transform (cxx_mpz const & u, cxx_mpz const & v) const;
     cxx_mpz_poly divexact(cxx_mpz const & a) const {
         cxx_mpz_poly Q;
         mpz_poly_divexact_mpz(Q, *this, a);

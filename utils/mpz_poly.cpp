@@ -3244,6 +3244,23 @@ cxx_mpz_poly cxx_mpz_poly::homography(std::array<int64_t, 4> const & H) const
     return Fij;
 }
 
+/* Linear transform on polynomials: return the polynomial f(u*x+v) */
+cxx_mpz_poly cxx_mpz_poly::linear_transform(cxx_mpz const & u,
+                                            cxx_mpz const & v) const
+{
+    cxx_mpz_poly L{v, u}; /* L = (ux + v) */
+    cxx_mpz_poly Fij;
+    int const d = degree();
+
+    Fij = coeff(d);
+
+    for (int k = d-1; k >= 0; --k) {
+        Fij *= L;
+        Fij += coeff(k);
+    }
+    return Fij;
+}
+
 /* v <- f(i,j), where f is homogeneous of degree d */
 void mpz_poly_homogeneous_eval_siui(mpz_ptr v, mpz_poly_srcptr f,
                                     int64_t const i, uint64_t const j)
