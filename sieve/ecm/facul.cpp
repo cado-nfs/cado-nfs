@@ -248,7 +248,7 @@ facul_all(std::vector<cxx_mpz> const & N, facul_strategies const & strategies)
     }
 
     for (size_t side = 0; side < nsides; side++) {
-        std::sort(res[side].primes.begin(), res[side].primes.end());
+        std::ranges::sort(res[side].primes);
     }
 
     return res;
@@ -295,7 +295,7 @@ facul_result facul(cxx_mpz const & N, facul_strategy_oneside const & strategy)
     res.status = facul_aux(res.primes, todo, strat_base, methods, 0, 0);
 
     /* Sort the factors we found */
-    std::sort(res.primes.begin(), res.primes.end());
+    std::ranges::sort(res.primes);
 
     return res;
 }

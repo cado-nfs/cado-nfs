@@ -279,7 +279,7 @@ namespace fmt
         };
 } // namespace fmt
 
-inline std::partial_ordering operator<=>(cxx_mpfr const & a, cxx_mpfr const & b)
+static inline std::partial_ordering operator<=>(cxx_mpfr const & a, cxx_mpfr const & b)
 {
     if (mpfr_nan_p((mpfr_srcptr) a))
         return std::partial_ordering::unordered;
@@ -287,7 +287,18 @@ inline std::partial_ordering operator<=>(cxx_mpfr const & a, cxx_mpfr const & b)
         return std::partial_ordering::unordered;
     return mpfr_auxx::cado_mpfr_cmp(a, b) <=> 0;
 }
-inline std::partial_ordering operator<=>(cxx_mpfr const & a, mpfr_srcptr b)
+static inline bool operator==(cxx_mpfr const & a, cxx_mpfr const & b)
+{
+    return (a <=> b) == 0;
+}
+#ifdef HAVE_LIBSTDCXX_BUG_114153
+static inline bool operator<(cxx_mpfr const & a, cxx_mpfr const & b)
+{
+    return (a <=> b) < 0;
+}
+#endif
+
+static inline std::partial_ordering operator<=>(cxx_mpfr const & a, mpfr_srcptr b)
 {
     if (mpfr_nan_p((mpfr_srcptr) a))
         return std::partial_ordering::unordered;
@@ -303,11 +314,7 @@ static inline std::partial_ordering operator<=>(cxx_mpfr const & a, const T b)
         return std::partial_ordering::unordered;
     return mpfr_auxx::cado_mpfr_cmp(a, b) <=> 0;
 }
-inline bool operator==(cxx_mpfr const & a, cxx_mpfr const & b)
-{
-    return (a <=> b) == 0;
-}
-inline bool operator==(cxx_mpfr const & a, mpfr_srcptr b)
+static inline bool operator==(cxx_mpfr const & a, mpfr_srcptr b)
 {
     return (a <=> b) == 0;
 }

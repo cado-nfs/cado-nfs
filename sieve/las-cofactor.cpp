@@ -228,7 +228,7 @@ facul_status factor_leftover_norms(
         facul_strategies const & strat)
 {
     ASSERT_ALWAYS(Bs.size() == strat.B.size());
-    ASSERT_ALWAYS(std::equal(Bs.begin(), Bs.end(), strat.B.begin()));
+    ASSERT_ALWAYS(std::ranges::equal(Bs, strat.B));
 
     /* call the facul library */
     auto fac = facul_all(n, strat);

@@ -47,7 +47,7 @@ void keep_rolling_checkpoints(std::string const & stem, unsigned int v)
     if (vs.size() <= (size_t) bw->keep_rolling_checkpoints) {
         return;
     }
-    std::sort(vs.begin(), vs.end());
+    std::ranges::sort(vs);
     vs.erase(vs.end() - bw->keep_rolling_checkpoints, vs.end());
     for(unsigned int const k : vs) {
         if (bw->checkpoint_precious && (k % bw->checkpoint_precious == 0))

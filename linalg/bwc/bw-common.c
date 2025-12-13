@@ -414,7 +414,7 @@ int get_rhs_file_header(const char * filename, uint32_t * p_nrows, unsigned int 
  * It would be nice to keep this in sync with max_krylov_iteration and
  * interval_default in bwc.pl
 */
-static unsigned int bw_set_length_and_interval_common(struct bw_params * bw, unsigned int dims[2], int is_krylov)
+static unsigned int bw_set_length_and_interval_common(struct bw_params * bw, const unsigned int dims[2], int is_krylov)
 {
     unsigned int krylov_length;
     /* The padded dimension is not the important one */

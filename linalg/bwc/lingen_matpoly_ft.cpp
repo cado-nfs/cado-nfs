@@ -16,8 +16,8 @@ struct OP_CTX<matpoly<is_binary_fft<fft_type>::value>, fft_type>
 {
     tree_stats & stats;
     static constexpr bool is_binary = is_binary_fft<fft_type>::value;
-    typedef matpoly<is_binary> T;
-    typedef fft_type FFT;
+    using T = matpoly<is_binary>;
+    using FFT = fft_type;
     template<typename... Args>
     OP_CTX(tree_stats & stats, Args&&... args) : OP_CTX_base<T>(args...), stats(stats) {}
     int a_irank() const { return 0; }

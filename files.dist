@@ -80,6 +80,7 @@ config/int128.c
 config/int128.cmake
 config/iwyu.pl.in
 config/jevents.cmake
+config/libstdc++-bug-114153.cpp
 config/linux.cmake
 config/m4ri.cmake
 config/math-special.cmake

@@ -9,13 +9,13 @@
 
 #include <gmp.h>
 
-#include "gmp_aux.h"    // mpn_rrandom
+#include "gmp_aux.h"
 
-#include "flint-fft/flint.h"                // for FLINT_BITS
-#include "flint-fft/transform_interface.h"  // for fft_add, fft_do_dft, fft_...
+#include "flint-fft/flint.h"
+#include "flint-fft/transform_interface.h"
 #include "portability.h"
-#include "gmp-hacks.h"  // MPZ_SET_MPN
-#include "macros.h"                         // for iceildiv, ABS
+#include "gmp-hacks.h"
+#include "macros.h"
 
 void get_ft_hash(mpz_t h, int bits_per_coeff, void * data, struct fft_transform_info * fti);
 

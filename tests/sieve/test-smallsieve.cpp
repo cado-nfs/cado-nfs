@@ -67,134 +67,134 @@ struct all_generic_candidates {
             list_car<assembly_generic_oldloop,
             type0> >>> >>> >>> > type;
 #else
-    typedef type0 type;
+    using type = type0;
 #endif
 };
 
 template<int bit> struct all_candidates_for_evenline {
-    typedef all_generic_candidates::type type;
+    using type = all_generic_candidates::type;
 };
 template<int bit> struct all_candidates_for_oddline {
-    typedef all_generic_candidates::type type;
+    using type = all_generic_candidates::type;
 };
 template<> struct all_candidates_for_evenline<0> {
-    typedef list_car<manual0, all_generic_candidates::type> type0;
+    using type0 = list_car<manual0, all_generic_candidates::type>;
 #ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
-    typedef list_car<assembly0, type0> type;
+    using type = list_car<assembly0, type0>;
 #else
-    typedef type0 type;
+    using type = type0;
 #endif
 };
 template<> struct all_candidates_for_evenline<1> {
-    typedef list_car<manual0, all_generic_candidates::type> type0;
+    using type0 = list_car<manual0, all_generic_candidates::type>;
 #ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
-    typedef list_car<assembly0, type0> type;
+    using type = list_car<assembly0, type0>;
 #else
-    typedef type0 type;
+    using type = type0;
 #endif
 };
 template<> struct all_candidates_for_evenline<2> {
-    typedef list_car<manual1, all_generic_candidates::type> type0;
+    using type0 = list_car<manual1, all_generic_candidates::type>;
 #ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
-    typedef list_car<assembly1, type0> type;
+    using type = list_car<assembly1, type0>;
 #else
-    typedef type0 type;
+    using type = type0;
 #endif
 };
 template<> struct all_candidates_for_evenline<3> {
-    typedef list_car<manual2, all_generic_candidates::type> type0;
+    using type0 = list_car<manual2, all_generic_candidates::type>;
 #ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
-    typedef list_car<assembly2, type0> type;
+    using type = list_car<assembly2, type0>;
 #else
-    typedef type0 type;
+    using type = type0;
 #endif
 };
 template<> struct all_candidates_for_evenline<4> {
-    typedef list_car<manual3, all_generic_candidates::type> type0;
+    using type0 = list_car<manual3, all_generic_candidates::type>;
 #ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
-    typedef list_car<assembly3, type0> type;
+    using type = list_car<assembly3, type0>;
 #else
-    typedef type0 type;
+    using type = type0;
 #endif
 };
 template<> struct all_candidates_for_evenline<5> {
-    typedef list_car<manual4, all_generic_candidates::type> type0;
+    using type0 = list_car<manual4, all_generic_candidates::type>;
 #ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
-    typedef list_car<assembly4, type0> type;
+    using type = list_car<assembly4, type0>;
 #else
-    typedef type0 type;
+    using type = type0;
 #endif
 };
 template<> struct all_candidates_for_evenline<6> {
-    typedef all_generic_candidates::type type0;
+    using type0 = all_generic_candidates::type;
 #ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
-    typedef list_car<assembly5, type0> type;
+    using type = list_car<assembly5, type0>;
 #else
-    typedef type0 type;
+    using type = type0;
 #endif
 };
 template<> struct all_candidates_for_evenline<7> {
-    typedef all_generic_candidates::type type0;
+    using type0 = all_generic_candidates::type;
 #ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
-    typedef list_car<assembly6, type0> type;
+    using type = list_car<assembly6, type0>;
 #else
-    typedef type0 type;
+    using type = type0;
 #endif
 };
 template<> struct all_candidates_for_oddline<0> {
-    typedef list_car<manual0, all_generic_candidates::type> type0;
+    using type0 = list_car<manual0, all_generic_candidates::type>;
 #ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
-    typedef list_car<assembly0, type0> type;
+    using type = list_car<assembly0, type0>;
 #else
-    typedef type0 type;
+    using type = type0;
 #endif
 };
 template<> struct all_candidates_for_oddline<1> {
-    typedef list_car<manual1, all_generic_candidates::type> type0;
+    using type0 = list_car<manual1, all_generic_candidates::type>;
 #ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
-    typedef list_car<assembly1, type0> type;
+    using type = list_car<assembly1, type0>;
 #else
-    typedef type0 type;
+    using type = type0;
 #endif
 };
 template<> struct all_candidates_for_oddline<2> {
-    typedef list_car<manual2, all_generic_candidates::type> type0;
+    using type0 = list_car<manual2, all_generic_candidates::type>;
 #ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
-    typedef list_car<assembly2, type0> type;
+    using type = list_car<assembly2, type0>;
 #else
-    typedef type0 type;
+    using type = type0;
 #endif
 };
 template<> struct all_candidates_for_oddline<3> {
-    typedef list_car<manual3, all_generic_candidates::type> type0;
+    using type0 = list_car<manual3, all_generic_candidates::type>;
 #ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
-    typedef list_car<assembly3, type0> type;
+    using type = list_car<assembly3, type0>;
 #else
-    typedef type0 type;
+    using type = type0;
 #endif
 };
 template<> struct all_candidates_for_oddline<4> {
-    typedef list_car<manual4, all_generic_candidates::type> type0;
+    using type0 = list_car<manual4, all_generic_candidates::type>;
 #ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
-    typedef list_car<assembly4, type0> type;
+    using type = list_car<assembly4, type0>;
 #else
-    typedef type0 type;
+    using type = type0;
 #endif
 };
 template<> struct all_candidates_for_oddline<5> {
-    typedef all_generic_candidates::type type0;
+    using type0 = all_generic_candidates::type;
 #ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
-    typedef list_car<assembly5, type0> type;
+    using type = list_car<assembly5, type0>;
 #else
-    typedef type0 type;
+    using type = type0;
 #endif
 };
 template<> struct all_candidates_for_oddline<6> {
-    typedef all_generic_candidates::type type0;
+    using type0 = all_generic_candidates::type;
 #ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
-    typedef list_car<assembly6, type0> type;
+    using type = list_car<assembly6, type0>;
 #else
-    typedef type0 type;
+    using type = type0;
 #endif
 };
 
@@ -629,15 +629,15 @@ struct cand_func {
     cand_func(bool sel, ss_func f, const char * name) : sel(sel), f(f), name(name) {}
 };
 
-typedef std::vector<cand_func> candidate_list;
+using candidate_list = std::vector<cand_func>;
 
 /* code factory: first we create a list of functions that have the
  * currently recorded best code for even lines, and then we iterate on
  * the various options for odd lines
  */
 template<int bit, bool fragment> struct factory_for_bit_round1 {
-    typedef typename best_evenline<bit>::type Be;
-    typedef typename best_oddline<bit>::type Bo;
+    using Be = typename best_evenline<bit>::type;
+    using Bo = typename best_oddline<bit>::type;
     template<typename T> struct iterator {
         void operator()(candidate_list &) {}
     };
@@ -654,8 +654,8 @@ template<int bit, bool fragment> struct factory_for_bit_round1 {
 };
 /* and now the other way around. */
 template<int bit, bool fragment> struct factory_for_bit_round2 {
-    typedef typename best_evenline<bit>::type Be;
-    typedef typename best_oddline<bit>::type Bo;
+    using Be = typename best_evenline<bit>::type;
+    using Bo = typename best_oddline<bit>::type;
     template<typename T> struct iterator {
         void operator()(candidate_list &) {}
     };
@@ -764,7 +764,7 @@ struct bench_base {
         }
         printf("\n");
 
-        size_t const best_index = std::min_element(timings.begin(), timings.end()) - timings.begin();
+        size_t const best_index = std::ranges::min_element(timings) - timings.begin();
         double const best_time = timings[best_index];
         if (sel_index >= 0) {
             bool const sel_best = (size_t) sel_index == best_index;

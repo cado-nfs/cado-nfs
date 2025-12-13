@@ -9,31 +9,31 @@
 #include "fmt/format.h"
 
 namespace runtime_numeric_cast_details {
-struct runtime_numeric_cast_failure : public std::runtime_error {
-    explicit runtime_numeric_cast_failure(std::string const & s)
+struct failure : public std::runtime_error {
+    explicit failure(std::string const & s)
         : std::runtime_error(s)
     {}
 };
-struct runtime_numeric_cast_underflow : public runtime_numeric_cast_failure {
-    explicit runtime_numeric_cast_underflow(std::string const & s)
-    : runtime_numeric_cast_failure(s) {}
+struct underflow : public failure {
+    explicit underflow(std::string const & s)
+    : failure(s) {}
 };
-struct runtime_numeric_cast_overflow : public runtime_numeric_cast_failure {
-    explicit runtime_numeric_cast_overflow(std::string const & s)
-    : runtime_numeric_cast_failure(s) {}
+struct overflow : public failure {
+    explicit overflow(std::string const & s)
+    : failure(s) {}
 };
 
 template<typename TO_TYPE>
-struct runtime_numeric_cast_impl {
-    struct cast_underflow : public runtime_numeric_cast_underflow {
+struct impl {
+    struct cast_underflow : public underflow {
         template<typename FROM_TYPE>
         explicit cast_underflow(FROM_TYPE x)
-        : runtime_numeric_cast_underflow(fmt::format("underflow while casting {} of type {} to type {}", x, typeid(FROM_TYPE).name(), typeid(TO_TYPE).name())) {}
+        : underflow(fmt::format("underflow while casting {} of type {} to type {}", x, typeid(FROM_TYPE).name(), typeid(TO_TYPE).name())) {}
     };
-    struct cast_overflow : public runtime_numeric_cast_overflow {
+    struct cast_overflow : public overflow {
         template<typename FROM_TYPE>
         explicit cast_overflow(FROM_TYPE x)
-        : runtime_numeric_cast_overflow(fmt::format("overflow while casting {} of type {} to type {}", x, typeid(FROM_TYPE).name(), typeid(TO_TYPE).name())) {}
+        : overflow(fmt::format("overflow while casting {} of type {} to type {}", x, typeid(FROM_TYPE).name(), typeid(TO_TYPE).name())) {}
     };
     static_assert(std::is_integral_v<TO_TYPE>
             /* we can probably get along with floating point destination
@@ -135,13 +135,12 @@ struct runtime_numeric_cast {
     // NOLINTBEGIN(hicpp-explicit-conversions)
     TO_TYPE x;
     template<typename FROM_TYPE>
-        runtime_numeric_cast(FROM_TYPE x)
-            : x(runtime_numeric_cast_details::runtime_numeric_cast_impl<TO_TYPE>()(x))
+        explicit runtime_numeric_cast(FROM_TYPE x)
+            : x(runtime_numeric_cast_details::impl<TO_TYPE>()(x))
         {}
     operator TO_TYPE() { return x; }
     // NOLINTEND(hicpp-explicit-conversions)
 };
-
 
 
 #endif	/* CADO_RUNTIME_NUMERIC_CAST_HPP */

@@ -124,7 +124,7 @@ void matmul_top_mul(matmul_top_data & mmt, mmt_vec * v, struct timing_data * tt)
      *
      * Appropriate communication operations are run after each step.
      *
-     * If tt is not NULL, it should be a timing_data structure holding
+     * If tt is not nullptr, it should be a timing_data structure holding
      * exactly 4*n timers (or only 4, conceivably). Timers are switched
      * exactly that many times.
      *
@@ -180,7 +180,7 @@ void matmul_top_mul(matmul_top_data & mmt, mmt_vec * v, struct timing_data * tt)
  */
 void matmul_top_fill_random_source_generic(matmul_top_data & mmt, size_t stride, mmt_vec_ptr v, int d)
 {
-    if (v == NULL) v = mmt.wr[d]->v;
+    if (v == nullptr) v = mmt.wr[d]->v;
 
     // In conjugation mode, it is possible to fill exactly the data chunk
     // that will eventually be relevant. However, it's easy enough to
@@ -722,7 +722,7 @@ void indices_twist(matmul_top_data & mmt, std::vector<uint32_t> & xs, int d)
  */
 void matmul_top_fill_random_source(matmul_top_data & mmt, int d)
 {
-    matmul_top_fill_random_source_generic(mmt, mmt.vr->stride, NULL, d);
+    matmul_top_fill_random_source_generic(mmt, mmt.vr->stride, nullptr, d);
 }
 #endif
 
@@ -798,7 +798,7 @@ void matmul_top_mul_comm(mmt_vec & v, mmt_vec & w)
  * same interface nevertheless, for consistency with mmt_vec_truncate */
 void mmt_vec_truncate_above_index(matmul_top_data & mmt MAYBE_UNUSED, mmt_vec & v, unsigned int idx)
 {
-    if (idx <= v.i0) idx = v.i0;
+    idx = std::max(idx, v.i0);
     if (v.i0 <= idx && idx < v.i1) {
         if (v.siblings) {
             v.abase->vec_set_zero(
@@ -817,7 +817,7 @@ void mmt_vec_truncate_above_index(matmul_top_data & mmt MAYBE_UNUSED, mmt_vec & 
 
 void mmt_vec_truncate_below_index(matmul_top_data & mmt MAYBE_UNUSED, mmt_vec & v, unsigned int idx)
 {
-    if (idx >= v.i1) idx = v.i1;
+    idx = std::min(idx, v.i1);
     if (v.i0 <= idx && idx < v.i1) {
         if (v.siblings) {
             v.abase->vec_set_zero(v.v, idx - v.i0);
@@ -886,7 +886,7 @@ static void matrix_create_derived_cache_subdir(std::string const & matrixname, p
  */
 static std::string matrix_get_derived_balancing_filename(std::string const & matrixname, parallelizing_info_ptr pi)
 {
-    /* input is NULL in the case of random matrices */
+    /* input is nullptr in the case of random matrices */
     if (matrixname.empty()) return {};
     std::string const dn = matrix_get_derived_cache_subdir(matrixname, pi);
     return fmt::format("{}/{}.bin", dn, dn);
@@ -1079,7 +1079,7 @@ static void matmul_top_init_prepare_local_permutations(matmul_top_data & mmt, in
     /* Do this so that has_perm makes sense globally */
     Mloc.has_perm_map[0] = Mloc.has_perm_local(0);
     Mloc.has_perm_map[1] = Mloc.has_perm_local(1);
-    pi_allreduce(NULL, Mloc.has_perm_map, 2, BWC_PI_INT, BWC_PI_MAX, mmt.pi->m);
+    pi_allreduce(nullptr, Mloc.has_perm_map, 2, BWC_PI_INT, BWC_PI_MAX, mmt.pi->m);
     if (mmt.pi->m->trank == 0) {
         MPI_Allreduce(MPI_IN_PLACE, Mloc.has_perm_map, 2, MPI_INT, MPI_MAX, mmt.pi->m->pals);
     }
@@ -1100,7 +1100,7 @@ matmul_top_data::matmul_top_data(
 
     int const nbals = param_list_get_list_count(pl, "balancing");
     int multimat = 0;
-    int nmatrices = param_list_lookup_string(pl, "matrix") != NULL;
+    int nmatrices = param_list_lookup_string(pl, "matrix") != nullptr;
     param_list_parse_int(pl, "multi_matrix", &multimat);
     if (multimat)
         nmatrices = param_list_get_list_count(pl, "matrix");
@@ -1149,10 +1149,10 @@ matmul_top_data::matmul_top_data(
             Mloc.mname = std::string(static_random_matrix);
         }
         if (Mloc.bname.empty()) {
-            /* returns NULL is mname is NULL */
+            /* returns nullptr is mname is nullptr */
             Mloc.bname = matrix_get_derived_balancing_filename(Mloc.mname, mmt.pi);
         }
-        /* At this point mname and bname are either NULL or freshly
+        /* At this point mname and bname are either nullptr or freshly
          * allocated */
         ASSERT_ALWAYS((!Mloc.bname.empty()) == !random_description);
 
@@ -1252,14 +1252,14 @@ static int export_cache_list_if_requested(matmul_top_matrix & Mloc, parallelizin
 
         for(unsigned int j = 0 ; j < pi->m->ncores ; j++) {
             size_t const s = strlen(tlines[j]);
-            if (s >= len) len = s;
+            len = std::max(len, s);
         }
         MPI_Allreduce(MPI_IN_PLACE, &len, 1, MPI_INT, MPI_MAX, pi->m->pals);
         std::unique_ptr<char[]> const info(new char[pi->m->totalsize * (len + 1)]);
         std::unique_ptr<char[]> const mybuf(new char[pi->m->ncores * (len + 1)]);
         std::fill_n(mybuf.get(), pi->m->ncores * (len+1), 0);
         for(unsigned int j = 0 ; j < pi->m->ncores ; j++) {
-            std::copy(tlines[j],
+            std::ranges::copy(tlines[j],
                     tlines[j] + strlen(tlines[j]) + 1,
                     mybuf.get() + j * (len + 1));
         }
@@ -1539,8 +1539,7 @@ void matmul_top_report(matmul_top_data & mmt, double scale, int full)
         std::unique_ptr<char[]> const all_reports(
                 new char[mmt.pi->m->totalsize * max_report_size]);
         std::fill_n(all_reports.get(), mmt.pi->m->totalsize * max_report_size, 0);
-        std::copy(Mloc.mm->report_string.begin(),
-                Mloc.mm->report_string.end(),
+        std::ranges::copy(Mloc.mm->report_string,
                 all_reports.get() + max_report_size * (mmt.pi->m->jrank * mmt.pi->m->ncores + mmt.pi->m->trank));
         pi_allgather(nullptr, 0, 0,
                 all_reports.get(), max_report_size, BWC_PI_BYTE, mmt.pi->m);

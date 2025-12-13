@@ -549,7 +549,7 @@ read_ab_pairs_from_depfile(std::string const & depname, M const & m, std::string
  */
 struct cxx_mpz_functions {
     cxx_mpz_poly const & P;
-    typedef cxx_mpz T;
+    using T = cxx_mpz;
     static void set1(T & x) { mpz_set_ui(x, 1); }
     static void set(T & y, T const & x) { mpz_set(y, x); }
     static bool is1(T & x) { return mpz_cmp_ui(x, 1) == 0; }
@@ -722,7 +722,7 @@ calculateSqrtRat (std::string const & prefix, unsigned int numdep, cxx_cado_poly
  * root. Here, the object must carry a reference to the field polynomial
  */
 struct cxx_mpz_polymodF_functions {
-    typedef cxx_mpz_polymodF T;
+    using T = cxx_mpz_polymodF;
     cxx_mpz_poly const & F;
     const mpz_poly_parallel_info * pinf;
     explicit cxx_mpz_polymodF_functions(cxx_mpz_poly & F, const mpz_poly_parallel_info * pinf = nullptr)

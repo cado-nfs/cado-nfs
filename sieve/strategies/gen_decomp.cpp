@@ -156,7 +156,7 @@ static double psi_series(std::vector<double> const & by_interval,
         double,
         double scale)
 {
-    typedef runtime_numeric_cast<unsigned int> R;
+    using R = runtime_numeric_cast<unsigned int>;
     /* the scale below is the main driving factor of the computation cost.  */
 
     polynomial<double> S("1");
@@ -199,7 +199,7 @@ static double psi_series(std::vector<double> const & by_interval,
 }
 
 struct psi_backend_base {
-    typedef runtime_numeric_cast<unsigned int> R;
+    using R = runtime_numeric_cast<unsigned int>;
     unsigned int mfb;
     unsigned long lim;
     double loglim;
@@ -215,7 +215,7 @@ struct psi_backend_base {
 struct psi_backend_probabilistic {
     psi_backend_base const & psi0;
     static constexpr const size_t ntrials = 100000;
-    typedef runtime_numeric_cast<unsigned int> R;
+    using R = runtime_numeric_cast<unsigned int>;
     std::vector<double> B;
     explicit psi_backend_probabilistic(psi_backend_base const & psi0)
         : psi0(psi0)
@@ -234,7 +234,7 @@ struct psi_backend_probabilistic {
 struct psi_backend_series {
     psi_backend_base const & psi0;
     static constexpr const double gamma = 1.005;
-    typedef runtime_numeric_cast<unsigned int> R;
+    using R = runtime_numeric_cast<unsigned int>;
     double scale;
     unsigned int max_gamma;
     std::vector<double> B;

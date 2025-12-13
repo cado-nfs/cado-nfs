@@ -37,7 +37,7 @@ int cachefile_open_w(cachefile_ptr c)
     /* first create the destination file atomically. If it already
      * exists, we do nothing.
      */
-    int fd = open(fname, O_WRONLY | O_CREAT | O_EXCL, 0666);
+    const int fd = open(fname, O_WRONLY | O_CREAT | O_EXCL, 0666);
     if (fd < 0) {
         if (errno != EEXIST)
             fprintf(stderr, "open(%s): %s\n", tname, strerror(errno));
@@ -49,11 +49,11 @@ int cachefile_open_w(cachefile_ptr c)
 
     c->f = fopen(tname, "w");
     c->writing = 0;
-    if (c->f == NULL) {
+    if (c->f == nullptr) {
         fprintf(stderr, "%s: %s\n", tname, strerror(errno));
     }
     c->writing = 1;
-    return c->f != NULL;
+    return c->f != nullptr;
 }
 
 int cachefile_open_r(cachefile_ptr c)
@@ -62,7 +62,7 @@ int cachefile_open_r(cachefile_ptr c)
     snprintf(tname, sizeof(tname), CACHEDIR "/" CACHEPREFIX "%s", c->basename);
     c->f = fopen(tname, "r");
     c->writing = 0;
-    return c->f != NULL;
+    return c->f != nullptr;
 }
 
 int cachefile_exists(const char * fmt, ...)

@@ -21,6 +21,7 @@
 #include "mpz_poly.h"
 #include "numbertheory_internals.hpp"
 #include "numbertheory_fwd_types.hpp"
+#include "runtime_numeric_cast.hpp"
 
 
 /*{{{ commonly used wrappers around HNF functions */
@@ -201,7 +202,8 @@ static cxx_mpz_mat frobenius_matrix(cxx_mpz_mat const& M, cxx_mpz const& p)
     cxx_mpz_mat Mp = M;
     mpz_mat_mod_mpz(Mp, Mp, p);
 
-    cxx_mpz_mat E(n, n, 1), F(E);
+    const cxx_mpz_mat E(n, n, 1);
+    cxx_mpz_mat F(E);
 
     int k = mpz_sizeinbase(p, 2) - 1;
     for( ; k-- ; ) {
@@ -389,9 +391,9 @@ template <typename T> static void append_move(std::vector<T> &a, std::vector<T> 
 /*}}}*/
 
 struct ideal_comparator {
-    typedef std::pair<cxx_mpz_mat,int> Im_t;
+    using Im_t = std::pair<cxx_mpz_mat,int>;
     bool operator()(Im_t const& a, Im_t const& b) const {
-        int r = mpz_mat_cmp(a.first, b.first);
+        int const r = mpz_mat_cmp(a.first, b.first);
         if (r) return r < 0;
         return a.second < b.second;     /* should never happen */
     }
@@ -434,12 +436,11 @@ static std::vector<std::pair<cxx_mpz_mat, int> > factorization_of_prime_inner(
 
     std::vector<cxx_mpz_mat> characteristic_subspaces;
 
-    for(unsigned int i = 0 ; i < facP.size() ; i++) {
-        cxx_mpz_poly const& f(facP[i].first);
+    for(auto const & [ f, e ] : facP) {
         /* We need the basis of the kernel of f(Mc) */
         cxx_mpz_mat E;
         mpz_poly_eval_mpz_mat_mod_mpz(E, f, Mc, p);
-        mpz_mat_pow_ui_mod_mpz(E, E, facP[i].second, p);
+        mpz_mat_pow_ui_mod_mpz(E, E, e, p);
         mpz_mat_kernel_mod_mpz(E, E, p);
         /* This line is just to be exactly in line with what magma says
          */
@@ -449,8 +450,7 @@ static std::vector<std::pair<cxx_mpz_mat, int> > factorization_of_prime_inner(
     }
 
     for(unsigned int i = 0 ; i < facP.size() ; i++) {
-        unsigned int const e = facP[i].second;
-        cxx_mpz_poly const& f(facP[i].first);
+        auto const & [ f, e ] = facP[i];
         cxx_mpz_mat const& Ci(characteristic_subspaces[i]);
         /* We need to find an ideal which is smaller than Ip, and whose
          * generators are p*the generators of Ci, as well as the
@@ -467,7 +467,7 @@ static std::vector<std::pair<cxx_mpz_mat, int> > factorization_of_prime_inner(
             r += mk;
         }
         cxx_mpz_mat Ihead(n, n);
-        if (Ci->m == e * f->deg) {
+        if (Ci->m == runtime_numeric_cast<unsigned int>(e * f->deg)) {
             mpz_mat_vertical_join(Ix, Ix, Ip);
             mpz_mat_hermite_form_rev(Ix);
             mpz_mat_submat_swap(Ihead,0,0,Ix,0,0,n,n);
@@ -480,7 +480,7 @@ static std::vector<std::pair<cxx_mpz_mat, int> > factorization_of_prime_inner(
             append_move(ideals, more_ideals);
         }
     }
-    std::sort(ideals.begin(), ideals.end(), ideal_comparator());
+    std::ranges::sort(ideals, ideal_comparator());
     return ideals;
 }
 

@@ -1,6 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cstdint>               // for uint64_t
+#include <cstdint>
+#include <cstdio>
 #include <cstring>
 
 #include "test_bblas_base.hpp"

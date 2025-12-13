@@ -1,23 +1,25 @@
 #include "cado.h" // IWYU pragma: keep
 
 #include <cinttypes>
-#include <cstdint> // for uint64_t
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 
-#include <string> // for string
-#include <vector> // for vector
+#include <string>
+#include <vector>
 
-#include <gmp.h> // for gmp_randclear, gmp_randinit_default, gmp_ran...
+#include "fmt/base.h"
+#include <gmp.h>
 
-#include "cado_poly.h"  // cado_poly
+#include "cado_poly.h"
 #include "macros.h"
-#include "misc.h"       // size_disp
-#include "params.h"     // param_list
-#include "renumber.hpp" // renumber_t
-#include "timing.h"     // seconds wct_seconds
-#include "typedefs.h"   // index_t
-#include "verbose.h"    // verbose_decl_usage
+#include "misc.h"
+#include "params.h"
+#include "renumber.hpp"
+#include "timing.h"
+#include "typedefs.h"
+#include "verbose.h"
+#include "utils_cxx.hpp"
 
 static void declare_usage(cxx_param_list & pl)
 {
@@ -60,13 +62,10 @@ static void bench_traversal(renumber_t const & tab)
         counts[x.side]++;
     }
     tt = seconds() - tt;
-    printf("# full table traversal (%" PRIu64 " entries):"
-            " %.3g (time per 1000000 steps: %.3g)\n",
-            tab.size(), tt, tt * 1.0e6 / (double) tab.size());
-    printf("# ideals per side:");
-    for (auto x: counts)
-        printf(" %zu", x);
-    printf("\n");
+    fmt::print("# full table traversal ({} entries):"
+            " {:.3g} (time per 1000000 steps: {:.3g})\n",
+            tab.size(), tt, 1.0e6 * double_ratio(tt, tab.size()));
+    fmt::print("# ideals per side: {}\n", join(counts, " "));
 }
 
 static void dump_debug_data(renumber_t const & tab) {

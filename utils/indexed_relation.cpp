@@ -50,7 +50,7 @@ indexed_relation_tmpl<Storage>::indexed_relation_tmpl(relation const & rel, renu
 template<typename Storage>
 void indexed_relation_tmpl<Storage>::sort() {
     for(auto & s : Storage::containers())
-        std::sort(s.begin(), s.end());
+        std::ranges::sort(s);
 }
 
 template<typename Storage>
@@ -101,9 +101,9 @@ std::ostream& operator<<(std::ostream& os, indexed_relation_tmpl<Storage> const 
     std::vector<index_t> S;
     char c = ':';
     for(auto const & s : rel.sides) {
-        std::copy(s.begin(), s.end(), std::back_inserter(S));
+        std::ranges::copy(s, std::back_inserter(S));
     }
-    std::sort(S.begin(), S.end());
+    std::ranges::sort(S);
 
         for(auto i : S) {
             os << c << fmt::format("{:x}", i);

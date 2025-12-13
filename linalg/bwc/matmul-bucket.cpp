@@ -439,7 +439,7 @@ struct matmul_bucket_methods {
 
 template<typename Arith>
 struct matmul_bucket : public matmul_interface {
-    typedef typename Arith::elt elt;
+    using elt = typename Arith::elt;
     /* now our private fields */
     Arith * xab;
     size_t npack = 0;
@@ -553,13 +553,13 @@ struct small_slice {
     uint32_t dj_max = 0;
     int is_small2 = 0;
 
-    typedef std::vector<std::pair<uint16_t, uint16_t> > Lv_t;
-    typedef Lv_t::const_iterator Lvci_t;
-    typedef Lv_t::iterator Lvi_t;
+    using Lv_t = std::vector<std::pair<uint16_t, uint16_t> >;
+    using Lvci_t = Lv_t::const_iterator;
+    using Lvi_t = Lv_t::iterator;
 
-    typedef std::deque<Lv_t> Lu_t;
-    typedef Lu_t::const_iterator Luci_t;
-    typedef Lu_t::iterator Lui_t;
+    using Lu_t = std::deque<Lv_t>;
+    using Luci_t = Lu_t::const_iterator;
+    using Lui_t = Lu_t::iterator;
 
     Lu_t Lu;
 };
@@ -735,7 +735,7 @@ int builder<Arith>::do_small_slice(small_slice * S, uint32_t i0, uint32_t i1)
     uint32_t lu_offset = 0;
     uint32_t j = 0;
     for(auto & lu : S->Lu) {
-        std::sort(lu.begin(), lu.end());
+        std::ranges::sort(lu);
         for(auto const & lv : lu) {
             uint32_t const dj = (lu_offset + lv.first) - j;
             j = lu_offset + lv.first;

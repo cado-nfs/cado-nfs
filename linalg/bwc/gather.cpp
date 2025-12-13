@@ -556,7 +556,7 @@ class parasite_fixer {/*{{{*/
     arith_generic * A;
     parallelizing_info_ptr pi;
 
-    // typedef std::map<std::pair<unsigned int, unsigned int>, cxx_mpz> pre_matrix_t;
+    // using pre_matrix_t = std::map<std::pair<unsigned int, unsigned int>, cxx_mpz>;
 
     arith_generic::elt * matrix = nullptr;
     public:
@@ -648,9 +648,9 @@ class parasite_fixer {/*{{{*/
             rows.insert(rows.end(), kk.begin(), kk.end());
             serialize(pi->m);
         }
-        std::sort(rows.begin(), rows.end());
-        auto it = std::unique(rows.begin(), rows.end());
-        rows.resize(it - rows.begin());
+        std::ranges::sort(rows);
+        auto [ last, end ] = std::ranges::unique(rows);
+        rows.erase(last, end);
 
         return rows;
     }/*}}}*/

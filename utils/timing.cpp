@@ -249,7 +249,7 @@ void thread_seconds_user_sys(double * res)
 #endif
 
 #ifdef HAVE_GETRUSAGE
-typedef std::multimap<std::string, struct rusage> real_timingstats_dict_t;
+using real_timingstats_dict_t = std::multimap<std::string, struct rusage>;
 
 void timingstats_dict_init(timingstats_dict_ptr p)
 {
@@ -293,7 +293,7 @@ void timingstats_dict_disp(timingstats_dict_ptr p)
 {
     real_timingstats_dict_t const& s(*static_cast<real_timingstats_dict_t*>(*p));
     /* multimap is sorted */
-    typedef real_timingstats_dict_t::const_iterator it_t;
+    using it_t = real_timingstats_dict_t::const_iterator;
     for(it_t i = s.begin(), j ; i != s.end() ; i = j) {
         double tu = 0;
         double ts = 0;

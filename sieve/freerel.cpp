@@ -88,7 +88,7 @@ freerel_data_t::freerel_data_t(cxx_param_list & pl, cxx_cado_poly const & cpoly,
      */
     if (!pmax && cpoly->nb_polys > 1) {
         std::vector<unsigned int> lpb_copy = lpb;
-        std::sort(lpb_copy.begin(), lpb_copy.end());
+        std::ranges::sort(lpb_copy);
         pmax = 1UL << lpb_copy[cpoly->nb_polys-2];
     }
 }

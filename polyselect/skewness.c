@@ -20,10 +20,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 */
 
 #include "cado.h" // IWYU pragma: keep
+
 #include <stdio.h>
+#include <stdlib.h>
+
 #include "auxiliary.h"
 #include "polyselect_norms.h"
 #include "cado_poly.h"
+#include "macros.h"
 
 static void
 compute_skewness (const char *input_file, const char *output_file)

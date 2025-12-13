@@ -162,7 +162,7 @@ public:
     // int cmp(const Integer_base & a) const { return *this <=> a; }
     // int cmp(const uint64_t a) const { return *this <=> a; }
 
-    bool operator==(Integer_base const & a) const { return std::equal(begin(), end(), a.begin()); }
+    bool operator==(Integer_base const & a) const { return std::ranges::equal(*this, a); }
     bool operator==(uint64_t const a) const { return (*this)[0] == a && std::none_of(begin() + 1, end(), convert_bool()); }
 
     T& operator|=(const T &a) { auto c = a.begin(); for(auto & v: *this) v |= *c++; return downcast(); }

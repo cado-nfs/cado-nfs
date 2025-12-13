@@ -5,7 +5,7 @@ struct foo {
 	uint64_t z[18];
 };
 
-typedef std::multimap<int, foo> stupidmap;
+using stupidmap = std::multimap<int, foo>;
 
 void do_bug(stupidmap & s, int a, foo const & r)
 {

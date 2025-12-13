@@ -42,8 +42,8 @@ template<typename fft_type> struct OP_CTX<bigmatpoly<is_binary_fft<fft_type>::va
     MPI_Datatype mpi_ft;
     tree_stats & stats;
     static constexpr bool is_binary = is_binary_fft<fft_type>::value;
-    typedef bigmatpoly<is_binary> T;
-    typedef fft_type FFT;
+    using T = bigmatpoly<is_binary>;
+    using FFT = fft_type;
     template<typename... Args>
     OP_CTX(tree_stats & stats, fft_type const & fti, Args&&... args) : OP_CTX_base<T>(args...), stats(stats) {
         MPI_Type_contiguous(fti.get_alloc_sizes()[0], MPI_BYTE, &mpi_ft);

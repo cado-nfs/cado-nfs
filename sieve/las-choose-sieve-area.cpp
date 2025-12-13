@@ -15,6 +15,7 @@
 #include "las-norms.hpp"
 #include "las-qlattice.hpp"
 #include "las-siever-config.hpp"
+#include "las-special-q-task.hpp"
 #include "macros.h"
 #include "mpz_poly.h"
 #include "tdict.hpp"
@@ -49,7 +50,7 @@ static bool choose_sieve_area(las_info const & las,
      * strategies for that.
      */
     try {
-        Adj.reset(new sieve_range_adjust(doing, las.cpoly, conf));
+        Adj = std::make_unique<sieve_range_adjust>(doing, las.cpoly, conf);
     } catch (qlattice_basis::too_skewed const & x) {
         verbose_fmt_print(0, 1,
                 "# Discarding {} (q-lattice basis does not fit)\n",

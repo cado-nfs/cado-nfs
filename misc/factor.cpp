@@ -1,16 +1,36 @@
 #include "cado.h" // IWYU pragma: keep
 
+#include <cmath>
+#include <cstdlib>
+#include <cstdio>
+
+#include <vector>
+#include <utility>
+#include <algorithm>
+#include <list>
+#include <stdexcept>
+#include <ostream>
+
 #include <ctime>
 
-#include "factor.hpp"
+#include <gmp.h>
+#include "fmt/base.h"
 
+#include "factor.hpp"
 #include "getprime.h"
 #include "params.h"     // param_list
 #include "verbose.h"
-#include "fmt/ranges.h"
+#include "cxx_mpz.hpp"
+#include "ecm.h"
+#include "macros.h"
 
-fully_factor::fully_factor(cxx_mpz const & n)
-  : N(n)
+/* fmt/ranges.h is needed to print std::set<std::pair<cxx_mpz, int> > aka
+ * fully_factor::primes, within fully_factor::print_progress
+ */
+#include "fmt/ranges.h" // IWYU pragma: keep
+
+fully_factor::fully_factor(cxx_mpz n)
+  : N(std::move(n))
 {
     mpz_abs(cofactor, N); /* easier to work with positive number */
     if (cofactor > 1U) {
@@ -34,7 +54,7 @@ fully_factor::fully_factor(cxx_mpz const & n)
 }
 
 /* Copy from https://members.loria.fr/PZimmermann/records/ecm/params.html */
-std::vector<std::pair<unsigned int, unsigned int>> fully_factor::ECM_DATA = {
+const std::vector<std::pair<unsigned int, unsigned int>> fully_factor::ECM_DATA = {
         { 1358, 2 },  /* 30 bits */
         { 1270, 5 }, { 1629, 10 }, { 4537, 10 }, { 12322, 9 }, { 12820, 18 },
         { 21905, 21 }, { 24433, 41 }, { 32918, 66 }, { 64703, 71 },
@@ -57,8 +77,8 @@ fully_factor::get_B1_ncurves(unsigned int & B1, unsigned int & ncurves,
     /* If n has m bits, we look for primes of m/2 bits */
     unsigned int pbits = (mpz_sizeinbase(n, 2) + 1U)/2U;
     pbits = std::max(pbits, min_pbits);
-    unsigned int index = std::min((pbits-min_pbits+4U)/5U,
-                                  (unsigned int) ECM_DATA.size()-1U);
+    const unsigned int index = std::min((pbits-min_pbits+4U)/5U,
+            (unsigned int) ECM_DATA.size()-1U);
     B1 = ECM_DATA[index].first;
     ncurves = ECM_DATA[index].second;
 }
@@ -85,8 +105,7 @@ void
 fully_factor::write_as_power(cxx_mpz & r, int & e, cxx_mpz const & n)
 {
     /* write n as r^e */
-    int ispower = mpz_perfect_power_p(n);
-    if (ispower) {
+    if (mpz_perfect_power_p(n)) {
         /* Unfortunately, GMP does not tell us which power it is... Worst
          * case is n is a power of 2.
          */
@@ -251,7 +270,7 @@ fully_factor::ecmlib_wrapper(std::list<cxx_mpz>::iterator it, unsigned int B1,
     params->verbose = std::max(0, ecmlib_verbose);
 
     if (randgen != nullptr) {
-        unsigned long r = gmp_urandomb_ui(randgen, 32U);
+        const unsigned long r = gmp_urandomb_ui(randgen, 32U);
         mpz_set_ui(method == ECM_ECM ? params->sigma : params->x, r);
     }
 
@@ -259,7 +278,7 @@ fully_factor::ecmlib_wrapper(std::list<cxx_mpz>::iterator it, unsigned int B1,
                                        : (method == ECM_PM1 ? "PM1" : "PP1");
     verbose_fmt_print(0, 2, "{}: B1={}; target={}\n", s, B1, *it);
 
-    int res = ecm_factor(f, *it, B1, params);
+    const int res = ecm_factor(f, *it, B1, params);
 
     if (res < 0) { /* error => abort */
         throw std::runtime_error("GMP-ECM failed\n");
@@ -301,8 +320,7 @@ fully_factor::do_ECM_based_on_composites_size(unsigned int niter,
                 bak = *it;
                 unsigned int B1, ncurves;
                 get_B1_ncurves(B1, ncurves, *it);
-                int ret = 0;
-                for (unsigned int c = 0; c < ncurves && !ret; ++c) {
+                for (unsigned int c = 0; c < ncurves ; ++c) {
                     it = ecmlib_wrapper(it, B1, ECM_ECM, randgen);
                     if (it == composites.end() || *it != bak) {
                         /* we make some progress on the composite */
@@ -394,7 +412,7 @@ struct command_line
     unsigned int effort = 2U;
     std::vector<cxx_mpz> hints;
     int verbosity_level = 1; /* each -v on command line increases it by 1 */
-    unsigned int seed;
+    unsigned int seed = 0;
 
     static void declare_usage(cxx_param_list & pl) {
         param_list_usage_header(pl, "Try as much as possible to fully factor "
@@ -428,7 +446,7 @@ struct command_line
         param_list_parse(pl, "effort", effort);
         param_list_parse(pl, "hints", hints);
         if (!param_list_parse(pl, "seed", seed)) {
-            seed = time(NULL);
+            seed = time(nullptr);
         }
     }
 

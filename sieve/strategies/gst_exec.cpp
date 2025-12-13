@@ -450,9 +450,9 @@ int main(int argc, char const * argv[])
                 for (int r0 = 0; r0 <= mfb0; r0++) {
                     for (int r1 = 0; r1 <= mfb1; r1++)
                         tabular_strategy_free(matrix[r0][r1]);
-                    free(matrix[r0]);
+                    delete[] matrix[r0];
                 }
-                free(matrix);
+                delete[] matrix;
             }
             // free
             tabular_fm_free(data_pp1_65);

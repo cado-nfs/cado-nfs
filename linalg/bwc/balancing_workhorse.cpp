@@ -1,7 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
 // IWYU pragma: no_include <ext/alloc_traits.h>
 // IWYU pragma: no_include <memory>
-#include <cstddef>              // for ptrdiff_t
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -10,21 +10,21 @@
 #include <vector>
 #include <mutex>
 #include <algorithm>
-#include <string>                // for string
-#include <utility>               // for move
+#include <string>
+#include <utility>
 #include <sys/stat.h>
 #include <unistd.h>
 
 #include "balancing.hpp"
 #include "balancing_workhorse.hpp"
-#include "fmt/base.h"            // for check_format_string
-#include "macros.h"              // for ASSERT_ALWAYS, ASSERT
-#include "misc.h"                // for size_disp, derived_filename
+#include "fmt/base.h"
+#include "macros.h"
+#include "misc.h"
 #include "parallelizing_info.hpp"
-#include "params.h"     // param_list
+#include "params.h"
 #include "select_mpi.h"
-#include "timing.h" // wct_seconds
-#include "verbose.h" // verbose_enabled
+#include "timing.h"
+#include "verbose.h"
 #include "utils_cxx.hpp"
 
 #define xxxRELY_ON_MPI_THREAD_MULTIPLE
@@ -404,7 +404,7 @@ void dispatcher::reader_thread_data::progress(bool wait)/*{{{*/
     ASSERT_ALWAYS(!err);
     ASSERT_ALWAYS(n_out != MPI_UNDEFINED);
     indices.erase(indices.begin()+n_out, indices.end());
-    std::sort(indices.begin(), indices.end());
+    std::ranges::sort(indices);
     for(int i = 0, j = 0 ; i < n_in ; i++) {
         if (j >= (int) indices.size() || i < indices[j]) {
             /* request has not completed */
@@ -706,7 +706,7 @@ void dispatcher::reader_thread_data::read()/*{{{*/
             displs[ridx] = int(d);
             d += sizes[ridx];
         }
-        std::copy(check_vector.begin(), check_vector.end(),
+        std::ranges::copy(check_vector,
                 full.begin() + displs[D.reader_map.index[pi->m->jrank]]);
         MPI_Allgatherv(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
                 full.data(), sizes.data(), displs.data(),
@@ -966,19 +966,20 @@ void dispatcher::endpoint_thread_data::endpoint_handle_incoming(std::vector<uint
 
         if (!D.transpose_while_dispatching && D.pass_number == 2) {
             if (!D.withcoeffs) {
-                std::sort(next, next + rs);
+                std::ranges::sort(next, next + rs);
             } else {
                 /* ugly */
                 struct cv {
                     uint32_t c;
                     int32_t v;
-                    bool operator<(cv const & a) const { return c < a.c; }
+                    auto operator<=>(cv const & a) const { return c <=> a.c; }
+                    bool operator==(cv const & a) const { return c == a.c; }
                 };
-                // NOLINTBEGIN(cppcoreguidelines-pro-type-cstyle-cast)
-                cv * Q0 = (cv *) &next[0];
-                cv * Q1 = (cv *) (&next[0] + 2*rs);
-                // NOLINTEND(cppcoreguidelines-pro-type-cstyle-cast)
-                std::sort(Q0, Q1);
+                // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
+                auto * Q0 = reinterpret_cast<cv *>(&next[0]);
+                auto * Q1 = reinterpret_cast<cv *>(&next[0] + 2*rs);
+                // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
+                std::ranges::sort(Q0, Q1);
             }
         }
 

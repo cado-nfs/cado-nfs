@@ -10,6 +10,7 @@
 
 #include "macros.h"
 #include "merge_compute_weights.h"
+#include "merge_replay_matrix.h"
 #include "sparse.h"
 #include "misc.h"
 #include "omp_proxy.h"

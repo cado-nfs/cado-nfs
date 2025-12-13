@@ -50,17 +50,12 @@ class number_field_prime_ideal : private number_field_fractional_ideal {
     friend class number_field_order;
     friend class number_field_fractional_ideal;
 
-    int cmp(number_field_prime_ideal const & I) const {
-        int r;
-        r = mpz_cmp(p, I.p);
-        if (r) return r;
-        r = e - I.e;
-        if (r) return r;
-        r = number_field_fractional_ideal::cmp(I);
-        return r;
+    std::strong_ordering operator<=>(number_field_prime_ideal const & I) const {
+        if (auto r = p <=> I.p; r != 0) return r;
+        if (auto r = e <=> I.e; r != 0) return r;
+        return number_field_fractional_ideal::operator<=>(I);
     }
-    bool operator<(number_field_prime_ideal const & I) const { return cmp(I) < 0; }
-    bool operator==(number_field_prime_ideal const & I) const { return cmp(I) == 0; }
+    bool operator==(number_field_prime_ideal const & I) const { return operator<=>(I) == 0; }
 };
 
 namespace fmt {

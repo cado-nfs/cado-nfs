@@ -13,19 +13,22 @@
 #include <map>
 #include <algorithm>
 #include <utility>
+#include <vector>
 
 #include <unistd.h>
 #include <gmp.h>
 #include "fmt/base.h"
 
 
-#include "cado_poly.h" // cado_poly
+#include "cado_poly.h"
 #include "ecm.h"
-#include "lll.h" // mat_Z LLL
+#include "lll.h"
 #include "macros.h"
-#include "mpz_poly.h" // mpz_poly
+#include "mpz_poly.h"
 #include "smooth_detect.hpp"
 #include "mpz_mat.h"
+#include "cxx_mpz.hpp"
+#include "params.h"
 
 static double default_B1done;
 
@@ -111,7 +114,7 @@ is_probably_sqrfree(cxx_mpz const & z)
               23, 29, 31, 37, 41, 43, 47 })
     {
         unsigned long const p2 = p * p;
-        if (mpz_gcd_ui(NULL, z, p2) == p2)
+        if (mpz_gcd_ui(nullptr, z, p2) == p2)
             return 0;
     }
     return 1;
@@ -237,7 +240,7 @@ get_Fpn_candidate_from_e(unsigned long e,
     {
         cxx_mpz det, a, b;
         a = b = 1;
-        LLL(det, M, NULL, a, b);
+        LLL(det, M, nullptr, a, b);
     }
 
     //**** Recover rational reconstruction
@@ -307,7 +310,7 @@ full_factor(std::vector<cxx_mpz> & fac_z, cxx_mpz const & z0)
             23, 29, 31, 37, 41, 43, 47 })
     {
         while (mpz_divisible_ui_p(z, p)) {
-            fac_z.push_back(cxx_mpz(p));
+            fac_z.emplace_back(p);
             mpz_divexact_ui(z, z, p);
         }
     }
@@ -336,8 +339,7 @@ full_factor(std::vector<cxx_mpz> & fac_z, cxx_mpz const & z0)
         }
         if (!mpz_probab_prime_p(f, 10)) {
             B1 -= 3 * sqrt(B1);
-            if (B1 <= 20.0)
-                B1 = 20.0;
+            B1 = std::max(B1, 20.0);
             continue;
         }
         do {
@@ -346,7 +348,7 @@ full_factor(std::vector<cxx_mpz> & fac_z, cxx_mpz const & z0)
         } while (mpz_divisible_p(z, f));
     }
     fac_z.push_back(z);
-    std::sort(fac_z.begin(), fac_z.end());
+    std::ranges::sort(fac_z);
 }
 
 // Check if there are multiple factors.

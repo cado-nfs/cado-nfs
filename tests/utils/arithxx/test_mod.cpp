@@ -79,10 +79,10 @@ template <> cxx_mpz randomInteger<cxx_mpz>()
 template <class layer> class Tests
 {
   public:
-    typedef typename layer::Modulus Modulus;
-    typedef typename layer::Integer Integer;
-    typedef typename layer::Residue Residue;
-    typedef typename layer::Modulus::ResidueOp ResidueOp;
+    using Modulus = typename layer::Modulus;
+    using Integer = typename layer::Integer;
+    using Residue = typename layer::Residue;
+    using ResidueOp = typename layer::Modulus::ResidueOp;
 
     Modulus randomModulus(bool odd = false) const;
 

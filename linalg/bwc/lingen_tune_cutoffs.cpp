@@ -75,7 +75,7 @@ struct cutoff_list_s {
                    */
 };
 
-typedef cutoff_list_s * cutoff_list;
+using cutoff_list = cutoff_list_s *;
 
 /* cutoff list *ALWAYS* finish with UINT_MAX, UINT_MAX */
 static int cutoff_list_get(cutoff_list cl, size_t k)
@@ -413,9 +413,9 @@ static void lingen_tune_mul_fti_depth [[maybe_unused]] (typename matpoly<is_bina
     gmp_randseed_ui(rstate, 1);
 
 #ifdef  HAVE_GCC_STYLE_AMD64_INLINE_ASM
-    typedef timer_rdtsc timer_t;
+    using timer_t = timer_rdtsc;
 #else
-    typedef timer_rusage timer_t;
+    using timer_t = timer_rusage;
 #endif
 
     int const nadjs=7;
@@ -497,7 +497,7 @@ static void lingen_tune_mul_fti_depth [[maybe_unused]] (typename matpoly<is_bina
             size_t fft_alloc_sizes[3];
             fft_transform_info_get_alloc_sizes(fti, fft_alloc_sizes);
 
-            typedef std::unique_ptr<void, free_delete<void>> temp_t;
+            using temp_t = std::unique_ptr<void, free_delete<void>>;
             const std::unique_ptr<void, free_delete<void>> test_diagnostic(malloc(fft_alloc_sizes[2]));
             const temp_t tt(malloc(fft_alloc_sizes[2]));
             const temp_t qt(malloc(fft_alloc_sizes[1]));
@@ -505,7 +505,7 @@ static void lingen_tune_mul_fti_depth [[maybe_unused]] (typename matpoly<is_bina
             const temp_t tB(malloc(fft_alloc_sizes[0]));
             const temp_t tC(malloc(fft_alloc_sizes[0]));
 
-            typedef small_bench<timer_t> bt;
+            using bt = small_bench<timer_t>;
             for(bt x = finder.micro_bench(index); !x.done(); ++x) {
 
                 double t_dftA=0;
@@ -594,9 +594,9 @@ static void lingen_tune_mp_fti_depth [[maybe_unused]] (typename matpoly<is_binar
     gmp_randseed_ui(rstate, 1);
 
 #ifdef  HAVE_GCC_STYLE_AMD64_INLINE_ASM
-    typedef timer_rdtsc timer_t;
+    using timer_t = timer_rdtsc;
 #else
-    typedef timer_rusage timer_t;
+    using timer_t = timer_rusage;
 #endif
 
     int const nadjs=7;
@@ -678,7 +678,7 @@ static void lingen_tune_mp_fti_depth [[maybe_unused]] (typename matpoly<is_binar
 
             size_t fft_alloc_sizes[3];
             fft_transform_info_get_alloc_sizes(fti, fft_alloc_sizes);
-            typedef std::unique_ptr<void, free_delete<void>> temp_t;
+            using temp_t = std::unique_ptr<void, free_delete<void>>;
             // NOLINTBEGIN(cppcoreguidelines-no-malloc,hicpp-no-malloc)
             const temp_t tt(malloc(fft_alloc_sizes[2]));
             const temp_t qt(malloc(fft_alloc_sizes[1]));
@@ -687,7 +687,7 @@ static void lingen_tune_mp_fti_depth [[maybe_unused]] (typename matpoly<is_binar
             const temp_t tC(malloc(fft_alloc_sizes[0]));
             // NOLINTEND(cppcoreguidelines-no-malloc,hicpp-no-malloc)
 
-            typedef small_bench<timer_t> bt;
+            using bt = small_bench<timer_t>;
             for(bt x = finder.micro_bench(index); !x.done(); ++x) {
 
                 double t_dftA=0;
@@ -769,13 +769,13 @@ static void lingen_tune_mp_fti_depth [[maybe_unused]] (typename matpoly<is_binar
 template<bool is_binary>
 static void lingen_tune_mul(typename matpoly<is_binary>::arith_hard * ab, unsigned int m, unsigned int n, cutoff_list cl MAYBE_UNUSED)/*{{{*/
 {
-    typedef fft_transform_info fft_type;
+    using fft_type = fft_transform_info;
     cxx_gmp_randstate rstate;
 
     gmp_randseed_ui(rstate, 1);
 #define TUNE_MUL_FINDER_NMETHODS 4
 
-    typedef timer_rusage timer_t;
+    using timer_t = timer_rusage;
     cutoff_finder<timer_rusage> finder(TUNE_MUL_FINDER_NMETHODS);
     finder.set_method_name(0, "polymat-basecase");
     finder.set_method_name(1, "polymat-karatsuba");
@@ -973,13 +973,13 @@ static void lingen_tune_mul(typename matpoly<is_binary>::arith_hard * ab, unsign
 template<bool is_binary>
 static void lingen_tune_mp(typename matpoly<is_binary>::arith_hard * ab, unsigned int m, unsigned int n, cutoff_list cl MAYBE_UNUSED)/*{{{*/
 {
-    typedef fft_transform_info fft_type;
+    using fft_type = fft_transform_info;
     cxx_gmp_randstate rstate;
 
     gmp_randseed_ui(rstate, 1);
 #define TUNE_MP_FINDER_NMETHODS 4
 
-    typedef timer_rusage timer_t;
+    using timer_t = timer_rusage;
     cutoff_finder<timer_rusage> finder(TUNE_MP_FINDER_NMETHODS);
     finder.set_method_name(0, "polymat-basecase");
     finder.set_method_name(1, "polymat-karatsuba");

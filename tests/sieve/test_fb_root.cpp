@@ -98,7 +98,7 @@ ref_fb_root_in_qlattice (fbprime_t p, fb_root_p1 R, qlattice_basis const & basis
   }
 }
 
-typedef std::vector<qlattice_basis>::const_iterator basis_citer_t;
+using basis_citer_t = std::vector<qlattice_basis>::const_iterator;
 
 /* Make a random prime in the interval [2^(FBPRIME_BITS-1), 2^FBPRIME_BITS].
  * t is a temp variable that will get clobbered. */

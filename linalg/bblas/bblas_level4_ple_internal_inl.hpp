@@ -5,7 +5,11 @@
 // IWYU pragma: friend ".*/bblas.*"
 
 #include "cado_config.h"
+
 #include <cstdint>
+
+#include <algorithm>
+
 #include "bblas_level4_ple_internal.hpp"
 #include "bblas_simd.hpp"
 #include "bblas_mat64.hpp"
@@ -63,7 +67,7 @@ PLE<T>::PLE(bpack_view<T> b, std::vector<unsigned int> d) : bpack_view<T>(b), we
     /* First sort all rows by weight */
     for(unsigned int ii = 0 ; ii < d.size() ; ii++)
         prio_to_data.push_back(ii);
-    std::sort(prio_to_data.begin(), prio_to_data.end(), prio_cmp(weights, true));
+    std::ranges::sort(prio_to_data, prio_cmp(weights, true));
     std::vector<unsigned int> sort_again;
     for(unsigned int ii = 0 ; ii < d.size() ; ii++) {
         if (weights[prio_to_data[ii]] == weights[ii]) {
@@ -73,14 +77,14 @@ PLE<T>::PLE(bpack_view<T> b, std::vector<unsigned int> d) : bpack_view<T>(b), we
             prio_to_data[ii] = UINT_MAX;
         }
     }
-    std::sort(sort_again.begin(), sort_again.end(), prio_cmp(weights, true));
+    std::ranges::sort(sort_again, prio_cmp(weights, true));
     auto it = sort_again.begin();
     for(unsigned int ii = 0 ; ii < d.size() ; ii++) {
         if (prio_to_data[ii] == UINT_MAX)
             prio_to_data[ii] = *it++;
         data_to_prio[prio_to_data[ii]] = ii;
     }
-    ASSERT_ALWAYS(std::is_sorted(prio_to_data.begin(), prio_to_data.end(), prio_cmp(weights, false)));
+    ASSERT_ALWAYS(std::ranges::is_sorted(prio_to_data, prio_cmp(weights, false)));
 }
 
 template<typename T>

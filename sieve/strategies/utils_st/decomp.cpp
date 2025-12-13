@@ -1,8 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cstdio>
-#include <cstdlib>
-
 #include <ostream>
 #include <istream>
 #include <algorithm>
@@ -28,20 +25,20 @@ std::istream & operator>>(std::istream & is, decomp & D)
 
 bool decomp::operator<(decomp const & o) const
 {
-    if (!std::is_sorted(begin(), end())) {
+    if (!std::ranges::is_sorted(*this)) {
         decomp a = *this;
-        std::sort(a.begin(), a.end());
+        std::ranges::sort(a);
         return a < o;
     }
-    if (!std::is_sorted(o.begin(), o.end())) {
+    if (!std::ranges::is_sorted(o)) {
         decomp b = o;
-        std::sort(b.begin(), b.end());
+        std::ranges::sort(b);
         return *this < b;
     }
-    bool c = std::lexicographical_compare(begin(), end(), o.begin(), o.end());
+    bool c = std::ranges::lexicographical_compare(*this, o);
     if (size() != o.size())
         return c;
-    if (!std::equal(begin(), end(), o.begin()))
+    if (!std::ranges::equal(*this, o))
         return c;
     return nb_elem < o.nb_elem - 0.1;
 }

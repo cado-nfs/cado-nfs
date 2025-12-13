@@ -307,30 +307,10 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
         }
         return std::strong_ordering::equal;
     }
-    bool operator==(self const & o) const { return (*this <=> o) == 0; }
-
-#if 0
-    /* TODO: I guess we no longer need these now that we have the
-     * spaceship, right? */
-    bool operator<(self const & o) const { return cmp(o) < 0; }
-    bool operator>(self const & o) const { return cmp(o) > 0; }
-    bool operator<=(self const & o) const { return cmp(o) <= 0; }
-    bool operator>=(self const & o) const { return cmp(o) >= 0; }
-    bool operator==(self const & o) const { return cmp(o) == 0; }
-    bool operator!=(self const & o) const { return cmp(o) != 0; }
-    int operator<=>(self const & o) const { return cmp(o); }
+    bool operator==(self const & o) const { return operator<=>(o) == 0; }
+#ifdef HAVE_LIBSTDCXX_BUG_114153
+    bool operator<(self const & o) { return operator<=>(o) < 0; }
 #endif
-
-    /* We don't have any operator overloads, on purpose. No reason to
-     * have this one specifically
-    self operator-() const {
-        self f(size());
-        for(size_t i = 0 ; i < size() ; i++) {
-            mpz_poly_neg(f[i], (*this)[i]);
-        }
-        return f;
-    }
-     */
 
     /* simple arithmetic operations */
     static void neg(self &, self const &);
@@ -355,7 +335,7 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
     static void mod_fy(self &, self const &, self const &);
     static void mod_fy(self & a, self const & b, mpz_poly_srcptr fy)
     {
-        self FY {lifted_y(fy)};
+        const self FY {lifted_y(fy)};
         mod_fy(a, b, FY);
     }
 

@@ -136,7 +136,7 @@ purge(std::vector<descent_init_candidate>& P,
       unsigned int max_size,
       unsigned int lmax)
 {
-    ASSERT(std::is_sorted(P.begin(), P.end()));
+    ASSERT(std::ranges::is_sorted(P));
     auto w = P.begin();
 
     for (auto r = P.begin(); r != P.end(); ++r) {
@@ -375,7 +375,7 @@ smooth_detect_one_step(descent_init_candidate& winner, context& ctx)
     // are best. we'll run a full sort on the remaining candidates
     // eventually, so it seems okay-ish to do it twice.
 
-    std::sort(ctx.pool.begin(), ctx.pool.end());
+    std::ranges::sort(ctx.pool);
     size_t i = 0;
     for (auto& c : ctx.pool) {
         double effort = ctx.current_effort;
@@ -426,7 +426,7 @@ smooth_detect_one_step(descent_init_candidate& winner, context& ctx)
             return 1;
         }
     }
-    std::sort(ctx.pool.begin(), ctx.pool.end());
+    std::ranges::sort(ctx.pool);
     purge(ctx.pool, ctx.max_pool_size, ctx.target);
 
     ctx.increase_effort();

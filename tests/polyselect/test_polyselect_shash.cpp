@@ -44,8 +44,8 @@ struct template_log2<1> {
 
 /*{{{ passed as a parameter to the template below */
 struct polyselect_shash_config {
-    typedef int64_t input_type;
-    typedef uint32_t tie_breaker_type;
+    using input_type = int64_t;
+    using tie_breaker_type = uint32_t;
     static constexpr const unsigned int log2_open_hash_extra_size = 2;
     static constexpr const unsigned int open_hash_tail_overrun_protection = 16;
     static tie_breaker_type tie_breaker(input_type x) {
@@ -58,10 +58,10 @@ template<typename config, int Nbuckets>
 class bucket_hash {
     static_assert((Nbuckets & (Nbuckets-1)) == 0, "Nbuckets must be a power of two");
     static_assert(Nbuckets > 0, "Nbuckets must be positive");
-    typedef typename config::input_type T;
-    typedef typename config::tie_breaker_type Ht;
+    using T = typename config::input_type;
+    using Ht = typename config::tie_breaker_type;
     static constexpr const unsigned int log2_nbuckets = template_log2<Nbuckets>::value;
-    typedef typename std::make_unsigned<T>::type U;
+    using U = typename std::make_unsigned<T>::type;
     T * data;
     T * base[Nbuckets + 1];
     T * current[Nbuckets + 1];
@@ -237,7 +237,7 @@ int main()
             for(size_t i = 0 ; i < pushed_entries ; i++) {
                     H.push_back(i64_random(rstate) % (2*umax) - umax);
             }
-            std::sort(H.begin(), H.end());
+            std::ranges::sort(H);
             for(auto it = ++H.begin() ; it != H.end() ; ++it) {
                 if (it[0] == it[-1]) {
                     found++;

@@ -1,24 +1,34 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <inttypes.h>
 #include <pthread.h>
 #include <math.h>
 #include <float.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
+
 #include <gmp.h>
-#include "polyselect_main_data.h"
-#include "polyselect_main_queue.h"      // some useful defaults
-#include "polyselect_arith.h"
-#include "polyselect_thread.h"
-#include "polyselect_thread_team.h"
-#include "polyselect_thread_league.h"
-#include "polyselect_special_q.h"
-#include "size_optimization.h"          // SOPT_DEFAULT_EFFORT
-#include "timing.h"     // milliseconds
-#include "getprime.h"   // getprime
-#include "misc.h"       // nprimes_interval
-#include "auxiliary.h"       // ALG_SIDE RAT_SIDE       (TODO: get rid of that)
+#ifdef HAVE_HWLOC
+#include <hwloc.h>
+#endif
+
+#include "gmp_aux.h"
+#include "macros.h"
 #include "params.h"
+#include "polyselect_arith.h"
+#include "polyselect_data_series.h"
+#include "polyselect_main_data.h"
+#include "polyselect_main_queue.h"
+#include "polyselect_poly_header.h"
+#include "polyselect_qroots.h"
+#include "polyselect_special_q.h"
+#include "polyselect_stats.h"
+#include "polyselect_thread.h"
+#include "polyselect_thread_league.h"
+#include "polyselect_thread_team.h"
+#include "size_optimization.h"
+#include "timing.h"
 
 //#define DEBUG_POLYSELECT
 //#define DEBUG_POLYSELECT2

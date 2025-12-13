@@ -1520,7 +1520,7 @@ static void downsort_tree_inner(
         ws.check_buckets_max_full();
         auto exc = pool.get_exceptions<buckets_are_full>(0);
         if (!exc.empty()) {
-            throw *std::max_element(exc.begin(), exc.end());
+            throw *std::ranges::max_element(exc);
         }
 
         // it seems difficult to compute the max target bucket index, in

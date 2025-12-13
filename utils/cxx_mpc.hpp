@@ -279,6 +279,16 @@ static inline std::partial_ordering operator<=>(cxx_mpc const & a, cxx_mpc const
 {
     return a <=> static_cast<mpc_srcptr>(b);
 }
+static inline bool operator==(cxx_mpc const & a, cxx_mpc const & b)
+{
+    return (a <=> b) == 0;
+}
+#ifdef HAVE_LIBSTDCXX_BUG_114153
+static inline bool operator<(cxx_mpc const & a, cxx_mpc const & b)
+{
+    return (a <=> b) < 0;
+}
+#endif
 template <typename T>
 static inline std::partial_ordering operator<=>(cxx_mpc const & a, const T b)
     requires(std::is_integral_v<T> || std::is_floating_point_v<T>)
@@ -298,10 +308,6 @@ static inline std::partial_ordering operator<=>(cxx_mpc const & a, cxx_mpfr cons
     return ((MPC_INEX_IM(c) << 1) + MPC_INEX_RE(c)) <=> 0;
 }
 static inline bool operator==(cxx_mpc const & a, mpc_srcptr b)
-{
-    return (a <=> b) == 0;
-}
-static inline bool operator==(cxx_mpc const & a, cxx_mpc const & b)
 {
     return (a <=> b) == 0;
 }

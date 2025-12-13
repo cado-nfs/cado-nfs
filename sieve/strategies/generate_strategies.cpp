@@ -3,20 +3,23 @@
 #include <cmath>
 #include <cstdlib>
 #include <cfloat>
-#include <cstdio>
 
 #include <fstream>
 
-#include "convex_hull.hpp"
-#include "facul_method.hpp"
-#include "generate_strategies.hpp"
-#include "strategy.hpp"
-#include "tab_strategy.hpp"
-#include "macros.h"
-#include "fm.hpp"
 #include "arith/modredc_ul.h"
+#include "convex_hull.hpp"
+#include "decomp.hpp"
+#include "facul_ecm.h"
+#include "facul_method.hpp"
+#include "fm.hpp"
+#include "generate_strategies.hpp"
+#include "macros.h"
 #include "point.hpp"
+#include "strategy.hpp"
+#include "tab_decomp.hpp"
+#include "tab_fm.hpp"
 #include "tab_point.hpp"
+#include "tab_strategy.hpp"
 #include "utils_cxx.hpp"
 
 
@@ -458,13 +461,10 @@ tabular_strategy_t ***generate_matrix(const char *name_directory_decomp,
        each couple (r0, r1): r0 is the lenght of the cofactor in
        the first side, and r1 for the second side.
      */
-    tabular_strategy_t ***matrix = (tabular_strategy_t***) malloc(sizeof(*matrix) * (mfb0 + 1));
-    ASSERT(matrix != nullptr);
+    auto * matrix = new tabular_strategy_t **[mfb0 + 1];
 
-    for (unsigned int r0 = 0; r0 <= mfb0; r0++) {
-	matrix[r0] = (tabular_strategy_t**) malloc(sizeof(*matrix[r0]) * (mfb1 + 1));
-	ASSERT(matrix[r0] != nullptr);
-    }
+    for (unsigned int r0 = 0; r0 <= mfb0; r0++)
+	matrix[r0] = new tabular_strategy_t*[mfb1 + 1];
 
     /*
        For each r0 in [fbb0..mfb0], we precompute and strore the data
@@ -475,7 +475,7 @@ tabular_strategy_t ***generate_matrix(const char *name_directory_decomp,
     unsigned long method_zero[4] = { 0, 0, 0, 0 };
     fm_set_method(zero, method_zero, 4);
 
-    tabular_strategy_t **data_rat = (tabular_strategy_t**) malloc(sizeof(*data_rat) * (mfb0 + 1));
+    auto *data_rat = new tabular_strategy_t*[mfb0 + 1];
     ASSERT (data_rat);
 
     unsigned int lim_is_prime = 2 * fbb0 - 1;
@@ -515,9 +515,7 @@ tabular_strategy_t ***generate_matrix(const char *name_directory_decomp,
 				      ecm, ncurves, lim1, lpb1, r1);
 
 	for (unsigned int r0 = 0; r0 <= mfb0; r0++) {
-	    tabular_strategy_t *res =
-		generate_strategy_r0_r1(data_rat[r0], strat_r1);
-	    matrix[r0][r1] = res;
+	    matrix[r0][r1] = generate_strategy_r0_r1(data_rat[r0], strat_r1);
 	}
 	tabular_strategy_free(strat_r1);
     }
@@ -525,7 +523,7 @@ tabular_strategy_t ***generate_matrix(const char *name_directory_decomp,
     //free
     for (unsigned int r0 = 0; r0 <= mfb0; r0++)
 	tabular_strategy_free(data_rat[r0]);
-    free(data_rat);
+    delete[] data_rat;
 
     fm_free(zero);
     return matrix;
@@ -546,7 +544,7 @@ tabular_point convert_tab_point_to_tab_strategy(tabular_strategy_t * t)
     strategy_t *elem;
     for (unsigned int i = 0; i < t->size; i++) {
 	elem = t->tab[i];
-	res.emplace_back(point { i, elem->proba, elem->time });
+	res.emplace_back(point { .number=i, .x=elem->proba, .y=elem->time });
     }
     return res;
 }

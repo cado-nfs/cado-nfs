@@ -6,7 +6,7 @@
 void single_sublattice_priority_queue_init(single_sublattice_priority_queue_ptr q,
                          size_t max_len)
 {
-    auto qi = new single_sublattice_priority_queue_impl;
+    auto * qi = new single_sublattice_priority_queue_impl;
     q->impl = (void*) qi;
     if (max_len == 0)
         max_len = 1;
@@ -17,7 +17,7 @@ void single_sublattice_priority_queue_init(single_sublattice_priority_queue_ptr 
 
 void single_sublattice_priority_queue_push(single_sublattice_priority_queue_ptr q, const struct single_sublattice_info * z)
 {
-    auto qi = single_sublattice_priority_queue_impl::cast(q);
+    auto * qi = single_sublattice_priority_queue_impl::cast(q);
     qi->push(*z);
     if (qi->size() > qi->max_count)
         qi->popMin();
@@ -44,7 +44,7 @@ int single_sublattice_priority_queue_empty (single_sublattice_priority_queue_src
  */
 void single_sublattice_priority_queue_pop_all(single_sublattice_priority_queue_srcptr q, struct single_sublattice_info * out)
 {
-    auto qi = single_sublattice_priority_queue_impl::cast(q);
+    auto const * qi = single_sublattice_priority_queue_impl::cast(q);
     /* copy, and consume the copy */
     single_sublattice_priority_queue_impl cpi = *qi;
     for( ; !cpi.empty() ; )

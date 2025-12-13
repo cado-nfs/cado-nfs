@@ -144,7 +144,7 @@ test_all_roots(std::string const & poly_str,
         roots.reserve(reference.size());
         for(auto const & x : reference)
             roots.emplace_back(-x);
-        std::sort(roots.begin(), roots.end());
+        std::ranges::sort(roots);
         compare_roots(q, q.roots(tr), roots, accuracy);
     }
 
@@ -155,7 +155,7 @@ test_all_roots(std::string const & poly_str,
         for(auto const & x : reference)
             if (x)
                 roots.emplace_back(tr(1) / x);
-        std::sort(roots.begin(), roots.end());
+        std::ranges::sort(roots);
         compare_roots(q, q.roots(tr), roots, accuracy);
     }
 
@@ -165,7 +165,7 @@ test_all_roots(std::string const & poly_str,
         roots.reserve(reference.size());
         for(auto const & x : reference)
             roots.emplace_back(tr(3) * x);
-        std::sort(roots.begin(), roots.end());
+        std::ranges::sort(roots);
         compare_roots(q, q.roots(tr), roots, accuracy);
     }
 }
@@ -560,7 +560,7 @@ void test_print<cxx_mpz>()
 template<>
 void test_print<cxx_mpfr>()
 {
-    typedef polynomial<cxx_mpfr> RX;
+    using RX = polynomial<cxx_mpfr>;
 
     const std::vector<const char *> tests {
         "17",

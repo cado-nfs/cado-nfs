@@ -142,13 +142,13 @@ std::vector<unsigned long> subdivide_primes_interval(unsigned long p0, unsigned 
 void subdivide_primes_interval_proxy(unsigned long * r, unsigned long p0, unsigned long p1, size_t n)
 {
     auto v = subdivide_primes_interval(p0, p1, n);
-    std::copy(v.begin(), v.end(), r);
+    std::ranges::copy(v, r);
 }
 
 struct mpz_parser_traits {
     static constexpr const int accept_literals = 0;
-    typedef cxx_mpz type;
-    typedef cxx_mpz number_type;
+    using type = cxx_mpz;
+    using number_type = cxx_mpz;
     static void add(cxx_mpz & c, cxx_mpz const & a, cxx_mpz const & b) {
         mpz_add(c, a, b);
     }
@@ -176,7 +176,7 @@ struct mpz_parser_traits {
     }
 };
 
-typedef cado_expression_parser<mpz_parser_traits> integer_parser;
+using integer_parser = cado_expression_parser<mpz_parser_traits>;
 
 cxx_mpz mpz_from_expression(const char * value)
 {
