@@ -9,7 +9,6 @@
 #include <cctype>
 #include <ios>
 #include <istream>
-#include <compare>
 #include <iterator>
 #include <limits>
 #include <memory>
@@ -442,10 +441,27 @@ struct decomposed_path : public std::vector<std::string> {
     std::string extension() const;
 };
 
-template<typename T, typename U>
-double double_ratio(T const & t, U const & u)
+namespace cado::details {
+    template<typename T, typename ... Args>
+    struct double_ratio_impl {
+        double operator()(T const & t, Args&&...);
+    };
+    template<typename T>
+    struct double_ratio_impl<T> {
+        double operator()(T const & t) { return t; }
+    };
+    template<typename T, typename U, typename ... Args>
+    struct double_ratio_impl<T, U, Args...> {
+        double operator()(T const & t, U const & u, Args&&... args) {
+            return !u ? 0 : double_ratio_impl<T, Args...>()(static_cast<double>(t) / static_cast<double>(u), std::forward<Args>(args)...);
+        }
+    };
+} /* namespace cado::details */
+
+template<typename T, typename ... Args>
+double double_ratio(T const & t, Args&&... args)
 {
-    return u ? static_cast<double>(t) / static_cast<double>(u) : 0;
+    return cado::details::double_ratio_impl<T, Args...>()(t, std::forward<Args>(args)...);
 }
 
 template<int N>

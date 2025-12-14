@@ -232,7 +232,7 @@ step_coverage() {
             --directory "$build_tree"
             --exclude "$build_tree"
             --exclude "/usr/*"
-            --ignore-errors unused
+            --ignore-errors unused,inconsistent
             --external
         )
         if [ "$2" = "base" ] ; then
@@ -248,7 +248,7 @@ step_coverage() {
             --exclude "$PWD/utils/embedded/*"
             --exclude "$PWD/linalg/bwc/flint-fft/*"
             --exclude "$PWD/gf2x/*"
-            --ignore-errors unused
+            --ignore-errors unused,inconsistent
         )
         lcov -a "$outfile_pre0" "${lcov_removal_args[@]}" -o "$outfile_pre1"
 

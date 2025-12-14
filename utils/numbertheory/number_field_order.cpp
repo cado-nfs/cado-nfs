@@ -42,7 +42,7 @@ std::vector<std::pair<number_field_prime_ideal, int>>
         number_field_prime_ideal const fkp(I, p, bd.second);
         ret.emplace_back(fkp, bd.second);
     }
-    std::sort(ret.begin(), ret.end());
+    std::ranges::sort(ret);
     return ret;
 }
 

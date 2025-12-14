@@ -5,6 +5,7 @@
 #include <utility>
 #include <vector>
 #include <ostream>
+#include <compare>
 
 #include <gmp.h>
 #include "fmt/base.h"
@@ -94,19 +95,17 @@ class number_field_fractional_ideal {
         return *this;
     }
 
-    int cmp(number_field_fractional_ideal const & I) const {
-        int const r = mpz_cmp(denominator, I.denominator);
-        if (r) return r;
+    std::strong_ordering operator<=>(number_field_fractional_ideal const & I) const {
+        if (auto r = denominator <=> I.denominator ; r != 0) return r;
 
         /* XXX this is only correct if we assume that both basis matrices
          * are in HNF. Otherwise we would have to check 
          * equivalence modulo SL_n !
          */
-        return mpz_mat_cmp(ideal_basis_matrix, I.ideal_basis_matrix);
+        return mpz_mat_cmp(ideal_basis_matrix, I.ideal_basis_matrix) <=> 0;
     }
-
-    bool operator<(number_field_fractional_ideal const & I) const {
-        return cmp(I) < 0;
+    bool operator==(number_field_fractional_ideal const & I) const {
+        return operator<=>(I) == 0;
     }
 };
 

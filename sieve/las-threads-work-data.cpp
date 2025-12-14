@@ -184,7 +184,7 @@ nfs_work::buckets_max_full() const
     unsigned int maxfull_index = 0;
     size_t maxfull_updates = 0;
     size_t maxfull_room = 0;
-    typedef bucket_array_t<LEVEL, HINT> BA_t;
+    using BA_t = bucket_array_t<LEVEL, HINT>;
     for(unsigned int side = 0 ; side < sides.size() ; side++) {
         side_data  const& wss(sides[side]);
         for (auto const & BA : wss.bucket_arrays<LEVEL, HINT>()) {

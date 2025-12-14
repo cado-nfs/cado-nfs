@@ -17,10 +17,10 @@
 template <class layer>
 class Lucas {
 public:
-    typedef typename layer::Modulus Modulus;
-    typedef typename layer::Integer Integer;
-    typedef typename layer::Residue Residue;
-    typedef typename layer::Modulus::ResidueOp ResidueOp;
+    using Modulus = typename layer::Modulus;
+    using Integer = typename layer::Integer;
+    using Residue = typename layer::Residue;
+    using ResidueOp = typename layer::Modulus::ResidueOp;
 
     /* This does one Lucas strong primality test on N, with starting
      * point b

@@ -148,11 +148,10 @@ static std::vector<lingen_substep_schedule> optimize(
         }
     }
 
-    std::sort(all_schedules.begin(), all_schedules.end());
+    std::ranges::sort(all_schedules);
 
-    all_schedules.erase(
-            std::unique(all_schedules.begin(), all_schedules.end()),
-            all_schedules.end());
+    auto [ last, end ] = std::ranges::unique(all_schedules);
+    all_schedules.erase(last, end);
 
     if (all_schedules.empty()) {
         char buf[20];
@@ -252,8 +251,8 @@ struct lingen_tuner_base {
 
 template<bool is_binary>
 struct lingen_tuner : public lingen_tuner_base {
-    typedef lingen_platform pc_t;
-    typedef lingen_substep_schedule sc_t;
+    using pc_t = lingen_platform;
+    using sc_t = lingen_substep_schedule;
 
     typename matpoly<is_binary>::arith_hard * ab; /* imported from the dims struct */
     cxx_mpz p;
@@ -272,7 +271,7 @@ struct lingen_tuner : public lingen_tuner_base {
     double basecase_keep_until = 1.8;
 
     struct tuning_thresholds_t : public std::map<std::string, unsigned int> {/*{{{*/
-        typedef std::map<std::string, unsigned int> super;
+        using super = std::map<std::string, unsigned int>;
         static constexpr const char * recursive = "recursive";
         static constexpr const char * collective = "collective";
         static constexpr const char * ternary = "ternary";
@@ -319,7 +318,7 @@ struct lingen_tuner : public lingen_tuner_base {
                     error("has no colon");
 
                 std::string algorithm = tok.substr(0, colon);
-                if (std::find(thresholds_verbs.begin(), thresholds_verbs.end(), algorithm) == thresholds_verbs.end()) {
+                if (std::ranges::find(thresholds_verbs, algorithm) == thresholds_verbs.end()) {
                     std::ostringstream os;
                     for(auto const & x : thresholds_verbs)
                         os << " " << x;
@@ -352,7 +351,7 @@ struct lingen_tuner : public lingen_tuner_base {
     tuning_thresholds_t tuning_thresholds;
 
     /* length(E), length(E_left), length(E_right), number of occurrences */
-    typedef std::tuple<size_t, size_t, size_t, unsigned int> weighted_call_t;
+    using weighted_call_t = std::tuple<size_t, size_t, size_t, unsigned int>;
     std::vector<unsigned int> mesh_all;
     std::map<unsigned int, std::string> strat_name;
 
@@ -529,7 +528,7 @@ struct lingen_tuner : public lingen_tuner_base {
         return L >= 2;
     }/*}}}*/
     struct tuner_persistent_data {/*{{{*/
-        typedef std::map<size_t, std::pair<unsigned int, double>, lingen_tuning_cache::coarse_compare> level_strategy_map;
+        using level_strategy_map = std::map<size_t, std::pair<unsigned int, double>, lingen_tuning_cache::coarse_compare>;
         lingen_hints hints;
         lingen_hints const & stored_hints;
         level_strategy_map best;
@@ -729,7 +728,7 @@ struct lingen_tuner : public lingen_tuner_base {
                 return fmt::format(" tuning_threshold[{}]=undef", k);
             }
         }
-        typedef tuning_thresholds_t T_t;
+        using T_t = tuning_thresholds_t;
         bool from_thresholds_mesh_level(std::ostream& os, lingen_tuner & tuner, tuner_persistent_data & persist, lingen_call_companion::key const & K) {/*{{{*/
             T_t const & T(tuner.tuning_thresholds);
             lingen_platform const & P(tuner.P);
@@ -760,7 +759,7 @@ struct lingen_tuner : public lingen_tuner_base {
                     mesh_sizes.push_back(P.r);
                 return true;
             }
-            std::sort(all_rec.begin(), all_rec.end());
+            std::ranges::sort(all_rec);
 
             mesh_sizes.clear();
             unsigned int next_mesh = 1;
@@ -1404,21 +1403,6 @@ const std::vector<std::pair<lingen_substep_schedule::fft_type_t, const char *>> 
     { lingen_substep_schedule::FFT_FLINT, flint, },
 };
 #endif
-
-/* Need this for conformance */
-template<bool is_binary>
-constexpr const char * lingen_tuner<is_binary>::tuning_thresholds_t::recursive;
-template<bool is_binary>
-constexpr const char * lingen_tuner<is_binary>::tuning_thresholds_t::collective;
-template<bool is_binary>
-constexpr const char * lingen_tuner<is_binary>::tuning_thresholds_t::ternary;
-template<bool is_binary>
-constexpr const char * lingen_tuner<is_binary>::tuning_thresholds_t::cantor;
-template<bool is_binary>
-constexpr const char * lingen_tuner<is_binary>::tuning_thresholds_t::flint;
-template<bool is_binary>
-constexpr const char * lingen_tuner<is_binary>::tuning_thresholds_t::notiming;
-
 
 template<bool is_binary>
 lingen_hints lingen_tuning(bw_dimensions<is_binary> & d, size_t L, MPI_Comm comm, cxx_param_list & pl)

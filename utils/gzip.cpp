@@ -1,7 +1,6 @@
 #include "cado.h" // IWYU pragma: keep
 
 #include <cstdlib>
-#include <climits>
 #include <cstdio> // FILE // IWYU pragma: keep
 #include <cstring>
 #include <cerrno>
@@ -13,6 +12,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <memory>
 
 #include <sys/wait.h>  // WIFEXITED WEXITSTATUS (on freebsd at least)
 #include <unistd.h>     // close getpid
@@ -426,11 +426,11 @@ void streambase_maybe_compressed::open(std::string const & name_arg, std::ios_ba
 
         if (!command.empty()) {
             /* apparently popen() under Linux does not accept the 'b' modifier */
-            pbuf.reset(new cado_pipe_streambuf(command.c_str(), mode));
+            pbuf = std::make_unique<cado_pipe_streambuf>(command.c_str(), mode);
             buf = pbuf.get();
             pipe = true;
         } else {
-            fbuf.reset(new std::filebuf());
+            fbuf = std::make_unique<std::filebuf>();
             fbuf->open(name, mode);
             buf = fbuf.get();
             pipe = false;

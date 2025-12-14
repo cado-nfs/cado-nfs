@@ -14,7 +14,7 @@
 
 template<typename T>
 struct compare_by_score {
-    typedef std::pair<double, T> value_type;
+    using value_type = std::pair<double, T>;
     bool operator()(value_type const & a, value_type const & b) const {
         return a.first < b.first;
     }
@@ -22,7 +22,7 @@ struct compare_by_score {
 
 struct best_polynomials_queue_impl {
     size_t max_count = 0;
-    typedef compare_by_score<cxx_cado_poly>::value_type queue_value_type;
+    using queue_value_type = compare_by_score<cxx_cado_poly>::value_type;
     min_max_heap<queue_value_type, std::vector<queue_value_type>, compare_by_score<cxx_cado_poly>> q;
 };
 

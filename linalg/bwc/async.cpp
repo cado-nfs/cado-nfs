@@ -1,6 +1,6 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <stdarg.h>
+#include <cstdarg>
 
 #include <cstddef>
 #include <cstring>

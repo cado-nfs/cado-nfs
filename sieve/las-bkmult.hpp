@@ -1,10 +1,13 @@
 #ifndef CADO_LAS_BKMULT_HPP
 #define CADO_LAS_BKMULT_HPP
 
-#include <map>                     // for map<>::key_type, operator!=, _Rb_t...
-#include <string>                  // for string, allocator
-#include <utility>                 // for pair
-#include "clonable-exception.hpp"  // for clonable_exception
+#include <map>
+#include <string>
+#include <utility>
+#include <compare>
+
+#include "clonable-exception.hpp"
+#include "utils_cxx.hpp"
 
 class bkmult_specifier {
     double base = 1.0;
@@ -48,9 +51,23 @@ struct buckets_are_full : public clonable_exception {
     buckets_are_full(buckets_are_full const &) noexcept = default;
     buckets_are_full(bkmult_specifier::key_type const&, int b, int r, int t);
     const char * what() const noexcept override { return message.c_str(); }
-    bool operator<(buckets_are_full const& o) const {
-        return (double) reached_size / theoretical_max_size < (double) o.reached_size / o.theoretical_max_size;
+    double ratio() const {
+        return double_ratio(reached_size, theoretical_max_size);
     }
+    auto operator==(buckets_are_full const& o) const {
+        return ratio() == o.ratio();
+    }
+    auto operator<=>(buckets_are_full const& o) const {
+        auto const r = ratio();
+        auto const ro = o.ratio();
+        return (r > ro) - (ro > r);
+        // return std::strong_order(ratio(), o.ratio());
+    }
+#ifdef HAVE_LIBSTDCXX_BUG_114153
+    bool operator<(buckets_are_full const& o) const {
+        return operator<=>(o) < 0;
+    }
+#endif
     clonable_exception * clone() const override { return new buckets_are_full(*this); }
 };
 

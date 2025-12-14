@@ -33,7 +33,7 @@ struct min_max_heap_test_case {
         for (unsigned int i = 0; i < nvalues; ++i)
             unsortedValues[i] = sortedValues[i] = (int) gmp_urandomb_ui(state, ULONG_BITS);
 
-        std::sort(sortedValues.begin(), sortedValues.end());
+        std::ranges::sort(sortedValues);
 
         for (unsigned int i = 0; i < nvalues; ++i)
             heap.push(unsortedValues[i]);
@@ -51,7 +51,7 @@ static void test_SatisfiesMaxHeap(size_t nvalues)
         values[i] = T.heap.popMax();
 
     FATAL_ERROR_CHECK(
-            !std::equal(T.sortedValues.begin(), T.sortedValues.end(), values.begin()), "Values were not popped in the correct order.");
+            !std::ranges::equal(T.sortedValues, values), "Values were not popped in the correct order.");
 }
 
 static void test_SatisfiesMinHeap(size_t nvalues)
@@ -63,7 +63,7 @@ static void test_SatisfiesMinHeap(size_t nvalues)
         values[i] = T.heap.popMin();
 
     FATAL_ERROR_CHECK(
-            !std::equal(T.sortedValues.begin(), T.sortedValues.end(), values.begin()), "Values were not popped in the correct order.");
+            !std::ranges::equal(T.sortedValues, values), "Values were not popped in the correct order.");
 }
 
 static void test_SatisfiesMinMaxHeap_HalfAndHalf(size_t nvalues)
@@ -78,7 +78,7 @@ static void test_SatisfiesMinMaxHeap_HalfAndHalf(size_t nvalues)
         values[i] = T.heap.popMax();
 
     FATAL_ERROR_CHECK(
-            !std::equal(T.sortedValues.begin(), T.sortedValues.end(), values.begin()),
+            !std::ranges::equal(T.sortedValues, values),
             "Values were not popped in the correct order.");
 }
 
@@ -102,7 +102,7 @@ static void test_SatisfiesMinMaxHeap_Alternating(size_t nvalues)
         */
 
     FATAL_ERROR_CHECK(
-            !std::equal(T.sortedValues.begin(), T.sortedValues.end(), values.begin()),
+            !std::ranges::equal(T.sortedValues, values),
             "Values were not popped in the correct order.");
 }
 

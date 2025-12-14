@@ -6,6 +6,7 @@
 #include "fmt/format.h"
 
 #include "utils_cxx.hpp"
+#include "macros.h"
 
 int main()
 {

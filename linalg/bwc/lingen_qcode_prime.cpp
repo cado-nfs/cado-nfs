@@ -212,7 +212,7 @@ struct bw_lingen_basecase_raw_object {
         ctable_pre.reserve(b);
         for(unsigned int j = 0; j < b; j++)
             ctable_pre.emplace_back(bm.delta[j], j);
-        std::sort(std::begin(ctable_pre), std::end(ctable_pre));
+        std::ranges::sort(ctable_pre);
         std::vector<unsigned int> ctable;
         ctable.reserve(ctable_pre.size());
         for(auto const & j : ctable_pre)

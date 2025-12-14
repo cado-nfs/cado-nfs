@@ -130,16 +130,12 @@ struct lingen_substep_schedule {
         return is;
     }
 
-    bool operator<(lingen_substep_schedule const & o) const {
-        if (fft_type < o.fft_type) return true;
-        if (fft_type > o.fft_type) return false;
-        if (shrink0 < o.shrink0) return true;
-        if (shrink0 > o.shrink0) return false;
-        if (shrink2 < o.shrink2) return true;
-        if (shrink2 > o.shrink2) return false;
-        if (batch < o.batch) return true;
-        if (batch > o.batch) return false;
-        return false;
+    auto operator<=>(lingen_substep_schedule const & o) const {
+        if (auto c = fft_type <=> o.fft_type; c != 0) return c;
+        if (auto c = shrink0 <=> o.shrink0; c != 0) return c;
+        if (auto c = shrink2 <=> o.shrink2; c != 0) return c;
+        if (auto c = batch <=> o.batch; c != 0) return c;
+        return std::strong_ordering::equal;
     }
     bool operator==(lingen_substep_schedule const & o) const {
         return fft_type == o.fft_type

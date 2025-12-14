@@ -1,8 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cstdio>
-#include <cstring>
-
 #include <list>
 #include <memory>
 #include <mutex>
@@ -16,9 +13,11 @@
 #include "fmt/std.h"    // IWYU pragma: keep    // fmt std::thread_id
 
 #include "cado_poly.h"
+#include "special-q.hpp"
 #include "params.h"
 #include "las-globals.hpp"
 #include "las-report-stats.hpp"
+#include "las-special-q-task.hpp"
 #include "las-special-q-task-collection.hpp"
 #include "las-special-q-task-tree.hpp"
 #include "las-special-q-task-simple.hpp"
@@ -65,7 +64,7 @@ std::unique_ptr<special_q_task_collection_base> special_q_task_collection_base::
         int w1 = 0;
         int wmin = 0;
         int wmax = 0;
-        typedef list<collected_stats>::iterator lit_t;
+        using lit_t = list<collected_stats>::iterator;
         for(lit_t i = it->second.begin() ; i != it->second.end() ; i++) {
             nok += i->ok;
             t1 += i->t;
@@ -155,7 +154,8 @@ void special_q_task_collection_tree::display_summary(int channel, int verbose)
     verbose_fmt_print(channel, verbose, "# BEGIN SUMMARY TREE"
             " [npending={}, created={} pulled={} done={} abandoned={}]\n",
             all_pending.size(), created, pulled, done, abandoned);
-    verbose_fmt_print(channel, verbose, "{}", special_q_task_tree::prefixed { &forest, "# " });
+    verbose_fmt_print(channel, verbose, "{}",
+            special_q_task_tree::prefixed { .t=&forest, .prefix="# " });
     verbose_fmt_print(channel, verbose, "# END SUMMARY TREE\n");
     verbose_fmt_print(channel, verbose, "# The status of the root node is {}\n", forest.status);
 }
@@ -183,7 +183,8 @@ void special_q_task_collection_tree::done_node_unlocked(special_q_task_tree * it
     if (item->parent == &forest) {
         work_to_do.notify_all();
         verbose_fmt_print(0, 0, "# BEGIN TREE\n");
-        verbose_fmt_print(0, 0, "{}", special_q_task_tree::prefixed { item, "# " });
+        verbose_fmt_print(0, 0, "{}",
+                special_q_task_tree::prefixed { .t=item, .prefix="# " });
         verbose_fmt_print(0, 0, "# END TREE\n");
         // XXX we used to do las.tree.visited.clear() at this point,
         // because the top level special-qs were sequence points anyway
@@ -344,7 +345,7 @@ void special_q_task_collection_tree::take_decision(special_q_task_tree * item)
             item->shortname(), item->sq(),
             all_pending.size(),
             created, pulled, done, abandoned,
-            special_q_task_tree::prefixed {&forest, "# "});
+            special_q_task_tree::prefixed { .t=&forest, .prefix="# "});
 }
 
 void special_q_task_collection_tree::abandon_node(special_q_task_tree * item, int max_descent_attempts_allowed)
@@ -384,7 +385,7 @@ void special_q_task_collection_tree::abandon_node(special_q_task_tree * item, in
             item->shortname(), item->sq(),
             all_pending.size(),
             created, pulled, done, abandoned,
-            special_q_task_tree::prefixed {&forest, "# "});
+            special_q_task_tree::prefixed { .t=&forest, .prefix="# "});
 }
 
 /* abandoning a node happens when all relations that we tried for this

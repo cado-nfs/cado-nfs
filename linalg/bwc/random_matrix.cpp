@@ -539,7 +539,7 @@ std::vector<uint32_t> random_matrix_ddata::generate_row(cxx_gmp_randstate & rsta
             k = ncols - 1;
         ret.push_back(k);
     }
-    std::sort(ret.begin(), ret.end());
+    std::ranges::sort(ret);
     punched_interval::recycle(std::move(range), pool);
     return ret;
 }
@@ -554,7 +554,7 @@ std::vector<uint32_t> random_matrix_ddata::generate_row(cxx_gmp_randstate & rsta
 uint32_t random_matrix_ddata::generate_row(cxx_gmp_randstate & rstate, uint32_t * ptr, punched_interval::pool_t & pool) const
 {
     auto const v = generate_row(rstate, pool);
-    std::copy(v.begin(), v.end(), ptr);
+    std::ranges::copy(v, ptr);
     return v.size();
 }
 
@@ -759,7 +759,7 @@ matrix_u32 random_matrix_ddata::get_bycolumns(cxx_gmp_randstate & rstate)
             weight = (unsigned long) random_binomial(rstate, nrows, p);
             for(unsigned long i = 0 ; i < weight ; i++)
                 ptr.push_back(gmp_urandomm_ui(rstate, nrows));
-            std::sort(ptr.begin(), ptr.end());
+            std::ranges::sort(ptr);
             auto nt = ptr.begin();
             for(auto it = ptr.begin(), jt = it ; it != ptr.end(); it = jt) {
                 for(++jt ; jt != ptr.end() && *it == *jt ; ++jt) ;
@@ -911,7 +911,7 @@ static void random_matrix_process_print(random_matrix_process_data & r, random_m
                 // output...
                 // printf("injecting col %" PRIu32 " for row %lu\n", next_priority_col, i);
                 ptr.push_back(next_priority_col);
-                std::sort(ptr.begin(), ptr.end());
+                std::ranges::sort(ptr);
             }
         }
         uint32_t c = ptr.size();

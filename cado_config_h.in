@@ -206,6 +206,8 @@
 #define CADO_MPI_MP_SIZE_T   @CADO_MPI_MP_SIZE_T@
 #define CADO_MPI_MPZ_INTERNAL_SIZE_T   @CADO_MPI_MPZ_INTERNAL_SIZE_T@
 
+#cmakedefine HAVE_LIBSTDCXX_BUG_114153
+
 /* see also select_mpi.h for c++ templates meant to help in determining mpi type tags */
 
 /* vim:set ft=c: */

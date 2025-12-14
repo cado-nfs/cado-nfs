@@ -34,7 +34,7 @@ void batch_side_config::declare_usage(cxx_param_list & pl)
         const int r = param_list_parse_per_side<type>(pl,		\
                     argname, t.data(), nb_polys, policy);		\
         res[#name] = r;                                                 \
-        if (!r && std::find(mo.begin(), mo.end(), argname) != mo.end())	\
+        if (!r && std::ranges::find(mo, argname) != mo.end())	\
             throw std::runtime_error("Parameter " argname		\
                     " is mandatory (for all sides)");			\
         for(int i = 0 ; i < nb_polys ; i++)				\

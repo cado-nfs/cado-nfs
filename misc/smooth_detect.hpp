@@ -1,8 +1,12 @@
 #ifndef CADO_SMOOTH_DETECT_HPP
 #define CADO_SMOOTH_DETECT_HPP
 
-#include "cxx_mpz.hpp"
+#include <climits>
+
 #include <gmp.h>
+
+#include "cxx_mpz.hpp"
+#include "macros.h"
 
 /*
  * Smoothness detector: take a list of pairs of integers and a smoothness
@@ -91,9 +95,13 @@ struct descent_init_candidate
 
     unsigned int maxlp() const { return MAX(lpu, lpv); }
 
-    bool operator<(descent_init_candidate const& c) const
+    auto operator<=>(descent_init_candidate const& c) const
     {
-        return cost() < c.cost();
+        return cost() <=> c.cost();
+    }
+    bool operator==(descent_init_candidate const& c) const
+    {
+        return cost() == c.cost();
     }
     bool is_probably_not_smooth(unsigned int bound) const;
 };

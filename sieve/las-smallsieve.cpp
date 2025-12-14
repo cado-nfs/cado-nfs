@@ -417,7 +417,7 @@ las_small_sieve_data::small_sieve_init(
     /* Sort general ssp vector in the order in which sieve2357::sieve expects
        them. small_sieve::do_pattern_sieve may drop some of these entries but
        preserves the ordering. */
-    std::sort(ssp.begin(), ssp.end(), order_ssp);
+    std::ranges::sort(ssp, order_ssp);
 }
 /* }}} */
 

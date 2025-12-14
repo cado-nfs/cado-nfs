@@ -9,6 +9,7 @@
 #include <vector>
 #include <functional>
 #include <algorithm>
+#include <ranges>
 
 #include <gmp.h>
 #include "fmt/base.h"
@@ -16,6 +17,7 @@
 #include "gmp_aux.h"
 #include "macros.h"
 #include "iqsort.h"
+#include "utils_cxx.hpp"
 
 struct test_env {
     std::vector<unsigned long> blah;
@@ -108,7 +110,7 @@ struct custom_mergesort {
 
 static double get_speed(clock_t d, size_t nitems)
 {
-    return double(d) / (double) CLOCKS_PER_SEC / double(nitems);
+    return double_ratio(d, CLOCKS_PER_SEC, nitems);
 }
 
 struct iqsort {
@@ -153,9 +155,8 @@ static void test_one(T const & F, test_env & E, size_t v, bool verbose)
         F(&(E.blah[i]), v);
     const clock_t d = clock() - t0;
     for(size_t i = 0 ; i + v <= E.blah.size() ; i += v)
-        if (!std::is_sorted(
-                    E.blah.begin() + (long) (i),
-                    E.blah.begin() + (long) (i + v),
+        if (!std::ranges::is_sorted(
+                    E.blah | std::views::take(v),
                     std::greater<unsigned long>()))
             abort();
     if (verbose)
@@ -223,7 +224,7 @@ int main(int argc, char const * argv[])
         test_one(custom_mergesort(), E, v, verbose);
         if (verbose) printf("\n");
 
-        auto winner = *std::min_element(E.record.begin(), E.record.end());
+        auto winner = *std::ranges::min_element(E.record);
         if (winner.second != last_best) {
             last_best = winner.second;
             best.emplace_back(v, winner.second);

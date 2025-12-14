@@ -300,7 +300,7 @@ static void * sec_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * ar
     if (std::find(check_stops.begin(), check_stops.end(), bw->interval) == check_stops.end()) {
         check_stops.push_back(bw->interval);
     }
-    std::sort(check_stops.begin(), check_stops.end());
+    std::ranges::sort(check_stops);
     serialize_threads(pi->m);
 
     if (tcan_print) {

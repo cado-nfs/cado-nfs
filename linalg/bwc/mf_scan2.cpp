@@ -153,7 +153,7 @@ template<> struct nz_coeff<true> { struct type { uint32_t j; int32_t v; }; };
 
 template<bool withcoeffs>
 struct parser_thread {
-    typedef typename nz_coeff<withcoeffs>::type coeff_t;
+    using coeff_t = typename nz_coeff<withcoeffs>::type;
     std::vector<uint32_t> cw;
     uint32_t colmax=0;
     parser_thread() : cw(thread_private_count, 0) {};
@@ -198,7 +198,7 @@ template<bool withcoeffs>
 static void master_loop(ringbuf_ptr R, FILE * f_in, FILE * f_rw)
 {
     constexpr int c = withcoeffs != 0;
-    typedef typename nz_coeff<withcoeffs>::type coeff_t;
+    using coeff_t = typename nz_coeff<withcoeffs>::type;
     ASSERT_ALWAYS(thread_write_window % sizeof(coeff_t) == 0);
     size_t const tw = thread_write_window / sizeof(coeff_t);
     coeff_t buf[tw];

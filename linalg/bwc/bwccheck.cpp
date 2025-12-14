@@ -102,7 +102,7 @@ static size_t common_size(arith_generic * Ac, std::vector<T> const & Cfiles, con
     return vsize;
 }
 
-typedef std::map<bwc_column_range, std::vector<bwc_V_file> > vseq_t;
+using vseq_t = std::map<bwc_column_range, std::vector<bwc_V_file> >;
 
 static void check_V_files(arith_generic * Ac, vseq_t & Vsequences, std::vector<bwc_Cv_file> & Cfiles, int & nfailed)/*{{{*/
 {
@@ -498,13 +498,13 @@ static void * check_prog(cxx_param_list & pl MAYBE_UNUSED, int argc, char const 
     /* }}} */
 
     /* {{{ sort */
-    std::sort(Cfiles.begin(), Cfiles.end());
-    std::sort(Dfiles.begin(), Dfiles.end());
-    std::sort(Rfiles.begin(), Rfiles.end());
-    std::sort(Afiles.begin(), Afiles.end());
-    std::sort(Vfiles.begin(), Vfiles.end());
-    // std::sort(Ffiles.begin(), Ffiles.end());
-    // std::sort(Sfiles.begin(), Sfiles.end());
+    std::ranges::sort(Cfiles);
+    std::ranges::sort(Dfiles);
+    std::ranges::sort(Rfiles);
+    std::ranges::sort(Afiles);
+    std::ranges::sort(Vfiles);
+    // std::ranges::sort(Ffiles);
+    // std::ranges::sort(Sfiles);
     /* }}} */
 
     /* {{{ split V files in sequences -- what for ? */
@@ -513,7 +513,7 @@ static void * check_prog(cxx_param_list & pl MAYBE_UNUSED, int argc, char const 
     for(auto const & V : Vfiles)
         Vsequences[V].push_back(V);
     for(auto & seq: Vsequences)
-        std::sort(seq.second.begin(), seq.second.end());
+        std::ranges::sort(seq.second);
     /* }}} */
 
     int nfailed = 0;

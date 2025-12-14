@@ -44,8 +44,8 @@
  */
 #define GF2X_FFT_ADJUST_SPLIT_FFT       2
 
-#include "gf2x-fake-fft.h"
-#include "gf2x-cantor-fft.h"
-#include "gf2x-ternary-fft.h"
+#include "gf2x-fake-fft.h"      // IWYU pragma: export
+#include "gf2x-cantor-fft.h"    // IWYU pragma: export
+#include "gf2x-ternary-fft.h"   // IWYU pragma: export
 
 #endif	/* GF2X_FFT_H_ */

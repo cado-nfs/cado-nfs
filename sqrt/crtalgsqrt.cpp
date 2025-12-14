@@ -794,7 +794,7 @@ struct alg_ptree_s {
     struct alg_ptree_s * t1;
     cxx_mpz_poly s;
 };
-typedef struct alg_ptree_s alg_ptree_t;
+using alg_ptree_t = struct alg_ptree_s;
 
 #if 0
 alg_ptree_t * alg_ptree_build(struct prime_data * p, int i0, int i1)
@@ -867,7 +867,7 @@ std::vector<prime_data> suitable_crt_primes()
             mpz_fdiv_r_ui(fd_e, fd_e, p);
             e = cado_math_aux::mpz_get<unsigned long>(fd_e);
         }
-        std::sort(r.begin(), r.end());
+        std::ranges::sort(r);
         res.emplace_back(p, r);
         // printf("\n");
     }
@@ -1846,7 +1846,7 @@ struct rat_ptree_s {
     mpz_srcptr zx;
     struct prime_data * p;
 };
-typedef struct rat_ptree_s rat_ptree_t;
+using rat_ptree_t = struct rat_ptree_s;
 
 //  rational product tree: all prime powers.
 // it's quite easy to set up.

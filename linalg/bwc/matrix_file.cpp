@@ -1,9 +1,14 @@
 #include "cado.h" // IWYU pragma: keep
 
 #include <cstddef>
+#include <cstdint>
+#include <climits>
 
 #include <algorithm>
 #include <fstream>
+#include <istream>
+#include <ostream>
+#include <ios>
 #include <stdexcept>
 #include <utility>
 
@@ -15,6 +20,7 @@
 #include "omp_proxy.h"
 #include "parallelizing_info.hpp"
 #include "subdivision.hpp"
+#include "macros.h"
 
 int matrix_file::lookup()/*{{{*/
 {
@@ -126,13 +132,13 @@ static void bcast(parallelizing_info_ptr pi, std::string & s, unsigned int jrank
     pi_bcast(&sz, 1, BWC_PI_SIZE_T, jrank, trank, pi->m);
     std::vector<char> foo(sz, ' ');
     if (pi->m->jrank == jrank && pi->m->trank == trank)
-        std::copy(s.begin(), s.end(), foo.begin());
+        std::ranges::copy(s, foo.begin());
     pi_bcast(foo.data(), sz, BWC_PI_BYTE, jrank, trank, pi->m);
     s = std::string(foo.begin(), foo.end());
 }
 template<typename T> static void allreduce(parallelizing_info_ptr pi, T & s, pi_op_ptr op)
 {
-    pi_allreduce(NULL, &s, 1, bwc_pi_type<T>::value, op, pi->m);
+    pi_allreduce(nullptr, &s, 1, bwc_pi_type<T>::value, op, pi->m);
 }
 /* }}} */
 
@@ -223,8 +229,8 @@ static void inner_loop(uint32_t * p, uint32_t offset, unsigned int i0, unsigned 
         auto * q = p;
         if (!withcoeffs) {
             read32(DATA, p, w);
-            if (!std::is_sorted(p, p+w))
-                std::sort(p, p + w);
+            if (!std::ranges::is_sorted(p, p+w))
+                std::ranges::sort(p, p + w);
             p += w;
         } else {
             for(unsigned int k = 0 ; k < w ; k++) {
@@ -232,8 +238,8 @@ static void inner_loop(uint32_t * p, uint32_t offset, unsigned int i0, unsigned 
                 *p++ = read32(COEFFS);
             }
             auto * h = reinterpret_cast<std::pair<uint32_t, int32_t> *>(q);
-            if (!std::is_sorted(h, h+w)) {
-                std::sort(h, h + w);
+            if (!std::ranges::is_sorted(h, h+w)) {
+                std::ranges::sort(h, h + w);
             }
         }
     }
@@ -309,7 +315,6 @@ void matrix_file::read(int direction, std::string const & sanity_check_vector MA
         std::string cwname = mfile + dotrowcol_offsets(d);
         std::string rwname = mfile + dotrowcol_offsets(other);
         std::string const dataname = mfile + dotrowcols(other);
-        std::string const coeffsname = mfile + dotrowcol_coeffs(d);
 
         /* We need to load all offsets in the final direction beforehand
          * because it's a transposed read.

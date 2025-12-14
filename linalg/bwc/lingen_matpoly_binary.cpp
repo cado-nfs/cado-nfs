@@ -24,7 +24,7 @@
 
 matpoly<true>::memory_pool_type matpoly<true>::memory;
 
-static_assert(std::is_same<unsigned long, mp_limb_t>::value, "need fix for mp_limb_t != unsigned long");
+static_assert(std::is_same_v<unsigned long, mp_limb_t>, "need fix for mp_limb_t != unsigned long");
 
 /* {{{ init/zero/clear interface for matpoly */
 matpoly<true>::matpoly(matpoly<true>::arith_hard *, unsigned int m, unsigned int n, size_t len) : m(m), n(n), alloc_words(b2w_x(len)) {
@@ -38,10 +38,10 @@ matpoly<true>::matpoly(matpoly<true>::arith_hard *, unsigned int m, unsigned int
     }
     if (alloc_words) {
         if (data_alloc_size_in_bytes()) {
-            x = (unsigned long *) memory.alloc(data_alloc_size_in_bytes());
+            x = memory.alloc(data_alloc_size_in_bytes());
             memset(x, 0, data_alloc_size_in_bytes());
         } else {
-            x = NULL;
+            x = nullptr;
         }
     }
 }
@@ -58,7 +58,7 @@ matpoly<true>::matpoly(matpoly && a) noexcept
 {
     a.x=nullptr;
     a.m=a.n=a.size=a.alloc_words=0;
-    // a.ab=NULL;
+    // a.ab=nullptr;
 }
 matpoly<true>& matpoly<true>::operator=(matpoly&& a) noexcept
 {
@@ -72,7 +72,7 @@ matpoly<true>& matpoly<true>::operator=(matpoly&& a) noexcept
     x=a.x;
     a.x=nullptr;
     a.m=a.n=a.size=a.alloc_words=0;
-    // a.ab=NULL;
+    // a.ab=nullptr;
     return *this;
 }
 matpoly<true>& matpoly<true>::set(matpoly const& a)
@@ -85,7 +85,7 @@ matpoly<true>& matpoly<true>::set(matpoly const& a)
     alloc_words = a.alloc_words;
     size = a.size;
     // abvec_init(ab, &(x), m*n*alloc);
-    x = (unsigned long *) memory.alloc(data_alloc_size_in_bytes());
+    x = memory.alloc(data_alloc_size_in_bytes());
     memcpy(x, a.x, data_alloc_size_in_bytes());
     return *this;
 }
@@ -115,7 +115,7 @@ void matpoly<true>::realloc(size_t new_ncoeffs) {
         }
 #endif
         /* allocate new space, then inflate */
-        x = (unsigned long *) memory.realloc(x, oldmem, newmem);
+        x = memory.realloc(x, oldmem, newmem);
         const unsigned long * rhead = x + m * n * alloc_words;
         unsigned long * whead = x + m * n * newalloc_words;
         if (size)
@@ -142,7 +142,7 @@ void matpoly<true>::realloc(size_t new_ncoeffs) {
                     rhead += alloc_words;
                 }
             }
-        x = (unsigned long *) memory.realloc(x, oldmem, newmem);
+        x = memory.realloc(x, oldmem, newmem);
     }
     alloc_words = newalloc_words;
 }
@@ -241,7 +241,7 @@ int matpoly<true>::cmp(matpoly const& b) const
         return (size > b.size) - (b.size > size);
     } else if (size == 0 && b.size == 0) {
         /* This is for the "intermediary pre-init" state. size is zero,
-         * but a priori the dimension fields are ok. x might be NULL or
+         * but a priori the dimension fields are ok. x might be nullptr or
          * not, it depends on the previous life of the object */
         return 0;
     } else {

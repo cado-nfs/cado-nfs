@@ -81,13 +81,13 @@ unsigned int double_poly_compute_all_roots_with_bound(double *,
                                                       double_poly_srcptr,
                                                       double);
 unsigned int double_poly_compute_all_roots(double *, double_poly_srcptr);
-void double_poly_print (FILE *, double_poly_srcptr, char *variable_name);
-int double_poly_asprint (char **t, double_poly_srcptr p, char *variable_name);
+void double_poly_print (FILE *, double_poly_srcptr, const char *variable_name);
+int double_poly_asprint (char **t, double_poly_srcptr p, const char *variable_name);
 void double_poly_set_mpz_poly (double_poly_ptr p, mpz_poly_srcptr q);
 
 void double_poly_mul_double(double_poly_ptr f, double_poly_srcptr g,
     double mul);
-double double_poly_div_linear(double_poly_ptr q, double_poly_srcptr p, const double r);
+double double_poly_div_linear(double_poly_ptr q, double_poly_srcptr p, double r);
 void double_poly_set_string(double_poly_ptr poly, const char *str);
 
 #ifdef __cplusplus

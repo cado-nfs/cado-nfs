@@ -350,7 +350,7 @@ struct prep_object {
         // open rhs only at job 0, thread 0
         std::unique_ptr<std::ifstream> rhs;
         if (pi->m->jrank == 0 && pi->m->trank == 0) {
-            rhs.reset(new std::ifstream(rhs_name));
+            rhs = std::make_unique<std::ifstream>(rhs_name);
             (*rhs) >> hdr;
             ASSERT_ALWAYS(bool(*rhs));
             if (char2) {

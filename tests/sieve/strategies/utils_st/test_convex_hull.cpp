@@ -40,10 +40,8 @@ struct coarse_cmp_points_coordinates {
 struct coarse_cmp_table_points {
     bool operator()(tabular_point const & a, tabular_point const & b) const
     {
-        return std::lexicographical_compare(
-                a.begin(), a.end(),
-                b.begin(), b.end(),
-                coarse_cmp_points_coordinates());
+        return std::ranges::lexicographical_compare(
+                a, b, coarse_cmp_points_coordinates());
     }
 };
 
@@ -103,9 +101,9 @@ int main(int argc, char const * argv[])
         const double x = x0 + (x1 - x0) * random_uniform(state);
         /* take any strictly convex function, really. Here we take the
          * square */
-        H.emplace_back(point { i, x, x * x });
+        H.emplace_back(point { .number=i, .x=x, .y=x * x });
     }
-    std::sort(H.begin(), H.end(), coarse_cmp_points_coordinates());
+    std::ranges::sort(H, coarse_cmp_points_coordinates());
 
     ASSERT_ALWAYS(N >= 3);
 

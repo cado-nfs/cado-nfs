@@ -9,6 +9,9 @@
 #include <cstddef>
 #include <climits>      // for ULONG_MAX
 #include <cstdint>      // for uint64_t
+
+#include <vector>
+
 #include <gmp.h>        // for __mpz_struct, mp_limb_t, mp_ptr, mpz_cmp_ui
 
 #include "trialdiv.hpp"

@@ -1121,7 +1121,7 @@ struct helper_functor_subdivide_slices {
                     if (k == npieces) {
                         it = s.begin();
                     } else {
-                        auto jw = std::lower_bound(swb, swe, target);
+                        auto jw = std::ranges::lower_bound(swb, swe, target);
                         it = x.begin() + (jw - x.weight_begin());
                         ASSERT(it >= s.begin() && jt <= s.end());
                     }
@@ -1284,12 +1284,9 @@ fb_factorbase::slicing::slicing(fb_factorbase const & fb,
      * per line becomes p^k1 and p^(k2-1) (for example). So there's clear
      * potential for the ordering to be swapped.
      */
-    std::sort(small_sieve_entries.skipped.begin(),
-              small_sieve_entries.skipped.end());
-    std::sort(small_sieve_entries.resieved.begin(),
-              small_sieve_entries.resieved.end(), by_q);
-    std::sort(small_sieve_entries.rest.begin(), small_sieve_entries.rest.end(),
-              by_q);
+    std::ranges::sort(small_sieve_entries.skipped);
+    std::ranges::sort(small_sieve_entries.resieved, by_q);
+    std::ranges::sort(small_sieve_entries.rest, by_q);
 
     /* Next, we have sets of begin and end pointers. We need to subdivide
      * them.
@@ -1340,7 +1337,8 @@ fb_factorbase::slicing::slicing(fb_factorbase const & fb,
 struct fb_power_t {
     fbprime_t p, q;
     unsigned char k;
-    bool operator<(fb_power_t const & o) const { return q < o.q; }
+    auto operator<=>(fb_power_t const & o) const { return q <=> o.q; }
+    bool operator==(fb_power_t const & o) const = default;
 };
 
 /* Create a list of prime powers (with exponent >1) up to powlim */
@@ -1359,7 +1357,7 @@ static std::vector<fb_power_t> fb_powers(fbprime_t powlim)
     }
     prime_info_clear(pi);
 
-    std::sort(powers.begin(), powers.end());
+    std::ranges::sort(powers);
     return powers;
 }
 
@@ -1534,7 +1532,7 @@ static void store_task_result(fb_factorbase & fb, task_info_t const & T)
         pool.push_back(fb_cur);
     }
     ASSERT(
-        std::is_sorted(pool.begin(), pool.end(), fb_entry_general::sort_byq()));
+        std::ranges::is_sorted(pool, fb_entry_general::sort_byq()));
     fb.append(pool);
 }
 

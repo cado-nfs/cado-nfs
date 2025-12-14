@@ -63,7 +63,7 @@ int gauss_6464_imm(mat64 & mm, mat64 & e, mat64 const & m)
 int gauss_128128_C(mat64 * m)
 {
     std::array<mat64, 4> mm;
-    std::copy(m, m + 4, std::begin(mm));
+    std::ranges::copy(m, m + 4, std::begin(mm));
     int const r = kernel((mp_limb_t *) mm.front().data(),
             nullptr, 128, 128, 128 / ULONG_BITS, 128 / ULONG_BITS);
     return r;

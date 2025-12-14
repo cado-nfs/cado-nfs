@@ -40,13 +40,13 @@ class matpoly<true> {
 public:
     static constexpr bool is_binary = true;
     /*
-    typedef arith_hard::elt elt;
-    typedef arith_hard::elt * ptr;
-    typedef arith_hard::elt const * srcptr;
+    using elt = arith_hard::elt;
+    using ptr = arith_hard::elt *;
+    using srcptr = arith_hard::elt const *;
     */
-    typedef unsigned long elt;
-    typedef unsigned long * ptr;
-    typedef unsigned long const * srcptr;
+    using elt = unsigned long;
+    using ptr = unsigned long *;
+    using srcptr = unsigned long const *;
 
     struct arith_hard {
         static constexpr bool is_binary = true;
@@ -83,7 +83,7 @@ public:
     static constexpr arith_hard * ab = nullptr;
 
 private:
-    typedef memory_pool_wrapper<ptr, true> memory_pool_type;
+    using memory_pool_type = memory_pool_wrapper<ptr, true>;
     static memory_pool_type memory;
 
 public:

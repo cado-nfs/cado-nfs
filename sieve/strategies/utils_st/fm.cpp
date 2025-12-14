@@ -133,7 +133,7 @@ bool fm_is_zero(fm_t const * t)
 
 int fm_is_equal(fm_t const * c1, fm_t const * c2)
 {
-    unsigned int len = c1->len_method;
+    const unsigned int len = c1->len_method;
     for (unsigned int i = 0; i < len; i++)
         if (c1->method[i] != c2->method[i])
             return false;
@@ -151,20 +151,20 @@ int fm_fprint(FILE * file, fm_t const * elem)
         return -1;
 
     unsigned long const * method = fm_get_method(elem);
-    unsigned int len_method = fm_get_len_method(elem);
+    const unsigned int len_method = fm_get_len_method(elem);
     for (unsigned int i = 0; i < len_method; i++)
         fprintf(file, "%lu ", method[i]);
     fputs("| ", file);
 
     fprintf(file, "%d ", elem->len_p_min);
     double const * proba = fm_get_proba(elem);
-    unsigned int len_proba = fm_get_len_proba(elem);
+    const unsigned int len_proba = fm_get_len_proba(elem);
     for (unsigned int i = 0; i < len_proba; i++)
         fprintf(file, "%lf ", proba[i]);
     fputs("| ", file);
 
     double const * time = fm_get_time(elem);
-    unsigned int len_time = fm_get_len_time(elem);
+    const unsigned int len_time = fm_get_len_time(elem);
     for (unsigned int i = 0; i < len_time; i++)
         fprintf(file, "%lf ", time[i]);
 

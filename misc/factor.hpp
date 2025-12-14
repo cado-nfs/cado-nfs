@@ -3,7 +3,7 @@
 
 #include <list>
 #include <set>
-#include <tuple>
+#include <utility>
 #include <vector>
 
 #include "ecm.h"
@@ -35,7 +35,7 @@ class fully_factor {
     /* contains B1 and #curves for targeting a factor of 5*i+30 bits for the
      * ith element.
      */
-    static std::vector<std::pair<unsigned int, unsigned int>> ECM_DATA;
+    static const std::vector<std::pair<unsigned int, unsigned int>> ECM_DATA;
 
     /* Set B1 and ncurves according to ECM_DATA to look for factors of n. */
     static void get_B1_ncurves(unsigned int & B1, unsigned int & ncurves,
@@ -74,7 +74,7 @@ public:
     int ecmlib_verbose = 0;
     int isprime_niter = 15; /* number of iterations for primality testing */
 
-    explicit fully_factor(cxx_mpz const & n);
+    explicit fully_factor(cxx_mpz n);
 
     /* return iterator to the next composite (either just ++it or
      * composites.erase(it).

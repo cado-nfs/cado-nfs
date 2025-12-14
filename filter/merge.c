@@ -1158,7 +1158,7 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
 
 /* return the number of merges applied */
 static unsigned long
-apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat,
+apply_merges (const index_t * L, index_t total_merges, filter_matrix_t *mat,
 	      buffer_struct_t *Buf)
 {
   double cpu3 = seconds (), wct3 = wct_seconds ();

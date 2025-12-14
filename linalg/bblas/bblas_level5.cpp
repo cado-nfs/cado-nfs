@@ -4,10 +4,10 @@
 
 #include "bblas_mat64.hpp"
 #include "bblas_level5.hpp"
-#include "bblas_level3a.hpp"  // for mat64_add
-#include "bblas_level3b.hpp"  // for mul_6464_6464
-#include "memory.h"      // malloc_aligned
-#include "macros.h"                      // for ASSERT, ASSERT_ALWAYS
+#include "bblas_level3a.hpp"
+#include "bblas_level3b.hpp"
+#include "memory.h"
+#include "macros.h"
 
 /**********************************************************************/
 /* level 5: polynomials with 64*64 matrix coefficients
@@ -31,7 +31,7 @@ void m64pol_add(mat64 * r, mat64 const * a1, mat64 const * a2, unsigned int n)/*
 void m64pol_mul(mat64 * r, mat64 const * a1, mat64 const * a2, unsigned int n1, unsigned int n2)/*{{{*/
 {
     ASSERT_ALWAYS(r != a1 && r != a2);
-    memset((void *) r, 0, (n1 + n2 - 1) * sizeof(mat64));
+    std::fill_n(r, n1 + n2 - 1, 0);
     m64pol_addmul(r, a1, a2, n1, n2);
 }/*}}}*/
 
@@ -59,28 +59,26 @@ void m64pol_mul_kara(mat64 * r, mat64 const * a1, mat64 const * a2, unsigned int
         return;
     }
     unsigned int const h = n1 >> 1;
-    memset((void *) r, 0, (n1 + n2 - 1) * sizeof(mat64));
+    std::fill_n(r, n1 + n2 - 1, 0);
 
     m64pol_add(r, a1, a1 + h, h);
     m64pol_add(r + 2 * h, a2, a2 + h, h);
 
-    mat64 * t = (mat64 *) malloc_aligned((2*h-1) * sizeof(mat64), 64);
-    m64pol_mul_kara(t, r, r + 2 * h, h, h);
+    auto t = make_unique_aligned_array<mat64>(2*h-1, 64);
+    m64pol_mul_kara(t.get(), r, r + 2 * h, h, h);
 
     m64pol_mul_kara(r, a1, a2, h, h);
     m64pol_mul_kara(r + 2 * h, a1 + h, a2 + h, h, h);
-    m64pol_add(t, t, r, 2 * h - 1);
-    m64pol_add(t, t, r + 2 * h, 2 * h - 1);
-    m64pol_add(r + h, r + h, t, 2 * h - 1);
-    free_aligned(t);
+    m64pol_add(t.get(), t.get(), r, 2 * h - 1);
+    m64pol_add(t.get(), t.get(), r + 2 * h, 2 * h - 1);
+    m64pol_add(r + h, r + h, t.get(), 2 * h - 1);
 }/*}}}*/
 
 void m64pol_addmul_kara(mat64 * r, mat64 const * a1, mat64 const * a2, unsigned int n1, unsigned int n2)/*{{{*/
 {
-    mat64 * t = (mat64 *) malloc_aligned((n1 + n2 -1) * sizeof(mat64), 64);
-    m64pol_mul_kara(t, a1, a2, n1, n2);
-    m64pol_add(r, r, t, n1 + n2 - 1);
-    free_aligned(t);
+    auto t = make_unique_aligned_array<mat64>(n1 + n2 - 1, 64);
+    m64pol_mul_kara(t.get(), a1, a2, n1, n2);
+    m64pol_add(r, r, t.get(), n1 + n2 - 1);
 }/*}}}*/
 
 
@@ -97,7 +95,7 @@ void m64polblock_mul(mat64 * r, mat64 const * a1, mat64 const * a2, unsigned int
      * lengths n1, resp n2).
      */
     ASSERT(r != a1 && r != a2);
-    memset((void *) r, 0, (n1 + n2 - 1) * K * K * sizeof(mat64));
+    std::fill_n(r, (n1 + n2 - 1) * K * K, 0);
     for(unsigned int i = 0 ; i < K ; i++) {
         mat64 const * ra1 = a1 + i * n1 * K;
         mat64 * rr = r + i * (n1 + n2 - 1) * K;
@@ -116,7 +114,7 @@ void m64polblock_mul(mat64 * r, mat64 const * a1, mat64 const * a2, unsigned int
 void m64polblock_mul_kara(mat64 * r, mat64 const * a1, mat64 const * a2, unsigned int n1, unsigned int n2, unsigned int K)/*{{{*/
 {
     ASSERT(r != a1 && r != a2);
-    memset((void *) r, 0, (n1 + n2 - 1) * K * K * sizeof(mat64));
+    std::fill_n(r, (n1 + n2 - 1) * K * K, 0);
     for(unsigned int i = 0 ; i < K ; i++) {
         mat64 const * ra1 = a1 + i * n1 * K;
         mat64 * rr = r + i * (n1 + n2 - 1) * K;
@@ -131,4 +129,3 @@ void m64polblock_mul_kara(mat64 * r, mat64 const * a1, mat64 const * a2, unsigne
         }
     }
 }/*}}}*/
-

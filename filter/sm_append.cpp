@@ -504,11 +504,11 @@ int downlink_base::produce(task_globals & tg) // {{{
  * the same ctor args
  */
 template <typename T> struct repl2 {
-    typedef std::forward_iterator_tag iterator_category;
-    typedef std::pair<int, T const &> value_type;
-    typedef ptrdiff_t difference_type;
-    typedef value_type * pointer;
-    typedef value_type & reference;
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = std::pair<int, T const &>;
+    using difference_type = ptrdiff_t;
+    using pointer = value_type *;
+    using reference = value_type &;
     T & r;
     int i = 0;
     int n;

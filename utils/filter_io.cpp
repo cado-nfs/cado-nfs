@@ -63,8 +63,8 @@ struct ifb_locking_posix {/*{{{*/
             T increment() { return x++; }
         };
     };
-    typedef std::mutex  lock_t;
-    typedef std::condition_variable   cond_t;
+    using lock_t = std::mutex ;
+    using cond_t = std::condition_variable  ;
     static void lock(lock_t * m) { m->lock(); }
     static void unlock(lock_t * m) { m->unlock(); }
     static void wait(cond_t * c, lock_t * m) {
@@ -118,7 +118,7 @@ struct ifb_locking_lightweight {/*{{{*/
          */
 #if !defined(__x86_64) && !defined(__i386)
         class t : private std::atomic<T> {
-            typedef std::atomic<T> super;
+            using super = std::atomic<T>;
             public:
             T load() const { return super::load(std::memory_order_acquire); }
             explicit t(T const& a) : super(a) {}
@@ -159,8 +159,8 @@ struct ifb_locking_lightweight {/*{{{*/
         };
 #endif
     };
-    typedef int lock_t;
-    typedef int cond_t;
+    using lock_t = int;
+    using cond_t = int;
     template<typename T> static T next(T a, int) { return a; }
     static void lock(lock_t *) {}
     static void unlock(lock_t *) {}
@@ -182,7 +182,7 @@ struct ifb_locking_lightweight {/*{{{*/
  * make it depend on the locking backend instead, for simplicity. */
 template<typename locking>
 struct status_table {
-    typedef typename locking::template critical_datatype<size_t>::t csize_t;
+    using csize_t = typename locking::template critical_datatype<size_t>::t;
     typename locking::template critical_datatype<int8_t>::t x[SIZE_BUF_REL];
     /* {{{ ::catchup() (for ::schedule() termination) */
     void catchup(csize_t & last_completed, size_t last_scheduled, int level) {
@@ -235,7 +235,7 @@ struct status_table {
 
 template<>
 struct status_table<ifb_locking_lightweight> {
-    typedef ifb_locking_lightweight::critical_datatype<size_t>::t csize_t;
+    using csize_t = ifb_locking_lightweight::critical_datatype<size_t>::t;
     static void catchup(csize_t & last_completed, size_t last_scheduled, int) {
         ASSERT_ALWAYS(last_completed.load() == last_scheduled);
     }
@@ -1313,13 +1313,13 @@ uint64_t filter_rels2(std::vector<std::string> const & input_files,
     /* Currently we only have had use for n==2 or n==3 */
 
     if (n == 2 && !multi && !filter_rels_force_posix_threads) {
-        typedef inflight_rels_buffer<ifb_locking_lightweight, 2> inflight_t;
+        using inflight_t = inflight_rels_buffer<ifb_locking_lightweight, 2>;
         return filter_rels2_inner<inflight_t>(input_files, desc, earlyparse_needed_data, active, stats);
     } else if (n == 2) {
-        typedef inflight_rels_buffer<ifb_locking_posix, 2> inflight_t;
+        using inflight_t = inflight_rels_buffer<ifb_locking_posix, 2>;
         return filter_rels2_inner<inflight_t>(input_files, desc, earlyparse_needed_data, active, stats);
     } else if (n == 3) {
-        typedef inflight_rels_buffer<ifb_locking_posix, 3> inflight_t;
+        using inflight_t = inflight_rels_buffer<ifb_locking_posix, 3>;
         return filter_rels2_inner<inflight_t>(input_files, desc, earlyparse_needed_data, active, stats);
     } else {
         fprintf(stderr, "filter_rels2 is not explicitly configured (yet) to support deeper pipes\n");

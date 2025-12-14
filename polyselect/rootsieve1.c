@@ -106,7 +106,7 @@ initPrimes (unsigned long B)
 {
   unsigned long nprimes = 0, p, q, l;
 
-  Primes = malloc (B * sizeof (unsigned long));
+  Primes = malloc (B * sizeof (long));
   ASSERT_ALWAYS(Primes != NULL);
   for (p = 2; p < B; p += 1 + (p > 2))
     if (ulong_isprime (p))
@@ -982,7 +982,7 @@ int main(int argc, char const * argv[])
 
 #pragma omp parallel
 #pragma omp master
-  printf ("# Using %d thread(s)\n", omp_get_num_threads ());
+    printf ("# Using %d thread(s)\n", omp_get_num_threads ());
 
     ASSERT_ALWAYS(B <= 65536);
 

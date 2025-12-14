@@ -276,7 +276,7 @@ static int do_factorization_of_prime_batch(cxx_param_list & pl) /*{{{*/
         auto my_ideals = O.factor(p, state);
 
         // sort magma ideals. Ours are sorted already.
-        std::sort(ideals.begin(), ideals.end());
+        std::ranges::sort(ideals);
         ok = ok && (ideals.size() == my_ideals.size());
         for(unsigned int k = 0 ; ok && k < ideals.size() ; k++) {
             ok = (ideals[k] == my_ideals[k].first);

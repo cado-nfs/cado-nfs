@@ -81,7 +81,7 @@ struct slice_info {
     size_t data_offset;
 };
 
-typedef vector<uint16_t> data_t;
+using data_t = vector<uint16_t>;
 
 template<typename Arith>
 struct matmul_sliced : public matmul_interface {
@@ -191,7 +191,7 @@ void matmul_sliced<Arith>::build_cache(matrix_u32 && m)
            std::cout << "Packing " << npack << " rows from " << current
            << " to " << next << "\n";
            */
-        typedef std::vector<std::pair<uint32_t, uint32_t> > L_t;
+        using L_t = std::vector<std::pair<uint32_t, uint32_t> >;
         L_t L;
         for(unsigned int di = 0 ; di < npack ; di++) {
             for(unsigned int j = 0 ; j < *ptr ; j++) {
@@ -202,7 +202,7 @@ void matmul_sliced<Arith>::build_cache(matrix_u32 && m)
         }
         /* L is the list of (column index, row index) of all
          * coefficients in the current horizontal slice */
-        std::sort(L.begin(), L.end());
+        std::ranges::sort(L);
 
         push32(npack);
         push32(L.size());
@@ -292,7 +292,7 @@ void matmul_sliced<Arith>::build_cache(matrix_u32 && m)
         << rowcol[store_transposed] << "s\n";
 #ifdef  SLICE_STATS
     std::cout << "info per sub-slice:";
-    typedef std::vector<slice_info>::const_iterator si_t;
+    using si_t = std::vector<slice_info>::const_iterator;
     for(si_t s = dslices_info.begin() ; s != dslices_info.end() ; s++) {
         std::cout
             << (s-dslices_info.begin())

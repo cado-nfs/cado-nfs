@@ -1142,8 +1142,8 @@ struct scatter_gather_base {/*{{{*/
 
 template<bool is_binary>
 class gather_mat : public scatter_gather_base<is_binary> {/*{{{*/
-    typedef matpoly<is_binary> matpoly_type;
-    typedef bigmatpoly<is_binary> bigmatpoly_type;
+    using matpoly_type = matpoly<is_binary>;
+    using bigmatpoly_type = bigmatpoly<is_binary>;
     bigmatpoly_type const & src;
     matpoly_type & dst;
 
@@ -1505,8 +1505,8 @@ class gather_mat : public scatter_gather_base<is_binary> {/*{{{*/
 
 template<bool is_binary>
 class scatter_mat : public scatter_gather_base<is_binary> {/*{{{*/
-    typedef matpoly<is_binary> matpoly_type;
-    typedef bigmatpoly<is_binary> bigmatpoly_type;
+    using matpoly_type = matpoly<is_binary>;
+    using bigmatpoly_type = bigmatpoly<is_binary>;
     matpoly_type const & src;
     bigmatpoly_type & dst;
 

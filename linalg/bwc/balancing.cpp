@@ -1,23 +1,26 @@
 #include "cado.h" // IWYU pragma: keep
 
 #include <cerrno>
-#include <cinttypes>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
 #include <memory>
+#include <string>
 
 #include <sys/stat.h>
 
+#include "fmt/base.h"
+#include "fmt/format.h"
+
 #include "balancing.hpp"
-#include "portability.h" // asprintf // IWYU pragma: keep
-#include "fix-endianness.h" // fread32_little
-#include "crc.h"        // cado_crc_lfsr
-#include "misc.h"       // has_suffix
+#include "portability.h"
+#include "fix-endianness.h"
+#include "crc.h"
+#include "misc.h"
 #include "macros.h"
-#include "utils_cxx.hpp"        // for unique_ptr<FILE, delete_FILE>
+#include "utils_cxx.hpp"
 
 void balancing_set_row_col_count(balancing & bal)
 {
@@ -198,7 +201,7 @@ void balancing_read_header(balancing & bal, std::string const & filename)
 void balancing_read(balancing & bal, std::string const & filename)
 {
     ASSERT_ALWAYS(!filename.empty());
-    std::unique_ptr<FILE, delete_FILE> pfile (fopen (filename.c_str(), "rb"));
+    const std::unique_ptr<FILE, delete_FILE> pfile (fopen (filename.c_str(), "rb"));
     if (!pfile) {
         perror(filename.c_str());
         abort();

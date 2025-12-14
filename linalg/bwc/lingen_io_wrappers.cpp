@@ -872,7 +872,7 @@ void lingen_F_from_PI<is_binary>::reorder_solutions()
             s += ab->is_zero(rhs.coeff(iF, jF, 0));
         sol_score.push_back({{ s, jF }});
     }
-    std::sort(sol_score.begin(), sol_score.end());
+    std::ranges::sort(sol_score);
     if (nrhs && sol_score.size() && !mpi_rank()) {
         printf("Reordered solutions:\n");
         for (unsigned int i = 0; i < n; i++) {
