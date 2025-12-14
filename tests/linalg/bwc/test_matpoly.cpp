@@ -26,8 +26,8 @@
 template<bool is_binary_arg>
 struct matpoly_checker_base {
     static constexpr bool is_binary = is_binary_arg;
-    typedef matpoly<is_binary> matpoly_type;
-    typedef typename matpoly_type::arith_hard arith_hard_t;
+    using matpoly_type = matpoly<is_binary>;
+    using arith_hard_t = typename matpoly_type::arith_hard;
     arith_hard_t ab;
     unsigned int m;
     unsigned int n;
@@ -173,7 +173,7 @@ struct matpoly_checker_base {
 
     int truncate_is_like_mulx_then_divx_everywhere() {
         matpoly_type P(&ab, m,   n, len1);
-        unsigned int const trmax = std::min(128u, len1 / 2);
+        unsigned int const trmax = std::min(128U, len1 / 2);
         unsigned int const tr = gmp_urandomm_ui(rstate, trmax + 1);
         P.clear_and_set_random(len1, rstate);
         matpoly_type Q;
@@ -203,7 +203,7 @@ struct matpoly_checker_base {
 
     int rshift_is_like_divx_everywhere() {
         matpoly_type P(&ab, m,   n, len1);
-        unsigned int const trmax = std::min(128u, len1 / 2);
+        unsigned int const trmax = std::min(128U, len1 / 2);
         unsigned int const tr = gmp_urandomm_ui(rstate, trmax + 1);
         P.clear_and_set_random(len1, rstate);
         matpoly_type Q;
@@ -408,7 +408,7 @@ inline int matpoly_checker_base<false>::test_basecase()
 template<typename fft_type>
 struct matpoly_checker_ft : public matpoly_checker_base<is_binary_fft<fft_type>::value> {
     static constexpr bool is_binary = is_binary_fft<fft_type>::value;
-    typedef matpoly<is_binary> matpoly_type;
+    using matpoly_type = matpoly<is_binary>;
     tree_stats stats;
     tree_stats::sentinel stats_sentinel;
     typename matpoly_ft<fft_type>::memory_guard dummy_ft;

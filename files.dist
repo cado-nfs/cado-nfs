@@ -80,6 +80,7 @@ config/int128.c
 config/int128.cmake
 config/iwyu.pl.in
 config/jevents.cmake
+config/libstdc++-bug-114153.cpp
 config/linux.cmake
 config/m4ri.cmake
 config/math-special.cmake
@@ -142,7 +143,7 @@ filter/README.fileformat
 filter/clique_removal.cpp
 filter/clique_removal.h
 filter/dup1.c
-filter/dup2.c
+filter/dup2.cpp
 filter/filter_config.h
 filter/filter_galois.cpp
 filter/merge.c

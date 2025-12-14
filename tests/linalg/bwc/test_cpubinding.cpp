@@ -32,7 +32,7 @@ static int verbose = 0;
 static int do_cpubinding_tests(const char * cpubinding_conf)
 {
     FILE * f = fopen(cpubinding_conf, "r");
-    if (f == NULL) {
+    if (f == nullptr) {
         fprintf(stderr, "%s: fopen failed\n", cpubinding_conf);
         exit(1);
     }
@@ -85,7 +85,7 @@ static int do_cpubinding_tests(const char * cpubinding_conf)
             if (verbose) puts(msg);
             free(msg);
         }
-        int ok = want == (cc != NULL);
+        int ok = want == (cc != nullptr);
         if (verbose) printf("result: %s\n", ok_NOK(ok));
         // nb_ok += ok;
         nb_nok += !ok;
@@ -99,7 +99,7 @@ static int do_cpubinding_tests(const char * cpubinding_conf)
 
 int main(int argc, char const * argv[])
 {
-    const char * cpubinding_conf = NULL;
+    const char * cpubinding_conf = nullptr;
     cxx_param_list pl;
 
     argv++,argc--;
@@ -117,8 +117,8 @@ int main(int argc, char const * argv[])
         usage();
     }
 
-    int seen_i = param_list_lookup_string(pl, "input-topology-file") != NULL;
-    int seen_s = param_list_lookup_string(pl, "input-topology-string") != NULL;
+    int seen_i = param_list_lookup_string(pl, "input-topology-file") != nullptr;
+    int seen_s = param_list_lookup_string(pl, "input-topology-string") != nullptr;
 
     if (seen_i && seen_s) {
         fprintf(stderr, "Cannot have both -i and -s\n");

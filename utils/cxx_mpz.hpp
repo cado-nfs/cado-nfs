@@ -249,22 +249,29 @@ extern void mpq_init(cxx_mpq & pl) __attribute__((error("mpq_init must not be ca
 extern void mpq_clear(cxx_mpq & pl) __attribute__((error("mpq_clear must not be called on a mpq reference -- it is the caller's business (via a dtor)")));
 #endif
 
-inline std::strong_ordering operator<=>(cxx_mpz const & a, mpz_srcptr b) {
+static inline std::strong_ordering operator<=>(cxx_mpz const & a, mpz_srcptr b) {
     return gmp_auxx::mpz_cmp(a, b) <=> 0;
 }
+
 static inline bool operator==(cxx_mpz const & a, mpz_srcptr b) {
     return gmp_auxx::mpz_cmp(a, b) == 0;
 }
 
-inline std::strong_ordering operator<=>(cxx_mpz const & a, cxx_mpz const & b) {
+static inline std::strong_ordering operator<=>(cxx_mpz const & a, cxx_mpz const & b)
+{
     return gmp_auxx::mpz_cmp(a, b) <=> 0;
 }
 static inline bool operator==(cxx_mpz const & a, cxx_mpz const & b) {
     return gmp_auxx::mpz_cmp(a, b) == 0;
 }
+#ifdef HAVE_LIBSTDCXX_BUG_114153
+static inline bool operator<(cxx_mpz const & a, cxx_mpz const & b) {
+    return (a <=> b) < 0;
+}
+#endif
 
 template <typename T>
-inline std::strong_ordering operator<=>(cxx_mpz const & a, T const & b)
+static inline std::strong_ordering operator<=>(cxx_mpz const & a, T const & b)
     requires std::is_integral_v<T>
 {
     return gmp_auxx::mpz_cmp(a, b) <=> 0;
@@ -276,9 +283,9 @@ static inline bool operator==(cxx_mpz const & a, T const & b)
     return gmp_auxx::mpz_cmp(a, b) == 0;
 }
 
-inline cxx_mpz operator+(cxx_mpz const & a, cxx_mpz const & b) { cxx_mpz r; mpz_add(r, a, b); return r; }
+static inline cxx_mpz operator+(cxx_mpz const & a, cxx_mpz const & b) { cxx_mpz r; mpz_add(r, a, b); return r; }
 template <typename T>
-inline cxx_mpz operator+(cxx_mpz const & a, const T b)
+static inline cxx_mpz operator+(cxx_mpz const & a, const T b)
     requires std::is_integral_v<T>
 { cxx_mpz r; gmp_auxx::mpz_add(r, a, b); return r; }
 
@@ -286,13 +293,13 @@ template <typename T> inline cxx_mpz operator+(const T a, cxx_mpz const & b)
 requires std::is_integral_v<T>
  { cxx_mpz r; gmp_auxx::mpz_add(r, b, a); return r; }
 
-inline cxx_mpz & operator+=(cxx_mpz & a, cxx_mpz const & b) { mpz_add(a, a, b); return a; }
+static inline cxx_mpz & operator+=(cxx_mpz & a, cxx_mpz const & b) { mpz_add(a, a, b); return a; }
 template <typename T> inline cxx_mpz & operator+=(cxx_mpz & a, const T b)
 requires std::is_integral_v<T>
  { gmp_auxx::mpz_add(a, a, b); return a; }
 
-inline cxx_mpz operator-(cxx_mpz const & a) { cxx_mpz r; mpz_neg(r, a); return r; }
-inline cxx_mpz operator-(cxx_mpz const & a, cxx_mpz const & b) { cxx_mpz r; mpz_sub(r, a, b); return r; }
+static inline cxx_mpz operator-(cxx_mpz const & a) { cxx_mpz r; mpz_neg(r, a); return r; }
+static inline cxx_mpz operator-(cxx_mpz const & a, cxx_mpz const & b) { cxx_mpz r; mpz_sub(r, a, b); return r; }
 template <typename T> inline cxx_mpz operator-(cxx_mpz const & a, const T b)
 requires std::is_integral_v<T>
  { cxx_mpz r; gmp_auxx::mpz_sub(r, a, b); return r; }
@@ -300,12 +307,12 @@ template <typename T> inline cxx_mpz operator-(const T a, cxx_mpz const & b)
 requires std::is_integral_v<T>
  { cxx_mpz r; gmp_auxx::mpz_sub(r, a, b); return r; }
 
-inline cxx_mpz & operator-=(cxx_mpz & a, cxx_mpz const & b) { mpz_sub(a, a, b); return a; }
+static inline cxx_mpz & operator-=(cxx_mpz & a, cxx_mpz const & b) { mpz_sub(a, a, b); return a; }
 template <typename T> inline cxx_mpz & operator-=(cxx_mpz & a, const T b) 
 requires std::is_integral_v<T>
  { gmp_auxx::mpz_sub(a, a, b); return a; }
 
-inline cxx_mpz operator*(cxx_mpz const & a, cxx_mpz const & b) { cxx_mpz r; mpz_mul(r, a, b); return r; }
+static inline cxx_mpz operator*(cxx_mpz const & a, cxx_mpz const & b) { cxx_mpz r; mpz_mul(r, a, b); return r; }
 template <typename T> inline cxx_mpz operator*(cxx_mpz const & a, const T b) 
 requires std::is_integral_v<T>
  { cxx_mpz r; gmp_auxx::mpz_mul(r, a, b); return r; }
@@ -313,58 +320,69 @@ template <typename T> inline cxx_mpz operator*(const T a, cxx_mpz const & b)
 requires std::is_integral_v<T>
  { cxx_mpz r; gmp_auxx::mpz_mul(r, b, a); return r; }
 
-inline cxx_mpz & operator*=(cxx_mpz & a, cxx_mpz const & b) { mpz_mul(a, a, b); return a; }
+static inline cxx_mpz & operator*=(cxx_mpz & a, cxx_mpz const & b) { mpz_mul(a, a, b); return a; }
 template <typename T> inline cxx_mpz & operator*=(cxx_mpz & a, const T b) 
 requires std::is_integral_v<T>
  { gmp_auxx::mpz_mul(a, a, b); return a; }
 
-inline cxx_mpz operator/(cxx_mpz const & a, cxx_mpz const & b) { cxx_mpz r; mpz_tdiv_q(r, a, b); return r; }
+static inline cxx_mpz operator/(cxx_mpz const & a, cxx_mpz const & b) { cxx_mpz r; mpz_tdiv_q(r, a, b); return r; }
 template <typename T> inline cxx_mpz operator/(cxx_mpz const & a, const T b) 
 requires(std::is_integral_v<T> && std::is_unsigned_v<T>)
  { cxx_mpz r; mpz_tdiv_q_uint64(r, a, b); return r; }
 
-inline cxx_mpz & operator/=(cxx_mpz & a, cxx_mpz const & b) { mpz_tdiv_q(a, a, b); return a; }
+static inline cxx_mpz & operator/=(cxx_mpz & a, cxx_mpz const & b) { mpz_tdiv_q(a, a, b); return a; }
 template <typename T> inline cxx_mpz & operator/=(cxx_mpz & a, const T b) 
 requires(std::is_integral_v<T> && std::is_unsigned_v<T>)
  { mpz_tdiv_q_uint64(a, a, b); return a; }
 
-inline cxx_mpz operator%(cxx_mpz const & a, cxx_mpz const & b)  { cxx_mpz r; mpz_tdiv_r(r, a, b); return r; }
+static inline cxx_mpz operator%(cxx_mpz const & a, cxx_mpz const & b)  { cxx_mpz r; mpz_tdiv_r(r, a, b); return r; }
 template <typename T> inline cxx_mpz operator%(cxx_mpz const & a, const T b) 
 requires(std::is_integral_v<T> && std::is_unsigned_v<T>)
  { cxx_mpz r; mpz_tdiv_r_uint64(r, a, b); return r; }
 
-inline cxx_mpz & operator%=(cxx_mpz & a, cxx_mpz const & b)  { mpz_tdiv_r(a, a, b); return a; }
+static inline cxx_mpz & operator%=(cxx_mpz & a, cxx_mpz const & b)  { mpz_tdiv_r(a, a, b); return a; }
 template <typename T> inline cxx_mpz & operator%=(cxx_mpz & a, const T b)  
 requires(std::is_integral_v<T> && std::is_unsigned_v<T>)
  { mpz_tdiv_r_uint64(a, a, b); return a; }
 
-inline cxx_mpz & operator<<=(cxx_mpz & a, const mp_bitcnt_t s)  { mpz_mul_2exp(a, a, s); return a; }
-inline cxx_mpz operator<<(cxx_mpz const & a, const mp_bitcnt_t s)  { cxx_mpz r{a}; mpz_mul_2exp(r, r, s); return r; }
+static inline cxx_mpz & operator<<=(cxx_mpz & a, const mp_bitcnt_t s)  { mpz_mul_2exp(a, a, s); return a; }
+static inline cxx_mpz operator<<(cxx_mpz const & a, const mp_bitcnt_t s)  { cxx_mpz r{a}; mpz_mul_2exp(r, r, s); return r; }
 
-inline cxx_mpz & operator>>=(cxx_mpz & a, const mp_bitcnt_t s)  { mpz_tdiv_q_2exp(a, a, s); return a; }
-inline cxx_mpz operator>>(cxx_mpz const & a, const mp_bitcnt_t s)  { cxx_mpz r{a}; mpz_tdiv_q_2exp(r, r, s); return r; }
+static inline cxx_mpz & operator>>=(cxx_mpz & a, const mp_bitcnt_t s)  { mpz_tdiv_q_2exp(a, a, s); return a; }
+static inline cxx_mpz operator>>(cxx_mpz const & a, const mp_bitcnt_t s)  { cxx_mpz r{a}; mpz_tdiv_q_2exp(r, r, s); return r; }
 
 
-inline cxx_mpz operator~(cxx_mpz const & a) { cxx_mpz r; mpz_com(r, a); return r; }
-inline cxx_mpz operator|(cxx_mpz const & a, cxx_mpz const & b)  { cxx_mpz r; mpz_ior(r, a, b); return r; }
-inline cxx_mpz operator|(cxx_mpz const & a, const unsigned long b)  { cxx_mpz r; mpz_ior(r, a, cxx_mpz(b)); return r; }
-inline cxx_mpz & operator|=(cxx_mpz & a, cxx_mpz const & b)  { mpz_ior(a, a, b); return a; }
-inline cxx_mpz & operator|=(cxx_mpz & a, const unsigned long b)  { mpz_ior(a, a, cxx_mpz(b)); return a; }
+static inline cxx_mpz operator~(cxx_mpz const & a) { cxx_mpz r; mpz_com(r, a); return r; }
+static inline cxx_mpz operator|(cxx_mpz const & a, cxx_mpz const & b)  { cxx_mpz r; mpz_ior(r, a, b); return r; }
+static inline cxx_mpz operator|(cxx_mpz const & a, const unsigned long b)  { cxx_mpz r; mpz_ior(r, a, cxx_mpz(b)); return r; }
+static inline cxx_mpz & operator|=(cxx_mpz & a, cxx_mpz const & b)  { mpz_ior(a, a, b); return a; }
+static inline cxx_mpz & operator|=(cxx_mpz & a, const unsigned long b)  { mpz_ior(a, a, cxx_mpz(b)); return a; }
 
-inline cxx_mpz operator^(cxx_mpz const & a, cxx_mpz const & b)  { cxx_mpz r; mpz_xor(r, a, b); return r; }
-inline cxx_mpz operator^(cxx_mpz const & a, const unsigned long b)  { cxx_mpz r; mpz_xor(r, a, cxx_mpz(b)); return r; }
-inline cxx_mpz & operator^=(cxx_mpz & a, cxx_mpz const & b)  { mpz_xor(a, a, b); return a; }
-inline cxx_mpz & operator^=(cxx_mpz & a, const unsigned long b)  { mpz_xor(a, a, cxx_mpz(b)); return a; }
+static inline cxx_mpz operator^(cxx_mpz const & a, cxx_mpz const & b)  { cxx_mpz r; mpz_xor(r, a, b); return r; }
+static inline cxx_mpz operator^(cxx_mpz const & a, const unsigned long b)  { cxx_mpz r; mpz_xor(r, a, cxx_mpz(b)); return r; }
+static inline cxx_mpz & operator^=(cxx_mpz & a, cxx_mpz const & b)  { mpz_xor(a, a, b); return a; }
+static inline cxx_mpz & operator^=(cxx_mpz & a, const unsigned long b)  { mpz_xor(a, a, cxx_mpz(b)); return a; }
 
-inline cxx_mpz operator&(cxx_mpz const & a, cxx_mpz const & b)  { cxx_mpz r; mpz_and(r, a, b); return r; }
-inline cxx_mpz operator&(cxx_mpz const & a, const unsigned long b)  { cxx_mpz r; mpz_and(r, a, cxx_mpz(b)); return r; }
-inline cxx_mpz & operator&=(cxx_mpz & a, cxx_mpz const & b)  { mpz_and(a, a, b); return a; }
-inline cxx_mpz & operator&=(cxx_mpz & a, const unsigned long b)  { mpz_and(a, a, cxx_mpz(b)); return a; }
+static inline cxx_mpz operator&(cxx_mpz const & a, cxx_mpz const & b)  { cxx_mpz r; mpz_and(r, a, b); return r; }
+static inline cxx_mpz operator&(cxx_mpz const & a, const unsigned long b)  { cxx_mpz r; mpz_and(r, a, cxx_mpz(b)); return r; }
+static inline cxx_mpz & operator&=(cxx_mpz & a, cxx_mpz const & b)  { mpz_and(a, a, b); return a; }
+static inline cxx_mpz & operator&=(cxx_mpz & a, const unsigned long b)  { mpz_and(a, a, cxx_mpz(b)); return a; }
 
-inline bool operator==(cxx_mpq const & a, cxx_mpq const & b) { return mpq_cmp(a, b) == 0; }
-inline bool operator!=(cxx_mpq const & a, cxx_mpq const & b) { return mpq_cmp(a, b) != 0; }
-inline bool operator<(cxx_mpq const & a, cxx_mpq const & b) { return mpq_cmp(a, b) < 0; }
-inline bool operator>(cxx_mpq const & a, cxx_mpq const & b) { return mpq_cmp(a, b) > 0; }
+static inline std::strong_ordering operator<=>(cxx_mpq const & a, cxx_mpq const & b)
+{
+    return mpq_cmp(a, b) <=> 0;
+}
+static inline bool operator==(cxx_mpq const & a, cxx_mpq const & b)
+{
+    return mpq_cmp(a, b) == 0;
+}
+#ifdef HAS_LIBSTDCXX_BUG_114153
+static inline bool operator<(cxx_mpq const & a, cxx_mpq const & b)
+{
+    return (a <=> b) < 0;
+}
+#endif
+
 inline std::ostream& operator<<(std::ostream& os, cxx_mpz const& x) { return os << (mpz_srcptr) x; }
 inline std::ostream& operator<<(std::ostream& os, cxx_mpq const& x) { return os << (mpq_srcptr) x; }
 inline std::istream& operator>>(std::istream& is, cxx_mpz & x) { return is >> (mpz_ptr) x; }

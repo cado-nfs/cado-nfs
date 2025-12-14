@@ -44,11 +44,14 @@ struct relation_ab {
         , bz(_bz)
     {
     }
-    bool operator<(const relation_ab& o) const {
-        typedef std::tuple<cxx_mpz const &, cxx_mpz const &, int, int> T;
+    auto operator<=>(const relation_ab& o) const {
+        using T = std::tuple<cxx_mpz const &, cxx_mpz const &, int, int>;
         T const me   { az,   bz,   active_sides[0],   active_sides[1] };
         T const them { o.az, o.bz, o.active_sides[0], o.active_sides[1] };
-        return me < them;
+        return me <=> them;
+    }
+    bool operator==(const relation_ab& o) const {
+        return operator<=>(o) == 0;
     }
     friend std::istream& operator>>(std::istream&, relation_ab&);
     friend std::ostream& operator<<(std::ostream&, relation_ab const &);
@@ -72,11 +75,12 @@ struct relation : public relation_ab {
         {
         }
         pr() = default;
-        bool operator<(pr const & b) const {
-            int c = mpz_cmp(p, b.p);
-            if (c) { return c < 0; }
-            c = mpz_cmp(r, b.r);
-            return c < 0;
+        auto operator<=>(pr const & b) const {
+            if (auto c = p <=> b.p ; c != 0) return c;
+            return r <=> b.r;
+        }
+        bool operator==(pr const & b) const {
+            return operator<=>(b) == 0;
         }
     };
     int rational_side = -1;   /* index of the rational side, if any */

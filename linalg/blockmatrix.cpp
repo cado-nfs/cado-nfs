@@ -36,7 +36,7 @@ void blockmatrix::copy_colrange(blockmatrix const & A, unsigned int j0, unsigned
     ASSERT_ALWAYS(ncblocks == A.ncblocks);
 
     constexpr const unsigned int B = matrix::width;
-    typedef matrix::datatype U;
+    using U = matrix::datatype;
 
     unsigned int const block0 = j0 / B;
     U * masks = new U[A.ncblocks];
@@ -229,7 +229,7 @@ void blockmatrix::reverse_rows()
  */
 void blockmatrix::copy_to_flat(flat_area F, const_view_t V)
 {
-    typedef matrix::datatype U;
+    using U = matrix::datatype;
     constexpr const unsigned int B = matrix::width;
     unsigned int const i0 = 0;
     unsigned int const j0 = 0;
@@ -246,7 +246,7 @@ void blockmatrix::copy_to_flat(flat_area F, const_view_t V)
 
 void blockmatrix::copy_transpose_to_flat(flat_area F, const_view_t V)
 {
-    typedef matrix::datatype U;
+    using U = matrix::datatype;
     constexpr const unsigned int B = matrix::width;
     unsigned int const i0 = 0;
     unsigned int const j0 = 0;
@@ -305,7 +305,7 @@ blockmatrix::swap_words_if_needed (uint64_t *v MAYBE_UNUSED, unsigned long n MAY
 
 void blockmatrix::copy_transpose_from_flat(view_t V, const_flat_area F)
 {
-    typedef matrix::datatype U;
+    using U = matrix::datatype;
     constexpr const unsigned int B = matrix::width;
     unsigned int const i0 = 0;
     unsigned int const j0 = 0;
@@ -322,7 +322,7 @@ void blockmatrix::copy_transpose_from_flat(view_t V, const_flat_area F)
 
 void blockmatrix::copy_from_flat(view_t V, const_flat_area F)
 {
-    typedef matrix::datatype U;
+    using U = matrix::datatype;
     constexpr const unsigned int B = matrix::width;
     unsigned int const i0 = 0;
     unsigned int const j0 = 0;

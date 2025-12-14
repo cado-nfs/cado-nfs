@@ -1,20 +1,19 @@
 #include "cado.h" // IWYU pragma: keep
-// IWYU pragma: no_include <ext/alloc_traits.h>
-// IWYU pragma: no_include <memory>
 
 #include <cstring>
 #include <climits>
-#include <cerrno>             // for errno
-#include <cstdlib>            // for free, NULL
+#include <cerrno>
+#include <cstdlib>
 #include <cctype>
+#include <cstring>
 
-#include <utility>             // for pair, move, swap, make_pair
+#include <utility>
 #include <string>
 #include <map>
 #include <list>
-#include <iostream>      // std::cerr
-#include <fstream>      // ifstream // IWYU pragma: keep
-#include <sstream>      // ostringstream // IWYU pragma: keep
+#include <iostream>
+#include <fstream>
+#include <sstream>
 #include <stdexcept>
 #include <algorithm>
 #include <iterator>
@@ -24,9 +23,9 @@
 #include <hwloc/bitmap.h>
 
 #include "cpubinding.hpp"
-#include "params.h"     // param_list
+#include "params.h"
 #include "macros.h"
-#include "portability.h" // strdup
+#include "portability.h"
 
 /* This causes all messages to be immediately printed to stderr, instead
  * of being captured to a string */
@@ -67,7 +66,7 @@ static std::istream& parse_and_copy_to_list(std::istream& is, std::list<T>& L)
 #if 0
     std::istream_iterator<T> w0(is);
     std::istream_iterator<T> w1;
-    std::copy(w0, w1, back_inserter(L));
+    std::ranges::copy(w0, w1, back_inserter(L));
 #endif
     /* Here we promise to set failbit on failure. */
     std::string t;
@@ -93,27 +92,27 @@ static std::istream& parse_and_copy_to_list(std::istream& is, std::list<T>& L)
 
 /* {{{ class thread_split understands 2-dimension pairs */
 class thread_split {
-    int t[2];
+    std::array<int, 2> t;
     public:
     int const& operator[](int i) const { return t[i]; }
     int& operator[](int i) { return t[i]; }
     explicit operator int() const { return t[0] * t[1]; }
-    thread_split() { t[0] = t[1] = 1; }
-    thread_split(int t0, int t1) { t[0] = t0; t[1] = t1; }
-    thread_split(int tt[2]) { t[0] = tt[0]; t[1] = tt[1]; }
-    bool operator<(const thread_split& o) const {
-        int const tt = (int) *this;
-        int const oo = (int) o;
-        return tt < oo || (tt == oo && t[0] < o[0]);
-    }
+    thread_split() : t { 1, 1 } {}
+    thread_split(int t0, int t1) : t { t0, t1 } {}
+    explicit thread_split(const int tt[2]) : t { tt[0], tt[1] } {}
+    auto operator<=>(const thread_split& o) const = default;
+    bool operator==(const thread_split& o) const = default;
+#ifdef HAVE_LIBSTDCXX_BUG_114153
+    bool operator<(const thread_split& o) const { return operator<=>(o) < 0; }
+#endif
     thread_split operator*(thread_split const& o) const {
-        return thread_split(t[0]*o[0], t[1]*o[1]);
+        return { t[0]*o[0], t[1]*o[1] };
     }
     thread_split& operator*=(thread_split const& o) {
         t[0]*=o[0]; t[1]*=o[1]; return *this;
     }
     thread_split operator/(thread_split const& o) const {
-        return thread_split(t[0]/o[0], t[1]/o[1]);
+        return { t[0]/o[0], t[1]/o[1] };
     }
     thread_split& operator/=(thread_split const& o) {
         t[0]/=o[0]; t[1]/=o[1]; return *this;
@@ -121,13 +120,6 @@ class thread_split {
     bool is_divisible_by(thread_split const& o) const {
         return t[0]%o[0]==0 && t[1]%o[1]==0;
     }
-    bool operator==(thread_split const& o) const {
-        return t[0] == o.t[0] && t[1] == o.t[1];
-    }
-    bool operator!=(thread_split const& o) const {
-        return (!operator==(o));
-    }
-
 };
 static std::ostream& operator<<(std::ostream& os, thread_split const& t) {
     os << t[0] << 'x' << t[1];
@@ -201,7 +193,7 @@ std::istream& operator>>(std::istream& is, topology_level& t)
      * intended for hwloc-2.x
      */
     if (s == "[NUMANode]") {
-        t.has_memory=1;
+        t.has_memory = true;
         return is;
     }
     std::string::size_type const colon = s.find(':');
@@ -223,7 +215,7 @@ static std::ostream& operator<<(std::ostream& os, const topology_level& t)
 }
 /* }}} */
 
-typedef std::list<topology_level> synthetic_topology;
+using synthetic_topology = std::list<topology_level>;
 
 /* {{{ dealing with hwloc synthetic topology strings */
 static synthetic_topology hwloc_synthetic_topology(hwloc_topology_t topology)
@@ -266,7 +258,7 @@ static synthetic_topology hwloc_synthetic_topology(hwloc_topology_t topology)
 
 static std::ostream& operator<<(std::ostream& os, synthetic_topology const& t)
 {
-    std::copy(t.begin(), t.end(), std::ostream_iterator<synthetic_topology::value_type>(os, " "));
+    std::ranges::copy(t, std::ostream_iterator<synthetic_topology::value_type>(os, " "));
     return os;
 }
 static std::istream& operator>>(std::istream& is, synthetic_topology& L)
@@ -337,6 +329,7 @@ static std::ostream& operator<<(std::ostream& os, std::list<mapping_string> cons
     std::copy(L.begin(), --L.end(), std::ostream_iterator<mapping_string>(os, " "));
     os << L.back();
     return os;
+
 }
 
 static std::istream& operator>>(std::istream& is, std::list<mapping_string>& L)
@@ -350,7 +343,7 @@ static std::istream& operator>>(std::istream& is, std::list<mapping_string>& L)
 /* {{{ matching strings are just the same, with jokers */
 struct matching_string : public topology_level {
     private:
-        typedef topology_level super;
+        using super = topology_level;
     public:
     std::string joker;
     bool operator<(const matching_string& o) const {
@@ -424,7 +417,7 @@ static std::istream& operator>>(std::istream& is, std::list<matching_string>& L)
                     << "Invalid matching std::string:"
                     << "memory objects cannot be on top";
             }
-            L2.back().has_memory=1;
+            L2.back().has_memory = true;
             L.pop_front();
             continue;
         }
@@ -489,7 +482,7 @@ static std::istream& operator>>(std::istream& is, std::list<matching_string>& L)
                 <<" NUMANode followed by a joker would have ambiguous meaning with hwloc-2.x";
         }
         next.n *= n;
-        next.has_memory = 1;
+        next.has_memory = true;
         L2.splice(L2.end(), L, L.begin());
     }
     if (!is_version) {
@@ -506,9 +499,9 @@ static std::istream& operator>>(std::istream& is, std::list<matching_string>& L)
 
 /* }}} */
 
-typedef std::map<std::list<matching_string>,
+using conf_file = std::map<std::list<matching_string>,
             std::map<thread_split,
-                std::list<mapping_string>>> conf_file;
+                std::list<mapping_string>>>;
 
 /* {{{ Dealing with the configuration file */
 static std::istream& operator>>(std::istream& f, conf_file& result)
@@ -617,7 +610,7 @@ static bool compare_to_section_title(std::ostream& os, synthetic_topology & topo
     extra.clear();
 
     auto t = topology.begin();
-    for(auto s : title) {
+    for(auto const & s : title) {
         if (t == topology.end()) {
             /* no exact match possible. */
             return false;
@@ -641,7 +634,7 @@ static bool compare_to_section_title(std::ostream& os, synthetic_topology & topo
             if (t->object != "PU")
                 return false;
             /* This sets the group argument to t->n */
-            extra.push_back(mapping_string("PU", t->n));
+            extra.emplace_back("PU", t->n);
             t++;
             njokers++;
             continue;
@@ -685,7 +678,7 @@ public:
         cpu = hwloc_bitmap_dup(p->cpuset);
         mem = hwloc_bitmap_dup(p->nodeset);
     }
-    pinning_group const& operator=(pinning_group const& o) {
+    pinning_group& operator=(pinning_group const& o) {
         if (this == &o) return *this;
         hwloc_bitmap_copy(cpu, o.cpu);
         hwloc_bitmap_copy(mem, o.mem);
@@ -739,7 +732,7 @@ class cpubinder {
         pinning_group_matrices(thread_split const& t) : t(t) {}
     public:
         /* flat constructors */
-        pinning_group_matrices() {}
+        pinning_group_matrices() = default;
         pinning_group_matrices(pinning_group const& p) : m(1,p) {}
         pinning_group_matrices(std::vector<pinning_group> const& p) : m(p) {}
         /* i <= t[0], j <= t[1] */
@@ -940,7 +933,7 @@ bool cpubinder::find(thread_split const& thr)
     } best;
     int nm=0;
     best.n = INT_MAX;
-    for(auto it : cf) {
+    for(auto const & it : cf) {
         int n;
         std::list<mapping_string> e;
         synthetic_topology s = stopo;
@@ -1017,8 +1010,8 @@ void cpubinder::stage()
     */
     std::vector<pinning_group> slots;
     for(hwloc_obj_t pu = hwloc_get_obj_by_depth(topology, depth-1, 0) ;
-            pu != NULL;
-            pu = pu->next_cousin) slots.push_back(pu);
+            pu != nullptr;
+            pu = pu->next_cousin) slots.emplace_back(pu);
 
 
     auto rt = stopo.rbegin()  ;
@@ -1187,7 +1180,7 @@ void cpubinder::stage()
  * the actual cpu binding. This function must be called in
  * single-threaded context.
  * 
- * This returns NULL if cpubinding failed.
+ * This returns nullptr if cpubinding failed.
  */
 
 void * cpubinding_get_info(char ** messages, cxx_param_list & pl, unsigned int tt0, unsigned int tt1)
@@ -1199,7 +1192,7 @@ void * cpubinding_get_info(char ** messages, cxx_param_list & pl, unsigned int t
         if (messages) {
             *messages = strdup("cpubinding disabled by cmdline switch\n");
         }
-        return NULL;
+        return nullptr;
     }
 
 #ifdef  CPUBINDING_DEBUG
@@ -1208,7 +1201,7 @@ void * cpubinding_get_info(char ** messages, cxx_param_list & pl, unsigned int t
     std::ostringstream os;
 #endif  /* CPUBINDING_DEBUG */
 
-    cpubinder * cb = new cpubinder(os);
+    auto * cb = new cpubinder(os);
 
     int const force = conf && (strstr(conf, "=>") || strcmp(conf, "remove") == 0 || strlen(conf) == 0);
 
@@ -1222,20 +1215,20 @@ void * cpubinding_get_info(char ** messages, cxx_param_list & pl, unsigned int t
         } else {
             os << PRE << "no mapping found\n";
             delete cb;
-            cb = NULL;
+            cb = nullptr;
         }
     } catch (std::invalid_argument const& e) {
         os << PRE << "Failed on error:\n"
             << PRE << "  " << e.what() << "\n";
         delete cb;
-        cb = NULL;
+        cb = nullptr;
     }
 
     if (messages) {
 #ifndef CPUBINDING_DEBUG
         *messages = strdup(os.str().c_str());
 #else
-        *messages = NULL;
+        *messages = nullptr;
 #endif  /* CPUBINDING_DEBUG */
     }
     return static_cast<void*>(cb);
@@ -1258,8 +1251,8 @@ void cpubinder::apply(int i, int j) const
 /* perform the actual pinning. This must be called for each thread */
 void cpubinding_do_pinning(void * pinning_info_pre, int i, int j)
 {
-    if (pinning_info_pre == NULL) return;
-    cpubinder* cb = static_cast<cpubinder*>(pinning_info_pre);
+    if (pinning_info_pre == nullptr) return;
+    auto* cb = static_cast<cpubinder*>(pinning_info_pre);
 
     cb->apply(i, j);
 }
@@ -1267,7 +1260,7 @@ void cpubinding_do_pinning(void * pinning_info_pre, int i, int j)
 /* free the opaque pointer */
 void cpubinding_free_info(void * pinning_info_pre, unsigned int, unsigned int)
 {
-    if (pinning_info_pre == NULL) return;
-    cpubinder* cb = static_cast<cpubinder*>(pinning_info_pre);
+    if (pinning_info_pre == nullptr) return;
+    auto* cb = static_cast<cpubinder*>(pinning_info_pre);
     delete cb;
 }

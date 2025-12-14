@@ -63,7 +63,7 @@ unsigned int renumber_table_get_min_lpb(renumber_proxy_srcptr R)
 }
 uint64_t renumber_table_get_size(renumber_proxy_srcptr R)
 {
-    return deref(R)->get_size();
+    return deref(R)->size();
 }
 unsigned int renumber_table_get_nb_polys(renumber_proxy_srcptr R)
 {

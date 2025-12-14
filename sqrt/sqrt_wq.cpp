@@ -12,15 +12,15 @@
 struct wq_task * wq_push(struct work_queue * wq, wq_func_t f, void * arg)
 {
 
-    struct wq_task * t = (struct wq_task *) malloc(sizeof(struct wq_task));
+    auto * t = (wq_task *) malloc(sizeof(wq_task));
     t->f = f;
     t->arg = arg;
     t->done = 0;
     if (t->f) {
         // t->f == NULL is used as a special marker. In this case the
         // mutexes are not initialized
-        pthread_mutex_init(t->m_, NULL);
-        pthread_cond_init(t->c_, NULL);
+        pthread_mutex_init(t->m_, nullptr);
+        pthread_cond_init(t->c_, nullptr);
     }
 
     pthread_mutex_lock(wq->m);
@@ -36,12 +36,12 @@ struct wq_task * wq_pop_wait(struct work_queue * wq)
 {
     struct wq_task * t;
     pthread_mutex_lock(wq->m);
-    for( ; wq->head == NULL ; ) {
+    for( ; wq->head == nullptr ; ) {
         pthread_cond_wait(wq->c, wq->m);
     }
     t = wq->head;
     wq->head = t->next;
-    t->next = NULL;
+    t->next = nullptr;
     pthread_mutex_unlock(wq->m);
     return t;
 }
@@ -49,9 +49,9 @@ struct wq_task * wq_pop_wait(struct work_queue * wq)
 void * wq_waiter(void * wq)
 {
     for( ; ; ) {
-        struct wq_task * t = wq_pop_wait((struct work_queue *) wq);
-        if (t->f == NULL) {
-            /* t == NULL is an indication that we're reaching the
+        auto * t = wq_pop_wait((struct work_queue *) wq);
+        if (t->f == nullptr) {
+            /* t == nullptr is an indication that we're reaching the
              * end-of-work signal. For this special case, t->m_ and t->c_
              * have not been initialized.  */
             free(t);
@@ -65,7 +65,7 @@ void * wq_waiter(void * wq)
         pthread_mutex_unlock(t->m_);
     }
     /* we have to obey the pthread_create proto. */
-    return NULL;
+    return nullptr;
 }
 
 void * wq_join(struct wq_task * t)
@@ -84,12 +84,12 @@ void * wq_join(struct wq_task * t)
 
 void wq_init(struct work_queue * wq, unsigned int n)
 {
-    pthread_mutex_init(wq->m, NULL);
-    pthread_cond_init(wq->c, NULL);
-    wq->head = NULL;
+    pthread_mutex_init(wq->m, nullptr);
+    pthread_cond_init(wq->c, nullptr);
+    wq->head = nullptr;
     wq->clients = (pthread_t *) malloc(n * sizeof(pthread_t));
     for(unsigned int i = 0 ; i < n ; i++) {
-        pthread_create(wq->clients + i, NULL, &wq_waiter, wq);
+        pthread_create(wq->clients + i, nullptr, &wq_waiter, wq);
     }
 }
 
@@ -97,16 +97,13 @@ void wq_clear(struct work_queue * wq, unsigned int n)
 {
     for(unsigned int i = 0 ; i < n ; i++) {
         // schedule end-of-work for everybody.
-        wq_push(wq, NULL, NULL);
+        wq_push(wq, nullptr, nullptr);
     }
     for(unsigned int i = 0 ; i < n ; i++) {
-        pthread_join(wq->clients[i], NULL);
+        pthread_join(wq->clients[i], nullptr);
     }
 
-    ASSERT_ALWAYS(wq->head == NULL);
+    ASSERT_ALWAYS(wq->head == nullptr);
     pthread_mutex_destroy(wq->m);
     pthread_cond_destroy(wq->c);
 }
-
-/*  */
-

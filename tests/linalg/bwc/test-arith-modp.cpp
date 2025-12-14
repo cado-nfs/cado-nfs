@@ -56,8 +56,8 @@ static void do_tests(unsigned long iter, int summands, int cbound )
 
         size_t const N = field.template nlimbs<typename F::elt>();
 
-        typedef typename F::elt_ur_for_add a_type;
-        typedef typename F::elt_ur_for_addmul m_type;
+        using a_type = typename F::elt_ur_for_add;
+        using m_type = typename F::elt_ur_for_addmul;
         const int a_extra = field.template overhead_limbs<a_type>();
         const int m_extra = field.template overhead_limbs<m_type>();
 

@@ -69,7 +69,7 @@ setup_x_random(unsigned int m, unsigned int nx, unsigned int nr,
                  * it does not make a lot of sense to have duplicates,
                  * since that amounts to having nothing anyway...
                  */
-                std::sort(xs.data() + i * nx, xs.data() + (i + 1) * nx);
+                std::ranges::sort(xs.data() + i * nx, xs.data() + (i + 1) * nx);
                 for (unsigned int j = 1; j < nx; j++) {
                     if (xs[i * nx + j] == xs[i * nx + j - 1]) {
                         collision = true;

@@ -39,6 +39,7 @@
 #include "timing.h"
 #include "typedefs.h"
 #include "verbose.h"
+#include "utils_cxx.hpp"
 
 static int verbose = 0; /* verbosity level */
 
@@ -121,7 +122,7 @@ struct indexrange {
     }
 
     size_t pos_from_p(p_r_values_t p) const {
-        return std::lower_bound(prime.begin(), prime.end(), p) - prime.begin();
+        return std::ranges::lower_bound(prime, p) - prime.begin();
     }
 
     std::vector<index_t> all_composites(
@@ -182,8 +183,7 @@ struct model_relation : public indexed_relation_byside {
     {}
     model_relation perturb(std::vector<indexrange> const & Ind, gmp_randstate_t buf) const
     {
-        auto R = [buf]() { return u64_random(buf); };
-        relation_ab const ab(R(), R());
+        relation_ab const ab(i64_random(buf), u64_random(buf));
         model_relation rel(ab);
 
         rel.set_active_sides(get_active_sides());
@@ -276,7 +276,7 @@ read_sample_file(int sqside, const char *filename, renumber_t & ren_tab)
     }
 
     for(auto & S : sample)
-        std::sort(S.second.begin(), S.second.end());
+        std::ranges::sort(S.second);
 
     if (nbegin == 0) {
         fmt::print(stderr, "# The sample file {} was apparently"
@@ -294,7 +294,7 @@ read_sample_file(int sqside, const char *filename, renumber_t & ren_tab)
         nq++;
         nr+=x.second.size();
         ret.first.push_back(x.second.size());
-        std::copy(x.second.begin(), x.second.end(), std::back_inserter(ret.second));
+        std::ranges::copy(x.second, std::back_inserter(ret.second));
     }
 
     fmt::print("# {}: {} special-q's, {} relations, max {} concurrent special-q's\b",
@@ -338,11 +338,11 @@ static unsigned long print_fake_rel_manyq(
         if (shrink_factor == 1) {
             nr = model_nrels;
         } else {
-            double const nr_dble = double(model_nrels) / shrink_factor;
+            double const nr_dble = double_ratio(model_nrels, shrink_factor);
             // Do probabilistic rounding, in case nr_dble is small (maybe < 1)
             double const trunc_part = trunc(nr_dble);
             double const frac_part = nr_dble - trunc_part;
-            double const rnd = double(u64_random(buf)) / double(UINT64_MAX);
+            double const rnd = double_ratio(u64_random(buf), UINT64_MAX);
             nr = int(trunc_part) + int(rnd < frac_part);
         }
 
@@ -360,7 +360,7 @@ static unsigned long print_fake_rel_manyq(
              *   conceivably, for the sides of all divisors of q !) would
              *   be a bit annoying here.
              */
-            std::copy(qpart.begin(), qpart.end(), std::back_inserter(rel.sides.back()));
+            std::ranges::copy(qpart, std::back_inserter(rel.sides.back()));
 
             if (shrink_factor > 1)
                 rel.shrink(shrink_factor);
@@ -526,7 +526,7 @@ int main(int argc, char const * argv[])
 
       /* Could also be a file */
       FILE *f;
-      if ((f = fopen(argv[0], "r")) != NULL) {
+      if ((f = fopen(argv[0], "r")) != nullptr) {
           param_list_read_stream(pl, f, 0);
           fclose(f);
           argv++,argc--;
@@ -541,7 +541,7 @@ int main(int argc, char const * argv[])
   param_list_print_command_line(stdout, pl);
 
   const char * filename;
-  if ((filename = param_list_lookup_string(pl, "poly")) == NULL) {
+  if ((filename = param_list_lookup_string(pl, "poly")) == nullptr) {
       fmt::print(stderr, "Error: parameter -poly is mandatory\n");
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
@@ -602,7 +602,7 @@ int main(int argc, char const * argv[])
   }
 
   const char * renumberfile;
-  if ((renumberfile = param_list_lookup_string(pl, "renumber")) == NULL) {
+  if ((renumberfile = param_list_lookup_string(pl, "renumber")) == nullptr) {
       fmt::print(stderr, "Error: parameter -renumber is mandatory\n");
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
@@ -623,7 +623,7 @@ int main(int argc, char const * argv[])
 
   // read sample file
   const char * samplefile;
-  if ((samplefile = param_list_lookup_string(pl, "sample")) == NULL) {
+  if ((samplefile = param_list_lookup_string(pl, "sample")) == nullptr) {
       fmt::print(stderr, "Error: parameter -sample is mandatory\n");
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
@@ -710,9 +710,9 @@ int main(int argc, char const * argv[])
   /* print statistics */
 
   fmt::print ("# Output {} relations in {:.2f}s cpu ({:.0f} rels/s)\n",
-	  rels_printed, t0, (double) rels_printed / t0);
+	  rels_printed, t0, double_ratio(rels_printed, t0));
   fmt::print ("# Output {} relations in {:.2f}s wct ({:.0f} rels/s)\n",
-	  rels_printed, wct_t0, (double) rels_printed / wct_t0);
+	  rels_printed, wct_t0, double_ratio(rels_printed, wct_t0));
 
   return 0;
 }

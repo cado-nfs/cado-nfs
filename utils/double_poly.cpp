@@ -14,6 +14,7 @@
 
 #include <sstream>
 #include <string>
+#include <algorithm>
 
 #include <gmp.h>       // for mpz_t, mpz_clear, mpz_init, mpz_get_d, mpz_mul...
 #include "mpz_poly.h"  // mpz_poly
@@ -32,7 +33,7 @@
 #if __GLIBC_PREREQ(2, 23)
 #include <cmath>
 using std::isnan;
-using std::isinf;
+// using std::isinf;
 #else
 /* not "the right way", but happens to work.  */
 #include <math.h>
@@ -41,7 +42,7 @@ using std::isinf;
 /* this one is the right way */
 #include <cmath>
 using std::isnan;
-using std::isinf;
+// using std::isinf;
 #endif
 
 #define STATIC_ANALYSIS_ASSERT_DATA_HEALTH(d) do {		     	   \
@@ -189,6 +190,7 @@ double_poly_eval_homogeneous (double_poly_srcptr p, double x, double y)
         case 0: return f[0];
         case 1: return y*f[0]+x*f[1];
         case 2: return y*y*f[0]+x*(y*f[1]+x*f[2]);
+        default: ;
     }
 
     double s = 0;
@@ -293,7 +295,9 @@ double_poly_falseposition (double_poly_srcptr p, double a, double b, double pa)
 {
   double pb;
   int side=0;
-  double a0=a, b0=b, pa0=pa;
+  const double a0=a;
+  const double b0=b;
+  const double pa0=pa;
 
   pb = double_poly_eval(p, b);
 
@@ -606,16 +610,14 @@ double_poly_compute_all_roots_with_bound (double *roots,
 {
   /* Positive roots */
   double bound = double_poly_bound_roots (poly);
-  if (B < bound)
-    bound = B;
+  bound = std::min(bound, B);
   unsigned int const nr_roots_pos = double_poly_compute_roots (roots, poly, bound);
   /* Negative roots */
   double_poly t; /* Copy of poly which gets sign-flipped */
   double_poly_init (t, poly->deg);
   double_poly_neg_x (t, poly);
   bound = double_poly_bound_roots (t);
-  if (B < bound)
-    bound = B;
+  bound = std::min(bound, B);
   unsigned int nr_roots_neg =
     double_poly_compute_roots (roots + nr_roots_pos, t, bound);
   double_poly_clear(t);
@@ -641,7 +643,7 @@ std::string cxx_double_poly::print_poly(std::string const& var) const
     std::ostringstream os;
     for(int i = 0 ; i <= x->deg ; i++) {
         if (x->coeff[i] == 0) continue;
-        if (x->coeff[i] > 0 && os.str().size())
+        if (x->coeff[i] > 0 && !os.str().empty())
             os << "+";
         if (i == 0) {
             os << x->coeff[i];
@@ -663,7 +665,7 @@ std::string cxx_double_poly::print_poly(std::string const& var) const
 /* Print polynomial with floating point coefficients. Assumes f[deg] != 0
    if deg > 0. */
 void 
-double_poly_print (FILE *stream, double_poly_srcptr p, char *name)
+double_poly_print (FILE *stream, double_poly_srcptr p, const char *name)
 {
     cxx_double_poly F;
     double_poly_set(F, p);
@@ -672,7 +674,7 @@ double_poly_print (FILE *stream, double_poly_srcptr p, char *name)
 }
 
 int
-double_poly_asprint (char **t, double_poly_srcptr p, char *name)
+double_poly_asprint (char **t, double_poly_srcptr p, const char *name)
 {
     cxx_double_poly F;
     double_poly_set(F, p);

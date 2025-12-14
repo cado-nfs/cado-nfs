@@ -25,12 +25,12 @@ template <typename layer>
 class TestWeierstrass {
     int verbose;
 public:
-    typedef typename layer::Modulus Modulus;
-    typedef typename layer::Residue Residue;
-    typedef typename layer::Integer Integer;
-    typedef ECWeierstrass<layer> Curve;
-    typedef typename ECWeierstrass<layer>::AffinePoint AffinePoint;
-    typedef typename ECWeierstrass<layer>::ProjectivePoint ProjectivePoint;
+    using Modulus = typename layer::Modulus;
+    using Residue = typename layer::Residue;
+    using Integer = typename layer::Integer;
+    using Curve = ECWeierstrass<layer>;
+    using AffinePoint = typename ECWeierstrass<layer>::AffinePoint;
+    using ProjectivePoint = typename ECWeierstrass<layer>::ProjectivePoint;
     
     explicit TestWeierstrass(int verbose) : verbose(verbose) {}
     

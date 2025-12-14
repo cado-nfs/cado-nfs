@@ -188,7 +188,7 @@ mpz_poly_roots_mpz (mpz_t *r, mpz_poly_srcptr f, mpz_srcptr p, gmp_randstate_ptr
     roots.assign(nr, 0);
     const unsigned int n = mpz_poly_cantor_zassenhaus (roots.begin(), fp, p, 0, rstate);
     roots.erase(roots.begin() + (ptrdiff_t) n, roots.end());
-    std::sort(roots.begin(), roots.end());
+    std::ranges::sort(roots);
     ASSERT (n == nr);
     for(unsigned int i = 0 ; i < n ; i++)
         mpz_set(r[i], roots[i]);
@@ -313,7 +313,7 @@ struct poly_roots_impl_details<cxx_mpz> {
 template<typename T, typename F>
 struct poly_roots_impl : public poly_roots_impl_details<T>
 {
-    typedef poly_roots_impl_details<T> super;
+    using super = poly_roots_impl_details<T>;
     using super::mul;
     using super::add;
     using super::mod;
@@ -410,7 +410,7 @@ std::vector<T> poly_roots_impl<T,F>::operator()(cxx_mpz_poly const & f, T const 
     }
     for(auto & x : sums)
         mod(x, x, q);
-    std::sort(begin(sums), end(sums));
+    std::ranges::sort(sums);
     res.insert(end(res), begin(sums), end(sums));
     return res;
 }

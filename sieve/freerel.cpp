@@ -88,7 +88,7 @@ freerel_data_t::freerel_data_t(cxx_param_list & pl, cxx_cado_poly const & cpoly,
      */
     if (!pmax && cpoly->nb_polys > 1) {
         std::vector<unsigned int> lpb_copy = lpb;
-        std::sort(lpb_copy.begin(), lpb_copy.end());
+        std::ranges::sort(lpb_copy);
         pmax = 1UL << lpb_copy[cpoly->nb_polys-2];
     }
 }
@@ -278,7 +278,7 @@ main(int argc, char const * argv[])
 
 
     /* produce an error when index_t is too small to represent all ideals */
-    if ((SIZEOF_INDEX < 8) && renumber_table.get_size() >> (8 * SIZEOF_INDEX)) {
+    if ((SIZEOF_INDEX < 8) && renumber_table.size() >> (8 * SIZEOF_INDEX)) {
         fmt::print(stderr, "Error, please increase SIZEOF_INDEX\n");
         fmt::print(stderr, "(see local.sh.example)\n");
         exit(1);

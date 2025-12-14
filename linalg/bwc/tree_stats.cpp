@@ -24,8 +24,6 @@
 #include "timing.h"     // wct_seconds
 #include "macros.h"
 
-using namespace std;
-
 int tree_stats::max_nesting = 0;
 
 void tree_stats::interpret_parameters(cxx_param_list & pl)
@@ -281,8 +279,8 @@ void tree_stats::enter(std::string const & func, unsigned int inputsize, int tot
 tree_stats::function_stats& tree_stats::function_stats::operator+=(tree_stats::running_stats const & s)
 {
     (tree_stats::step_time&)*this += (tree_stats::step_time const&) s;
-    if (s.inputsize < min_inputsize) min_inputsize = s.inputsize;
-    if (s.inputsize > max_inputsize) max_inputsize = s.inputsize;
+    min_inputsize = std::min(min_inputsize, s.inputsize);
+    max_inputsize = std::max(max_inputsize, s.inputsize);
     return *this;
 }
 
@@ -334,7 +332,7 @@ void tree_stats::leave()
 #endif
 
     last_print_time = now;
-    last_print_position = make_pair(level, F.ncalled);
+    last_print_position = std::make_pair(level, F.ncalled);
 
     print(level);
 }
@@ -342,7 +340,7 @@ void tree_stats::leave()
 void tree_stats::final_print()
 {
     ASSERT_ALWAYS(depth == 0);
-    if (last_print_position != make_pair(0u, 1u))
+    if (last_print_position != std::make_pair(0u, 1u))
         print(0);
     {
         /* print ETA */

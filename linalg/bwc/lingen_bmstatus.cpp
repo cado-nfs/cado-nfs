@@ -10,6 +10,9 @@
 
 #include "macros.h"
 #include "lingen_bmstatus.hpp"
+#include "lingen_call_companion.hpp"
+#include "lingen_hints.hpp"
+#include "select_mpi.h"
 
 /* Attention: reloading a checkpoint invalidates this reference !! */
 template<bool is_binary>

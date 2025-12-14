@@ -31,8 +31,8 @@ template<typename Arith> struct fast_default {
     // uncomment the following line (and comment out the next one) to
     // enable the SSE2/AVX2 carry-save code.
     // TODO: revive, maybe?
-    // typedef arith_modp::fast_type<Arith> type;
-    typedef Arith type;
+    // using type = arith_modp::fast_type<Arith>;
+    using type = Arith;
 };
 
 
@@ -121,7 +121,7 @@ struct cachefile {
 };
 
 template<> struct cachefile::seq<uint16_t> : public cachefile::basic_seq<uint16_t> {
-    typedef uint16_t T;
+    using T = uint16_t;
     static constexpr bool rigid_element_size = true;
     cachefile& in(cachefile& c, T * t, size_t n) {
         static_assert(sizeof(T) == sizeof(uint16_t), "please fix struct padding");
@@ -136,7 +136,7 @@ template<> struct cachefile::seq<uint16_t> : public cachefile::basic_seq<uint16_
 };
 
 template<> struct cachefile::seq<uint32_t> : public cachefile::basic_seq<uint32_t> {
-    typedef uint32_t T;
+    using T = uint32_t;
     static constexpr bool rigid_element_size = true;
     cachefile& in(cachefile& c, T * t, size_t n) {
         static_assert(sizeof(T) == sizeof(uint32_t), "please fix struct padding");
@@ -151,7 +151,7 @@ template<> struct cachefile::seq<uint32_t> : public cachefile::basic_seq<uint32_
 };
 
 template<> struct cachefile::seq<pair<int, uint32_t>> : public cachefile::basic_seq<pair<int, uint32_t>> {
-    typedef pair<int, uint32_t> T;
+    using T = pair<int, uint32_t>;
     static constexpr bool rigid_element_size = true;
     cachefile& in(cachefile& c, T * t, size_t n) {
         static_assert(sizeof(T) == 2 * sizeof(uint32_t), "please fix struct padding");
@@ -167,7 +167,7 @@ template<> struct cachefile::seq<pair<int, uint32_t>> : public cachefile::basic_
 
 template<> struct cachefile::seq<pair<uint16_t, int32_t>> : public cachefile::basic_seq<pair<uint16_t, int32_t>> {
 #if 0
-    typedef pair<uint16_t, int32_t> T;
+    using T = pair<uint16_t, int32_t>;
     static constexpr bool rigid_element_size = true;
     cachefile& in(cachefile& c, T * t, size_t n) {
         static_assert(sizeof(T) == 3 * sizeof(uint16_t), "please fix struct padding");
@@ -183,7 +183,7 @@ template<> struct cachefile::seq<pair<uint16_t, int32_t>> : public cachefile::ba
 };
 
 template<> struct cachefile::seq<pair<uint16_t, uint16_t>> : public cachefile::basic_seq<pair<uint16_t, uint16_t>> {
-    typedef pair<uint16_t, uint16_t> T;
+    using T = pair<uint16_t, uint16_t>;
     static constexpr bool rigid_element_size = true;
     cachefile& in(cachefile& c, T * t, size_t n) {
         static_assert(sizeof(T) == 2 * sizeof(uint16_t), "please fix struct padding");
@@ -198,7 +198,7 @@ template<> struct cachefile::seq<pair<uint16_t, uint16_t>> : public cachefile::b
 };
 
 template<> struct cachefile::seq<pair<int, pair<uint32_t, int32_t>>> : public cachefile::basic_seq<pair<int, pair<uint32_t, int32_t>>> {
-    typedef pair<int, pair<uint32_t, int32_t>> T;
+    using T = pair<int, pair<uint32_t, int32_t>>;
     static constexpr bool rigid_element_size = true;
     cachefile& in(cachefile& c, T * t, size_t n) {
         static_assert(sizeof(T) == 3 * sizeof(uint32_t), "please fix struct padding");
@@ -221,7 +221,7 @@ struct triple_161632 {
 };
 
 template<> struct cachefile::seq<triple_161632> : public cachefile::basic_seq<triple_161632> {
-    typedef triple_161632 T;
+    using T = triple_161632;
     static constexpr bool rigid_element_size = true;
     cachefile& in(cachefile& c, T * t, size_t n) {
         static_assert(sizeof(T) == 4 * sizeof(uint16_t), "please fix struct padding");
@@ -338,12 +338,12 @@ struct placed_block {/*{{{*/
 
 template<typename Arith, typename fast_gfp = typename fast_default<Arith>::type >
 class zone : public placed_block { /* {{{ (immediate zones) */
-    typedef typename Arith::elt elt;
-    typedef typename fast_gfp::elt fast_elt;
-    typedef typename fast_gfp::elt_ur_for_add fast_elt_ur_for_add;
+    using elt = typename Arith::elt;
+    using fast_elt = typename fast_gfp::elt;
+    using fast_elt_ur_for_add = typename fast_gfp::elt_ur_for_add;
 public:
-    typedef vector<pair<uint16_t, uint16_t>> qpm_t;
-    typedef vector<triple_161632> qg_t;
+    using qpm_t = vector<pair<uint16_t, uint16_t>>;
+    using qg_t = vector<triple_161632>;
     qpm_t qp, qm;
     qg_t qg;
     zone() {}
@@ -366,9 +366,9 @@ public:
     };
 
     void sort() {
-        std::sort(qp.begin(), qp.end(), sort_qpm());
-        std::sort(qm.begin(), qm.end(), sort_qpm());
-        std::sort(qg.begin(), qg.end(), sort_qg());
+        std::ranges::sort(qp, sort_qpm());
+        std::ranges::sort(qm, sort_qpm());
+        std::ranges::sort(qg, sort_qg());
     }
     cachefile& cachefile_load(cachefile& c) {/*{{{*/
         return c >> (placed_block&) *this >> qp >> qm >> qg;
@@ -380,7 +380,7 @@ public:
 /*}}}*/
 #ifdef DISPATCHERS_AND_COMBINERS
 struct dispatcher : public vector<uint16_t>, public placed_block {/*{{{*/
-    typedef vector<uint16_t> super;
+    using super = vector<uint16_t>;
     /* a dispatcher contains: (col id)* */
     cachefile& cachefile_load(cachefile& c) {/*{{{*/
         return c >> (placed_block&)*this >> (super&)*this;
@@ -397,7 +397,7 @@ struct combiner : public placed_block {/*{{{*/
     /* a combiner contains: (dest row id)* (index range is duplicated, in
      * order to account for the fact that we offset the index by a full
      * row batch to account for negative coefficients) */
-    typedef uint16_t main_value_type;
+    using main_value_type = uint16_t;
     vector<main_value_type> main;
     vector<pair<uint16_t, int32_t>> aux;
     cachefile& cachefile_load(cachefile& c) {/*{{{*/
@@ -415,10 +415,10 @@ struct combiner : public placed_block {/*{{{*/
 /* {{{ Temporary buffers which are used when reading the dispatchers.  */
 template<typename Arith, typename fast_gfp = typename fast_default<Arith>::type >
 class temp_buffer {
-    typedef typename fast_gfp::elt fast_elt;
+    using fast_elt = typename fast_gfp::elt;
 public:
     unsigned int j0;
-    typedef vector<fast_elt, aligned_allocator<fast_elt, fast_elt::alignment> > vec_type;  
+    using vec_type = vector<fast_elt, aligned_allocator<fast_elt, fast_elt::alignment> >;  
     vec_type v;
     vec_type::iterator ptr;
     temp_buffer(unsigned int j0, size_t n) : j0(j0), v(n), ptr(v.begin()) {}
@@ -462,9 +462,9 @@ struct block_of_rows : public placed_block {/*{{{*/
 
 template<typename Arith, typename fast_gfp = typename fast_default<Arith>::type >
 class matmul_zone : public matmul_interface {/*{{{*/
-    typedef typename Arith::elt elt;
-    typedef typename fast_gfp::elt fast_elt;
-    typedef typename fast_gfp::elt_ur_for_add fast_elt_ur_for_add;
+    using elt = typename Arith::elt;
+    using fast_elt = typename fast_gfp::elt;
+    using fast_elt_ur_for_add = typename fast_gfp::elt_ur_for_add;
 public:
     /* now our private fields */
     Arith * xab;
@@ -486,7 +486,7 @@ public:
         // twn() : tt(0), w(0), n(0) {}
     };
 
-    typedef map<unsigned int, twn> tmap_t;
+    using tmap_t = map<unsigned int, twn>;
     tmap_t tmap;
     /* }}} */
 
@@ -559,7 +559,7 @@ struct sort_jc {/*{{{*/
 #ifdef DISPATCHERS_AND_COMBINERS
 void merge_dispatchers(vector<dispatcher>& all, size_t maxmaxw)/*{{{*/
 {
-    typedef dispatcher dispatcher;
+    using dispatcher = dispatcher;
     vector<dispatcher> merged;
     for(size_t k0 = 0, k1; k0 < all.size() ; ) {
         /* recompute maxw, since we haven't kept track */
@@ -1092,10 +1092,10 @@ void matmul_zone<Arith, fast_gfp>::mul(void * xdst, void const * xsrc, int d)
         x->template free<fast_elt_ur_for_add>(tdst);
     }
 
-    static_assert(std::is_same<elt, fast_elt>::value, "if alternate representation of the source data is needed, please amend this code");
+    static_assert(std::is_same_v<elt, fast_elt>, "if alternate representation of the source data is needed, please amend this code");
     /*
     if (!std::is_same<elt, fast_elt>::value) {
-        std::copy(alternate[!d].begin(), alternate[!d].end(), (elt*) xdst);
+        std::ranges::copy(alternate[!d], (elt*) xdst);
     }
     */
 

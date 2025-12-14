@@ -500,23 +500,27 @@ struct cxx_mpz_poly {
     // NOLINTNEXTLINE(hicpp-explicit-conversions)
     cxx_mpz_poly(mpz_srcptr c) : cxx_mpz_poly() { *this = c; }
 
-    std::strong_ordering operator<=>(cxx_mpz_poly const & a) const {
+    auto operator<=>(cxx_mpz_poly const & a) const {
         return mpz_poly_cmp(x, a) <=> 0;
     }
-    std::strong_ordering operator<=>(cxx_mpz const & a) const {
+    auto operator<=>(cxx_mpz const & a) const {
         return mpz_poly_cmp_mpz(x, a) <=> 0;
     }
-    std::strong_ordering operator<=>(mpz_srcptr a) const {
+    auto operator<=>(mpz_srcptr a) const {
         return mpz_poly_cmp_mpz(x, a) <=> 0;
     }
     template <typename T>
-    std::strong_ordering operator<=>(T const & a) const 
+    auto operator<=>(T const & a) const 
     requires std::is_integral_v<T>
     {
         return mpz_poly_cmp(x, a) <=> 0;
     }
 
-    bool operator==(cxx_mpz_poly const & a) const { return mpz_poly_cmp(x, a) == 0; }
+    bool operator==(cxx_mpz_poly const & a) const { return operator<=>(a) == 0; }
+#ifdef HAVE_LIBSTDCXX_BUG_114153
+    bool operator<(cxx_mpz_poly const & a) const { return operator<=>(a) < 0; }
+#endif
+
     bool operator==(cxx_mpz const & a) const { return mpz_poly_cmp_mpz(x, a) == 0; }
     bool operator==(mpz_srcptr a) const { return mpz_poly_cmp_mpz(x, a) == 0; }
     template <typename T>

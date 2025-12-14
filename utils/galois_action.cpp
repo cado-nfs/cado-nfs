@@ -994,13 +994,15 @@ size_t galois_action::compute_action_on_index(std::vector<index_t> &sigma,
     /* Map of all r corresponding to the current (p, side) to its index. */
     std::unordered_map<p_r_values_t, index_t> index_of_r;
 
-    sigma.resize(tab.get_size());
+    sigma.resize(tab.size());
 
-    for (index_t i = 0; i < tab.get_size(); ) {
-        if (tab.is_additional_column(i)) {
+    index_t i = 0;
+    for (auto it = tab.begin() ; it != tab.end() ; ) {
+        auto x = *it;
+        if (x.p == 0) {
             sigma[i] = i; /* extra columns are unchanged by galois action */
-            i++;
-        } else if (tab.is_bad(i)) {
+            ++i, ++it;
+        } else if (tab.is_bad(x)) {
             /* Bad ideals are left unchanged.
              * It should be okay in most cases.
              *  - for factorization, filter_galois is not used
@@ -1031,18 +1033,19 @@ size_t galois_action::compute_action_on_index(std::vector<index_t> &sigma,
              *    Unanswered question: how does one rewrite exponents ?
              */
             sigma[i] = i;
-            i++;
+            ++i, ++it;
         } else {
             index_of_r.clear();
-            renumber_t::p_r_side idc = tab.p_r_from_index(i);
+            renumber_t::p_r_side idc = x;
             renumber_t::p_r_side const id0 = idc;
             do
             {
                 index_of_r.emplace(idc.r, i);
-                i++;
-                if (i == tab.get_size())
+                ++it;
+                ++i;
+                if (it == tab.end())
                     break;
-                idc = tab.p_r_from_index(i);
+                idc = *it;
             } while (idc.same_p(id0));
 
             /* The map index_of_r now contains values that we need

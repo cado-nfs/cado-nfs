@@ -253,7 +253,7 @@ static std::set<index_t> print_all_ideals(renumber_t const & tab, command_line c
     if (!cmdline.raw)
         fmt::print("all_ideals=[]\n");
 
-    for(index_t c = 0 ; c < tab.get_size() ; ++c) {
+    for(index_t c = 0 ; c < tab.size() ; ++c) {
         printed.insert(c);
         print_one_ideal(c, tab, cmdline, true);
     }

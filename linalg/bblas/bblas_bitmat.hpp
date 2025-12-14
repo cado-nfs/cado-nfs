@@ -61,7 +61,7 @@ namespace bblas_bitmat_details {
         static void make_unit_lowertriangular(matrix & a);
         static void triangular_make_unit(matrix & a);
     };
-}
+} /* namespace bblas_bitmat_details */
 
 template<typename T>
 class
@@ -106,7 +106,6 @@ class
          * so let's rather keep this as a simple and stupid inline */
         return memcmp(x, a.x, sizeof(x)) == 0;
     }
-    bool operator!=(bitmat const& a) const { return !operator==(a); }
     bitmat() { memset(x, 0, sizeof(x)); }
     bitmat(bitmat const& a) { memcpy(x, a.x, sizeof(x)); }
     bitmat& operator=(bitmat const& a)
@@ -138,7 +137,6 @@ class
         }
         return true;
     }
-    bool operator!=(int a) const { return !operator==(a); }
 
     bool is_lowertriangular() const { return ops::is_lowertriangular(*this); }
     bool is_uppertriangular() const { return ops::is_uppertriangular(*this); }

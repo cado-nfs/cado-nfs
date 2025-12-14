@@ -1,13 +1,10 @@
 #include "cado.h" // IWYU pragma: keep
-// IWYU pragma: no_include <ext/alloc_traits.h>
-// IWYU pragma: no_include <memory>
-// IWYU asks for <memory> because of allocator_traits<>::value_type ; WTH ?
+
 #include <cstdio>
-#include <cstdlib>
-#include <istream> // std::istream
-#include <ostream> // std::ostream
+#include <istream>
+#include <ostream>
 #include <algorithm>
-#include <sstream> // std::ostringstream // IWYU pragma: keep
+#include <sstream>
 #include <string>
 #include <ios>
 #include <locale>
@@ -16,7 +13,7 @@
 #include <gmp.h>
 
 #include "gmp_aux.h"
-#include "macros.h" /* for ASSERT_ALWAYS */
+#include "macros.h"
 #include "relation.hpp"
 #include "relation-tools.h"
 #include "misc.h"
@@ -89,7 +86,7 @@ relation::parse(const char *line)
     is >> std::hex;
 
     for( ; !is.eof() ; ) {
-        const char c = is.peek();
+        auto const c = is.peek();
         if (c == ':') {
             is.get();
             side_index++;
@@ -176,7 +173,7 @@ void relation::add(unsigned int side_index, mpz_srcptr p)
     /* we have to compute a/b mod p. Since we're not critical here, don't
      * bother.
      */
-    if ((int) active_sides[side_index] == rational_side) {
+    if (active_sides[side_index] == rational_side) {
         add(side_index, p, 0);
     } else {
         pr x;
@@ -196,7 +193,7 @@ void relation::add(unsigned int side_index, mpz_srcptr p)
 
 void relation::add(unsigned int side_index, unsigned long p)
 {
-    if ((int) active_sides[side_index] == rational_side) {
+    if (active_sides[side_index] == rational_side) {
         add(side_index, p, 0);
     } else {
         /* use the function provided in relation-tools.c */
@@ -209,7 +206,7 @@ void relation::fixup_r(bool also_rational)
     for(unsigned int side_index = 0 ; side_index < sides.size() ; side_index++) {
         int const side = active_sides[side_index];
         if (!also_rational) {
-            if ((int) side == rational_side)
+            if (side == rational_side)
                 continue;
         }
         for(auto & x : sides[side_index]) {
@@ -226,15 +223,10 @@ void relation::fixup_r(bool also_rational)
     }
 }
 
-static inline bool operator==(relation::pr const& a, relation::pr const& b) {
-    return mpz_cmp(a.p, b.p) == 0 && mpz_cmp(a.r, b.r) == 0;
-}
-
-
 void relation::compress()
 {
     for(auto & v : sides) {
-        std::sort(v.begin(), v.end());
+        std::ranges::sort(v);
         unsigned int j = 0;
         for(unsigned int i = 0; i < v.size() ; j++) {
             if (j < i) {

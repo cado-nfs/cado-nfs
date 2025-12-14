@@ -22,7 +22,6 @@
 #include <map>
 #include <memory>
 #include <mutex>
-#include <ostream>
 #include <sstream>
 #include <string>
 #include <thread>
@@ -43,13 +42,13 @@
 #include "ecm/facul_strategies_stats.hpp"
 #include "fb-types.hpp"
 #include "fb.hpp"
+#include "gmp_aux.h"
 #include "json.hpp"
 #include "las-auxiliary-data.hpp"
 #include "las-bkmult.hpp"
 #include "las-choose-sieve-area.hpp"
 #include "las-cofactor.hpp"
 #include "las-config.hpp"
-#include "las-special-q-task-collection.hpp"
 #include "las-divide-primes.hpp"
 #include "las-dlog-base.hpp"
 #include "las-duplicate.hpp"
@@ -65,11 +64,12 @@
 #include "las-qlattice.hpp"
 #include "las-report-stats.hpp"
 #include "las-side-config.hpp"
-#include "las-siever-config.hpp"
 #include "las-sieve-shared-data.hpp"
+#include "las-siever-config.hpp"
 #include "las-smallsieve.hpp"
+#include "las-special-q-task-collection.hpp"
+#include "las-special-q-task.hpp"
 #include "las-threads-work-data.hpp"
-#include "special-q.hpp"
 #include "las-todo-list.hpp"
 #include "las-where-am-i-proxy.hpp"
 #include "las-where-am-i.hpp"
@@ -80,6 +80,7 @@
 #include "multityped_array.hpp"
 #include "params.h"
 #include "relation.hpp"
+#include "special-q.hpp"
 #include "tdict.hpp"
 #include "threadpool.hpp"
 #include "timing.h"
@@ -788,7 +789,7 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
 
         auto exc = pool.get_exceptions<buckets_are_full>(0);
         if (!exc.empty())
-            throw *std::max_element(exc.begin(), exc.end());
+            throw *std::ranges::max_element(exc);
     }
 
     {

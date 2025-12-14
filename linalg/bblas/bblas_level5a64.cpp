@@ -110,13 +110,13 @@ void m64pol_mul_gf2_64_nobitslice(uint64_t * r, uint64_t * a1, uint64_t * a2)/*{
         uint64_t * rrow = r + 64 * i;
         for(unsigned int j = 0 ; j < 64 ; j++) {
             uint64_t * a2col = a2 + j;
-            uint64_t dst[2] = {0,};
-            uint64_t sdst[2] = {0,};
+            unsigned long dst[2 * sizeof(uint64_t) / sizeof(unsigned long)] = {0,};
+            unsigned long sdst[2 * sizeof(uint64_t) / sizeof(unsigned long)] = {0,};
             for(unsigned int k = 0 ; k < 64 ; k++) {
-                Kmul_ur((unsigned long *) dst, (unsigned long *) (a1row + k), (unsigned long *) (a2col + 64*k));
-                Kelt_ur_add((unsigned long *) sdst, (unsigned long *) sdst, (unsigned long *) dst);
+                Kmul_ur(dst, (unsigned long *) (a1row + k), (unsigned long *) (a2col + 64*k));
+                Kelt_ur_add(sdst, sdst, dst);
             }
-            Kreduce((unsigned long *) (rrow + j), (unsigned long *) sdst);
+            Kreduce((unsigned long *) (rrow + j), sdst);
         }
     }
 }/*}}}*/

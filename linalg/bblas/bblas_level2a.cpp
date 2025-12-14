@@ -1,4 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
+
+#include <cstdint>
+
 #ifdef HAVE_SSE2
 #include <emmintrin.h>                   // for _mm_setzero_si128, __m128i
 #include <mmintrin.h>                    // for _mm_empty
@@ -46,7 +49,7 @@ void addmul_To64_o64_msb(mat64 & r, uint64_t a, uint64_t w)/*{{{*/
 void addmul_To64_o64_lsb_packof2(mat64 & r, uint64_t a, uint64_t w)/*{{{*/
 {
     /* À peu près comme la méthode 1, mais pas mieux */
-    typedef uint64_t mvec_t[2];
+    using mvec_t = uint64_t[2];
     mvec_t mb[4] = {
 	{0, 0}, {w, 0}, {0, w}, {w, w},
     };
@@ -70,7 +73,7 @@ void addmul_To64_o64_lsb_sse_v1(mat64 & r, uint64_t a, uint64_t w)/*{{{*/
 	_cado_mm_setr_epi64(0, w),
 	_cado_mm_set1_epi64(w),
     };
-    __m128i *sr = (__m128i *) r.data();
+    auto *sr = (__m128i *) r.data();
     for (int i = 0; i < 64; i += 2) {
 	*sr = _mm_xor_si128(*sr, mb[a & 3]);
         sr++;

@@ -9,7 +9,7 @@ set (purge_sources purge_matrix.c singleton_removal.c
 add_executable(dup1 dup1.c)
 target_link_libraries(dup1 utils_with_io)
 
-add_executable(dup2 dup2.c)
+add_executable(dup2 dup2.cpp)
 target_link_libraries(dup2 utils_with_io)
 
 add_executable(filter_galois filter_galois.cpp)

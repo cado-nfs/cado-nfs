@@ -119,8 +119,8 @@ template <typename X> struct polymat_ur {
     size_t get_size() const { return size; }
     void set_size(size_t s) { size = s; }
 
-    typedef X * ptr;
-    typedef X const * srcptr;
+    using ptr = X *;
+    using srcptr = X const *;
 
     ptr x = nullptr;
 

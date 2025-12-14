@@ -31,7 +31,7 @@
 #include "macros.h"
 #include "params.h"
 
-static const char * default_placement_with_auto = "node,fit*4,fit,pu,loose";
+static const char * const default_placement_with_auto = "node,fit*4,fit,pu,loose";
 
 static bool parse_number(std::string const & s, int & x, std::string::size_type pos = 0) /*{{{*/
 {
@@ -39,7 +39,7 @@ static bool parse_number(std::string const & s, int & x, std::string::size_type 
     if (s.empty() || s.find_first_not_of(digits, pos) != std::string::npos)
         return false;
     std::istringstream is(s.substr(pos));
-    return bool(is >> x);
+    return static_cast<bool>(is >> x);
 }/*}}}*/
 
 /* used to help with some of the job achieved by the las_parallel ctor.
@@ -186,11 +186,10 @@ struct las_parallel_desc::helper {
 #endif
     }/*}}}*/
     std::vector<std::string> tokenize(std::string const & s) const {/*{{{*/
-        using namespace std;
-        vector<string> tokens;
-        for(string::size_type x = 0, y; x != string::npos ; x = y) {
+        std::vector<std::string> tokens;
+        for(std::string::size_type x = 0, y; x != std::string::npos ; x = y) {
             y = s.find(',',x);
-            if (y == string::npos) {
+            if (y == std::string::npos) {
                 tokens.push_back(s.substr(x));
             } else {
                 tokens.push_back(s.substr(x, y-x));
@@ -200,10 +199,9 @@ struct las_parallel_desc::helper {
         return tokens;
     }/*}}}*/
     void replace_aliases(std::string & desc) const {/*{{{*/
-        using namespace std;
         int k = 0;
         if (parse_number(desc, k)) {
-            ostringstream os;
+            std::ostringstream os;
             os << "machine,1," << k; 
             desc = os.str();
             return;
@@ -212,7 +210,7 @@ struct las_parallel_desc::helper {
         if (desc == "auto") { desc = default_placement_with_auto; return; }
         if (desc == "auto,no-replicate") { desc = default_placement_with_auto; desc += ",no-replicate"; return; }
         if (desc.substr(0,7) == "single-") {
-            ostringstream os;
+            std::ostringstream os;
             os << desc.substr(7) << ",1,pu";
             desc = os.str();
             return;
@@ -352,7 +350,7 @@ struct las_parallel_desc::helper {
        char s[256];
        hwloc_obj_type_snprintf(s, sizeof(s), obj, 1);
        if (part_size == 1) {
-           return std::string(s);
+           return s;
        } else {
            std::ostringstream os;
            os << std::string(s) << ":0-" << part_size - 1;
@@ -388,7 +386,7 @@ struct las_parallel_desc::helper {
        }
        return res;
    }/*}}}*/
-    std::vector<cxx_hwloc_cpuset> all_cpu_bitmaps(int width, int multiply = 1)/*{{{*/
+    std::vector<cxx_hwloc_cpuset> all_cpu_bitmaps(int width, int multiply = 1) const /*{{{*/
     {
         int const n = width;
         int k, child_size, part_size;
@@ -405,7 +403,7 @@ struct las_parallel_desc::helper {
         }
         return res;
     }/*}}}*/
-    std::vector<cxx_hwloc_nodeset> all_mem_bitmaps(int width, int multiply = 1)/*{{{*/
+    std::vector<cxx_hwloc_nodeset> all_mem_bitmaps(int width, int multiply = 1) const /*{{{*/
     {
         int const n = width;
         int k, child_size, part_size;
@@ -548,7 +546,7 @@ struct las_parallel_desc::helper {
            }
        }
    }
-   int interpret_generic_binding_specifier(std::string const & specifier, int cap MAYBE_UNUSED = -1) {/*{{{*/
+   int interpret_generic_binding_specifier(std::string const & specifier, int cap MAYBE_UNUSED = -1) const {/*{{{*/
 #ifdef HAVE_HWLOC
        if (!depth) {
            if (strcasecmp(specifier.c_str(), "machine") != 0)
@@ -609,8 +607,7 @@ struct las_parallel_desc::helper {
            objsize *= x;
        }
        if (cap < 0) cap = number_of(-1, 0);
-       if (objsize > cap)
-           objsize = cap;
+       objsize = std::min(objsize, cap);
        if (is_fit)
            objsize = acceptable_binding(objsize);
        std::string const divisor_string = sub(6);
@@ -1026,7 +1023,7 @@ void las_parallel_desc::display_binding_info() const /*{{{*/
             for(auto & x : tm) {
                 x += " ";
                 x += pu_app.str();
-                if (x.size() > m) m = x.size();
+                m = std::max(m, x.size());
             }
         }
         {
@@ -1035,7 +1032,7 @@ void las_parallel_desc::display_binding_info() const /*{{{*/
             for(auto & x : tc) {
                 x += " ";
                 x += pu_app.str();
-                if (x.size() > c) c = x.size();
+                c = std::max(c, x.size());
             }
         }
         size_t const qc = number_of_subjobs_per_cpu_binding_zone();

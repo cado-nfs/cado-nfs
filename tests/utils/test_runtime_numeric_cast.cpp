@@ -9,25 +9,25 @@
 
 #include "runtime_numeric_cast.hpp"
 
-using namespace runtime_numeric_cast_details;
-
 // NOLINTBEGIN(bugprone-empty-catch)
-namespace {
-template<typename FROM_TYPE, typename TO_TYPE> bool test_pass_narrowing_min()
+template<typename FROM_TYPE, typename TO_TYPE>
+static bool test_pass_narrowing_min()
 {
     FROM_TYPE v_from = std::numeric_limits<TO_TYPE>::min();
     TO_TYPE v_to = runtime_numeric_cast<TO_TYPE>(v_from);
     return v_to && v_from;
 }
 
-template<typename FROM_TYPE, typename TO_TYPE> bool test_pass_narrowing_max()
+template<typename FROM_TYPE, typename TO_TYPE>
+static bool test_pass_narrowing_max()
 {
     FROM_TYPE v_from = std::numeric_limits<TO_TYPE>::max();
     TO_TYPE v_to = runtime_numeric_cast<TO_TYPE>(v_from);
     return v_to && v_from;
 }
 
-template<typename FROM_TYPE, typename TO_TYPE> bool test_fail_narrowing_min()
+template<typename FROM_TYPE, typename TO_TYPE>
+static bool test_fail_narrowing_min()
 {
     FROM_TYPE v_from = std::numeric_limits<TO_TYPE>::min();
     TO_TYPE v_to = 0;
@@ -35,12 +35,13 @@ template<typename FROM_TYPE, typename TO_TYPE> bool test_fail_narrowing_min()
         v_from--;
         v_to = runtime_numeric_cast<TO_TYPE>(v_from);
         throw std::runtime_error("we should not reach here");
-    } catch (runtime_numeric_cast_underflow const & e) {
+    } catch (runtime_numeric_cast_details::underflow const & e) {
     }
     return v_to && v_from;
 }
 
-template<typename FROM_TYPE, typename TO_TYPE> bool test_fail_narrowing_max()
+template<typename FROM_TYPE, typename TO_TYPE>
+static bool test_fail_narrowing_max()
 {
     FROM_TYPE v_from = std::numeric_limits<TO_TYPE>::max();
     TO_TYPE v_to = 0;
@@ -48,45 +49,48 @@ template<typename FROM_TYPE, typename TO_TYPE> bool test_fail_narrowing_max()
         v_from++;
         v_to = runtime_numeric_cast<TO_TYPE>(v_from);
         throw std::runtime_error("we should not reach here");
-    } catch (runtime_numeric_cast_overflow const & e) {
+    } catch (runtime_numeric_cast_details::overflow const & e) {
     }
     return v_to && v_from;
 }
 
-template<typename FROM_TYPE, typename TO_TYPE> bool test_pass_strict_widening_max()
+template<typename FROM_TYPE, typename TO_TYPE>
+static bool test_pass_strict_widening_max()
 {
     FROM_TYPE v_from = std::numeric_limits<FROM_TYPE>::max();
     TO_TYPE v_to = runtime_numeric_cast<TO_TYPE>(v_from);
     return v_to && v_from;
 }
 
-template<typename FROM_TYPE, typename TO_TYPE> bool test_pass_widening_min()
+template<typename FROM_TYPE, typename TO_TYPE>
+static bool test_pass_widening_min()
 {
     FROM_TYPE v_from = std::numeric_limits<FROM_TYPE>::min();
     TO_TYPE v_to = runtime_numeric_cast<TO_TYPE>(v_from);
     return v_to && v_from;
 }
 
-template<typename FROM_TYPE, typename TO_TYPE> bool test_pass_widening_max()
+template<typename FROM_TYPE, typename TO_TYPE>
+static bool test_pass_widening_max()
 {
     FROM_TYPE v_from = std::numeric_limits<FROM_TYPE>::max();
     TO_TYPE v_to = runtime_numeric_cast<TO_TYPE>(v_from);
     return v_to && v_from;
 }
 
-template<typename FROM_TYPE, typename TO_TYPE> bool test_fail_widening_min()
+template<typename FROM_TYPE, typename TO_TYPE>
+static bool test_fail_widening_min()
 {
     FROM_TYPE v_from = std::numeric_limits<FROM_TYPE>::min();
     TO_TYPE v_to = 0;
     try {
         v_to = runtime_numeric_cast<TO_TYPE>(v_from);
         throw std::runtime_error("we should not reach here");
-    } catch (runtime_numeric_cast_underflow const & e) {
+    } catch (runtime_numeric_cast_details::underflow const & e) {
     }
     return v_to && v_from;
 }
 // NOLINTEND(bugprone-empty-catch)
-}
 
 
 int main()
@@ -154,7 +158,7 @@ int main()
 
 
         return r ? EXIT_SUCCESS : EXIT_FAILURE;
-    } catch (runtime_numeric_cast_failure const & e) {
+    } catch (runtime_numeric_cast_details::failure const & e) {
         std::cerr << e.what() << "\n";
         return EXIT_FAILURE;
     } catch (std::runtime_error const & e) {

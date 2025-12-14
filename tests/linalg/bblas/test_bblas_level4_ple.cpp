@@ -22,7 +22,7 @@
 template<typename T>
 int test_bblas_level4::test_PLE_find_pivot(unsigned int m, unsigned int n)/*{{{*/
 {
-    typedef bitmat<T> matrix;
+    using matrix = bitmat<T>;
     constexpr const unsigned int B = matrix::width;
     bpack<T> A(m, n);
     PLE<T> ple(A.view());
@@ -64,7 +64,7 @@ int test_bblas_level4::test_PLE_find_pivot(unsigned int m, unsigned int n)/*{{{*
 template<typename T>
 int test_bblas_level4::test_PLE_propagate_pivot(unsigned int m, unsigned int n)/*{{{*/
 {
-    typedef bitmat<T> matrix;
+    using matrix = bitmat<T>;
     constexpr const unsigned int B = matrix::width;
     bpack<T> A(m, n);
     PLE<T> ple(A.view());
@@ -115,7 +115,7 @@ int test_bblas_level4::test_PLE_propagate_pivot(unsigned int m, unsigned int n)/
 template<typename T>
 int test_bblas_level4::test_PLE_propagate_row_permutations(unsigned int m, unsigned int n)/*{{{*/
 {
-    typedef bitmat<T> matrix;
+    using matrix = bitmat<T>;
     constexpr const unsigned int B = matrix::width;
     bpack<T> A(m, n);
     PLE<T> ple(A.view());
@@ -169,7 +169,7 @@ int test_bblas_level4::test_PLE_propagate_row_permutations(unsigned int m, unsig
 template<typename T>
 int test_bblas_level4::test_PLE_move_L_fragments(unsigned int m, unsigned int n)/*{{{*/
 {
-    typedef bitmat<T> matrix;
+    using matrix = bitmat<T>;
     constexpr const unsigned int B = matrix::width;
     bpack<T> A(m, n);
     PLE<T> ple(A.view());
@@ -205,7 +205,7 @@ int test_bblas_level4::test_PLE_move_L_fragments(unsigned int m, unsigned int n)
         pivs.reserve(r);
         for(unsigned int k = 0 ; k < r ; k++)
             pivs.push_back(gmp_urandomm_ui(rstate, n-r+1));
-        std::sort(pivs.begin(), pivs.end());
+        std::ranges::sort(pivs);
         for(unsigned int k = 0 ; k < r ; k++)
             pivs[k] += k;
         {
@@ -347,7 +347,7 @@ int test_bblas_level4::test_PLE(unsigned int m, unsigned int n)
 template<typename T>
 void test_bblas_level4::meta_ple()
 {
-    typedef bitmat<T> matrix;
+    using matrix = bitmat<T>;
     constexpr const unsigned int B = matrix::width;
     std::vector<std::pair<unsigned int, unsigned int>> const mns
     {{

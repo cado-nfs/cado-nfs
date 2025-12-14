@@ -99,7 +99,7 @@ static inline void lingen_qcode_hook_output(lingen_qcode_data_ptr qq, unsigned i
 }
 #endif
 
-void lingen_qcode_init(lingen_qcode_data_ptr qq, unsigned int m, unsigned int b, unsigned int length, unsigned int outlength)
+void lingen_qcode_init [[maybe_unused]] (lingen_qcode_data_ptr qq, unsigned int m, unsigned int b, unsigned int length, unsigned int outlength)
 {
     qq->m = m;
     qq->b = b;
@@ -113,7 +113,7 @@ void lingen_qcode_init(lingen_qcode_data_ptr qq, unsigned int m, unsigned int b,
     qq->pi_col_deg = (unsigned int *) malloc(b * sizeof(unsigned int));
     memset(qq->pi_col_deg, 0, b * sizeof(unsigned int));
 }
-void lingen_qcode_clear(lingen_qcode_data_ptr qq)
+void lingen_qcode_clear [[maybe_unused]] (lingen_qcode_data_ptr qq)
 {
     free(qq->iptrs);
     free(qq->optrs);
@@ -425,7 +425,7 @@ template<> inline void lshift1<2>(unsigned long (&x)[2]) {
 #endif
 
 template<typename width_type>
-static unsigned int lingen_qcode_do_tmpl(width_type w, lingen_qcode_data_ptr qq)
+static unsigned int lingen_qcode_do_tmpl [[maybe_unused]] (width_type w, lingen_qcode_data_ptr qq)
 {
     unsigned int const m = qq->m;
     unsigned int const b = qq->b;
@@ -474,16 +474,14 @@ static unsigned int lingen_qcode_do_tmpl(width_type w, lingen_qcode_data_ptr qq)
                 if (k == pivot) continue;
 		if (!(E(i, k)[e])) continue;
                 is_modified[k] = true;
-                if (qq->pi_col_deg[pivot] > qq->pi_col_deg[k])
-                    qq->pi_col_deg[k] = qq->pi_col_deg[pivot];
+                qq->pi_col_deg[k] = std::max(qq->pi_col_deg[k], qq->pi_col_deg[pivot]);
                 kk.push_back(k);
             }
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
-	    for (unsigned int ik = 0 ; ik < kk.size() ; ik++) {
-                unsigned int const k = kk[ik];
+	    for (auto const k : kk) {
                 E.xor_column(k, pivot);
                 P.xor_column(k, pivot);
             }
@@ -522,7 +520,7 @@ static unsigned int lingen_qcode_do_tmpl(width_type w, lingen_qcode_data_ptr qq)
     return e;
 }
 
-unsigned int lingen_qcode_do(lingen_qcode_data_ptr qq)/*{{{*/
+unsigned int lingen_qcode_do [[maybe_unused]] (lingen_qcode_data_ptr qq)/*{{{*/
 {
     if (qq->length <= ULONG_BITS) {
         return lingen_qcode_do_tmpl(constant_width<1>(), qq);
@@ -585,8 +583,8 @@ static matpoly<true> bw_lingen_basecase_raw_old [[maybe_unused]] (bmstatus<true>
         }
         unsigned int vdelta[E.ncols()];
         int vch[E.ncols()];
-        copy(bm.delta.begin(), bm.delta.end(), vdelta);
-        copy(bm.lucky.begin(), bm.lucky.end(), vch);
+        std::ranges::copy(bm.delta, vdelta);
+        std::ranges::copy(bm.lucky, vch);
         lingen_qcode_hook_delta(qq, vdelta);
         lingen_qcode_hook_chance_list(qq, vch);
         qq->t = bm.t;
@@ -594,10 +592,9 @@ static matpoly<true> bw_lingen_basecase_raw_old [[maybe_unused]] (bmstatus<true>
         lingen_qcode_do(qq);
         finished = qq->t < bm.t + qq->length;
         bm.t = qq->t;
-        size_t maxlen = 0;
+        unsigned int maxlen = 0;
         for(unsigned int j = 0 ; j < pi.ncols() ; j++) {
-            if (lingen_qcode_output_column_length(qq, j) > maxlen)
-                maxlen = lingen_qcode_output_column_length(qq, j);
+            maxlen = std::min(maxlen, lingen_qcode_output_column_length(qq, j));
         }
         pi.truncate(maxlen);
         copy(vdelta, vdelta + E.ncols(), bm.delta.begin());
@@ -800,20 +797,20 @@ static matpoly<true> bw_lingen_basecase_raw_fast(bmstatus<true> & bm, matpoly<tr
             for(unsigned int bj = 0 ; bj < mb ; bj++) {
                 for(unsigned int d = pi_len - full ; d-- ; ) {
                     std::copy(
-                            &pi_coeff(d).cell(bi0,bj)[0],
-                            &pi_coeff(d).cell(bi0,bj)[di],
-                            &pi_coeff(d+1).cell(bi0,bj)[0]);
+                            pi_coeff(d).cell(bi0,bj).data(),
+                            pi_coeff(d).cell(bi0,bj).data() + di,
+                            pi_coeff(d+1).cell(bi0,bj).data());
                 }
-                std::fill_n(&pi_coeff(0).cell(bi0,bj)[0], di, 0);
+                std::fill_n(pi_coeff(0).cell(bi0,bj).data(), di, 0);
             }
             for(unsigned int bj = 0 ; bj < bb ; bj++) {
                 for(unsigned int d = L - 1 ; d-- > t ; ) {
                     std::copy(
-                            &E_coeff(d).cell(bi0,bj)[0],
-                            &E_coeff(d).cell(bi0,bj)[di],
-                            &E_coeff(d+1).cell(bi0,bj)[0]);
+                            E_coeff(d).cell(bi0,bj).data(),
+                            E_coeff(d).cell(bi0,bj).data() + di,
+                            E_coeff(d+1).cell(bi0,bj).data());
                 }
-                std::fill_n(&E_coeff(t).cell(bi0,bj)[0], di, 0);
+                std::fill_n(E_coeff(t).cell(bi0,bj).data(), di, 0);
             }
         }
         if (!full) {
@@ -834,7 +831,7 @@ static matpoly<true> bw_lingen_basecase_raw_fast(bmstatus<true> & bm, matpoly<tr
     matpoly<true> mp_pi(ab, m+n, m+n, DX);
     binary_polmat_to_matpoly_transpose(
             (unsigned long *) mp_pi.data_area(),
-            &pi[0],
+            pi.data(),
             bX, bX, DX);
     mp_pi.set_size(pi_len);
 

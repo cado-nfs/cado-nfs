@@ -767,7 +767,7 @@ void mpz_poly_clear(mpz_poly_ptr f)
 namespace
 {
 struct urandomm {
-    typedef mpz_srcptr argtype;
+    using argtype = mpz_srcptr;
     argtype k;
     explicit urandomm(argtype k)
         : k(k)
@@ -781,7 +781,7 @@ struct urandomm {
     }
 };
 struct urandomm_ui {
-    typedef unsigned long argtype;
+    using argtype = unsigned long;
     argtype k;
     explicit urandomm_ui(argtype k)
         : k(k)
@@ -796,7 +796,7 @@ struct urandomm_ui {
 };
 
 struct urandomb {
-    typedef int argtype;
+    using argtype = int;
     argtype k;
     explicit urandomb(argtype k)
         : k(k)
@@ -817,7 +817,7 @@ struct rrandomb {
     /* note that mpz_rrandomb(..., ..., k) only gives k bits of entropy
      * (return value between 2^(k-1) and 2^k-1).
      */
-    typedef int argtype;
+    using argtype = int;
     argtype k;
     explicit rrandomb(argtype k)
         : k(k)
@@ -5025,8 +5025,8 @@ struct mpz_poly_parser_traits {
         char const * what() const noexcept override { return msg.c_str(); }
     };
     static constexpr int const accept_literals = 1;
-    typedef cxx_mpz_poly type;
-    typedef cxx_mpz number_type;
+    using type = cxx_mpz_poly;
+    using number_type = cxx_mpz;
     static void add(cxx_mpz_poly & c, cxx_mpz_poly const & a,
                     cxx_mpz_poly const & b)
     {
@@ -5082,7 +5082,7 @@ std::istream & operator>>(std::istream & in,
         return in;
     std::istringstream is(line);
 
-    typedef cado_expression_parser<mpz_poly_parser_traits> poly_parser;
+    using poly_parser = cado_expression_parser<mpz_poly_parser_traits>;
     poly_parser P(F.x());
     P.tokenize(is);
 

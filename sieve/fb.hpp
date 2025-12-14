@@ -882,7 +882,7 @@ class fb_factorbase
                     a.get_q() < b.get_q();
             };
             */
-            std::sort(x.begin(), x.end(), by_q);
+            std::ranges::sort(x, by_q);
             });
     }
 };

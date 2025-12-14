@@ -108,7 +108,7 @@ void las_dlog_base::read()
         }
     }
 
-    uint64_t const nprimes = renumber_table.get_size();
+    uint64_t const nprimes = renumber_table.size();
     known_logs.assign(nprimes + 32, false);
     /* 32 is because the SM columns are here, too ! We would like to
      * avoid reallocation, so let's be generous (anyway we'll

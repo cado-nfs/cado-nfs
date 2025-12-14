@@ -92,8 +92,8 @@ trialdiv_data const * sieve_shared_data::side_data::get_trialdiv_data(fb_factorb
         prime_info_clear (pi);
     }
 
-    ASSERT(std::is_sorted(trialdiv_primes.begin(), trialdiv_primes.end()));
-    // std::sort(trialdiv_primes.begin(), trialdiv_primes.end());
+    ASSERT(std::ranges::is_sorted(trialdiv_primes));
+    // std::ranges::sort(trialdiv_primes);
     
     /* note that we might have several "2"'s in the factor base because
      * of powers: when bucket-sieving powers, we separate factor base

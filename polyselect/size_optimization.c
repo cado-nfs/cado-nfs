@@ -1,18 +1,22 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>     // memset
+#include <string.h>
 #include <math.h>
 #include <float.h>
+
 #include <gmp.h>
+
 #include "auxiliary.h"
-#include "gcd.h"        // gcd_uint64
-#include "lll.h"        // mat_Z, LLL
+#include "gcd.h"
+#include "lll.h"
 #include "size_optimization.h"
 #include "double_poly.h"
 #include "polyselect_norms.h"
-#include "macros.h" // ASSERT_ALWAYS
+#include "macros.h"
+#include "mpz_poly.h"
 
 
 /******************************************************************************/

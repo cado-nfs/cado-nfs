@@ -2124,7 +2124,7 @@ void parallelizing_info_experimental::allgather(std::vector<unsigned int>& v, pi
         for(unsigned int i = 1 ; i < wr->njobs ; i++)
             displs[i] = displs[i-1] + sizes[i-1];
         allv.assign(total, 0);
-        std::copy(v.begin(), v.end(), allv.begin() + displs[wr->jrank]);
+        std::ranges::copy(v, allv.begin() + displs[wr->jrank]);
         MPI_Allgatherv(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
                 allv.data(), sizes.data(), displs.data(), MPI_UNSIGNED,
                 wr->pals);

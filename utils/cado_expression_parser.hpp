@@ -221,7 +221,7 @@ public:
         {
             /* count literals, see if we have the right number (at most) */
             auto lcopy = literals;
-            std::sort(lcopy.begin(), lcopy.end());
+            std::ranges::sort(lcopy);
             std::string c;
             int nlit = 0;
             for(auto const & l : lcopy) {

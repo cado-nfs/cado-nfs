@@ -108,6 +108,7 @@ int main(int argc, char const * argv[])
             duplicate=1;
         }
     }
+    free(allnames);
 
     MPI_Comm comm;
     MPI_Comm_split(MPI_COMM_WORLD, duplicate, rank, &comm);
@@ -134,6 +135,7 @@ int main(int argc, char const * argv[])
             if (allsizes[k] > szmax)
                 szmax = allsizes[k];
         }
+        free(allsizes);
         MPI_Allreduce(MPI_IN_PLACE, &ok,    1, MPI_INT, MPI_SUM, comm);
         if (ok) {
             if (rank == 0)

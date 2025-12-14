@@ -847,7 +847,7 @@ static int param_list_parse_raw_fixed_list(param_list_ptr pl, const char * key, 
                     " parameter for key {} does not fit in fixed list"
                     " of length {}\n", key, n) };
     }
-    std::copy(v.begin(), v.end(), r);
+    std::ranges::copy(v, r);
     return v.size();
 }
 

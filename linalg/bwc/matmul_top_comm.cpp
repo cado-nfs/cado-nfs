@@ -813,8 +813,7 @@ static void matmul_top_comm_bench_helper(int * pk, double * pt,
     }
     int target = 10 * k / (t1 - t0);
     ASSERT_ALWAYS(target >= 0);
-    if (target > 100)
-	target = 100;
+    target = std::min(target, 100);
     if (target == 0)
         target = 1;
     pi_bcast(&target, 1, BWC_PI_INT, 0, 0, v.pi->m);

@@ -22,10 +22,9 @@
 #include "macros.h"
 #include "misc.h"
 #include "portability.h"
+#include "utils_cxx.hpp"
 
 // scan-headers: stop here
-
-using namespace std;
 
 static void usage()
 {
@@ -231,7 +230,7 @@ struct my_strassen_selector {
         fmt::print("}}\n");
         fmt::print("#else   /*  STRASSEN_THRESHOLDS_AS_CPP_CONSTANTS */\n");
         auto s = name;
-        std::transform(s.begin(), s.end(), s.begin(),
+        std::ranges::transform(s, s.begin(),
                        [](char c) { return std::tolower(c); });
         fmt::print(
             "template<> unsigned int foo<{}>::default_selector_data[] = {{\n",
@@ -288,10 +287,10 @@ template<> unsigned int foo<gf2x_ternary_fft_info>::default_selector_data[] =
 template <typename T> struct pointed_type {
 };
 template <typename T> struct pointed_type<T *> {
-    typedef T type;
+    using type = T;
 };
 template <typename T> struct pointed_type<T const *> {
-    typedef T type;
+    using type = T;
 };
 
 template <typename fft_type>
@@ -368,9 +367,10 @@ static void fft_times(double & dft1, double & dft2, double & compose,
     /* Make sure we're timing for at least a second. */
     unsigned long const n3 = n1 + n2 - 1;
 
-    typedef typename pointed_type<typename T::ptr>::type elt;
-    std::unique_ptr<elt[]> const temp1((elt *)new char[o.size1_bytes()]);
-    std::unique_ptr<elt[]> const temp2((elt *)new char[o.size2_bytes()]);
+    using elt = typename pointed_type<typename T::ptr>::type;
+
+    auto temp1 = std::make_unique<elt[]>(o.size1_bytes() / sizeof(elt));
+    auto temp2 = std::make_unique<elt[]>(o.size2_bytes() / sizeof(elt));
 
     {
         auto data1 = random_bitstring(n1, state);
@@ -632,7 +632,7 @@ static void plot_compose(char const * name MAYBE_UNUSED, unsigned int n1,
         double v = one_bench(compose_inner, th, tf, tg, o, s);
         fmt::print("{}x{} * {}x{} : {:.2e} = {:.2f}%% of {} * {:.2e}\n",
                 nx1, nx2, nx2, nx3,
-                v, 100.0 * v / double(nmul) / single_compose,
+                v, 100.0 * double_ratio(v, nmul, single_compose),
                 nmul, single_compose);
         nx1 <<= 1;
         nx2 <<= 1;
@@ -829,7 +829,7 @@ static void tune_strassen_global(unsigned long m, unsigned long n,
         size_t const n2 = pi_l_len;
         fmt::print("Top-level multiplications E*pi: len {}, {}x{} * len "
                    "{}, {}x{} (alpha={:.2f})\n",
-                   n1, m, b, n2, b, b, double(n1) / double(n2));
+                   n1, m, b, n2, b, b, double_ratio(n1, n2));
 
         const gf2x_cantor_fft_info oc(n1, n2);
         fmt::print("=== c128 ===\n");
@@ -897,7 +897,7 @@ static void do_polmm_timings(unsigned long m, unsigned long n, unsigned long N, 
     fmt::print("Matrix size {}\n", N);
     // unsigned long c = m - n;
 
-    vector<level_info> results;
+    std::vector<level_info> results;
 
     for (unsigned long level = 0;; level++) {
         unsigned long const d = (N * b / m / n) >> level;

@@ -50,7 +50,7 @@ int main(int argc, char const * argv[])
         }
     }
 
-    if (wild.size() < 1)
+    if (wild.empty())
         throw std::runtime_error("missing verb");
 
     matrix_file M(wild[1]);
