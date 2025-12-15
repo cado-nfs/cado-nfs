@@ -2288,22 +2288,10 @@ void prime_inversion_lifts(std::vector<prime_data> & primes, int i0, int i1)
 /* }}} */
 
 /* {{{ prime postcomputations (lagrange reconstruction) */
-struct postcomp_subtask_info_t {
-    struct prime_data * p;
-    int j;
-    int64_t * c64;
-    mp_limb_t * cN;
 
-    struct wq_task * handle;
-};
-
-void * prime_postcomputations_child(struct postcomp_subtask_info_t * info)
+void prime_postcomputations_child(struct prime_data * p, int j,
+        int64_t * c64, mp_limb_t * cN)
 {
-    struct prime_data * p = info->p;
-    int j = info->j;
-    int64_t * c64 = info->c64;
-    mp_limb_t * cN = info->cN;
-
     mpz_srcptr px = p->powers(glob.prec);
     // printf("# [%2.2lf] done\n", WCT);
 
@@ -2395,7 +2383,6 @@ void * prime_postcomputations_child(struct postcomp_subtask_info_t * info)
 
     mpf_clear(pxf);
     mpf_clear(ratio);
-    return NULL;
 }
 
 void prime_postcomputations(std::vector<prime_data> & primes, int i0, int i1, int64_t * contribs64, mp_limb_t * contribsN)
@@ -2407,29 +2394,21 @@ void prime_postcomputations(std::vector<prime_data> & primes, int i0, int i1, in
 
     log_begin();
 
-    std::vector<postcomp_subtask_info_t> tasks((i1-i0)*n);;
+    std::vector<cado::work_queue::task_handle> subtasks;
     mp_size_t sN = mpz_size(glob.cpoly->n);
     for(int j = 0 ; j < n ; j++) {
         for(int i = i0 ; i < i1 ; i++) {
             int k = (i-i0) * n + j;
             if (k % glob.psize != glob.prank) continue;
-            auto & task = tasks[k];
-            task.p = &primes[i];
-            task.j = j;
-            task.c64 = contribs64 + (i * n + j) * n;
-            task.cN = contribsN + ((i * n + j) * n) * sN;
-            auto f = (wq_func_t) &prime_postcomputations_child;
-            task.handle = wq_push(glob.wq, f, &task);
+            subtasks.push_back(glob.Q.push_task(prime_postcomputations_child,
+                        &primes[i],
+                        j,
+                        contribs64 + (i * n + j) * n,
+                        contribsN + ((i * n + j) * n) * sN));
         }
     }
-    /* we're doing nothing */
-    for(int j = 0 ; j < n ; j++) {
-        for(int i = i0 ; i < i1 ; i++) {
-            int k = (i-i0) * n + j;
-            if (k % glob.psize != glob.prank) continue;
-            wq_join(tasks[k].handle);
-        }
-    }
+    for(auto & t : subtasks)
+        t->join_task();
 
     STOPWATCH_GET();
     log_step_time(" done locally");
@@ -2440,7 +2419,7 @@ void prime_postcomputations(std::vector<prime_data> & primes, int i0, int i1, in
 
     for(int j = 0 ; j < n ; j++) {
         for(int i = i0 ; i < i1 ; i++) {
-            int k = (i-i0) * n + j;
+            const int k = (i-i0) * n + j;
             int64_t * c64 = contribs64 + (i * n + j) * n;
             mp_limb_t * cN = contribsN + ((i * n + j) * n) * sN;
             MPI_Bcast(c64, n, CADO_MPI_INT64_T,  k % glob.psize, glob.pcomm);
