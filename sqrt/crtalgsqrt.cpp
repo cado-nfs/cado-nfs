@@ -118,7 +118,6 @@
 #include "cxx_mpz.hpp"
 #include "number_context.hpp"
 #include "mpi_proxies.hpp"
-#include "sqrt_wq.hpp"
 #include "sqrt_cachefiles.hpp"
 #include "cado_math_aux.hpp"
 #include "cado_mp_conversions.hpp"
@@ -509,7 +508,6 @@ struct sqrt_globals {
     int rank;
     int nprocs;
     int ncores = 2;
-    struct work_queue wq[1];
     cado::work_queue Q;
     MPI_Comm acomm;     // same share of A
     MPI_Comm pcomm;     // same sub-product tree
@@ -1483,18 +1481,6 @@ static int sqrt_caches_ok(std::vector<prime_data> const & primes, int i0, int i1
     allreduce(nok, MPI_SUM, MPI_COMM_WORLD);
     return nok == glob.n * glob.m * glob.s;
 }/*}}}*/
-
-struct subtask_info_t {
-    struct prime_data * p;
-    int i0, i1;
-    int j;
-    size_t off0, off1;
-    mpz_poly_ptr P;
-    mpz_poly_ptr P0;
-    mpz_poly_ptr P1;
-    size_t nab_loc;
-    struct wq_task * handle;
-};
 
 /*{{{ a_poly_read_share and companion */
 #define ABPOLY_OFFSET_THRESHOLD        65536
@@ -2627,7 +2613,6 @@ int main(int argc, char const ** argv)
     if (glob.rank == 0) {
         printf("# [%2.2lf] starting %d worker threads on each node\n", WCT, glob.ncores);
     }
-    wq_init(glob.wq, glob.ncores);
     glob.Q.add_workers(glob.ncores);
     barrier_init(glob.barrier, NULL, glob.ncores);
 
@@ -2764,7 +2749,6 @@ int main(int argc, char const ** argv)
     if (glob.rank == 0) {
         printf("# [%2.2lf] clearing work queues\n", WCT);
     }
-    wq_clear(glob.wq, glob.ncores);
     barrier_destroy(glob.barrier, NULL);
 
     banner(); /*********************************************/

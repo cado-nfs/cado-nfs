@@ -1168,8 +1168,6 @@ sqrt/powers_of_p.hpp
 sqrt/sqrt.cpp
 sqrt/sqrt_cachefiles.cpp
 sqrt/sqrt_cachefiles.hpp
-sqrt/sqrt_wq.cpp
-sqrt/sqrt_wq.hpp
 tests/.clang-tidy
 tests/CMakeLists.txt
 tests/README
