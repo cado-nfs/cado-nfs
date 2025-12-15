@@ -1654,38 +1654,9 @@ size_t a_poly_read_share(cxx_mpz_poly & P, size_t off0, size_t off1)
     return nab_loc;
 }/*}}}*/
 
-#if 0
-struct tree_like_subtask_info_t {
-    struct prime_data * p;
-    int j;
-    int i0, i1;
-    struct wq_task * handle;
-
-    /* In tree-like mode, tasks populate their argument with some info on
-     * the child tasks they've spawned. It is of course mandatory to join
-     * these tasks as well.
-     */
-    struct wq_task * t0;
-    struct wq_task * t1;
-};
-#endif
-
 /* {{{ precompute_powers */
 
-void * precompute_powers_child(struct subtask_info_t * info)/* {{{ */
-{
-    struct prime_data * p = info->p;
-
-    logprint("Precomputing p^%lu, p=%lu\n", glob.prec, p->p);
-    // this triggers the whole precomputation.
-    p->powers(glob.prec);
-
-    return NULL;
-}
-
-/* }}} */
-
-void precompute_powers(std::vector<prime_data> & primes, int i0, int i1)
+static void precompute_powers(std::vector<prime_data> & primes, int i0, int i1)
 {
     STOPWATCH_DECL;
     STOPWATCH_GO();
@@ -1693,22 +1664,16 @@ void precompute_powers(std::vector<prime_data> & primes, int i0, int i1)
     logprint("precompute_powers starts\n");
 
     {
-        std::vector<subtask_info_t> tasks(i1-i0);
+        std::vector<cado::work_queue::task_handle> subtasks;
         for(int i = i0 ; i < i1 ; i++) {
-            int k = i-i0;
-            // if (k % glob.psize != glob.prank) continue;
-            subtask_info_t & task = tasks[k];
-            task.p = &primes[i];
-            task.j = 0;
-            auto f = (wq_func_t) &precompute_powers_child;
-            task.handle = wq_push(glob.wq, f, &task);
+            subtasks.push_back(glob.Q.push_task([&,i]() {
+                        auto * p = &primes[i];
+                        logprint("Precomputing p^%lu, p=%lu\n", glob.prec, p->p);
+                        p->powers(glob.prec);
+                        }));
         }
-        /* we're doing nothing, only waiting. */
-        for(int i = i0 ; i < i1 ; i++) {
-            int k = i-i0;
-            // if (k % glob.psize != glob.prank) continue;
-            wq_join(tasks[k].handle);
-        }
+        for(auto & t : subtasks)
+            t->join_task();
     }
 
     STOPWATCH_GET();
