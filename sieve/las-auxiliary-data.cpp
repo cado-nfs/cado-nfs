@@ -5,6 +5,7 @@
 #include <map>
 #include <string>
 #include <mutex>
+#include <ranges>
 #include <utility>
 
 #include <gmp.h>
@@ -19,6 +20,8 @@
 #include "tdict.hpp"
 #include "arith/ularith.h"
 #include "verbose.h"
+
+#include "fmt/ranges.h"
 
 void
 sieve_checksum::update(const unsigned int other)
@@ -82,10 +85,10 @@ nfs_aux::~nfs_aux()
     // coverity[fun_call_w_exception]
     rt.rep.display_survivor_counters();
 
+    auto p = [](auto const & ck) { return ck.get_checksum(); };
     verbose_fmt_print(0, 2,
             "# Checksums over sieve region: after all sieving: {}\n",
-            join(checksum_post_sieve, " ",
-                [](auto ck) { return ck.get_checksum(); }));
+            fmt::join(checksum_post_sieve | std::views::transform(p), " "));
 
     verbose_fmt_print(0, 1, "# {} {}\n",
             rt.rep.reports, las.batch ? "survivor(s) saved" : "relation(s)");

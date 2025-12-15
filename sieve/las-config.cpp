@@ -50,17 +50,11 @@ void set_LOG_BUCKET_REGION()
 void las_display_config_flags()
 {
     std::vector<std::string> flags {
-#ifdef SAFE_BUCKETS
-        "SAFE_BUCKETS",
-#endif
 #ifdef BUCKET_SIEVE_POWERS
         "BUCKET_SIEVE_POWERS",
 #endif
 #ifdef PROFILE
         "PROFILE",
-#endif
-#ifdef UNSIEVE_NOT_COPRIME
-        "UNSIEVE_NOT_COPRIME",
 #endif
 #ifdef WANT_ASSERT_EXPENSIVE
         "WANT_ASSERT_EXPENSIVE",
@@ -73,9 +67,6 @@ void las_display_config_flags()
 #endif
 #ifdef SUPPORT_LARGE_Q
         "SUPPORT_LARGE_Q",
-#endif
-#ifdef SKIP_GCD3
-        "SKIP_GCD3",
 #endif
         fmt::format("LOGNORM_GUARD_BITS={:1.2f}",
                 (double) LOGNORM_GUARD_BITS)

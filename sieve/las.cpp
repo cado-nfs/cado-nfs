@@ -848,7 +848,12 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
 }/*}}}*/
 
 /* This returns false if the special-q was discarded */
-static bool do_one_special_q(las_info & las, nfs_work & ws, special_q_task * task, std::shared_ptr<nfs_aux> const & aux_p, thread_pool & pool)/*{{{*/
+static bool
+do_one_special_q(
+        las_info & las,
+        nfs_work & ws,
+        std::shared_ptr<nfs_aux> const & aux_p,
+        thread_pool & pool)/*{{{*/
 {
     nfs_aux & aux(*aux_p);
 
@@ -874,7 +879,7 @@ static bool do_one_special_q(las_info & las, nfs_work & ws, special_q_task * tas
 
     BOOKKEEPING_TIMER(timer_special_q);
 
-    ws.prepare_for_new_q(las, task);
+    ws.prepare_for_new_q(las, &aux.doing);
 
     /* the where_am_I structure is store in nfs_aux. We have a few
      * adjustments to make, and we want to make sure that the threads,
@@ -1161,7 +1166,7 @@ static void las_subjob(las_info & las, int subjob, report_and_timer & global_rt)
 
                     prepare_timer_layout_for_multithreaded_tasks(timer_special_q, las.cpoly->nb_polys);
 
-                    bool const done = do_one_special_q(las, ws, task, aux_p, pool);
+                    bool const done = do_one_special_q(las, ws, aux_p, pool);
 
                     if (!done) {
                         /* Then we don't even keep track of the time, it's

@@ -17,7 +17,6 @@
 /* generated code for small sieve critical routine. */
 
 struct list_nil {};
-template<typename T, typename U> struct list_car {};
 
 template<typename T, typename U, int b, typename F> struct choice_list_car {};
 
@@ -67,33 +66,6 @@ struct small_sieve_best_code_choices {
 };
 
 /*{{{ small sieve classes */
-/*{{{ tristate booleans */
-/* The tribool classes offer a test(y, n, m) function: if the value of the
-   tribool is true, the first parameter (y) is returned, if it is false,
-   the second is returned, if it is maybe, the third is returned. */
-struct tribool_maybe {
-    template<typename T> static inline T test(T const &, T const &, T const & maybe) {
-        return maybe;
-    }
-};
-
-template<bool b>
-struct tribool_const {};
-template<>
-struct tribool_const<true>
-{
-    template<typename T> static inline T test(T const & yes, T const &, T const &) {
-        return yes;
-    }
-};
-template<>
-struct tribool_const<false>
-{
-    template<typename T> static inline T test(T const &, T const & no, T const &) {
-        return no;
-    }
-};
-/*}}}*/
 /* So many things are used in common for many small sieve routines that
  * it makes sense to gather them in a common object */
 struct small_sieve_base {/*{{{*/
@@ -173,7 +145,7 @@ struct small_sieve_base {/*{{{*/
         };
     }
 
-    spos_t first_position_ordinary_prime(ssp_simple_t const & ssp, unsigned int dj = 0) const/*{{{*/
+    spos_t first_position_ordinary_prime(ssp_simple_t const & ssp) const/*{{{*/
     {
         /* equation here: i-r*j = 0 mod p */
 
@@ -203,8 +175,8 @@ struct small_sieve_base {/*{{{*/
          */
         /* Ouch. That can't work if we have largeish small-sieved primes!
          */
-        // spos_t x = (spos_t)(j0 + dj) * (spos_t)ssp.get_r() - i0;
-        int64_t x = (int64_t)(j0 + dj) * (int64_t)ssp.get_r() - i0;
+        // spos_t x = (spos_t)(j0) * (spos_t)ssp.get_r() - i0;
+        int64_t x = (int64_t)(j0) * (int64_t)ssp.get_r() - i0;
         if (sublatm > 1) {
             ASSERT(ssp.get_p() % sublatm);
             /* alternative code. not clear it's better.
@@ -317,7 +289,7 @@ struct small_sieve_base {/*{{{*/
         return x;
     }/*}}}*/
 
-    spos_t first_position_power_of_two(ssp_t const & ssp, unsigned int dj = 0) const/*{{{*/
+    spos_t first_position_power_of_two(ssp_t const & ssp) const/*{{{*/
     {
         /* equation here: i-r*j = 0 mod p, p a power of 2. */
         /* only difference with ordinary case is that we want to
@@ -330,7 +302,7 @@ struct small_sieve_base {/*{{{*/
          * power for i-j*r multiple of our power of 2, which means
          * i even too. Thus a useless report.
          */
-        unsigned int j = j0 + dj;
+        unsigned int j = j0;
         uint64_t jj = j*sublatm + sublatj0;
         // uint64_t ii = i0*sublatm + sublati0;
         /* next odd line */

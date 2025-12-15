@@ -1065,7 +1065,6 @@ sieve/las-output.cpp
 sieve/las-output.hpp
 sieve/las-parallel.cpp
 sieve/las-parallel.hpp
-sieve/las-plattice.cpp
 sieve/las-plattice.hpp
 sieve/las-process-bucket-region.cpp
 sieve/las-process-bucket-region.hpp

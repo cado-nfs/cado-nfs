@@ -18,11 +18,12 @@
 #include <cstdint>
 #include <iterator>
 #include <memory>
+#include <ranges>
 #include <utility>
 #include <vector>
 
 #include <gmp.h>
-#include "fmt/base.h"
+#include "fmt/ranges.h"
 
 #include "gmp_aux.h"
 #include "las-process-bucket-region.hpp"
@@ -379,28 +380,26 @@ process_bucket_region_run::survivors_t process_bucket_region_run::search_survivo
 
 #ifdef TRACE_K /* {{{ */
     if (trace_on_spot_Nx(N, trace_Nx.x)) {
+        auto p1 = [&, this](size_t i) {
+            return fmt::format("S[{}][{}]={}", i, trace_Nx.x,
+                                               S[i] ? S[i][trace_Nx.x] : ~0u);
+        };
+        auto p2 = [&, this](size_t i) {
+            auto &bound = ws.sides[i].lognorms.bound;
+            return fmt::format("side{}[{}]={}", i,
+                S[i] ? S[i][trace_Nx.x] : ~0u,
+                S[i] ? (S[i][trace_Nx.x] <= bound ? 0 : bound) : ~0u);
+        };
+        auto v1 = std::views::iota(0u, S.size()) | std::views::transform(p1);
+        auto v2 = std::views::iota(0u, S.size()) | std::views::transform(p2);
         verbose_fmt_print(TRACE_CHANNEL, 0,
-                "# When entering factor_survivors for bucket {}", trace_Nx.N);
-        for (size_t i = 0; i < S.size(); ++i) {
-            verbose_fmt_print(TRACE_CHANNEL, 0, ", S[{}][{}]={}", i,
-                                 trace_Nx.x, S[i] ? S[0][trace_Nx.x] : ~0u);
-        }
-        verbose_fmt_print(TRACE_CHANNEL, 0, "\n# Remaining norms which have not been accounted for in sieving: ({})\n", join(traced_norms, ", "));
-    }
-#endif  /* }}} */
-
-#ifdef TRACE_K /* {{{ */
-    for (int x = 0; x < 1 << LOG_BUCKET_REGION; x++) {
-        if (trace_on_spot_Nx(N, x)) {
-            for (size_t i = 0; i < S.size(); ++i) {
-                auto &bound = ws.sides[i].lognorms.bound;
-                verbose_fmt_print(TRACE_CHANNEL, 0,
-                                  "{} side{}[{}]={}", i ? ',' : '#', i,
-                                  S[i] ? S[i][trace_Nx.x] : ~0u,
-                                  S[i] ? (S[i][x] <= bound ? 0 : bound) : ~0u);
-            }
-            verbose_fmt_print(TRACE_CHANNEL, 0, "\n");
-        }
+                "# When entering factor_survivors for bucket {}: {}\n"
+                "# Remaining norms which have not been accounted for in "
+                "sieving: ({})\n# {}\n",
+                trace_Nx.N,
+                fmt::join(v1, ", "),
+                join(traced_norms, ", "),
+                fmt::join(v2, ", "));
     }
 #endif /* }}} */
 
@@ -554,7 +553,7 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
         }
 
         if (cur.trace_on_spot())
-            verbose_fmt_print(TRACE_CHANNEL, 0, "# about to start cofactorization for ({},{})  {} {}", cur.a, cur.b, x, Sx[x]);
+            verbose_fmt_print(TRACE_CHANNEL, 0, "# about to start cofactorization for ({},{})  {} {}\n", cur.a, cur.b, x, Sx[x]);
 
         /* since a,b both even were not sieved, either a or b should
          * be odd. However, exceptionally small norms, even without
@@ -668,10 +667,9 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
                 pass = check_leftover_norm (cur.norm[side], ws.conf.sides[side]);
                 if (cur.trace_on_spot()) {
                     verbose_fmt_print(TRACE_CHANNEL, 0,
-                            "# checked leftover norm={}", cur.norm[side]);
-                    verbose_fmt_print(TRACE_CHANNEL, 0,
-                            " on side {} for ({},{}): {}",
-                            side, cur.a, cur.b, pass);
+                            "# checked leftover norm={} on side {} for "
+                            "({},{}): {}\n",
+                            cur.norm[side], side, cur.a, cur.b, pass);
                 }
                 rep.survivors.check_leftover_norm_on_side[side] += pass;
             }
