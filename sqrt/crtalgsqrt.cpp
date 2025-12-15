@@ -83,6 +83,9 @@
 #include <complex>
 #include <utility>
 #include <vector>
+#include <functional>
+#include <atomic>
+
 
 #include <unistd.h>
 #include <sys/stat.h>
@@ -119,6 +122,7 @@
 #include "sqrt_cachefiles.hpp"
 #include "cado_math_aux.hpp"
 #include "cado_mp_conversions.hpp"
+#include "work_queue.hpp"
 
 using cado_mpi::mpi_data_agrees;
 using cado_mpi::allreduce;
@@ -506,6 +510,7 @@ struct sqrt_globals {
     int nprocs;
     int ncores = 2;
     struct work_queue wq[1];
+    cado::work_queue Q;
     MPI_Comm acomm;     // same share of A
     MPI_Comm pcomm;     // same sub-product tree
     int arank, asize;
@@ -1523,60 +1528,49 @@ size_t accumulate_ab_poly(mpz_poly_ptr P, ab_source_ptr ab, size_t off0, size_t 
     return res;
 }
 
-
-void * a_poly_read_share_child(struct subtask_info_t * info)
+static void a_poly_read_share_child(cxx_mpz_poly & P, std::atomic<size_t>& nab_loc, size_t off0, size_t off1)
 {
-    size_t off0 = info->off0;
-    size_t off1 = info->off1;
-        int rc;
-    mpz_poly_ptr P = info->P;
     cachefile c;
 
     cachefile_init(c, "a_%zu_%zu", off0, off1);
 
     if (rcache && cachefile_open_r(c)) {
         logprint("reading cache %s\n", c->basename);
-        rc = fscanf(c->f, "%zu", &info->nab_loc);
+        size_t s;
+        int rc = fscanf(c->f, "%zu", &s);
+        nab_loc += s;
         ASSERT_ALWAYS(rc == 1);
         for(int i = 0 ; i < glob.n ; i++) {
-            rc = gmp_fscanf(c->f, "%Zx", mpz_poly_coeff_const(info->P, i));
+            rc = gmp_fscanf(c->f, "%Zx", mpz_poly_coeff_const(P, i));
             ASSERT_ALWAYS(rc == 1);
         }
-        mpz_poly_cleandeg(info->P, glob.n - 1);
+        mpz_poly_cleandeg(P, glob.n - 1);
         cachefile_close(c);
-        return NULL;
+        return;
     }
 
     ab_source ab;
     ab_source_init_set(ab, glob.ab);
     cxx_mpz_poly tmp;
-    info->nab_loc = accumulate_ab_poly(P, ab, off0, off1, tmp);
+    nab_loc += accumulate_ab_poly(P, ab, off0, off1, tmp);
     ab_source_clear(ab);
 
     if (wcache && cachefile_open_w(c)) {
         logprint("writing cache %s\n", c->basename);
-        fprintf(c->f, "%zu\n", info->nab_loc);
+        fprintf(c->f, "%zu\n", (size_t) nab_loc);
         for(int i = 0 ; i < glob.n ; i++) {
-            gmp_fprintf(c->f, "%Zx\n", mpz_poly_coeff_const(info->P, i));
+            gmp_fprintf(c->f, "%Zx\n", mpz_poly_coeff_const(P, i));
         }
         cachefile_close(c);
     }
-
-    return NULL;
 }
 
-void * a_poly_read_share_child2(struct subtask_info_t * info)
-{
-    mpz_poly_mul_mod_f(info->P0, info->P0, info->P1, glob.f_hat);
-    return NULL;
-}
-
-size_t a_poly_read_share(mpz_poly_ptr P, size_t off0, size_t off1)
+size_t a_poly_read_share(cxx_mpz_poly & P, size_t off0, size_t off1)
 {
     STOPWATCH_DECL;
     STOPWATCH_GO();
 
-    size_t nab_loc = 0;
+    std::atomic<size_t> nab_loc = 0;
     int rc;
     log_begin();
 
@@ -1586,7 +1580,9 @@ size_t a_poly_read_share(mpz_poly_ptr P, size_t off0, size_t off1)
 
     if (rcache && cachefile_open_r(c)) {
         logprint("reading cache %s\n", c->basename);
-        rc = fscanf(c->f, "%zu", &nab_loc);
+        size_t s;
+        rc = fscanf(c->f, "%zu", &s);
+        nab_loc += s;
         ASSERT_ALWAYS(rc == 1);
         for(int i = 0 ; i < glob.n ; i++) {
             rc = gmp_fscanf(c->f, "%Zx", mpz_poly_coeff(P, i));
@@ -1597,55 +1593,42 @@ size_t a_poly_read_share(mpz_poly_ptr P, size_t off0, size_t off1)
         return nab_loc;
     }
 
-    size_t nparts = glob.ncores * glob.t;
-
-    std::vector<subtask_info_t> a_tasks(glob.ncores);
-
-    int j0 = glob.ncores * glob.arank;
-    int j1 = j0 + glob.ncores;
+    const size_t nparts = glob.ncores * glob.t;
+    const int j0 = glob.ncores * glob.arank;
+    const int j1 = j0 + glob.ncores;
 
     std::vector<cxx_mpz_poly> pols(j1-j0);
+    std::vector<cado::work_queue::task_handle> subtasks;
     for(int j = j0 ; j < j1 ; j++) {
-        subtask_info_t & task = a_tasks[j-j0];
-        task.P = pols[j-j0];
-        task.off0 = off0 + (off1 - off0) * j / nparts;
-        task.off1 = off0 + (off1 - off0) * (j+1) / nparts;
-        task.nab_loc = 0;
-        auto f = (wq_func_t) &a_poly_read_share_child;
-        task.handle = wq_push(glob.wq, f, &task);
+        subtasks.push_back(glob.Q.push_task(a_poly_read_share_child,
+                    std::ref(pols[j-j0]),
+                    std::ref(nab_loc),
+                    off0 + (off1 - off0) * j / nparts,
+                    off0 + (off1 - off0) * (j+1) / nparts));
     }
-    /* we're doing nothing, only waiting. */
-    for(int j = j0 ; j < j1 ; j++) {
-        wq_join(a_tasks[j-j0].handle);
-        nab_loc += a_tasks[j-j0].nab_loc;
-    }
-    /* XXX freeing a_tasks is deferred because of course we still need A ! */
+    for(auto & t : subtasks)
+        t->join_task();
 
     STOPWATCH_GET();
     log_step_time(" done on leaf threads");
     log_step(": sharing among threads");
 
-    std::vector<subtask_info_t> a_tasks2(glob.ncores);
     for(int done = 1 ; done < glob.ncores ; done<<=1) {
+        std::vector<cado::work_queue::task_handle> subtasks;
         for(int j = 0 ; j < glob.ncores ; j += done << 1) {
             if (j + done >= glob.ncores)
                 break;
-            subtask_info_t & task = a_tasks2[j];
-            task.P0 = a_tasks[j].P;
-            task.P1 = a_tasks[j+done].P;
-            auto f = (wq_func_t) &a_poly_read_share_child2;
-            task.handle = wq_push(glob.wq, f, &task);
+            auto fold = [](cxx_mpz_poly & P0, cxx_mpz_poly const & P1) {
+                mpz_poly_mul_mod_f(P0, P0, P1, glob.f_hat);
+            };
+            subtasks.push_back(glob.Q.push_task(fold,
+                        std::ref(pols[j]), std::cref(pols[j+done])));
         }
-        /* we're doing nothing, only waiting. */
-        for(int j = 0 ; j < glob.ncores ; j += done << 1) {
-            if (j + done >= glob.ncores)
-                break;
-            wq_join(a_tasks2[j].handle);
-        }
+        for(auto & t : subtasks)
+            t->join_task();
     }
 
-    mpz_poly_swap(P, a_tasks[0].P);
-
+    mpz_poly_swap(P, pols.front());
 
     STOPWATCH_GET();
     log_step_time(" done locally");
@@ -1661,7 +1644,7 @@ size_t a_poly_read_share(mpz_poly_ptr P, size_t off0, size_t off1)
 
     if (wcache && cachefile_open_w(c)) {
         logprint("writing cache %s\n", c->basename);
-        fprintf(c->f, "%zu\n", nab_loc);
+        fprintf(c->f, "%zu\n", (size_t) nab_loc);
         for(int i = 0 ; i < glob.n ; i++) {
             gmp_fprintf(c->f, "%Zx\n", mpz_poly_coeff_const(P, i));
         }
@@ -2858,6 +2841,7 @@ int main(int argc, char const ** argv)
         printf("# [%2.2lf] starting %d worker threads on each node\n", WCT, glob.ncores);
     }
     wq_init(glob.wq, glob.ncores);
+    glob.Q.add_workers(glob.ncores);
     barrier_init(glob.barrier, NULL, glob.ncores);
 
     int pgnum = glob.rank % t;
