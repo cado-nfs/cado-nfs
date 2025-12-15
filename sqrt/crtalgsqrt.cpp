@@ -2280,9 +2280,8 @@ cxx_mpz inversion_lift(struct prime_data * p, cxx_mpz const & Hx, int precision)
     // gmp_printf("# [%2.2lf] %Zd\n", WCT, p->iHx_mod);
 }/* }}} */
 
-void * prime_inversion_lifts_child(struct subtask_info_t * info)
+void prime_inversion_lifts_child(struct prime_data * p)
 {
-    struct prime_data * p = info->p;
     mpz_srcptr px = p->powers(glob.prec);
 
     cxx_mpz Hx;
@@ -2292,7 +2291,6 @@ void * prime_inversion_lifts_child(struct subtask_info_t * info)
     // need a recursive function for computing the inverse.
     printf("# [%2.2lf] [P%dA%d] lifting H^-l\n", WCT, glob.arank, glob.prank);
     p->iHx = inversion_lift(p, Hx, glob.prec);
-    return NULL;
 }
 
 void prime_inversion_lifts(std::vector<prime_data> & primes, int i0, int i1)
@@ -2303,24 +2301,16 @@ void prime_inversion_lifts(std::vector<prime_data> & primes, int i0, int i1)
     log_begin();
 
     {
-        std::vector<subtask_info_t> tasks(i1-i0);
+        std::vector<cado::work_queue::task_handle> subtasks;
         for(int i = i0 ; i < i1 ; i++) {
-            int k = i-i0;
+            const int k = i-i0;
             if (k % glob.psize != glob.prank)
                 continue;
-            auto & task = tasks[k];
-            task.p = &primes[i];
-            task.j = INT_MAX;
-            auto f = (wq_func_t) &prime_inversion_lifts_child;
-            task.handle = wq_push(glob.wq, f, &task);
+            subtasks.push_back(glob.Q.push_task(prime_inversion_lifts_child,
+                        &primes[i]));
         }
-        /* we're doing nothing, only waiting. */
-        for(int i = i0 ; i < i1 ; i++) {
-            int k = i-i0;
-            if (k % glob.psize != glob.prank)
-                continue;
-            wq_join(tasks[k].handle);
-        }
+        for(auto & t : subtasks)
+            t->join_task();
     }
 
     STOPWATCH_GET();
@@ -2331,7 +2321,7 @@ void prime_inversion_lifts(std::vector<prime_data> & primes, int i0, int i1)
     log_step(": sharing");
 
     for(int i = i0 ; i < i1 ; i++) {
-        int k = i-i0;
+        const int k = i-i0;
         broadcast(primes[i].iHx, k % glob.psize, glob.pcomm);
     }
 
