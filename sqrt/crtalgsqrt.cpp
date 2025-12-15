@@ -1719,11 +1719,8 @@ void precompute_powers(std::vector<prime_data> & primes, int i0, int i1)
 
 /* {{{ lifting roots */
 
-void * lifting_roots_child(struct subtask_info_t * info)/* {{{ */
+void lifting_roots_child(struct prime_data * p, int j)/* {{{ */
 {
-    struct prime_data * p = info->p;
-    int j = info->j;
-
     mpz_srcptr p1 = p->powers(1);
     mpz_ptr rx = p->lroots[j];
 
@@ -1731,12 +1728,11 @@ void * lifting_roots_child(struct subtask_info_t * info)/* {{{ */
 
     cachefile_init(c, "lroot_%lu_%lu_%lu", p->p, p->r[j], glob.prec);
 
-
     if (rcache && cachefile_open_r(c)) {
         logprint("reading cache %s\n", c->basename);
         gmp_fscanf(c->f, "%Zx", rx);
         cachefile_close(c);
-        return NULL;
+        return;
     }
 
     mpz_set_ui(rx, p->r[j]);
@@ -1754,8 +1750,6 @@ void * lifting_roots_child(struct subtask_info_t * info)/* {{{ */
         gmp_fprintf(c->f, "%Zx\n", rx);
         cachefile_close(c);
     }
-
-    return NULL;
 }
 
 /* }}} */
@@ -1771,28 +1765,18 @@ void lifting_roots(std::vector<prime_data> & primes, int i0, int i1)
     log_begin();
 
     {
-        std::vector<subtask_info_t> lift_tasks((i1 - i0) * n);
+        std::vector<cado::work_queue::task_handle> subtasks;
         for(int j = 0 ; j < n ; j++) {
             for(int i = i0 ; i < i1 ; i++) {
                 int k = (i-i0) * n + j;
                 if (k % glob.psize != glob.prank)
                     continue;
-                subtask_info_t & task = lift_tasks[k];
-                task.p = &primes[i];
-                task.j = j;
-                auto f = (wq_func_t) &lifting_roots_child;
-                task.handle = wq_push(glob.wq, f, &task);
+                subtasks.push_back(glob.Q.push_task(lifting_roots_child,
+                            &primes[i], j));
             }
         }
-        /* we're doing nothing, only waiting. */
-        for(int j = 0 ; j < n ; j++) {
-            for(int i = i0 ; i < i1 ; i++) {
-                int k = (i-i0) * n + j;
-                if (k % glob.psize != glob.prank)
-                    continue;
-                wq_join(lift_tasks[k].handle);
-            }
-        }
+        for(auto & t : subtasks)
+            t->join_task();
     }
 
     STOPWATCH_GET();
@@ -1806,7 +1790,7 @@ void lifting_roots(std::vector<prime_data> & primes, int i0, int i1)
     {
         for(int j = 0 ; j < n ; j++) {
             for(int i = i0 ; i < i1 ; i++) {
-                int k = (i-i0) * n + j;
+                const int k = (i-i0) * n + j;
                 broadcast(primes[i].lroots[j], k % glob.psize, glob.pcomm);
             }
         }
