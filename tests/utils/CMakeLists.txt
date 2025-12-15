@@ -95,6 +95,7 @@ cado_define_test(test_decomposed_path.cpp LIBRARIES utils tests)
 cado_define_test(test_prime_count.cpp LIBRARIES utils tests)
 cado_define_test(test_integer_partitions.cpp LIBRARIES utils)
 cado_define_test(test_mpz_conversions.cpp LIBRARIES utils tests)
+cado_define_test(test_work_queue.cpp LIBRARIES utils)
 
 cado_define_test(
     SCRIPT
