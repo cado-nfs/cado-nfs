@@ -2015,26 +2015,24 @@ static void rational_reduction(std::vector<prime_data> & primes, int i0, int i1,
 
 /* {{{ algebraic reduction */
 
-void * algebraic_reduction_child(struct subtask_info_t * info)
+static void algebraic_reduction_child(struct prime_data * p, int j, size_t off0, size_t off1, size_t & nab_total)
 {
-    struct prime_data * p = info->p;
-    int j = info->j;
     int rc;
     logprint("alg_red (%lu, x-%lu) starts\n", p->p, p->r[j]);
 
     cachefile c;
 
     cachefile_init(c, "a_%zu_%zu_mod_%lu_%lu_%lu",
-            info->off0, info->off1, info->p->p, info->p->r[j], glob.prec);
+            off0, off1, p->p, p->r[j], glob.prec);
 
     if (rcache && cachefile_open_r(c)) {
         logprint("reading cache %s\n", c->basename);
-        rc = fscanf(c->f, "%zu", &info->nab_loc);
+        rc = fscanf(c->f, "%zu", &nab_total);
         ASSERT_ALWAYS(rc == 1);
         rc = gmp_fscanf(c->f, "%Zx", (mpz_ptr) p->evals[j]);
         ASSERT_ALWAYS(rc == 1);
         cachefile_close(c);
-        return NULL;
+        return;
     }
 
     cxx_mpz ta;
@@ -2051,11 +2049,10 @@ void * algebraic_reduction_child(struct subtask_info_t * info)
 
     if (wcache && cachefile_open_w(c)) {
         logprint("writing cache %s\n", c->basename);
-        fprintf(c->f, "%zu\n", info->nab_loc);
+        fprintf(c->f, "%zu\n", nab_total);
         gmp_fprintf(c->f, "%Zx\n", (mpz_srcptr) p->evals[j]);
         cachefile_close(c);
     }
-    return NULL;
 }
 
 void algebraic_reduction(std::vector<prime_data> & primes, int i0, int i1, size_t off0, size_t off1, size_t * p_nab_total)
@@ -2070,30 +2067,16 @@ void algebraic_reduction(std::vector<prime_data> & primes, int i0, int i1, size_
         }
     }
 
-    std::vector<subtask_info_t> tasks((i1-i0) * glob.n);
+    std::vector<cado::work_queue::task_handle> subtasks;
     for(int j = 0 ; j < glob.n ; j++) {
         for(int i = i0 ; i < i1 ; i++) {
-            int k = (i-i0) * glob.n + j;
-            // if (k % glob.psize != glob.prank) continue;
-            subtask_info_t & task = tasks[k];
-            task.off0 = off0;
-            task.off1 = off1;
-            task.p = &primes[i];
-            task.j = j;
-            task.nab_loc = *p_nab_total;
-            auto f = (wq_func_t) &algebraic_reduction_child;
-            task.handle = wq_push(glob.wq, f, &task);
+            subtasks.push_back(glob.Q.push_task(algebraic_reduction_child,
+                        &primes[i], j, off0, off1, *p_nab_total));
         }
     }
-    /* we're doing nothing */
-    for(int j = 0 ; j < glob.n ; j++) {
-        for(int i = i0 ; i < i1 ; i++) {
-            int k = (i-i0) * glob.n + j;
-            // if (k % glob.psize != glob.prank) continue;
-            wq_join(tasks[k].handle);
-            * p_nab_total = tasks[k].nab_loc;
-        }
-    }
+    for(auto & t : subtasks)
+        t->join_task();
+
     for(int i = i0 ; i < i1 ; i++) {
         for(int k = glob.n - 1 ; k >= 0 ; k--) {
             mpz_realloc(mpz_poly_coeff(primes[i].A, k), 0);
