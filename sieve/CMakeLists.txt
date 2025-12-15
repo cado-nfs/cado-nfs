@@ -65,7 +65,6 @@ add_library(las_core_b OBJECT
 
 add_library(las_core_c OBJECT
         las-arith.cpp
-        las-plattice.cpp
 )
 
 set(las_multi_a_sources
