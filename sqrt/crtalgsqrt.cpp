@@ -1900,15 +1900,9 @@ void reduce_poly_mod_rat_ptree(mpz_poly_ptr P, rat_ptree_t * T)/*{{{*/
     reduce_poly_mod_rat_ptree(P, T->t1);
 }/*}}}*/
 
-void * rational_reduction_child(struct subtask_info_t * info)
+void rational_reduction_child(cxx_mpz_poly & P, struct prime_data * primes, int i0, int i1, size_t off0, size_t off1, size_t nab_total)
 {
-    struct prime_data * primes = info->p;
-    int i0 = info->i0;
-    int i1 = info->i1;
-    size_t off0 = info->off0;
-    size_t off1 = info->off1;
-
-    ASSERT_ALWAYS(info->P->deg >= 0);
+    ASSERT_ALWAYS(P->deg >= 0);
 
     rat_ptree_t * ptree = rat_ptree_build(primes, i0, i1);
 
@@ -1920,25 +1914,25 @@ void * rational_reduction_child(struct subtask_info_t * info)
         if (ptree) {
             for(int i = 0 ; i < glob.n ; i++) {
                 WRAP_mpz_mod(mpz_poly_coeff(ptree->p->A, i),
-                        mpz_poly_coeff_const(info->P, i), ptree->zx);
+                        mpz_poly_coeff_const(P, i), ptree->zx);
             }
             mpz_poly_cleandeg(ptree->p->A, glob.n-1);
         }
         if (barrier_wait(glob.barrier, NULL, NULL, NULL) == BARRIER_SERIAL_THREAD) {
             cxx_mpz_poly foo;
-            mpz_poly_swap(info->P, foo);
+            mpz_poly_swap(P, foo);
         }
     } else {
         ASSERT_ALWAYS(ptree != NULL);
 
         cxx_mpz_poly temp;
         for(int i = 0 ; i < glob.n ; i++) {
-            WRAP_mpz_mod(mpz_poly_coeff(temp, i), mpz_poly_coeff_const(info->P, i), ptree->zx);
+            WRAP_mpz_mod(mpz_poly_coeff(temp, i), mpz_poly_coeff_const(P, i), ptree->zx);
         }
         mpz_poly_cleandeg(temp, glob.n-1);
         if (barrier_wait(glob.barrier, NULL, NULL, NULL) == BARRIER_SERIAL_THREAD) {
             cxx_mpz_poly foo;
-            mpz_poly_swap(info->P, foo);
+            mpz_poly_swap(P, foo);
         }
         // This computes P mod p_i for all p_i, and stores it into the
         // relevant field at the ptree leaves (->a)
@@ -1957,20 +1951,16 @@ void * rational_reduction_child(struct subtask_info_t * info)
                     off0, off1, primes[i].p, glob.prec);
             if (cachefile_open_w(c)) {
                 logprint("writing cache %s\n", c->basename);
-                /* XXX nab_loc is a misnomer here. In reality we have nab_total
-                 * there in this context */
-                fprintf(c->f, "%zu\n", info->nab_loc);
+                fprintf(c->f, "%zu\n", nab_total);
                 for(int j = 0 ; j < glob.n ; j++)
                     gmp_fprintf(c->f, "%Zx\n", mpz_poly_coeff_const(primes[i].A, j));
                 cachefile_close(c);
             }
         }
     }
-
-    return NULL;
 }
 
-void rational_reduction(std::vector<prime_data> & primes, int i0, int i1, mpz_poly_ptr P, size_t off0, size_t off1, size_t * p_nab_total)
+static void rational_reduction(std::vector<prime_data> & primes, int i0, int i1, cxx_mpz_poly & P, size_t off0, size_t off1, size_t * p_nab_total)
 {
     STOPWATCH_DECL;
     STOPWATCH_GO();
@@ -2000,21 +1990,18 @@ void rational_reduction(std::vector<prime_data> & primes, int i0, int i1, mpz_po
     }
 
     {
-        std::vector<subtask_info_t> tasks(glob.ncores);
+        std::vector<cado::work_queue::task_handle> subtasks;
         for(int k = 0 ; k < glob.ncores ; k++) {
-            subtask_info_t & task = tasks[k];
-            task.p = primes.data();
-            task.i0 = i0 + (i1-i0) * k / glob.ncores;
-            task.i1 = i0 + (i1-i0) * (k+1) / glob.ncores;
-            task.off0 = off0;
-            task.off1 = off1;
-            task.P = P;
-            task.nab_loc = *p_nab_total;
-            auto f = (wq_func_t) &rational_reduction_child;
-            task.handle = wq_push(glob.wq, f, &task);
+            subtasks.push_back(glob.Q.push_task(rational_reduction_child,
+                        std::ref(P), primes.data(),
+                        i0 + (i1-i0) * k / glob.ncores,
+                        i0 + (i1-i0) * (k+1) / glob.ncores,
+                        off0,
+                        off1,
+                        *p_nab_total));
         }
-        /* we're doing nothing, only waiting. */
-        for(int k = 0 ; k < glob.ncores ; k++) wq_join(tasks[k].handle);
+        for(auto & t : subtasks)
+            t->join_task();
     }
 
     STOPWATCH_GET();
