@@ -2015,7 +2015,7 @@ static void rational_reduction(std::vector<prime_data> & primes, int i0, int i1,
 
 /* {{{ algebraic reduction */
 
-static void algebraic_reduction_child(struct prime_data * p, int j, size_t off0, size_t off1, size_t & nab_total)
+static void algebraic_reduction_child(struct prime_data * p, int j, size_t off0, size_t off1, std::atomic<size_t> & nab_total)
 {
     int rc;
     logprint("alg_red (%lu, x-%lu) starts\n", p->p, p->r[j]);
@@ -2027,8 +2027,10 @@ static void algebraic_reduction_child(struct prime_data * p, int j, size_t off0,
 
     if (rcache && cachefile_open_r(c)) {
         logprint("reading cache %s\n", c->basename);
-        rc = fscanf(c->f, "%zu", &nab_total);
+        size_t s;
+        rc = fscanf(c->f, "%zu", &s);
         ASSERT_ALWAYS(rc == 1);
+        nab_total = s;
         rc = gmp_fscanf(c->f, "%Zx", (mpz_ptr) p->evals[j]);
         ASSERT_ALWAYS(rc == 1);
         cachefile_close(c);
@@ -2049,7 +2051,7 @@ static void algebraic_reduction_child(struct prime_data * p, int j, size_t off0,
 
     if (wcache && cachefile_open_w(c)) {
         logprint("writing cache %s\n", c->basename);
-        fprintf(c->f, "%zu\n", nab_total);
+        fprintf(c->f, "%zu\n", (size_t) nab_total);
         gmp_fprintf(c->f, "%Zx\n", (mpz_srcptr) p->evals[j]);
         cachefile_close(c);
     }
@@ -2067,15 +2069,18 @@ void algebraic_reduction(std::vector<prime_data> & primes, int i0, int i1, size_
         }
     }
 
+    std::atomic<size_t> nab = 0;
     std::vector<cado::work_queue::task_handle> subtasks;
     for(int j = 0 ; j < glob.n ; j++) {
         for(int i = i0 ; i < i1 ; i++) {
             subtasks.push_back(glob.Q.push_task(algebraic_reduction_child,
-                        &primes[i], j, off0, off1, *p_nab_total));
+                        &primes[i], j, off0, off1, std::ref(nab)));
         }
     }
     for(auto & t : subtasks)
         t->join_task();
+    if (nab)
+        *p_nab_total = nab;
 
     for(int i = i0 ; i < i1 ; i++) {
         for(int k = glob.n - 1 ; k >= 0 ; k--) {
@@ -2154,21 +2159,21 @@ void multiply_all_shares(std::vector<prime_data> & primes, int i0, int i1, size_
 
 /* {{{ local square roots*/
 
-void * local_square_roots_child(struct subtask_info_t * info)
+void local_square_roots_child(struct prime_data * p, int j, std::atomic<size_t> & nab_total)
 {
-    struct prime_data * p = info->p;
-    int j = info->j;
     int rc;
     cachefile c;
     cachefile_init(c, "sqrt_%lu_%lu_%lu", p->p, p->r[j], glob.prec);
     if (rcache && cachefile_open_r(c)) {
-        rc = fscanf(c->f, "%zu", &info->nab_loc);
+        size_t s;
+        rc = fscanf(c->f, "%zu", &s);
+        nab_total = s;
         ASSERT_ALWAYS(rc == 1);
         logprint("reading cache %s\n", c->basename);
         rc = gmp_fscanf(c->f, "%Zx", (mpz_ptr) p->sqrts[j]);
         ASSERT_ALWAYS(rc == 1);
         cachefile_close(c);
-        return NULL;
+        return;
     }
     printf("# [%2.2lf] [P%dA%d] lifting sqrt (%lu, x-%lu) (p->evals[%d] has size %zu)\n", WCT, glob.arank, glob.prank, p->p, p->r[j], j, mpz_size(p->evals[j]));
     sqrt_lift(p, p->evals[j], p->sqrts[j], glob.prec);
@@ -2177,45 +2182,33 @@ void * local_square_roots_child(struct subtask_info_t * info)
 
     if (wcache && cachefile_open_w(c)) {
         logprint("writing cache %s\n", c->basename);
-        fprintf(c->f, "%zu\n", info->nab_loc);
+        fprintf(c->f, "%zu\n", (size_t) nab_total);
         gmp_fprintf(c->f, "%Zx\n", (mpz_srcptr) p->sqrts[j]);
         cachefile_close(c);
     }
-
-    return NULL;
 }
 
-void local_square_roots(std::vector<prime_data> & primes, int i0, int i1, size_t * p_nab_total)
+static void local_square_roots(std::vector<prime_data> & primes, int i0, int i1, size_t * p_nab_total)
 {
-    int n = glob.n;
-
     STOPWATCH_DECL;
     STOPWATCH_GO();
 
     log_begin();
 
-    std::vector<subtask_info_t> tasks((i1-i0)*glob.n);
+    std::atomic<size_t> nab = *p_nab_total;
+
+    std::vector<cado::work_queue::task_handle> subtasks;
     for(int j = 0 ; j < glob.n ; j++) {
         for(int i = i0 ; i < i1 ; i++) {
-            int k = (i-i0) * glob.n + j;
+            const int k = (i-i0) * glob.n + j;
             if (k % glob.psize != glob.prank) continue;
-            auto & task = tasks[k];
-            task.p = &primes[i];
-            task.j = j;
-            task.nab_loc = * p_nab_total;
-            auto f = (wq_func_t) &local_square_roots_child;
-            task.handle = wq_push(glob.wq, f, &task);
+            subtasks.push_back(glob.Q.push_task(local_square_roots_child,
+                        &primes[i], j, std::ref(nab)));
         }
     }
-    /* we're doing nothing */
-    for(int j = 0 ; j < glob.n ; j++) {
-        for(int i = i0 ; i < i1 ; i++) {
-            int k = (i-i0) * glob.n + j;
-            if (k % glob.psize != glob.prank) continue;
-            wq_join(tasks[k].handle);
-            * p_nab_total = tasks[k].nab_loc;
-        }
-    }
+    for(auto & t : subtasks)
+        t->join_task();
+    *p_nab_total = nab;
 
     STOPWATCH_GET();
     log_step_time(" done locally");
@@ -2223,11 +2216,10 @@ void local_square_roots(std::vector<prime_data> & primes, int i0, int i1, size_t
     MPI_Barrier(MPI_COMM_WORLD);
     log_step(": sharing");
 
-    for(int j = 0 ; j < n ; j++) {
+    for(int j = 0 ; j < glob.n ; j++) {
         for(int i = i0 ; i < i1 ; i++) {
-            int k = (i-i0) * n + j;
-            mpz_ptr z = primes[i].sqrts[j];
-            broadcast(z, k % glob.psize, glob.pcomm);
+            const int k = (i-i0) * glob.n + j;
+            broadcast(primes[i].sqrts[j], k % glob.psize, glob.pcomm);
         }
     }
 
@@ -2494,99 +2486,6 @@ void prime_postcomputations(std::vector<prime_data> & primes, int i0, int i1, in
     STOPWATCH_GET();
     log_end();
 }
-void old_prime_postcomputations(int64_t * c64, mp_limb_t * cN, struct prime_data * p)/* {{{ */
-{
-    mpz_srcptr px = p->powers(glob.prec);
-
-    // Lagrange reconstruction.
-    //
-    // Normally each coefficient has to be divided by the evaluation of
-    // the derivative. However we skip this division, effectively
-    // reconstructing the polynomial multiplied by the square of the
-    // derivative -- which is exactly what we're looking for, in fact.
-
-    // recall that we're working with the number field sieve in mind. So
-    // we don't really care about the whole reconstruction in the number
-    // field, and from here on we are going to take wild shortcuts.
-    // Indeed, even though the ``magical sign combination'' is not known
-    // at this point, we do know that the eventual reconstruction will be
-    // linear. Thus instead of storing n^2 full length modular integers
-    // (n for each root),  and do this for each prime, we store only the
-    // pair (quotient mod p^x, residue mod N).
-
-    mpf_t pxf, ratio;
-    cxx_mpz z;
-
-    mpf_init2(pxf, 256);
-    mpf_init2(ratio, 256);
-
-    mpf_set_z(pxf, px);
-
-    cxx_mpz Hxm;
-    mpz_set_ui(Hxm, p->p);
-    mpz_invert(Hxm, Hxm, glob.cpoly->n);
-    mpz_mul(Hxm, Hxm, glob.P);
-    mpz_mod(Hxm, Hxm, glob.cpoly->n);
-    mpz_powm_ui(Hxm, Hxm, glob.prec, glob.cpoly->n);
-
-    cxx_mpz ta, tb;
-
-    // XXX Eh ! mpi-me !
-    for(int j = 0 ; j < glob.n ; j++) {
-        mpz_srcptr rx = p->lroots[j];
-        mpz_ptr sx = p->sqrts[j];
-
-        // so we have this nice square root. The first thing we do on our
-        // list is to scramble it by multiplying it with the inverse of
-        // H^x...
-        mpz_mul(sx, sx, p->iHx);
-        mpz_mod(sx, sx, px);
-
-        // Now use the evaluation of f_hat mod rx to obtain the lagrange
-        // coefficients.
-        mpz_set_ui(ta, 1);
-        for(int k = glob.n - 1 ; k >= 0 ; k--) {
-            if (k < glob.n - 1) {
-                WRAP_mpz_mul(ta, ta, rx);
-                mpz_add(ta, ta, mpz_poly_coeff_const(glob.f_hat, k+1));
-                WRAP_mpz_mod(ta, ta, px);
-            }
-            // multiply directly with H^-x * sqrt
-            WRAP_mpz_mul(tb, ta, sx);
-            if (k < glob.n - 1) {
-                WRAP_mpz_mod(tb, tb, px);
-            }
-            ASSERT_ALWAYS(mpz_cmp_ui(tb, 0) >= 0);
-            ASSERT_ALWAYS(mpz_cmp(tb, px) < 0);
-
-            // now the shortcuts.
-            mpf_set_z(ratio, tb);
-            mpf_div(ratio, ratio, pxf);
-            mpf_mul_2exp(ratio, ratio, 64);
-            mpz_set_f(z, ratio);
-
-            uint64_t u;
-#if GMP_LIMB_BITS == 64
-            u = mpz_get_ui(z);
-#else
-            u = (uint64_t) mpz_getlimbn(z,1);
-            u <<= 32;
-            u |= (uint64_t) mpz_getlimbn(z,0);
-#endif
-            c64[j*glob.n+k] = (int64_t) u;
-
-            mpz_mul(tb, tb, Hxm);
-            mpz_mod(tb, tb, glob.cpoly->n);
-            mp_size_t sN = mpz_size(glob.cpoly->n);
-            ASSERT_ALWAYS(mpz_sgn(tb) > 0);
-            MPN_SET_MPZ(cN + (j*glob.n+k) * sN, sN, tb);
-        }
-    }
-    mpf_clear(pxf);
-    mpf_clear(ratio);
-}
-/* }}} */
-
 /* }}} */
 
 void mpi_set_communicators()/*{{{*/
@@ -2908,7 +2807,6 @@ int main(int argc, char const ** argv)
     std::vector<int64_t> contribs64(nc, 0);
     mp_size_t sN = mpz_size(glob.cpoly->n);
     std::vector<mp_limb_t> contribsN(nc * sN, 0);
-#if 1
     prime_postcomputations(primes, i0, i1, contribs64.data(), contribsN.data());
     // now share the contribs !
     for(int i = 0 ; i < glob.m ; i++) {
@@ -2918,25 +2816,6 @@ int main(int argc, char const ** argv)
         MPI_Bcast(contribs64.data() + i * d64, d64, CADO_MPI_INT64_T, root, glob.acomm);
         MPI_Bcast(contribsN.data() + i * dN, dN, CADO_MPI_MP_LIMB_T, root, glob.acomm);
     }
-#else
-    if (glob.prank == 0) {
-        for(int i = i0 ; i < i1 ; i++) {
-            int disp = i * glob.n * glob.n;
-            old_prime_postcomputations(contribs64 + disp, contribsN + disp * sN, &primes[i]);
-        }
-    }
-
-    // now share the contribs !
-    if (glob.prank == 0) {
-        for(int i = 0 ; i < glob.m ; i++) {
-            int root = i / r;
-            int d64 = glob.n * glob.n;
-            int dN = d64 * mpz_size(glob.cpoly->n);
-            MPI_Bcast(contribs64 + i * d64, d64, CADO_MPI_INT64_T, root, glob.acomm);
-            MPI_Bcast(contribsN + i * dN, dN, CADO_MPI_MP_LIMB_T, root, glob.acomm);
-        }
-    }
-#endif
 
     if (glob.rank == 0) {
         printf("# [%2.2lf] clearing work queues\n", WCT);
