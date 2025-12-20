@@ -2,6 +2,7 @@
 #define UTILS_WORK_QUEUE_HPP_
 
 #include <cstddef>
+
 #include <mutex>
 #include <condition_variable>
 #include <vector>
@@ -11,6 +12,10 @@
 #include <memory>
 #include <utility>
 #include <type_traits>
+#include <concepts>
+#include <stdexcept>
+
+#include "antilock.hpp"
 
 /* Type-safe implemntation of a work queue.
  *
@@ -62,8 +67,6 @@ struct work_queue {
             /* a virtual dtor is good to have! */
             virtual ~task_base() = default;
 
-            /* the call() virtual method is exposed, although a priori
-             * there is no use for it. It does what you think of.  */
             virtual void call() = 0;
 
             /* wait until this task is complete */
@@ -117,13 +120,14 @@ struct work_queue {
 
     using task_handle = std::shared_ptr<task_base>;
 
-    /* obviously, each task must remain alive somwhere in memory until it
+    /* obviously, each task must remain alive somewhere in memory until it
      * is picked up.
      */
     std::list<task_handle> tasks;
 
     template<typename Callable, typename... Args>
         task_handle push_task(Callable && f, Args... args)
+        requires std::invocable<Callable, Args...>
         {
             const std::lock_guard<std::mutex> u(m);
             auto t = std::make_shared<task<Callable, std::decay_t<Args>...>>(std::forward<Callable>(f), std::decay_t<Args>(args)...);
@@ -132,9 +136,73 @@ struct work_queue {
             return t;
         }
 
+    /* Do a task from the work queue if there is one available. This can
+     * be used to "steal" work from the workers if there are workers
+     * available. It also makes it possible to use these work queues
+     * without workers, if some threads are regularly consuming tasks
+     * with this call.
+     *
+     * return true if a task was called.
+     */
+    bool do_one_task() {
+        task_handle t;
+        {
+            const std::lock_guard<std::mutex> u(m);
+            if (tasks.empty())
+                return false;
+            if (!tasks.front()) {
+                /* If we have a nullptr here, it's an end marker that is
+                 * meant to cause termination of registered workers.
+                 * There's no reason to consume it here.
+                 */
+                return false;
+            }
+            t = std::move(tasks.front());
+            tasks.pop_front();
+        }
+        t->call();
+        return true;
+    }
+
+    /* This version correctly deals with the use case where we hold a
+     * synchronization lock at call time. The unique_lock is on a mutex
+     * that is different from this->m.
+     *
+     * It a task is available on the work queue, it is atomically removed
+     * from the queue (with this->m held). If this is the case:
+     *  - the invocable f is called while u is still locked. [buggy,
+     *  dropped]
+     *  - u is temporarily unlocked while the task is called.
+     *
+     * return true if a task was called.
+     */
+    bool do_one_task(std::unique_lock<std::mutex> & u
+            /* , std::invocable auto const & f = [](){} */) {
+        task_handle t;
+        {
+            const std::lock_guard<std::mutex> u(m);
+            if (tasks.empty())
+                return false;
+            if (!tasks.front()) {
+                /* If we have a nullptr here, it's an end marker that is
+                 * meant to cause termination of registered workers.
+                 * There's no reason to consume it here.
+                 */
+                return false;
+            }
+            t = std::move(tasks.front());
+            tasks.pop_front();
+        }
+        //  f();
+        /* temporarily release u in an exception-safe way */
+        const cado::antilock a(u);
+        t->call();
+        return true;
+    }
+
     /* the worker thread picks up work, and terminates when it receives
      * a null pointer */
-    void worker(size_t id [[maybe_unused]]) {
+    void worker() {
         for(;;) {
             task_handle t;
             {
@@ -156,7 +224,7 @@ struct work_queue {
     void add_workers(size_t n)
     {
         for(size_t i = 0 ; i < n ; i++)
-            workers.emplace_back([this,i](){worker(i);});
+            workers.emplace_back([this](){worker();});
     }
 
     /* We can't have any copy (of course), but move must also be

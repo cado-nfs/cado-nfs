@@ -16,8 +16,12 @@ static void say_hi2(int a)
 
 struct bob {
     int x;
-    void doit() const {
+    void doit(cado::work_queue & Q) const {
         fmt::print("bob({})\n", x);
+        /* This one is funny since we might actually be calling
+         * ourselves. */
+        if (Q.do_one_task())
+            fmt::print("stolen one task! :-)\n");
     }
 };
 
@@ -30,7 +34,7 @@ int main()
     for(int i = 0 ; i < 100 ; i++) {
         Q.push_task(say_hi);
         Q.push_task(say_hi2, 12 + i);
-        Q.push_task([&B](){B.doit();});
+        Q.push_task([&B, &Q](){B.doit(Q);});
     }
 }
 
