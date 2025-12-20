@@ -1082,8 +1082,14 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
      on the RSA-512 benchmark with 32 threads, and is better than
      schedule(guided) for RSA-240 with 112 threads. */
   #pragma omp parallel for schedule(dynamic,128)
-  for (index_t i = 0; i < Rn; i++)
-    cost[i] = merge_cost (mat, i);
+  for (index_t i = 0; i < Rn; i++) {
+    int c = merge_cost (mat, i);
+    /* merges with negative cost are very very rare at this point but can appear
+     * for very small input. The cost is set to 0 in this case to avoid
+     * out-of-bound access later in the function.
+     */
+    cost[i] = MAX(c, 0);
+  }
 
   int s;
 
