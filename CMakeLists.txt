@@ -363,7 +363,6 @@ include("${CADO_NFS_SOURCE_DIR}/config/linux.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/hwloc.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/fmt.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/gf2x.cmake")
-include("${CADO_NFS_SOURCE_DIR}/config/gmpecm.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/mpfr.cmake")
 if(HAVE_MPFR)
 include("${CADO_NFS_SOURCE_DIR}/config/mpc.cmake")
@@ -464,7 +463,7 @@ message(STATUS "Using libs: ${math_libs} (math) ${pthread_libs} (pthreads)")
 configure_file(cado_mpi_config_h.in cado_mpi_config.h ESCAPE_QUOTES @ONLY)
 
 # Included after pthreads.cmake as the tests need pthread to detect newer
-# versions of gmp-ecm (the gmpecm.cmake script relies on ${pthread_libs} begin
+# versions of gmp-ecm (the gmpecm.cmake script relies on ${pthread_libs} being
 # set)
 include("${CADO_NFS_SOURCE_DIR}/config/gmpecm.cmake")
 
