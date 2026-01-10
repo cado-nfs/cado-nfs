@@ -1579,6 +1579,7 @@ utils/CMakeLists.txt
 utils/Makefile
 utils/alloc_proxy.h
 utils/antebuffer.c
+utils/antilock.hpp
 utils/arith/README.md
 utils/arith/mod_common.c
 utils/arith/mod_mpz.c
