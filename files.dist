@@ -1641,6 +1641,7 @@ utils/barrier.c
 utils/barrier.h
 utils/bit_vector.c
 utils/bit_vector.h
+utils/bucket_hash.hpp
 utils/cachesize_cpuid.c
 utils/cachesize_cpuid.h
 utils/cachesize_guess.cpp
