@@ -453,7 +453,7 @@ namespace cado::details {
     template<typename T, typename U, typename ... Args>
     struct double_ratio_impl<T, U, Args...> {
         double operator()(T const & t, U const & u, Args&&... args) {
-            return !u ? 0 : double_ratio_impl<T, Args...>()(static_cast<double>(t) / static_cast<double>(u), std::forward<Args>(args)...);
+            return !u ? 0 : double_ratio_impl<double, Args...>()(static_cast<double>(t) / static_cast<double>(u), std::forward<Args>(args)...);
         }
     };
 } /* namespace cado::details */
