@@ -3,6 +3,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <cstddef>
 
 #include <algorithm>
 #include <array>
@@ -13,7 +14,9 @@
 #include <limits>
 #include <memory>
 #include <string>
+#include <tuple>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "fmt/format.h"
@@ -597,6 +600,90 @@ namespace cado {
         integral_fits_v<T, U> &&
         is_non_narrowing_conversion_v<T, U>;
 
+    /* a counting forward view, which provides a counting forward
+     * iterator, is just the replication of a given set of arguments to
+     * be provided to each dereference of the iterator, prefixed by a
+     * counter (the iterator can be dereferenced exactly n times until it
+     * is equal to its end marker).
+     *
+     * In essence, it _should_ be basically the same as the following
+     * (where ArgumentTypes... and args... are of course expository only.
+     *
+
+    auto r = std::views::iota(0U, size) | std::views::transform(
+            [&](auto i) {
+                return std::tuple<int, ArgumentTypes...>
+                    { i, args... };
+            });
+     
+     * we would like the code above to work. Unfortunately it can't work
+     * until c++23 because of the forward iterator requirements issue,
+     * which isn't fixed in c++20. See the following links:
+     *  - table 75 in §22.2.3.3 as well as forward iterator reqs §23.3.5.4
+     *  - https://wg21.link/p2408
+     *  - https://wg21.link/p2259
+     *  - https://stackoverflow.com/a/67606757
+     *
+     * as of c++20, this all boils down to the following failing:
+     *
+    static_assert(std::is_reference_v<std::iter_reference_t<decltype(r.begin())>>);
+     * basically for now we have to rely on a poor man's equivalent */
+
+    template <typename counter_type,
+             typename... Args>
+                 requires std::is_integral_v<counter_type>
+     struct counting_forward_iterator {
+        using iterator_category = std::forward_iterator_tag;
+        using value_type = std::tuple<counter_type, Args...>;
+        using difference_type = ptrdiff_t;
+        using pointer = value_type *;
+        using reference = value_type &;
+        std::tuple<counter_type, Args...> ir;
+        counter_type n;
+        template<size_t... S>
+        explicit counting_forward_iterator(counter_type n0, counter_type n1,
+                std::index_sequence<S...>,
+                std::tuple<Args...> const & a)
+            : ir { n0, std::get<S>(a)... }
+            , n(n1)
+        {}
+        explicit counting_forward_iterator(counter_type n0, counter_type n1, std::tuple<Args...> const & a)
+            : counting_forward_iterator(n0, n1,
+                std::make_index_sequence<sizeof...(Args)>(), a)
+        {
+        }
+        explicit counting_forward_iterator(counter_type n0, counter_type n1, Args&& ...args)
+            : ir { n0, args... }
+            , n(n1)
+        {
+        }
+        value_type & operator*() { return ir; }
+        value_type const & operator*() const { return ir; }
+        counting_forward_iterator<counter_type, Args...> & operator++()
+        {
+            std::get<0>(ir)++;
+            return *this;
+        }
+        bool operator==(counting_forward_iterator<counter_type, Args...> const & o) const { return (n - std::get<0>(ir)) == (o.n - std::get<0>(o.ir)); }
+    };
+    template <typename counter_type, typename... Args>
+        requires std::is_integral_v<counter_type>
+        struct counting_forward_view {
+        std::tuple<Args...> a;
+        counter_type n0;
+        counter_type n1;
+        explicit counting_forward_view(counter_type n0, counter_type n1, Args&& ...args)
+            : a { args... }
+            , n0(n0)
+            , n1(n1)
+        {}
+        counting_forward_iterator<counter_type, Args...> begin() {
+            return counting_forward_iterator<counter_type, Args...>(n0, n1, a);
+        }
+        counting_forward_iterator<counter_type, Args...> end() {
+            return counting_forward_iterator<counter_type, Args...>(n1, n1, a);
+        }
+    };
 } /* namespace cado */
 
 
