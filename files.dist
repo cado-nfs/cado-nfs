@@ -1725,8 +1725,8 @@ utils/gpf.h
 utils/gzip.cpp
 utils/gzip.h
 utils/hook_cado_nfs_gdb.py.in
-utils/hwloc-aux.c
-utils/hwloc-aux.h
+utils/hwloc-aux.cpp
+utils/hwloc-aux.hpp
 utils/imaginary_quadratic_class_groups.cpp
 utils/imaginary_quadratic_class_groups.hpp
 utils/indexed_relation.cpp

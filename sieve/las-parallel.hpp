@@ -9,7 +9,7 @@
 #include "macros.h"          // for GNUC_VERSION_ATMOST, MAYBE_UNUSED
 #include "params.h"           // for param_list_decl_usage, cxx_param_list
 #ifdef HAVE_HWLOC
-#include "hwloc-aux.h"  // cxx_hwloc_nodeset
+#include "hwloc-aux.hpp"  // cxx_hwloc_nodeset
 #endif
 
 class las_parallel_desc {

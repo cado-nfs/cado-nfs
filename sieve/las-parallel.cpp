@@ -21,7 +21,7 @@
 
 #ifdef HAVE_HWLOC
 #include <hwloc.h>
-#include "hwloc-aux.h"
+#include "hwloc-aux.hpp"
 #endif
 #include "las-parallel.hpp"
 
@@ -58,7 +58,7 @@ struct las_parallel_desc::helper {
     std::string full_diagnostics;
 
 #ifdef HAVE_HWLOC
-    hwloc_topology_t topology;
+    cxx_hwloc_topology topology;
 
     std::string synthetic_topology_string;
     int depth = 0;
@@ -128,7 +128,6 @@ struct las_parallel_desc::helper {
     helper() {/*{{{*/
         /* Here we need hwloc, of course */
 #ifdef HAVE_HWLOC
-        hwloc_topology_init(&topology);
         {/*{{{ load the topology `*/
             unsigned long flags = 0;
 #if HWLOC_API_VERSION >= 0x010700
@@ -180,11 +179,6 @@ struct las_parallel_desc::helper {
 #endif
     }/*}}}*/
 
-    ~helper() {/*{{{*/
-#ifdef HAVE_HWLOC
-        hwloc_topology_destroy(topology);
-#endif
-    }/*}}}*/
     std::vector<std::string> tokenize(std::string const & s) const {/*{{{*/
         std::vector<std::string> tokens;
         for(std::string::size_type x = 0, y; x != std::string::npos ; x = y) {
