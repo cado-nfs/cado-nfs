@@ -1,6 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
 
-
 #include <cctype>
 #include <cerrno>
 #include <climits>             /* INT_MIN INT_MAX */
@@ -29,10 +28,9 @@
 #include "mpz_poly.h"
 #include "version_info.h"
 #include "verbose.h"
+#include "utils_cxx.hpp"
 #include "portability.h" // strdup // IWYU pragma: keep
 #include "prime_power_factorization.hpp" // strdup // IWYU pragma: keep
-
-typedef int (*sortfunc_t) (const void *, const void *);
 
 static std::mutex mutex;
 
@@ -75,6 +73,7 @@ void param_list_usage_header(param_list_ptr pl, const char * hdr)
 void param_list_decl_usage(param_list_ptr pl, const char * key, const char * doc)
 {
     auto & pli = *static_cast<param_list_impl *>(pl->pimpl);
+    pli.documentation_structure.push_back(key);
     pli.documentation[key] = doc;
     /* Note that duplicate calls to param_list_decl_usage for the same
      * key will not trigger two distinct prints of the same
@@ -82,6 +81,12 @@ void param_list_decl_usage(param_list_ptr pl, const char * key, const char * doc
      * param_list_print_usage.
      */
     pli.use_doc = true;
+}
+
+void param_list_decl_usage_section(param_list_ptr pl, const char * header)
+{
+    auto & pli = *static_cast<param_list_impl *>(pl->pimpl);
+    pli.documentation_structure.push_back(std::string(" ") + header);
 }
 
 
@@ -120,8 +125,18 @@ void param_list_print_usage(param_list_srcptr pl, const char * argv0, FILE *f)
         v = fmt::format("(alias -{}) {}", a.first, v);
     }
 
-    for(auto const & d : full_doc) {
-        fprintf(f, "    -%-*s %s\n", 20, d.first.c_str(), d.second.c_str());
+    for(auto const & k : pli.documentation_structure) {
+        ASSERT_ALWAYS(!k.empty());
+        if (k[0] == ' ') {
+            fmt::print(f, "\n=== {} ===\n", k.substr(1));
+            continue;
+        }
+        auto const & d = full_doc[k];
+        std::string ks = k;
+        for(auto const & dl : split(d, "\n")) {
+            fmt::print(f, "{:4}{:<20} {}\n", "", ks, dl);
+            ks = {};
+        }
     }
 }
 

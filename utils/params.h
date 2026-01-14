@@ -54,6 +54,9 @@ extern void param_list_swap(param_list_ptr pl, param_list_ptr pl0);
 // document the usage of a parameter.
 extern void param_list_decl_usage(param_list_ptr pl, const char * key,
         const char * doc);
+// parameters are printed in the order they are declared, but they can
+// also be organized by sections by inserting header lines
+extern void param_list_decl_usage_section(param_list_ptr pl, const char * header);
 extern void param_list_print_usage(param_list_srcptr pl, const char * argv0, FILE *f);
 extern void param_list_usage_header(param_list_ptr pl, const char * hdr);
 
@@ -266,6 +269,8 @@ struct param_list_impl {
         }
     };
     std::map<std::string, std::string, collate> documentation;   /* for each key */
+    std::vector<std::string> documentation_structure;
+
     struct parameter {
         std::string value;
         enum parameter_origin origin;
@@ -329,6 +334,48 @@ struct cxx_param_list {
     operator param_list_srcptr() const { return x; }
     param_list_ptr operator->() { return x; }
     param_list_srcptr operator->() const { return x; }
+    void declare_usage(std::string const & key, std::string const & doc) {
+        param_list_decl_usage(x, key.c_str(), doc.c_str());
+    }
+    void declare_usage_section(std::string const & header) {
+        param_list_decl_usage_section(x, header.c_str());
+    }
+    void configure_switch(std::string const & key, int & p_val) {
+        param_list_configure_switch(x, key.c_str(), &p_val);
+    }
+    void configure_alias(std::string const & key, std::string const & alias) {
+        param_list_configure_alias(x, key.c_str(), alias.c_str());
+    }
+
+    template<typename T>
+    int
+    parse(std::string const & key, T & r)
+    {
+        return param_list_parse<T>(x, key, r);
+    }
+
+    template<typename T>
+    T
+    parse(std::string const & key)
+    {
+        T c {};
+        /* This leaves c value-initialized if key is absent */
+        parse(key, c);
+        return c;
+    }
+
+    template<typename T>
+    T
+    parse_mandatory(std::string const & key)
+    {
+        return param_list_parse_mandatory<T>(x, key);
+    }
+    template<typename T>
+        void
+    parse_mandatory(std::string const & key, T & r)
+    {
+        r = param_list_parse_mandatory<T>(x, key);
+    }
 };
 
 #if GNUC_VERSION_ATLEAST(4,3,0)
