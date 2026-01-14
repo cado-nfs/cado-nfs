@@ -134,6 +134,16 @@ namespace cado_math_aux
         return converter_from_mpz<T>(pow(cxx_mpz(x), e));
     }
     /* }}} */
+    /* {{{ simple wrappers around invmod */
+    inline cxx_mpz invmod(cxx_mpz const & x, cxx_mpz const & e)
+    {
+        cxx_mpz res;
+        int const rc = mpz_invert(res, x, e);
+        if (rc == 0)
+            throw std::range_error("division by zero");
+        return res;
+    }
+    /* }}} */
     /* {{{ simple wrappers around std::isnan, + cxx_mpfr extensions */
     /* see comment about ldexpf and friends
     inline bool isnan(float x) { return std::isnan(x); }

@@ -529,8 +529,8 @@ namespace Integer_details {
         struct reduce_multiple_impl<Integer128, n, false> {
             template<typename ignore>
                 static Integer128 reduce(Integer128 const & t, ignore const &) {
-                    using cado_math_aux::invmod;
-                    constexpr uint64_t c = invmod<n, uint64_t>::value;
+                    using cado_math_aux::invmod_ct;
+                    constexpr uint64_t c = invmod_ct<n, uint64_t>::value;
 
                     /* a = a1 * 2^w + a0, n|a
                      * Let a = a' * n * 2^w + a'', a'' < n * 2^w.
@@ -557,8 +557,8 @@ namespace Integer_details {
         struct reduce_multiple_impl<Integer128, n, true> {
             template<typename chooser_mul>
                 static Integer128 reduce(Integer128 & t, chooser_mul const & cm) {
-                    using cado_math_aux::invmod;
-                    constexpr uint64_t c = invmod<n, uint64_t>::value;
+                    using cado_math_aux::invmod_ct;
+                    constexpr uint64_t c = invmod_ct<n, uint64_t>::value;
 
                     Integer128 r, t2;
 
@@ -588,8 +588,8 @@ namespace Integer_details {
         struct reduce_multiple_impl<Integer64, n, b> {
             template<typename ignore>
                 static Integer64 reduce(Integer64 & t, ignore const &) {
-                    using cado_math_aux::invmod;
-                    constexpr uint64_t c = invmod<n, uint64_t>::value;
+                    using cado_math_aux::invmod_ct;
+                    constexpr uint64_t c = invmod_ct<n, uint64_t>::value;
                     return Integer64 { t[0] * c };
                 }
         };
