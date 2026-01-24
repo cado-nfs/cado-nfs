@@ -1817,6 +1817,8 @@ utils/renumber.cpp
 utils/renumber.hpp
 utils/renumber_proxy.cpp
 utils/renumber_proxy.h
+utils/replacement_barrier.hpp
+utils/replacement_latch.hpp
 utils/rho.c
 utils/rho.h
 utils/ringbuf.c
