@@ -2,7 +2,6 @@
 #define CADO_HWLOC_AUX_HPP
 
 #include <cstdlib>
-#include <cstdio>
 
 #include <type_traits>
 #include <utility>
@@ -10,6 +9,10 @@
 #include <hwloc.h>
 
 #include "fmt/base.h"
+
+// below: see https://github.com/fmtlib/fmt/issues/4662
+#include "fmt/format.h" // IWYU pragma: keep
+
 #include "macros.h"
 
 extern "C" {
@@ -215,7 +218,8 @@ namespace fmt {
             char * s = nullptr;
             int const rc = hwloc_bitmap_asprintf(&s, e);
             ASSERT_ALWAYS(rc >= 0);
-            format_to(ctx.out(), "{}", s);
+            // https://github.com/fmtlib/fmt/issues/4662
+            format_to(ctx.out(), "{}", (const char *) s);
             free(s);
             return ctx.out();
         }
