@@ -428,7 +428,7 @@ namespace cado_math_aux
          * necessarily obey the rounding mode
          */
         volatile double d = d0;
-        d += d1;
+        d = d + d1;
         return d == d1;
     }
 
@@ -442,7 +442,7 @@ namespace cado_math_aux
         const volatile double d0 = 1.79769313486231570815e+308; // 0x1.fffffffffffffp+1023;
         const volatile double d1 = 1.9958403095347196e+292;     // 0x1.fffffffffffffp+970;
         volatile long double ld = d0;
-        ld += d1;
+        ld = ld + d1;
         int e;
         std::frexp(ld, &e);
         return e != 1025;
