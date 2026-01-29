@@ -13,6 +13,7 @@
 #include <iterator>
 #include <limits>
 #include <memory>
+#include <functional>
 #include <string>
 #include <tuple>
 #include <type_traits>
@@ -684,6 +685,33 @@ namespace cado {
             return counting_forward_iterator<counter_type, Args...>(n1, n1, a);
         }
     };
+
+    template<typename AllocatorType>
+        using unique_ptr_from_allocator =
+    std::unique_ptr<typename AllocatorType::value_type[],
+        std::function<void(typename AllocatorType::value_type *)>>;
+
+    template<typename AllocatorType, typename... Args>
+    unique_ptr_from_allocator<AllocatorType>
+    make_unique_from_allocator(AllocatorType & alloc, std::size_t size, Args... args) {
+
+        using T = AllocatorType::value_type;
+        using A = std::allocator_traits<AllocatorType>;
+
+        T *ptr = A::allocate(alloc, size);
+
+        for (std::size_t i = 0; i < size; ++i)
+            A::construct(alloc, &ptr[i], std::forward<Args>(args)...);
+
+        auto deleter = [](T * p, AllocatorType & alloc, std::size_t size) {
+            for (std::size_t i = 0; i < size; ++i)
+                A::destroy(alloc, &p[i]);
+            A::deallocate(alloc, p, size);
+        };
+
+        return { ptr, std::bind(deleter, std::placeholders::_1, alloc, size) };
+    }
+
 } /* namespace cado */
 
 
