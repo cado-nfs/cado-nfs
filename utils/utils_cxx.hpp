@@ -687,12 +687,31 @@ namespace cado {
     };
 
     template<typename AllocatorType>
-        using unique_ptr_from_allocator =
+        struct unique_ptr_from_allocator_impl {
+            using type =
     std::unique_ptr<typename AllocatorType::value_type[],
         std::function<void(typename AllocatorType::value_type *)>>;
+        };
+    template<typename T>
+        struct unique_ptr_from_allocator_impl<std::allocator<T>> {
+            using type = std::unique_ptr<T[]>;
+        };
 
+    template<typename AllocatorType>
+        using unique_ptr_from_allocator =
+        unique_ptr_from_allocator_impl<AllocatorType>::type;
+
+    /* This is only half-thought. We're providing something that has no
+     * equivalent in the standard library, which is to initialize all
+     * array elements with the provided args.
+     *
+     * If that's really what we want to do, then the override for
+     * std::allocator is a bad idea: the make_unique_from_allocator below
+     * would be called (if we have non trivial args) but the deleter
+     * function would be rather ill-placed (I think)
+     */
     template<typename AllocatorType, typename... Args>
-    unique_ptr_from_allocator<AllocatorType>
+    static inline unique_ptr_from_allocator<AllocatorType>
     make_unique_from_allocator(AllocatorType & alloc, std::size_t size, Args... args) {
 
         using T = AllocatorType::value_type;
@@ -710,6 +729,13 @@ namespace cado {
         };
 
         return { ptr, std::bind(deleter, std::placeholders::_1, alloc, size) };
+    }
+
+    template<typename T>
+    static inline std::unique_ptr<T[]>
+    make_unique_from_allocator(std::allocator<T> &, std::size_t size)
+    {
+        return std::make_unique<T[]>(size);
     }
 
 } /* namespace cado */
