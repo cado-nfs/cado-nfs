@@ -5,9 +5,6 @@
 #include <stdio.h>
 
 #ifdef __cplusplus
-#include <istream>      // std::istream // IWYU pragma: keep
-#include <ostream>      // std::ostream // IWYU pragma: keep
-#include <memory>
 #include <vector>
 #include <string>
 #endif
@@ -104,68 +101,57 @@ extern int fclose_maybe_compressed2 (FILE * f, const char * name, struct rusage 
 #endif
 
 #ifdef __cplusplus
-}
+namespace cado::details {
+struct suffix_handler {
+    char const * suffix;
+    char const * pfmt_in;
+    char const * pfmt_out;
+};
+
+static constexpr suffix_handler supported_compression_formats[] = {
+    {
+        .suffix = ".gz",
+        .pfmt_in = "gzip -dc {}",
+        .pfmt_out = "gzip -c --fast > {}",
+    },
+    {
+        .suffix = ".bz2",
+        .pfmt_in = "bzip2 -dc {}",
+        .pfmt_out = "bzip2 -c -1 > {}",
+    },
+    {
+        /* zstd seems to be uniformly better than any other alternative */
+        .suffix = ".zstd",
+        .pfmt_in = "zstd -dcf {}",
+        .pfmt_out = "zstd --fast > {}",
+    },
+    {
+        /* xz is really slow */
+        .suffix = ".xz",
+        .pfmt_in = "xz -dc {}",
+        .pfmt_out = "xz --fast > {}",
+    },
+    {
+        .suffix = ".lzma",
+        .pfmt_in = "lzma -dc {}",
+        .pfmt_out = "lzma -c -0 > {}",
+    },
+
+    {
+        /* must be present: we must have "" among the suffixes because
+         * that is the always-true match */
+        .suffix = "",
+        .pfmt_in = "",
+        .pfmt_out = ""
+    },
+};
+
+} /* namespace cado::details */
 #endif
 
 #ifdef __cplusplus
-class cado_pipe_streambuf;
-
-class streambase_maybe_compressed : virtual public std::ios {
-    bool pipe = false;
-    protected:
-    std::unique_ptr<cado_pipe_streambuf> pbuf;
-    std::unique_ptr<std::filebuf> fbuf;
-    std::streambuf * buf = nullptr;
-    std::string orig_name;
-    std::string tempname;
-    public:
-    /* I don't think that we need a default ctor, do we ? */
-    streambase_maybe_compressed(std::string const & name, std::ios_base::openmode mode);
-    /* Note that in output mode, the file will first be created with a
-     * temp name, and eventually only the dtor will move it from that
-     * temp name to the final location.
-     * (this behaviour might be system-dependent).
-     */
-    ~streambase_maybe_compressed() override;
-    void open(std::string const &, std::ios_base::openmode mode);
-    void close();
-    bool is_pipe() const { return pipe; }
-    streambase_maybe_compressed(streambase_maybe_compressed const &) = delete;
-    streambase_maybe_compressed(streambase_maybe_compressed &&) = delete;
-    streambase_maybe_compressed& operator=(streambase_maybe_compressed const &) = delete;
-    streambase_maybe_compressed& operator=(streambase_maybe_compressed &&) = delete;
-};
-
-template <class charT, class Traits = std::char_traits<charT> >
-class basic_ifstream_maybe_compressed : public streambase_maybe_compressed, public std::basic_istream<charT, Traits> {
-public:
-    explicit basic_ifstream_maybe_compressed(std::string const & name)
-        : streambase_maybe_compressed(name, std::ios::in)
-        , std::basic_istream<charT, Traits>(buf)
-    {}
-    void open(std::string const & name) {
-        streambase_maybe_compressed::open(name, std::ios::in);
-    }
-};
-
-template <class charT, class Traits = std::char_traits<charT> >
-class basic_ofstream_maybe_compressed : public streambase_maybe_compressed, public std::basic_ostream<charT, Traits> {
-public:
-    explicit basic_ofstream_maybe_compressed(std::string const & name)
-        : streambase_maybe_compressed(name, std::ios::out)
-        , std::basic_ostream<charT, Traits>(buf)
-    {}
-    void open(std::string const & name) {
-        streambase_maybe_compressed::open(name, std::ios::out);
-    }
-};
-
-// extern template<> basic_ifstream_maybe_compressed<char>;
-// extern template<> basic_ofstream_maybe_compressed<char>;
-
-typedef basic_ifstream_maybe_compressed<char> ifstream_maybe_compressed;
-typedef basic_ofstream_maybe_compressed<char> ofstream_maybe_compressed;
-
+}
 #endif
+
 
 #endif	/* CADO_GZIP_H */
