@@ -1704,6 +1704,8 @@ utils/filter_io.tex
 utils/fix-endianness.c
 utils/fix-endianness.h
 utils/fmt_helper_sagemath.hpp
+utils/fstream_maybe_compressed.cpp
+utils/fstream_maybe_compressed.hpp
 utils/galois_action.cpp
 utils/galois_action.hpp
 utils/gcd.c

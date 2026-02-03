@@ -30,7 +30,6 @@
 #include "lingen_matpoly_select.hpp"
 #include "logline.hpp"
 #include "macros.h"
-#include "misc.h"
 #include "params.h"
 #include "runtime_numeric_cast.hpp"
 #include "select_mpi.h"
@@ -105,7 +104,7 @@ void lingen_checkpoint<is_binary>::interpret_parameters(cxx_param_list & pl)
 
 static bool remove_suffix(std::string & S, std::string const & suffix)
 {
-    if (has_suffix(S.c_str(), suffix.c_str())) {
+    if (S.ends_with(suffix)) {
         S = S.substr(0, S.size() - suffix.size());
         return true;
     } else {

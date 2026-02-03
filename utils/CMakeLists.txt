@@ -22,6 +22,7 @@ set (sources
         gmp_aux2.cpp
         double_poly.cpp rootfinder.cpp params.cpp params-extra.cpp gcd.c
         gzip.cpp misc.c misc2.cpp utils_cxx.cpp
+        fstream_maybe_compressed.cpp
         mpz_mat.cpp mpz_poly.cpp crc.c purgedfile.c bit_vector.c
         barrier.c usp.c fix-endianness.c memusage.cpp
         cachesize_cpuid.c cachesize_guess.cpp roots_mod.c

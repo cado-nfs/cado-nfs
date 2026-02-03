@@ -1,36 +1,37 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cstdint>          // for int64_t, uint64_t, uint32_t
-#include <cstdio>            // for fprintf, stderr, asprintf, FILE
-#include <cstdlib>           // for free, abort, exit, malloc, EXIT_FAILURE
-#include <cstring>          // for strcmp, strlen, memcpy, memset, strdup
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 #include <algorithm>
 #include <iostream>
 #include <memory>
 #include <ostream>
-#include <string>           // for string
-#include <vector>           // for vector
+#include <string>
+#include <vector>
 
 #ifdef HAVE_MINGW
-#include <fcntl.h>   /* for _O_BINARY */
+#include <fcntl.h>
 #endif
 
-#include "cado_poly.h"       // for cado_poly_clear, cado_poly_init, cado_po...
-#include "filter_config.h"   // for CA_DUP2, CB_DUP2
-#include "filter_io.h"       // for earlyparsed_relation_s, filter_rels_desc...
-#include "fmt/base.h"        // for fmt::print
-#include "galois_action.hpp"  // for galois_action
-#include "gzip.h"            // for fclose_maybe_compressed, fopen_maybe_com...
-#include "macros.h"          // for ASSERT_ALWAYS, UNLIKELY
-#include "misc.h"            // for filelist_clear, filelist_from_file
-#include "params.h"          // for param_list_decl_usage, param_list_lookup...
-#include "portability.h" // strdup  // IWYU pragma: keep
-#include "relation-tools.h"  // for u64toa16, d64toa16
-#include "renumber.hpp"      // for renumber_t, renumber_t::p_r_side
-#include "timing.h"          // timingstats_dict_t
-#include "typedefs.h"        // for p_r_values_t, index_t, prime_t, PRpr
-#include "verbose.h"         // for verbose_decl_usage, verbose_interpret_pa...
+#include "cado_poly.h"
+#include "filter_config.h"
+#include "filter_io.h"
+#include "fmt/base.h"
+#include "galois_action.hpp"
+#include "gzip.h"
+#include "fstream_maybe_compressed.hpp"
+#include "macros.h"
+#include "misc.h"
+#include "params.h"
+#include "portability.h"
+#include "relation-tools.h"
+#include "renumber.hpp"
+#include "timing.h"
+#include "typedefs.h"
+#include "verbose.h"
 
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
