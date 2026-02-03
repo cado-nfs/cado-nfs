@@ -138,8 +138,6 @@ static_assert(sizeof(fb_general_root) == 8,
    inversion, etc.) statically. */
 class fb_entry_general
 {
-    void read_roots(char const *, unsigned char, unsigned char, unsigned long);
-
   public:
     using transformed_entry_t = fb_entry_general;
     fbprime_t q = 0, p = 0;   /* q = p^k */
@@ -165,7 +163,7 @@ class fb_entry_general
     fbprime_t get_q() const { return q; }
     fbroot_t get_r(size_t const i) const { return roots[i].r; };
     fbroot_t get_proj(size_t const i) const { return roots[i].proj; };
-    void parse_line(char const * line, unsigned long linenr);
+    void parse_line(std::string const & line, unsigned long linenr);
     bool can_merge(fb_entry_general const &) const;
     void merge(fb_entry_general const &);
     void fprint(FILE * out) const;
