@@ -64,6 +64,8 @@ struct fb_general_root {
     bool proj = false;
     unsigned char exp = 0, oldexp = 0;
 
+    friend class fb_factorbase;
+
   private:
     unsigned char dummy_padding_byte MAYBE_UNUSED_PRIVATE_DATA_MEMBER = 0;
 
@@ -138,6 +140,8 @@ static_assert(sizeof(fb_general_root) == 8,
    inversion, etc.) statically. */
 class fb_entry_general
 {
+    void read_roots(char const *, unsigned char, unsigned char, unsigned long);
+
   public:
     using transformed_entry_t = fb_entry_general;
     fbprime_t q = 0, p = 0;   /* q = p^k */

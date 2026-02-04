@@ -16,8 +16,8 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <streambuf>
 #include <type_traits>
-#include <vector>
 
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -36,7 +36,6 @@
 #include "gmp_aux.h"
 #endif
 #include "fb-types.hpp"
-#include "gzip.h"
 #include "fstream_maybe_compressed.hpp"
 #include "las-fbroot-qlattice.hpp"
 #include "las-config.hpp"       // BUCKET_SIEVE_POWERS
@@ -49,6 +48,7 @@
 #include "threadpool.hpp"
 #include "timing.h"
 #include "verbose.h"
+#include "utils_cxx.hpp"
 
 struct qlattice_basis; // IWYU pragma: keep
 
@@ -190,61 +190,80 @@ bool fb_entry_general::is_simple() const
     return is_simple;
 }
 
-void fb_entry_general::parse_line(std::string const & line,
-        unsigned long const linenr)
+/* Read roots from a factor base file line and store them in roots.
+   line must point at the first character of the first root on the line.
+   linenr is used only for printing error messages in case of parsing error.
+   Returns the number of roots read. */
+void fb_entry_general::read_roots(char const * lineptr,
+                                  unsigned char const nexp,
+                                  unsigned char const oldexp,
+                                  unsigned long const linenr)
 {
     auto error = [=](const char * msg) {
-        verbose_fmt_print( 1, 0, 
+        verbose_fmt_print( 1, 0,
                 "# fb_read line {}: {}\n", linenr, msg);
-            exit(EXIT_FAILURE);
-        };
+        exit(EXIT_FAILURE);
+    };
 
-    std::vector<uint64_t> numbers;
-    std::istringstream is(line);
-    int ncolons = 0;
-    int ncommas = 0;
-    for( ; is ; ) {
-        uint64_t n;
-        char c;
-        if (is >> n)
-            numbers.push_back(n);
-        else
-            error("prime is not an integer");
-        if (is >> c) {
-            if (c == ':') {
-                if (ncolons == 0 || (ncolons == 1 && ncommas == 1))
-                    ncolons++;
-                else
-                    error("unexpected colon");
-            } else if (c == ',') {
-                if (ncolons)
-                    ncommas++;
-                else
-                    error("unexpected comma");
-            } else {
-                    error("unexpected delimiter");
-            }
-        }
+    unsigned long long last_t = 0;
+
+    nr_roots = 0;
+    while (*lineptr != '\0') {
+        if (nr_roots == MAX_DEGREE)
+            error("too many roots");
+        /* Projective roots r, i.e., ar == b (mod q), are stored as q + r in
+           the factor base file; since q can be a 32-bit value, we read the
+           root as a 64-bit integer first and subtract q if necessary. */
+        unsigned long long const t = strtoull_const(lineptr, &lineptr, 10);
+        if (nr_roots > 0 && t <= last_t)
+            error("roots must be sorted");
+        last_t = t;
+
+        fb_root_p1 const R = fb_root_p1::from_old_format(t, q);
+
+        roots[nr_roots++] = fb_general_root(R, nexp, oldexp);
+        if (*lineptr != '\0' && *lineptr != ',')
+            error("wrong format");
+        if (*lineptr == ',')
+            lineptr++;
     }
 
-    if (numbers.empty())
-        error("no data");
+    if (nr_roots == 0)
+        error("no root for prime (power)");
+}
 
-    ASSERT_ALWAYS(ncolons == 1 || (ncolons == 2 && ncommas >= 1));
+/* Parse a factor base line.
+   Return 1 if the line could be parsed and was a "short version", i.e.,
+   without explicit old and new exponent.
+   Return 2 if the line could be parsed and was a "long version".
+   Otherwise return 0. */
+void fb_entry_general::parse_line(std::string const & line,
+                                  unsigned long const linenr)
+{
+    auto error = [=](const char * msg) {
+        verbose_fmt_print( 1, 0,
+                "# fb_read line {}: {}\n", linenr, msg);
+        exit(EXIT_FAILURE);
+    };
 
-    auto it = numbers.begin();
 
-    q = *it++;
+    const char * lineptr = line.c_str();
+    q = strtoul_const(lineptr, &lineptr, 10);
+    if (q == 0)
+        error("no prime");
+    else if (*lineptr != ':')
+        error("no colon after prime");
 
     invq = compute_invq(q);
+    lineptr++; /* Skip colon after q */
+    bool const longversion = (strchr(lineptr, ':') != NULL);
 
     /* NB: a short version is not permitted for a prime power, so we
      * do the test for prime powers only for long version */
     p = q;
     unsigned char nexp = 1, oldexp = 0;
     k = 1;
-    if (ncolons == 2) {
-        /* long version */
+    if (longversion) {
         unsigned long k_ul;
         fbprime_t const base = fb_is_power(q, &k_ul);
         ASSERT(ulong_isprime(base != 0 ? base : q));
@@ -254,35 +273,31 @@ void fb_entry_general::parse_line(std::string const & line,
             k = static_cast<unsigned char>(k_ul);
         }
 
+        const char * new_lineptr;
+
         /* read the multiple of logp, if any */
         /* this must be of the form  q:nlogp,oldlogp: ... */
-        if (numbers.size() < 3)
-            error("no multiplicities found");
-        nexp = *it++;
-        oldexp = *it++;
+        /* if the information is not present, it means q:1,0: ... */
+        nexp = strtoul_const(lineptr, &new_lineptr, 10);
+        if (new_lineptr == lineptr)
+            error("could not parse nexp");
+        lineptr = new_lineptr;
+        if (*lineptr != ',')
+            error("nexp is not followed by comma");
+        lineptr++; /* skip comma */
 
-        if (nexp == 0 || nexp <= oldexp)
-            error("impossible multiplicities");
+        oldexp = strtoul_const(lineptr, &new_lineptr, 10);
+        if (new_lineptr == lineptr)
+            error("could not parse nexp");
+        lineptr = new_lineptr;
+        if (*lineptr != ':')
+            error("oldexp is not followed by colon");
+        lineptr++; /* skip colon */
+
+        ASSERT(nexp > oldexp);
     }
 
-    if (it == numbers.end())
-        error("zero root listed");
-    if (numbers.end() - it > MAX_DEGREE)
-        error("too many roots");
-    if (!std::is_sorted(it, numbers.end()))
-        error("roots must be sorted");
-
-    nr_roots = 0;
-    for( ; it != numbers.end() ; ++it) {
-
-        /* Projective roots r, i.e., ar == b (mod q), are stored as q + r in
-           the factor base file; since q can be a 32-bit value, we read the
-           root as a 64-bit integer first and subtract q if necessary. */
-
-        fb_root_p1 const R = fb_root_p1::from_old_format(*it, q);
-
-        roots[nr_roots++] = fb_general_root(R, nexp, oldexp);
-    }
+    read_roots(lineptr, nexp, oldexp, linenr);
 }
 
 void fb_entry_general::fprint(FILE * out) const
@@ -1263,7 +1278,7 @@ fb_factorbase::slicing::slicing(fb_factorbase const & fb,
             .part_index = i,
             .K = K,
             .local_thresholds = local_thresholds,
-            .max_slice_weight = max_slice_weight, 
+            .max_slice_weight = max_slice_weight,
             .index = s
         });
         s += parts[i].nslices();
@@ -1620,8 +1635,8 @@ void fb_factorbase::make_linear_threadpool(unsigned int nb_threads)
 /* }}} */
 
 /* Remove newline, comment, and trailing space from a line.
- * Return length in characters or remaining line.
- */
+   Return length in characters or remaining line
+   */
 static size_t read_strip_comment(std::string & line)
 {
     for (auto it = line.begin() ; it != line.end() ; ++it) {
@@ -1632,7 +1647,6 @@ static size_t read_strip_comment(std::string & line)
     }
     for( ; !line.empty() && isspace(line.back()) ; )
         line.erase(--line.end());
-
     return line.size();
 }
 
@@ -1668,15 +1682,97 @@ int fb_factorbase::read(char const * const filename)
     std::list<fb_entry_general> pool;
     int pool_size = 0;
     size_t overflow = 0;
+
     for(std::string line ; std::getline(fbfile, line) ; ) {
         linenr++;
+
+        /* Skip empty/comment lines */
         if (read_strip_comment(line) == 0) {
-            /* Skip empty/comment lines */
+            /* whenever we have a comment, take this occasion to free the
+             * storage that we have. */
+            std::string foo [[maybe_unused]] = std::move(line);
             continue;
         }
 
         fb_entry_general C;
+
+        /* parse the line into an fb_entry_general. */
+
+#if 0
+        /* c++ istream-based version (slow!) */
+        auto error = [=](const char * msg) {
+            verbose_fmt_print( 1, 0,
+                    "# fb_read line {}: {}\n", linenr, msg);
+            exit(EXIT_FAILURE);
+        };
+
+        /* Performance-wise, we would like to avoid using an
+         * istringstream, hence the alternative memory_streambuf from
+         * https://stackoverflow.com/a/79746417 (not copied here).
+         * However, no matter what we do, it is still twice slower than
+         * the C version.
+         */
+        {
+            // std::istringstream is;
+            // is.clear();
+            // is.str(std::move(line));
+            memory_streambuf osrb(line);
+            std::istream is(&osrb);
+
+            if (!(is >> C.q))
+                error("prime is not an integer");
+            is >> expect(":");
+
+            C.invq = compute_invq(C.q);
+
+            unsigned int nexp = 1, oldexp = 0;
+            if (line.find(':', is.tellg()) != std::string::npos) {
+                unsigned long k_ul;
+                fbprime_t const base = fb_is_power(C.q, &k_ul);
+                ASSERT(ulong_isprime(base != 0 ? base : C.q));
+                /* If q is not a power, then base==0, and we use p = q */
+                if (base != 0) {
+                    C.p = base;
+                    C.k = static_cast<unsigned char>(k_ul);
+                }
+
+                is >> nexp >> expect(",") >> oldexp >> expect(":");
+
+                if (!is)
+                    error("wrong format around exponents");
+
+                if (nexp == 0 || nexp <= oldexp)
+                    error("impossible multiplicities");
+            } else {
+                C.p = C.q;
+                C.k = 1;
+            }
+            C.nr_roots = 0;
+            for( ; is ; ) {
+                if (C.nr_roots == MAX_DEGREE)
+                    error("too many roots");
+
+                uint64_t r;
+                if (!(is >> r))
+                    error("cannot parse root");
+
+                if (char c; (is >> c) && c != ',')
+                    error("missing comma");
+
+                /* Projective roots r, i.e., ar == b (mod q), are stored
+                 * as q + r in the factor base file; since q can be a
+                 * 32-bit value, we read the root as a 64-bit integer
+                 * first and subtract q if necessary. */
+                fb_root_p1 const R = fb_root_p1::from_old_format(r, C.q);
+                C.roots[C.nr_roots++] = fb_general_root(R, nexp, oldexp);
+            }
+            if (!C.nr_roots)
+                error("no roots");
+        }
+#else
         C.parse_line(line, linenr);
+#endif
+
         if (C.q > lim || (C.k > 1 && C.q > powlim)) {
             overflow++;
             continue;
