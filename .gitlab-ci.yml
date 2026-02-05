@@ -565,6 +565,16 @@ checks on freebsd14.3 system with clang:
     - make -C ci/ci/utilities/tanker
     - ci/ci/50-libvirt-wrap-tests.sh freebsd:14.3 ci/ci/40-testsuite.sh
 
+checks on freebsd15.0 system with clang:
+  <<: *common-template
+  stage: thorough
+  needs: [ "checks on osx system" ]
+  tags:
+    - freebsd-tanker
+  script:
+    - make -C ci/ci/utilities/tanker
+    - ci/ci/50-libvirt-wrap-tests.sh freebsd:15.0 ci/ci/40-testsuite.sh
+
 # 20260205: coverity scan is down (or dead?) https://scan.coverity.com/
 # coverity on debian11 system with gcc:
 #   # override the common template.
