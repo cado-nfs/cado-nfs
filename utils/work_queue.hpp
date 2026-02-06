@@ -125,6 +125,11 @@ struct work_queue {
      */
     std::list<task_handle> tasks;
 
+    bool empty() {
+        const std::lock_guard<std::mutex> u(m);
+        return tasks.empty();
+    }
+
     template<typename Callable, typename... Args>
         task_handle push_task(Callable && f, Args... args)
         requires std::invocable<Callable, Args...>
