@@ -11,8 +11,9 @@
 #include <compare>
 
 #include <gmp.h>
-#include "fmt/ostream.h"
 #include "fmt/base.h"
+#include "fmt/format.h"
+#include "fmt/ostream.h"
 
 #include "gmp_aux.h"
 #include "gmp_auxx.hpp"
@@ -138,6 +139,14 @@ public:
         }
     }
 
+    /* we have an include order problem with this one...
+    template<typename T>
+    requires (std::is_integral_v<T> || std::is_floating_point_v<T>)
+    T get() const {
+        return cado_math_aux::mpz_get<T>(x);
+    }
+    */
+
     /* Should use a C++ iterator instead? Would that be slower? */
     static constexpr size_t word_bits = GMP_NUMB_BITS;
     size_t size_in_words() const {return mpz_size(x);}
@@ -161,6 +170,12 @@ public:
         cxx_mpz ri;
         mpz_invert (ri, x, p);
         return ri;
+    }
+
+    cxx_mpz sqrt() const {
+        cxx_mpz s;
+        mpz_sqrt(s, x);
+        return x;
     }
 };
 
@@ -325,10 +340,10 @@ template <typename T> inline cxx_mpz & operator*=(cxx_mpz & a, const T b)
 requires std::is_integral_v<T>
  { gmp_auxx::mpz_mul(a, a, b); return a; }
 
-static inline cxx_mpz operator/(cxx_mpz const & a, cxx_mpz const & b) { cxx_mpz r; mpz_tdiv_q(r, a, b); return r; }
+static inline cxx_mpz operator/(cxx_mpz const & a, cxx_mpz const & b) { cxx_mpz q; mpz_tdiv_q(q, a, b); return q; }
 template <typename T> inline cxx_mpz operator/(cxx_mpz const & a, const T b) 
 requires(std::is_integral_v<T> && std::is_unsigned_v<T>)
- { cxx_mpz r; mpz_tdiv_q_uint64(r, a, b); return r; }
+ { cxx_mpz q; mpz_tdiv_q_uint64(q, a, b); return q; }
 
 static inline cxx_mpz & operator/=(cxx_mpz & a, cxx_mpz const & b) { mpz_tdiv_q(a, a, b); return a; }
 template <typename T> inline cxx_mpz & operator/=(cxx_mpz & a, const T b) 
@@ -336,9 +351,9 @@ requires(std::is_integral_v<T> && std::is_unsigned_v<T>)
  { mpz_tdiv_q_uint64(a, a, b); return a; }
 
 static inline cxx_mpz operator%(cxx_mpz const & a, cxx_mpz const & b)  { cxx_mpz r; mpz_tdiv_r(r, a, b); return r; }
-template <typename T> inline cxx_mpz operator%(cxx_mpz const & a, const T b) 
+template <typename T> inline T operator%(cxx_mpz const & a, const T b) 
 requires(std::is_integral_v<T> && std::is_unsigned_v<T>)
- { cxx_mpz r; mpz_tdiv_r_uint64(r, a, b); return r; }
+ { cxx_mpz r; return mpz_tdiv_r_uint64(r, a, b); }
 
 static inline cxx_mpz & operator%=(cxx_mpz & a, cxx_mpz const & b)  { mpz_tdiv_r(a, a, b); return a; }
 template <typename T> inline cxx_mpz & operator%=(cxx_mpz & a, const T b)  
