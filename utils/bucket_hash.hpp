@@ -91,12 +91,7 @@ class bucket_hash {
      * little bit of memory and costs us a little computation downstream.
      * The memory savings are marginal anyway.
      */
-    static constexpr const bool collisions_are_exact = true;
     struct HX_t { T i = 0; X k = 0; };
-    /*
-    static constexpr const bool collisions_are_exact = false;
-    struct HX_t { Ht i = 0; X k = 0; };
-    */
 
     static constexpr const unsigned int log2_nbuckets = bucket_hash_details::template_log2<Nbuckets>::value;
     using U = std::make_unsigned_t<T>;
@@ -246,7 +241,7 @@ class bucket_hash {
         return false;
     }
     template<typename RangeType, typename Iterator>
-    static void find_collision(RangeType const & B, unsigned int i0, unsigned int i1, Iterator q)
+    static size_t find_collision(RangeType const & B, unsigned int i0, unsigned int i1, Iterator q)
     requires requires { *q++ = { X(), X(), T() }; }
     {
         size_t sum_bucket_sizes = 0;
@@ -255,39 +250,31 @@ class bucket_hash {
         size_t const A_size = get_secondary_size(sum_bucket_sizes);
         size_t const A_mask = A_size - 1;
         std::vector<HX_t> A;
+        size_t ncollisions = 0;
         for(auto i : std::views::iota(i0, i1)) {
             A.assign(A_size + config::open_hash_tail_overrun_protection, {});
             for(auto const & Bj : B) {
                 for(auto const & x : std::ranges::subrange(Bj.base[i], Bj.current[i])) {
                     X k2 = Bj.pdata[&x - Bj.data_start()];
                     auto * Th = A.data() + (x & A_mask);
-                    if constexpr (!collisions_are_exact) {
-                        auto const key = config::tie_breaker(x);
-                        for( ; Th->i ; Th++) {
-                            if (Th->i == key) {
-                                /* record the collision between k1,i and k2,i. We
-                                 * have to recover the original i first.
-                                 */
-                                auto k1 = Th->k;
-                                *q++ = { k1, k2, (x << log2_nbuckets) | i };
-                            }
+                    for( ; Th->i ; Th++) {
+                        /* We do the comparison on the full (64-bit) x
+                         * here, not on the 32-bit snapshot.
+                         */
+                        if (Th->i == x) {
+                            /* record the collision between k1,i and k2,i. We
+                             * have to recover the original i first.
+                             */
+                            auto k1 = Th->k;
+                            *q++ = { k1, k2, (x << log2_nbuckets) | i };
+                            ncollisions++;
                         }
-                        *Th = { key, k2 };
-                    } else {
-                        for( ; Th->i ; Th++) {
-                            if (Th->i == x) {
-                                /* record the collision between k1,i and k2,i. We
-                                 * have to recover the original i first.
-                                 */
-                                auto k1 = Th->k;
-                                *q++ = { k1, k2, (x << log2_nbuckets) | i };
-                            }
-                        }
-                        *Th = { x, k2 };
                     }
+                    *Th = { x, k2 };
                 }
             }
         }
+        return ncollisions;
     }
     /* There can be sense in interleaving address computation (of Th,
      * which can include prefetching) and action. Here's an example of
@@ -370,7 +357,6 @@ class bucket_hash_array {
     using Ht = typename config::tie_breaker_type;
     using bhash_t = bucket_hash<config, false>;
     public:
-    static constexpr const bool collisions_are_exact = bhash_t::collisions_are_exact;
     private:
 
     size_t total_expected_entries;
@@ -421,10 +407,10 @@ class bucket_hash_array {
     }
 
     template<typename Iterator>
-    void find_collision(unsigned int i0, unsigned int i1, Iterator q)
+    size_t find_collision(unsigned int i0, unsigned int i1, Iterator q)
     requires requires { *q++ = { X(), X(), T() }; }
     {
-        bhash_t::find_collision(B, i0, i1, q);
+        return bhash_t::find_collision(B, i0, i1, q);
     }
 
     bucket_hash_array(size_t total_expected_entries, unsigned int multi)
