@@ -120,17 +120,17 @@ namespace cado_math_aux {
     /* }}} */
     /* {{{ inverse modulo powers of two */
     template<int k, typename T, T current = (3*k)^2, int c = 5, bool done = c >= std::numeric_limits<T>::digits>
-        struct invmod;
+        struct invmod_ct;
 
     template<int k, typename T, T current, int c>
-        struct invmod<k, T, current, c, false>
-        : public invmod<k, T, current * (2 - current * k), c*2>
+        struct invmod_ct<k, T, current, c, false>
+        : public invmod_ct<k, T, current * (2 - current * k), c*2>
         {
             static_assert(k & 1, "k must be odd");
             static_assert(!std::is_signed_v<T>, "T must be an unsigned type");
         };
     template<int k, typename T, T current, int c>
-        struct invmod<k, T, current, c, true> {
+        struct invmod_ct<k, T, current, c, true> {
             static constexpr T value = current;
         };
     /* }}} */

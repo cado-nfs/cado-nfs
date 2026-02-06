@@ -9,7 +9,7 @@
 #include "macros.h"          // for GNUC_VERSION_ATMOST, MAYBE_UNUSED
 #include "params.h"           // for param_list_decl_usage, cxx_param_list
 #ifdef HAVE_HWLOC
-#include "hwloc-aux.h"  // cxx_hwloc_nodeset
+#include "hwloc-aux.hpp"  // cxx_hwloc_nodeset
 #endif
 
 class las_parallel_desc {
@@ -47,7 +47,7 @@ public:
     /* changed my mind. I don't see why number_of_threads_loose() and
      * number_of_threads_total() would be different things.
      */
-    inline int number_of_threads_loose() const { return number_of_threads_total();
+    int number_of_threads_loose() const { return number_of_threads_total();
     }
 #endif
 

@@ -1641,6 +1641,7 @@ utils/barrier.c
 utils/barrier.h
 utils/bit_vector.c
 utils/bit_vector.h
+utils/bucket_hash.hpp
 utils/cachesize_cpuid.c
 utils/cachesize_cpuid.h
 utils/cachesize_guess.cpp
@@ -1725,8 +1726,8 @@ utils/gpf.h
 utils/gzip.cpp
 utils/gzip.h
 utils/hook_cado_nfs_gdb.py.in
-utils/hwloc-aux.c
-utils/hwloc-aux.h
+utils/hwloc-aux.cpp
+utils/hwloc-aux.hpp
 utils/imaginary_quadratic_class_groups.cpp
 utils/imaginary_quadratic_class_groups.hpp
 utils/indexed_relation.cpp
@@ -1817,6 +1818,8 @@ utils/renumber.cpp
 utils/renumber.hpp
 utils/renumber_proxy.cpp
 utils/renumber_proxy.h
+utils/replacement_barrier.hpp
+utils/replacement_latch.hpp
 utils/rho.c
 utils/rho.h
 utils/ringbuf.c

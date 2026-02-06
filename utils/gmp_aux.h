@@ -85,6 +85,10 @@ extern uint64_t mpz_tdiv_qr_uint64 (mpz_ptr Q, mpz_ptr R, mpz_srcptr N, uint64_t
 extern uint64_t mpz_tdiv_q_uint64 (mpz_ptr Q, mpz_srcptr N, uint64_t d);
 extern uint64_t mpz_tdiv_r_uint64 (mpz_ptr R, mpz_srcptr N, uint64_t d);
 extern uint64_t mpz_tdiv_uint64 (mpz_srcptr N, uint64_t d);
+extern uint64_t mpz_fdiv_qr_uint64 (mpz_ptr Q, mpz_ptr R, mpz_srcptr N, uint64_t d);
+extern uint64_t mpz_fdiv_q_uint64 (mpz_ptr Q, mpz_srcptr N, uint64_t d);
+extern uint64_t mpz_fdiv_r_uint64 (mpz_ptr R, mpz_srcptr N, uint64_t d);
+extern uint64_t mpz_fdiv_uint64 (mpz_srcptr N, uint64_t d);
 #else
 static inline void mpz_init_set_uint64 (mpz_ptr a, const uint64_t b) {mpz_init_set_ui(a, b);}
 static inline void mpz_init_set_int64 (mpz_ptr a, const int64_t b) {mpz_init_set_si(a, b);}
@@ -114,6 +118,10 @@ static inline uint64_t mpz_tdiv_qr_uint64 (mpz_ptr Q, mpz_ptr R, mpz_srcptr N, u
 static inline uint64_t mpz_tdiv_q_uint64 (mpz_ptr Q, mpz_srcptr N, uint64_t d) {return mpz_tdiv_q_ui(Q, N, d);}
 static inline uint64_t mpz_tdiv_r_uint64 (mpz_ptr R, mpz_srcptr N, uint64_t d) {return mpz_tdiv_r_ui(R, N, d);}
 static inline uint64_t mpz_tdiv_uint64 (mpz_srcptr N, uint64_t d) {return mpz_tdiv_ui(N, d);}
+static inline uint64_t mpz_fdiv_qr_uint64 (mpz_ptr Q, mpz_ptr R, mpz_srcptr N, uint64_t d) {return mpz_fdiv_qr_ui(Q, R, N, d);}
+static inline uint64_t mpz_fdiv_q_uint64 (mpz_ptr Q, mpz_srcptr N, uint64_t d) {return mpz_fdiv_q_ui(Q, N, d);}
+static inline uint64_t mpz_fdiv_r_uint64 (mpz_ptr R, mpz_srcptr N, uint64_t d) {return mpz_fdiv_r_ui(R, N, d);}
+static inline uint64_t mpz_fdiv_uint64 (mpz_srcptr N, uint64_t d) {return mpz_fdiv_ui(N, d);}
 #endif
 
 extern void mpz_submul_int64 (mpz_ptr a, mpz_srcptr b, int64_t c);
