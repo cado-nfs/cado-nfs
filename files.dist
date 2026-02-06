@@ -1167,8 +1167,6 @@ sqrt/powers_of_p.hpp
 sqrt/sqrt.cpp
 sqrt/sqrt_cachefiles.cpp
 sqrt/sqrt_cachefiles.hpp
-sqrt/sqrt_wq.cpp
-sqrt/sqrt_wq.hpp
 tests/.clang-tidy
 tests/CMakeLists.txt
 tests/README
@@ -1573,12 +1571,14 @@ tests/utils/test_trial_division.cpp
 tests/utils/test_u64arith.cpp
 tests/utils/test_usp.c
 tests/utils/test_verbose.c
+tests/utils/test_work_queue.cpp
 tests/utils/testbase-rootfinder.quick
 tests/utils/testmpz-rootfinder.quick
 utils/CMakeLists.txt
 utils/Makefile
 utils/alloc_proxy.h
 utils/antebuffer.c
+utils/antilock.hpp
 utils/arith/README.md
 utils/arith/mod_common.c
 utils/arith/mod_mpz.c
@@ -1852,3 +1852,4 @@ utils/verbose.c
 utils/verbose.h
 utils/version_info.c.in
 utils/version_info.h
+utils/work_queue.hpp
