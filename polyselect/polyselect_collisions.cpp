@@ -443,7 +443,11 @@ void polyselect_CCS_notflat_subtask(polyselect_thread_ptr thread)
     polyselect_thread_team_enter_roaming(thread->team, thread);
     pthread_mutex_unlock(&thread->team->lock);
     /********* BEGIN UNLOCKED SECTION **************/
-    polyselect_thread_chronogram_chat(thread, "enter dispatch_shash2_nf");
+    polyselect_thread_chronogram_chat(thread, "enter p_find_dispatch");
+
+#ifdef DEBUG_POLYSELECT_THREADS
+    fprintf(stderr, "enter p_find_collisions with %d threads\n", nt);
+#endif
 
     // reset has been done by the caller with polyselect_shash_reset_multi
     // polyselect_shash_reset(H);
@@ -460,12 +464,12 @@ void polyselect_CCS_notflat_subtask(polyselect_thread_ptr thread)
                 polyselect_main_data_get_M(thread->team->league->main));
     }
 
-    polyselect_thread_chronogram_chat(thread, "leave dispatch_shash2_nf");
+    polyselect_thread_chronogram_chat(thread, "leave p_find_dispatch");
 
     polyselect_thread_team_roaming_barrier(thread->team, thread);
     // barrier_wait(&thread->team->sync_task->barrier, NULL, NULL, NULL);
 
-    polyselect_thread_chronogram_chat(thread, "enter transverse_shash2");
+    polyselect_thread_chronogram_chat(thread, "enter p_find_transverse");
     {
         /* which of the buckets do we have to scan for collisions ? */
         unsigned int wt = polyselect_SHASH_NBUCKETS;
@@ -477,7 +481,7 @@ void polyselect_CCS_notflat_subtask(polyselect_thread_ptr thread)
                 q, rq, thread);
     }
 
-    polyselect_thread_chronogram_chat(thread, "leave transverse_shash2");
+    polyselect_thread_chronogram_chat(thread, "leave p_find_transverse");
     /********** END UNLOCKED SECTION ***************/
     pthread_mutex_lock(&thread->team->lock);
     polyselect_thread_team_leave_roaming(thread->team, thread);
@@ -507,7 +511,11 @@ void polyselect_DCS_notflat_subtask(polyselect_thread_ptr thread)
     polyselect_thread_team_enter_roaming(thread->team, thread);
     pthread_mutex_unlock(&thread->team->lock);
     /********* BEGIN UNLOCKED SECTION **************/
-    polyselect_thread_chronogram_chat(thread, "enter dispatch_shash_nf");
+    polyselect_thread_chronogram_chat(thread, "enter p_test_dispatch");
+
+#ifdef DEBUG_POLYSELECT_THREADS
+    fprintf(stderr, "enter p_test_collisions with %d threads\n", nt);
+#endif
 
     // reset has been done by the caller with polyselect_shash_reset_multi
     // polyselect_shash_reset(H);
@@ -524,12 +532,12 @@ void polyselect_DCS_notflat_subtask(polyselect_thread_ptr thread)
                 polyselect_main_data_get_M(thread->team->league->main));
     }
 
-    polyselect_thread_chronogram_chat(thread, "leave dispatch_shash_nf");
+    polyselect_thread_chronogram_chat(thread, "leave p_test_dispatch");
 
     polyselect_thread_team_roaming_barrier(thread->team, thread);
     // barrier_wait(&thread->team->sync_task->barrier, NULL, NULL, NULL);
 
-    polyselect_thread_chronogram_chat(thread, "enter transverse_shash");
+    polyselect_thread_chronogram_chat(thread, "enter p_test_transverse");
     int found;
 
     {
@@ -542,7 +550,7 @@ void polyselect_DCS_notflat_subtask(polyselect_thread_ptr thread)
         found = polyselect_shash_find_collision_multi(thread->team->SH, nt, k0, k1);
     }
 
-    polyselect_thread_chronogram_chat(thread, "leave transverse_shash");
+    polyselect_thread_chronogram_chat(thread, "leave p_test_transverse");
     /********** END UNLOCKED SECTION ***************/
     pthread_mutex_lock(&thread->team->lock);
     polyselect_thread_team_leave_roaming(thread->team, thread);
@@ -624,7 +632,11 @@ void polyselect_DCS_flat_subtask(polyselect_thread_ptr thread)
     polyselect_thread_team_enter_roaming(thread->team, thread);
     pthread_mutex_unlock(&thread->team->lock);
     /********* BEGIN UNLOCKED SECTION **************/
-    polyselect_thread_chronogram_chat(thread, "enter dispatch_shash_f");
+    polyselect_thread_chronogram_chat(thread, "enter q_test_dispatch");
+
+#ifdef DEBUG_POLYSELECT_THREADS
+    fprintf(stderr, "enter q_test_collisions with %d threads\n", nt);
+#endif
 
     // reset has been done by the caller with polyselect_shash_reset_multi
     // polyselect_shash_reset(SH);
@@ -646,12 +658,12 @@ void polyselect_DCS_flat_subtask(polyselect_thread_ptr thread)
                 polyselect_main_data_get_M(thread->team->league->main));
     }
 
-    polyselect_thread_chronogram_chat(thread, "leave dispatch_shash_f");
+    polyselect_thread_chronogram_chat(thread, "leave q_test_dispatch");
 
     polyselect_thread_team_roaming_barrier(thread->team, thread);
     //// barrier_wait(&thread->team->sync_task->barrier, NULL, NULL, NULL);
 
-    polyselect_thread_chronogram_chat(thread, "enter transverse_shash");
+    polyselect_thread_chronogram_chat(thread, "enter q_test_transverse");
     int found;
 
     {
@@ -664,7 +676,7 @@ void polyselect_DCS_flat_subtask(polyselect_thread_ptr thread)
         found = polyselect_shash_find_collision_multi(thread->team->SH, nt, k0, k1);
     }
 
-    polyselect_thread_chronogram_chat(thread, "leave transverse_shash");
+    polyselect_thread_chronogram_chat(thread, "leave q_test_transverse");
     /********** END UNLOCKED SECTION ***************/
     pthread_mutex_lock(&thread->team->lock);
     polyselect_thread_team_leave_roaming(thread->team, thread);
@@ -697,7 +709,11 @@ void polyselect_CCS_flat_subtask(polyselect_thread_ptr thread)
     polyselect_thread_team_enter_roaming(thread->team, thread);
     pthread_mutex_unlock(&thread->team->lock);
     /********* BEGIN UNLOCKED SECTION **************/
-    polyselect_thread_chronogram_chat(thread, "enter dispatch_shash2_nf");
+    polyselect_thread_chronogram_chat(thread, "enter q_find_dispatch");
+
+#ifdef DEBUG_POLYSELECT_THREADS
+    fprintf(stderr, "enter q_find_collisions with %d threads\n", nt);
+#endif
 
     // reset has been done by the caller with polyselect_shash_reset_multi
     // polyselect_shash_reset(SH);
@@ -719,12 +735,12 @@ void polyselect_CCS_flat_subtask(polyselect_thread_ptr thread)
                 polyselect_main_data_get_M(thread->team->league->main));
     }
 
-    polyselect_thread_chronogram_chat(thread, "leave dispatch_shash2_nf");
+    polyselect_thread_chronogram_chat(thread, "leave q_find_dispatch");
 
     polyselect_thread_team_roaming_barrier(thread->team, thread);
     // barrier_wait(&thread->team->sync_task->barrier, NULL, NULL, NULL);
 
-    polyselect_thread_chronogram_chat(thread, "enter transverse_shash2");
+    polyselect_thread_chronogram_chat(thread, "enter q_find_transverse");
     {
         /* which of the buckets do we have to scan for collisions ? */
         unsigned int wt = polyselect_SHASH_NBUCKETS;
@@ -736,7 +752,7 @@ void polyselect_CCS_flat_subtask(polyselect_thread_ptr thread)
                 q, rq, thread);
     }
 
-    polyselect_thread_chronogram_chat(thread, "leave transverse_shash2");
+    polyselect_thread_chronogram_chat(thread, "leave q_find_transverse");
     /********** END UNLOCKED SECTION ***************/
     pthread_mutex_lock(&thread->team->lock);
     polyselect_thread_team_leave_roaming(thread->team, thread);
