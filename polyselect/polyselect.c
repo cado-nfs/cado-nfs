@@ -646,15 +646,16 @@ void * thread_loop(polyselect_thread_ptr thread)
                 }
             }
 
-            pthread_mutex_lock(league_lock);
-            /*
-            fprintf(stderr, "thread %d moves %zu jobs to async queue (current size: %zu)\n", thread->thread_index,
-                    dllist_length(&thread->async_jobs),
-                    dllist_length(&league->async_jobs));
-                    */
-            dllist_bulk_move_back(&league->async_jobs, &thread->async_jobs);
-            pthread_mutex_unlock(league_lock);
+            if (dllist_length(&thread->async_jobs)) {
+                pthread_mutex_lock(league_lock);
+                fprintf(stderr, "thread %d moves %zu jobs to async queue (current size: %zu)\n", thread->thread_index,
+                        dllist_length(&thread->async_jobs),
+                        dllist_length(&league->async_jobs));
+                dllist_bulk_move_back(&league->async_jobs, &thread->async_jobs);
+                pthread_mutex_unlock(league_lock);
+            }
             polyselect_thread_team_leave_sync_zone(team, thread);
+
 
             /*
             fprintf(stderr, "thread %d (%d-th sync thread in team %d) moves on\n",
