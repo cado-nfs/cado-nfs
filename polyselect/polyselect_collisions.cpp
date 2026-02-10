@@ -764,6 +764,8 @@ collision_on_each_sq(unsigned long q,
 		     unsigned long * invq_roots_per_prime,
                      polyselect_thread_ptr thread)
 {
+    // const double t0 = wct_seconds();
+
     struct polyselect_DCS_flat_subtask_data arg[1] = {{
         .invq_roots_per_prime = invq_roots_per_prime,
         .found = 0
@@ -780,10 +782,20 @@ collision_on_each_sq(unsigned long q,
   }
 
     /*
-    fprintf(stderr, "thread %d exits scope before STOP for %d sync thread in team %d\n",
-            thread->thread_index, thread->team->count->sync, thread->team->team_index);
-            */
-  thread->stats->potential_collisions++;
+    printf("# leader %d (%d-sync thread among %d in team %d) collision_on_each_sq (%s) %.4f s wct\n",
+            thread->thread_index,
+            thread->index_in_sync_zone,
+            thread->team->count->sync,
+            thread->team->team_index,
+            arg->found ? "maybe collision" : "no collisions",
+            wct_seconds() - t0);
+       fprintf(stderr, "thread %d exits scope before STOP for %d sync thread in team %d\n",
+       thread->thread_index, thread->team->count->sync, thread->team->team_index);
+       */
+
+    /* FIXME: this counter is bogus. CCS might return 0 collisions, or
+     * more than one. */
+    thread->stats->potential_collisions++;
 }
 
 struct modcalc_arg {
