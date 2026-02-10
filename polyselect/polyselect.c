@@ -63,6 +63,8 @@
 #include "dllist.h"
 #include "auxiliary.h"
 
+static pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;
+
 static void
 check_divexact_ui(mpz_ptr r, mpz_srcptr d, const char *d_name MAYBE_UNUSED,
 		  const unsigned long q, const char *q_name MAYBE_UNUSED)
@@ -111,11 +113,13 @@ polyselect_process_match_async(polyselect_thread_league_srcptr league, polyselec
 
   /* the expected rotation space is S^5 for degree 6 */
 #ifdef DEBUG_POLYSELECT
-  gmp_printf("Found match: (%lu,%lld) (%lu,%lld) for "
-	     "ad=%Zd, q=%llu, rq=%Zd\n",
-	     p1, (long long) i, p2, (long long) i, header->ad,
-	     (unsigned long long) q, rq);
-  gmp_printf("m0=%Zd\n", header->m0);
+  pthread_mutex_lock(&iolock);
+  gmp_printf("# Found match: (%lu,%lld) (%lu,%lld) for "
+          "ad=%Zd, q=%llu, rq=%Zd\n",
+          p1, (long long) i, p2, (long long) i, header->ad,
+          (unsigned long long) q, rq);
+  gmp_printf("# m0=%Zd\n", header->m0);
+  pthread_mutex_unlock(&iolock);
 #endif
 
   mpz_init(l);
@@ -349,7 +353,6 @@ polyselect_process_match_async(polyselect_thread_league_srcptr league, polyselec
 
   if (league->main->verbose >= 0) {
       {
-          static pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;
           pthread_mutex_lock(&iolock);
           polyselect_fprintf_poly_pair(stdout, header->N, f_raw, g_raw, 1);
           puts("#");
