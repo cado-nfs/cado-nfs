@@ -573,11 +573,11 @@ void polyselect_main_data_go_parallel(polyselect_main_data_ptr main_data, void *
 {
     unsigned long idx_max = polyselect_main_data_number_of_ad_tasks(main_data);
 
-    if (idx_max < main_data->nthreads)
+    if (idx_max * main_data->finer_grain_threads < main_data->nthreads)
     {
         fprintf(stderr,
-                "# Warning: the current admin, admax, incr settings only make it possible to run %lu jobs in parallel, so that we won't be able to do %d-thread parallelism as requested\n",
-                idx_max, main_data->nthreads);
+                "# Warning: the current admin, admax, incr settings only make it possible to run %lu jobs in parallel, so that we won't be able to do %d-thread parallelism as requested (with groups of %u)\n",
+                idx_max, main_data->nthreads, main_data->finer_grain_threads);
     }
 
     for(unsigned int i = 0 ; i < main_data->nthreads ; i++) {
