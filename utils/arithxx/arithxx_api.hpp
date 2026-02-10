@@ -238,15 +238,29 @@ namespace arithxx_details {
             /* }}} */
 
             /* {{{ set(*2), set_reduced(*1), set1, get, is1: possibly overloaded by redc */
-            void set(Residue & r, uint64_t const s) const { r.r = s; }
+            /* This one is probably the first-class citizen in all cases,
+             * right?  */
+            void set(Residue & r, uint64_t s) const {
+                auto const & me = downcast();
+                if constexpr (Integer::max_size_in_words == 1) {
+                    if (s >= static_cast<uint64_t>(me.m))
+                        s %= static_cast<uint64_t>(me.m);
+                }
+                r.r = s;
+            }
+
             void set(Residue & r, Integer const & s) const {
                 auto const & me = downcast();
                 if (s < me.m)
-                    me.set_reduced(r, s);
+                    r.r = s;
                 else
-                    me.set_reduced(r, s % me.m);
+                    r.r = s % me.m;
             }
-            void set_reduced(Residue & r, Integer const & s) const { r.r = s; }
+            void set_reduced(Residue & r, Integer const & s) const
+            {
+                auto const & me = downcast();
+                me.set(r, s);
+            }
             void set1(Residue & r) const { r.r = (m != 1); }
             Integer get(Residue const & r) const { return r.r; }
             bool is1(Residue const& a) const { return a.r == 1; }
@@ -260,6 +274,20 @@ namespace arithxx_details {
                 else
                     r.r = m - a.r;
             }
+
+            /* {{{ set_raw(*2), get_raw: never overloaded by redc */
+            /* takes s as an exact copy of the internal representation of
+             * the type. This is an even stronger assumption than
+             * set_reduced. We do **not** downcast, here. */
+            void set_raw(Residue & r, uint64_t const s) const {
+                r.r = s;
+            }
+            void set_raw(Residue & r, Integer const & s) const
+            {
+                r.r = s;
+            }
+            Integer get_raw(Residue const & r) const { return r.r; }
+            /* }}} */
         };
 
 
