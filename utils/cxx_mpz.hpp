@@ -353,7 +353,7 @@ requires(std::is_integral_v<T> && std::is_unsigned_v<T>)
 static inline cxx_mpz operator%(cxx_mpz const & a, cxx_mpz const & b)  { cxx_mpz r; mpz_tdiv_r(r, a, b); return r; }
 template <typename T> inline T operator%(cxx_mpz const & a, const T b) 
 requires(std::is_integral_v<T> && std::is_unsigned_v<T>)
- { cxx_mpz r; return mpz_tdiv_r_uint64(r, a, b); }
+ { return mpz_tdiv_uint64(a, b); }
 
 static inline cxx_mpz & operator%=(cxx_mpz & a, cxx_mpz const & b)  { mpz_tdiv_r(a, a, b); return a; }
 template <typename T> inline cxx_mpz & operator%=(cxx_mpz & a, const T b)  
