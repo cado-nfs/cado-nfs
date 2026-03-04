@@ -65,6 +65,8 @@ struct fb_general_root {
     bool proj = false;
     unsigned char exp = 0, oldexp = 0;
 
+    friend class fb_factorbase;
+
   private:
     unsigned char dummy_padding_byte MAYBE_UNUSED_PRIVATE_DATA_MEMBER = 0;
 
@@ -166,7 +168,7 @@ class fb_entry_general
     fbprime_t get_q() const { return q; }
     fbroot_t get_r(size_t const i) const { return roots[i].r; };
     fbroot_t get_proj(size_t const i) const { return roots[i].proj; };
-    void parse_line(char const * line, unsigned long linenr);
+    void parse_line(std::string const & line, unsigned long linenr);
     bool can_merge(fb_entry_general const &) const;
     void merge(fb_entry_general const &);
     void fprint(FILE * out) const;

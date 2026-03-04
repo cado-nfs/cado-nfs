@@ -1,261 +1,203 @@
 #include "cado.h" // IWYU pragma: keep
 
-/* This is a c++ implementation of the exact same algorithm as in
- * polyselect_shash.c. (see comments there for the description of the
- * algorithm)
+/* The bucket_hash<> class below is a c++ implementation of the exact
+ * same algorithm as in polyselect_shash.c. (see comments there for the
+ * description of the algorithm)
  *
- * Speed is like 5-10% slower.
+ * Speed is like 5-10% slower in general compared to the legacy C code,
+ * and the slowdown seems pretty well spread between the push and the
+ * find_collision steps. I don't have an obvious explanation for this
+ * offhand.
+ *
+ * The prefetching mechanism that is used in the original C code seems to
+ * have only very small effect.
+ *
+ * Performance varies quite dramatically from a machine to another.
  */
 
 #define EMIT_ADDRESSABLE_shash_add
 #define EXPOSE_DEPRECATED_polyselect_shash_find_collision
 
 #include <ctime>
-#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 
 #include <algorithm>
-#include <sstream>
+#include <stdexcept>
 #include <string>
-#include <type_traits>
 #include <vector>
 
 #include <gmp.h>
+#include "fmt/base.h"
 
 #include "gmp_aux.h"
 #include "polyselect_shash.h"
-#include "macros.h"
 #include "misc.h"
+#include "utils_cxx.hpp"
+#include "bucket_hash.hpp"
 
-/*{{{ silly utility */
-template<int n>
-struct template_log2 {
-    static_assert((n & (n-1)) == 0, "n must be a power of two");
-    static_assert(n > 0, "n must be positive");
-    static constexpr const int value = 1 + template_log2<n/2>::value;
-};
-template<>
-struct template_log2<1> {
-    static constexpr const int value = 0;
-};
-/*}}}*/
-
-/*{{{ passed as a parameter to the template below */
-struct polyselect_shash_config {
-    using input_type = int64_t;
-    using tie_breaker_type = uint32_t;
-    static constexpr const unsigned int log2_open_hash_extra_size = 2;
-    static constexpr const unsigned int open_hash_tail_overrun_protection = 16;
-    static tie_breaker_type tie_breaker(input_type x) {
-        return x + (x >> 32);
-    }
-};
-/*}}}*/
-
-template<typename config, int Nbuckets>
-class bucket_hash {
-    static_assert((Nbuckets & (Nbuckets-1)) == 0, "Nbuckets must be a power of two");
-    static_assert(Nbuckets > 0, "Nbuckets must be positive");
-    using T = typename config::input_type;
-    using Ht = typename config::tie_breaker_type;
-    static constexpr const unsigned int log2_nbuckets = template_log2<Nbuckets>::value;
-    using U = typename std::make_unsigned<T>::type;
-    T * data;
-    T * base[Nbuckets + 1];
-    T * current[Nbuckets + 1];
-    size_t bucket_size;
-
-    /* We forbid copies, since own the pointer (data), and we're too lazy
-     * (and don't want) to add provisions for copying it
-     */
-    bucket_hash(bucket_hash const &) = delete;
-    bucket_hash& operator= (bucket_hash const &) = delete;
-
-    static size_t get_alloc_size(size_t expected_entries) {
-        size_t alloc_size = expected_entries + 2 * std::sqrt(expected_entries);
-        alloc_size *= 1.125;
-        size_t const bucket_size = iceildiv(alloc_size, Nbuckets);
-        alloc_size = Nbuckets * bucket_size;
-        return alloc_size;
-    }
-
-    static size_t get_secondary_size(size_t bucket_size) {
-        return next_power_of_2(bucket_size) << config::log2_open_hash_extra_size;
-    }
-
-    public:
-
-    /* returns the memory cost of storing this table, assuming that it is
-     * constructed with this expected_entries parameter */
-    static size_t expected_memory_usage(size_t expected_entries) {
-        size_t alloc_size = get_alloc_size(expected_entries);
-        size_t bucket_size = alloc_size / Nbuckets;
-        size_t A_size = get_secondary_size(bucket_size) + config::open_hash_tail_overrun_protection;;
-        return alloc_size * sizeof(T) + A_size * sizeof(Ht);
-    }
-
-    bucket_hash(size_t expected_entries) {
-        size_t const alloc_size = get_alloc_size(expected_entries);
-        bucket_size = alloc_size / Nbuckets;
-        data = new T[alloc_size];
-        T * p = data;
-        for(int i = 0 ; i < Nbuckets + 1 ; i++) {
-            current[i] = base[i] = p;
-            p += bucket_size;
-        }
-    }
-    void reset() {
-        for(int i = 0 ; i < Nbuckets ; i++)
-            current[i] = base[i];
-    }
-    ~bucket_hash() {
-        delete[] data;
-    }
-    void push(T const& x) {
-        U const u = x;
-        /* It's a matter of taste if we want to shift by log2_nbuckets
-         * now or later. We'll compare bucket by bucket, so the equality
-         * of all low-order bit is guaranteed.
-         */
-        U const q = u >> log2_nbuckets;
-        U const r = u & (Nbuckets - 1);
-        // if (UNLIKELY(current[r] >= base[r + 1])) throw std::runtime_error("argh");
-        *current[r]++ = q;
-    }
-    bool has_collision() {
-        /* Allocate an open hash table that is 4 times as large as what goes in
-         * a typical bucket.
-         */
-        size_t const A_size = get_secondary_size(bucket_size);
-        std::vector<Ht> A;
-        for(int i = 0 ; i < Nbuckets ; i++) {
-            A.assign(A_size + config::open_hash_tail_overrun_protection, 0);
-            for(auto b = base[i] ; b != current[i] ; ++b) {
-                T const x = *b;
-                /* where do we insert x in A ?
-                 *
-                 * Note that we've done the shifting before storing x, so
-                 * it's not needed here.
-                 */
-                size_t const where = (x) & (A_size -1);
-                Ht const key = config::tie_breaker(x);
-                Ht * Th = A.data() + where;
-                for( ; *Th ; Th++)
-                    if (*Th == key) {
-                        return true;
-                    }
-                /* XXX Note that there's a possibility of overrunning
-                 * here. We have an overrun protection guard above, but
-                 * it's not necessarily enough */
-                *Th = key;
-            }
-        }
-        return false;
-    }
-};
-
-int main()
+static void onetest(int64_t umax, size_t pushed_entries, unsigned long seed, int nruns)
 {
-    polyselect_shash_t H;
-
+    const size_t expected_entries = pushed_entries;
     cxx_gmp_randstate rstate;
 
-    constexpr int64_t umax = INT64_C(2000000000000);
-    constexpr int pushed_entries = 1000000;
-    constexpr int expected_entries = pushed_entries;
+    fmt::print("test with umax={} pushed_entries={} seed={} nruns={}\n",
+            umax, pushed_entries, seed, nruns);
 
-    std::string collisions_c_code;
+    std::vector<size_t> collisions_c_code;
     {
-        gmp_randseed_ui(rstate, 1);
-        std::ostringstream os;
+        gmp_randseed_ui(rstate, seed);
 
+        polyselect_shash_t H;
         polyselect_shash_init(H, expected_entries);
 
-        int found = 0;
-        int i;
-        clock_t const st = clock();
-        for(i = 0 ; i < 100 ; i++) {
+        std::vector<size_t> found;
+        clock_t st = clock();
+        clock_t tfill = 0, tsearch = 0;
+        for(int i = 0 ; i < nruns ; i++) {
             polyselect_shash_reset(H);
-            for(size_t i = 0 ; i < pushed_entries ; i++)
-                polyselect_shash_add(H, i64_random(rstate) % (2*umax) - umax);
-            if (polyselect_shash_find_collision(H)) {
-                found++;
-                os << " " << i;
+            for(size_t i = 0 ; i < pushed_entries ; i++) {
+                auto const v = i64_random(rstate) % (2*umax) - umax;
+                polyselect_shash_add(H, v);
             }
+            tfill += clock() - st; st = clock();
+            if (polyselect_shash_find_collision(H))
+                found.push_back(i);
+            tsearch += clock() - st; st = clock();
         }
-        std::string const s = os.str();
-        printf("%d %d %.2f%s\n", i, found, (double) (clock() - st) / CLOCKS_PER_SEC, s.c_str());
+        fmt::print("{} {} {:.2f} {:.2f} {:.2f} {}\n",
+                nruns, found.size(),
+                (double) (tfill + tsearch) / CLOCKS_PER_SEC,
+                (double) (tfill) / CLOCKS_PER_SEC,
+                (double) (tsearch) / CLOCKS_PER_SEC,
+                join(found, " "));
 
         polyselect_shash_clear(H);
 
-        collisions_c_code = s;
+        collisions_c_code = found;
     }
 
-    std::string collisions_cxx_code;
+    std::vector<size_t> collisions_cxx_code;
     {
-        gmp_randseed_ui(rstate, 1);
-        std::ostringstream os;
-        bucket_hash<polyselect_shash_config, 256> H(expected_entries);
-        int found = 0;
-        int i;
-        clock_t const st = clock();
-        for(i = 0 ; i < 100 ; i++) {
+        gmp_randseed_ui(rstate, seed);
+        cado::bucket_hash<cado::polyselect_shash_config> H(expected_entries);
+
+        std::vector<size_t> found;
+        clock_t st = clock();
+        clock_t tfill = 0, tsearch = 0;
+        for(int i = 0 ; i < nruns ; i++) {
             H.reset();
             for(size_t i = 0 ; i < pushed_entries ; i++) {
-                // try {
-                    H.push(i64_random(rstate) % (2*umax) - umax);
-                    /*
+                try {
+                    auto const v = i64_random(rstate) % (2*umax) - umax;
+                    H.push(v);
                 } catch(std::runtime_error const& e) {
-                    fprintf(stderr, "overflow after %zu push's\n", i);
-                }
-                */
-            }
-            if (H.has_collision()) {
-                found++;
-                os << " " << i;
-            }
-            // printf("%d %d\n", i, found);
-        }
-        std::string const s = os.str();
-        printf("%d %d %.2f%s\n", i, found, (double) (clock() - st) / CLOCKS_PER_SEC, s.c_str());
-
-        collisions_cxx_code = s;
-    }
-
-    /* This code is functionally equivalent, but considerably slower */
-    if (0) {
-        gmp_randseed_ui(rstate, 1);
-        std::ostringstream os;
-        std::vector<int64_t> H;
-        int found = 0;
-        int i;
-        clock_t const st = clock();
-        for(i = 0 ; i < 100 ; i++) {
-            H.clear();
-            for(size_t i = 0 ; i < pushed_entries ; i++) {
-                    H.push_back(i64_random(rstate) % (2*umax) - umax);
-            }
-            std::ranges::sort(H);
-            for(auto it = ++H.begin() ; it != H.end() ; ++it) {
-                if (it[0] == it[-1]) {
-                    found++;
-                    os << " " << i;
+                    fprintf(stderr, "overflow after %zu-th push\n", i);
                     break;
                 }
             }
-            // printf("%d %d\n", i, found);
+            tfill += clock() - st; st = clock();
+            if (H.has_collision())
+                found.push_back(i);
+            tsearch += clock() - st; st = clock();
         }
-        std::string const s = os.str();
-        printf("%d %d %.2f%s\n", i, found, (double) (clock() - st) / CLOCKS_PER_SEC, s.c_str());
-    }
+        fmt::print("{} {} {:.2f} {:.2f} {:.2f} {}\n",
+                nruns, found.size(),
+                (double) (tfill + tsearch) / CLOCKS_PER_SEC,
+                (double) (tfill) / CLOCKS_PER_SEC,
+                (double) (tsearch) / CLOCKS_PER_SEC,
+                join(found, " "));
 
+        collisions_cxx_code = found;
+    }
     if (collisions_c_code != collisions_cxx_code) {
         fprintf(stderr, "The two implementations don't give matching results\n");
         exit(EXIT_FAILURE);
     }
-    
+
+    /* This code is functionally equivalent, but 6 to 7 times slower on
+     * my laptop. */
+    if (false) {
+        gmp_randseed_ui(rstate, seed);
+        std::vector<int64_t> H;
+
+        std::vector<size_t> found;
+        clock_t st = clock();
+        clock_t tfill = 0, tsearch = 0;
+        for(int i = 0 ; i < nruns ; i++) {
+            H.clear();
+            for(size_t i = 0 ; i < pushed_entries ; i++) {
+                auto const v = i64_random(rstate) % (2*umax) - umax;
+                H.push_back(v);
+            }
+            tfill += clock() - st; st = clock();
+            std::ranges::sort(H);
+            for(auto it = ++H.begin() ; it != H.end() ; ++it) {
+                if (it[0] == it[-1]) {
+                    found.push_back(i);
+                    break;
+                }
+            }
+            tsearch += clock() - st; st = clock();
+            // printf("%d %d\n", i, found);
+        }
+        fmt::print("{} {} {:.2f} {:.2f} {:.2f} {}\n",
+                nruns, found.size(),
+                (double) (tfill + tsearch) / CLOCKS_PER_SEC,
+                (double) (tfill) / CLOCKS_PER_SEC,
+                (double) (tsearch) / CLOCKS_PER_SEC,
+                join(found, " "));
+
+        if (found != collisions_c_code) {
+            fmt::print(stderr, "slow reference code disagrees with other implementations\n");
+            // exit(EXIT_FAILURE);
+        }
+    }
+
+}
+
+int main()
+{
+    /* the number of entries that go in the hash table is pushed_entries,
+     * and the value range is [-umax, umax].
+     * So the expected number of collisions is pushed_entries^2 / 2 / 2umax.
+     * With pushed_entries=1e6 and umax=2e12, this means an
+     * expected value of 1/8. When repeated 100 times, this should mean
+     * about 12 test with collisions.
+     */
+    {
+        polyselect_shash_t H;
+        polyselect_shash_init(H, 1e6);
+
+        /* this triggers a collision, although it is a fake one. Because
+         * the ordering of the inserts in the legacy C code is not
+         * consistent, what we're seeing this is actually the third value
+         * being inserted first, and the first one being inserted last,
+         * yielding a collision.
+         *
+         * Getting a collision when the value space exceeds 2^40 (which
+         * is the case here) isn't much of a surprise, though!
+         */
+        polyselect_shash_add(H, INT64_C(0x47087285be));
+        polyselect_shash_add(H, INT64_C(-0xb9f78d7942));
+        polyselect_shash_add(H, INT64_C(-0x4dde60d7a42));
+        if (polyselect_shash_find_collision(H))
+            fmt::print("corner case check: collision found\n");
+        else
+            fmt::print("corner case check: no collision found\n");
+        polyselect_shash_clear(H);
+    }
+
+    onetest(2e6, 2e3, 0xdeadbeef, 10);
+    onetest(2e7, 1e4, 0xdeadbeef, 10);
+    onetest(1e8, 1e4, 0xdeadbeef, 10);
+    onetest(2e4, 1e2, 1, 10);
+    onetest(2e6, 1e3, 1, 10);
+    onetest(2e8, 1e4, 1, 10);
+    onetest(2e10, 1e5, 1, 10);
+    onetest(2e12, 1e6, 1, 100);
+
     return 0;
 }
 

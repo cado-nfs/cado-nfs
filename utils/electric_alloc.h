@@ -16,18 +16,19 @@
  * underruns instead */
 #define PROTECT_OVERRUN
 
+#include <fcntl.h>
+#include <sys/mman.h>
+
 #ifndef __APPLE__
 #ifndef MAP_ANONYMOUS
 #error "Please define _GNU_SOURCE or _BSD_SOURCE on top of the translation unit"
 #endif
 #endif
 
-#include <fcntl.h>
-#include <sys/mman.h>
-
 #ifdef __cplusplus
+#include <cstdlib>
+
 #include <new>  /* for std::bad_alloc */
-#include <stdlib.h>
 #endif
 
 static inline
@@ -93,13 +94,38 @@ void electric_free_nosize(void * p0)
 }
 
 #ifdef  __cplusplus
+
+namespace cado {
+template<typename T>
+struct ElectricAllocator {
+    using value_type = T;
+
+    [[nodiscard]] T* allocate(std::size_t n) // W: no header providing "std::size_t" is…
+    {
+        auto * p = static_cast<T*>(electric_alloc(n * sizeof(T)));
+        if (p == nullptr)
+            throw std::bad_alloc();
+        return p;
+    }
+
+    void deallocate(T* p, std::size_t n) noexcept
+    {
+        electric_free(p, n * sizeof(T));
+    }
+
+};
+} // namespace cado
+
 template<typename T> inline T * electric_new(size_t s) {
-    T * res = (T*) electric_alloc(sizeof(T)*s);
-    if (!res)
+    void * p = electric_alloc(sizeof(T)*s);
+    if (!p)
         throw std::bad_alloc();
+    T * res = new (p) T[s];
     return res;
 }
 template<typename T> inline void electric_delete(T * p, size_t s) {
+    for(size_t i = 0 ; i < s ; i++)
+        p[i].~T();
     electric_free(p, sizeof(T)*s);
 }
 #endif

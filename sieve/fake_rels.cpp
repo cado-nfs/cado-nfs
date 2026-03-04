@@ -29,6 +29,7 @@
 #include "cado_poly.h"
 #include "cxx_mpz.hpp"
 #include "gzip.h"
+#include "fstream_maybe_compressed.hpp"
 #include "indexed_relation.hpp"
 #include "special-q.hpp"
 #include "macros.h"

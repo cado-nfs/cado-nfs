@@ -1,19 +1,29 @@
 #include "cado.h" // IWYU pragma: keep
+
+#include <cstdio>
+#include <cstdlib>
+
 #include <sstream>
 #include <istream>
 #include <ostream>
 #include <iostream>
 #include <memory>
-#include <type_traits>
+#include <string>
+#include <stdexcept>
+
+#include <gmp.h>
 #include "fmt/base.h"
 #include "fmt/format.h"
-#include "macros.h"
+
+#include "gmp_aux.h"
 #include "misc.h"
 #include "params.h"
 #include "relation.hpp"
 #include "relation-tools.h"
 #include "indexed_relation.hpp"
-#include "gzip.h"
+#include "fstream_maybe_compressed.hpp"
+#include "utils_cxx.hpp"
+#include "typedefs.h"
 
 /*
  * The goal of this binary is to read relations that come out of
@@ -51,16 +61,14 @@ struct shrink_action {
     double shrink_factor = 0;
     index_t shrink_threshold = 0;
     int dl = 0;
-    gmp_randstate_t rstate;
+    cxx_gmp_randstate rstate;
 
-    shrink_action() {
-        gmp_randinit_default(rstate);
-    }
+    shrink_action() = default;
+    ~shrink_action() = default;
     shrink_action(shrink_action const &) = delete;
     shrink_action& operator=(shrink_action const &) = delete;
-    ~shrink_action() {
-        gmp_randclear(rstate);
-    }
+    shrink_action(shrink_action &&) noexcept = default;
+    shrink_action& operator=(shrink_action &&) noexcept = default;
 
     void process(std::ostream & os, std::istream& is) 
     {
@@ -71,7 +79,7 @@ struct shrink_action {
             if (!(std::istringstream(line) >> rel))
                 throw std::runtime_error(fmt::format("parse error while reading {}", line));
 
-            double const rnd = double(u64_random(rstate)) / double(UINT64_MAX);
+            double const rnd = double_ratio(u64_random(rstate), UINT64_MAX);
             if (rnd >= row_fraction)
                 continue;
 
@@ -116,7 +124,7 @@ main (int argc, char const *argv[])
 
         /* Could also be a file */
         FILE *f;
-        if ((f = fopen(argv[0], "r")) != NULL) {
+        if ((f = fopen(argv[0], "r")) != nullptr) {
             param_list_read_stream(pl, f, 0);
             fclose(f);
             argv++,argc--;
@@ -156,7 +164,7 @@ main (int argc, char const *argv[])
             exit(EXIT_FAILURE);
         }
     } else {
-        A.row_fraction = 1 / (double) A.shrink_factor;
+        A.row_fraction = double_ratio(1, A.shrink_factor);
     }
 
     std::istream * ptr_in = &std::cin;

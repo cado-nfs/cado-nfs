@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <cstddef>
 
+#include <vector>
+
 #include "arithxx_common.hpp"
 #include "macros.h"
 
@@ -79,10 +81,15 @@ struct arithxx_details::redc
     using api<layer>::set_reduced;
 
     /* {{{ set(*2), set_reduced(*1), set1, get, is1, add1, sub1: dependent on redc */
-    void set(Residue & r, uint64_t const s) const
+    void set(Residue & r, uint64_t s) const
     {
-        /* s is only one word, so it's of course reduced.
+        /* if the modulus is more than 1 word and s is only one word, a
+         * reduction is not required.
          */
+        if constexpr (Integer::max_size_in_words == 1) {
+            if (s >= downcast().m[0])
+                s %= downcast().m[0];
+        }
         r.r = tomontgomery(Integer(s));
     }
     void set(Residue & r, Integer const & s) const

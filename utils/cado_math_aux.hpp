@@ -134,6 +134,16 @@ namespace cado_math_aux
         return converter_from_mpz<T>(pow(cxx_mpz(x), e));
     }
     /* }}} */
+    /* {{{ simple wrappers around invmod */
+    inline cxx_mpz invmod(cxx_mpz const & x, cxx_mpz const & e)
+    {
+        cxx_mpz res;
+        int const rc = mpz_invert(res, x, e);
+        if (rc == 0)
+            throw std::range_error("division by zero");
+        return res;
+    }
+    /* }}} */
     /* {{{ simple wrappers around std::isnan, + cxx_mpfr extensions */
     /* see comment about ldexpf and friends
     inline bool isnan(float x) { return std::isnan(x); }
@@ -428,7 +438,7 @@ namespace cado_math_aux
          * necessarily obey the rounding mode
          */
         volatile double d = d0;
-        d += d1;
+        d = d + d1;
         return d == d1;
     }
 
@@ -442,7 +452,7 @@ namespace cado_math_aux
         const volatile double d0 = 1.79769313486231570815e+308; // 0x1.fffffffffffffp+1023;
         const volatile double d1 = 1.9958403095347196e+292;     // 0x1.fffffffffffffp+970;
         volatile long double ld = d0;
-        ld += d1;
+        ld = ld + d1;
         int e;
         std::frexp(ld, &e);
         return e != 1025;

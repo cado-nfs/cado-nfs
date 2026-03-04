@@ -53,6 +53,13 @@ las_dlog_base::las_dlog_base(cxx_cado_poly const & cpoly, cxx_param_list & pl)
         fprintf(stderr, "In descent mode, want lpb1 for the final descent\n");
         exit(EXIT_FAILURE);
     }
+#if SIZEOF_P_R_VALUES < 8
+    if (lpb[0] >= 32 || lpb[1] >= 32) {
+        fprintf(stderr, "In descent mode, lpb >= 32 requires SIZEOF_P_R_VALUES==8\n");
+        exit(EXIT_FAILURE);
+    }
+#endif
+
     read();
 }
 

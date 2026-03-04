@@ -3,7 +3,7 @@
 #include <iostream>
 #include <string>
 #include <unistd.h>
-#include "gzip.h"
+#include "fstream_maybe_compressed.hpp"
 #include "macros.h"
 
 // coverity[root_function]

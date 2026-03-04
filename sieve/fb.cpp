@@ -16,6 +16,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <streambuf>
 #include <type_traits>
 
 #include <fcntl.h>
@@ -35,7 +36,7 @@
 #include "gmp_aux.h"
 #endif
 #include "fb-types.hpp"
-#include "gzip.h"
+#include "fstream_maybe_compressed.hpp"
 #include "las-fbroot-qlattice.hpp"
 #include "las-config.hpp"       // BUCKET_SIEVE_POWERS
 #include "las-side-config.hpp"
@@ -47,6 +48,7 @@
 #include "threadpool.hpp"
 #include "timing.h"
 #include "verbose.h"
+#include "utils_cxx.hpp"
 
 struct qlattice_basis; // IWYU pragma: keep
 
@@ -234,51 +236,37 @@ void fb_entry_general::read_roots(char const * lineptr,
                                   unsigned char const oldexp,
                                   unsigned long const linenr)
 {
+    auto error = [=](const char * msg) {
+        verbose_fmt_print( 1, 0,
+                "# fb_read line {}: {}\n", linenr, msg);
+        exit(EXIT_FAILURE);
+    };
+
     unsigned long long last_t = 0;
 
     nr_roots = 0;
     while (*lineptr != '\0') {
-        if (nr_roots == MAX_DEGREE) {
-            verbose_fmt_print(
-                1, 0,
-                "# Error, too many roots for prime (power) {}"
-                " in factor base line {}",
-                q, linenr);
-            exit(EXIT_FAILURE);
-        }
+        if (nr_roots == MAX_DEGREE)
+            error("too many roots");
         /* Projective roots r, i.e., ar == b (mod q), are stored as q + r in
            the factor base file; since q can be a 32-bit value, we read the
            root as a 64-bit integer first and subtract q if necessary. */
         unsigned long long const t = strtoull_const(lineptr, &lineptr, 10);
-        if (nr_roots > 0 && t <= last_t) {
-            verbose_fmt_print(
-                1, 0,
-                "# Error, roots must be sorted in the fb file, line {}",
-                linenr);
-            exit(EXIT_FAILURE);
-        }
+        if (nr_roots > 0 && t <= last_t)
+            error("roots must be sorted");
         last_t = t;
 
         fb_root_p1 const R = fb_root_p1::from_old_format(t, q);
 
         roots[nr_roots++] = fb_general_root(R, nexp, oldexp);
-        if (*lineptr != '\0' && *lineptr != ',') {
-            verbose_fmt_print(
-                1, 0, "# Incorrect format in factor base file line {}",
-                linenr);
-            exit(EXIT_FAILURE);
-        }
+        if (*lineptr != '\0' && *lineptr != ',')
+            error("wrong format");
         if (*lineptr == ',')
             lineptr++;
     }
 
-    if (nr_roots == 0) {
-        verbose_fmt_print(
-            1, 0,
-            "# Error, no root for prime (power) {} in factor base line {}",
-            q, linenr - 1);
-        exit(EXIT_FAILURE);
-    }
+    if (nr_roots == 0)
+        error("no root for prime (power)");
 }
 
 /* Parse a factor base line.
@@ -286,20 +274,22 @@ void fb_entry_general::read_roots(char const * lineptr,
    without explicit old and new exponent.
    Return 2 if the line could be parsed and was a "long version".
    Otherwise return 0. */
-void fb_entry_general::parse_line(char const * lineptr,
+void fb_entry_general::parse_line(std::string const & line,
                                   unsigned long const linenr)
 {
+    auto error = [=](const char * msg) {
+        verbose_fmt_print( 1, 0,
+                "# fb_read line {}: {}\n", linenr, msg);
+        exit(EXIT_FAILURE);
+    };
+
+
+    const char * lineptr = line.c_str();
     q = strtoul_const(lineptr, &lineptr, 10);
-    if (q == 0) {
-        verbose_fmt_print(
-            1, 0, "# fb_read: prime is not an integer on line {}", linenr);
-        exit(EXIT_FAILURE);
-    } else if (*lineptr != ':') {
-        verbose_fmt_print(
-            1, 0, "# fb_read: prime is not followed by colon on line {}",
-            linenr);
-        exit(EXIT_FAILURE);
-    }
+    if (q == 0)
+        error("no prime");
+    else if (*lineptr != ':')
+        error("no colon after prime");
 
     invq = compute_invq(q);
     lineptr++; /* Skip colon after q */
@@ -320,48 +310,31 @@ void fb_entry_general::parse_line(char const * lineptr,
             k = static_cast<unsigned char>(k_ul);
         }
 
+        const char * new_lineptr;
+
         /* read the multiple of logp, if any */
         /* this must be of the form  q:nlogp,oldlogp: ... */
         /* if the information is not present, it means q:1,0: ... */
-        nexp = strtoul_const(lineptr, &lineptr, 10);
-
-        if (nexp == 0) {
-            verbose_fmt_print(
-                1, 0,
-                "# Error in fb_read: could not parse "
-                "the integer after the colon of prime {}\n",
-                q);
-            exit(EXIT_FAILURE);
-        }
-        if (*lineptr != ',') {
-            verbose_fmt_print(
-                1, 0, "# fb_read: exp is not followed by comma on line {}",
-                linenr);
-            exit(EXIT_FAILURE);
-        }
+        nexp = strtoul_const(lineptr, &new_lineptr, 10);
+        if (new_lineptr == lineptr)
+            error("could not parse nexp");
+        lineptr = new_lineptr;
+        if (*lineptr != ',')
+            error("nexp is not followed by comma");
         lineptr++; /* skip comma */
-        oldexp = strtoul_const(lineptr, &lineptr, 10);
-        if (*lineptr != ':') {
-            verbose_fmt_print(
-                1, 0, "# fb_read: oldlogp is not followed by colon on line {}",
-                linenr);
-            exit(EXIT_FAILURE);
-        }
-        ASSERT(nexp > oldexp);
+
+        oldexp = strtoul_const(lineptr, &new_lineptr, 10);
+        if (new_lineptr == lineptr)
+            error("could not parse nexp");
+        lineptr = new_lineptr;
+        if (*lineptr != ':')
+            error("oldexp is not followed by colon");
         lineptr++; /* skip colon */
+
+        ASSERT(nexp > oldexp);
     }
 
     read_roots(lineptr, nexp, oldexp, linenr);
-
-    /* exp and oldexp are a property of a root, not of a prime (power).
-       The factor base file should specify them per root, but specifies
-       them per prime instead - a bit of a design bug.
-       For long version lines, we thus use the exp and oldexp values for all
-       roots specified in that line. */
-    for (unsigned char i = 1; i < nr_roots; i++) {
-        roots[i].exp = roots[0].exp;
-        roots[i].oldexp = roots[0].oldexp;
-    }
 }
 
 void fb_entry_general::fprint(FILE * out) const
@@ -1403,7 +1376,7 @@ fb_factorbase::slicing::slicing(fb_factorbase const & fb,
             .part_index = i,
             .K = K,
             .local_thresholds = local_thresholds,
-            .max_slice_weight = max_slice_weight, 
+            .max_slice_weight = max_slice_weight,
             .index = s
         });
         s += parts[i].nslices();
@@ -1759,29 +1732,20 @@ void fb_factorbase::make_linear_threadpool(unsigned int nb_threads)
 
 /* }}} */
 
-/* Remove newline, comment, and trailing space from a line. Write a
-   '\0' character to the line at the position where removed part began (i.e.,
-   line gets truncated).
-   Return length in characters or remaining line, without trailing '\0'
-   character.
-*/
-static size_t read_strip_comment(char * const line)
+/* Remove newline, comment, and trailing space from a line.
+   Return length in characters or remaining line
+   */
+static size_t read_strip_comment(std::string & line)
 {
-    size_t linelen, i;
-
-    linelen = strlen(line);
-    if (linelen > 0 && line[linelen - 1] == '\n')
-        linelen--;                /* Remove newline */
-    for (i = 0; i < linelen; i++) /* Skip comments */
-        if (line[i] == '#') {
-            linelen = i;
+    for (auto it = line.begin() ; it != line.end() ; ++it) {
+        if (*it == '#') {
+            line.erase(it, line.end());
             break;
         }
-    while (linelen > 0 && isspace((int)(unsigned char)line[linelen - 1]))
-        linelen--; /* Skip whitespace at end of line */
-    line[linelen] = '\0';
-
-    return linelen;
+    }
+    for( ; !line.empty() && isspace(line.back()) ; )
+        line.erase(--line.end());
+    return line.size();
 }
 
 /* Read a factor base file, splitting it into pieces.
@@ -1802,17 +1766,12 @@ static size_t read_strip_comment(char * const line)
 
 int fb_factorbase::read(char const * const filename)
 {
-    FILE * fbfile;
-    // too small linesize led to a problem with rsa768;
-    // it would probably be a good idea to get rid of fgets
-    size_t const linesize = 1000;
-    char line[linesize];
     unsigned long linenr = 0;
     fbprime_t maxprime = 0;
     unsigned long nr_primes = 0;
 
-    fbfile = fopen_maybe_compressed(filename, "r");
-    if (fbfile == NULL) {
+    ifstream_maybe_compressed fbfile(filename);
+    if (!fbfile) {
         verbose_fmt_print(1, 0, "# Could not open file {} for reading\n",
                              filename);
         return 0;
@@ -1821,25 +1780,103 @@ int fb_factorbase::read(char const * const filename)
     std::list<fb_entry_general> pool;
     int pool_size = 0;
     size_t overflow = 0;
-    while (!feof(fbfile)) {
-        /* Sadly, the size parameter of fgets() is of type int */
-        if (fgets(line, static_cast<int>(linesize), fbfile) == NULL)
-            break;
+
+    for(std::string line ; std::getline(fbfile, line) ; ) {
         linenr++;
-        if (read_strip_comment(line) == (size_t)0) {
-            /* Skip empty/comment lines */
+
+        /* Skip empty/comment lines */
+        if (read_strip_comment(line) == 0) {
+            /* whenever we have a comment, take this occasion to free the
+             * storage that we have. */
+            std::string foo [[maybe_unused]] = std::move(line);
             continue;
         }
 
         fb_entry_general C;
+
+        /* parse the line into an fb_entry_general. */
+
+#if 0
+        /* c++ istream-based version (slow!) */
+        auto error = [=](const char * msg) {
+            verbose_fmt_print( 1, 0,
+                    "# fb_read line {}: {}\n", linenr, msg);
+            exit(EXIT_FAILURE);
+        };
+
+        /* Performance-wise, we would like to avoid using an
+         * istringstream, hence the alternative memory_streambuf from
+         * https://stackoverflow.com/a/79746417 (not copied here).
+         * However, no matter what we do, it is still twice slower than
+         * the C version.
+         */
+        {
+            // std::istringstream is;
+            // is.clear();
+            // is.str(std::move(line));
+            memory_streambuf osrb(line);
+            std::istream is(&osrb);
+
+            if (!(is >> C.q))
+                error("prime is not an integer");
+            is >> expect(":");
+
+            C.invq = compute_invq(C.q);
+
+            unsigned int nexp = 1, oldexp = 0;
+            if (line.find(':', is.tellg()) != std::string::npos) {
+                unsigned long k_ul;
+                fbprime_t const base = fb_is_power(C.q, &k_ul);
+                ASSERT(ulong_isprime(base != 0 ? base : C.q));
+                /* If q is not a power, then base==0, and we use p = q */
+                if (base != 0) {
+                    C.p = base;
+                    C.k = static_cast<unsigned char>(k_ul);
+                }
+
+                is >> nexp >> expect(",") >> oldexp >> expect(":");
+
+                if (!is)
+                    error("wrong format around exponents");
+
+                if (nexp == 0 || nexp <= oldexp)
+                    error("impossible multiplicities");
+            } else {
+                C.p = C.q;
+                C.k = 1;
+            }
+            C.nr_roots = 0;
+            for( ; is ; ) {
+                if (C.nr_roots == MAX_DEGREE)
+                    error("too many roots");
+
+                uint64_t r;
+                if (!(is >> r))
+                    error("cannot parse root");
+
+                if (char c; (is >> c) && c != ',')
+                    error("missing comma");
+
+                /* Projective roots r, i.e., ar == b (mod q), are stored
+                 * as q + r in the factor base file; since q can be a
+                 * 32-bit value, we read the root as a 64-bit integer
+                 * first and subtract q if necessary. */
+                fb_root_p1 const R = fb_root_p1::from_old_format(r, C.q);
+                C.roots[C.nr_roots++] = fb_general_root(R, nexp, oldexp);
+            }
+            if (!C.nr_roots)
+                error("no roots");
+        }
+#else
         C.parse_line(line, linenr);
+#endif
+
         if (C.q > lim || (C.k > 1 && C.q > powlim)) {
             overflow++;
             continue;
         }
 
-        if (C.p > maxprime)
-            maxprime = C.p;
+        maxprime = std::max(maxprime, C.p);
 
         if (pool.empty() || !pool.back().can_merge(C)) {
             pool.emplace_back(C);
@@ -1871,8 +1908,6 @@ int fb_factorbase::read(char const * const filename)
                              "powlim={}) were discarded\n",
                              overflow, lim, powlim);
     }
-
-    fclose_maybe_compressed(fbfile, filename);
 
     finalize();
     return 1;

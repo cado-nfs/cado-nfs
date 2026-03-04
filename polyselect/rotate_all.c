@@ -3,20 +3,20 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include <float.h> // DBL_MAX
-#include <gmp.h>                // for mpz_t, mpz_clear, mpz_init, mpz_submu...
-#include <stdint.h>             // for uint32_t
-#include "cado_poly.h"          // for cado_poly_init, cado_poly_read, cado_...
-#include "macros.h"             // for ASSERT_ALWAYS
-#include "mpz_poly.h"           // for mpz_poly_s, mpz_poly, mpz_poly_discri...
-#include "auxiliary.h" /* for common routines with polyselect.c */
-#include "gmp_aux.h"    // ulong_isprime
-#include "arith/mod_ul.h"     // modulusul_t
+#include <float.h>
+#include <gmp.h>
+#include <stdint.h>
+#include "cado_poly.h"
+#include "macros.h"
+#include "mpz_poly.h"
+#include "auxiliary.h"
+#include "gmp_aux.h"
+#include "arith/mod_ul.h"
 #include "arith/modul_poly.h"
 #include "size_optimization.h"
 #include "polyselect_norms.h"
 #include "polyselect_alpha.h"
-#include "timing.h"             // for seconds
+#include "timing.h"
 
 /* for the rotation, we try (j*x+k) for |k| <= 2^MAX_k */
 int MAX_k = 16;

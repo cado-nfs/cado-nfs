@@ -1181,8 +1181,6 @@ sqrt/powers_of_p.hpp
 sqrt/sqrt.cpp
 sqrt/sqrt_cachefiles.cpp
 sqrt/sqrt_cachefiles.hpp
-sqrt/sqrt_wq.cpp
-sqrt/sqrt_wq.hpp
 tests/.clang-tidy
 tests/CMakeLists.txt
 tests/README
@@ -1589,12 +1587,14 @@ tests/utils/test_trial_division.cpp
 tests/utils/test_u64arith.cpp
 tests/utils/test_usp.c
 tests/utils/test_verbose.c
+tests/utils/test_work_queue.cpp
 tests/utils/testbase-rootfinder.quick
 tests/utils/testmpz-rootfinder.quick
 utils/CMakeLists.txt
 utils/Makefile
 utils/alloc_proxy.h
 utils/antebuffer.c
+utils/antilock.hpp
 utils/arith/README.md
 utils/arith/mod_common.c
 utils/arith/mod_mpz.c
@@ -1657,6 +1657,7 @@ utils/barrier.c
 utils/barrier.h
 utils/bit_vector.c
 utils/bit_vector.h
+utils/bucket_hash.hpp
 utils/cachesize_cpuid.c
 utils/cachesize_cpuid.h
 utils/cachesize_guess.cpp
@@ -1720,6 +1721,8 @@ utils/filter_io.tex
 utils/fix-endianness.c
 utils/fix-endianness.h
 utils/fmt_helper_sagemath.hpp
+utils/fstream_maybe_compressed.cpp
+utils/fstream_maybe_compressed.hpp
 utils/galois_action.cpp
 utils/galois_action.hpp
 utils/gcd.c
@@ -1739,8 +1742,8 @@ utils/gpf.h
 utils/gzip.cpp
 utils/gzip.h
 utils/hook_cado_nfs_gdb.py.in
-utils/hwloc-aux.c
-utils/hwloc-aux.h
+utils/hwloc-aux.cpp
+utils/hwloc-aux.hpp
 utils/imaginary_quadratic_class_groups.cpp
 utils/imaginary_quadratic_class_groups.hpp
 utils/indexed_relation.cpp
@@ -1831,6 +1834,8 @@ utils/renumber.cpp
 utils/renumber.hpp
 utils/renumber_proxy.cpp
 utils/renumber_proxy.h
+utils/replacement_barrier.hpp
+utils/replacement_latch.hpp
 utils/rho.c
 utils/rho.h
 utils/ringbuf.c
@@ -1866,3 +1871,4 @@ utils/verbose.c
 utils/verbose.h
 utils/version_info.c.in
 utils/version_info.h
+utils/work_queue.hpp

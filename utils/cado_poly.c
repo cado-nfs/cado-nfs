@@ -18,7 +18,6 @@ void cado_poly_init(cado_poly_ptr cpoly)
     /* ALL fields are zero upon init, EXCEPT the degree field (which is -1) */
     memset(cpoly, 0, sizeof(cpoly[0]));
 
-    /* By default allocate 2 polynomials */
     cpoly->nb_polys = 0;
     cpoly->pols = NULL;
 

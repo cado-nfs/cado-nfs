@@ -86,10 +86,17 @@ polyselect_shash_init (polyselect_shash_ptr H, unsigned int init_size)
 /*
  *  - each of the N+1 buckets has room for
  *      o(init_size/k/N) entries, with o(x) >= 1.25*x+128.
- *  [ The +1 buckets dates from ef98432867 (and 6b2a7998cf) and is not explained ]
+ *  [ The +1 buckets dates from ef98432867 (and 6b2a7998cf) and is not
+ *  explained. While it certainly makes sense to have a "virtual" start
+ *  address for the bucket of index [N], no storage needs to be really
+ *  attached to it...) ]
  */
 #define SHASH_BALLOC_CONSTANT_MARGIN    128
-#define SHASH_BALLOC_INVMUL_MARGIN      4 /* x means 1+1/x */
+
+/*   (A value of x below means 1+1/x ; so by setting 4 here, we impose a
+ *    multiplier 1.25) */
+#define SHASH_BALLOC_INVMUL_MARGIN      4
+
 /*
  *  - (optional) Each bucket start is aligned to a certain value (which
  *  can be 1.
@@ -229,7 +236,7 @@ polyselect_shash_find_collision_multi(const polyselect_shash_t * H, unsigned int
 #define polyselect_SHASH_TH_I(TH,I,IND)			\
   do {						\
     (I) = Hj[(IND)];				\
-    (TH) = T + (((I) >> LN2SHASH_NBUCKETS) & mask); \
+    (TH) = T + ((I) & mask); \
     __builtin_prefetch((TH), 1, 3);		\
   } while (0)					\
 
@@ -303,7 +310,7 @@ polyselect_shash_find_collision (polyselect_shash_srcptr H)
 
 static inline uint64_t transform(uint64_t i, uint32_t mask)
 {
-    uint32_t bnum = (i >> LN2SHASH_NBUCKETS) & mask;
+    uint32_t bnum = i & mask;
     uint32_t key = (uint32_t) ((i >> 32) + i);
     // uint32_t key = (i >> LN2SHASH_NBUCKETS) / (mask + 1);
     return ((uint64_t) bnum << 32) + key;
@@ -367,14 +374,13 @@ polyselect_shash2_find_collision_multi(const polyselect_shash_t * H, unsigned in
         for(unsigned int j = 0 ; j < multi ; j++) {
             const uint64_t * Hj = H[j]->base[k];
             const uint64_t * Hjm = H[j]->current[k];
-            if (Hj == Hjm) continue;
-
             for( ; Hj != Hjm ; Hj++) {
                 int64_t i = *Hj;
                 uint32_t p2 = H[j]->pmem[Hj - H[j]->mem];
-                uint64_t ix = transform(i, mask);
 
-                struct slot * Th = T + (ix >> 32);
+                struct slot * Th = T + (i & mask);
+
+                i = (i << LN2SHASH_NBUCKETS) | k;
 
                 for( ; Th->i ; Th ++) {
                     if (Th->i == i) {

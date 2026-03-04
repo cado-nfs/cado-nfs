@@ -1,7 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
 #include <stddef.h>  // for NULL
 #include <hwloc.h>   // for hwloc_type_sscanf_as_depth, HWLOC_API_VERSION
-#include "hwloc-aux.h"
+#include "hwloc-aux.hpp"
 
 /* missing api calls in hwloc */
 /* Part of this code is derived from hwloc-calc.h in hwloc-1.11.0,
@@ -75,7 +75,7 @@ int hwloc_aux_get_depth_from_string(hwloc_topology_t topology, const char * desc
 {
 #if HWLOC_API_VERSION >= 0x00020000
     int depth = 0;
-    hwloc_type_sscanf_as_depth(desc, NULL, topology, &depth);
+    hwloc_type_sscanf_as_depth(desc, nullptr, topology, &depth);
     return depth;
 #else
     hwloc_obj_type_t type;

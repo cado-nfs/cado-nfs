@@ -20,7 +20,7 @@
 #include "ecm/batch.hpp"
 #include "fb.hpp"
 #ifdef HAVE_HWLOC
-#include "hwloc-aux.h"
+#include "hwloc-aux.hpp"
 #endif
 #include "ecm/facul_strategies.hpp"
 #include "las-bkmult.hpp"

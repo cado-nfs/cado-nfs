@@ -6,6 +6,7 @@
 #include <pthread.h>
 
 #include "barrier.h"
+#include "macros.h"
 
 int barrier_init (barrier_t *barrier, pthread_mutex_t * lock_reuse, int count)
 {
@@ -41,8 +42,12 @@ int barrier_destroy (barrier_t *barrier, pthread_mutex_t * lock_reuse)
     rc = pthread_mutex_lock (barrier->lock);
     if (rc != 0) return rc;
 
+    barrier_finish_unlocked(barrier);
+
     int ok = barrier->left == barrier->count;
     rc = pthread_mutex_unlock (barrier->lock);
+
+    ASSERT_ALWAYS(ok);
 
     if (!ok) return -EBUSY;
     if (rc != 0) return rc;

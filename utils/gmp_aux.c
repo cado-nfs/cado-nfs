@@ -376,6 +376,48 @@ mpz_tdiv_uint64 (mpz_srcptr N, uint64_t d)
     return r;
 }
 
+uint64_t
+mpz_fdiv_qr_uint64 (mpz_ptr Q, mpz_ptr R, mpz_srcptr N, uint64_t d)
+{
+    mpz_t D;
+    mpz_init_set_uint64 (D, d);
+    mpz_fdiv_qr (Q, R, N, D);
+    uint64_t r = mpz_get_uint64 (R);
+    mpz_clear (D);
+    return r;
+}
+
+uint64_t
+mpz_fdiv_q_uint64 (mpz_ptr Q, mpz_srcptr N, uint64_t d)
+{
+    mpz_t R;
+    mpz_init2 (R, 64);
+    uint64_t r = mpz_fdiv_qr_uint64 (Q, R, N, d);
+    mpz_clear (R);
+    return r;
+}
+
+uint64_t
+mpz_fdiv_r_uint64 (mpz_ptr R, mpz_srcptr N, uint64_t d)
+{
+    mpz_t D;
+    mpz_init_set_uint64 (D, d);
+    mpz_fdiv_r (R, N, D);
+    uint64_t r = mpz_get_uint64 (R);
+    mpz_clear (D);
+    return r;
+}
+
+uint64_t
+mpz_fdiv_uint64 (mpz_srcptr N, uint64_t d)
+{
+    mpz_t R;
+    mpz_init2 (R, 64);
+    uint64_t r = mpz_fdiv_r_uint64 (R, N, d);
+    mpz_clear (R);
+    return r;
+}
+
 #endif
 
 

@@ -18,7 +18,7 @@ struct polyselect_thread_s;
 
 /* For the moment, this value is static. It's highly critical for
    performance. A priori, the right choice is guided by the number of TLB
-   of the CPU being used. The values below are probably misleaded by
+   of the CPU being used. The values below are probably misled by
    other aspects ; quoting lingering comment:
 
    * 10 (or 9) seems the best for an Intel nehalem (?).
@@ -55,8 +55,8 @@ inline
 void
 polyselect_shash_add (polyselect_shash_t H, uint64_t i)
 {
-  *(H->current[i & (polyselect_SHASH_NBUCKETS - 1)])++ = i;
-#if 1
+  *(H->current[i & (polyselect_SHASH_NBUCKETS - 1)])++ = i >> LN2SHASH_NBUCKETS;
+#if 0
   if (UNLIKELY(H->current[i & (polyselect_SHASH_NBUCKETS - 1)] >= H->base[(i & (polyselect_SHASH_NBUCKETS - 1)) + 1]))
     {
       fprintf (stderr, "polyselect_Shash bucket %" PRIu64 " is full.\n",
@@ -79,8 +79,8 @@ polyselect_shash2_add (polyselect_shash_t H, uint64_t i, uint32_t p)
 {
   unsigned int ib = i & (polyselect_SHASH_NBUCKETS - 1);
   H->pmem[H->current[ib] - H->mem] = p;
-  *H->current[ib]++ = i;
-#if 1
+  *H->current[ib]++ = i >> LN2SHASH_NBUCKETS;
+#if 0
   if (UNLIKELY(H->current[i & (polyselect_SHASH_NBUCKETS - 1)] >= H->base[(i & (polyselect_SHASH_NBUCKETS - 1)) + 1]))
     {
       fprintf (stderr, "polyselect_Shash2 bucket %" PRIu64 " is full.\n",

@@ -22,6 +22,7 @@
 #include "fmt/base.h"
 #include "galois_action.hpp"
 #include "gzip.h"
+#include "fstream_maybe_compressed.hpp"
 #include "macros.h"
 #include "misc.h"
 #include "params.h"
