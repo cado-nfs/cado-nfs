@@ -11,68 +11,143 @@
 
 /************************* norm and skewness *********************************/
 
-/* The L2-norm here as defined by Kleinjung is
+/* The L2-(log)norm here as defined by Kleinjung is
  * log(1/2 sqrt(int(int((F(sx,y)/s^(d/2))^2, x=-1..1), y=-1..1))).
  * Since we only want to compare norms, we don't consider the log(1/2) term,
  * and compute only 1/2 log(int(int(...))) [here the 1/2 factor is important,
  * since it is added to the alpha root property term].
  *
- * In cado, we compute the circular L2-norm, where we integrate over the
- * unit circle: the formula is
- * 1/2*log(int(int(F(r*cos(t)*s,r*sin(t))^2*r/s^d, r=0..1), t=0..2*Pi)).
+ * In cado, we compute the circular L2-norm (the lognorm is 1/2*log(the
+ * L2 norm)), where we integrate over the unit circle: the formula is
+ *
+ * I = int(int(F(r*cos(t)*s,r*sin(t))^2*r/s^d, r=0..1), t=0..2*Pi).
+ *
  * Cf Remark 3.2 in Kleinjung paper, Math. of Comp., 2006.
  *
- * As it happens, the circular L2-norm is (1/2-log-of) a quadratic form
+ * As it happens, the circular L2-norm is a quadratic form
  * in the coefficients of the input polynomial. We can use it to compute
  * the L2-lognorm at a very small cost.
  *
  * L2_lognorm() takes an mpz_poly_srcptr, while L2_lognorm() takes a
  * double_poly_srcptr
  *
+ * Note that by homogeneity we have
+ *
+ * I = int(int(F(r*cos(t)*s,r*sin(t))^2*r/s^d, r=0..1), t=0..2*Pi)
+ *   = int(int(F(cos(t)*s,sin(t))^2*r^(2*d+1)/s^d, r=0..1), t=0..2*Pi)
+ *   = int(r^(2*d+1),r=0..1)*int(F(cos(t)*s,sin(t))^2/s^d, t=0..2*Pi)
+ *   = 1/(2*d+2)*int(F(cos(t)*s^(1/2),sin(t)/s^(1/2))^2, t=0..2*Pi)
  *
  * Sagemath code computing the circular L2-norm (up to scaling)
-    var('r,s,t,y')
-    R.<x> = PolynomialRing(ZZ)
-    S.<a> = InfinitePolynomialRing(R)
+    S.<a> = InfinitePolynomialRing(SR)
+    def sum_d(d, a, force_poly=True):
+        s = SR.var('s')
+        t = SR.var('t')
+        x = s^(1/2)*cos(t)
+        y = s^(-1/2)*sin(t)
+        F = sum(a[i]*x^i*y^(d-i) for i in range(d+1))
+        if force_poly:
+            I = sum([a[i]*a[j]*integrate(x^(i+j)*y^(2*d-i-j),(t,0,2*pi))/(2*d+2)
+                     for i in range(d+1) for j in range(d+1)])
+        else:
+            I = integrate(F^2,(t,0,2*pi))/(2*d+2)
+        return I
+
     for d in range(7):
-        f = SR(sum(a[i]*x^i for i in range(d+1)))
-        F = expand(f(x=x/y)*y^d)
-        F = F.subs(x=s^(1/2)*r*cos(t),y=r/s^(1/2)*sin(t))
-        v = integrate(integrate(F^2*r,(r,0,1)),(t,0,2*pi))
-        print((s^d*v).expand().collect(pi))
+        print(sum_d(d, a, False).expand().collect(pi))
     
- * Python code that computes the resulting formula is given below. We
- * first need an auxiliary table, given by the coeff function below. (The
- * two sums below do not coincide for the degenerate case d=k=i=0.
- * Anyway we always have d>0, of course.)
-
-    coeff = lambda d,k: sum([binomial(2*(d-i)-1,d-i)*2^(2*i)*binomial(d-k,i)*(-1)^(d-k-i) for i in range(d-k+1)])
-    coeff = lambda d,k: sum([integrate(cos(t)^(2*k+2*i)*binomial(d-k,i)*(-1)^i,(t,0,2*pi)) for i in range(d-k+1)])*2^(2*d-2)/pi
-    coeff2 = lambda d,k: 2*coeff(d,d//2-k) if (d&1) or k else coeff(d,d//2-k)
-
- * We then have:
-    def sum_d(d, a):
-        sq = lambda k: a[k]^2
-        cross = lambda k: 2*sum([a[k-i]*a[k+i] for i in range(1, min(d-k,k)+1)])
-        ck = lambda k: (sq(k)+cross(k))
-        tt = 0
-        for l in range((d+1)//2):
-            tt += coeff(d, (d-1)//2-l)*(ck((d-1)//2-l)*s^((d&1)-2-2*l)+ck(d-((d-1)//2-l))*s^(2*l+2-(d&1)))
-        if d % 2 == 0:
-            tt += coeff(d, d//2)*ck(d//2)
-        return tt*pi/2^(2*d-1)/(d+1)
-
- * and the derivative can also be computed with similar code.
-
-    def sum_d_diff(d, a):
-        sq = lambda k: a[k]^2
-        cross = lambda k: 2*sum([a[k-i]*a[k+i] for i in range(1, min(d-k,k)+1)])
-        ck = lambda k: (sq(k)+cross(k))
-        tt = sum([coeff2(d, d//2-k)*(2*k-d)*ck(k)*s^k for k in range(d+1)])
-        return tt
-    [(SR(sum_d(d,a)/(pi/2^(2*d)/(d+1))).diff(s)).expand() - (SR(sum_d_diff(d,a)).subs(s=s^2)*s^(-d-1)).expand() for d in range(10)]
-
+ * e.g. for d==6 and s==1 we have:
  *
+    n = 231 * (a6 * a6 + a0 * a0) + 42.0 * (a6 * a4 + a2 * a0)
+       + 21 * (a5 * a5 + a1 * a1) + 7.0 * (a4 * a4 + a2 * a2)
+       + 14 * (a6 * a2 + a5 * a3 + a4 * a0 + a3 * a1)
+       + 10 * (a6 * a0 + a5 * a1 + a4 * a2) + 5.0 * a3 * a3;
+     n = n * pi/7168
+
+ * Note that we can factor out stuff that depends only on the degree,
+ * since this adds up to a constant offset in the lognorm. So the
+ * expression below is just as useful.
+ *
+   for d in range(7):
+       print(((sum_d(d, a, False)*2^(2*d)*(d+1)).subs(s=1).expand().collect(pi)/pi))
+ *
+ * This expression I* is 2^(2*d)/pi*(d+1) times the similar expression
+ * I above. (Actually I* has nontrivial content for all d>=1, but by
+ * keeping this stray 2 we have something that casts to Z even in the
+ * degenerate case d=0). We can write I*, for example for d=6 and s==1, as:
+ *
+ *   924*(a_0^2 + a_6^2)
+ * + 84*(a_1^2 + 2*a_0*a_2 + 2*a_4*a_6 + a_5^2)
+ * + 28*(a_2^2 + 2*a_1*a_3 + 2*a_2*a_6 + a_4^2 + 2*a_0*a_4 + 2*a_3*a_5)
+ * + 20*(a_3^2 + 2*a_2*a_4 + 2*a_1*a_5 + 2*a_0*a_6)
+ *
+ * As a matter of fact, the coefficients have a simple expression. Let
+ * k,d be such that 0<=k<=d, and:
+ *
+ *      W = lambda d, k: integrate(cos(t)^k*sin(t)^(d-k),(t,0,2*pi))
+ *      w(d,k) = 2^(2*d-1)/pi * W(2d,2k)
+ * 
+ * It is easy to see that:
+ *  - W is non-zero only for k,d even 
+ *  - W is symmetric with respect to k <--> d-k
+ *  - w(d,0) = 2*(2*d-1)/d*w(d-1,0) = \binom{2d}{d}
+ *  - w(d,k) = 2*(2k-1)/d*w(d-1,k-1) = w(d,0)*\binom{d}{k}/\binom{2d}{2k}
+ *
+ * The following code prints I and I*
+ *
+    W = lambda d, k: integrate(cos(t)^k*sin(t)^(d-k),(t,0,2*pi))
+    w = lambda d, k: W(2*d,2*k)/pi*2^(d-1)
+    w = lambda d, k: binomial(2*d,d) * binomial(d,k) / binomial(2*d,2*k)
+    for d in range(1,7):
+        for k in range(d+1):
+            assert w(d,k) == W(2*d,2*k)/pi*2^(2*d-1)
+    H = lambda PR,d: sum([ZZ(w(d,i))*PR.gen()^(2*i) for i in range(d+1)])
+
+    def Istar(d, a):
+        S = a[0].parent()
+        SP = S['x']
+        hh = H(SP,d)
+        f = SP([a[i] for i in range(d+1)])
+        return S((hh*f^2)[2*d])
+
+    # sanity check
+    d = 6
+    I = sum_d(d, a)
+    # see https://github.com/sagemath/sage/issues/41656 for the ugly
+    # quirk. It's not easy to mix-and-match SR and InfinitePolynomialRing
+    assert I.map_coefficients(lambda c: c.subs(s=1)) == pi/(2^(2*d)*(d+1)) * Istar(d, a)
+    b = [a[i]*s^(i-d/2) for i in range(d+1)]
+    assert I == pi/(2^(2*d)*(d+1)) * Istar(d, b)
+
+
+    for d in range(1,7):
+        hh = H(S['x'],d)
+        print(f"d={d}:")
+        print(f"\tH_{d}(x)={hh}")
+        Is = Istar(d, a)
+        print(f"\tI*=({Is})")
+        g = gcd(Is.coefficients())
+        print(f"\tI=pi/{2^(2*d)*(d+1)/g}*({Is/g})")
+
+ * 
+ * and the derivative of the L2 norm with respect to s can also be
+ * computed with similar code.
+ *
+
+    def Istar_diff(d, a, force_poly=True):
+        ckrange = lambda k: range(max(2*k-d,0),min(d,2*k)+1)
+        ck = lambda k: sum([a[i]*a[2*k-i] for i in ckrange(k)])
+        tt = sum([w(d, k)*ck(k)*(2*k-d)*s^(2*k-d-1) for k in range(d+1)])
+        if force_poly:
+            return tt
+        else:
+            return SR(tt)
+
+    # sanity check
+    d = 6
+    b = [a[i]*s^(i-d/2) for i in range(d+1)]
+    assert Istar(d, b).map_coefficients(lambda c:c.diff(s)) == Istar_diff(d, a)
+        
  * The quadratic form that is defined on the input polynomial, and its
  * derivative, are obtained with the following code:
  *
@@ -89,23 +164,26 @@
 #define L2_DMAX 16
 const uint32_t coeffs_integral[L2_DMAX][L2_DMAX/2] = 
 {
-    { }, /* d=0 does not make sense */
+    /* [[ binomial(2*d,d) * binomial(d,k) / binomial(2*d,2*k)
+     *    for k in range((d+1)//2, d+1)]
+     *   for d in range(16)]
+     */
+    { 1 },
     { 2 },
-    { 1, 6 },
+    { 2, 6 },
     { 4, 20 },
-    { 3, 10, 70 },
+    { 6, 10, 70 },
     { 12, 28, 252 },
-    { 10, 28, 84, 924 },
+    { 20, 28, 84, 924 },
     { 40, 72, 264, 3432 },
-    { 35, 90, 198, 858, 12870 },
+    { 70, 90, 198, 858, 12870 },
     { 140, 220, 572, 2860, 48620 },
-    { 126, 308, 572, 1716, 9724, 184756 },
+    { 252, 308, 572, 1716, 9724, 184756 },
     { 504, 728, 1560, 5304, 33592, 705432 },
-    { 462, 1092, 1820, 4420, 16796, 117572, 2704156 },
+    { 924, 1092, 1820, 4420, 16796, 117572, 2704156 },
     { 1848, 2520, 4760, 12920, 54264, 416024, 10400600 },
-    { 1716, 3960, 6120, 12920, 38760, 178296, 1485800, 40116600 },
+    { 3432, 3960, 6120, 12920, 38760, 178296, 1485800, 40116600 },
     { 6864, 8976, 15504, 36176, 118864, 594320, 5348880, 155117520 }
-    /* [[coeff2(d,k) for k in range(d//2+1)] for d in range(16)] */
 };
 
 static double
