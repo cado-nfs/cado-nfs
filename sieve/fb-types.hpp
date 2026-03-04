@@ -32,6 +32,14 @@ struct sublat_t {
     uint32_t m=0; // 0 means no sublattices.
     uint32_t i0=0;
     uint32_t j0=0;
+
+    void adjustIJ(int & i, unsigned int & j) const
+    {
+        if (m != 0) {
+            i = i*m + i0;
+            j = j*m + j0;
+        }
+    }
 };
 
 #ifdef __cplusplus

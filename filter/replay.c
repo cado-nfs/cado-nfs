@@ -440,8 +440,9 @@ doAllAdds(typerow_t **newrows, char *str, index_data_t index_data)
 // sparsemat is small_nrows x small_ncols
 static void
 toFlush (const char *sparsename, typerow_t **sparsemat, index_t *colweight,
-         index_t ncols, index_t small_nrows, index_t small_ncols, int skip, int bin,
-         const char *idealsfilename)
+         index_t ncols, index_t small_nrows, index_t small_ncols, int skip,
+         int bin, const char *idealsfilename, unsigned int nsquare_matrices)
+
 {
     unsigned long W;
 
@@ -453,13 +454,46 @@ toFlush (const char *sparsename, typerow_t **sparsemat, index_t *colweight,
             (uint64_t) small_nrows, (uint64_t) small_ncols - skip);
     ASSERT_ALWAYS(small_nrows >= small_ncols);
 
+    if (nsquare_matrices)
+    {
+        ASSERT_ALWAYS(nsquare_matrices <= (small_nrows-small_ncols+1));
+        printf ("Will output %u matri%s of size %" PRIu64 "x%" PRIu64 "\n",
+                nsquare_matrices, nsquare_matrices == 1 ? "x" : "ces",
+                (uint64_t) small_ncols, (uint64_t) small_ncols);
+    }
+
     double tt = seconds();
     printf("Writing sparse representation to %s\n", sparsename);
     fflush(stdout);
-    W = flushSparse(sparsename, sparsemat, small_nrows, small_ncols, colweight, skip, bin);
+    W = flushSparse(sparsename, sparsemat,
+                    nsquare_matrices ? small_ncols : small_nrows,
+                    small_ncols, colweight, skip, bin);
     printf("# Writing matrix took %.1lfs\n", seconds()-tt);
     printf("# Weight of the sparse submatrix: %lu\n", W);
     fflush(stdout);
+
+    if (nsquare_matrices > 1)
+    {
+        int zip = has_suffix(sparsename, ".gz");
+        const char *ext = bin ? (zip ? ".bin.gz" : ".bin")
+                              : (zip ? ".txt.gz" : ".txt");
+        char istr[] = { '1', '\0' };
+
+        for (unsigned int i = 1; i < nsquare_matrices; i++)
+        {
+            double tt = seconds();
+            char * smatname = derived_filename(sparsename, istr, ext);
+            printf("Writing sparse representation to %s\n", smatname);
+            fflush(stdout);
+            W = flushSparse(smatname, sparsemat+i, small_ncols, small_ncols,
+                            colweight, skip, bin);
+            istr[0]++;
+            printf("# Writing matrix took %.1lfs\n", seconds()-tt);
+            printf("# Weight of the sparse submatrix: %lu\n", W);
+            fflush(stdout);
+            free(smatname);
+        }
+    }
 }
 
 /* If newrows = NULL, only compute the index */
@@ -650,7 +684,7 @@ static void
 fasterVersion (typerow_t **newrows, const char *sparsename,
                const char *indexname, const char *hisname, index_t nrows,
                index_t ncols, int skip, int bin, const char *idealsfilename,
-               int for_msieve, index_t Nmax)
+               int for_msieve, index_t Nmax, unsigned int nsquare_matrices)
 {
   FILE *hisfile = NULL;
   index_t *colweight = NULL;
@@ -776,7 +810,7 @@ fasterVersion (typerow_t **newrows, const char *sparsename,
   else if (sparsename != NULL)
     /* renumber columns after sorting them by decreasing weight */
     toFlush (sparsename, newrows, colweight, ncols, small_nrows, small_ncols,
-             skip, bin, idealsfilename);
+             skip, bin, idealsfilename, nsquare_matrices);
 
   /* Free */
   free (colweight);
@@ -819,6 +853,9 @@ static void declare_usage(param_list pl)
   param_list_decl_usage(pl, "col0", "print only columns with index >= col0");
   param_list_decl_usage(pl, "colmax", "print only columns with index < colmax");
 #endif
+  param_list_decl_usage(pl, "nsquare_matrices", "if non-zero, output that many "
+                                "square matrices by skipping rows (default 0)");
+
   verbose_decl_usage(pl);
 }
 
@@ -891,6 +928,16 @@ int main(int argc, char const * argv[])
     { uint64_t c; if (param_list_parse_uint64(pl, "col0", &c))   col0 = c; }
     { uint64_t c; if (param_list_parse_uint64(pl, "colmax", &c)) colmax = c; }
 #endif
+
+    unsigned int nsquare_matrices = 0;
+    param_list_parse_uint(pl, "nsquare_matrices", &nsquare_matrices);
+    if (nsquare_matrices)
+    {
+        printf ("# Will output %u square matri%s\n", nsquare_matrices,
+                nsquare_matrices == 1 ? "x" : "ces" );
+        ASSERT_ALWAYS (skip == 0); /* not compatible with skip */
+        ASSERT_ALWAYS (nsquare_matrices < 10);
+    }
 
     /* Some checks on command line arguments */
     if (param_list_warn_unused(pl))
@@ -983,7 +1030,7 @@ int main(int argc, char const * argv[])
     }
 
   fasterVersion (newrows, sparsename, indexname, hisname, nrows, ncols, skip,
-                 bin, idealsfilename, for_msieve, Nmax);
+                 bin, idealsfilename, for_msieve, Nmax, nsquare_matrices);
 
   param_list_clear(pl);
   print_timing_and_memory (stdout, cpu0, wct0);

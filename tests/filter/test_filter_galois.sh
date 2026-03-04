@@ -6,7 +6,7 @@
 set -e
 
 build_tree="$PROJECT_BINARY_DIR"
-REFERENCE_SHA1="89e535ffd3f76ca0a099b5ce04052d0d22f5b08a"
+REFERENCE_SHA1="9a1705ed3505fd6b7ae68df51870440bb225eeee"
 
 while [ $# -gt 0 ] ; do
     if [ "$1" = "-b" ] ; then
@@ -32,7 +32,7 @@ poly="${SOURCE_TEST_DIR}/test_filter_galois.d20.poly"
 renumber="${SOURCE_TEST_DIR}/test_filter_galois.d20.renumber"
 rels="${SOURCE_TEST_DIR}/test_filter_galois.d20.rels"
 outrels="${wdir}/test_filter_galois.d20.rels"
-args="-poly ${poly} -nrels 35 -renumber ${renumber} -galois _y -dl\
+args="-poly ${poly} -nrels 29 -renumber ${renumber} -galois _y -dl -large-ab\
        -outdir ${wdir} ${rels}"
 
 SHA1BIN=sha1sum

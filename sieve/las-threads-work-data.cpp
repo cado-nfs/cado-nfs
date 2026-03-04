@@ -106,15 +106,19 @@ void nfs_work::zeroinit_defaults()
     toplevel = 0;
 }
 
-nfs_work::nfs_work(las_info & _las)
-    : nfs_work(_las, NUMBER_OF_BAS_FOR_THREADS(_las.number_of_threads_per_subjob()))
+nfs_work::nfs_work(las_info & _las, sieve_method auto tag)
+    : nfs_work(_las, NUMBER_OF_BAS_FOR_THREADS(_las.number_of_threads_per_subjob()), tag)
 {
 }
-nfs_work::nfs_work(las_info & _las, int nr_workspaces)
+
+template nfs_work::nfs_work(las_info &, NFS);
+template nfs_work::nfs_work(las_info &, SIQS);
+
+nfs_work::nfs_work(las_info & _las, int nr_workspaces, sieve_method auto tag)
     : las(_las),
     local_memory(_las.local_memory_accessor()),
     nr_workspaces(nr_workspaces),
-    sides {{ {nr_workspaces}, {nr_workspaces} }}
+    sides {{ {nr_workspaces, tag}, {nr_workspaces, tag} }}
 {
     zeroinit_defaults();
     // we cannot do this because thread_data has no copy ctor (on
@@ -125,17 +129,17 @@ nfs_work::nfs_work(las_info & _las, int nr_workspaces)
         th.emplace_back(*this);
     for (size_t i = 0; i < sides.size(); ++i) {
       ASSERT_ALWAYS(!las.dump_filename);
-      /* Well, I don't think that Q.doing is set to anything non-default
+      /* Well, I don't think that doing is set to anything non-default
        * at this point: Q is only initialized by choose_sieve_area.
        */
-      sides[i].dumpfile.open(las.dump_filename, Q.doing, i);
+      sides[i].dumpfile.open(las.dump_filename, doing, i);
     }
 }
 
 nfs_work_cofac::nfs_work_cofac(las_info & las, nfs_work const & ws) :
     las(las),
     sc(ws.conf),
-    doing(ws.Q.doing),
+    doing(ws.doing),
     strategies(las.get_strategies(sc))
 {
 }
@@ -411,7 +415,8 @@ void nfs_work::compute_toplevel_and_buckets()
     }
 }
 
-void nfs_work::prepare_for_new_q(las_info & las0, special_q_task * task)
+template<sieve_method Algo>
+void nfs_work::prepare_for_new_q(las_info & las0, special_q_task * task, typename Algo::special_q_data const & Q)
 {
     ASSERT_ALWAYS(&las == &las0);
     this->task = task;
@@ -459,6 +464,9 @@ void nfs_work::prepare_for_new_q(las_info & las0, special_q_task * task)
      */
     allocate_bucket_regions();
 }
+
+template void nfs_work::prepare_for_new_q<NFS>(las_info & las0, special_q_task * task, NFS::special_q_data const & Q);
+template void nfs_work::prepare_for_new_q<SIQS>(las_info & las0, special_q_task * task, SIQS::special_q_data const & Q);
 
 void nfs_work::side_data::precomp_plattice_dense_clear()
 {

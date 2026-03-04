@@ -16,6 +16,8 @@
 #include "las-special-q-task-tree.hpp"
 #include "las-special-q-task-simple.hpp"
 
+#include "sieve-methods.hpp"
+
 struct special_q; // IWYU pragma: keep
 
 /* siever_config */
@@ -118,7 +120,9 @@ struct siever_config {
         return true;
     }
 
+    template<sieve_method Algo>
     static void declare_usage(cxx_param_list & pl);
+    template<sieve_method Algo>
     static bool parse_default(siever_config & sc, cxx_param_list & pl, int);
 
     /*{{{ has_same_config */
@@ -279,7 +283,8 @@ struct siever_config_pool {
 
     siever_config get_config_for_q(special_q_task const & doing) const;
 
-    siever_config_pool(cxx_param_list& pl, int nb_polys);
+    template<sieve_method Algo>
+    siever_config_pool(cxx_param_list& pl, int nb_polys, Algo);
 
     private:
     void parse_hints_file(const char * filename);

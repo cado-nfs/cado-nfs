@@ -13,6 +13,7 @@
 #include <string>
 #include <sstream>
 #include <stdexcept>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -545,6 +546,23 @@ struct parse<std::vector<T>> {
         }
 };
 
+template<typename T>
+struct parse<std::pair<T, T>> {
+    bool
+        operator()(std::string const & s, std::pair<T, T> & value) const
+        {
+            std::vector<T> tmp;
+            bool b = parse_list<T>(s, tmp, ",");
+            if (b && tmp.size() == 2) {
+                value.first = tmp[0];
+                value.second = tmp[1];
+                return true;
+            } else {
+                return false;
+            }
+        }
+};
+
 template<> struct parse<cxx_mpz_poly> {
     bool operator()(std::string const & s, cxx_mpz_poly & value) const
     {
@@ -700,6 +718,7 @@ template int param_list_parse<std::vector<std::string>>(param_list_ptr pl, std::
 
 template int param_list_parse<std::string>(param_list_ptr pl, std::string const & key, std::string & r);
 template int param_list_parse<cxx_mpz>(param_list_ptr pl, std::string const & key, cxx_mpz & r);
+template int param_list_parse<std::pair<cxx_mpz, cxx_mpz>>(param_list_ptr pl, std::string const & key, std::pair<cxx_mpz, cxx_mpz> & r);
 template int param_list_parse<std::vector<cxx_mpz>>(param_list_ptr pl, std::string const & key, std::vector<cxx_mpz> & r);
 template int param_list_parse<cxx_mpz_poly>(param_list_ptr pl, std::string const & key, cxx_mpz_poly & r);
 template int param_list_parse<cado::prime_power_factorization>(param_list_ptr pl, std::string const & key, cado::prime_power_factorization & r);

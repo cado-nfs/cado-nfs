@@ -546,7 +546,7 @@ u64arith_shl_2 (uint64_t *lo, uint64_t *hi, const unsigned char i)
 }
 
 /* Returns number of trailing zeros in a. a must not be zero */
-static inline int
+static inline constexpr int
 u64arith_ctz (const uint64_t a)
 {
 #if !defined (U64ARITH_NO_ASM) && GNUC_VERSION_ATLEAST(3, 4, 0)
@@ -575,7 +575,7 @@ u64arith_ctz (const uint64_t a)
 }
 
 /* Returns number of leading zeros in a. a must not be zero */
-static inline int
+static inline constexpr int
 u64arith_clz (const uint64_t a)
 {
 #if !defined (U64ARITH_NO_ASM) && GNUC_VERSION_ATLEAST(3, 4, 0)

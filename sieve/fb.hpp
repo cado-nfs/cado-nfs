@@ -26,6 +26,7 @@
 #include "multityped_array.hpp"
 
 struct qlattice_basis;
+struct siqs_special_q_data;
 struct cxx_param_list;
 
 /* The *factor base* is made of *entries*. We have several vectors of
@@ -173,6 +174,15 @@ class fb_entry_general
     void fprint(FILE * out) const;
     bool is_simple() const;
     void transform_roots(transformed_entry_t &, qlattice_basis const &) const;
+    /* Set invq to 2^(word size)/q mod p
+     * Set crt_data_modp to [(mulby2?2:1)*Rk/q modp for Rk in Q.crt_data_modq]
+     * Return add([Rk/q modp for Rk in Q.crt_data_modq])
+     */
+    fbprime_t compute_crt_data_modp(
+            fbprime_t & invq,
+            std::vector<fbprime_t> & crt_data_modp,
+            siqs_special_q_data const & Q,
+            bool mulby2) const;
     double weight() const { return 1. / q * nr_roots; }
     /* Allow sorting by p */
     bool operator<(fb_entry_general const & other) const
@@ -264,6 +274,12 @@ template <int Nr_roots> class fb_entry_x_roots
     }
     void fprint(FILE *) const;
     void transform_roots(transformed_entry_t &, qlattice_basis const &) const;
+    /* see same method in fb_entry_general */
+    fbprime_t compute_crt_data_modp(
+            fbprime_t & invq,
+            std::vector<fbprime_t> & crt_data_modp,
+            siqs_special_q_data const & Q,
+            bool mulby2) const;
 };
 
 static_assert(

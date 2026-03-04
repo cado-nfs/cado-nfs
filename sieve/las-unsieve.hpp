@@ -5,6 +5,7 @@
 
 #include <cstdint>
 
+#include <array>
 #include <utility>
 #include <vector>
 
@@ -99,6 +100,12 @@ void search_survivors_in_line(unsigned char * const SS[2],
         int N, j_divisibility_helper const & j_div,
         unsigned int td_max, unsieve_data const & us,
         std::vector<uint32_t> &survivors, sublat_t);
+template<std::size_t nsides>
+void search_survivors_in_line(
+        std::array<unsigned char * const, nsides> SS,
+        const std::array<unsigned char, nsides> bound,
+        unsigned int length,
+        std::vector<uint16_t> &survivors);
 #ifdef HAVE_SSE2 
 void search_survivors_in_line_sse2(unsigned char * const SS[2],
         const unsigned char bound[2],

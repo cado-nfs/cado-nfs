@@ -3,6 +3,9 @@
 
 #include <memory>
 #include <stdlib.h>
+
+#include "sieve-methods.hpp"
+
 struct cxx_param_list;
 class nfs_work;
 
@@ -27,7 +30,9 @@ struct where_am_I {
     ~where_am_I();
     static void decl_usage(cxx_param_list &);
     static void interpret_parameters(cxx_param_list &);
-    static void begin_special_q(nfs_work const &);
+    static void begin_special_q(
+            nfs_work const &,
+            special_q_data_class auto const &);
     private:
     struct impl;  // forward declaration of the implementation class
     impl * pimpl = nullptr;
@@ -40,5 +45,6 @@ struct where_am_I {
  * In cases where the GOT linking saves us a megabyte of duplicated code,
  * why not go for it ? */
 int extern_trace_on_spot_ab(int64_t a, uint64_t b);
+int extern_trace_on_spot_ab(cxx_mpz const & a, cxx_mpz const & b);
 
 #endif	/* CADO_LAS_WHERE_AM_I_PROXY_HPP */

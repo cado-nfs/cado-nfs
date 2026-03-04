@@ -29,10 +29,15 @@
 
 /* siever_config stuff */
 
+template<sieve_method Algo>
 void siever_config::declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "I",    "set sieving region to 2^I times J, with J <= 2^(I-1) ; -I x is equivalent to -A (2*x-1)");
-    param_list_decl_usage(pl, "A",    "set sieving region to (at most) 2^A");
+    if constexpr (std::is_same_v<Algo, NFS>) {
+        param_list_decl_usage(pl, "I",    "set sieving region to 2^I times J, with J <= 2^(I-1) ; -I x is equivalent to -A (2*x-1)");
+        param_list_decl_usage(pl, "A",    "set sieving region to (at most) 2^A");
+    } else {
+        param_list_decl_usage(pl, "I",    "set sieving region to 2^I times J;");
+    }
 
     siever_side_config::declare_usage(pl);
 
@@ -48,12 +53,18 @@ void siever_config::declare_usage(cxx_param_list & pl)
     static_assert(MAX_TOPLEVEL == 3);
     param_list_decl_usage(pl, "bkmult", "multiplier to use for taking margin in the bucket allocation\n");
     param_list_decl_usage(pl, "unsievethresh", "Unsieve all p > unsievethresh where p|gcd(a,b)");
-    param_list_decl_usage(pl, "adjust-strategy", "strategy used to adapt the sieving range to the q-lattice basis (0 = logI constant, J so that boundary is capped; 1 = logI constant, (a,b) plane norm capped; 2 = logI dynamic, skewed basis; 3 = combine 2 and then 0) ; default=0");
+    if constexpr (std::is_same_v<Algo, NFS>) {
+        param_list_decl_usage(pl, "adjust-strategy", "strategy used to adapt the sieving range to the q-lattice basis (0 = logI constant, J so that boundary is capped; 1 = logI constant, (a,b) plane norm capped; 2 = logI dynamic, skewed basis; 3 = combine 2 and then 0) ; default=0");
+    }
 }
+
+template void siever_config::declare_usage<NFS>(cxx_param_list & pl);
+template void siever_config::declare_usage<SIQS>(cxx_param_list & pl);
 
 /* {{{ Parse default siever config (fill all possible fields). Return
  * true if the parsed siever config is complete and can be used without
  * per-special-q info. */
+template<sieve_method Algo>
 bool siever_config::parse_default(siever_config & sc, cxx_param_list & pl, int nb_polys)
 {
     /* The default config is not necessarily a complete bit of
@@ -80,20 +91,32 @@ bool siever_config::parse_default(siever_config & sc, cxx_param_list & pl, int n
      * Note: the stuff about the config being complete or not is mostly
      * rubbish now...
      */
-    if (param_list_lookup_string(pl, "A")) {
-        complete &= param_list_parse_int  (pl, "A",    &(sc.logA));
-        if (param_list_lookup_string(pl, "I")) {
-            fprintf(stderr, "# -A and -I are incompatible\n");
-            exit(EXIT_FAILURE);
+    if constexpr (std::is_same_v<Algo, NFS>) {
+        if (param_list_lookup_string(pl, "A")) {
+            complete &= param_list_parse_int  (pl, "A",    &(sc.logA));
+            if (param_list_lookup_string(pl, "I")) {
+                fprintf(stderr, "# -A and -I are incompatible\n");
+                exit(EXIT_FAILURE);
+            }
+        } else if (param_list_lookup_string(pl, "I")) {
+            int I;
+            complete &= param_list_parse_int  (pl, "I", &I);
+            sc.logA = 2 * I - 1;
+            verbose_fmt_print(0, 1, "# Interpreting -I {} as meaning -A {}\n",
+                    I, sc.logA);
+        } else {
+            complete = false;
         }
-    } else if (param_list_lookup_string(pl, "I")) {
-        int I;
-        complete &= param_list_parse_int  (pl, "I", &I);
-        sc.logA = 2 * I - 1;
-        verbose_fmt_print(0, 1, "# Interpreting -I {} as meaning -A {}\n",
-                I, sc.logA);
     } else {
-        complete = false;
+        int I, qfac_nfac;
+        complete &= param_list_parse_int(pl, "I", &I);
+        param_list_parse_int(pl, "qfac-nfac", &qfac_nfac);
+        const char *gal = param_list_lookup_string(pl, "galois");
+        ASSERT_ALWAYS(gal && strcmp(gal, "_y") == 0);
+        sc.logA = I + (qfac_nfac-1);
+        verbose_fmt_print(0, 1, "# A={} (computed from -I {}, -qfac-nfac {} and"
+                                " -galois {})\n", sc.logA, I, qfac_nfac, gal);
+
     }
 
 #if ULONG_BITS > 32
@@ -159,7 +182,9 @@ bool siever_config::parse_default(siever_config & sc, cxx_param_list & pl, int n
                */
         }
     }
-    param_list_parse_int(pl, "adjust-strategy", &sc.adjust_strategy);
+    if constexpr (std::is_same_v<Algo, NFS>) {
+        param_list_parse_int(pl, "adjust-strategy", &sc.adjust_strategy);
+    }
 
     return complete;
 }
@@ -416,9 +441,13 @@ void siever_config_pool::parse_hints_file(const char * filename)/*{{{*/
     fclose(f);
 }
 /*}}}*/
-siever_config_pool::siever_config_pool(cxx_param_list & pl, int nb_polys)/*{{{*/
+template<sieve_method Algo>
+siever_config_pool::siever_config_pool(
+        cxx_param_list & pl,
+        int nb_polys,
+        Algo)/*{{{*/
 {
-    if (siever_config::parse_default(base, pl, nb_polys))
+    if (siever_config::parse_default<Algo>(base, pl, nb_polys))
         default_config_ptr = &base;
 
     /* support both, since we've got to realize it's not that much
@@ -474,4 +503,7 @@ siever_config_pool::siever_config_pool(cxx_param_list & pl, int nb_polys)/*{{{*/
         }
     }
 }/*}}}*/
+
+template siever_config_pool::siever_config_pool(cxx_param_list & pl, int nb_polys, NFS);
+template siever_config_pool::siever_config_pool(cxx_param_list & pl, int nb_polys, SIQS);
 

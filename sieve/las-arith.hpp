@@ -259,6 +259,38 @@ addmod_u32 (const uint32_t a, const uint32_t b, const uint32_t m)
 #endif
 }
 
+/* Requires a < m and b < m, then r == a-b (mod m) and r < m */
+static inline uint32_t
+submod_u32(const uint32_t a, const uint32_t b, const uint32_t m)
+{
+#if (defined(__i386__) && defined(__GNUC__)) || defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
+  {
+    uint32_t tr, t = a;
+    __asm__ __VOLATILE (
+      "sub %2, %1\n\t"  /* t -= b ( = a - b) */
+      "lea (%1,%3,1), %0\n\t" /* tr = t + m ( = a - b + m) */
+      "cmovnc %1, %0\n\t" /* if (a >= b) tr = t */
+      : "=&r" (tr), "+&r" (t)
+      : "r" (b), "r" (m)
+      : "cc"
+    );
+    return tr;
+  }
+#elif 1
+  /* Seems to be faster than the one below */
+  {
+    uint32_t t = 0UL, tr;
+    if ((tr = a - b) > a)
+      t = m;
+    return tr + t;
+  }
+#else
+  return (a < b) ? (a - b + m) : (a - b);
+#endif
+
+  ASSERT_EXPENSIVE (r[0] < m);
+}
+
 /* TODO: this is a close cousin of modredcul_inv, but the latter does
  * 64-bit redc */
 

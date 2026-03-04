@@ -1,0 +1,50 @@
+###########################################################################
+#     Parameter file for Cado-NFS
+###########################################################################
+# See params/params.c90 for an example which contains some documentation.
+
+###########################################################################
+# General parameters
+###########################################################################
+
+name = d60
+
+###########################################################################
+# Sieve
+###########################################################################
+
+tasks.I = 14
+tasks.lim0 = 50000
+tasks.lpb0 = 20
+tasks.sieve.mfb0 = 42
+tasks.sieve.qrange = 50
+tasks.qmin = 1 # cannot be 0 as it it interpreted as a special value
+
+tasks.sieve.qfac_min = 750 # lower bound on primes appearing in the special-q
+tasks.sieve.qfac_max = 1024 # upper bound on primes appearing in the special-q
+tasks.sieve.qfac_nfac = 10 # number of primes dividing the special-q
+
+tasks.sieve.ncurves0 = 2
+
+###########################################################################
+# Filtering
+###########################################################################
+
+tasks.filter.target_density = 170.0
+tasks.nmatrices = 3
+
+###########################################################################
+# Linalg
+###########################################################################
+
+# tasks.linalg.n = 1
+# tasks.linalg.m = 2  # default is 2*n
+
+###########################################################################
+# Computing the group structure
+###########################################################################
+
+# tasks.groupstructure.factor.verbose = true
+# tasks.groupstructure.cl_structure_from_group_order.verbose = true
+# tasks.groupstructure.cl_structure_from_group_order.generators_bound = 10000
+# tasks.groupstructure.cl_structure_from_group_order.pSylow_bound = 1024

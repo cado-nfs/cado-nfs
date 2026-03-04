@@ -71,6 +71,16 @@ public:
         return CA * a + CB * b;
     }
 
+    uint64_t
+    hash_ab(mpz_srcptr a, mpz_srcptr b, uint64_t CA, uint64_t CB) const final
+    {
+        ASSERT(mpz_sgn(b) >= 0);
+        cxx_mpz r;
+        mpz_mul_uint64(r, a, CA);
+        mpz_addmul_uint64(r, b, CB);
+        return mpz_sgn(r) * mpz_tdiv_uint64(r, 0xffffffffffffffff);
+    }
+
     void print_action(std::ostream& os) const final
     {
         os << "x -> x";
@@ -176,6 +186,23 @@ public:
         }
     }
 
+    uint64_t
+    hash_ab(mpz_srcptr a, mpz_srcptr b, uint64_t CA, uint64_t CB) const final
+    {
+        ASSERT(mpz_sgn(b) >= 0);
+        cxx_mpz r;
+        if (mpz_cmpabs(a, b) <= 0) {
+            mpz_mul_uint64(r, a, CA);
+            mpz_addmul_uint64(r, b, CB);
+        } else {
+            mpz_mul_uint64(r, b, CA);
+            mpz_addmul_uint64(r, a, CB);
+            if (mpz_sgn(a) < 0)
+                mpz_neg(r, r);
+        }
+        return mpz_sgn(r) * mpz_tdiv_uint64(r, 0xffffffffffffffff);
+    }
+
     void print_action(std::ostream& os) const final
     {
         os << "x -> 1/x";
@@ -234,6 +261,17 @@ public:
          *  the representative is the pair with the smallest first coeff > 0.
          */
         return CA * safe_abs64(a) + CB * b;
+    }
+
+    uint64_t
+    hash_ab(mpz_srcptr a, mpz_srcptr b, uint64_t CA, uint64_t CB) const final
+    {
+        ASSERT(mpz_sgn(b) >= 0);
+        cxx_mpz r;
+        mpz_mul_uint64(r, a, CA);
+        mpz_abs(r, r);
+        mpz_addmul_uint64(r, b, CB);
+        return mpz_sgn(r) * mpz_tdiv_uint64(r, 0xffffffffffffffff);
     }
 
     void print_action(std::ostream& os) const final
@@ -364,6 +402,27 @@ public:
         } else {
             return CA * -b + CB * (a - b);
         }
+    }
+
+    uint64_t
+    hash_ab(mpz_srcptr a, mpz_srcptr b, uint64_t CA, uint64_t CB) const final
+    {
+        ASSERT(mpz_sgn(b) >= 0);
+        cxx_mpz r;
+        if (mpz_sgn(a) <= 0) {
+            mpz_mul_uint64(r, a, CA);
+            mpz_addmul_uint64(r, b, CB);
+        } else {
+            mpz_mul_uint64(r, b, CA);
+            mpz_neg(r, r);
+            mpz_addmul_uint64(r, a, CB);
+            if (mpz_cmp(a, b) < 0) {
+                mpz_addmul_uint64(r, a, CA);
+            } else {
+                mpz_submul_uint64(r, b, CB);
+            }
+        }
+        return mpz_sgn(r) * mpz_tdiv_uint64(r, 0xffffffffffffffff);
     }
 
     void print_action(std::ostream& os) const final
@@ -497,6 +556,26 @@ public:
         } else {
             return CA * b - CB * (a + b);
         }
+    }
+
+    uint64_t
+    hash_ab(mpz_srcptr a, mpz_srcptr b, uint64_t CA, uint64_t CB) const final
+    {
+        ASSERT(mpz_sgn(b) >= 0);
+        cxx_mpz r;
+        if (mpz_sgn(a) > 0) {
+            mpz_mul_uint64(r, a, CA);
+            mpz_addmul_uint64(r, b, CB);
+        } else {
+            mpz_mul_uint64(r, b, CA);
+            mpz_submul_uint64(r, a, CB);
+            if (mpz_cmpabs(a, b) < 0) { /* known: a <= 0 and b > 0*/
+                mpz_addmul_uint64(r, a, CA);
+            } else {
+                mpz_submul_uint64(r, b, CB);
+            }
+        }
+        return mpz_sgn(r) * mpz_tdiv_uint64(r, 0xffffffffffffffff);
     }
 
     void print_action(std::ostream& os) const final
@@ -689,6 +768,37 @@ public:
                 return CA * (b - a) - CB * (a + b);
             }
         }
+    }
+
+    uint64_t
+    hash_ab(mpz_srcptr a, mpz_srcptr b, uint64_t CA, uint64_t CB) const final
+    {
+        ASSERT(mpz_sgn(b) >= 0);
+        cxx_mpz r;
+        if (mpz_sgn(a) > 0 && mpz_cmpabs(a, b) > 0) {
+            mpz_mul_uint64(r, a, CA);
+            mpz_addmul_uint64(r, b, CB);
+        } else if (mpz_sgn(a) < 0 && mpz_cmpabs(a, b) < 0) {
+            mpz_mul_uint64(r, b, CA);
+            mpz_submul_uint64(r, a, CB);
+        } else if (mpz_sgn(a) > 0) {
+            mpz_mul_uint64(r, a, CA);
+            mpz_addmul_uint64(r, b, CA);
+            mpz_submul_uint64(r, a, CB);
+            mpz_addmul_uint64(r, b, CB);
+            if (mpz_congruent_2exp_p(a, b, 1u)) {
+                mpz_fdiv_q_2exp(r, r, 1u);
+            }
+        } else {
+            mpz_mul_uint64(r, b, CA);
+            mpz_submul_uint64(r, a, CA);
+            mpz_submul_uint64(r, a, CB);
+            mpz_submul_uint64(r, b, CB);
+            if (mpz_congruent_2exp_p(a, b, 1u)) {
+                mpz_fdiv_q_2exp(r, r, 1u);
+            }
+        }
+        return mpz_sgn(r) * mpz_tdiv_uint64(r, 0xffffffffffffffff);
     }
 
     void print_action(std::ostream& os) const final
@@ -925,6 +1035,57 @@ public:
         }
     }
 
+    uint64_t
+    hash_ab(mpz_srcptr a, mpz_srcptr b, uint64_t CA, uint64_t CB) const final
+    {
+        ASSERT(mpz_sgn(b) >= 0);
+        cxx_mpz r;
+        cxx_mpz s;
+        mpz_add(s, a, b);
+        if (mpz_sgn(a) > 0 && mpz_cmpabs(a, b) > 0) {
+            mpz_mul_uint64(r, a, CA);
+            mpz_addmul_uint64(r, b, CB);
+        } else if (mpz_sgn(a) > 0) {
+            mpz_mul_uint64(r, a, CA);
+            mpz_mul_2exp(r, r, 1u);
+            mpz_addmul_uint64(r, b, CA);
+            mpz_submul_uint64(r, a, CB);
+            mpz_addmul_uint64(r, b, CB);
+            if (mpz_fdiv_ui(a, 3u) == mpz_fdiv_ui(b, 3u)) {
+                mpz_divexact_ui(r, r, 3u);
+            }
+        } else if (mpz_cmpabs(a, s) < 0) {
+            mpz_mul_uint64(r, a, CA);
+            mpz_addmul_uint64(r, b, CA);
+            mpz_submul_uint64(r, a, CB);
+        } else if (mpz_cmpabs(a, b) < 0) {
+            mpz_mul_uint64(r, b, CA);
+            mpz_mul_2exp(r, r, 1u);
+            mpz_addmul_uint64(r, a, CA);
+            mpz_submul_uint64(r, a, CB);
+            mpz_submul_uint64(r, a, CB);
+            mpz_submul_uint64(r, b, CB);
+            if (mpz_fdiv_ui(a, 3u) == mpz_fdiv_ui(b, 3u)) {
+                mpz_divexact_ui(r, r, 3u);
+            }
+        } else if (mpz_sgn(s) < 0 && -mpz_cmpabs(b, s) < 0) {
+            mpz_mul_uint64(r, b, CA);
+            mpz_submul_uint64(r, a, CB);
+            mpz_submul_uint64(r, b, CB);
+        } else {
+            mpz_mul_uint64(r, a, CA);
+            mpz_neg(r, r);
+            mpz_addmul_uint64(r, b, CA);
+            mpz_submul_uint64(r, a, CB);
+            mpz_submul_uint64(r, b, CB);
+            mpz_submul_uint64(r, b, CB);
+            if (mpz_fdiv_ui(a, 3u) == mpz_fdiv_ui(b, 3u)) {
+                mpz_divexact_ui(r, r, 3u);
+            }
+        }
+        return mpz_sgn(r) * mpz_tdiv_uint64(r, 0xffffffffffffffff);
+    }
+
     void print_action(std::ostream& os) const final
     {
         os << "x -> -(2*x+1)/(x-1)";
@@ -981,6 +1142,12 @@ special_q galois_action::apply(special_q const & q) const
 }
 
 uint64_t galois_action::hash_ab(int64_t a, uint64_t b,
+                                uint64_t CA, uint64_t CB) const
+{
+    return impl->hash_ab(a, b, CA, CB);
+}
+
+uint64_t galois_action::hash_ab(mpz_srcptr a, mpz_srcptr b,
                                 uint64_t CA, uint64_t CB) const
 {
     return impl->hash_ab(a, b, CA, CB);

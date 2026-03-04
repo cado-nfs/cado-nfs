@@ -74,7 +74,8 @@ void bucket_array_t<LEVEL, HINT>::reset_pointers()
 template <int LEVEL, typename HINT>
 void bucket_array_t<LEVEL, HINT>::allocate_memory(
     las_memory_accessor & memory, uint32_t const new_n_bucket,
-    double const fill_ratio, int logI, slice_index_t const prealloc_slices)
+    double const fill_ratio, int MAYBE_UNUSED logI,
+    slice_index_t const prealloc_slices)
 {
     static_assert(LEVEL < FB_MAX_PARTS);
     /* Don't try to allocate anything, nor print a message, for sieving levels
@@ -117,6 +118,12 @@ void bucket_array_t<LEVEL, HINT>::allocate_memory(
     int const ndev = NB_DEVIATIONS_BUCKET_REGIONS;
 
     uint32_t bitmask_line_ordinate = 0;
+#ifdef SIQS_SIEVE
+    bs_even = bs_odd = 4 * Q + ndev * sqrt(4 * Q);
+    bs_even = bucket_misalignment(bs_even, sizeof(update_t));
+    bs_odd = bucket_misalignment(bs_odd, sizeof(update_t));
+    new_big_size = bs_odd * new_n_bucket;
+#else
     if (LOG_BUCKET_REGIONS[LEVEL] <= logI) {
         bitmask_line_ordinate = UINT32_C(1)
                                 << (logI - LOG_BUCKET_REGIONS[LEVEL]);
@@ -133,6 +140,7 @@ void bucket_array_t<LEVEL, HINT>::allocate_memory(
         bs_odd = bucket_misalignment(bs_odd, sizeof(update_t));
         new_big_size = bs_odd * new_n_bucket;
     }
+#endif
 
     /* add 1 megabyte to each bucket array, so as to deal with overflowing
      * buckets */
@@ -238,7 +246,7 @@ double bucket_array_t<LEVEL, HINT>::average_full() const
     size_t a = 0;
     for (unsigned int i = 0; i < n_bucket; ++i)
         a += nb_of_updates(i);
-    return (double)a / (bucket_start[n_bucket] - bucket_start[0]);
+    return double_ratio(a, bucket_start[n_bucket] - bucket_start[0]);
 }
 
 template <int LEVEL, typename HINT>

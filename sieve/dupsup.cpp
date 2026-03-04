@@ -20,6 +20,7 @@
 #include "special-q.hpp"
 #include "params.h"
 #include "relation.hpp"
+#include "sieve-methods.hpp"
 #include "verbose.h"
 #include "utils_cxx.hpp"
 
@@ -128,7 +129,7 @@ main (int argc, char const * argv[])
     param_list_lookup_string(pl, "nq");
     const char * outputname = param_list_lookup_string(pl, "out");
 
-    las_info las(pl);
+    las_info las(pl, NFS{});
 
     las.prepare_sieve_shared_data(pl);
 

@@ -25,9 +25,11 @@
 #endif
 #include <gmp.h>
 
+#include "arithxx/u64arith.h"          // for constepxr u64arith_clz
 #include "barrier.h"                   // for barrier_destroy, barrier_init
 #include "bit_vector.h"
 #include "cado_popen.h"                // for cado_pclose2, cado_popen
+#include "cxx_mpz.hpp"
 #include "filter_io.h"
 #include "gzip.h"                      // prepare_grouped_command_lines
 #include "macros.h"                    // for ASSERT_ALWAYS, ASSERT, UNLIKELY
@@ -248,10 +250,11 @@ struct status_table<ifb_locking_lightweight> {
 
 /* {{{ inflight_rels_buffer: n-level buffer, with underyling locking
  * mechanism specified by the template class.  */
-template<typename locking, int n>
+template<typename locking, int n, filter_io_config config>
 struct inflight_rels_buffer {
     cado_nfs::barrier sync_point;
-    std::unique_ptr<earlyparsed_relation[]> rels;        /* always malloc()-ed to SIZE_BUF_REL,
+    using cfg = config;
+    std::unique_ptr<typename cfg::rel_t[]> rels;        /* always malloc()-ed to SIZE_BUF_REL,
                                            which is a power of two */
     /* invariant:
      * scheduled_0 >= ... >= completed_{n-1} >= scheduled_0 - SIZE_BUF_REL
@@ -272,8 +275,8 @@ struct inflight_rels_buffer {
     inflight_rels_buffer& operator=(inflight_rels_buffer &&) = delete;
 
     void drain();
-    earlyparsed_relation_ptr schedule(int);
-    void complete(int, earlyparsed_relation_srcptr);
+    typename cfg::rel_ptr schedule(int);
+    void complete(int, typename cfg::rel_srcptr);
     
     /* computation threads joining the computation are calling these */
     void enter(int k) {
@@ -316,24 +319,31 @@ struct inflight_rels_buffer {
 /* {{{ instantiations for the locking buffer methods */
 
 /*{{{ ::inflight_rels_buffer() */
-template<typename locking, int n>
-inflight_rels_buffer<locking, n>::inflight_rels_buffer(int nthreads_total)
+template<typename locking, int n, filter_io_config config>
+inflight_rels_buffer<locking, n, config>::inflight_rels_buffer(
+        int nthreads_total)
     : sync_point(nthreads_total)
-    , rels(new earlyparsed_relation[SIZE_BUF_REL])
+    , rels(new typename cfg::rel_t[SIZE_BUF_REL])
 {
     std::fill(completed, completed + n, 0UL);
     std::fill(scheduled, scheduled + n, 0UL);
     std::fill(active, active + n, 0);
     // std::fill(rels.get(), rels.get() + SIZE_BUF_REL, 0);
-    memset(rels.get(), 0, SIZE_BUF_REL * sizeof(earlyparsed_relation));
+    memset(rels.get(), 0, SIZE_BUF_REL * sizeof(typename cfg::rel_t));
+    if constexpr (cfg::ab_init != nullptr) {
+        for (size_t i = 0; i < SIZE_BUF_REL; ++i) {
+            cfg::ab_init(rels[i]->a);
+            cfg::ab_init(rels[i]->b);
+        }
+    }
 }/*}}}*/
 /*{{{ ::drain() */
 /* This belongs to the buffer closing process.  The out condition of this
  * call is that all X(k) for k>0 terminate.  This call (as well as
  * init/clear) must be called on the producer side (step 0) (in a
  * multi-producer context, only one thread is entitled to call this) */
-template<typename locking, int n>
-void inflight_rels_buffer<locking, n>::drain()
+template<typename locking, int n, filter_io_config config>
+void inflight_rels_buffer<locking, n, config>::drain()
 {
     // size_t c = completed[0];
     active[0]--;
@@ -351,13 +361,20 @@ void inflight_rels_buffer<locking, n>::drain()
 /*}}}*/
 /*{{{ ::~inflight_rels_buffer() */
 /* must be called on producer side */
-template<typename locking, int n>
-inflight_rels_buffer<locking, n>::~inflight_rels_buffer()
+template<typename locking, int n, filter_io_config config>
+inflight_rels_buffer<locking, n, config>::~inflight_rels_buffer()
 {
     for(int i = 0 ; i < n ; i++) {
         ASSERT_ALWAYS_NOTHROW(active[i] == 0);
     }
     for(size_t i = 0 ; i < SIZE_BUF_REL ; i++) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Waddress"
+        if constexpr (cfg::ab_clear != nullptr) {
+            cfg::ab_clear(rels[i]->a);
+            cfg::ab_clear(rels[i]->b);
+        }
+#pragma GCC diagnostic pop
         if (rels[i]->primes != rels[i]->primes_data) {
             free(rels[i]->primes);
         }
@@ -382,9 +399,9 @@ inflight_rels_buffer<locking, n>::~inflight_rels_buffer()
  * The relation is free for use by the current (consumer) thread until it
  * calls inflight_rels_buffer_completed. When the producing stream ends,
  * this function returns NULL. */
-template<typename locking, int n>
-earlyparsed_relation_ptr
-inflight_rels_buffer<locking, n>::schedule(int k)
+template<typename locking, int n, filter_io_config config>
+typename config::rel_ptr
+inflight_rels_buffer<locking, n, config>::schedule(int k)
 {
     int const prev = k ? (k-1) : (n-1);
     // coverity[result_independent_of_operands]
@@ -424,7 +441,7 @@ inflight_rels_buffer<locking, n>::schedule(int k)
     // ASSERT(scheduled[k] < a + completed[prev]);
     scheduled[k].increment();
     const size_t slot = s & (SIZE_BUF_REL - 1);
-    earlyparsed_relation_ptr rel = rels[slot];
+    typename cfg::rel_ptr rel = rels[slot];
     status.update_shouldbealreadyok(s, k-1);
     locking::unlock(m + prev);
     return rel;
@@ -432,14 +449,15 @@ inflight_rels_buffer<locking, n>::schedule(int k)
 /*}}}*/
 
 /*{{{ ::complete() (generic)*/
-template<typename locking, int n>
+template<typename locking, int n, filter_io_config config>
 void
-inflight_rels_buffer<locking, n>::complete(int k,
-        earlyparsed_relation_srcptr rel)
+inflight_rels_buffer<locking, n, config>::complete(
+        int k,
+        typename cfg::rel_srcptr rel)
 {
     // coverity[result_independent_of_operands]
     ASSERT(active[k] <= locking::max_supported_concurrent);
-    const int slot = rel - (earlyparsed_relation_srcptr) rels.get();
+    const int slot = rel - (typename cfg::rel_srcptr) rels.get();
 
     locking::lock(m + k);
 
@@ -480,7 +498,8 @@ inflight_rels_buffer<locking, n>::complete(int k,
 /* malloc()'s are avoided as long as there are less than NB_PRIMES_OPT in
  * the relation
  */
-void realloc_buffer_primes(earlyparsed_relation_ptr buf)
+template<filter_io_config cfg>
+void realloc_buffer_primes(typename cfg::rel_ptr buf)
 {
     if (buf->nb_alloc == NB_PRIMES_OPT) {
 	buf->nb_alloc += buf->nb_alloc >> 1;
@@ -505,6 +524,11 @@ void realloc_buffer_primes(earlyparsed_relation_ptr buf)
 #endif
 }
 
+void realloc_buffer_primes_c(earlyparsed_relation_ptr buf)
+{
+    realloc_buffer_primes<filter_io_default_cfg>(buf);
+}
+
 #define PARSER_ASSERT_ALWAYS(got, expect, sline, ptr) do {		\
     if (UNLIKELY((got)!=(expect))) {					\
         fprintf(stderr, "Parse error in %s at %s:%d\n"			\
@@ -523,8 +547,14 @@ void realloc_buffer_primes(earlyparsed_relation_ptr buf)
  * "normal" processing of a,b, i.e. everywhere except for the very first
  * stage of dup2, involves reading a,b in hex.
  */
-static inline int earlyparser_inner_read_ab_withbase(ringbuf_ptr r, const char ** pp, earlyparsed_relation_ptr rel, const uint64_t base)
+template<uint64_t base>
+static inline int
+earlyparser_inner_read_ab(
+        ringbuf_ptr r,
+        const char ** pp,
+        earlyparsed_relation_ptr rel)
 {
+    static_assert(1u <= base && base <= 16u, "base should be in [1, 16]");
     const char * p = *pp;
     int c;
     uint64_t v,w;
@@ -552,14 +582,50 @@ static inline int earlyparser_inner_read_ab_withbase(ringbuf_ptr r, const char *
     rel->b = w;
     return c;
 }
-static int earlyparser_inner_read_ab_decimal(ringbuf_ptr r, const char ** pp, earlyparsed_relation_ptr rel)
-{
-    return earlyparser_inner_read_ab_withbase(r, pp, rel, 10);
-}
 
-static int earlyparser_inner_read_ab_hexa(ringbuf_ptr r, const char ** pp, earlyparsed_relation_ptr rel)
+template<uint64_t base>
+static inline int
+earlyparser_inner_read_ab(
+        ringbuf_ptr r,
+        const char ** pp,
+        earlyparsed_relation_mpz_ptr rel)
 {
-    return earlyparser_inner_read_ab_withbase(r, pp, rel, 16);
+    static_assert(1u <= base && base <= 16u, "base should be in [1, 16]");
+    const char * p = *pp;
+    int c;
+    unsigned long v;
+    RINGBUF_GET_ONE_BYTE(c, r, p);
+    int negative = 0;
+    if (c == '-') {
+        negative = 1;
+        RINGBUF_GET_ONE_BYTE(c, r, p);
+    }
+    mpz_set_ui(rel->a, 0);
+    for (; (v = ugly[c]) < base;) {
+        if constexpr ((base & (base - 1)) == 0) {
+            mpz_mul_2exp(rel->a, rel->a, u64arith_ctz(base));
+        } else {
+            mpz_mul_ui(rel->a, rel->a, base);
+        }
+        mpz_add_ui(rel->a, rel->a, v);
+        RINGBUF_GET_ONE_BYTE(c, r, p);
+    }
+    PARSER_ASSERT_ALWAYS(c, ',', *pp, p);
+    if (negative)
+        mpz_neg(rel->a, rel->a);
+    RINGBUF_GET_ONE_BYTE(c, r, p);
+    mpz_set_ui(rel->b, 0);
+    for (; (v = ugly[c]) < base;) {
+        if constexpr ((base & (base - 1)) == 0) {
+            mpz_mul_2exp(rel->b, rel->b, u64arith_ctz(base));
+        } else {
+            mpz_mul_ui(rel->b, rel->b, base);
+        }
+        mpz_add_ui(rel->b, rel->b, v);
+        RINGBUF_GET_ONE_BYTE(c, r, p);
+    }
+    *pp = p;
+    return c;
 }
 
 static int earlyparser_inner_read_prime(ringbuf_ptr r, const char ** pp, uint64_t * pr)
@@ -609,8 +675,9 @@ static int earlyparser_inner_skip_ab(ringbuf_ptr r, const char ** pp)
     return c;
 }
 
+template<filter_io_config cfg>
 static int
-earlyparser_inner_read_active_sides(ringbuf_ptr r, const char ** pp, earlyparsed_relation_ptr rel)
+earlyparser_inner_read_active_sides(ringbuf_ptr r, const char ** pp, typename cfg::rel_ptr rel)
 {
     const char * p = *pp;
     if (*p == '@') {
@@ -677,16 +744,6 @@ struct prime_t_cmp_indices{
  *    is going to end up in the renumber table. We use the .side field in the
  *    prime_t structure to pass information to the routine which does this.
  */
-static inline int earlyparser_abp_withbase(earlyparsed_relation_ptr rel, ringbuf_ptr r, uint64_t base);
-static int earlyparser_abp_decimal(earlyparsed_relation_ptr rel, ringbuf_ptr r)
-{
-    return earlyparser_abp_withbase(rel, r, 10);
-}
-static int earlyparser_abp_hexa(earlyparsed_relation_ptr rel, ringbuf_ptr r)
-{
-    return earlyparser_abp_withbase(rel, r, 16);
-}
-
 static
 unsigned int sort_and_compress_rel_primes(prime_t * primes, unsigned int n)
 {
@@ -731,13 +788,14 @@ unsigned int sort_and_compress_rel_indices(prime_t * primes, unsigned int n)
     return j;
 }
 
-static inline int earlyparser_abp_withbase(earlyparsed_relation_ptr rel, ringbuf_ptr r, uint64_t base)
+template<filter_io_config cfg, uint64_t base>
+static inline int earlyparser_abp(typename cfg::rel_ptr rel, ringbuf_ptr r)
 {
     const char * p = r->rhead;
 
-    int c = earlyparser_inner_read_ab_withbase(r, &p, rel, base);
+    int c = earlyparser_inner_read_ab<base>(r, &p, rel);
 
-    earlyparser_inner_read_active_sides(r, &p, rel);
+    earlyparser_inner_read_active_sides<cfg>(r, &p, rel);
 
     unsigned int n = 0;
 
@@ -762,7 +820,7 @@ static inline int earlyparser_abp_withbase(earlyparsed_relation_ptr rel, ringbuf
         if (n && pr == rel->primes[n-1].p) {
             rel->primes[n-1].e++;
         } else {
-            if (rel->nb_alloc == n) realloc_buffer_primes(rel);
+            if (rel->nb_alloc == n) realloc_buffer_primes<cfg>(rel);
             // rel->primes[n++] = (prime_t) { .h = (index_t) side,.p = (p_r_values_t) pr,.e = 1};
             rel->primes[n].side = side;
             rel->primes[n].p = (p_r_values_t) pr;
@@ -779,19 +837,20 @@ static inline int earlyparser_abp_withbase(earlyparsed_relation_ptr rel, ringbuf
 }
 
 
-
+template<filter_io_config cfg, uint64_t base>
 static int
-earlyparser_ab(earlyparsed_relation_ptr rel, ringbuf_ptr r)
+earlyparser_ab(typename cfg::rel_ptr rel, ringbuf_ptr r)
 {
     const char * p = r->rhead;
-    earlyparser_inner_read_ab_hexa(r, &p, rel);
-    earlyparser_inner_read_active_sides(r, &p, rel);
+    earlyparser_inner_read_ab<base>(r, &p, rel);
+    earlyparser_inner_read_active_sides<cfg>(r, &p, rel);
 
     return 1;
 }
 
+template<filter_io_config cfg>
 static int
-earlyparser_line(earlyparsed_relation_ptr rel, ringbuf_ptr r)
+earlyparser_line(typename cfg::rel_ptr rel, ringbuf_ptr r)
 {
     const char *p = r->rhead;
 
@@ -833,37 +892,33 @@ earlyparser_line(earlyparsed_relation_ptr rel, ringbuf_ptr r)
     return 1;
 }
 
-/* e.g. for dup1 for FFS with -abhexa command-line flag */
-static int
-earlyparser_abline_hexa(earlyparsed_relation_ptr rel, ringbuf_ptr r)
-{
-    const char * p = r->rhead;
-    earlyparser_inner_read_ab_hexa(r, &p, rel);
-    return earlyparser_line(rel, r);
-}
-
 /* e.g. for dup1 */
+template<filter_io_config cfg, uint64_t base>
 static int
-earlyparser_abline_decimal(earlyparsed_relation_ptr rel, ringbuf_ptr r)
+earlyparser_abline(typename cfg::rel_ptr rel, ringbuf_ptr r)
 {
     const char * p = r->rhead;
-    earlyparser_inner_read_ab_decimal(r, &p, rel);
-    return earlyparser_line(rel, r);
+    earlyparser_inner_read_ab<base>(r, &p, rel);
+    return earlyparser_line<cfg>(rel, r);
 }
-
 
 /* Note: for these routine, the sorting of the primes is not considered, and at
  * least for the 1st pass of purge, so far we've been using this code on
  * unsorted relations.
  */
+template<filter_io_config cfg>
 static int
-earlyparser_index_maybeabhexa(earlyparsed_relation_ptr rel, ringbuf_ptr r,
-        int parseab, int parsesm, int sort)
+earlyparser_index_maybeabhexa(
+        typename cfg::rel_ptr rel,
+        ringbuf_ptr r,
+        int parseab,
+        int parsesm,
+        int sort)
 {
     const char *p = r->rhead;
 
     if (parseab) {
-        earlyparser_inner_read_ab_hexa(r, &p, rel);
+        earlyparser_inner_read_ab<16u>(r, &p, rel);
     } else {
         earlyparser_inner_skip_ab(r, &p);
     }
@@ -891,7 +946,7 @@ earlyparser_index_maybeabhexa(earlyparsed_relation_ptr rel, ringbuf_ptr r,
         if (n && pr == rel->primes[n-1].h) {
             rel->primes[n-1].e += sgn;
         } else {
-            if (rel->nb_alloc == n) realloc_buffer_primes(rel);
+            if (rel->nb_alloc == n) realloc_buffer_primes<cfg>(rel);
             rel->primes[n].h = (index_t) pr;
             rel->primes[n].p = 0;
             rel->primes[n].e = sgn;
@@ -916,38 +971,43 @@ earlyparser_index_maybeabhexa(earlyparsed_relation_ptr rel, ringbuf_ptr r,
     return 1;
 }
 
+template<filter_io_config cfg>
 static int
-earlyparser_index(earlyparsed_relation_ptr rel, ringbuf_ptr r)
+earlyparser_index(typename cfg::rel_ptr rel, ringbuf_ptr r)
 {
-    return earlyparser_index_maybeabhexa(rel, r, 0, 0, 0);
+    return earlyparser_index_maybeabhexa<cfg>(rel, r, 0, 0, 0);
 }
 
 /* merge wants sorted indices */
+template<filter_io_config cfg>
 static int
-earlyparser_index_sorted(earlyparsed_relation_ptr rel, ringbuf_ptr r)
+earlyparser_index_sorted(typename cfg::rel_ptr rel, ringbuf_ptr r)
 {
-    return earlyparser_index_maybeabhexa(rel, r, 0, 0, 1);
+    return earlyparser_index_maybeabhexa<cfg>(rel, r, 0, 0, 1);
 }
 
+template<filter_io_config cfg>
 static int
-earlyparser_indexline(earlyparsed_relation_ptr rel, ringbuf_ptr r)
+earlyparser_indexline(typename cfg::rel_ptr rel, ringbuf_ptr r)
 {
     const char * p = r->rhead;
-    earlyparser_index_maybeabhexa(rel, r, 0, 0, 0);
+    earlyparser_index_maybeabhexa<cfg>(rel, r, 0, 0, 0);
     r->rhead = p; // rewind ringbuf
-    return earlyparser_line(rel, r);
+    return earlyparser_line<cfg>(rel, r);
 }
 
+template<filter_io_config cfg>
 static int
-earlyparser_abindex_hexa (earlyparsed_relation_ptr rel, ringbuf_ptr r)
+earlyparser_abindex_hexa(typename cfg::rel_ptr rel, ringbuf_ptr r)
 {
-    return earlyparser_index_maybeabhexa(rel, r, 1, 0, 0);
+    return earlyparser_index_maybeabhexa<cfg>(rel, r, 1, 0, 0);
 }
 
+template<filter_io_config cfg>
 static int
-earlyparser_abindex_hexa_sm (earlyparsed_relation_ptr rel, ringbuf_ptr r)
+earlyparser_abindex_hexa_sm(typename cfg::rel_ptr rel, ringbuf_ptr r)
 {
-    return earlyparser_index_maybeabhexa(rel, r, 1, 1, 0);
+    return earlyparser_index_maybeabhexa<cfg>(rel, r, 1, 1, 0);
 }
 
 
@@ -1011,14 +1071,14 @@ static void * filter_rels_producer_thread(
 /*{{{ filter_rels consumer thread */
 template<typename inflight_t>
 static void filter_rels_consumer_thread(
-    void *(*callback_fct) (void *, earlyparsed_relation_ptr),
+    void *(*callback_fct) (void *, typename inflight_t::cfg::rel_ptr),
     void * callback_arg,
     int k,
     inflight_t * inflight,
     timingstats_dict_ptr stats)
 {
     inflight->enter(k);
-    earlyparsed_relation_ptr slot;
+    typename inflight_t::cfg::rel_ptr slot;
     for( ; (slot = inflight->schedule(k)) != nullptr ; ) {
         (*callback_fct)(callback_arg, slot);
         inflight->complete(k, slot);
@@ -1056,12 +1116,14 @@ static void filter_rels_consumer_thread(
 /* see non-templated filter_rels2 below to see how this template is
  * instantiated */
 template<typename inflight_t>
-static uint64_t filter_rels2_inner(std::vector<std::string> const & input_files,
-        filter_rels_description * desc,
+static uint64_t filter_rels2_inner(
+        std::vector<std::string> const & input_files,
+        typename inflight_t::cfg::description_t * desc,
         int earlyparse_needed_data,
         bit_vector_srcptr active,
         timingstats_dict_ptr stats)
 {
+    using cfg = inflight_t::cfg;
     stats_data_t infostats;  /* for displaying progress */
     uint64_t nrels = 0, nactive = 0;
     size_t nB = 0;
@@ -1078,56 +1140,52 @@ static uint64_t filter_rels2_inner(std::vector<std::string> const & input_files,
 
     /* {{{ configure the (limited) parsing we will do on the relations
      * read from the files. */
-    int (*earlyparser)(earlyparsed_relation_ptr rel, ringbuf_ptr r);
+    int (*earlyparser)(typename cfg::rel_ptr rel, ringbuf_ptr r);
 #define _(X) EARLYPARSE_NEED_ ## X      /* convenience */
     switch(earlyparse_needed_data) {
         case _(AB_DECIMAL)|_(LINE):
             /* e.g. for dup1 */
-            earlyparser = earlyparser_abline_decimal;
+            earlyparser = earlyparser_abline<cfg, 10u>;
             break;
         case _(AB_HEXA)|_(LINE):
             /* e.g. for dup1 -- ffs reaches here via a command-line flag
              * -abhexa. */
-            earlyparser = earlyparser_abline_hexa;
+            earlyparser = earlyparser_abline<cfg, 16u>;
             break;
         case _(AB_HEXA):
             /* e.g. for dup2 (for renumbered files) */
-            earlyparser = earlyparser_ab;       /* in hex ! */
+            earlyparser = earlyparser_ab<cfg, 16u>;
             break;
-        
-        /* dup2/pass2 decides between the two settings here by
-         * differenciation of the binaries (dup2-ffs versus dup2)
-         */
         case _(AB_DECIMAL)|_(PRIMES):
             /* dup2/pass2 */
-            earlyparser = earlyparser_abp_decimal;
+            earlyparser = earlyparser_abp<cfg, 10u>;
             break;
         case _(AB_HEXA)|_(PRIMES):
             /* dup2/pass2 */
-            earlyparser = earlyparser_abp_hexa;
+            earlyparser = earlyparser_abp<cfg, 16u>;
             break;
 
         case _(INDEX)|_(SORTED):
-            earlyparser = earlyparser_index_sorted;
+            earlyparser = earlyparser_index_sorted<cfg>;
             break;
         case _(INDEX):
             /* all binaries after dup2 which do not need a,b*/
-            earlyparser = earlyparser_index;
+            earlyparser = earlyparser_index<cfg>;
             break;
         case _(INDEX) | _(AB_HEXA):
             /* e.g. reconstructlog */
-            earlyparser = earlyparser_abindex_hexa;
+            earlyparser = earlyparser_abindex_hexa<cfg>;
             break;
         case _(INDEX) | _(AB_HEXA) | _(SM):
             /* e.g. reconstructlog */
-            earlyparser = earlyparser_abindex_hexa_sm;
+            earlyparser = earlyparser_abindex_hexa_sm<cfg>;
             break;
         case _(LINE):
             /* e.g. for purge/2 */
-            earlyparser = earlyparser_line;
+            earlyparser = earlyparser_line<cfg>;
             break;
         case _(LINE) | _(INDEX):
-            earlyparser = earlyparser_indexline;
+            earlyparser = earlyparser_indexline<cfg>;
             break;
         default:
             fprintf(stderr, "Unexpected bitmask in %s, please fix\n", __func__);
@@ -1225,7 +1283,7 @@ static uint64_t filter_rels2_inner(std::vector<std::string> const & input_files,
             if (*rb->rhead != '#') {
                 uint64_t const relnum = nrels++;
                 if (!active || bit_vector_getbit(active, relnum)) {
-                    earlyparsed_relation_ptr slot = inflight->schedule(0);
+                    typename inflight_t::cfg::rel_ptr slot = inflight->schedule(0);
                     slot->num = relnum;
                     (*earlyparser)(slot, rb);
                     inflight->complete(0, slot);
@@ -1280,13 +1338,13 @@ uint64_t filter_rels2(char const ** input_files,
     for(char const ** x = input_files ; *x ; x++) {
         stl_input_files.emplace_back(*x);
     }
-    return filter_rels2(stl_input_files, desc, earlyparse_needed_data, active, stats);
+    return filter_rels2<filter_io_default_cfg>(stl_input_files, desc, earlyparse_needed_data, active, stats);
 }
 
 
-
+template<filter_io_config cfg>
 uint64_t filter_rels2(std::vector<std::string> const & input_files,
-        filter_rels_description * desc,
+        typename cfg::description_t * desc,
         int earlyparse_needed_data,
         bit_vector_srcptr active,
         timingstats_dict_ptr stats)
@@ -1313,13 +1371,13 @@ uint64_t filter_rels2(std::vector<std::string> const & input_files,
     /* Currently we only have had use for n==2 or n==3 */
 
     if (n == 2 && !multi && !filter_rels_force_posix_threads) {
-        using inflight_t = inflight_rels_buffer<ifb_locking_lightweight, 2>;
+        using inflight_t = inflight_rels_buffer<ifb_locking_lightweight, 2, cfg>;
         return filter_rels2_inner<inflight_t>(input_files, desc, earlyparse_needed_data, active, stats);
     } else if (n == 2) {
-        using inflight_t = inflight_rels_buffer<ifb_locking_posix, 2>;
+        using inflight_t = inflight_rels_buffer<ifb_locking_posix, 2, cfg>;
         return filter_rels2_inner<inflight_t>(input_files, desc, earlyparse_needed_data, active, stats);
     } else if (n == 3) {
-        using inflight_t = inflight_rels_buffer<ifb_locking_posix, 3>;
+        using inflight_t = inflight_rels_buffer<ifb_locking_posix, 3, cfg>;
         return filter_rels2_inner<inflight_t>(input_files, desc, earlyparse_needed_data, active, stats);
     } else {
         fprintf(stderr, "filter_rels2 is not explicitly configured (yet) to support deeper pipes\n");
@@ -1341,5 +1399,23 @@ uint64_t filter_rels(char const ** input_files,
     for(char const ** x = input_files ; *x ; x++) {
         stl_input_files.emplace_back(*x);
     }
-    return filter_rels2(stl_input_files, desc, earlyparse_needed_data, active, stats);
+    return filter_rels2<filter_io_default_cfg>(stl_input_files, desc, earlyparse_needed_data, active, stats);
+}
+
+uint64_t filter_rels_mpz(
+        char const ** input_files,
+        filter_rels_mpz_callback_t f,
+        void * arg,
+        int earlyparse_needed_data,
+        bit_vector_srcptr active,
+        timingstats_dict_ptr stats)
+{
+    struct filter_rels_mpz_description desc[2] = {
+        { f, arg, 1, }, { nullptr, nullptr, 0, },
+    };
+    std::vector<std::string> stl_input_files;
+    for(char const ** x = input_files ; *x ; x++) {
+        stl_input_files.emplace_back(*x);
+    }
+    return filter_rels2<filter_io_large_ab_cfg>(stl_input_files, desc, earlyparse_needed_data, active, stats);
 }

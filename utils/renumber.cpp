@@ -194,6 +194,14 @@ static renumber_t::corrupted_table cannot_lookup_p_a_b_in_bad_ideals(renumber_t:
             a, b, x.p, x.side);
     return renumber_t::corrupted_table(msg);
 }/*}}}*/
+static renumber_t::corrupted_table cannot_lookup_p_a_b_in_bad_ideals(renumber_t::p_r_side x, mpz_srcptr a, mpz_srcptr b)/*{{{*/
+{
+    auto msg = fmt::format(
+            "failed bad ideal lookup for (a,b)=({},{})"
+            " at p=0x{:x} on side {}",
+            cxx_mpz(a), cxx_mpz(b), x.p, x.side);
+    return renumber_t::corrupted_table(msg);
+}/*}}}*/
 static renumber_t::corrupted_table parse_error(std::string const & what)/*{{{*/
 {
     return renumber_t::corrupted_table(fmt::format("parse error ({})", what));
@@ -548,6 +556,42 @@ std::pair<index_t, std::vector<int>> renumber_t::indices_from_p_a_b(p_r_side x, 
             break;
         }
         first += I.second.nbad;
+    }
+    throw cannot_lookup_p_a_b_in_bad_ideals(x, a, b);
+}
+
+/* Use the fact that this interface is for bad ideals only and that bad ideals
+ * are small.
+ * Reduce a and b module p^m where m is maximal power of p appearing in the
+ * branches.
+ */
+std::pair<index_t, std::vector<int>> renumber_t::indices_from_p_a_b(
+            p_r_side x,
+            int e,
+            mpz_srcptr a,
+            mpz_srcptr b) const
+{
+    /* bad ideals start after the additional columns in the table. */
+    int m = 1;
+    p_r_values_t pm = x.p;
+    ASSERT_ALWAYS(pm);
+
+    for (auto const & I : bad_ideals) {
+        if (x == I.first) {
+            for(auto J : I.second.branches) {
+                for( ; m < J.k; ++m) {
+                    p_r_values_t const pm1 = pm * x.p;
+                    /* we want to be sure that we don't wrap around ! */
+                    ASSERT_ALWAYS(pm1 > pm);
+                    pm = pm1;
+                }
+            }
+            int64_t sa = (int64_t) mpz_tdiv_uint64(a, pm);
+            if (mpz_sgn(a) < 0) {
+                sa = -sa;
+            }
+            return indices_from_p_a_b(x, e, sa, mpz_tdiv_uint64(b, pm));
+        }
     }
     throw cannot_lookup_p_a_b_in_bad_ideals(x, a, b);
 }

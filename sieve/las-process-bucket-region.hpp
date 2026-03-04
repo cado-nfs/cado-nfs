@@ -6,13 +6,20 @@
 #include "las-where-am-i-proxy.hpp"
 #include "las-auxiliary-data.hpp"
 
+#include "sieve-methods.hpp"
+
+/* Ideally this #ifdef should only be in las.ccp and not here */
+#ifdef SIQS_SIEVE
+    using ALGO = SIQS;
+#else
+    using ALGO = NFS;
+#endif
+
 class nfs_work;
 class nfs_work_cofac;
 class thread_pool;
 class worker_thread;
 
-
-/* process_many_bucket_regions is found in las.cpp, currently */
 
 /* {{{ process_one_bucket_region */
 
@@ -20,6 +27,7 @@ struct process_bucket_region_spawn {
     nfs_work & ws;
     std::shared_ptr<nfs_work_cofac> wc_p;
     std::shared_ptr<nfs_aux> aux_p;
+    ALGO::special_q_data const & Q;
 
     where_am_I w_saved;
     
@@ -46,10 +54,12 @@ struct process_bucket_region_spawn {
             nfs_work & ws,
             std::shared_ptr<nfs_work_cofac> wc_p,
             std::shared_ptr<nfs_aux> aux_p,
+            ALGO::special_q_data const & Q,
             where_am_I const & w)
     : ws(ws)
     , wc_p(std::move(wc_p))
     , aux_p(std::move(aux_p))
+    , Q(Q)
     , w_saved(w)
     {}
 
@@ -58,6 +68,13 @@ struct process_bucket_region_spawn {
 
 /*}}}*/
 
-extern void process_many_bucket_regions(nfs_work & ws, std::shared_ptr<nfs_work_cofac> wc_p, std::shared_ptr<nfs_aux> aux_p, thread_pool & pool, int first_region0_index, where_am_I & w);
+void process_many_bucket_regions(
+        nfs_work & ws,
+        std::shared_ptr<nfs_work_cofac> wc_p,
+        std::shared_ptr<nfs_aux> aux_p,
+        ALGO::special_q_data const & Q,
+        thread_pool & pool,
+        int first_region0_index,
+        where_am_I & w);
 
 #endif	/* CADO_LAS_PROCESS_BUCKET_REGION_HPP */

@@ -385,8 +385,7 @@ las_small_sieve_data::small_sieve_init(
                         }
                         ASSERT(offset == (r_q << v) % p);
                         offsets.push_back(offset);
-                    }
-                    if (logI > LOG_BUCKET_REGION) {
+                    } else if (logI > LOG_BUCKET_REGION) {
                         /* The "right" offset is needed only in this case.
                          *
                          * It is such that (B+c, 0) is in L_p.

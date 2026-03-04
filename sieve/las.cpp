@@ -81,11 +81,18 @@
 #include "params.h"
 #include "relation.hpp"
 #include "special-q.hpp"
+#include "sieve-methods.hpp"
 #include "tdict.hpp"
 #include "threadpool.hpp"
 #include "timing.h"
 #include "utils_cxx.hpp"
 #include "verbose.h"
+
+#ifdef SIQS_SIEVE
+    using ALGO = SIQS;
+#else
+    using ALGO = NFS;
+#endif
 
 /*************************** main program ************************************/
 
@@ -128,7 +135,7 @@ static void declare_usage(cxx_param_list & pl)/*{{{*/
 
     las_info::declare_usage(pl);
     las_parallel_desc::declare_usage(pl);
-    las_todo_list::declare_usage(pl);
+    ALGO::todo_list::declare_usage(pl);
     las_output::declare_usage(pl);
     tdict::declare_usage(pl);
 
@@ -140,7 +147,7 @@ static void declare_usage(cxx_param_list & pl)/*{{{*/
     param_list_decl_usage(pl, "log-bucket-region", "set bucket region to 2^x");
     param_list_decl_usage(pl, "log-bucket-region-step", "set the number of level-(n-1) buckets inside a level-n bucket to 2^x");
 
-    siever_config::declare_usage(pl);
+    siever_config::declare_usage<ALGO>(pl);
 
     param_list_decl_usage(pl, "exit-early", "once a relation has been found, go to next special-q (value==1), or exit (value==2)");
     param_list_decl_usage(pl, "file-cofact", "provide file with strategies for the cofactorization step");
@@ -678,6 +685,12 @@ static void check_whether_q_above_large_prime_bound(siever_config const & conf, 
 
 static void check_whether_special_q_is_root(cado_poly_srcptr cpoly, special_q const & doing)/*{{{*/
 {
+    if constexpr (std::is_same_v<ALGO, SIQS>) {
+        /* For SIQS, this is a no-op: no check is performed as the r attribute
+         * of the special_q does not contains anything meaningful.
+         */
+        return;
+    }
     cxx_mpz const & p(doing.p);
     cxx_mpz const & r(doing.r);
     ASSERT_ALWAYS(mpz_poly_is_root(cpoly->pols[doing.side], r, p));
@@ -695,7 +708,7 @@ static void per_special_q_banner(special_q const & doing)
  * downsort, apply-buckets, lognorm computation, small sieve computation,
  * and survivor search and detection, all from here.
  */
-static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofac> const & wc_p, std::shared_ptr<nfs_aux> const & aux_p, thread_pool & pool)/*{{{*/
+static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofac> const & wc_p, std::shared_ptr<nfs_aux> const & aux_p, ALGO::special_q_data const & Q, thread_pool & pool)/*{{{*/
 {
     int const nsides = ws.sides.size();
 
@@ -713,7 +726,7 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
         verbose_output_end_batch();
     }
 
-    where_am_I::begin_special_q(ws);
+    where_am_I::begin_special_q(ws, Q);
 
     /* TODO: is there a way to share this in sublat mode ? */
 
@@ -731,9 +744,9 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
             nfs_work::side_data  const& wss(ws.sides[side]);
             if (wss.no_fb()) continue;
 
-            fill_in_buckets_toplevel_multiplex(ws, aux, pool, side, w);
+            fill_in_buckets_toplevel_multiplex(ws, aux, Q, pool, side, w);
 
-            fill_in_buckets_prepare_plattices(ws, pool, side, precomp_plattices[side]);
+            fill_in_buckets_prepare_plattices(ws, Q, pool, side, precomp_plattices[side]);
 
         }
 
@@ -746,7 +759,7 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
         for(int side = 0 ; side < nsides ; side++) {
             nfs_work::side_data  const& wss(ws.sides[side]);
             if (wss.no_fb()) continue;
-            pool.add_task_lambda([&ws,aux_p,side](worker_thread * worker,int){
+            pool.add_task_lambda([&ws,aux_p,&Q,side](worker_thread * worker,int){
                     timetree_t & timer(aux_p->get_timer(worker));
                     ENTER_THREAD_TIMER(timer);
                     MARK_TIMER_FOR_SIDE(timer, side);
@@ -762,7 +775,7 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
                             ws.conf.logI,
                             side,
                             wss.fbK,
-                            ws.Q,
+                            Q,
                             wss.lognorms.scale);
 
                     wss.ssd->small_sieve_info("small sieve", side);
@@ -775,7 +788,7 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
                         wss.ssd->small_sieve_prepare_many_start_positions(
                                 0,
                                 std::min(SMALL_SIEVE_START_POSITIONS_MAX_ADVANCE, ws.nb_buckets[1]),
-                                ws.conf.logI, ws.Q.sublat);
+                                ws.conf.logI, Q.sublat);
                         wss.ssd->small_sieve_activate_many_start_positions();
                     }
             },0);
@@ -797,7 +810,7 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
         TIMER_CATEGORY(timer_special_q, sieving_mixed());
         if (ws.toplevel == 1) {
             /* Process bucket regions in parallel */
-            process_many_bucket_regions(ws, wc_p, aux_p, pool, 0, w);
+            process_many_bucket_regions(ws, wc_p, aux_p, Q, pool, 0, w);
         } else {
             // Prepare plattices at internal levels
 
@@ -816,7 +829,7 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
                 switch (ws.toplevel) {
 #if MAX_TOPLEVEL >= 2
                     case 2:
-                        downsort_tree<1>(ws, wc_p, aux_p, pool,
+                        downsort_tree<1>(ws, wc_p, aux_p, Q, pool,
                                 i, i*BRS[2]/BRS[1],
                                 precomp_plattices, w);
                         break;
@@ -824,7 +837,7 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
 
 #if MAX_TOPLEVEL >= 3
                     case 3:
-                        downsort_tree<2>(ws, wc_p, aux_p, pool, i,
+                        downsort_tree<2>(ws, wc_p, aux_p, Q, pool, i,
                                 i*BRS[3]/BRS[1],
                                 precomp_plattices, w);
                         break;
@@ -868,25 +881,26 @@ do_one_special_q(
     TIMER_CATEGORY(timer_special_q, bookkeeping());
 
     /* By choosing the sieve area, we trigger the setup of most of the
-     * per-special-q fields: In particular, this sets ws.conf, ws.Q, and
+     * per-special-q fields: In particular, this sets ws.conf, Q, and
      * ws.J.
      *
      */
-    if (!choose_sieve_area(las, aux_p, aux.doing, ws.conf, ws.Q, ws.J))
+    ALGO::special_q_data Q;
+    if (!choose_sieve_area(las, aux_p, aux.doing, ws.conf, Q, ws.J))
         return false;
+    ws.doing = Q.doing;
 
     check_whether_q_above_large_prime_bound(ws.conf, aux.doing);
 
     BOOKKEEPING_TIMER(timer_special_q);
 
-    ws.prepare_for_new_q(las, &aux.doing);
+    ws.prepare_for_new_q<ALGO>(las, &aux.doing, Q);
 
     /* the where_am_I structure is store in nfs_aux. We have a few
      * adjustments to make, and we want to make sure that the threads,
      * which also have their where_am_I object in nfs_aux, have it too.
      */
     WHERE_AM_I_UPDATE(aux.w, logI, ws.conf.logI);
-    WHERE_AM_I_UPDATE(aux.w, pQ, &ws.Q);
     WHERE_AM_I_UPDATE(aux.w, sides, decltype(aux.w->sides){ws.sides.size()});
     for (size_t i = 0; i < ws.sides.size(); ++i) {
         WHERE_AM_I_UPDATE(aux.w, sides[i].fbs, ws.sides[i].fbs);
@@ -915,32 +929,33 @@ do_one_special_q(
          * sq_finds_relation() */
         verbose_fmt_print(0, 2,
                 "# Sieving {}; I={}; J={};{}\n",
-                ws.Q,
+                Q,
                 1U << ws.conf.logI, ws.J, extra);
 
-        if (!las.allow_composite_q() && !ws.Q.doing.is_prime()) {
+        if (!las.tree->todo->allow_composite_special_q()
+                && !Q.doing.is_prime()){
             verbose_fmt_print(0, 1,
                     "# Warning, q={} is not prime\n",
-                    ws.Q.doing.p);
+                    Q.doing.p);
         }
     }
 
-    unsigned int sublat_bound = ws.Q.sublat.m;
+    unsigned int sublat_bound = Q.sublat.m;
     if (sublat_bound == 0)
         sublat_bound = 1;
 
     for (unsigned int i_cong = 0; i_cong < sublat_bound; ++i_cong) {
         for (unsigned int j_cong = 0; j_cong < sublat_bound; ++j_cong) {
-            if (ws.Q.sublat.m) {
+            if (Q.sublat.m) {
                 if (i_cong == 0 && j_cong == 0)
                     continue;
-                ws.Q.sublat.i0 = i_cong;
-                ws.Q.sublat.j0 = j_cong;
+                Q.sublat.i0 = i_cong;
+                Q.sublat.j0 = j_cong;
                 verbose_fmt_print(0, 1,
                         "# Sublattice (i,j) == ({}, {}) mod {}\n",
-                        ws.Q.sublat.i0, ws.Q.sublat.j0, ws.Q.sublat.m);
+                        Q.sublat.i0, Q.sublat.j0, Q.sublat.m);
             }
-            do_one_special_q_sublat(ws, wc_p, aux_p, pool);
+            do_one_special_q_sublat(ws, wc_p, aux_p, Q, pool);
         }
     }
 
@@ -1061,7 +1076,7 @@ static void transfer_local_cofac_candidates_to_global(las_info & las, nfs_work &
     if (ws.cofac_candidates.empty())
         return;
 
-    las.survivors.append(ws.Q.doing, std::move(ws.cofac_candidates));
+    las.survivors.append(ws.doing, std::move(ws.cofac_candidates));
 
     if (!las.batch_print_survivors.filename)
         return;
@@ -1093,7 +1108,7 @@ static void las_subjob(las_info & las, int subjob, report_and_timer & global_rt)
          * multithreaded nevertheless: alloc buckets, ...
          */
         thread_pool pool(las.number_of_threads_per_subjob(), cumulated_wait_time, 3, sync_thread_pool);
-        nfs_work ws(las);
+        nfs_work ws(las, ALGO{});
 
         /* {{{ Doc on todo list handling
          * The function las_todo_feed behaves in different
@@ -1360,7 +1375,7 @@ static void quick_subjob_loop_using_cache(las_info & las)/*{{{*/
         nq++;
 
         siever_config conf;
-        qlattice_basis Q;
+        ALGO::special_q_data Q;
         uint32_t J;
 
         check_whether_special_q_is_root(las.cpoly, doing);
@@ -1460,7 +1475,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
         tdict::global_enable = 0;
     }
 
-    las_info las(pl);    /* side effects: prints cmdline and flags */
+    las_info las(pl, ALGO{});    /* side effects: prints cmdline and flags */
 #ifdef SAFE_BUCKET_ARRAYS
       verbose_fmt_print(0, 0, "# WARNING: SAFE_BUCKET_ARRAYS is on !\n");
 #endif
@@ -1477,13 +1492,13 @@ int main (int argc0, char const * argv0[])/*{{{*/
 
     base_memory = Memusage() << 10U;
 
-    if (las.tree->todo.print_todo_list_flag) {
+    if (las.tree->todo->should_todo_list_be_printed()) {
         /* printing the todo list takes only a very small amount of ram.
          * In all likelihood, nsubjobs will be total number of cores (or
          * the number of threads that were requested on command line)
          */
         las.set_parallel(pl, double_ratio(base_memory, 1U << 30U));
-        las.tree->todo.print_todo_list(pl, las.number_of_threads_total());
+        las.tree->todo->print_todo_list(pl, las.number_of_threads_total());
         return EXIT_SUCCESS;
 
     }
@@ -1751,7 +1766,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
                 las.get_bk_multiplier().print_all());
     }
     verbose_fmt_print (2, 1, "# Discarded {} special-q's out of {} pushed\n",
-            global_rt.rep.nr_sq_discarded, las.tree->todo.created);
+            global_rt.rep.nr_sq_discarded, las.tree->todo->ncreated());
 
     auto D = global_rt.timer.filter_by_category();
     timetree_t::timer_data_type const tcpu = global_rt.timer.total_counted_time();

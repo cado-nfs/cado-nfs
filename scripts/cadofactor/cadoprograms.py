@@ -972,7 +972,7 @@ class FreeRel(Program):
                  poly: Parameter(is_input_file=True),
                  renumber: Parameter(is_output_file=True),
                  lpb0: Parameter(checktype=int),
-                 lpb1: Parameter(checktype=int),
+                 lpb1: Parameter(checktype=int) = None,
                  out: Parameter(is_output_file=True),
                  pmin: Parameter(checktype=int) = None,
                  pmax: Parameter(checktype=int) = None,
@@ -1053,6 +1053,74 @@ class Las(Program):
                            " -- consider setting tasks.I or tasks.A")
 
 
+class Siqs(Program):
+    binary = "siqs"
+    name = binary
+    subdir = "sieve"
+
+    def __init__(self,
+                 poly: Parameter(is_input_file=True),
+                 q0: Parameter("qidx0", checktype=int),  # noqa: F821
+                 I: Parameter(checktype=int),
+                 qfac_nfac: Parameter(checktype=int),
+                 q1: Parameter("qidx1", checktype=int) = None,  # noqa: F821
+                 rho: Parameter(checktype=int) = None,
+                 skipped: Parameter(checktype=int) = None,
+                 tdthresh: Parameter(checktype=int) = None,
+                 bkthresh: Parameter(checktype=int) = None,
+                 bkthresh1: Parameter(checktype=int) = None,
+                 bkmult: Parameter() = None,
+                 lim0: Parameter(checktype=int) = None,
+                 lim1: Parameter(checktype=int) = None,
+                 lpb0: Parameter(checktype=int) = None,
+                 lpb1: Parameter(checktype=int) = None,
+                 mfb0: Parameter(checktype=int) = None,
+                 mfb1: Parameter(checktype=int) = None,
+                 batchlpb0: Parameter(checktype=int) = None,
+                 batchlpb1: Parameter(checktype=int) = None,
+                 batchmfb0: Parameter(checktype=int) = None,
+                 batchmfb1: Parameter(checktype=int) = None,
+                 lambda0: Parameter(checktype=float) = None,
+                 lambda1: Parameter(checktype=float) = None,
+                 ncurves0: Parameter(checktype=int) = None,
+                 ncurves1: Parameter(checktype=int) = None,
+                 skewness: Parameter("S",  # noqa: F821
+                                     checktype=float) = None,
+                 verbose: Toggle("v") = None,  # noqa: F821
+                 powlim0: Parameter(checktype=int) = None,
+                 powlim1: Parameter(checktype=int) = None,
+                 factorbase0: Parameter("fb0",  # noqa: F821
+                                        is_input_file=True) = None,
+                 factorbase1: Parameter("fb1",  # noqa: F821
+                                        is_input_file=True) = None,
+                 out: Parameter(is_output_file=True) = None,
+                 threads: Parameter("t") = None,  # noqa: F821
+                 batch: Toggle() = None,
+                 batchfile0: Parameter(is_input_file=True) = None,
+                 batchfile1: Parameter(is_input_file=True) = None,
+                 sqside: Parameter(checktype=int) = None,
+                 dup: Toggle() = None,
+                 galois: Parameter() = None,
+                 sublat: Parameter(checktype=int) = None,
+                 allow_largesq: Toggle(dash=True) = None,
+                 allow_compsq: Toggle(dash=True) = None,
+                 qfac_min: Parameter(dash=True, checktype=int) = None,
+                 qfac_max: Parameter(dash=True, checktype=int) = None,
+                 adjust_strategy: Parameter(dash=True, checktype=int) = None,
+                 stats_stderr: Toggle(dash=True) = None,
+                 # We have no checktype for parameters of the form <int>,<int>,
+                 # so these are passed just as strings
+                 traceab: Parameter() = None,
+                 traceij: Parameter() = None,
+                 traceNx: Parameter() = None,
+                 # Let's make fbcache neither input nor output file. It should
+                 # not be distributed to clients, nor sent back to the server.
+                 # It's a local temp file, but re-used between different runs.
+                 fbcache: Parameter("fbc") = None,  # noqa: F821
+                 **kwargs):
+        super().__init__(locals(), **kwargs)
+
+
 class Duplicates1(Program):
     binary = "dup1"
     name = binary
@@ -1066,6 +1134,7 @@ class Duplicates1(Program):
                  bzip: Toggle("bz") = None,  # noqa: F821
                  only_ab: Toggle("ab") = None,  # noqa: F821
                  abhexa: Toggle() = None,
+                 large_ab: Toggle("large-ab") = None,  # noqa: F821
                  force_posix_threads: Toggle(dash=True) = None,
                  only: Parameter(checktype=int) = None,
                  nslices_log: Parameter("n",  # noqa: F821
@@ -1088,6 +1157,7 @@ class Duplicates2(Program):
                  rel_count: Parameter("nrels", checktype=int),  # noqa: F821
                  renumber: Parameter(is_input_file=True),
                  filelist: Parameter(is_input_file=True) = None,
+                 large_ab: Toggle("large-ab") = None,  # noqa: F821
                  force_posix_threads: Toggle(dash=True) = None,
                  dlp: Toggle("dl") = None,  # noqa: F821
                  **kwargs):
@@ -1107,6 +1177,8 @@ class GaloisFilter(Program):
                  filelist: Parameter(is_input_file=True) = None,
                  basepath: Parameter() = None,
                  galois: Parameter() = None,
+                 dl: Toggle() = None,
+                 large_ab: Toggle("large-ab") = None,  # noqa: F821
                  **kwargs):
         super().__init__(locals(), **kwargs)
 
@@ -1198,6 +1270,8 @@ class ReplayDLP(Program):
                  index: Parameter() = None,
                  out: Parameter() = None,
                  skip: Parameter() = None,
+                 nmatrices: Parameter("nsquare_matrices",  # noqa: F821
+                                      checktype=int) = None,
                  **kwargs):
         super().__init__(locals(), **kwargs)
 
@@ -1226,6 +1300,7 @@ class BWC(Program):
 
     def __init__(self,
                  complete: Toggle(prefix=":") = None,  # noqa: F722
+                 determinant: Toggle(prefix=":") = None,  # noqa: F722
                  dryrun: Toggle("d") = None,  # noqa: F821
                  verbose: Toggle("v") = None,  # noqa: F821
                  mpi: ParameterEq() = None,
@@ -1361,10 +1436,12 @@ class Characters(Program):
                  out: Parameter(),
                  wfile: Parameter("ker"),  # noqa: F821
                  lpb0: Parameter(),
-                 lpb1: Parameter(),
+                 lpb1: Parameter() = None,
                  nchar: Parameter() = None,
                  nratchars: Parameter() = None,
                  threads: Parameter("t") = None,  # noqa: F821
+                 large_ab: Toggle("large-ab") = None,  # noqa: F821
+                 only_sign_chars: Toggle() = None,
                  **kwargs):
         super().__init__(locals(), **kwargs)
 
@@ -1385,7 +1462,36 @@ class Sqrt(Program):
                  ab: Toggle() = None,
                  side0: Toggle() = None,
                  side1: Toggle() = None,
+                 qs: Toggle() = None,
                  gcd: Toggle() = None,
+                 large_ab: Toggle("large-ab") = None,  # noqa: F821
+                 **kwargs):
+        super().__init__(locals(), **kwargs)
+
+
+class Factor(Program):
+    binary = "factor"
+    name = binary
+    subdir = "misc"
+
+    def __init__(self, *,
+                 input: Parameter("N"),  # noqa: F821
+                 verbose: Toggle("v") = None,  # noqa: F821
+                 **kwargs):
+        super().__init__(locals(), **kwargs)
+
+
+class ClStructure(Program):
+    binary = "cl_structure_from_group_order"
+    name = binary
+    subdir = "misc"
+
+    def __init__(self, *,
+                 poly: Parameter(),
+                 order: Parameter(),
+                 generators_bound: Parameter("B") = None,  # noqa: F821
+                 pSylow_bound: Parameter() = None,
+                 verbose: Toggle("v") = None,  # noqa: F821
                  **kwargs):
         super().__init__(locals(), **kwargs)
 

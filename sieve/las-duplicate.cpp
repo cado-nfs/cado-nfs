@@ -207,7 +207,7 @@ static bool
 sq_finds_relation(las_info const & las,
         special_q const & doing,
         siever_config const & conf,
-        qlattice_basis const & Q,
+        special_q_data_class auto const & Q,
         uint32_t J,
         relation const& rel,
         bool must,
@@ -235,7 +235,7 @@ sq_finds_relation(las_info const & las,
   unsigned int j;
   {
     int ok;
-    ok = convert_ab_to_ij(i, j, rel.a, rel.b, Q);
+    ok = Q.convert_ab_to_ij(i, j, rel.a, rel.b);
     if (!must && !ok) return false;
     ASSERT_ALWAYS(ok);
   }
@@ -257,7 +257,7 @@ sq_finds_relation(las_info const & las,
     /* This lognorm is the evaluation of fij(i,j)/q on the side with the
      * special-q, so we don't have to subtract it.
      */
-    const uint8_t lognorm = L.lognorm(i,j);
+    const uint8_t lognorm = L.lognorm(i,j, Q);
 
     remaining_lognorm[side] = subtract_fb_log(lognorm, L.scale,
             conf.sides[side].lim,
@@ -346,14 +346,27 @@ bool
 sq_finds_relation(las_info const & las,
         special_q const & doing,
         siever_config const & conf,
-        qlattice_basis const & Q,
+        special_q_data_class auto const & Q,
         uint32_t J,
         relation const& rel)
 {
     return sq_finds_relation(las, doing, conf, Q, J, rel, false, false);
 }
 
-    static bool
+template bool sq_finds_relation(las_info const &,
+        special_q const &,
+        siever_config const &,
+        qlattice_basis const &,
+        uint32_t,
+        relation const &);
+template bool sq_finds_relation(las_info const &,
+        special_q const &,
+        siever_config const &,
+        siqs_special_q_data const &,
+        uint32_t,
+        relation const &);
+
+static bool
 sq_finds_relation(las_info const & las,
         special_q const & doing,
         relation const& rel,
@@ -439,7 +452,10 @@ relation_is_duplicate(relation const& rel,
     int const nsides = las.cpoly->nb_polys;
 
     /* If the special-q does not fit in an unsigned long, we assume it's not a
-       duplicate and just move on */
+     * duplicate and just move on.
+     * Note: these conditions mean that this function will always return false
+     * for SIQS. FIXME
+     */
     if (doing.is_prime() && !mpz_fits_uint64_p(doing.p)) {
         return false;
     }
@@ -468,7 +484,7 @@ relation_is_duplicate(relation const& rel,
             uint64_t const p = mpz_get_uint64(rel.sides[side][i].p);
 
             // can this p be part of valid sq ?
-            if (!las.allow_composite_q()) {
+            if (!las.tree->todo->allow_composite_special_q()) {
                 /* this check is also done in sq_was_previously_sieved,
                  * but it's easy enough to skip the divisibility test
                  * when we know there's no point.
@@ -477,7 +493,7 @@ relation_is_duplicate(relation const& rel,
                     continue;
                 }
             } else {
-                if (!las.is_in_qfac_range(p))
+                if (!las.tree->todo->is_in_qfac_range(p))
                     continue;
             }
 

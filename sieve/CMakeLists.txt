@@ -69,16 +69,17 @@ add_library(las_core_c OBJECT
 
 set(las_multi_a_sources
         fb.cpp
-	bucket.cpp
+        bucket.cpp
         las-config.cpp
-	las-fill-in-buckets.cpp
-	las-smallsieve.cpp
+        las-fill-in-buckets.cpp
+        las-smallsieve.cpp
+        siqs-smallsieve.cpp
         las-cofac-standalone.cpp
         las-detached-cofac.cpp
-	las-process-bucket-region.cpp
-	las-output.cpp
+        las-process-bucket-region.cpp
+        las-output.cpp
         las-multiobj-globals.cpp
-	las-unsieve.cpp
+        las-unsieve.cpp
 )
 if(HAVE_SSE2)
     list(APPEND las_multi_a_sources las-unsieve-sse2.cpp)
@@ -88,6 +89,11 @@ add_library(las_multi_a_debug OBJECT ${las_multi_a_sources})
 set_property(TARGET las_multi_a_debug PROPERTY COMPILE_DEFINITIONS TRACE_K=1)
 add_library(las_multi_a_descent OBJECT ${las_multi_a_sources})
 set_property(TARGET las_multi_a_descent PROPERTY COMPILE_DEFINITIONS DLP_DESCENT SUPPORT_LARGE_Q)
+
+add_library(siqs_multi_a_prod OBJECT ${las_multi_a_sources})
+set_property(TARGET siqs_multi_a_prod PROPERTY COMPILE_DEFINITIONS SUPPORT_LARGE_Q=1 SIQS_SIEVE=1)
+add_library(siqs_multi_a_debug OBJECT ${las_multi_a_sources})
+set_property(TARGET siqs_multi_a_debug PROPERTY COMPILE_DEFINITIONS SUPPORT_LARGE_Q=1 SIQS_SIEVE=1 TRACE_K=1)
 
 add_executable(las
     las-where-am-i-prod.cpp
@@ -115,6 +121,34 @@ add_executable(las_tracek
     )
 target_link_libraries (las_tracek facul utils)
 set_property(TARGET las_tracek PROPERTY COMPILE_DEFINITIONS TRACE_K=1)
+
+add_executable(siqs
+    las-where-am-i-prod.cpp
+    las.cpp
+    $<TARGET_OBJECTS:siqs_multi_a_prod>
+    $<TARGET_OBJECTS:las_core_c>
+    $<TARGET_OBJECTS:las_core_b>
+    $<TARGET_OBJECTS:las_core_b0>
+    $<TARGET_OBJECTS:las_core_a>
+    $<TARGET_OBJECTS:las_core_0>
+    $<TARGET_OBJECTS:trialdiv>
+    )
+target_link_libraries (siqs facul utils)
+set_property(TARGET siqs PROPERTY COMPILE_DEFINITIONS SUPPORT_LARGE_Q=1 SIQS_SIEVE=1)
+
+add_executable(siqs_tracek
+    las-where-am-i-debug.cpp
+    las.cpp
+    $<TARGET_OBJECTS:siqs_multi_a_debug>
+    $<TARGET_OBJECTS:las_core_c>
+    $<TARGET_OBJECTS:las_core_b>
+    $<TARGET_OBJECTS:las_core_b0>
+    $<TARGET_OBJECTS:las_core_a>
+    $<TARGET_OBJECTS:las_core_0>
+    $<TARGET_OBJECTS:trialdiv>
+    )
+target_link_libraries (siqs_tracek facul utils)
+set_property(TARGET siqs_tracek PROPERTY COMPILE_DEFINITIONS SUPPORT_LARGE_Q=1 SIQS_SIEVE=1 TRACE_K=1)
 
 add_executable(las_descent
     las-where-am-i-prod.cpp

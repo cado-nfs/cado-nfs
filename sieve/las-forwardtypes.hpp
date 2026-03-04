@@ -28,5 +28,6 @@ class nfs_aux;
  */
 typedef int32_t spos_t;
 typedef int64_t long_spos_t;
+using siqs_pos_t = uint32_t;
 
 #endif

@@ -155,6 +155,9 @@ unsigned long
 process_one_relation (earlyparsed_relation_ptr rel)
 {
   mpz_t norm[2];
+  mpz_init_set_ui(norm[0], 1u);
+  mpz_init_set_ui(norm[1], 1u);
+  unsigned int max_side_index = cpoly->nb_polys == 1u ? 1u : 2u;
   unsigned int * side_to_index = malloc(cpoly->nb_polys * sizeof(unsigned int));
   memset(side_to_index, -1, cpoly->nb_polys * sizeof(unsigned int));
   unsigned long err = 0;
@@ -167,10 +170,9 @@ process_one_relation (earlyparsed_relation_ptr rel)
     }
 
   /* compute the norms */
-  for(unsigned int side_index = 0 ; side_index < 2 ; side_index++)
+  for(unsigned int side_index = 0 ; side_index < max_side_index ; side_index++)
   {
       int side = rel->active_sides[side_index];
-      mpz_init (norm[side_index]);
       side_to_index[side] = side_index;
       mpz_poly_ptr ps = cpoly->pols[side];
       mpz_poly_homogeneous_eval_siui (norm[side_index], ps, rel->a, rel->b);
@@ -186,7 +188,7 @@ process_one_relation (earlyparsed_relation_ptr rel)
     int side = rel->primes[i].side;
     unsigned int side_index = side_to_index[side];
     /* otherwise the relation is bad */
-    ASSERT_ALWAYS(side_index < 2);
+    ASSERT_ALWAYS(side_index < max_side_index);
     p_r_values_t p = rel->primes[i].p;
     exponent_t e = rel->primes[i].e;
     ASSERT_ALWAYS(p != 0); /* could reveal a problem in parsing */
@@ -228,7 +230,7 @@ process_one_relation (earlyparsed_relation_ptr rel)
     }
 
     /* Check that the product of the factors is equal to the norm. */
-    for(unsigned int side_index = 0 ; side_index < 2 ; side_index++)
+    for(unsigned int side_index = 0 ; side_index < max_side_index ; side_index++)
     {
       int side = rel->active_sides[side_index];
       if (mpz_cmp_ui (norm[side_index], 1) != 0)
@@ -253,7 +255,7 @@ process_one_relation (earlyparsed_relation_ptr rel)
       for (unsigned long p = 2; !both_equal_to_1 (norm) && p < max_p ;
            p = getprime_mt (pi))
       {
-        for(unsigned int side_index = 0 ; side_index < 2 ; side_index++)
+        for(unsigned int side_index = 0 ; side_index < max_side_index ; side_index++)
         {
           int side = rel->active_sides[side_index];
           exponent_t e = 0;
@@ -308,8 +310,8 @@ process_one_relation (earlyparsed_relation_ptr rel)
         err |= REL_FULLY_FIXED;
   }
 
-  for(unsigned int side_index = 0 ; side_index < 2 ; side_index++)
-    mpz_clear(norm[side_index]);
+  mpz_clear(norm[0]);
+  mpz_clear(norm[1]);
 
   free(side_to_index);
 

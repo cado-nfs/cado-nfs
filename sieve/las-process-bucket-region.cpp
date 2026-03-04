@@ -19,6 +19,7 @@
 #include <iterator>
 #include <memory>
 #include <ranges>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -332,7 +333,7 @@ void process_bucket_region_run::small_sieve(int side)/*{{{*/
     wss.ssd->sieve_small_bucket_region(SS,
             first_region0_index + already_done + bucket_relative_index,
             bucket_relative_index,
-            ws.conf.logI, ws.Q.sublat,
+            ws.conf.logI, Q.sublat,
             w);
 }/*}}}*/
 void process_bucket_region_run::SminusS(int side)/*{{{*/
@@ -352,31 +353,15 @@ void process_bucket_region_run::SminusS(int side)/*{{{*/
 }/*}}}*/
 process_bucket_region_run::survivors_t process_bucket_region_run::search_survivors() /*{{{*/
 {
-    using surv1_t = std::vector<uint32_t>;
-
+    using surv1_t = std::conditional_t<std::is_same_v<ALGO, NFS>,
+                                       std::vector<uint32_t>, survivors_t>;
     surv1_t temp_sv;
+
 
     CHILD_TIMER(timer, __func__);
     TIMER_CATEGORY(timer, search_survivors());
 
-    int const N = first_region0_index + already_done + bucket_relative_index;
-
-    /* change N, which is a bucket number, to
-     * (i0, i1, j0, j1) */
-    int const logI = ws.conf.logI;
-    /* This bit of code is replicated from las-smallsieve.cpp */
-    const unsigned int log_lines_per_region = MAX(0, LOG_BUCKET_REGION - logI);
-    const unsigned int log_regions_per_line = MAX(0, logI - LOG_BUCKET_REGION);
-    const unsigned int regions_per_line = 1 << log_regions_per_line;           
-    const unsigned int region_rank_in_line = N & (regions_per_line - 1);       
-    const unsigned int j0 = (N >> log_regions_per_line) << log_lines_per_region;    
-    const unsigned int j1 MAYBE_UNUSED = j0 + (1 << log_lines_per_region);    
-    const int I = 1 << logI;                                            
-    const int i0 = (region_rank_in_line << LOG_BUCKET_REGION) - I/2;          
-    const int i1 = i0 + (1 << MIN(LOG_BUCKET_REGION, logI));     
-
-    ASSERT(j1 > j0); /* even when we have a line fragment */
-
+    int const MAYBE_UNUSED N = first_region0_index + already_done + bucket_relative_index;
 
 #ifdef TRACE_K /* {{{ */
     if (trace_on_spot_Nx(N, trace_Nx.x)) {
@@ -407,6 +392,23 @@ process_bucket_region_run::survivors_t process_bucket_region_run::search_survivo
 
     temp_sv.reserve(128);
 
+#ifndef SIQS_SIEVE // XXX a bit ugly, need to find a better way to do this
+    /* change N, which is a bucket number, to
+     * (i0, i1, j0, j1) */
+    int const logI = ws.conf.logI;
+    /* This bit of code is replicated from las-smallsieve.cpp */
+    const unsigned int log_lines_per_region = MAX(0, LOG_BUCKET_REGION - logI);
+    const unsigned int log_regions_per_line = MAX(0, logI - LOG_BUCKET_REGION);
+    const unsigned int regions_per_line = 1 << log_regions_per_line;
+    const unsigned int region_rank_in_line = N & (regions_per_line - 1);
+    const unsigned int j0 = (N >> log_regions_per_line) << log_lines_per_region;
+    const unsigned int j1 MAYBE_UNUSED = j0 + (1 << log_lines_per_region);
+    const int I = 1 << logI;
+    const int i0 = (region_rank_in_line << LOG_BUCKET_REGION) - I/2;
+    const int i1 = i0 + (1 << MIN(LOG_BUCKET_REGION, logI));
+
+    ASSERT(j1 > j0); /* even when we have a line fragment */
+
     for (unsigned int j = j0; j < j1; j++)
     {
         int const offset = (j-j0) << logI;
@@ -436,7 +438,7 @@ process_bucket_region_run::survivors_t process_bucket_region_run::search_survivo
                 ws.conf.unsieve_thresh,
                 *ws.us,
                 temp_sv,
-                ws.Q.sublat);
+                Q.sublat);
 
         /* Survivors written by search_survivors_in_line() have index
          * relative to their j-line. We need to convert to index within
@@ -455,6 +457,23 @@ process_bucket_region_run::survivors_t process_bucket_region_run::search_survivo
         for (size_t i_surv = old_size; i_surv < temp_sv.size(); i_surv++)
             temp_sv[i_surv] += offset;
     }
+#else
+    unsigned int const length = 1u << LOG_BUCKET_REGION;
+    if (S.size() > 1 && S[0] && S[1]) {
+        const std::array<unsigned char * const, 2> SS { S[0], S[1] };
+        const std::array<unsigned char, 2> bounds {
+            ws.sides[0].lognorms.bound,
+            ws.sides[1].lognorms.bound,
+        };
+        search_survivors_in_line(SS, bounds, length, temp_sv);
+    } else {
+        const std::array<unsigned char * const, 1> SS { S[0] ? S[0] : S[1] };
+        const std::array<unsigned char, 1> bounds {
+            ws.sides[S[0] ? 0 : 1].lognorms.bound
+        };
+        search_survivors_in_line(SS, bounds, length, temp_sv);
+    }
+#endif
 
     /* This used to be called convert_survivors */
     return { begin(temp_sv), end(temp_sv) };
@@ -500,7 +519,7 @@ void process_bucket_region_run::resieve(int side)/*{{{*/
             Sx,
             first_region0_index + already_done + bucket_relative_index,
             bucket_relative_index,
-            ws.conf.logI, ws.Q.sublat,
+            ws.conf.logI, Q.sublat,
             w);
 
     /* same reason as above */
@@ -545,7 +564,7 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
         SIBLING_TIMER(timer, "check_coprime");
 
         /* start building a new object. This is a swap operation */
-        cofac_standalone cur { nsides, N, x, ws.conf.logI, ws.Q };
+        cofac_standalone cur { nsides, N, x, ws.conf.logI, Q };
 
         for(int side = 0 ; side < nsides ; side++) {
             if (ws.sides[side].no_fb()) continue;
@@ -553,7 +572,9 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
         }
 
         if (cur.trace_on_spot())
-            verbose_fmt_print(TRACE_CHANNEL, 0, "# about to start cofactorization for ({},{})  {} {}\n", cur.a, cur.b, x, Sx[x]);
+            verbose_fmt_print(TRACE_CHANNEL, 0,
+                    "# about to start cofactorization for {} {} {}\n",
+                    cur, x, Sx[x]);
 
         /* since a,b both even were not sieved, either a or b should
          * be odd. However, exceptionally small norms, even without
@@ -565,7 +586,7 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
 
         rep.survivors.not_both_even++;
 
-        if (!cur.gcd_coprime_with_q(ws.Q.doing))
+        if (!cur.gcd_coprime_with_q(Q.doing))
             continue;
 
         rep.survivors.not_both_multiples_of_p++;
@@ -578,7 +599,7 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
         // Note that are, (i,j) must be true coordinates, not the
         // ones reduced to (-I/2, I/2) using sublattices.
         convert_Nx_to_ij (i, j, N, x, ws.conf.logI);
-        adjustIJsublat(i, j, ws.Q.sublat);
+        Q.sublat.adjustIJ(i, j);
 
         auto rab = relation_ab(cur);
 
@@ -614,14 +635,12 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
                 /* Compute the norms using the polynomials transformed to 
                    i,j-coordinates. The transformed polynomial on the 
                    special-q side is already divided by q */
-                wss.lognorms.norm(cur.norm[side], i, j);
+                wss.lognorms.norm(cur.norm[side], i, j, Q);
 
                 if (cur.trace_on_spot()) {
                     verbose_fmt_print(TRACE_CHANNEL, 0,
-                            "# start trial division for norm={} ",
-                            cur.norm[side]);
-                    verbose_fmt_print(TRACE_CHANNEL, 0,
-                            "on side {} for ({},{})\n", side, cur.a, cur.b);
+                            "# start trial division for norm={} on side {} "
+                            "for {}\n", cur.norm[side], side, cur);
                 }
 
                 if (wss.no_fb()) {
@@ -645,7 +664,7 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
                         &sides[side].purged,
                         *wss.td,
                         cur.a, cur.b,
-                        *wss.fbs);
+                        *wss.fbs, cur.trace_on_spot());
 
                 /* if q is composite, its prime factors have not been sieved.
                  * Check if they divide. They probably don't, since we
@@ -653,11 +672,19 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
                  * the (i,j) plane, and q divided out. But still,
                  * valuations are not desired here.
                  */
-                if ((side == ws.Q.doing.side) && (!ws.Q.doing.is_prime())) {
-                    for (const auto &x : ws.Q.doing.prime_factors) {
-                        if (mpz_divisible_uint64_p(cur.norm[side], x)) {
-                            mpz_divexact_uint64(cur.norm[side], cur.norm[side], x);
-                            cur.factors[side].push_back(x);
+                if ((side == Q.doing.side) && (!Q.doing.is_prime())) {
+                    for (const auto &p : Q.doing.prime_factors) {
+                        while (mpz_divisible_uint64_p(cur.norm[side], p)) {
+                            mpz_divexact_uint64(cur.norm[side], cur.norm[side], p);
+                            cur.factors[side].push_back(p);
+#ifdef TRACE_K
+                            if (cur.trace_on_spot()) {
+                                verbose_fmt_print(TRACE_CHANNEL, 0,
+                                    "# N = {}, x = {}, dividing out prime p = "
+                                    "{} (coming from special-q), norm = {}\n",
+                                    N, x, p, cur.norm[side]);
+                            }
+#endif
                         }
                     }
                 }
@@ -667,9 +694,8 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
                 pass = check_leftover_norm (cur.norm[side], ws.conf.sides[side]);
                 if (cur.trace_on_spot()) {
                     verbose_fmt_print(TRACE_CHANNEL, 0,
-                            "# checked leftover norm={} on side {} for "
-                            "({},{}): {}\n",
-                            cur.norm[side], side, cur.a, cur.b, pass);
+                            "# checked leftover norm={} on side {} for {}: {}\n",
+                            cur.norm[side], side, cur, pass);
                 }
                 rep.survivors.check_leftover_norm_on_side[side] += pass;
             }
@@ -872,13 +898,20 @@ void process_bucket_region_run::operator()() {/*{{{*/
 }/*}}}*/
 
 
-void process_many_bucket_regions(nfs_work & ws, std::shared_ptr<nfs_work_cofac> wc_p, std::shared_ptr<nfs_aux> aux_p, thread_pool & pool, int first_region0_index, where_am_I & w)/*{{{*/
+void process_many_bucket_regions(
+        nfs_work & ws,
+        std::shared_ptr<nfs_work_cofac> wc_p,
+        std::shared_ptr<nfs_aux> aux_p,
+        ALGO::special_q_data const & Q,
+        thread_pool & pool,
+        int first_region0_index,
+        where_am_I & w)/*{{{*/
 {
     /* first_region0_index is always 0 when toplevel == 1, but the
      * present function is also called from within downsort_tree when
      * toplevel > 1, and then first_region0_index may be larger.
      */
-    auto P = thread_pool::make_shared_task<process_bucket_region_spawn>(ws, wc_p, aux_p, w);
+    auto P = thread_pool::make_shared_task<process_bucket_region_spawn>(ws, wc_p, aux_p, Q, w);
 
     /* Make sure we don't schedule too many tasks when J was truncated
      * anyway */
@@ -933,7 +966,7 @@ void process_many_bucket_regions(nfs_work & ws, std::shared_ptr<nfs_work_cofac> 
                         wss.ssd->small_sieve_prepare_many_start_positions(
                                 first_region0_index + done,
                                 more,
-                                ws.conf.logI, ws.Q.sublat);
+                                ws.conf.logI, Q.sublat);
                         },0);
             }
 

@@ -3,7 +3,6 @@
 #include <cctype>
 #include <cerrno>
 #include <climits>
-#include <cstdarg>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -34,44 +33,17 @@
 #include "rootfinder.h"
 #include "verbose.h"
 
-/* Put in r the smallest legitimate special-q value that it at least
- * s + diff (note that if s+diff is already legitimate, then r = s+diff
- * will result.
- * In case of composite sq, also returns the factorization of r
- */
-
-std::vector<uint64_t> las_todo_list::next_legitimate_specialq(cxx_mpz & r, cxx_mpz const & s, const unsigned long diff) const
-{
-    std::vector<uint64_t> fac;
-    if (allow_composite_q) {
-        unsigned long tfac[64];
-        int const nf = next_mpz_with_factor_constraints(r, tfac,
-                s, diff, qfac_min, qfac_max);
-        fac.assign(tfac, tfac + nf);
-    } else {
-        mpz_add_ui(r, s, diff);
-        /* mpz_nextprime() returns a prime *greater than* its input argument,
-           which we don't always want, so we subtract 1 first. */
-        mpz_sub_ui(r, r, 1);
-        mpz_nextprime(r, r);
-    }
-    return fac;
-}
-
-void las_todo_list::configure_switches(cxx_param_list & pl)
+void todo_list_base::configure_switches(cxx_param_list & pl)
 {
     param_list_configure_switch(pl, "-allow-compsq", nullptr);
     param_list_configure_switch(pl, "-print-todo-list", nullptr);
 }
 
-void las_todo_list::declare_usage(cxx_param_list & pl)
+void todo_list_base::declare_usage(cxx_param_list & pl)
 {
     param_list_decl_usage(pl, "sqside", "put special-q on this side");
-    param_list_decl_usage(pl, "q0",   "left bound of special-q range");
-    param_list_decl_usage(pl, "q1",   "right bound of special-q range");
-    param_list_decl_usage(pl, "rho",  "sieve only root r mod q0");
     param_list_decl_usage(pl, "seed", "Use this seed for random state seeding (currently used only by --random-sample)");
-    param_list_decl_usage(pl, "random-sample", "Sample this number of special-q's at random, within the range [q0,q1]");
+    param_list_decl_usage(pl, "random-sample", "Sample this number of special-q's at random, within the range [q0,q1[");
     param_list_decl_usage(pl, "nq", "Process this number of special-q's and stop");
     param_list_decl_usage(pl, "todo", "provide file with a list of special-q to sieve instead of qrange");
     param_list_decl_usage(pl, "allow-compsq", "allows composite special-q");
@@ -80,7 +52,7 @@ void las_todo_list::declare_usage(cxx_param_list & pl)
     param_list_decl_usage(pl, "print-todo-list", "only print the special-q's to be sieved");
 }
 
-las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
+todo_list_base::todo_list_base(cxx_cado_poly const & cpoly, cxx_param_list & pl)
     : cpoly(cpoly), galois(param_list_lookup_string(pl, "galois"))
 {
     unsigned long seed = 0;
@@ -90,15 +62,12 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
     if (param_list_parse(pl, "random-sample", nq_max)) {
         random_sampling = 1;
         if (param_list_parse(pl, "nq", nq_max)) {
-            fmt::print(stderr, "# Warning: both options -nq and -random-sample found. Limiting the number of generated primes to {}\n", nq_max);
+            fmt::print(stderr, "# Warning: both options -nq and -random-sample "
+                               "found. Limiting the number of generated primes "
+                               "to {}\n", nq_max);
         }
-    } else if (param_list_parse(pl, "nq", nq_max)) {
-        if (param_list_lookup_string(pl, "rho")) {
-            fprintf(stderr, "Error: argument -nq is incompatible with -rho\n");
-            exit(EXIT_FAILURE);
-        }
-        if (param_list_lookup_string(pl, "q1"))
-            verbose_fmt_print(0, 1, "# Warning: arguments nq and q1 will both limit the q range\n");
+    } else {
+        param_list_parse(pl, "nq", nq_max);
     }
 
     sqside = cpoly->nb_polys == 1 ? 0 : 1;
@@ -113,7 +82,7 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
      * las_todo_feed, but this is an admittedly contrived way to work */
     const char * filename = param_list_lookup_string(pl, "todo");
     if (filename) {
-        todo_list_fd.reset(new std::ifstream(filename));
+        todo_list_fd = std::make_unique<std::ifstream>(filename);
         if (todo_list_fd->fail()) {
             fprintf(stderr, "%s: %s\n", filename, strerror(errno));
             /* There's no point in proceeding, since it would really change
@@ -122,20 +91,179 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
         }
     }
 
-    /* composite special-q ? Note: this block is present both in
-     * las-todo-list.cpp and las-info.cpp */
+    /* composite special-q ? */
     if ((allow_composite_q = param_list_parse_switch(pl, "-allow-compsq"))) {
         /* defaults are set in the class description */
         param_list_parse_uint64(pl, "qfac-min", &qfac_min);
         param_list_parse_uint64(pl, "qfac-max", &qfac_max);
     }
 
+    print_todo_list_flag = param_list_parse_switch(pl, "-print-todo-list");
+}
+
+
+/* {{{ Populating the todo list */
+
+/* Format of a file with a list of special-q (-todo option):
+ *   - Comments are allowed (start line with #)
+ *   - Blank lines are ignored
+ *   - Each valid line must have the form
+ *       s q r
+ *     where s is the side (0 or 1) of the special q, and q and r are as usual.
+ */
+bool todo_list_base::feed_qlist()
+{
+    /* XXX this is called with a lock held on this->mm, so care must be
+     * taken to call this->push_unlocked() and not this->push() !!
+     */
+    if (!super::empty())
+        return true;
+
+    if (created == nq_max)
+        return false;
+
+    std::string line;
+    auto is_comment = [](std::string const & s) {
+        for(auto c : s) {
+            if (c == '#') return true;
+            if (!isspace(c)) return false;
+        }
+        return true;
+    };
+
+    for( ; std::getline(*todo_list_fd, line) && is_comment(line) ; ) ;
+
+    if (!*todo_list_fd)
+        return false;
+
+    /* We have a new entry to parse */
+    cxx_mpz p, r = -1;
+    int side = -1;
+    std::istringstream is(line);
+    std::string tail;
+    is >> side >> p;
+    if (!is.eof()) {
+        is >> r;
+    }
+    if (!is || (!is.eof() && (is >> tail, !is_comment(tail))))
+        throw std::runtime_error(
+                fmt::format("parse error in todo file while reading {}", line));
+    auto const & f = cpoly->pols[side];
+    /* specifying the rational root as <0
+     * means that it must be recomputed. Putting 0 does not have this
+     * effect, since it is a legitimate value after all.
+     */
+    if (r < 0) {
+        // For rational side, we can compute the root easily.
+        ASSERT_ALWAYS(f->deg == 1);
+        cxx_gmp_randstate rstate;
+        std::vector<cxx_mpz> roots = mpz_poly_roots(f, p, rstate);
+        ASSERT_ALWAYS(roots.size() == 1);
+        r = roots[0];
+    }
+
+    ASSERT_ALWAYS(p > 0);
+    ASSERT_ALWAYS(r >= 0);
+
+    push_unlocked(special_q(p, r, side));
+    return true;
+}
+
+
+/* This exists because of the race condition between feed() and pop()
+ */
+special_q todo_list_base::feed_and_pop()
+{
+    const std::lock_guard<std::mutex> foo(mm);
+
+    if (super::empty()) {
+        if (todo_list_fd)
+            feed_qlist();
+        else
+            feed_qrange(rstate);
+    }
+    if (super::empty())
+        return {};
+    auto ret = super::top();
+    // if (bool(ret)) pulled++;
+    super::pop();
+    return ret;
+}
+/* }}} */
+
+void todo_list_base::print_todo_list(cxx_param_list const & pl, int nthreads) const
+{
+
+    if (random_sampling) {
+        /* Then we cannot print the todo list in a multithreaded way
+         * without breaking the randomness predictability. It's a bit
+         * annoying, yes. On the other hand, it's highly likely in this
+         * case that the number of q's to pick is small enough anyway !
+         */
+        nthreads = 1;
+    }
+
+    std::vector<std::vector<special_q>> lists(nthreads);
+
+    auto segment = [&, this](unsigned int i) {
+        auto todo2 = this->create_sub_todo_list(i, nthreads, pl);
+        for(;;) {
+            auto doing = todo2->feed_and_pop();
+            if (!doing) break;
+            if (nthreads == 1) {
+                verbose_fmt_print(0, 1, "{} {} {}\n",
+                        doing.side, doing.p, doing.r);
+            } else {
+                lists[i].push_back(doing);
+            }
+        }
+    };
+
+    if (nthreads > 1) {
+        verbose_fmt_print(0, 1, "# Collecting the todo list in memory from {} "
+                                "using {} threads\n", *this, nthreads);
+    }
+
+    std::vector<std::thread> subjobs;
+    subjobs.reserve(nthreads);
+    for(int subjob = 0 ; subjob < nthreads ; ++subjob)
+        subjobs.emplace_back(segment, subjob);
+    for(auto & t : subjobs) t.join();
+    for(auto const & v : lists) {
+        for(auto const & doing : v) {
+            verbose_fmt_print(0, 1, "{} {} {}\n",
+                    doing.side, doing.p, doing.r);
+        }
+    }
+}
+
+
+void las_todo_list::declare_usage(cxx_param_list & pl)
+{
+    param_list_decl_usage(pl, "q0",   "left bound of special-q range");
+    param_list_decl_usage(pl, "q1",   "right bound of special-q range");
+    param_list_decl_usage(pl, "rho",  "sieve only root r mod q0");
+    todo_list_base::declare_usage(pl);
+}
+
+las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
+    : todo_list_base(cpoly, pl)
+{
     if (allow_composite_q && galois) {
-        fprintf(stderr, "-galois and -allow-compsq are incompatible options at the moment");
+        fprintf(stderr, "-galois and -allow-compsq are incompatible options "
+                        "at the moment\n");
         exit(EXIT_FAILURE);
     }
 
-    print_todo_list_flag = param_list_parse_switch(pl, "-print-todo-list");
+    if (nq_max != SIZE_MAX) {
+        if (param_list_lookup_string(pl, "rho")) {
+            fprintf(stderr, "Error: argument -nq is incompatible with -rho\n");
+            exit(EXIT_FAILURE);
+        }
+        if (param_list_lookup_string(pl, "q1"))
+            verbose_fmt_print(0, 1, "# Warning: arguments nq and q1 will both "
+                                    "limit the q range\n");
+    }
 
     /* It's not forbidden to miss -q0 */
     param_list_parse_mpz(pl, "q0", q0);
@@ -165,7 +293,7 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
                 exit(EXIT_FAILURE);
             }
             std::vector<cxx_mpz> roots = mpz_poly_roots(cpoly->pols[sqside], q0, fac_q, rstate);
-            if (std::find(roots.begin(), roots.end(), rho) == roots.end()) {
+            if (std::ranges::find(roots, rho) == roots.end()) {
                 fprintf(stderr, "Error: rho is not a root modulo q0\n");
                 exit(EXIT_FAILURE);
             }
@@ -224,7 +352,29 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
     }
 }
 
-/* {{{ Populating the todo list */
+/* Put in r the smallest legitimate special-q value that it at least
+ * s + diff (note that if s+diff is already legitimate, then r = s+diff
+ * will result.
+ * In case of composite sq, also returns the factorization of r
+ */
+std::vector<uint64_t> las_todo_list::next_legitimate_specialq(cxx_mpz & r, cxx_mpz const & s, const unsigned long diff) const
+{
+    std::vector<uint64_t> fac;
+    if (allow_composite_q) {
+        unsigned long tfac[64];
+        int const nf = next_mpz_with_factor_constraints(r, tfac,
+                s, diff, qfac_min, qfac_max);
+        fac.assign(tfac, tfac + nf);
+    } else {
+        mpz_add_ui(r, s, diff);
+        /* mpz_nextprime() returns a prime *greater than* its input argument,
+           which we don't always want, so we subtract 1 first. */
+        mpz_sub_ui(r, r, 1);
+        mpz_nextprime(r, r);
+    }
+    return fac;
+}
+
 /* See below in main() for documentation about the q-range and q-list
  * modes */
 /* These functions return non-zero if the todo list is not empty.
@@ -340,159 +490,256 @@ bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
     return !super::empty();
 }
 
-/* Format of a file with a list of special-q (-todo option):
- *   - Comments are allowed (start line with #)
- *   - Blank lines are ignored
- *   - Each valid line must have the form
- *       s q r
- *     where s is the side (0 or 1) of the special q, and q and r are as usual.
- */
-bool las_todo_list::feed_qlist()
+std::unique_ptr<todo_list_base> las_todo_list::create_sub_todo_list(
+    unsigned int i, int nthreads, cxx_param_list const & pl) const
 {
-    /* XXX this is called with a lock held on this->mm, so care must be
-     * taken to call this->push_unlocked() and not this->push() !!
-     */
+    cxx_param_list pl2 = pl;
+    cxx_mpz tmp;
+    mpz_sub(tmp, q1, q0);
+    mpz_mul_ui(tmp, tmp, i);
+    mpz_fdiv_q_ui(tmp, tmp, nthreads);
+    mpz_add(tmp, q0, tmp);
+    {
+        std::ostringstream os;
+        os << tmp;
+        param_list_add_key(pl2, "q0", os.str().c_str(), PARAMETER_FROM_CMDLINE);
+    }
+
+    mpz_sub(tmp, q1, q0);
+    mpz_mul_ui(tmp, tmp, i + 1);
+    mpz_fdiv_q_ui(tmp, tmp, nthreads);
+    mpz_add(tmp, q0, tmp);
+    {
+        std::ostringstream os;
+        os << tmp;
+        param_list_add_key(pl2, "q1", os.str().c_str(), PARAMETER_FROM_CMDLINE);
+    }
+
+    return todo_list_base::create<las_todo_list>(cpoly, pl2);
+}
+
+std::string las_todo_list::string_repr() const
+{
+    return fmt::format("q0={} to q1={}", q0, q1);
+}
+
+/******************************************************************************/
+/* SIQS ***********************************************************************/
+/******************************************************************************/
+void siqs_todo_list::declare_usage(cxx_param_list & pl)
+{
+    param_list_decl_usage(pl, "qidx0",   "left bound of special-q range");
+    param_list_decl_usage(pl, "qidx1",   "right bound of special-q range");
+    param_list_decl_usage(pl, "qfac-nfac", "number of factors of q");
+    todo_list_base::declare_usage(pl);
+}
+
+siqs_todo_list::siqs_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
+    : todo_list_base(cpoly, pl), qidx0(-1), qidx1(-1)
+{
+    if (!allow_composite_q) {
+        verbose_fmt_print(0, 1, "# Warning, -allow-compsq will be assumed\n");
+        allow_composite_q = true;
+    }
+
+    /* Needed here, because was not parsed if allow_composite_q was false. */
+    param_list_parse_uint64(pl, "qfac-min", &qfac_min);
+    param_list_parse_uint64(pl, "qfac-max", &qfac_max);
+
+    if (qfac_min <= 2) {
+        fmt::print(stderr, "# Error, -qfac-min must be > 2\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (!param_list_parse_uint64(pl, "qfac-nfac", &qfac_nfac)) {
+        fmt::print(stderr, "# Error, -qfac-nfac is mandatory\n");
+        exit(EXIT_FAILURE);
+    }
+
+    /* It's not forbidden to miss -q0 */
+    param_list_parse_mpz(pl, "qidx0", qidx0);
+    param_list_parse_mpz(pl, "qidx1", qidx1);
+
+    if (mpz_cmp_si(qidx0, -1) == 0) {
+        if (!todo_list_fd) {
+            fprintf(stderr, "Error: Need either -todo or -qidx0\n");
+            exit(EXIT_FAILURE);
+        }
+        return;
+    }
+
+    if (param_list_lookup_string(pl, "qidx1") != nullptr
+            && param_list_lookup_string(pl, "nq") != nullptr) {
+        /* if both nq and qidx1 were given, we should have qidx1=qidx0+nq */
+        cxx_mpz tmp;
+        mpz_add_ui(tmp, qidx0, nq_max);
+        if (tmp != qidx1) {
+            fmt::print(stderr, "Error: incompatible '-nq {}' / '-qidx1 {}' for "
+                               "qidx0={}\n", nq_max, qidx1, qidx0);
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    cxx_gmp_randstate rstate;
+
+    if (mpz_cmp_si(qidx1, -1) == 0) {
+        if (nq_max < SIZE_MAX) {
+            mpz_add_ui(qidx1, qidx0, nq_max);
+        } else {
+            /* We don't have -q1, we sieve only q0 */
+            mpz_add_ui(qidx1, qidx0, 1U);
+        }
+    }
+
+    if (random_sampling) {
+        if (mpz_cmp_si(qidx0, -1) == 0 || mpz_cmp_si(qidx1, -1) == 0) {
+            fprintf(stderr, "Error: --random-sample requires -qidx0 and -qidx1\n");
+            exit(EXIT_FAILURE);
+        }
+    }
+}
+
+bool siqs_todo_list::feed_qrange(gmp_randstate_t rstate)
+{
+    /* If we still have entries in the stack, don't add more now */
     if (!super::empty())
         return true;
 
-    if (created == nq_max)
-        return false;
+    std::vector<uint64_t> scratch_vec;
+    cxx_mpz scratch_mpz;
 
-    std::string line;
-    auto is_comment = [](std::string const & s) {
-        for(auto c : s) {
-            if (c == '#') return true;
-            if (!isspace(c)) return false;
+    if (!random_sampling) {
+        cxx_mpz idx;
+        unsigned long nadded = 0;
+        // Push the sq in reverse order, because they are processed via a stack
+        if (nq_max < UINT_MAX) {
+            idx = qidx0 + ((int)nq_max - (int)created - 1);
+        } else {
+            idx = qidx1 - 1U;
         }
-        return true;
-    };
+        for( ; idx >= qidx0; idx-=1U, ++nadded) {
+            push_unlocked(special_q_from_index(idx, scratch_mpz, scratch_vec));
+        }
+        qidx0 += nadded;
+    } else { /* random sampling case */
+        /* we care about being uniform here */
+        cxx_mpz qidx;
+        cxx_mpz diff;
+        mpz_sub(diff, qidx1, qidx0);
+        ASSERT_ALWAYS(created == 0 || created == nq_max);
+        unsigned long const n = nq_max;
+        for ( ; created < n ; ) {
+            /* try in [qidx0 + k * (qidx1-qidx0) / n, qidx0 + (k+1) * (qidx1-qidx0) / n[ */
+            cxx_mpz qidx0l, qidx1l;
+            /* we use k = n-1-nq_pushed instead of k=nq_pushed so that
+             * special-q's are sieved in increasing order.
+             */
+            unsigned long const k = n - 1 - created;
+            mpz_mul_ui(qidx0l, diff, k);
+            mpz_mul_ui(qidx1l, diff, k + 1);
+            mpz_fdiv_q_ui(qidx0l, qidx0l, n);
+            mpz_fdiv_q_ui(qidx1l, qidx1l, n);
+            mpz_add(qidx0l, qidx0, qidx0l);
+            mpz_add(qidx1l, qidx0, qidx1l);
 
-    for( ; std::getline(*todo_list_fd, line) && is_comment(line) ; ) ;
-
-    if (!*todo_list_fd)
-        return false;
-
-    /* We have a new entry to parse */
-    cxx_mpz p, r = -1;
-    int side = -1;
-    std::istringstream is(line);
-    std::string tail;
-    is >> side >> p;
-    if (!is.eof()) {
-        is >> r;
+            mpz_sub(qidx, qidx1l, qidx0l);
+            mpz_urandomm(qidx, rstate, qidx);
+            mpz_add(qidx, qidx, qidx0l);
+            push_unlocked(special_q_from_index(qidx, scratch_mpz, scratch_vec));
+        }
     }
-    if (!is || (!is.eof() && (is >> tail, !is_comment(tail))))
-        throw std::runtime_error(
-                fmt::format("parse error in todo file while reading {}", line));
-    auto const & f = cpoly->pols[side];
-    /* specifying the rational root as <0
-     * means that it must be recomputed. Putting 0 does not have this
-     * effect, since it is a legitimate value after all.
+
+    return !super::empty();
+}
+
+void siqs_todo_list::k_combination_from_index(
+        std::vector<uint64_t>::reverse_iterator it, cxx_mpz & idx, uint64_t k)
+{
+    if (k == 0) {
+        ASSERT_ALWAYS(idx == 0U);
+    } else if (idx == 0U) {
+        *it = k-1;
+        k_combination_from_index(++it, idx, k-1);
+    } else {
+        cxx_mpz t;
+        do {
+            ++(*it);
+            mpz_bin_uiui(t, *it, k);
+        } while (t <= idx);
+        --(*it);
+        mpz_bin_uiui(t, *it, k);
+        idx -= t;
+        k_combination_from_index(++it, idx, k-1);
+    }
+}
+
+special_q siqs_todo_list::special_q_from_index(cxx_mpz const & idx,
+                                          cxx_mpz & scratch_q,
+                                          std::vector<uint64_t> & scratch_vec) {
+    scratch_vec.assign(qfac_nfac, 0U);
+    scratch_q = idx;
+    k_combination_from_index(scratch_vec.rbegin(), scratch_q, qfac_nfac);
+    /* scratch_vec now contains the index of the factors, now the actual factor
      */
-    if (r < 0) {
-        // For rational side, we can compute the root easily.
-        ASSERT_ALWAYS(f->deg == 1);
-        cxx_gmp_randstate rstate;
-        std::vector<cxx_mpz> roots = mpz_poly_roots(f, p, rstate);
-        ASSERT_ALWAYS(roots.size() == 1);
-        r = roots[0];
+    scratch_q = 1U;
+    for (auto & f: scratch_vec) {
+        f = get_qfac_prime(f);
+        mpz_mul_ui(scratch_q, scratch_q, f);
     }
-
-    ASSERT_ALWAYS(p > 0);
-    ASSERT_ALWAYS(r >= 0);
-
-    push_unlocked(special_q(p, r, side));
-    return true;
+    return { scratch_q, -1, sqside, scratch_vec };
 }
 
-
-/* This exists because of the race condition between feed() and pop()
- */
-special_q las_todo_list::feed_and_pop()
-{
-    const std::lock_guard<std::mutex> foo(mm);
-
-    if (super::empty()) {
-        if (todo_list_fd)
-            feed_qlist();
-        else
-            feed_qrange(rstate);
+uint64_t siqs_todo_list::get_qfac_prime(uint64_t i) {
+    cxx_mpz D;
+    mpz_neg(D, mpz_poly_coeff_const(cpoly->pols[0], 0));
+    while (i >= qfac_primes.size()) {
+        cxx_mpz p;
+        if (qfac_primes.empty()) {
+            p = qfac_min-1U; /* -1 in case qfac_min is prime */
+        } else {
+            p = qfac_primes.back();
+        }
+        do {
+            mpz_nextprime(p, p);
+        } while (mpz_legendre(D, p) != 1);
+        ASSERT_ALWAYS(p <= qfac_max);
+        qfac_primes.emplace_back(std::move(p));
     }
-    if (super::empty())
-        return {};
-    auto ret = super::top();
-    // if (bool(ret)) pulled++;
-    super::pop();
-    return ret;
+    return mpz_get_ui(qfac_primes[i]);
 }
-/* }}} */
 
-void las_todo_list::print_todo_list(cxx_param_list & pl, int nthreads) const
+std::unique_ptr<todo_list_base> siqs_todo_list::create_sub_todo_list(
+    unsigned int i, int nthreads, cxx_param_list const & pl) const
 {
-
-    if (random_sampling) {
-        /* Then we cannot print the todo list in a multithreaded way
-         * without breaking the randomness predictability. It's a bit
-         * annoying, yes. On the other hand, it's highly likely in this
-         * case that the number of q's to pick is small enough anyway !
-         */
-        nthreads = 1;
+    cxx_param_list pl2 = pl;
+    cxx_mpz tmp;
+    mpz_sub(tmp, qidx1, qidx0);
+    mpz_mul_ui(tmp, tmp, i);
+    mpz_fdiv_q_ui(tmp, tmp, nthreads);
+    mpz_add(tmp, qidx0, tmp);
+    {
+        std::ostringstream os;
+        os << tmp;
+        param_list_add_key(pl2, "qidx0", os.str().c_str(), PARAMETER_FROM_CMDLINE);
     }
 
-    std::vector<std::vector<special_q>> lists(nthreads);
-
-    auto segment = [&, this](unsigned int i) {
-        cxx_param_list pl2 = pl;
-        cxx_mpz tmp;
-        mpz_sub(tmp, q1, q0);
-        mpz_mul_ui(tmp, tmp, i);
-        mpz_fdiv_q_ui(tmp, tmp, nthreads);
-        mpz_add(tmp, q0, tmp);
-        {
-            std::ostringstream os;
-            os << tmp;
-            param_list_add_key(pl2, "q0", os.str().c_str(), PARAMETER_FROM_CMDLINE);
-        }
-
-        mpz_sub(tmp, q1, q0);
-        mpz_mul_ui(tmp, tmp, i + 1);
-        mpz_fdiv_q_ui(tmp, tmp, nthreads);
-        mpz_add(tmp, q0, tmp);
-        {
-            std::ostringstream os;
-            os << tmp;
-            param_list_add_key(pl2, "q1", os.str().c_str(), PARAMETER_FROM_CMDLINE);
-        }
-
-        las_todo_list todo2(cpoly, pl2);
-        for(;;) {
-            auto doing = todo2.feed_and_pop();
-            if (!doing) break;
-            if (nthreads == 1) {
-                verbose_fmt_print(0, 1, "{} {} {}\n",
-                        doing.side, doing.p, doing.r);
-            } else {
-                lists[i].push_back(doing);
-            }
-        }
-    };
-
-    if (nthreads > 1) {
-        verbose_fmt_print(0, 1,
-                "# Collecting the todo list in memory"
-                " from q0={} to q1={} using {} threads\n",
-                q0, q1, nthreads);
+    mpz_sub(tmp, qidx1, qidx0);
+    mpz_mul_ui(tmp, tmp, i + 1);
+    mpz_fdiv_q_ui(tmp, tmp, nthreads);
+    mpz_add(tmp, qidx0, tmp);
+    {
+        std::ostringstream os;
+        os << tmp;
+        param_list_add_key(pl2, "qidx1", os.str().c_str(), PARAMETER_FROM_CMDLINE);
     }
+    param_list_remove_key(pl2, "nq");
 
-    std::vector<std::thread> subjobs;
-    subjobs.reserve(nthreads);
-    for(int subjob = 0 ; subjob < nthreads ; ++subjob)
-        subjobs.emplace_back(segment, subjob);
-    for(auto & t : subjobs) t.join();
-    for(auto const & v : lists) {
-        for(auto const & doing : v) {
-            verbose_fmt_print(0, 1, "{} {} {}\n",
-                    doing.side, doing.p, doing.r);
-        }
-    }
+    return todo_list_base::create<siqs_todo_list>(cpoly, pl2);
+}
+
+std::string siqs_todo_list::string_repr() const
+{
+    return fmt::format("{}[{},{}[ with {} factor(s) in [{}, {}[",
+                       random_sampling ? "random sampling from " : "",
+                       qidx0, qidx1, qfac_nfac, qfac_min, qfac_max);
 }

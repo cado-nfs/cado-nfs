@@ -17,6 +17,7 @@
 #include "polynomial.hpp"
 #include "macros.h"
 #include "mpz_poly.h"
+#include "sieve-methods.hpp"
 
 struct special_q; // IWYU pragma: keep
 
@@ -47,14 +48,35 @@ struct lognorm_base {/*{{{*/
     double scale;      /* scale used for logarithms for fb and norm.
                         * must be of form (int)x * 0.1 */
 
+    private:
+    void ctor_common(
+            siever_config const & sc,
+            cxx_cado_poly const & cpoly,
+            int side);
+
+    public:
     lognorm_base() = default;
     lognorm_base(lognorm_base const &) = default;
     lognorm_base& operator=(lognorm_base const &) = default;
-    lognorm_base(siever_config const & sc, cxx_cado_poly const & cpoly, int side, qlattice_basis const & Q, int logI, uint32_t J);
+    lognorm_base(
+            siever_config const & sc,
+            cxx_cado_poly const & cpoly,
+            int side,
+            special_q_data_class auto const & Q,
+            int logI,
+            uint32_t J);
     virtual ~lognorm_base() = default;
 
-    void norm(cxx_mpz & x, int i, unsigned int j) const;
-    unsigned char lognorm(int i, unsigned int j) const;
+    void norm(
+            cxx_mpz & x,
+            int i,
+            unsigned int j,
+            special_q_data_class auto const & Q) const;
+
+    unsigned char lognorm(
+            int i,
+            unsigned int j,
+            special_q_data_class auto const & Q) const;
 
     virtual void fill(unsigned char * S, unsigned int N MAYBE_UNUSED) const {
         /* Whether we put something or not here is not really important.
@@ -86,6 +108,7 @@ struct lognorm_reference : public lognorm_base {/*{{{*/
     private:
     void fill_alg(unsigned char * S, uint32_t N) const;
     void fill_rat(unsigned char * S, uint32_t N) const;
+    void fill_siqs(unsigned char * S, uint32_t N) const;
 };
 
 /*}}}*/
@@ -107,13 +130,20 @@ struct lognorm_smart : public lognorm_base {/*{{{*/
     lognorm_smart& operator=(lognorm_smart const &) = default;
     lognorm_smart(lognorm_smart &&) = default;
     lognorm_smart & operator=(lognorm_smart &&) = default;
-    lognorm_smart(siever_config const & sc, cxx_cado_poly const & cpoly, int side, qlattice_basis const & Q, int logI, uint32_t J);
+    lognorm_smart(
+            siever_config const & sc,
+            cxx_cado_poly const & cpoly,
+            int side,
+            special_q_data_class auto const & Q,
+            int logI,
+            uint32_t J);
     ~lognorm_smart() override = default;
     void fill(unsigned char * S, unsigned int N) const override;
     private:
     void fill_rat_inner (unsigned char *S, int i0, int i1, unsigned int j0, unsigned int j1, polynomial<double> const & fijd) const;
     void fill_alg(unsigned char * S, uint32_t N) const;
     void fill_rat(unsigned char * S, uint32_t N) const;
+    void fill_siqs(unsigned char * S, uint32_t N) const;
 };
 
 /*}}}*/

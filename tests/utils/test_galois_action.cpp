@@ -152,6 +152,15 @@ static bool test_hash(galois_action const & g,
                 g, a0, b0, eq ? "!=" : "==", a1, b1);
         return false;
     }
+
+    /* mpz variant */
+    const uint64_t hz0 = g.hash_ab(cxx_mpz(a0), cxx_mpz(b0), CA, CB);
+    const uint64_t hz1 = g.hash_ab(cxx_mpz(a1), cxx_mpz(b1), CA, CB);
+    if ((hz0 == hz1) != eq) {
+        fmt::print("error in test_hash (mpz) with {}: hash({},{}) {} "
+                   "hash({},{})\n", g, a0, b0, eq ? "!=" : "==", a1, b1);
+        return false;
+    }
     return true;
 }
 

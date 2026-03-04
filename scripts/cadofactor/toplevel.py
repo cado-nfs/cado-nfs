@@ -14,6 +14,7 @@ import argparse
 import shutil
 
 from cadofactor import wudb, cadotask, cadologger, cadoparams
+from cadofactor.cadoutils import Algorithm, Computation
 
 
 # This is a hack. We want to store some stuff in the tasks database for
@@ -40,10 +41,12 @@ class Cado_NFS_toplevel(object):
     def find_default_hint_file(self):
         ''' return the full path of the default hint file which
         is appropriate for the given dlp problem.'''
-        assert self.parameters.get_or_set_default("dlp", False)
+        c = self.parameters.get_or_set_default("computation", Computation.FACT)
+        assert c == Computation.DLP
         assert self.parameters.get_or_set_default("N", 0) != 0
         default_param_dir = self.pathdict["data"]
-        default_param_dir = os.path.join(default_param_dir, "dlp")
+        default_param_dir = os.path.join(default_param_dir,
+                                         Computation.DLP.param_dirname)
         size_of_n = len(repr(self.parameters.get_or_set_default("N", 0)))
         # also attempt nearest multiple of 5.
         if self.parameters.get_or_set_default("gfpext", 1) == 1:
@@ -73,16 +76,22 @@ class Cado_NFS_toplevel(object):
         well as the closest size up to a distance of 3 (of 5 for 200 digits
         or more).
 
-        If self.args.dlp is set, we look in the dlp/ subdirectory of
-        self.pathdict["data"]. Otherwise we look in the factor/ subdirectory.
+        The variable self.args.computation must be set and of type Computation
+        as we look in the subdirectory self.args.computation.param_dirname of
+        self.pathdict["data"].
+        See the definition of Computation class for the link between the type
+        of computation and the subdirectory for parameter files.
 
         >>> tempdir = tempfile.mkdtemp()
-        >>> names = ["c10", "c12", "c20", "p12", "p20" ]
+        >>> names = ["c10", "c12", "c20", "p12", "p20", "qs.d12", "qs.d20" ]
         >>> os.mkdir(os.path.join(tempdir, "factor"))
         >>> os.mkdir(os.path.join(tempdir, "dlp"))
+        >>> os.mkdir(os.path.join(tempdir, "cl"))
         >>> for n in names:
         ...  if re.search("^p", n):
         ...    dn = "dlp"
+        ...  elif re.search("^qs.d", n):
+        ...    dn = "cl"
         ...  else:
         ...    dn = "factor"
         ...  fn = os.path.join(tempdir, dn, "params." + n)
@@ -103,83 +112,113 @@ class Cado_NFS_toplevel(object):
         >>> n20 = 12345678901231231231
         >>> n21 = 123456789012312312311
         >>> t.args.N = n10
-        >>> t.args.dlp = False
+        >>> t.args.computation = Computation.FACT
         >>> fn = t.find_default_parameter_file()
         >>> fn == os.path.join(tempdir, "factor", "params.c10")
         True
 
         >>> t.args.N = n12
-        >>> t.args.dlp = False
+        >>> t.args.computation = Computation.FACT
         >>> fn = t.find_default_parameter_file()
         >>> fn == os.path.join(tempdir, "factor", "params.c12")
         True
 
         >>> t.args.N = n13
-        >>> t.args.dlp = False
+        >>> t.args.computation = Computation.FACT
         >>> fn = t.find_default_parameter_file()
         >>> fn == os.path.join(tempdir, "factor", "params.c12")
         True
 
         >>> t.args.N = n16
-        >>> t.args.dlp = False
-        >>> try:
-        ...   t.find_default_parameter_file()
-        ... except RuntimeError:
-        ...   'NOTFOUND'
-        'NOTFOUND'
+        >>> t.args.computation = Computation.FACT
+        >>> t.find_default_parameter_file()  # doctest: +ELLIPSIS
+        Traceback (most recent call last):
+            ...
+        RuntimeError: no parameter file found for c16 (tried ...
+        ...
 
         >>> t.args.N = n18
-        >>> t.args.dlp = False
+        >>> t.args.computation = Computation.FACT
         >>> fn = t.find_default_parameter_file()
         >>> fn == os.path.join(tempdir, "factor", "params.c20")
         True
 
         >>> t.args.N = n12
-        >>> t.args.dlp = True
+        >>> t.args.computation = Computation.DLP
         >>> fn = t.find_default_parameter_file()
         >>> fn == os.path.join(tempdir, "dlp", "params.p12")
         True
 
         >>> t.args.N = n13
-        >>> t.args.dlp = True
+        >>> t.args.computation = Computation.DLP
         >>> fn = t.find_default_parameter_file()
         >>> fn == os.path.join(tempdir, "dlp", "params.p12")
         True
 
         >>> t.args.N = n16
-        >>> t.args.dlp = True
-        >>> try:
-        ...   t.find_default_parameter_file()
-        ... except RuntimeError:
-        ...   'NOTFOUND'
-        'NOTFOUND'
+        >>> t.args.computation = Computation.DLP
+        >>> t.find_default_parameter_file()  # doctest: +ELLIPSIS
+        Traceback (most recent call last):
+            ...
+        RuntimeError: no parameter file found for p16 (tried ...
+        ...
 
         >>> t.args.N = n18
-        >>> t.args.dlp = True
+        >>> t.args.computation = Computation.DLP
         >>> fn = t.find_default_parameter_file()
         >>> fn == os.path.join(tempdir, "dlp", "params.p20")
+        True
+
+        >>> t.args.N = n12
+        >>> t.args.computation = Computation.CL
+        >>> t.args.algo = Algorithm.QS
+        >>> fn = t.find_default_parameter_file()
+        >>> fn == os.path.join(tempdir, "cl", "params.qs.d12")
+        True
+
+        >>> t.args.N = n13
+        >>> t.args.computation = Computation.CL
+        >>> t.args.algo = Algorithm.QS
+        >>> fn = t.find_default_parameter_file()
+        >>> fn == os.path.join(tempdir, "cl", "params.qs.d12")
+        True
+
+        >>> t.args.N = n16
+        >>> t.args.computation = Computation.CL
+        >>> t.args.algo = Algorithm.QS
+        >>> t.find_default_parameter_file()  # doctest: +ELLIPSIS
+        Traceback (most recent call last):
+            ...
+        RuntimeError: no parameter file found for qs.d16 (tried ...
+        ...
+
+        >>> t.args.N = n18
+        >>> t.args.computation = Computation.CL
+        >>> t.args.algo = Algorithm.QS
+        >>> fn = t.find_default_parameter_file()
+        >>> fn == os.path.join(tempdir, "cl", "params.qs.d20")
         True
 
         >>> for n in names:
         ...  if re.search("^p", n):
         ...    dn = "dlp"
+        ...  elif re.search("^qs.d", n):
+        ...    dn = "cl"
         ...  else:
         ...    dn = "factor"
         ...  fn = os.path.join(tempdir, dn, "params." + n)
         ...  os.unlink(fn)
         >>> os.rmdir(os.path.join(tempdir, "factor"))
         >>> os.rmdir(os.path.join(tempdir, "dlp"))
+        >>> os.rmdir(os.path.join(tempdir, "cl"))
         >>> os.rmdir(tempdir)
         '''
 
         default_param_dir = self.pathdict["data"]
-        if self.args.dlp:
-            default_param_dir = os.path.join(default_param_dir, "dlp")
-            letter = "p"
-        else:
-            default_param_dir = os.path.join(default_param_dir, "factor")
-            letter = "c"
-        size_of_n = len(repr(self.args.N))
+        default_param_dir = os.path.join(default_param_dir,
+                                         self.args.computation.param_dirname)
+        letter = self.args.computation.letter
+        size_of_n = len(repr(abs(self.args.N)))
         # we try the nearest value in range [size_of_n-k,size_of_n+k]
         # with k=3 for < 200 digits, k=5 for >= 200 digits
         if size_of_n < 200:
@@ -191,9 +230,11 @@ class Cado_NFS_toplevel(object):
             tried_sizes.append(size_of_n + k)
             tried_sizes.append(size_of_n - k)
         attempts = ["%d" % x for x in tried_sizes]
-        if self.args.gfpext > 1:
+        if self.args.gfpext is not None and self.args.gfpext > 1:
             attempts = [letter + "%ddd" % self.args.gfpext + x
                         for x in attempts]
+        elif self.args.algo == Algorithm.QS:
+            attempts = [f'qs.{letter}{x}' for x in attempts]
         else:
             attempts = [letter + x for x in attempts]
         if attempts[1] == attempts[0]:
@@ -453,6 +494,9 @@ class Cado_NFS_toplevel(object):
             if match_and_store(matches, r"^N=(\d+)$", x):
                 supplied_N.append(matches[0])
             elif match_and_store(matches, r"^(\d+)$", x):
+                supplied_N.append(matches[0])
+            elif self.args.computation == Computation.CL and \
+                    match_and_store(matches, r"^(-\d+)$", x):
                 supplied_N.append(matches[0])
             elif len(supplied_parameters) == 0 and os.path.isfile(x):
                 supplied_parameters.append(x)
@@ -758,8 +802,8 @@ class Cado_NFS_toplevel(object):
     def set_threads_and_client_threads(self):
         """
         This function processes the --client-threads argument and sets
-        the parameters tasks.polyselect.threads and
-        tasks.sieve.las.threads accordingly. If nothing is provided, use
+        the parameters tasks.polyselect.threads, tasks.sieve.las.threads and
+        tasks.sieve.siqs.threads accordingly. If nothing is provided, use
         2 threads for each, as a default value.
 
         All other tasks are processed on the server. This function thus
@@ -796,6 +840,9 @@ class Cado_NFS_toplevel(object):
         >>> t.parameters.get_or_set_default("tasks.sieve.las.threads",0)
         2
 
+        >>> t.parameters.get_or_set_default("tasks.sieve.siqs.threads",0)
+        2
+
         >>> t.parameters.get_or_set_default("tasks.polyselect.threads",0)
         2
 
@@ -815,6 +862,9 @@ class Cado_NFS_toplevel(object):
         >>> t.parameters.get_or_set_default("tasks.sieve.las.threads",0)
         1
 
+        >>> t.parameters.get_or_set_default("tasks.sieve.siqs.threads",0)
+        1
+
         >>> t.parameters.get_or_set_default("tasks.polyselect.threads",0)
         1
 
@@ -825,6 +875,7 @@ class Cado_NFS_toplevel(object):
         steps overrides what we compute with --client-threads
         and --server-threads.
         >>> t = Cado_NFS_toplevel(args=['12345', 'tasks.sieve.las.threads=6',
+        ...                             'tasks.sieve.siqs.threads=7',
         ...                             '--client-threads', '3',
         ...                             '-p', os.path.os.devnull,
         ...                             '--server-threads', '4'])
@@ -838,6 +889,9 @@ class Cado_NFS_toplevel(object):
 
         >>> t.parameters.get_or_set_default("tasks.sieve.las.threads",0)
         6
+
+        >>> t.parameters.get_or_set_default("tasks.sieve.siqs.threads",0)
+        7
 
         >>> t.parameters.get_or_set_default("tasks.polyselect.threads",0)
         3
@@ -857,6 +911,9 @@ class Cado_NFS_toplevel(object):
         1
 
         >>> t.parameters.get_or_set_default("tasks.sieve.las.threads",0)
+        1
+
+        >>> t.parameters.get_or_set_default("tasks.sieve.siqs.threads",0)
         1
 
         >>> t.parameters.get_or_set_default("tasks.polyselect.threads",0)
@@ -889,6 +946,9 @@ class Cado_NFS_toplevel(object):
         3
 
         >>> t.parameters.get_or_set_default("tasks.sieve.las.threads",0)
+        2
+
+        >>> t.parameters.get_or_set_default("tasks.sieve.siqs.threads",0)
         2
 
         >>> t.parameters.get_or_set_default("tasks.polyselect.threads",0)
@@ -971,7 +1031,8 @@ class Cado_NFS_toplevel(object):
         # tasks.sieve.las.threads.
         if self.args.client_threads:
             c = self.args.client_threads
-            for p in ["tasks.polyselect.threads", "tasks.sieve.las.threads"]:
+            for p in ["tasks.polyselect.threads", "tasks.sieve.las.threads",
+                      "tasks.sieve.siqs.threads"]:
                 if not pa.is_set_explicitly(p):
                     pa.set_simple(p, c)
         else:
@@ -979,7 +1040,8 @@ class Cado_NFS_toplevel(object):
             # of having set tasks.threads or tasks.sieve.threads,
             # we want to set our default.
             t = pa.get_or_set_default("tasks.threads", 0)
-            for p in ["tasks.polyselect.threads", "tasks.sieve.las.threads"]:
+            for p in ["tasks.polyselect.threads", "tasks.sieve.las.threads",
+                      "tasks.sieve.siqs.threads"]:
                 if not pa.is_set_explicitly(p):
                     pa.set_simple(p, min(t, 2))
 
@@ -998,7 +1060,8 @@ class Cado_NFS_toplevel(object):
 
         for p in ["tasks.threads",
                   "tasks.polyselect.threads",
-                  "tasks.sieve.las.threads"]:
+                  "tasks.sieve.las.threads",
+                  "tasks.sieve.siqs.threads"]:
             self.logger.info("%s = %s [via %s]"
                              % (p, pa.get_or_set_default(p), pa.locate(p)))
             assert pa.locate(p) == p
@@ -1177,7 +1240,6 @@ class Cado_NFS_toplevel(object):
         parser.add_argument(
             "--gfpext", "-gfpext",
             type=int,
-            default=1,
             help="Degree of the finite field extension (DLP only)")
         parser.add_argument(
             "--ell", "-ell",
@@ -1186,10 +1248,40 @@ class Cado_NFS_toplevel(object):
             "--server",
             help="Run a bare server, do not start any clients",
             action='store_true')
-        parser.add_argument(
+        comp_group = parser.add_mutually_exclusive_group()
+        comp_group.add_argument(
+            "--fact", "-fact",
+            help="Run factorization computation",
+            dest='computation',
+            action='store_const',
+            const=Computation.FACT,
+            default=Computation.FACT)
+        comp_group.add_argument(
             "--dlp", "-dlp",
-            help="Run discrete logarithm computation instead",
-            action='store_true')
+            help="Run discrete logarithm computation",
+            dest='computation',
+            action='store_const',
+            const=Computation.DLP)
+        comp_group.add_argument(
+            "--cl", "-cl",
+            help="Run class group computation",
+            dest='computation',
+            action='store_const',
+            const=Computation.CL)
+        algo_group = parser.add_mutually_exclusive_group()
+        algo_group.add_argument(
+            "--nfs", "-nfs",
+            help="Use NFS and its variants",
+            dest='algo',
+            action='store_const',
+            const=Algorithm.NFS,
+            default=Algorithm.NFS)
+        algo_group.add_argument(
+            "--qs", "-qs",
+            help="Use QS and its variants",
+            dest='algo',
+            action='store_const',
+            const=Algorithm.QS)
         parser.add_argument(
             "--mysql", "-mysql",
             help="Use a mysql db for tracking workunits etc",
@@ -1281,6 +1373,8 @@ class Cado_NFS_toplevel(object):
         >>> px = px.replace(slashtmp, "SLASHTMP")
         >>> print(px)
         N = 12345
+        algo = NFS
+        computation = FACT
         slaves.basepath = TEMPDIR/client
         slaves.hostnames = foo,bar
         slaves.scriptpath = SLASHTMP
@@ -1291,6 +1385,7 @@ class Cado_NFS_toplevel(object):
         tasks.linalg.bwc.threads = 4
         tasks.polyselect.threads = 2
         tasks.sieve.las.threads = 2
+        tasks.sieve.siqs.threads = 2
         tasks.sqrt.threads = 1
 
         >>> del os.environ["NCPUS_FAKE"]
@@ -1306,20 +1401,25 @@ class Cado_NFS_toplevel(object):
         self.set_threads_and_client_threads()
         self.set_slaves_parameters()
         # convert some more command-line args to parameters:
-        if self.args.dlp:
+        computation = self.parameters.set_if_unset("computation",
+                                                   self.args.computation.name)
+        algo = self.parameters.set_if_unset("algo", self.args.algo.name)
+        if computation == Computation.DLP:
             if not self.args.dlp_no_keep:
                 os.environ["CADO_DEBUG"] = "yes, please"
-            self.parameters.set_simple("dlp", self.args.dlp)
-            if self.args.gfpext:
+            if self.args.gfpext is not None:
+                # override value from parameter file (if set) by the value
+                # given on the command-line (if given)
                 self.parameters.set_simple("gfpext", self.args.gfpext)
-        # get default hint file if necessary
-        if self.parameters.get_or_set_default("dlp", False):
+            self.parameters.set_if_unset("gfpext", 1)
             if self.parameters.get_or_set_default("target", ""):
                 hintfile = self.parameters.get_or_set_default("descent_hint",
                                                               "")
                 if hintfile == "":
                     hintfile = self.find_default_hint_file()
                 self.parameters.set_simple("descent_hint", hintfile)
+        elif algo == Algorithm.QS:
+            os.environ["CADO_DEBUG"] = "yes, please"
         # set cpubinding file if necessary
         self.parameters.set_if_unset(
             "tasks.linalg.bwc.cpubinding",

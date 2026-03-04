@@ -4,8 +4,11 @@
 #include <cstdio>
 #include <cstdint>
 
+#include <iostream>
 #include <list>
 #include <vector>
+
+#include "fmt/ostream.h"
 
 #include "cxx_mpz.hpp"
 #include "ecm/batch.hpp"
@@ -14,7 +17,7 @@
 
 class nfs_work_cofac; // IWYU pragma: keep
 struct special_q; // IWYU pragma: keep
-struct qlattice_basis; // IWYU pragma: keep
+struct special_q_data_base; // IWYU pragma: keep
 template <typename T> struct lock_guarded_container; // IWYU pragma: keep
 
 struct cofac_standalone {
@@ -37,7 +40,8 @@ struct cofac_standalone {
 #endif
     }
     cofac_standalone();
-    cofac_standalone(int nsides, int N, size_t x, int logI, qlattice_basis const & Q);
+    cofac_standalone(int nsides, int N, size_t x, int logI,
+                     special_q_data_base const & Q);
     bool trace_on_spot() const;
     /* TODO. Hmmm. How important is this ? We don't want to expose
      * dependence on a compile flag in a header */
@@ -54,7 +58,13 @@ struct cofac_standalone {
     relation get_relation(special_q const & doing) const;
     void transfer_to_cofac_list(lock_guarded_container<std::list<cofac_candidate>> & L);
     int factor_leftover_norms(nfs_work_cofac & wc);
+    friend std::ostream& operator<<(
+            std::ostream& os,
+            cofac_standalone const & cur);
 };
 
+namespace fmt {
+    template <> struct formatter<cofac_standalone>: ostream_formatter {};
+}
 
 #endif	/* CADO_LAS_COFAC_STANDALONE_HPP */

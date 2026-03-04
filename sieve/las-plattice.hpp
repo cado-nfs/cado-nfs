@@ -605,24 +605,6 @@ class plattice_enumerator_coprime : public plattice_enumerator
     }
 };
 
-class plattices_vector_t : public std::vector<plattice_enumerator>
-{
-    /* The index here is the global index, across all fb parts */
-    slice_index_t index = -1;
-    double weight = 0;
-
-  public:
-    plattices_vector_t() = default;
-    plattices_vector_t(slice_index_t index, double weight)
-        : index(index)
-        , weight(weight)
-    {
-    }
-    /* returns a global index */
-    slice_index_t get_index() const { return index; };
-    slice_index_t get_weight() const { return weight; };
-};
-
 /* Dense version of plattice_info and friends for long-term storage in
  * sublat mode. */
 

@@ -204,11 +204,10 @@ void divide_known_primes(std::vector<uint64_t> & fl, cxx_mpz & norm,
                          bool const handle_2, bucket_primes_t * primes,
                          bucket_array_complete * purged,
                          trialdiv_data const & td, int64_t a, uint64_t b,
-                         fb_factorbase::slicing const & fbs)
+                         fb_factorbase::slicing const & fbs,
+                         bool very_verbose)
 {
-    int const trial_div_very_verbose = extern_trace_on_spot_ab(a, b);
-
-    if (trial_div_very_verbose) {
+    if (very_verbose) {
         verbose_output_start_batch();
         verbose_fmt_print(
             TRACE_CHANNEL, 0,
@@ -223,7 +222,7 @@ void divide_known_primes(std::vector<uint64_t> & fl, cxx_mpz & norm,
         int const bit = mpz_scan1(norm, 0);
         for (int i = 0; i < bit; ++i)
             fl.push_back(2);
-        if (trial_div_very_verbose)
+        if (very_verbose)
             verbose_fmt_print(TRACE_CHANNEL, 0,
                                    "# x = {}, dividing out 2^{}, norm = {}\n",
                                    x, bit, norm);
@@ -231,16 +230,16 @@ void divide_known_primes(std::vector<uint64_t> & fl, cxx_mpz & norm,
     }
 
     // remove primes in "primes" that map to x
-    divide_primes_from_bucket(fl, norm, N, x, primes, trial_div_very_verbose);
+    divide_primes_from_bucket(fl, norm, N, x, primes, very_verbose);
     size_t const nf_divide_primes = fl.size();
 
     // now remove prime hints in "purged". If we had no factor base, then
     // we really should have an empty list here.
     divide_hints_from_bucket(fl, norm, N, x, purged, fbs,
-                             trial_div_very_verbose);
+                             very_verbose);
     size_t const nf_divide_hints = fl.size();
 
-    if (trial_div_very_verbose)
+    if (very_verbose)
         verbose_fmt_print(
             TRACE_CHANNEL, 0,
             "# x = {}, after dividing out bucket/resieved norm = {}\n", x,
@@ -248,7 +247,7 @@ void divide_known_primes(std::vector<uint64_t> & fl, cxx_mpz & norm,
 
     /* Trial divide primes with precomputed tables */
 
-    if (trial_div_very_verbose) {
+    if (very_verbose) {
         auto p = [](auto const & e) { return e.p; };
         verbose_fmt_print(TRACE_CHANNEL, 0, "# Trial division by {}\n",
                fmt::join(td | std::views::transform(p), " "));
@@ -257,7 +256,7 @@ void divide_known_primes(std::vector<uint64_t> & fl, cxx_mpz & norm,
     td.trial_divide(fl, norm);
     size_t const nf_td = fl.size();
 
-    if (trial_div_very_verbose) {
+    if (very_verbose) {
         std::ostringstream os;
         size_t i = 0;
         if (i < nf_divide_primes) {
@@ -285,6 +284,6 @@ void divide_known_primes(std::vector<uint64_t> & fl, cxx_mpz & norm,
                                norm);
     }
 
-    if (trial_div_very_verbose)
+    if (very_verbose)
         verbose_output_end_batch();
 }

@@ -143,14 +143,14 @@ set(D20_POLY_1 "inline-poly://n=-13784472188539234591/skew=3712744562.0/poly0=13
 cado_divert_test(misc_cl_structure d20_no_pSylow
     APPEND_ARGUMENTS
     -poly "${D20_POLY_1}" -order "2*617*2341309"
-    EXPECT_SHA1 ad426daf55ed3ffdf96058602abb25c95c364476
+    EXPECT_SHA1 69f082849fcfe5020ebece22bb0a0b0d1cbeb73a
 )
 
 set(D20_POLY_2 "inline-poly://n=-31415926535897932387/skew=5604991216.0/poly0=31415926535897932387,0,1")
 cado_divert_test(misc_cl_structure d20_2and3Sylow
     APPEND_ARGUMENTS
     -poly "${D20_POLY_2}" -order "2^2*3^4*7*13*53*541"
-    EXPECT_SHA1 dd24813b875f503cf03f783f6ed8ac9d5aa6d902
+    EXPECT_SHA1 bb639db84ed3e3e29125f47caa36d45814073fd9
 )
 
 # Test with an unnecessary factor in the group order
@@ -158,8 +158,7 @@ cado_divert_test(misc_cl_structure d20_2and3Sylow
 cado_divert_test(misc_cl_structure d20_unnecessary_factor
     APPEND_ARGUMENTS
     -poly "${D20_POLY_2}" -order "2^2,3^4,7,13,53,101^2,541"
-    EXPECT_SHA1 dd24813b875f503cf03f783f6ed8ac9d5aa6d902
-    EXPECT_FAIL
+    EXPECT_SHA1 bb639db84ed3e3e29125f47caa36d45814073fd9
 )
 
 # Use -pSylow-bound 10 to disable the computation of the 3-Sylow (3^4 > 10)
@@ -174,7 +173,7 @@ set(D20_POLY_3 "inline-poly://n=-24341965603669336362/skew=4933757756.0/poly0=24
 cado_divert_test(misc_cl_structure p_div_conductor
     APPEND_ARGUMENTS
     -poly "${D20_POLY_3}" -order "2^10,3^4,113,599"
-    EXPECT_SHA1 b4f3f5f52b5d382ec2a1799d07ff4cb8c2528276
+    EXPECT_SHA1 6aadc1af4ab796da2e704a2969d26e4f3df3fed6
 )
 
 # Use only prime ideals below 100 (-B 100) to shorten the tests (the results is
@@ -182,7 +181,7 @@ cado_divert_test(misc_cl_structure p_div_conductor
 cado_divert_test(misc_cl_structure d130_2Sylow
     APPEND_ARGUMENTS
     -poly ${CMAKE_CURRENT_SOURCE_DIR}/d130.poly -order 2^9,3,5,26984470254026794913,37322833896097955713,5947362367424588311471 -B 100
-    EXPECT_SHA1 bf6bbfdda8e54627fe491d7f7c418d856dcdb19c
+    EXPECT_SHA1 127a3ad7430a1020d75e3e02ae454bec70b4c2eb
 )
 
 cado_divert_test(misc_cl_structure error1 EXPECT_FAIL ARGUMENTS)

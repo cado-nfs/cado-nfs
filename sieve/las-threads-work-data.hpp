@@ -16,7 +16,6 @@
 #include "las-dumpfile.hpp"
 #include "las-norms.hpp"
 #include "las-plattice.hpp"
-#include "las-qlattice.hpp"
 #include "las-siever-config.hpp"
 #include "las-smallsieve.hpp"
 #include "las-threads.hpp"
@@ -24,6 +23,7 @@
 #include "las-special-q-task.hpp"
 #include "lock_guarded_container.hpp"
 #include "multityped_array.hpp"
+#include "siqs-smallsieve.hpp"
 
 class las_memory_accessor; // IWYU pragma: keep
 class nfs_aux; // IWYU pragma: keep
@@ -81,7 +81,7 @@ class nfs_work {
 
     siever_config conf;
 
-    qlattice_basis Q;
+    special_q doing;
 
     /* This lives inside the special_q_task_collection, and is in effect
      * either a special_q_task_simple, or a special_q_task_tree.
@@ -164,9 +164,10 @@ class nfs_work {
         /* the "group" member is not default-constructible,
          * unfortunately.
          */
-        side_data(int nr_arrays)
+        template<sieve_method Algo>
+        side_data(int nr_arrays, Algo)
             : group(nr_arrays)
-            , ssd(new las_small_sieve_data())
+            , ssd(new Algo::smallsieve())
         {
         }
 
@@ -256,15 +257,16 @@ class nfs_work {
 
     std::vector<thread_data> th;
 
-    nfs_work(las_info & _las);
-    nfs_work(las_info & _las, int);
+    nfs_work(las_info & _las, sieve_method auto tag);
+    nfs_work(las_info & _las, int, sieve_method auto tag);
     private:
     void zeroinit_defaults();
     void compute_toplevel_and_buckets();        // utility
     public:
     /* This uses the same reference as this->las, except that we want it
      * non-const */
-    void prepare_for_new_q(las_info &, special_q_task *);
+    template<sieve_method Algo>
+    void prepare_for_new_q(las_info &, special_q_task *, typename Algo::special_q_data const &);
 
     void allocate_buckets(nfs_aux&, thread_pool&);
     private:

@@ -23,6 +23,10 @@ struct cxx_param_list; // IWYU pragma: keep
 class nfs_work; // IWYU pragma: keep
 
 
+int extern_trace_on_spot_ab(cxx_mpz const &, cxx_mpz const &) {
+    return 0;
+}
+
 int extern_trace_on_spot_ab(int64_t, uint64_t) {
     return 0;
 }
@@ -51,8 +55,13 @@ void where_am_I::interpret_parameters(cxx_param_list &)
 /* This fills all the trace_* structures from the main one. The main
  * structure is the one for which a non-NULL pointer is passed.
  */
-void where_am_I::begin_special_q(nfs_work const &)
+void where_am_I::begin_special_q(
+        nfs_work const &,
+        special_q_data_class auto const &)
 {
 }
+
+template void where_am_I::begin_special_q(nfs_work const &, qlattice_basis const &);
+template void where_am_I::begin_special_q(nfs_work const &, siqs_special_q_data const &);
 
 /* }}} */

@@ -30,6 +30,7 @@
 
 #include "filter_config.h"
 #include "filter_io.h"  // filter_rels
+#include "gmp_aux.h"
 #include "gzip.h"       // fopen_maybe_compressed
 #include "macros.h"
 #include "portability.h" // strdup // IWYU pragma: keep
@@ -159,12 +160,56 @@ compute_slice (int64_t a, uint64_t b)
   return (unsigned int) h;
 }
 
+static inline unsigned int
+compute_slice_mpz (mpz_srcptr a, mpz_srcptr b)
+{
+  mpz_t t;
+  mpz_init(t);
+  mpz_mul_uint64(t, a, CA_DUP1);
+  mpz_addmul_uint64(t, b, CB_DUP1);
+  mp_limb_t h = 0u;
+  for (size_t i = 0; i < mpz_size(t); ++i) {
+      h = h ^ mpz_getlimbn(t, i);
+  }
+  mpz_clear(t);
+  /* Using the low bit of h is not a good idea, since then
+     odd values of i are twice more likely. The second low bit
+     also gives a small bias with RSA768 (but not for random
+     coprime a, b). We use here the nslices_log high bits.
+  */
+  h >>= (CHAR_BIT * sizeof(mp_limb_t) - nslices_log);
+  return (unsigned int) h;
+}
+
 /* Callback function called by prempt_scan_relations */
 
 static void *
 thread_dup1 (void * context_data, earlyparsed_relation_ptr rel)
 {
     unsigned int slice = compute_slice (rel->a, rel->b);
+    split_output_iter_t **outiters = (split_output_iter_t**)context_data;
+
+    if (do_slice[slice])
+    {
+      if (only_ab)
+      {
+        char *p = rel->line;
+        while (*p != ':')
+          p++;
+        *p = '\n';
+      }
+
+      split_output_iter_t *iter = outiters[slice];
+      split_iter_write_next(iter, rel->line);
+      nr_rels_tot[slice]++;
+    }
+    return NULL;
+}
+
+static void *
+thread_dup1_mpz (void * context_data, earlyparsed_relation_mpz_ptr rel)
+{
+    unsigned int slice = compute_slice_mpz (rel->a, rel->b);
     split_output_iter_t **outiters = (split_output_iter_t**)context_data;
 
     if (do_slice[slice])
@@ -206,6 +251,28 @@ thread_dup1_special (void * context_data, earlyparsed_relation_ptr rel)
   return NULL;
 }
 
+/* same as above, for mpz */
+static void *
+thread_dup1_special_mpz (void * context_data, earlyparsed_relation_mpz_ptr rel)
+{
+  split_output_iter_t **outiters = (split_output_iter_t**)context_data;
+  if (do_slice[0])
+  {
+    if (only_ab)
+    {
+      char *p = rel->line;
+      while (*p != ':')
+        p++;
+      *p = '\n';
+    }
+
+    split_output_iter_t *iter = outiters[0];
+    split_iter_write_next(iter, rel->line);
+    nr_rels_tot[0]++;
+  }
+  return NULL;
+}
+
 static void declare_usage(param_list pl)
 {
   param_list_decl_usage(pl, "filelist", "file containing a list of input files");
@@ -220,6 +287,8 @@ static void declare_usage(param_list pl)
   param_list_decl_usage(pl, "ab", "only print a and b in the output");
   param_list_decl_usage(pl, "abhexa",
                                   "read a and b as hexa not decimal");
+  param_list_decl_usage(pl, "large-ab", "enable support for a and b larger "
+                                        "than 64 bits");
   param_list_decl_usage(pl, "force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
   param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
   verbose_decl_usage(pl);
@@ -240,6 +309,7 @@ main (int argc, char const * argv[])
     unsigned int log_max_nrels_per_files = DEFAULT_LOG_MAX_NRELS_PER_FILES;
     int only_slice = -1;
     int abhexa = 0;
+    int largeab = 0;
 
     param_list pl;
     param_list_init(pl);
@@ -248,6 +318,7 @@ main (int argc, char const * argv[])
 
     param_list_configure_switch(pl, "ab", &only_ab);
     param_list_configure_switch(pl, "abhexa", &abhexa);
+    param_list_configure_switch(pl, "large-ab", &largeab);
     param_list_configure_switch(pl, "force-posix-threads", &filter_rels_force_posix_threads);
 
 #ifdef HAVE_MINGW
@@ -359,16 +430,19 @@ main (int argc, char const * argv[])
     }
 
     timingstats_dict_init(stats);
-    if (nslices == 1)
-      filter_rels(files, (filter_rels_callback_t) &thread_dup1_special,
-            (void*)outiters, EARLYPARSE_NEED_LINE |
-            (abhexa ? EARLYPARSE_NEED_AB_HEXA : EARLYPARSE_NEED_AB_DECIMAL),
-            NULL, stats);
-    else
-      filter_rels(files, (filter_rels_callback_t) &thread_dup1, (void*)outiters,
-            EARLYPARSE_NEED_LINE |
-            (abhexa ? EARLYPARSE_NEED_AB_HEXA : EARLYPARSE_NEED_AB_DECIMAL),
-            NULL, stats);
+
+    int flags = EARLYPARSE_NEED_LINE |
+                (abhexa ? EARLYPARSE_NEED_AB_HEXA : EARLYPARSE_NEED_AB_DECIMAL);
+
+    if (!largeab) {
+      filter_rels_callback_t cb = nslices == 1 ? &thread_dup1_special
+                                               : &thread_dup1;
+      filter_rels(files, cb, (void*)outiters, flags, NULL, stats);
+    } else {
+      filter_rels_mpz_callback_t cb = nslices == 1 ? &thread_dup1_special_mpz
+                                                   : &thread_dup1_mpz;
+      filter_rels_mpz(files, cb, (void*)outiters, flags, NULL, stats);
+    }
 
     for(unsigned int i = 0 ; i < nslices ; i++)
       split_iter_end(outiters[i]);

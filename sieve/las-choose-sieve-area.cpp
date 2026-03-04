@@ -153,6 +153,34 @@ static bool choose_sieve_area(las_info const & las,
     return true;
 }
 
+static bool choose_sieve_area(las_info const & las,
+        timetree_t * ptimer MAYBE_UNUSED,
+        special_q_task const & doing,
+        siever_config & conf,
+        siqs_special_q_data & Q,
+        uint32_t & J)
+{
+    conf = las.config_pool.get_config_for_q(doing);
+    auto n = doing.sq().prime_factors.size();
+    conf.logI = conf.logA-(n-1);
+
+    /* -n/2*q - I/2*q <= a = rj + i*q < n/2*q + I/2*q */
+    cxx_mpz a_ub = doing.p << (conf.logI-1);
+    mpz_addmul_ui(a_ub, doing.p, n/2);
+    if (!support_large_q && a_ub.bits() > 63) {
+        verbose_output_print(2, 1,
+                "# Warning, special-q and I are too large to fit in 63 bits,"
+                " skipping this special-q."
+                " Define SUPPORT_LARGE_Q to proceed anyway.\n");
+        return false;
+    }
+
+    Q = siqs_special_q_data(doing.sq(), las.cpoly);
+    J = 1U << (n-1);
+    return true;
+}
+
+template<>
 bool choose_sieve_area(las_info const & las,
         std::shared_ptr<nfs_aux> const & aux_p,
         special_q_task const & doing,
@@ -164,6 +192,19 @@ bool choose_sieve_area(las_info const & las,
     return choose_sieve_area(las, &timer, doing, conf, Q, J);
 }
 
+template<>
+bool choose_sieve_area(las_info const & las,
+        std::shared_ptr<nfs_aux> const & aux_p,
+        special_q_task const & doing,
+        siever_config & conf,
+        siqs_special_q_data & Q,
+        uint32_t & J)
+{
+    timetree_t & timer(aux_p->rt.timer);
+    return choose_sieve_area(las, &timer, doing, conf, Q, J);
+}
+
+template<>
 bool choose_sieve_area(las_info const & las,
         special_q_task const & doing,
         siever_config & conf,
@@ -173,3 +214,12 @@ bool choose_sieve_area(las_info const & las,
     return choose_sieve_area(las, nullptr, doing, conf, Q, J);
 }
 
+template<>
+bool choose_sieve_area(las_info const & las,
+        special_q_task const & doing,
+        siever_config & conf,
+        siqs_special_q_data & Q,
+        uint32_t & J)
+{
+    return choose_sieve_area(las, nullptr, doing, conf, Q, J);
+}

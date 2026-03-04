@@ -139,6 +139,43 @@ fbprime_t fb_is_power(fbprime_t q, unsigned long * final_k)
     return 0;
 }
 
+static inline fbprime_t compute_crt_data_modp_common(
+            fbprime_t & invq,
+            std::vector<fbprime_t> & crt_data_modp,
+            fbprime_t p,
+            redc_invp_t invp,
+            cxx_mpz const & q,
+            std::vector<cxx_mpz> const & crt_data_modq,
+            bool mulby2)
+{
+    static_assert(sizeof(redc_invp_t) == 4 && sizeof(fbprime_t) == 4);
+
+    fbprime_t qmodp = mpz_fdiv_ui(q, p);
+    invq = invmod_redc_32(qmodp, p, invp);
+    ASSERT_ALWAYS(invq != 0);
+
+    crt_data_modp.reserve(crt_data_modq.size());
+    crt_data_modp.clear();
+
+    fbprime_t r = 0u;
+    fbprime_t pmask = p - 1U; /* use only for power of 2 */
+    for (auto const & Rk: crt_data_modq) {
+        uint32_t Rkmodp = mpz_fdiv_ui(Rk, p);
+        if (UNLIKELY(!(p & 1))) { /* p power of 2 */
+            fbprime_t Rkoverq = (Rkmodp * invq) & pmask;
+            r = (r + Rkoverq) & pmask;
+            crt_data_modp.push_back(mulby2 ? (Rkoverq << 1) & pmask : Rkoverq);
+        } else {
+            fbprime_t Rkoverq = mulmodredc_u32<true>(Rkmodp, invq, p, invp);
+            r = addmod_u32(r, Rkoverq, p);
+            crt_data_modp.push_back(mulby2 ? addmod_u32(Rkoverq, Rkoverq, p)
+                                           : Rkoverq);
+        }
+    }
+    return r;
+}
+
+
 /* Allow construction of a root from a linear polynomial and a prime (power) */
 fb_general_root fb_general_root::fb_linear_root(fbprime_t q,
                                                 cxx_mpz_poly const & poly,
@@ -354,6 +391,21 @@ void fb_entry_general::transform_roots(
         roots[i_root].transform(result.roots[i_root], q, invq, basis);
 }
 
+fbprime_t fb_entry_general::compute_crt_data_modp(
+            fbprime_t & invq,
+            std::vector<fbprime_t> & crt_data_modp,
+            siqs_special_q_data const & Q,
+            bool mulby2) const
+{
+    /* Naming things is hard: modulus of fb_entry_general is called q, modulus
+     * of siqs_special_q_data is called p, the reverse of what we used for the
+     * name of the method (q is the special-q, p is the prime we want to sieve)
+     */
+    return compute_crt_data_modp_common(invq, crt_data_modp,
+                                        this->q, this->invq,
+                                        Q.doing.p, Q.crt_data_modq, mulby2);
+}
+
 template <int Nr_roots>
 void fb_entry_x_roots<Nr_roots>::transform_roots(
     fb_entry_x_roots<Nr_roots>::transformed_entry_t & result,
@@ -449,6 +501,52 @@ fb_entry_x_roots<9>::transform_roots(fb_transformed_entry_x_roots<9> &,
 template void
 fb_entry_x_roots<10>::transform_roots(fb_transformed_entry_x_roots<10> &,
                                       qlattice_basis const &) const;
+
+template <int Nr_roots>
+fbprime_t fb_entry_x_roots<Nr_roots>::compute_crt_data_modp(
+            fbprime_t & invq,
+            std::vector<fbprime_t> & crt_data_modp,
+            siqs_special_q_data const & Q,
+            bool mulby2) const
+{
+    return compute_crt_data_modp_common(invq, crt_data_modp,
+                                        this->p, this->invq,
+                                        Q.doing.p, Q.crt_data_modq, mulby2);
+}
+
+template fbprime_t
+fb_entry_x_roots<0>::compute_crt_data_modp(fbprime_t &, std::vector<fbprime_t>&,
+                                    siqs_special_q_data const &, bool) const;
+template fbprime_t
+fb_entry_x_roots<1>::compute_crt_data_modp(fbprime_t &, std::vector<fbprime_t>&,
+                                    siqs_special_q_data const &, bool) const;
+template fbprime_t
+fb_entry_x_roots<2>::compute_crt_data_modp(fbprime_t &, std::vector<fbprime_t>&,
+                                    siqs_special_q_data const &, bool) const;
+template fbprime_t
+fb_entry_x_roots<3>::compute_crt_data_modp(fbprime_t &, std::vector<fbprime_t>&,
+                                    siqs_special_q_data const &, bool) const;
+template fbprime_t
+fb_entry_x_roots<4>::compute_crt_data_modp(fbprime_t &, std::vector<fbprime_t>&,
+                                    siqs_special_q_data const &, bool) const;
+template fbprime_t
+fb_entry_x_roots<5>::compute_crt_data_modp(fbprime_t &, std::vector<fbprime_t>&,
+                                    siqs_special_q_data const &, bool) const;
+template fbprime_t
+fb_entry_x_roots<6>::compute_crt_data_modp(fbprime_t &, std::vector<fbprime_t>&,
+                                    siqs_special_q_data const &, bool) const;
+template fbprime_t
+fb_entry_x_roots<7>::compute_crt_data_modp(fbprime_t &, std::vector<fbprime_t>&,
+                                    siqs_special_q_data const &, bool) const;
+template fbprime_t
+fb_entry_x_roots<8>::compute_crt_data_modp(fbprime_t &, std::vector<fbprime_t>&,
+                                    siqs_special_q_data const &, bool) const;
+template fbprime_t
+fb_entry_x_roots<9>::compute_crt_data_modp(fbprime_t &, std::vector<fbprime_t>&,
+                                    siqs_special_q_data const &, bool) const;
+template fbprime_t
+fb_entry_x_roots<10>::compute_crt_data_modp(fbprime_t&, std::vector<fbprime_t>&,
+                                    siqs_special_q_data const &, bool) const;
 
 template <int Nr_roots>
 void fb_entry_x_roots<Nr_roots>::fprint(FILE * out) const

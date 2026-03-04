@@ -14,6 +14,7 @@ Makefile
 NEWS
 README
 README.Python
+README.cl
 README.dlp
 README.md
 README.msieve
@@ -671,6 +672,8 @@ misc/factor.hpp
 misc/indexed_relations_to_density.cpp
 misc/smooth_detect.cpp
 misc/smooth_detect.hpp
+parameters/cl/params.qs.d20
+parameters/cl/params.qs.d60
 parameters/dlp/Joux-Lercier/params.p100
 parameters/dlp/Joux-Lercier/params.p30
 parameters/dlp/Joux-Lercier/params.p35
@@ -770,6 +773,8 @@ parameters/factor/params.c80
 parameters/factor/params.c85
 parameters/factor/params.c90
 parameters/factor/params.c95
+parameters/factor/params.qs.c40
+parameters/factor/params.qs.c60
 parameters/misc/cpubinding.conf
 parameters/polynomials/F9.poly
 polyselect/CMakeLists.txt
@@ -873,6 +878,7 @@ scripts/cadofactor/cadologger.py
 scripts/cadofactor/cadoparams.py
 scripts/cadofactor/cadoprograms.py
 scripts/cadofactor/cadotask.py
+scripts/cadofactor/cadoutils.py
 scripts/cadofactor/database/__init__.py
 scripts/cadofactor/database/access.py
 scripts/cadofactor/database/base.py
@@ -1048,6 +1054,7 @@ sieve/las-duplicate.hpp
 sieve/las-fbroot-qlattice.hpp
 sieve/las-fill-in-buckets.cpp
 sieve/las-fill-in-buckets.hpp
+sieve/las-fill-in-buckets.inl
 sieve/las-forwardtypes.hpp
 sieve/las-galois.cpp
 sieve/las-galois.hpp
@@ -1114,6 +1121,13 @@ sieve/logapprox.hpp
 sieve/makefb.c
 sieve/makefb.sage
 sieve/plattice.sage
+sieve/sieve-methods.hpp
+sieve/siqs-fill-in-buckets.inl
+sieve/siqs-largesieve.hpp
+sieve/siqs-smallsieve-glue.hpp
+sieve/siqs-smallsieve.cpp
+sieve/siqs-smallsieve.hpp
+sieve/smallsieve.hpp
 sieve/strategies/CMakeLists.txt
 sieve/strategies/Makefile
 sieve/strategies/README
@@ -1361,6 +1375,8 @@ tests/sieve/c95_21684.poly
 tests/sieve/c97_30107.poly
 tests/sieve/d20.poly
 tests/sieve/d20.roots.gz
+tests/sieve/d60.poly
+tests/sieve/d60.roots.gz
 tests/sieve/ecm/CMakeLists.txt
 tests/sieve/ecm/buggy1.st
 tests/sieve/ecm/buggy2.st

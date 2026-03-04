@@ -4,6 +4,7 @@ set(PYTHON_DOCTEST_SOURCES
     scripts/cadofactor/cadoparams.py
     scripts/cadofactor/cadoprograms.py
     scripts/cadofactor/cadotask.py
+    scripts/cadofactor/cadoutils.py
     scripts/cadofactor/workunit.py
     scripts/cadofactor/wudb.py
     scripts/cadofactor/toplevel.py

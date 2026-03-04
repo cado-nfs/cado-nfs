@@ -21,6 +21,8 @@ from cadofactor.workunit import Workunit
 from struct import error as structerror
 from shutil import rmtree
 from cadofactor.api_server import ApiServer
+from cadofactor.cadoutils import Algorithm, Computation
+from cadofactor.cadoutils import xgcd, CRT, primes_above
 
 # Pattern for floating-point numbers
 RE_FP = r"[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?"
@@ -227,7 +229,7 @@ class Polynomials(object):
                               r"MurphyE\s*\((.*)\)\s*=\s*({fp})")
     # MurphyF is the refined value of MurphyE produced by polyselect3
     re_MurphyF = re_fp_compile(r"\s*#\s*MurphyF\s*\((.*)\)\s*=\s*({fp})")
-    re_n = re.compile(r"n\s*:\s* (\d+)")  # Ex. "n: 1234567"
+    re_n = re.compile(r"n\s*:\s* (-?\d+)")  # Ex. "n: 1234567"
     re_skew = re_fp_compile(r"skew:\s*({fp})")  # Ex. "skew: 1.3e5"
     re_type = re.compile(r"type\s*:\s*(snfs|gnfs)")  # Ex. "type: snfs"
     # Note, the value of m is ignored by CADO-NFS, but should not trigger an
@@ -236,7 +238,7 @@ class Polynomials(object):
     re_best = re.compile(r"# Best polynomial found \(revision (.*)\):")
     re_exp_E = re_fp_compile(r"\s*#\s*exp_E\s*({fp})")
 
-    def __init__(self, lines):
+    def __init__(self, lines, allow_only_one_poly=False):
         """
         Parse a polynomial file in the syntax as produced by polyselect
         and polyselect_ropt
@@ -382,10 +384,11 @@ class Polynomials(object):
 
         if len(tabpoly) > 0:
             polyg = tabpoly[0]
+        if len(tabpoly) > 1:
             polyf = tabpoly[1]
 
         # Check that the polynomials were specified
-        if polyf.degree < 0:
+        if not allow_only_one_poly and polyf.degree < 0:
             raise PolynomialParseException(
                     "No polynomial f specified (c: lines, or poly1)")
         if polyg.degree < 0:
@@ -446,16 +449,29 @@ class Polynomials(object):
         return self.polyf.same_lc(other.polyf) \
             and self.polyg.same_lc(other.polyg)
 
+    @property
+    def nsides(self):
+        if self.tabpoly:
+            return len(self.tabpoly)
+        else:
+            return (self.polyf.degree >= 0) + (self.polyg.degree >= 0)
+
+    def get_all_nonlinear_sides(self):
+        return [s for s in range(self.nsides)
+                if self.get_polynomial(s).degree > 1]
+
     def get_polynomial(self, side):
         """
         Returns one of the two polynomial as indexed by side
         """
-        assert side == 0 or side == 1
+        assert 0 <= side < self.nsides
         # Welp, f is side 1 and g is side 0 :(
         if side == 0:
             return self.polyg
-        else:
+        elif side == 1:
             return self.polyf
+        else:
+            return self.tabpoly[side]
 
 
 class FilePath(object):
@@ -3007,13 +3023,6 @@ class Polysel2Task(ClientServerTask,
     def get_poly_filename(self):
         return self.get_state_filename("polyfilename")
 
-    def get_have_two_alg_sides(self):
-        P = Polynomials(self.state["bestpoly"].splitlines())
-        if (P.polyg.degree > 1):
-            return True
-        else:
-            return False
-
     def submit_one_wu(self):
         assert self.need_more_wus()
         to_submit = len(self.poly_to_submit)
@@ -3272,9 +3281,6 @@ class PolyselJLTask(ClientServerTask, DoesImport, patterns.Observer):
             return None
         return Polynomials(self.state["bestpoly"].splitlines())
 
-    def get_have_two_alg_sides(self):
-        return True
-
     def need_more_wus(self):
         return 1 + self.state["rnext"] < self.params["modm"]
 
@@ -3382,9 +3388,71 @@ class PolyselGFpnTask(Task, DoesImport):
     def get_poly_filename(self):
         return self.get_state_filename("polyfilename")
 
-    def get_have_two_alg_sides(self):
-        P = Polynomials(self.state["poly"].splitlines())
-        return (P.polyf.degree > 1 and P.polyg.degree > 1)
+
+class PolyselQSTask(Task):
+    """ Fake polynomial selection for QS algorithm """
+    @property
+    def name(self):
+        return "polysel"
+
+    @property
+    def title(self):
+        return "Polynomial Selection (for QS algorithm)"
+
+    @property
+    def programs(self):
+        return ()
+
+    @property
+    def paramnames(self):
+        return self.join_params(super().paramnames,
+                                {"N": int, "computation": str, "import": None})
+
+    def __init__(self, *, mediator, db, parameters, path_prefix):
+        super().__init__(mediator=mediator, db=db, parameters=parameters,
+                         path_prefix=path_prefix)
+
+    def run(self):
+        super().run()
+        if "import" in self.params:
+            self.logger.critical("It is not possible to import polynomial for "
+                                 "the Quadratic Sieve algorithm")
+            return False
+
+        if "polyfilename" not in self.state:
+            polyfilename = self.workdir.make_filename("poly")
+            # Create the polynomial file.
+            N = self.params["N"]
+            if self.params["computation"] == Computation.CL:
+                if N % 4 == 0:
+                    N = N//4
+                    if N % 4 not in (2, 3):
+                        raise ValueError("Discriminant should be 1, 2 or 3 "
+                                         "modulo 4 or divisible by 4 with "
+                                         "quotient equal to 2 or 3 modulo 4")
+
+            poly = str(Polynomials([f"n: {N}",
+                                    f"skew: {int(sqrt(abs(N)))}",
+                                    f"poly0:{-N},0,1"],
+                                   allow_only_one_poly=True))
+
+            with open(str(polyfilename), "w") as outfile:
+                outfile.write(poly)
+            update = {
+                    "poly": poly,
+                    "polyfilename": polyfilename.get_wdir_relative()
+                    }
+            self.state.update(update)
+        return True
+
+    def get_poly(self):
+        if "poly" not in self.state:
+            return None
+        return Polynomials(self.state["poly"].splitlines(),
+                           allow_only_one_poly=True)
+
+    def get_poly_filename(self):
+        return self.get_state_filename("polyfilename")
 
 
 class FactorBaseTask(Task):
@@ -3408,23 +3476,18 @@ class FactorBaseTask(Task):
 
     @property
     def paramnames(self):
+        lims = {f"lim{side}": int for side in range(self._nsides)}
         return self.join_params(super().paramnames,
                                 {"gzip": True,
+                                 "algo": str,
                                  "I": [int],
                                  "A": [int],
-                                 "lim0": int,
-                                 "lim1": int})
+                                 **lims})
 
-    def __init__(self, *, mediator, db, parameters, path_prefix):
+    def __init__(self, nsides, *, mediator, db, parameters, path_prefix):
+        self._nsides = int(nsides)
         super().__init__(mediator=mediator, db=db, parameters=parameters,
                          path_prefix=path_prefix)
-        # Invariant: if we have a result (in self.state["outputfile"])
-        # then we must also have a polynomial (in self.state["poly"] )
-        # and the lim1 value used in self.state["lim1"]
-        if "outputfile" in self.state:
-            assert "poly" in self.state
-            assert "lim1" in self.state
-            # The target file must correspond to the polynomial "poly"
         if "I" in self.params:
             self.progparams[0].setdefault("maxbits", self.params["I"])
         elif "A" in self.params:
@@ -3445,96 +3508,137 @@ class FactorBaseTask(Task):
         if not poly:
             raise Exception("FactorBaseTask(): no polynomial "
                             "received from PolyselTask")
-        twoalgsides = self.send_request(Request.GET_HAVE_TWO_ALG_SIDES)
-        check_params = {key: self.params[key]
-                        for key in ["lim1", "lim0"][0:1 + twoalgsides]}
+        if poly.nsides != self._nsides:
+            raise Exception("FactorBaseTask(): expecting a polynomial with "
+                            f"{self._nsides} side(s), got one with "
+                            f"{poly.nsides} side(s) instead")
 
-        # Check if we have already computed the outputfile for this polynomial
-        # and fbb. If any of the inputs mismatch, we remove outputfile from
-        # state
-        if "outputfile1" in self.state:
-            prevpoly = Polynomials(self.state["poly"].splitlines())
+        # If there is already a poly in state but it is different from the
+        # current one, we discard all previous computation (by cleaning state)
+        if "poly" in self.state:
+            one_sided = self.params["algo"] == Algorithm.QS
+            prevpoly = Polynomials(self.state["poly"].splitlines(),
+                                   allow_only_one_poly=one_sided)
             if poly != prevpoly:
                 self.logger.warning("Received different polynomial, "
                                     "discarding old factor base file")
-                del self.state["outputfile1"]
-                del self.state["outputfile0"]
-            else:
-                for key in check_params:
-                    if self.state[key] != check_params[key]:
-                        self.logger.warning("Parameter %s changed,"
-                                            " discarding old"
-                                            " factor base file", key)
-                        del self.state["outputfile1"]
-                        del self.state["outputfile0"]
-                    break
-        # If outputfile is not in state, because we never produced it or
-        # because input parameters changed, we remember our current input
-        # parameters
-        if "outputfile1" not in self.state:
-            check_params["poly"] = str(poly)
-            self.state.update(check_params)
+                # remove previous state + store new poly
+                self.state = {"poly": str(poly)}
+        else:
+            self.state = {"poly": str(poly)}
 
-        if "outputfile1" not in self.state or self.have_new_input_files():
-
+        # For each side corresponding to a nonlinear polynomial, we compute the
+        # factor base if
+        #   - the output file does not exist;
+        #   - the parameter lim has changed.
+        if not self.has_all_outputfiles_in_state(poly):
             # Make file name for factor base/free relations file
             # We use .gzip by default, unless set to no in parameters
             use_gz = ".gz" if self.params["gzip"] else ""
-            outputfilename0 = self.workdir.make_filename("roots0" + use_gz)
-            outputfilename1 = self.workdir.make_filename("roots1" + use_gz)
 
             # Run command to generate factor base file
             (stdoutpath, stderrpath) = self.make_std_paths(
                 cadoprograms.MakeFB.name)
-            if not twoalgsides:
-                p = cadoprograms.MakeFB(out=str(outputfilename1),
-                                        lim=self.params["lim1"],
-                                        stdout=str(stdoutpath),
-                                        stderr=str(stderrpath),
-                                        **self.merged_args[0])
-                message = self.submit_command(p, None, log_errors=True)
-                if message.get_exitcode(0) != 0:
-                    raise Exception("Program failed")
-            else:
-                p = cadoprograms.MakeFB(out=str(outputfilename0),
-                                        side=0,
-                                        lim=self.params["lim0"],
-                                        stdout=str(stdoutpath),
-                                        stderr=str(stderrpath),
-                                        **self.merged_args[0])
-                message = self.submit_command(p, None, log_errors=True)
-                if message.get_exitcode(0) != 0:
-                    raise Exception("Program failed")
-                p = cadoprograms.MakeFB(out=str(outputfilename1),
-                                        side=1,
-                                        lim=self.params["lim1"],
-                                        stdout=str(stdoutpath),
-                                        stderr=str(stderrpath),
-                                        **self.merged_args[0])
-                message = self.submit_command(p, None, log_errors=True)
-                if message.get_exitcode(0) != 0:
-                    raise Exception("Program failed")
+            for side in poly.get_all_nonlinear_sides():
+                keylim = f"lim{side}"
+                if self.state.get(keylim, None) != self.params[keylim]:
+                    if keylim in self.state:  # params was changed
+                        self.logger.warning("Parameter %s changed,"
+                                            " discarding old"
+                                            " factor base file", keylim)
+                    outputfilename = self.workdir.make_filename(
+                                                    f"roots{side}" + use_gz)
+                    p = cadoprograms.MakeFB(out=str(outputfilename),
+                                            side=side,
+                                            lim=self.params[keylim],
+                                            stdout=str(stdoutpath),
+                                            stderr=str(stderrpath),
+                                            **self.merged_args[0])
+                    message = self.submit_command(p, None, log_errors=True)
+                    if message.get_exitcode(0) != 0:
+                        raise Exception("Program failed")
 
-            self.state["outputfile1"] = outputfilename1.get_wdir_relative()
-            if twoalgsides:
-                self.state["outputfile0"] = outputfilename0.get_wdir_relative()
+                    self.state.update({
+                        f"outputfile{side}":
+                            outputfilename.get_wdir_relative(),
+                        keylim: self.params[keylim],
+                    })
+                else:
+                    assert f"outputfile{side}" in self.state
+
             self.logger.info("Finished")
 
-        self.check_files_exist([self.get_filename1()],
-                               "output",
-                               shouldexist=True)
-        if twoalgsides:
-            self.check_files_exist([self.get_filename0()],
+        for side in poly.get_all_nonlinear_sides():
+            self.check_files_exist([self.get_filename(side)],
                                    "output",
                                    shouldexist=True)
         return True
 
-    def get_filename0(self):
-        assert self.send_request(Request.GET_HAVE_TWO_ALG_SIDES)
-        return self.get_state_filename("outputfile0")
+    def has_all_outputfiles_in_state(self, poly):
+        return all(f"outputfile{side}" in self.state
+                   for side in poly.get_all_nonlinear_sides())
 
-    def get_filename1(self):
-        return self.get_state_filename("outputfile1")
+    def get_filename(self, side):
+        return self.get_state_filename(f"outputfile{side}")
+
+
+class CheckDiscriminantTask(Task):
+    """
+    Check that the discriminant has no square factor that belongs to the factor
+    base.
+    """
+
+    @property
+    def name(self):
+        return "checkdisc"
+
+    @property
+    def title(self):
+        return "Check Discriminant"
+
+    @property
+    def programs(self):
+        return ()
+
+    @property
+    def paramnames(self):
+        return self.join_params(super().paramnames,
+                                {"N": int, "computation": str, "gzip": True})
+
+    def __init__(self, *, mediator, db, parameters, path_prefix):
+        super().__init__(mediator=mediator, db=db, parameters=parameters,
+                         path_prefix=path_prefix)
+        if self.params["computation"] != Computation.CL:
+            msg = "CheckDiscriminantTask(): this task is only for class "\
+                  "groups computation"
+            self.logger.critical(msg)
+            raise Exception(msg)
+
+    def run(self):
+        super().run()
+
+        renumfile = self.send_request(Request.GET_RENUMBER_FILENAME)
+        if not renumfile:
+            raise Exception("CheckDiscriminantTask(): no renumber file "
+                            "received from FreeRelTask")
+
+        open_fun = gzip.open if self.params["gzip"] else open
+
+        with open_fun(str(renumfile), "rb") as f:
+            for line in f:
+                if line.startswith(b"#"):
+                    continue
+                m = re.fullmatch(rb'(\d+) 0\n', line)
+                if m is not None:
+                    p = int(m.group(1))
+                    if p > 2 and self.params["N"] % (p*p) == 0:
+                        msg = f"The discriminant {self.params['N']} has a " \
+                              f"square factor {p}^2 belonging to the factor " \
+                              "base"
+                        self.logger.critical(msg)
+                        return False
+                    # case p=2 is check in __init__ of CompleteFactorization
+        return True
 
 
 class FreeRelTask(Task):
@@ -3553,30 +3657,33 @@ class FreeRelTask(Task):
     @property
     def programs(self):
         input = {"poly": Request.GET_POLYNOMIAL_FILENAME}
-        return ((cadoprograms.FreeRel, ("renumber", "out"), input),)
+        return ((cadoprograms.FreeRel, ("renumber", "out", "dl"), input),)
 
     @property
     def paramnames(self):
         return self.join_params(super().paramnames,
-                                {"dlp": False, "gzip": True, "dl": None})
+                                {"computation": str,
+                                 "algo": str,
+                                 "gzip": True})
 
     wanted_regex = {
         'nfree': (r'# Free relations: (\d+)', int),
         'nprimes': (r'Renumbering struct: nprimes=(\d+)', int)
     }
 
-    def __init__(self, *, mediator, db, parameters, path_prefix):
+    def __init__(self, nsides, *, mediator, db, parameters, path_prefix):
+        self._nsides = int(nsides)
         super().__init__(mediator=mediator, db=db, parameters=parameters,
                          path_prefix=path_prefix)
-        if self.params["dlp"]:
-            self.progparams[0].setdefault("dl", True)
+        self.progparams[0]["dl"] = \
+            self.params["computation"] in (Computation.DLP, Computation.CL)
         # Invariant: if we have a result (in self.state["freerelfilename"])
         # then we must also have a polynomial (in self.state["poly"]) and
-        # the lpb0/lpb1 values used in self.state["lpb1"] / ["lpb0"]
+        # the lpb values used in self.state[f"lpb{side}"]
         if "freerelfilename" in self.state:
             assert "poly" in self.state
-            assert "lpb1" in self.state
-            assert "lpb0" in self.state
+            for side in range(self._nsides):
+                assert f"lpb{side}" in self.state, f"lpb{side} not in state"
             # The target file must correspond to the polynomial "poly"
 
     def run(self):
@@ -3585,27 +3692,36 @@ class FreeRelTask(Task):
         # Get best polynomial found by polyselect
         poly = self.send_request(Request.GET_POLYNOMIAL)
         if not poly:
-            raise Exception("FreerelTask(): no polynomial "
+            raise Exception("FreeRelTask(): no polynomial "
                             "received from PolyselTask")
+
+        if poly.nsides != self._nsides:
+            raise Exception("FreeRelTask(): expecting a polynomial with "
+                            f"{self._nsides} side(s), got one with "
+                            f"{poly.nsides} side(s) instead")
 
         # Check if we have already computed the freerelfile for this polynomial
         # and lpb. If any of the inputs mismatch, we remove freerelfilename
         # from state
         if "freerelfilename" in self.state:
             discard = False
-            prevpoly = Polynomials(self.state["poly"].splitlines())
+            one_sided = self.params["algo"] == Algorithm.QS
+            prevpoly = Polynomials(self.state["poly"].splitlines(),
+                                   allow_only_one_poly=one_sided)
             if poly != prevpoly:
                 self.logger.warning("Received different polynomial,"
                                     " discarding old free relations file")
                 discard = True
-            elif self.state["lpb0"] != self.progparams[0]["lpb0"]:
-                self.logger.warning("Parameter lpb0 changed,"
-                                    " discarding old free relations file")
-                discard = True
-            elif self.state["lpb1"] != self.progparams[0]["lpb1"]:
-                self.logger.warning("Parameter lpb1 changed,"
-                                    " discarding old free relations file")
-                discard = True
+            else:
+                for side in range(self._nsides):
+                    keylpb = f"lpb{side}"
+                    if self.state[keylpb] != self.progparams[0][keylpb]:
+                        self.logger.warning(f"Parameter {keylpb} changed,"
+                                            " discarding old free relations"
+                                            " file")
+                        discard = True
+                        break
+
             if discard:
                 del self.state["freerelfilename"]
                 del self.state["renumberfilename"]
@@ -3613,9 +3729,9 @@ class FreeRelTask(Task):
         # because input parameters changed, we remember our current input
         # parameters
         if "freerelfilename" not in self.state:
-            self.state.update({"poly": str(poly),
-                               "lpb1": self.progparams[0]["lpb1"],
-                               "lpb0": self.progparams[0]["lpb0"]})
+            lpbs = {f"lpb{side}": self.progparams[0][f"lpb{side}"]
+                    for side in range(self._nsides)}
+            self.state.update({"poly": str(poly), **lpbs})
 
         if "freerelfilename" not in self.state or self.have_new_input_files():
             # Make file name for factor base/free relations file
@@ -3690,16 +3806,18 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics):
 
     @property
     def programs(self):
-        override = ("q0", "q1", "factorbase", "out", "stats_stderr")
+        override = ("q0", "q1", "factorbase0", "factorbase1", "out",
+                    "stats_stderr")
         input = {"poly": Request.GET_POLYNOMIAL_FILENAME}
         return ((cadoprograms.Las, override, input),)
 
     @property
     def paramnames(self):
+        lims = {f"lim{side}": int for side in range(self._nsides)}
         return self.join_params(super().paramnames, {
             "qmin": 0, "qmax": [int], "qrange": int, "rels_wanted": 0,
-            "lim0": int, "lim1": int, "gzip": True, "sqside": 1,
-            "adjust_strategy": 0})
+            "gzip": True, "sqside": 1 if self._nsides > 1 else 0,
+            "adjust_strategy": 0, **lims})
 
     def combine_bkmult(*lists):
         d = {}
@@ -3773,7 +3891,8 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics):
             ["Total time: {stats_total_time[0]:g}s"],
         )
 
-    def __init__(self, *, mediator, db, parameters, path_prefix):
+    def __init__(self, nsides, *, mediator, db, parameters, path_prefix):
+        self._nsides = int(nsides)
         super().__init__(mediator=mediator, db=db, parameters=parameters,
                          path_prefix=path_prefix)
         qmin = self.params["qmin"]
@@ -3783,12 +3902,9 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics):
             # qmin = 0 is a magic value (undefined)
             if qmin > 0:
                 self.state["qnext"] = qmin
-            elif self.params["sqside"] == 1:
-                self.state["qnext"] = int(self.params["lim1"]/2)
-            elif self.params["sqside"] == 0:
-                self.state["qnext"] = int(self.params["lim0"]/2)
             else:
-                assert False
+                sqside = self.params["sqside"]
+                self.state["qnext"] = int(self.params[f"lim{sqside}"]/2)
 
         self.state.setdefault("rels_found", 0)
         self.logger.info("param rels_wanted is %d", self.params["rels_wanted"])
@@ -3803,10 +3919,11 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics):
             # oversieving if we want to optimize the total wall-clock time,
             # assuming we use as many cores for sieving and linear algebra).
             guess_factor = 0.81
-            n0 = 2 ** self.progparams[0]["lpb0"]
-            n1 = 2 ** self.progparams[0]["lpb1"]
-            n01 = int(guess_factor * (n0 / log(n0) + n1 / log(n1)))
-            self.state["rels_wanted"] = n01
+            s = 0.0
+            for side in range(self._nsides):
+                n = 2 ** self.progparams[0][f"lpb{side}"]
+                s += n / log(n)
+            self.state["rels_wanted"] = int(guess_factor * s)
 
     def enough_work_received(self):
         return self.get_nrels() >= self.state["rels_wanted"]
@@ -3824,10 +3941,21 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics):
     def run(self):
         super().run()
         self.do_import()
-        have_two_alg = self.send_request(Request.GET_HAVE_TWO_ALG_SIDES)
-        fb1 = self.send_request(Request.GET_FACTORBASE1_FILENAME)
-        if have_two_alg:
-            fb0 = self.send_request(Request.GET_FACTORBASE0_FILENAME)
+        poly = self.send_request(Request.GET_POLYNOMIAL)
+
+        if not poly:
+            raise Exception("SievingTask(): no polynomial "
+                            "received from PolyselTask")
+
+        if poly.nsides != self._nsides:
+            raise Exception("SievingTask(): expecting a polynomial with "
+                            f"{self._nsides} side(s), got one with "
+                            f"{poly.nsides} side(s) instead")
+        fb = {}
+        for side in poly.get_all_nonlinear_sides():
+            fb[f"factorbase{side}"] = self.send_request(
+                                            Request.GET_FACTORBASE_FILENAME,
+                                            side)
 
         self.logger.info("We want %d relation(s)", self.state["rels_wanted"])
         qrange = self.params["qrange"]
@@ -3842,19 +3970,12 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics):
                 self.workdir.make_filename("%d-%d%s" % (q0, q1, use_gz))
             self.check_files_exist([outputfilename], "output",
                                    shouldexist=False)
-            if not have_two_alg:
-                p = cadoprograms.Las(q0=q0, q1=q1,
-                                     factorbase1=fb1,
-                                     out=outputfilename, stats_stderr=True,
-                                     skip_check_binary_exists=True,
-                                     **self.merged_args[0])
-            else:
-                p = cadoprograms.Las(q0=q0, q1=q1,
-                                     factorbase0=fb0,
-                                     factorbase1=fb1,
-                                     out=outputfilename, stats_stderr=True,
-                                     skip_check_binary_exists=True,
-                                     **self.merged_args[0])
+            p = self.programs[0][0](q0=q0, q1=q1,
+                                    out=outputfilename,
+                                    stats_stderr=True,
+                                    skip_check_binary_exists=True,
+                                    **fb,
+                                    **self.merged_args[0])
             # Note that submit_command may call wait() !
             self.submit_command(p, "%d-%d" % (q0, q1), commit=False)
             self.state.update({"qnext": q1}, commit=True)
@@ -4070,6 +4191,24 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics):
         return float(self.statistics.stats.get(s, [0.])[0])
 
 
+class QuadraticSievingTask(SievingTask):
+    @property
+    def title(self):
+        return "Quadratic Sieving"
+
+    @property
+    def programs(self):
+        ((_, override, input), ) = super().programs
+        return ((cadoprograms.Siqs, override, input),)
+
+    @property
+    def paramnames(self):
+        return self.join_params(super().paramnames,
+                                {"qfac_nfac": int,
+                                 "qfac_min": int,
+                                 "qfac_max": [int]})
+
+
 class Duplicates1Task(Task, FilesCreator, HasStatistics):
     """
     Removes duplicate relations
@@ -4086,12 +4225,13 @@ class Duplicates1Task(Task, FilesCreator, HasStatistics):
     @property
     def programs(self):
         return ((cadoprograms.Duplicates1,
-                 ("filelist", "prefix", "out", "nslices_log"),
+                 ("filelist", "prefix", "out", "nslices_log", "large_ab"),
                  {}),)
 
     @property
     def paramnames(self):
-        return self.join_params(super().paramnames, {"nslices_log": 1})
+        return self.join_params(super().paramnames,
+                                {"nslices_log": 1, "algo": str})
 
     @property
     def stat_conversions(self):
@@ -4119,6 +4259,7 @@ class Duplicates1Task(Task, FilesCreator, HasStatistics):
         # Enforce the fact that our children *MUST* use the same
         # nslices_log value as the one we have.
         self.progparams[0]["nslices_log"] = self.params["nslices_log"]
+        self.progparams[0]["large_ab"] = self.params["algo"] == Algorithm.QS
         tablename = self.make_tablename("infiles")
         self.already_split_input = \
             self.make_db_dict(tablename,
@@ -4315,12 +4456,16 @@ class Duplicates2Task(Task, FilesCreator, HasStatistics):
     def programs(self):
         input = {"poly": Request.GET_POLYNOMIAL_FILENAME,
                  "renumber": Request.GET_RENUMBER_FILENAME}
-        return ((cadoprograms.Duplicates2, ("rel_count", "filelist"), input),)
+        return ((cadoprograms.Duplicates2,
+                ("dlp", "rel_count", "filelist", "large_ab"),
+                input),)
 
     @property
     def paramnames(self):
         return self.join_params(super().paramnames,
-                                {"dlp": False, "nslices_log": 1})
+                                {"computation": str,
+                                 "algo": str,
+                                 "nslices_log": 1})
 
     @property
     def stat_conversions(self):
@@ -4344,6 +4489,9 @@ class Duplicates2Task(Task, FilesCreator, HasStatistics):
     def __init__(self, *, mediator, db, parameters, path_prefix):
         super().__init__(mediator=mediator, db=db, parameters=parameters,
                          path_prefix=path_prefix)
+        self.progparams[0]["large_ab"] = self.params["algo"] == Algorithm.QS
+        self.progparams[0]["dlp"] = \
+            self.params["computation"] in (Computation.DLP, Computation.CL)
         self.nr_slices = 2**self.params["nslices_log"]
         tablename = self.make_tablename("infiles")
         self.already_done_input = \
@@ -4492,17 +4640,18 @@ class PurgeTask(Task):
     @property
     def paramnames(self):
         return self.join_params(super().paramnames,
-                                {"dlp": False,
+                                {"computation": str,
                                  "galois": "none",
                                  "gzip": True,
                                  "add_ratio": 0.01,
-                                 "required_excess": 0.0})
+                                 "required_excess": 0.0,
+                                 "nmatrices": 0})
 
     def __init__(self, *, mediator, db, parameters, path_prefix):
         super().__init__(mediator=mediator, db=db, parameters=parameters,
                          path_prefix=path_prefix)
         self.state.setdefault("input_nrels", 0)
-        # We use a computed keep value for DLP
+        # We use a computed keep value for DLP and CL
         self.keep = self.progparams[0].pop("keep", None)
 
     def run(self):
@@ -4512,7 +4661,9 @@ class PurgeTask(Task):
         # required_excess value as the one we have.
         self.progparams[0]["required_excess"] = self.params["required_excess"]
 
-        if self.params["galois"] not in FilterGaloisTask.known_parameters:
+        after_filter_galois = \
+            self.params["galois"] in FilterGaloisTask.known_parameters
+        if not after_filter_galois:
             nfree = self.send_request(Request.GET_FREEREL_RELCOUNT)
             nunique = self.send_request(Request.GET_UNIQUE_RELCOUNT)
             if not nunique:
@@ -4552,7 +4703,7 @@ class PurgeTask(Task):
         self.state.pop("purgedfile", None)
         self.state.pop("input_nrels", None)
 
-        if self.params["galois"] == "none":
+        if not after_filter_galois:
             self.logger.info("Reading %d unique and %d free relations,"
                              " total %d"
                              % (nunique, nfree, input_nrels))
@@ -4561,10 +4712,21 @@ class PurgeTask(Task):
 
         use_gz = ".gz" if self.params["gzip"] else ""
         purgedfile = self.workdir.make_filename("purged" + use_gz)
-        if self.params["dlp"]:
+        if self.params["computation"] == Computation.DLP:
             relsdelfile = self.workdir.make_filename("relsdel" + use_gz)
             nmaps = self.send_request(Request.GET_NMAPS)
             keep = sum(nmaps)
+        elif self.params["computation"] == Computation.CL:
+            relsdelfile = None
+            keep = self.params["nmatrices"]-1
+            if self.keep is not None:
+                keep = max(self.keep, keep)
+                if keep > self.keep:
+                    self.logger.warn("Increasing keep from %d to %d because "
+                                     "tasks.nmatrices is %d",
+                                     self.keep,
+                                     keep,
+                                     self.params['nmatrices'])
         else:
             relsdelfile = None
             keep = self.keep
@@ -4572,7 +4734,7 @@ class PurgeTask(Task):
         # Remark: "Galois unique" and "unique" are in the same files
         # because filter_galois works in place. Same request.
         unique_filenames = self.send_request(Request.GET_UNIQUE_FILENAMES)
-        if self.params["galois"] == "none" and freerel_filename is not None:
+        if not after_filter_galois and freerel_filename is not None:
             files = unique_filenames + [str(freerel_filename)]
         else:
             files = unique_filenames
@@ -4609,7 +4771,7 @@ class PurgeTask(Task):
             update = {"purgedfile": purgedfile.get_wdir_relative(),
                       "input_nrels": input_nrels,
                       "output_version": output_version}
-            if self.params["dlp"]:
+            if self.params["computation"] == Computation.DLP:
                 update["relsdelfile"] = relsdelfile.get_wdir_relative()
             self.state.update(update)
             self.logger.info("Have enough relations")
@@ -4620,7 +4782,7 @@ class PurgeTask(Task):
                              "with excess %d", stats[0], stats[1], stats[3])
             excess = stats[3]
             self.logger.info("Not enough relations")
-            if self.params["galois"] == "none":
+            if not after_filter_galois:
                 self.request_more_relations(nunique, excess)
             else:
                 self.request_more_relations(input_nrels, excess)
@@ -4785,15 +4947,23 @@ class FilterGaloisTask(Task):
     def programs(self):
         input = {"poly": Request.GET_POLYNOMIAL_FILENAME,
                  "renumber": Request.GET_RENUMBER_FILENAME}
-        return ((cadoprograms.GaloisFilter, ("nrels",), input),)
+        return ((cadoprograms.GaloisFilter,
+                 ("dl", "nrels", "large_ab"),
+                 input),)
 
     @property
     def paramnames(self):
-        return self.join_params(super().paramnames, {"galois": "none"})
+        return self.join_params(super().paramnames,
+                                {"computation": str,
+                                 "algo": str,
+                                 "galois": "none"})
 
     def __init__(self, *, mediator, db, parameters, path_prefix):
         super().__init__(mediator=mediator, db=db, parameters=parameters,
                          path_prefix=path_prefix)
+        self.progparams[0]["large_ab"] = self.params["algo"] == Algorithm.QS
+        self.progparams[0]["dl"] = \
+            self.params["computation"] in (Computation.DLP, Computation.CL)
 
     def run(self):
         # This task must be run only if galois is recognized by filter_galois
@@ -5278,6 +5448,157 @@ class LinAlgDLPTask(Task):
                               self.params["name"], "dep")
 
 
+class LinAlgClTask(Task):
+    """ Runs the linear algebra step for Cl """
+    @property
+    def name(self):
+        return "linalgcl"
+
+    @property
+    def title(self):
+        return "Linear Algebra"
+
+    @property
+    def programs(self):
+        override = ("determinant", "matrix", "wdir", "nullspace", "m", "n")
+        return ((cadoprograms.BWC, override,
+                 {"merged": Request.GET_MERGED_FILENAME}),)
+
+    @property
+    def paramnames(self):
+        # the default value for m and n is n=1, and then m=2*n
+        return self.join_params(super().paramnames,
+                                {"m": [int], "n": [int],
+                                 "force_wipeout": False,
+                                 "nmatrices": 1})
+
+    def __init__(self, *, mediator, db, parameters, path_prefix):
+        super().__init__(mediator=mediator, db=db, parameters=parameters,
+                         path_prefix=path_prefix)
+        self.state.setdefault("ran_already", "")
+
+    def run(self):
+        super().run()
+        if self.state["ran_already"] and self.params["force_wipeout"]:
+            self.logger.warning("Ran before, but force_wipeout is set. "
+                                "Wiping out working directories.")
+            for dirname in self.state["ran_already"].split(","):
+                self.workdir.make_dirname(subdir=dirname).rmtree()
+            self.state["ran_already"] = ""
+            self.state.pop("classnumber", None)
+
+        if "classnumber" not in self.state:
+            # First build the list of matrices
+            matrices = []
+            mergedfile = self.merged_args[0].pop("merged")
+            if mergedfile is None:
+                self.logger.critical("No merged file received.")
+                return False
+            basefilepath = mergedfile.filepath[:-4]
+            for i in range(self.params["nmatrices"]):
+                if i:
+                    mergedfile.filepath = "%s.%d.bin" % (basefilepath, i)
+                if not mergedfile.isfile():
+                    self.logger.critical(f"Missing merged file {mergedfile}.")
+                    return False
+                matrices.append(mergedfile.realpath())
+
+            if "n" not in self.params:
+                self.logger.info("Using 1 as default value for n")
+                n = 1
+            else:
+                n = self.params["n"]
+                if n < 1:
+                    self.logger.critical("n must be greater than 0 (got n=%d)"
+                                         % n)
+                    raise Exception("Program failed")
+
+            if "m" not in self.params:
+                m = 2*n
+                self.logger.info("Using 2*n=%d as default value for m" % m)
+            else:
+                m = self.params["m"]
+
+            h = None
+            for i, matrix in enumerate(matrices):
+                self.logger.info("Starting linalg for matrix #%d" % i)
+                det, M = 0, 1
+                break_on_next_eq = False
+                for j, ell in enumerate(primes_above(2**63)):
+                    self.logger.info(f"Performing linalg modulo {ell}")
+                    dirname = f"bwc.h{i:02d}.p{j:05d}"
+                    workdir = self.workdir.make_dirname(subdir=dirname)
+                    workdir.mkdir(parent=True)
+                    wdir = workdir.realpath()
+                    if not self.state["ran_already"]:
+                        self.state["ran_already"] = dirname
+                    else:
+                        self.state["ran_already"] += "," + dirname
+
+                    (stdoutpath, stderrpath) = self.make_std_paths(
+                                                    dirname,
+                                                    do_increment=False)
+                    p = cadoprograms.BWC(determinant=True,
+                                         matrix=matrix,
+                                         wdir=wdir,
+                                         prime=ell,
+                                         nullspace="right",
+                                         stdout=str(stdoutpath),
+                                         stderr=str(stderrpath),
+                                         m=m,
+                                         n=n,
+                                         **self.progparams[0])
+                    message = self.submit_command(p, None)
+                    stdout = message.read_stdout(0).decode("utf-8")
+                    match = re.search(r"^determinant modulo p: (.*)$", stdout,
+                                      re.MULTILINE)
+                    if message.get_exitcode(0) != 0:
+                        if match and match.group(1) == "inconclusive":
+                            self.logger.warn("Skipping prime %d, could not "
+                                             "compute the determinant", ell)
+                        else:
+                            self.log_failed_command_error(message, 0)
+                            raise Exception("Program failed")
+                    else:
+                        if not match:
+                            raise Exception("Could not parse output")
+                        detell = int(match.group(1)) % ell
+                        if 2*detell > ell:
+                            detell -= ell
+                        old_det = det
+                        det, M = CRT(det, M, detell, ell, signed=True)
+                        if det == old_det:
+                            if break_on_next_eq:
+                                break
+                            else:
+                                break_on_next_eq = True
+                        else:
+                            break_on_next_eq = False
+                else:
+                    self.logger.error("No more primes for CRT, probably due "
+                                      "to an error: current value is "
+                                      "%d modulo %d", det, M)
+                    raise Exception("Could not finish CRT computation")
+
+                self.logger.info(f"h multiple #{i} = {det}")
+                if h is None:
+                    h = abs(det)
+                else:
+                    h = xgcd(h, det)[0]
+                self.logger.info(f"Current multiple of class number: {h}")
+
+            self.state["classnumber"] = h
+
+        h = self.state["classnumber"]
+        self.logger.info(f"Candidate class number: {h}")
+
+        self.logger.debug("Exit LinAlgClTask.run(" + self.name + ")")
+        return True
+
+    def get_candidate_class_number(self):
+        return self.state.get("classnumber", None)
+
+
 class LinAlgTask(Task, HasStatistics):
     """
     Runs the linear algebra step
@@ -5586,15 +5907,19 @@ class CharactersTask(Task):
                  "purged": Request.GET_PURGED_FILENAME,
                  "index": Request.GET_INDEX_FILENAME,
                  "heavyblock": Request.GET_DENSE_FILENAME}
-        return ((cadoprograms.Characters, ("out",), input),)
+        override = ("out", "large_ab", "only_sign_chars")
+        return ((cadoprograms.Characters, override, input),)
 
     @property
     def paramnames(self):
-        return super().paramnames
+        return self.join_params(super().paramnames, {"algo": str})
 
     def __init__(self, *, mediator, db, parameters, path_prefix):
         super().__init__(mediator=mediator, db=db, parameters=parameters,
                          path_prefix=path_prefix)
+        self.progparams[0]["large_ab"] = self.params["algo"] == Algorithm.QS
+        self.progparams[0]["only_sign_chars"] = \
+            self.params["algo"] == Algorithm.QS
 
     def run(self):
         super().run()
@@ -5643,17 +5968,20 @@ class SqrtTask(Task):
                  "index": Request.GET_INDEX_FILENAME,
                  "kernel": Request.GET_KERNEL_FILENAME}
         return ((cadoprograms.Sqrt,
-                 ("ab", "prefix", "side0", "side1", "gcd", "dep"),
+                 ("ab", "prefix", "side0", "side1", "gcd", "dep", "large_ab",
+                  "qs"),
                  input), )
 
     @property
     def paramnames(self):
         return self.join_params(super().paramnames,
-                                {"N": int, "gzip": True, "first_dep": [int]})
+                                {"N": int, "gzip": True, "first_dep": [int],
+                                 "algo": str})
 
     def __init__(self, *, mediator, db, parameters, path_prefix):
         super().__init__(mediator=mediator, db=db, parameters=parameters,
                          path_prefix=path_prefix)
+        self.progparams[0]["large_ab"] = self.params["algo"] == Algorithm.QS
         self.factors = self.make_db_dict(self.make_tablename("factors"),
                                          connection=self.db_connection)
         self.add_factor(self.params["N"])
@@ -5693,12 +6021,13 @@ class SqrtTask(Task):
                 #                     dep, dep+t-1)
                 (stdoutpath, stderrpath) = self.make_std_paths(
                     cadoprograms.Sqrt.name)
-                p = cadoprograms.Sqrt(ab=False, side1=True,
-                                      side0=True, gcd=True, dep=dep,
-                                      prefix=prefix,
-                                      stdout=str(stdoutpath),
-                                      stderr=str(stderrpath),
-                                      **self.merged_args[0])
+                args = {"ab": False, "dep": dep, "prefix": prefix, "gcd": True,
+                        "stdout": str(stdoutpath), "stderr": str(stderrpath)}
+                if self.params["algo"] == Algorithm.NFS:
+                    args["side0"] = args["side1"] = True
+                else:
+                    args["qs"] = True
+                p = cadoprograms.Sqrt(**args, **self.merged_args[0])
                 message = self.submit_command(p, f"dep{dep}", log_errors=True)
                 if message.get_exitcode(0) != 0:
                     raise Exception("Program failed")
@@ -6115,18 +6444,6 @@ class LogQueryTask(Task):
                     small_logs[target] = logtarget
         return small_logs
 
-    def xgcd(self, a, b):
-        u0, v0, r0 = 1, 0, a
-        u1, v1, r1 = 0, 1, b
-        while r1 != 0:
-            q = r0 // r1
-            r0, r1 = r1, r0 - q * r1
-            u0, u1 = u1, u0 - q * u1
-            v0, v1 = v1, v0 - q * v1
-        if r0 < 0:
-            u0, v0, r0 = -u0, -v0, -r0
-        return r0, u0, v0
-
     def commit_logs(self, *args):
         with open(str(self.get_logquery_filename()), "a") as f:
             for x in args:
@@ -6148,7 +6465,7 @@ class LogQueryTask(Task):
             return
         just_deduced_gen = False
         if self.logbase is None:
-            gt, ilogt, foo = self.xgcd(logtarget * self.cof, self.ell)
+            gt, ilogt, foo = xgcd(logtarget * self.cof, self.ell)
             ilogt = ilogt % self.ell
             if gt == 1:
                 # then target^((p-1)/ell * ilogt) is a generator
@@ -6206,6 +6523,131 @@ class LogQueryTask(Task):
             self.check_new_log(target, logtarget)
 
         return True
+
+
+class ClGroupStructureTask(Task):
+    """ Compute the group structure for Cl """
+    @property
+    def name(self):
+        return "groupstructure"
+
+    @property
+    def title(self):
+        return "CL Group Structure"
+
+    @property
+    def programs(self):
+        return ((cadoprograms.ClStructure, (),
+                 {"poly": Request.GET_POLYNOMIAL_FILENAME,
+                  "order": Request.GET_CANDIDATE_CLASSNUMBER_FACTORED}),)
+
+    @property
+    def paramnames(self):
+        return self.join_params(super().paramnames,
+                                {"verbose": [bool],
+                                 "generators_bound": [int],
+                                 "pSylow_bound": [int]})
+
+    def run(self):
+        super().run()
+        order = self.merged_args[0]['order']
+        if not self.has_all_data_in_state(order):
+            self.state.clear()
+            self.state["order"] = order
+            (stdoutpath, stderrpath) = self.make_std_paths(
+                cadoprograms.ClStructure.name)
+            p = cadoprograms.ClStructure(stdout=str(stdoutpath),
+                                         stderr=str(stderrpath),
+                                         **self.merged_args[0])
+            message = self.submit_command(p, None, log_errors=True)
+            if message.get_exitcode(0) != 0:
+                raise Exception("Program failed")
+            # TODO if program failed due to too large problematic p^e in the
+            # group order, try to recover using linear algebra modulo p
+
+            self.state["classgroup_desc"] = ""
+            stdout = message.read_stdout(0).decode("utf-8")
+            for line in stdout.splitlines():
+                if line.startswith("structure: "):
+                    self.state["classgroup_desc"] += line[11:] + "\n"
+
+            if not self.state["classgroup_desc"]:
+                self.logger.error("No information on the class group "
+                                  "structure was found in the output file")
+                raise Exception("Parsing failed or uncaught error")
+
+        self.logger.debug("Exit ClGroupStructureTask.run(" + self.name + ")")
+        return True
+
+    def has_all_data_in_state(self, order):
+        return "order" in self.state and self.state["order"] == order \
+            and "classgroup_desc" in self.state
+
+    def get_class_group_structure(self):
+        return self.state.get("classgroup_desc", None)
+
+
+class FactorTask(Task):
+    """
+    Use the binary misc/factor to **try** to factor completly a integer
+    Beware: it is not the main task (which is CompleteFactorization) but a task
+    used to factor potential class number.
+    """
+
+    @property
+    def name(self):
+        return "factor"
+
+    @property
+    def title(self):
+        return "Factor"
+
+    @property
+    def programs(self):
+        return ((cadoprograms.Factor, (), {"input": self._input_req}),)
+
+    @property
+    def paramnames(self):
+        return self.join_params(super().paramnames, {"verbose": [bool]})
+
+    def __init__(self, input_req, *, mediator, db, parameters, path_prefix):
+        self._input_req = input_req
+        super().__init__(mediator=mediator, db=db, parameters=parameters,
+                         path_prefix=path_prefix)
+
+    def run(self):
+        super().run()
+        input = self.merged_args[0]['input']
+        if not self.has_all_data_in_state(input):
+            self.state.clear()
+            self.state['input'] = input
+            (stdoutpath, stderrpath) = self.make_std_paths(
+                cadoprograms.Factor.name)
+            p = cadoprograms.Factor(stdout=str(stdoutpath),
+                                    stderr=str(stderrpath),
+                                    **self.merged_args[0])
+            message = self.submit_command(p, None, log_errors=True)
+            if message.get_exitcode(0) != 0:
+                raise Exception("Program failed")
+
+            stdout = message.read_stdout(0).decode("utf-8")
+            for line in stdout.splitlines():
+                if line.startswith("factorization: "):
+                    self.state["fact_str"] = line[15:].replace(" ", "")
+                    break
+            else:
+                raise Exception("Could not find pattern '^factorization: '")
+
+        self.logger.info(f"factorization of {input}: {self.state['fact_str']}")
+        self.logger.debug("Exit Factor.run(" + self.name + ")")
+        return True
+
+    def has_all_data_in_state(self, n):
+        return 'input' in self.state and 'fact_str' in self.state \
+                and self.state['input'] == n
+
+    def get_fact_str(self):
+        return self.state.get('fact_str', None)
 
 
 class StartServerTask(DoesLogging, cadoparams.UseParameters, HasState):
@@ -6731,12 +7173,9 @@ class Request(Message):
     GET_RAW_POLYNOMIALS = object()
     GET_POLYNOMIAL = object()
     GET_POLYNOMIAL_FILENAME = object()
-    GET_HAVE_TWO_ALG_SIDES = object()
     GET_WILL_IMPORT_FINAL_POLYNOMIAL = object()
     GET_POLY_RANK = object()
     GET_FACTORBASE_FILENAME = object()
-    GET_FACTORBASE0_FILENAME = object()
-    GET_FACTORBASE1_FILENAME = object()
     GET_FREEREL_FILENAME = object()
     GET_RENUMBER_FILENAME = object()
     GET_FREEREL_RELCOUNT = object()
@@ -6768,6 +7207,8 @@ class Request(Message):
     GET_LOGQUERY_FILENAME = object()
     GET_LOGQUERY_CHECKER = object()
     GET_CLIENTS = object()
+    GET_CANDIDATE_CLASSNUMBER = object()
+    GET_CANDIDATE_CLASSNUMBER_FACTORED = object()
 
 
 class CompleteFactorization(HasState,
@@ -6796,7 +7237,8 @@ class CompleteFactorization(HasState,
                 "workdir": str,
                 "N": int,
                 "ell": 0,
-                "dlp": False,
+                "algo": Algorithm.NFS.name,
+                "computation": Computation.FACT.name,
                 "gfpext": 1,
                 "jlpoly": False,
                 "trybadwu": False,
@@ -6805,12 +7247,14 @@ class CompleteFactorization(HasState,
     @property
     def title(self):
         try:
-            if self.params["dlp"]:
+            if self.params["computation"] == Computation.DLP:
                 return "Discrete logarithm"
+            elif self.params["computation"] == Computation.CL:
+                return "Class group"
             else:
                 return "Complete Factorization"
         except AttributeError:
-            return "Complete Factorization / Discrete logarithm"
+            return "Complete Factorization / Discrete logarithm / Class group"
 
     @property
     def programs(self):
@@ -6824,7 +7268,16 @@ class CompleteFactorization(HasState,
         super().__init__(db=db, parameters=parameters, path_prefix=path_prefix)
         self.params = self.parameters.myparams(self.paramnames)
 
-        if self.params["dlp"]:
+        # check compatibility
+        Incompatible = (
+            (Computation.CL, Algorithm.NFS),
+            (Computation.DLP, Algorithm.QS),
+            )
+        if (self.params["computation"], self.params["algo"]) in Incompatible:
+            raise ValueError(f"Algorithm {self.params['computation']} is "
+                             f"incompatible with {self.params['algo']}")
+
+        if self.params["computation"] == Computation.DLP:
             p = self.params["N"]
             k = self.params["gfpext"]
             ell = self.params["ell"]
@@ -6849,6 +7302,21 @@ class CompleteFactorization(HasState,
                     raise ValueError("ell must divide p^2-p+1")
             elif (p**k - 1) % ell != 0:
                 raise ValueError("ell must divide p^%d-1" % k)
+        if self.params["computation"] == Computation.CL:
+            disc = self.params["N"]
+            if disc >= 0:
+                raise ValueError("discriminant must be negative")
+            elif disc % 16 in (0, 4):
+                raise ValueError("discriminant divisible by 4 must be 8 or 12 "
+                                 "mod 16 (discriminant/4 must be 2 or 3)")
+            # Set tasks.linalg.nmatrices to 2 by default
+            parameters.set_if_unset("tasks.nmatrices", 2)
+
+        if self.params["algo"] == Algorithm.QS:
+            # set galois to _y; it must be unset or already set to _y
+            if parameters.set_if_unset("tasks.galois", "_y") != "_y":
+                raise Exception("For QS algorithm, parameter \"galois\" "
+                                "must be unset or set to _y")
 
         # Init WU BD
         # Note that we get self.wuar = self.make_wu_access(db.connect()) via
@@ -6889,154 +7357,116 @@ class CompleteFactorization(HasState,
                             db=db,
                             whitelist=whitelist)
 
+        # Create tasks
         parampath = self.parameters.get_param_path()
-        polyselpath = parampath + ['polyselect']
-        sievepath = parampath + ['sieve']
-        filterpath = parampath + ['filter']
-        linalgpath = parampath + ['linalg']
-        reconstructlogpath = parampath + ['reconstructlog']
-        logquerypath = parampath + ['logquery']
-        descentpath = parampath + ['descent']
-        sqrtpath = parampath + ['sqrt']
-        numbertheorypath = parampath + ['numbertheory']
+        computation = self.params["computation"]
+        algo = self.params["algo"]
+        tasks_kwargs = {'mediator': self, 'db': db,
+                        'parameters': self.parameters}
 
-        # tasks that are common to factorization and dlp
-        self.fb = FactorBaseTask(mediator=self,
-                                 db=db,
-                                 parameters=self.parameters,
-                                 path_prefix=sievepath)
-        self.freerel = FreeRelTask(mediator=self,
-                                   db=db,
-                                   parameters=self.parameters,
-                                   path_prefix=sievepath)
-        self.sieving = SievingTask(mediator=self,
-                                   db=db,
-                                   parameters=self.parameters,
-                                   path_prefix=sievepath)
-        self.dup1 = Duplicates1Task(mediator=self,
-                                    db=db,
-                                    parameters=self.parameters,
-                                    path_prefix=filterpath)
-        self.dup2 = Duplicates2Task(mediator=self,
-                                    db=db,
-                                    parameters=self.parameters,
-                                    path_prefix=filterpath)
-        self.purge = PurgeTask(mediator=self,
-                               db=db,
-                               parameters=self.parameters,
-                               path_prefix=filterpath)
+        # tasks.polyselect
+        tasks_kwargs['path_prefix'] = parampath + ['polyselect']
+        if algo == Algorithm.QS:
+            self.polysel = (PolyselQSTask(**tasks_kwargs), )
+        elif computation == Computation.DLP and self.params["gfpext"] != 1:
+            self.polysel = (PolyselGFpnTask(**tasks_kwargs), )
+        elif computation == Computation.DLP and self.params["jlpoly"]:
+            self.polysel = (PolyselJLTask(**tasks_kwargs), )
+        else:  # default dlp with gfpext = 1 and factorization
+            self.polysel = (Polysel1Task(**tasks_kwargs),
+                            Polysel2Task(**tasks_kwargs))
 
-        # For DLP in extension fields, we can not use the classical
-        # polynomial selection, but otherwise we do:
-        if self.params["gfpext"] == 1:
-            if self.params["jlpoly"]:
-                self.polyselJL = PolyselJLTask(mediator=self,
-                                               db=db,
-                                               parameters=self.parameters,
-                                               path_prefix=polyselpath)
-            else:
-                self.polysel1 = Polysel1Task(mediator=self,
-                                             db=db,
-                                             parameters=self.parameters,
-                                             path_prefix=polyselpath)
-                self.polysel2 = Polysel2Task(mediator=self,
-                                             db=db,
-                                             parameters=self.parameters,
-                                             path_prefix=polyselpath)
+        # tasks.numbertheory
+        tasks_kwargs['path_prefix'] = parampath + ['numbertheory']
+        if computation == Computation.DLP:
+            self.numbertheory = NumberTheoryTask(**tasks_kwargs)
+
+        # tasks.sieve
+        tasks_kwargs['path_prefix'] = parampath + ['sieve']
+        nsides = 2 if not algo == Algorithm.QS else 1
+        self.fb = FactorBaseTask(nsides, **tasks_kwargs)
+        if computation == Computation.CL:
+            self.checkdisc = CheckDiscriminantTask(**tasks_kwargs)
+        self.freerel = FreeRelTask(nsides, **tasks_kwargs)
+        if algo == Algorithm.QS:
+            self.sieving = QuadraticSievingTask(nsides, **tasks_kwargs)
         else:
-            self.polyselgfpn = PolyselGFpnTask(mediator=self,
-                                               db=db,
-                                               parameters=self.parameters,
-                                               path_prefix=polyselpath)
+            self.sieving = SievingTask(nsides, **tasks_kwargs)
 
-        if self.params["dlp"]:
-            # Tasks specific to dlp
-            self.numbertheory = NumberTheoryTask(mediator=self,
-                                                 db=db,
-                                                 parameters=self.parameters,
-                                                 path_prefix=numbertheorypath)
-            self.filtergalois = FilterGaloisTask(mediator=self,
-                                                 db=db,
-                                                 parameters=self.parameters,
-                                                 path_prefix=filterpath)
-            self.sm = SMTask(mediator=self,
-                             db=db,
-                             parameters=self.parameters,
-                             path_prefix=filterpath)
-            self.merge = MergeDLPTask(mediator=self,
-                                      db=db,
-                                      parameters=self.parameters,
-                                      path_prefix=filterpath)
-            self.linalg = LinAlgDLPTask(mediator=self,
-                                        db=db,
-                                        parameters=self.parameters,
-                                        path_prefix=linalgpath)
-            self.reconstructlog = \
-                ReconstructLogTask(mediator=self,
-                                   db=db,
-                                   parameters=self.parameters,
-                                   path_prefix=reconstructlogpath)
-            self.descent = DescentTask(mediator=self,
-                                       db=db,
-                                       parameters=self.parameters,
-                                       path_prefix=descentpath)
+        # tasks.filter
+        tasks_kwargs['path_prefix'] = parampath + ['filter']
+        self.dup1 = Duplicates1Task(**tasks_kwargs)
+        self.dup2 = Duplicates2Task(**tasks_kwargs)
+        if computation == Computation.DLP or algo == Algorithm.QS:
+            self.filtergalois = FilterGaloisTask(**tasks_kwargs)
+        self.purge = PurgeTask(**tasks_kwargs)
+        if computation == Computation.FACT:
+            self.merge = MergeTask(**tasks_kwargs)
+        else:
+            self.merge = MergeDLPTask(**tasks_kwargs)
+        if computation == Computation.DLP:
+            self.sm = SMTask(**tasks_kwargs)
 
+        # tasks.linalg
+        tasks_kwargs['path_prefix'] = parampath + ['linalg']
+        if computation == Computation.DLP:
+            self.linalg = LinAlgDLPTask(**tasks_kwargs)
+        elif computation == Computation.CL:
+            self.linalg = LinAlgClTask(**tasks_kwargs)
+        else:  # factorization
+            self.linalg = LinAlgTask(**tasks_kwargs)
+            self.characters = CharactersTask(**tasks_kwargs)
+
+        # tasks.sqrt
+        tasks_kwargs['path_prefix'] = parampath + ['sqrt']
+        if computation == Computation.FACT:
+            self.sqrt = SqrtTask(**tasks_kwargs)
+
+        # tasks.reconstructlog
+        tasks_kwargs['path_prefix'] = parampath + ['reconstructlog']
+        if computation == Computation.DLP:
+            self.reconstructlog = ReconstructLogTask(**tasks_kwargs)
+
+        # tasks.logquery
+        tasks_kwargs['path_prefix'] = parampath + ['logquery']
+        if computation == Computation.DLP:
             # By specifying a single endpoint, we make it easier to do
             # consistency checks.
-            self.logquery = LogQueryTask(mediator=self,
-                                         db=db,
-                                         parameters=self.parameters,
-                                         path_prefix=logquerypath)
+            self.logquery = LogQueryTask(**tasks_kwargs)
 
-        else:
-            # Tasks specific to factorization
-            self.merge = MergeTask(mediator=self,
-                                   db=db,
-                                   parameters=self.parameters,
-                                   path_prefix=filterpath)
-            self.linalg = LinAlgTask(mediator=self,
-                                     db=db,
-                                     parameters=self.parameters,
-                                     path_prefix=linalgpath)
-            self.characters = CharactersTask(mediator=self,
-                                             db=db,
-                                             parameters=self.parameters,
-                                             path_prefix=linalgpath)
-            self.sqrt = SqrtTask(mediator=self,
-                                 db=db,
-                                 parameters=self.parameters,
-                                 path_prefix=sqrtpath)
+        # tasks.descent
+        tasks_kwargs['path_prefix'] = parampath + ['descent']
+        if computation == Computation.DLP:
+            self.descent = DescentTask(**tasks_kwargs)
+
+        # tasks.groupstructure
+        tasks_kwargs['path_prefix'] = parampath + ['groupstructure']
+        if computation == Computation.CL:
+            self.hfactor = FactorTask(Request.GET_CANDIDATE_CLASSNUMBER,
+                                      **tasks_kwargs)
+            self.grstruct = ClGroupStructureTask(**tasks_kwargs)
 
         # Defines an order on tasks in which tasks that want to run should be
         # run
-        if self.params["dlp"]:
-            if self.params["gfpext"] == 1:
-                if self.params["jlpoly"]:
-                    self.tasks = (self.polyselJL,)
-                else:
-                    self.tasks = (self.polysel1, self.polysel2)
-            else:
-                self.tasks = (self.polyselgfpn,)
-            self.tasks = self.tasks + (self.numbertheory,
-                                       self.fb,
-                                       self.freerel, self.sieving,
-                                       self.dup1, self.dup2,
-                                       self.filtergalois,
-                                       self.purge, self.merge,
-                                       self.sm, self.linalg,
-                                       self.reconstructlog)
-            self.tasks = self.tasks + (self.logquery,)
+        if computation == Computation.DLP:
+            self.tasks = self.polysel \
+                + (self.numbertheory, self.fb, self.freerel, self.sieving,
+                   self.dup1, self.dup2, self.filtergalois, self.purge,
+                   self.merge, self.sm, self.linalg, self.reconstructlog,
+                   self.logquery)
             if self.params["target"]:
                 self.tasks = self.tasks + (self.descent,)
+        elif computation == Computation.CL:
+            self.tasks = self.polysel \
+                + (self.fb, self.freerel, self.checkdisc, self.sieving,
+                   self.dup1, self.dup2, self.filtergalois, self.purge,
+                   self.merge, self.linalg, self.hfactor, self.grstruct)
         else:
-            self.tasks = (self.polysel1, self.polysel2,
-                          self.fb,
-                          self.freerel, self.sieving,
-                          self.dup1, self.dup2,
-                          self.purge, self.merge,
-                          self.linalg,
-                          self.characters,
-                          self.sqrt)
+            fg = () if algo == Algorithm.NFS else (self.filtergalois, )
+            self.tasks = self.polysel \
+                + (self.fb, self.freerel, self.sieving, self.dup1, self.dup2) \
+                + fg + (self.purge, self.merge, self.linalg) \
+                + (self.characters, self.sqrt)
 
         reverse_lookup = defaultdict(list)
         self.parameter_help = ""
@@ -7063,8 +7493,7 @@ class CompleteFactorization(HasState,
                                         % (prefix, key))
 
         self.request_map = {
-            Request.GET_FACTORBASE0_FILENAME: self.fb.get_filename0,
-            Request.GET_FACTORBASE1_FILENAME: self.fb.get_filename1,
+            Request.GET_FACTORBASE_FILENAME: self.fb.get_filename,
             Request.GET_FREEREL_FILENAME: self.freerel.get_freerel_filename,
             Request.GET_RENUMBER_FILENAME: self.freerel.get_renumber_filename,
             Request.GET_FREEREL_RELCOUNT: self.freerel.get_nrels,
@@ -7086,41 +7515,31 @@ class CompleteFactorization(HasState,
         }
 
         # Set requests related to polynomial selection
-        if self.params["gfpext"] == 1:
-            if self.params["jlpoly"]:
-                self.request_map[Request.GET_POLYNOMIAL] = \
-                    self.polyselJL.get_poly
-                self.request_map[Request.GET_POLYNOMIAL_FILENAME] = \
-                    self.polyselJL.get_poly_filename
-                self.request_map[Request.GET_HAVE_TWO_ALG_SIDES] = \
-                    self.polyselJL.get_have_two_alg_sides
-            else:
-                self.request_map[Request.GET_RAW_POLYNOMIALS] = \
-                    self.polysel1.get_raw_polynomials
-                self.request_map[Request.GET_POLY_RANK] = \
-                    self.polysel1.get_poly_rank
-                self.request_map[Request.GET_POLYNOMIAL] = \
-                    self.polysel2.get_poly
-                self.request_map[Request.GET_POLYNOMIAL_FILENAME] = \
-                    self.polysel2.get_poly_filename
-                self.request_map[Request.GET_HAVE_TWO_ALG_SIDES] = \
-                    self.polysel2.get_have_two_alg_sides
-                self.request_map[Request.GET_WILL_IMPORT_FINAL_POLYNOMIAL] = \
-                    self.polysel2.get_will_import
-        else:
+        if len(self.polysel) == 1:
             self.request_map[Request.GET_POLYNOMIAL] = \
-                self.polyselgfpn.get_poly
+                self.polysel[0].get_poly
             self.request_map[Request.GET_POLYNOMIAL_FILENAME] = \
-                self.polyselgfpn.get_poly_filename
-            self.request_map[Request.GET_HAVE_TWO_ALG_SIDES] = \
-                self.polyselgfpn.get_have_two_alg_sides
+                self.polysel[0].get_poly_filename
+        else:
+            self.request_map[Request.GET_RAW_POLYNOMIALS] = \
+                self.polysel[0].get_raw_polynomials
+            self.request_map[Request.GET_POLY_RANK] = \
+                self.polysel[0].get_poly_rank
+            self.request_map[Request.GET_POLYNOMIAL] = \
+                self.polysel[1].get_poly
+            self.request_map[Request.GET_POLYNOMIAL_FILENAME] = \
+                self.polysel[1].get_poly_filename
+            self.request_map[Request.GET_WILL_IMPORT_FINAL_POLYNOMIAL] = \
+                self.polysel[1].get_will_import
 
-        # add requests specific to dlp or factoring
-        if self.params["dlp"]:
-            self.request_map[Request.GET_IDEAL_FILENAME] = \
-                self.merge.get_ideal_filename
+        # Add requests specific the type of computation
+        if computation == Computation.DLP or algo == Algorithm.QS:
             self.request_map[Request.GET_GAL_UNIQUE_RELCOUNT] = \
                 self.filtergalois.get_nrels
+
+        if computation == Computation.DLP:
+            self.request_map[Request.GET_IDEAL_FILENAME] = \
+                self.merge.get_ideal_filename
             self.request_map[Request.GET_NMAPS] = \
                 self.numbertheory.get_nmaps
             self.request_map[Request.GET_SM_FILENAME] = \
@@ -7137,13 +7556,18 @@ class CompleteFactorization(HasState,
                 self.linalg.get_virtual_logs_filename
             self.request_map[Request.GET_VIRTUAL_LOGS_FILENAME] = \
                 self.linalg.get_virtual_logs_filename
-        else:
+        elif computation == Computation.FACT:
             self.request_map[Request.GET_KERNEL_FILENAME] = \
                 self.characters.get_kernel_filename
             self.request_map[Request.GET_DEPENDENCY_FILENAME] = \
                 self.linalg.get_dependency_filename
             self.request_map[Request.GET_LINALG_PREFIX] = \
                 self.linalg.get_prefix
+        elif computation == Computation.CL:
+            self.request_map[Request.GET_CANDIDATE_CLASSNUMBER] = \
+                self.linalg.get_candidate_class_number
+            self.request_map[Request.GET_CANDIDATE_CLASSNUMBER_FACTORED] = \
+                self.hfactor.get_fact_str
 
     def enter_subtask_chain(self):
         self.start_elapsed_time()
@@ -7161,11 +7585,16 @@ class CompleteFactorization(HasState,
         self.servertask.shutdown(exc)
 
     def run(self):
-        if self.params["dlp"]:
+        if self.params["computation"] == Computation.DLP:
             self.logger.info("Computing Discrete Logs in GF(%s)",
                              self.params["N"])
+        elif self.params["computation"] == Computation.CL:
+            self.logger.info("Computing class number for %s", self.params["N"])
         else:
-            self.logger.info("Factoring %s", self.params["N"])
+            if self.params["algo"] == Algorithm.QS:
+                self.logger.info("Factoring (with QS) %s", self.params["N"])
+            else:
+                self.logger.info("Factoring %s", self.params["N"])
 
         class wrapme(object):
             def __init__(self, s):
@@ -7208,7 +7637,7 @@ class CompleteFactorization(HasState,
         # Do we want the sum of real times over all sub-processes for
         # something?
         # realtotal = self.get_sum_of_cpu_or_real_time(False)
-        if self.params["dlp"]:
+        if self.params["computation"] == Computation.DLP:
             self.logger.info("Total cpu/elapsed time"
                              " for entire %s: %g/%g",
                              self.title, self.cputotal, self.elapsed)
@@ -7228,20 +7657,23 @@ class CompleteFactorization(HasState,
         # but of course, this won't be the case for a user-defined poly
         # file that has been imported (anyway, in that case, the user
         # should know what she is doing).
-        if self.params["dlp"] and self.params["gfpext"] > 1:
+        if self.params["computation"] == Computation.DLP and \
+                self.params["gfpext"] > 1:
             polyfile = self.request_map[Request.GET_POLYNOMIAL_FILENAME]()
             with open(str(polyfile), "r") as ff:
                 s = ff.read().splitlines()[-1].split()[-1]
                 self.logger.info("The polynomial defining"
                                  " the finite field is %s", s)
 
-        if self.params["dlp"]:
+        if self.params["computation"] == Computation.DLP:
             if self.params["target"]:
                 logt = self.descent.get_logtargets()
                 base = self.logquery.get_logbase()
                 return [base] + logt
             else:
                 return [0]
+        elif self.params["computation"] == Computation.CL:
+            return self.grstruct.get_class_group_structure()
         else:
             return self.sqrt.get_factors()
 
@@ -7310,7 +7742,7 @@ class CompleteFactorization(HasState,
         if key is Notification.WANT_MORE_RELATIONS:
             if sender is self.purge:
                 self.dup2.request_more_relations(value)
-                if self.params["dlp"]:
+                if hasattr(self, "filtergalois"):
                     self.filtergalois.request_more_relations(value)
             elif sender is self.dup2:
                 self.dup1.request_more_relations(value)

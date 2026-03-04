@@ -41,7 +41,8 @@ cofac_standalone::cofac_standalone() : a(0), b(0) {/*{{{*/
     mpz_set_ui(bz, 0);
 #endif
 }/*}}}*/
-cofac_standalone::cofac_standalone(int nsides, int N, size_t x, int logI, qlattice_basis const & Q)
+cofac_standalone::cofac_standalone(int nsides, int N, size_t x, int logI,
+                                   special_q_data_base const & Q)
     : S(nsides, 0)
     , norm(nsides, 0)
     , factors(nsides)
@@ -53,7 +54,11 @@ cofac_standalone::cofac_standalone(int nsides, int N, size_t x, int logI, qlatti
 #endif
 }/*}}}*/
 bool cofac_standalone::trace_on_spot() const {/*{{{*/
+#ifdef SUPPORT_LARGE_Q
+    return extern_trace_on_spot_ab(az, bz);
+#else
     return extern_trace_on_spot_ab(a, b);
+#endif
 }/*}}}*/
 bool cofac_standalone::gcd_coprime_with_q(special_q const & E) const {/*{{{*/
     /* Since the q-lattice is exactly those (a, b) with
@@ -159,3 +164,11 @@ int cofac_standalone::factor_leftover_norms(nfs_work_cofac & wc) {/*{{{*/
             *wc.strategies);
 }/*}}}*/
 
+std::ostream& operator<<(std::ostream& os, cofac_standalone const & cur)
+{
+#ifdef SUPPORT_LARGE_Q
+    return os << "(" << cur.az << ", " << cur.bz << ")";
+#else
+    return os << "(" << cur.a << ", " << cur.b << ")";
+#endif
+}

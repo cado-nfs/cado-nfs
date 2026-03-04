@@ -118,7 +118,7 @@ static void declare_usage(cxx_param_list & pl)/*{{{*/
   param_list_decl_usage(pl, "I",    "set sieving region to 2^I times J");
   param_list_decl_usage(pl, "A",    "set sieving region to 2^A");
 
-  siever_config::declare_usage(pl);
+  siever_config::declare_usage<NFS>(pl);
 
   param_list_decl_usage(pl, "adjust-strategy", "strategy used to adapt the sieving range to the q-lattice basis (0 = logI constant, J so that boundary is capped; 1 = logI constant, (a,b) plane norm capped; 2 = logI dynamic, skewed basis; 3 = combine 2 and then 0) ; default=0");
 
@@ -204,7 +204,7 @@ int main(int argc0, char const * argv0[])
         param_list_add_key(pl, "lim1", "0", PARAMETER_FROM_FILE);
 
     siever_config config_base;
-    if (!siever_config::parse_default(config_base, pl, cpoly->nb_polys)) {
+    if (!siever_config::parse_default<NFS>(config_base, pl, cpoly->nb_polys)) {
         fprintf(stderr, "Error: please provide a full set of {lim,mfb,lpb}{0,1} parameters\n");
         param_list_print_usage(pl, nullptr, stderr);
         exit(EXIT_FAILURE);
@@ -354,7 +354,7 @@ int main(int argc0, char const * argv0[])
 
         /* do a correctness check */
         for(int const side : sides) {
-            unsigned int const N = (check_bucket >= 0) ? check_bucket : (unsigned int) gmp_urandomm_ui(rstate, iceildiv(I*J, B));     
+            unsigned int const N = (check_bucket >= 0) ? check_bucket : (unsigned int) gmp_urandomm_ui(rstate, iceildiv(((uint64_t) I)*J, B));
             for(size_t c = 0 ; c < impls.size() ; c++) {
                 lognorms[c][side]->fill(S[c], N);
                 if (c == 0) continue;
@@ -418,7 +418,7 @@ int main(int argc0, char const * argv0[])
                 rstate2 = rstate;
                 double t = -wct_seconds();
                 for(int i = 0 ; i < nfills_speed_test ; i++) {
-                    lognorms[c][side]->fill(S[c], gmp_urandomm_ui(rstate2, iceildiv(I*J, B)));
+                    lognorms[c][side]->fill(S[c], gmp_urandomm_ui(rstate2, iceildiv(((uint64_t) I)*J, B)));
                 }
                 printf("# Side %d, lognorm %s code: %.3f microseconds per bucket region\n", 
                         side,

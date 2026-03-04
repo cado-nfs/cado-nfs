@@ -1,16 +1,26 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cmath>       // for frexp, ldexp
+#include <cmath>
 #include <cstdint>
 
-#include <ostream>      // for operator<<, basic_ostream, char_traits, ostream
+#include <ranges>
+#include <ostream>
 
-#include <gmp.h>        // for mpz_t, mpz_clear, mpz_mul, mpz_mul_2exp, mpz_...
+#include <gmp.h>
 
 #include "gmp_aux.h"
 #include "las-qlattice.hpp"
+#include "rootfinder.h"
 #include "special-q.hpp"
 #include "macros.h"
+#include "verbose.h"
+
+#include "fmt/ranges.h"
+
+std::ostream& operator<<(std::ostream& os, special_q_data_base const & Q)
+{
+    return Q.print(os);
+}
 
 /* check that the double x fits into an int32_t */
 #define fits_int32_t(x) \
@@ -142,18 +152,142 @@ SkewGauss (qlattice_basis &basis,  mpz_srcptr p, mpz_srcptr r,
 }
 
 qlattice_basis::qlattice_basis(special_q const & doing, double skew) :
-    doing(doing)
+    special_q_data_base(doing)
 {
     /* Currently requires prime or composite square-free special-q
      * values, For powers, the base prime would have to be determined and
      * stored in a variable, so that powers of that prime in the factor
      * base can be skipped over.  */
     ASSERT_ALWAYS(!mpz_perfect_power_p(doing.p));
-    q_ulong = mpz_fits_ulong_p(doing.p) ? mpz_get_ui(doing.p) : 0;
 
     if (!SkewGauss (*this, doing.p, doing.r, skew)) {
         throw too_skewed();
     }
+}
+
+/*
+ *      (a)   (a0 a1)   (i)
+ *      (b) = (b0 b1) * (j)
+ */
+void
+qlattice_basis::convert_ij_to_ab(
+        int64_t & a,
+        uint64_t & b,
+        int i,
+        unsigned int j) const
+{
+    sublat.adjustIJ(i, j);
+
+    int64_t const s = (int64_t)i * (int64_t) a0 + (int64_t)j * (int64_t) a1;
+    int64_t const t = (int64_t)i * (int64_t) b0 + (int64_t)j * (int64_t) b1;
+    if (t >= 0) {
+        a = s;
+        b = t;
+    } else {
+        a = -s;
+        b = -t;
+    }
+}
+
+void
+qlattice_basis::convert_ij_to_ab(
+        cxx_mpz & a,
+        cxx_mpz & b,
+        int i,
+        unsigned int j) const
+{
+    sublat.adjustIJ(i, j);
+
+    cxx_mpz zi = i;
+    cxx_mpz zj = j;
+
+    mpz_mul_int64(a, zi, a0);
+    mpz_addmul_int64(a, zj, a1);
+
+    mpz_mul_int64(b, zi, b0);
+    mpz_addmul_int64(b, zj, b1);
+
+    if (mpz_sgn(b) < 0) {
+        mpz_neg(a, a);
+        mpz_neg(b, b);
+    }
+}
+
+/*
+ *      (i)   (a0 a1)^-1   (a)   (b1 -a1)         (a)
+ *      (j) = (b0 b1)    * (b) = (-b0 a0) / det * (b)
+ * with
+ *      det = doing.p
+ */
+int
+qlattice_basis::convert_ab_to_ij(
+        int & i,
+        unsigned int & j,
+        int64_t a,
+        uint64_t b) const
+{
+    /* Both a,b and the coordinates of the lattice basis can be quite
+     * large. However the result should be small.
+     */
+    cxx_mpz za, zb;
+    mpz_set_int64(za, a);
+    mpz_set_uint64(zb, b);
+    return convert_ab_to_ij(i, j, za, zb);
+}
+
+int
+qlattice_basis::convert_ab_to_ij(
+        int & i,
+        unsigned int & j,
+        cxx_mpz const & a,
+        cxx_mpz const & b) const
+{
+    /* Both a,b and the coordinates of the lattice basis can be quite
+     * large. However the result should be small.
+     */
+    cxx_mpz ii, jj;
+    int ok = 1;
+    mpz_mul_int64(ii, a, b1); mpz_submul_int64(ii, b, a1);
+    mpz_mul_int64(jj, b, a0); mpz_submul_int64(jj, a, b0);
+    /*
+    int64_t ii =   a * (int64_t) b1 - b * (int64_t)a1;
+    int64_t jj = - a * (int64_t) b0 + b * (int64_t)a0;
+    */
+    if (!mpz_divisible_p(ii, doing.p)) ok = 0;
+    if (!mpz_divisible_p(jj, doing.p)) ok = 0;
+    mpz_divexact(ii, ii, doing.p);
+    mpz_divexact(jj, jj, doing.p);
+
+    if (mpz_sgn(jj) < 0 || (mpz_sgn(jj) == 0 && mpz_sgn(ii) < 0)) {
+        mpz_neg(ii, ii);
+        mpz_neg(jj, jj);
+    }
+    i = mpz_get_si(ii);
+    j = mpz_get_ui(jj);
+    if (sublat.m != 0) {
+        int64_t imodm = i % int64_t(sublat.m);
+        if (imodm < 0) {
+            imodm += sublat.m;
+        }
+        int64_t jmodm = j % int64_t(sublat.m);
+        if (jmodm < 0)
+            jmodm += sublat.m;
+        if (imodm != sublat.i0 || jmodm != sublat.j0) {
+            verbose_fmt_print(1, 0, "# TraceAB: (i,j)=({},{}) does not belong "
+                                    "to the right congruence class\n", i, j);
+            ok = 0;
+        } else {
+            i = (i - imodm) / int64_t(sublat.m);
+            j = (j - jmodm) / int64_t(sublat.m);
+        }
+    }
+
+    return ok;
+}
+
+std::ostream & qlattice_basis::print(std::ostream & os) const
+{
+    return os << *this;
 }
 
 std::ostream& operator<<(std::ostream& os, qlattice_basis const & Q)
@@ -165,5 +299,148 @@ std::ostream& operator<<(std::ostream& os, qlattice_basis const & Q)
         << " b0=" << Q.b0 << ";"
         << " a1=" << Q.a1 << ";"
         << " b1=" << Q.b1;
+    return os;
+}
+
+siqs_special_q_data::siqs_special_q_data(
+        special_q const & sq,
+        cxx_cado_poly const & cpoly)
+    : special_q_data_base(sq)
+{
+    //TODO assert cpoly is x^2+cst
+    cxx_gmp_randstate rstate;
+    crt_data_modq.clear();
+    crt_data_modq.reserve(doing.prime_factors.size());
+    doing.r = 0u;
+    for (auto const & qk: doing.prime_factors) {
+        /* crt = q/qk * (1/(q/qk) mod qk), i.e.,
+         *    crt = 0 mod q/qk and crt = 1 mod qk
+         */
+        cxx_mpz crt = doing.p / qk;
+        crt *= crt.invmod(qk);
+
+        std::vector<uint64_t> rk = mpz_poly_roots(cpoly[sq.side], qk, rstate);
+        ASSERT_ALWAYS(rk.size() == 2);
+
+        /* XXX assume poly is even, only one root is considered, -Rk will
+         * correspond to the other root.
+         */
+        cxx_mpz t0 = rk[0] * crt;
+        mpz_mod(t0, t0, doing.p);
+        if (2*t0 >= doing.p)
+            t0 = doing.p - t0;
+        crt_data_modq.emplace_back(t0);
+
+        doing.r += t0;
+    }
+}
+
+void
+siqs_special_q_data::convert_ij_to_ab(
+        int64_t & a,
+        uint64_t & b,
+        int i,
+        unsigned int j) const
+{
+    /* b = 1; a = rj + q*i */
+    b = 1u;
+    a = mpz_get_si(root_from_j(j));
+    a += mpz_get_si(doing.p) * i;
+}
+
+void
+siqs_special_q_data::convert_ij_to_ab(
+        cxx_mpz & a,
+        cxx_mpz & b,
+        int i,
+        unsigned int j) const
+{
+    /* b = 1; a = rj + q*i */
+    b = 1u;
+    a = root_from_j(j);
+    mpz_addmul_si(a, doing.p, i);
+}
+
+int
+siqs_special_q_data::convert_ab_to_ij(
+        int & i,
+        unsigned int & j,
+        int64_t a,
+        uint64_t b) const
+{
+    cxx_mpz za, zb;
+    mpz_set_int64(za, a);
+    mpz_set_uint64(zb, b);
+    return convert_ab_to_ij(i, j, za, zb);
+}
+
+int
+siqs_special_q_data::convert_ab_to_ij(
+        int & i,
+        unsigned int & j,
+        cxx_mpz const & a,
+        cxx_mpz const & b) const
+{
+    if (mpz_cmp_ui(b, 1u) != 0) {
+        return 0; /* only b == 1 is sieved */
+    }
+
+    /* Here we will computed j directly without computing the its gray code g,
+     * using the following facts:
+     *   the k-th bit of j = xor(l-th bit of g for l >= k)
+     *   the l-th bit of g = 0 if a % qk == Rk % qk else 1
+     *
+     * We will compute the correspond rj at the same time as it is needed to
+     * compute i = (a-rj)/q.
+     */
+    j = 0u;
+    cxx_mpz rj = 0u;
+    uint64_t mask = 1u; /* invariant: mask = 2^(k+1)-1 = 0b11..1 with k 1's */
+    for(unsigned int k = 0; k < nfactors(); ++k, mask = (mask << 1u) + 1u) {
+        const uint64_t qk = doing.prime_factors[k];
+        cxx_mpz const & Rk = crt_data_modq[k];
+
+        uint64_t amodqk = mpz_tdiv_uint64(a, qk);
+        if (mpz_sgn(a) < 0) {
+            amodqk = qk - amodqk;
+        }
+        if (mpz_tdiv_uint64(Rk, qk) == amodqk) {
+            rj += Rk;
+        } else {
+            ASSERT((qk - mpz_tdiv_uint64(Rk, qk)) == amodqk);
+            rj -= Rk;
+            j = j xor mask;
+        }
+    }
+
+    cxx_mpz t;
+    mpz_sub(t, rj, a);
+    ASSERT(mpz_divisible_p(t, doing.p));
+    mpz_divexact(t, t, doing.p);
+    mpz_neg(t, t); /* t = (a-rj)/q  which is i */
+    if (t.fits<int>()) {
+      i = mpz_get_si(t);
+      return 1;
+    } else {
+      return 0;
+    }
+}
+
+std::ostream & siqs_special_q_data::print(std::ostream & os) const
+{
+    return os << *this;
+}
+
+std::ostream& operator<<(std::ostream& os, siqs_special_q_data const & Q)
+{
+    if (mpz_cmp_ui(Q.doing.p, 0) != 0)
+        os << Q.doing << "; ";
+
+    auto p = [&, Q](size_t i) { return fmt::format("({}, {})",
+                            Q.doing.prime_factors[i], Q.crt_data_modq[i]); };
+    auto v = std::views::iota(0u, Q.nfactors()) | std::views::transform(p);
+    os << "CRT data = [" << fmt::format("{}", fmt::join(v, ", ")) << "; "
+       << "r0 = " << Q.doing.r;
+
     return os;
 }

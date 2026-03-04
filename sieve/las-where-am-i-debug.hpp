@@ -52,7 +52,6 @@ struct qlattice_basis;
 /*  where_am_I (debug) */
 struct where_am_I::impl {
     int logI = 0;
-    const qlattice_basis * pQ = NULL;
     struct side_data {
         const fb_factorbase::slicing * fbs = NULL;
     };
@@ -73,7 +72,11 @@ struct where_am_I::impl {
 extern int test_divisible(where_am_I const & w);
 
 struct trace_Nx_t { unsigned int N; unsigned int x; };
+#ifdef SUPPORT_LARGE_Q
+struct trace_ab_t { cxx_mpz a; cxx_mpz b; };
+#else
 struct trace_ab_t { int64_t a; uint64_t b; };
+#endif
 struct trace_ij_t { int i; unsigned int j; };
 
 extern struct trace_Nx_t trace_Nx;
@@ -100,6 +103,10 @@ static inline int trace_on_range_Nx(unsigned int N, unsigned int x0, unsigned in
 static inline int trace_on_spot_x(uint64_t x) {
     return x == (((uint64_t)trace_Nx.N) << LOG_BUCKET_REGION)
         + (uint64_t)trace_Nx.x;
+}
+
+static inline int trace_on_spot_ab(cxx_mpz const & a, cxx_mpz const & b) {
+    return a == trace_ab.a && b == trace_ab.b;
 }
 
 static inline int trace_on_spot_ab(int64_t a, uint64_t b) {

@@ -48,7 +48,7 @@ EOF
 
 cat > $PARAMFILE <<EOF
 name = p3dd7-f4g3-GJL-1
-dlp = true
+computation = DLP
 N = 8005493
 ell = 64087926178543
 gfpext = 3

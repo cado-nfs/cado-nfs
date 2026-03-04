@@ -24,6 +24,8 @@
 #include "las-special-q-task-tree.hpp"
 #include "las-special-q-task-simple.hpp"
 
+#include "sieve-methods.hpp"
+
 /* A "task collection" designates the set of special-q's that a single
  * las process handles over its lifetime.
  *
@@ -70,7 +72,7 @@
 struct special_q_task_collection_base {
 
     /* this is the source from which we pull the work to be done */
-    las_todo_list todo;
+    std::unique_ptr<todo_list_base> todo;
 
     /* done+abandoned is always <= created
      * pulled - (done + abandoned) is the number of retries
@@ -81,8 +83,12 @@ struct special_q_task_collection_base {
     size_t done = 0;
     size_t abandoned = 0;
 
-    special_q_task_collection_base(cxx_cado_poly const & cpoly, cxx_param_list & pl)
-        : todo(cpoly, pl)
+    template<sieve_method Algo>
+    special_q_task_collection_base(
+            cxx_cado_poly const & cpoly,
+            cxx_param_list & pl,
+            Algo)
+        : todo(todo_list_base::create<typename Algo::todo_list>(cpoly, pl))
     { }
     special_q_task_collection_base(special_q_task_collection_base const& t) = delete;
     special_q_task_collection_base(special_q_task_collection_base && t) = delete;
@@ -101,7 +107,10 @@ struct special_q_task_collection_base {
 
     virtual void display_summary(int, int) {}
 
-    static std::unique_ptr<special_q_task_collection_base> create(cxx_cado_poly const & cpoly, cxx_param_list & pl);
+    template<sieve_method Algo>
+    static std::unique_ptr<special_q_task_collection_base> create(
+            cxx_cado_poly const & cpoly,
+            cxx_param_list & pl);
 };
 
 struct special_q_task_collection_simple : public special_q_task_collection_base {
@@ -110,8 +119,11 @@ struct special_q_task_collection_simple : public special_q_task_collection_base 
     std::mutex history_lock;
     std::list<std::unique_ptr<special_q_task_simple>> history;
 
-    special_q_task_collection_simple(cxx_cado_poly const & cpoly, cxx_param_list & pl)
-        : special_q_task_collection_base(cpoly, pl)
+    special_q_task_collection_simple(
+            cxx_cado_poly const & cpoly,
+            cxx_param_list & pl,
+            sieve_method auto tag)
+        : special_q_task_collection_base(cpoly, pl, tag)
     { }
 
     public:
@@ -146,8 +158,10 @@ struct special_q_task_collection_tree : public special_q_task_collection_base {
 
     std::deque<special_q_task_tree *> all_pending;
 
-    special_q_task_collection_tree(cxx_cado_poly const & cpoly, cxx_param_list & pl)
-        : special_q_task_collection_base(cpoly, pl)
+    special_q_task_collection_tree(
+            cxx_cado_poly const & cpoly,
+            cxx_param_list & pl)
+        : special_q_task_collection_base(cpoly, pl, NFS{})
     {
         forest.status = status_code::IN_RECURSION;
         forest.spent = -seconds();

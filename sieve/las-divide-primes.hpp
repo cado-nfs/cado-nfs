@@ -23,6 +23,7 @@ divide_known_primes (std::vector<uint64_t> & fl, cxx_mpz & norm, const unsigned 
            bucket_array_complete *purged,
 	   trialdiv_data const & td,
            int64_t a, uint64_t b,
-           fb_factorbase::slicing const & fbs);
+           fb_factorbase::slicing const & fbs,
+           bool very_verbose);
 
 #endif	/* CADO_LAS_DIVIDE_PRIMES_HPP */

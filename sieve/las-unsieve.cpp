@@ -355,6 +355,33 @@ j_divisibility_helper::j_divisibility_helper(uint32_t J)
     }
 }
 
+template<std::size_t nsides>
+static inline int
+sieve_info_test_lognorm (
+        const std::array<unsigned char, nsides> bound,
+        std::array<unsigned char * const, nsides> SS,
+        const unsigned int x);
+
+template<>
+inline int
+sieve_info_test_lognorm (
+        const std::array<unsigned char, 1> bound,
+        std::array<unsigned char * const, 1> SS,
+        const unsigned int x)
+{
+  return SS[0][x] <= bound[0];
+}
+
+template<>
+inline int
+sieve_info_test_lognorm (
+        const std::array<unsigned char, 2> bound,
+        std::array<unsigned char * const, 2> SS,
+        const unsigned int x)
+{
+  return SS[0][x] <= bound[0] && SS[1][x] <= bound[1];
+}
+
 static inline int
 sieve_info_test_lognorm (const unsigned char C1, const unsigned char C2,
                          const unsigned char S1, const unsigned char S2)
@@ -618,3 +645,31 @@ search_survivors_in_line(unsigned char * const SS[2],
 #endif
     }
 }
+
+/* assume SS[i] != NULL for all 0 <= i < nsides. */
+template<std::size_t nsides>
+void search_survivors_in_line(
+        std::array<unsigned char * const, nsides> SS,
+        const std::array<unsigned char, nsides> bound,
+        unsigned int length,
+        std::vector<uint16_t> &survivors)
+{
+    for (unsigned int x = 0; x < length; ++x) {
+        if (!sieve_info_test_lognorm(bound, SS, x)) {
+            SS[0][x] = 255;
+        } else {
+            survivors.push_back(x);
+        }
+    }
+}
+
+template void search_survivors_in_line(
+        std::array<unsigned char * const, 1> SS,
+        const std::array<unsigned char, 1> bound,
+        unsigned int length,
+        std::vector<uint16_t> &survivors);
+template void search_survivors_in_line(
+        std::array<unsigned char * const, 2> SS,
+        const std::array<unsigned char, 2> bound,
+        unsigned int length,
+        std::vector<uint16_t> &survivors);

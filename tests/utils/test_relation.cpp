@@ -83,6 +83,53 @@ static int test_compute_r(unsigned int nb)
     return err;
 }
 
+static int test_compute_r_large_ab(unsigned int nb)
+{
+    int err = 0;
+    cxx_mpz a, b, tp;
+
+    for (unsigned int i = 0; i < nb; i++) {
+        unsigned long p;
+
+        /* 5% of tests are for the case where p = 2^k */
+        if (i % 20 == 0) {
+            unsigned int exp = gmp_urandomb_ui(state, 5);
+            exp = (exp == 0) ? 1 : exp;
+            p = 1UL << exp;
+            mpz_set_ui(tp, p);
+        } else {
+            mpz_set_ui(tp, gmp_urandomb_ui(state, 31));
+            mpz_nextprime(tp, tp);
+            p = mpz_get_ui(tp);
+        }
+
+        mpz_urandomb(a, state, 256);
+        if (gmp_urandomb_ui(state, 1)) {
+            mpz_neg(a, a);
+        }
+        /* 5% of tests are for the case where b = 0 mod p (with b > 0)
+         * We do not need to test for free relations as they never go throught
+         * relation_compute_r
+         */
+        mpz_urandomb(b, state, 192);
+        mpz_add_ui(b, b, 1u);
+        if (i < (nb / 20)) {
+            mpz_mul_ui(b, b, p);
+        }
+
+        unsigned long const r = relation_compute_r(a, b, p);
+
+        unsigned long const r2 = mpz_compute_r(a, b, tp);
+        if (r != r2) {
+            fmt::print(stderr,
+                       "ERROR: a={} b={} p={}\nGot r={} instead of {}\n",
+                       a, b, p, r, r2);
+            err++;
+        }
+    }
+    return err;
+}
+
 static int test_compute_all_r(unsigned int nb)
 {
     int err = 0;
@@ -145,6 +192,10 @@ static int test_conversion(unsigned int nb)
 
     const std::unique_ptr<char[]> s1(new char[25]);
     const std::unique_ptr<char[]> s2(new char[25]);
+
+    const std::unique_ptr<char[]> l1(new char[100]);
+    const std::unique_ptr<char[]> l2(new char[100]);
+
     char * tmp;
     cxx_mpz t;
 
@@ -175,6 +226,26 @@ static int test_conversion(unsigned int nb)
         tmp = u64toa16(s2.get(), b);
         *tmp = '\0';
         err += check_str_err(s1.get(), s2.get(), t);
+
+        /* for large a and b */
+        {
+            cxx_mpz a, b;
+            mpz_urandomb(a, state, 256);
+            if (gmp_urandomb_ui(state, 1)) {
+                mpz_neg(a, a);
+            }
+            mpz_urandomb(b, state, 192);
+
+            mpz_get_str(l1.get(), 16, a);
+            tmp = d64toa16(l2.get(), a);
+            *tmp = '\0';
+            err += check_str_err(l1.get(), l2.get(), t);
+
+            mpz_get_str(l1.get(), 16, b);
+            tmp = u64toa16(l2.get(), b);
+            *tmp = '\0';
+            err += check_str_err(l1.get(), l2.get(), t);
+        }
     }
 
     return err;
@@ -189,6 +260,7 @@ int main(int argc, char const * argv[])
     tests_common_get_iter(&iter);
 
     err += test_compute_r(iter);
+    err += test_compute_r_large_ab(iter);
     err += test_compute_all_r(iter / 10);
     err += test_conversion(iter);
 

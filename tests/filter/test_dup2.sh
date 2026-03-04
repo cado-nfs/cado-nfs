@@ -40,6 +40,9 @@ while [ $# -gt 0 ] ; do
     elif [ "$1" = "-nodl" ] ; then
         DL=()
         shift
+    elif [ "$1" = "-large-ab" ] ; then
+        LARGE_AB="$1"
+        shift
     else
         echo "bad arg: $1" >&2
         exit 1
@@ -63,7 +66,7 @@ common=(-poly "$POLY" -renumber "${RENUMBER}")
 # bail out early if debug_renumber sees an inconsistency.
 "${CADO_NFS_BINARY_DIR}/misc/debug_renumber" "${common[@]}" -check -quiet
 "${CADO_NFS_BINARY_DIR}/filter/dup2" "${common[@]}"       \
-                    -nrels $(gzip -dc "$WORK_RELS" | wc -l) "${DL[@]}" "${WORK_RELS}"
+                    -nrels $(gzip -dc "$WORK_RELS" | wc -l) "${DL[@]}" ${LARGE_AB} "${WORK_RELS}"
 
 if [ "$REFERENCE_SHA1" ] ; then
     SHA1BIN=sha1sum

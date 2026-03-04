@@ -1338,6 +1338,176 @@ calculateSqrtAlg (std::string const & prefix, unsigned int numdep,
     return 0;
 }
 
+/****** Sqrt for quadratic sieve ******/
+
+/* This is where we store side-relative functions for the square root for the
+ * quadratic sieve.
+ */
+struct cxx_mpz_qs_functions {
+    cxx_mpz_poly const & P;
+    cxx_mpz const & Np;
+    using T = std::pair<cxx_mpz, cxx_mpz>;
+    static void set1(T & x) {
+        mpz_set_ui(x.first, 1u);
+        mpz_set_ui(x.second, 1u);
+    }
+    static void set(T & y, T const & x) {
+        mpz_set(y.first, x.first);
+        mpz_set(y.second, x.second);
+    }
+    static bool is1(T & x) {
+        return mpz_cmp_ui(x.first, 1u) == 0 && mpz_cmp_ui(x.second, 1u) == 0;
+    }
+    void operator()(T & res, T const & u, T const & v) const {
+        mpz_mul(res.first, u.first, v.first);
+        mpz_mul(res.second, u.second, v.second);
+        mpz_mod(res.second, res.second, Np);
+    }
+    ATTRIBUTE_NODISCARD
+    T from_ab(cxx_mpz const& a, cxx_mpz const& b) const
+    {
+        /* return P(a) and a */
+        ASSERT_ALWAYS(mpz_cmp_ui(b, 1u) == 0);
+        cxx_mpz v;
+        mpz_poly_eval(v, P, a);
+        return { v, a };
+    }
+};
+static int
+calculateSqrtQS(
+        std::string const & prefix,
+        unsigned int numdep,
+        cxx_cado_poly const & cpoly,
+        cxx_mpz const & Np)
+{
+    ASSERT_ALWAYS(cpoly->nb_polys == 1 && mpz_poly_is_monic(cpoly->pols[0]));
+    unsigned long nab = 0, nfree = 0;
+
+#pragma omp critical
+    {
+#ifdef __MPIR_VERSION
+        fmt::print (stderr, "Using MPIR {}\n", mpir_version);
+#else
+        fmt::print (stderr, "Using GMP {}\n", gmp_version);
+#endif
+        fflush (stderr);
+    }
+
+    cxx_mpz_poly F(cpoly->pols[0]);
+    std::pair<cxx_mpz, cxx_mpz> prod;
+
+    {
+        const cxx_mpz_qs_functions M(F, Np);
+        const std::string message = fmt::format("QS({})", numdep);
+
+        std::vector<decltype(M)::T> prd = read_ab_pairs_from_depfile(
+            get_depname (prefix, "", numdep),
+            M,
+            message,
+            nab,
+            nfree);
+
+        prod = accumulate(prd, M, message);
+    }
+
+#pragma omp critical
+    {
+        fmt::print (stderr, "QS({}): size of product = {} bits (peak {}M)\n",
+                            numdep, mpz_sizeinbase (prod.first, 2),
+                            PeakMemusage () >> 10U);
+        fflush (stderr);
+    }
+
+    if (mpz_sgn(prod.first) < 0)
+    {
+        fmt::print(stderr, "Error, product is negative: try another "
+                            "dependency\n");
+        exit(EXIT_FAILURE);
+    }
+
+#pragma omp critical
+    {
+        fmt::print(stderr, "QS({}): starting rational square root at "
+                           "{:.2f}s (wct {:.2f}s)\n",
+                           numdep, seconds (), wct_seconds () - wct0);
+        fflush(stderr);
+    }
+
+    cxx_mpz v;
+    /* since we know we have a square, take the square root */
+    mpz_sqrtrem (prod.first, v, prod.first);
+
+#pragma omp critical
+    {
+        fmt::print(stderr, "QS({}): computed square root at {:.2f}s "
+                           "(wct {:.2f}s)\n",
+                           numdep, seconds (), wct_seconds () - wct0);
+        fflush(stderr);
+    }
+
+    if(mpz_cmp_ui (v, 0) != 0)
+    {
+        unsigned long p = 2, e, errors = 0;
+        cxx_mpz pp;
+
+        fmt::print(stderr, "Error, rational square root remainder is not "
+                           "zero\n");
+        /* reconstruct the initial value of prod to debug */
+        mpz_mul(prod.first, prod.first, prod.first);
+        mpz_add(prod.first, prod.first, v);
+        prime_info pi;
+        prime_info_init(pi);
+        while (mpz_cmp_ui(prod.first, 1) > 0)
+        {
+            e = 0;
+            if (verbose)
+                fmt::print("Removing p={}:", p);
+            mpz_set_ui (pp, p);
+            e = mpz_remove (prod.first, prod.first, pp);
+            if (verbose)
+                fmt::print(" exponent={}, remaining {} bits\n", e,
+                      mpz_sizeinbase (prod.first, 2));
+            if ((e % 2) != 0)
+            {
+                errors ++;
+                fmt::print(stderr, "Prime {} appears to odd power {}\n", p, e);
+                if (verbose || errors >= 10)
+                  break;
+            }
+            p = getprime_mt(pi);
+        }
+        prime_info_clear(pi);
+        exit(EXIT_FAILURE);
+    }
+
+    mpz_mod(prod.first, prod.first, Np);
+
+#pragma omp critical
+    {
+        fmt::print(stderr, "QS({}): reduced mod n at {:.2f}s (wct {:.2f}s)\n",
+                           numdep, seconds (), wct_seconds () - wct0);
+        fflush(stderr);
+    }
+
+    for (size_t i = 0; i < 2; ++i) {
+        const std::string sidename = get_depsidename(prefix, numdep, i);
+        FILE *resfile = fopen_maybe_compressed_lock(sidename.c_str(), "wb");
+        fmt::print(resfile, "{}\n", i == 0 ? prod.first : prod.second);
+        fclose_maybe_compressed_lock (resfile, sidename.c_str());
+    }
+
+#pragma omp critical
+    {
+        fmt::print(stderr, "QS({}): square root is {}\n", numdep, prod.first);
+        fmt::print(stderr, "QS({}): square root time: {:.2f}s (wct {:.2f}s)\n",
+                           numdep, seconds (), wct_seconds () - wct0);
+        fmt::print(stderr, "QS({}): product of a is {}\n", numdep, prod.second);
+        fflush(stderr);
+    }
+
+  return 0;
+}
+
 /*
  * Try to factor input using trial division up to bound B.
  * Found factors are printed (one per line).
@@ -1482,21 +1652,28 @@ typedef struct
   FILE **dep_files;
 } sqrt_data_t;
 
+template<filter_io_config cfg>
 static void *
-thread_sqrt (void * context_data, earlyparsed_relation_ptr rel)
+thread_sqrt (void * context_data, typename cfg::rel_ptr rel)
 {
   auto data = (sqrt_data_t *) context_data;
   for(unsigned int j = 0 ; j < data->nonzero_deps ; j++)
   {
     if (data->abs[rel->num] & data->dep_masks[j])
     {
-      fmt::print(data->dep_files[j], "{} {}\n", rel->a, rel->b);
+      if constexpr (std::is_same_v<cfg, filter_io_large_ab_cfg>) {
+        fmt::print(data->dep_files[j], "{} {}\n",
+                   cxx_mpz(rel->a), cxx_mpz(rel->b));
+      } else {
+        fmt::print(data->dep_files[j], "{} {}\n", rel->a, rel->b);
+      }
       data->dep_counts[j]++;
     }
   }
   return nullptr;
 }
 
+template<filter_io_config cfg>
 static void create_dependencies(const char * prefix, const char * indexname, const char * purgedname, const char * kername)
 {
     FILE * ix = fopen_maybe_compressed(indexname, "r");
@@ -1580,10 +1757,9 @@ static void create_dependencies(const char * prefix, const char * indexname, con
     sqrt_data_t data = {.abs = abs.get(), .dep_masks = dep_masks,
                         .dep_counts = dep_counts, .nonzero_deps = nonzero_deps,
                         .dep_files = dep_files};
-    char const *fic[2] = {purgedname, nullptr};
-    filter_rels (fic, (filter_rels_callback_t) thread_sqrt, &data,
-          EARLYPARSE_NEED_AB_HEXA, nullptr, nullptr);
-
+    std::vector<std::string> fic {purgedname};
+    filter_rels<cfg>(fic, thread_sqrt<cfg>, &data, EARLYPARSE_NEED_AB_HEXA,
+                     nullptr, nullptr);
 
     fmt::print(stderr, "Written {} dependencies files\n", nonzero_deps);
     for(unsigned int i = 0 ; i < nonzero_deps ; i++) {
@@ -1595,6 +1771,7 @@ static void create_dependencies(const char * prefix, const char * indexname, con
 
 #define TASK_SQRT 0
 #define TASK_GCD  2
+#define TASK_QS 4
 /* perform one task (rat or alg or gcd) on one dependency */
 static void
 one_thread (std::string const & prefix, int task, unsigned int numdep, cxx_cado_poly const & cpoly, int side, cxx_mpz const & Np, const mpz_poly_parallel_info * pinf)
@@ -1605,6 +1782,9 @@ one_thread (std::string const & prefix, int task, unsigned int numdep, cxx_cado_
       } else {
           calculateSqrtAlg (prefix, numdep, cpoly, side, Np, pinf);
       }
+  } else if (task == TASK_QS) {
+    ASSERT_ALWAYS(side == 0);
+    calculateSqrtQS(prefix, numdep, cpoly, Np);
   } else /* gcd */
     calculateGcd (prefix, numdep, Np);
 }
@@ -1656,10 +1836,13 @@ static void declare_usage(param_list pl)
     param_list_decl_usage(pl, "ab", "For each dependency, create file with the a,b-values of the relations used in that dependency");
     param_list_decl_usage(pl, "side0", "Compute square root for side 0 and store in file");
     param_list_decl_usage(pl, "side1", "Compute square root for side 1 and store in file");
+    param_list_decl_usage(pl, "qs", "Compute square root for quadratic sieve and store in file");
     param_list_decl_usage(pl, "gcd", "Compute gcd of the two square roots. Requires square roots on both sides");
     param_list_decl_usage(pl, "dep", "The initial dependency for which to compute square roots");
     param_list_decl_usage(pl, "t",   "The number of dependencies to process (default 1)");
     param_list_decl_usage(pl, "v", "More verbose output");
+    param_list_decl_usage(pl, "large-ab", "enable support for a and b larger "
+                                          "than 64 bits");
     param_list_decl_usage(pl, "force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
 }
 
@@ -1679,6 +1862,7 @@ int main(int argc, char const *argv[])
 {
     unsigned int numdep = UINT_MAX;
     int nthreads = 1, ret MAYBE_UNUSED, i;
+    int largeab = 0;
 
     char const * me = *argv;
     /* print the command line */
@@ -1694,12 +1878,15 @@ int main(int argc, char const *argv[])
     int opt_side0 = 0; /* compute square root on side 0 */
     int opt_side1 = 0; /* compute square root on side 1 */
     int opt_gcd = 0;   /* compute gcd */
+    int opt_qs = 0; /* compute root for quadratic sieve */
     param_list_configure_switch(pl, "ab", &opt_ab);
     param_list_configure_switch(pl, "side0", &opt_side0);
     param_list_configure_switch(pl, "side1", &opt_side1);
+    param_list_configure_switch(pl, "qs", &opt_qs);
     param_list_configure_switch(pl, "gcd", &opt_gcd);
     param_list_configure_switch(pl, "-v", &verbose);
     param_list_configure_switch(pl, "force-posix-threads", &filter_rels_force_posix_threads);
+    param_list_configure_switch(pl, "large-ab", &largeab);
     argc--,argv++;
     for( ; argc ; ) {
         if (param_list_update_cmdline(pl, &argc, &argv)) continue;
@@ -1727,6 +1914,16 @@ int main(int argc, char const *argv[])
         return EXIT_FAILURE;
     }
 
+    if (cpoly->nb_polys < 1 || cpoly->nb_polys > 2) {
+        fmt::print(stderr, "Error: number of polys should be 1 or 2, got {}\n",
+                           cpoly->nb_polys);
+        exit (EXIT_FAILURE);
+    } else if (cpoly->nb_polys == 1 && opt_side1) {
+        fmt::print(stderr, "Error: -side1 is not compatible with only one "
+                           "side\n");
+        exit (EXIT_FAILURE);
+    }
+
     param_list_parse_uint (pl, "dep", &numdep);
     param_list_parse_int (pl, "t", &nthreads);
     const char * purgedname = param_list_lookup_string(pl, "purged");
@@ -1741,8 +1938,19 @@ int main(int argc, char const *argv[])
         return EXIT_FAILURE;
 
     /* if no options then -ab -side0 -side1 -gcd */
-    if (!(opt_ab || opt_side0 || opt_side1 || opt_gcd))
-        opt_ab = opt_side0 = opt_side1 = opt_gcd = 1;
+    if (!(opt_ab || opt_side0 || opt_side1 || opt_qs || opt_gcd)) {
+        opt_ab = opt_side0 = opt_gcd = 1;
+        opt_side1 = (cpoly->nb_polys == 2);
+    } else if (opt_qs) {
+        if (cpoly->nb_polys != 1) {
+            fmt::print(stderr, "Error: -qs is only valid for one-sided poly\n");
+            exit (EXIT_FAILURE);
+        } else if (opt_side0 || opt_side1) {
+            fmt::print(stderr, "Error: -qs is not compatible with -side0 "
+                               "and/or -side1\n");
+            exit (EXIT_FAILURE);
+        }
+    }
 
     const double cpu0 = seconds ();
     wct0 = wct_seconds();
@@ -1757,7 +1965,7 @@ int main(int argc, char const *argv[])
     {
         cxx_mpz gg;
         mpz_set(Np, cpoly->n);
-        for (int side = 0; side < 2; ++side) {
+        for (int side = 0; side < cpoly->nb_polys; ++side) {
             do {
                 mpz_gcd(gg, Np, mpz_poly_lc(cpoly->pols[side]));
                 if (mpz_cmp_ui(gg, 1) != 0) {
@@ -1810,7 +2018,13 @@ int main(int argc, char const *argv[])
             fmt::print(stderr, "Parameter -ker is missing\n");
             return EXIT_FAILURE;
         }
-        create_dependencies(prefix, indexname, purgedname, kername);
+        if (!largeab) {
+            create_dependencies<filter_io_default_cfg>(prefix, indexname,
+                                                       purgedname, kername);
+        } else {
+            create_dependencies<filter_io_large_ab_cfg>(prefix, indexname,
+                                                        purgedname, kername);
+        }
     }
 
 #ifdef __OpenBSD__
@@ -1821,7 +2035,7 @@ int main(int argc, char const *argv[])
     }
 #endif
 
-    if (opt_side0 || opt_side1 || opt_gcd)
+    if (opt_side0 || opt_side1 || opt_qs || opt_gcd)
       {
         int i;
 
@@ -1849,6 +2063,11 @@ int main(int argc, char const *argv[])
     if (opt_side1) {
         ASSERT_ALWAYS(numdep != UINT_MAX);
         calculateTaskN(TASK_SQRT, prefix, numdep, nthreads, cpoly, 1, Np);
+    }
+
+    if (opt_qs) {
+        ASSERT_ALWAYS(numdep != UINT_MAX);
+        calculateTaskN(TASK_QS, prefix, numdep, nthreads, cpoly, 0, Np);
     }
 
     if (opt_gcd) {

@@ -49,6 +49,8 @@ public:
     virtual special_q apply(special_q const & q) const = 0;
     virtual uint64_t hash_ab(int64_t a, uint64_t b,
                              uint64_t CA, uint64_t CB) const = 0;
+    virtual uint64_t hash_ab(mpz_srcptr a, mpz_srcptr b,
+                             uint64_t CA, uint64_t CB) const = 0;
 
     virtual int apply_ab(int64_t &, uint64_t &) const = 0;
     virtual unsigned long apply_ab_cofactor(unsigned long r, unsigned long p) const = 0;
@@ -130,6 +132,7 @@ public:
      * even).
      */
     uint64_t hash_ab(int64_t a, uint64_t b, uint64_t CA, uint64_t CB) const;
+    uint64_t hash_ab(mpz_srcptr a, mpz_srcptr b, uint64_t CA, uint64_t CB) const;
 
     /* Store into sigma the full action of the galois action on the index of the
      * ideals. For each orbit of ideals (I0, ..., Ik) with index (i0, ..., ik),

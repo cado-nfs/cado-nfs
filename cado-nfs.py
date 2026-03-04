@@ -134,8 +134,10 @@ sys.path.append(pathdict["pylib"])
 
 from cadofactor import toplevel, cadologger, cadotask  # noqa: E402
 from cadofactor.cadocommand import shellquote          # noqa: E402
+from cadofactor.cadoutils import Computation           # noqa: E402
 
 if __name__ == '__main__':
+    sys.set_int_max_str_digits(0)  # to be able to print very large integer
     # Parse command line arguments
 
     # Some command-line arguments are really parsed only here, while some
@@ -217,14 +219,14 @@ if __name__ == '__main__':
     else:
         toplevel_params.purge_temp_files()
 
-    dlp_param = parameters.myparams({"dlp": False}, "")
-    dlp = dlp_param["dlp"]
+    computation_param = parameters.myparams(keys=("computation",), path="")
+    computation = computation_param["computation"]
     target_param = parameters.myparams({"target": ""}, "")
     target = target_param["target"]
 
-    if not dlp:
+    if computation == Computation.FACT:
         print(" ".join(factors))
-    else:
+    elif computation == Computation.DLP:
         logger.info("If you want to compute"
                     " one or several new target(s),"
                     " run %s %s target=<target>[,<target>,...]",
@@ -243,3 +245,7 @@ if __name__ == '__main__':
                 t = targets[i]
                 logger.warning("NO LOG FOUND for target = " + str(t))
             print(",".join([str(x) for x in logtargets]))
+    elif computation == Computation.CL:
+        print(factors, end="")
+    else:
+        raise RuntimeError(f"unknown computation '{computation}'")

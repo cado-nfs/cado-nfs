@@ -17,6 +17,8 @@ set(makefb_path         ${CADO_NFS_BINARY_DIR}/sieve/makefb)
 set(las_path            ${CADO_NFS_BINARY_DIR}/sieve/las)
 set(las_tracek_path     ${CADO_NFS_BINARY_DIR}/sieve/las_tracek)
 set(las_descent_path    ${CADO_NFS_BINARY_DIR}/sieve/las_descent)
+set(siqs_path           ${CADO_NFS_BINARY_DIR}/sieve/siqs)
+set(siqs_tracek_path    ${CADO_NFS_BINARY_DIR}/sieve/siqs_tracek)
 set(dupsup_path         ${CADO_NFS_BINARY_DIR}/sieve/dupsup)
 
 
@@ -639,6 +641,21 @@ cado_divert_test(test_init_norms rsa220
     AVOID_CONCURRENT 2
 )
 
+cado_divert_test(test_init_norms rsa220_I17
+    ARGUMENTS
+        -poly ${CMAKE_CURRENT_SOURCE_DIR}/rsa220.poly
+        -I 17 -lpb0 34 -lpb1 34 -mfb0 68 -mfb1 102
+        -q0 4000000000
+        -q1 4001000000
+        -random-sample 10
+        -random-seed 0
+        -sqside 1
+        -t 2
+        --hush-max-jitter 1
+        --abort-on-jitter 1,5
+    AVOID_CONCURRENT 2
+)
+
 cado_divert_test(test_init_norms bug21518
     ARGUMENTS
     -poly ${CMAKE_CURRENT_SOURCE_DIR}/c160_21518.poly
@@ -810,6 +827,108 @@ cado_divert_test(d20_one_sided_las_sieve dup
             REFERENCE_SHA1=f9d0c3b58bdfcb51d598180cb01895b2c35931f7
             REFERENCE_REVISION=xxxxxxxxxxxxxxxxxxxxxxxxxx
         )
+
+# test siqs and siqs_tracek
+cado_define_test(d20_siqs_sieve
+        ENVIRONMENT
+            las_I=9 poly=${d20_poly} las_B=11
+            lim0=800 lpb0=10 mfb0=21 ncurves0=2 fb0=${d20_roots}
+            nq=5 galois=_y
+            lim1=800 lpb1=10 mfb1=25 q0=42
+            # Note: the last 4 args (lim1, lpb1, mfb1 and q0) are not needed but
+            # sievetest.sh complains if they are not present
+            LAS_BINARY=${siqs_path}
+        REL_COUNT=135
+        REFERENCE_SHA1=b502106e1b56a45ca3aa0a2474b707c1c2bd27e6
+        REFERENCE_REVISION=xxxxxxxxxxxxxxxxxxxxxxxxxx
+        PROVIDE_TEMPORARY_WDIR
+        SCRIPT
+            ${CMAKE_CURRENT_SOURCE_DIR}/sievetest.sh
+            # the args below cannot be passed via ENVIRONMENT
+            -qfac-min 60 -qfac-nfac 4 -qidx0 3 -allow-compsq
+            -v -v
+        TARGET_DEPENDENCIES siqs
+        )
+
+cado_divert_test(d20_siqs_sieve tracek
+        APPEND_ENVIRONMENT
+            LAS_BINARY=${siqs_tracek_path}
+            REL_COUNT=22
+            REFERENCE_SHA1=036b2e8ccb2ea68bfe9afa1e3e1cd9d680c37268
+            REFERENCE_REVISION=xxxxxxxxxxxxxxxxxxxxxxxxxx
+        APPEND_ARGUMENTS
+            -nq 1 -traceab 8775462862,1
+        TARGET_DEPENDENCIES
+            siqs_tracek
+        )
+
+set(d60_poly ${CMAKE_CURRENT_SOURCE_DIR}/d60.poly)
+set(d60_roots ${CMAKE_CURRENT_SOURCE_DIR}/d60.roots.gz)
+cado_define_test(d60_siqs_sieve
+        ENVIRONMENT
+            las_I=14 poly=${d60_poly}
+            lim0=50000 lpb0=20 mfb0=42 ncurves0=2 fb0=${d60_roots}
+            nq=2 galois=_y
+            lim1=xxx lpb1=xxx mfb1=xxx q0=xxx
+            # Note: the last 4 args (lim1, lpb1, mfb1 and q0) are not needed but
+            # sievetest.sh complains if they are not present
+            LAS_BINARY=${siqs_path}
+        REL_COUNT=147
+        REFERENCE_SHA1=b86f67f9533ec478bc01f23df4925d77a7cad7f1
+        REFERENCE_REVISION=xxxxxxxxxxxxxxxxxxxxxxxxxx
+        PROVIDE_TEMPORARY_WDIR
+        SCRIPT
+            ${CMAKE_CURRENT_SOURCE_DIR}/sievetest.sh
+            # the args below cannot be passed via ENVIRONMENT
+            -qfac-min 750 -qfac-nfac 10 -qidx0 1 -allow-compsq
+            -v -v
+        TARGET_DEPENDENCIES siqs
+        TIMEOUT 30
+        )
+
+cado_divert_test(d60_siqs_sieve logI_larger_than_logB
+        APPEND_ARGUMENTS
+            -B 12
+        )
+
+cado_divert_test(d60_siqs_sieve level2
+        APPEND_ARGUMENTS
+            -Bi 4 -bkthresh1 40000
+        )
+
+cado_divert_test(d60_siqs_sieve print_todo
+        APPEND_ENVIRONMENT
+            nq=5
+        REL_COUNT=
+        REFERENCE_SHA1=dd6dd9ade9e3e910109903e932b2bf254a987b47
+        APPEND_ARGUMENTS
+            -print-todo-list
+)
+
+cado_divert_test(d60_siqs_sieve_print_todo thr2
+        APPEND_ARGUMENTS -t 2
+)
+
+cado_divert_test(d60_siqs_sieve_print_todo thr3
+        APPEND_ARGUMENTS -t 3
+)
+
+cado_divert_test(d60_siqs_sieve print_todo_random
+        APPEND_ENVIRONMENT
+            nq= q1=xxx
+        REL_COUNT=
+        REFERENCE_SHA1=3886c1df6782605246a82539f7d3f505502a4dc3
+        APPEND_ARGUMENTS
+            -print-todo-list -qidx1 100 -random-sample 10 -seed 42
+)
+
+cado_divert_test(d60_siqs_sieve_print_todo_random thr2
+        APPEND_ARGUMENTS -t 2
+)
+
+cado_divert_test(d60_siqs_sieve_print_todo_random thr3
+        APPEND_ARGUMENTS -t 3
+)
 
 add_subdirectory (ecm)
 add_subdirectory (strategies)

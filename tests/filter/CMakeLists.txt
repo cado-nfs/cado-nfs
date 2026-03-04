@@ -49,6 +49,20 @@ cado_divert_test(test_dup2${sage_opt} c105_30004
     TIMEOUT 90
     )
 
+# dup2 with -large-ab should give the same results as without -large-ab when
+# rels have small a,b values
+cado_divert_test(test_dup2${sage_opt} c105_30004_largeab
+    APPEND_ARGUMENTS
+    -poly ${CMAKE_CURRENT_SOURCE_DIR}/p40_30004.poly
+    -rels ${CMAKE_CURRENT_SOURCE_DIR}/p40_30004.rels.gz
+    -lpbs 14,14
+    -dl
+    -S daa017e17f50607820e7896dcc3a05370364b3b4
+    -R 2959973f1
+    -large-ab
+    TIMEOUT 90
+    )
+
 cado_define_test(test_sm_with_small_ell
     PROGRAM
     ${CADO_NFS_BINARY_DIR}/filter/sm_append

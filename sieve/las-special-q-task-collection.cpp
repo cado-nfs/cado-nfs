@@ -29,15 +29,21 @@
 #include "utils_cxx.hpp"
 #include "las-multiobj-globals.hpp"
 
-std::unique_ptr<special_q_task_collection_base> special_q_task_collection_base::create(cxx_cado_poly const & cpoly, cxx_param_list & pl)
+template<sieve_method Algo>
+std::unique_ptr<special_q_task_collection_base> special_q_task_collection_base::create(
+        cxx_cado_poly const & cpoly,
+        cxx_param_list & pl)
 {
     special_q_task_collection_base * t;
     if (dlp_descent)
         t = new special_q_task_collection_tree(cpoly, pl);
     else
-        t = new special_q_task_collection_simple(cpoly, pl);
+        t = new special_q_task_collection_simple(cpoly, pl, Algo{});
     return std::unique_ptr<special_q_task_collection_base>(t);
 }
+
+template std::unique_ptr<special_q_task_collection_base> special_q_task_collection_base::create<NFS>(cxx_cado_poly const &, cxx_param_list &);
+template std::unique_ptr<special_q_task_collection_base> special_q_task_collection_base::create<SIQS>(cxx_cado_poly const &, cxx_param_list &);
 
     /* TODO: display stats... */
 #if 0
@@ -225,7 +231,7 @@ special_q_task_tree * special_q_task_collection_tree::pull_internal()
                 item->sq());
         /* this->abandoned has already been increased */
     }
-    auto q = todo.feed_and_pop();
+    auto q = todo->feed_and_pop();
     if (!q) {
         verbose_fmt_print(0, 3,
                 "# {} gets NULL [npending={}, created={} pulled={} done={} abandoned={}]\n",
@@ -511,7 +517,7 @@ void special_q_task_collection_tree::postprocess(special_q_task * task, int max_
 
 special_q_task * special_q_task_collection_simple::pull()
 {
-    auto q = todo.feed_and_pop();
+    auto q = todo->feed_and_pop();
     if (!q)
         return nullptr;
     created++;

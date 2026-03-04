@@ -32,6 +32,7 @@
 #include "las-sieve-shared-data.hpp"
 #include "las-siever-config.hpp"
 #include "params.h"
+#include "sieve-methods.hpp"
 #include "trialdiv.hpp"
 #include "utils_cxx.hpp"
 
@@ -154,13 +155,6 @@ struct las_info : public las_parallel_desc, private NonCopyable {
         return bk_multiplier;
     }/*}}}*/
 
-    bool is_in_qfac_range(uint64_t p) const {
-        return (p >= tree->todo.qfac_min) && (p <= tree->todo.qfac_max);
-    }
-    bool allow_composite_q() const {
-        return tree->todo.allow_composite_q;
-    }
-
     std::vector<unsigned long> dupqmin;   /* smallest q sieved, for dupsup */
     std::vector<unsigned long> dupqmax;   /* largest q sieved, for dupsup */
  
@@ -247,9 +241,8 @@ struct las_info : public las_parallel_desc, private NonCopyable {
 
     const char *dump_filename;
 
-
     /* typicall call order is as follows */
-    explicit las_info(cxx_param_list &);
+    las_info(cxx_param_list &, sieve_method auto algo);
     template<typename... Args> void set_parallel(cxx_param_list &pl, Args&& ...args) {
         (las_parallel_desc&)*this = las_parallel_desc(pl, std::forward<Args>(args)...);
         prepare_sieve_shared_data(pl);

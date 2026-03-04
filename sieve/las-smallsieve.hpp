@@ -2,7 +2,6 @@
 #define CADO_LAS_SMALLSIEVE_HPP
 
 #include <cstddef>
-#include <cstdint>
 #include <vector>
 
 #include "fmt/base.h"
@@ -10,15 +9,10 @@
 #include "fb-types.hpp"
 #include "fb.hpp"
 #include "las-forwardtypes.hpp"
+#include "las-qlattice.hpp"
 #include "macros.h"
+#include "smallsieve.hpp"
 
-/* Structures for small sieve */
-
-#define SSP_POW2        (1u<<0)
-#define SSP_PROJ        (1u<<1)
-#define SSP_PATTERN_SIEVED   (1u<<2)
-
-/* spos_t is in las-forwardtypes.hpp */
 
 /* Simple primes/roots. These are implicitly "nice", i.e., odd primes/powers
    with affine root.
@@ -117,51 +111,6 @@ namespace fmt {
     };
 } /* namespace fmt */
 
-// static_assert(sizeof(ssp_simple_t) == sizeof(ssp_t), "struct padding has been tampered with");
-
-class small_sieve_data {
-public:
-    virtual void small_sieve_init(
-            std::vector<fb_entry_general> const & resieved,
-            std::vector<fb_entry_general> const & rest,
-            int logI,
-            int side,
-            fb_factorbase::key_type const & factorbaseK,
-            qlattice_basis const & Q,
-            double scale) = 0;
-
-    virtual void small_sieve_clear() = 0;
-
-    virtual void small_sieve_info(const char * what, int side) const = 0;
-
-    virtual void small_sieve_prepare_many_start_positions(
-            unsigned int first_region_index,
-            int nregions,
-            int logI,
-            sublat_t const & sl) = 0;
-
-    virtual void small_sieve_activate_many_start_positions() = 0;
-
-    virtual void sieve_small_bucket_region(
-            unsigned char *S,
-            unsigned int N,
-            int bucket_relative_index,
-            int logI,
-            sublat_t const & sl,
-            where_am_I & w) const = 0;
-
-    virtual void resieve_small_bucket_region(
-            bucket_primes_t *BP,
-            unsigned char *S,
-            unsigned int N,
-            int bucket_relative_index,
-            int logI,
-            sublat_t const & sl,
-            where_am_I & w MAYBE_UNUSED) = 0;
-
-    virtual ~small_sieve_data() = default;
-};
-
 class las_small_sieve_data : public small_sieve_data {
 public:
     void small_sieve_init(
@@ -248,14 +197,5 @@ private:
      */
     std::vector<fbprime_t> offsets;
 };
-
-/* Do not compute start positions for more than this number of bucket
- * regions in advance. This defines the frequency of a synchronization
- * point, so it should not be too small. Typically one set of start
- * positions for one bucket region costs about 25k.
- *
- * This is capped to nb_buckets
- */
-#define SMALL_SIEVE_START_POSITIONS_MAX_ADVANCE 1024
 
 #endif	/* CADO_LAS_SMALLSIEVE_HPP */

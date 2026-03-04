@@ -33,7 +33,6 @@ void las_info::configure_switches(cxx_param_list & pl)
 {
     cxx_cado_poly::configure_switches(pl);
     las_todo_list::configure_switches(pl);
-    param_list_configure_switch(pl, "-allow-compsq", nullptr);
     param_list_configure_switch(pl, "-dup", nullptr);
     param_list_configure_switch(pl, "-smallset-purge", nullptr);
     param_list_configure_switch(pl, "-batch", nullptr);
@@ -50,14 +49,6 @@ void las_info::declare_usage(cxx_param_list & pl)
 
 
     param_list_decl_usage(pl, "galois", "depending on the specified galois automorphism, sieve only part of the q's");
-
-    /* Note: also declared by las_todo_list ! */
-    param_list_decl_usage(pl, "allow-compsq", "allows composite special-q");
-    param_list_decl_usage(pl, "qfac-min", "factors of q must be at least that");
-    param_list_decl_usage(pl, "qfac-max", "factors of q must be at most that");
-
-
-
 
     param_list_decl_usage(pl, "dup", "suppress duplicate relations");
     param_list_decl_usage(pl, "dup-qmin", "lower limit of global q-range for 2-sided duplicate removal");
@@ -112,17 +103,18 @@ void las_info::load_factor_base(cxx_param_list & pl)
 #endif
 }
 
-las_info::las_info(cxx_param_list & pl)
+template<sieve_method Algo>
+las_info::las_info(cxx_param_list & pl, Algo)
     : galois(param_list_lookup_string(pl, "galois"))
     , suppress_duplicates(param_list_parse_switch(pl, "-dup"))
     , use_smallset_purge(param_list_parse_switch(pl, "-smallset-purge"))
     , cpoly(pl)
-    , config_pool(pl, cpoly->nb_polys)
+    , config_pool(pl, cpoly->nb_polys, Algo{})
 #ifndef HAVE_HWLOC
     , shared_structure_private(cpoly, pl)
 #endif
     , dlog_base(cpoly, pl)
-    , tree(special_q_task_collection_base::create(cpoly, pl))
+    , tree(special_q_task_collection_base::create<Algo>(cpoly, pl))
     , cofac_stats(pl)
       /*{{{*/
 {
@@ -207,3 +199,6 @@ las_info::las_info(cxx_param_list & pl)
 
     dump_filename = param_list_lookup_string(pl, "dumpfile");
 }/*}}}*/
+
+template las_info::las_info(cxx_param_list & pl, NFS);
+template las_info::las_info(cxx_param_list & pl, SIQS);
