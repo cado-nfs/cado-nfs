@@ -441,7 +441,7 @@ if (!defined($random_matrix)) {
         push @main_args, "wdir=$wdir";
     }
 
-    if ($main !~ /^(?::srun)?:(?:complete|bench)$/ && !-d $param->{'wdir'}) {
+    if ($main !~ /^(?::srun)?:(?:complete|determinant|bench)$/ && !-d $param->{'wdir'}) {
         die "$param->{'wdir'}: no such directory";
     }
 }
