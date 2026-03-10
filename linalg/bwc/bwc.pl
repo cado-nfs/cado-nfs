@@ -53,6 +53,7 @@ simd                 SIMD width to be used for krylov (ys=) and mksol,
                      gather (solutions=) programs. Defaults to 64 if
                      prime=2 or 1 otherwise
 lingen_mpi           like mpi, but for lingen only
+lingen_thr           like thr, but for lingen only
 
 matrix               input matrix file. Must be a complete path. Binary, 32-b LE
 rhs                  rhs file for inhomogeneous systems (ascii with header)
@@ -139,6 +140,7 @@ my $param_defaults={
     thr => '1x1',
     mpi => '1x1',
     lingen_mpi => '1x1',
+    lingen_thr => '1x1',
 };
 # {{{
 while (defined($_ = shift @ARGV)) {
@@ -188,6 +190,7 @@ my @main_args;
 my @mpi_split=(1,1);
 my @lingen_mpi_split=(1,1);
 my @thr_split=(1,1);
+my @lingen_thr_split=(1,1);
 my $nh;
 my $nv;
 
@@ -301,6 +304,7 @@ while (my ($k,$v) = each %$param) {
     if ($k eq 'mpi') { @mpi_split = set_mpithr_param $v; $param->{$k} = $v = join "x", @mpi_split;}
     if ($k eq 'thr') { @thr_split = set_mpithr_param $v; $param->{$k} = $v = join "x", @thr_split; }
     if ($k eq 'lingen_mpi') { @lingen_mpi_split = set_mpithr_param $v; $param->{$k} = $v = join "x", @lingen_mpi_split;}
+    if ($k eq 'lingen_thr') { @lingen_thr_split = set_mpithr_param $v; $param->{$k} = $v = join "x", @lingen_thr_split;}
     if ($k eq 'verbose_flags') {
         my @heritage;
         for my $f (split(',', $v)) {
@@ -568,7 +572,7 @@ if (!defined($random_matrix) && !-d $wdir) {        # create $wdir on script nod
 #    mpi-level programs (secure krylov mksol gather), while the
 #    other is of course for leader-node-only programs.
 #  - @mpi_precmd_lingen
-#    --> use lingen_mpi (no lingen_thr exists at this point)
+#    --> use lingen_mpi
 #  - $mpi_needed
 #    --> to be used to check whether we want mpi. This is important
 #    before calling dosystem.
@@ -1564,8 +1568,10 @@ sub task_common_run {
     @_ = grep !/^(skip_bw_early_rank_check|rebuild_cache|cpubinding|balancing.*|interleaving|matrix|mm_impl|mpi|thr)?=/, @_ if $program =~ /(lingen|acollect$)/;
     if ($program =~ /lingen/) {
         @_ = map { s/^lingen_mpi\b/mpi/; $_; } @_;
+        @_ = map { s/^lingen_thr\b/thr/; $_; } @_;
     } else {
         @_ = grep !/^lingen_mpi?=/, @_;
+        @_ = grep !/^lingen_thr?=/, @_;
     }
     # @_ = grep !/lingen_threshold/, @_ unless $program =~ /lingen/;
     # @_ = grep !/lingen_mpi_threshold/, @_ unless $program =~ /lingen/;
@@ -2101,7 +2107,7 @@ sub task_lingen {
     push @args, "split-output-file=1";
     push @args, "afile=$concatenated_A";
     push @args, "ffile=F";
-    push @args, grep { /^(?:mn|m|n|wdir|prime|rhs)=/ || /allow_zero_on_rhs/ || /max_ram/ } @main_args;
+    push @args, grep { /^(?:mn|m|n|wdir|prime|rhs|lingen_thr|lingen_mpi)=/ || /allow_zero_on_rhs/ || /max_ram/ } @main_args;
     if (!$mpi_needed && ($lingen_mpi_split[0]*$lingen_mpi_split[1] != 1)) {
         print "## non-MPI build, avoiding multi-node lingen\n";
         # We keep thr=

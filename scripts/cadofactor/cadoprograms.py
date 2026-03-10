@@ -1305,6 +1305,7 @@ class BWC(Program):
                  verbose: Toggle("v") = None,  # noqa: F821
                  mpi: ParameterEq() = None,
                  lingen_mpi: ParameterEq() = None,
+                 lingen_thr: ParameterEq() = None,
                  allow_zero_on_rhs: ParameterEq() = None,
                  threads: ParameterEq("thr") = None,  # noqa: F821
                  m: ParameterEq() = None,
