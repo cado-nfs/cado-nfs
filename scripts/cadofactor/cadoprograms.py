@@ -4,6 +4,7 @@ import abc
 import inspect
 import hashlib
 import logging
+import pathlib
 
 from cadofactor import cadocommand
 from cadofactor import cadoparams
@@ -65,6 +66,7 @@ class Option(object, metaclass=abc.ABCMeta):
                  prefix=None,
                  is_input_file=False,
                  is_output_file=False,
+                 is_working_dir=False,
                  checktype=None,
                  dash=False):
         """
@@ -88,6 +90,10 @@ class Option(object, metaclass=abc.ABCMeta):
         filename of an output file of the command. This will be used to
         generate RESULT lines in workunits.
 
+        is_working_dir must be set to True if this parameter gives the name
+        of a working directory to the command. This will be used to generate
+        WDIR lines in workunits.
+
         if checktype is specified, map() will assert that the value is an
         instance of checktype.
 
@@ -99,6 +105,8 @@ class Option(object, metaclass=abc.ABCMeta):
             self.prefix = prefix  # hides the class variable
         self.is_input_file = is_input_file
         self.is_output_file = is_output_file
+        self.is_working_dir = is_working_dir
+        assert [is_input_file, is_output_file, is_working_dir].count(True) <= 1
         self.checktype = checktype
         self.defaultname = None
         self.dash = dash
@@ -256,6 +264,17 @@ class Toggle(Option):
         else:
             raise ValueError("Toggle.map() for %s requires a boolean "
                              "type argument" % self.get_arg())
+
+
+class ShadowParameter(Option):
+    """
+    Will add nothing to the command line, but can be useful to mark some files
+    as input files although they do not appear in the command line (e.g., files
+    *.rw.bin and *.cw.bin).
+    """
+
+    def _map(self, value):
+        return []
 
 
 class ShaCache(object):
@@ -589,23 +608,23 @@ class Program(object, metaclass=InspectType):
                 (self.stderr, self.append_stderr)
                 )
 
-    def _get_files(self, is_output):
+    def _get_paths(self, is_output=False, is_input=False, is_wdir=False):
         """
-        Helper method to get a set of input/output files for this
-        Program.  This method returns the list of filenames without
-        considering files for stdio redirection. If "is_output" evaluates
-        to True, the list of output files is generated, otherwise the
-        list of input files.
+        Helper method to get a set of input/output files and working
+        directories for this Program. This method returns the list of
+        pathnames that matches the three criteria "is_output", "is_input" and
+        "is_wdir", without considering files for stdio redirection,
         """
         files = set()
+        criteria = (is_output, is_input, is_wdir)
         parameters = self.init_signature.args + self.init_signature.kwonlyargs
         if self.init_signature.varargs is not None:
             parameters.append(self.init_signature.varargs)
         parameters = self._filter_annotated_keys(parameters)
         for param in parameters:
             ann = self.__init__.__annotations__[param]
-            if param in self.parameters and \
-                    (ann.is_output_file if is_output else ann.is_input_file):
+            c = (ann.is_output_file, ann.is_input_file, ann.is_working_dir)
+            if param in self.parameters and c == criteria:
                 if param == self.init_signature.varargs:
                     # vararg is a list; we need to convert each entry to string
                     # and append this list of strings to files
@@ -619,7 +638,7 @@ class Program(object, metaclass=InspectType):
         Returns a list of input files to this Program instance. If
         with_stdio is True, includes stdin if such redirection is used.
         """
-        input_files = self._get_files(is_output=False)
+        input_files = self._get_paths(is_input=True)
         if with_stdio and isinstance(self.stdin, str):
             input_files |= {self.stdin}
         return list(input_files)
@@ -629,12 +648,18 @@ class Program(object, metaclass=InspectType):
         Returns a list of output files. If with_stdio is True, includes
         files for stdout/stderr redirection if such redirection is used.
         """
-        output_files = self._get_files(is_output=True)
+        output_files = self._get_paths(is_output=True)
         if with_stdio:
             for filename in (self.stdout, self.stderr):
                 if isinstance(filename, str):
                     output_files |= {filename}
         return list(output_files)
+
+    def get_working_dirs(self):
+        """
+        Returns a list of working directories.
+        """
+        return list(self._get_paths(is_wdir=True))
 
     def get_exec_file(self):
         return self.execfile
@@ -663,12 +688,8 @@ class Program(object, metaclass=InspectType):
             if key in self.parameters:
                 ann = self.__init__.__annotations__[key]
                 value = self.parameters[key]
-                # If this is an input or an output file name, we may have to
-                # translate it, e.g., for workunits
-                assert not (ann.is_input_file and ann.is_output_file)
-                if ann.is_input_file:
-                    value = self.translate_path(value, filenametrans)
-                elif ann.is_output_file:
+                if ann.is_input_file or ann.is_output_file \
+                        or ann.is_working_dir:
                     value = self.translate_path(value, filenametrans)
                 command += ann.map(value)
 
@@ -763,6 +784,8 @@ class Program(object, metaclass=InspectType):
             add_file_entry('EXECFILE', i, filename, True, False)
         for i, filename in enumerate(self.get_output_files()):
             add_file_entry('RESULT', i, filename, False, True)
+        for i, dirname in enumerate(self.get_working_dirs()):
+            add_file_entry('WDIR', i, dirname, False, False)
 
         # we're fundamentally tied to having a single command here, so
         # we'll obviously have only one single triple of stdio
@@ -1298,6 +1321,16 @@ class BWC(Program):
     name = "bwc"
     subdir = "linalg/bwc"
 
+    def get_exec_files(self):
+        """
+        This method is only call in the client/server setting, which in the
+        case of BWC only happens for CL.
+        """
+        directory = pathlib.Path(self.get_exec_file()).parent
+        binaries = ["prep", "secure", "krylov", "acollect", "lingen_pz",
+                    "det_from_lingen"]
+        return [self.get_exec_file(), *(f"{directory / b}" for b in binaries)]
+
     def __init__(self,
                  complete: Toggle(prefix=":") = None,  # noqa: F722
                  determinant: Toggle(prefix=":") = None,  # noqa: F722
@@ -1313,17 +1346,19 @@ class BWC(Program):
                  nullspace: ParameterEq() = None,
                  interval: ParameterEq() = None,
                  ys: ParameterEq() = None,
-                 matrix: ParameterEq() = None,
+                 matrix: ParameterEq(is_input_file=True) = None,
+                 rwmatrix: ShadowParameter(is_input_file=True) = None,
+                 cwmatrix: ShadowParameter(is_input_file=True) = None,
                  rhs: ParameterEq() = None,
                  prime: ParameterEq() = None,
-                 wdir: ParameterEq() = None,
+                 wdir: ParameterEq(is_working_dir=True) = None,
                  mpiexec: ParameterEq() = None,
                  hosts: ParameterEq() = None,
                  hostfile: ParameterEq() = None,
                  interleaving: ParameterEq() = None,
                  bwc_bindir: ParameterEq() = None,
                  mm_impl: ParameterEq() = None,
-                 cpubinding: ParameterEq() = None,
+                 cpubinding: ParameterEq(is_input_file=True) = None,
                  # lingen_threshold: ParameterEq() = None,
                  precmd: ParameterEq() = None,
                  # put None below for a random seed,
