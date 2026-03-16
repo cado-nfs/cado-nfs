@@ -301,45 +301,56 @@ def is_prime(n, niter=10):
     return True
 
 
-def primes_above(start):
+def next_prime(n):
     """
-    Return a generator object to iterate over all primes larger or equal to
-    start.
+    Return a (probable) prime larger than n.
 
-    >>> import itertools, random
-    >>> first_n = lambda gen, n: list(itertools.islice(gen, n))
+    >>> import random
+    >>> def next_n_primes(start, n):
+    ...     R = []
+    ...     for _ in range(n):
+    ...         start = next_prime(start)
+    ...         R.append(start)
+    ...     return R
 
-    >>> first_n(primes_above(0), 10)
+    >>> next_prime(42)
+    43
+
+    >>> next_prime(43)
+    47
+
+    >>> next_n_primes(0, 10)
     [2, 3, 5, 7, 11, 13, 17, 19, 23, 29]
 
-    >>> first_n(primes_above(-100), 10)
+    >>> next_n_primes(-100, 10)
     [2, 3, 5, 7, 11, 13, 17, 19, 23, 29]
 
-    >>> first_n(primes_above(2), 10)
-    [2, 3, 5, 7, 11, 13, 17, 19, 23, 29]
+    >>> next_n_primes(2, 10)
+    [3, 5, 7, 11, 13, 17, 19, 23, 29, 31]
 
-    >>> first_n(primes_above(1024), 5)
+    >>> next_n_primes(1024, 5)
     [1031, 1033, 1039, 1049, 1051]
 
-    >>> first_n(primes_above(2**63), 5)  # doctest: +NORMALIZE_WHITESPACE
+    >>> next_n_primes(2**63, 5)  # doctest: +NORMALIZE_WHITESPACE
     [9223372036854775837, 9223372036854775907, 9223372036854775931, \
     9223372036854775939, 9223372036854775963]
 
-    >>> m = random.randrange(2**100)
-    >>> all(is_prime(p) for p in first_n(primes_above(m), 5)), m
+    >>> all(is_prime(p) for p in next_n_primes(2**63, 1000))
+    True
+
+    >>> starts = [random.randrange(2**100) for _ in range(5)]
+    >>> all(is_prime(next_prime(s)) for s in starts), starts
     ... # doctest: +ELLIPSIS
     (True, ...)
     """
-    n = start
-    if n <= 2:
-        yield 2
-        n = 3
+    if n < 2:
+        return 2
     else:
-        n += (n+1) % 2
-    # n is odd
+        n += 2 if n % 2 else 1
+    # n is the smallest odd integer larger than the input
     while True:
         if is_prime(n):
-            yield n
+            return n
         n += 2
 
 

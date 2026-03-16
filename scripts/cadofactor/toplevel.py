@@ -1011,11 +1011,12 @@ class Cado_NFS_toplevel(object):
                 # for bwc, it is better not to use hyperthreading
                 p = "tasks.linalg.bwc.threads"
                 if not pa.is_set_explicitly(p):
-                    c = self.number_of_physical_cores()
-                    self.logger.info("Setting %s=%d"
-                                     " based on detected physical cores"
-                                     % (p, c))
-                    pa.set_simple(p, c)
+                    if self.args.computation != Computation.CL:
+                        c = self.number_of_physical_cores()
+                        self.logger.info("Setting %s=%d"
+                                         " based on detected physical cores"
+                                         % (p, c))
+                        pa.set_simple(p, c)
             t = int(self.args.server_threads)
             p = "tasks.threads"
             if not pa.is_set_explicitly(p):
@@ -1027,23 +1028,24 @@ class Cado_NFS_toplevel(object):
                                  " (which would imply tasks.threads=%d)"
                                  " as tasks.threads is already"
                                  " specified explicitly" % t)
-        # We want to enforce a value for tasks.polyselect.threads and
-        # tasks.sieve.las.threads.
+
+        # We want to enforce a value for tasks.polyselect.threads,
+        # tasks.sieve.las.threads and tasks.sieve.siqs.threads (and also
+        # tasks.linalg.threads for CL computation)
+        P = ["tasks.polyselect.threads", "tasks.sieve.las.threads",
+             "tasks.sieve.siqs.threads"]
+        if self.args.computation == Computation.CL:
+            P.append("tasks.linalg.threads")
         if self.args.client_threads:
-            c = self.args.client_threads
-            for p in ["tasks.polyselect.threads", "tasks.sieve.las.threads",
-                      "tasks.sieve.siqs.threads"]:
-                if not pa.is_set_explicitly(p):
-                    pa.set_simple(p, c)
+            t = self.args.client_threads
         else:
             # If there is no value set except by the side-effect
             # of having set tasks.threads or tasks.sieve.threads,
             # we want to set our default.
-            t = pa.get_or_set_default("tasks.threads", 0)
-            for p in ["tasks.polyselect.threads", "tasks.sieve.las.threads",
-                      "tasks.sieve.siqs.threads"]:
-                if not pa.is_set_explicitly(p):
-                    pa.set_simple(p, min(t, 2))
+            t = min(pa.get_or_set_default("tasks.threads", 0), 2)
+        for p in P:
+            if not pa.is_set_explicitly(p):
+                pa.set_simple(p, t)
 
         # last thing. For sqrt, more than 8 threads is slightly overkill.
         # So unless explicitly stated otherwise, we set it to 1. It might
@@ -1066,6 +1068,10 @@ class Cado_NFS_toplevel(object):
                              % (p, pa.get_or_set_default(p), pa.locate(p)))
             assert pa.locate(p) == p
         # no assert for these:
+        if self.args.computation == Computation.CL:
+            p = "tasks.linalg.threads"
+            self.logger.info("%s = %s [via %s]"
+                             % (p, pa.get_or_set_default(p), pa.locate(p)))
         for p in ["tasks.linalg.bwc.threads", "tasks.sqrt.threads"]:
             self.logger.info("%s = %s [via %s]"
                              % (p, pa.get_or_set_default(p), pa.locate(p)))
