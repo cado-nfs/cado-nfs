@@ -5550,8 +5550,7 @@ class LinAlgClTask(ClientServerTask, HasStatistics):
                                  "force_wipeout": False, "stop_after_neq": 2,
                                  "nmatrices": 1})
 
-    Steps = ("prep", "secure", "krylov", "lingen_pz", "acollect",
-             "det_from_lingen")
+    Steps = ("prep", "secure", "krylov", "lingen_pz", "det_from_lingen")
 
     @property
     def stat_conversions(self):
