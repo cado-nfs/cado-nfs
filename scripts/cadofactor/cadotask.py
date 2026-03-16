@@ -960,10 +960,10 @@ class StatsItemFull:
     def __format__(self, format_spec):
         if format_spec == "f":
             n, s, sos, m, M = self._data
-            av = s/n
+            av = s/n if n > 0 else float('nan')
             # sometimes we get very small negative value when computing stddev,
             # so we do max(..., 0.0) to avoid computing sqrt(negative value)
-            stddev = sqrt(max(sos/n - av*av, 0.0))
+            stddev = sqrt(max(sos/n - av*av, 0.0)) if n > 0 else float('nan')
             return f"{s:.2f}; nr/min/av/max/std: " \
                    f"{n}/{m:.2f}/{av:.2f}/{M:.2f}/{stddev:.2f}"
         else:
@@ -5550,7 +5550,8 @@ class LinAlgClTask(ClientServerTask, HasStatistics):
                                  "force_wipeout": False, "stop_after_neq": 2,
                                  "nmatrices": 1})
 
-    Steps = ("prep", "secure", "krylov", "lingen_pz", "det_from_lingen")
+    Steps = ("prep", "secure", "krylov", "lingen_pz", "acollect",
+             "det_from_lingen")
 
     @property
     def stat_conversions(self):
@@ -5568,6 +5569,14 @@ class LinAlgClTask(ClientServerTask, HasStatistics):
                 [f"{b}: {t} time {{{b}_{t}[0]:f}}"]
                 for b in self.Steps for t in ("wct", "cpu")
             )
+
+    def get_statistics_as_strings(self):
+        for b in self.Steps:
+            for t in ("wct", "cpu"):
+                key = f"{b}_{t}"
+                if key not in self.statistics.stats:
+                    self.statistics.stats[key] = [StatsItemFull("")]
+        return super().get_statistics_as_strings()
 
     def get_total_cpu_or_real_time(self, is_cpu):
         """
