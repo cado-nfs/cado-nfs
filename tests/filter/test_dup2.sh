@@ -122,5 +122,9 @@ fi
 if [ "$SAGE" ] ; then
     gzip -dc "$WORK_RELS" | "${CADO_NFS_BINARY_DIR}/misc/explain_indexed_relation" -renumber  "$RENUMBER" -poly "$POLY" "${DL[@]}" -relations - > "$wdir/check.sage"
     "$SAGE" "$wdir/check.sage"
-    pgrep -f sage-cleaner | xargs -r kill
+    # pgrep + xargs kill is a race condition. Probably pkill exists
+    # whenever pgrep exists, so we can just as well use pkill and get rid
+    # of the race condition
+    # pgrep -f sage-cleaner | xargs -r kill
+    pkill -f sage-cleaner
 fi
