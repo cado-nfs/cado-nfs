@@ -65,7 +65,7 @@ collect() { (cd /usr/local ; for x in "$@" ; do find -name "$x" ; done) ; }
 (
     collect "libarithmetic_b*.so"
     collect "libmatmul_b*.so"
-    collect "lingen_b*.so"
+    collect "lingen_b*"
     collect "liblingen_b*"
     collect "libgf2x.so*"
 ) | rsync -a --files-from=- /usr/local/ /usr/local/factoring-linalg/
@@ -73,6 +73,7 @@ collect() { (cd /usr/local ; for x in "$@" ; do find -name "$x" ; done) ; }
 (
     collect "libarithmetic_p*.so"
     collect "libmatmul_p*.so"
+    collect "lingen_p*"
     collect "liblingen_p*_support.so"
 ) | rsync -a --files-from=- /usr/local/ /usr/local/discretelog-linalg/
 
