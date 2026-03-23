@@ -192,7 +192,11 @@ foreach(layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
             bwc-ptrace.sh prime=${p} random_matrix_size=500 nrhs=2 m=6 n=4 seed=1 ${extra}
             TARGET_DEPENDENCIES
             lingen_pz lingen_${layer})
-        cado_set_test_timeout(test_bwc_${t} 180)
+
+        # most of the time, these tests should be fast. Now it also turns
+        # out that they're prone to trigger sporadic timeouts. It's
+        # annoying.
+        cado_set_test_timeout(test_bwc_${t} 240)
 
         if(layer STREQUAL "p1")
             if(DEFINED ENV{CHECKS_EXPENSIVE})

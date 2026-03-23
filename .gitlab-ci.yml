@@ -620,6 +620,8 @@ containers:
       when: never
     - if: $CI_COMMIT_BRANCH && ($CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "containers")
       when: on_success
+    - if: $CI_COMMIT_REF_NAME && $CI_COMMIT_REF_NAME == "containers"
+      when: on_success
     - when: never
   script:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
@@ -629,6 +631,30 @@ containers:
   retry:
     max: 2
     when: runner_system_failure
+
+test-containers:
+  stage: publish
+  needs: [ "containers" ]
+  tags:
+    - docker
+  image: registry.gitlab.inria.fr/cado-nfs/cado-nfs/factoring-full
+  rules:
+    - if: $CI_COMMIT_MESSAGE =~ /skip some ci/
+      when: manual
+      allow_failure: false
+    - if: $CI_COMMIT_MESSAGE =~ /only coverage/
+      when: never
+    - if: $CI_COMMIT_BRANCH && ($CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "containers")
+      when: on_success
+    - if: $CI_COMMIT_REF_NAME && $CI_COMMIT_REF_NAME == "containers"
+      when: on_success
+    - when: never
+  script:
+    - cado-nfs.py 90377629292003121684002147101760858109247336549001090677693
+  retry:
+    max: 2
+    when: runner_system_failure
+
 
 # same, but do not restrict to the master branch
 dry-run containers:
