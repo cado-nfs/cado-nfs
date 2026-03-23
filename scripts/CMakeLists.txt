@@ -5,6 +5,7 @@ set(cadofactor_scripts
     cadoparams.py
     cadoprograms.py
     cadotask.py
+    cadoutils.py
     patterns.py
     workunit.py
     toplevel.py
