@@ -1,4 +1,4 @@
-add_executable(check_rels check_rels.c)
+add_executable(check_rels check_rels.cpp)
 target_link_libraries(check_rels utils_with_io)
 install(TARGETS check_rels RUNTIME DESTINATION ${LIBSUFFIX}/misc)
 

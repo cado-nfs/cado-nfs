@@ -62,7 +62,7 @@ rel_add_prime (earlyparsed_relation_ptr rel, int side, p_r_values_t p,
 
   if (rel->nb == rel->nb_alloc)
     realloc_buffer_primes_c (rel);
-  rel->primes[rel->nb] = (prime_t) {.h = 0, .p = p, .e = e, .side = side};
+  rel->primes[rel->nb] = (prime_t) {.h = 0, .p = p, .e = e, .side = (uint8_t) side};
   rel->nb++;
 }
 
@@ -73,7 +73,7 @@ print_error_line (prime_t prime, mpz_t norm[],
   int side = prime.side;
   p_r_values_t p = prime.p;
   exponent_t e = prime.e;
-  char *str = (will_be_fixed) ? "Warning" : "Error";
+  const char * str = (will_be_fixed) ? "Warning" : "Error";
 
   if (err_type == FACTOR_DOES_NOT_DIVIDE)
   {
@@ -118,7 +118,7 @@ factor_nonprime_ideal (earlyparsed_relation_ptr rel, weight_t i)
 
     if (p == 1)
     {
-      rel->primes[i] = (prime_t) {.h= 0, .p= pr, .e= e * e_pr_in_p, .side = side};
+      rel->primes[i] = (prime_t) {.h= 0, .p= (p_r_values_t) pr, .e= (exponent_t) (e * e_pr_in_p), .side = (uint8_t) side};
       break;
     }
     else if (e_pr_in_p != 0)
@@ -130,7 +130,7 @@ factor_nonprime_ideal (earlyparsed_relation_ptr rel, weight_t i)
   prime_info_clear (pi);
   modul_clearmod (m);
   if (p != 1) /* means remaining p is prime */
-    rel->primes[i] = (prime_t) {.h = 0, .p = p, .e = e, .side = side};
+    rel->primes[i] = (prime_t) {.h = 0, .p = p, .e = (exponent_t) e, .side = (uint8_t) side};
 }
 
 static int
@@ -158,7 +158,7 @@ process_one_relation (earlyparsed_relation_ptr rel)
   mpz_init_set_ui(norm[0], 1u);
   mpz_init_set_ui(norm[1], 1u);
   unsigned int max_side_index = cpoly->nb_polys == 1u ? 1u : 2u;
-  unsigned int * side_to_index = malloc(cpoly->nb_polys * sizeof(unsigned int));
+  auto * side_to_index = new unsigned int[cpoly->nb_polys];
   memset(side_to_index, -1, cpoly->nb_polys * sizeof(unsigned int));
   unsigned long err = 0;
 
@@ -238,7 +238,7 @@ process_one_relation (earlyparsed_relation_ptr rel)
         err |= FACTORIZATION_NOT_COMPLETE;
         if (verbose != 0)
         {
-          prime_t fake = {.h = 0, .p = 0, .e = 0, .side = side};
+          prime_t fake = {.h = 0, .p = 0, .e = 0, .side = (uint8_t) side};
           print_error_line (fake, norm, FACTORIZATION_NOT_COMPLETE, fix_it);
         }
       }
@@ -313,7 +313,7 @@ process_one_relation (earlyparsed_relation_ptr rel)
   mpz_clear(norm[0]);
   mpz_clear(norm[1]);
 
-  free(side_to_index);
+  delete[] side_to_index;
 
   if (verbose)
     {
@@ -524,9 +524,9 @@ main (int argc, char const * argv[])
       exit (EXIT_FAILURE);
     }
 
-    lpb = malloc(cpoly->nb_polys * sizeof(unsigned long));
+    lpb = new unsigned long[cpoly->nb_polys];
     {
-        unsigned int * lpb_arg = malloc(cpoly->nb_polys * sizeof(unsigned int));
+        auto * lpb_arg = new unsigned int[cpoly->nb_polys];
         param_list_parse_uint_args_per_side(pl, "lpb",
                 lpb_arg, cpoly->nb_polys,
                 ARGS_PER_SIDE_DEFAULT_COPY_PREVIOUS);
@@ -535,7 +535,7 @@ main (int argc, char const * argv[])
             lpb[i] = 1UL << lpb_arg[i];
             lpb_max = MAX(lpb_max, lpb[i]);
         }
-        free(lpb_arg);
+        delete[] lpb_arg;
     }
 
     char const ** files = filelist ? filelist_from_file(basepath, filelist, 0) : argv;
@@ -598,7 +598,7 @@ main (int argc, char const * argv[])
 
     param_list_clear(pl);
     cado_poly_clear (cpoly);
-    free(lpb);
+    delete[] lpb;
 
     timingstats_dict_add_mythread(stats, "main");
     timingstats_dict_disp(stats);

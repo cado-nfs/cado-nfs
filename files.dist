@@ -662,7 +662,7 @@ linalg/submatrix_range.hpp
 local.sh.example
 macros.h
 misc/CMakeLists.txt
-misc/check_rels.c
+misc/check_rels.cpp
 misc/cl_structure_from_group_order.cpp
 misc/debug_renumber.cpp
 misc/descent_init_Fp.cpp
