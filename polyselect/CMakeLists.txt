@@ -59,7 +59,7 @@ add_executable (polyselect_ropt
     ropt_quadratic.c
     ropt_stage1.cpp
     ropt_stage2.c
-    ropt_str.c
+    ropt_str.cpp
     ropt_tree.c
     ropt_sublattice_priority_queue.cpp
 )

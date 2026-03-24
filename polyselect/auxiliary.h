@@ -34,7 +34,16 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #define RAT_SIDE 0
 #define ALG_SIDE 1
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern double bound_f, bound_g, area;
+
+#ifdef __cplusplus
+}
+#endif
+
 
 /* This goes with one cado_poly object. Each polynomial has its
  * stats, except that we don't compute them for the rational
