@@ -100,7 +100,6 @@ polyselect/rotate_all.cpp
 polyselect/rotation_bound.sage
 polyselect/size_optimization.sage
 polyselect/sopt.cpp
-polyselect/template-header.c
 polyselect/twocubics.cpp
 polyselect/twoquadratics.cpp
 polyselect/twoquadratics.sage
