@@ -46,7 +46,7 @@ target_link_libraries (polyselect polyselect_common ${pthread_libs})
 mark_targets_as_openmp(polyselect)
 
 add_executable (polyselect_ropt
-    ropt_main.c
+    ropt_main.cpp
     best_polynomials_queue.cpp
     ropt_single_sublattice_priority_queue.cpp
     ropt_sublattice_priority_queue.cpp

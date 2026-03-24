@@ -33,24 +33,26 @@
 #include <math.h>
 #include <pthread.h>
 #include <gmp.h>
-#include "omp_proxy.h" // IWYU pragma: keep
+#include "omp_proxy.h"
 #include "cado_poly.h"
 #include "area.h"
 #include "auxiliary.h"
-#include "macros.h" // ASSERT_ALWAYS
+#include "macros.h"
 #include "mpz_poly.h"
 #include "murphyE.h"
-#include "params.h"           // for param_list_decl_usage, param_list
+#include "params.h"
 #include "polyselect_norms.h"
 #include "polyselect_alpha.h"
 #include "ropt.h"
-#include "ropt_param.h"    // L1_cachesize
-#include "ropt_str.h"    // ropt_param_t
-#include "ropt_io.h"    // ropt_L1_cachesize ropt_on_cadopoly
-#include "timing.h"             // for seconds_thread
-#include "verbose.h"             // verbose_output_print
-#include "version_info.h"        // cado_revision_string
-#include "best_polynomials_queue.h"        // cado_revision_string
+#include "ropt_param.h"
+#include "ropt_str.h"
+#include "ropt_io.h"
+#include "timing.h"
+#include "verbose.h"
+#include "version_info.h"
+#include "best_polynomials_queue.h"
+
+#include "utils_cxx.hpp"
 
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER; /* used as mutual exclusion
                                                      lock for output */
@@ -670,7 +672,7 @@ usage_basic (const char *argv, const char * missing, param_list pl)
 
 void cado_poly_ropt_printer(int i, double score, cado_poly_ptr best_poly, void * arg)
 {
-    cado_poly_stats_ptr best_stats = arg;
+    auto best_stats = static_cast<cado_poly_stats_ptr>(arg);
 
     cado_poly_set_skewness_if_undefined(best_poly);
 
@@ -815,7 +817,7 @@ static int main_basic (int argc, char const * argv[])
       if (rparam->verbose > 0)
         fprintf (stderr, "# Reallocating input_polys\n");
       unsigned int new_size = 2 * size_input_polys;
-      CHECKED_REALLOC(input_polys, new_size, cado_poly);
+      checked_realloc(input_polys, new_size);
       for (unsigned int i = size_input_polys; i < new_size; i++)
         cado_poly_init (input_polys[i]);
       size_input_polys = new_size;
