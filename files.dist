@@ -826,7 +826,7 @@ polyselect/polyselect_special_q.c
 polyselect/polyselect_special_q.h
 polyselect/polyselect_stats.c
 polyselect/polyselect_stats.h
-polyselect/polyselect_thread.c
+polyselect/polyselect_thread.cpp
 polyselect/polyselect_thread.h
 polyselect/polyselect_thread_league.c
 polyselect/polyselect_thread_league.h

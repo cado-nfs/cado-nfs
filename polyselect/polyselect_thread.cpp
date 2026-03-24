@@ -129,7 +129,7 @@ void polyselect_thread_chronogram_chat(polyselect_thread_srcptr thread, const ch
 static void polyselect_thread_provision_job_slots(polyselect_thread_ptr thread, size_t n)
 {
     for( ; n-- ; ) {
-        polyselect_match_info_ptr job = malloc(sizeof(polyselect_match_info_t));
+        polyselect_match_info_ptr job = new polyselect_match_info_s;
         polyselect_match_info_init_trivial(job);
         dllist_push_back(&thread->empty_job_slots, &job->queue);
     }
@@ -142,7 +142,7 @@ static void polyselect_thread_unprovision_job_slots(polyselect_thread_ptr thread
         dllist_pop(ptr);
         polyselect_match_info_ptr job = dllist_entry(ptr, struct polyselect_match_info_s, queue);
         polyselect_match_info_clear(job);
-        free(job);
+        delete job;
     }
 }
 
