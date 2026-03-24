@@ -45,7 +45,7 @@
 #include "polyselect_alpha.h"
 #include "ropt.hpp"
 #include "ropt_param.h"
-#include "ropt_str.h"
+#include "ropt_str.hpp"
 #include "ropt_io.h"
 #include "timing.h"
 #include "verbose.h"

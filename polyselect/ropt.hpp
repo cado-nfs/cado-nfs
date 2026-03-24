@@ -2,7 +2,7 @@
 #define CADO_ROPT_H
 
 #include "cado_poly.h"
-#include "ropt_str.h"
+#include "ropt_str.hpp"
 #include "ropt_tree.h"  // MurphyE_pq
 #include "gmp_aux.h"           // for gmp_randstate_ptr
 

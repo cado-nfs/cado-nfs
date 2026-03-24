@@ -3,7 +3,7 @@
 
 #include "ropt_single_sublattice_priority_queue.h"
 #include "ropt_sublattice_priority_queue.h"
-#include "ropt_str.h"
+#include "ropt_str.hpp"
 
 #ifdef __cplusplus
 extern "C" {

@@ -3,7 +3,7 @@
 
 #include <gmp.h>
 #include "mpz_poly.h"
-#include "ropt_str.h"
+#include "ropt_str.hpp"
 
 #define ROPT_NPRIMES 46
 

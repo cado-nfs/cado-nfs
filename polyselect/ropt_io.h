@@ -3,7 +3,7 @@
 
 #include <stdio.h> // FILE
 #include <gmp.h>        // mpz_t
-#include "ropt_str.h"    // ropt_param_t
+#include "ropt_str.hpp"    // ropt_param_t
 
 /* -- declarations -- */
 

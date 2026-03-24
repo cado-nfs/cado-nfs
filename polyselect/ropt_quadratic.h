@@ -1,7 +1,7 @@
 #ifndef CADO_ROPT_QUADRATIC_H
 #define CADO_ROPT_QUADRATIC_H
 
-#include "ropt_str.h"   // ropt_bestpoly_t ropt_poly_t ropt_param_t ropt_info_t
+#include "ropt_str.hpp"   // ropt_bestpoly_t ropt_poly_t ropt_param_t ropt_info_t
 #include "gmp_aux.h"           // for gmp_randstate_ptr
 
 /* -- declarations -- */

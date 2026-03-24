@@ -1,7 +1,7 @@
 #ifndef CADO_ROPT_STAGE1_H
 #define CADO_ROPT_STAGE1_H
 
-#include "ropt_str.h"    // ropt_param_t ropt_bound_t ...
+#include "ropt_str.hpp"    // ropt_param_t ropt_bound_t ...
 #include "ropt_tree.h" // alpha_pq
 
 

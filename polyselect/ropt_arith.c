@@ -16,7 +16,7 @@
 #include "arith/mod_ul.h"
 #include "macros.h"     // ASSERT
 #include "ropt_arith.h"
-#include "ropt_str.h"
+#include "ropt_str.hpp"
 
 
 /**

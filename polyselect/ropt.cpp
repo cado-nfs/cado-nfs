@@ -24,7 +24,7 @@
 #include "ropt_linear.h"
 #include "ropt_quadratic.h"
 #include "ropt_stage2.h"
-#include "ropt_str.h"
+#include "ropt_str.hpp"
 #include "ropt_tree.h"
 #include "ropt_param.h"
 #include "size_optimization.h"

@@ -1,7 +1,7 @@
 #ifndef CADO_ROPT_LINEAR_H
 #define CADO_ROPT_LINEAR_H
 
-#include "ropt_str.h" // ropt_info_t
+#include "ropt_str.hpp" // ropt_info_t
 #include "ropt_tree.h"  // MurphyE_pq alpha_pq
 #include "ropt_param.h" // TUNE_LOGNORM_INCR
 #include "gmp_aux.h"           // for gmp_randstate_ptr

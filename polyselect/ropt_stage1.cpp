@@ -22,7 +22,7 @@
 #include "ropt_param.h" // TUNE_RATIO_STAGE1_FULL_ALPHA ...
 #include "ropt_single_sublattice_priority_queue.h"
 #include "ropt_stage1.h"
-#include "ropt_str.h" // ropt_poly_t
+#include "ropt_str.hpp" // ropt_poly_t
 #include "ropt_sublattice_crt.h"
 #include "ropt_sublattice_priority_queue.h"
 #include "ropt_tree.h" // node ...
