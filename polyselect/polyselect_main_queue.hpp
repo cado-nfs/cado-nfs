@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 #include "cado_poly.h"
-#include "polyselect_main_data.h"
+#include "polyselect_main_data.hpp"
 
 /* XXX This catch-all header is almost empty and obsolete to a large
  * extent now. Most of its content has gone to other places of the code.

@@ -11,7 +11,7 @@
 #include "dllist.h"
 #include "polyselect_thread_league.h"
 #include "polyselect_primes_table.h"
-#include "polyselect_main_data.h"
+#include "polyselect_main_data.hpp"
 #include "macros.h"
 
 void polyselect_thread_league_init(polyselect_thread_league_ptr league, polyselect_main_data_srcptr main, unsigned int league_index MAYBE_UNUSED)

@@ -13,7 +13,7 @@
 #include "arith/modredc_ul.h"
 #include "polyselect_arith.h"
 #include "polyselect_collisions.h"
-#include "polyselect_main_data.h"
+#include "polyselect_main_data.hpp"
 #include "polyselect_main_queue.hpp"
 #include "polyselect_poly_header.h"
 #include "polyselect_primes_table.h"

@@ -1,7 +1,7 @@
 #ifndef CADO_POLYSELECT_THREAD_LEAGUE_H
 #define CADO_POLYSELECT_THREAD_LEAGUE_H
 
-#include "polyselect_main_data.h"
+#include "polyselect_main_data.hpp"
 #include "polyselect_primes_table.h"
 #include "dllist.h"
 

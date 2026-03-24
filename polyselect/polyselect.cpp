@@ -41,7 +41,7 @@
 #include "mpz_poly.h"
 #include "params.h"
 #include "polyselect_data_series.h"
-#include "polyselect_main_data.h"
+#include "polyselect_main_data.hpp"
 #include "polyselect_main_queue.hpp"
 #include "polyselect_poly_header.h"
 #include "polyselect_priority_queue.h"

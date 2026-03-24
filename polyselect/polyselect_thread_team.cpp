@@ -10,7 +10,7 @@
 
 #include "barrier.h"
 #include "macros.h"
-#include "polyselect_main_data.h"
+#include "polyselect_main_data.hpp"
 #include "polyselect_poly_header.h"
 #include "polyselect_proots.h"
 #include "polyselect_shash.h"

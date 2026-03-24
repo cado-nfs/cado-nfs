@@ -16,7 +16,7 @@
 #include "polyselect_match.h"
 #include "polyselect_thread_team.h"
 #include "polyselect_thread_league.h"
-#include "polyselect_main_data.h"
+#include "polyselect_main_data.hpp"
 #include "polyselect_stats.h"
 #include "dllist.h"
 #include "macros.h"
