@@ -323,7 +323,7 @@ get_maxtries (unsigned int B, unsigned int d)
   ASSERT_ALWAYS(d >= 2);
 
   skew = pow ((double) B, 2.0 / (double) d);
-  count = malloc ((d + 1) * sizeof (unsigned long));
+  count = new unsigned long[d + 1];
   for (i = 0; i <= d; i++)
     {
       if (i == d)
@@ -357,7 +357,7 @@ generate_f (mpz_poly_ptr ff, unsigned int d, unsigned long idx, unsigned int bou
   unsigned int i, j;
   int ok = 1;
 
-  long * a = malloc ((d + 1) * sizeof (long));
+  long * a = new long[d + 1];
 
   /* the coefficient of degree j can take count[j] different values */
   for (j = 0; j <= d; j++)
@@ -446,7 +446,7 @@ generate_f (mpz_poly_ptr ff, unsigned int d, unsigned long idx, unsigned int bou
   if (ok)
       mpz_poly_setcoeffs_si(ff, a, d);
 
-  free (a);
+  delete[] a;
 
   return ok;
 }
@@ -608,7 +608,7 @@ polygen_JL2 (mpz_t n,
 
     mpz_poly_init (u, dg);
     u->deg = dg;
-    a = malloc ((dg + 1) * sizeof (long));
+    a = new long[dg + 1];
 
     /* compute roots of the polynomial f */
     START_TIMER;
@@ -716,7 +716,7 @@ polygen_JL2 (mpz_t n,
 
     /* clear */
     gmp_randclear(rstate);
-    free (a);
+    delete[] a;
 
     mpz_poly_clear (u);
 
@@ -976,7 +976,7 @@ int main(int argc, char const * argv[])
     mpz_clear (N);
     mpz_clear (ell);
     if (skewed)
-        free (count);
+        delete[] count;
 
     return 0;
 }

@@ -67,7 +67,7 @@ target_link_libraries (polyselect_ropt polyselect_common ${pthread_libs})
 mark_targets_as_openmp(polyselect_ropt)
 
 
-add_executable (polyselect_gfpn polyselect_gfpn.c gfpkdlpolyselect.c)
+add_executable (polyselect_gfpn polyselect_gfpn.c gfpkdlpolyselect.cpp)
 target_link_libraries (polyselect_gfpn  polyselect_common utils)
 
 add_executable (polyselect3 polyselect3.c)
@@ -82,7 +82,7 @@ install(TARGETS polyselect_ropt RUNTIME DESTINATION ${LIBSUFFIX}/polyselect)
 install(TARGETS polyselect3 RUNTIME DESTINATION ${LIBSUFFIX}/polyselect)
 
 # dlpolyselect
-add_executable (dlpolyselect dlpolyselect.c)
+add_executable (dlpolyselect dlpolyselect.cpp)
 mark_targets_as_openmp(dlpolyselect)
 target_link_libraries (dlpolyselect polyselect_common utils)
 install(TARGETS dlpolyselect RUNTIME DESTINATION ${LIBSUFFIX}/polyselect)

@@ -785,8 +785,8 @@ polyselect/auxiliary.cpp
 polyselect/auxiliary.h
 polyselect/best_polynomials_queue.cpp
 polyselect/best_polynomials_queue.h
-polyselect/dlpolyselect.c
-polyselect/gfpkdlpolyselect.c
+polyselect/dlpolyselect.cpp
+polyselect/gfpkdlpolyselect.cpp
 polyselect/gfpkdlpolyselect.h
 polyselect/gfpkdlpolyselect_impl.h
 polyselect/murphyE.cpp
