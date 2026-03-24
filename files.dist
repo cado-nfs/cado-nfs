@@ -795,7 +795,7 @@ polyselect/polyselect.c
 polyselect/polyselect3.c
 polyselect/polyselect_alpha.cpp
 polyselect/polyselect_alpha.h
-polyselect/polyselect_arith.c
+polyselect/polyselect_arith.cpp
 polyselect/polyselect_arith.h
 polyselect/polyselect_collisions.cpp
 polyselect/polyselect_collisions.h

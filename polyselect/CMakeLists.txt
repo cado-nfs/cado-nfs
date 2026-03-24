@@ -18,7 +18,7 @@ target_link_libraries (polyselect_common utils)
 # bundle. (we want them to be compiled only once, for efficiency)
 add_library(polyselect_middle
     OBJECT
-    polyselect_arith.c
+    polyselect_arith.cpp
     polyselect_collisions.cpp
     polyselect_data_series.c
     polyselect_special_q.c
