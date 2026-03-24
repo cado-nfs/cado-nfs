@@ -1,4 +1,4 @@
-add_executable (rotate rotate.c)
+add_executable (rotate rotate.cpp)
 target_link_libraries (rotate polyselect_common)
 
 add_executable (rotate_all rotate_all.c)
