@@ -32,7 +32,7 @@
 
 // #define PHI_COEFF_INT 1 // ?
 
-#include "gfpkdlpolyselect_impl.h"
+#include "gfpkdlpolyselect_impl.hpp"
 
 #include "table_f_Py_phi__f_deg4_s02_C4V4_h1_Py_s20_f01.h"
 // contains: fPyphi_poly_t ff4

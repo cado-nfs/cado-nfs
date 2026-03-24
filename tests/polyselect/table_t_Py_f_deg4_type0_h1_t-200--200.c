@@ -1,7 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
 
 #include "gfpkdlpolyselect.hpp"
-#include "gfpkdlpolyselect_impl.h"
+#include "gfpkdlpolyselect_impl.hpp"
 
 /*
        f := x^4 - t*x^3 - 6*x^2 + t*x + 1;
