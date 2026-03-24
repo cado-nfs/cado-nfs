@@ -143,7 +143,7 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
 endif()
 
 cado_define_test(
-    gfpkdlpolyselect_test.c
+    gfpkdlpolyselect_test.cpp
     table_t_Py_f_deg4_type0_h1_t-200--200.c
     ${PROJECT_SOURCE_DIR}/polyselect/gfpkdlpolyselect.cpp
     LIBRARIES polyselect_common utils

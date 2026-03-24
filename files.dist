@@ -1302,7 +1302,7 @@ tests/pipe_to_sage.sh
 tests/polyselect/CMakeLists.txt
 tests/polyselect/Makefile
 tests/polyselect/c80msieve.sample
-tests/polyselect/gfpkdlpolyselect_test.c
+tests/polyselect/gfpkdlpolyselect_test.cpp
 tests/polyselect/ropt.rsa250.txt
 tests/polyselect/sopt.input1.txt
 tests/polyselect/sopt.input2.txt
