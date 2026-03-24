@@ -808,7 +808,7 @@ polyselect/polyselect_main_queue.cpp
 polyselect/polyselect_main_queue.h
 polyselect/polyselect_match.cpp
 polyselect/polyselect_match.h
-polyselect/polyselect_norms.c
+polyselect/polyselect_norms.cpp
 polyselect/polyselect_norms.h
 polyselect/polyselect_poly_header.c
 polyselect/polyselect_poly_header.h

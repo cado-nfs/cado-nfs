@@ -9,7 +9,7 @@ add_library(polyselect_common
     area.c
     size_optimization.c
     polyselect_alpha.c
-    polyselect_norms.c
+    polyselect_norms.cpp
     )
 target_link_libraries (polyselect_common utils)
 
