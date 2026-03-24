@@ -7,7 +7,7 @@ add_library(polyselect_common
     auxiliary.cpp
     murphyE.cpp
     area.c
-    size_optimization.c
+    size_optimization.cpp
     polyselect_alpha.cpp
     polyselect_norms.cpp
     )

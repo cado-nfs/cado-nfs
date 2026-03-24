@@ -18,6 +18,7 @@
 #include "macros.h"
 #include "mpz_poly.h"
 
+#include "utils_cxx.hpp"
 
 /******************************************************************************/
 /************************ Internal functions **********************************/
@@ -37,7 +38,7 @@ list_mpz_realloc (list_mpz_ptr l, uint64_t newalloc)
                    "%" PRIu64 ", will be reallocated to newalloc = %" PRIu64
                    "\n", __FILE__, __func__, l->alloc, l->len, newalloc);
 #endif
-  CHECKED_REALLOC(l->tab, newalloc, mpz_t);
+  checked_realloc(l->tab, newalloc);
   for (uint64_t i = l->alloc; i < newalloc; i++)
     mpz_init (l->tab[i]);
   l->alloc = newalloc;
@@ -1074,14 +1075,14 @@ size_optimization_aux (mpz_poly_ptr f_opt, mpz_poly_ptr g_opt,
       best_norm2 (ft, gt, f_raw, g_raw, skew, ki, max_rot, DBL_MAX);
 
       /* check if this translation 'ki' was already used */
-      int new = 1;
+      int is_new = 1;
       for (unsigned int k = 0; k < list_k_opt->len; k++)
         if (mpz_cmp (ki, list_k_opt->tab[k]) == 0)
           {
-            new = 0;
+            is_new = 0;
             break;
           }
-      if (new == 0)
+      if (is_new == 0)
         continue;
 
       list_mpz_append (list_k_opt, ki);
