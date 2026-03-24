@@ -99,10 +99,10 @@ polyselect/rotate.cpp
 polyselect/rotate_all.cpp
 polyselect/rotation_bound.sage
 polyselect/size_optimization.sage
-polyselect/sopt.c
+polyselect/sopt.cpp
 polyselect/template-header.c
 polyselect/twocubics.c
-polyselect/twoquadratics.c
+polyselect/twoquadratics.cpp
 polyselect/twoquadratics.sage
 scripts/cadofactor/README.OAR
 scripts/cadofactor/parameters.oar

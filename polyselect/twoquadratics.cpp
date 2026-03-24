@@ -97,7 +97,7 @@ void cado_poly_extended_print_cado_format(FILE *out, cado_poly_extended poly,
 }
 
 void
-cado_poly_extended_print (FILE *out, cado_poly_extended poly, char *pre)
+cado_poly_extended_print (FILE *out, cado_poly_extended poly, const char *pre)
 {
   mpz_t tmp;
   mpz_init (tmp);

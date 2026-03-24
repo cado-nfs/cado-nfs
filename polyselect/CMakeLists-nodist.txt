@@ -4,10 +4,10 @@ target_link_libraries (rotate polyselect_common)
 add_executable (rotate_all rotate_all.cpp)
 target_link_libraries (rotate_all polyselect_common)
 
-add_executable (twoquadratics EXCLUDE_FROM_ALL twoquadratics.c)
+add_executable (twoquadratics EXCLUDE_FROM_ALL twoquadratics.cpp)
 target_link_libraries (twoquadratics polyselect_common)
 
-add_executable (sopt sopt.c)
+add_executable (sopt sopt.cpp)
 target_link_libraries (sopt polyselect_common)
 
 # this one has failed to compile for several years.
