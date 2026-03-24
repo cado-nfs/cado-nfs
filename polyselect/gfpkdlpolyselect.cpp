@@ -21,7 +21,7 @@
 
 #include "auxiliary.hpp"
 #include "cado_poly.h"
-#include "gfpkdlpolyselect.h"
+#include "gfpkdlpolyselect.hpp"
 #include "gmp_aux.h"
 #include "lll.h"    // mat_Z, LLL
 #include "macros.h" // ASSERT

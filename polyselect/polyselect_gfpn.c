@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <gmp.h>
-#include "gfpkdlpolyselect.h"
+#include "gfpkdlpolyselect.hpp"
 #include "params.h"
 #include "verbose.h"             // verbose_output_print
 

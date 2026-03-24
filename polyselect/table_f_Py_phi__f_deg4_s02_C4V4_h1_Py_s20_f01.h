@@ -1,7 +1,7 @@
 #ifndef CADO_TABLE_F_PY_PHI__F_DEG4_S02_C4V4_H1_PY_S20_F01_H
 #define CADO_TABLE_F_PY_PHI__F_DEG4_S02_C4V4_H1_PY_S20_F01_H
 
-#include "gfpkdlpolyselect.h"
+#include "gfpkdlpolyselect.hpp"
 
 // pragma no prototypes
 

@@ -18,7 +18,7 @@
 
 #include <gmp.h>
 
-#include "gfpkdlpolyselect.h"
+#include "gfpkdlpolyselect.hpp"
 #include "gfpkdlpolyselect_impl.h"
 #include "macros.h"
 #include "portability.h"

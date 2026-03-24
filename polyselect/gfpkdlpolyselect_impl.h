@@ -1,7 +1,7 @@
 #ifndef CADO_POLYSELECT_GFPKDLPOLYSELECT_IMPL_H
 #define CADO_POLYSELECT_GFPKDLPOLYSELECT_IMPL_H
 
-#include "gfpkdlpolyselect.h"
+#include "gfpkdlpolyselect.hpp"
 
 #ifdef __cplusplus
 extern "C" {

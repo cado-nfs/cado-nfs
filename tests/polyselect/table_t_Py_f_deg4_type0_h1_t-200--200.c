@@ -1,6 +1,6 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include "gfpkdlpolyselect.h"
+#include "gfpkdlpolyselect.hpp"
 #include "gfpkdlpolyselect_impl.h"
 
 /*
