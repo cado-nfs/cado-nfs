@@ -15,7 +15,7 @@
 #include "auxiliary.hpp"
 #include "macros.h"
 #include "mpz_poly.h"
-#include "polyselect_main_queue.h"
+#include "polyselect_main_queue.hpp"
 #include "polyselect_norms.h"
 #include "portability.h"
 
