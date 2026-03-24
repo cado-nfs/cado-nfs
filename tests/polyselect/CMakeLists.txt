@@ -39,7 +39,7 @@ cado_define_test(test_rho.c LIBRARIES polyselect_common tests)
 cado_define_test(test_polyselect_shash.cpp
     ${PROJECT_SOURCE_DIR}/polyselect/polyselect_shash.c
     ${PROJECT_SOURCE_DIR}/polyselect/polyselect_poly_header.c
-    ${PROJECT_SOURCE_DIR}/polyselect/polyselect_match.c
+    ${PROJECT_SOURCE_DIR}/polyselect/polyselect_match.cpp
     LIBRARIES polyselect_common tests
     TIMEOUT 90
 )
