@@ -1504,7 +1504,7 @@ tests/utils/arith/test_modredc_2ul2.c
 tests/utils/arith/test_modredc_ul.c
 tests/utils/arith/test_modredcul_batchinv.c
 tests/utils/arith/test_modredcul_batchinv_ul.c
-tests/utils/arith/test_modul_poly.c
+tests/utils/arith/test_modul_poly.cpp
 tests/utils/arithxx/CMakeLists.txt
 tests/utils/arithxx/test_lucas.cpp
 tests/utils/arithxx/test_mod.cpp
