@@ -9,7 +9,7 @@
 #include "polyselect_alpha.h"
 #include "auxiliary.hpp"
 #include "area.h"
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "mpz_poly.h"
 #include "params.h"
 

@@ -21,7 +21,7 @@
 #include <stdio.h>      // FILE
 #include <stdlib.h>     // exit ...
 #include "murphyE.hpp"
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "auxiliary.hpp"
 #include "params.h"
 #include "omp_proxy.h" // IWYU pragma: keep

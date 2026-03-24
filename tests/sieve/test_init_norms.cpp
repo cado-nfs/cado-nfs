@@ -19,7 +19,7 @@
 #include <gmp.h>
 
 #include "gmp_aux.h"
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "cxx_mpz.hpp"
 #include "las-config.hpp"
 #include "las-coordinates.hpp"

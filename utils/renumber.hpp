@@ -21,7 +21,7 @@
 #include <sys/types.h>
 
 #include "badideals.hpp"
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "cxx_mpz.hpp"
 #include "macros.h"
 #include "mpz_poly.h"

@@ -8,7 +8,7 @@
 #include <pthread.h>
 #include <gmp.h>
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "getprime.h"   // getprime
 #include "gzip.h"       // fopen_maybe_compressed
 #include "macros.h"

@@ -43,7 +43,7 @@
 #include "fmt/format.h"
 #include <gmp.h>
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "gzip.h"
 #include "macros.h"
 #include "mpz_poly.h"

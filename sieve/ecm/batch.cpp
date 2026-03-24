@@ -27,7 +27,7 @@
 #include "fmt/format.h"
 
 #include "batch.hpp"
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "facul.hpp"
 #include "facul_doit.hpp"
 #include "facul_method.hpp"

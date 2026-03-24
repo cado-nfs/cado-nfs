@@ -96,7 +96,7 @@
 #include "gmp_aux.h"
 #include "bblas_gauss.h"
 #include "blockmatrix.hpp"
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "filter_io.h"
 #include "fix-endianness.h"
 #include "gzip.h"

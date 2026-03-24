@@ -34,7 +34,7 @@
 #include <pthread.h>
 #include <gmp.h>
 #include "omp_proxy.h"
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "area.h"
 #include "auxiliary.hpp"
 #include "macros.h"

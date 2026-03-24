@@ -70,7 +70,7 @@ skew: 1.37
 #include <stdio.h>       // for fprintf, printf, stderr, fflush, stdout
 #include <string.h>      // for strcmp
 #include <gmp.h>         // for mpz_t, mpz_clear, mpz_init, gmp_printf, mpz_...
-#include "cado_poly.h"   // for cado_poly_fprintf_MurphyE, cado_poly
+#include "cado_poly.hpp"   // for cado_poly_fprintf_MurphyE, cado_poly
 #include "macros.h"      // for ASSERT_ALWAYS, ASSERT
 #include "omp_proxy.h" // IWYU pragma: keep
 #include "auxiliary.hpp"

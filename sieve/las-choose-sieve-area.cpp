@@ -6,7 +6,7 @@
 
 #include <gmp.h>
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "fb-types.hpp"
 #include "las-auxiliary-data.hpp"
 #include "las-choose-sieve-area.hpp"

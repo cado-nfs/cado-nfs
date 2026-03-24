@@ -24,7 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 
 #include <stdio.h>      // FILE
 #include <gmp.h>
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "mpz_poly.h"
 #include "gmp_aux.h"
 
@@ -96,7 +96,7 @@ extern void cado_poly_fprintf_stats(FILE * fp, const char * prefix, cado_poly_sr
 }
 #endif
 
-/* The maximum degree supported is MAX_DEGREE, as defined in cado_poly.h */
+/* The maximum degree supported is MAX_DEGREE, as defined in cado_poly.hpp */
 
 #define NORM_MARGIN 0.2
 

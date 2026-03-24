@@ -42,7 +42,7 @@
 #include "fmt/base.h"
 #include "fmt/format.h"
 
-#include "cado_poly.h"  // cado_poly
+#include "cado_poly.hpp"  // cado_poly
 #include "cxx_mpz.hpp"   // for cxx_mpz
 #include "filter_io.h"  // filter_rels
 #include "gmp_aux.h"

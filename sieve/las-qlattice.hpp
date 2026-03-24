@@ -8,7 +8,7 @@
 #include "fmt/base.h"
 #include "fmt/ostream.h"
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "special-q.hpp"
 #include "fb-types.hpp"
 

@@ -9,7 +9,7 @@
 #include "cxx_mpz.hpp"
 #include "auxiliary.hpp"
 #include "tests_common.h"
-#include "cado_poly.h"                     // for MAX_DEGREE
+#include "cado_poly.hpp"                     // for MAX_DEGREE
 #include "macros.h"
 #include "size_optimization.h"
 #include "polyselect_norms.h"

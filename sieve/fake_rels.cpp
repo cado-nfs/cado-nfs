@@ -26,7 +26,7 @@
 #include "fmt/base.h"
 #include "fmt/format.h"
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "cxx_mpz.hpp"
 #include "gzip.h"
 #include "fstream_maybe_compressed.hpp"

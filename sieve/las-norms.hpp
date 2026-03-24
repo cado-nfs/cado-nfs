@@ -9,7 +9,7 @@
 #include <array>
 
 #include <gmp.h>
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "las-config.hpp"
 #include "las-qlattice.hpp"
 #include "las-siever-config.hpp"

@@ -71,7 +71,7 @@ Thus the function to check for duplicates needs the following information:
 #include <vector>
 #include <gmp.h>
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "cxx_mpz.hpp"
 #include "las-duplicate.hpp"
 #include "ecm/facul.hpp"

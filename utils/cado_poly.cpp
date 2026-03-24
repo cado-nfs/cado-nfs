@@ -8,7 +8,7 @@
 
 #include "macros.h"  // for ASSERT_ALWAYS, ASSERT
 #include "params.h"
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "mpz_poly.h"
 #include "portability.h"
 

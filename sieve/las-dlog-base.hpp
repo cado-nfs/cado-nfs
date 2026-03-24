@@ -2,7 +2,7 @@
 #define CADO_LAS_DLOG_BASE_HPP
 
 #include <vector>    // for vector
-#include "cado_poly.h"   // cxx_cado_poly
+#include "cado_poly.hpp"   // cxx_cado_poly
 #include "renumber.hpp"   // for renumber_t
 #include "typedefs.h"
 struct cxx_param_list;

@@ -11,7 +11,7 @@
 
 #include "params.h"
 #include "tests_common.h"
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "mpz_poly.h"
 #include "macros.h"
 

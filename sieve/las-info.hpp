@@ -16,7 +16,7 @@
 #include <utility>
 #include <vector>
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "ecm/batch.hpp"
 #include "fb.hpp"
 #ifdef HAVE_HWLOC

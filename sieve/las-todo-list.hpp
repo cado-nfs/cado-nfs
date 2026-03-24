@@ -18,7 +18,7 @@
 
 #include "cxx_mpz.hpp"
 #include "gmp_aux.h"
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "special-q.hpp"
 #include "galois_action.hpp"
 

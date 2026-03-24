@@ -11,7 +11,7 @@
 
 #include <gmp.h>
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "las-cofactor.hpp"
 #include "las-info.hpp"
 #include "las-side-config.hpp"

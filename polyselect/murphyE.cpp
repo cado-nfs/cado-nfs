@@ -45,7 +45,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include <cmath>
 
 #include "auxiliary.hpp"
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "rho.h"
 #include "murphyE.hpp"
 #include "polynomial.hpp"

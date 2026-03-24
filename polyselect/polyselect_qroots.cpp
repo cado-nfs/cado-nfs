@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <cinttypes>
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "polyselect_qroots.h"
 #include "utils_cxx.hpp"
 

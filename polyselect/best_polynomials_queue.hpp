@@ -2,7 +2,7 @@
 #define CADO_BEST_POLYNOMIALS_QUEUE_H
 
 #include <stddef.h>
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 
 #ifdef __cplusplus
 extern "C" {

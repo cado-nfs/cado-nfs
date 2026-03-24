@@ -11,7 +11,7 @@
 #include <stdlib.h>
 
 #include "auxiliary.hpp"
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "macros.h"
 #include "params.h"
 #include "portability.h"

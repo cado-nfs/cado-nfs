@@ -29,7 +29,7 @@
 #include "arith/mod_ul.h"
 #include "arith/ularith.h"
 #include "arithxx/u64arith.h"
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "fb.hpp"
 #include "getprime.h"
 #ifndef NDEBUG

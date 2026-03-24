@@ -11,7 +11,7 @@
 #include <float.h> // DBL_MAX
 #include <math.h> // fmin
 #include <gmp.h>
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "mpz_poly.h"
 #include "ropt_param.h"        // NUM_SUBLATTICE_PRIMES
 #include "ropt_str.hpp"

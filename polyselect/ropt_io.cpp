@@ -13,7 +13,7 @@
 
 #include "auxiliary.hpp" // print_poly_fg ALG_SIDE ALPHA_BOUND
 #include "cachesize_cpuid.h" // cachesize_cpuid
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "mpz_poly.h"
 #include "murphyE.hpp"    // MurphyE MURPHY_K
 #include "polyselect_alpha.h"

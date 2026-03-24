@@ -22,7 +22,7 @@ along with CADO-NFS; see the file COPYING.  If not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 */
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "gmp_aux.h"
 
 #ifdef __cplusplus

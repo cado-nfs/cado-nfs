@@ -12,7 +12,7 @@
 #include <set>
 #include <deque>
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "params.h"
 #include "special-q.hpp"
 #include "relation.hpp"

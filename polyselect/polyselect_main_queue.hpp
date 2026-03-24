@@ -4,7 +4,7 @@
 #include <gmp.h>
 #include <stdint.h>
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "polyselect_main_data.hpp"
 
 /* XXX This catch-all header is almost empty and obsolete to a large

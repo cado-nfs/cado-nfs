@@ -37,7 +37,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "fmt/base.h"
 #include "fmt/format.h"
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "fstream_maybe_compressed.hpp"
 #include "macros.h"
 #include "mpz_poly.h"

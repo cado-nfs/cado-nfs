@@ -28,7 +28,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include <gmp.h>
 
 #include "mpz_poly.h"
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "auxiliary.hpp"
 #include "macros.h" /* for ASSERT_ALWAYS */
 #include "murphyE.hpp"

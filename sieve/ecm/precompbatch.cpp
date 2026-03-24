@@ -4,7 +4,7 @@
 #include <cstdio>      // for fprintf, stderr, NULL, fclose, fopen, stdout
 #include <cstdlib>     // for exit, EXIT_FAILURE, EXIT_SUCCESS
 #include "batch.hpp"    // for create_batch_file
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "cxx_mpz.hpp"
 #include "mpz_poly.h"
 #include "verbose.h"    // verbose_decl_usage

@@ -8,7 +8,7 @@
 #include <stdint.h>     // uint64_t
 #include "typedefs.h"
 #include "mpz_poly.h"
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 
 /* This interface provides C-level access to the public interface of the
  * renumber structure.

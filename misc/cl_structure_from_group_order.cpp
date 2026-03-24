@@ -20,7 +20,7 @@
 #include "fmt/ranges.h" // used to print std::vector<> // IWYU pragma: keep
 #include "fmt/ostream.h"
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "cxx_mpz.hpp"
 #include "gmp_aux.h"
 #include "getprime.h"

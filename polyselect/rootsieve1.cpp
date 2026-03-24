@@ -30,7 +30,7 @@
 
 #include "area.h"
 #include "auxiliary.hpp" /* for common routines with polyselect_old.c */
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "gcd.h"
 #include "gmp_aux.h"
 #include "macros.h"

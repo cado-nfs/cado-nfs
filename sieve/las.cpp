@@ -36,7 +36,7 @@
 
 #include "bucket.hpp"
 #include "cado-sighandlers.h"
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "cxx_mpz.hpp"
 #include "ecm/batch.hpp"
 #include "ecm/facul_strategies_stats.hpp"

@@ -65,7 +65,7 @@
 
 #include "fmt/base.h"
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "filter_config.h"
 #include "filter_io.h"
 #include "gmp_aux.h"

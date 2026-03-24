@@ -17,7 +17,7 @@
 #include <gmp.h>
 #include "fmt/base.h"
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "cxx_mpz.hpp"
 #include "fb-types.hpp"
 #include "las-config.hpp"

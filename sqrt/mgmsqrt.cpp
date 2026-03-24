@@ -13,7 +13,7 @@
 
 #include "fmt/base.h"
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "params.h"
 #include "renumber.hpp"
 #include "relation.hpp"

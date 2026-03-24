@@ -97,7 +97,7 @@
 #include "polynomial.hpp"
 
 #include "barrier.h"
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "gmp-hacks.h"
 #include "gmp_aux.h"
 #include "knapsack.h"

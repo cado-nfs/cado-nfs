@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <pthread.h>
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "polyselect_data_series.h"
 #include "polyselect_stats.h"
 #include "polyselect_poly_header.h"

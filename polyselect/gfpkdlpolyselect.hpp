@@ -34,7 +34,7 @@
 #include <stdio.h>      // FILE
 #include <stdbool.h>    // for bool (in C)
 #include <gmp.h>
-#include "cado_poly.h"   // for MAX_DEGREE
+#include "cado_poly.hpp"   // for MAX_DEGREE
 #include "mpz_poly.h"
 
 #ifdef __cplusplus

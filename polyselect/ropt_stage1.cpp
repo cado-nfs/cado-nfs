@@ -14,7 +14,7 @@
 #include <gmp.h>
 
 #include "auxiliary.hpp"  // get_alpha
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "macros.h"
 #include "mpz_poly.h"
 #include "polyselect_norms.h"

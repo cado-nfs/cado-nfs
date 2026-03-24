@@ -20,7 +20,7 @@
 #include "fmt/base.h"
 
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "ecm.h"
 #include "lll.h"
 #include "macros.h"

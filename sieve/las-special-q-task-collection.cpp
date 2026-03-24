@@ -12,7 +12,7 @@
 #include "fmt/format.h"
 #include "fmt/std.h"    // IWYU pragma: keep    // fmt std::thread_id
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "special-q.hpp"
 #include "params.h"
 #include "las-globals.hpp"

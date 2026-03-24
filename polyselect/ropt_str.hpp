@@ -2,7 +2,7 @@
 #define CADO_ROPT_STR_H
 #include <gmp.h>
 #include <stdbool.h>    // for bool (in C)
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "mpz_poly.h"
 
 /* --- structs for ropt --- */

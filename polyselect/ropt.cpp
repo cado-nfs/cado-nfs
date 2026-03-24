@@ -16,7 +16,7 @@
 
 #include <gmp.h>
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "macros.h"
 #include "mpz_poly.h"
 #include "ropt.hpp"

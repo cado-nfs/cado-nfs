@@ -14,7 +14,7 @@
 #include "fmt/base.h"
 
 #include "batch.hpp"
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "cxx_mpz.hpp"
 #include "gzip.h"
 #include "las-side-config.hpp"

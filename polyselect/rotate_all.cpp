@@ -6,7 +6,7 @@
 #include <float.h>
 #include <gmp.h>
 #include <stdint.h>
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "macros.h"
 #include "mpz_poly.h"
 #include "auxiliary.hpp"

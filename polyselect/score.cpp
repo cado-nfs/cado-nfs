@@ -26,7 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 
 #include "auxiliary.hpp"
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "params.h"
 #include "murphyE.hpp"
 

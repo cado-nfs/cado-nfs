@@ -21,7 +21,7 @@
 #include "fmt/base.h"
 #include "fmt/format.h"
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "cxx_mpz.hpp"
 #include "gmp_aux.h"
 #include "las-galois.hpp"

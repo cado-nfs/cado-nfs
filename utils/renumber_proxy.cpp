@@ -6,7 +6,7 @@
 #include <utility>       // for pair
 #include <vector>        // for vector
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "mpz_poly.h"
 #include "renumber.hpp"
 #include "renumber_proxy.hpp"

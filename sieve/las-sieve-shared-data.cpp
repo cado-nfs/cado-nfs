@@ -7,7 +7,7 @@
 #include <memory>
 #include <utility>
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "ecm/facul_strategies.hpp"
 #include "gmp_aux.h"
 #include "las-cofactor.hpp"

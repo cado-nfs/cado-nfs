@@ -16,7 +16,7 @@
 #include <fcntl.h>
 #endif
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "filter_config.h"
 #include "filter_io.h"
 #include "fmt/base.h"

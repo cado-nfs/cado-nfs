@@ -13,7 +13,7 @@ typedef struct {
   long int t;     // parameter t
   long int PY[DEG_PY + 1]; // no --> use one of the poly stuct of cado-nfs!
   long int f[MAX_DEGREE + 1];  // polynomial f of degree at most MAX_DEGREE 
-                         // set to 10 at the moment in utils/cado_poly.h
+                         // set to 10 at the moment in utils/cado_poly.hpp
 } tPyf_t;
 
 // tables containing polynomials f
@@ -34,7 +34,7 @@ typedef tPyf_poly_t* tPyf_poly_ptr_t;
 
 typedef struct {
   long int f[MAX_DEGREE + 1];  // polynomial f of degree at most MAX_DEGREE 
-                              // set to 10 at the moment in utils/cado_poly.h
+                              // set to 10 at the moment in utils/cado_poly.hpp
   long int Py[DEG_PY + 1];    // no --> use one of the poly stuct of cado-nfs!
   long int phi[MAX_DEGREE + 1][DEG_PY]; // poly whose coefficients are themselves poly in Y 
 } fPyphi_t;

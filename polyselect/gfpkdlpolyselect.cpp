@@ -20,7 +20,7 @@
 #include <gmp.h>
 
 #include "auxiliary.hpp"
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "gfpkdlpolyselect.hpp"
 #include "gmp_aux.h"
 #include "lll.h"    // mat_Z, LLL

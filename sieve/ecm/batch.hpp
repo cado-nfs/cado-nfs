@@ -13,7 +13,7 @@
 #include <gmp.h>
 
 #include "macros.h"
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "mpz_poly.h"
 #include "cxx_mpz.hpp"
 #include "special-q.hpp"

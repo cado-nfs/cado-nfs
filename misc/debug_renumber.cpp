@@ -11,7 +11,7 @@
 #include "fmt/base.h"
 #include <gmp.h>
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "macros.h"
 #include "misc.h"
 #include "params.h"

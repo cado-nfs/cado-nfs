@@ -8,7 +8,7 @@
 #include "arith/modul_poly.h"
 #include "gmp_aux.h"
 #include "tests_common.h"
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "portability.h" // IWYU pragma: keep
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)

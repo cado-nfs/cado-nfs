@@ -43,7 +43,7 @@ command line is faster than the current code:
 
 #include <gmp.h>
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "getprime.h"
 #include "gzip.h"
 #include "macros.h"

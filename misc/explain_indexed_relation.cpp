@@ -16,7 +16,7 @@
 
 #include "mpz_poly.h"
 #include "params.h"     // param_list
-#include "cado_poly.h"  // cado_poly
+#include "cado_poly.hpp"  // cado_poly
 #include "verbose.h"    // verbose_decl_usage
 #include "typedefs.h"   // index_t 
 #include "renumber.hpp" // renumber_t

@@ -27,7 +27,7 @@ Output
 
 #include "cado.h" // IWYU pragma: keep
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "filter_io.h"
 #include "gmp_aux.h"
 #include "gzip.h"

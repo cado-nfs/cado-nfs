@@ -7,7 +7,7 @@
 #include <utility>                     // for pair
 #include <vector>                      // for vector
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "mpz_poly.h"
 #include "ecm/facul.hpp"                   // for facul_strategies_t
 #include "fb-types.hpp"
