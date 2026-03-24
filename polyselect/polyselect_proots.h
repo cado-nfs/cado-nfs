@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#include <gmp.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -28,6 +30,9 @@ extern void polyselect_proots_clear(polyselect_proots_ptr);
 /* This is the parallel version */
 unsigned long
 polyselect_proots_compute_conductor(struct polyselect_thread_s * thread);
+
+extern unsigned long roots_lift (uint64_t*, mpz_srcptr, unsigned long, mpz_srcptr,
+                          unsigned long, unsigned long int);
 
 #ifdef __cplusplus
 }

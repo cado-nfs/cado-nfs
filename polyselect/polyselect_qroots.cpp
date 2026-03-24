@@ -1,10 +1,13 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <inttypes.h>
+
+#include <cstdlib>
+#include <cstdio>
+#include <cstdint>
+#include <cinttypes>
+
 #include "cado_poly.h"
 #include "polyselect_qroots.h"
+#include "utils_cxx.hpp"
 
 void
 polyselect_qroots_init (polyselect_qroots_ptr R)
@@ -21,9 +24,9 @@ polyselect_qroots_realloc (polyselect_qroots_ptr R, unsigned long newalloc)
 {
   ASSERT (newalloc >= R->size);
   R->alloc = newalloc;
-  CHECKED_REALLOC(R->q, newalloc, unsigned int);
-  CHECKED_REALLOC(R->nr, newalloc, unsigned int);
-  CHECKED_REALLOC(R->roots, newalloc, uint64_t *);
+  checked_realloc(R->q, newalloc);
+  checked_realloc(R->nr, newalloc);
+  checked_realloc(R->roots, newalloc);
 }
 
 /* reorder by decreasing number of roots (nr) 
@@ -50,7 +53,7 @@ polyselect_qroots_rearrange (polyselect_qroots_ptr R)
      * leads to a a change in the polynomials that are examined!
      */
     unsigned int i, j, k, max, tmpq, tmpnr;
-    uint64_t *tmpr = malloc (MAX_DEGREE * sizeof (uint64_t));
+    auto * tmpr = new uint64_t[MAX_DEGREE];
 
     for (i = 0; i < R->size; i ++) {
         max = i;
@@ -75,7 +78,7 @@ polyselect_qroots_rearrange (polyselect_qroots_ptr R)
         for (k = 0; k < MAX_DEGREE; k ++)
             R->roots[max][k] = tmpr[k];
     }
-    free (tmpr);
+    delete[] tmpr;
 #else
        struct qr_flat * tmp = malloc(R->size * sizeof(struct qr_flat));
        for(unsigned int i = 0 ; i < R->size ; i++) {
@@ -105,7 +108,7 @@ polyselect_qroots_add (polyselect_qroots_ptr R, unsigned int q, unsigned int nr,
     polyselect_qroots_realloc (R, R->alloc + R->alloc / 2 + 1);
   R->q[R->size] = q;
   R->nr[R->size] = nr;
-  R->roots[R->size] = malloc (MAX_DEGREE * sizeof (uint64_t));
+  R->roots[R->size] = new uint64_t[MAX_DEGREE];
   if (R->roots[R->size] == NULL)
     {
       fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
@@ -136,7 +139,7 @@ polyselect_qroots_clear (polyselect_qroots_ptr R)
   free (R->q);
   free (R->nr);
   for (i = 0; i < R->size; i++)
-    free (R->roots[i]);
+    delete[] R->roots[i];
   free (R->roots);
 }
 

@@ -11,6 +11,7 @@
 #include "polyselect_arith.h"
 #include "polyselect_special_q.h"    // SPECIAL_Q...
 #include "polyselect_qroots.h"
+#include "polyselect_proots.h"
 #include "polyselect_poly_header.h"
 #include "roots_mod.h"
 

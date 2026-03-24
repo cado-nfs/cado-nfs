@@ -816,9 +816,9 @@ polyselect/polyselect_primes_table.c
 polyselect/polyselect_primes_table.h
 polyselect/polyselect_priority_queue.c
 polyselect/polyselect_priority_queue.h
-polyselect/polyselect_proots.c
+polyselect/polyselect_proots.cpp
 polyselect/polyselect_proots.h
-polyselect/polyselect_qroots.c
+polyselect/polyselect_qroots.cpp
 polyselect/polyselect_qroots.h
 polyselect/polyselect_shash.c
 polyselect/polyselect_shash.h

@@ -31,8 +31,8 @@ add_library(polyselect_middle
     polyselect_poly_header.c
     polyselect_primes_table.c
     polyselect_priority_queue.c
-    polyselect_proots.c
-    polyselect_qroots.c
+    polyselect_proots.cpp
+    polyselect_qroots.cpp
     polyselect_shash.c
     polyselect_stats.c
 )
