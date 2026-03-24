@@ -804,7 +804,7 @@ polyselect/polyselect_data_series.h
 polyselect/polyselect_gfpn.c
 polyselect/polyselect_main_data.c
 polyselect/polyselect_main_data.h
-polyselect/polyselect_main_queue.c
+polyselect/polyselect_main_queue.cpp
 polyselect/polyselect_main_queue.h
 polyselect/polyselect_match.cpp
 polyselect/polyselect_match.h

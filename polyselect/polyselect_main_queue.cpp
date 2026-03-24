@@ -82,7 +82,7 @@ void polyselect_fprintf_poly_pair(FILE * fp, mpz_srcptr N, mpz_poly_srcptr f, mp
     if (!f && !g) return;
     size_t sz = mpz_sizeinbase(N, 10);
     int length = sz * 12;
-    char *str = malloc(length);
+    char *str = (char*) malloc(length);
     ASSERT_ALWAYS(str);
     snprintf_poly_info(str, length, f, g, N, raw);
     fprintf(fp, "%s", str);
