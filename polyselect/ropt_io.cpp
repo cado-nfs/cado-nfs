@@ -15,7 +15,7 @@
 #include "cachesize_cpuid.h" // cachesize_cpuid
 #include "cado_poly.h"
 #include "mpz_poly.h"
-#include "murphyE.h"    // MurphyE MURPHY_K
+#include "murphyE.hpp"    // MurphyE MURPHY_K
 #include "polyselect_alpha.h"
 #include "polyselect_norms.h"
 #include "ropt.h"

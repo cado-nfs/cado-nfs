@@ -77,7 +77,7 @@ skew: 1.37
 #include "gcd.h"        // gcd_uint64
 #include "lll.h"        // mat_Z, LLL
 #include "mpz_poly.h"
-#include "murphyE.h"
+#include "murphyE.hpp"
 #include "rootfinder.h"
 #include "polyselect_norms.h"
 #include "polyselect_alpha.h"

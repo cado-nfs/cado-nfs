@@ -39,7 +39,7 @@
 #include "auxiliary.hpp"
 #include "macros.h"
 #include "mpz_poly.h"
-#include "murphyE.h"
+#include "murphyE.hpp"
 #include "params.h"
 #include "polyselect_norms.h"
 #include "polyselect_alpha.h"

@@ -8,7 +8,7 @@
 #include "auxiliary.hpp"
 #include "area.h"
 #include "cado_poly.h"
-#include "murphyE.h"
+#include "murphyE.hpp"
 #include "mpz_poly.h"
 #include "mpz_vector.h"
 #include "macros.h"

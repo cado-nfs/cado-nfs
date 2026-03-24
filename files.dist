@@ -790,7 +790,7 @@ polyselect/gfpkdlpolyselect.cpp
 polyselect/gfpkdlpolyselect.h
 polyselect/gfpkdlpolyselect_impl.h
 polyselect/murphyE.cpp
-polyselect/murphyE.h
+polyselect/murphyE.hpp
 polyselect/polyselect.cpp
 polyselect/polyselect3.cpp
 polyselect/polyselect_alpha.cpp

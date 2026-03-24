@@ -20,7 +20,7 @@
  */
 #include <stdio.h>      // FILE
 #include <stdlib.h>     // exit ...
-#include "murphyE.h"
+#include "murphyE.hpp"
 #include "cado_poly.h"
 #include "auxiliary.hpp"
 #include "params.h"

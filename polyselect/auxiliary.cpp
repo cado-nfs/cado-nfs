@@ -31,7 +31,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "cado_poly.h"
 #include "auxiliary.hpp"
 #include "macros.h" /* for ASSERT_ALWAYS */
-#include "murphyE.h"
+#include "murphyE.hpp"
 #include "timing.h"             // for seconds
 #include "version_info.h"        // cado_revision_string
 #include "polyselect_norms.h"

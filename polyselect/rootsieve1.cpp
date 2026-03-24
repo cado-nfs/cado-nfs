@@ -35,7 +35,7 @@
 #include "gmp_aux.h"
 #include "macros.h"
 #include "mpz_poly.h"
-#include "murphyE.h"
+#include "murphyE.hpp"
 #include "omp_proxy.h"
 #include "polyselect_alpha.h"
 #include "polyselect_norms.h"
