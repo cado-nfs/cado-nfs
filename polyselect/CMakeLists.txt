@@ -52,7 +52,7 @@ add_executable (polyselect_ropt
     ropt_sublattice_priority_queue.cpp
     ropt_sublattice_crt.cpp
     ropt.cpp
-    ropt_arith.c
+    ropt_arith.cpp
     ropt_io.cpp
     ropt_linear.cpp
     ropt_param.c

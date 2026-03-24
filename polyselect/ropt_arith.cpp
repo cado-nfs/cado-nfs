@@ -309,7 +309,7 @@ eval_poly_ui_mod ( unsigned int *f,
  * Reduce mpz_t *f to unsigned int *f_mod;
  * Given modulus pe, return f (mod pe).
  */
-inline void
+void
 reduce_poly_uint ( unsigned int *f_ui,
                  mpz_poly_srcptr f,
                  unsigned int pe )
