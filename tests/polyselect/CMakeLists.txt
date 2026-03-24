@@ -60,7 +60,7 @@ cado_define_test(test_ropt_adv
 # set(ropt_sha1_c65 5c7adf825238c1a75fcb33567b2460e2e3b11486)
 # set(ropt_sha1_c60 d945f8b4b1f51b07d5efdbcc8f32d74d185f7f76)
 
-# Higher precision skewness computation has changed data a bit.
+# Higher precision skewness.cppomputation has changed data a bit.
 set(ropt_sha1_c80 abd946d0837e008ca1775f3dc9bebe02b6d9087e)
 set(ropt_sha1_c75 0580622f2b8e6ca129ef63d6f5aacb045586ab47)
 set(ropt_sha1_c70 c59e7eeb346c88b1374df40a89f8a10e54a7a32a,d335f74d729e599c30d73b81de0a738d89101656)

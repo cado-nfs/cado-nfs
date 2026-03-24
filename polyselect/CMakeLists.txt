@@ -91,11 +91,11 @@ install(TARGETS dlpolyselect RUNTIME DESTINATION ${LIBSUFFIX}/polyselect)
 include(CMakeLists-nodist.txt OPTIONAL)
 
 # skewness
-add_executable (skewness skewness.c)
+add_executable (skewness skewness.cpp)
 target_link_libraries (skewness polyselect_common utils)
 install(TARGETS skewness RUNTIME DESTINATION ${LIBSUFFIX}/polyselect)
 
 # score
-add_executable (score score.c)
+add_executable (score score.cpp)
 target_link_libraries (score polyselect_common utils)
 install(TARGETS score RUNTIME DESTINATION ${LIBSUFFIX}/polyselect)
