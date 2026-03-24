@@ -1306,7 +1306,7 @@ tests/polyselect/gfpkdlpolyselect_test.cpp
 tests/polyselect/ropt.rsa250.txt
 tests/polyselect/sopt.input1.txt
 tests/polyselect/sopt.input2.txt
-tests/polyselect/table_t_Py_f_deg4_type0_h1_t-200--200.c
+tests/polyselect/table_t_Py_f_deg4_type0_h1_t-200--200.cpp
 tests/polyselect/test_polyselect_shash.cpp
 tests/polyselect/test_rho.c
 tests/polyselect/test_ropt_auxiliary.cpp
