@@ -60,7 +60,7 @@ void polyselect_thread_team_late_init(polyselect_thread_team_ptr team)
     polyselect_stats_init(team->stats, main_data->keep);
     team->rstate = team->stats->rstate;
 
-    team->SH = malloc(main_data->finer_grain_threads * sizeof(polyselect_shash_t));
+    team->SH = new polyselect_shash_t[main_data->finer_grain_threads];
     size_t size_hint = POLYSELECT_SHASH_ALLOC_RATIO * league->pt->lenPrimes;
     polyselect_shash_init_multi(team->SH, size_hint, main_data->finer_grain_threads);
 
@@ -86,7 +86,7 @@ void polyselect_thread_team_clear(polyselect_thread_team_ptr team)
     //// pthread_cond_destroy(&team->sync_task->wait_begintask);
     //// pthread_cond_destroy(&team->sync_task->wait_endtask);
     polyselect_shash_clear_multi(team->SH, team->league->main->finer_grain_threads);
-    free(team->SH);
+    delete[] team->SH;
    
     polyselect_poly_header_clear(team->header);
     polyselect_proots_clear(team->R);
@@ -147,6 +147,7 @@ void accept_signal_causes(polyselect_thread_ptr thread, ...)
 }
 #endif
 
+#if 0
 const char * signal_string[] = {
     [S_NEW_JOB] = "new job",
     [S_NO_ROAMING] = "no roaming",
@@ -164,7 +165,6 @@ const char * wait_string[] = {
     [W_NO_ROAMING_AND_NO_BARRIER_TAIL] = "end of roaming and barrier tail",
 };
 
-#if 0
 void cond_helper_broadcast(polyselect_thread_team_ptr team, polyselect_thread_ptr thread, enum signal_cause s, int ignore_async, ...)
 {
     fprintf(stderr, "thread %d signals %s\n", thread->thread_index,

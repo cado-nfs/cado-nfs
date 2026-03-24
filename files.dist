@@ -830,7 +830,7 @@ polyselect/polyselect_thread.cpp
 polyselect/polyselect_thread.h
 polyselect/polyselect_thread_league.c
 polyselect/polyselect_thread_league.h
-polyselect/polyselect_thread_team.c
+polyselect/polyselect_thread_team.cpp
 polyselect/polyselect_thread_team.h
 polyselect/ropt.c
 polyselect/ropt.h

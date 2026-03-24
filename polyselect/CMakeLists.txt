@@ -23,7 +23,7 @@ add_library(polyselect_middle
     polyselect_data_series.c
     polyselect_special_q.c
     polyselect_thread.cpp
-    polyselect_thread_team.c
+    polyselect_thread_team.cpp
     polyselect_thread_league.c
     polyselect_main_data.c
     polyselect_main_queue.c
