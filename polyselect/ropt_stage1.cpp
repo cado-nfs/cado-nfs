@@ -562,7 +562,7 @@ struct transfer_to_alpha_priority_queue_arg {
 
 void transfer_to_alpha_priority_queue(mpz_srcptr u, mpz_srcptr v, mpz_srcptr modulus, void * arg)
 {
-    struct transfer_to_alpha_priority_queue_arg * A = arg;
+    auto * A = static_cast<transfer_to_alpha_priority_queue_arg *>(arg);
 
     /* fuv is f+(u*x+v)*g */
     mpz_poly Fuv;
