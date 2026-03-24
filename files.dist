@@ -1833,7 +1833,7 @@ utils/relation.hpp
 utils/renumber.cpp
 utils/renumber.hpp
 utils/renumber_proxy.cpp
-utils/renumber_proxy.h
+utils/renumber_proxy.hpp
 utils/replacement_barrier.hpp
 utils/replacement_latch.hpp
 utils/rho.c

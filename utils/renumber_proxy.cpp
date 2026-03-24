@@ -9,7 +9,7 @@
 #include "cado_poly.h"
 #include "mpz_poly.h"
 #include "renumber.hpp"
-#include "renumber_proxy.h"
+#include "renumber_proxy.hpp"
 #include "typedefs.h"
 
 static inline const renumber_t * deref(renumber_proxy_srcptr R)
