@@ -16,7 +16,7 @@
 #include "ropt_param.h"        // NUM_SUBLATTICE_PRIMES
 #include "ropt_str.h"
 #include "ropt_arith.h" // ab2uv
-#include "auxiliary.h"  // ALG_SIDE RAT_SIDE
+#include "auxiliary.hpp"  // ALG_SIDE RAT_SIDE
 #include "area.h"
 #include "size_optimization.h"
 #include "polyselect_norms.h"

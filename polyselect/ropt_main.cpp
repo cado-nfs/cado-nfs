@@ -36,7 +36,7 @@
 #include "omp_proxy.h"
 #include "cado_poly.h"
 #include "area.h"
-#include "auxiliary.h"
+#include "auxiliary.hpp"
 #include "macros.h"
 #include "mpz_poly.h"
 #include "murphyE.h"

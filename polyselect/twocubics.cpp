@@ -38,7 +38,7 @@
 #include "roots_mod.h"  // roots_mod_uint64
 #include "timing.h"     // milliseconds
 #include "verbose.h"    // verbose_decl_usage
-#include "auxiliary.h"  // DEFAULT_INCR
+#include "auxiliary.hpp"  // DEFAULT_INCR
 
 
 #ifdef NEW_ROOTSIEVE

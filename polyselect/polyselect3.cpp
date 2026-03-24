@@ -22,7 +22,7 @@
 #include <stdlib.h>     // exit ...
 #include "murphyE.h"
 #include "cado_poly.h"
-#include "auxiliary.h"
+#include "auxiliary.hpp"
 #include "params.h"
 #include "omp_proxy.h" // IWYU pragma: keep
 #include "verbose.h"             // verbose_output_print

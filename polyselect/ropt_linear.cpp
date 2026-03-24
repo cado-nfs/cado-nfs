@@ -28,7 +28,7 @@
 
 #include <gmp.h>
 
-#include "auxiliary.h"  // rotate_aux
+#include "auxiliary.hpp"  // rotate_aux
 #include "mpz_poly.h"
 #include "ropt.h" // ropt_get_bestpoly
 #include "ropt_arith.h" // ROPT_NPRIMES

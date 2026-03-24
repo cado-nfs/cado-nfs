@@ -29,7 +29,7 @@
 #include <gmp.h>
 
 #include "area.h"
-#include "auxiliary.h" /* for common routines with polyselect.c */
+#include "auxiliary.hpp" /* for common routines with polyselect_old.c */
 #include "cado_poly.h"
 #include "gcd.h"
 #include "gmp_aux.h"

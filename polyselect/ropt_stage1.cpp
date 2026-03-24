@@ -13,7 +13,7 @@
 
 #include <gmp.h>
 
-#include "auxiliary.h"  // get_alpha
+#include "auxiliary.hpp"  // get_alpha
 #include "cado_poly.h"
 #include "macros.h"
 #include "mpz_poly.h"

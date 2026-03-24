@@ -7,7 +7,7 @@
 #include <gmp.h>
 #include "mpz_poly.h"
 #include "cxx_mpz.hpp"
-#include "auxiliary.h"
+#include "auxiliary.hpp"
 #include "tests_common.h"
 #include "cado_poly.h"                     // for MAX_DEGREE
 #include "macros.h"

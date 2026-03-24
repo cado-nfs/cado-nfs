@@ -7,7 +7,7 @@
 #include <gmp.h>
 #include "polyselect_norms.h"
 #include "polyselect_alpha.h"
-#include "auxiliary.h"
+#include "auxiliary.hpp"
 #include "area.h"
 #include "cado_poly.h"
 #include "mpz_poly.h"

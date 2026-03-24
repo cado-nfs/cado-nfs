@@ -12,7 +12,7 @@
 
 #include <gmp.h>
 
-#include "auxiliary.h"
+#include "auxiliary.hpp"
 #include "macros.h"
 #include "mpz_poly.h"
 #include "polyselect_main_queue.h"

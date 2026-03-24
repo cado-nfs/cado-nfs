@@ -9,7 +9,7 @@
 
 #include <gmp.h>
 
-#include "auxiliary.h"
+#include "auxiliary.hpp"
 #include "gcd.h"
 #include "lll.h"
 #include "size_optimization.h"

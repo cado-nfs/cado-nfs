@@ -19,7 +19,7 @@
 
 #include <gmp.h>
 
-#include "auxiliary.h"
+#include "auxiliary.hpp"
 #include "cado_poly.h"
 #include "gfpkdlpolyselect.h"
 #include "gmp_aux.h"

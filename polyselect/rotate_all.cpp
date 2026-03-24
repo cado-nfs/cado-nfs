@@ -9,7 +9,7 @@
 #include "cado_poly.h"
 #include "macros.h"
 #include "mpz_poly.h"
-#include "auxiliary.h"
+#include "auxiliary.hpp"
 #include "gmp_aux.h"
 #include "arith/mod_ul.h"
 #include "arith/modul_poly.h"

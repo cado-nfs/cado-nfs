@@ -13,7 +13,7 @@
 
 #include <gmp.h>
 
-#include "auxiliary.h"  // print_poly_fg
+#include "auxiliary.hpp"  // print_poly_fg
 #include "mpz_poly.h"
 #include "ropt_arith.h" // compute_fuv_mp
 #include "ropt_param.h"    // SUP_ALPHA

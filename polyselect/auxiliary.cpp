@@ -29,7 +29,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 
 #include "mpz_poly.h"
 #include "cado_poly.h"
-#include "auxiliary.h"
+#include "auxiliary.hpp"
 #include "macros.h" /* for ASSERT_ALWAYS */
 #include "murphyE.h"
 #include "timing.h"             // for seconds

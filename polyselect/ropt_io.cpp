@@ -11,7 +11,7 @@
 #include <stdio.h>
 #include <gmp.h>
 
-#include "auxiliary.h" // print_poly_fg ALG_SIDE ALPHA_BOUND
+#include "auxiliary.hpp" // print_poly_fg ALG_SIDE ALPHA_BOUND
 #include "cachesize_cpuid.h" // cachesize_cpuid
 #include "cado_poly.h"
 #include "mpz_poly.h"

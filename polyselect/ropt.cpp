@@ -28,7 +28,7 @@
 #include "ropt_tree.h"
 #include "ropt_param.h"
 #include "size_optimization.h"
-#include "auxiliary.h"
+#include "auxiliary.hpp"
 
 
 /**

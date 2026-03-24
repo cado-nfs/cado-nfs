@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "auxiliary.h"
+#include "auxiliary.hpp"
 #include "cado_poly.h"
 #include "macros.h"
 #include "params.h"

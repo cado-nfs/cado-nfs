@@ -73,7 +73,7 @@ skew: 1.37
 #include "cado_poly.h"   // for cado_poly_fprintf_MurphyE, cado_poly
 #include "macros.h"      // for ASSERT_ALWAYS, ASSERT
 #include "omp_proxy.h" // IWYU pragma: keep
-#include "auxiliary.h"
+#include "auxiliary.hpp"
 #include "gcd.h"        // gcd_uint64
 #include "lll.h"        // mat_Z, LLL
 #include "mpz_poly.h"

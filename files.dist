@@ -782,7 +782,7 @@ polyselect/Makefile
 polyselect/area.c
 polyselect/area.h
 polyselect/auxiliary.cpp
-polyselect/auxiliary.h
+polyselect/auxiliary.hpp
 polyselect/best_polynomials_queue.cpp
 polyselect/best_polynomials_queue.h
 polyselect/dlpolyselect.cpp

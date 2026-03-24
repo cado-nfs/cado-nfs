@@ -20,7 +20,7 @@
 #include <stdio.h>      // fprintf stderr
 #include <stdlib.h>     // free malloc
 #include <gmp.h>
-#include "auxiliary.h"  // rotate_aux
+#include "auxiliary.hpp"  // rotate_aux
 #include "ropt_quadratic.h"
 #include "ropt_linear.h" // ropt_call_sieve
 #include "ropt_param.h" // TUNE_LOGNORM_INCR ...

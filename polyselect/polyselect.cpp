@@ -61,7 +61,7 @@
 #include "verbose.h"		// verbose_output_print
 #include "getprime.h"
 #include "dllist.h"
-#include "auxiliary.h"
+#include "auxiliary.hpp"
 
 static pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;
 
