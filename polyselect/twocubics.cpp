@@ -42,7 +42,7 @@
 
 
 #ifdef NEW_ROOTSIEVE
-#include "ropt.h"
+#include "ropt.hpp"
 #include "macros.h"
 #include "params.h"
 #endif

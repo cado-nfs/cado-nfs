@@ -19,7 +19,7 @@
 #include "cado_poly.h"
 #include "macros.h"
 #include "mpz_poly.h"
-#include "ropt.h"
+#include "ropt.hpp"
 #include "ropt_arith.h"
 #include "ropt_linear.h"
 #include "ropt_quadratic.h"

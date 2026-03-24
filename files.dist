@@ -833,7 +833,7 @@ polyselect/polyselect_thread_league.h
 polyselect/polyselect_thread_team.cpp
 polyselect/polyselect_thread_team.h
 polyselect/ropt.cpp
-polyselect/ropt.h
+polyselect/ropt.hpp
 polyselect/ropt_arith.c
 polyselect/ropt_arith.h
 polyselect/ropt_io.cpp

@@ -18,7 +18,7 @@
 #include "murphyE.hpp"    // MurphyE MURPHY_K
 #include "polyselect_alpha.h"
 #include "polyselect_norms.h"
-#include "ropt.h"
+#include "ropt.hpp"
 #include "ropt_arith.h" // Lemma21
 #include "ropt_io.h"
 #include "ropt_param.h"    // L1_cachesize MAX_LINE_LENGTH

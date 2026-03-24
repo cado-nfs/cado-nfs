@@ -27,7 +27,7 @@
 #include "ropt_stage1.h" // ropt_stage1
 #include "ropt_str.h" // ropt_poly_t
 #include "ropt_tree.h" // alpha_pq
-#include "ropt.h"
+#include "ropt.hpp"
 #include "timing.h"             // for seconds_thread
 
 

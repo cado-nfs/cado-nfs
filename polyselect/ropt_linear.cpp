@@ -30,7 +30,7 @@
 
 #include "auxiliary.hpp"  // rotate_aux
 #include "mpz_poly.h"
-#include "ropt.h" // ropt_get_bestpoly
+#include "ropt.hpp" // ropt_get_bestpoly
 #include "ropt_arith.h" // ROPT_NPRIMES
 #include "ropt_stage1.h" // ropt_stage1
 #include "ropt_stage2.h" // ropt_stage2
