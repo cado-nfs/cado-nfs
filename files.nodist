@@ -96,7 +96,7 @@ polyselect/kleinjung.sage
 polyselect/linear_interpolation.sage
 polyselect/rootsieve1.cpp
 polyselect/rotate.cpp
-polyselect/rotate_all.c
+polyselect/rotate_all.cpp
 polyselect/rotation_bound.sage
 polyselect/size_optimization.sage
 polyselect/sopt.c

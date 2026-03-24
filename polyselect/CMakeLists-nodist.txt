@@ -1,7 +1,7 @@
 add_executable (rotate rotate.cpp)
 target_link_libraries (rotate polyselect_common)
 
-add_executable (rotate_all rotate_all.c)
+add_executable (rotate_all rotate_all.cpp)
 target_link_libraries (rotate_all polyselect_common)
 
 add_executable (twoquadratics EXCLUDE_FROM_ALL twoquadratics.c)
