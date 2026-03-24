@@ -99,7 +99,7 @@ cado_divert_test(test_ropt_adv deg6
     )
 
 if(DEFINED ENV{CHECKS_EXPENSIVE})
-    # We need this to cover the ropt_quadratic code.
+    # We need this to cover the ropt_quadratic.cppode.
     # Honestly, it's way too long, it takes two minutes or
     # so on my laptop. Furthermore, it looks very odd, since in this
     # example I have the impression that the output of the "optimization"
