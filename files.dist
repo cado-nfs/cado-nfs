@@ -791,7 +791,7 @@ polyselect/gfpkdlpolyselect.h
 polyselect/gfpkdlpolyselect_impl.h
 polyselect/murphyE.cpp
 polyselect/murphyE.h
-polyselect/polyselect.c
+polyselect/polyselect.cpp
 polyselect/polyselect3.cpp
 polyselect/polyselect_alpha.cpp
 polyselect/polyselect_alpha.h
@@ -802,7 +802,7 @@ polyselect/polyselect_collisions.h
 polyselect/polyselect_data_series.c
 polyselect/polyselect_data_series.h
 polyselect/polyselect_gfpn.c
-polyselect/polyselect_main_data.c
+polyselect/polyselect_main_data.cpp
 polyselect/polyselect_main_data.h
 polyselect/polyselect_main_queue.cpp
 polyselect/polyselect_main_queue.h

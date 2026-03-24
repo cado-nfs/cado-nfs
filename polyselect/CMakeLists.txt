@@ -25,7 +25,7 @@ add_library(polyselect_middle
     polyselect_thread.cpp
     polyselect_thread_team.cpp
     polyselect_thread_league.c
-    polyselect_main_data.c
+    polyselect_main_data.cpp
     polyselect_main_queue.cpp
     polyselect_match.cpp
     polyselect_poly_header.c
@@ -39,7 +39,7 @@ add_library(polyselect_middle
 mark_targets_as_openmp(polyselect_middle)
 
 add_executable (polyselect
-    polyselect.c
+    polyselect.cpp
     $<TARGET_OBJECTS:polyselect_middle>
     )
 target_link_libraries (polyselect polyselect_common ${pthread_libs})

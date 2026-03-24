@@ -475,7 +475,7 @@ void polyselect_main_data_prepare_leagues(polyselect_main_data_ptr main_data)
      * polyselect_main_data_check_topology */
 
     /* prepare groups */
-    main_data->leagues = malloc(main_data->nnodes * sizeof(polyselect_thread_league));
+    main_data->leagues = new polyselect_thread_league_s[main_data->nnodes];
     printf("# %u nodes, 1 league on each\n", main_data->nnodes);
 
     for(unsigned int i = 0 ; i < main_data->nnodes ; i++) {
@@ -493,14 +493,14 @@ void polyselect_main_data_dispose_leagues(polyselect_main_data_ptr main_data)
   for(unsigned int i = 0 ; i < main_data->nnodes ; i++) {
       polyselect_thread_league_clear(&main_data->leagues[i]);
   }
-  free(main_data->leagues);
+  delete[] main_data->leagues;
 }
 
 void polyselect_main_data_prepare_teams(polyselect_main_data_ptr main_data)
 {
     unsigned int nteams = main_data->nthreads / main_data->finer_grain_threads;
     unsigned int w = nteams / main_data->nnodes;
-    main_data->teams = malloc(nteams * sizeof(polyselect_thread_team));
+    main_data->teams = new polyselect_thread_team_s[nteams];
 
     printf("# %u teams per league, %u team(s) in total\n", w, nteams);
 
@@ -518,12 +518,12 @@ void polyselect_main_data_dispose_teams(polyselect_main_data_ptr main_data)
         polyselect_thread_team_ptr team = &main_data->teams[i];
         polyselect_thread_team_clear(team);
     }
-    free(main_data->teams);
+    delete[] main_data->teams;
 }
 
 void polyselect_main_data_prepare_threads(polyselect_main_data_ptr main_data)
 {
-    main_data->threads = malloc(main_data->nthreads * sizeof(polyselect_thread));
+    main_data->threads = new polyselect_thread_s[main_data->nthreads];
     printf("# %u threads per team, %u threads in total\n", main_data->finer_grain_threads, main_data->nthreads);
 
     for(unsigned int i = 0 ; i < main_data->nthreads ; i++) {
@@ -566,7 +566,7 @@ void polyselect_main_data_dispose_threads(polyselect_main_data_ptr main_data)
     }
   }
 #endif
-  free(main_data->threads);
+  delete[] main_data->threads;
 }
 
 void polyselect_main_data_go_parallel(polyselect_main_data_ptr main_data, void * (*thread_loop)(polyselect_thread_ptr))
