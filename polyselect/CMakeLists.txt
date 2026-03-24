@@ -67,7 +67,7 @@ target_link_libraries (polyselect_ropt polyselect_common ${pthread_libs})
 mark_targets_as_openmp(polyselect_ropt)
 
 
-add_executable (polyselect_gfpn polyselect_gfpn.c gfpkdlpolyselect.cpp)
+add_executable (polyselect_gfpn polyselect_gfpn.cpp gfpkdlpolyselect.cpp)
 target_link_libraries (polyselect_gfpn  polyselect_common utils)
 
 add_executable (polyselect3 polyselect3.cpp)
