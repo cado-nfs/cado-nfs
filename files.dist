@@ -781,7 +781,7 @@ polyselect/CMakeLists.txt
 polyselect/Makefile
 polyselect/area.c
 polyselect/area.h
-polyselect/auxiliary.c
+polyselect/auxiliary.cpp
 polyselect/auxiliary.h
 polyselect/best_polynomials_queue.cpp
 polyselect/best_polynomials_queue.h
@@ -797,7 +797,7 @@ polyselect/polyselect_alpha.c
 polyselect/polyselect_alpha.h
 polyselect/polyselect_arith.c
 polyselect/polyselect_arith.h
-polyselect/polyselect_collisions.c
+polyselect/polyselect_collisions.cpp
 polyselect/polyselect_collisions.h
 polyselect/polyselect_data_series.c
 polyselect/polyselect_data_series.h

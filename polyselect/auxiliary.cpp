@@ -22,8 +22,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
-#include <float.h> // for DBL_MAX
+#include <float.h>
 #include <math.h>
+
 #include <gmp.h>
 
 #include "mpz_poly.h"
@@ -175,7 +176,8 @@ void cado_poly_set_skewness_if_undefined(cado_poly_ptr cpoly)
 void cado_poly_stats_init(cado_poly_stats_ptr spoly, int nb_polys)
 {
     spoly->nb_polys = nb_polys;
-    spoly->pols = malloc(spoly->nb_polys * sizeof(*spoly->pols));
+    using T = cado_poly_stats_one_poly [1];
+    spoly->pols = (T*) malloc(spoly->nb_polys * sizeof(*spoly->pols));
     for(int side = 0 ; side < nb_polys ; side++) {
             spoly->pols[side]->nrroots = 0;
             spoly->pols[side]->lognorm = 0;

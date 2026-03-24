@@ -1,15 +1,15 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <stdio.h>
-#include <stdlib.h>		// malloc ...
-#include <stdint.h>		// uint64_t
-#include <limits.h>		/* for CHAR_BIT */
+#include <cstdio>
+#include <cstdlib>
+#include <cstdint>
+#include <climits>
 
 #include <gmp.h>
 
 #include <pthread.h>
 
-#include "macros.h"		// ASSERT
+#include "macros.h"
 #include "arith/modredc_ul.h"
 #include "polyselect_arith.h"
 #include "polyselect_collisions.h"
@@ -23,7 +23,8 @@
 #include "polyselect_thread.h"
 #include "polyselect_thread_team.h"
 #include "portability.h"
-#include "timing.h"		// for seconds
+#include "timing.h"
+#include "misc.h"
 
 /* CCS = computational collision search
  * DCS = decisional collision search
@@ -99,9 +100,9 @@ void polyselect_proots_dispatch_to_shash_flat_ugly(
               break;
       }
       ppl = *pprimes;
-      __builtin_prefetch(((void *) pnr) + 0x040, 0, 3);
-      __builtin_prefetch(((void *) pprimes) + 0x80, 0, 3);
-      __builtin_prefetch(((void *) pc) + 0x100, 0, 3);
+      __builtin_prefetch(pointer_arith_const(pnr, 0x040), 0, 3);
+      __builtin_prefetch(pointer_arith_const(pprimes, 0x80), 0, 3);
+      __builtin_prefetch(pointer_arith_const(pc, 0x100), 0, 3);
       ppl *= ppl;
       epc = pc + vpnr;
       if (UNLIKELY(ppl > b))
@@ -173,9 +174,9 @@ void polyselect_proots_dispatch_to_shash_flat_ugly(
               break;
       }
       ppl = *pprimes;
-      __builtin_prefetch(((void *) pnr) + 0x040, 0, 3);
-      __builtin_prefetch(((void *) pprimes) + 0x100, 0, 3);
-      __builtin_prefetch(((void *) pc) + 0x280, 0, 3);
+      __builtin_prefetch(pointer_arith_const(pnr, 0x040), 0, 3);
+      __builtin_prefetch(pointer_arith_const(pprimes, 0x100), 0, 3);
+      __builtin_prefetch(pointer_arith_const(pc, 0x280), 0, 3);
       ppl *= ppl;
       epc = pc + vpnr;
     iter2:
@@ -233,9 +234,9 @@ void polyselect_proots_dispatch_to_shash_flat_ugly(
               break;
       }
       ppl = *pprimes;
-      __builtin_prefetch(((void *) pnr) + 0x040, 0, 3);
-      __builtin_prefetch(((void *) pprimes) + 0x100, 0, 3);
-      __builtin_prefetch(((void *) pc) + 0x280, 0, 3);
+      __builtin_prefetch(pointer_arith_const(pnr, 0x040), 0, 3);
+      __builtin_prefetch(pointer_arith_const(pprimes, 0x100), 0, 3);
+      __builtin_prefetch(pointer_arith_const(pc, 0x280), 0, 3);
       ppl *= ppl;
       epc = pc + vpnr;
     iter1:
@@ -429,7 +430,7 @@ struct polyselect_CCS_subtask_data {
  */
 void polyselect_CCS_notflat_subtask(polyselect_thread_ptr thread)
 {
-    struct polyselect_CCS_subtask_data * arg = thread->team->task->arg;
+    auto * arg = static_cast<struct polyselect_CCS_subtask_data *>(thread->team->task->arg);
     unsigned long q = arg->q;
     mpz_srcptr rq = arg->rq;
 
@@ -581,7 +582,7 @@ collision_on_p_conductor(polyselect_thread_ptr thread)
 
 
   if (found) {/* do the real work */
-      struct polyselect_CCS_subtask_data arg[1] = {{ .q = 1, .rq = NULL }};
+      struct polyselect_CCS_subtask_data arg[1] = {{ .q = 1, .rq = NULL, .invq_roots_per_prime = nullptr }};
       polyselect_shash_reset_multi(thread->team->SH, thread->team->count->sync);
       polyselect_thread_team_post_work(thread->team, thread, polyselect_CCS_notflat_subtask, arg);
   }
@@ -604,7 +605,7 @@ struct polyselect_DCS_flat_subtask_data {
  */
 void polyselect_DCS_flat_subtask(polyselect_thread_ptr thread)
 {
-    struct polyselect_DCS_flat_subtask_data * arg = thread->team->task->arg;
+    auto * arg = static_cast<struct polyselect_DCS_flat_subtask_data *>(thread->team->task->arg);
     unsigned long * invq_roots_per_prime = arg->invq_roots_per_prime;
 
     unsigned int nt = thread->team->task->expected;
@@ -682,7 +683,7 @@ void polyselect_DCS_flat_subtask(polyselect_thread_ptr thread)
  */
 void polyselect_CCS_flat_subtask(polyselect_thread_ptr thread)
 {
-    struct polyselect_CCS_subtask_data * arg = thread->team->task->arg;
+    auto * arg = static_cast<struct polyselect_CCS_subtask_data *>(thread->team->task->arg);
     unsigned long q = arg->q;
     mpz_srcptr rq = arg->rq;
     unsigned long * invq_roots_per_prime = arg->invq_roots_per_prime;
@@ -786,7 +787,7 @@ unsigned long modcalc_nroots_interval(polyselect_proots_srcptr R, unsigned long 
 
 void modcalc_subtask(polyselect_thread_ptr thread)/*{{{*/
 {
-    struct modcalc_arg * arg = thread->team->task->arg;
+    auto * arg = static_cast<struct modcalc_arg *>(thread->team->task->arg);
     int count = arg->count;
     const mpz_t * rqqz = arg->rqqz;
     const unsigned long *inv_qq = arg->inv_qq;
@@ -874,25 +875,25 @@ collision_on_each_sq_r(unsigned long q,
 
   polyselect_thread_chronogram_chat(thread, "enter malloc");
 
-  unsigned long **tinv_qq = malloc(count * sizeof(unsigned long *));
+  auto * tinv_qq = new unsigned long * [count];
 
   if (!tinv_qq)
     {
       fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
       exit(1);
     }
-  tinv_qq[0] = malloc((number_pr + 1) * count * sizeof(unsigned long));
+  /* number_pr + 1 for guard for pre-load in collision_on_each_sq (nv) */
+  tinv_qq[0] = new unsigned long[(number_pr + 1) * count];
   for (int k = 0; k < count; k++)
     {
-      /* number_pr + 1 for guard for pre-load in collision_on_each_sq (nv) */
       if (k)
           tinv_qq[k] = tinv_qq[k-1] + number_pr + 1;
       tinv_qq[k][number_pr] = 0;
     }
 
   struct modcalc_arg arg[1] = {{
-          .count = count,
           .rqqz = rqqz,
+          .count = count,
           .inv_qq = inv_qq,
           .tinv_qq = tinv_qq
   }};
@@ -903,9 +904,9 @@ collision_on_each_sq_r(unsigned long q,
   for (int k = 0; k < count; k++)
     collision_on_each_sq(q, rqqz[k], tinv_qq[k], thread);
 
-  free(tinv_qq[0]);
+  delete[] tinv_qq[0];
 
-  free(tinv_qq);
+  delete[] tinv_qq;
 }
 
 /* Next combination */
@@ -1032,7 +1033,7 @@ struct invert_q2_mod_all_p2_data {
 
 static inline void invert_q2_mod_all_p2_subtask(polyselect_thread_ptr thread) /*{{{*/
 {
-    struct invert_q2_mod_all_p2_data * arg = thread->team->task->arg;
+    auto * arg = static_cast<struct invert_q2_mod_all_p2_data *>(thread->team->task->arg);
     unsigned long q = arg->q;
     unsigned long *invqq = arg->invqq;
 
@@ -1089,7 +1090,7 @@ static inline void invert_q2_mod_all_p2_subtask(polyselect_thread_ptr thread) /*
 void
 collision_on_sq_conductor(unsigned long c, polyselect_thread_ptr thread)
 {
-  unsigned long *invqq = malloc(thread->team->league->pt->lenPrimes * sizeof(unsigned long));
+  auto *invqq = new unsigned long[thread->team->league->pt->lenPrimes];
   if (!invqq)
     {
       fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
@@ -1125,7 +1126,7 @@ collision_on_sq_conductor(unsigned long c, polyselect_thread_ptr thread)
       /* collision batch */
 
       /* Step 1: inversion; compute 1/q^2 (mod p_i^2) to invqq[i] */
-      struct invert_q2_mod_all_p2_data arg[1] = {{ .q = q, .invqq = invqq }};
+      struct invert_q2_mod_all_p2_data arg[1] = {{ .invqq = invqq, .q = q }};
       polyselect_thread_team_post_work(thread->team, thread, invert_q2_mod_all_p2_subtask, arg);
  
       {
@@ -1145,7 +1146,7 @@ collision_on_sq_conductor(unsigned long c, polyselect_thread_ptr thread)
 	break;
     }
 
-  free(invqq);
+  delete[] invqq;
 
   /* clean */
   polyselect_qroots_clear(SQ_R);

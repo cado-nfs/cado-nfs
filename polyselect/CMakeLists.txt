@@ -4,7 +4,7 @@
 
 add_library(polyselect_common
     ${CADO_SHARED}
-    auxiliary.c
+    auxiliary.cpp
     murphyE.cpp
     area.c
     size_optimization.c
@@ -19,7 +19,7 @@ target_link_libraries (polyselect_common utils)
 add_library(polyselect_middle
     OBJECT
     polyselect_arith.c
-    polyselect_collisions.c
+    polyselect_collisions.cpp
     polyselect_data_series.c
     polyselect_special_q.c
     polyselect_thread.c

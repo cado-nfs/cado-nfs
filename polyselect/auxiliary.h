@@ -36,34 +36,41 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 
 extern double bound_f, bound_g, area;
 
-struct cado_poly_stats_s {
-    /* This goes with one cado_poly object. Each polynomial has its
-     * stats, except that we don't compute them for the rational
-     * polynomials.
+/* This goes with one cado_poly object. Each polynomial has its
+ * stats, except that we don't compute them for the rational
+ * polynomials.
+ */
+struct cado_poly_stats_one_poly {
+    unsigned int nrroots;
+    double lognorm;
+    double alpha;
+    double alpha_proj;
+    /* This is the "expected" value of E after root sieving. It takes
+     * into account the potential gain from rotation, given the
+     * degrees of freedom that are given by the linear polynomial.
+     *
+     * (in contrast, the "true" E is just lognorm+alpha)
+     *
+     * This field is 0 if we've computed the stats with
+     * cado_poly_compute_stats (a priori final stats), and >0 only if
+     * the computation was done with
+     * cado_poly_compute_expected_stats.
      */
-    struct {
-        unsigned int nrroots;
-        double lognorm;
-        double alpha;
-        double alpha_proj;
-        /* This is the "expected" value of E after root sieving. It takes
-         * into account the potential gain from rotation, given the
-         * degrees of freedom that are given by the linear polynomial.
-         *
-         * (in contrast, the "true" E is just lognorm+alpha)
-         *
-         * This field is 0 if we've computed the stats with
-         * cado_poly_compute_stats (a priori final stats), and >0 only if
-         * the computation was done with
-         * cado_poly_compute_expected_stats.
-         */
-        double exp_E;
-    } (*pols)[1];
+    double exp_E;
+};
+
+struct cado_poly_stats_s {
+    struct cado_poly_stats_one_poly (*pols)[1];
     int nb_polys;
 };
 typedef struct cado_poly_stats_s cado_poly_stats[1];
 typedef struct cado_poly_stats_s * cado_poly_stats_ptr;
 typedef const struct cado_poly_stats_s * cado_poly_stats_srcptr;
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 extern void cado_poly_stats_init(cado_poly_stats_ptr spoly, int nb_polys);
 extern void cado_poly_stats_clear(cado_poly_stats_ptr spoly);
@@ -76,6 +83,9 @@ extern double cado_poly_compute_stats(cado_poly_stats_ptr, cado_poly_srcptr cpol
 
 extern void cado_poly_fprintf_stats(FILE * fp, const char * prefix, cado_poly_srcptr cpoly, cado_poly_stats_srcptr spoly);
 
+#ifdef __cplusplus
+}
+#endif
 
 /* The maximum degree supported is MAX_DEGREE, as defined in cado_poly.h */
 
