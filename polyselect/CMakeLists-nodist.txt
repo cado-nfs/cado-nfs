@@ -19,7 +19,7 @@ target_link_libraries (sopt polyselect_common)
 # mark_targets_as_openmp(twocubics)
 # target_link_libraries (twocubics polyselect_common utils ${pthread_libs})
  
-add_executable (rootsieve1 EXCLUDE_FROM_ALL rootsieve1.c ${ropt_sources})
+add_executable (rootsieve1 EXCLUDE_FROM_ALL rootsieve1.cpp ${ropt_sources})
 mark_targets_as_openmp(rootsieve1)
 target_link_libraries (rootsieve1 polyselect_common)
 

@@ -94,7 +94,7 @@ polyselect/integral.sage
 polyselect/kleinjung-list-of-lattices.sage
 polyselect/kleinjung.sage
 polyselect/linear_interpolation.sage
-polyselect/rootsieve1.c
+polyselect/rootsieve1.cpp
 polyselect/rotate.c
 polyselect/rotate_all.c
 polyselect/rotation_bound.sage
