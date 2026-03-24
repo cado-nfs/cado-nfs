@@ -836,7 +836,7 @@ polyselect/ropt.cpp
 polyselect/ropt.h
 polyselect/ropt_arith.c
 polyselect/ropt_arith.h
-polyselect/ropt_io.c
+polyselect/ropt_io.cpp
 polyselect/ropt_io.h
 polyselect/ropt_linear.c
 polyselect/ropt_linear.h

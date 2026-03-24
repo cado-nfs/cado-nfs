@@ -53,7 +53,7 @@ add_executable (polyselect_ropt
     ropt_sublattice_crt.cpp
     ropt.cpp
     ropt_arith.c
-    ropt_io.c
+    ropt_io.cpp
     ropt_linear.c
     ropt_param.c
     ropt_quadratic.c
