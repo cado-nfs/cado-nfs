@@ -8,7 +8,7 @@
 #include <sstream>
 #include <utility>
 
-#include "best_polynomials_queue.h"
+#include "best_polynomials_queue.hpp"
 #include "min_max_heap.hpp"
 #include "cado_poly.h"
 

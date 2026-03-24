@@ -50,7 +50,7 @@
 #include "timing.h"
 #include "verbose.h"
 #include "version_info.h"
-#include "best_polynomials_queue.h"
+#include "best_polynomials_queue.hpp"
 
 #include "utils_cxx.hpp"
 
