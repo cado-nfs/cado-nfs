@@ -12,6 +12,8 @@
 #include "mpz_poly.h"
 #include "portability.h"
 
+#include "utils_cxx.hpp"
+
 /* Be conservative and allocate two polynomials by default. */
 void cado_poly_init(cado_poly_ptr cpoly)
 {
@@ -27,7 +29,7 @@ void cado_poly_init(cado_poly_ptr cpoly)
 void cado_poly_provision_new_poly(cado_poly_ptr cpoly)
 {
     cpoly->nb_polys++;
-    CHECKED_REALLOC(cpoly->pols, cpoly->nb_polys, mpz_poly);
+    checked_realloc(cpoly->pols, cpoly->nb_polys);
     mpz_poly_init(cpoly->pols[cpoly->nb_polys-1], -1);
 }
 

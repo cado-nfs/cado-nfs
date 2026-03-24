@@ -8,7 +8,7 @@ if(NOT HAVE_FMT)
 endif()
 
 set (sources 
-        cado_poly.c timing.cpp getprime.c
+        cado_poly.cpp timing.cpp getprime.c
         relation.cpp
         relation-tools.c
         arith/mod_ul.c arith/modredc_ul.c arith/modredc_15ul.c arith/modredc_2ul2.c arith/modul_poly.c

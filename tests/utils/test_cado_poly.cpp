@@ -59,7 +59,7 @@ test_cado_poly_set ()
 // C only at the moment...
 //
 // returns 0 on failure, 1 on success.
-extern "C" int cado_poly_set_plist(cado_poly_ptr cpoly, param_list_ptr pl);
+extern int cado_poly_set_plist(cado_poly_ptr cpoly, param_list_ptr pl);
 
 static int cado_poly_read (cxx_cado_poly & poly, std::istream& is)
 {

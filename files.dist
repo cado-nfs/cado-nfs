@@ -1673,7 +1673,7 @@ utils/cado_mp_conversions.hpp
 utils/cado_parsing_base.hpp
 utils/cado_pipe_streambuf.cpp
 utils/cado_pipe_streambuf.hpp
-utils/cado_poly.c
+utils/cado_poly.cpp
 utils/cado_poly.h
 utils/cado_popen.c
 utils/cado_popen.h
