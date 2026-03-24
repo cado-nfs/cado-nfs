@@ -101,7 +101,7 @@ polyselect/rotation_bound.sage
 polyselect/size_optimization.sage
 polyselect/sopt.cpp
 polyselect/template-header.c
-polyselect/twocubics.c
+polyselect/twocubics.cpp
 polyselect/twoquadratics.cpp
 polyselect/twoquadratics.sage
 scripts/cadofactor/README.OAR

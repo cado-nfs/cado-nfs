@@ -13,7 +13,7 @@ target_link_libraries (sopt polyselect_common)
 # this one has failed to compile for several years.
 # add_executable (twocubics
 #     EXCLUDE_FROM_ALL
-#     twocubics.c
+#     twocubics.cpp
 #     $<TARGET_OBJECTS:polyselect_middle>
 #     )
 # mark_targets_as_openmp(twocubics)
