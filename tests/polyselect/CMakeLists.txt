@@ -37,7 +37,7 @@ cado_define_test(test_rho.c LIBRARIES polyselect_common tests)
 # a laptop, and can easily take tens of seconds on a container that runs
 # on a busy machine.
 cado_define_test(test_polyselect_shash.cpp
-    ${PROJECT_SOURCE_DIR}/polyselect/polyselect_shash.c
+    ${PROJECT_SOURCE_DIR}/polyselect/polyselect_shash.cpp
     ${PROJECT_SOURCE_DIR}/polyselect/polyselect_poly_header.c
     ${PROJECT_SOURCE_DIR}/polyselect/polyselect_match.cpp
     LIBRARIES polyselect_common tests

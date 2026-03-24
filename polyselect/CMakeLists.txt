@@ -33,7 +33,7 @@ add_library(polyselect_middle
     polyselect_priority_queue.c
     polyselect_proots.cpp
     polyselect_qroots.cpp
-    polyselect_shash.c
+    polyselect_shash.cpp
     polyselect_stats.c
 )
 mark_targets_as_openmp(polyselect_middle)

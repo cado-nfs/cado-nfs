@@ -820,7 +820,7 @@ polyselect/polyselect_proots.cpp
 polyselect/polyselect_proots.h
 polyselect/polyselect_qroots.cpp
 polyselect/polyselect_qroots.h
-polyselect/polyselect_shash.c
+polyselect/polyselect_shash.cpp
 polyselect/polyselect_shash.h
 polyselect/polyselect_special_q.c
 polyselect/polyselect_special_q.h

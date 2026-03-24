@@ -269,7 +269,7 @@ polyselect_shash_find_collision_multi(const polyselect_shash_t * H, unsigned int
           polyselect_SHASH_TH_I(Th4, i4, 4);
           Hj += 5;
           while (LIKELY(Hj < Hjm)) {
-              __builtin_prefetch(((void *) Hj) + 0x280, 0, 3);
+              __builtin_prefetch(pointer_arith_const(Hj, 0x280), 0, 3);
               polyselect_SHASH_RESEARCH(Th0, i0); polyselect_SHASH_TH_I(Th0, i0, 0);
               polyselect_SHASH_RESEARCH(Th1, i1); polyselect_SHASH_TH_I(Th1, i1, 1);
               polyselect_SHASH_RESEARCH(Th2, i2); polyselect_SHASH_TH_I(Th2, i2, 2);
@@ -388,7 +388,7 @@ polyselect_shash2_find_collision_multi(const polyselect_shash_t * H, unsigned in
                         polyselect_match_info_ptr job;
                         uint32_t p1 = Th->p;
                         if (dllist_is_empty(&thread->empty_job_slots)) {
-                            job = malloc(sizeof(polyselect_match_info_t));
+                            job = (polyselect_match_info_s *) malloc(sizeof(polyselect_match_info_t));
                             polyselect_match_info_init(job, p1, p2, i, q, rq, thread);
                         } else {
                             /* recycle an old one ! */
@@ -446,7 +446,7 @@ MAYBE_UNUSED polyselect_shash_find_collision_old_multi (const polyselect_shash_t
         pdata = data;
         j = Hjm - Hj;
         for (l = 0; l < PREFETCH * 8; l += 64)
-            __builtin_prefetch(((void *) data) + l, 1, 3);
+            __builtin_prefetch(pointer_arith_const(data, l), 1, 3);
         if (j > PREFETCH) j = PREFETCH;
         for (l = 0; l < j; l++) {
             i = Hj[l];
@@ -459,7 +459,7 @@ MAYBE_UNUSED polyselect_shash_find_collision_old_multi (const polyselect_shash_t
         Hj += j;
         if (LIKELY(j == PREFETCH)) {
             while (LIKELY(Hj != Hjm)) {
-                __builtin_prefetch(((void *) Hj) + 0x280, 0, 3);
+                __builtin_prefetch(pointer_arith_const(Hj, 0x280), 0, 3);
                 i = *pdata;
                 key = (uint32_t) i;
                 Th = T + (i >> 32);
