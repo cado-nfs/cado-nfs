@@ -17,6 +17,8 @@
 #include "rootfinder.h"
 #include "verbose.h"
 
+#include "utils_cxx.hpp"
+
 /*
  * Compute g(x) = f(a*x+b), with deg f = d, and a and b are longs.
  * Must have a != 0 and d >= 1
@@ -172,7 +174,7 @@ void entry_list_clear(entry_list *L) {
 void push_entry(entry_list *L, entry E) {
     if (L->len == L->alloc) {
         L->alloc += 10;
-        CHECKED_REALLOC(L->list, L->alloc, entry);
+        checked_realloc(L->list, L->alloc);
     }
     L->list[L->len++] = E;
 }

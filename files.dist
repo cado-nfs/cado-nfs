@@ -1118,7 +1118,7 @@ sieve/las-where-am-i.hpp
 sieve/las.cpp
 sieve/logapprox.cpp
 sieve/logapprox.hpp
-sieve/makefb.c
+sieve/makefb.cpp
 sieve/makefb.sage
 sieve/plattice.sage
 sieve/sieve-methods.hpp
