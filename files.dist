@@ -849,7 +849,7 @@ polyselect/ropt_single_sublattice_priority_queue.cpp
 polyselect/ropt_single_sublattice_priority_queue.h
 polyselect/ropt_single_sublattice_priority_queue_impl.hpp
 polyselect/ropt_stage1.cpp
-polyselect/ropt_stage1.h
+polyselect/ropt_stage1.hpp
 polyselect/ropt_stage2.cpp
 polyselect/ropt_stage2.h
 polyselect/ropt_str.cpp
