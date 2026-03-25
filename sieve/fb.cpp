@@ -2174,14 +2174,14 @@ static fbc_header find_fbc_header_block_for_poly(char const * fbc_filename,
 fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side,
                              cxx_param_list & pl, char const * fbc_filename,
                              int nthreads)
-    : f(cpoly->pols[side])
+    : f(cpoly[side])
     , side(side)
 {
     /* It's a bit awkward to parse and re-parse these bits over and over
      * again. Fortunately, it's cheap.
      */
     std::vector<siever_side_config> all_sides;
-    siever_side_config::parse(pl, all_sides, cpoly->nb_polys, {"lim"});
+    siever_side_config::parse(pl, all_sides, cpoly.nsides(), {"lim"});
     lim = all_sides[side].lim;
     powlim = all_sides[side].powlim;
     if (powlim == ULONG_MAX) {

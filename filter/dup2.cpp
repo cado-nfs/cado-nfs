@@ -753,7 +753,7 @@ int main(int argc, char const * argv[])
         usage(pl, argv0);
     }
 
-    if (polyfilename == NULL || !cado_poly_read(cpoly, polyfilename)) {
+    if (polyfilename == NULL || !cpoly.read(polyfilename)) {
         fprintf(stderr, "Error, missing -poly command line argument\n");
         usage(pl, argv0);
     }

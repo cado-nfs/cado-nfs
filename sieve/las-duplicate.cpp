@@ -214,7 +214,7 @@ sq_finds_relation(las_info const & las,
         bool talk)
 {
   int const logI = conf.logI;
-  int const nsides = las.cpoly->nb_polys;
+  int const nsides = las.cpoly.nsides();
 
   if (talk) {   // Print some info
       verbose_fmt_print(0, VERBOSE_LEVEL,
@@ -449,7 +449,7 @@ relation_is_duplicate(relation const& rel,
         special_q const & doing,
         las_info const& las)
 {
-    int const nsides = las.cpoly->nb_polys;
+    int const nsides = las.cpoly.nsides();
 
     /* If the special-q does not fit in an unsigned long, we assume it's not a
      * duplicate and just move on.
@@ -499,7 +499,7 @@ relation_is_duplicate(relation const& rel,
 
             /* projective primes are currently not allowed for composite
              * special-q */
-            if (mpz_divisible_ui_p(mpz_poly_lc(las.cpoly->pols[side]), p))
+            if (mpz_divisible_ui_p(mpz_poly_lc(las.cpoly[side]), p))
                 continue;
 
             // push it in the list of potential factors of sq

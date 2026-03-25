@@ -30,20 +30,20 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "params.h"
 #include "murphyE.hpp"
 #include "polyselect_norms.h"
+#include "polyselect_alpha.h"
 
 int fullscore = 0;
 
 static int
 compute_murphyE (const char *input_file, const char *output_file)
 {
-    cado_poly p;
+    cxx_cado_poly p;
     double E;
-    cado_poly_init(p);
     int rc = EXIT_SUCCESS;
 
     FILE * of = NULL;
 
-    if (!cado_poly_read(p, input_file)) {
+    if (!p.read(input_file)) {
 	fprintf(stderr, "Error reading polynomial file %s\n", input_file);
         rc = EXIT_FAILURE;
     } else if (output_file == NULL) {
@@ -59,37 +59,37 @@ compute_murphyE (const char *input_file, const char *output_file)
 		    output_file);
             rc = EXIT_FAILURE;
 	} else {
-            cado_poly_fprintf(of, "", p);
+            p.fprintf(of);
         }
     }
 
     if (fullscore) {
-        double skew = p->skew;
+        double skew = p.skew;
         // note that there's some inconsistency regarding whether we take
         // the skewness of just f, or the skewness of f combined with the
         // skewness of g.
-        // double skew = L2_skewness(p->pols[1]);
-        double logmu = L2_lognorm(p->pols[1], skew);
-        unsigned int nroots = mpz_poly_number_of_real_roots(p->pols[1]);
-        // double comb_skew = L2_combined_skewness2 (p->pols[0], p->pols[1]);
+        // double skew = L2_skewness(p[1]);
+        double logmu = L2_lognorm(p[1], skew);
+        unsigned int nroots = mpz_poly_number_of_real_roots(p[1]);
+        // double comb_skew = L2_combined_skewness2 (p[0], p[1]);
 
-        // p->skew = L2_skewness(p->pols[1]);
-        p->skew = L2_combined_skewness2 (p->pols[0], p->pols[1]);
+        // p.skew = L2_skewness(p[1]);
+        p.skew = L2_combined_skewness2 (p[0], p[1]);
 
-        double exp_E = logmu + expected_rotation_gain(p->pols[1], p->pols[0]);
+        double exp_E = logmu + expected_rotation_gain(p[1], p[0]);
 
         double E = MurphyE (p, bound_f, bound_g, area, MURPHY_K, get_alpha_bound());
 
         const char * prefix = "# ";
 
         if (output_file == NULL) {
-            fprintf(of, "poly0="); mpz_poly_print_raw(p->pols[0]);
-            fprintf(of, "poly1="); mpz_poly_print_raw(p->pols[1]);
+            fprintf(of, "poly0="); mpz_poly_print_raw(p[0]);
+            fprintf(of, "poly1="); mpz_poly_print_raw(p[1]);
         }
         fprintf(of, "%sskew_f=%1.2f, skew_fg=%1.2f\n",
                 prefix,
-                L2_skewness(p->pols[1]),
-                L2_combined_skewness2 (p->pols[0], p->pols[1]));
+                L2_skewness(p[1]),
+                L2_combined_skewness2 (p[0], p[1]));
         fprintf(of, "%sexp_E %1.2f, lognorm %1.2f, skew %1.2f, %d rroots\n",
                 prefix, exp_E, logmu, skew, nroots);
         fprintf(of, "%sMurphyE(Bf=%.3e, Bf=%.3e, area=%.3e)=%1.2e\n",
@@ -97,7 +97,6 @@ compute_murphyE (const char *input_file, const char *output_file)
 
     }
 
-    cado_poly_clear(p);
     return rc;
 }
 

@@ -203,7 +203,7 @@ static size_t expected_memory_usage_per_binding_zone(siever_config const & sc,/*
         int print)
 {
     int const hush = print ? 0 : 3;
-    cado_poly_srcptr cpoly = las.cpoly;
+    cxx_cado_poly const & cpoly = las.cpoly;
 
     /*
     int logImin = (1+sc.logA)/2;
@@ -218,7 +218,7 @@ static size_t expected_memory_usage_per_binding_zone(siever_config const & sc,/*
      */
     size_t memory = 0;
 
-    for(int side = 0 ; side < las.cpoly->nb_polys ; side++) {
+    for(int side = 0 ; side < las.cpoly.nsides() ; side++) {
         if (!sc.sides[side].lim) continue;
         double const p1 = sc.sides[side].lim;
         double const p0 = 2;
@@ -234,7 +234,7 @@ static size_t expected_memory_usage_per_binding_zone(siever_config const & sc,/*
          * roots whenever there's at least one root tends to
          * 1/(1-1/e) = 1.5819767...)
          */
-        int const d = cpoly->pols[side]->deg;
+        int const d = cpoly[side]->deg;
         double ideals_per_prime = 1;
         double fac=1;
         for(int k = 1 ; k <= d ; k++) {
@@ -316,7 +316,7 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
     // toplevel is computed by fb_factorbase::slicing::slicing, based on
     // thresholds in fbK
     int toplevel = -1;
-    for(int side = 0 ; side < las.cpoly->nb_polys ; side++) {
+    for(int side = 0 ; side < las.cpoly.nsides() ; side++) {
         int m;
         for(m = 0 ; m < FB_MAX_PARTS && K[side].thresholds[m] < sc.sides[side].lim; ++m);
         toplevel = std::max(m, toplevel);
@@ -425,7 +425,7 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
     // bucket_update_t<1, shorthint_t>)
 
 
-    for(int side = 0 ; side < las.cpoly->nb_polys ; side++) {
+    for(int side = 0 ; side < las.cpoly.nsides() ; side++) {
         if (!sc.sides[side].lim) continue;
 
         int toplevel = INT_MAX;
@@ -683,7 +683,7 @@ static void check_whether_q_above_large_prime_bound(siever_config const & conf, 
 }
 /*}}}*/
 
-static void check_whether_special_q_is_root(cado_poly_srcptr cpoly, special_q const & doing)/*{{{*/
+static void check_whether_special_q_is_root(cxx_cado_poly const & cpoly, special_q const & doing)/*{{{*/
 {
     if constexpr (std::is_same_v<ALGO, SIQS>) {
         /* For SIQS, this is a no-op: no check is performed as the r attribute
@@ -693,7 +693,7 @@ static void check_whether_special_q_is_root(cado_poly_srcptr cpoly, special_q co
     }
     cxx_mpz const & p(doing.p);
     cxx_mpz const & r(doing.r);
-    ASSERT_ALWAYS(mpz_poly_is_root(cpoly->pols[doing.side], r, p));
+    ASSERT_ALWAYS(mpz_poly_is_root(cpoly[doing.side], r, p));
 }
 /*}}}*/
 static void per_special_q_banner(special_q const & doing)
@@ -1179,7 +1179,7 @@ static void las_subjob(las_info & las, int subjob, report_and_timer & global_rt)
 
                     ACTIVATE_TIMER(timer_special_q);
 
-                    prepare_timer_layout_for_multithreaded_tasks(timer_special_q, las.cpoly->nb_polys);
+                    prepare_timer_layout_for_multithreaded_tasks(timer_special_q, las.cpoly.nsides());
 
                     bool const done = do_one_special_q(las, ws, aux_p, pool);
 
@@ -1483,7 +1483,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
       verbose_fmt_print(0, 0, "# WARNING: SAFE_BUCKETS_SINGLE is on !\n");
 #endif
 
-    if (las.cpoly->nb_polys > 2) {
+    if (las.cpoly.nsides() > 2) {
         fmt::print(stderr, "las is only working with poly files with 1 or 2 sides\n");
         return EXIT_FAILURE;
     }
@@ -1558,8 +1558,8 @@ int main (int argc0, char const * argv0[])/*{{{*/
 
 
     /* These are sometimes looked up a bit late in the process */
-    sieve_shared_data::lookup_parameters(pl, las.cpoly->nb_polys);
-    batch_side_config::lookup_parameters(pl, las.cpoly->nb_polys);
+    sieve_shared_data::lookup_parameters(pl, las.cpoly.nsides());
+    batch_side_config::lookup_parameters(pl, las.cpoly.nsides());
 
     param_list_warn_unused(pl);
 
@@ -1640,7 +1640,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
 
         if (las.batch)
           {
-              int const nsides = las.cpoly->nb_polys;
+              int const nsides = las.cpoly.nsides();
 
               timetree_t batch_timer;
               auto z = call_dtor([&]() {
@@ -1665,7 +1665,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
                         batchP[side],
                         sc0.sides[side].lim,
                         1UL << batchlpb[side],
-                        las.cpoly->pols[side],
+                        las.cpoly[side],
                         main_output->output,
                         las.number_of_threads_loose(),
                         extra_time);

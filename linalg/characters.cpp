@@ -185,13 +185,13 @@ static uint64_t eval_64chars(
                 /* Special: sign */
                 int side;
                 if (chi.r == 2) {
-                    side = cado_poly_get_ratside(cpoly);
+                    side = cpoly.get_ratside();
                     ASSERT_ALWAYS(side != -1);
                 } else {
                     side = chi.r - 1024;
-                    ASSERT_ALWAYS(side < cpoly->nb_polys);
+                    ASSERT_ALWAYS(side < cpoly.nsides());
                 }
-                mpz_poly_srcptr po = cpoly->pols[side];
+                mpz_poly_srcptr po = cpoly[side];
                 int const deg = po->deg;
                 ASSERT_ALWAYS(deg > 0);
                 bool a_is_pos;
@@ -266,9 +266,9 @@ create_characters(
 
     int const nchars2 = iceildiv(nchars_tot, 64) * 64;
 
-    for (int side = 0; side < cpoly->nb_polys; ++side) {
-        if (cpoly->pols[side]->deg > (int) roots.size()) {
-            roots.resize(cpoly->pols[side]->deg);
+    for (int side = 0; side < cpoly.nsides(); ++side) {
+        if (cpoly[side]->deg > (int) roots.size()) {
+            roots.resize(cpoly[side]->deg);
         }
     }
     std::vector<alg_prime_t> chars(nchars2);
@@ -281,7 +281,7 @@ create_characters(
      * point, but nobody remembers the why and how. */
     chars[1] = (alg_prime_t) { .p = 0, .r = 3 };
     if (std::ranges::any_of(nchars, [](int nc) { return nc == 0; })) {
-        ASSERT_ALWAYS(cado_poly_get_ratside(cpoly) != -1);
+        ASSERT_ALWAYS(cpoly.get_ratside() != -1);
         /* force rational sign */
         chars[2] = (alg_prime_t) { .p = 0, .r = 2 };
         nspecchar++;
@@ -298,7 +298,7 @@ create_characters(
     cxx_gmp_randstate rstate;
 
     int i = nspecchar;
-    for (int side = 0; side < cpoly->nb_polys; ++side) {
+    for (int side = 0; side < cpoly.nsides(); ++side) {
         if (nchars[side] == 0)
             continue;
         mpz_set_ui (pp, 1UL << lpb[side]);
@@ -307,7 +307,7 @@ create_characters(
         do {
             mpz_nextprime(pp, pp);
             p = mpz_get_ui(pp);
-            ret = mpz_poly_roots_ulong (roots.data(), cpoly->pols[side], p,
+            ret = mpz_poly_roots_ulong (roots.data(), cpoly[side], p,
                                         rstate);
             for (int k = 0; k < ret && j < nchars[side] && i < nchars_tot;
                                                                 ++k, ++i, ++j) {
@@ -332,19 +332,19 @@ create_characters(
 static std::vector<alg_prime_t>
 create_sign_characters_only(cxx_cado_poly const & cpoly)
 {
-    std::vector<alg_prime_t> chars(iceildiv(cpoly->nb_polys, 64) * 64);
+    std::vector<alg_prime_t> chars(iceildiv(cpoly.nsides(), 64) * 64);
 
     for(unsigned long i = 0; i < chars.size() ; i++) {
-        if ((int) i < cpoly->nb_polys) { /* sign character for side i */
+        if ((int) i < cpoly.nsides()) { /* sign character for side i */
             chars[i] = (alg_prime_t) { .p = 0, .r = 1024 + i };
         } else { /* trivial character */
             chars[i] = (alg_prime_t) { .p = 0, .r = 0 };
         }
     }
-    if ((size_t) cpoly->nb_polys < chars.size()) {
+    if ((size_t) cpoly.nsides() < chars.size()) {
         fmt::print(stderr, "Note: total {} characters, including {} trivial "
                            "padding characters\n", chars.size(),
-                           chars.size()-cpoly->nb_polys);
+                           chars.size()-cpoly.nsides());
     }
 
     return chars;
@@ -710,10 +710,10 @@ int main(int argc, char const * argv[])
         param_list_print_usage (pl, argv0, stderr);
         exit (EXIT_FAILURE);
       }
-    cado_poly_read(cpoly, tmp);
-    if (cpoly->nb_polys < 1 || cpoly->nb_polys > 2) {
+    cpoly.read(tmp);
+    if (cpoly.nsides() < 1 || cpoly.nsides() > 2) {
         fmt::print(stderr, "Error: number of polys should be 1 or 2, got {}\n",
-                           cpoly->nb_polys);
+                           cpoly.nsides());
         exit (EXIT_FAILURE);
     }
 
@@ -724,22 +724,22 @@ int main(int argc, char const * argv[])
         exit (EXIT_FAILURE);
     }
 
-    if (only_sign_chars && nchars != cpoly->nb_polys) {
+    if (only_sign_chars && nchars != cpoly.nsides()) {
         fmt::print(stderr, "Error: with -only-sign-chars, -nchars should be "
                            "equal to the number of sides ({}), got {}\n",
-                           cpoly->nb_polys, nchars);
+                           cpoly.nsides(), nchars);
         exit (EXIT_FAILURE);
     }
 
     /* parse the optional -nratchars option */
     param_list_parse_int(pl, "nratchars", &nratchars);
-    if (nratchars && cado_poly_get_ratside(cpoly) == -1) { /* no rat side */
+    if (nratchars && cpoly.get_ratside() == -1) { /* no rat side */
         fmt::print(stderr, "Error: nratchars is non-zero ({}) but poly has no "
                            "rational side\n", nratchars);
         exit (EXIT_FAILURE);
     }
     /* parse lpb{side} for each side of cpoly */
-    for (int side = 0; side < cpoly->nb_polys; ++side) {
+    for (int side = 0; side < cpoly.nsides(); ++side) {
         std::string arg = fmt::format("lpb{}", side);
         if (param_list_parse_ulong(pl, arg.c_str(), &lpb[side]) == 0)
         {
@@ -765,9 +765,9 @@ int main(int argc, char const * argv[])
     if (only_sign_chars) {
         chars = create_sign_characters_only(cpoly);
     } else {
-        std::vector<int> nch(cpoly->nb_polys);
-        for (int side = 0; side < cpoly->nb_polys; ++side) {
-            nch[side] = cpoly->pols[side]->deg > 1 ? nchars : nratchars;
+        std::vector<int> nch(cpoly.nsides());
+        for (int side = 0; side < cpoly.nsides(); ++side) {
+            nch[side] = cpoly[side]->deg > 1 ? nchars : nratchars;
         }
         chars = create_characters (nch, cpoly, lpb);
     }

@@ -1,7 +1,10 @@
 #ifndef CADO_ROPT_STR_H
 #define CADO_ROPT_STR_H
+
+#include <memory>
+
 #include <gmp.h>
-#include <stdbool.h>    // for bool (in C)
+
 #include "cado_poly.hpp"
 #include "mpz_poly.h"
 
@@ -13,20 +16,30 @@
  * TODO: this should at least contain a cado_poly. The only reason not to
  * do it would be to save a pointer indirection for the pols member.
  */
-struct ropt_poly_s {
+struct ropt_poly {
   /* polynomial */
-  double alpha_proj;
-  mpz_t m;
-  cado_poly cpoly;
+  double alpha_proj = 0;
+  cxx_mpz m;
+  cxx_cado_poly cpoly;
 
-  /* polynomial values */
-  mpz_t *fx;
-  mpz_t *gx;
-  mpz_t *numerator;
+  ropt_poly();
+  ~ropt_poly() = default;
+  ropt_poly(ropt_poly &&) = default;
+  ropt_poly& operator=(ropt_poly &&) = default;
+  /*
+  ropt_poly(ropt_poly const&) = default;
+  ropt_poly& operator=(ropt_poly const&) = default;
+  */
+  void refresh();
+
+  /* polynomial values. Their number is ropt_primes[ROPT_NPRIMES-1]+1 */
+  std::unique_ptr<cxx_mpz[]> fx;
+  std::unique_ptr<cxx_mpz[]> gx;
+  std::unique_ptr<cxx_mpz[]> numerator;
 }; 
-typedef struct ropt_poly_s ropt_poly[1];
-typedef struct ropt_poly_s * ropt_poly_ptr;
-typedef const struct ropt_poly_s * ropt_poly_srcptr;
+// typedef struct ropt_poly_s ropt_poly[1];
+// typedef struct ropt_poly_s * ropt_poly_ptr;
+// typedef const struct ropt_poly_s * ropt_poly_srcptr;
 
 
 /**
@@ -213,26 +226,21 @@ extern "C" {
 #endif
 
 /* ropt_poly_t */
-void ropt_poly_init ( ropt_poly_ptr );
 
-void ropt_poly_refresh ( ropt_poly_ptr );
+void ropt_poly_setup ( ropt_poly & );
 
-void ropt_poly_setup ( ropt_poly_ptr );
-
-bool ropt_poly_setup_check ( ropt_poly_ptr );
-
-void ropt_poly_clear ( ropt_poly_ptr );
+bool ropt_poly_setup_check ( ropt_poly & );
 
 
 /* ropt_bound_t */
 void ropt_bound_init ( ropt_bound_ptr );
 
-void ropt_bound_setup ( ropt_poly_srcptr poly,
+void ropt_bound_setup ( ropt_poly const & poly,
                         ropt_bound_ptr bound,
                         ropt_param_ptr param,
                         double incr );
 
-void ropt_bound_setup_incr ( ropt_poly_srcptr poly,
+void ropt_bound_setup_incr ( ropt_poly const & poly,
                              ropt_bound_ptr bound,
                              ropt_param_ptr param,
                              double incr );
@@ -241,7 +249,7 @@ void ropt_bound_setup_incr ( ropt_poly_srcptr poly,
 double ropt_bound_expected_E (mpz_poly F, mpz_poly G);
 #endif
 
-void ropt_bound_reset ( ropt_poly_srcptr poly,
+void ropt_bound_reset ( ropt_poly const & poly,
                         ropt_bound_ptr bound,
                         ropt_param_srcptr param );
 
@@ -255,19 +263,19 @@ void ropt_s1param_setup_individual_nbest_sl (ropt_s1param_ptr s1param);
 
 void ropt_s1param_setup_individual_nbest_sl_tune (ropt_s1param_ptr s1param);
 
-void ropt_s1param_setup ( ropt_poly_srcptr poly,
+void ropt_s1param_setup ( ropt_poly const & poly,
                           ropt_s1param_ptr s1param,
                           ropt_bound_srcptr bound,
                           ropt_param_srcptr param);
 
-void ropt_s1param_resetup ( ropt_poly_srcptr poly,
+void ropt_s1param_resetup ( ropt_poly const & poly,
                             ropt_s1param_ptr s1param,
                             ropt_bound_srcptr bound,
                             ropt_param_srcptr param,
                             unsigned int nbest );
 
 void
-ropt_s1param_resetup_modbound ( ropt_poly_srcptr poly,
+ropt_s1param_resetup_modbound ( ropt_poly const & poly,
                                 ropt_s1param_ptr s1param,
                                 ropt_bound_srcptr bound,
                                 ropt_param_srcptr param,

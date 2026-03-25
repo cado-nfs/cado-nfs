@@ -289,15 +289,6 @@ needed:
 
   param_list_clear(pl);
 
-Before that, notice that cado_poly_read has been superseded by
-cado_poly_set_plist, to be used so:
-
-    cado_poly_init(cpoly);
-    if (!cado_poly_set_plist (cpoly, pl)) {
-        exit (EXIT_FAILURE);
-    }
-
-
 ###################################################################
 
 There is (yet) some more documentation text in params.h

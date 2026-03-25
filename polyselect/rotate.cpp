@@ -46,7 +46,7 @@ int main(int argc, char const * argv[])
 {
     char const ** argv0 = argv;
     int argc0 = argc;
-    cado_poly cpoly;
+    cxx_cado_poly cpoly;
     int I = 0;
     double skew = 0.0;
     param_list pl;
@@ -101,27 +101,24 @@ int main(int argc, char const * argv[])
     if (I != 0)
       area = bound_f * pow (2.0, (double) (2 * I - 1));
 
-    cado_poly_init (cpoly);
-    if (!cado_poly_read(cpoly, polyfilename)) {
+    if (!cpoly.read(polyfilename)) {
         fprintf(stderr, "Problem when reading file %s\n", argv[1]);
         usage(argv[0], NULL, pl);
     }
 
     if (skew != 0.0)
-      cpoly->skew = skew; /* command-line overrides skewness given in file (if any) */
+      cpoly.skew = skew; /* command-line overrides skewness given in file (if any) */
 
     /* If skewness is not given in file nor in command line, compute it. */
-    if (cpoly->skew == 0.0)
-      cpoly->skew = L2_combined_skewness2 (cpoly->pols[0], cpoly->pols[1]);
+    if (cpoly.skew == 0.0)
+      cpoly.skew = L2_combined_skewness2 (cpoly[0], cpoly[1]);
 
     /* Well, it's really very simple. */
 
-    mpz_poly_mul(rot, rot, cpoly->pols[RAT_SIDE]);
-    mpz_poly_add(cpoly->pols[ALG_SIDE], cpoly->pols[ALG_SIDE], rot);
+    mpz_poly_mul(rot, rot, cpoly[RAT_SIDE]);
+    mpz_poly_add(cpoly[ALG_SIDE], cpoly[ALG_SIDE], rot);
 
     print_cadopoly_extra (stdout, cpoly, argc0, argv0, 0);
-
-    cado_poly_clear(cpoly);
 
     param_list_clear(pl);
     mpz_clear(tmp);

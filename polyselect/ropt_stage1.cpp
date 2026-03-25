@@ -6,27 +6,27 @@
 
 #include "cado.h" // IWYU pragma: keep
 
-#include <stdio.h>      // fprintf stderr
-#include <stdlib.h> // free malloc exit
-#include <limits.h>     // LONG_MAX
-
+#include <stdio.h>
+#include <stdlib.h>
+#include <limits.h>
 
 #include <gmp.h>
 
-#include "auxiliary.hpp"  // get_alpha
+#include "auxiliary.hpp"
 #include "cado_poly.hpp"
 #include "macros.h"
 #include "mpz_poly.h"
+#include "polyselect_alpha.h"
 #include "polyselect_norms.h"
-#include "ropt_arith.hpp" // reduce_poly_ul ...
-#include "ropt_param.h" // TUNE_RATIO_STAGE1_FULL_ALPHA ...
+#include "ropt_arith.hpp"
+#include "ropt_param.h"
 #include "ropt_single_sublattice_priority_queue.h"
 #include "ropt_stage1.hpp"
-#include "ropt_str.hpp" // ropt_poly_t
+#include "ropt_str.hpp"
 #include "ropt_sublattice_crt.hpp"
 #include "ropt_sublattice_priority_queue.hpp"
-#include "ropt_tree.h" // node ...
-#include "timing.h"             // for milliseconds
+#include "ropt_tree.h"
+#include "timing.h"
 
 
 /**
@@ -227,7 +227,7 @@ find_sublattice_lift ( node *firstchild,
  */
 static inline void
 find_sublattice ( single_sublattice_priority_queue_ptr top,
-                  ropt_poly_srcptr poly,
+                  ropt_poly const & poly,
                   unsigned int p,
                   char e )
 {
@@ -250,19 +250,19 @@ find_sublattice ( single_sublattice_priority_queue_ptr top,
   for (r = 0; r < p; r ++) {
 
     /* skip these */
-    if (mpz_divisible_ui_p(poly->gx[r], p) != 0)
+    if (mpz_divisible_ui_p(poly.gx[r], p) != 0)
       continue;
 
     /* use single precision */
-    fx_ui = (unsigned int) mpz_fdiv_ui (poly->fx[r], p);
-    gx_ui = (unsigned int) mpz_fdiv_ui (poly->gx[r], p);
+    fx_ui = (unsigned int) mpz_fdiv_ui (poly.fx[r], p);
+    gx_ui = (unsigned int) mpz_fdiv_ui (poly.gx[r], p);
 
     for (u = 0; u < p; u ++) {
 
       /* u*g(r)^2 - f(r)g'(r) + f'(r)g(r) */
-      mpz_mul (tmp, poly->gx[r], poly->gx[r]);
+      mpz_mul (tmp, poly.gx[r], poly.gx[r]);
       mpz_mul_ui (tmp, tmp, u);
-      mpz_sub (tmp, tmp, poly->numerator[r]);
+      mpz_sub (tmp, tmp, poly.numerator[r]);
 
       /* compute v in f(r) + u*r*g(r) + v*g(r) = 0 (mod p) */
       v =  compute_v_ui (fx_ui, gx_ui, r, u, p);
@@ -337,7 +337,7 @@ find_sublattice ( single_sublattice_priority_queue_ptr top,
 
     /* data struct for the lift */
     unsigned int *f_ui, *g_ui, *fuv_ui;
-    int d = mpz_poly_degree(poly->cpoly->pols[1]);
+    int d = mpz_poly_degree(poly.cpoly[1]);
     f_ui = (unsigned int*) malloc ( (d + 1) * sizeof (unsigned int) );
     fuv_ui = (unsigned int*) malloc ( (d + 1) * sizeof (unsigned int) );
     g_ui = (unsigned int*) malloc ( 2 * sizeof (unsigned int) );
@@ -350,8 +350,8 @@ find_sublattice ( single_sublattice_priority_queue_ptr top,
     }
 
     /* compute f (mod pe) */
-    reduce_poly_uint (f_ui, poly->cpoly->pols[1], pe);
-    reduce_poly_uint (g_ui, poly->cpoly->pols[0], pe);
+    reduce_poly_uint (f_ui, poly.cpoly[1], pe);
+    reduce_poly_uint (g_ui, poly.cpoly[0], pe);
 
     find_sublattice_lift ( root->firstchild,
                            top,
@@ -401,7 +401,7 @@ return_combined_sublattice_check_tlen ( ropt_s1param_ptr s1param )
  * the separate (mod p) valuations are the best ones.
  */
 static inline int
-return_combined_sublattice ( ropt_poly_srcptr poly,
+return_combined_sublattice ( ropt_poly const & poly,
                              ropt_s1param_ptr s1param,
                              ropt_bound_srcptr bound,
                              sublattice_priority_queue_ptr pqueue,
@@ -495,7 +495,7 @@ return_combined_sublattice ( ropt_poly_srcptr poly,
  * by the size of u.
  */
 static inline int
-return_best_sublattice ( ropt_poly_srcptr poly,
+return_best_sublattice ( ropt_poly const & poly,
                          ropt_s1param_ptr s1param,
                          ropt_bound_ptr bound,
                          sublattice_priority_queue_ptr pqueue,
@@ -556,7 +556,7 @@ return_best_sublattice ( ropt_poly_srcptr poly,
  */
 struct transfer_to_alpha_priority_queue_arg {
     alpha_pq * alpha_pqueue;
-    cado_poly_srcptr cpoly;
+    cxx_cado_poly const * p_cpoly;
     int current_w;
 };
 
@@ -568,7 +568,8 @@ void transfer_to_alpha_priority_queue(mpz_srcptr u, mpz_srcptr v, mpz_srcptr mod
     mpz_poly Fuv;
     mpz_poly_init (Fuv, -1);
 
-    compute_fuv_mp ( Fuv, A->cpoly->pols[1], A->cpoly->pols[0], u, v);
+    auto const & cpoly = *A->p_cpoly;
+    compute_fuv_mp ( Fuv, cpoly[1], cpoly[0], u, v);
 
     double alpha_lat;
 
@@ -577,7 +578,7 @@ void transfer_to_alpha_priority_queue(mpz_srcptr u, mpz_srcptr v, mpz_srcptr mod
     alpha_lat = L2_skew_lognorm (Fuv);
     alpha_lat += get_alpha (Fuv, get_alpha_bound ());
 #else
-    //alpha_lat = get_alpha (fuv, poly->d, primes[s1param->tlen_e_sl-1]);
+    //alpha_lat = get_alpha (fuv, poly.d, primes[s1param->tlen_e_sl-1]);
     alpha_lat = get_alpha (Fuv, get_alpha_bound ());
 #endif
 
@@ -606,7 +607,7 @@ void transfer_to_alpha_priority_queue(mpz_srcptr u, mpz_srcptr v, mpz_srcptr mod
  * Stage 1: record good sublattices to "alpha_pqueue".
  */
 int
-ropt_stage1 ( ropt_poly_srcptr poly,
+ropt_stage1 ( ropt_poly const & poly,
               ropt_bound_ptr bound,
               ropt_s1param_ptr s1param,
               ropt_param_srcptr param,
@@ -652,7 +653,7 @@ ropt_stage1 ( ropt_poly_srcptr poly,
   
   struct transfer_to_alpha_priority_queue_arg arg[1];
   arg->alpha_pqueue = alpha_pqueue;
-  arg->cpoly = poly->cpoly;
+  arg->p_cpoly = & poly.cpoly;
   arg->current_w = current_w;
 
   sublattice_priority_queue_do(pqueue, transfer_to_alpha_priority_queue, arg);

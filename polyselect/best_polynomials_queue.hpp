@@ -21,9 +21,9 @@ void best_polynomials_queue_clear(best_polynomials_queue_ptr b);
 double best_polynomials_queue_get_best_score(best_polynomials_queue_srcptr b);
 double best_polynomials_queue_get_worst_score(best_polynomials_queue_srcptr b);
 size_t best_polynomials_queue_get_count(best_polynomials_queue_srcptr b);
-void best_polynomials_queue_try_push(best_polynomials_queue_ptr b, cado_poly_srcptr cpoly, double score);
+void best_polynomials_queue_try_push(best_polynomials_queue_ptr b, cxx_cado_poly const & cpoly, double score);
 void best_polynomials_queue_print(best_polynomials_queue_srcptr b, FILE *, const char * prefix);
-void best_polynomials_queue_do(best_polynomials_queue_srcptr b, void (*f)(int, double, cado_poly_ptr, void *), void *arg);
+void best_polynomials_queue_do(best_polynomials_queue_srcptr b, void (*f)(int, double, cxx_cado_poly &, void *), void *arg);
 
 #ifdef __cplusplus
 }

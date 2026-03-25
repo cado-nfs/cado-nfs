@@ -77,24 +77,16 @@ typedef struct cado_poly_stats_s * cado_poly_stats_ptr;
 typedef const struct cado_poly_stats_s * cado_poly_stats_srcptr;
 
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 extern void cado_poly_stats_init(cado_poly_stats_ptr spoly, int nb_polys);
 extern void cado_poly_stats_clear(cado_poly_stats_ptr spoly);
 
 /* returns the average exp_E for nonlinear polynomials */
-extern double cado_poly_compute_expected_stats(cado_poly_stats_ptr, cado_poly_srcptr cpoly);
+extern double cado_poly_compute_expected_stats(cado_poly_stats_ptr, cxx_cado_poly const & cpoly);
 
 /* returns the average of E=lognorm+alpha for nonlinear polynomials */
-extern double cado_poly_compute_stats(cado_poly_stats_ptr, cado_poly_srcptr cpoly);
+extern double cado_poly_compute_stats(cado_poly_stats_ptr, cxx_cado_poly const & cpoly);
 
-extern void cado_poly_fprintf_stats(FILE * fp, const char * prefix, cado_poly_srcptr cpoly, cado_poly_stats_srcptr spoly);
-
-#ifdef __cplusplus
-}
-#endif
+extern void cado_poly_fprintf_stats(FILE * fp, const char * prefix, cxx_cado_poly const & cpoly, cado_poly_stats_srcptr spoly);
 
 /* The maximum degree supported is MAX_DEGREE, as defined in cado_poly.hpp */
 
@@ -105,25 +97,27 @@ typedef struct
   double kmin, kmax;
 } rotation_space;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* alpha */
 double special_valuation (mpz_poly_srcptr f, unsigned long p, mpz_srcptr disc, gmp_randstate_ptr rstate);
 double special_valuation_affine (mpz_poly_srcptr f, unsigned long p, mpz_srcptr disc, gmp_randstate_ptr rstate);
+
+/*
+ * Those are in polyselect_alpha.h now
 double get_alpha (mpz_poly_srcptr, unsigned long);
 double get_alpha_projective (mpz_poly_srcptr f, unsigned long B);
 double get_alpha_affine (mpz_poly_srcptr f, unsigned long B);
 double get_alpha_affine_p (mpz_poly_srcptr f, unsigned long p, gmp_randstate_ptr rstate);
+void set_alpha_bound (unsigned long bound);
+unsigned long get_alpha_bound ();
+*/
 
 /* poly info, being called in order */
 void print_cadopoly_fg (FILE*, mpz_poly_srcptr, mpz_poly_srcptr, mpz_srcptr);
-double print_cadopoly (FILE*, cado_poly_srcptr);
-void print_cadopoly_extra (FILE*, cado_poly, int, char const **, double);
+double print_cadopoly (FILE*, cxx_cado_poly const &);
+void print_cadopoly_extra (FILE*, cxx_cado_poly const &, int, char const **, double);
 double print_poly_fg (mpz_poly_srcptr, mpz_poly_srcptr, mpz_srcptr, int);
 
-void cado_poly_set_skewness_if_undefined(cado_poly_ptr cpoly);
+void cado_poly_set_skewness_if_undefined(cxx_cado_poly & cpoly);
 long rotate_aux (mpz_poly_ptr f, mpz_poly_srcptr, long k0, long k, unsigned int t);
 void rotate_auxg_z (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_srcptr k, unsigned int t) __attribute__((deprecated));
 
@@ -132,12 +126,6 @@ double expected_rotation_gain (mpz_poly_srcptr f, mpz_poly_srcptr g);
 void expected_growth (rotation_space *r, mpz_poly_srcptr f, mpz_poly_srcptr g,
                       int i, double maxlognorm, double skew);
 
-void set_alpha_bound (unsigned long bound);
-unsigned long get_alpha_bound (void);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif	/* CADO_POLYSELECT_AUXILIARY_H */
 

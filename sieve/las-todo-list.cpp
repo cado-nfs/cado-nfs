@@ -70,12 +70,12 @@ todo_list_base::todo_list_base(cxx_cado_poly const & cpoly, cxx_param_list & pl)
         param_list_parse(pl, "nq", nq_max);
     }
 
-    sqside = cpoly->nb_polys == 1 ? 0 : 1;
-    if (!param_list_parse_int(pl, "sqside", &sqside) && cpoly->nb_polys > 1) {
+    sqside = cpoly.nsides() == 1 ? 0 : 1;
+    if (!param_list_parse_int(pl, "sqside", &sqside) && cpoly.nsides() > 1) {
         verbose_fmt_print(0, 1, "# Warning: sqside not given, "
                 "assuming side 1 for backward compatibility.\n");
     }
-    ASSERT_ALWAYS(sqside >= 0 && sqside < cpoly->nb_polys);
+    ASSERT_ALWAYS(sqside >= 0 && sqside < cpoly.nsides());
 
     /* Init and parse info regarding work to be done by the siever */
     /* Actual parsing of the command-line fragments is done within
@@ -148,7 +148,7 @@ bool todo_list_base::feed_qlist()
     if (!is || (!is.eof() && (is >> tail, !is_comment(tail))))
         throw std::runtime_error(
                 fmt::format("parse error in todo file while reading {}", line));
-    auto const & f = cpoly->pols[side];
+    auto const & f = cpoly[side];
     /* specifying the rational root as <0
      * means that it must be recomputed. Putting 0 does not have this
      * effect, since it is a legitimate value after all.
@@ -292,7 +292,7 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
                 fprintf(stderr, "Error: q0 is not a legitimate special-q\n");
                 exit(EXIT_FAILURE);
             }
-            std::vector<cxx_mpz> roots = mpz_poly_roots(cpoly->pols[sqside], q0, fac_q, rstate);
+            std::vector<cxx_mpz> roots = mpz_poly_roots(cpoly[sqside], q0, fac_q, rstate);
             if (std::ranges::find(roots, rho) == roots.end()) {
                 fprintf(stderr, "Error: rho is not a root modulo q0\n");
                 exit(EXIT_FAILURE);
@@ -328,7 +328,7 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
             const std::vector<uint64_t> fac_q = next_legitimate_specialq(q, q, 0);
             if (mpz_cmp(q, q1) >= 0)
                 continue;
-            if (!mpz_poly_roots(cpoly->pols[sqside], q, fac_q, rstate).empty())
+            if (!mpz_poly_roots(cpoly[sqside], q, fac_q, rstate).empty())
                 break;
             /* small optimization: avoid redoing root finding
              * several times */
@@ -394,7 +394,7 @@ bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
     if (!super::empty())
         return true;
 
-    mpz_poly_ptr f = cpoly->pols[sqside];
+    mpz_poly_ptr f = cpoly[sqside];
 
     if (!random_sampling) {
         /* We're going to process the sq's and put them into the list
@@ -691,7 +691,7 @@ special_q siqs_todo_list::special_q_from_index(cxx_mpz const & idx,
 
 uint64_t siqs_todo_list::get_qfac_prime(uint64_t i) {
     cxx_mpz D;
-    mpz_neg(D, mpz_poly_coeff_const(cpoly->pols[0], 0));
+    mpz_neg(D, mpz_poly_coeff_const(cpoly[0], 0));
     while (i >= qfac_primes.size()) {
         cxx_mpz p;
         if (qfac_primes.empty()) {

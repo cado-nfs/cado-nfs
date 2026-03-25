@@ -28,7 +28,7 @@ unsigned int eval_poly_ui_mod ( unsigned int *f,
                                 unsigned int r,
                                 unsigned int pe );
 
-void Lemma21 ( ropt_poly_ptr poly,
+void Lemma21 ( ropt_poly & poly,
                mpz_t N,
                int d,
                mpz_srcptr ad,

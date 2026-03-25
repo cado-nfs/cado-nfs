@@ -242,7 +242,7 @@ struct logtab {// {{{
         , cpoly(cpoly)
         , sm_info(sm_info)
     {
-        for (int side = 0; side < cpoly->nb_polys; side++) {
+        for (int side = 0; side < cpoly.nsides(); side++) {
             nbsm += sm_info[side].nsm;
         }
         data = std::make_unique<mp_limb_t[]>((nprimes + nbsm) * mpz_size(ell));
@@ -472,7 +472,7 @@ static void * thread_sm(void * context_data, earlyparsed_relation_ptr rel)
     uint64_t const b = rel->b;
 
     uint64_t nonvoidside = 0; /* bit vector of which sides appear in the rel */
-    if (data.cpoly->nb_polys > 2) {
+    if (data.cpoly.nsides() > 2) {
         for (weight_t i = 0; i < rel->nb; i++) {
             index_t const h = rel->primes[i].h;
             int const side = data.renum_tab.p_r_from_index(h).side;
@@ -485,7 +485,7 @@ static void * thread_sm(void * context_data, earlyparsed_relation_ptr rel)
          * for it. */
         ASSERT_ALWAYS(nonvoidside & (nonvoidside - 1));
         /* one thing we might do at this point is recompute the norm from
-         * a, b, and data.cpoly->pols[side], and see if we get \pm1.
+         * a, b, and data.cpoly[side], and see if we get \pm1.
          */
     } else {
         nonvoidside = 3;
@@ -496,7 +496,7 @@ static void * thread_sm(void * context_data, earlyparsed_relation_ptr rel)
          * because some goodwill computed them for us.
          */
         int c = 0;
-        for (int side = 0; side < data.cpoly->nb_polys; side++) {
+        for (int side = 0; side < data.cpoly.nsides(); side++) {
             sm_side_info const & S = data.sm_info[side];
             if (S.nsm > 0 && (nonvoidside & (((uint64_t)1) << side))) {
 #define xxxDOUBLECHECK_SM
@@ -533,7 +533,7 @@ static void * thread_sm(void * context_data, earlyparsed_relation_ptr rel)
         }
     } else {
         mpz_srcptr ell = data.log.ell;
-        for (int side = 0; side < data.cpoly->nb_polys; side++) {
+        for (int side = 0; side < data.cpoly.nsides(); side++) {
             sm_side_info const & S = data.sm_info[side];
             if (S.nsm > 0 && (nonvoidside & (((uint64_t)1) << side))) {
                 cxx_mpz_poly u;
@@ -1269,23 +1269,23 @@ int main(int argc, char const * argv[])
                         "-partial is not set\n");
     }
 
-    if (!cado_poly_read(cpoly, polyfilename)) {
+    if (!cpoly.read(polyfilename)) {
         fmt::print(stderr, "Error reading polynomial file\n");
         exit(EXIT_FAILURE);
     }
 
     /* Read number of sm to be printed from command line */
-    std::vector<int> nsm_arg(cpoly->nb_polys, -1);
+    std::vector<int> nsm_arg(cpoly.nsides(), -1);
     param_list_parse_int_args_per_side(pl, "nsm", nsm_arg.data(),
-                                       cpoly->nb_polys,
+                                       cpoly.nsides(),
                                        ARGS_PER_SIDE_DEFAULT_AS_IS);
 
-    for (int side = 0; side < cpoly->nb_polys; side++) {
+    for (int side = 0; side < cpoly.nsides(); side++) {
         if (nsm_arg[side] < 0)
             continue;
-        if (nsm_arg[side] > cpoly->pols[side]->deg) {
+        if (nsm_arg[side] > cpoly[side]->deg) {
             fmt::print(stderr, "Error: nsm{}={} can not exceed the degree={}\n",
-                    side, nsm_arg[side], cpoly->pols[side]->deg);
+                    side, nsm_arg[side], cpoly[side]->deg);
             exit(EXIT_FAILURE);
         }
     }
@@ -1301,11 +1301,11 @@ int main(int argc, char const * argv[])
 
     /* Init data for computation of the SMs. */
     std::vector<sm_side_info> sm_info;
-    for (int side = 0; side < cpoly->nb_polys; side++) {
-        sm_info.emplace_back(cpoly->pols[side], ell, 0);
+    for (int side = 0; side < cpoly.nsides(); side++) {
+        sm_info.emplace_back(cpoly[side], ell, 0);
         sm_info[side].set_mode(sm_mode_string);
         fmt::print(stdout, "\n# Polynomial on side {}:\n# F[{}] = ", side, side);
-        mpz_poly_fprintf(stdout, cpoly->pols[side]);
+        mpz_poly_fprintf(stdout, cpoly[side]);
         fmt::print("# SM info on side {}:\n", side);
         sm_info[side].print(stdout);
         if (nsm_arg[side] >= 0)
@@ -1348,7 +1348,7 @@ int main(int argc, char const * argv[])
 
     if (logformat == NULL || strcmp(logformat, "LA") == 0)
         read_log_format_LA(log, logfilename, idealsfilename, sm_info,
-                           cpoly->nb_polys);
+                           cpoly.nsides());
     else
         read_log_format_reconstruct(log, renumber_table, logfilename);
 

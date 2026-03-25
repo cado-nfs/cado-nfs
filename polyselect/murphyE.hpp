@@ -31,7 +31,7 @@ extern "C" {
 
 #define MURPHY_K 1000
 
-double MurphyE (cado_poly_srcptr cpoly, double Bf, double Bg, double area, int K,
+double MurphyE (cxx_cado_poly const & cpoly, double Bf, double Bg, double area, int K,
                 unsigned long B);
 
 #ifdef __cplusplus

@@ -6,18 +6,10 @@
 
 /* -- declarations -- */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-void ropt_quadratic ( ropt_poly_ptr rs,
+void ropt_quadratic ( ropt_poly & rs,
                       ropt_bestpoly_ptr bestpoly,
                       ropt_param_ptr param,
                       ropt_info_ptr info);
-
-#ifdef __cplusplus
-}
-#endif
 
 
 

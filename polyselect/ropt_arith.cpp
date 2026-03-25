@@ -331,7 +331,7 @@ reduce_poly_uint ( unsigned int *f_ui,
  * determined as a[d] = N/m^d (mod p).
  */
 void
-Lemma21 ( ropt_poly_ptr poly,
+Lemma21 ( ropt_poly & poly,
           mpz_t N,
           int d,
           mpz_srcptr ad,
@@ -342,8 +342,8 @@ Lemma21 ( ropt_poly_ptr poly,
   mpz_t r, mi, invp, l, ln;
   int i;
 
-  mpz_poly_ptr F = poly->cpoly->pols[1];
-  mpz_poly_ptr G = poly->cpoly->pols[0];
+  mpz_poly_ptr F = poly.cpoly[1];
+  mpz_poly_ptr G = poly.cpoly[0];
 
   /* very basic settings inside the ropt_poly structure */
 
@@ -355,7 +355,7 @@ Lemma21 ( ropt_poly_ptr poly,
 
   /* Set in the ropt_poly structure the fields that derive directly from
    * our arguments */
-  mpz_set(poly->cpoly->n, N);
+  mpz_set(poly.cpoly.n, N);
   mpz_poly_set_zero(F);
   mpz_poly_setcoeff(F, d, ad);
   mpz_poly_set_mpz_ab(G, m, p); /* sets to m-px */

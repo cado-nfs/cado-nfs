@@ -16,77 +16,50 @@
 #include "params.h"
 #include "verbose.h"
 #include "polyselect_norms.h"
+#include "polyselect_alpha.h"
 
-typedef struct {
-  cado_poly cpoly;
-  mpz_t m;
-  mpz_t p;  // common root is m/p mod N
-  mpz_t skew;
-  double E;
-} cado_poly_extended_s;
+#include "cxx_mpz.hpp"
 
-typedef cado_poly_extended_s cado_poly_extended[1];
-typedef cado_poly_extended_s *cado_poly_extended_ptr;
+struct cado_poly_extended : public cxx_cado_poly {
+  cxx_mpz m = -1, p = 0;
+  cxx_mpz skew = 1;
+  double E = 0;
+  cxx_cado_poly const & cpoly() const { return *this; }
+};
 
 void
-cado_poly_extended_init (cado_poly_extended poly)
+cado_poly_set2 (cxx_cado_poly & cpoly, mpz_poly f, mpz_poly g, mpz_t N, 
+                cxx_mpz const & skew)
 {
-  cado_poly_init (poly->cpoly);
-  cado_poly_provision_new_poly (poly->cpoly);
-  cado_poly_provision_new_poly (poly->cpoly);
-  mpz_init (poly->m);
-  mpz_init (poly->p);
-  mpz_init (poly->skew);
-  poly->E = 0.0;
+  for( ; cpoly.nsides() < 2 ; )
+      cpoly.provision_new_poly();
+  cpoly[0] = f;
+  cpoly[1] = g;
+  cpoly.n = N;
+  cpoly.skew = mpz_get_d (skew);
 }
 
 void
-cado_poly_extended_clear (cado_poly_extended poly)
-{
-  cado_poly_clear (poly->cpoly);
-  mpz_clear (poly->m);
-  mpz_clear (poly->p);
-  mpz_clear (poly->skew);
-  poly->E = 0.0;
-}
-
-void
-cado_poly_set2 (cado_poly_ptr cpoly, mpz_poly f, mpz_poly g, mpz_t N, 
-                mpz_t skew)
-{
-  for( ; cpoly->nb_polys < 2 ; )
-      cado_poly_provision_new_poly(cpoly);
-  mpz_poly_set (cpoly->pols[0], f);
-  mpz_poly_set (cpoly->pols[1], g);
-  mpz_set (cpoly->n, N);
-  cpoly->skew = mpz_get_d (skew);
-}
-
-void
-cado_poly_extended_set (cado_poly_extended poly, mpz_poly f, mpz_poly g,
+cado_poly_extended_set (cado_poly_extended & poly, mpz_poly f, mpz_poly g,
                         mpz_t N, mpz_t p, mpz_t skew, double E, mpz_t m)
 {
-  mpz_poly_set (poly->cpoly->pols[0], f);
-  mpz_poly_set (poly->cpoly->pols[1], g);
-  mpz_set (poly->cpoly->n, N);
-  poly->cpoly->skew = mpz_get_d (skew);
-
-  mpz_set (poly->p, p);
-  mpz_set (poly->skew, skew);
-  poly->E = E;
-  mpz_set(poly->m, m);
+    cado_poly_set2(poly, f, g, N, skew);
+    poly.p = p;
+    poly.skew = skew;
+    poly.E = E;
+    poly.m = m;
 }
 
 double
-cado_poly_extended_get_E (cado_poly_extended poly)
+cado_poly_extended_get_E (cado_poly_extended const & poly)
 {
-  return poly->E;
+  return poly.E;
 }
 
 void cado_poly_extended_print_cado_format(FILE *out, cado_poly_extended poly,
     mpz_srcptr N) {
-  mpz_poly_ptr f0 = poly->cpoly->pols[0];
-  mpz_poly_ptr f1 = poly->cpoly->pols[1];
+  mpz_poly_ptr f0 = poly[0];
+  mpz_poly_ptr f1 = poly[1];
 
   gmp_fprintf(out, "n: %Zd\n", N);
   for (int i = 0; i < 3; i++)
@@ -97,16 +70,16 @@ void cado_poly_extended_print_cado_format(FILE *out, cado_poly_extended poly,
 }
 
 void
-cado_poly_extended_print (FILE *out, cado_poly_extended poly, const char *pre)
+cado_poly_extended_print (FILE *out, cado_poly_extended const & poly, const char *pre)
 {
   mpz_t tmp;
   mpz_init (tmp);
-  double s = poly->cpoly->skew;
+  double s = poly.cpoly().skew;
 
-  mpz_poly_ptr f0 = poly->cpoly->pols[0];
-  mpz_poly_ptr f1 = poly->cpoly->pols[1];
+  cxx_mpz_poly const & f0 = poly[0];
+  cxx_mpz_poly const & f1 = poly[1];
 
-  gmp_fprintf (out, "%sN = %Zd\n", pre, poly->cpoly->n);
+  gmp_fprintf (out, "%sN = %Zd\n", pre, (mpz_srcptr) poly.n);
 
   fprintf(out, "%sf0 = ", pre);
   mpz_poly_fprintf (out, f0);
@@ -115,17 +88,17 @@ cado_poly_extended_print (FILE *out, cado_poly_extended poly, const char *pre)
 
   if (f0->deg != -1 && f1->deg != -1)
   {
-    fprintf (out, "%sE = %e\n", pre, poly->E);
+    fprintf (out, "%sE = %e\n", pre, poly.E);
     fprintf (out, "%salpha_f0 = %.2f\n", pre, get_alpha (f0, get_alpha_bound ()));
     fprintf (out, "%salpha_f1 = %.2f\n", pre, get_alpha (f1, get_alpha_bound ()));
     fprintf (out, "%sskew_f0 = %.2f\n", pre, L2_skewness (f0));
     fprintf (out, "%sskew_f1 = %.2f\n", pre, L2_skewness (f1));
-    gmp_fprintf (out, "%sskewness = %Zd\n", pre, poly->skew);
+    gmp_fprintf (out, "%sskewness = %Zd\n", pre, (mpz_srcptr) poly.skew);
     fprintf (out, "%sL2_skew_norm_f0 = %.2f\n", pre, L2_lognorm (f0, s));
     fprintf (out, "%sL2_skew_norm_f1 = %.2f\n", pre, L2_lognorm (f1, s));
-    gmp_fprintf (out, "%sp = %Zd\n", pre, poly->p);
-    gmp_fprintf (out, "%sm = %Zd\n", pre, poly->m);
-    mpz_mod (tmp, poly->m, poly->p);
+    gmp_fprintf (out, "%sp = %Zd\n", pre, (mpz_srcptr) poly.p);
+    gmp_fprintf (out, "%sm = %Zd\n", pre, (mpz_srcptr) poly.m);
+    mpz_mod (tmp, poly.m, poly.p);
     gmp_fprintf (out, "%sr = %Zd\n", pre, tmp);
   }
 
@@ -449,13 +422,10 @@ int main(int argc, char const * argv[])
    prime number P which gave it
  */
   cado_poly_extended best_poly, poly;
-  cado_poly cur_poly;
+  cxx_cado_poly cur_poly;
   mpz_t P, sqrtN, r, m, skew_used;
   mpz_poly f, g;
 
-  cado_poly_extended_init (best_poly);
-  cado_poly_extended_init (poly);
-  cado_poly_init (cur_poly);
   mpz_init(P);
   mpz_init(sqrtN);
   mpz_init(r);
@@ -520,9 +490,6 @@ int main(int argc, char const * argv[])
   mpz_poly_clear (f);
   mpz_poly_clear (g);
 
-  cado_poly_clear (cur_poly);
-  cado_poly_extended_clear (poly);
-  cado_poly_extended_clear (best_poly);
   mpz_clear (N);
   mpz_clear (skew_used);
   mpz_clear (max_skewness);

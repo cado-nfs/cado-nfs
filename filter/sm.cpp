@@ -335,7 +335,7 @@ int main(int argc, char const ** argv)
     }
 
     /* Init polynomial */
-    if (!cado_poly_read(cpoly, polyfile)) {
+    if (!cpoly.read(polyfile)) {
         if (idoio) {
             fprintf(stderr, "Error reading polynomial file\n");
         }
@@ -344,16 +344,16 @@ int main(int argc, char const ** argv)
 
     /* negative value means that the value that will be used is the value
      * computed later by sm_side_info_init */
-    std::vector<int> nsm_arg(cpoly->nb_polys, -1);
+    std::vector<int> nsm_arg(cpoly.nsides(), -1);
     /* Read number of sm to be printed from command line */
     param_list_parse_int_args_per_side(pl, "nsm", nsm_arg.data(),
-                                       cpoly->nb_polys,
+                                       cpoly.nsides(),
                                        ARGS_PER_SIDE_DEFAULT_AS_IS);
 
-    std::vector<mpz_poly_srcptr> F(cpoly->nb_polys);
+    std::vector<mpz_poly_srcptr> F(cpoly.nsides());
 
-    for (int side = 0; side < cpoly->nb_polys; side++) {
-        F[side] = cpoly->pols[side];
+    for (int side = 0; side < cpoly.nsides(); side++) {
+        F[side] = cpoly[side];
         if (nsm_arg[side] > F[side]->deg) {
             if (idoio) {
                 fprintf(stderr,
@@ -383,12 +383,12 @@ int main(int argc, char const ** argv)
 
     std::vector<sm_side_info> sm_info;
 
-    for (int side = 0; side < cpoly->nb_polys; side++) {
+    for (int side = 0; side < cpoly.nsides(); side++) {
         sm_info.emplace_back(F[side], ell, 0);
         sm_info[side].set_mode(sm_mode_string);
     }
 
-    for (int side = 0; side < cpoly->nb_polys; side++) {
+    for (int side = 0; side < cpoly.nsides(); side++) {
         if (idoio) {
             fprintf(stdout, "\n# Polynomial on side %d:\n# F[%d] = ", side,
                     side);
@@ -426,7 +426,7 @@ int main(int argc, char const ** argv)
     // desactivate the corresponding computations.
     // (note that it does not seem to be a good idea to forcibly deactivate
     // the SMs on a given side, I think).
-    for (int side = 0; side < cpoly->nb_polys; ++side) {
+    for (int side = 0; side < cpoly.nsides(); ++side) {
         if (sm_info[side].nsm == 0) {
             F[side] = nullptr;
         }
@@ -459,13 +459,13 @@ int main(int argc, char const ** argv)
             part_rels[i] = rels[i * size];
             for (int j = 1; j < size; ++j) {
                 if (i * size + j < nb_relsets)
-                    MPI_Send_relset(rels[i * size + j], j, cpoly->nb_polys);
+                    MPI_Send_relset(rels[i * size + j], j, cpoly.nsides());
             }
         }
     } else {
         for (uint64_t i = 0; i < nb_parts; ++i) {
             if (i * size + rank < nb_relsets)
-                MPI_Recv_relset(part_rels[i], 0, cpoly->nb_polys);
+                MPI_Recv_relset(part_rels[i], 0, cpoly.nsides());
         }
     }
 
@@ -476,7 +476,7 @@ int main(int argc, char const ** argv)
     // nb_parts vectors of nb_polys polynomials
     std::vector<std::vector<cxx_mpz_poly>> dst;
     dst.assign(nb_parts,
-               std::vector<cxx_mpz_poly>(cpoly->nb_polys, cxx_mpz_poly()));
+               std::vector<cxx_mpz_poly>(cpoly.nsides(), cxx_mpz_poly()));
 
     /* updated only by thread 0 */
     uint64_t count_processed_sm = 0;
@@ -498,7 +498,7 @@ int main(int argc, char const ** argv)
 #pragma omp for schedule(static)
 #endif
         for (uint64_t i = 0; i < nb_relsets; i++) {
-            for (int side = 0; side < cpoly->nb_polys; side++) {
+            for (int side = 0; side < cpoly.nsides(); side++) {
                 if (sm_info[side].nsm == 0)
                     continue;
                 mpz_poly_reduce_frac_mod_f_mod_mpz(
@@ -528,23 +528,23 @@ int main(int argc, char const ** argv)
     if (rank != 0) { // sender
         for (uint64_t i = 0; i < nb_parts; ++i) {
             if (i * size + rank < nb_relsets)
-                MPI_Send_res(dst[i], 0, sm_info, cpoly->nb_polys);
+                MPI_Send_res(dst[i], 0, sm_info, cpoly.nsides());
         }
     } else { // rank 0 receives and prints. (round Robin again)
         FILE * out = outfile ? fopen(outfile, "w") : stdout;
         ASSERT_ALWAYS(out != nullptr);
         int nsm_total = 0;
-        for (int side = 0; side < cpoly->nb_polys; side++) {
+        for (int side = 0; side < cpoly.nsides(); side++) {
             nsm_total += sm_info[side].nsm;
         }
         fmt::print(out, "{} {} {}\n", nb_relsets, nsm_total, ell);
-        std::vector<cxx_mpz_poly> res(cpoly->nb_polys);
+        std::vector<cxx_mpz_poly> res(cpoly.nsides());
         for (uint64_t i = 0; i < nb_parts; ++i) {
-            print_all_sm(out, sm_info, cpoly->nb_polys, dst[i]);
+            print_all_sm(out, sm_info, cpoly.nsides(), dst[i]);
             for (int j = 1; j < size; ++j) {
                 if (i * size + j < nb_relsets) {
-                    MPI_Recv_res(res, j, sm_info, cpoly->nb_polys);
-                    print_all_sm(out, sm_info, cpoly->nb_polys, res);
+                    MPI_Recv_res(res, j, sm_info, cpoly.nsides());
+                    print_all_sm(out, sm_info, cpoly.nsides(), res);
                 }
             }
         }

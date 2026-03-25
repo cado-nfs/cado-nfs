@@ -167,7 +167,7 @@ class nfs_aux {/*{{{*/
         : las(las)   /* shame... */
         , doing(doing)
         , rel_hash_p(rel_hash_p)
-        , checksum_post_sieve(las.cpoly->nb_polys)
+        , checksum_post_sieve(las.cpoly.nsides())
         , th(nthreads)
           //, thread_data(*this))
         , qt0(seconds())

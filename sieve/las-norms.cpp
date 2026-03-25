@@ -221,7 +221,7 @@ void lognorm_base::ctor_common(siever_config const & sc,
 {
     /* This is checked for in choose_sieve_area. Homographies with a
      * degree drop are always discarded */
-    ASSERT_ALWAYS(fij->deg == cpoly->pols[side]->deg);
+    ASSERT_ALWAYS(fij->deg == cpoly[side]->deg);
 
     int const hI = 1 << (logI-1);
 
@@ -947,7 +947,7 @@ void sieve_range_adjust::prepare_fijd()/*{{{*/
      * done several times in the computation, but that's a trivial
      * computation anyway.
      */
-    int const nsides = cpoly->nb_polys;
+    int const nsides = cpoly.nsides();
     fijd.reserve(nsides);
     for (int side = 0; side < nsides; side++) {
         fijd.emplace_back(
@@ -992,21 +992,21 @@ sieve_range_adjust::sieve_info_update_norm_data_Jmax (bool keep_logI)
       logI = (logA+1)/2;
   const auto I = (double) (1 << logI);
   const double q = mpz_get_d(Q.doing.p);
-  const double skew = cpoly->skew;
+  const double skew = cpoly.skew;
   const double A = (1 << logI)*sqrt(q*skew);
   const double B = (1 << (logA - logI))*sqrt(q/skew);
   double Jmax = (1 << (logA - logI));
 
   prepare_fijd();
-  int const nsides = cpoly->nb_polys;
+  int const nsides = cpoly.nsides();
 
   for (int side = 0; side < nsides; side++)
     {
       /* Compute the best possible maximum norm, i.e., assuming a nice
          circular sieve region in the a,b-plane */
-      polynomial<double> dpoly(cpoly->pols[side]);
+      polynomial<double> dpoly(cpoly[side]);
       if (Q.sublat.m > 0)
-          dpoly *= pow(Q.sublat.m, cpoly->pols[side]->deg);
+          dpoly *= pow(Q.sublat.m, cpoly[side]->deg);
       double maxnorm = get_maxnorm_circular (dpoly, fudge_factor*A/2.,
               fudge_factor*B);
       if (side == Q.doing.side)
@@ -1075,7 +1075,7 @@ qlattice_basis operator*(sieve_range_adjust::mat<int> const& m, qlattice_basis c
  */
 double sieve_range_adjust::estimate_yield_in_sieve_area(mat<int> const& shuffle, int squeeze, unsigned int N)
 {
-    int const nsides = cpoly->nb_polys;
+    int const nsides = cpoly.nsides();
     int const nx = 1 << (N - squeeze);
     int const ny = 1 << (N + squeeze);
 
@@ -1298,7 +1298,7 @@ int sieve_range_adjust::sieve_info_adjust_IJ()/*{{{*/
      * So we're going to start by the previous approach, and adjust it in
      * a second step.
      */
-    const double skew = cpoly->skew;
+    const double skew = cpoly.skew;
     const double rt_skew = sqrt(skew);
     verbose_fmt_print(0, 3,
             "# Called sieve_info_adjust_IJ(p={}, skew={})\n",

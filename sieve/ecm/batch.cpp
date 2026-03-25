@@ -931,7 +931,7 @@ factor_one (
     int64_t const a = C.a;
     uint64_t const b = C.b;
 
-    int const nsides = cpoly->nb_polys;
+    int const nsides = cpoly.nsides();
 
     std::vector<std::vector<cxx_mpz>> factors;
 
@@ -941,7 +941,7 @@ factor_one (
     for(int side = 0 ; side < nsides ; side++) {
         mpz_set(cofac, C.cofactor[side]);
         if (recomp_norm) {
-            mpz_poly_homogeneous_eval_siui (norm, cpoly->pols[side], a, b);
+            mpz_poly_homogeneous_eval_siui (norm, cpoly[side], a, b);
             mpz_abs(norm, norm);
         } else {
             if (doing.side == side) {
@@ -1006,7 +1006,7 @@ factor (std::list<cofac_candidate> const & L,
         FILE *out, int nthreads MAYBE_UNUSED, double& extra_time,
         int recomp_norm)
 {
-  int const nsides = cpoly->nb_polys;
+  int const nsides = cpoly.nsides();
   ASSERT_ALWAYS(batchlpb.size() == (size_t) nsides);
   ASSERT_ALWAYS(lpb.size() == (size_t) nsides);
   std::vector<unsigned long> B(nsides);
@@ -1027,7 +1027,7 @@ factor (std::list<cofac_candidate> const & L,
           // This list of primes is rather small anyway.
           prime_list (SP[side], pi, B[side]);
       } else {
-          prime_list_poly (SP[side], pi, B[side], cpoly->pols[side]);
+          prime_list_poly (SP[side], pi, B[side], cpoly[side]);
       }
       prime_info_clear (pi);
   }

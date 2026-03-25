@@ -589,7 +589,7 @@ int main(int argc, char const * argv[])
   unsigned long seed = 171717;
   param_list_parse_ulong(pl, "seed", &seed);
 
-  if (!cado_poly_read(cpoly, filename))
+  if (!cpoly.read(filename))
     {
       fmt::print (stderr, "Error reading polynomial file {}\n", filename);
       exit (EXIT_FAILURE);

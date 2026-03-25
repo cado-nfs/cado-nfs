@@ -423,7 +423,7 @@ void nfs_work::prepare_for_new_q(las_info & las0, special_q_task * task, typenam
 
     /* The config on which we're running is now decided. In order to
      * select the factor base to use, we also need the log scale */
-    for(int side = 0 ; side < las.cpoly->nb_polys ; side++) {
+    for(int side = 0 ; side < las.cpoly.nsides() ; side++) {
         nfs_work::side_data & wss(sides[side]);
 
         /* Even when we have no factor base, we do the lognorm setup

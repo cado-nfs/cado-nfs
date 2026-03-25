@@ -750,7 +750,7 @@ void renumber_t::write_header(std::ostream& os) const
     /* Write the polynomials as comments */
     for (int i = 0; i < get_nb_polys() ; i++) {
         os << "# pol" << i << ": "
-            << cxx_mpz_poly(cpoly->pols[i]).print_poly("x")
+            << cxx_mpz_poly(cpoly[i]).print_poly("x")
             << "\n";
     }
 
@@ -808,7 +808,7 @@ std::vector<int> renumber_t::get_sides_of_additional_columns() const
 {
     std::vector<int> res;
     for(int side = 0 ; side < get_nb_polys() ; side++) {
-        mpz_poly_srcptr f = cpoly->pols[side];
+        mpz_poly_srcptr f = cpoly[side];
         /*
          * We used to not count an additional ideal J for degree 1
          * polynomials.  IMHO this is wrong.  We do have a J ideal,
@@ -863,7 +863,7 @@ void renumber_t::compute_bad_ideals()
     bad_ideals.clear();
     bad_ideals_max_p = 0;
     for(int side = 0 ; side < get_nb_polys() ; side++) {
-        cxx_mpz_poly f(cpoly->pols[side]);
+        cxx_mpz_poly f(cpoly[side]);
         if (f->deg == 1) continue;
         for(auto const & b : badideals_for_polynomial(f, side)) {
             p_r_values_t const p = mpz_get_ui(b.p);
@@ -886,7 +886,7 @@ void renumber_t::compute_ramified_primes()
 {
     for(int side = 0 ; side < get_nb_polys() ; side++) {
         cxx_mpz disc;
-        cxx_mpz_poly f(cpoly->pols[side]);
+        cxx_mpz_poly f(cpoly[side]);
         mpz_poly_discriminant(disc, f);
         mpz_mul(disc, disc, mpz_poly_lc(f));
         small_primes.push_back(trial_division(disc, 10000000, disc));
@@ -1042,7 +1042,7 @@ std::string renumber_t::debug_data_sagemath(index_t i) const
              * ramified primes correctly. Otherwise a simple and stupid
              * approach can work.
              */
-            cxx_mpz_poly const f(cpoly->pols[x.side]);
+            cxx_mpz_poly const f(cpoly[x.side]);
             for(auto const & y : small_primes[x.side]) {
                 if (x.p == y.first)
                     return generic_sagemath_string(f, x.side, x.p, x.r);
@@ -1116,7 +1116,7 @@ std::string renumber_t::debug_data_machine_description(index_t i) const
              * ramified primes correctly. Otherwise a simple and stupid
              * approach can work.
              */
-            cxx_mpz_poly const f(cpoly->pols[x.side]);
+            cxx_mpz_poly const f(cpoly[x.side]);
             for(auto const & y : small_primes[x.side]) {
                 if (x.p == y.first) {
                     return fmt::format("generic {} {}",
@@ -1497,7 +1497,7 @@ renumber_t::const_iterator& renumber_t::const_iterator::operator++()
 
 int renumber_t::inertia_from_p_r(p_r_side x) const
 {
-    cxx_mpz_poly const f(cpoly->pols[x.side]);
+    cxx_mpz_poly const f(cpoly[x.side]);
     if (f.degree() == 1) return 1;
 
     for(auto const & y : small_primes[x.side]) {

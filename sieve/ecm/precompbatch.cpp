@@ -60,14 +60,14 @@ main (int argc, char const *argv[])
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
   }
-  if (!cado_poly_read(cpoly, filename)) {
+  if (!cpoly.read(filename)) {
       fprintf (stderr, "Error reading polynomial file %s\n", filename);
       exit (EXIT_FAILURE);
   }
 
   param_list_parse_ulong(pl, "t"   , &nb_threads);
 
-  int const nsides = cpoly->nb_polys;
+  int const nsides = cpoly.nsides();
 
   std::vector<siever_side_config> sides;
   siever_side_config::parse(pl, sides, nsides, { "lim" });
@@ -82,7 +82,7 @@ main (int argc, char const *argv[])
       siever_side_config  const& S(sides[side]);
       batch_side_config  const& bS(bsides[side]);
       create_batch_file (bS.batchfilename, batchP[side], S.lim,
-              1UL << bS.batchlpb, cpoly->pols[side], stdout, nb_threads, extra_time);
+              1UL << bS.batchlpb, cpoly[side], stdout, nb_threads, extra_time);
   }
 
   return EXIT_SUCCESS;

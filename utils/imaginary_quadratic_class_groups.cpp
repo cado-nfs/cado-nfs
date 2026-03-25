@@ -6,11 +6,11 @@
 /* check that cpoly has only one side of the form x^2-d with d < 0 */
 bool cado_poly_is_imaginary_quadratic(cxx_cado_poly const & cpoly)
 {
-    return cpoly->nb_polys == 1
-            && cpoly->pols[0]->deg == 2
-            && mpz_poly_is_monic(cpoly->pols[0])
-            && mpz_sgn(mpz_poly_coeff_const(cpoly->pols[0], 1)) == 0
-            && mpz_sgn(mpz_poly_coeff_const(cpoly->pols[0], 0)) > 0;
+    return cpoly.nsides() == 1
+            && cpoly[0]->deg == 2
+            && mpz_poly_is_monic(cpoly[0])
+            && mpz_sgn(mpz_poly_coeff_const(cpoly[0], 1)) == 0
+            && mpz_sgn(mpz_poly_coeff_const(cpoly[0], 0)) > 0;
 }
 
 

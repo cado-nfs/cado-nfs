@@ -577,7 +577,7 @@ calculateSqrtRat (std::string const & prefix, unsigned int numdep, cxx_cado_poly
   FILE *resfile;
   unsigned long nab = 0, nfree = 0;
 
-  ASSERT_ALWAYS (cpoly->pols[side]->deg == 1);
+  ASSERT_ALWAYS (cpoly[side]->deg == 1);
 
 #pragma omp critical
   {
@@ -589,7 +589,7 @@ calculateSqrtRat (std::string const & prefix, unsigned int numdep, cxx_cado_poly
     fflush (stderr);
   }
 
-  cxx_mpz_poly F(cpoly->pols[side]);
+  cxx_mpz_poly F(cpoly[side]);
   cxx_mpz prod;
 
   {
@@ -1183,7 +1183,7 @@ calculateSqrtAlg (std::string const & prefix, unsigned int numdep,
   const std::string sidename = get_depsidename (prefix, numdep, side);
 
   // Init F to be the corresponding polynomial
-  cxx_mpz_poly F(cpoly->pols[side]);
+  cxx_mpz_poly F(cpoly[side]);
   cxx_mpz_poly F_hat;
   cxx_mpz_polymodF prod;
 
@@ -1299,7 +1299,7 @@ calculateSqrtAlg (std::string const & prefix, unsigned int numdep,
     cxx_mpz Np1 = Np;
 
     do {
-        ret = cado_poly_getm(m, cpoly, Np1);
+        ret = cpoly.getm(m, Np1);
         if (!ret) {
             fmt::print(stderr, "When trying to compute m, got the factor {}\n", m);
             mpz_divexact(Np1, Np1, m);
@@ -1380,7 +1380,7 @@ calculateSqrtQS(
         cxx_cado_poly const & cpoly,
         cxx_mpz const & Np)
 {
-    ASSERT_ALWAYS(cpoly->nb_polys == 1 && mpz_poly_is_monic(cpoly->pols[0]));
+    ASSERT_ALWAYS(cpoly.nsides() == 1 && mpz_poly_is_monic(cpoly[0]));
     unsigned long nab = 0, nfree = 0;
 
 #pragma omp critical
@@ -1393,7 +1393,7 @@ calculateSqrtQS(
         fflush (stderr);
     }
 
-    cxx_mpz_poly F(cpoly->pols[0]);
+    cxx_mpz_poly F(cpoly[0]);
     std::pair<cxx_mpz, cxx_mpz> prod;
 
     {
@@ -1777,7 +1777,7 @@ static void
 one_thread (std::string const & prefix, int task, unsigned int numdep, cxx_cado_poly const & cpoly, int side, cxx_mpz const & Np, const mpz_poly_parallel_info * pinf)
 {
   if (task == TASK_SQRT) {
-      if (cpoly->pols[side]->deg == 1) {
+      if (cpoly[side]->deg == 1) {
           calculateSqrtRat (prefix, numdep, cpoly, side, Np);
       } else {
           calculateSqrtAlg (prefix, numdep, cpoly, side, Np, pinf);
@@ -1908,17 +1908,17 @@ int main(int argc, char const *argv[])
 
     cxx_cado_poly cpoly;
 
-    ret = cado_poly_read(cpoly, tmp);
+    ret = cpoly.read(tmp);
     if (ret == 0) {
         fmt::print(stderr, "Could not read polynomial file\n");
         return EXIT_FAILURE;
     }
 
-    if (cpoly->nb_polys < 1 || cpoly->nb_polys > 2) {
+    if (cpoly.nsides() < 1 || cpoly.nsides() > 2) {
         fmt::print(stderr, "Error: number of polys should be 1 or 2, got {}\n",
-                           cpoly->nb_polys);
+                           cpoly.nsides());
         exit (EXIT_FAILURE);
-    } else if (cpoly->nb_polys == 1 && opt_side1) {
+    } else if (cpoly.nsides() == 1 && opt_side1) {
         fmt::print(stderr, "Error: -side1 is not compatible with only one "
                            "side\n");
         exit (EXIT_FAILURE);
@@ -1940,9 +1940,9 @@ int main(int argc, char const *argv[])
     /* if no options then -ab -side0 -side1 -gcd */
     if (!(opt_ab || opt_side0 || opt_side1 || opt_qs || opt_gcd)) {
         opt_ab = opt_side0 = opt_gcd = 1;
-        opt_side1 = (cpoly->nb_polys == 2);
+        opt_side1 = (cpoly.nsides() == 2);
     } else if (opt_qs) {
-        if (cpoly->nb_polys != 1) {
+        if (cpoly.nsides() != 1) {
             fmt::print(stderr, "Error: -qs is only valid for one-sided poly\n");
             exit (EXIT_FAILURE);
         } else if (opt_side0 || opt_side1) {
@@ -1964,10 +1964,10 @@ int main(int argc, char const *argv[])
     cxx_mpz Np;
     {
         cxx_mpz gg;
-        mpz_set(Np, cpoly->n);
-        for (int side = 0; side < cpoly->nb_polys; ++side) {
+        mpz_set(Np, cpoly.n);
+        for (int side = 0; side < cpoly.nsides(); ++side) {
             do {
-                mpz_gcd(gg, Np, mpz_poly_lc(cpoly->pols[side]));
+                mpz_gcd(gg, Np, mpz_poly_lc(cpoly[side]));
                 if (mpz_cmp_ui(gg, 1) != 0) {
                     fmt::print(stderr, "Warning: found the following factor of N as a factor of g: {}\n", gg);
                     print_factor(gg);
@@ -1988,7 +1988,7 @@ int main(int argc, char const *argv[])
             }
             prime_info_clear (pi);
         }
-        if (mpz_cmp(cpoly->n, Np) != 0)
+        if (mpz_cmp(cpoly.n, Np) != 0)
             fmt::print(stderr, "Now factoring N' = {}\n", Np);
         if (mpz_cmp_ui(Np, 1) == 0) {
             fmt::print(stderr, "Hey N' is 1! Stopping\n");

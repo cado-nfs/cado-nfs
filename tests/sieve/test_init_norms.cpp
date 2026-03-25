@@ -204,7 +204,7 @@ int main(int argc0, char const * argv0[])
         param_list_add_key(pl, "lim1", "0", PARAMETER_FROM_FILE);
 
     siever_config config_base;
-    if (!siever_config::parse_default<NFS>(config_base, pl, cpoly->nb_polys)) {
+    if (!siever_config::parse_default<NFS>(config_base, pl, cpoly.nsides())) {
         fprintf(stderr, "Error: please provide a full set of {lim,mfb,lpb}{0,1} parameters\n");
         param_list_print_usage(pl, nullptr, stderr);
         exit(EXIT_FAILURE);
@@ -215,7 +215,7 @@ int main(int argc0, char const * argv0[])
 
     std::vector<int> sides;
     if (!param_list_parse(pl, "norm-sides", sides)) {
-        for(int side = 0 ; side < cpoly->nb_polys ; side++)
+        for(int side = 0 ; side < cpoly.nsides() ; side++)
             sides.push_back(side);
     }
 
@@ -262,7 +262,7 @@ int main(int argc0, char const * argv0[])
     size_t impl_stats[NCODES][2] = {{0,}};
 
     if (okrange)
-        ensure_qrange_has_prime_ideals(q0, q1, cpoly->pols[sqside]);
+        ensure_qrange_has_prime_ideals(q0, q1, cpoly[sqside]);
 
     for(int qnum = 0 ; qnum < nq_max ; qnum++) {
         /* we don't care much about being truly uniform here */
@@ -273,7 +273,7 @@ int main(int argc0, char const * argv0[])
                 mpz_urandomm(q, rstate, q);
                 mpz_add(q, q, q0);
                 next_legitimate_specialq(q, q, 0);
-                auto roots = mpz_poly_roots(cpoly->pols[sqside], q, rstate);
+                auto roots = mpz_poly_roots(cpoly[sqside], q, rstate);
                 if (!roots.empty()) {
                     auto const i = gmp_urandomm_ui(rstate, roots.size());
                     rho = roots[i];

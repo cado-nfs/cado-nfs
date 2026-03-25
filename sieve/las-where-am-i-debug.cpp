@@ -213,8 +213,8 @@ void where_am_I::begin_special_q(
                 trace_Nx.x);
     }
 
-    traced_norms.resize(ws.las.cpoly->nb_polys);
-    for(int side = 0 ; side < ws.las.cpoly->nb_polys ; side++) {
+    traced_norms.resize(ws.las.cpoly.nsides());
+    for(int side = 0 ; side < ws.las.cpoly.nsides() ; side++) {
         int i = trace_ij.i;
         unsigned j = trace_ij.j;
         Q.sublat.adjustIJ(i, j);

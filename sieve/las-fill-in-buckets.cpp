@@ -705,7 +705,7 @@ static void downsort_tree_inner(
     /* LEVEL is not the toplevel here, so we must have the following: */
     static_assert(LEVEL <= MAX_TOPLEVEL - 1);
 
-    int const nsides = ws.las.cpoly->nb_polys;
+    int const nsides = ws.las.cpoly.nsides();
     nfs_aux & aux(*aux_p);
     timetree_t & timer(aux.rt.timer);
 

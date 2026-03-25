@@ -725,7 +725,7 @@ int main(int argc, char const * argv[])
     char const * polyfile = nullptr;
 
     param_list pl;
-    cado_poly cpoly;
+    cxx_cado_poly cpoly;
 
     mpz_t ell;
 
@@ -761,17 +761,16 @@ int main(int argc, char const * argv[])
     }
 
     /* Init polynomial */
-    cado_poly_init(cpoly);
-    cado_poly_read(cpoly, polyfile);
+    cpoly.read(polyfile);
 
-    std::vector<mpz_poly_srcptr> F(cpoly->nb_polys, nullptr);
+    std::vector<mpz_poly_srcptr> F(cpoly.nsides(), nullptr);
 
-    for (int side = 0; side < cpoly->nb_polys; side++)
-        F[side] = cpoly->pols[side];
+    for (int side = 0; side < cpoly.nsides(); side++)
+        F[side] = cpoly[side];
 
-    std::vector<int> nsm_arg(cpoly->nb_polys, -1);
+    std::vector<int> nsm_arg(cpoly.nsides(), -1);
     param_list_parse_int_args_per_side(pl, "nsm", nsm_arg.data(),
-                                       cpoly->nb_polys,
+                                       cpoly.nsides(),
                                        ARGS_PER_SIDE_DEFAULT_AS_IS);
 
     FILE * in = rank ? nullptr : stdin;
@@ -805,7 +804,7 @@ int main(int argc, char const * argv[])
 
     std::vector<sm_side_info> sm_info;
 
-    for (int side = 0; side < cpoly->nb_polys; side++) {
+    for (int side = 0; side < cpoly.nsides(); side++) {
         sm_info.emplace_back(F[side], ell, 0);
         sm_info[side].set_mode(sm_mode_string);
         if (nsm_arg[side] >= 0)
@@ -816,7 +815,7 @@ int main(int argc, char const * argv[])
 
     /*
        if (!rank) {
-       for (int side = 0; side < cpoly->nb_polys; side++) {
+       for (int side = 0; side < cpoly.nsides(); side++) {
        printf("\n# Polynomial on side %d:\nF[%d] = ", side, side);
        mpz_poly_fprintf(stdout, F[side]);
 
@@ -842,7 +841,6 @@ int main(int argc, char const * argv[])
         fclose_maybe_compressed(out, outfilename);
 
     mpz_clear(ell);
-    cado_poly_clear(cpoly);
     param_list_clear(pl);
 
     MPI_Finalize();

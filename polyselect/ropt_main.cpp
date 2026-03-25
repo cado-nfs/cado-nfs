@@ -32,7 +32,10 @@
 #include <string.h>
 #include <math.h>
 #include <pthread.h>
+
 #include <gmp.h>
+#include "fmt/base.h"
+
 #include "omp_proxy.h"
 #include "cado_poly.hpp"
 #include "area.h"
@@ -422,15 +425,14 @@ ropt_parse_param ( int argc,
 
 
 static void
-ropt_wrapper (cado_poly_ptr input_poly, unsigned int poly_id,
+ropt_wrapper (cxx_cado_poly & input_poly, unsigned int poly_id,
               ropt_time_ptr tott)
 {
   double curr_MurphyE, st, st1;
   mpz_t t;
-  cado_poly ropt_poly;
+  cxx_cado_poly ropt_poly;
   ropt_time eacht;
 
-  cado_poly_init (ropt_poly);
   eacht->ropt_time = 0.0;
   eacht->ropt_time_stage1 = 0.0;
   eacht->ropt_time_tuning = 0.0;
@@ -450,7 +452,7 @@ ropt_wrapper (cado_poly_ptr input_poly, unsigned int poly_id,
       total_exp_E += cado_poly_compute_expected_stats(input_stats, input_poly);
 
       printf ("\n### input polynomial %u ###\n", poly_id);
-      cado_poly_fprintf (stdout, "# ", input_poly);
+      input_poly.fprintf(stdout, "# ");
       cado_poly_fprintf_stats(stdout, "# ", input_poly, input_stats);
       fflush (stdout);
 
@@ -468,13 +470,13 @@ ropt_wrapper (cado_poly_ptr input_poly, unsigned int poly_id,
      warning (this should not be frequent) and divide all coefficients of the
      polynomial by the content. */
   mpz_init (t);
-  mpz_poly_content (t, input_poly->pols[ALG_SIDE]);
-  if (mpz_cmp_ui (t, 1) != 0 && !mpz_divisible_p (input_poly->n, t))
+  mpz_poly_content (t, input_poly[ALG_SIDE]);
+  if (mpz_cmp_ui (t, 1) != 0 && !mpz_divisible_p (input_poly.n, t))
   {
     gmp_printf ("# WARNING: the content of the algebraic side of polynomial %u "
                 "is not 1 (%Zd). The input polynomial will be divided by its "
                 "content.\n", poly_id, t);
-    mpz_poly_divexact_mpz (input_poly->pols[ALG_SIDE], input_poly->pols[ALG_SIDE], t);
+    mpz_poly_divexact_mpz (input_poly[ALG_SIDE], input_poly[ALG_SIDE], t);
   }
   mpz_clear (t);
 
@@ -484,8 +486,8 @@ ropt_wrapper (cado_poly_ptr input_poly, unsigned int poly_id,
 
   /* MurphyE */
   /* use the skewness minimizing the sum of the lognorms */
-  ropt_poly->skew = L2_combined_skewness2 (ropt_poly->pols[0],
-                                           ropt_poly->pols[1]);
+  ropt_poly.skew = L2_combined_skewness2 (ropt_poly[0],
+                                           ropt_poly[1]);
   curr_MurphyE = MurphyE (ropt_poly, bound_f, bound_g, area, MURPHY_K,
                           get_alpha_bound ());
 
@@ -509,7 +511,7 @@ ropt_wrapper (cado_poly_ptr input_poly, unsigned int poly_id,
       total_E += cado_poly_compute_stats(ropt_stats, ropt_poly);
 
       printf ("\n### root-optimized polynomial %u ###\n", poly_id);
-      cado_poly_fprintf (stdout, NULL, ropt_poly);
+      ropt_poly.fprintf(stdout);
       cado_poly_fprintf_stats(stdout, NULL, ropt_poly, ropt_stats);
 
       nb_optimized += 1.0;
@@ -526,7 +528,6 @@ ropt_wrapper (cado_poly_ptr input_poly, unsigned int poly_id,
   if (nthreads != 1)
     pthread_mutex_unlock (&lock);
 
-  cado_poly_clear (ropt_poly);
 }
 
 /**
@@ -670,7 +671,7 @@ usage_basic (const char *argv, const char * missing, param_list pl)
   exit (EXIT_FAILURE);
 }
 
-void cado_poly_ropt_printer(int i, double score, cado_poly_ptr best_poly, void * arg)
+void cado_poly_ropt_printer(int i, double score, cxx_cado_poly & best_poly, void * arg)
 {
     auto best_stats = static_cast<cado_poly_stats_ptr>(arg);
 
@@ -680,7 +681,7 @@ void cado_poly_ropt_printer(int i, double score, cado_poly_ptr best_poly, void *
 
     printf ("# %d-th best polynomial found (revision %s):\n", i, cado_revision_string);
 
-    cado_poly_fprintf (stdout, "# ", best_poly);
+    best_poly.fprintf(stdout, "# ");
     cado_poly_fprintf_stats(stdout, "# ", best_poly, best_stats);
     fflush (stdout);
 
@@ -697,9 +698,6 @@ static int main_basic (int argc, char const * argv[])
   const char *polys_filename = NULL;
   double st0 = seconds ();
   FILE *polys_file = NULL;
-  cado_poly *input_polys = NULL;
-  unsigned int nb_input_polys = 0; /* number of input polynomials */
-  unsigned int size_input_polys = 16; /* Size of input_polys tab. */
   ropt_time tott;
   int A;
 
@@ -710,10 +708,10 @@ static int main_basic (int argc, char const * argv[])
 
   best_polynomials_queue_init(best_polys, 1);
 
-  input_polys = (cado_poly *) malloc (size_input_polys * sizeof (cado_poly));
-  ASSERT_ALWAYS (input_polys != NULL);
-  for (unsigned int i = 0; i < size_input_polys; i++)
-    cado_poly_init (input_polys[i]);
+  unsigned int size_input_polys = 16; /* Size of input_polys tab. */
+  std::vector<cxx_cado_poly> input_polys;
+  input_polys.reserve(size_input_polys);
+
   ropt_param_init (rparam);
   rparam->effort = DEFAULT_ROPTEFFORT; /* ropt effort */
 
@@ -808,20 +806,8 @@ static int main_basic (int argc, char const * argv[])
     ungetc (c, polys_file);
 
   /* Read all polynomials from file. Store then in input_polys. */
-  while (cado_poly_read_next_poly_from_stream (input_polys[nb_input_polys],
-                                               polys_file))
-  {
-    nb_input_polys++;
-    if (nb_input_polys == size_input_polys) /* Realloc if needed */
-    {
-      if (rparam->verbose > 0)
-        fprintf (stderr, "# Reallocating input_polys\n");
-      unsigned int new_size = 2 * size_input_polys;
-      checked_realloc(input_polys, new_size);
-      for (unsigned int i = size_input_polys; i < new_size; i++)
-        cado_poly_init (input_polys[i]);
-      size_input_polys = new_size;
-    }
+  for(cxx_cado_poly c; cxx_cado_poly::read_next_poly_from_stream (c, polys_file) ; ) {
+      input_polys.emplace_back(std::move(c));
   }
   /* Did we stop at the end of the file or was there an error. */
   if (!feof (polys_file))
@@ -830,7 +816,7 @@ static int main_basic (int argc, char const * argv[])
     abort ();
   }
   fclose (polys_file);
-  printf ("# %u polynomial(s) read.\n", nb_input_polys);
+  printf ("# %zu polynomial(s) read.\n", input_polys.size());
 
   /* Main loop: do root-optimization on input_polys. */
 #ifdef HAVE_OPENMP
@@ -848,7 +834,7 @@ static int main_basic (int argc, char const * argv[])
 #ifdef HAVE_OPENMP
 #pragma omp for schedule(dynamic)
 #endif
-      for (unsigned int i = 0; i < nb_input_polys; i++)
+      for (size_t i = 0; i < input_polys.size() ; i++)
           ropt_wrapper (input_polys[i], i, tott);
       gmp_randclear(rstate);
   }
@@ -873,14 +859,11 @@ static int main_basic (int argc, char const * argv[])
 
   if (best_polynomials_queue_get_count(best_polys) == 0)
   {
-    if (nb_input_polys > 0)
-    {
+    if (!input_polys.empty()) {
       /* At least one poly was parsed and the best MurphyE is still 0 => Error */
       fprintf (stderr, "Error, the best MurphyE value is still 0 at the end.\n");
       abort ();
-    }
-    else
-    {
+    } else {
       /* No polynomials were parsed in the input files but the whole file was
          parsed without errors (see !feof above) => Warning */
       printf ("# WARNING: No polynomials were found in the input file %s\n",
@@ -894,15 +877,12 @@ static int main_basic (int argc, char const * argv[])
       best_polynomials_queue_do(best_polys, cado_poly_ropt_printer, best_stats);
       cado_poly_stats_clear(best_stats);
       printf ("# Average exp_E: %.2f, average E: %.2f\n",
-              total_exp_E / (double) nb_input_polys,
-              total_E / (double) nb_input_polys);
+              double_ratio(total_exp_E, input_polys.size()),
+              double_ratio(total_E, input_polys.size()));
   }
 
   ropt_param_clear (rparam);
   best_polynomials_queue_clear(best_polys);
-  for (unsigned int i = 0; i < size_input_polys; i++)
-    cado_poly_clear (input_polys[i]);
-  free (input_polys);
   param_list_clear (pl);
 
   return EXIT_SUCCESS;

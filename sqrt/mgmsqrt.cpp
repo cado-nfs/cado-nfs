@@ -70,7 +70,7 @@ struct mgmsqrt {
         , R(cpoly, param_list_parse_mandatory<std::string>(pl, "renumber"), true)
         , e(param_list_parse_mandatory<int>(pl, "e"))
         , side(param_list_parse_mandatory<int>(pl, "side"))
-        , K(cpoly->pols[side])
+        , K(cpoly[side])
         , OK(K.maximal_order())
     {
         K.bless("alpha");

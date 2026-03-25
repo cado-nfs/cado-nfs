@@ -26,6 +26,7 @@
 #include "params.h"
 #include "omp_proxy.h" // IWYU pragma: keep
 #include "verbose.h"             // verbose_output_print
+#include "polyselect_alpha.h"
 
 static void
 declare_usage (param_list pl)
@@ -114,13 +115,12 @@ main (int argc, char const * argv[])
 #endif
   for (int i = 0; i < num; i++)
     {
-      cado_poly cpoly;
+      cxx_cado_poly cpoly;
       char s[1024];
       FILE *fp;
 
-      cado_poly_init (cpoly);
       sprintf (s, "%s.%d", filename, i);
-      if (!cado_poly_read (cpoly, s))
+      if (!cpoly.read(s))
         {
           fprintf (stderr, "Error reading polynomial file %s\n", s);
           exit (EXIT_FAILURE);
@@ -131,7 +131,6 @@ main (int argc, char const * argv[])
       fprintf (fp, "# MurphyF (Bf=%.3e,Bg=%.3e,area=%.3e) = %.3e\n",
                Bf, Bg, area, e);
       fclose (fp);
-      cado_poly_clear (cpoly);
     }
 
   param_list_clear(pl);

@@ -167,9 +167,9 @@ get_roots (unsigned long *roots, unsigned long f, unsigned long g,
 /* Return the average value of alpha in the congruence (v,w) = (modv,modw) % mod.
    Assume q is a prime power. */
 static double
-average_alpha (cado_poly_srcptr poly0, long modv, long modw, long q, gmp_randstate_ptr rstate)
+average_alpha (cxx_cado_poly const & poly0, long modv, long modw, long q, gmp_randstate_ptr rstate)
 {
-  cado_poly poly;
+  cxx_cado_poly poly;
   double s = 0.0, alpha;
   long v0 = 0, w0 = 0, p, t;
 
@@ -183,29 +183,27 @@ average_alpha (cado_poly_srcptr poly0, long modv, long modw, long q, gmp_randsta
   ASSERT_ALWAYS (t == 1);
 
   /* first make a local copy of the original polynomial */
-  cado_poly_init (poly);
-  cado_poly_set (poly, poly0);
+  poly = poly0;
 
   /* first rotate by modv*x+modw */
-  rotate_aux (poly->pols[ALG_SIDE], poly->pols[RAT_SIDE], 0, modv, 1);
+  rotate_aux (poly[ALG_SIDE], poly[RAT_SIDE], 0, modv, 1);
   v0 = modv;
-  rotate_aux (poly->pols[ALG_SIDE], poly->pols[RAT_SIDE], 0, modw, 0);
+  rotate_aux (poly[ALG_SIDE], poly[RAT_SIDE], 0, modw, 0);
   w0 = modw;
 
   for (long j = 0; j < TRIES; j++)
     {
-      rotate_aux (poly->pols[ALG_SIDE], poly->pols[RAT_SIDE], v0, q * j + modv, 1);
+      rotate_aux (poly[ALG_SIDE], poly[RAT_SIDE], v0, q * j + modv, 1);
       v0 = q * j + modv;
       for (long k = 0; k < TRIES; k++)
         {
-          rotate_aux (poly->pols[ALG_SIDE], poly->pols[RAT_SIDE], w0, q*k + modw, 0);
+          rotate_aux (poly[ALG_SIDE], poly[RAT_SIDE], w0, q*k + modw, 0);
           w0 = q * k + modw;
-          alpha = get_alpha_affine_p (poly->pols[ALG_SIDE], p, rstate);
+          alpha = get_alpha_affine_p (poly[ALG_SIDE], p, rstate);
           s += alpha;
         }
     }
 
-  cado_poly_clear (poly);
   return s / pow ((double) TRIES, 2.0);
 }
 
@@ -275,7 +273,7 @@ insert_congruence (congruence *c, int n, int keep, double alpha, long v, long w,
 /* Return the (at most keep) best congruences (v,w) mod 'mod'.
    Put in *nc the number of returned congruences. */
 static congruence*
-best_congruences (cado_poly poly0, long mod, int keep, long vmin, long vmax,
+best_congruences (cxx_cado_poly const & poly0, long mod, int keep, long vmin, long vmax,
               int *nc, long u, gmp_randstate_ptr rstate)
 {
   int nfactors = 0;
@@ -283,7 +281,7 @@ best_congruences (cado_poly poly0, long mod, int keep, long vmin, long vmax,
   congruence *c, *d, *e;
   int nd, ne;
   int i;
-  cado_poly poly;
+  cxx_cado_poly poly;
   long q, Q = 1;
 
   if (mod == 1)
@@ -314,8 +312,7 @@ best_congruences (cado_poly poly0, long mod, int keep, long vmin, long vmax,
     }
 
   /* make a local copy of the original polynomial */
-  cado_poly_init (poly);
-  cado_poly_set (poly, poly0);
+  poly = poly0;
 
   c = new congruence[keep + 1];
   d = new congruence[keep + 1];
@@ -389,7 +386,6 @@ best_congruences (cado_poly poly0, long mod, int keep, long vmin, long vmax,
         }
     }
 
-  cado_poly_clear (poly);
   free (factors);
   delete[] d;
   delete[] e;
@@ -398,12 +394,12 @@ best_congruences (cado_poly poly0, long mod, int keep, long vmin, long vmax,
 
 /* rotation for a fixed value of v */
 static void
-rotate_v (cado_poly_srcptr poly0, long v, long B,
+rotate_v (cxx_cado_poly const & poly0, long v, long B,
           double maxlognorm, double Bf, double Bg, double area, long u,
           long modw)
 {
   long w, wmin, wmax;
-  cado_poly poly;
+  cxx_cado_poly poly;
   long l;
   mpz_t wminz, wmaxz;
   double tot_pols_local = 0;
@@ -413,15 +409,14 @@ rotate_v (cado_poly_srcptr poly0, long v, long B,
   mpz_init (wmaxz);
 
   /* first make a local copy of the original polynomial */
-  cado_poly_init (poly);
-  cado_poly_set (poly, poly0);
+  poly = poly0;
 
   /* compute f + (v*x)*g */
-  rotate_aux (poly->pols[ALG_SIDE], poly->pols[RAT_SIDE], 0, v, 1);
+  rotate_aux (poly[ALG_SIDE], poly[RAT_SIDE], 0, v, 1);
 
   rotation_space r;
-  expected_growth (&r, poly->pols[ALG_SIDE], poly->pols[RAT_SIDE], 0,
-                   maxlognorm, poly->skew);
+  expected_growth (&r, poly[ALG_SIDE], poly[RAT_SIDE], 0,
+                   maxlognorm, poly.skew);
   mpz_set_d (wminz, r.kmin);
   mpz_set_d (wmaxz, r.kmax);
 
@@ -444,8 +439,8 @@ rotate_v (cado_poly_srcptr poly0, long v, long B,
       /* if mod != 1, we have f + (k*mod+modw)*g = (f+modw*g) + k*(mod*g) */
       if (mod > 1)
       {
-          rotate_aux (poly->pols[ALG_SIDE], poly->pols[RAT_SIDE], 0, modw, 0); /* f <- f+modw*g */
-          mpz_poly_mul_si (poly->pols[RAT_SIDE], poly->pols[RAT_SIDE], mod);
+          rotate_aux (poly[ALG_SIDE], poly[RAT_SIDE], 0, modw, 0); /* f <- f+modw*g */
+          mpz_poly_mul_si (poly[RAT_SIDE], poly[RAT_SIDE], mod);
           /* wmin -> (wmin - modw) / mod */
           mpz_sub_ui (wminz, wminz, modw);
           ASSERT_ALWAYS(mpz_divisible_ui_p (wminz, mod));
@@ -503,9 +498,9 @@ rotate_v (cado_poly_srcptr poly0, long v, long B,
               {
                   /* compute f(x) and g(x) mod p^k, where q = p^k */
                   unsigned long fx, gx;
-                  mpz_poly_eval_ui (ump, poly->pols[ALG_SIDE], x);
+                  mpz_poly_eval_ui (ump, poly[ALG_SIDE], x);
                   fx = mpz_fdiv_ui (ump, q);
-                  mpz_poly_eval_ui (ump, poly->pols[RAT_SIDE], x);
+                  mpz_poly_eval_ui (ump, poly[RAT_SIDE], x);
                   gx = mpz_fdiv_ui (ump, q);
                   /* search roots w of fx + w*gx = 0 mod q */
                   unsigned long nroots = get_roots (roots, fx, gx, q);
@@ -592,40 +587,40 @@ rotate_v (cado_poly_srcptr poly0, long v, long B,
               if (u == -u0 && v == -v0 && mod * (wcur + j) + modw == -w0)
               {
                   w = wcur + j; /* local value of w, the global one is mod * w + modw */
-                  rotate_aux (poly->pols[ALG_SIDE], poly->pols[RAT_SIDE], 0, w, 0);
-                  double skew = poly->skew; /* save skewness */
-                  poly->skew = L2_skewness (poly->pols[ALG_SIDE]);
-                  double lognorm = L2_lognorm (poly->pols[ALG_SIDE], poly->skew);
+                  rotate_aux (poly[ALG_SIDE], poly[RAT_SIDE], 0, w, 0);
+                  double skew = poly.skew; /* save skewness */
+                  poly.skew = L2_skewness (poly[ALG_SIDE]);
+                  double lognorm = L2_lognorm (poly[ALG_SIDE], poly.skew);
                   /* to compute E, we need to divide g by mod */
-                  mpz_poly_divexact_ui (poly->pols[RAT_SIDE], poly->pols[RAT_SIDE], mod);
+                  mpz_poly_divexact_ui (poly[RAT_SIDE], poly[RAT_SIDE], mod);
                   double E = MurphyE (poly, Bf, Bg, area, MURPHY_K, get_alpha_bound ());
                   /* restore g */
-                  mpz_poly_mul_si (poly->pols[RAT_SIDE], poly->pols[RAT_SIDE], mod);
+                  mpz_poly_mul_si (poly[RAT_SIDE], poly[RAT_SIDE], mod);
                   /* this can only occur for one thread, thus no need to put
 #pragma omp critical */
                   gmp_printf ("u=%ld v=%ld w=%ld lognorm=%.2f est_alpha_aff=%.2f E=%.2e [original]\n",
                           u, v, mod * w + modw, lognorm, A[j], E);
                   fflush (stdout);
                   /* restore the original polynomial (w=0) and skewness */
-                  poly->skew = skew;
-                  rotate_aux (poly->pols[ALG_SIDE], poly->pols[RAT_SIDE], w, 0, 0);
+                  poly.skew = skew;
+                  rotate_aux (poly[ALG_SIDE], poly[RAT_SIDE], w, 0, 0);
               }
               if (A[j] < best_alpha + guard_alpha)
               {
                   w = wcur + j;
                   /* compute E */
-                  rotate_aux (poly->pols[ALG_SIDE], poly->pols[RAT_SIDE], 0, w, 0);
-                  double skew = poly->skew; /* save skewness */
-                  poly->skew = L2_skewness (poly->pols[ALG_SIDE]);
-                  double lognorm = L2_lognorm (poly->pols[ALG_SIDE], poly->skew);
+                  rotate_aux (poly[ALG_SIDE], poly[RAT_SIDE], 0, w, 0);
+                  double skew = poly.skew; /* save skewness */
+                  poly.skew = L2_skewness (poly[ALG_SIDE]);
+                  double lognorm = L2_lognorm (poly[ALG_SIDE], poly.skew);
                   /* to compute E, we need to divide g by mod */
-                  mpz_poly_divexact_ui (poly->pols[RAT_SIDE], poly->pols[RAT_SIDE], mod);
+                  mpz_poly_divexact_ui (poly[RAT_SIDE], poly[RAT_SIDE], mod);
                   double E = MurphyE (poly, Bf, Bg, area, MURPHY_K, get_alpha_bound ());
                   /* restore g */
-                  mpz_poly_mul_si (poly->pols[RAT_SIDE], poly->pols[RAT_SIDE], mod);
+                  mpz_poly_mul_si (poly[RAT_SIDE], poly[RAT_SIDE], mod);
                   /* restore the original polynomial (w=0) and skewness */
-                  poly->skew = skew;
-                  rotate_aux (poly->pols[ALG_SIDE], poly->pols[RAT_SIDE], w, 0, 0);
+                  poly.skew = skew;
+                  rotate_aux (poly[ALG_SIDE], poly[RAT_SIDE], w, 0, 0);
 
                   if (optimizeE == 0 || (optimizeE == 1 && E > best_E))
 #pragma omp critical
@@ -659,7 +654,6 @@ rotate_v (cado_poly_srcptr poly0, long v, long B,
       mpz_clear (ump);
   }
 
-  cado_poly_clear (poly);
   mpz_clear (wminz);
   mpz_clear (wmaxz);
 
@@ -672,13 +666,13 @@ rotate_v (cado_poly_srcptr poly0, long v, long B,
 }
 
 static void
-rotate (cado_poly cpoly, long B, double maxlognorm, double Bf, double Bg,
+rotate (cxx_cado_poly & cpoly, long B, double maxlognorm, double Bf, double Bg,
         double area, long u, gmp_randstate_ptr rstate)
 {
   /* determine range [vmin,vmax] */
   rotation_space r;
-  expected_growth (&r, cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], 1,
-                   maxlognorm, cpoly->skew);
+  expected_growth (&r, cpoly[ALG_SIDE], cpoly[RAT_SIDE], 1,
+                   maxlognorm, cpoly.skew);
   long vmin = (r.kmin < (double) LONG_MIN) ? LONG_MIN : r.kmin;
   long vmax = (r.kmax > (double) LONG_MAX) ? LONG_MAX : r.kmax;
   if (verbose)
@@ -721,90 +715,86 @@ rotate (cado_poly cpoly, long B, double maxlognorm, double Bf, double Bg,
 /* don't modify poly, which is the size-optimized polynomial
    (poly0 is the initial polynomial) */
 static void
-print_transformation (cado_poly_ptr poly0, cado_poly_srcptr cpoly)
+print_transformation (cxx_cado_poly & poly0, cxx_cado_poly const & cpoly)
 {
   mpz_t k;
-  int d = poly0->pols[ALG_SIDE]->deg;
+  int d = poly0[ALG_SIDE]->deg;
 
   mpz_init (k);
   /* first compute the translation k: g(x+k) = g1*x + g1*k + g0 */
-  mpz_sub (k, mpz_poly_coeff_const(poly0->pols[RAT_SIDE], 0), mpz_poly_coeff_const(poly0->pols[RAT_SIDE], 0));
-  ASSERT_ALWAYS(mpz_divisible_p (k, mpz_poly_coeff_const(poly0->pols[RAT_SIDE], 1)));
-  mpz_divexact (k, k, mpz_poly_coeff_const(poly0->pols[RAT_SIDE], 1));
+  mpz_sub (k, mpz_poly_coeff_const(poly0[RAT_SIDE], 0), mpz_poly_coeff_const(poly0[RAT_SIDE], 0));
+  ASSERT_ALWAYS(mpz_divisible_p (k, mpz_poly_coeff_const(poly0[RAT_SIDE], 1)));
+  mpz_divexact (k, k, mpz_poly_coeff_const(poly0[RAT_SIDE], 1));
   gmp_printf ("translation %Zd, ", k);
 
-  mpz_poly_translation(poly0->pols[ALG_SIDE], poly0->pols[ALG_SIDE], k);
-  mpz_poly_translation(poly0->pols[RAT_SIDE], poly0->pols[RAT_SIDE], k);
+  mpz_poly_translation(poly0[ALG_SIDE], poly0[ALG_SIDE], k);
+  mpz_poly_translation(poly0[RAT_SIDE], poly0[RAT_SIDE], k);
 
   /* size_optimization might multiply f0 by some integer t */
-  ASSERT_ALWAYS(mpz_divisible_p (mpz_poly_coeff_const(poly0->pols[ALG_SIDE], d),
-				 mpz_poly_coeff_const(poly0->pols[ALG_SIDE], d)));
-  mpz_divexact (k, mpz_poly_coeff_const(poly0->pols[ALG_SIDE], d),
-		mpz_poly_coeff_const(poly0->pols[ALG_SIDE], d));
+  ASSERT_ALWAYS(mpz_divisible_p (mpz_poly_coeff_const(poly0[ALG_SIDE], d),
+				 mpz_poly_coeff_const(poly0[ALG_SIDE], d)));
+  mpz_divexact (k, mpz_poly_coeff_const(poly0[ALG_SIDE], d),
+		mpz_poly_coeff_const(poly0[ALG_SIDE], d));
   if (mpz_cmp_ui (k, 1) != 0)
     {
       gmp_printf ("multiplier %Zd, ", k);
-      mpz_poly_mul_mpz (poly0->pols[ALG_SIDE], poly0->pols[ALG_SIDE], k);
+      mpz_poly_mul_mpz (poly0[ALG_SIDE], poly0[ALG_SIDE], k);
     }
   /* now compute rotation by x^2 */
-  mpz_sub (k, mpz_poly_coeff_const(cpoly->pols[ALG_SIDE], 3), mpz_poly_coeff_const(poly0->pols[ALG_SIDE], 3));
-  ASSERT_ALWAYS(mpz_divisible_p (k, mpz_poly_coeff_const(poly0->pols[RAT_SIDE], 1)));
-  mpz_divexact (k, k, mpz_poly_coeff_const(poly0->pols[RAT_SIDE], 1));
+  mpz_sub (k, mpz_poly_coeff_const(cpoly[ALG_SIDE], 3), mpz_poly_coeff_const(poly0[ALG_SIDE], 3));
+  ASSERT_ALWAYS(mpz_divisible_p (k, mpz_poly_coeff_const(poly0[RAT_SIDE], 1)));
+  mpz_divexact (k, k, mpz_poly_coeff_const(poly0[RAT_SIDE], 1));
   gmp_printf ("rotation [%Zd,", k);
   ASSERT (mpz_fits_slong_p (k));
   u0 = mpz_get_si (k);
-  mpz_poly_rotation(poly0->pols[ALG_SIDE], poly0->pols[ALG_SIDE], poly0->pols[RAT_SIDE], k, 2);
-  mpz_sub (k, mpz_poly_coeff_const(cpoly->pols[ALG_SIDE], 2), mpz_poly_coeff_const(poly0->pols[ALG_SIDE], 2));
-  ASSERT_ALWAYS(mpz_divisible_p (k, mpz_poly_coeff_const(poly0->pols[RAT_SIDE], 1)));
-  mpz_divexact (k, k, mpz_poly_coeff_const(poly0->pols[RAT_SIDE], 1));
+  mpz_poly_rotation(poly0[ALG_SIDE], poly0[ALG_SIDE], poly0[RAT_SIDE], k, 2);
+  mpz_sub (k, mpz_poly_coeff_const(cpoly[ALG_SIDE], 2), mpz_poly_coeff_const(poly0[ALG_SIDE], 2));
+  ASSERT_ALWAYS(mpz_divisible_p (k, mpz_poly_coeff_const(poly0[RAT_SIDE], 1)));
+  mpz_divexact (k, k, mpz_poly_coeff_const(poly0[RAT_SIDE], 1));
   gmp_printf ("%Zd,", k);
   ASSERT (mpz_fits_slong_p (k));
   v0 = mpz_get_si (k);
-  mpz_poly_rotation(poly0->pols[ALG_SIDE], poly0->pols[ALG_SIDE], poly0->pols[RAT_SIDE], k, 1);
-  mpz_sub (k, mpz_poly_coeff_const(cpoly->pols[ALG_SIDE], 1), mpz_poly_coeff_const(poly0->pols[ALG_SIDE], 1));
-  ASSERT_ALWAYS(mpz_divisible_p (k, mpz_poly_coeff_const(poly0->pols[RAT_SIDE], 1)));
-  mpz_divexact (k, k, mpz_poly_coeff_const(poly0->pols[RAT_SIDE], 1));
+  mpz_poly_rotation(poly0[ALG_SIDE], poly0[ALG_SIDE], poly0[RAT_SIDE], k, 1);
+  mpz_sub (k, mpz_poly_coeff_const(cpoly[ALG_SIDE], 1), mpz_poly_coeff_const(poly0[ALG_SIDE], 1));
+  ASSERT_ALWAYS(mpz_divisible_p (k, mpz_poly_coeff_const(poly0[RAT_SIDE], 1)));
+  mpz_divexact (k, k, mpz_poly_coeff_const(poly0[RAT_SIDE], 1));
   gmp_printf ("%Zd]\n", k);
   ASSERT (mpz_fits_slong_p (k));
   w0 = mpz_get_si (k);
-  mpz_poly_rotation(poly0->pols[ALG_SIDE], poly0->pols[ALG_SIDE], poly0->pols[RAT_SIDE], k, 0);
-  ASSERT_ALWAYS(mpz_cmp (mpz_poly_coeff_const(poly0->pols[ALG_SIDE], 0),
-                         mpz_poly_coeff_const(cpoly->pols[ALG_SIDE], 0)) == 0);
+  mpz_poly_rotation(poly0[ALG_SIDE], poly0[ALG_SIDE], poly0[RAT_SIDE], k, 0);
+  ASSERT_ALWAYS(mpz_cmp (mpz_poly_coeff_const(poly0[ALG_SIDE], 0),
+                         mpz_poly_coeff_const(cpoly[ALG_SIDE], 0)) == 0);
   mpz_clear (k);
 }
 
 double
-rotate_area_v (cado_poly_srcptr poly0, double maxlognorm, long v)
+rotate_area_v (cxx_cado_poly const & poly0, double maxlognorm, long v)
 {
-  cado_poly cpoly;
   double area;
 
-  cado_poly_init (cpoly);
-  cado_poly_set (cpoly, poly0);
-  rotate_aux (cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], 0, v, 1);
+  cxx_cado_poly cpoly = poly0;
+  rotate_aux (cpoly[ALG_SIDE], cpoly[RAT_SIDE], 0, v, 1);
   rotation_space r;
-  expected_growth (&r, cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], 0,
-                   maxlognorm, cpoly->skew);
+  expected_growth (&r, cpoly[ALG_SIDE], cpoly[RAT_SIDE], 0,
+                   maxlognorm, cpoly.skew);
   area = r.kmax - r.kmin;
-  cado_poly_clear (cpoly);
   return area;
 }
 
 /* estimate the rootsieve area for a given u */
 double
-rotate_area_u (cado_poly_srcptr poly0, double maxlognorm, long u)
+rotate_area_u (cxx_cado_poly const & poly0, double maxlognorm, long u)
 {
   double area, sum = 0.0;
   long h, vmin, vmax;
-  cado_poly cpoly;
 
-  cado_poly_init (cpoly);
-  cado_poly_set (cpoly, poly0);
-  rotate_aux (cpoly->pols[ALG_SIDE],
-	      cpoly->pols[RAT_SIDE], 0, u, 2);
+  cxx_cado_poly cpoly = poly0;
+
+  rotate_aux (cpoly[ALG_SIDE],
+	      cpoly[RAT_SIDE], 0, u, 2);
   rotation_space r;
-  expected_growth (&r, cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], 1,
-                   maxlognorm, cpoly->skew);
+  expected_growth (&r, cpoly[ALG_SIDE], cpoly[RAT_SIDE], 1,
+                   maxlognorm, cpoly.skew);
   vmin = (r.kmin < (double) LONG_MIN) ? LONG_MIN : r.kmin;
   vmax = (r.kmax > (double) LONG_MAX) ? LONG_MAX : r.kmax;
 #define SAMPLE 100
@@ -818,13 +808,12 @@ rotate_area_u (cado_poly_srcptr poly0, double maxlognorm, long u)
       area = rotate_area_v (cpoly, maxlognorm, v);
       sum += area;
     }
-  cado_poly_clear (cpoly);
   return sum * h;
 }
 
 /* estimate the rootsieve area for umin <= u <= umax */
 double
-rotate_area (cado_poly_srcptr cpoly, double maxlognorm, long umin, long umax)
+rotate_area (cxx_cado_poly const & cpoly, double maxlognorm, long umin, long umax)
 {
   double area, sum = 0.0;
 
@@ -865,7 +854,7 @@ int main(int argc, char const * argv[])
 {
     int argc0 = argc;
     char const **argv0 = argv;
-    cado_poly cpoly;
+    cxx_cado_poly cpoly;
     int I = 0;
     double margin = NORM_MARGIN;
     long umin = LONG_MIN, umax = LONG_MAX;
@@ -986,46 +975,42 @@ int main(int argc, char const * argv[])
     if (I != 0)
       area = bound_f * pow (2.0, (double) (2 * I - 1));
 
-    cado_poly_init (cpoly);
-    if (!cado_poly_read (cpoly, argv[1]))
+    if (!cpoly.read(argv[1]))
       {
         fprintf (stderr, "Problem when reading file %s\n", argv[1]);
         usage_and_die (argv[0]);
       }
 
-    if (cpoly->skew == 0.0)
-      cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE]);
+    if (cpoly.skew == 0.0)
+      cpoly.skew = L2_skewness (cpoly[ALG_SIDE]);
 
     /* if -sopt, size-optimize */
     if (sopt)
       {
-        cado_poly c;
-        cado_poly_init (c);
-        cado_poly_set (c, cpoly);
-        size_optimization (c->pols[ALG_SIDE], c->pols[RAT_SIDE],
-                           cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE],
+        cxx_cado_poly c = cpoly;
+        size_optimization (c[ALG_SIDE], c[RAT_SIDE],
+                           cpoly[ALG_SIDE], cpoly[RAT_SIDE],
                            SOPT_DEFAULT_EFFORT, verbose);
         printf ("# initial polynomial:\n");
-        cado_poly_fprintf (stdout, "", cpoly);
+        cpoly.fprintf(stdout);
         print_transformation (cpoly, c);
-        cado_poly_set (cpoly, c);
+        cpoly = c;
         printf ("# size-optimized polynomial:\n");
-        cado_poly_fprintf (stdout, "", cpoly);
-        cado_poly_clear (c);
+        cpoly.fprintf(stdout);
       }
 
     nprimes = initPrimes (B);
 
     /* compute the skewness */
-    cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE]);
-    double lognorm = L2_lognorm (cpoly->pols[ALG_SIDE], cpoly->skew);
+    cpoly.skew = L2_skewness (cpoly[ALG_SIDE]);
+    double lognorm = L2_lognorm (cpoly[ALG_SIDE], cpoly.skew);
     double maxlognorm = lognorm + margin;
     printf ("initial lognorm %.2f, maxlognorm %.2f\n", lognorm, maxlognorm);
 
     /* determine range [umin,umax] */
     rotation_space r;
-    expected_growth (&r, cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], 2,
-                     maxlognorm, cpoly->skew);
+    expected_growth (&r, cpoly[ALG_SIDE], cpoly[RAT_SIDE], 2,
+                     maxlognorm, cpoly.skew);
     if (umin == LONG_MIN) /* umin was not given by the user */
       umin = (r.kmin < (double) LONG_MIN) ? LONG_MIN : r.kmin;
     if (umax == LONG_MAX) /* umax was not given by the user */
@@ -1045,26 +1030,26 @@ int main(int argc, char const * argv[])
     long u0 = 0; /* current translation in u */
     for (long u = umin; u <= umax; u++)
       {
-        rotate_aux (cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], u0, u, 2);
+        rotate_aux (cpoly[ALG_SIDE], cpoly[RAT_SIDE], u0, u, 2);
         u0 = u;
 
         rotate (cpoly, B, maxlognorm, bound_f, bound_g, area, u, rstate);
       }
 
     /* restore original polynomial */
-    rotate_aux (cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], u0, 0, 2);
+    rotate_aux (cpoly[ALG_SIDE], cpoly[RAT_SIDE], u0, 0, 2);
 
     /* perform the best rotation */
     gmp_printf ("best rotation: u=%ld v=%ld w=%Zd alpha=%1.2f\n",
             bestu, bestv, bestw, best_alpha);
 
     /* perform the best rotation */
-    rotate_aux (cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], 0, bestu, 2);
-    rotate_aux (cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], 0, bestv, 1);
-    mpz_poly_rotation(cpoly->pols[ALG_SIDE], cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], bestw, 0);
+    rotate_aux (cpoly[ALG_SIDE], cpoly[RAT_SIDE], 0, bestu, 2);
+    rotate_aux (cpoly[ALG_SIDE], cpoly[RAT_SIDE], 0, bestv, 1);
+    mpz_poly_rotation(cpoly[ALG_SIDE], cpoly[ALG_SIDE], cpoly[RAT_SIDE], bestw, 0);
 
     /* recompute the skewness of the best polynomial */
-    cpoly->skew = L2_combined_skewness2 (cpoly->pols[0], cpoly->pols[1]);
+    cpoly.skew = L2_combined_skewness2 (cpoly[0], cpoly[1]);
 
     print_cadopoly_extra (stdout, cpoly, argc0, argv0, 0);
 
@@ -1075,7 +1060,6 @@ int main(int argc, char const * argv[])
 
     delete[] Primes;
     delete[] Q;
-    cado_poly_clear (cpoly);
     mpz_clear (bestw);
 
     gmp_randclear(rstate);

@@ -39,7 +39,7 @@ extern "C" {
 /* There is no "default constructor" for the renumber_proxy, because that
  * doesn't make sense in any of the uses that we have.
  */
-extern void renumber_table_init(renumber_proxy_ptr, cado_poly_ptr);
+extern void renumber_table_init(renumber_proxy_ptr, cxx_cado_poly &);
 extern void renumber_table_clear(renumber_proxy_ptr);
 extern void renumber_table_set_lpb(renumber_proxy_ptr, const unsigned int *, size_t);
 extern void renumber_table_read_from_file(renumber_proxy_ptr, const char * filename, int for_dl);

@@ -474,7 +474,7 @@ int
 main (int argc, char const *argv[])
 {
   param_list pl;
-  cado_poly cpoly;
+  cxx_cado_poly cpoly;
   FILE * f, *outputfile;
   const char *outfilename = NULL;
   int maxbits = 1;  // disable powers by default
@@ -485,7 +485,6 @@ main (int argc, char const *argv[])
 
   param_list_init(pl);
   declare_usage(pl);
-  cado_poly_init(cpoly);
 
   argv++, argc--;
   for( ; argc ; ) {
@@ -542,23 +541,23 @@ main (int argc, char const *argv[])
   }
 
 
-  if (!cado_poly_read(cpoly, filename))
+  if (!cpoly.read(filename))
     {
       fprintf (stderr, "Error reading polynomial file %s\n", filename);
       exit (EXIT_FAILURE);
     }
 
   param_list_parse_int(pl, "side", &side);
-  if (side >= (int)cpoly->nb_polys){
-      fprintf(stderr, "Error: side must be in [0..%d[\n", cpoly->nb_polys);
+  if (side >= (int)cpoly.nsides()){
+      fprintf(stderr, "Error: side must be in [0..%d[\n", cpoly.nsides());
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
   }
 
   // No side is given: choose the unique algebraic side.
   if (side == -1) {
-      for (int i = 0; i < cpoly->nb_polys; ++i) {
-          if (cpoly->pols[i]->deg > 1) {
+      for (int i = 0; i < cpoly.nsides(); ++i) {
+          if (cpoly[i]->deg > 1) {
               if (side == -1) {
                   side = i;
               } else {
@@ -579,9 +578,8 @@ main (int argc, char const *argv[])
 
   param_list_warn_unused(pl);
 
-  makefb_with_powers (outputfile, cpoly->pols[side], lim, maxbits, nb_threads);
+  makefb_with_powers (outputfile, cpoly[side], lim, maxbits, nb_threads);
 
-  cado_poly_clear (cpoly);
   if (outfilename != NULL) {
     fclose_maybe_compressed(outputfile, outfilename);
   }

@@ -132,7 +132,7 @@ static bool choose_sieve_area(las_info const & las,
         cxx_mpz_poly fij = las.cpoly[doing.side].homography(
                 { Adj->Q.a0, Adj->Q.b0, Adj->Q.a1, Adj->Q.b1 });
 
-        if (fij->deg < las.cpoly->pols[doing.side]->deg) {
+        if (fij->deg < las.cpoly[doing.side]->deg) {
             verbose_fmt_print(0, 1,
                     "# Discarding {}; raw_J={};"
                     " // explanation: tripped over rational root."

@@ -3,28 +3,28 @@
    relation or relation with non prime ideal */
 
 #include "cado.h" // IWYU pragma: keep
-#include <inttypes.h>        // for PRIu64, PRId64
-#include <stdint.h>          // for uint64_t
-#include <stdio.h>           // for fprintf, printf, stderr, fflush, FILE, NULL
-#include <stdlib.h>          // for exit, EXIT_FAILURE, EXIT_SUCCESS
-#include <string.h>          // for memcpy, memset
+#include <inttypes.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #ifdef HAVE_MINGW
 #include <fcntl.h>   /* for _O_BINARY */
 #endif
-#include <gmp.h>             // for mpz_t, gmp_fprintf, mpz_cmp_ui, mpz_dive...
-#include "cado_poly.hpp"       // for NB_POLYS_MAX, cado_poly_clear, cado_poly...
-#include "filter_io.h"       // for earlyparsed_relation_s, earlyparsed_rela...
-#include "getprime.h"        // for getprime_mt, prime_info_clear, prime_inf...
-#include "gzip.h"            // for fclose_maybe_compressed, fopen_maybe_com...
-#include "macros.h"          // for ASSERT_ALWAYS, MAX
-#include "misc.h"            // for filelist_clear, filelist_from_file
-#include "arith/mod_ul.h"          // for modul_clearmod, modul_initmod_ul, modul_...
-#include "mpz_poly.h"        // for mpz_poly_homogeneous_eval_siui, mpz_poly
-#include "params.h"          // for param_list_decl_usage, param_list_config...
-#include "relation-tools.h"  // for u64toa16, d64toa10, d64toa16, u64toa10
-#include "timing.h"          // for timingstats_dict_add_mythread, timingsta...
-#include "typedefs.h"        // for prime_t, weight_t, exponent_t, p_r_values_t
-#include "verbose.h"         // for verbose_interpret_parameters
+#include <gmp.h>
+#include "cado_poly.hpp"
+#include "filter_io.h"
+#include "getprime.h"
+#include "gzip.h"
+#include "macros.h"
+#include "misc.h"
+#include "arith/mod_ul.h"
+#include "mpz_poly.h"
+#include "params.h"
+#include "relation-tools.h"
+#include "timing.h"
+#include "typedefs.h"
+#include "verbose.h"
 
 
 #define FACTOR_DOES_NOT_DIVIDE 1UL
@@ -36,7 +36,7 @@
 uint64_t nrels_read = 0, nrels_ok = 0, nrels_err = 0, nrels_fullyfixed = 0,
          nrels_doesnotdivide = 0, nrels_notprime = 0, nrels_notcomplete = 0,
          nrels_abovelpb = 0, nrels_fullycompleted = 0, nrels_fixednotprime = 0;
-cado_poly cpoly;
+cxx_cado_poly cpoly;
 unsigned long * lpb;    // full bounds, with the 2^...
 unsigned long lpb_max = 0;
 int verbose = 0;
@@ -157,9 +157,9 @@ process_one_relation (earlyparsed_relation_ptr rel)
   mpz_t norm[2];
   mpz_init_set_ui(norm[0], 1u);
   mpz_init_set_ui(norm[1], 1u);
-  unsigned int max_side_index = cpoly->nb_polys == 1u ? 1u : 2u;
-  auto * side_to_index = new unsigned int[cpoly->nb_polys];
-  memset(side_to_index, -1, cpoly->nb_polys * sizeof(unsigned int));
+  unsigned int max_side_index = cpoly.nsides() == 1u ? 1u : 2u;
+  auto * side_to_index = new unsigned int[cpoly.nsides()];
+  memset(side_to_index, -1, cpoly.nsides() * sizeof(unsigned int));
   unsigned long err = 0;
 
   if (verbose)
@@ -174,7 +174,7 @@ process_one_relation (earlyparsed_relation_ptr rel)
   {
       int side = rel->active_sides[side_index];
       side_to_index[side] = side_index;
-      mpz_poly_ptr ps = cpoly->pols[side];
+      mpz_poly_ptr ps = cpoly[side];
       mpz_poly_homogeneous_eval_siui (norm[side_index], ps, rel->a, rel->b);
       mpz_abs(norm[side_index], norm[side_index]);
       if (verbose) {
@@ -517,21 +517,20 @@ main (int argc, char const * argv[])
       usage (pl, argv0);
     }
 
-    cado_poly_init (cpoly);
-    if (!cado_poly_read (cpoly, polyfilename))
+    if (!cpoly.read(polyfilename))
     {
       fprintf (stderr, "Error reading polynomial file\n");
       exit (EXIT_FAILURE);
     }
 
-    lpb = new unsigned long[cpoly->nb_polys];
+    lpb = new unsigned long[cpoly.nsides()];
     {
-        auto * lpb_arg = new unsigned int[cpoly->nb_polys];
+        auto * lpb_arg = new unsigned int[cpoly.nsides()];
         param_list_parse_uint_args_per_side(pl, "lpb",
-                lpb_arg, cpoly->nb_polys,
+                lpb_arg, cpoly.nsides(),
                 ARGS_PER_SIDE_DEFAULT_COPY_PREVIOUS);
         lpb_max = 0;
-        for (int i = 0; i < cpoly->nb_polys; i++) {
+        for (int i = 0; i < cpoly.nsides(); i++) {
             lpb[i] = 1UL << lpb_arg[i];
             lpb_max = MAX(lpb_max, lpb[i]);
         }
@@ -550,7 +549,7 @@ main (int argc, char const * argv[])
     printf ("# Correct wrong relations if possible: %s\n",
                                               fix_it ? "yes" : "no");
     printf ("# Check primality of ideal: %s\n", check_primality ? "yes" : "no");
-    for (int i = 0; i < cpoly->nb_polys; i++)
+    for (int i = 0; i < cpoly.nsides(); i++)
     {
       printf ("# On side %d, ", i);
       if (lpb[i] > 0)
@@ -597,7 +596,6 @@ main (int argc, char const * argv[])
       fclose_maybe_compressed (outfile, outfilename);
 
     param_list_clear(pl);
-    cado_poly_clear (cpoly);
     delete[] lpb;
 
     timingstats_dict_add_mythread(stats, "main");

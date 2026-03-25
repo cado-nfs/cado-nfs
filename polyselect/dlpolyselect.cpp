@@ -62,26 +62,26 @@ skew: 1.37
 */
 
 #include "cado.h" // IWYU pragma: keep
-#include <float.h> // for DBL_MAX
+#include <float.h>
 #include <stdlib.h>
-#include <math.h> // pow
+#include <math.h>
 #include <time.h>
-#include <limits.h>      // for ULONG_MAX
-#include <stdio.h>       // for fprintf, printf, stderr, fflush, stdout
-#include <string.h>      // for strcmp
-#include <gmp.h>         // for mpz_t, mpz_clear, mpz_init, gmp_printf, mpz_...
-#include "cado_poly.hpp"   // for cado_poly_fprintf_MurphyE, cado_poly
-#include "macros.h"      // for ASSERT_ALWAYS, ASSERT
-#include "omp_proxy.h" // IWYU pragma: keep
+#include <limits.h>
+#include <stdio.h>
+#include <string.h>
+#include <gmp.h>
+#include "cado_poly.hpp"
+#include "macros.h"
+#include "omp_proxy.h"
 #include "auxiliary.hpp"
-#include "gcd.h"        // gcd_uint64
-#include "lll.h"        // mat_Z, LLL
+#include "gcd.h"
+#include "lll.h"
 #include "mpz_poly.h"
 #include "murphyE.hpp"
 #include "rootfinder.h"
 #include "polyselect_norms.h"
 #include "polyselect_alpha.h"
-#include "timing.h"             // for seconds
+#include "timing.h"
 #include "mpz_mat.h"
 
 /* We assume a difference <= ALPHA_BOUND_GUARD between alpha computed
@@ -229,16 +229,14 @@ print_nonlinear_poly_info (mpz_poly_srcptr ff, double alpha_f, mpz_poly_srcptr g
                   return 0;
 
         /* compute Murphy-E */
-        cado_poly p;
+        cxx_cado_poly p;
 	START_TIMER;
-        cado_poly_init(p);
-        cado_poly_provision_new_poly(p);
-        cado_poly_provision_new_poly(p);
-        mpz_poly_set(p->pols[ALG_SIDE], ff);
-        mpz_poly_set(p->pols[RAT_SIDE], gg);
-        p->skew = skew;
+        p.provision_new_poly();
+        p.provision_new_poly();
+        p[ALG_SIDE] = ff;
+        p[RAT_SIDE] = gg;
+        p.skew = skew;
         E = MurphyE (p, Bf, Bg, Area, MURPHY_K, get_alpha_bound ());
-        cado_poly_clear(p);
 	END_TIMER (TIMER_MURPHYE);
 
         {

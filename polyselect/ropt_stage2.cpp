@@ -506,7 +506,7 @@ rootsieve_run_multroot_lift ( node *currnode,
  */
 static inline void
 rootsieve_run_multroot ( sievearray_t sa,
-                         ropt_poly_srcptr rs,
+                         ropt_poly const & rs,
                          ropt_s2param_srcptr s2param,
                          unsigned int u,
                          unsigned int i,
@@ -551,7 +551,7 @@ rootsieve_run_multroot ( sievearray_t sa,
   for (v = 0; v < e ; v ++)
     pe = pe * p;
 
-  int d = mpz_poly_degree(rs->cpoly->pols[1]);
+  int d = mpz_poly_degree(rs.cpoly[1]);
 
   /* use s.p instead of m.p */
   f_ui = (unsigned int*) malloc ((d + 1) * sizeof (unsigned int));
@@ -561,8 +561,8 @@ rootsieve_run_multroot ( sievearray_t sa,
     fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
     exit (1);
   }
-  reduce_poly_uint (f_ui, rs->cpoly->pols[1], pe);
-  reduce_poly_uint (g_ui, rs->cpoly->pols[0], pe);
+  reduce_poly_uint (f_ui, rs.cpoly[1], pe);
+  reduce_poly_uint (g_ui, rs.cpoly[0], pe);
 
   /* j -> v (mod p) */
   ij2uv (s2param->B, s2param->MOD, s2param->Bmin, j, tmpz);
@@ -606,7 +606,7 @@ rootsieve_run_multroot ( sievearray_t sa,
  */
 static inline void
 rootsieve_one_block ( sievearray_t sa,
-                      ropt_poly_srcptr poly,
+                      ropt_poly const & poly,
                       ropt_s2param_srcptr s2param )
 {
   char *roottype_flag;
@@ -705,13 +705,13 @@ rootsieve_one_block ( sievearray_t sa,
           for (r = 0; r < p; r++) {
 
             /* skip */
-            if (mpz_divisible_ui_p(poly->gx[r], p) != 0)
+            if (mpz_divisible_ui_p(poly.gx[r], p) != 0)
               continue;
 
             /* u*g(r)^2 - f(r)g'(r) + f'(r)g(r) */
-            mpz_mul (tmp, poly->gx[r], poly->gx[r]);
+            mpz_mul (tmp, poly.gx[r], poly.gx[r]);
             mpz_mul_ui (tmp, tmp, u);
-            mpz_sub (tmp, tmp, poly->numerator[r]);
+            mpz_sub (tmp, tmp, poly.numerator[r]);
 
             /* if nbb == 0:
                -- if i_idx == i, compute indices;
@@ -727,8 +727,8 @@ rootsieve_one_block ( sievearray_t sa,
                 j_idx_i0[r] = 0;
 
                 /* compute v in f(r) + u*r*g(r) + v*g(r) = 0 (mod p) */
-                fr_ui = mpz_fdiv_ui (poly->fx[r], p);
-                gr_ui = mpz_fdiv_ui (poly->gx[r], p);
+                fr_ui = mpz_fdiv_ui (poly.fx[r], p);
+                gr_ui = mpz_fdiv_ui (poly.gx[r], p);
                 v = compute_v_ui (fr_ui, gr_ui, r, u, p);
 
                 /* compute v->j in B + MOD*j = v (mod p) */
@@ -866,7 +866,7 @@ rootsieve_one_block ( sievearray_t sa,
  * Rootsieve for f + (u*x +v)*g for each sublattice
  */
 static inline void
-rootsieve_one_sublattice ( ropt_poly_srcptr poly,
+rootsieve_one_sublattice ( ropt_poly const & poly,
                            ropt_s2param_ptr s2param,
                            ropt_param_srcptr param,
                            ropt_info_ptr info,
@@ -992,16 +992,16 @@ rootsieve_one_sublattice ( ropt_poly_srcptr poly,
                    tmpu, tmpv, sievescore->alpha[i]);
 #endif
 
-      compute_fuv_mp (s2param->f, poly->cpoly->pols[1], poly->cpoly->pols[0], tmpu, tmpv);
+      compute_fuv_mp (s2param->f, poly.cpoly[1], poly.cpoly[0], tmpu, tmpv);
 
       /* translation-only optimize */
-      mpz_poly_set (s2param->g, poly->cpoly->pols[0]);
+      mpz_poly_set (s2param->g, poly.cpoly[0]);
 
       sopt_local_descent (s2param->f, s2param->g, s2param->f, s2param->g, 1, -1, SOPT_DEFAULT_MAX_STEPS, 0);
 
 #if 1
       /* use MurphyE for ranking in the priority queue (default) */
-      MurphyE = print_poly_fg (s2param->f, s2param->g, poly->cpoly->n, 0);
+      MurphyE = print_poly_fg (s2param->f, s2param->g, poly.cpoly.n, 0);
       insert_MurphyE_pq (local_E_pqueue, info->w, tmpu, tmpv,
                          s2param->MOD, MurphyE);
 #else
@@ -1048,10 +1048,10 @@ rootsieve_one_sublattice ( ropt_poly_srcptr poly,
 
       if (param->verbose >= 4) {
 
-        compute_fuv_mp (s2param->f, poly->cpoly->pols[1], poly->cpoly->pols[0],
+        compute_fuv_mp (s2param->f, poly.cpoly[1], poly.cpoly[0],
                         local_E_pqueue->u[i], local_E_pqueue->v[i]);
 
-        print_poly_fg (s2param->f, s2param->g, poly->cpoly->n, 1);
+        print_poly_fg (s2param->f, s2param->g, poly.cpoly.n, 1);
 
         fprintf (stderr, "\n");
       }
@@ -1102,7 +1102,7 @@ rootsieve_one_sublattice ( ropt_poly_srcptr poly,
  * Call rootsieve_uv().
  */
 void
-ropt_stage2 ( ropt_poly_srcptr poly,
+ropt_stage2 ( ropt_poly const & poly,
               ropt_s2param_ptr s2param,
               ropt_param_srcptr param,
               ropt_info_ptr info,
@@ -1113,7 +1113,7 @@ ropt_stage2 ( ropt_poly_srcptr poly,
     ropt_s2param_print (s2param);
 
   info->w = w;
-  compute_fuv_mp (s2param->f, poly->cpoly->pols[1], poly->cpoly->pols[0],
+  compute_fuv_mp (s2param->f, poly.cpoly[1], poly.cpoly[0],
                   s2param->A, s2param->B);
 
   /* sieve fuv */

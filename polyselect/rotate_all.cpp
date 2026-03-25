@@ -519,7 +519,7 @@ usage_and_die (const char *argv0)
 
 int main(int argc, char const * argv[])
 {
-    cado_poly cpoly;
+    cxx_cado_poly cpoly;
     long kmax, jmin, kmin;
     unsigned long alim = 2000;
     int argc0 = argc, verbose = 0;
@@ -534,42 +534,40 @@ int main(int argc, char const * argv[])
 
     if (argc != 3)
         usage_and_die (argv0[0]);
-    cado_poly_init (cpoly);
-    if (!cado_poly_read(cpoly, argv[1])) {
+    if (!cpoly.read(argv[1])) {
         fprintf(stderr, "Problem when reading file %s\n", argv[1]);
         usage_and_die (argv0[0]);
     }
     kmax = strtol(argv[2], NULL, 10);
     MAX_k = kmax;
 
-    cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE]);
+    cpoly.skew = L2_skewness (cpoly[ALG_SIDE]);
 
     printf ("Initial polynomial:\n");
     if (verbose)
       print_cadopoly_extra (stdout, cpoly, argc0, argv0, 0);
     else
-      printf ("skewness=%1.2f, alpha=%1.2f\n", cpoly->skew,
-              get_alpha (cpoly->pols[ALG_SIDE], get_alpha_bound ()));
-    size_optimization (cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE],
+      printf ("skewness=%1.2f, alpha=%1.2f\n", cpoly.skew,
+              get_alpha (cpoly[ALG_SIDE], get_alpha_bound ()));
+    size_optimization (cpoly[ALG_SIDE], cpoly[RAT_SIDE], cpoly[ALG_SIDE], cpoly[RAT_SIDE],
                        SOPT_DEFAULT_EFFORT, verbose - 1);
-    cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE]);
+    cpoly.skew = L2_skewness (cpoly[ALG_SIDE]);
     
     printf ("After norm optimization:\n");
     if (verbose)
       print_cadopoly_extra (stdout, cpoly, argc0, argv0, 0);
     else
       printf ("skewness=%1.2f, alpha=%1.2f\n",
-              cpoly->skew, get_alpha (cpoly->pols[ALG_SIDE], get_alpha_bound ()));
+              cpoly.skew, get_alpha (cpoly[ALG_SIDE], get_alpha_bound ()));
 
-    rotate (cpoly->pols[ALG_SIDE], alim, cpoly->pols[RAT_SIDE], &jmin, &kmin, 0, verbose - 1);
+    rotate (cpoly[ALG_SIDE], alim, cpoly[RAT_SIDE], &jmin, &kmin, 0, verbose - 1);
 
     /* optimize again, but only translation */
-    mpz_poly_fprintf (stdout, cpoly->pols[RAT_SIDE]);
-    sopt_local_descent (cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], 1, -1,
+    mpz_poly_fprintf (stdout, cpoly[RAT_SIDE]);
+    sopt_local_descent (cpoly[ALG_SIDE], cpoly[RAT_SIDE], cpoly[ALG_SIDE], cpoly[RAT_SIDE], 1, -1,
                                           SOPT_DEFAULT_MAX_STEPS, verbose - 1);
-    cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE]);
+    cpoly.skew = L2_skewness (cpoly[ALG_SIDE]);
 
     print_cadopoly_extra (stdout, cpoly, argc0, argv0, 0);
-    cado_poly_clear(cpoly);
     return 0;
 } 

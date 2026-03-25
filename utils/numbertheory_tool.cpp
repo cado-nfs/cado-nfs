@@ -184,9 +184,8 @@ int main(int argc, char const * argv[])
         for(auto const & b : badideals)
             b.print_dot_badidealinfo_file(cout, side);
     } else if ((tmp = param_list_lookup_string(pl, "poly")) != nullptr) {
-        cado_poly cpoly;
-        cado_poly_init(cpoly);
-        cado_poly_read(cpoly, tmp);
+        cxx_cado_poly cpoly;
+        cpoly.read(tmp);
 
         /* We're no longer using this functionality, but it's still
          * present.
@@ -202,8 +201,8 @@ int main(int argc, char const * argv[])
         if (fbname)
             fbi = std::make_unique<std::ofstream>(fbiname);
 
-        for(int side = 0 ; side < cpoly->nb_polys ; side++) {
-            cxx_mpz_poly f(cpoly->pols[side]);
+        for(int side = 0 ; side < cpoly.nsides() ; side++) {
+            cxx_mpz_poly f(cpoly[side]);
             if (f->deg == 1) continue;
             vector<badideal> const badideals = badideals_for_polynomial(f, side);
             if (fb) {
@@ -220,12 +219,11 @@ int main(int argc, char const * argv[])
         }
         cxx_mpz ell;
         if (param_list_parse_mpz(pl, "ell", ell)) {
-            for(int side = 0 ; side < cpoly->nb_polys ; side++) {
-                sm_side_info const sm(cpoly->pols[side], ell, false);
+            for(int side = 0 ; side < cpoly.nsides() ; side++) {
+                sm_side_info const sm(cpoly[side], ell, false);
                 cout << "# nmaps" << side << " " << sm.nsm << "\n";
             }
         }
-        cado_poly_clear(cpoly);
     } else {
         usage(pl, original_argv, "-poly or -polystr are mandatory");
     }

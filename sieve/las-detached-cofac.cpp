@@ -43,7 +43,7 @@ static detached_cofac_result * detached_cofac_inner(worker_thread * worker, deta
 
     cofac_standalone & cur(*param);
 
-    int const nsides = las.cpoly->nb_polys;
+    int const nsides = las.cpoly.nsides();
 
     std::vector<int> cof_bitsize(nsides, 0);
     las.cofac_stats.call(cur.norm, cof_bitsize);

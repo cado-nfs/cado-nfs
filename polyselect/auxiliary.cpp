@@ -86,15 +86,15 @@ print_cadopoly_fg (FILE *fp, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_srcptr n)
    Note:  it's a backend for print_cadopoly_extra().
 */
 double
-print_cadopoly (FILE *fp, cado_poly_srcptr cpoly)
+print_cadopoly (FILE *fp, cxx_cado_poly const & cpoly)
 {
-   mpz_poly_srcptr F = cpoly->pols[ALG_SIDE];
-   mpz_poly_srcptr G = cpoly->pols[RAT_SIDE];
+   mpz_poly_srcptr F = cpoly[ALG_SIDE];
+   mpz_poly_srcptr G = cpoly[RAT_SIDE];
 
    /* print f, g only*/
-   print_cadopoly_fg (fp, F, G, cpoly->n);
+   print_cadopoly_fg (fp, F, G, cpoly.n);
 
-   fprintf (fp, "skew: %1.3f\n", cpoly->skew);
+   fprintf (fp, "skew: %1.3f\n", cpoly.skew);
 
    cado_poly_stats spoly;
    cado_poly_stats_init(spoly, 2);
@@ -106,8 +106,8 @@ print_cadopoly (FILE *fp, cado_poly_srcptr cpoly)
 
    double avg_e = 0;
    int nalg = 0;
-   for(int side = 0 ; side < cpoly->nb_polys ; side++) {
-       if (mpz_poly_degree(cpoly->pols[side]) == 1) continue;
+   for(int side = 0 ; side < cpoly.nsides() ; side++) {
+       if (mpz_poly_degree(cpoly[side]) == 1) continue;
        double e = MurphyE (cpoly, bound_f, bound_g, area, MURPHY_K, alpha_bound);
        avg_e += e;
        nalg++;
@@ -122,7 +122,7 @@ print_cadopoly (FILE *fp, cado_poly_srcptr cpoly)
    Print f, g, lognorm, skew, alpha, MurphyE, REV, time duration.
 */
 void
-print_cadopoly_extra (FILE *fp, cado_poly cpoly, int argc, char const * argv[], double st)
+print_cadopoly_extra (FILE *fp, cxx_cado_poly const & cpoly, int argc, char const * argv[], double st)
 {
    int i;
 
@@ -143,13 +143,12 @@ print_poly_fg (mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_srcptr N, int mode)
 {
    double e;
 
-   cado_poly cpoly;
-   cado_poly_init (cpoly);
-   cado_poly_provision_new_poly(cpoly);
-   cado_poly_provision_new_poly(cpoly);
-   mpz_poly_set(cpoly->pols[ALG_SIDE], f);
-   mpz_poly_set(cpoly->pols[RAT_SIDE], g);
-   mpz_set(cpoly->n, N);
+   cxx_cado_poly cpoly;
+   cpoly.provision_new_poly();
+   cpoly.provision_new_poly();
+   mpz_poly_set(cpoly[ALG_SIDE], f);
+   mpz_poly_set(cpoly[RAT_SIDE], g);
+   mpz_set(cpoly.n, N);
    cado_poly_set_skewness_if_undefined(cpoly);
 
    if (mode == 1)
@@ -160,17 +159,16 @@ print_poly_fg (mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_srcptr N, int mode)
    else
      e = MurphyE (cpoly, bound_f, bound_g, area, MURPHY_K, get_alpha_bound ());
 
-   cado_poly_clear (cpoly);
    return e;
 }
 
 
 /* TODO: Does it make sense with multiple polynomials?
  */
-void cado_poly_set_skewness_if_undefined(cado_poly_ptr cpoly)
+void cado_poly_set_skewness_if_undefined(cxx_cado_poly & cpoly)
 {
-    if (cpoly->skew <= 0.0) /* If skew is undefined, compute it. */
-        cpoly->skew = L2_combined_skewness2 (cpoly->pols[RAT_SIDE], cpoly->pols[ALG_SIDE]);
+    if (cpoly.skew <= 0.0) /* If skew is undefined, compute it. */
+        cpoly.skew = L2_combined_skewness2 (cpoly[RAT_SIDE], cpoly[ALG_SIDE]);
 }
 
 void cado_poly_stats_init(cado_poly_stats_ptr spoly, int nb_polys)
@@ -198,20 +196,20 @@ void cado_poly_stats_clear(cado_poly_stats_ptr spoly)
  * The average of the exp_E values for the algebraic polynomial(s) is
  * returned.
  */
-double cado_poly_compute_expected_stats(cado_poly_stats_ptr spoly, cado_poly_srcptr cpoly)
+double cado_poly_compute_expected_stats(cado_poly_stats_ptr spoly, cxx_cado_poly const & cpoly)
 {
-    ASSERT_ALWAYS(cpoly->skew > 0);
-    ASSERT_ALWAYS(mpz_poly_degree(cpoly->pols[RAT_SIDE]) == 1);
+    ASSERT_ALWAYS(cpoly.skew > 0);
+    ASSERT_ALWAYS(mpz_poly_degree(cpoly[RAT_SIDE]) == 1);
 
     /* Use the routine for the "final" stats, which actually computes
      * fewer things */
     cado_poly_compute_stats(spoly, cpoly);
     double avg_E = 0;
     int nalg = 0;
-    for(int side = 0 ; side < cpoly->nb_polys ; side++) {
-        if (mpz_poly_degree(cpoly->pols[side]) > 1) {
+    for(int side = 0 ; side < cpoly.nsides() ; side++) {
+        if (mpz_poly_degree(cpoly[side]) > 1) {
             spoly->pols[side]->exp_E = spoly->pols[side]->lognorm +
-                + expected_rotation_gain (cpoly->pols[side], cpoly->pols[RAT_SIDE]);
+                + expected_rotation_gain (cpoly[side], cpoly[RAT_SIDE]);
             avg_E += spoly->pols[side]->exp_E;
             nalg++;
         }
@@ -219,24 +217,24 @@ double cado_poly_compute_expected_stats(cado_poly_stats_ptr spoly, cado_poly_src
     return avg_E / nalg;
 }
 
-double cado_poly_compute_stats(cado_poly_stats_ptr spoly, cado_poly_srcptr cpoly)
+double cado_poly_compute_stats(cado_poly_stats_ptr spoly, cxx_cado_poly const & cpoly)
 {
-    ASSERT_ALWAYS(cpoly->skew > 0);
-    ASSERT_ALWAYS(mpz_poly_degree(cpoly->pols[RAT_SIDE]) == 1);
+    ASSERT_ALWAYS(cpoly.skew > 0);
+    ASSERT_ALWAYS(mpz_poly_degree(cpoly[RAT_SIDE]) == 1);
     double avg_E = 0;
     int nalg = 0;
-    for(int side = 0 ; side < cpoly->nb_polys ; side++) {
-        if (mpz_poly_degree(cpoly->pols[side]) == 1) {
+    for(int side = 0 ; side < cpoly.nsides() ; side++) {
+        if (mpz_poly_degree(cpoly[side]) == 1) {
             spoly->pols[side]->nrroots = 0;
             spoly->pols[side]->lognorm = 0;
             spoly->pols[side]->alpha = 0;
             spoly->pols[side]->alpha_proj = 0;
             spoly->pols[side]->exp_E = 0;
         } else {
-            spoly->pols[side]->nrroots = mpz_poly_number_of_real_roots(cpoly->pols[side]);
-            spoly->pols[side]->lognorm = L2_lognorm (cpoly->pols[side], cpoly->skew);
-            spoly->pols[side]->alpha = get_alpha (cpoly->pols[side], get_alpha_bound ());
-            spoly->pols[side]->alpha_proj = get_alpha_projective (cpoly->pols[side], get_alpha_bound ());
+            spoly->pols[side]->nrroots = mpz_poly_number_of_real_roots(cpoly[side]);
+            spoly->pols[side]->lognorm = L2_lognorm (cpoly[side], cpoly.skew);
+            spoly->pols[side]->alpha = get_alpha (cpoly[side], get_alpha_bound ());
+            spoly->pols[side]->alpha_proj = get_alpha_projective (cpoly[side], get_alpha_bound ());
             spoly->pols[side]->exp_E = 0;
             avg_E += spoly->pols[side]->lognorm + spoly->pols[side]->alpha;
             nalg++;
@@ -245,11 +243,11 @@ double cado_poly_compute_stats(cado_poly_stats_ptr spoly, cado_poly_srcptr cpoly
     return avg_E / nalg;
 }
 
-void cado_poly_fprintf_stats(FILE * fp, const char * prefix, cado_poly_srcptr cpoly, cado_poly_stats_srcptr spoly)
+void cado_poly_fprintf_stats(FILE * fp, const char * prefix, cxx_cado_poly const & cpoly, cado_poly_stats_srcptr spoly)
 {
-    ASSERT_ALWAYS(cpoly->skew > 0);
-    for(int side = 0 ; side < cpoly->nb_polys ; side++) {
-        if (mpz_poly_degree(cpoly->pols[side]) == 1)
+    ASSERT_ALWAYS(cpoly.skew > 0);
+    for(int side = 0 ; side < cpoly.nsides() ; side++) {
+        if (mpz_poly_degree(cpoly[side]) == 1)
             continue;
         fprintf (fp, "%s# side %d lognorm %1.2f, %s %1.2f, alpha %1.2f (proj %1.2f),"
                 " %u real root%s\n",

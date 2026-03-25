@@ -24,16 +24,16 @@ typedef const struct ropt_sime_struct * ropt_time_srcptr;
 extern "C" {
 #endif
 
-void ropt ( ropt_poly_ptr poly,
+void ropt ( ropt_poly & poly,
             ropt_bestpoly_ptr bestpoly,
             ropt_param_ptr param,
             ropt_info_ptr info);
 
-void ropt_get_bestpoly ( ropt_poly_srcptr poly,
+void ropt_get_bestpoly ( ropt_poly const & poly,
                          MurphyE_pq *global_E_pqueue,
                          ropt_bestpoly_ptr bestpoly);
 
-void ropt_polyselect (cado_poly_ptr output_poly, cado_poly_srcptr input_poly,
+void ropt_polyselect (cxx_cado_poly & output_poly, cxx_cado_poly const & input_poly,
                       ropt_param_ptr param, ropt_time_ptr thr);
 
 #ifdef __cplusplus

@@ -453,7 +453,7 @@ class imaginary_quadratic_cl_structure
                                      cxx_mpz_factored group_order,
                                      unsigned int seed,
                                      uint64_t generators_bound = 0U)
-        : cl(disc_from_poly(cpoly->pols[0]))
+        : cl(disc_from_poly(cpoly[0]))
         , group_order(std::move(group_order))
         , Dmod8(mpz_fdiv_ui(cl.discriminant(), 8))
         , Dmod2(Dmod8 % 2)
@@ -795,7 +795,7 @@ int main(int argc, char const * argv[])
     verbose_output_add(1, stderr, 1);
 
     cxx_cado_poly cpoly;
-    if (!cado_poly_read (cpoly, cmdline.polyfilename.c_str()))
+    if (!cpoly.read(cmdline.polyfilename.c_str()))
     {
         fmt::print(stderr, "Error reading polynomial file\n");
         exit(EXIT_FAILURE);

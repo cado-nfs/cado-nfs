@@ -51,7 +51,7 @@
  *   BOUND_LOGNORM_INCR_MAX which affects bound.
  */
 double
-ropt_linear_tune_stage1 ( ropt_poly_ptr poly,
+ropt_linear_tune_stage1 ( ropt_poly & poly,
                           ropt_s1param_srcptr s1param,
                           ropt_param_ptr param,
                           alpha_pq *tune_E_pqueue,
@@ -214,7 +214,7 @@ ropt_MurphyE_to_alpha ( MurphyE_pq *E_pqueue,
  * This is a fast tuning process which deal with lats from ropt_stage1()
  */
 double
-ropt_tune_stage2_fast ( ropt_poly_ptr poly,
+ropt_tune_stage2_fast ( ropt_poly & poly,
                         ropt_s1param_srcptr s1param,
                         ropt_param_srcptr param,
                         ropt_info_ptr info,
@@ -253,7 +253,7 @@ ropt_tune_stage2_fast ( ropt_poly_ptr poly,
 
     /* sublattice in w, u, v */
     extract_alpha_pq (alpha_pqueue, &w, u, v, mod, &score);
-    old_i = rotate_aux (poly->cpoly->pols[1], poly->cpoly->pols[0], old_i, w, 2);
+    old_i = rotate_aux (poly.cpoly[1], poly.cpoly[0], old_i, w, 2);
     ropt_poly_setup (poly);
     //ropt_bound_reset (poly, bound, param); // not really necessary
 
@@ -274,7 +274,7 @@ ropt_tune_stage2_fast ( ropt_poly_ptr poly,
 
   }
   /* rotate back */
-  rotate_aux (poly->cpoly->pols[1], poly->cpoly->pols[0], old_i, 0, 2);
+  rotate_aux (poly.cpoly[1], poly.cpoly[0], old_i, 0, 2);
   ropt_poly_setup (poly);
 
   /* save result to alpha_pqueue */
@@ -312,7 +312,7 @@ ropt_tune_stage2_fast ( ropt_poly_ptr poly,
 
 /* slow but finer tune */
 void
-ropt_tune_stage2_slow ( ropt_poly_ptr poly,
+ropt_tune_stage2_slow ( ropt_poly & poly,
                         ropt_bound_srcptr bound,
                         ropt_s1param_ptr s1param,
                         ropt_param_srcptr param,
@@ -362,7 +362,7 @@ ropt_tune_stage2_slow ( ropt_poly_ptr poly,
 
     /* sublattice in w, u, v */
     extract_alpha_pq (alpha_pqueue, &w, u, v, mod, &score);
-    old_i = rotate_aux (poly->cpoly->pols[1], poly->cpoly->pols[0], old_i, w, 2);
+    old_i = rotate_aux (poly.cpoly[1], poly.cpoly[0], old_i, w, 2);
     ropt_poly_setup (poly);
     // ropt_bound_reset (poly, bound, param); // not necessary
 #if RANK_SUBLATTICE_BY_E
@@ -558,7 +558,7 @@ ropt_tune_stage2_slow ( ropt_poly_ptr poly,
   }
 
   /* rotate back */
-  old_i = rotate_aux (poly->cpoly->pols[1], poly->cpoly->pols[0], old_i, 0, 2);
+  old_i = rotate_aux (poly.cpoly[1], poly.cpoly[0], old_i, 0, 2);
   ropt_poly_setup (poly);
 
   /* Step 2: slight larger range sieve on best sublattices */
@@ -567,7 +567,7 @@ ropt_tune_stage2_slow ( ropt_poly_ptr poly,
 
     extract_alpha_pq (tmp_alpha_pqueue, &w, u, v, mod, &score);
 
-    old_i = rotate_aux (poly->cpoly->pols[1], poly->cpoly->pols[0], old_i, w, 2);
+    old_i = rotate_aux (poly.cpoly[1], poly.cpoly[0], old_i, w, 2);
 
     ropt_poly_setup (poly);
 
@@ -601,7 +601,7 @@ ropt_tune_stage2_slow ( ropt_poly_ptr poly,
   }
 
   /* rotate back */
-  rotate_aux (poly->cpoly->pols[1], poly->cpoly->pols[0], old_i, 0, 2);
+  rotate_aux (poly.cpoly[1], poly.cpoly[0], old_i, 0, 2);
   ropt_poly_setup (poly);
   old_i = 0;    // NOLINT(clang-analyzer-*)
 
@@ -640,7 +640,7 @@ ropt_tune_stage2_slow ( ropt_poly_ptr poly,
  *       3rd pass is fast.
  */
 void
-ropt_tune_stage2 ( ropt_poly_ptr poly,
+ropt_tune_stage2 ( ropt_poly & poly,
                    ropt_bound_srcptr bound,
                    ropt_s1param_ptr s1param,
                    ropt_param_srcptr param,
@@ -721,7 +721,7 @@ ropt_tune_stage2 ( ropt_poly_ptr poly,
  * - global_E_pqueue which records 'top E' sublattices.
  */
 void
-ropt_call_sieve ( ropt_poly_ptr poly,
+ropt_call_sieve ( ropt_poly & poly,
                   ropt_bound_srcptr bound,
                   ropt_s1param_srcptr s1param,
                   ropt_param_srcptr param,
@@ -795,7 +795,7 @@ ropt_call_sieve ( ropt_poly_ptr poly,
                         &score);
 
     /* rotate */
-    old_i = rotate_aux (poly->cpoly->pols[1], poly->cpoly->pols[0], old_i, w, 2);
+    old_i = rotate_aux (poly.cpoly[1], poly.cpoly[0], old_i, w, 2);
     ropt_poly_setup (poly);
 
     if (param->verbose >= 2) {
@@ -823,7 +823,7 @@ ropt_call_sieve ( ropt_poly_ptr poly,
     }
   }
   /* rotate back */
-  rotate_aux (poly->cpoly->pols[1], poly->cpoly->pols[0], old_i, 0, 2);
+  rotate_aux (poly.cpoly[1], poly.cpoly[0], old_i, 0, 2);
   ropt_poly_setup (poly);
 
   /* free */
@@ -839,7 +839,7 @@ ropt_call_sieve ( ropt_poly_ptr poly,
  * Linear rotation: deg 5.
  */
 void
-ropt_linear_deg5 ( ropt_poly_ptr poly,
+ropt_linear_deg5 ( ropt_poly & poly,
                    ropt_bestpoly_ptr bestpoly,
                    ropt_param_ptr param,
                    ropt_info_ptr info)
@@ -949,7 +949,7 @@ ropt_linear_deg5 ( ropt_poly_ptr poly,
  * No tuning at all.
  */
 void
-ropt_linear_deg34 ( ropt_poly_srcptr poly,
+ropt_linear_deg34 ( ropt_poly const & poly,
                     ropt_bestpoly_ptr bestpoly,
                     ropt_param_ptr param,
                     ropt_info_ptr info)
@@ -1002,12 +1002,12 @@ ropt_linear_deg34 ( ropt_poly_srcptr poly,
  * Linear rotation: for deg 4 and deg 5
  */
 void
-ropt_linear ( ropt_poly_ptr poly,
+ropt_linear ( ropt_poly & poly,
         ropt_bestpoly_ptr bestpoly,
         ropt_param_ptr param,
         ropt_info_ptr info)
 {
-    int d = mpz_poly_degree(poly->cpoly->pols[1]);
+    int d = mpz_poly_degree(poly.cpoly[1]);
     if (d == 3)
         ropt_linear_deg34 (poly, bestpoly, param, info);
     else if (d == 5 || d == 4)

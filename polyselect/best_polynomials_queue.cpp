@@ -65,14 +65,11 @@ size_t best_polynomials_queue_get_count(best_polynomials_queue_srcptr b)
     return pi.q.size();
 }
 
-void best_polynomials_queue_try_push(best_polynomials_queue_ptr b, cado_poly_srcptr cpoly, double score)
+void best_polynomials_queue_try_push(best_polynomials_queue_ptr b, cxx_cado_poly const & cpoly, double score)
 {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-cstyle-cast)
     auto & pi = * (best_polynomials_queue_impl *) b->pimpl;
-    best_polynomials_queue_impl::queue_value_type v;
-    v.first = score;
-    cado_poly_set(v.second, cpoly);
-    pi.q.push(v);
+    pi.q.emplace(score, cpoly);
     if (pi.q.size() > pi.max_count) {
         pi.q.popMin();
     }
@@ -92,7 +89,7 @@ void best_polynomials_queue_print(best_polynomials_queue_srcptr b, FILE * f, con
     }
 }
 
-void best_polynomials_queue_do(best_polynomials_queue_srcptr b, void (*f)(int, double, cado_poly_ptr, void *), void *arg)
+void best_polynomials_queue_do(best_polynomials_queue_srcptr b, void (*f)(int, double, cxx_cado_poly &, void *), void *arg)
 {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-cstyle-cast)
     auto const & pi = * (best_polynomials_queue_impl const *) b->pimpl;

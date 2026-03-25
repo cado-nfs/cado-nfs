@@ -516,7 +516,7 @@ main(int argc0, char const * argv0[])
     param_list_parse(pl, "lpb", target);
     const char * polyfilename = param_list_lookup_string(pl, "poly");
     if (polyfilename) {
-        cado_poly_read(cpoly, polyfilename);
+        cpoly.read(polyfilename);
     }
 
     if (param_list_warn_unused(pl)) {
@@ -551,14 +551,14 @@ main(int argc0, char const * argv0[])
     params.p = wild[0];
     params.n = ext;
     if (jl || ext > 1) {
-        params.f = cpoly->pols[side];
+        params.f = cpoly[side];
     }
     if (jl) {
-        int const ret = cado_poly_getm(params.m, cpoly, params.p);
+        int const ret = cpoly.getm(params.m, params.p);
         ASSERT_ALWAYS(ret);
     }
     if (ext > 1) {
-        mpz_poly_gcd_mpz(params.phi, cpoly->pols[0], cpoly->pols[1], params.p);
+        mpz_poly_gcd_mpz(params.phi, cpoly[0], cpoly[1], params.p);
         for (unsigned int i = 0; i < ext; i++)
             mpz_poly_setcoeff(params.zpol, i, wild[i+1]);
     } else {

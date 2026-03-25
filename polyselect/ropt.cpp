@@ -29,13 +29,14 @@
 #include "ropt_param.h"
 #include "size_optimization.h"
 #include "auxiliary.hpp"
+#include "polyselect_alpha.h"
 
 
 /**
  * Find best poly. This is somehow redundant.
  */
 void
-ropt_get_bestpoly ( ropt_poly_srcptr poly,
+ropt_get_bestpoly ( ropt_poly const & poly,
                     MurphyE_pq *global_E_pqueue,
                     ropt_bestpoly_ptr bestpoly
                     )
@@ -50,14 +51,14 @@ ropt_get_bestpoly ( ropt_poly_srcptr poly,
   /* output all polys in the global queue */
   /* WTF starting with 1? Why? XXX */
   for (int i = 1; i < global_E_pqueue->used; i ++) {
-      mpz_poly_set(Fuv, poly->cpoly->pols[1]);
-      mpz_poly_set(Guv, poly->cpoly->pols[0]);
+      mpz_poly_set(Fuv, poly.cpoly[1]);
+      mpz_poly_set(Guv, poly.cpoly[0]);
 
       /* rotation is by u*x+v+w*x^2 (yes, interesting naming...)
        * Note that u, v, w have different types, and interestingly we
        * have different functions to do this...
        */
-      compute_fuv_mp (Fuv, poly->cpoly->pols[1], poly->cpoly->pols[0],
+      compute_fuv_mp (Fuv, poly.cpoly[1], poly.cpoly[0],
               global_E_pqueue->u[i], global_E_pqueue->v[i]);
 
       if (global_E_pqueue->w[i])
@@ -66,7 +67,7 @@ ropt_get_bestpoly ( ropt_poly_srcptr poly,
       /* This modifies Fuv and Guv */
       sopt_local_descent (Fuv, Guv, Fuv, Guv, 1, -1, SOPT_DEFAULT_MAX_STEPS, 0);
 
-      ave_MurphyE = print_poly_fg (Fuv, Guv, poly->cpoly->n, 0);
+      ave_MurphyE = print_poly_fg (Fuv, Guv, poly.cpoly.n, 0);
 
       /* Does it even make sense ? After all, if we end up with something
        * with non-trivial content, we would expect that we encountered it
@@ -90,7 +91,7 @@ ropt_get_bestpoly ( ropt_poly_srcptr poly,
  * Root sieve only.
  */
 static void
-ropt_do_stage2 (ropt_poly_ptr poly,
+ropt_do_stage2 (ropt_poly & poly,
                 ropt_bestpoly_ptr bestpoly,
                 ropt_param_ptr param,
                 ropt_info_ptr info)
@@ -114,8 +115,8 @@ ropt_do_stage2 (ropt_poly_ptr poly,
   MurphyE_pq *global_E_pqueue;
   new_MurphyE_pq (&global_E_pqueue, 4);
 
-  mpz_poly_set(Fuv, poly->cpoly->pols[1]);
-  mpz_poly_set(Guv, poly->cpoly->pols[0]);
+  mpz_poly_set(Fuv, poly.cpoly[1]);
+  mpz_poly_set(Guv, poly.cpoly[0]);
 
   /* rotate polynomial by f + rot*x^2 */
   rotate_aux (Fuv, Guv, 0, param->s2_w, 2);
@@ -139,7 +140,7 @@ ropt_do_stage2 (ropt_poly_ptr poly,
                 param->s2_v,
                 param->s2_mod,
                 alpha_lat,
-                poly->alpha_proj,
+                poly.alpha_proj,
                 bound->exp_min_alpha );
 
   /* root sieve */
@@ -167,12 +168,12 @@ ropt_do_stage2 (ropt_poly_ptr poly,
  * Ropt linear or quadratic.
  */
 static void
-ropt_do_both_stages ( ropt_poly_ptr poly,
+ropt_do_both_stages ( ropt_poly & poly,
         ropt_bestpoly_ptr bestpoly,
         ropt_param_ptr param,
         ropt_info_ptr info)
 {
-     int d = mpz_poly_degree(poly->cpoly->pols[1]);
+     int d = mpz_poly_degree(poly.cpoly[1]);
      if (d == 5 || d == 4 || d == 3)
          ropt_linear (poly, bestpoly, param, info);
      else if (d == 6 || d == 7)
@@ -191,7 +192,7 @@ ropt_do_both_stages ( ropt_poly_ptr poly,
  * @return top polynomial in bestpoly.
  */
 void
-ropt ( ropt_poly_ptr poly,
+ropt ( ropt_poly & poly,
        ropt_bestpoly_ptr bestpoly,
        ropt_param_ptr param,
        ropt_info_ptr info)
@@ -215,16 +216,15 @@ ropt ( ropt_poly_ptr poly,
  * Called by polyselect_ropt.
  */
 void
-ropt_polyselect (cado_poly_ptr output_poly, cado_poly_srcptr input_poly,
+ropt_polyselect (cxx_cado_poly & output_poly, cxx_cado_poly const & input_poly,
                  ropt_param_ptr param, ropt_time_ptr eacht)
 {
   ropt_poly poly;
-  ropt_poly_init (poly);
 
-  ASSERT_ALWAYS(input_poly->nb_polys == 2);
+  ASSERT_ALWAYS(input_poly.nsides() == 2);
   /* setup poly */
 
-  cado_poly_set(poly->cpoly, input_poly);
+  poly.cpoly = input_poly;
 
   ropt_poly_setup (poly);
 
@@ -234,17 +234,18 @@ ropt_polyselect (cado_poly_ptr output_poly, cado_poly_srcptr input_poly,
 
   ropt_bestpoly bestpoly;
   ropt_bestpoly_init (bestpoly);
-  ropt_bestpoly_set (bestpoly, poly->cpoly->pols[1], poly->cpoly->pols[0]);
+  ropt_bestpoly_set (bestpoly, poly.cpoly[1], poly.cpoly[0]);
 
   /* call main function */
   ropt_do_both_stages (poly, bestpoly, param, info);
   
   /* bring bestpoly back to polyselect_ropt */
-  for( ; output_poly->nb_polys < 2 ; )
-      cado_poly_provision_new_poly(output_poly);
-  mpz_poly_set(output_poly->pols[0], bestpoly->g);
-  mpz_poly_set(output_poly->pols[1], bestpoly->f);
-  mpz_set (output_poly->n, input_poly->n);
+  for( ; output_poly.nsides() < 2 ; )
+      output_poly.provision_new_poly();
+  output_poly[0] = bestpoly->g;
+  output_poly[1] = bestpoly->f;
+  output_poly.n = input_poly.n;
+  /* TODO: skewness!! */
 
   /* get time passed from info, use info to keep interface unchanged */
   eacht->ropt_time_stage1 = info->ropt_time_stage1;
@@ -254,5 +255,4 @@ ropt_polyselect (cado_poly_ptr output_poly, cado_poly_srcptr input_poly,
   /* free */
   ropt_bestpoly_clear (bestpoly);
   ropt_info_clear (info);
-  ropt_poly_clear (poly);
 }

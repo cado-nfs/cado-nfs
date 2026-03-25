@@ -227,7 +227,7 @@ int main(int argc, char const * argv[])
         usage(pl, argv0);
     }
 
-    if (!cado_poly_read(cpoly, polyfilename)) {
+    if (!cpoly.read(polyfilename)) {
         fprintf(stderr, "Error reading polynomial file\n");
         exit(EXIT_FAILURE);
     }

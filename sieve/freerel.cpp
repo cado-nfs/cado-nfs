@@ -86,10 +86,10 @@ freerel_data_t::freerel_data_t(cxx_param_list & pl, cxx_cado_poly const & cpoly,
      * set pmax to the largest integer that is less than or equal to
      * two of the large prime bounds.
      */
-    if (!pmax && cpoly->nb_polys > 1) {
+    if (!pmax && cpoly.nsides() > 1) {
         std::vector<unsigned int> lpb_copy = lpb;
         std::ranges::sort(lpb_copy);
-        pmax = 1UL << lpb_copy[cpoly->nb_polys-2];
+        pmax = 1UL << lpb_copy[cpoly.nsides()-2];
     }
 }
 
@@ -225,14 +225,14 @@ main(int argc, char const * argv[])
         fmt::print(stderr, "Error, missing -renumber command line argument\n");
         usage(pl, argv0);
     }
-    if (!cado_poly_read(cpoly, polyfilename)) {
+    if (!cpoly.read(polyfilename)) {
         fmt::print(stderr, "Error reading polynomial file\n");
         exit(EXIT_FAILURE);
     }
 
-    std::vector<unsigned int> lpb(cpoly->nb_polys, 0);
+    std::vector<unsigned int> lpb(cpoly.nsides(), 0);
 
-    if (!param_list_parse_uint_args_per_side(pl, "lpb", lpb.data(), cpoly->nb_polys, ARGS_PER_SIDE_DEFAULT_COPY_PREVIOUS)) {
+    if (!param_list_parse_uint_args_per_side(pl, "lpb", lpb.data(), cpoly.nsides(), ARGS_PER_SIDE_DEFAULT_COPY_PREVIOUS)) {
         fmt::print(stderr,
                 "Error, could not obtain values for the lpb bounds (or not for all polynomials)\n");
         usage(pl, argv0);

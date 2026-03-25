@@ -140,7 +140,7 @@ struct relation_data {
     const int in_alg_first;
     const int out_alg_first;
 
-    cado_poly_ptr cpoly;
+    cxx_cado_poly & cpoly;
     const renumber_t * renumber;
 
     read_relation_func read_relation;
@@ -910,7 +910,7 @@ read_relation_ggnfs (FILE *fp, relation  *rel, relation_data * data)
  * Bluntly stolen from check_rels, should be refactored.
  * renumbered relations do not contain all the prime factors for the relation, we use this function to add the missing primes.
  */
-static int fix_relation(relation  *rel, cado_poly_ptr cpoly, unsigned int * lpb)
+static int fix_relation(relation  *rel, cxx_cado_poly & cpoly, unsigned int * lpb)
 {
   mpz_t norm[2];
   int err = 0;
@@ -922,10 +922,10 @@ static int fix_relation(relation  *rel, cado_poly_ptr cpoly, unsigned int * lpb)
   }
 
   /* compute the norm on alg and rat sides */
-  for(int side = 0 ; side < cpoly->nb_polys ; side++)
+  for(int side = 0 ; side < cpoly.nsides() ; side++)
   {
       ASSERT_ALWAYS(side < 2);
-      mpz_poly_ptr ps = cpoly->pols[side];
+      mpz_poly_ptr ps = cpoly[side];
       mpz_poly_homogeneous_eval_siui (norm[side], ps, rel->a, rel->b);
       mpz_abs (norm[side], norm[side]);
   }
@@ -995,7 +995,7 @@ static int
 read_relation_renumbered (FILE *fp, relation  *rel, relation_data * data)
 {
   int c;
-  cado_poly_ptr cpoly = data->cpoly;
+  cxx_cado_poly & cpoly = data->cpoly;
   const renumber_t * renumber_table = data->renumber;
 
   if (fscanf (fp, "%" SCNx64 ",%" SCNx64 ":", &(rel->a), &(rel->b)) != 2)
@@ -1468,7 +1468,7 @@ int main(int argc, char const * argv[])
 
   worker  workers[MAX_THREADS];
 
-  cado_poly cpoly;
+  cxx_cado_poly cpoly;
   renumber_t renumber_table;
 
   read_relation_func read_relation = NULL;
@@ -1665,8 +1665,7 @@ int main(int argc, char const * argv[])
           exit(1);
       }
 
-      cado_poly_init(cpoly);
-      if (!cado_poly_read (cpoly, polyfile))
+      if (!cpoly.read(polyfile))
       {
           fprintf (stderr, "Error reading polynomial file\n");
           exit(1);

@@ -51,21 +51,22 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "polynomial.hpp"
 #include "mpz_poly.h"
 #include "cxx_mpz.hpp"
+#include "polyselect_alpha.h"
 
 double
-MurphyE (cado_poly_srcptr cpoly, double Bf, double Bg, double area, int K,
+MurphyE (cxx_cado_poly const & cpoly, double Bf, double Bg, double area, int K,
          unsigned long B)
 {
   double E = 0;
 
-  const double x = sqrt (area * cpoly->skew);
-  const double y = sqrt (area / cpoly->skew);
+  const double x = sqrt (area * cpoly.skew);
+  const double y = sqrt (area / cpoly.skew);
 
-  const polynomial<cxx_mpz> f(cpoly->pols[ALG_SIDE]);
-  const polynomial<cxx_mpz> g(cpoly->pols[RAT_SIDE]);
+  const polynomial<cxx_mpz> f(cpoly[ALG_SIDE]);
+  const polynomial<cxx_mpz> g(cpoly[RAT_SIDE]);
 
-  const double alpha_f = get_alpha (cpoly->pols[ALG_SIDE], B);
-  const double alpha_g = get_alpha (cpoly->pols[RAT_SIDE], B);
+  const double alpha_f = get_alpha (cpoly[ALG_SIDE], B);
+  const double alpha_g = get_alpha (cpoly[RAT_SIDE], B);
   const double one_over_logBf = 1.0 / log (Bf);
   const double one_over_logBg = 1.0 / log (Bg);
   for (int i = 0; i < K; i++)

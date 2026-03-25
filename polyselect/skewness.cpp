@@ -32,29 +32,24 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 static void
 compute_skewness (const char *input_file, const char *output_file)
 {
-  cado_poly p;
-  cado_poly_init (p);
-  if (!cado_poly_read (p, input_file))
+  cxx_cado_poly p;
+  if (!p.read(input_file))
     {
       fprintf (stderr, "Error reading polynomial file %s\n", input_file);
-      cado_poly_clear (p);
       exit (EXIT_FAILURE);
     }
-  p->skew = L2_combined_skewness2 (p->pols[RAT_SIDE], p->pols[ALG_SIDE]);
+  p.skew = L2_combined_skewness2 (p[RAT_SIDE], p[ALG_SIDE]);
   if (output_file == NULL) {
-    printf("%g\n", p->skew);
-    cado_poly_clear (p);
+    printf("%g\n", p.skew);
   } else {
     FILE *of;
     of = fopen (output_file, "w");
     if (of == NULL)
       {
         fprintf (stderr, "Error writing polynomial file %s\n", output_file);
-        cado_poly_clear (p);
         exit (EXIT_FAILURE);
       }
-    cado_poly_fprintf (of, "", p);
-    cado_poly_clear (p);
+    p.fprintf (of);
   }
 } 
 

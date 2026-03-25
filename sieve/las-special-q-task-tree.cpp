@@ -86,7 +86,7 @@ bool special_q_task_tree::new_candidate_relation(las_info const & las, relation 
     newcomer.rel = rel;
     double time_left = 0;
 
-    for(int side = 0 ; side < las.cpoly->nb_polys ; side++) {
+    for(int side = 0 ; side < las.cpoly.nsides() ; side++) {
         for(unsigned int i = 0 ; i < rel.sides[side].size() ; i++) {
             special_q v(side, rel.sides[side][i]);
             if (mpz_cmp(p, v.p) == 0)

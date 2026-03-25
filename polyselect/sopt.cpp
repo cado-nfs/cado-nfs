@@ -55,7 +55,7 @@ int main (int argc, char const * argv[])
   FILE *polys_file = NULL;
   const char *polys_filename = NULL;
   unsigned int nb_input_polys = 0; /* number of input polynomials */
-  cado_poly cpoly;
+  cxx_cado_poly cpoly;
   /* For statistics */
   double ave_raw_lognorm = 0.0, ave_raw_alpha = 0.0;
   double min_raw_lognorm = DBL_MAX, max_raw_lognorm = 0.0;
@@ -105,10 +105,8 @@ int main (int argc, char const * argv[])
     exit(EXIT_FAILURE);
   }
 
-  cado_poly_init (cpoly);
-
   /* Main loop: read all polynomials from file and do size-optimization. */
-  while (cado_poly_read_next_poly_from_stream (cpoly, polys_file))
+  while (cxx_cado_poly::read_next_poly_from_stream (cpoly, polys_file))
   {
     {
         cado_poly_stats raw_stats;
@@ -117,7 +115,7 @@ int main (int argc, char const * argv[])
         printf ("\n### Input raw polynomial (%u) ###\n", nb_input_polys);
         cado_poly_set_skewness_if_undefined(cpoly);
         cado_poly_compute_expected_stats(raw_stats, cpoly);
-        cado_poly_fprintf (stdout, "# ", cpoly);
+        cpoly.fprintf (stdout, "# ");
         cado_poly_fprintf_stats(stdout, "# ", cpoly, raw_stats);
 
         double lognorm = raw_stats->pols[ALG_SIDE]->lognorm;
@@ -131,17 +129,17 @@ int main (int argc, char const * argv[])
 
     /* Size-optimize */
     if (use_only_translation)
-      sopt_local_descent (cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], 
+      sopt_local_descent (cpoly[ALG_SIDE], cpoly[RAT_SIDE], cpoly[ALG_SIDE], cpoly[RAT_SIDE], 
                                       1, -1, SOPT_DEFAULT_MAX_STEPS, verbose);
     else
-      size_optimization (cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE],
+      size_optimization (cpoly[ALG_SIDE], cpoly[RAT_SIDE], cpoly[ALG_SIDE], cpoly[RAT_SIDE],
                                                         sopt_effort, verbose);
 
     /* force recomputation of the skewness. In fact, it would probably be
      * better to do it in size_optimization proper, or even to recompute
      * the skewness from there.
      */
-    cpoly->skew = 0;
+    cpoly.skew = 0;
 
     {
         cado_poly_stats sopt_stats;
@@ -152,7 +150,7 @@ int main (int argc, char const * argv[])
         /* We're still talking of expected stats, because we've only done
          * size-optimization at this point.  */
         cado_poly_compute_expected_stats(sopt_stats, cpoly);
-        cado_poly_fprintf (stdout, NULL, cpoly);
+        cpoly.fprintf (stdout);
         cado_poly_fprintf_stats(stdout, NULL, cpoly, sopt_stats);
 
         double lognorm = sopt_stats->pols[ALG_SIDE]->lognorm;
@@ -183,7 +181,6 @@ int main (int argc, char const * argv[])
   printf("# Maximum sopt lognorm: %3.3f\n", max_sopt_lognorm);
   printf("# Average sopt alpha value: %3.3f\n", ave_sopt_alpha / nb_input_polys);
 
-  cado_poly_clear (cpoly);
   fclose (polys_file);
   param_list_clear (pl);
   return 0;
