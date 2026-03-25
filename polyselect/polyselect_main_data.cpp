@@ -25,7 +25,7 @@
 #include "polyselect_special_q.h"
 #include "polyselect_stats.h"
 #include "polyselect_thread.h"
-#include "polyselect_thread_league.h"
+#include "polyselect_thread_league.hpp"
 #include "polyselect_thread_team.h"
 #include "size_optimization.h"
 #include "timing.h"

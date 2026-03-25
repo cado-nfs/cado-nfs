@@ -4,7 +4,7 @@
 #include <pthread.h>
 
 #include "polyselect_main_data.hpp"
-#include "polyselect_thread_league.h"
+#include "polyselect_thread_league.hpp"
 #include "polyselect_proots.h"
 #include "polyselect_shash.h"
 #include "barrier.h"

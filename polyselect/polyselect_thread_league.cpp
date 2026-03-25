@@ -9,7 +9,7 @@
 #endif
 
 #include "dllist.h"
-#include "polyselect_thread_league.h"
+#include "polyselect_thread_league.hpp"
 #include "polyselect_primes_table.h"
 #include "polyselect_main_data.hpp"
 #include "macros.h"

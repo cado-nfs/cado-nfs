@@ -45,7 +45,7 @@
 #include "polyselect_main_queue.hpp"
 #include "polyselect_poly_header.h"
 #include "polyselect_priority_queue.h"
-#include "polyselect_thread_league.h"
+#include "polyselect_thread_league.hpp"
 #include "polyselect_thread_team.h"
 #include "polyselect_collisions.h"
 #include "polyselect_shash.h"

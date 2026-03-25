@@ -4,7 +4,7 @@
 #include <pthread.h>
 #include <gmp.h>
 
-#include "polyselect_thread_league.h"
+#include "polyselect_thread_league.hpp"
 #include "polyselect_thread_team.h"
 #include "polyselect_poly_header.h"
 #include "polyselect_stats.h"
