@@ -14,6 +14,7 @@ filter/debug-tools.sh
 filter/out-of-core/Makefile
 filter/out-of-core/clique.c
 filter/out-of-core/singleton.c
+helpers.bash
 linalg/bwc/CMakeLists-nodist.txt
 linalg/bwc/bcast-file.c
 linalg/bwc/bench_polmatmul.cpp
