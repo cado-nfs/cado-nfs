@@ -108,7 +108,7 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
     # same as test_ropt_adv_deg6)
     #
     # note that most of the runtime-affecting parameters in here are
-    # actually hardcoded, e.g. in polyselect/ropt_param.c ; there's very
+    # actually hardcoded, e.g. in polyselect/ropt_param.cpp ; there's very
     # little that can be done to change the running time, short of
     # changing the size of the number to be factored.
     cado_divert_test(test_ropt_adv deg5large
