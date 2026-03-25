@@ -17,7 +17,7 @@
 #include "mpz_poly.h"
 #include "ropt_arith.hpp" // compute_fuv_mp
 #include "ropt_param.h"    // SUP_ALPHA
-#include "ropt_stage2.h"
+#include "ropt_stage2.hpp"
 #include "ropt_str.hpp"    // ropt_s2param_t
 #include "ropt_tree.h"  // node ...
 #include "size_optimization.h"

@@ -33,7 +33,7 @@
 #include "ropt.hpp" // ropt_get_bestpoly
 #include "ropt_arith.hpp" // ROPT_NPRIMES
 #include "ropt_stage1.hpp" // ropt_stage1
-#include "ropt_stage2.h" // ropt_stage2
+#include "ropt_stage2.hpp" // ropt_stage2
 #include "ropt_str.hpp" // ropt_poly_t ...
 #include "ropt_tree.h" // alpha_pq ...
 #include "ropt_linear.hpp"
