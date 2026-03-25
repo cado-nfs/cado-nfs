@@ -7,7 +7,7 @@
 /* -- declarations -- */
 
 void ropt_quadratic ( ropt_poly & rs,
-                      ropt_bestpoly_ptr bestpoly,
+                      ropt_bestpoly & bestpoly,
                       ropt_param_ptr param,
                       ropt_info_ptr info);
 

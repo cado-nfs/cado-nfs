@@ -1,19 +1,10 @@
-#ifndef CADO_POLYSELECT_SIZE_OPTIMIZATION_H
-#define CADO_POLYSELECT_SIZE_OPTIMIZATION_H
+#ifndef CADO_POLYSELECT_SIZE_OPTIMIZATION_HPP
+#define CADO_POLYSELECT_SIZE_OPTIMIZATION_HPP
 
-#include <stdint.h>
+#include <cstdint>
 #include <gmp.h>
-#include "mpz_poly.h"
 
-typedef struct
-{
-  mpz_t *tab;
-  uint64_t len;
-  uint64_t alloc;
-} list_mpz_s;
-typedef list_mpz_s list_mpz_t[1];
-typedef list_mpz_s * list_mpz_ptr;
-typedef const list_mpz_s * list_mpz_srcptr;
+#include "mpz_poly.h"
 
 /* Default maximal number of steps in size_optimize_local_descent */
 #define SOPT_DEFAULT_MAX_STEPS 300
@@ -43,21 +34,11 @@ typedef const list_mpz_s * list_mpz_srcptr;
 
 #define SOPT_LOCAL_DESCENT_GUARD 0.001
 
+double sopt_local_descent (cxx_mpz_poly &, cxx_mpz_poly &, cxx_mpz_poly const &,
+                           cxx_mpz_poly const &, int, int, unsigned int, int);
+double size_optimization (cxx_mpz_poly &, cxx_mpz_poly &, cxx_mpz_poly const &,
+                          cxx_mpz_poly const &, const unsigned int, const int);
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-double sopt_local_descent (mpz_poly_ptr, mpz_poly_ptr, mpz_poly_srcptr,
-                           mpz_poly_srcptr, int, int, unsigned int, int);
-double size_optimization (mpz_poly_ptr, mpz_poly_ptr, mpz_poly_srcptr,
-                          mpz_poly_srcptr, const unsigned int, const int);
-
-#ifdef __cplusplus
-}
-#endif
-
-
-#endif	/* CADO_POLYSELECT_SIZE_OPTIMIZATION_H */
+#endif	/* CADO_POLYSELECT_SIZE_OPTIMIZATION_HPP */
 
 

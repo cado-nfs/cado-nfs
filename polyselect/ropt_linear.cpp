@@ -28,18 +28,18 @@
 
 #include <gmp.h>
 
-#include "auxiliary.hpp"  // rotate_aux
+#include "auxiliary.hpp"
 #include "mpz_poly.h"
-#include "ropt.hpp" // ropt_get_bestpoly
-#include "ropt_arith.hpp" // ROPT_NPRIMES
-#include "ropt_stage1.hpp" // ropt_stage1
-#include "ropt_stage2.hpp" // ropt_stage2
-#include "ropt_str.hpp" // ropt_poly_t ...
-#include "ropt_tree.h" // alpha_pq ...
+#include "ropt.hpp"
+#include "ropt_arith.hpp"
+#include "ropt_stage1.hpp"
+#include "ropt_stage2.hpp"
+#include "ropt_str.hpp"
+#include "ropt_tree.h"
 #include "ropt_linear.hpp"
-#include "ropt_param.h" // TUNE_LOGNORM_INCR ...
-#include "timing.h"             // for seconds_thread
-//#define ROPT_LINEAR_TUNE_HARDER
+#include "ropt_param.h"
+#include "timing.h"
+
 
 
 #if TUNE_LOGNORM_INCR
@@ -235,7 +235,6 @@ ropt_tune_stage2_fast ( ropt_poly & poly,
   mpz_init (u);
   mpz_init (v);
   mpz_init (mod);
-  ropt_s2param_init (s2param);
   new_alpha_pq (&tmp_alpha_pqueue, s1param->nbest_sl);
 #if RANK_SUBLATTICE_BY_E
     char stmp[] = "E";  /* RANK_SUBLATTICE_BY_E */
@@ -297,9 +296,7 @@ ropt_tune_stage2_fast ( ropt_poly & poly,
      is smaller than alpha_queue. Do not seem good in tests */
   //ropt_MurphyE_to_alpha (global_E_pqueue, alpha_pqueue);
   
-  /* free s2param */
   free_alpha_pq (&tmp_alpha_pqueue);
-  ropt_s2param_clear (s2param);
   mpz_clear (u);
   mpz_clear (v);
   mpz_clear (mod);
@@ -345,7 +342,6 @@ ropt_tune_stage2_slow ( ropt_poly & poly,
   mpz_init (v);
   mpz_init (mod);
   mpz_init (old_mod);
-  ropt_s2param_init (s2param);
 
   if (curr_nbest > (unsigned) alpha_pqueue->used-1)
     curr_nbest = alpha_pqueue->used-1;
@@ -613,10 +609,8 @@ ropt_tune_stage2_slow ( ropt_poly & poly,
     insert_alpha_pq (alpha_pqueue, w, u, v, mod, score);
   }
   
-  /* free s2param */
   free_alpha_pq (&tmp_alpha_pqueue);
   free_alpha_pq (&tmp2_alpha_pqueue);
-  ropt_s2param_clear (s2param);
   mpz_clear (u);
   mpz_clear (tmpu);
   mpz_clear (v);
@@ -739,7 +733,6 @@ ropt_call_sieve ( ropt_poly & poly,
   mpz_init (mod);
 
   new_MurphyE_pq (&tmp_E_pqueue, s1param->nbest_sieve);
-  ropt_s2param_init (s2param);
 
   /* remove repetition in global_E_pqueue */
   remove_rep_MurphyE (global_E_pqueue);
@@ -789,6 +782,10 @@ ropt_call_sieve ( ropt_poly & poly,
   /* Step3, final root sieve */
   long old_i = 0;
   used = tmp_E_pqueue->used - 1;
+
+  /* TODO: refactor that somewhere. */
+  s2param.len_p_rs = ROPT_NPRIMES - 1;
+
   for (i = 0; i < used; i ++) {
 
     extract_MurphyE_pq (tmp_E_pqueue, &w, u, v, mod,
@@ -828,7 +825,6 @@ ropt_call_sieve ( ropt_poly & poly,
 
   /* free */
   free_MurphyE_pq (&tmp_E_pqueue);
-  ropt_s2param_clear (s2param);
   mpz_clear (u);
   mpz_clear (v);
   mpz_clear (mod);
@@ -840,7 +836,7 @@ ropt_call_sieve ( ropt_poly & poly,
  */
 void
 ropt_linear_deg5 ( ropt_poly & poly,
-                   ropt_bestpoly_ptr bestpoly,
+                   ropt_bestpoly & bestpoly,
                    ropt_param_ptr param,
                    ropt_info_ptr info)
 {
@@ -950,7 +946,7 @@ ropt_linear_deg5 ( ropt_poly & poly,
  */
 void
 ropt_linear_deg34 ( ropt_poly const & poly,
-                    ropt_bestpoly_ptr bestpoly,
+                    ropt_bestpoly & bestpoly,
                     ropt_param_ptr param,
                     ropt_info_ptr info)
 {
@@ -971,7 +967,6 @@ ropt_linear_deg34 ( ropt_poly const & poly,
   ropt_s1param_init (s1param);
   ropt_s1param_setup (poly, s1param, bound, param);
   new_MurphyE_pq (&global_E_pqueue, s1param->nbest_sl);
-  ropt_s2param_init (s2param);
   
   /* Step 1, set up lattice (0, 0) (mod 1) and run root sieve */
   ub = (bound->global_u_boundr > 0) ?
@@ -993,7 +988,6 @@ ropt_linear_deg34 ( ropt_poly const & poly,
   mpz_clear (mod);  
   free_MurphyE_pq (&global_E_pqueue);
   ropt_s1param_clear (s1param);
-  ropt_s2param_clear (s2param);
   ropt_bound_clear (bound);
 }
 
@@ -1003,7 +997,7 @@ ropt_linear_deg34 ( ropt_poly const & poly,
  */
 void
 ropt_linear ( ropt_poly & poly,
-        ropt_bestpoly_ptr bestpoly,
+        ropt_bestpoly & bestpoly,
         ropt_param_ptr param,
         ropt_info_ptr info)
 {

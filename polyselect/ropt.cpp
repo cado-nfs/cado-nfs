@@ -38,21 +38,19 @@
 void
 ropt_get_bestpoly ( ropt_poly const & poly,
                     MurphyE_pq *global_E_pqueue,
-                    ropt_bestpoly_ptr bestpoly
+                    ropt_bestpoly & bestpoly
                     )
 {
   double ave_MurphyE = 0.0, best_E = 0.0;
 
   /* var for computing E */
-  mpz_poly Fuv, Guv;
-  mpz_poly_init (Fuv, -1);
-  mpz_poly_init (Guv, -1);
+  cxx_mpz_poly Fuv, Guv;
 
   /* output all polys in the global queue */
   /* WTF starting with 1? Why? XXX */
   for (int i = 1; i < global_E_pqueue->used; i ++) {
-      mpz_poly_set(Fuv, poly.cpoly[1]);
-      mpz_poly_set(Guv, poly.cpoly[0]);
+      Fuv = poly.cpoly[1];
+      Guv = poly.cpoly[0];
 
       /* rotation is by u*x+v+w*x^2 (yes, interesting naming...)
        * Note that u, v, w have different types, and interestingly we
@@ -77,13 +75,10 @@ ropt_get_bestpoly ( ropt_poly const & poly,
 
       if (ave_MurphyE > best_E) {
           best_E = ave_MurphyE;
-          mpz_poly_set (bestpoly->f, Fuv);
-          mpz_poly_set (bestpoly->g, Guv);
+          bestpoly.f = Fuv;
+          bestpoly.g = Guv;
       }
   }
-
-  mpz_poly_clear (Fuv);
-  mpz_poly_clear (Guv);
 }
 
 
@@ -92,7 +87,7 @@ ropt_get_bestpoly ( ropt_poly const & poly,
  */
 static void
 ropt_do_stage2 (ropt_poly & poly,
-                ropt_bestpoly_ptr bestpoly,
+                ropt_bestpoly & bestpoly,
                 ropt_param_ptr param,
                 ropt_info_ptr info)
 {
@@ -105,9 +100,7 @@ ropt_do_stage2 (ropt_poly & poly,
   // MurphyE_pq *global_E_pqueue;
   // mpz_poly Fuv, Guv;
 
-  mpz_poly Fuv, Guv;
-  mpz_poly_init (Fuv, -1);
-  mpz_poly_init (Guv, -1);
+  cxx_mpz_poly Fuv, Guv;
 
   ropt_bound bound;
   ropt_bound_init (bound);
@@ -115,8 +108,8 @@ ropt_do_stage2 (ropt_poly & poly,
   MurphyE_pq *global_E_pqueue;
   new_MurphyE_pq (&global_E_pqueue, 4);
 
-  mpz_poly_set(Fuv, poly.cpoly[1]);
-  mpz_poly_set(Guv, poly.cpoly[0]);
+  Fuv = poly.cpoly[1];
+  Guv = poly.cpoly[0];
 
   /* rotate polynomial by f + rot*x^2 */
   rotate_aux (Fuv, Guv, 0, param->s2_w, 2);
@@ -146,7 +139,6 @@ ropt_do_stage2 (ropt_poly & poly,
   /* root sieve */
   ropt_s2param s2param;
 
-  ropt_s2param_init (s2param);
   ropt_s2param_setup_stage2_only (bound, s2param, param,
                                   param->s2_u, param->s2_v, param->s2_mod);
   info->w = param->s2_w;
@@ -158,9 +150,6 @@ ropt_do_stage2 (ropt_poly & poly,
   /* free */
   free_MurphyE_pq (&global_E_pqueue);
   ropt_bound_clear (bound);
-  ropt_s2param_clear(s2param);
-  mpz_poly_clear (Fuv);
-  mpz_poly_clear (Guv);
 }
 
 
@@ -169,7 +158,7 @@ ropt_do_stage2 (ropt_poly & poly,
  */
 static void
 ropt_do_both_stages ( ropt_poly & poly,
-        ropt_bestpoly_ptr bestpoly,
+        ropt_bestpoly & bestpoly,
         ropt_param_ptr param,
         ropt_info_ptr info)
 {
@@ -193,7 +182,7 @@ ropt_do_both_stages ( ropt_poly & poly,
  */
 void
 ropt ( ropt_poly & poly,
-       ropt_bestpoly_ptr bestpoly,
+       ropt_bestpoly & bestpoly,
        ropt_param_ptr param,
        ropt_info_ptr info)
 {
@@ -233,7 +222,6 @@ ropt_polyselect (cxx_cado_poly & output_poly, cxx_cado_poly const & input_poly,
 
 
   ropt_bestpoly bestpoly;
-  ropt_bestpoly_init (bestpoly);
   ropt_bestpoly_set (bestpoly, poly.cpoly[1], poly.cpoly[0]);
 
   /* call main function */
@@ -242,8 +230,8 @@ ropt_polyselect (cxx_cado_poly & output_poly, cxx_cado_poly const & input_poly,
   /* bring bestpoly back to polyselect_ropt */
   for( ; output_poly.nsides() < 2 ; )
       output_poly.provision_new_poly();
-  output_poly[0] = bestpoly->g;
-  output_poly[1] = bestpoly->f;
+  output_poly[0] = bestpoly.g;
+  output_poly[1] = bestpoly.f;
   output_poly.n = input_poly.n;
   /* TODO: skewness!! */
 
@@ -253,6 +241,5 @@ ropt_polyselect (cxx_cado_poly & output_poly, cxx_cado_poly const & input_poly,
   eacht->ropt_time_stage2 = info->ropt_time_stage2;
   
   /* free */
-  ropt_bestpoly_clear (bestpoly);
   ropt_info_clear (info);
 }

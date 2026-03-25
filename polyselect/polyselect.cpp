@@ -108,7 +108,7 @@ polyselect_process_match_async(polyselect_thread_league_srcptr league, polyselec
 
 
   mpz_t l, mtilde, m, adm1, t, k;
-  mpz_poly f, g, f_raw, g_raw;
+  cxx_mpz_poly f, g, f_raw, g_raw;
   int cmp;
 
   /* the expected rotation space is S^5 for degree 6 */
@@ -129,10 +129,6 @@ polyselect_process_match_async(polyselect_thread_league_srcptr league, polyselec
   mpz_init(adm1);
   mpz_init(mtilde);
 
-  mpz_poly_init(f, header->d);
-  mpz_poly_init(g, 1);
-  mpz_poly_init(f_raw, header->d);
-  mpz_poly_init(g_raw, 1);
   /* we have l = p1*p2*q */
   mpz_set_ui(l, p1);
   mpz_mul_ui(l, l, p2);
@@ -314,8 +310,8 @@ polyselect_process_match_async(polyselect_thread_league_srcptr league, polyselec
 
   {
       double st = seconds_thread();
-      mpz_poly_set(g_raw, g);
-      mpz_poly_set(f_raw, f);
+      g_raw = g;
+      f_raw = f;
       size_optimization(f, g, f_raw, g_raw, league->main->sopt_effort, league->main->verbose);
       stats->optimize_time += seconds_thread() - st;
       stats->opt_found++;
@@ -371,10 +367,6 @@ end:
   mpz_clear(k);
   mpz_clear(adm1);
   mpz_clear(mtilde);
-  mpz_poly_clear(f);
-  mpz_poly_clear(g);
-  mpz_poly_clear(f_raw);
-  mpz_poly_clear(g_raw);
 }
 
 #if 0

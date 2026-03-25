@@ -102,12 +102,12 @@ typedef const struct ropt_s1param_s * ropt_s1param_srcptr;
  * Struct for stage 2 parameters:
  * sieve bound for (A + MOD*i)*x + (B + MOD*j).
  */
-struct ropt_s2param_s {
+struct ropt_s2param {
   /* maybe different to global_*_bound */
-  mpz_t Umax;
-  mpz_t Umin;
-  mpz_t Vmax;
-  mpz_t Vmin;
+  cxx_mpz Umax;
+  cxx_mpz Umin;
+  cxx_mpz Vmax;
+  cxx_mpz Vmin;
 
   /* sieve length */
   long Amax;
@@ -117,18 +117,16 @@ struct ropt_s2param_s {
   long Blocksize;
 
   /* sublattice */
-  mpz_t A;
-  mpz_t B;
-  mpz_t MOD;
-  unsigned int len_p_rs;
+  cxx_mpz A;
+  cxx_mpz B;
+  cxx_mpz MOD;
+  unsigned int len_p_rs; //  = ROPT_NPRIMES - 1;
 
   /* polynomial */
-  mpz_poly f;
-  mpz_poly g;
+  cxx_mpz_poly f;
+  cxx_mpz_poly g;
+
 };
-typedef struct ropt_s2param_s ropt_s2param[1];
-typedef struct ropt_s2param_s * ropt_s2param_ptr;
-typedef const struct ropt_s2param_s * ropt_s2param_srcptr;
 
 
 /**
@@ -189,13 +187,10 @@ typedef const struct ropt_param_s * ropt_param_srcptr;
 /**
  * Struct for top polynomials.
  */
-struct ropt_bestpoly_s {
-  mpz_poly f;
-  mpz_poly g;
+struct ropt_bestpoly {
+  cxx_mpz_poly f;
+  cxx_mpz_poly g;
 };
-typedef struct ropt_bestpoly_s ropt_bestpoly[1];
-typedef struct ropt_bestpoly_s * ropt_bestpoly_ptr;
-typedef const struct ropt_bestpoly_s * ropt_bestpoly_srcptr;
 
 
 /**
@@ -286,27 +281,23 @@ void ropt_s1param_clear ( ropt_s1param_ptr s1param );
 
 
 /* ropt_s2param_t */
-void ropt_s2param_init ( ropt_s2param_ptr s2param );
-
-void ropt_s2param_clear (ropt_s2param_ptr s2param );
-
 void ropt_s2param_setup ( ropt_bound_srcptr bound,
                           ropt_s1param_srcptr s1param,
-                          ropt_s2param_ptr s2param,
+                          ropt_s2param & s2param,
                           ropt_param_srcptr param,
                           mpz_srcptr A,
                           mpz_srcptr B,
                           mpz_srcptr MOD );
 
 void ropt_s2param_setup_stage2_only ( ropt_bound_srcptr bound,
-                                      ropt_s2param_ptr s2param,
+                                      ropt_s2param & s2param,
                                       ropt_param_srcptr param,
                                       mpz_srcptr A,
                                       mpz_srcptr B,
                                       mpz_srcptr MOD );
 
 void ropt_s2param_setup_tune ( ropt_s1param_srcptr s1param,
-                               ropt_s2param_ptr s2param,
+                               ropt_s2param & s2param,
                                mpz_srcptr A,
                                mpz_srcptr B,
                                mpz_srcptr MOD,
@@ -314,17 +305,13 @@ void ropt_s2param_setup_tune ( ropt_s1param_srcptr s1param,
                                unsigned long Bmax,
                                unsigned int len_p_rs );
 
-void ropt_s2param_print ( ropt_s2param_srcptr s2param );
+void ropt_s2param_print ( ropt_s2param const & s2param );
 
 
 /* bestpoly */
-void ropt_bestpoly_init ( ropt_bestpoly_ptr bestpoly);
-                      
-void ropt_bestpoly_set ( ropt_bestpoly_ptr bestpoly,
+void ropt_bestpoly_set ( ropt_bestpoly & bestpoly,
                            mpz_poly_srcptr f,
                            mpz_poly_srcptr g);
-
-void ropt_bestpoly_clear ( ropt_bestpoly_ptr bestpoly);
 
 
 /* param */

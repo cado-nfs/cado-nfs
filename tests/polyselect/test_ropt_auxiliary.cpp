@@ -5,6 +5,7 @@
 #include <cstdlib>
 
 #include <gmp.h>
+
 #include "mpz_poly.h"
 #include "cxx_mpz.hpp"
 #include "auxiliary.hpp"
@@ -101,12 +102,11 @@ test_L2_lognorm ()
 static void
 test_L2_skewness (int t)
 {
-  mpz_poly p;
+  cxx_mpz_poly p;
   int d, i;
   double s, n, sl, nl, sh, nh, eps;
   int prec = 10;
 
-  mpz_poly_init (p, MAX_DEGREE);
   if (t == 0)
     mpz_poly_setcoeff_ui(p, 0, 1);
   else if (t == 1)
@@ -159,65 +159,32 @@ test_L2_skewness (int t)
     }
 
   /* non-regression test for -1+x-x^2+x^4+x^5+x^6 */
-  mpz_poly_set_zero(p);
-  mpz_poly_setcoeff_si(p, 0, -1);
-  mpz_poly_setcoeff_si(p, 1, 1);
-  mpz_poly_setcoeff_si(p, 2, -1);
-  mpz_poly_setcoeff_si(p, 3, 0);
-  mpz_poly_setcoeff_si(p, 4, 1);
-  mpz_poly_setcoeff_si(p, 5, 1);
-  mpz_poly_setcoeff_si(p, 6, 1);
-
+  p = cxx_mpz_poly { "-1+x-x^2+x^4+x^5+x^6" };
   s = L2_skewness (p);
   ASSERT_ALWAYS (s == 1.0);
 
   /* test of degree 2 */
-  mpz_poly_set_zero(p);
-  mpz_poly_setcoeff_si(p, 0, 42);
-  mpz_poly_setcoeff_si(p, 1, 0);
-  mpz_poly_setcoeff_si(p, 2, 17);
-
+  p = cxx_mpz_poly { "17*x^2+42" };
   s = L2_skewness (p);
   ASSERT_ALWAYS (1.571 <= s && s <= 1.572);
 
   /* test of degree 1 */
-  mpz_poly_set_zero(p);
-  mpz_poly_setcoeff_si(p, 0, 42);
-  mpz_poly_setcoeff_si(p, 1, 17);
-
+  p = cxx_mpz_poly { "17*x+42" };
   s = L2_skewness (p);
   ASSERT_ALWAYS (2.470 <= s && s <= 2.471);
-
-  mpz_poly_clear (p);
 }
 
 // TODO: add test based on experiments done with rsa896 polynomials
 static void
 test_size_optimization ()
 {
-  mpz_poly f, g, f_opt, g_opt;
+  cxx_mpz_poly f_opt, g_opt;
   double n;
 
   /* check size-optimization of some RSA-1024 polynomial */
-  mpz_poly_init (f, 6);
-  mpz_poly_init (f_opt, 6);
-  mpz_poly_init (g, 1);
-  mpz_poly_init (g_opt, 1);
-  mpz_set_str (mpz_poly_coeff(g, 1), "479811439908216194249453", 10);
-  mpz_set_str (mpz_poly_coeff(g, 0), "-1817512374557883972669278009547068402044185664937", 10);
-  g->deg = 1;
-  mpz_set_str (mpz_poly_coeff(f, 6), "3746994889972677420", 10);
-  mpz_set_str (mpz_poly_coeff(f, 5), "11057269082141058123", 10);
-  mpz_set_str (mpz_poly_coeff(f, 4), "-476255458524556917851536204692614007", 10);
-  mpz_set_str (mpz_poly_coeff(f, 3), "571753863783554395130237455946021515899994741285",
-               10);
-  mpz_set_str (mpz_poly_coeff(f, 2),
-               "-119215284531776978224224998903910352781670761348", 10);
-  mpz_set_str (mpz_poly_coeff(f, 1),
-               "776740771444910094386701822648133452751778906680", 10);
-  mpz_set_str (mpz_poly_coeff(f, 0),
-               "-690339709954574842053460672118938320489859967550", 10);
-  f->deg = 6;
+  cxx_mpz_poly f { "-690339709954574842053460672118938320489859967550+776740771444910094386701822648133452751778906680*x-119215284531776978224224998903910352781670761348*x^2+571753863783554395130237455946021515899994741285*x^3-476255458524556917851536204692614007*x^4+11057269082141058123*x^5+3746994889972677420*x^6" };
+  cxx_mpz_poly g { "-1817512374557883972669278009547068402044185664937+479811439908216194249453*x" };
+
   n = L2_skew_lognorm (f);
   ASSERT_ALWAYS(106.895 <= n && n <= 106.905);
 
@@ -231,11 +198,6 @@ test_size_optimization ()
      expected alpha value, thus on this particular example we do no longer get
      a better lognorm with sopt_effort=3 */
   ASSERT_ALWAYS(n <= 87.415);
-
-  mpz_poly_clear (f);
-  mpz_poly_clear (g);
-  mpz_poly_clear (f_opt);
-  mpz_poly_clear (g_opt);
 }
 
 static void test_rotate_aux(unsigned long iter)

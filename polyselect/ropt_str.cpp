@@ -35,16 +35,13 @@
  * Find bound V for constant rotation.
  */
 static inline double
-rotate_bounds_V_mpz ( mpz_poly_srcptr F0,
-                      mpz_poly_srcptr G0,
+rotate_bounds_V_mpz ( cxx_mpz_poly const & F0,
+                      cxx_mpz_poly const & G0,
                       ropt_bound_ptr bound )
 {
   mpz_t V;
-  mpz_poly  F, G;
+  cxx_mpz_poly  F, G;
   double lognorm, exp_E = DBL_MAX, min_exp_E = DBL_MAX;
-
-  mpz_poly_init (F, F0->deg);
-  mpz_poly_init (G, G0->deg);
 
   /* look for positive V: 2, 4, 8, ... */
   mpz_init_set_ui (V, 1);
@@ -91,8 +88,6 @@ rotate_bounds_V_mpz ( mpz_poly_srcptr F0,
   }
   mpz_set (bound->global_v_boundl, V);
 
-  mpz_poly_clear (F);
-  mpz_poly_clear (G);
   mpz_clear (V);
   return min_exp_E;
 }
@@ -102,14 +97,12 @@ rotate_bounds_V_mpz ( mpz_poly_srcptr F0,
  * Find bound U for linear rotation.
  */
 static inline double
-rotate_bounds_U_lu ( mpz_poly_srcptr F0,
-                     mpz_poly_srcptr G0,
+rotate_bounds_U_lu ( cxx_mpz_poly const & F0,
+                     cxx_mpz_poly const & G0,
                      ropt_bound_ptr bound )
 {
-  mpz_poly F, G;
+  cxx_mpz_poly F, G;
   double lognorm, exp_E = DBL_MAX, min_exp_E = DBL_MAX;
-  mpz_poly_init (F, F0->deg);
-  mpz_poly_init (G, G0->deg);
 
   /* Look for positive u: 1, 2, 4, 8, ... */
   int64_t u = 1;
@@ -155,9 +148,6 @@ rotate_bounds_U_lu ( mpz_poly_srcptr F0,
     if (lognorm > bound->bound_lognorm) break;
   }
   bound->global_u_boundl = u;
-
-  mpz_poly_clear (F);
-  mpz_poly_clear (G);
   return exp_E;
 }
 
@@ -169,12 +159,10 @@ static inline void
 rotate_bounds_W_lu ( ropt_poly const & poly,
                      ropt_bound_ptr bound )
 {
-  mpz_poly F, G;
+  cxx_mpz_poly F, G;
 
-  mpz_poly_srcptr F0 = poly.cpoly[1];
-  mpz_poly_srcptr G0 = poly.cpoly[0];
-  mpz_poly_init (F, F0->deg);
-  mpz_poly_init (G, G0->deg);
+  cxx_mpz_poly const & F0 = poly.cpoly[1];
+  cxx_mpz_poly const & G0 = poly.cpoly[0];
 
   /* look for positive w: 0, 1, 2, ... */
   int64_t w = 0;
@@ -205,9 +193,6 @@ rotate_bounds_W_lu ( ropt_poly const & poly,
       break;
   }
   bound->global_w_boundl = w;
-
-  mpz_poly_clear (F);
-  mpz_poly_clear (G);
 }
 
 
@@ -810,66 +795,26 @@ ropt_s1param_clear ( ropt_s1param_ptr s1param )
 }
 
 
-/**
- * Init ropt_s2param.
- */
-void
-ropt_s2param_init ( ropt_s2param_ptr s2param )
-{
-  s2param->len_p_rs = ROPT_NPRIMES - 1;
-  s2param->Amax = s2param->Amin = 0;
-  s2param->Bmax = s2param->Bmin = 0;
-
-  mpz_init_set_ui (s2param->Umax, 0UL);
-  mpz_init_set_ui (s2param->Umin, 0UL);
-  mpz_init_set_ui (s2param->Vmax, 0UL);
-  mpz_init_set_ui (s2param->Vmin, 0UL);
-  mpz_init_set_ui (s2param->A, 0UL);
-  mpz_init_set_ui (s2param->B, 0UL);
-  mpz_init_set_ui (s2param->MOD, 0UL);
-
-  mpz_poly_init(s2param->f, -1);
-  mpz_poly_init(s2param->g, -1);
-}
-
-
-/**
- * Free ropt_s2param.
- */
-void
-ropt_s2param_clear( ropt_s2param_ptr s2param )
-{
-  mpz_clear (s2param->Umax);
-  mpz_clear (s2param->Umin);
-  mpz_clear (s2param->Vmax);
-  mpz_clear (s2param->Vmin);
-  mpz_clear (s2param->A);
-  mpz_clear (s2param->B);
-  mpz_clear (s2param->MOD);
-  mpz_poly_clear (s2param->f);
-  mpz_poly_clear (s2param->g);
-}
-
 
 /**
  * Setup sublattice (u, v), mod and Umax, Umin, Vmax, Vmin.
  */
 static inline void
-ropt_s2param_setup_sublattice ( ropt_s2param_ptr s2param,
+ropt_s2param_setup_sublattice ( ropt_s2param & s2param,
                                 mpz_srcptr A,
                                 mpz_srcptr B,
                                 mpz_srcptr MOD )
 {
-  mpz_set (s2param->A, A);
-  mpz_set (s2param->B, B);
+  mpz_set (s2param.A, A);
+  mpz_set (s2param.B, B);
   /* the s1param->modulus might be not true since rsparam might be
      changed for different quadratic rotations. Instead, the true mod
      is recorded in the priority queue, now in 'MOD'. */
-  mpz_set (s2param->MOD, MOD);
-  ab2uv (s2param->A, s2param->MOD, s2param->Amax, s2param->Umax);
-  ab2uv (s2param->A, s2param->MOD, s2param->Amin, s2param->Umin);
-  ab2uv (s2param->B, s2param->MOD, s2param->Bmax, s2param->Vmax);
-  ab2uv (s2param->B, s2param->MOD, s2param->Bmin, s2param->Vmin);
+  mpz_set (s2param.MOD, MOD);
+  ab2uv (s2param.A, s2param.MOD, s2param.Amax, s2param.Umax);
+  ab2uv (s2param.A, s2param.MOD, s2param.Amin, s2param.Umin);
+  ab2uv (s2param.B, s2param.MOD, s2param.Bmax, s2param.Vmax);
+  ab2uv (s2param.B, s2param.MOD, s2param.Bmin, s2param.Vmin);
 }
 
 
@@ -878,18 +823,18 @@ ropt_s2param_setup_sublattice ( ropt_s2param_ptr s2param,
  */
 static inline void
 ropt_s2param_setup_range ( ropt_bound_srcptr bound,
-                           ropt_s2param_ptr s2param,
+                           ropt_s2param & s2param,
                            ropt_param_srcptr param,
                            mpz_srcptr mod )
 {
   /* read sieve length from param (stdin) */
   if (param->s2_Amax >= 0 && param->s2_Bmax > 0) {
-    s2param->Amax = param->s2_Amax;
-    s2param->Bmax = param->s2_Bmax;
+    s2param.Amax = param->s2_Amax;
+    s2param.Bmax = param->s2_Bmax;
   }
   /* or compute sieve V length */
   else {
-    s2param->Amax = 0;
+    s2param.Amax = 0;
     unsigned long len;
     mpz_t q;
     mpz_init (q);
@@ -897,18 +842,18 @@ ropt_s2param_setup_range ( ropt_bound_srcptr bound,
     len =  mpz_get_ui (q);
 
     /* upper bound */
-    s2param->Bmax = ( (len > SIZE_SIEVEARRAY_V_MAX) ?
+    s2param.Bmax = ( (len > SIZE_SIEVEARRAY_V_MAX) ?
                       SIZE_SIEVEARRAY_V_MAX : (long) len );
 
     /* fix if len is too small */
-    if (s2param->Bmax == 0)
-      s2param->Bmax = 128;
+    if (s2param.Bmax == 0)
+      s2param.Bmax = 128;
 
     mpz_clear (q);
   }
 
-  s2param->Bmin = -s2param->Bmax;
-  s2param->Amin = -s2param->Amax;
+  s2param.Bmin = -s2param.Bmax;
+  s2param.Amin = -s2param.Amax;
 }
 
 
@@ -918,14 +863,14 @@ ropt_s2param_setup_range ( ropt_bound_srcptr bound,
 void
 ropt_s2param_setup ( ropt_bound_srcptr bound,
                      ropt_s1param_srcptr s1param,
-                     ropt_s2param_ptr s2param,
+                     ropt_s2param & s2param,
                      ropt_param_srcptr param,
                      mpz_srcptr A,
                      mpz_srcptr B,
                      mpz_srcptr MOD )
 {
   /* normally we should have more primes than those in the sublattice */
-  if (s2param->len_p_rs < s1param->len_e_sl) {
+  if (s2param.len_p_rs < s1param->len_e_sl) {
     fprintf ( stderr, "# Warning: number of primes considered "
               "in stage 2 is smaller than that in "
               "stage 1. See ropt_s2param_setup().\n" );
@@ -944,13 +889,13 @@ ropt_s2param_setup ( ropt_bound_srcptr bound,
  */
 void
 ropt_s2param_setup_stage2_only ( ropt_bound_srcptr bound,
-                                 ropt_s2param_ptr s2param,
+                                 ropt_s2param & s2param,
                                  ropt_param_srcptr param,
                                  mpz_srcptr A,
                                  mpz_srcptr B,
                                  mpz_srcptr MOD )
 {
-  s2param->len_p_rs = ROPT_NPRIMES - 1;
+  s2param.len_p_rs = ROPT_NPRIMES - 1;
 
   /* set sieving length */
   ropt_s2param_setup_range (bound, s2param, param, MOD);
@@ -964,14 +909,14 @@ ropt_s2param_setup_stage2_only ( ropt_bound_srcptr bound,
  * Set tune (short) sieving region for s2param -> Amax, Amin, Amax, Amin.
  */
 static inline void
-ropt_s2param_setup_tune_range  ( ropt_s2param_ptr s2param,
+ropt_s2param_setup_tune_range  ( ropt_s2param & s2param,
                                  unsigned long Amax,
                                  unsigned long Bmax )
 {
-  s2param->Amax = (long) Amax;
-  s2param->Bmax = (long) Bmax;
-  s2param->Bmin = -s2param->Bmax;
-  s2param->Amin = -s2param->Amax;
+  s2param.Amax = (long) Amax;
+  s2param.Bmax = (long) Bmax;
+  s2param.Bmin = -s2param.Bmax;
+  s2param.Amin = -s2param.Amax;
 }
 
 
@@ -980,7 +925,7 @@ ropt_s2param_setup_tune_range  ( ropt_s2param_ptr s2param,
  */
 void
 ropt_s2param_setup_tune ( ropt_s1param_srcptr s1param,
-                          ropt_s2param_ptr s2param,
+                          ropt_s2param & s2param,
                           mpz_srcptr A,
                           mpz_srcptr B,
                           mpz_srcptr MOD,
@@ -988,14 +933,14 @@ ropt_s2param_setup_tune ( ropt_s1param_srcptr s1param,
                           unsigned long Bmax,
                           unsigned int len_p_rs )
 {
-  /* setup s2param->len_p_rs */
+  /* setup s2param.len_p_rs */
   if (len_p_rs < s1param->tlen_e_sl) {
     fprintf ( stderr, "# Warning: number of primes considered "
               "in stage 2 (%d) is smaller than that (%d) in "
               "stage 1. See ropt_s2param_setup().\n",
               len_p_rs, s1param->tlen_e_sl );
   }
-  s2param->len_p_rs = len_p_rs;
+  s2param.len_p_rs = len_p_rs;
 
   /* set tune sieving length */
   ropt_s2param_setup_tune_range (s2param, Amax, Bmax);
@@ -1009,41 +954,34 @@ ropt_s2param_setup_tune ( ropt_s1param_srcptr s1param,
  * Print s2param.
  */
 void
-ropt_s2param_print ( ropt_s2param_srcptr s2param )
+ropt_s2param_print ( ropt_s2param const & s2param )
 {
   fprintf ( stderr, "# Info: sieving matrix: "
             "[%ld, %ld] x [%ld, %ld], len. prime = %d.\n",
-            s2param->Amin, s2param->Amax,
-            s2param->Bmin, s2param->Bmax,
-            s2param->len_p_rs );
+            s2param.Amin, s2param.Amax,
+            s2param.Bmin, s2param.Bmax,
+            s2param.len_p_rs );
 
   gmp_fprintf ( stderr,
                 "# Info: (u, v) = (%Zd + i * %Zd, %Zd + j * %Zd)\n",
-                s2param->A, s2param->MOD, s2param->B,
-                s2param->MOD );
+                (mpz_srcptr) s2param.A,
+                (mpz_srcptr) s2param.MOD,
+                (mpz_srcptr) s2param.B,
+                (mpz_srcptr) s2param.MOD );
 
   gmp_fprintf ( stderr,
                 "# Info: (Amin: %4ld, Amax: %4ld) -> "
                 "(Umin: %6Zd, Umax: %6Zd)\n",
-                s2param->Amin, s2param->Amax,
-                s2param->Umin, s2param->Umax );
+                s2param.Amin, s2param.Amax,
+                (mpz_srcptr) s2param.Umin,
+                (mpz_srcptr) s2param.Umax );
 
   gmp_fprintf ( stderr,
                 "# Info: (Bmin: %4ld, Bmax: %4ld) -> "
                 "(Vmin: %6Zd, Vmax: %6Zd)\n",
-                s2param->Bmin, s2param->Bmax,
-                s2param->Vmin, s2param->Vmax );
-}
-
-
-/**
- * Init bestpoly.
- */
-void
-ropt_bestpoly_init ( ropt_bestpoly_ptr bestpoly)
-{
-    mpz_poly_init(bestpoly->f, -1);
-    mpz_poly_init(bestpoly->g, -1);
+                s2param.Bmin, s2param.Bmax,
+                (mpz_srcptr) s2param.Vmin,
+                (mpz_srcptr) s2param.Vmax );
 }
 
 
@@ -1051,23 +989,12 @@ ropt_bestpoly_init ( ropt_bestpoly_ptr bestpoly)
  * Setup bestpoly.
  */
 void
-ropt_bestpoly_set ( ropt_bestpoly_ptr bestpoly,
+ropt_bestpoly_set ( ropt_bestpoly & bestpoly,
                       mpz_poly_srcptr f,
                       mpz_poly_srcptr g)
 {
-    mpz_poly_set(bestpoly->f, f);
-    mpz_poly_set(bestpoly->g, g);
-}
-
-
-/**
- * Free bestpoly.
- */
-void
-ropt_bestpoly_clear ( ropt_bestpoly_ptr bestpoly )
-{
-    mpz_poly_clear(bestpoly->f);
-    mpz_poly_clear(bestpoly->g);
+    mpz_poly_set(bestpoly.f, f);
+    mpz_poly_set(bestpoly.g, g);
 }
 
 

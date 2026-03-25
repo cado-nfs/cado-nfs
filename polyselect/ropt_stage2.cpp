@@ -191,7 +191,7 @@ rootsieve_run_multroot_lift ( node *currnode,
                               unsigned int *g_ui,
                               unsigned int *fuv_ui,
                               int d,
-                              ropt_s2param_srcptr s2param,
+                              ropt_s2param const & s2param,
                               unsigned int p,
                               unsigned int max_e,
                               unsigned int curr_e,
@@ -215,7 +215,7 @@ rootsieve_run_multroot_lift ( node *currnode,
 
   /* val of p in MOD */
   pl = p;
-  while (mpz_divisible_ui_p(s2param->MOD, pl) != 0) {
+  while (mpz_divisible_ui_p(s2param.MOD, pl) != 0) {
     pl *= p;
   }
   pl /= p;
@@ -251,11 +251,11 @@ rootsieve_run_multroot_lift ( node *currnode,
              B + MOD*k = v (mod pe), so B = v (mod pe)
              A + MOD*k = u (mod pe), so A = u (mod pe)
              otherwise, no need to record this (u, v) at all. */
-          if (mpz_divisible_ui_p (s2param->MOD, p) != 0) {
-            if (mpz_divisible_ui_p (s2param->MOD, pe) != 0) {
-              if ( mpz_fdiv_ui (s2param->B, pe) !=
+          if (mpz_divisible_ui_p (s2param.MOD, p) != 0) {
+            if (mpz_divisible_ui_p (s2param.MOD, pe) != 0) {
+              if ( mpz_fdiv_ui (s2param.B, pe) !=
                    (currnode->v + fr * pem1) ||
-                   mpz_fdiv_ui (s2param->A, pe) !=
+                   mpz_fdiv_ui (s2param.A, pe) !=
                    (currnode->u + i * pem1) )
               {
 #if DEBUG_MULTROOT_LIFT
@@ -307,11 +307,11 @@ rootsieve_run_multroot_lift ( node *currnode,
              B + MOD*k = v (mod pe), so B = v (mod pe)
              A + MOD*k = u (mod pe), so A = u (mod pe)
              otherwise, no need to record this (u, v) at all. */
-          if (mpz_divisible_ui_p (s2param->MOD, p) != 0) {
-            if (mpz_divisible_ui_p (s2param->MOD, pe) != 0) {
-              if ( mpz_fdiv_ui (s2param->B, pe) !=
+          if (mpz_divisible_ui_p (s2param.MOD, p) != 0) {
+            if (mpz_divisible_ui_p (s2param.MOD, pe) != 0) {
+              if ( mpz_fdiv_ui (s2param.B, pe) !=
                    (currnode->v + j * pem1) ||
-                   mpz_fdiv_ui (s2param->A, pe) !=
+                   mpz_fdiv_ui (s2param.A, pe) !=
                    (currnode->u + i * pem1) )
               {
 #if DEBUG_MULTROOT_LIFT
@@ -364,11 +364,11 @@ rootsieve_run_multroot_lift ( node *currnode,
       while (tmpnode != NULL) {
 
         /* p|MOD, the inverse doesn't exist */
-        if (mpz_divisible_ui_p (s2param->MOD, p) != 0) {
+        if (mpz_divisible_ui_p (s2param.MOD, p) != 0) {
 
           /* This shouldn't be called since we didn't record them
              during the lift. Only for safty purpose. */
-          if (mpz_divisible_ui_p (s2param->MOD, pe) != 0) {
+          if (mpz_divisible_ui_p (s2param.MOD, pe) != 0) {
             tmpnode2 = tmpnode;
             tmpnode = tmpnode->nextsibling;
 #if DEBUG_MULTROOT_LIFT
@@ -383,21 +383,21 @@ rootsieve_run_multroot_lift ( node *currnode,
              it is still possible to solve such x. */
           else {
             j_idx = rootsieve_run_multroot_lift_idx
-              ( tmpnode->v, s2param->Bmin,
-                s2param->B, s2param->MOD, pl, pe );
+              ( tmpnode->v, s2param.Bmin,
+                s2param.B, s2param.MOD, pl, pe );
 
             i_idx = rootsieve_run_multroot_lift_idx
-              ( tmpnode->u, s2param->Amin,
-                s2param->A, s2param->MOD, pl, pe );
+              ( tmpnode->u, s2param.Amin,
+                s2param.A, s2param.MOD, pl, pe );
             step = pe / pl;
           }
         }
         /* p-|-MOD, the inverse exists */
         else {
-          j_idx = uv2ij_mod (s2param->B, s2param->Bmin,
-                             s2param->MOD, tmpnode->v, pe);
-          i_idx = uv2ij_mod (s2param->A, s2param->Amin,
-                             s2param->MOD, tmpnode->u, pe);
+          j_idx = uv2ij_mod (s2param.B, s2param.Bmin,
+                             s2param.MOD, tmpnode->v, pe);
+          i_idx = uv2ij_mod (s2param.A, s2param.Amin,
+                             s2param.MOD, tmpnode->u, pe);
           step = pe;
         }
 
@@ -439,11 +439,11 @@ rootsieve_run_multroot_lift ( node *currnode,
       (currnode->parent)->firstchild = currnode;
 
     /* p|MOD, the inverse doesn't exist */
-    if (mpz_divisible_ui_p (s2param->MOD, p) != 0) {
+    if (mpz_divisible_ui_p (s2param.MOD, p) != 0) {
 
       /* This shouldn't be called since we didn't record them
          during the lift. Only for safty purpose. */
-      if (mpz_divisible_ui_p (s2param->MOD, pem1) != 0) {
+      if (mpz_divisible_ui_p (s2param.MOD, pem1) != 0) {
 #if DEBUG_MULTROOT_LIFT
         fprintf (stderr, "deleting (%u, %u) with %u roots in level %u.\n",
                  tmpnode->u, tmpnode->v, tmpnode->nr, curr_e - 1);
@@ -455,20 +455,20 @@ rootsieve_run_multroot_lift ( node *currnode,
          it is still possible to solve such x. */
       else {
         j_idx = rootsieve_run_multroot_lift_idx
-          ( tmpnode->v, s2param->Bmin,
-            s2param->B, s2param->MOD, pl, pem1 );
+          ( tmpnode->v, s2param.Bmin,
+            s2param.B, s2param.MOD, pl, pem1 );
         i_idx = rootsieve_run_multroot_lift_idx
-          ( tmpnode->u, s2param->Amin,
-            s2param->A, s2param->MOD, pl, pem1 );
+          ( tmpnode->u, s2param.Amin,
+            s2param.A, s2param.MOD, pl, pem1 );
         step = pem1 / pl;
       }
     }
     /* p-|-MOD, the inverse exists */
     else {
-      j_idx = uv2ij_mod (s2param->B, s2param->Bmin,
-                         s2param->MOD, tmpnode->v, pem1);
-      i_idx = uv2ij_mod (s2param->A, s2param->Amin,
-                         s2param->MOD, tmpnode->u, pem1);
+      j_idx = uv2ij_mod (s2param.B, s2param.Bmin,
+                         s2param.MOD, tmpnode->v, pem1);
+      i_idx = uv2ij_mod (s2param.A, s2param.Amin,
+                         s2param.MOD, tmpnode->u, pem1);
       step = pem1;
     }
 
@@ -496,8 +496,6 @@ rootsieve_run_multroot_lift ( node *currnode,
 
     free_node (&tmpnode);
   }
-
-  return;
 }
 
 
@@ -507,7 +505,7 @@ rootsieve_run_multroot_lift ( node *currnode,
 static inline void
 rootsieve_run_multroot ( sievearray_t sa,
                          ropt_poly const & rs,
-                         ropt_s2param_srcptr s2param,
+                         ropt_s2param const & s2param,
                          unsigned int u,
                          unsigned int i,
                          long j,
@@ -565,7 +563,7 @@ rootsieve_run_multroot ( sievearray_t sa,
   reduce_poly_uint (g_ui, rs.cpoly[0], pe);
 
   /* j -> v (mod p) */
-  ij2uv (s2param->B, s2param->MOD, s2param->Bmin, j, tmpz);
+  ij2uv (s2param.B, s2param.MOD, s2param.Bmin, j, tmpz);
   v = (unsigned int) mpz_fdiv_ui (tmpz, p);
   // v = (unsigned int) ( (tmp >= 0) ? tmp : tmp + (int) p );
 
@@ -607,7 +605,7 @@ rootsieve_run_multroot ( sievearray_t sa,
 static inline void
 rootsieve_one_block ( sievearray_t sa,
                       ropt_poly const & poly,
-                      ropt_s2param_srcptr s2param )
+                      ropt_s2param const & s2param )
 {
   char *roottype_flag;
   unsigned int p, r, u, v, k, np, nbb, max_e, totnbb, fr_ui, gr_ui, pe = 1;
@@ -617,11 +615,11 @@ rootsieve_one_block ( sievearray_t sa,
   mpz_t tmp;
 
   mpz_init (tmp);
-  subsgl = (int16_t *) malloc (s2param->len_p_rs * sizeof(int16_t));
-  submul = (int16_t *) malloc (s2param->len_p_rs * sizeof(int16_t));
-  j_idx = (long *) malloc (ropt_primes[s2param->len_p_rs] * sizeof(long));
-  j_idx_i0 = (long *) malloc (ropt_primes[s2param->len_p_rs] * sizeof(long));
-  roottype_flag = (char *) malloc (ropt_primes[s2param->len_p_rs]
+  subsgl = (int16_t *) malloc (s2param.len_p_rs * sizeof(int16_t));
+  submul = (int16_t *) malloc (s2param.len_p_rs * sizeof(int16_t));
+  j_idx = (long *) malloc (ropt_primes[s2param.len_p_rs] * sizeof(long));
+  j_idx_i0 = (long *) malloc (ropt_primes[s2param.len_p_rs] * sizeof(long));
+  roottype_flag = (char *) malloc (ropt_primes[s2param.len_p_rs]
                                    * sizeof(char));
 
   if ( subsgl == NULL || submul == NULL || j_idx == NULL ||
@@ -632,7 +630,7 @@ rootsieve_one_block ( sievearray_t sa,
 
   bblock_size = L1_cachesize;
 
-  totnbb = (unsigned int) ((s2param->Bmax - s2param->Bmin + 1)
+  totnbb = (unsigned int) ((s2param.Bmax - s2param.Bmin + 1)
                            / bblock_size);
 
 #if DEBUG_ROOTSIEVE_UV_ONEBLOCK
@@ -644,7 +642,7 @@ rootsieve_one_block ( sievearray_t sa,
 #endif
 
   /* Init index array */
-  for ( np = 0; np < s2param->len_p_rs; np ++ ) {
+  for ( np = 0; np < s2param.len_p_rs; np ++ ) {
     p = ropt_primes[np];
     subf = (float) p * log ( (float) p) / ((float) p * (float) p - 1.0);
     subsgl[np] = (int16_t) ceil (subf * 1000.0);
@@ -654,13 +652,13 @@ rootsieve_one_block ( sievearray_t sa,
   }
 
   /* Idx holders for each r < B */
-  for ( r = 0; r < ropt_primes[s2param->len_p_rs]; r ++ ) {
+  for ( r = 0; r < ropt_primes[s2param.len_p_rs]; r ++ ) {
     j_idx[r] = 0;
     j_idx_i0[r] = 0;
   }
 
   /* For each p < p_bound*/
-  for (np = 0; np < s2param->len_p_rs; np ++) {
+  for (np = 0; np < s2param.len_p_rs; np ++) {
 
     p = ropt_primes[np];
 
@@ -671,7 +669,7 @@ rootsieve_one_block ( sievearray_t sa,
       pe = pe * p;
 
     /* pe | MOD in A + MOD*i = u (mod pe), don't need to sieve */
-    if (mpz_divisible_ui_p (s2param->MOD, pe) != 0)
+    if (mpz_divisible_ui_p (s2param.MOD, pe) != 0)
       continue;
 
     /* For each u < p */
@@ -680,8 +678,8 @@ rootsieve_one_block ( sievearray_t sa,
       i = 0;
 
       /* compute u->i in A + MOD*i = u (mod p) */
-      if (mpz_divisible_ui_p (s2param->MOD, p) != 0) {
-        if (mpz_fdiv_ui (s2param->A, p) != u)
+      if (mpz_divisible_ui_p (s2param.MOD, p) != 0) {
+        if (mpz_fdiv_ui (s2param.A, p) != u)
           continue;
         else {
           i = -1;
@@ -689,7 +687,7 @@ rootsieve_one_block ( sievearray_t sa,
       }
       else {
         /* i >= 0 */
-        i = uv2ij_mod (s2param->A, s2param->Amin, s2param->MOD, u, p);
+        i = uv2ij_mod (s2param.A, s2param.Amin, s2param.MOD, u, p);
       }
 
       /* i is kept the same, i_idx denotes the u-dim sieve */
@@ -732,11 +730,11 @@ rootsieve_one_block ( sievearray_t sa,
                 v = compute_v_ui (fr_ui, gr_ui, r, u, p);
 
                 /* compute v->j in B + MOD*j = v (mod p) */
-                if (mpz_divisible_ui_p (s2param->MOD, p) != 0) {
+                if (mpz_divisible_ui_p (s2param.MOD, p) != 0) {
 
                   /* now A + MOD*i = u (mod p)
                      and B + MOD*j = v (mod p) */
-                  if (mpz_fdiv_ui (s2param->B, p) == v) {
+                  if (mpz_fdiv_ui (s2param.B, p) == v) {
 
                     /* case where MOD has p-valuation smaller than e.
                        - If r is multiple, do the lift;
@@ -761,8 +759,8 @@ rootsieve_one_block ( sievearray_t sa,
 
                   /* u -> i in A + MOD*i = u (mod p) has been computed. */
                   /* v -> j in B + MOD*j = v (mod p) */
-                  j_idx_i0[r] = uv2ij_mod (s2param->B, s2param->Bmin,
-                                           s2param->MOD, v, p);
+                  j_idx_i0[r] = uv2ij_mod (s2param.B, s2param.Bmin,
+                                           s2param.MOD, v, p);
                   j_idx[r] = j_idx_i0[r];
 
 #if DEBUG_ROOTSIEVE_UV_ONEBLOCK
@@ -821,7 +819,7 @@ rootsieve_one_block ( sievearray_t sa,
               else {
                 j_idx[r] = rootsieve_run_line (
                   sa->array,
-                  i_idx * sa->len_j + (s2param->Bmax - s2param->Bmin),
+                  i_idx * sa->len_j + (s2param.Bmax - s2param.Bmin),
                   i_idx * sa->len_j + j_idx[r],
                   p,
                   subsgl[np] );
@@ -867,7 +865,7 @@ rootsieve_one_block ( sievearray_t sa,
  */
 static inline void
 rootsieve_one_sublattice ( ropt_poly const & poly,
-                           ropt_s2param_ptr s2param,
+                           ropt_s2param & s2param,
                            ropt_param_srcptr param,
                            ropt_info_ptr info,
                            MurphyE_pq *global_E_pqueue)
@@ -884,8 +882,8 @@ rootsieve_one_sublattice ( ropt_poly const & poly,
                       cf https://gitlab.inria.fr/cado-nfs/cado-nfs/-/issues/21542 */
 
   /* sieving length */
-  len_A = (unsigned long) (s2param->Amax - s2param->Amin + 1);
-  len_B = (unsigned long) (s2param->Bmax - s2param->Bmin + 1);
+  len_A = (unsigned long) (s2param.Amax - s2param.Amin + 1);
+  len_B = (unsigned long) (s2param.Bmax - s2param.Bmin + 1);
 
   /* size of sieving array that fits in memory, may change later */
   size_array_mem = SIZE_SIEVEARRAY;
@@ -895,7 +893,7 @@ rootsieve_one_sublattice ( ropt_poly const & poly,
     fprintf (stderr, "Error: Amax - Amin + 1 = %lu is too long. "
              "This happend when A is too large while B is "
              "too small. Ropt doesn't support this yet.\n",
-             s2param->Amax - s2param->Amin + 1);
+             s2param.Amax - s2param.Amin + 1);
     exit(1);
   }
 
@@ -919,20 +917,20 @@ rootsieve_one_sublattice ( ropt_poly const & poly,
   sievearray_init (sa, len_A, size_B_block);
   mpz_init (tmpv);
   mpz_init (tmpu);
-  tmpBmax = s2param->Bmax;
-  tmpBmin = s2param->Bmin;
+  tmpBmax = s2param.Bmax;
+  tmpBmin = s2param.Bmin;
 
   /* for each i -> each u = A + MOD * i */
   unsigned long st = milliseconds ();
   do {
 
     /* fo reach block of size size_B_block */
-    s2param->Bmax = s2param->Bmin + size_B_block - 1;
-    if (s2param->Bmax > tmpBmax)
-      s2param->Bmax = tmpBmax;
+    s2param.Bmax = s2param.Bmin + size_B_block - 1;
+    if (s2param.Bmax > tmpBmax)
+      s2param.Bmax = tmpBmax;
 
 #if 0
-    fprintf (stderr, "[%ld, %ld] ", s2param->Bmin, s2param->Bmax);
+    fprintf (stderr, "[%ld, %ld] ", s2param.Bmin, s2param.Bmax);
 #endif
 
 
@@ -958,10 +956,10 @@ rootsieve_one_sublattice ( ropt_poly const & poly,
                              sa->array[j] );
 
 #if 0
-      ij2uv (s2param->A, s2param->MOD, s2param->Amin,
+      ij2uv (s2param.A, s2param.MOD, s2param.Amin,
              (j - j % (size_B_block)) / size_B_block,
              tmpu);
-      ij2uv (s2param->B, s2param->MOD, s2param->Bmin,
+      ij2uv (s2param.B, s2param.MOD, s2param.Bmin,
              j % (size_B_block),
              tmpv);
       gmp_fprintf (stderr, "MAT[]: %d, u: %Zd, v: %Zd, i: %lu, "
@@ -981,9 +979,9 @@ rootsieve_one_sublattice ( ropt_poly const & poly,
     /* put sievescore into the MurphyE priority queue */
     for (i = 1; i < sievescore->used; i ++) {
 
-      ij2uv (s2param->A, s2param->MOD, s2param->Amin, sievescore->i[i],
+      ij2uv (s2param.A, s2param.MOD, s2param.Amin, sievescore->i[i],
              tmpu);
-      ij2uv (s2param->B, s2param->MOD, s2param->Bmin, sievescore->j[i],
+      ij2uv (s2param.B, s2param.MOD, s2param.Bmin, sievescore->j[i],
              tmpv);
 
 #if 0
@@ -992,25 +990,25 @@ rootsieve_one_sublattice ( ropt_poly const & poly,
                    tmpu, tmpv, sievescore->alpha[i]);
 #endif
 
-      compute_fuv_mp (s2param->f, poly.cpoly[1], poly.cpoly[0], tmpu, tmpv);
+      compute_fuv_mp (s2param.f, poly.cpoly[1], poly.cpoly[0], tmpu, tmpv);
 
       /* translation-only optimize */
-      mpz_poly_set (s2param->g, poly.cpoly[0]);
+      mpz_poly_set (s2param.g, poly.cpoly[0]);
 
-      sopt_local_descent (s2param->f, s2param->g, s2param->f, s2param->g, 1, -1, SOPT_DEFAULT_MAX_STEPS, 0);
+      sopt_local_descent (s2param.f, s2param.g, s2param.f, s2param.g, 1, -1, SOPT_DEFAULT_MAX_STEPS, 0);
 
 #if 1
       /* use MurphyE for ranking in the priority queue (default) */
-      MurphyE = print_poly_fg (s2param->f, s2param->g, poly.cpoly.n, 0);
+      MurphyE = print_poly_fg (s2param.f, s2param.g, poly.cpoly.n, 0);
       insert_MurphyE_pq (local_E_pqueue, info->w, tmpu, tmpv,
-                         s2param->MOD, MurphyE);
+                         s2param.MOD, MurphyE);
 #else
       /* use E for ranking: takes slightly less time */
       double skew = L2_skewness (F);
       double E = L2_lognorm (F, skew);
       double alpha = get_alpha (F, get_alpha_bound ());
       insert_MurphyE_pq (local_E_pqueue, info->w, tmpu, tmpv, 
-                         s2param->MOD, -(E + alpha));
+                         s2param.MOD, -(E + alpha));
 #endif
     }
 
@@ -1020,17 +1018,17 @@ rootsieve_one_sublattice ( ropt_poly const & poly,
 #endif
     
     /* next j */
-    s2param->Bmin = s2param->Bmax + 1;
+    s2param.Bmin = s2param.Bmax + 1;
 
     /* reset sieve array and priority queue */
     sievearray_reset (sa);
     reset_sievescore_pq (sievescore);
 
-  } while (s2param->Bmin < tmpBmax);
+  } while (s2param.Bmin < tmpBmax);
 
   /* recover */
-  s2param->Bmax = tmpBmax;
-  s2param->Bmin = tmpBmin;
+  s2param.Bmax = tmpBmax;
+  s2param.Bmin = tmpBmin;
 
   /* output polynomials */
   MurphyE = 0.0;
@@ -1048,10 +1046,10 @@ rootsieve_one_sublattice ( ropt_poly const & poly,
 
       if (param->verbose >= 4) {
 
-        compute_fuv_mp (s2param->f, poly.cpoly[1], poly.cpoly[0],
+        compute_fuv_mp (s2param.f, poly.cpoly[1], poly.cpoly[0],
                         local_E_pqueue->u[i], local_E_pqueue->v[i]);
 
-        print_poly_fg (s2param->f, s2param->g, poly.cpoly.n, 1);
+        print_poly_fg (s2param.f, s2param.g, poly.cpoly.n, 1);
 
         fprintf (stderr, "\n");
       }
@@ -1081,7 +1079,8 @@ rootsieve_one_sublattice ( ropt_poly const & poly,
                   "%1.2e (%Zd, %Zd)\n",
                   local_E_pqueue->used - 1,
                   info->ave_MurphyE,
-                  s2param->A, s2param->B );
+                  (mpz_srcptr) s2param.A,
+                  (mpz_srcptr) s2param.B );
     if (param->verbose >= 3) {
       fprintf ( stderr, "# Stat: root sieve took %lums\n",
                 milliseconds () - st );
@@ -1103,7 +1102,7 @@ rootsieve_one_sublattice ( ropt_poly const & poly,
  */
 void
 ropt_stage2 ( ropt_poly const & poly,
-              ropt_s2param_ptr s2param,
+              ropt_s2param & s2param,
               ropt_param_srcptr param,
               ropt_info_ptr info,
               MurphyE_pq *global_E_pqueue,
@@ -1113,8 +1112,8 @@ ropt_stage2 ( ropt_poly const & poly,
     ropt_s2param_print (s2param);
 
   info->w = w;
-  compute_fuv_mp (s2param->f, poly.cpoly[1], poly.cpoly[0],
-                  s2param->A, s2param->B);
+  compute_fuv_mp (s2param.f, poly.cpoly[1], poly.cpoly[0],
+                  s2param.A, s2param.B);
 
   /* sieve fuv */
   rootsieve_one_sublattice (poly, s2param, param, info, global_E_pqueue);

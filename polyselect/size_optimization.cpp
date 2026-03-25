@@ -1,14 +1,18 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <inttypes.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-#include <float.h>
+#include <cinttypes>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cmath>
+#include <cfloat>
+
+#include <vector>
 
 #include <gmp.h>
+#include "fmt/base.h"
 
+#include "cxx_mpz.hpp"
 #include "auxiliary.hpp"
 #include "gcd.h"
 #include "lll.h"
@@ -18,7 +22,6 @@
 #include "macros.h"
 #include "mpz_poly.h"
 
-#include "utils_cxx.hpp"
 
 /******************************************************************************/
 /************************ Internal functions **********************************/
@@ -30,70 +33,12 @@
 // thing of not being used outside this compilation unit (and I
 // definitely do not want it to be exposed outside).
 
-static inline void
-list_mpz_realloc (list_mpz_ptr l, uint64_t newalloc)
-{
-#ifdef DEBUG_LIST_MPZ
-  fprintf (stderr, "debug: %s in %s: l->alloc = %" PRIu64 ", l->len = "
-                   "%" PRIu64 ", will be reallocated to newalloc = %" PRIu64
-                   "\n", __FILE__, __func__, l->alloc, l->len, newalloc);
-#endif
-  checked_realloc(l->tab, newalloc);
-  for (uint64_t i = l->alloc; i < newalloc; i++)
-    mpz_init (l->tab[i]);
-  l->alloc = newalloc;
+static inline cxx_mpz rounded_double(double e) {
+    cxx_mpz d;
+    mpz_set_d(d, e > 0 ? e + 0.5 : e - 0.5);
+    return d;
 }
 
-static inline void
-list_mpz_init (list_mpz_ptr l, uint64_t init_alloc)
-{
-  l->len = 0;
-  l->alloc = 0;
-  l->tab = NULL;
-  list_mpz_realloc (l, init_alloc);
-}
-
-static inline void
-list_mpz_clear (list_mpz_t l)
-{
-  for (uint64_t i = 0; i < l->alloc; i++)
-    mpz_clear (l->tab[i]);
-  free (l->tab);
-}
-
-static inline void
-list_mpz_append (list_mpz_ptr l, mpz_t e)
-{
-  if (l->len == l->alloc)
-    list_mpz_realloc (l, 2*l->alloc);
-  mpz_set (l->tab[l->len], e);
-  l->len++;
-}
-
-static inline void
-list_mpz_append_from_rounded_double (list_mpz_ptr l, double e)
-{
-  if (l->len == l->alloc)
-    list_mpz_realloc (l, 2*l->alloc);
-  mpz_set_d (l->tab[l->len], e > 0 ? e + 0.5 : e - 0.5);
-  l->len++;
-}
-
-static inline void
-list_mpz_sort_and_remove_dup (list_mpz_ptr l, const int verbose)
-{
-  /* Sort list_k by increasing order */
-  qsort (l->tab, l->len, sizeof (mpz_t), (int(*)(const void*,const void*)) mpz_cmp);
-
-  /* Remove duplicates */
-  uint64_t len = l->len;
-  l->len = 1;
-  for (unsigned int i = 1; i < len; i++)
-    if (mpz_cmp (l->tab[i], l->tab[l->len-1]) != 0)
-      list_mpz_append (l, l->tab[i]);
-    else if (verbose > 2)
-      gmp_fprintf (stderr, "# sopt: Remove duplicate %Zd\n", l->tab[i]);
-}
 
 /******************************************************************************/
 
@@ -122,7 +67,7 @@ compute_rational_approximation (double *Q, double q, unsigned int nb_approx,
 
 /* Compute the skewness that is going to be used for LLL */
 static inline void
-sopt_get_skewness (mpz_t skew, mpz_poly_srcptr f, mpz_poly_srcptr g)
+sopt_get_skewness (mpz_t skew, cxx_mpz_poly const & f, cxx_mpz_poly const & g)
 {
   const int d = f->deg;
   /* skew0 = (|g0/ad|)^(1/d): seems close to optimal experimentally */
@@ -135,8 +80,8 @@ sopt_get_skewness (mpz_t skew, mpz_poly_srcptr f, mpz_poly_srcptr g)
 /* Return in list_k good values of k such that f(x+k) has small coefficients of
    degree 4 and 3. */
 static void
-sopt_find_translations_deg6 (list_mpz_t list_k, mpz_poly_srcptr f,
-                             mpz_poly_srcptr g, const int verbose,
+sopt_find_translations_deg6 (std::vector<cxx_mpz> & list_k, cxx_mpz_poly const & f,
+                             cxx_mpz_poly const & g, const int verbose,
                              int sopt_effort)
 {
   ASSERT_ALWAYS (f->deg == 6);
@@ -289,10 +234,10 @@ sopt_find_translations_deg6 (list_mpz_t list_k, mpz_poly_srcptr f,
       nb_k_roots = double_poly_compute_all_roots_with_bound (double_roots_k, C, kmax);
       for (unsigned int l = 0; l < nb_k_roots; l++)
       {
-        list_mpz_append_from_rounded_double (list_k, double_roots_k[l]);
+        list_k.push_back(rounded_double(double_roots_k[l]));
         if (verbose > 2)
-          gmp_fprintf (stderr, "# sopt:   Adding k = %Zd (roots of c4)\n",
-                       list_k->tab[list_k->len-1]);
+          fmt::print (stderr, "# sopt:   Adding k = {} (roots of c4)\n",
+                       list_k.back());
       }
 
       /* find roots k of c3(k, q3=q3_rat) */
@@ -305,10 +250,10 @@ sopt_find_translations_deg6 (list_mpz_t list_k, mpz_poly_srcptr f,
       nb_k_roots = double_poly_compute_all_roots_with_bound (double_roots_k, C, kmax);
       for (unsigned int l = 0; l < nb_k_roots; l++)
       {
-        list_mpz_append_from_rounded_double (list_k, double_roots_k[l]);
+        list_k.push_back(rounded_double(double_roots_k[l]));
         if (verbose > 2)
-          gmp_fprintf (stderr, "# sopt:   Adding k = %Zd (roots of c3)\n",
-                       list_k->tab[list_k->len-1]);
+          fmt::print (stderr, "# sopt:   Adding k = {} (roots of c3)\n",
+                       list_k.back());
       }
 
       /* Let f~~(x,k,q3,q2) f(x+k) + (q3*x^3 + q2*x^2)*g(x,k)
@@ -334,20 +279,20 @@ sopt_find_translations_deg6 (list_mpz_t list_k, mpz_poly_srcptr f,
       nb_k_roots = double_poly_compute_all_roots_with_bound (double_roots_k, C, kmax);
       for (unsigned int l = 0; l < nb_k_roots; l++)
       {
-        list_mpz_append_from_rounded_double (list_k, double_roots_k[l]);
+        list_k.push_back(rounded_double(double_roots_k[l]));
         if (verbose > 2)
-          gmp_fprintf (stderr, "# sopt:   Adding k = %Zd (roots of "
-                               "Res(c3,c2))\n", list_k->tab[list_k->len-1]);
+          fmt::print (stderr, "# sopt:   Adding k = {} (roots of "
+                               "Res(c3,c2))\n", list_k.back());
       }
 
       double_poly_derivative (C, C);
       nb_k_roots = double_poly_compute_all_roots_with_bound (double_roots_k, C, kmax);
       for (unsigned int l = 0; l < nb_k_roots; l++)
       {
-        list_mpz_append_from_rounded_double (list_k, double_roots_k[l]);
+        list_k.push_back(rounded_double(double_roots_k[l]));
         if (verbose > 2)
-          gmp_fprintf (stderr, "# sopt:   Adding k = %Zd (roots of derivative "
-                               "of Res(c3,c2)\n", list_k->tab[list_k->len-1]);
+          fmt::print (stderr, "# sopt:   Adding k = {} (roots of derivative "
+                               "of Res(c3,c2)\n", list_k.back());
       }
 
     }
@@ -415,8 +360,8 @@ sopt_find_translations_deg6 (list_mpz_t list_k, mpz_poly_srcptr f,
 /* Return in list_k good values of k such that f(x+k) has small coefficients of
    degree 3 and 2. */
 static void
-sopt_find_translations_deg5 (list_mpz_t list_k, mpz_poly_srcptr f,
-                             mpz_poly_srcptr g, const int verbose,
+sopt_find_translations_deg5 (std::vector<cxx_mpz> & list_k, cxx_mpz_poly const & f,
+                             cxx_mpz_poly const & g, const int verbose,
                              int sopt_effort)
 {
   ASSERT_ALWAYS (f->deg == 5);
@@ -538,10 +483,10 @@ sopt_find_translations_deg5 (list_mpz_t list_k, mpz_poly_srcptr f,
       nb_k_roots = double_poly_compute_all_roots (double_roots_k, C);
       for (unsigned int l = 0; l < nb_k_roots; l++)
       {
-        list_mpz_append_from_rounded_double (list_k, double_roots_k[l]);
+        list_k.push_back(rounded_double (double_roots_k[l]));
         if (verbose > 2)
-          gmp_fprintf (stderr, "# sopt:   Adding k = %Zd (roots of c3)\n",
-                       list_k->tab[list_k->len-1]);
+          fmt::print (stderr, "# sopt:   Adding k = {} (roots of c3)\n",
+                       list_k.back());
       }
     }
   }
@@ -551,7 +496,7 @@ sopt_find_translations_deg5 (list_mpz_t list_k, mpz_poly_srcptr f,
 
 /* Construct the LLL matrix from the polynomial pair. */
 static inline void
-LLL_set_matrix_from_polys (mat_Z *m, mpz_poly_srcptr ft, mpz_poly_srcptr gt,
+LLL_set_matrix_from_polys (mat_Z *m, cxx_mpz_poly const & ft, cxx_mpz_poly const & gt,
                            mpz_srcptr skew, mpz_ptr tmp)
 {
   for (int k = 1; k <= m->NumRows; k++)
@@ -577,18 +522,20 @@ LLL_set_matrix_from_polys (mat_Z *m, mpz_poly_srcptr ft, mpz_poly_srcptr gt,
 
 /* Print only the two coefficients of higher degree of a polynomial */
 static inline void
-mpz_poly_fprintf_short (FILE *out, mpz_poly_srcptr f)
+mpz_poly_fprintf_short (FILE *out, cxx_mpz_poly const & f)
 {
   int d = f->deg;
   ASSERT_ALWAYS (d >= 1);
-  gmp_fprintf (out, "%Zd*x^%d + %Zd*x^%d%s\n", mpz_poly_coeff_const(f, d), d,
-                    mpz_poly_coeff_const(f, d-1), d-1, (d > 1) ? " + ...":"");
+  fmt::print (out, "{}*x^%d + {}*x^%d%s\n",
+          cxx_mpz(f.coeff(d)), d,
+          cxx_mpz(f.coeff(d-1)), d-1,
+          (d > 1) ? " + ...":"");
 }
 
 /* Print poly: use mpz_poly_fprintf or mpz_poly_fprintf_short depending on
    verbose */
 static inline void
-mpz_poly_fprintf_verbose (FILE *out, mpz_poly_srcptr f, int verbose)
+mpz_poly_fprintf_verbose (FILE *out, cxx_mpz_poly const & f, int verbose)
 {
   if (verbose > 2)
     mpz_poly_fprintf (out, f);
@@ -620,8 +567,8 @@ mpz_poly_fprintf_verbose (FILE *out, mpz_poly_srcptr f, int verbose)
         computation of the log. Compute lognorm only for printing.
 */
 double
-sopt_local_descent (mpz_poly_ptr f_opt, mpz_poly_ptr g_opt,
-                    mpz_poly_srcptr f_raw, mpz_poly_srcptr g_raw,
+sopt_local_descent (cxx_mpz_poly & f_opt, cxx_mpz_poly & g_opt,
+                    cxx_mpz_poly const & f_raw, cxx_mpz_poly const & g_raw,
                     int use_translation, int deg_rotation,
                     unsigned int max_iter, int verbose)
 {
@@ -634,7 +581,7 @@ sopt_local_descent (mpz_poly_ptr f_opt, mpz_poly_ptr g_opt,
 
   ASSERT_ALWAYS(deg_rotation <= SOPT_MAX_DEGREE_ROTATION);
 
-  logmu_opt = L2_skew_lognorm ((mpz_poly_ptr) f_raw);
+  logmu_opt = L2_skew_lognorm ((cxx_mpz_poly &) f_raw);
   mpz_init (tmp);
   mpz_poly_init (ftmp, f_raw->deg);
 
@@ -654,8 +601,7 @@ sopt_local_descent (mpz_poly_ptr f_opt, mpz_poly_ptr g_opt,
   for (int i = 0; i <= deg_rotation; i++)
   {
     mpz_init_set_ui (k[i], 1);
-    while (1)
-    {
+    for(;;) {
       mpz_poly_rotation (ftmp, f_raw, g_raw, k[i], i);
       logmu = L2_skew_lognorm (ftmp);
       if (logmu > logmu_opt + SOPT_LOCAL_DESCENT_GUARD)
@@ -796,8 +742,10 @@ sopt_local_descent (mpz_poly_ptr f_opt, mpz_poly_ptr g_opt,
    returns the best norm found (using LLL reduction only)
    and the corresponding best polynomials in fopt, gopt */
 static double
-best_norm (mpz_poly_ptr fopt, mpz_poly_ptr gopt,
-           mpz_poly_srcptr f_raw, mpz_poly_srcptr g_raw, mpz_t skew, mpz_t k,
+best_norm (cxx_mpz_poly & fopt, cxx_mpz_poly & gopt,
+           cxx_mpz_poly const & f_raw, cxx_mpz_poly const & g_raw,
+           cxx_mpz const & skew,
+           cxx_mpz const & k,
            const int max_rot)
 {
   const int d = f_raw->deg;
@@ -860,20 +808,17 @@ best_norm (mpz_poly_ptr fopt, mpz_poly_ptr gopt,
    The input min_norm is the best norm found so far.
 */
 static double
-best_norm2 (mpz_poly_ptr fopt, mpz_poly_ptr gopt,
-            mpz_poly_srcptr f_raw, mpz_poly_srcptr g_raw, mpz_t skew, mpz_t k,
+best_norm2 (cxx_mpz_poly & fopt, cxx_mpz_poly & gopt,
+            cxx_mpz_poly const & f_raw, cxx_mpz_poly const & g_raw, cxx_mpz const & skew, cxx_mpz & k,
             const int max_rot, double min_norm)
 {
   double norm, roots[3];
   double_poly eq;
   int d = f_raw->deg, nroots;
-  mpz_t best_k;
-  mpz_poly ft, gt;
+  cxx_mpz best_k;
+  cxx_mpz_poly ft, gt;
 
-  mpz_poly_init (ft, d);
-  mpz_poly_init (gt, 1);
-
-  mpz_init_set (best_k, k);
+  best_k = k;
   norm = best_norm (ft, gt, f_raw, g_raw, skew, k, max_rot);
   if (norm >= min_norm)
     goto clear_ft_gt;
@@ -932,11 +877,8 @@ best_norm2 (mpz_poly_ptr fopt, mpz_poly_ptr gopt,
   double_poly_clear (eq);
 #endif
 
-  mpz_set (k, best_k);
+  k = best_k;
  clear_ft_gt:
-  mpz_clear (best_k);
-  mpz_poly_clear (ft);
-  mpz_poly_clear (gt);
 
   return min_norm;
 }
@@ -959,8 +901,8 @@ best_norm2 (mpz_poly_ptr fopt, mpz_poly_ptr gopt,
 
 */
 static double
-size_optimization_aux (mpz_poly_ptr f_opt, mpz_poly_ptr g_opt,
-                       mpz_poly_srcptr f_raw, mpz_poly_srcptr g_raw,
+size_optimization_aux (cxx_mpz_poly & f_opt, cxx_mpz_poly & g_opt,
+                       cxx_mpz_poly const & f_raw, cxx_mpz_poly const & g_raw,
                        const unsigned int sopt_effort, const int verbose,
                        const int max_rot)
 {
@@ -968,9 +910,7 @@ size_optimization_aux (mpz_poly_ptr f_opt, mpz_poly_ptr g_opt,
   ASSERT_ALWAYS (g_raw->deg == 1);
   const int d = f_raw->deg;
   double best_lognorm =
-      L2_skew_lognorm ((mpz_poly_ptr) f_raw);
-  gmp_randstate_t rstate;
-  gmp_randinit_default(rstate);
+      L2_skew_lognorm ((cxx_mpz_poly &) f_raw);
   best_lognorm += expected_rotation_gain (f_raw, g_raw);
 
   if (verbose > 1)
@@ -984,31 +924,19 @@ size_optimization_aux (mpz_poly_ptr f_opt, mpz_poly_ptr g_opt,
   }
 
   /****************************** init *******************************/
-  mpz_t tmp, tmp2, skew, a, b;
-  mpz_poly ft, gt, flll, fld, gld, fbest, gbest;
-  list_mpz_t list_k;
+  cxx_mpz tmp, tmp2, skew, a, b;
+  cxx_mpz_poly ft, gt, flll, fld, gld, fbest, gbest;
+  std::vector<cxx_mpz> list_k;
   mat_Z m, U;
-
-  mpz_init (tmp);
-  mpz_init (tmp2);
-  mpz_init (skew);
 
   /* 1/4 < delta = a/b <= 1: the closer delta is from 1, the better the
      reduction is. We take delta=1, since in fixed dimension the algorithm is
      still polynomial (see "The optimal LLL algorithm is still polynomial in
      fixed dimension" by Ali Akhavi, Theoretical Computer Science, 2003). */
-  mpz_init_set_ui (a, 1);
-  mpz_init_set_ui (b, 1);
+  a = 1;
+  b = 1;
 
-  mpz_poly_init (ft, d);
-  mpz_poly_init (gt, 1);
-  mpz_poly_init (flll, d);
-  mpz_poly_init (fld, d);
-  mpz_poly_init (gld, 1);
-  mpz_poly_init (fbest, d);
-  mpz_poly_init (gbest, 1);
-
-  list_mpz_init (list_k, SOPT_INIT_SIZE_ALLOCATED_TRANSLATIONS);
+  list_k.reserve(SOPT_INIT_SIZE_ALLOCATED_TRANSLATIONS);
 
   /*************** generate list of translations to try *****************/
   if (d == 6 || d == 5)
@@ -1018,26 +946,34 @@ size_optimization_aux (mpz_poly_ptr f_opt, mpz_poly_ptr g_opt,
     else if (d == 5)
       sopt_find_translations_deg5 (list_k, f_raw, g_raw, verbose, sopt_effort);
     if (verbose > 1)
-      fprintf (stderr, "# sopt: %" PRIu64 " values for the translations were "
-                       "computed and added in list_k\n", list_k->len);
+      fmt::print (stderr, "# sopt: {} values for the translations were "
+                       "computed and added in list_k\n", list_k.size());
 
     /* Add 0 to the list of translations to try */
     mpz_set_ui (tmp, 0);
-    list_mpz_append (list_k, tmp);
+    list_k.push_back(tmp);
     if (verbose > 1)
-      fprintf (stderr, "# sopt: k = 0 was added list_k\n");
+      fmt::print (stderr, "# sopt: k = 0 was added list_k\n");
 
     /* Sort list_k by increasing order and remove duplicates */
-    list_mpz_sort_and_remove_dup (list_k, verbose);
+    {
+        std::ranges::sort(list_k);
+        auto it = list_k.begin();
+        for(auto jt = it ; jt != list_k.end() ; ) {
+            *it = *jt++;
+            for( ; jt != list_k.end() && *jt == *it ; jt++)
+                ;
+            it++;
+        }
+    }
+
     if (verbose > 1)
-      fprintf (stderr, "# sopt: It remains %" PRIu64 " values after sorting"
-                       " and removing duplicates\n", list_k->len);
-  }
-  else
-  {
+      fmt::print (stderr, "# sopt: {} values remain after sorting"
+                       " and removing duplicates\n", list_k.size());
+  } else {
     /* Start with list_k = {0} */
     mpz_set_ui (tmp, 0);
-    list_mpz_append (list_k, tmp);
+    list_k.push_back(tmp);
     if (verbose > 1)
       fprintf (stderr, "# sopt: Start with list_k = { 0 }\n");
   }
@@ -1058,81 +994,55 @@ size_optimization_aux (mpz_poly_ptr f_opt, mpz_poly_ptr g_opt,
   LLL_init (&U, d, d);
 
   if (verbose > 1)
-    fprintf (stderr, "# sopt: Start processing all k in list_k of length "
-                     "%" PRIu64 "\n", list_k->len);
+    fmt::print (stderr, "# sopt: Start processing all k in list_k of length {}\n",
+                     list_k.size());
 
-  mpz_poly_set (fbest, f_raw);
-  mpz_poly_set (gbest, g_raw);
-  mpz_t ki;
-  mpz_init (ki);
-  list_mpz_t list_k_opt;
-    {
-      list_mpz_init (list_k_opt, list_k->len);
-      for (unsigned int i = 0; i < list_k->len; i++)
-        {
-      mpz_set (ki, list_k->tab[i]);
+  fbest = f_raw;
+  gbest = g_raw;
+  {
+      std::vector<cxx_mpz> list_k_opt;
+      list_k_opt.reserve(list_k.size());
 
-      best_norm2 (ft, gt, f_raw, g_raw, skew, ki, max_rot, DBL_MAX);
+      for (auto & ki : list_k) {
+          best_norm2 (ft, gt, f_raw, g_raw, skew, ki, max_rot, DBL_MAX);
 
-      /* check if this translation 'ki' was already used */
-      int is_new = 1;
-      for (unsigned int k = 0; k < list_k_opt->len; k++)
-        if (mpz_cmp (ki, list_k_opt->tab[k]) == 0)
-          {
-            is_new = 0;
-            break;
-          }
-      if (is_new == 0)
-        continue;
+          /* check if this translation 'ki' was already used */
+          if (std::ranges::find(list_k_opt, ki) != list_k_opt.end())
+              continue;
 
-      list_mpz_append (list_k_opt, ki);
+          list_k_opt.push_back(ki);
 
-      double lognorm = sopt_local_descent (fld, gld, ft, gt, 1, d-2,
-                                           SOPT_DEFAULT_MAX_STEPS, verbose);
-      lognorm += expected_rotation_gain (fld, gld);
+          double lognorm = sopt_local_descent (fld, gld, ft, gt, 1, d-2,
+                  SOPT_DEFAULT_MAX_STEPS, verbose);
+          lognorm += expected_rotation_gain (fld, gld);
 #ifdef POLYSELECT_CLASSICAL
-      /* we only keep polynomial pairs with Res(f,g) = +/-N */
-      if (lognorm < best_lognorm &&
-          mpz_cmpabs (fld->coeff[d], f_raw->coeff[d]) == 0)
+          /* we only keep polynomial pairs with Res(f,g) = +/-N */
+          if (lognorm < best_lognorm &&
+                  mpz_cmpabs (fld->coeff[d], f_raw->coeff[d]) == 0)
 #else
-      if (lognorm < best_lognorm)
+              if (lognorm < best_lognorm)
 #endif
-        {
-          if (verbose > 1)
-            {
-              gmp_fprintf (stderr, "# sopt:       better lognorm %.2f (previ"
-                           "ous was %.2f) for skew = %Zd and k = %Zd\n",
-                           lognorm, best_lognorm, skew, ki);
-            }
-          best_lognorm = lognorm;
-          mpz_poly_swap (fbest, fld);
-          mpz_poly_swap (gbest, gld);
-        }
-        }
-      list_mpz_clear (list_k_opt);
+              {
+                  if (verbose > 1)
+                  {
+                      fmt::print (stderr, "# sopt:       better lognorm {:.2f} (previ"
+                              "ous was {:.2f}) for skew = {} and k = {}\n",
+                              lognorm, best_lognorm, skew, ki);
+                  }
+                  best_lognorm = lognorm;
+                  mpz_poly_swap (fbest, fld);
+                  mpz_poly_swap (gbest, gld);
+              }
+      }
   }
-  mpz_clear (ki);
 
-  mpz_poly_set (f_opt, fbest);
-  mpz_poly_set (g_opt, gbest);
+  f_opt = fbest;
+  g_opt = gbest;
 
   /************************** Clear everything ***************************/
-  gmp_randclear(rstate);
+
   LLL_clear (&m);
   LLL_clear (&U);
-  mpz_clear (skew);
-  list_mpz_clear (list_k);
-  mpz_poly_clear (flll);
-  mpz_poly_clear (fld);
-  mpz_poly_clear (gld);
-  mpz_poly_clear (fbest);
-  mpz_poly_clear (gbest);
-  mpz_poly_clear (ft);
-  mpz_poly_clear (gt);
-  mpz_clear (a);
-  mpz_clear (b);
-  mpz_clear (tmp);
-  mpz_clear (tmp2);
 
   if (verbose > 1)
   {
@@ -1148,8 +1058,8 @@ size_optimization_aux (mpz_poly_ptr f_opt, mpz_poly_ptr g_opt,
 }
 
 double
-size_optimization (mpz_poly_ptr f_opt, mpz_poly_ptr g_opt,
-                   mpz_poly_srcptr f_raw, mpz_poly_srcptr g_raw,
+size_optimization (cxx_mpz_poly & f_opt, cxx_mpz_poly & g_opt,
+                   cxx_mpz_poly const & f_raw, cxx_mpz_poly const & g_raw,
                    const unsigned int sopt_effort, const int verbose)
 {
   int d = f_raw->deg;

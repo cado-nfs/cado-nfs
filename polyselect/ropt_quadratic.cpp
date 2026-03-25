@@ -17,18 +17,21 @@
 
 
 #include "cado.h" // IWYU pragma: keep
-#include <stdio.h>      // fprintf stderr
-#include <stdlib.h>     // free malloc
+
+#include <stdio.h>
+#include <stdlib.h>
+
 #include <gmp.h>
-#include "auxiliary.hpp"  // rotate_aux
+
+#include "auxiliary.hpp"
 #include "ropt_quadratic.hpp"
-#include "ropt_linear.hpp" // ropt_call_sieve
-#include "ropt_param.h" // TUNE_LOGNORM_INCR ...
-#include "ropt_stage1.hpp" // ropt_stage1
-#include "ropt_str.hpp" // ropt_poly_t
-#include "ropt_tree.h" // alpha_pq
+#include "ropt_linear.hpp"
+#include "ropt_param.h"
+#include "ropt_stage1.hpp"
+#include "ropt_str.hpp"
+#include "ropt_tree.h"
 #include "ropt.hpp"
-#include "timing.h"             // for seconds_thread
+#include "timing.h"
 
 
 /**
@@ -190,7 +193,7 @@ ropt_quadratic_tune_stage1 ( ropt_poly & poly,
  */
 void
 ropt_quadratic ( ropt_poly & poly,
-                 ropt_bestpoly_ptr bestpoly,
+                 ropt_bestpoly & bestpoly,
                  ropt_param_ptr param,
                  ropt_info_ptr info)
 {

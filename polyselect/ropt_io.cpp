@@ -95,7 +95,6 @@ ropt_common ( ropt_poly & poly,
      assuming that its content is 1. */
   ropt_bestpoly bestpoly;
   ropt_poly_setup (poly);
-  ropt_bestpoly_init (bestpoly);
   ropt_bestpoly_set (bestpoly, poly.cpoly[1], poly.cpoly[0]);
 
   /* reducing c5 to raw and skip ropt */
@@ -137,8 +136,8 @@ ropt_common ( ropt_poly & poly,
   /* if sopt and not from -fm */
   if (fm==0) {
     if (param->sopt) {
-      mpz_poly_ptr F = poly.cpoly[1];
-      mpz_poly_ptr G = poly.cpoly[0];
+      cxx_mpz_poly & F = poly.cpoly[1];
+      cxx_mpz_poly & G = poly.cpoly[0];
       size_optimization (F, G, F, G, SOPT_DEFAULT_EFFORT, 0);
       fprintf (stderr, "\n# Size-optimized polynomial.\n");
       print_poly_fg (F, G, poly.cpoly.n, 1);
@@ -155,10 +154,9 @@ ropt_common ( ropt_poly & poly,
     /* call ropt */
     ropt (poly, bestpoly, param, info);
     fprintf (stderr, "\n# Info: Best E is:\n");
-    print_poly_fg (bestpoly->f, bestpoly->g, poly.cpoly.n, 1);
+    print_poly_fg (bestpoly.f, bestpoly.g, poly.cpoly.n, 1);
   }
   ropt_info_clear (info);
-  ropt_bestpoly_clear (bestpoly);
 }
 
 
@@ -226,8 +224,8 @@ ropt_on_msievepoly ( FILE *file,
     if (ret != 3)
       continue;
 
-    mpz_poly_ptr F = poly.cpoly[1];
-    mpz_poly_ptr G = poly.cpoly[0];
+    cxx_mpz_poly & F = poly.cpoly[1];
+    cxx_mpz_poly & G = poly.cpoly[0];
 
     /* generate polynomial */
     Lemma21 (poly, param->n, param->d, ad, l, m, res);

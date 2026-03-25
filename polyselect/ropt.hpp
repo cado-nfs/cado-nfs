@@ -25,13 +25,13 @@ extern "C" {
 #endif
 
 void ropt ( ropt_poly & poly,
-            ropt_bestpoly_ptr bestpoly,
+            ropt_bestpoly & bestpoly,
             ropt_param_ptr param,
             ropt_info_ptr info);
 
 void ropt_get_bestpoly ( ropt_poly const & poly,
                          MurphyE_pq *global_E_pqueue,
-                         ropt_bestpoly_ptr bestpoly);
+                         ropt_bestpoly & bestpoly);
 
 void ropt_polyselect (cxx_cado_poly & output_poly, cxx_cado_poly const & input_poly,
                       ropt_param_ptr param, ropt_time_ptr thr);
