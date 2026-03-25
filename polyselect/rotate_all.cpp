@@ -13,7 +13,7 @@
 #include "gmp_aux.h"
 #include "arith/mod_ul.h"
 #include "arith/modul_poly.h"
-#include "size_optimization.h"
+#include "size_optimization.hpp"
 #include "polyselect_norms.h"
 #include "polyselect_alpha.h"
 #include "timing.h"

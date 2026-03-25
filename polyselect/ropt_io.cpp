@@ -23,7 +23,7 @@
 #include "ropt_io.hpp"
 #include "ropt_param.h"    // L1_cachesize MAX_LINE_LENGTH
 #include "ropt_str.hpp" // ropt_poly_t ...
-#include "size_optimization.h"
+#include "size_optimization.hpp"
 
 /**
  * Get L1 cache size in the beginning.

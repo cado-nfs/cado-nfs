@@ -39,7 +39,7 @@
 #include "omp_proxy.h"
 #include "polyselect_alpha.h"
 #include "polyselect_norms.h"
-#include "size_optimization.h"
+#include "size_optimization.hpp"
 #include "timing.h"
 #include "macros.h"
 #include "polyselect_alpha.h"

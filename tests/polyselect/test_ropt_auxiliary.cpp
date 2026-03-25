@@ -11,7 +11,7 @@
 #include "tests_common.h"
 #include "cado_poly.hpp"                     // for MAX_DEGREE
 #include "macros.h"
-#include "size_optimization.h"
+#include "size_optimization.hpp"
 #include "polyselect_norms.h"
 
 static int

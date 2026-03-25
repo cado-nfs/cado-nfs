@@ -56,7 +56,7 @@
 #include "polyselect_alpha.h"
 #include "polyselect_special_q.h"
 #include "portability.h"
-#include "size_optimization.h"
+#include "size_optimization.hpp"
 #include "timing.h"		// for seconds
 #include "verbose.h"		// verbose_output_print
 #include "getprime.h"

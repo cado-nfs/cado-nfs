@@ -21,7 +21,7 @@
 #include "ropt_arith.hpp" // ab2uv
 #include "auxiliary.hpp"  // ALG_SIDE RAT_SIDE
 #include "area.h"
-#include "size_optimization.h"
+#include "size_optimization.hpp"
 #include "polyselect_norms.h"
 #include "polyselect_alpha.h"
 

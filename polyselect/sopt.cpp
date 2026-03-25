@@ -15,7 +15,7 @@
 #include "macros.h"
 #include "params.h"
 #include "portability.h"
-#include "size_optimization.h"
+#include "size_optimization.hpp"
 #include "verbose.h"
 
 static void

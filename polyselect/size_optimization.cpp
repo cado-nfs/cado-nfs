@@ -12,7 +12,7 @@
 #include "auxiliary.hpp"
 #include "gcd.h"
 #include "lll.h"
-#include "size_optimization.h"
+#include "size_optimization.hpp"
 #include "double_poly.h"
 #include "polyselect_norms.h"
 #include "macros.h"

@@ -27,7 +27,7 @@
 #include "polyselect_thread.hpp"
 #include "polyselect_thread_league.hpp"
 #include "polyselect_thread_team.hpp"
-#include "size_optimization.h"
+#include "size_optimization.hpp"
 #include "timing.h"
 
 //#define DEBUG_POLYSELECT

@@ -27,7 +27,7 @@
 #include "ropt_str.hpp"
 #include "ropt_tree.h"
 #include "ropt_param.h"
-#include "size_optimization.h"
+#include "size_optimization.hpp"
 #include "auxiliary.hpp"
 #include "polyselect_alpha.h"
 
