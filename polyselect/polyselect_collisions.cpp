@@ -21,7 +21,7 @@
 #include "polyselect_qroots.h"
 #include "polyselect_shash.h"
 #include "polyselect_thread.h"
-#include "polyselect_thread_team.h"
+#include "polyselect_thread_team.hpp"
 #include "portability.h"
 #include "timing.h"
 #include "misc.h"

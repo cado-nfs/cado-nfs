@@ -5,7 +5,7 @@
 #include <gmp.h>
 
 #include "polyselect_thread_league.hpp"
-#include "polyselect_thread_team.h"
+#include "polyselect_thread_team.hpp"
 #include "polyselect_poly_header.h"
 #include "polyselect_stats.h"
 #include "dllist.h"
