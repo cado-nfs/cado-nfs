@@ -2,7 +2,7 @@
 #define CADO_ROPT_SUBLATTICE_CRT_H
 
 #include "ropt_single_sublattice_priority_queue.h"
-#include "ropt_sublattice_priority_queue.h"
+#include "ropt_sublattice_priority_queue.hpp"
 #include "ropt_str.hpp"
 
 #ifdef __cplusplus

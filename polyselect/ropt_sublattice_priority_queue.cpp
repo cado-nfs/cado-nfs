@@ -6,7 +6,7 @@
 
 #include <gmp.h>
 
-#include "ropt_sublattice_priority_queue.h"
+#include "ropt_sublattice_priority_queue.hpp"
 #include "cxx_mpz.hpp"
 #include "min_max_heap.hpp"
 /**

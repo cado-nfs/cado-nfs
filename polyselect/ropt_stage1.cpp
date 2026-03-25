@@ -24,7 +24,7 @@
 #include "ropt_stage1.hpp"
 #include "ropt_str.hpp" // ropt_poly_t
 #include "ropt_sublattice_crt.hpp"
-#include "ropt_sublattice_priority_queue.h"
+#include "ropt_sublattice_priority_queue.hpp"
 #include "ropt_tree.h" // node ...
 #include "timing.h"             // for milliseconds
 
