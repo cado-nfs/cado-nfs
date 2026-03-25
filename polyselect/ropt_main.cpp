@@ -46,7 +46,7 @@
 #include "ropt.hpp"
 #include "ropt_param.h"
 #include "ropt_str.hpp"
-#include "ropt_io.h"
+#include "ropt_io.hpp"
 #include "timing.h"
 #include "verbose.h"
 #include "version_info.h"
