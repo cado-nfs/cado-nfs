@@ -855,7 +855,7 @@ polyselect/ropt_stage2.hpp
 polyselect/ropt_str.cpp
 polyselect/ropt_str.hpp
 polyselect/ropt_sublattice_crt.cpp
-polyselect/ropt_sublattice_crt.h
+polyselect/ropt_sublattice_crt.hpp
 polyselect/ropt_sublattice_priority_queue.cpp
 polyselect/ropt_sublattice_priority_queue.h
 polyselect/ropt_tree.c
