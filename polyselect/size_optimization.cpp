@@ -1,6 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cinttypes>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -909,8 +908,7 @@ size_optimization_aux (cxx_mpz_poly & f_opt, cxx_mpz_poly & g_opt,
   ASSERT_ALWAYS (f_raw->deg >= 2);
   ASSERT_ALWAYS (g_raw->deg == 1);
   const int d = f_raw->deg;
-  double best_lognorm =
-      L2_skew_lognorm ((cxx_mpz_poly &) f_raw);
+  double best_lognorm = L2_skew_lognorm (f_raw);
   best_lognorm += expected_rotation_gain (f_raw, g_raw);
 
   if (verbose > 1)
