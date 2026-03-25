@@ -63,7 +63,7 @@ static split_output_iter_t *
 split_iter_init(const char *prefix, const char *suffix,
                 const size_t lines_per_file, const char *msg)
 {
-  split_output_iter_t *iter = malloc(sizeof(split_output_iter_t));
+  split_output_iter_t *iter = (split_output_iter_t *) malloc(sizeof(split_output_iter_t));
   ASSERT_ALWAYS(iter != NULL);
   iter->prefix = strdup(prefix);
   iter->suffix = strdup(suffix);
@@ -411,7 +411,7 @@ main (int argc, char const * argv[])
     memset (nr_rels_tot, 0, sizeof(uint64_t) * nslices);
 
     split_output_iter_t **outiters;
-    outiters = malloc(sizeof(split_output_iter_t *) * nslices);
+    outiters = (split_output_iter_t **) malloc(sizeof(split_output_iter_t *) * nslices);
     ASSERT_ALWAYS(outiters != NULL);
     for(unsigned int i = 0 ; i < nslices ; i++)
     {

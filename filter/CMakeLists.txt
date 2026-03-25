@@ -6,7 +6,7 @@ set (purge_sources purge_matrix.c singleton_removal.c
                    clique_removal.cpp purge.c)
 
 # the utils library is already linked with -lgmp and -lm
-add_executable(dup1 dup1.c)
+add_executable(dup1 dup1.cpp)
 target_link_libraries(dup1 utils_with_io)
 
 add_executable(dup2 dup2.cpp)
