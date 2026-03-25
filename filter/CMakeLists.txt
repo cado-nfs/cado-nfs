@@ -19,7 +19,7 @@ add_executable(purge ${purge_sources})
 target_link_libraries(purge utils_with_io)
 
 
-add_executable(merge merge.c merge_heap.c merge_bookkeeping.c
+add_executable(merge merge.cpp merge_heap.c merge_bookkeeping.c
     merge_compute_weights.c
     read_purgedfile_in_parallel.c mst.c merge_replay_matrix.c sparse.c)
 target_link_libraries(merge utils_with_io)
@@ -29,7 +29,7 @@ macro(mark_targets_as_dl t)
     set_property(TARGET ${t} APPEND PROPERTY COMPILE_OPTIONS -DFOR_DL)
 endmacro()
 
-add_executable(merge-dl merge.c merge_heap.c merge_bookkeeping.c
+add_executable(merge-dl merge.cpp merge_heap.c merge_bookkeeping.c
     merge_compute_weights.c
     read_purgedfile_in_parallel.c mst.c merge_replay_matrix.c sparse.c)
 target_link_libraries(merge-dl utils_with_io)

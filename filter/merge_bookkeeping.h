@@ -77,7 +77,7 @@ extern "C" {
 #endif
 
 void
-print_timings (char *s, double cpu, double wct);
+print_timings (const char *s, double cpu, double wct);
 
 #ifdef __cplusplus
 }
