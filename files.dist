@@ -844,7 +844,7 @@ polyselect/ropt_main.cpp
 polyselect/ropt_param.cpp
 polyselect/ropt_param.h
 polyselect/ropt_quadratic.cpp
-polyselect/ropt_quadratic.h
+polyselect/ropt_quadratic.hpp
 polyselect/ropt_single_sublattice_priority_queue.cpp
 polyselect/ropt_single_sublattice_priority_queue.h
 polyselect/ropt_single_sublattice_priority_queue_impl.hpp

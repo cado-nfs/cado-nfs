@@ -21,7 +21,7 @@
 #include <stdlib.h>     // free malloc
 #include <gmp.h>
 #include "auxiliary.hpp"  // rotate_aux
-#include "ropt_quadratic.h"
+#include "ropt_quadratic.hpp"
 #include "ropt_linear.hpp" // ropt_call_sieve
 #include "ropt_param.h" // TUNE_LOGNORM_INCR ...
 #include "ropt_stage1.h" // ropt_stage1

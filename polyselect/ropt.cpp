@@ -22,7 +22,7 @@
 #include "ropt.hpp"
 #include "ropt_arith.hpp"
 #include "ropt_linear.hpp"
-#include "ropt_quadratic.h"
+#include "ropt_quadratic.hpp"
 #include "ropt_stage2.h"
 #include "ropt_str.hpp"
 #include "ropt_tree.h"
