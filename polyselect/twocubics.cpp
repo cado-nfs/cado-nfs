@@ -28,7 +28,7 @@
 #include "area.h"
 #include "omp_proxy.h"
 #include "polyselect_arith.h"
-#include "polyselect_collisions.h"
+#include "polyselect_collisions.hpp"
 #include "polyselect_norms.h"
 #include "polyselect_alpha.h"
 #include "polyselect_shash.h"
