@@ -6,7 +6,7 @@
 #include <gmp.h>
 
 #include "dllist.h"
-#include "polyselect_match.h"
+#include "polyselect_match.hpp"
 #include "polyselect_poly_header.h"
 #include "polyselect_thread.hpp"
 

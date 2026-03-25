@@ -13,7 +13,7 @@
 #endif
 
 #include "polyselect_thread.hpp"
-#include "polyselect_match.h"
+#include "polyselect_match.hpp"
 #include "polyselect_thread_team.hpp"
 #include "polyselect_thread_league.hpp"
 #include "polyselect_main_data.hpp"

@@ -50,7 +50,7 @@
 #include "polyselect_collisions.hpp"
 #include "polyselect_shash.h"
 #include "polyselect_stats.h"
-#include "polyselect_match.h"
+#include "polyselect_match.hpp"
 #include "polyselect_norms.h"
 #include "polyselect_thread.hpp"
 #include "polyselect_alpha.h"
