@@ -9,7 +9,7 @@
 
 #include <stddef.h>
 
-#include "ropt_arith.h" // ROPT_NPRIMES
+#include "ropt_arith.hpp" // ROPT_NPRIMES
 #include "ropt_param.h"
 
 

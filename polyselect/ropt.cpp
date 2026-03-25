@@ -20,7 +20,7 @@
 #include "macros.h"
 #include "mpz_poly.h"
 #include "ropt.hpp"
-#include "ropt_arith.h"
+#include "ropt_arith.hpp"
 #include "ropt_linear.hpp"
 #include "ropt_quadratic.h"
 #include "ropt_stage2.h"

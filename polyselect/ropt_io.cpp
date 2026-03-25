@@ -19,7 +19,7 @@
 #include "polyselect_alpha.h"
 #include "polyselect_norms.h"
 #include "ropt.hpp"
-#include "ropt_arith.h" // Lemma21
+#include "ropt_arith.hpp" // Lemma21
 #include "ropt_io.h"
 #include "ropt_param.h"    // L1_cachesize MAX_LINE_LENGTH
 #include "ropt_str.hpp" // ropt_poly_t ...

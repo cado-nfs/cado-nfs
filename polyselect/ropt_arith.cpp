@@ -15,7 +15,7 @@
 #include "mpz_poly.h"
 #include "arith/mod_ul.h"
 #include "macros.h"     // ASSERT
-#include "ropt_arith.h"
+#include "ropt_arith.hpp"
 #include "ropt_str.hpp"
 
 

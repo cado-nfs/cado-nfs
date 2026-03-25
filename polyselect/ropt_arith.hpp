@@ -8,9 +8,6 @@
 #define ROPT_NPRIMES 46
 
 /* declarations */
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 void compute_fuv_mp ( mpz_poly_ptr fuv,
                       mpz_poly_srcptr f,
@@ -86,9 +83,5 @@ long uv2ij_mod ( mpz_srcptr A,
                  unsigned int U,
                  unsigned int p );
 
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

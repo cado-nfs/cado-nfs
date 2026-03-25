@@ -15,7 +15,7 @@
 #include "mpz_poly.h"
 #include "ropt_param.h"        // NUM_SUBLATTICE_PRIMES
 #include "ropt_str.hpp"
-#include "ropt_arith.h" // ab2uv
+#include "ropt_arith.hpp" // ab2uv
 #include "auxiliary.hpp"  // ALG_SIDE RAT_SIDE
 #include "area.h"
 #include "size_optimization.h"
