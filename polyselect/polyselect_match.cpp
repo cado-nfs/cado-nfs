@@ -8,7 +8,7 @@
 #include "dllist.h"
 #include "polyselect_match.h"
 #include "polyselect_poly_header.h"
-#include "polyselect_thread.h"
+#include "polyselect_thread.hpp"
 
 void polyselect_match_info_clear(polyselect_match_info_ptr task)
 {

@@ -52,7 +52,7 @@
 #include "polyselect_stats.h"
 #include "polyselect_match.h"
 #include "polyselect_norms.h"
-#include "polyselect_thread.h"
+#include "polyselect_thread.hpp"
 #include "polyselect_alpha.h"
 #include "polyselect_special_q.h"
 #include "portability.h"

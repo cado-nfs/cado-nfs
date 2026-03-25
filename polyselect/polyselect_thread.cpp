@@ -12,7 +12,7 @@
 #include "hwloc.h"
 #endif
 
-#include "polyselect_thread.h"
+#include "polyselect_thread.hpp"
 #include "polyselect_match.h"
 #include "polyselect_thread_team.hpp"
 #include "polyselect_thread_league.hpp"

@@ -12,7 +12,7 @@
 #include "dllist.h"
 #include "polyselect_shash.h"
 #include "polyselect_match.h"
-#include "polyselect_thread.h"
+#include "polyselect_thread.hpp"
 #include "misc.h"
 #include "macros.h"
 

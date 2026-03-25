@@ -15,7 +15,7 @@
 #include "polyselect_proots.h"
 #include "polyselect_shash.h"
 #include "polyselect_stats.h"
-#include "polyselect_thread.h"
+#include "polyselect_thread.hpp"
 #include "polyselect_thread_league.hpp"
 #include "polyselect_thread_team.hpp"
 

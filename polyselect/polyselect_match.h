@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include "polyselect_poly_header.h"
 #include "dllist.h"
-#include "polyselect_thread.h"
+#include "polyselect_thread.hpp"
 
 #ifdef __cplusplus
 extern "C" {

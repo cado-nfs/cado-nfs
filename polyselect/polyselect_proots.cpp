@@ -13,7 +13,7 @@
 #include "polyselect_poly_header.h"
 #include "polyselect_primes_table.h"
 #include "polyselect_proots.h"
-#include "polyselect_thread.h"
+#include "polyselect_thread.hpp"
 #include "polyselect_thread_team.hpp"
 #include "gcd.h"
 #include "roots_mod.h"
