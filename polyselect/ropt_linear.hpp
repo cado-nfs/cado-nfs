@@ -8,10 +8,6 @@
 
 /* -- declarations -- */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 void ropt_linear ( ropt_poly_ptr poly,
                    ropt_bestpoly_ptr bestpoly,
                    ropt_param_ptr param,
@@ -76,10 +72,5 @@ void
 ropt_MurphyE_to_alpha ( MurphyE_pq *E_pqueue,
                         alpha_pq *alpha_pqueue );
 
-
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* CADO_ROPT_LINEAR_H */

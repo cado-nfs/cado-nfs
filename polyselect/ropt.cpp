@@ -21,7 +21,7 @@
 #include "mpz_poly.h"
 #include "ropt.hpp"
 #include "ropt_arith.h"
-#include "ropt_linear.h"
+#include "ropt_linear.hpp"
 #include "ropt_quadratic.h"
 #include "ropt_stage2.h"
 #include "ropt_str.hpp"
