@@ -166,7 +166,7 @@ filter/read_purgedfile_in_parallel.h
 filter/reconstructlog.cpp
 filter/replay.cpp
 filter/shrink_rels.cpp
-filter/singleton_removal.c
+filter/singleton_removal.cpp
 filter/singleton_removal.h
 filter/singleton_simple.cpp
 filter/sm.cpp
