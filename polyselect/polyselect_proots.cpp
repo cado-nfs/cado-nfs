@@ -16,7 +16,7 @@
 #include "polyselect_thread.hpp"
 #include "polyselect_thread_team.hpp"
 #include "gcd.h"
-#include "roots_mod.h"
+#include "roots_mod.hpp"
 
 /* init polyselect_proots_t */
 void

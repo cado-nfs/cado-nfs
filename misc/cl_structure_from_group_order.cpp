@@ -29,7 +29,7 @@
 #include "mpz_poly.h"
 #include "params.h"     // param_list
 #include "prime_power_factorization.hpp"
-#include "roots_mod.h"
+#include "roots_mod.hpp"
 #include "verbose.h"
 
 /* boost::hash_combine

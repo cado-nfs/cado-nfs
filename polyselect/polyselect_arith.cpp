@@ -13,7 +13,7 @@
 #include "polyselect_qroots.h"
 #include "polyselect_proots.h"
 #include "polyselect_poly_header.h"
-#include "roots_mod.h"
+#include "roots_mod.hpp"
 
 
 /* first combination of k elements among 0, ..., n-1: 0, 1, 2, 3, \cdots */

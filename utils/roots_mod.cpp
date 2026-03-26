@@ -17,7 +17,7 @@
 #include "lucas_V_mod.h"
 #include "mpz_poly.h"
 #include "rootfinder.h"
-#include "roots_mod.h"
+#include "roots_mod.hpp"
 #include "arith/ularith.h" // ularith_ctz, ularith_sqrt
 
 static unsigned int mod_roots(residue_t * rr, residue_t aa, unsigned int d,

@@ -12,9 +12,7 @@
 #include "gmp_aux.h"
 #include "mpz_poly.h"
 #include "rootfinder.h"
-
-int roots_mod_uint64(uint64_t * r, uint64_t a, int d, uint64_t p,
-                     gmp_randstate_ptr rstate);
+#include "roots_mod.hpp"
 
 /* sort the roots r[0], ..., r[n-1] in increasing order */
 static void sort_roots(uint64_t * r, unsigned int n)
@@ -75,8 +73,8 @@ int main(int argc, char const * argv[])
            "%lu\n",
            minp, maxp, mina, maxa, mind, maxd);
 
-    r1 = malloc(sizeof(uint64_t) * maxd);
-    r2 = malloc(sizeof(uint64_t) * maxd);
+    r1 = (uint64_t *) malloc(sizeof(uint64_t) * maxd);
+    r2 = (uint64_t *) malloc(sizeof(uint64_t) * maxd);
 
     prime_info pi;
     prime_info_init(pi);

@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "arith/modredc_ul_default.h"
-#include "roots_mod.h"
+#include "roots_mod.hpp"
 #include "macros.h"
 
 extern void omega (residue_t o, residue_t b, unsigned long k, const modulus_t pp);

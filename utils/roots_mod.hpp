@@ -1,12 +1,11 @@
-#ifndef CADO_ROOTS_MOD_H
-#define CADO_ROOTS_MOD_H
+#ifndef CADO_ROOTS_MOD_HPP
+#define CADO_ROOTS_MOD_HPP
 
 #include <stdint.h>
-#include "gmp_aux.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <gmp.h>
+
+#include "gmp_aux.h"
 
 /* Structure to hold factorization of an unsigned long, and to iterate through
    its proper divisors. An integer < 2^64 has at most 15 prime factors. The 
@@ -23,8 +22,4 @@ unsigned char factor_ul (unsigned long *, unsigned char *, unsigned long n);
 void enumeratediv_init (enumeratediv_t *, unsigned long n);
 unsigned long enumeratediv (enumeratediv_t *);
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif	/* CADO_ROOTS_MOD_H */
+#endif	/* CADO_ROOTS_MOD_HPP */

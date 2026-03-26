@@ -35,7 +35,7 @@
 #include "polyselect_poly_header.h"
 #include "modredc_ul.h"
 #include "mpz_vector.h"
-#include "roots_mod.h"  // roots_mod_uint64
+#include "roots_mod.hpp"  // roots_mod_uint64
 #include "timing.h"     // milliseconds
 #include "verbose.h"    // verbose_decl_usage
 #include "auxiliary.hpp"  // DEFAULT_INCR
