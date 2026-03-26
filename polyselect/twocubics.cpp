@@ -25,7 +25,7 @@
 #include <math.h> // pow
 #include <gmp.h>
 #include "mpz_poly.h"
-#include "area.h"
+#include "area.hpp"
 #include "omp_proxy.h"
 #include "polyselect_arith.h"
 #include "polyselect_collisions.hpp"

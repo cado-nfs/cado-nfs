@@ -6,7 +6,7 @@
 #include <gmp.h>
 
 #include "auxiliary.hpp"
-#include "area.h"
+#include "area.hpp"
 #include "cado_poly.hpp"
 #include "murphyE.hpp"
 #include "mpz_poly.h"

@@ -38,7 +38,7 @@
 
 #include "omp_proxy.h"
 #include "cado_poly.hpp"
-#include "area.h"
+#include "area.hpp"
 #include "auxiliary.hpp"
 #include "macros.h"
 #include "mpz_poly.h"

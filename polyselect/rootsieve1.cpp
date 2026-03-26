@@ -28,7 +28,7 @@
 
 #include <gmp.h>
 
-#include "area.h"
+#include "area.hpp"
 #include "auxiliary.hpp" /* for common routines with polyselect_old.c */
 #include "cado_poly.hpp"
 #include "gcd.h"

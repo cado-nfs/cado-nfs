@@ -8,7 +8,7 @@
 #include "polyselect_norms.h"
 #include "polyselect_alpha.h"
 #include "auxiliary.hpp"
-#include "area.h"
+#include "area.hpp"
 #include "cado_poly.hpp"
 #include "mpz_poly.h"
 #include "params.h"

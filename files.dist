@@ -780,7 +780,7 @@ parameters/polynomials/F9.poly
 polyselect/CMakeLists.txt
 polyselect/Makefile
 polyselect/area.cpp
-polyselect/area.h
+polyselect/area.hpp
 polyselect/auxiliary.cpp
 polyselect/auxiliary.hpp
 polyselect/best_polynomials_queue.cpp

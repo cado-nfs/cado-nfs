@@ -20,7 +20,7 @@
 #include "ropt_str.hpp"
 #include "ropt_arith.hpp" // ab2uv
 #include "auxiliary.hpp"  // ALG_SIDE RAT_SIDE
-#include "area.h"
+#include "area.hpp"
 #include "size_optimization.hpp"
 #include "polyselect_norms.h"
 #include "polyselect_alpha.h"
