@@ -1565,7 +1565,7 @@ tests/utils/test_mpz_poly_parsing.cpp
 tests/utils/test_mpz_vector.c
 tests/utils/test_multityped_array.cpp
 tests/utils/test_number_literal.cpp
-tests/utils/test_omega.c
+tests/utils/test_omega.cpp
 tests/utils/test_polynomial.cpp
 tests/utils/test_prime_count.cpp
 tests/utils/test_random_distributions.cpp
@@ -1842,7 +1842,7 @@ utils/ringbuf.c
 utils/ringbuf.h
 utils/rootfinder.cpp
 utils/rootfinder.h
-utils/roots_mod.c
+utils/roots_mod.cpp
 utils/roots_mod.h
 utils/runtime_numeric_cast.hpp
 utils/select_mpi.h

@@ -6,7 +6,7 @@
 #include "roots_mod.h"
 #include "macros.h"
 
-void omega (residue_t o, residue_t b, unsigned long k, const modulus_t pp);
+extern void omega (residue_t o, residue_t b, unsigned long k, const modulus_t pp);
 
 int main(int argc, char const * argv[])
 {

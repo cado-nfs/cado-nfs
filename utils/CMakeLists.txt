@@ -25,7 +25,7 @@ set (sources
         fstream_maybe_compressed.cpp
         mpz_mat.cpp mpz_poly.cpp crc.c purgedfile.c bit_vector.c
         barrier.c usp.cpp fix-endianness.c memusage.cpp
-        cachesize_cpuid.c cachesize_guess.cpp roots_mod.c
+        cachesize_cpuid.c cachesize_guess.cpp roots_mod.cpp
         renumber.cpp
         renumber_proxy.cpp
         ringbuf.c sm_utils.cpp galois_action.cpp memalloc.cpp
