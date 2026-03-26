@@ -366,7 +366,7 @@
                 size_t pos,						\
                 size_t p_or_2p,						\
                 unsigned char logp,					\
-                where_am_I w MAYBE_UNUSED) const			\
+                where_am_I & w MAYBE_UNUSED) const			\
         {								\
             unsigned char * pi = S0 + pos;                              \
             INTERMEDIARY_FOBJ()
