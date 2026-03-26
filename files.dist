@@ -1788,7 +1788,7 @@ utils/mpz_poly_bivariate.cpp
 utils/mpz_poly_bivariate.hpp
 utils/mpz_poly_parallel.hpp
 utils/mpz_polymodF.h
-utils/mpz_vector.c
+utils/mpz_vector.cpp
 utils/mpz_vector.h
 utils/multityped_array.hpp
 utils/named_proxy.hpp
