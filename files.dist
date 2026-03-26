@@ -158,7 +158,7 @@ filter/merge_replay_matrix.c
 filter/merge_replay_matrix.h
 filter/mst.c
 filter/mst.h
-filter/purge.c
+filter/purge.cpp
 filter/purge_matrix.c
 filter/purge_matrix.h
 filter/read_purgedfile_in_parallel.c

@@ -3,7 +3,7 @@ set (bin_list
 )
 
 set (purge_sources purge_matrix.c singleton_removal.c
-                   clique_removal.cpp purge.c)
+                   clique_removal.cpp purge.cpp)
 
 # the utils library is already linked with -lgmp and -lm
 add_executable(dup1 dup1.cpp)
