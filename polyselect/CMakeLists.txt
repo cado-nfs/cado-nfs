@@ -6,7 +6,7 @@ add_library(polyselect_common
     ${CADO_SHARED}
     auxiliary.cpp
     murphyE.cpp
-    area.c
+    area.cpp
     size_optimization.cpp
     polyselect_alpha.cpp
     polyselect_norms.cpp
