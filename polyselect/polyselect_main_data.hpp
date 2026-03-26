@@ -2,7 +2,7 @@
 #define CADO_POLYSELECT_MAIN_DATA_HPP
 
 #include <gmp.h>
-#include <stdint.h>
+#include <cstdint>
 #include <pthread.h>
 
 #include "cado_poly.hpp"

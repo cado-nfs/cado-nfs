@@ -1,8 +1,8 @@
 #ifndef CADO_PURGE_MATRIX_HPP
 #define CADO_PURGE_MATRIX_HPP
 
-#include <stdio.h>
-#include <stdint.h>
+#include <cstdio>
+#include <cstdint>
 #include "filter_io.h"  // earlyparsed_relation_ptr
 #include "typedefs.h"   // index_t weight_t
 

@@ -1,8 +1,8 @@
 #ifndef CADO_MATRIX_FILE_HPP
 #define CADO_MATRIX_FILE_HPP
 
-#include <stdint.h>
-#include <stddef.h>
+#include <cstdint>
+#include <cstddef>
 #include <string>
 #include <utility>
 #include <array>

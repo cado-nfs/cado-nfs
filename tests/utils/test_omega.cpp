@@ -1,7 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
 #include "arith/modredc_ul_default.h"
 #include "roots_mod.hpp"
 #include "macros.h"

@@ -1,10 +1,10 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <inttypes.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cinttypes>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 #include <gmp.h>
 

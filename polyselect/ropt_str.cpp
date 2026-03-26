@@ -5,11 +5,11 @@
 
 
 #include "cado.h" // IWYU pragma: keep
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h> // free malloc exit
-#include <float.h> // DBL_MAX
-#include <math.h> // fmin
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib> // free malloc exit
+#include <cfloat> // DBL_MAX
+#include <cmath> // fmin
 
 #include <memory>
 

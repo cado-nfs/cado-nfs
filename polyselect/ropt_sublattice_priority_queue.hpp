@@ -1,7 +1,7 @@
 #ifndef CADO_ROPT_SUBLATTICE_PRIORITY_QUEUE_HPP
 #define CADO_ROPT_SUBLATTICE_PRIORITY_QUEUE_HPP
 
-#include <stddef.h>
+#include <cstddef>
 #include "gmp.h"
 
 /**

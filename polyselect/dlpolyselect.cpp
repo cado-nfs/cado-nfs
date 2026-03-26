@@ -62,13 +62,13 @@ skew: 1.37
 */
 
 #include "cado.h" // IWYU pragma: keep
-#include <float.h>
-#include <stdlib.h>
-#include <math.h>
+#include <cfloat>
+#include <cstdlib>
+#include <cmath>
 #include <time.h>
-#include <limits.h>
-#include <stdio.h>
-#include <string.h>
+#include <climits>
+#include <cstdio>
+#include <cstring>
 #include <gmp.h>
 #include "cado_poly.hpp"
 #include "macros.h"

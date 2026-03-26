@@ -2,7 +2,7 @@
 #define CADO_SINGLETON_REMOVAL_HPP
 
 #include "purge_matrix.hpp"
-#include <stdint.h>
+#include <cstdint>
 
 void singleton_removal_oneiter_mono (purge_matrix_ptr mat);
 void singleton_removal_oneiter_mt (purge_matrix_ptr, unsigned int);

@@ -6,9 +6,9 @@
 
 #include "cado.h" // IWYU pragma: keep
 
-#include <float.h> // for DBL_MAX
-#include <stdio.h>
-#include <stdlib.h>
+#include <cfloat> // for DBL_MAX
+#include <cstdio>
+#include <cstdlib>
 
 #include "auxiliary.hpp"
 #include "cado_poly.hpp"

@@ -1,8 +1,8 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <stdarg.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdarg>
+#include <cstdlib>
+#include <cstring>
 
 #include <pthread.h>
 

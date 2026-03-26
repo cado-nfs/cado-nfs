@@ -1,6 +1,7 @@
 #ifndef CADO_POLYSELECT_GFPKDLPOLYSELECT_IMPL_HPP
 #define CADO_POLYSELECT_GFPKDLPOLYSELECT_IMPL_HPP
 
+#include "cado_poly.hpp"
 #include "gfpkdlpolyselect.hpp"
 
 // table structure, old version.

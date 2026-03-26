@@ -1,9 +1,9 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <float.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <math.h>
+#include <cfloat>
+#include <cstdint>
+#include <cstdlib>
+#include <cmath>
 
 #include "double_poly.h"
 #include "macros.h"
@@ -250,7 +250,7 @@ L2_lognorm_d (double_poly_srcptr p, double s)
         tt += (coeffs_integral[d][k])*(t0 + t1);
     }
     tt = ldexp(tt * M_PI / (double) (d+1), -2*d);
-    if (isnan (tt) || isinf (tt))
+    if (std::isnan (tt) || std::isinf (tt))
         tt = DBL_MAX;
     return log(tt) / 2;
 }

@@ -7,7 +7,7 @@
 
 #include "cado.h" // IWYU pragma: keep
 
-#include <stddef.h>
+#include <cstddef>
 
 #include "ropt_arith.hpp" // ROPT_NPRIMES
 #include "ropt_param.h"

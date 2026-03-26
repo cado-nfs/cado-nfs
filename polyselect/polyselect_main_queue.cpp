@@ -1,12 +1,11 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <float.h>
-#include <limits.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cfloat>
+#include <climits>
+#include <cstddef>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 #include <pthread.h>
 

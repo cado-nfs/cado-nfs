@@ -16,3 +16,11 @@ move_to_cpp() {
     done
     git commit -am "convert $* to c++"
 }
+
+rename_cpp_protectors() {
+    git grep -l '_H_\?\b' '*.hpp'  | xargs -n1 sed -e 's/_H\b/_HPP/g' -i
+}
+
+rename_all_c_headers() {
+git grep -l  '<\(std.*\|float\|limits\|math\|string\|ctype\|inttypes\|errno\)\.h>' '*.[ch]pp' | xargs -rn1 sed -e 's/<\(std.*\|float\|limits\|math\|string\|ctype\|inttypes\|errno\)\.h>/<c\1>/g' -i
+}

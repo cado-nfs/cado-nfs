@@ -24,7 +24,7 @@
 
 #include "cado.h" // IWYU pragma: keep
 
-#include <stdio.h>
+#include <cstdio>
 
 #include <gmp.h>
 

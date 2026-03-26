@@ -1,8 +1,8 @@
 #ifndef CADO_RENUMBER_PROXY_HPP
 #define CADO_RENUMBER_PROXY_HPP
 
-#include <stddef.h>     // size_t
-#include <stdint.h>     // uint64_t
+#include <cstddef>     // size_t
+#include <cstdint>     // uint64_t
 #include "typedefs.h"
 #include "mpz_poly.h"
 #include "cado_poly.hpp"

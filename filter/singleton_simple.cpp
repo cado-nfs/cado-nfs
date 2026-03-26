@@ -1,9 +1,9 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <inttypes.h>   // for PRIu64
-#include <stdint.h>     // for uint64_t
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cinttypes>   // for PRIu64
+#include <cstdint>     // for uint64_t
 #include "filter_io.h"  // earlyparsed_relation_ptr
 #include "macros.h"
 #include "misc.h"       // for UMAX

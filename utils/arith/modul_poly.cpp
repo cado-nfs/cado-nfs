@@ -3,11 +3,11 @@
 
 #include "cado.h" // IWYU pragma: keep
 
-#include <limits.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <climits>
+#include <cstdarg>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 #include <gmp.h> // for mpz_t, mpz_divisible_ui_p, mpz_fdiv_ui
 

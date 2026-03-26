@@ -18,8 +18,8 @@
  * it's gcc specific. We can't expect such a thing to work with other
  * compilers.
  */
-#include <stdio.h>      // FILE
-#include <stdlib.h>     // exit ...
+#include <cstdio>      // FILE
+#include <cstdlib>     // exit ...
 #include "murphyE.hpp"
 #include "cado_poly.hpp"
 #include "auxiliary.hpp"

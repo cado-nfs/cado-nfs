@@ -1,12 +1,12 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <inttypes.h>
+#include <cinttypes>
 #include <pthread.h>
-#include <math.h>
-#include <float.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
+#include <cmath>
+#include <cfloat>
+#include <cstdio>
+#include <cstdlib>
+#include <cstdint>
 
 #include <gmp.h>
 #ifdef HAVE_HWLOC

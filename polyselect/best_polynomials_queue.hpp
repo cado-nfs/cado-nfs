@@ -1,7 +1,7 @@
 #ifndef CADO_BEST_POLYNOMIALS_QUEUE_HPP
 #define CADO_BEST_POLYNOMIALS_QUEUE_HPP
 
-#include <stddef.h>
+#include <cstddef>
 #include "cado_poly.hpp"
 
 struct best_polynomials_queue_s {

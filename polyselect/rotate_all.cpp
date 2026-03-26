@@ -1,11 +1,11 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-#include <float.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cmath>
+#include <cfloat>
 #include <gmp.h>
-#include <stdint.h>
+#include <cstdint>
 #include "cado_poly.hpp"
 #include "macros.h"
 #include "mpz_poly.h"

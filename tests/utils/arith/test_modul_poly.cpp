@@ -1,7 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
 #include "macros.h"
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 #include <gmp.h>
 #include "arith/mod_ul.h"        // for modul_initmod_ul, modul_clearmod, modul_se...
 #include "mpz_poly.h"      // for mpz_poly

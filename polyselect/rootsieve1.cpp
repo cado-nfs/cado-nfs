@@ -18,13 +18,13 @@
 
 #include "cado.h" // IWYU pragma: keep
 
-#include <float.h>
-#include <limits.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
+#include <cfloat>
+#include <climits>
+#include <cstdio>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <cmath>
 
 #include <gmp.h>
 

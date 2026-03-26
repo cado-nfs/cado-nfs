@@ -1,5 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stddef.h>  // for NULL
+#include <cstddef>  // for NULL
 #include <hwloc.h>   // for hwloc_type_sscanf_as_depth, HWLOC_API_VERSION
 #include "hwloc-aux.hpp"
 

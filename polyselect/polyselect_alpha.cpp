@@ -1,9 +1,9 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <stdlib.h>
+#include <cstdlib>
 
 #include <gmp.h>
-#include <math.h>
+#include <cmath>
 #include <pthread.h>
 
 #include "gmp_aux.h"

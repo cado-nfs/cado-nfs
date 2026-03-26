@@ -1,9 +1,9 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <limits.h>     // INT_MAX
-#include <math.h> /* for sqrt and floor and log and ceil */
+#include <cstdio>
+#include <cstdlib>
+#include <climits>     // INT_MAX
+#include <cmath> /* for sqrt and floor and log and ceil */
 
 #include <pthread.h>
 #include <gmp.h>

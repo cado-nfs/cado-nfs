@@ -1,7 +1,7 @@
 #ifndef CADO_POLYSELECT_MATCH_HPP
 #define CADO_POLYSELECT_MATCH_HPP
 
-#include <stdint.h>
+#include <cstdint>
 #include "polyselect_poly_header.h"
 #include "dllist.h"
 #include "polyselect_thread.hpp"

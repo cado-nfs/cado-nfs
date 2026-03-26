@@ -1,9 +1,9 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <limits.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstdarg>
+#include <climits>
 
 #include <sys/time.h>   // timeval
 #include <pthread.h>

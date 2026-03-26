@@ -6,9 +6,9 @@
 
 #include "cado.h" // IWYU pragma: keep
 
-#include <stdio.h>      // fprintf stderr
-#include <math.h>       // ceil
-#include <stdlib.h>       // exit
+#include <cstdio>      // fprintf stderr
+#include <cmath>       // ceil
+#include <cstdlib>       // exit
 
 #include <gmp.h>
 

@@ -3,11 +3,11 @@
    relation or relation with non prime ideal */
 
 #include "cado.h" // IWYU pragma: keep
-#include <inttypes.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cinttypes>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #ifdef HAVE_MINGW
 #include <fcntl.h>   /* for _O_BINARY */
 #endif

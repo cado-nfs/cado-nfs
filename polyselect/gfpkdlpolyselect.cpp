@@ -13,9 +13,9 @@
 
 #include "cado.h" // IWYU pragma: keep
 
-#include <math.h> // log
-#include <stdio.h>
-#include <stdlib.h> // abort free
+#include <cmath> // log
+#include <cstdio>
+#include <cstdlib> // abort free
 
 #include <gmp.h>
 

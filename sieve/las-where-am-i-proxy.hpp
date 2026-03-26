@@ -2,7 +2,7 @@
 #define CADO_LAS_WHERE_AM_I_PROXY_HPP
 
 #include <memory>
-#include <stdlib.h>
+#include <cstdlib>
 
 #include "sieve-methods.hpp"
 

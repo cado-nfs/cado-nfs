@@ -7,7 +7,7 @@
    We will try to use the "connected component" terminology instead.
 */
 
-#include <stdint.h>
+#include <cstdint>
 #include "purge_matrix.hpp"
 
 void comp_print_info_weight_function ();

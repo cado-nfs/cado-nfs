@@ -31,11 +31,7 @@
 #error "the code works only for Py of degree <= 2, sorry."
 #endif
 
-#include <stdio.h>      // FILE
-#include <stdbool.h>    // for bool (in C)
 #include <gmp.h>
-#include "cado_poly.hpp"   // for MAX_DEGREE
-#include "mpz_poly.h"
 
 void gfpk_print_params(int n, mpz_srcptr p, mpz_srcptr ell);
 

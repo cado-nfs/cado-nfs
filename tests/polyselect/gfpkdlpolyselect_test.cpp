@@ -12,9 +12,9 @@
 
 #include "cado.h" // IWYU pragma: keep
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
 
 #include <gmp.h>
 

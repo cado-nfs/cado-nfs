@@ -5,10 +5,10 @@
 
 
 #include "cado.h" // IWYU pragma: keep
-#include <stdlib.h> // exit
-#include <string.h> // strncmp strlen
-#include <math.h> // log
-#include <stdio.h>
+#include <cstdlib> // exit
+#include <cstring> // strncmp strlen
+#include <cmath> // log
+#include <cstdio>
 #include <gmp.h>
 
 #include "auxiliary.hpp" // print_poly_fg ALG_SIDE ALPHA_BOUND

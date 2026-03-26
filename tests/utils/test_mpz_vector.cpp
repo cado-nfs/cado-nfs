@@ -1,8 +1,8 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <limits.h>
-#include <stdint.h>
-#include <stdlib.h>
+#include <climits>
+#include <cstdint>
+#include <cstdlib>
 
 #include <gmp.h>
 

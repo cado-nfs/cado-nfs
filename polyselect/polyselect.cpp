@@ -27,11 +27,10 @@
  * it's gcc specific. We can't expect such a thing to work with other
  * compilers.
  */
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <string.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstdint>
+#include <cstring>
 
 #include <pthread.h>
 

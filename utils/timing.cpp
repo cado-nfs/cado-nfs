@@ -27,9 +27,9 @@
 #if !defined(HAVE_RUSAGE_THREAD) && defined(__linux)
 #include <unistd.h>
 #include <sys/syscall.h>
-#include <stdarg.h>
-#include <string.h>
-#include <stdlib.h>
+#include <cstdarg>
+#include <cstring>
+#include <cstdlib>
 #include "portability.h"
 #endif
 

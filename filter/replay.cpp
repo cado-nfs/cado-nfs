@@ -21,14 +21,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 */
 
 #include "cado.h" // IWYU pragma: keep
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 #ifdef HAVE_MINGW
 #include <fcntl.h>   /* for _O_BINARY */
 #endif
-#include <string.h>
-#include <inttypes.h>        // for PRIu64, PRIu32, PRIx64
-#include <stdint.h>          // for uint64_t, uint32_t, UINT32_MAX
+#include <cstring>
+#include <cinttypes>        // for PRIu64, PRIu32, PRIx64
+#include <cstdint>          // for uint64_t, uint32_t, UINT32_MAX
 #include "purgedfile.h"      // for purgedfile_read_firstline
 #include "typedefs.h"        // for index_t, ideal_merge_t, index_signed_t
 #include "filter_config.h"

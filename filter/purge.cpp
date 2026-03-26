@@ -59,11 +59,11 @@
  */
 
 #include "cado.h" // IWYU pragma: keep
-#include <inttypes.h>           // for PRIu64, PRId64
-#include <stdint.h>             // for int64_t, uint64_t
-#include <stdio.h>              // for fprintf, stdout, fflush, stderr, NULL
-#include <stdlib.h>             // for exit, EXIT_FAILURE, abort, malloc
-#include <string.h>             // for memset
+#include <cinttypes>           // for PRIu64, PRId64
+#include <cstdint>             // for int64_t, uint64_t
+#include <cstdio>              // for fprintf, stdout, fflush, stderr, NULL
+#include <cstdlib>             // for exit, EXIT_FAILURE, abort, malloc
+#include <cstring>             // for memset
 #include "clique_removal.hpp"     // for cliques_removal, comp_print_info_weig...
 #include "filter_config.h"      // for DEFAULT_PURGE_NSTEPS, DEFAULT_FI...
 #include "filter_io.h"          // for filter_rels, earlyparsed_relation_s

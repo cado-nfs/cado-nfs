@@ -36,11 +36,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #ifdef  __GNUC__
 #pragma GCC diagnostic ignored "-Wunknown-pragmas"
 #endif
-#include <stdio.h>
-#include <stdlib.h>
-#include <inttypes.h>
-#include <stdint.h>
-#include <string.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cinttypes>
+#include <cstdint>
+#include <cstring>
 
 #include "filter_config.h"
 #include "filter_io.h"

@@ -1,9 +1,9 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-#include <ctype.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cmath>
+#include <cctype>
 #include <gmp.h>
 #include "polyselect_norms.h"
 #include "polyselect_alpha.h"

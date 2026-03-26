@@ -19,11 +19,11 @@
 
 #define MAX_NSLICES_LOG 6
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <string.h>
-#include <inttypes.h>
+#include <cstdlib>
+#include <cstdio>
+#include <cstdint>
+#include <cstring>
+#include <cinttypes>
 #ifdef HAVE_MINGW
 #include <fcntl.h>   /* for _O_BINARY */
 #endif

@@ -1,7 +1,7 @@
 #ifndef CADO_TEST_SMALLSIEVE_MOCK_HPP
 #define CADO_TEST_SMALLSIEVE_MOCK_HPP
 
-#include <stdint.h>
+#include <cstdint>
 #include "macros.h"
 
 #include "las-smallsieve.hpp"

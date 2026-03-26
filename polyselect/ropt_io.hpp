@@ -1,7 +1,7 @@
 #ifndef CADO_ROPT_IO_HPP
 #define CADO_ROPT_IO_HPP
 
-#include <stdio.h> // FILE
+#include <cstdio> // FILE
 #include <gmp.h>        // mpz_t
 #include "ropt_str.hpp"    // ropt_param_t
 

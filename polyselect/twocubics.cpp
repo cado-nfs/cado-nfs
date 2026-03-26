@@ -17,12 +17,12 @@
 
 #define BATCH_SIZE 20
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <limits.h>
+#include <cstdio>
+#include <cstdlib>
+#include <climits>
 #include <pthread.h>
-#include <float.h>      // DBL_MAX
-#include <math.h> // pow
+#include <cfloat>      // DBL_MAX
+#include <cmath> // pow
 #include <gmp.h>
 #include "mpz_poly.h"
 #include "area.hpp"

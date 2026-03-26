@@ -1,7 +1,7 @@
 #ifndef CADO_ROOTS_MOD_HPP
 #define CADO_ROOTS_MOD_HPP
 
-#include <stdint.h>
+#include <cstdint>
 
 #include <gmp.h>
 

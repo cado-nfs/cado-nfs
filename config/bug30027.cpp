@@ -1,5 +1,5 @@
 #include <map>
-#include <stdint.h>
+#include <cstdint>
 
 struct foo {
 	uint64_t z[18];

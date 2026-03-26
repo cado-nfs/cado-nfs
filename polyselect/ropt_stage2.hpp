@@ -1,7 +1,7 @@
 #ifndef CADO_ROPT_STAGE2_HPP
 #define CADO_ROPT_STAGE2_HPP
 
-#include <stdint.h>      // int16_t
+#include <cstdint>      // int16_t
 #include "ropt_str.hpp"    // ropt_param ...
 #include "ropt_tree.h" // MurphyE_pq
 

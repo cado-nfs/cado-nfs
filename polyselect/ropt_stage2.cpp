@@ -6,10 +6,10 @@
 
 #include "cado.h" // IWYU pragma: keep
 
-#include <math.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 
 #include <gmp.h>
 

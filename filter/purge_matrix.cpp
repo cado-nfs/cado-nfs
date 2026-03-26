@@ -1,12 +1,12 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <stdint.h>
-#include <errno.h>       // for errno
-#include <inttypes.h>    // for PRIu64
-#include <string.h>      // for memset, strerror
-#include <stdio.h>
-#include <stdlib.h>
-#include <math.h>
+#include <cstdint>
+#include <cerrno>       // for errno
+#include <cinttypes>    // for PRIu64
+#include <cstring>      // for memset, strerror
+#include <cstdio>
+#include <cstdlib>
+#include <cmath>
 
 #include <pthread.h>
 

@@ -20,10 +20,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 */
 
 #include "cado.h" // IWYU pragma: keep
-#include <stdio.h>
-#include <stdlib.h>
-#include <float.h>
-#include <math.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cfloat>
+#include <cmath>
 
 #include <gmp.h>
 
