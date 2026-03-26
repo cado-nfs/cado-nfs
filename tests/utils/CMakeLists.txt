@@ -60,7 +60,7 @@ cado_define_test(test_dllist.c LIBRARIES tests)
 cado_define_test(test_threadpool.cpp LIBRARIES utils tests)
 # note: these tests used to be disabled...
 cado_define_test(test_verbose.c LIBRARIES utils tests) # Should be run under Helgrind or other thread checkers
-cado_define_test(test_mpz_vector.c LIBRARIES utils)
+cado_define_test(test_mpz_vector.cpp LIBRARIES utils)
 cado_define_test(test_mpz_poly_bivariate.cpp ARGUMENTS -iter 100 LIBRARIES utils tests TIMEOUT 60)
 cado_define_test(test_smallset.cpp LIBRARIES)
 cado_define_test(test_mpz_mat.c LIBRARIES utils)

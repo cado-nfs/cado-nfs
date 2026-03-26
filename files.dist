@@ -1562,7 +1562,7 @@ tests/utils/test_mpz_mat.c
 tests/utils/test_mpz_poly.cpp
 tests/utils/test_mpz_poly_bivariate.cpp
 tests/utils/test_mpz_poly_parsing.cpp
-tests/utils/test_mpz_vector.c
+tests/utils/test_mpz_vector.cpp
 tests/utils/test_multityped_array.cpp
 tests/utils/test_number_literal.cpp
 tests/utils/test_omega.cpp
