@@ -1585,7 +1585,7 @@ tests/utils/test_threadpool.cpp
 tests/utils/test_timing.c
 tests/utils/test_trial_division.cpp
 tests/utils/test_u64arith.cpp
-tests/utils/test_usp.c
+tests/utils/test_usp.cpp
 tests/utils/test_verbose.c
 tests/utils/test_work_queue.cpp
 tests/utils/testbase-rootfinder.quick

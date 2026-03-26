@@ -53,7 +53,7 @@ cado_divert_test(test_cado_poly buggy EXPECT_FAIL APPEND_ARGUMENTS
     ${CADO_NFS_SOURCE_DIR}/tests/utils/buggy.poly)
 cado_define_test(test_relation.cpp LIBRARIES utils tests)
 cado_define_test(test_cache.c LIBRARIES utils)
-cado_define_test(test_usp.c LIBRARIES utils tests)
+cado_define_test(test_usp.cpp LIBRARIES utils tests)
 cado_define_test(test_bit_vector.c LIBRARIES utils tests)
 cado_define_test(test_intinv.c LIBRARIES utils tests)
 cado_define_test(test_dllist.c LIBRARIES tests)
