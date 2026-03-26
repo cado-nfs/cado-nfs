@@ -34,7 +34,7 @@
 
 #include "gfpkdlpolyselect_impl.hpp"
 
-#include "table_f_Py_phi__f_deg4_s02_C4V4_h1_Py_s20_f01.h"
+#include "table_f_Py_phi__f_deg4_s02_C4V4_h1_Py_s20_f01.hpp"
 // contains: fPyphi_poly_t ff4
 
 // works only if PY is of degree 2

@@ -864,7 +864,7 @@ polyselect/score.cpp
 polyselect/size_optimization.cpp
 polyselect/size_optimization.hpp
 polyselect/skewness.cpp
-polyselect/table_f_Py_phi__f_deg4_s02_C4V4_h1_Py_s20_f01.h
+polyselect/table_f_Py_phi__f_deg4_s02_C4V4_h1_Py_s20_f01.hpp
 portability.h
 scripts/CMakeLists.txt
 scripts/build_environment.sh
