@@ -1,7 +1,7 @@
-#ifndef CADO_FILTER_IO_H
-#define CADO_FILTER_IO_H
+#ifndef CADO_FILTER_IO_HPP
+#define CADO_FILTER_IO_HPP
 
-#include <stdint.h>     // for uint64_t, int64_t
+#include <cstdint>     // for uint64_t, int64_t
 #include <time.h>       // for NULL
 
 #ifdef __cplusplus
@@ -248,4 +248,4 @@ filter_rels(
 }
 #endif
 
-#endif /* CADO_FILTER_IO_H */
+#endif /* CADO_FILTER_IO_HPP */

@@ -30,7 +30,7 @@
 #include "bit_vector.h"
 #include "cado_popen.h"                // for cado_pclose2, cado_popen
 #include "cxx_mpz.hpp"
-#include "filter_io.h"
+#include "filter_io.hpp"
 #include "gzip.h"                      // prepare_grouped_command_lines
 #include "macros.h"                    // for ASSERT_ALWAYS, ASSERT, UNLIKELY
 #include "ringbuf.h"                   // for ringbuf_s, ringbuf_ptr, RINGBU...
@@ -1098,7 +1098,7 @@ static void filter_rels_consumer_thread(
 
 /*
  * the earlyparse_needed_data is a bitwise OR of the EARLYPARSE_NEED_*
- * constants defined in filter_io.h ; this bitmask defines which function
+ * constants defined in filter_io.hpp ; this bitmask defines which function
  * is used here in the consumer thread to achieve the parsing of the ring
  * buffer data, prior to shipping the data to the callback thread. These
  * fields end up in the earlyparse_relation structure (which, by

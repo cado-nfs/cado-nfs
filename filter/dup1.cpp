@@ -29,7 +29,7 @@
 #endif
 
 #include "filter_config.h"
-#include "filter_io.h"  // filter_rels
+#include "filter_io.hpp"  // filter_rels
 #include "gmp_aux.h"
 #include "gzip.h"       // fopen_maybe_compressed
 #include "macros.h"

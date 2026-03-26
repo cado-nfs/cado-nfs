@@ -3,7 +3,7 @@
 
 #include <cstdio>
 #include <cstdint>
-#include "filter_io.h"  // earlyparsed_relation_ptr
+#include "filter_io.hpp"  // earlyparsed_relation_ptr
 #include "typedefs.h"   // index_t weight_t
 
 struct purge_matrix_s

@@ -32,7 +32,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "purgedfile.h"      // for purgedfile_read_firstline
 #include "typedefs.h"        // for index_t, ideal_merge_t, index_signed_t
 #include "filter_config.h"
-#include "filter_io.h"  // earlyparsed_relation_ptr
+#include "filter_io.hpp"  // earlyparsed_relation_ptr
 #include "fix-endianness.h" // fwrite32_little
 #include "gzip.h"       // fopen_maybe_compressed
 #include "misc.h"       // derived_filename

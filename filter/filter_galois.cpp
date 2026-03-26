@@ -18,7 +18,7 @@
 
 #include "cado_poly.hpp"
 #include "filter_config.h"
-#include "filter_io.h"
+#include "filter_io.hpp"
 #include "fmt/base.h"
 #include "galois_action.hpp"
 #include "gzip.h"

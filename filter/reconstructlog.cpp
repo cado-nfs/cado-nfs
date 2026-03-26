@@ -21,7 +21,7 @@
 #include "bit_vector.h"
 #include "cado_poly.hpp"
 #include "cxx_mpz.hpp"
-#include "filter_io.h"
+#include "filter_io.hpp"
 #include "gmp_aux.h"
 #include "gzip.h"
 #include "macros.h"

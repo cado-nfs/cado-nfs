@@ -44,7 +44,7 @@
 
 #include "cado_poly.hpp"  // cado_poly
 #include "cxx_mpz.hpp"   // for cxx_mpz
-#include "filter_io.h"  // filter_rels
+#include "filter_io.hpp"  // filter_rels
 #include "gmp_aux.h"
 #include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
 #include "gzip.h"       // fopen_maybe_compressed

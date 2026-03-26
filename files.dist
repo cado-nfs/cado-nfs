@@ -1716,7 +1716,7 @@ utils/fakempi.h
 utils/fd_streambuf.cpp
 utils/fd_streambuf.hpp
 utils/filter_io.cpp
-utils/filter_io.h
+utils/filter_io.hpp
 utils/filter_io.tex
 utils/fix-endianness.c
 utils/fix-endianness.h

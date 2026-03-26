@@ -67,7 +67,7 @@
 
 #include "cado_poly.hpp"
 #include "filter_config.h"
-#include "filter_io.h"
+#include "filter_io.hpp"
 #include "gmp_aux.h"
 #include "gzip.h"
 #include "macros.h"
