@@ -2,7 +2,7 @@ set (bin_list
         dup1 dup2 purge merge merge-dl replay replay-dl sm sm_simple reconstructlog-dl
 )
 
-set (purge_sources purge_matrix.c singleton_removal.c
+set (purge_sources purge_matrix.cpp singleton_removal.c
                    clique_removal.cpp purge.cpp)
 
 # the utils library is already linked with -lgmp and -lm
