@@ -160,7 +160,7 @@ filter/mst.c
 filter/mst.h
 filter/purge.cpp
 filter/purge_matrix.cpp
-filter/purge_matrix.h
+filter/purge_matrix.hpp
 filter/read_purgedfile_in_parallel.c
 filter/read_purgedfile_in_parallel.h
 filter/reconstructlog.cpp

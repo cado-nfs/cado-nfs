@@ -1,10 +1,11 @@
-#ifndef CADO_PURGE_MATRIX_H
-#define CADO_PURGE_MATRIX_H
+#ifndef CADO_PURGE_MATRIX_HPP
+#define CADO_PURGE_MATRIX_HPP
 
 #include <stdio.h>
 #include <stdint.h>
 #include "filter_io.h"  // earlyparsed_relation_ptr
 #include "typedefs.h"   // index_t weight_t
+
 struct purge_matrix_s
 {
   uint64_t nrows_init;  /* number of initial rows */
@@ -21,10 +22,6 @@ struct purge_matrix_s
 typedef struct purge_matrix_s purge_matrix_t[1];
 typedef struct purge_matrix_s * purge_matrix_ptr;
 typedef const struct purge_matrix_s * purge_matrix_srcptr;
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 void purge_matrix_init (purge_matrix_ptr, uint64_t, uint64_t, uint64_t);
 void purge_matrix_clear_row_compact (purge_matrix_ptr);
@@ -45,8 +42,4 @@ void print_stats_uint64 (FILE *, uint64_t *, uint64_t, const char *, const char 
 void purge_matrix_print_stats_columns_weight (FILE *, purge_matrix_srcptr, int);
 void purge_matrix_print_stats_rows_weight (FILE *, purge_matrix_srcptr, int);
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* CADO_PURGE_MATRIX_H */
+#endif /* CADO_PURGE_MATRIX_HPP */

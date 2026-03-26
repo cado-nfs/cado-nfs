@@ -12,7 +12,7 @@
 
 #include "bit_vector.h"  // for BV_BITS
 #include "filter_io.h"  // earlyparsed_relation_ptr
-#include "purge_matrix.h"
+#include "purge_matrix.hpp"
 #include "memalloc.h"  // for index_my_malloc
 #include "misc.h"       // for UMAX
 #include "typedefs.h"  // weight_t

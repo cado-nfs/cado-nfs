@@ -8,7 +8,7 @@
 */
 
 #include <stdint.h>
-#include "purge_matrix.h"
+#include "purge_matrix.hpp"
 
 void comp_print_info_weight_function ();
 

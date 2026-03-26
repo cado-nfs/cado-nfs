@@ -12,7 +12,7 @@
 #include "bit_vector.h"
 #include "macros.h"
 #include "misc.h"
-#include "purge_matrix.h"
+#include "purge_matrix.hpp"
 #include "singleton_removal.hpp"
 #include "timing.h"
 #include "typedefs.h"

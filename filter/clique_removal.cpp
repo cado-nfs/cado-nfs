@@ -14,7 +14,7 @@
 #include "clique_removal.hpp" // IWYU pragma: keep
 #include "memory.h"             // malloc_check
 #include "misc.h"       // UMAX
-#include "purge_matrix.h"
+#include "purge_matrix.hpp"
 #include "timing.h"             // for seconds
 #include "typedefs.h"      // for index_t, weight_t
 #include "macros.h"
