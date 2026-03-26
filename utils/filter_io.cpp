@@ -40,6 +40,7 @@
 #include "timing.h"
 #include "typedefs.h"
 #include "utils_cxx.hpp"
+#include "cado_compile_time_hacks.hpp"
 
 /* This is a configuration variable which may be set by the caller (it's
  * possible to bind it to a command-line argument)
@@ -590,6 +591,7 @@ earlyparser_inner_read_ab(
         const char ** pp,
         earlyparsed_relation_mpz_ptr rel)
 {
+    using cado_math_aux::log2_ct;
     static_assert(1u <= base && base <= 16u, "base should be in [1, 16]");
     const char * p = *pp;
     int c;
@@ -603,7 +605,7 @@ earlyparser_inner_read_ab(
     mpz_set_ui(rel->a, 0);
     for (; (v = ugly[c]) < base;) {
         if constexpr ((base & (base - 1)) == 0) {
-            mpz_mul_2exp(rel->a, rel->a, u64arith_ctz(base));
+            mpz_mul_2exp(rel->a, rel->a, log2_ct(base));
         } else {
             mpz_mul_ui(rel->a, rel->a, base);
         }
@@ -617,7 +619,7 @@ earlyparser_inner_read_ab(
     mpz_set_ui(rel->b, 0);
     for (; (v = ugly[c]) < base;) {
         if constexpr ((base & (base - 1)) == 0) {
-            mpz_mul_2exp(rel->b, rel->b, u64arith_ctz(base));
+            mpz_mul_2exp(rel->b, rel->b, log2_ct(base));
         } else {
             mpz_mul_ui(rel->b, rel->b, base);
         }

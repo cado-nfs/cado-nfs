@@ -1,9 +1,21 @@
 #ifndef UTILS_CADO_COMPILE_TIME_HACKS_HPP_
 #define UTILS_CADO_COMPILE_TIME_HACKS_HPP_
 
+#include <cassert>
+
 #include <type_traits>
 #include <limits>
 #include <array>
+
+namespace cado::details {
+        inline void const_eval_assert_fail() {}
+
+#define cado_details_const_eval_assert(expr) (static_cast<bool>((expr)) ? void(0) : cado::details::const_eval_assert_fail())
+
+// assert which is disabled by NDEBUG, unless in constant-evaluated context
+#define cado_constexpr_assert(expr) \
+  (std::is_constant_evaluated() ? cado_details_const_eval_assert((expr)) : assert((expr)))
+} /* namespace cado::details */
 
 namespace cado_math_aux {
     /* {{{ compile-time left shift */
@@ -27,6 +39,20 @@ namespace cado_math_aux {
         return details::multiply_by_poweroftwo_impl<T, n>()(x);
     }
     /* }}} */
+
+    /* {{{ log2_ct
+     * This returns the *floor* of the base-2 logarithm of the
+     * integer argument (which must be >0)
+     */
+    static constexpr unsigned int log2_ct(unsigned int x)
+    {
+        cado_constexpr_assert(x);
+        return x > 1 ? (1 + log2_ct(x/2)) : 0;
+    }
+    static_assert(log2_ct(64) == 6);
+    static_assert(log2_ct(1023) == 9);
+    /* }}} */
+
 
     template<typename T>
         class constant_time_square_root {
