@@ -1,6 +1,6 @@
 cado_define_test(test_strlcat.c LIBRARIES utils)
 cado_define_test(test_strlcpy.c LIBRARIES utils)
-cado_define_test(test_double_poly.c LIBRARIES utils tests)
+cado_define_test(test_double_poly.cpp LIBRARIES utils tests)
 cado_define_test(test_polynomial.cpp LIBRARIES utils tests)
 cado_define_test(test_number_literal.cpp LIBRARIES utils)
 if(HAVE_MPFR)

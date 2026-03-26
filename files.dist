@@ -1541,7 +1541,7 @@ tests/utils/test_cxx_mpz_mat.cpp
 tests/utils/test_cxx_mpz_poly.cpp
 tests/utils/test_decomposed_path.cpp
 tests/utils/test_dllist.c
-tests/utils/test_double_poly.c
+tests/utils/test_double_poly.cpp
 tests/utils/test_explain_relations_with_sagemath.data/c30.poly
 tests/utils/test_explain_relations_with_sagemath.sh
 tests/utils/test_fstream_maybe_compressed.cpp
