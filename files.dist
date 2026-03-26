@@ -1863,7 +1863,7 @@ utils/threadpool.hpp
 utils/timing.cpp
 utils/timing.h
 utils/typedefs.h
-utils/usp.c
+utils/usp.cpp
 utils/usp.h
 utils/utils_cxx.cpp
 utils/utils_cxx.hpp

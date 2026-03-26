@@ -24,7 +24,7 @@ set (sources
         gzip.cpp misc.c misc2.cpp utils_cxx.cpp
         fstream_maybe_compressed.cpp
         mpz_mat.cpp mpz_poly.cpp crc.c purgedfile.c bit_vector.c
-        barrier.c usp.c fix-endianness.c memusage.cpp
+        barrier.c usp.cpp fix-endianness.c memusage.cpp
         cachesize_cpuid.c cachesize_guess.cpp roots_mod.c
         renumber.cpp
         renumber_proxy.cpp
