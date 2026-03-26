@@ -1586,6 +1586,7 @@ tests/utils/test_timing.c
 tests/utils/test_trial_division.cpp
 tests/utils/test_u64arith.cpp
 tests/utils/test_usp.cpp
+tests/utils/test_vector_with_cache.cpp
 tests/utils/test_verbose.c
 tests/utils/test_work_queue.cpp
 tests/utils/testbase-rootfinder.quick
@@ -1867,6 +1868,7 @@ utils/usp.cpp
 utils/usp.h
 utils/utils_cxx.cpp
 utils/utils_cxx.hpp
+utils/vector_with_cache.hpp
 utils/verbose.c
 utils/verbose.h
 utils/version_info.c.in
