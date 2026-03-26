@@ -440,7 +440,7 @@ linalg/bwc/README.TORQUE
 linalg/bwc/README.gfp
 linalg/bwc/TODO
 linalg/bwc/abase_proxy.hpp
-linalg/bwc/acollect.c
+linalg/bwc/acollect.cpp
 linalg/bwc/arith-concrete-base.hpp
 linalg/bwc/arith-cross.cpp
 linalg/bwc/arith-cross.hpp

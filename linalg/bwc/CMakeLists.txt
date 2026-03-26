@@ -432,7 +432,7 @@ macro(bwc_program v)
     install(TARGETS ${v} RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)
 endmacro()
 
-bwc_program(acollect acollect.c)
+bwc_program(acollect acollect.cpp)
 bwc_program(prep prep.cpp xdotprod.cpp)
 target_link_libraries(prep bitlinalg)
 target_link_libraries(prep bblas)

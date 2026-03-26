@@ -17,6 +17,8 @@
 #include "portability.h" // asprintf // IWYU pragma: keep
 #include "params.h"
 
+#include "utils_cxx.hpp"
+
 /* This program is rather standalone. It checks the current directory
  * for files matching the pattern A%u-%u.%u-%u, and concatenates them.
  *
@@ -68,7 +70,7 @@ unsigned int read_afiles(struct afile_list * a, int bits_per_coeff)
     for( ; (de = readdir(dir)) != NULL ; ) {
         if (a->n >= a->alloc) {
             a->alloc += 32 + a->alloc / 4;
-            CHECKED_REALLOC(a->a, a->alloc, afile);
+            checked_realloc(a->a, a->alloc);
             FATAL_ERROR_CHECK(a->a == NULL, "cannot allocate memory");
         }
         afile_ptr A = a->a[a->n];
@@ -169,8 +171,8 @@ int main(int argc, char const * argv[])
     struct afile_list a[1];
     memset(a,0,sizeof(a));
     if (read_afiles(a, bits_per_coeff) == 0) {
-        rc = 0;
-        goto paradise;
+        bw_common_clear(bw);
+        return 0;
     }
 
 
@@ -272,8 +274,8 @@ int main(int argc, char const * argv[])
     final->j1 = UINT_MAX;
 
     if (read_afiles(a, bits_per_coeff) == 0) {
-        rc = 0;
-        goto paradise;
+        bw_common_clear(bw);
+        return 0;
     }
 
     FILE * f = fopen("A.temp", "wb");
@@ -309,7 +311,7 @@ int main(int argc, char const * argv[])
             break;
         }
 
-        FILE ** rs = malloc((k1-k0) * sizeof(FILE *));
+        FILE ** rs = (FILE **) malloc((k1-k0) * sizeof(FILE *));
         for(unsigned int k = k0 ; k < k1 ; k++) {
             char * tmp;
             int rc = asprintf(&tmp, "A%u-%u.%u-%u",
@@ -320,7 +322,7 @@ int main(int argc, char const * argv[])
             free(tmp);
         }
 
-        char * buf = malloc((n1-n0)*bits_per_coeff/CHAR_BIT);
+        char * buf = (char *) malloc((n1-n0)*bits_per_coeff/CHAR_BIT);
 
         final->j1 = j0;
 
@@ -391,7 +393,6 @@ int main(int argc, char const * argv[])
     }
     free(a->a);
 
-paradise:
     bw_common_clear(bw);
 
     return rc;
