@@ -1202,6 +1202,7 @@ tests/filter/c30_sm_small_ell.poly
 tests/filter/c30_sm_small_ell.purged
 tests/filter/p40_30004.poly
 tests/filter/p40_30004.rels.gz
+tests/filter/p40_30004_with_sides.rels.gz
 tests/filter/test_dup2.sh
 tests/filter/test_filter_galois.d20.poly
 tests/filter/test_filter_galois.d20.rels

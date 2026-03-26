@@ -677,13 +677,11 @@ static int earlyparser_inner_skip_ab(ringbuf_ptr r, const char ** pp)
 
 template<filter_io_config cfg>
 static int
-earlyparser_inner_read_active_sides(ringbuf_ptr r, const char ** pp, typename cfg::rel_ptr rel)
+earlyparser_inner_read_active_sides(int c, ringbuf_ptr r, const char ** pp, typename cfg::rel_ptr rel)
 {
     const char * p = *pp;
-    if (*p == '@') {
-        p++;
+    if (c == '@') {
         uint64_t v,w;
-        int c;
 #define BASE 10
         /* copy-paste code blob above */
         RINGBUF_GET_ONE_BYTE(c, r, p);
@@ -706,7 +704,7 @@ earlyparser_inner_read_active_sides(ringbuf_ptr r, const char ** pp, typename cf
         rel->active_sides[1] = 1;
     }
     *pp = p;
-    return 1;
+    return c;
 }
 
 
@@ -794,8 +792,7 @@ static inline int earlyparser_abp(typename cfg::rel_ptr rel, ringbuf_ptr r)
     const char * p = r->rhead;
 
     int c = earlyparser_inner_read_ab<base>(r, &p, rel);
-
-    earlyparser_inner_read_active_sides<cfg>(r, &p, rel);
+    c = earlyparser_inner_read_active_sides<cfg>(c, r, &p, rel);
 
     unsigned int n = 0;
 
@@ -842,8 +839,8 @@ static int
 earlyparser_ab(typename cfg::rel_ptr rel, ringbuf_ptr r)
 {
     const char * p = r->rhead;
-    earlyparser_inner_read_ab<base>(r, &p, rel);
-    earlyparser_inner_read_active_sides<cfg>(r, &p, rel);
+    int c = earlyparser_inner_read_ab<base>(r, &p, rel);
+    earlyparser_inner_read_active_sides<cfg>(c, r, &p, rel);
 
     return 1;
 }
@@ -898,7 +895,8 @@ static int
 earlyparser_abline(typename cfg::rel_ptr rel, ringbuf_ptr r)
 {
     const char * p = r->rhead;
-    earlyparser_inner_read_ab<base>(r, &p, rel);
+    int c = earlyparser_inner_read_ab<base>(r, &p, rel);
+    earlyparser_inner_read_active_sides<cfg>(c, r, &p, rel);
     return earlyparser_line<cfg>(rel, r);
 }
 
