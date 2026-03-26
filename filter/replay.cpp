@@ -45,6 +45,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "macros.h"
 #include "merge_replay_matrix.h"
 
+#include "utils_cxx.hpp"
+
 #define DEBUG 0
 
 // newrows[i] contains a new row formed of old rows that correspond to
@@ -91,8 +93,8 @@ flushSparse(const char *sparsename, typerow_t **sparsemat, index_t small_nrows,
 
     unsigned long W = 0;
     unsigned long DW = 0;
-    char * zip = has_suffix(sparsename, ".gz") ? ".gz" : NULL;
-    index_t * weights = malloc(small_ncols * sizeof(index_t));
+    const char * zip = has_suffix(sparsename, ".gz") ? ".gz" : NULL;
+    index_t * weights = (index_t *) malloc(small_ncols * sizeof(index_t));
     ASSERT_ALWAYS(weights != NULL);
     memset(weights, 0, small_ncols * sizeof(index_t));
 
@@ -725,7 +727,7 @@ fasterVersion (typerow_t **newrows, const char *sparsename,
         if (newrows[i] != NULL)
           newrows[j++] = newrows[i]; /* we always have j <= i */
       small_nrows = j;
-      CHECKED_REALLOC(newrows, small_nrows, typerow_t *);
+      checked_realloc(newrows, small_nrows);
     }
 
   /* if index was asked: crunch the empty rows as above, create the index and

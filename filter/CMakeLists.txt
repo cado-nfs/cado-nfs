@@ -36,10 +36,10 @@ target_link_libraries(merge-dl utils_with_io)
 mark_targets_as_dl(merge-dl)
 mark_targets_as_openmp(merge-dl)
 
-add_executable(replay replay.c sparse.c)
+add_executable(replay replay.cpp sparse.c)
 target_link_libraries(replay utils_with_io)
 
-add_executable(replay-dl replay.c sparse.c)
+add_executable(replay-dl replay.cpp sparse.c)
 target_link_libraries(replay-dl utils_with_io)
 mark_targets_as_dl(replay-dl)
 
