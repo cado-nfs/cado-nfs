@@ -142,7 +142,7 @@ filter/CMakeLists.txt
 filter/Makefile
 filter/README.fileformat
 filter/clique_removal.cpp
-filter/clique_removal.h
+filter/clique_removal.hpp
 filter/dup1.cpp
 filter/dup2.cpp
 filter/filter_config.h

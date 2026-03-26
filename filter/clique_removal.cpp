@@ -11,7 +11,7 @@
 #include <pthread.h>
 #include "bit_vector.h"
 // proto has extern "C"
-#include "clique_removal.h" // IWYU pragma: keep
+#include "clique_removal.hpp" // IWYU pragma: keep
 #include "memory.h"             // malloc_check
 #include "misc.h"       // UMAX
 #include "purge_matrix.h"
