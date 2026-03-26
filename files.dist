@@ -1570,7 +1570,7 @@ tests/utils/test_polynomial.cpp
 tests/utils/test_prime_count.cpp
 tests/utils/test_random_distributions.cpp
 tests/utils/test_relation.cpp
-tests/utils/test_rootfinder.c
+tests/utils/test_rootfinder.cpp
 tests/utils/test_roots_mod.cpp
 tests/utils/test_runtime_numeric_cast.cpp
 tests/utils/test_sha1.c
