@@ -1615,7 +1615,7 @@ utils/arith/modredc_2ul_common.c
 utils/arith/modredc_ul.c
 utils/arith/modredc_ul.h
 utils/arith/modredc_ul_default.h
-utils/arith/modul_poly.c
+utils/arith/modul_poly.cpp
 utils/arith/modul_poly.h
 utils/arith/ularith.h
 utils/arithmetic_reductions.cpp

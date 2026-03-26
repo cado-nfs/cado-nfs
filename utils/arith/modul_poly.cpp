@@ -760,7 +760,7 @@ int modul_poly_roots_ulong(unsigned long * r, mpz_poly_srcptr F, modulusul_t p,
     int d = F->deg;
 
     ASSERT_ALWAYS(d > 0);
-    pr = malloc(d * sizeof(residueul_t));
+    pr = (residueul_t *) malloc(d * sizeof(residueul_t));
     FATAL_ERROR_CHECK(pr == NULL, "not enough memory");
     n = modul_poly_roots(pr, F, p, rstate);
     for (i = 0; i < n; i++) {
