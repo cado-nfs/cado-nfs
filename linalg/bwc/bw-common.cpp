@@ -426,7 +426,7 @@ static unsigned int bw_set_length_and_interval_common(struct bw_params * bw, con
 
     unsigned int mksol_length = iceildiv(MAX(dims[0], dims[1]), bw->n);
 
-    unsigned int interval_default = next_power_of_2(sqrt(krylov_length));
+    unsigned int interval_default = next_power_of_2(integer_sqrt(krylov_length));
     /* avoid too small values. */
     if (interval_default < 64) interval_default = 64;
 
@@ -465,7 +465,7 @@ unsigned int bw_set_length_and_interval_lanczos(struct bw_params * bw, unsigned 
     /* allow some deviation */
     length += 2*integer_sqrt(length);
 
-    unsigned int interval_default = next_power_of_2(sqrt(length));
+    unsigned int interval_default = next_power_of_2(integer_sqrt(length));
     /* avoid too small values. */
     if (interval_default < 64) interval_default = 64;
 

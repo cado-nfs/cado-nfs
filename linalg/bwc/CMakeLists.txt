@@ -87,7 +87,7 @@ endif()
 set(bwc_base_sources
     intersections.c
     xvectors.cpp
-    bw-common.c
+    bw-common.cpp
     async.cpp
     rolling.cpp
     matmul.cpp
@@ -500,7 +500,7 @@ add_library(lingen_common_support
     check_mpi_problems.c
     tree_stats.cpp
     lingen_round_operand_size.cpp
-    bw-common.c
+    bw-common.cpp
     lingen_platform.cpp
     lingen_hints.cpp
     lingen_call_companion.cpp
