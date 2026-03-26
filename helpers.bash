@@ -22,5 +22,5 @@ rename_cpp_protectors() {
 }
 
 rename_all_c_headers() {
-git grep -l  '<\(std.*\|float\|limits\|math\|string\|ctype\|inttypes\|errno\)\.h>' '*.[ch]pp' | xargs -rn1 sed -e 's/<\(std.*\|float\|limits\|math\|string\|ctype\|inttypes\|errno\)\.h>/<c\1>/g' -i
+git grep -l  '<\(std.*\|float\|limits\|math\|string\|time\|ctype\|inttypes\|errno\)\.h>' '*.[ch]pp' | xargs -rn1 sed -e 's/<\(std.*\|float\|limits\|math\|string\|time\|ctype\|inttypes\|errno\)\.h>/<c\1>/g' -i
 }

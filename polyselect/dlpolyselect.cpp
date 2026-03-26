@@ -65,7 +65,7 @@ skew: 1.37
 #include <cfloat>
 #include <cstdlib>
 #include <cmath>
-#include <time.h>
+#include <ctime>
 #include <climits>
 #include <cstdio>
 #include <cstring>

@@ -1,13 +1,11 @@
 #ifndef CADO_FILTER_IO_HPP
 #define CADO_FILTER_IO_HPP
 
-#include <cstdint>     // for uint64_t, int64_t
-#include <time.h>       // for NULL
+#include <cstdint>
+#include <ctime>
 
-#ifdef __cplusplus
 #include <string>
 #include <vector>
-#endif
 
 #include <gmp.h>        // for mpz_t
                         //
@@ -129,10 +127,6 @@ static unsigned char const ugly[256] = {
     255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
     255};
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 void realloc_buffer_primes_c(earlyparsed_relation_ptr buf);
 
 extern int filter_rels_force_posix_threads;
@@ -179,12 +173,6 @@ extern uint64_t filter_rels_mpz(
         int earlyparse_needed_data,
         bit_vector_srcptr active,
         timingstats_dict_ptr stats);
-
-#ifdef __cplusplus
-}
-#endif
-
-#ifdef __cplusplus
 
 template<typename T>
 concept filter_io_config = std::is_empty_v<T>
@@ -246,6 +234,5 @@ filter_rels(
     };
     return filter_rels2<cfg>(input_files, desc, earlyparse_needed_data, active, stats);
 }
-#endif
 
 #endif /* CADO_FILTER_IO_HPP */
