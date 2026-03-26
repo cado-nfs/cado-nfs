@@ -13,7 +13,7 @@
 #include "macros.h"
 #include "misc.h"
 #include "purge_matrix.h"
-#include "singleton_removal.h"
+#include "singleton_removal.hpp"
 #include "timing.h"
 #include "typedefs.h"
 

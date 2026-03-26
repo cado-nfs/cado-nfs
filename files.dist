@@ -167,7 +167,7 @@ filter/reconstructlog.cpp
 filter/replay.cpp
 filter/shrink_rels.cpp
 filter/singleton_removal.cpp
-filter/singleton_removal.h
+filter/singleton_removal.hpp
 filter/singleton_simple.cpp
 filter/sm.cpp
 filter/sm_append.cpp
