@@ -1,5 +1,5 @@
-#ifndef CADO_POLYSELECT_MAIN_QUEUE_H
-#define CADO_POLYSELECT_MAIN_QUEUE_H
+#ifndef CADO_POLYSELECT_MAIN_QUEUE_HPP
+#define CADO_POLYSELECT_MAIN_QUEUE_HPP
 
 #include <gmp.h>
 #include <stdint.h>
@@ -25,14 +25,6 @@
 
 #define DEFAULT_POLYSELECT_KEEP 10			/* number of best raw polynomials kept */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 extern void polyselect_fprintf_poly_pair(FILE * fp, mpz_srcptr N,                    mpz_poly_srcptr f, mpz_poly_srcptr g, int raw);
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif	/* CADO_POLYSELECT_MAIN_QUEUE_H */
+#endif	/* CADO_POLYSELECT_MAIN_QUEUE_HPP */

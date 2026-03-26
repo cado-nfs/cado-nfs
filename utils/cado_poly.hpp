@@ -9,9 +9,7 @@
 
 #include <gmp.h>
 
-#ifdef __cplusplus
 #include "params.h"
-#endif
 #include "mpz_poly.h"
 #include "cxx_mpz.hpp"
 

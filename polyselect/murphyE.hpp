@@ -1,5 +1,5 @@
-#ifndef CADO_MURPHYE_H
-#define CADO_MURPHYE_H
+#ifndef CADO_MURPHYE_HPP
+#define CADO_MURPHYE_HPP
 
 /* Header file for murphyE.c.
 
@@ -25,17 +25,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "cado_poly.hpp"
 #include "gmp_aux.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define MURPHY_K 1000
 
 double MurphyE (cxx_cado_poly const & cpoly, double Bf, double Bg, double area, int K,
                 unsigned long B);
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif	/* CADO_MURPHYE_H */
+#endif	/* CADO_MURPHYE_HPP */

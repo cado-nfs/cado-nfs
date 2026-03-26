@@ -20,11 +20,6 @@
 
 #define MAX_TOPLEVEL ((FB_MAX_PARTS) - 1)
 
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 extern void set_LOG_BUCKET_REGION();
 
 extern int LOG_BUCKET_REGION;
@@ -38,10 +33,6 @@ extern size_t BUCKET_REGIONS[FB_MAX_PARTS];
 extern int NB_DEVIATIONS_BUCKET_REGIONS;
 
 extern int las_production_mode;
-
-#ifdef __cplusplus
-}
-#endif
 
 #define DESCENT_DEFAULT_GRACE_TIME_RATIO 0.2 /* default value */
 
@@ -89,12 +80,6 @@ extern int las_production_mode;
  */
 #define MEMSET_MIN 64
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 void las_display_config_flags();
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* CADO_LAS_CONFIG_HPP */

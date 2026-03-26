@@ -1,5 +1,5 @@
-#ifndef CADO_POLYSELECT_THREAD_H
-#define CADO_POLYSELECT_THREAD_H
+#ifndef CADO_POLYSELECT_THREAD_HPP
+#define CADO_POLYSELECT_THREAD_HPP
 
 #include <pthread.h>
 #include <gmp.h>
@@ -9,10 +9,6 @@
 #include "polyselect_poly_header.h"
 #include "polyselect_stats.h"
 #include "dllist.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 struct polyselect_thread_s {
     unsigned int thread_index;
@@ -91,8 +87,4 @@ extern void polyselect_thread_chronogram_clear();
 
 extern void polyselect_thread_chronogram_chat(polyselect_thread_srcptr arg, const char * fmt, ...);
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif	/* CADO_POLYSELECT_THREAD_H */
+#endif	/* CADO_POLYSELECT_THREAD_HPP */

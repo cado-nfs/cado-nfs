@@ -1,15 +1,10 @@
-#ifndef CADO_POLYSELECT_COLLISIONS_H
-#define CADO_POLYSELECT_COLLISIONS_H
+#ifndef CADO_POLYSELECT_COLLISIONS_HPP
+#define CADO_POLYSELECT_COLLISIONS_HPP
 
 #include <gmp.h>
 #include "gmp_aux.h"
 #include "polyselect_thread.hpp"
 #include "polyselect_shash.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 
 /* find collisions between "P" primes, return number of loops */
 
@@ -29,8 +24,4 @@ collision_on_sq_conductor(unsigned long c, polyselect_thread_ptr thread);
  * (might be a good thing to have for debugging).
  */
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif	/* CADO_POLYSELECT_COLLISIONS_H */
+#endif	/* CADO_POLYSELECT_COLLISIONS_HPP */

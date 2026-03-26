@@ -1,11 +1,7 @@
-#ifndef CADO_POLYSELECT_GFPKDLPOLYSELECT_IMPL_H
-#define CADO_POLYSELECT_GFPKDLPOLYSELECT_IMPL_H
+#ifndef CADO_POLYSELECT_GFPKDLPOLYSELECT_IMPL_HPP
+#define CADO_POLYSELECT_GFPKDLPOLYSELECT_IMPL_HPP
 
 #include "gfpkdlpolyselect.hpp"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 // table structure, old version.
 
@@ -73,8 +69,4 @@ typedef struct {
 
 typedef polyselect_parameters_t pp_t[1];
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif	/* CADO_POLYSELECT_GFPKDLPOLYSELECT_IMPL_H */
+#endif	/* CADO_POLYSELECT_GFPKDLPOLYSELECT_IMPL_HPP */

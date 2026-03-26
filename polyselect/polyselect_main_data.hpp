@@ -1,5 +1,5 @@
-#ifndef CADO_POLYSELECT_MAIN_DATA_H
-#define CADO_POLYSELECT_MAIN_DATA_H
+#ifndef CADO_POLYSELECT_MAIN_DATA_HPP
+#define CADO_POLYSELECT_MAIN_DATA_HPP
 
 #include <gmp.h>
 #include <stdint.h>
@@ -14,10 +14,6 @@
 #include "dllist.h"
 #ifdef HAVE_HWLOC
 #include <hwloc.h>
-#endif
-
-#ifdef __cplusplus
-extern "C" {
 #endif
 
 struct polyselect_thread_league_s;
@@ -102,8 +98,6 @@ find_suitable_lq(polyselect_poly_header_srcptr header,
 extern void polyselect_main_data_commit_stats(polyselect_main_data_ptr main, polyselect_stats_ptr stats, mpz_srcptr ad);
 extern void polyselect_main_data_commit_stats_unlocked(polyselect_main_data_ptr main, polyselect_stats_ptr stats, mpz_srcptr ad);
 
-extern void polyselect_main_data_commit_stats_unlocked(polyselect_main_data_ptr main, polyselect_stats_ptr stats, mpz_srcptr ad);
-
 extern unsigned long polyselect_main_data_number_of_ad_tasks(polyselect_main_data_srcptr main);
 
 extern void polyselect_main_data_parse_Nd(polyselect_main_data_ptr main, param_list_ptr pl);
@@ -128,8 +122,4 @@ extern void polyselect_main_data_dispose_threads(polyselect_main_data_ptr main_d
 
 extern void polyselect_main_data_go_parallel(polyselect_main_data_ptr main_data, void * (*thread_loop)(struct polyselect_thread_s *));
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif	/* CADO_POLYSELECT_MAIN_DATA_H */
+#endif	/* CADO_POLYSELECT_MAIN_DATA_HPP */

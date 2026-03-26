@@ -1,5 +1,5 @@
-#ifndef CADO_ROPT_STR_H
-#define CADO_ROPT_STR_H
+#ifndef CADO_ROPT_STR_HPP
+#define CADO_ROPT_STR_HPP
 
 #include <memory>
 
@@ -215,11 +215,6 @@ typedef const struct ropt_info_s * ropt_info_srcptr;
 
 /* --- declarations --- */
 
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* ropt_poly_t */
 
 void ropt_poly_setup ( ropt_poly & );
@@ -325,9 +320,5 @@ void ropt_info_init ( ropt_info_ptr info );
 
 void ropt_info_clear ( ropt_info_ptr info );
 
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

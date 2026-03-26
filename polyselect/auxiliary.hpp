@@ -1,5 +1,5 @@
-#ifndef CADO_POLYSELECT_AUXILIARY_H
-#define CADO_POLYSELECT_AUXILIARY_H
+#ifndef CADO_POLYSELECT_AUXILIARY_HPP
+#define CADO_POLYSELECT_AUXILIARY_HPP
 
 /* header file for auxiliary routines for polyselect
 
@@ -34,16 +34,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #define RAT_SIDE 0
 #define ALG_SIDE 1
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 extern double bound_f, bound_g, area;
-
-#ifdef __cplusplus
-}
-#endif
-
 
 /* This goes with one cado_poly object. Each polynomial has its
  * stats, except that we don't compute them for the rational
@@ -127,5 +118,5 @@ void expected_growth (rotation_space *r, mpz_poly_srcptr f, mpz_poly_srcptr g,
                       int i, double maxlognorm, double skew);
 
 
-#endif	/* CADO_POLYSELECT_AUXILIARY_H */
+#endif	/* CADO_POLYSELECT_AUXILIARY_HPP */
 

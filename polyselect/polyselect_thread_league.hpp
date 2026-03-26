@@ -1,5 +1,5 @@
-#ifndef CADO_POLYSELECT_THREAD_LEAGUE_H
-#define CADO_POLYSELECT_THREAD_LEAGUE_H
+#ifndef CADO_POLYSELECT_THREAD_LEAGUE_HPP
+#define CADO_POLYSELECT_THREAD_LEAGUE_HPP
 
 #include "polyselect_main_data.hpp"
 #include "polyselect_primes_table.h"
@@ -16,10 +16,6 @@
  * share the same set of asynchronous jobs (if these are enabled).
  *
  */
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 
 struct polyselect_thread_league_s {
     /* We do keep a link to the parent main data, but only for the
@@ -57,8 +53,4 @@ typedef const struct polyselect_thread_league_s * polyselect_thread_league_srcpt
 extern void polyselect_thread_league_init(polyselect_thread_league_ptr grp, polyselect_main_data_srcptr main, unsigned int league_index);
 extern void polyselect_thread_league_clear(polyselect_thread_league_ptr league);
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif	/* CADO_POLYSELECT_THREAD_LEAGUE_H */
+#endif	/* CADO_POLYSELECT_THREAD_LEAGUE_HPP */

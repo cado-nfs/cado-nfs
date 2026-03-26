@@ -11,8 +11,8 @@
  * \test TODO
  */
 
-#ifndef CADO_GFPKDLPOLYSELECT_H
-#define CADO_GFPKDLPOLYSELECT_H
+#ifndef CADO_GFPKDLPOLYSELECT_HPP
+#define CADO_GFPKDLPOLYSELECT_HPP
 
 #define ERROR_UNSPECIFIED 0
 #define POLY_OK 1
@@ -37,10 +37,6 @@
 #include "cado_poly.hpp"   // for MAX_DEGREE
 #include "mpz_poly.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 void gfpk_print_params(int n, mpz_srcptr p, mpz_srcptr ell);
 
 // the function to call for generating a .poly file.
@@ -48,8 +44,4 @@ void gfpk_print_params(int n, mpz_srcptr p, mpz_srcptr ell);
 // , mpz_t ell, unsigned int mnfs
 int gfpkdlpolyselect(int n, mpz_srcptr p, mpz_srcptr ell, int mnfs, const char* out_filename);
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif // CADO_GFPKDLPOLYSELECT_H
+#endif // CADO_GFPKDLPOLYSELECT_HPP

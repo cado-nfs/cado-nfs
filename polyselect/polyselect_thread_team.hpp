@@ -1,5 +1,5 @@
-#ifndef CADO_POLYSELECT_THREAD_TEAM_H
-#define CADO_POLYSELECT_THREAD_TEAM_H
+#ifndef CADO_POLYSELECT_THREAD_TEAM_HPP
+#define CADO_POLYSELECT_THREAD_TEAM_HPP
 
 #include <pthread.h>
 
@@ -10,10 +10,6 @@
 #include "barrier.h"
 
 #define xxxDEBUG_POLYSELECT_THREADS
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 struct polyselect_thread_s;
 
@@ -207,11 +203,4 @@ extern void polyselect_thread_team_roaming_barrier(polyselect_thread_team_ptr te
 extern void cond_helper_broadcast(polyselect_thread_team_ptr team, struct polyselect_thread_s * thread, enum signal_cause s, int ignore_async, ...);
 extern void cond_helper_wait(polyselect_thread_team_ptr team, struct polyselect_thread_s * thread, enum wait_cause w, ...);
 
-
-
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif	/* CADO_POLYSELECT_THREAD_TEAM_H */
+#endif	/* CADO_POLYSELECT_THREAD_TEAM_HPP */

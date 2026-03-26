@@ -1,5 +1,5 @@
-#ifndef CADO_ROPT_STAGE1_H
-#define CADO_ROPT_STAGE1_H
+#ifndef CADO_ROPT_STAGE1_HPP
+#define CADO_ROPT_STAGE1_HPP
 
 #include "ropt_str.hpp"    // ropt_param_t ropt_bound_t ...
 #include "ropt_tree.h" // alpha_pq
@@ -12,4 +12,4 @@ int ropt_stage1 ( ropt_poly const & poly,
                   alpha_pq *alpha_pqueue,
                   int current_w );
 
-#endif /* CADO_ROPT_STAGE1_H */
+#endif /* CADO_ROPT_STAGE1_HPP */

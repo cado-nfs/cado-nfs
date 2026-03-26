@@ -1,5 +1,5 @@
-#ifndef CADO_ROPT_H
-#define CADO_ROPT_H
+#ifndef CADO_ROPT_HPP
+#define CADO_ROPT_HPP
 
 #include "cado_poly.hpp"
 #include "ropt_str.hpp"
@@ -20,10 +20,6 @@ typedef const struct ropt_sime_struct * ropt_time_srcptr;
 
 
 /* -- declarations -- */
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 void ropt ( ropt_poly & poly,
             ropt_bestpoly & bestpoly,
             ropt_param_ptr param,
@@ -36,9 +32,5 @@ void ropt_get_bestpoly ( ropt_poly const & poly,
 void ropt_polyselect (cxx_cado_poly & output_poly, cxx_cado_poly const & input_poly,
                       ropt_param_ptr param, ropt_time_ptr thr);
 
-#ifdef __cplusplus
-}
-#endif
 
-
-#endif /* CADO_ROPT_H */
+#endif /* CADO_ROPT_HPP */

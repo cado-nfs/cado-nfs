@@ -1,9 +1,6 @@
-#ifndef CADO_RENUMBER_PROXY_H
-#define CADO_RENUMBER_PROXY_H
+#ifndef CADO_RENUMBER_PROXY_HPP
+#define CADO_RENUMBER_PROXY_HPP
 
-#ifndef __cplusplus
-#include <stdbool.h>
-#endif
 #include <stddef.h>     // size_t
 #include <stdint.h>     // uint64_t
 #include "typedefs.h"
@@ -31,10 +28,6 @@ struct renumber_proxy_s {
 typedef struct renumber_proxy_s renumber_proxy_t[1];
 typedef struct renumber_proxy_s * renumber_proxy_ptr;
 typedef const struct renumber_proxy_s * renumber_proxy_srcptr;
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /* There is no "default constructor" for the renumber_proxy, because that
  * doesn't make sense in any of the uses that we have.
@@ -84,8 +77,4 @@ extern bool renumber_table_p_r_from_index(renumber_proxy_srcptr, p_r_values_t *,
 extern int renumber_table_p_r_side_get_inertia (renumber_proxy_srcptr R, p_r_values_t p, p_r_values_t r, int side);
 extern bool renumber_table_indices_from_p_a_b(renumber_proxy_srcptr R, index_t * first, int * exps, size_t * nexps, p_r_values_t p, p_r_values_t r, int side, int e, int64_t a, uint64_t b);
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* CADO_RENUMBER_PROXY_H */
+#endif /* CADO_RENUMBER_PROXY_HPP */

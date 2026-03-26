@@ -1,12 +1,8 @@
-#ifndef CADO_ROPT_SUBLATTICE_PRIORITY_QUEUE_H
-#define CADO_ROPT_SUBLATTICE_PRIORITY_QUEUE_H
+#ifndef CADO_ROPT_SUBLATTICE_PRIORITY_QUEUE_HPP
+#define CADO_ROPT_SUBLATTICE_PRIORITY_QUEUE_HPP
 
 #include <stddef.h>
 #include "gmp.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /**
  * Priority queue for sublattices over a product of p^e.
@@ -36,8 +32,4 @@ int sublattice_priority_queue_empty (sublattice_priority_queue_srcptr q);
 
 void sublattice_priority_queue_do(sublattice_priority_queue_srcptr q, void (*f)(mpz_srcptr u, mpz_srcptr v, mpz_srcptr modulus, void * arg), void *arg);
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif	/* CADO_ROPT_SUBLATTICE_PRIORITY_QUEUE_H */
+#endif	/* CADO_ROPT_SUBLATTICE_PRIORITY_QUEUE_HPP */

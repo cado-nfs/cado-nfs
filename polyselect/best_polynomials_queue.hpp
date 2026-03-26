@@ -1,12 +1,8 @@
-#ifndef CADO_BEST_POLYNOMIALS_QUEUE_H
-#define CADO_BEST_POLYNOMIALS_QUEUE_H
+#ifndef CADO_BEST_POLYNOMIALS_QUEUE_HPP
+#define CADO_BEST_POLYNOMIALS_QUEUE_HPP
 
 #include <stddef.h>
 #include "cado_poly.hpp"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 struct best_polynomials_queue_s {
     /* actual implementation is hidden in C++ code */
@@ -25,8 +21,4 @@ void best_polynomials_queue_try_push(best_polynomials_queue_ptr b, cxx_cado_poly
 void best_polynomials_queue_print(best_polynomials_queue_srcptr b, FILE *, const char * prefix);
 void best_polynomials_queue_do(best_polynomials_queue_srcptr b, void (*f)(int, double, cxx_cado_poly &, void *), void *arg);
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif	/* CADO_BEST_POLYNOMIALS_QUEUE_H */
+#endif	/* CADO_BEST_POLYNOMIALS_QUEUE_HPP */
