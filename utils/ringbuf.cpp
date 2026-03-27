@@ -9,7 +9,7 @@
 #include <pthread.h>
 
 #include "macros.h"
-#include "ringbuf.h"
+#include "ringbuf.hpp"
 #include "portability.h"
 #include "utils_cxx.hpp"
 

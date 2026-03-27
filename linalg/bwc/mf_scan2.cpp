@@ -19,7 +19,7 @@
 
 #include "fmt/base.h"
 
-#include "ringbuf.h"
+#include "ringbuf.hpp"
 #include "macros.h"          // for ASSERT_ALWAYS, MAX, MIN
 #include "params.h"     // param_list
 #include "timing.h"     // wct_seconds

@@ -33,7 +33,7 @@
 #include "filter_io.hpp"
 #include "gzip.h"                      // prepare_grouped_command_lines
 #include "macros.h"                    // for ASSERT_ALWAYS, ASSERT, UNLIKELY
-#include "ringbuf.h"                   // for ringbuf_s, ringbuf_ptr, RINGBU...
+#include "ringbuf.hpp"                   // for ringbuf_s, ringbuf_ptr, RINGBU...
 #include "stats.h"                     // stats_data_t
 #include "portability.h" // sleep // IWYU pragma: keep
 #include "runtime_numeric_cast.hpp"
