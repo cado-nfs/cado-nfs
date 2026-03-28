@@ -1840,7 +1840,7 @@ utils/replacement_barrier.hpp
 utils/replacement_latch.hpp
 utils/rho.c
 utils/rho.h
-utils/ringbuf.c
+utils/ringbuf.cpp
 utils/ringbuf.h
 utils/rootfinder.cpp
 utils/rootfinder.h

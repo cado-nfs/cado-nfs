@@ -11,6 +11,7 @@
 #include "macros.h"
 #include "ringbuf.h"
 #include "portability.h"
+#include "utils_cxx.hpp"
 
 /* This is a hack. Define to 1 to disable */
 #define RINGBUF_ALIGNED_RETURNS sizeof(uint32_t)
@@ -60,7 +61,7 @@ static void ringbuf_grow__(ringbuf_ptr r, size_t claim)
     }
 
     if (r->avail_to_read) {
-        char * newp = malloc(newalloc);
+        char * newp = (char *) malloc(newalloc);
         size_t tail = r->alloc - (r->rhead - r->p);
         if (tail < r->avail_to_read) {
             memcpy(newp, r->rhead, tail);
@@ -73,7 +74,7 @@ static void ringbuf_grow__(ringbuf_ptr r, size_t claim)
         r->rhead = r->p;
         r->whead = r->p + r->avail_to_read;
     } else {
-        CHECKED_REALLOC(r->p, newalloc, char);
+        checked_realloc(r->p, newalloc);
         r->rhead = r->p;
         r->whead = r->p;
     }
@@ -237,12 +238,12 @@ size_t ringbuf_get(ringbuf_ptr r, char * p, size_t s)
 size_t ringbuf_get2(ringbuf_ptr r, void ** p, size_t s)
 {
     if (*p) {
-        return ringbuf_get(r, *p, s);
+        return ringbuf_get(r, (char *) *p, s);
     }
     ASSERT(s == 0);     // does not really make sense otherwise
     pthread_mutex_lock(r->mx);
     if (!r->rbuf) {
-        r->rbuf = malloc(RINGBUF_READING_BUFFER_SIZE);
+        r->rbuf = (char *) malloc(RINGBUF_READING_BUFFER_SIZE);
     }
     pthread_mutex_unlock(r->mx);
     /*
