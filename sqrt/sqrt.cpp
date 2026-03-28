@@ -1652,7 +1652,7 @@ typedef struct
   FILE **dep_files;
 } sqrt_data_t;
 
-template<filter_io_config cfg>
+template<cado::filter_io_details::filter_io_config cfg>
 static void *
 thread_sqrt (void * context_data, typename cfg::rel_ptr rel)
 {
@@ -1673,7 +1673,7 @@ thread_sqrt (void * context_data, typename cfg::rel_ptr rel)
   return nullptr;
 }
 
-template<filter_io_config cfg>
+template<cado::filter_io_details::filter_io_config cfg>
 static void create_dependencies(const char * prefix, const char * indexname, const char * purgedname, const char * kername)
 {
     FILE * ix = fopen_maybe_compressed(indexname, "r");

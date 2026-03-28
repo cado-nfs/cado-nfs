@@ -77,7 +77,7 @@ get_outfilename_from_infilename(std::string const & infilename,
     return prefix + newname + suffix_out;
 }
 
-template <filter_io_config cfg>
+template <cado::filter_io_details::filter_io_config cfg>
 static inline uint32_t
 insert_relation_in_dup_hashtable(typename cfg::rel_srcptr rel,
                                  unsigned int * is_dup, galois_action const & G)
@@ -110,7 +110,7 @@ struct thread_galois_arg {
     std::ostream & os;
 };
 
-template <filter_io_config cfg>
+template <cado::filter_io_details::filter_io_config cfg>
 static void * thread_galois(void * context_data, typename cfg::rel_ptr rel)
 {
     unsigned int is_dup;

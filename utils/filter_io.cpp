@@ -48,449 +48,6 @@
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 int filter_rels_force_posix_threads = 0;
 
-/*{{{ inflight buffer. See filter_io.tex for documentation. */
-
-/* macros for the two locking models */
-
-struct ifb_locking_posix {/*{{{*/
-    static const int max_supported_concurrent = INT_MAX;
-    template<typename T> struct critical_datatype {
-        class t {
-            T x;
-            public:
-            T load() const { return x; }
-            void store(T a) { x = a; }
-            explicit t(T const& a) : x(a) {}
-            explicit t() : x(0) {}
-            t& operator=(T const& a) { x = a; return *this; }
-            T increment() { return x++; }
-        };
-    };
-    using lock_t = std::mutex ;
-    using cond_t = std::condition_variable  ;
-    static void lock(lock_t * m) { m->lock(); }
-    static void unlock(lock_t * m) { m->unlock(); }
-    static void wait(cond_t * c, lock_t * m) {
-        std::unique_lock<std::mutex> foo(*m, std::adopt_lock);
-        c->wait(foo);
-        foo.release();
-    }
-    static void signal(cond_t * c) { c->notify_one(); }
-    static void signal_broadcast(cond_t * c) { c->notify_all(); }
-    static int isposix() { return 1; }
-};
-/*}}}*/
-
-/*{{{ define NANOSLEEP */
-/* The realistic minimal non-CPU waiting with nanosleep is about 10 to 40
- * microseconds (1<<13 for nanosleep).  But all the I/O between the
- * threads have been buffered, and a thread does a nanosleep only if its
- * buffer is empty.  So I use here ~2ms (1<<21) to optimize CPU
- * scheduler.  Max pause is about 4 to 8ms (1<<22, 1<<23); above that,
- * the program is slowed down.
- */
-#ifndef HAVE_NANOSLEEP
-#ifdef HAVE_USLEEP
-#define NANOSLEEP() usleep((unsigned long) (1<<21 / 1000UL))
-#else
-#define NANOSLEEP() sleep(0)
-#endif
-#else
-static const struct timespec wait_classical = { 0, 1<<21 };
-#define NANOSLEEP() nanosleep(&wait_classical, NULL)
-#endif
-/*}}}*/
-
-struct ifb_locking_lightweight {/*{{{*/
-    /* we don't support several threads wanting to write to the same
-     * location (we could, if we were relying on atomic compare and swap,
-     * for instance) */
-    static const int max_supported_concurrent = 1;
-    template<typename T> struct critical_datatype {
-        /* See bug #30068
-         *
-         * The total store ordering on x86 implies that we can play very
-         * dirty games with the completed[] and scheduled[] arrays. The
-         * underlying assumptions need not be true in general, and
-         * definitely do not hold on arm64.
-         *
-         * Ideally, there would be a way to qualify our operations on the
-         * atomic type that resolve to no emitted code at all if the
-         * hardware memory model is x86. But I can't find a way to do
-         * that.
-         */
-#if !defined(__x86_64) && !defined(__i386)
-        class t : private std::atomic<T> {
-            using super = std::atomic<T>;
-            public:
-            T load() const { return super::load(std::memory_order_acquire); }
-            explicit t(T const& a) : super(a) {}
-            explicit t() : super(0) {}
-            void store(T a) { super::store(a, std::memory_order_release); }
-            t& operator=(T const& a) { store(a); return *this; }
-            T increment() { return super::fetch_add(1, std::memory_order_acq_rel); }
-        };
-#else
-        class t {
-            volatile T x;
-            public:
-            T load() const { return x; }
-            explicit t(T const& a) : x(a) {}
-            explicit t() : x(0) {}
-            void store(T a) { x = a; }
-            t& operator=(T const& a) { store(a); return *this; }
-            /* c++20 frowns upon volatile. Well, it kinda forces us to
-             * use atomics, in fact. Let's silence the issue for the
-             * moment. It may well be that the correct way to go is the
-             * code branch above. But I still long for the optimal way to
-             * write things so that there's a 1-to-1 correspondence with
-             * the simple and easy code here.
-             */
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-volatile"
-#elif defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wvolatile"
-#endif
-            T increment() { return x++; }
-#ifdef __clang__
-#pragma clang diagnostic pop
-#elif defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
-        };
-#endif
-    };
-    using lock_t = int;
-    using cond_t = int;
-    template<typename T> static T next(T a, int) { return a; }
-    static void lock(lock_t *) {}
-    static void unlock(lock_t *) {}
-    static void wait(cond_t *, lock_t *) { NANOSLEEP(); }
-    static void signal(cond_t *) {}
-    static void signal_broadcast(cond_t *) {}
-    static int isposix() { return 0; }
-};
-/*}}}*/
-
-/* {{{ status table (utility for inflight_rels_buffer).
- *
- * In fact, when we use simple busy waits, we are restricted to
- * scheduled[k]==completed[k]+(0 or 1), and keeping track of the
- * processing level is useless. So we provide a trimmed-down
- * specialization for this case.
- *
- * the status table depends on the maximum number of threads per step. We
- * make it depend on the locking backend instead, for simplicity. */
-template<typename locking>
-struct status_table {
-    using csize_t = typename locking::template critical_datatype<size_t>::t;
-    typename locking::template critical_datatype<int8_t>::t x[SIZE_BUF_REL];
-    /* {{{ ::catchup() (for ::schedule() termination) */
-    void catchup(csize_t & last_completed, size_t last_scheduled, int level) {
-        size_t c = last_completed.load();
-        for( ; c < last_scheduled ; c++) {
-            if (x[c & (SIZE_BUF_REL-1)].load() < level)
-                break;
-        }
-        last_completed.store(c);
-    }
-    /*}}}*/
-    /*{{{ ::catchup_until_mine_completed() (for ::complete()) */
-    /* (me) is the absolute relation index of the relation I'm currently
-     * processing (the value of schedule[k] when it was called prior to
-     * giving me this relation to process).
-     */
-    void catchup_until_mine_completed(csize_t & last_completed, size_t me, int level) {
-        const size_t slot = me & (SIZE_BUF_REL-1);
-        size_t c = last_completed.load();
-        ASSERT(x[slot].load() == (int8_t) (level-1));
-        /* The big question is how far we should go. By not exactly answering
-         * this question, we avoid the reading of scheduled[k], which is good
-         * because it is protected by m[k-1]. And even if we could consider
-         * doing a rwlock for reading this, it's too much burden. So we leave
-         * open the possibility that many relation slots ahead of us already
-         * have x[slot] set to k, yet we do not increment
-         * completed[k] that far. This will be caught later on by further
-         * processing at this level.
-         *
-         * This logic is problematic regarding termination, though. See the
-         * termination code in ::complete()
-         */
-        for( ; c < me ; c++) {
-            if (x[c & (SIZE_BUF_REL-1)].load() < level)
-                break;
-        }
-        last_completed.store(c + (c == me));
-        x[slot].increment();
-        ASSERT(x[slot].load() == (int8_t) (level));
-    }
-    /*}}}*/
-    void update_shouldbealreadyok(size_t slot, int level) {
-        if (level < 0) {
-            x[slot & (SIZE_BUF_REL-1)].store(level);
-        } else {
-            ASSERT(x[slot & (SIZE_BUF_REL-1)].load() == level);
-        }
-    }
-};
-
-template<>
-struct status_table<ifb_locking_lightweight> {
-    using csize_t = ifb_locking_lightweight::critical_datatype<size_t>::t;
-    static void catchup(csize_t & last_completed, size_t last_scheduled, int) {
-        ASSERT_ALWAYS(last_completed.load() == last_scheduled);
-    }
-    static void catchup_until_mine_completed(csize_t & last_completed, size_t, int) {
-        last_completed.increment();
-    }
-    void update_shouldbealreadyok(size_t, int) {}
-};
-/* }}} */
-
-/* {{{ inflight_rels_buffer: n-level buffer, with underyling locking
- * mechanism specified by the template class.  */
-template<typename locking, int n, filter_io_config config>
-struct inflight_rels_buffer {
-    cado_nfs::barrier sync_point;
-    using cfg = config;
-    std::unique_ptr<typename cfg::rel_t[]> rels;        /* always malloc()-ed to SIZE_BUF_REL,
-                                           which is a power of two */
-    /* invariant:
-     * scheduled_0 >= ... >= completed_{n-1} >= scheduled_0 - SIZE_BUF_REL
-     */
-    typename locking::template critical_datatype<size_t>::t completed[n];
-    typename locking::template critical_datatype<size_t>::t scheduled[n];
-    status_table<locking> status;
-    typename locking::lock_t m[n];
-    typename locking::cond_t bored[n];
-    int active[n];     /* number of active threads */
-
-    explicit inflight_rels_buffer(int nthreads_total);
-    ~inflight_rels_buffer();
-
-    inflight_rels_buffer(inflight_rels_buffer const&) = delete;
-    inflight_rels_buffer(inflight_rels_buffer &&) = delete;
-    inflight_rels_buffer& operator=(inflight_rels_buffer const&) = delete;
-    inflight_rels_buffer& operator=(inflight_rels_buffer &&) = delete;
-
-    void drain();
-    typename cfg::rel_ptr schedule(int);
-    void complete(int, typename cfg::rel_srcptr);
-    
-    /* computation threads joining the computation are calling these */
-    void enter(int k) {
-        locking::lock(m+k); active[k]++; locking::unlock(m+k);
-        sync_point.arrive_and_wait();
-    }
-    /* leave() is a no-op, since active-- is performed as part of the
-     * normal drain() call */
-    void leave(int) { }
-
-    /* The calling scenario is as follows.
-     *
-     * For the owner thread.
-     *  - constructor
-     *  - start workers.
-     *  - enter(0)
-     *  - some schedule(0) / complete(0) for relations which get fed in.
-     *  - drain() once all are produced
-     *  - leave(0)
-     *
-     * For the workers (there may be more at each level if
-     * ifb_locking_posix is used):
-     *  - enter(k)
-     *  - a loop on with schedule(k) / complete(k), exiting when
-     *    schedule() returns NULL.
-     *  - leave(k)
-     *
-     * Currently the owner thread is weakly assumed to be the only
-     * level-0 thread, but that does not seem to be an absolute necessity
-     * from the design. Additional level-0 threads would induce a loop
-     * similar to other worker threads, but the fine points haven't been
-     * considered yet.
-     *
-     * The current implementation has leave() a no-op, and uses drain()
-     * at the owner thread to to a shutdown. This could change.
-     */
-};
-/* }}} */
-
-/* {{{ instantiations for the locking buffer methods */
-
-/*{{{ ::inflight_rels_buffer() */
-template<typename locking, int n, filter_io_config config>
-inflight_rels_buffer<locking, n, config>::inflight_rels_buffer(
-        int nthreads_total)
-    : sync_point(nthreads_total)
-    , rels(new typename cfg::rel_t[SIZE_BUF_REL])
-{
-    std::fill(completed, completed + n, 0UL);
-    std::fill(scheduled, scheduled + n, 0UL);
-    std::fill(active, active + n, 0);
-    // std::fill(rels.get(), rels.get() + SIZE_BUF_REL, 0);
-    memset(rels.get(), 0, SIZE_BUF_REL * sizeof(typename cfg::rel_t));
-    if constexpr (cfg::ab_init != nullptr) {
-        for (size_t i = 0; i < SIZE_BUF_REL; ++i) {
-            cfg::ab_init(rels[i]->a);
-            cfg::ab_init(rels[i]->b);
-        }
-    }
-}/*}}}*/
-/*{{{ ::drain() */
-/* This belongs to the buffer closing process.  The out condition of this
- * call is that all X(k) for k>0 terminate.  This call (as well as
- * init/clear) must be called on the producer side (step 0) (in a
- * multi-producer context, only one thread is entitled to call this) */
-template<typename locking, int n, filter_io_config config>
-void inflight_rels_buffer<locking, n, config>::drain()
-{
-    // size_t c = completed[0];
-    active[0]--;
-
-    for(int k = 0 ; k < n ; k++) {
-        locking::lock(m + k);
-        while(active[k]) {
-            locking::wait(bored + k, m + k);
-        }
-        completed[k].store(SIZE_MAX);
-        locking::signal_broadcast(bored + k);
-        locking::unlock(m + k);
-    }
-}
-/*}}}*/
-/*{{{ ::~inflight_rels_buffer() */
-/* must be called on producer side */
-template<typename locking, int n, filter_io_config config>
-inflight_rels_buffer<locking, n, config>::~inflight_rels_buffer()
-{
-    for(int i = 0 ; i < n ; i++) {
-        ASSERT_ALWAYS_NOTHROW(active[i] == 0);
-    }
-    for(size_t i = 0 ; i < SIZE_BUF_REL ; i++) {
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Waddress"
-        if constexpr (cfg::ab_clear != nullptr) {
-            cfg::ab_clear(rels[i]->a);
-            cfg::ab_clear(rels[i]->b);
-        }
-#pragma GCC diagnostic pop
-        if (rels[i]->primes != rels[i]->primes_data) {
-            free(rels[i]->primes);
-        }
-        if (rels[i]->line) free(rels[i]->line);
-        if (rels[i]->sm_alloc) {
-            for(int j = 0 ; j < rels[i]->sm_alloc ; j++) {
-                mpz_clear(rels[i]->sm[j]);
-            }
-            free(rels[i]->sm);
-        }
-        memset(rels[i], 0, sizeof(rels[i]));
-    }
-}
-/*}}}*/
-
-/*{{{ ::schedule() (generic) */
-/* Schedule a new relation slot for processing at level k.
- *
- * This call may block until a relation is processed by level k-1 (or, if
- * k==0, until a slot is made available in the relation buffer).
- *
- * The relation is free for use by the current (consumer) thread until it
- * calls inflight_rels_buffer_completed. When the producing stream ends,
- * this function returns NULL. */
-template<typename locking, int n, filter_io_config config>
-typename config::rel_ptr
-inflight_rels_buffer<locking, n, config>::schedule(int k)
-{
-    int const prev = k ? (k-1) : (n-1);
-    // coverity[result_independent_of_operands]
-    ASSERT(active[k] <= locking::max_supported_concurrent);
-    size_t s;
-    size_t const a = k ? 0 : SIZE_BUF_REL;
-    /* in 1-thread scenario, scheduled[k] == completed[k] */
-    locking::lock(m + prev);
-    if (locking::max_supported_concurrent == 1) {       /* static check */
-        /* can't change */
-        s = scheduled[k].load();
-        while(s == a + completed[prev].load()) {
-            locking::wait(bored + prev, m + prev);
-        }
-    } else {
-        while((s=scheduled[k].load()) == a + completed[prev].load()) {
-            locking::wait(bored + prev, m + prev);
-        }
-    }
-    /* when completed[prev] == SIZE_MAX, the previous-level workers
-     * are creating spuriouss relation created to trigger termination.
-     * In this case, scheduled[prev] is safe to read now. we use it
-     * as a marker to tell whether there's still work ahead of us, or
-     * not.  */
-    if (UNLIKELY(completed[prev].load() == SIZE_MAX) && scheduled[prev].load() == s) {
-        /* prepare to return */
-        /* note that scheduled[k] is *not* bumped here */
-        locking::unlock(m + prev);
-        /* we emulate the equivalent of ::complete(), and terminate */
-        locking::lock(m + k);
-        status.catchup(completed[k], s, k);
-        active[k]--;
-        locking::signal_broadcast(bored + k);
-        locking::unlock(m + k);
-        return nullptr;
-    }
-    // ASSERT(scheduled[k] < a + completed[prev]);
-    scheduled[k].increment();
-    const size_t slot = s & (SIZE_BUF_REL - 1);
-    typename cfg::rel_ptr rel = rels[slot];
-    status.update_shouldbealreadyok(s, k-1);
-    locking::unlock(m + prev);
-    return rel;
-}
-/*}}}*/
-
-/*{{{ ::complete() (generic)*/
-template<typename locking, int n, filter_io_config config>
-void
-inflight_rels_buffer<locking, n, config>::complete(
-        int k,
-        typename cfg::rel_srcptr rel)
-{
-    // coverity[result_independent_of_operands]
-    ASSERT(active[k] <= locking::max_supported_concurrent);
-    const int slot = rel - (typename cfg::rel_srcptr) rels.get();
-
-    locking::lock(m + k);
-
-    size_t my_absolute_index;
-    if (locking::max_supported_concurrent == 1) {       /* static check */
-        my_absolute_index = completed[k].load();
-    } else {
-        /* recover the integer relation number being currently processed from
-         * the one modulo SIZE_BUF_REL.
-         *
-         * We have (using ck = completed[k]):
-         *          ck <= zs < ck + N
-         *          ck <= s+xN < ck + N <= s+(x+1)N
-         *          xN < ck-s + N <= (x+1) N
-         *
-         */
-        const size_t c = completed[k].load();
-        my_absolute_index = slot;
-        my_absolute_index += ((c - slot + SIZE_BUF_REL - 1) & -SIZE_BUF_REL);
-    }
-
-    /* morally, this is completed[k]++ */
-    status.catchup_until_mine_completed(completed[k], my_absolute_index, k);
-    locking::signal_broadcast(bored + k);
-    locking::unlock(m + k);
-}
-/*}}}*/
-
-/*}}}*/
-
-/* }}} */
-
 /************************************************************************/
 
 /* {{{ early parsing routines, for filling the earlyparsed_relation
@@ -499,7 +56,7 @@ inflight_rels_buffer<locking, n, config>::complete(
 /* malloc()'s are avoided as long as there are less than NB_PRIMES_OPT in
  * the relation
  */
-template<filter_io_config cfg>
+template<cado::filter_io_details::filter_io_config cfg>
 void realloc_buffer_primes(typename cfg::rel_ptr buf)
 {
     if (buf->nb_alloc == NB_PRIMES_OPT) {
@@ -677,7 +234,7 @@ static int earlyparser_inner_skip_ab(ringbuf_ptr r, const char ** pp)
     return c;
 }
 
-template<filter_io_config cfg>
+template<cado::filter_io_details::filter_io_config cfg>
 static int
 earlyparser_inner_read_active_sides(int c, ringbuf_ptr r, const char ** pp, typename cfg::rel_ptr rel)
 {
@@ -788,7 +345,7 @@ unsigned int sort_and_compress_rel_indices(prime_t * primes, unsigned int n)
     return j;
 }
 
-template<filter_io_config cfg, uint64_t base>
+template<cado::filter_io_details::filter_io_config cfg, uint64_t base>
 static inline int earlyparser_abp(typename cfg::rel_ptr rel, ringbuf_ptr r)
 {
     const char * p = r->rhead;
@@ -836,7 +393,7 @@ static inline int earlyparser_abp(typename cfg::rel_ptr rel, ringbuf_ptr r)
 }
 
 
-template<filter_io_config cfg, uint64_t base>
+template<cado::filter_io_details::filter_io_config cfg, uint64_t base>
 static int
 earlyparser_ab(typename cfg::rel_ptr rel, ringbuf_ptr r)
 {
@@ -847,7 +404,7 @@ earlyparser_ab(typename cfg::rel_ptr rel, ringbuf_ptr r)
     return 1;
 }
 
-template<filter_io_config cfg>
+template<cado::filter_io_details::filter_io_config cfg>
 static int
 earlyparser_line(typename cfg::rel_ptr rel, ringbuf_ptr r)
 {
@@ -892,7 +449,7 @@ earlyparser_line(typename cfg::rel_ptr rel, ringbuf_ptr r)
 }
 
 /* e.g. for dup1 */
-template<filter_io_config cfg, uint64_t base>
+template<cado::filter_io_details::filter_io_config cfg, uint64_t base>
 static int
 earlyparser_abline(typename cfg::rel_ptr rel, ringbuf_ptr r)
 {
@@ -906,7 +463,7 @@ earlyparser_abline(typename cfg::rel_ptr rel, ringbuf_ptr r)
  * least for the 1st pass of purge, so far we've been using this code on
  * unsorted relations.
  */
-template<filter_io_config cfg>
+template<cado::filter_io_details::filter_io_config cfg>
 static int
 earlyparser_index_maybeabhexa(
         typename cfg::rel_ptr rel,
@@ -971,7 +528,7 @@ earlyparser_index_maybeabhexa(
     return 1;
 }
 
-template<filter_io_config cfg>
+template<cado::filter_io_details::filter_io_config cfg>
 static int
 earlyparser_index(typename cfg::rel_ptr rel, ringbuf_ptr r)
 {
@@ -979,14 +536,14 @@ earlyparser_index(typename cfg::rel_ptr rel, ringbuf_ptr r)
 }
 
 /* merge wants sorted indices */
-template<filter_io_config cfg>
+template<cado::filter_io_details::filter_io_config cfg>
 static int
 earlyparser_index_sorted(typename cfg::rel_ptr rel, ringbuf_ptr r)
 {
     return earlyparser_index_maybeabhexa<cfg>(rel, r, 0, 0, 1);
 }
 
-template<filter_io_config cfg>
+template<cado::filter_io_details::filter_io_config cfg>
 static int
 earlyparser_indexline(typename cfg::rel_ptr rel, ringbuf_ptr r)
 {
@@ -996,14 +553,14 @@ earlyparser_indexline(typename cfg::rel_ptr rel, ringbuf_ptr r)
     return earlyparser_line<cfg>(rel, r);
 }
 
-template<filter_io_config cfg>
+template<cado::filter_io_details::filter_io_config cfg>
 static int
 earlyparser_abindex_hexa(typename cfg::rel_ptr rel, ringbuf_ptr r)
 {
     return earlyparser_index_maybeabhexa<cfg>(rel, r, 1, 0, 0);
 }
 
-template<filter_io_config cfg>
+template<cado::filter_io_details::filter_io_config cfg>
 static int
 earlyparser_abindex_hexa_sm(typename cfg::rel_ptr rel, ringbuf_ptr r)
 {
@@ -1342,7 +899,7 @@ uint64_t filter_rels2(char const ** input_files,
 }
 
 
-template<filter_io_config cfg>
+template<cado::filter_io_details::filter_io_config cfg>
 uint64_t filter_rels2(std::vector<std::string> const & input_files,
         typename cfg::description_t * desc,
         int earlyparse_needed_data,
@@ -1371,13 +928,13 @@ uint64_t filter_rels2(std::vector<std::string> const & input_files,
     /* Currently we only have had use for n==2 or n==3 */
 
     if (n == 2 && !multi && !filter_rels_force_posix_threads) {
-        using inflight_t = inflight_rels_buffer<ifb_locking_lightweight, 2, cfg>;
+        using inflight_t = cado::filter_io_details::inflight_rels_buffer<cado::filter_io_details::ifb_locking_lightweight, 2, cfg>;
         return filter_rels2_inner<inflight_t>(input_files, desc, earlyparse_needed_data, active, stats);
     } else if (n == 2) {
-        using inflight_t = inflight_rels_buffer<ifb_locking_posix, 2, cfg>;
+        using inflight_t = cado::filter_io_details::inflight_rels_buffer<cado::filter_io_details::ifb_locking_posix, 2, cfg>;
         return filter_rels2_inner<inflight_t>(input_files, desc, earlyparse_needed_data, active, stats);
     } else if (n == 3) {
-        using inflight_t = inflight_rels_buffer<ifb_locking_posix, 3, cfg>;
+        using inflight_t = cado::filter_io_details::inflight_rels_buffer<cado::filter_io_details::ifb_locking_posix, 3, cfg>;
         return filter_rels2_inner<inflight_t>(input_files, desc, earlyparse_needed_data, active, stats);
     } else {
         fprintf(stderr, "filter_rels2 is not explicitly configured (yet) to support deeper pipes\n");

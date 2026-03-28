@@ -17,14 +17,10 @@
 #include <type_traits>
 
 #include "barrier.h"
+#include "cado_type_traits.hpp"
 
 namespace cado_std_replacement
 {
-    struct foo {
-        void operator()() const { }
-    };
-    static_assert(std::is_empty_v<foo>);
-
 struct barrier
 {
     barrier_t B {};
@@ -55,7 +51,8 @@ namespace std {
     /* this will error out, by design, if a non-trivial completion
      * function is passed.
      */
-    template<int=0>
+    template<typename F=cado::nop_function>
+    requires std::is_same_v<F, cado::nop_function>
     using barrier = cado_std_replacement::barrier;
 }
 #endif

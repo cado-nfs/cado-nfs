@@ -162,7 +162,7 @@ eval_one_non_special_char(alg_prime_t const & chi, mpz_srcptr a, mpz_srcptr b)
 /* Calculates a 64-bit word with the values of the characters chi(a,b), where
  * chi ranges from chars to chars+64
  */
-template<filter_io_config cfg>
+template<cado::filter_io_details::filter_io_config cfg>
 static uint64_t eval_64chars(
         decltype(std::declval<typename cfg::rel_t>()->a) a,
         decltype(std::declval<typename cfg::rel_t>()->b) b,
@@ -357,7 +357,7 @@ typedef struct
     cxx_cado_poly const * cpoly;
 } chars_data_t;
 
-template<filter_io_config cfg>
+template<cado::filter_io_details::filter_io_config cfg>
 static void *
 thread_chars(void * context_data, typename cfg::rel_ptr rel)
 {
@@ -375,7 +375,7 @@ thread_chars(void * context_data, typename cfg::rel_ptr rel)
 
 // The big character matrix has (number of purged rels) rows, and (number of
 // characters) cols
-template<filter_io_config cfg>
+template<cado::filter_io_details::filter_io_config cfg>
 blockmatrix big_character_matrix(
         std::vector<alg_prime_t> chars,
         const char * purgedname,

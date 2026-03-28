@@ -14,6 +14,15 @@
 #include "cxx_mpc.hpp"
 #endif
 
+namespace cado {
+    struct nop_function {
+        template<typename... Args>
+            void operator()(Args&& ...) const { }
+    };
+
+} /* namespace cado */
+
+
 namespace cado_math_aux {
 
 namespace is_coercible_details {

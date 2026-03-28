@@ -158,7 +158,7 @@ static inline void print_warning_size()
     The function adds a column of 1 if necessary, which is always
     column 0.
 */
-template<filter_io_config cfg>
+template<cado::filter_io_details::filter_io_config cfg>
 static inline void print_relation(FILE * file, typename cfg::rel_t rel)
 {
     char buf[1 << 12], *p, *op;
@@ -250,7 +250,7 @@ compute_hash(mpz_srcptr a, mpz_srcptr b)
  * the relation is stored: more precisely we store in H[i] the value
  * of floor(h/2^32), where h(a,b) is a 64-bit value.
  */
-template<filter_io_config cfg>
+template<cado::filter_io_details::filter_io_config cfg>
 static inline uint64_t
 insert_relation_in_dup_hashtable(
         typename cfg::rel_srcptr rel,
@@ -324,7 +324,7 @@ insert_relation_in_dup_hashtable(
  *  - the renumbering
  *  - the bad ideals
  */
-template<filter_io_config cfg>
+template<cado::filter_io_details::filter_io_config cfg>
 static inline void compute_index_rel(typename cfg::rel_t rel)
 {
     unsigned int i;
@@ -463,7 +463,7 @@ static void dup_print_stat(char const * s, uint64_t nrels, uint64_t ndup)
             s, nrels, ndup, pdup, nrem);
 }
 
-template<filter_io_config cfg>
+template<cado::filter_io_details::filter_io_config cfg>
 static void * hash_renumbered_rels(void *, typename cfg::rel_ptr rel)
 {
     unsigned int is_dup;
@@ -503,7 +503,7 @@ static void * hash_renumbered_rels(void *, typename cfg::rel_ptr rel)
     return NULL;
 }
 
-template<filter_io_config cfg>
+template<cado::filter_io_details::filter_io_config cfg>
 static void * thread_dup2(void * context_data, typename cfg::rel_ptr rel)
 {
     unsigned int is_dup;
@@ -533,7 +533,7 @@ static void * thread_dup2(void * context_data, typename cfg::rel_ptr rel)
     return NULL;
 }
 
-template<filter_io_config cfg>
+template<cado::filter_io_details::filter_io_config cfg>
 static void * thread_root(void *, typename cfg::rel_ptr rel)
 {
     /* We used to reduce exponents here. However, it's not a good idea if
@@ -603,7 +603,7 @@ int check_whether_file_is_renumbered(char const * filename)
     }
 }
 
-template<filter_io_config cfg>
+template<cado::filter_io_details::filter_io_config cfg>
 static void
 filter_new_rels(
         std::vector<std::string> const & files_new,
