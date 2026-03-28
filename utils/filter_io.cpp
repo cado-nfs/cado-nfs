@@ -586,7 +586,7 @@ static void * filter_rels_producer_thread(
          * passed through popen()
          */
         FILE * f = cado_popen(filename.c_str(), "r");
-        ssize_t const rc = ringbuf_feed_stream(r, f);
+        ssize_t const rc = r->feed_stream(f);
         int const saved_errno = errno;
 #ifdef  HAVE_GETRUSAGE
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
@@ -612,7 +612,7 @@ static void * filter_rels_producer_thread(
             abort();
         }
     }
-    ringbuf_mark_done(r);
+    r->mark_done();
     if (stats) timingstats_dict_add_mythread(stats, "producer");
     /*
     double thread_times[2];
@@ -688,10 +688,9 @@ static uint64_t filter_rels2_inner(
     /* {{{ setup and start the producer thread (for the first pipe) */
     auto commands = prepare_grouped_command_lines(input_files);
 
-    ringbuf rb;
-    ringbuf_init(rb, 0);
+    ringbuf rb(0);
 
-    std::thread producer(filter_rels_producer_thread, rb, commands, stats);
+    std::thread producer(filter_rels_producer_thread, &rb, commands, stats);
 
     /* }}} */
 
@@ -819,30 +818,31 @@ static uint64_t filter_rels2_inner(
 
     inflight->enter(0);
     for(size_t avail_seen = 0 ; ; ) {
-        pthread_mutex_lock(rb->mx);
-        while(rb->avail_to_read == avail_seen && !rb->done) {
-            pthread_cond_wait(rb->bored, rb->mx);
-        }
-        avail_seen = rb->avail_to_read; /* must be before mutex unlock ! */
-        int const done = rb->done;            /* must be before mutex unlock ! */
-        pthread_mutex_unlock(rb->mx);
-        if (avail_seen == 0 && done) {
-            /* end of producer1 is with rb->done = 1 -- which is
-             * compatible with bytes still being in the pipe ! */
-            break;
+        {
+            std::unique_lock ux(rb.mx);
+            while(rb.avail_to_read == avail_seen && !rb.done) {
+                rb.bored.wait(ux);
+            }
+            avail_seen = rb.avail_to_read; /* must be before mutex unlock ! */
+            int const done = rb.done;            /* must be before mutex unlock ! */
+            if (avail_seen == 0 && done) {
+                /* end of producer1 is with rb.done = 1 -- which is
+                 * compatible with bytes still being in the pipe ! */
+                break;
+            }
         }
         /* We may have one or several lines which have just been
          * produced. As long as we succeed reading complete lines, we
          * consume them, and feed the second pipe.
          */
         int nl;
-        for(size_t avail_offset = 0; avail_offset < avail_seen && (nl = ringbuf_strchr(rb, '\n', 0)) > 0 ; ) {
-            if (*rb->rhead != '#') {
+        for(size_t avail_offset = 0; avail_offset < avail_seen && (nl = rb.strchr('\n', 0)) > 0 ; ) {
+            if (*rb.rhead != '#') {
                 uint64_t const relnum = nrels++;
                 if (!active || bit_vector_getbit(active, relnum)) {
                     typename inflight_t::cfg::rel_ptr slot = inflight->schedule(0);
                     slot->num = relnum;
-                    (*earlyparser)(slot, rb);
+                    (*earlyparser)(slot, &rb);
                     inflight->complete(0, slot);
                     nactive++;
                 }
@@ -850,7 +850,7 @@ static uint64_t filter_rels2_inner(
             /* skip the newline byte as well */
             nl++;
             nB += nl;
-            ringbuf_skip_get(rb, nl);
+            rb.skip_get(nl);
             avail_seen -= nl;
             avail_offset += nl;
             if (stats_test_progress(infostats))
@@ -878,9 +878,6 @@ static uint64_t filter_rels2_inner(
       stats_print_progress (infostats, nrels, 0, nB, 1);
     else
       stats_print_progress (infostats, nactive, nrels, nB, 1);
-
-    /* clean producer stuff */
-    ringbuf_clear(rb);
 
     return nactive;
 }

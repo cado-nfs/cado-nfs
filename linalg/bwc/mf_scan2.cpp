@@ -12,6 +12,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <functional>
 
 #ifdef HAVE_HWLOC
 #include <hwloc.h>
@@ -157,10 +158,10 @@ struct parser_thread {
     std::vector<uint32_t> cw;
     uint32_t colmax=0;
     parser_thread() : cw(thread_private_count, 0) {};
-    void loop(ringbuf_ptr R) {
+    void loop(ringbuf & R) {
         reporter::consumer_data D;
         coeff_t buffer[thread_read_window];
-        for(size_t s ; (s = ringbuf_get(R, (char*) buffer, sizeof(buffer))) != 0 ; ) {
+        for(size_t s ; (s = R.get((char*) buffer, sizeof(buffer))) != 0 ; ) {
             report.consumer_report(D, s);
             auto * v = (coeff_t *) buffer;
             ASSERT_ALWAYS(s % sizeof(coeff_t) == 0);
@@ -195,7 +196,7 @@ struct parser_thread {
 };
 
 template<bool withcoeffs>
-static void master_loop(ringbuf_ptr R, FILE * f_in, FILE * f_rw)
+static void master_loop(ringbuf & R, FILE * f_in, FILE * f_rw)
 {
     constexpr int c = withcoeffs != 0;
     using coeff_t = typename nz_coeff<withcoeffs>::type;
@@ -233,12 +234,12 @@ static void master_loop(ringbuf_ptr R, FILE * f_in, FILE * f_rw)
                 abort();
             }
             ASSERT_ALWAYS(k == s * (1 + c));
-            ringbuf_put(R, (char *) buf, s * sizeof(coeff_t));
+            R.put((char *) buf, s * sizeof(coeff_t));
             report.producer_report(s * sizeof(coeff_t));
             row_length -= s;
         }
     }
-    ringbuf_mark_done(R);
+    R.mark_done();
 }
 
 static void finish_write_and_clear_segments(uint32_t c, uint32_t colmax, FILE * f_cw)
@@ -277,14 +278,14 @@ static void write_column_weights(std::vector<parser_thread<withcoeffs>> & T, FIL
 }
 
 template<bool withcoeffs>
-static void maincode(ringbuf_ptr R, int nb_consumers, FILE * f_in, FILE * f_rw, FILE * f_cw)
+static void maincode(ringbuf & R, int nb_consumers, FILE * f_in, FILE * f_rw, FILE * f_cw)
 {
     std::vector<parser_thread<withcoeffs>> T(nb_consumers);
-    std::thread producer(master_loop<withcoeffs>, R, f_in, f_rw);
+    std::thread producer(master_loop<withcoeffs>, std::ref(R), f_in, f_rw);
     std::vector<std::thread> consumers;
     consumers.reserve(T.size());
     for(auto & t : T)
-        consumers.emplace_back(&parser_thread<withcoeffs>::loop, std::ref(t), R);
+        consumers.emplace_back(&parser_thread<withcoeffs>::loop, std::ref(t), std::ref(R));
 
     producer.join();
     report.producer_report(0, true);
@@ -392,8 +393,7 @@ int main(int argc, char const * argv[])
         }
     }
 
-    ringbuf R;
-    ringbuf_init(R, ringbuf_size);
+    ringbuf R(ringbuf_size);
 
     /* Start with the input */
 
@@ -417,7 +417,5 @@ int main(int argc, char const * argv[])
     } else {
         maincode<true>(R, consumers, f_in.get(), f_rw.get(), f_cw.get());
     }
-
-    ringbuf_clear(R);
 }
 

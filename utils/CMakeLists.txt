@@ -28,7 +28,7 @@ set (sources
         cachesize_cpuid.c cachesize_guess.cpp roots_mod.cpp
         renumber.cpp
         renumber_proxy.cpp
-        ringbuf.cpp sm_utils.cpp galois_action.cpp memalloc.cpp
+        sm_utils.cpp galois_action.cpp memalloc.cpp
         special-q.cpp
 	mpz_vector.cpp memory.c stats.c lll.c
         verbose.c 
