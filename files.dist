@@ -1548,7 +1548,7 @@ tests/utils/test_explain_relations_with_sagemath.sh
 tests/utils/test_fstream_maybe_compressed.cpp
 tests/utils/test_galois_action.cpp
 tests/utils/test_gcd.c
-tests/utils/test_getprime.c
+tests/utils/test_getprime.cpp
 tests/utils/test_gmp_aux.c
 tests/utils/test_gpf.c
 tests/utils/test_imaginary_quadratic_class_groups.cpp
