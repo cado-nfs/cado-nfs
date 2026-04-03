@@ -118,6 +118,8 @@ unsigned long getprime(unsigned long p)
 
 void prime_info_seek(prime_info_ptr pi, unsigned long lower_bound)
 {
+    lower_bound += (lower_bound < 2);
+    lower_bound += (lower_bound < 2);
     /* note that pi->offset must be odd
      */
     if (lower_bound >= 3 && !(lower_bound & 1))

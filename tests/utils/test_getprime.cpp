@@ -1,11 +1,15 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
+
+#include "fmt/base.h"
+
 #include "getprime.h"
 #include "macros.h"
 
 int verbose = 0;
+
 
 void
 test_getprime (unsigned long count, unsigned long exp_max)
@@ -27,6 +31,14 @@ test_getprime (unsigned long count, unsigned long exp_max)
       ASSERT_ALWAYS (p == exp_max);
   }
   prime_info_clear (pi);
+
+  unsigned long n=0;
+  for(auto p : prime_range(2, exp_max)) {
+      if (verbose)
+          fmt::print("{}\n", p);
+      n++;
+  }
+  fmt::print("count={}\n", n);
 }
 
 void
@@ -42,6 +54,7 @@ test_getprime_range (unsigned long lower_bound, unsigned long upper_bound, unsig
   prime_info_init (pi);
 
   prime_info_seek(pi, lower_bound);
+  // for (; pi->current < pi->len && !pi->sieve[pi->current] ; pi->current++) ;
 
   for (i = 0; (p = getprime_mt (pi)) < upper_bound; i++) {
       if (verbose)
@@ -53,6 +66,14 @@ test_getprime_range (unsigned long lower_bound, unsigned long upper_bound, unsig
       ASSERT_ALWAYS (i == exp_count);
   }
   prime_info_clear (pi);
+
+  unsigned long n=0;
+  for(auto p : prime_range(lower_bound, upper_bound)) {
+      if (verbose)
+          fmt::print("{}\n", p);
+      n++;
+  }
+  fmt::print("count={}\n", n);
 }
 
 /* either use:
