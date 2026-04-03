@@ -4,7 +4,7 @@
 #include <cstring>
 #include <cinttypes>   // for PRIu64
 #include <cstdint>     // for uint64_t
-#include "filter_io.hpp"  // earlyparsed_relation_ptr
+#include "filter_io_old.hpp"  // earlyparsed_relation_ptr
 #include "macros.h"
 #include "misc.h"       // for UMAX
 #include "params.hpp"     // param_list_parse_*

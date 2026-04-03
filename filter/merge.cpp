@@ -43,7 +43,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include <cstring>
 
 #include "filter_config.h"
-#include "filter_io.hpp"
+#include "filter_io_old.hpp"
 #ifdef FOR_DL
 #include "gcd.h"
 #endif

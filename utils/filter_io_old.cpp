@@ -30,7 +30,7 @@
 #include "bit_vector.h"
 #include "cado_popen.h"                // for cado_pclose2, cado_popen
 #include "cxx_mpz.hpp"
-#include "filter_io.hpp"
+#include "filter_io_old.hpp"
 #include "gzip.h"                      // prepare_grouped_command_lines
 #include "macros.h"                    // for ASSERT_ALWAYS, ASSERT, UNLIKELY
 #include "ringbuf.hpp"                   // for ringbuf_s, ringbuf_ptr, RINGBU...

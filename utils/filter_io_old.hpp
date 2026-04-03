@@ -1,5 +1,5 @@
-#ifndef CADO_FILTER_IO_HPP
-#define CADO_FILTER_IO_HPP
+#ifndef CADO_FILTER_IO_OLD_HPP
+#define CADO_FILTER_IO_OLD_HPP
 
 #include <cstdint>
 #include <ctime>
@@ -684,4 +684,4 @@ filter_rels(
     return filter_rels2<cfg>(input_files, desc, earlyparse_needed_data, active, stats);
 }
 
-#endif /* CADO_FILTER_IO_HPP */
+#endif /* CADO_FILTER_IO_OLD_HPP */

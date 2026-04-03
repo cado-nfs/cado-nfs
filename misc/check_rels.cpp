@@ -13,7 +13,7 @@
 #endif
 #include <gmp.h>
 #include "cado_poly.hpp"
-#include "filter_io.hpp"
+#include "filter_io_old.hpp"
 #include "getprime.h"
 #include "gzip.h"
 #include "macros.h"
