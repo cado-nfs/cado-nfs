@@ -16,7 +16,7 @@
 #include "las-galois.hpp"
 #include "relation.hpp"
 #include "macros.h"
-#include "verbose.h"
+#include "verbose.hpp"
 
 static void adwg(std::ostream& os, const char *comment, unsigned long *cpt,
 		 relation &rel, int64_t a, int64_t b)

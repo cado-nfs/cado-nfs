@@ -24,7 +24,7 @@
 #include "params.h"
 #include "select_mpi.h"
 #include "timing.h"
-#include "verbose.h"
+#include "verbose.hpp"
 #include "utils_cxx.hpp"
 
 #define xxxRELY_ON_MPI_THREAD_MULTIPLE

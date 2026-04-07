@@ -24,7 +24,7 @@
 #include "timing.h"
 #include "utils_cxx.hpp"
 #include "threadpool.hpp"
-#include "verbose.h"
+#include "verbose.hpp"
 
 /* asynchronous cofactorization */
 

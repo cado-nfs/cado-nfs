@@ -36,7 +36,7 @@
 #ifndef WANT_MAIN
 #include "random_matrix.hpp"
 #include "balancing.hpp"
-#include "verbose.h"
+#include "verbose.hpp"
 #endif
 
 #ifdef WANT_MAIN

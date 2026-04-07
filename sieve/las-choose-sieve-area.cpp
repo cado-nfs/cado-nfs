@@ -19,7 +19,7 @@
 #include "macros.h"
 #include "mpz_poly.h"
 #include "tdict.hpp"
-#include "verbose.h"
+#include "verbose.hpp"
 
 int never_discard = 0;      /* only enabled for las_descent */
 

@@ -40,7 +40,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "sparse.h"
 #include "stats.h"      // stats_data_t
 #include "timing.h"     // seconds
-#include "verbose.h"    // verbose_decl_usage
+#include "verbose.hpp"    // verbose_decl_usage
 #include "portability.h" // strdup  // IWYU pragma: keep
 #include "macros.h"
 #include "merge_replay_matrix.h"

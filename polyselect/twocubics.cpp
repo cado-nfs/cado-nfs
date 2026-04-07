@@ -37,7 +37,7 @@
 #include "mpz_vector.h"
 #include "roots_mod.hpp"  // roots_mod_uint64
 #include "timing.h"     // milliseconds
-#include "verbose.h"    // verbose_decl_usage
+#include "verbose.hpp"    // verbose_decl_usage
 #include "auxiliary.hpp"  // DEFAULT_INCR
 
 

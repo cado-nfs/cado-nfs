@@ -19,7 +19,7 @@
 #include "factor.hpp"
 #include "getprime.h"
 #include "params.h"     // param_list
-#include "verbose.h"
+#include "verbose.hpp"
 #include "cxx_mpz.hpp"
 #include "ecm.h"
 #include "macros.h"

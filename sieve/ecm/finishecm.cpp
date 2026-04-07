@@ -9,7 +9,7 @@
 #include "macros.h"     // for ASSERT_ALWAYS
 #include "params.h"     // param_list
 #include "timing.h"     // seconds
-#include "verbose.h"    // verbose_decl_usage
+#include "verbose.hpp"    // verbose_decl_usage
 #include "gzip.h"       // fopen_maybe_compressed
 #include "cxx_mpz.hpp"  // cxx_mpz
 

@@ -89,7 +89,7 @@ Thus the function to check for duplicates needs the following information:
 #include "macros.h"
 #include "mpz_poly.h"
 #include "relation.hpp"
-#include "verbose.h"
+#include "verbose.hpp"
 #include "utils_cxx.hpp"
 
 

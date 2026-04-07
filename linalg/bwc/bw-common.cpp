@@ -17,7 +17,7 @@
 #include "bw-common.hpp"
 #include "select_mpi.h"
 #include "portability.h" // strdup // IWYU pragma: keep
-#include "verbose.h"    // verbose_interpret_parameters
+#include "verbose.hpp"    // verbose_interpret_parameters
 #include "timing.h"     // wct_seconds
 #include "macros.h"     // ASSERT_ALWAYS // IWYU pragma: keep
 #include "misc.h"       // mkdir_with_parents next_power_of_2 integer_sqrt

@@ -15,7 +15,7 @@
 #include "las-memory.hpp"
 #include "memory.h"
 #include "misc.h"
-#include "verbose.h"
+#include "verbose.hpp"
 #include "portability.h"
 #include "macros.h"
 

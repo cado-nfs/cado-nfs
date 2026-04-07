@@ -18,7 +18,7 @@
 #include "multityped_array.hpp"
 #include "macros.h"
 #include "threadpool.hpp"
-#include "verbose.h"
+#include "verbose.hpp"
 
 class nfs_aux; // IWYU pragma: keep
 

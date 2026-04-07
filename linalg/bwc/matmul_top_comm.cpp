@@ -13,7 +13,7 @@
 #include "parallelizing_info.hpp"
 #include "select_mpi.h"
 #include "timing.h"
-#include "verbose.h"
+#include "verbose.hpp"
 
 /* Our innermost communication routines are essentially all-gather and
  * reduce-scatter, following the MPI terminology. We provide several

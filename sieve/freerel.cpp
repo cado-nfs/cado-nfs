@@ -45,7 +45,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "params.h"
 #include "renumber.hpp"
 #include "typedefs.h"
-#include "verbose.h"
+#include "verbose.hpp"
 
 static char const * argv0;
 

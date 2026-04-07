@@ -38,7 +38,7 @@
 #include "tdict.hpp"
 #include "threadpool.hpp"
 #include "utils_cxx.hpp"
-#include "verbose.h"
+#include "verbose.hpp"
 
 /* is this in the std library or not ? */
 template <typename T> static inline T const & const_ref(T & x)

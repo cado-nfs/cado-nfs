@@ -24,7 +24,7 @@
 
 #include "macros.h"       // for FATAL_ERROR_CHECK, iceildiv
 #include "matmul.hpp"
-#include "verbose.h"
+#include "verbose.hpp"
 #include "portability.h" // asprintf // IWYU pragma: keep
 #include "params.h"
 

@@ -28,7 +28,7 @@
 #include "pm1.h"
 #include "pp1.h"
 #include "macros.h"
-#include "verbose.h"
+#include "verbose.hpp"
 
 //#define USE_LEGACY_DEFAULT_STRATEGY 1
 

@@ -24,7 +24,7 @@
 #include "relation-tools.h"
 #include "timing.h"
 #include "typedefs.h"
-#include "verbose.h"
+#include "verbose.hpp"
 
 
 #define FACTOR_DOES_NOT_DIVIDE 1UL

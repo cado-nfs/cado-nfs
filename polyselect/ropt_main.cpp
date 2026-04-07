@@ -51,7 +51,7 @@
 #include "ropt_str.hpp"
 #include "ropt_io.hpp"
 #include "timing.h"
-#include "verbose.h"
+#include "verbose.hpp"
 #include "version_info.h"
 #include "best_polynomials_queue.hpp"
 

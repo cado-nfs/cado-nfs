@@ -38,7 +38,7 @@
 #include "params.h"
 #include "portability.h"
 #include "select_mpi.h"
-#include "verbose.h"
+#include "verbose.hpp"
 #include "macros.h"
 #include "mmt_vector_pair.hpp"
 #include "utils_cxx.hpp"

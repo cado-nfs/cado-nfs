@@ -31,7 +31,7 @@
 #include "renumber.hpp"
 #include "timing.h"
 #include "typedefs.h"
-#include "verbose.h"
+#include "verbose.hpp"
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 static char const * argv0; /* = argv[0] */

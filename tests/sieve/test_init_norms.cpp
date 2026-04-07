@@ -31,7 +31,7 @@
 #include "params.h"
 #include "rootfinder.h"
 #include "timing.h"
-#include "verbose.h"
+#include "verbose.hpp"
 
 static int adjust_strategy = 0;
 

@@ -9,7 +9,7 @@
 #include <execinfo.h>                    // for backtrace, backtrace_symbols
 #include <csignal>                      // for signal, raise, SIGABRT, SIGSEGV
 #else
-#include "verbose.h"    // verbose_output_print
+#include "verbose.hpp"    // verbose_output_print
 #endif
 
 #include "utils_cxx.hpp"

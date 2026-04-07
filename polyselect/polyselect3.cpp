@@ -25,7 +25,7 @@
 #include "auxiliary.hpp"
 #include "params.h"
 #include "omp_proxy.h" // IWYU pragma: keep
-#include "verbose.h"             // verbose_output_print
+#include "verbose.hpp"             // verbose_output_print
 #include "polyselect_alpha.h"
 
 static void

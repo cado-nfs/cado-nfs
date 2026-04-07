@@ -39,7 +39,7 @@
 #include "renumber.hpp"
 #include "timing.h"
 #include "typedefs.h"
-#include "verbose.h"
+#include "verbose.hpp"
 #include "utils_cxx.hpp"
 
 static int verbose = 0; /* verbosity level */

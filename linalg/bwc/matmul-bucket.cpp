@@ -30,7 +30,7 @@
 
 #include "matmul.hpp"       // for matmul_ptr, matmul_public_s, MATMUL_AUX_Z...
 #include "macros.h"
-#include "verbose.h"    // CADO_VERBOSE_PRINT_BWC_CACHE_BUILD
+#include "verbose.hpp"    // CADO_VERBOSE_PRINT_BWC_CACHE_BUILD
 #include "timing.h"     // wct_seconds
 #include "arith-hard.hpp"
 

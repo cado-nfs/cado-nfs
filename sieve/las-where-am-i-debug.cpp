@@ -41,7 +41,7 @@
 #include "las-threads-work-data.hpp"
 #include "las-where-am-i-proxy.hpp"
 #include "macros.h"
-#include "verbose.h"
+#include "verbose.hpp"
 #include "params.h"
 
 #ifndef TRACE_K

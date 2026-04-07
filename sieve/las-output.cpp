@@ -18,7 +18,7 @@
 #include "las-config.hpp"
 #include "las-output.hpp"
 #include "macros.h"
-#include "verbose.h"
+#include "verbose.hpp"
 #include "params.h"
 
 

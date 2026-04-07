@@ -52,7 +52,7 @@
 #include "select_mpi.h"
 #include "sm_utils.hpp"
 #include "timing.h"
-#include "verbose.h"
+#include "verbose.hpp"
 
 // {{{ debug print interface
 static unsigned int const debug = 0;

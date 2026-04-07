@@ -57,7 +57,7 @@
 #include "portability.h"
 #include "size_optimization.hpp"
 #include "timing.h"		// for seconds
-#include "verbose.h"		// verbose_output_print
+#include "verbose.hpp"		// verbose_output_print
 #include "getprime.h"
 #include "dllist.h"
 #include "auxiliary.hpp"

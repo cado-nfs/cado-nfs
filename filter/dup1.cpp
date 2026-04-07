@@ -37,7 +37,7 @@
 #include "misc.h"       // filelist_clear
 #include "params.h"     // param_list_parse_*
 #include "timing.h"     // timingstats_dict_t
-#include "verbose.h"
+#include "verbose.hpp"
 
 #define DEFAULT_LOG_MAX_NRELS_PER_FILES 25
 

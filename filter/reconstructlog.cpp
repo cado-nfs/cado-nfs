@@ -34,7 +34,7 @@
 #include "stats.h"
 #include "timing.h"
 #include "typedefs.h"
-#include "verbose.h"
+#include "verbose.hpp"
 #include "utils_cxx.hpp"
 
 #define DEBUG 0

@@ -16,7 +16,7 @@
 #include "params.h"
 #include "portability.h"
 #include "size_optimization.hpp"
-#include "verbose.h"
+#include "verbose.hpp"
 
 static void
 declare_usage(param_list pl)

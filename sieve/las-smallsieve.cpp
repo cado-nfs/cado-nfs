@@ -37,7 +37,7 @@
 #include "special-q.hpp"
 #include "las-where-am-i-proxy.hpp"
 #include "portability.h"
-#include "verbose.h"
+#include "verbose.hpp"
 #include "utils_cxx.hpp"
 
 

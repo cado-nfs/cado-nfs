@@ -30,7 +30,7 @@
 #include "params.h"     // param_list
 #include "prime_power_factorization.hpp"
 #include "roots_mod.hpp"
-#include "verbose.h"
+#include "verbose.hpp"
 
 /* boost::hash_combine
  * Copyright 2005-2014 Daniel James.

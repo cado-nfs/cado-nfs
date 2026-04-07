@@ -49,7 +49,7 @@ Output
 #include "sm_utils.hpp"
 #include "stats.h"
 #include "timing.h"
-#include "verbose.h"
+#include "verbose.hpp"
 
 static stats_data_t stats; /* struct for printing progress */
 

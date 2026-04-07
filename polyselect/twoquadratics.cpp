@@ -14,7 +14,7 @@
 #include "macros.h"
 #include "gmp_aux.h"
 #include "params.h"
-#include "verbose.h"
+#include "verbose.hpp"
 #include "polyselect_norms.h"
 #include "polyselect_alpha.h"
 

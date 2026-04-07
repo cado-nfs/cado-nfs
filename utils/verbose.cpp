@@ -10,7 +10,7 @@
 
 #include <pthread.h>
 
-#include "verbose.h"
+#include "verbose.hpp"
 #include "portability.h" // strdup // IWYU pragma: keep
 #include "macros.h"
 #include "params.h"

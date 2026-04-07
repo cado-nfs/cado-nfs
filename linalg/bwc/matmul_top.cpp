@@ -38,7 +38,7 @@
 #include "select_mpi.h"
 #include "timing.h"
 #include "utils_cxx.hpp"
-#include "verbose.h"
+#include "verbose.hpp"
 
 ///////////////////////////////////////////////////////////////////
 /* Start with stuff that does not depend on abase at all -- this

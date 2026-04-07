@@ -28,7 +28,7 @@
 #include "misc.h"
 #include "mpz_poly.h"
 #include "version_info.h"
-#include "verbose.h"
+#include "verbose.hpp"
 #include "utils_cxx.hpp"
 #include "portability.h" // strdup // IWYU pragma: keep
 #include "prime_power_factorization.hpp" // strdup // IWYU pragma: keep

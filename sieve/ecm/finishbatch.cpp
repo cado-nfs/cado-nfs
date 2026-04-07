@@ -24,7 +24,7 @@
 #include "mpz_poly.h"
 #include "params.h"
 #include "relation.hpp"
-#include "verbose.h"
+#include "verbose.hpp"
 
 static void declare_usage(cxx_param_list & pl)
 {

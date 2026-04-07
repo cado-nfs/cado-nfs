@@ -77,7 +77,7 @@
 #include "relation-tools.h"
 #include "renumber.hpp"
 #include "typedefs.h"
-#include "verbose.h"
+#include "verbose.hpp"
 #include "portability.h"   // strdup       // IWYU pragma: keep
 
 #define DEBUG 0

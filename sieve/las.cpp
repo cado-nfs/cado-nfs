@@ -86,7 +86,7 @@
 #include "threadpool.hpp"
 #include "timing.h"
 #include "utils_cxx.hpp"
-#include "verbose.h"
+#include "verbose.hpp"
 
 #ifdef SIQS_SIEVE
     using ALGO = SIQS;

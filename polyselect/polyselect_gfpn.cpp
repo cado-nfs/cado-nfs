@@ -4,7 +4,7 @@
 #include <gmp.h>
 #include "gfpkdlpolyselect.hpp"
 #include "params.h"
-#include "verbose.h"             // verbose_output_print
+#include "verbose.hpp"             // verbose_output_print
 
 static void
 declare_usage(param_list pl)

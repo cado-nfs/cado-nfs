@@ -31,7 +31,7 @@
 #include "mpz_poly.h"
 #include "params.h"
 #include "rootfinder.h"
-#include "verbose.h"
+#include "verbose.hpp"
 
 void todo_list_base::configure_switches(cxx_param_list & pl)
 {

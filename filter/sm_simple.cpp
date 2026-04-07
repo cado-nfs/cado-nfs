@@ -20,7 +20,7 @@
 #include "params.h"
 #include "sm_utils.hpp"
 #include "timing.h"
-#include "verbose.h"
+#include "verbose.hpp"
 
 static void my_sm(char const * outfile, char const * infile,
                   std::vector<sm_side_info> const & sm_info, int nb_polys)

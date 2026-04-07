@@ -13,7 +13,7 @@
 #include "typedefs.h"
 #include "params.h"
 #include "portability.h"
-#include "verbose.h"
+#include "verbose.hpp"
 
 void las_dlog_base::declare_usage(cxx_param_list & pl)
 {

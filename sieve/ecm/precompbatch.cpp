@@ -7,7 +7,7 @@
 #include "cado_poly.hpp"
 #include "cxx_mpz.hpp"
 #include "mpz_poly.h"
-#include "verbose.h"    // verbose_decl_usage
+#include "verbose.hpp"    // verbose_decl_usage
 #include "params.h"
 #include "las-side-config.hpp"
 

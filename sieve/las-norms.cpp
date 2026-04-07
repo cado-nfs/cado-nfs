@@ -30,7 +30,7 @@
 #include "mpz_poly.h"
 #include "polynomial.hpp"
 #include "rho.h"
-#include "verbose.h"
+#include "verbose.hpp"
 
 using namespace std;
 

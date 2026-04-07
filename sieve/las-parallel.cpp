@@ -27,7 +27,7 @@
 
 #include "misc.h"
 #include "utils_cxx.hpp"
-#include "verbose.h"
+#include "verbose.hpp"
 #include "macros.h"
 #include "params.h"
 

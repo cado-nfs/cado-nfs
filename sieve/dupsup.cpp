@@ -21,7 +21,7 @@
 #include "params.h"
 #include "relation.hpp"
 #include "sieve-methods.hpp"
-#include "verbose.h"
+#include "verbose.hpp"
 #include "utils_cxx.hpp"
 
 static constexpr bool reprint_special_q_at_each_rel = false;

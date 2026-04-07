@@ -15,7 +15,7 @@
 #include "mpz_poly.h"   // mpz_poly
 #include "params.h"
 #include "rootfinder.h"
-#include "verbose.h"
+#include "verbose.hpp"
 
 #include "utils_cxx.hpp"
 

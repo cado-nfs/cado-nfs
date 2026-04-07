@@ -7,7 +7,7 @@
 #include <pthread.h>
 
 #include "tests_common.h"
-#include "verbose.h"
+#include "verbose.hpp"
 #include "portability.h" // sleep // IWYU pragma: keep
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)

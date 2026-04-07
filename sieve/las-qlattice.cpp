@@ -13,7 +13,7 @@
 #include "rootfinder.h"
 #include "special-q.hpp"
 #include "macros.h"
-#include "verbose.h"
+#include "verbose.hpp"
 
 #include "fmt/ranges.h"
 

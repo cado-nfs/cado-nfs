@@ -47,7 +47,7 @@
 #include "params.h"
 #include "threadpool.hpp"
 #include "timing.h"
-#include "verbose.h"
+#include "verbose.hpp"
 #include "utils_cxx.hpp"
 
 struct qlattice_basis; // IWYU pragma: keep

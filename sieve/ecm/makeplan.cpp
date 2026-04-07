@@ -9,7 +9,7 @@
 #include "pm1.h"
 #include "pp1.h"
 #include "stage2.h"         // for stage2_clear_plan, stage2_make_plan, stag...
-#include "verbose.h"             // verbose_output_print
+#include "verbose.hpp"             // verbose_output_print
 #include "macros.h"
 
 /* By default we compress the bytecode chain.

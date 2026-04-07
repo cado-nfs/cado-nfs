@@ -16,7 +16,7 @@
 #include "relation.hpp"
 #include "timing.h"
 #include "typedefs.h"
-#include "verbose.h"
+#include "verbose.hpp"
 
 static std::string shortcode(special_q_task_tree::status_code const & s)
 {

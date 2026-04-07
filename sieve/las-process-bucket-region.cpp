@@ -58,7 +58,7 @@
 #include "relation.hpp"
 #include "tdict.hpp"
 #include "threadpool.hpp"
-#include "verbose.h"
+#include "verbose.hpp"
 
 MAYBE_UNUSED static inline void subusb(unsigned char *S1, const unsigned char *S2, ssize_t offset)
 {

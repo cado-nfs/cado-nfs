@@ -25,7 +25,7 @@
 #include "macros.h"
 #include "timing.h"
 #include "tdict.hpp"
-#include "verbose.h"
+#include "verbose.hpp"
 #include "utils_cxx.hpp"
 #include "las-multiobj-globals.hpp"
 

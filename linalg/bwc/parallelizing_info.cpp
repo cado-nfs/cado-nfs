@@ -26,7 +26,7 @@
 #include "parallelizing_info.hpp"
 #include "macros.h"
 #include "misc.h"
-#include "verbose.h"
+#include "verbose.hpp"
 #include "timing.h"
 #include "portability.h"
 

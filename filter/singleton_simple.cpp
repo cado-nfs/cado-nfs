@@ -10,7 +10,7 @@
 #include "params.h"     // param_list_parse_*
 #include "typedefs.h"   // for weight_t, prime_t, index_t
 
-#include "verbose.h"
+#include "verbose.hpp"
 
 
 // Some globals... laziness.

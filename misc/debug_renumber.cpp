@@ -18,7 +18,7 @@
 #include "renumber.hpp"
 #include "timing.h"
 #include "typedefs.h"
-#include "verbose.h"
+#include "verbose.hpp"
 #include "utils_cxx.hpp"
 
 static void declare_usage(cxx_param_list & pl)
