@@ -410,7 +410,7 @@ static void newAlgo(polyselect_thread_locals_ptr loc)
 
 
 static void
-declare_usage(param_list pl)
+declare_usage(cxx_param_list & pl)
 {
   param_list_decl_usage(pl, "degree", "polynomial degree (2 or 3, "
                                       "default is 3)");
@@ -442,7 +442,7 @@ declare_usage(param_list pl)
 }
 
 static void
-usage (const char *argv, const char * missing, param_list pl)
+usage (const char *argv, const char * missing, cxx_param_list & pl)
 {
   if (missing) {
     fprintf(stderr, "\nError: missing or invalid parameter \"-%s\"\n",
@@ -464,8 +464,7 @@ int main(int argc, char const * argv[])
   mpz_init (maxS);
 
   /* read params */
-  param_list pl;
-  param_list_init (pl);
+  cxx_param_list pl;
 
   declare_usage(pl);
 
@@ -600,7 +599,6 @@ int main(int argc, char const * argv[])
     printf ("# No polynomial found, please increase the ad range or decrease P\n");
 
   mpz_clear (maxS);
-  param_list_clear (pl);
 
   polyselect_main_data_clear(main_data);
 

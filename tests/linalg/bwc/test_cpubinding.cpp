@@ -102,20 +102,12 @@ int main(int argc, char const * argv[])
     const char * cpubinding_conf = nullptr;
     cxx_param_list pl;
 
-    argv++,argc--;
     param_list_configure_alias(pl, "input-topology-file", "-i");
     param_list_configure_alias(pl, "input-topology-string", "-s");
     param_list_configure_alias(pl, "cpubinding", "-c");
     param_list_configure_switch(pl, "-v", &verbose);
-    for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
-        /* Do perhaps some other things on the argument that haven't
-         * been eaten at all. Like check whether it is a valid file to
-         * source in order to get more options. See
-         * param_list_read_stream and param_list_read_file for that. */
-        fprintf (stderr, "Unknown option: %s\n", argv[0]);
-        usage();
-    }
+
+    param_list_process_command_line(pl, &argc, &argv, false);
 
     int seen_i = param_list_lookup_string(pl, "input-topology-file") != nullptr;
     int seen_s = param_list_lookup_string(pl, "input-topology-string") != nullptr;

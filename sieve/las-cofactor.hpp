@@ -26,7 +26,7 @@ class cofactorization_statistics {
     std::vector<std::vector<uint32_t>> cof_success;
     std::mutex lock;
 public:
-    cofactorization_statistics(param_list_ptr pl);
+    cofactorization_statistics(cxx_param_list & pl);
     bool active() { return file != nullptr; }
     void call(int bits0, int bits1);
     void print();

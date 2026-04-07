@@ -944,14 +944,12 @@ static void declare_usage(cxx_param_list & pl)
     param_list_decl_usage(pl, "only-complete-functions",  "restrict to testing the complete small sieve functions");
 }
 
-int main(int argc0, char const * argv0[])
+int main(int argc, char const * argv[])
 {
     int logI = 16;
     int logA = 0;
     int bmin = 0;
     int bmax = 0;
-    int argc = argc0;
-    char const **argv = argv0;
     cxx_param_list pl;
 
     declare_usage(pl);
@@ -959,14 +957,8 @@ int main(int argc0, char const * argv0[])
     param_list_configure_switch(pl, "-C", &consistency_check_mode);
     param_list_configure_switch(pl, "-F", &abort_on_fail);
     param_list_configure_switch(pl, "--only-complete-functions", &only_complete_functions);
-    argv++, argc--;
-    for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
-        fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
-        param_list_print_usage(pl, argv0[0], stderr);
-        exit(EXIT_FAILURE);
-    }
 
+    param_list_process_command_line(pl, &argc, &argv, false);
 
     param_list_parse_int(pl, "I", &logI);
     param_list_parse_int(pl, "A", &logA);

@@ -19,7 +19,7 @@
 #include "verbose.hpp"
 
 static void
-declare_usage(param_list pl)
+declare_usage(cxx_param_list & pl)
 {
   param_list_decl_usage(pl, "inputpolys", "size-optimized the polynomials "
                                           "given in this file");
@@ -36,10 +36,9 @@ declare_usage(param_list pl)
 }
 
 static void
-usage (const char *argv, param_list pl)
+usage (const char *argv, cxx_param_list & pl)
 {
   param_list_print_usage (pl, argv, stderr);
-  param_list_clear (pl);
   exit (EXIT_FAILURE);
 }
 
@@ -64,8 +63,7 @@ int main (int argc, char const * argv[])
 
 
   /* read params */
-  param_list pl;
-  param_list_init (pl);
+  cxx_param_list pl;
 
   declare_usage(pl);
 
@@ -182,6 +180,5 @@ int main (int argc, char const * argv[])
   printf("# Average sopt alpha value: %3.3f\n", ave_sopt_alpha / nb_input_polys);
 
   fclose (polys_file);
-  param_list_clear (pl);
   return 0;
 }

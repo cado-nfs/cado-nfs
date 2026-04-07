@@ -10,43 +10,42 @@
 #include <gmp.h>
 
 #include "gmp_aux.h"
-#include "params.h"     // param_list
+#include "params.h"
 #include "facul_ecm.h"
-#include "facul_method.hpp" // EC_METHOD ...
+#include "facul_method.hpp"
 #include "generate_factoring_method.hpp"
 #include "macros.h"
 #include "tab_fm.hpp"
 
-static void declare_usage(param_list pl)
+static void declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage_header(pl,
-			    "This binary allows to choose the best parameters (B1, B2 (B2=c*B1))\n"
+    pl.declare_usage_header("This binary allows to choose the best parameters (B1, B2 (B2=c*B1))\n"
 			    "for each factoring methods: PM1, PP1-27, PP1-65, ECM-M12, ECM-M16, ECM-B12,\n"
 			    "to find a prime number in [2^lb, 2^ub]. Note that you can : \n"
 			    "-make your study only with one method (-m).\n"
 			    "-specify the sieving region of B1 and c instead of using default values.\n"
 			    "Then, You can apply the convex hull to keep only the best methods\n "
 			    "(-fch from a file or just -ch if you want to apply it after the bench\n).");
-    param_list_decl_usage(pl, "ub", "to set large prime bound to 2^ub.");
-    param_list_decl_usage(pl, "lb", "to set factor base bound to 2^lb.");
-    param_list_decl_usage(pl, "n", "to give the lenght of n.");
-    param_list_decl_usage(pl, "out",
+    pl.declare_usage("ub", "to set large prime bound to 2^ub.");
+    pl.declare_usage("lb", "to set factor base bound to 2^lb.");
+    pl.declare_usage("n", "to give the lenght of n.");
+    pl.declare_usage("out",
 			  "to specify the file which contain our factoring methods.");
-    param_list_decl_usage(pl, "m",
+    pl.declare_usage("m",
 			  "to specify the method : PM1, PP1-27, PP1-65, ECM-M12, ECM-M16,\n ECM-B12. By default, we use all methods one after the other.");
-    param_list_decl_usage(pl, "ch", "to apply the convex hull.");
+    pl.declare_usage("ch", "to apply the convex hull.");
 
-    param_list_decl_usage(pl, "b1min", "to set b1_min (sieve region).");
-    param_list_decl_usage(pl, "b1max", "to set b1_max (sieve region).");
-    param_list_decl_usage(pl, "b1step", "to set b1_step (sieve region).");
-    param_list_decl_usage(pl, "cmin", "to set c_min (sieve region).");
-    param_list_decl_usage(pl, "cmax", "to set c_max (sieve region).");
-    param_list_decl_usage(pl, "cstep", "to set c_step (sieve region).");
+    pl.declare_usage("b1min", "to set b1_min (sieve region).");
+    pl.declare_usage("b1max", "to set b1_max (sieve region).");
+    pl.declare_usage("b1step", "to set b1_step (sieve region).");
+    pl.declare_usage("cmin", "to set c_min (sieve region).");
+    pl.declare_usage("cmax", "to set c_max (sieve region).");
+    pl.declare_usage("cstep", "to set c_step (sieve region).");
 
-    param_list_decl_usage(pl, "fch", "to apply the convex hull");
-    param_list_decl_usage(pl, "fch_in",
+    pl.declare_usage("fch", "to apply the convex hull");
+    pl.declare_usage("fch_in",
 			  "to specify the input file which contains \n the factoring methods (default name :'default_fch_in').");
-    param_list_decl_usage(pl, "fch_out",
+    pl.declare_usage("fch_out",
 			  "to specify the output file which contains \n the convex hull (default name :'default_fch_out').");
 
 }
@@ -61,36 +60,15 @@ int main(int argc, char const * argv[])
     cxx_param_list pl;
 
     declare_usage(pl);
+
     /* 
-       Passing nullptr is allowed here. Find value with
-       param_list_parse_switch later on 
+     * Passing nullptr is allowed here (and actually recommended). Find
+     * value with param_list_parse_switch later on 
      */
     param_list_configure_switch(pl, "ch", nullptr);
     param_list_configure_switch(pl, "fch", nullptr);
 
-    if (argc <= 1) {
-	param_list_print_usage(pl, argv[0], stderr);
-	exit(EXIT_FAILURE);
-    }
-
-    argv++, argc--;
-    for (; argc;) {
-	if (param_list_update_cmdline(pl, &argc, &argv)) {
-	    continue;
-	}
-	/* Could also be a file */
-	FILE *f;
-	if ((f = fopen(argv[0], "r")) != nullptr) {
-	    param_list_read_stream(pl, f, 0);
-	    fclose(f);
-	    argv++, argc--;
-	    continue;
-	}
-
-	fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
-	param_list_print_usage(pl, argv[0], stderr);
-	exit(EXIT_FAILURE);
-    }
+    param_list_process_command_line_and_extra_parameter_files(pl, &argc, &argv);
 
     int const opt_fch = param_list_parse_switch(pl, "-fch");
     if (opt_fch) {
@@ -123,22 +101,19 @@ int main(int argc, char const * argv[])
         std::vector<int> param(6, 0);
 
 	int const opt_ch = param_list_parse_switch(pl, "-ch");
-	param_list_parse_int(pl, "ub", &ub);
-	param_list_parse_int(pl, "lb", &lb);
-	param_list_parse_int(pl, "n", &len_n);
-	param_list_parse_int(pl, "b1min", &param[0]);
-	param_list_parse_int(pl, "b1max", &param[1]);
-	param_list_parse_int(pl, "b1step", &param[2]);
-	param_list_parse_int(pl, "cmin", &param[3]);
-	param_list_parse_int(pl, "cmax", &param[4]);
-	param_list_parse_int(pl, "cstep", &param[5]);
+	pl.parse("ub", ub);
+	pl.parse("lb", lb);
+	pl.parse("n", len_n);
+	pl.parse("b1min", param[0]);
+	pl.parse("b1max", param[1]);
+	pl.parse("b1step", param[2]);
+	pl.parse("cmin", param[3]);
+	pl.parse("cmax", param[4]);
+	pl.parse("cstep", param[5]);
 
-	if (lb == -1 || ub == -1 || ub <= lb) {
-	    fprintf(stderr, "Error: options -lb, -ub are mandatory here,\n"
+	if (lb == -1 || ub == -1 || ub <= lb)
+	    pl.fail("options -lb, -ub are mandatory here,\n"
 		    "and lb must be less than ub.\n\n");
-	    param_list_print_usage(pl, argv[0], stderr);
-	    exit(EXIT_FAILURE);
-	}
 
 	/*
 	   Default value for len_n:

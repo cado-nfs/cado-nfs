@@ -93,7 +93,7 @@ struct shrink_action {
 };
 
 
-static void declare_usage(param_list pl)
+static void declare_usage(cxx_param_list & pl)
 {
     param_list_decl_usage(pl, "out", "output file (defaults to stdout)");
     param_list_decl_usage(pl, "in", "input file (defaults to stdin)");
@@ -108,42 +108,19 @@ static void declare_usage(param_list pl)
 int
 main (int argc, char const *argv[])
 {
-    char const * argv0 = argv[0];
     cxx_param_list pl;
 
     declare_usage(pl);
-
-    argv++, argc--;
 
     shrink_action A;
 
     param_list_configure_switch(pl, "-dl", &A.dl);
 
-    for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
-
-        /* Could also be a file */
-        FILE *f;
-        if ((f = fopen(argv[0], "r")) != nullptr) {
-            param_list_read_stream(pl, f, 0);
-            fclose(f);
-            argv++,argc--;
-            continue;
-        }
-
-        fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
-        param_list_print_usage(pl, argv0, stderr);
-        exit (EXIT_FAILURE);
-    }
-    // param_list_print_command_line(stdout, pl);
-    //
+    param_list_process_command_line_and_extra_parameter_files(pl, &argc, &argv);
 
     param_list_parse_double(pl, "shrink-factor", &A.shrink_factor);
-    if (A.shrink_factor < 1) {
-        fprintf(stderr, "Error: shrink factor must be an integer >= 1\n");
-        param_list_print_usage(pl, argv0, stderr);
-        exit(EXIT_FAILURE);
-    }
+    if (A.shrink_factor < 1)
+        pl.fail("Error: shrink factor must be an integer >= 1\n");
     
     {
         unsigned int thresh = 0;
@@ -158,11 +135,8 @@ main (int argc, char const *argv[])
     }
 
     if (param_list_parse_double(pl, "row-fraction", &A.row_fraction)) {
-        if (A.row_fraction < 0 || A.row_fraction > 1) {
-            fprintf(stderr, "Error: row-fraction must be an real number in [0,1]\n");
-            param_list_print_usage(pl, argv0, stderr);
-            exit(EXIT_FAILURE);
-        }
+        if (A.row_fraction < 0 || A.row_fraction > 1)
+            pl.fail("Error: row-fraction must be an real number in [0,1]\n");
     } else {
         A.row_fraction = double_ratio(1, A.shrink_factor);
     }

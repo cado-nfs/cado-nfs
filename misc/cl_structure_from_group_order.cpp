@@ -17,7 +17,7 @@
 #include <gmp.h>
 
 #include "fmt/format.h"
-#include "fmt/ranges.h" // used to print std::vector<> // IWYU pragma: keep
+#include "fmt/ranges.h"
 #include "fmt/ostream.h"
 
 #include "cado_poly.hpp"
@@ -27,7 +27,7 @@
 #include "imaginary_quadratic_class_groups.hpp"
 #include "macros.h"
 #include "mpz_poly.h"
-#include "params.h"     // param_list
+#include "params.h"
 #include "prime_power_factorization.hpp"
 #include "roots_mod.hpp"
 #include "verbose.hpp"
@@ -685,14 +685,6 @@ imaginary_quadratic_cl_structure::pSylow_groups(Exponent const & E,
 }
 
 
-static void
-usage (cxx_param_list & pl, const char *argv0)
-{
-    param_list_print_usage(pl, argv0, stderr);
-    exit(EXIT_FAILURE);
-}
-
-
 struct command_line
 {
     std::string polyfilename;
@@ -707,20 +699,20 @@ struct command_line
     int verbosity_level = 1; /* each -v on command line increases it by 1 */
 
     static void declare_usage(cxx_param_list & pl) {
-        param_list_decl_usage_header(pl, "Compute the exponent of the group given "
+        pl.declare_usage_header("Compute the exponent of the group given "
                                     "the factorization of its order by "
                                     "computing the order of all elements "
                                     "corresponding to columns of the matrix\n");
-        param_list_decl_usage(pl, "poly", "input polynomial file");
-        param_list_decl_usage(pl, "order", "factorization of the group order");
-        param_list_decl_usage(pl, "B", "bound to build the generating set "
+        pl.declare_usage("poly", "input polynomial file");
+        pl.declare_usage("order", "factorization of the group order");
+        pl.declare_usage("B", "bound to build the generating set "
                                        "(default is 6*log(|D|)^2)");
-        param_list_decl_usage(pl, "seed", "seed for random generator");
-        param_list_decl_usage(pl, "pSylow-bound", "Use naive pSylow computation"
+        pl.declare_usage("seed", "seed for random generator");
+        pl.declare_usage("pSylow-bound", "Use naive pSylow computation"
                                                   " if the p-part of the group "
                                                   "order is below this bound "
                                                   "(default: 40000).");
-        param_list_decl_usage(pl, "v", "enable verbose output");
+        pl.declare_usage("v", "enable verbose output");
         verbose_decl_usage(pl);
     }
 
@@ -731,64 +723,45 @@ struct command_line
 
     void lookup_parameters(cxx_param_list & pl)
     {
-        param_list_parse(pl, "poly", polyfilename);
-        param_list_parse(pl, "order", factored_order);
-        param_list_parse(pl, "pSylow-bound", pSylow_bound);
-        param_list_parse(pl, "B", bound);
-        if (!param_list_parse(pl, "seed", seed)) {
+        pl.parse_mandatory("poly", polyfilename);
+        pl.parse("order", factored_order);
+        pl.parse("pSylow-bound", pSylow_bound);
+        pl.parse("B", bound);
+        if (!pl.parse("seed", seed)) {
             seed = time(NULL);
         }
     }
 
-    void check_inconsistencies(const char * argv0, cxx_param_list & pl) const
+    void check_inconsistencies(cxx_param_list & pl) const
     {
-        if (polyfilename.empty()) {
-            fmt::print(stderr, "Error, missing -poly\n");
-            usage(pl, argv0);
-        }
-        if (factored_order.empty()) {
-            fmt::print(stderr, "Error, -primes must not be empty\n");
-            usage(pl, argv0);
-        }
+        if (factored_order.empty())
+            pl.fail("Error, -primes must not be empty\n");
         for(auto const & [ p, e ] : factored_order) {
-            if (e <= 0) {
-                fmt::print(stderr, "Error, exponents in the factored order must be positive\n");
-                usage(pl, argv0);
-            }
+            if (e <= 0)
+                pl.fail("Error, exponents in the factored order must be positive\n");
         }
     }
 };
 
 int main(int argc, char const * argv[])
 {
-    const char *argv0 = argv[0];
-
     cxx_param_list pl;
     command_line cmdline;
 
     command_line::declare_usage(pl);
     cmdline.configure_switches(pl);
 
-    argv++, argc--;
-    if (argc == 0)
-      usage(pl, argv0);
+    param_list_process_command_line(pl, &argc, &argv, false);
 
-    for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv))
-            continue;
-        fmt::print(stderr, "Unhandled parameter {}\n", argv[0]);
-        usage(pl, argv0);
-    }
-    /* print command-line arguments */
     verbose_interpret_parameters(pl);
     param_list_print_command_line (stdout, pl);
     fflush(stdout);
 
     cmdline.lookup_parameters(pl);
-    if (param_list_warn_unused(pl)) {
-        usage(pl, argv0);
-    }
-    cmdline.check_inconsistencies(argv0, pl);
+    if (param_list_warn_unused(pl))
+        pl.fail("Unused parameters are given");
+
+    cmdline.check_inconsistencies(pl);
 
     verbose_output_init(2);
     verbose_output_add(0, stdout, cmdline.verbosity_level);

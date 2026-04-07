@@ -1,14 +1,13 @@
-#ifndef CADO_VERBOSE_H
-#define CADO_VERBOSE_H
+#ifndef CADO_VERBOSE_HPP
+#define CADO_VERBOSE_HPP
 
 #include <stdarg.h>
 #include <stdio.h>
+
+#include "fmt/format.h"
+
 #include "params.h"
 #include "macros.h"     // ATTR_PRINTF
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /* This provides fine-grain control over which messages we want. In order
  * to add a new flag, you must define its name as a preprocessor integer
@@ -32,7 +31,7 @@ typedef int (*vfprintf_func_t)(FILE *, const char *, va_list);
 
 /* This must be called in single-threaded context, preferably at program
  * start */
-extern void verbose_interpret_parameters(param_list_ptr pl);
+extern void verbose_interpret_parameters(cxx_param_list & pl);
 
 extern int verbose_enabled(unsigned int flag);
 extern int verbose_vfprintf(FILE * f, int flag, const char * fmt, va_list ap);
@@ -40,7 +39,7 @@ extern int verbose_vprintf(int flag, const char * fmt, va_list ap);
 extern int verbose_fprintf(FILE * f, int flag, const char * fmt, ...);
 extern int verbose_printf(int flag, const char * fmt, ...);
 extern void verbose_output_flush(size_t channel, int verbose);
-extern void verbose_decl_usage(param_list pl);
+extern void verbose_decl_usage(cxx_param_list & pl);
 
 /*
   The program can initialise zero or more "channels".
@@ -112,13 +111,7 @@ FILE *verbose_output_get(size_t channel, int verbose, size_t index);
 int verbose_output_vfprint(size_t channel, int verbose, vfprintf_func_t func,
                            const char * fmt, ...);
 
-#ifdef __cplusplus
-}
-#endif
-
-#ifdef __cplusplus
 /* this is actually quite handy */
-#include "fmt/format.h"
 template<typename... Args>
 void verbose_fmt_print(size_t channel, int verbose, fmt::format_string<Args...> s, Args&& ...args)
 {
@@ -127,5 +120,4 @@ void verbose_fmt_print(size_t channel, int verbose, fmt::format_string<Args...> 
     // fmt::print("a\n");
 }
 
-#endif
-#endif	/* CADO_VERBOSE_H */
+#endif	/* CADO_VERBOSE_HPP */

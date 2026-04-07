@@ -25,23 +25,11 @@ int main(int argc, char const * argv[])
 
     bw_common_init(bw, &argc, &argv);
 
-    const char * argv0 = argv[0];
-    argv++,argc--;
-    /* read all command-line parameters */
-    for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
-        fprintf(stderr, "Unexpected argument %s\n", argv[0]);
-        /* Since we accept file names freeform, we decide to never abort
-         * on unrecognized options */
-        param_list_print_usage(pl, argv0, stderr);
-        exit(EXIT_FAILURE);
-    }
+    param_list_process_command_line(pl, &argc, &argv, false);
+
     if constexpr (!is_binary) {
-        if (!param_list_parse(pl, "prime", p)) {
-            fprintf(stderr, "--prime is mandatory\n");
-            param_list_print_command_line (stdout, pl);
-            exit(EXIT_FAILURE);
-        }
+        if (!param_list_parse(pl, "prime", p))
+            pl.fail("--prime is mandatory\n");
     } else {
         p = 2;
     }

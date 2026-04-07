@@ -100,13 +100,13 @@ extern void polyselect_main_data_commit_stats_unlocked(polyselect_main_data_ptr 
 
 extern unsigned long polyselect_main_data_number_of_ad_tasks(polyselect_main_data_srcptr main);
 
-extern void polyselect_main_data_parse_Nd(polyselect_main_data_ptr main, param_list_ptr pl);
+extern void polyselect_main_data_parse_Nd(polyselect_main_data_ptr main, cxx_param_list & pl);
 
-extern void polyselect_main_data_parse_ad_range(polyselect_main_data_ptr main, param_list_ptr pl);
+extern void polyselect_main_data_parse_ad_range(polyselect_main_data_ptr main, cxx_param_list & pl);
 
-extern void polyselect_main_data_parse_maxtime_or_target(polyselect_main_data_ptr main, param_list_ptr pl);
+extern void polyselect_main_data_parse_maxtime_or_target(polyselect_main_data_ptr main, cxx_param_list & pl);
 
-extern void polyselect_main_data_parse_P(polyselect_main_data_ptr main, param_list_ptr pl);
+extern void polyselect_main_data_parse_P(polyselect_main_data_ptr main, cxx_param_list & pl);
 
 extern void polyselect_main_data_check_topology(polyselect_main_data_ptr main_data);
 

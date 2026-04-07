@@ -1,33 +1,33 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cerrno>              // for ENOENT, errno
-#include <climits>             // for UINT_MAX
-#include <cstdlib>             // for exit, EXIT_FAILURE
-#include <cstring>             // for strncmp, strlen, strrchr
-#include <cstdio>               // for size_t, sscanf, fclose, fopen, fread
+#include <cerrno>
+#include <climits>
+#include <cstdlib>
+#include <cstring>
+#include <cstdio>
 
-#include <algorithm>            // for sort, min
-#include <map>                  // for map<>::mapped_type, _Rb_tree_iterator
+#include <algorithm>
+#include <map>
 #include <memory>
-#include <stdexcept>            // for runtime_error
-#include <string>               // for string, basic_string, operator<<, cha...
-#include <utility>              // for pair, make_pair
-#include <vector>               // for vector
+#include <stdexcept>
+#include <string>
+#include <utility>
+#include <vector>
 
-#include <sys/stat.h>           // for stat
+#include <sys/stat.h>
 
-#include <gmp.h>                // for mpz_cmp_ui
+#include <gmp.h>
 #include "fmt/base.h"
 #include "fmt/format.h"
 
 #include "arith-cross.hpp"
 #include "arith-generic.hpp"
-#include "bw-common.hpp"          // for bw, bw_common_clear, bw_common_decl_u...
-#include "macros.h"             // for ASSERT_ALWAYS, MAYBE_UNUSED
-#include "misc.h"               // ok_NOKNOK
-#include "params.h"             // for param_list_clear, param_list_init
-#include "portability.h" // asprintf // IWYU pragma: keep
-#include "select_mpi.h"         // for MPI_Abort, MPI_Comm_rank, MPI_COMM_WORLD
+#include "bw-common.hpp"
+#include "macros.h"
+#include "misc.h"
+#include "params.h"
+#include "portability.h"
+#include "select_mpi.h"
 #include "utils_cxx.hpp"
 #include "bwc_filenames.hpp"
 
@@ -454,6 +454,9 @@ static void * check_prog(cxx_param_list & pl MAYBE_UNUSED, int argc, char const 
     std::vector<bwc_F_file> Ffiles;
     std::vector<bwc_S_file> Sfiles;
 
+    if (argc && std::string(argv[0]) == "--") {
+        argc--, argv++;
+    }
     for(int i = 0 ; i < argc ; i++) {
         std::string s(argv[i]);
         if (s.back() == '~')
@@ -656,8 +659,7 @@ int main(int argc, char const * argv[])
 
     bw_common_init(bw, &argc, &argv);
 
-    param_list_decl_usage_header(pl,
-            "File names are checked together (all relevant checks tying files to eachother within the provided argument list are done). The program tells which checks have been done\n"
+    pl.declare_usage_header("File names are checked together (all relevant checks tying files to eachother within the provided argument list are done). The program tells which checks have been done\n"
             "Options are as follows. Note that not all are relevant to this program specifically:\n");
 
     bw_common_decl_usage(pl);

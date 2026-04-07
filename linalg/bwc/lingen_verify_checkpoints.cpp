@@ -418,25 +418,24 @@ scalar_product(std::vector<cxx_mpz> const& u, std::vector<cxx_mpz> const& v)
 static void
 declare_usage(cxx_param_list& pl)
 {
-    param_list_decl_usage_header(
-      pl,
-      "Usage: lingen_verify_checkpoints [options] -- [list of file names]\n"
+    pl.declare_usage_header(
+            "Usage: lingen_verify_checkpoints [options] -- [list of file names]\n"
       "\n"
       "The list of file names can have one of the following formats:\n"
       " - pi0 pi1 pi2 : check that pi0*pi1==pi2\n"
       " - E pi : check that E*pi=O(x^length(E))\n"
       "Options are as follows.\n");
-    param_list_decl_usage(pl, "prime", "characteristic of the base field");
-    param_list_decl_usage(pl, "mpi", "mpi geometry");
-    param_list_decl_usage(pl, "seed", "random seed");
-    param_list_decl_usage(pl, "m", "block Wiedemann parameter m");
-    param_list_decl_usage(pl, "n", "block Wiedemann parameter n");
-    param_list_decl_usage(pl, "v", "More verbose output");
-    param_list_decl_usage(pl, "restrict_E", "(E*pi check only) check only mod this power of X");
-    param_list_decl_usage(pl, "sanity-check", "Do sanity check on the checkpoint auxiliary file");
-    param_list_decl_usage(pl, "tuning_schedule_filename",
+    pl.declare_usage("prime", "characteristic of the base field");
+    pl.declare_usage("mpi", "mpi geometry");
+    pl.declare_usage("seed", "random seed");
+    pl.declare_usage("m", "block Wiedemann parameter m");
+    pl.declare_usage("n", "block Wiedemann parameter n");
+    pl.declare_usage("v", "More verbose output");
+    pl.declare_usage("restrict_E", "(E*pi check only) check only mod this power of X");
+    pl.declare_usage("sanity-check", "Do sanity check on the checkpoint auxiliary file");
+    pl.declare_usage("tuning_schedule_filename",
                 "load tuning schedule from this file (sanity checks only)");
-    param_list_decl_usage(pl, "cpdir",
+    pl.declare_usage("cpdir",
                 "load checkpoints from this directory");
 }
 

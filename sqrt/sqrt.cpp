@@ -1826,50 +1826,40 @@ calculateTaskN (int task, std::string const & prefix, unsigned int numdep, int n
 #endif
 }
 
-static void declare_usage(param_list pl)
+static void declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "poly", "Polynomial file");
-    param_list_decl_usage(pl, "purged", "Purged relations file, as produced by 'purge'");
-    param_list_decl_usage(pl, "index", "Index file, as produced by 'merge'");
-    param_list_decl_usage(pl, "ker", "Kernel file, as produced by 'characters'");
-    param_list_decl_usage(pl, "prefix", "File name prefix used for output files");
-    param_list_decl_usage(pl, "ab", "For each dependency, create file with the a,b-values of the relations used in that dependency");
-    param_list_decl_usage(pl, "side0", "Compute square root for side 0 and store in file");
-    param_list_decl_usage(pl, "side1", "Compute square root for side 1 and store in file");
-    param_list_decl_usage(pl, "qs", "Compute square root for quadratic sieve and store in file");
-    param_list_decl_usage(pl, "gcd", "Compute gcd of the two square roots. Requires square roots on both sides");
-    param_list_decl_usage(pl, "dep", "The initial dependency for which to compute square roots");
-    param_list_decl_usage(pl, "t",   "The number of dependencies to process (default 1)");
-    param_list_decl_usage(pl, "v", "More verbose output");
-    param_list_decl_usage(pl, "large-ab", "enable support for a and b larger "
+    pl.declare_usage_header(
+            "Usage: [-ab || -side0 || -side1 || -gcd] -poly polyname -prefix prefix -dep numdep -t ndep"
+            " -purged purgedname -index indexname -ker kername\n"
+            "or (-side0 || -side1 || -gcd) -poly polyname -prefix prefix -dep numdep -t ndep\n\n"
+            "(a,b) pairs of dependency relation 'numdep' will be r/w in file 'prefix.numdep',"
+            " side0 sqrt in 'prefix.side0.numdep' ...\n");
+    pl.declare_usage("poly", "Polynomial file");
+    pl.declare_usage("purged", "Purged relations file, as produced by 'purge'");
+    pl.declare_usage("index", "Index file, as produced by 'merge'");
+    pl.declare_usage("ker", "Kernel file, as produced by 'characters'");
+    pl.declare_usage("prefix", "File name prefix used for output files");
+    pl.declare_usage("ab", "For each dependency, create file with the a,b-values of the relations used in that dependency");
+    pl.declare_usage("side0", "Compute square root for side 0 and store in file");
+    pl.declare_usage("side1", "Compute square root for side 1 and store in file");
+    pl.declare_usage("qs", "Compute square root for quadratic sieve and store in file");
+    pl.declare_usage("gcd", "Compute gcd of the two square roots. Requires square roots on both sides");
+    pl.declare_usage("dep", "The initial dependency for which to compute square roots");
+    pl.declare_usage("t",   "The number of dependencies to process (default 1)");
+    pl.declare_usage("v", "More verbose output");
+    pl.declare_usage("large-ab", "enable support for a and b larger "
                                           "than 64 bits");
-    param_list_decl_usage(pl, "force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
-}
-
-static void usage(param_list pl, const char * argv0, FILE *f)
-{
-    param_list_print_usage(pl, argv0, f);
-    fmt::print(f, "Usage: {} [-ab || -side0 || -side1 || -gcd] -poly polyname -prefix prefix -dep numdep -t ndep", argv0);
-    fmt::print(f, " -purged purgedname -index indexname -ker kername\n");
-    fmt::print(f, "or {} (-side0 || -side1 || -gcd) -poly polyname -prefix prefix -dep numdep -t ndep\n\n", argv0);
-    fmt::print(f, "(a,b) pairs of dependency relation 'numdep' will be r/w in file 'prefix.numdep',");
-    fmt::print(f, " side0 sqrt in 'prefix.side0.numdep' ...\n");
-    exit(EXIT_FAILURE);
+    pl.declare_usage("force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
 }
 
 // coverity[root_function]
 int main(int argc, char const *argv[])
 {
     unsigned int numdep = UINT_MAX;
-    int nthreads = 1, ret MAYBE_UNUSED, i;
+    int nthreads = 1, ret MAYBE_UNUSED;
     int largeab = 0;
 
-    char const * me = *argv;
-    /* print the command line */
-    fmt::print (stderr, "{}.r{}", argv[0], cado_revision_string);
-    for (i = 1; i < argc; i++)
-      fmt::print (stderr, " {}", argv[i]);
-    fmt::print (stderr, "\n");
+    fmt::print (stderr, "{}\n", collect_command_line(argc, argv));
 
     cxx_param_list pl;
     declare_usage(pl);
@@ -1887,24 +1877,12 @@ int main(int argc, char const *argv[])
     param_list_configure_switch(pl, "-v", &verbose);
     param_list_configure_switch(pl, "force-posix-threads", &filter_rels_force_posix_threads);
     param_list_configure_switch(pl, "large-ab", &largeab);
-    argc--,argv++;
-    for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) continue;
-        if (strcmp(*argv, "--help") == 0) {
-            usage(pl, me, stderr);
-            return EXIT_SUCCESS;
-        } else {
-            fmt::print(stderr, "unexpected argument: {}\n", *argv);
-            usage(pl, me, stderr);
-            return EXIT_FAILURE;
-        }
-    }
+
+    param_list_process_command_line(pl, &argc, &argv, false);
+
     const char * tmp;
-    if(!(tmp = param_list_lookup_string(pl, "poly"))) {
-        fmt::print(stderr, "Parameter -poly is missing\n");
-        usage(pl, me, stderr);
-        return EXIT_FAILURE;
-    }
+    if(!(tmp = param_list_lookup_string(pl, "poly")))
+        throw parameter_error("missing parameter -poly");
 
     cxx_cado_poly cpoly;
 

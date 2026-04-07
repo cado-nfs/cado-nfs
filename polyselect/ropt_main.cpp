@@ -633,7 +633,7 @@ static int main_adv (int argc, char const * argv[])
 
 
 static void
-declare_usage_basic (param_list pl)
+declare_usage_basic (cxx_param_list & pl)
 {
   char str[200];
   param_list_decl_usage(pl, "inputpolys", "root-sieve the size-optimized "
@@ -660,14 +660,13 @@ declare_usage_basic (param_list pl)
 
 
 static void
-usage_basic (const char *argv, const char * missing, param_list pl)
+usage_basic (const char *argv, const char * missing, cxx_param_list & pl)
 {
   if (missing) {
     fprintf(stderr, "\nError: missing or invalid parameter \"-%s\"\n",
             missing);
   }
   param_list_print_usage (pl, argv, stderr);
-  param_list_clear (pl);
   exit (EXIT_FAILURE);
 }
 
@@ -716,8 +715,7 @@ static int main_basic (int argc, char const * argv[])
   rparam->effort = DEFAULT_ROPTEFFORT; /* ropt effort */
 
   /* read params */
-  param_list pl;
-  param_list_init (pl);
+  cxx_param_list pl;
   declare_usage_basic(pl);
   param_list_configure_switch (pl, "-v", &(rparam->verbose));
   param_list_configure_alias(pl, "alpha_bound", "B");
@@ -883,7 +881,6 @@ static int main_basic (int argc, char const * argv[])
 
   ropt_param_clear (rparam);
   best_polynomials_queue_clear(best_polys);
-  param_list_clear (pl);
 
   return EXIT_SUCCESS;
 }

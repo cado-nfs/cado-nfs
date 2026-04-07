@@ -1,28 +1,28 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cstdio>      // for fprintf, stderr, fclose, fgets, fopen, printf
-#include <cstdlib>     // for exit, EXIT_FAILURE, EXIT_SUCCESS
-#include <vector>       // for vector
+#include <cstdio>
+#include <cstdlib>
+#include <vector>
 
-#include <gmp.h>        // for mpz_ptr, mpz_sizeinbase, gmp_printf, gmp_sscanf
+#include <gmp.h>
 
-#include "macros.h"     // for ASSERT_ALWAYS
-#include "params.h"     // param_list
-#include "timing.h"     // seconds
-#include "verbose.hpp"    // verbose_decl_usage
-#include "gzip.h"       // fopen_maybe_compressed
-#include "cxx_mpz.hpp"  // cxx_mpz
+#include "macros.h"
+#include "params.h"
+#include "timing.h"
+#include "verbose.hpp"
+#include "gzip.h"
+#include "cxx_mpz.hpp"
 
-#include "facul.hpp"    // for facul, facul_clear_strategy, facul_make_strategy
+#include "facul.hpp"
 #include "facul_strategies.hpp"
 
-static void declare_usage(param_list pl)
+static void declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "in", "input file");
-    param_list_decl_usage(pl, "lpb0", "large prime bound on side 0");
-    param_list_decl_usage(pl, "lpb1", "large prime bound on side 1");
-    param_list_decl_usage(pl, "batchlpb0", "batch bound on side 0");
-    param_list_decl_usage(pl, "batchlpb1", "batch bound on side 1");
+    pl.declare_usage("in", "input file");
+    pl.declare_usage("lpb0", "large prime bound on side 0");
+    pl.declare_usage("lpb1", "large prime bound on side 1");
+    pl.declare_usage("batchlpb0", "batch bound on side 0");
+    pl.declare_usage("batchlpb1", "batch bound on side 1");
 
     verbose_decl_usage(pl);
 }
@@ -31,60 +31,34 @@ static void declare_usage(param_list pl)
 int
 main (int argc, char const *argv[])
 {
-  param_list pl;
-  const char *argv0 = argv[0];
+  cxx_param_list pl;
   double st, wct;
   st = seconds();
   wct = wct_seconds();
 
-  param_list_init(pl);
   declare_usage(pl);
 
-  argv++, argc--;
-  for( ; argc ; ) {
-      FILE *f;
-      if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
+  param_list_process_command_line_and_extra_parameter_files(pl, &argc, &argv);
 
-      /* Could also be a file */
-      if ((f = fopen(argv[0], "r")) != nullptr) {
-          param_list_read_stream(pl, f, 0);
-          fclose(f);
-          argv++,argc--;
-          continue;
-      }
-
-      fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
-      param_list_print_usage(pl, argv0, stderr);
-      exit (EXIT_FAILURE);
-  }
   verbose_interpret_parameters(pl);
   param_list_print_command_line(stdout, pl);
 
     const char * infilename;
-  if ((infilename = param_list_lookup_string(pl, "in")) == nullptr) {
-      fprintf(stderr, "Error: parameter -in is mandatory\n");
-      param_list_print_usage(pl, argv0, stderr);
-      exit(EXIT_FAILURE);
-  }
+  if ((infilename = param_list_lookup_string(pl, "in")) == nullptr)
+      pl.fail("Error: parameter -in is mandatory\n");
   
   int lpb[2] = {0, 0};
   param_list_parse_int(pl, "lpb0", &lpb[0]);
   param_list_parse_int(pl, "lpb1", &lpb[1]);
 
-  if (lpb[0] * lpb[1] == 0) {
-      fprintf(stderr, "Error: parameters lpb[01] are mandatory\n");
-      param_list_print_usage(pl, argv0, stderr);
-      exit(EXIT_FAILURE);
-  }
+  if (lpb[0] * lpb[1] == 0)
+      pl.fail("Error: parameters lpb[01] are mandatory\n");
 
   int batchlpb[2] = {0, 0};
   param_list_parse_int(pl, "batchlpb0", &(batchlpb[0]));
   param_list_parse_int(pl, "batchlpb1", &(batchlpb[1]));
-  if (batchlpb[0] * batchlpb[1] == 0) {
-      fprintf(stderr, "Error: parameters batchlpb[01] are mandatory\n");
-      param_list_print_usage(pl, argv0, stderr);
-      exit(EXIT_FAILURE);
-  }
+  if (batchlpb[0] * batchlpb[1] == 0)
+      pl.fail("Error: parameters batchlpb[01] are mandatory\n");
 
   unsigned long B[2];
   B[0] = 1UL<<batchlpb[0];
@@ -126,7 +100,6 @@ main (int argc, char const *argv[])
           nrels, seconds()-st, wct_seconds()-wct);
   
   fclose_maybe_compressed(inp, infilename);
-  param_list_clear(pl);
 
   return EXIT_SUCCESS;
 }

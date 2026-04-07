@@ -1114,7 +1114,7 @@ static uint64_t compute_needed_rels(bit_vector needed_rels,
 }
 
 /********************* usage functions and main ******************************/
-static void declare_usage(param_list pl)
+static void declare_usage(cxx_param_list & pl)
 {
     param_list_decl_usage(pl, "log", "input file containing known logarithms");
     param_list_decl_usage(pl, "logformat",
@@ -1150,12 +1150,6 @@ static void declare_usage(param_list pl)
     verbose_decl_usage(pl);
 }
 
-static void usage(param_list pl, char const * argv0)
-{
-    param_list_print_usage(pl, argv0, stderr);
-    exit(EXIT_FAILURE);
-}
-
 // coverity[root_function]
 int main(int argc, char const * argv[])
 {
@@ -1171,7 +1165,6 @@ int main(int argc, char const * argv[])
 
     cxx_param_list pl;
     declare_usage(pl);
-    argv++, argc--;
 
     param_list_configure_switch(pl, "partial", &partial);
     param_list_configure_switch(pl, "force-posix-threads",
@@ -1181,17 +1174,8 @@ int main(int argc, char const * argv[])
     _fmode = _O_BINARY; /* Binary open for all files */
 #endif
 
-    if (argc == 0)
-        usage(pl, argv0);
+    param_list_process_command_line(pl, &argc, &argv, false);
 
-    for (; argc;) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) {
-            continue;
-        }
-        fmt::print(stderr, "Unknown option: {}\n", argv[0]);
-        usage(pl, argv0);
-    }
-    /* print command-line arguments */
     verbose_interpret_parameters(pl);
     param_list_print_command_line(stdout, pl);
     fflush(stdout);
@@ -1210,64 +1194,37 @@ int main(int argc, char const * argv[])
         param_list_lookup_string(pl, "path_antebuffer");
 
     /* Some checks on command line arguments */
-    if (!param_list_parse_mpz(pl, "ell", ell) || mpz_cmp_ui(ell, 0) <= 0) {
-        fmt::print(stderr, "Error, missing -ell command line argument "
-                        "(or ell <= 0)\n");
-        usage(pl, argv0);
-    }
-    if (!param_list_parse_uint64(pl, "nrels", &nrels_tot) || nrels_tot == 0) {
-        fmt::print(stderr, "Error, missing -nrels command line argument "
-                        "(or nrels = 0)\n");
-        usage(pl, argv0);
-    }
-    if (logfilename == NULL) {
-        fmt::print(stderr, "Error, missing -log command line argument\n");
-        usage(pl, argv0);
-    }
-    if (relspfilename == NULL) {
-        fmt::print(stderr, "Error, missing -purged command line argument\n");
-        usage(pl, argv0);
-    }
-    if (relsdfilename == NULL) {
-        fmt::print(stderr, "Error, missing -relsdel command line argument\n");
-        usage(pl, argv0);
-    }
-    if (outfilename == NULL) {
-        fmt::print(stderr, "Error, missing -out command line argument\n");
-        usage(pl, argv0);
-    }
-    if (renumberfilename == NULL) {
-        fmt::print(stderr, "Error, missing -renumber command line argument\n");
-        usage(pl, argv0);
-    }
-    if (polyfilename == NULL) {
-        fmt::print(stderr, "Error, missing -poly command line argument\n");
-        usage(pl, argv0);
-    }
-    if (mt < 1) {
-        fmt::print(stderr, "Error: parameter mt must be at least 1\n");
-        usage(pl, argv0);
+    if (!param_list_parse_mpz(pl, "ell", ell) || mpz_cmp_ui(ell, 0) <= 0)
+        pl.fail("Error, missing -ell command line argument (or ell <= 0)\n");
+    if (!param_list_parse_uint64(pl, "nrels", &nrels_tot) || nrels_tot == 0)
+        pl.fail("Error, missing -nrels command line argument (or nrels = 0)\n");
+    if (logfilename == NULL)
+        pl.fail("Error, missing -log command line argument\n");
+    if (relspfilename == NULL)
+        pl.fail("Error, missing -purged command line argument\n");
+    if (relsdfilename == NULL)
+        pl.fail("Error, missing -relsdel command line argument\n");
+    if (outfilename == NULL)
+        pl.fail("Error, missing -out command line argument\n");
+    if (renumberfilename == NULL)
+        pl.fail("Error, missing -renumber command line argument\n");
+    if (polyfilename == NULL)
+        pl.fail("Error, missing -poly command line argument\n");
+    if (mt < 1)
+        pl.fail("Error: parameter mt must be at least 1\n");
+
+    if (logformat && strcmp(logformat, "LA") != 0 && strcmp(logformat, "reconstruct") != 0)
+        pl.fail("Error, unknown -formatlog argument."
+                " Must be 'LA' or 'reconstruct'\n");
+    if ((logformat == nullptr || strcmp(logformat, "LA") == 0) &&
+        idealsfilename == nullptr)
+    {
+        pl.fail("Error, missing -ideals command line argument\n");
     }
 
-    if (logformat != NULL) {
-        if (strcmp(logformat, "LA") != 0 &&
-            strcmp(logformat, "reconstruct") != 0) {
-            fmt::print(stderr,
-                    "Error, unknown -formatlog argument. Must be 'LA' or "
-                    "'reconstruct'\n");
-            usage(pl, argv0);
-        }
-    }
-    if ((logformat == NULL || strcmp(logformat, "LA") == 0) &&
-        idealsfilename == NULL) {
-        fmt::print(stderr, "Error, missing -ideals command line argument\n");
-        usage(pl, argv0);
-    }
-
-    if (wantedfilename != NULL && !partial) {
-        fmt::print(stderr, "Warning, -wanted command line argument is ignored if "
+    if (wantedfilename != NULL && !partial)
+        pl.fail("Warning, -wanted command line argument is ignored if "
                         "-partial is not set\n");
-    }
 
     if (!cpoly.read(polyfilename)) {
         fmt::print(stderr, "Error reading polynomial file\n");
@@ -1292,10 +1249,8 @@ int main(int argc, char const * argv[])
 
     char const * sm_mode_string = param_list_lookup_string(pl, "sm-mode");
 
-    if (param_list_warn_unused(pl)) {
-        fmt::print(stderr, "Error, unused parameters are given\n");
-        usage(pl, argv0);
-    }
+    if (param_list_warn_unused(pl))
+        pl.fail("Error, unused parameters are given\n");
 
     set_antebuffer_path(argv0, path_antebuffer);
 

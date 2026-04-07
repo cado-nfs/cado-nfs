@@ -635,7 +635,7 @@ static void blockmatrix_column_reduce(blockmatrix & m, unsigned int max_rows_to_
 }
 
 static void
-declare_usage (param_list pl)
+declare_usage (cxx_param_list & pl)
 {
   param_list_decl_usage (pl, "purged", "output-from-purge file");
   param_list_decl_usage (pl, "index",  "index file");
@@ -669,33 +669,25 @@ int main(int argc, char const * argv[])
     unsigned long lpb[2] = {0,0};
     int largeab = 0;
     int only_sign_chars = 0;
-    const char *argv0 = argv[0];
     double const cpu0 = seconds ();
     double const wct0 = wct_seconds ();
 
     /* print the command line */
-    fprintf (stderr, "%s.r%s", argv[0], cado_revision_string);
-    for (int i = 1; i < argc; i++)
-      fprintf (stderr, " %s", argv[i]);
-    fprintf (stderr, "\n");
+    fmt::print(stderr, "# ({}) {}\n",
+            cado_revision_string,
+            collect_command_line(argc, argv));
 
     cxx_param_list pl;
     declare_usage(pl);
 
-    argc--,argv++;
     const char *bw_kernel_file = NULL;
 
     param_list_configure_switch(pl, "force-posix-threads", &filter_rels_force_posix_threads);
     param_list_configure_switch(pl, "large-ab", &largeab);
     param_list_configure_switch(pl, "only-sign-chars", &only_sign_chars);
 
-    for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) continue;
+    param_list_process_command_line(pl, &argc, &argv, false);
 
-        fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
-        param_list_print_usage(pl, argv0, stderr);
-        exit (EXIT_FAILURE);
-    }
     purgedname = param_list_lookup_string(pl, "purged");
     indexname = param_list_lookup_string(pl, "index");
     outname = param_list_lookup_string(pl, "out");
@@ -705,24 +697,14 @@ int main(int argc, char const * argv[])
     const char * tmp;
 
     if ((tmp = param_list_lookup_string(pl, "poly")) == NULL)
-      {
-        fprintf (stderr, "Error: parameter -poly is mandatory\n");
-        param_list_print_usage (pl, argv0, stderr);
-        exit (EXIT_FAILURE);
-      }
+        pl.fail("Error: parameter -poly is mandatory\n");
     cpoly.read(tmp);
-    if (cpoly.nsides() < 1 || cpoly.nsides() > 2) {
-        fmt::print(stderr, "Error: number of polys should be 1 or 2, got {}\n",
+    if (cpoly.nsides() < 1 || cpoly.nsides() > 2)
+        pl.fail("Error: number of polys should be 1 or 2, got {}\n",
                            cpoly.nsides());
-        exit (EXIT_FAILURE);
-    }
 
     if (param_list_parse_int(pl, "nchar", &nchars) == 0)
-    {
-        fprintf (stderr, "Error: parameter -nchar is mandatory\n");
-        param_list_print_usage (pl, argv0, stderr);
-        exit (EXIT_FAILURE);
-    }
+        pl.fail("Error: parameter -nchar is mandatory\n");
 
     if (only_sign_chars && nchars != cpoly.nsides()) {
         fmt::print(stderr, "Error: with -only-sign-chars, -nchars should be "
@@ -742,21 +724,13 @@ int main(int argc, char const * argv[])
     for (int side = 0; side < cpoly.nsides(); ++side) {
         std::string arg = fmt::format("lpb{}", side);
         if (param_list_parse_ulong(pl, arg.c_str(), &lpb[side]) == 0)
-        {
-            fmt::print(stderr, "Error: parameter {} is mandatory\n", arg);
-            param_list_print_usage (pl, argv0, stderr);
-            exit (EXIT_FAILURE);
-        }
+            pl.fail("Error: parameter {} is mandatory\n", arg);
     }
 
     param_list_parse_int(pl, "t", &nthreads);
 
-    if (purgedname == NULL || indexname == NULL || outname == NULL) {
-        fprintf (stderr,
-                "Error: parameters -purged, -index and -out are mandatory\n");
-        param_list_print_usage (pl, argv0, stderr);
-        exit (EXIT_FAILURE);
-    }
+    if (purgedname == NULL || indexname == NULL || outname == NULL)
+        pl.fail("Error: parameters -purged, -index and -out are mandatory\n");
 
     /* Put nchars characters on all algebraic sides and nratchars on the
      * rational side (if it exists).

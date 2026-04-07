@@ -146,7 +146,7 @@ buffer_clear (buffer_struct_t *Buf, int nthreads)
 /*****************************************************************************/
 
 static void
-declare_usage(param_list pl)
+declare_usage(cxx_param_list & pl)
 {
   param_list_decl_usage(pl, "mat", "input purged file");
   param_list_decl_usage(pl, "out", "output history file");
@@ -158,13 +158,6 @@ declare_usage(param_list pl)
   param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
   param_list_decl_usage(pl, "t", "number of threads");
   param_list_decl_usage(pl, "v", "verbose mode");
-}
-
-static void
-usage (param_list pl, const char * argv0)
-{
-    param_list_print_usage(pl, argv0, stderr);
-    exit(EXIT_FAILURE);
 }
 
 /* check that mat->tot_weight and mat->wt say the same thing.
@@ -1421,10 +1414,8 @@ int main(int argc, char const * argv[])
     double tt;
     double cpu0 = seconds ();
     double wct0 = wct_seconds ();
-    param_list pl;
-    param_list_init (pl);
+    cxx_param_list pl;
     declare_usage(pl);
-    argv++,argc--;
 
     param_list_configure_switch (pl, "-v", &merge_verbose);
     param_list_configure_switch(pl, "force-posix-threads", &filter_rels_force_posix_threads);
@@ -1433,15 +1424,8 @@ int main(int argc, char const * argv[])
     _fmode = _O_BINARY;     /* Binary open for all files */
 #endif
 
-    if (argc == 0)
-      usage (pl, argv0);
+    param_list_process_command_line(pl, &argc, &argv, false);
 
-    for( ; argc ; ) {
-      if (param_list_update_cmdline(pl, &argc, &argv)) continue;
-      fprintf (stderr, "Unknown option: %s\n", argv[0]);
-      usage (pl, argv0);
-    }
-    /* print command-line arguments */
     verbose_interpret_parameters (pl);
     param_list_print_command_line (stdout, pl);
     fflush(stdout);
@@ -1464,21 +1448,13 @@ int main(int argc, char const * argv[])
 
     /* Some checks on command line arguments */
     if (param_list_warn_unused(pl))
-    {
-      fprintf(stderr, "Error, unused parameters are given\n");
-      usage(pl, argv0);
-    }
+      pl.fail("Error, unused parameters are given\n");
 
     if (purgedname == NULL)
-    {
-      fprintf(stderr, "Error, missing -mat command line argument\n");
-      usage (pl, argv0);
-    }
+      pl.fail("Error, missing -mat command line argument\n");
+
     if (outname == NULL)
-    {
-      fprintf(stderr, "Error, missing -out command line argument\n");
-      usage (pl, argv0);
-    }
+      pl.fail("Error, missing -out command line argument\n");
 
     heap_setup();
     set_antebuffer_path (argv0, path_antebuffer);
@@ -1772,8 +1748,6 @@ int main(int argc, char const * argv[])
     free (mat->Rqinv);
 
     clearMat (mat);
-
-    param_list_clear (pl);
 
     printf ("After cleaning memory:\n");
     print_timing_and_memory (stdout, cpu_after_read, wct_after_read);

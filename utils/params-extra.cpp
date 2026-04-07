@@ -9,7 +9,7 @@
 
 #include "params.h"
 
-int param_list_read(param_list_ptr pl, std::istream & is, bool stop_on_empty_line)
+int param_list_read(cxx_param_list & pl, std::istream & is, bool stop_on_empty_line)
 {
     int all_ok=1;
     for(std::string line ; std::getline(is, line, '\n') ; ) {

@@ -55,7 +55,7 @@ print_survivors(void * dummy MAYBE_UNUSED, earlyparsed_relation_ptr rel)
 
 /* -------------------------------------------------------------------------- */
 
-static void declare_usage(param_list pl)
+static void declare_usage(cxx_param_list & pl)
 {
   param_list_decl_usage(pl, "col-min-index", "lower index on the considered "
           "columns (default 0)");
@@ -66,51 +66,30 @@ static void declare_usage(param_list pl)
   verbose_decl_usage(pl);
 }
 
-static void
-usage (param_list pl, const char *argv0)
-{
-    param_list_print_usage(pl, argv0, stderr);
-    exit(EXIT_FAILURE);
-}
-
-
 /* -------------------------------------------------------------------------- */
 
 // coverity[root_function]
 int main (int argc, char const **argv)
 {
-  const char *argv0 = argv[0];
   uint64_t col_max_index = 0;
   const char *outfile = NULL;
 
-  param_list pl;
+  cxx_param_list pl;
 
-  /* read params */
-  param_list_init(pl);
   declare_usage(pl);
-  argv++,argc--;
 
-  if (argc == 0)
-    usage(pl, argv0);
 
-  for ( ; argc ; ) {
-    if (param_list_update_cmdline (pl, &argc, &argv)) { continue; }
-    /* Since we accept file names freeform, we decide to never
-     * abort on unrecognized options */
-    break;
-  }
+  param_list_process_command_line(pl, &argc, &argv, true);
 
   outfile = param_list_lookup_string(pl, "out");
-  if (outfile == NULL) {
-    usage(pl, argv0);
-  }
+  if (outfile == NULL)
+      pl.fail("missing argument -out");
 
   param_list_parse_uint64(pl, "col-min-index", &col_min_index);
 
   param_list_parse_uint64(pl, "col-max-index", &col_max_index);
-  if (col_max_index == 0) {
-    usage(pl, argv0);
-  }
+  if (col_max_index == 0)
+      pl.fail("missing argument col-max-index");
 
   table = (weight_t *)malloc(col_max_index*sizeof(weight_t));
   ASSERT_ALWAYS(table != NULL);
@@ -133,7 +112,6 @@ int main (int argc, char const **argv)
 
   fclose(out);
   free(table);
-  param_list_clear(pl);
 
   return EXIT_SUCCESS;
 }

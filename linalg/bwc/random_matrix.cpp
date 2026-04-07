@@ -90,39 +90,22 @@ struct rhs_writer {// {{{
  * consumed.
  */
 
-static std::vector<int> generic_params_process_loop(cxx_param_list & pl,
-        int argc, char const ** argv)
-{
-    std::vector<int> wild; // nrows ncols coeffs_per_row
-    for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
-        if (argv[0][0] != '-' && wild.size() < 3) {
-            char * tmp;
-            wild.push_back((int) strtoul(argv[0], &tmp, 0));
-            if (*tmp != '\0') {
-                fprintf(stderr, "Parse error for parameter %s\n", argv[0]);
-                exit(1);
-            }
-            argv++, argc--;
-            continue;
-        }
-        throw parameter_error(fmt::format("Unhandled {}", argv[0]));
-    }
-    return wild;
-}
-
 template<typename iterator>
-static std::vector<int> generic_params_process_loop(cxx_param_list & pl,
+static void generic_params_process_loop(cxx_param_list & pl,
         iterator begin, iterator end)
 {
     std::vector<std::string> tmp;
+    tmp.emplace_back("dummy");  /* binary name */
     for(iterator it = begin ; it != end ; ++it)
         tmp.emplace_back(*it);
     std::vector<const char *> argv;
     argv.reserve(tmp.size());
     for(auto const & s : tmp)
         argv.emplace_back(s.c_str());
-    return generic_params_process_loop(pl, (int) argv.size(), argv.data());
+
+    int t_argc = argv.size();
+    const char ** t_argv = argv.data();
+    param_list_process_command_line(pl, &t_argc, &t_argv, false);
 }
 /* }}} */
 
@@ -157,6 +140,8 @@ struct random_matrix_process_data {
     static void process_arguments(cxx_param_list & pl, int argc, char * argv[]);
 
     static void declare_usage(cxx_param_list & pl) {
+        param_list_decl_usage(pl, "nrows", "number of rows");
+        param_list_decl_usage(pl, "ncols", "number of cols");
         param_list_decl_usage(pl, "density", "desired density per row");
         param_list_decl_usage(pl, "seed", "seed");
         param_list_decl_usage(pl, "c", "add coefficients");
@@ -169,22 +154,20 @@ struct random_matrix_process_data {
     }
 
     random_matrix_process_data(
-        cxx_param_list & pl,
-        std::vector<int> const & wild);
+        cxx_param_list & pl);
 
     private:
     struct ctor_helper {
         mutable cxx_param_list pl;
-        std::vector<int> wild;
         explicit ctor_helper(std::string const & description)
         {
             auto tokens = split(description, ",");
-            wild = generic_params_process_loop(pl, tokens.begin(), tokens.end());
+            generic_params_process_loop(pl, tokens.begin(), tokens.end());
         }
     };
 
     explicit random_matrix_process_data(ctor_helper const & h)
-        : random_matrix_process_data(h.pl, h.wild)
+        : random_matrix_process_data(h.pl)
     {}
 
     public:
@@ -243,20 +226,16 @@ rhs_writer::rhs_writer(random_matrix_process_data const & R, cxx_param_list & pl
 
 
 random_matrix_process_data::random_matrix_process_data(
-        cxx_param_list & pl,
-        std::vector<int> const & wild)
+        cxx_param_list & pl)
 {
     /* {{{ parse r->nrows, r->ncols, density */
-    if (wild.empty() || (nrows = wild[0]) == 0)
+    if (!pl.parse("nrows", nrows) || nrows == 0)
         throw std::runtime_error("Please specify r->nrows");
-    if (wild.size() < 2 || (ncols = wild[1]) == 0)
+    if (!pl.parse("ncols", ncols) || ncols == 0)
         ncols = nrows;
-    if (param_list_parse<int>(pl, "density", density)) {
-        if (wild.size() >= 3)
-            throw std::runtime_error("density specified twice");
-    } else if (wild.size() < 3 || (density == wild[2]) == 0) {
+    if (!pl.parse("density", density) || density == 0)
         density = MIN(100, MAX(ncols / 10, MIN(4, ncols)));
-    }
+
     ASSERT_ALWAYS(ncols > 10 && nrows > 10);
     /* }}} */
 
@@ -976,24 +955,6 @@ static void random_matrix_process_print(random_matrix_process_data & r, random_m
     F.row_sdev = sdev;
 }
 
-static void usage()
-{
-    fprintf(stderr, "Usage: ./random_matrix <nrows> [<ncols>] [<density>] [options]\n"
-            "Options:\n"
-            "\t-d <density> : desired density per row\n"
-            "\t-s <seed> : seed\n"
-            "\t-c <maxc> : add coefficients\n"
-            "\t-v : turn verbosity on\n"
-            "\t-Z : avoid zero columns\n"
-            "\t-o <matfile> : output file name\n"
-            "\t--binary : output in binary\n"
-            "\t--kleft <d>: ensure at least a left kernel of dimension d\n"
-            "\t--kright <d>: ditto for right kernel\n"
-            "\t--rhs <nrhs>,<prime>,<filename>,<nullspace_direction>: rhs output\n"
-           );
-    exit(1);
-}
-
 int main(int argc, char const * argv[])
 {
     cxx_param_list pl;
@@ -1012,12 +973,12 @@ int main(int argc, char const * argv[])
 
     argv++, argc--;
     
-    auto wild = generic_params_process_loop(pl, argc, argv);
+    generic_params_process_loop(pl, argv, argv + argc);
 
     verbose = param_list_parse_switch(pl, "v");
     avoid_zero_columns = param_list_parse_switch(pl, "Z");
 
-    random_matrix_process_data r(pl, wild);
+    random_matrix_process_data r(pl);
 
     /* {{{ parse kernel size. default is to make the matrix invertible */
     param_list_parse(pl, "kleft", kernel_left);
@@ -1070,7 +1031,8 @@ int main(int argc, char const * argv[])
     /* }}} */
 
 
-    if (param_list_warn_unused(pl)) usage();
+    if (param_list_warn_unused(pl))
+        pl.fail("some arguments left unused");
 
     random_matrix_ddata F;
     F.adjust_force_kernel(r, nullptr,

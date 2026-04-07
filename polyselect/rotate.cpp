@@ -18,7 +18,7 @@
  * coefficient first).
  */
 
-static void usage(const char *argv, const char *missing, param_list_ptr pl)
+static void usage(const char *argv, const char *missing, cxx_param_list & pl)
 {
     fprintf(stderr, "usage: %s [parameters] <polynomial file> [<rotation coefficients> ...]\n", argv);
     if (missing)
@@ -27,11 +27,10 @@ static void usage(const char *argv, const char *missing, param_list_ptr pl)
                 missing);
     }
     param_list_print_usage(pl, argv, stderr);
-    param_list_clear(pl);
     exit(EXIT_FAILURE);
 }
 
-void declare_usage(param_list_ptr pl)
+static void declare_usage(cxx_param_list & pl)
 {
     param_list_decl_usage(pl, "area", "sieving area (bound on a,b?) used for the computation of MurphyE");
     param_list_decl_usage(pl, "I", "width of the I,J rectangle used for the computation of MurphyE");
@@ -49,7 +48,7 @@ int main(int argc, char const * argv[])
     cxx_cado_poly cpoly;
     int I = 0;
     double skew = 0.0;
-    param_list pl;
+    cxx_param_list pl;
     mpz_poly rot;
     mpz_t tmp;
 
@@ -57,8 +56,6 @@ int main(int argc, char const * argv[])
     mpz_poly_init(rot, -1);
 
     const char * polyfilename = NULL;
-
-    param_list_init(pl);
 
     declare_usage(pl);
 
@@ -120,7 +117,6 @@ int main(int argc, char const * argv[])
 
     print_cadopoly_extra (stdout, cpoly, argc0, argv0, 0);
 
-    param_list_clear(pl);
     mpz_clear(tmp);
     mpz_poly_clear(rot);
 

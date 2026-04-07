@@ -457,7 +457,7 @@ void makefb_with_powers(FILE* outfile, mpz_poly_srcptr F, unsigned long lim,
     prime_info_clear (pi);
 }
 
-static void declare_usage(param_list pl)
+static void declare_usage(cxx_param_list & pl)
 {
     param_list_decl_usage(pl, "poly", "polynomial file");
     param_list_decl_usage(pl, "lim", "factor base bound");
@@ -473,9 +473,9 @@ static void declare_usage(param_list pl)
 int
 main (int argc, char const *argv[])
 {
-  param_list pl;
+  cxx_param_list pl;
   cxx_cado_poly cpoly;
-  FILE * f, *outputfile;
+  FILE *outputfile;
   const char *outfilename = NULL;
   int maxbits = 1;  // disable powers by default
   int side = -1;
@@ -483,44 +483,23 @@ main (int argc, char const *argv[])
   char const *argv0 = argv[0];
   unsigned long nb_threads = 1;
 
-  param_list_init(pl);
   declare_usage(pl);
 
-  argv++, argc--;
-  for( ; argc ; ) {
-      if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
+  param_list_process_command_line_and_extra_parameter_files(pl, &argc, &argv);
 
-      /* Could also be a file */
-      if ((f = fopen(argv[0], "r")) != NULL) {
-          param_list_read_stream(pl, f, 0);
-          fclose(f);
-          argv++,argc--;
-          continue;
-      }
-
-      fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
-      param_list_print_usage(pl, argv0, stderr);
-      exit (EXIT_FAILURE);
-  }
   verbose_interpret_parameters(pl);
   param_list_print_command_line(stdout, pl);
 
   const char * filename;
-  if ((filename = param_list_lookup_string(pl, "poly")) == NULL) {
-      fprintf(stderr, "Error: parameter -poly is mandatory\n");
-      param_list_print_usage(pl, argv0, stderr);
-      exit(EXIT_FAILURE);
-  }
+  if ((filename = param_list_lookup_string(pl, "poly")) == NULL)
+      pl.fail("Error: parameter -poly is mandatory\n");
 
   param_list_parse_ulong(pl, "t"   , &nb_threads);
   ASSERT_ALWAYS(1 <= nb_threads);
 
   param_list_parse_ulong(pl, "lim", &lim);
-  if (lim == ULONG_MAX) {
-      fprintf(stderr, "Error: parameter -lim is mandatory\n");
-      param_list_print_usage(pl, argv0, stderr);
-      exit(EXIT_FAILURE);
-  }
+  if (lim == ULONG_MAX)
+      pl.fail("Error: parameter -lim is mandatory\n");
 
   param_list_parse_int(pl, "maxbits", &maxbits);
 
@@ -536,7 +515,6 @@ main (int argc, char const *argv[])
   }
   if (lim == 0) {
     fclose_maybe_compressed(outputfile, outfilename);
-    param_list_clear(pl);
     return 0;
   }
 
@@ -583,8 +561,6 @@ main (int argc, char const *argv[])
   if (outfilename != NULL) {
     fclose_maybe_compressed(outputfile, outfilename);
   }
-
-  param_list_clear(pl);
 
   return 0;
 }

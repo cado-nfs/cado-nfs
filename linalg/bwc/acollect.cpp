@@ -135,14 +135,13 @@ int main(int argc, char const * argv[])
     int remove_old = 0;
     int bits_per_coeff = 1;
 
-    param_list pl;
+    cxx_param_list pl;
 
     bw_common_init(bw, &argc, &argv);
-    param_list_init(pl);
 
     bw_common_decl_usage(pl);
     /* {{{ declare local parameters and switches */
-    param_list_decl_usage(pl, "remove-old",
+    pl.declare_usage("remove-old",
             "discard original A file once the concatenated file has been successfully written");
     param_list_configure_switch(pl, "--remove-old", &remove_old);
     /* }}} */
@@ -160,12 +159,8 @@ int main(int argc, char const * argv[])
     ASSERT_ALWAYS(bits_per_coeff >= 1);
     /* }}} */
 
-    if (param_list_warn_unused(pl)) {
-        param_list_print_usage(pl, bw->original_argv[0], stderr);
-        exit(EXIT_FAILURE);
-    }
-
-    param_list_clear(pl);
+    if (param_list_warn_unused(pl))
+        pl.fail("Unused parameters are given");
 
     int rc = 0;
     struct afile_list a[1];

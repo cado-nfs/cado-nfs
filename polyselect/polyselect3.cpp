@@ -29,7 +29,7 @@
 #include "polyselect_alpha.h"
 
 static void
-declare_usage (param_list pl)
+declare_usage (cxx_param_list & pl)
 {
   param_list_decl_usage(pl, "poly", "polynomial prefix");
   param_list_decl_usage(pl, "t", "number of threads");
@@ -44,34 +44,17 @@ declare_usage (param_list pl)
 int
 main (int argc, char const * argv[])
 {
-  param_list pl;
-  FILE *f;
-  char const * argv0 = argv[0];
+  cxx_param_list pl;
   double Bf, Bg, area;
   int nthreads = 1;
   int num = 1; /* number of files to process */
   int verbose = 0;
 
-  param_list_init(pl);
   declare_usage(pl);
   param_list_configure_switch (pl, "-v", &verbose);
 
-  argv++, argc--;
-  for( ; argc ; ) {
-      if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
+  param_list_process_command_line_and_extra_parameter_files(pl, &argc, &argv);
 
-      /* Could also be a file */
-      if ((f = fopen(argv[0], "r")) != NULL) {
-          param_list_read_stream(pl, f, 0);
-          fclose(f);
-          argv++,argc--;
-          continue;
-      }
-
-      fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
-      param_list_print_usage(pl, argv0, stderr);
-      exit (EXIT_FAILURE);
-  }
   verbose_interpret_parameters (pl);
   param_list_print_command_line (stdout, pl);
 
@@ -83,32 +66,16 @@ main (int argc, char const * argv[])
 
   const char * filename;
   if ((filename = param_list_lookup_string (pl, "poly")) == NULL)
-    {
-      fprintf (stderr, "Error: parameter -poly is mandatory\n");
-      param_list_print_usage (pl, argv0, stderr);
-      exit (EXIT_FAILURE);
-    }
+      pl.fail("Error: parameter -poly is mandatory\n");
 
   if (param_list_parse_double (pl, "Bf", &Bf) == 0)
-    {
-      fprintf (stderr, "Error: parameter -Bf is mandatory\n");
-      param_list_print_usage (pl, argv0, stderr);
-      exit (EXIT_FAILURE);
-    }
+      pl.fail("Error: parameter -Bf is mandatory\n");
 
   if (param_list_parse_double (pl, "Bg", &Bg) == 0)
-    {
-      fprintf (stderr, "Error: parameter -Bg is mandatory\n");
-      param_list_print_usage (pl, argv0, stderr);
-      exit (EXIT_FAILURE);
-    }
+      pl.fail("Error: parameter -Bg is mandatory\n");
 
   if (param_list_parse_double (pl, "area", &area) == 0)
-    {
-      fprintf (stderr, "Error: parameter -area is mandatory\n");
-      param_list_print_usage (pl, argv0, stderr);
-      exit (EXIT_FAILURE);
-   }
+      pl.fail("Error: parameter -area is mandatory\n");
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
@@ -132,8 +99,6 @@ main (int argc, char const * argv[])
                Bf, Bg, area, e);
       fclose (fp);
     }
-
-  param_list_clear(pl);
 
   return 0;
 }

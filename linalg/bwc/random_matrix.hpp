@@ -13,7 +13,7 @@
  * settings, which then get parsed as a parameter list in the same manner
  * as for the standalone "random_matrix" program. Therefore, the easiest
  * way to state this argument is for example
- * random_matrix=2000,density=4,seed=1
+ * random_matrix=nrows=2000,density=4,seed=1
  */
 matrix_u32 random_matrix_get_u32(parallelizing_info_ptr pi, cxx_param_list & pl, unsigned long data_nrows, unsigned long data_ncols, unsigned long padded_nrows, unsigned long padded_ncols, bool withcoeffs, bool transpose);
 

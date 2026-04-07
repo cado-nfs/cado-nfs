@@ -16,12 +16,12 @@
 #error "Please compile this file with the MM_IMPL macro defined"
 #endif
 
-#include <cstdarg>  // for va_list
-#include <cstddef>  // for size_t
-#include <cstdint>  // for uint32_t
+#include <cstdarg>
+#include <cstddef>
+#include <cstdint>
 
 #include "macros.h"
-#include "params.h"  // for param_list
+#include "params.h"
 #include "matmul.hpp"
 
 /* Now some cpp glue */

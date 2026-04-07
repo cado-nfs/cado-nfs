@@ -83,7 +83,7 @@ if [ "$kleft" -ge "$((nrows/4))" ] ; then
     kleft=$((nrows/4))
 fi
 
-$CADO_NFS_BINARY_DIR/linalg/bwc/random_matrix $nrows $ncols $density seed=1 kleft=$kleft --binary --output $wdir/mat.bin --freq
+$CADO_NFS_BINARY_DIR/linalg/bwc/random_matrix --nrows $nrows --ncols $ncols --density $density seed=1 kleft=$kleft --binary --output $wdir/mat.bin --freq
 
 file_is_zero() {
     tt=$(mktemp "$wdir/XXXXXXXXXXXXXX")

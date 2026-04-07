@@ -117,13 +117,7 @@ int main(int argc, char const * argv[])
     configure_aliases(pl);
     */
 
-    argv++, argc--;
-    for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
-        fmt::print(stderr, "Unhandled parameter {}\n", argv[0]);
-        param_list_print_usage(pl, argv[0], stderr);
-        exit(EXIT_FAILURE);
-    }
+    param_list_process_command_line(pl, &argc, &argv, false);
 
     param_list_print_command_line(stdout, pl);
 

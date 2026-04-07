@@ -289,7 +289,7 @@ void MontgomeryTwoQuadratics (mpz_poly f, mpz_poly g, mpz_t skew, mpz_t N,
 }
 
 
-static void declare_usage(param_list pl)
+static void declare_usage(cxx_param_list & pl)
 {
   param_list_decl_usage(pl, "N", "input number (default c59)");
   param_list_decl_usage(pl, "minP", "Use P > minP (default 2)");
@@ -309,7 +309,7 @@ static void declare_usage(param_list pl)
   verbose_decl_usage(pl);
 }
 
-static void usage (const char *argv, param_list pl)
+static void usage (const char *argv, cxx_param_list & pl)
 {
   param_list_print_usage(pl, argv, stderr);
   exit (EXIT_FAILURE);
@@ -326,10 +326,9 @@ int main(int argc, char const * argv[])
   mpz_init (maxP);
   mpz_init (max_skewness);
 
-  param_list pl;
+  cxx_param_list pl;
 
   /* read params */
-  param_list_init(pl);
   declare_usage(pl);
 
   param_list_configure_switch (pl, "-v", &verbose);
@@ -495,6 +494,5 @@ int main(int argc, char const * argv[])
   mpz_clear (max_skewness);
   mpz_clear (minP);
   mpz_clear (maxP);
-  param_list_clear(pl);
   return EXIT_SUCCESS;
 }

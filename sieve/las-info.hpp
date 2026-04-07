@@ -163,7 +163,7 @@ struct las_info : public las_parallel_desc, private NonCopyable {
     void * descent_helper;
     las_dlog_base dlog_base;
     std::unique_ptr<special_q_task_collection_base> tree;
-    void init_hint_table(param_list_ptr);
+    void init_hint_table(cxx_param_list &);
     void clear_hint_table();
 
     // ----- special mode when we don't compute relations, but read them

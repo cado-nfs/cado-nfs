@@ -34,8 +34,6 @@
 #include "verbose.hpp"
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
-static char const * argv0; /* = argv[0] */
-
 static std::unique_ptr<uint32_t[]> H; /* H contains the hash table */
 static unsigned long K = 0;           /* Size of the hash table */
 static unsigned long noutrels = 0;    // Number of output relations
@@ -169,7 +167,7 @@ static void * thread_galois(void * context_data, typename cfg::rel_ptr rel)
     return nullptr;
 }
 
-static void declare_usage(param_list pl)
+static void declare_usage(cxx_param_list & pl)
 {
     param_list_decl_usage(pl, "filelist",
                           "file containing a list of input files");
@@ -194,16 +192,10 @@ static void declare_usage(param_list pl)
     verbose_decl_usage(pl);
 }
 
-static void usage(param_list pl, char const * argv0)
-{
-    param_list_print_usage(pl, argv0, stderr);
-    exit(EXIT_FAILURE);
-}
-
 // coverity[root_function]
 int main(int argc, char const * argv[])
 {
-    argv0 = argv[0];
+    const char * argv0 = argv[0];
     cxx_cado_poly cpoly;
     unsigned long nrels_expected = 0;
     int for_dl = 0;
@@ -211,7 +203,6 @@ int main(int argc, char const * argv[])
 
     cxx_param_list pl;
     declare_usage(pl);
-    argv++, argc--;
 
     param_list_configure_switch(pl, "force-posix-threads",
                                 &filter_rels_force_posix_threads);
@@ -223,17 +214,8 @@ int main(int argc, char const * argv[])
     _fmode = _O_BINARY; /* Binary open for all files */
 #endif
 
-    if (argc == 0)
-        usage(pl, argv0);
+    param_list_process_command_line(pl, &argc, &argv, true);
 
-    for (; argc;) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) {
-            continue;
-        }
-        /* Since we accept file names freeform, we decide to never abort
-         * on unrecognized options */
-        break;
-    }
     /* print command-line arguments */
     verbose_interpret_parameters(pl);
     param_list_print_command_line(stdout, pl);
@@ -252,42 +234,25 @@ int main(int argc, char const * argv[])
     char const * action = param_list_lookup_string(pl, "galois");
     param_list_parse_ulong(pl, "nrels", &nrels_expected);
 
-    if (param_list_warn_unused(pl)) {
-        fprintf(stderr, "Error, unused parameters are given\n");
-        usage(pl, argv0);
-    }
-    if (polyfilename == nullptr) {
-        fprintf(stderr, "Error, missing -poly command line argument\n");
-        usage(pl, argv0);
-    }
-    if (renumberfilename == nullptr) {
-        fprintf(stderr, "Error, missing -renumber command line argument\n");
-        usage(pl, argv0);
-    }
-    if (basepath && !filelist) {
-        fprintf(stderr, "Error, -basepath only valid with -filelist\n");
-        usage(pl, argv0);
-    }
-    if (!outfmt.empty() && !is_supported_compression_format(outfmt.c_str())) {
-        fprintf(stderr, "Error, output compression format unsupported\n");
-        usage(pl, argv0);
-    }
-    if ((filelist != nullptr) + (argc != 0) != 1) {
-        fprintf(stderr,
-                "Error, provide either -filelist or freeform file names\n");
-        usage(pl, argv0);
-    }
-    if (nrels_expected == 0) {
-        fprintf(stderr, "Error, missing -nrels command line argument "
-                        "(or nrels = 0)\n");
-        usage(pl, argv0);
-    }
+    if (param_list_warn_unused(pl))
+        pl.fail("Error, unused parameters are given\n");
+    if (polyfilename == nullptr)
+        pl.fail("Error, missing -poly command line argument\n");
+    if (renumberfilename == nullptr)
+        pl.fail("Error, missing -renumber command line argument\n");
+    if (basepath && !filelist)
+        pl.fail("Error, -basepath only valid with -filelist\n");
+    if (!outfmt.empty() && !is_supported_compression_format(outfmt.c_str()))
+        pl.fail("Error, output compression format unsupported\n");
+    if ((filelist != nullptr) + (argc != 0) != 1)
+        pl.fail("Error, provide either -filelist or freeform file names\n");
+    if (nrels_expected == 0)
+        pl.fail("Error, missing -nrels command line argument (or nrels = 0)\n");
+
     K = 100 + 1.2 * double(nrels_expected);
 
-    if (action == nullptr) {
-        fprintf(stderr, "Error, missing -galois command line argument\n");
-        usage(pl, argv0);
-    }
+    if (action == nullptr)
+        pl.fail("Error, missing -galois command line argument\n");
 
     H = std::unique_ptr<uint32_t[]>(new uint32_t[K]);
     ASSERT_ALWAYS(H);

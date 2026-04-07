@@ -74,7 +74,7 @@ const struct {
 
 /* This must be called in single-threaded context, preferably at program
  * start */
-void verbose_interpret_parameters(param_list_ptr pl)
+void verbose_interpret_parameters(cxx_param_list & pl)
 {
     verbose_flag_word = ~0UL;
 
@@ -131,7 +131,7 @@ void verbose_interpret_parameters(param_list_ptr pl)
     free(w);
 }
 
-void verbose_decl_usage(param_list pl)
+void verbose_decl_usage(cxx_param_list & pl)
 {
     param_list_decl_usage(pl, "verbose_flags", "fine grained control on which messages get printed");
 }

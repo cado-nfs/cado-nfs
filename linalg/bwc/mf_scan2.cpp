@@ -21,30 +21,29 @@
 #include "fmt/base.h"
 
 #include "ringbuf.hpp"
-#include "macros.h"          // for ASSERT_ALWAYS, MAX, MIN
-#include "params.h"     // param_list
-#include "timing.h"     // wct_seconds
-#include "misc.h"       // size_disp
-#include "fix-endianness.h" // fwrite32_little
-#include "utils_cxx.hpp"        // for unique_ptr<FILE, delete_FILE>
+#include "macros.h"
+#include "params.h"
+#include "timing.h"
+#include "misc.h"
+#include "fix-endianness.h"
+#include "utils_cxx.hpp"
 
 static void mf_scan2_decl_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage_header(pl,
-            "This program make one reading pass through a binary matrix, and produces\n"
+    pl.declare_usage_header("This program make one reading pass through a binary matrix, and produces\n"
             "the companion .rw and .cw files.\n"
             "Typical usage:\n"
             "\tmf_scan2 [<matrix file name> | options...]\n"
             );
-    param_list_decl_usage(pl, "withcoeffs", "Handle DLP matrix, with coefficients\n");
-    param_list_decl_usage(pl, "mfile", "Input matrix name (free form also accepted)");
-    param_list_decl_usage(pl, "rwfile", "Name of the row weight file to write (defaults to auto-determine from matrix name)");
-    param_list_decl_usage(pl, "cwfile", "Name of the col weight file to write (defaults to auto-determine from matrix name)");
-    param_list_decl_usage(pl, "threads", "Number of threads to use (defaults to auto detect\n");
-    param_list_decl_usage(pl, "io-memory", "Amount of RAM to use for rolling buffer memory (in GB, floating point allowed). Defaults to min(16M, 1/64-th of RAM (with hwloc))");
-    param_list_decl_usage(pl, "thread-private-count", "Number of columns for which a thread-private zone is used");
-    param_list_decl_usage(pl, "thread-read-window", "Chunk size for consumer thread reads from rolling buffer");
-    param_list_decl_usage(pl, "thread-write-window", "Chunk size for producer thread writes to rolling buffer");
+    pl.declare_usage("withcoeffs", "Handle DLP matrix, with coefficients\n");
+    pl.declare_usage("mfile", "Input matrix name (free form also accepted)");
+    pl.declare_usage("rwfile", "Name of the row weight file to write (defaults to auto-determine from matrix name)");
+    pl.declare_usage("cwfile", "Name of the col weight file to write (defaults to auto-determine from matrix name)");
+    pl.declare_usage("threads", "Number of threads to use (defaults to auto detect\n");
+    pl.declare_usage("io-memory", "Amount of RAM to use for rolling buffer memory (in GB, floating point allowed). Defaults to min(16M, 1/64-th of RAM (with hwloc))");
+    pl.declare_usage("thread-private-count", "Number of columns for which a thread-private zone is used");
+    pl.declare_usage("thread-read-window", "Chunk size for consumer thread reads from rolling buffer");
+    pl.declare_usage("thread-write-window", "Chunk size for producer thread writes to rolling buffer");
 }
 
 static size_t thread_private_count = 1UL << 20;

@@ -103,8 +103,7 @@ compute_murphyE (const char *input_file, const char *output_file)
 // usage: score input_file <output_file>
 int main(int argc, char const * argv[])
 {
-    param_list pl;
-    param_list_init(pl);
+    cxx_param_list pl;
 
     const char * progname = argv[0];
     const char *input_file = NULL;
@@ -145,6 +144,5 @@ int main(int argc, char const * argv[])
 
     int rc = compute_murphyE(input_file, output_file);
 
-    param_list_clear(pl);
     return rc;
 }

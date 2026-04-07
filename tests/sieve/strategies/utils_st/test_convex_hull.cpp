@@ -56,27 +56,21 @@ static bool operator==(tabular_point const & a, tabular_point const & b)
 
 static void declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "seed", "seed");
-    param_list_decl_usage(pl, "N", "number of points");
-    param_list_decl_usage(pl, "x0", "lower bound");
-    param_list_decl_usage(pl, "x1", "lower bound");
+    pl.declare_usage("seed", "seed");
+    pl.declare_usage("N", "number of points");
+    pl.declare_usage("x0", "lower bound");
+    pl.declare_usage("x1", "lower bound");
 }
 
 
 int main(int argc, char const * argv[])
 {
-    const char * argv0 = argv[0];
     cxx_param_list pl;
     cxx_gmp_randstate state;
 
     declare_usage(pl);
-    argv++,argc--;
-    for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
-        fprintf (stderr, "Unknown option: %s\n", argv[0]);
-        param_list_print_usage(pl, argv0, stderr);
-        exit(EXIT_FAILURE);
-    }
+    param_list_process_command_line(pl, &argc, &argv, false);
+
     /* print command-line arguments */
     param_list_print_command_line (stdout, pl);
     fflush(stdout);

@@ -305,7 +305,7 @@ char const ** filelist_from_file_with_subdirlist(const char *basepath,
     return (char const **) fic;
 }
 
-static void declare_usage(param_list pl)
+static void declare_usage(cxx_param_list & pl)
 {
   param_list_decl_usage(pl, "filelist", "file containing a list of input files");
   param_list_decl_usage(pl, "subdirlist",
@@ -335,20 +335,13 @@ static void declare_usage(param_list pl)
   verbose_decl_usage(pl);
 }
 
-static void
-usage (param_list pl, const char *argv0)
-{
-    param_list_print_usage(pl, argv0, stderr);
-    exit(EXIT_FAILURE);
-}
-
 
 /*************************** main ********************************************/
 
 int main(int argc, char const * argv[])
 {
     const char * argv0 = argv[0];
-    param_list pl;
+    cxx_param_list pl;
     uint64_t col_min_index_arg = UMAX(uint64_t);
     char const ** input_files;
     uint64_t col_max_index_arg = 0;
@@ -367,23 +360,13 @@ int main(int argc, char const * argv[])
     double cpu0 = seconds ();
     double wct0 = wct_seconds();
 
-    param_list_init(pl);
     declare_usage(pl);
-    argv++,argc--;
 
     param_list_configure_switch (pl, "-v", &verbose);
     param_list_configure_switch(pl, "force-posix-threads", &filter_rels_force_posix_threads);
 
-    if (argc == 0)
-      usage (pl, argv0);
+    param_list_process_command_line(pl, &argc, &argv, true);
 
-    /* read all command-line parameters */
-    for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
-        /* Since we accept file names freeform, we decide to never abort
-         * on unrecognized options */
-        break;
-    }
     /* print command-line arguments */
     verbose_interpret_parameters(pl);
     param_list_print_command_line (stdout, pl);
@@ -419,16 +402,10 @@ int main(int argc, char const * argv[])
     const char *deletedname = param_list_lookup_string(pl, "outdel");
 
     if (param_list_warn_unused(pl))
-    {
-      fprintf(stderr, "Error, unused parameters are given\n");
-      usage(pl, argv0);
-    }
+      pl.fail("Error, unused parameters are given\n");
 
-    if (!purgedname) {
-        fprintf(stderr, "Error, option -out is mandatory\n");
-        usage(pl, argv0);
-    }
-    /* }}} */
+    if (!purgedname)
+        pl.fail("Error, option -out is mandatory\n");
 
 
     /*{{{ argument checking, and some statistics for things related to
@@ -436,48 +413,25 @@ int main(int argc, char const * argv[])
      * line. This is cumbersome, but while it can probably be avoided, it
      * also hard to do so efficiently */
     if ((basepath || subdirlist) && !filelist)
-    {
-      fprintf(stderr, "Error, -basepath / -subdirlist only valid with -filelist\n");
-      usage(pl, argv0);
-    }
-    if ((filelist != NULL) + (argc != 0) != 1) {
-      fprintf(stderr, "Error, provide either -filelist or freeform file names\n");
-      usage(pl, argv0);
-    }
+      pl.fail("Error, -basepath / -subdirlist only valid with -filelist\n");
+    if ((filelist != NULL) + (argc != 0) != 1)
+      pl.fail("Error, provide either -filelist or freeform file names\n");
     if (nrows_init_arg == 0)
-    {
-      fprintf(stderr, "Error, missing -nrels command line argument "
+      pl.fail("Error, missing -nrels command line argument "
                       "(or nrels = 0)\n");
-      usage(pl, argv0);
-    }
     if (col_max_index_arg == 0)
-    {
-      fprintf(stderr, "Error, missing or wrong -col-max-index command line argument "
+      pl.fail("Error, missing or wrong -col-max-index command line argument "
                       "(should be > 0)\n");
-      usage(pl, argv0);
-    }
     if (col_min_index_arg == UMAX(uint64_t))
-    {
-      fprintf(stderr, "Error, missing -col-min-index command line argument\n");
-      usage(pl, argv0);
-    }
+      pl.fail("Error, missing -col-min-index command line argument\n");
     if (col_min_index_arg >= col_max_index_arg)
-    {
-      fprintf(stderr, "Error, col-min-index >= col-max-index\n");
-      usage(pl, argv0);
-    }
+      pl.fail("Error, col-min-index >= col-max-index\n");
     /* If col_max_index_arg > 2^32, then we need index_t to be 64-bit */
     if (((col_max_index_arg >> 32) != 0) && sizeof(index_t) < 8)
-    {
-      fprintf(stderr, "Error, -col-max-index is too large for a 32-bit "
+      pl.fail("Error, -col-max-index is too large for a 32-bit "
                       "program\nSee #define SIZEOF_INDEX in typedefs.h\n");
-      usage(pl, argv0);
-    }
     if (nthreads == 0)
-    {
-      fprintf(stderr, "Error, -t should be non-zero\n");
-      usage(pl, argv0);
-    }
+      pl.fail("Error, -t should be non-zero\n");
 
     /* Printing relevant information */
     comp_print_info_weight_function ();
@@ -641,8 +595,6 @@ int main(int argc, char const * argv[])
     purge_matrix_clear (mat);
     /* print usage of time and memory */
     print_timing_and_memory (stdout, cpu0, wct0);
-
-    param_list_clear(pl);
 
     return 0;
 }

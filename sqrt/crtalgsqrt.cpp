@@ -164,12 +164,6 @@ static double ram_gb = 3.0;    // Number of gigabytes. Note that this is the
 // considerably larger due to FFT allocation (by
 // a constant factor, though).
 
-static void usage()
-{
-    fprintf(stderr, "usage: crtalgsqrt algdepfile ratdepfile polyfile\n");
-    exit(1);
-}
-
 /* {{{ logging */
 static int max_loglevel=99;
 static char prefix[20]={'\0'};
@@ -2457,7 +2451,7 @@ static void banner()
 
 int main(int argc, char const ** argv)
 {
-    int ret, i;
+    int ret;
     int asked_r = 0;
     // int size_guess = 0;
 
@@ -2469,10 +2463,8 @@ int main(int argc, char const ** argv)
 
     /* {{{ parameter parsing */
     /* print the command line */
-    printf("%s.r%s", argv[0], cado_revision_string);
-    for (i = 1; i < argc; i++)
-        printf(" %s", argv[i]);
-    printf("\n");
+    fmt::print(stderr, "# ({}) {}\n",
+            cado_revision_string, collect_command_line(argc, argv));
 
     cxx_param_list pl;
     int cache=0;
@@ -2481,22 +2473,18 @@ int main(int argc, char const ** argv)
     param_list_configure_switch(pl, "--rcache", &rcache);
     param_list_configure_switch(pl, "--wcache", &wcache);
     // param_list_configure_switch(pl, "--size-guess", &size_guess);
+    
+    param_list_process_command_line(pl, &argc, &argv, true);
     int wild = 0;
-    argv++, argc--;
     for (; argc;) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) {
-            continue;
-        }
         if (argv[0][0] != '-' && wild == 0) {
-            param_list_add_key(pl, "depfile", argv[0],
-                    PARAMETER_FROM_CMDLINE);
+            param_list_add_key(pl, "depfile", argv[0], PARAMETER_FROM_CMDLINE);
             wild++;
             argv++, argc--;
             continue;
         }
         if (argv[0][0] != '-' && wild == 1) {
-            param_list_add_key(pl, "ratdepfile", argv[0],
-                    PARAMETER_FROM_CMDLINE);
+            param_list_add_key(pl, "ratdepfile", argv[0], PARAMETER_FROM_CMDLINE);
             wild++;
             argv++, argc--;
             continue;
@@ -2508,8 +2496,7 @@ int main(int argc, char const ** argv)
             argv++, argc--;
             continue;
         }
-        fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
-        usage();
+        pl.fail("Unhandled parameter {}\n", argv[0]);
     }
 
     if (cache)  rcache = wcache = 1;
@@ -2524,11 +2511,11 @@ int main(int argc, char const ** argv)
     param_list_parse_int(pl, "lll_maxdim", &glob.lll_maxdim);
 
     if (param_list_lookup_string(pl, "depfile") == NULL)
-        usage();
+        pl.fail("missing argument -depfile");
     if (param_list_lookup_string(pl, "ratdepfile") == NULL)
-        usage();
+        pl.fail("missing argument -ratdepfile");
     if (param_list_lookup_string(pl, "polyfile") == NULL)
-        usage();
+        pl.fail("missing argument -polyfile");
     /* }}} */
 
     ret = glob.cpoly.read(param_list_lookup_string(pl, "polyfile"));

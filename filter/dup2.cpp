@@ -668,7 +668,7 @@ filter_new_rels(
     }
 }
 
-static void declare_usage(param_list pl)
+static void declare_usage(cxx_param_list & pl)
 {
     param_list_decl_usage(pl, "poly", "input polynomial file");
     param_list_decl_usage(pl, "filelist",
@@ -691,7 +691,7 @@ static void declare_usage(param_list pl)
     verbose_decl_usage(pl);
 }
 
-static void usage(param_list pl, char const * argv0)
+static void usage(cxx_param_list & pl, char const * argv0)
 {
     param_list_print_usage(pl, argv0, stderr);
     exit(EXIT_FAILURE);
@@ -705,7 +705,6 @@ int main(int argc, char const * argv[])
     cxx_cado_poly cpoly;
 
     declare_usage(pl);
-    argv++, argc--;
 
     param_list_configure_switch(pl, "force-posix-threads",
                                 &filter_rels_force_posix_threads);
@@ -720,19 +719,8 @@ int main(int argc, char const * argv[])
     _fmode = _O_BINARY; /* Binary open for all files */
 #endif
 
-    if (argc == 0)
-        usage(pl, argv0);
+    param_list_process_command_line(pl, &argc, &argv, true);
 
-    for (; argc;) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) {
-            continue;
-        }
-        /* Since we accept file names freeform, we decide to never abort
-         * on unrecognized options */
-        break;
-        // fprintf (stderr, "Unknown option: %s\n", argv[0]);
-        // abort();
-    }
     /* print command-line arguments */
     verbose_interpret_parameters(pl);
     param_list_print_command_line(stdout, pl);

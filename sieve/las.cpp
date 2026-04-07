@@ -124,7 +124,7 @@ static void configure_switches(cxx_param_list & pl)
 
 static void declare_usage(cxx_param_list & pl)/*{{{*/
 {
-    param_list_decl_usage_header(pl,
+    pl.declare_usage_header(
             "In the names and in the descriptions of the parameters, below there are often\n"
             "aliases corresponding to the convention that 0 is the rational side and 1\n"
             "is the algebraic side. If the two sides are algebraic, then the word\n"
@@ -139,33 +139,33 @@ static void declare_usage(cxx_param_list & pl)/*{{{*/
     las_output::declare_usage(pl);
     tdict::declare_usage(pl);
 
-    param_list_decl_usage(pl, "trialdiv-first-side", "begin trial division on this side");
-    param_list_decl_usage(pl, "allow-largesq", "allows large special-q, e.g. for a DL descent");
+    pl.declare_usage("trialdiv-first-side", "begin trial division on this side");
+    pl.declare_usage("allow-largesq", "allows large special-q, e.g. for a DL descent");
 
-    param_list_decl_usage(pl, "sublat", "modulus for sublattice sieving");
+    pl.declare_usage("sublat", "modulus for sublattice sieving");
 
-    param_list_decl_usage(pl, "log-bucket-region", "set bucket region to 2^x");
-    param_list_decl_usage(pl, "log-bucket-region-step", "set the number of level-(n-1) buckets inside a level-n bucket to 2^x");
+    pl.declare_usage("log-bucket-region", "set bucket region to 2^x");
+    pl.declare_usage("log-bucket-region-step", "set the number of level-(n-1) buckets inside a level-n bucket to 2^x");
 
     siever_config::declare_usage<ALGO>(pl);
 
-    param_list_decl_usage(pl, "exit-early", "once a relation has been found, go to next special-q (value==1), or exit (value==2)");
-    param_list_decl_usage(pl, "file-cofact", "provide file with strategies for the cofactorization step");
-    param_list_decl_usage(pl, "prepend-relation-time", "prefix all relation produced with time offset since beginning of special-q processing");
-    param_list_decl_usage(pl, "sync", "synchronize all threads at each special-q");
-    param_list_decl_usage(pl, "sync-thread-pool", "synchronize the thread pool (implies -t 1 !!)");
+    pl.declare_usage("exit-early", "once a relation has been found, go to next special-q (value==1), or exit (value==2)");
+    pl.declare_usage("file-cofact", "provide file with strategies for the cofactorization step");
+    pl.declare_usage("prepend-relation-time", "prefix all relation produced with time offset since beginning of special-q processing");
+    pl.declare_usage("sync", "synchronize all threads at each special-q");
+    pl.declare_usage("sync-thread-pool", "synchronize the thread pool (implies -t 1 !!)");
     where_am_I::decl_usage(pl);
     if (dlp_descent) {
-        param_list_decl_usage(pl, "recursive-descent", "descend primes recursively");
-        param_list_decl_usage(pl, "grace-time-ratio", "Fraction of the estimated further descent time which should be spent processing the current special-q, to find a possibly better relation");
+        pl.declare_usage("recursive-descent", "descend primes recursively");
+        pl.declare_usage("grace-time-ratio", "Fraction of the estimated further descent time which should be spent processing the current special-q, to find a possibly better relation");
 
     }
     /* given that this option is dangerous, we used to enable it only for
      * las_descent
      */
-    param_list_decl_usage(pl, "never-discard", "Disable the discarding process for special-q's. This is dangerous. See bug #15617");
+    pl.declare_usage("never-discard", "Disable the discarding process for special-q's. This is dangerous. See bug #15617");
 
-    param_list_decl_usage(pl, "production", "Sort of an opposite to -v. Disable all diagnostics except the cheap or critical ones. See #21688 and #21825.");
+    pl.declare_usage("production", "Sort of an opposite to -v. Disable all diagnostics except the cheap or critical ones. See #21688 and #21825.");
     verbose_decl_usage(pl);
 }/*}}}*/
 

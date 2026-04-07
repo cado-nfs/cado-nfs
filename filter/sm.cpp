@@ -224,7 +224,7 @@ static void MPI_Recv_res(std::vector<cxx_mpz_poly> & res, int src,
 
 // Pthread part: on each node, we use shared memory instead of mpi
 
-static void declare_usage(param_list pl)
+static void declare_usage(cxx_param_list & pl)
 {
     param_list_decl_usage(pl, "poly", "(required) poly file");
     param_list_decl_usage(pl, "purged", "(required) purged file");
@@ -240,16 +240,6 @@ static void declare_usage(param_list pl)
     verbose_decl_usage(pl);
 }
 
-static void usage(char const * argv, char const * missing, param_list pl)
-{
-    if (missing) {
-        fprintf(stderr, "\nError: missing or invalid parameter \"-%s\"\n",
-                missing);
-    }
-    param_list_print_usage(pl, argv, stderr);
-    exit(EXIT_FAILURE);
-}
-
 /* -------------------------------------------------------------------------- */
 
 int main(int argc, char const ** argv)
@@ -261,8 +251,6 @@ int main(int argc, char const ** argv)
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     int const idoio = (rank == 0); // Am I the job allowed to do I/O ?
     double t0;
-
-    char const * argv0 = argv[0];
 
     char const * polyfile = nullptr;
     char const * purgedfile = nullptr;
@@ -278,61 +266,30 @@ int main(int argc, char const ** argv)
     /* read params */
     declare_usage(pl);
 
-    if (argc == 1)
-        usage(argv[0], nullptr, pl);
+    param_list_process_command_line(pl, &argc, &argv, false);
 
-    argc--, argv++;
-    for (; argc;) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) {
-            continue;
-        }
-        if (idoio) {
-            fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
-            usage(argv0, nullptr, pl);
-        }
-    }
     /* print command-line arguments */
     verbose_interpret_parameters(pl);
     param_list_print_command_line(stdout, pl);
 
     /* Read poly filename from command line */
-    if ((polyfile = param_list_lookup_string(pl, "poly")) == nullptr) {
-        if (idoio) {
-            fprintf(stderr, "Error: parameter -poly is mandatory\n");
-            param_list_print_usage(pl, argv0, stderr);
-        }
-        exit(EXIT_FAILURE);
-    }
+    if ((polyfile = param_list_lookup_string(pl, "poly")) == nullptr)
+        pl.fail("Error: parameter -poly is mandatory\n");
 
     /* Read purged filename from command line */
-    if ((purgedfile = param_list_lookup_string(pl, "purged")) == nullptr) {
-        if (idoio) {
-            fprintf(stderr, "Error: parameter -purged is mandatory\n");
-            param_list_print_usage(pl, argv0, stderr);
-        }
-        exit(EXIT_FAILURE);
-    }
+    if ((purgedfile = param_list_lookup_string(pl, "purged")) == nullptr)
+        pl.fail("Error: parameter -purged is mandatory\n");
 
     /* Read index filename from command line */
-    if ((indexfile = param_list_lookup_string(pl, "index")) == nullptr) {
-        if (idoio) {
-            fprintf(stderr, "Error: parameter -index is mandatory\n");
-            param_list_print_usage(pl, argv0, stderr);
-        }
-        exit(EXIT_FAILURE);
-    }
+    if ((indexfile = param_list_lookup_string(pl, "index")) == nullptr)
+        pl.fail("Error: parameter -index is mandatory\n");
 
     /* Read outfile filename from command line ; defaults to stdout. */
     outfile = param_list_lookup_string(pl, "out");
 
     /* Read ell from command line (assuming radix 10) */
-    if (!param_list_parse(pl, "ell", ell)) {
-        if (idoio) {
-            fprintf(stderr, "Error: parameter -ell is mandatory\n");
-            param_list_print_usage(pl, argv0, stderr);
-        }
-        exit(EXIT_FAILURE);
-    }
+    if (!param_list_parse(pl, "ell", ell))
+        pl.fail("Error: parameter -ell is mandatory\n");
 
     /* Init polynomial */
     if (!cpoly.read(polyfile)) {
@@ -366,13 +323,8 @@ int main(int argc, char const ** argv)
 
     char const * sm_mode_string = param_list_lookup_string(pl, "sm-mode");
 
-    if (param_list_warn_unused(pl)) {
-        if (idoio) {
-            usage(argv0, nullptr, pl);
-        } else {
-            exit(EXIT_FAILURE);
-        }
-    }
+    if (param_list_warn_unused(pl))
+        pl.fail("Unused parameters are given");
 
     /* Print ell and ell^2 */
     mpz_mul(ell2, ell, ell);

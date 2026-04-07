@@ -140,10 +140,11 @@ struct bw_params {
 extern struct bw_params bw[1];
 extern const char * bw_dirtext[];
 
+void bw_common_decl_usage(cxx_param_list &);
+
 /* Typical use pattern:
      
     bw_common_init(bw, &argc, &argv);
-    param_list_init(pl);
 
     bw_common_decl_usage(pl);
     // more decl_usage functions.
@@ -155,7 +156,6 @@ extern const char * bw_dirtext[];
     // more interpret_parameters functions.
 
     param_list_warn_unused(pl);
-    param_list_clear(pl);
 
     // program !
 
@@ -163,9 +163,8 @@ extern const char * bw_dirtext[];
 
 */
 
-void bw_common_decl_usage(param_list_ptr);
-void bw_common_parse_cmdline(struct bw_params * bw, param_list_ptr pl, int * p_argc, char const *** p_argv);
-void bw_common_interpret_parameters(struct bw_params * bw, param_list_ptr pl);
+void bw_common_parse_cmdline(struct bw_params * bw, cxx_param_list & pl, int * p_argc, char const *** p_argv);
+void bw_common_interpret_parameters(struct bw_params * bw, cxx_param_list & pl);
 int bw_common_init(struct bw_params * bw, int * p_argc, char const *** p_argv);
 int bw_common_clear(struct bw_params * bw);
 

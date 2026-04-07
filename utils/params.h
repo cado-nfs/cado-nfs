@@ -436,6 +436,15 @@ struct cxx_param_list {
         param_list_print_usage(x, nullptr, stderr);
         exit(EXIT_FAILURE);
     }
+
+    std::string binary_name() const {
+        auto & pli = *static_cast<param_list_impl *>(x->pimpl);
+        auto * t = pli.cmdline_argv0;
+        if (t)
+            return t[0];
+        else
+            return {};
+    }
 };
 
 #if GNUC_VERSION_ATLEAST(4,3,0)

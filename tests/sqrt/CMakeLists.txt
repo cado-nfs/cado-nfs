@@ -23,10 +23,10 @@
             --handle-mpirun-directly
             "${mpiconf}"
             ${CADO_NFS_BINARY_DIR}/sqrt/crtalgsqrt
+            ram=${crtalgsqrt_ram${suffix}}
             ${CADO_NFS_SOURCE_DIR}/tests/sqrt/c30.dep.000
             ${CADO_NFS_SOURCE_DIR}/tests/sqrt/c30.ratdep.000
             ${CADO_NFS_SOURCE_DIR}/tests/sqrt/c30.poly
-            ram=${crtalgsqrt_ram${suffix}}
             TARGET_DEPENDENCIES crtalgsqrt
             # either 40462797324737803355716975649 or
             # 44371162641954939938390944368 or both.

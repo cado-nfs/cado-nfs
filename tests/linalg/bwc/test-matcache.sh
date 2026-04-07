@@ -56,7 +56,7 @@ wdir=$(mktemp -d  ${TMPDIR-/tmp}/cado-nfs.XXXXXXXX)
 cleanup() { if ! [ "$CADO_DEBUG" ] ; then rm -rf $wdir ; fi ; }
 trap cleanup EXIT
 
-$bindir/linalg/bwc/random_matrix $N -d $dens  --binary -o $wdir/mat.bin --freq -s $seed
+$bindir/linalg/bwc/random_matrix -nrows $N -d $dens  --binary -o $wdir/mat.bin --freq -s $seed
 
 bench_arg_left=-t
 cachesuffix_left=T
@@ -79,7 +79,7 @@ for impl in basic sliced bucket ; do
         cachefile2=$wdir/mat.bin-${impl}${cachefiledirection}.bin
 
         eval argtail=\(\$bench_arg_${direction}\)
-        $bindir/linalg/bwc/bench_matcache -r $wdir/mat.bin  --nmax 100 -impl $impl "${argtail[@]}" > $wdir/bench$impl.$direction.out 2>&1
+        $bindir/linalg/bwc/bench_matcache -r  --nmax 100 -impl $impl "${argtail[@]}" $wdir/mat.bin > $wdir/bench$impl.$direction.out 2>&1
 
         SHA1=$($SHA1BIN ${cachefile2})
         SHA1="${SHA1%% *}"

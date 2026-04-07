@@ -29,37 +29,18 @@ main (int argc, char const *argv[])
 {
   cxx_param_list pl;
   cxx_cado_poly cpoly;
-  char const *argv0 = argv[0];
   unsigned long nb_threads = 1;
 
   declare_usage(pl);
 
-  argv++, argc--;
-  for( ; argc ; ) {
-      FILE *f;
-      if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
+  param_list_process_command_line_and_extra_parameter_files(pl, &argc, &argv);
 
-      /* Could also be a file */
-      if ((f = fopen(argv[0], "r")) != NULL) {
-          param_list_read_stream(pl, f, 0);
-          fclose(f);
-          argv++,argc--;
-          continue;
-      }
-
-      fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
-      param_list_print_usage(pl, argv0, stderr);
-      exit (EXIT_FAILURE);
-  }
   verbose_interpret_parameters(pl);
   param_list_print_command_line(stdout, pl);
 
   const char * filename;
-  if ((filename = param_list_lookup_string(pl, "poly")) == NULL) {
-      fprintf(stderr, "Error: parameter -poly is mandatory\n");
-      param_list_print_usage(pl, argv0, stderr);
-      exit(EXIT_FAILURE);
-  }
+  if ((filename = param_list_lookup_string(pl, "poly")) == NULL)
+      pl.fail("Error: parameter -poly is mandatory\n");
   if (!cpoly.read(filename)) {
       fprintf (stderr, "Error reading polynomial file %s\n", filename);
       exit (EXIT_FAILURE);

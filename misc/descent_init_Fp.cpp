@@ -467,11 +467,8 @@ static void descent_configure_switches(cxx_param_list & pl)
 
 
 int
-main(int argc0, char const * argv0[])
+main(int argc, char const * argv[])
 {
-    int argc = argc0;
-    char const ** argv = argv0;
-
     unsigned long seed = 0;
     unsigned long target = 0; // the target smoothness
     unsigned long nthread = 1;
@@ -491,9 +488,8 @@ main(int argc0, char const * argv0[])
 
     std::vector<cxx_mpz> wild;
 
-    argv++, argc--;
+    param_list_process_command_line(pl, &argc, &argv, true);
     for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
         if (argv[0][0] != '-') {
             cxx_mpz z;
             mpz_set_str(z, argv[0], 0);
@@ -501,9 +497,7 @@ main(int argc0, char const * argv0[])
             argv++, argc--;
             continue;
         }
-        fmt::print(stderr, "Unhandled parameter {}\n", argv[0]);
-        param_list_print_usage(pl, argv0[0], stderr);
-        return EXIT_FAILURE;
+        pl.fail("Unhandled parameter {}\n", argv[0]);
     }
 
     param_list_parse(pl, "seed", seed);
@@ -519,29 +513,20 @@ main(int argc0, char const * argv0[])
         cpoly.read(polyfilename);
     }
 
-    if (param_list_warn_unused(pl)) {
-        param_list_print_usage(pl, argv0[0], stderr);
-        return EXIT_FAILURE;
-    }
+    if (param_list_warn_unused(pl))
+        pl.fail("Unused parameters are given");
 
-    if ((jl || (ext > 1)) && !polyfilename) {
-        fmt::print(
-          stderr,
-          "Error, must provide -poly when extdeg > 1 or using -jl option\n");
-        param_list_print_usage(pl, argv0[0], stderr);
-        return EXIT_FAILURE;
-    }
+    if ((jl || (ext > 1)) && !polyfilename)
+        pl.fail("Error, must provide -poly when extdeg > 1 or using -jl option");
 
     if (ext > 1 && jl) {
         fmt::print(stderr, "Warning: ignoring the -jl option with extdeg > 1\n");
         jl = 0;
     }
 
-    if (wild.size() != ext + 1) {
-        fmt::print(stderr, "Error: for extension degree {}, we need {} tail arguments\n",
+    if (wild.size() != ext + 1)
+        pl.fail("Error: for extension degree {}, we need {} tail arguments\n",
                 ext, ext + 1);
-        return EXIT_FAILURE;
-    }
 
     if (seed == 0)
         seed = getpid() + (time(nullptr) << 16U);

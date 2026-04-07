@@ -22,7 +22,7 @@ void cofactorization_statistics::declare_usage(cxx_param_list & pl)
 }
 
 //  las_info::{init,clear,print}_cof_stats
-cofactorization_statistics::cofactorization_statistics(param_list_ptr pl)
+cofactorization_statistics::cofactorization_statistics(cxx_param_list & pl)
 {
     const char * statsfilename = param_list_lookup_string (pl, "stats-cofact");
     if (!statsfilename) {

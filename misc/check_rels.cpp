@@ -420,7 +420,7 @@ thread_callback (void * context_data, earlyparsed_relation_ptr rel)
 }
 
 static void
-declare_usage (param_list pl)
+declare_usage (cxx_param_list & pl)
 {
   param_list_decl_usage(pl, "filelist", "file containing a list of input files");
   param_list_decl_usage(pl, "basepath", "path added to all files in filelist");
@@ -441,21 +441,13 @@ declare_usage (param_list pl)
   param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
 }
 
-static void
-usage (param_list pl, char const * argv0)
-{
-  param_list_print_usage (pl, argv0, stderr);
-  exit(EXIT_FAILURE);
-}
-
 int
 main (int argc, char const * argv[])
 {
     char const * argv0 = argv[0];
     FILE *outfile = NULL;
 
-    param_list pl;
-    param_list_init(pl);
+    cxx_param_list pl;
     declare_usage(pl);
 
     param_list_configure_switch(pl, "abhexa", &abhexa);
@@ -468,19 +460,8 @@ main (int argc, char const * argv[])
     _fmode = _O_BINARY;     /* Binary open for all files */
 #endif
 
-    argv++, argc--;
-    if (argc == 0)
-      usage (pl, argv0);
+    param_list_process_command_line(pl, &argc, &argv, true);
 
-
-    for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
-        /* Since we accept file names freeform, we decide to never abort
-         * on unrecognized options */
-        break;
-    }
-
-    /* print command-line arguments */
     verbose_interpret_parameters(pl);
     param_list_print_command_line (stdout, pl);
     fflush(stdout);
@@ -497,28 +478,18 @@ main (int argc, char const * argv[])
     set_antebuffer_path (argv0, path_antebuffer);
 
     if (param_list_warn_unused(pl))
-      usage (pl, argv0);
+        pl.fail("Unused parameters are given");
 
     if (basepath && !filelist)
-    {
-      fprintf(stderr, "-basepath only valid with -filelist\n");
-      usage (pl, argv0);
-    }
+      pl.fail("-basepath only valid with -filelist\n");
 
     if ((filelist != NULL) + (argc != 0) != 1)
-    {
-      fprintf(stderr, "Provide either -filelist or freeform file names\n");
-      usage (pl, argv0);
-    }
+      pl.fail("Provide either -filelist or freeform file names\n");
 
     if (!polyfilename)
-    {
-      fprintf (stderr, "Error, missing -poly command line argument\n");
-      usage (pl, argv0);
-    }
+      pl.fail("Error, missing -poly command line argument\n");
 
-    if (!cpoly.read(polyfilename))
-    {
+    if (!cpoly.read(polyfilename)) {
       fprintf (stderr, "Error reading polynomial file\n");
       exit (EXIT_FAILURE);
     }
@@ -595,7 +566,6 @@ main (int argc, char const * argv[])
     if (outfilename)
       fclose_maybe_compressed (outfile, outfilename);
 
-    param_list_clear(pl);
     delete[] lpb;
 
     timingstats_dict_add_mythread(stats, "main");

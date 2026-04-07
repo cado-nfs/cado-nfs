@@ -309,7 +309,7 @@ void polyselect_main_data_commit_stats(polyselect_main_data_ptr main, polyselect
 /* fetch N and d from the parameter list. It is of course necessary
  * before we can decide to setup many of the main_data parameters.
  */
-void polyselect_main_data_parse_Nd(polyselect_main_data_ptr main, param_list_ptr pl)
+void polyselect_main_data_parse_Nd(polyselect_main_data_ptr main, cxx_param_list & pl)
 {
     /* parse and check N in the first place */
     int have_n = param_list_parse_mpz(pl, "n", main->N);
@@ -337,7 +337,7 @@ void polyselect_main_data_parse_Nd(polyselect_main_data_ptr main, param_list_ptr
 }
 
 /*  parse incr, admin, admax */
-void polyselect_main_data_parse_ad_range(polyselect_main_data_ptr main, param_list_ptr pl)
+void polyselect_main_data_parse_ad_range(polyselect_main_data_ptr main, cxx_param_list & pl)
 {
     param_list_parse_ulong(pl, "incr", &main->incr);
     if (main->incr <= 0)
@@ -369,7 +369,7 @@ void polyselect_main_data_parse_ad_range(polyselect_main_data_ptr main, param_li
 }
 
 /* parse maxtime or target_E */
-void polyselect_main_data_parse_maxtime_or_target(polyselect_main_data_ptr main, param_list_ptr pl)
+void polyselect_main_data_parse_maxtime_or_target(polyselect_main_data_ptr main, cxx_param_list & pl)
 {
     param_list_parse_double(pl, "maxtime", &main->maxtime);
     param_list_parse_double(pl, "target_E", &main->target_E);
@@ -382,7 +382,7 @@ void polyselect_main_data_parse_maxtime_or_target(polyselect_main_data_ptr main,
 }
 
 /* parse P, and check some conditions */
-void polyselect_main_data_parse_P(polyselect_main_data_ptr main, param_list_ptr pl)
+void polyselect_main_data_parse_P(polyselect_main_data_ptr main, cxx_param_list & pl)
 {
     unsigned long P = 0;
 

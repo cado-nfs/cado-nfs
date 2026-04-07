@@ -1588,7 +1588,7 @@ tests/utils/test_trial_division.cpp
 tests/utils/test_u64arith.cpp
 tests/utils/test_usp.cpp
 tests/utils/test_vector_with_cache.cpp
-tests/utils/test_verbose.c
+tests/utils/test_verbose.cpp
 tests/utils/test_work_queue.cpp
 tests/utils/testbase-rootfinder.quick
 tests/utils/testmpz-rootfinder.quick

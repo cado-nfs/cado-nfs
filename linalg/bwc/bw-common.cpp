@@ -30,45 +30,45 @@ const char * bw_dirtext[] = { "left", "right" };
 
 typedef int (*sortfunc_t) (const void*, const void*);
 
-void bw_common_decl_usage(param_list_ptr pl)/*{{{*/
+void bw_common_decl_usage(cxx_param_list & pl)/*{{{*/
 {
     /* We declare here the doc parameters which are parsed *in this file* !  */
 
     /* {{{ Parameters related to the problem we are solving */
-    param_list_decl_usage(pl, "prime", "prime defining the field over which we work");
-    param_list_decl_usage(pl, "nullspace", "whether we solve xM=0 (nullspace=left), or Mx=0 (nullspace=right). Default is left for p=2, right for p>2.");
+    pl.declare_usage("prime", "prime defining the field over which we work");
+    pl.declare_usage("nullspace", "whether we solve xM=0 (nullspace=left), or Mx=0 (nullspace=right). Default is left for p=2, right for p>2.");
     /* }}} */
 
     /* {{{ general BW parameters */
-    param_list_decl_usage(pl, "mn", "set the block Wiedemann parameters m and n to the same given value");
-    param_list_decl_usage(pl, "m", "set the block Wiedemann parameter m to this value");
-    param_list_decl_usage(pl, "n", "set the block Wiedemann parameter n to this value");
-    param_list_decl_usage(pl, "skip_bw_early_rank_check", "proceed even if we expect that the parameters lead us to failure");
+    pl.declare_usage("mn", "set the block Wiedemann parameters m and n to the same given value");
+    pl.declare_usage("m", "set the block Wiedemann parameter m to this value");
+    pl.declare_usage("n", "set the block Wiedemann parameter n to this value");
+    pl.declare_usage("skip_bw_early_rank_check", "proceed even if we expect that the parameters lead us to failure");
     /* }}} */
 
     /* {{{ Parameters which are related to the interaction with the OS */
-    param_list_decl_usage(pl, "wdir", "working directory, created if it does not exist. All file accesses are relative to this directory.");
-    param_list_decl_usage(pl, "seed", "set seed for all pseudo-random number generation");
-    param_list_decl_usage(pl, "v", "More verbose output");
+    pl.declare_usage("wdir", "working directory, created if it does not exist. All file accesses are relative to this directory.");
+    pl.declare_usage("seed", "set seed for all pseudo-random number generation");
+    pl.declare_usage("v", "More verbose output");
     /* }}} */
 
     /* {{{ Parameters related to checkpoints for krylov/mksol */
-    param_list_decl_usage(pl, "interval", "frequency of the checkpoints within krylov/mksol");
-    param_list_decl_usage(pl, "start", "start krylov or mksol at this checkpoint");
-    param_list_decl_usage(pl, "end", "end krylov or mksol at this checkpoint");
-    param_list_decl_usage(pl, "skip_online_checks", "skip consistency checks after each iteration. Use at your own risk.");
-    param_list_decl_usage(pl, "keep_rolling_checkpoints", "keep only this number of checkpoints, and remove the others");
-    param_list_decl_usage(pl, "keep_checkpoints_younger_than", "assuming keep_rolling_checkpoints is on, keep some checkpoints nevertheless if recent enough");
-    param_list_decl_usage(pl, "checkpoint_precious", "assuming keep_rolling_checkpoints is on, never delete checkpoints of index which is a multiple of that number");
-    param_list_decl_usage(pl, "yes_i_insist", "do what I say, even it seems stupid or dangerous");
-    param_list_decl_usage(pl, "check_stops", "for secure, create check files for all these values of the interval. This enables checking more checkpoint files against eachother, once offline checking is functional.");
-    param_list_decl_usage(pl, "full_report", "for krylov, report the lower-level matmul timings for _all_ jobs/threads");
+    pl.declare_usage("interval", "frequency of the checkpoints within krylov/mksol");
+    pl.declare_usage("start", "start krylov or mksol at this checkpoint");
+    pl.declare_usage("end", "end krylov or mksol at this checkpoint");
+    pl.declare_usage("skip_online_checks", "skip consistency checks after each iteration. Use at your own risk.");
+    pl.declare_usage("keep_rolling_checkpoints", "keep only this number of checkpoints, and remove the others");
+    pl.declare_usage("keep_checkpoints_younger_than", "assuming keep_rolling_checkpoints is on, keep some checkpoints nevertheless if recent enough");
+    pl.declare_usage("checkpoint_precious", "assuming keep_rolling_checkpoints is on, never delete checkpoints of index which is a multiple of that number");
+    pl.declare_usage("yes_i_insist", "do what I say, even it seems stupid or dangerous");
+    pl.declare_usage("check_stops", "for secure, create check files for all these values of the interval. This enables checking more checkpoint files against eachother, once offline checking is functional.");
+    pl.declare_usage("full_report", "for krylov, report the lower-level matmul timings for _all_ jobs/threads");
     /* }}} */
 
     /* {{{ Parameters related to multi-sequences */
-    param_list_decl_usage(pl, "ys",
+    pl.declare_usage("ys",
             "indicates which sequence(s) should be worked on. Syntax is <n0>..<n1> for working with vectors of indices i with n0<=i<n1, with of course 0<=n0<n1<=n.");
-    param_list_decl_usage(pl, "solutions",
+    pl.declare_usage("solutions",
             "indicates which solution(s) should be worked on. Syntax is <n0>..<n1> for working with solutions of indices i with n0<=i<n1, with of course 0<=n0<n1<=n.");
     /* }}} */
 
@@ -97,26 +97,15 @@ const char * bw_common_usage_string()
 }
 #endif
 
-void bw_common_parse_cmdline(struct bw_params * bw, param_list_ptr pl, int * p_argc, char const *** p_argv)/*{{{*/
+void bw_common_parse_cmdline(struct bw_params * bw, cxx_param_list & pl, int * p_argc, char const *** p_argv)/*{{{*/
 {
     bw->wct_base = wct_seconds();
-
-    (*p_argv)++, (*p_argc)--;
     param_list_configure_switch(pl, "-v", &bw->verbose);
-    for( ; (*p_argc) ; ) {
-        if (param_list_update_cmdline(pl, p_argc, p_argv)) { continue; }
-        if (strcmp((*p_argv)[0],"--") == 0) {
-            (*p_argv)++, (*p_argc)--;
-            break;
-        }
-        fprintf(stderr, "Unhandled parameter %s\n", (*p_argv)[0]);
-        param_list_print_usage(pl, bw->original_argv[0], stderr);
-        exit(EXIT_FAILURE);
-    }
+    param_list_process_command_line(pl, p_argc, p_argv, true);
 }
 /*}}}*/
 
-void bw_common_interpret_parameters(struct bw_params * bw, param_list_ptr pl)/*{{{*/
+void bw_common_interpret_parameters(struct bw_params * bw, cxx_param_list & pl)/*{{{*/
 {
     verbose_interpret_parameters(pl);
 

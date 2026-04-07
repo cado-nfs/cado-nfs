@@ -26,7 +26,7 @@ static int verbose;
 
 static void declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage_header(pl,
+    pl.declare_usage_header(
             "This program takes an E checkpoint as computed by lingen,"
             " and computes the pi matrix that can be obtained from it."
             " This matrix should obey the following constraints."
@@ -35,7 +35,7 @@ static void declare_usage(cxx_param_list & pl)
             " the columns of ((X^{delta_i})_i) * pi must be bounded"
             " by the (new) delta_i's, and the total increase from the delta_i"
             " to the new delta_i's is at most m*d");
-    param_list_decl_usage(pl, "v", "be verbose");
+    pl.declare_usage("v", "be verbose");
 }
 
 template<bool is_binary>

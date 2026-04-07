@@ -17,7 +17,7 @@ volatile size_t conflict;
 
 void *print_stuff (void *data)
 {
-  const char *text = data;
+  const char *text = (const char *) data;
   const size_t len = strlen(text);
   verbose_output_start_batch();
   for (size_t i = 0; i < len; i++) {
@@ -62,8 +62,8 @@ int main(int argc, char const * argv[])
   }
 
   pthread_t threads[2];
-  pthread_create(&threads[0], NULL, print_stuff, "the quick brown fox\n");
-  pthread_create(&threads[1], NULL, print_stuff, "jumps over the lazy dog\n");
+  pthread_create(&threads[0], NULL, print_stuff, (void*) "the quick brown fox\n");
+  pthread_create(&threads[1], NULL, print_stuff, (void*) "jumps over the lazy dog\n");
   pthread_join(threads[0], NULL);
   pthread_join(threads[1], NULL);
 

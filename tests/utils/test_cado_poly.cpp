@@ -1,10 +1,9 @@
 #include "cado.h" // IWYU pragma: keep
 
 #include <cstdlib>
+#include <cstdio>
 
 #include <sstream>
-#include <istream>
-#include <fstream>
 #include <string>
 
 #include <gmp.h>
@@ -48,49 +47,45 @@ test_cado_poly_set ()
   ASSERT_ALWAYS (mpz_cmp_ui (m, 123128869) == 0);
 }
 
-static int cado_poly_read (cxx_cado_poly & poly, std::istream& is)
-{
-  cxx_param_list pl;
-  param_list_read(pl, is, false);
-  poly = cxx_cado_poly(cxx_cado_poly::plist {}, pl);
-  int const r = 1;
-  return r;
-}
 
-
-static void test_cado_poly_sanitycheck_stream(std::istream & is)
+static void test_cado_poly_sanitychecks_static()
 {
-    cxx_cado_poly cpoly;
-    cado_poly_read(cpoly, is);
+    const char * argv[] = {
+        "dummy",
+        "n=54022122323205311359700529131254845253584832080092810873601245077747279904751944559089001546838958178759103",
+        "skew=1",
+        "c0=-3812358699277286779054168",
+        "c1=-565926392227485137902",
+        "c2=182765314800266891",
+        "c3=6921015189226",
+        "c4=-494461352",
+        "c5=12480",
+        "Y0=-337674472307257214145",
+        "Y1=120135550263449",
+    };
+    int argc = sizeof(argv) / sizeof(argv[0]);
+
+    cxx_param_list pl;
+    const char ** t_argv = argv;
+    int t_argc = argc;
+    param_list_process_command_line(pl, &t_argc, &t_argv, false);
+    cxx_cado_poly cpoly(cxx_cado_poly::plist {}, pl);
     cxx_mpz_poly G;
     int const ret = cpoly.check_mapping(G, cpoly.n);
     ASSERT_ALWAYS(ret != 0);
 }
 
-static void test_cado_poly_sanitychecks_static()
-{
-    std::string const s =
-        "n: 54022122323205311359700529131254845253584832080092810873601245077747279904751944559089001546838958178759103\n"
-        "skew: 1\n"
-        "c0: -3812358699277286779054168\n"
-        "c1: -565926392227485137902\n"
-        "c2: 182765314800266891\n"
-        "c3: 6921015189226\n"
-        "c4: -494461352\n"
-        "c5: 12480\n"
-        "Y0: -337674472307257214145\n"
-        "Y1: 120135550263449\n"
-        ;
-
-    std::istringstream is(s);
-    test_cado_poly_sanitycheck_stream(is);
-}
-
 static void test_cado_poly_sanitycheck_file(const char * file)
 {
-    std::ifstream is(file);
-    ASSERT_ALWAYS(is);
-    test_cado_poly_sanitycheck_stream(is);
+    FILE * f = fopen(file, "r");
+    ASSERT_ALWAYS(f);
+    cxx_param_list pl;
+    param_list_read_stream(pl, f, false);
+    cxx_cado_poly cpoly(cxx_cado_poly::plist {}, pl);
+    cxx_mpz_poly G;
+    int const ret = cpoly.check_mapping(G, cpoly.n);
+    ASSERT_ALWAYS(ret != 0);
+    fclose(f);
 }
 
 // coverity[root_function]

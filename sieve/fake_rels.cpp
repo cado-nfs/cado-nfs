@@ -478,7 +478,7 @@ static void worker(int tnum, int nt,
     rels_printed += ret;
 }
 
-static void declare_usage(param_list pl)
+static void declare_usage(cxx_param_list & pl)
 {
     param_list_decl_usage(pl, "poly", "polynomial file");
     param_list_decl_usage(pl, "lpb0", "factor base bound on side 0");

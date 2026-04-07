@@ -273,29 +273,29 @@ thread_dup1_special_mpz (void * context_data, earlyparsed_relation_mpz_ptr rel)
   return NULL;
 }
 
-static void declare_usage(param_list pl)
+static void declare_usage(cxx_param_list & pl)
 {
-  param_list_decl_usage(pl, "filelist", "file containing a list of input files");
-  param_list_decl_usage(pl, "basepath", "path added to all file in filelist");
-  param_list_decl_usage(pl, "out", "output directory");
-  param_list_decl_usage(pl, "prefix", "prefix for output files");
-  param_list_decl_usage(pl, "lognrels", "log of number of rels per output file");
-  param_list_decl_usage(pl, "n", "log of number of slices (default: 1)");
-  param_list_decl_usage(pl, "only", "do only slice i (default: all)");
-  param_list_decl_usage(pl, "outfmt",
+  pl.declare_usage("filelist", "file containing a list of input files");
+  pl.declare_usage("basepath", "path added to all file in filelist");
+  pl.declare_usage("out", "output directory");
+  pl.declare_usage("prefix", "prefix for output files");
+  pl.declare_usage("lognrels", "log of number of rels per output file");
+  pl.declare_usage("n", "log of number of slices (default: 1)");
+  pl.declare_usage("only", "do only slice i (default: all)");
+  pl.declare_usage("outfmt",
                                "format of output file (default same as input)");
-  param_list_decl_usage(pl, "ab", "only print a and b in the output");
-  param_list_decl_usage(pl, "abhexa",
+  pl.declare_usage("ab", "only print a and b in the output");
+  pl.declare_usage("abhexa",
                                   "read a and b as hexa not decimal");
-  param_list_decl_usage(pl, "large-ab", "enable support for a and b larger "
+  pl.declare_usage("large-ab", "enable support for a and b larger "
                                         "than 64 bits");
-  param_list_decl_usage(pl, "force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
-  param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
+  pl.declare_usage("force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
+  pl.declare_usage("path_antebuffer", "path to antebuffer program");
   verbose_decl_usage(pl);
 }
 
 static void
-usage (param_list pl, char const * argv0)
+usage (cxx_param_list & pl, char const * argv0)
 {
     param_list_print_usage(pl, argv0, stderr);
     exit(EXIT_FAILURE);
@@ -311,10 +311,9 @@ main (int argc, char const * argv[])
     int abhexa = 0;
     int largeab = 0;
 
-    param_list pl;
-    param_list_init(pl);
+    cxx_param_list pl;
+
     declare_usage(pl);
-    argv++,argc--;
 
     param_list_configure_switch(pl, "ab", &only_ab);
     param_list_configure_switch(pl, "abhexa", &abhexa);
@@ -325,17 +324,9 @@ main (int argc, char const * argv[])
     _fmode = _O_BINARY;     /* Binary open for all files */
 #endif
 
-    if (argc == 0)
-      usage (pl, argv0);
 
-    for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
-        /* Since we accept file names freeform, we decide to never abort
-         * on unrecognized options */
-        break;
-        // fprintf (stderr, "Unknown option: %s\n", argv[0]);
-        // abort();
-    }
+    param_list_process_command_line(pl, &argc, &argv, true);
+
     /* print command-line arguments */
     verbose_interpret_parameters(pl);
     param_list_print_command_line (stdout, pl);
@@ -352,31 +343,23 @@ main (int argc, char const * argv[])
     const char *prefix_files = param_list_lookup_string(pl, "prefix");
 
     if (param_list_warn_unused(pl))
-    {
-      fprintf(stderr, "Error, unused parameters are given\n");
-      usage(pl, argv0);
-    }
+        pl.fail("Error, unused parameters are given\n");
+    if (basepath && !filelist)
+        pl.fail("Error, -basepath only valid with -filelist\n");
+    if (!prefix_files)
+        pl.fail("Error, missing -prefix command line argument\n");
+    if (!outdir)
+        pl.fail("Error, missing -out command line argument\n");
+    if (outfmt && !is_supported_compression_format(outfmt))
+        pl.fail("Error, output compression format unsupported\n");
+
+    if ((filelist != nullptr) + (argc != 0) != 1)
+        pl.fail("Error, provide either -filelist or freeform file names\n");
+
 
     if (nslices_log > MAX_NSLICES_LOG)
     {
       fprintf(stderr, "Error, -n is too large\n");
-      usage(pl, argv0);
-    }
-    if (basepath && !filelist)
-    {
-      fprintf(stderr, "Error, -basepath only valid with -filelist\n");
-      usage(pl, argv0);
-    }
-
-    if (!prefix_files)
-    {
-      fprintf(stderr, "Error, missing -prefix command line argument\n");
-      usage(pl, argv0);
-    }
-
-    if (!outdir)
-    {
-      fprintf(stderr, "Error, missing -out command line argument\n");
       usage(pl, argv0);
     }
     if (outfmt && !is_supported_compression_format(outfmt)) {
@@ -394,11 +377,6 @@ main (int argc, char const * argv[])
     {
       for (unsigned int i = 0; i < nslices; i++)
         do_slice[i] = (i == (unsigned int) only_slice);
-    }
-
-    if ((filelist != NULL) + (argc != 0) != 1) {
-      fprintf(stderr, "Error, provide either -filelist or freeform file names\n");
-      usage(pl, argv0);
     }
 
     set_antebuffer_path (argv0, path_antebuffer);
@@ -454,8 +432,6 @@ main (int argc, char const * argv[])
     if (filelist) filelist_clear(files);
 
     free(outiters);
-
-    param_list_clear(pl);
 
     // double thread_times[2];
     // thread_seconds_user_sys(thread_times);

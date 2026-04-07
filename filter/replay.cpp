@@ -824,17 +824,7 @@ fasterVersion (typerow_t **newrows, const char *sparsename,
   fclose_maybe_compressed (hisfile, hisname);
 }
 
-/*
-static void
-usage (const char *argv0)
-{
-  fprintf (stderr, "   --binary\n");
-  fprintf (stderr, "   -ideals\n");
-  exit (1);
-}
-*/
-
-static void declare_usage(param_list pl)
+static void declare_usage(cxx_param_list & pl)
 {
   param_list_decl_usage(pl, "purged", "input purged file");
   param_list_decl_usage(pl, "his", "input history file");
@@ -861,13 +851,6 @@ static void declare_usage(param_list pl)
   verbose_decl_usage(pl);
 }
 
-static void
-usage (param_list pl, const char *argv0)
-{
-    param_list_print_usage(pl, argv0, stderr);
-    exit(EXIT_FAILURE);
-}
-
 // We start from M_purged which is nrows x ncols;
 // we build M_small which is small_nrows x small_ncols.
 // newrows[i] if != NULL, contains a list of the indices of the rows in
@@ -891,23 +874,14 @@ int main(int argc, char const * argv[])
     setvbuf(stderr, NULL, _IONBF, 0);
     setvbuf(stdout, NULL, _IONBF, 0);
 
-    param_list pl;
-    param_list_init(pl);
+    cxx_param_list pl;
     declare_usage(pl);
-    argv++,argc--;
 
     param_list_configure_switch(pl, "for_msieve", &for_msieve);
     param_list_configure_switch(pl, "force-posix-threads", &filter_rels_force_posix_threads);
 
-    if (argc == 0)
-      usage (pl, argv0);
+    param_list_process_command_line(pl, &argc, &argv, false);
 
-    for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
-        fprintf (stderr, "Unknown option: %s\n", argv[0]);
-        usage(pl, argv0);
-    }
-    /* print command-line arguments */
     verbose_interpret_parameters(pl);
     param_list_print_command_line (stdout, pl);
     fflush(stdout);
@@ -943,32 +917,17 @@ int main(int argc, char const * argv[])
 
     /* Some checks on command line arguments */
     if (param_list_warn_unused(pl))
-    {
-      fprintf(stderr, "Error, unused parameters are given\n");
-      usage(pl, argv0);
-    }
+      pl.fail("Error, unused parameters are given\n");
 
     if (purgedname == NULL)
-    {
-      fprintf(stderr, "Error, missing -purged command line argument\n");
-      usage(pl, argv0);
-    }
+      pl.fail("Error, missing -purged command line argument\n");
     if (hisname == NULL)
-    {
-      fprintf(stderr, "Error, missing -his command line argument\n");
-      usage(pl, argv0);
-    }
+      pl.fail("Error, missing -his command line argument\n");
     if (sparsename == NULL && indexname == NULL)
-      {
-        fprintf(stderr, "Error, at least one of -out and -index is required\n");
-        usage(pl, argv0);
-      }
+        pl.fail("Error, at least one of -out and -index is required\n");
 #ifdef FOR_DL
     if (idealsfilename == NULL)
-    {
-      fprintf(stderr, "Error, missing -ideals command line argument\n");
-      usage(pl, argv0);
-    }
+      pl.fail("Error, missing -ideals command line argument\n");
     ASSERT_ALWAYS (skip == 0);
 #endif
     if (sparsename != NULL)
@@ -1034,7 +993,6 @@ int main(int argc, char const * argv[])
   fasterVersion (newrows, sparsename, indexname, hisname, nrows, ncols, skip,
                  bin, idealsfilename, for_msieve, Nmax, nsquare_matrices);
 
-  param_list_clear(pl);
   print_timing_and_memory (stdout, cpu0, wct0);
   return 0;
 }

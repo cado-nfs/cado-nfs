@@ -13,24 +13,23 @@
 /*             USAGE                                                    */
 /************************************************************************/
 
-static void declare_usage(param_list pl)
+static void declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage_header(pl,
-			    "This binary allow to choose the good strategy for each pair\n"
+    pl.declare_usage_header("This binary allow to choose the good strategy for each pair\n"
 			    "\t\t of cofactor according to the distribution of these pairs\n"
 			    "\t\t and the time required to establish our cofactors.\n");
-    param_list_decl_usage(pl, "st",
+    pl.declare_usage("st",
 			  "the pathname of our directory which contains our strategies.");
-    param_list_decl_usage(pl, "dist",
+    pl.declare_usage("dist",
 			  "the pathname of our file which contains the distribution\n"
 			  "\t\t of our pairs of cofactors.");
-    param_list_decl_usage(pl, "t",
+    pl.declare_usage("t",
 			  "specify the time (seconds) to optain cofactors in the file\n"
 			  "\t\t given by the option 'dist'.");
-    param_list_decl_usage(pl, "mfb0", "set the first cofactor bound to 2^mfb0");
-    param_list_decl_usage(pl, "mfb1",
+    pl.declare_usage("mfb0", "set the first cofactor bound to 2^mfb0");
+    pl.declare_usage("mfb1",
 			  "set the second cofactor bound to 2^mfb1");
-    param_list_decl_usage(pl, "out",
+    pl.declare_usage("out",
 			  "the output file which contain final strategies.");
 
 }
@@ -41,50 +40,20 @@ static void declare_usage(param_list pl)
 
 int main(int argc, char const * argv[])
 {
-    param_list pl;
-    param_list_init(pl);
+    cxx_param_list pl;
     declare_usage(pl);
-    /* 
-       Passing NULL is allowed here. Find value with
-       param_list_parse_switch later on 
-     */
-    if (argc <= 1) {
-	param_list_print_usage(pl, argv[0], stderr);
-	exit(EXIT_FAILURE);
-    }
 
-    argv++, argc--;
-    for (; argc;) {
-	if (param_list_update_cmdline(pl, &argc, &argv)) {
-	    continue;
-	}
-	/* Could also be a file */
-	FILE *f;
-	if ((f = fopen(argv[0], "r")) != NULL) {
-	    param_list_read_stream(pl, f, 0);
-	    fclose(f);
-	    argv++, argc--;
-	    continue;
-	}
+    param_list_process_command_line_and_extra_parameter_files(pl, &argc, &argv);
 
-	fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
-	param_list_print_usage(pl, argv[0], stderr);
-	param_list_clear(pl);
-	exit(EXIT_FAILURE);
-    }
 
     int mfb0 = -1, mfb1 = -1;
     double time_C = -1;
     param_list_parse_int(pl, "mfb0", &mfb0);
     param_list_parse_int(pl, "mfb1", &mfb1);
     param_list_parse_double(pl, "t", &time_C);
-    if (mfb0 < 0 || mfb1 < 0 || time_C < 0) {
-	fputs("The following parameters are mandatory:\n"
-	      "\t\t -mfb0 -mfb1 -time_C\n", stderr);
-
-	param_list_clear(pl);
-	exit(EXIT_FAILURE);
-    }
+    if (mfb0 < 0 || mfb1 < 0 || time_C < 0)
+	pl.fail("The following parameters are mandatory:\n"
+	      "\t\t -mfb0 -mfb1 -time_C\n");
 
     printf("time_C = %lf seconds!\n", time_C);
     //convert the time in micro-s. because all previous binaries
@@ -92,33 +61,26 @@ int main(int argc, char const * argv[])
     time_C *= 1000000;		//s-->ms 
 
     const char *pathname_C;
-    if ((pathname_C = param_list_lookup_string(pl, "dist")) == NULL) {
-	fputs("Parser error: Please re-run with the option -dist"
-	      "followed by the pathname of the file which stores the "
-	      "distribution of our cofactors.\n", stderr);
-	exit(EXIT_FAILURE);
-    }
+    if ((pathname_C = param_list_lookup_string(pl, "dist")) == NULL)
+	pl.fail("missing option -dist"
+	      " followed by the pathname of the file which stores the"
+	      " distribution of our cofactors.\n");
 
     const char *pathname_st;
-    if ((pathname_st = param_list_lookup_string(pl, "st")) == NULL) {
-	fputs("Parser error: Please re-run with the option -st"
-	      "followed by the pathname of the directory which"
-	      " contains our strategies.\n", stderr);
-	exit(EXIT_FAILURE);
-    }
+    if ((pathname_st = param_list_lookup_string(pl, "st")) == NULL)
+	pl.fail("missing option -st"
+	      " followed by the pathname of the directory which"
+	      " contains our strategies.\n");
 
     const char *pathname_output;
-    if ((pathname_output = param_list_lookup_string(pl, "out")) == NULL) {
-	fputs("Parser error: Please re-run with the option -out "
-	      "to specify where the result will be stored!\n", stderr);
-	exit(EXIT_FAILURE);
-    }
+    if ((pathname_output = param_list_lookup_string(pl, "out")) == NULL)
+	pl.fail("missing option -out"
+	      " to specify where the result will be stored!\n");
 
     printf("EXTRACT DATA STRAT\n");
     tabular_strategy_t ***matrix_strat =
 	extract_matrix_strat(pathname_st, mfb0 + 1, mfb1 + 1);
     if (matrix_strat == NULL) {
-	param_list_clear(pl);
 	exit(EXIT_FAILURE);
     }
 
@@ -128,7 +90,6 @@ int main(int argc, char const * argv[])
     unsigned long **matrix_C = extract_matrix_C(file_C, mfb0 + 1, mfb1 + 1);
     if (matrix_C == NULL) {
 	fprintf(stderr, "Error while reading file %s\n", pathname_C);
-	param_list_clear(pl);
 	exit(EXIT_FAILURE);
     }
     fclose(file_C);
@@ -145,7 +106,6 @@ int main(int argc, char const * argv[])
     if (err == -1) {
 	fprintf(stderr, "Error when i want to write in '%s'\n",
 		pathname_output);
-	param_list_clear(pl);
 	exit(EXIT_FAILURE);
     }
     fclose(file_output);
@@ -163,8 +123,6 @@ int main(int argc, char const * argv[])
     free(matrix_strat);
     free(matrix_strat_res);
     free(matrix_C);
-
-    param_list_clear(pl);
 
     return EXIT_SUCCESS;
 }

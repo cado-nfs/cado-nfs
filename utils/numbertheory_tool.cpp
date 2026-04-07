@@ -124,20 +124,9 @@ static void badideals_declare_usage(cxx_param_list & pl)/*{{{*/
     param_list_decl_usage(pl, "ell", "ell (for computing default number of maps ; not used for bad ideals)");
 }/*}}}*/
 
-static void usage(param_list_ptr pl, char const ** argv, const char * msg = nullptr)/*{{{*/
-{
-    param_list_print_usage(pl, argv[0], stderr);
-    if (msg) {
-        fprintf(stderr, "%s\n", msg);
-    }
-    exit(EXIT_FAILURE);
-}/*}}}*/
-
 // coverity[root_function]
 int main(int argc, char const * argv[])
 {
-    char const ** original_argv;
-
     setvbuf(stderr, nullptr, _IONBF, 0);
     setvbuf(stdout, nullptr, _IONBF, 0);
 
@@ -146,21 +135,7 @@ int main(int argc, char const * argv[])
     badideals_declare_usage(pl);
     param_list_configure_alias(pl, "polystr", "f");
 
-    original_argv = argv;
-
-    argv++,argc--;
-    /* switches, if any. See below */
-    /* aliases, if any. See below */
-
-    for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
-        /* Do perhaps some other things on the argument that haven't
-         * been eaten at all. Like check whether it is a valid file to
-         * source in order to get more options. See
-         * param_list_read_stream and param_list_read_file for that. */
-        fprintf (stderr, "Unknown option: %s\n", argv[0]);
-        usage(pl, original_argv);
-    }
+    param_list_process_command_line(pl, &argc, &argv, false);
 
     cxx_gmp_randstate state;
 
@@ -225,6 +200,6 @@ int main(int argc, char const * argv[])
             }
         }
     } else {
-        usage(pl, original_argv, "-poly or -polystr are mandatory");
+        pl.fail("-poly or -polystr are mandatory");
     }
 }

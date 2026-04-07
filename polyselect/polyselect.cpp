@@ -387,7 +387,7 @@ static void display_expected_memory_usage(polyselect_main_data_srcptr main, int 
 }
 #endif
 
-static void declare_usage(param_list_ptr pl)
+static void declare_usage(cxx_param_list & pl)
 {
   param_list_decl_usage(pl, "degree",
 			"(required, alias d) polynomial degree");
@@ -418,18 +418,6 @@ static void declare_usage(param_list_ptr pl)
   param_list_decl_usage(pl, "target_E", "target E-value\n");
   param_list_decl_usage(pl, "chronogram", "store chronogram raw data to this file\n");
   verbose_decl_usage(pl);
-}
-
-static void usage(const char *argv, const char *missing, param_list_ptr pl)
-{
-  if (missing)
-    {
-      fprintf(stderr, "\nError: missing or invalid parameter \"-%s\"\n",
-	      missing);
-    }
-  param_list_print_usage(pl, argv, stderr);
-  param_list_clear(pl);
-  exit(EXIT_FAILURE);
 }
 
 /* This thread loop does not (should not) depend on the way the matches
@@ -674,7 +662,6 @@ void * thread_loop(polyselect_thread_ptr thread)
 
 int main(int argc, char const * argv[])
 {
-  char const ** argv0 = argv;
   /* nthreads = 0 means: do something automatic */
   int quiet = 0;
   const char * chronogram_file = NULL;
@@ -684,9 +671,7 @@ int main(int argc, char const * argv[])
   polyselect_main_data main_data;
   polyselect_main_data_init_defaults(main_data);
 
-  /* read params */
-  param_list pl;
-  param_list_init(pl);
+  cxx_param_list pl;
 
   declare_usage(pl);
 
@@ -696,18 +681,7 @@ int main(int argc, char const * argv[])
   param_list_configure_alias(pl, "incr", "-i");
   param_list_configure_alias(pl, "n", "-N");
 
-  if (argc == 1)
-    usage(argv0[0], NULL, pl);
-
-  argv++, argc--;
-  for (; argc;)
-    {
-      if (param_list_update_cmdline(pl, &argc, &argv))
-	continue;
-      fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
-      usage(argv0[0], NULL, pl);
-    }
-
+  param_list_process_command_line(pl, &argc, &argv, false);
 
   polyselect_main_data_parse_Nd(main_data, pl);
   polyselect_main_data_parse_ad_range(main_data, pl);
@@ -740,7 +714,7 @@ int main(int argc, char const * argv[])
   polyselect_main_data_parse_maxtime_or_target(main_data, pl);
 
   if (param_list_warn_unused(pl))
-    usage(argv0[0], NULL, pl);
+      pl.fail("Unused parameters are given");
 
   /* print command line */
   verbose_interpret_parameters(pl);
@@ -791,8 +765,6 @@ int main(int argc, char const * argv[])
 
 
   polyselect_main_data_clear(main_data);
-
-  param_list_clear(pl);
 
   return 0;
 }
