@@ -1,6 +1,7 @@
 #ifndef CADO_PARAMS_H
 #define CADO_PARAMS_H
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
 
@@ -11,6 +12,8 @@
 #include <utility>
 #include <stdexcept>
 #include <tuple>
+
+#include "fmt/base.h"
 #endif
 
 #include <gmp.h>
@@ -59,7 +62,7 @@ extern void param_list_decl_usage(param_list_ptr pl, const char * key,
 // also be organized by sections by inserting header lines
 extern void param_list_decl_usage_section(param_list_ptr pl, const char * header);
 extern void param_list_print_usage(param_list_srcptr pl, const char * argv0, FILE *f);
-extern void param_list_usage_header(param_list_ptr pl, const char * hdr);
+extern void param_list_decl_usage_header(param_list_ptr pl, const char * hdr);
 
 // takes a file, in the Cado-NFS params format, and stores the dictionary
 // of parameters to pl.
@@ -75,8 +78,30 @@ extern int param_list_update_cmdline(param_list_ptr pl,
 
 extern void param_list_generic_failure(param_list_srcptr pl, const char *missing);
 
+/* This does the following:
+ *  - save argv[0]
+ *  - argv++, argc--
+ *  - update the pl structure with all the arguments that are found.
+ *  - process --help to display the help message as configured via
+ *  param_list_decl_usage
+ *  - return with some trailing arguments if they are allowed, otherwise
+ *  error out.
+ */
+extern void param_list_process_command_line(param_list_ptr pl,
+        int * p_argc, char const *** p_argv, int accept_trailing_args)
+    ATTRIBUTE_NONNULL((2,3));
+
+void param_list_process_command_line_and_extra_parameter_files(param_list_ptr pl,
+        int * p_argc, char const *** p_argv)
+    ATTRIBUTE_NONNULL((2,3));
+
 #ifdef __cplusplus
 }
+#endif
+
+#ifdef __cplusplus
+/* this one is really just a proxy around join() in utils_cxx.hpp */
+extern std::string collect_command_line(int argc, char const *argv[]);
 #endif
 
 
@@ -242,6 +267,7 @@ extern void param_list_print_command_line(FILE * stream, param_list_srcptr);
 extern int param_list_parse_uint_args_per_side(param_list_ptr pl, const char * key, unsigned int * lpb_arg, int n, enum args_per_side_policy_t policy);
 extern int param_list_parse_int_args_per_side(param_list_ptr pl, const char * key, int * lpb_arg, int n, enum args_per_side_policy_t policy);
 
+extern int param_list_fail(param_list_ptr, const char * format, ...) ATTR_PRINTF(2,3);
 #ifdef __cplusplus
 }
 #endif
@@ -339,11 +365,36 @@ struct cxx_param_list {
     void declare_usage(std::string const & key, std::string const & doc) {
         param_list_decl_usage(x, key.c_str(), doc.c_str());
     }
+    const char * lookup_string(std::string const & key) {
+        return param_list_lookup_string(x, key.c_str());
+    }
+    const char * lookup(std::string const & key) {
+        return param_list_lookup_string(x, key.c_str());
+    }
+    void declare_usage_header(std::string const & header) {
+        param_list_decl_usage_header(x, header.c_str());
+    }
     void declare_usage_section(std::string const & header) {
         param_list_decl_usage_section(x, header.c_str());
     }
-    void configure_switch(std::string const & key, int & p_val) {
+    void configure_switch(std::string const & key, int & p_val)
+        ATTRIBUTE_DEPRECATED
+    {
         param_list_configure_switch(x, key.c_str(), &p_val);
+    }
+    void configure_switch(std::string const & key) {
+        /* declaring switches like this is actually quite useful when
+         * options are segregated across objects that own them. The
+         * reason behind this is that:
+         *  - switch configuration must be done before argument parsing.
+         *  - the target value can only be given once the object exists.
+         *  - the object can often only exist if we get the occasion to
+         *  construct it (or other objects it depends on) from the
+         *  params.
+         * so the nullptr-switch is the favorite way to break this
+         * dependency cycle.
+         */
+        param_list_configure_switch(x, key.c_str(), nullptr);
     }
     void configure_alias(std::string const & key, std::string const & alias) {
         param_list_configure_alias(x, key.c_str(), alias.c_str());
@@ -377,6 +428,13 @@ struct cxx_param_list {
     parse_mandatory(std::string const & key, T & r)
     {
         r = param_list_parse_mandatory<T>(x, key);
+    }
+
+    template<typename... Args>
+    void fail(fmt::format_string<Args...> s, Args && ...args) const {
+        fmt::print(stderr, s, std::forward<Args>(args)...);
+        param_list_print_usage(x, nullptr, stderr);
+        exit(EXIT_FAILURE);
     }
 };
 

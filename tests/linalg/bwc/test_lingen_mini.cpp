@@ -26,7 +26,7 @@ static int verbose;
 
 static void declare_usage(cxx_param_list & pl)
 {
-    param_list_usage_header(pl,
+    param_list_decl_usage_header(pl,
             "This program takes an E checkpoint as computed by lingen,"
             " and computes the pi matrix that can be obtained from it."
             " This matrix should obey the following constraints."

@@ -656,7 +656,7 @@ int main(int argc, char const * argv[])
 
     bw_common_init(bw, &argc, &argv);
 
-    param_list_usage_header(pl,
+    param_list_decl_usage_header(pl,
             "File names are checked together (all relevant checks tying files to eachother within the provided argument list are done). The program tells which checks have been done\n"
             "Options are as follows. Note that not all are relevant to this program specifically:\n");
 

@@ -30,7 +30,7 @@
 
 static void mf_scan2_decl_usage(cxx_param_list & pl)
 {
-    param_list_usage_header(pl,
+    param_list_decl_usage_header(pl,
             "This program make one reading pass through a binary matrix, and produces\n"
             "the companion .rw and .cw files.\n"
             "Typical usage:\n"

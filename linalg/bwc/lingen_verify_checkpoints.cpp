@@ -418,7 +418,7 @@ scalar_product(std::vector<cxx_mpz> const& u, std::vector<cxx_mpz> const& v)
 static void
 declare_usage(cxx_param_list& pl)
 {
-    param_list_usage_header(
+    param_list_decl_usage_header(
       pl,
       "Usage: lingen_verify_checkpoints [options] -- [list of file names]\n"
       "\n"

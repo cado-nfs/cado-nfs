@@ -415,7 +415,7 @@ struct command_line
     unsigned int seed = 0;
 
     static void declare_usage(cxx_param_list & pl) {
-        param_list_usage_header(pl, "Try as much as possible to fully factor "
+        param_list_decl_usage_header(pl, "Try as much as possible to fully factor "
                                     "the input integer. The sign of N is not "
                                     "considered.\n");
         param_list_decl_usage(pl, "N", "number to factor");

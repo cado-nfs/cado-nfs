@@ -71,19 +71,14 @@ pattern.
 
     param_list_init(pl);
 
-    argv++,argc--;
+    /* documentation, if any. See below */
     /* switches, if any. See below */
     /* aliases, if any. See below */
 
-    for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
-        /* Do perhaps some other things on the argument that haven't
-         * been eaten at all. Like check whether it is a valid file to
-         * source in order to get more options. See
-         * param_list_read_stream and param_list_read_file for that. */
-        fprintf (stderr, "Unknown option: %s\n", argv[0]);
-        usage();
-    }
+    param_list_process_command_line(pl, &argc, &argv, false);
+    /* If you want to do some other things with the arguments that haven't
+     * been eaten at all, pass "true" as the last parameter above, then
+     * act on the remaining argc and argv.
 
     /* Now parse the values corresponding to options, and map their
      * meaning somewhere */
@@ -133,9 +128,14 @@ pattern.
 It is also possible to configure switches. Configure switches goes toghether
 with specifying a pointer to the switch value, which must have type int.
 
-    param_list_configure_switch(pl, "--legacy", &legacy);
-    param_list_configure_switch(pl, "--remove-input", &remove_input);
-    param_list_configure_switch(pl, "--pad", &pad_to_square);
+    param_list_configure_switch(pl, "--legacy", NULL);
+    param_list_configure_switch(pl, "--remove-input", NULL);
+    param_list_configure_switch(pl, "--pad", NULL);
+
+    legacy = param_list_parse_switch(pl, "--legacy");
+    remove_input = param_list_parse_switch(pl, "--remove-input");
+    pad = param_list_parse_switch(pl, "--pad");
+
 
 Aliases:
     param_list_configure_alias(pl, "--pad", "--square");

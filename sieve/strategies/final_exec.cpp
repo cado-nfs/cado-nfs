@@ -15,7 +15,7 @@
 
 static void declare_usage(param_list pl)
 {
-    param_list_usage_header(pl,
+    param_list_decl_usage_header(pl,
 			    "This binary allow to choose the good strategy for each pair\n"
 			    "\t\t of cofactor according to the distribution of these pairs\n"
 			    "\t\t and the time required to establish our cofactors.\n");

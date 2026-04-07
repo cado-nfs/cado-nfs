@@ -91,7 +91,7 @@ static void ensure_qrange_has_prime_ideals(cxx_mpz const & q0, cxx_mpz & q1, mpz
 
 static void declare_usage(cxx_param_list & pl)/*{{{*/
 {
-  param_list_usage_header(pl,
+  param_list_decl_usage_header(pl,
   "In the names and in the descriptions of the parameters, below there are often\n"
   "aliases corresponding to the convention that 0 is the rational side and 1\n"
   "is the algebraic side. If the two sides are algebraic, then the word\n"

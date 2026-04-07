@@ -1097,7 +1097,7 @@ bench_proba_time_st_both(gmp_randstate_t state, strategy_t * t,
 
 static void declare_usage(param_list pl)
 {
-    param_list_usage_header(pl,
+    param_list_decl_usage_header(pl,
                             "This binary allows to test the strategy of cado,"
                             "and especially compute the theorical number of "
                             "relations found per second by this strategy.\n");

@@ -435,7 +435,7 @@ static void one_descent_thread(
 
 static void descent_declare_usage(cxx_param_list & pl)
 {
-    param_list_usage_header(pl,
+    param_list_decl_usage_header(pl,
             "[-poly polfile] [-side xxx] [-extdeg n] [-jl] [-mt n] [-mineff "
             "e] [-maxeff E] [-seed s] [-lpb t] [-v] p z\n"
             "  If extdeg > 1, then z must be a white-separated sequence of "

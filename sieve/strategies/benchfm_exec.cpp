@@ -11,7 +11,7 @@
 
 static void declare_usage(param_list pl)
 {
-    param_list_usage_header(pl,
+    param_list_decl_usage_header(pl,
 			    "This binary allows to do a bench on the probabilities and/or the times\n"
 			    "for each size of prime number from 'lb'.\n");
 

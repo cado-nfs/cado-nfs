@@ -65,7 +65,7 @@ int param_list_empty(param_list_srcptr pl)
     return pli.p.empty();
 }
 
-void param_list_usage_header(param_list_ptr pl, const char * hdr)
+void param_list_decl_usage_header(param_list_ptr pl, const char * hdr)
 {
     auto & pli = *static_cast<param_list_impl *>(pl->pimpl);
     pli.usage_header = hdr;
@@ -98,6 +98,9 @@ static int is_documented_key(param_list_impl const & pli, std::string const & ke
 void param_list_print_usage(param_list_srcptr pl, const char * argv0, FILE *f)
 {
     auto const & pli = *static_cast<param_list_impl const *>(pl->pimpl);
+
+    if (argv0 != nullptr)
+        argv0 = pli.cmdline_argv0[0];
 
     if (argv0 != nullptr)
         fprintf(f, "Usage: %s <parameters>\n", argv0);
@@ -418,6 +421,73 @@ int param_list_update_cmdline(param_list_ptr pl,
     }
     return 0;
 }
+
+std::string collect_command_line(int argc, char const *argv[])
+{
+    return join(argv, argv + argc, " ");
+}
+
+void param_list_process_command_line(param_list_ptr pl,
+        int * p_argc, char const *** p_argv, int accept_trailing_args)
+{
+    auto & pli = *static_cast<param_list_impl *>(pl->pimpl);
+    auto & argc = *p_argc;
+    auto & argv = *p_argv;
+    pli.cmdline_argv0 = *p_argv;
+    pli.cmdline_argc0 = *p_argc;
+
+    argc--, argv++;
+
+    for (; argc;) {
+        if (param_list_update_cmdline(pl, &argc, &argv)) {
+            continue;
+        }
+        if (strcmp(*argv, "--help") == 0) {
+            param_list_print_usage(pl, pli.cmdline_argv0[0], stderr);
+            exit(EXIT_SUCCESS);
+        } else if (!accept_trailing_args) {
+            fmt::print(stderr, "unexpected argument: {}\n", argv[0]);
+            param_list_print_usage(pl, pli.cmdline_argv0[0], stderr);
+            exit(EXIT_FAILURE);
+        } else {
+            /* extra arguments are accepted, we can break here. */
+            break;
+        }
+    }
+}
+
+void param_list_process_command_line_and_extra_parameter_files(param_list_ptr pl,
+        int * p_argc, char const *** p_argv)
+{
+    auto & pli = *static_cast<param_list_impl *>(pl->pimpl);
+    auto & argc = *p_argc;
+    auto & argv = *p_argv;
+    pli.cmdline_argv0 = *p_argv;
+    pli.cmdline_argc0 = *p_argc;
+
+    argc--, argv++;
+
+    for (; argc;) {
+        FILE * f;
+        if (param_list_update_cmdline(pl, &argc, &argv)) {
+            continue;
+        }
+        if (strcmp(*argv, "--help") == 0) {
+            param_list_print_usage(pl, pli.cmdline_argv0[0], stderr);
+            exit(EXIT_SUCCESS);
+        } else if ((f = fopen(argv[0], "r")) != NULL) {
+            /* Could also be a file */
+            param_list_read_stream(pl, f, 0);
+            fclose(f);
+            argv++,argc--;
+            continue;
+        }
+        fmt::print(stderr, "unexpected argument: {}\n", argv[0]);
+        param_list_print_usage(pl, pli.cmdline_argv0[0], stderr);
+        exit(EXIT_FAILURE);
+    }
+}
+
 
 static std::string drop_one_or_two_leading_dashes(std::string key)
 {
@@ -1167,6 +1237,16 @@ int param_list_parse_int_args_per_side(param_list_ptr pl, const char * key, int 
 int param_list_parse_uint_args_per_side(param_list_ptr pl, const char * key, unsigned int * lpb_arg, int n, enum args_per_side_policy_t policy)
 {
     return param_list_parse_per_side(pl, key, lpb_arg, n, policy);
+}
+
+int param_list_fail(param_list_ptr pl, const char * format, ...)
+{
+    va_list ap;
+    va_start(ap, format);
+    vfprintf(stderr, format, ap);
+    param_list_print_usage(pl, nullptr, stderr);
+    exit(EXIT_FAILURE);
+    va_end(ap);
 }
 
 /* We're only using these from C++ code at the moment, so that it is

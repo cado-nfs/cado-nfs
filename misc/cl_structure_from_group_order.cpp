@@ -707,7 +707,7 @@ struct command_line
     int verbosity_level = 1; /* each -v on command line increases it by 1 */
 
     static void declare_usage(cxx_param_list & pl) {
-        param_list_usage_header(pl, "Compute the exponent of the group given "
+        param_list_decl_usage_header(pl, "Compute the exponent of the group given "
                                     "the factorization of its order by "
                                     "computing the order of all elements "
                                     "corresponding to columns of the matrix\n");

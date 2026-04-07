@@ -19,7 +19,7 @@
 
 static void declare_usage(param_list pl)
 {
-    param_list_usage_header(pl,
+    param_list_decl_usage_header(pl,
 			    "This binary allows to choose the best parameters (B1, B2 (B2=c*B1))\n"
 			    "for each factoring methods: PM1, PP1-27, PP1-65, ECM-M12, ECM-M16, ECM-B12,\n"
 			    "to find a prime number in [2^lb, 2^ub]. Note that you can : \n"

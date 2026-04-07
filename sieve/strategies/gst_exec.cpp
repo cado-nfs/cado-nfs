@@ -24,7 +24,7 @@
 
 static void declare_usage(param_list pl)
 {
-    param_list_usage_header(
+    param_list_decl_usage_header(
         pl, "This binary allows to build the best strategies for each couple "
             "(r0, r1)\n"
             "where (r0,r1) are the bits size for our couple of cofactors.\n");
