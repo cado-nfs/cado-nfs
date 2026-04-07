@@ -990,7 +990,7 @@ sieve/ecm/facul_strategies_stats.cpp
 sieve/ecm/facul_strategies_stats.hpp
 sieve/ecm/finishbatch.cpp
 sieve/ecm/finishecm.cpp
-sieve/ecm/makeplan.c
+sieve/ecm/makeplan.cpp
 sieve/ecm/modset.cpp
 sieve/ecm/modset.hpp
 sieve/ecm/mpqs.h

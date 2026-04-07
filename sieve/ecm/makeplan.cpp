@@ -90,7 +90,7 @@ pm1_make_plan (pm1_plan_t *plan, const unsigned int B1, const unsigned int B2,
   if (verbose)
     gmp_printf ("pm1_make_plan: E = %Zd;\n", E);
 
-  plan->E = mpz_export (NULL, &tmp_E_nrwords, -1, sizeof(unsigned long),
+  plan->E = (unsigned long *) mpz_export (NULL, &tmp_E_nrwords, -1, sizeof(unsigned long),
                         0, 0, E);
   plan->E_nrwords = (unsigned int) tmp_E_nrwords;
   mpz_clear (E);
@@ -101,8 +101,11 @@ pm1_make_plan (pm1_plan_t *plan, const unsigned int B1, const unsigned int B2,
     plan->E_mask >>= 1;
 
   /* stage2 is done with P+1 code */
-  stage2_cost_t stage2_opcost = { .dadd = pp1_opcost.dADD,
-                                  .dbl = pp1_opcost.DBL, .is_ecm = 0 };
+  stage2_cost_t stage2_opcost = {
+      .is_ecm = 0,
+      .dbl = pp1_opcost.DBL,
+      .dadd = pp1_opcost.dADD,
+  };
   stage2_make_plan (&(plan->stage2), B1, B2, &stage2_opcost, verbose);
 }
 
@@ -141,8 +144,11 @@ pp1_make_plan (pp1_plan_t *plan, const unsigned int B1, const unsigned int B2,
                         BYTECODE_COMPRESS, verbose);
 
   /* Make stage 2 plan */
-  stage2_cost_t stage2_opcost = { .dadd = pp1_opcost.dADD,
-                                  .dbl = pp1_opcost.DBL, .is_ecm = 0 };
+  stage2_cost_t stage2_opcost = {
+      .is_ecm = 0,
+      .dbl = pp1_opcost.DBL,
+      .dadd = pp1_opcost.dADD,
+  };
   stage2_make_plan (&(plan->stage2), B1, B2, &stage2_opcost, verbose);
 }
 
@@ -225,8 +231,11 @@ ecm_make_plan (ecm_plan_t *plan, const unsigned int B1, const unsigned int B2,
     FATAL_ERROR_CHECK (1, "Unknown parameterization");
 
   /* Make stage 2 plan */
-  stage2_cost_t stage2_opcost = { .dadd = ec_montgomery_opcost.dADD,
-                                 .dbl = ec_montgomery_opcost.DBL, .is_ecm = 1 };
+  stage2_cost_t stage2_opcost = {
+      .is_ecm = 1,
+      .dbl = ec_montgomery_opcost.DBL,
+      .dadd = ec_montgomery_opcost.dADD,
+  };
   stage2_make_plan (&(plan->stage2), B1, B2, &stage2_opcost, verbose);
 }
 
