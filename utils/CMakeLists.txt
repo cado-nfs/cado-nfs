@@ -31,7 +31,7 @@ set (sources
         sm_utils.cpp galois_action.cpp memalloc.cpp
         special-q.cpp
 	mpz_vector.cpp memory.c stats.c lll.c
-        verbose.c 
+        verbose.cpp 
         tdict.cpp
         version_info.c
 	modified_files.c threadpool.cpp mpz_poly_bivariate.cpp

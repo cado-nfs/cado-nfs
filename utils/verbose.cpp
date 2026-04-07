@@ -6,12 +6,15 @@
 #include <stdint.h>
 #include <stdlib.h> // free realloc malloc abort
 
+#include <vector>
+
 #include <pthread.h>
 
 #include "verbose.h"
 #include "portability.h" // strdup // IWYU pragma: keep
 #include "macros.h"
 #include "params.h"
+#include "utils_cxx.hpp"
 
 #define G(X) CADO_VERBOSE_PRINT_ ## X
 #define F(X) (UINT64_C(1) << G(X))
@@ -25,43 +28,45 @@ static pthread_t batch_owner;
 static uint64_t verbose_flag_word;
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
-const struct {
+struct known_verbose_flag {
+    unsigned int index;
     const char * name;
     int def;
-} verbose_flag_list[] = 
-{
-    [G(CMDLINE)]                = { "print-cmdline", 1 },
-    [G(MODIFIED_FILES)]         = { "print-modified-files", 1 },
-    [G(COMPILATION_INFO)]       = { "print-compilation-info", 1 },
-    [G(BWC_DISPATCH_SLAVES)]    = { "bwc-dispatch-slaves", 0 },
-    [G(BWC_DISPATCH_MASTER)]    = { "bwc-dispatch-master", 0 },
-    [G(BWC_TIMING_GRIDS)]       = { "bwc-timing-grids", 1 },
-    [G(BWC_ITERATION_TIMINGS)]  = { "bwc-iteration-timings", 1 },
-    [G(BWC_CACHE_BUILD)]        = { "bwc-cache-build", 0 },
-    [G(BWC_DISPATCH_OUTER)]     = { "bwc-dispatch-outer", 0 },
-    [G(BWC_CPUBINDING)]         = { "bwc-cpubinding", 1 },
-    [G(BWC_CACHE_MAJOR_INFO)]   = { "bwc-cache-major-info", 0 },
-    [G(BWC_LOADING_MKSOL_FILES)]= { "bwc-loading-mksol-files", 1 },
+};
+
+static const std::vector<known_verbose_flag> verbose_flag_list = {
+    {G(CMDLINE),                  "print-cmdline", 1 },
+    {G(MODIFIED_FILES),           "print-modified-files", 1 },
+    {G(COMPILATION_INFO),         "print-compilation-info", 1 },
+    {G(BWC_DISPATCH_SLAVES),      "bwc-dispatch-slaves", 0 },
+    {G(BWC_DISPATCH_MASTER),      "bwc-dispatch-master", 0 },
+    {G(BWC_TIMING_GRIDS),         "bwc-timing-grids", 1 },
+    {G(BWC_ITERATION_TIMINGS),    "bwc-iteration-timings", 1 },
+    {G(BWC_CACHE_BUILD),          "bwc-cache-build", 0 },
+    {G(BWC_DISPATCH_OUTER),       "bwc-dispatch-outer", 0 },
+    {G(BWC_CPUBINDING),           "bwc-cpubinding", 1 },
+    {G(BWC_CACHE_MAJOR_INFO),     "bwc-cache-major-info", 0 },
+    {G(BWC_LOADING_MKSOL_FILES),  "bwc-loading-mksol-files", 1 },
 };
 
 const struct {
     const char * name;
     uint64_t mask;
 } verbose_flag_groups[] = {
-    { "all-cmdline",
-            F(CMDLINE) |
+    { .name = "all-cmdline",
+        .mask = F(CMDLINE) |
             F(MODIFIED_FILES) |
             F(COMPILATION_INFO) },
-    { "all-bwc-dispatch",
-            F(BWC_DISPATCH_SLAVES) |
+    { .name = "all-bwc-dispatch",
+        .mask =  F(BWC_DISPATCH_SLAVES) |
             F(BWC_DISPATCH_MASTER) |
             F(BWC_DISPATCH_OUTER) |
             F(BWC_CACHE_BUILD) },
-    { "all-bwc-cache",
-            F(BWC_CACHE_MAJOR_INFO) |
+    { .name = "all-bwc-cache",
+        .mask =       F(BWC_CACHE_MAJOR_INFO) |
             F(BWC_CACHE_BUILD) },
-    { "all-bwc-sub-timings", 
-            F(BWC_TIMING_GRIDS) |
+    { .name = "all-bwc-sub-timings", 
+        .mask =       F(BWC_TIMING_GRIDS) |
             F(BWC_ITERATION_TIMINGS) },
 };
 
@@ -74,9 +79,9 @@ void verbose_interpret_parameters(param_list_ptr pl)
     verbose_flag_word = ~0UL;
 
     /* mark these defaults. */
-    for(size_t i = 0 ; i < sizeof(verbose_flag_list) / sizeof(verbose_flag_list[0]) ; i++) {
-        if (verbose_flag_list[i].def == 0) {
-            uint64_t mask = UINT64_C(1) << (unsigned int) i;
+    for(auto const & [ index, name, def] : verbose_flag_list) {
+        if (def == 0) {
+            uint64_t mask = UINT64_C(1) << index;
             verbose_flag_word = verbose_flag_word & ~mask;
         }
     }
@@ -101,9 +106,9 @@ void verbose_interpret_parameters(param_list_ptr pl)
         else if (*p == '!') { enabled = 0; p += 1; }
 
         uint64_t mask = 0;
-        for(size_t i = 0 ; i < sizeof(verbose_flag_list) / sizeof(verbose_flag_list[0]) ; i++) {
-            if (strcmp(p, verbose_flag_list[i].name) == 0) {
-                mask = UINT64_C(1) << (unsigned int) i;
+        for(auto const & [ index, name, def] : verbose_flag_list) {
+            if (strcmp(p, name) == 0) {
+                mask = UINT64_C(1) << index;
                 break;
             }
         }
@@ -248,8 +253,8 @@ add_output(struct outputs_s *output, FILE * const out, const int verbosity)
 {
     const size_t new_nr = output->nr_outputs + 1;
 
-    CHECKED_REALLOC(output->outputs, new_nr, FILE *);
-    CHECKED_REALLOC(output->verbosity, new_nr, int);
+    checked_realloc(output->outputs, new_nr);
+    checked_realloc(output->verbosity, new_nr);
 
     output->nr_outputs = new_nr;
     output->outputs[new_nr - 1] = out;

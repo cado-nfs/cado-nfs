@@ -1869,7 +1869,7 @@ utils/usp.h
 utils/utils_cxx.cpp
 utils/utils_cxx.hpp
 utils/vector_with_cache.hpp
-utils/verbose.c
+utils/verbose.cpp
 utils/verbose.h
 utils/version_info.c.in
 utils/version_info.h
