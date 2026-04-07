@@ -7,7 +7,7 @@
 #include "parallelizing_info.hpp"
 #include "matmul_top.hpp"
 #include "select_mpi.h"
-#include "params.h"
+#include "params.hpp"
 #include "bw-common.hpp"
 #include "arith-generic.hpp"
 #include "macros.h"

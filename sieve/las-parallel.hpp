@@ -7,7 +7,7 @@
 #include <string>            // for string
 #include <sstream>           // IWYU pragma: keep
 #include "macros.h"          // for GNUC_VERSION_ATMOST, MAYBE_UNUSED
-#include "params.h"           // for param_list_decl_usage, cxx_param_list
+#include "params.hpp"           // for param_list_decl_usage, cxx_param_list
 #ifdef HAVE_HWLOC
 #include "hwloc-aux.hpp"  // cxx_hwloc_nodeset
 #endif

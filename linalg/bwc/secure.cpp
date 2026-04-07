@@ -23,7 +23,7 @@
 #include "arith-generic.hpp"
 #include "arith-cross.hpp"
 #include "parallelizing_info.hpp"
-#include "params.h"
+#include "params.hpp"
 #include "select_mpi.h"
 #include "xvectors.hpp"
 #include "mmt_vector_pair.hpp"

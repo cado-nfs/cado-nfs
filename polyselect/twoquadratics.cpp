@@ -13,7 +13,7 @@
 #include "mpz_vector.h"
 #include "macros.h"
 #include "gmp_aux.h"
-#include "params.h"
+#include "params.hpp"
 #include "verbose.hpp"
 #include "polyselect_norms.h"
 #include "polyselect_alpha.h"

@@ -29,7 +29,7 @@
 #include "utils_cxx.hpp"
 #include "verbose.hpp"
 #include "macros.h"
-#include "params.h"
+#include "params.hpp"
 
 static const char * const default_placement_with_auto = "node,fit*4,fit,pu,loose";
 

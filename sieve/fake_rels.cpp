@@ -34,7 +34,7 @@
 #include "special-q.hpp"
 #include "macros.h"
 #include "misc.h"
-#include "params.h"
+#include "params.hpp"
 #include "relation.hpp"
 #include "renumber.hpp"
 #include "timing.h"

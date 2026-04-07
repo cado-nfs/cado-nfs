@@ -33,7 +33,7 @@
 #include "matrix_u32.hpp"
 #include "mf_bal.hpp"
 #include "parallelizing_info.hpp"
-#include "params.h"
+#include "params.hpp"
 #include "random_matrix.hpp"
 #include "select_mpi.h"
 #include "timing.h"

@@ -26,7 +26,7 @@
 #include "mpz_mat.h"
 #include "mpz_poly.h"
 #include "numbertheory.hpp"
-#include "params.h"
+#include "params.hpp"
 #include "portability.h"
 #include "timing.h"
 #include "utils_cxx.hpp"

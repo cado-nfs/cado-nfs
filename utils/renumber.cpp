@@ -28,7 +28,7 @@
 #include "arith/mod_ul.h"
 #include "mpz_poly.h"
 #include "omp_proxy.h"
-#include "params.h"
+#include "params.hpp"
 #include "renumber.hpp"
 #include "rootfinder.h"
 #include "stats.h"

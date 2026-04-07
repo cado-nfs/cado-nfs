@@ -10,7 +10,7 @@
 #include "polyselect_stats.h"
 #include "polyselect_poly_header.h"
 #include "polyselect_qroots.h"
-#include "params.h"
+#include "params.hpp"
 #include "dllist.h"
 #ifdef HAVE_HWLOC
 #include <hwloc.h>

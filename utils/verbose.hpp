@@ -6,8 +6,8 @@
 
 #include "fmt/format.h"
 
-#include "params.h"
-#include "macros.h"     // ATTR_PRINTF
+#include "params.hpp"
+#include "macros.h"
 
 /* This provides fine-grain control over which messages we want. In order
  * to add a new flag, you must define its name as a preprocessor integer

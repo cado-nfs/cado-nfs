@@ -18,7 +18,7 @@
 
 #include "factor.hpp"
 #include "getprime.h"
-#include "params.h"
+#include "params.hpp"
 #include "verbose.hpp"
 #include "cxx_mpz.hpp"
 #include "ecm.h"

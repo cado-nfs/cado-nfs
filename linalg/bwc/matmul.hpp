@@ -7,7 +7,7 @@
 
 /* This header is common to the different matrix product implementations
  */
-#include "params.h"
+#include "params.hpp"
 #include "arith-generic.hpp"
 #include "matrix_u32.hpp"
 #include "bwc_config.h" // BUILD_DYNAMICALLY_LINKABLE_BWC // IWYU pragma: keep

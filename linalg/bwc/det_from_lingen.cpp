@@ -10,7 +10,7 @@
 #include "arith-generic.hpp"
 #include "bw-common.hpp"
 #include "bwc_filenames.hpp"
-#include "params.h"
+#include "params.hpp"
 
 
 /* Some utility classes and functions to compute the constant and leading terms

@@ -9,7 +9,7 @@
 #include "lingen_substep_schedule.hpp"
 #include "lingen_fft_select.hpp"
 #include "timing.h" // seconds
-#include "params.h"
+#include "params.hpp"
 
 template<typename fft_type>
 struct matpoly_checker_ft {

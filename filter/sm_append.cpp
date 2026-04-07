@@ -47,7 +47,7 @@
 #include "gzip.h"
 #include "macros.h"
 #include "mpz_poly.h"
-#include "params.h"
+#include "params.hpp"
 #include "runtime_numeric_cast.hpp"
 #include "select_mpi.h"
 #include "sm_utils.hpp"

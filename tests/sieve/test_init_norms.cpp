@@ -28,7 +28,7 @@
 #include "special-q.hpp"
 #include "macros.h"
 #include "mpz_poly.h"
-#include "params.h"
+#include "params.hpp"
 #include "rootfinder.h"
 #include "timing.h"
 #include "verbose.hpp"

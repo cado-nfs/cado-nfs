@@ -17,7 +17,7 @@
 #include "cado_poly.hpp"
 #include "macros.h"
 #include "mpz_poly.h"
-#include "params.h"
+#include "params.hpp"
 #include "sm_utils.hpp"
 #include "timing.h"
 #include "verbose.hpp"

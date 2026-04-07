@@ -27,7 +27,7 @@
 #include "macros.h"
 #include "memalloc.h"
 #include "mpz_poly.h"
-#include "params.h"
+#include "params.hpp"
 #include "purgedfile.h"
 #include "renumber.hpp"
 #include "sm_utils.hpp"

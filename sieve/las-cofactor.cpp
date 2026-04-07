@@ -14,7 +14,7 @@
 #include "ecm/facul_strategies.hpp"
 #include "las-cofactor.hpp"
 #include "macros.h"
-#include "params.h"
+#include "params.hpp"
 
 void cofactorization_statistics::declare_usage(cxx_param_list & pl)
 {

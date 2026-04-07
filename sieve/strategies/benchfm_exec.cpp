@@ -7,7 +7,7 @@
 
 #include "tab_fm.hpp"
 #include "generate_factoring_method.hpp"
-#include "params.h"
+#include "params.hpp"
 
 static void declare_usage(cxx_param_list & pl)
 {

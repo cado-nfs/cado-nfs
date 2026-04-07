@@ -14,7 +14,7 @@
 #include "cado_poly.hpp"
 #include "macros.h"
 #include "misc.h"
-#include "params.h"
+#include "params.hpp"
 #include "renumber.hpp"
 #include "timing.h"
 #include "typedefs.h"

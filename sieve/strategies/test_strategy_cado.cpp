@@ -38,7 +38,7 @@
 #include "macros.h"
 #include "misc.h"
 #include "arith/modredc_ul.h"
-#include "params.h"
+#include "params.hpp"
 #include "strategy.hpp"
 #include "tab_decomp.hpp"
 #include "tab_fm.hpp"
@@ -47,7 +47,7 @@
 // #include "facul_fwd.hpp"
 // #include "pm1.h"
 // #include "pp1.h"
-// #include "stage2.h" // stage2_plan_t
+// #include "stage2.h"
 
 #ifdef COMPILE_DEAD_CODE
 // #include "facul.hpp"

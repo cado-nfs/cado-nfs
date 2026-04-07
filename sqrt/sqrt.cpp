@@ -58,7 +58,7 @@
 #include "version_info.h" // cado_revision_string
 #include "portability.h" // strndup // IWYU pragma: keep
 #include "macros.h"
-#include "params.h"
+#include "params.hpp"
 #include "timing.h"
 
 /* define to check the result of cxx_mpz_polymodF_sqrt */

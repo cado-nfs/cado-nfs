@@ -21,7 +21,7 @@
 #include "macros.h"
 #include "misc.h"
 #include "parallelizing_info.hpp"
-#include "params.h"
+#include "params.hpp"
 #include "select_mpi.h"
 #include "timing.h"
 #include "verbose.hpp"

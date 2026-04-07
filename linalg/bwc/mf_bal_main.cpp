@@ -4,7 +4,7 @@
 #include <cstring>
 
 #include "mf_bal.hpp"
-#include "params.h"
+#include "params.hpp"
 
 /* This program computes how a matrix would have to be balanced for
  * fitting a job grid of given size. This does _not_ read the matrix,

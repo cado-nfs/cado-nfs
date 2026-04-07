@@ -6,7 +6,7 @@
 #include <set>
 #include <vector>
 
-#include "params.h"
+#include "params.hpp"
 
 #include "test_bblas_base.hpp"
 #include "test_bblas_level2.hpp"

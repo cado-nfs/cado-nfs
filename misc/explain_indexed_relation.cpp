@@ -16,7 +16,7 @@
 #include "fmt/format.h"
 
 #include "mpz_poly.h"
-#include "params.h"
+#include "params.hpp"
 #include "cado_poly.hpp"
 #include "verbose.hpp"
 #include "typedefs.h"

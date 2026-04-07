@@ -15,7 +15,7 @@
 #include "badideals.hpp"
 #include "cxx_mpz.hpp"
 #include "mpz_poly.h"
-#include "params.h"
+#include "params.hpp"
 #include "cado_poly.hpp"
 #include "sm_utils.hpp"
 

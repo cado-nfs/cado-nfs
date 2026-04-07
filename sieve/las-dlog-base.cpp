@@ -11,7 +11,7 @@
 #include "las-multiobj-globals.hpp"
 #include "macros.h"
 #include "typedefs.h"
-#include "params.h"
+#include "params.hpp"
 #include "portability.h"
 #include "verbose.hpp"
 

@@ -21,7 +21,7 @@
 #include "lingen_qcode_select.hpp"
 #include "cxx_mpz.hpp"
 #include "macros.h"
-#include "params.h"
+#include "params.hpp"
 
 template<bool is_binary_arg>
 struct matpoly_checker_base {

@@ -3,7 +3,7 @@
 
 #include <string>
 
-#include "params.h"
+#include "params.hpp"
 
 struct mf_bal_args {
     std::string rwfile;

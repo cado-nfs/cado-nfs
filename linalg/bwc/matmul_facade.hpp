@@ -21,7 +21,7 @@
 #include <cstdint>
 
 #include "macros.h"
-#include "params.h"
+#include "params.hpp"
 #include "matmul.hpp"
 
 /* Now some cpp glue */

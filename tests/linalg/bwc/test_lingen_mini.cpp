@@ -19,7 +19,7 @@
 #include "lingen_matpoly_select.hpp"
 #include "lingen_io_matpoly.hpp"
 #include "lingen_tuning.hpp"
-#include "params.h"
+#include "params.hpp"
 #include "lingen.hpp"
 
 static int verbose;

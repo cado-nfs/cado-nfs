@@ -13,7 +13,7 @@
 #include "gzip.h"       // fopen_maybe_compressed
 #include "macros.h"
 #include "mpz_poly.h"   // mpz_poly
-#include "params.h"
+#include "params.hpp"
 #include "rootfinder.h"
 #include "verbose.hpp"
 

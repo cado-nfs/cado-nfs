@@ -20,7 +20,7 @@
 #include "lingen_io_matpoly.hpp"
 #include "lingen_matpoly_select.hpp"
 #include "macros.h"
-#include "params.h"
+#include "params.hpp"
 #ifdef HAVE_OPENMP
 #include "omp_proxy.h"
 #endif

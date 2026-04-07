@@ -34,7 +34,7 @@
 #include "lingen_hints.hpp"
 #include "macros.h"
 #include "omp_proxy.h"
-#include "params.h"
+#include "params.hpp"
 #include "select_mpi.h"
 #include "subdivision.hpp"
 

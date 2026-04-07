@@ -23,7 +23,7 @@
 #include "murphyE.hpp"
 #include "cado_poly.hpp"
 #include "auxiliary.hpp"
-#include "params.h"
+#include "params.hpp"
 #include "omp_proxy.h" // IWYU pragma: keep
 #include "verbose.hpp"             // verbose_output_print
 #include "polyselect_alpha.h"

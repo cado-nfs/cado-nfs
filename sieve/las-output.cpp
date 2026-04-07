@@ -19,7 +19,7 @@
 #include "las-output.hpp"
 #include "macros.h"
 #include "verbose.hpp"
-#include "params.h"
+#include "params.hpp"
 
 
 /* {{{ las_verbose things */

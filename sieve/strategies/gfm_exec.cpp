@@ -10,7 +10,7 @@
 #include <gmp.h>
 
 #include "gmp_aux.h"
-#include "params.h"
+#include "params.hpp"
 #include "facul_ecm.h"
 #include "facul_method.hpp"
 #include "generate_factoring_method.hpp"

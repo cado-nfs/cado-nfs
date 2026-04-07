@@ -9,7 +9,7 @@
 #include <gmp.h>
 #include <stdio.h>
 #include <stdint.h>  // for uint32_t
-#include "params.h"
+#include "params.hpp"
 
 /* relevant to secure.c as well ; really, this is almost a hard-coded
  * constant.  Don't imagine it's easily tunable. If one really insists,

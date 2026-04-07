@@ -14,7 +14,7 @@
 #include "fmt/base.h"
 
 #include "cado_poly.hpp"
-#include "params.h"
+#include "params.hpp"
 #include "renumber.hpp"
 #include "relation.hpp"
 #include "typedefs.h"

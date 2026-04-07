@@ -18,7 +18,7 @@
 #include "las-siever-config.hpp"
 #include "las-side-config.hpp"
 #include "special-q.hpp"
-#include "params.h"
+#include "params.hpp"
 #include "relation.hpp"
 #include "sieve-methods.hpp"
 #include "verbose.hpp"

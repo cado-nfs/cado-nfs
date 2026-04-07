@@ -4,7 +4,7 @@
 #include "parallelizing_info.hpp"
 #include "matrix_u32.hpp"
 #include "balancing.hpp"
-#include "params.h"
+#include "params.hpp"
 
 /* fills arg with simulated data, which should correspond to the inner
  * blocks of a matrix split according to pi. The parameter list pl is

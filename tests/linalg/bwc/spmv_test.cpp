@@ -18,7 +18,7 @@
 #include "macros.h"
 #include "matmul_top.hpp"
 #include "matmul_top_comm.hpp"
-#include "params.h"
+#include "params.hpp"
 #include "portability.h" // asprintf // IWYU pragma: keep
 
 static int verbose = 0;

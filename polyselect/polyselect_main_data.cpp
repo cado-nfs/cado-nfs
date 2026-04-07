@@ -15,7 +15,7 @@
 
 #include "gmp_aux.h"
 #include "macros.h"
-#include "params.h"
+#include "params.hpp"
 #include "polyselect_arith.h"
 #include "polyselect_data_series.h"
 #include "polyselect_main_data.hpp"

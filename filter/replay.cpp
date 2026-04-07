@@ -36,7 +36,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "fix-endianness.h" // fwrite32_little
 #include "gzip.h"       // fopen_maybe_compressed
 #include "misc.h"       // derived_filename
-#include "params.h"     // param_list_parse_*
+#include "params.hpp"     // param_list_parse_*
 #include "sparse.h"
 #include "stats.h"      // stats_data_t
 #include "timing.h"     // seconds

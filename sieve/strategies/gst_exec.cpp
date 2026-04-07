@@ -13,7 +13,7 @@
 #include "gen_decomp.hpp"
 #include "generate_strategies.hpp"
 #include "macros.h"
-#include "params.h"
+#include "params.hpp"
 #include "tab_decomp.hpp"
 #include "tab_fm.hpp"
 #include "tab_strategy.hpp"

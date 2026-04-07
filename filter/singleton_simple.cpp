@@ -7,7 +7,7 @@
 #include "filter_io.hpp"  // earlyparsed_relation_ptr
 #include "macros.h"
 #include "misc.h"       // for UMAX
-#include "params.h"     // param_list_parse_*
+#include "params.hpp"     // param_list_parse_*
 #include "typedefs.h"   // for weight_t, prime_t, index_t
 
 #include "verbose.hpp"

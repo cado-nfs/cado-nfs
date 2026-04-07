@@ -55,7 +55,7 @@
 
 #include "matmul_facade.hpp"
 #include "portability.h" // strdup // IWYU pragma: keep
-#include "params.h"
+#include "params.hpp"
 
 using namespace std;
 

@@ -1,7 +1,7 @@
 #ifndef CADO_BALANCING_WORKHORSE_HPP
 #define CADO_BALANCING_WORKHORSE_HPP
 
-#include "params.h"
+#include "params.hpp"
 #include "parallelizing_info.hpp"
 #include "matrix_u32.hpp"
 

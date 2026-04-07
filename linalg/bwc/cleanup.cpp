@@ -9,7 +9,7 @@
 #include "blockmatrix.hpp"
 #include "bblas_gauss.h"
 
-#include "params.h"
+#include "params.hpp"
 #include "macros.h"
 
 // coverity[root_function]

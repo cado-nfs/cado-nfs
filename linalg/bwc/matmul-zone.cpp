@@ -25,7 +25,7 @@
 #include "matmul_facade.hpp"
 #include "memory.h"         // for malloc_aligned
 #include "arith-hard.hpp"
-#include "params.h"
+#include "params.hpp"
 
 template<typename Arith> struct fast_default {
     // uncomment the following line (and comment out the next one) to

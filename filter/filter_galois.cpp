@@ -25,7 +25,7 @@
 #include "fstream_maybe_compressed.hpp"
 #include "macros.h"
 #include "misc.h"
-#include "params.h"
+#include "params.hpp"
 #include "portability.h"
 #include "relation-tools.h"
 #include "renumber.hpp"

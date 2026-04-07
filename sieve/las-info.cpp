@@ -20,7 +20,7 @@
 #include "las-special-q-task-collection.hpp"
 #include "las-todo-list.hpp"
 #include "macros.h"
-#include "params.h"
+#include "params.hpp"
 
 /* las_info stuff */
 

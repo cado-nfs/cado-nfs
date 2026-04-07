@@ -7,7 +7,7 @@
 #include <gmp.h>
 
 #include "macros.h"
-#include "params.h"
+#include "params.hpp"
 #include "timing.h"
 #include "verbose.hpp"
 #include "gzip.h"

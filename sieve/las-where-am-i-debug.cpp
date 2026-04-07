@@ -42,7 +42,7 @@
 #include "las-where-am-i-proxy.hpp"
 #include "macros.h"
 #include "verbose.hpp"
-#include "params.h"
+#include "params.hpp"
 
 #ifndef TRACE_K
 #error "This file *must* be compiled with TRACE_K defined"

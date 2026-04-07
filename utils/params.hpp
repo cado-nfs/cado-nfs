@@ -45,10 +45,6 @@ enum args_per_side_policy_t {
     ARGS_PER_SIDE_DEFAULT_COPY_PREVIOUS,
 };
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // in any case, calls to param_list functions overwrite the previously
 // set parameters in the parameter list.
 
@@ -97,17 +93,10 @@ void param_list_process_command_line_and_extra_parameter_files(param_list_ptr pl
         int * p_argc, char const *** p_argv)
     ATTRIBUTE_NONNULL((2,3));
 
-#ifdef __cplusplus
-}
-#endif
-
-#ifdef __cplusplus
 /* this one is really just a proxy around join() in utils_cxx.hpp */
 extern std::string collect_command_line(int argc, char const *argv[]);
-#endif
 
 
-#ifdef __cplusplus
 template<typename T>
 int param_list_parse(param_list_ptr pl, std::string const & key, T & r);
 
@@ -179,12 +168,7 @@ extern template int param_list_parse<cxx_mpz>(param_list_ptr pl, std::string con
 extern template int param_list_parse<std::pair<cxx_mpz, cxx_mpz>>(param_list_ptr pl, std::string const & key, std::pair<cxx_mpz, cxx_mpz> & r);
 extern template int param_list_parse<cxx_mpz_poly>(param_list_ptr pl, std::string const & key, cxx_mpz_poly & r);
 extern template int param_list_parse<cado::prime_power_factorization>(param_list_ptr pl, std::string const & key, cado::prime_power_factorization & r);
-#endif
 
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 extern int param_list_empty(param_list_srcptr);
 extern int param_list_parse_int(param_list_ptr, const char *, int *);
@@ -279,15 +263,9 @@ extern int param_list_parse_uint_args_per_side(param_list_ptr pl, const char * k
 extern int param_list_parse_int_args_per_side(param_list_ptr pl, const char * key, int * lpb_arg, int n, enum args_per_side_policy_t policy);
 
 extern int param_list_fail(param_list_ptr, const char * format, ...) ATTR_PRINTF(2,3);
-#ifdef __cplusplus
-}
-#endif
 
-#ifdef __cplusplus
 extern int param_list_read(param_list_ptr pl, std::istream & is, bool stop_on_empty_line = false);
-#endif
 
-#ifdef __cplusplus
 
 /* The param_list implementation is only exposed to c++ code
  */
@@ -341,9 +319,6 @@ struct param_list_impl {
     // did the user use the doc functionality ?
     bool use_doc;
 };
-#endif
-
-#ifdef __cplusplus
 
 struct parameter_error : public std::runtime_error {
     explicit parameter_error(std::string const & arg)
@@ -556,7 +531,6 @@ extern void param_list_init(cxx_param_list & pl) __attribute__((error("param_lis
 extern void param_list_clear(cxx_param_list & pl) __attribute__((error("param_list_clear must not be called on a param_list reference -- it is the caller's business (via a dtor)")));
 #endif
 
-#endif
 
 
 #endif	/* CADO_PARAMS_H */

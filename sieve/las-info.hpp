@@ -31,7 +31,7 @@
 #include "las-side-config.hpp"
 #include "las-sieve-shared-data.hpp"
 #include "las-siever-config.hpp"
-#include "params.h"
+#include "params.hpp"
 #include "sieve-methods.hpp"
 #include "trialdiv.hpp"
 #include "utils_cxx.hpp"

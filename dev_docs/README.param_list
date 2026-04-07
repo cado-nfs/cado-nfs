@@ -343,6 +343,6 @@ needed:
 
 ###################################################################
 
-There is (yet) some more documentation text in params.h
+There is (yet) some more documentation text in params.hpp
 
 # vim: ft=markdown

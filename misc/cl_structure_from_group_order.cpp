@@ -27,7 +27,7 @@
 #include "imaginary_quadratic_class_groups.hpp"
 #include "macros.h"
 #include "mpz_poly.h"
-#include "params.h"
+#include "params.hpp"
 #include "prime_power_factorization.hpp"
 #include "roots_mod.hpp"
 #include "verbose.hpp"

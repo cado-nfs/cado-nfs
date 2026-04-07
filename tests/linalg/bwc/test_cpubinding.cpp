@@ -9,7 +9,7 @@
 
 #include "cpubinding.hpp"
 #include "macros.h"
-#include "params.h"
+#include "params.hpp"
 #include "misc.h"
 
 /* Example quick use:

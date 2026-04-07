@@ -37,7 +37,7 @@
 #include "macros.h"
 #include "matmul.hpp"
 #include "matrix_u32.hpp"     // for matrix_u32
-#include "params.h"
+#include "params.hpp"
 #include "portability.h" // asprintf // IWYU pragma: keep
 #include "utils_cxx.hpp"        // for unique_ptr<FILE, delete_FILE>
 #include "version_info.h" // cado_revision_string

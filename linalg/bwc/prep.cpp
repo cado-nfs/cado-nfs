@@ -32,7 +32,7 @@
 #include "matmul_top_vec.hpp"
 #include "mmt_vector_pair.hpp"
 #include "parallelizing_info.hpp"
-#include "params.h"
+#include "params.hpp"
 #include "select_mpi.h"
 #include "xdotprod.hpp"
 #include "xvectors.hpp"

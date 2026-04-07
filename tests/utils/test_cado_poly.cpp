@@ -8,7 +8,7 @@
 
 #include <gmp.h>
 
-#include "params.h"
+#include "params.hpp"
 #include "tests_common.h"
 #include "cado_poly.hpp"
 #include "mpz_poly.h"

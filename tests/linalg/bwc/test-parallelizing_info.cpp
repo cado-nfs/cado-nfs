@@ -7,7 +7,7 @@
 #include "select_mpi.h"
 #include "parallelizing_info.hpp"
 #include "portability.h" // asprintf // IWYU pragma: keep
-#include "params.h"
+#include "params.hpp"
 
 static int verbose = 0;
 

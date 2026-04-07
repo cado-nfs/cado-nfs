@@ -21,7 +21,7 @@
 #include "logline.hpp"
 #include "memusage.h"
 #include "misc.h"
-#include "params.h"
+#include "params.hpp"
 #include "portability.h"
 
 /* If non-zero, then reading from A is actually replaced by reading from

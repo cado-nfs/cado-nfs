@@ -11,7 +11,7 @@
 #include "fmt/format.h"
 
 #include "macros.h"  // for ASSERT_ALWAYS, ASSERT
-#include "params.h"
+#include "params.hpp"
 #include "cado_poly.hpp"
 #include "mpz_poly.h"
 #include "portability.h"

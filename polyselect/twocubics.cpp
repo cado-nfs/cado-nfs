@@ -44,7 +44,7 @@
 #ifdef NEW_ROOTSIEVE
 #include "ropt.hpp"
 #include "macros.h"
-#include "params.h"
+#include "params.hpp"
 #endif
 
 double best_E = DBL_MAX; /* combined score E (the smaller the better) */

@@ -32,7 +32,7 @@
 
 #if defined(HAVE_HWLOC)
 #include "cpubinding.hpp"
-#include "params.h"
+#include "params.hpp"
 #endif  /* defined(HAVE_HWLOC) */
 
 static inline void pi_comm_init_pthread_things(pi_comm_ptr w, const char * desc)

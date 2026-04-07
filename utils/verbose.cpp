@@ -13,7 +13,7 @@
 #include "verbose.hpp"
 #include "portability.h" // strdup // IWYU pragma: keep
 #include "macros.h"
-#include "params.h"
+#include "params.hpp"
 #include "utils_cxx.hpp"
 
 #define G(X) CADO_VERBOSE_PRINT_ ## X

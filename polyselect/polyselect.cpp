@@ -38,7 +38,7 @@
 
 #include "macros.h"
 #include "mpz_poly.h"
-#include "params.h"
+#include "params.hpp"
 #include "polyselect_data_series.h"
 #include "polyselect_main_data.hpp"
 #include "polyselect_main_queue.hpp"

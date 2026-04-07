@@ -104,7 +104,7 @@
 #include "misc.h"
 #include "arith/mod_ul.h"
 #include "mpz_poly.h"
-#include "params.h"
+#include "params.hpp"
 #include "purgedfile.h"
 #include "rootfinder.h"
 #include "submatrix_range.hpp"

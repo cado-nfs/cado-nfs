@@ -9,7 +9,7 @@
 
 #include <gmp.h>
 
-#include "params.h"
+#include "params.hpp"
 #include "mpz_poly.h"
 #include "cxx_mpz.hpp"
 

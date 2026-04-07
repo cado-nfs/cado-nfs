@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "parallelizing_info.hpp"
-#include "params.h"
+#include "params.hpp"
 
 /* 202207. The cado-nfs matrix format changes.
  *

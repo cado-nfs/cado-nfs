@@ -44,7 +44,7 @@
 #include "misc.h"
 #include "mpz_poly.h"
 #include "multityped_array.hpp"
-#include "params.h"
+#include "params.hpp"
 #include "threadpool.hpp"
 #include "timing.h"
 #include "verbose.hpp"

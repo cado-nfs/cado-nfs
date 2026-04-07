@@ -17,7 +17,7 @@
 
 #include "gmp_aux.h"
 #include "misc.h"
-#include "params.h"
+#include "params.hpp"
 #include "relation.hpp"
 #include "relation-tools.h"
 #include "indexed_relation.hpp"

@@ -3,7 +3,7 @@
 #include <cstdlib>
 #include <gmp.h>
 #include "gfpkdlpolyselect.hpp"
-#include "params.h"
+#include "params.hpp"
 #include "verbose.hpp"             // verbose_output_print
 
 static void

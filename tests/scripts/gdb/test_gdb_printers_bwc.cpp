@@ -7,7 +7,7 @@
 #include "cxx_mpz.hpp"
 #include "lingen_matpoly_select.hpp"
 #include "macros.h"
-#include "params.h"
+#include "params.hpp"
 
 static void foo()
 {

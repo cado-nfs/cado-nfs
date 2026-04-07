@@ -22,7 +22,7 @@
 #include "macros.h"
 #include "memusage.h"
 #include "mpz_poly.h"
-#include "params.h"
+#include "params.hpp"
 #include "relation.hpp"
 #include "verbose.hpp"
 

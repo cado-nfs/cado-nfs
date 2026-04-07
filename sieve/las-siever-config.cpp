@@ -23,7 +23,7 @@
 #include "las-special-q-task.hpp"
 #include "las-special-q-task-tree.hpp"
 #include "macros.h"
-#include "params.h"
+#include "params.hpp"
 #include "verbose.hpp"
 #include "utils_cxx.hpp"
 

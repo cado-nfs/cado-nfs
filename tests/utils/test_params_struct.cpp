@@ -4,7 +4,7 @@
 
 #include <stdexcept>
 
-#include "params.h"
+#include "params.hpp"
 
 struct puppet {
     /* 1. and 2. */

@@ -42,7 +42,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "macros.h"
 #include "mpz_poly.h"
 #include "omp_proxy.h"
-#include "params.h"
+#include "params.hpp"
 #include "renumber.hpp"
 #include "typedefs.h"
 #include "verbose.hpp"

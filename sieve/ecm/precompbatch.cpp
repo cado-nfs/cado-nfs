@@ -8,7 +8,7 @@
 #include "cxx_mpz.hpp"
 #include "mpz_poly.h"
 #include "verbose.hpp"    // verbose_decl_usage
-#include "params.h"
+#include "params.hpp"
 #include "las-side-config.hpp"
 
 

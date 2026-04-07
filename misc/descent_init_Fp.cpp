@@ -28,7 +28,7 @@
 #include "smooth_detect.hpp"
 #include "mpz_mat.h"
 #include "cxx_mpz.hpp"
-#include "params.h"
+#include "params.hpp"
 
 static double default_B1done;
 

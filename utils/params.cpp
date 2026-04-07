@@ -23,7 +23,7 @@
 #include "fmt/format.h"
 #include "cxx_mpz.hpp"
 
-#include "params.h"
+#include "params.hpp"
 #include "macros.h"
 #include "misc.h"
 #include "mpz_poly.h"

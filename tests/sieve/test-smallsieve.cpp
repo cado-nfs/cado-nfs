@@ -25,7 +25,7 @@
 #include "las-where-am-i-proxy.hpp"           // for where_am_I
 #include "las-where-am-i.hpp"
 #include "macros.h"
-#include "params.h"
+#include "params.hpp"
 #include "sieve/las-smallsieve-glue.hpp"
 #include "sieve/las-smallsieve-lowlevel.hpp"
 #include "test-smallsieve-mock.hpp"

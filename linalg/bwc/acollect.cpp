@@ -15,7 +15,7 @@
 #include "macros.h"
 #include "bw-common.hpp"
 #include "portability.h" // asprintf // IWYU pragma: keep
-#include "params.h"
+#include "params.hpp"
 
 #include "utils_cxx.hpp"
 

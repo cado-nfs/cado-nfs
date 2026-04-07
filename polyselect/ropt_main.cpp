@@ -43,7 +43,7 @@
 #include "macros.h"
 #include "mpz_poly.h"
 #include "murphyE.hpp"
-#include "params.h"
+#include "params.hpp"
 #include "polyselect_norms.h"
 #include "polyselect_alpha.h"
 #include "ropt.hpp"

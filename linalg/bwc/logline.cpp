@@ -11,7 +11,7 @@
 
 #include "logline.hpp"
 #include "memusage.h"   // Memusage2
-#include "params.h"     // param_list_parse_*
+#include "params.hpp"     // param_list_parse_*
 #include "select_mpi.h"
 #include "timing.h"     // seconds
 #include "portability.h" // asprintf // IWYU pragma: keep

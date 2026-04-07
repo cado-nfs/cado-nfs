@@ -14,7 +14,7 @@
 
 #include "cado_poly.hpp"
 #include "special-q.hpp"
-#include "params.h"
+#include "params.hpp"
 #include "las-globals.hpp"
 #include "las-report-stats.hpp"
 #include "las-special-q-task.hpp"

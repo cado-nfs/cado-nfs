@@ -17,7 +17,7 @@
 #include "macros.h"
 #include "arith-generic.hpp"
 #include "portability.h" // asprintf // IWYU pragma: keep
-#include "params.h"
+#include "params.hpp"
 #include "matrix_u32.hpp"   // for matrix_u32
 
 

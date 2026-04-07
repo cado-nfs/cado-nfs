@@ -35,7 +35,7 @@
 #include "arith-cross.hpp"
 #include "abase_proxy.hpp"
 #include "parallelizing_info.hpp"
-#include "params.h"
+#include "params.hpp"
 #include "portability.h"
 #include "select_mpi.h"
 #include "verbose.hpp"

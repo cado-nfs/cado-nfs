@@ -34,7 +34,7 @@ Output
 #include "macros.h"
 #include "mpz_poly.h"
 #include "omp_proxy.h"
-#include "params.h"
+#include "params.hpp"
 
 #include <cinttypes>
 #include <cstdint>

@@ -107,7 +107,7 @@
 #include "arith/mod_ul.h"
 #include "arith/modul_poly.h"
 #include "mpz_poly.h"
-#include "params.h"
+#include "params.hpp"
 #include "powers_of_p.hpp"
 #include "rootfinder.h"
 #include "select_mpi.h"

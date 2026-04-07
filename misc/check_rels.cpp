@@ -20,7 +20,7 @@
 #include "misc.h"
 #include "arith/mod_ul.h"
 #include "mpz_poly.h"
-#include "params.h"
+#include "params.hpp"
 #include "relation-tools.h"
 #include "timing.h"
 #include "typedefs.h"

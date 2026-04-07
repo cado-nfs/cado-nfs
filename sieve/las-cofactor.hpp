@@ -14,7 +14,7 @@
 #include "cxx_mpz.hpp"
 #include "ecm/facul.hpp"
 #include "las-siever-config.hpp"
-#include "params.h"
+#include "params.hpp"
 #include "ecm/facul_strategies.hpp"
 
 class cofactorization_statistics {

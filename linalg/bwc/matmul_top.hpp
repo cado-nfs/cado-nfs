@@ -12,7 +12,7 @@
 #include "select_mpi.h"
 #include "parallelizing_info.hpp"
 #include "matmul.hpp"
-#include "params.h"
+#include "params.hpp"
 #include "balancing.hpp"
 
 struct matmul_top_matrix {

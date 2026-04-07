@@ -7,7 +7,7 @@
 #include <istream>
 #include <string>
 
-#include "params.h"
+#include "params.hpp"
 
 int param_list_read(cxx_param_list & pl, std::istream & is, bool stop_on_empty_line)
 {

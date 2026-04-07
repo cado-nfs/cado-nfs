@@ -13,7 +13,7 @@
 #include "point.hpp"
 #include "tab_point.hpp"
 #include "convex_hull.hpp"
-#include "params.h"
+#include "params.hpp"
 #include "random_distributions.hpp"
 #include "gmp_aux.h"
 #include "macros.h"

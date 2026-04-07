@@ -22,7 +22,7 @@
 
 #include "ringbuf.hpp"
 #include "macros.h"
-#include "params.h"
+#include "params.hpp"
 #include "timing.h"
 #include "misc.h"
 #include "fix-endianness.h"

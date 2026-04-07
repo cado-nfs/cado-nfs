@@ -27,7 +27,7 @@
 #include "misc.h"
 #include "parallelizing_info.hpp"
 #include "portability.h"
-#include "params.h"
+#include "params.hpp"
 #include "random_distributions.hpp"
 #include "matrix_u32.hpp"
 #include "utils_cxx.hpp"

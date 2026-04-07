@@ -11,7 +11,7 @@
 #include "area.hpp"
 #include "cado_poly.hpp"
 #include "mpz_poly.h"
-#include "params.h"
+#include "params.hpp"
 
 /* This simplistic binary just computes the rotation f+k*g, starting from a
  * polynomial pair (f,g), and a rotation polynomial k (given least

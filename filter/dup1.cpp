@@ -35,7 +35,7 @@
 #include "macros.h"
 #include "portability.h" // strdup // IWYU pragma: keep
 #include "misc.h"       // filelist_clear
-#include "params.h"     // param_list_parse_*
+#include "params.hpp"     // param_list_parse_*
 #include "timing.h"     // timingstats_dict_t
 #include "verbose.hpp"
 

@@ -18,7 +18,7 @@
 #include "misc.h"
 #include "timing.h"
 #include "verbose.hpp"
-#include "params.h"
+#include "params.hpp"
 #include "las-siever-config.hpp"
 #include "las-side-config.hpp"
 

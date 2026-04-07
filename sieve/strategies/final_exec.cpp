@@ -4,7 +4,7 @@
 #include <cstdlib>
 
 #include "finding_good_strategy.hpp"
-#include "params.h"
+#include "params.hpp"
 #include "strategy.hpp"
 #include "tab_strategy.hpp"
 #include "macros.h"

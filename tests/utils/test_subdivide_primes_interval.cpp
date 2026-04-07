@@ -13,7 +13,7 @@
 
 #include "misc.h"
 #include "getprime.h"
-#include "params.h"
+#include "params.hpp"
 
 static void decl_usage(cxx_param_list & pl)
 {

@@ -1,7 +1,7 @@
 #ifndef CADO_MATRIX_U32_HPP
 #define CADO_MATRIX_U32_HPP
 
-#include "params.h"
+#include "params.hpp"
 #include "parallelizing_info.hpp"
 
 #include <cstdint>

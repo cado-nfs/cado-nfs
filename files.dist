@@ -1823,7 +1823,7 @@ utils/numbertheory_tool.cpp
 utils/omp_proxy.h
 utils/params-extra.cpp
 utils/params.cpp
-utils/params.h
+utils/params.hpp
 utils/polynomial.hpp
 utils/prime_power_factorization.hpp
 utils/purgedfile.c

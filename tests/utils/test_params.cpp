@@ -4,7 +4,7 @@
 
 #include <stdexcept>
 
-#include "params.h"
+#include "params.hpp"
 
 int main(int argc, char const * argv[])
 {

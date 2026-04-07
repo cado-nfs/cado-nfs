@@ -13,7 +13,7 @@
 #include "auxiliary.hpp"
 #include "cado_poly.hpp"
 #include "macros.h"
-#include "params.h"
+#include "params.hpp"
 #include "portability.h"
 #include "size_optimization.hpp"
 #include "verbose.hpp"

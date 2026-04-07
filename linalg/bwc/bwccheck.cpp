@@ -25,7 +25,7 @@
 #include "bw-common.hpp"
 #include "macros.h"
 #include "misc.h"
-#include "params.h"
+#include "params.hpp"
 #include "portability.h"
 #include "select_mpi.h"
 #include "utils_cxx.hpp"

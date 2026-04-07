@@ -24,7 +24,7 @@
 #include "matmul_top_vec.hpp"
 #include "mmt_vector_pair.hpp"
 #include "parallelizing_info.hpp"
-#include "params.h"
+#include "params.hpp"
 #include "select_mpi.h"
 
 static void mmt_full_vec_set_dummy1(mmt_vec & y, size_t unpadded)

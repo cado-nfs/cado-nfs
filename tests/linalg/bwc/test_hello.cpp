@@ -5,7 +5,7 @@
 
 #include "parallelizing_info.hpp"
 #include "select_mpi.h"
-#include "params.h"
+#include "params.hpp"
 #include "macros.h"
 
 static int verbose=0;
