@@ -140,10 +140,6 @@ struct bw_params {
 extern struct bw_params bw[1];
 extern const char * bw_dirtext[];
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* Typical use pattern:
      
     bw_common_init(bw, &argc, &argv);
@@ -180,8 +176,5 @@ extern int get_rhs_file_header_stream(FILE * f, uint32_t * p_nrows, unsigned int
 
 extern unsigned int bw_set_length_and_interval_krylov(struct bw_params * bw, unsigned int dims[2]);
 extern unsigned int bw_set_length_and_interval_mksol(struct bw_params * bw, unsigned int dims[2]);
-#ifdef __cplusplus
-}
-#endif
 
 #endif	/* CADO_BW_COMMON_H */

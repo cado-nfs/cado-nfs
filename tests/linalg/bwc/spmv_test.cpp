@@ -13,7 +13,7 @@
 
 #include "arith-generic.hpp"
 #include "balancing.hpp" // for balancing_clear, balancing_init, bal...
-#include "bw-common.h"
+#include "bw-common.hpp"
 #include "gmp_aux.h"
 #include "macros.h"
 #include "matmul_top.hpp"

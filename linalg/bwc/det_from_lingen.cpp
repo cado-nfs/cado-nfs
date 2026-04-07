@@ -8,7 +8,7 @@
 #include "fmt/format.h"
 
 #include "arith-generic.hpp"
-#include "bw-common.h"
+#include "bw-common.hpp"
 #include "bwc_filenames.hpp"
 #include "params.h"
 

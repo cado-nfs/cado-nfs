@@ -3,7 +3,7 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include "bw-common.h"
+#include "bw-common.hpp"
 #include "cxx_mpz.hpp"
 #include "lingen_matpoly_select.hpp"
 #include "macros.h"

@@ -23,7 +23,7 @@
 
 #include "abase_proxy.hpp"
 #include "arith-generic.hpp"
-#include "bw-common.h"
+#include "bw-common.hpp"
 #include "cxx_mpz.hpp"
 #include "gmp_aux.h"
 #include "macros.h"

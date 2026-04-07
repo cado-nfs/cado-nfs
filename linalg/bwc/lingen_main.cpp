@@ -7,7 +7,7 @@
 #include "fmt/base.h"
 
 #include "gmp_aux.h"
-#include "bw-common.h"
+#include "bw-common.hpp"
 #include "arith-hard.hpp"
 #include "lingen.hpp"
 #include "lingen_bmstatus.hpp"

@@ -17,7 +17,7 @@
 #include "arith-cross.hpp"
 #include "arith-generic.hpp"
 #include "balancing.hpp"         // for DUMMY_VECTOR_COORD_VALUE, DUMMY_VECT...
-#include "bw-common.h"
+#include "bw-common.hpp"
 #include "intersections.h"
 #include "macros.h"
 #include "matmul_top.hpp"

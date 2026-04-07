@@ -12,7 +12,7 @@
 
 #include "fmt/format.h"
 
-#include "bw-common.h"                    // for bw, bw_common_clear, bw_com...
+#include "bw-common.hpp"                    // for bw, bw_common_clear, bw_com...
 #include "misc.h"
 #include "lingen_checkpoints.hpp"
 #include "lingen_bmstatus.hpp"

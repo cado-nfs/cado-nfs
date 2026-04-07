@@ -475,7 +475,7 @@ linalg/bwc/blocklanczos_extraction.cpp
 linalg/bwc/blocklanczos_extraction.hpp
 linalg/bwc/build_matcache.cpp
 linalg/bwc/bw-common.cpp
-linalg/bwc/bw-common.h
+linalg/bwc/bw-common.hpp
 linalg/bwc/bwc.pl
 linalg/bwc/bwc_config_h.in
 linalg/bwc/bwc_filenames.cpp

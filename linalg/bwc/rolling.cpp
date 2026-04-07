@@ -20,7 +20,7 @@
 #include "fmt/format.h"
 
 #include "rolling.hpp"
-#include "bw-common.h"
+#include "bw-common.hpp"
 #include "macros.h"
 #include "portability.h"
 #include "utils_cxx.hpp"

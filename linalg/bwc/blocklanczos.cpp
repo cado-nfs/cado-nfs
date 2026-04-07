@@ -17,7 +17,7 @@
 #include "select_mpi.h"
 #include "params.h"
 #include "misc.h"
-#include "bw-common.h"
+#include "bw-common.hpp"
 #include "async.hpp"
 #include "bblas.hpp"
 #include "arith-generic.hpp"

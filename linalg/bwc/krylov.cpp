@@ -15,7 +15,7 @@
 #include "arith-cross.hpp"
 #include "arith-generic.hpp"
 #include "async.hpp"
-#include "bw-common.h"
+#include "bw-common.hpp"
 #include "bwc_filenames.hpp"
 #include "gmp_aux.h"
 #include "macros.h"

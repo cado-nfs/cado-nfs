@@ -26,7 +26,7 @@
 #include "fmt/format.h"
 
 #include "gmp_aux.h"
-#include "bw-common.h"
+#include "bw-common.hpp"
 #include "cxx_mpz.hpp"
 #include "matmul_top.hpp"
 #include "matmul_top_comm.hpp"

@@ -22,7 +22,7 @@
 
 #include "arith-cross.hpp"
 #include "arith-generic.hpp"
-#include "bw-common.h"          // for bw, bw_common_clear, bw_common_decl_u...
+#include "bw-common.hpp"          // for bw, bw_common_clear, bw_common_decl_u...
 #include "macros.h"             // for ASSERT_ALWAYS, MAYBE_UNUSED
 #include "misc.h"               // ok_NOKNOK
 #include "params.h"             // for param_list_clear, param_list_init

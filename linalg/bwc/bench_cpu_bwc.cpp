@@ -9,7 +9,7 @@
 #include <gmp.h>
 
 #include "arith-generic.hpp"
-#include "bw-common.h"
+#include "bw-common.hpp"
 #include "gmp_aux.h"
 #include "macros.h"
 #include "matmul_top.hpp"

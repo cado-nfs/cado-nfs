@@ -13,7 +13,7 @@
 #include <gmp.h>
 
 #include "macros.h"
-#include "bw-common.h"
+#include "bw-common.hpp"
 #include "portability.h" // asprintf // IWYU pragma: keep
 #include "params.h"
 

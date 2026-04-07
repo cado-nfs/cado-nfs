@@ -14,7 +14,7 @@
 
 #include <gmp.h>
 
-#include "bw-common.h"
+#include "bw-common.hpp"
 #include "select_mpi.h"
 #include "portability.h" // strdup // IWYU pragma: keep
 #include "verbose.h"    // verbose_interpret_parameters
