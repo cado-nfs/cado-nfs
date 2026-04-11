@@ -738,6 +738,18 @@ namespace cado {
         return std::make_unique<T[]>(size);
     }
 
+    template <size_t N>
+    struct string_literal {
+        constexpr string_literal(string_literal<N> const & str) {
+            std::copy_n(str.value, N, value);
+        }
+        constexpr string_literal(const char (&str)[N]) {
+            std::copy_n(str, N, value);
+        }
+
+        char value[N];
+    };
+
 } /* namespace cado */
 
 

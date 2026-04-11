@@ -12,6 +12,7 @@
 #include <utility>
 #include <stdexcept>
 #include <tuple>
+#include <type_traits>
 
 #include "fmt/base.h"
 #endif
@@ -22,6 +23,7 @@
 #ifdef __cplusplus
 #include "cxx_mpz.hpp"
 #include "prime_power_factorization.hpp"
+#include "utils_cxx.hpp"
 #endif
 #include "mpz_poly.h" // TODO: modify this.
 
@@ -108,6 +110,15 @@ extern std::string collect_command_line(int argc, char const *argv[]);
 #ifdef __cplusplus
 template<typename T>
 int param_list_parse(param_list_ptr pl, std::string const & key, T & r);
+
+
+template<typename T>
+    requires requires { typename T::is_parameter_base; }
+int param_list_parse(param_list_ptr, std::string const &, T &)
+{
+    static_assert(!T::is_parameter_base::value, "cannot call param_list_parse on a cxx_param_list::parameter");
+    return 0;
+}
 
 /* this returns a default constructed T if the key is absent */
 template<typename T>
@@ -333,6 +344,13 @@ struct param_list_impl {
 #endif
 
 #ifdef __cplusplus
+
+struct parameter_error : public std::runtime_error {
+    explicit parameter_error(std::string const & arg)
+        : std::runtime_error(arg)
+    {}
+};
+
 /* Same idea as for cxx_mpz and friends */
 struct cxx_param_list {
     param_list x;
@@ -408,21 +426,26 @@ struct cxx_param_list {
     }
 
     template<typename T>
-    T
-    parse(std::string const & key)
-    {
-        T c {};
-        /* This leaves c value-initialized if key is absent */
-        parse(key, c);
-        return c;
-    }
-
-    template<typename T>
-    T
-    parse_mandatory(std::string const & key)
+    T parse_mandatory(std::string const & key)
     {
         return param_list_parse_mandatory<T>(x, key);
     }
+
+    template<typename T, typename... Args>
+    T parse_optional(std::string const & key, Args && ...args)
+    {
+        T r(std::forward<Args>(args)...);
+        param_list_parse<T>(x, key, r);
+        return r;
+    }
+
+    template<typename T>
+    T parse(std::string const & key)
+    {
+        return parse_optional<T>(key);
+    }
+
+
     template<typename T>
         void
     parse_mandatory(std::string const & key, T & r)
@@ -445,18 +468,93 @@ struct cxx_param_list {
         else
             return {};
     }
+
+    void process_command_line(int & argc, char const ** &argv,
+            bool accept_trailing_args = false)
+    {
+        param_list_process_command_line(x, &argc, &argv, accept_trailing_args);
+    }
+    void process_command_line_and_extra_parameter_files(int & argc, char const ** & argv)
+    {
+        param_list_process_command_line_and_extra_parameter_files(x, &argc, &argv);
+    }
+    bool warn_unused()
+    {
+        return param_list_warn_unused(x);
+    }
+
+    struct flags {
+        using type = uint8_t;
+        static constexpr type optional = 0;
+        static constexpr type mandatory = 1;
+        static constexpr type toggle = 2;
+        static constexpr type has_default = 4;
+    };
+
+    template<size_t N>
+    using string_literal = cado::string_literal<N>;
+
+#if 0
+    template<flags::type fl,
+        typename T, string_literal key, string_literal documentation, auto... v>
+    struct parameter_base {
+        using is_parameter_base = std::true_type;
+        static constexpr T default_value { std::forward(v)... };
+        static void declare_usage(cxx_param_list & pl) {
+            if constexpr (fl & flags::has_default) {
+                auto f = fmt::format("{} (default {})", documentation.value, default_value);
+                pl.declare_usage(key.value, f);
+            } else {
+                pl.declare_usage(key.value, documentation.value);
+            }
+        }
+        static void configure(cxx_param_list & pl) {
+            declare_usage(pl);
+            if (fl & flags::toggle)
+                pl.configure_switch(key.value);
+        }
+        T value = default_value;
+        explicit parameter_base(cxx_param_list & pl) {
+            bool parsed = pl.parse(key.value, value);
+            if (!parsed && (fl & flags::mandatory))
+                throw parameter_error(fmt::format("missing mandatory parameter {}",
+                            key.value));
+        }
+        parameter_base() = default;
+        /* Implicit conversions are really, really desired */
+        // NOLINTBEGIN(google-explicit-constructor,hicpp-explicit-conversions)
+        operator T const &() const { return value; }
+        operator T &() { return value; }
+        // NOLINTEND(google-explicit-constructor,hicpp-explicit-conversions)
+        
+        /* when implicit conversions don't work, we have parameter_value() */
+        T const &parameter_value() const { return value; }
+        T &parameter_value() { return value; }
+        using parameter_type = T;
+    };
+#endif
 };
+
+#if 0
+template<typename T, cado::string_literal key, cado::string_literal documentation, auto... v>
+using parameter = cxx_param_list::parameter_base<cxx_param_list::flags::optional | (sizeof...(v) ? cxx_param_list::flags::has_default : 0), T, key, documentation, v...>;
+
+/* a mandatory parameter does not have a default value. */
+template<typename T, cado::string_literal key, cado::string_literal documentation>
+using parameter_mandatory = cxx_param_list::parameter_base<cxx_param_list::flags::mandatory, T, key, documentation>;
+
+/* in most cases, a switch does not have a default value, but 
+ * we can have a switch that can only be toggled *down*
+ */
+template<cado::string_literal key, cado::string_literal documentation, bool... v>
+requires (sizeof...(v) <= 1)
+using parameter_switch = cxx_param_list::parameter_base<cxx_param_list::flags::toggle | (sizeof...(v) ? cxx_param_list::flags::has_default : 0), bool, key, documentation, v...>;
+#endif
 
 #if GNUC_VERSION_ATLEAST(4,3,0)
 extern void param_list_init(cxx_param_list & pl) __attribute__((error("param_list_init must not be called on a param_list reference -- it is the caller's business (via a ctor)")));
 extern void param_list_clear(cxx_param_list & pl) __attribute__((error("param_list_clear must not be called on a param_list reference -- it is the caller's business (via a dtor)")));
 #endif
-
-struct parameter_error : public std::runtime_error {
-    explicit parameter_error(std::string const & arg)
-        : std::runtime_error(arg)
-    {}
-};
 
 #endif
 

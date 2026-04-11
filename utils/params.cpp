@@ -622,7 +622,7 @@ struct parse<std::pair<T, T>> {
         operator()(std::string const & s, std::pair<T, T> & value) const
         {
             std::vector<T> tmp;
-            bool b = parse_list<T>(s, tmp, ",");
+            const bool b = parse_list<T>(s, tmp, ",");
             if (b && tmp.size() == 2) {
                 value.first = tmp[0];
                 value.second = tmp[1];
@@ -745,7 +745,7 @@ param_list_parse_inner<bool>(param_list_ptr pl, std::string const & key, bool & 
         } else if (value == "true" || value == "True" || value == "yes" || value == "on") {
             r = true;
             return 1;
-        } else if (value == "false" || value == "False" || value == "no" || value == "off") {
+        } else if (value.empty() || value == "false" || value == "False" || value == "no" || value == "off") {
             r = false;
             return 1;
         }

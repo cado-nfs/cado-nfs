@@ -1567,6 +1567,9 @@ tests/utils/test_mpz_vector.cpp
 tests/utils/test_multityped_array.cpp
 tests/utils/test_number_literal.cpp
 tests/utils/test_omega.cpp
+tests/utils/test_params.cpp
+tests/utils/test_params_declarator.cpp
+tests/utils/test_params_struct.cpp
 tests/utils/test_polynomial.cpp
 tests/utils/test_prime_count.cpp
 tests/utils/test_random_distributions.cpp

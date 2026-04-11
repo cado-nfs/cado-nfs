@@ -1,3 +1,19 @@
+
+cado_define_test(test_params.cpp LIBRARIES utils NO_DEFAULT_RUN)
+cado_divert_test(test_params works --bar 4 -nl)
+cado_divert_test(test_params fails_missing_arg foo=8 EXPECT_FAIL)
+cado_divert_test(test_params fails_unknown_arg bar=2 --zoom 1 EXPECT_FAIL)
+
+cado_define_test(test_params_struct.cpp LIBRARIES utils NO_DEFAULT_RUN)
+cado_divert_test(test_params_struct works --bar 4 -nl)
+cado_divert_test(test_params_struct fails_missing_arg foo=8 EXPECT_FAIL)
+cado_divert_test(test_params_struct fails_unknown_arg bar=2 --zoom 1 EXPECT_FAIL)
+
+# cado_define_test(test_params_declarator.cpp LIBRARIES utils NO_DEFAULT_RUN)
+# cado_divert_test(test_params_declarator works --bar 4 -nl)
+# cado_divert_test(test_params_declarator fails_missing_arg foo=8 EXPECT_FAIL)
+# cado_divert_test(test_params_declarator fails_unknown_arg bar=2 --zoom 1 EXPECT_FAIL)
+
 cado_define_test(test_strlcat.c LIBRARIES utils)
 cado_define_test(test_strlcpy.c LIBRARIES utils)
 cado_define_test(test_double_poly.cpp LIBRARIES utils tests)
