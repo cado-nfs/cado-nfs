@@ -13,7 +13,10 @@
 
 template<bool is_binary> class matpoly;
 template<bool is_binary> struct bmstatus;
+namespace cado::params {
 struct cxx_param_list;
+}
+using cxx_param_list = cado::params::cxx_param_list;
 
 enum cp_which {
     LINGEN_CHECKPOINT_E,

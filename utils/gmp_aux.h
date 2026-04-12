@@ -136,7 +136,23 @@ extern void mpz_ndiv_q_ui (mpz_ptr q, mpz_srcptr n, unsigned long int d);
 extern int mpz_coprime_p (mpz_srcptr a, mpz_srcptr b);
 
 extern int mpz_rdiv_q(mpz_ptr q, mpz_srcptr a, mpz_srcptr b);
+#ifdef __cplusplus
+}
+#endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+/* The implementation of mpz_set_from_expression is in gmp_aux2.cpp
+ */
+extern int mpz_set_from_expression(mpz_ptr f, const char * value);
+#ifdef __cplusplus
+}
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* Put in r the smallest legitimate value that it at least s + diff (note
    that if s+diff is already legitimate, then r = s+diff will result.
 

@@ -6,7 +6,10 @@
 
 #include "sieve-methods.hpp"
 
+namespace cado::params {
 struct cxx_param_list;
+}
+using cxx_param_list = cado::params::cxx_param_list;
 class nfs_work;
 
 /* Yes, where_am_I::impl is an _incomplete_ type, on purpose. We only

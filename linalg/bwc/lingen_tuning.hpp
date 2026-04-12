@@ -9,7 +9,10 @@
 template<bool is_binary>
 struct bw_dimensions;
 
+namespace cado::params {
 struct cxx_param_list;
+}
+using cxx_param_list = cado::params::cxx_param_list;
 
 void lingen_tuning_decl_usage(cxx_param_list & pl);
 void lingen_tuning_lookup_parameters(cxx_param_list & pl);

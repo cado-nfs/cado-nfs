@@ -1,5 +1,5 @@
-#ifndef CADO_BW_COMMON_H
-#define CADO_BW_COMMON_H
+#ifndef CADO_BW_COMMON_HPP
+#define CADO_BW_COMMON_HPP
 
 /* This file gathers the parameters that are relevant to all BW
  * programs -- most programs parse the corresponding values -- for some,
@@ -176,4 +176,4 @@ extern int get_rhs_file_header_stream(FILE * f, uint32_t * p_nrows, unsigned int
 extern unsigned int bw_set_length_and_interval_krylov(struct bw_params * bw, unsigned int dims[2]);
 extern unsigned int bw_set_length_and_interval_mksol(struct bw_params * bw, unsigned int dims[2]);
 
-#endif	/* CADO_BW_COMMON_H */
+#endif	/* CADO_BW_COMMON_HPP */

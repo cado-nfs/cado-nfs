@@ -1821,7 +1821,6 @@ utils/numbertheory/numbertheory_internals.cpp
 utils/numbertheory/numbertheory_internals.hpp
 utils/numbertheory_tool.cpp
 utils/omp_proxy.h
-utils/params-extra.cpp
 utils/params.cpp
 utils/params.hpp
 utils/polynomial.hpp

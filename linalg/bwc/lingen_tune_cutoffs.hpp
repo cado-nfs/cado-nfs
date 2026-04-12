@@ -6,7 +6,10 @@
 template<bool is_binary>
 struct bw_dimensions;
 
+namespace cado::params {
 struct cxx_param_list;
+}
+using cxx_param_list = cado::params::cxx_param_list;
 
 extern void lingen_tune_cutoffs_decl_usage(cxx_param_list & pl);
 extern void lingen_tune_cutoffs_lookup_parameters(cxx_param_list & pl);

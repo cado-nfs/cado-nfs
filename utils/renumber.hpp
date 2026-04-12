@@ -27,7 +27,10 @@
 #include "mpz_poly.h"
 #include "typedefs.h"
 
-struct cxx_param_list; // IWYU pragma: keep
+namespace cado::params {
+struct cxx_param_list;
+}
+using cxx_param_list = cado::params::cxx_param_list;
 
 /* To build a renumber table in memory in the simplest way, the
  * process goes as follows

@@ -20,7 +20,7 @@ set (sources
         arithxx/modredc126.cpp
         arithxx/mod_mpz_new.cpp
         gmp_aux2.cpp
-        double_poly.cpp rootfinder.cpp params.cpp params-extra.cpp gcd.c
+        double_poly.cpp rootfinder.cpp params.cpp gcd.c
         gzip.cpp misc.c misc2.cpp utils_cxx.cpp
         fstream_maybe_compressed.cpp
         mpz_mat.cpp mpz_poly.cpp crc.c purgedfile.c bit_vector.c

@@ -8,7 +8,7 @@
 
 struct puppet {
     /* 1. and 2. */
-    parameter<std::string, "foo", "give the h2g2 number", "forty-two"> foo;
+    parameter_with_default<std::string, "foo", "give the h2g2 number", "forty-two"> foo;
     parameter_mandatory<int, "bar", "number of repeats"> bar;
     parameter_switch<"nl", "add newlines"> add_newlines;
 
@@ -35,9 +35,9 @@ struct puppet {
     void doit() const
     {
         for(int i = 0 ; i < bar ; i++) {
-            printf("%d\n", foo.parameter_value());
+            fmt::print("{}\n", foo.parameter_value());
             if (add_newlines)
-                printf("\n");
+                fmt::print("\n");
         }
     }
 };

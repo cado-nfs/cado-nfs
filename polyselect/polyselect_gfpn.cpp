@@ -4,6 +4,7 @@
 #include <gmp.h>
 #include "gfpkdlpolyselect.hpp"
 #include "params.hpp"
+#include "cxx_mpz.hpp"
 #include "verbose.hpp"             // verbose_output_print
 
 static void

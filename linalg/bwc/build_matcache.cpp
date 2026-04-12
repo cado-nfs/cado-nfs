@@ -38,24 +38,19 @@ struct direction_flag {
 };
 
 template<>
-int param_list_parse<direction_flag>(param_list_ptr pl,
-        std::string const & arg,
-        direction_flag & D)
-{
-    std::string r;
-    if (!param_list_parse(pl, arg, r))
-        return 0;
-    if (r == "left" || r == "LEFT") {
-        D.value = 0;
-    } else if (r == "right" || r == "RIGHT") {
-        D.value = 1;
-    } else {
-        throw std::runtime_error(fmt::format("Wrong argument for direction flag ({}), must be left or right", r));
+struct cado::params::parser<direction_flag> {
+    bool operator()(std::string const & r, direction_flag & D) {
+        if (r == "left" || r == "LEFT") {
+            D.value = 0;
+        } else if (r == "right" || r == "RIGHT") {
+            D.value = 1;
+        } else {
+            return false;
+            // throw std::runtime_error(fmt::format("Wrong argument for direction flag ({}), must be left or right", r));
+        }
+        return true;
     }
-    return 1;
-}
-
-
+};
 
 int main(int argc, char const * argv[])
 {

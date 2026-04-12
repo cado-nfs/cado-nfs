@@ -268,8 +268,6 @@ const char *size_disp(size_t s, char buf[16]);
  */
 extern void subdivide_primes_interval_proxy(unsigned long * r, unsigned long p0, unsigned long p1, size_t n);
 
-extern int mpz_set_from_expression(mpz_ptr f, const char * value);
-
 
 #ifdef __cplusplus
 }
@@ -429,7 +427,6 @@ template < typename _Tp > class pagealigned_allocator {
 
 #ifdef __cplusplus
 std::vector<std::pair<cxx_mpz, int> > trial_division(cxx_mpz const& n0, unsigned long B, cxx_mpz & cofactor);
-cxx_mpz mpz_from_expression(const char *);
 #endif
 
 #endif	/* CADO_UTILS_MISC_H */

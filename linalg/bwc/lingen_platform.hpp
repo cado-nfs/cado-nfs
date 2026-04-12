@@ -3,7 +3,10 @@
 
 #include <cstddef>
 #include "select_mpi.h"
+namespace cado::params {
 struct cxx_param_list;
+}
+using cxx_param_list = cado::params::cxx_param_list;
 
 struct lingen_platform {
     /* input characteristics -- the ones we have to live with */

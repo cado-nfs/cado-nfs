@@ -31,6 +31,7 @@
 #include "named_proxy.hpp"
 #include "gmp_auxx.hpp"
 #include "utils_cxx.hpp"
+#include "params.hpp"
 #endif
 
 #include "macros.h"
@@ -634,6 +635,29 @@ inline int mpz_poly_set_from_expression(mpz_poly_ptr f, std::string const & valu
 {
     return mpz_poly_set_from_expression(f, value.c_str());
 }
+
+
+template<> struct cado::params::parser<cxx_mpz_poly> {
+    bool operator()(std::string const & s, cxx_mpz_poly & value) const
+    {
+        if (s.find(',') == std::string::npos) {
+            cxx_mpz_poly w;
+            const bool b = mpz_poly_set_from_expression(w, s.c_str());
+            if (b)
+                value = w;
+            return b;
+        }
+        std::vector<cxx_mpz> blah;
+        if (!parse(s, blah))
+            return false;
+        mpz_poly_set_zero(value);
+        for(int i = 0 ; i < (int) blah.size() ; i++) {
+            mpz_poly_setcoeff(value, i, blah[i]);
+        }
+        return true;
+    }
+};
+
 #endif
 
 #endif	/* CADO_MPZ_POLY_H */

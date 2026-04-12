@@ -9,6 +9,7 @@
 #include <type_traits>
 #include <memory>
 #include <compare>
+#include <string>
 
 #include <gmp.h>
 #include "fmt/base.h"
@@ -19,6 +20,7 @@
 #include "gmp_auxx.hpp"
 #include "utils_cxx.hpp"
 #include "macros.h"
+#include "params.hpp"
 
 struct cxx_mpz {
 public:
@@ -415,5 +417,41 @@ static inline cxx_mpz operator""_mpz(char const * str, size_t)
     mpz_set_str(res, str, 0);
     return res;
 }
+
+template<> struct cado::params::parser<cxx_mpz> {
+    bool operator()(std::string const & s, cxx_mpz & value) const
+    {
+        unsigned int nread;
+        cxx_mpz w;
+
+        int rc = gmp_sscanf(s.c_str(), "%Zi%n", (mpz_ptr) w, &nread);
+        if (rc == 1 && nread == s.size()) {
+            value = w;
+            return true;
+        }
+
+        /* also recognize integers written as floating-point, like 6.3e8 */
+        if (s[nread] == '.' || s[nread] == 'e') {
+            mpf_t zf;
+            mpf_init(zf);
+            rc = gmp_sscanf(s.c_str(), "%Ff%n", zf, &nread);
+            rc = (rc == 1 && nread == s.size() && mpf_integer_p(zf));
+            if (rc) mpz_set_f(value, zf);
+            mpf_clear(zf);
+            if (rc) return true;
+        }
+
+        if (mpz_set_from_expression(w, s.c_str())) {
+            value = w;
+            return true;
+        }
+
+        return false;
+    }
+};
+
+/* in gmp_aux2.cpp */
+cxx_mpz mpz_from_expression(const char *);
+
 
 #endif	/* CADO_CXX_MPZ_HPP */

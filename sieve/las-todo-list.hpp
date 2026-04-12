@@ -22,7 +22,10 @@
 #include "special-q.hpp"
 #include "galois_action.hpp"
 
+namespace cado::params {
 struct cxx_param_list;
+}
+using cxx_param_list = cado::params::cxx_param_list;
 
 class todo_list_base : protected std::stack<special_q> {
     protected:

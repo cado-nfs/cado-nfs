@@ -156,7 +156,7 @@ static void * sec_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * ar
         }
 
         /* Non-destructively open for writing */
-        auto T = fopen_helper(Tfilename, bw->start == 0 ? "wb" : "rb");
+        auto T = fopen_helper(Tfilename, bw->start == 0 ? "ab" : "rb");
         size_t Tsz = file_bytes(T.get());
 
         if (!T) {

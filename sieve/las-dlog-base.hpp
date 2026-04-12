@@ -5,7 +5,10 @@
 #include "cado_poly.hpp"   // cxx_cado_poly
 #include "renumber.hpp"   // for renumber_t
 #include "typedefs.h"
+namespace cado::params {
 struct cxx_param_list;
+}
+using cxx_param_list = cado::params::cxx_param_list;
 
 struct las_dlog_base {
     cxx_cado_poly const & cpoly;

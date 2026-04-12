@@ -20,6 +20,7 @@
 #include <utility>
 #include <vector>
 
+#include "fmt/base.h"
 #include "fmt/format.h"
 
 #include "macros.h"
@@ -173,7 +174,8 @@ struct free_delete
 /* This makes it possible to replace FILE* by std::unique_ptr<FILE>
  * almost transparently. (note that we can't do that with
  * fclose_maybe_compressed, unfortunately, since it requires to keep
- * track of the file name).
+ * track of the file name. For that, see delete_FILE_maybe_compressed in
+ * gzip.h).
  * However it is probably preferrable to define the deleter explicitly
  * with the std::unique_ptr<FILE, delete_FILE> form, which does not rely
  * on presence/absence of the utils_cxx.hpp header which tampers with the
@@ -743,14 +745,37 @@ namespace cado {
         constexpr string_literal(string_literal<N> const & str) {
             std::copy_n(str.value, N, value);
         }
+        // yes, a silent conversion is what we want here. The actual
+        // "string_literal" type is not intended to be used outside
+        // library code.
+        // NOLINTNEXTLINE(google-explicit-constructor,hicpp-explicit-conversions)
         constexpr string_literal(const char (&str)[N]) {
             std::copy_n(str, N, value);
         }
 
-        char value[N];
+        static_assert(N);
+        static constexpr size_t length = N - 1;
+        static constexpr bool empty() { return length == 0; }
+        char value[N] {};
+        const char * begin() const { return value; }
+        const char * end() const { return value + length; }
     };
 
 } /* namespace cado */
+
+namespace fmt {
+template <auto N>
+struct formatter<cado::string_literal<N>> : formatter<string_view>
+{
+    public:
+    auto format(cado::string_literal<N>const & x, format_context& ctx) const
+        -> decltype(ctx.out())
+    {
+        return formatter<string_view>::format(x.value, ctx);
+    }
+};
+
+} /* namespace fmt */
 
 
 #endif	/* CADO_UTILS_CXX_HPP */
