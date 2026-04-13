@@ -6,6 +6,10 @@ cado_define_test(SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/test_filter_galois.sh
     PROVIDE_TEMPORARY_WDIR
     TARGET_DEPENDENCIES filter_galois)
 
+cado_define_test(SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/test_dup1.sh
+    PROVIDE_TEMPORARY_WDIR
+    TARGET_DEPENDENCIES dup1)
+
 set(sage_opt)
 set(deps)
 if(SAGE)
