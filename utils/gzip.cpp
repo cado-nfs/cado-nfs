@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 #include <stdexcept>
+#include <fstream>
+#include <ios>
 
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -269,8 +271,26 @@ FILE * fopen_maybe_compressed2(char const * orig_name, char const * mode,
 
         /* Just *any* file that we write to will get a .tmp.$PID suffix
          */
-        if (strchr(mode, 'w'))
+        if (strchr(mode, 'w')) {
             name = tempname = fmt::format("{}.tmp.{}", name, getpid());
+            std::ofstream dummy(tempname, std::ios::out);
+            if (dummy.is_open()) {
+                dummy.close();
+                unlink(tempname.c_str());
+            } else {
+                /* We can't access the temp file. Don't use a temp file,
+                 * then... However we have an issue with the fact that
+                 * this information on tempname is not kept togeher with
+                 * the FILE *. We can possibly work aroung this in C++,
+                 * but in C it would be complicated. Let's just abort...
+                 * It _will_ mean that writing to /dev/stdout won't work,
+                 * though. So we would ideally need to find a better solution.
+                 */
+                throw cado::error("cannot write to {}", tempname);
+                name = orig_name;
+                tempname.clear();
+            }
+        }
 
         if (strchr(mode, 'r') && *r.pfmt_in)
             command = fmt::format(fmt::runtime(r.pfmt_in), name);
