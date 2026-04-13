@@ -10,6 +10,7 @@
 
 #include <type_traits>
 #include <complex>
+#include <stdexcept>
 
 #include <gmp.h>
 
@@ -131,7 +132,7 @@ namespace cado_math_aux
     requires std::is_integral_v<T>
     {
         /* I'm lazy */
-        return converter_from_mpz<T>(pow(cxx_mpz(x), e));
+        return pow(cxx_mpz(x), e);
     }
     /* }}} */
     /* {{{ simple wrappers around invmod */
