@@ -1009,7 +1009,7 @@ cado_define_test(linalg_determinant
         :determinant thr=2 nullspace=right
         matrix=${CMAKE_CURRENT_SOURCE_DIR}/d20.sparse.bin
     SHA1_ON_REGEXP_LINES "^determinant modulo p: "
-    TARGET_DEPENDENCIES bwc_full_gfp
+    TARGET_DEPENDENCIES bwc_full_gfp det_from_lingen
     NO_DEFAULT_RUN
 )
 
