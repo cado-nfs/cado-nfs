@@ -408,7 +408,7 @@ inline std::istream& operator>>(std::istream& is, cxx_mpq & x) { return is >> (m
 namespace fmt {
     template <> struct formatter<cxx_mpz>: ostream_formatter {};
     template <> struct formatter<cxx_mpq>: ostream_formatter {};
-}
+} /* namespace fmt */
 
 /* a shorthand so that we can use user-defined literals */
 static inline cxx_mpz operator""_mpz(char const * str, size_t)
@@ -453,5 +453,12 @@ template<> struct cado::params::parser<cxx_mpz> {
 /* in gmp_aux2.cpp */
 cxx_mpz mpz_from_expression(const char *);
 
+
+namespace std {
+    template<> struct make_signed<cxx_mpz> { using type = cxx_mpz; };
+    template<> struct make_unsigned<cxx_mpz> { using type = cxx_mpz; };
+    template<> struct make_signed<cxx_mpq> { using type = cxx_mpq; };
+    template<> struct make_unsigned<cxx_mpq> { using type = cxx_mpq; };
+} /* namespace std */
 
 #endif	/* CADO_CXX_MPZ_HPP */

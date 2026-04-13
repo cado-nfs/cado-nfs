@@ -5,6 +5,7 @@
 
 #include <complex>
 #include <type_traits>
+#include <array>
 
 #include "cxx_mpz.hpp"
 #ifdef HAVE_MPFR
@@ -19,6 +20,22 @@ namespace cado {
         template<typename... Args>
             void operator()(Args&& ...) const { }
     };
+
+    template<typename A>
+    concept is_std_array_v =
+           requires { typename A::value_type; }
+        && requires { std::tuple_size_v<A>; }
+        && std::is_same_v<A, std::array<typename A::value_type, std::tuple_size_v<A>>>;
+
+    static_assert(is_std_array_v<std::array<int, 3>>);
+    static_assert(!is_std_array_v<int[3]>);
+
+    template<typename A>
+    concept is_bounded_array_or_std_array_v =
+        (std::is_bounded_array_v<A> || is_std_array_v<A>);
+
+    static_assert(is_bounded_array_or_std_array_v<std::array<int, 3>>);
+    static_assert(is_bounded_array_or_std_array_v<int[3]>);
 
 } /* namespace cado */
 

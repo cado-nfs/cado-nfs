@@ -21,29 +21,33 @@
 
 namespace cado_std_replacement
 {
-struct barrier
-{
-    barrier_t B {};
+    static_assert(std::is_empty_v<cado::nop_function>);
 
-    explicit barrier(ptrdiff_t count)
+    template<typename completion = cado::nop_function>
+    requires std::is_same_v<completion, cado::nop_function>
+    struct barrier
     {
-        barrier_init(&B, nullptr, static_cast<int>(count));
-    }
+        barrier_t B {};
 
-    ~barrier()
-    {
-        barrier_destroy(&B, nullptr);
-    }
+        explicit barrier(ptrdiff_t count)
+        {
+            barrier_init(&B, nullptr, static_cast<int>(count));
+        }
 
-    barrier(barrier const &) = delete;
-    barrier & operator=(barrier const &) = delete;
-    barrier(barrier const &&) = delete;
-    barrier & operator=(barrier const &&) = delete;
+        ~barrier()
+        {
+            barrier_destroy(&B, nullptr);
+        }
 
-    void arrive_and_wait() {
-        barrier_wait(&B, nullptr, nullptr, nullptr);
-    }
-};
+        barrier(barrier const &) = delete;
+        barrier & operator=(barrier const &) = delete;
+        barrier(barrier const &&) = delete;
+        barrier & operator=(barrier const &&) = delete;
+
+        void arrive_and_wait() {
+            barrier_wait(&B, nullptr, nullptr, nullptr);
+        }
+    };
 } // namespace cado_std_replacement
 
 #ifndef __cpp_lib_barrier
@@ -51,9 +55,9 @@ namespace std {
     /* this will error out, by design, if a non-trivial completion
      * function is passed.
      */
-    template<typename F=cado::nop_function>
-    requires std::is_same_v<F, cado::nop_function>
-    using barrier = cado_std_replacement::barrier;
+    template<typename completion = cado::nop_function>
+    requires std::is_same_v<completion, cado::nop_function>
+    using barrier = cado_std_replacement::barrier<completion>;
 }
 #endif
 
