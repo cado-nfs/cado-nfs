@@ -42,8 +42,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include <cstdint>
 #include <cstring>
 
+#include <string>
+#include <vector>
+
 #include "filter_config.h"
-#include "filter_io_old.hpp"
+#include "filter_io.hpp"
 #ifdef FOR_DL
 #include "gcd.h"
 #endif
@@ -82,51 +85,46 @@ Print_row (filter_matrix_t *mat, index_t i)
 
 /*************************** output buffer ***********************************/
 
-typedef struct {
-  char* buf;
-  size_t size;  /* used size */
-  size_t alloc; /* allocated size */
-} buffer_struct_t;
+// std::string::clear() is not guaranteed to keep capacity() unchanged,
+// but in practice it's most often the case.
 
-static buffer_struct_t*
-buffer_init (int nthreads)
-{
-  buffer_struct_t *Buf;
-  Buf = (buffer_struct_t *) malloc (nthreads * sizeof (buffer_struct_t));
-  for (int i = 0; i < nthreads; i++)
-    {
-      Buf[i].buf = NULL;
-      Buf[i].size = 0;
-      Buf[i].alloc = 0;
-    }
-  return Buf;
-}
+#if 0
+using buffer_type = std::vector<char>;
 
 static void
-buffer_add (buffer_struct_t *buf, char *s)
+buffer_add (std::vector<char> & buf, const char * s)
 {
   size_t n = strlen (s) + 1; /* count final '\0' */
-  if (buf->size + n > buf->alloc)
-    {
-      buf->alloc = buf->size + n;
-      buf->alloc += buf->alloc / MARGIN;
-      checked_realloc(buf->buf, buf->alloc);
-    }
-  memcpy (buf->buf + buf->size, s, n * sizeof (char));
-  buf->size += n - 1; /* don't count final '\0' */
+  /* insert with the trailing '\0', and take it off afterwards. This
+   * way, data() always points to a null-terminated string */
+  buf.insert(buf.end(), s, s + n);
+  buf.pop_back();
+}
+#endif
+
+using buffer_type = std::string;
+static void
+buffer_add (std::string & buf, const char * s)
+{
+    buf += s;
 }
 
 static void
-buffer_flush (buffer_struct_t *Buf, int nthreads, FILE *out)
+buffer_flush (std::vector<buffer_type> & Buf, FILE *out)
 {
   double cpu = seconds (), wct = wct_seconds ();
-  for (int i = 0; i < nthreads; i++)
-    {
+  for (auto & b : Buf) {
       /* it is important to check whether size=0, otherwise the previous
          buffer will be printed twice */
-      if (Buf[i].size != 0)
-        fprintf (out, "%s", Buf[i].buf);
-      Buf[i].size = 0;
+      if (!b.empty())
+        fprintf (out, "%s", b.data());
+#ifndef NDEBUG
+      auto x = b.capacity();
+#endif
+      b.clear();
+      /* if this fails, we should make buffer_type an std::vector<char>
+       */
+      ASSERT(b.capacity() == x);
     }
   cpu = seconds () - cpu;
   wct = wct_seconds () - wct;
@@ -135,26 +133,14 @@ buffer_flush (buffer_struct_t *Buf, int nthreads, FILE *out)
   wct_t[FLUSH] += wct;
 }
 
-static void
-buffer_clear (buffer_struct_t *Buf, int nthreads)
-{
-  for (int i = 0; i < nthreads; i++)
-    free (Buf[i].buf);
-  free (Buf);
-}
-
 /*****************************************************************************/
 
 static void
 declare_usage(cxx_param_list & pl)
 {
-  param_list_decl_usage(pl, "mat", "input purged file");
   param_list_decl_usage(pl, "out", "output history file");
-  param_list_decl_usage(pl, "skip", "number of heavy columns to bury (default "
-                                    CADO_STRINGIZE(DEFAULT_MERGE_SKIP) ")");
   param_list_decl_usage(pl, "target_density", "stop when the average row density exceeds this value"
                             " (default " CADO_STRINGIZE(DEFAULT_MERGE_TARGET_DENSITY) ")");
-  param_list_decl_usage(pl, "force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
   param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
   param_list_decl_usage(pl, "t", "number of threads");
   param_list_decl_usage(pl, "v", "verbose mode");
@@ -206,81 +192,123 @@ sort_relation (index_t *row, unsigned int n)
 }
 #endif
 
-/* callback function called by filter_rels */
-static void *
-insert_rel_into_table (void *context_data, earlyparsed_relation_ptr rel)
-{
-  filter_matrix_t *mat = (filter_matrix_t *) context_data;
-  unsigned int j = 0;
-  typerow_t buf[UMAX(weight_t)]; /* rel->nb is of type weight_t */
-
-  for (unsigned int i = 0; i < rel->nb; i++)
-  {
-    index_t h = rel->primes[i].h;
-    /* we no longer touch mat->wt, mat->rem_ncols, and mat->tot_weight
-     * from here ; see compute_weights
+struct purged_file_reader {
+    /* mat: not owned. this structure stinks, but it's for later.
      */
-    if (h < mat->skip)
-        continue; /* we skip (bury) the first 'skip' indices */
+    filter_matrix_t * mat;
+    std::string purgedname;
+    bool filter_rels_force_posix_threads = false;
+    unsigned int skip = DEFAULT_MERGE_SKIP;
+    static void declare_usage(cxx_param_list & pl) {
+        pl.declare_usage("mat", "input purged file");
+        pl.declare_usage("skip", "number of heavy columns to bury (default "
+                                    CADO_STRINGIZE(DEFAULT_MERGE_SKIP) ")");
+        pl.declare_usage("force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
+    }
+
+    static void configure_switches(cxx_param_list & pl) {
+        pl.configure_switch("force-posix-threads");
+    }
+    purged_file_reader(filter_matrix_t * mat, cxx_param_list & pl)
+        : mat(mat)
+        , purgedname(pl.parse_mandatory<std::string>("mat"))
+        , filter_rels_force_posix_threads(pl.parse<bool>("force-posix-threads"))
+    {
+        pl.parse("skip", skip);
+    }
+
+    template<typename relation_type>
+    void insert_rel_into_table(relation_type & rel)
+    {
+        unsigned int j = 0;
+        typerow_t buf[UMAX(weight_t)]; /* rel->nb is of type weight_t */
+
+        for (auto & pe : rel.primes) {
+            index_t h = pe.h;
+            /* we no longer touch mat->wt, mat->rem_ncols, and mat->tot_weight
+             * from here ; see compute_weights
+             */
+            if (h < mat->skip)
+                continue; /* we skip (bury) the first 'skip' indices */
 #ifdef FOR_DL
-    exponent_t e = rel->primes[i].e;
-    /* For factorization, they should not be any multiplicity here.
-       For DL we do not want to count multiplicity in mat->wt */
-    buf[++j] = (ideal_merge_t) {.id = h, .e = e};
+            exponent_t e = pe.e;
+            /* For factorization, they should not be any multiplicity here.
+               For DL we do not want to count multiplicity in mat->wt */
+            buf[++j] = (ideal_merge_t) {.id = h, .e = e};
 #else
-    ASSERT(rel->primes[i].e == 1);
-    buf[++j] = h;
+            ASSERT(pe.e == 1);
+            buf[++j] = h;
 #endif
-  }
+        }
 
 #ifdef FOR_DL
-  buf[0].id = j;
+        buf[0].id = j;
 #else
-  buf[0] = j;
+        buf[0] = j;
 #endif
 
-  /* sort indices to ease row merges */
+        /* sort indices to ease row merges */
 #ifndef FOR_DL
-  sort_relation (&(buf[1]), j);
+        sort_relation (&(buf[1]), j);
 #else
-  qsort (&(buf[1]), j, sizeof(typerow_t), cmp_typerow_t);
+        qsort (&(buf[1]), j, sizeof(typerow_t), cmp_typerow_t);
 #endif
 
-  mat->rows[rel->num] = heap_alloc_row(rel->num, j);
-  compressRow (mat->rows[rel->num], buf, j);  /* sparse.c, simple copy loop... */
+        mat->rows[rel.num] = heap_alloc_row(rel.num, j);
+        compressRow (mat->rows[rel.num], buf, j);  /* sparse.c, simple copy loop... */
+    }
 
-  return NULL;
-}
+    template<typename locking_layer, typename relation_type>
+    size_t filter() {
+        using L = locking_layer;
+        using R = relation_type;
+        return filter_rels<L, R>(purgedname, nullptr, nullptr,
+                [&](R & rel) { insert_rel_into_table(rel); });
+    }
 
+    template<typename relation_type>
+    size_t filter() {
+        using R = relation_type;
+        if (filter_rels_force_posix_threads) {
+            using L = cado::filter_io_details::ifb_locking_posix;
+            return filter<L, R>();
+        } else {
+            using L = cado::filter_io_details::ifb_locking_posix;
+            return filter<L, R>();
+        }
+    }
 
-static void
-filter_matrix_read (filter_matrix_t *mat, const char *purgedname)
-{
-  uint64_t nread;
-  char const * fic[2] = {purgedname, NULL};
+    /* first check if purgedname is seekable. if yes, we can do multithread
+     * I/O */
+    int can_go_parallel() const
+    {
+        FILE * f = fopen_maybe_compressed(purgedname.c_str(), "r");
+        ASSERT_ALWAYS(f != NULL);
+        int t = fseek(f, 0, SEEK_END) == 0;
+        fclose_maybe_compressed (f, purgedname.c_str());
+        return t;
+    }
 
-  /* first check if purgedname is seekable. if yes, we can do multithread
-   * I/O */
-  int can_go_parallel;
-  {
-      FILE * f = fopen_maybe_compressed(purgedname, "r");
-      ASSERT_ALWAYS(f != NULL);
-      can_go_parallel = fseek(f, 0, SEEK_END) == 0;
-      fclose_maybe_compressed (f, purgedname);
-  }
-
-  if (!can_go_parallel) {
-      fprintf(stderr, "# cannot seek in %s, using single-thread I/O\n", purgedname);
-      /* read all rels */
-      nread = filter_rels (fic, (filter_rels_callback_t) &insert_rel_into_table,
-              mat, EARLYPARSE_NEED_INDEX_SORTED, NULL, NULL);
-  } else {
-      nread = read_purgedfile_in_parallel(mat, purgedname);
-  }
-
-  ASSERT_ALWAYS(nread == mat->nrows);
-  mat->rem_nrows = nread;
-}
+    void read() {
+        size_t nread;
+        if (can_go_parallel()) {
+            /* read_purgedfile_in_parallel uses a different parsing
+             * mechanism :-(
+             * this should obviously be refactored.
+             */
+            nread = read_purgedfile_in_parallel(mat, purgedname.c_str());
+        } else {
+            using relation_type =
+                cado::relation_building_blocks::primes_block<
+                prime_type_for_indexed_relations,
+                cado::relation_building_blocks::ab_ignore<
+                    16>>;
+            nread = filter<relation_type>();
+        }
+        ASSERT_ALWAYS(nread == mat->nrows);
+        mat->rem_nrows = nread;
+    }
+};
 
 /* check the matrix rows are sorted by increasing index */
 /* this should not be needed at all, now that we ask filter_rels to
@@ -999,7 +1027,7 @@ addFatherToSons (index_t history[MERGE_LEVEL_MAX][MERGE_LEVEL_MAX+1],
 /* perform the merge described by the id-th row of R,
    computing the full spanning tree */
 static int32_t
-merge_do (filter_matrix_t *mat, index_t id, buffer_struct_t *buf)
+merge_do (filter_matrix_t *mat, index_t id, buffer_type & buf)
 {
   int32_t c;
   index_t j = mat->Rqinv[id];
@@ -1019,7 +1047,7 @@ merge_do (filter_matrix_t *mat, index_t id, buffer_struct_t *buf)
       n = sreportn (s, MERGE_CHAR_MAX, &i, 1, mat->p[j]);
 #endif
       ASSERT(n < MERGE_CHAR_MAX);
-      buffer_add (buf, s);
+      buffer_add(buf, s);
       remove_row (mat, i);
       return -3;
     }
@@ -1160,7 +1188,7 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
 /* return the number of merges applied */
 static unsigned long
 apply_merges (const index_t * L, index_t total_merges, filter_matrix_t *mat,
-              buffer_struct_t *Buf)
+              std::vector<buffer_type> & thread_buffers)
 {
   double cpu3 = seconds (), wct3 = wct_seconds ();
   char * busy_rows = (char *) malloc(mat->nrows * sizeof (char));
@@ -1225,7 +1253,7 @@ apply_merges (const index_t * L, index_t total_merges, filter_matrix_t *mat,
           }
       }
       if (ok) {
-        fill_in += merge_do(mat, id, Buf + tid);
+        fill_in += merge_do(mat, id, thread_buffers[tid]);
         nmerges ++;
         ASSERT(hi - lo <= MERGE_LEVEL_MAX);
       }
@@ -1238,7 +1266,7 @@ apply_merges (const index_t * L, index_t total_merges, filter_matrix_t *mat,
        locks. In that case we simply apply the first merge.
        See https://gitlab.inria.fr/cado-nfs/cado-nfs/-/issues/30069. */
     index_t id = L[0];
-    fill_in += merge_do(mat, id, Buf);
+    fill_in += merge_do(mat, id, thread_buffers[0]);
     nmerges ++;
     ASSERT(mat->Rp[id + 1] - mat->Rp[id] <= MERGE_LEVEL_MAX);
   }
@@ -1414,15 +1442,14 @@ int main(int argc, char const * argv[])
     double tt;
     double cpu0 = seconds ();
     double wct0 = wct_seconds ();
+
     cxx_param_list pl;
+
     declare_usage(pl);
+    purged_file_reader::declare_usage(pl);
 
+    purged_file_reader::configure_switches(pl);
     param_list_configure_switch (pl, "-v", &merge_verbose);
-    param_list_configure_switch(pl, "force-posix-threads", &filter_rels_force_posix_threads);
-
-#ifdef HAVE_MINGW
-    _fmode = _O_BINARY;     /* Binary open for all files */
-#endif
 
     param_list_process_command_line(pl, &argc, &argv, false);
 
@@ -1430,7 +1457,6 @@ int main(int argc, char const * argv[])
     param_list_print_command_line (stdout, pl);
     fflush(stdout);
 
-    const char *purgedname = param_list_lookup_string (pl, "mat");
     const char *outname = param_list_lookup_string (pl, "out");
     const char *path_antebuffer = param_list_lookup_string(pl, "path_antebuffer");
 
@@ -1439,19 +1465,17 @@ int main(int argc, char const * argv[])
     omp_set_num_threads (nthreads);
 #endif
 
+    purged_file_reader pf(mat, pl);
+
     if (param_list_parse_int (pl, "incr", &cbound_incr) == 0)
       cbound_incr = CBOUND_INCR_DEFAULT;
 
-    param_list_parse_uint (pl, "skip", &skip);
-
-    param_list_parse_double (pl, "target_density", &target_density);
+    pl.parse("target_density", target_density);
 
     /* Some checks on command line arguments */
     if (param_list_warn_unused(pl))
       pl.fail("Error, unused parameters are given\n");
 
-    if (purgedname == NULL)
-      pl.fail("Error, missing -mat command line argument\n");
 
     if (outname == NULL)
       pl.fail("Error, missing -out command line argument\n");
@@ -1474,8 +1498,7 @@ int main(int argc, char const * argv[])
 #endif
 
     /* Read number of rows and cols on first line of purged file */
-    purgedfile_read_firstline (purgedname, &(mat->nrows), &(mat->ncols));
-
+    purgedfile_read_firstline (pf.purgedname.c_str(), &(mat->nrows), &(mat->ncols));
     sanity_check_matrix_sizes(mat);
 
     /* initialize the matrix structure */
@@ -1483,16 +1506,13 @@ int main(int argc, char const * argv[])
 
     /* Read all rels and fill-in the mat structure */
     tt = seconds ();
-    filter_matrix_read (mat, purgedname);
+    pf.read();
+
     printf ("Time for filter_matrix_read: %2.2lfs\n", seconds () - tt);
-
-
-
-
 
     check_matrix (mat);
 
-    buffer_struct_t *Buf = buffer_init (nthreads);
+    std::vector<buffer_type> thread_buffers(nthreads);
 
     double cpu_after_read = seconds ();
     double wct_after_read = wct_seconds ();
@@ -1622,9 +1642,9 @@ int main(int argc, char const * argv[])
 
         index_t n_possible_merges = compute_merges(L, mat, cbound);
 
-        unsigned long nmerges = apply_merges(L, n_possible_merges, mat, Buf);
+        unsigned long nmerges = apply_merges(L, n_possible_merges, mat, thread_buffers);
 
-        buffer_flush (Buf, nthreads, history);
+        buffer_flush (thread_buffers, history);
         free(L);
 
         free_aligned (mat->Ri);
@@ -1735,8 +1755,6 @@ int main(int argc, char const * argv[])
 
     printf ("Before cleaning memory:\n");
     print_timing_and_memory (stdout, cpu_after_read, wct_after_read);
-
-    buffer_clear (Buf, nthreads);
 
     heap_clear ();
 
