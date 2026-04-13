@@ -15,428 +15,344 @@
 
 #include "cado.h" // IWYU pragma: keep
 
-// IWYU pragma: no_include <bits/types/struct_rusage.h>
-
-#define MAX_NSLICES_LOG 6
-
 #include <cstdlib>
 #include <cstdio>
 #include <cstdint>
 #include <cstring>
-#include <cinttypes>
-#ifdef HAVE_MINGW
-#include <fcntl.h>   /* for _O_BINARY */
-#endif
+
+#include <string>
+#include <memory>
+#include <utility>
+#include <limits>
+#include <stdexcept>
+#include <algorithm>
+#include <vector>
+
+#include <gmp.h>
+#include "fmt/base.h"
+#include "fmt/format.h"
 
 #include "filter_config.h"
-#include "filter_io_old.hpp"  // filter_rels
-#include "gmp_aux.h"
-#include "gzip.h"       // fopen_maybe_compressed
+#include "filter_io.hpp"
+#include "gzip.h"
 #include "macros.h"
 #include "portability.h" // strdup // IWYU pragma: keep
 #include "filelist.hpp"
 #include "params.hpp"
 #include "timing.h"
 #include "verbose.hpp"
+#include "fstream_maybe_compressed.hpp"
+#include "cxx_mpz.hpp"
 
-#define DEFAULT_LOG_MAX_NRELS_PER_FILES 25
+/* {{{ set_of_files
+ *
+ * a set of files is given by a filename pattern, and a max number of lines per
+ * file. Each write is done by the call to write_line(p, q). The newline
+ * is added automatically.
+ */
+struct set_of_files {
+    std::string pattern;
+    std::string message_pattern;
+    std::string filename;
+    std::unique_ptr<ofstream_maybe_compressed> file;
+    unsigned int next_idx = 0;
+    size_t lines_per_file;
+    size_t lines_left = 0;
 
-/* Only (a,b) are parsed on input. This flags control whether we copy the
- * rest of the relation data to the output file, or if we content
- * ourselves with smaller .ab files */
-static int only_ab = 0;
-
-static uint64_t nr_rels_tot[(1 << MAX_NSLICES_LOG)];
-static unsigned int nslices_log = 1, do_slice[(1 << MAX_NSLICES_LOG)];
-
-
-typedef struct {
-  const char *prefix, *suffix;
-  char *filename;
-  FILE *file;
-  const char *msg;
-  unsigned int next_idx;
-  size_t lines_per_file, lines_left;
-} split_output_iter_t;
-
-static split_output_iter_t *
-split_iter_init(const char *prefix, const char *suffix,
-                const size_t lines_per_file, const char *msg)
-{
-  split_output_iter_t *iter = (split_output_iter_t *) malloc(sizeof(split_output_iter_t));
-  ASSERT_ALWAYS(iter != NULL);
-  iter->prefix = strdup(prefix);
-  iter->suffix = strdup(suffix);
-  iter->next_idx = 0;
-  iter->filename = NULL;
-  iter->file = NULL;
-  if (msg)
-    iter->msg = strdup(msg);
-  else
-    iter->msg = NULL;
-  ASSERT_ALWAYS(lines_per_file > 0);
-  iter->lines_per_file = lines_per_file;
-  iter->lines_left = 0; /* Force opening of file on next write */
-  return iter;
-}
-
-/* used for counting time in different processes */
-timingstats_dict_t stats;
-
-
-static void
-split_iter_end(split_output_iter_t *iter)
-{
-  if (iter->file != NULL)
-    fclose_maybe_compressed(iter->file, iter->filename);
-  free(iter->filename);
-  free((void *) iter->prefix);
-  free((void *) iter->suffix);
-  free((void *) iter->msg);
-  free(iter);
-}
-
-/* Closes the currently open file, if any, and opens the next one */
-void
-split_iter_open_next_file(split_output_iter_t *iter)
-{
-  if (iter->file != NULL) {
-    int rc;
-#ifdef  HAVE_GETRUSAGE
-    struct rusage r[1];
-    rc = fclose_maybe_compressed2(iter->file, iter->filename, r);
-    timingstats_dict_add(stats, iter->prefix, r);
-#else
-    rc = fclose_maybe_compressed(iter->file, iter->filename);
-#endif
-    ASSERT_ALWAYS (rc == 0);
-  }
-
-  free (iter->filename);
-  int rc = asprintf(&(iter->filename), "%s%04x%s",
-                    iter->prefix, iter->next_idx++, iter->suffix);
-  ASSERT_ALWAYS (rc >= 0);
-  if (iter->msg != NULL)
-    fprintf (stderr, "%s%s\n", iter->msg, iter->filename);
-  iter->file = fopen_maybe_compressed(iter->filename, "w");
-  if (iter->file == NULL) {
-    char *msg;
-    rc = asprintf(&msg, "Could not open file %s for writing", iter->filename);
-    if (rc >= 0) {
-      perror(msg);
-      free(msg);
-    } else {
-      perror("Could not open file for writing");
-    }
-    exit(EXIT_FAILURE);
-  }
-  iter->lines_left = iter->lines_per_file;
-}
-
-static void
-split_iter_write_next(split_output_iter_t *iter, const char *line)
-{
-  if (iter->lines_left == 0)
-    split_iter_open_next_file(iter);
-  if (fputs (line, iter->file) == EOF) {
-    perror("Error writing relation");
-    abort();
-  }
-  iter->lines_left--;
-}
-
-
-/* Must be called only when nslices_log > 0 */
-static inline unsigned int
-compute_slice (int64_t a, uint64_t b)
-{
-  uint64_t h = CA_DUP1 * (uint64_t) a + CB_DUP1 * b;
-  /* Using the low bit of h is not a good idea, since then
-     odd values of i are twice more likely. The second low bit
-     also gives a small bias with RSA768 (but not for random
-     coprime a, b). We use here the nslices_log high bits.
-  */
-  h >>= (64 - nslices_log);
-  return (unsigned int) h;
-}
-
-static inline unsigned int
-compute_slice_mpz (mpz_srcptr a, mpz_srcptr b)
-{
-  mpz_t t;
-  mpz_init(t);
-  mpz_mul_uint64(t, a, CA_DUP1);
-  mpz_addmul_uint64(t, b, CB_DUP1);
-  mp_limb_t h = 0u;
-  for (size_t i = 0; i < mpz_size(t); ++i) {
-      h = h ^ mpz_getlimbn(t, i);
-  }
-  mpz_clear(t);
-  /* Using the low bit of h is not a good idea, since then
-     odd values of i are twice more likely. The second low bit
-     also gives a small bias with RSA768 (but not for random
-     coprime a, b). We use here the nslices_log high bits.
-  */
-  h >>= (CHAR_BIT * sizeof(mp_limb_t) - nslices_log);
-  return (unsigned int) h;
-}
-
-/* Callback function called by prempt_scan_relations */
-
-static void *
-thread_dup1 (void * context_data, earlyparsed_relation_ptr rel)
-{
-    unsigned int slice = compute_slice (rel->a, rel->b);
-    split_output_iter_t **outiters = (split_output_iter_t**)context_data;
-
-    if (do_slice[slice])
+    set_of_files(std::string pattern,
+            const size_t lines_per_file,
+            std::string message_pattern = {})
+        : pattern(std::move(pattern))
+        , message_pattern(std::move(message_pattern))
+        , lines_per_file(lines_per_file)
     {
-      if (only_ab)
-      {
-        char *p = rel->line;
-        while (*p != ':')
-          p++;
-        *p = '\n';
-      }
-
-      split_output_iter_t *iter = outiters[slice];
-      split_iter_write_next(iter, rel->line);
-      nr_rels_tot[slice]++;
     }
-    return NULL;
-}
 
-static void *
-thread_dup1_mpz (void * context_data, earlyparsed_relation_mpz_ptr rel)
-{
-    unsigned int slice = compute_slice_mpz (rel->a, rel->b);
-    split_output_iter_t **outiters = (split_output_iter_t**)context_data;
-
-    if (do_slice[slice])
+    private:
+    /* Closes the currently open file, if any, and opens the next one */
+    void open_next_file()
     {
-      if (only_ab)
-      {
-        char *p = rel->line;
-        while (*p != ':')
-          p++;
-        *p = '\n';
-      }
+        filename = fmt::format(fmt::runtime(pattern), next_idx++);
+        file = std::make_unique<ofstream_maybe_compressed>(filename);
 
-      split_output_iter_t *iter = outiters[slice];
-      split_iter_write_next(iter, rel->line);
-      nr_rels_tot[slice]++;
+        if (!message_pattern.empty())
+            fmt::print(stderr, fmt::runtime(message_pattern), filename);
+        lines_left = lines_per_file;
     }
-    return NULL;
-}
 
-/* Special callback function for when nslices = 1 */
-static void *
-thread_dup1_special (void * context_data, earlyparsed_relation_ptr rel)
-{
-  split_output_iter_t **outiters = (split_output_iter_t**)context_data;
-  if (do_slice[0])
-  {
-    if (only_ab)
+    public:
+    void write_line(const char * p, const char * q)
     {
-      char *p = rel->line;
-      while (*p != ':')
-        p++;
-      *p = '\n';
+        if (lines_left == 0)
+            open_next_file();
+        file->write(p, q-p);
+        file->put('\n');
+        if (!file->good())
+            throw cado::error("Error writing relation to {}", filename);
+        lines_left--;
     }
+};// }}}
 
-    split_output_iter_t *iter = outiters[0];
-    split_iter_write_next(iter, rel->line);
-    nr_rels_tot[0]++;
-  }
-  return NULL;
-}
-
-/* same as above, for mpz */
-static void *
-thread_dup1_special_mpz (void * context_data, earlyparsed_relation_mpz_ptr rel)
-{
-  split_output_iter_t **outiters = (split_output_iter_t**)context_data;
-  if (do_slice[0])
-  {
-    if (only_ab)
-    {
-      char *p = rel->line;
-      while (*p != ':')
-        p++;
-      *p = '\n';
-    }
-
-    split_output_iter_t *iter = outiters[0];
-    split_iter_write_next(iter, rel->line);
-    nr_rels_tot[0]++;
-  }
-  return NULL;
-}
+template<typename ab_type, int base>
+using dup1_relation =
+    cado::relation_building_blocks::line_block<
+    cado::relation_building_blocks::ab_block<ab_type, base>>;
 
 static void declare_usage(cxx_param_list & pl)
 {
-  pl.declare_usage("filelist", "file containing a list of input files");
-  pl.declare_usage("basepath", "path added to all file in filelist");
-  pl.declare_usage("out", "output directory");
-  pl.declare_usage("prefix", "prefix for output files");
-  pl.declare_usage("lognrels", "log of number of rels per output file");
-  pl.declare_usage("n", "log of number of slices (default: 1)");
-  pl.declare_usage("only", "do only slice i (default: all)");
-  pl.declare_usage("outfmt",
-                               "format of output file (default same as input)");
-  pl.declare_usage("ab", "only print a and b in the output");
-  pl.declare_usage("abhexa",
-                                  "read a and b as hexa not decimal");
-  pl.declare_usage("large-ab", "enable support for a and b larger "
-                                        "than 64 bits");
-  pl.declare_usage("force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
-  pl.declare_usage("path_antebuffer", "path to antebuffer program");
-  verbose_decl_usage(pl);
+    pl.declare_usage_section("output specification");
+    pl.declare_usage("out", "output directory");
+    pl.declare_usage("prefix", "prefix for output files");
+    pl.declare_usage("outfmt", "format of output file (default same as input)");
 }
 
-static void
-usage (cxx_param_list & pl, char const * argv0)
-{
-    param_list_print_usage(pl, argv0, stderr);
-    exit(EXIT_FAILURE);
-}
+struct dup1_process {
+    parameter_switch<"abhexa", "read a and b as hexa not decimal"> abhexa;
+    parameter_switch<"ab", "only print a and b in the output"> only_ab;
+    parameter_switch<"large-ab", "enable support for a,b beyond 64 bits">
+        largeab;
 
+    parameter_switch<"force-posix-threads",
+        "force the use of posix threads,"
+        " do not rely on platform memory semantics">
+        force_posix;
+
+    parameter_with_default<unsigned int,
+                        "n",
+                        "log of number of slices",
+                        "1">
+                        nslices_log;
+    parameter_with_default<unsigned int,
+                        "lognrels",
+                        "log of number of rels per output file",
+                        "25">
+                        log_max_nrels_per_files;
+
+    parameter_with_default<int,
+                        "only",
+                        "do only slice i (-1 means all)",
+                        "-1">
+                        only_slice;
+
+
+    /* nslices controls the two arrays below */
+    unsigned int nslices = 0;
+    std::vector<size_t> nr_rels_tot;
+    std::vector<bool> do_slice;
+    void update_nslices_log() {
+        nslices = 1 << nslices_log;
+        nr_rels_tot.assign(1 << nslices_log, 0);
+        do_slice.assign(1 << nslices_log, true);
+    }
+
+    std::vector<set_of_files> S;
+
+    explicit dup1_process(cxx_param_list & pl)
+        : abhexa(pl)
+        , only_ab(pl)
+        , largeab(pl)
+        , force_posix(pl)
+        , nslices_log(pl)
+        , log_max_nrels_per_files(pl)
+        , only_slice(pl)
+    {
+        update_nslices_log();
+
+        if (only_slice >= 0) {
+            do_slice.assign(nslices, false);
+            do_slice[only_slice] = true;
+        }
+    }
+
+    static void configure(cxx_param_list & pl)
+    {
+        pl.declare_usage_section("general operational flags");
+        decltype(dup1_process::only_slice)::configure(pl);
+        decltype(dup1_process::nslices_log)::configure(pl);
+        decltype(dup1_process::log_max_nrels_per_files)::configure(pl);
+        decltype(dup1_process::only_ab)::configure(pl);
+        decltype(dup1_process::abhexa)::configure(pl);
+        decltype(dup1_process::largeab)::configure(pl);
+        decltype(dup1_process::force_posix)::configure(pl);
+    }
+
+
+    void prepare_filesets(
+            std::string const & outdir,
+            std::string const & prefix_files,
+            std::string const & outfmt)
+    {
+        S.clear();
+        S.reserve(nslices);
+        for(unsigned int i = 0 ; i < nslices ; i++) {
+            const std::string pattern = fmt::format("{}/{}/{}.{{:04d}}{}{}",
+                    outdir, i, prefix_files,
+                    only_ab ? ".ab" : "",
+                    outfmt);
+            /* XXX this comment is significant, and parsed by
+             * scripts/cadofactor/cadotask.py
+             */
+            const std::string message_pattern = fmt::format(
+                    "# Opening output file for slice {}: {{}}\n", i);
+            S.emplace_back(pattern, 1UL<<log_max_nrels_per_files, message_pattern);
+        }
+    }
+
+    /* Must be called only when nslices_log > 0 */
+    unsigned int compute_slice (int64_t a, uint64_t b) const
+    {
+        const uint64_t h = CA_DUP1 * static_cast<uint64_t>(a) + CB_DUP1 * b;
+        /* Using the low bit of h is not a good idea, since then
+           odd values of i are twice more likely. The second low bit
+           also gives a small bias with RSA768 (but not for random
+           coprime a, b). We use here the nslices_log high bits.
+           */
+        return static_cast<unsigned int>(h >> (64 - nslices_log));
+    }
+
+    unsigned int compute_slice (cxx_mpz const & a, cxx_mpz const & b) const
+    {
+        const cxx_mpz t = a * CA_DUP1 + b * CA_DUP1;
+        mp_limb_t h = 0U;
+        ASSERT_ALWAYS(mpz_size(t) <= std::numeric_limits<mp_size_t>::max());
+        for (size_t i = 0; i < mpz_size(t); ++i)
+            h ^= mpz_getlimbn(t, static_cast<mp_size_t>(i));
+        return static_cast<unsigned int>(h >> (GMP_NUMB_BITS - nslices_log));
+    }
+
+
+    template<bool slice0_only, typename relation_type>
+    void process(relation_type & rel)
+    {
+        unsigned int slice = 0;
+        if constexpr (!slice0_only) 
+            slice = compute_slice (rel.a, rel.b);
+        if (!do_slice[slice])
+            return;
+
+        const char * p = rel.line.data();
+        const char * q = rel.line.data() + rel.line.size();
+
+        /* note that rel.line does not contain the trailing newline. */
+        if (only_ab)
+            q = std::ranges::find(p, q, ':');
+        
+        S[slice].write_line(p, q);
+        nr_rels_tot[slice]++;
+    }
+
+    template<typename locking_type, typename relation_type>
+    void filter(std::vector<std::string> const & files)
+    {
+        if (nslices == 1) {
+            filter_rels<locking_type, relation_type>(files, 
+                    nullptr, nullptr,
+                    [this](relation_type & rel) { process<true>(rel); });
+        } else {
+            filter_rels<locking_type, relation_type>(files, 
+                    nullptr, nullptr,
+                    [this](relation_type & rel) { process<false>(rel); });
+        }
+    }
+
+    template<typename relation_type>
+    void filter(std::vector<std::string> const & files)
+    {
+        if (force_posix) {
+            using L = cado::filter_io_details::ifb_locking_posix;
+            filter<L, relation_type>(files);
+        } else {
+            using L = cado::filter_io_details::ifb_locking_lightweight;
+            filter<L, relation_type>(files);
+        }
+    }
+
+    template<typename ab_type>
+    void filter0(std::vector<std::string> const & files)
+    {
+        if (abhexa) {
+            filter<dup1_relation<ab_type, 16>>(files);
+        } else {
+            filter<dup1_relation<ab_type, 10>>(files);
+        }
+    }
+
+    void filter(std::vector<std::string> const & files)
+    {
+        if (largeab) {
+            filter0<cxx_mpz>(files);
+        } else {
+            filter0<uint64_t>(files);
+        }
+        for (unsigned int i = 0; i < nslices; i++) {
+            fmt::print (stderr, "# slice {} received {} relations\n", i,
+                    nr_rels_tot[i]);
+        }
+    }
+
+};
 
 int
 main (int argc, char const * argv[])
 {
-    char const * argv0 = argv[0];
-    unsigned int log_max_nrels_per_files = DEFAULT_LOG_MAX_NRELS_PER_FILES;
-    int only_slice = -1;
-    int abhexa = 0;
-    int largeab = 0;
-
     cxx_param_list pl;
 
     declare_usage(pl);
 
-    param_list_configure_switch(pl, "ab", &only_ab);
-    param_list_configure_switch(pl, "abhexa", &abhexa);
-    param_list_configure_switch(pl, "large-ab", &largeab);
-    param_list_configure_switch(pl, "force-posix-threads", &filter_rels_force_posix_threads);
+    filelist::configure(pl);
+    dup1_process::configure(pl);
+    verbose_decl_usage(pl);
 
-#ifdef HAVE_MINGW
-    _fmode = _O_BINARY;     /* Binary open for all files */
-#endif
 
+    /* used for counting time in different processes */
+    timingstats_dict_t stats;
 
     param_list_process_command_line(pl, &argc, &argv, true);
 
-    /* print command-line arguments */
+    dup1_process D(pl);
     verbose_interpret_parameters(pl);
+
+    /* print command-line arguments */
     param_list_print_command_line (stdout, pl);
     fflush(stdout);
 
-    param_list_parse_uint(pl, "n", &nslices_log);
-    const char *outdir = param_list_lookup_string(pl, "out");
-    param_list_parse_int(pl, "only", &only_slice);
-    param_list_parse_uint(pl, "lognrels", &log_max_nrels_per_files);
-    const char *outfmt = param_list_lookup_string(pl, "outfmt");
-    const char * filelist = param_list_lookup_string(pl, "filelist");
-    const char * basepath = param_list_lookup_string(pl, "basepath");
-    const char * path_antebuffer = param_list_lookup_string(pl, "path_antebuffer");
-    const char *prefix_files = param_list_lookup_string(pl, "prefix");
+    std::string outfmt;
+    pl.parse("outfmt", outfmt);
+
+    const char * outdir = param_list_lookup_string(pl, "out");
+    const char * prefix_files = param_list_lookup_string(pl, "prefix");
+
+    const filelist input(pl, argc, argv);
 
     if (param_list_warn_unused(pl))
         pl.fail("Error, unused parameters are given\n");
-    if (basepath && !filelist)
-        pl.fail("Error, -basepath only valid with -filelist\n");
     if (!prefix_files)
         pl.fail("Error, missing -prefix command line argument\n");
     if (!outdir)
         pl.fail("Error, missing -out command line argument\n");
-    if (outfmt && !is_supported_compression_format(outfmt))
+    if (!outfmt.empty() && !is_supported_compression_format(outfmt.c_str()))
         pl.fail("Error, output compression format unsupported\n");
 
-    if ((filelist != nullptr) + (argc != 0) != 1)
-        pl.fail("Error, provide either -filelist or freeform file names\n");
-
-
-    if (nslices_log > MAX_NSLICES_LOG)
-    {
-      fprintf(stderr, "Error, -n is too large\n");
-      usage(pl, argv0);
-    }
-    if (outfmt && !is_supported_compression_format(outfmt)) {
-        fprintf(stderr, "Error, output compression format unsupported\n");
-        usage(pl, argv0);
-    }
-
-    unsigned int nslices = 1 << nslices_log;
-    if (only_slice < 0) /* split all slices */
-    {
-      for (unsigned int i = 0; i < nslices; i++)
-        do_slice[i] = 1;
-    }
-    else /* split only slide i */
-    {
-      for (unsigned int i = 0; i < nslices; i++)
-        do_slice[i] = (i == (unsigned int) only_slice);
-    }
-
-    set_antebuffer_path (argv0, path_antebuffer);
-    char const ** files = filelist ? filelist_from_file(basepath, filelist, 0) : argv;
+    const auto input_files = input.create_file_list();
 
     // If not output suffix is specified, use suffix of first input file
-    if (!outfmt && files[0] != NULL)
-      get_suffix_from_filename (files[0], &outfmt);
-
-    memset (nr_rels_tot, 0, sizeof(uint64_t) * nslices);
-
-    split_output_iter_t **outiters;
-    outiters = (split_output_iter_t **) malloc(sizeof(split_output_iter_t *) * nslices);
-    ASSERT_ALWAYS(outiters != NULL);
-    for(unsigned int i = 0 ; i < nslices ; i++)
-    {
-      char *prefix, *suffix, *msg;
-      int rc = asprintf(&prefix, "%s/%d/%s.",
-                        outdir, i, prefix_files);
-      ASSERT_ALWAYS(rc >= 0);
-      rc = asprintf(&suffix, only_ab ? ".ab%s" : "%s", outfmt);
-      ASSERT_ALWAYS(rc >= 0);
-      rc = asprintf (&msg, "# Opening output file for slice %d : ", i);
-      ASSERT_ALWAYS(rc >= 0);
-      outiters[i] = split_iter_init(prefix, suffix, 1UL<<log_max_nrels_per_files, msg);
-      free(prefix);
-      free(suffix);
-      free(msg);
+    if (outfmt.empty() && !input_files.empty()) {
+        const char * tmp;
+        get_suffix_from_filename (input_files[0].c_str(), &tmp);
+        if (tmp)
+            outfmt = std::string(tmp);
     }
+
+    D.prepare_filesets(outdir, prefix_files, outfmt);
 
     timingstats_dict_init(stats);
 
-    int flags = EARLYPARSE_NEED_LINE |
-                (abhexa ? EARLYPARSE_NEED_AB_HEXA : EARLYPARSE_NEED_AB_DECIMAL);
-
-    if (!largeab) {
-      filter_rels_callback_t cb = nslices == 1 ? &thread_dup1_special
-                                               : &thread_dup1;
-      filter_rels(files, cb, (void*)outiters, flags, NULL, stats);
-    } else {
-      filter_rels_mpz_callback_t cb = nslices == 1 ? &thread_dup1_special_mpz
-                                                   : &thread_dup1_mpz;
-      filter_rels_mpz(files, cb, (void*)outiters, flags, NULL, stats);
-    }
-
-    for(unsigned int i = 0 ; i < nslices ; i++)
-      split_iter_end(outiters[i]);
-
-    for (unsigned int i = 0; i < nslices; i++)
-        fprintf (stderr, "# slice %d received %" PRIu64 " relations\n", i,
-                                                                nr_rels_tot[i]);
-
-    if (filelist) filelist_clear(files);
-
-    free(outiters);
+    D.filter(input_files);
 
     // double thread_times[2];
     // thread_seconds_user_sys(thread_times);
     timingstats_dict_add_mythread(stats, "main");
-    // fprintf(stderr, "Main thread ends after having spent %.2fs+%.2fs on cpu \n", thread_times[0], thread_times[1]);
+    // fmt::print(stderr, "Main thread ends after having spent %.2fs+%.2fs on cpu \n", thread_times[0], thread_times[1]);
     timingstats_dict_disp(stats);
     timingstats_dict_clear(stats);
 

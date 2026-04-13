@@ -454,11 +454,4 @@ template<> struct cado::params::parser<cxx_mpz> {
 cxx_mpz mpz_from_expression(const char *);
 
 
-namespace std {
-    template<> struct make_signed<cxx_mpz> { using type = cxx_mpz; };
-    template<> struct make_unsigned<cxx_mpz> { using type = cxx_mpz; };
-    template<> struct make_signed<cxx_mpq> { using type = cxx_mpq; };
-    template<> struct make_unsigned<cxx_mpq> { using type = cxx_mpq; };
-} /* namespace std */
-
 #endif	/* CADO_CXX_MPZ_HPP */

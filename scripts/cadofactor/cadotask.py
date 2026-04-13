@@ -4402,7 +4402,7 @@ class Duplicates1Task(Task, FilesCreator, HasStatistics):
     def parse_output_files(stderr):
         files = {}
         for line in stderr.splitlines():
-            match = re.match(r'# Opening output file for slice (\d+) : (.+)$',
+            match = re.match(r'# Opening output file for slice (\d+): (.+)$',
                              line)
             if match:
                 (slicenr, filename) = match.groups()
