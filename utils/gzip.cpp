@@ -1,19 +1,20 @@
 #include "cado.h" // IWYU pragma: keep
 
 #include <cerrno>
-#include <cstdio> // FILE // IWYU pragma: keep
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
 #include <string>
 #include <vector>
+#include <stdexcept>
 
-#include <sys/stat.h> // stat // IWYU pragma: keep
-#include <sys/wait.h> // WIFEXITED WEXITSTATUS (on freebsd at least)
-#include <unistd.h>   // close getpid
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <unistd.h>
 #ifdef HAVE_GETRUSAGE
-#include <sys/resource.h> // IWYU pragma: keep
-#include <sys/time.h>     // IWYU pragma: keep
+#include <sys/resource.h>
+#include <sys/time.h>
 #endif
 
 #include "fmt/base.h"
@@ -23,7 +24,7 @@
 #include "gzip.h"
 #include "macros.h"
 #include "misc.h"
-#include "portability.h" // realpath
+#include "portability.h"
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 static char antebuffer[PATH_MAX];       /* "directory/antebuffer" or "cat" */
@@ -383,3 +384,23 @@ int fclose_maybe_compressed(FILE * f, char const * name)
 {
     return fclose_maybe_compressed2(f, name, nullptr);
 }
+
+std::string get_suffix(std::string const & filename)
+{
+    using cado::details::supported_compression_formats;
+    for (auto const & r: supported_compression_formats) {
+        if (filename.ends_with(r.suffix))
+            return r.suffix;
+    }
+    throw std::runtime_error("unsupported suffix found in filename " + filename);
+}
+std::string get_suffix(std::string const & filename, std::string const & def)
+{
+    using cado::details::supported_compression_formats;
+    for (auto const & r: supported_compression_formats) {
+        if (filename.ends_with(r.suffix))
+            return r.suffix;
+    }
+    return def;
+}
+

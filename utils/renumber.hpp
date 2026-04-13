@@ -172,7 +172,7 @@ public:
             bool for_dl)
         : renumber_t(cpoly)
     {
-        read_from_file(filename.c_str(), for_dl);
+        read_from_file(filename, for_dl);
     }
 
     /*{{{ configuration when creating the table */
@@ -183,7 +183,7 @@ public:
     /*}}}*/
 
     /*{{{ reading the table */
-    void read_from_file(const char * filename, bool for_dl);
+    void read_from_file(std::string const & filename, bool for_dl);
     void recompute_debug_number_theoretic_stuff();
     /*}}}*/
 

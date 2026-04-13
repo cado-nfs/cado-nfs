@@ -952,7 +952,7 @@ void renumber_t::read_table(std::istream& is)
     }
 }
 
-void renumber_t::read_from_file(const char * filename, bool for_dl)
+void renumber_t::read_from_file(std::string const & filename, bool for_dl)
 {
     ifstream_maybe_compressed is(filename);
     if (for_dl)

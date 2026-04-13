@@ -92,6 +92,7 @@ struct cxx_cado_poly : public std::vector<cxx_mpz_poly>
     // accordingly. Return 1 if success, 0 if failure (and diagnostic on
     // stderr)
     int read(const char *filename);
+    int read(std::string const & s) { return read(s.c_str()); }
     int read(FILE *);
     static int read_next_poly_from_stream (cxx_cado_poly &, FILE *);
 

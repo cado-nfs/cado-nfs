@@ -174,5 +174,10 @@ static constexpr suffix_handler supported_compression_formats[] = {
 }
 #endif
 
+#ifdef __cplusplus
+extern std::string get_suffix(std::string const & filename);
+extern std::string get_suffix(std::string const & filename, std::string const & def);
+#endif
+
 
 #endif	/* CADO_GZIP_H */
