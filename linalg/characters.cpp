@@ -97,7 +97,7 @@
 #include "bblas_gauss.h"
 #include "blockmatrix.hpp"
 #include "cado_poly.hpp"
-#include "filter_io_old.hpp"
+#include "filter_io.hpp"
 #include "fix-endianness.h"
 #include "gzip.h"
 #include "macros.h"
@@ -111,6 +111,7 @@
 #include "timing.h"
 #include "version_info.h"
 
+bool filter_rels_force_posix_threads = false;
 
 typedef struct {
     unsigned long p;      /* algebraic prime */
@@ -159,16 +160,31 @@ eval_one_non_special_char(alg_prime_t const & chi, mpz_srcptr a, mpz_srcptr b)
     return eval_one_non_special_char(chi, sa, mpz_tdiv_ui(b, chi.p));
 }
 
+static inline cxx_mpz eval_helper(cxx_mpz_poly const & f, int64_t a, uint64_t b)
+{
+    cxx_mpz t;
+    mpz_poly_homogeneous_eval_siui(t, f, a, b);
+    return t;
+}
+
+static inline cxx_mpz eval_helper(cxx_mpz_poly const & f, cxx_mpz const & a, cxx_mpz const & b)
+{
+    cxx_mpz t;
+    mpz_poly_homogeneous_eval(t, f, a, b);
+    return t;
+}
+
 /* Calculates a 64-bit word with the values of the characters chi(a,b), where
  * chi ranges from chars to chars+64
  */
-template<cado::filter_io_details::filter_io_config cfg>
+template<typename relation_type>
 static uint64_t eval_64chars(
-        decltype(std::declval<typename cfg::rel_t>()->a) a,
-        decltype(std::declval<typename cfg::rel_t>()->b) b,
+        relation_type const & rel,
         alg_prime_t const * chars,
         cxx_cado_poly const & cpoly)
 {
+    auto const & a = rel.a;
+    auto const & b = rel.b;
     /* FIXME: do better. E.g. use 16-bit primes, and a look-up table. Could
      * beat this. */
     uint64_t v = 0;
@@ -194,33 +210,19 @@ static uint64_t eval_64chars(
                 mpz_poly_srcptr po = cpoly[side];
                 int const deg = po->deg;
                 ASSERT_ALWAYS(deg > 0);
-                bool a_is_pos;
-                if constexpr (std::is_same_v<cfg, filter_io_large_ab_cfg>) {
-                    a_is_pos = mpz_sgn(a) > 0;
-                } else {
-                    a_is_pos = a > 0;
-                }
+                bool a_is_pos = a > 0;
                 /* first perform a quick check for deg=1 */
                 res = a_is_pos ? mpz_sgn(mpz_poly_coeff_const(po, 1))
                                : -mpz_sgn(mpz_poly_coeff_const(po, 1));
                 if (deg > 1 || mpz_sgn(mpz_poly_coeff_const(po, 0)) != res) {
-                    cxx_mpz t;
-                    if constexpr (std::is_same_v<cfg, filter_io_large_ab_cfg>) {
-                        mpz_poly_homogeneous_eval(t, po, a, b);
-                    } else {
-                        mpz_poly_homogeneous_eval_siui(t, po, a, b);
-                    }
+                    cxx_mpz t = eval_helper(po, a, b);
                     res = mpz_sgn(t) < 0;
                 } else {
                     res = res < 0;
                 }
             } else if (chi.r == 3) {
                 // parity of the number of free relations
-                if constexpr (std::is_same_v<cfg, filter_io_large_ab_cfg>) {
-                    res = mpz_sgn(b) == 0;
-                } else {
-                    res = (b==0);
-                }
+                res = (b==0);
             } else {
                 fmt::print(stderr, "Error, unrecognized special character: "
                                    "r={}\n", chi.r);
@@ -350,57 +352,79 @@ create_sign_characters_only(cxx_cado_poly const & cpoly)
     return chars;
 }
 
-typedef struct
-{
+struct big_characters_data {
+    cxx_cado_poly const & cpoly;
+    std::string purgedname;
     std::vector<alg_prime_t> const & chars;
-    blockmatrix & res;
-    cxx_cado_poly const * cpoly;
-} chars_data_t;
+    blockmatrix res;
 
-template<cado::filter_io_details::filter_io_config cfg>
-static void *
-thread_chars(void * context_data, typename cfg::rel_ptr rel)
-{
-    chars_data_t *data = (chars_data_t *) context_data;
-    std::vector<alg_prime_t> const & chars = data->chars;
-    blockmatrix & res = data->res;
-    auto const & cpoly = * data->cpoly;
-
-    for(size_t cg = 0 ; cg < chars.size() ; cg+=64) {
-        uint64_t w = eval_64chars<cfg>(rel->a, rel->b, chars.data()+cg, cpoly);
-        res[rel->num][cg] = w;
+    static uint64_t purgedfile_nrows(const char * purgedname)
+    {
+        uint64_t nrows, ncols;
+        purgedfile_read_firstline (purgedname, &nrows, &ncols);
+        return nrows;
     }
-    return NULL;
-}
+
+    big_characters_data(cxx_cado_poly const & cpoly,
+            const char * purgedname,
+            std::vector<alg_prime_t> const & chars)
+        : cpoly(cpoly)
+        , purgedname(purgedname)
+        , chars(chars)
+        , res(purgedfile_nrows(purgedname), chars.size())
+    {
+        res.set_zero();
+    }
+
+    template<typename relation_type>
+    void filter(int nthreads) {
+        /* For each rel, read the a,b-pair, compute the characters and
+         * store them in res.
+         */
+        fmt::print(stderr, "Reading {} pairs from {} and computing {} characters\n",
+                           res.nrows(), purgedname, chars.size());
+        using R = relation_type;
+
+        if (filter_rels_force_posix_threads || nthreads > 1) {
+            using L = cado::filter_io_details::ifb_locking_posix;
+            filter<L, R>(nthreads);
+        } else {
+            using L = cado::filter_io_details::ifb_locking_lightweight;
+            filter<L, R>(nthreads);
+        }
+    }
+    template<typename locking_layer, typename relation_type>
+    void filter(int nthreads) {
+        filter_rels<locking_layer, relation_type>(purgedname, nullptr, nullptr,
+            cado::filter_io_details::multithreaded_call(nthreads,
+            [&](relation_type & rel) {
+                for(size_t cg = 0 ; cg < chars.size() ; cg+=64) {
+                    uint64_t w = eval_64chars(rel, chars.data() + cg, cpoly);
+                    res[rel.num][cg] = w;
+                }
+            }));
+    }
+};
 
 // The big character matrix has (number of purged rels) rows, and (number of
 // characters) cols
-template<cado::filter_io_details::filter_io_config cfg>
-blockmatrix big_character_matrix(
-        std::vector<alg_prime_t> chars,
+static blockmatrix big_character_matrix(
+        std::vector<alg_prime_t> const & chars,
         const char * purgedname,
         cxx_cado_poly const & cpoly,
-        int nthreads)
+        int nthreads,
+        int largeab)
 {
-    uint64_t nrows, ncols;
-    purgedfile_read_firstline (purgedname, &nrows, &ncols);
+    big_characters_data B(cpoly, purgedname, chars);
+    if (!largeab) {
+        using relation_type = cado::relation_building_blocks::ab_block<uint64_t, 16>;
+        B.filter<relation_type>(nthreads);
+    } else {
+        using relation_type = cado::relation_building_blocks::ab_block<cxx_mpz, 16>;
+        B.filter<relation_type>(nthreads);
+    }
 
-    blockmatrix res(nrows, chars.size());
-    res.set_zero();
-
-    /* For each rel, read the a,b-pair, compute the characters and store them
-     * in res.
-     */
-    fmt::print(stderr, "Reading {} pairs from {} and computing {} characters\n",
-                       nrows, purgedname, chars.size());
-    chars_data_t data = {.chars = chars, .res=res, .cpoly=&cpoly};
-    std::vector<std::string> fic { purgedname };
-    typename cfg::description_t desc[2] = {
-        { thread_chars<cfg>, &data, nthreads, }, { nullptr, nullptr, 0, },
-    };
-    filter_rels2<cfg>(fic, desc, EARLYPARSE_NEED_AB_HEXA, NULL, NULL);
-
-    return res;
+    return std::move(B.res);
 }
 
 /* The small character matrix has only (number of relation-sets) rows -- its
@@ -667,8 +691,7 @@ int main(int argc, char const * argv[])
     const char *outname = NULL;
     int nthreads = 1;
     unsigned long lpb[2] = {0,0};
-    int largeab = 0;
-    int only_sign_chars = 0;
+    bool only_sign_chars = false;
     double const cpu0 = seconds ();
     double const wct0 = wct_seconds ();
 
@@ -682,9 +705,9 @@ int main(int argc, char const * argv[])
 
     const char *bw_kernel_file = NULL;
 
-    param_list_configure_switch(pl, "force-posix-threads", &filter_rels_force_posix_threads);
-    param_list_configure_switch(pl, "large-ab", &largeab);
-    param_list_configure_switch(pl, "only-sign-chars", &only_sign_chars);
+    pl.configure_switch("force-posix-threads");
+    pl.configure_switch("large-ab");
+    pl.configure_switch("only-sign-chars");
 
     param_list_process_command_line(pl, &argc, &argv, false);
 
@@ -712,6 +735,8 @@ int main(int argc, char const * argv[])
                            cpoly.nsides(), nchars);
         exit (EXIT_FAILURE);
     }
+
+    pl.parse("only_sign_chars", only_sign_chars);
 
     /* parse the optional -nratchars option */
     param_list_parse_int(pl, "nratchars", &nratchars);
@@ -746,11 +771,10 @@ int main(int argc, char const * argv[])
         chars = create_characters (nch, cpoly, lpb);
     }
 
-    blockmatrix bcmat = !largeab
-            ? big_character_matrix<filter_io_default_cfg>(chars, purgedname,
-                                                        cpoly, nthreads)
-            : big_character_matrix<filter_io_large_ab_cfg>(chars, purgedname,
-                                                           cpoly, nthreads);
+    pl.parse("force_posix_threads", filter_rels_force_posix_threads);
+
+    blockmatrix bcmat = big_character_matrix(chars, purgedname,
+            cpoly, nthreads, pl.parse<bool>("large-ab"));
 
     fprintf(stderr, "done building big character matrix at wct=%.1fs\n", wct_seconds()-wct0);
 
