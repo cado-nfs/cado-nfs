@@ -291,6 +291,10 @@ while (<>) {
         last;
     } elsif (scalar @live == 0) {
         next;
+    } elsif (/Failed test dependencies: (.*)/) {
+        # print_live(0, 'failure');
+        # we don't have much to print in this case.
+        next;
     } else {
         my $msg = "unexpected data from stdin:\n$_\n" . hexdump($_);
         print "$csi->{'failure'}$msg$csi->{'normal'}\n"

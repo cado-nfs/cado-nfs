@@ -1483,9 +1483,13 @@ tests/sieve/test_trialdiv_example_stdin.txt
 tests/sieve/torture-redc.cpp
 tests/sqrt/CMakeLists.txt
 tests/sqrt/Makefile
-tests/sqrt/c30.dep.000
-tests/sqrt/c30.poly
-tests/sqrt/c30.ratdep.000
+tests/sqrt/test-crtalgsqrt/c30.dep.000
+tests/sqrt/test-crtalgsqrt/c30.poly
+tests/sqrt/test-crtalgsqrt/c30.ratdep.000
+tests/sqrt/test-sqrt/c30.index.gz
+tests/sqrt/test-sqrt/c30.kernel
+tests/sqrt/test-sqrt/c30.poly
+tests/sqrt/test-sqrt/c30.purged.gz
 tests/test.sh
 tests/test_gfp2_2_2g.sh
 tests/test_gfp3.sh
