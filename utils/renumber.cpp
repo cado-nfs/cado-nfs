@@ -954,6 +954,8 @@ void renumber_t::read_table(std::istream& is)
 
 void renumber_t::read_from_file(std::string const & filename, bool for_dl)
 {
+    if (cpoly.nsides() == 0)
+        throw std::runtime_error("you must first call renumber_t::renumber_t(cxx_cado_poly const &)");
     ifstream_maybe_compressed is(filename);
     if (for_dl)
         use_additional_columns_for_dl();
