@@ -110,8 +110,15 @@ void bw_common_interpret_parameters(struct bw_params * bw, cxx_param_list & pl)/
     verbose_interpret_parameters(pl);
 
     if (bw->can_print) {
+        /* these two flush calls are here to avoid a weird bug on alpine
+         * linux and fmt 12.1.0 where the stdout print never appears if
+         * we don't explicitly flush... (even though we clearly marked
+         * stdout as not buffered...)
+         */
         param_list_print_command_line(stderr, pl);
+        fflush(stderr);
         param_list_print_command_line(stdout, pl);
+        fflush(stdout);
     }
 
     const char * tmp;
