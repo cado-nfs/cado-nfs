@@ -23,16 +23,18 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "cado.h" // IWYU pragma: keep
 #include <cstdio>
 #include <cstdlib>
-#ifdef HAVE_MINGW
-#include <fcntl.h>   /* for _O_BINARY */
-#endif
 #include <cstring>
 #include <cinttypes>        // for PRIu64, PRIu32, PRIx64
 #include <cstdint>          // for uint64_t, uint32_t, UINT32_MAX
+
+#include <string>
+
+#include "fmt/base.h"
+
 #include "purgedfile.h"      // for purgedfile_read_firstline
 #include "typedefs.h"        // for index_t, ideal_merge_t, index_signed_t
 #include "filter_config.h"
-#include "filter_io_old.hpp"  // earlyparsed_relation_ptr
+#include "filter_io.hpp"  // earlyparsed_relation_ptr
 #include "fix-endianness.h" // fwrite32_little
 #include "gzip.h"       // fopen_maybe_compressed
 #include "misc.h"       // derived_filename
@@ -44,6 +46,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "portability.h" // strdup  // IWYU pragma: keep
 #include "macros.h"
 #include "merge_replay_matrix.h"
+#include "runtime_numeric_cast.hpp"
 
 #include "utils_cxx.hpp"
 
@@ -99,21 +102,17 @@ flushSparse(const char *sparsename, typerow_t **sparsemat, index_t small_nrows,
     memset(weights, 0, small_ncols * sizeof(index_t));
 
     char wmode[3] = "w";
-#ifdef HAVE_MINGW
-    if (bin)
-      strcpy (wmode, "wb");
-#endif
 
     char * base = strdup(sparsename);
     if (zip) { base[strlen(base)-3]='\0'; }
     if (has_suffix(base, suf->ext)) { base[strlen(base)-4]='\0'; }
 
-    char * smatname = NULL;
-    FILE * smatfile = NULL;
-    char * srwname  = NULL;
-    FILE * srwfile  = NULL;
-    char * scwname  = NULL;
-    FILE * scwfile  = NULL;
+    char * smatname = nullptr;
+    FILE * smatfile = nullptr;
+    char * srwname  = nullptr;
+    FILE * srwfile  = nullptr;
+    char * scwname  = nullptr;
+    FILE * scwfile  = nullptr;
 
     {
         smatname = derived_filename(base, suf->smat, zip);
@@ -127,12 +126,12 @@ flushSparse(const char *sparsename, typerow_t **sparsemat, index_t small_nrows,
                           (uint64_t) small_ncols - skip);
     }
 
-    char * dmatname = NULL;
-    FILE * dmatfile = NULL;
-    char * drwname  = NULL;
-    FILE * drwfile  = NULL;
-    char * dcwname  = NULL;
-    FILE * dcwfile  = NULL;
+    char * dmatname = nullptr;
+    FILE * dmatfile = nullptr;
+    char * drwname  = nullptr;
+    FILE * drwfile  = nullptr;
+    char * dcwname  = nullptr;
+    FILE * dcwfile  = nullptr;
 
     if (skip) {
         /* arrange so that we don't get file names like .sparse.dense */
@@ -535,47 +534,152 @@ build_newrows_from_file(typerow_t **newrows, FILE *hisfile,
     stats_print_progress (stats, addread, 0, 0, 1);
 }
 
-typedef struct
-{
-  typerow_t **mat;
-  index_t ncols;
-  index_t col0;
-  index_t colmax;
-} replay_read_data_t;
+/* TODO: refactor with purged_file_reader in merge.cpp !!!
+ */
+struct replay_read_data {
+    typerow_t **mat = nullptr; // not owned
+    parameter<std::string,
+        "purged",
+        "input purged file">
+            purgedname;
+    parameter_with_default<index_t,
+        "col0",
+        "print only columns with index >= col0",
+        "0">
+            col0;
+    parameter_with_default<index_t,
+        "colmax",
+        "print only columns with index < colmax",
+        "0">
+            colmax;
+    parameter_switch<
+        "force-posix-threads",
+        "force the use of posix threads, do not rely on platform memory semantics">
+            filter_rels_force_posix_threads;
+    size_t nrows = 0;
+    index_t ncols = 0;
 
-void * fill_in_rows (void *context_data, earlyparsed_relation_ptr rel)
-{
-  replay_read_data_t *data = (replay_read_data_t *) context_data;
-  typerow_t buf[UMAX(weight_t)];
+    static void configure(cxx_param_list & pl) {
+        decltype(purgedname)::configure(pl);
+        decltype(col0)::configure(pl);
+        decltype(colmax)::configure(pl);
+        decltype(filter_rels_force_posix_threads)::configure(pl);
+    }
 
-  unsigned int nb = 0;
-  for (unsigned int j = 0; j < rel->nb; j++)
-  {
-    index_t h = rel->primes[j].h;
-    if (h < data->col0 || h >= data->colmax) continue;
-    nb++;
-#ifdef FOR_DL
-    exponent_t e = rel->primes[j].e;
-    buf[nb] = (ideal_merge_t) {.id = h, .e = e};
-#else
-    ASSERT_ALWAYS (rel->primes[j].e == 1);
-    buf[nb] = h;
+    void fetch_nrows_ncols() {// {{{
+        uint64_t nr, nc;
+        /* Read number of rows and cols on first line of purged file */
+        purgedfile_read_firstline (purgedname().c_str(), &nr, &nc);
+        if (nr>= UINT32_MAX)
+        {
+            fprintf (stderr, "Error, cannot handle 2^32 rows or more after purge\n");
+            fprintf (stderr, "change ind_row from uint32_t to uint64_t in sparse.h\n");
+            exit (EXIT_FAILURE);
+        }
+#if SIZEOF_INDEX == 4
+        if (nc>= UINT32_MAX) {
+            fprintf(stderr, "You must recompile with -DSIZEOF_INDEX=8\n");
+            exit(EXIT_FAILURE);
+        }
 #endif
-    ASSERT (h < data->ncols);
-  }
+        nrows = nr;
+        ncols = runtime_numeric_cast<index_t>(nc);
+        fmt::print("Sparse matrix has {} rows and {} cols\n",
+                nrows, ncols);
+        fflush(stdout);
+    }// }}}
+
+    explicit replay_read_data (cxx_param_list & pl)
+        : purgedname(pl)
+        , col0(pl)
+        , colmax(pl)
+        , filter_rels_force_posix_threads(pl)
+    {
+        fetch_nrows_ncols();
+        if (colmax() == 0)
+            colmax() = std::numeric_limits<index_t>::max();
+    }
+
+    template<typename relation_type>
+    void fill_in_rows (relation_type & rel)
+    {
+        typerow_t buf[UMAX(weight_t)];
+
+        unsigned int nb = 0;
+        for (auto const & pe : rel.primes) {
+            index_t h = pe.h;
+            if (h < col0 || h >= colmax) continue;
+            nb++;
 #ifdef FOR_DL
-  buf[0].id = nb;
+            exponent_t e = pe.e;
+            buf[nb] = (ideal_merge_t) {.id = h, .e = e};
 #else
-  buf[0] = nb;
+            ASSERT_ALWAYS (pe.e == 1);
+            buf[nb] = h;
+#endif
+            ASSERT (h < ncols);
+        }
+#ifdef FOR_DL
+        buf[0].id = nb;
+#else
+        buf[0] = nb;
 #endif
 
-  qsort (&(buf[1]), nb, sizeof(typerow_t), cmp_typerow_t);
+        qsort (&(buf[1]), nb, sizeof(typerow_t), cmp_typerow_t);
 
-  data->mat[rel->num] = mallocRow (nb + 1);
-  compressRow (data->mat[rel->num], buf, nb);
+        mat[rel.num] = mallocRow (nb + 1);
+        compressRow (mat[rel.num], buf, nb);
+    }
 
-  return NULL;
-}
+    template<typename locking_layer, typename relation_type>
+    size_t filter() {
+        using L = locking_layer;
+        using R = relation_type;
+        return filter_rels<L, R>(purgedname, nullptr, nullptr,
+                [&](R & rel) { fill_in_rows(rel); });
+    }
+
+    template<typename relation_type>
+        size_t filter() {
+            using R = relation_type;
+            if (filter_rels_force_posix_threads) {
+                using L = cado::filter_io_details::ifb_locking_posix;
+                return filter<L, R>();
+            } else {
+                using L = cado::filter_io_details::ifb_locking_posix;
+                return filter<L, R>();
+            }
+        }
+
+
+    size_t read(typerow_t ** newrows)
+    {
+        mat = newrows;
+        fmt::print("Reading sparse matrix from {}\n", purgedname());
+        fflush(stdout);
+        using relation_type =
+            cado::relation_building_blocks::primes_block<
+            prime_type_for_indexed_relations,
+            cado::relation_building_blocks::ab_ignore<16>>;
+        size_t nread = filter<relation_type>();
+        ASSERT_ALWAYS (nread == nrows);
+        return nread;
+    }
+
+    void read_for_msieve(typerow_t ** newrows) {
+        mat = newrows;
+        /* to generate the .cyc file for msieve, we only need to start from the
+           identity matrix with newnrows relation-sets, where relation-set i
+           contains only relation i. Thus we only need to read the first line of
+           the purged file, to get the number of relations-sets. */
+
+        for (index_t i = 0; i < nrows; i++) {
+            mat[i] = (typerow_t *) malloc(2 * sizeof(typerow_t));
+            setCell(mat[i], 1, i, 1);
+            setCell(mat[i], 0, 1, 1);
+        }
+    }
+};
 
 /* if for_msieve=1, generate the *.cyc file needed by msieve to construct
    its matrix, which is of the following (binary) format:
@@ -589,42 +693,6 @@ void * fill_in_rows (void *context_data, earlyparsed_relation_ptr rel)
    n1 is the number of relations in the first relation-set,
    i1 is the index of the first relation in the first relation-set
    (should correspond to line i1+2 in *.purged.gz), and so on */
-
-static void
-read_purgedfile (typerow_t **mat, const char* filename, index_t nrows,
-                 index_t ncols, index_t col0, index_t colmax, int for_msieve)
-{
-  index_t nread;
-  if (for_msieve == 0)
-  {
-    printf("Reading sparse matrix from %s\n", filename);
-    fflush(stdout);
-    const char * fic[2] = {filename, NULL};
-    replay_read_data_t tmp = (replay_read_data_t) {
-        .mat= mat,
-        .ncols = ncols,
-        .col0 = col0,
-        .colmax = colmax,
-    };
-    nread = filter_rels(fic, (filter_rels_callback_t) &fill_in_rows, &tmp,
-                        EARLYPARSE_NEED_INDEX, NULL, NULL);
-    ASSERT_ALWAYS (nread == nrows);
-  }
-  else /* for_msieve */
-  {
-    /* to generate the .cyc file for msieve, we only need to start from the
-       identity matrix with newnrows relation-sets, where relation-set i
-       contains only relation i. Thus we only need to read the first line of
-       the purged file, to get the number of relations-sets. */
-
-    for (index_t i = 0; i < nrows; i++)
-    {
-      mat[i] = (typerow_t *) malloc(2 * sizeof(typerow_t));
-      setCell(mat[i], 1, i, 1);
-      setCell(mat[i], 0, 1, 1);
-    }
-  }
-}
 
 static void
 writeIndex(const char *indexname, index_data_t index_data, index_t small_nrows)
@@ -826,26 +894,21 @@ fasterVersion (typerow_t **newrows, const char *sparsename,
 
 static void declare_usage(cxx_param_list & pl)
 {
-  param_list_decl_usage(pl, "purged", "input purged file");
-  param_list_decl_usage(pl, "his", "input history file");
-  param_list_decl_usage(pl, "out", "basename for output matrices");
+  pl.declare_usage("his", "input history file");
+  pl.declare_usage("out", "basename for output matrices");
 #ifndef FOR_DL
-  param_list_decl_usage(pl, "skip", "number of heaviest columns that go to the "
+  pl.declare_usage("skip", "number of heaviest columns that go to the "
                             "dense matrix (default " CADO_STRINGIZE(DEFAULT_MERGE_SKIP) ")");
 #endif
-  param_list_decl_usage(pl, "index", "file containing description of rows "
+  pl.declare_usage("index", "file containing description of rows "
                                      "(relations-sets) of the matrix");
-  param_list_decl_usage(pl, "ideals", "file containing correspondence between "
+  pl.declare_usage("ideals", "file containing correspondence between "
                                       "ideals and matrix columns");
-  param_list_decl_usage(pl, "force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
-  param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
-  param_list_decl_usage(pl, "for_msieve", "output matrix in msieve format");
-  param_list_decl_usage(pl, "Nmax", "stop at Nmax number of rows (default 0)");
-#ifndef FOR_DL
-  param_list_decl_usage(pl, "col0", "print only columns with index >= col0");
-  param_list_decl_usage(pl, "colmax", "print only columns with index < colmax");
-#endif
-  param_list_decl_usage(pl, "nsquare_matrices", "if non-zero, output that many "
+  pl.declare_usage("path_antebuffer", "path to antebuffer program");
+  pl.declare_usage("for_msieve", "output matrix in msieve format");
+  pl.declare_usage("Nmax", "stop at Nmax number of rows (default 0)");
+
+  pl.declare_usage("nsquare_matrices", "if non-zero, output that many "
                                 "square matrices by skipping rows (default 0)");
 
   verbose_decl_usage(pl);
@@ -859,17 +922,12 @@ static void declare_usage(cxx_param_list & pl)
 // indirection???
 int main(int argc, char const * argv[])
 {
-  const char * argv0 = argv[0];
-  uint64_t Nmax = 0;
-  uint64_t nrows, ncols;
-  typerow_t **newrows;
-  int bin = -1, skip = DEFAULT_MERGE_SKIP, for_msieve = 0;
-  double cpu0 = seconds ();
-  double wct0 = wct_seconds ();
-
-#ifdef HAVE_MINGW
-    _fmode = _O_BINARY;     /* Binary open for all files */
-#endif
+    const char * argv0 = argv[0];
+    uint64_t Nmax = 0;
+    typerow_t **newrows;
+    int bin = -1, skip = DEFAULT_MERGE_SKIP, for_msieve = 0;
+    double cpu0 = seconds ();
+    double wct0 = wct_seconds ();
 
     setvbuf(stderr, NULL, _IONBF, 0);
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -877,8 +935,9 @@ int main(int argc, char const * argv[])
     cxx_param_list pl;
     declare_usage(pl);
 
+    replay_read_data::configure(pl);
+
     param_list_configure_switch(pl, "for_msieve", &for_msieve);
-    param_list_configure_switch(pl, "force-posix-threads", &filter_rels_force_posix_threads);
 
     param_list_process_command_line(pl, &argc, &argv, false);
 
@@ -886,7 +945,6 @@ int main(int argc, char const * argv[])
     param_list_print_command_line (stdout, pl);
     fflush(stdout);
 
-    const char * purgedname = param_list_lookup_string(pl, "purged");
     const char * hisname = param_list_lookup_string(pl, "his");
     const char * sparsename = param_list_lookup_string(pl, "out");
     const char * indexname = param_list_lookup_string(pl, "index");
@@ -897,13 +955,6 @@ int main(int argc, char const * argv[])
     param_list_parse_uint64(pl, "Nmax", &Nmax);
     const char *path_antebuffer = param_list_lookup_string(pl, "path_antebuffer");
 
-    index_t col0 = 0;
-    index_t colmax = UMAX(index_t);
-
-#ifndef FOR_DL
-    { uint64_t c; if (param_list_parse_uint64(pl, "col0", &c))   col0 = c; }
-    { uint64_t c; if (param_list_parse_uint64(pl, "colmax", &c)) colmax = c; }
-#endif
 
     unsigned int nsquare_matrices = 0;
     param_list_parse_uint(pl, "nsquare_matrices", &nsquare_matrices);
@@ -915,84 +966,67 @@ int main(int argc, char const * argv[])
         ASSERT_ALWAYS (nsquare_matrices < 10);
     }
 
+    replay_read_data rr(pl);
+
     /* Some checks on command line arguments */
     if (param_list_warn_unused(pl))
-      pl.fail("Error, unused parameters are given\n");
+        pl.fail("Error, unused parameters are given\n");
 
-    if (purgedname == NULL)
-      pl.fail("Error, missing -purged command line argument\n");
     if (hisname == NULL)
-      pl.fail("Error, missing -his command line argument\n");
+        pl.fail("Error, missing -his command line argument\n");
     if (sparsename == NULL && indexname == NULL)
         pl.fail("Error, at least one of -out and -index is required\n");
 #ifdef FOR_DL
     if (idealsfilename == NULL)
-      pl.fail("Error, missing -ideals command line argument\n");
+        pl.fail("Error, missing -ideals command line argument\n");
     ASSERT_ALWAYS (skip == 0);
 #endif
     if (sparsename != NULL)
-      {
+    {
         if (has_suffix(sparsename, ".bin") || has_suffix(sparsename, ".bin.gz"))
-          {
+        {
             bin = 1;
             printf ("# Output matrices will be written in binary format\n");
-          }
+        }
         else
-          {
+        {
             bin = 0;
             printf ("# Output matrices will be written in text format\n");
-          }
-      }
+        }
+    }
 
     set_antebuffer_path (argv0, path_antebuffer);
 
-  /* Read number of rows and cols on first line of purged file */
-  purgedfile_read_firstline (purgedname, &nrows, &ncols);
-  if (nrows >= 4294967296UL)
-    {
-      fprintf (stderr, "Error, cannot handle 2^32 rows or more after purge\n");
-      fprintf (stderr, "change ind_row from uint32_t to uint64_t in sparse.h\n");
-      exit (EXIT_FAILURE);
-    }
-  printf("Sparse matrix has %" PRIu64 " rows and %" PRIu64 " cols\n",
-         nrows, ncols);
-  fflush(stdout);
 
-#if SIZEOF_INDEX == 4
-  if (ncols >= UINT32_MAX) {
-      fprintf(stderr, "You must recompile with -DSIZEOF_INDEX=8\n");
-      exit(EXIT_FAILURE);
-  }
-#endif
-
-  /* Allocate memory for rows of the matrix */
-  if (sparsename != NULL)
+    /* Allocate memory for rows of the matrix */
+    if (sparsename != NULL)
     {
-      newrows = (typerow_t **) malloc (nrows * sizeof(typerow_t *));
-      ASSERT_ALWAYS(newrows != NULL);
-    }
-  else
-    newrows = NULL;
+        newrows = (typerow_t **) malloc (rr.nrows * sizeof(typerow_t *));
+        ASSERT_ALWAYS(newrows != NULL);
 
-  /* Read the matrix from purgedfile */
-  if (sparsename != NULL)
-    {
-      read_purgedfile (newrows, purgedname, nrows, ncols, col0, colmax, for_msieve);
-      printf("The biggest index appearing in a relation is %" PRIu64 "\n", ncols);
-      fflush(stdout);
+        if (for_msieve)
+            rr.read_for_msieve(newrows);
+        else
+            rr.read(newrows);
+        fmt::print("The biggest index appearing in a relation is {}\n", rr.ncols);
+        fflush(stdout);
 #if DEBUG >=1
-      for (index_t i = 0; i < nrows; i++)
+        for (index_t i = 0; i < nrows; i++)
         {
-          fprintf(stderr, "row[%" PRIu64 "] :", i);
-          fprintRow(stderr, newrows[i]);
-          fprintf(stderr, "\n");
+            fprintf(stderr, "row[%" PRIu64 "] :", i);
+            fprintRow(stderr, newrows[i]);
+            fprintf(stderr, "\n");
         }
 #endif
+    } else {
+        newrows = NULL;
     }
 
-  fasterVersion (newrows, sparsename, indexname, hisname, nrows, ncols, skip,
-                 bin, idealsfilename, for_msieve, Nmax, nsquare_matrices);
 
-  print_timing_and_memory (stdout, cpu0, wct0);
-  return 0;
+    fasterVersion (newrows, sparsename, indexname, hisname,
+            rr.nrows, rr.ncols, skip,
+            bin, idealsfilename, for_msieve, Nmax, nsquare_matrices);
+
+    print_timing_and_memory (stdout, cpu0, wct0);
+    return 0;
 }
