@@ -59,24 +59,25 @@
  */
 
 #include "cado.h" // IWYU pragma: keep
-#include <cinttypes>           // for PRIu64, PRId64
-#include <cstdint>             // for int64_t, uint64_t
-#include <cstdio>              // for fprintf, stdout, fflush, stderr, NULL
-#include <cstdlib>             // for exit, EXIT_FAILURE, abort, malloc
-#include <cstring>             // for memset
-#include "clique_removal.hpp"     // for cliques_removal, comp_print_info_weig...
-#include "filter_config.h"      // for DEFAULT_PURGE_NSTEPS, DEFAULT_FI...
-#include "filter_io_old.hpp"          // for filter_rels, earlyparsed_relation_s
-#include "gzip.h"               // for fclose_maybe_compressed, fopen_maybe_...
-#include "macros.h"             // for ASSERT_ALWAYS
-#include "misc.h"               // for filelist_clear, filelist_from_file, UMAX
-#include "params.hpp"             // for param_list_decl_usage, param_list_loo...
-#include "purge_matrix.hpp"       // for purge_matrix_s, purge_matrix_print_st...
-#include "portability.h" // asprintf // IWYU pragma: keep
-#include "singleton_removal.hpp"  // for singleton_removal
-#include "timing.h"             // for print_timing_and_memory, seconds, wct...
-#include "typedefs.h"           // for index_t, weight_t
-#include "verbose.hpp"            // for verbose_decl_usage, verbose_interpret...
+#include <cinttypes>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include "clique_removal.hpp"
+#include "filter_config.h"
+#include "filter_io_old.hpp"
+#include "gzip.h"
+#include "macros.h"
+#include "misc.h"
+#include "filelist.hpp"
+#include "params.hpp"
+#include "purge_matrix.hpp"
+#include "portability.h"
+#include "singleton_removal.hpp"
+#include "timing.h"
+#include "typedefs.h"
+#include "verbose.hpp"
 
 // #define TRACE_J 0x5b841 /* trace column J */
 
@@ -276,7 +277,7 @@ thread_print(data_second_pass_ptr arg, earlyparsed_relation_ptr rel)
    *    such list)
    *    p ranges over all paths listed in the filelist.
    */
-char const ** filelist_from_file_with_subdirlist(const char *basepath,
+static char const ** filelist_from_file_with_subdirlist(const char *basepath,
 					  const char *filelist,
 					  const char *subdirlist)
 {

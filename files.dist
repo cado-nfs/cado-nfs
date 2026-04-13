@@ -1721,6 +1721,8 @@ utils/extra_complex_overloads.hpp
 utils/fakempi.h
 utils/fd_streambuf.cpp
 utils/fd_streambuf.hpp
+utils/filelist.cpp
+utils/filelist.hpp
 utils/filter_io.tex
 utils/filter_io_old.cpp
 utils/filter_io_old.hpp

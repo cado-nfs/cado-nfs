@@ -24,7 +24,7 @@
 #include "gzip.h"
 #include "fstream_maybe_compressed.hpp"
 #include "macros.h"
-#include "misc.h"
+#include "filelist.hpp"
 #include "params.hpp"
 #include "portability.h"
 #include "relation-tools.h"

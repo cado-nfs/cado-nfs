@@ -17,7 +17,7 @@
 #include "getprime.h"
 #include "gzip.h"
 #include "macros.h"
-#include "misc.h"
+#include "filelist.hpp"
 #include "arith/mod_ul.h"
 #include "mpz_poly.h"
 #include "params.hpp"

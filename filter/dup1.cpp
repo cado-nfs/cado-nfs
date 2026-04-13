@@ -34,9 +34,9 @@
 #include "gzip.h"       // fopen_maybe_compressed
 #include "macros.h"
 #include "portability.h" // strdup // IWYU pragma: keep
-#include "misc.h"       // filelist_clear
-#include "params.hpp"     // param_list_parse_*
-#include "timing.h"     // timingstats_dict_t
+#include "filelist.hpp"
+#include "params.hpp"
+#include "timing.h"
 #include "verbose.hpp"
 
 #define DEFAULT_LOG_MAX_NRELS_PER_FILES 25

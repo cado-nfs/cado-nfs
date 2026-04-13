@@ -71,7 +71,7 @@
 #include "gmp_aux.h"
 #include "gzip.h"
 #include "macros.h"
-#include "misc.h"
+#include "filelist.hpp"
 #include "params.hpp"
 #include "portability.h"
 #include "relation-tools.h"

@@ -19,6 +19,7 @@ set (sources
         arithxx/modredc96.cpp
         arithxx/modredc126.cpp
         arithxx/mod_mpz_new.cpp
+        filelist.cpp
         gmp_aux2.cpp
         double_poly.cpp rootfinder.cpp params.cpp gcd.c
         gzip.cpp misc.c misc2.cpp utils_cxx.cpp
