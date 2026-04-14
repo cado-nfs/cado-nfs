@@ -147,6 +147,7 @@ cado_define_test(full_c30
             ${CADO_NFS_BINARY_DIR}/cado-nfs.py
             -qs -t 2
             slaves.downloadretry=1
+            tasks.linalg.bwc.balancing_options=reorder=columns
             1513082186477365836608886586480243097453
             TARGET_DEPENDENCIES full_dependencies_base
             siqs
