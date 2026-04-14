@@ -60,7 +60,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "omp_proxy.h"
 #include "params.hpp"
 #include "purgedfile.h"
-#include "read_purgedfile_in_parallel.h"
+#include "read_purgedfile_in_parallel.hpp"
 #include "sparse.h"
 #include "timing.h"
 #include "typedefs.h"

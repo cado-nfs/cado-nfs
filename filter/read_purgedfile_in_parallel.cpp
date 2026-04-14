@@ -11,7 +11,7 @@
 #include "merge_heap.h"
 #include "merge_replay_matrix.h"
 #include "omp_proxy.h"
-#include "read_purgedfile_in_parallel.h"
+#include "read_purgedfile_in_parallel.hpp"
 #include "sparse.h"
 #include "timing.h"
 #include "typedefs.h"
