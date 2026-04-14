@@ -45,7 +45,7 @@ if(COVERAGE_TEST)
 endif()
 
 # MPI binaries are not properly launched by cado-nfs.py (see #21819)
-if(NOT MINGW AND NOT HAVE_MPI)
+if(NOT HAVE_MPI)
 
 cado_define_test(full_c30
     SCRIPT

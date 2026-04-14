@@ -439,7 +439,6 @@ int main(int argc, char const * argv[])
     verbose_decl_usage(pl);
     filelist::configure(pl);
     cado::filter_io_details::configure(pl);
-
     purge_process::configure(pl);
 
     pl.process_command_line(argc, argv, true);

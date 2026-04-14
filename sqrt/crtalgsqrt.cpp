@@ -169,10 +169,8 @@ static int max_loglevel=99;
 static char prefix[20]={'\0'};
 
 int
-#ifndef HAVE_MINGW
 /* Don't check format under MinGW as it still contains %zu here */
 ATTR_PRINTF(1, 2)
-#endif
 logprint(const char * fmt, ...)
 {
     va_list ap;

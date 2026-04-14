@@ -63,9 +63,7 @@ set (sources
         imaginary_quadratic_class_groups.cpp
         ${fmt_sources}
 )
-if (NOT MINGW)
-    list(APPEND sources cado_popen.c)
-endif()
+list(APPEND sources cado_popen.c)
 if(HAVE_HWLOC)
     list(APPEND sources hwloc-aux.cpp)
 endif()

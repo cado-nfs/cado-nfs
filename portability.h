@@ -229,147 +229,6 @@ strlcat(char *dst, const char *src, size_t dsize)
 #endif
 #endif/*}}}*/
 
-/* MS VS and MinGW use the MS RTL (called MSVCRT for MinGW) which does not
- * know the "%zu" format, they use "%Iu" instead. On MinGW, we use wrapper 
- * functions that rewrite the %zu format accordingly, so the bulk of the
- * code can continue to use C99 syntax.
-
- * FIXME: looks like it's a bit of a mess. MinGW, with
- * __USE_MINGW_ANSI_STDIO, claims to provide C99 things. But from reading
- * the commit logs, it's not completely clear that this holds for the
- * full extent of functions we want; maybe it's only *printf, and not
- * *scanf.
-
- * Second aspect (below), with C++, it seems that <cstdio> is sometimes
- * #undef-ining printf, maybe to the point of thrashing the C99-compliant
- * variants we've selected. Does that say that in the end we *have* to
- * use substitutes for every call ?
- */
-
-#ifdef HAVE_MINGW/*{{{*/
-
-#include <stdio.h>
-
-/* For C++, including cstdio too is mandatory. Not much because we want
- * it, but because it does feel free to do things such as #undef fprintf,
- * which of course will get in the way since we want these renamed
- * (bear in mind that some side-effect may cause cstdio to be included
- * well after this file, unless we want to be #include-order dependent).
- */
-#ifdef  __cplusplus
-#include <cstdio>
-#endif
-
-#include <stdarg.h>
-#include <stdlib.h>
-#include <string.h>
-#include "macros.h"
-
-static inline const char *
-subst_zu(const char * const s)
-{
-    char * const r = strdup(s);
-    const char * const prisiz = "Iu";
-    const char * const priptrdiff = "Id";
-    const size_t l = strlen(r);
-    size_t i;
-    
-    ASSERT_ALWAYS(strlen(prisiz) == 2);
-    ASSERT_ALWAYS(strlen(priptrdiff) == 2);
-    ASSERT_ALWAYS(r != NULL);
-    for (i = 0; i + 2 < l; i++)
-        if (r[i] == '%' && r[i+1] == 'z' && r[i+2] == 'u') {
-            r[i+1] = prisiz[0];
-            r[i+2] = prisiz[1];
-        } else if (r[i] == '%' && r[i+1] == 'z' && r[i+2] == 'd') {
-            r[i+1] = priptrdiff[0];
-            r[i+2] = priptrdiff[1];
-        } else if (r[i] == '%' && r[i+1] == 't' && r[i+2] == 'd') {
-            r[i+1] = priptrdiff[0];
-            r[i+2] = priptrdiff[1];
-        }
-    return r;
-}
-
-static inline int
-scanf_subst_zu (const char * const format, ...)
-{
-  va_list ap;
-  const char * const subst_format = subst_zu (format);
-  int r;
-  
-  va_start (ap, format);
-  r = vscanf (subst_format, ap);
-  free ((void *)subst_format);
-  va_end (ap);
-  return r;
-}
-
-static inline int
-fscanf_subst_zu (FILE * const stream, const char * const format, ...)
-{
-  va_list ap;
-  const char * const subst_format = subst_zu (format);
-  int r;
-  
-  va_start (ap, format);
-  r = vfscanf (stream, subst_format, ap);
-  free ((void *)subst_format);
-  va_end (ap);
-  return r;
-}
-
-static inline int
-sscanf_subst_zu (const char * const str, const char * const format, ...)
-{
-  va_list ap;
-  const char * const subst_format = subst_zu (format);
-  int r;
-  
-  va_start (ap, format);
-  r = vsscanf (str, subst_format, ap);
-  free ((void *)subst_format);
-  va_end (ap);
-  return r;
-}
-
-#define scanf scanf_subst_zu
-#define fscanf fscanf_subst_zu
-#define sscanf sscanf_subst_zu
-
-static inline int
-printf_subst_zu (const char * const format, ...)
-{
-  va_list ap;
-  const char * const subst_format = subst_zu (format);
-  int r;
-
-  va_start (ap, format);
-  r = vprintf (subst_format, ap);
-  free ((void *)subst_format);
-  va_end (ap);
-  return r;
-}
-
-static inline int
-fprintf_subst_zu (FILE * const stream, const char * const format, ...)
-{
-  va_list ap;
-  const char * const subst_format = subst_zu (format);
-  int r;
-
-  va_start (ap, format);
-  r = vfprintf (stream, subst_format, ap);
-  free ((void *)subst_format);
-  va_end (ap);
-  return r;
-}
-
-#define printf  printf_subst_zu
-#define fprintf fprintf_subst_zu
-
-#endif /* ifdef HAVE_MINGW *//*}}}*/
-
 #ifndef HAVE_ASPRINTF/*{{{*/
 /* Copied and improved from
  * http://mingw-users.1079350.n2.nabble.com/Query-regarding-offered-alternative-to-asprintf-td6329481.html
@@ -408,65 +267,18 @@ asprintf( char ** const sptr, const char * const fmt, ... )
 #endif
 #endif  /* HAVE_ASPRINTF *//*}}}*/
 
-#if defined(HAVE_MINGW) && !defined(HAVE_REALPATH)/*{{{*/
-#include <io.h>
-#include <stdlib.h>
-#include <errno.h>
-/* realpath() function copied from 
- * http://sourceforge.net/p/mingw/patches/256/?page=0
- * Its copyright notice is:
- * Written by Keith Marshall <keithmarshall@users.sourceforge.net>
- *
- * This is free software.  You may redistribute and/or modify it as you
- * see fit, without restriction of copyright. */
-    
-static inline char __cdecl
-*realpath( const char *__restrict__ name, char *__restrict__ resolved )
-{
-  char *retname = NULL;
-
-  if( name == NULL )
-    errno = EINVAL;
-  else if( access( name, 4 ) == 0 )
-  {
-    if( (retname = resolved) == NULL )
-    {
-      retname = (char *) malloc( _MAX_PATH );
-    }
-    if( retname == NULL )
-      errno = ENOMEM;
-    else if( (retname = _fullpath( retname, name, _MAX_PATH )) == NULL )
-      errno = ENAMETOOLONG;
-  }
-  return retname;
-}
-#endif/*}}}*/
-
 #if defined(HAVE_SYSCONF)/*{{{*/
 #include <unistd.h>
 #endif/*}}}*/
 
-#if defined(_WIN32) || defined(_WIN64)  /* mingw lacks pagesize() *//*{{{*/
-#include <windows.h>
-#endif
-static inline long pagesize ()
+static inline long pagesize ()/* {{{ */
 {
-#if defined(_WIN32) || defined(_WIN64)
-  /* cf http://en.wikipedia.org/wiki/Page_%28computer_memory%29 */
-  SYSTEM_INFO si;
-  GetSystemInfo(&si);
-  return si.dwPageSize;
-#elif defined(HAVE_SYSCONF)
+#if defined(HAVE_SYSCONF)
   return sysconf (_SC_PAGESIZE);
 #else
-  #error "Cannot determine page size"
+#error "Cannot determine page size"
 #endif
 }/*}}}*/
 
-#ifdef HAVE_MINGW       /* mingw lacks sleep() (!?!!?) *//*{{{*/
-/* oh dear... */
-#include <windows.h>
-#define sleep(seconds) Sleep((seconds)*1000) 
-#endif /* HAVE_MINGW *//*}}}*/
 
 #endif /* ifndef CADO_PORTABILITY_H */

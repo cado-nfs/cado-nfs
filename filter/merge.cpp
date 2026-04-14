@@ -1412,10 +1412,6 @@ int main(int argc, char const * argv[])
     uint32_t skip = DEFAULT_MERGE_SKIP;
     double target_density = DEFAULT_MERGE_TARGET_DENSITY;
 
-#ifdef HAVE_MINGW
-    _fmode = _O_BINARY;     /* Binary open for all files */
-#endif
-
     double tt;
     double cpu0 = seconds ();
     double wct0 = wct_seconds ();

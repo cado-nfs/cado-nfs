@@ -24,7 +24,6 @@
 #include <memory>
 #include <utility>
 #include <limits>
-#include <stdexcept>
 #include <algorithm>
 #include <vector>
 
@@ -284,7 +283,6 @@ main (int argc, char const * argv[])
     dup1_process::configure(pl);
     verbose_decl_usage(pl);
     cado::filter_io_details::configure(pl);
-
 
     /* used for counting time in different processes */
     timingstats_dict_t stats;

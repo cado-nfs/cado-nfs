@@ -78,10 +78,6 @@ static int check_sort (tabular_fm_t const * tab)
 
 int main ()
 {
-#ifdef HAVE_MINGW
-    _fmode = _O_BINARY;		/* Binary open for all files */
-#endif
-
     //create a first fm!
     fm_t* t = fm_create();
     unsigned long elem[4];

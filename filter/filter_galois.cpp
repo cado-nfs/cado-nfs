@@ -16,10 +16,6 @@
 #include <mutex>
 #include <utility>
 
-#ifdef HAVE_MINGW
-#include <fcntl.h>
-#endif
-
 #include "cxx_mpz.hpp"
 #include "cado_poly.hpp"
 #include "filter_config.h"

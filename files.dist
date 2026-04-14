@@ -87,7 +87,6 @@ config/m4ri.cmake
 config/math-special.cmake
 config/math-special.cpp
 config/math.cmake
-config/mingw.cmake
 config/mmx.c
 config/mpc.cmake
 config/mpfr.cmake

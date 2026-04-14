@@ -12,10 +12,6 @@
 #include <vector>
 #include <algorithm>
 
-#ifdef HAVE_MINGW
-#include <fcntl.h>
-#endif
-
 #include <gmp.h>
 
 #include "gmp_aux.h"
@@ -135,9 +131,6 @@ static void declare_usage(cxx_param_list & pl)/*{{{*/
 int main(int argc, char const * argv[])
     /*{{{*/
 {
-#ifdef HAVE_MINGW
-    _fmode = _O_BINARY;     /* Binary open for all files */
-#endif
     setvbuf(stdout, nullptr, _IONBF, 0);
     setvbuf(stderr, nullptr, _IONBF, 0);
 

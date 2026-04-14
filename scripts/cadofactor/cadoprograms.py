@@ -317,23 +317,6 @@ else:
     defaultsuffix = ""
 
 
-IS_MINGW = "MSYSTEM" in os.environ
-
-
-def translate_mingw_path(path):
-    if path is None:
-        return None
-    (drive, path) = os.path.splitdrive(path)
-    driveletter = drive.rstrip(":")
-    # If a drive letter is given, we need to know the absolute path as we
-    # don't handle per-drive current working directories
-    dirs = path.split(os.sep)
-    if driveletter:
-        assert path[0] == "\\"
-        dirs[1:1] = [driveletter]
-    return '/'.join(dirs)
-
-
 class Program(object, metaclass=InspectType):
     """
     Base class that represents programs of the CADO suite
@@ -1332,15 +1315,6 @@ class BWC(Program):
         if os.name == "nt":
             kwargs.setdefault("runprefix", "perl.exe")
             kwargs.setdefault("execsuffix", "")
-        if IS_MINGW:
-            matrix = translate_mingw_path(matrix)
-            wdir = translate_mingw_path(wdir)
-            mpiexec = translate_mingw_path(mpiexec)
-            hostfile = translate_mingw_path(hostfile)
-            if bwc_bindir is None and "execpath" in kwargs:
-                bwc_bindir = os.path.normpath(
-                        os.sep.join([kwargs["execpath"], self.subdir]))
-            bwc_bindir = translate_mingw_path(bwc_bindir)
         super().__init__(locals(), **kwargs)
 
     def make_command_line(self, *args, **kwargs):

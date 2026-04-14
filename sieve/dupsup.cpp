@@ -6,10 +6,6 @@
 
 #include <sstream>
 
-#ifdef HAVE_MINGW
-#include <fcntl.h>
-#endif
-
 #include "fmt/base.h"
 
 #include "gzip.h"
@@ -84,10 +80,6 @@ main (int argc, char const * argv[])
     cxx_param_list pl;
     declare_usage(pl);
 
-#ifdef HAVE_MINGW
-    _fmode = _O_BINARY;     /* Binary open for all files */
-#endif
-
     param_list_configure_switch(pl, "-v", nullptr);
 
     param_list_process_command_line(pl, &argc, &argv, true);
@@ -122,7 +114,7 @@ main (int argc, char const * argv[])
 	}
     }
 
-    setvbuf(output, nullptr, _IOLBF, 0);      /* mingw has no setlinebuf */
+    setvbuf(output, nullptr, _IOLBF, 0);
 
     special_q doing;
 
