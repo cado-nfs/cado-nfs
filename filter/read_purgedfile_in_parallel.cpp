@@ -16,6 +16,7 @@
 #include "timing.h"
 #include "typedefs.h"
 
+#include "utils_cxx.hpp"
 
 uint64_t * rows_per_thread;
 off_t * spos_tab;
@@ -130,7 +131,7 @@ void vector_of_typerow_pointer_push_back(vector_of_typerow_pointer_ptr V, typero
 {
     if (V->size >= V->alloc) {
         size_t newalloc = MAX(V->size * 2, 16);
-        CHECKED_REALLOC(V->x, newalloc, typerow_t *);
+        checked_realloc(V->x, newalloc);
         V->alloc = newalloc;
     }
     V->x[V->size++] = p;
@@ -168,7 +169,7 @@ void vector_of_typerow_push_back(vector_of_typerow_ptr V, const typerow_t * p)
 {
     if (V->size >= V->alloc) {
         size_t newalloc = MAX(V->size * 2, 16);
-        CHECKED_REALLOC(V->x, newalloc, typerow_t);
+        checked_realloc(V->x, newalloc);
         V->alloc = newalloc;
     }
     memcpy(V->x + V->size++, p, sizeof(typerow_t));

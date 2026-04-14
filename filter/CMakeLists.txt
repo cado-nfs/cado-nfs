@@ -21,7 +21,7 @@ target_link_libraries(purge utils_with_io)
 
 add_executable(merge merge.cpp merge_heap.c merge_bookkeeping.c
     merge_compute_weights.c
-    read_purgedfile_in_parallel.c mst.c merge_replay_matrix.c sparse.c)
+    read_purgedfile_in_parallel.cpp mst.c merge_replay_matrix.c sparse.c)
 target_link_libraries(merge utils_with_io)
 mark_targets_as_openmp(merge)
 
@@ -31,7 +31,7 @@ endmacro()
 
 add_executable(merge-dl merge.cpp merge_heap.c merge_bookkeeping.c
     merge_compute_weights.c
-    read_purgedfile_in_parallel.c mst.c merge_replay_matrix.c sparse.c)
+    read_purgedfile_in_parallel.cpp mst.c merge_replay_matrix.c sparse.c)
 target_link_libraries(merge-dl utils_with_io)
 mark_targets_as_dl(merge-dl)
 mark_targets_as_openmp(merge-dl)
