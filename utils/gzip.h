@@ -142,9 +142,9 @@ static constexpr suffix_handler supported_compression_formats[] = {
     },
     {
         /* zstd seems to be uniformly better than any other alternative */
-        .suffix = ".zstd",
+        .suffix = ".zst",
         .pfmt_in = "zstd -dcf {}",
-        .pfmt_out = "zstd --fast > {}",
+        .pfmt_out = "zstd -3 > {}",
     },
     {
         /* xz is really slow */
