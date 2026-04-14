@@ -700,34 +700,31 @@ writeIndex(const char *indexname, index_data_t index_data, index_t small_nrows)
     fclose_maybe_compressed(indexfile, indexname);
 }
 
-void
+static void
 generate_cyc (const char *outname, typerow_t **rows, index_t nrows)
 {
-  FILE *outfile;
-  index_t t, u, i, k;
+    auto outfile = fopen_helper(outname, "w");
 
-  outfile = fopen (outname, "w");
-  ASSERT_ALWAYS(outfile != NULL);
+    /* msieve's .cyc format is apparently 32-bit only */
 
-  /* first write the number of relations */
-  t = nrows;
-  fwrite (&t, sizeof(index_t), 1, outfile);
+    uint32_t t = runtime_numeric_cast<uint32_t>(nrows);
 
-  /* then for each relation-set write a 32-bit integer giving the number k
-     of its element, followed by those k elements */
-  for (i = 0; i < nrows; i++)
+    /* first write the number of relations */
+    fwrite (&t, sizeof(uint32_t), 1, outfile.get());
+
+    /* then for each relation-set write a 32-bit integer giving the number k
+       of its element, followed by those k elements */
+    for (index_t i = 0; i < nrows; i++)
     {
-      t = rowLength(rows, i);
-      ASSERT_ALWAYS(t != 0);
-      fwrite (&t, sizeof(uint32_t), 1, outfile);
-      for (k = 1; k <= t; k++)
+        t = runtime_numeric_cast<uint32_t>(rowLength(rows, i));
+        ASSERT_ALWAYS(t != 0);
+        fwrite (&t, sizeof(uint32_t), 1, outfile.get());
+        for (index_t k = 1; k <= t; k++)
         {
-          u = rowCell(rows[i], k);
-          fwrite (&u, sizeof(uint32_t), 1, outfile);
+            auto u = runtime_numeric_cast<uint32_t>(rowCell(rows[i], k));
+            fwrite (&u, sizeof(uint32_t), 1, outfile.get());
         }
     }
-
-  fclose (outfile);
 }
 
 static void
