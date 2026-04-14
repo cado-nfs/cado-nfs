@@ -79,9 +79,9 @@ perhaps does not.
    for old versions. Since C++20 is required, you need a fairly recent
    XCode installation to compile cado-nfs.
 
- * Windows used to be partly supported, but this has been abandoned for
-   some time now (see a longer note
-   [there](#using-cado-nfs-under-windows) at the end of this file).
+ * Windows used to be partly supported a very long time ago, but this has
+   been completely abandoned for a long time now. Cado-NFS does not, and
+   will not run under Windows. Your best option is to use WSL2.
 
 These configurations are run within specific containers, or on specific
 machines. Compared to the base install, these are equipped with the
@@ -467,46 +467,6 @@ docker run --rm registry.gitlab.inria.fr/cado-nfs/cado-nfs/factoring-full cado-n
 
 Again, this is work in progress.
 
-
-Using CADO-NFS under Windows:
-=============================
-
-Portability of CADO-NFS on Windows was not an initial goal of that project,
-however we give here some hints that might help people wanting to use CADO-NFS
-under Windows. We hope that the following information can be useful to
-some extent, but the general message is that you're on your own.
-
-* Cado-NFS uses the POSIX interface all over the place, which means that
-  in one form of the other, you need to have the corresponding
-  functionality. If you don't, you're out of luck. (e.g., cado-nfs cannot
-  build as a "pure" visual studio project.)
-
-* if you only need the siever to run on Windows, then you only need to compile
-  the `las` program on Windows.
-
-* [Cygwin](http://www.cygwin.com/) provides a Unix-like environment,
-  where compilation should be easy.  However the binary requires a
-  `cygwin.dll` file. We have been told of problems with shared libraries,
-  which the following seems to address:
-  ```
-  PATH="installed/lib/cado-nfs-x.y.z:$PATH" ./cado-nfs.py [...]
-  ```
-
-* if you want a binary without any dependency, you might try
-  [MinGW](http://www.mingw.org/). The INSTALL file from GNU MPFR contains
-  detailed instructions on how to compile MPFR under Windows. Those
-  instructions should work for CADO-NFS too.  See
-  [`dev_docs/howto-MinGW.txt`](dev_docs/howto-MinGW.txt).
-
-* you might try to use MPIR (<http://mpir.org/>) instead of GMP. MPIR
-  is a fork of GMP, which claims to be more portable under Windows.
-  Alternatively, Windows ports of GMP shouldn't be too hard to find.
-
-* you might succeed in compiling the cado-nfs binaries with a
-  cross-compiler for Windows (which does not waive the runtime
-  requirements for `cado-nfs.py`, notably on unix-like utilities). See
-  [`dev_docs/README.cross`](dev_docs/README.cross) in the source code
-  repository for information on how to cross-compile.
 
 Examples of basic usage:
 ========================
