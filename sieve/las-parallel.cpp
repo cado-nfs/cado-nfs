@@ -81,6 +81,7 @@ struct las_parallel_desc::helper {
     int nsubjobs_per_cpu_binding_zone = 1;
     int nthreads_per_subjob = 1;
 
+    bool nobind = false;
     bool loose = false;
     bool replicate = true;
 
@@ -96,15 +97,22 @@ struct las_parallel_desc::helper {
     void set_banner(std::string const & description_string) {
         std::ostringstream os;
 #ifdef HAVE_HWLOC
-        os  << "# Applying binding "
-            << description_string
-            << " on a machine with topology "
-            << synthetic_topology_string
-            << " (" << (total_ram() >> 30) << " GB RAM)\n",
+        if (nobind)
+            os  << "# No binding applied because of the setting "
+                << description_string
+                << " on a machine with topology "
+                << synthetic_topology_string
+                << " (" << (total_ram() >> 30) << " GB RAM)\n";
+        else
+            os  << "# Applying binding "
+                << description_string
+                << " on a machine with topology "
+                << synthetic_topology_string
+                << " (" << (total_ram() >> 30) << " GB RAM)\n";
 #else
-            os  << "# Applying binding " << description_string << " with hwloc disabled\n",
+        os  << "# Applying binding " << description_string << " with hwloc disabled\n";
 #endif
-            banner += os.str();
+        banner += os.str();
     }
 #ifdef HAVE_HWLOC
     int mod(int&i) const {/*{{{*/
@@ -196,7 +204,7 @@ struct las_parallel_desc::helper {
         int k = 0;
         if (parse_number(desc, k)) {
             std::ostringstream os;
-            os << "machine,1," << k; 
+            os << "machine,1," << k << ",nobind"; 
             desc = os.str();
             return;
         }
@@ -218,17 +226,20 @@ struct las_parallel_desc::helper {
         bool loose_opt = false;
         bool strict_opt = false;
         bool norepl_opt = false;
+        bool nobind_opt = false;
         for( ; tokens.size() >= 3 ; ) {
             std::string const & s(tokens.back());
             if (s == "strict") { strict_opt = true; }
             else if (s == "loose") { loose_opt = true; }
             else if (s == "no-replicate") { norepl_opt = true; }
+            else if (s == "nobind") { nobind_opt = true; }
             else break;
             tokens.erase(--tokens.end());
         }
         if (loose_opt && strict_opt)
             throw bad_specification("loose and strict are incompatible");
         if (loose_opt) loose = true;
+        if (nobind_opt) nobind = true;
         if (strict_opt) loose = false;
         if (norepl_opt) replicate = false;
 
@@ -481,6 +492,8 @@ struct las_parallel_desc::helper {
 #endif
    int interpret_memory_binding_specifier() {
 #ifdef HAVE_HWLOC
+       if (nobind)
+           return 0;
        if (depth) {
            memory_binding_size = interpret_generic_binding_specifier(memory_binding_specifier_string);
            std::ostringstream os;
@@ -501,6 +514,8 @@ struct las_parallel_desc::helper {
    }
    int interpret_cpu_binding_specifier() {
 #ifdef HAVE_HWLOC
+       if (nobind)
+           return 0;
        if (depth) {
            if (cpu_binding_specifier_string.empty()) {
                cpu_binding_size = memory_binding_size;
@@ -542,6 +557,8 @@ struct las_parallel_desc::helper {
    }
    int interpret_generic_binding_specifier(std::string const & specifier, int cap MAYBE_UNUSED = -1) const {/*{{{*/
 #ifdef HAVE_HWLOC
+       if (nobind)
+           return 0;
        if (!depth) {
            if (strcasecmp(specifier.c_str(), "machine") != 0)
                throw bad_specification("hwloc detected asymmetric topology, the only accepted memory binding specifier is \"machine\"");
@@ -930,7 +947,6 @@ las_parallel_desc::las_parallel_desc(cxx_param_list & pl, double jobram_arg)
     }/*}}}*/
 
     help->replace_aliases(description_string);
-    help->set_banner(description_string);
 
 #ifdef HAVE_HWLOC
     param_list_parse_double(pl, "memory-margin", &help->total_ram_margin);
@@ -948,10 +964,14 @@ las_parallel_desc::las_parallel_desc(cxx_param_list & pl, double jobram_arg)
                 ": ", b.what(), "."
                 " See -t help for extended documentation");
     }
+    help->set_banner(description_string);
     help->interpret_memory_binding_specifier();
     help->interpret_cpu_binding_specifier();
     help->interpret_njobs_specifier();
     help->interpret_nthreads_specifier();
+
+    if (help->nobind)
+        return;
 
     nsubjobs_per_cpu_binding_zone = help->nsubjobs_per_cpu_binding_zone;
     nthreads_per_subjob = help->nthreads_per_subjob;
@@ -985,12 +1005,18 @@ void las_parallel_desc::display_binding_info() const /*{{{*/
     verbose_fmt_print(0, 1, "{}", help->banner);
     verbose_fmt_print(0, 2, "{}", help->full_diagnostics);
 #ifdef HAVE_HWLOC
-    verbose_fmt_print(0, 1, "# {} memory binding zones\n", nmemory_binding_zones);
-    verbose_fmt_print(0, 1, "# {} cpu binding zones within each memory binding\n", ncpu_binding_zones_per_memory_binding_zone);
-    verbose_fmt_print(0, 1, "# {} jobs within each binding context (hence {} in total)\n",
+    if (help->nobind) {
+        verbose_fmt_print(0, 1, "# {} job(s) in parallel\n", number_of_subjobs_total());
+        verbose_fmt_print(0, 1, "# {} thread(s) per job\n", nthreads_per_subjob);
+        verbose_output_end_batch();
+        return;
+    }
+    verbose_fmt_print(0, 1, "# {} memory binding zone(s)\n", nmemory_binding_zones);
+    verbose_fmt_print(0, 1, "# {} cpu binding zone(s) within each memory binding\n", ncpu_binding_zones_per_memory_binding_zone);
+    verbose_fmt_print(0, 1, "# {} job(s) within each binding context (hence {} in total)\n",
             number_of_subjobs_per_cpu_binding_zone(),
             number_of_subjobs_total());
-    verbose_fmt_print(0, 1, "# {} threads per job\n", nthreads_per_subjob);
+    verbose_fmt_print(0, 1, "# {} thread(s) per job\n", nthreads_per_subjob);
     if (jobram >= 0) {
         double const all = jobram * number_of_subjobs_total();
         int const physical = help->total_ram() >> 30;
@@ -1000,8 +1026,8 @@ void las_parallel_desc::display_binding_info() const /*{{{*/
                 jobram, all, ratio, physical);
     }
 #else
-    verbose_fmt_print(0, 1, "# {} jobs in parallel\n", number_of_subjobs_total());
-    verbose_fmt_print(0, 1, "# {} threads per job\n", nthreads_per_subjob);
+    verbose_fmt_print(0, 1, "# {} job(s) in parallel\n", number_of_subjobs_total());
+    verbose_fmt_print(0, 1, "# {} thread(s) per job\n", nthreads_per_subjob);
 #endif
 
 
@@ -1095,6 +1121,10 @@ int las_parallel_desc::set_loose_binding() const
 #ifdef HAVE_HWLOC
     if (help->depth == 0)
         return 0;
+    if (help->nobind) {
+        verbose_output_print(0, 2, "# Making loose-binding a noop because of \"nobind\".\n");
+        return 0;
+    }
     hwloc_obj_t root = hwloc_get_root_obj(help->topology);
     hwloc_nodeset_t n = root->nodeset;
     hwloc_cpuset_t c = root->cpuset;
@@ -1163,6 +1193,10 @@ int las_parallel_desc::set_subjob_mem_binding(int k MAYBE_UNUSED) const
         return -1;
     if (help->memory_binding_nodesets.empty())
         return -1;
+    if (help->nobind) {
+        verbose_output_print(0, 2, "# Skipping mem binding because of \"nobind\".\n");
+        return 0;
+    }
 
     ASSERT_ALWAYS(0<= k && k < (int) help->subjob_binding_cpusets.size());
     int const m = k / number_of_subjobs_per_memory_binding_zone();
@@ -1204,6 +1238,10 @@ int las_parallel_desc::set_subjob_cpu_binding(int k MAYBE_UNUSED) const
 #ifdef HAVE_HWLOC
     if (help->depth == 0)
         return -1;
+    if (help->nobind) {
+        verbose_output_print(0, 2, "# Skipping cpu binding because of \"nobind\".\n");
+        return 0;
+    }
     ASSERT_ALWAYS(0<= k && k < (int) help->subjob_binding_cpusets.size());
     int const rc = hwloc_set_cpubind(help->topology, help->subjob_binding_cpusets[k], HWLOC_CPUBIND_THREAD |  HWLOC_CPUBIND_STRICT);
     if (rc < 0) {
