@@ -25,7 +25,7 @@
 #include "gmp_aux.h"
 #include "gzip.h"
 #include "macros.h"
-#include "memalloc.h"
+#include "memalloc.hpp"
 #include "mpz_poly.h"
 #include "params.hpp"
 #include "purgedfile.h"
