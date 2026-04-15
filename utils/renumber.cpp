@@ -682,9 +682,9 @@ void renumber_t::read_header(std::istream& is)
     if (iss >> f && (f == format_flat)) {
         format = f;
     } else {
-        throw std::runtime_error(fmt::format(
+        throw cado::error(
                         "Renumber format error. Got {}, expected {} instead. You must regenerate the renumber table with the freerel tool.",
-                    f, format_flat));
+                    f, format_flat);
     }
 
     ASSERT_ALWAYS(above_all == above_add);

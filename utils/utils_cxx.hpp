@@ -19,6 +19,7 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
+#include <stdexcept>
 
 #include "fmt/base.h"
 #include "fmt/format.h"
@@ -761,6 +762,15 @@ namespace cado {
         const char * end() const { return value + length; }
     };
 
+    struct error : public std::runtime_error {
+        template<typename... Args>
+        explicit error(fmt::format_string<Args...> const & f, Args&& ...args)
+            : std::runtime_error(fmt::format(f, std::forward<Args>(args)...))
+        {}
+        explicit error(std::string const & s)
+            : std::runtime_error(s)
+        {}
+    };
 } /* namespace cado */
 
 namespace fmt {

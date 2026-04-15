@@ -121,12 +121,12 @@ void special_q_task_tree::update_child_status(special_q_task_tree * item, status
     children_by_status[after].insert(item);
     auto removed = children_by_status[before].erase(item);
     if (!removed)
-        throw std::runtime_error(fmt::format(
+        throw cado::error(
                     "Cannot find \"{}\" tree node for {}"
                     " among the children of parent {}",
                     previous,
                     item->sq(),
-                    item->parent->sq()));
+                    item->parent->sq());
 }
 
 /* This creates a tree for this special-q, optionally below a given

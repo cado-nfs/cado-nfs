@@ -41,9 +41,11 @@
 namespace cado::params
 {
 
+    /* it's exactly the same as cado::error, but with a different name.
+     */
 struct parameter_error : public std::runtime_error {
     template<typename... Args>
-    explicit parameter_error(fmt::format_string<Args...> s, Args && ...args)
+    explicit parameter_error(fmt::format_string<Args...> const & s, Args && ...args)
         : std::runtime_error(fmt::format(s, std::forward<Args>(args)...))
     {
     }

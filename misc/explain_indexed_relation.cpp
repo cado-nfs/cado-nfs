@@ -373,7 +373,7 @@ int main(int argc, char const * argv[])
             indexed_relation rel;
 
             if (!(is >> rel)) {
-                throw std::runtime_error(fmt::format("Parse error on line {}: {}\n", line, s));
+                throw cado::error("Parse error on line {}: {}\n", line, s);
             }
 
             fmt::print("print(\"{}\")\n", s);

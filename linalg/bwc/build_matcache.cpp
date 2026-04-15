@@ -46,7 +46,7 @@ struct cado::params::parser<direction_flag> {
             D.value = 1;
         } else {
             return false;
-            // throw std::runtime_error(fmt::format("Wrong argument for direction flag ({}), must be left or right", r));
+            // throw cado::error("Wrong argument for direction flag ({}), must be left or right", r);
         }
         return true;
     }

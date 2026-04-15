@@ -181,7 +181,7 @@ class cxx_mpz_factored
                 return vals[i];
             }
         }
-        throw std::runtime_error(fmt::format("{} is not a valid prime", p));
+        throw cado::error("{} is not a valid prime", p);
     }
 
     void remove_unused_primes()

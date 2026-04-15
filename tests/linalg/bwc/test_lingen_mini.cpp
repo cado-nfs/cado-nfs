@@ -84,7 +84,7 @@ static void do_one_lingen(std::string const & filename, cxx_param_list &pl)
     }
     int rc = lingen_io_matpoly<is_binary>::read(&bm.d.ab, data.get(), E, 0, E.get_size(), 0, 0);
     if (rc != (int) E.get_size()) {
-        throw std::runtime_error(fmt::format("{}: short read", filename));
+        throw cado::error("{}: short read", filename);
         return;
     }
 

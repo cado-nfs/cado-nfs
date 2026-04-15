@@ -79,12 +79,12 @@ static std::vector<bwc_iteration_range> prelude(parallelizing_info_ptr pi)/*{{{*
             unsigned int n0 = cur.first[0];
             unsigned int n1 = cur.first[1];
             if (n0 != prev_iter)
-                throw std::runtime_error(fmt::format(
+                throw cado::error(
                             "Within the set of S files, file(s) "
                             "{} seems come first "
                             "after iteration {}, therefore there is "
                             "a gap for the range {}..{}\n",
-                            join(cur.second, " "), prev_iter, prev_iter, n0));
+                            join(cur.second, " "), prev_iter, prev_iter, n0);
             prev_iter = n1;
 
             /* It also makes sense to verify that we have a collection of
@@ -94,19 +94,19 @@ static std::vector<bwc_iteration_range> prelude(parallelizing_info_ptr pi)/*{{{*
             unsigned int prev_s = bw->solutions[0];
             for(auto const & S : cur.second) {
                 if (S.s0 != prev_s)
-                    throw std::runtime_error(fmt::format(
+                    throw cado::error(
                                 "For iterations {}-{}, we don't have"
                                 " the files for solution columns {}-{}",
                                 n0, n1,
-                                prev_s, S.s0));
+                                prev_s, S.s0);
                 prev_s = S.s1;
             }
             if (prev_s != bw->solutions[1])
-                throw std::runtime_error(fmt::format(
+                throw cado::error(
                             "For iterations {}-{}, we don't have"
                             " the files for solution columns {}-{}",
                             n0, n1,
-                            prev_s, bw->solutions[1]));
+                            prev_s, bw->solutions[1]);
 
             iteration_ranges.emplace_back(cur.first);
         }

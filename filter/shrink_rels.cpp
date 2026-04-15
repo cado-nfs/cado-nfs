@@ -77,7 +77,7 @@ struct shrink_action {
                 continue;
             indexed_relation rel;
             if (!(std::istringstream(line) >> rel))
-                throw std::runtime_error(fmt::format("parse error while reading {}", line));
+                throw cado::error("parse error while reading {}", line);
 
             double const rnd = double_ratio(u64_random(rstate), UINT64_MAX);
             if (rnd >= row_fraction)

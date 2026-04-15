@@ -1166,9 +1166,9 @@ input_batch (FILE *fp, unsigned long B, unsigned long L, cxx_mpz_poly const & cp
 #undef CHECK_2
 #undef CHECK_Z
 parse_error:
-  throw std::runtime_error(fmt::format(
+  throw cado::error(
               "Error while reading batch product from {}:\n{}\n",
-              f, msg));
+              f, msg);
 }
 
 /* We have 3 cases:

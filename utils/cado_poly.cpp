@@ -79,8 +79,8 @@ cxx_cado_poly::cxx_cado_poly(cxx_cado_poly::plist const &, cxx_param_list & pl)
 
     for (int side = 0; side < nsides(); side++)
         if ((*this)[side]->deg < 0)
-            throw std::runtime_error(fmt::format("Error, polynomial on side {} has degree < 0 in "
-                        "cado_poly_set_plist\n", side));
+            throw cado::error("Error, polynomial on side {} has degree < 0 in "
+                        "cado_poly_set_plist\n", side);
 
     for (int side = 0; side < nsides(); side++) {
         auto & g = (*this)[side];

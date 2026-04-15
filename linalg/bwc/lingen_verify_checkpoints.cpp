@@ -114,7 +114,7 @@ class matrix_reader
                 if (access(filename.c_str(), R_OK) != 0) {
                     if (s == 0) {
                         if (k-1 == 1) {
-                            throw std::runtime_error(fmt::format("weird: we have 1-node mpi data for checkpoint {}, which in theory we shouldn't produce\n", filename));
+                            throw cado::error("weird: we have 1-node mpi data for checkpoint {}, which in theory we shouldn't produce\n", filename);
                             /* anyway it's going to fail with the present
                              * code, because the meaning of k==1 is
                              * ambiguous */

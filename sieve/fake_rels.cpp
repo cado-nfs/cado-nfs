@@ -14,7 +14,6 @@
 #include <mutex>
 #include <set>
 #include <sstream>
-#include <stdexcept>
 #include <string>
 #include <thread>
 #include <utility>
@@ -24,11 +23,9 @@
 
 #include <gmp.h>
 #include "fmt/base.h"
-#include "fmt/format.h"
 
 #include "cado_poly.hpp"
 #include "cxx_mpz.hpp"
-#include "gzip.h"
 #include "fstream_maybe_compressed.hpp"
 #include "indexed_relation.hpp"
 #include "special-q.hpp"
@@ -216,7 +213,7 @@ read_sample_file(int sqside, const char *filename, renumber_t & ren_tab)
             special_q Q;
             is >> Q;
             if (!is)
-                throw std::runtime_error(fmt::format("parse error at line: {}", line));
+                throw cado::error("parse error at line: {}", line);
             ASSERT_ALWAYS(sqside == Q.side);
             sample[Q];  // auto-vivify
             if (current.insert(Q).second) {
@@ -231,7 +228,7 @@ read_sample_file(int sqside, const char *filename, renumber_t & ren_tab)
             special_q Q;
             is >> Q;
             if (!is)
-                throw std::runtime_error(fmt::format("parse error at line: {}", line));
+                throw cado::error("parse error at line: {}", line);
             current.erase(Q);
         } else if (line[0] == '#') {
             continue;
