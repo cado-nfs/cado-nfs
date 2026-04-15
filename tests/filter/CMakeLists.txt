@@ -75,3 +75,6 @@ cado_define_test(test_sm_with_small_ell
     -poly ${CMAKE_CURRENT_SOURCE_DIR}/c30_sm_small_ell.poly
     TARGET_DEPENDENCIES sm_append
 )
+
+add_executable(create_fake_relation_file create_fake_relation_file.cpp)
+target_link_libraries(create_fake_relation_file utils)

@@ -1200,6 +1200,7 @@ tests/filter/Makefile
 tests/filter/c105_30003.rels.gz
 tests/filter/c30_sm_small_ell.poly
 tests/filter/c30_sm_small_ell.purged
+tests/filter/create_fake_relation_file.cpp
 tests/filter/p40_30004.poly
 tests/filter/p40_30004.rels.gz
 tests/filter/p40_30004_with_sides.rels.gz
