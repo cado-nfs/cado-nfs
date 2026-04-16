@@ -2,7 +2,7 @@ set (bin_list
         dup1 dup2 purge merge merge-dl replay replay-dl sm sm_simple reconstructlog-dl
 )
 
-set (purge_sources purge_matrix.cpp singleton_removal.cpp
+set (purge_sources purge_matrix.cpp
                    clique_removal.cpp purge.cpp)
 
 # the utils library is already linked with -lgmp and -lm
@@ -48,9 +48,6 @@ target_link_libraries(reconstructlog-dl utils_with_io)
 
 add_executable(sm_simple sm_simple.cpp)
 target_link_libraries(sm_simple utils)
-
-add_executable(singleton_simple singleton_simple.cpp)
-target_link_libraries(singleton_simple utils_with_io)
 
 add_executable(shrink_rels shrink_rels.cpp)
 target_link_libraries(shrink_rels utils)

@@ -1,25 +1,25 @@
 /* purge --- perform singleton removal and clique removal
- * 
- * Copyright 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015
- * Cyril Bouvier, Alain Filbois, Francois Morain, Paul Zimmermann
- * 
+ *
+ * Copyright 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2026
+ * Cyril Bouvier, Alain Filbois, Francois Morain, Paul Zimmermann, Emmanuel Thomé
+ *
  * This file is part of CADO-NFS.
- * 
+ *
  * CADO-NFS is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
  * by the Free Software Foundation; either version 2.1 of the License, or
  * (at your option) any later version.
- * 
+ *
  * CADO-NFS is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Lesser General Public
  * License along with CADO-NFS; see the file COPYING.  If not, write to
  * the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor,
  * Boston, MA 02110-1301, USA.
-*/
+ */
 
 /* References:
  * On the Number Field Sieve Integer Factorisation Algorithm,
@@ -36,19 +36,22 @@
  *   a column of the matrix.
  *
  * This program works in two passes over the relation files:
- * - the first pass loads in memory only indexes of columns >= col_min_index
- *   and keeps a count of the weight of each column in cols_weight.
+ * - the first pass loads in memory only indices of columns >= col_min_index
+ *   and keeps a count of the weight of each column in column_weights.
  *   Then, a first step of singleton removal is performed followed by 'nsteps'
  *   steps of singleton removal and clique removal, in order to obtained the
  *   final excess 'keep'.
  * - the second pass goes through the relations again, and dumps the remaining
  *   ones in the format needed by 'merge'.
 
- * This program uses the following data structures:
- * row_used[i]    - non-zero iff row i is kept (so far)
- * row_compact[i] - list of indexes of columns (greater than or equal to
- *                  col_min_index) of the row i (terminated by a -1 sentinel)
- * cols_weight [h] - weight of the column h in current rows (saturates at 256)
+ * This program uses the purge_matrix structure, where most of the stuff
+ * happens.
+ *
+ * M.rows[i] is the list of indices of columns (above col_min_index) of
+ * row i, terminated by a -1 sentinel.
+ *
+ * M.column_weights[h] is the weight of the column h in current rows
+ * (saturates at the max value of weight_t)
  */
 
 /*
@@ -59,543 +62,455 @@
  */
 
 #include "cado.h" // IWYU pragma: keep
-#include <cinttypes>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include "clique_removal.hpp"
+
+#include <algorithm>
+#include <string>
+
+#include "fmt/base.h"
+#include "fmt/format.h"
+#include "fmt/ostream.h"
+
+#include "filelist.hpp"
 #include "filter_config.h"
-#include "filter_io_old.hpp"
-#include "gzip.h"
+#include "filter_io.hpp"
+#include "fstream_maybe_compressed.hpp"
 #include "macros.h"
 #include "misc.h"
-#include "filelist.hpp"
 #include "params.hpp"
-#include "purge_matrix.hpp"
 #include "portability.h"
-#include "singleton_removal.hpp"
+#include "purge_matrix.hpp"
 #include "timing.h"
 #include "typedefs.h"
+#include "utils_cxx.hpp"
 #include "verbose.hpp"
 
 // #define TRACE_J 0x5b841 /* trace column J */
 
-/*****************************************************************************/
+struct purge_output_specification { /* {{{ */
+    parameter_mandatory<std::string, "out", "outfile for remaining relations">
+        purgedname;
+    parameter<std::string, "outdel", "outfile for deleted relations (for DL)">
+        deletedname;
 
-/* write final values to stdout */
-/* This output, incl. "Final values:", is required by the script */
-static void
-print_final_values (purge_matrix_ptr mat, double weight)
-{
-  int64_t excess = purge_matrix_compute_excess (mat);
-  fprintf (stdout, "Final values:\nnrows=%" PRIu64 " ncols=%" PRIu64 " "
-                   "excess=%" PRId64 "\nweight=%1.0f weight*nrows=%1.2e\n",
-                   mat->nrows, mat->ncols, excess, weight,
-                   weight * (double) mat->nrows);
-  fflush (stdout);
-}
-
-/* If nsteps is negative, then the value is chosen by the function. */
-static void singletons_and_cliques_removal(purge_matrix_ptr mat, int nsteps,
-                                           int64_t final_excess,
-                                           double required_excess,
-                                           unsigned int nthreads, int verbose)
-{
-  uint64_t oldnrows = 0;
-  int64_t oldexcess, excess, target_excess;
-  int count;
-
-  /* First step of singletons removal */
-  fprintf(stdout, "\nStep 0: only singleton removal\n");
-  excess = singleton_removal (mat, nthreads, verbose);
-
-#ifdef TRACE_J
-    printf ("# TRACE: weight of ideal 0x%x is %u\n",
-            TRACE_J, mat->cols_weight[TRACE_J]);
-#endif
-
-  if (excess <= 0) /* covers case nrows = ncols = 0 */
-  {
-      /* XXX Warning: This output line gets ***PARSED*** (eek!) by the
-       * Python script to decide whether we have enough excess */
-    fprintf (stdout, "number of rows < number of columns + keep\n");
-    print_final_values (mat, 0);
-    exit(2);
-  }
-
-  if ((double) excess < required_excess * ((double) mat->ncols))
-  {
-      /* XXX Warning: This output line gets ***PARSED*** (eek!) by the
-       * Python script to decide whether we have enough excess */
-    fprintf (stdout, "(excess / ncols) = %.2f < %.2f. See -required_excess "
-                     "argument.\n", ((double) excess / (double) mat->ncols),
-                     required_excess);
-    print_final_values (mat, 0);
-    exit(2);
-  }
-
-  /* delta between the current excess and the desired final excess. */
-  int64_t delta_excess = excess - final_excess;
-
-  /* If nsteps was not given in the command line, adjust nsteps in
-     [1..DEFAULT_PURGE_NSTEPS] so that each step removes at least about 1% wrt
-     the number of columns */
-  if (nsteps < 0)
-  {
-    /* If we are less than or equal to the wanted final excess, there is no need
-     * for clique removal, so set nsteps to 0*/
-    if (delta_excess <= 0)
-      nsteps = 0;
-    else if ((uint64_t) delta_excess / DEFAULT_PURGE_NSTEPS < mat->ncols / 100)
-      nsteps = 1 + (100 * delta_excess) / mat->ncols;
-    else
-      nsteps = DEFAULT_PURGE_NSTEPS;
-  }
-
-  int64_t chunk = 0;
-  if (nsteps > 0)
-  {
-    chunk = delta_excess / nsteps;
-    fprintf(stdout, "# INFO: number of clique removal steps: %d\n", nsteps);
-    fprintf(stdout, "# INFO: At each step, excess will be decreased by "
-                    "%" PRId64 "\n", chunk);
-    fflush (stdout);
-  }
-  else
-    fprintf(stdout, "# INFO: No step of clique removal will be done\n");
-
-  /* nsteps steps of clique removal + singletons removal */
-  for (count = 0; count < nsteps && excess > 0; count++)
-  {
-    oldnrows = mat->nrows;
-    oldexcess = excess;
-    target_excess = excess - chunk;
-    if (target_excess < final_excess)
-      target_excess = final_excess;
-    fprintf(stdout, "\nStep %u of %u: target excess is %" PRId64 "\n",
-                    count + 1, nsteps, target_excess);
-    fflush(stdout);
-
-    /* prints some stats on columns and rows weight if verbose > 0. */
-    if (verbose > 0)
+    static void configure(cxx_param_list & pl)
     {
-      purge_matrix_print_stats_columns_weight (stdout, mat, verbose);
-      purge_matrix_print_stats_rows_weight (stdout, mat, verbose);
+        decltype(purgedname)::configure(pl);
+        decltype(deletedname)::configure(pl);
     }
 
-    cliques_removal (mat, target_excess, nthreads, verbose);
-    excess = singleton_removal (mat, nthreads, verbose);
-
-#ifdef TRACE_J
-    printf ("TRACE: weight of ideal 0x%x is %u\n",
-            TRACE_J, mat->cols_weight[TRACE_J]);
-#endif
-
-    fprintf (stdout, "This step removed %" PRId64 " rows and decreased excess "
-             "by %" PRId64 "\n", (int64_t) (oldnrows - mat->nrows),
-             oldexcess - excess);
-    if (oldexcess > excess)
-      fprintf (stdout, "Each excess row deleted %2.2lf rows\n",
-               (double) (oldnrows - mat->nrows) /
-               (double) (oldexcess - excess));
-  }
-
-
-  /* May need an extra step of clique removal + singletons removal if excess is
-     still larger than keep. It may happen due to the fact that each clique does
-     not make the excess go down by one but can (rarely) leave the excess
-     unchanged. */
-  if (excess > final_excess && nsteps > 0)
-  {
-    oldnrows = mat->nrows;
-    oldexcess = excess;
-    target_excess = final_excess;
-
-    fprintf(stdout, "\nStep extra: target excess is %" PRId64 "\n",
-                    target_excess);
-    fflush(stdout);
-
-    /* prints some stats on columns and rows weight if verbose > 0. */
-    if (verbose > 0)
+    explicit purge_output_specification(cxx_param_list & pl)
+        : purgedname(pl)
+        , deletedname(pl)
     {
-      purge_matrix_print_stats_columns_weight (stdout, mat, verbose);
-      purge_matrix_print_stats_rows_weight (stdout, mat, verbose);
     }
-
-    cliques_removal (mat, target_excess, nthreads, verbose);
-    excess = singleton_removal (mat, nthreads, verbose);
-
-#ifdef TRACE_J
-    printf ("TRACE: weight of ideal 0x%x is %u\n",
-            TRACE_J, mat->cols_weight[TRACE_J]);
-#endif
-
-    fprintf(stdout, "This step removed %" PRId64 " rows and decreased excess "
-                    "by %" PRId64 "\nEach excess row deleted %2.2lf rows\n",
-                    (int64_t) (oldnrows-mat->nrows), (oldexcess-excess),
-                    (double) (oldnrows-mat->nrows) / (double) (oldexcess-excess));
-  }
-}
-
-/*************** Callback function called by filter_rels ********************/
-
-/* Data struct for thread_print (called by filter_rels on pass 2) */
-struct data_second_pass_s
-{
-  double W; /* Total weight of the matrix (counting only remaining rows) */
-  purge_matrix_ptr mat;
-  /* fd[0]: for printing kept relations */
-  /* fd[1]: for printing deleted relations */
-  FILE * fd[2];
 };
-typedef struct data_second_pass_s data_second_pass_t[1];
-typedef struct data_second_pass_s * data_second_pass_ptr;
+/* }}} */
+struct purge_process : purge_output_specification {
+    parameter_switch</* {{{ */
+                     "force-posix-threads",
+                     "force the use of posix threads, do not rely on "
+                     "platform memory semantics">
+        force_posix_threads;
+    /* yippee, nrels is no longer mandatory! */
+    parameter_with_default<size_t, "nrels", "number of initial relations",
+                           "0">
+        nrows_init;
+    parameter_with_default<
+        size_t, "col-min-index",
+        "only take into account columns with indices >= col-min-index", "0">
+        col_min_index;
+    parameter_with_default<
+        size_t, "col-max-index",
+        "only take into account columns with indices < col-max-index", "0">
+        col_max_index;
+    parameter_with_default<int64_t, "keep", "wanted excess at the end of purge",
+                           CADO_STRINGIZE(DEFAULT_FILTER_EXCESS)>
+        keep;
+    parameter_with_default<
+        int, "nsteps",
+        R"(maximal number of steps of clique removal (-1 means choose between 0 and DEFAULT_PURGE_NSTEPS so that each step removes at least about 1% of the number of columns))",
+        "-1">
+        nsteps;
+    parameter_with_default<
+        int, "required_excess",
+        R"(% of excess required at the end of the 1st singleton removal step)",
+        CADO_STRINGIZE(DEFAULT_PURGE_REQUIRED_EXCESS)>
+        required_excess;
+    parameter_with_default<int, "t", "number of threads",
+                           CADO_STRINGIZE(DEFAULT_PURGE_NTHREADS)>
+        nthreads;
 
-/* Callback function called by filter_rels on pass 2 */
-void *
-thread_print(data_second_pass_ptr arg, earlyparsed_relation_ptr rel)
-{
-  if (purge_matrix_is_row_active (arg->mat, rel->num))
-  {
-    arg->W += rel->nb;
-    fputs(rel->line, arg->fd[0]);
-  }
-  else if (arg->fd[1] != NULL)
-    fputs(rel->line, arg->fd[1]);
-  return NULL;
-}
+    parameter_switch<"v", "verbose mode"> verbose;
 
+    purge_matrix M;
 
-/*********** utility functions for purge binary ****************/
-
-  /* Build the file list (ugly). It is the concatenation of all
-   *  b s p
-   * where:
-   *    b is the basepath (empty if not given)
-   *    s ranges over all subdirs listed in the subdirlist (empty if no
-   *    such list)
-   *    p ranges over all paths listed in the filelist.
-   */
-static char const ** filelist_from_file_with_subdirlist(const char *basepath,
-					  const char *filelist,
-					  const char *subdirlist)
-{
-    /* count the number of files in the filelist */
-    int nfiles = 0;
-    int nsubdirs = 0;
-    char const ** fl = filelist_from_file(NULL, filelist, 0);
-    for (char const ** p = fl; *p; p++, nfiles++);
-
-    char const ** sl = filelist_from_file(basepath, subdirlist, 1);
-    for (char const ** p = sl; *p; p++, nsubdirs++);
-
-    char ** fic = (char ** ) malloc((nsubdirs * nfiles + 1) * sizeof(char *));
-    ASSERT_ALWAYS(fic != NULL);
-
-    char ** full = fic;
-    for (char const ** f = fl; *f; f++) {
-	for (char const ** s = sl; *s; s++, full++) {
-	    int ret = asprintf(full, "%s/%s", *s, *f);
-	    ASSERT_ALWAYS(ret >= 0);
-	}
+    /* }}} */
+    static void configure(cxx_param_list & pl) /* {{{ */
+    {
+        purge_output_specification::configure(pl);
+        decltype(force_posix_threads)::configure(pl);
+        decltype(nrows_init)::configure(pl);
+        decltype(col_min_index)::configure(pl);
+        decltype(col_max_index)::configure(pl);
+        decltype(keep)::configure(pl);
+        decltype(nsteps)::configure(pl);
+        decltype(required_excess)::configure(pl);
+        decltype(nthreads)::configure(pl);
+        decltype(verbose)::configure(pl);
     }
-    *full = NULL;
-    filelist_clear(fl);
-    filelist_clear(sl);
-    return (char const **) fic;
-}
+    /* }}} */
+    explicit purge_process(cxx_param_list & pl) /* {{{ */
+        : purge_output_specification(pl)
+        , force_posix_threads(pl)
+        , nrows_init(pl)
+        , col_min_index(pl)
+        , col_max_index(pl)
+        , keep(pl)
+        , nsteps(pl)
+        , required_excess(pl)
+        , nthreads(pl)
+        , verbose(pl)
+    {
+        if (col_max_index == 0)
+            col_max_index() = std::numeric_limits<index_t>::max();
+        if (nthreads == 0)
+            pl.fail("cannot have nthreads == 0");
+        if (col_min_index >= col_max_index)
+            pl.fail("cannot have col-min-index >= col-max-index\n");
+        /* If col_max_index > 2^32, then we need index_t to be 64-bit */
+        if (col_max_index > std::numeric_limits<index_t>::max())
+            pl.fail("Error, -col-max-index is too large for a 32-bit "
+                    "program\nSee #define SIZEOF_INDEX in typedefs.h\n");
 
-static void declare_usage(cxx_param_list & pl)
-{
-  param_list_decl_usage(pl, "filelist", "file containing a list of input files");
-  param_list_decl_usage(pl, "subdirlist",
-                               "file containing a list of subdirectories");
-  param_list_decl_usage(pl, "basepath", "path added to all file in filelist");
-  param_list_decl_usage(pl, "out", "outfile for remaining relations");
-  param_list_decl_usage(pl, "nrels", "number of initial relations");
-  param_list_decl_usage(pl, "col-max-index", "upper bound on the number of "
-                                  "columns (must be at least the number\n"
-                  "                   of prime ideals in renumber table)");
-  param_list_decl_usage(pl, "col-min-index", "only take into account columns"
-                                             " with indexes >= col-min-index");
-  param_list_decl_usage(pl, "keep", "wanted excess at the end of purge "
-                                    "(default " CADO_STRINGIZE(DEFAULT_FILTER_EXCESS) ")");
-  param_list_decl_usage(pl, "nsteps", "maximal number of steps of clique "
-                                      "removal (default: chosen in [1.."
-                                             CADO_STRINGIZE(DEFAULT_PURGE_NSTEPS) "])");
-  param_list_decl_usage(pl, "required_excess", "%% of excess required at the "
-                            "end of the 1st singleton removal step (default "
-                            CADO_STRINGIZE(DEFAULT_PURGE_REQUIRED_EXCESS) ")");
-  param_list_decl_usage(pl, "outdel", "outfile for deleted relations (for DL)");
-  param_list_decl_usage(pl, "t", "number of threads (default "
-                                             CADO_STRINGIZE(DEFAULT_PURGE_NTHREADS) ")");
-  param_list_decl_usage(pl, "v", "verbose mode");
-  param_list_decl_usage(pl, "force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
-  param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
-  verbose_decl_usage(pl);
-}
+        print_information();
+    }
+    /* }}} */
+    /* {{{ print_information: some info and hash-table related stats */
+    void print_information() const
+    {
+        /* this one is in clique_removal.cpp */
+        purge_matrix::print_clique_removal_weight_function();
 
+        if (nrows_init())
+            fmt::print("# INFO: number of rows: {}\n", nrows_init());
+        else
+            fmt::print("# INFO: number of rows: automatic\n", nrows_init());
+        fmt::print("# INFO: maximum possible index of a column: {}\n",
+                   col_max_index());
+        fmt::print("# INFO: number of threads: {}\n", nthreads());
+        fmt::print("# INFO: number of clique removal steps: ");
+        if (nsteps < 0)
+            fmt::print("will be chosen by the program\n");
+        else
+            fmt::print("{}\n", nsteps());
+        ASSERT_ALWAYS(keep >= 0);
+        fmt::print("# INFO: target excess: {}\n", keep());
+        fflush(stdout);
+    }
+    /*}}}*/
+    void consistency_check_nrels() /* {{{ */
+    {
+        if (nrows_init != 0 && M.remaining_rows != nrows_init)
+            throw cado::error("-nrels should be either 0, or match the number"
+                              " of scanned relations: expected {}, found {}",
+                              nrows_init(), M.remaining_rows);
+    }
+    /* }}} */
+    void print_optional_weight_statistics() /* {{{ */
+    {
+        /* prints some stats on columns and rows weight if verbose > 0. */
+        if (verbose) {
+            M.print_stats_column_weights(stdout, verbose);
+            M.print_stats_row_weights(stdout, verbose);
+        }
+    }
+    /* }}} */
+    void pass1(filelist const & input) /* {{{ */
+    {
+        fmt::print("\n"
+                   "Pass 1, reading and storing columns with index h >= {}\n",
+                   col_min_index());
+
+        using relation_type = cado::relation_building_blocks::primes_block<
+            prime_type_for_indexed_relations,
+            cado::relation_building_blocks::ab_ignore<16>>;
+
+        filter<relation_type>(input, [&](relation_type & rel) {
+            M.new_row(rel.num, col_min_index, col_max_index, rel.primes);
+        });
+
+        consistency_check_nrels();
+
+#ifdef TRACE_J
+        printf("TRACE: weight of ideal 0x%x is %u\n", TRACE_J,
+               M.column_weights[TRACE_J]);
+#endif
+
+        fmt::print("# MEMORY: Allocated matrix: {}\n",
+                   size_disp(M.get_allocated_bytes()));
+
+        print_optional_weight_statistics();
+
+        /* MAIN FUNCTIONS: do singletons and cliques removal. */
+        singleton_and_clique_removal();
+
+#ifdef TRACE_J
+        printf("TRACE: weight of ideal 0x%x is %u\n", TRACE_J,
+               M.column_weights[TRACE_J]);
+#endif
+
+        print_optional_weight_statistics();
+
+        if (M.remaining_rows < M.remaining_columns + keep) {
+            /* XXX Warning: This output line gets ***PARSED*** (eek!) by the
+             * Python script to decide whether we have enough excess */
+            fmt::print("number of rows < number of columns + keep\n");
+            print_final_values(0);
+            exit(2);
+        }
+        if (M.remaining_rows == 0 || M.remaining_rows == 0) {
+            fmt::print("number of rows or number of columns is 0\n");
+            print_final_values(0);
+            exit(2);
+        }
+    }
+    /* }}} */
+
+    /* {{{ plumbing for filtering. It's pretty much always the same kind
+     * of variations around the same idea. We need to decide based on
+     * runtime parameters which of the compile-time instantiations we
+     * call. Here the callable f allows us to accomodate both purge
+     * passes.
+     */
+    template <typename relation_type, typename F>
+    size_t filter(filelist const & input, F const & f)
+    {
+        if (nthreads > 1 || force_posix_threads) {
+            using locking_type = cado::filter_io_details::ifb_locking_posix;
+            return filter<locking_type, relation_type>(input, f);
+        } else {
+            using locking_type =
+                cado::filter_io_details::ifb_locking_lightweight;
+            return filter<locking_type, relation_type>(input, f);
+        }
+    }
+
+    template <typename locking_type, typename relation_type, typename F>
+    size_t filter(filelist const & input, F const & f)
+    {
+        auto files = input.create_file_list();
+        return filter_rels<locking_type, relation_type>(files, nullptr, nullptr,
+                                                        f);
+    }
+    /* }}} */
+
+    void pass2(filelist const & input)/* {{{ */
+    {
+        fmt::print("\n"
+                   "Pass 2, reading and writing output file{}...\n",
+                   deletedname().empty() ? "" : "s");
+
+        ofstream_maybe_compressed out;
+        ofstream_maybe_compressed outdel;
+
+        if (out.open(purgedname); !out.good())
+            throw cado::error("cannot open {} for writing", purgedname());
+
+        if (deletedname.is_provided())
+            if (outdel.open(deletedname); !outdel.good())
+                throw cado::error("cannot open {} for writing", deletedname());
+
+        if (outdel.is_open())
+            /* Write the header line for the file of deleted relations. */
+            fmt::print(outdel, "# {}\n", M.rows.size() - M.remaining_rows);
+
+        /* Write the header line for the file of remaining relations:
+         * compute bound B such that all non empty columns have indices
+         * j such that j < B
+         */
+        {
+            size_t bound = M.column_weights.size();
+            for (; bound && M.column_weights[bound - 1] == 0; bound--)
+                ;
+
+            fmt::print(out, "# {} {} {}\n", M.remaining_rows, bound,
+                       M.remaining_columns);
+        }
+
+        /* second pass over relations in files */
+        using relation_type = cado::relation_building_blocks::line_block<
+            cado::relation_building_blocks::primecount_block<
+                cado::relation_building_blocks::ab_ignore<16>>>;
+        double W = 0;
+
+        auto f2 = [&](relation_type & rel) {
+            if (M.is_active(rel.num)) {
+                W += static_cast<double>(rel.weight);
+                fmt::print(out, "{}\n", rel.line);
+            } else if (outdel.is_open()) {
+                fmt::print(outdel, "{}\n", rel.line);
+            }
+        };
+        filter<relation_type>(input, f2);
+
+        /* write final values to stdout */
+        /* This output, incl. "Final values:", is required by the script */
+        print_final_values(W);
+    }
+/* }}} */
+
+    /* {{{ write final values to stdout */
+    /* This output, incl. "Final values:", is required by the script */
+    void print_final_values(double weight) const
+    {
+        fmt::print("Final values:\n"
+                   "nrows={} ncols={} excess={}\n"
+                   "weight={:1.0f} weight*nrows={:1.2e}\n",
+                   M.remaining_rows, M.remaining_columns, M.excess(), weight,
+                   weight * static_cast<double>(M.remaining_rows));
+        fflush(stdout);
+    }
+    /* }}} */
+
+    /* Note: if nsteps is negative, then the value is chosen by the
+     * function. */
+    void singleton_and_clique_removal() /* {{{ */
+    {
+        /* First step of singletons removal */
+        fmt::print("\nStep 0: only singleton removal\n");
+        M.singleton_removal(nthreads, verbose);
+
+#ifdef TRACE_J
+        printf("# TRACE: weight of ideal 0x%x is %u\n", TRACE_J,
+               M.column_weights[TRACE_J]);
+#endif
+
+        if (M.excess() <= 0) /* covers case nrows = ncols = 0 */
+        {
+            /* XXX Warning: This output line gets ***PARSED*** (eek!) by the
+             * Python script to decide whether we have enough excess */
+            fmt::print("number of rows < number of columns + keep\n");
+            print_final_values(0);
+            exit(2);
+        }
+
+        if ((double)M.excess() <
+            required_excess * (double)M.remaining_columns) {
+            /* XXX Warning: This output line gets ***PARSED*** (eek!) by the
+             * Python script to decide whether we have enough excess */
+            fmt::print("(excess / ncols) = {:.2f} < {:.2f}."
+                       " See -required_excess argument.\n",
+                       double_ratio(M.excess(), M.remaining_columns),
+                       static_cast<double>(required_excess()));
+            print_final_values(0);
+            exit(2);
+        }
+
+        /* delta between the current excess and the desired final excess. */
+        auto delta_excess = M.excess() - keep;
+
+        /* If nsteps was not given in the command line, adjust nsteps in
+           [1..DEFAULT_PURGE_NSTEPS] so that each step removes at least about 1%
+           wrt the number of columns */
+        if (nsteps < 0) {
+            /* If we are less than or equal to the wanted final excess,
+             * there is no need for clique removal, so set nsteps to 0*/
+            if (delta_excess <= 0)
+                nsteps() = 0;
+            else if ((size_t)delta_excess / DEFAULT_PURGE_NSTEPS <
+                     M.remaining_columns / 100)
+                nsteps() = 1 + (100 * delta_excess) / M.remaining_columns;
+            else
+                nsteps() = DEFAULT_PURGE_NSTEPS;
+        }
+
+        int64_t chunk = 0;
+        if (nsteps > 0) {
+            chunk = delta_excess / nsteps;
+            fmt::print("# INFO: number of clique removal steps: {}\n",
+                       nsteps());
+            fmt::print("# INFO: At each step, excess will be decreased by {}\n",
+                       chunk);
+            fflush(stdout);
+        } else
+            fmt::print("# INFO: No step of clique removal will be done\n");
+
+        auto one_step = [&](std::string const & s, int64_t target_excess) {
+            size_t const oldnrows = M.remaining_rows;
+            int64_t const oldexcess = M.excess();
+            fmt::print("\nStep {}: target excess is {}\n", s, target_excess);
+            fflush(stdout);
+
+            print_optional_weight_statistics();
+
+            M.clique_removal(target_excess, nthreads, verbose);
+            M.singleton_removal(nthreads, verbose);
+
+#ifdef TRACE_J
+            printf("TRACE: weight of ideal 0x%x is %u\n", TRACE_J,
+                   M.column_weights[TRACE_J]);
+#endif
+
+            fmt::print("This step removed {} rows and decreased excess by {}\n",
+                       oldnrows - M.remaining_rows, oldexcess - M.excess());
+            if (oldexcess > M.excess())
+                fmt::print("Each excess row deleted {:2.2f} rows\n",
+                           double_ratio(oldnrows - M.remaining_rows,
+                                        oldexcess - M.excess()));
+        };
+        /* nsteps steps of clique removal + singletons removal */
+        for (int count = 0; count < nsteps && M.excess() > 0; count++) {
+            one_step(fmt::format("{} of {}", count + 1, nsteps()),
+                     std::max(M.excess() - chunk, keep()));
+        }
+
+        /* May need an extra step of clique removal + singletons removal
+         * if excess is still larger than keep. It may happen due to the
+         * fact that each clique does not make the excess go down by one
+         * but can (rarely) leave the excess unchanged. */
+        if (M.excess() > keep && nsteps > 0)
+            one_step("extra", keep);
+    }
+    /* }}} */
+};
 
 /*************************** main ********************************************/
 
 int main(int argc, char const * argv[])
 {
-    const char * argv0 = argv[0];
     cxx_param_list pl;
-    uint64_t col_min_index_arg = UMAX(uint64_t);
-    char const ** input_files;
-    uint64_t col_max_index_arg = 0;
-    uint64_t nrows_init_arg = 0;
-    purge_matrix_t mat; /* All info regarding the matrix is in this struct */
-    int64_t keep = DEFAULT_FILTER_EXCESS; /* minimum final excess */
-    int nsteps = -1; /* negative value means chosen by purge */
-    double required_excess = DEFAULT_PURGE_REQUIRED_EXCESS;
-    unsigned int nthreads = DEFAULT_PURGE_NTHREADS;
-    int verbose = 0;
 
-#ifdef HAVE_MINGW
-    _fmode = _O_BINARY;		/* Binary open for all files */
-#endif
+    double const cpu0 = seconds();
+    double const wct0 = wct_seconds();
 
-    double cpu0 = seconds ();
-    double wct0 = wct_seconds();
+    verbose_decl_usage(pl);
+    filelist::configure(pl);
 
-    declare_usage(pl);
+    purge_process::configure(pl);
 
-    param_list_configure_switch (pl, "-v", &verbose);
-    param_list_configure_switch(pl, "force-posix-threads", &filter_rels_force_posix_threads);
-
-    param_list_process_command_line(pl, &argc, &argv, true);
+    pl.process_command_line(argc, argv, true);
 
     /* print command-line arguments */
     verbose_interpret_parameters(pl);
-    param_list_print_command_line (stdout, pl);
+    pl.print_command_line(stdout);
     fflush(stdout);
 
-    /* read command-line parameters */
-    param_list_parse_uint64(pl, "nrels", &nrows_init_arg);
-    param_list_parse_uint64(pl, "col-max-index", &col_max_index_arg);
-    param_list_parse_int64(pl, "keep", &keep);
+    filelist const input(pl, argc, argv);
 
-    /* Only look at columns of index >= col-min-index */
-    param_list_parse_uint64(pl, "col-min-index", &col_min_index_arg);
+    purge_process pp(pl);
 
+    if (pl.warn_unused())
+        pl.fail("Error, unused parameters are given\n");
 
-    param_list_parse_uint(pl, "t", &nthreads);
-    param_list_parse_int(pl, "nsteps", &nsteps);
-    param_list_parse_double(pl, "required_excess", &required_excess);
+    pp.pass1(input);
+    pp.pass2(input);
 
-    /* These three parameters specify the set of input files, of the form
-     * <base path>/<one of the possible subdirs>/<one of the possible
-     * file names>
-     *
-     * possible subdirs are lister in the file passed as subdirlist.
-     * Ditto for possible file names.
-     *
-     * file names need not be basenames, i.e. they may contain directory
-     * components. subdirlist and basepath are optional.
-     */
-    const char *basepath = param_list_lookup_string(pl, "basepath");
-    const char *subdirlist = param_list_lookup_string(pl, "subdirlist");
-    const char *filelist = param_list_lookup_string(pl, "filelist");
-    const char *purgedname = param_list_lookup_string(pl, "out");
-    const char *deletedname = param_list_lookup_string(pl, "outdel");
-
-    if (param_list_warn_unused(pl))
-      pl.fail("Error, unused parameters are given\n");
-
-    if (!purgedname)
-        pl.fail("Error, option -out is mandatory\n");
-
-
-    /*{{{ argument checking, and some statistics for things related to
-     * the hash table. It needs several static parameters on the command
-     * line. This is cumbersome, but while it can probably be avoided, it
-     * also hard to do so efficiently */
-    if ((basepath || subdirlist) && !filelist)
-      pl.fail("Error, -basepath / -subdirlist only valid with -filelist\n");
-    if ((filelist != NULL) + (argc != 0) != 1)
-      pl.fail("Error, provide either -filelist or freeform file names\n");
-    if (nrows_init_arg == 0)
-      pl.fail("Error, missing -nrels command line argument "
-                      "(or nrels = 0)\n");
-    if (col_max_index_arg == 0)
-      pl.fail("Error, missing or wrong -col-max-index command line argument "
-                      "(should be > 0)\n");
-    if (col_min_index_arg == UMAX(uint64_t))
-      pl.fail("Error, missing -col-min-index command line argument\n");
-    if (col_min_index_arg >= col_max_index_arg)
-      pl.fail("Error, col-min-index >= col-max-index\n");
-    /* If col_max_index_arg > 2^32, then we need index_t to be 64-bit */
-    if (((col_max_index_arg >> 32) != 0) && sizeof(index_t) < 8)
-      pl.fail("Error, -col-max-index is too large for a 32-bit "
-                      "program\nSee #define SIZEOF_INDEX in typedefs.h\n");
-    if (nthreads == 0)
-      pl.fail("Error, -t should be non-zero\n");
-
-    /* Printing relevant information */
-    comp_print_info_weight_function ();
-
-    fprintf(stdout, "# INFO: number of rows: %" PRIu64 "\n", nrows_init_arg);
-    fprintf(stdout, "# INFO: maximum possible index of a column: %" PRIu64
-                    "\n", col_max_index_arg);
-    fprintf(stdout, "# INFO: number of threads: %u\n", nthreads);
-    fprintf(stdout, "# INFO: number of clique removal steps: ");
-    if (nsteps < 0)
-      fprintf(stdout, "will be chosen by the program\n");
-    else
-      fprintf(stdout, "%d\n", nsteps);
-    ASSERT_ALWAYS(keep >= 0);
-    fprintf(stdout, "# INFO: target excess: %" PRId64 "\n", keep);
-    fflush (stdout);
-    /*}}}*/
-
-    /* }}} */
-
-    purge_matrix_init (mat, nrows_init_arg, col_min_index_arg,
-                       col_max_index_arg);
-
-    set_antebuffer_path(argv0, param_list_lookup_string(pl, "path_antebuffer"));
-    /* }}} */
-
-    /*{{{ build the list of input files from the given args
-     * If no filelist is given, files are on the command-line.
-     * If no subdirlist is given, files are easily construct from basepath and
-     * filelist.
-     * If subdirlist is given, it is a little bit trickier, see
-     * filelist_from_file_with_subdirlist for more details. */
-    if (!filelist)
-      input_files = argv;
-    else if (!subdirlist)
-      input_files = filelist_from_file(basepath, filelist, 0);
-    else
-      input_files = filelist_from_file_with_subdirlist(basepath, filelist, 
-                                                       subdirlist);
-    /*}}}*/
-
-    /****************** Begin interesting stuff *************************/
-    fprintf(stdout, "\nPass 1, reading and storing columns with index h >= "
-                    "%" PRIu64 "\n", mat->col_min_index);
-
-    /* first pass over relations in files */
-    /* Note: Now that we no longer take a bitmap on input, all
-     * relations are considered active at this point, so that we
-     * do not need to pass a bitmap to filter_rels */
-    filter_rels(input_files,
-                (filter_rels_callback_t) &purge_matrix_set_row_from_rel,
-                (void *) mat, EARLYPARSE_NEED_INDEX, NULL, NULL);
-
-    if (mat->nrows != mat->nrows_init)
-    {
-      fprintf(stderr, "Error, -nrels value should match the number of scanned "
-                      "relations\nexpected %" PRIu64 " relations, found "
-                      "%" PRIu64 "\n", mat->nrows_init, mat->nrows);
-      abort();
-    }
-
-#ifdef TRACE_J
-    printf ("TRACE: weight of ideal 0x%x is %u\n",
-            TRACE_J, mat->cols_weight[TRACE_J]);
-#endif
-
-    /* Take into account the memory allocated for all mat->row_compact[i] */
-    purge_matrix_row_compact_update_mem_usage (mat);
-
-    /* prints some stats on columns and rows weight if verbose > 0. */
-    if (verbose > 0)
-    {
-      purge_matrix_print_stats_columns_weight (stdout, mat, verbose);
-      purge_matrix_print_stats_rows_weight (stdout, mat, verbose);
-    }
-
-    /* MAIN FUNCTIONS: do singletons and cliques removal. */
-    singletons_and_cliques_removal (mat, nsteps, keep, required_excess,
-                                    nthreads, verbose);
-
-#ifdef TRACE_J
-    printf ("TRACE: weight of ideal 0x%x is %u\n",
-            TRACE_J, mat->cols_weight[TRACE_J]);
-#endif
-
-    /* prints some stats on columns and rows weight if verbose > 0. */
-    if (verbose > 0)
-    {
-      purge_matrix_print_stats_columns_weight (stdout, mat, verbose);
-      purge_matrix_print_stats_rows_weight (stdout, mat, verbose);
-    }
-
-    if (mat->nrows < mat->ncols + keep)
-    {
-      /* XXX Warning: This output line gets ***PARSED*** (eek!) by the
-       * Python script to decide whether we have enough excess */
-      fprintf (stdout, "number of rows < number of columns + keep\n");
-      print_final_values (mat, 0);
-      exit(2);
-    }
-    if (mat->nrows == 0 || mat->ncols == 0)
-    {
-      fprintf(stdout, "number of rows or number of columns is 0\n");
-      print_final_values (mat, 0);
-      exit(2);
-    }
-
-    /****** Pass 2: reread the relation files and write output file(s) ******/
-    fprintf(stdout, "\nPass 2, reading and writing output file%s...\n",
-                    deletedname == NULL ? "" : "s");
-    data_second_pass_t data2;
-    memset(data2, 0, sizeof(data_second_pass_t));
-    data2->mat = mat;
-
-    if (!(data2->fd[0] = fopen_maybe_compressed(purgedname, "w")))
-    {
-      fprintf(stderr, "Error, cannot open file %s for writing.\n", purgedname);
-      exit(1);
-    }
-
-    if (deletedname != NULL)
-    {
-      if (!(data2->fd[1] = fopen_maybe_compressed(deletedname, "w")))
-      {
-        fprintf(stderr, "Error, cannot open file %s for writing.\n",
-                        deletedname);
-        exit(1);
-      }
-      /* Write the header line for the file of deleted relations. */
-      fprintf(data2->fd[1], "# %" PRIu64 "\n", mat->nrows_init - mat->nrows);
-    }
-
-    /* Write the header line for the file of remaining relations:
-     * compute last index i such that cols_weight[i] != 0
-     */
-    {
-      uint64_t last_used = mat->col_max_index - 1;
-      while (mat->cols_weight[last_used] == 0)
-        last_used--;
-
-      fprintf(data2->fd[0], "# %" PRIu64 " %" PRIu64 " %" PRIu64 "\n",
-                            mat->nrows, last_used + 1, mat->ncols);
-    }
-
-    /* second pass over relations in files */
-    filter_rels(input_files, (filter_rels_callback_t) &thread_print,
-                (void *) data2, EARLYPARSE_NEED_LINE, NULL, NULL);
-
-    /* write final values to stdout */
-    /* This output, incl. "Final values:", is required by the script */
-    print_final_values (mat, data2->W);
-
-    /* Free allocated stuff */
-    if (filelist)
-      filelist_clear(input_files);
-
-    fclose_maybe_compressed(data2->fd[0], purgedname);
-    if (data2->fd[1])
-      fclose_maybe_compressed(data2->fd[1], deletedname);
-
-    purge_matrix_clear (mat);
     /* print usage of time and memory */
-    print_timing_and_memory (stdout, cpu0, wct0);
+    print_timing_and_memory(stdout, cpu0, wct0);
 
     return 0;
 }

@@ -31,7 +31,6 @@ misc/descent-init.c
 misc/filter_sieved_pairs.c
 misc/phi.c
 misc/psi.c
-misc/singleton_simple.c
 misc/svsm.c
 parameters/polynomials/README
 parameters/polynomials/c100.poly

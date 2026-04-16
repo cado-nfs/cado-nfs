@@ -142,7 +142,6 @@ filter/CMakeLists.txt
 filter/Makefile
 filter/README.fileformat
 filter/clique_removal.cpp
-filter/clique_removal.hpp
 filter/dup1.cpp
 filter/dup2.cpp
 filter/filter_config.h
@@ -166,9 +165,6 @@ filter/read_purgedfile_in_parallel.hpp
 filter/reconstructlog.cpp
 filter/replay.cpp
 filter/shrink_rels.cpp
-filter/singleton_removal.cpp
-filter/singleton_removal.hpp
-filter/singleton_simple.cpp
 filter/sm.cpp
 filter/sm_append.cpp
 filter/sm_simple.cpp

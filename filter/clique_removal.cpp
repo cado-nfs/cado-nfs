@@ -1,74 +1,24 @@
 #include "cado.h" // IWYU pragma: keep
+
+#include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <cmath>
-#include <cerrno>         // for errno
-#include <cinttypes>      // for PRId64, PRIu64
-#include <cstring>        // for memset, strerror
-#include <cstdint>         // for uint64_t
-#include <vector>
+#include <cstring>
+
 #include <algorithm>
-#include <pthread.h>
-#include "bit_vector.h"
-// proto has extern "C"
-#include "clique_removal.hpp" // IWYU pragma: keep
-#include "memory.h"             // malloc_check
-#include "misc.h"       // UMAX
-#include "purge_matrix.hpp"
-#include "timing.h"             // for seconds
-#include "typedefs.h"      // for index_t, weight_t
+#include <functional>
+#include <set>
+#include <thread>
+#include <utility>
+#include <vector>
+
+#include "fmt/base.h"
+
 #include "macros.h"
-
-/********************* comp_t struct (clique) ********************************/
-
-typedef struct {
-  uint64_t i; /* smallest row appearing in the connected component */
-  float w;   /* Weight of the connected component */
-} comp_t;
-
-/* Compare weights of two connected components.
-   Return 1 if the weight of c1 is less than the weight of c2.
-   Return -1 if the weight of c1 is larger than the weight of c2.
-   If the weights are the same
-      return 1 if the first row of c1 is less than the first row of c2;
-      return -1 if the first row of c1 is not less than the first row of c2.
-   We do that in order to be deterministic (even with different number of
-   threads).
- */
-static inline int
-comp_cmp_weight (comp_t c1, comp_t c2)
-{
-  if (c1.w < c2.w)
-    return 1;
-  else if (c1.w > c2.w)
-    return -1;
-  else /* same weight, use first row to be deterministic */
-  {
-    if (c1.i < c2.i)
-      return 1;
-    else
-      return -1;
-  }
-}
-
-static inline int
-comp_weight_is_smaller (comp_t c1, comp_t c2)
-{
-  return (comp_cmp_weight (c1, c2) > 0);
-}
-
-static inline int
-comp_weight_is_larger (comp_t c1, comp_t c2)
-{
-  return (comp_cmp_weight (c1, c2) < 0);
-}
-
-/* Compare weights of two connected components (to use with qsort) */
-static int
-comp_cmp_weight_for_qsort (const void *p, const void *q)
-{
-  return comp_cmp_weight (*((comp_t *)p), *((comp_t *)q));
-}
+#include "purge_matrix.hpp"
+#include "timing.h"
+#include "typedefs.h"
 
 /* Contribution of each column of weight w to the weight of the connected
    component.
@@ -80,6 +30,32 @@ comp_cmp_weight_for_qsort (const void *p, const void *q)
    Cavallar's weight function is \Omega_{23} (LAMBDA=2, NU=3).
 */
 
+template<int lambda> float w_function_helper(float w);
+template<> float w_function_helper<0>(float) { return 1; }
+template<> float w_function_helper<1>(float w) { return powf(2.0 / 3.0, w-2); }
+template<> float w_function_helper<2>(float w) { return powf(0.5, w-2); }
+template<> float w_function_helper<3>(float w) { return powf(0.8, w-2); }
+template<> float w_function_helper<4>(float w) { return 1.0F / log2f (w); }
+template<> float w_function_helper<5>(float w) { return 2.0F / w; }
+template<> float w_function_helper<6>(float w) { return 4.0F / (w * w); }
+template<int lambda, int nu>
+struct w_function {
+    float operator()(weight_t w) const {
+        if (w >= 3)
+            return w_function_helper<lambda>(w);
+        else if (w == 2) {
+            static_assert(nu >= 0 && nu <= 3);
+            if constexpr (nu == 0) {
+                return 0;
+            } else {
+                return 1.0 / (1 << (4 - nu));
+            }
+        } else {
+            return 0;
+        }
+    }
+};
+
 #ifndef USE_WEIGHT_LAMBDA
 #define USE_WEIGHT_LAMBDA 3
 #endif
@@ -87,252 +63,175 @@ comp_cmp_weight_for_qsort (const void *p, const void *q)
 #define USE_WEIGHT_NU 1
 #endif
 
-static inline float
-comp_weight_function (weight_t w)
-{
-  if (w >= 3)
-#if USE_WEIGHT_LAMBDA == 0
-    return 1.0;
-#elif USE_WEIGHT_LAMBDA == 1
-    return powf (2.0 / 3.0, (float) (w - 2));
-#elif USE_WEIGHT_LAMBDA == 2
-    return powf (0.5, (float) (w - 2));
-#elif USE_WEIGHT_LAMBDA == 3
-    return powf (0.8, (float) (w - 2));
-#elif USE_WEIGHT_LAMBDA == 4
-    return 1.0 / log2f ((float) w);
-#elif USE_WEIGHT_LAMBDA == 5
-    return 2.0 / (float) w;
-#elif USE_WEIGHT_LAMBDA == 6
-    return 4.0 / (float) (w * w);
-#else
-#error "Invalid value of USE_WEIGHT_LAMBDA"
-#endif
-  else if (w == 2) /* since each ideal is counted twice, we put here half
-                      the values of \nu_i from reference [1] */
-#if USE_WEIGHT_NU == 0
-    return 0.0;
-#elif USE_WEIGHT_NU == 1
-    return 0.125;
-#elif USE_WEIGHT_NU == 2
-    return 0.25;
-#elif USE_WEIGHT_NU == 3
-    return 0.5;
-#else
-#error "Invalid value of USE_WEIGHT_NU"
-#endif
-  else
-    return 0.0;
-}
-
 /* print info on the weight function that is used */
-void
-comp_print_info_weight_function ()
+void purge_matrix::print_clique_removal_weight_function()
 {
-  fprintf(stdout, "Weight function used during clique removal:\n"
-                  "  0     1     2     3     4     5     6     7\n"
-                  "0.000 0.000 ");
-  for (unsigned int k = 2; k < 8; k++)
-    fprintf(stdout, "%0.3f ", comp_weight_function((weight_t) k));
-  fprintf(stdout, "\n");
-}
-
-/***************** Sorted binary tree of comp_t struct ***********************/
-
-/* This is used for sorting the connected components according to their weigth.
-   These are internal functions.
- */
-
-/* Binary tree of comp_t sorted by weight of the connected component.
- * The two sons of a node of index n are the nodes of indexes 2n+1 and 2n+1.
- * The property is: the weight of the comp_t father is less than its 2 sons.
- * so root of the tree is the connected component with the smallest weight.
- * When the tree is full, a new node is inserted in the tree iff its weight is
- * greater than the weight of the root (and the root is removed from the tree).
- * At the end the tree contained the 'size' (= 'alloc') heaviest comp_t.
- */
-struct comp_sorted_bin_tree_s {
-  size_t alloc;
-  size_t size;
-  comp_t * tree;
-};
-typedef struct comp_sorted_bin_tree_s comp_sorted_bin_tree_t[1];
-typedef struct comp_sorted_bin_tree_s * comp_sorted_bin_tree_ptr;
-typedef const struct comp_sorted_bin_tree_s * comp_sorted_bin_tree_srcptr;
-
-static inline void
-comp_sorted_bin_tree_init (comp_sorted_bin_tree_ptr T, size_t max_size)
-{
-  /* If max_size is even, T->alloc = max_size + 1, in order to avoid a
-   * node-father with only one node-son.a We will have one more connected
-   * component than needed but we do not care (the computing cost in
-   * negligible) */
-  if (max_size & 1)
-    T->alloc = max_size;
-  else
-    T->alloc = max_size + 1;
-
-  T->tree = (comp_t *) malloc_check (sizeof(comp_t) * T->alloc);
-  T->size = 0;
-}
-
-static inline void
-comp_sorted_bin_tree_clear (comp_sorted_bin_tree_ptr T)
-{
-  free(T->tree);
-  T->size = T->alloc = 0;
-}
-
-static inline void
-comp_sorted_bin_tree_qsort (comp_sorted_bin_tree_ptr T,
-                            int (*cmp_fct)(const void *, const void *))
-{
-  qsort (T->tree, T->size, sizeof(comp_t), cmp_fct);
-}
-
-static inline void
-comp_sorted_bin_tree_insert (comp_sorted_bin_tree_ptr T, comp_t new_node)
-{
-  /* If the tree is not full, add new_node at the end and go up. */
-  if (UNLIKELY (T->size < T->alloc))
-  {
-    size_t cur = T->size;
-    while (cur)
-    {
-      size_t const father = (cur - 1) >> 1;
-      if (UNLIKELY (comp_weight_is_larger (new_node, T->tree[father])))
-        break;
-      T->tree[cur] = T->tree[father];
-      cur = father;
-    }
-    T->size++;
-    T->tree[cur] = new_node;
-  }
-  /* If the tree is full, insert new_node iff the weight of new_node if greater
-   * than the weight of the root. In this case, replace the root by new node
-   * and go down */
-  else if (UNLIKELY(comp_weight_is_larger (new_node, T->tree[0])))
-  {
-    size_t cur = 0;
-    for (;;) /* In this loop, always, T->tree[cur].w < new_node.w */
-    {
-      size_t lightest_son = cur * 2 + 1; /* son is son1 */
-      /* If there is no son: cur is a leaf. Found! */
-      if (UNLIKELY (lightest_son >= T->alloc))
-        break;
-      if (comp_weight_is_smaller(T->tree[lightest_son+1],T->tree[lightest_son]))
-      {
-        lightest_son++; /* lightest_son is now son 2 */
-      }
-      /* Now lightest_son and lightest_weight are correct */
-      if (UNLIKELY (comp_weight_is_smaller (new_node, T->tree[lightest_son])))
-        break; /* Found! */
-      /* The lightest_son has a weight lighter than new_node, so we have to go
-       * down the tree, but before the son replaces its father. */
-      T->tree[cur] = T->tree[lightest_son];
-      cur = lightest_son;
-    }
-    T->tree[cur] = new_node;
-  }
-  /* else do nothing */
+    const w_function<USE_WEIGHT_LAMBDA,USE_WEIGHT_NU> f;
+    fmt::print("Weight function used during clique removal:\n"
+            "  0     1     2     3     4     5     6     7\n"
+            "0.000 0.000 ");
+    for (weight_t k = 2; k < 8; k++)
+        fmt::print("{:0.3f} ", f(k));
+    fmt::print("\n");
 }
 
 /*********** Functions to compute and delete connected component **************/
 
-template <class T>
-static bool vector_contains(std::vector<T> const & v, const T& val)
-{
-    return std::find(v.begin(), v.end(), val) != v.end();
-}
-
-/* Compute connected component beginning at row clique->i
- * The weight of the connected component is written in clique->w
+/* Compute connected component beginning at row i0.
+ *
+ * Return the number of rows in the component and a pair (i0, w)
+ * where w is the weight computed by the function F on all column
+ * weights.
  *
  * Multithread safe (if each thread has its own row_buffer).
  *
- * Return the number of rows in the connected component or 0 if it exists a
- * row i1 with i1 < clique->i in the connected component (it implies that this
- * component has already been found when the function was called with a smaller
- * clique->i).
+ * If a row is found in the component with index less than i0, return
+ * a 0-row component. It indicates that the same component was found
+ * earlier.
+ *
+ * XXX
+ * there's a design decision regarding the underlying type for the
+ * row_buffer. Namely:
+ *  - an std::set allows clean code and avoids quadratic behavior in
+ *  the connected component size. Note that it isn't clear we're
+ *  going to have large connected components anyway, so maybe it's
+ *  not that much of a benefit.
+ *  - an std::vector has reserved storage and avoid reallocations (at
+ *  least when amortized), which is not the case with std::set (it
+ *  would be cumbersome to do this and keep iterator validity
+ *  guarantees).
+ *
+ * We have both, at least for now.
  */
-static uint64_t
-compute_one_connected_component (comp_t *clique, purge_matrix_srcptr mat,
-                                 std::vector<uint64_t> & row_buffer)
+
+template <weight_function F>
+auto purge_matrix::compute_connected_component_with_set(size_t i0,
+        std::vector<size_t> const & sum2,
+        F const & f) const
+    -> std::pair<size_t, connected_component>
 {
-  row_buffer.clear();
-  row_buffer.push_back(clique->i);
+    std::set<size_t> buf;
+    buf.insert(i0);
 
-  clique->w = 0.; /* Set initial weight of the connected component to 0. */
+    float w = 0.; /* initial weight */
 
-  /* Loop on all connected rows */
-  for(size_t k = 0 ; k < row_buffer.size() ; k++) {
-    uint64_t const cur_row = row_buffer[k];
+    /* Loop on all connected rows */
+    for (auto const i : buf) {
+        auto const * p = rows[i];
 
-    /* Loop on all columns of the current row */
-    for (index_t * h = mat->row_compact[cur_row]; *h != UMAX(*h); h++)
-    {
-      index_t const cur_h = *h;
-      weight_t const cur_h_weight = mat->cols_weight[cur_h];
-      clique->w += comp_weight_function (cur_h_weight);
-      if (UNLIKELY(cur_h_weight == 2))
-      {
-        ASSERT_ALWAYS(cur_row <= mat->sum2_row[cur_h]);
-        uint64_t const the_other_row = mat->sum2_row[cur_h] - cur_row;
-        /* First, if the_other_row < clique.i, the connected component was
-         * already found (by this thread or another). return 0 */
-        if (the_other_row < clique->i)
-          return 0;
-        /* If the_other_row is not already in the buffer, add it as a todo. */
-        if (!vector_contains(row_buffer, the_other_row))
-            row_buffer.push_back(the_other_row);
-      }
+        /* Loop on all columns of the current row */
+        for (auto const * q = p; *q != END_OF_ROW; q++) {
+            index_t const h = *q;
+            weight_t const wh = column_weights[h];
+            w += f(wh);
+            /* When we just _compute_ the connected components, we don't
+             * have to check that sum2[h] != 0, since it's pretty much
+             * guaranteed. Such isn't the case when we delete the
+             * connected components, since wh==2 can appear for columns
+             * that used to be heavier before. We don't have sum2 data
+             * for them.
+             */
+            if (UNLIKELY(wh == 2 && sum2[h])) {
+                /* TODO: this assert is actually not useful. By
+                 * construction we always have sums of two things
+                 * in this table. We could even make sum2 be a
+                 * table of XORs, if we want.
+                 */
+                ASSERT_ALWAYS(i <= sum2[h]);
+                size_t const i1 = sum2[h] - i;
+                /* See if the connected component was found earlier.  */
+                if (i1 < i0)
+                    return {0, {}};
+
+                if (std::ranges::find(buf, i1) == buf.end())
+                    buf.insert(i1);
+            }
+        }
     }
-  }
 
-  return row_buffer.size();
+    return {buf.size(), {.i=i0, .w=w}};
+}
+
+template <weight_function F>
+auto purge_matrix::compute_connected_component(size_t i0,
+        std::vector<size_t> const & sum2,
+        std::vector<size_t> & buf, F const & f) const
+    -> std::pair<size_t, connected_component>
+{
+    buf.clear();
+    buf.push_back(i0);
+
+    float w = 0.; /* initial weight */
+
+    /* Loop on all connected rows */
+    for (size_t k = 0; k < buf.size(); k++) {
+        auto const i = buf[k];
+        auto const * p = rows[i];
+
+        /* Loop on all columns of the current row */
+        for (auto const * q = p; *q != END_OF_ROW; q++) {
+            index_t const h = *q;
+            weight_t const wh = column_weights[h];
+            w += f(wh);
+            /* When we just _compute_ the connected components, we don't
+             * have to check that sum2[h] != 0, since it's pretty much
+             * guaranteed. Such isn't the case when we delete the
+             * connected components, since wh==2 can appear for columns
+             * that used to be heavier before. We don't have sum2 data
+             * for them.
+             */
+            if (UNLIKELY(wh == 2 && sum2[h])) {
+                /* TODO: this assert is actually not useful. By
+                 * construction we always have sums of two things
+                 * in this table. We could even make sum2 be a
+                 * table of XORs, if we want.
+                 */
+                ASSERT_ALWAYS(i <= sum2[h]);
+                size_t const i1 = sum2[h] - i;
+                /* See if the connected component was found earlier.  */
+                if (i1 < i0)
+                    return {0, {}};
+
+                /* As of c++17, std::set<T>::insert does *NOT*
+                 * invalidate iterators to the set. So we could do
+                 * the thing below with a set in log time. Alas, this has
+                 * its downsides of frequents allocations and
+                 * deallocations.
+                 *
+                 * The vector version is linear here, hence
+                 * quadratic overall. For this reason we use fall back to
+                 * the set version, which has better complexity, if we
+                 * ever detect that some long components exist.
+                 */
+                if (buf.size() >= ccc_quadratic_abort)
+                    return compute_connected_component_with_set(i0, sum2, f);
+
+                if (std::ranges::find(buf, i1) == buf.end())
+                    buf.push_back(i1);
+            }
+        }
+    }
+
+    return {buf.size(), {.i=i0, .w=w}};
 }
 
 
-/* Delete the connected component containing the row "current_row"
- *
- * WARNING: this code itself is multithread compatible (if each thread has its
- * own row_buffer), but it calls purge_matrix_delete_row, which is NOT
- * compatible!
- */
-static void
-delete_one_connected_component (purge_matrix_ptr mat, uint64_t cur_row,
-                                std::vector<uint64_t> & row_buffer)
+/* Delete the connected component containing the row "current_row" */
+void
+purge_matrix::delete_connected_component(size_t i0,
+                                std::vector<size_t> const & sum2,
+                                std::vector<size_t> & buf)
 {
-  row_buffer.clear();
-  row_buffer.push_back(cur_row);
+    /* reuse the code of compute_connected_component, but with a
+     * trivial weight function.  */
+    const auto f = [](auto) { return float(); };
+    compute_connected_component(i0, sum2, buf, f);
 
-  /* Loop on all connected rows */
-  for(size_t k = 0 ; k < row_buffer.size() ; k++) {
-    uint64_t const cur_row = row_buffer[k];
-    /* Loop on all columns of the current row */
-    for (index_t * h = mat->row_compact[cur_row]; *h != UMAX(*h); h++)
-    {
-      index_t const cur_h = *h;
-      weight_t const cur_h_weight = mat->cols_weight[cur_h];
-      /* We might have some H->hashcount[h] = 3, which is decreased to 2, but
-       * we don't want to treat that case. Thus we check in addition that
-       * mat->sum2_row[h] <> 0, which only occurs when H->hashcount[h] = 2
-       * initially.*/
-      if (UNLIKELY(cur_h_weight == 2 && mat->sum2_row[cur_h]))
-      {
-        ASSERT_ALWAYS(cur_row <= mat->sum2_row[cur_h]);
-        uint64_t const the_other_row = mat->sum2_row[cur_h] - cur_row;
-        /* If the_other_row is not already in the buffer, add it as a todo. */
-        if (!vector_contains(row_buffer, the_other_row))
-            row_buffer.push_back(the_other_row);
-      }
-    }
-  }
-
-  /* Now, we deleted all rows explored */
-  for (uint64_t const pt : row_buffer)
-    purge_matrix_delete_row (mat, pt);
-    /* mat->nrows and mat->ncols are updated by purge_matrix_delete_row. */
+    /* This updates the different data fields atomically *BUT* it doesn't
+     * update sum2! New columns with weight 2 can appear, and we won't
+     * have their sum2 data right away. */
+    for (auto const i : buf)
+        delete_row(i);
 }
 
 
@@ -340,313 +239,208 @@ delete_one_connected_component (purge_matrix_ptr mat, uint64_t cur_row,
 
 /* Print stats on the length of the cliques (connected components). The stats
  * are expensive to compute, so these functions should not be called by default.
- * Assume mat->sum2_row is already computed.
  */
-static void
-purge_matrix_print_stats_on_cliques (FILE *out, purge_matrix_srcptr mat,
-                                     int verbose)
+void purge_matrix::print_stats_on_cliques (FILE *out,
+        std::vector<size_t> const & sum2,
+        int verbose) const
 {
-  uint64_t *len = NULL;
+    std::vector<size_t> component_sizes;
+    component_sizes.reserve(rows.size());
 
-  len = (uint64_t *) malloc (mat->nrows_init * sizeof (uint64_t));
-  ASSERT_ALWAYS (len != NULL);
-  memset (len, 0, mat->nrows_init * sizeof (uint64_t));
+    /* use a single buffer, avoid constant reallocations */
+    std::vector<size_t> buf;
 
-  /* use a single buffer, avoid constant reallocations */
-  std::vector<uint64_t> buf;
-
-  for (uint64_t i = 0; i < mat->nrows_init; i++)
-  {
-    if (purge_matrix_is_row_active (mat, i))
-    {
-      comp_t c = {.i = i, .w = 0.0};
-      uint64_t const nrows = compute_one_connected_component (&c, mat, buf);
-      len[i] = nrows;
-    }
-  }
-
-  print_stats_uint64 (out, len, mat->nrows_init, "cliques", "length", verbose);
-
-  free (len);
-}
-
-
-/* Code for clique_removal --- multithread version */
-
-/* The main structure for the working pthreads pool which compute the
-   heaviest cliques */
-typedef struct comp_mt_thread_data_s {
-  /* Read only part */
-  uint64_t begin_first_block;
-  uint64_t end_first_block;
-  uint64_t jump_to_next_block;
-  purge_matrix_srcptr mat;
-  /* Read-write part */
-  comp_sorted_bin_tree_t comp_tree; /* sorted tree computed by the thread */
-} comp_mt_data_t;
-
-/* Size of the block of rows treated by a thread during the computation of the
- * connected component (has to be of the form: BV_BITS << x)*/
-#define COMP_MT_ROWS_BLOCK (BV_BITS<<4)
-
-/* This multithread function fills the tree data->comp_tree with the
- * data->comp_tree->alloc heaviest connected components whose smallest row
- * belongs in
- *   [ data->begin_first_block + j * jump_to_next_block,
-                             data->end_first_block + j * jump_to_next_block ]
- * with j=0,1,2.. until the interval does not intersect [0..mat->nrows_init-1].
- */
-static void *
-clique_removal_core_mt_thread (void *pt)
-{
-  comp_mt_data_t *data = (comp_mt_data_t *) pt;
-  uint64_t begin_cur_block, end_cur_block;
-  comp_t clique;
-
-  std::vector<uint64_t> buf;
-
-  begin_cur_block = data->begin_first_block;
-  end_cur_block = data->end_first_block;
-  while (LIKELY(begin_cur_block < data->mat->nrows_init))
-  {
-    if (UNLIKELY (end_cur_block > data->mat->nrows_init))
-      end_cur_block = data->mat->nrows_init;
-
-    for (uint64_t i = begin_cur_block; i < end_cur_block; i++)
-    {
-      if (purge_matrix_is_row_active (data->mat, i))
-      {
-        clique.i = i;
-        unsigned int const nb_rows = compute_one_connected_component (&(clique),
-                                              data->mat, buf);
-        if (nb_rows == 0) /* this component was already found earlier */
-          continue;
-        comp_sorted_bin_tree_insert (data->comp_tree, clique);
-      }
-    }
-
-    begin_cur_block += data->jump_to_next_block;
-    end_cur_block += data->jump_to_next_block;
-  }
-
-  /* Re-order the connected component by decreasing weight. */
-  comp_sorted_bin_tree_qsort (data->comp_tree, comp_cmp_weight_for_qsort);
-
-  return NULL;
-}
-
-static uint64_t
-clique_removal_core_mt (purge_matrix_ptr mat, int64_t target_excess,
-                        size_t max_nb_comp, unsigned int nthreads, int verbose)
-{
-  pthread_t *threads = NULL;
-  comp_mt_data_t *th_data = NULL;
-  /* nrows_per_block must be a multiple of BV_BITS */
-  uint64_t k, nrows_per_block = COMP_MT_ROWS_BLOCK;
-  int err;
-  uint64_t nb_cliques_del = 0;
-
-  th_data = (comp_mt_data_t *) malloc (nthreads * sizeof(comp_mt_data_t));
-  ASSERT_ALWAYS(th_data != NULL);
-  threads = (pthread_t *) malloc (nthreads * sizeof(pthread_t));
-  ASSERT_ALWAYS(threads != NULL);
-
-  k = 0;
-  for (unsigned int i = 0; i < nthreads; i++)
-  {
-    th_data[i].mat = mat;
-    th_data[i].begin_first_block = k;
-    k += nrows_per_block;
-    th_data[i].end_first_block = k;
-    th_data[i].jump_to_next_block = nthreads * nrows_per_block;
-    comp_sorted_bin_tree_init (th_data[i].comp_tree, max_nb_comp);
-  }
-
-  for (unsigned int i = 0; i < nthreads; i++)
-  {
-    if ((err = pthread_create (&(threads[i]), NULL,
-                     &clique_removal_core_mt_thread, (void *) &(th_data[i]))))
-    {
-      fprintf(stderr, "Error, pthread_create failed in clique_removal_core_mt: "
-                      "%d. %s\n", err, strerror(errno));
-      abort();
-    }
-  }
-  for (unsigned int i = 0; i < nthreads; i++)
-    pthread_join (threads[i], NULL);
-
-  fprintf(stdout, "Cliq. rem.: computed heaviest connected components at "
-                  "%2.2lf\n", seconds());
-  fflush (stdout);
-
-  if (verbose > 0)
-    purge_matrix_print_stats_on_cliques (stdout, mat, verbose);
-
-  /* At this point, in each pth[i].comp_tree we have pth[i].comp_tree->size
-     connected components ordered by decreasing weight. */
-  size_t *next_clique = NULL;
-  std::vector<uint64_t> buf;
-  float weight_last_comp_rem = 0.0;
-  next_clique = (size_t *) malloc (nthreads * sizeof (size_t));
-  ASSERT_ALWAYS (next_clique != NULL);
-  memset (next_clique, 0, nthreads * sizeof (size_t));
-
-  while (mat->nrows > target_excess + mat->ncols)
-  {
-    comp_t * max_comp = NULL;
-    size_t max_thread = 0;
-
-    for (unsigned int i = 0; i < nthreads; ++i)
-    {
-      if (next_clique[i] < th_data[i].comp_tree->size)
-      {
-        comp_t * cur_comp = &(th_data[i].comp_tree->tree[next_clique[i]]);
-        if (max_comp == NULL || comp_weight_is_larger (*cur_comp, *max_comp))
-        {
-          max_comp = cur_comp;
-          max_thread = i;
+    for (size_t i = 0; i < rows.size(); i++) {
+        if (is_active(i)) {
+            const auto f = [](auto) { return float(); };
+            auto [ size, C ] = compute_connected_component(i, sum2, buf, f);
+            component_sizes.push_back(size);
         }
-      }
-    }
-    if (max_comp == NULL)
-    {
-      fprintf (stderr, "Cliq. rem.: Warning, all lists of connected components"
-                       " are empty\n");
-      break;
     }
 
-    weight_last_comp_rem = max_comp->w;
-    delete_one_connected_component (mat, max_comp->i, buf);
-    next_clique[max_thread]++;
-    nb_cliques_del++;
-  }
-
-  if (nb_cliques_del)
-    printf ("Cliq. rem.: weight of last removed connected component: %f\n",
-            weight_last_comp_rem);
-
-  free (next_clique);
-
-  /* We can free th_data[i].comp_tree and th_data itself */
-  for (unsigned int i = 0; i < nthreads; ++i)
-    comp_sorted_bin_tree_clear (th_data[i].comp_tree);
-  free (th_data);
-  free (threads);
-
-  return nb_cliques_del;
+    print_stats_generic (out, component_sizes, "cliques", "length", verbose);
 }
 
-/* Code for clique_removal --- monothread version */
 
-static uint64_t
-clique_removal_core_mono (purge_matrix_ptr mat, int64_t target_excess,
-                          size_t max_nb_comp, int verbose)
+/* Code for clique_removal.
+ *
+ * A connected component "belongs" to an index range I if its
+ * least-indexed row is within I.
+ *
+ * The single-thread version of this code considers only one index range
+ * I = [0, rows.size()).
+ *
+ * An n-thread instance behaves differently. The range [0, rows.size())
+ * is split in chunks of size C, and thread k goes
+ * through the ranges [(k+ell*n)*C, (k+1+ell*n)*C), one by one. This is
+ * done so that the different threads have roughly similar work load (as
+ * we start the search with rows of incresasing index, the probability of
+ * discovering a lower-indexed row in the component is of course larger).
+ */
+size_t purge_matrix::clique_removal_core (
+        sum2_type const & sum2,
+        int64_t target_excess, size_t max_nb_comp,
+        size_t nthreads,
+        int verbose)
 {
-  comp_sorted_bin_tree_t comp_tree;
-  std::vector<uint64_t> buf;
-  comp_t clique;
+    /* We want the max_nb_comp components with the largest computed
+     * score. The first step towards this is a min heap.
+     *
+     * Each thread will compute its own min heap.
+     */
+    std::vector<std::vector<connected_component>> Q(nthreads);
 
-  comp_sorted_bin_tree_init (comp_tree, max_nb_comp);
-
-  for (clique.i = 0; clique.i < mat->nrows_init; clique.i++)
-  {
-    if (purge_matrix_is_row_active (mat, clique.i))
+    static constexpr size_t batch_size_for_connected_components = 1024;
+    auto fragment = [&](std::vector<connected_component> & Q,
+            size_t i0, size_t i1, size_t stride)
     {
-      unsigned int const nb_rows = compute_one_connected_component (&(clique),
-                                            mat, buf);
-      if (nb_rows == 0) /* this component was already found earlier */
-        continue;
-      comp_sorted_bin_tree_insert (comp_tree, clique);
+        std::vector<size_t> buf;
+
+        for( ; i0 < rows.size() ; i0 += stride, i1 += stride) {
+            const w_function<USE_WEIGHT_LAMBDA,USE_WEIGHT_NU> f;
+            const std::greater<connected_component> G;
+            i1 = std::min(i1, rows.size());
+            for (size_t i = i0 ; i < i1 ; i++) {
+                if (is_active(i)) {
+                    auto [ size, C ] = compute_connected_component(i, sum2, buf, f);
+                    if (!size)
+                        continue;
+
+                    if (Q.size() < max_nb_comp) {
+                        /* insert, and make sure we still have a min-heap */
+                        Q.push_back(C);
+                        std::ranges::push_heap(Q, G);
+                    } else {
+                        /* If this connected component is even lighter
+                         * than our min, there's no point in adding it.
+                         */
+                        if (C.w < Q.front().w)
+                            continue;
+
+                        /* the lightest connected component can be
+                         * dropped, leaving only the max_nb_comp-1
+                         * heaviest ones. Then we add our new component.
+                         */
+                        std::ranges::pop_heap(Q, G);
+                        Q.back() = C;
+                        std::ranges::push_heap(Q, G);
+                    }
+                }
+            }
+        }
+    };
+
+    if (nthreads == 1) {
+        fragment(Q[0], 0, rows.size(), rows.size());
+    } else {
+        std::vector<std::thread> T;
+        T.reserve(nthreads);
+        for (size_t k = 0; k < nthreads; k++) {
+            const size_t i0 = batch_size_for_connected_components * k;
+            const size_t i1 = batch_size_for_connected_components * (k + 1);
+            const size_t stride = batch_size_for_connected_components * nthreads;
+            T.emplace_back(fragment, std::ref(Q[k]), i0, i1, stride);
+        }
+        for (auto & t: T)
+            t.join();
     }
-  }
 
-  /* Re-order the connected component by decreasing weight. */
-  comp_sorted_bin_tree_qsort (comp_tree, comp_cmp_weight_for_qsort);
+    /* At this point, Q[k] contains the max_nb_comp heaviest
+     * connected component computed by thread k.
+     *
+     * We'll then proceed through them from heaviest to lightest, but we
+     * won't do any further inserts.
+     *
+     * Two possible approaches here. It is fine if each thread does its
+     * preferred removals based on its local order. But we prefer to do
+     * it globally, which has the advantage of yielding more
+     * deterministic results.
+     *
+     * To do so, the easiest approach is to sort the concatenation of all
+     * Q and proceed from the top. Normal comparison works, here, since
+     * the weights are stored with the components.
+     */
+    std::vector<connected_component> all_Q;
+    for(auto const & q : Q)
+        all_Q.insert(all_Q.end(), q.begin(), q.end());
+    std::ranges::sort(all_Q);
 
-  fprintf(stdout, "Cliq. rem.: computed heaviest connected components at "
-                  "%2.2lf\n", seconds());
-  fflush (stdout);
+    fmt::print("Cliq. rem.: computed heaviest connected components at "
+            "{:2.2f}\n", seconds());
+    fflush (stdout);
 
-  if (verbose > 0)
-    purge_matrix_print_stats_on_cliques (stdout, mat, verbose);
+    if (verbose > 0)
+        print_stats_on_cliques (stdout, sum2, verbose);
 
-  /* At this point, comp_tree contains max_nb_comp connected components ordered
-   * by decreasing weight.
-   */
-  size_t next_clique = 0;
-  uint64_t nb_clique_deleted = 0;
-  float weight_last_comp_rem = 0.0;
+    size_t nb_clique_deleted = 0;
+    float last_weight = 0.0;
 
-  while (mat->nrows > target_excess + mat->ncols)
-  {
-    if (next_clique >= comp_tree->size)
-    {
-      fprintf (stderr, "Cliq. rem.: Warning, the list of connected components"
-                       " is empty\n");
-      break;
+    /* We're not doing the removals in a multithreaded way, on purpose
+     * because we want determinism. But could it be a bit of an
+     * opinionated, expensive, and ultimately unnecessary decision?
+     */
+    std::vector<size_t> buf;
+    for( ; excess() > target_excess ; ) {
+        if (all_Q.empty()) {
+            fmt::print(stderr, "Cliq. rem.:"
+                    " Warning, the list of connected components is empty\n");
+            break;
+        }
+
+        auto [ i, w ] = all_Q.back();
+        last_weight = w;
+        delete_connected_component (i, sum2, buf);
+        all_Q.pop_back();
+        nb_clique_deleted++;
     }
 
-    weight_last_comp_rem = comp_tree->tree[next_clique].w;
-    delete_one_connected_component (mat, comp_tree->tree[next_clique].i, buf);
-    next_clique++;
-    nb_clique_deleted++;
-  }
+    if (nb_clique_deleted)
+        fmt::print("Cliq. rem.: weight of last removed connected component: {}\n",
+                last_weight);
 
-  if (nb_clique_deleted)
-    printf ("Cliq. rem.: weight of last removed connected component: %f\n",
-            weight_last_comp_rem);
-
-  comp_sorted_bin_tree_clear (comp_tree);
-
-  return nb_clique_deleted;
+    return nb_clique_deleted;
 }
 
 /***************************** Clique removal ********************************/
 
-void
-cliques_removal (purge_matrix_ptr mat, int64_t target_excess,
-                 unsigned int nthreads, int verbose)
+void purge_matrix::clique_removal (int64_t target_excess,
+                 size_t nthreads, int verbose)
 {
-  int64_t const excess = purge_matrix_compute_excess (mat);
-  uint64_t nb_cliques_del = 0;
-  size_t max_nb_comp;
+    if (excess() <= target_excess)
+        return;
 
-  /* If the excess is smaller than target_excess, then we have nothing to do. */
-  if (excess <= target_excess)
-    return;
+    /* max_nb_comp is the maximum number of connected components that
+     * each threads is going to store.
+     *
+     * Each connected component reduces the excess by at most one, and
+     * perhaps zero (albeit rarely).
+     *
+     * Each thread will compute max_nb_comp, for determinism (in case one
+     * thread actually owns all the heavy components!). Therefore for
+     * nthreads>=2, we'll compute at least 2*max_nb_comp components
+     * overall.
+     *
+     * If nthreads==1, we increase max_nb_comp by 25% to take into account the
+     * fact that some components (we expect not many) won't reduce the
+     * excess.
+     */
+    size_t max_nb_comp = excess() - target_excess;
+    if (nthreads == 1)
+        max_nb_comp+= max_nb_comp/4;
 
-  /* First, collect, for each column of weight 2, the sum i1+i2, where i1 and i2
-   * are the two rows containing the column of weight 2.
-   */
-  purge_matrix_compute_sum2_row (mat, nthreads);
-  fprintf(stdout, "Cliq. rem.: computed mat->sum2_row at %2.2lf\n", seconds());
-  fflush (stdout);
+    /* Then, call the core function that computes and deletes connected
+     * components until excess is equal to target_excess.
+     */
+    auto sum2 = compute_sum2(nthreads);
+    fmt::print("Cliq. rem.: computed sum2 at {:2.2f}\n", seconds());
 
-  /* max_nb_comp is the maximum number of connected components that each threads
-   * is going to store. If we are in monothread, we increase max_nb_comp by 25%
-   * to take into account the fact that something a little bit more connected
-   * components are needed to achieve the targeted excess.
-   */
-  max_nb_comp = (size_t) (excess - target_excess);
-  if (nthreads == 1)
-    max_nb_comp+= max_nb_comp/4;
+    size_t nb_cliques_del = clique_removal_core (sum2, target_excess,
+            max_nb_comp, nthreads, verbose);
 
-  /* Then, call the core function (either mono or mt) that compute and delete
-   * connected components until excess is equal to target_excess.
-   */
-  if (nthreads > 1)
-    nb_cliques_del = clique_removal_core_mt (mat, target_excess, max_nb_comp,
-                                             nthreads, verbose);
-  else
-    nb_cliques_del = clique_removal_core_mono (mat, target_excess, max_nb_comp,
-                                               verbose);
-
-
-  fprintf(stdout, "Cliq. rem.: deleted %" PRIu64 " heaviest connected "
-                  "components at %2.2lf\n", nb_cliques_del, seconds());
-  if (verbose > 0)
-    fprintf(stdout, "# INFO: max_nb_comp_per_thread=%zu target_excess="
-                    "%" PRId64 "\n", max_nb_comp, target_excess);
-  fflush (stdout);
+    fmt::print("Cliq. rem.: deleted {} heaviest connected "
+            "components at {:2.2f}\n", nb_cliques_del, seconds());
+    if (verbose > 0)
+        fmt::print("# INFO: max_nb_comp_per_thread={} target_excess="
+                "{}\n", max_nb_comp, target_excess);
+    fflush (stdout);
 }
-

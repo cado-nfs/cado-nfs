@@ -1,404 +1,191 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cstdint>
-#include <cerrno>       // for errno
-#include <cinttypes>    // for PRIu64
-#include <cstring>      // for memset, strerror
-#include <cstdio>
-#include <cstdlib>
 #include <cmath>
+#include <cstdint>
+#include <cstdio>
 
-#include <pthread.h>
+#include <algorithm>
+#include <atomic>
+#include <limits>
+#include <string>
+#include <thread>
+#include <vector>
 
-#include "bit_vector.h"  // for BV_BITS
-#include "filter_io_old.hpp"  // earlyparsed_relation_ptr
-#include "purge_matrix.hpp"
-#include "memalloc.hpp"  // for index_my_malloc
-#include "misc.h"       // for UMAX
-#include "typedefs.h"  // weight_t
+#include "fmt/base.h"
+#include "fmt/format.h"
+
 #include "macros.h"
+#include "purge_matrix.hpp"
+#include "subdivision.hpp"
+#include "timing.h"
+#include "typedefs.h"
+#include "utils_cxx.hpp"
 
-/* If HAVE_SYNC_FETCH is not defined, we will use mutex for multithreaded
- * version of the code. May be too slow. */
-#ifndef HAVE_SYNC_FETCH
-static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-#endif
-
-#ifdef __arm__
-/* see comment in purge_matrix_compute_sum2_row */
-#define DONT_USE_PURGE_MATRIX_COMPUTE_SUM2_ROW_MT
-#endif
-
-void
-purge_matrix_init (purge_matrix_ptr mat, uint64_t nrows_init,
-                   uint64_t col_min_index, uint64_t col_max_index)
+void purge_matrix::print_stats_generic(FILE * out, std::vector<size_t> const & w,
+                        char const * name, char const * unit, int verbose)
 {
-  size_t cur_alloc;
-  mat->nrows_init = nrows_init;
-  mat->col_max_index = col_max_index;
-  mat->nrows = mat->ncols = 0;
-  mat->col_min_index = col_min_index;
-  mat->tot_alloc_bytes = 0;
-
-  /* Malloc cols_weight and set to 0 */
-  cur_alloc = mat->col_max_index * sizeof (weight_t);
-  mat->cols_weight = (weight_t *) malloc(cur_alloc);
-  ASSERT_ALWAYS(mat->cols_weight != NULL);
-  mat->tot_alloc_bytes += cur_alloc;
-  fprintf(stdout, "# MEMORY: Allocated cols_weight of %zuMB (total %zuMB "
-                  "so far)\n", cur_alloc >> 20, mat->tot_alloc_bytes >> 20);
-  memset(mat->cols_weight, 0, cur_alloc);
-
-  /* Malloc sum2_row */
-  cur_alloc = mat->col_max_index * sizeof (uint64_t);
-  mat->sum2_row = (uint64_t *) malloc(cur_alloc);
-  ASSERT_ALWAYS(mat->sum2_row != NULL);
-  mat->tot_alloc_bytes += cur_alloc;
-  fprintf(stdout, "# MEMORY: Allocated sum2_row of %zuMB (total %zuMB "
-                  "so far)\n", cur_alloc >> 20, mat->tot_alloc_bytes >> 20);
-
-  /* Malloc row_compact */
-  cur_alloc = mat->nrows_init * sizeof (index_t *);
-  mat->row_compact = (index_t **) malloc (cur_alloc);
-  ASSERT_ALWAYS(mat->row_compact != NULL);
-  mat->tot_alloc_bytes += cur_alloc;
-  fprintf(stdout, "# MEMORY: Allocated row_compact of %zuMB (total %zuMB "
-                  "so far)\n", cur_alloc >> 20, mat->tot_alloc_bytes >> 20);
-}
-
-/* Free everything and set everythin to 0. */
-void
-purge_matrix_clear (purge_matrix_ptr mat)
-{
-  free (mat->cols_weight);
-  free (mat->sum2_row);
-  free(mat->row_compact);
-
-  memset (mat, 0, sizeof (purge_matrix_t));
-}
-
-void
-purge_matrix_row_compact_update_mem_usage (purge_matrix_ptr mat)
-{
-  size_t cur_alloc = get_my_malloc_bytes();
-  mat->tot_alloc_bytes += cur_alloc;
-  fprintf(stdout, "# MEMORY: Allocated row_compact[i] %zuMB (total %zuMB so "
-                  "far)\n", cur_alloc >> 20, mat->tot_alloc_bytes >> 20);
-}
-
-
-/* Set a row of a purge_matrix_t from a read relation.
- * The row that is set is decided by the relation number rel->num
- * We put in mat->row_compact only primes such that their index h is greater or
- * equal to mat->col_min_index.
- * A row in mat->row_compact is ended by a -1 (= UMAX(index_t))
- * The number of columns mat->ncols is updated is necessary.
- * The number of rows mat->ncols is increased by 1.
- *
- * The return type of this function is void * instead of void so we can use it
- * as a callback function for filter_rels.
- *
- * Not thread-safe.
- */
-
-void *
-purge_matrix_set_row_from_rel (purge_matrix_t mat, earlyparsed_relation_ptr rel)
-{
-  ASSERT_ALWAYS(rel->num < mat->nrows_init);
-
-  unsigned int nb_above_min_index = 0;
-  for (weight_t i = 0; i < rel->nb; i++)
-    {
-      /* check all indices are less than col_max_index */
-      ASSERT_ALWAYS(rel->primes[i].h < mat->col_max_index);
-      nb_above_min_index += (rel->primes[i].h >= mat->col_min_index);
-    }
-
-  index_t *tmp_row = index_my_malloc (1 + nb_above_min_index);
-  unsigned int next = 0;
-  for (weight_t i = 0; i < rel->nb; i++)
-  {
-    index_t h = rel->primes[i].h;
-    if (mat->cols_weight[h] == 0)
-    {
-      mat->cols_weight[h] = 1;
-      (mat->ncols)++;
-    }
-    else if (mat->cols_weight[h] != UMAX(weight_t))
-      mat->cols_weight[h]++;
-
-    if (h >= mat->col_min_index)
-      tmp_row[next++] = h;
-  }
-
-  tmp_row[next] = UMAX(index_t); /* sentinel */
-  mat->row_compact[rel->num] = tmp_row;
-  (mat->nrows)++;
-
-  return NULL;
-}
-
-
-/* Delete a row: set mat->row_used[i] to 0, update the count of the columns
- * appearing in that row, mat->nrows and mat->ncols.
- * Warning: we only update the count of columns that we consider, i.e.,
- * columns with index >= mat->col_min_index.
- * CAREFUL: no multithread compatible with " !(--(*o))) " and
- * bit_vector_clearbit.
- */
-void
-purge_matrix_delete_row (purge_matrix_ptr mat, uint64_t i)
-{
-  index_t *row;
-  weight_t *w;
-
-  if (purge_matrix_is_row_active(mat, i))
-  {
-    for (row = mat->row_compact[i]; *row != UMAX(*row); row++)
-    {
-      w = &(mat->cols_weight[*row]);
-      ASSERT(*w);
-      /* Decrease only if not equal to the maximum value */
-      /* If weight becomes 0, we just remove a column */
-      if (*w < UMAX(*w) && !(--(*w)))
-        mat->ncols--;
-    }
-    /* We do not free mat->row_compact[i] as it is freed later with
-      my_malloc_free_all */
-    purge_matrix_set_row_inactive (mat, i); /* mark as deleted */
-    mat->nrows--;
-  }
-  else /* Row already deleted => Abort (It means there is a bug somewhere) */
-  {
-    fprintf (stderr, "Error, row %" PRIu64" is already deleted\n", i);
-    abort();
-  }
-}
-
-/***** Functions to compute mat->sum2_row array (mono and multi thread) *******/
-
-/* sum2_row[h] = 0 if cols_weight[h] <> 2
-               = i1 + i2 if cols_weight[h] = 2 and h appears in rows i1 and i2
- */
-
-/* Code for computing mat->sum2_row --- monothread version */
-
-static inline void
-purge_matrix_compute_sum2_row_mono (purge_matrix_ptr mat)
-{
-  /* Reset mat->sum2_row to 0 */
-  memset(mat->sum2_row, 0, mat->col_max_index * sizeof(uint64_t));
-  for (uint64_t i = 0; i < mat->nrows_init; i++)
-  {
-    index_t h, *row_ptr;
-    if (purge_matrix_is_row_active(mat, i))
-      for (row_ptr = mat->row_compact[i]; (h = *row_ptr++) != UMAX(h);)
-        if (mat->cols_weight[h] == 2)
-          mat->sum2_row[h] += i;
-  }
-}
-
-/* Code for computing mat->sum2_row --- multithread version */
-
-typedef struct sum2_mt_data_s {
-  /* Read only part */
-  uint64_t begin, end;
-  /* Read-write part */
-  purge_matrix_ptr mat;
-} sum2_mt_data_t;
-
-#ifndef DONT_USE_PURGE_MATRIX_COMPUTE_SUM2_ROW_MT
-void *
-purge_matrix_compute_sum2_row_mt_thread (void *pt)
-{
-  sum2_mt_data_t *data = (sum2_mt_data_t *) pt;
-  purge_matrix_ptr mat = data->mat;
-  uint64_t i;
-
-  for (i = data->begin; i < data->end; i++)
-  {
-    if (purge_matrix_is_row_active(mat, i))
-    {
-      index_t h, *row_ptr;
-      for (row_ptr = mat->row_compact[i]; (h = *row_ptr++) != UMAX(h);)
-      {
-        if (LIKELY (mat->cols_weight[h] == 2))
-        {
-#ifdef HAVE_SYNC_FETCH
-          __sync_add_and_fetch (mat->sum2_row + h, i);
-#else /* else we use mutex to protect the addition on mat->sum2_row[h] */
-          pthread_mutex_lock (&lock);
-          mat->sum2_row[h] += i;
-          pthread_mutex_unlock (&lock);
-#endif
+    size_t av = 0, std = 0, nzero = 0;
+    size_t min = std::numeric_limits<size_t>::max();
+    size_t max = 0;
+    for (auto c: w) {
+        if (c) {
+            nzero++;
+            min = std::min(min, c);
+            max = std::max(max, c);
+            av += c;
+            std += c * c;
         }
-      }
     }
-  }
-  return NULL;
-}
+    double const av_f = double_ratio(av, nzero + !nzero);
+    double const std_f = sqrt(double_ratio(std, nzero + !nzero) - av_f * av_f);
 
-static inline void
-purge_matrix_compute_sum2_row_mt (purge_matrix_ptr mat, unsigned int nthreads)
-{
-  pthread_t *threads = NULL;
-  sum2_mt_data_t *th_data = NULL;
-  uint64_t nrows_per_thread, k;
-  int err;
+    fmt::print(out, "# STATS on {}: #{} = {}\n", name, name, nzero);
+    fmt::print(out, "# STATS on {}: min {} = {}\n", name, unit, min);
+    fmt::print(out, "# STATS on {}: max {} = {}\n", name, unit, max);
+    fmt::print(out, "# STATS on {}: av {} = {:.2f}\n", name, unit, av_f);
+    fmt::print(out, "# STATS on {}: std {} = {:.2f}\n", name, unit, std_f);
 
-  /* Reset mat->sum2_row to 0 */
-  memset(mat->sum2_row, 0, mat->col_max_index * sizeof(uint64_t));
+    if (verbose > 1) {
+        std::vector<size_t> dist(max - min + 1, 0);
+        for (auto c: w)
+            if (c)
+                dist[c - min]++;
 
-  th_data = (sum2_mt_data_t *) malloc (nthreads * sizeof(sum2_mt_data_t));
-  ASSERT_ALWAYS(th_data != NULL);
-  threads = (pthread_t *) malloc (nthreads * sizeof(pthread_t));
-  ASSERT_ALWAYS(threads != NULL);
-
-  /* nrows_per_thread MUST be a multiple of BV_BITS (see how we loop on the rows
-   * in purge_matrix_compute_sum2_row_mt_thread
-   */
-  nrows_per_thread = (mat->nrows_init / nthreads) & ((uint64_t) ~(BV_BITS - 1));
-  k = 0;
-  for (unsigned int i = 0; i < nthreads; i++)
-  {
-    th_data[i].mat = mat;
-    th_data[i].begin = k;
-    k += nrows_per_thread;
-    th_data[i].end = k;
-  }
-  th_data[nthreads-1].end = mat->nrows_init;
-
-  for (unsigned int i = 0; i < nthreads; i++)
-  {
-    if ((err = pthread_create(&threads[i], NULL,
-                              &purge_matrix_compute_sum2_row_mt_thread,
-                              (void *) &(th_data[i]))))
-    {
-      fprintf(stderr, "Error, pthread_create failed in purge_matrix_compute_"
-                      "sum2_row_mt: %d. %s\n", err, strerror(errno));
-      abort();
+        for (size_t i = min; i <= max; i++)
+            if (dist[i - min] > 0)
+                fmt::print(out, "# STATS on {}: #{} of {} {} : {}\n", name,
+                           name, unit, i, dist[i - min]);
     }
-  }
-  for (unsigned int i = 0; i < nthreads; i++)
-    pthread_join (threads[i], NULL);
-
-  free(threads);
-  free(th_data);
-}
-#endif
-
-void
-purge_matrix_compute_sum2_row (purge_matrix_ptr mat,
-        unsigned int nthreads MAYBE_UNUSED)
-{
-#ifndef DONT_USE_PURGE_MATRIX_COMPUTE_SUM2_ROW_MT
-    /* the branch below does not seem to work as we expect it to on the
-     * raspberry pi. Whether it's a flaw in the code or something else, I
-     * can't tell, but we often see failures in filter/purge even for a
-     * c30 from the test suite.
-     * I strongly suspect our use of the __sync_add_and_fetch() routines.
-     * 
-     * It might be better to allocate per-threads tables first, and
-     * gather only at the end.
-     */
-  if (nthreads > 1)
-    purge_matrix_compute_sum2_row_mt (mat, nthreads);
-  else
-#endif
-    purge_matrix_compute_sum2_row_mono (mat);
+    fflush(out);
 }
 
-/******************* Functions to print stats ********************************/
-
-/* These 2 functions compute and print stats on rows weight and columns weight.
- * The stats can be expensive to compute, so these functions should not be
- * called by default. */
-
-/* Internal function */
-void
-print_stats_uint64 (FILE *out, uint64_t *w, uint64_t len,
-        const char * name, const char * unit,
-        int verbose)
+void purge_matrix::print_stats_column_weights(FILE * out, int verbose) const
 {
-  uint64_t av = 0, min = UMAX(uint64_t), max = 0, std = 0, nb_nzero = 0;
-  for (uint64_t i = 0; i < len; i++)
-  {
-    if (w[i] > 0)
-    {
-      nb_nzero++;
-      if (w[i] < min)
-        min = w[i];
-      if (w[i] > max)
-        max = w[i];
-      av += w[i];
-      std += w[i]*w[i];
+    std::vector<size_t> w(column_weights.size(), 0);
+
+    for (auto const * p: rows) {
+        if (p)
+            for (auto const * q = p; *q != END_OF_ROW; q++)
+                w[*q]++;
     }
-  }
 
-  double av_f = ((double) av) / ((double) (nb_nzero+!nb_nzero));
-  double std_f = sqrt(((double) std) / ((double) (nb_nzero+!nb_nzero)) - av_f*av_f);
+    print_stats_generic(out, w, "cols", "weight", verbose);
+}
 
-  fprintf (out, "# STATS on %s: #%s = %" PRIu64 "\n", name, name, nb_nzero);
-  fprintf (out, "# STATS on %s: min %s = %" PRIu64 "\n", name, unit, min);
-  fprintf (out, "# STATS on %s: max %s = %" PRIu64 "\n", name, unit, max);
-  fprintf (out, "# STATS on %s: av %s = %.2f\n", name, unit, av_f);
-  fprintf (out, "# STATS on %s: std %s = %.2f\n", name, unit, std_f);
+void purge_matrix::print_stats_row_weights(FILE * out, int verbose) const
+{
+    std::vector<size_t> w(rows.size(), 0);
 
-  if (verbose > 1)
-  {
-    uint64_t *nb_w = NULL;
-    nb_w = (uint64_t *) malloc ((max-min+1) * sizeof (uint64_t));
-    ASSERT_ALWAYS (nb_w != NULL);
-    memset (nb_w, 0, (max-min+1) * sizeof (uint64_t));
-    for (uint64_t i = 0; i < len; i++)
-      if (w[i] > 0)
-        nb_w[w[i]-min]++;
-
-    for (uint64_t i = 0; i < max-min+1; i++)
-    {
-      if (nb_w[i] > 0)
-        fprintf (out, "# STATS on %s: #%s of %s %" PRIu64 " : %" PRIu64
-                      "\n", name, name, unit, min+i, nb_w[i]);
+    for (size_t i = 0; i < rows.size(); i++) {
+        if (auto const * p = rows[i]) {
+            auto const * q = p;
+            for (; *q != END_OF_ROW; q++)
+                ;
+            w[i] = q - p;
+        }
     }
-    free (nb_w);
-  }
-  fflush (out);
+    print_stats_generic(out, w, "rows", "weight", verbose);
 }
 
-void
-purge_matrix_print_stats_columns_weight (FILE *out, purge_matrix_srcptr mat,
-                                         int verbose)
+template <typename F>
+static void apply_fragment_multithread(size_t nrows, size_t nthreads, F const & f)
 {
-  uint64_t *w = NULL;
-  index_t h, *row_ptr;
-  w = (uint64_t *) malloc (mat->col_max_index * sizeof (uint64_t));
-  ASSERT_ALWAYS (w != NULL);
-  memset (w, 0, mat->col_max_index * sizeof (uint64_t));
-
-  for (uint64_t i = 0; i < mat->nrows_init; i++)
-    if (purge_matrix_is_row_active(mat, i))
-      for (row_ptr = mat->row_compact[i]; (h = *row_ptr++) != UMAX(h);)
-        w[h]++;
-
-  print_stats_uint64 (out, w, mat->col_max_index, "cols", "weight", verbose);
-  free (w);
+    std::vector<std::thread> T;
+    T.reserve(nthreads);
+    auto const S = subdivision(nrows, nthreads);
+    for (size_t i = 0; i < nthreads; i++) {
+        auto [i0, i1] = S.nth_block(i);
+        T.emplace_back(f, i0, i1);
+    }
+    for (auto & t: T)
+        t.join();
 }
 
-void
-purge_matrix_print_stats_rows_weight (FILE *out, purge_matrix_srcptr mat,
-                                      int verbose)
+auto purge_matrix::compute_sum2(size_t nthreads) const -> sum2_type
 {
-  uint64_t *w = NULL;
-  index_t h, *row_ptr;
-  w = (uint64_t *) malloc (mat->nrows_init * sizeof (uint64_t));
-  ASSERT_ALWAYS (w != NULL);
-  memset (w, 0, mat->nrows_init * sizeof (uint64_t));
+    sum2_type res(column_weights.size(), 0);
+    auto fragment = [&](size_t i0, size_t i1) {
+        for (size_t i = i0; i < i1; i++) {
+            if (auto const * p = rows[i]) {
+                for (; *p != END_OF_ROW; p++) {
+                    if (LIKELY(column_weights[*p] == 2))
+                        std::atomic_ref(res[*p]) += i;
+                }
+            }
+        }
+    };
+    apply_fragment_multithread(rows.size(), nthreads, fragment);
+    return res;
+}
 
-  for (uint64_t i = 0; i < mat->nrows_init; i++)
-    if (purge_matrix_is_row_active(mat, i))
-      for (row_ptr = mat->row_compact[i]; (h = *row_ptr++) != UMAX(h);)
-        w[i]++;
+void purge_matrix::delete_row(size_t i)
+{
+    ASSERT_ALWAYS(is_active(i));
+    auto const * p = rows[i];
+    size_t killed = 0;
+    for (; *p != std::numeric_limits<index_t>::max(); p++) {
+        auto w = std::atomic_ref(column_weights[*p]);
+        ASSERT(w.load());
+        /* Decrease only if not equal to the maximum value */
+        /* If weight becomes 0, we just remove a column */
+        if (w.load() < OVERWEIGHT)
+            if (!--w)
+                killed++;
+    }
+    rows[i] = nullptr;
+    if (killed)
+        std::atomic_ref(remaining_columns) -= killed;
+    std::atomic_ref(remaining_rows)--;
+}
 
-  print_stats_uint64 (out, w, mat->nrows_init, "rows", "weight", verbose);
-  free (w);
+/* returns the number of rows that are removed */
+size_t purge_matrix::one_singleton_removal(size_t nthreads)
+{
+    const size_t rows_before = remaining_rows;
+    auto fragment = [&](size_t i0, size_t i1) {
+        for (size_t i = i0; i < i1; i++) {
+            auto const * p = rows[i];
+            if (p) {
+                for (auto const * q = p; *q != END_OF_ROW; q++) {
+                    if (std::atomic_ref(column_weights[*q]).load() == 1) {
+                        delete_row(i);
+                        break;
+                    }
+                }
+            }
+        }
+    };
+    apply_fragment_multithread(rows.size(), nthreads, fragment);
+    return rows_before - remaining_rows;
+}
+
+/* Perform a complete singleton removal step:  call singleton_removal_oneiter_*
+ * until there is no more singleton.
+ * Return the excess at the end *
+ */
+int64_t purge_matrix::singleton_removal(size_t nthreads, int verbose)
+{
+    int64_t excess;
+    unsigned int iter = 0;
+    for (;;) {
+        excess = remaining_rows - remaining_columns;
+        if (verbose >= 0) {
+            std::string const s =
+                iter ? fmt::format("  iter {:03}", iter) : "begin with";
+            fmt::print("Sing. rem.: {}:"
+                       " nrows={} ncols={} excess={} at {:2.2f}\n",
+                       s, remaining_rows, remaining_columns, excess, seconds());
+            fflush(stdout);
+        }
+
+        if (iter++ ; !one_singleton_removal(nthreads))
+            break;
+    }
+
+    if (verbose >= 0)
+        fmt::print("Sing. rem.:   iter {:03}:"
+                   " No more singletons, finished at {:2.2f}\n",
+                   iter, seconds());
+
+    return excess;
 }
