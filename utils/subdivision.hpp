@@ -1,49 +1,53 @@
 #ifndef CADO_SUBDIVISION_HPP
 #define CADO_SUBDIVISION_HPP
 
+#include <algorithm>
 #include <tuple>
+#include <concepts>
+
 #include "macros.h"
 
+template<std::unsigned_integral T = unsigned int>
 class subdivision {
-    unsigned int n = 0;
-    unsigned int k = 0;
-    unsigned int q = 0;
-    unsigned int r = 0;
-    unsigned int scale = 1;
+    T n = 0;
+    T k = 0;
+    T q = 0;
+    T r = 0;
+    T scale = 1;
     public:
-    unsigned int total_size() const { return n; }
-    unsigned int nblocks() const { return k; }
-    subdivision() {}
-    subdivision(unsigned int n, unsigned int k, unsigned int scale = 1)
+    T total_size() const { return n; }
+    T nblocks() const { return k; }
+    subdivision() = default;
+    subdivision(T n, T k, T scale = 1)
         : n(n/scale), k(k), q(n/scale/k), r((n/scale)%k), scale(scale)
     {}
-    inline unsigned int nth_block_size(unsigned int i) const
+    T nth_block_size(T i) const
     {
         return (q + (i < r)) * scale;
     }
-    inline unsigned int nth_block_start(unsigned int i) const {
+    T nth_block_start(T i) const {
         return (i * q + std::min(i, r)) * scale;
     }
-    inline unsigned int nth_block_end(unsigned int i) const {
+    T nth_block_end(T i) const {
         return nth_block_start(i) + nth_block_size(i);
     }
-    inline std::tuple<unsigned int, unsigned int> nth_block(unsigned int i) const
+    std::tuple<T, T> nth_block(T i) const
     {
-        unsigned int i0 = nth_block_start(i);
-        unsigned int i1 = nth_block_end(i);
+        const T i0 = nth_block_start(i);
+        const T i1 = nth_block_end(i);
         return std::make_tuple(i0, i1);
     }
-    inline unsigned int block_size_upper_bound() const {
+    T block_size_upper_bound() const {
         return (q + (r != 0)) * scale;
     }
-    inline unsigned int flatten(unsigned int idx, unsigned int pos) const {
+    T flatten(T idx, T pos) const {
         return (idx * q + std::min(idx, r)) * scale + pos;
     }
-    static subdivision by_block_size(unsigned int n, unsigned int b) {
+    static subdivision by_block_size(T n, T b) {
         ASSERT_ALWAYS(n > 0);
-        return subdivision(n, iceildiv(n, b));
+        return { n, iceildiv(n, b) };
     }
-    subdivision operator*(unsigned int x) const {
+    subdivision operator*(T x) const {
         subdivision res = *this;
         res.scale = scale * x;
         return res;

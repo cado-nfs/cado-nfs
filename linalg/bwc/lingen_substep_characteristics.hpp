@@ -83,18 +83,18 @@ struct lingen_substep_characteristics {
         const unsigned int shrink0 = S.shrink0;
         const unsigned int shrink2 = S.shrink2;
         const unsigned int r = mesh;
-        const subdivision mpi_split0(n0, r);
-        const subdivision mpi_split1(n1, r);
-        const subdivision mpi_split2(n2, r);
-        const subdivision shrink_split0(mpi_split0.block_size_upper_bound(), shrink0);
-        const subdivision shrink_split2(mpi_split2.block_size_upper_bound(), shrink2);
+        const subdivision<unsigned int> mpi_split0(n0, r);
+        const subdivision<unsigned int> mpi_split1(n1, r);
+        const subdivision<unsigned int> mpi_split2(n2, r);
+        const subdivision<unsigned int> shrink_split0(mpi_split0.block_size_upper_bound(), shrink0);
+        const subdivision<unsigned int> shrink_split2(mpi_split2.block_size_upper_bound(), shrink2);
         const unsigned int nrs0(shrink_split0.block_size_upper_bound());
         const unsigned int nrs2(shrink_split2.block_size_upper_bound());
         const unsigned int nr1 = mpi_split1.block_size_upper_bound();
         const unsigned int b0 = S.batch[0];
         const unsigned int b1 = S.batch[1];
         const unsigned int b2 = S.batch[2];
-        const subdivision loop1 = subdivision::by_block_size(nr1, b1);
+        const auto loop1 = subdivision<unsigned int>::by_block_size(nr1, b1);
         for(unsigned int round = 0 ; round < shrink0 * shrink2 ; round++) {
             const unsigned round0 = round % shrink0;
             const unsigned round2 = round / shrink0;
@@ -104,8 +104,8 @@ struct lingen_substep_characteristics {
             std::tie(j0, j1) = shrink_split2.nth_block(round2);
             ASSERT_ALWAYS((i1 - i0) <= nrs0);
             ASSERT_ALWAYS((j1 - j0) <= nrs2);
-            const subdivision loop0 = subdivision::by_block_size(i1 - i0, b0);
-            const subdivision loop2 = subdivision::by_block_size(j1 - j0, b2);
+            const auto loop0 = subdivision<unsigned int>::by_block_size(i1 - i0, b0);
+            const auto loop2 = subdivision<unsigned int>::by_block_size(j1 - j0, b2);
 
             if (loop0.nblocks() != 1 && loop2.nblocks() != 1)
                 return false;
@@ -457,27 +457,27 @@ struct lingen_substep_characteristics {
         return P.r;
     }/*}}}*/
 #endif
-    subdivision mpi_split0(unsigned int mesh) const {/*{{{*/
+    subdivision<unsigned int> mpi_split0(unsigned int mesh) const {/*{{{*/
         return { n0, mesh };
     }/*}}}*/
-    subdivision mpi_split1(unsigned int mesh) const {/*{{{*/
+    subdivision<unsigned int> mpi_split1(unsigned int mesh) const {/*{{{*/
         return { n1, mesh };
     }/*}}}*/
-    subdivision mpi_split2(unsigned int mesh) const {/*{{{*/
+    subdivision<unsigned int> mpi_split2(unsigned int mesh) const {/*{{{*/
         return { n2, mesh };
     }/*}}}*/
-    subdivision shrink_split0(unsigned int mesh, unsigned int shrink0) const {/*{{{*/
+    subdivision<unsigned int> shrink_split0(unsigned int mesh, unsigned int shrink0) const {/*{{{*/
         unsigned int nr0 = mpi_split0(mesh).block_size_upper_bound();
         return { nr0, shrink0 };
     }/*}}}*/
-    subdivision shrink_split2(unsigned int mesh, unsigned int shrink2) const {/*{{{*/
+    subdivision<unsigned int> shrink_split2(unsigned int mesh, unsigned int shrink2) const {/*{{{*/
         unsigned int nr2 = mpi_split2(mesh).block_size_upper_bound();
         return { nr2, shrink2 };
     }/*}}}*/
-    subdivision shrink_split0(unsigned int mesh, sc_t const & S) const {/*{{{*/
+    subdivision<unsigned int> shrink_split0(unsigned int mesh, sc_t const & S) const {/*{{{*/
         return shrink_split0(mesh, S.shrink0);
     }/*}}}*/
-    subdivision shrink_split2(unsigned int mesh, sc_t const & S) const {/*{{{*/
+    subdivision<unsigned int> shrink_split2(unsigned int mesh, sc_t const & S) const {/*{{{*/
         return shrink_split2(mesh, S.shrink2);
     }/*}}}*/
     std::array<std::array<unsigned int, 3>, 2> get_peak_ram_multipliers(unsigned int mesh, sc_t const & S) const { /* {{{ */
