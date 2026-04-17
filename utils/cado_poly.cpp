@@ -367,8 +367,6 @@ cxx_cado_poly::as_string (std::string const & prefix) const
   } else {
     for (int side = 0; side < nsides(); side++) {
       s += fmt::format("{}poly{}={}\n", prefix, side, (*this)[side]);
-      // ::fprintf (fp, "poly%u=", side);
-      // mpz_poly_fprintf_coeffs (fp, (*this)[side], ",");
     }
   }
 

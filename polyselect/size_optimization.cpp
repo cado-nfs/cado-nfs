@@ -525,7 +525,7 @@ mpz_poly_fprintf_short (FILE *out, cxx_mpz_poly const & f)
 {
   int d = f->deg;
   ASSERT_ALWAYS (d >= 1);
-  fmt::print (out, "{}*x^%d + {}*x^%d%s\n",
+  fmt::print (out, "{}*x^{} + {}*x^{}{}\n",
           cxx_mpz(f.coeff(d)), d,
           cxx_mpz(f.coeff(d-1)), d-1,
           (d > 1) ? " + ...":"");

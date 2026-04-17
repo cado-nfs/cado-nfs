@@ -411,9 +411,9 @@ void random_matrix_ddata::info(FILE * out) const
     double const mean_n = double(nrows) * pn;
     double const sdev_n = sqrt(double(nrows) * pn * (1-pn));
     fmt::print(out, "Expected row weight: {:.3f}, sdev {:.3f}\n", mean, sdev);
-    fmt::print(out, "Expected weight for first column is {:.3f} (sdev {:.3f}, m/sdev=%.1f)\n",
+    fmt::print(out, "Expected weight for first column is {:.3f} (sdev {:.3f}, m/sdev={:.1f})\n",
             mean0, sdev0, mean0 / sdev0);
-    fmt::print(out, "Expected weight for last column is {:.3f} (sdev {:.3f}, m/sdev=%.1f)\n",
+    fmt::print(out, "Expected weight for last column is {:.3f} (sdev {:.3f}, m/sdev={:.1f})\n",
             mean_n, sdev_n, mean_n / sdev_n);
     fmt::print(out, "Worst-case expectation for last column weight by normal approximation: {:.3f}\n",
             extreme_normal(double(nrows), mean_n, -sdev_n));

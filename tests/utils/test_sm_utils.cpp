@@ -124,10 +124,10 @@ static int test_sm(std::string const & datafile)
             mpz_poly_fprintf(stderr, F);
             fmt::print(stderr, "ell = {}\nell2 = {}\n\n", ell, sm_info.ell2);
             sm_info.print(stderr);
-            fprintf(stderr, "# Relation-set is:\n%" PRIu64 "", len_relset);
+            fmt::print(stderr, "# Relation-set is:\n{}", len_relset);
             for (uint64_t i = 0; i < len_relset; i++)
                 fmt::print(stderr, " {}:{}", r[i], e[i]);
-            fprintf(stderr, "\n# (a,b) pairs are:\n");
+            fmt::print(stderr, "\n# (a,b) pairs are:\n");
             for (int i = 0; i < nb_ab; i++) {
                 cxx_mpz tmp;
                 mpz_neg(tmp, mpz_poly_coeff_const(ab_polys[i].ab, 1));
@@ -140,7 +140,7 @@ static int test_sm(std::string const & datafile)
                         "# Expected numerator in fraction corresponding to "
                         "the relation-set:\n");
                 fmt::print(stderr, "{}\n", N);
-                fprintf(stderr, "# Instead computed numerator is:\n");
+                fmt::print(stderr, "# Instead computed numerator is:\n");
                 fmt::print(stderr, "{}\n", Nc);
             }
             if (D != Dc) {
@@ -151,15 +151,15 @@ static int test_sm(std::string const & datafile)
                 fmt::print(stderr, "# Instead computed denominator is:\n");
                 fmt::print(stderr, "{}\n", Dc);
             }
-            fprintf(stderr, "# Values of SM should be:\n");
+            fmt::print(stderr, "# Values of SM should be:\n");
             for (int i = 0; i < nbSM; i++) {
                 fmt::print(stderr, "{} ", cxx_mpz(mpz_poly_coeff_const(SM, i)));
             }
-            fprintf(stderr, "\n# but computed values of SM are:\n");
+            fmt::print(stderr, "\n# but computed values of SM are:\n");
             for (int i = 0; i < nbSM; i++) {
                 fmt::print(stderr, "{} ", cxx_mpz(mpz_poly_coeff_const(SMc, i)));
             }
-            fprintf(stderr, "\n#######################\n");
+            fmt::print(stderr, "\n#######################\n");
         }
     } while (true);
 
@@ -174,6 +174,6 @@ int main(int argc, char const * argv[])
     int const err = test_sm(datafilename);
 
     if (err)
-        fprintf(stderr, "# %d erro%s found\n", err, (err == 1) ? "r" : "rs");
+        fmt::print(stderr, "# {} error{} found\n", err, (err == 1) ? "" : "s");
     return (err) ? EXIT_FAILURE : EXIT_SUCCESS;
 }

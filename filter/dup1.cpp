@@ -352,7 +352,7 @@ main (int argc, char const * argv[])
     // double thread_times[2];
     // thread_seconds_user_sys(thread_times);
     timingstats_dict_add_mythread(stats, "main");
-    // fmt::print(stderr, "Main thread ends after having spent %.2fs+%.2fs on cpu \n", thread_times[0], thread_times[1]);
+    // fmt::print(stderr, "Main thread ends after having spent {:.2f}s+{:.2f}s on cpu \n", thread_times[0], thread_times[1]);
     timingstats_dict_disp(stats);
     timingstats_dict_clear(stats);
 

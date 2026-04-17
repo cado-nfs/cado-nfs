@@ -833,7 +833,7 @@ struct dup2_process { /* {{{ */
                 nrels_tot - ndup_tot);
 
         fmt::print(stderr,
-                "At the end: hash table is {:1.2f}%" " full\n"
+                "At the end: hash table is {:1.2f}% full\n"
                 "            hash table cost: {:1.2f} per relation\n",
                 100.0 * double_ratio(nrels_tot - ndup_tot, K),
                 1.0 + double_ratio(cost, nrels_tot));

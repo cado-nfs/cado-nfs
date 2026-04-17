@@ -423,7 +423,7 @@ struct graph_dep : public std::vector<node_dep> {// {{{
 #if DEBUG >= 1
             fmt::print(stderr, "DEBUG: h = {:x} can be reconstructed\n", h);
             fmt::print(stderr, "DEBUG:     relation {} added\n", relnum);
-            fmt::print(stderr, "DEBUG:     depends of %u others logs\n",
+            fmt::print(stderr, "DEBUG:     depends of {} others logs\n",
                     nb_needed - 1);
 #endif
 
