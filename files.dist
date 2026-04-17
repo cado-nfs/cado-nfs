@@ -1548,6 +1548,7 @@ tests/utils/test_dllist.c
 tests/utils/test_double_poly.cpp
 tests/utils/test_explain_relations_with_sagemath.data/c30.poly
 tests/utils/test_explain_relations_with_sagemath.sh
+tests/utils/test_filter_io.cpp
 tests/utils/test_fstream_maybe_compressed.cpp
 tests/utils/test_galois_action.cpp
 tests/utils/test_gcd.c
@@ -1726,6 +1727,8 @@ utils/fd_streambuf.cpp
 utils/fd_streambuf.hpp
 utils/filelist.cpp
 utils/filelist.hpp
+utils/filter_io.cpp
+utils/filter_io.hpp
 utils/filter_io.tex
 utils/filter_io_old.cpp
 utils/filter_io_old.hpp

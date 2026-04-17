@@ -21,6 +21,7 @@
 #include <condition_variable>
 #include <memory>
 #include <algorithm>
+#include <istream>
 
 #include <sys/types.h>
 
@@ -233,6 +234,7 @@ struct ringbuf {
      * provided on initialization
      */
     ssize_t feed_stream(FILE * f)
+        /* we want to deprecate this eventually */
     {
         size_t nread = 0;
 
@@ -282,6 +284,66 @@ struct ringbuf {
                 /* Could be that someone is waiting for data to be read */
                 bored.notify_one();
             } else if (feof(f)) {
+                /* this interface returns ssize_t, which is a pity since it
+                 * is not the same signedness as nread...
+                 */
+                return static_cast<ssize_t>(nread);
+            } else {
+                return -1;
+            }
+        }
+    }
+    ssize_t feed_stream(std::istream & f)
+    {
+        size_t nread = 0;
+
+        /* We are the only thread decreasing the avail_to_write counter in
+         * rb. So we may keep a copy of its value, which will always be a
+         * lower bound, provided that we accurately report our decreases both
+         * to our local value and  to the global counter.  */
+        size_t local_w_avail = get_avail_to_write_safe();
+
+        for( ; ; ) {
+            /* Make sure our writing space in the buffer is not empty */
+            if (local_w_avail == 0) {
+                std::unique_lock ux(mx);
+                for( ; ! avail_to_write ; ) {
+                    full_count++;
+                    bored.wait(ux);
+                }
+                local_w_avail = avail_to_write;
+            }
+            /* We may now fread() from f, but only up to the _contiguous_
+             * amount which is available in the buffer. This entails some
+             * intimate dialogue with the ringbuf internals, which
+             * obviously isn't cool (well, in fact, this whole thing
+             * could probably be considered within the ringbuf API, after
+             * all ?) */
+            /* We are the only thread likely to call grow(),
+             * which is the only (internal) call tinkering with p (and
+             * hence the validity of whead */
+            size_t tail = alloc - (whead - p.get());
+
+            tail = std::min(tail, local_w_avail);
+
+            /* restrict to reads of some maximum size, or we'll be too
+             * long delivering data to our customers */
+            tail = std::min(tail, PREEMPT_ONE_READ);
+
+            f.read(whead, tail);
+            const size_t s = f.gcount();
+            nread += s;
+
+            if (s) {
+                const std::scoped_lock dummy(mx);
+                whead += s;
+                avail_to_read += s;
+                local_w_avail = avail_to_write -= s;
+                if (whead == p.get() + alloc)
+                    whead = p.get();
+                /* Could be that someone is waiting for data to be read */
+                bored.notify_one();
+            } else if (f.eof()) {
                 /* this interface returns ssize_t, which is a pity since it
                  * is not the same signedness as nread...
                  */

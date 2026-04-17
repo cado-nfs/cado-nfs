@@ -771,7 +771,25 @@ namespace cado {
             : std::runtime_error(s)
         {}
     };
+
+    /* formattable types are those that have a format_to template member,
+     * which then allows us to use define specializations of the
+     * fmt::formatter<T> struct */
+    template<typename T>
+    concept formattable = requires { T().format_to(static_cast<char *>(nullptr)); };
 } /* namespace cado */
+
+namespace fmt {
+    template<cado::formattable B>
+    struct formatter<B>
+        : public formatter<string_view>
+    {
+        auto format(B const & x, format_context& ctx) const
+        {
+            return x.format_to(ctx.out());
+        }
+    };
+} /* namespace fmt */
 
 namespace fmt {
 template <auto N>

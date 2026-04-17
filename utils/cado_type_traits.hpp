@@ -37,6 +37,25 @@ namespace cado {
     static_assert(is_bounded_array_or_std_array_v<std::array<int, 3>>);
     static_assert(is_bounded_array_or_std_array_v<int[3]>);
 
+
+    template<typename T> struct make_signed;
+    template<typename T> struct make_unsigned;
+
+    template<typename T> requires requires { typename std::make_signed<T>; }
+    struct make_signed<T> : public std::make_signed<T> {};
+    template<typename T> requires requires { typename std::make_unsigned<T>; }
+    struct make_unsigned<T> : public std::make_unsigned<T> {};
+
+    template<typename T> using make_signed_t = make_signed<T>::type;
+    template<typename T> using make_unsigned_t = make_unsigned<T>::type;
+
+    /* because this header file is always included after cxx_mpz, let's
+     * move the definitions here.
+     */
+    template<> struct make_signed<cxx_mpz> { using type = cxx_mpz; };
+    template<> struct make_unsigned<cxx_mpz> { using type = cxx_mpz; };
+    template<> struct make_signed<cxx_mpq> { using type = cxx_mpq; };
+    template<> struct make_unsigned<cxx_mpq> { using type = cxx_mpq; };
 } /* namespace cado */
 
 
