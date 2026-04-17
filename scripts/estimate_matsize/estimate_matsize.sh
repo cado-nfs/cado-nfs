@@ -322,10 +322,17 @@ for i in `seq 0 $((nsides-1))`; do
                         "${generate[@]}" | grep '^[0-9]' > "$completelist"
                     fi
                     random_gen=($CADO_NFS_SOURCE_DIR/tests/linalg/bwc/perlrandom.pl 0 $seed)
-                    if type -p shuf > /dev/null 2>&1 ; then
+                    # busybox (at least on alpine linux) provides shuf
+                    # and sort,
+                    if type -p shuf > /dev/null 2>&1 && shuf --version 2>&1 | grep -q GNU.coreutils; then
                         fshuf() { shuf --random-source=<("${random_gen[@]}") "$@" ; }
-                    else
+                    elif type -p shuf > /dev/null 2>&1 ; then
+                        fshuf() { shuf "$@" ; }
+                    elif ! sort --version 2>&1 | grep -q -e -R ; then
                         fshuf() { sort -R "$@" ; }
+                    else
+                        # really a last resort.
+                        fshuf() { cat "$@" | rev | sort | rev ; }
                     fi
                     fshuf $completelist | head -n $NBSAMPLE > $todolist
                     cmd=("${cmd0[@]}" -todo $todolist )
