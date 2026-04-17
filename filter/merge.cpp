@@ -232,7 +232,7 @@ struct purged_file_reader {
                 continue; /* we skip (bury) the first 'skip' indices */
 #ifdef FOR_DL
             exponent_t e = pe.e;
-            /* For factorization, they should not be any multiplicity here.
+            /* For factorization, there should not be any multiplicity here.
                For DL we do not want to count multiplicity in mat->wt */
             buf[++j] = (ideal_merge_t) {.id = h, .e = e};
 #else

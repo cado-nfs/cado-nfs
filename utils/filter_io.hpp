@@ -910,12 +910,19 @@ struct prime_type_for_indexed_relations {
     auto format_to(OutputIt out) const -> OutputIt
     {
         static_assert(std::is_same_v<e_type, int>);
-        ASSERT_ALWAYS(e >= 0);
-        if (e == 0)
-            return out;
-        out = fmt::format_to(out, "{:x}", h);
-        for(e_type f = 1 ; f < e ; f++)
-            out = fmt::format_to(out, ",{:x}", h);
+        /* for backwards compatibility, we write exponents in unary.
+         * However, the way forward is to use the post-exponent notation.
+         */
+        ASSERT_ALWAYS(e != 0);
+        if (e > 0) {
+            out = fmt::format_to(out, "{:x}", h);
+            for(e_type f = 1 ; f < e ; f++)
+                out = fmt::format_to(out, ",{:x}", h);
+        } else if (e < 0) {
+            out = fmt::format_to(out, "-{:x}", h);
+            for(e_type f = 1 ; f < -e ; f++)
+                out = fmt::format_to(out, ",-{:x}", h);
+        }
         return out;
     }
 };

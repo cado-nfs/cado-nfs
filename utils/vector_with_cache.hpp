@@ -108,6 +108,22 @@ class vector_with_cache
     const_iterator end() const { return data + size_; }
     bool empty() const { return size_ == 0; }
     void clear() { size_ = 0; heap.clear(); data = immediate.data(); }
+    iterator erase(iterator b, iterator e) {
+        auto pos = b - begin();
+        if (data == immediate.data()) {
+            /* easy! */
+            std::move(e, end(), b);
+            size_ -= e - b;
+        } else {
+            heap.erase(heap.begin() + pos, heap.begin() + pos + (e - b));
+            size_ = heap.size();
+            if (heap.size() <= N) {
+                std::move(heap.begin(), heap.end(), immediate.begin());
+                data = immediate.data();
+            }
+        }
+        return data + pos;
+    }
 
     private:
     void transfer_before_extend() {

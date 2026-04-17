@@ -371,52 +371,6 @@ struct dup2_process { /* {{{ */
      * this */
     int nthreads_hash = 1;
 
-    /* {{{ print_relation
-     *
-     * Print the relation 'rel' in a line of the form:
-     * a,b:h_1,h_2,...,h_k
-     * with a (signed) and b (unsigned) written in hexa and
-     * and i_1 ... i_k (hexadecimal) are the indices of the ideals
-     *
-     * The function adds a column of 1 if necessary, which is always
-     * column 0.
-     *
-     * TODO: We have ample code developments that do better at writing
-     * relations. So, use that, for X's sake.
-     */
-    template<typename relation_type>
-    void print_relation(std::ostream& out, relation_type const & rel)
-    {
-        char buf[1 << 12], *p, *op;
-
-        p = d64toa16(buf, rel.a);
-        *p++ = ',';
-        p = u64toa16(p, rel.b);
-        *p++ = ':';
-
-        /* write everything with trailing commas, and strip the last one in
-         * the end.  */
-        for (auto const & he : rel.primes) {
-            if (he.e == 0)
-                continue;
-
-            op = p;
-            p = u64toa16(p, (uint64_t)he.h);
-            *p++ = ',';
-            const ptrdiff_t t = p - op;
-            for (int j = 1 ; j < he.e ; j++, p += t)
-                memcpy(p, op, t);
-
-        }
-
-        p[-1] = '\n';
-        p[0] = '\0';
-        out.write(buf, p - buf);
-        if (!out.good())
-            throw std::runtime_error("write error");
-    }
-    /* }}} */
-
     /* {{{ compute_hash (two overloads) */
     static uint64_t compute_hash(int64_t a, uint64_t b)
     {
@@ -715,8 +669,13 @@ struct dup2_process { /* {{{ */
         }
 
         if (!is_for_dl) { /* Do we reduce mod 2 */
-            for(auto & p : irel.primes)
-                p.e &= 1;
+            auto jt = irel.primes.begin();
+            for(auto & pe : irel.primes) {
+                pe.e &= 1;
+                if (pe.e)
+                    *jt++ = pe;
+            }
+            irel.primes.erase(jt, irel.primes.end());
         }
 
         /* replace the sieved relation by the indexed relation */
@@ -739,7 +698,7 @@ struct dup2_process { /* {{{ */
         if (!is_dup) {
             sanity_check(i, irel.a, irel.b);
             check_overfilling();
-            print_relation(out, irel);
+            fmt::print(out, "{}\n", irel);
         } else {
             ndup++;
             ndup_tot++;

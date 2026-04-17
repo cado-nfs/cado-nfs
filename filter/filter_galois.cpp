@@ -267,7 +267,7 @@ struct filter_galois_process {
     void thread_galois(std::ostream & out, relation_type & rel)
     {
         bool is_dup;
-        // std::vector<index_t> const & sigma = ga_id_cache;
+        std::vector<index_t> const & sigma = ga_id_cache;
         insert_relation_in_dup_hashtable(rel, is_dup);
 
         if (is_dup) {
@@ -275,49 +275,17 @@ struct filter_galois_process {
             return;
         }
 
-        print_relation(out, rel);
-    }
-
-    template<typename relation_type>
-    void print_relation(std::ostream& out, relation_type const & rel) const
-    {
-        char buf[1 << 12], *p, *op;
-
-        p = d64toa16(buf, rel.a);
-        *p++ = ',';
-        p = u64toa16(p, rel.b);
-        *p++ = ':';
-
-        for (auto const & he : rel.primes) {
-            ASSERT_ALWAYS(he.e != 0);
-
-            index_t const h = he.h;
-            index_t const hrep = ga_id_cache[h];
-            // The new sign of the exponent is the XOR of the original sign and of
-            // the fact that we change the prime ideal for its conjugate.
-            int const neg = (he.e < 0) ^ (hrep != h);
-            op = p;
-            if (neg && is_for_dl) {
-                *p++ = '-';
-            }
-            p = u64toa16(p, (uint64_t)hrep);
-            *p++ = ',';
-            size_t t = p - op;
-            unsigned int j = he.e < 0 ? ((-he.e) - 1) : (he.e - 1);
-            while (j != 0) {
-                memcpy(p, op, t);
-                p += t;
-                j--;
-            }
+        /* transform primes via the Galois action if needed */
+        for(auto & [h, e] : rel.primes) {
+            auto hrep = sigma[h];
+            /* since we have only order-two actions, the action on the
+             * exponent is fairly easy to write.
+             */
+            if (hrep != h && is_for_dl)
+                e = -e;
+            h = hrep;
         }
-
-        p[-1] = '\n';
-        p[0] = 0;
-
-        std::lock_guard dummy(io_lock);
-        out.write(buf, p - buf);
-        if (!out.good())
-            throw std::runtime_error("write error");
+        fmt::print(out, "{}\n", rel);
     }
 
     /* This is the main entry point. It returns the number of
