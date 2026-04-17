@@ -38,6 +38,7 @@ set (sources
 	modified_files.c threadpool.cpp mpz_poly_bivariate.cpp
         arithmetic_reductions.cpp
         gmpxx.cpp
+        cxx_mpz.cpp
         rho.c gpf.cpp
         sha1.c
         fd_streambuf.cpp

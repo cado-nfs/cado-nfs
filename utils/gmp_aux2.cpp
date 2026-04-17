@@ -51,7 +51,7 @@ struct mpz_parser_traits {
 
 using integer_parser = cado_expression_parser<mpz_parser_traits>;
 
-cxx_mpz mpz_from_expression(const char * value)
+cxx_mpz mpz_from_expression(std::string const & value)
 {
     std::istringstream is(value);
     integer_parser P;

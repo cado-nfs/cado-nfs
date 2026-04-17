@@ -1541,6 +1541,7 @@ tests/utils/test_cado_poly.cpp
 tests/utils/test_cado_subrange_streambuf.cpp
 tests/utils/test_cxx_mpc.cpp
 tests/utils/test_cxx_mpfr.cpp
+tests/utils/test_cxx_mpz.cpp
 tests/utils/test_cxx_mpz_mat.cpp
 tests/utils/test_cxx_mpz_poly.cpp
 tests/utils/test_decomposed_path.cpp
@@ -1696,6 +1697,7 @@ utils/cxx_mpc.cpp
 utils/cxx_mpc.hpp
 utils/cxx_mpfr.cpp
 utils/cxx_mpfr.hpp
+utils/cxx_mpz.cpp
 utils/cxx_mpz.hpp
 utils/dllist.h
 utils/double_poly.cpp

@@ -4,12 +4,12 @@
 #include <cstdint>
 #include <cstdlib>
 
-#include <istream>
-#include <ostream>
-#include <type_traits>
-#include <memory>
 #include <compare>
+#include <istream>
+#include <memory>
+#include <ostream>
 #include <string>
+#include <type_traits>
 
 #include <gmp.h>
 #include "fmt/base.h"
@@ -406,7 +406,25 @@ inline std::istream& operator>>(std::istream& is, cxx_mpz & x) { return is >> (m
 inline std::istream& operator>>(std::istream& is, cxx_mpq & x) { return is >> (mpq_ptr) x; }
 
 namespace fmt {
-    template <> struct formatter<cxx_mpz>: ostream_formatter {};
+    template <> struct formatter<cxx_mpz>: formatter<long>
+    {
+        static constexpr fmt::detail::type TYPE = fmt::detail::type::long_long_type;
+        using Char = char;
+        private:
+        fmt::detail::dynamic_format_specs<Char> specs_;
+        public:
+        // using nonlocking = void;
+        FMT_CONSTEXPR auto parse(parse_context<Char>& ctx) -> const Char*
+        {
+            if (ctx.begin() == ctx.end() || *ctx.begin() == '}') 
+                return ctx.begin();
+            return parse_format_specs(ctx.begin(), ctx.end(), specs_, ctx, TYPE);
+        }
+
+        auto format(cxx_mpz const & z, format_context& ctx) const
+            -> format_context::iterator;
+    };
+
     template <> struct formatter<cxx_mpq>: ostream_formatter {};
 } /* namespace fmt */
 
@@ -451,7 +469,7 @@ template<> struct cado::params::parser<cxx_mpz> {
 };
 
 /* in gmp_aux2.cpp */
-cxx_mpz mpz_from_expression(const char *);
+cxx_mpz mpz_from_expression(std::string const &);
 
 
 #endif	/* CADO_CXX_MPZ_HPP */

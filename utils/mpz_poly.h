@@ -14,7 +14,6 @@
 #include <compare>
 #include <istream>
 #include <ostream>
-#include <sstream>
 #include <stdexcept>
 #include <type_traits>
 #include <initializer_list>
@@ -586,15 +585,7 @@ inline std::istream& operator>>(std::istream& in, cxx_mpz_poly & f)
 }
 
 namespace fmt {
-    template <> struct /* fmt:: */ formatter<cxx_mpz_poly>: formatter<string_view> {
-    static constexpr auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) { return ctx.begin(); }
-    template <typename FormatContext>
-    auto format(cxx_mpz_poly const & c, FormatContext& ctx) const -> decltype(ctx.out()) {
-            std::ostringstream os;
-            os << c;
-            return formatter<string_view>::format( string_view(os.str()), ctx);
-        }
-};
+    template <> struct formatter<cxx_mpz_poly>: ostream_formatter {};
 } /* namespace fmt */
 
 /* If there is an integer that takes the value evaluations[i] at
