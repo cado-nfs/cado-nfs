@@ -6268,14 +6268,10 @@ class ReconstructLogTask(Task):
             nmaps = self.send_request(Request.GET_NMAPS)
             nsms = ",".join(str(nmap) for nmap in nmaps)
 
-            nfree = self.send_request(Request.GET_FREEREL_RELCOUNT)
-            nunique = self.send_request(Request.GET_UNIQUE_RELCOUNT)
-
             (stdoutpath, stderrpath) = self.make_std_paths(
                 cadoprograms.ReconstructLog.name)
             p = cadoprograms.ReconstructLog(dlog=dlogfilename,
                                             nsms=nsms,
-                                            nrels=nfree+nunique,
                                             stdout=str(stdoutpath),
                                             stderr=str(stderrpath),
                                             **self.merged_args[0])

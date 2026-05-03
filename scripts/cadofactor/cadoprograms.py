@@ -1381,7 +1381,6 @@ class ReconstructLog(Program):
                  purged: Parameter(),
                  ideals: Parameter(),
                  relsdel: Parameter(),
-                 nrels: Parameter(),
                  partial: Toggle() = None,
                  sm_mode: Parameter("sm-mode") = None,  # noqa: F821
                  nsms: Parameter(),
