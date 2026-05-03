@@ -42,6 +42,13 @@ extern int bit_vector_flipbit(bit_vector_ptr b, size_t pos);
 extern size_t bit_vector_popcount(bit_vector_ptr b);
 extern size_t bit_vector_memory_footprint(bit_vector_srcptr b);
 
+static inline void bit_vector_swap(bit_vector_ptr b1, bit_vector_ptr b2)
+{
+    bit_vector b0;
+    b0->p = b1->p ; b1->p = b2->p ; b2->p = b0->p;
+    b0->n = b1->n ; b1->n = b2->n ; b2->n = b0->n;
+}
+
 extern void bit_vector_read_from_stream(bit_vector_ptr b, FILE * f);
 extern void bit_vector_write_to_stream(bit_vector_srcptr b, FILE * f);
 
