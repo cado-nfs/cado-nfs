@@ -28,7 +28,7 @@ Output
 #include "cado.h" // IWYU pragma: keep
 
 #include "cado_poly.hpp"
-#include "filter_io_old.hpp"
+#include "filter_io.hpp"
 #include "gmp_aux.h"
 #include "gzip.h"
 #include "macros.h"
@@ -53,17 +53,8 @@ Output
 
 static stats_data_t stats; /* struct for printing progress */
 
-static void * thread_sm(void * context_data, earlyparsed_relation_ptr rel)
-{
-    auto & ps = *static_cast<std::vector<pair_and_sides>*>(context_data);
-    ps[rel->num] = pair_and_sides(rel->a, rel->b, rel->active_sides[0],
-                                  rel->active_sides[1]);
-
-    return nullptr;
-}
-
 static std::vector<sm_relset>
-build_rel_sets(char const * purgedname, char const * indexname,
+build_rel_sets(std::string const & purgedname, char const * indexname,
                uint64_t * small_nrows, std::vector<mpz_poly_srcptr> const & F,
                cxx_mpz const & ell2)
 {
@@ -74,7 +65,7 @@ build_rel_sets(char const * purgedname, char const * indexname,
 
     /* array of (a,b) pairs from (purgedname) file */
 
-    purgedfile_read_firstline(purgedname, &nrows, &ncols);
+    purgedfile_read_firstline(purgedname.c_str(), &nrows, &ncols);
 
     std::vector<pair_and_sides> pairs(nrows);
 
@@ -82,9 +73,15 @@ build_rel_sets(char const * purgedname, char const * indexname,
      */
     fprintf(stdout, "\n# Reading %" PRIu64 " (a,b) pairs\n", nrows);
     fflush(stdout);
-    char const * fic[2] = {purgedname, nullptr};
-    filter_rels(fic, (filter_rels_callback_t)thread_sm, &pairs,
-                EARLYPARSE_NEED_AB_HEXA, nullptr, nullptr);
+
+    using relation_type = cado::relation_building_blocks::ab_block<uint64_t, 16>;
+
+    filter_rels<cado::filter_io_details::ifb_locking_lightweight, relation_type>(purgedname, nullptr, nullptr,
+            [&](relation_type & rel) {
+                pairs[rel.num] = pair_and_sides(
+                        rel.a, rel.b,
+                        rel.active_sides[0], rel.active_sides[1]);
+            });
 
     /* Array of (small_nrows) relation-sets built from array (pairs) and
        (indexname) file  */
