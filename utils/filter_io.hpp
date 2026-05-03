@@ -29,7 +29,6 @@
 #include <ctime>
 #endif
 
-#include "bit_vector.h"
 #include "timing.h"
 #include "typedefs.h"
 #include "vector_with_cache.hpp"
@@ -1614,7 +1613,7 @@ struct filter_rels_obj {
         requires (cado::filter_io_details::all_functions_are_invocable_v<relation_type, Functions...> && cado::filter_io_details::is_locking_layer_v<locking_layer>)
     size_t backend_call(
             InputDescriptionType input_files,
-            bit_vector_ptr active,
+            std::vector<bool> const * active,
             timingstats_dict_ptr tstats,
             Functions&& ...FF) const
     {
@@ -1705,7 +1704,7 @@ struct filter_rels_obj {
                 /* skip comments and blank lines */
                 if (*rb.begin() != '#' && *rb.begin() != '\n') {
                     uint64_t const relnum = nrels++;
-                    if (!active || bit_vector_getbit(active, relnum)) {
+                    if (!active || (*active)[relnum]) {
                         auto * slot = inflight.schedule(0);
                         ASSERT_ALWAYS(slot);
                         cado::filter_io_details::parse_helper(*slot, relnum, rb.begin());
@@ -1756,7 +1755,7 @@ template<
     typename... Functions>
 size_t filter_rels(
         InputDescriptionType input_description,
-        bit_vector_ptr active,
+        std::vector<bool> const * active,
         timingstats_dict_ptr tstats,
         Functions&& ...FF)
 {
