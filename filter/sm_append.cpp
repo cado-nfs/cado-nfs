@@ -159,10 +159,9 @@ struct sm_capable { // {{{
             for (auto const & B: batch) {
                 mpz_poly_setcoeff_int64(pol, 0, B.a);
                 mpz_poly_setcoeff_int64(pol, 1, -(int64_t)B.b);
-                int smidx = 0;
                 for (auto const & S: sm_info) {
                     S.compute_piecewise(smpol, pol);
-                    for (int k = 0; k < S.nsm; k++, smidx++) {
+                    for (int k = 0; k < S.nsm; k++) {
                         if (k <= smpol->deg) {
                             for (int j = 0; j < int(limbs_per_ell); j++) {
                                 dst[j] = mpz_getlimbn(
