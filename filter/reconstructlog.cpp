@@ -1428,7 +1428,7 @@ struct reconstructlog_process { /* {{{ */
     {
         if (ell() <= 0)
             pl.fail("ell must be >0");
-        if (wantedfilename.is_provided() != partial.is_provided())
+        if (wantedfilename.is_provided() && !partial.is_provided())
             pl.fail("-wanted implies -partial");
         if (mt < 1)
             pl.fail("Error: parameter mt must be at least 1\n");
@@ -1472,6 +1472,10 @@ struct reconstructlog_process { /* {{{ */
     void do_main_stuff() {
         if (partial && wantedfilename.is_provided()) {
             do_main_stuff_partial();
+        } else if (partial) {
+            /* -partial without -wanted can make sense if we want to just
+             * write the logs */
+            fmt::print("\n# -partial without -wanted: nothing to do\n");
         } else {
             do_main_stuff_complete();
         }
