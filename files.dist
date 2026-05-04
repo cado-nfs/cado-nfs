@@ -1732,8 +1732,6 @@ utils/filelist.hpp
 utils/filter_io.cpp
 utils/filter_io.hpp
 utils/filter_io.tex
-utils/filter_io_old.cpp
-utils/filter_io_old.hpp
 utils/fix-endianness.c
 utils/fix-endianness.h
 utils/fmt_helper_sagemath.hpp

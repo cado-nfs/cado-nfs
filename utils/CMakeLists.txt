@@ -76,7 +76,7 @@ if(HAVE_MPC)
     list(APPEND sources cxx_mpc.cpp)
 endif()
 
-set (sources_io filter_io.cpp filter_io_old.cpp)
+set (sources_io filter_io.cpp)
 
 ############################################################
 # Get a list of modified files in the working directory,
