@@ -569,10 +569,7 @@ class imaginary_quadratic_cl_structure
         }
         verbose_fmt_print(0, 2, "# G contains {} elements\n", G.size());
 
-        prime_info pi;
-        prime_info_init(pi);
-
-        for (unsigned long q = 2; q < B; q = getprime_mt(pi)) {
+        for (auto q: prime_range(2, B)) {
             if (G.size() == p_group_order) {
                 break; /* early abort if we have all forms of order p^i */
             } else if (G.size() > naive_pSylow_bound) {
@@ -616,8 +613,6 @@ class imaginary_quadratic_cl_structure
 
         pSylow S(pmpz, {});
         S.compute_groups(G, exp_pval, ge);
-
-        prime_info_clear(pi);
 
         return S;
     }
