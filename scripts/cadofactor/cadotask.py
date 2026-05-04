@@ -11,6 +11,7 @@ from collections import OrderedDict, defaultdict
 from itertools import zip_longest
 from math import log, sqrt
 import logging
+import pathlib
 import socket
 import gzip
 import heapq
@@ -22,7 +23,7 @@ from struct import error as structerror
 from shutil import rmtree
 from cadofactor.api_server import ApiServer
 from cadofactor.cadoutils import Algorithm, Computation
-from cadofactor.cadoutils import xgcd, CRT, primes_above
+from cadofactor.cadoutils import xgcd, CRT, next_prime
 
 # Pattern for floating-point numbers
 RE_FP = r"[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?"
@@ -890,6 +891,83 @@ class Statistics(object):
                 new_stats.parse_line(line)
         self.merge_stats(new_stats)
         return new_stats.as_dict()
+
+
+class StatsItemFull:
+    """
+    A class than can be used as value for the Statistics class.
+
+    It can be used to compute the average, min, max and standard deviation of a
+    serie of values.
+    It stores five numbers:
+        - the number of elements
+        - the sum of the elements (used to compute the mean)
+        - the sum of the square of the elements (used to compute the standard
+          deviation)
+        - the min of the elements
+        - the max of the elements
+    """
+    types = (int, float, float, float, float)
+
+    def _set_from_full_str(self, s):
+        values = s.split(",")
+        assert len(values) == len(self.types)
+        self._data = tuple(t(v) for (v, t) in zip(values, self.types))
+
+    def __init__(self, *args):
+        if len(args) == 1 and isinstance(args[0], str):
+            s = args[0]
+            if not s:
+                self._set_from_full_str("0, 0, 0, inf, 0")
+            elif "," not in s:
+                v = float(s)
+                self._set_from_full_str(f"1, {v}, {v*v}, {v}, {v}")
+            else:
+                self._set_from_full_str(s)
+        else:
+            assert len(args) == len(self.types)
+            assert all(isinstance(v, t) for v, t in zip(args, self.types))
+            self._data = tuple(t(v) for (v, t) in zip(args, self.types))
+
+    @property
+    def sum(self):
+        return self._data[1]
+
+    @staticmethod
+    def combine(S1, S2):
+        """
+        To be used by the Statistics class.
+        Single values are stored as a list of size 1.
+        """
+        return [S1[0] + S2[0]]
+
+    @classmethod
+    def stat_conversions_tuple(cls, key, regex):
+        return (key, cls, "", cls.combine, regex, False)
+
+    def __add__(self, other):
+        assert isinstance(other, type(self))
+        n = self._data[0] + other._data[0]
+        s = self._data[1] + other._data[1]
+        sos = self._data[2] + other._data[2]
+        m = min(self._data[3], other._data[3])
+        M = max(self._data[4], other._data[4])
+        return type(self)(n, s, sos, m, M)
+
+    def __str__(self):
+        return ",".join(str(v) for v in self._data)
+
+    def __format__(self, format_spec):
+        if format_spec == "f":
+            n, s, sos, m, M = self._data
+            av = s/n if n > 0 else float('nan')
+            # sometimes we get very small negative value when computing stddev,
+            # so we do max(..., 0.0) to avoid computing sqrt(negative value)
+            stddev = sqrt(max(sos/n - av*av, 0.0)) if n > 0 else float('nan')
+            return f"{s:.2f}; nr/min/av/max/std: " \
+                   f"{n}/{m:.2f}/{av:.2f}/{M:.2f}/{stddev:.2f}"
+        else:
+            return super().__format__(format_spec)
 
 
 class HasName(object, metaclass=abc.ABCMeta):
@@ -5447,7 +5525,7 @@ class LinAlgDLPTask(Task):
                               self.params["name"], "dep")
 
 
-class LinAlgClTask(Task):
+class LinAlgClTask(ClientServerTask, HasStatistics):
     """ Runs the linear algebra step for Cl """
     @property
     def name(self):
@@ -5467,132 +5545,227 @@ class LinAlgClTask(Task):
     def paramnames(self):
         # the default value for m and n is n=1, and then m=2*n
         return self.join_params(super().paramnames,
-                                {"m": [int], "n": [int],
-                                 "force_wipeout": False,
+                                {"m": [int], "n": [int], "threads": [int],
+                                 "force_wipeout": False, "stop_after_neq": 2,
                                  "nmatrices": 1})
+
+    Steps = ("prep", "secure", "krylov", "lingen_pz", "acollect",
+             "det_from_lingen")
+
+    @property
+    def stat_conversions(self):
+        return tuple(
+                StatsItemFull.stat_conversions_tuple(
+                    f"{b}_{t}",
+                    re_fp_compile(rf'Timings for {b}: .{t}. ({{fp}})')
+                )
+                for b in self.Steps for t in ("wct", "cpu")
+            )
+
+    @property
+    def stat_formats(self):
+        return tuple(
+                [f"{b}: {t} time {{{b}_{t}[0]:f}}"]
+                for b in self.Steps for t in ("wct", "cpu")
+            )
+
+    def get_statistics_as_strings(self):
+        for b in self.Steps:
+            for t in ("wct", "cpu"):
+                key = f"{b}_{t}"
+                if key not in self.statistics.stats:
+                    self.statistics.stats[key] = [StatsItemFull("")]
+        return super().get_statistics_as_strings()
+
+    def get_total_cpu_or_real_time(self, is_cpu):
+        """
+        Return number of seconds of cpu time spent by bwc
+        """
+        what = "_cpu" if is_cpu else "_wct"
+        s = 0
+        for step in self.Steps:
+            if step + what in self.statistics.stats:
+                s += float(self.statistics.stats[step + what][0].sum)
+        return s
 
     def __init__(self, *, mediator, db, parameters, path_prefix):
         super().__init__(mediator=mediator, db=db, parameters=parameters,
                          path_prefix=path_prefix)
-        self.state.setdefault("ran_already", "")
+        self.state.setdefault("run_counter", 0)
+        if self.params["nmatrices"] not in range(1, 101):
+            raise ValueError("parameter nmatrices should be in [1,100]")
 
     def run(self):
         super().run()
-        if self.state["ran_already"] and self.params["force_wipeout"]:
-            self.logger.warning("Ran before, but force_wipeout is set. "
-                                "Wiping out working directories.")
-            for dirname in self.state["ran_already"].split(","):
-                self.workdir.make_dirname(subdir=dirname).rmtree()
-            self.state["ran_already"] = ""
-            self.state.pop("classnumber", None)
+
+        if self.state["run_counter"] > 0:
+            if self.params["force_wipeout"]:
+                self.logger.warning("Ran before, but force_wipeout is set. "
+                                    "Clearing previously computed data.")
+                self.clear_state()
 
         if "classnumber" not in self.state:
             # First build the list of matrices
-            matrices = []
-            mergedfile = self.merged_args[0].pop("merged")
-            if mergedfile is None:
-                self.logger.critical("No merged file received.")
+            matrices = self.list_input_matrices()
+            if not matrices:
                 return False
-            basefilepath = mergedfile.filepath[:-4]
-            for i in range(self.params["nmatrices"]):
-                if i:
-                    mergedfile.filepath = "%s.%d.bin" % (basefilepath, i)
-                if not mergedfile.isfile():
-                    self.logger.critical(f"Missing merged file {mergedfile}.")
-                    return False
-                matrices.append(mergedfile.realpath())
+
+            bwc = {"determinant": True, "nullspace": "right",
+                   "lingen_thr": self.params["threads"],
+                   "skip_check_binary_exists": True}
 
             if "n" not in self.params:
                 self.logger.info("Using 1 as default value for n")
-                n = 1
+                bwc["n"] = 1
             else:
-                n = self.params["n"]
+                n = bwc["n"] = self.params["n"]
                 if n < 1:
-                    self.logger.critical("n must be greater than 0 (got n=%d)"
-                                         % n)
-                    raise Exception("Program failed")
+                    self.logger.critical(f"{n=} must be greater than 0")
+                    return False
 
             if "m" not in self.params:
-                m = 2*n
-                self.logger.info("Using 2*n=%d as default value for m" % m)
+                m = bwc["m"] = 2*bwc["n"]
+                self.logger.info(f"Using 2*n={m} as default value for m")
             else:
-                m = self.params["m"]
+                bwc["m"] = self.params["m"]
 
-            h = None
-            for i, matrix in enumerate(matrices):
-                self.logger.info("Starting linalg for matrix #%d" % i)
-                det, M = 0, 1
-                break_on_next_eq = False
-                for j, ell in enumerate(primes_above(2**63)):
-                    self.logger.info(f"Performing linalg modulo {ell}")
-                    dirname = f"bwc.h{i:02d}.p{j:05d}"
-                    workdir = self.workdir.make_dirname(subdir=dirname)
-                    workdir.mkdir(parent=True)
-                    wdir = workdir.realpath()
-                    if not self.state["ran_already"]:
-                        self.state["ran_already"] = dirname
-                    else:
-                        self.state["ran_already"] += "," + dirname
+            run_counter = self.state["run_counter"]
+            self.state["run_counter"] = run_counter + 1
 
-                    (stdoutpath, stderrpath) = self.make_std_paths(
-                                                    dirname,
-                                                    do_increment=False)
-                    p = cadoprograms.BWC(determinant=True,
-                                         matrix=matrix,
-                                         wdir=wdir,
-                                         prime=ell,
-                                         nullspace="right",
-                                         stdout=str(stdoutpath),
-                                         stderr=str(stderrpath),
-                                         m=m,
-                                         n=n,
-                                         **self.progparams[0])
-                    message = self.submit_command(p, None)
-                    stdout = message.read_stdout(0).decode("utf-8")
-                    match = re.search(r"^determinant modulo p: (.*)$", stdout,
-                                      re.MULTILINE)
-                    if message.get_exitcode(0) != 0:
-                        if match and match.group(1) == "inconclusive":
-                            self.logger.warn("Skipping prime %d, could not "
-                                             "compute the determinant", ell)
-                        else:
-                            self.log_failed_command_error(message, 0)
-                            raise Exception("Program failed")
-                    else:
-                        if not match:
-                            raise Exception("Could not parse output")
-                        detell = int(match.group(1)) % ell
-                        if 2*detell > ell:
-                            detell -= ell
-                        old_det = det
-                        det, M = CRT(det, M, detell, ell, signed=True)
-                        if det == old_det:
-                            if break_on_next_eq:
-                                break
-                            else:
-                                break_on_next_eq = True
-                        else:
-                            break_on_next_eq = False
-                else:
-                    self.logger.error("No more primes for CRT, probably due "
-                                      "to an error: current value is "
-                                      "%d modulo %d", det, M)
-                    raise Exception("Could not finish CRT computation")
+            h = 0
+            for self.i, matrix in enumerate(matrices):
+                self.logger.info(f"Starting linalg for matrix #{self.i}")
+                if self.need_more_wus():
+                    bwc["matrix"] = matrix
+                    matrix = pathlib.Path(matrix)
+                    bwc["rwmatrix"] = matrix.with_suffix(f".rw{matrix.suffix}")
+                    bwc["cwmatrix"] = matrix.with_suffix(f".cw{matrix.suffix}")
 
-                self.logger.info(f"h multiple #{i} = {det}")
-                if h is None:
-                    h = abs(det)
-                else:
-                    h = xgcd(h, det)[0]
+                    while self.need_more_wus():
+                        ell = self.next_valid_prime()
+                        identifier = f"{run_counter}{self.i:02d}-{ell}"
+                        dirname = f"bwc.{identifier}"
+                        p = cadoprograms.BWC(wdir=dirname, prime=ell, **bwc,
+                                             **self.progparams[0])
+                        self.submit_command(p, identifier, commit=False)
+                        self.state.update({f"prime{self.i}": ell}, commit=True)
+
+                    self.logger.info(
+                            f"Cancelling remaining workunits for h{self.i}")
+                    self.wuar.cancel_all_available()
+
+                det = self.state[f"h{self.i}"]
+                self.logger.info(f"h multiple #{self.i} = {det}")
+                h = xgcd(h, det)[0]
                 self.logger.info(f"Current multiple of class number: {h}")
 
             self.state["classnumber"] = h
 
         h = self.state["classnumber"]
         self.logger.info(f"Candidate class number: {h}")
-
+        self.send_notification(Notification.FOUND_CLASS_NUMBER, None)
         self.logger.debug("Exit LinAlgClTask.run(" + self.name + ")")
+        self.logger.info("Finished")
         return True
+
+    def list_input_matrices(self):
+        matrices = []
+        mergedfile = self.merged_args[0].pop("merged")
+        if mergedfile is None:
+            self.logger.critical("No merged file received.")
+            return []
+        basefilepath = mergedfile.filepath[:-4]
+        for i in range(self.params["nmatrices"]):
+            if i:
+                mergedfile.filepath = "%s.%d.bin" % (basefilepath, i)
+            if not mergedfile.isfile():
+                self.logger.critical(f"Missing merged file {mergedfile}.")
+                return []
+            matrices.append(mergedfile.realpath())
+        return matrices
+
+    def clear_state(self):
+        todel = set()
+        K = ("nmatrices", "classnumber")
+        V = ("det", "M", "neq", "h", "prime", "nprimes")
+        R = tuple(rf"{pre}\d+" for pre in V)
+        for k in self.state:
+            if k in K or any(re.fullmatch(r, k) is not None for r in R):
+                todel.add(k)
+        self.state.clear(todel, commit=True)
+
+    def need_more_wus(self):
+        return f"h{self.i}" not in self.state
+
+    def next_valid_prime(self, default=2**63):
+        ell = next_prime(self.state.get(f"prime{self.i}", default))
+        M = self.state.get(f"M{self.i}", 1)
+        while M % ell == 0:  # skip prime not coprime to M
+            ell = next_prime(ell)
+        return ell
+
+    def get_achievement(self):
+        if self.i == 0:
+            return 0.
+        else:
+            np0 = self.state.get("nprimes0")
+            npi = self.state.get(f"nprimes{self.i}", 0)
+            nm = self.params["nmatrices"]
+            return (min(npi/np0, 1.0)+self.i)/nm
+
+    def get_wusize(self, wuid):
+        (_, _, identifier, _) = self.split_wuname(wuid)
+        if re.match(r'(\d+)-(\d+)', identifier) is None:
+            raise ValueError(wuid)
+        return 1
+
+    def updateObserver(self, message):
+        identifier = self.filter_notification(message)
+        if not identifier:
+            # This notification was not for me
+            return False
+        if self.handle_error_result(message):
+            return True
+        stdout_filename = message.get_stdoutfile(0)
+        ok = self.parse_result(stdout_filename, identifier, commit=False)
+        self.verification(message.get_wu_id(), ok, commit=True)
+        return True
+
+    def parse_result(self, filename, identifier, *, commit):
+        regex = r"^determinant modulo p: (.*)$"
+        i, ell = [int(v, base=10) for v in identifier.split('-')]
+        i = i % 100
+        det = self.state.get(f"det{i}", 0)
+        M = self.state.get(f"M{i}", 1)
+        with open(str(filename), "r") as inputfile:
+            for line in inputfile:
+                if (match := re.match(regex, line)) is not None:
+                    self.parse_stats(filename, commit=commit)
+                    if match.group(1) == "inconclusive":
+                        self.logger.warn(f"Skipping prime {ell}, could not "
+                                         "compute the determinant")
+                        return True
+                    detell = int(match.group(1)) % ell
+                    new_det, new_M = CRT(det, M, detell, ell, signed=True)
+                    update = {f"det{i}": new_det, f"M{i}": new_M}
+                    if new_det == det:
+                        update[f"neq{i}"] = self.state.get(f"neq{i}", 0) + 1
+                        if update[f"neq{i}"] == self.params["stop_after_neq"]:
+                            # stop as we have reached enough successive
+                            # equalities
+                            update[f"h{i}"] = abs(new_det)
+                    else:
+                        update[f"neq{i}"] = 0
+                    update[f"nprimes{i}"] = self.state.get(f"nprimes{i}", 0)+1
+                    self.state.update(update, commit=commit)
+                    self.logger.info(f"Found determinant in {filename}, "
+                                     "linalg successfully done modulo "
+                                     f"{update[f'nprimes{i}']} primes for "
+                                     f"h{i}")
+                    return True
+            else:
+                self.logger.error(f"Could not parse output {filename}")
+                return False
 
     def get_candidate_class_number(self):
         return self.state.get("classnumber", None)
@@ -7156,6 +7329,7 @@ class Notification(Message):
     FINISHED_POLYNOMIAL_SELECTION = object()
     WANT_MORE_RELATIONS = object()
     HAVE_ENOUGH_RELATIONS = object()
+    FOUND_CLASS_NUMBER = object()
     REGISTER_FILENAME = object()
     UNREGISTER_FILENAME = object()
     WANT_TO_RUN = object()
@@ -7748,12 +7922,22 @@ class CompleteFactorization(HasState,
                                 " from unknown sender")
         elif key is Notification.HAVE_ENOUGH_RELATIONS:
             if sender is self.purge:
+                if self.params["computation"] != Computation.CL:
+                    self.servertask.stop_serving_wus()
+                    self.sieving.cancel_available_wus()
+                    self.stop_all_clients()
+                else:
+                    self.sieving.cancel_available_wus()
+            else:
+                raise Exception("Got HAVE_ENOUGH_RELATIONS"
+                                " from unknown sender")
+        elif key is Notification.FOUND_CLASS_NUMBER:
+            if sender is self.linalg:
                 self.servertask.stop_serving_wus()
                 self.sieving.cancel_available_wus()
                 self.stop_all_clients()
             else:
-                raise Exception("Got HAVE_ENOUGH_RELATIONS"
-                                " from unknown sender")
+                raise Exception("Got FOUND_CLASS_NUMBER from unknown sender")
         elif key is Notification.REGISTER_FILENAME:
             if isinstance(sender, ClientServerTask):
                 self.register_filename(value)

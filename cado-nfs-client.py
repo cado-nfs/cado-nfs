@@ -807,6 +807,7 @@ class WorkunitProcessor(object):
         # To which directory do workunit files map?
         dirs = {"FILE": self.settings["DLDIR"],
                 "RESULT": self.settings["WORKDIR"],
+                "WDIR": self.settings["WORKDIR"],
                 "STDOUT": self.settings["WORKDIR"],
                 "STDERR": self.settings["WORKDIR"],
                 "STDIN": self.settings["WORKDIR"],
