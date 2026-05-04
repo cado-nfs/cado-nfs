@@ -11,7 +11,7 @@
 
 #include <gmp.h>
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "las-cofactor.hpp"
 #include "las-info.hpp"
 #include "las-side-config.hpp"
@@ -20,7 +20,7 @@
 #include "las-special-q-task-collection.hpp"
 #include "las-todo-list.hpp"
 #include "macros.h"
-#include "params.h"
+#include "params.hpp"
 
 /* las_info stuff */
 
@@ -109,7 +109,7 @@ las_info::las_info(cxx_param_list & pl, Algo)
     , suppress_duplicates(param_list_parse_switch(pl, "-dup"))
     , use_smallset_purge(param_list_parse_switch(pl, "-smallset-purge"))
     , cpoly(pl)
-    , config_pool(pl, cpoly->nb_polys, Algo{})
+    , config_pool(pl, cpoly.nsides(), Algo{})
 #ifndef HAVE_HWLOC
     , shared_structure_private(cpoly, pl)
 #endif
@@ -118,7 +118,7 @@ las_info::las_info(cxx_param_list & pl, Algo)
     , cofac_stats(pl)
       /*{{{*/
 {
-    int const nsides = cpoly->nb_polys;
+    int const nsides = cpoly.nsides();
 
     /* We strive to initialize things in the exact order they're written
      * in the struct */

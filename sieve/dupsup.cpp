@@ -18,10 +18,10 @@
 #include "las-siever-config.hpp"
 #include "las-side-config.hpp"
 #include "special-q.hpp"
-#include "params.h"
+#include "params.hpp"
 #include "relation.hpp"
 #include "sieve-methods.hpp"
-#include "verbose.h"
+#include "verbose.hpp"
 #include "utils_cxx.hpp"
 
 static constexpr bool reprint_special_q_at_each_rel = false;
@@ -77,49 +77,27 @@ static void declare_usage(cxx_param_list & pl)
   las_info::declare_usage(pl);
 }
 
-static void
-usage (param_list_ptr pl, char const * argv0)
-{
-    param_list_print_usage(pl, argv0, stderr);
-    exit(EXIT_FAILURE);
-}
-
 // coverity[root_function]
 int
 main (int argc, char const * argv[])
 {
-    const char * argv0 = argv[0];
-
     cxx_param_list pl;
     declare_usage(pl);
-    argv++,argc--;
 
 #ifdef HAVE_MINGW
     _fmode = _O_BINARY;     /* Binary open for all files */
 #endif
 
-    if (argc == 0)
-      usage (pl, argv0);
-
     param_list_configure_switch(pl, "-v", nullptr);
 
-    for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
-        /* Since we accept file names freeform, we decide to never abort
-         * on unrecognized options */
-        break;
-        // fprintf (stderr, "Unknown option: %s\n", argv[0]);
-        // abort();
-    }
-    /* print command-line arguments */
+    param_list_process_command_line(pl, &argc, &argv, true);
+
     verbose_interpret_parameters(pl);
     param_list_print_command_line (stdout, pl);
     fflush(stdout);
 
-    if (argc == 0) {
-      fprintf(stderr, "Error, provide freeform file names\n");
-      usage(pl, argv0);
-    }
+    if (argc == 0)
+      pl.fail("Error, provide freeform file names\n");
 
     param_list_lookup_string(pl, "fb0");
     param_list_lookup_string(pl, "fb1");
@@ -134,10 +112,7 @@ main (int argc, char const * argv[])
     las.prepare_sieve_shared_data(pl);
 
     if (param_list_warn_unused(pl))
-    {
-      fprintf(stderr, "Error, unused parameters are given\n");
-      usage(pl, argv0);
-    }
+      pl.fail("Unused parameters are given\n");
 
     FILE * output = stdout;
     if (outputname) {

@@ -9,7 +9,7 @@
 #include "lingen_substep_schedule.hpp"
 #include "lingen_fft_select.hpp"
 #include "timing.h" // seconds
-#include "params.h"
+#include "params.hpp"
 
 template<typename fft_type>
 struct matpoly_checker_ft {
@@ -127,26 +127,15 @@ int main(int argc, char const * argv[])
     cxx_param_list pl;
 
     declare_usage<is_binary>(pl);
-    const char * argv0 = argv[0];
-    argv++,argc--;
-    /* read all command-line parameters */
-    for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
-        fprintf(stderr, "Unexpected argument %s\n", argv[0]);
-        /* Since we accept file names freeform, we decide to never abort
-         * on unrecognized options */
-        param_list_print_usage(pl, argv0, stderr);
-        exit(EXIT_FAILURE);
-    }
+
+    param_list_process_command_line(pl, &argc, &argv, false);
+
     if constexpr (!is_binary) {
-        if (!param_list_parse_mpz(pl, "prime", (mpz_ptr) p)) {
-            fprintf(stderr, "--prime is mandatory\n");
-            param_list_print_command_line (stdout, pl);
-            exit(EXIT_FAILURE);
-        }
+        if (!param_list_parse(pl, "prime", p))
+            pl.fail("--prime is mandatory\n");
     } else {
         mpz_set_ui(p, 2);   /* unused anyway */
-        param_list_parse_mpz(pl, "prime", (mpz_ptr) p);
+        param_list_parse(pl, "prime", p);
     }
     param_list_parse_uint(pl, "m", &m);
     param_list_parse_uint(pl, "n", &n);

@@ -1,7 +1,7 @@
 #ifndef CADO_TEST_BBLAS_LEVEL5_HPP
 #define CADO_TEST_BBLAS_LEVEL5_HPP
 
-#include <stdio.h>              // for printf
+#include <cstdio>              // for printf
 #include <set>                  // for set
 #include <string>               // for string, operator<
 #include <vector>               // for vector

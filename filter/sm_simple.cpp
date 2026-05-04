@@ -14,13 +14,13 @@
 
 #include <gmp.h>
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "macros.h"
 #include "mpz_poly.h"
-#include "params.h"
+#include "params.hpp"
 #include "sm_utils.hpp"
 #include "timing.h"
-#include "verbose.h"
+#include "verbose.hpp"
 
 static void my_sm(char const * outfile, char const * infile,
                   std::vector<sm_side_info> const & sm_info, int nb_polys)
@@ -92,7 +92,7 @@ static void my_sm(char const * outfile, char const * infile,
     fclose(in);
 }
 
-static void declare_usage(param_list pl)
+static void declare_usage(cxx_param_list& pl)
 {
     param_list_decl_usage(pl, "poly", "(required) poly file");
     param_list_decl_usage(pl, "inp",
@@ -103,87 +103,55 @@ static void declare_usage(param_list pl)
     verbose_decl_usage(pl);
 }
 
-static void usage(char const * argv, char const * missing, param_list pl)
-{
-    if (missing) {
-        fprintf(stderr, "\nError: missing or invalid parameter \"-%s\"\n",
-                missing);
-    }
-    param_list_print_usage(pl, argv, stderr);
-    exit(EXIT_FAILURE);
-}
-
 /* -------------------------------------------------------------------------- */
 
 // coverity[root_function]
 int main(int argc, char const * argv[])
 {
-    char const * argv0 = argv[0];
-
     char const * polyfile = NULL;
     char const * infile = NULL;
     char const * outfile = NULL;
 
-    param_list pl;
-    cado_poly cpoly;
+    cxx_param_list pl;
+    cxx_cado_poly cpoly;
 
     mpz_t ell, ell2;
     double t0;
 
     /* read params */
-    param_list_init(pl);
     declare_usage(pl);
 
-    if (argc == 1)
-        usage(argv[0], NULL, pl);
-
-    argc--, argv++;
-    for (; argc;) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) {
-            continue;
-        }
-        fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
-        usage(argv0, NULL, pl);
-    }
+    param_list_process_command_line(pl, &argc, &argv, false);
 
     /* Read poly filename from command line */
-    if ((polyfile = param_list_lookup_string(pl, "poly")) == NULL) {
-        fprintf(stderr, "Error: parameter -poly is mandatory\n");
-        param_list_print_usage(pl, argv0, stderr);
-        exit(EXIT_FAILURE);
-    }
+    if ((polyfile = param_list_lookup_string(pl, "poly")) == NULL)
+        pl.fail("Error: parameter -poly is mandatory\n");
 
     /* Read purged filename from command line */
-    if ((infile = param_list_lookup_string(pl, "inp")) == NULL) {
-        fprintf(stderr, "Error: parameter -inp is mandatory\n");
-        param_list_print_usage(pl, argv0, stderr);
-        exit(EXIT_FAILURE);
-    }
+    if ((infile = param_list_lookup_string(pl, "inp")) == NULL)
+        pl.fail("Error: parameter -inp is mandatory\n");
 
     /* Read outfile filename from command line ; defaults to stdout. */
     outfile = param_list_lookup_string(pl, "out");
 
     /* Read ell from command line (assuming radix 10) */
     mpz_init(ell);
-    if (!param_list_parse_mpz(pl, "ell", ell)) {
-        fprintf(stderr, "Error: parameter -ell is mandatory\n");
-        param_list_print_usage(pl, argv0, stderr);
-        exit(EXIT_FAILURE);
-    }
+    if (!param_list_parse_mpz(pl, "ell", ell))
+        pl.fail("Error: parameter -ell is mandatory\n");
 
     /* Init polynomial */
-    cado_poly_init(cpoly);
-    cado_poly_read(cpoly, polyfile);
+    cpoly.read(polyfile);
 
-    std::vector<mpz_poly_srcptr> F(cpoly->nb_polys, NULL);
+    std::vector<mpz_poly_srcptr> F(cpoly.nsides(), NULL);
 
-    for (int side = 0; side < cpoly->nb_polys; side++)
-        F[side] = cpoly->pols[side];
+    for (int side = 0; side < cpoly.nsides(); side++)
+        F[side] = cpoly[side];
 
     char const * sm_mode_string = param_list_lookup_string(pl, "sm-mode");
 
     if (param_list_warn_unused(pl))
-        usage(argv0, NULL, pl);
+        pl.fail("Unused parameters are given");
+
     verbose_interpret_parameters(pl);
     param_list_print_command_line(stdout, pl);
 
@@ -192,12 +160,12 @@ int main(int argc, char const * argv[])
 
     std::vector<sm_side_info> sm_info;
 
-    for (int side = 0; side < cpoly->nb_polys; side++) {
+    for (int side = 0; side < cpoly.nsides(); side++) {
         sm_info.emplace_back(F[side], ell, 0);
         sm_info[side].set_mode(sm_mode_string);
     }
 
-    for (int side = 0; side < cpoly->nb_polys; side++) {
+    for (int side = 0; side < cpoly.nsides(); side++) {
         fprintf(stdout, "\n# Polynomial on side %d:\nF[%d] = ", side, side);
         mpz_poly_fprintf(stdout, F[side]);
 
@@ -209,15 +177,13 @@ int main(int argc, char const * argv[])
 
     t0 = seconds();
 
-    my_sm(outfile, infile, sm_info, cpoly->nb_polys);
+    my_sm(outfile, infile, sm_info, cpoly.nsides());
 
     fprintf(stdout, "\n# sm completed in %2.2lf seconds\n", seconds() - t0);
     fflush(stdout);
 
     mpz_clear(ell);
     mpz_clear(ell2);
-    cado_poly_clear(cpoly);
-    param_list_clear(pl);
 
     return 0;
 }

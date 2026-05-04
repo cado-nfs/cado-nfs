@@ -36,7 +36,7 @@ using std::isnan;
 // using std::isinf;
 #else
 /* not "the right way", but happens to work.  */
-#include <math.h>
+#include <cmath>
 #endif
 #else
 /* this one is the right way */

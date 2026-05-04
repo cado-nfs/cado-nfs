@@ -26,12 +26,10 @@
 #include "mpz_mat.h"
 #include "mpz_poly.h"
 #include "numbertheory.hpp"
-#include "params.h"
+#include "params.hpp"
 #include "portability.h"
 #include "timing.h"
 #include "utils_cxx.hpp"
-
-static const char ** original_argv;
 
 static void decl_usage(cxx_param_list & pl)/*{{{*/
 {
@@ -45,22 +43,11 @@ static void decl_usage(cxx_param_list & pl)/*{{{*/
     param_list_decl_usage(pl, "bound", "(maximal-order) prime limit");
 }/*}}}*/
 
-static void usage(cxx_param_list & pl, char const ** argv, const char * msg = nullptr)/*{{{*/
-{
-    param_list_print_usage(pl, argv[0], stderr);
-    if (msg) {
-        fprintf(stderr, "%s\n", msg);
-    }
-    exit(EXIT_FAILURE);
-}/*}}}*/
-
 static int do_p_maximal_order(cxx_param_list & pl) /*{{{*/
 {
-    cxx_mpz p;
-    if (!param_list_parse_mpz(pl, "prime", p)) usage(pl, original_argv, "missing prime argument");
+    auto p = pl.parse_mandatory<cxx_mpz>("prime");
 
-    std::string polystr;
-    if (!param_list_parse(pl, "poly", polystr)) usage(pl, original_argv, "missing poly argument");
+    auto polystr = pl.parse_mandatory<std::string>("poly");
 
     cxx_mpz_poly const f(polystr);
     number_field K(f);
@@ -142,7 +129,7 @@ static int do_p_maximal_order_batch(cxx_param_list & pl) /*{{{*/
     const char * tmp;
 
     if ((tmp = param_list_lookup_string(pl, "batch")) == nullptr)
-        usage(pl, original_argv, "missing batch argument");
+        pl.fail("missing batch argument");
 
     std::ifstream is(tmp);
     std::string s;
@@ -156,7 +143,7 @@ static int do_p_maximal_order_batch(cxx_param_list & pl) /*{{{*/
 
         cxx_mpz_poly f;
         if (!mpz_poly_set_from_expression(f, s))
-            usage(pl, original_argv, "cannot parse polynomial");
+            pl.fail("cannot parse polynomial");
 
 
         if (!(getline(is, s, '\n')))
@@ -189,12 +176,8 @@ static int do_p_maximal_order_batch(cxx_param_list & pl) /*{{{*/
 
 static int do_factorization_of_prime(cxx_param_list & pl) /*{{{*/
 {
-    cxx_mpz p;
-    if (!param_list_parse_mpz(pl, "prime", p)) usage(pl, original_argv, "missing prime argument");
-
-    std::string polystr;
-    if (!param_list_parse(pl, "poly", polystr)) usage(pl, original_argv, "missing poly argument");
-    cxx_mpz_poly const f(polystr);
+    auto p = pl.parse_mandatory<cxx_mpz>("prime");
+    const cxx_mpz_poly f(pl.parse_mandatory<std::string>("poly"));
 
     number_field K(f);
     fmt::print("ZP.<x> = ZZ[]\n");
@@ -230,7 +213,7 @@ static int do_factorization_of_prime_batch(cxx_param_list & pl) /*{{{*/
     const char * tmp;
 
     if ((tmp = param_list_lookup_string(pl, "batch")) == nullptr)
-        usage(pl, original_argv, "missing batch argument");
+        pl.fail("missing batch argument");
 
     std::ifstream is(tmp);
     std::string s;
@@ -244,7 +227,7 @@ static int do_factorization_of_prime_batch(cxx_param_list & pl) /*{{{*/
 
         cxx_mpz_poly f;
         if (!mpz_poly_set_from_expression(f, s))
-            usage(pl, original_argv, "cannot parse polynomial");
+            pl.fail("cannot parse polynomial");
 
         if (!(getline(is, s, '\n')))
             throw std::invalid_argument(exc);
@@ -297,13 +280,8 @@ static int do_factorization_of_prime_batch(cxx_param_list & pl) /*{{{*/
 
 static int do_valuations_of_ideal(cxx_param_list & pl) /*{{{*/
 {
-    cxx_mpz p;
-    if (!param_list_parse_mpz(pl, "prime", p)) usage(pl, original_argv, "missing prime argument");
-
-    std::string polystr;
-    if (!param_list_parse(pl, "poly", polystr)) usage(pl, original_argv, "missing poly argument");
-    cxx_mpz_poly f(polystr);
-
+    auto p = pl.parse_mandatory<cxx_mpz>("prime");
+    const cxx_mpz_poly f(pl.parse_mandatory<std::string>("poly"));
 
     /* Now read the element description */
     std::vector<cxx_mpz_poly> elements; 
@@ -360,7 +338,7 @@ static int do_valuations_of_ideal_batch(cxx_param_list & pl) /*{{{*/
     const char * tmp;
 
     if ((tmp = param_list_lookup_string(pl, "batch")) == nullptr)
-        usage(pl, original_argv, "missing batch argument");
+        pl.fail("missing batch argument");
 
     std::ifstream is(tmp);
     std::string s;
@@ -375,7 +353,7 @@ static int do_valuations_of_ideal_batch(cxx_param_list & pl) /*{{{*/
 
         cxx_mpz_poly f;
         if (!mpz_poly_set_from_expression(f, s))
-            usage(pl, original_argv, "cannot parse polynomial");
+            pl.fail("cannot parse polynomial");
 
         if (!(getline(is, s, '\n')))
             throw std::invalid_argument(exc);
@@ -495,13 +473,10 @@ static int do_maximal_order(cxx_param_list & pl)
     }
 
     unsigned long bound;
-    if (!param_list_parse(pl, "bound", bound)) {
-        usage(pl, original_argv, "missing bound argument for maximal_order");
-    }
+    if (!param_list_parse(pl, "bound", bound))
+        pl.fail("missing bound argument for maximal_order");
 
-    std::string polystr;
-    if (!param_list_parse(pl, "poly", polystr)) usage(pl, original_argv, "missing poly argument");
-    const cxx_mpz_poly f(polystr);
+    const cxx_mpz_poly f(pl.parse_mandatory<std::string>("poly"));
 
     number_field K(f);
     K.bless("K", "alpha");
@@ -776,40 +751,30 @@ int main(int argc, char const * argv[])
 
     decl_usage(pl);
 
-    original_argv = argv;
+    param_list_process_command_line(pl, &argc, &argv, false);
 
-    argv++,argc--;
-
-    for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
-        fprintf (stderr, "Unknown option: %s\n", argv[0]);
-        usage(pl, original_argv, "unexpected argument");
-    }
-
-    std::string tmp;
-    if (!param_list_parse(pl, "test", tmp))
-        usage(pl, original_argv, "missing --test argument");
+    auto testname = pl.parse_mandatory<std::string>("test");
 
     int rc = 0; /* placate gcc */
 
-    if (tmp == "p-maximal-order") {
+    if (testname == "p-maximal-order") {
         rc = do_p_maximal_order(pl);
-    } else if (tmp == "p-maximal-order-batch") {
+    } else if (testname == "p-maximal-order-batch") {
         rc = do_p_maximal_order_batch(pl);
-    } else if (tmp == "factorization-of-prime") {
+    } else if (testname == "factorization-of-prime") {
         rc = do_factorization_of_prime(pl);
-    } else if (tmp == "factorization-of-prime-batch") {
+    } else if (testname == "factorization-of-prime-batch") {
         rc = do_factorization_of_prime_batch(pl);
-    } else if (tmp == "valuations-of-ideal") {
+    } else if (testname == "valuations-of-ideal") {
         rc = do_valuations_of_ideal(pl);
-    } else if (tmp == "valuations-of-ideal-batch") {
+    } else if (testname == "valuations-of-ideal-batch") {
         rc = do_valuations_of_ideal_batch(pl);
-    } else if (tmp == "nt-object-interface") {
+    } else if (testname == "nt-object-interface") {
         rc = do_number_theory_object_interface(pl);
-    } else if (tmp == "maximal-order") {
+    } else if (testname == "maximal-order") {
         rc = do_maximal_order(pl);
     } else {
-        usage(pl, original_argv, "unknown test");
+        pl.fail("unknown test: {}", testname);
     }
     return rc ? EXIT_SUCCESS : EXIT_FAILURE;
 

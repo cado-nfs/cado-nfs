@@ -7,7 +7,7 @@ import subprocess
 
 headers_c_language = \
     set("cassert cctype cerrno cfloat cinttypes climits"
-        " cmath csignal cstdarg cstdbool cstddef cstdint"
+        " cmath csignal cstdarg cstddef cstdint"
         " cstdio cstdlib cstring ctime complex.h".split())
 
 # complex.h is tricky because ccomplex was removed from c++10

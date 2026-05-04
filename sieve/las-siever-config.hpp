@@ -10,7 +10,7 @@
 #include <utility>
 
 #include "fb.hpp"
-#include "params.h"
+#include "params.hpp"
 #include "las-side-config.hpp"
 
 #include "las-special-q-task-tree.hpp"

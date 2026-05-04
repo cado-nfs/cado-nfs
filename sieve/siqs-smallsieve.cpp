@@ -21,7 +21,7 @@
 #include "siqs-smallsieve.hpp"
 #include "siqs-smallsieve-glue.hpp"
 #include "las-where-am-i-proxy.hpp"
-#include "verbose.h"
+#include "verbose.hpp"
 
 using preferred_simd_type = sieve2357base::preferred_simd_type;
 #if GNUC_VERSION_ATLEAST(6,1,0)

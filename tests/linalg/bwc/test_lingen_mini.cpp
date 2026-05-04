@@ -12,21 +12,21 @@
 
 #include "fmt/format.h"
 
-#include "bw-common.h"                    // for bw, bw_common_clear, bw_com...
+#include "bw-common.hpp"                    // for bw, bw_common_clear, bw_com...
 #include "misc.h"
 #include "lingen_checkpoints.hpp"
 #include "lingen_bmstatus.hpp"
 #include "lingen_matpoly_select.hpp"
 #include "lingen_io_matpoly.hpp"
 #include "lingen_tuning.hpp"
-#include "params.h"
+#include "params.hpp"
 #include "lingen.hpp"
 
 static int verbose;
 
 static void declare_usage(cxx_param_list & pl)
 {
-    param_list_usage_header(pl,
+    pl.declare_usage_header(
             "This program takes an E checkpoint as computed by lingen,"
             " and computes the pi matrix that can be obtained from it."
             " This matrix should obey the following constraints."
@@ -35,7 +35,7 @@ static void declare_usage(cxx_param_list & pl)
             " the columns of ((X^{delta_i})_i) * pi must be bounded"
             " by the (new) delta_i's, and the total increase from the delta_i"
             " to the new delta_i's is at most m*d");
-    param_list_decl_usage(pl, "v", "be verbose");
+    pl.declare_usage("v", "be verbose");
 }
 
 template<bool is_binary>
@@ -84,7 +84,7 @@ static void do_one_lingen(std::string const & filename, cxx_param_list &pl)
     }
     int rc = lingen_io_matpoly<is_binary>::read(&bm.d.ab, data.get(), E, 0, E.get_size(), 0, 0);
     if (rc != (int) E.get_size()) {
-        throw std::runtime_error(fmt::format("{}: short read", filename));
+        throw cado::error("{}: short read", filename);
         return;
     }
 

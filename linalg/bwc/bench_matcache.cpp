@@ -37,7 +37,7 @@
 #include "macros.h"
 #include "matmul.hpp"
 #include "matrix_u32.hpp"     // for matrix_u32
-#include "params.h"
+#include "params.hpp"
 #include "portability.h" // asprintf // IWYU pragma: keep
 #include "utils_cxx.hpp"        // for unique_ptr<FILE, delete_FILE>
 #include "version_info.h" // cado_revision_string
@@ -470,11 +470,8 @@ void private_args::fill_both_vectors_zero() const// {{{
 
 static void banner(int argc, char const * argv[])// {{{
 {
-    /* print command line */
-    fmt::print (stderr, "# ({}) {}", cado_revision_string, (argv)[0]);
-    for (int i = 1; i < (argc); i++)
-        fmt::print (stderr, " {}", (argv)[i]);
-    fmt::print (stderr, "\n");
+    fmt::print (stderr, "# ({}) {}\n",
+            cado_revision_string, collect_command_line(argc, argv));
 
 #ifdef  __GNUC__
     fmt::print(stderr, "# Compiled with gcc " __VERSION__ "\n");
@@ -495,14 +492,13 @@ int main(int argc, char const * argv[])
     bench_args::configure_switches(pl);
 
     /* {{{ */
-    argv++,argc--;
 
     std::vector<std::string> mfiles;
 
-    mfiles.reserve(argc);
+    param_list_process_command_line(pl, &argc, &argv, true);
 
+    /* process all remaining command line argument as files */
     for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
         if (strcmp(argv[0],"--") == 0) {
             argv++, argc--;
             for( ; argc ; argv++, argc--)
@@ -514,8 +510,7 @@ int main(int argc, char const * argv[])
             argv++,argc--;
             continue;
         }
-        fmt::print (stderr, "Unknown option: {}\n", argv[0]);
-        usage();
+        pl.fail("Unknown option: {}\n", argv[0]);
     }
 
     bench_args ba(pl, mfiles);

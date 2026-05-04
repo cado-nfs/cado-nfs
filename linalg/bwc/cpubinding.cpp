@@ -23,7 +23,7 @@
 #include <hwloc/bitmap.h>
 
 #include "cpubinding.hpp"
-#include "params.h"
+#include "params.hpp"
 #include "macros.h"
 #include "portability.h"
 

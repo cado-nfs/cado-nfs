@@ -1,13 +1,13 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include "macros.h"
 #include "misc.h"
 #include "select_mpi.h"
 #include "parallelizing_info.hpp"
 #include "portability.h" // asprintf // IWYU pragma: keep
-#include "params.h"
+#include "params.hpp"
 
 static int verbose = 0;
 
@@ -51,8 +51,6 @@ static void * test_code(parallelizing_info_ptr pi, cxx_param_list & pl MAYBE_UNU
 // coverity[root_function]
 int main(int argc, char const * argv[])
 {
-    const char ** argv0 = argv;
-
     MPI_Init(&argc, (char ***) &argv);
 
     cxx_param_list pl;
@@ -63,13 +61,7 @@ int main(int argc, char const * argv[])
 
     param_list_configure_switch(pl, "v", &verbose);
 
-    argv++, argc--;
-    for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
-        fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
-        param_list_print_usage(pl, argv0[0], stderr);
-        exit(EXIT_FAILURE);
-    }
+    param_list_process_command_line(pl, &argc, &argv, false);
 
     parallelizing_info_lookup_parameters(pl);
 

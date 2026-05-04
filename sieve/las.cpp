@@ -36,7 +36,7 @@
 
 #include "bucket.hpp"
 #include "cado-sighandlers.h"
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "cxx_mpz.hpp"
 #include "ecm/batch.hpp"
 #include "ecm/facul_strategies_stats.hpp"
@@ -78,7 +78,7 @@
 #include "misc.h"
 #include "mpz_poly.h"
 #include "multityped_array.hpp"
-#include "params.h"
+#include "params.hpp"
 #include "relation.hpp"
 #include "special-q.hpp"
 #include "sieve-methods.hpp"
@@ -86,7 +86,7 @@
 #include "threadpool.hpp"
 #include "timing.h"
 #include "utils_cxx.hpp"
-#include "verbose.h"
+#include "verbose.hpp"
 
 #ifdef SIQS_SIEVE
     using ALGO = SIQS;
@@ -124,7 +124,7 @@ static void configure_switches(cxx_param_list & pl)
 
 static void declare_usage(cxx_param_list & pl)/*{{{*/
 {
-    param_list_usage_header(pl,
+    pl.declare_usage_header(
             "In the names and in the descriptions of the parameters, below there are often\n"
             "aliases corresponding to the convention that 0 is the rational side and 1\n"
             "is the algebraic side. If the two sides are algebraic, then the word\n"
@@ -139,33 +139,33 @@ static void declare_usage(cxx_param_list & pl)/*{{{*/
     las_output::declare_usage(pl);
     tdict::declare_usage(pl);
 
-    param_list_decl_usage(pl, "trialdiv-first-side", "begin trial division on this side");
-    param_list_decl_usage(pl, "allow-largesq", "allows large special-q, e.g. for a DL descent");
+    pl.declare_usage("trialdiv-first-side", "begin trial division on this side");
+    pl.declare_usage("allow-largesq", "allows large special-q, e.g. for a DL descent");
 
-    param_list_decl_usage(pl, "sublat", "modulus for sublattice sieving");
+    pl.declare_usage("sublat", "modulus for sublattice sieving");
 
-    param_list_decl_usage(pl, "log-bucket-region", "set bucket region to 2^x");
-    param_list_decl_usage(pl, "log-bucket-region-step", "set the number of level-(n-1) buckets inside a level-n bucket to 2^x");
+    pl.declare_usage("log-bucket-region", "set bucket region to 2^x");
+    pl.declare_usage("log-bucket-region-step", "set the number of level-(n-1) buckets inside a level-n bucket to 2^x");
 
     siever_config::declare_usage<ALGO>(pl);
 
-    param_list_decl_usage(pl, "exit-early", "once a relation has been found, go to next special-q (value==1), or exit (value==2)");
-    param_list_decl_usage(pl, "file-cofact", "provide file with strategies for the cofactorization step");
-    param_list_decl_usage(pl, "prepend-relation-time", "prefix all relation produced with time offset since beginning of special-q processing");
-    param_list_decl_usage(pl, "sync", "synchronize all threads at each special-q");
-    param_list_decl_usage(pl, "sync-thread-pool", "synchronize the thread pool (implies -t 1 !!)");
+    pl.declare_usage("exit-early", "once a relation has been found, go to next special-q (value==1), or exit (value==2)");
+    pl.declare_usage("file-cofact", "provide file with strategies for the cofactorization step");
+    pl.declare_usage("prepend-relation-time", "prefix all relation produced with time offset since beginning of special-q processing");
+    pl.declare_usage("sync", "synchronize all threads at each special-q");
+    pl.declare_usage("sync-thread-pool", "synchronize the thread pool (implies -t 1 !!)");
     where_am_I::decl_usage(pl);
     if (dlp_descent) {
-        param_list_decl_usage(pl, "recursive-descent", "descend primes recursively");
-        param_list_decl_usage(pl, "grace-time-ratio", "Fraction of the estimated further descent time which should be spent processing the current special-q, to find a possibly better relation");
+        pl.declare_usage("recursive-descent", "descend primes recursively");
+        pl.declare_usage("grace-time-ratio", "Fraction of the estimated further descent time which should be spent processing the current special-q, to find a possibly better relation");
 
     }
     /* given that this option is dangerous, we used to enable it only for
      * las_descent
      */
-    param_list_decl_usage(pl, "never-discard", "Disable the discarding process for special-q's. This is dangerous. See bug #15617");
+    pl.declare_usage("never-discard", "Disable the discarding process for special-q's. This is dangerous. See bug #15617");
 
-    param_list_decl_usage(pl, "production", "Sort of an opposite to -v. Disable all diagnostics except the cheap or critical ones. See #21688 and #21825.");
+    pl.declare_usage("production", "Sort of an opposite to -v. Disable all diagnostics except the cheap or critical ones. See #21688 and #21825.");
     verbose_decl_usage(pl);
 }/*}}}*/
 
@@ -203,7 +203,7 @@ static size_t expected_memory_usage_per_binding_zone(siever_config const & sc,/*
         int print)
 {
     int const hush = print ? 0 : 3;
-    cado_poly_srcptr cpoly = las.cpoly;
+    cxx_cado_poly const & cpoly = las.cpoly;
 
     /*
     int logImin = (1+sc.logA)/2;
@@ -218,7 +218,7 @@ static size_t expected_memory_usage_per_binding_zone(siever_config const & sc,/*
      */
     size_t memory = 0;
 
-    for(int side = 0 ; side < las.cpoly->nb_polys ; side++) {
+    for(int side = 0 ; side < las.cpoly.nsides() ; side++) {
         if (!sc.sides[side].lim) continue;
         double const p1 = sc.sides[side].lim;
         double const p0 = 2;
@@ -234,7 +234,7 @@ static size_t expected_memory_usage_per_binding_zone(siever_config const & sc,/*
          * roots whenever there's at least one root tends to
          * 1/(1-1/e) = 1.5819767...)
          */
-        int const d = cpoly->pols[side]->deg;
+        int const d = cpoly[side]->deg;
         double ideals_per_prime = 1;
         double fac=1;
         for(int k = 1 ; k <= d ; k++) {
@@ -316,7 +316,7 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
     // toplevel is computed by fb_factorbase::slicing::slicing, based on
     // thresholds in fbK
     int toplevel = -1;
-    for(int side = 0 ; side < las.cpoly->nb_polys ; side++) {
+    for(int side = 0 ; side < las.cpoly.nsides() ; side++) {
         int m;
         for(m = 0 ; m < FB_MAX_PARTS && K[side].thresholds[m] < sc.sides[side].lim; ++m);
         toplevel = std::max(m, toplevel);
@@ -425,7 +425,7 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
     // bucket_update_t<1, shorthint_t>)
 
 
-    for(int side = 0 ; side < las.cpoly->nb_polys ; side++) {
+    for(int side = 0 ; side < las.cpoly.nsides() ; side++) {
         if (!sc.sides[side].lim) continue;
 
         int toplevel = INT_MAX;
@@ -683,7 +683,7 @@ static void check_whether_q_above_large_prime_bound(siever_config const & conf, 
 }
 /*}}}*/
 
-static void check_whether_special_q_is_root(cado_poly_srcptr cpoly, special_q const & doing)/*{{{*/
+static void check_whether_special_q_is_root(cxx_cado_poly const & cpoly, special_q const & doing)/*{{{*/
 {
     if constexpr (std::is_same_v<ALGO, SIQS>) {
         /* For SIQS, this is a no-op: no check is performed as the r attribute
@@ -693,7 +693,7 @@ static void check_whether_special_q_is_root(cado_poly_srcptr cpoly, special_q co
     }
     cxx_mpz const & p(doing.p);
     cxx_mpz const & r(doing.r);
-    ASSERT_ALWAYS(mpz_poly_is_root(cpoly->pols[doing.side], r, p));
+    ASSERT_ALWAYS(mpz_poly_is_root(cpoly[doing.side], r, p));
 }
 /*}}}*/
 static void per_special_q_banner(special_q const & doing)
@@ -1179,7 +1179,7 @@ static void las_subjob(las_info & las, int subjob, report_and_timer & global_rt)
 
                     ACTIVATE_TIMER(timer_special_q);
 
-                    prepare_timer_layout_for_multithreaded_tasks(timer_special_q, las.cpoly->nb_polys);
+                    prepare_timer_layout_for_multithreaded_tasks(timer_special_q, las.cpoly.nsides());
 
                     bool const done = do_one_special_q(las, ws, aux_p, pool);
 
@@ -1483,7 +1483,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
       verbose_fmt_print(0, 0, "# WARNING: SAFE_BUCKETS_SINGLE is on !\n");
 #endif
 
-    if (las.cpoly->nb_polys > 2) {
+    if (las.cpoly.nsides() > 2) {
         fmt::print(stderr, "las is only working with poly files with 1 or 2 sides\n");
         return EXIT_FAILURE;
     }
@@ -1558,8 +1558,8 @@ int main (int argc0, char const * argv0[])/*{{{*/
 
 
     /* These are sometimes looked up a bit late in the process */
-    sieve_shared_data::lookup_parameters(pl, las.cpoly->nb_polys);
-    batch_side_config::lookup_parameters(pl, las.cpoly->nb_polys);
+    sieve_shared_data::lookup_parameters(pl, las.cpoly.nsides());
+    batch_side_config::lookup_parameters(pl, las.cpoly.nsides());
 
     param_list_warn_unused(pl);
 
@@ -1640,7 +1640,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
 
         if (las.batch)
           {
-              int const nsides = las.cpoly->nb_polys;
+              int const nsides = las.cpoly.nsides();
 
               timetree_t batch_timer;
               auto z = call_dtor([&]() {
@@ -1665,7 +1665,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
                         batchP[side],
                         sc0.sides[side].lim,
                         1UL << batchlpb[side],
-                        las.cpoly->pols[side],
+                        las.cpoly[side],
                         main_output->output,
                         las.number_of_threads_loose(),
                         extra_time);

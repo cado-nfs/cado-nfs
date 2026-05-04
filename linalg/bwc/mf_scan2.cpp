@@ -12,6 +12,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <functional>
 
 #ifdef HAVE_HWLOC
 #include <hwloc.h>
@@ -19,31 +20,30 @@
 
 #include "fmt/base.h"
 
-#include "ringbuf.h"
-#include "macros.h"          // for ASSERT_ALWAYS, MAX, MIN
-#include "params.h"     // param_list
-#include "timing.h"     // wct_seconds
-#include "misc.h"       // size_disp
-#include "fix-endianness.h" // fwrite32_little
-#include "utils_cxx.hpp"        // for unique_ptr<FILE, delete_FILE>
+#include "ringbuf.hpp"
+#include "macros.h"
+#include "params.hpp"
+#include "timing.h"
+#include "misc.h"
+#include "fix-endianness.h"
+#include "utils_cxx.hpp"
 
 static void mf_scan2_decl_usage(cxx_param_list & pl)
 {
-    param_list_usage_header(pl,
-            "This program make one reading pass through a binary matrix, and produces\n"
+    pl.declare_usage_header("This program make one reading pass through a binary matrix, and produces\n"
             "the companion .rw and .cw files.\n"
             "Typical usage:\n"
             "\tmf_scan2 [<matrix file name> | options...]\n"
             );
-    param_list_decl_usage(pl, "withcoeffs", "Handle DLP matrix, with coefficients\n");
-    param_list_decl_usage(pl, "mfile", "Input matrix name (free form also accepted)");
-    param_list_decl_usage(pl, "rwfile", "Name of the row weight file to write (defaults to auto-determine from matrix name)");
-    param_list_decl_usage(pl, "cwfile", "Name of the col weight file to write (defaults to auto-determine from matrix name)");
-    param_list_decl_usage(pl, "threads", "Number of threads to use (defaults to auto detect\n");
-    param_list_decl_usage(pl, "io-memory", "Amount of RAM to use for rolling buffer memory (in GB, floating point allowed). Defaults to min(16M, 1/64-th of RAM (with hwloc))");
-    param_list_decl_usage(pl, "thread-private-count", "Number of columns for which a thread-private zone is used");
-    param_list_decl_usage(pl, "thread-read-window", "Chunk size for consumer thread reads from rolling buffer");
-    param_list_decl_usage(pl, "thread-write-window", "Chunk size for producer thread writes to rolling buffer");
+    pl.declare_usage("withcoeffs", "Handle DLP matrix, with coefficients\n");
+    pl.declare_usage("mfile", "Input matrix name (free form also accepted)");
+    pl.declare_usage("rwfile", "Name of the row weight file to write (defaults to auto-determine from matrix name)");
+    pl.declare_usage("cwfile", "Name of the col weight file to write (defaults to auto-determine from matrix name)");
+    pl.declare_usage("threads", "Number of threads to use (defaults to auto detect\n");
+    pl.declare_usage("io-memory", "Amount of RAM to use for rolling buffer memory (in GB, floating point allowed). Defaults to min(16M, 1/64-th of RAM (with hwloc))");
+    pl.declare_usage("thread-private-count", "Number of columns for which a thread-private zone is used");
+    pl.declare_usage("thread-read-window", "Chunk size for consumer thread reads from rolling buffer");
+    pl.declare_usage("thread-write-window", "Chunk size for producer thread writes to rolling buffer");
 }
 
 static size_t thread_private_count = 1UL << 20;
@@ -157,10 +157,10 @@ struct parser_thread {
     std::vector<uint32_t> cw;
     uint32_t colmax=0;
     parser_thread() : cw(thread_private_count, 0) {};
-    void loop(ringbuf_ptr R) {
+    void loop(ringbuf & R) {
         reporter::consumer_data D;
         coeff_t buffer[thread_read_window];
-        for(size_t s ; (s = ringbuf_get(R, (char*) buffer, sizeof(buffer))) != 0 ; ) {
+        for(size_t s ; (s = R.get((char*) buffer, sizeof(buffer))) != 0 ; ) {
             report.consumer_report(D, s);
             auto * v = (coeff_t *) buffer;
             ASSERT_ALWAYS(s % sizeof(coeff_t) == 0);
@@ -195,7 +195,7 @@ struct parser_thread {
 };
 
 template<bool withcoeffs>
-static void master_loop(ringbuf_ptr R, FILE * f_in, FILE * f_rw)
+static void master_loop(ringbuf & R, FILE * f_in, FILE * f_rw)
 {
     constexpr int c = withcoeffs != 0;
     using coeff_t = typename nz_coeff<withcoeffs>::type;
@@ -233,12 +233,12 @@ static void master_loop(ringbuf_ptr R, FILE * f_in, FILE * f_rw)
                 abort();
             }
             ASSERT_ALWAYS(k == s * (1 + c));
-            ringbuf_put(R, (char *) buf, s * sizeof(coeff_t));
+            R.put((char *) buf, s * sizeof(coeff_t));
             report.producer_report(s * sizeof(coeff_t));
             row_length -= s;
         }
     }
-    ringbuf_mark_done(R);
+    R.mark_done();
 }
 
 static void finish_write_and_clear_segments(uint32_t c, uint32_t colmax, FILE * f_cw)
@@ -277,14 +277,14 @@ static void write_column_weights(std::vector<parser_thread<withcoeffs>> & T, FIL
 }
 
 template<bool withcoeffs>
-static void maincode(ringbuf_ptr R, int nb_consumers, FILE * f_in, FILE * f_rw, FILE * f_cw)
+static void maincode(ringbuf & R, int nb_consumers, FILE * f_in, FILE * f_rw, FILE * f_cw)
 {
     std::vector<parser_thread<withcoeffs>> T(nb_consumers);
-    std::thread producer(master_loop<withcoeffs>, R, f_in, f_rw);
+    std::thread producer(master_loop<withcoeffs>, std::ref(R), f_in, f_rw);
     std::vector<std::thread> consumers;
     consumers.reserve(T.size());
     for(auto & t : T)
-        consumers.emplace_back(&parser_thread<withcoeffs>::loop, std::ref(t), R);
+        consumers.emplace_back(&parser_thread<withcoeffs>::loop, std::ref(t), std::ref(R));
 
     producer.join();
     report.producer_report(0, true);
@@ -392,8 +392,7 @@ int main(int argc, char const * argv[])
         }
     }
 
-    ringbuf R;
-    ringbuf_init(R, ringbuf_size);
+    ringbuf R(ringbuf_size);
 
     /* Start with the input */
 
@@ -417,7 +416,5 @@ int main(int argc, char const * argv[])
     } else {
         maincode<true>(R, consumers, f_in.get(), f_rw.get(), f_cw.get());
     }
-
-    ringbuf_clear(R);
 }
 

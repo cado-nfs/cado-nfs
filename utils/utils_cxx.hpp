@@ -19,7 +19,9 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
+#include <stdexcept>
 
+#include "fmt/base.h"
 #include "fmt/format.h"
 
 #include "macros.h"
@@ -173,7 +175,8 @@ struct free_delete
 /* This makes it possible to replace FILE* by std::unique_ptr<FILE>
  * almost transparently. (note that we can't do that with
  * fclose_maybe_compressed, unfortunately, since it requires to keep
- * track of the file name).
+ * track of the file name. For that, see delete_FILE_maybe_compressed in
+ * gzip.h).
  * However it is probably preferrable to define the deleter explicitly
  * with the std::unique_ptr<FILE, delete_FILE> form, which does not rely
  * on presence/absence of the utils_cxx.hpp header which tampers with the
@@ -687,12 +690,31 @@ namespace cado {
     };
 
     template<typename AllocatorType>
-        using unique_ptr_from_allocator =
+        struct unique_ptr_from_allocator_impl {
+            using type =
     std::unique_ptr<typename AllocatorType::value_type[],
         std::function<void(typename AllocatorType::value_type *)>>;
+        };
+    template<typename T>
+        struct unique_ptr_from_allocator_impl<std::allocator<T>> {
+            using type = std::unique_ptr<T[]>;
+        };
 
+    template<typename AllocatorType>
+        using unique_ptr_from_allocator =
+        unique_ptr_from_allocator_impl<AllocatorType>::type;
+
+    /* This is only half-thought. We're providing something that has no
+     * equivalent in the standard library, which is to initialize all
+     * array elements with the provided args.
+     *
+     * If that's really what we want to do, then the override for
+     * std::allocator is a bad idea: the make_unique_from_allocator below
+     * would be called (if we have non trivial args) but the deleter
+     * function would be rather ill-placed (I think)
+     */
     template<typename AllocatorType, typename... Args>
-    unique_ptr_from_allocator<AllocatorType>
+    static inline unique_ptr_from_allocator<AllocatorType>
     make_unique_from_allocator(AllocatorType & alloc, std::size_t size, Args... args) {
 
         using T = AllocatorType::value_type;
@@ -712,7 +734,76 @@ namespace cado {
         return { ptr, std::bind(deleter, std::placeholders::_1, alloc, size) };
     }
 
+    template<typename T>
+    static inline std::unique_ptr<T[]>
+    make_unique_from_allocator(std::allocator<T> &, std::size_t size)
+    {
+        return std::make_unique<T[]>(size);
+    }
+
+    template <size_t N>
+    struct string_literal {
+        constexpr string_literal(string_literal<N> const & str) {
+            std::copy_n(str.value, N, value);
+        }
+        // yes, a silent conversion is what we want here. The actual
+        // "string_literal" type is not intended to be used outside
+        // library code.
+        // NOLINTNEXTLINE(google-explicit-constructor,hicpp-explicit-conversions)
+        constexpr string_literal(const char (&str)[N]) {
+            std::copy_n(str, N, value);
+        }
+
+        static_assert(N);
+        static constexpr size_t length = N - 1;
+        static constexpr bool empty() { return length == 0; }
+        char value[N] {};
+        const char * begin() const { return value; }
+        const char * end() const { return value + length; }
+    };
+
+    struct error : public std::runtime_error {
+        template<typename... Args>
+        explicit error(fmt::format_string<Args...> const & f, Args&& ...args)
+            : std::runtime_error(fmt::format(f, std::forward<Args>(args)...))
+        {}
+        explicit error(std::string const & s)
+            : std::runtime_error(s)
+        {}
+    };
+
+    /* formattable types are those that have a format_to template member,
+     * which then allows us to use define specializations of the
+     * fmt::formatter<T> struct */
+    template<typename T>
+    concept formattable = requires { T().format_to(static_cast<char *>(nullptr)); };
 } /* namespace cado */
+
+namespace fmt {
+    template<cado::formattable B>
+    struct formatter<B>
+        : public formatter<string_view>
+    {
+        auto format(B const & x, format_context& ctx) const
+        {
+            return x.format_to(ctx.out());
+        }
+    };
+} /* namespace fmt */
+
+namespace fmt {
+template <auto N>
+struct formatter<cado::string_literal<N>> : formatter<string_view>
+{
+    public:
+    auto format(cado::string_literal<N>const & x, format_context& ctx) const
+        -> decltype(ctx.out())
+    {
+        return formatter<string_view>::format(x.value, ctx);
+    }
+};
+
+} /* namespace fmt */
 
 
 #endif	/* CADO_UTILS_CXX_HPP */

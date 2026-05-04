@@ -1,8 +1,8 @@
 #ifndef CADO_BLOCKMATRIX_HPP
 #define CADO_BLOCKMATRIX_HPP
 
-#include <stddef.h>             // for NULL
-#include <stdint.h>             // for uint64_t
+#include <cstddef>             // for NULL
+#include <cstdint>             // for uint64_t
 #include <utility>              // for swap
 #include "bblas.hpp"      // for mat64
 #include "macros.h"

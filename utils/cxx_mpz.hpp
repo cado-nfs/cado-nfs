@@ -4,11 +4,12 @@
 #include <cstdint>
 #include <cstdlib>
 
-#include <istream>
-#include <ostream>
-#include <type_traits>
-#include <memory>
 #include <compare>
+#include <istream>
+#include <memory>
+#include <ostream>
+#include <string>
+#include <type_traits>
 
 #include <gmp.h>
 #include "fmt/base.h"
@@ -19,6 +20,7 @@
 #include "gmp_auxx.hpp"
 #include "utils_cxx.hpp"
 #include "macros.h"
+#include "params.hpp"
 
 struct cxx_mpz {
 public:
@@ -353,7 +355,7 @@ requires(std::is_integral_v<T> && std::is_unsigned_v<T>)
 static inline cxx_mpz operator%(cxx_mpz const & a, cxx_mpz const & b)  { cxx_mpz r; mpz_tdiv_r(r, a, b); return r; }
 template <typename T> inline T operator%(cxx_mpz const & a, const T b) 
 requires(std::is_integral_v<T> && std::is_unsigned_v<T>)
- { cxx_mpz r; return mpz_tdiv_r_uint64(r, a, b); }
+ { return mpz_tdiv_uint64(a, b); }
 
 static inline cxx_mpz & operator%=(cxx_mpz & a, cxx_mpz const & b)  { mpz_tdiv_r(a, a, b); return a; }
 template <typename T> inline cxx_mpz & operator%=(cxx_mpz & a, const T b)  
@@ -404,9 +406,27 @@ inline std::istream& operator>>(std::istream& is, cxx_mpz & x) { return is >> (m
 inline std::istream& operator>>(std::istream& is, cxx_mpq & x) { return is >> (mpq_ptr) x; }
 
 namespace fmt {
-    template <> struct formatter<cxx_mpz>: ostream_formatter {};
+    template <> struct formatter<cxx_mpz>: formatter<long>
+    {
+        static constexpr fmt::detail::type TYPE = fmt::detail::type::long_long_type;
+        using Char = char;
+        private:
+        fmt::detail::dynamic_format_specs<Char> specs_;
+        public:
+        // using nonlocking = void;
+        FMT_CONSTEXPR auto parse(parse_context<Char>& ctx) -> const Char*
+        {
+            if (ctx.begin() == ctx.end() || *ctx.begin() == '}') 
+                return ctx.begin();
+            return parse_format_specs(ctx.begin(), ctx.end(), specs_, ctx, TYPE);
+        }
+
+        auto format(cxx_mpz const & z, format_context& ctx) const
+            -> format_context::iterator;
+    };
+
     template <> struct formatter<cxx_mpq>: ostream_formatter {};
-}
+} /* namespace fmt */
 
 /* a shorthand so that we can use user-defined literals */
 static inline cxx_mpz operator""_mpz(char const * str, size_t)
@@ -415,5 +435,41 @@ static inline cxx_mpz operator""_mpz(char const * str, size_t)
     mpz_set_str(res, str, 0);
     return res;
 }
+
+template<> struct cado::params::parser<cxx_mpz> {
+    bool operator()(std::string const & s, cxx_mpz & value) const
+    {
+        unsigned int nread;
+        cxx_mpz w;
+
+        int rc = gmp_sscanf(s.c_str(), "%Zi%n", (mpz_ptr) w, &nread);
+        if (rc == 1 && nread == s.size()) {
+            value = w;
+            return true;
+        }
+
+        /* also recognize integers written as floating-point, like 6.3e8 */
+        if (s[nread] == '.' || s[nread] == 'e') {
+            mpf_t zf;
+            mpf_init(zf);
+            rc = gmp_sscanf(s.c_str(), "%Ff%n", zf, &nread);
+            rc = (rc == 1 && nread == s.size() && mpf_integer_p(zf));
+            if (rc) mpz_set_f(value, zf);
+            mpf_clear(zf);
+            if (rc) return true;
+        }
+
+        if (mpz_set_from_expression(w, s.c_str())) {
+            value = w;
+            return true;
+        }
+
+        return false;
+    }
+};
+
+/* in gmp_aux2.cpp */
+cxx_mpz mpz_from_expression(std::string const &);
+
 
 #endif	/* CADO_CXX_MPZ_HPP */

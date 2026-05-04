@@ -17,37 +17,37 @@
 #include <type_traits>
 
 #include "barrier.h"
+#include "cado_type_traits.hpp"
 
 namespace cado_std_replacement
 {
-    struct foo {
-        void operator()() const { }
+    static_assert(std::is_empty_v<cado::nop_function>);
+
+    template<typename completion = cado::nop_function>
+    requires std::is_same_v<completion, cado::nop_function>
+    struct barrier
+    {
+        barrier_t B {};
+
+        explicit barrier(ptrdiff_t count)
+        {
+            barrier_init(&B, nullptr, static_cast<int>(count));
+        }
+
+        ~barrier()
+        {
+            barrier_destroy(&B, nullptr);
+        }
+
+        barrier(barrier const &) = delete;
+        barrier & operator=(barrier const &) = delete;
+        barrier(barrier const &&) = delete;
+        barrier & operator=(barrier const &&) = delete;
+
+        void arrive_and_wait() {
+            barrier_wait(&B, nullptr, nullptr, nullptr);
+        }
     };
-    static_assert(std::is_empty_v<foo>);
-
-struct barrier
-{
-    barrier_t B {};
-
-    explicit barrier(ptrdiff_t count)
-    {
-        barrier_init(&B, nullptr, static_cast<int>(count));
-    }
-
-    ~barrier()
-    {
-        barrier_destroy(&B, nullptr);
-    }
-
-    barrier(barrier const &) = delete;
-    barrier & operator=(barrier const &) = delete;
-    barrier(barrier const &&) = delete;
-    barrier & operator=(barrier const &&) = delete;
-
-    void arrive_and_wait() {
-        barrier_wait(&B, nullptr, nullptr, nullptr);
-    }
-};
 } // namespace cado_std_replacement
 
 #ifndef __cpp_lib_barrier
@@ -55,8 +55,9 @@ namespace std {
     /* this will error out, by design, if a non-trivial completion
      * function is passed.
      */
-    template<int=0>
-    using barrier = cado_std_replacement::barrier;
+    template<typename completion = cado::nop_function>
+    requires std::is_same_v<completion, cado::nop_function>
+    using barrier = cado_std_replacement::barrier<completion>;
 }
 #endif
 

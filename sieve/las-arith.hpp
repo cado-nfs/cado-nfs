@@ -13,7 +13,7 @@
 #include "fb-types.hpp"
 #include "misc.h"
 #include "arith/mod_ul.h"
-#include "verbose.h"
+#include "verbose.hpp"
 
 #ifdef LAS_ARITH_INVMOD_HISTOGRAM
 #include "utils_cxx.hpp"

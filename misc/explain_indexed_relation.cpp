@@ -1,9 +1,10 @@
 #include "cado.h" // IWYU pragma: keep
 #include <cstdio>
 #include <cstdlib>
+
 #include <set>
-#include <string>        // for string
-#include <vector>        // for vector
+#include <string>
+#include <vector>
 #include <sstream>
 #include <fstream>
 #include <iostream>
@@ -15,11 +16,11 @@
 #include "fmt/format.h"
 
 #include "mpz_poly.h"
-#include "params.h"     // param_list
-#include "cado_poly.h"  // cado_poly
-#include "verbose.h"    // verbose_decl_usage
-#include "typedefs.h"   // index_t 
-#include "renumber.hpp" // renumber_t
+#include "params.hpp"
+#include "cado_poly.hpp"
+#include "verbose.hpp"
+#include "typedefs.h"
+#include "renumber.hpp"
 #include "indexed_relation.hpp"
 
 /* This program takes (from stdin) an indexed relation (typically as
@@ -56,13 +57,6 @@ static void declare_usage(cxx_param_list & pl)
     param_list_decl_usage(pl, "renumber", "input file for renumbering table ; exclusive with --build");
     param_list_decl_usage(pl, "relations", "explain indexed relations from this file.");
     verbose_decl_usage(pl);
-}
-
-static void
-usage (cxx_param_list & pl, const char *argv0)
-{
-    param_list_print_usage(pl, argv0, stderr);
-    exit(EXIT_FAILURE);
 }
 
 static std::string rewrite_carets(std::string const & s)
@@ -116,7 +110,7 @@ struct command_line {
         renumberfilename = param_list_lookup_string(pl, "renumber");
         relationsfilename = param_list_lookup_string(pl, "relations");
         param_list_parse(pl, "lpbs", lpb);
-        if (!cado_poly_read (cpoly, polyfilename))
+        if (!cpoly.read(polyfilename))
         {
             fmt::print (stderr, "Error reading polynomial file\n");
             exit (EXIT_FAILURE);
@@ -124,51 +118,28 @@ struct command_line {
 
     }
 
-    void check_inconsistencies(const char * argv0, cxx_param_list & pl) const {
+    void check_inconsistencies(cxx_param_list & pl) const {
         if (python && raw)
-        {
-            fmt::print (stderr, "Error, -python and -raw are incompatible\n");
-            usage (pl, argv0);
-        }
+            pl.fail("Error, -python and -raw are incompatible\n");
 
         if (relationsfilename && raw)
-        {
-            fmt::print (stderr, "Error, -relations and -raw are incompatible\n");
-            usage (pl, argv0);
-        }
+            pl.fail("Error, -relations and -raw are incompatible\n");
 
         if (!all && raw)
-        {
-            fmt::print (stderr, "Error, -raw requires -all\n");
-            usage (pl, argv0);
-        }
+            pl.fail("Error, -raw requires -all\n");
 
         if (!polyfilename)
-        {
-            fmt::print (stderr, "Error, missing -poly command line argument\n");
-            usage (pl, argv0);
-        }
-        if (!renumberfilename && !build) {
-            fmt::print (stderr, "Error, missing -renumber command line argument\n");
-            usage (pl, argv0);
-        }
-        if (renumberfilename && build) {
-            fmt::print (stderr, "Error, --build and -renumber are exclusive\n");
-            usage (pl, argv0);
-        }
-        if (lpb.empty() && build) {
-            fmt::print (stderr, "Error, --build requires -lpbs\n");
-            usage (pl, argv0);
-        }
-        if (!lpb.empty() && !build) {
-            fmt::print (stderr, "Error, --lpbs is only valid with --build\n");
-            usage (pl, argv0);
-        }
-        if (build && lpb.size() != (size_t) cpoly->nb_polys) {
-            fmt::print (stderr, "Error, --build requires one lpb per side\n");
-            usage (pl, argv0);
-        }
-
+            pl.fail("Error, missing -poly command line argument\n");
+        if (!renumberfilename && !build)
+            pl.fail("Error, missing -renumber command line argument\n");
+        if (renumberfilename && build)
+            pl.fail("Error, --build and -renumber are exclusive\n");
+        if (lpb.empty() && build)
+            pl.fail("Error, --build requires -lpbs\n");
+        if (!lpb.empty() && !build)
+            pl.fail("Error, --lpbs is only valid with --build\n");
+        if (build && lpb.size() != (size_t) cpoly.nsides())
+            pl.fail("Error, --build requires one lpb per side\n");
     }
 };
 
@@ -200,9 +171,9 @@ static void output_prologue(command_line const & cmdline)
     } else {
         fmt::print("ZP.<x> = ZZ[]\n");
     }
-    for(int side = 0 ; side < cpoly->nb_polys ; side++) {
+    for(int side = 0 ; side < cpoly.nsides() ; side++) {
         std::ostringstream os;
-        os << cxx_mpz_poly(cpoly->pols[side]);
+        os << cxx_mpz_poly(cpoly[side]);
         if (cmdline.python) {
             fmt::print("K{0}=NumberField({1}, names=('alpha{0}',)); alpha{0}=K{0}.gen()\n",
                     side, rewrite_carets(os.str()));
@@ -266,9 +237,9 @@ void examine_one_relation(renumber_t const & tab, std::set<index_t> & printed, i
 {
     fmt::print("a={}; b={}\n", rel.az, rel.bz);
 
-    std::vector<std::vector<std::string>> ideals_per_side(cmdline.cpoly->nb_polys);
+    std::vector<std::vector<std::string>> ideals_per_side(cmdline.cpoly.nsides());
 
-    for(int side = 0 ; side < cmdline.cpoly->nb_polys ; side++) {// {{{
+    for(int side = 0 ; side < cmdline.cpoly.nsides() ; side++) {// {{{
         /* In the DL case, the factorization has to include J, and
          * the thing that we're factoring is really the principal
          * ideal generated by a-b*alpha. The only catch is that we
@@ -322,7 +293,7 @@ void examine_one_relation(renumber_t const & tab, std::set<index_t> & printed, i
         }
     }
 
-    for(int side = 0 ; side < cmdline.cpoly->nb_polys ; side++) {
+    for(int side = 0 ; side < cmdline.cpoly.nsides() ; side++) {
         bool empty = true;
         std::ostringstream os;
         for(auto const & s : ideals_per_side[side]) {
@@ -342,7 +313,6 @@ void examine_one_relation(renumber_t const & tab, std::set<index_t> & printed, i
 int main(int argc, char const * argv[])
 {
     command_line cmdline;
-    const char *argv0 = argv[0];
 
     cxx_param_list pl;
     declare_usage(pl);
@@ -351,17 +321,8 @@ int main(int argc, char const * argv[])
 
     cmdline.configure_switches(pl);
 
-    argv++, argc--;
-    if (argc == 0)
-      usage (pl, argv0);
+    param_list_process_command_line(pl, &argc, &argv, false);
 
-    for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv))
-            continue;
-        fmt::print(stderr, "Unhandled parameter {}\n", argv[0]);
-        usage (pl, argv0);
-    }
-    /* print command-line arguments */
     verbose_interpret_parameters(pl);
     param_list_print_command_line (stdout, pl);
     fflush(stdout);
@@ -369,7 +330,7 @@ int main(int argc, char const * argv[])
     cmdline.lookup_parameters(pl);
     renumber_t::builder_lookup_parameters(pl);
 
-    cmdline.check_inconsistencies(argv0, pl);
+    cmdline.check_inconsistencies(pl);
 
 
     renumber_t tab(cmdline.cpoly);
@@ -412,7 +373,7 @@ int main(int argc, char const * argv[])
             indexed_relation rel;
 
             if (!(is >> rel)) {
-                throw std::runtime_error(fmt::format("Parse error on line {}: {}\n", line, s));
+                throw cado::error("Parse error on line {}: {}\n", line, s);
             }
 
             fmt::print("print(\"{}\")\n", s);

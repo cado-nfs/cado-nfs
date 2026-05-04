@@ -6,7 +6,7 @@
 #include <set>
 #include <vector>
 
-#include "params.h"
+#include "params.hpp"
 
 #include "test_bblas_base.hpp"
 #include "test_bblas_level2.hpp"
@@ -60,16 +60,8 @@ int main(int argc, char const * argv[])
     int seed = 0;
     declare_usage(pl);
     param_list_configure_switch(pl, "-fast", &test_bblas_base::test_accel);
-    const char* argv0 = argv[0];
-    argc--, argv++;
-    for (; argc;) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) {
-            continue;
-        }
-        fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
-        param_list_print_usage(pl, argv0, stderr);
-        exit(EXIT_FAILURE);
-    }
+
+    param_list_process_command_line(pl, &argc, &argv, false);
 
     param_list_parse_uint(pl, "n", &n);
 

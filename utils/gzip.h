@@ -7,6 +7,8 @@
 #ifdef __cplusplus
 #include <vector>
 #include <string>
+#include <utility>
+#include <memory>
 #endif
 
 #ifdef  HAVE_GETRUSAGE
@@ -95,6 +97,25 @@ extern FILE * fopen_maybe_compressed(const char * name, const char * mode);
  * fclose() accordingly.  */
 extern int fclose_maybe_compressed(FILE *, const char * name);
 
+#ifdef __cplusplus
+struct delete_FILE_maybe_compressed {
+    std::string s;
+    delete_FILE_maybe_compressed() = default;
+    explicit delete_FILE_maybe_compressed(std::string s)
+        : s(std::move(s)) {}
+    void operator()(FILE * f) const {
+        if (f && !s.empty())
+            fclose_maybe_compressed(f, s.c_str());
+    }
+};
+static inline std::unique_ptr<FILE, delete_FILE_maybe_compressed> make_unique_FILE_maybe_compressed(std::string const & s, const char * mode)
+{
+    FILE * x = fopen_maybe_compressed(s.c_str(), mode);
+    return { x, delete_FILE_maybe_compressed{s} };
+}
+#endif
+
+
 #ifdef  HAVE_GETRUSAGE
 /* Same, but recovers the time taken by the underlying process */
 extern int fclose_maybe_compressed2 (FILE * f, const char * name, struct rusage * r);
@@ -151,6 +172,11 @@ static constexpr suffix_handler supported_compression_formats[] = {
 
 #ifdef __cplusplus
 }
+#endif
+
+#ifdef __cplusplus
+extern std::string get_suffix(std::string const & filename);
+extern std::string get_suffix(std::string const & filename, std::string const & def);
 #endif
 
 

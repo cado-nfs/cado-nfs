@@ -1,10 +1,13 @@
 #include "cado.h" // IWYU pragma: keep
 
+#include <cstdio>
+
 #include <ios>
 #include <stdexcept>
 #include <string>
+#include <memory>
+#include <fstream>
 
-#include <fcntl.h>
 #include <unistd.h>
 
 #include "fmt/base.h"
@@ -18,7 +21,6 @@
 streambase_maybe_compressed::streambase_maybe_compressed(std::string const & name, std::ios_base::openmode mode)
 {
     open(name, mode);
-    init(buf);
 }
 
 void streambase_maybe_compressed::open(std::string const & name_arg, std::ios_base::openmode mode)
@@ -32,7 +34,25 @@ void streambase_maybe_compressed::open(std::string const & name_arg, std::ios_ba
         // coverity[exception_thrown]
         tempname = fmt::format("{}.tmp.{}", name, getpid());
         name = tempname;
+        /* make sure that the tempname is writable. This way, we can
+         * point to /dev/stdout, for instance. It's still a bit fragile
+         * because of TOCTOU, but well, it's better than nothing.
+         *
+         * Note that it's something we can't do with the C version
+         * fopen_maybe_compressed.
+         */
+        std::ofstream dummy(tempname, std::ios::out);
+        if (dummy.is_open()) {
+            dummy.close();
+            unlink(tempname.c_str());
+        } else {
+            name = orig_name;
+            tempname.clear();
+        }
     }
+
+    pbuf.reset();
+    fbuf.reset();
 
     if (mode & std::ios_base::in && access(name.c_str(), R_OK) != 0)
         throw std::runtime_error("cannot open file for reading");
@@ -51,23 +71,39 @@ void streambase_maybe_compressed::open(std::string const & name_arg, std::ios_ba
         if (!command.empty()) {
             /* apparently popen() under Linux does not accept the 'b' modifier */
             pbuf = std::make_unique<cado_pipe_streambuf>(command.c_str(), mode);
-            buf = pbuf.get();
-            pipe = true;
+            init(pbuf.get());
         } else {
             fbuf = std::make_unique<std::filebuf>();
             fbuf->open(name, mode);
-            buf = fbuf.get();
-            pipe = false;
+            init(fbuf.get());
         }
         /* hmmm */
         return;
     }
+    /* if exceptions() includes std::ios_base::badbit, then this will throw.
+     * it might actually be a reasonable thing to do, but the truth is
+     * that the exceptions mask is set only as a side-effect of something
+     * (perhaps fmt::ostream_formatter but I'm not sure). In any case, we
+     * do not want rdbuf() to point to a previously set buffer, and
+     * having badbit is an _expected_ and correct post-condition of
+     * closing.
+     */
+    exceptions(std::ios_base::goodbit);
+    rdbuf(nullptr);
+    this->setstate(ios_base::failbit);
 };
 
 void streambase_maybe_compressed::close()
 {
-    if (pipe) pbuf->close();
-    else fbuf->close();
+    /* we need to close explicitly, otherwise the dtor won't flush.
+     */
+    if (pbuf) pbuf->close();
+    if (fbuf) fbuf->close();
+    /* see above */
+    exceptions(std::ios_base::goodbit);
+    rdbuf(nullptr);
+    pbuf.reset();
+    fbuf.reset();
     if (!tempname.empty()) {
         int const rc = rename(tempname.c_str(), orig_name.c_str());
         ASSERT_ALWAYS(rc == 0);

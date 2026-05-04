@@ -14,6 +14,7 @@
 #include "typedefs.h"
 #include "fmt/base.h"
 #include "fmt/ostream.h"
+#include "params.hpp"
 
 /*
  * Implementation of Galois action.
@@ -152,5 +153,18 @@ private:
 namespace fmt {
     template <> struct formatter<galois_action>: ostream_formatter {};
 }
+
+template<>
+struct cado::params::parser<galois_action> {
+    bool operator()(std::string const & s, galois_action & value) const
+    {
+        try {
+            value = galois_action(s);
+            return true;
+        } catch (std::runtime_error const &) {
+            return false;
+        }
+    }
+};
 
 #endif  /* CADO_UTILS_GALOIS_ACTION_HPP */

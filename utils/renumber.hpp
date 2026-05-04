@@ -21,13 +21,16 @@
 #include <sys/types.h>
 
 #include "badideals.hpp"
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "cxx_mpz.hpp"
 #include "macros.h"
 #include "mpz_poly.h"
 #include "typedefs.h"
 
-struct cxx_param_list; // IWYU pragma: keep
+namespace cado::params {
+struct cxx_param_list;
+}
+using cxx_param_list = cado::params::cxx_param_list;
 
 /* To build a renumber table in memory in the simplest way, the
  * process goes as follows
@@ -132,8 +135,8 @@ public:
     unsigned int get_max_lpb() const { return *std::max_element(lpb.begin(), lpb.end()); }
     unsigned int get_min_lpb() const { return *std::min_element(lpb.begin(), lpb.end()); }
     size_t size() const { return above_all; }
-    int get_nb_polys() const { return cpoly->nb_polys; }
-    mpz_poly_srcptr get_poly(int side) const { return cpoly->pols[side]; }
+    int get_nb_polys() const { return cpoly.nsides(); }
+    mpz_poly_srcptr get_poly(int side) const { return cpoly[side]; }
     int get_poly_deg(int side) const { return get_poly(side)->deg; }
     int get_rational_side() const {
         for(int side = 0 ; side < get_nb_polys() ; side++) {
@@ -163,13 +166,13 @@ public:
     renumber_t& operator=(renumber_t &&) = default;
     /*}}}*/
 
-    explicit renumber_t(cxx_cado_poly const & cpoly) : cpoly(cpoly), lpb(cpoly->nb_polys, 0) {}
+    explicit renumber_t(cxx_cado_poly const & cpoly) : cpoly(cpoly), lpb(cpoly.nsides(), 0) {}
     renumber_t(cxx_cado_poly const & cpoly,
             std::string const & filename,
             bool for_dl)
         : renumber_t(cpoly)
     {
-        read_from_file(filename.c_str(), for_dl);
+        read_from_file(filename, for_dl);
     }
 
     /*{{{ configuration when creating the table */
@@ -180,7 +183,7 @@ public:
     /*}}}*/
 
     /*{{{ reading the table */
-    void read_from_file(const char * filename, bool for_dl);
+    void read_from_file(std::string const & filename, bool for_dl);
     void recompute_debug_number_theoretic_stuff();
     /*}}}*/
 

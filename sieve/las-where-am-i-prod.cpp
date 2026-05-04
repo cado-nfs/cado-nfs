@@ -19,7 +19,10 @@
 #include "las-where-am-i-prod.hpp" // IWYU pragma: keep
 
 
-struct cxx_param_list; // IWYU pragma: keep
+namespace cado::params {
+struct cxx_param_list;
+}
+using cxx_param_list = cado::params::cxx_param_list;
 class nfs_work; // IWYU pragma: keep
 
 

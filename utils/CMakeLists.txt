@@ -8,10 +8,10 @@ if(NOT HAVE_FMT)
 endif()
 
 set (sources 
-        cado_poly.c timing.cpp getprime.c
+        cado_poly.cpp timing.cpp getprime.c
         relation.cpp
         relation-tools.c
-        arith/mod_ul.c arith/modredc_ul.c arith/modredc_15ul.c arith/modredc_2ul2.c arith/modul_poly.c
+        arith/mod_ul.c arith/modredc_ul.c arith/modredc_15ul.c arith/modredc_2ul2.c arith/modul_poly.cpp
         arith/mod_mpz.c
         gmp_aux.c
         arithxx/mod64.cpp
@@ -19,24 +19,26 @@ set (sources
         arithxx/modredc96.cpp
         arithxx/modredc126.cpp
         arithxx/mod_mpz_new.cpp
+        filelist.cpp
         gmp_aux2.cpp
-        double_poly.cpp rootfinder.cpp params.cpp params-extra.cpp gcd.c
+        double_poly.cpp rootfinder.cpp params.cpp gcd.c
         gzip.cpp misc.c misc2.cpp utils_cxx.cpp
         fstream_maybe_compressed.cpp
         mpz_mat.cpp mpz_poly.cpp crc.c purgedfile.c bit_vector.c
-        barrier.c usp.c fix-endianness.c memusage.cpp
-        cachesize_cpuid.c cachesize_guess.cpp roots_mod.c
+        barrier.c usp.cpp fix-endianness.c memusage.cpp
+        cachesize_cpuid.c cachesize_guess.cpp roots_mod.cpp
         renumber.cpp
         renumber_proxy.cpp
-        ringbuf.c sm_utils.cpp galois_action.cpp memalloc.cpp
+        sm_utils.cpp galois_action.cpp memalloc.cpp
         special-q.cpp
-	mpz_vector.c memory.c stats.c lll.c
-        verbose.c 
+	mpz_vector.cpp memory.c stats.c lll.c
+        verbose.cpp 
         tdict.cpp
         version_info.c
 	modified_files.c threadpool.cpp mpz_poly_bivariate.cpp
         arithmetic_reductions.cpp
         gmpxx.cpp
+        cxx_mpz.cpp
         rho.c gpf.cpp
         sha1.c
         fd_streambuf.cpp

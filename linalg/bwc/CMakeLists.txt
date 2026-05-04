@@ -87,7 +87,7 @@ endif()
 set(bwc_base_sources
     intersections.c
     xvectors.cpp
-    bw-common.c
+    bw-common.cpp
     async.cpp
     rolling.cpp
     matmul.cpp
@@ -432,7 +432,7 @@ macro(bwc_program v)
     install(TARGETS ${v} RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)
 endmacro()
 
-bwc_program(acollect acollect.c)
+bwc_program(acollect acollect.cpp)
 bwc_program(prep prep.cpp xdotprod.cpp)
 target_link_libraries(prep bitlinalg)
 target_link_libraries(prep bblas)
@@ -500,7 +500,7 @@ add_library(lingen_common_support
     check_mpi_problems.c
     tree_stats.cpp
     lingen_round_operand_size.cpp
-    bw-common.c
+    bw-common.cpp
     lingen_platform.cpp
     lingen_hints.cpp
     lingen_call_companion.cpp

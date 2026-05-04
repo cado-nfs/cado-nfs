@@ -92,7 +92,7 @@ int main(int argc, char const * argv[])
     if (argc == 2) {
         auto * ptr = new std::ifstream(argv[1]);
         if (!ptr)
-            throw std::runtime_error(fmt::format("File not found: {}", argv[1]));
+            throw cado::error("File not found: {}", argv[1]);
         file_input.reset(ptr);
         input = ptr;
     }

@@ -35,12 +35,20 @@ inline int getbase(ostream const& o)
             return 10;
     }
 }
-}
+} // namespace
 
 ostream& operator<<(ostream& os, mpz_srcptr x)
 {
-    const unique_ptr<char, free_delete<char>> str(mpz_get_str(nullptr, getbase(os), x));
-    os << str.get();
+    int b = getbase(os);
+    const unique_ptr<char[], free_delete<char>> str(mpz_get_str(nullptr, b, x));
+    if ((os.flags() & std::ios::showbase) && (b == 8 || b == 16)) {
+        if (str[0] == '-')
+            os << "-0" << (b == 8 ? 'b' : 'x') << str.get() + 1;
+        else
+            os << "0" << (b == 8 ? 'b' : 'x') << str.get();
+    } else {
+        os << str.get();
+    }
     return os;
 }
 

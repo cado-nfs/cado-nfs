@@ -5,7 +5,7 @@
 
 #include "parallelizing_info.hpp"
 #include "select_mpi.h"
-#include "params.h"
+#include "params.hpp"
 #include "macros.h"
 
 static int verbose=0;
@@ -68,26 +68,17 @@ int main(int argc, char const * argv[])
     parallelizing_info_decl_usage(pl);
     param_list_decl_usage(pl, "v", "turn on some demo logging");
 
-    const char * programname = argv[0];
-
-    argv++, argc--;
     param_list_configure_switch(pl, "v", &verbose);
 
-    for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
-        fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
-        param_list_print_usage(pl, programname, stderr);
-        exit(EXIT_FAILURE);
-    }
+    param_list_process_command_line(pl, &argc, &argv, false);
 
     parallelizing_info_lookup_parameters(pl);
 
     if (verbose)
         param_list_display (pl, stderr);
-    if (param_list_warn_unused(pl)) {
-        param_list_print_usage(pl, programname, stderr);
-        exit(EXIT_FAILURE);
-    }
+
+    if (param_list_warn_unused(pl))
+        pl.fail("Unused parameters are given");
 
     pi_go(program, pl, nullptr);
 

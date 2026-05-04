@@ -39,11 +39,11 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
     const lingen_call_companion::mul_or_mp_times * M;
     unsigned int shrink0;
     unsigned int shrink2;
-    subdivision mpi_split0;
-    subdivision mpi_split1;
-    subdivision mpi_split2;
-    subdivision shrink_split0;
-    subdivision shrink_split2;
+    subdivision<unsigned int> mpi_split0;
+    subdivision<unsigned int> mpi_split1;
+    subdivision<unsigned int> mpi_split2;
+    subdivision<unsigned int> shrink_split0;
+    subdivision<unsigned int> shrink_split2;
     unsigned int nrs0, nrs2;
     unsigned int b0, b1, b2;
     /* Declare ta, tb, tc early on so that we don't malloc/free n times.  */
@@ -147,9 +147,9 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
      * ceil(ceil(n2/r)/shrink2). However this depends on the exact block
      * indices within shrink_split0 and shrink_split2.
      */
-    subdivision loop0;
-    subdivision loop1;
-    subdivision loop2;
+    subdivision<unsigned int> loop0;
+    subdivision<unsigned int> loop1;
+    subdivision<unsigned int> loop2;
 
     /* Based on shrink0 and shrink2, we process output in blocks of size
      * nrs0*nrs2, for a total number of rounds equal to shrink0*shrink2.
@@ -310,7 +310,7 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
          * shrink0 and shrink2 do not. So they're serving opposite purposes.
          */
         const unsigned int nr1 = mpi_split1.block_size_upper_bound();
-        loop1 = subdivision::by_block_size(nr1, b1);
+        loop1 = subdivision<unsigned int>::by_block_size(nr1, b1);
 
         // unsigned int imax = mpi_split0.nth_block_size(CTX.a_irank());
         // unsigned int jmax = mpi_split2.nth_block_size(CTX.b_jrank());
@@ -353,8 +353,8 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
              * the three loops below are synchronous for all jobs. */
             ASSERT_ALWAYS((i1 - i0) <= nrs0);
             ASSERT_ALWAYS((j1 - j0) <= nrs2);
-            loop0 = subdivision::by_block_size(i1 - i0, b0);
-            loop2 = subdivision::by_block_size(j1 - j0, b2);
+            loop0 = subdivision<unsigned int>::by_block_size(i1 - i0, b0);
+            loop2 = subdivision<unsigned int>::by_block_size(j1 - j0, b2);
 
             ASSERT_ALWAYS(loop0.nblocks() == 1 || loop2.nblocks() == 1);
             bool process_blocks_row_major = b0 == nrs0;

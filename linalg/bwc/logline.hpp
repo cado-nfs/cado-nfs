@@ -4,7 +4,7 @@
 #include <cstdarg>  // for va_list
 #include <cstdio>   // for FILE, size_t
 #include "macros.h"  // for ATTR_PRINTF
-#include "params.h"  // for cxx_param_list
+#include "params.hpp"  // for cxx_param_list
 
 void logline_decl_usage(cxx_param_list & pl);
 void logline_init_timer();

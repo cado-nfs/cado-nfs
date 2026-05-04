@@ -16,7 +16,7 @@
 
 #include "arith-modp.hpp"
 #include "macros.h"
-#include "params.h"
+#include "params.hpp"
 
 /* This extension is used to distinguish between several possible
  * implementations of the product */

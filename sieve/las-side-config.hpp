@@ -5,7 +5,7 @@
 #include <vector>
 #include <map>
 
-#include "params.h"
+#include "params.hpp"
 
 #define SIDE_CONFIG_COLLECTOR(C, lpb)				\
     static std::vector<decltype(C::lpb)>                        \

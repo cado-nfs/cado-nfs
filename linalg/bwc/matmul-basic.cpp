@@ -14,7 +14,7 @@
 #include "matmul.hpp"
 #include "matmul-common.hpp"
 #include "matrix_u32.hpp"
-#include "params.h"
+#include "params.hpp"
 
 /* This extension is used to distinguish between several possible
  * implementations of the product */

@@ -7,7 +7,7 @@
 #include "omp_proxy.h"
 #endif
 #include "lingen_platform.hpp"
-#include "params.h"
+#include "params.hpp"
 
 /* TODO: fetch data from hwloc */
 

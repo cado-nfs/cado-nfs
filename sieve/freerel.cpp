@@ -37,15 +37,15 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "fmt/base.h"
 #include "fmt/format.h"
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "fstream_maybe_compressed.hpp"
 #include "macros.h"
 #include "mpz_poly.h"
 #include "omp_proxy.h"
-#include "params.h"
+#include "params.hpp"
 #include "renumber.hpp"
 #include "typedefs.h"
-#include "verbose.h"
+#include "verbose.hpp"
 
 static char const * argv0;
 
@@ -86,10 +86,10 @@ freerel_data_t::freerel_data_t(cxx_param_list & pl, cxx_cado_poly const & cpoly,
      * set pmax to the largest integer that is less than or equal to
      * two of the large prime bounds.
      */
-    if (!pmax && cpoly->nb_polys > 1) {
+    if (!pmax && cpoly.nsides() > 1) {
         std::vector<unsigned int> lpb_copy = lpb;
         std::ranges::sort(lpb_copy);
-        pmax = 1UL << lpb_copy[cpoly->nb_polys-2];
+        pmax = 1UL << lpb_copy[cpoly.nsides()-2];
     }
 }
 
@@ -142,7 +142,7 @@ void freerel_data_t::operator()(renumber_t & R, p_r_values_t p, index_t idx, ren
 }
 
 static void
-declare_usage(param_list pl)
+declare_usage(cxx_param_list & pl)
 {
     param_list_decl_usage(pl, "poly", "input polynomial file");
     param_list_decl_usage(pl, "lpb0", "large primes bound on side 0");
@@ -225,14 +225,14 @@ main(int argc, char const * argv[])
         fmt::print(stderr, "Error, missing -renumber command line argument\n");
         usage(pl, argv0);
     }
-    if (!cado_poly_read(cpoly, polyfilename)) {
+    if (!cpoly.read(polyfilename)) {
         fmt::print(stderr, "Error reading polynomial file\n");
         exit(EXIT_FAILURE);
     }
 
-    std::vector<unsigned int> lpb(cpoly->nb_polys, 0);
+    std::vector<unsigned int> lpb(cpoly.nsides(), 0);
 
-    if (!param_list_parse_uint_args_per_side(pl, "lpb", lpb.data(), cpoly->nb_polys, ARGS_PER_SIDE_DEFAULT_COPY_PREVIOUS)) {
+    if (!param_list_parse_uint_args_per_side(pl, "lpb", lpb.data(), cpoly.nsides(), ARGS_PER_SIDE_DEFAULT_COPY_PREVIOUS)) {
         fmt::print(stderr,
                 "Error, could not obtain values for the lpb bounds (or not for all polynomials)\n");
         usage(pl, argv0);

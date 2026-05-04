@@ -14,6 +14,7 @@ filter/debug-tools.sh
 filter/out-of-core/Makefile
 filter/out-of-core/clique.c
 filter/out-of-core/singleton.c
+helpers.bash
 linalg/bwc/CMakeLists-nodist.txt
 linalg/bwc/bcast-file.c
 linalg/bwc/bench_polmatmul.cpp
@@ -30,7 +31,6 @@ misc/descent-init.c
 misc/filter_sieved_pairs.c
 misc/phi.c
 misc/psi.c
-misc/singleton_simple.c
 misc/svsm.c
 parameters/polynomials/README
 parameters/polynomials/c100.poly
@@ -93,15 +93,14 @@ polyselect/integral.sage
 polyselect/kleinjung-list-of-lattices.sage
 polyselect/kleinjung.sage
 polyselect/linear_interpolation.sage
-polyselect/rootsieve1.c
-polyselect/rotate.c
-polyselect/rotate_all.c
+polyselect/rootsieve1.cpp
+polyselect/rotate.cpp
+polyselect/rotate_all.cpp
 polyselect/rotation_bound.sage
 polyselect/size_optimization.sage
-polyselect/sopt.c
-polyselect/template-header.c
-polyselect/twocubics.c
-polyselect/twoquadratics.c
+polyselect/sopt.cpp
+polyselect/twocubics.cpp
+polyselect/twoquadratics.cpp
 polyselect/twoquadratics.sage
 scripts/cadofactor/README.OAR
 scripts/cadofactor/parameters.oar

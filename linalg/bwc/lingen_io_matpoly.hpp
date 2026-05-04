@@ -8,7 +8,10 @@
 
 #include "lingen_matpoly_select.hpp"
 
+namespace cado::params {
 struct cxx_param_list;
+}
+using cxx_param_list = cado::params::cxx_param_list;
 
 template<bool is_binary>
 struct lingen_io_matpoly {

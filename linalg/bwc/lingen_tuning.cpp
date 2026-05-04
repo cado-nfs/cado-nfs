@@ -36,7 +36,7 @@
 #include "lingen_tuning_cache.hpp"
 #include "macros.h"
 #include "misc.h"
-#include "params.h"
+#include "params.hpp"
 #include "timing.h"
 
 /* {{{ all_splits_of

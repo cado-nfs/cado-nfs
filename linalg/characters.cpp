@@ -96,21 +96,20 @@
 #include "gmp_aux.h"
 #include "bblas_gauss.h"
 #include "blockmatrix.hpp"
-#include "cado_poly.h"
-#include "filter_io.h"
+#include "cado_poly.hpp"
+#include "filter_io.hpp"
 #include "fix-endianness.h"
 #include "gzip.h"
 #include "macros.h"
 #include "misc.h"
 #include "arith/mod_ul.h"
 #include "mpz_poly.h"
-#include "params.h"
+#include "params.hpp"
 #include "purgedfile.h"
 #include "rootfinder.h"
 #include "submatrix_range.hpp"
 #include "timing.h"
 #include "version_info.h"
-
 
 typedef struct {
     unsigned long p;      /* algebraic prime */
@@ -159,16 +158,31 @@ eval_one_non_special_char(alg_prime_t const & chi, mpz_srcptr a, mpz_srcptr b)
     return eval_one_non_special_char(chi, sa, mpz_tdiv_ui(b, chi.p));
 }
 
+static inline cxx_mpz eval_helper(cxx_mpz_poly const & f, int64_t a, uint64_t b)
+{
+    cxx_mpz t;
+    mpz_poly_homogeneous_eval_siui(t, f, a, b);
+    return t;
+}
+
+static inline cxx_mpz eval_helper(cxx_mpz_poly const & f, cxx_mpz const & a, cxx_mpz const & b)
+{
+    cxx_mpz t;
+    mpz_poly_homogeneous_eval(t, f, a, b);
+    return t;
+}
+
 /* Calculates a 64-bit word with the values of the characters chi(a,b), where
  * chi ranges from chars to chars+64
  */
-template<filter_io_config cfg>
+template<typename relation_type>
 static uint64_t eval_64chars(
-        decltype(std::declval<typename cfg::rel_t>()->a) a,
-        decltype(std::declval<typename cfg::rel_t>()->b) b,
+        relation_type const & rel,
         alg_prime_t const * chars,
         cxx_cado_poly const & cpoly)
 {
+    auto const & a = rel.a;
+    auto const & b = rel.b;
     /* FIXME: do better. E.g. use 16-bit primes, and a look-up table. Could
      * beat this. */
     uint64_t v = 0;
@@ -185,42 +199,28 @@ static uint64_t eval_64chars(
                 /* Special: sign */
                 int side;
                 if (chi.r == 2) {
-                    side = cado_poly_get_ratside(cpoly);
+                    side = cpoly.get_ratside();
                     ASSERT_ALWAYS(side != -1);
                 } else {
                     side = chi.r - 1024;
-                    ASSERT_ALWAYS(side < cpoly->nb_polys);
+                    ASSERT_ALWAYS(side < cpoly.nsides());
                 }
-                mpz_poly_srcptr po = cpoly->pols[side];
+                mpz_poly_srcptr po = cpoly[side];
                 int const deg = po->deg;
                 ASSERT_ALWAYS(deg > 0);
-                bool a_is_pos;
-                if constexpr (std::is_same_v<cfg, filter_io_large_ab_cfg>) {
-                    a_is_pos = mpz_sgn(a) > 0;
-                } else {
-                    a_is_pos = a > 0;
-                }
+                bool a_is_pos = a > 0;
                 /* first perform a quick check for deg=1 */
                 res = a_is_pos ? mpz_sgn(mpz_poly_coeff_const(po, 1))
                                : -mpz_sgn(mpz_poly_coeff_const(po, 1));
                 if (deg > 1 || mpz_sgn(mpz_poly_coeff_const(po, 0)) != res) {
-                    cxx_mpz t;
-                    if constexpr (std::is_same_v<cfg, filter_io_large_ab_cfg>) {
-                        mpz_poly_homogeneous_eval(t, po, a, b);
-                    } else {
-                        mpz_poly_homogeneous_eval_siui(t, po, a, b);
-                    }
+                    cxx_mpz t = eval_helper(po, a, b);
                     res = mpz_sgn(t) < 0;
                 } else {
                     res = res < 0;
                 }
             } else if (chi.r == 3) {
                 // parity of the number of free relations
-                if constexpr (std::is_same_v<cfg, filter_io_large_ab_cfg>) {
-                    res = mpz_sgn(b) == 0;
-                } else {
-                    res = (b==0);
-                }
+                res = (b==0);
             } else {
                 fmt::print(stderr, "Error, unrecognized special character: "
                                    "r={}\n", chi.r);
@@ -266,9 +266,9 @@ create_characters(
 
     int const nchars2 = iceildiv(nchars_tot, 64) * 64;
 
-    for (int side = 0; side < cpoly->nb_polys; ++side) {
-        if (cpoly->pols[side]->deg > (int) roots.size()) {
-            roots.resize(cpoly->pols[side]->deg);
+    for (int side = 0; side < cpoly.nsides(); ++side) {
+        if (cpoly[side]->deg > (int) roots.size()) {
+            roots.resize(cpoly[side]->deg);
         }
     }
     std::vector<alg_prime_t> chars(nchars2);
@@ -281,7 +281,7 @@ create_characters(
      * point, but nobody remembers the why and how. */
     chars[1] = (alg_prime_t) { .p = 0, .r = 3 };
     if (std::ranges::any_of(nchars, [](int nc) { return nc == 0; })) {
-        ASSERT_ALWAYS(cado_poly_get_ratside(cpoly) != -1);
+        ASSERT_ALWAYS(cpoly.get_ratside() != -1);
         /* force rational sign */
         chars[2] = (alg_prime_t) { .p = 0, .r = 2 };
         nspecchar++;
@@ -298,7 +298,7 @@ create_characters(
     cxx_gmp_randstate rstate;
 
     int i = nspecchar;
-    for (int side = 0; side < cpoly->nb_polys; ++side) {
+    for (int side = 0; side < cpoly.nsides(); ++side) {
         if (nchars[side] == 0)
             continue;
         mpz_set_ui (pp, 1UL << lpb[side]);
@@ -307,7 +307,7 @@ create_characters(
         do {
             mpz_nextprime(pp, pp);
             p = mpz_get_ui(pp);
-            ret = mpz_poly_roots_ulong (roots.data(), cpoly->pols[side], p,
+            ret = mpz_poly_roots_ulong (roots.data(), cpoly[side], p,
                                         rstate);
             for (int k = 0; k < ret && j < nchars[side] && i < nchars_tot;
                                                                 ++k, ++i, ++j) {
@@ -332,75 +332,85 @@ create_characters(
 static std::vector<alg_prime_t>
 create_sign_characters_only(cxx_cado_poly const & cpoly)
 {
-    std::vector<alg_prime_t> chars(iceildiv(cpoly->nb_polys, 64) * 64);
+    std::vector<alg_prime_t> chars(iceildiv(cpoly.nsides(), 64) * 64);
 
     for(unsigned long i = 0; i < chars.size() ; i++) {
-        if ((int) i < cpoly->nb_polys) { /* sign character for side i */
+        if ((int) i < cpoly.nsides()) { /* sign character for side i */
             chars[i] = (alg_prime_t) { .p = 0, .r = 1024 + i };
         } else { /* trivial character */
             chars[i] = (alg_prime_t) { .p = 0, .r = 0 };
         }
     }
-    if ((size_t) cpoly->nb_polys < chars.size()) {
+    if ((size_t) cpoly.nsides() < chars.size()) {
         fmt::print(stderr, "Note: total {} characters, including {} trivial "
                            "padding characters\n", chars.size(),
-                           chars.size()-cpoly->nb_polys);
+                           chars.size()-cpoly.nsides());
     }
 
     return chars;
 }
 
-typedef struct
-{
+struct big_characters_data {
+    cxx_cado_poly const & cpoly;
+    std::string purgedname;
     std::vector<alg_prime_t> const & chars;
-    blockmatrix & res;
-    cxx_cado_poly const * cpoly;
-} chars_data_t;
+    blockmatrix res;
 
-template<filter_io_config cfg>
-static void *
-thread_chars(void * context_data, typename cfg::rel_ptr rel)
-{
-    chars_data_t *data = (chars_data_t *) context_data;
-    std::vector<alg_prime_t> const & chars = data->chars;
-    blockmatrix & res = data->res;
-    auto const & cpoly = * data->cpoly;
-
-    for(size_t cg = 0 ; cg < chars.size() ; cg+=64) {
-        uint64_t w = eval_64chars<cfg>(rel->a, rel->b, chars.data()+cg, cpoly);
-        res[rel->num][cg] = w;
+    static uint64_t purgedfile_nrows(const char * purgedname)
+    {
+        uint64_t nrows, ncols;
+        purgedfile_read_firstline (purgedname, &nrows, &ncols);
+        return nrows;
     }
-    return NULL;
-}
+
+    big_characters_data(cxx_cado_poly const & cpoly,
+            const char * purgedname,
+            std::vector<alg_prime_t> const & chars)
+        : cpoly(cpoly)
+        , purgedname(purgedname)
+        , chars(chars)
+        , res(purgedfile_nrows(purgedname), chars.size())
+    {
+        res.set_zero();
+    }
+
+    template<typename relation_type>
+    void filter(int nthreads) {
+        /* For each rel, read the a,b-pair, compute the characters and
+         * store them in res.
+         */
+        fmt::print(stderr, "Reading {} pairs from {} and computing {} characters\n",
+                           res.nrows(), purgedname, chars.size());
+
+        filter_rels<relation_type>(purgedname, nullptr, nullptr,
+            cado::filter_io_details::multithreaded_call(nthreads,
+            [&](relation_type & rel) {
+                for(size_t cg = 0 ; cg < chars.size() ; cg+=64) {
+                    res[rel.num][cg] = eval_64chars(rel, chars.data() + cg, cpoly);
+                }
+            }));
+    }
+};
 
 // The big character matrix has (number of purged rels) rows, and (number of
 // characters) cols
-template<filter_io_config cfg>
-blockmatrix big_character_matrix(
-        std::vector<alg_prime_t> chars,
+static blockmatrix big_character_matrix(
+        std::vector<alg_prime_t> const & chars,
         const char * purgedname,
         cxx_cado_poly const & cpoly,
-        int nthreads)
+        int nthreads,
+        int largeab)
 {
-    uint64_t nrows, ncols;
-    purgedfile_read_firstline (purgedname, &nrows, &ncols);
+    big_characters_data B(cpoly, purgedname, chars);
+    if (!largeab) {
+        using relation_type = cado::relation_building_blocks::ab_block<uint64_t, 16>;
+        B.filter<relation_type>(nthreads);
+    } else {
+        using relation_type = cado::relation_building_blocks::ab_block<cxx_mpz, 16>;
+        B.filter<relation_type>(nthreads);
+    }
 
-    blockmatrix res(nrows, chars.size());
-    res.set_zero();
-
-    /* For each rel, read the a,b-pair, compute the characters and store them
-     * in res.
-     */
-    fmt::print(stderr, "Reading {} pairs from {} and computing {} characters\n",
-                       nrows, purgedname, chars.size());
-    chars_data_t data = {.chars = chars, .res=res, .cpoly=&cpoly};
-    std::vector<std::string> fic { purgedname };
-    typename cfg::description_t desc[2] = {
-        { thread_chars<cfg>, &data, nthreads, }, { nullptr, nullptr, 0, },
-    };
-    filter_rels2<cfg>(fic, desc, EARLYPARSE_NEED_AB_HEXA, NULL, NULL);
-
-    return res;
+    return std::move(B.res);
 }
 
 /* The small character matrix has only (number of relation-sets) rows -- its
@@ -635,7 +645,7 @@ static void blockmatrix_column_reduce(blockmatrix & m, unsigned int max_rows_to_
 }
 
 static void
-declare_usage (param_list pl)
+declare_usage (cxx_param_list & pl)
 {
   param_list_decl_usage (pl, "purged", "output-from-purge file");
   param_list_decl_usage (pl, "index",  "index file");
@@ -653,7 +663,6 @@ declare_usage (param_list pl)
                                         "64 bits");
   param_list_decl_usage (pl, "only-sign-chars", "use only the sign character "
                                                 "on each side");
-  param_list_decl_usage(pl, "force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
 }
 
 // coverity[root_function]
@@ -667,35 +676,27 @@ int main(int argc, char const * argv[])
     const char *outname = NULL;
     int nthreads = 1;
     unsigned long lpb[2] = {0,0};
-    int largeab = 0;
-    int only_sign_chars = 0;
-    const char *argv0 = argv[0];
+    bool only_sign_chars = false;
     double const cpu0 = seconds ();
     double const wct0 = wct_seconds ();
 
     /* print the command line */
-    fprintf (stderr, "%s.r%s", argv[0], cado_revision_string);
-    for (int i = 1; i < argc; i++)
-      fprintf (stderr, " %s", argv[i]);
-    fprintf (stderr, "\n");
+    fmt::print(stderr, "# ({}) {}\n",
+            cado_revision_string,
+            collect_command_line(argc, argv));
 
     cxx_param_list pl;
     declare_usage(pl);
 
-    argc--,argv++;
     const char *bw_kernel_file = NULL;
 
-    param_list_configure_switch(pl, "force-posix-threads", &filter_rels_force_posix_threads);
-    param_list_configure_switch(pl, "large-ab", &largeab);
-    param_list_configure_switch(pl, "only-sign-chars", &only_sign_chars);
+    pl.configure_switch("large-ab");
+    pl.configure_switch("only-sign-chars");
 
-    for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) continue;
+    cado::filter_io_details::configure(pl);
 
-        fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
-        param_list_print_usage(pl, argv0, stderr);
-        exit (EXIT_FAILURE);
-    }
+    param_list_process_command_line(pl, &argc, &argv, false);
+
     purgedname = param_list_lookup_string(pl, "purged");
     indexname = param_list_lookup_string(pl, "index");
     outname = param_list_lookup_string(pl, "out");
@@ -705,58 +706,42 @@ int main(int argc, char const * argv[])
     const char * tmp;
 
     if ((tmp = param_list_lookup_string(pl, "poly")) == NULL)
-      {
-        fprintf (stderr, "Error: parameter -poly is mandatory\n");
-        param_list_print_usage (pl, argv0, stderr);
-        exit (EXIT_FAILURE);
-      }
-    cado_poly_read(cpoly, tmp);
-    if (cpoly->nb_polys < 1 || cpoly->nb_polys > 2) {
-        fmt::print(stderr, "Error: number of polys should be 1 or 2, got {}\n",
-                           cpoly->nb_polys);
-        exit (EXIT_FAILURE);
-    }
+        pl.fail("Error: parameter -poly is mandatory\n");
+    cpoly.read(tmp);
+    if (cpoly.nsides() < 1 || cpoly.nsides() > 2)
+        pl.fail("Error: number of polys should be 1 or 2, got {}\n",
+                           cpoly.nsides());
 
     if (param_list_parse_int(pl, "nchar", &nchars) == 0)
-    {
-        fprintf (stderr, "Error: parameter -nchar is mandatory\n");
-        param_list_print_usage (pl, argv0, stderr);
+        pl.fail("Error: parameter -nchar is mandatory\n");
+
+    if (only_sign_chars && nchars != cpoly.nsides()) {
+        fmt::print(stderr, "Error: with -only-sign-chars, -nchars should be "
+                           "equal to the number of sides ({}), got {}\n",
+                           cpoly.nsides(), nchars);
         exit (EXIT_FAILURE);
     }
 
-    if (only_sign_chars && nchars != cpoly->nb_polys) {
-        fmt::print(stderr, "Error: with -only-sign-chars, -nchars should be "
-                           "equal to the number of sides ({}), got {}\n",
-                           cpoly->nb_polys, nchars);
-        exit (EXIT_FAILURE);
-    }
+    pl.parse("only_sign_chars", only_sign_chars);
 
     /* parse the optional -nratchars option */
     param_list_parse_int(pl, "nratchars", &nratchars);
-    if (nratchars && cado_poly_get_ratside(cpoly) == -1) { /* no rat side */
+    if (nratchars && cpoly.get_ratside() == -1) { /* no rat side */
         fmt::print(stderr, "Error: nratchars is non-zero ({}) but poly has no "
                            "rational side\n", nratchars);
         exit (EXIT_FAILURE);
     }
     /* parse lpb{side} for each side of cpoly */
-    for (int side = 0; side < cpoly->nb_polys; ++side) {
+    for (int side = 0; side < cpoly.nsides(); ++side) {
         std::string arg = fmt::format("lpb{}", side);
         if (param_list_parse_ulong(pl, arg.c_str(), &lpb[side]) == 0)
-        {
-            fmt::print(stderr, "Error: parameter {} is mandatory\n", arg);
-            param_list_print_usage (pl, argv0, stderr);
-            exit (EXIT_FAILURE);
-        }
+            pl.fail("Error: parameter {} is mandatory\n", arg);
     }
 
     param_list_parse_int(pl, "t", &nthreads);
 
-    if (purgedname == NULL || indexname == NULL || outname == NULL) {
-        fprintf (stderr,
-                "Error: parameters -purged, -index and -out are mandatory\n");
-        param_list_print_usage (pl, argv0, stderr);
-        exit (EXIT_FAILURE);
-    }
+    if (purgedname == NULL || indexname == NULL || outname == NULL)
+        pl.fail("Error: parameters -purged, -index and -out are mandatory\n");
 
     /* Put nchars characters on all algebraic sides and nratchars on the
      * rational side (if it exists).
@@ -765,18 +750,17 @@ int main(int argc, char const * argv[])
     if (only_sign_chars) {
         chars = create_sign_characters_only(cpoly);
     } else {
-        std::vector<int> nch(cpoly->nb_polys);
-        for (int side = 0; side < cpoly->nb_polys; ++side) {
-            nch[side] = cpoly->pols[side]->deg > 1 ? nchars : nratchars;
+        std::vector<int> nch(cpoly.nsides());
+        for (int side = 0; side < cpoly.nsides(); ++side) {
+            nch[side] = cpoly[side]->deg > 1 ? nchars : nratchars;
         }
         chars = create_characters (nch, cpoly, lpb);
     }
 
-    blockmatrix bcmat = !largeab
-            ? big_character_matrix<filter_io_default_cfg>(chars, purgedname,
-                                                        cpoly, nthreads)
-            : big_character_matrix<filter_io_large_ab_cfg>(chars, purgedname,
-                                                           cpoly, nthreads);
+    cado::filter_io_details::interpret_parameters(pl);
+
+    blockmatrix bcmat = big_character_matrix(chars, purgedname,
+            cpoly, nthreads, pl.parse<bool>("large-ab"));
 
     fprintf(stderr, "done building big character matrix at wct=%.1fs\n", wct_seconds()-wct0);
 

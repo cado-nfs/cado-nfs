@@ -12,7 +12,7 @@
 
 #include "matmul.hpp"   // for matmul_public_s
 #include "matmul-common.hpp"
-#include "verbose.h"
+#include "verbose.hpp"
 #include "utils_cxx.hpp"        // for unique_ptr<FILE, delete_FILE>
 
 #define MM_COMMON_MAGIC 0xb0010003UL

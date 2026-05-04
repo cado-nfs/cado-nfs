@@ -3,7 +3,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <gmp.h>               // for mpz_sgn, mpz_add_ui, mpz_set_ui, mpz_s...
-#include <stdint.h>            // for uint64_t
+#include <cstdint>            // for uint64_t
 #include <vector>              // for vector
 #include "gmp_aux.h"           // for ulong_nextprime
 #include "sieve/trialdiv.hpp"

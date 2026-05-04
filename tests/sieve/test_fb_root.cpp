@@ -15,7 +15,7 @@
 #include "fmt/format.h"
 #include "fmt/base.h"
 
-#include "cado_poly.h"              // MAX_DEGREE
+#include "cado_poly.hpp"              // MAX_DEGREE
 #include "cxx_mpz.hpp"
 #include "fb-types.hpp"
 #include "fb.hpp"

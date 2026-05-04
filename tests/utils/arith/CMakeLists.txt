@@ -7,7 +7,7 @@ cado_define_test(test_modredc_15ul.c LIBRARIES utils tests ARGUMENTS 1000
 cado_define_test(test_modredc_2ul2.c LIBRARIES utils tests ARGUMENTS 1000
     TIMEOUT 120
 )
-cado_define_test(test_modul_poly.c LIBRARIES utils tests)
+cado_define_test(test_modul_poly.cpp LIBRARIES utils tests)
 cado_define_test(test_modredcul_batchinv.c LIBRARIES utils tests)
 cado_define_test(test_modredcul_batchinv_ul.c LIBRARIES utils tests)
 cado_define_test(test_modredc2ul2_Q_to_Fp.c LIBRARIES utils tests)

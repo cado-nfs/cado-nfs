@@ -241,6 +241,21 @@ class arithxx_mod_mpz_new::Modulus
         assertValid(r);
         set_residue_mpz(r, s);
     }
+    void set_raw(Residue & r, uint64_t const s) const
+    {
+        set_residue_u64(r, s);
+    }
+    void set_raw(Residue & r, Integer const & s) const
+    {
+        set_residue_mpz(r, s);
+    }
+    Integer get_raw(Residue const & r) const
+    {
+        Integer s;
+        set_mpz_residue(s, r);
+        return s;
+    }
+
     void set0(Residue & r) const { mpn_zero(r.r.get(), mpz_size(m)); }
     void set1(Residue & r) const
     {

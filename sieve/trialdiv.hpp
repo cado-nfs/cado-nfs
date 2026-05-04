@@ -22,10 +22,6 @@ typedef struct {
   unsigned long plim; /* plim = (w-1)/p */
 } trialdiv_divisor_t;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct trialdiv_data : public std::vector<trialdiv_divisor_t>
 {
     trialdiv_data() = default;
@@ -61,10 +57,5 @@ struct trialdiv_data : public std::vector<trialdiv_divisor_t>
         return res;     /* copy elision */
     }
 };
-
-#ifdef __cplusplus
-}
-#endif
-
 
 #endif	/* CADO_TRIALDIV_HPP */

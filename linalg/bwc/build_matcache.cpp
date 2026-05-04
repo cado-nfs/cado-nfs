@@ -17,7 +17,7 @@
 #include "macros.h"
 #include "arith-generic.hpp"
 #include "portability.h" // asprintf // IWYU pragma: keep
-#include "params.h"
+#include "params.hpp"
 #include "matrix_u32.hpp"   // for matrix_u32
 
 
@@ -38,29 +38,22 @@ struct direction_flag {
 };
 
 template<>
-int param_list_parse<direction_flag>(param_list_ptr pl,
-        std::string const & arg,
-        direction_flag & D)
-{
-    std::string r;
-    if (!param_list_parse(pl, arg, r))
-        return 0;
-    if (r == "left" || r == "LEFT") {
-        D.value = 0;
-    } else if (r == "right" || r == "RIGHT") {
-        D.value = 1;
-    } else {
-        throw std::runtime_error(fmt::format("Wrong argument for direction flag ({}), must be left or right", r));
+struct cado::params::parser<direction_flag> {
+    bool operator()(std::string const & r, direction_flag & D) {
+        if (r == "left" || r == "LEFT") {
+            D.value = 0;
+        } else if (r == "right" || r == "RIGHT") {
+            D.value = 1;
+        } else {
+            return false;
+            // throw cado::error("Wrong argument for direction flag ({}), must be left or right", r);
+        }
+        return true;
     }
-    return 1;
-}
-
-
+};
 
 int main(int argc, char const * argv[])
 {
-    const char *argv0 = argv[0];
-
     cxx_mpz prime;
     mpz_set_ui(prime, 2);
     std::string matrixfile;
@@ -73,13 +66,7 @@ int main(int argc, char const * argv[])
 
     declare_usage(pl);
 
-
-    for(argv++, argc-- ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) continue;
-        fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
-        param_list_print_usage(pl, argv0, stderr);
-        exit(EXIT_FAILURE);
-    }
+    param_list_process_command_line(pl, &argc, &argv, false);
 
     param_list_parse(pl, "prime", prime);
 
@@ -93,10 +80,9 @@ int main(int argc, char const * argv[])
     param_list_parse(pl, "tmpdir", tmpdir);
     param_list_parse(pl, "impl", impl);
 
-    if (!param_list_parse(pl, "matrix-file", matrixfile)) {
-        fprintf(stderr, "Error: argument matrix-file is mandatory\n");
-        exit(EXIT_FAILURE);
-    }
+    if (!param_list_parse(pl, "matrix-file", matrixfile))
+        pl.fail("Error: argument matrix-file is mandatory\n");
+
     param_list_warn_unused(pl);
 
     std::unique_ptr<arith_generic> const xx(arith_generic::instance(prime, groupsize));

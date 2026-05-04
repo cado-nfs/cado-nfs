@@ -1,7 +1,7 @@
 #ifndef CADO_CPUBINDING_HPP
 #define CADO_CPUBINDING_HPP
 
-#include "params.h"     // param_list
+#include "params.hpp"
 
 void cpubinding_decl_usage(cxx_param_list &);
 void cpubinding_lookup_parameters(cxx_param_list & pl);

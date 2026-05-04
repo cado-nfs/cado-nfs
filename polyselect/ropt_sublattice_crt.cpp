@@ -3,7 +3,7 @@
 #include <cmath>
 
 #include "ropt_single_sublattice_priority_queue_impl.hpp"
-#include "ropt_sublattice_crt.h"
+#include "ropt_sublattice_crt.hpp"
 #include "cxx_mpz.hpp"
 
 

@@ -24,30 +24,30 @@
 
 #include <gmp.h>
 
-#include "cxx_mpz.hpp" // cxx_mpz
-#include "decomp.hpp"  // decomp_t
+#include "cxx_mpz.hpp"
+#include "decomp.hpp"
 #include "facul.hpp"
 #include "facul_ecm.h"
 #include "facul_method.hpp"
 #include "facul_strategies.hpp"
 #include "finding_good_strategy.hpp"
-#include "fm.hpp" // fm_t fm_set_method
+#include "fm.hpp"
 #include "generate_factoring_method.hpp"
 #include "generate_strategies.hpp"
 #include "gmp_aux.h"
 #include "macros.h"
-#include "misc.h"       // u64_random  // IWYU: keep
-#include "arith/modredc_ul.h" // MODREDCUL_MAXBITS
-#include "params.h"     // param_list
-#include "strategy.hpp" // for strategy_t, strategy_add_fm
+#include "misc.h"
+#include "arith/modredc_ul.h"
+#include "params.hpp"
+#include "strategy.hpp"
 #include "tab_decomp.hpp"
 #include "tab_fm.hpp"
 #include "tab_strategy.hpp"
-#include "timing.h" // microseconds
+#include "timing.h"
 // #include "facul_fwd.hpp"
 // #include "pm1.h"
 // #include "pp1.h"
-// #include "stage2.h" // stage2_plan_t
+// #include "stage2.h"
 
 #ifdef COMPILE_DEAD_CODE
 // #include "facul.hpp"
@@ -1095,23 +1095,22 @@ bench_proba_time_st_both(gmp_randstate_t state, strategy_t * t,
 /*                            USAGE                                     */
 /************************************************************************/
 
-static void declare_usage(param_list pl)
+static void declare_usage(cxx_param_list & pl)
 {
-    param_list_usage_header(pl,
-                            "This binary allows to test the strategy of cado,"
+    pl.declare_usage_header("This binary allows to test the strategy of cado,"
                             "and especially compute the theorical number of "
                             "relations found per second by this strategy.\n");
 
-    param_list_decl_usage(pl, "lim0",
+    pl.declare_usage("lim0",
                           "set rationnal factor base bound to lim0\n");
-    param_list_decl_usage(pl, "lim1",
+    pl.declare_usage("lim1",
                           "set algebraic factor base bound to lim1\n");
-    param_list_decl_usage(pl, "lpb0",
+    pl.declare_usage("lpb0",
                           "set rational large prime bound to 2^lpb0");
-    param_list_decl_usage(pl, "lpb1",
+    pl.declare_usage("lpb1",
                           "set algebraic large prime bound to 2^lpb1");
-    param_list_decl_usage(pl, "mfb0", "set the first cofactor bound to 2^mfb0");
-    param_list_decl_usage(pl, "mfb1",
+    pl.declare_usage("mfb0", "set the first cofactor bound to 2^mfb0");
+    pl.declare_usage("mfb1",
                           "set the second cofactor bound to 2^mfb1");
     param_list_decl_usage(
         pl, "decomp",
@@ -1126,7 +1125,7 @@ static void declare_usage(param_list pl)
         pl, "t",
         "specify the time (seconds) to optain cofactors in the file\n"
         "\t\t given by the option 'dist'.");
-    param_list_decl_usage(pl, "out",
+    pl.declare_usage("out",
                           "the output file which contain our strategies\n");
 }
 
@@ -1140,28 +1139,7 @@ int main(int argc, char const * argv[])
     cxx_param_list pl;
     declare_usage(pl);
 
-    if (argc <= 1) {
-        param_list_print_usage(pl, argv[0], stderr);
-        exit(EXIT_FAILURE);
-    }
-
-    argv++, argc--;
-    for (; argc;) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) {
-            continue;
-        }
-        /* Could also be a file */
-        FILE * f;
-        if ((f = fopen(argv[0], "r")) != nullptr) {
-            param_list_read_stream(pl, f, 0);
-            fclose(f);
-            argv++, argc--;
-            continue;
-        }
-        fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
-        param_list_print_usage(pl, argv[0], stderr);
-        exit(EXIT_FAILURE);
-    }
+    param_list_process_command_line_and_extra_parameter_files(pl, &argc, &argv);
 
     // option parser
     unsigned long lim0 = 0;

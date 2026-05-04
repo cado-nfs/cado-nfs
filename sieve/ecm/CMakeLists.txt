@@ -58,7 +58,7 @@ add_library(facul
         facul_doit_mpz.cpp
         stage2.c
         bytecode.c
-        makeplan.c facul.cpp modset.cpp
+        makeplan.cpp facul.cpp modset.cpp
         facul_method.cpp
         facul_strategies_stats.cpp
         facul_strategies.cpp

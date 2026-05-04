@@ -6,7 +6,7 @@
 
 #include "las-config.hpp"
 #include "macros.h"
-#include "verbose.h"
+#include "verbose.hpp"
 #include "utils_cxx.hpp"
 
 int las_production_mode = 0;

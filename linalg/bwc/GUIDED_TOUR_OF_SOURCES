@@ -205,7 +205,7 @@ linalg/bwc/acollect.c
 
 
 linalg/bwc/bw-common.c
-linalg/bwc/bw-common.h
+linalg/bwc/bw-common.hpp
 linalg/bwc/bwc_config_h.in
 linalg/bwc/cheating_vec_init.h
 linalg/bwc/rolling.c

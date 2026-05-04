@@ -17,14 +17,14 @@
 #include "arith-cross.hpp"
 #include "arith-generic.hpp"
 #include "balancing.hpp"         // for DUMMY_VECTOR_COORD_VALUE, DUMMY_VECT...
-#include "bw-common.h"
+#include "bw-common.hpp"
 #include "intersections.h"
 #include "macros.h"
 #include "matmul_top.hpp"
 #include "matmul_top_vec.hpp"
 #include "mmt_vector_pair.hpp"
 #include "parallelizing_info.hpp"
-#include "params.h"
+#include "params.hpp"
 #include "select_mpi.h"
 
 static void mmt_full_vec_set_dummy1(mmt_vec & y, size_t unpadded)

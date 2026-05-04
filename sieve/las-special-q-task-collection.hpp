@@ -12,8 +12,8 @@
 #include <set>
 #include <deque>
 
-#include "cado_poly.h"
-#include "params.h"
+#include "cado_poly.hpp"
+#include "params.hpp"
 #include "special-q.hpp"
 #include "relation.hpp"
 #include "las-todo-list.hpp"

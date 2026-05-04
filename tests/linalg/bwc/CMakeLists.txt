@@ -785,7 +785,7 @@ foreach(mpiconf nompi ${mpiconfs})
         ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
         ${PROJECT_BINARY_DIR}/linalg/bwc/bwc.pl :mpirun
         --
-        ${CADO_NFS_BINARY_DIR}/linalg/bwc/krylov --random_matrix 20000,density=100 m=64 n=64 ys=0..64 prime=2 interval=100 end=200
+        ${CADO_NFS_BINARY_DIR}/linalg/bwc/krylov --random_matrix nrows=20000,density=100 m=64 n=64 ys=0..64 prime=2 interval=100 end=200
         TARGET_DEPENDENCIES bwc_full
         TIMEOUT 60
         )
@@ -857,7 +857,7 @@ cado_define_test(TEST_NAME bwc_staged_krylov
     ${CADO_NFS_BINARY_DIR}/linalg/bwc/krylov thr=2x2 nullspace=left
     interval=200  mn=64 prime=2  ys=0..64 start=0 end=200
     skip_online_checks=1 rebuild_cache=1 seed=1
-    sequential_cache_build=1 random_matrix=10000,density=150,seed=1
+    sequential_cache_build=1 random_matrix=nrows=10000,density=150,seed=1
     no_save_cache=1 verbose_flags=^all-bwc-sub-timings,^all-bwc-dispatch
     TARGET_DEPENDENCIES bwc_full_gf2
     TIMEOUT 180
@@ -929,7 +929,7 @@ cado_define_test(TEST_NAME test-blocklanczos-staged
     PROGRAM
     ${CADO_NFS_BINARY_DIR}/linalg/bwc/bwc.pl :mpirun --
     ${CADO_NFS_BINARY_DIR}/linalg/bwc/blocklanczos
-    random_matrix=1200,1000,80,seed=1 m=64 n=64 ys=0..64
+    random_matrix=nrows=1200,ncols=1000,density=80,seed=1 m=64 n=64 ys=0..64
     no_save_cache=1 interval=10 nullspace=left
     TARGET_DEPENDENCIES test-blocklanczos_dependencies)
 
@@ -1044,7 +1044,8 @@ cado_define_test(linalg_determinant_nonsquare
     SCRIPT
     ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg wdir --
     ${CADO_NFS_BINARY_DIR}/linalg/bwc/bwc.pl
-        :determinant n=1 m=2 prime=101 thr=2 nullspace=right random_matrix=50,51
+        :determinant n=1 m=2 prime=101 thr=2 nullspace=right
+        random_matrix=nrows=50,ncols=51
     EXPECT_FAIL
     TARGET_DEPENDENCIES bwc_full_gfp
 )
@@ -1054,7 +1055,7 @@ cado_define_test(linalg_determinant_p2
     SCRIPT
     ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg wdir --
     ${CADO_NFS_BINARY_DIR}/linalg/bwc/bwc.pl
-        :determinant n=64 m=128 prime=2 thr=2 random_matrix=100
+        :determinant n=64 m=128 prime=2 thr=2 random_matrix=nrows=100
     EXPECT_FAIL
     TARGET_DEPENDENCIES bwc_full_gfp
 )

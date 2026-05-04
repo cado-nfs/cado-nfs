@@ -11,9 +11,9 @@
 #include "las-multiobj-globals.hpp"
 #include "macros.h"
 #include "typedefs.h"
-#include "params.h"
+#include "params.hpp"
 #include "portability.h"
-#include "verbose.h"
+#include "verbose.hpp"
 
 void las_dlog_base::declare_usage(cxx_param_list & pl)
 {

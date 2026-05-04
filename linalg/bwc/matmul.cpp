@@ -24,9 +24,9 @@
 
 #include "macros.h"       // for FATAL_ERROR_CHECK, iceildiv
 #include "matmul.hpp"
-#include "verbose.h"
+#include "verbose.hpp"
 #include "portability.h" // asprintf // IWYU pragma: keep
-#include "params.h"
+#include "params.hpp"
 
 void matmul_decl_usage(cxx_param_list & pl)
 {

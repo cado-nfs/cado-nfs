@@ -545,9 +545,9 @@ struct mp_or_mul : public OP_CTX2<OP_T::is_binary>
     static constexpr bool is_binary = OP_T::is_binary;
     OP_T & OP;
     const lingen_call_companion::mul_or_mp_times * M;
-    subdivision mpi_split0;
-    subdivision mpi_split1;
-    subdivision mpi_split2;
+    subdivision<unsigned int> mpi_split0;
+    subdivision<unsigned int> mpi_split1;
+    subdivision<unsigned int> mpi_split2;
     unsigned int nrs0, nrs2;
     unsigned int b0, b1, b2;
     matpoly<is_binary> a_peers;
@@ -644,9 +644,9 @@ struct mp_or_mul : public OP_CTX2<OP_T::is_binary>
      * iterating on, respectively, ceil(ceil(n0/r)), and
      * ceil(ceil(n2/r)).
      */
-    subdivision loop0;
-    subdivision loop1;
-    subdivision loop2;
+    subdivision<unsigned int> loop0;
+    subdivision<unsigned int> loop1;
+    subdivision<unsigned int> loop2;
 
     /*
      * 
@@ -772,7 +772,7 @@ struct mp_or_mul : public OP_CTX2<OP_T::is_binary>
          * shrink0 and shrink2 do not. So they're serving opposite purposes.
          */
         const unsigned int nr1 = mpi_split1.block_size_upper_bound();
-        loop1 = subdivision::by_block_size(nr1, b1);
+        loop1 = subdivision<unsigned int>::by_block_size(nr1, b1);
 
         // unsigned int imax = mpi_split0.nth_block_size(a_irank());
         // unsigned int jmax = mpi_split2.nth_block_size(b_jrank());
@@ -803,8 +803,8 @@ struct mp_or_mul : public OP_CTX2<OP_T::is_binary>
          * the three loops below are synchronous for all jobs. */
         ASSERT_ALWAYS((i1 - i0) <= nrs0);
         ASSERT_ALWAYS((j1 - j0) <= nrs2);
-        loop0 = subdivision::by_block_size(i1 - i0, b0);
-        loop2 = subdivision::by_block_size(j1 - j0, b2);
+        loop0 = subdivision<unsigned int>::by_block_size(i1 - i0, b0);
+        loop2 = subdivision<unsigned int>::by_block_size(j1 - j0, b2);
 
         ASSERT_ALWAYS(loop0.nblocks() == 1 || loop2.nblocks() == 1);
         bool const process_blocks_row_major = b0 == nrs0;
@@ -1051,8 +1051,8 @@ struct scatter_gather_base {/*{{{*/
         }
     } shell;
 
-    subdivision R;       /* Row split */
-    subdivision C;       /* Col split */
+    subdivision<unsigned int> R;       /* Row split */
+    subdivision<unsigned int> C;       /* Col split */
     unsigned int m0 = R.block_size_upper_bound();
     unsigned int n0 = C.block_size_upper_bound();
 

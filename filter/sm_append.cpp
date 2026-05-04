@@ -43,16 +43,16 @@
 #include "fmt/format.h"
 #include <gmp.h>
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "gzip.h"
 #include "macros.h"
 #include "mpz_poly.h"
-#include "params.h"
+#include "params.hpp"
 #include "runtime_numeric_cast.hpp"
 #include "select_mpi.h"
 #include "sm_utils.hpp"
 #include "timing.h"
-#include "verbose.h"
+#include "verbose.hpp"
 
 // {{{ debug print interface
 static unsigned int const debug = 0;
@@ -159,10 +159,9 @@ struct sm_capable { // {{{
             for (auto const & B: batch) {
                 mpz_poly_setcoeff_int64(pol, 0, B.a);
                 mpz_poly_setcoeff_int64(pol, 1, -(int64_t)B.b);
-                int smidx = 0;
                 for (auto const & S: sm_info) {
                     S.compute_piecewise(smpol, pol);
-                    for (int k = 0; k < S.nsm; k++, smidx++) {
+                    for (int k = 0; k < S.nsm; k++) {
                         if (k <= smpol->deg) {
                             for (int j = 0; j < int(limbs_per_ell); j++) {
                                 dst[j] = mpz_getlimbn(
@@ -688,7 +687,7 @@ static void sm_append(FILE * in, FILE * out,
 }
 /* }}} */
 
-static void declare_usage(param_list pl)
+static void declare_usage(cxx_param_list & pl)
 {
     param_list_decl_usage(pl, "poly", "(required) poly file");
     param_list_decl_usage(pl, "ell", "(required) group order");
@@ -701,16 +700,6 @@ static void declare_usage(param_list pl)
     verbose_decl_usage(pl);
 }
 
-static void usage(char const * argv, char const * missing, param_list pl)
-{
-    if (missing) {
-        fprintf(stderr, "\nError: missing or invalid parameter \"-%s\"\n",
-                missing);
-    }
-    param_list_print_usage(pl, argv, stderr);
-    exit(EXIT_FAILURE);
-}
-
 /* -------------------------------------------------------------------------- */
 
 // coverity[root_function]
@@ -720,58 +709,37 @@ int main(int argc, char const * argv[])
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    char const * argv0 = argv[0];
-
     char const * polyfile = nullptr;
 
-    param_list pl;
-    cado_poly cpoly;
+    cxx_param_list pl;
+    cxx_cado_poly cpoly;
 
     mpz_t ell;
 
-    /* read params */
-    param_list_init(pl);
     declare_usage(pl);
 
-    if (argc == 1)
-        usage(argv[0], nullptr, pl);
-
-    argc--, argv++;
-    for (; argc;) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) {
-            continue;
-        }
-        fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
-        usage(argv0, nullptr, pl);
-    }
+    param_list_process_command_line(pl, &argc, &argv, false);
 
     /* Read poly filename from command line */
-    if ((polyfile = param_list_lookup_string(pl, "poly")) == nullptr) {
-        fprintf(stderr, "Error: parameter -poly is mandatory\n");
-        param_list_print_usage(pl, argv0, stderr);
-        exit(EXIT_FAILURE);
-    }
+    if ((polyfile = param_list_lookup_string(pl, "poly")) == nullptr)
+        pl.fail("Error: parameter -poly is mandatory\n");
 
     /* Read ell from command line (assuming radix 10) */
     mpz_init(ell);
-    if (!param_list_parse_mpz(pl, "ell", ell)) {
-        fprintf(stderr, "Error: parameter -ell is mandatory\n");
-        param_list_print_usage(pl, argv0, stderr);
-        exit(EXIT_FAILURE);
-    }
+    if (!param_list_parse_mpz(pl, "ell", ell))
+        pl.fail("Error: parameter -ell is mandatory\n");
 
     /* Init polynomial */
-    cado_poly_init(cpoly);
-    cado_poly_read(cpoly, polyfile);
+    cpoly.read(polyfile);
 
-    std::vector<mpz_poly_srcptr> F(cpoly->nb_polys, nullptr);
+    std::vector<mpz_poly_srcptr> F(cpoly.nsides(), nullptr);
 
-    for (int side = 0; side < cpoly->nb_polys; side++)
-        F[side] = cpoly->pols[side];
+    for (int side = 0; side < cpoly.nsides(); side++)
+        F[side] = cpoly[side];
 
-    std::vector<int> nsm_arg(cpoly->nb_polys, -1);
+    std::vector<int> nsm_arg(cpoly.nsides(), -1);
     param_list_parse_int_args_per_side(pl, "nsm", nsm_arg.data(),
-                                       cpoly->nb_polys,
+                                       cpoly.nsides(),
                                        ARGS_PER_SIDE_DEFAULT_AS_IS);
 
     FILE * in = rank ? nullptr : stdin;
@@ -798,14 +766,14 @@ int main(int argc, char const * argv[])
     param_list_parse(pl, "t", nthr);
 
     if (param_list_warn_unused(pl))
-        usage(argv0, nullptr, pl);
+        pl.fail("Unused parameters are given");
 
     if (!rank)
         param_list_print_command_line(stdout, pl);
 
     std::vector<sm_side_info> sm_info;
 
-    for (int side = 0; side < cpoly->nb_polys; side++) {
+    for (int side = 0; side < cpoly.nsides(); side++) {
         sm_info.emplace_back(F[side], ell, 0);
         sm_info[side].set_mode(sm_mode_string);
         if (nsm_arg[side] >= 0)
@@ -816,7 +784,7 @@ int main(int argc, char const * argv[])
 
     /*
        if (!rank) {
-       for (int side = 0; side < cpoly->nb_polys; side++) {
+       for (int side = 0; side < cpoly.nsides(); side++) {
        printf("\n# Polynomial on side %d:\nF[%d] = ", side, side);
        mpz_poly_fprintf(stdout, F[side]);
 
@@ -842,8 +810,6 @@ int main(int argc, char const * argv[])
         fclose_maybe_compressed(out, outfilename);
 
     mpz_clear(ell);
-    cado_poly_clear(cpoly);
-    param_list_clear(pl);
 
     MPI_Finalize();
 

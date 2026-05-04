@@ -81,6 +81,46 @@
    obj:/lib/x86_64-linux-gnu/ld-2.*
    ...
 }
+{
+   probably_same_as_above_but_backtrace_has_changed
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   obj:/usr/lib/x86_64-linux-gnu/libgomp.so.1.0.0
+   ...
+   fun:call_init
+   fun:_dl_init
+   obj:/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+   ...
+}
+{
+   happens_with_both_malloc_and_calloc
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   obj:/usr/lib/x86_64-linux-gnu/libgomp.so.1.0.0
+   ...
+   fun:call_init
+   fun:_dl_init
+   obj:/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+   ...
+}
+{
+   openmp_leaks_in_cado_poly_check_mapping
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   obj:/usr/lib/x86_64-linux-gnu/libgomp.so.1.0.0
+   obj:/usr/lib/x86_64-linux-gnu/libgomp.so.1.0.0
+   fun:GOMP_parallel
+   fun:_ZNK27mpz_poly_parallel_interfaceI25mpz_poly_notparallel_infoE16mpz_poly_mod_mpzEP10mpz_poly_sPKS2_PK12__mpz_structS8_
+   fun:mpz_poly_mod_mpz
+   fun:mpz_poly_pseudogcd_mpz
+   ...
+   fun:_ZNK13cxx_cado_poly13check_mappingERK7cxx_mpz
+   ...
+}
+
 
 # The one below is without openmp. So maybe openmp is innocent. I haven't
 # really investigated whether there's a code path which fails to properly

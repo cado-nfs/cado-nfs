@@ -1,44 +1,37 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <string.h>
-#include <ctype.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstdint>
+#include <cstring>
+#include <cctype>
 #include <sys/stat.h>
 #include <gmp.h>
 #include "blockmatrix.hpp"
 #include "bblas_gauss.h"
 
-#include "params.h"     // param_list
+#include "params.hpp"
 #include "macros.h"
 
-static void usage()
-{
-    fprintf(stderr, "Usage: ./cleanup -ncols <N> -out <file> <file.0> <file.1> ...\n");
-}
 // coverity[root_function]
 int main(int argc, char const * argv[])
 {
     cxx_param_list pl;
 
     /* Vectors must be *in order* !!! */
-    argv++,argc--;
+
     unsigned int ncols = 0;
     const char * outfile = NULL;
-    for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) continue;
-        /* might also be a kernel file */
-        break;
-    }
+    param_list_process_command_line(pl, &argc, &argv, true);
     outfile = param_list_lookup_string(pl, "out");
     param_list_parse_uint(pl, "ncols", &ncols);
-    if (param_list_warn_unused(pl) || ncols == 0 || outfile == 0) {
-        usage();
-        fflush (stderr);
-        exit(EXIT_FAILURE);
-    }
+    if (param_list_warn_unused(pl))
+        pl.fail("Unused parameters are given");
+    if (ncols == 0)
+        pl.fail("Missing argument -ncols");
+    if (!outfile)
+        pl.fail("Missing argument -out");
 
-        ASSERT_ALWAYS(ncols % 64 == 0);
+    ASSERT_ALWAYS(ncols % 64 == 0);
 
     blockmatrix S(ncols, ncols);
     blockmatrix const ST(ncols, ncols);
@@ -51,11 +44,8 @@ int main(int argc, char const * argv[])
     unsigned int nrows;
 
 
-    if (argc == 0) {
-        fprintf(stderr, "Error: no input files\n");
-        usage();
-        exit(EXIT_FAILURE);
-    }
+    if (argc == 0)
+        pl.fail("no input files");
 
     /* read very first file, deduce some important info about sizes */
     {

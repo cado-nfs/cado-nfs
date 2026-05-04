@@ -66,10 +66,6 @@ extern unsigned long long int strtoull_const(const char *nptr, const char **endp
 extern char * derived_filename(const char * prefix, const char * what, const char * ext);
 extern int has_suffix(const char * path, const char * sfx);
 
-extern char const ** filelist_from_file(const char * basepath, const char * filename,
-                                  int typ);
-extern void filelist_clear(char const ** filelist);
-
 long get_arg_max(void);
 extern int mkdir_with_parents(const char * dir, int fatal);
 
@@ -268,8 +264,6 @@ const char *size_disp(size_t s, char buf[16]);
  */
 extern void subdivide_primes_interval_proxy(unsigned long * r, unsigned long p0, unsigned long p1, size_t n);
 
-extern int mpz_set_from_expression(mpz_ptr f, const char * value);
-
 
 #ifdef __cplusplus
 }
@@ -429,7 +423,6 @@ template < typename _Tp > class pagealigned_allocator {
 
 #ifdef __cplusplus
 std::vector<std::pair<cxx_mpz, int> > trial_division(cxx_mpz const& n0, unsigned long B, cxx_mpz & cofactor);
-cxx_mpz mpz_from_expression(const char *);
 #endif
 
 #endif	/* CADO_UTILS_MISC_H */

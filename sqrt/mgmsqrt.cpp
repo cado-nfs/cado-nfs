@@ -13,8 +13,8 @@
 
 #include "fmt/base.h"
 
-#include "cado_poly.h"
-#include "params.h"
+#include "cado_poly.hpp"
+#include "params.hpp"
 #include "renumber.hpp"
 #include "relation.hpp"
 #include "typedefs.h"
@@ -70,7 +70,7 @@ struct mgmsqrt {
         , R(cpoly, param_list_parse_mandatory<std::string>(pl, "renumber"), true)
         , e(param_list_parse_mandatory<int>(pl, "e"))
         , side(param_list_parse_mandatory<int>(pl, "side"))
-        , K(cpoly->pols[side])
+        , K(cpoly[side])
         , OK(K.maximal_order())
     {
         K.bless("alpha");
@@ -117,13 +117,7 @@ int main(int argc, char const * argv[])
     configure_aliases(pl);
     */
 
-    argv++, argc--;
-    for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
-        fmt::print(stderr, "Unhandled parameter {}\n", argv[0]);
-        param_list_print_usage(pl, argv[0], stderr);
-        exit(EXIT_FAILURE);
-    }
+    param_list_process_command_line(pl, &argc, &argv, false);
 
     param_list_print_command_line(stdout, pl);
 

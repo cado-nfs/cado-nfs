@@ -28,7 +28,7 @@
 #include "pm1.h"
 #include "pp1.h"
 #include "macros.h"
-#include "verbose.h"
+#include "verbose.hpp"
 
 //#define USE_LEGACY_DEFAULT_STRATEGY 1
 
@@ -549,9 +549,9 @@ strategy_file_parser::operator()(std::vector<unsigned int> const & mfb, FILE * f
             }
         }
     } catch(error const & e) {
-        throw std::runtime_error(fmt::format(
+        throw cado::error(
                         "Parse error on line {} of strategies file: {}",
-                        lnum, e.what()));
+                        lnum, e.what());
     }
 
     std::map<key_type, value_type> parsed_file;
@@ -576,9 +576,9 @@ strategy_file_parser::operator()(std::vector<unsigned int> const & mfb, FILE * f
         try {
             parameter_sequence_tracker::fill_default_parameters(c.second);
         } catch(error const & e) {
-            throw std::runtime_error(fmt::format(
+            throw cado::error(
                         "Parse error in strategies file while setting parameters for r={}: {}",
-                        index_st, e.what()));
+                        index_st, e.what());
         }
         parsed_file.insert(c);
     }

@@ -1,6 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <ctype.h>
 #include <errno.h>
 #include <limits.h>
 #include <stddef.h>
@@ -117,75 +116,6 @@ char * derived_filename(const char * prefix, const char * what, const char * ext
 }
 
 
-static void chomp(char *s) {
-    char *p;
-    if (s && (p = strrchr(s, '\n')) != NULL)
-        *p = '\0';
-}
-
-
-/* Return a NULL-terminated list of file names read from filename.
-   Empty lines and comment lines (starting with '#') are skipped.
-   If basepath != NULL, it is used as path before each read filename
-*/
-char const ** filelist_from_file(const char * basepath, const char * filename,
-                           int typ)
-{
-    char const ** files = NULL;
-    int nfiles_alloc = 0;
-    int nfiles = 0;
-    FILE *f;
-    f = fopen(filename, "r");
-    if (f == NULL) {
-      if (typ == 0)
-        perror ("Problem opening filelist");
-      else
-        perror ("Problem opening subdirlist");
-      exit (1);
-    }
-    char relfile[FILENAME_MAX + 10];
-    while (fgets(relfile, FILENAME_MAX + 10, f) != NULL) {
-
-        // skip leading blanks
-        char *rfile = relfile;
-        while (isspace((int)(unsigned char)rfile[0]))
-            rfile++;
-        // if empty line or comment line, continue
-        if ((rfile[0] == '#') || (rfile[0] == '\0') || (rfile[0] == '\n'))
-            continue;
-        chomp(rfile);
-
-        if (nfiles == nfiles_alloc) {
-            nfiles_alloc += nfiles_alloc / 2 + 16;
-            CHECKED_REALLOC(files, nfiles_alloc, char const *);
-        }
-        if (basepath) {
-            char * name;
-            int ret = asprintf(&name, "%s/%s", basepath, rfile);
-            ASSERT_ALWAYS(ret >= 0);
-            files[nfiles] = name;
-        } else {
-            files[nfiles] = strdup(rfile);
-        }
-        nfiles++;
-    }
-    fclose(f);
-
-    if (nfiles == nfiles_alloc) {
-        nfiles_alloc += nfiles_alloc / 2 + 16;
-        CHECKED_REALLOC(files, nfiles_alloc, char const *);
-    }
-    files[nfiles++] = NULL;
-    return files;
-}
-
-void filelist_clear(char const ** filelist)
-{
-    if (!filelist) return;
-    for(char const ** p = filelist ; *p ; p++)
-        free((char *) *p);
-    free(filelist);
-}
 
 int mkdir_with_parents(char const * dir, int fatal)
 {

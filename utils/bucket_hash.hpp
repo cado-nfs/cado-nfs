@@ -35,14 +35,15 @@ template <> struct template_log2<1> {
 };
 /*}}}*/
 
-template <typename T, bool owns> struct data_field_type {
-    using type = std::unique_ptr<T[]>;
+template <typename A, bool owns> struct data_field_type {
+    using type = cado::unique_ptr_from_allocator<A>;
+
 };
-template <typename T> struct data_field_type<T, false> {
-    using type = T *;
+template <typename A> struct data_field_type<A, false> {
+    using type = A::value_type *;
 };
-template <typename T, bool owns>
-using data_field_type_t = data_field_type<T, owns>::type;
+template <typename A, bool owns>
+using data_field_type_t = data_field_type<A, owns>::type;
 
 struct bucket_full : std::runtime_error {
     bucket_full()
@@ -76,14 +77,10 @@ struct polyselect_shash_config {
  * the capacity to adjust its internal hash tables in order to adjust to
  * the number of worker threads possibly changing over time.
  */
-template<typename config> class bucket_hash_array;
+template <typename config, template <typename> class allocator = std::allocator>
+class bucket_hash_array;
 
-template<typename config, bool owns=true>
-class bucket_hash {
-    friend class bucket_hash_array<config>;
-    static constexpr const int Nbuckets = config::Nbuckets;
-    static_assert((Nbuckets & (Nbuckets-1)) == 0, "Nbuckets must be a power of two");
-    static_assert(Nbuckets > 0, "Nbuckets must be positive");
+template <typename config> struct bucket_hash_typedefs {
     using T = typename config::input_type;
     /* aux_type is used in the finer-grain search */
     using X = typename config::aux_type;
@@ -100,11 +97,57 @@ class bucket_hash {
         X k = 0;
     };
 
-    static constexpr const unsigned int log2_nbuckets = bucket_hash_details::template_log2<Nbuckets>::value;
+};
+
+template<int i, typename T>
+struct indexed : public T {
+    static constexpr int value = i;
+};
+
+template <typename config, template <typename> class allocator = std::allocator,
+          bool owns = true>
+class bucket_hash
+    : public bucket_hash_typedefs<config>
+    , public indexed<0, allocator<typename bucket_hash_typedefs<config>::T>>
+    , public indexed<1, allocator<typename bucket_hash_typedefs<config>::X>>
+    , public indexed<2, allocator<typename bucket_hash_typedefs<config>::Ht>>
+    , public indexed<3, allocator<typename bucket_hash_typedefs<config>::HX_t>>
+{
+    using typename bucket_hash_typedefs<config>::T;
+    using typename bucket_hash_typedefs<config>::X;
+    using typename bucket_hash_typedefs<config>::Ht;
+    using typename bucket_hash_typedefs<config>::HX_t;
+    using PrimaryAllocator = allocator<T>;
+    using PrimaryAuxAllocator = allocator<X>;
+    using SecondaryAllocator = allocator<Ht>;
+    using SecondaryAuxAllocator = allocator<HX_t>;
+
+    PrimaryAllocator & T_allocator() {
+        return static_cast<indexed<0, PrimaryAllocator> &>(*this);
+    }
+    PrimaryAuxAllocator & X_allocator() {
+        return static_cast<indexed<1, PrimaryAuxAllocator> &>(*this);
+    }
+    SecondaryAllocator & Ht_allocator() {
+        return static_cast<indexed<2, SecondaryAllocator> &>(*this);
+    }
+    SecondaryAuxAllocator & HX_t_allocator() {
+        return static_cast<indexed<3, SecondaryAuxAllocator> &>(*this);
+    }
+
+
+    friend class bucket_hash_array<config, allocator>;
+    static constexpr int const Nbuckets = config::Nbuckets;
+    static_assert((Nbuckets & (Nbuckets - 1)) == 0,
+                  "Nbuckets must be a power of two");
+    static_assert(Nbuckets > 0, "Nbuckets must be positive");
+
+    static constexpr unsigned int const log2_nbuckets =
+        bucket_hash_details::template_log2<Nbuckets>::value;
     using U = std::make_unsigned_t<T>;
     size_t bucket_size;
-    bucket_hash_details::data_field_type_t<T, owns> data;
-    bucket_hash_details::data_field_type_t<X, owns> pdata;
+    bucket_hash_details::data_field_type_t<PrimaryAllocator, owns> data;
+    bucket_hash_details::data_field_type_t<PrimaryAuxAllocator, owns> pdata;
     T * base[Nbuckets + 1];
     T * current[Nbuckets + 1];
     T const * data_start() const
@@ -151,8 +194,8 @@ class bucket_hash {
     explicit bucket_hash(size_t expected_entries)
         requires(owns)
         : bucket_size(get_bucket_size(expected_entries))
-        , data(std::make_unique<T[]>(get_bucket_size(expected_entries) * Nbuckets))
-        , pdata(std::make_unique<X[]>(get_bucket_size(expected_entries) * Nbuckets))
+        , data(cado::make_unique_from_allocator(T_allocator(), bucket_size * Nbuckets))
+        , pdata(cado::make_unique_from_allocator(X_allocator(), bucket_size * Nbuckets))
     {
         T * p = data.get();
         for (int i = 0; i < Nbuckets + 1; i++) {
@@ -205,8 +248,10 @@ class bucket_hash {
         U const q = u >> log2_nbuckets;
         U const r = u & (Nbuckets - 1);
 #ifndef NDEBUG
-        if (UNLIKELY(current[r] >= base[r + 1]))
-            throw bucket_hash_details::bucket_full();
+        if constexpr (std::is_same_v<PrimaryAllocator, std::allocator<T>>) {
+            if (UNLIKELY(current[r] >= base[r + 1]))
+                throw bucket_hash_details::bucket_full();
+        }
 #endif
         *current[r]++ = q;
     }
@@ -221,8 +266,10 @@ class bucket_hash {
         U const q = u >> log2_nbuckets;
         U const r = u & (Nbuckets - 1);
 #ifndef NDEBUG
-        if (UNLIKELY(current[r] >= base[r + 1]))
-            throw bucket_hash_details::bucket_full();
+        if constexpr (std::is_same_v<PrimaryAllocator, std::allocator<T>>) {
+            if (UNLIKELY(current[r] >= base[r + 1]))
+                throw bucket_hash_details::bucket_full();
+        }
 #endif
         pdata[current[r] - data_start()] = p;
         *current[r]++ = q;
@@ -231,7 +278,8 @@ class bucket_hash {
     template <typename RangeType>
     /* look for a collision in any of the buckets numbered from i0 to i1
      * within the union of the hash tables in B */
-    static bool has_collision(RangeType const & B, unsigned int i0, unsigned int i1)
+    static bool has_collision(RangeType const & B, unsigned int i0,
+                              unsigned int i1, SecondaryAllocator & a)
     {
         size_t sum_bucket_sizes = 0;
         for (auto const & b: B)
@@ -242,11 +290,12 @@ class bucket_hash {
          */
         size_t const A_size = get_secondary_size(sum_bucket_sizes);
         size_t const A_mask = A_size - 1;
-        std::vector<Ht> A;
-        for(auto i : std::views::iota(i0, i1)) {
+        std::vector<Ht, SecondaryAllocator> A(a);
+        for (auto i: std::views::iota(i0, i1)) {
             A.assign(A_size + config::open_hash_tail_overrun_protection, 0);
-            for(auto const & Bj : B) {
-                for(auto const & x : std::ranges::subrange(Bj.base[i], Bj.current[i])) {
+            for (auto const & Bj: B) {
+                for (auto const & x:
+                     std::ranges::subrange(Bj.base[i], Bj.current[i])) {
                     /* where do we insert x in A ?
                      *
                      * Note that we've done the shifting before storing x, so
@@ -266,9 +315,11 @@ class bucket_hash {
         }
         return false;
     }
-    template<typename RangeType, typename Iterator>
-    static size_t find_collision(RangeType const & B, unsigned int i0, unsigned int i1, Iterator q)
-    requires requires { *q++ = { X(), X(), T() }; }
+    template <typename RangeType, typename Iterator>
+    static size_t find_collision(RangeType const & B, unsigned int i0,
+                                 unsigned int i1, Iterator q,
+                                 SecondaryAuxAllocator & a)
+        requires requires { *q++ = {X(), X(), T()}; }
     {
         size_t sum_bucket_sizes = 0;
         for (auto const & b: B)
@@ -276,7 +327,7 @@ class bucket_hash {
 
         size_t const A_size = get_secondary_size(sum_bucket_sizes);
         size_t const A_mask = A_size - 1;
-        std::vector<HX_t> A;
+        std::vector<HX_t, SecondaryAuxAllocator> A(a);
         size_t ncollisions = 0;
         for (auto i: std::views::iota(i0, i1)) {
             A.assign(A_size + config::open_hash_tail_overrun_protection, {});
@@ -316,8 +367,8 @@ class bucket_hash {
     {
         size_t const A_size = get_secondary_size(bucket_size);
         size_t const A_mask = A_size - 1;
-        std::vector<Ht> A;
-        for(int i = 0 ; i < Nbuckets ; i++) {
+        std::vector<Ht, SecondaryAllocator> A(Ht_allocator());
+        for (int i = 0; i < Nbuckets; i++) {
             A.assign(A_size + config::open_hash_tail_overrun_protection, 0);
             auto read_address = [&](T x) {
                 Ht * Th = A.data() + (x & A_mask);
@@ -357,7 +408,7 @@ class bucket_hash {
     bool has_collision()
     {
         auto r = std::ranges::subrange(this, this + 1);
-        return has_collision(r, 0, Nbuckets);
+        return has_collision(r, 0, Nbuckets, Ht_allocator());
     }
 
     /* this mimicks polyselect_shash2_find_collision_multi.
@@ -367,33 +418,62 @@ class bucket_hash {
      * difference.
      *
      * */
-    template<typename Iterator>
+    template <typename Iterator>
     size_t find_collisions(Iterator q) const
-    // requires { *q++ = { std::declval<X>(), std::declval<X>(), std::declval<T>() }; }
-    requires requires { *q++ = { X(), X(), T() }; }
+        // requires { *q++ = { std::declval<X>(), std::declval<X>(),
+        // std::declval<T>() }; }
+        requires requires { *q++ = {X(), X(), T()}; }
     {
-        auto r = std::ranges::subrange(this, this+1);
-        return find_collisions(r, 0, Nbuckets, q);
+        auto r = std::ranges::subrange(this, this + 1);
+        return find_collisions(r, 0, Nbuckets, q, HX_t_allocator());
     }
-
 };
 
-template<typename config>
-class bucket_hash_array {
-    public:
-    static constexpr const int Nbuckets = config::Nbuckets;
-    private:
-    using T = typename config::input_type;
-    using X = typename config::aux_type;
-    using Ht = typename config::tie_breaker_type;
-    using bhash_t = bucket_hash<config, false>;
-    public:
-    private:
+template <typename config, template <typename T> class allocator>
+class bucket_hash_array
+    : public bucket_hash_typedefs<config>
+    , public indexed<0, allocator<typename bucket_hash_typedefs<config>::T>>
+    , public indexed<1, allocator<typename bucket_hash_typedefs<config>::X>>
+    , public indexed<2, allocator<typename bucket_hash_typedefs<config>::Ht>>
+    , public indexed<3, allocator<typename bucket_hash_typedefs<config>::HX_t>>
+{
+    using typename bucket_hash_typedefs<config>::T;
+    using typename bucket_hash_typedefs<config>::X;
+    using typename bucket_hash_typedefs<config>::Ht;
+    using typename bucket_hash_typedefs<config>::HX_t;
+    using PrimaryAllocator = allocator<T>;
+    using PrimaryAuxAllocator = allocator<X>;
+    using SecondaryAllocator = allocator<Ht>;
+    using SecondaryAuxAllocator = allocator<HX_t>;
+
+    PrimaryAllocator & T_allocator() {
+        return static_cast<indexed<0, PrimaryAllocator> &>(*this);
+    }
+    PrimaryAuxAllocator & X_allocator() {
+        return static_cast<indexed<1, PrimaryAuxAllocator> &>(*this);
+    }
+    SecondaryAllocator & Ht_allocator() {
+        return static_cast<indexed<2, SecondaryAllocator> &>(*this);
+    }
+    SecondaryAuxAllocator & HX_t_allocator() {
+        return static_cast<indexed<3, SecondaryAuxAllocator> &>(*this);
+    }
+
+  public:
+    static constexpr int const Nbuckets = config::Nbuckets;
+
+  private:
+    using bhash_t = bucket_hash<config, allocator, false>;
+
+  public:
+  private:
 
     size_t total_expected_entries;
     size_t total_alloc_size;
-    std::unique_ptr<T[]> storage;
-    std::unique_ptr<X[]> pstorage;
+
+    // std::unique_ptr<T[]>
+    cado::unique_ptr_from_allocator<PrimaryAllocator> storage;
+    cado::unique_ptr_from_allocator<PrimaryAuxAllocator> pstorage;
     std::vector<bhash_t> B;
 
     static size_t get_alloc_size(size_t total_expected_entries,
@@ -413,18 +493,19 @@ class bucket_hash_array {
   public:
     bool has_collision(unsigned int i0, unsigned int i1)
     {
-        return bhash_t::has_collision(B, i0, i1);
+        return bhash_t::has_collision(B, i0, i1, Ht_allocator());
     }
 
-    std::string stats() const {
+    std::string stats() const
+    {
         size_t min = SIZE_MAX, max = 0;
         double s1 = 0, s2 = 0;
         size_t ts = 0;
-        for(auto const & Bj : B) {
-            for(int i = 0 ; i < Nbuckets ; i++) {
+        for (auto const & Bj: B) {
+            for (int i = 0; i < Nbuckets; i++) {
                 size_t s = Bj.current[i] - Bj.base[i];
                 ts += s;
-                s2 += (double) s * (double) s;
+                s2 += (double)s * (double)s;
                 min = std::min(min, s);
                 max = std::max(max, s);
             }
@@ -432,23 +513,24 @@ class bucket_hash_array {
         s1 = double_ratio(ts, B.size() * Nbuckets);
         s2 = double_ratio(s2, B.size() * Nbuckets);
         s2 = sqrt(s2 - s1 * s1);
-        return fmt::format("[{}*{} samples, {} expected] min={} max={} total={} mean={:.2f} sdev={:.2f}",
-                B.size(), Nbuckets, total_expected_entries, min, max, ts, s1, s2);
-
+        return fmt::format("[{}*{} samples, {} expected] min={} max={} "
+                           "total={} mean={:.2f} sdev={:.2f}",
+                           B.size(), Nbuckets, total_expected_entries, min, max,
+                           ts, s1, s2);
     }
 
-    template<typename Iterator>
+    template <typename Iterator>
     size_t find_collision(unsigned int i0, unsigned int i1, Iterator q)
-    requires requires { *q++ = { X(), X(), T() }; }
+        requires requires { *q++ = {X(), X(), T()}; }
     {
-        return bhash_t::find_collision(B, i0, i1, q);
+        return bhash_t::find_collision(B, i0, i1, q, HX_t_allocator());
     }
 
     bucket_hash_array(size_t total_expected_entries, unsigned int multi)
         : total_expected_entries(total_expected_entries)
         , total_alloc_size(get_alloc_size(total_expected_entries, multi))
-        , storage(std::make_unique<T[]>(total_alloc_size))
-        , pstorage(std::make_unique<X[]>(total_alloc_size))
+        , storage(cado::make_unique_from_allocator(T_allocator(), total_alloc_size))
+        , pstorage(cado::make_unique_from_allocator(X_allocator(), total_alloc_size))
     {
         B.reserve(multi);
         reconfigure(multi);
@@ -461,12 +543,10 @@ class bucket_hash_array {
         ASSERT_ALWAYS(multi <= B.capacity());
         size_t const Ei = iceildiv(total_expected_entries, multi);
         ASSERT_ALWAYS(Nbuckets * bhash_t::get_bucket_size(Ei) <= s);
-        for(unsigned int i = 0 ; i < multi ; i++)
-            B.emplace_back(
-                    typename bhash_t::private_tag(),
-                    total_expected_entries / multi,
-                    storage.get() + i * s,
-                    pstorage.get() + i * s);
+        for (unsigned int i = 0; i < multi; i++)
+            B.emplace_back(typename bhash_t::private_tag(),
+                           total_expected_entries / multi,
+                           storage.get() + i * s, pstorage.get() + i * s);
     }
 
     bhash_t & operator[](unsigned int i) { return B[i]; }
@@ -475,4 +555,4 @@ class bucket_hash_array {
 
 } /* namespace cado */
 
-#endif	/* UTILS_BUCKET_HASH_HPP_ */
+#endif /* UTILS_BUCKET_HASH_HPP_ */

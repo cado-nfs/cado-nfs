@@ -23,7 +23,7 @@
 
 #include "abase_proxy.hpp"
 #include "arith-generic.hpp"
-#include "bw-common.h"
+#include "bw-common.hpp"
 #include "cxx_mpz.hpp"
 #include "gmp_aux.h"
 #include "macros.h"
@@ -32,7 +32,7 @@
 #include "matmul_top_vec.hpp"
 #include "mmt_vector_pair.hpp"
 #include "parallelizing_info.hpp"
-#include "params.h"
+#include "params.hpp"
 #include "select_mpi.h"
 #include "xdotprod.hpp"
 #include "xvectors.hpp"

@@ -58,7 +58,7 @@
 #include "relation.hpp"
 #include "tdict.hpp"
 #include "threadpool.hpp"
-#include "verbose.h"
+#include "verbose.hpp"
 
 MAYBE_UNUSED static inline void subusb(unsigned char *S1, const unsigned char *S2, ssize_t offset)
 {
@@ -215,9 +215,9 @@ process_bucket_region_run::process_bucket_region_run(process_bucket_region_spawn
     timer(timer),
     bucket_relative_index(id),
     rep(taux.rep),
-    S(ws.las.cpoly->nb_polys),
+    S(ws.las.cpoly.nsides()),
     w(taux.w),
-    sides(ws.las.cpoly->nb_polys)
+    sides(ws.las.cpoly.nsides())
 {
     w = w_saved;
     WHERE_AM_I_UPDATE(w, N, first_region0_index + already_done + bucket_relative_index);

@@ -8,7 +8,7 @@
 
 #include "arith-cross.hpp"
 #include "arith-generic.hpp"
-#include "bw-common.h"
+#include "bw-common.hpp"
 #include "parallelizing_info.hpp"
 
 struct abase_proxy {

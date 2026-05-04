@@ -1,27 +1,26 @@
 #ifndef UTILS_FSTREAM_COMPRESSED_HPP_
 #define UTILS_FSTREAM_COMPRESSED_HPP_
 
-
 #include <istream>
 #include <ostream>
 #include <memory>
-#include <fstream>      // std::filebuf // IWYU pragma: keep
+#include <fstream>
 #include <string>
 #include <ios>
-#include <streambuf>
 
-class cado_pipe_streambuf;
+#include "cado_pipe_streambuf.hpp"
 
 class streambase_maybe_compressed : virtual public std::ios {
-    bool pipe = false;
     protected:
     std::unique_ptr<cado_pipe_streambuf> pbuf;
     std::unique_ptr<std::filebuf> fbuf;
-    std::streambuf * buf = nullptr;
     std::string orig_name;
     std::string tempname;
     public:
-    /* I don't think that we need a default ctor, do we ? */
+    bool is_open() const { return rdbuf(); }
+    /* ofstream_maybe_compressed and ifstream_maybe_compressed must be
+     * default-constructible */
+    streambase_maybe_compressed() = default;
     streambase_maybe_compressed(std::string const & name, std::ios_base::openmode mode);
     /* Note that in output mode, the file will first be created with a
      * temp name, and eventually only the dtor will move it from that
@@ -31,7 +30,7 @@ class streambase_maybe_compressed : virtual public std::ios {
     ~streambase_maybe_compressed() override;
     void open(std::string const &, std::ios_base::openmode mode);
     void close();
-    bool is_pipe() const { return pipe; }
+    bool is_pipe() const { return pbuf.get(); }
     streambase_maybe_compressed(streambase_maybe_compressed const &) = delete;
     streambase_maybe_compressed(streambase_maybe_compressed &&) = delete;
     streambase_maybe_compressed& operator=(streambase_maybe_compressed const &) = delete;
@@ -41,24 +40,34 @@ class streambase_maybe_compressed : virtual public std::ios {
 template <class charT, class Traits = std::char_traits<charT> >
 class basic_ifstream_maybe_compressed : public streambase_maybe_compressed, public std::basic_istream<charT, Traits> {
 public:
-    explicit basic_ifstream_maybe_compressed(std::string const & name)
-        : streambase_maybe_compressed(name, std::ios::in)
-        , std::basic_istream<charT, Traits>(buf)
+    basic_ifstream_maybe_compressed(std::string const & name,
+            std::ios_base::openmode mode)
+        : streambase_maybe_compressed(name, mode)
+        , std::basic_istream<charT, Traits>(rdbuf())
     {}
-    void open(std::string const & name) {
-        streambase_maybe_compressed::open(name, std::ios::in);
+    basic_ifstream_maybe_compressed() = default;
+    explicit basic_ifstream_maybe_compressed(std::string const & name)
+        : basic_ifstream_maybe_compressed(name, std::ios_base::in)
+    {}
+    void open(std::string const & name, std::ios_base::openmode mode = std::ios_base::in) {
+        streambase_maybe_compressed::open(name, mode);
     }
 };
 
 template <class charT, class Traits = std::char_traits<charT> >
 class basic_ofstream_maybe_compressed : public streambase_maybe_compressed, public std::basic_ostream<charT, Traits> {
 public:
-    explicit basic_ofstream_maybe_compressed(std::string const & name)
-        : streambase_maybe_compressed(name, std::ios::out)
-        , std::basic_ostream<charT, Traits>(buf)
+    basic_ofstream_maybe_compressed(std::string const & name,
+            std::ios_base::openmode mode)
+        : streambase_maybe_compressed(name, mode)
+        , std::basic_ostream<charT, Traits>(rdbuf())
     {}
-    void open(std::string const & name) {
-        streambase_maybe_compressed::open(name, std::ios::out);
+    basic_ofstream_maybe_compressed() = default;
+    explicit basic_ofstream_maybe_compressed(std::string const & name)
+        : basic_ofstream_maybe_compressed(name, std::ios_base::out)
+    {}
+    void open(std::string const & name, std::ios_base::openmode mode = std::ios_base::out) {
+        streambase_maybe_compressed::open(name, mode);
     }
 };
 
