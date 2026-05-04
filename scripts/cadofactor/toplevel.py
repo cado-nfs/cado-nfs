@@ -41,7 +41,8 @@ class Cado_NFS_toplevel(object):
     def find_default_hint_file(self):
         ''' return the full path of the default hint file which
         is appropriate for the given dlp problem.'''
-        c = self.parameters.get_or_set_default("computation", Computation.FACT)
+        c = self.parameters.get_or_set_default("computation",
+                                               Computation.FACT.name)
         assert c == Computation.DLP
         assert self.parameters.get_or_set_default("N", 0) != 0
         default_param_dir = self.pathdict["data"]
