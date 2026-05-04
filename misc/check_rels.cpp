@@ -372,52 +372,35 @@ static void declare_usage(cxx_param_list & pl)
                           "large primes bounds (comma-separated list) "
                           "(for MNFS)");
     param_list_decl_usage(pl, "v", "more verbose output");
-    param_list_decl_usage(pl, "force-posix-threads",
-                          "force the use of posix threads, do not rely on "
-                          "platform memory semantics");
     param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
 }
 
-template <typename locking_type, typename relation_type>
+template <typename relation_type>
 static size_t filter(filelist const & input, std::ostream * outfile)
 {
-    return filter_rels<locking_type, relation_type>(
+    return filter_rels<relation_type>(
         input.create_file_list(), nullptr, stats,
         [&](relation_type & rel) { thread_callback(rel, outfile); });
 }
 
-template <typename relation_type>
-static size_t filter(filelist const & input, bool force_posix, std::ostream * outfile)
-{
-    if (force_posix) {
-        using locking_type = cado::filter_io_details::ifb_locking_posix;
-        return filter<locking_type, relation_type>(input, outfile);
-    } else {
-        using locking_type = cado::filter_io_details::ifb_locking_lightweight;
-        return filter<locking_type, relation_type>(input, outfile);
-    }
-}
-
-static size_t filter(filelist const & input, bool force_posix, bool abhexa,
+static size_t filter(filelist const & input, bool abhexa,
                      std::ostream * outfile)
 {
     if (abhexa) {
         using relation_type = cado::relation_building_blocks::primes_block<
             prime_type_for_sieve_relations,
             cado::relation_building_blocks::ab_block<uint64_t, 16>>;
-        return filter<relation_type>(input, force_posix, outfile);
+        return filter<relation_type>(input, outfile);
     } else {
         using relation_type = cado::relation_building_blocks::primes_block<
             prime_type_for_sieve_relations,
             cado::relation_building_blocks::ab_block<uint64_t, 10>>;
-        return filter<relation_type>(input, force_posix, outfile);
+        return filter<relation_type>(input, outfile);
     }
 }
 
 int main(int argc, char const * argv[])
 {
-    int force_posix = 0;
-
     cxx_param_list pl;
 
     declare_usage(pl);
@@ -427,7 +410,7 @@ int main(int argc, char const * argv[])
     param_list_configure_switch(pl, "fixit", &fix_it);
     param_list_configure_switch(pl, "v", &verbose);
     param_list_configure_switch(pl, "check_primality", &check_primality);
-    param_list_configure_switch(pl, "force-posix-threads", &force_posix);
+    cado::filter_io_details::configure(pl);
 
 #ifdef HAVE_MINGW
     _fmode = _O_BINARY; /* Binary open for all files */
@@ -435,6 +418,7 @@ int main(int argc, char const * argv[])
 
     pl.process_command_line(argc, argv, true);
 
+    cado::filter_io_details::interpret_parameters(pl);
     verbose_interpret_parameters(pl);
     pl.print_command_line(stdout);
 
@@ -492,7 +476,7 @@ int main(int argc, char const * argv[])
 
     timingstats_dict_init(stats);
 
-    filter(input, force_posix, abhexa, out);
+    filter(input, abhexa, out);
 
     fmt::print("Number of read relations: {}\n", nrels_read);
     fmt::print("Number of correct relations: {}\n", nrels_ok);

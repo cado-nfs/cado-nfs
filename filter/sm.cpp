@@ -76,7 +76,7 @@ build_rel_sets(std::string const & purgedname, char const * indexname,
 
     using relation_type = cado::relation_building_blocks::ab_block<uint64_t, 16>;
 
-    filter_rels<cado::filter_io_details::ifb_locking_lightweight, relation_type>(purgedname, nullptr, nullptr,
+    filter_rels<relation_type>(purgedname, nullptr, nullptr,
             [&](relation_type & rel) {
                 pairs[rel.num] = pair_and_sides(
                         rel.a, rel.b,

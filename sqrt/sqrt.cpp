@@ -1580,7 +1580,6 @@ struct task_prepare_dependencies /* {{{ */
     std::vector<dep> deps;
     std::vector<uint64_t> abs;
 
-    bool filter_rels_force_posix_threads = false;
     std::string purgedname;
     std::string indexname;
     std::string kername;
@@ -1588,7 +1587,6 @@ struct task_prepare_dependencies /* {{{ */
 
     static void declare_usage(cxx_param_list & pl)
     {
-        pl.declare_usage("force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
         pl.declare_usage("purged", "Purged relations file, as produced by 'purge'");
         pl.declare_usage("index", "Index file, as produced by 'merge'");
         pl.declare_usage("ker", "Kernel file, as produced by 'characters'");
@@ -1597,13 +1595,11 @@ struct task_prepare_dependencies /* {{{ */
 
     static void configure_switches(cxx_param_list & pl)
     {
-        pl.configure_switch("force-posix-threads");
         pl.configure_switch("large-ab");
     }
 
     static void lookup_parameters(cxx_param_list & pl)
     {
-        pl.lookup("force-posix-threads");
         pl.lookup("purged");
         pl.lookup("index");
         pl.lookup("ker");
@@ -1613,7 +1609,6 @@ struct task_prepare_dependencies /* {{{ */
 
     explicit task_prepare_dependencies(cxx_param_list & pl)
     {
-        pl.parse("force-posix-threads", filter_rels_force_posix_threads);
         pl.parse_mandatory("purged", purgedname);
         pl.parse_mandatory("index", indexname);
         pl.parse_mandatory("ker", kername);
@@ -1711,21 +1706,12 @@ struct task_prepare_dependencies /* {{{ */
     }
     /* }}} */
 
-    template <typename locking_type, typename ab_type>
+    template <typename ab_type>
     void filter()
     {
         using relation_type = cado::relation_building_blocks::ab_block<ab_type, 16>;
-        filter_rels<locking_type, relation_type>(purgedname, nullptr, nullptr,
+        filter_rels<relation_type>(purgedname, nullptr, nullptr,
                 [&](auto & rel) { sqrt(rel); });
-    }
-
-    template <typename locking_layer>
-    void filter()
-    {
-        if (largeab)
-            filter<locking_layer, cxx_mpz>();
-        else
-            filter<locking_layer, uint64_t>();
     }
 
     void create_dependencies(std::string const & prefix)
@@ -1733,11 +1719,10 @@ struct task_prepare_dependencies /* {{{ */
         prepare_abs();
         prepare_deps(prefix);
 
-
-        if (filter_rels_force_posix_threads)
-            filter<cado::filter_io_details::ifb_locking_posix>();
+        if (largeab)
+            filter<cxx_mpz>();
         else
-            filter<cado::filter_io_details::ifb_locking_lightweight>();
+            filter<uint64_t>();
 
         fmt::print(stderr, "Written {} dependencies files\n", deps.size());
         for(auto const & D : deps) {
@@ -2005,6 +1990,7 @@ int main(int argc, char const *argv[])
     declare_usage(pl);
     sqrt_modes::declare_usage(pl);
     task_prepare_dependencies::declare_usage(pl);
+    cado::filter_io_details::configure(pl);
 
     sqrt_modes::configure_switches(pl);
     task_prepare_dependencies::configure_switches(pl);
@@ -2013,6 +1999,7 @@ int main(int argc, char const *argv[])
 
     param_list_process_command_line(pl, &argc, &argv, false);
 
+    cado::filter_io_details::interpret_parameters(pl);
     task_generic_context T(pl);
 
     if (T.mode.opt_ab)

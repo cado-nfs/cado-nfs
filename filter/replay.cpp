@@ -552,10 +552,6 @@ struct replay_read_data {
         "print only columns with index < colmax",
         "0">
             colmax;
-    parameter_switch<
-        "force-posix-threads",
-        "force the use of posix threads, do not rely on platform memory semantics">
-            filter_rels_force_posix_threads;
     size_t nrows = 0;
     index_t ncols = 0;
 
@@ -563,7 +559,6 @@ struct replay_read_data {
         decltype(purgedname)::configure(pl);
         decltype(col0)::configure(pl);
         decltype(colmax)::configure(pl);
-        decltype(filter_rels_force_posix_threads)::configure(pl);
     }
 
     void fetch_nrows_ncols() {// {{{
@@ -593,7 +588,6 @@ struct replay_read_data {
         : purgedname(pl)
         , col0(pl)
         , colmax(pl)
-        , filter_rels_force_posix_threads(pl)
     {
         fetch_nrows_ncols();
         if (colmax() == 0)
@@ -631,26 +625,12 @@ struct replay_read_data {
         compressRow (mat[rel.num], buf, nb);
     }
 
-    template<typename locking_layer, typename relation_type>
+    template<typename relation_type>
     size_t filter() {
-        using L = locking_layer;
         using R = relation_type;
-        return filter_rels<L, R>(purgedname, nullptr, nullptr,
+        return filter_rels<R>(purgedname, nullptr, nullptr,
                 [&](R & rel) { fill_in_rows(rel); });
     }
-
-    template<typename relation_type>
-        size_t filter() {
-            using R = relation_type;
-            if (filter_rels_force_posix_threads) {
-                using L = cado::filter_io_details::ifb_locking_posix;
-                return filter<L, R>();
-            } else {
-                using L = cado::filter_io_details::ifb_locking_posix;
-                return filter<L, R>();
-            }
-        }
-
 
     size_t read(typerow_t ** newrows)
     {
@@ -938,10 +918,12 @@ int main(int argc, char const * argv[])
     replay_read_data::configure(pl);
 
     param_list_configure_switch(pl, "for_msieve", &for_msieve);
+    cado::filter_io_details::configure(pl);
 
     param_list_process_command_line(pl, &argc, &argv, false);
 
     verbose_interpret_parameters(pl);
+    cado::filter_io_details::interpret_parameters(pl);
     param_list_print_command_line (stdout, pl);
     fflush(stdout);
 

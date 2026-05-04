@@ -41,6 +41,11 @@
 #include "utils_cxx.hpp"
 #include "stats.h"
 
+namespace cado::params {
+struct cxx_param_list;
+}
+using cxx_param_list = cado::params::cxx_param_list;
+
 
 #define RELATION_MAX_BYTES 4096
 
@@ -1559,6 +1564,9 @@ namespace cado::filter_io_details {
         rel0.num = num;
     }
 
+    void configure(cxx_param_list &);
+    void interpret_parameters(cxx_param_list &);
+    extern bool filter_rels_force_posix_threads_is_set();
 } /* namespace cado::filter_io_details */
 
 
@@ -1749,7 +1757,6 @@ struct filter_rels_obj {
 };
 
 template<
-    typename locking_type,
     typename relation_type,
     typename InputDescriptionType,
     typename... Functions>
@@ -1759,21 +1766,17 @@ size_t filter_rels(
         timingstats_dict_ptr tstats,
         Functions&& ...FF)
 {
-    /* fall back to ifb_locking_posix at runtime. In a sense, we should
-     * probably make filter_rels_posix a global again, so that we can get
-     * rid of one layer of templating in the cpp files and make the
-     * locking layer decision from here instead.
-     */
     using cado::filter_io_details::number_of_threads;
     const size_t number_of_consumers = std::max({number_of_threads(FF)...});
-    if (number_of_consumers > locking_type::max_supported_concurrent) {
+    if (cado::filter_io_details::filter_rels_force_posix_threads_is_set() || number_of_consumers > cado::filter_io_details::ifb_locking_lightweight::max_supported_concurrent) {
         using L = cado::filter_io_details::ifb_locking_posix;
         return filter_rels_obj<L, relation_type>()(
                 std::forward<InputDescriptionType>(input_description),
                 active, tstats,
                 std::forward<Functions>(FF)...);
     } else {
-        return filter_rels_obj<locking_type, relation_type>()(
+        using L = cado::filter_io_details::ifb_locking_lightweight;
+        return filter_rels_obj<L, relation_type>()(
                 std::forward<InputDescriptionType>(input_description),
                 active, tstats,
                 std::forward<Functions>(FF)...);

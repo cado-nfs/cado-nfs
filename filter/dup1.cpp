@@ -112,11 +112,6 @@ struct dup1_process {
     parameter_switch<"large-ab", "enable support for a,b beyond 64 bits">
         largeab;
 
-    parameter_switch<"force-posix-threads",
-        "force the use of posix threads,"
-        " do not rely on platform memory semantics">
-        force_posix;
-
     parameter_with_default<unsigned int,
                         "n",
                         "log of number of slices",
@@ -151,7 +146,6 @@ struct dup1_process {
         : abhexa(pl)
         , only_ab(pl)
         , largeab(pl)
-        , force_posix(pl)
         , nslices_log(pl)
         , log_max_nrels_per_files(pl)
         , only_slice(pl)
@@ -173,7 +167,6 @@ struct dup1_process {
         decltype(dup1_process::only_ab)::configure(pl);
         decltype(dup1_process::abhexa)::configure(pl);
         decltype(dup1_process::largeab)::configure(pl);
-        decltype(dup1_process::force_posix)::configure(pl);
     }
 
 
@@ -241,29 +234,17 @@ struct dup1_process {
         nr_rels_tot[slice]++;
     }
 
-    template<typename locking_type, typename relation_type>
-    void filter(std::vector<std::string> const & files)
-    {
-        if (nslices == 1) {
-            filter_rels<locking_type, relation_type>(files, 
-                    nullptr, nullptr,
-                    [this](relation_type & rel) { process<true>(rel); });
-        } else {
-            filter_rels<locking_type, relation_type>(files, 
-                    nullptr, nullptr,
-                    [this](relation_type & rel) { process<false>(rel); });
-        }
-    }
-
     template<typename relation_type>
     void filter(std::vector<std::string> const & files)
     {
-        if (force_posix) {
-            using L = cado::filter_io_details::ifb_locking_posix;
-            filter<L, relation_type>(files);
+        if (nslices == 1) {
+            filter_rels<relation_type>(files, 
+                    nullptr, nullptr,
+                    [this](relation_type & rel) { process<true>(rel); });
         } else {
-            using L = cado::filter_io_details::ifb_locking_lightweight;
-            filter<L, relation_type>(files);
+            filter_rels<relation_type>(files, 
+                    nullptr, nullptr,
+                    [this](relation_type & rel) { process<false>(rel); });
         }
     }
 
@@ -302,6 +283,7 @@ main (int argc, char const * argv[])
     filelist::configure(pl);
     dup1_process::configure(pl);
     verbose_decl_usage(pl);
+    cado::filter_io_details::configure(pl);
 
 
     /* used for counting time in different processes */
@@ -311,6 +293,7 @@ main (int argc, char const * argv[])
 
     dup1_process D(pl);
     verbose_interpret_parameters(pl);
+    cado::filter_io_details::interpret_parameters(pl);
 
     /* print command-line arguments */
     param_list_print_command_line (stdout, pl);

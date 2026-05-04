@@ -111,8 +111,6 @@
 #include "timing.h"
 #include "version_info.h"
 
-bool filter_rels_force_posix_threads = false;
-
 typedef struct {
     unsigned long p;      /* algebraic prime */
     unsigned long r;      /* corresponding root: r = a/b mod p */
@@ -383,24 +381,12 @@ struct big_characters_data {
          */
         fmt::print(stderr, "Reading {} pairs from {} and computing {} characters\n",
                            res.nrows(), purgedname, chars.size());
-        using R = relation_type;
 
-        if (filter_rels_force_posix_threads || nthreads > 1) {
-            using L = cado::filter_io_details::ifb_locking_posix;
-            filter<L, R>(nthreads);
-        } else {
-            using L = cado::filter_io_details::ifb_locking_lightweight;
-            filter<L, R>(nthreads);
-        }
-    }
-    template<typename locking_layer, typename relation_type>
-    void filter(int nthreads) {
-        filter_rels<locking_layer, relation_type>(purgedname, nullptr, nullptr,
+        filter_rels<relation_type>(purgedname, nullptr, nullptr,
             cado::filter_io_details::multithreaded_call(nthreads,
             [&](relation_type & rel) {
                 for(size_t cg = 0 ; cg < chars.size() ; cg+=64) {
-                    uint64_t w = eval_64chars(rel, chars.data() + cg, cpoly);
-                    res[rel.num][cg] = w;
+                    res[rel.num][cg] = eval_64chars(rel, chars.data() + cg, cpoly);
                 }
             }));
     }
@@ -677,7 +663,6 @@ declare_usage (cxx_param_list & pl)
                                         "64 bits");
   param_list_decl_usage (pl, "only-sign-chars", "use only the sign character "
                                                 "on each side");
-  param_list_decl_usage(pl, "force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
 }
 
 // coverity[root_function]
@@ -705,9 +690,10 @@ int main(int argc, char const * argv[])
 
     const char *bw_kernel_file = NULL;
 
-    pl.configure_switch("force-posix-threads");
     pl.configure_switch("large-ab");
     pl.configure_switch("only-sign-chars");
+
+    cado::filter_io_details::configure(pl);
 
     param_list_process_command_line(pl, &argc, &argv, false);
 
@@ -771,7 +757,7 @@ int main(int argc, char const * argv[])
         chars = create_characters (nch, cpoly, lpb);
     }
 
-    pl.parse("force_posix_threads", filter_rels_force_posix_threads);
+    cado::filter_io_details::interpret_parameters(pl);
 
     blockmatrix bcmat = big_character_matrix(chars, purgedname,
             cpoly, nthreads, pl.parse<bool>("large-ab"));

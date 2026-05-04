@@ -239,7 +239,6 @@ struct dup2_process { /* {{{ */
 
     bool is_for_dl = false; /* By default we do dup2 for factorization */
     bool largeab = false; /* By default, do not use mpz for a,b */
-    bool force_posix = false;
 
     explicit dup2_process(cxx_param_list & pl)
         : output(pl)
@@ -252,7 +251,6 @@ struct dup2_process { /* {{{ */
          */
         pl.parse("dl", is_for_dl);
         pl.parse("large-ab", largeab);
-        pl.parse("force-posix-threads", force_posix);
 
     }
 
@@ -262,15 +260,11 @@ struct dup2_process { /* {{{ */
         pl.declare_usage("nrels", "number of expected relations");
         pl.declare_usage("dl", "do not reduce exponents modulo 2");
         pl.declare_usage("large-ab", "enable support for a and b beyond 64 bits");
-        pl.declare_usage("force-posix-threads",
-                "force the use of posix threads, do not rely on "
-                "platform memory semantics");
     }
 
     static void configure_switches(cxx_param_list & pl) {
         pl.configure_switch("dl");
         pl.configure_switch("large-ab");
-        pl.configure_switch("force-posix-threads");
     }
 
     void read()
@@ -485,13 +479,6 @@ struct dup2_process { /* {{{ */
         check_overfilling();
     }
 
-    template<typename locking_type, typename relation_type>
-    void filter_old(std::vector<std::string> const & files)
-    {
-        filter_rels<locking_type, relation_type>(files, nullptr, nullptr,
-                [this](relation_type & rel) { hash_renumbered_relation(rel); });
-    }
-
     template<typename ab_type> void filter_old(std::vector<std::string> const & files) /* {{{ */
     {
         /* for "old" relation, (a,b) are always in hex.
@@ -504,13 +491,8 @@ struct dup2_process { /* {{{ */
             cado::relation_building_blocks::primes_block<prime_type,
             cado::relation_building_blocks::ab_block<ab_type, 16>>;
 
-        if (force_posix) {
-            using L = cado::filter_io_details::ifb_locking_posix;
-            filter_old<L, relation_type>(files);
-        } else {
-            using L = cado::filter_io_details::ifb_locking_lightweight;
-            filter_old<L, relation_type>(files);
-        }
+        filter_rels<relation_type>(files, nullptr, nullptr,
+                [this](relation_type & rel) { hash_renumbered_relation(rel); });
     } /* }}} */
 
     void filter_already_renumbered_rels(std::vector<std::string> const & files) /* {{{ */
@@ -717,9 +699,23 @@ struct dup2_process { /* {{{ */
                 nrels_tot - ndup_tot);
     }
 
-    template<typename locking_type, typename relation_type>
+    template<typename ab_type>
     void filter_new(std::vector<std::string> const & files)
     {
+        /* TODO: tnfs and such! */
+
+        static constexpr int base = 10; /* FIXME for abhexa */
+        using relation_type = 
+            std::variant<
+                cado::relation_building_blocks::primes_block<
+                    prime_type_for_sieve_relations,
+                    cado::relation_building_blocks::ab_block<ab_type, base>
+                >,
+                cado::relation_building_blocks::primes_block<
+                    prime_type_for_indexed_relations,
+                    cado::relation_building_blocks::ab_block<ab_type, 16>
+                >
+            >;
         fmt::print(stderr, "Reading new files (using {} auxiliary threads for "
                 "roots mod p):\n", nthreads_for_roots);
         for(auto const & f : files) {
@@ -729,7 +725,7 @@ struct dup2_process { /* {{{ */
 
             using cado::filter_io_details::multithreaded_call;
 
-            filter_rels<locking_type, relation_type>(f, nullptr, nullptr,
+            filter_rels<relation_type>(f, nullptr, nullptr,
                     multithreaded_call(nthreads_for_roots,
                         [this](relation_type & rel) {
                             compute_index_rel(rel);
@@ -752,31 +748,6 @@ struct dup2_process { /* {{{ */
             dup_print_stat(path_basename(f.c_str()));
         }
     }
-
-    template<typename ab_type>
-    void filter_new(std::vector<std::string> const & files) /* {{{ */
-    {
-        /* TODO: tnfs and such! */
-
-        static constexpr int base = 10; /* FIXME for abhexa */
-        using relation_type = 
-            std::variant<
-                cado::relation_building_blocks::primes_block<
-                    prime_type_for_sieve_relations,
-                    cado::relation_building_blocks::ab_block<ab_type, base>
-                >,
-                cado::relation_building_blocks::primes_block<
-                    prime_type_for_indexed_relations,
-                    cado::relation_building_blocks::ab_block<ab_type, 16>
-                >
-            >;
-
-        /* because we have a complicated processing in filter_new, we
-         * must have posix locking (currently)
-         */
-        using L = cado::filter_io_details::ifb_locking_posix;
-        filter_new<L, relation_type>(files);
-    } /* }}} */
 
     void filter_new_rels(std::vector<std::string> const & files) /* {{{ */
     {
@@ -828,6 +799,7 @@ int main(int argc, char const * argv[])
     dup2_process::declare_usage(pl);
     filelist::configure(pl);
     output_specification::declare_usage(pl);
+    cado::filter_io_details::configure(pl);
 
     dup2_process::configure_switches(pl);
 
@@ -835,6 +807,7 @@ int main(int argc, char const * argv[])
 
     /* print command-line arguments */
     verbose_interpret_parameters(pl);
+    cado::filter_io_details::interpret_parameters(pl);
     param_list_print_command_line(stdout, pl);
     fflush(stdout);
 

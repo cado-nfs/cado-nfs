@@ -10,6 +10,15 @@
 #include "utils_cxx.hpp"
 #include "fstream_maybe_compressed.hpp"
 
+namespace cado::filter_io_details {
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+    static bool filter_rels_force_posix_threads = false;
+}
+bool cado::filter_io_details::filter_rels_force_posix_threads_is_set()
+{
+    return filter_rels_force_posix_threads;
+}
+
 void cado::filter_io_details::filter_rels_producer_thread(
     ringbuf & r,
     std::istream& f,
@@ -38,4 +47,15 @@ void cado::filter_io_details::filter_rels_producer_thread(
     }
     r.mark_done();
     if (stats) timingstats_dict_add_mythread(stats, "producer");
+}
+
+void cado::filter_io_details::configure(cxx_param_list & pl)
+{
+    pl.declare_usage("force-posix-threads", "force the use of posix threads");
+    pl.configure_switch("force-posix-threads");
+}
+
+void cado::filter_io_details::interpret_parameters(cxx_param_list & pl)
+{
+    pl.parse("force-posix-threads", filter_rels_force_posix_threads);
 }

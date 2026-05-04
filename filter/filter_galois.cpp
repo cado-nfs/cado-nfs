@@ -142,12 +142,6 @@ struct filter_galois_process {
             nthreads;
 
     parameter_switch<
-        "force-posix-threads",
-        "force the use of posix threads, do not rely on "
-        "platform memory semantics">
-            filter_rels_force_posix_threads;
-
-    parameter_switch<
         "dl",
         "for DL (untested)">
             is_for_dl;
@@ -182,7 +176,6 @@ struct filter_galois_process {
         decltype(nrels_expected)::configure(pl);
         decltype(action)::configure(pl);
         decltype(nthreads)::configure(pl);
-        decltype(filter_rels_force_posix_threads)::configure(pl);
         decltype(is_for_dl)::configure(pl);
         decltype(largeab)::configure(pl);
     }
@@ -194,7 +187,6 @@ struct filter_galois_process {
         , nrels_expected(pl)
         , action(pl)
         , nthreads(pl)
-        , filter_rels_force_posix_threads(pl)
         , is_for_dl(pl)
         , largeab(pl)
     {
@@ -291,46 +283,32 @@ struct filter_galois_process {
     /* This is the main entry point. It returns the number of
      * non-duplicate relations found in the input file set.
      */
-    size_t filter(std::vector<std::string> const & files) {
-        /* currently, only the posix thread model really works.
-         */
-        if (filter_rels_force_posix_threads || nthreads > 1) {
-            using L = cado::filter_io_details::ifb_locking_posix;
-            return filter<L>(files);
-        } else {
-            using L = cado::filter_io_details::ifb_locking_lightweight;
-            return filter<L>(files);
-        }
-    }
 
-    private:
-    template<typename locking_layer>
     size_t filter(std::vector<std::string> const & files)
     {
-        using L = locking_layer;
         if (!largeab) {
             using R = cado::relation_building_blocks::primes_block<
                 prime_type_for_indexed_relations,
                 cado::relation_building_blocks::ab_block<uint64_t, 16>>;
-            return filter<L, R>(files);
+            return filter<R>(files);
         } else {
             using R = cado::relation_building_blocks::primes_block<
                 prime_type_for_indexed_relations,
                 cado::relation_building_blocks::ab_block<cxx_mpz, 16>>;
-            return filter<L, R>(files);
+            return filter<R>(files);
         }
     }
+    private:
 
-    template<typename locking_layer, typename relation_type>
+    template<typename relation_type>
     size_t filter(std::vector<std::string> const & files) {
-        using L = locking_layer;
         using R = relation_type;
         size_t n = 0;
         for(auto const & f : files) {
             auto [ oname, oname_tmp ] = output.get_outfilename_from_infilename(f);
             ofstream_maybe_compressed out(oname_tmp);
 
-            n += filter_rels<L, R>(f, nullptr, nullptr,
+            n += filter_rels<R>(f, nullptr, nullptr,
                     cado::filter_io_details::multithreaded_call(nthreads,
                         [&](R & rel) {
                     thread_galois(out, rel);
@@ -361,11 +339,13 @@ int main(int argc, char const * argv[])
     declare_usage(pl);
     filelist::configure(pl);
     filter_galois_process::configure(pl);
+    cado::filter_io_details::configure(pl);
 
     param_list_process_command_line(pl, &argc, &argv, true);
 
     /* print command-line arguments */
     verbose_interpret_parameters(pl);
+    cado::filter_io_details::interpret_parameters(pl);
     param_list_print_command_line(stdout, pl);
     fflush(stdout);
 

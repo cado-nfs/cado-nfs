@@ -634,10 +634,6 @@ struct input_relation_pool /* {{{ */ {
         "0">
             nrels;
      */
-    parameter_switch<"force-posix-threads",
-        "force the use of posix threads,"
-            " do not rely on platform memory semantics">
-            force_posix_threads;
     parameter<std::string,
         "path_antebuffer",
         "path to antebuffer program">
@@ -647,14 +643,12 @@ struct input_relation_pool /* {{{ */ {
         decltype(relspfilename)::configure(pl);
         decltype(relsdfilename)::configure(pl);
         // decltype(nrels)::configure(pl);
-        decltype(force_posix_threads)::configure(pl);
         decltype(path_antebuffer)::configure(pl);
     }
     explicit input_relation_pool(cxx_param_list & pl)
         : relspfilename(pl)
         , relsdfilename(pl)
         // , nrels(pl)
-        , force_posix_threads(pl)
         , path_antebuffer(pl)
     {
         if (path_antebuffer.is_provided())
@@ -666,17 +660,9 @@ struct input_relation_pool /* {{{ */ {
     size_t filter(std::vector<bool> const * only_some_rels, Args && ...args) const
     {
         const std::vector<std::string> files { relspfilename, relsdfilename };
-        if (force_posix_threads) {
-            using locking_type = cado::filter_io_details::ifb_locking_posix;
-            return filter_rels<locking_type, relation_type>(files,
-                    only_some_rels, nullptr,
-                    std::forward<Args>(args)...);
-        } else {
-            using locking_type = cado::filter_io_details::ifb_locking_lightweight;
-            return filter_rels<locking_type, relation_type>(files,
-                    only_some_rels, nullptr,
-                    std::forward<Args>(args)...);
-        }
+        return filter_rels<relation_type>(files,
+                only_some_rels, nullptr,
+                std::forward<Args>(args)...);
     }
     bool both_files_uncompressed() const {
         for(auto const & s : { relspfilename(), relsdfilename() })
@@ -1494,10 +1480,12 @@ int main(int argc, char const * argv[])
 
     declare_usage(pl);
     reconstructlog_process::configure(pl);
+    cado::filter_io_details::configure(pl);
 
     param_list_process_command_line(pl, &argc, &argv, false);
 
     verbose_interpret_parameters(pl);
+    cado::filter_io_details::interpret_parameters(pl);
     param_list_print_command_line(stdout, pl);
     fflush(stdout);
 

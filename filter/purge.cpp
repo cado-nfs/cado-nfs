@@ -69,6 +69,7 @@
 
 #include <algorithm>
 #include <string>
+#include <limits>
 
 #include "fmt/base.h"
 #include "fmt/format.h"
@@ -110,11 +111,7 @@ struct purge_output_specification { /* {{{ */
 };
 /* }}} */
 struct purge_process : purge_output_specification {
-    parameter_switch</* {{{ */
-                     "force-posix-threads",
-                     "force the use of posix threads, do not rely on "
-                     "platform memory semantics">
-        force_posix_threads;
+        /* {{{ */
     /* yippee, nrels is no longer mandatory! */
     parameter_with_default<size_t, "nrels", "number of initial relations",
                            "0">
@@ -152,7 +149,6 @@ struct purge_process : purge_output_specification {
     static void configure(cxx_param_list & pl) /* {{{ */
     {
         purge_output_specification::configure(pl);
-        decltype(force_posix_threads)::configure(pl);
         decltype(nrows_init)::configure(pl);
         decltype(col_min_index)::configure(pl);
         decltype(col_max_index)::configure(pl);
@@ -165,7 +161,6 @@ struct purge_process : purge_output_specification {
     /* }}} */
     explicit purge_process(cxx_param_list & pl) /* {{{ */
         : purge_output_specification(pl)
-        , force_posix_threads(pl)
         , nrows_init(pl)
         , col_min_index(pl)
         , col_max_index(pl)
@@ -239,8 +234,9 @@ struct purge_process : purge_output_specification {
             prime_type_for_indexed_relations,
             cado::relation_building_blocks::ab_ignore<16>>;
 
-        filter<relation_type>(input, [&](relation_type & rel) {
-            M.new_row(rel.num, col_min_index, col_max_index, rel.primes);
+        filter_rels<relation_type>(input.create_file_list(), nullptr, nullptr,
+                [&](relation_type & rel) {
+                    M.new_row(rel.num, col_min_index, col_max_index, rel.primes);
         });
 
         consistency_check_nrels();
@@ -277,34 +273,6 @@ struct purge_process : purge_output_specification {
             print_final_values(0);
             exit(2);
         }
-    }
-    /* }}} */
-
-    /* {{{ plumbing for filtering. It's pretty much always the same kind
-     * of variations around the same idea. We need to decide based on
-     * runtime parameters which of the compile-time instantiations we
-     * call. Here the callable f allows us to accomodate both purge
-     * passes.
-     */
-    template <typename relation_type, typename F>
-    size_t filter(filelist const & input, F const & f)
-    {
-        if (nthreads > 1 || force_posix_threads) {
-            using locking_type = cado::filter_io_details::ifb_locking_posix;
-            return filter<locking_type, relation_type>(input, f);
-        } else {
-            using locking_type =
-                cado::filter_io_details::ifb_locking_lightweight;
-            return filter<locking_type, relation_type>(input, f);
-        }
-    }
-
-    template <typename locking_type, typename relation_type, typename F>
-    size_t filter(filelist const & input, F const & f)
-    {
-        auto files = input.create_file_list();
-        return filter_rels<locking_type, relation_type>(files, nullptr, nullptr,
-                                                        f);
     }
     /* }}} */
 
@@ -347,15 +315,15 @@ struct purge_process : purge_output_specification {
                 cado::relation_building_blocks::ab_ignore<16>>>;
         double W = 0;
 
-        auto f2 = [&](relation_type & rel) {
-            if (M.is_active(rel.num)) {
-                W += static_cast<double>(rel.weight);
-                fmt::print(out, "{}\n", rel.line);
-            } else if (outdel.is_open()) {
-                fmt::print(outdel, "{}\n", rel.line);
-            }
-        };
-        filter<relation_type>(input, f2);
+        filter_rels<relation_type>(input.create_file_list(), nullptr, nullptr,
+            [&](relation_type & rel) {
+                if (M.is_active(rel.num)) {
+                    W += static_cast<double>(rel.weight);
+                    fmt::print(out, "{}\n", rel.line);
+                } else if (outdel.is_open()) {
+                    fmt::print(outdel, "{}\n", rel.line);
+                }
+            });
 
         /* write final values to stdout */
         /* This output, incl. "Final values:", is required by the script */
@@ -489,6 +457,7 @@ int main(int argc, char const * argv[])
 
     verbose_decl_usage(pl);
     filelist::configure(pl);
+    cado::filter_io_details::configure(pl);
 
     purge_process::configure(pl);
 
@@ -496,6 +465,7 @@ int main(int argc, char const * argv[])
 
     /* print command-line arguments */
     verbose_interpret_parameters(pl);
+    cado::filter_io_details::interpret_parameters(pl);
     pl.print_command_line(stdout);
     fflush(stdout);
 

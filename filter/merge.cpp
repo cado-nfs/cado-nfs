@@ -197,22 +197,16 @@ struct purged_file_reader {
      */
     filter_matrix_t * mat;
     std::string purgedname;
-    bool filter_rels_force_posix_threads = false;
     unsigned int skip = DEFAULT_MERGE_SKIP;
     static void declare_usage(cxx_param_list & pl) {
         pl.declare_usage("mat", "input purged file");
         pl.declare_usage("skip", "number of heavy columns to bury (default "
                                     CADO_STRINGIZE(DEFAULT_MERGE_SKIP) ")");
-        pl.declare_usage("force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
     }
 
-    static void configure_switches(cxx_param_list & pl) {
-        pl.configure_switch("force-posix-threads");
-    }
     purged_file_reader(filter_matrix_t * mat, cxx_param_list & pl)
         : mat(mat)
         , purgedname(pl.parse_mandatory<std::string>("mat"))
-        , filter_rels_force_posix_threads(pl.parse<bool>("force-posix-threads"))
     {
         pl.parse("skip", skip);
     }
@@ -258,26 +252,6 @@ struct purged_file_reader {
         compressRow (mat->rows[rel.num], buf, j);  /* sparse.c, simple copy loop... */
     }
 
-    template<typename locking_layer, typename relation_type>
-    size_t filter() {
-        using L = locking_layer;
-        using R = relation_type;
-        return filter_rels<L, R>(purgedname, nullptr, nullptr,
-                [&](R & rel) { insert_rel_into_table(rel); });
-    }
-
-    template<typename relation_type>
-    size_t filter() {
-        using R = relation_type;
-        if (filter_rels_force_posix_threads) {
-            using L = cado::filter_io_details::ifb_locking_posix;
-            return filter<L, R>();
-        } else {
-            using L = cado::filter_io_details::ifb_locking_posix;
-            return filter<L, R>();
-        }
-    }
-
     /* first check if purgedname is seekable. if yes, we can do multithread
      * I/O */
     int can_go_parallel() const
@@ -303,7 +277,8 @@ struct purged_file_reader {
                 prime_type_for_indexed_relations,
                 cado::relation_building_blocks::ab_ignore<
                     16>>;
-            nread = filter<relation_type>();
+            nread = filter_rels<relation_type>(purgedname, nullptr, nullptr,
+                [&](relation_type & rel) { insert_rel_into_table(rel); });
         }
         ASSERT_ALWAYS(nread == mat->nrows);
         mat->rem_nrows = nread;
@@ -1448,12 +1423,13 @@ int main(int argc, char const * argv[])
     declare_usage(pl);
     purged_file_reader::declare_usage(pl);
 
-    purged_file_reader::configure_switches(pl);
     param_list_configure_switch (pl, "-v", &merge_verbose);
+    cado::filter_io_details::configure(pl);
 
     param_list_process_command_line(pl, &argc, &argv, false);
 
     verbose_interpret_parameters (pl);
+    cado::filter_io_details::interpret_parameters(pl);
     param_list_print_command_line (stdout, pl);
     fflush(stdout);
 
