@@ -84,13 +84,6 @@ cmake_policy(SET CMP0057 NEW)
 #    cmake_policy(SET CMP1234 NEW)
 # endif()
 
-if (MINGW)
-    # we could do this as well in other cases.
-    # http://public.kitware.com/Bug/view.php?id=8726
-    set_property(GLOBAL PROPERTY RULE_MESSAGES OFF)
-    set(CMAKE_COLOR_MAKEFILE OFF)
-endif()
-
 set(CMAKE_REQUIRED_QUIET 0)
 
 #####################################################################
@@ -152,17 +145,8 @@ set(DATASUFFIX share/${package_basename} CACHE STRING "subpath below PREFIX for 
 set (CMAKE_C_FLAGS      "${CMAKE_C_FLAGS} ${CMAKE_FLAGS_SIZE}")
 message(STATUS "C compiler: ${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}")
 if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
-    # gcc defines __STRICT_ANSI__ with -std=c99, which under MinGW
-    # causes many prototypes and macros not to be defined. Using gnu99
-    # prevents the definition of __STRICT_ANSI__
-    #
-    # Ditto for C++, with the c++98/gnu++98 subtlety.
     set (CMAKE_C_FLAGS "-Wall -Wextra ${CMAKE_C_FLAGS}")
-    if (MINGW)
-        set (CMAKE_C_FLAGS "-std=gnu99 ${CMAKE_C_FLAGS}")
-    else()
-        set (CMAKE_C_FLAGS "-std=c99 ${CMAKE_C_FLAGS}")
-    endif()
+    set (CMAKE_C_FLAGS "-std=c99 ${CMAKE_C_FLAGS}")
     # Someday we'll enable c11. This will provide us aligned_alloc.
 elseif(CMAKE_C_COMPILER_ID MATCHES "IntelLLVM")
     message(STATUS "Applying flags for icc (icx)")
@@ -360,7 +344,6 @@ include("${CADO_NFS_SOURCE_DIR}/config/rusage_thread.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/clock_gettime.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/sync_fetch.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/asprintf.cmake")
-include("${CADO_NFS_SOURCE_DIR}/config/mingw.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/test-rand.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/strlcpy.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/linux.cmake")
@@ -404,9 +387,6 @@ if("$ENV{ENABLE_SHARED}" OR BUILD_SHARED_LIBS)
     # environment variable.
     set(ENABLE_SHARED 1)
     set(CADO_NFS_USE_SHARED_LIBS 1)
-    if(MINGW)
-        message(FATAL_ERROR "ENABLE_SHARED is not supported with MINGW")
-    endif()
     set(CADO_SHARED SHARED)
     message(STATUS "Building with dynamic libraries (ENABLE_SHARED=$ENV{ENABLE_SHARED})")
 
@@ -593,7 +573,3 @@ message(STATUS "Data will go to ${CMAKE_INSTALL_PREFIX}/${DATASUFFIX}")
 IF (DEFINED ENV{CMAKE_DUMP_VARIABLES})
   include("${CADO_NFS_SOURCE_DIR}/config/variables.cmake")
 ENDIF()
-
-if(MINGW)
-    message(STATUS "Please look up dev_docs/howto-MinGW.txt in the git tree for our mingw testing configuration, and frequently encountered errors")
-endif()

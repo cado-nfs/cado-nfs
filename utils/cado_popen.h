@@ -12,7 +12,6 @@
 extern "C" {
 #endif
 
-#ifndef HAVE_MINGW
 FILE * cado_popen(const char * command, const char * mode);
 int cado_fd_popen(const char * command, const char * mode);
 #if defined(HAVE_GETRUSAGE) && defined(HAVE_WAIT4)
@@ -24,12 +23,6 @@ int cado_fd_pclose2(int fd, void * r);
 #endif
 static inline int cado_pclose(FILE * stream) { return cado_pclose2(stream, NULL); }
 static inline int cado_fd_pclose(int fd) { return cado_fd_pclose2(fd, NULL); }
-#else
-
-static inline FILE * cado_popen(const char * command, const char * mode) { return popen(command, mode); }
-static inline int cado_pclose(FILE * stream) { return pclose(stream); }
-/* we don't even provide cado_pclose2 for mingw */
-#endif
 
 #ifdef __cplusplus
 }

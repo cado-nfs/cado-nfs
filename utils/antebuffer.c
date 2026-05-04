@@ -26,10 +26,6 @@
 #include "timing.h"
 #include "portability.h" // sleep // IWYU pragma: keep
 
-#ifdef HAVE_MINGW
-int _CRT_fmode = _O_BINARY; /* Binary open for stdin/out/err */
-#endif
-
 #ifndef HAVE_NANOSLEEP
   int nanosleep(const struct timespec *req, struct timespec *rem) {
     if (rem == NULL) {
@@ -104,10 +100,6 @@ int main(int argc, char const * argv[])
   ssize_t r;
   unsigned int p;
   char *real_malloc;
-
-#ifdef HAVE_MINGW
-  _fmode = _O_BINARY;     /* Binary open for all others files */
-#endif
 
   if (argc < 3) {
   error:

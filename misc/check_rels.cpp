@@ -412,10 +412,6 @@ int main(int argc, char const * argv[])
     param_list_configure_switch(pl, "check_primality", &check_primality);
     cado::filter_io_details::configure(pl);
 
-#ifdef HAVE_MINGW
-    _fmode = _O_BINARY; /* Binary open for all files */
-#endif
-
     pl.process_command_line(argc, argv, true);
 
     cado::filter_io_details::interpret_parameters(pl);

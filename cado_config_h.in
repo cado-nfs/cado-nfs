@@ -139,7 +139,6 @@
 #cmakedefine    HAVE_MPI3_API
 #cmakedefine    HAVE_OPENMP
 
-#cmakedefine    HAVE_MINGW
 #cmakedefine    HAVE_EXECUTABLE_SUFFIX
 #ifdef HAVE_EXECUTABLE_SUFFIX
 #define EXECUTABLE_SUFFIX "@CMAKE_EXECUTABLE_SUFFIX@"

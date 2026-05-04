@@ -45,6 +45,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include <string>
 #include <vector>
 
+#include "fmt/base.h"
+
 #include "filter_config.h"
 #include "filter_io.hpp"
 #ifdef FOR_DL
@@ -1410,10 +1412,6 @@ int main(int argc, char const * argv[])
     uint32_t skip = DEFAULT_MERGE_SKIP;
     double target_density = DEFAULT_MERGE_TARGET_DENSITY;
 
-#ifdef HAVE_MINGW
-    _fmode = _O_BINARY;     /* Binary open for all files */
-#endif
-
     double tt;
     double cpu0 = seconds ();
     double wct0 = wct_seconds ();
@@ -1659,15 +1657,21 @@ int main(int argc, char const * argv[])
         #endif
 
         /* estimate current average fill-in */
-        double av_fill_in = ((double) mat->tot_weight - (double) lastW)
-          / (double) (lastN - mat->rem_nrows);
 
-        printf ("N=%" PRIu64 " W=%" PRIu64 " (%.0fMB) W/N=%.2f fill-in=%.2f cpu=%.1fs wct=%.1fs mem=%zuM [pass=%d,cwmax=%d]\n",
+        fmt::print(history, "# N=%{} at TD={:.2f} ({})\n",
+                mat->rem_nrows,
+                double_ratio(mat->tot_weight, mat->rem_nrows),
+                size_disp((mat->rem_nrows + mat->tot_weight) * sizeof(index_t)));
+
+        fmt::print("N={} W={} ({}) W/N={:.2f}"
+                " fill-in={:.2f} cpu={:.1f}s wct={:.1f}s mem={}"
+                " [pass={},cwmax={}]\n",
                 mat->rem_nrows, mat->tot_weight,
-                9.5367431640625e-07 * (double) (mat->rem_nrows + mat->tot_weight) * sizeof(index_t),
-                (double) mat->tot_weight / (double) mat->rem_nrows, av_fill_in,
+                size_disp((mat->rem_nrows + mat->tot_weight) * sizeof(index_t)),
+                double_ratio(mat->tot_weight, mat->rem_nrows),
+                double_ratio(mat->tot_weight - lastW, lastN - mat->rem_nrows),
                 seconds () - cpu0, wct_seconds () - wct0,
-                PeakMemusage () >> 10U, merge_pass, mat->cwmax);
+                size_disp(PeakMemusage ()), merge_pass, mat->cwmax);
         fflush (stdout);
 
         if (average_density (mat) >= target_density)
