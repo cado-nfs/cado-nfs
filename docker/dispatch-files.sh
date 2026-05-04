@@ -23,11 +23,11 @@ lib/cado-nfs-3.0.0/polyselect/dlpolyselect
 bin/cado-nfs-client.py
 EOF
 
-rsync -a --files-from=- /usr/local/ /usr/local/common-client/ <<EOF
+rsync -ar --files-from=- /usr/local/ /usr/local/common-client/ <<EOF
 lib/cado-nfs-3.0.0/scripts/cadofactor/
 EOF
 
-rsync -a --files-from=- /usr/local/ /usr/local/common-server/ <<EOF
+rsync -ar --files-from=- /usr/local/ /usr/local/common-server/ <<EOF
 bin/cado-nfs.py
 lib/cado-nfs-3.0.0/polyselect/polyselect3
 lib/cado-nfs-3.0.0/filter/dup1
@@ -65,7 +65,7 @@ collect() { (cd /usr/local ; for x in "$@" ; do find -name "$x" ; done) ; }
 (
     collect "libarithmetic_b*.so"
     collect "libmatmul_b*.so"
-    collect "lingen_b*.so"
+    collect "lingen_b*"
     collect "liblingen_b*"
     collect "libgf2x.so*"
 ) | rsync -a --files-from=- /usr/local/ /usr/local/factoring-linalg/
@@ -73,10 +73,11 @@ collect() { (cd /usr/local ; for x in "$@" ; do find -name "$x" ; done) ; }
 (
     collect "libarithmetic_p*.so"
     collect "libmatmul_p*.so"
+    collect "lingen_p*"
     collect "liblingen_p*_support.so"
 ) | rsync -a --files-from=- /usr/local/ /usr/local/discretelog-linalg/
 
-rsync -a --files-from=- /usr/local/ /usr/local/factoring-server/ <<EOF
+rsync -ar --files-from=- /usr/local/ /usr/local/factoring-server/ <<EOF
 lib/cado-nfs-3.0.0/filter/merge
 lib/cado-nfs-3.0.0/filter/replay
 share/cado-nfs-3.0.0/factor/
@@ -84,7 +85,7 @@ lib/cado-nfs-3.0.0/linalg/characters
 lib/cado-nfs-3.0.0/sqrt/sqrt
 EOF
 
-rsync -a --files-from=- /usr/local/ /usr/local/discretelog-server/ <<EOF
+rsync -ar --files-from=- /usr/local/ /usr/local/discretelog-server/ <<EOF
 lib/cado-nfs-3.0.0/misc/descent_init_Fp
 lib/cado-nfs-3.0.0/scripts/descent.py
 lib/cado-nfs-3.0.0/sieve/las_descent

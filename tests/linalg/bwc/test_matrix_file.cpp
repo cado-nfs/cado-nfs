@@ -11,7 +11,7 @@
 
 #include "matrix_file.hpp"
 #include "sha1.h"
-#include "params.h"
+#include "params.hpp"
 
 static std::ostream * bind(cxx_param_list & pl, const char * option_name, std::shared_ptr<std::ostream>& b)
 {

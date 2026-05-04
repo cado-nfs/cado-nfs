@@ -6,10 +6,10 @@
 #include <utility>       // for pair
 #include <vector>        // for vector
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "mpz_poly.h"
 #include "renumber.hpp"
-#include "renumber_proxy.h"
+#include "renumber_proxy.hpp"
 #include "typedefs.h"
 
 static inline const renumber_t * deref(renumber_proxy_srcptr R)
@@ -22,7 +22,7 @@ static inline renumber_t * deref(renumber_proxy_ptr R)
     return (renumber_t *) R->x;
 }
 
-void renumber_table_init(renumber_proxy_ptr R, cado_poly_ptr P)
+void renumber_table_init(renumber_proxy_ptr R, cxx_cado_poly & P)
 {
     cxx_cado_poly const ff(P);
     R->x = (void*) new renumber_t(ff);

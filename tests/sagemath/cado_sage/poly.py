@@ -16,7 +16,7 @@ class CadoPolyFile(object):
     """
     This class contains stuff to read a polynomial pair from a cado .poly
     file. Some effort goes into adapting to the various ways a poly file
-    can be laid out, but these are certainly a few gaps.
+    can be laid out, but there are certainly a few gaps.
 
     EXAMPLES:
 
@@ -50,10 +50,14 @@ class CadoPolyFile(object):
                  wdir=None):
 
         self.filename = filename
-        if wdir is None and filename is not None:
-            self.wdir = os.path.dirname(self.filename)
+
+        if hasattr(filename, 'read'):
+            pass
         else:
-            self.wdir = wdir
+            if wdir is None and filename is not None:
+                self.wdir = os.path.dirname(self.filename)
+            else:
+                self.wdir = wdir
 
         self.__clear_fields_for_read()
 
@@ -80,10 +84,13 @@ class CadoPolyFile(object):
 
     def read(self):
         try:
-            if get_verbose():
-                print(f"Reading {self.filename}")
-            with open(self.filename, "r") as fm:
-                self.__read(fm)
+            if hasattr(self.filename, 'read'):
+                self.__read(self.filename)
+            else:
+                if get_verbose():
+                    print(f"Reading {self.filename}")
+                with open(self.filename, "r") as fm:
+                    self.__read(fm)
 
         except Exception as e:
             # We're really in bad shape if an exception occurs here.
@@ -233,10 +240,11 @@ class CadoPolyFile(object):
 
         return f1s.homogenize(), B
 
-    def create_2d_valley_plot(self, output_filename,
+    def create_2d_valley_plot(self, output_filename=None,
                               style='heatmap',
                               heatmap_plot_points=500,
-                              scale='auto'
+                              scale='auto',
+                              bound=1
                               ):
         """
         This creates the frequently seen "spider web" graphics for this
@@ -250,8 +258,9 @@ class CadoPolyFile(object):
         the sampling grid.
         """
 
-        if not re.match(r'.*\.png', output_filename):
-            raise RuntimeError("output_filename must be a .png file")
+        if output_filename is not None:
+            if not re.match(r'.*\.png', output_filename):
+                raise RuntimeError("output_filename must be a .png file")
 
         F, B = self._normalized_polynomial_for_graphics()
 
@@ -275,30 +284,34 @@ class CadoPolyFile(object):
             levels = [z0 + i * dz for i in range(ni+1)]
             from sage.plot.contour_plot import contour_plot
             figure = contour_plot(G,
-                                  (x, -1, 1), (y, -1, 1),
+                                  (x, -bound, bound), (y, -bound, bound),
                                   contours=levels,
                                   fill=False,
                                   cmap="jet", colorbar=False)
         elif style == 'heatmap':
             from sage.plot.density_plot import density_plot
             figure = density_plot(G,
-                                  (x, -1, 1), (y, -1, 1),
+                                  (x, -bound, bound), (y, -bound, bound),
                                   cmap="jet",
-                                  plot_points=heatmap_plot_points)
+                                  plot_points=heatmap_plot_points,
+                                  aspect_ratio=1)
         else:
             raise RuntimeError("The 'style' parameter must be"
                                " either 'contour' or 'heatmap'")
 
-        pm = figure.matplotlib(axes=False, axes_pad=0)
-        pm.subplots_adjust(left=0, right=1, top=1, bottom=0)
-        import matplotlib.pyplot
-        from matplotlib.backends.backend_agg import FigureCanvasAgg
-        pm.set_canvas(FigureCanvasAgg(pm))
-        pm.set_size_inches(5, 5)
-        ax = matplotlib.pyplot.Axes(pm, [0., 0., 5., 5.])
-        ax.set_axis_off()
-        pm.add_axes(ax)
-        pm.savefig(output_filename, bbox_inches=0)
+        if output_filename is not None:
+            pm = figure.matplotlib(axes=False, axes_pad=0)
+            pm.subplots_adjust(left=0, right=bound, top=bound, bottom=0)
+            import matplotlib.pyplot
+            from matplotlib.backends.backend_agg import FigureCanvasAgg
+            pm.set_canvas(FigureCanvasAgg(pm))
+            pm.set_size_inches(5, 5)
+            ax = matplotlib.pyplot.Axes(pm, [0., 0., 5., 5.])
+            ax.set_axis_off()
+            pm.add_axes(ax)
+            pm.savefig(output_filename, bbox_inches=0)
+        else:
+            return figure
 
     def create_3d_valley_plot(self, output_filename,
                               scale='auto',

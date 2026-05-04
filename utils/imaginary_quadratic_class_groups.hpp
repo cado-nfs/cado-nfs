@@ -6,7 +6,7 @@
 
 #include "fmt/base.h"
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "cxx_mpz.hpp"
 
 bool cado_poly_is_imaginary_quadratic(cxx_cado_poly const & cpoly);

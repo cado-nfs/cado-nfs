@@ -5,6 +5,7 @@
 
 #include <complex>
 #include <type_traits>
+#include <array>
 
 #include "cxx_mpz.hpp"
 #ifdef HAVE_MPFR
@@ -13,6 +14,50 @@
 #ifdef HAVE_MPC
 #include "cxx_mpc.hpp"
 #endif
+
+namespace cado {
+    struct nop_function {
+        template<typename... Args>
+            void operator()(Args&& ...) const { }
+    };
+
+    template<typename A>
+    concept is_std_array_v =
+           requires { typename A::value_type; }
+        && requires { std::tuple_size_v<A>; }
+        && std::is_same_v<A, std::array<typename A::value_type, std::tuple_size_v<A>>>;
+
+    static_assert(is_std_array_v<std::array<int, 3>>);
+    static_assert(!is_std_array_v<int[3]>);
+
+    template<typename A>
+    concept is_bounded_array_or_std_array_v =
+        (std::is_bounded_array_v<A> || is_std_array_v<A>);
+
+    static_assert(is_bounded_array_or_std_array_v<std::array<int, 3>>);
+    static_assert(is_bounded_array_or_std_array_v<int[3]>);
+
+
+    template<typename T> struct make_signed;
+    template<typename T> struct make_unsigned;
+
+    template<typename T> requires requires { typename std::make_signed<T>; }
+    struct make_signed<T> : public std::make_signed<T> {};
+    template<typename T> requires requires { typename std::make_unsigned<T>; }
+    struct make_unsigned<T> : public std::make_unsigned<T> {};
+
+    template<typename T> using make_signed_t = make_signed<T>::type;
+    template<typename T> using make_unsigned_t = make_unsigned<T>::type;
+
+    /* because this header file is always included after cxx_mpz, let's
+     * move the definitions here.
+     */
+    template<> struct make_signed<cxx_mpz> { using type = cxx_mpz; };
+    template<> struct make_unsigned<cxx_mpz> { using type = cxx_mpz; };
+    template<> struct make_signed<cxx_mpq> { using type = cxx_mpq; };
+    template<> struct make_unsigned<cxx_mpq> { using type = cxx_mpq; };
+} /* namespace cado */
+
 
 namespace cado_math_aux {
 

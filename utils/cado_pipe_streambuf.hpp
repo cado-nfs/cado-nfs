@@ -8,8 +8,9 @@ class cado_pipe_streambuf : public fd_streambuf {
     public:
     cado_pipe_streambuf(const char * command, const char * mode);
     cado_pipe_streambuf(const char * command, std::ios_base::openmode mode);
-    ~cado_pipe_streambuf();
+    ~cado_pipe_streambuf() override;
     void close();
+    bool is_open() const { return fd() >= 0; }
 
 //     protected:
 //     int_type underflow() override { return fd_streambuf::underflow(); }

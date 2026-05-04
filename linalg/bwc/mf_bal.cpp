@@ -26,7 +26,7 @@
 #include "timing.h"     // wct_seconds
 #include "fix-endianness.h" // fread32_little
 #include "macros.h"
-#include "params.h"
+#include "params.hpp"
 
 #include "utils_cxx.hpp"        // for unique_ptr<FILE, delete_FILE>
 

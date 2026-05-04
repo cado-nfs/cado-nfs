@@ -30,7 +30,7 @@
 #include "lingen_matpoly_select.hpp"
 #include "logline.hpp"
 #include "macros.h"
-#include "params.h"
+#include "params.hpp"
 #include "runtime_numeric_cast.hpp"
 #include "select_mpi.h"
 #include "tree_stats.hpp"

@@ -126,5 +126,5 @@ if [ "$SAGE" ] ; then
     # whenever pgrep exists, so we can just as well use pkill and get rid
     # of the race condition
     # pgrep -f sage-cleaner | xargs -r kill
-    pkill -f sage-cleaner
+    pkill -f sage-cleaner || :
 fi

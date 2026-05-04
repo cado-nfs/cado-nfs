@@ -15,7 +15,7 @@
 #include <utility>
 #include <vector>
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "macros.h"
 #include "mpz_poly.h"
 
@@ -27,7 +27,10 @@
 
 struct qlattice_basis;
 struct siqs_special_q_data;
+namespace cado::params {
 struct cxx_param_list;
+}
+using cxx_param_list = cado::params::cxx_param_list;
 
 /* The *factor base* is made of *entries*. We have several vectors of
  * entries, each with primes splitting in the same number of roots.

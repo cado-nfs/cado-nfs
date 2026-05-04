@@ -21,7 +21,7 @@
 #ifdef TRACE_K
 #include "las-where-am-i.hpp"
 #include "las-output.hpp"
-#include "verbose.h"
+#include "verbose.hpp"
 #endif
 
 #include "las-unsieve.hpp"

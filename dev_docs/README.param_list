@@ -45,6 +45,8 @@ The processing goes through two steps:
 
 ###################################################################
 # Quick documentation for the impatient.
+#
+# (note: for c++ code, go to the next section)
 
 Common accepted syntaxes for options are --foo blah, -foo blah, or
 foo=blah. On a first pass, keys are recognized as strings, and parsing
@@ -71,19 +73,14 @@ pattern.
 
     param_list_init(pl);
 
-    argv++,argc--;
+    /* documentation, if any. See below */
     /* switches, if any. See below */
     /* aliases, if any. See below */
 
-    for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
-        /* Do perhaps some other things on the argument that haven't
-         * been eaten at all. Like check whether it is a valid file to
-         * source in order to get more options. See
-         * param_list_read_stream and param_list_read_file for that. */
-        fprintf (stderr, "Unknown option: %s\n", argv[0]);
-        usage();
-    }
+    param_list_process_command_line(pl, &argc, &argv, false);
+    /* If you want to do some other things with the arguments that haven't
+     * been eaten at all, pass "true" as the last parameter above, then
+     * act on the remaining argc and argv.
 
     /* Now parse the values corresponding to options, and map their
      * meaning somewhere */
@@ -133,9 +130,14 @@ pattern.
 It is also possible to configure switches. Configure switches goes toghether
 with specifying a pointer to the switch value, which must have type int.
 
-    param_list_configure_switch(pl, "--legacy", &legacy);
-    param_list_configure_switch(pl, "--remove-input", &remove_input);
-    param_list_configure_switch(pl, "--pad", &pad_to_square);
+    param_list_configure_switch(pl, "--legacy", NULL);
+    param_list_configure_switch(pl, "--remove-input", NULL);
+    param_list_configure_switch(pl, "--pad", NULL);
+
+    legacy = param_list_parse_switch(pl, "--legacy");
+    remove_input = param_list_parse_switch(pl, "--remove-input");
+    pad = param_list_parse_switch(pl, "--pad");
+
 
 Aliases:
     param_list_configure_alias(pl, "--pad", "--square");
@@ -151,7 +153,57 @@ Aliases:
 
 
 ###################################################################
-# Slightly longer doc.
+# Best practices and convenience wrapper for c++ code
+
+For c++ code, use the `cxx_param_list` type.
+
+Parameter handling encompasses several distinct things.
+
+ 1. declaring the variable that will hold the parameter value. (e.g., an
+    int, but many other types are possible.) Note that by design, this type
+    must be default constructible
+ 2. specifying a default value.
+ 3. documenting the parameter.
+ 4. telling the parameter layer if it is a switch or not.
+ 5. actually parsing the parameter, and abort if a mandatory parameter is
+    missing.
+ 6. perhaps do some consistency checking.
+
+Example code that goes through these steps can be written as in [this
+example](../tests/utils/test_params.cpp). Note that several calls such as
+`param_list_decl_usage` are replaced by member functions of the
+`cxx_param_list` type for brevity.
+
+
+
+As an evolution of this, it makes sense that each part of the program
+functionality is embedded in a class. In this model, the different steps
+above are moved to a separate class, while the main processing such as
+the `parse_command_line()` and `warn_unused()` calls remain within the
+`main` function. We recommend that parsing takes place in the constructor
+of the object, while the documentation / configuration steps can be done
+in static methods. [This example](../tests/utils/test_params_struct.cpp)
+illustrates this.
+ - the main benefit is that the internal aspects of each parameter is
+   moved away from `main()`. It also makes it possible to organize
+   parameters in a more consistent manner.
+ - we do have downsides, though. Some information is repeated over and
+   over, such as each parameter type, the default values, or the key.
+   Changing any of these implies 
+
+
+The third evolution allows to get rid of most of the repetitions by
+moving all information in the same place. The param layer defines three
+structure templates, namely `parameter`, `parameter_mandatory`, and
+`parameter_switch`. Each is automatically convertible to the target type
+(but in some cases it makes sense to force this conversion). This is
+exemplified in [this code](../tests/utils/test_params_declarator.cpp),
+which as of this writing (Apr 2026) is the recommended way.
+
+
+
+###################################################################
+# Slightly longer doc. (not maintained up to date)
 
 Roadmap for use:
 
@@ -289,16 +341,8 @@ needed:
 
   param_list_clear(pl);
 
-Before that, notice that cado_poly_read has been superseded by
-cado_poly_set_plist, to be used so:
-
-    cado_poly_init(cpoly);
-    if (!cado_poly_set_plist (cpoly, pl)) {
-        exit (EXIT_FAILURE);
-    }
-
-
 ###################################################################
 
-There is (yet) some more documentation text in params.h
+There is (yet) some more documentation text in params.hpp
 
+# vim: ft=markdown

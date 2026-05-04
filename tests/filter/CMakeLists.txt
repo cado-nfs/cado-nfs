@@ -6,6 +6,10 @@ cado_define_test(SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/test_filter_galois.sh
     PROVIDE_TEMPORARY_WDIR
     TARGET_DEPENDENCIES filter_galois)
 
+cado_define_test(SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/test_dup1.sh
+    PROVIDE_TEMPORARY_WDIR
+    TARGET_DEPENDENCIES dup1)
+
 set(sage_opt)
 set(deps)
 if(SAGE)
@@ -38,10 +42,10 @@ cado_divert_test(test_dup2${sage_opt} c105_30003
     )
 endif()
 
-cado_divert_test(test_dup2${sage_opt} c105_30004
+cado_divert_test(test_dup2${sage_opt} c105_30004_with_sides
     APPEND_ARGUMENTS
     -poly ${CMAKE_CURRENT_SOURCE_DIR}/p40_30004.poly
-    -rels ${CMAKE_CURRENT_SOURCE_DIR}/p40_30004.rels.gz
+    -rels ${CMAKE_CURRENT_SOURCE_DIR}/p40_30004_with_sides.rels.gz
     -lpbs 14,14
     -dl
     -S daa017e17f50607820e7896dcc3a05370364b3b4
@@ -71,3 +75,6 @@ cado_define_test(test_sm_with_small_ell
     -poly ${CMAKE_CURRENT_SOURCE_DIR}/c30_sm_small_ell.poly
     TARGET_DEPENDENCIES sm_append
 )
+
+add_executable(create_fake_relation_file create_fake_relation_file.cpp)
+target_link_libraries(create_fake_relation_file utils)

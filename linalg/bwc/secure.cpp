@@ -15,7 +15,7 @@
 #include "fmt/format.h"
 
 #include "gmp_aux.h"
-#include "bw-common.h"
+#include "bw-common.hpp"
 #include "macros.h"
 #include "matmul_top.hpp"
 #include "matmul_top_comm.hpp"
@@ -23,7 +23,7 @@
 #include "arith-generic.hpp"
 #include "arith-cross.hpp"
 #include "parallelizing_info.hpp"
-#include "params.h"
+#include "params.hpp"
 #include "select_mpi.h"
 #include "xvectors.hpp"
 #include "mmt_vector_pair.hpp"
@@ -156,7 +156,7 @@ static void * sec_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * ar
         }
 
         /* Non-destructively open for writing */
-        auto T = fopen_helper(Tfilename, bw->start == 0 ? "wb" : "rb");
+        auto T = fopen_helper(Tfilename, bw->start == 0 ? "ab" : "rb");
         size_t Tsz = file_bytes(T.get());
 
         if (!T) {

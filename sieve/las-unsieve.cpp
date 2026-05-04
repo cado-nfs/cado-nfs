@@ -22,7 +22,7 @@
 #ifdef TRACE_K
 #include "las-where-am-i.hpp"
 #include "las-output.hpp"
-#include "verbose.h"
+#include "verbose.hpp"
 #endif
 
 static const int verify_gcd = 0; /* Enable slow but thorough test */

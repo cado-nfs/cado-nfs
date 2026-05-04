@@ -31,5 +31,5 @@ tasks.sieve.ncurves0 = 2
 ###########################################################################
 
 # needed for small input, otherwise coeffs of the matrix will overflow
-tasks.filter.target_density = 20
+tasks.filter.target_density = 18
 tasks.nmatrices = 2

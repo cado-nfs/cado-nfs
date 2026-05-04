@@ -128,7 +128,7 @@ struct impl {
         return FROM_TYPE(x);
     }
 };
-}
+} /* namespace runtime_numeric_cast_details */
 
 template<typename TO_TYPE>
 struct runtime_numeric_cast {
@@ -138,7 +138,23 @@ struct runtime_numeric_cast {
         explicit runtime_numeric_cast(FROM_TYPE x)
             : x(runtime_numeric_cast_details::impl<TO_TYPE>()(x))
         {}
-    operator TO_TYPE() { return x; }
+    // NOLINTNEXTLINE(google-explicit-constructor)
+    operator TO_TYPE() const { return x; }
+    // NOLINTEND(hicpp-explicit-conversions)
+};
+
+#include "cxx_mpz.hpp"
+template<>
+struct runtime_numeric_cast<cxx_mpz>
+{
+    // NOLINTBEGIN(hicpp-explicit-conversions)
+    cxx_mpz x;
+    template<typename FROM_TYPE>
+        explicit runtime_numeric_cast(FROM_TYPE x)
+            : x(x)
+        {}
+    // NOLINTNEXTLINE(google-explicit-constructor)
+    operator cxx_mpz() const { return x; }
     // NOLINTEND(hicpp-explicit-conversions)
 };
 

@@ -20,7 +20,9 @@ int main(int argc, char const * argv[])
     if (argc > 1)
         filename = argv[1];
 
-    ofstream_maybe_compressed os(filename);
+    ofstream_maybe_compressed os;
+    os.open(filename);
+    ASSERT_ALWAYS(os.good());
     os << "Hello, world\n";
     os.close();
 

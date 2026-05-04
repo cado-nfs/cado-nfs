@@ -1,5 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdint.h>
+#include <cstdint>
 #include <queue>          // for make_heap, pop_heap, push_heap
 #include "rowset_heap.h"
 

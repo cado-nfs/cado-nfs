@@ -18,8 +18,8 @@
 
 #include "factor.hpp"
 #include "getprime.h"
-#include "params.h"     // param_list
-#include "verbose.h"
+#include "params.hpp"
+#include "verbose.hpp"
 #include "cxx_mpz.hpp"
 #include "ecm.h"
 #include "macros.h"
@@ -394,14 +394,6 @@ operator<<(std::ostream & o, fully_factor const & fact)
 }
 
 
-static void
-usage (cxx_param_list & pl, const char *argv0)
-{
-    param_list_print_usage(pl, argv0, stderr);
-    exit(EXIT_FAILURE);
-}
-
-
 struct command_line
 {
     cxx_mpz N;
@@ -415,19 +407,19 @@ struct command_line
     unsigned int seed = 0;
 
     static void declare_usage(cxx_param_list & pl) {
-        param_list_usage_header(pl, "Try as much as possible to fully factor "
-                                    "the input integer. The sign of N is not "
-                                    "considered.\n");
-        param_list_decl_usage(pl, "N", "number to factor");
-        param_list_decl_usage(pl, "trialdiv_bound", "bound for trial division");
-        param_list_decl_usage(pl, "isprime-niter",
-                              "number of iterations for primality testing");
-        param_list_decl_usage(pl, "seed", "seed for random generator");
-        param_list_decl_usage(pl, "pm1-B1", "B1 used for P-1 algo");
-        param_list_decl_usage(pl, "pp1-B1", "B1 used for P+1 algo");
-        param_list_decl_usage(pl, "effort", "number of ECM round");
-        param_list_decl_usage(pl, "v", "enable verbose output");
-        param_list_decl_usage(pl, "hints", "list of possible factors");
+        pl.declare_usage_header("Try as much as possible to fully factor "
+                "the input integer. The sign of N is not "
+                "considered.\n");
+        pl.declare_usage("N", "number to factor");
+        pl.declare_usage("trialdiv_bound", "bound for trial division");
+        pl.declare_usage("isprime-niter",
+                "number of iterations for primality testing");
+        pl.declare_usage("seed", "seed for random generator");
+        pl.declare_usage("pm1-B1", "B1 used for P-1 algo");
+        pl.declare_usage("pp1-B1", "B1 used for P+1 algo");
+        pl.declare_usage("effort", "number of ECM round");
+        pl.declare_usage("v", "enable verbose output");
+        pl.declare_usage("hints", "list of possible factors");
         verbose_decl_usage(pl);
     }
 
@@ -438,70 +430,53 @@ struct command_line
 
     void lookup_parameters(cxx_param_list & pl)
     {
-        param_list_parse(pl, "N", N);
-        param_list_parse(pl, "trialdiv_bound", trialdiv_bound);
-        param_list_parse(pl, "isprime_niter", isprime_niter);
-        param_list_parse(pl, "pm1-B1", PM1_B1);
-        param_list_parse(pl, "pp1-B1", PP1_B1);
-        param_list_parse(pl, "effort", effort);
-        param_list_parse(pl, "hints", hints);
+        pl.parse("N", N);
+        pl.parse("trialdiv_bound", trialdiv_bound);
+        pl.parse("isprime_niter", isprime_niter);
+        pl.parse("pm1-B1", PM1_B1);
+        pl.parse("pp1-B1", PP1_B1);
+        pl.parse("effort", effort);
+        pl.parse("hints", hints);
         if (!param_list_parse(pl, "seed", seed)) {
             seed = time(nullptr);
         }
     }
 
-    void check_inconsistencies(const char * argv0, cxx_param_list & pl) const
+    void check_inconsistencies(cxx_param_list & pl) const
     {
-        if (!N) {
-            fmt::print(stderr, "Error, -N should not be 0\n");
-            usage(pl, argv0);
-        }
+        if (!N)
+            pl.fail("Error, -N should not be 0\n");
 
         if (trialdiv_bound < 2) {
-            fmt::print(stderr, "Error, -trialdiv_bound should be >= 2\n");
-            usage(pl, argv0);
+            pl.fail("Error, -trialdiv_bound should be >= 2\n");
         } else if (trialdiv_bound < (1U << 20)) {
             fmt::print(stderr, "Warning, we recommend that -trialdiv_bound be "
                                ">= 2^20\n");
         }
 
-        if (isprime_niter < 1) {
-            fmt::print(stderr, "Error, -isprime-niter should be >= 1\n");
-            usage(pl, argv0);
-        }
+        if (isprime_niter < 1)
+            pl.fail("Error, -isprime-niter should be >= 1\n");
     }
 };
 
 int main(int argc, char const * argv[])
 {
-    const char *argv0 = argv[0];
-
     cxx_param_list pl;
     command_line cmdline;
 
     command_line::declare_usage(pl);
     cmdline.configure_switches(pl);
 
-    argv++, argc--;
-    if (argc == 0)
-      usage(pl, argv0);
+    param_list_process_command_line(pl, &argc, &argv, false);
 
-    for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv))
-            continue;
-        fmt::print(stderr, "Unhandled parameter {}\n", argv[0]);
-        usage(pl, argv0);
-    }
-    /* print command-line arguments */
     verbose_interpret_parameters(pl);
     param_list_print_command_line (stdout, pl);
     fflush(stdout);
 
     cmdline.lookup_parameters(pl);
-    if (param_list_warn_unused(pl)) {
-        usage(pl, argv0);
-    }
-    cmdline.check_inconsistencies(argv0, pl);
+    if (param_list_warn_unused(pl))
+        pl.fail("Unused parameters are given");
+    cmdline.check_inconsistencies(pl);
 
     verbose_output_init(2);
     verbose_output_add(0, stdout, cmdline.verbosity_level);

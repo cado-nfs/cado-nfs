@@ -4,11 +4,11 @@
 #include <cstdio>      // for fprintf, stderr, NULL, fclose, fopen, stdout
 #include <cstdlib>     // for exit, EXIT_FAILURE, EXIT_SUCCESS
 #include "batch.hpp"    // for create_batch_file
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "cxx_mpz.hpp"
 #include "mpz_poly.h"
-#include "verbose.h"    // verbose_decl_usage
-#include "params.h"
+#include "verbose.hpp"    // verbose_decl_usage
+#include "params.hpp"
 #include "las-side-config.hpp"
 
 
@@ -29,45 +29,26 @@ main (int argc, char const *argv[])
 {
   cxx_param_list pl;
   cxx_cado_poly cpoly;
-  char const *argv0 = argv[0];
   unsigned long nb_threads = 1;
 
   declare_usage(pl);
 
-  argv++, argc--;
-  for( ; argc ; ) {
-      FILE *f;
-      if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
+  param_list_process_command_line_and_extra_parameter_files(pl, &argc, &argv);
 
-      /* Could also be a file */
-      if ((f = fopen(argv[0], "r")) != NULL) {
-          param_list_read_stream(pl, f, 0);
-          fclose(f);
-          argv++,argc--;
-          continue;
-      }
-
-      fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
-      param_list_print_usage(pl, argv0, stderr);
-      exit (EXIT_FAILURE);
-  }
   verbose_interpret_parameters(pl);
   param_list_print_command_line(stdout, pl);
 
   const char * filename;
-  if ((filename = param_list_lookup_string(pl, "poly")) == NULL) {
-      fprintf(stderr, "Error: parameter -poly is mandatory\n");
-      param_list_print_usage(pl, argv0, stderr);
-      exit(EXIT_FAILURE);
-  }
-  if (!cado_poly_read(cpoly, filename)) {
+  if ((filename = param_list_lookup_string(pl, "poly")) == NULL)
+      pl.fail("Error: parameter -poly is mandatory\n");
+  if (!cpoly.read(filename)) {
       fprintf (stderr, "Error reading polynomial file %s\n", filename);
       exit (EXIT_FAILURE);
   }
 
   param_list_parse_ulong(pl, "t"   , &nb_threads);
 
-  int const nsides = cpoly->nb_polys;
+  int const nsides = cpoly.nsides();
 
   std::vector<siever_side_config> sides;
   siever_side_config::parse(pl, sides, nsides, { "lim" });
@@ -82,7 +63,7 @@ main (int argc, char const *argv[])
       siever_side_config  const& S(sides[side]);
       batch_side_config  const& bS(bsides[side]);
       create_batch_file (bS.batchfilename, batchP[side], S.lim,
-              1UL << bS.batchlpb, cpoly->pols[side], stdout, nb_threads, extra_time);
+              1UL << bS.batchlpb, cpoly[side], stdout, nb_threads, extra_time);
   }
 
   return EXIT_SUCCESS;

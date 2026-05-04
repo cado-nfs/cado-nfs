@@ -9,14 +9,14 @@
 #include <gmp.h>
 
 #include "arith-generic.hpp"
-#include "bw-common.h"
+#include "bw-common.hpp"
 #include "gmp_aux.h"
 #include "macros.h"
 #include "matmul_top.hpp"
 #include "matmul_top_vec.hpp"
 #include "mmt_vector_pair.hpp"
 #include "parallelizing_info.hpp"
-#include "params.h"
+#include "params.hpp"
 #include "runtime_numeric_cast.hpp"
 #include "select_mpi.h"
 #include "timing.h"

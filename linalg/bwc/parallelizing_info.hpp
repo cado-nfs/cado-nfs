@@ -18,7 +18,7 @@
 
 #include "barrier.h"          // for barrier_t
 #include "macros.h"           // for OMPI_VERSION_ATLEAST
-#include "params.h"
+#include "params.hpp"
 #include "select_mpi.h"
 #include "arith-generic.hpp"
 #include "lock_guarded_container.hpp"

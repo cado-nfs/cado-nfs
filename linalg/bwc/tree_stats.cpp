@@ -18,7 +18,7 @@
 #include "fmt/base.h"
 #include "fmt/format.h"
 
-#include "params.h"      // for cxx_param_list, param_list_decl_usage, param...
+#include "params.hpp"      // for cxx_param_list, param_list_decl_usage, param...
 #include "select_mpi.h"
 #include "tree_stats.hpp"
 #include "timing.h"     // wct_seconds

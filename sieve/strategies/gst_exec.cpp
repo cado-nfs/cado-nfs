@@ -13,7 +13,7 @@
 #include "gen_decomp.hpp"
 #include "generate_strategies.hpp"
 #include "macros.h"
-#include "params.h" // param_list
+#include "params.hpp"
 #include "tab_decomp.hpp"
 #include "tab_fm.hpp"
 #include "tab_strategy.hpp"
@@ -22,20 +22,19 @@
 /*                            USAGE                                     */
 /************************************************************************/
 
-static void declare_usage(param_list pl)
+static void declare_usage(cxx_param_list & pl)
 {
-    param_list_usage_header(
-        pl, "This binary allows to build the best strategies for each couple "
+    pl.declare_usage_header("This binary allows to build the best strategies for each couple "
             "(r0, r1)\n"
             "where (r0,r1) are the bits size for our couple of cofactors.\n");
 
-    param_list_decl_usage(pl, "gdc",
+    pl.declare_usage("gdc",
                           "to precompute all decompositions of cofactors of "
                           "mfb bits given that \n "
                           "\t \t it has no prime divisors less than lim. So, "
                           "you must specify these options:\n"
                           "\t \t -lim0, -mfb0\n");
-    param_list_decl_usage(pl, "gst_r",
+    pl.declare_usage("gst_r",
                           "to precompute the best strategies \n"
                           "\t \t for one bit size cofactor.\n "
                           "\t \t You must specify these options:\n"
@@ -48,28 +47,28 @@ static void declare_usage(param_list pl)
         "\t \t So, you must specify these options:\n"
         "\t \t -lim0, -lim1 ,-in, and ((-r0 -r1) or (-mfb0, -mfb1))\n");
 
-    param_list_decl_usage(pl, "ncurves", "controls number of curves.\n");
-    param_list_decl_usage(pl, "r0",
+    pl.declare_usage("ncurves", "controls number of curves.\n");
+    pl.declare_usage("r0",
                           "set the bit size of the studied cofactor to r0.\n");
-    param_list_decl_usage(pl, "r1",
+    pl.declare_usage("r1",
                           "set the bit size of the studied cofactor to r1.\n");
-    param_list_decl_usage(pl, "lim0",
+    pl.declare_usage("lim0",
                           "set rationnal factor base bound to lim0\n");
-    param_list_decl_usage(pl, "lim1",
+    pl.declare_usage("lim1",
                           "set algebraic factor base bound to lim1\n");
-    param_list_decl_usage(pl, "lpb0",
+    pl.declare_usage("lpb0",
                           "set rational large prime bound to 2^lpb0");
-    param_list_decl_usage(pl, "lpb1",
+    pl.declare_usage("lpb1",
                           "set algebraic large prime bound to 2^lpb1");
-    param_list_decl_usage(pl, "mfb0", "set the first cofactor bound to 2^mfb0");
-    param_list_decl_usage(pl, "mfb1",
+    pl.declare_usage("mfb0", "set the first cofactor bound to 2^mfb0");
+    pl.declare_usage("mfb1",
                           "set the second cofactor bound to 2^mfb1");
     param_list_decl_usage(
         pl, "in",
         "to locate the file which contains\n "
         "\t \t our factoring methods, or locate the directory \n"
         "\t \t where the precomputed files for option 'gst' are stored");
-    param_list_decl_usage(pl, "out",
+    pl.declare_usage("out",
                           "to locate the directory where the "
                           "file(s) will be stored.");
     param_list_decl_usage(
@@ -96,29 +95,7 @@ int main(int argc, char const * argv[])
     param_list_configure_switch(pl, "gst", nullptr);
     param_list_configure_switch(pl, "gst_r", nullptr);
 
-    if (argc <= 1) {
-        param_list_print_usage(pl, argv[0], stderr);
-        exit(EXIT_FAILURE);
-    }
-
-    argv++, argc--;
-    for (; argc;) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) {
-            continue;
-        }
-        /* Could also be a file */
-        FILE * f;
-        if ((f = fopen(argv[0], "r")) != nullptr) {
-            param_list_read_stream(pl, f, 0);
-            fclose(f);
-            argv++, argc--;
-            continue;
-        }
-
-        fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
-        param_list_print_usage(pl, argv[0], stderr);
-        exit(EXIT_FAILURE);
-    }
+    param_list_process_command_line_and_extra_parameter_files(pl, &argc, &argv);
 
     /*default values */
     unsigned long lim0 = 0;
@@ -144,16 +121,10 @@ int main(int argc, char const * argv[])
     // and precompute just for one side!
     if (gdc) { // precompute all decompositions!
 
-        if (lim0 == 0) {
-            fprintf(stderr, "Error: parameter -lim0 is mandatory\n");
-            param_list_print_usage(pl, argv[0], stderr);
-            exit(EXIT_FAILURE);
-        }
-        if (mfb0 == -1) {
-            fprintf(stderr, "Error: parameter -mfb0 is mandatory\n");
-            param_list_print_usage(pl, argv[0], stderr);
-            exit(EXIT_FAILURE);
-        }
+        if (lim0 == 0)
+            pl.fail("Error: parameter -lim0 is mandatory\n");
+        if (mfb0 == -1)
+            pl.fail("Error: parameter -mfb0 is mandatory\n");
 
         char const * file_out = param_list_lookup_string(pl, "out");
 
@@ -179,22 +150,12 @@ int main(int argc, char const * argv[])
         if (gst) {
             // check parameters!
             char const * directory_in;
-            if ((directory_in = param_list_lookup_string(pl, "in")) ==
-                nullptr) {
-                fprintf(stderr, "Error: parameter -in is mandatory\n");
-                param_list_print_usage(pl, argv[0], stderr);
-                exit(EXIT_FAILURE);
-            }
-            if (lim0 == 0) {
-                fprintf(stderr, "Error: parameter -lim0 is mandatory\n");
-                param_list_print_usage(pl, argv[0], stderr);
-                exit(EXIT_FAILURE);
-            }
-            if (lim1 == 0) {
-                fprintf(stderr, "Error: parameter -lim1 is mandatory\n");
-                param_list_print_usage(pl, argv[0], stderr);
-                exit(EXIT_FAILURE);
-            }
+            if ((directory_in = param_list_lookup_string(pl, "in")) == nullptr)
+                pl.fail("Error: parameter -in is mandatory\n");
+            if (lim0 == 0)
+                pl.fail("Error: parameter -lim0 is mandatory\n");
+            if (lim1 == 0)
+                pl.fail("Error: parameter -lim1 is mandatory\n");
 
             int r0 = -1, r1 = -1;
             param_list_parse_int(pl, "r0", &r0);
@@ -246,16 +207,10 @@ int main(int argc, char const * argv[])
                    r1)!
                 */
 
-                if (mfb0 == 0) {
-                    fprintf(stderr, "Error: parameter -mfb0 is mandatory\n");
-                    param_list_print_usage(pl, argv[0], stderr);
-                    exit(EXIT_FAILURE);
-                }
-                if (mfb1 == 0) {
-                    fprintf(stderr, "Error: parameter -mfb1 is mandatory\n");
-                    param_list_print_usage(pl, argv[0], stderr);
-                    exit(EXIT_FAILURE);
-                }
+                if (mfb0 == 0)
+                    pl.fail("Error: parameter -mfb0 is mandatory\n");
+                if (mfb1 == 0)
+                    pl.fail("Error: parameter -mfb1 is mandatory\n");
                 auto * data_rat = new tabular_strategy_t *[mfb0 + 1];
 
                 char name_file_in[strlen(directory_in) + 64];
@@ -302,11 +257,8 @@ int main(int argc, char const * argv[])
         } else {
             char const * name_file_in;
             if ((name_file_in = param_list_lookup_string(pl, "in")) ==
-                nullptr) {
-                fprintf(stderr, "Error: parameter -in is mandatory\n");
-                param_list_print_usage(pl, argv[0], stderr);
-                exit(EXIT_FAILURE);
-            }
+                nullptr)
+                pl.fail("Error: parameter -in is mandatory\n");
 
             FILE * file_in = fopen(name_file_in, "r");
             DIE_ERRNO_DIAG(!file_in, "fopen(%s)", name_file_in);
@@ -361,12 +313,9 @@ int main(int argc, char const * argv[])
 
                 int r0 = -1;
                 param_list_parse_int(pl, "r0", &r0);
-                if (r0 == -1 || lpb0 == -1 || lim0 == 0 || ncurves == -1) {
-                    fprintf(stderr, "Error: parameters -r0 -lim0 "
+                if (r0 == -1 || lpb0 == -1 || lim0 == 0 || ncurves == -1)
+                    pl.fail("Error: parameters -r0 -lim0 "
                                     "-lpb0 -ncurves are mandatories.\n");
-                    param_list_print_usage(pl, argv[0], stderr);
-                    exit(EXIT_FAILURE);
-                }
 
                 // precompute the convex hull for one bit size of cofactor
                 int const fbb0 = ceil(log2((double)(lim0 + 1)));
@@ -375,13 +324,8 @@ int main(int argc, char const * argv[])
                 if (r0 >= lim_is_prime) {
                     char const * name_file_decomp;
                     if ((name_file_decomp = param_list_lookup_string(
-                             pl, "decomp")) == nullptr) {
-
-                        fprintf(stderr,
-                                "Error: parameter -decomp is mandatory\n");
-                        param_list_print_usage(pl, argv[0], stderr);
-                        exit(EXIT_FAILURE);
-                    }
+                             pl, "decomp")) == nullptr)
+                        pl.fail("Error: parameter -decomp is mandatory\n");
                     std::ifstream is(name_file_decomp);
                     is >> tab_decomp;
                     if (is.fail())
@@ -412,12 +356,9 @@ int main(int argc, char const * argv[])
                 // Check parameters
 
                 if (lim0 == 0 || lpb0 == -1 || mfb0 == -1 || lim1 == 0 ||
-                    lpb1 == -1 || mfb1 == -1 || ncurves) {
-                    fprintf(stderr, "Error: parameters -lim0 -lpb0 -mfb0"
-                                    " -lim1 -lpb1 -mfb1 are mandatories\n");
-                    param_list_print_usage(pl, argv[0], stderr);
-                    exit(EXIT_FAILURE);
-                }
+                    lpb1 == -1 || mfb1 == -1 || ncurves)
+                    pl.fail("Error: parameters -lim0 -lpb0 -mfb0"
+                            " -lim1 -lpb1 -mfb1 are mandatories\n");
                 /*
                   computes the matrix of strategies where for each couple
                   (r0, r1) we will optain the best strategies to find a
@@ -425,11 +366,8 @@ int main(int argc, char const * argv[])
                 */
                 char const * name_directory_decomp;
                 if ((name_directory_decomp =
-                         param_list_lookup_string(pl, "decomp")) == nullptr) {
-                    fprintf(stderr, "Error: parameter -decomp is mandatory\n");
-                    param_list_print_usage(pl, argv[0], stderr);
-                    exit(EXIT_FAILURE);
-                }
+                         param_list_lookup_string(pl, "decomp")) == nullptr)
+                    pl.fail("Error: parameter -decomp is mandatory\n");
 
                 tabular_strategy_t *** matrix = generate_matrix(
                     name_directory_decomp, data_pm1, data_pp1, data_ecm,

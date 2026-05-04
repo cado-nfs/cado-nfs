@@ -1,6 +1,8 @@
 #ifndef CADO_POLYSELECT_ALPHA_H
 #define CADO_POLYSELECT_ALPHA_H
 
+#include <gmp.h>
+
 #include "mpz_poly.h"
 #ifdef __cplusplus
 extern "C" {
@@ -15,6 +17,9 @@ extern "C" {
 extern double get_alpha (mpz_poly_srcptr f, unsigned long B);
 
 extern double get_alpha_projective (mpz_poly_srcptr f, unsigned long B);
+
+extern double get_alpha_affine_p(mpz_poly_srcptr f, unsigned long p,
+                          gmp_randstate_ptr rstate);
 
 extern void set_alpha_bound (unsigned long bound);
 

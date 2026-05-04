@@ -24,7 +24,7 @@
 
 #include "bucket.hpp"
 #include "memory.h"
-#include "verbose.h"
+#include "verbose.hpp"
 
 #include "fb-types.hpp"
 #include "fb.hpp"

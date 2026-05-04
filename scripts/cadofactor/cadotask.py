@@ -4480,7 +4480,7 @@ class Duplicates1Task(Task, FilesCreator, HasStatistics):
     def parse_output_files(stderr):
         files = {}
         for line in stderr.splitlines():
-            match = re.match(r'# Opening output file for slice (\d+) : (.+)$',
+            match = re.match(r'# Opening output file for slice (\d+): (.+)$',
                              line)
             if match:
                 (slicenr, filename) = match.groups()
@@ -4821,7 +4821,7 @@ class PurgeTask(Task):
 
         if len(files) <= 10:
             p = cadoprograms.Purge(*files,
-                                   nrels=input_nrels, out=purgedfile,
+                                   out=purgedfile,
                                    outdel=relsdelfile, keep=keep,
                                    nprimes=nprimes,
                                    stdout=str(stdoutpath),
@@ -4829,8 +4829,7 @@ class PurgeTask(Task):
                                    **self.progparams[0])
         else:
             filelistname = self.make_filelist(files, prefix=self.name)
-            p = cadoprograms.Purge(nrels=input_nrels,
-                                   out=purgedfile,
+            p = cadoprograms.Purge(out=purgedfile,
                                    outdel=relsdelfile, keep=keep,
                                    nprimes=nprimes,
                                    filelist=filelistname,
@@ -6441,14 +6440,10 @@ class ReconstructLogTask(Task):
             nmaps = self.send_request(Request.GET_NMAPS)
             nsms = ",".join(str(nmap) for nmap in nmaps)
 
-            nfree = self.send_request(Request.GET_FREEREL_RELCOUNT)
-            nunique = self.send_request(Request.GET_UNIQUE_RELCOUNT)
-
             (stdoutpath, stderrpath) = self.make_std_paths(
                 cadoprograms.ReconstructLog.name)
             p = cadoprograms.ReconstructLog(dlog=dlogfilename,
                                             nsms=nsms,
-                                            nrels=nfree+nunique,
                                             stdout=str(stdoutpath),
                                             stderr=str(stderrpath),
                                             **self.merged_args[0])

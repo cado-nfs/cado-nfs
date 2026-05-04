@@ -277,7 +277,7 @@ create_test_matrix_if_needed() {
         rmargs+=(-c ${random_matrix_maxcoeff})
         rmargs+=(rhs="$nrhs,$prime,$rhsfile,${nullspace_lowercase}")
     fi
-    rmargs=($nrows $ncols -s $seed "${rmargs[@]}" --freq --binary --output "$matrix")
+    rmargs=(-nrows $nrows -ncols $ncols -s $seed "${rmargs[@]}" --freq --binary --output "$matrix")
     rwfile=${matrix%%bin}rw.bin
     cwfile=${matrix%%bin}cw.bin
     ncols=$outer_ncols

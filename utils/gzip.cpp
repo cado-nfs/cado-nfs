@@ -1,19 +1,22 @@
 #include "cado.h" // IWYU pragma: keep
 
 #include <cerrno>
-#include <cstdio> // FILE // IWYU pragma: keep
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
 #include <string>
 #include <vector>
+#include <stdexcept>
+#include <fstream>
+#include <ios>
 
-#include <sys/stat.h> // stat // IWYU pragma: keep
-#include <sys/wait.h> // WIFEXITED WEXITSTATUS (on freebsd at least)
-#include <unistd.h>   // close getpid
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <unistd.h>
 #ifdef HAVE_GETRUSAGE
-#include <sys/resource.h> // IWYU pragma: keep
-#include <sys/time.h>     // IWYU pragma: keep
+#include <sys/resource.h>
+#include <sys/time.h>
 #endif
 
 #include "fmt/base.h"
@@ -23,7 +26,7 @@
 #include "gzip.h"
 #include "macros.h"
 #include "misc.h"
-#include "portability.h" // realpath
+#include "portability.h"
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 static char antebuffer[PATH_MAX];       /* "directory/antebuffer" or "cat" */
@@ -268,8 +271,26 @@ FILE * fopen_maybe_compressed2(char const * orig_name, char const * mode,
 
         /* Just *any* file that we write to will get a .tmp.$PID suffix
          */
-        if (strchr(mode, 'w'))
+        if (strchr(mode, 'w')) {
             name = tempname = fmt::format("{}.tmp.{}", name, getpid());
+            std::ofstream dummy(tempname, std::ios::out);
+            if (dummy.is_open()) {
+                dummy.close();
+                unlink(tempname.c_str());
+            } else {
+                /* We can't access the temp file. Don't use a temp file,
+                 * then... However we have an issue with the fact that
+                 * this information on tempname is not kept togeher with
+                 * the FILE *. We can possibly work aroung this in C++,
+                 * but in C it would be complicated. Let's just abort...
+                 * It _will_ mean that writing to /dev/stdout won't work,
+                 * though. So we would ideally need to find a better solution.
+                 */
+                throw cado::error("cannot write to {}", tempname);
+                name = orig_name;
+                tempname.clear();
+            }
+        }
 
         if (strchr(mode, 'r') && *r.pfmt_in)
             command = fmt::format(fmt::runtime(r.pfmt_in), name);
@@ -383,3 +404,23 @@ int fclose_maybe_compressed(FILE * f, char const * name)
 {
     return fclose_maybe_compressed2(f, name, nullptr);
 }
+
+std::string get_suffix(std::string const & filename)
+{
+    using cado::details::supported_compression_formats;
+    for (auto const & r: supported_compression_formats) {
+        if (filename.ends_with(r.suffix))
+            return r.suffix;
+    }
+    throw std::runtime_error("unsupported suffix found in filename " + filename);
+}
+std::string get_suffix(std::string const & filename, std::string const & def)
+{
+    using cado::details::supported_compression_formats;
+    for (auto const & r: supported_compression_formats) {
+        if (filename.ends_with(r.suffix))
+            return r.suffix;
+    }
+    return def;
+}
+

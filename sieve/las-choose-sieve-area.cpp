@@ -6,7 +6,7 @@
 
 #include <gmp.h>
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "fb-types.hpp"
 #include "las-auxiliary-data.hpp"
 #include "las-choose-sieve-area.hpp"
@@ -19,7 +19,7 @@
 #include "macros.h"
 #include "mpz_poly.h"
 #include "tdict.hpp"
-#include "verbose.h"
+#include "verbose.hpp"
 
 int never_discard = 0;      /* only enabled for las_descent */
 
@@ -132,7 +132,7 @@ static bool choose_sieve_area(las_info const & las,
         cxx_mpz_poly fij = las.cpoly[doing.side].homography(
                 { Adj->Q.a0, Adj->Q.b0, Adj->Q.a1, Adj->Q.b1 });
 
-        if (fij->deg < las.cpoly->pols[doing.side]->deg) {
+        if (fij->deg < las.cpoly[doing.side]->deg) {
             verbose_fmt_print(0, 1,
                     "# Discarding {}; raw_J={};"
                     " // explanation: tripped over rational root."

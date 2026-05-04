@@ -13,7 +13,10 @@
 #include "lock_guarded_container.hpp"
 #include "timing.h"
 #include "macros.h"   // for ASSERT_ALWAYS, CADO_CONCATENATE3, MAYBE_UNUSED
+namespace cado::params {
 struct cxx_param_list;
+}
+using cxx_param_list = cado::params::cxx_param_list;
 
 /* Uncomment this flag if you believe that the fine-grain -T timings
  * negatively impact the performance */

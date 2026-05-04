@@ -17,9 +17,6 @@ extern "C" {
 
 extern unsigned long invert (unsigned long, unsigned long);
 
-extern unsigned long roots_lift (uint64_t*, mpz_srcptr, unsigned long, mpz_srcptr,
-                          unsigned long, unsigned long int);
-
 
 /* These functions don't really belong here. These are basic
  * combinatorics computations, we should expose them as such.

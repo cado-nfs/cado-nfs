@@ -4,378 +4,371 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <cerrno>
 
 #include <algorithm>
+#include <atomic>
 #include <iostream>
 #include <memory>
 #include <ostream>
 #include <string>
 #include <vector>
+#include <mutex>
+#include <utility>
 
 #ifdef HAVE_MINGW
 #include <fcntl.h>
 #endif
 
-#include "cado_poly.h"
+#include "cxx_mpz.hpp"
+#include "cado_poly.hpp"
 #include "filter_config.h"
-#include "filter_io.h"
+#include "filter_io.hpp"
 #include "fmt/base.h"
 #include "galois_action.hpp"
 #include "gzip.h"
 #include "fstream_maybe_compressed.hpp"
 #include "macros.h"
-#include "misc.h"
-#include "params.h"
+#include "params.hpp"
 #include "portability.h"
-#include "relation-tools.h"
 #include "renumber.hpp"
 #include "timing.h"
 #include "typedefs.h"
-#include "verbose.h"
+#include "verbose.hpp"
+#include "filelist.hpp"
 
-// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
-static char const * argv0; /* = argv[0] */
+/* exactly the same as in dup2... */
+struct output_specification {
+    parameter<std::string,
+        "outdir",
+        "store output files in another place instead of overwriting inputs">
+            outdir;
 
-static std::unique_ptr<uint32_t[]> H; /* H contains the hash table */
-static unsigned long K = 0;           /* Size of the hash table */
-static unsigned long noutrels = 0;    // Number of output relations
-// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
+    parameter<std::string,
+        "outfmt",
+        "format of output file (default same as input)">
+            outfmt;
 
-/* return in oname and oname_tmp two file names for writing the output
- * of processing the given input file infilename. Both files are placed
- * in the directory outdir if not NULL, otherwise in the current
- * directory.  The parameter outfmt specifies the output file extension
- * and format (semantics are as for fopen_maybe_compressed).
- *
- * proper use requires that data be first written to the file whose name
- * is *oname_tmp, and later on upon successful completion, that file must
- * be renamed to *oname. Otherwise disaster may occur, as there is a slim
- * possibility that *oname == infilename on return.
- */
-static std::string
-get_outfilename_from_infilename(std::string const & infilename,
-                                std::string const & outfmt,
-                                std::string const & outdir)
-{
-    char const * suffix_in;
-    get_suffix_from_filename(infilename.c_str(), &suffix_in);
-    std::string suffix_out = outfmt;
-    if (suffix_out.empty())
-        suffix_out = suffix_in;
-
-    std::string newname =
-        infilename.substr(0, infilename.size() - strlen(suffix_in));
-
-    std::string prefix = outdir;
-
-    if (!prefix.empty()) {
-        if (prefix.back() != '/')
-            prefix += '/';
-        newname = path_basename(newname.c_str());
+    static void configure(cxx_param_list & pl) {
+        decltype(outdir)::configure(pl);
+        decltype(outfmt)::configure(pl);
     }
 
-    return prefix + newname + suffix_out;
-}
+    output_specification() = default;
 
-template <filter_io_config cfg>
-static inline uint32_t
-insert_relation_in_dup_hashtable(typename cfg::rel_srcptr rel,
-                                 unsigned int * is_dup, galois_action const & G)
-{
-    uint64_t h;
-    uint32_t i, j;
-
-    h = G.hash_ab(rel->a, rel->b, CA_DUP2, CB_DUP2);
-    i = h % K;
-    j = (uint32_t)(h >> 32);
-    while (H[i] != 0 && H[i] != j) {
-        i++;
-        if (UNLIKELY(i == K))
-            i = 0;
+    explicit output_specification(cxx_param_list & pl)
+        : outdir(pl)
+        , outfmt(pl)
+    {
+        if (!outfmt().empty())
+            if (!is_supported_compression_format(outfmt().c_str()))
+                throw parameter_error("output compression format not supported");
     }
 
-    if (H[i] == j) {
-        *is_dup = 1;
-    } else {
-        H[i] = j;
-        *is_dup = 0;
-    }
-    return i;
-}
+    /* return in {oname, oname_tmp} two file names for writing the output
+     * of processing the given input file f. Both files are placed in the
+     * directory outdir if not NULL, otherwise in the current directory.
+     * The parameter outfmt specifies the output file extension and
+     * format (semantics are as for fopen_maybe_compressed).
+     *
+     * proper use requires that data be first written to the file whose name
+     * is *oname_tmp, and later on upon successful completion, that file must
+     * be renamed to *oname. Otherwise disaster may occur, as there is a slim
+     * possibility that *oname == infilename on return.
+     */
+    std::pair<std::string, std::string>
+    get_outfilename_from_infilename(std::string const & f) const
+    {
+        const std::string suffix_in = get_suffix(f, "");
+        const std::string suffix_out = outfmt.is_provided() ? outfmt() : suffix_in;
+        std::string newname(f.begin(), f.end() - suffix_in.size()); // W: Narro…
 
-struct thread_galois_arg {
-    int const for_dl;
-    std::vector<index_t> const & ga_id_cache;
-    galois_action const & gal_action;
-    std::ostream & os;
+        std::pair<std::string, std::string> res;
+
+        if (outdir.is_provided()) {
+            const std::string basename(path_basename(newname.c_str()));
+            newname = outdir() + "/" + basename;
+        }
+        res = {
+            newname + suffix_out,
+            newname + ".tmp" + suffix_out,
+        };
+
+#if DEBUG >= 1
+        fmt::print(stderr,
+                "DEBUG: Input file name: {}\n"
+                "DEBUG: temporary output file name: {}\n"
+                "DEBUG: final output file name: {}\n",
+                f, res.second, res.first);
+#endif
+
+        return res;
+    }
+
 };
 
-template <filter_io_config cfg>
-static void * thread_galois(void * context_data, typename cfg::rel_ptr rel)
-{
-    unsigned int is_dup;
-    auto const & data = *(thread_galois_arg const *)context_data;
 
-    std::vector<index_t> const & sigma = data.ga_id_cache;
-    galois_action const & G = data.gal_action;
-    std::ostream & output(data.os);
-    insert_relation_in_dup_hashtable<cfg>(rel, &is_dup, G);
-    if (is_dup)
-        return nullptr;
+struct filter_galois_process {
+    output_specification output;
 
-    noutrels++;
+    parameter_mandatory<std::string,
+        "poly",
+        "input polynomial file">
+            polyfilename;
 
-    char buf[1 << 12], *p, *op;
-    size_t t;
-    unsigned int i, j;
+    parameter_mandatory<std::string,
+        "renumber",
+        "input file for renumbering table">
+            renumberfilename;
 
-    p = d64toa16(buf, rel->a);
-    *p++ = ',';
-    p = u64toa16(p, rel->b);
-    *p++ = ':';
+    parameter_mandatory<size_t,
+        "nrels",
+        "(approximate) number of input relations">
+            nrels_expected;
 
-    for (i = 0; i < rel->nb; i++) {
-        ASSERT_ALWAYS(rel->primes[i].e != 0);
-        index_t const h = rel->primes[i].h;
-        index_t const hrep = sigma[h];
-        // The new sign of the exponent is the XOR of the original sign and of
-        // the fact that we change the prime ideal for its conjugate.
-        int const neg = (rel->primes[i].e < 0) ^ (hrep != h);
-        op = p;
-        if (neg && data.for_dl) {
-            *p++ = '-';
+    parameter_mandatory<galois_action,
+        "galois",
+        "Galois action among 1/y or _y">
+            action;
+
+    parameter_with_default<int,
+        "t",
+        "number of threads",
+        "1">
+            nthreads;
+
+    parameter_switch<
+        "dl",
+        "for DL (untested)">
+            is_for_dl;
+
+    parameter_switch<
+        "large-ab",
+        "enable support for a and b beyond 64 bits">
+            largeab;
+
+    cxx_cado_poly cpoly;
+
+    /* Renumbering table to convert from (p,r) to an index */
+    renumber_t renumber_tab;
+
+
+    /* created by galois_action_on_ideals() */
+    std::vector<index_t> ga_id_cache;
+
+
+    /* see alloc_hashtable */
+    std::unique_ptr<uint32_t[]> H;   /* H contains the hash table */
+    size_t K = 0; /* Size of the hash table */
+
+    mutable std::mutex io_lock;
+
+    std::atomic<size_t> ndups = 0;
+
+    static void configure(cxx_param_list & pl) {
+        decltype(output)::configure(pl);
+        decltype(polyfilename)::configure(pl);
+        decltype(renumberfilename)::configure(pl);
+        decltype(nrels_expected)::configure(pl);
+        decltype(action)::configure(pl);
+        decltype(nthreads)::configure(pl);
+        decltype(is_for_dl)::configure(pl);
+        decltype(largeab)::configure(pl);
+    }
+
+    explicit filter_galois_process(cxx_param_list & pl)
+        : output(pl)
+        , polyfilename(pl)
+        , renumberfilename(pl)
+        , nrels_expected(pl)
+        , action(pl)
+        , nthreads(pl)
+        , is_for_dl(pl)
+        , largeab(pl)
+    {
+        if (!cpoly.read(polyfilename))
+            throw cado::error("cannot read {}", polyfilename());
+    }
+
+    void read() {
+        fmt::print("# Using {}\n", action());
+        renumber_tab = renumber_t(cpoly);
+        renumber_tab.read_from_file(renumberfilename, is_for_dl);
+
+        if (action().get_order() > 2) {
+            std::cerr << "Error, Galois action of order > 2 are not supported "
+                         "yet. The missing piece of code is the one that takes "
+                         "care of computing the new valuation of the the "
+                         "rewritten ideals.\n";
+            exit(EXIT_FAILURE);
         }
-        p = u64toa16(p, (uint64_t)hrep);
-        *p++ = ',';
-        t = p - op;
-        if (rel->primes[i].e < 0) {
-            j = (unsigned int)((-rel->primes[i].e) - 1);
+
+
+        if (renumber_tab.number_of_bad_ideals() > 0 && action().get_order() > 1)
+            std::cout << "\n/!\\/!\\/!\\/!\\\nWARNING, bad ideals will be left "
+                         "unchanged, the output may not be usable depending on "
+                         "your use case\nSee comments in utils/galois_action.cpp "
+                         "for more info\n/!\\/!\\/!\\/!\\\n\n";
+    }
+
+    void alloc_hashtable() {
+        K = 100 + 1.2 * double(nrels_expected);
+        H = std::unique_ptr<uint32_t[]>(new uint32_t[K]);
+        ASSERT_ALWAYS(H);
+        std::fill(H.get(), H.get() + K, 0);
+    }
+
+
+    void galois_action_on_ideals()
+    {
+        std::cout << "Computing Galois action on ideals\n";
+        size_t norb = action().compute_action_on_index(ga_id_cache, renumber_tab);
+        fmt::print("Found {} orbits of length {},"
+                " {} columns were left unchanged "
+                "(among which {} additional column(s) and {} column(s) "
+                "corresponding to badideals)\n",
+                norb, action().get_order(),
+                ga_id_cache.size() - norb * action().get_order(),
+                renumber_tab.number_of_additional_columns(),
+                renumber_tab.number_of_bad_ideals());
+    }
+
+    template <typename relation_type>
+    size_t insert_relation_in_dup_hashtable(relation_type & rel, bool & is_dup)
+    {
+        auto h = action().hash_ab(rel.a, rel.b, CA_DUP2, CB_DUP2);
+
+        uint64_t i = h % K;
+        auto j = (uint32_t)(h >> 32);
+        while (H[i] != 0 && H[i] != j) {
+            i++;
+            if (UNLIKELY(i == K))
+                i = 0;
+        }
+
+        is_dup = H[i] == j;
+        H[i] = j;
+        return i;
+    }
+
+    template<typename relation_type>
+    void thread_galois(std::ostream & out, relation_type & rel)
+    {
+        bool is_dup;
+        std::vector<index_t> const & sigma = ga_id_cache;
+        insert_relation_in_dup_hashtable(rel, is_dup);
+
+        if (is_dup) {
+            ndups++;
+            return;
+        }
+
+        /* transform primes via the Galois action if needed */
+        for(auto & [h, e] : rel.primes) {
+            auto hrep = sigma[h];
+            /* since we have only order-two actions, the action on the
+             * exponent is fairly easy to write.
+             */
+            if (hrep != h && is_for_dl)
+                e = -e;
+            h = hrep;
+        }
+        fmt::print(out, "{}\n", rel);
+    }
+
+    /* This is the main entry point. It returns the number of
+     * non-duplicate relations found in the input file set.
+     */
+
+    size_t filter(std::vector<std::string> const & files)
+    {
+        if (!largeab) {
+            using R = cado::relation_building_blocks::primes_block<
+                prime_type_for_indexed_relations,
+                cado::relation_building_blocks::ab_block<uint64_t, 16>>;
+            return filter<R>(files);
         } else {
-            j = (unsigned int)(rel->primes[i].e - 1);
-        }
-        while (j != 0) {
-            memcpy(p, op, t);
-            p += t;
-            j--;
+            using R = cado::relation_building_blocks::primes_block<
+                prime_type_for_indexed_relations,
+                cado::relation_building_blocks::ab_block<cxx_mpz, 16>>;
+            return filter<R>(files);
         }
     }
+    private:
 
-    *(--p) = '\n';
-    p[1] = 0;
-    if (!(output << buf)) {
-        perror("Error writing relation");
-        abort();
+    template<typename relation_type>
+    size_t filter(std::vector<std::string> const & files) {
+        using R = relation_type;
+        size_t n = 0;
+        for(auto const & f : files) {
+            auto [ oname, oname_tmp ] = output.get_outfilename_from_infilename(f);
+            ofstream_maybe_compressed out(oname_tmp);
+
+            n += filter_rels<R>(f, nullptr, nullptr,
+                    cado::filter_io_details::multithreaded_call(nthreads,
+                        [&](R & rel) {
+                    thread_galois(out, rel);
+                    }));
+
+            out.close();
+            int rc;
+            rc = rename(oname_tmp.c_str(), oname.c_str());
+            if (rc < 0)
+                throw cado::error("rename({} -> {}): {}",
+                            oname_tmp, oname, strerror(errno));
+
+        }
+        return n - ndups;
     }
-    return nullptr;
-}
+};
 
-static void declare_usage(param_list pl)
+static void declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "filelist",
-                          "file containing a list of input files");
-    param_list_decl_usage(pl, "basepath", "path added to all file in filelist");
-    param_list_decl_usage(pl, "poly", "input polynomial file");
-    param_list_decl_usage(pl, "dl", "for DL (untested)");
-    param_list_decl_usage(pl, "large-ab",
-                          "enable support for a and b larger "
-                          "than 64 bits");
-    param_list_decl_usage(pl, "renumber", "input file for renumbering table");
-    param_list_decl_usage(pl, "outdir",
-                          "by default, input files are overwritten");
-    param_list_decl_usage(pl, "outfmt",
-                          "format of output file (default same as input)");
-    param_list_decl_usage(pl, "force-posix-threads",
-                          "force the use of posix threads, do not rely on "
-                          "platform memory semantics");
-    param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
-    param_list_decl_usage(pl, "nrels",
-                          "(approximate) number of input relations");
-    param_list_decl_usage(pl, "galois", "Galois action among 1/y or _y");
     verbose_decl_usage(pl);
-}
-
-static void usage(param_list pl, char const * argv0)
-{
-    param_list_print_usage(pl, argv0, stderr);
-    exit(EXIT_FAILURE);
 }
 
 // coverity[root_function]
 int main(int argc, char const * argv[])
 {
-    argv0 = argv[0];
-    cxx_cado_poly cpoly;
-    unsigned long nrels_expected = 0;
-    int for_dl = 0;
-    int largeab = 0;
-
     cxx_param_list pl;
+
     declare_usage(pl);
-    argv++, argc--;
+    filelist::configure(pl);
+    filter_galois_process::configure(pl);
+    cado::filter_io_details::configure(pl);
 
-    param_list_configure_switch(pl, "force-posix-threads",
-                                &filter_rels_force_posix_threads);
-    param_list_configure_switch(pl, "dl", &for_dl);
+    param_list_process_command_line(pl, &argc, &argv, true);
 
-    param_list_configure_switch(pl, "large-ab", &largeab);
-
-#ifdef HAVE_MINGW
-    _fmode = _O_BINARY; /* Binary open for all files */
-#endif
-
-    if (argc == 0)
-        usage(pl, argv0);
-
-    for (; argc;) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) {
-            continue;
-        }
-        /* Since we accept file names freeform, we decide to never abort
-         * on unrecognized options */
-        break;
-    }
     /* print command-line arguments */
     verbose_interpret_parameters(pl);
+    cado::filter_io_details::interpret_parameters(pl);
     param_list_print_command_line(stdout, pl);
     fflush(stdout);
 
-    char const * polyfilename = param_list_lookup_string(pl, "poly");
-    std::string outfmt;
-    param_list_parse(pl, "outfmt", outfmt);
-    char const * filelist = param_list_lookup_string(pl, "filelist");
-    char const * basepath = param_list_lookup_string(pl, "basepath");
-    std::string outdir;
-    param_list_parse(pl, "outdir", outdir);
-    char const * renumberfilename = param_list_lookup_string(pl, "renumber");
-    char const * path_antebuffer =
-        param_list_lookup_string(pl, "path_antebuffer");
-    char const * action = param_list_lookup_string(pl, "galois");
-    param_list_parse_ulong(pl, "nrels", &nrels_expected);
+    const filelist input(pl, argc, argv);
 
-    if (param_list_warn_unused(pl)) {
-        fprintf(stderr, "Error, unused parameters are given\n");
-        usage(pl, argv0);
-    }
-    if (polyfilename == nullptr) {
-        fprintf(stderr, "Error, missing -poly command line argument\n");
-        usage(pl, argv0);
-    }
-    if (renumberfilename == nullptr) {
-        fprintf(stderr, "Error, missing -renumber command line argument\n");
-        usage(pl, argv0);
-    }
-    if (basepath && !filelist) {
-        fprintf(stderr, "Error, -basepath only valid with -filelist\n");
-        usage(pl, argv0);
-    }
-    if (!outfmt.empty() && !is_supported_compression_format(outfmt.c_str())) {
-        fprintf(stderr, "Error, output compression format unsupported\n");
-        usage(pl, argv0);
-    }
-    if ((filelist != nullptr) + (argc != 0) != 1) {
-        fprintf(stderr,
-                "Error, provide either -filelist or freeform file names\n");
-        usage(pl, argv0);
-    }
-    if (nrels_expected == 0) {
-        fprintf(stderr, "Error, missing -nrels command line argument "
-                        "(or nrels = 0)\n");
-        usage(pl, argv0);
-    }
-    K = 100 + 1.2 * double(nrels_expected);
+    filter_galois_process fg(pl);
 
-    if (action == nullptr) {
-        fprintf(stderr, "Error, missing -galois command line argument\n");
-        usage(pl, argv0);
-    }
-
-    H = std::unique_ptr<uint32_t[]>(new uint32_t[K]);
-    ASSERT_ALWAYS(H);
-    std::fill(H.get(), H.get() + K, 0);
-
-    if (!cado_poly_read(cpoly, polyfilename)) {
-        fprintf(stderr, "Error reading polynomial file\n");
-        exit(EXIT_FAILURE);
-    }
-
-    set_antebuffer_path(argv0, path_antebuffer);
-
-    /* */
-    galois_action gal_action(action);
-    fmt::print("# Using {}\n", gal_action);
-
-    if (gal_action.get_order() > 2) {
-        std::cerr << "Error, Galois action of order > 2 are not supported "
-                     "yet. The missing piece of code is the one that takes "
-                     "care of computing the new valuation of the the "
-                     "rewritten ideals.\n";
-        exit(EXIT_FAILURE);
-    }
+    if (param_list_warn_unused(pl))
+        pl.fail("Error, unused parameters are given\n");
 
     /* Renumbering table to convert from (p,r) to an index */
-    renumber_t renumber_tab(cpoly);
-    renumber_tab.read_from_file(renumberfilename, for_dl);
+    fg.read();
+    fg.alloc_hashtable();
 
-    if (renumber_tab.number_of_bad_ideals() > 0 && gal_action.get_order() > 1) {
-        std::cout << "\n/!\\/!\\/!\\/!\\\nWARNING, bad ideals will be left "
-                     "unchanged, the output may not be usable depending on "
-                     "your use case\nSee comments in utils/galois_action.cpp "
-                     "for more info\n/!\\/!\\/!\\/!\\\n\n";
-    }
-
-    std::cout << "Computing Galois action on ideals\n";
-    std::vector<index_t> ga_id_cache;
-    size_t norb = gal_action.compute_action_on_index(ga_id_cache, renumber_tab);
-    fmt::print("Found {} orbits of length {}, {} columns were left unchanged "
-               "(among which {} additional column(s) and {} column(s) "
-               "corresponding to badideals)\n",
-               norb, gal_action.get_order(),
-               ga_id_cache.size() - norb * gal_action.get_order(),
-               renumber_tab.number_of_additional_columns(),
-               renumber_tab.number_of_bad_ideals());
+    fg.galois_action_on_ideals();
 
     std::cout << "Rewriting relations files\n";
 
-    char const ** files =
-        filelist ? filelist_from_file(basepath, filelist, 0) : argv;
 
     std::cout << "Reading files (using 1 auxiliary thread):\n";
     timingstats_dict_t stats;
     timingstats_dict_init(stats);
 
-    for (char const ** p = files; *p; p++) {
-        std::vector<std::string> const local_filelist {*p};
-        std::string const oname =
-            get_outfilename_from_infilename(*p, outfmt, outdir);
-        ofstream_maybe_compressed output(oname);
+    size_t noutrels = fg.filter(input.create_file_list());
 
-        if (!output) {
-            fmt::print(stderr,
-                       "Error, could not open file to write the relations. "
-                       "Check that the directory {} exists\n",
-                       outdir);
-            abort();
-        }
-
-        thread_galois_arg foo {for_dl, ga_id_cache, gal_action, output};
-
-        if (!largeab) {
-            filter_rels<filter_io_default_cfg>(
-                local_filelist, &thread_galois<filter_io_default_cfg>,
-                (void *)&foo, EARLYPARSE_NEED_AB_HEXA | EARLYPARSE_NEED_INDEX,
-                nullptr, stats);
-        } else {
-            filter_rels<filter_io_large_ab_cfg>(
-                local_filelist, &thread_galois<filter_io_large_ab_cfg>,
-                (void *)&foo, EARLYPARSE_NEED_AB_HEXA | EARLYPARSE_NEED_INDEX,
-                nullptr, stats);
-        }
-    }
-
-    fprintf(stderr, "Number of output relations: %lu\n", noutrels);
-
-    if (filelist)
-        filelist_clear(files);
+    /* XXX This printout is parsed by cado-nfs.py */
+    fmt::print(stderr, "Number of output relations: {}\n", noutrels);
 
     timingstats_dict_add_mythread(stats, "main");
     timingstats_dict_disp(stats);

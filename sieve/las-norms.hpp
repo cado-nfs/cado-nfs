@@ -9,7 +9,7 @@
 #include <array>
 
 #include <gmp.h>
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "las-config.hpp"
 #include "las-qlattice.hpp"
 #include "las-siever-config.hpp"
@@ -186,7 +186,7 @@ public:
      * Note that the ctor for qlattice_basis calls SkewGauss
      */
     sieve_range_adjust(special_q const & doing, cxx_cado_poly const & cpoly, siever_config const & conf)
-        : Q(doing, cpoly->skew)
+        : Q(doing, cpoly.skew)
         , conf(conf)
         , cpoly(cpoly)
         , logA(conf.logA)

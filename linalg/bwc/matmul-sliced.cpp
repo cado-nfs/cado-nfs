@@ -18,7 +18,7 @@
 #include "matmul-common.hpp"
 #include "matmul_facade.hpp"
 #include "macros.h"
-#include "params.h"
+#include "params.hpp"
 
 using namespace std;
 

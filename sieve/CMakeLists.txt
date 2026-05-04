@@ -8,7 +8,7 @@ include_directories (.)
 link_directories (${CMAKE_CURRENT_BINARY_DIR}/ecm)
 
 # ugly (copied from linalg/bwc/CMakeLists.txt...)
-add_executable (makefb makefb.c)
+add_executable (makefb makefb.cpp)
 target_link_libraries (makefb utils)
 
 add_library (trialdiv OBJECT trialdiv.cpp)

@@ -267,7 +267,7 @@ void matrix_file::read(int direction, std::string const & sanity_check_vector MA
 #pragma omp parallel
 #endif
         {
-            subdivision const D(nrowcols[d], omp_get_num_threads());
+            subdivision<unsigned int> const D(nrowcols[d], omp_get_num_threads());
 
             unsigned int const i0 = D.nth_block_start(omp_get_thread_num());
             unsigned int const i1 = D.nth_block_end(omp_get_thread_num());

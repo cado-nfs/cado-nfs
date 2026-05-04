@@ -24,7 +24,7 @@
 #include "las-where-am-i-proxy.hpp"
 #include "macros.h"
 #include "trialdiv.hpp"
-#include "verbose.h"
+#include "verbose.hpp"
 #include "utils_cxx.hpp"
 
 #include "fmt/ranges.h"

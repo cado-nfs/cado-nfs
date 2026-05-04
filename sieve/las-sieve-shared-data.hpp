@@ -7,7 +7,7 @@
 #include <utility>                     // for pair
 #include <vector>                      // for vector
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "mpz_poly.h"
 #include "ecm/facul.hpp"                   // for facul_strategies_t
 #include "fb-types.hpp"
@@ -19,7 +19,10 @@
 
 struct j_divisibility_helper; // IWYU pragma: keep
 struct unsieve_data; // IWYU pragma: keep
+namespace cado::params {
 struct cxx_param_list;
+}
+using cxx_param_list = cado::params::cxx_param_list;
 
 /*
  * A sieve_shared_data struct is only a thin layer above the factor base. It

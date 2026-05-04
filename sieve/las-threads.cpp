@@ -14,7 +14,7 @@
 #include "macros.h"
 #include "tdict.hpp"
 #include "threadpool.hpp"
-#include "verbose.h"
+#include "verbose.hpp"
 
 class las_memory_accessor; // IWYU pragma: keep
 

@@ -1217,7 +1217,6 @@ class Purge(Program):
                  filelist: Parameter(is_input_file=True) = None,
                  basepath: Parameter() = None,
                  subdirlist: Parameter() = None,
-                 nrels: Parameter(checktype=int) = None,
                  outdel: Parameter(is_output_file=True) = None,
                  keep: Parameter(checktype=int) = None,
                  col_min_index: Parameter(dash=True, checktype=int) = None,
@@ -1364,6 +1363,7 @@ class BWC(Program):
                  # put None below for a random seed,
                  # or any value (for example 1) for a fixed seed
                  seed: ParameterEq() = None,
+                 balancing_options: ParameterEq() = None,
                  **kwargs):
         if os.name == "nt":
             kwargs.setdefault("runprefix", "perl.exe")
@@ -1416,7 +1416,6 @@ class ReconstructLog(Program):
                  purged: Parameter(),
                  ideals: Parameter(),
                  relsdel: Parameter(),
-                 nrels: Parameter(),
                  partial: Toggle() = None,
                  sm_mode: Parameter("sm-mode") = None,  # noqa: F821
                  nsms: Parameter(),

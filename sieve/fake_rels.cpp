@@ -14,7 +14,6 @@
 #include <mutex>
 #include <set>
 #include <sstream>
-#include <stdexcept>
 #include <string>
 #include <thread>
 #include <utility>
@@ -24,22 +23,20 @@
 
 #include <gmp.h>
 #include "fmt/base.h"
-#include "fmt/format.h"
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "cxx_mpz.hpp"
-#include "gzip.h"
 #include "fstream_maybe_compressed.hpp"
 #include "indexed_relation.hpp"
 #include "special-q.hpp"
 #include "macros.h"
 #include "misc.h"
-#include "params.h"
+#include "params.hpp"
 #include "relation.hpp"
 #include "renumber.hpp"
 #include "timing.h"
 #include "typedefs.h"
-#include "verbose.h"
+#include "verbose.hpp"
 #include "utils_cxx.hpp"
 
 static int verbose = 0; /* verbosity level */
@@ -216,7 +213,7 @@ read_sample_file(int sqside, const char *filename, renumber_t & ren_tab)
             special_q Q;
             is >> Q;
             if (!is)
-                throw std::runtime_error(fmt::format("parse error at line: {}", line));
+                throw cado::error("parse error at line: {}", line);
             ASSERT_ALWAYS(sqside == Q.side);
             sample[Q];  // auto-vivify
             if (current.insert(Q).second) {
@@ -231,7 +228,7 @@ read_sample_file(int sqside, const char *filename, renumber_t & ren_tab)
             special_q Q;
             is >> Q;
             if (!is)
-                throw std::runtime_error(fmt::format("parse error at line: {}", line));
+                throw cado::error("parse error at line: {}", line);
             current.erase(Q);
         } else if (line[0] == '#') {
             continue;
@@ -478,7 +475,7 @@ static void worker(int tnum, int nt,
     rels_printed += ret;
 }
 
-static void declare_usage(param_list pl)
+static void declare_usage(cxx_param_list & pl)
 {
     param_list_decl_usage(pl, "poly", "polynomial file");
     param_list_decl_usage(pl, "lpb0", "factor base bound on side 0");
@@ -589,7 +586,7 @@ int main(int argc, char const * argv[])
   unsigned long seed = 171717;
   param_list_parse_ulong(pl, "seed", &seed);
 
-  if (!cado_poly_read(cpoly, filename))
+  if (!cpoly.read(filename))
     {
       fmt::print (stderr, "Error reading polynomial file {}\n", filename);
       exit (EXIT_FAILURE);

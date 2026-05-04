@@ -20,7 +20,7 @@
 #include "fmt/base.h"
 
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "ecm.h"
 #include "lll.h"
 #include "macros.h"
@@ -28,7 +28,7 @@
 #include "smooth_detect.hpp"
 #include "mpz_mat.h"
 #include "cxx_mpz.hpp"
-#include "params.h"
+#include "params.hpp"
 
 static double default_B1done;
 
@@ -435,7 +435,7 @@ static void one_descent_thread(
 
 static void descent_declare_usage(cxx_param_list & pl)
 {
-    param_list_usage_header(pl,
+    param_list_decl_usage_header(pl,
             "[-poly polfile] [-side xxx] [-extdeg n] [-jl] [-mt n] [-mineff "
             "e] [-maxeff E] [-seed s] [-lpb t] [-v] p z\n"
             "  If extdeg > 1, then z must be a white-separated sequence of "
@@ -467,11 +467,8 @@ static void descent_configure_switches(cxx_param_list & pl)
 
 
 int
-main(int argc0, char const * argv0[])
+main(int argc, char const * argv[])
 {
-    int argc = argc0;
-    char const ** argv = argv0;
-
     unsigned long seed = 0;
     unsigned long target = 0; // the target smoothness
     unsigned long nthread = 1;
@@ -491,9 +488,8 @@ main(int argc0, char const * argv0[])
 
     std::vector<cxx_mpz> wild;
 
-    argv++, argc--;
+    param_list_process_command_line(pl, &argc, &argv, true);
     for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
         if (argv[0][0] != '-') {
             cxx_mpz z;
             mpz_set_str(z, argv[0], 0);
@@ -501,9 +497,7 @@ main(int argc0, char const * argv0[])
             argv++, argc--;
             continue;
         }
-        fmt::print(stderr, "Unhandled parameter {}\n", argv[0]);
-        param_list_print_usage(pl, argv0[0], stderr);
-        return EXIT_FAILURE;
+        pl.fail("Unhandled parameter {}\n", argv[0]);
     }
 
     param_list_parse(pl, "seed", seed);
@@ -516,32 +510,23 @@ main(int argc0, char const * argv0[])
     param_list_parse(pl, "lpb", target);
     const char * polyfilename = param_list_lookup_string(pl, "poly");
     if (polyfilename) {
-        cado_poly_read(cpoly, polyfilename);
+        cpoly.read(polyfilename);
     }
 
-    if (param_list_warn_unused(pl)) {
-        param_list_print_usage(pl, argv0[0], stderr);
-        return EXIT_FAILURE;
-    }
+    if (param_list_warn_unused(pl))
+        pl.fail("Unused parameters are given");
 
-    if ((jl || (ext > 1)) && !polyfilename) {
-        fmt::print(
-          stderr,
-          "Error, must provide -poly when extdeg > 1 or using -jl option\n");
-        param_list_print_usage(pl, argv0[0], stderr);
-        return EXIT_FAILURE;
-    }
+    if ((jl || (ext > 1)) && !polyfilename)
+        pl.fail("Error, must provide -poly when extdeg > 1 or using -jl option");
 
     if (ext > 1 && jl) {
         fmt::print(stderr, "Warning: ignoring the -jl option with extdeg > 1\n");
         jl = 0;
     }
 
-    if (wild.size() != ext + 1) {
-        fmt::print(stderr, "Error: for extension degree {}, we need {} tail arguments\n",
+    if (wild.size() != ext + 1)
+        pl.fail("Error: for extension degree {}, we need {} tail arguments\n",
                 ext, ext + 1);
-        return EXIT_FAILURE;
-    }
 
     if (seed == 0)
         seed = getpid() + (time(nullptr) << 16U);
@@ -551,14 +536,14 @@ main(int argc0, char const * argv0[])
     params.p = wild[0];
     params.n = ext;
     if (jl || ext > 1) {
-        params.f = cpoly->pols[side];
+        params.f = cpoly[side];
     }
     if (jl) {
-        int const ret = cado_poly_getm(params.m, cpoly, params.p);
+        int const ret = cpoly.getm(params.m, params.p);
         ASSERT_ALWAYS(ret);
     }
     if (ext > 1) {
-        mpz_poly_gcd_mpz(params.phi, cpoly->pols[0], cpoly->pols[1], params.p);
+        mpz_poly_gcd_mpz(params.phi, cpoly[0], cpoly[1], params.p);
         for (unsigned int i = 0; i < ext; i++)
             mpz_poly_setcoeff(params.zpol, i, wild[i+1]);
     } else {

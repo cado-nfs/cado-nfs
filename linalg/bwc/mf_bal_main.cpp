@@ -1,10 +1,10 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cstdio>   // for fflush, stdout
-#include <cstring>  // for memset
+#include <cstdio>
+#include <cstring>
 
-#include "mf_bal.hpp"  // for mf_bal and friends.
-#include "params.h"  // for param_list_clear, param_list_init, param_list_pr...
+#include "mf_bal.hpp"
+#include "params.hpp"
 
 /* This program computes how a matrix would have to be balanced for
  * fitting a job grid of given size. This does _not_ read the matrix,

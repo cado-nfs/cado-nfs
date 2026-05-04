@@ -360,6 +360,16 @@ public:
         trickleUp(heap_.size() - 1);
     }
 
+    template<typename... Args>
+        void emplace(Args&& ...args)
+        requires std::is_constructible_v<T, Args...>
+        {
+            heap_.emplace_back(std::forward<Args>(args)...);
+            trickleUp(heap_.size() - 1);
+        }
+
+
+
     /**
      * @brief Returns the element with the greatest value in the heap.
      *

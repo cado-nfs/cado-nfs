@@ -42,7 +42,6 @@ struct sublat_t {
     }
 };
 
-#ifdef __cplusplus
 /* This structure encodes an element of P1(Z/p^k) for some p^k (which is
  * not embedded in the structure).
  *
@@ -90,7 +89,4 @@ inline bool operator!=(fb_root_p1_t<T> const & a, fb_root_p1_t<U> const & b)
 /* This is the type that we'll be using most of the time */
 using fb_root_p1 = fb_root_p1_t<fbprime_t>;
 
-#endif
-
-
-#endif
+#endif /* CADO_FB_TYPES_HPP */

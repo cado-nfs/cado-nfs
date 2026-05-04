@@ -555,7 +555,7 @@ checks on freebsd13.5 system with clang:
     - make -C ci/ci/utilities/tanker
     - ci/ci/50-libvirt-wrap-tests.sh freebsd:13.5 ci/ci/40-testsuite.sh
 
-checks on freebsd14.3 system with clang:
+checks on freebsd14.4 system with clang:
   <<: *common-template
   stage: thorough
   needs: [ "checks on osx system" ]
@@ -563,7 +563,7 @@ checks on freebsd14.3 system with clang:
     - freebsd-tanker
   script:
     - make -C ci/ci/utilities/tanker
-    - ci/ci/50-libvirt-wrap-tests.sh freebsd:14.3 ci/ci/40-testsuite.sh
+    - ci/ci/50-libvirt-wrap-tests.sh freebsd:14.4 ci/ci/40-testsuite.sh
 
 checks on freebsd15.0 system with clang:
   <<: *common-template
@@ -620,6 +620,8 @@ containers:
       when: never
     - if: $CI_COMMIT_BRANCH && ($CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "containers")
       when: on_success
+    - if: $CI_COMMIT_REF_NAME && $CI_COMMIT_REF_NAME == "containers"
+      when: on_success
     - when: never
   script:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
@@ -629,6 +631,30 @@ containers:
   retry:
     max: 2
     when: runner_system_failure
+
+test-containers:
+  stage: publish
+  needs: [ "containers" ]
+  tags:
+    - docker
+  image: registry.gitlab.inria.fr/cado-nfs/cado-nfs/factoring-full
+  rules:
+    - if: $CI_COMMIT_MESSAGE =~ /skip some ci/
+      when: manual
+      allow_failure: false
+    - if: $CI_COMMIT_MESSAGE =~ /only coverage/
+      when: never
+    - if: $CI_COMMIT_BRANCH && ($CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "containers")
+      when: on_success
+    - if: $CI_COMMIT_REF_NAME && $CI_COMMIT_REF_NAME == "containers"
+      when: on_success
+    - when: never
+  script:
+    - cado-nfs.py 90377629292003121684002147101760858109247336549001090677693
+  retry:
+    max: 2
+    when: runner_system_failure
+
 
 # same, but do not restrict to the master branch
 dry-run containers:

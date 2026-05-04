@@ -37,9 +37,9 @@ cado_define_test(test_rho.c LIBRARIES polyselect_common tests)
 # a laptop, and can easily take tens of seconds on a container that runs
 # on a busy machine.
 cado_define_test(test_polyselect_shash.cpp
-    ${PROJECT_SOURCE_DIR}/polyselect/polyselect_shash.c
+    ${PROJECT_SOURCE_DIR}/polyselect/polyselect_shash.cpp
     ${PROJECT_SOURCE_DIR}/polyselect/polyselect_poly_header.c
-    ${PROJECT_SOURCE_DIR}/polyselect/polyselect_match.c
+    ${PROJECT_SOURCE_DIR}/polyselect/polyselect_match.cpp
     LIBRARIES polyselect_common tests
     TIMEOUT 90
 )
@@ -60,7 +60,7 @@ cado_define_test(test_ropt_adv
 # set(ropt_sha1_c65 5c7adf825238c1a75fcb33567b2460e2e3b11486)
 # set(ropt_sha1_c60 d945f8b4b1f51b07d5efdbcc8f32d74d185f7f76)
 
-# Higher precision skewness computation has changed data a bit.
+# Higher precision skewness.cppomputation has changed data a bit.
 set(ropt_sha1_c80 abd946d0837e008ca1775f3dc9bebe02b6d9087e)
 set(ropt_sha1_c75 0580622f2b8e6ca129ef63d6f5aacb045586ab47)
 set(ropt_sha1_c70 c59e7eeb346c88b1374df40a89f8a10e54a7a32a,d335f74d729e599c30d73b81de0a738d89101656)
@@ -99,7 +99,7 @@ cado_divert_test(test_ropt_adv deg6
     )
 
 if(DEFINED ENV{CHECKS_EXPENSIVE})
-    # We need this to cover the ropt_quadratic code.
+    # We need this to cover the ropt_quadratic.cppode.
     # Honestly, it's way too long, it takes two minutes or
     # so on my laptop. Furthermore, it looks very odd, since in this
     # example I have the impression that the output of the "optimization"
@@ -108,7 +108,7 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
     # same as test_ropt_adv_deg6)
     #
     # note that most of the runtime-affecting parameters in here are
-    # actually hardcoded, e.g. in polyselect/ropt_param.c ; there's very
+    # actually hardcoded, e.g. in polyselect/ropt_param.cpp ; there's very
     # little that can be done to change the running time, short of
     # changing the size of the number to be factored.
     cado_divert_test(test_ropt_adv deg5large
@@ -143,9 +143,9 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
 endif()
 
 cado_define_test(
-    gfpkdlpolyselect_test.c
-    table_t_Py_f_deg4_type0_h1_t-200--200.c
-    ${PROJECT_SOURCE_DIR}/polyselect/gfpkdlpolyselect.c
+    gfpkdlpolyselect_test.cpp
+    table_t_Py_f_deg4_type0_h1_t-200--200.cpp
+    ${PROJECT_SOURCE_DIR}/polyselect/gfpkdlpolyselect.cpp
     LIBRARIES polyselect_common utils
     NO_DEFAULT_RUN
     )

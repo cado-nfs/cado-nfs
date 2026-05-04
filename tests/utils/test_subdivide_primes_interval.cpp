@@ -13,7 +13,7 @@
 
 #include "misc.h"
 #include "getprime.h"
-#include "params.h"
+#include "params.hpp"
 
 static void decl_usage(cxx_param_list & pl)
 {
@@ -24,8 +24,6 @@ static void decl_usage(cxx_param_list & pl)
 
 int main(int argc, char const * argv[])
 {
-    const char * progname = argv[0];
-
     size_t n = 10;
     size_t p0 = 0;
     size_t p1 = 1000000;
@@ -34,23 +32,14 @@ int main(int argc, char const * argv[])
 
     decl_usage(pl);
 
-    argv++,argc--;
-
-    for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) continue;
-        fmt::print(stderr, "Unknown option: {}\n", argv[0]);
-        param_list_print_usage(pl, progname, stderr);
-        return EXIT_FAILURE;
-    }
+    param_list_process_command_line(pl, &argc, &argv, false);
 
     param_list_parse(pl, "p0", p0);
     param_list_parse(pl, "p1", p1);
     param_list_parse(pl, "n", n);
 
-    if (param_list_warn_unused(pl)) {
-        param_list_print_usage(pl, progname, stderr);
-        return EXIT_FAILURE;
-    }
+    if (param_list_warn_unused(pl))
+        pl.fail("Unused parameters are given");
 
     std::vector<unsigned long> splits = subdivide_primes_interval(p0, p1, n);
 

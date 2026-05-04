@@ -19,7 +19,7 @@
 #include <gmp.h>
 
 #include "gmp_aux.h"
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "cxx_mpz.hpp"
 #include "las-config.hpp"
 #include "las-coordinates.hpp"
@@ -28,10 +28,10 @@
 #include "special-q.hpp"
 #include "macros.h"
 #include "mpz_poly.h"
-#include "params.h"
+#include "params.hpp"
 #include "rootfinder.h"
 #include "timing.h"
-#include "verbose.h"
+#include "verbose.hpp"
 
 static int adjust_strategy = 0;
 
@@ -91,7 +91,7 @@ static void ensure_qrange_has_prime_ideals(cxx_mpz const & q0, cxx_mpz & q1, mpz
 
 static void declare_usage(cxx_param_list & pl)/*{{{*/
 {
-  param_list_usage_header(pl,
+  pl.declare_usage_header(
   "In the names and in the descriptions of the parameters, below there are often\n"
   "aliases corresponding to the convention that 0 is the rational side and 1\n"
   "is the algebraic side. If the two sides are algebraic, then the word\n"
@@ -100,44 +100,41 @@ static void declare_usage(cxx_param_list & pl)/*{{{*/
   "no need to provide a fb0 parameter.\n"
   );
 
-  param_list_decl_usage(pl, "poly", "polynomial file");
-  param_list_decl_usage(pl, "skew", "skewness");
+  pl.declare_usage("poly", "polynomial file");
+  pl.declare_usage("skew", "skewness");
 
-  param_list_decl_usage(pl, "v",    "verbose mode, also prints sieve-area checksums");
+  pl.declare_usage("v",    "verbose mode, also prints sieve-area checksums");
 
-  param_list_decl_usage(pl, "q0",   "left bound of special-q range");
-  param_list_decl_usage(pl, "q1",   "right bound of special-q range");
-  param_list_decl_usage(pl, "rho",  "sieve only root r mod q0");
-  param_list_decl_usage(pl, "check-bucket",  "force checking on that particular bucket region");
-  param_list_decl_usage(pl, "sqside", "put special-q on this side");
-  param_list_decl_usage(pl, "random-sample", "Sample this number of special-q's at random, within the range [q0,q1]");
-  param_list_decl_usage(pl, "random-seed", "Use this seed for the random sampling of special-q's (see random-sample)");
-  param_list_decl_usage(pl, "nq", "Process this number of special-q's and stop");
-  param_list_decl_usage(pl, "todo", "provide file with a list of special-q to sieve instead of qrange");
+  pl.declare_usage("q0",   "left bound of special-q range");
+  pl.declare_usage("q1",   "right bound of special-q range");
+  pl.declare_usage("rho",  "sieve only root r mod q0");
+  pl.declare_usage("check-bucket",  "force checking on that particular bucket region");
+  pl.declare_usage("sqside", "put special-q on this side");
+  pl.declare_usage("random-sample", "Sample this number of special-q's at random, within the range [q0,q1]");
+  pl.declare_usage("random-seed", "Use this seed for the random sampling of special-q's (see random-sample)");
+  pl.declare_usage("nq", "Process this number of special-q's and stop");
+  pl.declare_usage("todo", "provide file with a list of special-q to sieve instead of qrange");
 
-  param_list_decl_usage(pl, "I",    "set sieving region to 2^I times J");
-  param_list_decl_usage(pl, "A",    "set sieving region to 2^A");
+  pl.declare_usage("I",    "set sieving region to 2^I times J");
+  pl.declare_usage("A",    "set sieving region to 2^A");
 
   siever_config::declare_usage<NFS>(pl);
 
-  param_list_decl_usage(pl, "adjust-strategy", "strategy used to adapt the sieving range to the q-lattice basis (0 = logI constant, J so that boundary is capped; 1 = logI constant, (a,b) plane norm capped; 2 = logI dynamic, skewed basis; 3 = combine 2 and then 0) ; default=0");
+  pl.declare_usage("adjust-strategy", "strategy used to adapt the sieving range to the q-lattice basis (0 = logI constant, J so that boundary is capped; 1 = logI constant, (a,b) plane norm capped; 2 = logI dynamic, skewed basis; 3 = combine 2 and then 0) ; default=0");
 
-  param_list_decl_usage(pl, "nfills-speed-test",    "number of bucket region norm fills to simulate per special q");
-  param_list_decl_usage(pl, "norm-sides",    "on which sides we should check norms\n");
-  param_list_decl_usage(pl, "norm-impls",    "which norm implementations we should check\n");
-  param_list_decl_usage(pl, "hush-max-jitter",    "as its name says, do not bother reporting when jitter is below this threshold");
-  param_list_decl_usage(pl, "abort-on-jitter",    "exit with failure if jitter exceeds thresholds (one per side)");
+  pl.declare_usage("nfills-speed-test",    "number of bucket region norm fills to simulate per special q");
+  pl.declare_usage("norm-sides",    "on which sides we should check norms\n");
+  pl.declare_usage("norm-impls",    "which norm implementations we should check\n");
+  pl.declare_usage("hush-max-jitter",    "as its name says, do not bother reporting when jitter is below this threshold");
+  pl.declare_usage("abort-on-jitter",    "exit with failure if jitter exceeds thresholds (one per side)");
 
   verbose_decl_usage(pl);
 }/*}}}*/
 
 // coverity[root_function]
-int main(int argc0, char const * argv0[])
+int main(int argc, char const * argv[])
     /*{{{*/
 {
-    int argc = argc0;
-    const char **argv = argv0;
-
 #ifdef HAVE_MINGW
     _fmode = _O_BINARY;     /* Binary open for all files */
 #endif
@@ -147,16 +144,10 @@ int main(int argc0, char const * argv0[])
     cxx_param_list pl;
 
     declare_usage(pl);
-    param_list_decl_usage(pl, "log-bucket-region", "set bucket region to 2^x");
+    pl.declare_usage("log-bucket-region", "set bucket region to 2^x");
     param_list_configure_alias(pl, "log-bucket-region", "B");
 
-    argv++, argc--;
-    for( ; argc ; ) {
-        if (param_list_update_cmdline(pl, &argc, &argv)) continue;
-        fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
-        param_list_print_usage(pl, argv0[0], stderr);
-        exit(EXIT_FAILURE);
-    }
+    param_list_process_command_line(pl, &argc, &argv, false);
 
     cxx_cado_poly cpoly(pl);
 
@@ -204,7 +195,7 @@ int main(int argc0, char const * argv0[])
         param_list_add_key(pl, "lim1", "0", PARAMETER_FROM_FILE);
 
     siever_config config_base;
-    if (!siever_config::parse_default<NFS>(config_base, pl, cpoly->nb_polys)) {
+    if (!siever_config::parse_default<NFS>(config_base, pl, cpoly.nsides())) {
         fprintf(stderr, "Error: please provide a full set of {lim,mfb,lpb}{0,1} parameters\n");
         param_list_print_usage(pl, nullptr, stderr);
         exit(EXIT_FAILURE);
@@ -215,7 +206,7 @@ int main(int argc0, char const * argv0[])
 
     std::vector<int> sides;
     if (!param_list_parse(pl, "norm-sides", sides)) {
-        for(int side = 0 ; side < cpoly->nb_polys ; side++)
+        for(int side = 0 ; side < cpoly.nsides() ; side++)
             sides.push_back(side);
     }
 
@@ -262,7 +253,7 @@ int main(int argc0, char const * argv0[])
     size_t impl_stats[NCODES][2] = {{0,}};
 
     if (okrange)
-        ensure_qrange_has_prime_ideals(q0, q1, cpoly->pols[sqside]);
+        ensure_qrange_has_prime_ideals(q0, q1, cpoly[sqside]);
 
     for(int qnum = 0 ; qnum < nq_max ; qnum++) {
         /* we don't care much about being truly uniform here */
@@ -273,7 +264,7 @@ int main(int argc0, char const * argv0[])
                 mpz_urandomm(q, rstate, q);
                 mpz_add(q, q, q0);
                 next_legitimate_specialq(q, q, 0);
-                auto roots = mpz_poly_roots(cpoly->pols[sqside], q, rstate);
+                auto roots = mpz_poly_roots(cpoly[sqside], q, rstate);
                 if (!roots.empty()) {
                     auto const i = gmp_urandomm_ui(rstate, roots.size());
                     rho = roots[i];

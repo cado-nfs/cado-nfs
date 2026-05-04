@@ -512,7 +512,7 @@ cado_define_test(F9_dupsup
         SCRIPT
             ${CMAKE_CURRENT_SOURCE_DIR}/F9.dupsup.sh
             -v -v --adjust-strategy 0
-        TARGET_DEPENDENCIES las dupsup
+        TARGET_DEPENDENCIES las dupsup makefb
         FIXTURES_REQUIRED F9.fb F9.sievetest_cleanup
         TIMEOUT 60
         )

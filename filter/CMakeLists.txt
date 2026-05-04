@@ -2,11 +2,11 @@ set (bin_list
         dup1 dup2 purge merge merge-dl replay replay-dl sm sm_simple reconstructlog-dl
 )
 
-set (purge_sources purge_matrix.c singleton_removal.c
-                   clique_removal.cpp purge.c)
+set (purge_sources purge_matrix.cpp
+                   clique_removal.cpp purge.cpp)
 
 # the utils library is already linked with -lgmp and -lm
-add_executable(dup1 dup1.c)
+add_executable(dup1 dup1.cpp)
 target_link_libraries(dup1 utils_with_io)
 
 add_executable(dup2 dup2.cpp)
@@ -19,9 +19,9 @@ add_executable(purge ${purge_sources})
 target_link_libraries(purge utils_with_io)
 
 
-add_executable(merge merge.c merge_heap.c merge_bookkeeping.c
+add_executable(merge merge.cpp merge_heap.c merge_bookkeeping.c
     merge_compute_weights.c
-    read_purgedfile_in_parallel.c mst.c merge_replay_matrix.c sparse.c)
+    read_purgedfile_in_parallel.cpp mst.c merge_replay_matrix.c sparse.c)
 target_link_libraries(merge utils_with_io)
 mark_targets_as_openmp(merge)
 
@@ -29,17 +29,17 @@ macro(mark_targets_as_dl t)
     set_property(TARGET ${t} APPEND PROPERTY COMPILE_OPTIONS -DFOR_DL)
 endmacro()
 
-add_executable(merge-dl merge.c merge_heap.c merge_bookkeeping.c
+add_executable(merge-dl merge.cpp merge_heap.c merge_bookkeeping.c
     merge_compute_weights.c
-    read_purgedfile_in_parallel.c mst.c merge_replay_matrix.c sparse.c)
+    read_purgedfile_in_parallel.cpp mst.c merge_replay_matrix.c sparse.c)
 target_link_libraries(merge-dl utils_with_io)
 mark_targets_as_dl(merge-dl)
 mark_targets_as_openmp(merge-dl)
 
-add_executable(replay replay.c sparse.c)
+add_executable(replay replay.cpp sparse.c)
 target_link_libraries(replay utils_with_io)
 
-add_executable(replay-dl replay.c sparse.c)
+add_executable(replay-dl replay.cpp sparse.c)
 target_link_libraries(replay-dl utils_with_io)
 mark_targets_as_dl(replay-dl)
 
@@ -48,9 +48,6 @@ target_link_libraries(reconstructlog-dl utils_with_io)
 
 add_executable(sm_simple sm_simple.cpp)
 target_link_libraries(sm_simple utils)
-
-add_executable(singleton_simple singleton_simple.cpp)
-target_link_libraries(singleton_simple utils_with_io)
 
 add_executable(shrink_rels shrink_rels.cpp)
 target_link_libraries(shrink_rels utils)

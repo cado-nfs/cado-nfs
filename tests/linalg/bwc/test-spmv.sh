@@ -108,7 +108,7 @@ if [ $prime != 2 ] ; then
     extra_args_mf=(--withcoeffs)
 fi
 
-redirect_unless_debug $wdir/random_matrix.out $bindir/linalg/bwc/random_matrix $nrows $ncols -d $density  --binary -o $wdir/mat.bin -s $seed --freq "${extra_args_random_matrix[@]}"
+redirect_unless_debug $wdir/random_matrix.out $bindir/linalg/bwc/random_matrix --nrows $nrows --ncols $ncols -d $density  --binary -o $wdir/mat.bin -s $seed --freq "${extra_args_random_matrix[@]}"
 
 if [ $nrows != $ncols ] ; then
     mf_bal_extra=(--rectangular --reorder both)

@@ -19,7 +19,7 @@
 #include "las-info.hpp"
 #include "tdict.hpp"
 #include "arith/ularith.h"
-#include "verbose.h"
+#include "verbose.hpp"
 
 #include "fmt/ranges.h"
 

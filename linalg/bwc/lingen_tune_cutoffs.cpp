@@ -36,7 +36,7 @@
 #endif
 #include "lingen_tune_cutoffs.hpp"
 #include "macros.h"
-#include "params.h"
+#include "params.hpp"
 #include "runtime_numeric_cast.hpp"
 #include "select_mpi.h"
 #include "timing.h"

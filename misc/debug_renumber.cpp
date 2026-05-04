@@ -11,14 +11,14 @@
 #include "fmt/base.h"
 #include <gmp.h>
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "macros.h"
 #include "misc.h"
-#include "params.h"
+#include "params.hpp"
 #include "renumber.hpp"
 #include "timing.h"
 #include "typedefs.h"
-#include "verbose.h"
+#include "verbose.hpp"
 #include "utils_cxx.hpp"
 
 static void declare_usage(cxx_param_list & pl)
@@ -40,12 +40,6 @@ static void declare_usage(cxx_param_list & pl)
                           "do not print the renumbering table contents");
     param_list_decl_usage(pl, "dl", "interpret as DL-related data.");
     verbose_decl_usage(pl);
-}
-
-static void usage(cxx_param_list & pl, char const * argv0)
-{
-    param_list_print_usage(pl, argv0, stderr);
-    exit(EXIT_FAILURE);
 }
 
 static void bench_traversal(renumber_t const & tab)
@@ -173,7 +167,6 @@ int main(int argc, char const * argv[])
     int quiet = 0;
     int bench = 0;
     int for_dl = 0;
-    char const * argv0 = argv[0];
     cxx_cado_poly cpoly;
 
     cxx_param_list pl;
@@ -186,17 +179,8 @@ int main(int argc, char const * argv[])
     param_list_configure_switch(pl, "bench", &bench);
     param_list_configure_switch(pl, "dl", &for_dl);
 
-    argv++, argc--;
-    if (argc == 0)
-        usage(pl, argv0);
+    param_list_process_command_line(pl, &argc, &argv, false);
 
-    for (; argc;) {
-        if (param_list_update_cmdline(pl, &argc, &argv))
-            continue;
-        fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
-        usage(pl, argv0);
-    }
-    /* print command-line arguments */
     verbose_interpret_parameters(pl);
     param_list_print_command_line(stdout, pl);
     fflush(stdout);
@@ -206,28 +190,18 @@ int main(int argc, char const * argv[])
 
     renumber_t::builder_lookup_parameters(pl);
 
-    if (polyfilename == nullptr) {
-        fprintf(stderr, "Error, missing -poly command line argument\n");
-        usage(pl, argv0);
-    }
-    if (renumberfilename == nullptr && !build) {
-        fprintf(stderr, "Error, missing -renumber command line argument\n");
-        usage(pl, argv0);
-    }
-    if (renumberfilename != nullptr && build) {
-        fprintf(stderr, "Error, --build and -renumber are exclusive\n");
-        usage(pl, argv0);
-    }
-    if (!param_list_lookup_string(pl, "lpbs") && build) {
-        fprintf(stderr, "Error, --build requires -lpbs\n");
-        usage(pl, argv0);
-    }
-    if (param_list_lookup_string(pl, "lpbs") && !build) {
-        fprintf(stderr, "Error, --lpbs is only valid with --build\n");
-        usage(pl, argv0);
-    }
+    if (polyfilename == nullptr)
+        pl.fail("Error, missing -poly command line argument\n");
+    if (renumberfilename == nullptr && !build)
+        pl.fail("Error, missing -renumber command line argument\n");
+    if (renumberfilename != nullptr && build)
+        pl.fail("Error, --build and -renumber are exclusive\n");
+    if (!param_list_lookup_string(pl, "lpbs") && build)
+        pl.fail("Error, --build requires -lpbs\n");
+    if (param_list_lookup_string(pl, "lpbs") && !build)
+        pl.fail("Error, --lpbs is only valid with --build\n");
 
-    if (!cado_poly_read(cpoly, polyfilename)) {
+    if (!cpoly.read(polyfilename)) {
         fprintf(stderr, "Error reading polynomial file\n");
         exit(EXIT_FAILURE);
     }

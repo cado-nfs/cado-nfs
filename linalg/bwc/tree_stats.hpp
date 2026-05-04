@@ -13,7 +13,11 @@
 #include "macros.h"
 #include "timing.h"
 #include "lingen_round_operand_size.hpp"
-struct cxx_param_list; // IWYU pragma: keep
+
+namespace cado::params {
+struct cxx_param_list;
+}
+using cxx_param_list = cado::params::cxx_param_list;
 
 
 /* This structure is meant to help the timing of a recursive tree-like

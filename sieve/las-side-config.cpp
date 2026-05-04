@@ -8,7 +8,7 @@
 #include <vector>
 #include <string>
 
-#include "params.h"
+#include "params.hpp"
 #include "las-side-config.hpp"
 
 void siever_side_config::declare_usage(cxx_param_list & pl)

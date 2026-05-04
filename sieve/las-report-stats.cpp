@@ -1,6 +1,6 @@
 #include "cado.h" // IWYU pragma: keep
 #include "las-report-stats.hpp"
-#include "verbose.h"
+#include "verbose.hpp"
 #include "macros.h"
 #include "utils_cxx.hpp"
 

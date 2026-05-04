@@ -14,7 +14,7 @@
 #include "parallelizing_info.hpp"
 #include "portability.h" // asprintf // IWYU pragma: keep
 #include "timing.h"
-#include "verbose.h"
+#include "verbose.hpp"
 
 /* With respect to the currently running timer, extract a set of timing
  * values which is complete. That means a copy, except that for the

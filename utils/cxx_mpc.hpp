@@ -182,7 +182,6 @@ struct cxx_mpc {
         return *this;
     }
 
-#if __cplusplus >= 201103L
     cxx_mpc(cxx_mpc && o) noexcept
         : cxx_mpc()
     {
@@ -194,7 +193,6 @@ struct cxx_mpc {
             mpc_swap(x, o.x);
         return *this;
     }
-#endif
     // NOLINTEND(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
 
     // NOLINTBEGIN(hicpp-explicit-conversions,google-explicit-constructor)

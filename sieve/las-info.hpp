@@ -16,7 +16,7 @@
 #include <utility>
 #include <vector>
 
-#include "cado_poly.h"
+#include "cado_poly.hpp"
 #include "ecm/batch.hpp"
 #include "fb.hpp"
 #ifdef HAVE_HWLOC
@@ -31,7 +31,7 @@
 #include "las-side-config.hpp"
 #include "las-sieve-shared-data.hpp"
 #include "las-siever-config.hpp"
-#include "params.h"
+#include "params.hpp"
 #include "sieve-methods.hpp"
 #include "trialdiv.hpp"
 #include "utils_cxx.hpp"
@@ -163,7 +163,7 @@ struct las_info : public las_parallel_desc, private NonCopyable {
     void * descent_helper;
     las_dlog_base dlog_base;
     std::unique_ptr<special_q_task_collection_base> tree;
-    void init_hint_table(param_list_ptr);
+    void init_hint_table(cxx_param_list &);
     void clear_hint_table();
 
     // ----- special mode when we don't compute relations, but read them

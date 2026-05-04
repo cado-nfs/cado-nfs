@@ -4,7 +4,7 @@
 #include <ostream>    // std::ostream // IWYU pragma: keep
 
 #include "tdict.hpp"
-#include "params.h"
+#include "params.hpp"
 
 namespace tdict {
 

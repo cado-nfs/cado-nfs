@@ -7,7 +7,7 @@
 #include "fmt/base.h"
 
 #include "gmp_aux.h"
-#include "bw-common.h"
+#include "bw-common.hpp"
 #include "arith-hard.hpp"
 #include "lingen.hpp"
 #include "lingen_bmstatus.hpp"
@@ -21,7 +21,7 @@
 #include "logline.hpp"
 #include "memusage.h"
 #include "misc.h"
-#include "params.h"
+#include "params.hpp"
 #include "portability.h"
 
 /* If non-zero, then reading from A is actually replaced by reading from
