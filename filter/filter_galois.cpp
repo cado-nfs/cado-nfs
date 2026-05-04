@@ -12,7 +12,6 @@
 #include <memory>
 #include <ostream>
 #include <string>
-#include <stdexcept>
 #include <vector>
 #include <mutex>
 #include <utility>
@@ -20,8 +19,6 @@
 #ifdef HAVE_MINGW
 #include <fcntl.h>
 #endif
-
-#include "fmt/format.h"
 
 #include "cxx_mpz.hpp"
 #include "cado_poly.hpp"
@@ -34,7 +31,6 @@
 #include "macros.h"
 #include "params.hpp"
 #include "portability.h"
-#include "relation-tools.h"
 #include "renumber.hpp"
 #include "timing.h"
 #include "typedefs.h"

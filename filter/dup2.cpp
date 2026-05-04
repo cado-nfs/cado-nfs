@@ -61,7 +61,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include <stdexcept>
 #include <algorithm>
 #include <ostream>
 
@@ -69,7 +68,6 @@
 
 #include <gmp.h>
 #include "fmt/base.h"
-#include "fmt/format.h"
 
 #include "cado_poly.hpp"
 #include "filter_config.h"
@@ -87,7 +85,6 @@
 #include "verbose.hpp"
 #include "cxx_mpz.hpp"
 #include "utils_cxx.hpp"
-#include "arith/mod_ul.h"
 #include "fstream_maybe_compressed.hpp"
 
 #define xxxDEBUG
