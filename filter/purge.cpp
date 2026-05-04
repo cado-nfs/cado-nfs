@@ -112,10 +112,6 @@ struct purge_output_specification { /* {{{ */
 /* }}} */
 struct purge_process : purge_output_specification {
         /* {{{ */
-    /* yippee, nrels is no longer mandatory! */
-    parameter_with_default<size_t, "nrels", "number of initial relations",
-                           "0">
-        nrows_init;
     parameter_with_default<
         size_t, "col-min-index",
         "only take into account columns with indices >= col-min-index", "0">
@@ -149,7 +145,6 @@ struct purge_process : purge_output_specification {
     static void configure(cxx_param_list & pl) /* {{{ */
     {
         purge_output_specification::configure(pl);
-        decltype(nrows_init)::configure(pl);
         decltype(col_min_index)::configure(pl);
         decltype(col_max_index)::configure(pl);
         decltype(keep)::configure(pl);
@@ -161,7 +156,6 @@ struct purge_process : purge_output_specification {
     /* }}} */
     explicit purge_process(cxx_param_list & pl) /* {{{ */
         : purge_output_specification(pl)
-        , nrows_init(pl)
         , col_min_index(pl)
         , col_max_index(pl)
         , keep(pl)
@@ -190,10 +184,7 @@ struct purge_process : purge_output_specification {
         /* this one is in clique_removal.cpp */
         purge_matrix::print_clique_removal_weight_function();
 
-        if (nrows_init())
-            fmt::print("# INFO: number of rows: {}\n", nrows_init());
-        else
-            fmt::print("# INFO: number of rows: automatic\n", nrows_init());
+        fmt::print("# INFO: number of rows: automatic\n");
         fmt::print("# INFO: maximum possible index of a column: {}\n",
                    col_max_index());
         fmt::print("# INFO: number of threads: {}\n", nthreads());
@@ -207,14 +198,6 @@ struct purge_process : purge_output_specification {
         fflush(stdout);
     }
     /*}}}*/
-    void consistency_check_nrels() /* {{{ */
-    {
-        if (nrows_init != 0 && M.remaining_rows != nrows_init)
-            throw cado::error("-nrels should be either 0, or match the number"
-                              " of scanned relations: expected {}, found {}",
-                              nrows_init(), M.remaining_rows);
-    }
-    /* }}} */
     void print_optional_weight_statistics() /* {{{ */
     {
         /* prints some stats on columns and rows weight if verbose > 0. */
@@ -238,8 +221,6 @@ struct purge_process : purge_output_specification {
                 [&](relation_type & rel) {
                     M.new_row(rel.num, col_min_index, col_max_index, rel.primes);
         });
-
-        consistency_check_nrels();
 
 #ifdef TRACE_J
         printf("TRACE: weight of ideal 0x%x is %u\n", TRACE_J,

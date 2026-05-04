@@ -4743,7 +4743,7 @@ class PurgeTask(Task):
 
         if len(files) <= 10:
             p = cadoprograms.Purge(*files,
-                                   nrels=input_nrels, out=purgedfile,
+                                   out=purgedfile,
                                    outdel=relsdelfile, keep=keep,
                                    nprimes=nprimes,
                                    stdout=str(stdoutpath),
@@ -4751,8 +4751,7 @@ class PurgeTask(Task):
                                    **self.progparams[0])
         else:
             filelistname = self.make_filelist(files, prefix=self.name)
-            p = cadoprograms.Purge(nrels=input_nrels,
-                                   out=purgedfile,
+            p = cadoprograms.Purge(out=purgedfile,
                                    outdel=relsdelfile, keep=keep,
                                    nprimes=nprimes,
                                    filelist=filelistname,
