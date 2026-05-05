@@ -15,6 +15,6 @@ NOW:=$(shell date +%Y%m%d%H%M)
 REG:=$$CI_REGISTRY_IMAGE
 
 docker-image-%: docker/base docker/%
-	./tests/provide-wdir.sh --env WDIR bash -xc 'git archive --format=tar.gz HEAD > $$WDIR/cado.tar.gz ; cp -p docker/local.sh docker/dispatch-files.sh $$WDIR/ ; cat $^ > $$WDIR/Dockerfile ; docker build -t $(REG)/$* $$WDIR'
+	./tests/provide-wdir.sh --env WDIR bash -xc 'git archive --format=tar.gz HEAD > $$WDIR/cado.tar.gz ; cp -p docker/local.sh docker/dispatch-files.sh $$WDIR/ ; cat $^ > $$WDIR/Dockerfile ; docker build --pull=always -t $(REG)/$* $$WDIR'
 	! ( [ "$$PUSH" ] && [ "$$CI_COMMIT_BRANCH" ] && ([ "$$CI_COMMIT_BRANCH" == master ] || [ "$$CI_COMMIT_BRANCH" == containers ])) || (docker tag $*:latest $(REG)/$*:$(NOW) ; docker push $(REG)/$*:$(NOW) ; docker push $(REG)/$*)
 
