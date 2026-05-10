@@ -1199,6 +1199,7 @@ tests/filter/create_fake_relation_file.cpp
 tests/filter/p40_30004.poly
 tests/filter/p40_30004.rels.gz
 tests/filter/p40_30004_with_sides.rels.gz
+tests/filter/purge_torturetest1.rels
 tests/filter/test_dup1.sh
 tests/filter/test_dup2.sh
 tests/filter/test_filter_galois.d20.poly
