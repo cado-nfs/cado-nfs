@@ -76,5 +76,19 @@ cado_define_test(test_sm_with_small_ell
     TARGET_DEPENDENCIES sm_append
 )
 
+cado_define_test(test_purge_torture
+    PROGRAM
+    $<TARGET_FILE:purge> -keep 0 -col-min-index 8
+    -required_excess 0.0 ${CMAKE_CURRENT_SOURCE_DIR}/purge_torturetest1.rels
+    TARGET_DEPENDENCIES purge
+)
+
+cado_define_test(test_purge_heavy_torture
+    PROVIDE_TEMPORARY_WDIR
+    PROGRAM
+    ${CMAKE_CURRENT_SOURCE_DIR}/heavy_torture_test_purge.sh
+    TARGET_DEPENDENCIES purge
+)
+
 add_executable(create_fake_relation_file create_fake_relation_file.cpp)
 target_link_libraries(create_fake_relation_file utils)
