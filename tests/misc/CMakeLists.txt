@@ -1,12 +1,11 @@
-cado_define_test(SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/testcheck_rels.sh
-    ${CADO_NFS_BINARY_DIR}/misc/check_rels
+cado_define_test(SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/test_check_rels.sh
     PROVIDE_TEMPORARY_WDIR
     TARGET_DEPENDENCIES check_rels)
 
 if (HAVE_GMPECM)
 cado_define_test(descent_init_Fp_jl
     SCRIPT
-    ${CADO_NFS_BINARY_DIR}/misc/descent_init_Fp -jl
+    $<TARGET_FILE:descent_init_Fp> -jl
     -poly ${CMAKE_CURRENT_SOURCE_DIR}/p30.poly
     -mt 2 -minB1 200 -mineff 1000 -maxeff 100000 -side 1 -lpb 22
     -seed 42 701173953068971112417987441927 128476523876523762325
@@ -15,21 +14,21 @@ endif()
 
 # test renumber
 cado_define_test(test_renumber_on_the_fly_mnfsdl
-    PROGRAM ${PROJECT_BINARY_DIR}/misc/debug_renumber
+    PROGRAM $<TARGET_FILE:debug_renumber>
     -poly ${CMAKE_CURRENT_SOURCE_DIR}/test_renumber.data/mnfs5.poly
     -lpbs 11,10,10,10,10
     -check -build -quiet
     TARGET_DEPENDENCIES debug_renumber)
 
 cado_define_test(test_renumber_on_the_fly_snfs
-    PROGRAM ${PROJECT_BINARY_DIR}/misc/debug_renumber
+    PROGRAM $<TARGET_FILE:debug_renumber>
     -poly ${PROJECT_SOURCE_DIR}/parameters/polynomials/F9.poly
     -lpbs 10,10
     -check -build -quiet
     TARGET_DEPENDENCIES debug_renumber)
 
 cado_define_test(test_renumber_on_the_fly_gnfs
-    PROGRAM ${PROJECT_BINARY_DIR}/misc/debug_renumber
+    PROGRAM $<TARGET_FILE:debug_renumber>
     -poly ${PROJECT_SOURCE_DIR}/parameters/polynomials/rsa768.poly
     -lpbs 10,10
     -check -build -quiet
@@ -38,7 +37,7 @@ cado_define_test(test_renumber_on_the_fly_gnfs
 # This is one of the failure conditions that we see in bug 30003
 # times out easily in coverage mode
 cado_define_test(test_renumber_on_the_fly_gnfs2_30003
-    PROGRAM ${PROJECT_BINARY_DIR}/misc/debug_renumber
+    PROGRAM $<TARGET_FILE:debug_renumber>
     -poly ${PROJECT_SOURCE_DIR}/parameters/polynomials/rsa768.poly
     -lpbs 20,21
     -check -build -quiet
@@ -51,7 +50,6 @@ cado_define_test(test_renumber_on_the_fly_gnfs2_30003
 cado_define_test(test_renumber_file
     NO_DEFAULT_RUN
     SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/test_renumber.sh
-    -b ${CADO_NFS_BINARY_DIR} 
     PROVIDE_TEMPORARY_WDIR
     TARGET_DEPENDENCIES freerel debug_renumber)
 
@@ -64,7 +62,7 @@ cado_divert_test(test_renumber_file mnfs5
 
 if(DEFINED ENV{CHECKS_EXPENSIVE})
 cado_define_test(test_renumber_on_the_fly_c105_30003
-    PROGRAM ${PROJECT_BINARY_DIR}/misc/debug_renumber
+    PROGRAM $<TARGET_FILE:debug_renumber>
     -poly ${CMAKE_CURRENT_SOURCE_DIR}/test_renumber.data/c105_30003.poly
     -lpbs 22,23
     -check -build -quiet
@@ -85,7 +83,7 @@ endif()
 if (HAVE_GMPECM)
     cado_define_test(misc_factor
         SCRIPT
-        ${CADO_NFS_BINARY_DIR}/misc/factor -v -v -N
+        $<TARGET_FILE:factor> -v -v -N
         SHA1_ON_REGEXP_LINES "^factorization: "
         TARGET_DEPENDENCIES factor
         NO_DEFAULT_RUN
@@ -134,7 +132,7 @@ endif()
 
 cado_define_test(misc_cl_structure
     SCRIPT
-    ${CADO_NFS_BINARY_DIR}/misc/cl_structure_from_group_order -v -v
+    $<TARGET_FILE:cl_structure_from_group_order> -v -v
     SHA1_ON_REGEXP_LINES "^structure: "
     TARGET_DEPENDENCIES cl_structure_from_group_order
     NO_DEFAULT_RUN

@@ -22,7 +22,7 @@ foreach(mpiconf nompi ${mpiconfs})
         ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh
         --handle-mpirun-directly
         "${mpiconf}"
-        ${CADO_NFS_BINARY_DIR}/sqrt/crtalgsqrt
+        $<TARGET_FILE:crtalgsqrt>
         ram=${crtalgsqrt_ram${suffix}}
         ${CMAKE_CURRENT_SOURCE_DIR}/test-crtalgsqrt/c30.dep.000
         ${CMAKE_CURRENT_SOURCE_DIR}/test-crtalgsqrt/c30.ratdep.000
@@ -49,7 +49,7 @@ set(test_sqrt_c30_inputs
 
 cado_define_test(test_sqrt_c30_ab
     PROGRAM
-    ${CADO_NFS_BINARY_DIR}/sqrt/sqrt
+    $<TARGET_FILE:sqrt>
     ${test_sqrt_c30_common}
     ${test_sqrt_c30_inputs}
     -t 2 -ab
@@ -60,7 +60,7 @@ cado_define_test(test_sqrt_c30_ab
 
 cado_define_test(test_sqrt_c30_dep01
     PROGRAM
-    ${CADO_NFS_BINARY_DIR}/sqrt/sqrt
+    $<TARGET_FILE:sqrt>
     ${test_sqrt_c30_common}
     -dep 0 -t 2 -side0 -side1 -gcd
     TARGET_DEPENDENCIES sqrt

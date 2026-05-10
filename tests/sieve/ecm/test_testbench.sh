@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-TESTBENCH="$1"
-INPUTFILE="$2"
-shift 2
+INPUTFILE="$1"
+shift
+TESTBENCH="${PROJECT_BINARY_DIR?missing}/sieve/ecm/testbench"
 
 if [ "$CADO_DEBUG" ] ; then
     set -x

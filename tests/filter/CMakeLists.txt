@@ -69,7 +69,7 @@ cado_divert_test(test_dup2${sage_opt} c105_30004_largeab
 
 cado_define_test(test_sm_with_small_ell
     PROGRAM
-    ${CADO_NFS_BINARY_DIR}/filter/sm_append
+    $<TARGET_FILE:sm_append>
     -ell 79
     -in   ${CMAKE_CURRENT_SOURCE_DIR}/c30_sm_small_ell.purged
     -poly ${CMAKE_CURRENT_SOURCE_DIR}/c30_sm_small_ell.poly

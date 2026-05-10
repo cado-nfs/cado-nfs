@@ -70,7 +70,7 @@ cado_divert_test(test_cado_poly mnfs5 APPEND_ARGUMENTS
 cado_divert_test(test_cado_poly c105_30003 APPEND_ARGUMENTS
     ${CADO_NFS_SOURCE_DIR}/tests/misc/test_renumber.data/c105_30003.poly)
 cado_divert_test(test_cado_poly buggy EXPECT_FAIL APPEND_ARGUMENTS
-    ${CADO_NFS_SOURCE_DIR}/tests/utils/buggy.poly)
+    ${CMAKE_CURRENT_SOURCE_DIR}/buggy.poly)
 cado_define_test(test_relation.cpp LIBRARIES utils tests)
 cado_define_test(test_cache.c LIBRARIES utils)
 cado_define_test(test_usp.cpp LIBRARIES utils tests)
@@ -134,7 +134,7 @@ cado_define_test(test_imaginary_quadratic_class_groups.cpp LIBRARIES utils tests
 
 cado_define_test(test_cachesize
     PROGRAM
-    ${CADO_NFS_BINARY_DIR}/utils/cachesize
+    $<TARGET_FILE:cachesize>
     TARGET_DEPENDENCIES cachesize
     # only make sure that the code reaches the end. This code is
     # certainly not robust enough to have a requirement on its output.I

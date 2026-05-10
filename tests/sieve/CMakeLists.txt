@@ -6,21 +6,6 @@ include_directories(.)
 include_directories(${PROJECT_SOURCE_DIR}/utils)
 include_directories(${PROJECT_SOURCE_DIR}/sieve)
 
-# Get paths to the makefb and las binaries and store in variables
-# makefb_path and las_path, resp.
-# for cmake pre-3.0, we did:
-# get_property(makefb_path TARGET makefb PROPERTY LOCATION)
-
-# now it seems to be forbidden with cmake 3.0+ (see cmake --help-policy
-# CMP0026). The following is probably safe enough.
-set(makefb_path         ${CADO_NFS_BINARY_DIR}/sieve/makefb)
-set(las_path            ${CADO_NFS_BINARY_DIR}/sieve/las)
-set(las_tracek_path     ${CADO_NFS_BINARY_DIR}/sieve/las_tracek)
-set(las_descent_path    ${CADO_NFS_BINARY_DIR}/sieve/las_descent)
-set(siqs_path           ${CADO_NFS_BINARY_DIR}/sieve/siqs)
-set(siqs_tracek_path    ${CADO_NFS_BINARY_DIR}/sieve/siqs_tracek)
-set(dupsup_path         ${CADO_NFS_BINARY_DIR}/sieve/dupsup)
-
 
 set(F9_roots ${CMAKE_CURRENT_BINARY_DIR}/F9.roots)
 set(F9_poly ${CADO_NFS_SOURCE_DIR}/parameters/polynomials/F9.poly)
@@ -32,7 +17,6 @@ set(F9_baseargs
         poly=${F9_poly}
         fb1=${F9_roots}
         fbc=.
-        LAS_BINARY=${las_path}
         lim0=2300000
         lim1=1200000
 )
@@ -42,7 +26,7 @@ set(c90_21505_roots ${CMAKE_CURRENT_BINARY_DIR}/c90_21505.roots.gz)
 
 cado_define_test(c90_21505_makefb
         PROGRAM
-            ${makefb_path}
+            $<TARGET_FILE:makefb>
             -poly ${c90_21505_poly} -lim 811066 -maxbits 11
             -out ${c90_21505_roots}
         TARGET_DEPENDENCIES makefb
@@ -56,7 +40,6 @@ cado_define_test(c90_21505_sieve
             ncurves1=10 fb1=${c90_21505_roots} sqside=1
             q0=375923 rho=119201
             CHECKSUM_FILE=
-            LAS_BINARY=${las_path}
             "REGEX=^-18320,3:.*74f"
         PROVIDE_TEMPORARY_WDIR
         SCRIPT
@@ -72,7 +55,7 @@ set(c90_21553_roots ${CMAKE_CURRENT_BINARY_DIR}/c90_21553.roots.gz)
 
 cado_define_test(c90_21553_makefb
         PROGRAM
-            ${makefb_path}
+            $<TARGET_FILE:makefb>
             -poly ${c90_21553_poly} -lim 811066 -maxbits 11
             -out ${c90_21553_roots}
         TARGET_DEPENDENCIES makefb
@@ -86,7 +69,6 @@ cado_define_test(c90_21553_sieve
             ncurves1=10 fb1=${c90_21553_roots} sqside=1
             q0=327127 rho=22938
             CHECKSUM_FILE=
-            LAS_BINARY=${las_path}
             "REGEX=^22938,1:.*,b,.*"
         PROVIDE_TEMPORARY_WDIR
         SCRIPT
@@ -105,7 +87,7 @@ set(c95_21684_poly ${CMAKE_CURRENT_SOURCE_DIR}/c95_21684.poly)
 # 
 # cado_define_test(c95_21684_makefb0
 #         PROGRAM
-#             ${makefb_path}
+#             $<TARGET_FILE:makefb>
 #             -poly ${c95_21684_poly}
 #             -lim 600000
 #             -maxbits 13
@@ -115,7 +97,7 @@ set(c95_21684_poly ${CMAKE_CURRENT_SOURCE_DIR}/c95_21684.poly)
 #         )
 # cado_define_test(c95_21684_makefb1
 #         PROGRAM
-#             ${makefb_path}
+#             $<TARGET_FILE:makefb>
 #             -poly ${c95_21684_poly}
 #             -lim 850000
 #             -maxbits 13
@@ -134,7 +116,6 @@ set(c95_21684_poly ${CMAKE_CURRENT_SOURCE_DIR}/c95_21684.poly)
 #             sqside=1
 #             q0=310049 rho=270571
 #             CHECKSUM_FILE=
-#             LAS_BINARY=${las_path}
 #             "REGEX=reports"
 #         PROVIDE_TEMPORARY_WDIR
 #         SCRIPT
@@ -156,7 +137,7 @@ cado_define_test(F9_sievetest_cleanup
 
 cado_define_test(F9_makefb
         PROGRAM
-            ${makefb_path}
+            $<TARGET_FILE:makefb>
             -poly ${F9_poly} -lim 1200000 -maxbits 10
             -out ${F9_roots}
         TARGET_DEPENDENCIES makefb
@@ -221,8 +202,8 @@ endif()
 cado_divert_test(F9 sieve_with_hints
         ENVIRONMENT
             ${F9_baseargs}
-            todo=${CADO_NFS_SOURCE_DIR}/tests/sieve/F9.with_hints.todo
-            hint_table=${CADO_NFS_SOURCE_DIR}/tests/sieve/F9.with_hints.hints
+            todo=${CMAKE_CURRENT_SOURCE_DIR}/F9.with_hints.todo
+            hint_table=${CMAKE_CURRENT_SOURCE_DIR}/F9.with_hints.hints
             REL_COUNT=153
             REFERENCE_SHA1=e80b973209f78c7df4541956e15814e04d699932
             REFERENCE_REVISION=21aa5e0327129475c37784b849cddc303d05f526
@@ -277,7 +258,7 @@ cado_divert_test(F9_sieve_check_overfull 2short
 cado_divert_test(F9 sieve_bug_21480a
         APPEND_ENVIRONMENT
             q0=1200109 rho=116642 REL_COUNT=57 CHECKSUM_FILE=
-            LAS_BINARY=${las_tracek_path}
+            LAS_BINARY=$<TARGET_FILE:las_tracek>
         APPEND_ARGUMENTS
             -traceab -1098913,1678890
         TARGET_DEPENDENCIES
@@ -287,7 +268,7 @@ cado_divert_test(F9 sieve_bug_21480a
 cado_divert_test(F9 sieve_bug_21480b
         APPEND_ENVIRONMENT
             q0=1200007 rho=554209 REL_COUNT=54 CHECKSUM_FILE=
-            LAS_BINARY=${las_tracek_path}
+            LAS_BINARY=$<TARGET_FILE:las_tracek>
         APPEND_ARGUMENTS
             -traceab 190203,834245
         TARGET_DEPENDENCIES
@@ -356,7 +337,7 @@ cado_divert_test(F9 quick
 # We redefine the test completely, since the binary changes.
 cado_divert_test(F9_quick tracek
         APPEND_ENVIRONMENT
-            LAS_BINARY=${las_tracek_path}
+        LAS_BINARY=$<TARGET_FILE:las_tracek>
         # we need to replace the full argument list, because the binary
         # is not the same.
         APPEND_ARGUMENTS
@@ -380,7 +361,6 @@ cado_divert_test(F9_quick lambda1
 set(c120_poly ${CMAKE_CURRENT_SOURCE_DIR}/c120.poly)
 set(c120_fb ${CMAKE_CURRENT_SOURCE_DIR}/c120.roots1.gz)
 set(c120_base_env
-        LAS_BINARY=${las_path}
         lim0=10000 lpb0=26 mfb0=28 powlim0=8000
         lim1=10000 lpb1=26 mfb1=28 powlim1=8000
         las_I=12 q0=15350029 rho=14463285
@@ -429,7 +409,7 @@ cado_define_test(c30_30012
 # adjust-strategy 2.
 cado_divert_test(c30_30012 1
     APPEND_ENVIRONMENT
-        LAS_BINARY=${las_tracek_path}
+        LAS_BINARY=$<TARGET_FILE:las_tracek>
         q0=52919 rho=35788 traceij=1,0 "TRACE_REGEX=Pushed.hit.*p=347"
     TARGET_DEPENDENCIES las_tracek
 )
@@ -439,13 +419,13 @@ cado_divert_test(c30_30012 1
 # fill_in_buckets_toplevel
 cado_divert_test(c30_30012 2a
     APPEND_ENVIRONMENT
-        LAS_BINARY=${las_tracek_path}
+        LAS_BINARY=$<TARGET_FILE:las_tracek>
         q0=52919 rho=35788 traceij=0,347 "TRACE_REGEX=Pushed.hit.*p=347"
     TARGET_DEPENDENCIES las_tracek
 )
 cado_divert_test(c30_30012 2b
     APPEND_ENVIRONMENT
-        LAS_BINARY=${las_tracek_path}
+        LAS_BINARY=$<TARGET_FILE:las_tracek>
         q0=52919 rho=35788 traceij=1,694 "TRACE_REGEX=Pushed.hit.*p=347"
     TARGET_DEPENDENCIES las_tracek
 )
@@ -462,7 +442,7 @@ cado_divert_test(c30_30012 2b
 # sounds fairly reasonable.
 cado_divert_test(c30_30012 3
     APPEND_ENVIRONMENT
-        LAS_BINARY=${las_tracek_path}
+        LAS_BINARY=$<TARGET_FILE:las_tracek>
         q0=50707 rho=50345
         las_A=23 las_I= las_B=10 bkthresh1=2048     # kill I explicitly
         traceij=1,1153 "TRACE_REGEX=Pushed.hit.*p=1153"
@@ -477,7 +457,7 @@ cado_divert_test(F9 todo
             REFERENCE_REVISION=2c5ac2cff
             REL_COUNT=426
             CHECKSUM_FILE=
-            todo=${CADO_NFS_SOURCE_DIR}/tests/sieve/F9.todo
+            todo=${CMAKE_CURRENT_SOURCE_DIR}/F9.todo
         )
 
 # The descent also goes with the typical sievetest.sh
@@ -486,10 +466,10 @@ cado_divert_test(F9 descent
             q0=235086167414177 rho=46506392392611
             REFERENCE_SHA1=4d64b69f37672b2109441c52f0a57f16f08d813d
             REFERENCE_REVISION=5d9b68511102a957f941b272eb6d753526bcc3b1
-            descent_hint_table=${CADO_NFS_SOURCE_DIR}/tests/sieve/F9.hint
+            descent_hint_table=${CMAKE_CURRENT_SOURCE_DIR}/F9.hint
             ncurves0=10 ncurves1=10
             CHECKSUM_FILE=
-            LAS_BINARY=${las_descent_path}
+            LAS_BINARY=$<TARGET_FILE:las_descent>
         APPEND_ARGUMENTS
             -allow-largesq
         TARGET_DEPENDENCIES las_descent
@@ -506,7 +486,7 @@ cado_define_test(F9_dupsup
             q0=250000000 nq=1
             ncurves0=10 ncurves1=10
             CHECKSUM_FILE=
-            DUPSUP_BINARY=${dupsup_path}
+            DUPSUP_BINARY=$<TARGET_FILE:dupsup>
             DUPE_COUNT=13
         PROVIDE_TEMPORARY_WDIR
         SCRIPT
@@ -522,7 +502,7 @@ cado_define_test(F9_fakereltest
     PROVIDE_TEMPORARY_WDIR
     SCRIPT
     ${CMAKE_CURRENT_SOURCE_DIR}/F9.fakerels.sh
-    ${F9_roots} ${las_path} ${CADO_NFS_SOURCE_DIR}
+    ${F9_roots}
     TARGET_DEPENDENCIES fake_rels freerel las
     FIXTURES_REQUIRED F9.fb
     TIMEOUT 120
@@ -757,10 +737,10 @@ cado_divert_test(test-reduce-plattice seed APPEND_ARGUMENTS -seed 1)
 
 cado_define_test(test-inline-polynomials-and-expressions
     PROGRAM
-            ${makefb_path}
-            -poly "inline-poly://skew=1/poly0=x^3+2/poly1=x-2^43/n=2^128+1"
-            -lim 200
-            -t 2
+        $<TARGET_FILE:makefb>
+        -poly "inline-poly://skew=1/poly0=x^3+2/poly1=x-2^43/n=2^128+1"
+        -lim 200
+        -t 2
     AVOID_CONCURRENT 2
     TARGET_DEPENDENCIES
         makefb
@@ -778,7 +758,6 @@ cado_define_test(galois_sieve_abnormal_orbits
             lim1=200 lpb1=9 mfb1=10
             # Note: the last 3 args (lim1, lpb1 and mfb1) are not needed but
             # sievetest.sh complains if they are not present
-            LAS_BINARY=${las_path}
         REL_COUNT=71
         PROVIDE_TEMPORARY_WDIR
         SCRIPT
@@ -799,7 +778,6 @@ cado_define_test(d20_one_sided_las_sieve
             lim1=800 lpb1=10 mfb1=25
             # Note: the last 3 args (lim1, lpb1 and mfb1) are not needed but
             # sievetest.sh complains if they are not present
-            LAS_BINARY=${las_path}
         REL_COUNT=29
         REFERENCE_SHA1=d30c636a8cf76377441e6f1573f053fd7aa900ee
         REFERENCE_REVISION=xxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -837,7 +815,7 @@ cado_define_test(d20_siqs_sieve
             lim1=800 lpb1=10 mfb1=25 q0=42
             # Note: the last 4 args (lim1, lpb1, mfb1 and q0) are not needed but
             # sievetest.sh complains if they are not present
-            LAS_BINARY=${siqs_path}
+            LAS_BINARY=$<TARGET_FILE:siqs>
         REL_COUNT=135
         REFERENCE_SHA1=b502106e1b56a45ca3aa0a2474b707c1c2bd27e6
         REFERENCE_REVISION=xxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -852,7 +830,7 @@ cado_define_test(d20_siqs_sieve
 
 cado_divert_test(d20_siqs_sieve tracek
         APPEND_ENVIRONMENT
-            LAS_BINARY=${siqs_tracek_path}
+        LAS_BINARY=$<TARGET_FILE:siqs_tracek>
             REL_COUNT=22
             REFERENCE_SHA1=036b2e8ccb2ea68bfe9afa1e3e1cd9d680c37268
             REFERENCE_REVISION=xxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -872,7 +850,7 @@ cado_define_test(d60_siqs_sieve
             lim1=xxx lpb1=xxx mfb1=xxx q0=xxx
             # Note: the last 4 args (lim1, lpb1, mfb1 and q0) are not needed but
             # sievetest.sh complains if they are not present
-            LAS_BINARY=${siqs_path}
+            LAS_BINARY=$<TARGET_FILE:siqs>
         REL_COUNT=147
         REFERENCE_SHA1=b86f67f9533ec478bc01f23df4925d77a7cad7f1
         REFERENCE_REVISION=xxxxxxxxxxxxxxxxxxxxxxxxxx

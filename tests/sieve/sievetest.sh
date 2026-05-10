@@ -26,6 +26,8 @@ run() {
 
 WORKDIR=${wdir:?missing}
 
+: ${LAS_BINARY=${PROJECT_BINARY_DIR?missing}/sieve/las}
+
 if ! [ -x "${LAS_BINARY:?missing}" ] ; then
   echo "Las binary \$LAS_BINARY = ${LAS_BINARY} is not an executable file" >&2
   exit 1

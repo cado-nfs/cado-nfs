@@ -244,21 +244,20 @@ message(STATUS "CXXFLAGS=${CMAKE_CXX_FLAGS} (synthetized)")
 
 #####################################################################
 # Set dependencies for external software.
-include(${CADO_NFS_SOURCE_DIR}/config/utilities.cmake)
 
 set(some_mpir_variable "$ENV{MPIR}$ENV{MPIR_INCDIR}$ENV{MPIR_LIBDIR}")
 if(some_mpir_variable)
 # locates gmp. Obeys the env variables GMP GMP_LIBDIR GMP_INCDIR
-include(${CADO_NFS_SOURCE_DIR}/config/mpir.cmake)
-string_join(GF2X_C_FLAGS " " ${CMAKE_C_FLAGS} "-I${MPIR_INCDIR}" "-I${CADO_NFS_SOURCE_DIR}")
-string_join(GF2X_CXX_FLAGS " " ${CMAKE_CXX_FLAGS} "-I${MPIR_INCDIR}" "-I${CADO_NFS_SOURCE_DIR}")
-string_join(GF2X_LDFLAGS " " ${CMAKE_SHARED_LINKER_FLAGS} "-Wl,-rpath,${MPIR_LIBDIR}" "-L${MPIR_LIBDIR}")
+include(config/mpir.cmake)
+string(JOIN " " GF2X_C_FLAGS ${CMAKE_C_FLAGS} "-I${MPIR_INCDIR}" "-I${CADO_NFS_SOURCE_DIR}")
+string(JOIN " " GF2X_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-I${MPIR_INCDIR}" "-I${CADO_NFS_SOURCE_DIR}")
+string(JOIN " " GF2X_LDFLAGS ${CMAKE_SHARED_LINKER_FLAGS} "-Wl,-rpath,${MPIR_LIBDIR}" "-L${MPIR_LIBDIR}")
 else()
 # locates gmp. Obeys the env variables GMP GMP_LIBDIR GMP_INCDIR
-include(${CADO_NFS_SOURCE_DIR}/config/gmp.cmake)
-string_join(GF2X_C_FLAGS " " ${CMAKE_C_FLAGS} "-I${GMP_INCDIR}" "-I${CADO_NFS_SOURCE_DIR}")
-string_join(GF2X_CXX_FLAGS " " ${CMAKE_CXX_FLAGS} "-I${GMP_INCDIR}" "-I${CADO_NFS_SOURCE_DIR}")
-string_join(GF2X_LDFLAGS " " ${CMAKE_SHARED_LINKER_FLAGS} "-Wl,-rpath,${GMP_LIBDIR}" "-L${GMP_LIBDIR}")
+include(config/gmp.cmake)
+string(JOIN " " GF2X_C_FLAGS ${CMAKE_C_FLAGS} "-I${GMP_INCDIR}" "-I${CADO_NFS_SOURCE_DIR}")
+string(JOIN " " GF2X_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-I${GMP_INCDIR}" "-I${CADO_NFS_SOURCE_DIR}")
+string(JOIN " " GF2X_LDFLAGS ${CMAKE_SHARED_LINKER_FLAGS} "-Wl,-rpath,${GMP_LIBDIR}" "-L${GMP_LIBDIR}")
 endif()
 
 #####
@@ -272,12 +271,12 @@ message(STATUS "bits in unsigned long long: ${ULONGLONG_BITS}")
 
 set(OLD_CMAKE_REQUIRED_QUIET "${CMAKE_REQUIRED_QUIET}")
 set(CMAKE_REQUIRED_QUIET 1)
-include(${CADO_NFS_SOURCE_DIR}/config/check_types.cmake)
+include(config/check_types.cmake)
 set(CMAKE_REQUIRED_QUIET "${OLD_CMAKE_REQUIRED_QUIET}")
 
-include(${CADO_NFS_SOURCE_DIR}/config/pagesize.cmake)
+include(config/pagesize.cmake)
 
-include(${CADO_NFS_SOURCE_DIR}/config/gmp_randstate.cmake)
+include(config/gmp_randstate.cmake)
 
 #####################################################################
 # Obtain information from the host.
@@ -328,50 +327,50 @@ else()
 endif()
 
 if (NOT DEFINED ENV{NO_INLINE_ASSEMBLY})
-  include("${CADO_NFS_SOURCE_DIR}/config/gcc-inline-assembly.cmake")
+  include(config/gcc-inline-assembly.cmake)
 endif()
-include("${CADO_NFS_SOURCE_DIR}/config/gcc-bugs.cmake")
+include(config/gcc-bugs.cmake)
 if (NOT DEFINED ENV{NO_GAS_ASSEMBLY})
-  include("${CADO_NFS_SOURCE_DIR}/config/gas-assembly.cmake")
+  include(config/gas-assembly.cmake)
 endif()
-include("${CADO_NFS_SOURCE_DIR}/config/glibc.cmake")
-include("${CADO_NFS_SOURCE_DIR}/config/musl.cmake")
-include("${CADO_NFS_SOURCE_DIR}/config/math.cmake")
-include("${CADO_NFS_SOURCE_DIR}/config/math-special.cmake")
-include("${CADO_NFS_SOURCE_DIR}/config/posix.cmake")
-include("${CADO_NFS_SOURCE_DIR}/config/bsd.cmake")
-include("${CADO_NFS_SOURCE_DIR}/config/rusage_thread.cmake")
-include("${CADO_NFS_SOURCE_DIR}/config/clock_gettime.cmake")
-include("${CADO_NFS_SOURCE_DIR}/config/sync_fetch.cmake")
-include("${CADO_NFS_SOURCE_DIR}/config/asprintf.cmake")
-include("${CADO_NFS_SOURCE_DIR}/config/test-rand.cmake")
-include("${CADO_NFS_SOURCE_DIR}/config/strlcpy.cmake")
-include("${CADO_NFS_SOURCE_DIR}/config/linux.cmake")
-include("${CADO_NFS_SOURCE_DIR}/config/hwloc.cmake")
-include("${CADO_NFS_SOURCE_DIR}/config/fmt.cmake")
-include("${CADO_NFS_SOURCE_DIR}/config/gf2x.cmake")
-include("${CADO_NFS_SOURCE_DIR}/config/mpfr.cmake")
+include(config/glibc.cmake)
+include(config/musl.cmake)
+include(config/math.cmake)
+include(config/math-special.cmake)
+include(config/posix.cmake)
+include(config/bsd.cmake)
+include(config/rusage_thread.cmake)
+include(config/clock_gettime.cmake)
+include(config/sync_fetch.cmake)
+include(config/asprintf.cmake)
+include(config/test-rand.cmake)
+include(config/strlcpy.cmake)
+include(config/linux.cmake)
+include(config/hwloc.cmake)
+include(config/fmt.cmake)
+include(config/gf2x.cmake)
+include(config/mpfr.cmake)
 if(HAVE_MPFR)
-include("${CADO_NFS_SOURCE_DIR}/config/mpc.cmake")
+include(config/mpc.cmake)
 endif()
 IF (NOT DEFINED ENV{NO_PYTHON_CHECK})
-  include("${CADO_NFS_SOURCE_DIR}/config/python.cmake")
+  include(config/python.cmake)
 endif()
-include("${CADO_NFS_SOURCE_DIR}/config/perl.cmake")
-include("${CADO_NFS_SOURCE_DIR}/config/cxxabi.cmake")
-include("${CADO_NFS_SOURCE_DIR}/config/regex.cmake")
-include("${CADO_NFS_SOURCE_DIR}/config/jevents.cmake")
-include("${CADO_NFS_SOURCE_DIR}/config/aligned_alloc.cmake")
-include("${CADO_NFS_SOURCE_DIR}/config/alignas.cmake")
-include("${CADO_NFS_SOURCE_DIR}/config/int128.cmake")
-include("${CADO_NFS_SOURCE_DIR}/config/m4ri.cmake")
-include("${CADO_NFS_SOURCE_DIR}/config/detect-static-analysis.cmake")
-include("${CADO_NFS_SOURCE_DIR}/config/detect-coverage.cmake")
-include("${CADO_NFS_SOURCE_DIR}/config/execinfo.cmake")
+include(config/perl.cmake)
+include(config/cxxabi.cmake)
+include(config/regex.cmake)
+include(config/jevents.cmake)
+include(config/aligned_alloc.cmake)
+include(config/alignas.cmake)
+include(config/int128.cmake)
+include(config/m4ri.cmake)
+include(config/detect-static-analysis.cmake)
+include(config/detect-coverage.cmake)
+include(config/execinfo.cmake)
 CHECK_INCLUDE_FILES (sys/endian.h HAVE_SYS_ENDIAN_H)
-include("${CADO_NFS_SOURCE_DIR}/config/bswap32.cmake")
-include("${CADO_NFS_SOURCE_DIR}/config/compression.cmake")
-include("${CADO_NFS_SOURCE_DIR}/config/gdb.cmake")
+include(config/bswap32.cmake)
+include(config/compression.cmake)
+include(config/gdb.cmake)
 
 if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
     set (CMAKE_C_FLAGS "-Werror=all -Werror=extra ${CMAKE_C_FLAGS}")
@@ -394,7 +393,7 @@ if("$ENV{ENABLE_SHARED}" OR BUILD_SHARED_LIBS)
     set(CMAKE_SKIP_BUILD_RPATH FALSE)
     set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 
-    string_join(rpath ":"
+    string(JOIN ":" rpath
         "${CMAKE_INSTALL_PREFIX}/${LIBSUFFIX}/utils"
         "${CMAKE_INSTALL_PREFIX}/${LIBSUFFIX}/polyselect"
         "${CMAKE_INSTALL_PREFIX}/${LIBSUFFIX}/linalg/bblas"
@@ -438,9 +437,9 @@ get_override(GF2X_CONFIGURE_FLAGS GF2X_CONFIGURE_FLAGS)
 #   * The cado_mpi_config.h file is possibly modified in order to trigger
 #     a rebuild of all mpi sources whenever the mpi library gets changed.
 
-include (${CADO_NFS_SOURCE_DIR}/config/pthreads.cmake)
-include (${CADO_NFS_SOURCE_DIR}/config/mpi.cmake)
-include (${CADO_NFS_SOURCE_DIR}/config/openmp.cmake)
+include (config/pthreads.cmake)
+include (config/mpi.cmake)
+include (config/openmp.cmake)
 
 message(STATUS "Using libs: ${math_libs} (math) ${pthread_libs} (pthreads)")
 
@@ -449,7 +448,7 @@ configure_file(cado_mpi_config_h.in cado_mpi_config.h ESCAPE_QUOTES @ONLY)
 # Included after pthreads.cmake as the tests need pthread to detect newer
 # versions of gmp-ecm (the gmpecm.cmake script relies on ${pthread_libs} being
 # set)
-include("${CADO_NFS_SOURCE_DIR}/config/gmpecm.cmake")
+include(config/gmpecm.cmake)
 
 #####################################################################
 # OK, it's freakin ugly. Don't look.
@@ -503,10 +502,10 @@ message(STATUS "CXXFLAGS=${CMAKE_CXX_FLAGS} (synthetized, after feature checks)"
 # First, create the config file gathering everything we've got so far.
 configure_file(cado_config_h.in cado_config.h ESCAPE_QUOTES @ONLY)
 
-include_directories (${CADO_NFS_SOURCE_DIR})
-include_directories (${CADO_NFS_SOURCE_DIR}/utils)
+include_directories (.)
+include_directories (utils)
 if(NOT HAVE_FMT)
-include_directories (${CADO_NFS_SOURCE_DIR}/utils/embedded)
+include_directories (utils/embedded)
 endif()
 include_directories (${CADO_NFS_BINARY_DIR})
 
@@ -514,7 +513,7 @@ include_directories (${CADO_NFS_BINARY_DIR})
 # link_directories (${CADO_NFS_BINARY_DIR}/gf2x/.libs)
 
 if(NOT HAVE_GF2X)
-include_directories(${CADO_NFS_SOURCE_DIR}/gf2x)
+include_directories(gf2x)
 include_directories(${CADO_NFS_BINARY_DIR}/gf2x)
 
 add_custom_command(OUTPUT ${CADO_NFS_BINARY_DIR}/gf2x/Makefile
@@ -557,10 +556,7 @@ install(DIRECTORY parameters/ DESTINATION ${DATASUFFIX})
 
 configure_file(cado-nfs.py cado-nfs.py ESCAPE_QUOTES @ONLY)
 
-# file(CONFIGURE  is only for cmake 3.18 or later :-( ; this should work
-# just the same
-configure_file(config/source-location.txt.in source-location.txt ESCAPE_QUOTES @ONLY)
-# file(CONFIGURE OUTPUT source-location.txt CONTENT "@CADO_NFS_SOURCE_DIR@" @ONLY)
+file(GENERATE OUTPUT source-location.txt CONTENT "${CADO_NFS_SOURCE_DIR}")
 configure_file(cado-nfs-client.py cado-nfs-client.py ESCAPE_QUOTES @ONLY)
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/cado-nfs.py DESTINATION ${BINSUFFIX})
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/cado-nfs-client.py DESTINATION ${BINSUFFIX})
@@ -571,5 +567,5 @@ message(STATUS "Libraries and binaries will go to ${CMAKE_INSTALL_PREFIX}/${LIBS
 message(STATUS "Data will go to ${CMAKE_INSTALL_PREFIX}/${DATASUFFIX}")
 
 IF (DEFINED ENV{CMAKE_DUMP_VARIABLES})
-  include("${CADO_NFS_SOURCE_DIR}/config/variables.cmake")
+  include(config/variables.cmake)
 ENDIF()
