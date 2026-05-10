@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 
 FB="$1"
-LAS="$2"
-SRCDIR="$3"
+
+BINDIR="${CADO_NFS_BINARY_DIR?missing}/sieve"
+SRCDIR="${CADO_NFS_SOURCE_DIR?missing}"
 
 WORKDIR=${wdir:?missing}
 
-BINDIR="`dirname "$2"`"
-FREEREL=${BINDIR}/freerel
-FAKERELS=${BINDIR}/fake_rels
+LAS="${BINDIR}/las"
+FREEREL="${BINDIR}/freerel"
+FAKERELS="${BINDIR}/fake_rels"
 
 TMPSAMPLE="${WORKDIR:?missing}/cadotest.fakerel.sample"
 TMPRENUMBER="${WORKDIR:?missing}/cadotest.fakerel.renumber"

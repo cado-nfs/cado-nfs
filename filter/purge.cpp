@@ -92,7 +92,7 @@
 // #define TRACE_J 0x5b841 /* trace column J */
 
 struct purge_output_specification { /* {{{ */
-    parameter_mandatory<std::string, "out", "outfile for remaining relations">
+    parameter<std::string, "out", "outfile for remaining relations">
         purgedname;
     parameter<std::string, "outdel", "outfile for deleted relations (for DL)">
         deletedname;
@@ -266,8 +266,9 @@ struct purge_process : purge_output_specification {
         ofstream_maybe_compressed out;
         ofstream_maybe_compressed outdel;
 
-        if (out.open(purgedname); !out.good())
-            throw cado::error("cannot open {} for writing", purgedname());
+        if (purgedname.is_provided())
+            if (out.open(purgedname); !out.good())
+                throw cado::error("cannot open {} for writing", purgedname());
 
         if (deletedname.is_provided())
             if (outdel.open(deletedname); !outdel.good())
@@ -281,7 +282,7 @@ struct purge_process : purge_output_specification {
          * compute bound B such that all non empty columns have indices
          * j such that j < B
          */
-        {
+        if (out.is_open()) {
             size_t bound = M.column_weights.size();
             for (; bound && M.column_weights[bound - 1] == 0; bound--)
                 ;
@@ -300,6 +301,7 @@ struct purge_process : purge_output_specification {
             [&](relation_type & rel) {
                 if (M.is_active(rel.num)) {
                     W += static_cast<double>(rel.weight);
+                    if (out.is_open())
                     fmt::print(out, "{}\n", rel.line);
                 } else if (outdel.is_open()) {
                     fmt::print(outdel, "{}\n", rel.line);

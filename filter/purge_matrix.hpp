@@ -143,6 +143,7 @@ struct purge_matrix : simple_minded_chunk_allocator<index_t> {
     std::pair<size_t, connected_component>
     compute_connected_component_with_set(size_t i0,
             std::vector<size_t> const & sum2,
+            std::vector<size_t>  & buf,
             F const & f) const;
 
     void delete_connected_component(size_t i0,

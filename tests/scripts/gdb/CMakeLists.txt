@@ -82,7 +82,7 @@ foreach(layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS} b64)
 
     add_executable(test_gdb_printers_bwc_${layer}
          test_gdb_printers_bwc.cpp)
-    string_join(our_compile_flags_string " " ${our_compile_flags})
+    string(JOIN " " our_compile_flags_string ${our_compile_flags})
     set_target_properties(test_gdb_printers_bwc_${layer} PROPERTIES
         COMPILE_FLAGS ${our_compile_flags_string})
 

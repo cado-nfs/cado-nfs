@@ -23,7 +23,9 @@ while [ $# -gt 0 ] ; do
     fi
 done
 
-: ${BUILD_DIR:?missing}
+if ! [ "$BUILD_DIR" ] ; then
+    BUILD_DIR=${PROJECT_BINARY_DIR?missing}
+fi
 : ${POLY:?missing}
 : ${LPBS:?missing}
 

@@ -4,7 +4,7 @@ include_directories(${PROJECT_SOURCE_DIR}/polyselect)
 
 macro(polyselect_test n)
     cado_define_test(test_polsel_${n}
-        PROGRAM ${CADO_NFS_BINARY_DIR}/polyselect/polyselect ${ARGN}
+        PROGRAM $<TARGET_FILE:polyselect> ${ARGN}
         TARGET_DEPENDENCIES polyselect)
 endmacro()
 set(example_N 90377629292003121684002147101760858109247336549001090677693)
@@ -28,7 +28,7 @@ endif()
 ## we disable the following test since twocubics is not in "make dist"
 ## test also the twocubics binary
 # cado_define_test(twocubics PROGRAM
-#    ${CADO_NFS_BINARY_DIR}/polyselect/twocubics -n 999073468111577057576445816581 -P 500 -incr 30 -admax 1000
+#    $<TARGET_FILE:twocubics> -n 999073468111577057576445816581 -P 500 -incr 30 -admax 1000
 #    TARGET_DEPENDENCIES twocubics)
 
 cado_define_test(test_ropt_auxiliary.cpp LIBRARIES utils tests polyselect_common)
@@ -45,7 +45,7 @@ cado_define_test(test_polyselect_shash.cpp
 )
 
 cado_define_test(test_ropt_adv
-    PROGRAM ${CADO_NFS_BINARY_DIR}/polyselect/polyselect_ropt --adv
+    PROGRAM $<TARGET_FILE:polyselect_ropt> --adv
     TARGET_DEPENDENCIES polyselect_ropt
     NO_DEFAULT_RUN
     TIMEOUT 60
@@ -130,7 +130,7 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
     # this addition in order to cover new pieces of code.
     cado_define_test(test_ropt_list_rsa250
         PROGRAM
-        ${CADO_NFS_BINARY_DIR}/polyselect/polyselect_ropt
+        $<TARGET_FILE:polyselect_ropt>
         -inputpolys ${CADO_NFS_SOURCE_DIR}/tests/polyselect/ropt.rsa250.txt
         -Bf 2.100e+09 -Bg 1.800e+09 -area 2.400e+19
         -ropteffort 0.05
@@ -159,7 +159,7 @@ endforeach()
 
 cado_define_test(test_polyselect_gfpn
         PROGRAM
-        ${CADO_NFS_BINARY_DIR}/polyselect/polyselect_gfpn
+        $<TARGET_FILE:polyselect_gfpn>
         ARGUMENTS
         -n 2 -p
         TARGET_DEPENDENCIES polyselect_gfpn
@@ -173,7 +173,7 @@ cado_divert_test(test_polyselect_gfpn 3 APPEND_ARGUMENTS 45086221481123679612257
 include(CMakeLists-nodist.txt OPTIONAL)
 
 cado_define_test(test_sopt PROGRAM
-    ${CADO_NFS_BINARY_DIR}/polyselect/sopt
+    $<TARGET_FILE:sopt>
     -sopteffort 2
     NO_DEFAULT_RUN
     SHA1_ON_REGEXP_LINES "^[^#]"
@@ -200,7 +200,7 @@ cado_divert_test(test_sopt 2
 
 cado_define_test(polyselect_add_score
     PROGRAM
-        ${CADO_NFS_BINARY_DIR}/polyselect/score
+        $<TARGET_FILE:score>
         -Bf 1e+04 -Bg 2e+05 -area 5e+10
         ${CADO_NFS_SOURCE_DIR}/tests/misc/c60.poly
     EXPECT_SHA1 27954264d0ab7e6bf8bbc07a8376ff9c63649ba8
@@ -208,7 +208,7 @@ cado_define_test(polyselect_add_score
 
 cado_define_test(polyselect_add_skewness
     PROGRAM
-        ${CADO_NFS_BINARY_DIR}/polyselect/skewness
+        $<TARGET_FILE:skewness>
         ${CADO_NFS_SOURCE_DIR}/tests/misc/c60.poly
     EXPECT_SHA1 70639bbafd1b6d4ac3bbcb4a47f621fa446c267f
     TARGET_DEPENDENCIES skewness)

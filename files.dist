@@ -115,7 +115,6 @@ config/regex.cmake
 config/rusage_thread.c
 config/rusage_thread.cmake
 config/search_for_function.cmake
-config/source-location.txt.in
 config/sse2.c
 config/sse3.c
 config/sse41.c
@@ -126,7 +125,6 @@ config/sync_fetch.cmake
 config/test-rand.c
 config/test-rand.cmake
 config/test-srand-deterministic.c
-config/utilities.cmake
 config/variables.cmake
 config/xcode.cmake
 docker/Makefile
@@ -1196,9 +1194,12 @@ tests/filter/c105_30003.rels.gz
 tests/filter/c30_sm_small_ell.poly
 tests/filter/c30_sm_small_ell.purged
 tests/filter/create_fake_relation_file.cpp
+tests/filter/create_purge_test_file.sh
+tests/filter/heavy_torture_test_purge.sh
 tests/filter/p40_30004.poly
 tests/filter/p40_30004.rels.gz
 tests/filter/p40_30004_with_sides.rels.gz
+tests/filter/purge_torturetest1.rels
 tests/filter/test_dup1.sh
 tests/filter/test_dup2.sh
 tests/filter/test_filter_galois.d20.poly
@@ -1290,10 +1291,10 @@ tests/misc/c60.rels1
 tests/misc/c60.rels2
 tests/misc/d130.poly
 tests/misc/p30.poly
+tests/misc/test_check_rels.sh
 tests/misc/test_renumber.data/c105_30003.poly
 tests/misc/test_renumber.data/mnfs5.poly
 tests/misc/test_renumber.sh
-tests/misc/testcheck_rels.sh
 tests/ncpus.sh
 tests/omp_get_max_threads.c
 tests/pipe_to_sage.sh

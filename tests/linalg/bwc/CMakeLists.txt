@@ -427,7 +427,7 @@ foreach(layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
         cado_define_test(test_bwc_lingen_21744
             AVOID_CONCURRENT 4
             ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=4 OMP_THREAD_LIMIT=4
-            PROGRAM ${CADO_NFS_BINARY_DIR}/linalg/bwc/lingen_p1
+            PROGRAM $<TARGET_FILE:lingen_p1>
             ARGUMENTS
             --afile ${CMAKE_CURRENT_SOURCE_DIR}/A.21744 ffile=/dev/null m=4 n=2
             prime=485263
@@ -437,7 +437,7 @@ foreach(layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
 
         cado_define_test(test_bwc_lingen_21744_bis
             AVOID_CONCURRENT
-            PROGRAM ${CADO_NFS_BINARY_DIR}/linalg/bwc/lingen_p1
+            PROGRAM $<TARGET_FILE:lingen_p1>
             ARGUMENTS
             --random-input-with-length 20   m=4 n=2  prime=1009 --seed 1377
                 tuning_thresholds=collective:64,recursive:32,notiming:0
@@ -785,7 +785,7 @@ foreach(mpiconf nompi ${mpiconfs})
         ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
         ${PROJECT_BINARY_DIR}/linalg/bwc/bwc.pl :mpirun
         --
-        ${CADO_NFS_BINARY_DIR}/linalg/bwc/krylov --random_matrix nrows=20000,density=100 m=64 n=64 ys=0..64 prime=2 interval=100 end=200
+        $<TARGET_FILE:krylov> --random_matrix nrows=20000,density=100 m=64 n=64 ys=0..64 prime=2 interval=100 end=200
         TARGET_DEPENDENCIES bwc_full
         TIMEOUT 60
         )
@@ -798,7 +798,7 @@ foreach(arith_layer ${BWC_GF2_ARITHMETIC_BACKENDS})
     parse_arith_layer(${arith_layer} dummy)
     set(arith_layer ${canonical_arith_layer})
 
-    string_join(mm_backends " " ${BWC_GF2_MATMUL_BACKENDS})
+    string(JOIN " " mm_backends ${BWC_GF2_MATMUL_BACKENDS})
 
     create_test_spmv(binary-${arith_layer}
         --backends "${mm_backends}"
@@ -812,7 +812,7 @@ foreach(arith_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
     if(t)
         set(width ${CMAKE_MATCH_1})
     endif()
-    string_join(mm_backends " " ${BWC_GFP_MATMUL_BACKENDS})
+    string(JOIN " " mm_backends ${BWC_GFP_MATMUL_BACKENDS})
     create_test_spmv(prime-${arith_layer}
         --backends "${mm_backends}"
         --arith-layer ${arith_layer}
@@ -844,8 +844,9 @@ cado_define_test(SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/test-matcache.sh
 # bench_polmatmul contains important test code that should perhaps
 # persist, and therefore we want this code to at least keep basic
 # functionality.
-cado_define_test(PROGRAM
-    ${CADO_NFS_BINARY_DIR}/linalg/bwc/bench_polmatmul
+cado_define_test(test_bench_polmatmul
+    PROGRAM
+    $<TARGET_FILE:bench_polmatmul>
     5000 4 4
     TARGET_DEPENDENCIES bench_polmatmul TIMEOUT 40)
 
@@ -854,7 +855,7 @@ cado_define_test(PROGRAM
 cado_define_test(TEST_NAME bwc_staged_krylov
     PROVIDE_TEMPORARY_WDIR
     PROGRAM
-    ${CADO_NFS_BINARY_DIR}/linalg/bwc/krylov thr=2x2 nullspace=left
+    $<TARGET_FILE:krylov> thr=2x2 nullspace=left
     interval=200  mn=64 prime=2  ys=0..64 start=0 end=200
     skip_online_checks=1 rebuild_cache=1 seed=1
     sequential_cache_build=1 random_matrix=nrows=10000,density=150,seed=1
@@ -928,7 +929,7 @@ cado_define_test(TEST_NAME test-blocklanczos-staged
     PROVIDE_TEMPORARY_WDIR
     PROGRAM
     ${CADO_NFS_BINARY_DIR}/linalg/bwc/bwc.pl :mpirun --
-    ${CADO_NFS_BINARY_DIR}/linalg/bwc/blocklanczos
+    $<TARGET_FILE:blocklanczos>
     random_matrix=nrows=1200,ncols=1000,density=80,seed=1 m=64 n=64 ys=0..64
     no_save_cache=1 interval=10 nullspace=left
     TARGET_DEPENDENCIES test-blocklanczos_dependencies)

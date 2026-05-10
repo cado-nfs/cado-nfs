@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-CHECK_RELS="$1"
 SOURCE_TEST_DIR="`dirname "$0"`"
+CHECK_RELS="${PROJECT_BINARY_DIR?missing}/misc/check_rels"
 : ${wdir?missing}
 
 

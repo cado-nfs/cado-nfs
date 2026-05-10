@@ -371,9 +371,9 @@ macro(CONFIGURE_MATMUL_LIB v i)
         endif()
 endmacro()
 
-string_join(FOO ", " ${internal_arithmetic_backends_gf2})
+string(JOIN ", " FOO ${internal_arithmetic_backends_gf2})
 message(STATUS "GF(2) SpMV backends for linear algebra: ${FOO}")
-string_join(FOO ", " ${internal_arithmetic_backends_gfp})
+string(JOIN ", " FOO ${internal_arithmetic_backends_gfp})
 message(STATUS "GF(p) SpMV backends for linear algebra: ${FOO}")
 
 
@@ -392,8 +392,7 @@ foreach(v ${internal_arithmetic_backends_gfp})
 endforeach(v)
 
 foreach(vw ${BWC_EXTRA_BACKENDS})
-    string_split("${vw}" "+" FOO)
-    message(STATUS "output variable: ${FOO}")
+    string(REPLACE "+" ";" FOO ${vw})
     list(GET FOO 0 v)
     list(GET FOO 1 w)
     message(STATUS "Extra bwc backend: arithmetic=${v}, matmul=${w}")

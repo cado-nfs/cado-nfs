@@ -9,7 +9,6 @@
 #include <algorithm>
 #include <functional>
 #include <set>
-#include <list>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -114,6 +113,7 @@ void purge_matrix::print_clique_removal_weight_function()
 template <weight_function F>
 auto purge_matrix::compute_connected_component_with_set(size_t i0,
         std::vector<size_t> const & sum2,
+        std::vector<size_t> & buf,
         F const & f) const
     -> std::pair<size_t, connected_component>
 {
@@ -123,17 +123,17 @@ auto purge_matrix::compute_connected_component_with_set(size_t i0,
      * effect since recursion on all smaller-row-index anchors would be
      * skipped.
      */
-    std::set<size_t> buf;
-    buf.insert(i0);
-    std::list<size_t> todo;
-    todo.push_back(i0);
+    buf.clear();
+    buf.push_back(i0);
+
+    std::set<size_t> H;
+    H.insert(i0);
 
     float w = 0.; /* initial weight */
 
     /* Loop on all connected rows */
-    for ( ; !todo.empty() ; ) {
-        auto i = todo.front();
-        todo.pop_front();
+    for (size_t k = 0; k < buf.size(); k++) {
+        auto const i = buf[k];
         auto const * p = rows[i];
 
         /* Loop on all columns of the current row */
@@ -151,9 +151,9 @@ auto purge_matrix::compute_connected_component_with_set(size_t i0,
                 if (i1 < i0)
                     return {0, {}};
 
-                if (std::ranges::find(buf, i1) == buf.end()) {
-                    buf.insert(i1);
-                    todo.push_back(i1);
+                if (std::ranges::find(H, i1) == H.end()) {
+                    H.insert(i1);
+                    buf.push_back(i1);
                 }
             }
         }
@@ -219,8 +219,9 @@ auto purge_matrix::compute_connected_component(size_t i0,
                  * the set version, which has better complexity, if we
                  * ever detect that some long components exist.
                  */
-                if (buf.size() >= ccc_quadratic_abort)
-                    return compute_connected_component_with_set(i0, sum2, f);
+                if (buf.size() >= ccc_quadratic_abort) {
+                    return compute_connected_component_with_set(i0, sum2, buf, f);
+                }
 
                 if (std::ranges::find(buf, i1) == buf.end())
                     buf.push_back(i1);
