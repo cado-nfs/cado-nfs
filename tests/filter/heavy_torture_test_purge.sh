@@ -21,11 +21,15 @@ else
     exit 1
 fi
 
-$(dirname "$0")/create_purge_test_file.sh 192 3 320 32 32 > $wdir/relations_base
+$(dirname "$0")/create_purge_test_file.py 192 3 320 32 32 > $wdir/relations_base
 
 # every once in a while, it does occur that all tests pass, even with a
 # somewhat buggy purge. No big deal.
-for i in `seq 1 128` ; do
+ntests=128
+if [ "$VALGRIND" ] ; then
+    ntests=16
+fi
+for i in `seq 1 $ntests` ; do
     fshuf < $wdir/relations_base > $wdir/relations.$i
     if ! "$bindir/purge" -keep 0 -col-min-index 192 $wdir/relations.$i ; then
         echo "randomization #$i failed" >&2

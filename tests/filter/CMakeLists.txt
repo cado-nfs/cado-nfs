@@ -83,12 +83,14 @@ cado_define_test(test_purge_torture
     TARGET_DEPENDENCIES purge
 )
 
+if (NOT DEFINED ENV{NO_PYTHON_CHECK})
 cado_define_test(test_purge_heavy_torture
     PROVIDE_TEMPORARY_WDIR
     PROGRAM
     ${CMAKE_CURRENT_SOURCE_DIR}/heavy_torture_test_purge.sh
     TARGET_DEPENDENCIES purge
 )
+endif()
 
 add_executable(create_fake_relation_file create_fake_relation_file.cpp)
 target_link_libraries(create_fake_relation_file utils)
