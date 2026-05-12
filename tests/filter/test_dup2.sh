@@ -5,6 +5,9 @@
 
 set -e
 
+# we don't want locale-variability of /bin/sort
+export LANG=C LC_CTYPE=C LC_COLLATE=C
+
 : ${wdir:?missing}
 
 DL=()

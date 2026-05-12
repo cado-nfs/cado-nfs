@@ -2,6 +2,9 @@
 
 set -e
 
+# we don't want locale-variability of /bin/sort
+export LANG=C LC_CTYPE=C LC_COLLATE=C
+
 if [ "$CADO_DEBUG" ] ; then set -x ; fi
 
 dup1="${PROJECT_BINARY_DIR?missing}/filter/dup1"
