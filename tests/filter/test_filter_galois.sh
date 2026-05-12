@@ -5,6 +5,9 @@
 
 set -e
 
+# we don't want locale-variability of /bin/sort
+export LANG=C LC_CTYPE=C LC_COLLATE=C
+
 build_tree="$PROJECT_BINARY_DIR"
 
 # the sha1 hash is changed by the normalization of the relations.
