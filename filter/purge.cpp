@@ -129,7 +129,7 @@ struct purge_process : purge_output_specification {
         "-1">
         nsteps;
     parameter_with_default<
-        int, "required_excess",
+        double, "required_excess",
         R"(% of excess required at the end of the 1st singleton removal step)",
         CADO_STRINGIZE(DEFAULT_PURGE_REQUIRED_EXCESS)>
         required_excess;
