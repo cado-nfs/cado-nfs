@@ -109,6 +109,8 @@
 
 #cmakedefine    HAVE_SYNC_FETCH
 
+#cmakedefine    HAVE_CXX_FENV
+
 #cmakedefine    HAVE_ASPRINTF
 
 #cmakedefine    HAVE_USUAL_SRAND_DETERMINISTIC_BEHAVIOR

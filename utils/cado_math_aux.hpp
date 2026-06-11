@@ -413,6 +413,7 @@ namespace cado_math_aux
         return (T(0) < val) - (val < T(0));
     }
 
+#if HAVE_CXX_FENV
     struct temporary_round_mode {
         int saved;
         explicit temporary_round_mode(int mode)
@@ -442,6 +443,7 @@ namespace cado_math_aux
         d = d + d1;
         return d == d1;
     }
+#endif
 
     static inline bool valgrind_long_double_hopeless()
     {

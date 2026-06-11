@@ -18,6 +18,7 @@
 #include "cado_mp_conversions.hpp"
 #include "cxx_mpz.hpp"
 
+#ifdef HAVE_CXX_FENV
 /* This way of forming examples is awkward because we need cooperation
  * from the floating point rounding modes
  */
@@ -52,6 +53,7 @@ template <typename T> struct example_gen_1 {
         zd = std::ldexp(zd, -e);
     }
 };
+#endif
 
 /* This one, after all, is more direct. It does rely on mpz_get<> doing
  * the right thing, though.
@@ -131,6 +133,7 @@ int main()
     cxx_gmp_randstate rstate;
 
     const bool do_ld = !cado_math_aux::valgrind_long_double_hopeless();
+#ifdef HAVE_CXX_FENV
     const bool do_gen1 = cado_math_aux::rounding_towards_zero_works();
 
     if (!do_gen1) {
@@ -139,6 +142,12 @@ int main()
                 "# disabled because FE_TOWARDZERO does not work\n"
                 "# (are you running under valgrind?\n\n");
     }
+#else
+    fmt::print(stderr,
+            "# note: tests that rely on the rounding mode are\n"
+            "# disabled because FE_TOWARDZERO is not understood\n"
+            "# by the compiler\n\n");
+#endif
 
     if (!do_ld) {
         fmt::print(stderr,
@@ -148,11 +157,13 @@ int main()
     }
 
 
+#ifdef HAVE_CXX_FENV
     if (do_gen1) {
         dotest<double, example_gen_1>(rstate);
         if (do_ld)
             dotest<long double, example_gen_1>(rstate);
     }
+#endif
 
     dotest<double, example_gen_2>(rstate);
     if (do_ld)
