@@ -59,6 +59,8 @@ config/cxxwrap.pl.in
 config/detect-coverage.cmake
 config/detect-static-analysis.cmake
 config/execinfo.cmake
+config/fenv.cmake
+config/fenv.cpp
 config/fmt.cmake
 config/fmtbase.h.in
 config/gas-assembly.cmake

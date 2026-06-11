@@ -413,7 +413,7 @@ namespace cado_math_aux
         return (T(0) < val) - (val < T(0));
     }
 
-#if HAVE_CXX_FENV
+#ifdef HAVE_CXX_FENV
     struct temporary_round_mode {
         int saved;
         explicit temporary_round_mode(int mode)
