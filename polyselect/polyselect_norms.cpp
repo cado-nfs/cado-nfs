@@ -309,6 +309,8 @@ static void L2_skewness_derivative_numerator(double_poly_ptr dP, double_poly_src
         dP->coeff[k] = t0; // ldexp(t0/(d+1), -2*d);
     }
     double_poly_cleandeg(dP, d);
+    if (double_poly_has_inf(dP) || double_poly_has_nan(dP))
+        ASSERT_ALWAYS(0);
 }
 
 /* Do the same just for the numerator of the L2 skewness. Again, this is
@@ -342,6 +344,8 @@ static void L2_skewness_numerator(double_poly_ptr dP, double_poly_srcptr p)
         dP->coeff[k] = t0; // ldexp(t0/(d+1), -(2*d-1));
     }
     double_poly_cleandeg(dP, d);
+    if (double_poly_has_inf(dP) || double_poly_has_nan(dP))
+        ASSERT_ALWAYS(0);
 }
 
 /* return the skewness giving the best lognorm sum for two polynomials.
@@ -376,6 +380,9 @@ L2_combined_skewness2 (mpz_poly_srcptr f, mpz_poly_srcptr g)
     double_poly_mul(S, dQF, QG);
     double_poly_mul(t, QF, dQG);
     double_poly_add(S, S, t);
+
+    if (double_poly_has_inf(S) || double_poly_has_nan(S))
+        ASSERT_ALWAYS(0);
 
     double * roots = (double *) malloc(S->deg * sizeof(double));
 

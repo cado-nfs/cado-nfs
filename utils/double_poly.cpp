@@ -33,7 +33,7 @@
 #if __GLIBC_PREREQ(2, 23)
 #include <cmath>
 using std::isnan;
-// using std::isinf;
+using std::isinf;
 #else
 /* not "the right way", but happens to work.  */
 #include <cmath>
@@ -42,7 +42,7 @@ using std::isnan;
 /* this one is the right way */
 #include <cmath>
 using std::isnan;
-// using std::isinf;
+using std::isinf;
 #endif
 
 #define STATIC_ANALYSIS_ASSERT_DATA_HEALTH(d) do {		     	   \
@@ -788,6 +788,26 @@ static double double_poly_content(double_poly_srcptr f)
     return fabs((double) gcd);
 }
 #endif
+
+/* check if an infinite value is found among the poly coeffs
+ */
+int double_poly_has_inf(double_poly_srcptr f)
+{
+    for(int deg = f->deg ; deg >= 0 ; deg--) {
+        if (isinf(f->coeff[deg]))
+            return 1;
+    }
+    return 0;
+}
+
+int double_poly_has_nan(double_poly_srcptr f)
+{
+    for(int deg = f->deg ; deg >= 0 ; deg--) {
+        if (isnan(f->coeff[deg]))
+            return 1;
+    }
+    return 0;
+}
 
 /*
  * Return the leading coefficient of f, even with f not normalized.

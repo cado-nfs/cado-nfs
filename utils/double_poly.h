@@ -58,6 +58,8 @@ void double_poly_set_xi(double_poly_ptr s, int i);
 void double_poly_cleandeg(double_poly_ptr f, int deg);
 
 int double_poly_cmp(double_poly_srcptr a, double_poly_srcptr b);
+int double_poly_has_inf(double_poly_srcptr f);
+int double_poly_has_nan(double_poly_srcptr f);
 double double_poly_lc(double_poly_srcptr f);
 
 double double_poly_eval (double_poly_srcptr, double);
