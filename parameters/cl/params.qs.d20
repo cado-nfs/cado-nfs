@@ -18,7 +18,7 @@ tasks.lim0 = 800
 tasks.lpb0 = 10
 tasks.sieve.mfb0 = 20
 tasks.sieve.qrange = 25
-tasks.qmin = 1 # cannot be 0 as it it interpreted as a special value
+tasks.qmin = 1 # cannot be 0 as it is interpreted as a special value
 
 tasks.sieve.qfac_min = 100
 tasks.sieve.qfac_max = 250

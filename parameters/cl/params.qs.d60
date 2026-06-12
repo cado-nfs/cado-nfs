@@ -18,7 +18,7 @@ tasks.lim0 = 50000
 tasks.lpb0 = 20
 tasks.sieve.mfb0 = 42
 tasks.sieve.qrange = 50
-tasks.qmin = 1 # cannot be 0 as it it interpreted as a special value
+tasks.qmin = 1 # cannot be 0 as it is interpreted as a special value
 
 tasks.sieve.qfac_min = 750 # lower bound on primes appearing in the special-q
 tasks.sieve.qfac_max = 1024 # upper bound on primes appearing in the special-q
