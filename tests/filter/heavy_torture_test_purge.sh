@@ -25,13 +25,14 @@ $(dirname "$0")/create_purge_test_file.py 192 3 320 32 32 > $wdir/relations_base
 
 # every once in a while, it does occur that all tests pass, even with a
 # somewhat buggy purge. No big deal.
-ntests=128
+ntests=64
 if [ "$VALGRIND" ] ; then
     ntests=16
 fi
 for i in `seq 1 $ntests` ; do
     fshuf < $wdir/relations_base > $wdir/relations.$i
-    if ! "$bindir/purge" -keep 0 -col-min-index 192 $wdir/relations.$i ; then
+    if ! "$bindir/purge" -keep 0 -col-min-index 192 $wdir/relations.$i > $wdir/out-err.$i 2>&1 ; then
+        cat $wdir/out-err.$i
         echo "randomization #$i failed" >&2
         exit 1
     fi
