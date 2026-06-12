@@ -238,6 +238,13 @@ namespace cado_math_aux {
             }
         };
 
+    template<>
+        struct converter_from_mpz<double> {
+            double operator()(mpz_srcptr z) const {
+                return mpz_get_d(z);
+            }
+        };
+
     
 #ifdef HAVE_MPFR
     template<>
