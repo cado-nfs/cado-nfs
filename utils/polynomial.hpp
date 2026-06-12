@@ -42,6 +42,7 @@
 #include "runtime_numeric_cast.hpp"
 #include "number_context.hpp"
 #include "mpz_poly.h"
+#include "double_poly.h"
 #include "cxx_mpz.hpp"
 #include "cado_math_aux.hpp"
 #include "cado_addsubmul.hpp"
@@ -189,6 +190,7 @@ struct polynomial : public number_context<T>
     std::vector<T> coeffs;
 
     public:
+    T const * get_coeff_data() const { return coeffs.data(); }
 
     using coefficient_type = T;
 
@@ -783,7 +785,10 @@ struct polynomial : public number_context<T>
         }
         q[degree()] = cado_math_aux::abs(lc());
         T b = 1;
-        for( ; q.eval(b) < 0 ; b = b + b) ;
+        /* In the unlikely case that a power of two is a root, we must
+         * make sure that we return a _strict_ upper bound on the roots.
+         */
+        for( ; q.eval(b) <= 0 ; b = b + b) ;
         return /* negative ? -b : */ b;
     }
     /* }}} */
@@ -1021,7 +1026,9 @@ struct polynomial : public number_context<T>
         cado_math_aux::is_real_v<U> &&
         cado_math_aux::is_coercible_v<T, U>)
     {
-        return positive_roots_inner(tr(bound_positive_roots()));
+        auto B = tr(bound_positive_roots());
+        // B += cado_math_aux::ulp(B);
+        return positive_roots_inner(B);
     }
     /* }}} */
     /* {{{ roots (positive and negative) */
@@ -1647,6 +1654,15 @@ struct polynomial : public number_context<T>
         coeffs.assign(f.degree() + 1, ctx()(0));
         for(int i = 0 ; i <= f.degree() ; i++) {
             coeffs[i] = ctx()(mpz_poly_coeff_const(f, i));
+        }
+    }
+
+    explicit polynomial(double_poly_srcptr f, number_context<T> const & tr = {})
+        : number_context<T>(tr)
+    {
+        coeffs.assign(f->deg + 1, ctx()(0));
+        for(int i = 0 ; i <= f->deg ; i++) {
+            coeffs[i] = ctx()(f->coeff[i]);
         }
     }
 

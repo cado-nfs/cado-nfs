@@ -279,6 +279,25 @@ namespace cado_math_aux
     }
 #endif
     /* }}} */
+    /* {{{ simple wrappers around std::sqrt */
+    using std::sqrt;
+#ifdef HAVE_MPFR
+    inline cxx_mpfr sqrt(cxx_mpfr const & x) {
+        cxx_mpfr res;
+        mpfr_set_prec(res, x.prec());
+        mpfr_sqrt(res, x, MPFR_RNDN);
+        return res;
+    }
+#endif
+#ifdef HAVE_MPC
+    inline cxx_mpc sqrt(cxx_mpc const & x) {
+        cxx_mpc res;
+        mpc_set_prec(res, x.prec());
+        mpc_sqrt(res, x, MPC_RNDNN);
+        return res;
+    }
+#endif
+    /* }}} */
     /* {{{ fma/fms operation -- we have to use a function in order to have a
      * unified interface
      */
