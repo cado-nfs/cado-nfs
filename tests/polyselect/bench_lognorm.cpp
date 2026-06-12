@@ -13,7 +13,7 @@
 #include "fmt/base.h"
 
 #include "mpz_poly.h"
-#include "polyselect_norms.h"
+#include "polyselect_norms.hpp"
 #include "gmp_aux.h"
 #include "timing.h"
 #include "utils_cxx.hpp"

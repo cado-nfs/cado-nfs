@@ -17,7 +17,7 @@
 #include "macros.h"
 #include "mpz_poly.h"
 #include "polyselect_alpha.h"
-#include "polyselect_norms.h"
+#include "polyselect_norms.hpp"
 #include "ropt_arith.hpp"
 #include "ropt_param.h"
 #include "ropt_single_sublattice_priority_queue.h"

@@ -805,7 +805,7 @@ polyselect/polyselect_main_queue.hpp
 polyselect/polyselect_match.cpp
 polyselect/polyselect_match.hpp
 polyselect/polyselect_norms.cpp
-polyselect/polyselect_norms.h
+polyselect/polyselect_norms.hpp
 polyselect/polyselect_poly_header.c
 polyselect/polyselect_poly_header.h
 polyselect/polyselect_primes_table.c

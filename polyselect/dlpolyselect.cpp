@@ -79,7 +79,7 @@ skew: 1.37
 #include "mpz_poly.h"
 #include "murphyE.hpp"
 #include "rootfinder.h"
-#include "polyselect_norms.h"
+#include "polyselect_norms.hpp"
 #include "polyselect_alpha.h"
 #include "timing.h"
 #include "mpz_mat.h"

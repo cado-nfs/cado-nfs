@@ -7,7 +7,7 @@
 
 #include "double_poly.h"
 #include "macros.h"
-#include "polyselect_norms.h"
+#include "polyselect_norms.hpp"
 
 /************************* norm and skewness *********************************/
 

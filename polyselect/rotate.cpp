@@ -5,7 +5,7 @@
 #include <cmath>
 #include <cctype>
 #include <gmp.h>
-#include "polyselect_norms.h"
+#include "polyselect_norms.hpp"
 #include "polyselect_alpha.h"
 #include "auxiliary.hpp"
 #include "area.hpp"

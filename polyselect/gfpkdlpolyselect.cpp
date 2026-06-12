@@ -27,7 +27,7 @@
 #include "macros.h" // ASSERT
 #include "mpz_poly.h"
 #include "polyselect_alpha.h"
-#include "polyselect_norms.h"
+#include "polyselect_norms.hpp"
 #include "rootfinder.h"
 
 // #define PHI_COEFF_INT 1 // ?

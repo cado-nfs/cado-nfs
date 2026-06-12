@@ -17,7 +17,7 @@
 #include "lll.h"
 #include "size_optimization.hpp"
 #include "double_poly.h"
-#include "polyselect_norms.h"
+#include "polyselect_norms.hpp"
 #include "macros.h"
 #include "mpz_poly.h"
 

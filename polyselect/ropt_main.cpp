@@ -44,7 +44,7 @@
 #include "mpz_poly.h"
 #include "murphyE.hpp"
 #include "params.hpp"
-#include "polyselect_norms.h"
+#include "polyselect_norms.hpp"
 #include "polyselect_alpha.h"
 #include "ropt.hpp"
 #include "ropt_param.h"
