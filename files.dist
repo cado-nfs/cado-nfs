@@ -770,6 +770,7 @@ parameters/factor/params.c90
 parameters/factor/params.c95
 parameters/factor/params.qs.c40
 parameters/factor/params.qs.c60
+parameters/factor/params.qs.c80
 parameters/misc/cpubinding.conf
 parameters/polynomials/F9.poly
 polyselect/CMakeLists.txt
