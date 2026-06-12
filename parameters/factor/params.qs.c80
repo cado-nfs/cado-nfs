@@ -13,11 +13,11 @@ name = c80
 # Sieve
 ###########################################################################
 
-tasks.I = 15
+tasks.I = 12
 tasks.lim0 = 100000
-tasks.lpb0 = 25
-tasks.sieve.mfb0 = 45
-tasks.sieve.qrange = 1000
+tasks.lpb0 = 19
+tasks.sieve.mfb0 = 38
+tasks.sieve.qrange = 100
 tasks.qmin = 1 # cannot be 0 as it is interpreted as a special value
 
 tasks.sieve.qfac_min = 1024
