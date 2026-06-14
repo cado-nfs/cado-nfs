@@ -212,3 +212,5 @@ cado_define_test(polyselect_add_skewness
         ${CADO_NFS_SOURCE_DIR}/tests/misc/c60.poly
     EXPECT_SHA1 70639bbafd1b6d4ac3bbcb4a47f621fa446c267f
     TARGET_DEPENDENCIES skewness)
+
+cado_define_test(bench_lognorm.cpp ARGUMENTS -iter 100 -unit 100 LIBRARIES polyselect_common)

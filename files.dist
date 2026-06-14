@@ -1303,6 +1303,7 @@ tests/omp_get_max_threads.c
 tests/pipe_to_sage.sh
 tests/polyselect/CMakeLists.txt
 tests/polyselect/Makefile
+tests/polyselect/bench_lognorm.cpp
 tests/polyselect/c80msieve.sample
 tests/polyselect/gfpkdlpolyselect_test.cpp
 tests/polyselect/ropt.rsa250.txt
