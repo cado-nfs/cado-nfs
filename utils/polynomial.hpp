@@ -364,7 +364,8 @@ struct polynomial : public number_context<T>
             number_context<eval_type_t<T, U>> const & tr,
             U const & x,
             std::function<void(eval_type_t<T, U> const &)> const & h
-                = [](auto){}) const
+                // = [](auto){}
+                ) const
     {
         /* h is used as a way to handle to coefficients that are produced
          * along the computation. They happen to be the coefficients of
@@ -401,6 +402,53 @@ struct polynomial : public number_context<T>
                         h(s);
                         s = fma(s, xx, tr(f[k]));
                     }
+        }
+        return s;
+#ifdef  __GNUC__
+#pragma GCC diagnostic pop
+#endif
+    }
+
+    /* this is of course equivalent to the code above with h() a no-op.
+     * Unfortunately having the closure argument seems to give rise to a
+     * missed optimization.
+     */
+    template<typename U>
+    eval_type_t<T, U> eval_with_reference(
+            number_context<eval_type_t<T, U>> const & tr,
+            U const & x) const
+    {
+
+#ifdef  __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
+        using cado_math_aux::fma;
+
+        if (degree() < 0) return tr(0);
+
+        T const * f = coeffs.data();
+
+        auto s = tr(f[degree()]);
+        auto xx = tr(x);
+
+        int k = degree();
+        using cado_math_aux::fma;
+        switch(k-1) {
+            case 8: s = fma(s, xx, tr(f[8])); no_break();
+            case 7: s = fma(s, xx, tr(f[7])); no_break();
+            case 6: s = fma(s, xx, tr(f[6])); no_break();
+            case 5: s = fma(s, xx, tr(f[5])); no_break();
+            case 4: s = fma(s, xx, tr(f[4])); no_break();
+            case 3: s = fma(s, xx, tr(f[3])); no_break();
+            case 2: s = fma(s, xx, tr(f[2])); no_break();
+            case 1: s = fma(s, xx, tr(f[1])); no_break();
+            case 0: s = fma(s, xx, tr(f[0])); no_break();
+            case -1: break;
+            default:
+                for ( ; k-- ; ) {
+                    s = fma(s, xx, tr(f[k]));
+                }
         }
         return s;
 #ifdef  __GNUC__
