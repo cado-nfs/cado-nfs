@@ -1516,6 +1516,7 @@ tests/utils/arithxx/CMakeLists.txt
 tests/utils/arithxx/test_lucas.cpp
 tests/utils/arithxx/test_mod.cpp
 tests/utils/arithxx/test_modint.cpp
+tests/utils/bench_double_poly_roots.cpp
 tests/utils/buggy.poly
 tests/utils/numbertheory/CMakeLists.txt
 tests/utils/numbertheory/Makefile
