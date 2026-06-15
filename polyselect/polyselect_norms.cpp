@@ -5,10 +5,13 @@
 #define CHOOSE_CXX_TRY_CATCH        4
 #define CHOOSE_BENCH        3
 
-#define L2_LOGNORM_CHOICE       CHOOSE_CXX
-#define L2_SKEWNESS_CHOICE       CHOOSE_C
-#define L2_COMBINED_SKEWNESS2_CHOICE       CHOOSE_C
-#define L2_SKEW_LOGNORM_CHOICE       CHOOSE_C
+#define L2_LOGNORM_CHOICE       (CHOOSE_CXX + CHOOSE_CXX_TRY_CATCH)
+
+#define L2_SKEWNESS_CHOICE       (CHOOSE_CXX + CHOOSE_CXX_TRY_CATCH)
+
+#define L2_COMBINED_SKEWNESS2_CHOICE       (CHOOSE_CXX + CHOOSE_CXX_TRY_CATCH)
+
+#define L2_SKEW_LOGNORM_CHOICE       (CHOOSE_CXX + CHOOSE_CXX_TRY_CATCH)
 
 #include <cfloat>
 #include <cstdint>
@@ -223,7 +226,7 @@ const uint32_t coeffs_integral[L2_DMAX][L2_DMAX/2] =
     { 6864, 8976, 15504, 36176, 118864, 594320, 5348880, 155117520 }
 };
 
-#if (L2_LOGNORM_CHOICE | L2_SKEWNESS_CHOICE | L2_COMBINED_SKEWNESS2_CHOICE | L2_SKEW_LOGNORM_CHOICE) & CHOOSE_C
+#if (L2_LOGNORM_CHOICE | L2_SKEWNESS_CHOICE | L2_COMBINED_SKEWNESS2_CHOICE) & CHOOSE_C
 static double
 L2_lognorm_d (double_poly_srcptr p, double s)
 {
@@ -351,7 +354,7 @@ static T L2_lognorm(polynomial<T> const & p, T const & s)
  * s^2 is a zero of dP. We thus want to find the positive zeros of dP.
  */
 
-#if (L2_SKEWNESS_CHOICE | L2_COMBINED_SKEWNESS2_CHOICE | L2_SKEW_LOGNORM_CHOICE) & CHOOSE_C
+#if (L2_SKEWNESS_CHOICE | L2_COMBINED_SKEWNESS2_CHOICE) & CHOOSE_C
 static void L2_skewness_derivative_numerator(double_poly_ptr dP, double_poly_srcptr p)
 {
     const double * a = p->coeff;
