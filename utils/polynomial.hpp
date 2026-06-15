@@ -829,7 +829,7 @@ struct polynomial : public number_context<T>
      * The appropriate number context is carried by a0 and b0
      */
     template<typename U>
-    U findroot_falseposition(U const & a0, U const & b0, U const & pa0) const
+    U findroot_falseposition(U const & a0, U const & b0, U const & pa0, U const & pb0) const
     {
         /* it would be an error to instantiate this with U distinct from
          * the real evaluation type */
@@ -845,7 +845,7 @@ struct polynomial : public number_context<T>
 
         ASSERT_ALWAYS(sigma*a < sigma*b);
 
-        U pa=pa0, pb = eval(b);
+        U pa = pa0, pb = pb0;
 
         for(;;) {
             U s = (a*pb-b*pa)/(pb-pa);
@@ -940,8 +940,8 @@ struct polynomial : public number_context<T>
                 U vb = eval(b);
                 if (no_chance) {
                     no_chance = false;
-                } else if (sgn(va) * sgn(vb) < 0) {
-                    v[m++] = findroot_falseposition(a, b, va);
+                } else if (va * vb < 0) {
+                    v[m++] = findroot_falseposition(a, b, va, vb);
                 } else {
                     /* we're in the case where this interval _looked_
                      * promising, and yet had no root. The next one
