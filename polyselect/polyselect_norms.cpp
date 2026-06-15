@@ -1,53 +1,21 @@
 #include "cado.h" // IWYU pragma: keep
 
-#define CHOOSE_C    1
-#define CHOOSE_CXX  2
-#define CHOOSE_CXX_TRY_CATCH        4
-#define CHOOSE_BENCH        3
-
-#define L2_LOGNORM_CHOICE       (CHOOSE_CXX + CHOOSE_CXX_TRY_CATCH)
-
-#define L2_SKEWNESS_CHOICE       (CHOOSE_CXX + CHOOSE_CXX_TRY_CATCH)
-
-#define L2_COMBINED_SKEWNESS2_CHOICE       (CHOOSE_CXX + CHOOSE_CXX_TRY_CATCH)
-
-#define L2_SKEW_LOGNORM_CHOICE       (CHOOSE_CXX + CHOOSE_CXX_TRY_CATCH)
-
-#include <cfloat>
 #include <cstdint>
 #include <cstdlib>
-#include <cmath>
 
-#if L2_LOGNORM_CHOICE == CHOOSE_BENCH || L2_SKEWNESS_CHOICE == CHOOSE_BENCH || L2_COMBINED_SKEWNESS2_CHOICE == CHOOSE_BENCH || L2_SKEW_LOGNORM_CHOICE == CHOOSE_BENCH
-#include <cstdio>
-#include <cinttypes>
-#endif
-
-#if (L2_LOGNORM_CHOICE | L2_SKEWNESS_CHOICE | L2_COMBINED_SKEWNESS2_CHOICE | L2_SKEW_LOGNORM_CHOICE) & CHOOSE_CXX_TRY_CATCH
 #include <stdexcept>
-#endif
 
-#if (L2_LOGNORM_CHOICE | L2_SKEWNESS_CHOICE | L2_COMBINED_SKEWNESS2_CHOICE | L2_SKEW_LOGNORM_CHOICE) & CHOOSE_CXX
 #include "cado_constants.hpp"
 #include "cado_math_aux.hpp"
-#endif
-#if (L2_LOGNORM_CHOICE | L2_SKEWNESS_CHOICE | L2_COMBINED_SKEWNESS2_CHOICE | L2_SKEW_LOGNORM_CHOICE) & CHOOSE_CXX_TRY_CATCH
 #ifdef HAVE_MPFR
 #include "cxx_mpfr.hpp"
-#endif
 #endif
 
 #include "macros.h"
 #include "mpz_poly.h"
-#if (L2_LOGNORM_CHOICE | L2_SKEWNESS_CHOICE | L2_COMBINED_SKEWNESS2_CHOICE | L2_SKEW_LOGNORM_CHOICE) & CHOOSE_CXX
 #include "number_context.hpp"
 #include "polynomial.hpp"
-#endif
 #include "polyselect_norms.hpp"
-#include "double_poly.h"
-#if L2_LOGNORM_CHOICE == CHOOSE_BENCH || L2_SKEWNESS_CHOICE == CHOOSE_BENCH || L2_COMBINED_SKEWNESS2_CHOICE == CHOOSE_BENCH || L2_SKEW_LOGNORM_CHOICE == CHOOSE_BENCH
-#include "timing.h"
-#endif
 
 /************************* norm and skewness *********************************/
 
@@ -226,43 +194,6 @@ const uint32_t coeffs_integral[L2_DMAX][L2_DMAX/2] =
     { 6864, 8976, 15504, 36176, 118864, 594320, 5348880, 155117520 }
 };
 
-#if (L2_LOGNORM_CHOICE | L2_SKEWNESS_CHOICE | L2_COMBINED_SKEWNESS2_CHOICE) & CHOOSE_C
-static double
-L2_lognorm_d (double_poly_srcptr p, double s)
-{
-    const double * a = p->coeff;
-    const int d = p->deg;
-    ASSERT_ALWAYS(1 <= p->deg);
-    ASSERT_ALWAYS(d <= L2_DMAX);
-    const double invs = 1.0 / s;
-    const double s2 = s * s;
-    const double is2 = invs * invs;
-    double tt = 0;
-    double u0 = (d & 1) ? invs : 1;
-    double u1 = (d & 1) ? s : 1;
-    const int p0 = d / 2;
-    const int p1 = d - p0;
-    for(int k = 0 ; k <= d/2 ; k++) {
-        double t0 = 0;
-        double t1 = 0;
-        for(int i = 1 ; i <= d/2 - k ; i++) {
-            t0 += a[p0-k-i] * a[p0-k+i];
-            t1 += a[p1+k-i] * a[p1+k+i];
-        }
-        t0 = (2 * t0 + a[p0-k] * a[p0-k]) * u0;
-        t1 = (2 * t1 + a[p1+k] * a[p1+k]) * u1;
-        u0 *= is2;
-        u1 *= s2;
-        tt += (coeffs_integral[d][k])*(t0 + t1);
-    }
-    tt = ldexp(tt * M_PI / (double) (d+1), -2*d); // W: C-style casts are disco…
-    if (std::isnan (tt) || std::isinf (tt))
-        tt = DBL_MAX;
-    return log(tt) / 2;
-}
-#endif
-
-#if (L2_LOGNORM_CHOICE | L2_SKEWNESS_CHOICE | L2_COMBINED_SKEWNESS2_CHOICE | L2_SKEW_LOGNORM_CHOICE) & CHOOSE_CXX
 template<typename T>
 static T L2_lognorm(polynomial<T> const & p, T const & s)
 {
@@ -333,7 +264,6 @@ static T L2_lognorm(polynomial<T> const & p, T const & s)
         throw std::overflow_error("");
     return cado_math_aux::log(tt) / 2;
 }
-#endif
 
 /* The L2 lognorm is (the image by a monotonous function of) a polynomial
  * in s. We first form this polynomial, and then compute its roots, which
@@ -354,28 +284,6 @@ static T L2_lognorm(polynomial<T> const & p, T const & s)
  * s^2 is a zero of dP. We thus want to find the positive zeros of dP.
  */
 
-#if (L2_SKEWNESS_CHOICE | L2_COMBINED_SKEWNESS2_CHOICE) & CHOOSE_C
-static void L2_skewness_derivative_numerator(double_poly_ptr dP, double_poly_srcptr p)
-{
-    const double * a = p->coeff;
-    const int d = p->deg;
-    ASSERT_ALWAYS(1 <= p->deg);
-    ASSERT_ALWAYS(d <= L2_DMAX);
-    double_poly_realloc(dP, d+1);
-    for(int k = 0 ; k <= d ; k++) {
-        double t0 = 0;
-        for(int i = 1 ; i <= k && i <= d - k ; i++)
-            t0 += a[k-i] * a[k+i];
-        t0 = (2 * t0 + a[k] * a[k]);
-        const int j = (ABS(d-2*k)-(d&1))/2;
-        t0 = t0 * coeffs_integral[d][j]*(2*k-d);
-        dP->coeff[k] = t0; // ldexp(t0/(d+1), -2*d);
-    }
-    double_poly_cleandeg(dP, d);
-}
-#endif
-
-#if (L2_SKEWNESS_CHOICE | L2_COMBINED_SKEWNESS2_CHOICE | L2_SKEW_LOGNORM_CHOICE) & CHOOSE_CXX
 template<typename T>
 static polynomial<T> L2_skewness_derivative_numerator(polynomial<T> const & p)
 {
@@ -403,7 +311,6 @@ static polynomial<T> L2_skewness_derivative_numerator(polynomial<T> const & p)
 
     return dP;
 }
-#endif
 
 /* Do the same just for the numerator of the L2 skewness. Again, this is
  * a polynomial in s^2 !!!
@@ -417,7 +324,6 @@ static polynomial<T> L2_skewness_derivative_numerator(polynomial<T> const & p)
         return tt*pi/2^(2*d-1)/(d+1)
     check2(lambda d,a:sum_xd(d,a)/s^d)
  */
-#if L2_COMBINED_SKEWNESS2_CHOICE & CHOOSE_CXX
 template<typename T>
 static polynomial<T> L2_skewness_numerator(polynomial<T> const & p)
 {
@@ -449,30 +355,6 @@ static polynomial<T> L2_skewness_numerator(polynomial<T> const & p)
 
     return dP;
 }
-#endif
-
-#if L2_COMBINED_SKEWNESS2_CHOICE & CHOOSE_C
-static void L2_skewness_numerator(double_poly_ptr dP, double_poly_srcptr p)
-{
-    const double * a = p->coeff;
-    const int d = p->deg;
-    ASSERT_ALWAYS(1 <= p->deg);
-    ASSERT_ALWAYS(d <= L2_DMAX);
-    double_poly_realloc(dP, d+1);
-    for(int k = 0 ; k <= d ; k++) {
-        double t0 = 0;
-        for(int i = 1 ; i <= k && i <= d - k ; i++)
-            t0 += a[k-i] * a[k+i];
-        t0 = (2 * t0 + a[k] * a[k]);
-        const int j = (ABS(d-2*k)-(d&1))/2;
-        t0 = t0 * coeffs_integral[d][j];
-        if (2*k != d)
-            t0 /= 2;
-        dP->coeff[k] = t0; // ldexp(t0/(d+1), -(2*d-1));
-    }
-    double_poly_cleandeg(dP, d);
-}
-#endif
 
 /* return the skewness giving the best lognorm sum for two polynomials.
  * We do so by computing the formal expression of the quadratic form (up
@@ -484,7 +366,6 @@ static void L2_skewness_numerator(double_poly_ptr dP, double_poly_srcptr p)
  * the square roots.
  */
 
-#if L2_COMBINED_SKEWNESS2_CHOICE & CHOOSE_CXX
 template<typename T>
 static T L2_combined_skewness2(polynomial<T> const & F, polynomial<T> const & G)
 {
@@ -520,70 +401,7 @@ static T L2_combined_skewness2(polynomial<T> const & F, polynomial<T> const & G)
 
     return best_s;
 }
-#endif
 
-#if L2_COMBINED_SKEWNESS2_CHOICE & CHOOSE_C
-static double
-L2_combined_skewness2_d (mpz_poly_srcptr f, mpz_poly_srcptr g)
-{
-    double_poly dQF, QF, F;
-    double_poly dQG, QG, G;
-    double_poly_init(F, -1);
-    double_poly_init(QF, -1);
-    double_poly_init(dQF, -1);
-    double_poly_init(G, -1);
-    double_poly_init(QG, -1);
-    double_poly_init(dQG, -1);
-    double_poly_set_mpz_poly (F, f);
-    double_poly_set_mpz_poly (G, g);
-    L2_skewness_numerator(QF, F);
-    L2_skewness_derivative_numerator(dQF, F);
-    L2_skewness_numerator(QG, G);
-    L2_skewness_derivative_numerator(dQG, G);
-    double_poly t, S;
-    double_poly_init(t, -1);
-    double_poly_init(S, -1);
-    double_poly_mul(S, dQF, QG);
-    double_poly_mul(t, QF, dQG);
-    double_poly_add(S, S, t);
-
-    double * roots = (double *) malloc(S->deg * sizeof(double)); // W: Use auto…
-
-    const double B = double_poly_bound_roots(S);
-    /* some pathological examples for gfpn have integer roots, and this
-     * wreaks havoc.
-     */
-    const unsigned int nroots = double_poly_compute_roots(roots, S, B);
-
-    double best_s = sqrt(roots[0]);
-    if (nroots > 1) {
-        double l = L2_lognorm_d(F, best_s) + L2_lognorm_d(G, best_s);
-        for(unsigned int i = 1 ; i < nroots ; i++) {
-            const double s = sqrt(roots[i]);
-            const double li = L2_lognorm_d(F, s) + L2_lognorm_d(G, s);
-            if (li < l) {
-                best_s = s;
-                l = li;
-            }
-        }
-    }
-
-    free(roots); // W: Do not manage memory manually; use RAII
-
-    double_poly_clear(S);
-    double_poly_clear(t);
-    double_poly_clear(F);
-    double_poly_clear(QF);
-    double_poly_clear(dQF);
-    double_poly_clear(G);
-    double_poly_clear(QG);
-    double_poly_clear(dQG);
-
-    return best_s;
-}
-#endif
-
-#if L2_SKEWNESS_CHOICE & CHOOSE_CXX
 template<typename T>
 static T
 L2_skewness(polynomial<T> const & P)
@@ -616,32 +434,7 @@ L2_skewness(polynomial<T> const & P)
 
     return best_s;
 }
-#endif
 
-#if L2_LOGNORM_CHOICE & CHOOSE_C
-static inline double
-L2_lognorm_c (mpz_poly_srcptr f, double s)
-{
-        double_poly a;
-        double_poly_init(a, f->deg);
-        double_poly_set_mpz_poly (a, f);
-        double r1 = L2_lognorm_d (a, s);
-        double_poly_clear(a);
-        return r1;
-}
-#endif
-
-#if L2_LOGNORM_CHOICE == CHOOSE_C
-double L2_lognorm (mpz_poly_srcptr f, double s)
-{
-    return L2_lognorm_c(f, s);
-}
-#elif L2_LOGNORM_CHOICE == CHOOSE_CXX
-double L2_lognorm (mpz_poly_srcptr f, double s)
-{
-    return L2_lognorm(polynomial<double>(f), s);
-}
-#elif L2_LOGNORM_CHOICE == (CHOOSE_CXX + CHOOSE_CXX_TRY_CATCH)
 double L2_lognorm (mpz_poly_srcptr f, double s)
 {
     try {
@@ -663,84 +456,7 @@ double L2_lognorm (mpz_poly_srcptr f, double s)
         }
     }
 }
-#elif L2_LOGNORM_CHOICE == CHOOSE_BENCH
-double L2_lognorm (mpz_poly_srcptr f, double s)
-{
-    uint64_t t0 = microseconds();
-    polynomial<double> F(f);
-    const double r0 = L2_lognorm(F, s);
-    t0 = microseconds() - t0;
 
-    uint64_t t1 = microseconds();
-    const double r1 = L2_lognorm_c(f, s);
-    t1 = microseconds() - t1;
-
-    fprintf(stderr, "L2_lognorm %" PRIu64 " %" PRIu64 " %g %g\n",
-            t0, t1, r0, r1);
-    return r1;
-}
-#else
-#error "missing flag"
-#endif
-
-#if L2_SKEWNESS_CHOICE & CHOOSE_C
-static double L2_skewness_d (mpz_poly_srcptr f)
-{
-    const int d = f->deg;
-    double_poly dP, P;
-    double_poly_init(P, -1);
-    double_poly_init(dP, -1);
-    double_poly_set_mpz_poly (P, f);
-    L2_skewness_derivative_numerator(dP, P);
-
-    double * roots = (double *) malloc(d * sizeof(double)); // W: Use auto when…
-
-    const double B = double_poly_bound_roots(dP);
-    /* some pathological examples for gfpn have integer roots, and this
-     * wreaks havoc.
-     */
-    const unsigned int nroots = double_poly_compute_roots(roots, dP, B);
-    /* We often have a single zero, but not always. Here's an example
-     * with three. It typically happens when we have pairs of roots that
-     * are almost symmetrical along the axes. I'm not sure I see a
-     * generalization of this phenomenon to more than two extrema, actually.
-     * 3520*x^4 - 14848*x^3 - 26038239232*x^2 + 3120*x + 110
-     */
-    ASSERT_ALWAYS(nroots >= 1);
-
-    double best_s = sqrt(roots[0]);
-    if (nroots > 1) {
-        double l = L2_lognorm_d(P, best_s);
-        for(unsigned int i = 1 ; i < nroots ; i++) {
-            const double s = sqrt(roots[i]);
-            const double li = L2_lognorm_d(P, s);
-            if (li < l) {
-                best_s = s;
-                l = li;
-            }
-        }
-    }
-
-
-    free(roots); // W: Do not manage memory manually; use RAII
-    double_poly_clear(P);
-    double_poly_clear(dP);
-
-    return best_s;
-}
-#endif
-
-#if L2_SKEWNESS_CHOICE == CHOOSE_C
-double L2_skewness (mpz_poly_srcptr f)
-{
-    return L2_skewness_d (f);
-}
-#elif L2_SKEWNESS_CHOICE == CHOOSE_CXX
-double L2_skewness (mpz_poly_srcptr f)
-{
-    return L2_skewness(polynomial<double>(f));
-}
-#elif L2_SKEWNESS_CHOICE == (CHOOSE_CXX + CHOOSE_CXX_TRY_CATCH)
 double L2_skewness (mpz_poly_srcptr f)
 {
     try {
@@ -760,39 +476,7 @@ double L2_skewness (mpz_poly_srcptr f)
         }
     }
 }
-#elif L2_SKEWNESS_CHOICE == CHOOSE_BENCH
-double L2_skewness (mpz_poly_srcptr f)
-{
-    uint64_t t0 = microseconds();
-    polynomial<double> F(f);
-    const double r0 = L2_skewness(F);
-    t0 = microseconds() - t0;
 
-    uint64_t t1 = microseconds();
-    double r1 = L2_skewness_d (f);
-    t1 = microseconds() - t1;
-
-    fprintf(stderr, "L2_skewness %" PRIu64 " %" PRIu64 " %g %g\n",
-            t0, t1, r0, r1);
-    return r1;
-}
-#else
-#error "missing flag"
-#endif
-
-#if L2_SKEW_LOGNORM_CHOICE == CHOOSE_C
-double L2_skew_lognorm (mpz_poly_srcptr f)
-{
-    /* stupid. We're converting f twice. */
-    return L2_lognorm (f, L2_skewness (f));
-}
-#elif L2_SKEW_LOGNORM_CHOICE == CHOOSE_CXX
-double L2_skew_lognorm (mpz_poly_srcptr f)
-{
-    const auto F = polynomial<double>(f);
-    return L2_lognorm (F, L2_skewness (F));
-}
-#elif L2_SKEW_LOGNORM_CHOICE == (CHOOSE_CXX + CHOOSE_CXX_TRY_CATCH)
 double L2_skew_lognorm (mpz_poly_srcptr f)
 {
     try {
@@ -815,39 +499,7 @@ double L2_skew_lognorm (mpz_poly_srcptr f)
         }
     }
 }
-#elif L2_SKEW_LOGNORM_CHOICE == CHOOSE_BENCH
-double L2_skew_lognorm (mpz_poly_srcptr f)
-{
-    uint64_t t0 = microseconds();
-    polynomial<double> F(f);
-    const double r0 = L2_skewness(F);
-    t0 = microseconds() - t0;
 
-    uint64_t t1 = microseconds();
-    double r1 = L2_lognorm (f, L2_skewness (f));
-    t1 = microseconds() - t1;
-
-    fprintf(stderr, "L2_skew_lognorm %" PRIu64 " %" PRIu64 " %g %g\n",
-            t0, t1, r0, r1);
-    return r1;
-}
-#else
-#error "missing flag"
-#endif
-
-#if L2_COMBINED_SKEWNESS2_CHOICE == CHOOSE_C
-double L2_combined_skewness2 (mpz_poly_srcptr f, mpz_poly_srcptr g)
-{
-    return L2_combined_skewness2_d(f, g);
-}
-#elif L2_COMBINED_SKEWNESS2_CHOICE == CHOOSE_CXX
-double L2_combined_skewness2 (mpz_poly_srcptr f, mpz_poly_srcptr g)
-{
-    const polynomial<double> F(f);
-    const polynomial<double> G(g);
-    return L2_combined_skewness2(F, G);
-}
-#elif L2_COMBINED_SKEWNESS2_CHOICE == (CHOOSE_CXX + CHOOSE_CXX_TRY_CATCH)
 double L2_combined_skewness2 (mpz_poly_srcptr f, mpz_poly_srcptr g)
 {
     try {
@@ -871,25 +523,3 @@ double L2_combined_skewness2 (mpz_poly_srcptr f, mpz_poly_srcptr g)
         }
     }
 }
-#elif L2_COMBINED_SKEWNESS2_CHOICE == CHOOSE_BENCH
-double L2_combined_skewness2 (mpz_poly_srcptr f, mpz_poly_srcptr g)
-{
-    uint64_t t0 = microseconds();
-    polynomial<double> F(f);
-    polynomial<double> G(f);
-    const double r0 = L2_combined_skewness2(F, G);
-    t0 = microseconds() - t0;
-
-    uint64_t t1 = microseconds();
-    double r1 = L2_combined_skewness2_d(f, g);
-    t1 = microseconds() - t1;
-
-    fprintf(stderr, "L2_combined_skewness2 %" PRIu64 " %" PRIu64 " %g %g\n",
-            t0, t1, r0, r1);
-    return r1;
-}
-#else
-#error "missing flag"
-#endif
-
-
