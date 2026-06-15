@@ -795,7 +795,7 @@ struct polynomial : public number_context<T>
      * the same precision).
      */
     template<typename U>
-    U findroot_dichotomy(U a, U b, int sa) const
+    U findroot_dichotomy(U a, U b, U sa) const
     {
         /* it would be an error to instantiate this with U distinct from
          * the real evaluation type */
@@ -807,8 +807,7 @@ struct polynomial : public number_context<T>
             s = (a + b) / 2;
             cado_math_aux::do_not_outsmart_me(s);
             if (s == a || s == b) return s;
-            using cado_math_aux::sgn;
-            if (sgn(eval(s)) * sa > 0)
+            if (eval(s) * sa > 0)
                 a = s;
             else
                 b = s;
@@ -870,8 +869,7 @@ struct polynomial : public number_context<T>
                 s = middle;
             if (s == a || s == b) return s;
             U ps = eval(s);
-            using cado_math_aux::sgn;
-            if (sgn(ps) * sgn(pa) > 0) {
+            if (ps * pa > 0) {
                 a = s; pa = ps;
                 if (side==1) pb /= 2;
                 side=1;
@@ -881,7 +879,7 @@ struct polynomial : public number_context<T>
                 side=-1;
             }
             if (cado_math_aux::isnan(b)) {
-                return findroot_dichotomy(a0, b0, sgn(pa0));
+                return findroot_dichotomy(a0, b0, pa0);
             }
         }
     }
@@ -904,8 +902,6 @@ struct polynomial : public number_context<T>
         static_assert(cado_math_aux::is_real_v<U>);
         number_context<U> tr(bound);
 
-        using cado_math_aux::sgn;
-
         ASSERT_ALWAYS(degree() >= 1);
         if (degree() == 1) {
             /* A linear polynomial has at most one root.
@@ -914,8 +910,7 @@ struct polynomial : public number_context<T>
              * consider the case coeffs[0] == 0. On the other hand, the
              * bound counts.
              */
-            const int s = sgn(coeffs[0]);
-            if (s && s * eval(bound) <= 0)
+            if (coeffs[0] && coeffs[0] * eval(bound) <= 0)
                 v.assign(1, - tr(coeffs[0]) / tr(coeffs[1]));
         } else {
             U a = tr(0);
