@@ -557,8 +557,10 @@ double_poly_bound_roots (double_poly_srcptr p)
   q->coeff[d] = fabs (p->coeff[d]);
   double_poly_cleandeg(q, d);
   s = 1.0;
-  while (double_poly_eval (q, s) < 0)
+  double c;
+  while ((c = double_poly_eval (q, s)) < 0)
     s = s + s;
+  s += (c == 0);
   double_poly_clear (q);
   return s;
 }

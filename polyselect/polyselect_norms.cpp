@@ -383,7 +383,7 @@ L2_combined_skewness2 (mpz_poly_srcptr f, mpz_poly_srcptr g)
     /* some pathological examples for gfpn have integer roots, and this
      * wreaks havoc.
      */
-    const unsigned int nroots = double_poly_compute_roots(roots, S, B + 1);
+    const unsigned int nroots = double_poly_compute_roots(roots, S, B);
 
     double best_s = sqrt(roots[0]);
     if (nroots > 1) {
@@ -427,7 +427,7 @@ double L2_skewness (mpz_poly_srcptr f)
     /* some pathological examples for gfpn have integer roots, and this
      * wreaks havoc.
      */
-    const unsigned int nroots = double_poly_compute_roots(roots, dP, B + 1);
+    const unsigned int nroots = double_poly_compute_roots(roots, dP, B);
     /* We often have a single zero, but not always. Here's an example
      * with three. It typically happens when we have pairs of roots that
      * are almost symmetrical along the axes. I'm not sure I see a
