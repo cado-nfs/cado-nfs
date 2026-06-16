@@ -194,7 +194,13 @@ cado_divert_test(test_sopt 2
     -inputpolys ${CMAKE_CURRENT_SOURCE_DIR}/sopt.input2.txt
     # EXPECT_SHA1 a3aadd110944689565adb70ae7456b69d8d97dbc
     # same as above
-    EXPECT_SHA1 83a512c121fec35711d03a91901e04f1aeee21b6
+    # The second sha is because 927883a94 introduces a change in how
+    # lognorms are computed: a value such as log(N) is replaced by
+    # log(N/2^scale)+scale*log(2), which _might_ differ by one ulp (and
+    # again, this might depend on whether the compiler folds part of the
+    # computation). In the sopt_2 test, this leads to choosing another
+    # polynomial which is a close tie.
+    EXPECT_SHA1 83a512c121fec35711d03a91901e04f1aeee21b6,3f7600bbd043b9c97eb8deec9fccd2e6be039a02
 )
 
 
