@@ -2,14 +2,15 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <cmath>
 
 #include <stdexcept>
+#include <numbers>
+
+#include <gmp.h>
 
 #include "cado_constants.hpp"
 #include "cado_math_aux.hpp"
-#ifdef HAVE_MPFR
-#include "cxx_mpfr.hpp"
-#endif
 
 #include "macros.h"
 #include "mpz_poly.h"
@@ -437,89 +438,44 @@ L2_skewness(polynomial<T> const & P)
 
 double L2_lognorm (mpz_poly_srcptr f, double s)
 {
-    try {
-        return L2_lognorm(polynomial<double>(f), s);
-    } catch (std::overflow_error const &) {
-        try {
-            const long double sl = s;
-            const auto l = L2_lognorm(polynomial<long double>(f), sl);
-            return static_cast<double>(l);
-#ifdef HAVE_MPFR
-        } catch (std::overflow_error const &) {
-            const cxx_mpfr sl = s;
-            const auto l = L2_lognorm(polynomial<cxx_mpfr>(f), sl);
-            return static_cast<double>(l);
-#else
-        } catch (...) {
-            throw;
-#endif
-        }
-    }
+    const int bits0 = mpz_sizeinbase(mpz_poly_coeff_const(f, 0), 2);
+    const int bits1 = mpz_sizeinbase(mpz_poly_coeff_const(f, f->deg), 2);
+    const int scale = (bits1 - bits0) / f->deg;
+    const polynomial<double> F(f, -bits0, -scale);
+    const double sx = ldexp(s, scale);
+    const double n = L2_lognorm(F, sx);
+    return n + (2 * bits0 + f->deg * scale) * std::numbers::ln2_v<double> / 2;
 }
 
 double L2_skewness (mpz_poly_srcptr f)
 {
-    try {
-        return L2_skewness(polynomial<double>(f));
-    } catch (std::overflow_error const &) {
-        try {
-            const auto s = L2_skewness(polynomial<long double>(f));
-            return static_cast<double>(s);
-#ifdef HAVE_MPFR
-        } catch (std::overflow_error const &) {
-            const auto s = L2_skewness(polynomial<cxx_mpfr>(f));
-            return static_cast<double>(s);
-#else
-        } catch (...) {
-            throw;
-#endif
-        }
-    }
+    const int bits0 = mpz_sizeinbase(mpz_poly_coeff_const(f, 0), 2);
+    const int bits1 = mpz_sizeinbase(mpz_poly_coeff_const(f, f->deg), 2);
+    const int scale = (bits1 - bits0) / f->deg;
+    const polynomial<double> F(f, -bits0, -scale);
+    const double sx = L2_skewness(F);
+    return ldexp(sx, -scale);
 }
 
 double L2_skew_lognorm (mpz_poly_srcptr f)
 {
-    try {
-        const auto F = polynomial<double>(f);
-        return L2_lognorm (F, L2_skewness (F));
-    } catch (std::overflow_error const &) {
-        try {
-            const auto F = polynomial<long double>(f);
-            const auto l = L2_lognorm (F, L2_skewness (F));
-            return static_cast<double>(l);
-#ifdef HAVE_MPFR
-        } catch (std::overflow_error const &) {
-            const auto F = polynomial<cxx_mpfr>(f);
-            const auto l = L2_lognorm (F, L2_skewness (F));
-            return static_cast<double>(l);
-#else
-        } catch (...) {
-            throw;
-#endif
-        }
-    }
+    const int bits0 = mpz_sizeinbase(mpz_poly_coeff_const(f, 0), 2);
+    const int bits1 = mpz_sizeinbase(mpz_poly_coeff_const(f, f->deg), 2);
+    const int scale = (bits1 - bits0) / f->deg;
+    const polynomial<double> F(f, -bits0, -scale);
+    const double n = L2_lognorm (F, L2_skewness (F));
+    return n + (2 * bits0 + f->deg * scale) * std::numbers::ln2_v<double> / 2;
 }
 
 double L2_combined_skewness2 (mpz_poly_srcptr f, mpz_poly_srcptr g)
 {
-    try {
-        const polynomial<double> F(f);
-        const polynomial<double> G(g);
-        return L2_combined_skewness2(F, G);
-    } catch (std::overflow_error const &) {
-        try {
-            const polynomial<long double> F(f);
-            const polynomial<long double> G(g);
-            return static_cast<double>(L2_combined_skewness2(F, G));
-#ifdef HAVE_MPFR
-        } catch (std::overflow_error const &) {
-            const auto F = polynomial<cxx_mpfr>(f);
-            const auto G = polynomial<cxx_mpfr>(g);
-            return static_cast<double>(L2_combined_skewness2(F, G));
-#else
-        } catch (...) {
-            throw;
-#endif
-        }
-    }
+    const int f0 = mpz_sizeinbase(mpz_poly_coeff_const(f, 0), 2);
+    const int f1 = mpz_sizeinbase(mpz_poly_coeff_const(f, f->deg), 2);
+    const int g0 = mpz_sizeinbase(mpz_poly_coeff_const(g, 0), 2);
+    const int g1 = mpz_sizeinbase(mpz_poly_coeff_const(g, g->deg), 2);
+    const int scale = (f1 + g1 - f0 - g0) / (f->deg + g->deg);
+    const polynomial<double> F(f, -f0, -scale);
+    const polynomial<double> G(g, -g0, -scale);
+    const double sx = L2_combined_skewness2(F, G);
+    return ldexp(sx, -scale);
 }
