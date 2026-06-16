@@ -1648,6 +1648,18 @@ struct polynomial : public number_context<T>
             coeffs[i] = ctx()(mpz_poly_coeff_const(f, i));
         }
     }
+
+    /* return \sum_{a_i 2^(base+scale*i) x^i} */
+    polynomial(mpz_poly_srcptr f, int base, int scale, number_context<T> const & tr = {})
+        : number_context<T>(tr)
+    {
+        coeffs.assign(f->deg + 1, ctx()(0));
+        for(int i = 0 ; i <= f->deg ; i++) {
+            coeffs[i] = ctx()(mpz_poly_coeff_const(f, i), base + scale * i);
+        }
+    }
+
+
     explicit polynomial(cxx_mpz_poly const & f, number_context<T> const & tr = {})
         : number_context<T>(tr)
     {
@@ -1656,6 +1668,16 @@ struct polynomial : public number_context<T>
             coeffs[i] = ctx()(mpz_poly_coeff_const(f, i));
         }
     }
+
+    polynomial(cxx_mpz_poly const & f, int base, int scale, number_context<T> const & tr = {})
+        : number_context<T>(tr)
+    {
+        coeffs.assign(f->deg + 1, ctx()(0));
+        for(int i = 0 ; i <= f->deg ; i++) {
+            coeffs[i] = ctx()(mpz_poly_coeff_const(f, i), base + scale * i);
+        }
+    }
+
 
     explicit polynomial(double_poly_srcptr f, number_context<T> const & tr = {})
         : number_context<T>(tr)
