@@ -222,6 +222,8 @@ recent than 3.1.3) fixes this.
             # self._prepare_run_flask_debug_server(
             #   serveraddress, serverport, threaded, debug=debug)
             self._prepare_run_werkzeug(serveraddress, serverport, threaded)
+            log = logging.getLogger('werkzeug')
+            log.setLevel(logging.WARNING)
 
     def _prepare_run_gunicorn(self, serveraddress, serverport, threaded):
         class StandaloneApplication(gunicorn.app.base.BaseApplication):
