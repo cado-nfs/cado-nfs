@@ -33,6 +33,7 @@
 #include "cxx_mpz.hpp"
 #ifdef HAVE_MPFR
 #include "cxx_mpfr.hpp"
+#include "mpfr_auxx.hpp"
 #endif
 #ifdef HAVE_MPC
 #include "cxx_mpc.hpp"
@@ -65,6 +66,20 @@ namespace cado {
 
         T operator()(mpz_srcptr x) const { return cado_math_aux::mpz_get<T>(x); }
         T operator()(cxx_mpz const & x) const { return cado_math_aux::mpz_get<T>(x); }
+
+        /* the following interfaces make sense only if T is floating-point */
+        /* return x * 2^scale (a priori with scale < 0) */
+        T operator()(mpz_srcptr x, int scale) const
+                requires std::is_floating_point_v<T>
+        {
+            return cado_math_aux::mpz_get<T>(x, scale);
+        }
+        /* return x * 2^scale (a priori with scale < 0) */
+        T operator()(cxx_mpz const & x, int scale) const
+                requires std::is_floating_point_v<T>
+        {
+            return cado_math_aux::mpz_get<T>(x, scale);
+        }
     };
 
     template<> struct number_context<cxx_mpz> {
@@ -152,6 +167,27 @@ namespace cado {
             mpfr_auxx::cado_mpfr_set(y, x, MPFR_RNDN);
             return y;
         }
+        cxx_mpfr operator()(cxx_mpfr const & x, int scale) const
+        {
+            cxx_mpfr y;
+            mpfr_set_prec(y, prec);
+            mpfr_auxx::cado_mpfr_set_2exp(y, x, scale, MPFR_RNDN);
+            return y;
+        }
+        cxx_mpfr operator()(mpz_srcptr x, int scale) const
+        {
+            cxx_mpfr y;
+            mpfr_set_prec(y, prec);
+            mpfr_auxx::cado_mpfr_set_2exp(y, x, scale, MPFR_RNDN);
+            return y;
+        }
+        cxx_mpfr operator()(cxx_mpz const & x, int scale) const
+        {
+            cxx_mpfr y;
+            mpfr_set_prec(y, prec);
+            mpfr_auxx::cado_mpfr_set_2exp(y, x, scale, MPFR_RNDN);
+            return y;
+        }
     };
 #endif
 
@@ -177,6 +213,8 @@ namespace cado {
 
         std::complex<T> operator()(mpz_srcptr x) const { return cado_math_aux::mpz_get<std::complex<T>>(x); }
         std::complex<T> operator()(cxx_mpz const & x) const { return cado_math_aux::mpz_get<std::complex<T>>(x); }
+        std::complex<T> operator()(mpz_srcptr x, int e) const { return cado_math_aux::mpz_get<std::complex<T>>(x, e); }
+        std::complex<T> operator()(cxx_mpz const & x, int e) const { return cado_math_aux::mpz_get<std::complex<T>>(x, e); }
         number_context<T> real() const { return {}; }
     };
 
@@ -195,6 +233,10 @@ namespace cado {
         template<typename U>
         cxx_mpc operator()(U const & u) const {
             return cxx_mpc(number_context<cxx_mpfr>::operator()(u));
+        }
+        template<typename U>
+        cxx_mpc operator()(U const & u, int e) const {
+            return cxx_mpc(number_context<cxx_mpfr>::operator()(u, e));
         }
         cxx_mpc operator()(std::string const & s) const;
         cxx_mpc operator()(number_literal const & N) const {
