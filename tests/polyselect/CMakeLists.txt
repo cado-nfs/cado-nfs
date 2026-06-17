@@ -178,6 +178,7 @@ cado_define_test(test_sopt PROGRAM
     NO_DEFAULT_RUN
     SHA1_ON_REGEXP_LINES "^[^#]"
     TARGET_DEPENDENCIES sopt
+    TIMEOUT 40
 )
 
 cado_divert_test(test_sopt 1
