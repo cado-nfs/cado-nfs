@@ -1198,6 +1198,11 @@ tests/filter/c30_sm_small_ell.poly
 tests/filter/c30_sm_small_ell.purged
 tests/filter/create_fake_relation_file.cpp
 tests/filter/create_purge_test_file.py
+tests/filter/dup1_stress_30138.data/c40.1-25.gz
+tests/filter/dup1_stress_30138.data/c40.25-50.gz
+tests/filter/dup1_stress_30138.data/c40.50-75.gz
+tests/filter/dup1_stress_30138.data/c40.75-100.gz
+tests/filter/dup1_stress_30138.data/dup1_stress_30138.files
 tests/filter/heavy_torture_test_purge.sh
 tests/filter/p40_30004.poly
 tests/filter/p40_30004.rels.gz
