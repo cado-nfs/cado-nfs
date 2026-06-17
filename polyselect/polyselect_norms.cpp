@@ -444,7 +444,9 @@ double L2_lognorm (mpz_poly_srcptr f, double s)
     const polynomial<double> F(f, -bits0, -scale);
     const double sx = ldexp(s, scale);
     const double n = L2_lognorm(F, sx);
-    return n + (2 * bits0 + f->deg * scale) * std::numbers::ln2_v<double> / 2;
+    using cado_math_aux::fma;
+    auto fix = 2 * bits0 + f->deg * scale;
+    return fma(fix, std::numbers::ln2_v<double> / 2, n);
 }
 
 double L2_skewness (mpz_poly_srcptr f)
@@ -464,7 +466,9 @@ double L2_skew_lognorm (mpz_poly_srcptr f)
     const int scale = (bits1 - bits0) / f->deg;
     const polynomial<double> F(f, -bits0, -scale);
     const double n = L2_lognorm (F, L2_skewness (F));
-    return n + (2 * bits0 + f->deg * scale) * std::numbers::ln2_v<double> / 2;
+    using cado_math_aux::fma;
+    auto fix = 2 * bits0 + f->deg * scale;
+    return fma(fix, std::numbers::ln2_v<double> / 2, n);
 }
 
 double L2_combined_skewness2 (mpz_poly_srcptr f, mpz_poly_srcptr g)
