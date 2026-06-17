@@ -993,6 +993,7 @@ struct polynomial : public number_context<T>
          * polynomial.
          */
         std::vector<U> res;
+        res.reserve(d);
         for (int k = d; k-- ; )
             dg[k].positive_roots_from_derivative_sign_changes(res, bound);
 

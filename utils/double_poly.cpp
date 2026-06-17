@@ -20,6 +20,7 @@
 #include "mpz_poly.h"  // mpz_poly
 #include "macros.h"     // for ASSERT, ASSERT_ALWAYS
 
+#include "cado_mp_conversions.hpp"
 #include "double_poly.h"
 #include "utils_cxx.hpp"
 
@@ -688,12 +689,19 @@ double_poly_asprint (char **t, double_poly_srcptr p, const char *name)
 }
 
 void
-double_poly_set_mpz_poly (double_poly_ptr p, mpz_poly_srcptr q)
+double_poly_set_mpz_poly_scaled (double_poly_ptr p, mpz_poly_srcptr q, int base, int scale)
 {
+    using cado_math_aux::mpz_get;
     double_poly_realloc(p, q->deg + 1);
     for (int i = 0; i <= q->deg; i++)
-        p->coeff[i] = mpz_get_d (mpz_poly_coeff_const(q, i));
+        p->coeff[i] = mpz_get<double>(mpz_poly_coeff_const(q, i), base+i*scale);
     p->deg = q->deg;
+}
+
+void
+double_poly_set_mpz_poly (double_poly_ptr p, mpz_poly_srcptr q)
+{
+    double_poly_set_mpz_poly_scaled(p, q, 0, 0);
 }
 
 /*
