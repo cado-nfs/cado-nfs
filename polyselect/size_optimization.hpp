@@ -1,7 +1,6 @@
 #ifndef CADO_POLYSELECT_SIZE_OPTIMIZATION_HPP
 #define CADO_POLYSELECT_SIZE_OPTIMIZATION_HPP
 
-#include <cstdint>
 #include <gmp.h>
 
 #include "mpz_poly.h"
@@ -37,7 +36,7 @@
 double sopt_local_descent (cxx_mpz_poly &, cxx_mpz_poly &, cxx_mpz_poly const &,
                            cxx_mpz_poly const &, int, int, unsigned int, int);
 double size_optimization (cxx_mpz_poly &, cxx_mpz_poly &, cxx_mpz_poly const &,
-                          cxx_mpz_poly const &, const unsigned int, const int);
+                          cxx_mpz_poly const &, unsigned int, int);
 
 #endif	/* CADO_POLYSELECT_SIZE_OPTIMIZATION_HPP */
 
