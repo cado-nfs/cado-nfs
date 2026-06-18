@@ -1733,7 +1733,6 @@ utils/embedded/fmt/std.h
 utils/embedded/fmt/xchar.h
 utils/extra_complex_overloads.hpp
 utils/fakempi.h
-utils/fd_streambuf.cpp
 utils/fd_streambuf.hpp
 utils/filelist.cpp
 utils/filelist.hpp

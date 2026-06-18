@@ -41,7 +41,6 @@ set (sources
         cxx_mpz.cpp
         rho.c gpf.cpp
         sha1.c
-        fd_streambuf.cpp
         cado_pipe_streambuf.cpp
         numbertheory/number_field.cpp
         numbertheory/number_field_element.cpp
