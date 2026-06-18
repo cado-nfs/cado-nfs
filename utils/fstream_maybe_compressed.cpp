@@ -95,10 +95,10 @@ void streambase_maybe_compressed::open(std::string const & name_arg, std::ios_ba
 
 void streambase_maybe_compressed::close()
 {
-    /* we need to close explicitly, otherwise the dtor won't flush.
-     */
-    if (pbuf) pbuf->close();
-    if (fbuf) fbuf->close();
+    /* we need to flush explicitly. The dtor would do it, though
+     * (cado_pipe_streambuf has just been fixed to do this) */
+    if (pbuf) pbuf->pubsync();
+    if (fbuf) fbuf->pubsync();
     /* see above */
     exceptions(std::ios_base::goodbit);
     rdbuf(nullptr);
