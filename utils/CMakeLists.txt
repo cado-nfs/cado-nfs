@@ -61,9 +61,9 @@ set (sources
         number_context.cpp
         random_distributions.cpp
         imaginary_quadratic_class_groups.cpp
+        cado_popen.cpp
         ${fmt_sources}
 )
-list(APPEND sources cado_popen.c)
 if(HAVE_HWLOC)
     list(APPEND sources hwloc-aux.cpp)
 endif()

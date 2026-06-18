@@ -1693,8 +1693,8 @@ utils/cado_pipe_streambuf.cpp
 utils/cado_pipe_streambuf.hpp
 utils/cado_poly.cpp
 utils/cado_poly.hpp
-utils/cado_popen.c
-utils/cado_popen.h
+utils/cado_popen.cpp
+utils/cado_popen.hpp
 utils/cado_subrange_streambuf.hpp
 utils/cado_type_traits.hpp
 utils/clonable-exception.hpp

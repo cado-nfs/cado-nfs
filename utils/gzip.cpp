@@ -22,7 +22,7 @@
 #include "fmt/base.h"
 #include "fmt/format.h"
 
-#include "cado_popen.h"
+#include "cado_popen.hpp"
 #include "gzip.h"
 #include "macros.h"
 #include "misc.h"

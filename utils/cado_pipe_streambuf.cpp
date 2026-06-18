@@ -5,7 +5,7 @@
 
 #include "fd_streambuf.hpp"
 #include "cado_pipe_streambuf.hpp"
-#include "cado_popen.h"
+#include "cado_popen.hpp"
 #include "macros.h"
 
 namespace {

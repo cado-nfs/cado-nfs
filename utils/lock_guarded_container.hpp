@@ -12,6 +12,8 @@
 template<typename T> struct lock_guarded_container : public T {
     private:
     mutable std::mutex mm;
+    T& ctr() { return *this; }
+    T const & ctr() const { return *this; }
     public:
     std::mutex & mutex() const { return mm; }
     /* forward the constructors of the embedded container. No lock needed
@@ -30,26 +32,26 @@ template<typename T> struct lock_guarded_container : public T {
      */
     lock_guarded_container(lock_guarded_container<T> const & o)
     {
-        std::lock_guard<std::mutex> const foo(o.mutex());
-        (T&)*this = (T const&) o;
+        std::scoped_lock const foo(o.mutex());
+        ctr() = o.ctr();
     }
     lock_guarded_container(lock_guarded_container<T> && o) noexcept
     {
-        std::lock_guard<std::mutex> const foo(o.mutex());
-        std::lock_guard<std::mutex> const bar(mutex());
-        std::swap((T&)*this, (T&) o);
+        std::scoped_lock const foo(o.mutex());
+        std::scoped_lock const bar(mutex());
+        std::swap(ctr(), o.ctr());
     }
     lock_guarded_container& operator=(lock_guarded_container<T> const & o) {
         if (this == &o) return *this;
-        std::lock_guard<std::mutex> const foo(o.mutex());
-        std::lock_guard<std::mutex> const bar(mutex());
-        (T&)*this = (T const&) o;
+        std::scoped_lock const foo(o.mutex());
+        std::scoped_lock const bar(mutex());
+        ctr() = o.ctr();
         return *this;
     }
     lock_guarded_container& operator=(lock_guarded_container<T> && o) noexcept {
-        std::lock_guard<std::mutex> const foo(o.mutex());
-        std::lock_guard<std::mutex> const bar(mutex());
-        std::swap((T&)*this, (T&) o);
+        std::scoped_lock const foo(o.mutex());
+        std::scoped_lock const bar(mutex());
+        std::swap(ctr(), o.ctr());
         return *this;
     }
     ~lock_guarded_container() = default;
@@ -57,7 +59,7 @@ template<typename T> struct lock_guarded_container : public T {
      * sequence point where the proxy object is destroyed.
      */
     struct proxy {
-        std::lock_guard<std::mutex> lk;
+        std::scoped_lock<std::mutex> lk;
         T * ctr;
         T * operator->() { return ctr; };
         T & operator*() { return *ctr; };
@@ -65,7 +67,7 @@ template<typename T> struct lock_guarded_container : public T {
     };
     proxy locked() { return { mm, this }; }
     struct const_proxy {
-        std::lock_guard<std::mutex> lk;
+        std::scoped_lock<std::mutex> lk;
         T const * ctr;
         T const * operator->() { return ctr; };
         T const & operator*() { return *ctr; };
