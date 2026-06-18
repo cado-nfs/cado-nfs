@@ -3,9 +3,11 @@
 #include <stdexcept>
 #include <ios>
 
+#include "fmt/base.h"
+
 #include "fd_streambuf.hpp"
 #include "cado_pipe_streambuf.hpp"
-#include "cado_popen.h"
+#include "cado_popen.hpp"
 #include "macros.h"
 
 namespace {
@@ -38,22 +40,33 @@ ios_mode_to_stdio_mode(std::ios_base::openmode mode)
 }
 } // namespace
 
+cado_pipe_streambuf::cado_pipe_streambuf(int fd, const char*, const char*)
+    : fd_streambuf(fd)
+    , fd_(fd)
+{
+    /* maybe do some debug logging with command and mode */
+}
 cado_pipe_streambuf::cado_pipe_streambuf(const char* command, const char* mode)
-  : fd_streambuf(cado_fd_popen(command, mode))
-{}
+  : cado_pipe_streambuf(cado_fd_popen(command, mode), command, mode)
+{
+}
 
 cado_pipe_streambuf::cado_pipe_streambuf(const char* command, std::ios_base::openmode mode)
-  : fd_streambuf(cado_fd_popen(command, ios_mode_to_stdio_mode(mode)))
-{}
+  : cado_pipe_streambuf(cado_fd_popen(command, ios_mode_to_stdio_mode(mode)),
+          command, ios_mode_to_stdio_mode(mode))
+{
+}
 
 cado_pipe_streambuf::~cado_pipe_streambuf()
 {
     if (fd_ < 0)
         return;
+    sync();
     cado_fd_pclose(fd_);
     fd_ = -1;
 }
 
+/*
 void
 cado_pipe_streambuf::close()
 {
@@ -61,3 +74,5 @@ cado_pipe_streambuf::close()
     cado_fd_pclose(fd_);
     fd_ = -1;
 };
+*/
+

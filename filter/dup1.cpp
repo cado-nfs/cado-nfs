@@ -19,6 +19,7 @@
 #include <cstdio>
 #include <cstdint>
 #include <cstring>
+#include <cerrno>
 
 #include <string>
 #include <memory>
@@ -26,6 +27,9 @@
 #include <limits>
 #include <algorithm>
 #include <vector>
+
+#include <unistd.h>
+#include <sys/stat.h>
 
 #include <gmp.h>
 #include "fmt/base.h"
@@ -108,6 +112,7 @@ static void declare_usage(cxx_param_list & pl)
 struct dup1_process {
     parameter_switch<"abhexa", "read a and b as hexa not decimal"> abhexa;
     parameter_switch<"ab", "only print a and b in the output"> only_ab;
+    parameter_switch<"mkdir", "create output directories"> make_dirs;
     parameter_switch<"large-ab", "enable support for a,b beyond 64 bits">
         largeab;
 
@@ -144,6 +149,7 @@ struct dup1_process {
     explicit dup1_process(cxx_param_list & pl)
         : abhexa(pl)
         , only_ab(pl)
+        , make_dirs(pl)
         , largeab(pl)
         , nslices_log(pl)
         , log_max_nrels_per_files(pl)
@@ -164,6 +170,7 @@ struct dup1_process {
         decltype(dup1_process::nslices_log)::configure(pl);
         decltype(dup1_process::log_max_nrels_per_files)::configure(pl);
         decltype(dup1_process::only_ab)::configure(pl);
+        decltype(dup1_process::make_dirs)::configure(pl);
         decltype(dup1_process::abhexa)::configure(pl);
         decltype(dup1_process::largeab)::configure(pl);
     }
@@ -177,6 +184,13 @@ struct dup1_process {
         S.clear();
         S.reserve(nslices);
         for(unsigned int i = 0 ; i < nslices ; i++) {
+            if (make_dirs) {
+                const auto path = fmt::format("{}/{}", outdir, i);
+                if (access(path.c_str(), W_OK|X_OK) != 0 && errno == ENOENT) {
+                    fmt::print("# creating {}\n", path);
+                    mkdir(path.c_str(), 0777);
+                }
+            }
             const std::string pattern = fmt::format("{}/{}/{}.{{:04d}}{}{}",
                     outdir, i, prefix_files,
                     only_ab ? ".ab" : "",

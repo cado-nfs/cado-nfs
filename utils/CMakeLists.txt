@@ -41,7 +41,6 @@ set (sources
         cxx_mpz.cpp
         rho.c gpf.cpp
         sha1.c
-        fd_streambuf.cpp
         cado_pipe_streambuf.cpp
         numbertheory/number_field.cpp
         numbertheory/number_field_element.cpp
@@ -61,9 +60,9 @@ set (sources
         number_context.cpp
         random_distributions.cpp
         imaginary_quadratic_class_groups.cpp
+        cado_popen.cpp
         ${fmt_sources}
 )
-list(APPEND sources cado_popen.c)
 if(HAVE_HWLOC)
     list(APPEND sources hwloc-aux.cpp)
 endif()

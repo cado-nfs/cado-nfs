@@ -18,6 +18,7 @@ filter_regex=.
 expect_sha1=
 stdin=/dev/null
 abort_to_fail=
+repeats=
 
 while [ $# -gt 0 ] ; do
     if [ "$1" = "--filter-output" ] ; then
@@ -38,7 +39,11 @@ while [ $# -gt 0 ] ; do
         shift
     elif [ "$1" = "--abort-to-fail" ] ; then
         shift
-        abort_to_fail="$1"
+        abort_to_fail="1"
+    elif [ "$1" = "--repeat" ] ; then
+        shift
+        repeats="$1"
+        shift
     elif [ "$1" = "--" ] ; then
         shift
         break
@@ -57,11 +62,24 @@ fi
 
 exec 3>&1
 
-dotest() {
+dotest1() {
     if [ "$abort_to_fail" ] ; then
         if ! "${TEST_PRECOMMAND[@]}" "$@" ; then exit 1 ; else true ; fi
     else
         "${TEST_PRECOMMAND[@]}" "$@"
+    fi
+}
+
+dotest() {
+    if ! [ "$repeats" ] ; then
+        dotest1 "$@"
+    else
+        let i=0
+        while [ $i -lt "$repeats" ] ; do
+            dotest1 "$@"
+            let i+=1
+            echo "# $i ok"
+        done
     fi
 }
 
