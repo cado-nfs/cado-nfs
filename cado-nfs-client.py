@@ -432,7 +432,9 @@ def run_command(command, stdin=None, print_error=True, **kwargs):
     signal.signal(signal.SIGTERM, signal.SIG_DFL)
 
     if print_error and child.returncode != 0:
-        logging.error("Command resulted in exit code %d", child.returncode)
+        logging.error("Command (%s) resulted in exit code %d",
+                      command_str, child.returncode)
+        logging.error("Child stderr: %s", stderr.decode())
     return child.returncode, stdout, stderr
 # }}}
 
@@ -1938,7 +1940,7 @@ if __name__ == '__main__':
             if size >= 8192:
                 f.seek(size-8192, io.SEEK_SET)
             lines = f.readlines()
-            for ell in lines[-20:]:
+            for ell in lines[-64:]:
                 sys.stderr.write("CLIENT ERROR: " + ell)
         sys.exit(1)
 
