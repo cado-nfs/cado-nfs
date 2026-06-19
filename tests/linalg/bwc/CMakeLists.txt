@@ -1003,9 +1003,8 @@ add_subdirectory (flint-fft)
 #########################################################################
 
 cado_define_test(linalg_determinant
-    PROVIDE_TEMPORARY_WDIR
+    PROVIDE_TEMPORARY_WDIR_ARG wdir
     SCRIPT
-    ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg wdir --
     ${CADO_NFS_BINARY_DIR}/linalg/bwc/bwc.pl
         :determinant thr=2 nullspace=right
         matrix=${CMAKE_CURRENT_SOURCE_DIR}/d20.sparse.bin

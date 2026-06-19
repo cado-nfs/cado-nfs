@@ -68,11 +68,13 @@ set(CADO_NFS_TEST_KEYWORDS_USUAL
     # only one argument are accepted, and they get propagated to diverted
     # tests.
     EXPECT_SHA1
+    REPEATS
     SHA1_ON_REGEXP_LINES
     SHA1_ON_SED_OUTPUT
     STDIN
     TIMEOUT
     WORKING_DIRECTORY
+    PROVIDE_TEMPORARY_WDIR_ARG
 )
 
 set(CADO_NFS_TEST_KEYWORDS_MULTI
@@ -154,6 +156,10 @@ macro(cado_nfs_test_process_EXPECT_SHA1)
     list(APPEND wrapper_args --expect-sha1 ${EXPECT_SHA1})
 endmacro()
 
+macro(cado_nfs_test_process_REPEATS)
+    list(APPEND wrapper_args --repeat ${REPEATS})
+endmacro()
+
 macro(cado_nfs_test_process_SHA1_ON_REGEXP_LINES)
     # if(NOT EXPECT_SHA1)
     #     message(FATAL_ERROR "SHA1_ON_REGEXP_LINES ignored if EXPECT_SHA1 is not set")
@@ -193,6 +199,13 @@ endmacro()
 
 macro(cado_nfs_test_process_PROVIDE_TEMPORARY_WDIR)
     set(provide_wdir ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env wdir)
+endmacro()
+
+# we need a secondary variable because provide-wdir.sh *prepends* its
+# fabricated arguments into the command line
+macro(cado_nfs_test_process_PROVIDE_TEMPORARY_WDIR_ARG)
+    set(provide_wdir_arg ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg
+        ${PROVIDE_TEMPORARY_WDIR_ARG})
 endmacro()
 
 macro(cado_nfs_test_process_keyword ARG)
@@ -333,13 +346,16 @@ macro(cado_epilogue_create_test)
 
         set(wrapper_args)
         set(provide_wdir)
+        set(provide_wdir_arg)
 
         cado_nfs_test_process_keyword(EXPECT_SHA1)
+        cado_nfs_test_process_keyword(REPEATS)
         cado_nfs_test_process_keyword(SHA1_ON_REGEXP_LINES)
         cado_nfs_test_process_keyword(SHA1_ON_SED_OUTPUT)
         cado_nfs_test_process_keyword(STDIN)
         cado_nfs_test_process_keyword(EXPECT_FAIL)
         cado_nfs_test_process_keyword(PROVIDE_TEMPORARY_WDIR)
+        cado_nfs_test_process_keyword(PROVIDE_TEMPORARY_WDIR_ARG)
 
         set(add_test_args
             NAME ${TEST_NAME}
@@ -357,6 +373,7 @@ macro(cado_epilogue_create_test)
                 ${CADO_NFS_SOURCE_DIR}/tests/test.sh
                 ${wrapper_args}
                 --
+                ${provide_wdir_arg}
                 ${EXECUTABLE}
                 ${ARGUMENTS}
             )

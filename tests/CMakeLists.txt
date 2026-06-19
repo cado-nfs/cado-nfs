@@ -48,10 +48,12 @@ endif()
 if(NOT HAVE_MPI)
 
 cado_define_test(full_c30
+    PROVIDE_TEMPORARY_WDIR_ARG workdir
     SCRIPT
-    ${CADO_NFS_BINARY_DIR}/cado-nfs.py 999073468111577057576445816581
-        slaves.downloadretry=1
+    ${CADO_NFS_BINARY_DIR}/cado-nfs.py
         --server-threads 2
+        999073468111577057576445816581
+        slaves.downloadretry=1
     TARGET_DEPENDENCIES
         full_dependencies_base
         merge replay
@@ -64,9 +66,9 @@ cado_define_test(full_c30
         )
     cado_divert_test(full_c30 pq2
         ARGUMENTS
+        --server-threads 2
         1000000008500000023430000020691
         slaves.downloadretry=1
-        --server-threads 2
         SHA1_ON_REGEXP_LINES "^[0-9 ]*$"
         EXPECT_SHA1 a56b28a490e2a8f240f6102c695456e59d119a9e
     )
@@ -76,8 +78,8 @@ cado_define_test(full_c30
         # think, given that there's always at least one machine that does
         # the expensive tests.
         cado_define_test(full_p30
+            PROVIDE_TEMPORARY_WDIR_ARG workdir
             SCRIPT
-            ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg workdir
             ${CADO_NFS_BINARY_DIR}/cado-nfs.py
             -dlp -ell 445257213376519703258944813
             -t 2 -dlp-no-keep
@@ -125,8 +127,8 @@ cado_define_test(full_c30
             set(full_p30_JL_params ${full_p30_JL_params} tasks.reconstructlog.checkdlp=false)
         endif()
         cado_define_test(full_p30_JL
+            PROVIDE_TEMPORARY_WDIR_ARG workdir
             SCRIPT
-            ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg workdir
             ${CADO_NFS_BINARY_DIR}/cado-nfs.py
             -dlp -ell 350586976534485556208993720963
             -t 2 -dlp-no-keep
@@ -142,8 +144,8 @@ cado_define_test(full_c30
 
         # Test for factorization computation using QS
         cado_define_test(full_c40_qs
+            PROVIDE_TEMPORARY_WDIR_ARG workdir
             SCRIPT
-            ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg workdir
             ${CADO_NFS_BINARY_DIR}/cado-nfs.py
             -qs -t 2
             slaves.downloadretry=1
@@ -165,8 +167,8 @@ cado_define_test(full_c30
             # Test for CL computation with 20-digit discriminant
             # It requires the factor binary which requires gmp-ecm
             cado_define_test(full_d20
+                PROVIDE_TEMPORARY_WDIR_ARG workdir
                 SCRIPT
-                ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg workdir
                 ${CADO_NFS_BINARY_DIR}/cado-nfs.py
                 -cl -qs -t 2
                 slaves.downloadretry=1
@@ -186,6 +188,7 @@ cado_define_test(full_c30
 
     # Test importing an SNFS polynomial with no skew: line
     cado_define_test(full_F7
+        PROVIDE_TEMPORARY_WDIR_ARG workdir
     SCRIPT
     ${CADO_NFS_BINARY_DIR}/cado-nfs.py
         --server-threads 2
@@ -217,12 +220,12 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
     # all cases, and that means that we're passing a user-supplied
     # workdir.
     cado_define_test(full_c59
+        PROVIDE_TEMPORARY_WDIR_ARG workdir
         SCRIPT
-            ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg --workdir
             ${CADO_NFS_BINARY_DIR}/cado-nfs.py
+            --server-threads 2
             90377629292003121684002147101760858109247336549001090677693
             slaves.downloadretry=1
-            --server-threads 2
         TARGET_DEPENDENCIES
             full_c30_dependencies
         AVOID_CONCURRENT 16
@@ -230,12 +233,13 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
         TIMEOUT 360
             )
     cado_define_test(full_c65_128
+        PROVIDE_TEMPORARY_WDIR_ARG workdir
         SCRIPT
-            ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg --workdir
             ${CADO_NFS_BINARY_DIR}/cado-nfs.py
+            --server-threads 2
             22381151342911794563007770625342242843893411711318155026160427871
             slaves.downloadretry=1
-            tasks.linalg.m=128 tasks.linalg.n=128 --server-threads 2
+            tasks.linalg.m=128 tasks.linalg.n=128
         TARGET_DEPENDENCIES
             full_c30_dependencies
         AVOID_CONCURRENT 16
@@ -243,8 +247,8 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
         TIMEOUT 360
             )
     cado_define_test(full_c59_nonlinear
+            PROVIDE_TEMPORARY_WDIR_ARG workdir
         SCRIPT
-            ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg workdir
             ${CADO_NFS_BINARY_DIR}/cado-nfs.py
             --server-threads 2
             71641520761751435455133616475667090434063332228247871795429
@@ -268,9 +272,8 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
 #            TARGET_DEPENDENCIES full_p30_dependencies
 #        )
         cado_define_test(full_gfp3
-            SCRIPT
-                ${CMAKE_CURRENT_SOURCE_DIR}/test_gfp3.sh
             PROVIDE_TEMPORARY_WDIR
+            SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/test_gfp3.sh
             TARGET_DEPENDENCIES full_p30_dependencies
             lingen_pz sm reconstructlog-dl merge-dl replay-dl numbertheory_tool
         AVOID_CONCURRENT 16
@@ -278,11 +281,12 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
         TIMEOUT 360
             )
         cado_define_test(full_gfp2
+            PROVIDE_TEMPORARY_WDIR_ARG workdir
             SCRIPT
-            ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg --workdir
-            ${CADO_NFS_BINARY_DIR}/cado-nfs.py 100000000000000000039
-            slaves.downloadretry=1
+            ${CADO_NFS_BINARY_DIR}/cado-nfs.py
             -dlp -gfpext 2 -t 2 -ell 164354743277891 -dlp-no-keep
+            100000000000000000039
+            slaves.downloadretry=1
             TARGET_DEPENDENCIES full_p30_dependencies
             filter_galois polyselect_gfpn
         AVOID_CONCURRENT 16

@@ -1,15 +1,11 @@
-#ifndef CADO_POPEN_H
-#define CADO_POPEN_H
-// IWYU pragma: no_include <bits/types/struct_rusage.h>
-// IWYU pragma: no_forward_declare rusage
+#ifndef CADO_POPEN_HPP
+#define CADO_POPEN_HPP
+
 #include "cado_config.h"  // just because we're a header.
-#include <stdio.h>
+
+#include <cstdio>
 #ifdef HAVE_GETRUSAGE
 #include <sys/resource.h> // IWYU pragma: keep
-#endif
-
-#ifdef __cplusplus
-extern "C" {
 #endif
 
 FILE * cado_popen(const char * command, const char * mode);
@@ -24,8 +20,4 @@ int cado_fd_pclose2(int fd, void * r);
 static inline int cado_pclose(FILE * stream) { return cado_pclose2(stream, NULL); }
 static inline int cado_fd_pclose(int fd) { return cado_fd_pclose2(fd, NULL); }
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif	/* CADO_POPEN_H */
+#endif	/* CADO_POPEN_HPP */
