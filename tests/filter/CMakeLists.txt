@@ -95,9 +95,16 @@ endif()
 add_executable(create_fake_relation_file create_fake_relation_file.cpp)
 target_link_libraries(create_fake_relation_file utils)
 
+# under valgrind, this takes easily 200 seconds to run only 16 tests.
+# Let's limit the number of trials in this case. Anyway it doesn't make
+# much sense to test multiple times like this under valgrind.
+set(nrepeats REPEATS 32)
+if (VALGRIND)
+    set(nrepeats REPEATS 2)
+endif()
 cado_define_test(dup1_stress_30138
     PROVIDE_TEMPORARY_WDIR_ARG -out
-    REPEATS 32
+    ${nrepeats}
     PROGRAM
     $<TARGET_FILE:dup1> --mkdir -prefix dup1.0 -n 3
     -filelist ${CMAKE_CURRENT_SOURCE_DIR}/dup1_stress_30138.data/dup1_stress_30138.files
