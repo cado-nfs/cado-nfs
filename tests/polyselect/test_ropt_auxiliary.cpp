@@ -13,7 +13,7 @@
 #include "cado_poly.hpp"                     // for MAX_DEGREE
 #include "macros.h"
 #include "size_optimization.hpp"
-#include "polyselect_norms.h"
+#include "polyselect_norms.hpp"
 
 static int
 check_num (double x, double y, double emax)

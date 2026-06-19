@@ -58,6 +58,8 @@ void double_poly_set_xi(double_poly_ptr s, int i);
 void double_poly_cleandeg(double_poly_ptr f, int deg);
 
 int double_poly_cmp(double_poly_srcptr a, double_poly_srcptr b);
+int double_poly_has_inf(double_poly_srcptr f);
+int double_poly_has_nan(double_poly_srcptr f);
 double double_poly_lc(double_poly_srcptr f);
 
 double double_poly_eval (double_poly_srcptr, double);
@@ -84,6 +86,7 @@ unsigned int double_poly_compute_all_roots(double *, double_poly_srcptr);
 void double_poly_print (FILE *, double_poly_srcptr, const char *variable_name);
 int double_poly_asprint (char **t, double_poly_srcptr p, const char *variable_name);
 void double_poly_set_mpz_poly (double_poly_ptr p, mpz_poly_srcptr q);
+void double_poly_set_mpz_poly_scaled (double_poly_ptr p, mpz_poly_srcptr q, int base, int scale);
 
 void double_poly_mul_double(double_poly_ptr f, double_poly_srcptr g,
     double mul);

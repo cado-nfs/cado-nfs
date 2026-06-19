@@ -1,13 +1,35 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <cfloat>
+/* See !261 and the attached commits regarding these flags */
+#define xxxUSE_DOUBLE_POLY_CODE
+#define USE_PRESCALING  /* see !261 */
+
 #include <cstdint>
+#ifndef USE_DOUBLE_POLY_CODE
 #include <cstdlib>
+#endif
 #include <cmath>
 
-#include "double_poly.h"
+#include <stdexcept>
+#include <numbers>
+#ifdef USE_DOUBLE_POLY_CODE
+#include <memory>
+#endif
+
+#include <gmp.h>
+
+#include "cado_math_aux.hpp"
+
 #include "macros.h"
-#include "polyselect_norms.h"
+#include "mpz_poly.h"
+#ifdef USE_DOUBLE_POLY_CODE
+#include "double_poly.h"
+#else
+#include "cado_constants.hpp"
+#include "number_context.hpp"
+#include "polynomial.hpp"
+#endif
+#include "polyselect_norms.hpp"
 
 /************************* norm and skewness *********************************/
 
@@ -186,6 +208,78 @@ const uint32_t coeffs_integral[L2_DMAX][L2_DMAX/2] =
     { 6864, 8976, 15504, 36176, 118864, 594320, 5348880, 155117520 }
 };
 
+#ifndef USE_DOUBLE_POLY_CODE
+template<typename T>
+static T L2_lognorm(polynomial<T> const & p, T const & s)
+{
+    const int d = p.degree();
+    ASSERT_ALWAYS(1 <= p.degree());
+    ASSERT_ALWAYS(d <= L2_DMAX);
+    /* a rewritten version of the sum above:
+       def sum_d(d, a):
+           tt = 0
+           invs = 1/s
+           s2 = s * s
+           is2 = invs * invs
+           u0 = 1 if (d % 2 == 0) else invs
+           u1 = 1 if (d % 2 == 0) else s
+           p0 = d//2
+           p1 = d - p0
+           for k in range(d//2+1):
+               t0 = 0
+               t1 = 0
+               for i in range(1, p0-k+1):
+                   t0 += a[p0-k-i] * a[p0-k+i]
+                   t1 += a[p1+k-i] * a[p1+k+i]
+               t0 = (2 * t0 + a[p0-k] * a[p0-k]) * u0
+               t1 = (2 * t1 + a[p1+k] * a[p1+k]) * u1
+               u0 *= is2
+               u1 *= s2
+               tt += coeff2(d, k)*(t0 + t1)
+           return tt*pi/2^(2*d)/(d+1)
+       def check2(sumfunc):
+           var('r,s,t,y')
+           R.<x> = PolynomialRing(ZZ)
+           S.<a> = InfinitePolynomialRing(R)
+           for d in range(2,10):
+               f = SR(sum(a[i]*x^i for i in range(d+1)))
+               F = expand(f(x=x/y)*y^d)
+               F = F.subs(x=s^(1/2)*r*cos(t),y=r/s^(1/2)*sin(t))
+               v = integrate(integrate(F^2*r,(r,0,1)),(t,0,2*pi))
+               print(v - sumfunc(d, a))
+       check2(sum_d)
+     */
+
+    const T * a = p.get_coeff_data();
+    auto const & tr = cado::number_context<T>(a[0]);
+
+    const T invs = tr(1) / tr(s);
+    const T s2 = tr(s) * tr(s);
+    const T is2 = invs * invs;
+    T tt = tr(0);
+    T u0 = (d & 1) ? invs : tr(1);
+    T u1 = (d & 1) ? tr(s) : tr(1);
+    const int p0 = d / 2;
+    const int p1 = d - p0;
+    for(int k = 0 ; k <= d/2 ; k++) {
+        T t0 = tr(0);
+        T t1 = tr(0);
+        for(int i = 1 ; i <= d/2 - k ; i++) {
+            t0 += a[p0-k-i] * a[p0-k+i];
+            t1 += a[p1+k-i] * a[p1+k+i];
+        }
+        t0 = (2 * t0 + a[p0-k] * a[p0-k]) * u0;
+        t1 = (2 * t1 + a[p1+k] * a[p1+k]) * u1;
+        u0 *= is2;
+        u1 *= s2;
+        tt += tr(coeffs_integral[d][k])*(t0 + t1);
+    }
+    tt = cado_math_aux::ldexp(tt * cado_math_aux::pi_v(tr) / (d+1), -2*d);
+    if (cado_math_aux::isnan (tt) || cado_math_aux::isinf (tt))
+        throw std::overflow_error("");
+    return cado_math_aux::log(tt) / 2;
+}
+#else
 static double
 L2_lognorm_d (double_poly_srcptr p, double s)
 {
@@ -193,6 +287,7 @@ L2_lognorm_d (double_poly_srcptr p, double s)
     const int d = p->deg;
     ASSERT_ALWAYS(1 <= p->deg);
     ASSERT_ALWAYS(d <= L2_DMAX);
+
     /* a rewritten version of the sum above:
        def sum_d(d, a):
            tt = 0
@@ -251,26 +346,10 @@ L2_lognorm_d (double_poly_srcptr p, double s)
     }
     tt = ldexp(tt * M_PI / (double) (d+1), -2*d);
     if (std::isnan (tt) || std::isinf (tt))
-        tt = DBL_MAX;
+        throw std::overflow_error("");
     return log(tt) / 2;
 }
-
-double
-L2_lognorm (mpz_poly_srcptr f, double s)
-{
-    /* we used to have code doing this computation over the integers as
-     * well. It's easy to add, given the 20-line code above.
-     */
-    double res;
-    double_poly a;
-    double_poly_init(a, f->deg);
-    double_poly_set_mpz_poly (a, f);
-
-    res = L2_lognorm_d (a, s);
-
-    double_poly_clear(a);
-    return res;
-}
+#endif
 
 
 /* The L2 lognorm is (the image by a monotonous function of) a polynomial
@@ -292,7 +371,36 @@ L2_lognorm (mpz_poly_srcptr f, double s)
  * s^2 is a zero of dP. We thus want to find the positive zeros of dP.
  */
 
-static void L2_skewness_derivative_numerator(double_poly_ptr dP, double_poly_srcptr p)
+#ifndef USE_DOUBLE_POLY_CODE
+template<typename T>
+static polynomial<T> L2_skewness_derivative_numerator(polynomial<T> const & p)
+{
+    const int d = p.degree();
+    ASSERT_ALWAYS(1 <= p.degree());
+    ASSERT_ALWAYS(d <= L2_DMAX);
+
+    const T * a = p.get_coeff_data();
+    auto const & tr = cado::number_context<T>(a[0]);
+
+    polynomial<T> dP(tr);
+
+    // double_poly_realloc(dP, d+1);
+    for(int k = 0 ; k <= d ; k++) {
+        T t0 = tr(0);
+        for(int i = 1 ; i <= k && i <= d - k ; i++)
+            t0 += a[k-i] * a[k+i];
+        t0 = (2 * t0 + a[k] * a[k]);
+        const int j = (ABS(d-2*k)-(d&1))/2;
+        t0 = t0 * coeffs_integral[d][j]*(2*k-d);
+        dP[k] = t0; // ldexp(t0/(d+1), -2*d);
+    }
+    if (dP.has_inf() || dP.has_nan())
+        throw std::overflow_error("");
+
+    return dP;
+}
+#else
+static void L2_skewness_derivative_numerator_d(double_poly_ptr dP, double_poly_srcptr p)
 {
     const double * a = p->coeff;
     const int d = p->deg;
@@ -310,6 +418,7 @@ static void L2_skewness_derivative_numerator(double_poly_ptr dP, double_poly_src
     }
     double_poly_cleandeg(dP, d);
 }
+#endif
 
 /* Do the same just for the numerator of the L2 skewness. Again, this is
  * a polynomial in s^2 !!!
@@ -323,7 +432,40 @@ static void L2_skewness_derivative_numerator(double_poly_ptr dP, double_poly_src
         return tt*pi/2^(2*d-1)/(d+1)
     check2(lambda d,a:sum_xd(d,a)/s^d)
  */
-static void L2_skewness_numerator(double_poly_ptr dP, double_poly_srcptr p)
+#ifndef USE_DOUBLE_POLY_CODE
+template<typename T>
+static polynomial<T> L2_skewness_numerator(polynomial<T> const & p)
+{
+    const int d = p.degree();
+    ASSERT_ALWAYS(1 <= p.degree());
+    ASSERT_ALWAYS(d <= L2_DMAX);
+
+    const T * a = p.get_coeff_data();
+    auto const & tr = cado::number_context<T>(a[0]);
+
+    polynomial<T> dP(tr);
+
+    // double_poly_realloc(dP, d+1);
+    for(int k = 0 ; k <= d ; k++) {
+        T t0 = tr(0);
+        for(int i = 1 ; i <= k && i <= d - k ; i++)
+            t0 += a[k-i] * a[k+i];
+        t0 = (2 * t0 + a[k] * a[k]);
+        const int j = (ABS(d-2*k)-(d&1))/2;
+        t0 = t0 * coeffs_integral[d][j];
+        if (2*k != d)
+            t0 /= 2;
+        dP[k] = t0; // ldexp(t0/(d+1), -(2*d-1));
+    }
+    // cleandeg() should be automatic with polynomial<T>
+    // double_poly_cleandeg(dP, d);
+    if (dP.has_inf() || dP.has_nan())
+        throw std::overflow_error("");
+
+    return dP;
+}
+#else
+static void L2_skewness_numerator_d(double_poly_ptr dP, double_poly_srcptr p)
 {
     const double * a = p->coeff;
     const int d = p->deg;
@@ -343,6 +485,7 @@ static void L2_skewness_numerator(double_poly_ptr dP, double_poly_srcptr p)
     }
     double_poly_cleandeg(dP, d);
 }
+#endif
 
 /* return the skewness giving the best lognorm sum for two polynomials.
  * We do so by computing the formal expression of the quadratic form (up
@@ -353,23 +496,57 @@ static void L2_skewness_numerator(double_poly_ptr dP, double_poly_srcptr p)
  * minimize dQ(f)*Q(g)+Q(f)*dQ(g). Pay attention to the subtleties with
  * the square roots.
  */
-double
-L2_combined_skewness2 (mpz_poly_srcptr f, mpz_poly_srcptr g)
+
+#ifndef USE_DOUBLE_POLY_CODE
+template<typename T>
+static T L2_combined_skewness2(polynomial<T> const & F, polynomial<T> const & G)
 {
-    double_poly dQF, QF, F;
-    double_poly dQG, QG, G;
-    double_poly_init(F, -1);
+    auto QF = L2_skewness_numerator(F);
+    auto dQF = L2_skewness_derivative_numerator(F);
+    auto QG = L2_skewness_numerator(G);
+    auto dQG = L2_skewness_derivative_numerator(G);
+
+    auto S = dQF * QG + QF * dQG;
+
+    if (S.has_inf() || S.has_nan())
+        ASSERT_ALWAYS(0);
+
+    auto roots = S.positive_roots();
+
+    /* some pathological examples for gfpn have integer roots, and this
+     * wreaks havoc.
+     */
+
+    ASSERT_ALWAYS(!roots.empty());
+
+    auto best_s = cado_math_aux::sqrt(roots[0]);
+    auto l = L2_lognorm(F, best_s) + L2_lognorm(G, best_s);
+
+    for(size_t i = 1 ; i < roots.size() ; i++) {
+        const auto s = cado_math_aux::sqrt(roots[i]);
+        const auto li = L2_lognorm(F, s) + L2_lognorm(G, s);
+        if (li < l) {
+            best_s = s;
+            l = li;
+        }
+    }
+
+    return best_s;
+}
+#else
+static double
+L2_combined_skewness2_d (double_poly_srcptr F, double_poly_srcptr G)
+{
+    double_poly dQF, QF;
+    double_poly dQG, QG;
     double_poly_init(QF, -1);
     double_poly_init(dQF, -1);
-    double_poly_init(G, -1);
     double_poly_init(QG, -1);
     double_poly_init(dQG, -1);
-    double_poly_set_mpz_poly (F, f);
-    double_poly_set_mpz_poly (G, g);
-    L2_skewness_numerator(QF, F);
-    L2_skewness_derivative_numerator(dQF, F);
-    L2_skewness_numerator(QG, G);
-    L2_skewness_derivative_numerator(dQG, G);
+    L2_skewness_numerator_d(QF, F);
+    L2_skewness_derivative_numerator_d(dQF, F);
+    L2_skewness_numerator_d(QG, G);
+    L2_skewness_derivative_numerator_d(dQG, G);
     double_poly t, S;
     double_poly_init(t, -1);
     double_poly_init(S, -1);
@@ -377,13 +554,14 @@ L2_combined_skewness2 (mpz_poly_srcptr f, mpz_poly_srcptr g)
     double_poly_mul(t, QF, dQG);
     double_poly_add(S, S, t);
 
-    double * roots = (double *) malloc(S->deg * sizeof(double));
+    auto roots = std::unique_ptr<double[]>(new double[S->deg]);
 
     const double B = double_poly_bound_roots(S);
+
     /* some pathological examples for gfpn have integer roots, and this
      * wreaks havoc.
      */
-    const unsigned int nroots = double_poly_compute_roots(roots, S, B + 1);
+    const unsigned int nroots = double_poly_compute_roots(roots.get(), S, B);
 
     double best_s = sqrt(roots[0]);
     if (nroots > 1) {
@@ -398,36 +576,65 @@ L2_combined_skewness2 (mpz_poly_srcptr f, mpz_poly_srcptr g)
         }
     }
 
-    free(roots);
-
     double_poly_clear(S);
     double_poly_clear(t);
-    double_poly_clear(F);
     double_poly_clear(QF);
     double_poly_clear(dQF);
-    double_poly_clear(G);
     double_poly_clear(QG);
     double_poly_clear(dQG);
 
     return best_s;
 }
+#endif
 
-double L2_skewness (mpz_poly_srcptr f)
+#ifndef USE_DOUBLE_POLY_CODE
+template<typename T>
+static T
+L2_skewness(polynomial<T> const & P)
 {
-    const int d = f->deg;
-    double_poly dP, P;
-    double_poly_init(P, -1);
-    double_poly_init(dP, -1);
-    double_poly_set_mpz_poly (P, f);
-    L2_skewness_derivative_numerator(dP, P);
+    auto dP = L2_skewness_derivative_numerator(P);
 
-    double * roots = (double *) malloc(d * sizeof(double));
+    /* some pathological examples for gfpn have integer roots, and this
+     * wreaks havoc.
+     */
+    auto roots = dP.positive_roots();
+
+    /* We often have a single zero, but not always. Here's an example
+     * with three. It typically happens when we have pairs of roots that
+     * are almost symmetrical along the axes. I'm not sure I see a
+     * generalization of this phenomenon to more than two extrema, actually.
+     * 3520*x^4 - 14848*x^3 - 26038239232*x^2 + 3120*x + 110
+     */
+    ASSERT_ALWAYS(!roots.empty());
+
+    T best_s = cado_math_aux::sqrt(roots[0]);
+    T l = L2_lognorm(P, best_s);
+    for(size_t i = 1 ; i < roots.size() ; i++) {
+        const auto s = cado_math_aux::sqrt(roots[i]);
+        const auto li = L2_lognorm(P, s);
+        if (li < l) {
+            best_s = s;
+            l = li;
+        }
+    }
+
+    return best_s;
+}
+#else
+static double L2_skewness_d (double_poly_srcptr P)
+{
+    const int d = P->deg;
+    double_poly dP;
+    double_poly_init(dP, -1);
+    L2_skewness_derivative_numerator_d(dP, P);
+
+    auto roots = std::unique_ptr<double[]>(new double[d]);
 
     const double B = double_poly_bound_roots(dP);
     /* some pathological examples for gfpn have integer roots, and this
      * wreaks havoc.
      */
-    const unsigned int nroots = double_poly_compute_roots(roots, dP, B + 1);
+    const unsigned int nroots = double_poly_compute_roots(roots.get(), dP, B);
     /* We often have a single zero, but not always. Here's an example
      * with three. It typically happens when we have pairs of roots that
      * are almost symmetrical along the axes. I'm not sure I see a
@@ -449,15 +656,162 @@ double L2_skewness (mpz_poly_srcptr f)
         }
     }
 
-
-    free(roots);
-    double_poly_clear(P);
     double_poly_clear(dP);
 
     return best_s;
 }
+#endif
+
+#ifdef USE_PRESCALING
+double L2_lognorm (mpz_poly_srcptr f, double s)
+{
+    const int bits0 = mpz_sizeinbase(mpz_poly_coeff_const(f, 0), 2);
+    const int bits1 = mpz_sizeinbase(mpz_poly_coeff_const(f, f->deg), 2);
+    const int scale = (bits1 - bits0) / f->deg;
+    const double sx = ldexp(s, scale);
+#ifndef USE_DOUBLE_POLY_CODE
+    const polynomial<double> F(f, -bits0, -scale);
+    const double n = L2_lognorm(F, sx);
+#else
+    double_poly F;
+    double_poly_init(F, -1);
+    double_poly_set_mpz_poly_scaled(F, f, -bits0, -scale);
+    const double n = L2_lognorm_d(F, sx);
+    double_poly_clear(F);
+#endif
+    using cado_math_aux::fma;
+    auto fix = 2 * bits0 + f->deg * scale;
+    return fma(fix, std::numbers::ln2_v<double> / 2, n);
+}
+
+double L2_skewness (mpz_poly_srcptr f)
+{
+    const int bits0 = mpz_sizeinbase(mpz_poly_coeff_const(f, 0), 2);
+    const int bits1 = mpz_sizeinbase(mpz_poly_coeff_const(f, f->deg), 2);
+    const int scale = (bits1 - bits0) / f->deg;
+#ifndef USE_DOUBLE_POLY_CODE
+    const polynomial<double> F(f, -bits0, -scale);
+    const double sx = L2_skewness(F);
+#else
+    double_poly F;
+    double_poly_init(F, -1);
+    double_poly_set_mpz_poly_scaled(F, f, -bits0, -scale);
+    const double sx = L2_skewness_d(F);
+    double_poly_clear(F);
+#endif
+    return ldexp(sx, -scale);
+}
 
 double L2_skew_lognorm (mpz_poly_srcptr f)
 {
-  return L2_lognorm (f, L2_skewness (f));
+    const int bits0 = mpz_sizeinbase(mpz_poly_coeff_const(f, 0), 2);
+    const int bits1 = mpz_sizeinbase(mpz_poly_coeff_const(f, f->deg), 2);
+    const int scale = (bits1 - bits0) / f->deg;
+#ifndef USE_DOUBLE_POLY_CODE
+    const polynomial<double> F(f, -bits0, -scale);
+    const double n = L2_lognorm (F, L2_skewness (F));
+#else
+    double_poly F;
+    double_poly_init(F, -1);
+    double_poly_set_mpz_poly_scaled(F, f, -bits0, -scale);
+    const double n = L2_lognorm_d(F, L2_skewness_d(F));
+    double_poly_clear(F);
+#endif
+    using cado_math_aux::fma;
+    auto fix = 2 * bits0 + f->deg * scale;
+    return fma(fix, std::numbers::ln2_v<double> / 2, n);
 }
+
+double L2_combined_skewness2 (mpz_poly_srcptr f, mpz_poly_srcptr g)
+{
+    const int f0 = mpz_sizeinbase(mpz_poly_coeff_const(f, 0), 2);
+    const int f1 = mpz_sizeinbase(mpz_poly_coeff_const(f, f->deg), 2);
+    const int g0 = mpz_sizeinbase(mpz_poly_coeff_const(g, 0), 2);
+    const int g1 = mpz_sizeinbase(mpz_poly_coeff_const(g, g->deg), 2);
+    const int scale = (f1 + g1 - f0 - g0) / (f->deg + g->deg);
+#ifndef USE_DOUBLE_POLY_CODE
+    const polynomial<double> F(f, -f0, -scale);
+    const polynomial<double> G(g, -g0, -scale);
+    const double sx = L2_combined_skewness2(F, G);
+#else
+    double_poly F, G;
+    double_poly_init(F, -1);
+    double_poly_init(G, -1);
+    double_poly_set_mpz_poly_scaled(F, f, -f0, -scale);
+    double_poly_set_mpz_poly_scaled(G, g, -g0, -scale);
+    const double sx = L2_combined_skewness2_d(F, G);
+    double_poly_clear(F);
+    double_poly_clear(G);
+#endif
+
+    return ldexp(sx, -scale);
+}
+
+#else
+
+double L2_lognorm (mpz_poly_srcptr f, double s)
+{
+    const double sx = s;
+#ifndef USE_DOUBLE_POLY_CODE
+    const polynomial<double> F(f);
+    const double n = L2_lognorm(F, sx);
+#else
+    double_poly F;
+    double_poly_init(F, -1);
+    double_poly_set_mpz_poly(F, f);
+    const double n = L2_lognorm_d(F, sx);
+    double_poly_clear(F);
+#endif
+    return n;
+}
+
+double L2_skewness (mpz_poly_srcptr f)
+{
+#ifndef USE_DOUBLE_POLY_CODE
+    const polynomial<double> F(f);
+    const double sx = L2_skewness(F);
+#else
+    double_poly F;
+    double_poly_init(F, -1);
+    double_poly_set_mpz_poly(F, f);
+    const double sx = L2_skewness_d(F);
+    double_poly_clear(F);
+#endif
+    return sx;
+}
+
+double L2_skew_lognorm (mpz_poly_srcptr f)
+{
+#ifndef USE_DOUBLE_POLY_CODE
+    const polynomial<double> F(f);
+    const double n = L2_lognorm (F, L2_skewness (F));
+#else
+    double_poly F;
+    double_poly_init(F, -1);
+    double_poly_set_mpz_poly(F, f);
+    const double n = L2_lognorm_d(F, L2_skewness_d(F));
+    double_poly_clear(F);
+#endif
+    return n;
+}
+
+double L2_combined_skewness2 (mpz_poly_srcptr f, mpz_poly_srcptr g)
+{
+#ifndef USE_DOUBLE_POLY_CODE
+    const polynomial<double> F(f);
+    const polynomial<double> G(g);
+    const double sx = L2_combined_skewness2(F, G);
+#else
+    double_poly F, G;
+    double_poly_init(F, -1);
+    double_poly_init(G, -1);
+    double_poly_set_mpz_poly(F, f);
+    double_poly_set_mpz_poly(G, g);
+    const double sx = L2_combined_skewness2_d(F, G);
+    double_poly_clear(F);
+    double_poly_clear(G);
+#endif
+    return sx;
+}
+
+#endif

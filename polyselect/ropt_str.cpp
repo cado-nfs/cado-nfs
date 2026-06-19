@@ -22,7 +22,7 @@
 #include "auxiliary.hpp"  // ALG_SIDE RAT_SIDE
 #include "area.hpp"
 #include "size_optimization.hpp"
-#include "polyselect_norms.h"
+#include "polyselect_norms.hpp"
 #include "polyselect_alpha.h"
 
 

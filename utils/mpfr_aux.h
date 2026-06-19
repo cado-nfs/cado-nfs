@@ -8,38 +8,58 @@
 
 #include <mpfr.h>
 
+#if ULONG_BITS < 64
+#include "macros.h"
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* {{{ mpfr_set_{int64,uin64} */
+/* {{{ mpfr_set_{int64,uin64}{,_2exp} */
 #if ULONG_BITS < 64
-/* Set z to q. On 32-bit machines, we can't use mpfr_set_ui! */
-static inline int mpfr_set_uint64(mpfr_ptr z, uint64_t q, mpfr_rnd_t rnd)
+/* Set z to q*2^e. On 32-bit machines, we can't use mpfr_set_ui! */
+static inline int mpfr_set_uint64_2exp(mpfr_ptr z, uint64_t const q, mpfr_exp_t e, mpfr_rnd_t rnd)
 {
     if (q <= ULONG_MAX)
-        return mpfr_set_ui(z, (unsigned long)q, rnd);
+        return mpfr_set_ui_2exp(z, (unsigned long)q, e, rnd);
     else {
         ASSERT_ALWAYS(sizeof(unsigned long) == 4);
-        int const r0 = mpfr_set_ui(z, (unsigned long)(q >> 32), rnd);
-        mpfr_mul_2exp(z, z, 32, rnd);
-        int const r1 =
-            mpfr_add_ui(z, z, (unsigned long)(q & 4294967295UL), rnd);
+        int const r0 = mpfr_set_ui_2exp(z, (unsigned long)(q >> 32), e + 32, rnd);
+        int r1;
+        if (e == 0) {
+            r1 = mpfr_add_ui(z, z, (unsigned long)(q & 4294967295UL), rnd);
+        } else {
+            mpfr_t aux;
+            mpfr_init2(aux, mpfr_get_prec(z));
+            mpfr_set_ui_2exp(aux, (unsigned long)(q & 4294967295UL), e, rnd);
+            r1 = mpfr_add(z, z, aux, rnd);
+            mpfr_clear(aux);
+        }
         return r0 ? r0 : r1;
     }
 }
+/* Set z to q. On 32-bit machines, we can't use mpfr_set_ui! */
+static inline int mpfr_set_uint64(mpfr_ptr z, uint64_t q, mpfr_rnd_t rnd)
+{
+    return mpfr_set_uint64_2exp(z, q, 0, rnd);
+}
 
-static inline void mpfr_set_int64(mpfr_ptr z, int64_t q, mpfr_rnd_t rnd)
+static inline void mpfr_set_int64_2exp(mpfr_ptr z, int64_t q, int e, mpfr_rnd_t rnd)
 {
     if (LONG_MIN <= q && q <= LONG_MAX)
-        return mpfr_set_si(z, (long)q, rnd);
+        return mpfr_set_si_2exp(z, (long)q, e, rnd);
     else if (q >= 0)
-        return mpfr_set_uint64(z, (uint64_t)q, rnd);
+        return mpfr_set_uint64_2exp(z, (uint64_t)q, e, rnd);
     else {
-        int const r = mpfr_set_uint64(z, -(uint64_t)q, rnd);
+        int const r = mpfr_set_uint64(z, -(uint64_t)q, e, rnd);
         mpfr_neg(z, z, rnd);
         return -r;
     }
+}
+static inline int mpfr_set_int64(mpfr_ptr z, int64_t q, mpfr_rnd_t rnd)
+{
+    return mpfr_set_int64_2exp(z, q, 0, rnd);
 }
 #else
 static inline int mpfr_set_uint64(mpfr_ptr a, uint64_t const b, mpfr_rnd_t rnd)
@@ -50,7 +70,16 @@ static inline int mpfr_set_int64(mpfr_ptr a, int64_t const b, mpfr_rnd_t rnd)
 {
     return mpfr_set_si(a, b, rnd);
 }
+static inline int mpfr_set_uint64_2exp(mpfr_ptr a, uint64_t const b, mpfr_exp_t e, mpfr_rnd_t rnd)
+{
+    return mpfr_set_ui_2exp(a, b, e, rnd);
+}
+static inline int mpfr_set_int64_2exp(mpfr_ptr a, int64_t const b, mpfr_exp_t e, mpfr_rnd_t rnd)
+{
+    return mpfr_set_si_2exp(a, b, e, rnd);
+}
 #endif
+
 /* }}} */
 
 /* mpfr_init_set_{int64,uint64} {{{ */

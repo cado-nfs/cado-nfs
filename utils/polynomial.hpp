@@ -42,6 +42,7 @@
 #include "runtime_numeric_cast.hpp"
 #include "number_context.hpp"
 #include "mpz_poly.h"
+#include "double_poly.h"
 #include "cxx_mpz.hpp"
 #include "cado_math_aux.hpp"
 #include "cado_addsubmul.hpp"
@@ -189,6 +190,7 @@ struct polynomial : public number_context<T>
     std::vector<T> coeffs;
 
     public:
+    T const * get_coeff_data() const { return coeffs.data(); }
 
     using coefficient_type = T;
 
@@ -364,7 +366,8 @@ struct polynomial : public number_context<T>
             number_context<eval_type_t<T, U>> const & tr,
             U const & x,
             std::function<void(eval_type_t<T, U> const &)> const & h
-                = [](auto){}) const
+                // = [](auto){}
+                ) const
     {
         /* h is used as a way to handle to coefficients that are produced
          * along the computation. They happen to be the coefficients of
@@ -401,6 +404,53 @@ struct polynomial : public number_context<T>
                         h(s);
                         s = fma(s, xx, tr(f[k]));
                     }
+        }
+        return s;
+#ifdef  __GNUC__
+#pragma GCC diagnostic pop
+#endif
+    }
+
+    /* this is of course equivalent to the code above with h() a no-op.
+     * Unfortunately having the closure argument seems to give rise to a
+     * missed optimization.
+     */
+    template<typename U>
+    eval_type_t<T, U> eval_with_reference(
+            number_context<eval_type_t<T, U>> const & tr,
+            U const & x) const
+    {
+
+#ifdef  __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
+        using cado_math_aux::fma;
+
+        if (degree() < 0) return tr(0);
+
+        T const * f = coeffs.data();
+
+        auto s = tr(f[degree()]);
+        auto xx = tr(x);
+
+        int k = degree();
+        using cado_math_aux::fma;
+        switch(k-1) {
+            case 8: s = fma(s, xx, tr(f[8])); no_break();
+            case 7: s = fma(s, xx, tr(f[7])); no_break();
+            case 6: s = fma(s, xx, tr(f[6])); no_break();
+            case 5: s = fma(s, xx, tr(f[5])); no_break();
+            case 4: s = fma(s, xx, tr(f[4])); no_break();
+            case 3: s = fma(s, xx, tr(f[3])); no_break();
+            case 2: s = fma(s, xx, tr(f[2])); no_break();
+            case 1: s = fma(s, xx, tr(f[1])); no_break();
+            case 0: s = fma(s, xx, tr(f[0])); no_break();
+            case -1: break;
+            default:
+                for ( ; k-- ; ) {
+                    s = fma(s, xx, tr(f[k]));
+                }
         }
         return s;
 #ifdef  __GNUC__
@@ -735,7 +785,10 @@ struct polynomial : public number_context<T>
         }
         q[degree()] = cado_math_aux::abs(lc());
         T b = 1;
-        for( ; q.eval(b) < 0 ; b = b + b) ;
+        /* In the unlikely case that a power of two is a root, we must
+         * make sure that we return a _strict_ upper bound on the roots.
+         */
+        for( ; q.eval(b) <= 0 ; b = b + b) ;
         return /* negative ? -b : */ b;
     }
     /* }}} */
@@ -747,7 +800,7 @@ struct polynomial : public number_context<T>
      * the same precision).
      */
     template<typename U>
-    U findroot_dichotomy(U a, U b, int sa) const
+    U findroot_dichotomy(U a, U b, U sa) const
     {
         /* it would be an error to instantiate this with U distinct from
          * the real evaluation type */
@@ -759,8 +812,7 @@ struct polynomial : public number_context<T>
             s = (a + b) / 2;
             cado_math_aux::do_not_outsmart_me(s);
             if (s == a || s == b) return s;
-            using cado_math_aux::sgn;
-            if (sgn(eval(s)) * sa > 0)
+            if (eval(s) * sa > 0)
                 a = s;
             else
                 b = s;
@@ -782,7 +834,7 @@ struct polynomial : public number_context<T>
      * The appropriate number context is carried by a0 and b0
      */
     template<typename U>
-    U findroot_falseposition(U const & a0, U const & b0, U const & pa0) const
+    U findroot_falseposition(U const & a0, U const & b0, U const & pa0, U const & pb0) const
     {
         /* it would be an error to instantiate this with U distinct from
          * the real evaluation type */
@@ -798,7 +850,7 @@ struct polynomial : public number_context<T>
 
         ASSERT_ALWAYS(sigma*a < sigma*b);
 
-        U pa=pa0, pb = eval(b);
+        U pa = pa0, pb = pb0;
 
         for(;;) {
             U s = (a*pb-b*pa)/(pb-pa);
@@ -822,8 +874,7 @@ struct polynomial : public number_context<T>
                 s = middle;
             if (s == a || s == b) return s;
             U ps = eval(s);
-            using cado_math_aux::sgn;
-            if (sgn(ps) * sgn(pa) > 0) {
+            if (ps * pa > 0) {
                 a = s; pa = ps;
                 if (side==1) pb /= 2;
                 side=1;
@@ -833,7 +884,7 @@ struct polynomial : public number_context<T>
                 side=-1;
             }
             if (cado_math_aux::isnan(b)) {
-                return findroot_dichotomy(a0, b0, sgn(pa0));
+                return findroot_dichotomy(a0, b0, pa0);
             }
         }
     }
@@ -856,8 +907,6 @@ struct polynomial : public number_context<T>
         static_assert(cado_math_aux::is_real_v<U>);
         number_context<U> tr(bound);
 
-        using cado_math_aux::sgn;
-
         ASSERT_ALWAYS(degree() >= 1);
         if (degree() == 1) {
             /* A linear polynomial has at most one root.
@@ -866,8 +915,7 @@ struct polynomial : public number_context<T>
              * consider the case coeffs[0] == 0. On the other hand, the
              * bound counts.
              */
-            const int s = sgn(coeffs[0]);
-            if (s && s * eval(bound) <= 0)
+            if (coeffs[0] && coeffs[0] * eval(bound) <= 0)
                 v.assign(1, - tr(coeffs[0]) / tr(coeffs[1]));
         } else {
             U a = tr(0);
@@ -897,8 +945,8 @@ struct polynomial : public number_context<T>
                 U vb = eval(b);
                 if (no_chance) {
                     no_chance = false;
-                } else if (sgn(va) * sgn(vb) < 0) {
-                    v[m++] = findroot_falseposition(a, b, va);
+                } else if (va * vb < 0) {
+                    v[m++] = findroot_falseposition(a, b, va, vb);
                 } else {
                     /* we're in the case where this interval _looked_
                      * promising, and yet had no root. The next one
@@ -945,6 +993,7 @@ struct polynomial : public number_context<T>
          * polynomial.
          */
         std::vector<U> res;
+        res.reserve(d);
         for (int k = d; k-- ; )
             dg[k].positive_roots_from_derivative_sign_changes(res, bound);
 
@@ -978,7 +1027,9 @@ struct polynomial : public number_context<T>
         cado_math_aux::is_real_v<U> &&
         cado_math_aux::is_coercible_v<T, U>)
     {
-        return positive_roots_inner(tr(bound_positive_roots()));
+        auto B = tr(bound_positive_roots());
+        // B += cado_math_aux::ulp(B);
+        return positive_roots_inner(B);
     }
     /* }}} */
     /* {{{ roots (positive and negative) */
@@ -1590,12 +1641,51 @@ struct polynomial : public number_context<T>
         return os.str();
     }
 
+    explicit polynomial(mpz_poly_srcptr f, number_context<T> const & tr = {})
+        : number_context<T>(tr)
+    {
+        coeffs.assign(f->deg + 1, ctx()(0));
+        for(int i = 0 ; i <= f->deg ; i++) {
+            coeffs[i] = ctx()(mpz_poly_coeff_const(f, i));
+        }
+    }
+
+    /* return \sum_{a_i 2^(base+scale*i) x^i} */
+    polynomial(mpz_poly_srcptr f, int base, int scale, number_context<T> const & tr = {})
+        : number_context<T>(tr)
+    {
+        coeffs.assign(f->deg + 1, ctx()(0));
+        for(int i = 0 ; i <= f->deg ; i++) {
+            coeffs[i] = ctx()(mpz_poly_coeff_const(f, i), base + scale * i);
+        }
+    }
+
+
     explicit polynomial(cxx_mpz_poly const & f, number_context<T> const & tr = {})
         : number_context<T>(tr)
     {
         coeffs.assign(f.degree() + 1, ctx()(0));
         for(int i = 0 ; i <= f.degree() ; i++) {
             coeffs[i] = ctx()(mpz_poly_coeff_const(f, i));
+        }
+    }
+
+    polynomial(cxx_mpz_poly const & f, int base, int scale, number_context<T> const & tr = {})
+        : number_context<T>(tr)
+    {
+        coeffs.assign(f->deg + 1, ctx()(0));
+        for(int i = 0 ; i <= f->deg ; i++) {
+            coeffs[i] = ctx()(mpz_poly_coeff_const(f, i), base + scale * i);
+        }
+    }
+
+
+    explicit polynomial(double_poly_srcptr f, number_context<T> const & tr = {})
+        : number_context<T>(tr)
+    {
+        coeffs.assign(f->deg + 1, ctx()(0));
+        for(int i = 0 ; i <= f->deg ; i++) {
+            coeffs[i] = ctx()(f->coeff[i]);
         }
     }
 

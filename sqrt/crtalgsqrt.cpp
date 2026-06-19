@@ -642,7 +642,7 @@ void estimate_nbits_sqrt(size_t * sbits, ab_source_ptr ab) // , int guess)
     // note that now that we've read everything, we know the precise
     // number of (a,b)'s. Thus we can replace the estimation.
     ab->nab_estim = ab->nab;
-// {{{ post-process evaluation: f'(alpha), and even nab. print.
+    // {{{ post-process evaluation: f'(alpha), and even nab. print.
 
     if (ab->nab & 1) {
         printf("# [%2.2lf] odd number of pairs !\n", WCT);

@@ -29,7 +29,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "cado_poly.hpp"
 #include "params.hpp"
 #include "murphyE.hpp"
-#include "polyselect_norms.h"
+#include "polyselect_norms.hpp"
 #include "polyselect_alpha.h"
 
 int fullscore = 0;

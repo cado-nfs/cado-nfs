@@ -94,6 +94,50 @@ namespace mpfr_auxx
 MPFR_AUXX_DEFINE_FUNC_aXr(init_set)
 MPFR_AUXX_DEFINE_FUNC_aXr(set)
 
+static inline void cado_mpfr_set_2exp(mpfr_ptr a, mpfr_srcptr b,
+        mpfr_exp_t e, mpfr_rnd_t rnd)
+{
+    mpfr_mul_2si(a, b, e, rnd);
+}
+template <typename T>
+static inline void
+cado_mpfr_set_2exp(mpfr_ptr a, T const b, mpfr_exp_t e, mpfr_rnd_t rnd)
+requires cado::converts_via<T, long>
+{
+    mpfr_set_si_2exp(a, b, e, rnd);
+}
+
+template <typename T>
+static inline void
+cado_mpfr_set_2exp(mpfr_ptr a, T const b, mpfr_exp_t e, mpfr_rnd_t rnd)
+requires cado::converts_via<T, unsigned long>
+{
+    mpfr_set_ui_2exp(a, b, e, rnd);
+}
+
+template <typename T>
+static inline void
+cado_mpfr_set_2exp(mpfr_ptr a, T const b, mpfr_exp_t e, mpfr_rnd_t rnd)
+    requires(!cado::converts_via<T, long> &&
+              cado::converts_via<T, int64_t>)
+{
+    mpfr_set_int64_2exp(a, b, e, rnd);
+}
+
+template <typename T>
+static inline void
+cado_mpfr_set_2exp(mpfr_ptr a, T const b, mpfr_exp_t e, mpfr_rnd_t rnd)
+    requires(!cado::converts_via<T, unsigned long> &&
+              cado::converts_via<T, uint64_t>)
+{
+    mpfr_set_uint64_2exp(a, b, e, rnd);
+}
+
+static inline void
+cado_mpfr_set_2exp(mpfr_ptr a, mpz_srcptr b, mpfr_exp_t e, mpfr_rnd_t rnd)
+{
+    mpfr_set_z_2exp(a, b, e, rnd);
+}
 
 /*****************************************************************/
 #define MPFR_AUXX_DEFINE_FUNC_tX_INT(OP)				\

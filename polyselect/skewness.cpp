@@ -25,7 +25,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include <cstdlib>
 
 #include "auxiliary.hpp"
-#include "polyselect_norms.h"
+#include "polyselect_norms.hpp"
 #include "cado_poly.hpp"
 #include "macros.h"
 

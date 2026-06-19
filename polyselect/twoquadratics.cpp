@@ -15,7 +15,7 @@
 #include "gmp_aux.h"
 #include "params.hpp"
 #include "verbose.hpp"
-#include "polyselect_norms.h"
+#include "polyselect_norms.hpp"
 #include "polyselect_alpha.h"
 
 #include "cxx_mpz.hpp"

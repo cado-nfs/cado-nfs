@@ -29,7 +29,7 @@
 #include "omp_proxy.h"
 #include "polyselect_arith.h"
 #include "polyselect_collisions.hpp"
-#include "polyselect_norms.h"
+#include "polyselect_norms.hpp"
 #include "polyselect_alpha.h"
 #include "polyselect_shash.h"
 #include "polyselect_poly_header.h"

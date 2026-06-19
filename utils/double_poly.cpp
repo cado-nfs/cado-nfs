@@ -20,6 +20,7 @@
 #include "mpz_poly.h"  // mpz_poly
 #include "macros.h"     // for ASSERT, ASSERT_ALWAYS
 
+#include "cado_mp_conversions.hpp"
 #include "double_poly.h"
 #include "utils_cxx.hpp"
 
@@ -33,7 +34,7 @@
 #if __GLIBC_PREREQ(2, 23)
 #include <cmath>
 using std::isnan;
-// using std::isinf;
+using std::isinf;
 #else
 /* not "the right way", but happens to work.  */
 #include <cmath>
@@ -42,7 +43,7 @@ using std::isnan;
 /* this one is the right way */
 #include <cmath>
 using std::isnan;
-// using std::isinf;
+using std::isinf;
 #endif
 
 #define STATIC_ANALYSIS_ASSERT_DATA_HEALTH(d) do {		     	   \
@@ -557,8 +558,10 @@ double_poly_bound_roots (double_poly_srcptr p)
   q->coeff[d] = fabs (p->coeff[d]);
   double_poly_cleandeg(q, d);
   s = 1.0;
-  while (double_poly_eval (q, s) < 0)
+  double c;
+  while ((c = double_poly_eval (q, s)) < 0)
     s = s + s;
+  s += (c == 0);
   double_poly_clear (q);
   return s;
 }
@@ -686,12 +689,19 @@ double_poly_asprint (char **t, double_poly_srcptr p, const char *name)
 }
 
 void
-double_poly_set_mpz_poly (double_poly_ptr p, mpz_poly_srcptr q)
+double_poly_set_mpz_poly_scaled (double_poly_ptr p, mpz_poly_srcptr q, int base, int scale)
 {
+    using cado_math_aux::mpz_get;
     double_poly_realloc(p, q->deg + 1);
     for (int i = 0; i <= q->deg; i++)
-        p->coeff[i] = mpz_get_d (mpz_poly_coeff_const(q, i));
+        p->coeff[i] = mpz_get<double>(mpz_poly_coeff_const(q, i), base+i*scale);
     p->deg = q->deg;
+}
+
+void
+double_poly_set_mpz_poly (double_poly_ptr p, mpz_poly_srcptr q)
+{
+    double_poly_set_mpz_poly_scaled(p, q, 0, 0);
 }
 
 /*
@@ -786,6 +796,26 @@ static double double_poly_content(double_poly_srcptr f)
     return fabs((double) gcd);
 }
 #endif
+
+/* check if an infinite value is found among the poly coeffs
+ */
+int double_poly_has_inf(double_poly_srcptr f)
+{
+    for(int deg = f->deg ; deg >= 0 ; deg--) {
+        if (isinf(f->coeff[deg]))
+            return 1;
+    }
+    return 0;
+}
+
+int double_poly_has_nan(double_poly_srcptr f)
+{
+    for(int deg = f->deg ; deg >= 0 ; deg--) {
+        if (isnan(f->coeff[deg]))
+            return 1;
+    }
+    return 0;
+}
 
 /*
  * Return the leading coefficient of f, even with f not normalized.

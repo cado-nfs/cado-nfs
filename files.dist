@@ -805,7 +805,7 @@ polyselect/polyselect_main_queue.hpp
 polyselect/polyselect_match.cpp
 polyselect/polyselect_match.hpp
 polyselect/polyselect_norms.cpp
-polyselect/polyselect_norms.h
+polyselect/polyselect_norms.hpp
 polyselect/polyselect_poly_header.c
 polyselect/polyselect_poly_header.h
 polyselect/polyselect_primes_table.c
@@ -1308,6 +1308,7 @@ tests/omp_get_max_threads.c
 tests/pipe_to_sage.sh
 tests/polyselect/CMakeLists.txt
 tests/polyselect/Makefile
+tests/polyselect/bench_lognorm.cpp
 tests/polyselect/c80msieve.sample
 tests/polyselect/gfpkdlpolyselect_test.cpp
 tests/polyselect/ropt.rsa250.txt
@@ -1520,6 +1521,7 @@ tests/utils/arithxx/CMakeLists.txt
 tests/utils/arithxx/test_lucas.cpp
 tests/utils/arithxx/test_mod.cpp
 tests/utils/arithxx/test_modint.cpp
+tests/utils/bench_double_poly_roots.cpp
 tests/utils/buggy.poly
 tests/utils/numbertheory/CMakeLists.txt
 tests/utils/numbertheory/Makefile

@@ -177,3 +177,4 @@ if(SAGE)
     cado_divert_test(test_explain_relations_with_sagemath_c30 dl APPEND_ARGUMENTS -dl)
 endif()
 
+cado_define_test(bench_double_poly_roots.cpp ARGUMENTS -iter 100 LIBRARIES utils)

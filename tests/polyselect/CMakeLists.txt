@@ -178,6 +178,7 @@ cado_define_test(test_sopt PROGRAM
     NO_DEFAULT_RUN
     SHA1_ON_REGEXP_LINES "^[^#]"
     TARGET_DEPENDENCIES sopt
+    TIMEOUT 40
 )
 
 cado_divert_test(test_sopt 1
@@ -194,6 +195,16 @@ cado_divert_test(test_sopt 2
     -inputpolys ${CMAKE_CURRENT_SOURCE_DIR}/sopt.input2.txt
     # EXPECT_SHA1 a3aadd110944689565adb70ae7456b69d8d97dbc
     # same as above
+    #
+    # 927883a94 introduces a change in how lognorms are computed: a value
+    # such as log(N) is replaced by log(N/2^scale)+scale*log(2), which
+    # _might_ differ by one ulp (and again, this might depend on whether
+    # the compiler folds part of the computation). We're now using an FMA
+    # which leads to more consistent results, but fundamentally there is
+    # an inherent divergence in the way we compute stuff, here.  In the
+    # sopt_2 test, this divergence might lead to choosing another
+    # polynomial which is a close tie. We encountered the following hash
+    # as a possible outcome: 3f7600bbd043b9c97eb8deec9fccd2e6be039a02
     EXPECT_SHA1 83a512c121fec35711d03a91901e04f1aeee21b6
 )
 
@@ -212,3 +223,5 @@ cado_define_test(polyselect_add_skewness
         ${CADO_NFS_SOURCE_DIR}/tests/misc/c60.poly
     EXPECT_SHA1 70639bbafd1b6d4ac3bbcb4a47f621fa446c267f
     TARGET_DEPENDENCIES skewness)
+
+cado_define_test(bench_lognorm.cpp ARGUMENTS -iter 100 -unit 100 LIBRARIES polyselect_common)

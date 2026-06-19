@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cfloat>
 
+#include <algorithm>
 #include <vector>
 
 #include <gmp.h>
@@ -17,7 +18,8 @@
 #include "lll.h"
 #include "size_optimization.hpp"
 #include "double_poly.h"
-#include "polyselect_norms.h"
+#include "polyselect_norms.hpp"
+#include "utils_cxx.hpp"
 #include "macros.h"
 #include "mpz_poly.h"
 
@@ -26,18 +28,11 @@
 /************************ Internal functions **********************************/
 /******************************************************************************/
 
-/***************** List of mpz_t, to handle list of translations **************/
-// I've been fighting for years against these countless ad-hoc lists that
-// we have here and there in the code. This one has the at least the good
-// thing of not being used outside this compilation unit (and I
-// definitely do not want it to be exposed outside).
-
 static inline cxx_mpz rounded_double(double e) {
     cxx_mpz d;
     mpz_set_d(d, e > 0 ? e + 0.5 : e - 0.5);
     return d;
 }
-
 
 /******************************************************************************/
 
@@ -77,10 +72,21 @@ sopt_get_skewness (mpz_t skew, cxx_mpz_poly const & f, cxx_mpz_poly const & g)
 
 /* For deg(f) = 6 and deg(g) = 1 */
 /* Return in list_k good values of k such that f(x+k) has small coefficients of
-   degree 4 and 3. */
+ * degree 4 and 3.
+ *
+ *
+ * More precisely, this computes
+ *  - a list of k's such that there exists a q3 such that the
+ *  coefficients of degree 4 and 3 of (f+q3*x^3*g)(x+k) both cancel (from
+ *  which we assume, after rounding to integers, that they remain small).
+ *  - OR that after selecting the q3's such that the list above is non
+ *  empty, a list of k's such that there exists a q2 such that the
+ *  coefficients of degree 3 and 2 of (f+(q3*x^3+q2*x^2)*g)(x+k) both
+ *  cancel _or_ their resultant has an extremum.
+ */
 static void
 sopt_find_translations_deg6 (std::vector<cxx_mpz> & list_k, cxx_mpz_poly const & f,
-                             cxx_mpz_poly const & g, const int verbose,
+                             cxx_mpz_poly const & g, int verbose,
                              int sopt_effort)
 {
   ASSERT_ALWAYS (f->deg == 6);
@@ -89,20 +95,18 @@ sopt_find_translations_deg6 (std::vector<cxx_mpz> & list_k, cxx_mpz_poly const &
   unsigned int i, nb_q3roots;
 
   /* Let f(x) = a6 x^6 + ... + a0 and g(x) = g1 x + g0. */
-  double a6, a5, a4, a3, a2, g1, g0;
-  a6 = mpz_get_d (mpz_poly_coeff_const(f, 6));
-  a5 = mpz_get_d (mpz_poly_coeff_const(f, 5));
-  a4 = mpz_get_d (mpz_poly_coeff_const(f, 4));
-  a3 = mpz_get_d (mpz_poly_coeff_const(f, 3));
-  a2 = mpz_get_d (mpz_poly_coeff_const(f, 2));
-  g1 = mpz_get_d (mpz_poly_coeff_const(g, 1));
-  g0 = mpz_get_d (mpz_poly_coeff_const(g, 0));
+  const double a6 = mpz_get_d (mpz_poly_coeff_const(f, 6));
+  const double a5 = mpz_get_d (mpz_poly_coeff_const(f, 5));
+  const double a4 = mpz_get_d (mpz_poly_coeff_const(f, 4));
+  const double a3 = mpz_get_d (mpz_poly_coeff_const(f, 3));
+  const double a2 = mpz_get_d (mpz_poly_coeff_const(f, 2));
+  const double g1 = mpz_get_d (mpz_poly_coeff_const(g, 1));
+  const double g0 = mpz_get_d (mpz_poly_coeff_const(g, 0));
 
-  double kmax;
   /* after translation by k, we have a2 = Theta(binomial(6,2)*a6*k^4)
      = Theta(15*a6*k^4), thus after reduction by x^2*g, a3 = Theta(15*a6*k^4*g1/g0).
      Since we want a3 << g0, a lower bound for k is |g0^2/(15*a6*g1)|^(1/4). */
-  kmax = pow (fabs (g0 * g0 / (15.0 * a6 * g1)), 0.25);
+  const double kmax = pow (fabs (g0 * g0 / (15.0 * a6 * g1)), 0.25);
 
   /* Let f~(x,k,q3) = f(x+k)+q3*x^3*g(x+k).
      Let c_i(k,q3) be the coefficient of x^i in f~. Then
@@ -134,7 +138,7 @@ sopt_find_translations_deg6 (std::vector<cxx_mpz> & list_k, cxx_mpz_poly const &
   /* degree 3: a6*g1^3 */
   res->coeff[3] = a6 * g1 * g1 * g1;
 
- /* degree 2: 135*a6^2*g0^2 - 45*a5*a6*g0*g1 + 10*a5^2*g1^2 - 15*a4*a6*g1^2 */
+  /* degree 2: 135*a6^2*g0^2 - 45*a5*a6*g0*g1 + 10*a5^2*g1^2 - 15*a4*a6*g1^2 */
   res->coeff[2] = 135.0 * a6 * a6 * g0 * g0 - 45.0 * a5 * a6 * g0 * g1
                   + 10.0 * a5 * a5 * g1 * g1 - 15.0 * a4 * a6 * g1 * g1;
 
@@ -197,7 +201,7 @@ sopt_find_translations_deg6 (std::vector<cxx_mpz> & list_k, cxx_mpz_poly const &
 
       if (i >= nb_q3roots)
         {
-          q3_rat = (double) a / (double) b;
+          q3_rat = double_ratio(a, b);
           if (a > 0)
             a = -a;
           else /* generate next Farey fraction:
@@ -369,13 +373,12 @@ sopt_find_translations_deg5 (std::vector<cxx_mpz> & list_k, cxx_mpz_poly const &
   unsigned int i, nb_q2roots;
 
   /* Let f(x) = a5 x^5 + ... + a0 and g(x) = g1 x + g0. */
-  double a5, a4, a3, a2, g1, g0;
-  a5 = mpz_get_d (mpz_poly_coeff_const(f, 5));
-  a4 = mpz_get_d (mpz_poly_coeff_const(f, 4));
-  a3 = mpz_get_d (mpz_poly_coeff_const(f, 3));
-  a2 = mpz_get_d (mpz_poly_coeff_const(f, 2));
-  g1 = mpz_get_d (mpz_poly_coeff_const(g, 1));
-  g0 = mpz_get_d (mpz_poly_coeff_const(g, 0));
+  const double a5 = mpz_get_d (mpz_poly_coeff_const(f, 5));
+  const double a4 = mpz_get_d (mpz_poly_coeff_const(f, 4));
+  const double a3 = mpz_get_d (mpz_poly_coeff_const(f, 3));
+  const double a2 = mpz_get_d (mpz_poly_coeff_const(f, 2));
+  const double g1 = mpz_get_d (mpz_poly_coeff_const(g, 1));
+  const double g0 = mpz_get_d (mpz_poly_coeff_const(g, 0));
 
   /* Let f~(x,k,q2) = f(x+k)+q2*x^2*g(x+k).
      Let c_i(k,q2) be the coefficient of x^i in f~. Then
@@ -454,7 +457,7 @@ sopt_find_translations_deg5 (std::vector<cxx_mpz> & list_k, cxx_mpz_poly const &
 
       if (i >= nb_q2roots)
         {
-          q2_rat = (double) a / (double) b;
+          q2_rat = double_ratio(a, b);
           if (a > 0)
             a = -a;
           else
@@ -580,7 +583,7 @@ sopt_local_descent (cxx_mpz_poly & f_opt, cxx_mpz_poly & g_opt,
 
   ASSERT_ALWAYS(deg_rotation <= SOPT_MAX_DEGREE_ROTATION);
 
-  logmu_opt = L2_skew_lognorm ((cxx_mpz_poly &) f_raw);
+  logmu_opt = L2_skew_lognorm (f_raw);
   mpz_init (tmp);
   mpz_poly_init (ftmp, f_raw->deg);
 
@@ -617,7 +620,7 @@ sopt_local_descent (cxx_mpz_poly & f_opt, cxx_mpz_poly & g_opt,
 
   /* initialize kt likewise */
   mpz_init_set_ui (kt, 1);
-  while (1)
+  for(;;)
   {
     mpz_poly_translation (ftmp, f_raw, kt);
     logmu = L2_skew_lognorm (ftmp);
@@ -1001,7 +1004,7 @@ size_optimization_aux (cxx_mpz_poly & f_opt, cxx_mpz_poly & g_opt,
       std::vector<cxx_mpz> list_k_opt;
       list_k_opt.reserve(list_k.size());
 
-      for (auto & ki : list_k) {
+      for (auto ki : list_k) {
           best_norm2 (ft, gt, f_raw, g_raw, skew, ki, max_rot, DBL_MAX);
 
           /* check if this translation 'ki' was already used */

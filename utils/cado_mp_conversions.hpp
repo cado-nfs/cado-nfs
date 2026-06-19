@@ -3,6 +3,8 @@
 
 #include "cado_config.h"        // IWYU pragma: keep
 
+#include <cstdint>
+
 #include <limits>
 #include <complex>
 #include <algorithm>
@@ -12,6 +14,8 @@
 #include "cxx_mpz.hpp"
 #include "cado_type_traits.hpp"
 #include "cado_math_aux.hpp"
+#include "gmp_aux.h"
+#include "runtime_numeric_cast.hpp"
 
 #ifdef HAVE_MPFR
 #include <mpfr.h>
@@ -178,7 +182,7 @@ namespace cado_math_aux {
     template<typename T>
         requires std::is_floating_point_v<T>
         struct converter_from_mpz<T> {
-            T operator()(mpz_srcptr z) const {
+            T operator()(mpz_srcptr z, int scale = 0) const {
                 T ld = 0;
                 cxx_mpz zr = z;
 
@@ -203,7 +207,7 @@ namespace cado_math_aux {
                     ld += d;
                 }
                 ld += mpz_get_d (zr);
-                ld = cado_math_aux::ldexp(ld, e);
+                ld = cado_math_aux::ldexp(ld, e + scale);
                 return ld;
             }
         };
@@ -226,8 +230,8 @@ namespace cado_math_aux {
 
     template<typename T>
         struct converter_from_mpz<std::complex<T>> {
-            std::complex<T> operator()(mpz_srcptr z) const {
-                return { converter_from_mpz<T>()(z), 0 };
+            std::complex<T> operator()(mpz_srcptr z, int scale = 0) const {
+                return { converter_from_mpz<T>()(z, scale), 0 };
             }
         };
 
@@ -235,6 +239,18 @@ namespace cado_math_aux {
         struct converter_from_mpz<cxx_mpz> {
             cxx_mpz operator()(mpz_srcptr z) const {
                 return { z };
+            }
+        };
+
+    template<>
+        struct converter_from_mpz<double> {
+            double operator()(mpz_srcptr z) const {
+                return mpz_get_d(z);
+            }
+            double operator()(mpz_srcptr z, int scale) const {
+                long e;
+                double d = mpz_get_d_2exp(&e, z);
+                return ldexp(d, runtime_numeric_cast<int>(e) + scale);
             }
         };
 
@@ -266,6 +282,10 @@ namespace cado_math_aux {
     template<typename T>
         static inline T mpz_get(mpz_srcptr z) {
             return converter_from_mpz<T>()(z);
+        }
+    template<typename T>
+        static inline T mpz_get(mpz_srcptr z, int e) {
+            return converter_from_mpz<T>()(z, e);
         }
 
 } /* namespace cado_math_aux */

@@ -17,7 +17,7 @@
 #include "mpz_poly.h"
 #include "murphyE.hpp"    // MurphyE MURPHY_K
 #include "polyselect_alpha.h"
-#include "polyselect_norms.h"
+#include "polyselect_norms.hpp"
 #include "ropt.hpp"
 #include "ropt_arith.hpp" // Lemma21
 #include "ropt_io.hpp"
