@@ -61,6 +61,8 @@ cado_define_test(full_c30
     AVOID_CONCURRENT 16
     ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=16 OMP_THREAD_LIMIT=16
     TIMEOUT 360
+    SHA1_ON_REGEXP_LINES "^[0-9 ]*$"
+    EXPECT_SHA1 6d5cc85d048b2003fb129bef28e670a5314f433d
         )
     cado_divert_test(full_c30 pq2
         ARGUMENTS
@@ -91,6 +93,8 @@ cado_define_test(full_c30
             AVOID_CONCURRENT 16
             ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=16 OMP_THREAD_LIMIT=16
             TIMEOUT 360
+            SHA1_ON_REGEXP_LINES "^[0-9 ]*$"
+            EXPECT_SHA1 c427998c92b82ce31b71f50d340b7ee1f9f164e2
         )
         # The following case was hitting the bug #21707
         set(full_p30_JL_params
@@ -158,6 +162,8 @@ cado_define_test(full_c30
             ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=16
                         OMP_THREAD_LIMIT=16
             TIMEOUT 360
+            SHA1_ON_REGEXP_LINES "^[0-9 ]*$"
+            EXPECT_SHA1 8c8ad33929acc3040ace7051c02380dcbb2c6a06
         )
 
 
@@ -180,6 +186,8 @@ cado_define_test(full_c30
                 ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=16
                             OMP_THREAD_LIMIT=16
                 TIMEOUT 360
+                SHA1_ON_REGEXP_LINES "^[a-z0-9_ ]* = .*$"
+                EXPECT_SHA1 d5f8f6080a3cb6230e8bd4c8946450a5f411162d
             )
         endif()
     endif()
@@ -206,6 +214,8 @@ cado_define_test(full_c30
     AVOID_CONCURRENT 16
     ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=16 OMP_THREAD_LIMIT=16
     TIMEOUT 300
+    SHA1_ON_REGEXP_LINES "^[0-9 ]*$"
+    EXPECT_SHA1 68cb2f84a5f3a6c68a0c3b0a1cd04c878a8f856d
         )
 endif()
 # MPI binaries are not properly launched by cado-nfs.py (see #21819)
@@ -228,6 +238,8 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
         AVOID_CONCURRENT 16
         ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=16 OMP_THREAD_LIMIT=16
         TIMEOUT 360
+        SHA1_ON_REGEXP_LINES "^[0-9 ]*$"
+        EXPECT_SHA1 c18530b2d145ac5bd2b783398358a271c966ee38
             )
     cado_define_test(full_c65_128
         SCRIPT
@@ -241,6 +253,8 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
         AVOID_CONCURRENT 16
         ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=16 OMP_THREAD_LIMIT=16
         TIMEOUT 360
+        SHA1_ON_REGEXP_LINES "^[0-9 ]*$"
+        EXPECT_SHA1 9987c584ff3852d42254250717a6dadf4b8bacfd
             )
     cado_define_test(full_c59_nonlinear
         SCRIPT
@@ -255,6 +269,8 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
         AVOID_CONCURRENT 16
         ENVIRONMENT OMP_DYNAMIC=true OMP_NUM_THREADS=16 OMP_THREAD_LIMIT=16
         TIMEOUT 360
+        SHA1_ON_REGEXP_LINES "^[0-9 ]*$"
+        EXPECT_SHA1 cf2c35bb551e359a14774845ec2e39ea44be0bc0
         )
     if (BWC_GFP_ARITHMETIC_BACKENDS AND pz IN_LIST BWC_GFP_ARITHMETIC_BACKENDS)
 #        this test is probably not very useful, given that the other
