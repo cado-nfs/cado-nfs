@@ -128,7 +128,7 @@ class DictDbDirectAccess(MutableMapping):
     def _iter_raw(self):
         n = len(self)
         batch_size = 128
-        for i in range(1, n + 1, batch_size):
+        for i in range(0, n, batch_size):
             rows = self._conn.harness_transaction(READONLY,
                                                   self._table.where,
                                                   # cursor is implicitly added
