@@ -350,7 +350,7 @@ class CursorWrapperBase(object, metaclass=abc.ABCMeta):
         self._exec(command, values)
 
     def where_query(self,
-                    joinsource,
+                    joinsource, *,
                     col_alias=None,
                     limit=None, offset=None,
                     order=None,
@@ -382,8 +382,10 @@ class CursorWrapperBase(object, metaclass=abc.ABCMeta):
         """ Get a up to "limit" table rows (limit == 0: no limit) where
             the key:value pairs of the dictionary "conditions" are set to the
             same value in the database table """
-        (command, newvalues) = self.where_query(joinsource, col_alias, limit,
-                                                order, **conditions)
+        (command, newvalues) = self.where_query(joinsource,
+                                                col_alias=col_alias,
+                                                limit=limit, offset=offset,
+                                                order=order, **conditions)
         self._exec(command + ";", values + newvalues)
 
     def count(self, joinsource, **conditions):
