@@ -453,9 +453,6 @@ namespace cado::relation_building_blocks {
              * it in that case.
              */
             int side = -1;
-            bool sorted = true;
-
-            typename prime_type::p_or_h_type last_prime = 0;
 
             /* the very first delimiter is _before_ primes, so it's always a
              * colon. So we must make sure that we accept the column on the
@@ -468,8 +465,6 @@ namespace cado::relation_building_blocks {
             for(bool first = true ; first || (c && c != delim_after_primes && c != '\n') ; first = false) {
                 typename prime_type::p_or_h_type pr;
                 if (c == ':') {
-                    sorted = false;
-                    last_prime = 0;
                     /* Empty sides are allowed. So we must check for
                      * separators another time (another colon, or a \n)
                      * otherwise we would push the prime 0 to the list...
@@ -505,12 +500,9 @@ namespace cado::relation_building_blocks {
                     e = -e;
                 /* XXX end deprecated block */
 
-                sorted = sorted && pr >= last_prime;
-
                 append_or_collate(pr, e, side);
             }
-            if (!sorted)
-                sort_and_compress();
+            sort_and_compress();
             it0 = it;
             nsides = side + 1;
             return c;
