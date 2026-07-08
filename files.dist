@@ -1790,7 +1790,6 @@ utils/lll.h
 utils/lock_guarded_container.hpp
 utils/lucas_V_mod.h
 utils/matrix.hpp
-utils/memalloc.cpp
 utils/memalloc.hpp
 utils/memory.c
 utils/memory.h

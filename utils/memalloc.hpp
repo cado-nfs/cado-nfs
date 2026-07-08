@@ -38,11 +38,4 @@ struct simple_minded_chunk_allocator {
     mutable std::mutex m;
 };
 
-/* these are just proxies to static instances of
- * simple_minded_chunk_allocator
- */
-index_t * index_my_malloc (size_t);
-ideal_merge_t * ideal_merge_my_malloc (size_t);
-size_t get_my_malloc_bytes ();
-
 #endif /* CADO_UTILS_MEMALLOC_HPP */
