@@ -346,6 +346,7 @@ namespace cado::relation_building_blocks {
     template<typename prime_t, typename parent>
         requires
             requires { typename prime_t::p_or_h_type; }
+         && requires { std::unsigned_integral<typename prime_t::p_or_h_type>; }
          && requires { typename prime_t::e_type; }
     struct primes_block
         : public import_p_or_h_type<prime_t>
@@ -463,7 +464,6 @@ namespace cado::relation_building_blocks {
              * newline-terminated lines. But we use it for testing.
              */
             for(bool first = true ; first || (c && c != delim_after_primes && c != '\n') ; first = false) {
-                typename prime_type::p_or_h_type pr;
                 if (c == ':') {
                     /* Empty sides are allowed. So we must check for
                      * separators another time (another colon, or a \n)
@@ -489,9 +489,9 @@ namespace cado::relation_building_blocks {
                 }
                 /* XXX end deprecated block */
 
-                unsigned long v, w;
-                for (w = 0 ; (v = ugly[c]) < 16 ; w += v, c = *it++) w <<= 4;
-                pr = w;
+                unsigned long v;
+                typename prime_type::p_or_h_type pr;
+                for (pr = 0 ; (v = ugly[c]) < 16 ; pr += v, c = *it++) pr <<= 4;
                 typename prime_type::e_type e;
                 c = parse_exponent(c, it, e);
 
