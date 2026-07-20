@@ -970,11 +970,11 @@ las_parallel_desc::las_parallel_desc(cxx_param_list & pl, double jobram_arg)
     help->interpret_njobs_specifier();
     help->interpret_nthreads_specifier();
 
-    if (help->nobind)
-        return;
-
     nsubjobs_per_cpu_binding_zone = help->nsubjobs_per_cpu_binding_zone;
     nthreads_per_subjob = help->nthreads_per_subjob;
+
+    if (help->nobind)
+        return;
 
 #ifdef HAVE_HWLOC
     if (!help->depth) return;
