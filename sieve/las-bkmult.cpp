@@ -55,7 +55,7 @@ bkmult_specifier::bkmult_specifier(char const * specifier)
 std::string bkmult_specifier::print_all() const
 {
     return fmt::format("{},{}",
-            base, join(dict.begin(), dict.end(), " ",
+            base, join(dict.begin(), dict.end(), ",",
                 [](auto const& item) {
                     auto const & [ key, mult ] = item;
                     auto const & [ lev, hint ] = key;
