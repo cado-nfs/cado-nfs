@@ -1,30 +1,33 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <stdarg.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h> // free realloc malloc abort
+#include <cstdarg>
+#include <cstring>
+#include <cstdio>
+#include <cstdint>
+#include <cstdlib>
 
 #include <vector>
+#include <utility>
 
-#include <pthread.h>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
 
 #include "verbose.hpp"
 #include "portability.h" // strdup // IWYU pragma: keep
 #include "macros.h"
 #include "params.hpp"
-#include "utils_cxx.hpp"
 
 #define G(X) CADO_VERBOSE_PRINT_ ## X
 #define F(X) (UINT64_C(1) << G(X))
 
 /* Mutex for verbose_output_*() functions */
 // NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
-static pthread_mutex_t io_mutex[1] = {PTHREAD_MUTEX_INITIALIZER};
-static pthread_cond_t io_cond[1] = {PTHREAD_COND_INITIALIZER};
-static int batch_locked = 0;
-static pthread_t batch_owner;
+static std::mutex io_mutex;
+static std::condition_variable io_cond;
+static bool batch_locked = false;
+static std::thread::id batch_owner;
+
 static uint64_t verbose_flag_word;
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
@@ -174,92 +177,37 @@ int verbose_printf(int flag, const char * fmt, ...)
 
 
 /* Blocks until no other thread is in the monitor and
-   no other thread holds a batch lock */
-static int
-monitor_enter()
+   no other thread holds a batch lock. A unique_lock object is returned,
+   and its destruction in the parent scope will release the lock.
+   */
+static auto
+monitor()
 {
-    if (pthread_mutex_lock(io_mutex) != 0)
-        return 1;
-    while (batch_locked && !pthread_equal(batch_owner, pthread_self())) {
-        /* Queue this thread as waiting for the condition variable, release
-           the mutex and put thread to sleep */
-        if (pthread_cond_wait(io_cond, io_mutex) != 0)
-          return 1; /* Should we unlock first? */
-    }
-    /* Now we own the mutex and no other thread holds the batch lock */
-    return 0;
-}
-
-static int
-monitor_leave()
-{
-    return pthread_mutex_unlock(io_mutex);
+    std::unique_lock u(io_mutex);
+    while (batch_locked && batch_owner != std::this_thread::get_id())
+        io_cond.wait(u);
+    return u;
 }
 
 int
 verbose_output_start_batch()
 {
-    if (monitor_enter() != 0)
-        return 1;
-    batch_locked = 1;
-    batch_owner = pthread_self();
-    if (monitor_leave() != 0)
-        return 1;
+    auto foo = monitor();
+    batch_locked = true;
+    batch_owner = std::this_thread::get_id();
     return 0;
 }
 
 int
 verbose_output_end_batch()
 {
-    if (monitor_enter() != 0)
-        return 1;
+    auto foo = monitor();
     ASSERT_ALWAYS(batch_locked);
-    ASSERT_ALWAYS(pthread_equal(batch_owner, pthread_self()));
-    batch_locked = 0;
-    batch_owner = 0;
-    if (pthread_cond_broadcast(io_cond) != 0)
-        return 1;
-    if (monitor_leave() != 0)
-        return 1;
+    ASSERT_ALWAYS(batch_owner == std::this_thread::get_id());
+    batch_locked = false;
+    batch_owner = {};
+    io_cond.notify_all();
     return 0;
-}
-
-struct outputs_s {
-    size_t nr_outputs;
-    int *verbosity;
-    FILE **outputs;
-};
-
-static void
-init_output(struct outputs_s * const output)
-{
-    output->nr_outputs = 0;
-    output->verbosity = NULL;
-    output->outputs = NULL;
-}
-
-static void
-clear_output(struct outputs_s * const output)
-{
-    free (output->outputs);
-    free (output->verbosity);
-    output->nr_outputs = 0;
-    output->outputs = NULL;
-    output->verbosity = NULL;
-}
-
-static int
-add_output(struct outputs_s *output, FILE * const out, const int verbosity)
-{
-    const size_t new_nr = output->nr_outputs + 1;
-
-    checked_realloc(output->outputs, new_nr);
-    checked_realloc(output->verbosity, new_nr);
-
-    output->nr_outputs = new_nr;
-    output->outputs[new_nr - 1] = out;
-    output->verbosity[new_nr - 1] = verbosity;
-    return 1;
 }
 
 /* Print formatted output to each output attached to this channel whose
@@ -271,17 +219,17 @@ add_output(struct outputs_s *output, FILE * const out, const int verbosity)
    Otherwise returns the return code of the last output operation.
    If no outputs are attached to this channel, returns 0. */
 static int
-vfprint_output(const struct outputs_s * const output, const int verbosity,
+vfprint_output(std::vector<std::pair<FILE *, int>> & output, const int verbosity,
                vfprintf_func_t func, const char * const fmt, va_list va)
 {
     int rc = 0;
     /* For each output attached to this channel */
-    for (size_t i = 0; i < output->nr_outputs; i++) {
+    for (auto [ F, v ] : output) {
         /* print string if output verbosity is at least "verbosity" */
-        if (output->verbosity[i] >= verbosity) {
+        if (v >= verbosity) {
             va_list va_copied;
             va_copy(va_copied, va);
-            rc = func(output->outputs[i], fmt, va_copied);
+            rc = func(F, fmt, va_copied);
             va_end(va_copied);
             if (rc < 0)
                 return rc;
@@ -290,55 +238,43 @@ vfprint_output(const struct outputs_s * const output, const int verbosity,
     return rc;
 }
 
-/* Static variables, the poor man's Singleton. */
-// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
-static size_t verbose_nr_channels = 0;
-static struct outputs_s *verbose_channel_outputs = NULL;
-// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
+/* we need this to avoid a static destruction order fiasco */
+static std::vector<
+        std::vector<
+            std::pair<FILE *, int>
+        >
+        > & get_verbose_channel_outputs()
+{
+    static auto * res = new std::vector<
+            std::vector<
+                std::pair<FILE *, int>
+            >
+            >();
+    return *res;
+}
 
 int
 verbose_output_init(const size_t nr_channels)
 {
-    if (monitor_enter() != 0)
-        return 0;
-    verbose_channel_outputs = (struct outputs_s *) malloc(nr_channels * sizeof(struct outputs_s));
-    if (verbose_channel_outputs == NULL) {
-        pthread_mutex_unlock(io_mutex);
-        return 0;
-    }
-    verbose_nr_channels = nr_channels;
-    for (size_t i = 0; i < nr_channels; i++)
-        init_output(&verbose_channel_outputs[i]);
-    if (monitor_leave() != 0)
-        return 0;
+    auto foo = monitor();
+    get_verbose_channel_outputs().assign(nr_channels, {});
     return 1;
 }
 
 int
 verbose_output_clear()
 {
-    if (monitor_enter() != 0)
-        return 0;
-    for (size_t i = 0; i < verbose_nr_channels; i++)
-        clear_output(&verbose_channel_outputs[i]);
-    free(verbose_channel_outputs);
-    verbose_nr_channels = 0;
-    verbose_channel_outputs = NULL;
-    if (monitor_leave() != 0)
-        return 0;
+    auto foo = monitor();
+    get_verbose_channel_outputs().clear();
     return 1;
 }
 
 int
 verbose_output_add(const size_t channel, FILE * const out, const int verbose)
 {
-    if (monitor_enter() != 0)
-        return 0;
-    ASSERT_ALWAYS(channel < verbose_nr_channels);
-    int rc = add_output(&verbose_channel_outputs[channel], out, verbose);
-    if (monitor_leave() != 0)
-        return 0;
-    return rc;
+    auto foo = monitor();
+    get_verbose_channel_outputs()[channel].emplace_back(out, verbose);
+    return 0;
 }
 
 int
@@ -348,10 +284,9 @@ verbose_output_print(const size_t channel, const int verbose,
     va_list ap;
     int rc = 0;
 
-    if (monitor_enter() != 0)
-        return -1;
+    auto foo = monitor();
     va_start(ap, fmt);
-    if (verbose_channel_outputs == NULL) {
+    if (get_verbose_channel_outputs().empty()) {
         /* Default behaviour: print to stdout or stderr */
         ASSERT_ALWAYS(channel < 2);
         if (verbose <= 1) {
@@ -359,39 +294,46 @@ verbose_output_print(const size_t channel, const int verbose,
             rc = vfprintf(out, fmt, ap);
         }
     } else {
-        ASSERT_ALWAYS(channel < verbose_nr_channels);
-        rc = vfprint_output(&verbose_channel_outputs[channel], verbose, &vfprintf,
+        ASSERT_ALWAYS(channel < get_verbose_channel_outputs().size());
+        rc = vfprint_output(get_verbose_channel_outputs()[channel], verbose, &vfprintf,
                             fmt, ap);
     }
     va_end(ap);
-    if (monitor_leave() != 0)
-        return -1;
     return rc;
+}
+
+bool verbose_would_print(const size_t channel, const int verbosity)
+{
+    for (auto [ F, v ] : get_verbose_channel_outputs()[channel]) {
+        /* print string if output verbosity is at least "verbosity" */
+        if (v >= verbosity)
+            return true;
+    }
+    return false;
 }
 
 void verbose_output_flush(const size_t channel, const int verbose)
 {
-    if (verbose_channel_outputs == NULL) {
+    if (get_verbose_channel_outputs().empty()) {
         if (verbose > 1)
             return;
         FILE *out = (channel == 0) ? stdout : stderr;
         fflush(out);
     } else {
-        for (size_t i = 0; i < verbose_channel_outputs[channel].nr_outputs; i++) {
-            if (verbose_channel_outputs[channel].verbosity[i] >= verbose)
-                fflush(verbose_channel_outputs[channel].outputs[i]);
+        for (auto [ F, v ] : get_verbose_channel_outputs()[channel]) {
+            if (v >= verbose)
+                fflush(F);
         }
     }
 }
 
 FILE *
-verbose_output_get(const size_t channel, const int verbose, const size_t index)
+verbose_output_get(const size_t channel, const int verbose, size_t index)
 {
-    if (monitor_enter() != 0)
-        return NULL;
+    auto foo = monitor();
 
-    FILE *output = NULL;
-    if (verbose_channel_outputs == NULL) {
+    FILE *output = nullptr;
+    if (get_verbose_channel_outputs().empty()) {
         /* Default behaviour: channel 0 has stdout, channel 1 has stderr,
            each with verbosity 1. */
         ASSERT_ALWAYS(channel < 2);
@@ -399,26 +341,17 @@ verbose_output_get(const size_t channel, const int verbose, const size_t index)
             output = (channel == 0) ? stdout : stderr;
         }
     } else {
-        ASSERT_ALWAYS(channel < verbose_nr_channels);
-        struct outputs_s * const chan = &verbose_channel_outputs[channel];
-        size_t j = 0;
         /* Iterate through all the outputs for this channel */
-        for (size_t i = 0; i < chan->nr_outputs; i++) {
+        for (auto [ F, v ] : get_verbose_channel_outputs()[channel]) {
             /* Count those outputs that have verbosity at least "verbose" */
-            if (chan->verbosity[i] >= verbose) {
+            if (v >= verbose && index-- == 0) {
                 /* If that's the index-th output with enough verbosity,
                    return it. */
-                if (index == j) {
-                    output = chan->outputs[j];
-                    break;
-                }
-                j++;
+                return F;
             }
         }
     }
 
-    if (monitor_leave() != 0)
-        return NULL;
     return output;
 }
 
@@ -429,10 +362,9 @@ verbose_output_vfprint(const size_t channel, const int verbose,
     va_list ap;
     int rc = 0;
 
-    if (monitor_enter() != 0)
-        return -1;
+    auto foo = monitor();
     va_start(ap, fmt);
-    if (verbose_channel_outputs == NULL) {
+    if (get_verbose_channel_outputs().empty()) {
         /* Default behaviour: print to stdout or stderr */
         ASSERT_ALWAYS(channel < 2);
         if (verbose <= 1) {
@@ -440,12 +372,9 @@ verbose_output_vfprint(const size_t channel, const int verbose,
             rc = func(out, fmt, ap);
         }
     } else {
-        ASSERT_ALWAYS(channel < verbose_nr_channels);
-        rc = vfprint_output(&verbose_channel_outputs[channel], verbose, func, fmt,
+        rc = vfprint_output(get_verbose_channel_outputs()[channel], verbose, func, fmt,
                             ap);
     }
     va_end(ap);
-    if (monitor_leave() != 0)
-        return -1;
     return rc;
 }

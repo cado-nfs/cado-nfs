@@ -2,7 +2,6 @@
 
 #include <cstddef>
 
-#include <memory>
 #include <atomic>
 
 #include "las-globals.hpp"
@@ -27,7 +26,8 @@ double general_grace_time_ratio = DESCENT_DEFAULT_GRACE_TIME_RATIO;
 
 double tt_qstart;
 
-std::unique_ptr<las_output> main_output;
+/* The lifetime of this object is within las.cpp's main(). */
+las_output * main_output = nullptr;
 
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 

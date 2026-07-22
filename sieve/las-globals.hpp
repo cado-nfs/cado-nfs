@@ -3,7 +3,6 @@
 
 #include <cstddef>
 
-#include <memory>
 #include <atomic>
 
 #include "las-output.hpp"
@@ -27,7 +26,7 @@ extern int sync_thread_pool;
 extern int trialdiv_first_side;
 extern double general_grace_time_ratio;
 extern double tt_qstart;
-extern std::unique_ptr<las_output> main_output;
+extern las_output * main_output;
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
 #endif	/* CADO_LAS_GLOBALS_HPP */

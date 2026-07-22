@@ -1471,7 +1471,10 @@ int main (int argc0, char const * argv0[])/*{{{*/
     param_list_parse_int(pl, "log-bucket-region-step", &LOG_BUCKET_REGION_step);
     set_LOG_BUCKET_REGION();
 
-    main_output = std::unique_ptr<las_output>(new las_output(pl));
+    /* fix the lifetime of this object to this function only, so that we
+     * don't get killed by the static destruction order fiasco */
+    las_output main_output_obj(pl);
+    main_output = &main_output_obj;
 
     if (las_production_mode) {
         tdict::global_enable = 0;
@@ -1857,6 +1860,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
     /*}}}*/
 
     las.cofac_stats.print();
+
 
     return EXIT_SUCCESS;
 }/*}}}*/
