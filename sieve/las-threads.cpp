@@ -45,6 +45,8 @@ reservation_array_base<T>::allocate_buckets(las_memory_accessor & memory, int n_
             const timetree_t::accounting_sibling dummy(timer, tdict_slot_for_alloc_buckets);
 #endif
             TIMER_CATEGORY(timer, bookkeeping());
+            auto tt = timer.trace(worker->rank(), chronograms::ALLOC {});
+
             B.allocate_memory(memory, n_bucket, ratio / n, logI);
               }, i, 2, cost);
       /* queue 2. Joined in nfs_work::allocate_buckets */

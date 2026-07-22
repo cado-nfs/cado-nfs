@@ -11,6 +11,10 @@ static task_result * make_lattice_bases(worker_thread * worker MAYBE_UNUSED,
             make_lattice_bases_parameters<LEVEL, FB_ENTRY_TYPE> const *>(
             _param);
 
+    int id = worker->rank();
+    nfs_aux::thread_data & taux(param->aux.th[id]);
+    timetree_t & timer(taux.timer);
+
     nfs_work const & ws(param->ws);
     auto const & Q(param->Q);
     int const logI = ws.conf.logI;
@@ -22,6 +26,8 @@ static task_result * make_lattice_bases(worker_thread * worker MAYBE_UNUSED,
     auto const index = slice.get_index();
     auto const relative_index = index - index0;
     ASSERT_ALWAYS(relative_index < V.size());
+
+    auto tt = timer.trace(worker->rank(), chronograms::PCLAT { param->side, LEVEL, index });
 
     typename FB_ENTRY_TYPE::transformed_entry_t transformed;
     /* Create a transformed vector and store the index of the fb_slice we

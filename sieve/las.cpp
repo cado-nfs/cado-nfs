@@ -121,6 +121,8 @@ static void configure_switches(cxx_param_list & pl)
     param_list_configure_switch(pl, "-sync-thread-pool", &sync_thread_pool);
     param_list_configure_switch(pl, "-never-discard", &never_discard);
     pl.configure_switch("print-slice-statistics");
+
+    chronograms::configure_switches(pl);
 }
 
 static void declare_usage(cxx_param_list & pl)/*{{{*/
@@ -168,6 +170,7 @@ static void declare_usage(cxx_param_list & pl)/*{{{*/
      */
     pl.declare_usage("never-discard", "Disable the discarding process for special-q's. This is dangerous. See bug #15617");
 
+    chronograms::declare_usage(pl);
     verbose_decl_usage(pl);
 }/*}}}*/
 
@@ -748,7 +751,7 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
 
             fill_in_buckets_toplevel_multiplex(ws, aux, Q, pool, side, w);
 
-            fill_in_buckets_prepare_plattices(ws, Q, pool, side, precomp_plattices[side]);
+            fill_in_buckets_prepare_plattices(ws, aux, Q, pool, side, precomp_plattices[side]);
 
         }
 
@@ -762,11 +765,14 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
             nfs_work::side_data  const& wss(ws.sides[side]);
             if (wss.no_fb()) continue;
             pool.add_task_lambda([&ws,aux_p,&Q,side](worker_thread * worker,int){
+                    int const id = worker->rank();
                     timetree_t & timer(aux_p->get_timer(worker));
                     ENTER_THREAD_TIMER(timer);
                     MARK_TIMER_FOR_SIDE(timer, side);
 
                     SIBLING_TIMER(timer, "prepare small sieve");
+
+                    auto tt = timer.trace(id, chronograms::SSS(side, ws.toplevel));
 
                     nfs_work::side_data & wss(ws.sides[side]);
                     // if (wss.no_fb()) return;
@@ -898,7 +904,10 @@ do_one_special_q(
 
     BOOKKEEPING_TIMER(timer_special_q);
 
-    ws.prepare_for_new_q<ALGO>(las, &aux.doing, Q);
+    {
+        auto tt = timer_special_q.trace(0, chronograms::INIT());
+        ws.prepare_for_new_q<ALGO>(las, &aux.doing, Q);
+    }
 
     /* the where_am_I structure is store in nfs_aux. We have a few
      * adjustments to make, and we want to make sure that the threads,
@@ -920,6 +929,7 @@ do_one_special_q(
     std::shared_ptr<nfs_work_cofac> wc_p;
 
     {
+        auto tt = timer_special_q.trace(0, chronograms::INIT());
         wc_p = std::make_shared<nfs_work_cofac>(las, ws);
 
         rep.total_logI += ws.conf.logI;
@@ -1174,7 +1184,12 @@ static void las_subjob(las_info & las, int subjob, report_and_timer & global_rt)
                      * since it is an essential property ot the timer trees
                      * that the root of the trees must not have a nontrivial
                      * category */
-                    auto aux_p = std::make_shared<nfs_aux>(las, *task, rel_hash_p, las.number_of_threads_per_subjob());
+                    auto aux_p = std::make_shared<nfs_aux>(
+                            las,
+                            subjob,
+                            *task,
+                            rel_hash_p,
+                            las.number_of_threads_per_subjob());
                     nfs_aux & aux(*aux_p);
                     las_report & rep(aux.rt.rep);
                     timetree_t & timer_special_q(aux.rt.timer);
@@ -1267,6 +1282,9 @@ static void las_subjob(las_info & las, int subjob, report_and_timer & global_rt)
         global_rt.rep.cumulated_wait_time += cumulated_wait_time;
         global_rt.rep.waste += botched.timer.total_counted_time();
     }
+
+    // not sure what I wanted to achieve here.
+    // global_rt.timer.append_botched_chart(botched.timer);
 
     verbose_fmt_print(0, 1, "# subjob {} done ({} special-q's), now waiting for other jobs\n", subjob, nq);
 }/*}}}*/
@@ -1475,6 +1493,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
     set_LOG_BUCKET_REGION();
 
     tdict::interpret_parameters(pl);
+    chronograms::interpret_parameters(pl);
 
     /* fix the lifetime of this object to this function only, so that we
      * don't get killed by the static destruction order fiasco */
@@ -1632,6 +1651,8 @@ int main (int argc0, char const * argv0[])/*{{{*/
                     );
         }
         for(auto & t : subjobs) t.join();
+
+        global_rt.timer.display_chart();
 
         las.tree->display_summary(0, 0);
 

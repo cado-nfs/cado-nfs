@@ -5,3 +5,5 @@ endif()
 if(HAVE_GDB_PYTHON_PRETTY_PRINT AND NOT VALGRIND)
 add_subdirectory (gdb)
 endif()
+
+add_subdirectory (chronograms)

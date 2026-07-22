@@ -31,7 +31,7 @@
 static detached_cofac_result * detached_cofac_inner(worker_thread * worker, detached_cofac_parameters * param)
 {
     /* Import some contextual stuff. */
-    int const id = int(worker->rank());
+    int const id = worker->rank();
     nfs_work_cofac & wc(*param->wc_p);
     nfs_aux & aux(*param->aux_p);
     nfs_aux::thread_data & taux(aux.th[id]);
@@ -40,6 +40,8 @@ static detached_cofac_result * detached_cofac_inner(worker_thread * worker, deta
     timetree_t & timer(aux.get_timer(worker));
 
     nfs_aux::rel_hash_t& rel_hash(aux.get_rel_hash());
+
+    auto tt = timer.trace(id, chronograms::ECM());
 
     cofac_standalone & cur(*param);
 

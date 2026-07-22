@@ -152,6 +152,7 @@ class nfs_aux {/*{{{*/
     };/*}}}*/
 
     std::vector<thread_data> th;
+    int subjob_id;
 
     timetree_t & get_timer(worker_thread * worker) {
         return worker->is_synchronous() ? rt.timer : th[worker->rank()].timer;
@@ -161,6 +162,7 @@ class nfs_aux {/*{{{*/
     double wct_qt0;
 
     nfs_aux(las_info const & las,
+            int subjob,
             special_q_task & doing,
             std::shared_ptr<rel_hash_t> & rel_hash_p,
             int nthreads)
@@ -169,10 +171,13 @@ class nfs_aux {/*{{{*/
         , rel_hash_p(rel_hash_p)
         , checksum_post_sieve(las.cpoly.nsides())
         , th(nthreads)
-          //, thread_data(*this))
+        , subjob_id(subjob)
+        //, thread_data(*this))
         , qt0(seconds())
         , wct_qt0(wct_seconds())
     {
+        for(auto & t : th)
+            t.timer.thread_index_offset = subjob * nthreads;
     }
 
 

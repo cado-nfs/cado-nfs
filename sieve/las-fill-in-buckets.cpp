@@ -136,13 +136,16 @@ template <int LEVEL>
 struct make_lattice_bases_parameters_base : public task_parameters {
     int side;
     nfs_work & ws;
+    nfs_aux & aux;
     ALGO::special_q_data const & Q;
     precomp_plattice_t<LEVEL> & V;
     make_lattice_bases_parameters_base(int side, nfs_work & ws,
+            nfs_aux & aux,
             ALGO::special_q_data const & Q,
             precomp_plattice_t<LEVEL> & V)
         : side(side)
         , ws(ws)
+        , aux(aux)
         , Q(Q)
         , V(V)
     {
@@ -169,6 +172,7 @@ struct make_lattice_bases_parameters
 
 void fill_in_buckets_prepare_plattices(
         nfs_work & ws,
+        nfs_aux & aux,
         ALGO::special_q_data const & Q,
         thread_pool & pool,
         int side,
@@ -191,7 +195,7 @@ void fill_in_buckets_prepare_plattices(
          */
         precomp_plattice.clear();
         precomp_plattice.resize(P.nslices());
-        make_lattice_bases_parameters_base<T::level> const model {side, ws, Q, precomp_plattice};
+        make_lattice_bases_parameters_base<T::level> const model {side, ws, aux, Q, precomp_plattice};
         P.slices.foreach([&](auto const & sl) {
                 for(auto const & s : sl) {
                     using E = std::remove_reference_t<decltype(s)>::entry_t;
@@ -306,13 +310,20 @@ fill_in_buckets_one_slice_internal(worker_thread * worker,
     WHERE_AM_I_UPDATE(w, N, param->first_region0_index);
 
     try {
+        auto acquired = wss.reserve_BA<LEVEL, TARGET_HINT>();
+        auto tt = timer.trace(worker->rank(), chronograms::FIB(
+                    side,
+                    LEVEL,
+                    wss.rank_BA(acquired.access()),
+                    param->plattices_vector->get_index()));
+            
         /* Get an unused bucket array that we can write to */
         /* clearly, reserve_BA() possibly throws. As it turns out,
          * fill_in_buckets_lowlevel<> does not, at least currently. One
          * could imagine that it could throw, so let's wrap it too.
          */
         fill_in_buckets_lowlevel<LEVEL, TARGET_HINT>(
-                wss.reserve_BA<LEVEL, TARGET_HINT>().access(),
+                acquired.access(),
                 ws, Q, *param->plattices_vector,
                 param->first_region0_index, w);
     } catch (buckets_are_full & e) {
@@ -371,9 +382,16 @@ fill_in_buckets_toplevel_wrapper(worker_thread * worker MAYBE_UNUSED,
         ASSERT(param->slice);
         auto const * sl = dynamic_cast<fb_slice<FB_ENTRY_TYPE> const *>(param->slice);
         ASSERT_ALWAYS(sl != NULL);
+        auto acquired = wss.reserve_BA<LEVEL, TARGET_HINT>();
+        auto tt = timer.trace(worker->rank(), chronograms::FIB(
+                    side,
+                    LEVEL,
+                    wss.rank_BA(acquired.access()),
+                    param->slice->get_index()));
+
         fill_in_buckets_toplevel<LEVEL, FB_ENTRY_TYPE, TARGET_HINT>(
-            wss.reserve_BA<LEVEL, TARGET_HINT>().access(),
-            ws, *sl, Q, param->plattices_dense_vector, w);
+                acquired.access(),
+                ws, *sl, Q, param->plattices_dense_vector, w);
         delete param;
         return new task_result;
     } catch (buckets_are_full & e) {
@@ -422,11 +440,17 @@ fill_in_buckets_toplevel_sublat_wrapper(worker_thread * worker,
     try {
         /* Get an unused bucket array that we can write to */
         ASSERT(param->slice);
+        auto acquired = wss.reserve_BA<LEVEL, TARGET_HINT>();
+        auto tt = timer.trace(worker->rank(), chronograms::FIB(
+                    side,
+                    LEVEL,
+                    wss.rank_BA(acquired.access()),
+                    param->slice->get_index()));
         fill_in_buckets_toplevel_sublat<LEVEL, FB_ENTRY_TYPE>(
-            wss.reserve_BA<LEVEL, TARGET_HINT>().access(),
-            ws, Q,
-            *dynamic_cast<fb_slice<FB_ENTRY_TYPE> const *>(param->slice),
-            param->plattices_dense_vector, w);
+                acquired.access(),
+                ws, Q,
+                *dynamic_cast<fb_slice<FB_ENTRY_TYPE> const *>(param->slice),
+                param->plattices_dense_vector, w);
         delete param;
         return new task_result;
     } catch (buckets_are_full & e) {
@@ -646,12 +670,14 @@ static void downsort_aux(fb_factorbase::slicing const & fbs, nfs_work & ws,
     for (auto const & BA_in: BA_ins) {
         pool.add_task_lambda(
             [&, side, w](worker_thread * worker, int bucket_index) {
-                nfs_aux::thread_data & taux(aux.th[worker->rank()]);
+                int const id = worker->rank();
+                nfs_aux::thread_data & taux(aux.th[id]);
                 timetree_t & timer(aux.get_timer(worker));
                 ENTER_THREAD_TIMER(timer);
                 MARK_TIMER_FOR_SIDE(timer, side);
                 taux.w = w;
                 CHILD_TIMER(timer, TEMPLATE_INST_NAME(downsort, LEVEL));
+                auto tt = timer.trace(id, chronograms::DS(side,LEVEL,bucket_index));
                 /*
                 auto & BA_out(
                     wss.reserve_BA<LEVEL, my_longhint_t>(wss.rank_BA(BA_in)));
@@ -773,12 +799,15 @@ static void downsort_tree_inner(
             for (auto const & BA_in: BA_ins) {
                 pool.add_task_lambda(
                     [&, side, w](worker_thread * worker, int bucket_index) {
-                        nfs_aux::thread_data & taux(aux.th[worker->rank()]);
+                        int const id = worker->rank();
+                        nfs_aux::thread_data & taux(aux.th[id]);
                         timetree_t & timer(aux.get_timer(worker));
                         taux.w = w;
                         ENTER_THREAD_TIMER(timer);
                         MARK_TIMER_FOR_SIDE(timer, side);
                         CHILD_TIMER(timer, TEMPLATE_INST_NAME(downsort, LEVEL));
+                        auto tt = timer.trace(id, chronograms::DS(side,LEVEL,bucket_index));
+
                         /*
                         auto & BA_out(wss.reserve_BA<LEVEL, my_longhint_t>(
                             wss.rank_BA(BA_in)));
@@ -875,10 +904,13 @@ static void downsort_tree_inner(
                 continue;
             pool.add_task_lambda(
                 [=, &ws, &aux](worker_thread * worker, int) {
+                    int const id = worker->rank();
                     timetree_t & timer(aux.get_timer(worker));
                     ENTER_THREAD_TIMER(timer);
                     MARK_TIMER_FOR_SIDE(timer, side);
                     SIBLING_TIMER(timer, "prepare small sieve");
+                    auto tt = timer.trace(id, chronograms::SSS(side, 1));
+
                     nfs_work::side_data & wss(ws.sides[side]);
                     // if (wss.no_fb()) return;
                     SIBLING_TIMER(timer, "small sieve start positions");

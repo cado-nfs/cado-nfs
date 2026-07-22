@@ -906,6 +906,7 @@ scripts/check_main_constness.sh
 scripts/check_python_lint.sh
 scripts/check_python_pathdetection_stub.sh
 scripts/check_repo_policies.sh
+scripts/chronograms/render.py
 scripts/cov.sh
 scripts/descent.py
 scripts/descent/README.md
@@ -1361,6 +1362,7 @@ tests/scripts/cadofactor/CMakeLists.txt
 tests/scripts/cadofactor/test_python_resubmit.sh
 tests/scripts/cadofactor/test_python_stress_test.sh
 tests/scripts/cadofactor/test_python_wudb_cmdline.sh
+tests/scripts/chronograms/CMakeLists.txt
 tests/scripts/gdb/CMakeLists.txt
 tests/scripts/gdb/test_gdb_printers.cpp
 tests/scripts/gdb/test_gdb_printers.gdb

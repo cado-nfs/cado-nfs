@@ -66,13 +66,13 @@ worker_thread::~worker_thread()
     ASSERT_ALWAYS_NOTHROW(rc == 0);
 }
 
-size_t worker_thread::rank() const
+int worker_thread::rank() const
 {
-    return this - pool.threads.data();
+    return static_cast<int>(this - pool.threads.data());
 }
-size_t worker_thread::nthreads() const
+int worker_thread::nthreads() const
 {
-    return pool.threads.size();
+    return static_cast<int>(pool.threads.size());
 }
 bool worker_thread::is_synchronous() const
 {
@@ -97,7 +97,7 @@ class thread_task
         , cost(_cost)
     {
     }
-    thread_task(bool) {}
+    explicit thread_task(bool) {}
     task_result * operator()(worker_thread * w) const
     {
         return (*func)(w, parameters, id);
