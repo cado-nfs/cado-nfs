@@ -720,7 +720,7 @@ namespace cado::relation_building_blocks {
             return std::lexicographical_compare_three_way(
                     super().begin(), super().end(), o.begin(), o.end());
         }
-        auto operator==(int c) const { return operator==(exponent_vector<n>(c)); }
+        bool operator==(int c) const { return operator==(exponent_vector<n>(c)); }
         auto operator<=>(int c) const { return operator<=>(exponent_vector<n>(c)); }
         exponent_vector& operator+=(exponent_vector const & f)
         {
