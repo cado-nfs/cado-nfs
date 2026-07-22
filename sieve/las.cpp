@@ -820,6 +820,8 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
             size_t  const(&BRS)[FB_MAX_PARTS] = BUCKET_REGIONS;
             static_assert(MAX_TOPLEVEL == 3);
             for (int i = 0; i < ws.nb_buckets[ws.toplevel]; i++) {
+                if (ws.task->must_take_decision())
+                    break;
                 /* Dividing by BRS[1] is actually correct if we want to
                  * fill the first_region0_index parameter. Of course we
                  * must make sure that for the recursive downsort, this
