@@ -712,7 +712,7 @@ namespace cado::relation_building_blocks {
         explicit exponent_vector(int c) : std::array<int, n> { c, } {}
         exponent_vector() : std::array<int, n> { 0, } {}
         std::array<int, n> const & super() const { return *this; }
-        auto operator==(exponent_vector const & o) const {
+        bool operator==(exponent_vector const & o) const {
             return std::equal(
                     super().begin(), super().end(), o.begin(), o.end());
         }
