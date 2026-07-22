@@ -20,7 +20,7 @@ class bkmult_specifier {
         return { c };
     }
     template<typename T> static dict_t::key_type getkey() {
-        return dict_t::key_type(T::level(), T::rtti[0]);
+        return dict_t::key_type(T::level, T::rtti[0]);
     }
     template<typename T> double get() const { return get(getkey<T>()); }
     double const & get(dict_t::key_type const& key) const {

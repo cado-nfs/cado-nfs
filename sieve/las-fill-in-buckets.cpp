@@ -277,6 +277,7 @@ static task_result *
 fill_in_buckets_one_slice_internal(worker_thread * worker,
                                    task_parameters * _param, int)
 {
+    static_assert(!TARGET_HINT::is_long_v);
     auto * param = static_cast<fill_in_buckets_parameters<LEVEL> *>(_param);
 
     /* Import some contextual stuff */
@@ -339,6 +340,7 @@ static task_result *
 fill_in_buckets_toplevel_wrapper(worker_thread * worker MAYBE_UNUSED,
                                  task_parameters * _param, int)
 {
+    static_assert(!TARGET_HINT::is_long_v);
     auto * param = static_cast<fill_in_buckets_parameters<LEVEL> *>(_param);
 
     /* Import some contextual stuff */
@@ -393,6 +395,7 @@ static task_result *
 fill_in_buckets_toplevel_sublat_wrapper(worker_thread * worker,
                                         task_parameters * _param, int)
 {
+    static_assert(!TARGET_HINT::is_long_v);
     auto * param = static_cast<fill_in_buckets_parameters<LEVEL> *>(_param);
 
     /* Import some contextual stuff */
