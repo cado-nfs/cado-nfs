@@ -230,6 +230,7 @@ nfs_work::buckets_max_full() const
 
         throw buckets_are_full(
                 k,
+                side,
                 maxfull_index,
                 maxfull_updates,
                 maxfull_room);

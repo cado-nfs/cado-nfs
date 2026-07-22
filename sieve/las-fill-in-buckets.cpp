@@ -315,6 +315,7 @@ fill_in_buckets_one_slice_internal(worker_thread * worker,
                 ws, Q, *param->plattices_vector,
                 param->first_region0_index, w);
     } catch (buckets_are_full & e) {
+        e.side = param->side;
         delete param;
         throw e;
     }
@@ -374,7 +375,8 @@ fill_in_buckets_toplevel_wrapper(worker_thread * worker MAYBE_UNUSED,
             ws, *sl, Q, param->plattices_dense_vector, w);
         delete param;
         return new task_result;
-    } catch (buckets_are_full const & e) {
+    } catch (buckets_are_full & e) {
+        e.side = param->side;
         delete param;
         throw e;
     }
@@ -426,7 +428,8 @@ fill_in_buckets_toplevel_sublat_wrapper(worker_thread * worker,
             param->plattices_dense_vector, w);
         delete param;
         return new task_result;
-    } catch (buckets_are_full const & e) {
+    } catch (buckets_are_full & e) {
+        e.side = param->side;
         delete param;
         throw e;
     }

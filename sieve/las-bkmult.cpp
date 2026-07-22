@@ -11,16 +11,17 @@
 #include "macros.h"
 
 buckets_are_full::buckets_are_full(bkmult_specifier::key_type const & key,
-                                   int b, int r, int t)
+        int side, int b, int r, int t)
     : key(key)
+    , side(side)
     , bucket_number(b)
     , reached_size(r)
     , theoretical_max_size(t)
 {
-    std::ostringstream os;
-    os << "Fullest level-" << bkmult_specifier::printkey(key) << " bucket #"
-       << b << ", wrote " << reached_size << "/" << theoretical_max_size << "";
-    message = os.str();
+    message = fmt::format("Fullest level-{} bucket on side {}"
+            " is #{}/{}, wrote {}/{}",
+            bkmult_specifier::printkey(key), side,
+            b, 0, reached_size, theoretical_max_size);
 }
 
 bkmult_specifier::bkmult_specifier(char const * specifier)
