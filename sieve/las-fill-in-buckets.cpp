@@ -27,6 +27,7 @@
 #include "las-fill-in-buckets.hpp"
 #include "las-process-bucket-region.hpp"
 #include "las-qlattice.hpp"
+#include "las-globals.hpp"
 #include "las-report-stats.hpp"
 #include "las-siever-config.hpp"
 #include "las-smallsieve.hpp"
@@ -901,6 +902,12 @@ static void downsort_tree_inner(
          */
 
         ws.check_buckets_max_full();
+
+        if (print_slice_statistics)
+            /* It may make sense to print a diagnosis of the fill ratio
+             * of the different buckets. It's quite verbose, though */
+            ws.slice_statistics(LEVEL);
+
         auto exc = pool.get_exceptions<buckets_are_full>(0);
         if (!exc.empty()) {
             throw *std::ranges::max_element(exc);

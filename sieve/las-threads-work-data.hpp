@@ -207,9 +207,25 @@ class nfs_work {
             }
 
         dumpfile_t dumpfile;
+
+        /* the side index gets passed only for pretty printing. We could
+         * conceivably do away with it. At this point, for an
+         * nfs_work::side_data object, there's obviously only one side to
+         * speak of (and the object could possibly keep track of its
+         * "name", perhaps).
+         */
+        void slice_statistics(int side, int level) const {
+            group.slice_statistics(side, level, *fbs);
+        }
     };
 
     std::array<side_data, 2> sides; /* FIXME HARDCODED 2 */
+
+    void slice_statistics(int level) const {
+        for(int side = 0 ; side < (int) sides.size() ; side++) {
+            sides[side].slice_statistics(side, level);
+        }
+    }
 
     /* All of this exists _for each thread_ */
     struct thread_data {

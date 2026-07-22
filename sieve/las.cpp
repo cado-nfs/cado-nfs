@@ -120,6 +120,7 @@ static void configure_switches(cxx_param_list & pl)
     param_list_configure_switch(pl, "-sync", &sync_at_special_q);
     param_list_configure_switch(pl, "-sync-thread-pool", &sync_thread_pool);
     param_list_configure_switch(pl, "-never-discard", &never_discard);
+    pl.configure_switch("print-slice-statistics");
 }
 
 static void declare_usage(cxx_param_list & pl)/*{{{*/
@@ -140,6 +141,8 @@ static void declare_usage(cxx_param_list & pl)/*{{{*/
     tdict::declare_usage(pl);
 
     pl.declare_usage("trialdiv-first-side", "begin trial division on this side");
+    pl.declare_usage("print-slice-statistics",
+            "print statistics on how the factor bases are split in slices");
     pl.declare_usage("allow-largesq", "allows large special-q, e.g. for a DL descent");
 
     pl.declare_usage("sublat", "modulus for sublattice sieving");
@@ -1463,6 +1466,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
     }
 
     param_list_parse_int(pl, "trialdiv-first-side", &trialdiv_first_side);
+    param_list_parse_int(pl, "print-slice-statistics", &print_slice_statistics);
     param_list_parse_int(pl, "exit-early", &exit_after_rel_found);
     if (dlp_descent)
         param_list_parse_double(pl, "grace-time-ratio", &general_grace_time_ratio);

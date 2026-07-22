@@ -558,6 +558,7 @@ template <int LEVEL, typename HINT> class bucket_array_t
         push_update(bucket_number, update);
     }
     */
+    void slice_statistics(int side, int idx, fb_factorbase::slicing const & fbs) const;
 };
 
 /* Downsort sorts the updates in the bucket_index-th bucket of a level-n
