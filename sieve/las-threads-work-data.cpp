@@ -4,9 +4,10 @@
 
 #include <algorithm>
 #include <ostream>
-#include <string>
 #include <sstream>
 #include <utility>
+
+#include "fmt/base.h"
 
 #include "bucket.hpp"
 #include "ecm/batch.hpp"
@@ -357,24 +358,6 @@ template double nfs_work::check_buckets_max_full<emptyhint_t>(int) const;
 template double nfs_work::check_buckets_max_full<longhint_t>(int) const;
 template double nfs_work::check_buckets_max_full<logphint_t>(int) const;
 #endif
-
-template <int LEVEL, typename HINT>
-void
-nfs_work::side_data::reset_all_pointers() {
-    group.get<LEVEL, HINT>().reset_all_pointers();
-}
-
-template void nfs_work::side_data::reset_all_pointers<1, shorthint_t>();
-template void nfs_work::side_data::reset_all_pointers<1, emptyhint_t>();
-#if MAX_TOPLEVEL >= 2
-template void nfs_work::side_data::reset_all_pointers<2, shorthint_t>();
-template void nfs_work::side_data::reset_all_pointers<2, emptyhint_t>();
-#endif
-#if MAX_TOPLEVEL >= 3
-template void nfs_work::side_data::reset_all_pointers<3, shorthint_t>();
-template void nfs_work::side_data::reset_all_pointers<3, emptyhint_t>();
-#endif
-static_assert(MAX_TOPLEVEL == 3);
 
 void nfs_work::compute_toplevel_and_buckets()
 {

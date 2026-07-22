@@ -1,7 +1,6 @@
 #include "cado.h" // IWYU pragma: keep
 
 #include <cstddef>
-#include <climits>
 
 #include <array>
 
@@ -21,7 +20,7 @@ class las_memory_accessor; // IWYU pragma: keep
 
 template <typename T>
 void
-reservation_array<T>::allocate_buckets(las_memory_accessor & memory, int n_bucket, double fill_ratio, int logI, nfs_aux & aux, thread_pool & pool)
+reservation_array_base<T>::allocate_buckets(las_memory_accessor & memory, int n_bucket, double fill_ratio, int logI, nfs_aux & aux, thread_pool & pool)
 {
     if (n_bucket <= 0) return;
 
@@ -53,72 +52,32 @@ reservation_array<T>::allocate_buckets(las_memory_accessor & memory, int n_bucke
 }
 
 template <typename T>
-T &reservation_array<T>::reserve(int wish)
+T & reservation_array<T, false>::inner_reserve()
 {
-  my_unique_lock u(*this);
-  const bool verbose = false;
-  const bool choose_least_full = true;
-  size_t i;
+    typename super::monitor::my_unique_lock u(*this);
 
-  const size_t n = BAs.size();
+    while (available_buckets.empty())
+        super::monitor::wait(cv, u);
 
-  if (wish >= 0)
-      return use_(wish);
+    auto [ ratio, i ] = available_buckets.top();
+    available_buckets.pop();
 
-  while ((i = find_free()) == n)
-      wait(cv, u);
+    verbose_fmt_print(0, 3, "# Bucket {} is {:.0f}% full\n",
+            i, ratio * 100.);
 
-  if (choose_least_full) {
-    /* Find the least-full bucket array. A bucket array that has one, or
-     * maybe several full buckets, but isn't full on average may still be
-     * used. We'll prefer the least full bucket arrays anyway.
+    /* We used to have a mechanism that detected the situation where no
+     * bucket array was claiming any room available. This turned out to
+     * be a no-op since average_full() alwayrs returns something anyway.
      */
-    if (verbose)
-      verbose_fmt_print(0, 3, "# Looking for least full bucket array\n");
-    double least_full = 1000; /* any large value */
-    size_t least_full_index = SIZE_MAX;
-    for (i = 0; i < n; i++) {
-      if (in_use[i])
-        continue;
-      const double full = BAs[i].average_full();
-      if (full < least_full) {
-          least_full = full;
-          least_full_index = i;
-      }
-    }
-    if (least_full_index != SIZE_MAX) {
-        if (verbose)
-            verbose_fmt_print(0, 3, "# Bucket {} is {:.0f}% full\n",
-                    least_full_index, least_full * 100.);
-        i = least_full_index;
-        return use_(i);
-    }
-    /*
-     * Now all bucket arrays are full on average. We're going to scream
-     * and throw an exception. Now where we ought to go from here is not
-     * really decided upon based on our analysis, but rather on the check
-     * that is done in check_buckets_max_full. Here we'll just throw a
-     * mostly phony exception that will maybe be caught and acted upon,
-     * or maybe not.
-     */
-
-    auto k = bkmult_specifier::getkey<typename T::update_t>();
-    verbose_fmt_print(0, 1, "# Error: {} buckets are full (least avg {}), throwing exception\n",
-            bkmult_specifier::printkey(k),
-            least_full);
-    throw buckets_are_full(k, -1, least_full * 1e6, 1 * 1e6); 
-  }
-  return use_(i);
+    return super::BAs[i];
 }
 
 template <typename T>
-void reservation_array<T>::release(T &BA) {
-    const my_unique_lock u(*this);
-    ASSERT_ALWAYS(&BA >= BAs.data());
-    ASSERT_ALWAYS(&BA < BAs.data() + BAs.size());
-    const size_t i = &BA - BAs.data();
-    in_use[i] = false;
-    signal(cv);
+void reservation_array<T, false>::release(T &BA) {
+    const typename super::monitor::my_unique_lock u(*this);
+    const double ratio = BA.average_full();
+    available_buckets.emplace(ratio, super::rank(BA));
+    super::monitor::signal(cv);
 }
 
 /* Reserve the required number of bucket arrays. For shorthint BAs, we

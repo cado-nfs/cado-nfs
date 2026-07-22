@@ -6,12 +6,15 @@
 #include <condition_variable>
 #include <array>
 #include <vector>
+#include <queue>
+#include <utility>
 
 #include "bucket.hpp"
 #include "las-bkmult.hpp"
 #include "las-config.hpp"
 #include "threadpool.hpp"
 #include "macros.h"
+#include "verbose.hpp"
 
 class las_memory_accessor;
 class nfs_aux;
@@ -19,8 +22,16 @@ class nfs_aux;
 /* A set of n bucket arrays, all of the same type, and methods to reserve one
    of them for exclusive use and to release it again. */
 template <typename T>
-class reservation_array : public monitor {
-  static_assert(T::level <= MAX_TOPLEVEL);
+class reservation_array_base : public monitor {
+    public:
+    static constexpr int level = T::level;
+    using update_t = T::update_t;
+    using hint_t = update_t::hint_t;
+    static constexpr bool has_longhint_v = hint_t::is_long_v;
+
+    static_assert(level <= MAX_TOPLEVEL);
+
+    protected:
     /* typically, T is here bucket_array_t<LEVEL, HINT>. It's a
      * non-copy-able object. Yet, it's legit to use std::vectors's on
      * such objects in c++11, provided that we limit ourselves to the
@@ -28,51 +39,110 @@ class reservation_array : public monitor {
      * changing modifiers.
      */
     std::vector<T> BAs;
-    std::vector<bool> in_use;
+
+    public:
+
+    explicit reservation_array_base(size_t n) : BAs(n) { }
+
+    /* Allocate enough memory to be able to store at least n_bucket buckets,
+       each of size at least fill_ratio * bucket region size. */
+    void allocate_buckets(las_memory_accessor & memory, int n_bucket, double fill_ratio, int logI, nfs_aux&, thread_pool&);
+
+    ATTRIBUTE_NODISCARD
+    std::vector<T> const& bucket_arrays() const { return BAs; }
+
+    ATTRIBUTE_NODISCARD
+    size_t rank(T const & BA) const { return &BA - BAs.data(); }
+
+    void reset_all_pointers(monitor::my_unique_lock &) {
+        for(auto & A : BAs) A.reset_pointers();
+    }
+};
+
+/* bucket arrays with shorthints are filled by competing threads, and we
+ * want a priority queue so that threads pick the least full array.
+ */
+template <typename T, bool has_longhint_v = T::update_t::hint_t::is_long_v>
+class reservation_array;
+
+template<typename T>
+class reservation_array<T, false> : public reservation_array_base<T> {
+    static constexpr bool has_longhint_v = false;
+    using super = reservation_array_base<T>;
     std::condition_variable cv;
-  /* Return the index of the first entry that's currently not in use, or the
-     first index out of array bounds if all are in use */
-  ATTRIBUTE_NODISCARD
-  size_t find_free() const {
-    return std::find(in_use.begin(), in_use.end(), false) - in_use.begin();
-  }
-  T& use_(int i) {
-      ASSERT_ALWAYS(!in_use[i]);
-      in_use[i]=true; 
-      return BAs[i];
-  }
-public:
-  reservation_array(reservation_array const &) = delete;
-  reservation_array& operator=(reservation_array const&) = delete;
-  
-  /* I think that moves are ok */
-  reservation_array(reservation_array &&) noexcept = default;
-  reservation_array& operator=(reservation_array &&) noexcept = default;
+    using available_bucket_t = std::pair<double, size_t>;
+    struct prioritize_least_full_bucket {
+        /* a priority queue takes the "top" element, so the comparator
+         * element C must be such that C(others, the_one_we_want) is
+         * always true. Which means that it must behave as std::greater<>
+         */
+        bool operator()(available_bucket_t const & a, available_bucket_t const & b) const {
+            return a.first > b.first;
+        }
+    };
+    std::priority_queue<available_bucket_t ,std::vector<available_bucket_t>, prioritize_least_full_bucket> available_buckets;
 
-  typedef typename T::update_t update_t;
+    struct acquired_BA {
+        reservation_array<T> & parent;
+        T & BA;
+        explicit acquired_BA(reservation_array<T> & parent)
+            : parent(parent)
+              , BA(parent.inner_reserve())
+        {}
+        T & access() { return BA; }
+        ~acquired_BA() { parent.release(BA); }
+        acquired_BA(acquired_BA const &) = delete;
+        acquired_BA& operator=(acquired_BA const &) = delete;
+        acquired_BA(acquired_BA &&) = delete;
+        acquired_BA& operator=(acquired_BA &&) = delete;
+    };
 
-  explicit reservation_array(size_t n)
-      : BAs(n)
-      , in_use(n, false)
-  { }
+    T & inner_reserve();
+    void release(T &BA);
 
-  /* Allocate enough memory to be able to store at least n_bucket buckets,
-     each of size at least fill_ratio * bucket region size. */
-  void allocate_buckets(las_memory_accessor & memory, int n_bucket, double fill_ratio, int logI, nfs_aux&, thread_pool&);
-  // typename std::vector<T>::const_iterator cbegin() const {return BAs.cbegin();}
-  // typename std::vector<T>::const_iterator cend() const {return BAs.cend();}
-  // std::vector<T>& arrays() { return BAs; }
+    public:
+    reservation_array(reservation_array const &) = delete;
+    reservation_array& operator=(reservation_array const&) = delete;
 
-  ATTRIBUTE_NODISCARD
-  std::vector<T> const& bucket_arrays() const { return BAs; }
+    /* I think that moves are ok */
+    reservation_array(reservation_array &&) noexcept = default;
+    reservation_array& operator=(reservation_array &&) noexcept = default;
 
-  ATTRIBUTE_NODISCARD
-  int rank(T const & BA) const { return &BA - BAs.data(); }
+    explicit reservation_array(size_t n)
+        : super(n)
+    {
+        for(size_t i = 0 ; i < super::BAs.size() ; i++)
+            available_buckets.emplace(0, i);
+    }
 
-  void reset_all_pointers() { for(auto & A : BAs) A.reset_pointers(); }
+    void reset_all_pointers() {
+        typename super::monitor::my_unique_lock u(*this);
+        super::reset_all_pointers(u);
+        available_buckets = decltype(available_buckets)();
+        for(size_t i = 0 ; i < super::BAs.size() ; i++)
+            available_buckets.emplace(0, i);
+    }
 
-  T &reserve(int);
-  void release(T &BA);
+    acquired_BA reserve() { return acquired_BA(*this); }
+};
+
+/* buckets with longhints are only used in downsort, and we can use a
+ * much simpler mechanism in that case.
+ */
+template <typename T>
+class reservation_array<T, true> : public reservation_array_base<T> {
+    static constexpr bool has_longhint_v = true;
+    using super = reservation_array_base<T>;
+
+    public:
+    explicit reservation_array(size_t n) : super(n) { }
+
+    void reset_all_pointers() {
+        typename super::monitor::my_unique_lock u(*this);
+        super::reset_all_pointers(u);
+    }
+
+    T & acquire(size_t rank) { return super::BAs[rank]; }
 };
 
 /* A group of reservation arrays, one for each possible update type.
