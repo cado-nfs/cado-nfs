@@ -3,32 +3,19 @@
 import sys
 import re
 import html
-import base64
-from io import BytesIO
-import colorsys
 import argparse
 import gzip
 import bz2
 import lzma
 import datetime
 import json
+import colorsys
 
 try:
     import compression.zstd
     has_zstd = True
 except ModuleNotFoundError:
     has_zstd = False
-
-try:
-    from PIL import Image, ImageDraw, ImageFont
-except ModuleNotFoundError:
-    print(r"""This script requires the Pillow package.
-You can install it in a venv with:
-    python3 -m venv /tmp/venv/
-    /tmp/venv/bin/pip install Pillow
-    /tmp/venv/bin/python3 scripts/chronograms/render.py \
-            /tmp/chrono.zst -o /tmp/chrono.html
-        """)
 
 
 def feed(files):
@@ -37,20 +24,20 @@ def feed(files):
             yield c
     else:
         for file in files:
-            if re.match(r"^.*.zstd?$", file):
+            if re.match(r"^.*\.zstd?$", file):
                 assert has_zstd
                 with compression.zstd.open(file, 'r') as f:
                     for c in f.readlines():
                         yield c.decode()
-            elif re.match(r"^.*.gz$", file):
+            elif re.match(r"^.*\.gz$", file):
                 with gzip.open(file, 'r') as f:
                     for c in f.readlines():
                         yield c.decode()
-            elif re.match(r"^.*.xz$", file):
+            elif re.match(r"^.*\.xz$", file):
                 with lzma.open(file, 'r') as f:
                     for c in f.readlines():
                         yield c.decode()
-            elif re.match(r"^.*.bz2$", file):
+            elif re.match(r"^.*\.bz2$", file):
                 with bz2.open(file) as f:
                     for c in f.readlines():
                         yield c.decode()
@@ -68,32 +55,30 @@ def convert_epoch_to_readable(t):
     return iso_fmt
 
 
-# --- Color Palette Management ---
 PREDEFINED_COLORS = {
-    "INIT": (78, 121, 167),       # Steel Blue
-    "SKEWGAUSS": (242, 142, 43),   # Orange
-    "ADJUST": (225, 87, 89),      # Soft Red
-    "ALLOC": (118, 183, 178),     # Teal
-    "FIB": (89, 161, 79),         # Green
-    "SSS": (237, 201, 72),        # Gold / Yellow
-    "PBR": (176, 122, 161),       # Purple
-    "ECM": (255, 157, 167),       # Pink
-    "DS": (156, 117, 95),         # Brown
-    "PCLAT": (186, 176, 172),     # Warm Gray
-    "SLICING": (92, 192, 222),    # Cyan
-    "BOTCHED": (200, 0, 0),       # Bright Red
+    "INIT": "rgb(78, 121, 167)",
+    "SKEWGAUSS": "rgb(242, 142, 43)",
+    "ADJUST": "rgb(225, 87, 89)",
+    "ALLOC": "rgb(118, 183, 178)",
+    "FIB": "rgb(89, 161, 79)",
+    "SSS": "rgb(237, 201, 72)",
+    "PBR": "rgb(176, 122, 161)",
+    "ECM": "rgb(255, 157, 167)",
+    "DS": "rgb(156, 117, 95)",
+    "PCLAT": "rgb(186, 176, 172)",
+    "SLICING": "rgb(92, 192, 222)",
+    "BOTCHED": "rgb(200, 0, 0)",
 }
 
 
-def get_color(category):
-    """Returns an RGB color tuple for a given event category."""
+def get_color_str(category):
     cat_upper = category.upper()
     if cat_upper in PREDEFINED_COLORS:
         return PREDEFINED_COLORS[cat_upper]
 
     hue = (hash(cat_upper) & 0xFFFFFFFF) * 0.618033988749895 % 1.0
     r, g, b = colorsys.hsv_to_rgb(hue, 0.65, 0.85)
-    return (int(r * 255), int(g * 255), int(b * 255))
+    return f"rgb({int(r * 255)}, {int(g * 255)}, {int(b * 255)})"
 
 
 LINE_REGEX = re.compile(r"^t\s+(\d+)\s+([\d.]+)\s+([\d.]+)\s+(\d+)\s+(.+)$")
@@ -138,21 +123,20 @@ def clamp_trace_data(bubbles, tstart_arg, tend_arg):
 
     if tstart_arg is None:
         win_start = raw_min_start
-    elif tstart_arg > 1e8:  # Absolute timestamp
+    elif tstart_arg > 1e8:
         win_start = tstart_arg
-    else:                  # Relative offset
+    else:
         win_start = raw_min_start + tstart_arg
 
     if tend_arg is None:
         win_end = raw_max_end
-    elif tend_arg > 1e8:    # Absolute timestamp
+    elif tend_arg > 1e8:
         win_end = tend_arg
-    else:                  # Relative offset
+    else:
         win_end = raw_min_start + tend_arg
 
     if win_start >= win_end:
-        print(f"Warning: Clamp range [{win_start}, {win_end}] is invalid.",
-              file=sys.stderr)
+        print(f"Warning: Clamp range [{win_start}, {win_end}] is invalid.", file=sys.stderr)
         return [], win_start, win_end
 
     clamped = []
@@ -169,150 +153,49 @@ def clamp_trace_data(bubbles, tstart_arg, tend_arg):
     return clamped, win_start, win_end
 
 
-def generate_xhtml_chronogram(bubbles,
-                              win_start,
-                              win_end,
-                              output_filepath="chronogram.html"):
+def generate_xhtml_chronogram(bubbles, win_start, win_end, output_filepath="chronogram.html"):
     if not bubbles:
-        print("Error: No valid time bubble data found"
-              " in the selected time window.", file=sys.stderr)
+        print("Error: No valid time bubble data found in window.", file=sys.stderr)
         return
 
     threads = sorted(list({b["thread"] for b in bubbles}))
     thread_map = {t: idx for idx, t in enumerate(threads)}
-    num_threads = len(threads)
 
-    total_time = max(win_end - win_start, 1e-9)
+    # Build unique categories list and assign color indices
+    categories = sorted(list({b["category"] for b in bubbles}))
+    category_map = {cat: idx for idx, cat in enumerate(categories)}
+    category_colors = [get_color_str(cat) for cat in categories]
 
-    # --- Dimensions & Scaling ---
-    LEFT_MARGIN = 75
-    RIGHT_MARGIN = 20
-    HEADER_HEIGHT = 35
-    BOTTOM_MARGIN = 25
-
-    target_width = 1200
-    per_thread_width = (target_width - LEFT_MARGIN - RIGHT_MARGIN)
-    per_thread_width = per_thread_width // num_threads
-    per_thread_width = max(4, min(250, per_thread_width))
-
-    img_width = LEFT_MARGIN + RIGHT_MARGIN + num_threads * per_thread_width
-
-    target_height = 12000
-
-    useful_height = target_height - HEADER_HEIGHT - BOTTOM_MARGIN
-    default_y_scale = useful_height / total_time
-
-    if False:
-        durations = sorted(b["duration"] for b in bubbles)
-        p10_idx = int(len(durations) * 0.1)
-        target_duration = durations[p10_idx]
-
-        # 2. Compute y_scale so >= 90% of bubbles are at least 2px tall
-        if target_duration > 0:
-            required_y_scale = 2.0 / target_duration
-        else:
-            non_zero = [d for d in durations if d > 0]
-            required_y_scale = (2.0 / non_zero[0]) if non_zero else default_y_scale
-
-        y_scale = max(default_y_scale, required_y_scale)
-        img_height = HEADER_HEIGHT + BOTTOM_MARGIN + int(total_time * y_scale)
-        print(f"image height is {img_height}")
-    else:
-        img_height = target_height
-        y_scale = default_y_scale
-
-    img = Image.new("RGB", (img_width, img_height), (255, 255, 255))
-    draw = ImageDraw.Draw(img)
-
-    try:
-        font = ImageFont.load_default()
-    except IOError:
-        font = None
-
-    # Draw Grid Lines
-    num_ticks = 10
-    for i in range(num_ticks + 1):
-        rel_t = total_time * (i / num_ticks)
-        y = HEADER_HEIGHT + int(rel_t * y_scale)
-        draw.line([(LEFT_MARGIN - 5, y),
-                   (img_width - RIGHT_MARGIN, y)],
-                  fill=(235, 235, 235),
-                  width=1)
-        draw.text((5, y - 6),
-                  f"+{rel_t*1000:.1f}ms",
-                  fill=(120, 120, 120),
-                  font=font)
-
-    # Draw Column Headers & Dividers
-    for t in threads:
-        col_idx = thread_map[t]
-        x1 = LEFT_MARGIN + col_idx * per_thread_width
-        draw.text((x1 + 8, 10), f"Thread {t}", fill=(30, 30, 30), font=font)
-        draw.line([(x1, HEADER_HEIGHT),
-                   (x1, img_height - BOTTOM_MARGIN)],
-                  fill=(210, 210, 210),
-                  width=1)
-
-    # Draw Time Bubbles & Build Compact Spatial Index for JS
+    # Compact array format: { col_idx: [ [start, duration, cat_idx, metric, desc], ... ] }
     trace_data_js = {}
-
     for b in bubbles:
         col_idx = thread_map[b["thread"]]
-        x1 = LEFT_MARGIN + col_idx * per_thread_width
-        width_px = per_thread_width
-
-        y1 = HEADER_HEIGHT + int((b["start"] - win_start) * y_scale)
-        y_end_calc = HEADER_HEIGHT + int((b["end"] - win_start) * y_scale)
-
-        # Calculate height in pixels
-        height_px = max(1, y_end_calc - y1)
-
-        # PIL drawing bounds (inclusive)
-        x2_draw = x1 + width_px - 1
-        y2_draw = y1 + height_px - 1
-
-        color = get_color(b["category"])
-        draw.rectangle([x1, y1, x2_draw, y2_draw], fill=color, outline=None)
-
-        rel_start = b['start'] - win_start
-        title_text = (
-            f"Thread {b['thread']} | {b['category']} | "
-            f"Start: +{rel_start*1000:.3f}ms | "
-            f"Duration: {b['duration']*1000:.3f}ms | "
-            f"Metric: {b['metric']} | Details: {b['desc']}"
-        )
-
         if col_idx not in trace_data_js:
             trace_data_js[col_idx] = []
 
-        # Store [y1, y2, x1, x2, title_text]
-        trace_data_js[col_idx].append([y1, y1 + height_px, x1, x1 + width_px, title_text])
+        trace_data_js[col_idx].append([
+            round(b["start"] - win_start, 9),
+            round(b["duration"], 9),
+            category_map[b["category"]],
+            b["metric"],
+            b["desc"]
+        ])
 
-    # Sort each thread's events by y1 to guarantee binary search correctness
-    for c_idx in trace_data_js:
-        trace_data_js[c_idx].sort(key=lambda x: x[0])
+    # Ensure events in each column are sorted by start time
+    for col_idx in trace_data_js:
+        trace_data_js[col_idx].sort(key=lambda x: x[0])
 
     json_trace_data = json.dumps(trace_data_js, separators=(',', ':'))
 
-    # Encode Base64 Image
-    buffer = BytesIO()
-    img.save(buffer, format="PNG")
-    img_b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
-
-    categories_present = sorted(list({b["category"] for b in bubbles}))
     legend_html = []
-    for cat in categories_present:
-        r, g, b = get_color(cat)
+    for cat in categories:
+        color = get_color_str(cat)
         legend_html.append(
-            '<span class="legend-item">'
-            '<span class="color-box" style="background-color: '
-            f'rgb({r},{g},{b});"></span>{cat}</span>'
+            f'<span class="legend-item"><span class="color-box" style="background-color: {color};"></span>{cat}</span>'
         )
 
     xhtml_content = f"""<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE html PUBLIC
-    "-//W3C//DTD XHTML 1.0 Strict//EN"
-    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 
 <head>
@@ -324,8 +207,7 @@ def generate_xhtml_chronogram(bubbles,
     margin: 0;
     padding: 0;
     overflow: hidden;
-    font-family: -apple-system, BlinkMacSystemFont,
-                "Segoe UI", Roboto, Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
     background-color: #f0f0f0;
   }}
 
@@ -337,7 +219,6 @@ def generate_xhtml_chronogram(bubbles,
     box-sizing: border-box;
   }}
 
-  /* Fixed Header Frame */
   .top-frame {{
     flex: 0 0 auto;
     background: #ffffff;
@@ -371,7 +252,6 @@ def generate_xhtml_chronogram(bubbles,
     padding: 4px 10px;
     border-radius: 4px;
     border: 1px solid #e0e0e0;
-    display: none;
   }}
 
   .controls label {{
@@ -425,21 +305,20 @@ def generate_xhtml_chronogram(bubbles,
     word-break: break-all;
   }}
 
-  /* Scrollable Image Container */
-  .chart-scroll-frame {{
+  .chart-viewport {{
     flex: 1 1 auto;
-    overflow: auto;
-    background: #e9e9e9;
+    position: relative;
+    background: #ffffff;
     border: 1px solid #bbb;
     border-radius: 4px;
-    position: relative;
+    overflow: hidden;
   }}
 
-  .image-map-wrapper {{
-    position: relative;
-    display: inline-block;
-    background: #ffffff;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  #viewport-canvas {{
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: crosshair;
   }}
 </style>
 </head>
@@ -448,17 +327,18 @@ def generate_xhtml_chronogram(bubbles,
 
 <div class="app-container">
 
-  <!-- Fixed Top Panel -->
   <div class="top-frame">
     <div class="header-row">
       <h3 class="header-title">cado-nfs Execution Chronogram</h3>
 
-      <!-- Border Display Radio Option -->
-      <div class="controls" id="border-controls">
+      <div class="controls">
         <strong>Delimiters:</strong>
-        <label><input type="radio" name="border-opt" value="none"
-        checked="checked" /> Off</label>
+        <label><input type="radio" name="border-opt" value="none" checked="checked" /> Off</label>
         <label><input type="radio" name="border-opt" value="top" /> On</label>
+        <span style="color:#aaa;">|</span>
+        <span style="font-size: 11px; color: #666;">
+          <strong>Scroll:</strong> Pan Time &nbsp;•&nbsp; <strong>Ctrl + Scroll:</strong> Zoom Time
+        </span>
       </div>
     </div>
 
@@ -474,21 +354,11 @@ def generate_xhtml_chronogram(bubbles,
       {' '.join(legend_html)}
     </div>
 
-<div id="information">Loading trace data ({len(bubbles)} elements)... </div>
+    <div id="information">Initializing viewport canvas...</div>
   </div>
 
-  <!-- Scrollable Graphic Container -->
-  <div class="chart-scroll-frame">
-    <div class="image-map-wrapper">
-      <img src="data:image/png;base64,{img_b64}" alt="Chronogram Gantt Chart" />
-
-      <!-- Single Canvas Overlay for Delimiters and Hover Highlights -->
-      <canvas id="overlay-canvas"
-        width="{img_width}"
-        height="{img_height}"
-        style="position:absolute; top:0; left:0; cursor:crosshair;">
-      </canvas>
-    </div>
+  <div class="chart-viewport">
+    <canvas id="viewport-canvas"></canvas>
   </div>
 
 </div>
@@ -496,102 +366,226 @@ def generate_xhtml_chronogram(bubbles,
 <script type="text/javascript">
 //<![CDATA[
 const TRACE = {json_trace_data};
-const LEFT_MARGIN = {LEFT_MARGIN};
-const PER_THREAD_WIDTH = {per_thread_width};
+const THREADS = {threads};
+const CATEGORY_NAMES = {json.dumps(categories)};
+const CATEGORY_COLORS = {json.dumps(category_colors)};
+
+const TOTAL_SPAN = {win_end - win_start};
 
 document.addEventListener("DOMContentLoaded", () => {{
   const infoElement = document.getElementById("information");
-  const canvas = document.getElementById("overlay-canvas");
+  const canvas = document.getElementById("viewport-canvas");
   const ctx = canvas.getContext("2d");
-  const controlsElement = document.getElementById("border-controls");
+
+  const LEFT_MARGIN = 75;
+  const RIGHT_MARGIN = 20;
+  const HEADER_HEIGHT = 30;
+  const BOTTOM_MARGIN = 20;
 
   let showDelimiters = false;
   let activeBubble = null;
 
-  // Binary search within a pre-sorted thread array (O(log N))
-  function findBubble(events, mouseY) {{
-    if (!events) return null;
-    let low = 0, high = events.length - 1;
+  // Viewport State (in relative seconds)
+  let viewStart = 0.0;
+  let viewSpan = TOTAL_SPAN;
+
+  function resizeCanvas() {{
+    const rect = canvas.parentElement.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+    render();
+  }}
+
+  // Binary search to find index of first event ending after targetStart
+  function findFirstVisibleIndex(events, targetStart) {{
+    let low = 0, high = events.length - 1, ans = events.length;
     while (low <= high) {{
       const mid = (low + high) >> 1;
-      const e = events[mid];
-      if (mouseY >= e[0] && mouseY < e[1]) {{
-        return e;
-      }} else if (mouseY < e[0]) {{
+      if (events[mid][0] + events[mid][1] >= targetStart) {{
+        ans = mid;
         high = mid - 1;
       }} else {{
         low = mid + 1;
       }}
     }}
-    return null;
+    return ans;
   }}
 
-  function renderOverlay() {{
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  function render() {{
+    const W = canvas.width;
+    const H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
 
-    // Draw top line delimiters if enabled
-    if (showDelimiters) {{
-      ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
-      for (const col in TRACE) {{
-        const events = TRACE[col];
-        for (let i = 0; i < events.length; i++) {{
-          const e = events[i];
-          ctx.fillRect(e[2], e[0], e[3] - e[2], 1);
+    const numThreads = THREADS.length;
+    const perThreadWidth = Math.max(4, Math.floor((W - LEFT_MARGIN - RIGHT_MARGIN) / numThreads));
+    const renderWidth = numThreads * perThreadWidth;
+
+    const availableH = H - HEADER_HEIGHT - BOTTOM_MARGIN;
+    const y_scale = availableH / viewSpan;
+    const viewEnd = viewStart + viewSpan;
+
+    // 1. Draw Time Grid Lines & Labels
+    const numTicks = 8;
+    ctx.fillStyle = "#777777";
+    ctx.strokeStyle = "#ebebeb";
+    ctx.font = "11px sans-serif";
+    ctx.lineWidth = 1;
+
+    for (let i = 0; i <= numTicks; i++) {{
+      const rel_t = viewStart + (viewSpan * (i / numTicks));
+      const y = HEADER_HEIGHT + Math.floor(i * (availableH / numTicks));
+
+      ctx.beginPath();
+      ctx.moveTo(LEFT_MARGIN - 5, y);
+      ctx.lineTo(LEFT_MARGIN + renderWidth, y);
+      ctx.stroke();
+
+      const ms = rel_t * 1000;
+      const msStr = Math.abs(ms) < 0.005 ? "0.00" : ms.toFixed(2);
+      const label = (msStr.startsWith('-') ? "" : "+") + msStr;
+      ctx.fillText(`${label}ms`, 5, y + 4);
+    }}
+
+    // 2. Draw Column Headers & Vertical Dividers
+    ctx.fillStyle = "#222222";
+    ctx.strokeStyle = "#d0d0d0";
+    for (let i = 0; i < numThreads; i++) {{
+      const x1 = LEFT_MARGIN + i * perThreadWidth;
+      ctx.fillText(`T${{THREADS[i]}}`, x1 + 4, 18);
+
+      ctx.beginPath();
+      ctx.moveTo(x1, HEADER_HEIGHT);
+      ctx.lineTo(x1, H - BOTTOM_MARGIN);
+      ctx.stroke();
+    }}
+
+    // 3. Render Visible Bubbles using Binary Search
+    for (let colIdx = 0; colIdx < numThreads; colIdx++) {{
+      const events = TRACE[colIdx];
+      if (!events) continue;
+
+      const x1 = LEFT_MARGIN + colIdx * perThreadWidth;
+      const startIdx = findFirstVisibleIndex(events, viewStart);
+
+      for (let i = startIdx; i < events.length; i++) {{
+        const e = events[i];
+        const eStart = e[0];
+        const eEnd = e[0] + e[1];
+
+        if (eStart > viewEnd) break; // Past the visible bottom
+
+        const y1 = HEADER_HEIGHT + (eStart - viewStart) * y_scale;
+        const y2 = HEADER_HEIGHT + (eEnd - viewStart) * y_scale;
+        const h = Math.max(1, y2 - y1);
+
+        // Draw Bubble
+        ctx.fillStyle = CATEGORY_COLORS[e[2]];
+        ctx.fillRect(x1, y1, perThreadWidth, h);
+
+        // Optional Top Delimiter
+        if (showDelimiters) {{
+          ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+          ctx.fillRect(x1, y1, perThreadWidth, 1);
         }}
       }}
     }}
 
-    // Draw hover highlight box
+    // 4. Draw Active Hover Highlight
     if (activeBubble) {{
-      const [y1, y2, x1, x2] = activeBubble;
+      const [colIdx, e] = activeBubble;
+      const x1 = LEFT_MARGIN + colIdx * perThreadWidth;
+      const y1 = HEADER_HEIGHT + (e[0] - viewStart) * y_scale;
+      const y2 = HEADER_HEIGHT + ((e[0] + e[1]) - viewStart) * y_scale;
+      const h = Math.max(1, y2 - y1);
+
       ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
-      ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+      ctx.fillRect(x1, y1, perThreadWidth, h);
       ctx.strokeStyle = "#000000";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+      ctx.strokeRect(x1, y1, perThreadWidth, h);
     }}
   }}
 
-  // Radio button border control listener
-  document.querySelectorAll("input[name='border-opt']").forEach(radio => {{
-    radio.addEventListener("change", (e) => {{
-      showDelimiters = (e.target.value === "top");
-      renderOverlay();
-    }});
-  }});
-
-  // Spatial lookup on mouse move (O(1) column index + O(log N) binary search)
+  // --- Interaction: Hover Detection ---
   canvas.addEventListener("mousemove", (e) => {{
     const rect = canvas.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
 
-    const colIdx = Math.floor((mouseX - LEFT_MARGIN) / PER_THREAD_WIDTH);
-    const hit = findBubble(TRACE[colIdx], mouseY);
+    const numThreads = THREADS.length;
+    const perThreadWidth = Math.max(4, Math.floor((canvas.width - LEFT_MARGIN - RIGHT_MARGIN) / numThreads));
+
+    const colIdx = Math.floor((mouseX - LEFT_MARGIN) / perThreadWidth);
+    let hit = null;
+
+    if (colIdx >= 0 && colIdx < numThreads && mouseY >= HEADER_HEIGHT && mouseY <= canvas.height - BOTTOM_MARGIN) {{
+      const availableH = canvas.height - HEADER_HEIGHT - BOTTOM_MARGIN;
+      const tMouse = viewStart + ((mouseY - HEADER_HEIGHT) / availableH) * viewSpan;
+
+      const events = TRACE[colIdx];
+      if (events) {{
+        const idx = findFirstVisibleIndex(events, tMouse);
+        if (idx < events.length && events[idx][0] <= tMouse) {{
+          hit = [colIdx, events[idx]];
+        }}
+      }}
+    }}
 
     if (hit !== activeBubble) {{
       activeBubble = hit;
       if (hit) {{
-        infoElement.textContent = hit[4];
+        const e = hit[1];
+        const catName = CATEGORY_NAMES[e[2]];
+        infoElement.textContent = `Thread ${{THREADS[hit[0]]}} | ${{catName}} | Start: +${{(e[0]*1000).toFixed(3)}}ms | Duration: ${{(e[1]*1000).toFixed(3)}}ms | Metric: ${{e[3]}} | Details: ${{e[4]}}`;
       }} else {{
         infoElement.textContent = "Hover over a region to inspect details...";
       }}
-      renderOverlay();
+      render();
     }}
   }});
 
   canvas.addEventListener("mouseleave", () => {{
     activeBubble = null;
     infoElement.textContent = "Hover over a region to inspect details...";
-    renderOverlay();
+    render();
   }});
 
-  requestAnimationFrame(() => {{
-    setTimeout(() => {{
-      infoElement.textContent = "Hover over a region to inspect details...";
-      controlsElement.style.display = "flex";
-    }}, 50);
+  // --- Interaction: Scroll (Pan) and Ctrl+Scroll (Zoom) ---
+  canvas.addEventListener("wheel", (e) => {{
+    e.preventDefault();
+
+    if (e.ctrlKey || e.metaKey) {{
+      // ZOOM at mouse Y position
+      const rect = canvas.getBoundingClientRect();
+      const mouseY = e.clientY - rect.top;
+      const availableH = canvas.height - HEADER_HEIGHT - BOTTOM_MARGIN;
+      const mouseRelT = Math.max(0, Math.min(1, (mouseY - HEADER_HEIGHT) / availableH));
+      const tFocus = viewStart + mouseRelT * viewSpan;
+
+      const zoomFactor = e.deltaY > 0 ? 1.15 : 0.85;
+      const newSpan = Math.max(0.000001, Math.min(TOTAL_SPAN * 2, viewSpan * zoomFactor));
+
+      viewStart = tFocus - mouseRelT * newSpan;
+      viewSpan = newSpan;
+    }} else {{
+      // PAN vertically
+      const panAmount = (e.deltaY / canvas.height) * viewSpan * 0.5;
+      viewStart = Math.max(0.0 - viewSpan * 0.1, Math.min(TOTAL_SPAN - viewSpan * 0.9, viewStart + panAmount));
+    }}
+
+    render();
+  }}, {{ passive: false }});
+
+  // Border option listeners
+  document.querySelectorAll("input[name='border-opt']").forEach(radio => {{
+    radio.addEventListener("change", (e) => {{
+      showDelimiters = (e.target.value === "top");
+      render();
+    }});
   }});
+
+  window.addEventListener("resize", resizeCanvas);
+  resizeCanvas();
+  infoElement.textContent = "Hover over a region to inspect details...";
 }});
 //]]>
 </script>
@@ -603,37 +597,21 @@ document.addEventListener("DOMContentLoaded", () => {{
     with open(output_filepath, "w", encoding="utf-8") as f:
         f.write(xhtml_content)
 
-    print(f"Generated Chronogram: {output_filepath}")
-    print(f"Clamped Range: {convert_epoch_to_readable(win_start)}"
-          f" -> {convert_epoch_to_readable(win_end)}"
-          f" (Span: {(win_end-win_start)*1000:.3f} ms)"
-          f" ({len(bubbles)} events rendered)")
+    print(f"Generated Canvas Chronogram: {output_filepath}")
+    print(f"Time Range: {convert_epoch_to_readable(win_start)} -> {convert_epoch_to_readable(win_end)}")
 
 
 def main():
-    parser = argparse.ArgumentParser(
-            description="Generate a Gantt HTML Chronogram"
-                        " from CADO-NFS trace logs.")
-    parser.add_argument("file", nargs='*',
-                        help="Path to trace file (default: stdin)")
-    parser.add_argument("-o", "--output", default="chronogram.html",
-                        help="Output HTML file path"
-                             " (default: chronogram.html)")
-    parser.add_argument("--tstart", type=float, default=None,
-                        help="Start time offset in seconds"
-                             " (relative to run start)"
-                             " or absolute timestamp.")
-    parser.add_argument("--tend", type=float, default=None,
-                        help="End time offset in seconds"
-                             " (relative to run start)"
-                             " or absolute timestamp.")
+    parser = argparse.ArgumentParser(description="Generate an interactive Canvas Chronogram from CADO-NFS trace logs.")
+    parser.add_argument("file", nargs='*', help="Path to trace file (default: stdin)")
+    parser.add_argument("-o", "--output", default="chronogram.html", help="Output HTML path (default: chronogram.html)")
+    parser.add_argument("--tstart", type=float, default=None, help="Start time offset or absolute timestamp.")
+    parser.add_argument("--tend", type=float, default=None, help="End time offset or absolute timestamp.")
 
     args = parser.parse_args()
 
     raw_data = parse_trace_data(feed(args.file))
-    clamped_data, win_start, win_end = clamp_trace_data(raw_data,
-                                                        args.tstart,
-                                                        args.tend)
+    clamped_data, win_start, win_end = clamp_trace_data(raw_data, args.tstart, args.tend)
 
     generate_xhtml_chronogram(clamped_data, win_start, win_end, args.output)
 
