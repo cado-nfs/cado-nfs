@@ -8,14 +8,17 @@
 
 namespace tdict {
 
-/* default value is set in configure_switches */ 
-int global_enable;
+    static int production_mode = 0;
+    static int global_enable = 0;
 
+    int is_production_mode() { return production_mode; }
+    int is_enabled() { return global_enable; }
 #ifndef DISABLE_TIMINGS
 
 void declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "T",   "enable fine-grain timings (use twice to get them for each q)");
+    pl.declare_usage("T",   "enable fine-grain timings (use twice to get them for each q)");
+    pl.declare_usage("production", "Sort of an opposite to -v. Disable all diagnostics except the cheap or critical ones. See #21688 and #21825.");
 }
 
 void configure_aliases(cxx_param_list &)
@@ -24,9 +27,16 @@ void configure_aliases(cxx_param_list &)
 
 void configure_switches(cxx_param_list & pl)
 {
-    param_list_configure_switch(pl, "-T", &global_enable);
-    /* We now rely on fine-grain switches to provide _all_ timings */
-    global_enable = 1;
+    pl.configure_switch("-production");
+    pl.configure_switch("-T");
+}
+
+void interpret_parameters(cxx_param_list & pl)
+{
+    pl.parse("-production", production_mode);
+    pl.parse("-T", global_enable);
+    if (is_production_mode() && is_enabled())
+        pl.fail("-T and -production are incompatible");
 }
 
 std::ostream& operator<<(std::ostream & o, timer_seconds_thread_and_wct::type const & a) {
@@ -41,6 +51,7 @@ std::ostream& operator<<(std::ostream & o, timer_seconds_thread_and_wct::type co
 void declare_usage(cxx_param_list &) {}
 void configure_aliases(cxx_param_list &) {}
 void configure_switches(cxx_param_list &) {}
+void interpret_parameters(cxx_param_list & pl) {}
 
 #endif
 

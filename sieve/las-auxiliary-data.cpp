@@ -68,7 +68,7 @@ nfs_aux::~nfs_aux()
 
     verbose_output_start_batch();
 
-    if (tdict::global_enable >= 2) {
+    if (tdict::is_enabled() >= 2) {
         verbose_fmt_print (0, 1, "{}", rt.timer.display());
 
         timetree_t::timer_data_type t = 0;
@@ -107,7 +107,7 @@ nfs_aux::~nfs_aux()
 
     verbose_fmt_print (0, 1, "# Time for {}: ({:.1f} elapsed)",
             doing.sq(), wct_qt0);
-    if (las_production_mode) {
+    if (tdict::is_production_mode()) {
         verbose_fmt_print (0, 1, " [-production mode, no timings]");
     } else {
         verbose_fmt_print (0, 1, " {:1.2f}s", qtcpu);

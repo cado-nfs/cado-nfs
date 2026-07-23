@@ -80,6 +80,7 @@
 #include "multityped_array.hpp"
 #include "params.hpp"
 #include "relation.hpp"
+#include "smallsieve.hpp"
 #include "special-q.hpp"
 #include "sieve-methods.hpp"
 #include "tdict.hpp"
@@ -119,7 +120,6 @@ static void configure_switches(cxx_param_list & pl)
     param_list_configure_switch(pl, "-sync", &sync_at_special_q);
     param_list_configure_switch(pl, "-sync-thread-pool", &sync_thread_pool);
     param_list_configure_switch(pl, "-never-discard", &never_discard);
-    param_list_configure_switch(pl, "-production", &las_production_mode);
 }
 
 static void declare_usage(cxx_param_list & pl)/*{{{*/
@@ -165,7 +165,6 @@ static void declare_usage(cxx_param_list & pl)/*{{{*/
      */
     pl.declare_usage("never-discard", "Disable the discarding process for special-q's. This is dangerous. See bug #15617");
 
-    pl.declare_usage("production", "Sort of an opposite to -v. Disable all diagnostics except the cheap or critical ones. See #21688 and #21825.");
     verbose_decl_usage(pl);
 }/*}}}*/
 
@@ -1471,14 +1470,12 @@ int main (int argc0, char const * argv0[])/*{{{*/
     param_list_parse_int(pl, "log-bucket-region-step", &LOG_BUCKET_REGION_step);
     set_LOG_BUCKET_REGION();
 
+    tdict::interpret_parameters(pl);
+
     /* fix the lifetime of this object to this function only, so that we
      * don't get killed by the static destruction order fiasco */
     las_output main_output_obj(pl);
     main_output = &main_output_obj;
-
-    if (las_production_mode) {
-        tdict::global_enable = 0;
-    }
 
     las_info las(pl, ALGO{});    /* side effects: prints cmdline and flags */
 #ifdef SAFE_BUCKET_ARRAYS
@@ -1776,7 +1773,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
     auto D = global_rt.timer.filter_by_category();
     timetree_t::timer_data_type const tcpu = global_rt.timer.total_counted_time();
 
-    if (tdict::global_enable >= 1) {
+    if (tdict::is_enabled() >= 1) {
         verbose_fmt_print (0, 1, "#\n# Hierarchical timings:\n{}",
                 global_rt.timer.display());
 
@@ -1796,7 +1793,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
     /*{{{ Display tally */
     display_bucket_prime_stats();
 
-    if (las_production_mode) {
+    if (tdict::is_production_mode()) {
         verbose_fmt_print (2, 1, "# Total cpu time {:1.2f}s [remove -production flag for timings]\n", t0);
     } else {
         verbose_fmt_print (2, 1, "# Wasted cpu time due to {} bkmult adjustments: {:1.2f}\n", global_rt.rep.nwaste, global_rt.rep.waste);

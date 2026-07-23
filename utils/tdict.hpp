@@ -87,8 +87,12 @@ namespace tdict {
  * so use with extreme care. Also, having it scope-limited is not thread-safe.
  */
 namespace tdict {
-
-    extern int global_enable;
+    void declare_usage(cxx_param_list & pl);
+    void configure_switches(cxx_param_list & pl);
+    void configure_aliases(cxx_param_list & pl);
+    void interpret_parameters(cxx_param_list & pl);
+    extern int is_enabled();
+    extern int is_production_mode();
 
     /* to print a key object (e.g. from gdb) use
      * tdict::slot_base::print(k)
@@ -193,7 +197,7 @@ namespace tdict {
     struct timer_seconds_thread {
         using type = double;
         type operator()() const {
-            if (tdict::global_enable)
+            if (is_enabled())
                 return seconds_thread();
             else
                 return 0;
@@ -221,7 +225,7 @@ namespace tdict {
             }
         };
         type operator()() const {
-            if (tdict::global_enable)
+            if (is_enabled())
                 return { seconds_thread(), wct_seconds() };
             else
                 return {};
@@ -231,7 +235,7 @@ namespace tdict {
     struct timer_ticks {
         using type = uint64_t;
         type operator()() const {
-            if (tdict::global_enable)
+            if (is_enabled())
                 return cputicks();
             else
                 return 0;
@@ -516,11 +520,7 @@ namespace tdict {
                 merge_scaled(t.M[a.first], a.second, scale_t, scale_u);
         }
     };
-
-    void declare_usage(cxx_param_list & pl);
-    void configure_switches(cxx_param_list & pl);
-    void configure_aliases(cxx_param_list & pl);
-};
+} /* namespace tdict */
 
 // timer_seconds_thread_and_wct is not satisfactory.
 // typedef tdict::tree<tdict::timer_seconds_thread_and_wct> timetree_t;
@@ -659,13 +659,6 @@ namespace tdict {
     };
 };
 using fuzzy_diverted_timetree_t = tdict::tie_timer;
-
-namespace tdict {
-    extern int global_enable;
-    void declare_usage(cxx_param_list & pl);
-    void configure_switches(cxx_param_list & pl);
-    void configure_aliases(cxx_param_list & pl);
-};
 
 #define CHILD_TIMER(T, name) T.nop()
 #define CHILD_TIMER_PARAMETRIC(T, name, arg, suffix) T.nop()
