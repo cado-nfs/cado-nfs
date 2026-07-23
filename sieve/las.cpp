@@ -1776,7 +1776,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
     auto D = global_rt.timer.filter_by_category();
     timetree_t::timer_data_type const tcpu = global_rt.timer.total_counted_time();
 
-    if (tdict::global_enable >= 2) {
+    if (tdict::global_enable >= 1) {
         verbose_fmt_print (0, 1, "#\n# Hierarchical timings:\n{}",
                 global_rt.timer.display());
 
