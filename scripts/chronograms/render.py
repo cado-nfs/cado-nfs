@@ -11,6 +11,7 @@ import gzip
 import bz2
 import lzma
 import datetime
+import json
 
 try:
     import compression.zstd
@@ -196,9 +197,29 @@ def generate_xhtml_chronogram(bubbles,
 
     img_width = LEFT_MARGIN + RIGHT_MARGIN + num_threads * per_thread_width
 
-    target_height = 1600
-    y_scale = (target_height - HEADER_HEIGHT - BOTTOM_MARGIN) / total_time
-    img_height = HEADER_HEIGHT + BOTTOM_MARGIN + int(total_time * y_scale)
+    target_height = 12000
+
+    useful_height = target_height - HEADER_HEIGHT - BOTTOM_MARGIN
+    default_y_scale = useful_height / total_time
+
+    if False:
+        durations = sorted(b["duration"] for b in bubbles)
+        p10_idx = int(len(durations) * 0.1)
+        target_duration = durations[p10_idx]
+
+        # 2. Compute y_scale so >= 90% of bubbles are at least 2px tall
+        if target_duration > 0:
+            required_y_scale = 2.0 / target_duration
+        else:
+            non_zero = [d for d in durations if d > 0]
+            required_y_scale = (2.0 / non_zero[0]) if non_zero else default_y_scale
+
+        y_scale = max(default_y_scale, required_y_scale)
+        img_height = HEADER_HEIGHT + BOTTOM_MARGIN + int(total_time * y_scale)
+        print(f"image height is {img_height}")
+    else:
+        img_height = target_height
+        y_scale = default_y_scale
 
     img = Image.new("RGB", (img_width, img_height), (255, 255, 255))
     draw = ImageDraw.Draw(img)
@@ -232,10 +253,10 @@ def generate_xhtml_chronogram(bubbles,
                   fill=(210, 210, 210),
                   width=1)
 
-    # Draw Time Bubbles & Build SVG Overlay Lines
-    areas_html = []
+    # Draw Time Bubbles & Build Compact Spatial Index for JS
+    trace_data_js = {}
 
-    for idx, b in enumerate(bubbles):
+    for b in bubbles:
         col_idx = thread_map[b["thread"]]
         x1 = LEFT_MARGIN + col_idx * per_thread_width
         width_px = per_thread_width
@@ -253,10 +274,6 @@ def generate_xhtml_chronogram(bubbles,
         color = get_color(b["category"])
         draw.rectangle([x1, y1, x2_draw, y2_draw], fill=color, outline=None)
 
-        # HTML <area> map bounds (exclusive interval)
-        x2_map = x1 + width_px
-        y2_map = y1 + height_px
-
         rel_start = b['start'] - win_start
         title_text = (
             f"Thread {b['thread']} | {b['category']} | "
@@ -264,11 +281,18 @@ def generate_xhtml_chronogram(bubbles,
             f"Duration: {b['duration']*1000:.3f}ms | "
             f"Metric: {b['metric']} | Details: {b['desc']}"
         )
-        escaped_title = html.escape(title_text, quote=True)
-        areas_html.append(
-            f'    <area shape="rect" coords="{x1},{y1},{x2_map},{y2_map}"'
-            f' title="{escaped_title}" id="area-{idx}" />'
-        )
+
+        if col_idx not in trace_data_js:
+            trace_data_js[col_idx] = []
+
+        # Store [y1, y2, x1, x2, title_text]
+        trace_data_js[col_idx].append([y1, y1 + height_px, x1, x1 + width_px, title_text])
+
+    # Sort each thread's events by y1 to guarantee binary search correctness
+    for c_idx in trace_data_js:
+        trace_data_js[c_idx].sort(key=lambda x: x[0])
+
+    json_trace_data = json.dumps(trace_data_js, separators=(',', ':'))
 
     # Encode Base64 Image
     buffer = BytesIO()
@@ -417,15 +441,6 @@ def generate_xhtml_chronogram(bubbles,
     background: #ffffff;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   }}
-
-
-  #area-overlay {{
-    position: absolute;
-    background-color: rgba(0, 0, 0, 0.35);
-    pointer-events: none;
-    display: none;
-    border: 1px solid #000;
-  }}
 </style>
 </head>
 
@@ -465,85 +480,117 @@ def generate_xhtml_chronogram(bubbles,
   <!-- Scrollable Graphic Container -->
   <div class="chart-scroll-frame">
     <div class="image-map-wrapper">
-      <img src="data:image/png;base64,{img_b64}"
-            usemap="#mymap" alt="Chronogram Gantt Chart" />
+      <img src="data:image/png;base64,{img_b64}" alt="Chronogram Gantt Chart" />
 
-      <!-- Lightweight Canvas Overlay for Delimiters -->
-      <canvas id="border-canvas"
+      <!-- Single Canvas Overlay for Delimiters and Hover Highlights -->
+      <canvas id="overlay-canvas"
         width="{img_width}"
         height="{img_height}"
-        style="position:absolute; top:0; left:0; pointer-events:none;">
+        style="position:absolute; top:0; left:0; cursor:crosshair;">
       </canvas>
-
-      <div id="area-overlay"></div>
     </div>
-
-    <map name="mymap">
-{'\n'.join(areas_html)}
-    </map>
   </div>
 
 </div>
 
 <script type="text/javascript">
 //<![CDATA[
+const TRACE = {json_trace_data};
+const LEFT_MARGIN = {LEFT_MARGIN};
+const PER_THREAD_WIDTH = {per_thread_width};
+
 document.addEventListener("DOMContentLoaded", () => {{
-  const mapElement = document.querySelector("map[name='mymap']");
   const infoElement = document.getElementById("information");
-  const overlay = document.getElementById("area-overlay");
-  const canvas = document.getElementById("border-canvas");
+  const canvas = document.getElementById("overlay-canvas");
   const ctx = canvas.getContext("2d");
-  const controlsElement = document.getElementById("border-controls")
+  const controlsElement = document.getElementById("border-controls");
 
-  function drawDelimiters(show) {{
+  let showDelimiters = false;
+  let activeBubble = null;
+
+  // Binary search within a pre-sorted thread array (O(log N))
+  function findBubble(events, mouseY) {{
+    if (!events) return null;
+    let low = 0, high = events.length - 1;
+    while (low <= high) {{
+      const mid = (low + high) >> 1;
+      const e = events[mid];
+      if (mouseY >= e[0] && mouseY < e[1]) {{
+        return e;
+      }} else if (mouseY < e[0]) {{
+        high = mid - 1;
+      }} else {{
+        low = mid + 1;
+      }}
+    }}
+    return null;
+  }}
+
+  function renderOverlay() {{
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (!show) return;
 
-    ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
-    const areas = mapElement.querySelectorAll("area");
-    for (let i = 0; i < areas.length; i++) {{
-      const coords = areas[i].coords.split(',').map(Number);
-      // Draw 1px line along the top of each bubble [x1, y1, width, height=1]
-      ctx.fillRect(coords[0], coords[1], coords[2] - coords[0], 1);
+    // Draw top line delimiters if enabled
+    if (showDelimiters) {{
+      ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+      for (const col in TRACE) {{
+        const events = TRACE[col];
+        for (let i = 0; i < events.length; i++) {{
+          const e = events[i];
+          ctx.fillRect(e[2], e[0], e[3] - e[2], 1);
+        }}
+      }}
+    }}
+
+    // Draw hover highlight box
+    if (activeBubble) {{
+      const [y1, y2, x1, x2] = activeBubble;
+      ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
+      ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+      ctx.strokeStyle = "#000000";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
     }}
   }}
 
   // Radio button border control listener
   document.querySelectorAll("input[name='border-opt']").forEach(radio => {{
     radio.addEventListener("change", (e) => {{
-      drawDelimiters(e.target.value === "top");
+      showDelimiters = (e.target.value === "top");
+      renderOverlay();
     }});
   }});
 
-  // Allow browser layout engine to finish digesting map coordinates
-  // before updating prompt
+  // Spatial lookup on mouse move (O(1) column index + O(log N) binary search)
+  canvas.addEventListener("mousemove", (e) => {{
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    const colIdx = Math.floor((mouseX - LEFT_MARGIN) / PER_THREAD_WIDTH);
+    const hit = findBubble(TRACE[colIdx], mouseY);
+
+    if (hit !== activeBubble) {{
+      activeBubble = hit;
+      if (hit) {{
+        infoElement.textContent = hit[4];
+      }} else {{
+        infoElement.textContent = "Hover over a region to inspect details...";
+      }}
+      renderOverlay();
+    }}
+  }});
+
+  canvas.addEventListener("mouseleave", () => {{
+    activeBubble = null;
+    infoElement.textContent = "Hover over a region to inspect details...";
+    renderOverlay();
+  }});
+
   requestAnimationFrame(() => {{
     setTimeout(() => {{
       infoElement.textContent = "Hover over a region to inspect details...";
       controlsElement.style.display = "flex";
     }}, 50);
-  }});
-
-  mapElement.addEventListener("mouseover", (event) => {{
-    if (event.target.tagName === "AREA") {{
-      infoElement.textContent = event.target.title;
-
-      const coords = event.target.coords.split(',').map(Number);
-      const [x1, y1, x2, y2] = coords;
-
-      overlay.style.left = `${{x1}}px`;
-      overlay.style.top = `${{y1}}px`;
-      overlay.style.width = `${{x2 - x1}}px`;
-      overlay.style.height = `${{y2 - y1}}px`;
-      overlay.style.display = "block";
-    }}
-  }});
-
-  mapElement.addEventListener("mouseout", (event) => {{
-    if (event.target.tagName === "AREA") {{
-      infoElement.textContent = "Hover over a region to inspect details...";
-      overlay.style.display = "none";
-    }}
   }});
 }});
 //]]>
