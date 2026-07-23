@@ -1,7 +1,7 @@
 #ifndef CADO_TDICT_HPP
 #define CADO_TDICT_HPP
 
-#include <cstddef>   // for NULL
+#include <cstddef>
 #include <cstdint>
 
 #include <map>
@@ -12,7 +12,7 @@
 
 #include "lock_guarded_container.hpp"
 #include "timing.h"
-#include "macros.h"   // for ASSERT_ALWAYS, CADO_CONCATENATE3, MAYBE_UNUSED
+#include "macros.h"
 namespace cado::params {
 struct cxx_param_list;
 }
@@ -24,7 +24,7 @@ using cxx_param_list = cado::params::cxx_param_list;
 
 namespace tdict {
     struct timer_none {
-        typedef int type;
+        using type = int;
         type operator()() const { return 0; }
     };
 }
@@ -108,7 +108,7 @@ namespace tdict {
 
         public:
         slot_base(slot_base const&) = delete;
-        typedef std::map<key, const tdict::slot_base*> dict_t;
+        using dict_t = std::map<key, const tdict::slot_base*>;
         protected:
         key k;
         private:
@@ -191,7 +191,7 @@ namespace tdict {
     };
 
     struct timer_seconds_thread {
-        typedef double type;
+        using type = double;
         type operator()() const {
             if (tdict::global_enable)
                 return seconds_thread();
@@ -229,7 +229,7 @@ namespace tdict {
     };
 #ifdef  HAVE_GCC_STYLE_AMD64_INLINE_ASM
     struct timer_ticks {
-        typedef uint64_t type;
+        using type = uint64_t;
         type operator()() const {
             if (tdict::global_enable)
                 return cputicks();
@@ -258,23 +258,22 @@ namespace tdict {
 
     template<typename T>
     struct tree {
-        typedef T timer_type;
-        typedef typename T::type timer_data_type;
+        using timer_type = T;
+        using timer_data_type = typename T::type;
         timer_data_type self;
-        bool scoping;
-        int category;
-        typedef std::map<tdict::key, tree<T> > M_t;
+        bool scoping = true;;
+        int category = -1;
+        using M_t = std::map<tdict::key, tree<T> >;
         M_t M;
-        tree<T> * current;   /* could be NULL */
+        tree<T> * current = nullptr;   /* could be NULL */
         tree<T> * parent;   /* could be NULL */
-        tree() : self(timer_data_type()), scoping(true), category(-1), current(NULL), parent(this) { }
+        tree() : self(timer_data_type()), parent(this) { }
         bool running() const { return current != NULL; }
         void stop() {
             if (!running()) return;
             timer_data_type v = T()();
             current->self += v;
             current = NULL;
-            return;
         }
         void start() {
             if (running()) return;
@@ -341,9 +340,9 @@ namespace tdict {
                     BB::t.current->self -= v;
                 }
             };
-        typedef accounting_child_meta<accounting_base> accounting_child;
-        typedef accounting_child_meta<accounting_activate> accounting_child_autoactivate;
-        typedef accounting_child_meta<accounting_activate_recursive> accounting_child_autoactivate_recursive;
+        using accounting_child = accounting_child_meta<accounting_base>;
+        using accounting_child_autoactivate = accounting_child_meta<accounting_activate>;
+        using accounting_child_autoactivate_recursive = accounting_child_meta<accounting_activate_recursive>;
 
         struct accounting_debug : public accounting_base {
             std::ostream& o;
@@ -443,8 +442,8 @@ namespace tdict {
             ASSERT_ALWAYS(category < 0 || t.category < 0 || category == t.category);
             if (t.category >= 0)
                 category = t.category;
-            for(typename M_t::const_iterator a = t.M.begin() ; a != t.M.end() ; a++) {
-                M[a->first] += a->second;
+            for(auto const & [ f, s ] : t.M) {
+                M[f] += s;
             }
             return *this;
         }
@@ -532,11 +531,13 @@ typedef tdict::tree<tdict::timer_seconds_thread> timetree_t;
  * of being accurate.
  */
 #ifdef  HAVE_GCC_STYLE_AMD64_INLINE_ASM
-typedef tdict::tree<tdict::timer_ticks> fast_timetree_t;
+using fast_timetree_t = tdict::tree<tdict::timer_ticks>;
 #else
-typedef tdict::tree<tdict::timer_none> fast_timetree_t;
+using fast_timetree_t = tdict::tree<tdict::timer_none>;
 #endif
 
+#if 0
+/* It's ugly and I'm not convinced I need this */
 extern template class std::map<tdict::key, tdict::slot_base const *>;
 
 extern template struct tdict::tree<tdict::timer_seconds_thread>;
@@ -552,6 +553,7 @@ extern template struct tdict::tree<tdict::timer_ticks>::accounting_child_meta<td
 extern template struct tdict::tree<tdict::timer_none>;
 extern template class std::map<tdict::key, tdict::tree<tdict::timer_none> >;
 extern template struct tdict::tree<tdict::timer_none>::accounting_child_meta<tdict::tree<tdict::timer_none>::accounting_base>;
+#endif
 #endif
 
 #if 0
@@ -626,13 +628,13 @@ class : public tdict::slot_base {
     tdict::tie_timer<typename TIMER_TYPE_(T)::timer_type, fast_timetree_t::timer_type> U(T, UNIQUE_ID(slot))
 
 
-typedef tdict::tie_timer<timetree_t::timer_type, fast_timetree_t::timer_type> fuzzy_diverted_timetree_t;
+using fuzzy_diverted_timetree_t = tdict::tie_timer<timetree_t::timer_type, fast_timetree_t::timer_type>;
 
 #else /* DISABLE_TIMINGS */
 
 struct timetree_t {
-    typedef double timer_data_type;
-    typedef tdict::timer_none timer_type;
+    using timer_data_type = double;
+    using timer_type = tdict::timer_none;
     std::map<int, double> filter_by_category() const {
         /* always an empty map */
         return std::map<int, double>();
@@ -649,14 +651,14 @@ struct timetree_t {
     void add_foreign_time(timer_data_type const &) const {}
 };
 
-typedef timetree_t fast_timetree_t;
+using fast_timetree_t = timetree_t;
 
 namespace tdict {
     struct tie_timer : public timetree_t {
         tie_timer() = default;
     };
 };
-typedef tdict::tie_timer fuzzy_diverted_timetree_t;
+using fuzzy_diverted_timetree_t = tdict::tie_timer;
 
 namespace tdict {
     extern int global_enable;
