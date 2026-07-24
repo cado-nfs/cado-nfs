@@ -82,6 +82,7 @@ class emptyhint_t
     emptyhint_t(fbprime_t, slice_offset_t, slice_index_t) { }
     static constexpr char const * rtti = "s";
     static constexpr bool allowed_at_toplevel = true;
+    static constexpr bool is_long_v = false;
 };
 
 /* 16-bits */
@@ -99,6 +100,7 @@ class shorthint_t
     { }
     static constexpr char const * rtti = "shorthint_t";
     static constexpr bool allowed_at_toplevel = true;
+    static constexpr bool is_long_v = false;
 };
 
 /* sizeof(slice_index_t), that is 4 bytes, + 2 hint bytes == 6 bytes */
@@ -130,6 +132,7 @@ class longhint_t
     }
     static constexpr char const * rtti = "longhint_t";
     static constexpr bool allowed_at_toplevel = false;
+    static constexpr bool is_long_v = true;
 };
 
 /* logphint_t is the 'no resieve' equivalent of longhint_t. We only need
@@ -150,6 +153,7 @@ class logphint_t
     { }
     static constexpr char const * rtti = "l";
     static constexpr bool allowed_at_toplevel = false;
+    static constexpr bool is_long_v = true;
 };
 
 template <bool WITH_HINTS> struct hints_proxy {
@@ -236,10 +240,9 @@ template <int LEVEL, typename HINT> struct bucket_update_t; // IWYU pragma: keep
         : public HINT                                                          \
         , public bare_bucket_update_t<LEVEL> {                                 \
         typedef bare_bucket_update_t<LEVEL> bare_t;                            \
-        static inline int level()                                              \
-        {                                                                      \
-            return LEVEL;                                                      \
-        }                                                                      \
+        using hint_t = HINT;                                                   \
+        static constexpr int level = LEVEL;                                    \
+        /* static inline int level() { return LEVEL; } */                      \
         bucket_update_t() = default;                                           \
         bucket_update_t(const uint64_t x, HINT const & h)                      \
             : HINT(h)                                                          \

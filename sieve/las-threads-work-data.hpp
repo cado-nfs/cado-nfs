@@ -171,24 +171,27 @@ class nfs_work {
         {
         }
 
-        template <int LEVEL, typename HINT> void reset_all_pointers();
-
+        template <int LEVEL, typename HINT> void reset_all_pointers()
+        {
+            group.get<LEVEL, HINT>().reset_all_pointers();
+        }
         template <int LEVEL, typename HINT>
+            requires (!HINT::is_long_v)
+            auto
+            reserve_BA() {
+                return group.get<LEVEL, HINT>().reserve();
+            }
+        template <int LEVEL, typename HINT>
+            requires HINT::is_long_v
             bucket_array_t<LEVEL, HINT> &
-            reserve_BA(int wish) {
-                return group.get<LEVEL, HINT>().reserve(wish);
+            acquire_BA(size_t rank) {
+                return group.get<LEVEL, HINT>().acquire(rank);
             }
 
         template <int LEVEL, typename HINT>
-            int rank_BA(bucket_array_t<LEVEL, HINT> const & BA) {
+            size_t rank_BA(bucket_array_t<LEVEL, HINT> const & BA) {
                 return group.get<LEVEL, HINT>().rank(BA);
             }
-
-        template <int LEVEL, typename HINT>
-            void
-            release_BA(bucket_array_t<LEVEL, HINT> &BA) {
-                return group.get<LEVEL, HINT>().release(BA);
-        }
 
         /*
          * not even needed. Better to expose only reserve() and release()

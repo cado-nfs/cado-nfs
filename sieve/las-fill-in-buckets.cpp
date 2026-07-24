@@ -277,6 +277,7 @@ static task_result *
 fill_in_buckets_one_slice_internal(worker_thread * worker,
                                    task_parameters * _param, int)
 {
+    static_assert(!TARGET_HINT::is_long_v);
     auto * param = static_cast<fill_in_buckets_parameters<LEVEL> *>(_param);
 
     /* Import some contextual stuff */
@@ -309,19 +310,12 @@ fill_in_buckets_one_slice_internal(worker_thread * worker,
          * fill_in_buckets_lowlevel<> does not, at least currently. One
          * could imagine that it could throw, so let's wrap it too.
          */
-        auto & BA = wss.reserve_BA<LEVEL, TARGET_HINT>(-1);
-
-        /* Fill the buckets */
-        try {
-            fill_in_buckets_lowlevel<LEVEL>(BA, ws, Q, *param->plattices_vector,
-                                            param->first_region0_index, w);
-        } catch (buckets_are_full & e) {
-            wss.release_BA(BA);
-            throw e;
-        }
-        /* Release bucket array again */
-        wss.release_BA(BA);
+        fill_in_buckets_lowlevel<LEVEL, TARGET_HINT>(
+                wss.reserve_BA<LEVEL, TARGET_HINT>().access(),
+                ws, Q, *param->plattices_vector,
+                param->first_region0_index, w);
     } catch (buckets_are_full & e) {
+        e.side = param->side;
         delete param;
         throw e;
     }
@@ -339,6 +333,7 @@ static task_result *
 fill_in_buckets_toplevel_wrapper(worker_thread * worker MAYBE_UNUSED,
                                  task_parameters * _param, int)
 {
+    static_assert(!TARGET_HINT::is_long_v);
     auto * param = static_cast<fill_in_buckets_parameters<LEVEL> *>(_param);
 
     /* Import some contextual stuff */
@@ -371,18 +366,17 @@ fill_in_buckets_toplevel_wrapper(worker_thread * worker MAYBE_UNUSED,
 
     try {
         /* Get an unused bucket array that we can write to */
-        bucket_array_t<LEVEL, TARGET_HINT> & BA =
-            wss.reserve_BA<LEVEL, TARGET_HINT>(-1);
+        // bucket_array_t<LEVEL, TARGET_HINT> &;
         ASSERT(param->slice);
         auto const * sl = dynamic_cast<fb_slice<FB_ENTRY_TYPE> const *>(param->slice);
         ASSERT_ALWAYS(sl != NULL);
         fill_in_buckets_toplevel<LEVEL, FB_ENTRY_TYPE, TARGET_HINT>(
-            BA, ws, *sl, Q, param->plattices_dense_vector, w);
-        /* Release bucket array again */
-        wss.release_BA(BA);
+            wss.reserve_BA<LEVEL, TARGET_HINT>().access(),
+            ws, *sl, Q, param->plattices_dense_vector, w);
         delete param;
         return new task_result;
-    } catch (buckets_are_full const & e) {
+    } catch (buckets_are_full & e) {
+        e.side = param->side;
         delete param;
         throw e;
     }
@@ -393,6 +387,7 @@ static task_result *
 fill_in_buckets_toplevel_sublat_wrapper(worker_thread * worker,
                                         task_parameters * _param, int)
 {
+    static_assert(!TARGET_HINT::is_long_v);
     auto * param = static_cast<fill_in_buckets_parameters<LEVEL> *>(_param);
 
     /* Import some contextual stuff */
@@ -425,18 +420,16 @@ fill_in_buckets_toplevel_sublat_wrapper(worker_thread * worker,
 
     try {
         /* Get an unused bucket array that we can write to */
-        bucket_array_t<LEVEL, TARGET_HINT> & BA =
-            wss.reserve_BA<LEVEL, TARGET_HINT>(-1);
         ASSERT(param->slice);
         fill_in_buckets_toplevel_sublat<LEVEL, FB_ENTRY_TYPE>(
-            BA, ws, Q,
+            wss.reserve_BA<LEVEL, TARGET_HINT>().access(),
+            ws, Q,
             *dynamic_cast<fb_slice<FB_ENTRY_TYPE> const *>(param->slice),
             param->plattices_dense_vector, w);
-        /* Release bucket array again */
-        wss.release_BA(BA);
         delete param;
         return new task_result;
-    } catch (buckets_are_full const & e) {
+    } catch (buckets_are_full & e) {
+        e.side = param->side;
         delete param;
         throw e;
     }
@@ -627,6 +620,9 @@ static void downsort_aux(fb_factorbase::slicing const & fbs, nfs_work & ws,
 
     auto const & BA_ins = wss.bucket_arrays<LEVEL + 1, my_longhint_t>();
     auto & BA_outs = wss.bucket_arrays<LEVEL, my_longhint_t>();
+    // I don't think resetting makes a lot of sense here. We want to
+    // accumulate to the BA_outs.
+    // wss.reset_all_pointers<LEVEL, my_longhint_t>();
 
     verbose_fmt_print(0, 3,
             "# Downsorting the side-{} {}{} buckets ({} groups of {} buckets"
@@ -639,6 +635,11 @@ static void downsort_aux(fb_factorbase::slicing const & fbs, nfs_work & ws,
             LEVEL, my_longhint_t::rtti[0],
             BA_outs.size(), BA_outs[0].n_bucket);
 
+    /* I think that we implicitly have the assertion below, and so it is
+     * fine to disregard the "optimal" strategy for choosing the bucket
+     * array.  But we may just as well using, there's no harm (I think).
+     */
+    ASSERT_ALWAYS(BA_ins.size() == BA_outs.size());
 
     // What comes from already downsorted data above:
     for (auto const & BA_in: BA_ins) {
@@ -650,10 +651,14 @@ static void downsort_aux(fb_factorbase::slicing const & fbs, nfs_work & ws,
                 MARK_TIMER_FOR_SIDE(timer, side);
                 taux.w = w;
                 CHILD_TIMER(timer, TEMPLATE_INST_NAME(downsort, LEVEL));
+                /*
                 auto & BA_out(
                     wss.reserve_BA<LEVEL, my_longhint_t>(wss.rank_BA(BA_in)));
-                downsort<LEVEL + 1>(fbs, BA_out, BA_in, bucket_index, taux.w);
-                wss.template release_BA<LEVEL, my_longhint_t>(BA_out);
+                    */
+                downsort<LEVEL + 1>(fbs,
+                        wss.acquire_BA<LEVEL, my_longhint_t>(wss.rank_BA(BA_in)),
+                        // wss.reserve_BA<LEVEL, my_longhint_t>().access(),
+                        BA_in, bucket_index, taux.w);
             },
             bucket_index, 0);
     }
@@ -755,7 +760,10 @@ static void downsort_tree_inner(
                     BA_outs.size(), BA_outs[0].n_bucket);
 
             /* otherwise the code here can't work */
+            /* see also the comment above in downsort_aux */
             ASSERT_ALWAYS(BA_ins.size() == BA_outs.size());
+
+            wss.reset_all_pointers<LEVEL, my_longhint_t>();
 
             /* We create one output array for each input array, and we
              * process them in parallel. There would be various ways to
@@ -770,13 +778,17 @@ static void downsort_tree_inner(
                         ENTER_THREAD_TIMER(timer);
                         MARK_TIMER_FOR_SIDE(timer, side);
                         CHILD_TIMER(timer, TEMPLATE_INST_NAME(downsort, LEVEL));
+                        /*
                         auto & BA_out(wss.reserve_BA<LEVEL, my_longhint_t>(
                             wss.rank_BA(BA_in)));
                         BA_out.reset_pointers();
-                        downsort<LEVEL + 1>(fbs, BA_out, BA_in, bucket_index,
+                            */
+                        downsort<LEVEL + 1>(fbs,
+                                wss.acquire_BA<LEVEL, my_longhint_t>(wss.rank_BA(BA_in)),
+                                // wss.reserve_BA<LEVEL, my_longhint_t>().access(),
+                                BA_in, bucket_index,
                                             taux.w);
                         //wss.template release_BA<LEVEL, my_longhint_t>(BA_out);
-                        wss.release_BA(BA_out);
                     },
                     bucket_index, 0);
             }
