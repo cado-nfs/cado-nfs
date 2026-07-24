@@ -5,6 +5,7 @@
 #include <cstdint>
 
 #include <map>
+#include <array>
 #include <string>
 #include <sstream>
 #include <vector>
@@ -572,6 +573,21 @@ namespace chronograms {
             ECM,
             BOTCHED
         };
+
+        static constexpr std::array<const char*, 13> kind_names = {
+            "INIT",
+            "SKEWGAUSS",
+            "ADJUST",
+            "SLICING",
+            "ALLOC",
+            "SSS",
+            "FIB",
+            "AB",
+            "DS",
+            "PCLAT",
+            "PBR",
+            "ECM",
+            "BOTCHED", };
 
         kind_t kind;
 

@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta charset="utf-8" />
+<title>CADO-NFS Chronogram Viewer</title>
+<!-- Tiny 8KB Zstandard decompressor library for .zst files -->
+<script src="https://cdn.jsdelivr.net/npm/fzstd@0.1.1/umd/index.js"></script>
+<style type="text/css">
+  html, body {
+    height: 100%; margin: 0; padding: 0; overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background-color: #f4f5f7;
+  }
+  .app-container { display: flex; flex-direction: column; height: 100vh; padding: 12px; box-sizing: border-box; }
+  
+  .top-frame {
+    flex: 0 0 auto; background: #ffffff; border: 1px solid #ccc;
+    border-radius: 4px; padding: 10px 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); margin-bottom: 8px;
+  }
+  .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .header-title { margin: 0; font-size: 16px; color: #222; }
+
+  /* Dropzone & Controls */
+  .file-dropzone {
+    border: 2px dashed #b0b0b0; background: #fafafa; border-radius: 4px;
+    padding: 8px; text-align: center; font-size: 12px; color: #555; cursor: pointer; transition: all 0.2s;
+  }
+  .file-dropzone.dragover { background: #e8f4ff; border-color: #2b8a3e; }
+
+  .controls-bar {
+    display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+    background: #f8f9fa; padding: 6px 10px; border-radius: 4px; border: 1px solid #e0e0e0; font-size: 12px; margin-top: 6px;
+  }
+  .controls-bar label { cursor: pointer; display: flex; align-items: center; gap: 4px; }
+
+  .window-meta { font-size: 11px; color: #666; margin: 6px 0; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px; max-height: 40px; overflow-y: auto; margin-bottom: 6px; }
+  .legend-item { display: inline-flex; align-items: center; font-size: 11px; color: #444; }
+  .color-box { width: 10px; height: 10px; display: inline-block; margin-right: 4px; border: 1px solid rgba(0,0,0,0.15); }
+
+  #information {
+    padding: 6px 10px; background: #1e1e1e; color: #00ff66;
+    font-family: SFMono-Regular, Consolas, monospace; font-size: 12px; border-radius: 3px; min-height: 16px; white-space: pre-wrap;
+  }
+
+  .chart-viewport { flex: 1 1 auto; position: relative; background: #ffffff; border: 1px solid #bbb; border-radius: 4px; overflow: hidden; }
+  #viewport-canvas { width: 100%; height: 100%; display: block; cursor: crosshair; }
+</style>
+</head>
+
+<body>
+<div class="app-container">
+
+  <div class="top-frame">
+    <div class="header-row">
+      <h3 class="header-title">CADO-NFS Chronogram Viewer</h3>
+      
+      <!-- Dropzone -->
+      <div class="file-dropzone" id="dropzone">
+        📁 Drag & Drop JSON Trace File or <input type="file" id="file-input"
+accept=".json,.json.gz,.json.zst,.json.zstd" style="display:inline;" />
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls-bar">
+      <strong>Delimiters:</strong>
+      <label><input type="radio" name="border-opt" value="none" checked="checked" /> Off</label>
+      <label><input type="radio" name="border-opt" value="top" /> On</label>
+      
+      <span style="color:#ccc;">|</span>
+      <strong>Min Duration Filter:</strong>
+      <select id="duration-filter">
+        <option value="0">Show All</option>
+        <option value="0.000001">> 1 µs</option>
+        <option value="0.000010">> 10 µs</option>
+        <option value="0.000100">> 100 µs</option>
+        <option value="0.001000">> 1 ms</option>
+        <option value="0.010000">> 10 ms</option>
+        <option value="0.100000">> 100 ms</option>
+      </select>
+
+      <span style="color:#ccc;">|</span>
+      <button id="reset-view-btn" style="cursor:pointer; font-size:11px;">Reset Zoom</button>
+
+      <span style="color:#ccc;">|</span>
+      <span style="font-size: 11px; color: #666;">
+        <strong>Scroll:</strong> Pan Time
+        &nbsp;•&nbsp;
+        <strong>Ctrl + Scroll:</strong> Zoom Time
+        &nbsp;•&nbsp;
+        <strong>Shift + Scroll:</strong> Pan Threads
+        &nbsp;•&nbsp;
+        <strong>Ctrl + Shift + Scroll:</strong> Zoom Threads
+      </span>
+    </div>
+
+    <div class="window-meta" id="meta-info">No trace file loaded.</div>
+    <div class="legend" id="legend-container"></div>
+    <div id="information">Load a CADO-NFS JSON trace to inspect bubbles...</div>
+  </div>
+
+  <div class="chart-viewport">
+    <canvas id="viewport-canvas"></canvas>
+  </div>
+
+</div>
+
+<script type="text/javascript">
+//<![CDATA[
+let TRACE_DATA = null;
+let THREADS = [];
+let CATEGORY_NAMES = [];
+let CATEGORY_COLORS = [];
+
+let winStart = 0, winEnd = 0, totalSpan = 0;
+
+// --- Viewport State ---
+// Vertical Axis (Time in seconds)
+let viewStart = 0.0;
+let viewSpan = 0.0;
+
+// Horizontal Axis (Threads)
+let viewThreadStart = 0.0; // Starting thread index (float for smooth panning)
+let viewThreadSpan = 0.0;  // Number of threads visible across the plot width
+
+let showDelimiters = false;
+let minDurationThreshold = 0;
+let activeBubble = null;
+
+const LEFT_MARGIN = 75, RIGHT_MARGIN = 20, HEADER_HEIGHT = 30, BOTTOM_MARGIN = 20;
+
+
+// Color generator
+const PREDEFINED_COLORS = {
+  "INIT": "rgb(78, 121, 167)", "SKEWGAUSS": "rgb(242, 142, 43)", "ADJUST": "rgb(225, 87, 89)",
+  "ALLOC": "rgb(118, 183, 178)", "FIB": "rgb(89, 161, 79)", "SSS": "rgb(237, 201, 72)",
+  "PBR": "rgb(176, 122, 161)", "ECM": "rgb(255, 157, 167)", "DS": "rgb(156, 117, 95)",
+  "PCLAT": "rgb(186, 176, 172)", "SLICING": "rgb(92, 192, 222)", "BOTCHED": "rgb(200, 0, 0)"
+};
+
+function getCategoryColor(cat) {
+  if (PREDEFINED_COLORS[cat.toUpperCase()]) return PREDEFINED_COLORS[cat.toUpperCase()];
+  let hash = 0;
+  for (let i = 0; i < cat.length; i++) hash = cat.charCodeAt(i) + ((hash << 5) - hash);
+  const hue = Math.abs(hash % 360);
+  return `hsl(${hue}, 65%, 55%)`;
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const canvas = document.getElementById("viewport-canvas");
+  const ctx = canvas.getContext("2d");
+  const infoElement = document.getElementById("information");
+  const metaElement = document.getElementById("meta-info");
+  const legendElement = document.getElementById("legend-container");
+  const dropzone = document.getElementById("dropzone");
+  const fileInput = document.getElementById("file-input");
+
+  function resizeCanvas() {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+    render();
+  }
+
+  // --- Load JSON File ---
+  function loadJSON(jsonText) {
+    try {
+      const data = JSON.parse(jsonText);
+      TRACE_DATA = data.events;
+      winStart = data.win_start;
+      winEnd = data.win_end;
+      totalSpan = winEnd - winStart;
+
+      // Reset Viewports
+      viewStart = 0.0;
+      viewSpan = totalSpan;
+
+      THREADS = Object.keys(TRACE_DATA).map(Number).sort((a, b) => a - b);
+      viewThreadStart = 0.0;
+      viewThreadSpan = THREADS.length;
+
+      CATEGORY_NAMES = data.categories;
+      CATEGORY_COLORS = CATEGORY_NAMES.map(getCategoryColor);
+
+      // Render Legend
+      legendElement.innerHTML = CATEGORY_NAMES.map((cat, idx) =>
+        `<span class="legend-item"><span class="color-box" style="background-color:${CATEGORY_COLORS[idx]};"></span>${cat}</span>`
+      ).join('');
+
+      metaElement.innerHTML = `Time Span: <strong>${(totalSpan*1000).toFixed(2)} ms</strong> | Threads: ${THREADS.length}`;
+      infoElement.textContent = "Trace loaded! Hover over bubbles or scroll/zoom in 2D.";
+      render();
+    } catch (err) {
+      alert("Failed to parse JSON trace: " + err.message);
+    }
+  }
+
+
+  // Transparent decompression stream pipeline
+  async function decompressAndRead(file) {
+    const fileName = file.name.toLowerCase();
+    const arrayBuffer = await file.arrayBuffer();
+
+    // 1. Handle Gzip (.gz) using standard Browser Web API
+    if (fileName.endsWith(".gz") || fileName.endsWith(".gzip")) {
+      const blob = new Blob([arrayBuffer]);
+      const decompressedStream = blob.stream().pipeThrough(new DecompressionStream("gzip"));
+      return await new Response(decompressedStream).text();
+    }
+
+    // 2. Handle Zstandard (.zst / .zstd) using fzstd
+    if (fileName.endsWith(".zst") || fileName.endsWith(".zstd")) {
+      if (typeof fzstd === "undefined") {
+        throw new Error("zstd library (fzstd) failed to load from CDN.");
+      }
+      const compressedBytes = new Uint8Array(arrayBuffer);
+      const decompressedBytes = fzstd.decompress(compressedBytes);
+      return new TextDecoder("utf-8").decode(decompressedBytes);
+    }
+
+    // 3. Plain Uncompressed JSON (.json)
+    return new TextDecoder("utf-8").decode(arrayBuffer);
+  }
+
+  // Unified file handling
+  async function handleFile(file) {
+    if (!file) return;
+
+    const infoElement = document.getElementById("information");
+    infoElement.textContent = `Decompressing & reading ${file.name}...`;
+
+    try {
+      const jsonText = await decompressAndRead(file);
+      loadJSON(jsonText);
+    } catch (err) {
+      alert(`Error loading ${file.name}: ` + err.message);
+      infoElement.textContent = "Error reading file.";
+    }
+  }
+
+  // Event Listeners
+  fileInput.addEventListener("change", (e) => {
+    if (e.target.files.length) handleFile(e.target.files[0]);
+  });
+
+  dropzone.addEventListener("dragover", (e) => { e.preventDefault(); dropzone.classList.add("dragover"); });
+  dropzone.addEventListener("dragleave", () => dropzone.classList.remove("dragover"));
+  dropzone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dropzone.classList.remove("dragover");
+    if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+  });
+
+  // --- Binary Search for Visible Bubbles ---
+  function findFirstVisibleIndex(events, targetStart) {
+    let low = 0, high = events.length - 1, ans = events.length;
+    while (low <= high) {
+      const mid = (low + high) >> 1;
+      if (events[mid][0] + events[mid][1] >= targetStart) {
+        ans = mid; high = mid - 1;
+      } else { low = mid + 1; }
+    }
+    return ans;
+  }
+
+  // --- Main Canvas Render Loop ---
+  function render() {
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+    if (!TRACE_DATA || THREADS.length === 0) return;
+
+    const availableW = W - LEFT_MARGIN - RIGHT_MARGIN;
+    const availableH = H - HEADER_HEIGHT - BOTTOM_MARGIN;
+
+    const perThreadWidth = availableW / viewThreadSpan;
+    const y_scale = availableH / viewSpan;
+    const viewEnd = viewStart + viewSpan;
+
+    // 1. Time Grid Lines (Left Axis)
+    ctx.fillStyle = "#777"; ctx.strokeStyle = "#ebebeb"; ctx.font = "11px sans-serif"; ctx.lineWidth = 1;
+    for (let i = 0; i <= 8; i++) {
+      const rel_t = viewStart + (viewSpan * (i / 8));
+      const y = HEADER_HEIGHT + Math.floor(i * (availableH / 8));
+      ctx.beginPath(); ctx.moveTo(LEFT_MARGIN - 5, y); ctx.lineTo(W - RIGHT_MARGIN, y); ctx.stroke();
+
+      const ms = rel_t * 1000;
+      const msStr = Math.abs(ms) < 0.005 ? "0.00" : ms.toFixed(2);
+      ctx.fillText(`${msStr.startsWith('-') ? '' : '+'}${msStr}ms`, 5, y + 4);
+    }
+
+    // 2. Thread Headers & Grid Lines
+    ctx.save();
+    // Clip thread header region to avoid overlapping left axis labels
+    ctx.beginPath();
+    ctx.rect(LEFT_MARGIN, 0, availableW, HEADER_HEIGHT);
+    ctx.clip();
+
+    ctx.fillStyle = "#222"; ctx.font = "11px sans-serif";
+    for (let i = 0; i < THREADS.length; i++) {
+      const x1 = LEFT_MARGIN + (i - viewThreadStart) * perThreadWidth;
+      if (x1 + perThreadWidth >= LEFT_MARGIN && x1 <= W - RIGHT_MARGIN) {
+        if (perThreadWidth > 14) {
+          ctx.fillText(`T${THREADS[i]}`, x1 + 2, 18);
+        }
+      }
+    }
+    ctx.restore();
+
+    // 3. Clip Drawing Area for Main Chart Plot
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(LEFT_MARGIN, HEADER_HEIGHT, availableW, availableH);
+    ctx.clip();
+
+    // Draw Vertical Thread Dividers
+    ctx.strokeStyle = "#d0d0d0";
+    for (let i = 0; i < THREADS.length; i++) {
+      const x1 = LEFT_MARGIN + (i - viewThreadStart) * perThreadWidth;
+      if (x1 >= LEFT_MARGIN && x1 <= W - RIGHT_MARGIN) {
+        ctx.beginPath(); ctx.moveTo(x1, HEADER_HEIGHT); ctx.lineTo(x1, H - BOTTOM_MARGIN); ctx.stroke();
+      }
+    }
+
+    // Draw Visible Bubbles
+    // Only process thread columns currently in viewport view
+    const minCol = Math.max(0, Math.floor(viewThreadStart));
+    const maxCol = Math.min(THREADS.length - 1, Math.ceil(viewThreadStart + viewThreadSpan));
+
+    for (let colIdx = minCol; colIdx <= maxCol; colIdx++) {
+      const threadId = THREADS[colIdx];
+      const events = TRACE_DATA[threadId];
+      if (!events) continue;
+
+      const x1 = LEFT_MARGIN + (colIdx - viewThreadStart) * perThreadWidth;
+      const drawWidth = Math.max(1, perThreadWidth);
+      const startIdx = findFirstVisibleIndex(events, viewStart);
+
+      for (let i = startIdx; i < events.length; i++) {
+        const e = events[i];
+        if (e[0] > viewEnd) break;
+        if (e[1] < minDurationThreshold) continue;
+
+        const y1 = HEADER_HEIGHT + (e[0] - viewStart) * y_scale;
+        const y2 = HEADER_HEIGHT + ((e[0] + e[1]) - viewStart) * y_scale;
+        const h = Math.max(1, y2 - y1);
+
+        ctx.fillStyle = CATEGORY_COLORS[e[2]];
+        ctx.fillRect(x1, y1, drawWidth, h);
+
+        if (showDelimiters) {
+          ctx.fillStyle = "rgba(0,0,0,0.6)";
+          ctx.fillRect(x1, y1, drawWidth, 1);
+        }
+      }
+    }
+
+    // 4. Hover Highlight Box
+    if (activeBubble) {
+      const [colIdx, e] = activeBubble;
+      const x1 = LEFT_MARGIN + (colIdx - viewThreadStart) * perThreadWidth;
+      const y1 = HEADER_HEIGHT + (e[0] - viewStart) * y_scale;
+      const y2 = HEADER_HEIGHT + ((e[0] + e[1]) - viewStart) * y_scale;
+      const h = Math.max(1, y2 - y1);
+      const drawWidth = Math.max(1, perThreadWidth);
+
+      ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
+      ctx.fillRect(x1, y1, drawWidth, h);
+      ctx.strokeStyle = "#000000";
+      ctx.strokeRect(x1, y1, drawWidth, h);
+    }
+
+    ctx.restore(); // End Plot Clipping
+  }
+
+  // --- Mouse Move Hover Detection ---
+  canvas.addEventListener("mousemove", (e) => {
+    if (!TRACE_DATA || THREADS.length === 0) return;
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left, mouseY = e.clientY - rect.top;
+    const availableW = canvas.width - LEFT_MARGIN - RIGHT_MARGIN;
+    const perThreadWidth = availableW / viewThreadSpan;
+
+    const colIdx = Math.floor(viewThreadStart + (mouseX - LEFT_MARGIN) / perThreadWidth);
+
+    let hit = null;
+    if (colIdx >= 0 && colIdx < THREADS.length && mouseY >= HEADER_HEIGHT && mouseY <= canvas.height - BOTTOM_MARGIN) {
+      const availableH = canvas.height - HEADER_HEIGHT - BOTTOM_MARGIN;
+      const tMouse = viewStart + ((mouseY - HEADER_HEIGHT) / availableH) * viewSpan;
+      const events = TRACE_DATA[THREADS[colIdx]];
+      if (events) {
+        const idx = findFirstVisibleIndex(events, tMouse);
+        if (idx < events.length && events[idx][0] <= tMouse) hit = [colIdx, events[idx]];
+      }
+    }
+
+    if (hit !== activeBubble) {
+      activeBubble = hit;
+      if (hit) {
+        const e = hit[1];
+        infoElement.textContent = `Thread ${THREADS[hit[0]]} | ${CATEGORY_NAMES[e[2]]} | Start: +${(e[0]*1000).toFixed(3)}ms | Duration: ${(e[1]*1000).toFixed(3)}ms | Metric: ${e[3]} | Details: ${e[4]}`;
+      } else {
+        infoElement.textContent = "Hover over a region to inspect details...";
+      }
+      render();
+    }
+  });
+
+  // --- 2D Navigation: Panning & Zooming via Wheel/Trackpad ---
+  canvas.addEventListener("wheel", (e) => {
+    if (!TRACE_DATA || THREADS.length === 0) return;
+    e.preventDefault();
+
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    const availableW = canvas.width - LEFT_MARGIN - RIGHT_MARGIN;
+    const availableH = canvas.height - HEADER_HEIGHT - BOTTOM_MARGIN;
+
+    const isZoom = e.ctrlKey || e.metaKey;
+    const isHorizontal = e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY);
+
+    if (isHorizontal && isZoom) {
+      // === X-AXIS ZOOM (Ctrl + Shift + Scroll) ===
+      const mouseRelX = Math.max(0, Math.min(1, (mouseX - LEFT_MARGIN) / availableW));
+      const threadFocus = viewThreadStart + mouseRelX * viewThreadSpan;
+
+      const zoomFactor = e.deltaY > 0 ? 1.15 : 0.85;
+      const newSpan = Math.max(1.0, Math.min(THREADS.length, viewThreadSpan * zoomFactor));
+
+      viewThreadStart = Math.max(0, Math.min(THREADS.length - newSpan, threadFocus - mouseRelX * newSpan));
+      viewThreadSpan = newSpan;
+
+    } else if (isHorizontal) {
+      // === X-AXIS PAN (Shift + Scroll / Horizontal Swipe) ===
+      const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+      const panAmount = (delta / availableW) * viewThreadSpan * 0.4;
+      viewThreadStart = Math.max(0, Math.min(THREADS.length - viewThreadSpan, viewThreadStart + panAmount));
+
+    } else if (isZoom) {
+      // === Y-AXIS ZOOM (Ctrl + Scroll) ===
+      const mouseRelY = Math.max(0, Math.min(1, (mouseY - HEADER_HEIGHT) / availableH));
+      const tFocus = viewStart + mouseRelY * viewSpan;
+
+      const zoomFactor = e.deltaY > 0 ? 1.15 : 0.85;
+      const newSpan = Math.max(0.000001, Math.min(totalSpan * 2, viewSpan * zoomFactor));
+
+      viewStart = tFocus - mouseRelY * newSpan;
+      viewSpan = newSpan;
+
+    } else {
+      // === Y-AXIS PAN (Scroll) ===
+      const panAmount = (e.deltaY / canvas.height) * viewSpan * 0.4;
+      viewStart = Math.max(0.0 - viewSpan * 0.1, Math.min(totalSpan - viewSpan * 0.9, viewStart + panAmount));
+    }
+
+    render();
+  }, { passive: false });
+
+  // Reset Button Handler
+  document.getElementById("reset-view-btn").addEventListener("click", () => {
+    viewStart = 0;
+    viewSpan = totalSpan;
+    viewThreadStart = 0.0;
+    viewThreadSpan = THREADS.length;
+    render();
+  });
+
+  // Radio button & Min duration listeners
+  document.querySelectorAll("input[name='border-opt']").forEach(r => r.addEventListener("change", (e) => { showDelimiters = (e.target.value === "top"); render(); }));
+  document.getElementById("duration-filter").addEventListener("change", (e) => { minDurationThreshold = parseFloat(e.target.value); render(); });
+  document.getElementById("reset-view-btn").addEventListener("click", () => { viewStart = 0; viewSpan = totalSpan; render(); });
+
+  window.addEventListener("resize", resizeCanvas);
+  resizeCanvas();
+});
+//]]>
+</script>
+</body>
+</html>

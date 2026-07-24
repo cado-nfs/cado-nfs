@@ -24,7 +24,6 @@ set(F9_baseargs
 set(c90_21505_poly ${CMAKE_CURRENT_SOURCE_DIR}/c90_21505.poly)
 set(c90_21505_roots ${CMAKE_CURRENT_BINARY_DIR}/c90_21505.roots.gz)
 set(c90_21505_chrono ${CMAKE_CURRENT_BINARY_DIR}/c90_21505.chrono.gz)
-set_property(GLOBAL PROPERTY c90_21505_chrono ${c90_21505_chrono})
 
 cado_define_test(c90_21505_makefb
         PROGRAM
@@ -35,6 +34,8 @@ cado_define_test(c90_21505_makefb
         FIXTURES_SETUP c90_21505.fb
         )
 
+# it's meant to be posted to the chronogram viewer page (source in
+# scripts/chronograms)
 cado_define_test(c90_21505_chronogram
         PROGRAM
             $<TARGET_FILE:las>

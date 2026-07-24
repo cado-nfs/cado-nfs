@@ -1,15 +1,20 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <string>
 #include <ostream>
 #include <algorithm>
 #include <limits>
+#include <vector>
+#include <string>
+#include <set>
+#include <map>
+#include <algorithm>
 
 #include "fmt/format.h"
 #include "fmt/base.h"
 #include "fmt/ostream.h"
 
 #include "tdict.hpp"
+#include "utils_cxx.hpp"
 #include "params.hpp"
 #include "verbose.hpp"
 #include "fstream_maybe_compressed.hpp"
@@ -130,26 +135,72 @@ void timetree_t::display_chart() const
             chart.size(),
             chronograms::chronogram_file);
     
-    ofstream_maybe_compressed chronogram_stream(chronograms::chronogram_file);;
+    ofstream_maybe_compressed out(chronograms::chronogram_file);;
+
+    std::set<int> thread_set;
 
     double time_min = std::numeric_limits<double>::max();
     double time_max = std::numeric_limits<double>::min();
     int thr_min = std::numeric_limits<int>::max();
     int thr_max = std::numeric_limits<int>::min();
 
-    for(auto const & T : chart) {
-        double t0 = T.tv_get.tv_sec + 1.0e-6 * T.tv_get.tv_usec;
-        double t1 = T.tv_put.tv_sec + 1.0e-6 * T.tv_put.tv_usec;
-
-        fmt::print(chronogram_stream, "t {} {:.9f} {:.9f} {} {}\n",
-                T.thread, t0, t1 - t0, T.on_cpu, T.info);
+    for (const auto& b : chart) {
+        double t0 = b.tv_get.tv_sec + b.tv_get.tv_usec * 1e-6;
+        double t1 = b.tv_put.tv_sec + b.tv_put.tv_usec * 1e-6;
         time_min = std::min(time_min, t0);
         time_max = std::max(time_max, t1);
-        thr_min = std::min(thr_min, T.thread);
-        thr_max = std::max(thr_max, T.thread);
+        thr_min = std::min(thr_min, b.thread);
+        thr_max = std::max(thr_max, b.thread);
+
+        thread_set.insert(b.thread);
     }
-    verbose_fmt_print (0, 0, "# Chronogram info has data for {} threads over {:.2f} seconds\n",
+
+    verbose_fmt_print (0, 0,
+            "# Chronogram info has data for {} threads over {:.2f} seconds\n",
             thr_max - thr_min + 1, time_max - time_min);
+
+    out << fmt::format("{{\n"
+            "\"win_start\":{:.9f},\n"
+            "\"win_end\":{:.9f},\n",
+            time_min, time_max);
+
+    out << "\"categories\":[";
+    out << join(chronograms::bubble_info::kind_names, ",",
+            [](auto c) { return fmt::format("\"{}\"", c); });
+    out << "],\n\"events\":{\n";
+
+    // Write Events Grouped by Thread
+    std::map<int, std::vector<const chronograms::bubble*>> thread_bubbles;
+    for (const auto& b : chart) thread_bubbles[b.thread].push_back(&b);
+
+    size_t t_count = 0;
+    for (const auto& [thread_id, bubbles] : thread_bubbles) {
+        out << fmt::format("\"{}\":[", thread_id);
+        for (size_t i = 0; i < bubbles.size(); ++i) {
+            const auto& b = *bubbles[i];
+            double t0 = b.tv_get.tv_sec + b.tv_get.tv_usec * 1e-6;
+            double t1 = b.tv_put.tv_sec + b.tv_put.tv_usec * 1e-6;
+            t0 -= time_min;
+            t1 -= time_min;
+
+            std::string cat = fmt::format("{}", b.info);
+            int cat_idx = static_cast<int>(b.info.kind);
+
+            // Output tuple: [rel_start, duration, cat_idx, metric, "desc"]
+            out << fmt::format("[{:.9f},{:.9f},{},{},\"{}\"]{}",
+                               t0, t1 - t0,
+                               cat_idx,
+                               0, cat,
+                               (i + 1 < bubbles.size() ? ",\n" : ""));
+        }
+        out << "]" << (++t_count < thread_bubbles.size() ? ",\n" : "\n");
+    }
+    out << "}\n}\n";
+
+    verbose_fmt_print (0, 0,
+            "# Chronogram info can be viewed"
+            " using https://cado-nfs.inria.fr/chronogram.html"
+            " or ./scripts/chronograms/chronograms.html\n");
 }
 
 #if 0   /* why do I even need this??? */
