@@ -120,4 +120,6 @@ void verbose_fmt_print(size_t channel, int verbose, fmt::format_string<Args...> 
     // fmt::print("a\n");
 }
 
+bool verbose_would_print(const size_t channel, const int verbosity);
+
 #endif	/* CADO_VERBOSE_HPP */

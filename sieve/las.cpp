@@ -80,6 +80,7 @@
 #include "multityped_array.hpp"
 #include "params.hpp"
 #include "relation.hpp"
+#include "smallsieve.hpp"
 #include "special-q.hpp"
 #include "sieve-methods.hpp"
 #include "tdict.hpp"
@@ -119,7 +120,9 @@ static void configure_switches(cxx_param_list & pl)
     param_list_configure_switch(pl, "-sync", &sync_at_special_q);
     param_list_configure_switch(pl, "-sync-thread-pool", &sync_thread_pool);
     param_list_configure_switch(pl, "-never-discard", &never_discard);
-    param_list_configure_switch(pl, "-production", &las_production_mode);
+    pl.configure_switch("print-slice-statistics");
+
+    chronograms::configure_switches(pl);
 }
 
 static void declare_usage(cxx_param_list & pl)/*{{{*/
@@ -140,6 +143,8 @@ static void declare_usage(cxx_param_list & pl)/*{{{*/
     tdict::declare_usage(pl);
 
     pl.declare_usage("trialdiv-first-side", "begin trial division on this side");
+    pl.declare_usage("print-slice-statistics",
+            "print statistics on how the factor bases are split in slices");
     pl.declare_usage("allow-largesq", "allows large special-q, e.g. for a DL descent");
 
     pl.declare_usage("sublat", "modulus for sublattice sieving");
@@ -165,7 +170,7 @@ static void declare_usage(cxx_param_list & pl)/*{{{*/
      */
     pl.declare_usage("never-discard", "Disable the discarding process for special-q's. This is dangerous. See bug #15617");
 
-    pl.declare_usage("production", "Sort of an opposite to -v. Disable all diagnostics except the cheap or critical ones. See #21688 and #21825.");
+    chronograms::declare_usage(pl);
     verbose_decl_usage(pl);
 }/*}}}*/
 
@@ -746,7 +751,7 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
 
             fill_in_buckets_toplevel_multiplex(ws, aux, Q, pool, side, w);
 
-            fill_in_buckets_prepare_plattices(ws, Q, pool, side, precomp_plattices[side]);
+            fill_in_buckets_prepare_plattices(ws, aux, Q, pool, side, precomp_plattices[side]);
 
         }
 
@@ -760,11 +765,14 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
             nfs_work::side_data  const& wss(ws.sides[side]);
             if (wss.no_fb()) continue;
             pool.add_task_lambda([&ws,aux_p,&Q,side](worker_thread * worker,int){
+                    int const id = worker->rank();
                     timetree_t & timer(aux_p->get_timer(worker));
                     ENTER_THREAD_TIMER(timer);
                     MARK_TIMER_FOR_SIDE(timer, side);
 
                     SIBLING_TIMER(timer, "prepare small sieve");
+
+                    auto tt = timer.trace(id, chronograms::SSS(side, ws.toplevel));
 
                     nfs_work::side_data & wss(ws.sides[side]);
                     // if (wss.no_fb()) return;
@@ -896,7 +904,10 @@ do_one_special_q(
 
     BOOKKEEPING_TIMER(timer_special_q);
 
-    ws.prepare_for_new_q<ALGO>(las, &aux.doing, Q);
+    {
+        auto tt = timer_special_q.trace(0, chronograms::INIT());
+        ws.prepare_for_new_q<ALGO>(las, &aux.doing, Q);
+    }
 
     /* the where_am_I structure is store in nfs_aux. We have a few
      * adjustments to make, and we want to make sure that the threads,
@@ -918,6 +929,7 @@ do_one_special_q(
     std::shared_ptr<nfs_work_cofac> wc_p;
 
     {
+        auto tt = timer_special_q.trace(0, chronograms::INIT());
         wc_p = std::make_shared<nfs_work_cofac>(las, ws);
 
         rep.total_logI += ws.conf.logI;
@@ -1172,7 +1184,12 @@ static void las_subjob(las_info & las, int subjob, report_and_timer & global_rt)
                      * since it is an essential property ot the timer trees
                      * that the root of the trees must not have a nontrivial
                      * category */
-                    auto aux_p = std::make_shared<nfs_aux>(las, *task, rel_hash_p, las.number_of_threads_per_subjob());
+                    auto aux_p = std::make_shared<nfs_aux>(
+                            las,
+                            subjob,
+                            *task,
+                            rel_hash_p,
+                            las.number_of_threads_per_subjob());
                     nfs_aux & aux(*aux_p);
                     las_report & rep(aux.rt.rep);
                     timetree_t & timer_special_q(aux.rt.timer);
@@ -1265,6 +1282,9 @@ static void las_subjob(las_info & las, int subjob, report_and_timer & global_rt)
         global_rt.rep.cumulated_wait_time += cumulated_wait_time;
         global_rt.rep.waste += botched.timer.total_counted_time();
     }
+
+    // not sure what I wanted to achieve here.
+    // global_rt.timer.append_botched_chart(botched.timer);
 
     verbose_fmt_print(0, 1, "# subjob {} done ({} special-q's), now waiting for other jobs\n", subjob, nq);
 }/*}}}*/
@@ -1464,6 +1484,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
     }
 
     param_list_parse_int(pl, "trialdiv-first-side", &trialdiv_first_side);
+    param_list_parse_int(pl, "print-slice-statistics", &print_slice_statistics);
     param_list_parse_int(pl, "exit-early", &exit_after_rel_found);
     if (dlp_descent)
         param_list_parse_double(pl, "grace-time-ratio", &general_grace_time_ratio);
@@ -1471,11 +1492,13 @@ int main (int argc0, char const * argv0[])/*{{{*/
     param_list_parse_int(pl, "log-bucket-region-step", &LOG_BUCKET_REGION_step);
     set_LOG_BUCKET_REGION();
 
-    main_output = std::unique_ptr<las_output>(new las_output(pl));
+    tdict::interpret_parameters(pl);
+    chronograms::interpret_parameters(pl);
 
-    if (las_production_mode) {
-        tdict::global_enable = 0;
-    }
+    /* fix the lifetime of this object to this function only, so that we
+     * don't get killed by the static destruction order fiasco */
+    las_output main_output_obj(pl);
+    main_output = &main_output_obj;
 
     las_info las(pl, ALGO{});    /* side effects: prints cmdline and flags */
 #ifdef SAFE_BUCKET_ARRAYS
@@ -1629,6 +1652,8 @@ int main (int argc0, char const * argv0[])/*{{{*/
         }
         for(auto & t : subjobs) t.join();
 
+        global_rt.timer.display_chart();
+
         las.tree->display_summary(0, 0);
 
         las.set_loose_binding();
@@ -1773,7 +1798,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
     auto D = global_rt.timer.filter_by_category();
     timetree_t::timer_data_type const tcpu = global_rt.timer.total_counted_time();
 
-    if (tdict::global_enable >= 2) {
+    if (tdict::is_enabled() >= 1) {
         verbose_fmt_print (0, 1, "#\n# Hierarchical timings:\n{}",
                 global_rt.timer.display());
 
@@ -1793,7 +1818,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
     /*{{{ Display tally */
     display_bucket_prime_stats();
 
-    if (las_production_mode) {
+    if (tdict::is_production_mode()) {
         verbose_fmt_print (2, 1, "# Total cpu time {:1.2f}s [remove -production flag for timings]\n", t0);
     } else {
         verbose_fmt_print (2, 1, "# Wasted cpu time due to {} bkmult adjustments: {:1.2f}\n", global_rt.rep.nwaste, global_rt.rep.waste);
@@ -1857,6 +1882,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
     /*}}}*/
 
     las.cofac_stats.print();
+
 
     return EXIT_SUCCESS;
 }/*}}}*/

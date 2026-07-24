@@ -57,6 +57,17 @@ class reservation_array_base : public monitor {
     void reset_all_pointers(monitor::my_unique_lock &) {
         for(auto & A : BAs) A.reset_pointers();
     }
+
+    void slice_statistics(int side, fb_factorbase::slicing const & fbs) const {
+        verbose_fmt_print(0, 2,
+                "# diagnosis for {} buckets on side {} ({} arrays defined)\n",
+                level, hint_t::rtti[0], side, BAs.size());
+        for(auto const & A : BAs) {
+            /* Tell which slices have been processed using this array
+             * exactly */
+            A.slice_statistics(side, &A - &BAs[0], fbs);
+        }
+    }
 };
 
 /* bucket arrays with shorthints are filled by competing threads, and we
@@ -205,6 +216,25 @@ public:
         nfs_aux & aux,
         thread_pool & pool,
         bool with_hints);
+
+  void slice_statistics(int side, int level, fb_factorbase::slicing const & fbs) const {
+      switch(level) {
+          case 1:
+              RA1_short.slice_statistics(side, fbs);
+              RA1_long.slice_statistics(side, fbs);
+              break;
+          case 2:
+              RA2_short.slice_statistics(side, fbs);
+              RA2_long.slice_statistics(side, fbs);
+              break;
+          case 3:
+              RA3_short.slice_statistics(side, fbs);
+              break;
+          default:
+              ASSERT_ALWAYS(0);
+      }
+  }
+
 private:
   template<bool> void allocate_buckets(
         las_memory_accessor & memory,

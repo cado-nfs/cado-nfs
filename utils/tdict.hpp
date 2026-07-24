@@ -1,18 +1,25 @@
 #ifndef CADO_TDICT_HPP
 #define CADO_TDICT_HPP
 
-#include <cstddef>   // for NULL
+#include <cstddef>
 #include <cstdint>
 
 #include <map>
+#include <array>
 #include <string>
 #include <sstream>
+#include <vector>
 #include <mutex>
-#include <utility>    // for pair
+#include <type_traits>
+#include <utility>
+
+#include <sys/time.h>
+#include "fmt/base.h"
+#include "fmt/format.h"
 
 #include "lock_guarded_container.hpp"
 #include "timing.h"
-#include "macros.h"   // for ASSERT_ALWAYS, CADO_CONCATENATE3, MAYBE_UNUSED
+#include "macros.h"
 namespace cado::params {
 struct cxx_param_list;
 }
@@ -24,7 +31,7 @@ using cxx_param_list = cado::params::cxx_param_list;
 
 namespace tdict {
     struct timer_none {
-        typedef int type;
+        using type = int;
         type operator()() const { return 0; }
     };
 }
@@ -87,8 +94,12 @@ namespace tdict {
  * so use with extreme care. Also, having it scope-limited is not thread-safe.
  */
 namespace tdict {
-
-    extern int global_enable;
+    void declare_usage(cxx_param_list & pl);
+    void configure_switches(cxx_param_list & pl);
+    void configure_aliases(cxx_param_list & pl);
+    void interpret_parameters(cxx_param_list & pl);
+    extern int is_enabled();
+    extern int is_production_mode();
 
     /* to print a key object (e.g. from gdb) use
      * tdict::slot_base::print(k)
@@ -108,7 +119,7 @@ namespace tdict {
 
         public:
         slot_base(slot_base const&) = delete;
-        typedef std::map<key, const tdict::slot_base*> dict_t;
+        using dict_t = std::map<key, const tdict::slot_base*>;
         protected:
         key k;
         private:
@@ -191,9 +202,9 @@ namespace tdict {
     };
 
     struct timer_seconds_thread {
-        typedef double type;
+        using type = double;
         type operator()() const {
-            if (tdict::global_enable)
+            if (is_enabled())
                 return seconds_thread();
             else
                 return 0;
@@ -221,7 +232,7 @@ namespace tdict {
             }
         };
         type operator()() const {
-            if (tdict::global_enable)
+            if (is_enabled())
                 return { seconds_thread(), wct_seconds() };
             else
                 return {};
@@ -229,9 +240,9 @@ namespace tdict {
     };
 #ifdef  HAVE_GCC_STYLE_AMD64_INLINE_ASM
     struct timer_ticks {
-        typedef uint64_t type;
+        using type = uint64_t;
         type operator()() const {
-            if (tdict::global_enable)
+            if (is_enabled())
                 return cputicks();
             else
                 return 0;
@@ -258,23 +269,22 @@ namespace tdict {
 
     template<typename T>
     struct tree {
-        typedef T timer_type;
-        typedef typename T::type timer_data_type;
+        using timer_type = T;
+        using timer_data_type = typename T::type;
         timer_data_type self;
-        bool scoping;
-        int category;
-        typedef std::map<tdict::key, tree<T> > M_t;
+        bool scoping = true;;
+        int category = -1;
+        using M_t = std::map<tdict::key, tree<T> >;
         M_t M;
-        tree<T> * current;   /* could be NULL */
+        tree<T> * current = nullptr;   /* could be NULL */
         tree<T> * parent;   /* could be NULL */
-        tree() : self(timer_data_type()), scoping(true), category(-1), current(NULL), parent(this) { }
+        tree() : self(timer_data_type()), parent(this) { }
         bool running() const { return current != NULL; }
         void stop() {
             if (!running()) return;
             timer_data_type v = T()();
             current->self += v;
             current = NULL;
-            return;
         }
         void start() {
             if (running()) return;
@@ -341,9 +351,9 @@ namespace tdict {
                     BB::t.current->self -= v;
                 }
             };
-        typedef accounting_child_meta<accounting_base> accounting_child;
-        typedef accounting_child_meta<accounting_activate> accounting_child_autoactivate;
-        typedef accounting_child_meta<accounting_activate_recursive> accounting_child_autoactivate_recursive;
+        using accounting_child = accounting_child_meta<accounting_base>;
+        using accounting_child_autoactivate = accounting_child_meta<accounting_activate>;
+        using accounting_child_autoactivate_recursive = accounting_child_meta<accounting_activate_recursive>;
 
         struct accounting_debug : public accounting_base {
             std::ostream& o;
@@ -443,8 +453,8 @@ namespace tdict {
             ASSERT_ALWAYS(category < 0 || t.category < 0 || category == t.category);
             if (t.category >= 0)
                 category = t.category;
-            for(typename M_t::const_iterator a = t.M.begin() ; a != t.M.end() ; a++) {
-                M[a->first] += a->second;
+            for(auto const & [ f, s ] : t.M) {
+                M[f] += s;
             }
             return *this;
         }
@@ -517,26 +527,214 @@ namespace tdict {
                 merge_scaled(t.M[a.first], a.second, scale_t, scale_u);
         }
     };
-
-    void declare_usage(cxx_param_list & pl);
-    void configure_switches(cxx_param_list & pl);
-    void configure_aliases(cxx_param_list & pl);
-};
+} /* namespace tdict */
 
 // timer_seconds_thread_and_wct is not satisfactory.
-// typedef tdict::tree<tdict::timer_seconds_thread_and_wct> timetree_t;
-typedef tdict::tree<tdict::timer_seconds_thread> timetree_t;
+// using timetree_t = tdict::tree<tdict::timer_seconds_thread_and_wct>;
+// using timetree_t = tdict::tree<tdict::timer_seconds_thread>;
+struct timetree_t;
+
+namespace chronograms {
+    extern void configure_switches(cxx_param_list & pl);
+    extern void declare_usage(cxx_param_list & pl);
+    extern void interpret_parameters(cxx_param_list & pl);
+    extern bool is_enabled();
+
+    // Empty tag structs for parameterless events
+    struct INIT {};
+    struct SKEWGAUSS {};
+    struct ADJUST {};
+    struct SLICING {};
+    struct ALLOC {};
+    struct AB {};
+    struct ECM {};
+    struct BOTCHED {};
+
+    struct SSS   { int side; int level; };
+    struct FIB   { int side; int level; size_t B; size_t slice; };
+    struct DS    { int side; int level; int B; };
+    struct PCLAT { int side; int level; size_t slice; };
+    struct PBR   { int M; size_t B; };
+
+    // NOLINTBEGIN(cppcoreguidelines-pro-type-union-access)
+    struct bubble_info {
+        enum class kind_t : uint8_t {
+            INIT,
+            SKEWGAUSS,
+            ADJUST,
+            SLICING,
+            ALLOC,
+            SSS,
+            FIB,
+            AB,
+            DS,
+            PCLAT,
+            PBR,
+            ECM,
+            BOTCHED
+        };
+
+        static constexpr std::array<const char*, 13> kind_names = {
+            "INIT",
+            "SKEWGAUSS",
+            "ADJUST",
+            "SLICING",
+            "ALLOC",
+            "SSS",
+            "FIB",
+            "AB",
+            "DS",
+            "PCLAT",
+            "PBR",
+            "ECM",
+            "BOTCHED", };
+
+        kind_t kind;
+
+        union payload {
+            SSS   sss;
+            FIB   fib;
+            DS    ds;
+            PCLAT pclat;
+            PBR   pbr;
+
+            payload() = default;
+            explicit payload(SSS e)   : sss(e) {}
+            explicit payload(FIB e)   : fib(e) { }
+            explicit payload(DS e)    : ds(e) { }
+            explicit payload(PCLAT e) : pclat(e) { }
+            explicit payload(PBR e)   : pbr(e) { }
+        } data = {};
+
+        // NOLINTBEGIN(google-explicit-constructor,hicpp-explicit-conversions)
+        bubble_info(INIT)       : kind(kind_t::INIT) {}
+        bubble_info(SSS e)      : kind(kind_t::SSS), data(e) { }
+        bubble_info(FIB e)      : kind(kind_t::FIB), data(e) { }
+        bubble_info(DS e)       : kind(kind_t::DS), data(e) { }
+        bubble_info(PCLAT e)    : kind(kind_t::PCLAT), data(e) { }
+        bubble_info(PBR e)      : kind(kind_t::PBR), data(e) { }
+	bubble_info(SKEWGAUSS)  : kind(kind_t::SKEWGAUSS) {}
+	bubble_info(ADJUST)     : kind(kind_t::ADJUST) {}
+	bubble_info(SLICING)    : kind(kind_t::SLICING) {}
+	bubble_info(ALLOC)      : kind(kind_t::ALLOC) {}
+	bubble_info(AB)         : kind(kind_t::AB) {}
+	bubble_info(ECM)        : kind(kind_t::ECM) {}
+	bubble_info(BOTCHED)    : kind(kind_t::BOTCHED) {}
+        // NOLINTEND(google-explicit-constructor,hicpp-explicit-conversions)
+    };
+    // NOLINTEND(cppcoreguidelines-pro-type-union-access)
+
+    struct bubble {
+        timeval tv_get = {};
+        timeval tv_put = {};
+        int thread = 0;
+        uint64_t on_cpu = 0;
+        bubble_info info;
+
+        static_assert(std::is_trivially_copyable_v<bubble_info>);
+        bubble(int thread, bubble_info info)
+            : thread(thread)
+            , info(info)
+        {}
+
+        void start() {
+            gettimeofday(&tv_get, nullptr);
+            on_cpu = - microseconds_thread();
+        }
+        void stop() {
+            gettimeofday(&tv_put, nullptr);
+            on_cpu += microseconds_thread();
+        }
+    };
+
+    class [[nodiscard]] bubble_guard {
+        timetree_t* ptimer_;
+        bubble bubble_;
+
+        public:
+        static_assert(std::is_trivially_copyable_v<bubble_info>);
+        bubble_guard(timetree_t* ptimer, int thread, bubble_info info)
+            : ptimer_(ptimer)
+            , bubble_(thread, info)
+        {
+            if (!chronograms::is_enabled()) return;
+            bubble_.start();
+        }
+
+        ~bubble_guard(); // Defined after timetree_t
+
+        bubble_guard(const bubble_guard&) = delete;
+        bubble_guard(bubble_guard&&) = delete;
+        bubble_guard& operator=(const bubble_guard&) = default;
+        bubble_guard& operator=(bubble_guard&&) = default;
+    };
+
+    std::string format_as(const bubble_info& info);
+} /* namespace chronograms */
+
+struct timetree_t : public tdict::tree<tdict::timer_seconds_thread> {
+    using super = tdict::tree<tdict::timer_seconds_thread>;
+    timetree_t() = default;
+    explicit timetree_t(super const& s) : super(s) {}
+
+    int thread_index_offset = 0;
+
+    std::vector<chronograms::bubble> chart;
+
+    void record(chronograms::bubble b) {
+        if (!chronograms::is_enabled())
+            return;
+        static_assert(std::is_trivially_copyable_v<chronograms::bubble>);
+        chart.push_back(b);
+    }
+
+    [[nodiscard]] chronograms::bubble_guard trace(int thread, chronograms::bubble_info info) {
+        static_assert(std::is_trivially_copyable_v<chronograms::bubble_info>);
+        return { this, thread_index_offset + thread, info };
+    }
+
+    void display_chart() const;
+    timetree_t& append_chart(timetree_t const& o) {
+        chart.insert(chart.end(), o.chart.begin(), o.chart.end());
+        return *this;
+    }
+    /* I don't remember what is the intention behind all this. It is
+     * probably not right, since we're recording bubbles without timing
+     * info.
+    timetree_t& append_botched_chart(timetree_t const& o) {
+        chart.reserve(chart.size() + o.chart.size());
+        for (size_t i = 0; i < o.chart.size(); ++i)
+            chart.emplace_back(0, chronograms::BOTCHED{});
+        return *this;
+    }
+    */
+    timetree_t& operator+=(timetree_t const& o) {
+        super::operator+=(static_cast<super const&>(o));
+        append_chart(o);
+        return *this;
+    }
+};
+
+inline chronograms::bubble_guard::~bubble_guard() {
+    if (!chronograms::is_enabled()) return;
+    bubble_.stop();
+    static_assert(std::is_trivially_copyable_v<chronograms::bubble_info>);
+    ptimer_->record(bubble_);
+}
+
 
 /* The fast_timetree_t promises to make no system call whatsoever, and to
  * do what it can to get _some_ sense of a timing value, with no pretense
  * of being accurate.
  */
 #ifdef  HAVE_GCC_STYLE_AMD64_INLINE_ASM
-typedef tdict::tree<tdict::timer_ticks> fast_timetree_t;
+using fast_timetree_t = tdict::tree<tdict::timer_ticks>;
 #else
-typedef tdict::tree<tdict::timer_none> fast_timetree_t;
+using fast_timetree_t = tdict::tree<tdict::timer_none>;
 #endif
 
+#if 0
+/* It's ugly and I'm not convinced I need this */
 extern template class std::map<tdict::key, tdict::slot_base const *>;
 
 extern template struct tdict::tree<tdict::timer_seconds_thread>;
@@ -552,6 +750,7 @@ extern template struct tdict::tree<tdict::timer_ticks>::accounting_child_meta<td
 extern template struct tdict::tree<tdict::timer_none>;
 extern template class std::map<tdict::key, tdict::tree<tdict::timer_none> >;
 extern template struct tdict::tree<tdict::timer_none>::accounting_child_meta<tdict::tree<tdict::timer_none>::accounting_base>;
+#endif
 #endif
 
 #if 0
@@ -626,13 +825,13 @@ class : public tdict::slot_base {
     tdict::tie_timer<typename TIMER_TYPE_(T)::timer_type, fast_timetree_t::timer_type> U(T, UNIQUE_ID(slot))
 
 
-typedef tdict::tie_timer<timetree_t::timer_type, fast_timetree_t::timer_type> fuzzy_diverted_timetree_t;
+using fuzzy_diverted_timetree_t = tdict::tie_timer<timetree_t::timer_type, fast_timetree_t::timer_type>;
 
 #else /* DISABLE_TIMINGS */
 
 struct timetree_t {
-    typedef double timer_data_type;
-    typedef tdict::timer_none timer_type;
+    using timer_data_type = double;
+    using timer_type = tdict::timer_none;
     std::map<int, double> filter_by_category() const {
         /* always an empty map */
         return std::map<int, double>();
@@ -649,21 +848,14 @@ struct timetree_t {
     void add_foreign_time(timer_data_type const &) const {}
 };
 
-typedef timetree_t fast_timetree_t;
+using fast_timetree_t = timetree_t;
 
 namespace tdict {
     struct tie_timer : public timetree_t {
         tie_timer() = default;
     };
 };
-typedef tdict::tie_timer fuzzy_diverted_timetree_t;
-
-namespace tdict {
-    extern int global_enable;
-    void declare_usage(cxx_param_list & pl);
-    void configure_switches(cxx_param_list & pl);
-    void configure_aliases(cxx_param_list & pl);
-};
+using fuzzy_diverted_timetree_t = tdict::tie_timer;
 
 #define CHILD_TIMER(T, name) T.nop()
 #define CHILD_TIMER_PARAMETRIC(T, name, arg, suffix) T.nop()
