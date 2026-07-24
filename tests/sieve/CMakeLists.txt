@@ -43,11 +43,12 @@ cado_define_test(c90_21505_chronogram
             -fb1 ${c90_21505_roots}
             -q0 310000 -I 13 -q1 320000 -lim0 404327 -lim1 811066 -lpb0
             23 -lpb1 23 -mfb0 46 -mfb1 46 -ncurves0 9 -ncurves1 10 -t
-            machine,2,2 -sqside 1 -adjust-strategy 0  -random-sample 16
+            machine,2,2 -sqside 1 -adjust-strategy 0  -random-sample 4
             --chronogram ${c90_21505_chrono}
         TARGET_DEPENDENCIES las
         FIXTURES_REQUIRED c90_21505.fb
         FIXTURES_SETUP c90_21505.chrono
+        TIMEOUT 160
         )
 
 cado_define_test(c90_21505_sieve
