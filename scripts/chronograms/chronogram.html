@@ -57,8 +57,7 @@
       
       <!-- Dropzone -->
       <div class="file-dropzone" id="dropzone">
-        📁 Drag & Drop JSON Trace File or <input type="file" id="file-input"
-accept=".json,.json.gz,.json.zst,.json.zstd" style="display:inline;" />
+        📁 Drag & Drop JSON Trace File or <input type="file" id="file-input" accept=".json,.json.gz,.json.zst,.json.zstd" style="display:inline;" />
       </div>
     </div>
 
@@ -130,7 +129,6 @@ let activeBubble = null;
 
 const LEFT_MARGIN = 75, RIGHT_MARGIN = 20, HEADER_HEIGHT = 30, BOTTOM_MARGIN = 20;
 
-
 // Color generator
 const PREDEFINED_COLORS = {
   "INIT": "rgb(78, 121, 167)", "SKEWGAUSS": "rgb(242, 142, 43)", "ADJUST": "rgb(225, 87, 89)",
@@ -145,6 +143,42 @@ function getCategoryColor(cat) {
   for (let i = 0; i < cat.length; i++) hash = cat.charCodeAt(i) + ((hash << 5) - hash);
   const hue = Math.abs(hash % 360);
   return `hsl(${hue}, 65%, 55%)`;
+}
+
+// --- Call Stack Reconstruction (Runs once on JSON load) ---
+function annotateHierarchy() {
+  if (!TRACE_DATA) return;
+
+  for (const threadId in TRACE_DATA) {
+    const events = TRACE_DATA[threadId];
+    if (!events || events.length === 0) continue;
+
+    // Sort events: Start time ascending, Duration descending (parents before children)
+    events.sort((a, b) => (a[0] !== b[0] ? a[0] - b[0] : b[1] - a[1]));
+
+    const stack = [];
+
+    for (let i = 0; i < events.length; i++) {
+      const e = events[i];
+      const eStart = e[0];
+
+      // Pop completed parents off the stack
+      while (stack.length > 0) {
+        const top = stack[stack.length - 1];
+        const topEnd = top[0] + top[1];
+        if (topEnd <= eStart + 1e-9) {
+          stack.pop();
+        } else {
+          break;
+        }
+      }
+
+      // Attach nesting depth and parent references
+      e.depth = stack.length;
+      e.parents = stack.slice();
+      stack.push(e);
+    }
+  }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -172,6 +206,9 @@ document.addEventListener("DOMContentLoaded", () => {
       winEnd = data.win_end;
       totalSpan = winEnd - winStart;
 
+      // Reconstruct task hierarchy
+      annotateHierarchy();
+
       // Reset Viewports
       viewStart = 0.0;
       viewSpan = totalSpan;
@@ -196,20 +233,17 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-
   // Transparent decompression stream pipeline
   async function decompressAndRead(file) {
     const fileName = file.name.toLowerCase();
     const arrayBuffer = await file.arrayBuffer();
 
-    // 1. Handle Gzip (.gz) using standard Browser Web API
     if (fileName.endsWith(".gz") || fileName.endsWith(".gzip")) {
       const blob = new Blob([arrayBuffer]);
       const decompressedStream = blob.stream().pipeThrough(new DecompressionStream("gzip"));
       return await new Response(decompressedStream).text();
     }
 
-    // 2. Handle Zstandard (.zst / .zstd) using fzstd
     if (fileName.endsWith(".zst") || fileName.endsWith(".zstd")) {
       if (typeof fzstd === "undefined") {
         throw new Error("zstd library (fzstd) failed to load from CDN.");
@@ -219,15 +253,12 @@ document.addEventListener("DOMContentLoaded", () => {
       return new TextDecoder("utf-8").decode(decompressedBytes);
     }
 
-    // 3. Plain Uncompressed JSON (.json)
     return new TextDecoder("utf-8").decode(arrayBuffer);
   }
 
-  // Unified file handling
   async function handleFile(file) {
     if (!file) return;
 
-    const infoElement = document.getElementById("information");
     infoElement.textContent = `Decompressing & reading ${file.name}...`;
 
     try {
@@ -239,7 +270,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Event Listeners
   fileInput.addEventListener("change", (e) => {
     if (e.target.files.length) handleFile(e.target.files[0]);
   });
@@ -252,12 +282,12 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
   });
 
-  // --- Binary Search for Visible Bubbles ---
+  // Binary search for first event with start >= targetStart
   function findFirstVisibleIndex(events, targetStart) {
     let low = 0, high = events.length - 1, ans = events.length;
     while (low <= high) {
       const mid = (low + high) >> 1;
-      if (events[mid][0] + events[mid][1] >= targetStart) {
+      if (events[mid][0] >= targetStart) {
         ans = mid; high = mid - 1;
       } else { low = mid + 1; }
     }
@@ -289,9 +319,8 @@ document.addEventListener("DOMContentLoaded", () => {
       ctx.fillText(`${msStr.startsWith('-') ? '' : '+'}${msStr}ms`, 5, y + 4);
     }
 
-    // 2. Thread Headers & Grid Lines
+    // 2. Thread Headers
     ctx.save();
-    // Clip thread header region to avoid overlapping left axis labels
     ctx.beginPath();
     ctx.rect(LEFT_MARGIN, 0, availableW, HEADER_HEIGHT);
     ctx.clip();
@@ -313,7 +342,6 @@ document.addEventListener("DOMContentLoaded", () => {
     ctx.rect(LEFT_MARGIN, HEADER_HEIGHT, availableW, availableH);
     ctx.clip();
 
-    // Draw Vertical Thread Dividers
     ctx.strokeStyle = "#d0d0d0";
     for (let i = 0; i < THREADS.length; i++) {
       const x1 = LEFT_MARGIN + (i - viewThreadStart) * perThreadWidth;
@@ -322,35 +350,60 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
-    // Draw Visible Bubbles
-    // Only process thread columns currently in viewport view
+    // Draw Hierarchical Bubbles
     const minCol = Math.max(0, Math.floor(viewThreadStart));
     const maxCol = Math.min(THREADS.length - 1, Math.ceil(viewThreadStart + viewThreadSpan));
 
     for (let colIdx = minCol; colIdx <= maxCol; colIdx++) {
       const threadId = THREADS[colIdx];
       const events = TRACE_DATA[threadId];
-      if (!events) continue;
+      if (!events || events.length === 0) continue;
 
-      const x1 = LEFT_MARGIN + (colIdx - viewThreadStart) * perThreadWidth;
-      const drawWidth = Math.max(1, perThreadWidth);
-      const startIdx = findFirstVisibleIndex(events, viewStart);
+      const colX = LEFT_MARGIN + (colIdx - viewThreadStart) * perThreadWidth;
+      
+      const idx = findFirstVisibleIndex(events, viewStart);
+
+      // Step back to include any long-running parents that started before viewStart
+      let startIdx = idx;
+      const checkEv = (e) => {
+        if (e && e.parents) {
+          for (const p of e.parents) {
+            const pIdx = events.indexOf(p);
+            if (pIdx >= 0 && pIdx < startIdx) startIdx = pIdx;
+          }
+        }
+      };
+      if (idx < events.length) checkEv(events[idx]);
+      if (idx > 0) checkEv(events[idx - 1]);
 
       for (let i = startIdx; i < events.length; i++) {
         const e = events[i];
         if (e[0] > viewEnd) break;
+        if (e[0] + e[1] < viewStart) continue;
         if (e[1] < minDurationThreshold) continue;
 
         const y1 = HEADER_HEIGHT + (e[0] - viewStart) * y_scale;
         const y2 = HEADER_HEIGHT + ((e[0] + e[1]) - viewStart) * y_scale;
         const h = Math.max(1, y2 - y1);
 
+        const depth = e.depth || 0;
+        const maxInset = Math.floor(perThreadWidth / 3);
+        const inset = Math.min(depth * 2, maxInset);
+
+        const drawX = colX + inset;
+        const drawW = Math.max(1, perThreadWidth - 2 * inset);
+
         ctx.fillStyle = CATEGORY_COLORS[e[2]];
-        ctx.fillRect(x1, y1, drawWidth, h);
+        ctx.fillRect(drawX, y1, drawW, h);
+
+        if (depth > 0 && h > 2 && drawW > 4) {
+          ctx.strokeStyle = "rgba(0, 0, 0, 0.25)";
+          ctx.strokeRect(drawX, y1, drawW, h);
+        }
 
         if (showDelimiters) {
           ctx.fillStyle = "rgba(0,0,0,0.6)";
-          ctx.fillRect(x1, y1, drawWidth, 1);
+          ctx.fillRect(drawX, y1, drawW, 1);
         }
       }
     }
@@ -358,22 +411,27 @@ document.addEventListener("DOMContentLoaded", () => {
     // 4. Hover Highlight Box
     if (activeBubble) {
       const [colIdx, e] = activeBubble;
-      const x1 = LEFT_MARGIN + (colIdx - viewThreadStart) * perThreadWidth;
+      const colX = LEFT_MARGIN + (colIdx - viewThreadStart) * perThreadWidth;
       const y1 = HEADER_HEIGHT + (e[0] - viewStart) * y_scale;
       const y2 = HEADER_HEIGHT + ((e[0] + e[1]) - viewStart) * y_scale;
       const h = Math.max(1, y2 - y1);
-      const drawWidth = Math.max(1, perThreadWidth);
+
+      const depth = e.depth || 0;
+      const maxInset = Math.floor(perThreadWidth / 3);
+      const inset = Math.min(depth * 2, maxInset);
+      const drawX = colX + inset;
+      const drawW = Math.max(1, perThreadWidth - 2 * inset);
 
       ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
-      ctx.fillRect(x1, y1, drawWidth, h);
+      ctx.fillRect(drawX, y1, drawW, h);
       ctx.strokeStyle = "#000000";
-      ctx.strokeRect(x1, y1, drawWidth, h);
+      ctx.strokeRect(drawX, y1, drawW, h);
     }
 
-    ctx.restore(); // End Plot Clipping
+    ctx.restore();
   }
 
-  // --- Mouse Move Hover Detection ---
+  // --- Innermost Hover Detection ---
   canvas.addEventListener("mousemove", (e) => {
     if (!TRACE_DATA || THREADS.length === 0) return;
     const rect = canvas.getBoundingClientRect();
@@ -388,9 +446,34 @@ document.addEventListener("DOMContentLoaded", () => {
       const availableH = canvas.height - HEADER_HEIGHT - BOTTOM_MARGIN;
       const tMouse = viewStart + ((mouseY - HEADER_HEIGHT) / availableH) * viewSpan;
       const events = TRACE_DATA[THREADS[colIdx]];
-      if (events) {
+      
+      if (events && events.length > 0) {
+        let deepestHit = null;
         const idx = findFirstVisibleIndex(events, tMouse);
-        if (idx < events.length && events[idx][0] <= tMouse) hit = [colIdx, events[idx]];
+
+        const testEvent = (ev) => {
+          if (ev && ev[0] <= tMouse && (ev[0] + ev[1]) > tMouse) {
+            if (!deepestHit || (ev.depth || 0) >= (deepestHit.depth || 0)) {
+              deepestHit = ev;
+            }
+          }
+        };
+
+        for (let i = Math.max(0, idx - 1); i < events.length; i++) {
+          const ev = events[i];
+          if (ev[0] > tMouse) break;
+          testEvent(ev);
+        }
+
+        const checkParents = (ev) => {
+          if (ev && ev.parents) {
+            for (const p of ev.parents) testEvent(p);
+          }
+        };
+        if (idx < events.length) checkParents(events[idx]);
+        if (idx > 0) checkParents(events[idx - 1]);
+
+        if (deepestHit) hit = [colIdx, deepestHit];
       }
     }
 
@@ -398,12 +481,26 @@ document.addEventListener("DOMContentLoaded", () => {
       activeBubble = hit;
       if (hit) {
         const e = hit[1];
-        infoElement.textContent = `Thread ${THREADS[hit[0]]} | ${CATEGORY_NAMES[e[2]]} | Start: +${(e[0]*1000).toFixed(3)}ms | Duration: ${(e[1]*1000).toFixed(3)}ms | Metric: ${e[3]} | Details: ${e[4]}`;
+        const catName = CATEGORY_NAMES[e[2]];
+
+        let stackStr = "";
+        if (e.parents && e.parents.length > 0) {
+          const parentNames = e.parents.map(p => CATEGORY_NAMES[p[2]]).join(" › ");
+          stackStr = `Stack: [ ${parentNames} ] › `;
+        }
+
+        infoElement.textContent = `Thread ${THREADS[hit[0]]} | ${stackStr}ACTIVE: ${catName} | Start: +${(e[0]*1000).toFixed(3)}ms | Duration: ${(e[1]*1000).toFixed(3)}ms | Metric: ${e[3]} | Details: ${e[4]}`;
       } else {
         infoElement.textContent = "Hover over a region to inspect details...";
       }
       render();
     }
+  });
+
+  canvas.addEventListener("mouseleave", () => {
+    activeBubble = null;
+    infoElement.textContent = "Hover over a region to inspect details...";
+    render();
   });
 
   // --- 2D Navigation: Panning & Zooming via Wheel/Trackpad ---
@@ -422,7 +519,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const isHorizontal = e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY);
 
     if (isHorizontal && isZoom) {
-      // === X-AXIS ZOOM (Ctrl + Shift + Scroll) ===
       const mouseRelX = Math.max(0, Math.min(1, (mouseX - LEFT_MARGIN) / availableW));
       const threadFocus = viewThreadStart + mouseRelX * viewThreadSpan;
 
@@ -433,13 +529,11 @@ document.addEventListener("DOMContentLoaded", () => {
       viewThreadSpan = newSpan;
 
     } else if (isHorizontal) {
-      // === X-AXIS PAN (Shift + Scroll / Horizontal Swipe) ===
       const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
       const panAmount = (delta / availableW) * viewThreadSpan * 0.4;
       viewThreadStart = Math.max(0, Math.min(THREADS.length - viewThreadSpan, viewThreadStart + panAmount));
 
     } else if (isZoom) {
-      // === Y-AXIS ZOOM (Ctrl + Scroll) ===
       const mouseRelY = Math.max(0, Math.min(1, (mouseY - HEADER_HEIGHT) / availableH));
       const tFocus = viewStart + mouseRelY * viewSpan;
 
@@ -450,7 +544,6 @@ document.addEventListener("DOMContentLoaded", () => {
       viewSpan = newSpan;
 
     } else {
-      // === Y-AXIS PAN (Scroll) ===
       const panAmount = (e.deltaY / canvas.height) * viewSpan * 0.4;
       viewStart = Math.max(0.0 - viewSpan * 0.1, Math.min(totalSpan - viewSpan * 0.9, viewStart + panAmount));
     }
@@ -458,7 +551,9 @@ document.addEventListener("DOMContentLoaded", () => {
     render();
   }, { passive: false });
 
-  // Reset Button Handler
+  // Control Event Listeners
+  document.querySelectorAll("input[name='border-opt']").forEach(r => r.addEventListener("change", (e) => { showDelimiters = (e.target.value === "top"); render(); }));
+  document.getElementById("duration-filter").addEventListener("change", (e) => { minDurationThreshold = parseFloat(e.target.value); render(); });
   document.getElementById("reset-view-btn").addEventListener("click", () => {
     viewStart = 0;
     viewSpan = totalSpan;
@@ -466,11 +561,6 @@ document.addEventListener("DOMContentLoaded", () => {
     viewThreadSpan = THREADS.length;
     render();
   });
-
-  // Radio button & Min duration listeners
-  document.querySelectorAll("input[name='border-opt']").forEach(r => r.addEventListener("change", (e) => { showDelimiters = (e.target.value === "top"); render(); }));
-  document.getElementById("duration-filter").addEventListener("change", (e) => { minDurationThreshold = parseFloat(e.target.value); render(); });
-  document.getElementById("reset-view-btn").addEventListener("click", () => { viewStart = 0; viewSpan = totalSpan; render(); });
 
   window.addEventListener("resize", resizeCanvas);
   resizeCanvas();
