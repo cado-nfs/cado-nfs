@@ -366,8 +366,7 @@ void nfs_work::compute_toplevel_and_buckets()
     // XXX TODO: we should decouple the toplevel and the sieving side,
     // really.
     toplevel = -1;
-    for(unsigned int side = 0 ; side < sides.size() ; side++) {
-        side_data  const& wss(sides[side]);
+    for(auto const & wss : sides) {
         if (wss.no_fb()) continue;
 
         toplevel = std::max(toplevel, wss.fbs->get_toplevel());

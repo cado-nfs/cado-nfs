@@ -576,13 +576,30 @@ las_small_sieve_data::small_sieve_prepare_many_start_positions(
 
     int const logB = LOG_BUCKET_REGION;
     int const v = logI - logB;
+
+    /* w is the number of bucket regions per row. It's still 1 if regions
+     * span more than one row.
+     */
     int const w = (v > 0) ? (1 << v) : 1;
 
     res.assign(nregions + w, std::vector<spos_t>(ssps.size(), 0));
 
     int k;
 
+    /*
+     * either ssdpos_many is empty, which means that we've never run
+     * through the current code. We must of course compute the first row.
+     *
+     * or it isn't, in which case it contains
+     * nregions+w positions computed offsets. We'll steal the last w of
+     * them.
+     *
+     * All offsets are in [0, p). Because we're doing a small sieve, p is
+     * less than 2^I. But it might nevertheless be larger than 2^B.
+     */
+
     if (ssdpos_many.empty()) {
+        ASSERT_ALWAYS(first_region_index == 0);
         small_sieve_start(res.front(), first_region_index, logI, sl);
         k = 0;
         /* must complete the first row */
@@ -632,7 +649,7 @@ las_small_sieve_data::small_sieve_prepare_many_start_positions(
             }
         }
     } else {
-        for(int k = w; k < nregions + w ; k+= w) {
+        for(int k = w; k < nregions + w ; k += w) {
             /* infer from previous bucket region  */
             ASSERT(res[k].size() == ssps.size());
             for(size_t s = 0 ; s < ssps.size(); ++s) {
@@ -785,10 +802,10 @@ void small_sieve::do_pattern_sieve(where_am_I & w MAYBE_UNUSED)
 
     unsigned int j = j0;
 
-/* This can be enabled or disabled. If enabled, only location i = 1 will be
-   updated in line j = 0. If disabled, the more general pattern-sieving
-   code below will be used for line 0, too, but that will hit all locations
-   with odd i. */
+    /* This can be enabled or disabled. If enabled, only location i = 1 will be
+       updated in line j = 0. If disabled, the more general pattern-sieving
+       code below will be used for line 0, too, but that will hit all locations
+       with odd i. */
     if (skip_line_jj0 && j == 0 && super::sublatj0 == 0) {
         const int verbose = 0;
         WHERE_AM_I_UPDATE(w, j, 0);

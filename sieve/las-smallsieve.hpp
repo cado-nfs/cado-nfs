@@ -2,6 +2,7 @@
 #define CADO_LAS_SMALLSIEVE_HPP
 
 #include <cstddef>
+#include <cstdint>
 #include <vector>
 
 #include "fmt/base.h"

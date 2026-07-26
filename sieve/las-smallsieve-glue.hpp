@@ -4,6 +4,9 @@
 #include <cstdio>
 #include <climits>
 
+#include <vector>
+#include <list>
+
 #ifdef HAVE_SSE41
 #include <x86intrin.h>
 #endif
@@ -11,6 +14,7 @@
 #include "las-forwardtypes.hpp"         // spos_t
 #include "fb-types.hpp"
 #include "las-smallsieve-lowlevel.hpp"
+#include "las-smallsieve.hpp"
 
 #include "macros.h"
 
@@ -506,6 +510,7 @@ struct small_sieve : public small_sieve_base {/*{{{*/
     template<typename even_code, typename odd_code, int bits_off>
     bool handle_nice_prime(ssp_simple_t const & ssp, spos_t pos, where_am_I & w) {/*{{{*/
         const fbprime_t p = ssp.get_p();
+        WHERE_AM_I_UPDATE(w, p, p);
         if (bits_off != 0 && (p >> (super::min_logI_logB + 1 - bits_off))) {
             /* time to move on to the next bit size; */
             return false;
@@ -552,7 +557,7 @@ struct small_sieve : public small_sieve_base {/*{{{*/
     /* This function is responsible for small-sieving primes of a
      * specific bit size */
     template<typename even_code, typename odd_code, int bits_off>
-        inline void handle_nice_primes(where_am_I & w MAYBE_UNUSED) /* {{{ */
+        void handle_nice_primes(where_am_I & w MAYBE_UNUSED) /* {{{ */
         {
             /* here, we can sieve for primes p < 2 * F() / 2^bits_off,
              * (where F() is i1-i0 = 2^min(logI, logB)).
@@ -665,13 +670,9 @@ struct small_sieve : public small_sieve_base {/*{{{*/
             for( ; index < sorted_limit ; index++) {
                 ssp_simple_t const & ssp(primes[index]);
                 spos_t pos = positions[index];
-                const fbprime_t p = ssp.get_p();
-                if (bits_off != 0 && (p >> (super::min_logI_logB + 1 - bits_off))) {
+                if (!handle_nice_prime<even_code, odd_code, bits_off>(ssp, pos, w))
                     /* time to move on to the next bit size; */
                     return;
-                }
-                WHERE_AM_I_UPDATE(w, p, p);
-                handle_nice_prime<even_code, odd_code, bits_off>(ssp, pos, w);
             }
 
         }/*}}}*/
