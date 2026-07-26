@@ -907,7 +907,7 @@ do_one_special_q(
     BOOKKEEPING_TIMER(timer_special_q);
 
     {
-        auto tt = timer_special_q.trace(0, chronograms::INIT());
+        auto tt = timer_special_q.trace(aux.subjob_id * las.number_of_threads_per_subjob(), chronograms::INIT());
         ws.prepare_for_new_q<ALGO>(las, &aux.doing, Q);
     }
 
@@ -931,7 +931,7 @@ do_one_special_q(
     std::shared_ptr<nfs_work_cofac> wc_p;
 
     {
-        auto tt = timer_special_q.trace(0, chronograms::INIT());
+        auto tt = timer_special_q.trace(aux.subjob_id * las.number_of_threads_per_subjob(), chronograms::INIT());
         wc_p = std::make_shared<nfs_work_cofac>(las, ws);
 
         rep.total_logI += ws.conf.logI;
