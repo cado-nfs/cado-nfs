@@ -99,7 +99,12 @@ static detached_cofac_result * detached_cofac_inner(worker_thread * worker, deta
 
         const char * dup_comment = nullptr;
 
-        if (do_check && relation_is_duplicate(rel, wc.doing, wc.las)) {
+        auto dupcheck = [&]() {
+          auto tt = timer.trace(id, chronograms::DUPCHECK());
+          return relation_is_duplicate(rel, wc.doing, wc.las);
+        };
+
+        if (do_check && dupcheck()) {
             dup_comment = "# DUPE ";
             rep.duplicates ++;
         } else {

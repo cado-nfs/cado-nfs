@@ -119,6 +119,7 @@ std::string chronograms::format_as(const bubble_info& info)
         case kind_t::ALLOC: return "ALLOC";
         case kind_t::AB: return "AB";
         case kind_t::ECM: return "ECM";
+        case kind_t::DUPCHECK: return "DUPCHECK";
         case kind_t::BOTCHED: return "BOTCHED";
     }
     // NOLINTEND(cppcoreguidelines-pro-type-union-access)

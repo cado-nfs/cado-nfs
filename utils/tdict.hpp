@@ -548,6 +548,7 @@ namespace chronograms {
     struct ALLOC {};
     struct AB {};
     struct ECM {};
+    struct DUPCHECK {};
     struct BOTCHED {};
 
     struct SSS   { int side; int level; };
@@ -571,6 +572,7 @@ namespace chronograms {
             PCLAT,
             PBR,
             ECM,
+            DUPCHECK,
             BOTCHED
         };
 
@@ -587,6 +589,7 @@ namespace chronograms {
             "PCLAT",
             "PBR",
             "ECM",
+            "DUPCHECK",
             "BOTCHED", };
 
         kind_t kind;
@@ -597,6 +600,7 @@ namespace chronograms {
             DS    ds;
             PCLAT pclat;
             PBR   pbr;
+            DUPCHECK   dupcheck;
 
             payload() = default;
             explicit payload(SSS e)   : sss(e) {}
@@ -619,6 +623,7 @@ namespace chronograms {
 	bubble_info(ALLOC)      : kind(kind_t::ALLOC) {}
 	bubble_info(AB)         : kind(kind_t::AB) {}
 	bubble_info(ECM)        : kind(kind_t::ECM) {}
+	bubble_info(DUPCHECK)   : kind(kind_t::DUPCHECK) {}
 	bubble_info(BOTCHED)    : kind(kind_t::BOTCHED) {}
         // NOLINTEND(google-explicit-constructor,hicpp-explicit-conversions)
     };
