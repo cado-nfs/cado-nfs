@@ -84,14 +84,17 @@
 
       <span style="color:#ccc;">|</span>
       <span style="font-size: 11px; color: #666;">
-        <strong>Scroll:</strong> Pan Time
+        <strong>Scroll / PageUp/Down:</strong> Pan Time
         &nbsp;•&nbsp;
-        <strong>Ctrl + Scroll:</strong> Zoom Time
+        <strong>Ctrl+Scroll:</strong> Zoom Time
         &nbsp;•&nbsp;
-        <strong>Shift + Scroll:</strong> Pan Threads
+        <strong>Home / End:</strong> Start / End
+        &nbsp;•&nbsp;
+        <strong>Shift+Scroll / Arrows:</strong> Pan Threads
         &nbsp;•&nbsp;
         <strong>Ctrl + Shift + Scroll:</strong> Zoom Threads
       </span>
+
     </div>
 
     <div class="window-meta" id="meta-info">No trace file loaded.</div>
@@ -360,28 +363,11 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!events || events.length === 0) continue;
 
       const colX = LEFT_MARGIN + (colIdx - viewThreadStart) * perThreadWidth;
-      
       const idx = findFirstVisibleIndex(events, viewStart);
 
-      // Step back to include any long-running parents that started before viewStart
-      let startIdx = idx;
-      const checkEv = (e) => {
-        if (e && e.parents) {
-          for (const p of e.parents) {
-            const pIdx = events.indexOf(p);
-            if (pIdx >= 0 && pIdx < startIdx) startIdx = pIdx;
-          }
-        }
-      };
-      if (idx < events.length) checkEv(events[idx]);
-      if (idx > 0) checkEv(events[idx - 1]);
-
-      for (let i = startIdx; i < events.length; i++) {
-        const e = events[i];
-        if (e[0] > viewEnd) break;
-        if (e[0] + e[1] < viewStart) continue;
-        if (e[1] < minDurationThreshold) continue;
-
+      // Helper function to render a single bubble
+      const drawBubble = (e) => {
+        if (e[1] < minDurationThreshold) return;
         const y1 = HEADER_HEIGHT + (e[0] - viewStart) * y_scale;
         const y2 = HEADER_HEIGHT + ((e[0] + e[1]) - viewStart) * y_scale;
         const h = Math.max(1, y2 - y1);
@@ -405,6 +391,30 @@ document.addEventListener("DOMContentLoaded", () => {
           ctx.fillStyle = "rgba(0,0,0,0.6)";
           ctx.fillRect(drawX, y1, drawW, 1);
         }
+      };
+
+      // Step A: Collect & draw active parents extending across viewStart
+      if (idx > 0) {
+        const prev = events[idx - 1];
+        const activeAncestors = [];
+
+        if (prev[0] + prev[1] > viewStart) activeAncestors.push(prev);
+        if (prev.parents) {
+          for (const p of prev.parents) {
+            if (p[0] + p[1] > viewStart) activeAncestors.push(p);
+          }
+        }
+
+        // Sort by depth ascending so outer parents draw before inner children
+        activeAncestors.sort((a, b) => (a.depth || 0) - (b.depth || 0));
+        for (const e of activeAncestors) drawBubble(e);
+      }
+
+      // Step B: Draw all events starting inside [viewStart, viewEnd]
+      for (let i = idx; i < events.length; i++) {
+        const e = events[i];
+        if (e[0] > viewEnd) break;
+        drawBubble(e);
       }
     }
 
@@ -459,19 +469,21 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         };
 
-        for (let i = Math.max(0, idx - 1); i < events.length; i++) {
+        // Step 1: Test the event right before tMouse and its active parent stack
+        if (idx > 0) {
+          const prev = events[idx - 1];
+          testEvent(prev);
+          if (prev.parents) {
+            for (const p of prev.parents) testEvent(p);
+          }
+        }
+
+        // Step 2: Test any events starting at/after tMouse
+        for (let i = idx; i < events.length; i++) {
           const ev = events[i];
           if (ev[0] > tMouse) break;
           testEvent(ev);
         }
-
-        const checkParents = (ev) => {
-          if (ev && ev.parents) {
-            for (const p of ev.parents) testEvent(p);
-          }
-        };
-        if (idx < events.length) checkParents(events[idx]);
-        if (idx > 0) checkParents(events[idx - 1]);
 
         if (deepestHit) hit = [colIdx, deepestHit];
       }
@@ -551,6 +563,68 @@ document.addEventListener("DOMContentLoaded", () => {
     render();
   }, { passive: false });
 
+  // --- Keyboard Navigation (PageUp, PageDown, Home, End, Arrows) ---
+  window.addEventListener("keydown", (e) => {
+    if (!TRACE_DATA || THREADS.length === 0) return;
+
+    // Ignore keyboard shortcuts if focus is inside a control input/select
+    if (["INPUT", "SELECT", "TEXTAREA", "BUTTON"].includes(document.activeElement.tagName)) {
+      return;
+    }
+
+    let handled = true;
+
+    switch (e.key) {
+      case "PageUp":
+        // Move backward in time by 80% of visible viewport
+        viewStart = Math.max(0.0, viewStart - viewSpan * 0.8);
+        break;
+
+      case "PageDown":
+        // Move forward in time by 80% of visible viewport
+        viewStart = Math.min(Math.max(0.0, totalSpan - viewSpan), viewStart + viewSpan * 0.8);
+        break;
+
+      case "Home":
+        // Jump to beginning of time collection
+        viewStart = 0.0;
+        break;
+
+      case "End":
+        // Jump to end of time collection
+        viewStart = Math.max(0.0, totalSpan - viewSpan);
+        break;
+
+      case "ArrowUp":
+        // Nudge time backward (10%)
+        viewStart = Math.max(0.0, viewStart - viewSpan * 0.1);
+        break;
+
+      case "ArrowDown":
+        // Nudge time forward (10%)
+        viewStart = Math.min(Math.max(0.0, totalSpan - viewSpan), viewStart + viewSpan * 0.1);
+        break;
+
+      case "ArrowLeft":
+        // Nudge thread viewport left
+        viewThreadStart = Math.max(0.0, viewThreadStart - Math.max(1.0, viewThreadSpan * 0.1));
+        break;
+
+      case "ArrowRight":
+        // Nudge thread viewport right
+        viewThreadStart = Math.min(Math.max(0.0, THREADS.length - viewThreadSpan), viewThreadStart + Math.max(1.0, viewThreadSpan * 0.1));
+        break;
+
+      default:
+        handled = false;
+        break;
+    }
+
+    if (handled) {
+      e.preventDefault(); // Prevent standard browser window scrolling
+      render();
+    }
+  });
   // Control Event Listeners
   document.querySelectorAll("input[name='border-opt']").forEach(r => r.addEventListener("change", (e) => { showDelimiters = (e.target.value === "top"); render(); }));
   document.getElementById("duration-filter").addEventListener("change", (e) => { minDurationThreshold = parseFloat(e.target.value); render(); });
