@@ -1653,7 +1653,7 @@ void fb_factorbase::make_linear_threadpool(unsigned int nb_threads)
         if (!get_new_task(*curr_T, next_prime, pi, maxp, next_pow, powers))
             break;
         curr_T->index = scheduled_tasks++;
-        pool.add_task(process_one_task, &params[curr_T - T], 0);
+        pool.add_task(process_one_task, &params[curr_T - T], 0, thread_pool::QUEUE_GENERIC);
         active_task++;
     }
 
@@ -1665,7 +1665,7 @@ void fb_factorbase::make_linear_threadpool(unsigned int nb_threads)
     // Stage 1: while there are still primes, wait for a result and
     // schedule a new task.
     for (; active_task;) {
-        task_result * result = pool.get_result();
+        task_result * result = pool.get_result(thread_pool::QUEUE_GENERIC);
         auto * res = static_cast<make_linear_thread_result *>(result);
         active_task--;
         task_info_t * curr_T = res->T;
@@ -1693,13 +1693,13 @@ void fb_factorbase::make_linear_threadpool(unsigned int nb_threads)
         if (!get_new_task(*curr_T, next_prime, pi, maxp, next_pow, powers))
             break;
         curr_T->index = scheduled_tasks++;
-        pool.add_task(process_one_task, &params[curr_T - T], 0);
+        pool.add_task(process_one_task, &params[curr_T - T], 0, thread_pool::QUEUE_GENERIC);
         active_task++;
     }
 
     // Stage 2: purge last tasks
     for (unsigned int i = 0; i < active_task; ++i) {
-        task_result * result = pool.get_result();
+        task_result * result = pool.get_result(thread_pool::QUEUE_GENERIC);
         auto * res = static_cast<make_linear_thread_result *>(result);
         task_info_t * curr_T = res->T;
 

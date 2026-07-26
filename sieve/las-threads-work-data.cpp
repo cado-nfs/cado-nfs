@@ -170,7 +170,7 @@ void nfs_work::allocate_buckets(nfs_aux & aux, thread_pool & pool)
                 conf.logI,
                 aux, pool, do_resieve);
     }
-    pool.drain_queue(2);
+    pool.drain_queue(thread_pool::QUEUE_MISC);
 }
 
 /* only used once a siever_config has been attached to the structure */

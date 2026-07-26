@@ -48,7 +48,7 @@ reservation_array_base<T>::allocate_buckets(las_memory_accessor & memory, int n_
             auto tt = timer.trace(worker->rank(), chronograms::ALLOC {});
 
             B.allocate_memory(memory, n_bucket, ratio / n, logI);
-              }, i, 2, cost);
+              }, i, thread_pool::QUEUE_MISC, cost);
       /* queue 2. Joined in nfs_work::allocate_buckets */
   }
 }

@@ -201,7 +201,7 @@ void fill_in_buckets_prepare_plattices(
                     using E = std::remove_reference_t<decltype(s)>::entry_t;
                     auto param = new make_lattice_bases_parameters<T::level, E>(model, s);
                     task_function_t f = make_lattice_bases<T::level, E>;
-                    pool.add_task(f, param, 0);
+                    pool.add_task(f, param, 0, thread_pool::QUEUE_GENERIC);
                 }
         });
     });
@@ -484,7 +484,7 @@ template <int LEVEL, typename TARGET_HINT> struct push_slice_to_task_list {
         using entry_t = typename T::entry_t;
         task_function_t f =
             fill_in_buckets_toplevel_wrapper<LEVEL, entry_t, TARGET_HINT>;
-        pool.add_task(f, param, 0, 0, s.get_weight());
+        pool.add_task(f, param, 0, thread_pool::QUEUE_GENERIC, s.get_weight());
         pushed++;
     }
 };
@@ -522,7 +522,7 @@ struct push_slice_to_task_list_saving_precomp {
         task_function_t f =
             fill_in_buckets_toplevel_sublat_wrapper<LEVEL, entry_t,
                                                     TARGET_HINT>;
-        pool.add_task(f, param, 0, 0, s.get_weight());
+        pool.add_task(f, param, 0, thread_pool::QUEUE_GENERIC, s.get_weight());
         pushed++;
     }
 };
@@ -687,7 +687,7 @@ static void downsort_aux(fb_factorbase::slicing const & fbs, nfs_work & ws,
                         // wss.reserve_BA<LEVEL, my_longhint_t>().access(),
                         BA_in, bucket_index, taux.w);
             },
-            bucket_index, 0);
+            bucket_index, thread_pool::QUEUE_GENERIC);
     }
 }
 
@@ -820,13 +820,13 @@ static void downsort_tree_inner(
                                             taux.w);
                         //wss.template release_BA<LEVEL, my_longhint_t>(BA_out);
                     },
-                    bucket_index, 0);
+                    bucket_index, thread_pool::QUEUE_GENERIC);
             }
             // What comes from already downsorted data above. We put this in
             // an external function because we need the code to be elided or
             // LEVEL >= 2.
             if (LEVEL < ws.toplevel - 1) {
-                pool.drain_queue(0);
+                pool.drain_queue(thread_pool::QUEUE_GENERIC);
                 downsort_aux<LEVEL, WITH_HINTS>(fbs, ws, aux, pool, side, bucket_index, w);
             }
         }
@@ -835,7 +835,7 @@ static void downsort_tree_inner(
          * 100% sure it's useful. The F9_sieve_3_levels test wants it,
          * and apparently really wants it here.
          */
-        pool.drain_queue(0);
+        pool.drain_queue(thread_pool::QUEUE_GENERIC);
 
         {
             /* SECOND: fill in buckets at this level, for this region. */
@@ -865,7 +865,7 @@ static void downsort_tree_inner(
                         new fill_in_buckets_parameters<LEVEL> {
                         ws, aux, Q, side, (fb_slice_interface *)NULL, &it, NULL,
                         first_region0_index, const_ref(w)},
-                        0, 0, it.get_weight());
+                        0, thread_pool::QUEUE_GENERIC, it.get_weight());
             }
         }
     }
@@ -925,10 +925,10 @@ static void downsort_tree_inner(
                         ws.conf.logI, Q.sublat);
                     wss.ssd->small_sieve_activate_many_start_positions();
                 },
-                0);
+                0, thread_pool::QUEUE_GENERIC, std::numeric_limits<double>::max());
         }
 
-        pool.drain_queue(0);
+        pool.drain_queue(thread_pool::QUEUE_GENERIC);
         /* Now fill_in_buckets has completed for all levels. Time to check
          * that we had no overflow, and move on to process_bucket_region.
          */
@@ -940,7 +940,7 @@ static void downsort_tree_inner(
              * of the different buckets. It's quite verbose, though */
             ws.slice_statistics(LEVEL);
 
-        auto exc = pool.get_exceptions<buckets_are_full>(0);
+        auto exc = pool.get_exceptions<buckets_are_full>(thread_pool::QUEUE_GENERIC);
         if (!exc.empty()) {
             throw *std::ranges::max_element(exc);
         }
@@ -963,7 +963,7 @@ static void downsort_tree_inner(
          * buckets -- and we read the 1l buckets from PBR.
          */
         if (ws.toplevel > 1)
-            pool.drain_queue(0);
+            pool.drain_queue(thread_pool::QUEUE_GENERIC);
     }
 }
 

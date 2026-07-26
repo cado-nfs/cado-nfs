@@ -792,8 +792,8 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
             /* We must make sure that we join the async threads at some
              * point, otherwise we'll leak memory. It seems more appropriate
              * to batch-join only, so this is done at the las_subjob level */
-            // worker->get_pool().get_result(1, false);
-            worker->get_pool().add_task(detached_cofac, D, N, 1); /* id N, queue 1 */
+            // worker->get_pool().get_result(thread_pool::QUEUE_ECM, false);
+            worker->get_pool().add_task(detached_cofac, D, N, thread_pool::QUEUE_ECM); /* id N, queue 1 */
         } else {
             /* We must proceed synchronously for the descent */
             std::unique_ptr<detached_cofac_result> res(
@@ -947,7 +947,8 @@ void process_many_bucket_regions(
             pool.add_shared_task(P, i, 0);
         }
 
-        /* it's only really done when we do drain_queue(0), of course */
+        /* it's only really done when we do
+         * drain_queue(thread_pool::QUEUE_GENERIC), of course */
         done += ready;
 
         if (done < ws.nb_buckets[1]) {
@@ -974,10 +975,10 @@ void process_many_bucket_regions(
                                 first_region0_index + done,
                                 more,
                                 ws.conf.logI, Q.sublat);
-                        },0);
+                        },0, thread_pool::QUEUE_GENERIC);
             }
 
-            pool.drain_queue(0);
+            pool.drain_queue(thread_pool::QUEUE_GENERIC);
 
             ready = more;
 

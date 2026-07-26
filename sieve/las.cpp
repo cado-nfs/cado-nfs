@@ -800,16 +800,17 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
                                 ws.conf.logI, Q.sublat);
                         wss.ssd->small_sieve_activate_many_start_positions();
                     }
-            },0);
+            },
+            0, thread_pool::QUEUE_GENERIC, std::numeric_limits<double>::max());
         }
 
         /* Note: we haven't done any downsorting yet ! */
 
-        pool.drain_queue(0);
+        pool.drain_queue(thread_pool::QUEUE_GENERIC);
 
         ws.check_buckets_max_full_toplevel(ws.toplevel);
 
-        auto exc = pool.get_exceptions<buckets_are_full>(0);
+        auto exc = pool.get_exceptions<buckets_are_full>(thread_pool::QUEUE_GENERIC);
         if (!exc.empty())
             throw *std::ranges::max_element(exc);
     }
@@ -867,7 +868,7 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
     if (sync_at_special_q) {
         pool.drain_all_queues();
     } else {
-        pool.drain_queue(0);
+        pool.drain_queue(thread_pool::QUEUE_GENERIC);
     }
 }/*}}}*/
 
@@ -1117,12 +1118,7 @@ static void las_subjob(las_info & las, int subjob, report_and_timer & global_rt)
     double cumulated_wait_time = 0;     /* for this subjob only */
     {
         /* add scoping to control dtor call */
-        /* queue 0: main
-         * queue 1: ECM
-         * queue 2: things that we join almost immediately, but are
-         * multithreaded nevertheless: alloc buckets, ...
-         */
-        thread_pool pool(las.number_of_threads_per_subjob(), cumulated_wait_time, 3, sync_thread_pool);
+        thread_pool pool(las.number_of_threads_per_subjob(), cumulated_wait_time, thread_pool::NQUEUES, sync_thread_pool);
         nfs_work ws(las, ALGO{});
 
         /* {{{ Doc on todo list handling
@@ -1154,7 +1150,7 @@ static void las_subjob(las_info & las, int subjob, report_and_timer & global_rt)
              * decide on the relevance of creating a new output object */
 
             /* (non-blocking) join results from detached cofac */
-            for(task_result * r ; (r = pool.get_result(1, false)) ; delete r);
+            for(task_result * r ; (r = pool.get_result(thread_pool::QUEUE_ECM, false)) ; delete r);
 
             nq++;
 
