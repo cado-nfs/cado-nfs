@@ -179,11 +179,9 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
     void dft_A_for_block(unsigned int i0, unsigned int iloop0, unsigned int iloop1)/*{{{*/
     {
         unsigned int aj = CTX.a_jrank();
-        unsigned int ak0mpi, ak1mpi;
-        std::tie(ak0mpi, ak1mpi) = mpi_split1.nth_block(aj);
+        auto [ ak0mpi, ak1mpi ] = mpi_split1.nth_block(aj);
+        auto [ kk0, kk1 ] = loop1.nth_block(iloop1);
 
-        unsigned int kk0,kk1;
-        std::tie(kk0, kk1) = loop1.nth_block(iloop1);
         ASSERT_ALWAYS((kk1 - kk0) <= b1);
         /* XXX ak0 and co, and esp. ak1-ak0, are *NOT* identical across
          * mpi jobs. All that we have is ak1-ak0 <= b1 and bk1-bk0 <= b1.
@@ -191,8 +189,7 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
         unsigned int ak0 = ak0mpi + kk0;
         unsigned int ak1 = std::min(ak1mpi, ak0 + b1);
 
-        unsigned int ii0, ii1;
-        std::tie(ii0, ii1) = loop0.nth_block(iloop0);
+        auto [ ii0, ii1 ] = loop0.nth_block(iloop0);
 
         submatrix_range Ra  (i0 + ii0, ak0-ak0mpi, ii1 - ii0, ak1-ak0);
         submatrix_range Rat (     0,   aj * b1,    ii1 - ii0, ak1-ak0);
@@ -231,11 +228,9 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
     void dft_B_for_block(unsigned int j0, unsigned int iloop1, unsigned int iloop2)/*{{{*/
     {
         unsigned int bi = CTX.b_irank();
-        unsigned int bk0mpi, bk1mpi;
-        std::tie(bk0mpi, bk1mpi) = mpi_split1.nth_block(bi);
+        auto [ bk0mpi, bk1mpi] = mpi_split1.nth_block(bi);
 
-        unsigned int kk0,kk1;
-        std::tie(kk0, kk1) = loop1.nth_block(iloop1);
+        auto [ kk0, kk1 ] = loop1.nth_block(iloop1);
         ASSERT_ALWAYS((kk1 - kk0) <= b1);
         /* XXX ak0 and co, and esp. ak1-ak0, are *NOT* identical across
          * mpi jobs. All that we have is ak1-ak0 <= b1 and bk1-bk0 <= b1.
@@ -243,9 +238,7 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
         unsigned int bk0 = bk0mpi + kk0;
         unsigned int bk1 = std::min(bk1mpi, bk0 + b1);
 
-        unsigned int jj0, jj1;
-        std::tie(jj0, jj1) = loop2.nth_block(iloop2);
-
+        auto [ jj0, jj1 ] = loop2.nth_block(iloop2);
 
         submatrix_range Rb   (bk0-bk0mpi, j0 + jj0, bk1-bk0, jj1 - jj0);
         submatrix_range Rbt  (bi * b1,      0,      bk1-bk0, jj1 - jj0);
@@ -278,10 +271,8 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
     void addmul_for_block(unsigned int iloop0, unsigned int iloop2)/*{{{*/
     {
         const unsigned int r = CTX.mesh_inner_size();
-        unsigned int ii0, ii1;
-        unsigned int jj0, jj1;
-        std::tie(ii0, ii1) = loop0.nth_block(iloop0);
-        std::tie(jj0, jj1) = loop2.nth_block(iloop2);
+        auto [ ii0, ii1 ] = loop0.nth_block(iloop0);
+        auto [ jj0, jj1 ] = loop2.nth_block(iloop2);
 
         begin_smallstep("addmul", b0 * b1 * b2 * r);
 
@@ -326,12 +317,10 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
         /* In the non-mpi case, mpi_split1 has one chunk only, 
          * rank==0, so that ak0mpi=bk0mpi=0 and ak1mpi=bk1mpi=a.n
          */
-        unsigned int aj = CTX.a_jrank();
-        unsigned int bi = CTX.b_jrank();
-        unsigned int ak0mpi, ak1mpi;
-        unsigned int bk0mpi, bk1mpi;
-        std::tie(ak0mpi, ak1mpi) = mpi_split1.nth_block(aj);
-        std::tie(bk0mpi, bk1mpi) = mpi_split1.nth_block(bi);
+        // unsigned int aj = CTX.a_jrank();
+        // unsigned int bi = CTX.b_jrank();
+        // auto [ ak0mpi, ak1mpi ] = mpi_split1.nth_block(aj);
+        // auto [ bk0mpi, bk1mpi ] = mpi_split1.nth_block(bi);
 
         for(unsigned int round = 0 ; round < shrink0 * shrink2 ; round++) {
             unsigned round0 = round % shrink0;
@@ -339,10 +328,8 @@ template<typename OP_CTX_T, typename OP_T> struct mp_or_mul {
 
             /* Prepare the processing of the small blocks of size b0*b2
              */
-            unsigned int i0, i1;
-            unsigned int j0, j1;
-            std::tie(i0, i1) = shrink_split0.nth_block(round0);
-            std::tie(j0, j1) = shrink_split2.nth_block(round2);
+            auto [ i0, i1 ] = shrink_split0.nth_block(round0);
+            auto [ j0, j1 ] = shrink_split2.nth_block(round2);
             // TODO: we only have true data for [xi0, xi1[, not [i0, i1[
             // unsigned int xi0 = std::min(i0, imax);
             // unsigned int xi1 = std::min(i1, imax);
